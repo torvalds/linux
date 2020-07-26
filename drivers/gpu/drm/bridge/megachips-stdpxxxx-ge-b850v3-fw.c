@@ -245,16 +245,6 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 {
 	struct i2c_client *stdp4028_i2c
 			= ge_b850v3_lvds_ptr->stdp4028_i2c;
-	int ret;
-
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
-		return -EINVAL;
-	}
-
-	ret = ge_b850v3_lvds_create_connector(bridge);
-	if (ret)
-		return ret;
 
 	/* Configures the bridge to re-enable interrupts after each ack. */
 	i2c_smbus_write_word_data(stdp4028_i2c,
@@ -266,7 +256,10 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 				  STDP4028_DPTX_IRQ_EN_REG,
 				  STDP4028_DPTX_IRQ_CONFIG);
 
-	return 0;
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
+
+	return ge_b850v3_lvds_create_connector(bridge);
 }
 
 static const struct drm_bridge_funcs ge_b850v3_lvds_funcs = {
@@ -327,6 +320,7 @@ static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
 	ge_b850v3_lvds_ptr->bridge.funcs = &ge_b850v3_lvds_funcs;
 	ge_b850v3_lvds_ptr->bridge.ops = DRM_BRIDGE_OP_DETECT |
 					 DRM_BRIDGE_OP_EDID;
+	ge_b850v3_lvds_ptr->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	ge_b850v3_lvds_ptr->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ge_b850v3_lvds_ptr->bridge);
 
