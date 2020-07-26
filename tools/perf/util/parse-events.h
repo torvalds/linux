@@ -261,4 +261,6 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 }
 #endif /* HAVE_LIBELF_SUPPORT */
 
+int perf_pmu__test_parse_init(void);
+
 #endif /* __PERF_PARSE_EVENTS_H */
