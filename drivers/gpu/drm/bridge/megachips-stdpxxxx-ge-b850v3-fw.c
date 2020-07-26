@@ -226,8 +226,8 @@ static irqreturn_t ge_b850v3_lvds_irq_handler(int irq, void *dev_id)
 				  STDP4028_DPTX_IRQ_STS_REG,
 				  STDP4028_DPTX_IRQ_CLEAR);
 
-	if (ge_b850v3_lvds_ptr->connector.dev)
-		drm_kms_helper_hotplug_event(ge_b850v3_lvds_ptr->connector.dev);
+	if (ge_b850v3_lvds_ptr->bridge.dev)
+		drm_kms_helper_hotplug_event(ge_b850v3_lvds_ptr->bridge.dev);
 
 	return IRQ_HANDLED;
 }
