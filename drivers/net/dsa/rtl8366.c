@@ -43,17 +43,25 @@ int rtl8366_set_vlan(struct realtek_smi *smi, int vid, u32 member,
 	int ret;
 	int i;
 
+	dev_dbg(smi->dev,
+		"setting VLAN%d 4k members: 0x%02x, untagged: 0x%02x\n",
+		vid, member, untag);
+
 	/* Update the 4K table */
 	ret = smi->ops->get_vlan_4k(smi, vid, &vlan4k);
 	if (ret)
 		return ret;
 
-	vlan4k.member = member;
-	vlan4k.untag = untag;
+	vlan4k.member |= member;
+	vlan4k.untag |= untag;
 	vlan4k.fid = fid;
 	ret = smi->ops->set_vlan_4k(smi, &vlan4k);
 	if (ret)
 		return ret;
+
+	dev_dbg(smi->dev,
+		"resulting VLAN%d 4k members: 0x%02x, untagged: 0x%02x\n",
+		vid, vlan4k.member, vlan4k.untag);
 
 	/* Try to find an existing MC entry for this VID */
 	for (i = 0; i < smi->num_vlan_mc; i++) {
@@ -65,11 +73,16 @@ int rtl8366_set_vlan(struct realtek_smi *smi, int vid, u32 member,
 
 		if (vid == vlanmc.vid) {
 			/* update the MC entry */
-			vlanmc.member = member;
-			vlanmc.untag = untag;
+			vlanmc.member |= member;
+			vlanmc.untag |= untag;
 			vlanmc.fid = fid;
 
 			ret = smi->ops->set_vlan_mc(smi, i, &vlanmc);
+
+			dev_dbg(smi->dev,
+				"resulting VLAN%d MC members: 0x%02x, untagged: 0x%02x\n",
+				vid, vlanmc.member, vlanmc.untag);
+
 			break;
 		}
 	}
