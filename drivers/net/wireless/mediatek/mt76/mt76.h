@@ -637,6 +637,7 @@ struct mt76_dev {
 	struct mt76_mcu mcu;
 
 	struct net_device napi_dev;
+	struct net_device tx_napi_dev;
 	spinlock_t rx_lock;
 	struct napi_struct napi[__MT_RXQ_MAX];
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];

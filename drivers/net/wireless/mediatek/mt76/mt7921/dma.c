@@ -299,7 +299,7 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt7921_poll_tx, NAPI_POLL_WEIGHT);
 	napi_enable(&dev->mt76.tx_napi);
 

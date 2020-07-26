@@ -602,7 +602,6 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 	dev = container_of(napi->dev, struct mt76_dev, napi_dev);
 	qid = napi - dev->napi;
 
-	local_bh_disable();
 	rcu_read_lock();
 
 	do {
@@ -612,7 +611,6 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 	} while (cur && done < budget);
 
 	rcu_read_unlock();
-	local_bh_enable();
 
 	if (done < budget && napi_complete(napi))
 		dev->drv->rx_poll_complete(dev, qid);
@@ -626,6 +624,10 @@ mt76_dma_init(struct mt76_dev *dev)
 	int i;
 
 	init_dummy_netdev(&dev->napi_dev);
+	init_dummy_netdev(&dev->tx_napi_dev);
+	snprintf(dev->napi_dev.name, sizeof(dev->napi_dev.name), "%s",
+		 wiphy_name(dev->hw->wiphy));
+	dev->napi_dev.threaded = 1;
 
 	mt76_for_each_q_rx(dev, i) {
 		netif_napi_add(&dev->napi_dev, &dev->napi[i], mt76_dma_rx_poll,
