@@ -23,7 +23,6 @@
 #include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
-#include <asm/mips_machine.h>
 #include <asm/prom.h>
 #include <asm/fw/fw.h>
 
