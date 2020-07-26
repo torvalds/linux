@@ -89,10 +89,12 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.regs.nip;
 }
 
+#ifdef CONFIG_BOOKE
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault_dear;
 }
+#endif
 
 static inline bool kvmppc_supports_magic_page(struct kvm_vcpu *vcpu)
 {
