@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/fib_rules.h>
 #include <net/ipv6.h>
@@ -255,8 +256,9 @@ out:
 	return err;
 }
 
-static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
-			    int flags, struct fib_lookup_arg *arg)
+INDIRECT_CALLABLE_SCOPE int fib6_rule_action(struct fib_rule *rule,
+					     struct flowi *flp, int flags,
+					     struct fib_lookup_arg *arg)
 {
 	if (arg->lookup_ptr == fib6_table_lookup)
 		return fib6_rule_action_alt(rule, flp, flags, arg);
@@ -264,7 +266,8 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	return __fib6_rule_action(rule, flp, flags, arg);
 }
 
-static bool fib6_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
+INDIRECT_CALLABLE_SCOPE bool fib6_rule_suppress(struct fib_rule *rule,
+						struct fib_lookup_arg *arg)
 {
 	struct fib6_result *res = arg->result;
 	struct rt6_info *rt = res->rt6;
@@ -296,7 +299,8 @@ suppress_route:
 	return true;
 }
 
-static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
+INDIRECT_CALLABLE_SCOPE int fib6_rule_match(struct fib_rule *rule,
+					    struct flowi *fl, int flags)
 {
 	struct fib6_rule *r = (struct fib6_rule *) rule;
 	struct flowi6 *fl6 = &fl->u.ip6;
