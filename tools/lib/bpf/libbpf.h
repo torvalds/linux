@@ -257,6 +257,8 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd);
 LIBBPF_API struct bpf_link *
 bpf_program__attach_netns(struct bpf_program *prog, int netns_fd);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_xdp(struct bpf_program *prog, int ifindex);
 
 struct bpf_map;
 

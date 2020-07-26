@@ -1480,32 +1480,11 @@ static int xennet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	return 0;
 }
 
-static u32 xennet_xdp_query(struct net_device *dev)
-{
-	unsigned int num_queues = dev->real_num_tx_queues;
-	struct netfront_info *np = netdev_priv(dev);
-	const struct bpf_prog *xdp_prog;
-	struct netfront_queue *queue;
-	unsigned int i;
-
-	for (i = 0; i < num_queues; ++i) {
-		queue = &np->queues[i];
-		xdp_prog = rtnl_dereference(queue->xdp_prog);
-		if (xdp_prog)
-			return xdp_prog->aux->id;
-	}
-
-	return 0;
-}
-
 static int xennet_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return xennet_xdp_set(dev, xdp->prog, xdp->extack);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = xennet_xdp_query(dev);
-		return 0;
 	default:
 		return -EINVAL;
 	}

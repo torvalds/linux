@@ -4656,9 +4656,6 @@ static int mvpp2_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return mvpp2_xdp_setup(port, xdp);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = port->xdp_prog ? port->xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}
