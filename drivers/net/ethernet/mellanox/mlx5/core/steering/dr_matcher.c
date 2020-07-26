@@ -474,14 +474,13 @@ static int dr_matcher_add_to_tbl(struct mlx5dr_matcher *matcher)
 	int ret;
 
 	next_matcher = NULL;
-	if (!list_empty(&tbl->matcher_list))
-		list_for_each_entry(tmp_matcher, &tbl->matcher_list, matcher_list) {
-			if (tmp_matcher->prio >= matcher->prio) {
-				next_matcher = tmp_matcher;
-				break;
-			}
-			first = false;
+	list_for_each_entry(tmp_matcher, &tbl->matcher_list, matcher_list) {
+		if (tmp_matcher->prio >= matcher->prio) {
+			next_matcher = tmp_matcher;
+			break;
 		}
+		first = false;
+	}
 
 	prev_matcher = NULL;
 	if (next_matcher && !first)
