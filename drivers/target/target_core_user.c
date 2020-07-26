@@ -1129,6 +1129,18 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 	return scsi_ret;
 }
 
+static void tcmu_set_next_deadline(struct list_head *queue,
+				   struct timer_list *timer)
+{
+	struct tcmu_cmd *cmd;
+
+	if (!list_empty(queue)) {
+		cmd = list_first_entry(queue, struct tcmu_cmd, queue_entry);
+		mod_timer(timer, cmd->deadline);
+	} else
+		del_timer(timer);
+}
+
 static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *entry)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd;
@@ -1196,25 +1208,6 @@ out:
 	tcmu_free_cmd(cmd);
 }
 
-static void tcmu_set_next_deadline(struct list_head *queue,
-				   struct timer_list *timer)
-{
-	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
-	unsigned long deadline = 0;
-
-	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, queue, queue_entry) {
-		if (!time_after(jiffies, tcmu_cmd->deadline)) {
-			deadline = tcmu_cmd->deadline;
-			break;
-		}
-	}
-
-	if (deadline)
-		mod_timer(timer, deadline);
-	else
-		del_timer(timer);
-}
-
 static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 {
 	struct tcmu_mailbox *mb;
@@ -1267,22 +1260,16 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 		handled++;
 	}
 
-	if (mb->cmd_tail == mb->cmd_head) {
-		/* no more pending commands */
-		del_timer(&udev->cmd_timer);
-
-		if (list_empty(&udev->qfull_queue)) {
-			/*
-			 * no more pending or waiting commands so try to
-			 * reclaim blocks if needed.
-			 */
-			if (atomic_read(&global_db_count) >
-			    tcmu_global_max_blocks)
-				schedule_delayed_work(&tcmu_unmap_work, 0);
-		}
-	} else if (udev->cmd_time_out) {
-		tcmu_set_next_deadline(&udev->inflight_queue, &udev->cmd_timer);
+	if (atomic_read(&global_db_count) > tcmu_global_max_blocks &&
+	    idr_is_empty(&udev->commands) && list_empty(&udev->qfull_queue)) {
+		/*
+		 * Allocated blocks exceeded global block limit, currently no
+		 * more pending or waiting commands so try to reclaim blocks.
+		 */
+		schedule_delayed_work(&tcmu_unmap_work, 0);
 	}
+	if (udev->cmd_time_out)
+		tcmu_set_next_deadline(&udev->inflight_queue, &udev->cmd_timer);
 
 	return handled;
 }
@@ -1291,7 +1278,7 @@ static void tcmu_check_expired_ring_cmd(struct tcmu_cmd *cmd)
 {
 	struct se_cmd *se_cmd;
 
-	if (!time_after(jiffies, cmd->deadline))
+	if (!time_after_eq(jiffies, cmd->deadline))
 		return;
 
 	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
@@ -1310,7 +1297,7 @@ static void tcmu_check_expired_queue_cmd(struct tcmu_cmd *cmd)
 {
 	struct se_cmd *se_cmd;
 
-	if (!time_after(jiffies, cmd->deadline))
+	if (!time_after_eq(jiffies, cmd->deadline))
 		return;
 
 	pr_debug("Timing out queued cmd %p on dev %s.\n",
