@@ -73,6 +73,12 @@ static int scan_pkey_feature(void)
 	if (early_radix_enabled())
 		return 0;
 
+	/*
+	 * Only P7 and above supports SPRN_AMR update with MSR[PR] = 1
+	 */
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_206))
+		return 0;
+
 	ret = of_scan_flat_dt(dt_scan_storage_keys, &pkeys_total);
 	if (ret == 0) {
 		/*
