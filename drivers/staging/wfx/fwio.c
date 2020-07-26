@@ -397,10 +397,9 @@ int wfx_init_device(struct wfx_dev *wdev)
 	ret = load_firmware_secure(wdev);
 	if (ret < 0)
 		return ret;
-	ret = config_reg_write_bits(wdev,
-				    CFG_DIRECT_ACCESS_MODE |
-				    CFG_IRQ_ENABLE_DATA |
-				    CFG_IRQ_ENABLE_WRDY,
-				    CFG_IRQ_ENABLE_DATA);
-	return ret;
+	return config_reg_write_bits(wdev,
+				     CFG_DIRECT_ACCESS_MODE |
+				     CFG_IRQ_ENABLE_DATA |
+				     CFG_IRQ_ENABLE_WRDY,
+				     CFG_IRQ_ENABLE_DATA);
 }
