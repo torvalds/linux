@@ -1312,6 +1312,8 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		}
 	kvfree(attr->parse_attr);
 
+	mlx5_tc_ct_match_del(priv, &flow->esw_attr->ct_attr);
+
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
 
@@ -4399,8 +4401,8 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_free;
 
 	/* actions validation depends on parsing the ct matches first */
-	err = mlx5_tc_ct_parse_match(priv, &parse_attr->spec, f,
-				     &flow->esw_attr->ct_attr, extack);
+	err = mlx5_tc_ct_match_add(priv, &parse_attr->spec, f,
+				   &flow->esw_attr->ct_attr, extack);
 	if (err)
 		goto err_free;
 
