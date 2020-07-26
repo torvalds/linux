@@ -163,8 +163,7 @@ drm_connector_helper_funcs ge_b850v3_lvds_connector_helper_funcs = {
 	.mode_valid = ge_b850v3_lvds_mode_valid,
 };
 
-static enum drm_connector_status ge_b850v3_lvds_detect(
-		struct drm_connector *connector, bool force)
+static enum drm_connector_status ge_b850v3_lvds_bridge_detect(struct drm_bridge *bridge)
 {
 	struct i2c_client *stdp4028_i2c =
 			ge_b850v3_lvds_ptr->stdp4028_i2c;
@@ -180,6 +179,12 @@ static enum drm_connector_status ge_b850v3_lvds_detect(
 		return connector_status_disconnected;
 
 	return connector_status_unknown;
+}
+
+static enum drm_connector_status ge_b850v3_lvds_detect(struct drm_connector *connector,
+						       bool force)
+{
+	return ge_b850v3_lvds_bridge_detect(&ge_b850v3_lvds_ptr->bridge);
 }
 
 static const struct drm_connector_funcs ge_b850v3_lvds_connector_funcs = {
@@ -263,6 +268,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs ge_b850v3_lvds_funcs = {
 	.attach = ge_b850v3_lvds_attach,
+	.detect = ge_b850v3_lvds_bridge_detect,
 };
 
 static int ge_b850v3_lvds_init(struct device *dev)
@@ -317,6 +323,7 @@ static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
 
 	/* drm bridge initialization */
 	ge_b850v3_lvds_ptr->bridge.funcs = &ge_b850v3_lvds_funcs;
+	ge_b850v3_lvds_ptr->bridge.ops = DRM_BRIDGE_OP_DETECT;
 	ge_b850v3_lvds_ptr->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ge_b850v3_lvds_ptr->bridge);
 
