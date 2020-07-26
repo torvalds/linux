@@ -191,33 +191,10 @@ static const struct drm_connector_funcs ge_b850v3_lvds_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static irqreturn_t ge_b850v3_lvds_irq_handler(int irq, void *dev_id)
-{
-	struct i2c_client *stdp4028_i2c
-			= ge_b850v3_lvds_ptr->stdp4028_i2c;
-
-	i2c_smbus_write_word_data(stdp4028_i2c,
-				  STDP4028_DPTX_IRQ_STS_REG,
-				  STDP4028_DPTX_IRQ_CLEAR);
-
-	if (ge_b850v3_lvds_ptr->connector.dev)
-		drm_kms_helper_hotplug_event(ge_b850v3_lvds_ptr->connector.dev);
-
-	return IRQ_HANDLED;
-}
-
-static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
-				 enum drm_bridge_attach_flags flags)
+static int ge_b850v3_lvds_create_connector(struct drm_bridge *bridge)
 {
 	struct drm_connector *connector = &ge_b850v3_lvds_ptr->connector;
-	struct i2c_client *stdp4028_i2c
-			= ge_b850v3_lvds_ptr->stdp4028_i2c;
 	int ret;
-
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
-		return -EINVAL;
-	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
@@ -237,7 +214,37 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	ret = drm_connector_attach_encoder(connector, bridge->encoder);
+	return drm_connector_attach_encoder(connector, bridge->encoder);
+}
+
+static irqreturn_t ge_b850v3_lvds_irq_handler(int irq, void *dev_id)
+{
+	struct i2c_client *stdp4028_i2c
+			= ge_b850v3_lvds_ptr->stdp4028_i2c;
+
+	i2c_smbus_write_word_data(stdp4028_i2c,
+				  STDP4028_DPTX_IRQ_STS_REG,
+				  STDP4028_DPTX_IRQ_CLEAR);
+
+	if (ge_b850v3_lvds_ptr->connector.dev)
+		drm_kms_helper_hotplug_event(ge_b850v3_lvds_ptr->connector.dev);
+
+	return IRQ_HANDLED;
+}
+
+static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
+{
+	struct i2c_client *stdp4028_i2c
+			= ge_b850v3_lvds_ptr->stdp4028_i2c;
+	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
+
+	ret = ge_b850v3_lvds_create_connector(bridge);
 	if (ret)
 		return ret;
 
