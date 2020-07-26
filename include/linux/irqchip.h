@@ -12,6 +12,7 @@
 #define _LINUX_IRQCHIP_H
 
 #include <linux/acpi.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
