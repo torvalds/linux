@@ -490,14 +490,20 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 
 	/* DAC Mixer Routes */
 	{ "Left Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch", "AIF1 DA0L" },
+	{ "Left Digital DAC Mixer", "ADC Digital DAC Playback Switch", "ADCL" },
+
 	{ "Right Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch", "AIF1 DA0R" },
+	{ "Right Digital DAC Mixer", "ADC Digital DAC Playback Switch", "ADCR" },
 
 	/* ADC Routes */
 	{ "AIF1 AD0L", NULL, "Left Digital ADC Mixer" },
 	{ "AIF1 AD0R", NULL, "Right Digital ADC Mixer" },
 
 	/* ADC Mixer Routes */
+	{ "Left Digital ADC Mixer", "AIF1 Slot 0 Digital ADC Capture Switch", "AIF1 DA0L" },
 	{ "Left Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch", "ADCL" },
+
+	{ "Right Digital ADC Mixer", "AIF1 Slot 0 Digital ADC Capture Switch", "AIF1 DA0R" },
 	{ "Right Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch", "ADCR" },
 };
 
