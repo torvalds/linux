@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
@@ -85,10 +86,15 @@
 #define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK	GENMASK(8, 6)
 #define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK	GENMASK(12, 9)
 
+struct sun8i_codec_quirks {
+	bool legacy_widgets	: 1;
+};
+
 struct sun8i_codec {
-	struct regmap	*regmap;
-	struct clk	*clk_module;
-	struct clk	*clk_bus;
+	struct regmap			*regmap;
+	struct clk			*clk_module;
+	struct clk			*clk_bus;
+	const struct sun8i_codec_quirks	*quirks;
 };
 
 static int sun8i_codec_runtime_resume(struct device *dev)
@@ -388,21 +394,29 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("ADC", SUN8I_ADC_DIG_CTRL, SUN8I_ADC_DIG_CTRL_ENDA,
 			    0, NULL, 0),
 
-	/* Analog DAC AIF */
-	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Left", "Playback", 0,
+	/* AIF "DAC" Inputs */
+	SND_SOC_DAPM_AIF_IN("AIF1 DA0L", "Playback", 0,
 			    SUN8I_AIF1_DACDAT_CTRL,
 			    SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0L_ENA, 0),
-	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Right", "Playback", 0,
+	SND_SOC_DAPM_AIF_IN("AIF1 DA0R", "Playback", 0,
 			    SUN8I_AIF1_DACDAT_CTRL,
 			    SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0R_ENA, 0),
 
-	/* Analog ADC AIF */
-	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Left ADC", "Capture", 0,
+	/* AIF "ADC" Outputs */
+	SND_SOC_DAPM_AIF_IN("AIF1 AD0L", "Capture", 0,
 			    SUN8I_AIF1_ADCDAT_CTRL,
 			    SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0L_ENA, 0),
-	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Right ADC", "Capture", 0,
+	SND_SOC_DAPM_AIF_IN("AIF1 AD0R", "Capture", 0,
 			    SUN8I_AIF1_ADCDAT_CTRL,
 			    SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0R_ENA, 0),
+
+	/* ADC Inputs (connected to analog codec DAPM context) */
+	SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
+
+	/* DAC Outputs (connected to analog codec DAPM context) */
+	SND_SOC_DAPM_DAC("DACL", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACR", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* DAC and ADC Mixers */
 	SOC_MIXER_ARRAY("Left Digital DAC Mixer", SND_SOC_NOPM, 0, 0,
@@ -449,39 +463,85 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	/* Clock Routes */
 	{ "AIF1", NULL, "SYSCLK AIF1" },
 	{ "AIF1 PLL", NULL, "AIF1" },
-	{ "RST AIF1", NULL, "AIF1 PLL" },
+	{ "SYSCLK", NULL, "AIF1 PLL" },
+
+	{ "RST AIF1", NULL, "SYSCLK" },
 	{ "MODCLK AFI1", NULL, "RST AIF1" },
-	{ "DAC", NULL, "MODCLK AFI1" },
-	{ "ADC", NULL, "MODCLK AFI1" },
+	{ "AIF1 AD0L", NULL, "MODCLK AFI1" },
+	{ "AIF1 AD0R", NULL, "MODCLK AFI1" },
+	{ "AIF1 DA0L", NULL, "MODCLK AFI1" },
+	{ "AIF1 DA0R", NULL, "MODCLK AFI1" },
 
 	{ "RST DAC", NULL, "SYSCLK" },
 	{ "MODCLK DAC", NULL, "RST DAC" },
 	{ "DAC", NULL, "MODCLK DAC" },
+	{ "DACL", NULL, "DAC" },
+	{ "DACR", NULL, "DAC" },
 
 	{ "RST ADC", NULL, "SYSCLK" },
 	{ "MODCLK ADC", NULL, "RST ADC" },
 	{ "ADC", NULL, "MODCLK ADC" },
+	{ "ADCL", NULL, "ADC" },
+	{ "ADCR", NULL, "ADC" },
 
 	/* DAC Routes */
-	{ "AIF1 Slot 0 Right", NULL, "DAC" },
-	{ "AIF1 Slot 0 Left", NULL, "DAC" },
+	{ "DACL", NULL, "Left Digital DAC Mixer" },
+	{ "DACR", NULL, "Right Digital DAC Mixer" },
 
 	/* DAC Mixer Routes */
-	{ "Left Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch",
-	  "AIF1 Slot 0 Left"},
-	{ "Right Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch",
-	  "AIF1 Slot 0 Right"},
+	{ "Left Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch", "AIF1 DA0L" },
+	{ "Right Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch", "AIF1 DA0R" },
 
 	/* ADC Routes */
-	{ "AIF1 Slot 0 Right ADC", NULL, "ADC" },
-	{ "AIF1 Slot 0 Left ADC", NULL, "ADC" },
+	{ "AIF1 AD0L", NULL, "Left Digital ADC Mixer" },
+	{ "AIF1 AD0R", NULL, "Right Digital ADC Mixer" },
 
 	/* ADC Mixer Routes */
-	{ "Left Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch",
-	  "AIF1 Slot 0 Left ADC" },
-	{ "Right Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch",
-	  "AIF1 Slot 0 Right ADC" },
+	{ "Left Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch", "ADCL" },
+	{ "Right Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch", "ADCR" },
 };
+
+static const struct snd_soc_dapm_widget sun8i_codec_legacy_widgets[] = {
+	/* Legacy ADC Inputs (connected to analog codec DAPM context) */
+	SND_SOC_DAPM_ADC("AIF1 Slot 0 Left ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("AIF1 Slot 0 Right ADC", NULL, SND_SOC_NOPM, 0, 0),
+
+	/* Legacy DAC Outputs (connected to analog codec DAPM context) */
+	SND_SOC_DAPM_DAC("AIF1 Slot 0 Left", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("AIF1 Slot 0 Right", NULL, SND_SOC_NOPM, 0, 0),
+};
+
+static const struct snd_soc_dapm_route sun8i_codec_legacy_routes[] = {
+	/* Legacy ADC Routes */
+	{ "ADCL", NULL, "AIF1 Slot 0 Left ADC" },
+	{ "ADCR", NULL, "AIF1 Slot 0 Right ADC" },
+
+	/* Legacy DAC Routes */
+	{ "AIF1 Slot 0 Left", NULL, "DACL" },
+	{ "AIF1 Slot 0 Right", NULL, "DACR" },
+};
+
+static int sun8i_codec_component_probe(struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	/* Add widgets for backward compatibility with old device trees. */
+	if (scodec->quirks->legacy_widgets) {
+		ret = snd_soc_dapm_new_controls(dapm, sun8i_codec_legacy_widgets,
+						ARRAY_SIZE(sun8i_codec_legacy_widgets));
+		if (ret)
+			return ret;
+
+		ret = snd_soc_dapm_add_routes(dapm, sun8i_codec_legacy_routes,
+					      ARRAY_SIZE(sun8i_codec_legacy_routes));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 static const struct snd_soc_dai_ops sun8i_codec_dai_ops = {
 	.hw_params = sun8i_codec_hw_params,
@@ -566,6 +626,8 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(scodec->regmap);
 	}
 
+	scodec->quirks = of_device_get_match_data(&pdev->dev);
+
 	platform_set_drvdata(pdev, scodec);
 
 	pm_runtime_enable(&pdev->dev);
@@ -603,8 +665,16 @@ static int sun8i_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun8i_codec_quirks sun8i_a33_quirks = {
+	.legacy_widgets	= true,
+};
+
+static const struct sun8i_codec_quirks sun50i_a64_quirks = {
+};
+
 static const struct of_device_id sun8i_codec_of_match[] = {
-	{ .compatible = "allwinner,sun8i-a33-codec" },
+	{ .compatible = "allwinner,sun8i-a33-codec", .data = &sun8i_a33_quirks },
+	{ .compatible = "allwinner,sun50i-a64-codec", .data = &sun50i_a64_quirks },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sun8i_codec_of_match);
