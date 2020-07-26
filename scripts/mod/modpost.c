@@ -144,6 +144,7 @@ char *get_line(char **stringp)
 	if (!orig || *orig == '\0')
 		return NULL;
 
+	/* don't use strsep here, it is not available everywhere */
 	next = strchr(orig, '\n');
 	if (next)
 		*next++ = '\0';
