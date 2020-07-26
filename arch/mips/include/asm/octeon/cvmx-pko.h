@@ -40,8 +40,7 @@
  * generic code while CVMX_PKO_LOCK_CMD_QUEUE should be used
  * with hand tuned fast path code.
  *
- * Some of other SDK differences visible to the command command
- * queuing:
+ * Some of other SDK differences visible to the command queuing:
  * - PKO indexes are no longer stored in the FAU. A large
  *   percentage of the FAU register block used to be tied up
  *   maintaining PKO queue pointers. These are now stored in a
@@ -413,7 +412,7 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
  * @use_locking: CVMX_PKO_LOCK_NONE, CVMX_PKO_LOCK_ATOMIC_TAG, or
  *		 CVMX_PKO_LOCK_CMD_QUEUE
  *
- * Returns returns CVMX_PKO_SUCCESS on success, or error code on
+ * Returns: CVMX_PKO_SUCCESS on success, or error code on
  * failure of output
  */
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
@@ -456,7 +455,7 @@ static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
  * @use_locking: CVMX_PKO_LOCK_NONE, CVMX_PKO_LOCK_ATOMIC_TAG, or
  *		 CVMX_PKO_LOCK_CMD_QUEUE
  *
- * Returns returns CVMX_PKO_SUCCESS on success, or error code on
+ * Returns: CVMX_PKO_SUCCESS on success, or error code on
  * failure of output
  */
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish3(
