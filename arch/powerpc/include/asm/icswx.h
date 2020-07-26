@@ -77,6 +77,8 @@ struct coprocessor_completion_block {
 #define CSB_CC_CHAIN		(37)
 #define CSB_CC_SEQUENCE		(38)
 #define CSB_CC_HW		(39)
+/* P9 DD2 NX Workbook 3.2 (Table 4-36): Address translation fault */
+#define	CSB_CC_FAULT_ADDRESS	(250)
 
 #define CSB_SIZE		(0x10)
 #define CSB_ALIGN		CSB_SIZE

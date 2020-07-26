@@ -33,13 +33,12 @@
 #include "atomisp_ioctl.h"
 #include "atomisp_acc.h"
 
-#include <asm/intel-mid.h>
-
 #include "ia_css_debug.h"
 #include "ia_css_isp_param.h"
 #include "sh_css_hrt.h"
 #include "ia_css_isys.h"
 
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
 
 /* Assume max number of ACC stages */
@@ -69,92 +68,94 @@ struct bayer_ds_factor {
 
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writeb(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_store_16(hrt_address addr, uint16_t data)
 {
-	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writew(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
 {
-	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	*io_virt_addr = data;
+	writel(data, isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u8 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readb(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 {
-	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u16 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readw(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 {
-	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	u32 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = *io_virt_addr;
+	ret = readl(isp->base + (addr & 0x003FFFFF));
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
-static void atomisp_css2_hw_store(hrt_address addr,
-				  const void *from, uint32_t n)
+static void atomisp_css2_hw_store(hrt_address addr, const void *from, uint32_t n)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	unsigned int i;
 
+	addr &= 0x003FFFFF;
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, io_virt_addr++, from++)
-		*io_virt_addr = *(s8 *)from;
+	for (i = 0; i < n; i++, from++)
+		writeb(*(s8 *)from, isp->base + addr + i);
+
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 {
-	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	struct atomisp_device *isp = dev_get_drvdata(atomisp_dev);
 	unsigned long flags;
 	unsigned int i;
 
+	addr &= 0x003FFFFF;
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, to++, io_virt_addr++)
-		*(s8 *)to = *io_virt_addr;
+	for (i = 0; i < n; i++, to++)
+		*(s8 *)to = readb(isp->base + addr + i);
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
@@ -181,10 +182,10 @@ void atomisp_load_uint32(hrt_address addr, uint32_t *data)
 	*data = atomisp_css2_hw_load_32(addr);
 }
 
-static int hmm_get_mmu_base_addr(unsigned int *mmu_base_addr)
+static int hmm_get_mmu_base_addr(struct device *dev, unsigned int *mmu_base_addr)
 {
 	if (!sh_mmu_mrfld.get_pd_base) {
-		dev_err(atomisp_dev, "get mmu base address failed.\n");
+		dev_err(dev, "get mmu base address failed.\n");
 		return -EINVAL;
 	}
 
@@ -839,7 +840,7 @@ int atomisp_css_init(struct atomisp_device *isp)
 	int ret;
 	int err;
 
-	ret = hmm_get_mmu_base_addr(&mmu_base_addr);
+	ret = hmm_get_mmu_base_addr(isp->dev, &mmu_base_addr);
 	if (ret)
 		return ret;
 
@@ -941,7 +942,7 @@ int atomisp_css_resume(struct atomisp_device *isp)
 	unsigned int mmu_base_addr;
 	int ret;
 
-	ret = hmm_get_mmu_base_addr(&mmu_base_addr);
+	ret = hmm_get_mmu_base_addr(isp->dev, &mmu_base_addr);
 	if (ret) {
 		dev_err(isp->dev, "get base address error.\n");
 		return -EINVAL;
@@ -1966,8 +1967,7 @@ void atomisp_css_input_set_mode(struct atomisp_sub_device *asd,
 			true,
 			0x13000,
 			&size_mem_words) != 0) {
-			if (intel_mid_identify_cpu() ==
-			    INTEL_MID_CPU_CHIP_TANGIER)
+			if (IS_MRFD)
 				size_mem_words = CSS_MIPI_FRAME_BUFFER_SIZE_2;
 			else
 				size_mem_words = CSS_MIPI_FRAME_BUFFER_SIZE_1;
@@ -2414,13 +2414,13 @@ static void __configure_preview_pp_input(struct atomisp_sub_device *asd,
 	struct ia_css_resolution  *effective_res =
 		    &stream_config->input_config.effective_res;
 
-	const struct bayer_ds_factor bds_fct[] = {{2, 1}, {3, 2}, {5, 4} };
+	static const struct bayer_ds_factor bds_fct[] = {{2, 1}, {3, 2}, {5, 4} };
 	/*
 	 * BZ201033: YUV decimation factor of 4 causes couple of rightmost
 	 * columns to be shaded. Remove this factor to work around the CSS bug.
 	 * const unsigned int yuv_dec_fct[] = {4, 2};
 	 */
-	const unsigned int yuv_dec_fct[] = { 2 };
+	static const unsigned int yuv_dec_fct[] = { 2 };
 	unsigned int i;
 
 	if (width == 0 && height == 0)
@@ -2540,7 +2540,7 @@ static void __configure_video_pp_input(struct atomisp_sub_device *asd,
 	struct ia_css_resolution  *effective_res =
 		    &stream_config->input_config.effective_res;
 
-	const struct bayer_ds_factor bds_factors[] = {
+	static const struct bayer_ds_factor bds_factors[] = {
 		{8, 1}, {6, 1}, {4, 1}, {3, 1}, {2, 1}, {3, 2}
 	};
 	unsigned int i;
@@ -4337,7 +4337,7 @@ static const char * const fw_acc_type_name[] = {
 	[IA_CSS_ACC_STANDALONE] =	"Stand-alone acceleration",
 };
 
-int atomisp_css_dump_blob_infor(void)
+int atomisp_css_dump_blob_infor(struct atomisp_device *isp)
 {
 	struct ia_css_blob_descr *bd = sh_css_blob_info;
 	unsigned int i, nm = sh_css_num_binaries;
@@ -4354,8 +4354,7 @@ int atomisp_css_dump_blob_infor(void)
 	for (i = 0; i < sh_css_num_binaries - NUM_OF_SPS; i++) {
 		switch (bd[i].header.type) {
 		case ia_css_isp_firmware:
-			dev_dbg(atomisp_dev,
-				"Num%2d type %s (%s), binary id is %2d, name is %s\n",
+			dev_dbg(isp->dev, "Num%2d type %s (%s), binary id is %2d, name is %s\n",
 				i + NUM_OF_SPS,
 				fw_type_name[bd[i].header.type],
 				fw_acc_type_name[bd[i].header.info.isp.type],
@@ -4363,8 +4362,7 @@ int atomisp_css_dump_blob_infor(void)
 				bd[i].name);
 			break;
 		default:
-			dev_dbg(atomisp_dev,
-				"Num%2d type %s, name is %s\n",
+			dev_dbg(isp->dev, "Num%2d type %s, name is %s\n",
 				i + NUM_OF_SPS, fw_type_name[bd[i].header.type],
 				bd[i].name);
 		}

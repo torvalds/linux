@@ -18,17 +18,15 @@ extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc100;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc107;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc108;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc109;
-
-#define hw_atl_b0_caps_aqc111 hw_atl_b0_caps_aqc108
-#define hw_atl_b0_caps_aqc112 hw_atl_b0_caps_aqc109
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc111;
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc112;
 
 #define hw_atl_b0_caps_aqc100s hw_atl_b0_caps_aqc100
 #define hw_atl_b0_caps_aqc107s hw_atl_b0_caps_aqc107
 #define hw_atl_b0_caps_aqc108s hw_atl_b0_caps_aqc108
 #define hw_atl_b0_caps_aqc109s hw_atl_b0_caps_aqc109
-
-#define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc108
-#define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc109
+#define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc111
+#define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc112
 
 extern const struct aq_hw_ops hw_atl_ops_b0;
 

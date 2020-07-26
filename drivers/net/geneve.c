@@ -1328,8 +1328,8 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 			  struct netlink_ext_ack *extack,
 			  struct geneve_config *cfg, bool changelink)
 {
-	int attrtype;
 	struct ip_tunnel_info *info = &cfg->info;
+	int attrtype;
 
 	if (data[IFLA_GENEVE_REMOTE] && data[IFLA_GENEVE_REMOTE6]) {
 		NL_SET_ERR_MSG(extack,

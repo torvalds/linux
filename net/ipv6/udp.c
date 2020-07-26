@@ -141,12 +141,12 @@ static int compute_score(struct sock *sk, struct net *net,
 	return score;
 }
 
-static inline struct sock *lookup_reuseport(struct net *net, struct sock *sk,
-					    struct sk_buff *skb,
-					    const struct in6_addr *saddr,
-					    __be16 sport,
-					    const struct in6_addr *daddr,
-					    unsigned int hnum)
+static struct sock *lookup_reuseport(struct net *net, struct sock *sk,
+				     struct sk_buff *skb,
+				     const struct in6_addr *saddr,
+				     __be16 sport,
+				     const struct in6_addr *daddr,
+				     unsigned int hnum)
 {
 	struct sock *reuse_sk = NULL;
 	u32 hash;
@@ -180,10 +180,11 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 		if (score > badness) {
 			result = lookup_reuseport(net, sk, skb,
 						  saddr, sport, daddr, hnum);
-			if (result)
+			/* Fall back to scoring if group has connections */
+			if (result && !reuseport_has_conns(sk, false))
 				return result;
 
-			result = sk;
+			result = result ? : sk;
 			badness = score;
 		}
 	}
@@ -210,7 +211,7 @@ static inline struct sock *udp6_lookup_run_bpf(struct net *net,
 		return sk;
 
 	reuse_sk = lookup_reuseport(net, sk, skb, saddr, sport, daddr, hnum);
-	if (reuse_sk)
+	if (reuse_sk && !reuseport_has_conns(sk, false))
 		sk = reuse_sk;
 	return sk;
 }
@@ -700,7 +701,7 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * UDP-Lite specific tests, ignored on UDP sockets (see net/ipv4/udp.c).
 	 */
-	if ((is_udplite & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
+	if ((up->pcflag & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
 
 		if (up->pcrlen == 0) {          /* full coverage was set  */
 			net_dbg_ratelimited("UDPLITE6: partial coverage %d while full coverage %d requested\n",

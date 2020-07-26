@@ -20,7 +20,6 @@
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
-#include <linux/rhashtable.h>
 #include <linux/jhash.h>
 #include <linux/rculist.h>
 #include <net/net_namespace.h>
