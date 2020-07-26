@@ -19,7 +19,7 @@ struct arch_hw_breakpoint {
 	u16		hw_len; /* length programmed in hw */
 };
 
-/* Note: Don't change the the first 6 bits below as they are in the same order
+/* Note: Don't change the first 6 bits below as they are in the same order
  * as the dabr and dabrx.
  */
 #define HW_BRK_TYPE_READ		0x01
