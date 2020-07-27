@@ -64,6 +64,7 @@ struct q6asm_dai_rtd {
 	uint16_t bits_per_sample;
 	uint16_t source; /* Encoding source bit mask */
 	struct audio_client *audio_client;
+	uint32_t stream_id;
 	uint16_t session_id;
 	enum stream_state state;
 };
@@ -181,7 +182,7 @@ static void event_handler(uint32_t opcode, uint32_t token,
 	switch (opcode) {
 	case ASM_CLIENT_EVENT_CMD_RUN_DONE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			q6asm_write_async(prtd->audio_client,
+			q6asm_write_async(prtd->audio_client, prtd->stream_id,
 				   prtd->pcm_count, 0, 0, NO_TIMESTAMP);
 		break;
 	case ASM_CLIENT_EVENT_CMD_EOS_DONE:
@@ -191,7 +192,7 @@ static void event_handler(uint32_t opcode, uint32_t token,
 		prtd->pcm_irq_pos += prtd->pcm_count;
 		snd_pcm_period_elapsed(substream);
 		if (prtd->state == Q6ASM_STREAM_RUNNING)
-			q6asm_write_async(prtd->audio_client,
+			q6asm_write_async(prtd->audio_client, prtd->stream_id,
 					   prtd->pcm_count, 0, 0, NO_TIMESTAMP);
 
 		break;
@@ -200,7 +201,7 @@ static void event_handler(uint32_t opcode, uint32_t token,
 		prtd->pcm_irq_pos += prtd->pcm_count;
 		snd_pcm_period_elapsed(substream);
 		if (prtd->state == Q6ASM_STREAM_RUNNING)
-			q6asm_read(prtd->audio_client);
+			q6asm_read(prtd->audio_client, prtd->stream_id);
 
 		break;
 	default:
@@ -233,7 +234,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	/* rate and channels are sent to audio driver */
 	if (prtd->state) {
 		/* clear the previous setup if any  */
-		q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+		q6asm_cmd(prtd->audio_client, prtd->stream_id, CMD_CLOSE);
 		q6asm_unmap_memory_regions(substream->stream,
 					   prtd->audio_client);
 		q6routing_stream_close(soc_prtd->dai_link->id,
@@ -252,11 +253,13 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = q6asm_open_write(prtd->audio_client, FORMAT_LINEAR_PCM,
+		ret = q6asm_open_write(prtd->audio_client, prtd->stream_id,
+				       FORMAT_LINEAR_PCM,
 				       0, prtd->bits_per_sample);
 	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		ret = q6asm_open_read(prtd->audio_client, FORMAT_LINEAR_PCM,
-				       prtd->bits_per_sample);
+		ret = q6asm_open_read(prtd->audio_client, prtd->stream_id,
+				      FORMAT_LINEAR_PCM,
+				      prtd->bits_per_sample);
 	}
 
 	if (ret < 0) {
@@ -276,17 +279,19 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = q6asm_media_format_block_multi_ch_pcm(
-				prtd->audio_client, runtime->rate,
-				runtime->channels, NULL,
+				prtd->audio_client, prtd->stream_id,
+				runtime->rate, runtime->channels, NULL,
 				prtd->bits_per_sample);
 	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ret = q6asm_enc_cfg_blk_pcm_format_support(prtd->audio_client,
-					runtime->rate, runtime->channels,
-					prtd->bits_per_sample);
+							   prtd->stream_id,
+							   runtime->rate,
+							   runtime->channels,
+							   prtd->bits_per_sample);
 
 		/* Queue the buffers */
 		for (i = 0; i < runtime->periods; i++)
-			q6asm_read(prtd->audio_client);
+			q6asm_read(prtd->audio_client, prtd->stream_id);
 
 	}
 	if (ret < 0)
@@ -308,15 +313,18 @@ static int q6asm_dai_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		ret = q6asm_run_nowait(prtd->audio_client, prtd->stream_id,
+				       0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_EOS);
+		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+				       CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_PAUSE);
+		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+				       CMD_PAUSE);
 		break;
 	default:
 		ret = -EINVAL;
@@ -360,6 +368,9 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 		kfree(prtd);
 		return ret;
 	}
+
+	/* DSP expects stream id from 1 */
+	prtd->stream_id = 1;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		runtime->hw = q6asm_dai_hardware_playback;
@@ -427,7 +438,8 @@ static int q6asm_dai_close(struct snd_soc_component *component,
 
 	if (prtd->audio_client) {
 		if (prtd->state)
-			q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+			q6asm_cmd(prtd->audio_client, prtd->stream_id,
+				  CMD_CLOSE);
 
 		q6asm_unmap_memory_regions(substream->stream,
 					   prtd->audio_client);
@@ -499,8 +511,8 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 	case ASM_CLIENT_EVENT_CMD_RUN_DONE:
 		spin_lock_irqsave(&prtd->lock, flags);
 		if (!prtd->bytes_sent) {
-			q6asm_write_async(prtd->audio_client, prtd->pcm_count,
-					  0, 0, NO_TIMESTAMP);
+			q6asm_write_async(prtd->audio_client, prtd->stream_id,
+					  prtd->pcm_count, 0, 0, NO_TIMESTAMP);
 			prtd->bytes_sent += prtd->pcm_count;
 		}
 
@@ -525,7 +537,7 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 		avail = prtd->bytes_received - prtd->bytes_sent;
 
 		if (avail >= prtd->pcm_count) {
-			q6asm_write_async(prtd->audio_client,
+			q6asm_write_async(prtd->audio_client, prtd->stream_id,
 					   prtd->pcm_count, 0, 0, NO_TIMESTAMP);
 			prtd->bytes_sent += prtd->pcm_count;
 		}
@@ -559,6 +571,9 @@ static int q6asm_dai_compr_open(struct snd_soc_component *component,
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (!prtd)
 		return -ENOMEM;
+
+	/* DSP expects stream id from 1 */
+	prtd->stream_id = 1;
 
 	prtd->cstream = stream;
 	prtd->audio_client = q6asm_audio_client_alloc(dev,
@@ -607,7 +622,8 @@ static int q6asm_dai_compr_free(struct snd_soc_component *component,
 
 	if (prtd->audio_client) {
 		if (prtd->state)
-			q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+			q6asm_cmd(prtd->audio_client, prtd->stream_id,
+				  CMD_CLOSE);
 
 		snd_dma_free_pages(&prtd->dma_buffer);
 		q6asm_unmap_memory_regions(stream->direction,
@@ -662,8 +678,9 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 	prtd->pcm_size = runtime->fragments * runtime->fragment_size;
 	prtd->bits_per_sample = 16;
 	if (dir == SND_COMPRESS_PLAYBACK) {
-		ret = q6asm_open_write(prtd->audio_client, params->codec.id,
-				params->codec.profile, prtd->bits_per_sample);
+		ret = q6asm_open_write(prtd->audio_client, prtd->stream_id,
+				       params->codec.id, params->codec.profile,
+				       prtd->bits_per_sample);
 
 		if (ret < 0) {
 			dev_err(dev, "q6asm_open_write failed\n");
@@ -697,6 +714,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		flac_cfg.min_frame_size = flac->min_frame_size;
 
 		ret = q6asm_stream_media_format_block_flac(prtd->audio_client,
+							   prtd->stream_id,
 							   &flac_cfg);
 		if (ret < 0) {
 			dev_err(dev, "FLAC CMD Format block failed:%d\n", ret);
@@ -756,10 +774,12 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 
 		if (wma_v9)
 			ret = q6asm_stream_media_format_block_wma_v9(
-					prtd->audio_client, &wma_cfg);
+					prtd->audio_client, prtd->stream_id,
+					&wma_cfg);
 		else
 			ret = q6asm_stream_media_format_block_wma_v10(
-					prtd->audio_client, &wma_cfg);
+					prtd->audio_client, prtd->stream_id,
+					&wma_cfg);
 		if (ret < 0) {
 			dev_err(dev, "WMA9 CMD failed:%d\n", ret);
 			return -EIO;
@@ -792,6 +812,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 			break;
 		}
 		ret = q6asm_stream_media_format_block_alac(prtd->audio_client,
+							   prtd->stream_id,
 							   &alac_cfg);
 		if (ret < 0) {
 			dev_err(dev, "ALAC CMD Format block failed:%d\n", ret);
@@ -816,6 +837,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		ape_cfg.seek_table_present = ape->seek_table_present;
 
 		ret = q6asm_stream_media_format_block_ape(prtd->audio_client,
+							  prtd->stream_id,
 							  &ape_cfg);
 		if (ret < 0) {
 			dev_err(dev, "APE CMD Format block failed:%d\n", ret);
@@ -852,15 +874,18 @@ static int q6asm_dai_compr_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		ret = q6asm_run_nowait(prtd->audio_client, prtd->stream_id,
+				       0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_EOS);
+		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+				       CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_PAUSE);
+		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+				       CMD_PAUSE);
 		break;
 	default:
 		ret = -EINVAL;
