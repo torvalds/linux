@@ -232,7 +232,9 @@ static void mxsfb_irq_disable(struct drm_device *drm)
 {
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
 
+	mxsfb_enable_axi_clk(mxsfb);
 	mxsfb->crtc.funcs->disable_vblank(&mxsfb->crtc);
+	mxsfb_disable_axi_clk(mxsfb);
 }
 
 static irqreturn_t mxsfb_irq_handler(int irq, void *data)
@@ -241,16 +243,12 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *data)
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
 	u32 reg;
 
-	mxsfb_enable_axi_clk(mxsfb);
-
 	reg = readl(mxsfb->base + LCDC_CTRL1);
 
 	if (reg & CTRL1_CUR_FRAME_DONE_IRQ)
 		drm_crtc_handle_vblank(&mxsfb->crtc);
 
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-
-	mxsfb_disable_axi_clk(mxsfb);
 
 	return IRQ_HANDLED;
 }

@@ -344,9 +344,6 @@ static void mxsfb_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct drm_pending_vblank_event *event;
 
 	mxsfb_disable_controller(mxsfb);
-	mxsfb_disable_axi_clk(mxsfb);
-
-	pm_runtime_put_sync(drm->dev);
 
 	spin_lock_irq(&drm->event_lock);
 	event = crtc->state->event;
@@ -355,6 +352,9 @@ static void mxsfb_crtc_atomic_disable(struct drm_crtc *crtc,
 		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irq(&drm->event_lock);
+
+	mxsfb_disable_axi_clk(mxsfb);
+	pm_runtime_put_sync(drm->dev);
 }
 
 static int mxsfb_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -362,10 +362,8 @@ static int mxsfb_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
 
 	/* Clear and enable VBLANK IRQ */
-	mxsfb_enable_axi_clk(mxsfb);
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
 	writel(CTRL1_CUR_FRAME_DONE_IRQ_EN, mxsfb->base + LCDC_CTRL1 + REG_SET);
-	mxsfb_disable_axi_clk(mxsfb);
 
 	return 0;
 }
@@ -375,10 +373,8 @@ static void mxsfb_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
 
 	/* Disable and clear VBLANK IRQ */
-	mxsfb_enable_axi_clk(mxsfb);
 	writel(CTRL1_CUR_FRAME_DONE_IRQ_EN, mxsfb->base + LCDC_CTRL1 + REG_CLR);
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
-	mxsfb_disable_axi_clk(mxsfb);
 }
 
 static const struct drm_crtc_helper_funcs mxsfb_crtc_helper_funcs = {
@@ -433,11 +429,8 @@ static void mxsfb_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t paddr;
 
 	paddr = mxsfb_get_fb_paddr(mxsfb);
-	if (paddr) {
-		mxsfb_enable_axi_clk(mxsfb);
+	if (paddr)
 		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
-		mxsfb_disable_axi_clk(mxsfb);
-	}
 }
 
 static const struct drm_plane_helper_funcs mxsfb_plane_helper_funcs = {
