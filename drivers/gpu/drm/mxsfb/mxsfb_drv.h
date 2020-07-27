@@ -8,7 +8,12 @@
 #ifndef __MXSFB_DRV_H__
 #define __MXSFB_DRV_H__
 
-struct drm_device;
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_plane.h>
+
+struct clk;
 
 struct mxsfb_devdata {
 	unsigned int	 transfer_count;
@@ -29,20 +34,22 @@ struct mxsfb_drm_private {
 	struct clk			*clk_disp_axi;
 
 	struct drm_device		*drm;
-	struct drm_simple_display_pipe	pipe;
+	struct drm_plane		plane;
+	struct drm_crtc			crtc;
+	struct drm_encoder		encoder;
 	struct drm_connector		*connector;
 	struct drm_bridge		*bridge;
 };
 
-int mxsfb_setup_crtc(struct drm_device *dev);
-int mxsfb_create_output(struct drm_device *dev);
+static inline struct mxsfb_drm_private *
+to_mxsfb_drm_private(struct drm_device *drm)
+{
+	return drm->dev_private;
+}
 
 void mxsfb_enable_axi_clk(struct mxsfb_drm_private *mxsfb);
 void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb);
 
-void mxsfb_crtc_enable(struct mxsfb_drm_private *mxsfb);
-void mxsfb_crtc_disable(struct mxsfb_drm_private *mxsfb);
-void mxsfb_plane_atomic_update(struct mxsfb_drm_private *mxsfb,
-			       struct drm_plane_state *state);
+int mxsfb_kms_init(struct mxsfb_drm_private *mxsfb);
 
 #endif /* __MXSFB_DRV_H__ */
