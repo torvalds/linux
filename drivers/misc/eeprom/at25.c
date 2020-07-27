@@ -261,7 +261,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 
 	if (device_property_read_u32(dev, "pagesize", &val) == 0 ||
 	    device_property_read_u32(dev, "at25,page-size", &val) == 0) {
-		chip->page_size = (u16)val;
+		chip->page_size = val;
 	} else {
 		dev_err(dev, "Error: missing \"pagesize\" property\n");
 		return -ENODEV;
