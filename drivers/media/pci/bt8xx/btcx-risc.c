@@ -73,7 +73,6 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		dprintk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
 			memcnt, (unsigned long)dma, cpu, size);
 	}
-	memset(risc->cpu,0,risc->size);
 	return 0;
 }
 
