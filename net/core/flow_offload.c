@@ -4,6 +4,7 @@
 #include <net/flow_offload.h>
 #include <linux/rtnetlink.h>
 #include <linux/mutex.h>
+#include <linux/rhashtable.h>
 
 struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {

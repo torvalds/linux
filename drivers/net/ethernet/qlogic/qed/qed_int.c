@@ -257,9 +257,10 @@ out:
 #define PGLUE_ATTENTION_ZLR_VALID		(1 << 25)
 #define PGLUE_ATTENTION_ILT_VALID		(1 << 23)
 
-int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt)
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+				bool hw_init)
 {
+	char msg[256];
 	u32 tmp;
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_WR_DETAILS2);
@@ -273,22 +274,23 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
 		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_WR_DETAILS);
 
-		DP_NOTICE(p_hwfn,
-			  "Illegal write by chip to [%08x:%08x] blocked.\n"
-			  "Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
-			  "Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
-			  addr_hi, addr_lo, details,
-			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
-			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
-			  GET_FIELD(details,
-				    PGLUE_ATTENTION_DETAILS_VF_VALID) ? 1 : 0,
-			  tmp,
-			  GET_FIELD(tmp,
-				    PGLUE_ATTENTION_DETAILS2_WAS_ERR) ? 1 : 0,
-			  GET_FIELD(tmp,
-				    PGLUE_ATTENTION_DETAILS2_BME) ? 1 : 0,
-			  GET_FIELD(tmp,
-				    PGLUE_ATTENTION_DETAILS2_FID_EN) ? 1 : 0);
+		snprintf(msg, sizeof(msg),
+			 "Illegal write by chip to [%08x:%08x] blocked.\n"
+			 "Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
+			 "Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]",
+			 addr_hi, addr_lo, details,
+			 (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
+			 (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
+			 !!GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VF_VALID),
+			 tmp,
+			 !!GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_WAS_ERR),
+			 !!GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_BME),
+			 !!GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_FID_EN));
+
+		if (hw_init)
+			DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "%s\n", msg);
+		else
+			DP_NOTICE(p_hwfn, "%s\n", msg);
 	}
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_RD_DETAILS2);
@@ -321,8 +323,14 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
 	}
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_WR_DETAILS_ICPL);
-	if (tmp & PGLUE_ATTENTION_ICPL_VALID)
-		DP_NOTICE(p_hwfn, "ICPL error - %08x\n", tmp);
+	if (tmp & PGLUE_ATTENTION_ICPL_VALID) {
+		snprintf(msg, sizeof(msg), "ICPL error - %08x", tmp);
+
+		if (hw_init)
+			DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "%s\n", msg);
+		else
+			DP_NOTICE(p_hwfn, "%s\n", msg);
+	}
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);
 	if (tmp & PGLUE_ATTENTION_ZLR_VALID) {
@@ -361,7 +369,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
 
 static int qed_pglueb_rbc_attn_cb(struct qed_hwfn *p_hwfn)
 {
-	return qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_dpc_ptt);
+	return qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_dpc_ptt, false);
 }
 
 static int qed_fw_assertion(struct qed_hwfn *p_hwfn)
@@ -1193,7 +1201,8 @@ static int qed_int_attentions(struct qed_hwfn *p_hwfn)
 			index, attn_bits, attn_acks, asserted_bits,
 			deasserted_bits, p_sb_attn_sw->known_attn);
 	} else if (asserted_bits == 0x100) {
-		DP_INFO(p_hwfn, "MFW indication via attention\n");
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "MFW indication via attention\n");
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 			   "MFW indication [deassertion]\n");
