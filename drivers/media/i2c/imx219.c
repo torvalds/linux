@@ -635,7 +635,7 @@ static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
 
 	return 0;
 }
