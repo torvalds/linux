@@ -2295,7 +2295,7 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 		DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16);
 
 	DEBUG_PRINT("    win%d-%d: %s\n", win->win_id, win->area_id,
-		    state->visible ? "ACTIVE" : "DISABLED");
+		    state->crtc ? "ACTIVE" : "DISABLED");
 	if (!fb)
 		return 0;
 
