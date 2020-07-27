@@ -1443,23 +1443,23 @@ static ssize_t arm_smmu_debug_testbus_read(struct file *file,
 
 		struct arm_smmu_device *smmu = file->private_data;
 		struct qsmmuv500_archdata *data = to_qsmmuv500_archdata(smmu);
-		void __iomem *base = arm_smmu_page(smmu, ARM_SMMU_GR0);
+		phys_addr_t phys_addr = smmu->phys_addr;
 		void __iomem *tcu_base = data->tcu_base;
 
 		arm_smmu_power_on(smmu->pwr);
 
 		if (ops == TESTBUS_SELECT) {
 			scnprintf(buf, buf_len, "TCU clk testbus sel: 0x%0x\n",
-				  arm_smmu_debug_tcu_testbus_select(base,
+				  arm_smmu_debug_tcu_testbus_select(phys_addr,
 					tcu_base, CLK_TESTBUS, READ, 0));
 			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
 				  "TCU testbus sel : 0x%0x\n",
-				  arm_smmu_debug_tcu_testbus_select(base,
+				  arm_smmu_debug_tcu_testbus_select(phys_addr,
 					 tcu_base, PTW_AND_CACHE_TESTBUS,
 					 READ, 0));
 		} else {
 			scnprintf(buf, buf_len, "0x%0x\n",
-				  arm_smmu_debug_tcu_testbus_output(base));
+				  arm_smmu_debug_tcu_testbus_output(phys_addr));
 		}
 
 		arm_smmu_power_off(smmu, smmu->pwr);
@@ -1482,7 +1482,7 @@ static ssize_t arm_smmu_debug_tcu_testbus_sel_write(struct file *file,
 	struct arm_smmu_device *smmu = file->private_data;
 	struct qsmmuv500_archdata *data = to_qsmmuv500_archdata(smmu);
 	void __iomem *tcu_base = data->tcu_base;
-	void __iomem *base = arm_smmu_page(smmu, ARM_SMMU_GR0);
+	phys_addr_t phys_addr = smmu->phys_addr;
 	char *comma;
 	char buf[100];
 	u64 sel, val;
@@ -1518,10 +1518,10 @@ static ssize_t arm_smmu_debug_tcu_testbus_sel_write(struct file *file,
 	arm_smmu_power_on(smmu->pwr);
 
 	if (sel == 1)
-		arm_smmu_debug_tcu_testbus_select(base,
+		arm_smmu_debug_tcu_testbus_select(phys_addr,
 				tcu_base, CLK_TESTBUS, WRITE, val);
 	else if (sel == 2)
-		arm_smmu_debug_tcu_testbus_select(base,
+		arm_smmu_debug_tcu_testbus_select(phys_addr,
 				tcu_base, PTW_AND_CACHE_TESTBUS, WRITE, val);
 
 	arm_smmu_power_off(smmu, smmu->pwr);
@@ -1724,7 +1724,7 @@ static void arm_smmu_testbus_dump(struct arm_smmu_device *smmu, u16 sid)
 							TBU_TESTBUS_SEL_ALL);
 		else
 			arm_smmu_debug_dump_tcu_testbus(smmu->dev,
-							smmu->base,
+							smmu->phys_addr,
 							data->tcu_base,
 							TCU_TESTBUS_SEL_ALL);
 		spin_unlock(&testbus_lock);

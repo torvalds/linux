@@ -58,13 +58,13 @@ enum testbus_ops {
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
 					bool write, u32 val);
 u32 arm_smmu_debug_tbu_testbus_output(void __iomem *tbu_base);
-u32 arm_smmu_debug_tcu_testbus_select(void __iomem *base,
+u32 arm_smmu_debug_tcu_testbus_select(phys_addr_t phys_addr,
 		void __iomem *tcu_base, enum tcu_testbus testbus,
 		bool write, u32 val);
-u32 arm_smmu_debug_tcu_testbus_output(void __iomem *base);
+u32 arm_smmu_debug_tcu_testbus_output(phys_addr_t phys_addr);
 void arm_smmu_debug_dump_tbu_testbus(struct device *dev, void __iomem *tbu_base,
 			int tbu_testbus_sel);
-void arm_smmu_debug_dump_tcu_testbus(struct device *dev, void __iomem *base,
+void arm_smmu_debug_dump_tcu_testbus(struct device *dev, phys_addr_t phys_addr,
 			void __iomem *tcu_base, int tcu_testbus_sel);
 
 #else
@@ -77,12 +77,12 @@ static inline u32 arm_smmu_debug_tbu_testbus_output(void __iomem *tbu_base)
 {
 	return 0;
 }
-u32 arm_smmu_debug_tcu_testbus_select(void __iomem *base,
+u32 arm_smmu_debug_tcu_testbus_select(phys_addr_t phys_addr,
 		void __iomem *tcu_base, enum tcu_testbus testbus,
 		bool write, u32 val)
 {
 }
-static inline u32 arm_smmu_debug_tcu_testbus_output(void __iomem *base)
+static inline u32 arm_smmu_debug_tcu_testbus_output(phys_addr_t phys_addr)
 {
 	return 0;
 }
@@ -91,7 +91,7 @@ static inline void arm_smmu_debug_dump_tbu_testbus(struct device *dev,
 {
 }
 static inline void arm_smmu_debug_dump_tcu_testbus(struct device *dev,
-			void __iomem *base, void __iomem *tcu_base,
+			phys_addr_t phys_addr, void __iomem *tcu_base,
 			int tcu_testbus_sel)
 {
 }
