@@ -183,9 +183,19 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	state->hdr.vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
 	test_nested_state_expect_einval(vm, state);
 
-	/* Size must be large enough to fit kvm_nested_state and vmcs12. */
+	/*
+	 * Size must be large enough to fit kvm_nested_state and vmcs12
+	 * if VMCS12 physical address is set
+	 */
 	set_default_vmx_state(state, state_sz);
 	state->size = sizeof(*state);
+	state->flags = 0;
+	test_nested_state_expect_einval(vm, state);
+
+	set_default_vmx_state(state, state_sz);
+	state->size = sizeof(*state);
+	state->flags = 0;
+	state->hdr.vmx.vmcs12_pa = -1;
 	test_nested_state(vm, state);
 
 	/*
