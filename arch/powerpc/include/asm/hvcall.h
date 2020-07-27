@@ -560,6 +560,42 @@ struct hv_guest_state {
 /* Latest version of hv_guest_state structure */
 #define HV_GUEST_STATE_VERSION	1
 
+/*
+ * From the document "H_GetPerformanceCounterInfo Interface" v1.07
+ *
+ * H_GET_PERF_COUNTER_INFO argument
+ */
+struct hv_get_perf_counter_info_params {
+	__be32 counter_request; /* I */
+	__be32 starting_index;  /* IO */
+	__be16 secondary_index; /* IO */
+	__be16 returned_values; /* O */
+	__be32 detail_rc; /* O, only needed when called via *_norets() */
+
+	/*
+	 * O, size each of counter_value element in bytes, only set for version
+	 * >= 0x3
+	 */
+	__be16 cv_element_size;
+
+	/* I, 0 (zero) for versions < 0x3 */
+	__u8 counter_info_version_in;
+
+	/* O, 0 (zero) if version < 0x3. Must be set to 0 when making hcall */
+	__u8 counter_info_version_out;
+	__u8 reserved[0xC];
+	__u8 counter_value[];
+} __packed;
+
+#define HGPCI_REQ_BUFFER_SIZE	4096
+#define HGPCI_MAX_DATA_BYTES \
+	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
+
+struct hv_gpci_request_buffer {
+	struct hv_get_perf_counter_info_params params;
+	uint8_t bytes[HGPCI_MAX_DATA_BYTES];
+} __packed;
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HVCALL_H */

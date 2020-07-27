@@ -123,16 +123,7 @@ static const struct attribute_group *attr_groups[] = {
 	NULL,
 };
 
-#define HGPCI_REQ_BUFFER_SIZE	4096
-#define HGPCI_MAX_DATA_BYTES \
-	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
-
 static DEFINE_PER_CPU(char, hv_gpci_reqb[HGPCI_REQ_BUFFER_SIZE]) __aligned(sizeof(uint64_t));
-
-struct hv_gpci_request_buffer {
-	struct hv_get_perf_counter_info_params params;
-	uint8_t bytes[HGPCI_MAX_DATA_BYTES];
-} __packed;
 
 static unsigned long single_gpci_request(u32 req, u32 starting_index,
 		u16 secondary_index, u8 version_in, u32 offset, u8 length,
