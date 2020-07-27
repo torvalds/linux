@@ -38,8 +38,8 @@ struct analogix_dp_plat_data {
 			 struct drm_connector *);
 };
 
-int analogix_dp_resume(struct analogix_dp_device *dp);
-int analogix_dp_suspend(struct analogix_dp_device *dp);
+int analogix_dp_runtime_resume(struct analogix_dp_device *dp);
+int analogix_dp_runtime_suspend(struct analogix_dp_device *dp);
 
 struct analogix_dp_device *
 analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data);
