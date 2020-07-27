@@ -19,14 +19,37 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
+#define CMU_R004		0x4
+#define CMU_R060		0x60
 #define CMU_R07C		0x7c
+#define CMU_R088		0x88
+#define CMU_R0D0		0xd0
+#define CMU_R0E8		0xe8
 
+#define LANE_R048		0x248
+#define LANE_R058		0x258
+#define LANE_R06c		0x26c
+#define LANE_R070		0x270
+#define LANE_R070		0x270
+#define LANE_R19C		0x39c
+
+#define COMLANE_R004		0xa04
 #define COMLANE_R138		0xb38
 #define VERSION_VAL		0x70
 
 #define COMLANE_R190		0xb90
-
 #define COMLANE_R194		0xb94
+
+#define COMRXEQ_R004		0x1404
+#define COMRXEQ_R008		0x1408
+#define COMRXEQ_R00C		0x140c
+#define COMRXEQ_R014		0x1414
+#define COMRXEQ_R018		0x1418
+#define COMRXEQ_R01C		0x141c
+#define COMRXEQ_R04C		0x144c
+#define COMRXEQ_R088		0x1488
+#define COMRXEQ_R094		0x1494
+#define COMRXEQ_R098		0x1498
 
 #define SERDES_CTRL		0x1fd0
 
@@ -81,8 +104,33 @@ static const struct regmap_config serdes_am654_regmap_config = {
 };
 
 enum serdes_am654_fields {
+	/* CMU PLL Control */
+	CMU_PLL_CTRL,
+
+	LANE_PLL_CTRL_RXEQ_RXIDLE,
+
+	/* CMU VCO bias current and VREG setting */
+	AHB_PMA_CM_VCO_VBIAS_VREG,
+	AHB_PMA_CM_VCO_BIAS_VREG,
+
+	AHB_PMA_CM_SR,
+	AHB_SSC_GEN_Z_O_20_13,
+
+	/* AHB PMA Lane Configuration */
+	AHB_PMA_LN_AGC_THSEL_VREGH,
+
+	/* AGC and Signal detect threshold for Gen3 */
+	AHB_PMA_LN_GEN3_AGC_SD_THSEL,
+
+	AHB_PMA_LN_RX_SELR_GEN3,
+	AHB_PMA_LN_TX_DRV,
+
 	/* CMU Master Reset */
 	CMU_MASTER_CDN,
+
+	/* P2S ring buffer initial startup pointer difference */
+	P2S_RBUF_PTR_DIFF,
+
 	CONFIG_VERSION,
 
 	/* Lane 1 Master Reset */
@@ -90,6 +138,42 @@ enum serdes_am654_fields {
 
 	/* CMU OK Status */
 	CMU_OK_I_0,
+
+	/* Mid-speed initial calibration control */
+	COMRXEQ_MS_INIT_CTRL_7_0,
+
+	/* High-speed initial calibration control */
+	COMRXEQ_HS_INIT_CAL_7_0,
+
+	/* Mid-speed recalibration control */
+	COMRXEQ_MS_RECAL_CTRL_7_0,
+
+	/* High-speed recalibration control */
+	COMRXEQ_HS_RECAL_CTRL_7_0,
+
+	/* ATT configuration */
+	COMRXEQ_CSR_ATT_CONFIG,
+
+	/* Edge based boost adaptation window length */
+	COMRXEQ_CSR_EBSTADAPT_WIN_LEN,
+
+	/* COMRXEQ control 3 & 4 */
+	COMRXEQ_CTRL_3_4,
+
+	/* COMRXEQ control 14, 15 and 16*/
+	COMRXEQ_CTRL_14_15_16,
+
+	/* Threshold for errors in pattern data  */
+	COMRXEQ_CSR_DLEV_ERR_THRESH,
+
+	/* COMRXEQ control 25 */
+	COMRXEQ_CTRL_25,
+
+	/* Mid-speed rate change calibration control */
+	CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O,
+
+	/* High-speed rate change calibration control */
+	COMRXEQ_HS_RCHANGE_CTRL_7_0,
 
 	/* Serdes reset */
 	POR_EN,
@@ -112,10 +196,33 @@ enum serdes_am654_fields {
 };
 
 static const struct reg_field serdes_am654_reg_fields[] = {
-	[CMU_MASTER_CDN]		= REG_FIELD(CMU_R07C, 24, 24),
+	[CMU_PLL_CTRL]			= REG_FIELD(CMU_R004, 8, 15),
+	[AHB_PMA_CM_VCO_VBIAS_VREG]	= REG_FIELD(CMU_R060, 8, 15),
+	[CMU_MASTER_CDN]		= REG_FIELD(CMU_R07C, 24, 31),
+	[AHB_PMA_CM_VCO_BIAS_VREG]	= REG_FIELD(CMU_R088, 24, 31),
+	[AHB_PMA_CM_SR]			= REG_FIELD(CMU_R0D0, 24, 31),
+	[AHB_SSC_GEN_Z_O_20_13]		= REG_FIELD(CMU_R0E8, 8, 15),
+	[LANE_PLL_CTRL_RXEQ_RXIDLE]	= REG_FIELD(LANE_R048, 8, 15),
+	[AHB_PMA_LN_AGC_THSEL_VREGH]	= REG_FIELD(LANE_R058, 16, 23),
+	[AHB_PMA_LN_GEN3_AGC_SD_THSEL]	= REG_FIELD(LANE_R06c, 0, 7),
+	[AHB_PMA_LN_RX_SELR_GEN3]	= REG_FIELD(LANE_R070, 16, 23),
+	[AHB_PMA_LN_TX_DRV]		= REG_FIELD(LANE_R19C, 16, 23),
+	[P2S_RBUF_PTR_DIFF]		= REG_FIELD(COMLANE_R004, 0, 7),
 	[CONFIG_VERSION]		= REG_FIELD(COMLANE_R138, 16, 23),
-	[L1_MASTER_CDN]			= REG_FIELD(COMLANE_R190, 9, 9),
+	[L1_MASTER_CDN]			= REG_FIELD(COMLANE_R190, 8, 15),
 	[CMU_OK_I_0]			= REG_FIELD(COMLANE_R194, 19, 19),
+	[COMRXEQ_MS_INIT_CTRL_7_0]	= REG_FIELD(COMRXEQ_R004, 24, 31),
+	[COMRXEQ_HS_INIT_CAL_7_0]	= REG_FIELD(COMRXEQ_R008, 0, 7),
+	[COMRXEQ_MS_RECAL_CTRL_7_0]	= REG_FIELD(COMRXEQ_R00C, 8, 15),
+	[COMRXEQ_HS_RECAL_CTRL_7_0]	= REG_FIELD(COMRXEQ_R00C, 16, 23),
+	[COMRXEQ_CSR_ATT_CONFIG]	= REG_FIELD(COMRXEQ_R014, 16, 23),
+	[COMRXEQ_CSR_EBSTADAPT_WIN_LEN]	= REG_FIELD(COMRXEQ_R018, 16, 23),
+	[COMRXEQ_CTRL_3_4]		= REG_FIELD(COMRXEQ_R01C, 8, 15),
+	[COMRXEQ_CTRL_14_15_16]		= REG_FIELD(COMRXEQ_R04C, 0, 7),
+	[COMRXEQ_CSR_DLEV_ERR_THRESH]	= REG_FIELD(COMRXEQ_R088, 16, 23),
+	[COMRXEQ_CTRL_25]		= REG_FIELD(COMRXEQ_R094, 24, 31),
+	[CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O] = REG_FIELD(COMRXEQ_R098, 8, 15),
+	[COMRXEQ_HS_RCHANGE_CTRL_7_0]	= REG_FIELD(COMRXEQ_R098, 16, 23),
 	[POR_EN]			= REG_FIELD(SERDES_CTRL, 29, 29),
 	[TX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 29, 31),
 	[RX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 13, 15),
@@ -311,9 +418,32 @@ static int serdes_am654_pcie_init(struct serdes_am654 *phy)
 {
 	int ret = 0;
 
+	ret |= regmap_field_write(phy->fields[CMU_PLL_CTRL], 0x2);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_VCO_VBIAS_VREG], 0x98);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_VCO_BIAS_VREG], 0x98);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_SR], 0x45);
+	ret |= regmap_field_write(phy->fields[AHB_SSC_GEN_Z_O_20_13], 0xe);
+	ret |= regmap_field_write(phy->fields[LANE_PLL_CTRL_RXEQ_RXIDLE], 0x5);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_AGC_THSEL_VREGH], 0x83);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_GEN3_AGC_SD_THSEL], 0x83);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_RX_SELR_GEN3],	0x81);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_TX_DRV], 0x3b);
+	ret |= regmap_field_write(phy->fields[P2S_RBUF_PTR_DIFF], 0x3);
 	ret |= regmap_field_write(phy->fields[CONFIG_VERSION], VERSION_VAL);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_MS_INIT_CTRL_7_0], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_INIT_CAL_7_0], 0x4f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_MS_RECAL_CTRL_7_0], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_RECAL_CTRL_7_0], 0x4f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_ATT_CONFIG], 0x7);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_EBSTADAPT_WIN_LEN], 0x7f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_3_4], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_14_15_16], 0x9a);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_DLEV_ERR_THRESH], 0x32);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_25], 0x80);
+	ret |= regmap_field_write(phy->fields[CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_RCHANGE_CTRL_7_0], 0x4f);
 	ret |= regmap_field_write(phy->fields[CMU_MASTER_CDN], 0x1);
-	ret |= regmap_field_write(phy->fields[L1_MASTER_CDN], 0x1);
+	ret |= regmap_field_write(phy->fields[L1_MASTER_CDN], 0x2);
 
 	if (ret)
 		return -EIO;
