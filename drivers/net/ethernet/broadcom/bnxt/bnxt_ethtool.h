@@ -84,6 +84,8 @@ struct hwrm_dbg_cmn_output {
 				  ETH_RESET_PHY | ETH_RESET_RAM)	\
 				 << ETH_RESET_SHARED_SHIFT)
 
+#define BNXT_PXP_REG_LEN	0x3110
+
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
 u32 bnxt_get_rxfh_indir_size(struct net_device *dev);

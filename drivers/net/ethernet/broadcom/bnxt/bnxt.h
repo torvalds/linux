@@ -919,6 +919,14 @@ struct bnxt_sw_stats {
 	struct bnxt_cmn_sw_stats cmn;
 };
 
+struct bnxt_stats_mem {
+	u64		*sw_stats;
+	u64		*hw_masks;
+	void		*hw_stats;
+	dma_addr_t	hw_stats_map;
+	int		len;
+};
+
 struct bnxt_cp_ring_info {
 	struct bnxt_napi	*bnapi;
 	u32			cp_raw_cons;
@@ -943,8 +951,7 @@ struct bnxt_cp_ring_info {
 
 	dma_addr_t		cp_desc_mapping[MAX_CP_PAGES];
 
-	struct ctx_hw_stats	*hw_stats;
-	dma_addr_t		hw_stats_map;
+	struct bnxt_stats_mem	stats;
 	u32			hw_stats_ctx_id;
 
 	struct bnxt_sw_stats	sw_stats;
@@ -1135,6 +1142,50 @@ struct bnxt_ntuple_filter {
 #define BNXT_FLTR_UPDATE	1
 };
 
+struct hwrm_port_phy_qcfg_output_compat {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	u8	link;
+	u8	link_signal_mode;
+	__le16	link_speed;
+	u8	duplex_cfg;
+	u8	pause;
+	__le16	support_speeds;
+	__le16	force_link_speed;
+	u8	auto_mode;
+	u8	auto_pause;
+	__le16	auto_link_speed;
+	__le16	auto_link_speed_mask;
+	u8	wirespeed;
+	u8	lpbk;
+	u8	force_pause;
+	u8	module_status;
+	__le32	preemphasis;
+	u8	phy_maj;
+	u8	phy_min;
+	u8	phy_bld;
+	u8	phy_type;
+	u8	media_type;
+	u8	xcvr_pkg_type;
+	u8	eee_config_phy_addr;
+	u8	parallel_detect;
+	__le16	link_partner_adv_speeds;
+	u8	link_partner_adv_auto_mode;
+	u8	link_partner_adv_pause;
+	__le16	adv_eee_link_speed_mask;
+	__le16	link_partner_adv_eee_link_speed_mask;
+	__le32	xcvr_identifier_type_tx_lpi_timer;
+	__le16	fec_cfg;
+	u8	duplex_state;
+	u8	option_flags;
+	char	phy_vendor_name[16];
+	char	phy_vendor_partnumber[16];
+	u8	unused_0[7];
+	u8	valid;
+};
+
 struct bnxt_link_info {
 	u8			phy_type;
 	u8			media_type;
@@ -1252,6 +1303,9 @@ struct bnxt_test_info {
 	u16 timeout;
 	char string[BNXT_MAX_TEST][ETH_GSTRING_LEN];
 };
+
+#define CHIMP_REG_VIEW_ADDR				\
+	((bp->flags & BNXT_FLAG_CHIP_P5) ? 0x80000000 : 0xb1000000)
 
 #define BNXT_GRCPF_REG_CHIMP_COMM		0x0
 #define BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER	0x100
@@ -1566,7 +1620,6 @@ struct bnxt {
 	#define BNXT_FLAG_DIM		0x2000000
 	#define BNXT_FLAG_ROCE_MIRROR_CAP	0x4000000
 	#define BNXT_FLAG_PORT_STATS_EXT	0x10000000
-	#define BNXT_FLAG_PCIE_STATS	0x40000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -1719,6 +1772,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_VLAN_RX_STRIP		0x01000000
 	#define BNXT_FW_CAP_VLAN_TX_INSERT		0x02000000
 	#define BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED	0x04000000
+	#define BNXT_FW_CAP_PORT_STATS_NO_RESET		0x10000000
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
@@ -1733,17 +1787,9 @@ struct bnxt {
 	dma_addr_t		hwrm_cmd_kong_resp_dma_addr;
 
 	struct rtnl_link_stats64	net_stats_prev;
-	struct rx_port_stats	*hw_rx_port_stats;
-	struct tx_port_stats	*hw_tx_port_stats;
-	struct rx_port_stats_ext	*hw_rx_port_stats_ext;
-	struct tx_port_stats_ext	*hw_tx_port_stats_ext;
-	struct pcie_ctx_hw_stats	*hw_pcie_stats;
-	dma_addr_t		hw_rx_port_stats_map;
-	dma_addr_t		hw_tx_port_stats_map;
-	dma_addr_t		hw_rx_port_stats_ext_map;
-	dma_addr_t		hw_tx_port_stats_ext_map;
-	dma_addr_t		hw_pcie_stats_map;
-	int			hw_port_stats_size;
+	struct bnxt_stats_mem	port_stats;
+	struct bnxt_stats_mem	rx_port_stats_ext;
+	struct bnxt_stats_mem	tx_port_stats_ext;
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
 	u16			hw_ring_stats_size;
@@ -1885,21 +1931,33 @@ struct bnxt {
 	struct device		*hwmon_dev;
 };
 
+#define BNXT_GET_RING_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct ctx_hw_stats, counter) / 8))
+
+#define BNXT_GET_RX_PORT_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct rx_port_stats, counter) / 8))
+
+#define BNXT_GET_TX_PORT_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct tx_port_stats, counter) / 8))
+
+#define BNXT_PORT_STATS_SIZE				\
+	(sizeof(struct rx_port_stats) + sizeof(struct tx_port_stats) + 1024)
+
+#define BNXT_TX_PORT_STATS_BYTE_OFFSET			\
+	(sizeof(struct rx_port_stats) + 512)
+
 #define BNXT_RX_STATS_OFFSET(counter)			\
 	(offsetof(struct rx_port_stats, counter) / 8)
 
 #define BNXT_TX_STATS_OFFSET(counter)			\
 	((offsetof(struct tx_port_stats, counter) +	\
-	  sizeof(struct rx_port_stats) + 512) / 8)
+	  BNXT_TX_PORT_STATS_BYTE_OFFSET) / 8)
 
 #define BNXT_RX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct rx_port_stats_ext, counter) / 8)
 
 #define BNXT_TX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct tx_port_stats_ext, counter) / 8)
-
-#define BNXT_PCIE_STATS_OFFSET(counter)			\
-	(offsetof(struct pcie_ctx_hw_stats, counter) / 8)
 
 #define BNXT_HW_FEATURE_VLAN_ALL_RX				\
 	(NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)
@@ -2062,6 +2120,8 @@ int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
+int bnxt_dbg_hwrm_rd_reg(struct bnxt *bp, u32 reg_off, u16 num_words,
+			 u32 *reg_buf);
 void bnxt_fw_exception(struct bnxt *bp);
 void bnxt_fw_reset(struct bnxt *bp);
 int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
