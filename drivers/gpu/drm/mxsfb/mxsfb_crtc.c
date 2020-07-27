@@ -166,21 +166,21 @@ static int clear_poll_bit(void __iomem *addr, u32 mask)
 	return readl_poll_timeout(addr, reg, !(reg & mask), 0, RESET_TIMEOUT);
 }
 
-static int mxsfb_reset_block(void __iomem *reset_addr)
+static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 {
 	int ret;
 
-	ret = clear_poll_bit(reset_addr, MODULE_SFTRST);
+	ret = clear_poll_bit(mxsfb->base, MODULE_SFTRST);
 	if (ret)
 		return ret;
 
-	writel(MODULE_CLKGATE, reset_addr + MXS_CLR_ADDR);
+	writel(MODULE_CLKGATE, mxsfb->base + MXS_CLR_ADDR);
 
-	ret = clear_poll_bit(reset_addr, MODULE_SFTRST);
+	ret = clear_poll_bit(mxsfb->base, MODULE_SFTRST);
 	if (ret)
 		return ret;
 
-	return clear_poll_bit(reset_addr, MODULE_CLKGATE);
+	return clear_poll_bit(mxsfb->base, MODULE_CLKGATE);
 }
 
 static dma_addr_t mxsfb_get_fb_paddr(struct mxsfb_drm_private *mxsfb)
@@ -213,7 +213,7 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	 */
 
 	/* Mandatory eLCDIF reset as per the Reference Manual */
-	err = mxsfb_reset_block(mxsfb->base);
+	err = mxsfb_reset_block(mxsfb);
 	if (err)
 		return;
 
