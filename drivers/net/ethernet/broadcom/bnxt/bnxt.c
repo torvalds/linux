@@ -3711,61 +3711,55 @@ static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt *bp)
 	return 0;
 }
 
+static void bnxt_free_stats_mem(struct bnxt *bp, struct bnxt_stats_mem *stats)
+{
+	if (stats->hw_stats) {
+		dma_free_coherent(&bp->pdev->dev, stats->len, stats->hw_stats,
+				  stats->hw_stats_map);
+		stats->hw_stats = NULL;
+	}
+}
+
+static int bnxt_alloc_stats_mem(struct bnxt *bp, struct bnxt_stats_mem *stats)
+{
+	stats->hw_stats = dma_alloc_coherent(&bp->pdev->dev, stats->len,
+					     &stats->hw_stats_map, GFP_KERNEL);
+	if (!stats->hw_stats)
+		return -ENOMEM;
+
+	memset(stats->hw_stats, 0, stats->len);
+	return 0;
+}
+
 static void bnxt_free_port_stats(struct bnxt *bp)
 {
-	struct pci_dev *pdev = bp->pdev;
-
 	bp->flags &= ~BNXT_FLAG_PORT_STATS;
 	bp->flags &= ~BNXT_FLAG_PORT_STATS_EXT;
 
-	if (bp->hw_rx_port_stats) {
-		dma_free_coherent(&pdev->dev, bp->hw_port_stats_size,
-				  bp->hw_rx_port_stats,
-				  bp->hw_rx_port_stats_map);
-		bp->hw_rx_port_stats = NULL;
-	}
-
-	if (bp->hw_tx_port_stats_ext) {
-		dma_free_coherent(&pdev->dev, sizeof(struct tx_port_stats_ext),
-				  bp->hw_tx_port_stats_ext,
-				  bp->hw_tx_port_stats_ext_map);
-		bp->hw_tx_port_stats_ext = NULL;
-	}
-
-	if (bp->hw_rx_port_stats_ext) {
-		dma_free_coherent(&pdev->dev, sizeof(struct rx_port_stats_ext),
-				  bp->hw_rx_port_stats_ext,
-				  bp->hw_rx_port_stats_ext_map);
-		bp->hw_rx_port_stats_ext = NULL;
-	}
+	bnxt_free_stats_mem(bp, &bp->port_stats);
+	bnxt_free_stats_mem(bp, &bp->rx_port_stats_ext);
+	bnxt_free_stats_mem(bp, &bp->tx_port_stats_ext);
 }
 
 static void bnxt_free_ring_stats(struct bnxt *bp)
 {
-	struct pci_dev *pdev = bp->pdev;
-	int size, i;
+	int i;
 
 	if (!bp->bnapi)
 		return;
-
-	size = bp->hw_ring_stats_size;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 
-		if (cpr->hw_stats) {
-			dma_free_coherent(&pdev->dev, size, cpr->hw_stats,
-					  cpr->hw_stats_map);
-			cpr->hw_stats = NULL;
-		}
+		bnxt_free_stats_mem(bp, &cpr->stats);
 	}
 }
 
 static int bnxt_alloc_stats(struct bnxt *bp)
 {
 	u32 size, i;
-	struct pci_dev *pdev = bp->pdev;
+	int rc;
 
 	size = bp->hw_ring_stats_size;
 
@@ -3773,11 +3767,10 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 
-		cpr->hw_stats = dma_alloc_coherent(&pdev->dev, size,
-						   &cpr->hw_stats_map,
-						   GFP_KERNEL);
-		if (!cpr->hw_stats)
-			return -ENOMEM;
+		cpr->stats.len = size;
+		rc = bnxt_alloc_stats_mem(bp, &cpr->stats);
+		if (rc)
+			return rc;
 
 		cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
 	}
@@ -3785,22 +3778,14 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 	if (BNXT_VF(bp) || bp->chip_num == CHIP_NUM_58700)
 		return 0;
 
-	if (bp->hw_rx_port_stats)
+	if (bp->port_stats.hw_stats)
 		goto alloc_ext_stats;
 
-	bp->hw_port_stats_size = BNXT_PORT_STATS_SIZE;
+	bp->port_stats.len = BNXT_PORT_STATS_SIZE;
+	rc = bnxt_alloc_stats_mem(bp, &bp->port_stats);
+	if (rc)
+		return rc;
 
-	bp->hw_rx_port_stats =
-		dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
-				   &bp->hw_rx_port_stats_map,
-				   GFP_KERNEL);
-	if (!bp->hw_rx_port_stats)
-		return -ENOMEM;
-
-	bp->hw_tx_port_stats = (void *)bp->hw_rx_port_stats +
-			       BNXT_TX_PORT_STATS_BYTE_OFFSET;
-	bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
-				   BNXT_TX_PORT_STATS_BYTE_OFFSET;
 	bp->flags |= BNXT_FLAG_PORT_STATS;
 
 alloc_ext_stats:
@@ -3809,26 +3794,26 @@ alloc_ext_stats:
 		if (!(bp->fw_cap & BNXT_FW_CAP_EXT_STATS_SUPPORTED))
 			return 0;
 
-	if (bp->hw_rx_port_stats_ext)
+	if (bp->rx_port_stats_ext.hw_stats)
 		goto alloc_tx_ext_stats;
 
-	bp->hw_rx_port_stats_ext =
-		dma_alloc_coherent(&pdev->dev, sizeof(struct rx_port_stats_ext),
-				   &bp->hw_rx_port_stats_ext_map, GFP_KERNEL);
-	if (!bp->hw_rx_port_stats_ext)
+	bp->rx_port_stats_ext.len = sizeof(struct rx_port_stats_ext);
+	rc = bnxt_alloc_stats_mem(bp, &bp->rx_port_stats_ext);
+	/* Extended stats are optional */
+	if (rc)
 		return 0;
 
 alloc_tx_ext_stats:
-	if (bp->hw_tx_port_stats_ext)
+	if (bp->tx_port_stats_ext.hw_stats)
 		return 0;
 
 	if (bp->hwrm_spec_code >= 0x10902 ||
 	    (bp->fw_cap & BNXT_FW_CAP_EXT_STATS_SUPPORTED)) {
-		bp->hw_tx_port_stats_ext =
-			dma_alloc_coherent(&pdev->dev,
-					   sizeof(struct tx_port_stats_ext),
-					   &bp->hw_tx_port_stats_ext_map,
-					   GFP_KERNEL);
+		bp->tx_port_stats_ext.len = sizeof(struct tx_port_stats_ext);
+		rc = bnxt_alloc_stats_mem(bp, &bp->tx_port_stats_ext);
+		/* Extended stats are optional */
+		if (rc)
+			return 0;
 	}
 	bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
 	return 0;
@@ -6439,7 +6424,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 
-		req.stats_dma_addr = cpu_to_le64(cpr->hw_stats_map);
+		req.stats_dma_addr = cpu_to_le64(cpr->stats.hw_stats_map);
 
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -7480,8 +7465,9 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS, -1, -1);
 	req.port_id = cpu_to_le16(pf->port_id);
-	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_map);
-	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_map);
+	req.tx_stat_host_addr = cpu_to_le64(bp->port_stats.hw_stats_map +
+					    BNXT_TX_PORT_STATS_BYTE_OFFSET);
+	req.rx_stat_host_addr = cpu_to_le64(bp->port_stats.hw_stats_map);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
@@ -7500,11 +7486,11 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS_EXT, -1, -1);
 	req.port_id = cpu_to_le16(pf->port_id);
 	req.rx_stat_size = cpu_to_le16(sizeof(struct rx_port_stats_ext));
-	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_ext_map);
-	tx_stat_size = bp->hw_tx_port_stats_ext ?
-		       sizeof(*bp->hw_tx_port_stats_ext) : 0;
+	req.rx_stat_host_addr = cpu_to_le64(bp->rx_port_stats_ext.hw_stats_map);
+	tx_stat_size = bp->tx_port_stats_ext.hw_stats ?
+		       sizeof(struct tx_port_stats_ext) : 0;
 	req.tx_stat_size = cpu_to_le16(tx_stat_size);
-	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_ext_map);
+	req.tx_stat_host_addr = cpu_to_le64(bp->tx_port_stats_ext.hw_stats_map);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
@@ -9582,7 +9568,7 @@ static void bnxt_get_ring_stats(struct bnxt *bp,
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-		struct ctx_hw_stats *hw_stats = cpr->hw_stats;
+		struct ctx_hw_stats *hw_stats = cpr->stats.hw_stats;
 
 		stats->rx_packets += le64_to_cpu(hw_stats->rx_ucast_pkts);
 		stats->rx_packets += le64_to_cpu(hw_stats->rx_mcast_pkts);
@@ -9643,8 +9629,9 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	bnxt_add_prev_stats(bp, stats);
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
-		struct rx_port_stats *rx = bp->hw_rx_port_stats;
-		struct tx_port_stats *tx = bp->hw_tx_port_stats;
+		struct rx_port_stats *rx = bp->port_stats.hw_stats;
+		struct tx_port_stats *tx = bp->port_stats.hw_stats +
+					   BNXT_TX_PORT_STATS_BYTE_OFFSET;
 
 		stats->rx_crc_errors = le64_to_cpu(rx->rx_fcs_err_frames);
 		stats->rx_frame_errors = le64_to_cpu(rx->rx_align_err_frames);
