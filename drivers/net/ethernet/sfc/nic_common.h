@@ -225,6 +225,12 @@ void efx_nic_event_test_start(struct efx_channel *channel);
 
 bool efx_nic_event_present(struct efx_channel *channel);
 
+static inline void efx_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
+{
+	if (efx->type->sensor_event)
+		efx->type->sensor_event(efx, ev);
+}
+
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
  * asynchronously.  If the counters contributing to B are always read

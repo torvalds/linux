@@ -1018,6 +1018,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
 	.tx_limit_len = efx_farch_tx_limit_len,
+	.tx_enqueue = __efx_enqueue_skb,
 	.rx_push_rss_config = siena_rx_push_rss_config,
 	.rx_pull_rss_config = siena_rx_pull_rss_config,
 	.rx_probe = efx_farch_rx_probe,
@@ -1025,6 +1026,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_remove = efx_farch_rx_remove,
 	.rx_write = efx_farch_rx_write,
 	.rx_defer_refill = efx_farch_rx_defer_refill,
+	.rx_packet = __efx_rx_packet,
 	.ev_probe = efx_farch_ev_probe,
 	.ev_init = efx_farch_ev_init,
 	.ev_fini = efx_farch_ev_fini,
@@ -1096,4 +1098,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
 	.rx_hash_key_size = 16,
 	.check_caps = siena_check_caps,
+	.sensor_event = efx_mcdi_sensor_event,
 };

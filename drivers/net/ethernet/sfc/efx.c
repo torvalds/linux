@@ -25,6 +25,7 @@
 #include "efx.h"
 #include "efx_common.h"
 #include "efx_channels.h"
+#include "ef100.h"
 #include "rx_common.h"
 #include "tx_common.h"
 #include "nic.h"
@@ -1360,8 +1361,14 @@ static int __init efx_init_module(void)
 	if (rc < 0)
 		goto err_pci;
 
+	rc = pci_register_driver(&ef100_pci_driver);
+	if (rc < 0)
+		goto err_pci_ef100;
+
 	return 0;
 
+ err_pci_ef100:
+	pci_unregister_driver(&efx_pci_driver);
  err_pci:
 	efx_destroy_reset_workqueue();
  err_reset:
@@ -1378,6 +1385,7 @@ static void __exit efx_exit_module(void)
 {
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
+	pci_unregister_driver(&ef100_pci_driver);
 	pci_unregister_driver(&efx_pci_driver);
 	efx_destroy_reset_workqueue();
 #ifdef CONFIG_SFC_SRIOV
