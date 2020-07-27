@@ -9,15 +9,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/component.h>
 #include <linux/dma-mapping.h>
-#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_graph.h>
-#include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
-#include <linux/dma-resv.h>
 #include <linux/spinlock.h>
 
 #include <drm/drm_atomic.h>
