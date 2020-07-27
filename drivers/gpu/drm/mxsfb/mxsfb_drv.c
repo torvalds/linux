@@ -131,7 +131,8 @@ static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 	return 0;
 }
 
-static int mxsfb_load(struct drm_device *drm)
+static int mxsfb_load(struct drm_device *drm,
+		      const struct mxsfb_devdata *devdata)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct mxsfb_drm_private *mxsfb;
@@ -144,7 +145,7 @@ static int mxsfb_load(struct drm_device *drm)
 
 	mxsfb->drm = drm;
 	drm->dev_private = mxsfb;
-	mxsfb->devdata = &mxsfb_devdata[pdev->id_entry->driver_data];
+	mxsfb->devdata = devdata;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mxsfb->base = devm_ioremap_resource(drm->dev, res);
@@ -280,18 +281,10 @@ static struct drm_driver mxsfb_driver = {
 	.minor	= 0,
 };
 
-static const struct platform_device_id mxsfb_devtype[] = {
-	{ .name = "imx23-fb", .driver_data = MXSFB_V3, },
-	{ .name = "imx28-fb", .driver_data = MXSFB_V4, },
-	{ .name = "imx6sx-fb", .driver_data = MXSFB_V6, },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
-
 static const struct of_device_id mxsfb_dt_ids[] = {
-	{ .compatible = "fsl,imx23-lcdif", .data = &mxsfb_devtype[0], },
-	{ .compatible = "fsl,imx28-lcdif", .data = &mxsfb_devtype[1], },
-	{ .compatible = "fsl,imx6sx-lcdif", .data = &mxsfb_devtype[2], },
+	{ .compatible = "fsl,imx23-lcdif", .data = &mxsfb_devdata[MXSFB_V3], },
+	{ .compatible = "fsl,imx28-lcdif", .data = &mxsfb_devdata[MXSFB_V4], },
+	{ .compatible = "fsl,imx6sx-lcdif", .data = &mxsfb_devdata[MXSFB_V6], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxsfb_dt_ids);
@@ -306,14 +299,11 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	if (of_id)
-		pdev->id_entry = of_id->data;
-
 	drm = drm_dev_alloc(&mxsfb_driver, &pdev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm);
+	ret = mxsfb_load(drm, of_id->data);
 	if (ret)
 		goto err_free;
 
@@ -367,7 +357,6 @@ static const struct dev_pm_ops mxsfb_pm_ops = {
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
 	.remove		= mxsfb_remove,
-	.id_table	= mxsfb_devtype,
 	.driver	= {
 		.name		= "mxsfb",
 		.of_match_table	= mxsfb_dt_ids,
