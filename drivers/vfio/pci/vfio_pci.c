@@ -207,6 +207,8 @@ static bool vfio_pci_nointx(struct pci_dev *pdev)
 		case 0x1580 ... 0x1581:
 		case 0x1583 ... 0x158b:
 		case 0x37d0 ... 0x37d2:
+		/* X550 */
+		case 0x1563:
 			return true;
 		default:
 			return false;
