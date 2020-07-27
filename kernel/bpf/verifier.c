@@ -3477,14 +3477,14 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 				regno, reg_type_str[reg->type]);
 			return -EACCES;
 		}
-		err = check_buffer_access(env, reg, regno, off, size, "rdonly",
-					  false,
+		err = check_buffer_access(env, reg, regno, off, size, false,
+					  "rdonly",
 					  &env->prog->aux->max_rdonly_access);
 		if (!err && value_regno >= 0)
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_RDWR_BUF) {
-		err = check_buffer_access(env, reg, regno, off, size, "rdwr",
-					  false,
+		err = check_buffer_access(env, reg, regno, off, size, false,
+					  "rdwr",
 					  &env->prog->aux->max_rdwr_access);
 		if (!err && t == BPF_READ && value_regno >= 0)
 			mark_reg_unknown(env, regs, value_regno);
