@@ -374,7 +374,7 @@ struct util_est {
  * For cfs_rq, they are the aggregated values of all runnable and blocked
  * sched_entities.
  *
- * The load/runnable/util_avg doesn't direcly factor frequency scaling and CPU
+ * The load/runnable/util_avg doesn't directly factor frequency scaling and CPU
  * capacity scaling. The scaling is done through the rq_clock_pelt that is used
  * for computing those signals (see update_rq_clock_pelt())
  *
