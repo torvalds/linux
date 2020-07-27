@@ -216,6 +216,24 @@ static bool __validate_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
 	return true;
 }
 
+static int amdgpu_ras_eeprom_correct_header_tag(
+				struct amdgpu_ras_eeprom_control *control,
+				uint32_t header)
+{
+	unsigned char buff[EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE];
+	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+	int ret = 0;
+
+	memset(buff, 0, EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE);
+
+	mutex_lock(&control->tbl_mutex);
+	hdr->header = header;
+	ret = __update_table_header(control, buff);
+	mutex_unlock(&control->tbl_mutex);
+
+	return ret;
+}
+
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 {
 	unsigned char buff[EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE] = { 0 };
@@ -248,6 +266,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	unsigned char buff[EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE] = { 0 };
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	struct i2c_msg msg = {
 			.addr	= 0,
 			.flags	= I2C_M_RD,
@@ -287,9 +306,16 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 
 	} else if ((hdr->header == EEPROM_TABLE_HDR_BAD) &&
 			(amdgpu_bad_page_threshold != 0)) {
-		*exceed_err_limit = true;
-		dev_err(adev->dev, "Exceeding the bad_page_threshold parameter, "
+		if (ras->bad_page_cnt_threshold > control->num_recs) {
+			dev_info(adev->dev, "Using one valid bigger bad page "
+				"threshold and correcting eeprom header tag.\n");
+			ret = amdgpu_ras_eeprom_correct_header_tag(control,
+							EEPROM_TABLE_HDR_VAL);
+		} else {
+			*exceed_err_limit = true;
+			dev_err(adev->dev, "Exceeding the bad_page_threshold parameter, "
 				"disabling the GPU.\n");
+		}
 	} else {
 		DRM_INFO("Creating new EEPROM table");
 
