@@ -98,6 +98,7 @@ struct fsl_lpspi_data {
 	struct clk *clk_ipg;
 	struct clk *clk_per;
 	bool is_slave;
+	bool is_only_cs1;
 	bool is_first_byte;
 
 	void *rx_buf;
@@ -257,10 +258,9 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
 
 	temp |= fsl_lpspi->config.bpw - 1;
 	temp |= (fsl_lpspi->config.mode & 0x3) << 30;
+	temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
 	if (!fsl_lpspi->is_slave) {
 		temp |= fsl_lpspi->config.prescale << 27;
-		temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
-
 		/*
 		 * Set TCR_CONT will keep SS asserted after current transfer.
 		 * For the first transfer, clear TCR_CONTC to assert SS.
@@ -421,7 +421,10 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 	fsl_lpspi->config.mode = spi->mode;
 	fsl_lpspi->config.bpw = t->bits_per_word;
 	fsl_lpspi->config.speed_hz = t->speed_hz;
-	fsl_lpspi->config.chip_select = spi->chip_select;
+	if (fsl_lpspi->is_only_cs1)
+		fsl_lpspi->config.chip_select = 1;
+	else
+		fsl_lpspi->config.chip_select = spi->chip_select;
 
 	if (!fsl_lpspi->config.speed_hz)
 		fsl_lpspi->config.speed_hz = spi->max_speed_hz;
@@ -835,6 +838,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
 	fsl_lpspi->is_slave = is_slave;
+	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
+						"fsl,spi-only-use-cs1-sel");
 
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 	controller->transfer_one = fsl_lpspi_transfer_one;
