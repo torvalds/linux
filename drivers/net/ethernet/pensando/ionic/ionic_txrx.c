@@ -161,12 +161,6 @@ static void ionic_rx_clean(struct ionic_queue *q,
 		return;
 	}
 
-	/* no packet processing while resetting */
-	if (unlikely(test_bit(IONIC_LIF_F_QUEUE_RESET, q->lif->state))) {
-		stats->dropped++;
-		return;
-	}
-
 	stats->pkts++;
 	stats->bytes += le16_to_cpu(comp->len);
 

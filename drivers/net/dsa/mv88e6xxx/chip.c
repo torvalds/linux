@@ -664,7 +664,10 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 				 const struct phylink_link_state *state)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	struct mv88e6xxx_port *p;
 	int err;
+
+	p = &chip->ports[port];
 
 	/* FIXME: is this the correct test? If we're in fixed mode on an
 	 * internal port, why should we process this any different from
@@ -675,10 +678,14 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 		return;
 
 	mv88e6xxx_reg_lock(chip);
-	/* FIXME: should we force the link down here - but if we do, how
-	 * do we restore the link force/unforce state? The driver layering
-	 * gets in the way.
+	/* In inband mode, the link may come up at any time while the link
+	 * is not forced down. Force the link down while we reconfigure the
+	 * interface mode.
 	 */
+	if (mode == MLO_AN_INBAND && p->interface != state->interface &&
+	    chip->info->ops->port_set_link)
+		chip->info->ops->port_set_link(chip, port, LINK_FORCED_DOWN);
+
 	err = mv88e6xxx_port_config_interface(chip, port, state->interface);
 	if (err && err != -EOPNOTSUPP)
 		goto err_unlock;
@@ -690,6 +697,15 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 	 */
 	if (err > 0)
 		err = 0;
+
+	/* Undo the forced down state above after completing configuration
+	 * irrespective of its state on entry, which allows the link to come up.
+	 */
+	if (mode == MLO_AN_INBAND && p->interface != state->interface &&
+	    chip->info->ops->port_set_link)
+		chip->info->ops->port_set_link(chip, port, LINK_UNFORCED);
+
+	p->interface = state->interface;
 
 err_unlock:
 	mv88e6xxx_reg_unlock(chip);
