@@ -229,7 +229,7 @@ happened to be looking at a dentry that was moved in this way,
 it might end up continuing the search down the wrong chain,
 and so miss out on part of the correct chain.
 
-The name-lookup process (``d_lookup()``) does _not_ try to prevent this
+The name-lookup process (``d_lookup()``) does *not* try to prevent this
 from happening, but only to detect when it happens.
 ``rename_lock`` is a seqlock that is updated whenever any dentry is
 renamed.  If ``d_lookup`` finds that a rename happened while it
@@ -398,7 +398,7 @@ held.
 ``struct qstr last``
 ~~~~~~~~~~~~~~~~~~~~
 
-This is a string together with a length (i.e. _not_ ``nul`` terminated)
+This is a string together with a length (i.e. *not* ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
@@ -720,7 +720,7 @@ against a dentry.  The length and name pointer are copied into local
 variables, then ``read_seqcount_retry()`` is called to confirm the two
 are consistent, and only then is ``->d_compare()`` called.  When
 standard filename comparison is used, ``dentry_cmp()`` is called
-instead.  Notably it does _not_ use ``read_seqcount_retry()``, but
+instead.  Notably it does *not* use ``read_seqcount_retry()``, but
 instead has a large comment explaining why the consistency guarantee
 isn't necessary.  A subsequent ``read_seqcount_retry()`` will be
 sufficient to catch any problem that could occur at this point.
@@ -928,7 +928,7 @@ if anything goes wrong it is much safer to just abort and try a more
 sedate approach.
 
 The emphasis here is "try quickly and check".  It should probably be
-"try quickly _and carefully,_ then check".  The fact that checking is
+"try quickly *and carefully*, then check".  The fact that checking is
 needed is a reminder that the system is dynamic and only a limited
 number of things are safe at all.  The most likely cause of errors in
 this whole process is assuming something is safe when in reality it
