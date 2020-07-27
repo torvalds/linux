@@ -281,8 +281,7 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 
 static void cs_do_release(struct kref *ref)
 {
-	struct hl_cs *cs = container_of(ref, struct hl_cs,
-						refcount);
+	struct hl_cs *cs = container_of(ref, struct hl_cs, refcount);
 	struct hl_device *hdev = cs->ctx->hdev;
 	struct hl_cs_job *job, *tmp;
 
@@ -299,69 +298,69 @@ static void cs_do_release(struct kref *ref)
 	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
 		free_job(hdev, job);
 
-	/* We also need to update CI for internal queues */
-	if (cs->submitted) {
-		hdev->asic_funcs->hw_queues_lock(hdev);
-
-		hdev->cs_active_cnt--;
-		if (!hdev->cs_active_cnt) {
-			struct hl_device_idle_busy_ts *ts;
-
-			ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
-			ts->busy_to_idle_ts = ktime_get();
-
-			if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
-				hdev->idle_busy_ts_idx = 0;
-		} else if (hdev->cs_active_cnt < 0) {
-			dev_crit(hdev->dev, "CS active cnt %d is negative\n",
-				hdev->cs_active_cnt);
-		}
-
-		hdev->asic_funcs->hw_queues_unlock(hdev);
-
-		hl_int_hw_queue_update_ci(cs);
-
-		spin_lock(&hdev->hw_queues_mirror_lock);
-		/* remove CS from hw_queues mirror list */
-		list_del_init(&cs->mirror_node);
-		spin_unlock(&hdev->hw_queues_mirror_lock);
-
-		/*
-		 * Don't cancel TDR in case this CS was timedout because we
-		 * might be running from the TDR context
-		 */
-		if ((!cs->timedout) &&
-			(hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT)) {
-			struct hl_cs *next;
-
-			if (cs->tdr_active)
-				cancel_delayed_work_sync(&cs->work_tdr);
-
-			spin_lock(&hdev->hw_queues_mirror_lock);
-
-			/* queue TDR for next CS */
-			next = list_first_entry_or_null(
-					&hdev->hw_queues_mirror_list,
-					struct hl_cs, mirror_node);
-
-			if ((next) && (!next->tdr_active)) {
-				next->tdr_active = true;
-				schedule_delayed_work(&next->work_tdr,
-							hdev->timeout_jiffies);
-			}
-
-			spin_unlock(&hdev->hw_queues_mirror_lock);
-		}
-	} else if (cs->type == CS_TYPE_WAIT) {
-		/*
-		 * In case the wait for signal CS was submitted, the put occurs
+	if (!cs->submitted) {
+		/* In case the wait for signal CS was submitted, the put occurs
 		 * in init_signal_wait_cs() right before hanging on the PQ.
 		 */
-		hl_fence_put(cs->signal_fence);
+		if (cs->type == CS_TYPE_WAIT)
+			hl_fence_put(cs->signal_fence);
+
+		goto out;
 	}
 
-	/*
-	 * Must be called before hl_ctx_put because inside we use ctx to get
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	hdev->cs_active_cnt--;
+	if (!hdev->cs_active_cnt) {
+		struct hl_device_idle_busy_ts *ts;
+
+		ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
+		ts->busy_to_idle_ts = ktime_get();
+
+		if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
+			hdev->idle_busy_ts_idx = 0;
+	} else if (hdev->cs_active_cnt < 0) {
+		dev_crit(hdev->dev, "CS active cnt %d is negative\n",
+			hdev->cs_active_cnt);
+	}
+
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Need to update CI for internal queues */
+	hl_int_hw_queue_update_ci(cs);
+
+	spin_lock(&hdev->hw_queues_mirror_lock);
+	/* remove CS from hw_queues mirror list */
+	list_del_init(&cs->mirror_node);
+	spin_unlock(&hdev->hw_queues_mirror_lock);
+
+	/* Don't cancel TDR in case this CS was timedout because we might be
+	 * running from the TDR context
+	 */
+	if (!cs->timedout &&
+			hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
+		struct hl_cs *next;
+
+		if (cs->tdr_active)
+			cancel_delayed_work_sync(&cs->work_tdr);
+
+		spin_lock(&hdev->hw_queues_mirror_lock);
+
+		/* queue TDR for next CS */
+		next = list_first_entry_or_null(&hdev->hw_queues_mirror_list,
+						struct hl_cs, mirror_node);
+
+		if (next && !next->tdr_active) {
+			next->tdr_active = true;
+			schedule_delayed_work(&next->work_tdr,
+						hdev->timeout_jiffies);
+		}
+
+		spin_unlock(&hdev->hw_queues_mirror_lock);
+	}
+
+out:
+	/* Must be called before hl_ctx_put because inside we use ctx to get
 	 * the device
 	 */
 	hl_debugfs_remove_cs(cs);
