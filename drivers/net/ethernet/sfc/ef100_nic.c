@@ -26,6 +26,8 @@
 
 #define EF100_MAX_VIS 4096
 
+#define EF100_RESET_PORT ((ETH_RESET_MAC | ETH_RESET_PHY) << ETH_RESET_SHARED_SHIFT)
+
 /*	MCDI
  */
 static int ef100_get_warm_boot_count(struct efx_nic *efx)
@@ -75,6 +77,51 @@ static irqreturn_t ef100_msi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*	Other
+ */
+
+static enum reset_type ef100_map_reset_reason(enum reset_type reason)
+{
+	if (reason == RESET_TYPE_TX_WATCHDOG)
+		return reason;
+	return RESET_TYPE_DISABLE;
+}
+
+static int ef100_map_reset_flags(u32 *flags)
+{
+	/* Only perform a RESET_TYPE_ALL because we don't support MC_REBOOTs */
+	if ((*flags & EF100_RESET_PORT)) {
+		*flags &= ~EF100_RESET_PORT;
+		return RESET_TYPE_ALL;
+	}
+	if (*flags & ETH_RESET_MGMT) {
+		*flags &= ~ETH_RESET_MGMT;
+		return RESET_TYPE_DISABLE;
+	}
+
+	return -EINVAL;
+}
+
+static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
+{
+	int rc;
+
+	dev_close(efx->net_dev);
+
+	if (reset_type == RESET_TYPE_TX_WATCHDOG) {
+		netif_device_attach(efx->net_dev);
+		__clear_bit(reset_type, &efx->reset_pending);
+		rc = dev_open(efx->net_dev, NULL);
+	} else if (reset_type == RESET_TYPE_ALL) {
+		netif_device_attach(efx->net_dev);
+
+		rc = dev_open(efx->net_dev, NULL);
+	} else {
+		rc = 1;	/* Leave the device closed */
+	}
+	return rc;
+}
+
 /*	NIC level access functions
  */
 const struct efx_nic_type ef100_pf_nic_type = {
@@ -86,6 +133,9 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.irq_disable_non_ev = efx_port_dummy_op_void,
 	.push_irq_moderation = efx_channel_dummy_op_void,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
+	.map_reset_reason = ef100_map_reset_reason,
+	.map_reset_flags = ef100_map_reset_flags,
+	.reset = ef100_reset,
 
 	.ev_probe = ef100_ev_probe,
 	.irq_handle_msi = ef100_msi_interrupt,
