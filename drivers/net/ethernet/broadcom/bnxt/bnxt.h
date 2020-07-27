@@ -1928,6 +1928,15 @@ struct bnxt {
 	struct device		*hwmon_dev;
 };
 
+#define BNXT_GET_RING_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct ctx_hw_stats, counter) / 8))
+
+#define BNXT_GET_RX_PORT_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct rx_port_stats, counter) / 8))
+
+#define BNXT_GET_TX_PORT_STATS64(sw, counter)		\
+	(*((sw) + offsetof(struct tx_port_stats, counter) / 8))
+
 #define BNXT_PORT_STATS_SIZE				\
 	(sizeof(struct rx_port_stats) + sizeof(struct tx_port_stats) + 1024)
 

@@ -9799,34 +9799,33 @@ static void bnxt_get_ring_stats(struct bnxt *bp,
 {
 	int i;
 
-
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-		struct ctx_hw_stats *hw_stats = cpr->stats.hw_stats;
+		u64 *sw = cpr->stats.sw_stats;
 
-		stats->rx_packets += le64_to_cpu(hw_stats->rx_ucast_pkts);
-		stats->rx_packets += le64_to_cpu(hw_stats->rx_mcast_pkts);
-		stats->rx_packets += le64_to_cpu(hw_stats->rx_bcast_pkts);
+		stats->rx_packets += BNXT_GET_RING_STATS64(sw, rx_ucast_pkts);
+		stats->rx_packets += BNXT_GET_RING_STATS64(sw, rx_mcast_pkts);
+		stats->rx_packets += BNXT_GET_RING_STATS64(sw, rx_bcast_pkts);
 
-		stats->tx_packets += le64_to_cpu(hw_stats->tx_ucast_pkts);
-		stats->tx_packets += le64_to_cpu(hw_stats->tx_mcast_pkts);
-		stats->tx_packets += le64_to_cpu(hw_stats->tx_bcast_pkts);
+		stats->tx_packets += BNXT_GET_RING_STATS64(sw, tx_ucast_pkts);
+		stats->tx_packets += BNXT_GET_RING_STATS64(sw, tx_mcast_pkts);
+		stats->tx_packets += BNXT_GET_RING_STATS64(sw, tx_bcast_pkts);
 
-		stats->rx_bytes += le64_to_cpu(hw_stats->rx_ucast_bytes);
-		stats->rx_bytes += le64_to_cpu(hw_stats->rx_mcast_bytes);
-		stats->rx_bytes += le64_to_cpu(hw_stats->rx_bcast_bytes);
+		stats->rx_bytes += BNXT_GET_RING_STATS64(sw, rx_ucast_bytes);
+		stats->rx_bytes += BNXT_GET_RING_STATS64(sw, rx_mcast_bytes);
+		stats->rx_bytes += BNXT_GET_RING_STATS64(sw, rx_bcast_bytes);
 
-		stats->tx_bytes += le64_to_cpu(hw_stats->tx_ucast_bytes);
-		stats->tx_bytes += le64_to_cpu(hw_stats->tx_mcast_bytes);
-		stats->tx_bytes += le64_to_cpu(hw_stats->tx_bcast_bytes);
+		stats->tx_bytes += BNXT_GET_RING_STATS64(sw, tx_ucast_bytes);
+		stats->tx_bytes += BNXT_GET_RING_STATS64(sw, tx_mcast_bytes);
+		stats->tx_bytes += BNXT_GET_RING_STATS64(sw, tx_bcast_bytes);
 
 		stats->rx_missed_errors +=
-			le64_to_cpu(hw_stats->rx_discard_pkts);
+			BNXT_GET_RING_STATS64(sw, rx_discard_pkts);
 
-		stats->multicast += le64_to_cpu(hw_stats->rx_mcast_pkts);
+		stats->multicast += BNXT_GET_RING_STATS64(sw, rx_mcast_pkts);
 
-		stats->tx_dropped += le64_to_cpu(hw_stats->tx_error_pkts);
+		stats->tx_dropped += BNXT_GET_RING_STATS64(sw, tx_error_pkts);
 	}
 }
 
@@ -9864,20 +9863,26 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	bnxt_add_prev_stats(bp, stats);
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
-		struct rx_port_stats *rx = bp->port_stats.hw_stats;
-		struct tx_port_stats *tx = bp->port_stats.hw_stats +
-					   BNXT_TX_PORT_STATS_BYTE_OFFSET;
+		u64 *rx = bp->port_stats.sw_stats;
+		u64 *tx = bp->port_stats.sw_stats +
+			  BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
 
-		stats->rx_crc_errors = le64_to_cpu(rx->rx_fcs_err_frames);
-		stats->rx_frame_errors = le64_to_cpu(rx->rx_align_err_frames);
-		stats->rx_length_errors = le64_to_cpu(rx->rx_undrsz_frames) +
-					  le64_to_cpu(rx->rx_ovrsz_frames) +
-					  le64_to_cpu(rx->rx_runt_frames);
-		stats->rx_errors = le64_to_cpu(rx->rx_false_carrier_frames) +
-				   le64_to_cpu(rx->rx_jbr_frames);
-		stats->collisions = le64_to_cpu(tx->tx_total_collisions);
-		stats->tx_fifo_errors = le64_to_cpu(tx->tx_fifo_underruns);
-		stats->tx_errors = le64_to_cpu(tx->tx_err);
+		stats->rx_crc_errors =
+			BNXT_GET_RX_PORT_STATS64(rx, rx_fcs_err_frames);
+		stats->rx_frame_errors =
+			BNXT_GET_RX_PORT_STATS64(rx, rx_align_err_frames);
+		stats->rx_length_errors =
+			BNXT_GET_RX_PORT_STATS64(rx, rx_undrsz_frames) +
+			BNXT_GET_RX_PORT_STATS64(rx, rx_ovrsz_frames) +
+			BNXT_GET_RX_PORT_STATS64(rx, rx_runt_frames);
+		stats->rx_errors =
+			BNXT_GET_RX_PORT_STATS64(rx, rx_false_carrier_frames) +
+			BNXT_GET_RX_PORT_STATS64(rx, rx_jbr_frames);
+		stats->collisions =
+			BNXT_GET_TX_PORT_STATS64(tx, tx_total_collisions);
+		stats->tx_fifo_errors =
+			BNXT_GET_TX_PORT_STATS64(tx, tx_fifo_underruns);
+		stats->tx_errors = BNXT_GET_TX_PORT_STATS64(tx, tx_err);
 	}
 	clear_bit(BNXT_STATE_READ_STATS, &bp->state);
 }

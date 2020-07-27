@@ -559,20 +559,19 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-		struct ctx_hw_stats *hw = cpr->stats.hw_stats;
-		__le64 *hw_stats = cpr->stats.hw_stats;
+		u64 *sw_stats = cpr->stats.sw_stats;
 		u64 *sw;
 		int k;
 
 		if (is_rx_ring(bp, i)) {
 			for (k = 0; k < NUM_RING_RX_HW_STATS; j++, k++)
-				buf[j] = le64_to_cpu(hw_stats[k]);
+				buf[j] = sw_stats[k];
 		}
 		if (is_tx_ring(bp, i)) {
 			k = NUM_RING_RX_HW_STATS;
 			for (; k < NUM_RING_RX_HW_STATS + NUM_RING_TX_HW_STATS;
 			       j++, k++)
-				buf[j] = le64_to_cpu(hw_stats[k]);
+				buf[j] = sw_stats[k];
 		}
 		if (!tpa_stats || !is_rx_ring(bp, i))
 			goto skip_tpa_ring_stats;
@@ -580,7 +579,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		k = NUM_RING_RX_HW_STATS + NUM_RING_TX_HW_STATS;
 		for (; k < NUM_RING_RX_HW_STATS + NUM_RING_TX_HW_STATS +
 			   tpa_stats; j++, k++)
-			buf[j] = le64_to_cpu(hw_stats[k]);
+			buf[j] = sw_stats[k];
 
 skip_tpa_ring_stats:
 		sw = (u64 *)&cpr->sw_stats.rx;
@@ -594,9 +593,9 @@ skip_tpa_ring_stats:
 			buf[j] = sw[k];
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
-			le64_to_cpu(hw->rx_discard_pkts);
+			BNXT_GET_RING_STATS64(sw_stats, rx_discard_pkts);
 		bnxt_sw_func_stats[TX_TOTAL_DISCARDS].counter +=
-			le64_to_cpu(hw->tx_discard_pkts);
+			BNXT_GET_RING_STATS64(sw_stats, tx_discard_pkts);
 	}
 
 	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++, j++)
@@ -604,49 +603,47 @@ skip_tpa_ring_stats:
 
 skip_ring_stats:
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
-		__le64 *port_stats = bp->port_stats.hw_stats;
+		u64 *port_stats = bp->port_stats.sw_stats;
 
-		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++) {
-			buf[j] = le64_to_cpu(*(port_stats +
-					       bnxt_port_stats_arr[i].offset));
-		}
+		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++)
+			buf[j] = *(port_stats + bnxt_port_stats_arr[i].offset);
 	}
 	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
-		__le64 *rx_port_stats_ext = bp->rx_port_stats_ext.hw_stats;
-		__le64 *tx_port_stats_ext = bp->tx_port_stats_ext.hw_stats;
+		u64 *rx_port_stats_ext = bp->rx_port_stats_ext.sw_stats;
+		u64 *tx_port_stats_ext = bp->tx_port_stats_ext.sw_stats;
 
 		for (i = 0; i < bp->fw_rx_stats_ext_size; i++, j++) {
-			buf[j] = le64_to_cpu(*(rx_port_stats_ext +
-					    bnxt_port_stats_ext_arr[i].offset));
+			buf[j] = *(rx_port_stats_ext +
+				   bnxt_port_stats_ext_arr[i].offset);
 		}
 		for (i = 0; i < bp->fw_tx_stats_ext_size; i++, j++) {
-			buf[j] = le64_to_cpu(*(tx_port_stats_ext +
-					bnxt_tx_port_stats_ext_arr[i].offset));
+			buf[j] = *(tx_port_stats_ext +
+				   bnxt_tx_port_stats_ext_arr[i].offset);
 		}
 		if (bp->pri2cos_valid) {
 			for (i = 0; i < 8; i++, j++) {
 				long n = bnxt_rx_bytes_pri_arr[i].base_off +
 					 bp->pri2cos_idx[i];
 
-				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+				buf[j] = *(rx_port_stats_ext + n);
 			}
 			for (i = 0; i < 8; i++, j++) {
 				long n = bnxt_rx_pkts_pri_arr[i].base_off +
 					 bp->pri2cos_idx[i];
 
-				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+				buf[j] = *(rx_port_stats_ext + n);
 			}
 			for (i = 0; i < 8; i++, j++) {
 				long n = bnxt_tx_bytes_pri_arr[i].base_off +
 					 bp->pri2cos_idx[i];
 
-				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+				buf[j] = *(tx_port_stats_ext + n);
 			}
 			for (i = 0; i < 8; i++, j++) {
 				long n = bnxt_tx_pkts_pri_arr[i].base_off +
 					 bp->pri2cos_idx[i];
 
-				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+				buf[j] = *(tx_port_stats_ext + n);
 			}
 		}
 	}
