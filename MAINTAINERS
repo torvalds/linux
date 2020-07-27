@@ -782,7 +782,7 @@ F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 F:	include/linux/mfd/altera-a10sr.h
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Thor Thayer <thor.thayer@linux.intel.com>
+M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/altera/
