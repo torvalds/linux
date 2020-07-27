@@ -13,6 +13,12 @@
 #include "rx_common.h"
 #include "efx.h"
 
+/* RX stubs */
+
+void ef100_rx_write(struct efx_rx_queue *rx_queue)
+{
+}
+
 void __ef100_rx_packet(struct efx_channel *channel)
 {
 	/* Stub.  No RX path yet.  Discard the buffer. */

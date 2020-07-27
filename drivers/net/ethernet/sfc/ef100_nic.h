@@ -21,6 +21,7 @@ struct ef100_nic_data {
 	struct efx_nic *efx;
 	struct efx_buffer mcdi_buf;
 	u16 warm_boot_count;
+	DECLARE_BITMAP(evq_phases, EFX_MAX_CHANNELS);
 };
 
 #define efx_ef100_has_cap(caps, flag) \

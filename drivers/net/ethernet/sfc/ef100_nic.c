@@ -135,6 +135,34 @@ static int ef100_ev_probe(struct efx_channel *channel)
 				    GFP_KERNEL);
 }
 
+static int ef100_ev_init(struct efx_channel *channel)
+{
+	struct ef100_nic_data *nic_data = channel->efx->nic_data;
+
+	/* initial phase is 0 */
+	clear_bit(channel->channel, nic_data->evq_phases);
+
+	return efx_mcdi_ev_init(channel, false, false);
+}
+
+static void ef100_ev_read_ack(struct efx_channel *channel)
+{
+	efx_dword_t evq_prime;
+
+	EFX_POPULATE_DWORD_2(evq_prime,
+			     ERF_GZ_EVQ_ID, channel->channel,
+			     ERF_GZ_IDX, channel->eventq_read_ptr &
+					 channel->eventq_mask);
+
+	efx_writed(channel->efx, &evq_prime,
+		   efx_reg(channel->efx, ER_GZ_EVQ_INT_PRIME));
+}
+
+static int ef100_ev_process(struct efx_channel *channel, int quota)
+{
+	return 0;
+}
+
 static irqreturn_t ef100_msi_interrupt(int irq, void *dev_id)
 {
 	struct efx_msi_context *context = dev_id;
@@ -210,6 +238,13 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 	return rc;
 }
 
+static unsigned int ef100_check_caps(const struct efx_nic *efx,
+				     u8 flag, u32 offset)
+{
+	/* stub */
+	return 0;
+}
+
 /*	NIC level access functions
  */
 const struct efx_nic_type ef100_pf_nic_type = {
@@ -230,8 +265,24 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.map_reset_flags = ef100_map_reset_flags,
 	.reset = ef100_reset,
 
+	.check_caps = ef100_check_caps,
+
 	.ev_probe = ef100_ev_probe,
+	.ev_init = ef100_ev_init,
+	.ev_fini = efx_mcdi_ev_fini,
+	.ev_remove = efx_mcdi_ev_remove,
 	.irq_handle_msi = ef100_msi_interrupt,
+	.ev_process = ef100_ev_process,
+	.ev_read_ack = ef100_ev_read_ack,
+	.tx_probe = ef100_tx_probe,
+	.tx_init = ef100_tx_init,
+	.tx_write = ef100_tx_write,
+	.tx_enqueue = ef100_enqueue_skb,
+	.rx_probe = efx_mcdi_rx_probe,
+	.rx_init = efx_mcdi_rx_init,
+	.rx_remove = efx_mcdi_rx_remove,
+	.rx_write = ef100_rx_write,
+	.rx_packet = __ef100_rx_packet,
 
 	/* Per-type bar/size configuration not used on ef100. Location of
 	 * registers is defined by extended capabilities.

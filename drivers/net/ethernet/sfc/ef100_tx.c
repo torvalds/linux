@@ -14,6 +14,25 @@
 #include "nic_common.h"
 #include "ef100_tx.h"
 
+/* TX queue stubs */
+int ef100_tx_probe(struct efx_tx_queue *tx_queue)
+{
+	return 0;
+}
+
+void ef100_tx_init(struct efx_tx_queue *tx_queue)
+{
+	/* must be the inverse of lookup in efx_get_tx_channel */
+	tx_queue->core_txq =
+		netdev_get_tx_queue(tx_queue->efx->net_dev,
+				    tx_queue->channel->channel -
+				    tx_queue->efx->tx_channel_offset);
+}
+
+void ef100_tx_write(struct efx_tx_queue *tx_queue)
+{
+}
+
 /* Add a socket buffer to a TX queue
  *
  * You must hold netif_tx_lock() to call this function.

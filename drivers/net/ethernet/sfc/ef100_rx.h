@@ -14,6 +14,7 @@
 
 #include "net_driver.h"
 
+void ef100_rx_write(struct efx_rx_queue *rx_queue);
 void __ef100_rx_packet(struct efx_channel *channel);
 
 #endif
