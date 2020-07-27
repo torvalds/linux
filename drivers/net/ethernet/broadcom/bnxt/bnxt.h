@@ -920,6 +920,8 @@ struct bnxt_sw_stats {
 };
 
 struct bnxt_stats_mem {
+	u64		*sw_stats;
+	u64		*hw_masks;
 	void		*hw_stats;
 	dma_addr_t	hw_stats_map;
 	int		len;
