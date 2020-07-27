@@ -332,6 +332,10 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 		__clear_bit(reset_type, &efx->reset_pending);
 		rc = dev_open(efx->net_dev, NULL);
 	} else if (reset_type == RESET_TYPE_ALL) {
+		rc = efx_mcdi_reset(efx, reset_type);
+		if (rc)
+			return rc;
+
 		netif_device_attach(efx->net_dev);
 
 		rc = dev_open(efx->net_dev, NULL);
@@ -466,6 +470,11 @@ static int ef100_probe_main(struct efx_nic *efx)
 	}
 	if (rc)
 		goto fail;
+	/* Reset (most) configuration for this function */
+	rc = efx_mcdi_reset(efx, RESET_TYPE_ALL);
+	if (rc)
+		goto fail;
+
 	rc = efx_ef100_init_datapath_caps(efx);
 	if (rc < 0)
 		goto fail;
