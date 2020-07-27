@@ -34,6 +34,12 @@ properties:
       - const: per
       - const: ipg
 
+  fsl,spi-only-use-cs1-sel:
+    description:
+      spi common code does not support use of CS signals discontinuously.
+      i.MX8DXL-EVK board only uses CS1 without using CS0. Therefore, add
+      this property to re-config the chipselect value in the LPSPI driver.
+
 required:
   - compatible
   - reg
@@ -57,4 +63,5 @@ examples:
                  <&clks IMX7ULP_CLK_DUMMY>;
         clock-names = "per", "ipg";
         spi-slave;
+        fsl,spi-only-use-cs1-sel;
     };
