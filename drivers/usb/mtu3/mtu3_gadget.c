@@ -263,22 +263,14 @@ void mtu3_free_request(struct usb_ep *ep, struct usb_request *req)
 static int mtu3_gadget_queue(struct usb_ep *ep,
 		struct usb_request *req, gfp_t gfp_flags)
 {
-	struct mtu3_ep *mep;
-	struct mtu3_request *mreq;
-	struct mtu3 *mtu;
+	struct mtu3_ep *mep = to_mtu3_ep(ep);
+	struct mtu3_request *mreq = to_mtu3_request(req);
+	struct mtu3 *mtu = mep->mtu;
 	unsigned long flags;
 	int ret = 0;
 
-	if (!ep || !req)
-		return -EINVAL;
-
 	if (!req->buf)
 		return -ENODATA;
-
-	mep = to_mtu3_ep(ep);
-	mtu = mep->mtu;
-	mreq = to_mtu3_request(req);
-	mreq->mtu = mtu;
 
 	if (mreq->mep != mep)
 		return -EINVAL;
@@ -303,6 +295,7 @@ static int mtu3_gadget_queue(struct usb_ep *ep,
 		return -ESHUTDOWN;
 	}
 
+	mreq->mtu = mtu;
 	mreq->request.actual = 0;
 	mreq->request.status = -EINPROGRESS;
 
@@ -335,11 +328,11 @@ static int mtu3_gadget_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
 	struct mtu3_request *mreq = to_mtu3_request(req);
 	struct mtu3_request *r;
+	struct mtu3 *mtu = mep->mtu;
 	unsigned long flags;
 	int ret = 0;
-	struct mtu3 *mtu = mep->mtu;
 
-	if (!ep || !req || mreq->mep != mep)
+	if (mreq->mep != mep)
 		return -EINVAL;
 
 	dev_dbg(mtu->dev, "%s : req=%p\n", __func__, req);
@@ -378,9 +371,6 @@ static int mtu3_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	struct mtu3_request *mreq;
 	unsigned long flags;
 	int ret = 0;
-
-	if (!ep)
-		return -EINVAL;
 
 	dev_dbg(mtu->dev, "%s : %s...", __func__, ep->name);
 
@@ -423,9 +413,6 @@ done:
 static int mtu3_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
-
-	if (!ep)
-		return -EINVAL;
 
 	mep->wedged = 1;
 
