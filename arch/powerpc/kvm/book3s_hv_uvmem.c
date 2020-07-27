@@ -418,7 +418,7 @@ static int kvmppc_memslot_page_merge(struct kvm *kvm,
 	return ret;
 }
 
-static void kvmppc_uvmem_memslot_delete(struct kvm *kvm,
+static void __kvmppc_uvmem_memslot_delete(struct kvm *kvm,
 		const struct kvm_memory_slot *memslot)
 {
 	uv_unregister_mem_slot(kvm->arch.lpid, memslot->id);
@@ -426,7 +426,7 @@ static void kvmppc_uvmem_memslot_delete(struct kvm *kvm,
 	kvmppc_memslot_page_merge(kvm, memslot, true);
 }
 
-static int kvmppc_uvmem_memslot_create(struct kvm *kvm,
+static int __kvmppc_uvmem_memslot_create(struct kvm *kvm,
 		const struct kvm_memory_slot *memslot)
 {
 	int ret = H_PARAMETER;
@@ -478,7 +478,7 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 	/* register the memslot */
 	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
-		ret = kvmppc_uvmem_memslot_create(kvm, memslot);
+		ret = __kvmppc_uvmem_memslot_create(kvm, memslot);
 		if (ret)
 			break;
 	}
@@ -488,7 +488,7 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 		kvm_for_each_memslot(m, slots) {
 			if (m == memslot)
 				break;
-			kvmppc_uvmem_memslot_delete(kvm, memslot);
+			__kvmppc_uvmem_memslot_delete(kvm, memslot);
 		}
 	}
 
@@ -1055,6 +1055,21 @@ out:
 	kvm_release_pfn_clean(pfn);
 	mutex_unlock(&kvm->arch.uvmem_lock);
 	return (ret == U_SUCCESS) ? RESUME_GUEST : -EFAULT;
+}
+
+int kvmppc_uvmem_memslot_create(struct kvm *kvm, const struct kvm_memory_slot *new)
+{
+	int ret = __kvmppc_uvmem_memslot_create(kvm, new);
+
+	if (!ret)
+		ret = kvmppc_uv_migrate_mem_slot(kvm, new);
+
+	return ret;
+}
+
+void kvmppc_uvmem_memslot_delete(struct kvm *kvm, const struct kvm_memory_slot *old)
+{
+	__kvmppc_uvmem_memslot_delete(kvm, old);
 }
 
 static u64 kvmppc_get_secmem_size(void)
