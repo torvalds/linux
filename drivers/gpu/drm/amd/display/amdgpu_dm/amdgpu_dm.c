@@ -7081,20 +7081,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			DRM_ERROR("Waiting for fences timed out!");
 
 		/*
-		 * TODO This might fail and hence better not used, wait
-		 * explicitly on fences instead
-		 * and in general should be called for
-		 * blocking commit to as per framework helpers
+		 * We cannot reserve buffers here, which means the normal flag
+		 * access functions don't work. Paper over this with READ_ONCE,
+		 * but maybe the flags are invariant enough that not even that
+		 * would be needed.
 		 */
-		r = amdgpu_bo_reserve(abo, true);
-		if (unlikely(r != 0))
-			DRM_ERROR("failed to reserve buffer before flip\n");
-
-		amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
-
-		tmz_surface = amdgpu_bo_encrypted(abo);
-
-		amdgpu_bo_unreserve(abo);
+		tiling_flags = READ_ONCE(abo->tiling_flags);
+		tmz_surface = READ_ONCE(abo->flags) & AMDGPU_GEM_CREATE_ENCRYPTED;
 
 		fill_dc_plane_info_and_addr(
 			dm->adev, new_plane_state, tiling_flags,
