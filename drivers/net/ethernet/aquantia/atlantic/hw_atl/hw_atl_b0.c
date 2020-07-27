@@ -93,6 +93,25 @@ const struct aq_hw_caps_s hw_atl_b0_caps_aqc109 = {
 			  AQ_NIC_RATE_100M,
 };
 
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc111 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = AQ_NIC_RATE_5G |
+			  AQ_NIC_RATE_2G5 |
+			  AQ_NIC_RATE_1G |
+			  AQ_NIC_RATE_100M,
+	.quirks = AQ_NIC_QUIRK_BAD_PTP,
+};
+
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc112 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = AQ_NIC_RATE_2G5 |
+			  AQ_NIC_RATE_1G  |
+			  AQ_NIC_RATE_100M,
+	.quirks = AQ_NIC_QUIRK_BAD_PTP,
+};
+
 static int hw_atl_b0_hw_reset(struct aq_hw_s *self)
 {
 	int err = 0;
@@ -354,8 +373,13 @@ static int hw_atl_b0_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 
 	/* WSP, if min_rate is set for at least one TC.
 	 * RR otherwise.
+	 *
+	 * NB! MAC FW sets arb mode itself if PTP is enabled. We shouldn't
+	 * overwrite it here in that case.
 	 */
-	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+	if (!nic_cfg->is_ptp)
+		hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+
 	/* Data TC Arbiter takes precedence over Descriptor TC Arbiter,
 	 * leave Descriptor TC Arbiter as RR.
 	 */

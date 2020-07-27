@@ -135,7 +135,6 @@ enum ionic_lif_state_flags {
 	IONIC_LIF_F_SW_DEBUG_STATS,
 	IONIC_LIF_F_UP,
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
-	IONIC_LIF_F_QUEUE_RESET,
 	IONIC_LIF_F_FW_RESET,
 
 	/* leave this as last */
@@ -165,6 +164,7 @@ struct ionic_lif {
 	unsigned int hw_index;
 	unsigned int kern_pid;
 	u64 __iomem *kern_dbpage;
+	struct mutex queue_lock;	/* lock for queue structures */
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
 	struct ionic_qcq *notifyqcq;
@@ -212,12 +212,6 @@ struct ionic_lif {
 #define lif_to_rxstats(lif, i)	((lif)->rxqcqs[i].stats->rx)
 #define lif_to_txq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 #define lif_to_rxq(lif, i)	(&lif_to_txqcq((lif), i)->q)
-
-/* return 0 if successfully set the bit, else non-zero */
-static inline int ionic_wait_for_bit(struct ionic_lif *lif, int bitname)
-{
-	return wait_on_bit_lock(lif->state, bitname, TASK_INTERRUPTIBLE);
-}
 
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 {

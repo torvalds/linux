@@ -52,32 +52,14 @@ typedef unsigned short       hive_uint16;
 typedef unsigned int         hive_uint32;
 typedef unsigned long long   hive_uint64;
 
-/* by default assume 32 bit master port (both data and address) */
-#ifndef HRT_DATA_WIDTH
-#define HRT_DATA_WIDTH 32
-#endif
-#ifndef HRT_ADDRESS_WIDTH
-#define HRT_ADDRESS_WIDTH 32
-#endif
-
+#define HRT_DATA_WIDTH	  32
+#define HRT_ADDRESS_WIDTH 64
 #define HRT_DATA_BYTES    (HRT_DATA_WIDTH / 8)
 #define HRT_ADDRESS_BYTES (HRT_ADDRESS_WIDTH / 8)
+#define SIZEOF_HRT_REG    (HRT_DATA_WIDTH >> 3)
 
-#if HRT_DATA_WIDTH == 64
-typedef hive_uint64 hrt_data;
-#elif HRT_DATA_WIDTH == 32
 typedef hive_uint32 hrt_data;
-#else
-#error data width not supported
-#endif
-
-#if HRT_ADDRESS_WIDTH == 64
 typedef hive_uint64 hrt_address;
-#elif HRT_ADDRESS_WIDTH == 32
-typedef hive_uint32 hrt_address;
-#else
-#error adddres width not supported
-#endif
 
 /* use 64 bit addresses in simulation, where possible */
 typedef hive_uint64  hive_sim_address;

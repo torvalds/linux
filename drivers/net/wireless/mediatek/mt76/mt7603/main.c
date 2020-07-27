@@ -642,8 +642,10 @@ mt7603_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct mt7603_dev *dev = hw->priv;
 
+	mutex_lock(&dev->mt76.mutex);
 	dev->coverage_class = max_t(s16, coverage_class, 0);
 	mt7603_mac_set_timing(dev);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static void mt7603_tx(struct ieee80211_hw *hw,

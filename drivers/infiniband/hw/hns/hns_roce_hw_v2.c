@@ -3954,6 +3954,15 @@ static int config_qp_sq_buf(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static inline enum ib_mtu get_mtu(struct ib_qp *ibqp,
+				  const struct ib_qp_attr *attr)
+{
+	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
+		return IB_MTU_4096;
+
+	return attr->path_mtu;
+}
+
 static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 				 const struct ib_qp_attr *attr, int attr_mask,
 				 struct hns_roce_v2_qp_context *context,
@@ -3965,6 +3974,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	dma_addr_t trrl_ba;
 	dma_addr_t irrl_ba;
+	enum ib_mtu mtu;
 	u8 port_num;
 	u64 *mtts;
 	u8 *dmac;
@@ -4062,22 +4072,22 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_52_udpspn_dmac, V2_QPC_BYTE_52_DMAC_M,
 		       V2_QPC_BYTE_52_DMAC_S, 0);
 
-	/* mtu*(2^LP_PKTN_INI) should not bigger than 1 message length 64kb */
+	mtu = get_mtu(ibqp, attr);
+
+	if (attr_mask & IB_QP_PATH_MTU) {
+		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
+			       V2_QPC_BYTE_24_MTU_S, mtu);
+		roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
+			       V2_QPC_BYTE_24_MTU_S, 0);
+	}
+
+#define MAX_LP_MSG_LEN 65536
+	/* MTU*(2^LP_PKTN_INI) shouldn't be bigger than 64kb */
 	roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
 		       V2_QPC_BYTE_56_LP_PKTN_INI_S,
-		       ilog2(hr_dev->caps.max_sq_inline / IB_MTU_4096));
+		       ilog2(MAX_LP_MSG_LEN / ib_mtu_enum_to_int(mtu)));
 	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
 		       V2_QPC_BYTE_56_LP_PKTN_INI_S, 0);
-
-	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
-		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
-			       V2_QPC_BYTE_24_MTU_S, IB_MTU_4096);
-	else if (attr_mask & IB_QP_PATH_MTU)
-		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
-			       V2_QPC_BYTE_24_MTU_S, attr->path_mtu);
-
-	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
-		       V2_QPC_BYTE_24_MTU_S, 0);
 
 	roce_set_bit(qpc_mask->byte_108_rx_reqepsn,
 		     V2_QPC_BYTE_108_RX_REQ_PSN_ERR_S, 0);

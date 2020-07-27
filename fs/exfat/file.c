@@ -176,7 +176,7 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 			ep2->dentry.stream.size = 0;
 		} else {
 			ep2->dentry.stream.valid_size = cpu_to_le64(new_size);
-			ep2->dentry.stream.size = ep->dentry.stream.valid_size;
+			ep2->dentry.stream.size = ep2->dentry.stream.valid_size;
 		}
 
 		if (new_size == 0) {
