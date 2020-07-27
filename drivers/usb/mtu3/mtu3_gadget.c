@@ -190,8 +190,7 @@ static int mtu3_gadget_ep_enable(struct usb_ep *ep,
 	if (ret)
 		goto error;
 
-	mep->wedged = 0;
-	mep->flags |= MTU3_EP_ENABLED;
+	mep->flags = MTU3_EP_ENABLED;
 	mtu->active_ep++;
 
 error:
@@ -219,7 +218,7 @@ static int mtu3_gadget_ep_disable(struct usb_ep *ep)
 
 	spin_lock_irqsave(&mtu->lock, flags);
 	mtu3_ep_disable(mep);
-	mep->flags &= ~MTU3_EP_ENABLED;
+	mep->flags = 0;
 	mtu->active_ep--;
 	spin_unlock_irqrestore(&(mtu->lock), flags);
 
@@ -389,7 +388,7 @@ static int mtu3_gadget_ep_set_halt(struct usb_ep *ep, int value)
 			goto done;
 		}
 	} else {
-		mep->wedged = 0;
+		mep->flags &= ~MTU3_EP_WEDGE;
 	}
 
 	dev_dbg(mtu->dev, "%s %s stall\n", ep->name, value ? "set" : "clear");
@@ -408,7 +407,7 @@ static int mtu3_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
 
-	mep->wedged = 1;
+	mep->flags |= MTU3_EP_WEDGE;
 
 	return usb_ep_set_halt(ep);
 }

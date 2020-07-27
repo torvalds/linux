@@ -293,7 +293,6 @@ struct mtu3_ep {
 	const struct usb_endpoint_descriptor *desc;
 
 	int flags;
-	u8 wedged;
 };
 
 struct mtu3_request {
