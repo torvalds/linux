@@ -1418,17 +1418,12 @@ static int udma_alloc_tx_resources(struct udma_chan *uc)
 	if (ret)
 		return ret;
 
-	uc->tchan->t_ring = k3_ringacc_request_ring(ud->ringacc,
-						    uc->tchan->id, 0);
-	if (!uc->tchan->t_ring) {
+	ret = k3_ringacc_request_rings_pair(ud->ringacc, uc->tchan->id, -1,
+					    &uc->tchan->t_ring,
+					    &uc->tchan->tc_ring);
+	if (ret) {
 		ret = -EBUSY;
-		goto err_tx_ring;
-	}
-
-	uc->tchan->tc_ring = k3_ringacc_request_ring(ud->ringacc, -1, 0);
-	if (!uc->tchan->tc_ring) {
-		ret = -EBUSY;
-		goto err_txc_ring;
+		goto err_ring;
 	}
 
 	memset(&ring_cfg, 0, sizeof(ring_cfg));
@@ -1447,10 +1442,9 @@ static int udma_alloc_tx_resources(struct udma_chan *uc)
 err_ringcfg:
 	k3_ringacc_ring_free(uc->tchan->tc_ring);
 	uc->tchan->tc_ring = NULL;
-err_txc_ring:
 	k3_ringacc_ring_free(uc->tchan->t_ring);
 	uc->tchan->t_ring = NULL;
-err_tx_ring:
+err_ring:
 	udma_put_tchan(uc);
 
 	return ret;
@@ -1499,16 +1493,11 @@ static int udma_alloc_rx_resources(struct udma_chan *uc)
 
 	rflow = uc->rflow;
 	fd_ring_id = ud->tchan_cnt + ud->echan_cnt + uc->rchan->id;
-	rflow->fd_ring = k3_ringacc_request_ring(ud->ringacc, fd_ring_id, 0);
-	if (!rflow->fd_ring) {
+	ret = k3_ringacc_request_rings_pair(ud->ringacc, fd_ring_id, -1,
+					    &rflow->fd_ring, &rflow->r_ring);
+	if (ret) {
 		ret = -EBUSY;
-		goto err_rx_ring;
-	}
-
-	rflow->r_ring = k3_ringacc_request_ring(ud->ringacc, -1, 0);
-	if (!rflow->r_ring) {
-		ret = -EBUSY;
-		goto err_rxc_ring;
+		goto err_ring;
 	}
 
 	memset(&ring_cfg, 0, sizeof(ring_cfg));
@@ -1533,10 +1522,9 @@ static int udma_alloc_rx_resources(struct udma_chan *uc)
 err_ringcfg:
 	k3_ringacc_ring_free(rflow->r_ring);
 	rflow->r_ring = NULL;
-err_rxc_ring:
 	k3_ringacc_ring_free(rflow->fd_ring);
 	rflow->fd_ring = NULL;
-err_rx_ring:
+err_ring:
 	udma_put_rflow(uc);
 err_rflow:
 	udma_put_rchan(uc);
