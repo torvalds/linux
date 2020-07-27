@@ -1923,7 +1923,7 @@ qedr_roce_create_kernel_qp(struct qedr_dev *dev,
 	in_params->sq_pbl_ptr = qed_chain_get_pbl_phys(&qp->sq.pbl);
 
 	params.intended_use = QED_CHAIN_USE_TO_CONSUME_PRODUCE;
-	params.elem_size = n_rq_elems;
+	params.num_elems = n_rq_elems;
 	params.elem_size = QEDR_RQE_ELEMENT_SIZE;
 
 	rc = dev->ops->common->chain_alloc(dev->cdev, &qp->rq.pbl, &params);
