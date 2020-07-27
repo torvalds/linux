@@ -10228,6 +10228,38 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	return rc;
 }
 
+int bnxt_dbg_hwrm_rd_reg(struct bnxt *bp, u32 reg_off, u16 num_words,
+			 u32 *reg_buf)
+{
+	struct hwrm_dbg_read_direct_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_dbg_read_direct_input req = {0};
+	__le32 *dbg_reg_buf;
+	dma_addr_t mapping;
+	int rc, i;
+
+	dbg_reg_buf = dma_alloc_coherent(&bp->pdev->dev, num_words * 4,
+					 &mapping, GFP_KERNEL);
+	if (!dbg_reg_buf)
+		return -ENOMEM;
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_DBG_READ_DIRECT, -1, -1);
+	req.host_dest_addr = cpu_to_le64(mapping);
+	req.read_addr = cpu_to_le32(reg_off + CHIMP_REG_VIEW_ADDR);
+	req.read_len32 = cpu_to_le32(num_words);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc || resp->error_code) {
+		rc = -EIO;
+		goto dbg_rd_reg_exit;
+	}
+	for (i = 0; i < num_words; i++)
+		reg_buf[i] = le32_to_cpu(dbg_reg_buf[i]);
+
+dbg_rd_reg_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	dma_free_coherent(&bp->pdev->dev, num_words * 4, dbg_reg_buf, mapping);
+	return rc;
+}
+
 static int bnxt_dbg_hwrm_ring_info_get(struct bnxt *bp, u8 ring_type,
 				       u32 ring_id, u32 *prod, u32 *cons)
 {

@@ -1324,6 +1324,59 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	info->regdump_len = 0;
 }
 
+static int bnxt_get_regs_len(struct net_device *dev)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int reg_len;
+
+	reg_len = BNXT_PXP_REG_LEN;
+
+	if (bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED)
+		reg_len += sizeof(struct pcie_ctx_hw_stats);
+
+	return reg_len;
+}
+
+static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
+			  void *_p)
+{
+	struct pcie_ctx_hw_stats *hw_pcie_stats;
+	struct hwrm_pcie_qstats_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	dma_addr_t hw_pcie_stats_addr;
+	int rc;
+
+	regs->version = 0;
+	bnxt_dbg_hwrm_rd_reg(bp, 0, BNXT_PXP_REG_LEN / 4, _p);
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED))
+		return;
+
+	hw_pcie_stats = dma_alloc_coherent(&bp->pdev->dev,
+					   sizeof(*hw_pcie_stats),
+					   &hw_pcie_stats_addr, GFP_KERNEL);
+	if (!hw_pcie_stats)
+		return;
+
+	regs->version = 1;
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PCIE_QSTATS, -1, -1);
+	req.pcie_stat_size = cpu_to_le16(sizeof(*hw_pcie_stats));
+	req.pcie_stat_host_addr = cpu_to_le64(hw_pcie_stats_addr);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		__le64 *src = (__le64 *)hw_pcie_stats;
+		u64 *dst = (u64 *)(_p + BNXT_PXP_REG_LEN);
+		int i;
+
+		for (i = 0; i < sizeof(*hw_pcie_stats) / sizeof(__le64); i++)
+			dst[i] = le64_to_cpu(src[i]);
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	dma_free_coherent(&bp->pdev->dev, sizeof(*hw_pcie_stats), hw_pcie_stats,
+			  hw_pcie_stats_addr);
+}
+
 static void bnxt_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -3599,6 +3652,8 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_pauseparam		= bnxt_get_pauseparam,
 	.set_pauseparam		= bnxt_set_pauseparam,
 	.get_drvinfo		= bnxt_get_drvinfo,
+	.get_regs_len		= bnxt_get_regs_len,
+	.get_regs		= bnxt_get_regs,
 	.get_wol		= bnxt_get_wol,
 	.set_wol		= bnxt_set_wol,
 	.get_coalesce		= bnxt_get_coalesce,
