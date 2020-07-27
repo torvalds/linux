@@ -22,6 +22,8 @@
 #include <asm/time.h>
 #include <asm/smp.h>
 
+#include <platforms/pasemi/pasemi.h>
+
 #define SDCASR_REG		0x0100
 #define SDCASR_REG_STRIDE	0x1000
 #define SDCPWR_CFGA0_REG	0x0100
