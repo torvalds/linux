@@ -1652,8 +1652,6 @@ static int __maybe_unused pch_spi_resume(struct device *dev)
 
 	dev_dbg(dev, "%s ENTRY\n", __func__);
 
-	device_wakeup_disable(dev);
-
 	/* set suspend status to false */
 	pd_dev_save->board_dat->suspend_sts = false;
 
