@@ -35,6 +35,11 @@
 enum mxsfb_devtype {
 	MXSFB_V3,
 	MXSFB_V4,
+	/*
+	 * Starting at i.MX6 the hardware version register is gone, use the
+	 * i.MX family number as the version.
+	 */
+	MXSFB_V6,
 };
 
 static const struct mxsfb_devdata mxsfb_devdata[] = {
@@ -46,6 +51,13 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.hs_wdth_shift	= 24,
 	},
 	[MXSFB_V4] = {
+		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
+		.cur_buf	= LCDC_V4_CUR_BUF,
+		.next_buf	= LCDC_V4_NEXT_BUF,
+		.hs_wdth_mask	= 0x3fff,
+		.hs_wdth_shift	= 18,
+	},
+	[MXSFB_V6] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
 		.cur_buf	= LCDC_V4_CUR_BUF,
 		.next_buf	= LCDC_V4_NEXT_BUF,
@@ -271,7 +283,7 @@ static struct drm_driver mxsfb_driver = {
 static const struct platform_device_id mxsfb_devtype[] = {
 	{ .name = "imx23-fb", .driver_data = MXSFB_V3, },
 	{ .name = "imx28-fb", .driver_data = MXSFB_V4, },
-	{ .name = "imx6sx-fb", .driver_data = MXSFB_V4, },
+	{ .name = "imx6sx-fb", .driver_data = MXSFB_V6, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
