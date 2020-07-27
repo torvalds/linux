@@ -22,7 +22,7 @@
 #define CMU_R07C		0x7c
 
 #define COMLANE_R138		0xb38
-#define VERSION			0x70
+#define VERSION_VAL		0x70
 
 #define COMLANE_R190		0xb90
 
@@ -80,27 +80,52 @@ static const struct regmap_config serdes_am654_regmap_config = {
 	.max_register = 0x1ffc,
 };
 
-static const struct reg_field cmu_master_cdn_o = REG_FIELD(CMU_R07C, 24, 24);
-static const struct reg_field config_version = REG_FIELD(COMLANE_R138, 16, 23);
-static const struct reg_field l1_master_cdn_o = REG_FIELD(COMLANE_R190, 9, 9);
-static const struct reg_field cmu_ok_i_0 = REG_FIELD(COMLANE_R194, 19, 19);
-static const struct reg_field por_en = REG_FIELD(SERDES_CTRL, 29, 29);
-static const struct reg_field tx0_enable = REG_FIELD(WIZ_LANEXCTL_STS, 29, 31);
-static const struct reg_field rx0_enable = REG_FIELD(WIZ_LANEXCTL_STS, 13, 15);
-static const struct reg_field pll_enable = REG_FIELD(WIZ_PLL_CTRL, 29, 31);
-static const struct reg_field pll_ok = REG_FIELD(WIZ_PLL_CTRL, 28, 28);
+enum serdes_am654_fields {
+	/* CMU Master Reset */
+	CMU_MASTER_CDN,
+	CONFIG_VERSION,
+
+	/* Lane 1 Master Reset */
+	L1_MASTER_CDN,
+
+	/* CMU OK Status */
+	CMU_OK_I_0,
+
+	/* Serdes reset */
+	POR_EN,
+
+	/* Tx Enable Value */
+	TX0_ENABLE,
+
+	/* Rx Enable Value */
+	RX0_ENABLE,
+
+	/* PLL Enable Value */
+	PLL_ENABLE,
+
+	/* PLL ready for use */
+	PLL_OK,
+
+	/* sentinel */
+	MAX_FIELDS
+
+};
+
+static const struct reg_field serdes_am654_reg_fields[] = {
+	[CMU_MASTER_CDN]		= REG_FIELD(CMU_R07C, 24, 24),
+	[CONFIG_VERSION]		= REG_FIELD(COMLANE_R138, 16, 23),
+	[L1_MASTER_CDN]			= REG_FIELD(COMLANE_R190, 9, 9),
+	[CMU_OK_I_0]			= REG_FIELD(COMLANE_R194, 19, 19),
+	[POR_EN]			= REG_FIELD(SERDES_CTRL, 29, 29),
+	[TX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 29, 31),
+	[RX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 13, 15),
+	[PLL_ENABLE]			= REG_FIELD(WIZ_PLL_CTRL, 29, 31),
+	[PLL_OK]			= REG_FIELD(WIZ_PLL_CTRL, 28, 28),
+};
 
 struct serdes_am654 {
 	struct regmap		*regmap;
-	struct regmap_field	*cmu_master_cdn_o;
-	struct regmap_field	*config_version;
-	struct regmap_field	*l1_master_cdn_o;
-	struct regmap_field	*cmu_ok_i_0;
-	struct regmap_field	*por_en;
-	struct regmap_field	*tx0_enable;
-	struct regmap_field	*rx0_enable;
-	struct regmap_field	*pll_enable;
-	struct regmap_field	*pll_ok;
+	struct regmap_field	*fields[MAX_FIELDS];
 
 	struct device		*dev;
 	struct mux_control	*control;
@@ -116,12 +141,12 @@ static int serdes_am654_enable_pll(struct serdes_am654 *phy)
 	int ret;
 	u32 val;
 
-	ret = regmap_field_write(phy->pll_enable, PLL_ENABLE_STATE);
+	ret = regmap_field_write(phy->fields[PLL_ENABLE], PLL_ENABLE_STATE);
 	if (ret)
 		return ret;
 
-	return regmap_field_read_poll_timeout(phy->pll_ok, val, val, 1000,
-					      PLL_LOCK_TIME);
+	return regmap_field_read_poll_timeout(phy->fields[PLL_OK], val, val,
+					      1000, PLL_LOCK_TIME);
 }
 
 static void serdes_am654_disable_pll(struct serdes_am654 *phy)
@@ -129,7 +154,7 @@ static void serdes_am654_disable_pll(struct serdes_am654 *phy)
 	struct device *dev = phy->dev;
 	int ret;
 
-	ret = regmap_field_write(phy->pll_enable, PLL_DISABLE_STATE);
+	ret = regmap_field_write(phy->fields[PLL_ENABLE], PLL_DISABLE_STATE);
 	if (ret)
 		dev_err(dev, "Failed to disable PLL\n");
 }
@@ -139,12 +164,12 @@ static int serdes_am654_enable_txrx(struct serdes_am654 *phy)
 	int ret;
 
 	/* Enable TX */
-	ret = regmap_field_write(phy->tx0_enable, TX0_ENABLE_STATE);
+	ret = regmap_field_write(phy->fields[TX0_ENABLE], TX0_ENABLE_STATE);
 	if (ret)
 		return ret;
 
 	/* Enable RX */
-	ret = regmap_field_write(phy->rx0_enable, RX0_ENABLE_STATE);
+	ret = regmap_field_write(phy->fields[RX0_ENABLE], RX0_ENABLE_STATE);
 	if (ret)
 		return ret;
 
@@ -156,12 +181,12 @@ static int serdes_am654_disable_txrx(struct serdes_am654 *phy)
 	int ret;
 
 	/* Disable TX */
-	ret = regmap_field_write(phy->tx0_enable, TX0_DISABLE_STATE);
+	ret = regmap_field_write(phy->fields[TX0_ENABLE], TX0_DISABLE_STATE);
 	if (ret)
 		return ret;
 
 	/* Disable RX */
-	ret = regmap_field_write(phy->rx0_enable, RX0_DISABLE_STATE);
+	ret = regmap_field_write(phy->fields[RX0_ENABLE], RX0_DISABLE_STATE);
 	if (ret)
 		return ret;
 
@@ -187,8 +212,8 @@ static int serdes_am654_power_on(struct phy *x)
 		return ret;
 	}
 
-	return regmap_field_read_poll_timeout(phy->cmu_ok_i_0, val, val,
-					      SLEEP_TIME, PLL_LOCK_TIME);
+	return regmap_field_read_poll_timeout(phy->fields[CMU_OK_I_0], val,
+					      val, SLEEP_TIME, PLL_LOCK_TIME);
 }
 
 static int serdes_am654_power_off(struct phy *x)
@@ -288,15 +313,15 @@ static int serdes_am654_pcie_init(struct serdes_am654 *phy)
 {
 	int ret;
 
-	ret = regmap_field_write(phy->config_version, VERSION);
+	ret = regmap_field_write(phy->fields[CONFIG_VERSION], VERSION_VAL);
 	if (ret)
 		return ret;
 
-	ret = regmap_field_write(phy->cmu_master_cdn_o, 0x1);
+	ret = regmap_field_write(phy->fields[CMU_MASTER_CDN], 0x1);
 	if (ret)
 		return ret;
 
-	ret = regmap_field_write(phy->l1_master_cdn_o, 0x1);
+	ret = regmap_field_write(phy->fields[L1_MASTER_CDN], 0x1);
 	if (ret)
 		return ret;
 
@@ -325,13 +350,13 @@ static int serdes_am654_reset(struct phy *x)
 	serdes_am654_disable_pll(phy);
 	serdes_am654_disable_txrx(phy);
 
-	ret = regmap_field_write(phy->por_en, 0x1);
+	ret = regmap_field_write(phy->fields[POR_EN], 0x1);
 	if (ret)
 		return ret;
 
 	mdelay(1);
 
-	ret = regmap_field_write(phy->por_en, 0x0);
+	ret = regmap_field_write(phy->fields[POR_EN], 0x0);
 	if (ret)
 		return ret;
 
@@ -587,66 +612,16 @@ static int serdes_am654_regfield_init(struct serdes_am654 *am654_phy)
 {
 	struct regmap *regmap = am654_phy->regmap;
 	struct device *dev = am654_phy->dev;
+	int i;
 
-	am654_phy->cmu_master_cdn_o = devm_regmap_field_alloc(dev, regmap,
-							      cmu_master_cdn_o);
-	if (IS_ERR(am654_phy->cmu_master_cdn_o)) {
-		dev_err(dev, "CMU_MASTER_CDN_O reg field init failed\n");
-		return PTR_ERR(am654_phy->cmu_master_cdn_o);
-	}
-
-	am654_phy->config_version = devm_regmap_field_alloc(dev, regmap,
-							    config_version);
-	if (IS_ERR(am654_phy->config_version)) {
-		dev_err(dev, "CONFIG_VERSION reg field init failed\n");
-		return PTR_ERR(am654_phy->config_version);
-	}
-
-	am654_phy->l1_master_cdn_o = devm_regmap_field_alloc(dev, regmap,
-							     l1_master_cdn_o);
-	if (IS_ERR(am654_phy->l1_master_cdn_o)) {
-		dev_err(dev, "L1_MASTER_CDN_O reg field init failed\n");
-		return PTR_ERR(am654_phy->l1_master_cdn_o);
-	}
-
-	am654_phy->cmu_ok_i_0 = devm_regmap_field_alloc(dev, regmap,
-							cmu_ok_i_0);
-	if (IS_ERR(am654_phy->cmu_ok_i_0)) {
-		dev_err(dev, "CMU_OK_I_0 reg field init failed\n");
-		return PTR_ERR(am654_phy->cmu_ok_i_0);
-	}
-
-	am654_phy->por_en = devm_regmap_field_alloc(dev, regmap, por_en);
-	if (IS_ERR(am654_phy->por_en)) {
-		dev_err(dev, "POR_EN reg field init failed\n");
-		return PTR_ERR(am654_phy->por_en);
-	}
-
-	am654_phy->tx0_enable = devm_regmap_field_alloc(dev, regmap,
-							tx0_enable);
-	if (IS_ERR(am654_phy->tx0_enable)) {
-		dev_err(dev, "TX0_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->tx0_enable);
-	}
-
-	am654_phy->rx0_enable = devm_regmap_field_alloc(dev, regmap,
-							rx0_enable);
-	if (IS_ERR(am654_phy->rx0_enable)) {
-		dev_err(dev, "RX0_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->rx0_enable);
-	}
-
-	am654_phy->pll_enable = devm_regmap_field_alloc(dev, regmap,
-							pll_enable);
-	if (IS_ERR(am654_phy->pll_enable)) {
-		dev_err(dev, "PLL_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->pll_enable);
-	}
-
-	am654_phy->pll_ok = devm_regmap_field_alloc(dev, regmap, pll_ok);
-	if (IS_ERR(am654_phy->pll_ok)) {
-		dev_err(dev, "PLL_OK reg field init failed\n");
-		return PTR_ERR(am654_phy->pll_ok);
+	for (i = 0; i < MAX_FIELDS; i++) {
+		am654_phy->fields[i] = devm_regmap_field_alloc(dev,
+							       regmap,
+							       serdes_am654_reg_fields[i]);
+		if (IS_ERR(am654_phy->fields[i])) {
+			dev_err(dev, "Unable to allocate regmap field %d\n", i);
+			return PTR_ERR(am654_phy->fields[i]);
+		}
 	}
 
 	return 0;
