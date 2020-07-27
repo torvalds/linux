@@ -13,7 +13,7 @@ struct nv_sec2_args {
 #define NV_SEC2_UNIT_ACR                                                   0x08
 
 struct nv_sec2_init_msg {
-	struct nv_falcon_msg hdr;
+	struct nvfw_falcon_msg hdr;
 #define NV_SEC2_INIT_MSG_INIT                                              0x00
 	u8 msg_type;
 
@@ -34,13 +34,13 @@ struct nv_sec2_init_msg {
 };
 
 struct nv_sec2_acr_cmd {
-	struct nv_falcon_cmd hdr;
+	struct nvfw_falcon_cmd hdr;
 #define NV_SEC2_ACR_CMD_BOOTSTRAP_FALCON                                   0x00
 	u8 cmd_type;
 };
 
 struct nv_sec2_acr_msg {
-	struct nv_falcon_cmd hdr;
+	struct nvfw_falcon_cmd hdr;
 	u8 msg_type;
 };
 

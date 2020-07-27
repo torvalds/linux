@@ -2,6 +2,7 @@
 #define __NV50_KMS_H__
 #include <linux/workqueue.h>
 #include <nvif/mem.h>
+#include <nvif/push.h>
 
 #include "nouveau_display.h"
 
@@ -61,7 +62,8 @@ struct nv50_chan {
 struct nv50_dmac {
 	struct nv50_chan base;
 
-	struct nvif_mem push;
+	struct nvif_push _push;
+	struct nvif_push *push;
 	u32 *ptr;
 
 	struct nvif_object sync;
@@ -71,6 +73,10 @@ struct nv50_dmac {
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
 	struct mutex lock;
+
+	u32 cur;
+	u32 put;
+	u32 max;
 };
 
 struct nv50_outp_atom {
@@ -106,18 +112,4 @@ void evo_kick(u32 *, struct nv50_dmac *);
 extern const u64 disp50xx_modifiers[];
 extern const u64 disp90xx_modifiers[];
 extern const u64 wndwc57e_modifiers[];
-
-#define evo_mthd(p, m, s) do {						\
-	const u32 _m = (m), _s = (s);					\
-	if (drm_debug_enabled(DRM_UT_KMS))				\
-		pr_err("%04x %d %s\n", _m, _s, __func__);		\
-	*((p)++) = ((_s << 18) | _m);					\
-} while(0)
-
-#define evo_data(p, d) do {						\
-	const u32 _d = (d);						\
-	if (drm_debug_enabled(DRM_UT_KMS))				\
-		pr_err("\t%08x\n", _d);					\
-	*((p)++) = _d;							\
-} while(0)
 #endif

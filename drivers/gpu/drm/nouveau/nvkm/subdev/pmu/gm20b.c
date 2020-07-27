@@ -28,7 +28,7 @@
 #include <nvfw/pmu.h>
 
 static int
-gm20b_pmu_acr_bootstrap_falcon_cb(void *priv, struct nv_falcon_msg *hdr)
+gm20b_pmu_acr_bootstrap_falcon_cb(void *priv, struct nvfw_falcon_msg *hdr)
 {
 	struct nv_pmu_acr_bootstrap_falcon_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);
@@ -126,11 +126,14 @@ gm20b_pmu_acr = {
 	.bld_write = gm20b_pmu_acr_bld_write,
 	.bld_patch = gm20b_pmu_acr_bld_patch,
 	.boot = gm20b_pmu_acr_boot,
+	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_PMU) |
+			     BIT_ULL(NVKM_ACR_LSF_FECS) |
+			     BIT_ULL(NVKM_ACR_LSF_GPCCS),
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };
 
 static int
-gm20b_pmu_acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
+gm20b_pmu_acr_init_wpr_callback(void *priv, struct nvfw_falcon_msg *hdr)
 {
 	struct nv_pmu_acr_init_wpr_region_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);
@@ -231,7 +234,8 @@ gm20b_pmu_load(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
 
 static const struct nvkm_pmu_fwif
 gm20b_pmu_fwif[] = {
-	{ 0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
+	{  0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
+	{ -1, gm200_pmu_nofw, &gm20b_pmu },
 	{}
 };
 

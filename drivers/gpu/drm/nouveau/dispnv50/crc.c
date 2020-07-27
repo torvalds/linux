@@ -9,6 +9,8 @@
 #include <nvif/cl0002.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl907d.h>
+
 #include "nouveau_drv.h"
 #include "core.h"
 #include "head.h"
@@ -478,10 +480,6 @@ void nv50_crc_atomic_clr(struct nv50_head *head)
 	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL, 0);
 }
 
-#define NV50_CRC_RASTER_ACTIVE   0
-#define NV50_CRC_RASTER_COMPLETE 1
-#define NV50_CRC_RASTER_INACTIVE 2
-
 static inline int
 nv50_crc_raster_type(enum nv50_crc_source source)
 {
@@ -490,11 +488,11 @@ nv50_crc_raster_type(enum nv50_crc_source source)
 	case NV50_CRC_SOURCE_AUTO:
 	case NV50_CRC_SOURCE_RG:
 	case NV50_CRC_SOURCE_OUTP_ACTIVE:
-		return NV50_CRC_RASTER_ACTIVE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_ACTIVE_RASTER;
 	case NV50_CRC_SOURCE_OUTP_COMPLETE:
-		return NV50_CRC_RASTER_COMPLETE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_COMPLETE_RASTER;
 	case NV50_CRC_SOURCE_OUTP_INACTIVE:
-		return NV50_CRC_RASTER_INACTIVE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_NON_ACTIVE_RASTER;
 	}
 
 	return 0;
@@ -510,11 +508,11 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	struct nv50_core *core = nv50_disp(head->base.base.dev)->core;
 	int ret;
 
-	ret = nvif_mem_init_map(mmu, NVIF_MEM_VRAM, len, &ctx->mem);
+	ret = nvif_mem_ctor_map(mmu, "kmsCrcNtfy", NVIF_MEM_VRAM, len, &ctx->mem);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&core->chan.base.user,
+	ret = nvif_object_ctor(&core->chan.base.user, "kmsCrcNtfyCtxDma",
 			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
 			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
@@ -531,15 +529,15 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	return 0;
 
 fail_fini:
-	nvif_mem_fini(&ctx->mem);
+	nvif_mem_dtor(&ctx->mem);
 	return ret;
 }
 
 static inline void
 nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
 {
-	nvif_object_fini(&ctx->ntfy);
-	nvif_mem_fini(&ctx->mem);
+	nvif_object_dtor(&ctx->ntfy);
+	nvif_mem_dtor(&ctx->mem);
 }
 
 int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)

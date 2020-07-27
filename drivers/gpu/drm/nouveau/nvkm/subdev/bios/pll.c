@@ -134,7 +134,7 @@ pll_map(struct nvkm_bios *bios)
 		    device->chipset == 0xaa ||
 		    device->chipset == 0xac)
 			return g84_pll_mapping;
-		/* fall through */
+		fallthrough;
 	default:
 		return NULL;
 	}

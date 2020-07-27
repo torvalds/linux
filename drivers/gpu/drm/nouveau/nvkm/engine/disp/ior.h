@@ -66,7 +66,7 @@ struct nvkm_ior_func {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable,
 			     u8 max_ac_packet, u8 rekey, u8 *avi, u8 avi_size,
 			     u8 *vendor, u8 vendor_size);
-		void (*scdc)(struct nvkm_ior *, int head, u8 scdc);
+		void (*scdc)(struct nvkm_ior *, u8 scdc);
 	} hdmi;
 
 	struct {
@@ -156,7 +156,7 @@ void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gv100_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 
-void gm200_hdmi_scdc(struct nvkm_ior *, int, u8);
+void gm200_hdmi_scdc(struct nvkm_ior *, u8);
 
 void gt215_hda_hpd(struct nvkm_ior *, int, bool);
 void gt215_hda_eld(struct nvkm_ior *, int, u8 *, u8);

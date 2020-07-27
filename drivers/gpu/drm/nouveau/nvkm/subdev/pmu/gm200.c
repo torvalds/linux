@@ -24,20 +24,28 @@
 #include "priv.h"
 
 static const struct nvkm_pmu_func
-gp100_pmu = {
+gm200_pmu = {
 	.flcn = &gt215_pmu_flcn,
 	.enabled = gf100_pmu_enabled,
 	.reset = gf100_pmu_reset,
 };
 
+
+int
+gm200_pmu_nofw(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
+{
+	nvkm_warn(&pmu->subdev, "firmware unavailable\n");
+	return 0;
+}
+
 static const struct nvkm_pmu_fwif
-gp100_pmu_fwif[] = {
-	{ -1, gf100_pmu_nofw, &gp100_pmu },
+gm200_pmu_fwif[] = {
+	{ -1, gm200_pmu_nofw, &gm200_pmu },
 	{}
 };
 
 int
-gp100_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gm200_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(gp100_pmu_fwif, device, index, ppmu);
+	return nvkm_pmu_new_(gm200_pmu_fwif, device, index, ppmu);
 }
