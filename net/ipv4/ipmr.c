@@ -1441,7 +1441,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (copy_from_sockptr(&val, optval, sizeof(val))) {
+		if (copy_from_sockptr(&mfc, optval, sizeof(mfc))) {
 			ret = -EFAULT;
 			break;
 		}
