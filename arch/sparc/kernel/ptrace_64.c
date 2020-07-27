@@ -258,7 +258,7 @@ static int genregs64_get(struct task_struct *target,
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				  regs->u_regs,
 				  0, 16 * sizeof(u64));
-	if (!ret && count && pos < (32 * sizeof(u64))) {
+	if (!ret && count) {
 		struct reg_window window;
 
 		if (regwindow64_get(target, regs, &window))
@@ -506,6 +506,112 @@ static const struct user_regset sparc64_regsets[] = {
 	},
 };
 
+static int getregs64_get(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 void *kbuf, void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	if (target == current)
+		flushw_user();
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  regs->u_regs + 1,
+				  0, 15 * sizeof(u64));
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+				  15 * sizeof(u64), 16 * sizeof(u64));
+	if (!ret) {
+		/* TSTATE, TPC, TNPC */
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &regs->tstate,
+					  16 * sizeof(u64),
+					  19 * sizeof(u64));
+	}
+	if (!ret) {
+		unsigned long y = regs->y;
+
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &y,
+					  19 * sizeof(u64),
+					  20 * sizeof(u64));
+	}
+	return ret;
+}
+
+static int setregs64_set(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	unsigned long y = regs->y;
+	unsigned long tstate;
+	int ret;
+
+	if (target == current)
+		flushw_user();
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 regs->u_regs + 1,
+				 0 * sizeof(u64),
+				 15 * sizeof(u64));
+	if (ret)
+		return ret;
+	ret =user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				 15 * sizeof(u64), 16 * sizeof(u64));
+	if (ret)
+		return ret;
+	/* TSTATE */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &tstate,
+				 16 * sizeof(u64),
+				 17 * sizeof(u64));
+	if (ret)
+		return ret;
+	/* Only the condition codes and the "in syscall"
+	 * state can be modified in the %tstate register.
+	 */
+	tstate &= (TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
+	regs->tstate &= ~(TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
+	regs->tstate |= tstate;
+
+	/* TPC, TNPC */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &regs->tpc,
+				 17 * sizeof(u64),
+				 19 * sizeof(u64));
+	if (ret)
+		return ret;
+	/* Y */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &y,
+				 19 * sizeof(u64),
+				 20 * sizeof(u64));
+	if (!ret)
+		regs->y = y;
+	return ret;
+}
+
+static const struct user_regset ptrace64_regsets[] = {
+	/* Format is:
+	 *      G1 --> G7
+	 *      O0 --> O7
+	 *	0
+	 *      TSTATE, TPC, TNPC, Y
+	 */
+	[REGSET_GENERAL] = {
+		.n = 20, .size = sizeof(u64),
+		.get = getregs64_get, .set = setregs64_set,
+	},
+};
+
+static const struct user_regset_view ptrace64_view = {
+	.regsets = ptrace64_regsets, .n = ARRAY_SIZE(ptrace64_regsets)
+};
+
 static const struct user_regset_view user_sparc64_view = {
 	.name = "sparc64", .e_machine = EM_SPARCV9,
 	.regsets = sparc64_regsets, .n = ARRAY_SIZE(sparc64_regsets)
@@ -518,10 +624,10 @@ static int genregs32_get(struct task_struct *target,
 			 void *kbuf, void __user *ubuf)
 {
 	const struct pt_regs *regs = task_pt_regs(target);
-	compat_ulong_t __user *reg_window;
 	compat_ulong_t *k = kbuf;
 	compat_ulong_t __user *u = ubuf;
-	compat_ulong_t reg;
+	u32 uregs[16];
+	u32 reg;
 
 	if (target == current)
 		flushw_user();
@@ -533,52 +639,25 @@ static int genregs32_get(struct task_struct *target,
 		for (; count > 0 && pos < 16; count--)
 			*k++ = regs->u_regs[pos++];
 
-		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		reg_window -= 16;
-		if (target == current) {
-			for (; count > 0 && pos < 32; count--) {
-				if (get_user(*k++, &reg_window[pos++]))
-					return -EFAULT;
-			}
-		} else {
-			for (; count > 0 && pos < 32; count--) {
-				if (access_process_vm(target,
-						      (unsigned long)
-						      &reg_window[pos],
-						      k, sizeof(*k),
-						      FOLL_FORCE)
-				    != sizeof(*k))
-					return -EFAULT;
-				k++;
-				pos++;
-			}
+		if (count) {
+			if (get_from_target(target, regs->u_regs[UREG_I6],
+					uregs, sizeof(uregs)))
+				return -EFAULT;
+			for (; count > 0 && pos < 32; count--)
+				*k++ = uregs[pos++ - 16];
+
 		}
 	} else {
-		for (; count > 0 && pos < 16; count--) {
+		for (; count > 0 && pos < 16; count--)
 			if (put_user((compat_ulong_t) regs->u_regs[pos++], u++))
 				return -EFAULT;
-		}
-
-		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		reg_window -= 16;
-		if (target == current) {
-			for (; count > 0 && pos < 32; count--) {
-				if (get_user(reg, &reg_window[pos++]) ||
-				    put_user(reg, u++))
+		if (count) {
+			if (get_from_target(target, regs->u_regs[UREG_I6],
+					uregs, sizeof(uregs)))
+				return -EFAULT;
+			for (; count > 0 && pos < 32; count--)
+				if (put_user(uregs[pos++ - 16], u++))
 					return -EFAULT;
-			}
-		} else {
-			for (; count > 0 && pos < 32; count--) {
-				if (access_process_vm(target,
-						      (unsigned long)
-						      &reg_window[pos++],
-						      &reg, sizeof(reg),
-						      FOLL_FORCE)
-				    != sizeof(reg))
-					return -EFAULT;
-				if (put_user(reg, u++))
-					return -EFAULT;
-			}
 		}
 	}
 	while (count > 0) {
@@ -867,6 +946,150 @@ static const struct user_regset sparc32_regsets[] = {
 	},
 };
 
+static int getregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	u32 uregs[19];
+	int i;
+
+	if (target == current)
+		flushw_user();
+
+	uregs[0] = tstate_to_psr(regs->tstate);
+	uregs[1] = regs->tpc;
+	uregs[2] = regs->tnpc;
+	uregs[3] = regs->y;
+	for (i = 1; i < 16; i++)
+		uregs[3 + i] = regs->u_regs[i];
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   uregs,
+				   0, 19 * sizeof(u32));
+}
+
+static int setregs_set(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	unsigned long tstate;
+	u32 uregs[19];
+	int i, ret;
+
+	if (target == current)
+		flushw_user();
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 uregs,
+				 0, 19 * sizeof(u32));
+	if (ret)
+		return ret;
+
+	tstate = regs->tstate;
+	tstate &= ~(TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
+	tstate |= psr_to_tstate_icc(uregs[0]);
+	if (uregs[0] & PSR_SYSCALL)
+		tstate |= TSTATE_SYSCALL;
+	regs->tstate = tstate;
+	regs->tpc = uregs[1];
+	regs->tnpc = uregs[2];
+	regs->y = uregs[3];
+
+	for (i = 1; i < 15; i++)
+		regs->u_regs[i] = uregs[3 + i];
+	return 0;
+}
+
+static int getfpregs_get(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			void *kbuf, void __user *ubuf)
+{
+	const unsigned long *fpregs = task_thread_info(target)->fpregs;
+	unsigned long fprs;
+	compat_ulong_t fsr;
+	int ret = 0;
+
+	if (target == current)
+		save_and_clear_fpu();
+
+	fprs = task_thread_info(target)->fpsaved[0];
+	if (fprs & FPRS_FEF) {
+		fsr = task_thread_info(target)->xfsr[0];
+	} else {
+		fsr = 0;
+	}
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  fpregs,
+				  0, 32 * sizeof(u32));
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &fsr,
+					  32 * sizeof(u32),
+					  33 * sizeof(u32));
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					  33 * sizeof(u32), 68 * sizeof(u32));
+	return ret;
+}
+
+static int setfpregs_set(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			const void *kbuf, const void __user *ubuf)
+{
+	unsigned long *fpregs = task_thread_info(target)->fpregs;
+	unsigned long fprs;
+	int ret;
+
+	if (target == current)
+		save_and_clear_fpu();
+
+	fprs = task_thread_info(target)->fpsaved[0];
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 fpregs,
+				 0, 32 * sizeof(u32));
+	if (!ret) {
+		compat_ulong_t fsr;
+		unsigned long val;
+
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &fsr,
+					 32 * sizeof(u32),
+					 33 * sizeof(u32));
+		if (!ret) {
+			val = task_thread_info(target)->xfsr[0];
+			val &= 0xffffffff00000000UL;
+			val |= fsr;
+			task_thread_info(target)->xfsr[0] = val;
+		}
+	}
+
+	fprs |= (FPRS_FEF | FPRS_DL);
+	task_thread_info(target)->fpsaved[0] = fprs;
+	return ret;
+}
+
+static const struct user_regset ptrace32_regsets[] = {
+	[REGSET_GENERAL] = {
+		.n = 19, .size = sizeof(u32),
+		.get = getregs_get, .set = setregs_set,
+	},
+	[REGSET_FP] = {
+		.n = 68, .size = sizeof(u32),
+		.get = getfpregs_get, .set = setfpregs_set,
+	},
+};
+
+static const struct user_regset_view ptrace32_view = {
+	.regsets = ptrace32_regsets, .n = ARRAY_SIZE(ptrace32_regsets)
+};
+
 static const struct user_regset_view user_sparc32_view = {
 	.name = "sparc", .e_machine = EM_SPARC,
 	.regsets = sparc32_regsets, .n = ARRAY_SIZE(sparc32_regsets)
@@ -898,7 +1121,6 @@ struct compat_fps {
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	const struct user_regset_view *view = task_user_regset_view(current);
 	compat_ulong_t caddr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	struct pt_regs32 __user *pregs;
 	struct compat_fps __user *fps;
@@ -916,58 +1138,31 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		break;
 
 	case PTRACE_GETREGS:
-		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-					  32 * sizeof(u32),
-					  4 * sizeof(u32),
-					  &pregs->psr);
-		if (!ret)
-			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-						  1 * sizeof(u32),
-						  15 * sizeof(u32),
-						  &pregs->u_regs[0]);
+		ret = copy_regset_to_user(child, &ptrace32_view,
+					  REGSET_GENERAL, 0,
+					  19 * sizeof(u32),
+					  pregs);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-					    32 * sizeof(u32),
-					    4 * sizeof(u32),
-					    &pregs->psr);
-		if (!ret)
-			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-						    1 * sizeof(u32),
-						    15 * sizeof(u32),
-						    &pregs->u_regs[0]);
+		ret = copy_regset_from_user(child, &ptrace32_view,
+					  REGSET_GENERAL, 0,
+					  19 * sizeof(u32),
+					  pregs);
 		break;
 
 	case PTRACE_GETFPREGS:
-		ret = copy_regset_to_user(child, view, REGSET_FP,
-					  0 * sizeof(u32),
-					  32 * sizeof(u32),
-					  &fps->regs[0]);
-		if (!ret)
-			ret = copy_regset_to_user(child, view, REGSET_FP,
-						  33 * sizeof(u32),
-						  1 * sizeof(u32),
-						  &fps->fsr);
-		if (!ret) {
-			if (__put_user(0, &fps->flags) ||
-			    __put_user(0, &fps->extra) ||
-			    __put_user(0, &fps->fpqd) ||
-			    clear_user(&fps->fpq[0], 32 * sizeof(unsigned int)))
-				ret = -EFAULT;
-		}
+		ret = copy_regset_to_user(child, &ptrace32_view,
+					  REGSET_FP, 0,
+					  68 * sizeof(u32),
+					  fps);
 		break;
 
 	case PTRACE_SETFPREGS:
-		ret = copy_regset_from_user(child, view, REGSET_FP,
-					    0 * sizeof(u32),
-					    32 * sizeof(u32),
-					    &fps->regs[0]);
-		if (!ret)
-			ret = copy_regset_from_user(child, view, REGSET_FP,
-						    33 * sizeof(u32),
-						    1 * sizeof(u32),
-						    &fps->fsr);
+		ret = copy_regset_from_user(child, &ptrace32_view,
+					  REGSET_FP, 0,
+					  33 * sizeof(u32),
+					  fps);
 		break;
 
 	case PTRACE_READTEXT:
@@ -1026,31 +1221,17 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_GETREGS64:
-		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-					  1 * sizeof(u64),
-					  15 * sizeof(u64),
-					  &pregs->u_regs[0]);
-		if (!ret) {
-			/* XXX doesn't handle 'y' register correctly XXX */
-			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-						  32 * sizeof(u64),
-						  4 * sizeof(u64),
-						  &pregs->tstate);
-		}
+		ret = copy_regset_to_user(child, &ptrace64_view,
+					  REGSET_GENERAL, 0,
+					  19 * sizeof(u64),
+					  pregs);
 		break;
 
 	case PTRACE_SETREGS64:
-		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-					    1 * sizeof(u64),
-					    15 * sizeof(u64),
-					    &pregs->u_regs[0]);
-		if (!ret) {
-			/* XXX doesn't handle 'y' register correctly XXX */
-			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-						    32 * sizeof(u64),
-						    4 * sizeof(u64),
-						    &pregs->tstate);
-		}
+		ret = copy_regset_from_user(child, &ptrace64_view,
+					  REGSET_GENERAL, 0,
+					  19 * sizeof(u64),
+					  pregs);
 		break;
 
 	case PTRACE_GETFPREGS64:
