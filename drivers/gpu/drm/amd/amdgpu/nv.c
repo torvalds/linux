@@ -446,6 +446,9 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 	adev->nbio.funcs = &nbio_v2_3_funcs;
 	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 
+	if (adev->asic_type == CHIP_SIENNA_CICHLID)
+		adev->gmc.xgmi.supported = true;
+
 	/* Set IP register base before any HW register access */
 	r = nv_reg_base_init(adev);
 	if (r)

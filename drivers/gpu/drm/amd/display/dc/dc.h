@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.94"
+#define DC_VER "3.2.95"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -96,6 +96,9 @@ struct dc_plane_cap {
 		uint32_t nv12;
 		uint32_t fp16;
 	} max_downscale_factor;
+	// minimal width/height
+	uint32_t min_width;
+	uint32_t min_height;
 };
 
 // Color management caps (DPP and MPC)

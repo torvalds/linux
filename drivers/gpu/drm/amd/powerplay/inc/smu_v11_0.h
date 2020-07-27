@@ -31,7 +31,7 @@
 #define SMU11_DRIVER_IF_VERSION_NV12 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x36
 #define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x33
-#define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x2B
+#define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x2
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
@@ -52,21 +52,6 @@
 #define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 2
 
-#define CLK_MAP(clk, index) \
-	[SMU_##clk] = {1, (index)}
-
-#define FEA_MAP(fea) \
-	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
-
-#define TAB_MAP(tab) \
-	[SMU_TABLE_##tab] = {1, TABLE_##tab}
-
-#define PWR_MAP(tab) \
-	[SMU_POWER_SOURCE_##tab] = {1, POWER_SOURCE_##tab}
-
-#define WORKLOAD_MAP(profile, workload) \
-	[profile] = {1, (workload)}
-
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
@@ -75,17 +60,6 @@ static const struct smu_temperature_range smu11_thermal_policy[] =
 {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
 	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
-
-struct smu_11_0_msg_mapping {
-	int	valid_mapping;
-	int	map_to;
-	int	valid_in_vf;
-};
-
-struct smu_11_0_cmn2aisc_mapping {
-	int	valid_mapping;
-	int	map_to;
 };
 
 struct smu_11_0_max_sustainable_clocks {
@@ -160,6 +134,8 @@ enum smu_v11_0_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
+#if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
+
 int smu_v11_0_init_microcode(struct smu_context *smu);
 
 void smu_v11_0_fini_microcode(struct smu_context *smu);
@@ -182,8 +158,6 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu);
 
 int smu_v11_0_check_fw_version(struct smu_context *smu);
 
-int smu_v11_0_write_pptable(struct smu_context *smu);
-
 int smu_v11_0_set_driver_table_location(struct smu_context *smu);
 
 int smu_v11_0_set_tool_table_location(struct smu_context *smu);
@@ -193,18 +167,9 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu);
 int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en);
 
-int
-smu_v11_0_send_msg_with_param(struct smu_context *smu,
-			      enum smu_message_type msg,
-			      uint32_t param,
-			      uint32_t *read_arg);
-
 int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count);
 
 int smu_v11_0_set_allowed_mask(struct smu_context *smu);
-
-int smu_v11_0_get_enabled_mask(struct smu_context *smu,
-				      uint32_t *feature_mask, uint32_t num);
 
 int smu_v11_0_notify_display_change(struct smu_context *smu);
 
@@ -299,4 +264,5 @@ int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
 				  uint32_t *min_value,
 				  uint32_t *max_value);
 
+#endif
 #endif

@@ -1043,7 +1043,9 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = 250,
 			.nv12 = 250,
 			.fp16 = 1
-	}
+	},
+	16,
+	16
 };
 static const struct resource_caps res_cap_nv14 = {
 		.num_timing_generator = 5,
@@ -3364,6 +3366,7 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.validate_bandwidth = dcn20_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
+	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,

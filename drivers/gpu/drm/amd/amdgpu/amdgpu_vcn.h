@@ -199,7 +199,6 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
 	struct amdgpu_bo	*dpg_sram_bo;
-	struct amdgpu_bo	*fw_shared_bo;
 	struct dpg_pause_state	pause_state;
 	void			*dpg_sram_cpu_addr;
 	uint64_t		dpg_sram_gpu_addr;
@@ -207,7 +206,6 @@ struct amdgpu_vcn_inst {
 	atomic_t		dpg_enc_submission_cnt;
 	void			*fw_shared_cpu_addr;
 	uint64_t		fw_shared_gpu_addr;
-	void			*saved_shm_bo;
 };
 
 struct amdgpu_vcn {

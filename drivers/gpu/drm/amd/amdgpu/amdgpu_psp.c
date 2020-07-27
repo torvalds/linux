@@ -500,7 +500,6 @@ static int psp_asd_load(struct psp_context *psp)
 	 * TODO: add version check to make it common
 	 */
 	if (amdgpu_sriov_vf(psp->adev) ||
-	    (psp->adev->asic_type == CHIP_SIENNA_CICHLID) ||
 	    (psp->adev->asic_type == CHIP_NAVY_FLOUNDER))
 		return 0;
 

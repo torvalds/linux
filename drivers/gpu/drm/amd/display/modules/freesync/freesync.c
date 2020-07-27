@@ -760,9 +760,35 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 
 	infopacket->valid = true;
 }
+#ifndef TRIM_FSFT
+static void build_vrr_infopacket_fast_transport_data(
+	bool ftActive,
+	unsigned int ftOutputRate,
+	struct dc_info_packet *infopacket)
+{
+	/* PB9 : bit7 - fast transport Active*/
+	unsigned char activeBit = (ftActive) ? 1 << 7 : 0;
+
+	infopacket->sb[1] &= ~activeBit;  //clear bit
+	infopacket->sb[1] |=  activeBit;  //set bit
+
+	/* PB13 : Target Output Pixel Rate [kHz] - bits 7:0  */
+	infopacket->sb[13] = ftOutputRate & 0xFF;
+
+	/* PB14 : Target Output Pixel Rate [kHz] - bits 15:8  */
+	infopacket->sb[14] = (ftOutputRate >> 8) & 0xFF;
+
+	/* PB15 : Target Output Pixel Rate [kHz] - bits 23:16  */
+	infopacket->sb[15] = (ftOutputRate >> 16) & 0xFF;
+
+}
+#endif
 
 static void build_vrr_infopacket_v3(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
+#ifndef TRIM_FSFT
+		bool ftActive, unsigned int ftOutputRate,
+#endif
 		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
@@ -772,6 +798,13 @@ static void build_vrr_infopacket_v3(enum signal_type signal,
 	build_vrr_infopacket_data_v3(vrr, infopacket);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);
+
+#ifndef TRIM_FSFT
+	build_vrr_infopacket_fast_transport_data(
+			ftActive,
+			ftOutputRate,
+			infopacket);
+#endif
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
@@ -795,7 +828,15 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
+#ifndef TRIM_FSFT
+		build_vrr_infopacket_v3(
+				stream->signal, vrr,
+				stream->timing.flags.FAST_TRANSPORT,
+				stream->timing.fast_transport_output_rate_100hz,
+				app_tf, infopacket);
+#else
 		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);
+#endif
 		break;
 	case PACKET_TYPE_FS_V2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);

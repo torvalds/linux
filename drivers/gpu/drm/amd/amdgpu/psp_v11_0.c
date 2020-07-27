@@ -56,7 +56,7 @@ MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
-MODULE_FIRMWARE("amdgpu/sienna_cichlid_asd.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_ta.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sos.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_asd.bin");
 
@@ -179,6 +179,10 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		}
 		break;
 	case CHIP_SIENNA_CICHLID:
+		err = psp_init_ta_microcode(&adev->psp, chip_name);
+		if (err)
+			return err;
+		break;
 	case CHIP_NAVY_FLOUNDER:
 		break;
 	default:

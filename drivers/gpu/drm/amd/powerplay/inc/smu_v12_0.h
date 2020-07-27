@@ -31,22 +31,7 @@
 #define MP1_Public			0x03b00000
 #define MP1_SRAM			0x03c00004
 
-
-struct smu_12_0_cmn2aisc_mapping {
-	int	valid_mapping;
-	int	map_to;
-};
-
-int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
-					      uint16_t msg);
-
-int smu_v12_0_wait_for_response(struct smu_context *smu);
-
-int
-smu_v12_0_send_msg_with_param(struct smu_context *smu,
-			      enum smu_message_type msg,
-			      uint32_t param,
-			      uint32_t *read_arg);
+#if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
 
 int smu_v12_0_check_fw_status(struct smu_context *smu);
 
@@ -64,14 +49,9 @@ uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu);
 
 int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable);
 
-int smu_v12_0_init_smc_tables(struct smu_context *smu);
-
 int smu_v12_0_fini_smc_tables(struct smu_context *smu);
 
 int smu_v12_0_set_default_dpm_tables(struct smu_context *smu);
-
-int smu_v12_0_get_enabled_mask(struct smu_context *smu,
-				      uint32_t *feature_mask, uint32_t num);
 
 int smu_v12_0_mode2_reset(struct smu_context *smu);
 
@@ -80,4 +60,5 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 
 int smu_v12_0_set_driver_table_location(struct smu_context *smu);
 
+#endif
 #endif

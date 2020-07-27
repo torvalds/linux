@@ -165,7 +165,9 @@ struct resource_funcs {
 			struct dc_3dlut **lut,
 			struct dc_transfer_func **shaper);
 #endif
-
+	enum dc_status (*add_dsc_to_stream_resource)(
+			struct dc *dc, struct dc_state *state,
+			struct dc_stream_state *stream);
 };
 
 struct audio_support{

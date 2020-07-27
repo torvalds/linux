@@ -857,7 +857,9 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = 250,
 			.nv12 = 250,
 			.fp16 = 250
-	}
+	},
+	64,
+	64
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
@@ -1759,6 +1761,7 @@ static struct resource_funcs dcn21_res_pool_funcs = {
 	.validate_bandwidth = dcn21_validate_bandwidth,
 	.populate_dml_pipes = dcn21_populate_dml_pipes_from_context,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
+	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
