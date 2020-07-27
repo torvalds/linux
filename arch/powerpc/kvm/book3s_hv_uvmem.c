@@ -98,7 +98,127 @@ static struct dev_pagemap kvmppc_uvmem_pgmap;
 static unsigned long *kvmppc_uvmem_bitmap;
 static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
 
-#define KVMPPC_UVMEM_PFN	(1UL << 63)
+/*
+ * States of a GFN
+ * ---------------
+ * The GFN can be in one of the following states.
+ *
+ * (a) Secure - The GFN is secure. The GFN is associated with
+ *	a Secure VM, the contents of the GFN is not accessible
+ *	to the Hypervisor.  This GFN can be backed by a secure-PFN,
+ *	or can be backed by a normal-PFN with contents encrypted.
+ *	The former is true when the GFN is paged-in into the
+ *	ultravisor. The latter is true when the GFN is paged-out
+ *	of the ultravisor.
+ *
+ * (b) Shared - The GFN is shared. The GFN is associated with a
+ *	a secure VM. The contents of the GFN is accessible to
+ *	Hypervisor. This GFN is backed by a normal-PFN and its
+ *	content is un-encrypted.
+ *
+ * (c) Normal - The GFN is a normal. The GFN is associated with
+ *	a normal VM. The contents of the GFN is accesible to
+ *	the Hypervisor. Its content is never encrypted.
+ *
+ * States of a VM.
+ * ---------------
+ *
+ * Normal VM:  A VM whose contents are always accessible to
+ *	the hypervisor.  All its GFNs are normal-GFNs.
+ *
+ * Secure VM: A VM whose contents are not accessible to the
+ *	hypervisor without the VM's consent.  Its GFNs are
+ *	either Shared-GFN or Secure-GFNs.
+ *
+ * Transient VM: A Normal VM that is transitioning to secure VM.
+ *	The transition starts on successful return of
+ *	H_SVM_INIT_START, and ends on successful return
+ *	of H_SVM_INIT_DONE. This transient VM, can have GFNs
+ *	in any of the three states; i.e Secure-GFN, Shared-GFN,
+ *	and Normal-GFN.	The VM never executes in this state
+ *	in supervisor-mode.
+ *
+ * Memory slot State.
+ * -----------------------------
+ *	The state of a memory slot mirrors the state of the
+ *	VM the memory slot is associated with.
+ *
+ * VM State transition.
+ * --------------------
+ *
+ *  A VM always starts in Normal Mode.
+ *
+ *  H_SVM_INIT_START moves the VM into transient state. During this
+ *  time the Ultravisor may request some of its GFNs to be shared or
+ *  secured. So its GFNs can be in one of the three GFN states.
+ *
+ *  H_SVM_INIT_DONE moves the VM entirely from transient state to
+ *  secure-state. At this point any left-over normal-GFNs are
+ *  transitioned to Secure-GFN.
+ *
+ *  H_SVM_INIT_ABORT moves the transient VM back to normal VM.
+ *  All its GFNs are moved to Normal-GFNs.
+ *
+ *  UV_TERMINATE transitions the secure-VM back to normal-VM. All
+ *  the secure-GFN and shared-GFNs are tranistioned to normal-GFN
+ *  Note: The contents of the normal-GFN is undefined at this point.
+ *
+ * GFN state implementation:
+ * -------------------------
+ *
+ * Secure GFN is associated with a secure-PFN; also called uvmem_pfn,
+ * when the GFN is paged-in. Its pfn[] has KVMPPC_GFN_UVMEM_PFN flag
+ * set, and contains the value of the secure-PFN.
+ * It is associated with a normal-PFN; also called mem_pfn, when
+ * the GFN is pagedout. Its pfn[] has KVMPPC_GFN_MEM_PFN flag set.
+ * The value of the normal-PFN is not tracked.
+ *
+ * Shared GFN is associated with a normal-PFN. Its pfn[] has
+ * KVMPPC_UVMEM_SHARED_PFN flag set. The value of the normal-PFN
+ * is not tracked.
+ *
+ * Normal GFN is associated with normal-PFN. Its pfn[] has
+ * no flag set. The value of the normal-PFN is not tracked.
+ *
+ * Life cycle of a GFN
+ * --------------------
+ *
+ * --------------------------------------------------------------
+ * |        |     Share  |  Unshare | SVM       |H_SVM_INIT_DONE|
+ * |        |operation   |operation | abort/    |               |
+ * |        |            |          | terminate |               |
+ * -------------------------------------------------------------
+ * |        |            |          |           |               |
+ * | Secure |     Shared | Secure   |Normal     |Secure         |
+ * |        |            |          |           |               |
+ * | Shared |     Shared | Secure   |Normal     |Shared         |
+ * |        |            |          |           |               |
+ * | Normal |     Shared | Secure   |Normal     |Secure         |
+ * --------------------------------------------------------------
+ *
+ * Life cycle of a VM
+ * --------------------
+ *
+ * --------------------------------------------------------------------
+ * |         |  start    |  H_SVM_  |H_SVM_   |H_SVM_     |UV_SVM_    |
+ * |         |  VM       |INIT_START|INIT_DONE|INIT_ABORT |TERMINATE  |
+ * |         |           |          |         |           |           |
+ * --------- ----------------------------------------------------------
+ * |         |           |          |         |           |           |
+ * | Normal  | Normal    | Transient|Error    |Error      |Normal     |
+ * |         |           |          |         |           |           |
+ * | Secure  |   Error   | Error    |Error    |Error      |Normal     |
+ * |         |           |          |         |           |           |
+ * |Transient|   N/A     | Error    |Secure   |Normal     |Normal     |
+ * --------------------------------------------------------------------
+ */
+
+#define KVMPPC_GFN_UVMEM_PFN	(1UL << 63)
+#define KVMPPC_GFN_MEM_PFN	(1UL << 62)
+#define KVMPPC_GFN_SHARED	(1UL << 61)
+#define KVMPPC_GFN_SECURE	(KVMPPC_GFN_UVMEM_PFN | KVMPPC_GFN_MEM_PFN)
+#define KVMPPC_GFN_FLAG_MASK	(KVMPPC_GFN_SECURE | KVMPPC_GFN_SHARED)
+#define KVMPPC_GFN_PFN_MASK	(~KVMPPC_GFN_FLAG_MASK)
 
 struct kvmppc_uvmem_slot {
 	struct list_head list;
@@ -106,11 +226,11 @@ struct kvmppc_uvmem_slot {
 	unsigned long base_pfn;
 	unsigned long *pfns;
 };
-
 struct kvmppc_uvmem_page_pvt {
 	struct kvm *kvm;
 	unsigned long gpa;
 	bool skip_page_out;
+	bool remove_gfn;
 };
 
 bool kvmppc_uvmem_available(void)
@@ -163,8 +283,8 @@ void kvmppc_uvmem_slot_free(struct kvm *kvm, const struct kvm_memory_slot *slot)
 	mutex_unlock(&kvm->arch.uvmem_lock);
 }
 
-static void kvmppc_uvmem_pfn_insert(unsigned long gfn, unsigned long uvmem_pfn,
-				    struct kvm *kvm)
+static void kvmppc_mark_gfn(unsigned long gfn, struct kvm *kvm,
+			unsigned long flag, unsigned long uvmem_pfn)
 {
 	struct kvmppc_uvmem_slot *p;
 
@@ -172,24 +292,41 @@ static void kvmppc_uvmem_pfn_insert(unsigned long gfn, unsigned long uvmem_pfn,
 		if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
 			unsigned long index = gfn - p->base_pfn;
 
-			p->pfns[index] = uvmem_pfn | KVMPPC_UVMEM_PFN;
+			if (flag == KVMPPC_GFN_UVMEM_PFN)
+				p->pfns[index] = uvmem_pfn | flag;
+			else
+				p->pfns[index] = flag;
 			return;
 		}
 	}
 }
 
-static void kvmppc_uvmem_pfn_remove(unsigned long gfn, struct kvm *kvm)
+/* mark the GFN as secure-GFN associated with @uvmem pfn device-PFN. */
+static void kvmppc_gfn_secure_uvmem_pfn(unsigned long gfn,
+			unsigned long uvmem_pfn, struct kvm *kvm)
 {
-	struct kvmppc_uvmem_slot *p;
-
-	list_for_each_entry(p, &kvm->arch.uvmem_pfns, list) {
-		if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
-			p->pfns[gfn - p->base_pfn] = 0;
-			return;
-		}
-	}
+	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_UVMEM_PFN, uvmem_pfn);
 }
 
+/* mark the GFN as secure-GFN associated with a memory-PFN. */
+static void kvmppc_gfn_secure_mem_pfn(unsigned long gfn, struct kvm *kvm)
+{
+	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_MEM_PFN, 0);
+}
+
+/* mark the GFN as a shared GFN. */
+static void kvmppc_gfn_shared(unsigned long gfn, struct kvm *kvm)
+{
+	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_SHARED, 0);
+}
+
+/* mark the GFN as a non-existent GFN. */
+static void kvmppc_gfn_remove(unsigned long gfn, struct kvm *kvm)
+{
+	kvmppc_mark_gfn(gfn, kvm, 0, 0);
+}
+
+/* return true, if the GFN is a secure-GFN backed by a secure-PFN */
 static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
 				    unsigned long *uvmem_pfn)
 {
@@ -199,10 +336,10 @@ static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
 		if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
 			unsigned long index = gfn - p->base_pfn;
 
-			if (p->pfns[index] & KVMPPC_UVMEM_PFN) {
+			if (p->pfns[index] & KVMPPC_GFN_UVMEM_PFN) {
 				if (uvmem_pfn)
 					*uvmem_pfn = p->pfns[index] &
-						     ~KVMPPC_UVMEM_PFN;
+						     KVMPPC_GFN_PFN_MASK;
 				return true;
 			} else
 				return false;
@@ -354,6 +491,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 
 		mutex_lock(&kvm->arch.uvmem_lock);
 		if (!kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+			kvmppc_gfn_remove(gfn, kvm);
 			mutex_unlock(&kvm->arch.uvmem_lock);
 			continue;
 		}
@@ -361,6 +499,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 		uvmem_page = pfn_to_page(uvmem_pfn);
 		pvt = uvmem_page->zone_device_data;
 		pvt->skip_page_out = skip_page_out;
+		pvt->remove_gfn = true;
 		mutex_unlock(&kvm->arch.uvmem_lock);
 
 		pfn = gfn_to_pfn(kvm, gfn);
@@ -430,7 +569,7 @@ static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm)
 		goto out_clear;
 
 	uvmem_pfn = bit + pfn_first;
-	kvmppc_uvmem_pfn_insert(gpa >> PAGE_SHIFT, uvmem_pfn, kvm);
+	kvmppc_gfn_secure_uvmem_pfn(gpa >> PAGE_SHIFT, uvmem_pfn, kvm);
 
 	pvt->gpa = gpa;
 	pvt->kvm = kvm;
@@ -525,6 +664,11 @@ static unsigned long kvmppc_share_page(struct kvm *kvm, unsigned long gpa,
 		uvmem_page = pfn_to_page(uvmem_pfn);
 		pvt = uvmem_page->zone_device_data;
 		pvt->skip_page_out = true;
+		/*
+		 * do not drop the GFN. It is a valid GFN
+		 * that is transitioned to a shared GFN.
+		 */
+		pvt->remove_gfn = false;
 	}
 
 retry:
@@ -538,12 +682,16 @@ retry:
 		uvmem_page = pfn_to_page(uvmem_pfn);
 		pvt = uvmem_page->zone_device_data;
 		pvt->skip_page_out = true;
+		pvt->remove_gfn = false; /* it continues to be a valid GFN */
 		kvm_release_pfn_clean(pfn);
 		goto retry;
 	}
 
-	if (!uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0, page_shift))
+	if (!uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0,
+				page_shift)) {
+		kvmppc_gfn_shared(gfn, kvm);
 		ret = H_SUCCESS;
+	}
 	kvm_release_pfn_clean(pfn);
 	mutex_unlock(&kvm->arch.uvmem_lock);
 out:
@@ -599,6 +747,7 @@ unsigned long kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 
 	if (!kvmppc_svm_page_in(vma, start, end, gpa, kvm, page_shift))
 		ret = H_SUCCESS;
+
 out_unlock:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 out:
@@ -707,7 +856,8 @@ static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
 /*
  * Release the device PFN back to the pool
  *
- * Gets called when secure page becomes a normal page during H_SVM_PAGE_OUT.
+ * Gets called when secure GFN tranistions from a secure-PFN
+ * to a normal PFN during H_SVM_PAGE_OUT.
  * Gets called with kvm->arch.uvmem_lock held.
  */
 static void kvmppc_uvmem_page_free(struct page *page)
@@ -722,7 +872,10 @@ static void kvmppc_uvmem_page_free(struct page *page)
 
 	pvt = page->zone_device_data;
 	page->zone_device_data = NULL;
-	kvmppc_uvmem_pfn_remove(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
+	if (pvt->remove_gfn)
+		kvmppc_gfn_remove(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
+	else
+		kvmppc_gfn_secure_mem_pfn(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
 	kfree(pvt);
 }
 
