@@ -173,14 +173,6 @@ fail:
 		test->flags |= ETH_TEST_FL_FAILED;
 }
 
-/* Restart autonegotiation */
-int efx_ethtool_nway_reset(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	return mdio45_nway_restart(&efx->mdio);
-}
-
 void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 				struct ethtool_pauseparam *pause)
 {
