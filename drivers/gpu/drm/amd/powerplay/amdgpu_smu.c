@@ -1947,6 +1947,10 @@ int smu_read_sensor(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
+	if (smu->ppt_funcs->read_sensor)
+		if (!smu->ppt_funcs->read_sensor(smu, sensor, data, size))
+			goto unlock;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
 		*((uint32_t *)data) = pstate_table->gfxclk_pstate.standard * 100;
@@ -1977,11 +1981,12 @@ int smu_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		if (smu->ppt_funcs->read_sensor)
-			ret = smu->ppt_funcs->read_sensor(smu, sensor, data, size);
+		*size = 0;
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
+unlock:
 	mutex_unlock(&smu->mutex);
 
 	return ret;
