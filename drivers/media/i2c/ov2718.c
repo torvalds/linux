@@ -60,6 +60,10 @@
 #define	OV2718_EXPOSURE_STEP		1
 #define OV2718_VTS_MAX			0xffff
 
+#define OV2718_READ_MODE		0x30c0
+#define OV2718_FLIP			BIT(3)
+#define OV2718_MIRROR			BIT(2)
+
 #define OV2718_REG_GAIN			0x30bb
 #define OV2718_GAIN_MIN			0x0300
 #define OV2718_GAIN_MAX			0x20000
@@ -148,6 +152,7 @@ struct ov2718 {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
@@ -159,13 +164,17 @@ struct ov2718 {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct mutex		mutex;
+	bool			has_init_exp;
 	bool			streaming;
 	bool			power_on;
 	const struct ov2718_mode *cur_mode;
 	const struct ov2718_mode *support_modes;
-	u32 support_modes_num;
+	u32			support_modes_num;
 	u32			module_index;
+	u32			flip;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
@@ -7908,69 +7917,6 @@ static int ov2718_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int __ov2718_start_stream(struct ov2718 *ov2718)
-{
-	int ret;
-
-	ret = ov2718_write_array(ov2718->client,
-				 ov2718->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	mutex_unlock(&ov2718->mutex);
-	ret = v4l2_ctrl_handler_setup(&ov2718->ctrl_handler);
-	mutex_lock(&ov2718->mutex);
-	if (ret)
-		return ret;
-
-	return ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
-				OV2718_REG_VALUE_08BIT, OV2718_MODE_STREAMING);
-}
-
-static int __ov2718_stop_stream(struct ov2718 *ov2718)
-{
-	return ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
-				OV2718_REG_VALUE_08BIT, OV2718_MODE_SW_STANDBY);
-}
-
-static int ov2718_s_stream(struct v4l2_subdev *sd, int on)
-{
-	struct ov2718 *ov2718 = to_ov2718(sd);
-	struct i2c_client *client = ov2718->client;
-	int ret = 0;
-
-	mutex_lock(&ov2718->mutex);
-	on = !!on;
-	if (on == ov2718->streaming)
-		goto unlock_and_return;
-
-	if (on) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
-		}
-
-		ret = __ov2718_start_stream(ov2718);
-		if (ret) {
-			v4l2_err(sd, "start stream failed while write regs\n");
-			pm_runtime_put(&client->dev);
-			goto unlock_and_return;
-		}
-	} else {
-		__ov2718_stop_stream(ov2718);
-		pm_runtime_put(&client->dev);
-	}
-
-	ov2718->streaming = on;
-
-unlock_and_return:
-	mutex_unlock(&ov2718->mutex);
-
-	return ret;
-}
-
 static void ov2718_get_lcg_reg(u32 gain, u32 *again_reg, u32 *dgain_reg)
 {
 	u32 again;
@@ -8063,14 +8009,20 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
+		if (!ov2718->has_init_exp && !ov2718->streaming) {
+			ov2718->init_hdrae_exp = *hdrae_exp;
+			ov2718->has_init_exp = true;
+			dev_info(&client->dev, "ov2718 don't streaming, record exp for hdr!\n");
+			break;
+		}
 		dev_dbg(&client->dev,
 			"rev exp req: L_exp: 0x%x, 0x%x, S_exp: 0x%x, 0x%x\n",
-			hdrae_exp->long_exp_reg,
-			hdrae_exp->long_gain_reg,
+			hdrae_exp->middle_exp_reg,
+			hdrae_exp->middle_gain_reg,
 			hdrae_exp->short_exp_reg,
 			hdrae_exp->short_gain_reg);
 
-		ov2718_get_hcg_reg(hdrae_exp->long_gain_reg,
+		ov2718_get_hcg_reg(hdrae_exp->middle_gain_reg,
 				   &l_again,
 				   &l_dgain);
 		ov2718_get_lcg_reg(hdrae_exp->short_gain_reg,
@@ -8094,13 +8046,13 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 					OV2718_REG_EXPOSURE_H |
 					OV2718_REG_GROUP_BIT,
 					OV2718_REG_VALUE_08BIT,
-					(hdrae_exp->long_exp_reg >> 8) & 0xFF);
+					(hdrae_exp->middle_exp_reg >> 8) & 0xFF);
 
 		ret |= ov2718_write_reg(ov2718->client,
 					OV2718_REG_EXPOSURE_L |
 					OV2718_REG_GROUP_BIT,
 					OV2718_REG_VALUE_08BIT,
-					hdrae_exp->long_exp_reg & 0xFF);
+					hdrae_exp->middle_exp_reg & 0xFF);
 
 		ret |= ov2718_write_reg(ov2718->client,
 					OV2718_REG_GAIN |
@@ -8144,8 +8096,8 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 					OV2718_REG_VALUE_08BIT,
 					0x01);
 
-		dev_dbg(&client->dev, "set to reg, exp: 0x%x, again: 0x%x, l_dgain: 0x%x, s_dgain: 0x%x\n",
-			hdrae_exp->long_exp_reg,
+		dev_dbg(&client->dev, "set to reg, exp: 0x%02x, again: 0x%02x, l_dgain: 0x%02x, s_dgain: 0x%02x\n",
+			hdrae_exp->middle_exp_reg,
 			again,
 			l_dgain,
 			s_dgain);
@@ -8202,6 +8154,7 @@ static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
+	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 
 	switch (cmd) {
@@ -8253,6 +8206,18 @@ static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = ov2718_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
+	case PREISP_CMD_SET_HDRAE_EXP:
+		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
+		if (!hdrae) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
+		if (!ret)
+			ret = ov2718_ioctl(sd, cmd, hdrae);
+		kfree(hdrae);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -8261,6 +8226,107 @@ static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
 	return ret;
 }
 #endif
+
+static int ov2718_set_flip(struct ov2718 *ov2718, u32 flip)
+{
+	u32 mode = 0;
+	int ret = 0;
+
+	ret = ov2718_read_reg(ov2718->client, OV2718_READ_MODE,
+			      OV2718_REG_VALUE_08BIT, &mode);
+
+	mode &= ~(OV2718_MIRROR | OV2718_FLIP);
+	mode |= flip;
+
+	if (flip & OV2718_MIRROR) {
+		ov2718_write_reg(ov2718->client, 0x30a9,
+				 OV2718_REG_VALUE_08BIT, 0x3);
+		ov2718_write_reg(ov2718->client, 0x3252,
+				 OV2718_REG_VALUE_08BIT, 0x21);
+	}
+
+	ret |= ov2718_write_reg(ov2718->client, OV2718_READ_MODE,
+				OV2718_REG_VALUE_08BIT, mode);
+
+	return ret;
+}
+
+static int __ov2718_start_stream(struct ov2718 *ov2718)
+{
+	int ret;
+
+	ret = ov2718_write_array(ov2718->client,
+				 ov2718->cur_mode->reg_list);
+	if (ret)
+		return ret;
+
+	/* In case these controls are set before streaming */
+	if (ov2718->has_init_exp && ov2718->cur_mode->hdr_mode != NO_HDR) {
+		ret = ov2718_ioctl(&ov2718->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				   &ov2718->init_hdrae_exp);
+		if (ret) {
+			dev_err(&ov2718->client->dev,
+				"init exp fail in hdr mode\n");
+			return ret;
+		}
+	} else {
+		mutex_unlock(&ov2718->mutex);
+		ret = v4l2_ctrl_handler_setup(&ov2718->ctrl_handler);
+		mutex_lock(&ov2718->mutex);
+		if (ret)
+			return ret;
+	}
+
+	if (ov2718->flip)
+		ov2718_set_flip(ov2718, ov2718->flip);
+
+	return ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
+				OV2718_REG_VALUE_08BIT, OV2718_MODE_STREAMING);
+}
+
+static int __ov2718_stop_stream(struct ov2718 *ov2718)
+{
+	ov2718->has_init_exp = false;
+	return ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
+				OV2718_REG_VALUE_08BIT, OV2718_MODE_SW_STANDBY);
+}
+
+static int ov2718_s_stream(struct v4l2_subdev *sd, int on)
+{
+	struct ov2718 *ov2718 = to_ov2718(sd);
+	struct i2c_client *client = ov2718->client;
+	int ret = 0;
+
+	mutex_lock(&ov2718->mutex);
+	on = !!on;
+	if (on == ov2718->streaming)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = __ov2718_start_stream(ov2718);
+		if (ret) {
+			v4l2_err(sd, "start stream failed while write regs\n");
+			pm_runtime_put(&client->dev);
+			goto unlock_and_return;
+		}
+	} else {
+		__ov2718_stop_stream(ov2718);
+		pm_runtime_put(&client->dev);
+	}
+
+	ov2718->streaming = on;
+
+unlock_and_return:
+	mutex_unlock(&ov2718->mutex);
+
+	return ret;
+}
 
 static int ov2718_s_power(struct v4l2_subdev *sd, int on)
 {
@@ -8552,7 +8618,7 @@ static int ov2718_set_ctrl(struct v4l2_ctrl *ctrl)
 					OV2718_REG_EXPOSURE_L,
 					OV2718_REG_VALUE_08BIT,
 					ctrl->val & 0xFF);
-		dev_dbg(&client->dev,
+		dev_info(&client->dev,
 			"set exp: 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
@@ -8571,7 +8637,7 @@ static int ov2718_set_ctrl(struct v4l2_ctrl *ctrl)
 					OV2718_REG_DIG_GAIN_HCG_L,
 					OV2718_REG_VALUE_08BIT,
 					gain_d & 0xFF);
-		dev_dbg(&client->dev,
+		dev_info(&client->dev,
 			"set gain: 0x%x, again: 0x%x, dgain: 0x%x\n",
 			ctrl->val, gain_a, gain_d);
 		break;
@@ -8591,6 +8657,18 @@ static int ov2718_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov2718_enable_test_pattern(ov2718, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			ov2718->flip |= OV2718_MIRROR;
+		else
+			ov2718->flip &= ~OV2718_MIRROR;
+		break;
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			ov2718->flip |= OV2718_FLIP;
+		else
+			ov2718->flip &= ~OV2718_FLIP;
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -8618,7 +8696,7 @@ static int ov2718_initialize_controls(struct ov2718 *ov2718)
 
 	handler = &ov2718->ctrl_handler;
 	mode = ov2718->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &ov2718->mutex;
@@ -8669,6 +8747,13 @@ static int ov2718_initialize_controls(struct ov2718 *ov2718)
 					     ARRAY_SIZE(ov2718_test_pattern_menu) - 1,
 					     0, 0, ov2718_test_pattern_menu);
 
+	ov2718->h_flip = v4l2_ctrl_new_std(handler, &ov2718_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	ov2718->v_flip = v4l2_ctrl_new_std(handler, &ov2718_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
+	ov2718->flip = 0;
+
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&ov2718->client->dev,
@@ -8677,6 +8762,7 @@ static int ov2718_initialize_controls(struct ov2718 *ov2718)
 	}
 
 	ov2718->subdev.ctrl_handler = handler;
+	ov2718->has_init_exp = false;
 
 	return 0;
 
@@ -8757,7 +8843,7 @@ static int ov2718_analyze_dts(struct ov2718 *ov2718)
 		dev_warn(dev, "can not find pd-gpios, error %ld\n",
 			 PTR_ERR(ov2718->pd_gpio));
 
-	ov2718->rst_gpio = devm_gpiod_get(dev, "rst", GPIOD_OUT_LOW);
+	ov2718->rst_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov2718->rst_gpio))
 		dev_warn(dev, "can not find rst-gpios, error %ld\n",
 			 PTR_ERR(ov2718->rst_gpio));
