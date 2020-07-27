@@ -896,6 +896,10 @@
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
 
+	radix_hcall_invalidate=on  [PPC/PSERIES]
+			Disable RADIX GTSE feature and use hcall for TLB
+			invalidate.
+
 	disable_tlbie	[PPC]
 			Disable TLBIE instruction. Currently does not work
 			with KVM, with HASH MMU, or with coherent accelerators.

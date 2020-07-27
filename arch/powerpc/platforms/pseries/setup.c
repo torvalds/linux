@@ -747,6 +747,11 @@ static void __init pSeries_setup_arch(void)
 	smp_init_pseries();
 
 
+	if (radix_enabled() && !mmu_has_feature(MMU_FTR_GTSE))
+		if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE))
+			panic("BUG: Radix support requires either GTSE or RPT_INVALIDATE\n");
+
+
 	/* openpic global configuration register (64-bit format). */
 	/* openpic Interrupt Source Unit pointer (64-bit format). */
 	/* python0 facility area (mmio) (64-bit format) REAL address. */
