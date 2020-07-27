@@ -76,10 +76,10 @@ tempting to consider that to have an empty final component.  In many
 ways that would lead to correct results, but not always.  In
 particular, ``mkdir()`` and ``rmdir()`` each create or remove a directory named
 by the final component, and they are required to work with pathnames
-ending in "``/``".  According to POSIX_
+ending in "``/``".  According to POSIX_:
 
-  A pathname that contains at least one non- &lt;slash> character and
-  that ends with one or more trailing &lt;slash> characters shall not
+  A pathname that contains at least one non-<slash> character and
+  that ends with one or more trailing <slash> characters shall not
   be resolved successfully unless the last pathname component before
   the trailing <slash> characters names an existing directory or a
   directory entry that is to be created for a directory immediately
