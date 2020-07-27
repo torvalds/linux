@@ -15,15 +15,13 @@ void mtu3_req_complete(struct mtu3_ep *mep,
 __releases(mep->mtu->lock)
 __acquires(mep->mtu->lock)
 {
-	struct mtu3_request *mreq;
-	struct mtu3 *mtu;
+	struct mtu3_request *mreq = to_mtu3_request(req);
+	struct mtu3 *mtu = mreq->mtu;
 
-	mreq = to_mtu3_request(req);
 	list_del(&mreq->list);
-	if (mreq->request.status == -EINPROGRESS)
-		mreq->request.status = status;
+	if (req->status == -EINPROGRESS)
+		req->status = status;
 
-	mtu = mreq->mtu;
 	trace_mtu3_req_complete(mreq);
 	spin_unlock(&mtu->lock);
 
@@ -31,11 +29,10 @@ __acquires(mep->mtu->lock)
 	if (mep->epnum)
 		usb_gadget_unmap_request(&mtu->g, req, mep->is_in);
 
-	dev_dbg(mtu->dev, "%s complete req: %p, sts %d, %d/%d\n", mep->name,
-		req, req->status, mreq->request.actual, mreq->request.length);
+	dev_dbg(mtu->dev, "%s complete req: %p, sts %d, %d/%d\n",
+		mep->name, req, req->status, req->actual, req->length);
 
-	usb_gadget_giveback_request(&mep->ep, &mreq->request);
-
+	usb_gadget_giveback_request(&mep->ep, req);
 	spin_lock(&mtu->lock);
 }
 
