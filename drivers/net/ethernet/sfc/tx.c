@@ -284,7 +284,7 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
  * Returns NETDEV_TX_OK.
  * You must hold netif_tx_lock() to call this function.
  */
-netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
 	unsigned int old_insert_count = tx_queue->insert_count;
 	bool xmit_more = netdev_xmit_more();
@@ -503,7 +503,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	}
 	tx_queue = efx_get_tx_queue(efx, index, type);
 
-	return efx_enqueue_skb(tx_queue, skb);
+	return __efx_enqueue_skb(tx_queue, skb);
 }
 
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue)

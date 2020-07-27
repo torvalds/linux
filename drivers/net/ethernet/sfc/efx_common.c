@@ -814,14 +814,18 @@ fail:
  */
 int efx_reset(struct efx_nic *efx, enum reset_type method)
 {
+	int rc, rc2 = 0;
 	bool disabled;
-	int rc, rc2;
 
 	netif_info(efx, drv, efx->net_dev, "resetting (%s)\n",
 		   RESET_TYPE(method));
 
 	efx_device_detach_sync(efx);
-	efx_reset_down(efx, method);
+	/* efx_reset_down() grabs locks that prevent recovery on EF100.
+	 * EF100 reset is handled in the efx_nic_type callback below.
+	 */
+	if (efx_nic_rev(efx) != EFX_REV_EF100)
+		efx_reset_down(efx, method);
 
 	rc = efx->type->reset(efx, method);
 	if (rc) {
@@ -849,7 +853,8 @@ out:
 	disabled = rc ||
 		method == RESET_TYPE_DISABLE ||
 		method == RESET_TYPE_RECOVER_OR_DISABLE;
-	rc2 = efx_reset_up(efx, method, !disabled);
+	if (efx_nic_rev(efx) != EFX_REV_EF100)
+		rc2 = efx_reset_up(efx, method, !disabled);
 	if (rc2) {
 		disabled = true;
 		if (!rc)

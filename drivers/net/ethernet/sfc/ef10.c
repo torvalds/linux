@@ -6,6 +6,7 @@
 
 #include "net_driver.h"
 #include "rx_common.h"
+#include "tx_common.h"
 #include "ef10_regs.h"
 #include "io.h"
 #include "mcdi.h"
@@ -3977,6 +3978,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.tx_remove = efx_mcdi_tx_remove,
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
+	.tx_enqueue = __efx_enqueue_skb,
 	.rx_push_rss_config = efx_mcdi_vf_rx_push_rss_config,
 	.rx_pull_rss_config = efx_mcdi_rx_pull_rss_config,
 	.rx_probe = efx_mcdi_rx_probe,
@@ -3984,6 +3986,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = efx_ef10_rx_write,
 	.rx_defer_refill = efx_ef10_rx_defer_refill,
+	.rx_packet = __efx_rx_packet,
 	.ev_probe = efx_mcdi_ev_probe,
 	.ev_init = efx_ef10_ev_init,
 	.ev_fini = efx_mcdi_ev_fini,
@@ -4038,6 +4041,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.rx_hash_key_size = 40,
 	.check_caps = ef10_check_caps,
 	.print_additional_fwver = efx_ef10_print_additional_fwver,
+	.sensor_event = efx_mcdi_sensor_event,
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
@@ -4087,6 +4091,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_remove = efx_mcdi_tx_remove,
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
+	.tx_enqueue = __efx_enqueue_skb,
 	.rx_push_rss_config = efx_mcdi_pf_rx_push_rss_config,
 	.rx_pull_rss_config = efx_mcdi_rx_pull_rss_config,
 	.rx_push_rss_context_config = efx_mcdi_rx_push_rss_context_config,
@@ -4097,6 +4102,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = efx_ef10_rx_write,
 	.rx_defer_refill = efx_ef10_rx_defer_refill,
+	.rx_packet = __efx_rx_packet,
 	.ev_probe = efx_mcdi_ev_probe,
 	.ev_init = efx_ef10_ev_init,
 	.ev_fini = efx_mcdi_ev_fini,
@@ -4172,4 +4178,5 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.rx_hash_key_size = 40,
 	.check_caps = ef10_check_caps,
 	.print_additional_fwver = efx_ef10_print_additional_fwver,
+	.sensor_event = efx_mcdi_sensor_event,
 };

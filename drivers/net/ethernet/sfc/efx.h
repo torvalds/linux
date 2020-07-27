@@ -8,7 +8,10 @@
 #ifndef EFX_EFX_H
 #define EFX_EFX_H
 
+#include <linux/indirect_call_wrapper.h>
 #include "net_driver.h"
+#include "ef100_rx.h"
+#include "ef100_tx.h"
 #include "filter.h"
 
 int efx_net_open(struct net_device *net_dev);
@@ -18,13 +21,18 @@ int efx_net_stop(struct net_device *net_dev);
 void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev);
-netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+static inline netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+{
+	return INDIRECT_CALL_2(tx_queue->efx->type->tx_enqueue,
+			       ef100_enqueue_skb, __efx_enqueue_skb,
+			       tx_queue, skb);
+}
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue);
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		 void *type_data);
 extern unsigned int efx_piobuf_size;
-extern bool efx_separate_tx_channels;
 
 /* RX */
 void __efx_rx_packet(struct efx_channel *channel);
@@ -33,7 +41,9 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 static inline void efx_rx_flush_packet(struct efx_channel *channel)
 {
 	if (channel->rx_pkt_n_frags)
-		__efx_rx_packet(channel);
+		INDIRECT_CALL_2(channel->efx->type->rx_packet,
+				__ef100_rx_packet, __efx_rx_packet,
+				channel);
 }
 
 /* Maximum number of TCP segments we support for soft-TSO */

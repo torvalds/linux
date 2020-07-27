@@ -1337,7 +1337,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_process_link_change(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SENSOREVT:
-		efx_mcdi_sensor_event(efx, event);
+		efx_sensor_event(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SCHEDERR:
 		netif_dbg(efx, hw, efx->net_dev,

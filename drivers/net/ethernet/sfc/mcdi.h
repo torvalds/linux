@@ -327,10 +327,10 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
 #define MCDI_CAPABILITY(field)						\
-	MC_CMD_GET_CAPABILITIES_V4_OUT_ ## field ## _LBN
+	MC_CMD_GET_CAPABILITIES_V8_OUT_ ## field ## _LBN
 
 #define MCDI_CAPABILITY_OFST(field) \
-	MC_CMD_GET_CAPABILITIES_V4_OUT_ ## field ## _OFST
+	MC_CMD_GET_CAPABILITIES_V8_OUT_ ## field ## _OFST
 
 #define efx_has_cap(efx, field) \
 	efx->type->check_caps(efx, \
