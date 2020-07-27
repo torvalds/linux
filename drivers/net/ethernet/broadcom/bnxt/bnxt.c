@@ -4051,6 +4051,8 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 	bnxt_free_ntp_fltrs(bp, irq_re_init);
 	if (irq_re_init) {
 		bnxt_free_ring_stats(bp);
+		if (!(bp->fw_cap & BNXT_FW_CAP_PORT_STATS_NO_RESET))
+			bnxt_free_port_stats(bp);
 		bnxt_free_ring_grps(bp);
 		bnxt_free_vnics(bp);
 		kfree(bp->tx_ring_map);
@@ -7592,6 +7594,88 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static void bnxt_add_one_ctr(u64 hw, u64 *sw, u64 mask)
+{
+	u64 sw_tmp;
+
+	sw_tmp = (*sw & ~mask) | hw;
+	if (hw < (*sw & mask))
+		sw_tmp += mask + 1;
+	WRITE_ONCE(*sw, sw_tmp);
+}
+
+static void __bnxt_accumulate_stats(__le64 *hw_stats, u64 *sw_stats, u64 *masks,
+				    int count, bool ignore_zero)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		u64 hw = le64_to_cpu(READ_ONCE(hw_stats[i]));
+
+		if (ignore_zero && !hw)
+			continue;
+
+		if (masks[i] == -1ULL)
+			sw_stats[i] = hw;
+		else
+			bnxt_add_one_ctr(hw, &sw_stats[i], masks[i]);
+	}
+}
+
+static void bnxt_accumulate_stats(struct bnxt_stats_mem *stats)
+{
+	if (!stats->hw_stats)
+		return;
+
+	__bnxt_accumulate_stats(stats->hw_stats, stats->sw_stats,
+				stats->hw_masks, stats->len / 8, false);
+}
+
+static void bnxt_accumulate_all_stats(struct bnxt *bp)
+{
+	struct bnxt_stats_mem *ring0_stats;
+	bool ignore_zero = false;
+	int i;
+
+	/* Chip bug.  Counter intermittently becomes 0. */
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		ignore_zero = true;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_cp_ring_info *cpr;
+		struct bnxt_stats_mem *stats;
+
+		cpr = &bnapi->cp_ring;
+		stats = &cpr->stats;
+		if (!i)
+			ring0_stats = stats;
+		__bnxt_accumulate_stats(stats->hw_stats, stats->sw_stats,
+					ring0_stats->hw_masks,
+					ring0_stats->len / 8, ignore_zero);
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		struct bnxt_stats_mem *stats = &bp->port_stats;
+		__le64 *hw_stats = stats->hw_stats;
+		u64 *sw_stats = stats->sw_stats;
+		u64 *masks = stats->hw_masks;
+		int cnt;
+
+		cnt = sizeof(struct rx_port_stats) / 8;
+		__bnxt_accumulate_stats(hw_stats, sw_stats, masks, cnt, false);
+
+		hw_stats += BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
+		sw_stats += BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
+		masks += BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
+		cnt = sizeof(struct tx_port_stats) / 8;
+		__bnxt_accumulate_stats(hw_stats, sw_stats, masks, cnt, false);
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+		bnxt_accumulate_stats(&bp->rx_port_stats_ext);
+		bnxt_accumulate_stats(&bp->tx_port_stats_ext);
+	}
+}
+
 static int bnxt_hwrm_port_qstats(struct bnxt *bp, u8 flags)
 {
 	struct bnxt_pf_info *pf = &bp->pf;
@@ -8710,6 +8794,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		if (BNXT_PF(bp))
 			bp->fw_cap |= BNXT_FW_CAP_SHARED_PORT_CFG;
 	}
+	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET)
+		bp->fw_cap |= BNXT_FW_CAP_PORT_STATS_NO_RESET;
+
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
 			le16_to_cpu(resp->supported_speeds_auto_mode);
@@ -10280,8 +10367,7 @@ static void bnxt_timer(struct timer_list *t)
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 		bnxt_fw_health_check(bp);
 
-	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS) &&
-	    bp->stats_coal_ticks) {
+	if (bp->link_info.link_up && bp->stats_coal_ticks) {
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
@@ -10569,6 +10655,7 @@ static void bnxt_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event)) {
 		bnxt_hwrm_port_qstats(bp, 0);
 		bnxt_hwrm_port_qstats_ext(bp, 0);
+		bnxt_accumulate_all_stats(bp);
 	}
 
 	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
