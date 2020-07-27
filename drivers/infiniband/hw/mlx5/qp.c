@@ -4102,9 +4102,9 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	enum ib_qp_state cur_state, new_state;
-	int err = 0;
 	int required = IB_QP_STATE;
 	void *dctc;
+	int err;
 
 	if (!(attr_mask & IB_QP_STATE))
 		return -EINVAL;
@@ -4198,11 +4198,9 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		mlx5_ib_warn(dev, "Modify DCT: Invalid transition from %d to %d\n", cur_state, new_state);
 		return -EINVAL;
 	}
-	if (err)
-		qp->state = IB_QPS_ERR;
-	else
-		qp->state = new_state;
-	return err;
+
+	qp->state = new_state;
+	return 0;
 }
 
 int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

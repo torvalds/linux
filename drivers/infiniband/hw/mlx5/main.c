@@ -287,9 +287,6 @@ struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *ibdev,
 		*native_port_num = 1;
 
 	port = &ibdev->port[ib_port_num - 1];
-	if (!port)
-		return NULL;
-
 	spin_lock(&port->mp.mpi_lock);
 	mpi = ibdev->port[ib_port_num - 1].mp.mpi;
 	if (mpi && !mpi->unaffiliate) {
