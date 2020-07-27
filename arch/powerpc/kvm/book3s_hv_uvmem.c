@@ -211,10 +211,79 @@ static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
 	return false;
 }
 
+static int kvmppc_memslot_page_merge(struct kvm *kvm,
+		const struct kvm_memory_slot *memslot, bool merge)
+{
+	unsigned long gfn = memslot->base_gfn;
+	unsigned long end, start = gfn_to_hva(kvm, gfn);
+	int ret = 0;
+	struct vm_area_struct *vma;
+	int merge_flag = (merge) ? MADV_MERGEABLE : MADV_UNMERGEABLE;
+
+	if (kvm_is_error_hva(start))
+		return H_STATE;
+
+	end = start + (memslot->npages << PAGE_SHIFT);
+
+	mmap_write_lock(kvm->mm);
+	do {
+		vma = find_vma_intersection(kvm->mm, start, end);
+		if (!vma) {
+			ret = H_STATE;
+			break;
+		}
+		ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
+			  merge_flag, &vma->vm_flags);
+		if (ret) {
+			ret = H_STATE;
+			break;
+		}
+		start = vma->vm_end;
+	} while (end > vma->vm_end);
+
+	mmap_write_unlock(kvm->mm);
+	return ret;
+}
+
+static void kvmppc_uvmem_memslot_delete(struct kvm *kvm,
+		const struct kvm_memory_slot *memslot)
+{
+	uv_unregister_mem_slot(kvm->arch.lpid, memslot->id);
+	kvmppc_uvmem_slot_free(kvm, memslot);
+	kvmppc_memslot_page_merge(kvm, memslot, true);
+}
+
+static int kvmppc_uvmem_memslot_create(struct kvm *kvm,
+		const struct kvm_memory_slot *memslot)
+{
+	int ret = H_PARAMETER;
+
+	if (kvmppc_memslot_page_merge(kvm, memslot, false))
+		return ret;
+
+	if (kvmppc_uvmem_slot_init(kvm, memslot))
+		goto out1;
+
+	ret = uv_register_mem_slot(kvm->arch.lpid,
+				   memslot->base_gfn << PAGE_SHIFT,
+				   memslot->npages * PAGE_SIZE,
+				   0, memslot->id);
+	if (ret < 0) {
+		ret = H_PARAMETER;
+		goto out;
+	}
+	return 0;
+out:
+	kvmppc_uvmem_slot_free(kvm, memslot);
+out1:
+	kvmppc_memslot_page_merge(kvm, memslot, true);
+	return ret;
+}
+
 unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 {
 	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
+	struct kvm_memory_slot *memslot, *m;
 	int ret = H_SUCCESS;
 	int srcu_idx;
 
@@ -232,23 +301,24 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 		return H_AUTHORITY;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	/* register the memslot */
 	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
-		if (kvmppc_uvmem_slot_init(kvm, memslot)) {
-			ret = H_PARAMETER;
-			goto out;
-		}
-		ret = uv_register_mem_slot(kvm->arch.lpid,
-					   memslot->base_gfn << PAGE_SHIFT,
-					   memslot->npages * PAGE_SIZE,
-					   0, memslot->id);
-		if (ret < 0) {
-			kvmppc_uvmem_slot_free(kvm, memslot);
-			ret = H_PARAMETER;
-			goto out;
+		ret = kvmppc_uvmem_memslot_create(kvm, memslot);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		slots = kvm_memslots(kvm);
+		kvm_for_each_memslot(m, slots) {
+			if (m == memslot)
+				break;
+			kvmppc_uvmem_memslot_delete(kvm, memslot);
 		}
 	}
-out:
+
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }
@@ -384,7 +454,7 @@ out:
  */
 static int kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 		   unsigned long end, unsigned long gpa, struct kvm *kvm,
-		   unsigned long page_shift, bool *downgrade)
+		   unsigned long page_shift)
 {
 	unsigned long src_pfn, dst_pfn = 0;
 	struct migrate_vma mig;
@@ -399,18 +469,6 @@ static int kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 	mig.end = end;
 	mig.src = &src_pfn;
 	mig.dst = &dst_pfn;
-
-	/*
-	 * We come here with mmap_lock write lock held just for
-	 * ksm_madvise(), otherwise we only need read mmap_lock.
-	 * Hence downgrade to read lock once ksm_madvise() is done.
-	 */
-	ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
-			  MADV_UNMERGEABLE, &vma->vm_flags);
-	mmap_write_downgrade(kvm->mm);
-	*downgrade = true;
-	if (ret)
-		return ret;
 
 	ret = migrate_vma_setup(&mig);
 	if (ret)
@@ -503,7 +561,6 @@ unsigned long kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 		unsigned long flags,
 		unsigned long page_shift)
 {
-	bool downgrade = false;
 	unsigned long start, end;
 	struct vm_area_struct *vma;
 	int srcu_idx;
@@ -524,7 +581,7 @@ unsigned long kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	mmap_write_lock(kvm->mm);
+	mmap_read_lock(kvm->mm);
 
 	start = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(start))
@@ -540,16 +597,12 @@ unsigned long kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 	if (!vma || vma->vm_start > start || vma->vm_end < end)
 		goto out_unlock;
 
-	if (!kvmppc_svm_page_in(vma, start, end, gpa, kvm, page_shift,
-				&downgrade))
+	if (!kvmppc_svm_page_in(vma, start, end, gpa, kvm, page_shift))
 		ret = H_SUCCESS;
 out_unlock:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 out:
-	if (downgrade)
-		mmap_read_unlock(kvm->mm);
-	else
-		mmap_write_unlock(kvm->mm);
+	mmap_read_unlock(kvm->mm);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }
