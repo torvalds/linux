@@ -9,9 +9,6 @@
 
 #include <linux/pci.h>
 
-#define SET_CLK_PKT_TIMEOUT	1000000	/* 1s */
-#define SET_PWR_PKT_TIMEOUT	1000000	/* 1s */
-
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {
 	struct armcp_packet pkt;
@@ -29,7 +26,7 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 	pkt.pll_index = cpu_to_le32(pll_index);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						SET_CLK_PKT_TIMEOUT, &result);
+						0, &result);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -54,7 +51,7 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 	pkt.value = cpu_to_le64(freq);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-					SET_CLK_PKT_TIMEOUT, NULL);
+						0, NULL);
 
 	if (rc)
 		dev_err(hdev->dev,
@@ -74,7 +71,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						SET_PWR_PKT_TIMEOUT, &result);
+						0, &result);
 
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
@@ -96,7 +93,7 @@ void hl_set_max_power(struct hl_device *hdev, u64 value)
 	pkt.value = cpu_to_le64(value);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-					SET_PWR_PKT_TIMEOUT, NULL);
+						0, NULL);
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);

@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* aQuantia Corporation Network Driver
- * Copyright (C) 2018-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2018-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 #include "aq_phy.h"
+
+#define HW_ATL_PTP_DISABLE_MSK	BIT(10)
 
 bool aq_mdio_busy_wait(struct aq_hw_s *aq_hw)
 {
@@ -144,4 +148,25 @@ bool aq_phy_init(struct aq_hw_s *aq_hw)
 	}
 
 	return true;
+}
+
+void aq_phy_disable_ptp(struct aq_hw_s *aq_hw)
+{
+	static const u16 ptp_registers[] = {
+		0x031e,
+		0x031d,
+		0x031c,
+		0x031b,
+	};
+	u16 val;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ptp_registers); i++) {
+		val = aq_phy_read_reg(aq_hw, MDIO_MMD_VEND1,
+				      ptp_registers[i]);
+
+		aq_phy_write_reg(aq_hw, MDIO_MMD_VEND1,
+				 ptp_registers[i],
+				 val & ~HW_ATL_PTP_DISABLE_MSK);
+	}
 }

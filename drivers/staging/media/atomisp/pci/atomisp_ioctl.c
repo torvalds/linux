@@ -549,8 +549,7 @@ static int atomisp_querycap(struct file *file, void *fh,
 
 	strscpy(cap->driver, DRIVER, sizeof(cap->driver));
 	strscpy(cap->card, CARD, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
-		 pci_name(isp->pdev));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s", dev_name(isp->dev));
 
 	return 0;
 }
@@ -1635,6 +1634,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	unsigned int sensor_start_stream;
 	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
@@ -1844,9 +1844,8 @@ start_sensor:
 	/* Enable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
 					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
-		pci_write_config_word(isp->pdev, MRFLD_PCI_CSI_CONTROL,
-				      isp->saved_regs.csi_control |
-				      MRFLD_PCI_CSI_CONTROL_CSI_READY);
+		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
+				      isp->saved_regs.csi_control | MRFLD_PCI_CSI_CONTROL_CSI_READY);
 	}
 
 	/* stream on the sensor */
@@ -1891,6 +1890,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_video_pipe *capture_pipe = NULL;
@@ -2076,9 +2076,8 @@ stopsensor:
 	/* Disable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
 					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
-		pci_write_config_word(isp->pdev, MRFLD_PCI_CSI_CONTROL,
-				      isp->saved_regs.csi_control &
-				      ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
+		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
+				      isp->saved_regs.csi_control & ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
 	}
 
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
@@ -2111,8 +2110,8 @@ stopsensor:
 		}
 
 		/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
-		pci_write_config_dword(isp->pdev, PCI_I_CONTROL, isp->saved_regs.i_control |
-				       MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+		pci_write_config_dword(pdev, PCI_I_CONTROL,
+				       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 		dev_err(isp->dev, "atomisp_reset");
 		atomisp_reset(isp);
 		for (i = 0; i < isp->num_of_streams; i++) {

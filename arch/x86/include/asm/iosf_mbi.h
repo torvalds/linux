@@ -39,6 +39,7 @@
 #define BT_MBI_UNIT_PMC		0x04
 #define BT_MBI_UNIT_GFX		0x06
 #define BT_MBI_UNIT_SMI		0x0C
+#define BT_MBI_UNIT_CCK		0x14
 #define BT_MBI_UNIT_USB		0x43
 #define BT_MBI_UNIT_SATA	0xA3
 #define BT_MBI_UNIT_PCIE	0xA6
