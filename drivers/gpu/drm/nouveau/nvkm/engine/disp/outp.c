@@ -117,15 +117,6 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 {
 	struct nvkm_ior *ior;
 
-	/* First preference is to reuse the OR that is currently armed
-	 * on HW, if any, in order to prevent unnecessary switching.
-	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity && !!ior->func->hda.hpd == hda &&
-		    !ior->asy.outp && ior->arm.outp == outp)
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
-
 	/* Failing that, a completely unused OR is the next best thing. */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
 		if (!ior->identity && !!ior->func->hda.hpd == hda &&
@@ -171,6 +162,27 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 		if (WARN_ON(!ior))
 			return -ENOSPC;
 		return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	/* First preference is to reuse the OR that is currently armed
+	 * on HW, if any, in order to prevent unnecessary switching.
+	 */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity && !ior->asy.outp && ior->arm.outp == outp) {
+			/*XXX: For various complicated reasons, we can't outright switch
+			 *     the boot-time OR on the first modeset without some fairly
+			 *     invasive changes.
+			 *
+			 *     The systems that were fixed by modifying the OR selection
+			 *     code to account for HDA support shouldn't regress here as
+			 *     the HDA-enabled ORs match the relevant output's pad macro
+			 *     index, and the firmware seems to select an OR this way.
+			 *
+			 *     This warning is to make it obvious if that proves wrong.
+			 */
+			WARN_ON(hda && !ior->func->hda.hpd);
+			return nvkm_outp_acquire_ior(outp, user, ior);
+		}
 	}
 
 	/* If we don't need HDA, first try to acquire an OR that doesn't
