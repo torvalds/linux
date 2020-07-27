@@ -1217,10 +1217,98 @@ static bool si_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-//xxx: not implemented
+static void si_set_clk_bypass_mode(struct amdgpu_device *adev)
+{
+	u32 tmp, i;
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_BYPASS_EN;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp |= SPLL_CTLREQ_CHG;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (RREG32(SPLL_STATUS) & SPLL_CHG_STATUS)
+			break;
+		udelay(1);
+	}
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp &= ~(SPLL_CTLREQ_CHG | SCLK_MUX_UPDATE);
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	tmp = RREG32(MPLL_CNTL_MODE);
+	tmp &= ~MPLL_MCLK_SEL;
+	WREG32(MPLL_CNTL_MODE, tmp);
+}
+
+static void si_spll_powerdown(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	tmp = RREG32(SPLL_CNTL_MODE);
+	tmp |= SPLL_SW_DIR_CONTROL;
+	WREG32(SPLL_CNTL_MODE, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_RESET;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_SLEEP;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(SPLL_CNTL_MODE);
+	tmp &= ~SPLL_SW_DIR_CONTROL;
+	WREG32(SPLL_CNTL_MODE, tmp);
+}
+
+static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
+{
+	u32 i;
+	int r = -EINVAL;
+
+	dev_info(adev->dev, "GPU pci config reset\n");
+
+	/* set mclk/sclk to bypass */
+	si_set_clk_bypass_mode(adev);
+	/* powerdown spll */
+	si_spll_powerdown(adev);
+	/* disable BM */
+	pci_clear_master(adev->pdev);
+	/* reset */
+	amdgpu_device_pci_config_reset(adev);
+
+	udelay(100);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
+			/* enable BM */
+			pci_set_master(adev->pdev);
+			adev->has_hw_reset = true;
+			r = 0;
+			break;
+		}
+		udelay(1);
+	}
+
+	return r;
+}
+
 static int si_asic_reset(struct amdgpu_device *adev)
 {
-	return 0;
+	int r;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	r = si_gpu_pci_config_reset(adev);
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return r;
 }
 
 static bool si_asic_supports_baco(struct amdgpu_device *adev)
