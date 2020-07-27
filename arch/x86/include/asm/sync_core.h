@@ -6,6 +6,37 @@
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 
+#ifdef CONFIG_X86_32
+static inline void iret_to_self(void)
+{
+	asm volatile (
+		"pushfl\n\t"
+		"pushl %%cs\n\t"
+		"pushl $1f\n\t"
+		"iret\n\t"
+		"1:"
+		: ASM_CALL_CONSTRAINT : : "memory");
+}
+#else
+static inline void iret_to_self(void)
+{
+	unsigned int tmp;
+
+	asm volatile (
+		"mov %%ss, %0\n\t"
+		"pushq %q0\n\t"
+		"pushq %%rsp\n\t"
+		"addq $8, (%%rsp)\n\t"
+		"pushfq\n\t"
+		"mov %%cs, %0\n\t"
+		"pushq %q0\n\t"
+		"pushq $1f\n\t"
+		"iretq\n\t"
+		"1:"
+		: "=&r" (tmp), ASM_CALL_CONSTRAINT : : "cc", "memory");
+}
+#endif /* CONFIG_X86_32 */
+
 /*
  * This function forces the icache and prefetched instruction stream to
  * catch up with reality in two very specific cases:
@@ -44,30 +75,7 @@ static inline void sync_core(void)
 	 * Like all of Linux's memory ordering operations, this is a
 	 * compiler barrier as well.
 	 */
-#ifdef CONFIG_X86_32
-	asm volatile (
-		"pushfl\n\t"
-		"pushl %%cs\n\t"
-		"pushl $1f\n\t"
-		"iret\n\t"
-		"1:"
-		: ASM_CALL_CONSTRAINT : : "memory");
-#else
-	unsigned int tmp;
-
-	asm volatile (
-		"mov %%ss, %0\n\t"
-		"pushq %q0\n\t"
-		"pushq %%rsp\n\t"
-		"addq $8, (%%rsp)\n\t"
-		"pushfq\n\t"
-		"mov %%cs, %0\n\t"
-		"pushq %q0\n\t"
-		"pushq $1f\n\t"
-		"iretq\n\t"
-		"1:"
-		: "=&r" (tmp), ASM_CALL_CONSTRAINT : : "cc", "memory");
-#endif
+	iret_to_self();
 }
 
 /*
