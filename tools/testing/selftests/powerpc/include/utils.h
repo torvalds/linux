@@ -97,6 +97,10 @@ do {								\
 #define _str(s) #s
 #define str(s) _str(s)
 
+#define sigsafe_err(msg)	({ \
+		ssize_t nbytes __attribute__((unused)); \
+		nbytes = write(STDERR_FILENO, msg, strlen(msg)); })
+
 /* POWER9 feature */
 #ifndef PPC_FEATURE2_ARCH_3_00
 #define PPC_FEATURE2_ARCH_3_00 0x00800000

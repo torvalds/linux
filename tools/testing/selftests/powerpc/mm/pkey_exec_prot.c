@@ -14,82 +14,12 @@
 #include <signal.h>
 
 #include <unistd.h>
-#include <sys/mman.h>
 
-#include "reg.h"
-#include "utils.h"
-
-/*
- * Older versions of libc use the Intel-specific access rights.
- * Hence, override the definitions as they might be incorrect.
- */
-#undef PKEY_DISABLE_ACCESS
-#define PKEY_DISABLE_ACCESS	0x3
-
-#undef PKEY_DISABLE_WRITE
-#define PKEY_DISABLE_WRITE	0x2
-
-#undef PKEY_DISABLE_EXECUTE
-#define PKEY_DISABLE_EXECUTE	0x4
-
-/* Older versions of libc do not not define this */
-#ifndef SEGV_PKUERR
-#define SEGV_PKUERR	4
-#endif
-
-#define SI_PKEY_OFFSET	0x20
-
-#define SYS_pkey_mprotect	386
-#define SYS_pkey_alloc		384
-#define SYS_pkey_free		385
-
-#define PKEY_BITS_PER_PKEY	2
-#define NR_PKEYS		32
-#define PKEY_BITS_MASK		((1UL << PKEY_BITS_PER_PKEY) - 1)
+#include "pkeys.h"
 
 #define PPC_INST_NOP	0x60000000
 #define PPC_INST_TRAP	0x7fe00008
 #define PPC_INST_BLR	0x4e800020
-
-#define sigsafe_err(msg)	({ \
-		ssize_t nbytes __attribute__((unused)); \
-		nbytes = write(STDERR_FILENO, msg, strlen(msg)); })
-
-static inline unsigned long pkeyreg_get(void)
-{
-	return mfspr(SPRN_AMR);
-}
-
-static inline void pkeyreg_set(unsigned long amr)
-{
-	set_amr(amr);
-}
-
-static void pkey_set_rights(int pkey, unsigned long rights)
-{
-	unsigned long amr, shift;
-
-	shift = (NR_PKEYS - pkey - 1) * PKEY_BITS_PER_PKEY;
-	amr = pkeyreg_get();
-	amr &= ~(PKEY_BITS_MASK << shift);
-	amr |= (rights & PKEY_BITS_MASK) << shift;
-	pkeyreg_set(amr);
-}
-
-static int sys_pkey_mprotect(void *addr, size_t len, int prot, int pkey)
-{
-	return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
-}
-
-static int sys_pkey_alloc(unsigned long flags, unsigned long rights)
-{
-	return syscall(SYS_pkey_alloc, flags, rights);
-}
-
-static int sys_pkey_free(int pkey)
-{
-	return syscall(SYS_pkey_free, pkey);
-}
 
 static volatile sig_atomic_t fault_pkey, fault_code, fault_type;
 static volatile sig_atomic_t remaining_faults;
@@ -110,16 +40,7 @@ static void segv_handler(int signum, siginfo_t *sinfo, void *ctx)
 {
 	int signal_pkey;
 
-	/*
-	 * In older versions of libc, siginfo_t does not have si_pkey as
-	 * a member.
-	 */
-#ifdef si_pkey
-	signal_pkey = sinfo->si_pkey;
-#else
-	signal_pkey = *((int *)(((char *) sinfo) + SI_PKEY_OFFSET));
-#endif
-
+	signal_pkey = siginfo_pkey(sinfo);
 	fault_code = sinfo->si_code;
 
 	/* Check if this fault originated from the expected address */
@@ -176,23 +97,6 @@ static void segv_handler(int signum, siginfo_t *sinfo, void *ctx)
 	}
 
 	remaining_faults--;
-}
-
-static int pkeys_unsupported(void)
-{
-	bool hash_mmu = false;
-	int pkey;
-
-	/* Protection keys are currently supported on Hash MMU only */
-	FAIL_IF(using_hash_mmu(&hash_mmu));
-	SKIP_IF(!hash_mmu);
-
-	/* Check if the system call is supported */
-	pkey = sys_pkey_alloc(0, 0);
-	SKIP_IF(pkey < 0);
-	sys_pkey_free(pkey);
-
-	return 0;
 }
 
 static int test(void)
