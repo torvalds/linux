@@ -126,6 +126,26 @@ static void ef100_mcdi_reboot_detected(struct efx_nic *efx)
 
 /*	MCDI calls
  */
+static int ef100_get_mac_address(struct efx_nic *efx, u8 *mac_address)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_MAC_ADDRESSES_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_GET_MAC_ADDRESSES_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_MAC_ADDRESSES, NULL, 0,
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)
+		return -EIO;
+
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
+	return 0;
+}
+
 static int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V7_OUT_LEN);
@@ -540,7 +560,25 @@ fail:
 
 int ef100_probe_pf(struct efx_nic *efx)
 {
-	return ef100_probe_main(efx);
+	struct net_device *net_dev = efx->net_dev;
+	struct ef100_nic_data *nic_data;
+	int rc = ef100_probe_main(efx);
+
+	if (rc)
+		goto fail;
+
+	nic_data = efx->nic_data;
+	rc = ef100_get_mac_address(efx, net_dev->perm_addr);
+	if (rc)
+		goto fail;
+	/* Assign MAC address */
+	memcpy(net_dev->dev_addr, net_dev->perm_addr, ETH_ALEN);
+	memcpy(nic_data->port_id, net_dev->perm_addr, ETH_ALEN);
+
+	return 0;
+
+fail:
+	return rc;
 }
 
 void ef100_remove(struct efx_nic *efx)
