@@ -322,8 +322,10 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	dma_addr_t paddr;
 
 	pm_runtime_get_sync(drm->dev);
-
 	mxsfb_enable_axi_clk(mxsfb);
+
+	drm_crtc_vblank_on(crtc);
+
 	mxsfb_crtc_mode_set_nofb(mxsfb);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
@@ -352,6 +354,8 @@ static void mxsfb_crtc_atomic_disable(struct drm_crtc *crtc,
 		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irq(&drm->event_lock);
+
+	drm_crtc_vblank_off(crtc);
 
 	mxsfb_disable_axi_clk(mxsfb);
 	pm_runtime_put_sync(drm->dev);

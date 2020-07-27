@@ -161,12 +161,6 @@ static int mxsfb_load(struct drm_device *drm)
 
 	pm_runtime_enable(drm->dev);
 
-	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
-	if (ret < 0) {
-		dev_err(drm->dev, "Failed to initialise vblank\n");
-		goto err_vblank;
-	}
-
 	/* Modeset init */
 	drm_mode_config_init(drm);
 
@@ -175,6 +169,15 @@ static int mxsfb_load(struct drm_device *drm)
 		dev_err(drm->dev, "Failed to initialize KMS pipeline\n");
 		goto err_vblank;
 	}
+
+	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	if (ret < 0) {
+		dev_err(drm->dev, "Failed to initialise vblank\n");
+		goto err_vblank;
+	}
+
+	/* Start with vertical blanking interrupt reporting disabled. */
+	drm_crtc_vblank_off(&mxsfb->crtc);
 
 	ret = mxsfb_attach_bridge(mxsfb);
 	if (ret) {
