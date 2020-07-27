@@ -947,8 +947,8 @@ int dev_pm_opp_of_add_table(struct device *dev)
 	int ret;
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, 0);
-	if (!opp_table)
-		return -ENOMEM;
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	/*
 	 * OPPs have two version of bindings now. Also try the old (v1)
@@ -1002,8 +1002,8 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 	}
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
-	if (!opp_table)
-		return -ENOMEM;
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	ret = _of_add_opp_table_v2(dev, opp_table);
 	if (ret)
