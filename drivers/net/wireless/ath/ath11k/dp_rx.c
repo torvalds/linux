@@ -3782,8 +3782,7 @@ static bool ath11k_dp_rx_h_reo_err(struct ath11k *ar, struct sk_buff *msdu,
 		 * instead, it is good to drop such packets in mac80211
 		 * after incrementing the replay counters.
 		 */
-
-		/* fall through */
+		fallthrough;
 	default:
 		/* TODO: Review other errors and process them to mac80211
 		 * as appropriate.
