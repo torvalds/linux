@@ -68,7 +68,7 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (WARN_ON(clock > host->max_clk))
 		clock = host->max_clk;
 
-	for (div = 1; div < 256; div *= 2) {
+	for (div = 2; div < 256; div *= 2) {
 		if ((parent / div) <= clock)
 			break;
 	}

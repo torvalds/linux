@@ -397,6 +397,7 @@ mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 
+	queue = mt7615_lmac_mapping(dev, queue);
 	queue += mvif->wmm_idx * MT7615_MAX_WMM_SETS;
 
 	return mt7615_mcu_set_wmm(dev, queue, params);
@@ -735,9 +736,12 @@ static void
 mt7615_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	struct mt7615_dev *dev = phy->dev;
 
+	mutex_lock(&dev->mt76.mutex);
 	phy->coverage_class = max_t(s16, coverage_class, 0);
 	mt7615_mac_set_timing(phy);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int

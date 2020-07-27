@@ -20,9 +20,6 @@
 #define ATOMISP_REGS_H
 
 /* common register definitions */
-#define PUNIT_PORT		0x04
-#define CCK_PORT		0x14
-
 #define PCICMDSTS		0x01
 #define INTR			0x0f
 #define MSI_CAPID		0x24

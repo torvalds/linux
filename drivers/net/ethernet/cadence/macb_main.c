@@ -3736,7 +3736,7 @@ static int macb_init(struct platform_device *pdev)
 
 	if (!(bp->caps & MACB_CAPS_USRIO_DISABLED)) {
 		val = 0;
-		if (bp->phy_interface == PHY_INTERFACE_MODE_RGMII)
+		if (phy_interface_mode_is_rgmii(bp->phy_interface))
 			val = GEM_BIT(RGMII);
 		else if (bp->phy_interface == PHY_INTERFACE_MODE_RMII &&
 			 (bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII))
