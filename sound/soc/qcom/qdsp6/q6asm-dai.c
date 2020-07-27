@@ -50,7 +50,7 @@ enum stream_state {
 struct q6asm_dai_rtd {
 	struct snd_pcm_substream *substream;
 	struct snd_compr_stream *cstream;
-	struct snd_compr_params codec_param;
+	struct snd_codec codec;
 	struct snd_dma_buffer dma_buffer;
 	spinlock_t lock;
 	phys_addr_t phys;
@@ -641,15 +641,13 @@ static int q6asm_dai_compr_free(struct snd_soc_component *component,
 	return 0;
 }
 
-static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
-				      struct snd_compr_stream *stream,
-				      struct snd_compr_params *params)
+static int __q6asm_dai_compr_set_codec_params(struct snd_soc_component *component,
+					      struct snd_compr_stream *stream,
+					      struct snd_codec *codec,
+					      int stream_id)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	int dir = stream->direction;
-	struct q6asm_dai_data *pdata;
 	struct q6asm_flac_cfg flac_cfg;
 	struct q6asm_wma_cfg wma_cfg;
 	struct q6asm_alac_cfg alac_cfg;
@@ -663,53 +661,18 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 	struct snd_dec_alac *alac;
 	struct snd_dec_ape *ape;
 
-	codec_options = &(prtd->codec_param.codec.options);
+	codec_options = &(prtd->codec.options);
 
+	memcpy(&prtd->codec, codec, sizeof(*codec));
 
-	memcpy(&prtd->codec_param, params, sizeof(*params));
-
-	pdata = snd_soc_component_get_drvdata(component);
-	if (!pdata)
-		return -EINVAL;
-
-	if (!prtd || !prtd->audio_client) {
-		dev_err(dev, "private data null or audio client freed\n");
-		return -EINVAL;
-	}
-
-	prtd->periods = runtime->fragments;
-	prtd->pcm_count = runtime->fragment_size;
-	prtd->pcm_size = runtime->fragments * runtime->fragment_size;
-	prtd->bits_per_sample = 16;
-	if (dir == SND_COMPRESS_PLAYBACK) {
-		ret = q6asm_open_write(prtd->audio_client, prtd->stream_id,
-				       params->codec.id, params->codec.profile,
-				       prtd->bits_per_sample, true);
-
-		if (ret < 0) {
-			dev_err(dev, "q6asm_open_write failed\n");
-			q6asm_audio_client_free(prtd->audio_client);
-			prtd->audio_client = NULL;
-			return ret;
-		}
-	}
-
-	prtd->session_id = q6asm_get_session_id(prtd->audio_client);
-	ret = q6routing_stream_open(rtd->dai_link->id, LEGACY_PCM_MODE,
-			      prtd->session_id, dir);
-	if (ret) {
-		dev_err(dev, "Stream reg failed ret:%d\n", ret);
-		return ret;
-	}
-
-	switch (params->codec.id) {
+	switch (codec->id) {
 	case SND_AUDIOCODEC_FLAC:
 
 		memset(&flac_cfg, 0x0, sizeof(struct q6asm_flac_cfg));
 		flac = &codec_options->flac_d;
 
-		flac_cfg.ch_cfg = params->codec.ch_in;
-		flac_cfg.sample_rate =  params->codec.sample_rate;
+		flac_cfg.ch_cfg = codec->ch_in;
+		flac_cfg.sample_rate = codec->sample_rate;
 		flac_cfg.stream_info_present = 1;
 		flac_cfg.sample_size = flac->sample_size;
 		flac_cfg.min_blk_size = flac->min_blk_size;
@@ -718,7 +681,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		flac_cfg.min_frame_size = flac->min_frame_size;
 
 		ret = q6asm_stream_media_format_block_flac(prtd->audio_client,
-							   prtd->stream_id,
+							   stream_id,
 							   &flac_cfg);
 		if (ret < 0) {
 			dev_err(dev, "FLAC CMD Format block failed:%d\n", ret);
@@ -731,10 +694,10 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 
 		memset(&wma_cfg, 0x0, sizeof(struct q6asm_wma_cfg));
 
-		wma_cfg.sample_rate =  params->codec.sample_rate;
-		wma_cfg.num_channels = params->codec.ch_in;
-		wma_cfg.bytes_per_sec = params->codec.bit_rate / 8;
-		wma_cfg.block_align = params->codec.align;
+		wma_cfg.sample_rate =  codec->sample_rate;
+		wma_cfg.num_channels = codec->ch_in;
+		wma_cfg.bytes_per_sec = codec->bit_rate / 8;
+		wma_cfg.block_align = codec->align;
 		wma_cfg.bits_per_sample = prtd->bits_per_sample;
 		wma_cfg.enc_options = wma->encoder_option;
 		wma_cfg.adv_enc_options = wma->adv_encoder_option;
@@ -748,7 +711,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 			return -EINVAL;
 
 		/* check the codec profile */
-		switch (params->codec.profile) {
+		switch (codec->profile) {
 		case SND_AUDIOPROFILE_WMA9:
 			wma_cfg.fmtag = 0x161;
 			wma_v9 = 1;
@@ -772,17 +735,17 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 
 		default:
 			dev_err(dev, "Unknown WMA profile:%x\n",
-				params->codec.profile);
+				codec->profile);
 			return -EIO;
 		}
 
 		if (wma_v9)
 			ret = q6asm_stream_media_format_block_wma_v9(
-					prtd->audio_client, prtd->stream_id,
+					prtd->audio_client, stream_id,
 					&wma_cfg);
 		else
 			ret = q6asm_stream_media_format_block_wma_v10(
-					prtd->audio_client, prtd->stream_id,
+					prtd->audio_client, stream_id,
 					&wma_cfg);
 		if (ret < 0) {
 			dev_err(dev, "WMA9 CMD failed:%d\n", ret);
@@ -794,10 +757,10 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		memset(&alac_cfg, 0x0, sizeof(alac_cfg));
 		alac = &codec_options->alac_d;
 
-		alac_cfg.sample_rate = params->codec.sample_rate;
-		alac_cfg.avg_bit_rate = params->codec.bit_rate;
+		alac_cfg.sample_rate = codec->sample_rate;
+		alac_cfg.avg_bit_rate = codec->bit_rate;
 		alac_cfg.bit_depth = prtd->bits_per_sample;
-		alac_cfg.num_channels = params->codec.ch_in;
+		alac_cfg.num_channels = codec->ch_in;
 
 		alac_cfg.frame_length = alac->frame_length;
 		alac_cfg.pb = alac->pb;
@@ -807,7 +770,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		alac_cfg.compatible_version = alac->compatible_version;
 		alac_cfg.max_frame_bytes = alac->max_frame_bytes;
 
-		switch (params->codec.ch_in) {
+		switch (codec->ch_in) {
 		case 1:
 			alac_cfg.channel_layout_tag = ALAC_CH_LAYOUT_MONO;
 			break;
@@ -816,7 +779,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 			break;
 		}
 		ret = q6asm_stream_media_format_block_alac(prtd->audio_client,
-							   prtd->stream_id,
+							   stream_id,
 							   &alac_cfg);
 		if (ret < 0) {
 			dev_err(dev, "ALAC CMD Format block failed:%d\n", ret);
@@ -828,8 +791,8 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		memset(&ape_cfg, 0x0, sizeof(ape_cfg));
 		ape = &codec_options->ape_d;
 
-		ape_cfg.sample_rate = params->codec.sample_rate;
-		ape_cfg.num_channels = params->codec.ch_in;
+		ape_cfg.sample_rate = codec->sample_rate;
+		ape_cfg.num_channels = codec->ch_in;
 		ape_cfg.bits_per_sample = prtd->bits_per_sample;
 
 		ape_cfg.compatible_version = ape->compatible_version;
@@ -841,7 +804,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 		ape_cfg.seek_table_present = ape->seek_table_present;
 
 		ret = q6asm_stream_media_format_block_ape(prtd->audio_client,
-							  prtd->stream_id,
+							  stream_id,
 							  &ape_cfg);
 		if (ret < 0) {
 			dev_err(dev, "APE CMD Format block failed:%d\n", ret);
@@ -851,6 +814,64 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 
 	default:
 		break;
+	}
+
+	return 0;
+}
+
+static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
+				      struct snd_compr_stream *stream,
+				      struct snd_compr_params *params)
+{
+	struct snd_compr_runtime *runtime = stream->runtime;
+	struct q6asm_dai_rtd *prtd = runtime->private_data;
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	int dir = stream->direction;
+	struct q6asm_dai_data *pdata;
+	struct device *dev = component->dev;
+	int ret;
+
+	pdata = snd_soc_component_get_drvdata(component);
+	if (!pdata)
+		return -EINVAL;
+
+	if (!prtd || !prtd->audio_client) {
+		dev_err(dev, "private data null or audio client freed\n");
+		return -EINVAL;
+	}
+
+	prtd->periods = runtime->fragments;
+	prtd->pcm_count = runtime->fragment_size;
+	prtd->pcm_size = runtime->fragments * runtime->fragment_size;
+	prtd->bits_per_sample = 16;
+
+	if (dir == SND_COMPRESS_PLAYBACK) {
+		ret = q6asm_open_write(prtd->audio_client, prtd->stream_id, params->codec.id,
+				params->codec.profile, prtd->bits_per_sample,
+				true);
+
+		if (ret < 0) {
+			dev_err(dev, "q6asm_open_write failed\n");
+			q6asm_audio_client_free(prtd->audio_client);
+			prtd->audio_client = NULL;
+			return ret;
+		}
+	}
+
+	prtd->session_id = q6asm_get_session_id(prtd->audio_client);
+	ret = q6routing_stream_open(rtd->dai_link->id, LEGACY_PCM_MODE,
+			      prtd->session_id, dir);
+	if (ret) {
+		dev_err(dev, "Stream reg failed ret:%d\n", ret);
+		return ret;
+	}
+
+	ret = __q6asm_dai_compr_set_codec_params(component, stream,
+						 &params->codec,
+						 prtd->stream_id);
+	if (ret) {
+		dev_err(dev, "codec param setup failed ret:%d\n", ret);
+		return ret;
 	}
 
 	ret = q6asm_map_memory_regions(dir, prtd->audio_client, prtd->phys,
