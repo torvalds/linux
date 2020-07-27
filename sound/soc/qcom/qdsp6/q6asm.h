@@ -33,6 +33,7 @@ enum {
 
 #define MAX_SESSIONS	8
 #define FORMAT_LINEAR_PCM   0x0000
+#define ASM_LAST_BUFFER_FLAG           BIT(30)
 
 struct q6asm_flac_cfg {
         u32 sample_rate;
