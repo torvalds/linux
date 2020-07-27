@@ -4008,7 +4008,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 		result = -EIO;
 		goto free_mem;
 	}
-	if (pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&dev->dev, DMA_BIT_MASK(32))) {
 		pr_warn("%d: No suitable DMA available\n", btv->c.nr);
 		result = -EIO;
 		goto free_mem;
