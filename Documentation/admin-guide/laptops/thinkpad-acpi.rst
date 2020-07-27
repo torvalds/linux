@@ -1485,6 +1485,23 @@ For more details about which buttons will appear depending on the mode, please
 review the laptop's user guide:
 http://www.lenovo.com/shop/americas/content/user_guides/x1carbon_2_ug_en.pdf
 
+Battery charge control
+----------------------
+
+sysfs attributes:
+/sys/class/power_supply/BAT*/charge_control_{start,end}_threshold
+
+These two attributes are created for those batteries that are supported by the
+driver. They enable the user to control the battery charge thresholds of the
+given battery. Both values may be read and set. `charge_control_start_threshold`
+accepts an integer between 0 and 99 (inclusive); this value represents a battery
+percentage level, below which charging will begin. `charge_control_end_threshold`
+accepts an integer between 1 and 100 (inclusive); this value represents a battery
+percentage level, above which charging will stop.
+
+The exact semantics of the attributes may be found in
+Documentation/ABI/testing/sysfs-class-power.
+
 Multiple Commands, Module Parameters
 ------------------------------------
 
