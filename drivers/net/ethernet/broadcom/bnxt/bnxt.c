@@ -3788,8 +3788,7 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 	if (bp->hw_rx_port_stats)
 		goto alloc_ext_stats;
 
-	bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
-				 sizeof(struct tx_port_stats) + 1024;
+	bp->hw_port_stats_size = BNXT_PORT_STATS_SIZE;
 
 	bp->hw_rx_port_stats =
 		dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
@@ -3798,9 +3797,10 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 	if (!bp->hw_rx_port_stats)
 		return -ENOMEM;
 
-	bp->hw_tx_port_stats = (void *)(bp->hw_rx_port_stats + 1) + 512;
+	bp->hw_tx_port_stats = (void *)bp->hw_rx_port_stats +
+			       BNXT_TX_PORT_STATS_BYTE_OFFSET;
 	bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
-				   sizeof(struct rx_port_stats) + 512;
+				   BNXT_TX_PORT_STATS_BYTE_OFFSET;
 	bp->flags |= BNXT_FLAG_PORT_STATS;
 
 alloc_ext_stats:
