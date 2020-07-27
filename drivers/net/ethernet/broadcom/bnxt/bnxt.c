@@ -3793,13 +3793,19 @@ qstat_exit:
 	return rc;
 }
 
+static int bnxt_hwrm_port_qstats(struct bnxt *bp, u8 flags);
+static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp, u8 flags);
+
 static void bnxt_init_stats(struct bnxt *bp)
 {
 	struct bnxt_napi *bnapi = bp->bnapi[0];
 	struct bnxt_cp_ring_info *cpr;
 	struct bnxt_stats_mem *stats;
+	__le64 *rx_stats, *tx_stats;
+	int rc, rx_count, tx_count;
+	u64 *rx_masks, *tx_masks;
 	u64 mask;
-	int rc;
+	u8 flags;
 
 	cpr = &bnapi->cp_ring;
 	stats = &cpr->stats;
@@ -3810,6 +3816,54 @@ static void bnxt_init_stats(struct bnxt *bp)
 		else
 			mask = -1ULL;
 		bnxt_fill_masks(stats->hw_masks, mask, stats->len / 8);
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		stats = &bp->port_stats;
+		rx_stats = stats->hw_stats;
+		rx_masks = stats->hw_masks;
+		rx_count = sizeof(struct rx_port_stats) / 8;
+		tx_stats = rx_stats + BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
+		tx_masks = rx_masks + BNXT_TX_PORT_STATS_BYTE_OFFSET / 8;
+		tx_count = sizeof(struct tx_port_stats) / 8;
+
+		flags = PORT_QSTATS_REQ_FLAGS_COUNTER_MASK;
+		rc = bnxt_hwrm_port_qstats(bp, flags);
+		if (rc) {
+			mask = (1ULL << 40) - 1;
+
+			bnxt_fill_masks(rx_masks, mask, rx_count);
+			bnxt_fill_masks(tx_masks, mask, tx_count);
+		} else {
+			bnxt_copy_hw_masks(rx_masks, rx_stats, rx_count);
+			bnxt_copy_hw_masks(tx_masks, tx_stats, tx_count);
+			bnxt_hwrm_port_qstats(bp, 0);
+		}
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+		stats = &bp->rx_port_stats_ext;
+		rx_stats = stats->hw_stats;
+		rx_masks = stats->hw_masks;
+		rx_count = sizeof(struct rx_port_stats_ext) / 8;
+		stats = &bp->tx_port_stats_ext;
+		tx_stats = stats->hw_stats;
+		tx_masks = stats->hw_masks;
+		tx_count = sizeof(struct tx_port_stats_ext) / 8;
+
+		flags = FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK;
+		rc = bnxt_hwrm_port_qstats_ext(bp, flags);
+		if (rc) {
+			mask = (1ULL << 40) - 1;
+
+			bnxt_fill_masks(rx_masks, mask, rx_count);
+			if (tx_stats)
+				bnxt_fill_masks(tx_masks, mask, tx_count);
+		} else {
+			bnxt_copy_hw_masks(rx_masks, rx_stats, rx_count);
+			if (tx_stats)
+				bnxt_copy_hw_masks(tx_masks, tx_stats,
+						   tx_count);
+			bnxt_hwrm_port_qstats_ext(bp, 0);
+		}
 	}
 }
 
@@ -7538,7 +7592,7 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-static int bnxt_hwrm_port_qstats(struct bnxt *bp)
+static int bnxt_hwrm_port_qstats(struct bnxt *bp, u8 flags)
 {
 	struct bnxt_pf_info *pf = &bp->pf;
 	struct hwrm_port_qstats_input req = {0};
@@ -7546,6 +7600,10 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 	if (!(bp->flags & BNXT_FLAG_PORT_STATS))
 		return 0;
 
+	if (flags && !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED))
+		return -EOPNOTSUPP;
+
+	req.flags = flags;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS, -1, -1);
 	req.port_id = cpu_to_le16(pf->port_id);
 	req.tx_stat_host_addr = cpu_to_le64(bp->port_stats.hw_stats_map +
@@ -7554,7 +7612,7 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
+static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp, u8 flags)
 {
 	struct hwrm_port_qstats_ext_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_queue_pri2cos_qcfg_input req2 = {0};
@@ -7566,7 +7624,11 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 	if (!(bp->flags & BNXT_FLAG_PORT_STATS_EXT))
 		return 0;
 
+	if (flags && !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED))
+		return -EOPNOTSUPP;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS_EXT, -1, -1);
+	req.flags = flags;
 	req.port_id = cpu_to_le16(pf->port_id);
 	req.rx_stat_size = cpu_to_le16(sizeof(struct rx_port_stats_ext));
 	req.rx_stat_host_addr = cpu_to_le64(bp->rx_port_stats_ext.hw_stats_map);
@@ -7584,6 +7646,9 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 		bp->fw_rx_stats_ext_size = 0;
 		bp->fw_tx_stats_ext_size = 0;
 	}
+	if (flags)
+		goto qstats_done;
+
 	if (bp->fw_tx_stats_ext_size <=
 	    offsetof(struct tx_port_stats_ext, pfc_pri0_tx_duration_us) / 8) {
 		mutex_unlock(&bp->hwrm_cmd_lock);
@@ -10502,8 +10567,8 @@ static void bnxt_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_exec_fwd_req(bp);
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event)) {
-		bnxt_hwrm_port_qstats(bp);
-		bnxt_hwrm_port_qstats_ext(bp);
+		bnxt_hwrm_port_qstats(bp, 0);
+		bnxt_hwrm_port_qstats_ext(bp, 0);
 	}
 
 	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
