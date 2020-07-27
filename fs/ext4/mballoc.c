@@ -1279,9 +1279,6 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 	e4b->bd_buddy_page = page;
 	e4b->bd_buddy = page_address(page) + (poff * sb->s_blocksize);
 
-	BUG_ON(e4b->bd_bitmap_page == NULL);
-	BUG_ON(e4b->bd_buddy_page == NULL);
-
 	return 0;
 
 err:
