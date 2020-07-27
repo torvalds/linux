@@ -2005,10 +2005,8 @@ static int dentry_revalidate(struct dentry *d, unsigned int flags)
 
 	get_incfs_backing_path(d, &backing_path);
 	backing_dentry = backing_path.dentry;
-	if (!backing_dentry) {
-		result = -EBADF;
+	if (!backing_dentry)
 		goto out;
-	}
 
 	if (d_inode(backing_dentry) != binode) {
 		/*
