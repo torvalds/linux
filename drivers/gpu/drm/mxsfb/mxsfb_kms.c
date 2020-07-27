@@ -295,6 +295,25 @@ static int mxsfb_crtc_atomic_check(struct drm_crtc *crtc,
 	return drm_atomic_add_affected_planes(state->state, crtc);
 }
 
+static void mxsfb_crtc_atomic_flush(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
+{
+	struct drm_pending_vblank_event *event;
+
+	event = crtc->state->event;
+	crtc->state->event = NULL;
+
+	if (!event)
+		return;
+
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (drm_crtc_vblank_get(crtc) == 0)
+		drm_crtc_arm_vblank_event(crtc, event);
+	else
+		drm_crtc_send_vblank_event(crtc, event);
+	spin_unlock_irq(&crtc->dev->event_lock);
+}
+
 static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
@@ -364,6 +383,7 @@ static void mxsfb_crtc_disable_vblank(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs mxsfb_crtc_helper_funcs = {
 	.atomic_check = mxsfb_crtc_atomic_check,
+	.atomic_flush = mxsfb_crtc_atomic_flush,
 	.atomic_enable = mxsfb_crtc_atomic_enable,
 	.atomic_disable = mxsfb_crtc_atomic_disable,
 };
@@ -410,22 +430,7 @@ static void mxsfb_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_pstate)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
-	struct drm_crtc *crtc = &mxsfb->crtc;
-	struct drm_pending_vblank_event *event;
 	dma_addr_t paddr;
-
-	spin_lock_irq(&crtc->dev->event_lock);
-	event = crtc->state->event;
-	if (event) {
-		crtc->state->event = NULL;
-
-		if (drm_crtc_vblank_get(crtc) == 0) {
-			drm_crtc_arm_vblank_event(crtc, event);
-		} else {
-			drm_crtc_send_vblank_event(crtc, event);
-		}
-	}
-	spin_unlock_irq(&crtc->dev->event_lock);
 
 	paddr = mxsfb_get_fb_paddr(mxsfb);
 	if (paddr) {
