@@ -161,34 +161,32 @@ static void serdes_am654_disable_pll(struct serdes_am654 *phy)
 
 static int serdes_am654_enable_txrx(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
 	/* Enable TX */
-	ret = regmap_field_write(phy->fields[TX0_ENABLE], TX0_ENABLE_STATE);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[TX0_ENABLE], TX0_ENABLE_STATE);
 
 	/* Enable RX */
-	ret = regmap_field_write(phy->fields[RX0_ENABLE], RX0_ENABLE_STATE);
+	ret |= regmap_field_write(phy->fields[RX0_ENABLE], RX0_ENABLE_STATE);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
 
 static int serdes_am654_disable_txrx(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
 	/* Disable TX */
-	ret = regmap_field_write(phy->fields[TX0_ENABLE], TX0_DISABLE_STATE);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[TX0_ENABLE], TX0_DISABLE_STATE);
 
 	/* Disable RX */
-	ret = regmap_field_write(phy->fields[RX0_ENABLE], RX0_DISABLE_STATE);
+	ret |= regmap_field_write(phy->fields[RX0_ENABLE], RX0_DISABLE_STATE);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -311,19 +309,14 @@ static int serdes_am654_usb3_init(struct serdes_am654 *phy)
 
 static int serdes_am654_pcie_init(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
-	ret = regmap_field_write(phy->fields[CONFIG_VERSION], VERSION_VAL);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[CONFIG_VERSION], VERSION_VAL);
+	ret |= regmap_field_write(phy->fields[CMU_MASTER_CDN], 0x1);
+	ret |= regmap_field_write(phy->fields[L1_MASTER_CDN], 0x1);
 
-	ret = regmap_field_write(phy->fields[CMU_MASTER_CDN], 0x1);
 	if (ret)
-		return ret;
-
-	ret = regmap_field_write(phy->fields[L1_MASTER_CDN], 0x1);
-	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -345,20 +338,19 @@ static int serdes_am654_init(struct phy *x)
 static int serdes_am654_reset(struct phy *x)
 {
 	struct serdes_am654 *phy = phy_get_drvdata(x);
-	int ret;
+	int ret = 0;
 
 	serdes_am654_disable_pll(phy);
 	serdes_am654_disable_txrx(phy);
 
-	ret = regmap_field_write(phy->fields[POR_EN], 0x1);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[POR_EN], 0x1);
 
 	mdelay(1);
 
-	ret = regmap_field_write(phy->fields[POR_EN], 0x0);
+	ret |= regmap_field_write(phy->fields[POR_EN], 0x0);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
