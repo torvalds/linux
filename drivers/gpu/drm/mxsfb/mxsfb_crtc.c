@@ -52,13 +52,6 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 
 	ctrl = CTRL_BYPASS_COUNT | CTRL_MASTER;
 
-	/*
-	 * WARNING: The bus width, CTRL_SET_BUS_WIDTH(), is configured to
-	 * match the selected mode here. This differs from the original
-	 * MXSFB driver, which had the option to configure the bus width
-	 * to arbitrary value. This limitation should not pose an issue.
-	 */
-
 	/* CTRL1 contains IRQ config and status bits, preserve those. */
 	ctrl1 = readl(mxsfb->base + LCDC_CTRL1);
 	ctrl1 &= CTRL1_CUR_FRAME_DONE_IRQ_EN | CTRL1_CUR_FRAME_DONE_IRQ;
@@ -66,12 +59,12 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 	switch (format) {
 	case DRM_FORMAT_RGB565:
 		dev_dbg(drm->dev, "Setting up RGB565 mode\n");
-		ctrl |= CTRL_SET_WORD_LENGTH(0);
+		ctrl |= CTRL_WORD_LENGTH_16;
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0xf);
 		break;
 	case DRM_FORMAT_XRGB8888:
 		dev_dbg(drm->dev, "Setting up XRGB8888 mode\n");
-		ctrl |= CTRL_SET_WORD_LENGTH(3);
+		ctrl |= CTRL_WORD_LENGTH_24;
 		/* Do not use packed pixels = one pixel per word instead. */
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0x7);
 		break;
@@ -104,13 +97,13 @@ static void mxsfb_set_bus_fmt(struct mxsfb_drm_private *mxsfb)
 	reg &= ~CTRL_BUS_WIDTH_MASK;
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
-		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_16BIT);
+		reg |= CTRL_BUS_WIDTH_16;
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
-		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_18BIT);
+		reg |= CTRL_BUS_WIDTH_18;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
-		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_24BIT);
+		reg |= CTRL_BUS_WIDTH_24;
 		break;
 	default:
 		dev_err(drm->dev, "Unknown media bus format %d\n", bus_format);

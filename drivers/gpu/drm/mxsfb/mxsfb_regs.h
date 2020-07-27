@@ -34,11 +34,15 @@
 #define CTRL_VSYNC_MODE			BIT(18)
 #define CTRL_DOTCLK_MODE		BIT(17)
 #define CTRL_DATA_SELECT		BIT(16)
-#define CTRL_SET_BUS_WIDTH(x)		(((x) & 0x3) << 10)
-#define CTRL_GET_BUS_WIDTH(x)		(((x) >> 10) & 0x3)
+#define CTRL_BUS_WIDTH_16		(0 << 10)
+#define CTRL_BUS_WIDTH_8		(1 << 10)
+#define CTRL_BUS_WIDTH_18		(2 << 10)
+#define CTRL_BUS_WIDTH_24		(3 << 10)
 #define CTRL_BUS_WIDTH_MASK		(0x3 << 10)
-#define CTRL_SET_WORD_LENGTH(x)		(((x) & 0x3) << 8)
-#define CTRL_GET_WORD_LENGTH(x)		(((x) >> 8) & 0x3)
+#define CTRL_WORD_LENGTH_16		(0 << 8)
+#define CTRL_WORD_LENGTH_8		(1 << 8)
+#define CTRL_WORD_LENGTH_18		(2 << 8)
+#define CTRL_WORD_LENGTH_24		(3 << 8)
 #define CTRL_MASTER			BIT(5)
 #define CTRL_DF16			BIT(3)
 #define CTRL_DF18			BIT(2)
@@ -90,10 +94,5 @@
 #define MXSFB_MIN_YRES			120
 #define MXSFB_MAX_XRES			0xffff
 #define MXSFB_MAX_YRES			0xffff
-
-#define STMLCDIF_8BIT  1 /* pixel data bus to the display is of 8 bit width */
-#define STMLCDIF_16BIT 0 /* pixel data bus to the display is of 16 bit width */
-#define STMLCDIF_18BIT 2 /* pixel data bus to the display is of 18 bit width */
-#define STMLCDIF_24BIT 3 /* pixel data bus to the display is of 24 bit width */
 
 #endif /* __MXSFB_REGS_H__ */
