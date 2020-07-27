@@ -17,13 +17,12 @@
 
 static void update_addr(struct rkispp_stats_vdev *stats_vdev)
 {
-	void __iomem *base = stats_vdev->dev->base_addr;
 	struct rkispp_dummy_buffer *dummy_buf;
 	u32 addr;
 
 	if (stats_vdev->next_buf) {
 		addr = stats_vdev->next_buf->buff_addr[0];
-		writel(addr, base + RKISPP_ORB_WR_BASE);
+		rkispp_write(stats_vdev->dev, RKISPP_ORB_WR_BASE, addr);
 	}
 
 	if (!stats_vdev->next_buf) {
@@ -31,13 +30,13 @@ static void update_addr(struct rkispp_stats_vdev *stats_vdev)
 		if (!dummy_buf->mem_priv)
 			return;
 
-		writel(dummy_buf->dma_addr, base + RKISPP_ORB_WR_BASE);
+		rkispp_write(stats_vdev->dev, RKISPP_ORB_WR_BASE, dummy_buf->dma_addr);
 	}
 }
 
 static int rkispp_stats_frame_end(struct rkispp_stats_vdev *stats_vdev)
 {
-	void __iomem *base = stats_vdev->dev->base_addr;
+	void __iomem *base = stats_vdev->dev->hw_dev->base_addr;
 	struct rkispp_device *dev = stats_vdev->dev;
 	struct rkispp_buffer *curr_buf;
 	struct rkispp_stats_buffer *cur_stat_buf;
@@ -309,7 +308,7 @@ static int rkispp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stats_vdev->dev->iqlock;
-	q->dev = stats_vdev->dev->dev;
+	q->dev = stats_vdev->dev->hw_dev->dev;
 
 	return vb2_queue_init(q);
 }

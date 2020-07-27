@@ -4,6 +4,9 @@
 #ifndef _RKISPP_REGS_H
 #define _RKISPP_REGS_H
 
+#define ISPP_SW_REG_SIZE		0x0d00
+#define ISPP_SW_MAX_SIZE		(ISPP_SW_REG_SIZE * 2)
+
 /* registers */
 #define RKISPP_CTRL			0x0000
 #define RKISPP_CTRL_STRT		(RKISPP_CTRL + 0x0000)
@@ -500,45 +503,5 @@
 
 /* ORB_CORE_CTRL */
 #define SW_ORB_EN			BIT(0)
-
-static inline void rkispp_soft_reset(void __iomem *base)
-{
-	writel(GLB_SOFT_RST_ALL, base + RKISPP_CTRL_RESET);
-}
-
-static inline void set_y_addr(struct rkispp_stream *stream, u32 val)
-{
-	void __iomem *base = stream->isppdev->base_addr;
-
-	writel(val, base + stream->config->reg.cur_y_base);
-}
-
-static inline void set_uv_addr(struct rkispp_stream *stream, u32 val)
-{
-	void __iomem *base = stream->isppdev->base_addr;
-
-	writel(val, base + stream->config->reg.cur_uv_base);
-}
-
-static inline void set_vir_stride(struct rkispp_stream *stream, u32 val)
-{
-	void __iomem *base = stream->isppdev->base_addr;
-
-	writel(val, base + stream->config->reg.cur_vir_stride);
-}
-
-static inline void set_scl_factor(struct rkispp_stream *stream, u32 val)
-{
-	void __iomem *base = stream->isppdev->base_addr;
-
-	writel(val, base + stream->config->reg.factor);
-}
-
-static inline void set_ctrl(struct rkispp_stream *stream, u32 val)
-{
-	void __iomem *base = stream->isppdev->base_addr;
-
-	writel(val, base + stream->config->reg.ctrl);
-}
 
 #endif /* _RKISPP_REGS_H */

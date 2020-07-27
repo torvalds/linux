@@ -21,7 +21,26 @@
 #define RKISPP_MIN_WIDTH	66
 #define RKISPP_MIN_HEIGHT	258
 
+#define RKISPP_BUF_POOL_MAX	RKISP_ISPP_BUF_MAX
+
 struct rkispp_device;
+
+enum rkispp_ver {
+	ISPP_V10 = 0x00,
+};
+
+enum rkispp_event_cmd {
+	CMD_STREAM,
+	CMD_INIT_POOL,
+	CMD_FREE_POOL,
+	CMD_QUEUE_DMABUF,
+};
+
+struct rkispp_isp_buf_pool {
+	struct rkisp_ispp_buf *dbufs;
+	void *mem_priv[GROUP_BUF_MAX];
+	dma_addr_t dma[GROUP_BUF_MAX];
+};
 
 /* One structure per video node */
 struct rkispp_vdev_node {
@@ -53,8 +72,6 @@ struct rkispp_dummy_buffer {
 	bool is_need_dbuf;
 };
 
-extern int rkispp_debug;
-
 static inline struct rkispp_vdev_node *vdev_to_node(struct video_device *vdev)
 {
 	return container_of(vdev, struct rkispp_vdev_node, vdev);
@@ -77,35 +94,19 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 	return &vnode->buf_queue;
 }
 
-static inline void rkispp_write(void __iomem *addr, u32 val)
-{
-	writel(val, addr);
-}
+extern int rkispp_debug;
+extern struct platform_driver rkispp_plat_drv;
 
-static inline u32 rkispp_read(void __iomem *addr)
-{
-	return readl(addr);
-}
-
-static inline void rkispp_set_bits(void __iomem *addr, u32 bit_mask, u32 val)
-{
-	u32 tmp = rkispp_read(addr) & ~bit_mask;
-
-	rkispp_write(addr, val | tmp);
-}
-
-static inline void rkispp_clear_bits(void __iomem *addr, u32 bit_mask)
-{
-	u32 val = rkispp_read(addr);
-
-	rkispp_write(addr, val & ~bit_mask);
-}
-
-int rkispp_fh_open(struct file *filp);
-int rkispp_fh_release(struct file *filp);
+void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val);
+void rkispp_set_bits(struct rkispp_device *dev, u32 reg, u32 mask, u32 val);
+u32 rkispp_read(struct rkispp_device *dev, u32 reg);
+void rkispp_clear_bits(struct rkispp_device *dev, u32 reg, u32 mask);
+void rkispp_update_regs(struct rkispp_device *dev, u32 start, u32 end);
 int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf);
 void rkispp_free_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf);
 
+int rkispp_attach_hw(struct rkispp_device *ispp);
+int rkispp_event_handle(struct rkispp_device *ispp, u32 cmd, void *arg);
 #endif

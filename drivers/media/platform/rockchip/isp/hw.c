@@ -720,7 +720,7 @@ static int __init rkisp_hw_drv_init(void)
 	ret = platform_driver_register(&rkisp_hw_drv);
 	if (ret)
 		return ret;
-	return rkispp_plat_drv_init();
+	return rkispp_hw_drv_init();
 }
 
 module_init(rkisp_hw_drv_init);

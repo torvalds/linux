@@ -12,27 +12,6 @@
 #include "dev.h"
 #include "regs.h"
 
-void rkispp_free_pool(struct rkispp_stream_vdev *vdev)
-{
-	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
-	struct rkispp_isp_buf_pool *buf;
-	int i, j;
-
-	for (i = 0; i < RKISPP_BUF_POOL_MAX; i++) {
-		buf = &vdev->pool[i];
-		if (!buf->dbufs)
-			break;
-		for (j = 0; j < GROUP_BUF_MAX; j++) {
-			if (buf->mem_priv[j]) {
-				ops->unmap_dmabuf(buf->mem_priv[j]);
-				ops->detach_dmabuf(buf->mem_priv[j]);
-				buf->mem_priv[j] = NULL;
-			}
-		}
-		buf->dbufs = NULL;
-	}
-}
-
 u32 cal_fec_mesh(u32 width, u32 height, u32 mode)
 {
 	u32 mesh_size, mesh_left_height;
@@ -271,13 +250,16 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	v4l2_dbg(1, rkispp_debug, &ispp_sdev->dev->v4l2_dev,
 		 "s_stream on:%d\n", on);
 
-	if (on)
+	if (on) {
 		ispp_sdev->state = ISPP_START;
+		rkispp_event_handle(dev, CMD_STREAM, &ispp_sdev->state);
+	}
 	ret = v4l2_subdev_call(ispp_sdev->remote_sd,
 			       video, s_stream, on);
 	if ((on && ret) || (!on && !ret)) {
 		ispp_sdev->state = ISPP_STOP;
-		rkispp_free_pool(&dev->stream_vdev);
+		rkispp_event_handle(dev, CMD_STREAM, &ispp_sdev->state);
+		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
 	}
 	return ret;
 }
@@ -285,65 +267,28 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 static int rkispp_sd_s_rx_buffer(struct v4l2_subdev *sd,
 				 void *buf, unsigned int *size)
 {
-	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
 	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
 	struct rkispp_device *dev = ispp_sdev->dev;
-	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	struct rkisp_ispp_buf *dbufs = buf;
-	struct rkispp_isp_buf_pool *pool;
-	u32 i, val = (vdev->module_ens & ISPP_MODULE_TNR) ?
-			ISPP_MODULE_TNR : ISPP_MODULE_NR;
-	int ret = 0;
-	void *mem;
+	u32 cmd = CMD_INIT_POOL;
 
 	/* size isn't using now */
-	if (!dbufs)
+	if (!buf)
 		return -EINVAL;
 
-	if (ispp_sdev->state == ISPP_START) {
-		rkispp_module_work_event(dev, dbufs, NULL, val, false);
-		return ret;
-	}
+	if (ispp_sdev->state == ISPP_START)
+		cmd = CMD_QUEUE_DMABUF;
 
-	/* init dma buf pool */
-	for (i = 0; i < RKISPP_BUF_POOL_MAX; i++) {
-		pool = &vdev->pool[i];
-		if (!pool->dbufs)
-			break;
-	}
-	pool->dbufs = dbufs;
-	for (i = 0; i < GROUP_BUF_MAX; i++) {
-		mem = ops->attach_dmabuf(dev->dev, dbufs->dbuf[i],
-			dbufs->dbuf[i]->size, DMA_BIDIRECTIONAL);
-		if (IS_ERR(mem)) {
-			ret = PTR_ERR(mem);
-			goto err;
-		}
-		pool->mem_priv[i] = mem;
-		ret = ops->map_dmabuf(mem);
-		if (ret)
-			goto err;
-		pool->dma[i] = *((dma_addr_t *)ops->cookie(mem));
-		v4l2_dbg(1, rkispp_debug, sd,
-			 "dma[%d]:0x%x\n", i, pool->dma[i]);
-	}
-	return 0;
-err:
-	rkispp_free_pool(vdev);
-	return ret;
+	return rkispp_event_handle(dev, cmd, buf);
 }
 
 static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
 	struct rkispp_device *ispp_dev = ispp_sdev->dev;
-	void __iomem *base = ispp_dev->base_addr;
-	struct iommu_domain *domain;
 	int ret;
 
 	v4l2_dbg(1, rkispp_debug, &ispp_dev->v4l2_dev,
 		 "s_power on:%d\n", on);
-
 	if (on) {
 		ret = pm_runtime_get_sync(ispp_dev->dev);
 		if (ret < 0) {
@@ -353,16 +298,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			return ret;
 		}
 		atomic_set(&ispp_sdev->frm_sync_seq, 0);
-		writel(SW_SCL_BYPASS, base + RKISPP_SCL0_CTRL);
-		writel(SW_SCL_BYPASS, base + RKISPP_SCL1_CTRL);
-		writel(SW_SCL_BYPASS, base + RKISPP_SCL2_CTRL);
-		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
-		writel(SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
-		writel(SW_FEC2DDR_DIS, base + RKISPP_FEC_CORE_CTRL);
-		writel(0xfffffff, base + RKISPP_CTRL_INT_MSK);
-		writel(GATE_DIS_ALL, base + RKISPP_CTRL_CLKGATE);
-		usleep_range(100, 120);
-		writel(GATE_DIS_NR, base + RKISPP_CTRL_CLKGATE);
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format fmt;
 			struct v4l2_subdev_selection sel;
@@ -399,15 +334,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			}
 		}
 	} else {
-		writel(0, ispp_dev->base_addr + RKISPP_CTRL_INT_MSK);
-		rkispp_soft_reset(ispp_dev->base_addr);
-		domain = iommu_get_domain_for_dev(ispp_dev->dev);
-		if (domain) {
-#ifdef CONFIG_IOMMU_API
-			domain->ops->detach_dev(domain, ispp_dev->dev);
-			domain->ops->attach_dev(domain, ispp_dev->dev);
-#endif
-		}
 		if (ispp_dev->inp == INP_ISP)
 			v4l2_subdev_call(ispp_sdev->remote_sd, core, s_power, 0);
 		ret = pm_runtime_put(ispp_dev->dev);
@@ -465,7 +391,7 @@ int rkispp_register_subdev(struct rkispp_device *dev,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->entity.ops = &rkispp_sd_media_ops;
 	snprintf(sd->name, sizeof(sd->name), "rkispp-subdev");
-
+	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_COMPOSER;
 	ispp_sdev->pads[RKISPP_PAD_SINK].flags =
 		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	ispp_sdev->pads[RKISPP_PAD_SINK_PARAMS].flags = MEDIA_PAD_FL_SINK;

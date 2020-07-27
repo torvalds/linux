@@ -61,7 +61,7 @@ struct rkisp_ispp_buf {
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
-int __init rkispp_plat_drv_init(void);
+int __init rkispp_hw_drv_init(void);
 #endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP)

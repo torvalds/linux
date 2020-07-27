@@ -6,7 +6,6 @@
 
 #include "common.h"
 
-#define RKISPP_BUF_POOL_MAX (RKISP_ISPP_BUF_MAX + 1)
 struct rkispp_stream;
 
 /*
@@ -76,21 +75,15 @@ enum stream_type {
 
 /* internal using buf */
 
-struct rkispp_isp_buf_pool {
-	struct rkisp_ispp_buf *dbufs;
-	void *mem_priv[GROUP_BUF_MAX];
-	dma_addr_t dma[GROUP_BUF_MAX];
-};
-
 struct in_tnr_buf {
 	struct rkispp_dummy_buffer iir;
 	struct rkispp_dummy_buffer gain_kg;
-	struct rkispp_dummy_buffer wr[RKISP_ISPP_BUF_MAX][GROUP_BUF_MAX];
+	struct rkispp_dummy_buffer wr[RKISPP_BUF_MAX][GROUP_BUF_MAX];
 };
 
 struct in_nr_buf {
 	struct rkispp_dummy_buffer tmp_yuv;
-	struct rkispp_dummy_buffer wr[RKISP_ISPP_BUF_MAX];
+	struct rkispp_dummy_buffer wr[RKISPP_BUF_MAX];
 };
 
 struct tnr_module {
@@ -185,7 +178,6 @@ struct rkispp_stream_vdev {
 	u32 irq_ends;
 };
 
-void rkispp_free_pool(struct rkispp_stream_vdev *vdev);
 void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr);

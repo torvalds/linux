@@ -23,19 +23,6 @@
 
 #define RKISPP_VERNO_LEN 10
 
-struct ispp_irqs_data {
-	const char *name;
-	irqreturn_t (*irq_hdl)(int irq, void *ctx);
-};
-
-struct ispp_match_data {
-	int clks_num;
-	const char * const *clks;
-	enum rkispp_ver ispp_ver;
-	struct ispp_irqs_data *irqs;
-	int num_irqs;
-};
-
 int rkispp_debug;
 module_param_named(debug, rkispp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
@@ -51,24 +38,6 @@ MODULE_PARM_DESC(stream_sync, "rkispp stream sync output");
 static char rkispp_version[RKISPP_VERNO_LEN];
 module_param_string(version, rkispp_version, RKISPP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
-
-static inline bool is_iommu_enable(struct device *dev)
-{
-	struct device_node *iommu;
-
-	iommu = of_parse_phandle(dev->of_node, "iommus", 0);
-	if (!iommu) {
-		dev_info(dev, "no iommu attached, using non-iommu buffers\n");
-		return false;
-	} else if (!of_device_is_available(iommu)) {
-		dev_info(dev, "iommu is disabled, using non-iommu buffers\n");
-		of_node_put(iommu);
-		return false;
-	}
-	of_node_put(iommu);
-
-	return true;
-}
 
 static void get_remote_node_dev(struct rkispp_device *ispp_dev)
 {
@@ -221,88 +190,19 @@ err_unreg_stream_vdevs:
 	return ret;
 }
 
-static void rkispp_disable_sys_clk(struct rkispp_device *ispp_dev)
-{
-	int i;
-
-	for (i = 0; i < ispp_dev->clks_num; i++)
-		clk_disable_unprepare(ispp_dev->clks[i]);
-}
-
-static int rkispp_enable_sys_clk(struct rkispp_device *ispp_dev)
-{
-	int i, ret = -EINVAL;
-
-	ispp_dev->isp_mode = rkisp_ispp_mode;
-	ispp_dev->stream_sync = rkispp_stream_sync;
-	for (i = 0; i < ispp_dev->clks_num; i++) {
-		ret = clk_prepare_enable(ispp_dev->clks[i]);
-		if (ret < 0)
-			goto err;
-	}
-
-	return 0;
-err:
-	for (--i; i >= 0; --i)
-		clk_disable_unprepare(ispp_dev->clks[i]);
-	return ret;
-}
-
-static irqreturn_t rkispp_irq_hdl(int irq, void *ctx)
-{
-	struct device *dev = ctx;
-	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
-	void __iomem *base = ispp_dev->base_addr;
-	unsigned int mis_val;
-
-	spin_lock(&ispp_dev->irq_lock);
-	mis_val = readl(base + RKISPP_CTRL_INT_STA);
-	writel(mis_val, base + RKISPP_CTRL_INT_CLR);
-	spin_unlock(&ispp_dev->irq_lock);
-
-	if (mis_val)
-		rkispp_isr(mis_val, ispp_dev);
-
-	return IRQ_HANDLED;
-}
-
-static const char * const rv1126_ispp_clks[] = {
-	"aclk_ispp",
-	"hclk_ispp",
-	"clk_ispp",
-};
-
-static struct ispp_irqs_data rv1126_ispp_irqs[] = {
-	{"ispp_irq", rkispp_irq_hdl},
-	{"fec_irq", rkispp_irq_hdl},
-};
-
-static const struct ispp_match_data rv1126_ispp_match_data = {
-	.clks = rv1126_ispp_clks,
-	.clks_num = ARRAY_SIZE(rv1126_ispp_clks),
-	.irqs = rv1126_ispp_irqs,
-	.num_irqs = ARRAY_SIZE(rv1126_ispp_irqs),
-	.ispp_ver = ISPP_V10,
-};
-
 static const struct of_device_id rkispp_plat_of_match[] = {
 	{
-		.compatible = "rockchip,rv1126-rkispp",
-		.data = &rv1126_ispp_match_data,
+		.compatible = "rockchip,rv1126-rkispp-vir",
 	},
 	{},
 };
 
 static int rkispp_plat_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
-	const struct ispp_match_data *match_data;
-	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkispp_device *ispp_dev;
-	struct resource *res;
-	int i, ret, irq;
+	int ret;
 
 	sprintf(rkispp_version, "v%02x.%02x.%02x",
 		RKISPP_DRIVER_VERSION >> 16,
@@ -311,82 +211,33 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 
 	dev_info(dev, "rkispp driver version: %s\n", rkispp_version);
 
-	match = of_match_node(rkispp_plat_of_match, node);
-	if (IS_ERR(match))
-		return PTR_ERR(match);
-
 	ispp_dev = devm_kzalloc(dev, sizeof(*ispp_dev), GFP_KERNEL);
 	if (!ispp_dev)
+		return -ENOMEM;
+	ispp_dev->sw_base_addr = devm_kzalloc(dev, ISPP_SW_MAX_SIZE, GFP_KERNEL);
+	if (!ispp_dev->sw_base_addr)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, ispp_dev);
 	ispp_dev->dev = dev;
-	match_data = match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "get resource failed\n");
-		return -EINVAL;
-	}
-	ispp_dev->base_addr = devm_ioremap_resource(dev, res);
-	if (PTR_ERR(ispp_dev->base_addr) == -EBUSY) {
-		resource_size_t offset = res->start;
-		resource_size_t size = resource_size(res);
+	ret = rkispp_attach_hw(ispp_dev);
+	if (ret)
+		return ret;
 
-		ispp_dev->base_addr = devm_ioremap(dev, offset, size);
-	}
-	if (IS_ERR(ispp_dev->base_addr)) {
-		dev_err(dev, "ioremap failed\n");
-		return PTR_ERR(ispp_dev->base_addr);
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					   match_data->irqs[0].name);
-	if (res) {
-		/* there are irq names in dts */
-		for (i = 0; i < match_data->num_irqs; i++) {
-			irq = platform_get_irq_byname(pdev,
-						      match_data->irqs[i].name);
-			if (irq < 0) {
-				dev_err(dev, "no irq %s in dts\n",
-					match_data->irqs[i].name);
-				return irq;
-			}
-			ret = devm_request_irq(dev, irq,
-					       match_data->irqs[i].irq_hdl,
-					       IRQF_SHARED,
-					       dev_driver_string(dev),
-					       dev);
-			if (ret < 0) {
-				dev_err(dev, "request %s failed: %d\n",
-					match_data->irqs[i].name, ret);
-				return ret;
-			}
-		}
-	}
-
-	for (i = 0; i < match_data->clks_num; i++) {
-		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
-
-		if (IS_ERR(clk))
-			dev_warn(dev, "failed to get %s\n",
-				 match_data->clks[i]);
-		ispp_dev->clks[i] = clk;
-	}
-	ispp_dev->clks_num = match_data->clks_num;
-	ispp_dev->ispp_ver = match_data->ispp_ver;
-
+	sprintf(ispp_dev->name, "%s%d",
+		DRIVER_NAME, ispp_dev->dev_id);
+	ispp_dev->irq_hdl = rkispp_isr;
 	mutex_init(&ispp_dev->apilock);
 	mutex_init(&ispp_dev->iqlock);
-	spin_lock_init(&ispp_dev->irq_lock);
 	init_waitqueue_head(&ispp_dev->sync_onoff);
 
-	strlcpy(ispp_dev->media_dev.model, "rkispp",
+	strlcpy(ispp_dev->media_dev.model, ispp_dev->name,
 		sizeof(ispp_dev->media_dev.model));
 	ispp_dev->media_dev.dev = &pdev->dev;
 	v4l2_dev = &ispp_dev->v4l2_dev;
 	v4l2_dev->mdev = &ispp_dev->media_dev;
-	strlcpy(v4l2_dev->name, "rkispp", sizeof(v4l2_dev->name));
+	strlcpy(v4l2_dev->name, ispp_dev->name, sizeof(v4l2_dev->name));
 	v4l2_ctrl_handler_init(&ispp_dev->ctrl_handler, 5);
 	v4l2_dev->ctrl_handler = &ispp_dev->ctrl_handler;
 
@@ -405,13 +256,6 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	ret = rkispp_register_platform_subdevs(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_media_dev;
-
-	if (!is_iommu_enable(dev)) {
-		ret = of_reserved_mem_device_init(dev);
-		if (ret)
-			v4l2_warn(v4l2_dev,
-				  "No reserved memory region assign to ispp\n");
-	}
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -438,6 +282,7 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 	media_device_unregister(&ispp_dev->media_dev);
 	v4l2_device_unregister(&ispp_dev->v4l2_dev);
 	mutex_destroy(&ispp_dev->apilock);
+	mutex_destroy(&ispp_dev->iqlock);
 	return 0;
 }
 
@@ -445,16 +290,20 @@ static int __maybe_unused rkispp_runtime_suspend(struct device *dev)
 {
 	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
 
-	rkispp_disable_sys_clk(ispp_dev);
-	return 0;
+	if (atomic_dec_return(&ispp_dev->hw_dev->power_cnt))
+		return 0;
+	return pm_runtime_put(ispp_dev->hw_dev->dev);
 }
 
 static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 {
 	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
 
-	rkispp_enable_sys_clk(ispp_dev);
-	return 0;
+	ispp_dev->isp_mode = rkisp_ispp_mode;
+	ispp_dev->stream_sync = rkispp_stream_sync;
+	if (atomic_inc_return(&ispp_dev->hw_dev->power_cnt) > 1)
+		return 0;
+	return pm_runtime_get_sync(ispp_dev->hw_dev->dev);
 }
 
 static const struct dev_pm_ops rkispp_plat_pm_ops = {
@@ -464,7 +313,7 @@ static const struct dev_pm_ops rkispp_plat_pm_ops = {
 			   rkispp_runtime_resume, NULL)
 };
 
-static struct platform_driver rkispp_plat_drv = {
+struct platform_driver rkispp_plat_drv = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(rkispp_plat_of_match),
@@ -473,15 +322,8 @@ static struct platform_driver rkispp_plat_drv = {
 	.probe = rkispp_plat_probe,
 	.remove = rkispp_plat_remove,
 };
+EXPORT_SYMBOL(rkispp_plat_drv);
 
-#if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
-int __init rkispp_plat_drv_init(void)
-{
-	return platform_driver_register(&rkispp_plat_drv);
-}
-#else
-module_platform_driver(rkispp_plat_drv);
-#endif
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip ISPP platform driver");
 MODULE_LICENSE("GPL v2");

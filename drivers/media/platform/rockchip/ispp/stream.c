@@ -7,6 +7,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/rkisp1-config.h>
@@ -172,6 +173,26 @@ static struct stream_config scl2_config = {
 	},
 };
 
+static void set_y_addr(struct rkispp_stream *stream, u32 val)
+{
+	rkispp_write(stream->isppdev, stream->config->reg.cur_y_base, val);
+}
+
+static void set_uv_addr(struct rkispp_stream *stream, u32 val)
+{
+	rkispp_write(stream->isppdev, stream->config->reg.cur_uv_base, val);
+}
+
+static void set_vir_stride(struct rkispp_stream *stream, u32 val)
+{
+	rkispp_write(stream->isppdev, stream->config->reg.cur_vir_stride, val);
+}
+
+static void set_scl_factor(struct rkispp_stream *stream, u32 val)
+{
+	rkispp_write(stream->isppdev, stream->config->reg.factor, val);
+}
+
 static int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 {
 	switch (fcc) {
@@ -254,7 +275,6 @@ static void update_mi(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	void __iomem *base = dev->base_addr;
 	struct rkispp_dummy_buffer *dummy_buf;
 	u32 val;
 
@@ -283,12 +303,10 @@ static void update_mi(struct rkispp_stream *stream)
 	}
 
 	v4l2_dbg(2, rkispp_debug, &stream->isppdev->v4l2_dev,
-		 "%s stream:%d CUR(Y:0x%x UV:0x%x) SHD(Y:0x%x UV:0x%x)\n",
+		 "%s stream:%d Y:0x%x UV:0x%x\n",
 		 __func__, stream->id,
-		 readl(base + stream->config->reg.cur_y_base),
-		 readl(base + stream->config->reg.cur_uv_base),
-		 readl(base + stream->config->reg.cur_y_base_shd),
-		 readl(base + stream->config->reg.cur_uv_base_shd));
+		 rkispp_read(dev, stream->config->reg.cur_y_base),
+		 rkispp_read(dev, stream->config->reg.cur_uv_base));
 }
 
 static int rkispp_frame_end(struct rkispp_stream *stream)
@@ -333,14 +351,14 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 	return 0;
 }
 
-static void *get_pool_buf(struct rkispp_stream_vdev *vdev,
+static void *get_pool_buf(struct rkispp_device *dev,
 			  struct rkisp_ispp_buf *dbufs)
 {
 	int i;
 
 	for (i = 0; i < RKISPP_BUF_POOL_MAX; i++)
-		if (vdev->pool[i].dbufs == dbufs)
-			return &vdev->pool[i];
+		if (dev->hw_dev->pool[i].dbufs == dbufs)
+			return &dev->hw_dev->pool[i];
 
 	return NULL;
 }
@@ -396,8 +414,11 @@ static void tnr_free_buf(struct rkispp_device *dev)
 		list_add_tail(&vdev->tnr.nxt_rd->list, list);
 		vdev->tnr.nxt_rd = NULL;
 	}
-	while (!list_empty(list))
-		get_list_buf(list, true);
+	while (!list_empty(list)) {
+		dbufs = get_list_buf(list, true);
+		v4l2_subdev_call(dev->ispp_sdev.remote_sd,
+				 video, s_rx_buffer, dbufs, NULL);
+	}
 
 	list = &vdev->tnr.list_wr;
 	if (vdev->tnr.cur_wr) {
@@ -420,7 +441,7 @@ static int tnr_init_buf(struct rkispp_device *dev,
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkisp_ispp_buf *dbufs;
 	struct rkispp_dummy_buffer *buf;
-	int i, j, ret, cnt = RKISP_ISPP_BUF_MAX;
+	int i, j, ret, cnt = RKISPP_BUF_MAX;
 
 	if (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK)
 		cnt = 1;
@@ -466,13 +487,14 @@ err:
 
 static int config_tnr(struct rkispp_device *dev)
 {
+	struct rkispp_hw_dev *hw = dev->hw_dev;
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
-	void __iomem *base = dev->base_addr;
 	int ret, mult = 1;
 	u32 width, height, fmt;
 	u32 pic_size, gain_size;
 	u32 addr_offs, w, h, val;
+	u32 max_w, max_h;
 
 	vdev = &dev->stream_vdev;
 	vdev->tnr.is_end = true;
@@ -492,8 +514,10 @@ static int config_tnr(struct rkispp_device *dev)
 
 	width = dev->ispp_sdev.out_fmt.width;
 	height = dev->ispp_sdev.out_fmt.height;
-	w = (fmt & FMT_FBC) ? ALIGN(width, 16) : width;
-	h = (fmt & FMT_FBC) ? ALIGN(height, 16) : height;
+	max_w = hw->max_in.w ? hw->max_in.w : width;
+	max_h = hw->max_in.h ? hw->max_in.h : height;
+	w = (fmt & FMT_FBC) ? ALIGN(max_w, 16) : max_w;
+	h = (fmt & FMT_FBC) ? ALIGN(max_h, 16) : max_h;
 	addr_offs = (fmt & FMT_FBC) ? w * h >> 4 : w * h;
 	pic_size = (fmt & FMT_YUV422) ? w * h * 2 : w * h * 3 >> 1;
 	vdev->tnr.uv_offset = addr_offs;
@@ -510,42 +534,42 @@ static int config_tnr(struct rkispp_device *dev)
 			return ret;
 		if (dev->inp == INP_ISP &&
 		    dev->isp_mode & ISP_ISPP_QUICK) {
-			rkispp_set_bits(base + RKISPP_CTRL_QUICK,
+			rkispp_set_bits(dev, RKISPP_CTRL_QUICK,
 					GLB_QUICK_MODE_MASK,
 					GLB_QUICK_MODE(0));
 
 			val = vdev->pool[0].dma[GROUP_BUF_PIC];
-			writel(val, base + RKISPP_TNR_CUR_Y_BASE);
-			writel(val + addr_offs, base + RKISPP_TNR_CUR_UV_BASE);
+			rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
+			rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val + addr_offs);
 
 			val = vdev->pool[0].dma[GROUP_BUF_GAIN];
-			writel(val, base + RKISPP_TNR_GAIN_CUR_Y_BASE);
+			rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
 
 			if (vdev->tnr.is_3to1) {
 				val = vdev->pool[1].dma[GROUP_BUF_PIC];
-				writel(val, base + RKISPP_TNR_NXT_Y_BASE);
-				writel(val + addr_offs, base + RKISPP_TNR_NXT_UV_BASE);
+				rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
+				rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val + addr_offs);
 				val = vdev->pool[1].dma[GROUP_BUF_GAIN];
-				writel(val, base + RKISPP_TNR_GAIN_NXT_Y_BASE);
+				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
 			}
 		}
 
 		val = vdev->tnr.buf.gain_kg.dma_addr;
-		writel(val, base + RKISPP_TNR_GAIN_KG_Y_BASE);
+		rkispp_write(dev, RKISPP_TNR_GAIN_KG_Y_BASE, val);
 
 		val = vdev->tnr.buf.wr[0][GROUP_BUF_PIC].dma_addr;
-		writel(val, base + RKISPP_TNR_WR_Y_BASE);
-		writel(val + addr_offs, base + RKISPP_TNR_WR_UV_BASE);
+		rkispp_write(dev, RKISPP_TNR_WR_Y_BASE, val);
+		rkispp_write(dev, RKISPP_TNR_WR_UV_BASE, val + addr_offs);
 		if (vdev->tnr.buf.iir.mem_priv)
 			val = vdev->tnr.buf.iir.dma_addr;
-		writel(val, base + RKISPP_TNR_IIR_Y_BASE);
-		writel(val + addr_offs, base + RKISPP_TNR_IIR_UV_BASE);
+		rkispp_write(dev, RKISPP_TNR_IIR_Y_BASE, val);
+		rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE, val + addr_offs);
 
 		val = vdev->tnr.buf.wr[0][GROUP_BUF_GAIN].dma_addr;
-		writel(val, base + RKISPP_TNR_GAIN_WR_Y_BASE);
+		rkispp_write(dev, RKISPP_TNR_GAIN_WR_Y_BASE, val);
 
-		writel(ALIGN(width * mult, 16) >> 2, base + RKISPP_TNR_WR_VIR_STRIDE);
-		writel(fmt << 4 | SW_TNR_1ST_FRM, base + RKISPP_TNR_CTRL);
+		rkispp_write(dev, RKISPP_TNR_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_write(dev, RKISPP_TNR_CTRL, fmt << 4 | SW_TNR_1ST_FRM);
 	}
 
 	if (stream) {
@@ -556,38 +580,29 @@ static int config_tnr(struct rkispp_device *dev)
 		stream->config->reg.cur_uv_base_shd = RKISPP_TNR_CUR_UV_BASE_SHD;
 	}
 
-	rkispp_set_bits(base + RKISPP_TNR_CTRL, FMT_RD_MASK, fmt);
+	rkispp_set_bits(dev, RKISPP_TNR_CTRL, FMT_RD_MASK, fmt);
 	if (fmt & FMT_FBC) {
-		writel(0, base + RKISPP_TNR_CUR_VIR_STRIDE);
-		writel(0, base + RKISPP_TNR_IIR_VIR_STRIDE);
-		writel(0, base + RKISPP_TNR_NXT_VIR_STRIDE);
+		rkispp_write(dev, RKISPP_TNR_CUR_VIR_STRIDE, 0);
+		rkispp_write(dev, RKISPP_TNR_IIR_VIR_STRIDE, 0);
+		rkispp_write(dev, RKISPP_TNR_NXT_VIR_STRIDE, 0);
 	} else {
-		writel(ALIGN(width * mult, 16) >> 2,
-			base + RKISPP_TNR_CUR_VIR_STRIDE);
-		writel(ALIGN(width * mult, 16) >> 2,
-			base + RKISPP_TNR_IIR_VIR_STRIDE);
-		writel(ALIGN(width * mult, 16) >> 2,
-			base + RKISPP_TNR_NXT_VIR_STRIDE);
+		rkispp_write(dev, RKISPP_TNR_CUR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_write(dev, RKISPP_TNR_IIR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_write(dev, RKISPP_TNR_NXT_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 	}
-	rkispp_set_bits(base + RKISPP_TNR_CORE_CTRL, SW_TNR_MODE,
+	rkispp_set_bits(dev, RKISPP_TNR_CORE_CTRL, SW_TNR_MODE,
 			vdev->tnr.is_3to1 ? SW_TNR_MODE : 0);
-	writel(ALIGN(width, 64) >> 4,
-		base + RKISPP_TNR_GAIN_CUR_VIR_STRIDE);
-	writel(ALIGN(width, 64) >> 4,
-		base + RKISPP_TNR_GAIN_NXT_VIR_STRIDE);
-	writel(ALIGN(width, 16) * 6,
-		base + RKISPP_TNR_GAIN_KG_VIR_STRIDE);
-	writel(ALIGN(width, 64) >> 4,
-		base + RKISPP_TNR_GAIN_WR_VIR_STRIDE);
-
-	writel(height << 16 | width,
-		base + RKISPP_CTRL_TNR_SIZE);
+	rkispp_write(dev, RKISPP_TNR_GAIN_CUR_VIR_STRIDE, ALIGN(width, 64) >> 4);
+	rkispp_write(dev, RKISPP_TNR_GAIN_NXT_VIR_STRIDE, ALIGN(width, 64) >> 4);
+	rkispp_write(dev, RKISPP_TNR_GAIN_KG_VIR_STRIDE, ALIGN(width, 16) * 6);
+	rkispp_write(dev, RKISPP_TNR_GAIN_WR_VIR_STRIDE, ALIGN(width, 64) >> 4);
+	rkispp_write(dev, RKISPP_CTRL_TNR_SIZE, height << 16 | width);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d ctrl:0x%x core_ctrl:0x%x\n",
 		 __func__, width, height,
-		 readl(base + RKISPP_TNR_CTRL),
-		 readl(base + RKISPP_TNR_CORE_CTRL));
+		 rkispp_read(dev, RKISPP_TNR_CTRL),
+		 rkispp_read(dev, RKISPP_TNR_CORE_CTRL));
 	return 0;
 }
 
@@ -627,7 +642,7 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	int i, ret, cnt = 1;
 
 	if (vdev->module_ens & ISPP_MODULE_FEC)
-		cnt = RKISP_ISPP_BUF_MAX;
+		cnt = RKISPP_BUF_MAX;
 	else if (dev->inp == INP_ISP &&
 		 !(dev->isp_mode & ISP_ISPP_QUICK))
 		cnt = 0;
@@ -659,12 +674,13 @@ err:
 
 static int config_nr_shp(struct rkispp_device *dev)
 {
+	struct rkispp_hw_dev *hw = dev->hw_dev;
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
-	void __iomem *base = dev->base_addr;
 	u32 width, height, fmt;
 	u32 pic_size, addr_offs;
 	u32 w, h, val;
+	u32 max_w, max_h;
 	int ret, mult = 1;
 
 	vdev = &dev->stream_vdev;
@@ -681,9 +697,17 @@ static int config_nr_shp(struct rkispp_device *dev)
 
 	width = dev->ispp_sdev.out_fmt.width;
 	height = dev->ispp_sdev.out_fmt.height;
-	w = (fmt & FMT_FBC) ? ALIGN(width, 16) : width;
-	h = (fmt & FMT_FBC) ? ALIGN(height, 16) : height;
-	addr_offs = (fmt & FMT_FBC) ? w * h >> 4 : w * h;
+	w = width;
+	h = height;
+	max_w = hw->max_in.w ? hw->max_in.w : w;
+	max_h = hw->max_in.h ? hw->max_in.h : h;
+	if (fmt & FMT_FBC) {
+		max_w = ALIGN(max_w, 16);
+		max_h = ALIGN(max_h, 16);
+		w = ALIGN(w, 16);
+		h = ALIGN(h, 16);
+	}
+	addr_offs = (fmt & FMT_FBC) ? max_w * max_h >> 4 : max_w * max_h;
 	pic_size = (fmt & FMT_YUV422) ? w * h * 2 : w * h * 3 >> 1;
 	vdev->nr.uv_offset = addr_offs;
 	if (fmt & FMT_FBC)
@@ -697,28 +721,27 @@ static int config_nr_shp(struct rkispp_device *dev)
 		return ret;
 
 	if (vdev->module_ens & ISPP_MODULE_TNR) {
-		writel(readl(base + RKISPP_TNR_WR_Y_BASE),
-			base + RKISPP_NR_ADDR_BASE_Y);
-		writel(readl(base + RKISPP_TNR_WR_UV_BASE),
-			base + RKISPP_NR_ADDR_BASE_UV);
-		writel(readl(base + RKISPP_TNR_GAIN_WR_Y_BASE),
-			base + RKISPP_NR_ADDR_BASE_GAIN);
-		rkispp_set_bits(base + RKISPP_CTRL_QUICK, 0, GLB_NR_SD32_TNR);
+		rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y,
+			     rkispp_read(dev, RKISPP_TNR_WR_Y_BASE));
+		rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV,
+			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
+		rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN,
+			     rkispp_read(dev, RKISPP_TNR_GAIN_WR_Y_BASE));
+		rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_NR_SD32_TNR);
 	} else {
 		/* tnr need to set same format with nr in the fbc mode */
-		rkispp_set_bits(base + RKISPP_TNR_CTRL,
-				FMT_RD_MASK, fmt);
+		rkispp_set_bits(dev, RKISPP_TNR_CTRL, FMT_RD_MASK, fmt);
 		if (dev->inp == INP_ISP) {
-			rkispp_set_bits(base + RKISPP_CTRL_QUICK,
+			rkispp_set_bits(dev, RKISPP_CTRL_QUICK,
 					GLB_QUICK_MODE_MASK,
 					GLB_QUICK_MODE(2));
 
 			val = vdev->pool[0].dma[GROUP_BUF_PIC];
-			writel(val, base + RKISPP_NR_ADDR_BASE_Y);
-			writel(val + addr_offs, base + RKISPP_NR_ADDR_BASE_UV);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val + addr_offs);
 			val = vdev->pool[0].dma[GROUP_BUF_GAIN];
-			writel(val, base + RKISPP_NR_ADDR_BASE_GAIN);
-			rkispp_clear_bits(base + RKISPP_CTRL_QUICK, GLB_NR_SD32_TNR);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
+			rkispp_clear_bits(dev, RKISPP_CTRL_QUICK, GLB_NR_SD32_TNR);
 		} else if (stream) {
 			stream->config->frame_end_id = NR_INT;
 			stream->config->reg.cur_y_base = RKISPP_NR_ADDR_BASE_Y;
@@ -728,45 +751,44 @@ static int config_nr_shp(struct rkispp_device *dev)
 		}
 	}
 
-	rkispp_clear_bits(base + RKISPP_CTRL_QUICK, GLB_FEC2SCL_EN);
+	rkispp_clear_bits(dev, RKISPP_CTRL_QUICK, GLB_FEC2SCL_EN);
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
 		addr_offs = width * height;
 		vdev->fec.uv_offset = addr_offs;
 		val = vdev->nr.buf.wr[0].dma_addr;
-		writel(val, base + RKISPP_SHARP_WR_Y_BASE);
+		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 		val += addr_offs;
-		writel(val, base + RKISPP_SHARP_WR_UV_BASE);
-		writel(ALIGN(width * mult, 16) >> 2,
-		       base + RKISPP_SHARP_WR_VIR_STRIDE);
-		rkispp_set_bits(base + RKISPP_SHARP_CTRL,
+		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
+		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
 				SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
-		rkispp_clear_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
+		rkispp_clear_bits(dev, RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
 	}
 
 	val = vdev->nr.buf.tmp_yuv.dma_addr;
-	writel(val, base + RKISPP_SHARP_TMP_YUV_BASE);
+	rkispp_write(dev, RKISPP_SHARP_TMP_YUV_BASE, val);
 
 	/* fix to use new nr algorithm */
-	rkispp_set_bits(base + RKISPP_NR_CTRL, NR_NEW_ALGO, NR_NEW_ALGO);
-	rkispp_set_bits(base + RKISPP_NR_CTRL, FMT_RD_MASK, fmt);
+	rkispp_set_bits(dev, RKISPP_NR_CTRL, NR_NEW_ALGO, NR_NEW_ALGO);
+	rkispp_set_bits(dev, RKISPP_NR_CTRL, FMT_RD_MASK, fmt);
 	if (fmt & FMT_FBC) {
-		writel(0, base + RKISPP_NR_VIR_STRIDE);
-		writel(ALIGN(height, 16), base + RKISPP_FBC_VIR_HEIGHT);
+		rkispp_write(dev, RKISPP_NR_VIR_STRIDE, 0);
+		rkispp_write(dev, RKISPP_FBC_VIR_HEIGHT, max_h);
 	} else {
-		writel(ALIGN(width * mult, 16) >> 2, base + RKISPP_NR_VIR_STRIDE);
+		rkispp_write(dev, RKISPP_NR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 	}
-	writel(ALIGN(width, 64) >> 4, base + RKISPP_NR_VIR_STRIDE_GAIN);
-	writel(height << 16 | width, base + RKISPP_CTRL_SIZE);
+	rkispp_write(dev, RKISPP_NR_VIR_STRIDE_GAIN, ALIGN(width, 64) >> 4);
+	rkispp_write(dev, RKISPP_CTRL_SIZE, height << 16 | width);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d\n"
 		 "nr ctrl:0x%x ctrl_para:0x%x\n"
 		 "shp ctrl:0x%x core_ctrl:0x%x\n",
 		 __func__, width, height,
-		 readl(base + RKISPP_NR_CTRL),
-		 readl(base + RKISPP_NR_UVNR_CTRL_PARA),
-		 readl(base + RKISPP_SHARP_CTRL),
-		 readl(base + RKISPP_SHARP_CORE_CTRL));
+		 rkispp_read(dev, RKISPP_NR_CTRL),
+		 rkispp_read(dev, RKISPP_NR_UVNR_CTRL_PARA),
+		 rkispp_read(dev, RKISPP_SHARP_CTRL),
+		 rkispp_read(dev, RKISPP_SHARP_CORE_CTRL));
 	return 0;
 }
 
@@ -790,7 +812,7 @@ static int config_fec(struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	struct rkispp_dummy_buffer *buf;
 	u32 width, height, fmt, mult = 1;
 	u32 mesh_size;
@@ -815,10 +837,10 @@ static int config_fec(struct rkispp_device *dev)
 		mult = 2;
 
 	if (vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
-		writel(readl(base + RKISPP_SHARP_WR_Y_BASE),
-			base + RKISPP_FEC_RD_Y_BASE);
-		writel(readl(base + RKISPP_SHARP_WR_UV_BASE),
-			base + RKISPP_FEC_RD_UV_BASE);
+		rkispp_write(dev, RKISPP_FEC_RD_Y_BASE,
+			     rkispp_read(dev, RKISPP_SHARP_WR_Y_BASE));
+		rkispp_write(dev, RKISPP_FEC_RD_UV_BASE,
+			     rkispp_read(dev, RKISPP_SHARP_WR_UV_BASE));
 	} else if (stream) {
 		stream->config->frame_end_id = FEC_INT;
 		stream->config->reg.cur_y_base = RKISPP_FEC_RD_Y_BASE;
@@ -834,7 +856,7 @@ static int config_fec(struct rkispp_device *dev)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
-	writel(buf->dma_addr, base + RKISPP_FEC_MESH_XINT_BASE);
+	rkispp_write(base, RKISPP_FEC_MESH_XINT_BASE, buf->dma_addr);
 
 	buf = &vdev->fec_buf.mesh_yint;
 	buf->is_need_vaddr = true;
@@ -842,7 +864,7 @@ static int config_fec(struct rkispp_device *dev)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
-	writel(buf->dma_addr, base + RKISPP_FEC_MESH_YINT_BASE);
+	rkispp_write(dev, RKISPP_FEC_MESH_YINT_BASE, buf->dma_addr);
 
 	buf = &vdev->fec_buf.mesh_xfra;
 	buf->is_need_vaddr = true;
@@ -850,7 +872,7 @@ static int config_fec(struct rkispp_device *dev)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
-	writel(buf->dma_addr, base + RKISPP_FEC_MESH_XFRA_BASE);
+	rkispp_write(dev, RKISPP_FEC_MESH_XFRA_BASE, buf->dma_addr);
 
 	buf = &vdev->fec_buf.mesh_yfra;
 	buf->is_need_vaddr = true;
@@ -858,17 +880,17 @@ static int config_fec(struct rkispp_device *dev)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
-	writel(buf->dma_addr, base + RKISPP_FEC_MESH_YFRA_BASE);
+	rkispp_write(dev, RKISPP_FEC_MESH_YFRA_BASE, buf->dma_addr);
 
-	rkispp_set_bits(base + RKISPP_FEC_CTRL, FMT_RD_MASK, fmt);
-	writel(ALIGN(width * mult, 16) >> 2, base + RKISPP_FEC_RD_VIR_STRIDE);
-	writel(height << 16 | width, base + RKISPP_FEC_PIC_SIZE);
-	rkispp_set_bits(base + RKISPP_CTRL_QUICK, 0, GLB_FEC2SCL_EN);
+	rkispp_set_bits(dev, RKISPP_FEC_CTRL, FMT_RD_MASK, fmt);
+	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+	rkispp_write(dev, RKISPP_FEC_PIC_SIZE, height << 16 | width);
+	rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_FEC2SCL_EN);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d ctrl:0x%x core_ctrl:0x%x\n",
 		 __func__, width, height,
-		 readl(base + RKISPP_FEC_CTRL),
-		 readl(base + RKISPP_FEC_CORE_CTRL));
+		 rkispp_read(dev, RKISPP_FEC_CTRL),
+		 rkispp_read(dev, RKISPP_FEC_CORE_CTRL));
 	return 0;
 err:
 	fec_free_buf(dev);
@@ -953,7 +975,7 @@ static int start_ii(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	u32 i, module;
 
 	writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -987,7 +1009,6 @@ static int is_stopped_ii(struct rkispp_stream *stream)
 static int config_mb(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
-	void __iomem *base = dev->base_addr;
 	u32 i, limit_range, mult = 1;
 
 	for (i = ISPP_MODULE_FEC; i > 0; i = i >> 1) {
@@ -1006,7 +1027,7 @@ static int config_mb(struct rkispp_stream *stream)
 		stream->config->reg.cur_vir_stride = RKISPP_TNR_WR_VIR_STRIDE;
 		stream->config->reg.cur_y_base_shd = RKISPP_TNR_WR_Y_BASE_SHD;
 		stream->config->reg.cur_uv_base_shd = RKISPP_TNR_WR_UV_BASE_SHD;
-		rkispp_set_bits(base + RKISPP_TNR_CTRL, FMT_WR_MASK,
+		rkispp_set_bits(dev, RKISPP_TNR_CTRL, FMT_WR_MASK,
 				SW_TNR_1ST_FRM | stream->out_cap_fmt.wr_fmt << 4);
 		break;
 	case ISPP_MODULE_NR:
@@ -1019,10 +1040,10 @@ static int config_mb(struct rkispp_stream *stream)
 		stream->config->reg.cur_uv_base_shd = RKISPP_SHARP_WR_UV_BASE_SHD;
 		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
 			0 : SW_SHP_WR_YUV_LIMIT;
-		rkispp_set_bits(base + RKISPP_SHARP_CTRL,
+		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
 				SW_SHP_WR_YUV_LIMIT | SW_SHP_WR_FORMAT_MASK,
 				limit_range | stream->out_cap_fmt.wr_fmt);
-		rkispp_clear_bits(base + RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
+		rkispp_clear_bits(dev, RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
 		break;
 	default:
 		stream->config->frame_end_id = FEC_INT;
@@ -1033,11 +1054,11 @@ static int config_mb(struct rkispp_stream *stream)
 		stream->config->reg.cur_uv_base_shd = RKISPP_FEC_WR_UV_BASE_SHD;
 		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
 			0 : SW_FEC_WR_YUV_LIMIT;
-		rkispp_set_bits(base + RKISPP_FEC_CTRL, SW_FEC_WR_YUV_LIMIT | FMT_WR_MASK,
+		rkispp_set_bits(dev, RKISPP_FEC_CTRL, SW_FEC_WR_YUV_LIMIT | FMT_WR_MASK,
 				limit_range | stream->out_cap_fmt.wr_fmt << 4);
-		writel((stream->out_fmt.height << 16) | stream->out_fmt.width,
-			base + RKISPP_FEC_PIC_SIZE);
-		rkispp_clear_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC2DDR_DIS);
+		rkispp_write(dev, RKISPP_FEC_PIC_SIZE,
+			     stream->out_fmt.height << 16 | stream->out_fmt.width);
+		rkispp_clear_bits(dev, RKISPP_FEC_CORE_CTRL, SW_FEC2DDR_DIS);
 	}
 	if (stream->out_cap_fmt.wr_fmt & FMT_YUYV)
 		mult = 2;
@@ -1053,13 +1074,13 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	u32 val;
 
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
 		/* close dma write immediately */
-		rkispp_clear_bits(base + RKISPP_FEC_CTRL, FMT_FBC << 4);
-		rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL,
+		rkispp_clear_bits(dev, RKISPP_FEC_CTRL, FMT_FBC << 4);
+		rkispp_set_bits(dev, RKISPP_FEC_CORE_CTRL,
 				0, SW_FEC2DDR_DIS);
 	} else if (vdev->module_ens &
 		   (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
@@ -1069,8 +1090,8 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 			writel(val, base + RKISPP_SHARP_WR_Y_BASE);
 			writel(val, base + RKISPP_SHARP_WR_UV_BASE);
 		} else {
-			rkispp_clear_bits(base + RKISPP_SHARP_CTRL, FMT_FBC);
-			rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
+			rkispp_clear_bits(dev, RKISPP_SHARP_CTRL, FMT_FBC);
+			rkispp_set_bits(dev, RKISPP_SHARP_CORE_CTRL,
 					0, SW_SHP_DMA_DIS);
 		}
 	}
@@ -1107,7 +1128,6 @@ static int limit_check_mb(struct rkispp_stream *stream,
 static int config_scl(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
-	void __iomem *base = dev->base_addr;
 	const struct capture_fmt *fmt = &stream->out_cap_fmt;
 	u32 in_width = dev->ispp_sdev.out_fmt.width;
 	u32 in_height = dev->ispp_sdev.out_fmt.height;
@@ -1130,30 +1150,32 @@ static int config_scl(struct rkispp_stream *stream)
 		((fmt->fourcc != V4L2_PIX_FMT_GREY) ? 0 : SW_SCL_WR_UV_DIS) |
 		((stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
 		 0 : SW_SCL_WR_YUV_LIMIT);
-	rkispp_set_bits(base + stream->config->reg.ctrl, mask, val);
+	rkispp_set_bits(dev, stream->config->reg.ctrl, mask, val);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "scl%d ctrl:0x%x stride:0x%x factor:0x%x\n",
 		 stream->id - STREAM_S0,
-		 readl(base + stream->config->reg.ctrl),
-		 readl(base + stream->config->reg.cur_vir_stride),
-		 readl(base + stream->config->reg.factor));
+		 rkispp_read(dev, stream->config->reg.ctrl),
+		 rkispp_read(dev, stream->config->reg.cur_vir_stride),
+		 rkispp_read(dev, stream->config->reg.factor));
 	return 0;
 }
 
 static void stop_scl(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
-	void __iomem *base = dev->base_addr;
 
-	rkispp_clear_bits(base + stream->config->reg.ctrl, SW_SCL_ENABLE);
+	rkispp_clear_bits(dev, stream->config->reg.ctrl, SW_SCL_ENABLE);
 }
 
 static int is_stopped_scl(struct rkispp_stream *stream)
 {
-	void __iomem *base = stream->isppdev->base_addr;
+	struct rkispp_device *dev = stream->isppdev;
+	u32 val = SW_SCL_ENABLE;
 
-	return !(readl(base + stream->config->reg.ctrl) & SW_SCL_ENABLE_SHD);
+	if (dev->hw_dev->is_single)
+		val = SW_SCL_ENABLE_SHD;
+	return !(rkispp_read(dev, stream->config->reg.ctrl) & val);
 }
 
 static int limit_check_scl(struct rkispp_stream *stream,
@@ -1447,35 +1469,43 @@ static int start_isp(struct rkispp_device *dev)
 		return 0;
 	}
 
+	mutex_lock(&dev->hw_dev->dev_lock);
+
 	mode.work_mode = dev->isp_mode;
+	mode.max_in = dev->hw_dev->max_in;
 	mode.buf_num = (dev->isp_mode & ISP_ISPP_QUICK) ?
-			1 : RKISP_ISPP_BUF_MAX;
+			1 : RKISPP_BUF_MAX;
+	i = 1;
 	if ((vdev->module_ens & ISPP_MODULE_TNR_3TO1) == ISPP_MODULE_TNR_3TO1)
-		mode.buf_num += 1;
+		i++;
+	mode.buf_num += i * dev->hw_dev->dev_num;
 	ret = v4l2_subdev_call(ispp_sdev->remote_sd, core, ioctl,
 			       RKISP_ISPP_CMD_SET_MODE, &mode);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = config_modules(dev);
 	if (ret) {
-		rkispp_free_pool(vdev);
+		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
 		mode.work_mode = ISP_ISPP_INIT_FAIL;
 		v4l2_subdev_call(ispp_sdev->remote_sd, core, ioctl,
 				 RKISP_ISPP_CMD_SET_MODE, &mode);
-		return ret;
+		goto err;
 	}
-	writel(ALL_FORCE_UPD, dev->base_addr + RKISPP_CTRL_UPDATE);
+	if (dev->hw_dev->is_single)
+		writel(ALL_FORCE_UPD, dev->hw_dev->base_addr + RKISPP_CTRL_UPDATE);
 	for (i = STREAM_MB; i < STREAM_MAX; i++) {
 		stream = &vdev->stream[i];
 		if (stream->streaming)
 			stream->is_upd = true;
 	}
 	if (dev->isp_mode & ISP_ISPP_QUICK)
-		rkispp_set_bits(dev->base_addr + RKISPP_CTRL_QUICK,
-				0, GLB_QUICK_EN);
-	return v4l2_subdev_call(&dev->ispp_sdev.sd,
-				video, s_stream, true);
+		rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_QUICK_EN);
+
+	ret = v4l2_subdev_call(&ispp_sdev->sd, video, s_stream, true);
+err:
+	mutex_unlock(&dev->hw_dev->dev_lock);
+	return ret;
 }
 
 static int rkispp_start_streaming(struct vb2_queue *queue,
@@ -1566,7 +1596,7 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 		q->min_buffers_needed = STREAM_OUT_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->isppdev->apilock;
-	q->dev = stream->isppdev->dev;
+	q->dev = stream->isppdev->hw_dev->dev;
 
 	return vb2_queue_init(q);
 }
@@ -1672,6 +1702,40 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 }
 
 /************************* v4l2_file_operations***************************/
+
+static int rkispp_fh_open(struct file *filp)
+{
+	struct rkispp_stream *stream = video_drvdata(filp);
+	struct rkispp_device *isppdev = stream->isppdev;
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
+		if (ret < 0) {
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power on failed %d\n", ret);
+			vb2_fop_release(filp);
+		}
+	}
+	return ret;
+}
+
+static int rkispp_fh_release(struct file *filp)
+{
+	struct rkispp_stream *stream = video_drvdata(filp);
+	struct rkispp_device *isppdev = stream->isppdev;
+	int ret;
+
+	ret = vb2_fop_release(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&isppdev->v4l2_dev,
+				 "pipeline power off failed %d\n", ret);
+	}
+	return ret;
+}
 
 static const struct v4l2_file_operations rkispp_fops = {
 	.open = rkispp_fh_open,
@@ -1832,7 +1896,7 @@ static void fec_work_event(struct rkispp_device *dev,
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream = &vdev->stream[STREAM_II];
 	struct list_head *list = &vdev->fec.list_rd;
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	struct rkispp_dummy_buffer *dummy;
 	unsigned long lock_flags = 0;
 	bool is_start = false, is_quick = false;
@@ -1878,9 +1942,9 @@ static void fec_work_event(struct rkispp_device *dev,
 	if (vdev->fec.cur_rd && vdev->fec.is_end) {
 		dummy = vdev->fec.cur_rd;
 		val = dummy->dma_addr;
-		writel(val, base + RKISPP_FEC_RD_Y_BASE);
+		rkispp_write(dev, RKISPP_FEC_RD_Y_BASE, val);
 		val += vdev->fec.uv_offset;
-		writel(val, base + RKISPP_FEC_RD_UV_BASE);
+		rkispp_write(dev, RKISPP_FEC_RD_UV_BASE, val);
 		is_start = true;
 	}
 
@@ -1899,6 +1963,8 @@ static void fec_work_event(struct rkispp_device *dev,
 				vdev->fec.cur_rd->timestamp;
 			atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
 		}
+		if (!dev->hw_dev->is_single)
+			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
@@ -1916,7 +1982,7 @@ static void nr_work_event(struct rkispp_device *dev,
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream = &vdev->stream[STREAM_II];
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	struct rkispp_dummy_buffer *buf_to_fec = NULL;
 	struct rkispp_dummy_buffer *dummy;
 	struct v4l2_subdev *sd = NULL;
@@ -2004,27 +2070,27 @@ static void nr_work_event(struct rkispp_device *dev,
 			dbuf = vdev->nr.cur_rd->dbuf[GROUP_BUF_PIC];
 			dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 			val = dummy->dma_addr;
-			writel(val, base + RKISPP_NR_ADDR_BASE_Y);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			val += vdev->nr.uv_offset;
-			writel(val, base + RKISPP_NR_ADDR_BASE_UV);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val);
 
-			if (readl(base + RKISPP_TNR_CORE_CTRL) & SW_TNR_EN_SHD) {
+			if (rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN) {
 				dbuf = vdev->nr.cur_rd->dbuf[GROUP_BUF_GAIN];
 				dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 				val = dummy->dma_addr;
-				writel(val, base + RKISPP_NR_ADDR_BASE_GAIN);
+				rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
 			}
 		} else {
 			struct rkispp_isp_buf_pool *buf;
 
-			buf = get_pool_buf(vdev, vdev->nr.cur_rd);
+			buf = get_pool_buf(dev, vdev->nr.cur_rd);
 			val = buf->dma[GROUP_BUF_PIC];
-			writel(val, base + RKISPP_NR_ADDR_BASE_Y);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			val += vdev->nr.uv_offset;
-			writel(val, base + RKISPP_NR_ADDR_BASE_UV);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val);
 
 			val = buf->dma[GROUP_BUF_GAIN];
-			writel(val, base + RKISPP_NR_ADDR_BASE_GAIN);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
 		}
 		is_start = true;
 	}
@@ -2038,9 +2104,9 @@ static void nr_work_event(struct rkispp_device *dev,
 	if (vdev->nr.cur_wr && is_start) {
 		dummy = vdev->nr.cur_wr;
 		val = dummy->dma_addr;
-		writel(val, base + RKISPP_SHARP_WR_Y_BASE);
+		rkispp_write(base, RKISPP_SHARP_WR_Y_BASE, val);
 		val += vdev->fec.uv_offset;
-		writel(val, base + RKISPP_SHARP_WR_UV_BASE);
+		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
 	}
 
 	if (is_start) {
@@ -2060,6 +2126,8 @@ static void nr_work_event(struct rkispp_device *dev,
 			}
 		}
 
+		if (!dev->hw_dev->is_single)
+			rkispp_update_regs(dev, RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
 		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
@@ -2095,7 +2163,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream = &vdev->stream[STREAM_II];
-	void __iomem *base = dev->base_addr;
+	void __iomem *base = dev->hw_dev->base_addr;
 	struct rkispp_dummy_buffer *dummy;
 	struct v4l2_subdev *sd = NULL;
 	struct list_head *list;
@@ -2121,6 +2189,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 			/* tnr read buf return to isp */
 			v4l2_subdev_call(sd, video, s_rx_buffer,
 				 vdev->tnr.cur_rd, NULL);
+			if (vdev->tnr.cur_rd == vdev->tnr.nxt_rd)
+				vdev->tnr.nxt_rd = NULL;
 			vdev->tnr.cur_rd = NULL;
 		}
 
@@ -2139,7 +2209,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 		vdev->tnr.nxt_rd = buf_rd;
 		/* first buf for 3to1 using twice */
 		if (!is_3to1 ||
-		    (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
+		    (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
 			vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 	} else if (vdev->tnr.is_end && !list_empty(list)) {
 		/* tnr read buf from list
@@ -2173,33 +2243,33 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (vdev->tnr.cur_rd && vdev->tnr.nxt_rd && vdev->tnr.is_end) {
 		struct rkispp_isp_buf_pool *buf;
 
-		buf = get_pool_buf(vdev, vdev->tnr.cur_rd);
+		buf = get_pool_buf(dev, vdev->tnr.cur_rd);
 		val = buf->dma[GROUP_BUF_PIC];
-		writel(val, base + RKISPP_TNR_CUR_Y_BASE);
+		rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
 		val += vdev->tnr.uv_offset;
-		writel(val, base + RKISPP_TNR_CUR_UV_BASE);
+		rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val);
 
 		val = buf->dma[GROUP_BUF_GAIN];
-		writel(val, base + RKISPP_TNR_GAIN_CUR_Y_BASE);
-		if (readl(base + RKISPP_TNR_CORE_CTRL) & SW_TNR_EN) {
-			rkispp_set_bits(base + RKISPP_CTRL_QUICK, 0,
+		rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
+		if (rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN) {
+			rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0,
 					GLB_NR_SD32_TNR);
 		} else {
-			rkispp_clear_bits(base + RKISPP_CTRL_QUICK,
+			rkispp_clear_bits(dev, RKISPP_CTRL_QUICK,
 					  GLB_NR_SD32_TNR);
-			writel(val, base + RKISPP_NR_ADDR_BASE_GAIN);
+			rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
 		}
 		if (is_3to1) {
-			buf = get_pool_buf(vdev, vdev->tnr.nxt_rd);
+			buf = get_pool_buf(dev, vdev->tnr.nxt_rd);
 			val = buf->dma[GROUP_BUF_PIC];
-			writel(val, base + RKISPP_TNR_NXT_Y_BASE);
+			rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
 			val += vdev->tnr.uv_offset;
-			writel(val, base + RKISPP_TNR_NXT_UV_BASE);
+			rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val);
 
 			val = buf->dma[GROUP_BUF_GAIN];
-			writel(val, base + RKISPP_TNR_GAIN_NXT_Y_BASE);
+			rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
 
-			if (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
+			if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 				vdev->tnr.cur_rd = NULL;
 		}
 		is_start = true;
@@ -2214,14 +2284,14 @@ static void tnr_work_event(struct rkispp_device *dev,
 		dbuf = vdev->tnr.cur_wr->dbuf[GROUP_BUF_PIC];
 		dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 		val = dummy->dma_addr;
-		writel(val, base + RKISPP_TNR_WR_Y_BASE);
+		rkispp_write(dev, RKISPP_TNR_WR_Y_BASE, val);
 		val += vdev->tnr.uv_offset;
-		writel(val, base + RKISPP_TNR_WR_UV_BASE);
+		rkispp_write(dev, RKISPP_TNR_WR_UV_BASE, val);
 
 		dbuf = vdev->tnr.cur_wr->dbuf[GROUP_BUF_GAIN];
 		dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 		val = dummy->dma_addr;
-		writel(val, base + RKISPP_TNR_GAIN_WR_Y_BASE);
+		rkispp_write(dev, RKISPP_TNR_GAIN_WR_Y_BASE, val);
 	}
 
 	if (is_start) {
@@ -2236,6 +2306,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 			}
 		}
 
+		if (!dev->hw_dev->is_single)
+			rkispp_update_regs(dev, RKISPP_CTRL, RKISPP_TNR_CORE_WEIGHT);
 		writel(TNR_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
@@ -2246,10 +2318,10 @@ static void tnr_work_event(struct rkispp_device *dev,
 			 readl(base + RKISPP_TNR_WR_Y_BASE_SHD));
 
 		/* iir using previous tnr write frame */
-		writel(readl(base + RKISPP_TNR_WR_Y_BASE),
-			base + RKISPP_TNR_IIR_Y_BASE);
-		writel(readl(base + RKISPP_TNR_WR_UV_BASE),
-			base + RKISPP_TNR_IIR_UV_BASE);
+		rkispp_write(dev, RKISPP_TNR_IIR_Y_BASE,
+			     rkispp_read(dev, RKISPP_TNR_WR_Y_BASE));
+		rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE,
+			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;
 	}
@@ -2260,6 +2332,16 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr)
 {
+	bool is_fec_en = (dev->stream_vdev.module_ens & ISPP_MODULE_FEC);
+
+	if (is_isr && !buf_rd && !buf_wr &&
+	    ((is_fec_en && module == ISPP_MODULE_FEC) ||
+	     (!is_fec_en && module == ISPP_MODULE_NR)))
+		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
+
+	if (dev->ispp_sdev.state == ISPP_STOP)
+		return;
+
 	if (module & ISPP_MODULE_TNR)
 		tnr_work_event(dev, buf_rd, buf_wr, is_isr);
 	else if (module & ISPP_MODULE_NR)
@@ -2272,7 +2354,6 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream;
-	void __iomem *base = dev->base_addr;
 	u32 i, err_mask = NR_LOST_ERR | TNR_LOST_ERR |
 		UVNR_MONITOR_ERR | FBCH_EMPTY_NR |
 		FBCH_EMPTY_TNR | FBCD_DEC_ERR_NR |
@@ -2294,9 +2375,8 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	rkispp_stats_isr(&dev->stats_vdev, mis_val);
 
 	if (mis_val & TNR_INT)
-		if (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
-			rkispp_clear_bits(base + RKISPP_TNR_CTRL,
-					  SW_TNR_1ST_FRM);
+		if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
+			rkispp_clear_bits(dev, RKISPP_TNR_CTRL, SW_TNR_1ST_FRM);
 
 	for (i = 0; i < STREAM_MAX; i++) {
 		stream = &vdev->stream[i];
