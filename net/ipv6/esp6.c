@@ -815,6 +815,7 @@ int esp6_input_done2(struct sk_buff *skb, int err)
 		offset = ipv6_skip_exthdr(skb, offset, &nexthdr, &frag_off);
 		uh = (void *)(skb->data + offset);
 		th = (void *)(skb->data + offset);
+		hdr_len += offset;
 
 		switch (x->encap->encap_type) {
 		case TCP_ENCAP_ESPINTCP:
