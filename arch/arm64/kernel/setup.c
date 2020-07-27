@@ -85,7 +85,7 @@ u64 __cacheline_aligned boot_args[4];
 void __init smp_setup_processor_id(void)
 {
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
-	cpu_logical_map(0) = mpidr;
+	set_cpu_logical_map(0, mpidr);
 
 	/*
 	 * clear __my_cpu_offset on boot CPU to avoid hang caused by
@@ -275,6 +275,12 @@ static int __init reserve_memblock_reserved_regions(void)
 arch_initcall(reserve_memblock_reserved_regions);
 
 u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
+
+u64 cpu_logical_map(int cpu)
+{
+	return __cpu_logical_map[cpu];
+}
+EXPORT_SYMBOL_GPL(cpu_logical_map);
 
 void __init setup_arch(char **cmdline_p)
 {
