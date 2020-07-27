@@ -146,6 +146,11 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	state->hdr.vmx.smm.flags = 1;
 	test_nested_state_expect_einval(vm, state);
 
+	/* Invalid flags are rejected. */
+	set_default_vmx_state(state, state_sz);
+	state->hdr.vmx.flags = ~0;
+	test_nested_state_expect_einval(vm, state);
+
 	/* It is invalid to have vmxon_pa == -1ull and vmcs_pa != -1ull. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = -1ull;
@@ -205,6 +210,14 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	set_default_vmx_state(state, state_sz);
 	state->flags = 0;
 	test_nested_state(vm, state);
+
+	/* Invalid flags are rejected, even if no VMCS loaded. */
+	set_default_vmx_state(state, state_sz);
+	state->size = sizeof(*state);
+	state->flags = 0;
+	state->hdr.vmx.vmcs12_pa = -1;
+	state->hdr.vmx.flags = ~0;
+	test_nested_state_expect_einval(vm, state);
 
 	/* vmxon_pa cannot be the same address as vmcs_pa. */
 	set_default_vmx_state(state, state_sz);
