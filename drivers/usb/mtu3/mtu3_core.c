@@ -573,9 +573,6 @@ static void mtu3_set_speed(struct mtu3 *mtu)
 {
 	void __iomem *mbase = mtu->mac_base;
 
-	if (!mtu->is_u3_ip && (mtu->max_speed > USB_SPEED_HIGH))
-		mtu->max_speed = USB_SPEED_HIGH;
-
 	if (mtu->max_speed == USB_SPEED_FULL) {
 		/* disable U3 SS function */
 		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
@@ -761,6 +758,32 @@ static irqreturn_t mtu3_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void mtu3_check_params(struct mtu3 *mtu)
+{
+	/* check the max_speed parameter */
+	switch (mtu->max_speed) {
+	case USB_SPEED_FULL:
+	case USB_SPEED_HIGH:
+	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
+		break;
+	default:
+		dev_err(mtu->dev, "invalid max_speed: %s\n",
+			usb_speed_string(mtu->max_speed));
+		fallthrough;
+	case USB_SPEED_UNKNOWN:
+		/* default as SSP */
+		mtu->max_speed = USB_SPEED_SUPER_PLUS;
+		break;
+	}
+
+	if (!mtu->is_u3_ip && (mtu->max_speed > USB_SPEED_HIGH))
+		mtu->max_speed = USB_SPEED_HIGH;
+
+	dev_info(mtu->dev, "max_speed: %s\n",
+		 usb_speed_string(mtu->max_speed));
+}
+
 static int mtu3_hw_init(struct mtu3 *mtu)
 {
 	u32 value;
@@ -775,6 +798,8 @@ static int mtu3_hw_init(struct mtu3 *mtu)
 
 	dev_info(mtu->dev, "IP version 0x%x(%s IP)\n", mtu->hw_version,
 		mtu->is_u3_ip ? "U3" : "U2");
+
+	mtu3_check_params(mtu);
 
 	mtu3_device_reset(mtu);
 
@@ -854,23 +879,6 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	ssusb->u3d = mtu;
 	mtu->ssusb = ssusb;
 	mtu->max_speed = usb_get_maximum_speed(dev);
-
-	/* check the max_speed parameter */
-	switch (mtu->max_speed) {
-	case USB_SPEED_FULL:
-	case USB_SPEED_HIGH:
-	case USB_SPEED_SUPER:
-	case USB_SPEED_SUPER_PLUS:
-		break;
-	default:
-		dev_err(dev, "invalid max_speed: %s\n",
-			usb_speed_string(mtu->max_speed));
-		/* fall through */
-	case USB_SPEED_UNKNOWN:
-		/* default as SSP */
-		mtu->max_speed = USB_SPEED_SUPER_PLUS;
-		break;
-	}
 
 	dev_dbg(dev, "mac_base=0x%p, ippc_base=0x%p\n",
 		mtu->mac_base, mtu->ippc_base);
