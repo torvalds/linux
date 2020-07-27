@@ -43,15 +43,15 @@ characters, and "components" that are sequences of one or more
 non-"``/``" characters.  These form two kinds of paths.  Those that
 start with slashes are "absolute" and start from the filesystem root.
 The others are "relative" and start from the current directory, or
-from some other location specified by a file descriptor given to a
-"``XXXat``" system call such as `openat() <openat_>`_.
+from some other location specified by a file descriptor given to
+"``*at()``" system calls such as `openat() <openat_>`_.
 
 .. _execveat: http://man7.org/linux/man-pages/man2/execveat.2.html
 
 It is tempting to describe the second kind as starting with a
 component, but that isn't always accurate: a pathname can lack both
 slashes and components, it can be empty, in other words.  This is
-generally forbidden in POSIX, but some of those "xxx``at``" system calls
+generally forbidden in POSIX, but some of those "``*at()``" system calls
 in Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
 example, if you have an open file descriptor on an executable file you
 can execute it by calling `execveat() <execveat_>`_ passing
@@ -655,8 +655,8 @@ This pattern of "try RCU-walk, if that fails try REF-walk" can be
 clearly seen in functions like ``filename_lookup()``,
 ``filename_parentat()``, ``filename_mountpoint()``,
 ``do_filp_open()``, and ``do_file_open_root()``.  These five
-correspond roughly to the four ``path_``* functions we met earlier,
-each of which calls ``link_path_walk()``.  The ``path_*`` functions are
+correspond roughly to the four ``path_*()`` functions we met earlier,
+each of which calls ``link_path_walk()``.  The ``path_*()`` functions are
 called using different mode flags until a mode is found which works.
 They are first called with ``LOOKUP_RCU`` set to request "RCU-walk".  If
 that fails with the error ``ECHILD`` they are called again with no
