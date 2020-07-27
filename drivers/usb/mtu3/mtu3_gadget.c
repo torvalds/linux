@@ -577,6 +577,19 @@ static int mtu3_gadget_stop(struct usb_gadget *g)
 	return 0;
 }
 
+static void
+mtu3_gadget_set_speed(struct usb_gadget *g, enum usb_device_speed speed)
+{
+	struct mtu3 *mtu = gadget_to_mtu3(g);
+	unsigned long flags;
+
+	dev_dbg(mtu->dev, "%s %s\n", __func__, usb_speed_string(speed));
+
+	spin_lock_irqsave(&mtu->lock, flags);
+	mtu3_set_speed(mtu, speed);
+	spin_unlock_irqrestore(&mtu->lock, flags);
+}
+
 static const struct usb_gadget_ops mtu3_gadget_ops = {
 	.get_frame = mtu3_gadget_get_frame,
 	.wakeup = mtu3_gadget_wakeup,
@@ -584,6 +597,7 @@ static const struct usb_gadget_ops mtu3_gadget_ops = {
 	.pullup = mtu3_gadget_pullup,
 	.udc_start = mtu3_gadget_start,
 	.udc_stop = mtu3_gadget_stop,
+	.udc_set_speed = mtu3_gadget_set_speed,
 };
 
 static void mtu3_state_reset(struct mtu3 *mtu)

@@ -203,7 +203,42 @@ static void mtu3_intr_enable(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_DEV_LINK_INTR_ENABLE, SSUSB_DEV_SPEED_CHG_INTR);
 }
 
-static void mtu3_set_speed(struct mtu3 *mtu);
+void mtu3_set_speed(struct mtu3 *mtu, enum usb_device_speed speed)
+{
+	void __iomem *mbase = mtu->mac_base;
+
+	if (speed > mtu->max_speed)
+		speed = mtu->max_speed;
+
+	switch (speed) {
+	case USB_SPEED_FULL:
+		/* disable U3 SS function */
+		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
+		/* disable HS function */
+		mtu3_clrbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
+		break;
+	case USB_SPEED_HIGH:
+		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
+		/* HS/FS detected by HW */
+		mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
+		break;
+	case USB_SPEED_SUPER:
+		mtu3_clrbits(mtu->ippc_base, SSUSB_U3_CTRL(0),
+			     SSUSB_U3_PORT_SSP_SPEED);
+		break;
+	case USB_SPEED_SUPER_PLUS:
+			mtu3_setbits(mtu->ippc_base, SSUSB_U3_CTRL(0),
+			     SSUSB_U3_PORT_SSP_SPEED);
+		break;
+	default:
+		dev_err(mtu->dev, "invalid speed: %s\n",
+			usb_speed_string(speed));
+		return;
+	}
+
+	mtu->speed = speed;
+	dev_dbg(mtu->dev, "set speed: %s\n", usb_speed_string(speed));
+}
 
 /* CSR registers will be reset to default value if port is disabled */
 static void mtu3_csr_init(struct mtu3 *mtu)
@@ -224,8 +259,6 @@ static void mtu3_csr_init(struct mtu3 *mtu)
 		/* auto clear SOFT_CONN when clear USB3_EN if work as HS */
 		mtu3_setbits(mbase, U3D_U3U2_SWITCH_CTRL, SOFTCON_CLR_AUTO_EN);
 	}
-
-	mtu3_set_speed(mtu);
 
 	/* delay about 0.1us from detecting reset to send chirp-K */
 	mtu3_clrbits(mbase, U3D_LINK_RESET_INFO, WTCHRP_MSK);
@@ -280,13 +313,13 @@ void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 
 void mtu3_dev_on_off(struct mtu3 *mtu, int is_on)
 {
-	if (mtu->is_u3_ip && mtu->max_speed >= USB_SPEED_SUPER)
+	if (mtu->is_u3_ip && mtu->speed >= USB_SPEED_SUPER)
 		mtu3_ss_func_set(mtu, is_on);
 	else
 		mtu3_hs_softconn_set(mtu, is_on);
 
 	dev_info(mtu->dev, "gadget (%s) pullup D%s\n",
-		usb_speed_string(mtu->max_speed), is_on ? "+" : "-");
+		usb_speed_string(mtu->speed), is_on ? "+" : "-");
 }
 
 void mtu3_start(struct mtu3 *mtu)
@@ -299,6 +332,7 @@ void mtu3_start(struct mtu3 *mtu)
 	mtu3_clrbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
 
 	mtu3_csr_init(mtu);
+	mtu3_set_speed(mtu, mtu->speed);
 
 	/* Initialize the default interrupts */
 	mtu3_intr_enable(mtu);
@@ -569,28 +603,6 @@ static void mtu3_mem_free(struct mtu3 *mtu)
 	kfree(mtu->ep_array);
 }
 
-static void mtu3_set_speed(struct mtu3 *mtu)
-{
-	void __iomem *mbase = mtu->mac_base;
-
-	if (mtu->max_speed == USB_SPEED_FULL) {
-		/* disable U3 SS function */
-		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
-		/* disable HS function */
-		mtu3_clrbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
-	} else if (mtu->max_speed == USB_SPEED_HIGH) {
-		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
-		/* HS/FS detected by HW */
-		mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
-	} else if (mtu->max_speed == USB_SPEED_SUPER) {
-		mtu3_clrbits(mtu->ippc_base, SSUSB_U3_CTRL(0),
-			     SSUSB_U3_PORT_SSP_SPEED);
-	}
-
-	dev_info(mtu->dev, "max_speed: %s\n",
-		usb_speed_string(mtu->max_speed));
-}
-
 static void mtu3_regs_init(struct mtu3 *mtu)
 {
 	void __iomem *mbase = mtu->mac_base;
@@ -779,6 +791,8 @@ static void mtu3_check_params(struct mtu3 *mtu)
 
 	if (!mtu->is_u3_ip && (mtu->max_speed > USB_SPEED_HIGH))
 		mtu->max_speed = USB_SPEED_HIGH;
+
+	mtu->speed = mtu->max_speed;
 
 	dev_info(mtu->dev, "max_speed: %s\n",
 		 usb_speed_string(mtu->max_speed));
