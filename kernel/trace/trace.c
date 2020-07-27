@@ -2930,12 +2930,6 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 		skip++;
 #endif
 
-	/*
-	 * Since events can happen in NMIs there's no safe way to
-	 * use the per cpu ftrace_stacks. We reserve it and if an interrupt
-	 * or NMI comes in, it will just have to use the default
-	 * FTRACE_STACK_SIZE.
-	 */
 	preempt_disable_notrace();
 
 	stackidx = __this_cpu_inc_return(ftrace_stack_reserve) - 1;
