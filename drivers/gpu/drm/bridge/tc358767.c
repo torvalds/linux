@@ -1369,20 +1369,12 @@ static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
 };
 
-static enum drm_connector_status tc_connector_detect(struct drm_connector *connector,
-						     bool force)
+static enum drm_connector_status tc_bridge_detect(struct drm_bridge *bridge)
 {
-	struct tc_data *tc = connector_to_tc(connector);
+	struct tc_data *tc = bridge_to_tc(bridge);
 	bool conn;
 	u32 val;
 	int ret;
-
-	if (tc->hpd_pin < 0) {
-		if (tc->panel)
-			return connector_status_connected;
-		else
-			return connector_status_unknown;
-	}
 
 	ret = regmap_read(tc->regmap, GPIOI, &val);
 	if (ret)
@@ -1394,6 +1386,20 @@ static enum drm_connector_status tc_connector_detect(struct drm_connector *conne
 		return connector_status_connected;
 	else
 		return connector_status_disconnected;
+}
+
+static enum drm_connector_status
+tc_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct tc_data *tc = connector_to_tc(connector);
+
+	if (tc->hpd_pin >= 0)
+		return tc_bridge_detect(&tc->bridge);
+
+	if (tc->panel)
+		return connector_status_connected;
+	else
+		return connector_status_unknown;
 }
 
 static const struct drm_connector_funcs tc_connector_funcs = {
@@ -1458,6 +1464,7 @@ static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.disable = tc_bridge_disable,
 	.post_disable = tc_bridge_post_disable,
 	.mode_fixup = tc_bridge_mode_fixup,
+	.detect = tc_bridge_detect,
 };
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)
@@ -1680,6 +1687,9 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 
 	tc->bridge.funcs = &tc_bridge_funcs;
+	if (tc->hpd_pin >= 0)
+		tc->bridge.ops |= DRM_BRIDGE_OP_DETECT;
+
 	tc->bridge.of_node = dev->of_node;
 	drm_bridge_add(&tc->bridge);
 
