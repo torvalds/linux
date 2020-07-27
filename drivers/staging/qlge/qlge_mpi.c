@@ -1174,7 +1174,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 	case MB_CMD_PORT_RESET:
 	case MB_CMD_STOP_FW:
 		ql_link_off(qdev);
-		/* Fall through */
+		fallthrough;
 	case MB_CMD_SET_PORT_CFG:
 		/* Signal the resulting link up AEN
 		 * that the frame routing and mac addr
@@ -1207,7 +1207,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 		 */
 		ql_link_off(qdev);
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
-		/* Fall through. */
+		fallthrough;
 	case MB_CMD_IOP_DVR_START:
 	case MB_CMD_IOP_FLASH_ACC:
 	case MB_CMD_IOP_CORE_DUMP_MPI:
