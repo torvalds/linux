@@ -8,6 +8,8 @@
 #ifndef __MXSFB_DRV_H__
 #define __MXSFB_DRV_H__
 
+struct drm_device;
+
 struct mxsfb_devdata {
 	unsigned int	 transfer_count;
 	unsigned int	 cur_buf;
@@ -26,10 +28,9 @@ struct mxsfb_drm_private {
 	struct clk			*clk_axi;
 	struct clk			*clk_disp_axi;
 
+	struct drm_device		*drm;
 	struct drm_simple_display_pipe	pipe;
-	struct drm_connector		panel_connector;
 	struct drm_connector		*connector;
-	struct drm_panel		*panel;
 	struct drm_bridge		*bridge;
 };
 

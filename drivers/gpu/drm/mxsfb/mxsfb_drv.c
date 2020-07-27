@@ -29,7 +29,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
@@ -105,29 +104,11 @@ static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
 			      struct drm_crtc_state *crtc_state,
 			      struct drm_plane_state *plane_state)
 {
-	struct drm_connector *connector;
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 	struct drm_device *drm = pipe->plane.dev;
 
-	if (!mxsfb->connector) {
-		list_for_each_entry(connector,
-				    &drm->mode_config.connector_list,
-				    head)
-			if (connector->encoder == &mxsfb->pipe.encoder) {
-				mxsfb->connector = connector;
-				break;
-			}
-	}
-
-	if (!mxsfb->connector) {
-		dev_warn(drm->dev, "No connector attached, using default\n");
-		mxsfb->connector = &mxsfb->panel_connector;
-	}
-
 	pm_runtime_get_sync(drm->dev);
-	drm_panel_prepare(mxsfb->panel);
 	mxsfb_crtc_enable(mxsfb);
-	drm_panel_enable(mxsfb->panel);
 }
 
 static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -137,9 +118,7 @@ static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_pending_vblank_event *event;
 
-	drm_panel_disable(mxsfb->panel);
 	mxsfb_crtc_disable(mxsfb);
-	drm_panel_unprepare(mxsfb->panel);
 	pm_runtime_put_sync(drm->dev);
 
 	spin_lock_irq(&drm->event_lock);
@@ -149,9 +128,6 @@ static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
 		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irq(&drm->event_lock);
-
-	if (mxsfb->connector != &mxsfb->panel_connector)
-		mxsfb->connector = NULL;
 }
 
 static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -195,6 +171,49 @@ static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.disable_vblank	= mxsfb_pipe_disable_vblank,
 };
 
+static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
+{
+	struct drm_device *drm = mxsfb->drm;
+	struct drm_connector_list_iter iter;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	int ret;
+
+	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0, &panel,
+					  &bridge);
+	if (ret)
+		return ret;
+
+	if (panel) {
+		bridge = devm_drm_panel_bridge_add_typed(drm->dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
+	}
+
+	if (!bridge)
+		return -ENODEV;
+
+	ret = drm_simple_display_pipe_attach_bridge(&mxsfb->pipe, bridge);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev,
+			      "failed to attach bridge: %d\n", ret);
+		return ret;
+	}
+
+	mxsfb->bridge = bridge;
+
+	/*
+	 * Get hold of the connector. This is a bit of a hack, until the bridge
+	 * API gives us bus flags and formats.
+	 */
+	drm_connector_list_iter_begin(drm, &iter);
+	mxsfb->connector = drm_connector_list_iter_next(&iter);
+	drm_connector_list_iter_end(&iter);
+
+	return 0;
+}
+
 static int mxsfb_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
@@ -206,6 +225,7 @@ static int mxsfb_load(struct drm_device *drm)
 	if (!mxsfb)
 		return -ENOMEM;
 
+	mxsfb->drm = drm;
 	drm->dev_private = mxsfb;
 	mxsfb->devdata = &mxsfb_devdata[pdev->id_entry->driver_data];
 
@@ -241,41 +261,18 @@ static int mxsfb_load(struct drm_device *drm)
 	/* Modeset init */
 	drm_mode_config_init(drm);
 
-	ret = mxsfb_create_output(drm);
-	if (ret < 0) {
-		dev_err(drm->dev, "Failed to create outputs\n");
-		goto err_vblank;
-	}
-
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
 			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
-			mxsfb_modifiers, mxsfb->connector);
+			mxsfb_modifiers, NULL);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
 		goto err_vblank;
 	}
 
-	/*
-	 * Attach panel only if there is one.
-	 * If there is no panel attach, it must be a bridge. In this case, we
-	 * need a reference to its connector for a proper initialization.
-	 * We will do this check in pipe->enable(), since the connector won't
-	 * be attached to an encoder until then.
-	 */
-
-	if (mxsfb->panel) {
-		ret = drm_panel_attach(mxsfb->panel, mxsfb->connector);
-		if (ret) {
-			dev_err(drm->dev, "Cannot connect panel: %d\n", ret);
-			goto err_vblank;
-		}
-	} else if (mxsfb->bridge) {
-		ret = drm_simple_display_pipe_attach_bridge(&mxsfb->pipe,
-							    mxsfb->bridge);
-		if (ret) {
-			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
-			goto err_vblank;
-		}
+	ret = mxsfb_attach_bridge(mxsfb);
+	if (ret) {
+		dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
+		goto err_vblank;
 	}
 
 	drm->mode_config.min_width	= MXSFB_MIN_XRES;
@@ -293,7 +290,7 @@ static int mxsfb_load(struct drm_device *drm)
 
 	if (ret < 0) {
 		dev_err(drm->dev, "Failed to install IRQ handler\n");
-		goto err_irq;
+		goto err_vblank;
 	}
 
 	drm_kms_helper_poll_init(drm);
@@ -304,8 +301,6 @@ static int mxsfb_load(struct drm_device *drm)
 
 	return 0;
 
-err_irq:
-	drm_panel_detach(mxsfb->panel);
 err_vblank:
 	pm_runtime_disable(drm->dev);
 
