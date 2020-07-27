@@ -268,8 +268,10 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 
 	chain->pbl.pp_addr_tbl = addr_tbl;
 
-	if (chain->b_external_pbl)
+	if (chain->b_external_pbl) {
+		pbl_virt = chain->pbl_sp.table_virt;
 		goto alloc_pages;
+	}
 
 	size = array_size(page_cnt, sizeof(*pbl_virt));
 	if (unlikely(size == SIZE_MAX))
