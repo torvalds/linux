@@ -77,6 +77,16 @@ static irqreturn_t ef100_msi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int ef100_phy_probe(struct efx_nic *efx)
+{
+	/* stub: allocate the phy_data */
+	efx->phy_data = kzalloc(sizeof(struct efx_mcdi_phy_data), GFP_KERNEL);
+	if (!efx->phy_data)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /*	Other
  */
 
@@ -192,6 +202,10 @@ static int ef100_probe_main(struct efx_nic *efx)
 	/* Post-IO section. */
 
 	efx->max_vis = EF100_MAX_VIS;
+
+	rc = ef100_phy_probe(efx);
+	if (rc)
+		goto fail;
 
 	rc = efx_init_channels(efx);
 	if (rc)
