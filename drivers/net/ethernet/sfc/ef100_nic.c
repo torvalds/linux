@@ -288,16 +288,54 @@ static irqreturn_t ef100_msi_interrupt(int irq, void *dev_id)
 
 static int ef100_phy_probe(struct efx_nic *efx)
 {
-	/* stub: allocate the phy_data */
+	struct efx_mcdi_phy_data *phy_data;
+	int rc;
+
+	/* Probe for the PHY */
 	efx->phy_data = kzalloc(sizeof(struct efx_mcdi_phy_data), GFP_KERNEL);
 	if (!efx->phy_data)
 		return -ENOMEM;
+
+	rc = efx_mcdi_get_phy_cfg(efx, efx->phy_data);
+	if (rc)
+		return rc;
+
+	/* Populate driver and ethtool settings */
+	phy_data = efx->phy_data;
+	mcdi_to_ethtool_linkset(phy_data->media, phy_data->supported_cap,
+				efx->link_advertising);
+	efx->fec_config = mcdi_fec_caps_to_ethtool(phy_data->supported_cap,
+						   false);
+
+	/* Default to Autonegotiated flow control if the PHY supports it */
+	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
+	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		efx->wanted_fc |= EFX_FC_AUTO;
+	efx_link_set_wanted_fc(efx, efx->wanted_fc);
+
+	/* Push settings to the PHY. Failure is not fatal, the user can try to
+	 * fix it using ethtool.
+	 */
+	rc = efx_mcdi_port_reconfigure(efx);
+	if (rc && rc != -EPERM)
+		netif_warn(efx, drv, efx->net_dev,
+			   "could not initialise PHY settings\n");
 
 	return 0;
 }
 
 /*	Other
  */
+static int ef100_reconfigure_mac(struct efx_nic *efx, bool mtu_only)
+{
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
+	efx_mcdi_filter_sync_rx_mode(efx);
+
+	if (mtu_only && efx_has_cap(efx, SET_MAC_ENHANCED))
+		return efx_mcdi_set_mtu(efx);
+	return efx_mcdi_set_mac(efx);
+}
 
 static enum reset_type ef100_map_reset_reason(enum reset_type reason)
 {
@@ -400,6 +438,8 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = ef100_rx_write,
 	.rx_packet = __ef100_rx_packet,
+
+	.reconfigure_mac = ef100_reconfigure_mac,
 
 	/* Per-type bar/size configuration not used on ef100. Location of
 	 * registers is defined by extended capabilities.
