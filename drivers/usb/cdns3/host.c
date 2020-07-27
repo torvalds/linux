@@ -24,7 +24,7 @@
 #define LPM_2_STB_SWITCH_EN	BIT(25)
 
 static const struct xhci_plat_priv xhci_plat_cdns3_xhci = {
-	.quirks = XHCI_SKIP_PHY_INIT,
+	.quirks = XHCI_SKIP_PHY_INIT | XHCI_AVOID_BEI,
 	.suspend_quirk = xhci_cdns3_suspend_quirk,
 };
 
