@@ -105,4 +105,32 @@ int siginfo_pkey(siginfo_t *si)
 #endif
 }
 
+#define pkey_rights(r) ({						\
+	static char buf[4] = "rwx";					\
+	unsigned int amr_bits;						\
+	if ((r) & PKEY_DISABLE_EXECUTE)					\
+		buf[2] = '-';						\
+	amr_bits = (r) & PKEY_BITS_MASK;				\
+	if (amr_bits & PKEY_DISABLE_WRITE)				\
+		buf[1] = '-';						\
+	if (amr_bits & PKEY_DISABLE_ACCESS & ~PKEY_DISABLE_WRITE)	\
+		buf[0] = '-';						\
+	buf;								\
+})
+
+unsigned long next_pkey_rights(unsigned long rights)
+{
+	if (rights == PKEY_DISABLE_ACCESS)
+		return PKEY_DISABLE_EXECUTE;
+	else if (rights == (PKEY_DISABLE_ACCESS | PKEY_DISABLE_EXECUTE))
+		return 0;
+
+	if ((rights & PKEY_BITS_MASK) == 0)
+		rights |= PKEY_DISABLE_WRITE;
+	else if ((rights & PKEY_BITS_MASK) == PKEY_DISABLE_WRITE)
+		rights |= PKEY_DISABLE_ACCESS;
+
+	return rights;
+}
+
 #endif /* _SELFTESTS_POWERPC_PKEYS_H */
