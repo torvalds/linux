@@ -685,14 +685,14 @@ static int receive_from_sock(struct connection *con)
 					  page_address(con->rx_page),
 					  con->cb.base, con->cb.len,
 					  PAGE_SIZE);
-	if (ret == -EBADMSG) {
-		log_print("lowcomms: addr=%p, base=%u, len=%u, read=%d",
-			  page_address(con->rx_page), con->cb.base,
+	if (ret < 0) {
+		log_print("lowcomms err %d: addr=%p, base=%u, len=%u, read=%d",
+			  ret, page_address(con->rx_page), con->cb.base,
 			  con->cb.len, r);
+		cbuf_eat(&con->cb, r);
+	} else {
+		cbuf_eat(&con->cb, ret);
 	}
-	if (ret < 0)
-		goto out_close;
-	cbuf_eat(&con->cb, ret);
 
 	if (cbuf_empty(&con->cb) && !call_again_soon) {
 		__free_page(con->rx_page);
