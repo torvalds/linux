@@ -9605,7 +9605,7 @@ static void bnxt_get_ring_stats(struct bnxt *bp,
 
 		stats->multicast += le64_to_cpu(hw_stats->rx_mcast_pkts);
 
-		stats->tx_dropped += le64_to_cpu(hw_stats->tx_drop_pkts);
+		stats->tx_dropped += le64_to_cpu(hw_stats->tx_error_pkts);
 	}
 }
 
