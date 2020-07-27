@@ -173,13 +173,15 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
  * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
  * scheduler tick and suspended scheduler clock on the target CPU.
  */
-static __cpuidle void intel_idle_s2idle(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
+static __cpuidle int intel_idle_s2idle(struct cpuidle_device *dev,
+				       struct cpuidle_driver *drv, int index)
 {
 	unsigned long eax = flg2MWAIT(drv->states[index].flags);
 	unsigned long ecx = 1; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
+
+	return 0;
 }
 
 /*
