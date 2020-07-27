@@ -76,10 +76,8 @@ void set_default_state(struct kvm_nested_state *state)
 void set_default_vmx_state(struct kvm_nested_state *state, int size)
 {
 	memset(state, 0, size);
-	state->flags = KVM_STATE_NESTED_GUEST_MODE  |
-			KVM_STATE_NESTED_RUN_PENDING;
 	if (have_evmcs)
-		state->flags |= KVM_STATE_NESTED_EVMCS;
+		state->flags = KVM_STATE_NESTED_EVMCS;
 	state->format = 0;
 	state->size = size;
 	state->hdr.vmx.vmxon_pa = 0x1000;
@@ -190,15 +188,18 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	state->size = sizeof(*state);
 	test_nested_state(vm, state);
 
+	/*
+	 * KVM_SET_NESTED_STATE succeeds with invalid VMCS
+	 * contents but L2 not running.
+	 */
+	set_default_vmx_state(state, state_sz);
+	state->flags = 0;
+	test_nested_state(vm, state);
+
 	/* vmxon_pa cannot be the same address as vmcs_pa. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = 0;
 	state->hdr.vmx.vmcs12_pa = 0;
-	test_nested_state_expect_einval(vm, state);
-
-	/* The revision id for vmcs12 must be VMCS12_REVISION. */
-	set_default_vmx_state(state, state_sz);
-	set_revision_id_for_vmcs12(state, 0);
 	test_nested_state_expect_einval(vm, state);
 
 	/*
