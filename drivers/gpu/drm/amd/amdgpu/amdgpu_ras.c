@@ -1676,7 +1676,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	int ret = 0;
 
 	/* no bad page record, skip eeprom access */
-	if (!control->num_recs)
+	if (!control->num_recs || (amdgpu_bad_page_threshold == 0))
 		return ret;
 
 	bps = kcalloc(control->num_recs, sizeof(*bps), GFP_KERNEL);
@@ -1780,7 +1780,8 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 	struct amdgpu_bo *bo = NULL;
 	int i, ret = 0;
 
-	if (!con || !con->eh_data)
+	/* Not reserve bad page when amdgpu_bad_page_threshold == 0. */
+	if (!con || !con->eh_data || (amdgpu_bad_page_threshold == 0))
 		return 0;
 
 	mutex_lock(&con->recovery_lock);
