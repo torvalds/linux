@@ -91,17 +91,9 @@
 #define MXSFB_MAX_XRES			0xffff
 #define MXSFB_MAX_YRES			0xffff
 
-#define RED 0
-#define GREEN 1
-#define BLUE 2
-#define TRANSP 3
-
 #define STMLCDIF_8BIT  1 /* pixel data bus to the display is of 8 bit width */
 #define STMLCDIF_16BIT 0 /* pixel data bus to the display is of 16 bit width */
 #define STMLCDIF_18BIT 2 /* pixel data bus to the display is of 18 bit width */
 #define STMLCDIF_24BIT 3 /* pixel data bus to the display is of 24 bit width */
-
-#define MXSFB_SYNC_DATA_ENABLE_HIGH_ACT	(1 << 6)
-#define MXSFB_SYNC_DOTCLK_FALLING_ACT	(1 << 7) /* negative edge sampling */
 
 #endif /* __MXSFB_REGS_H__ */
