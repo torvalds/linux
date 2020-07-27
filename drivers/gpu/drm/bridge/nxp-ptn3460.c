@@ -29,7 +29,6 @@ struct ptn3460_bridge {
 	struct drm_connector connector;
 	struct i2c_client *client;
 	struct drm_bridge bridge;
-	struct edid *edid;
 	struct drm_panel *panel;
 	struct gpio_desc *gpio_pd_n;
 	struct gpio_desc *gpio_rst_n;
@@ -184,17 +183,13 @@ static void ptn3460_post_disable(struct drm_bridge *bridge)
 	}
 }
 
-static int ptn3460_get_modes(struct drm_connector *connector)
+static struct edid *ptn3460_get_edid(struct drm_bridge *bridge,
+				     struct drm_connector *connector)
 {
-	struct ptn3460_bridge *ptn_bridge;
-	u8 *edid;
-	int ret, num_modes = 0;
+	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
 	bool power_off;
-
-	ptn_bridge = connector_to_ptn3460(connector);
-
-	if (ptn_bridge->edid)
-		return drm_add_edid_modes(connector, ptn_bridge->edid);
+	u8 *edid;
+	int ret;
 
 	power_off = !ptn_bridge->enabled;
 	ptn3460_pre_enable(&ptn_bridge->bridge);
@@ -202,30 +197,40 @@ static int ptn3460_get_modes(struct drm_connector *connector)
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid) {
 		DRM_ERROR("Failed to allocate EDID\n");
-		return 0;
-	}
-
-	ret = ptn3460_read_bytes(ptn_bridge, PTN3460_EDID_ADDR, edid,
-			EDID_LENGTH);
-	if (ret) {
-		kfree(edid);
 		goto out;
 	}
 
-	ptn_bridge->edid = (struct edid *)edid;
-	drm_connector_update_edid_property(connector, ptn_bridge->edid);
-
-	num_modes = drm_add_edid_modes(connector, ptn_bridge->edid);
+	ret = ptn3460_read_bytes(ptn_bridge, PTN3460_EDID_ADDR, edid,
+				 EDID_LENGTH);
+	if (ret) {
+		kfree(edid);
+		edid = NULL;
+		goto out;
+	}
 
 out:
 	if (power_off)
 		ptn3460_disable(&ptn_bridge->bridge);
 
+	return (struct edid *)edid;
+}
+
+static int ptn3460_connector_get_modes(struct drm_connector *connector)
+{
+	struct ptn3460_bridge *ptn_bridge = connector_to_ptn3460(connector);
+	struct edid *edid;
+	int num_modes;
+
+	edid = ptn3460_get_edid(&ptn_bridge->bridge, connector);
+	drm_connector_update_edid_property(connector, edid);
+	num_modes = drm_add_edid_modes(connector, edid);
+	kfree(edid);
+
 	return num_modes;
 }
 
 static const struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = {
-	.get_modes = ptn3460_get_modes,
+	.get_modes = ptn3460_connector_get_modes,
 };
 
 static const struct drm_connector_funcs ptn3460_connector_funcs = {
@@ -279,6 +284,7 @@ static const struct drm_bridge_funcs ptn3460_bridge_funcs = {
 	.disable = ptn3460_disable,
 	.post_disable = ptn3460_post_disable,
 	.attach = ptn3460_bridge_attach,
+	.get_edid = ptn3460_get_edid,
 };
 
 static int ptn3460_probe(struct i2c_client *client,
@@ -327,6 +333,7 @@ static int ptn3460_probe(struct i2c_client *client,
 	}
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
+	ptn_bridge->bridge.ops = DRM_BRIDGE_OP_EDID;
 	ptn_bridge->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ptn_bridge->bridge);
 
