@@ -398,7 +398,7 @@ xhci_dbc_tty_exit_port(struct dbc_port *port)
 	tty_port_destroy(&port->port);
 }
 
-int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
+static int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 {
 	int			ret;
 	struct device		*tty_dev;
@@ -449,7 +449,7 @@ register_fail:
 	return ret;
 }
 
-void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
+static void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 {
 	struct dbc_port		*port = dbc_to_port(dbc);
 
