@@ -599,10 +599,8 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 static void pnv_pci_sriov_disable(struct pci_dev *pdev)
 {
 	u16                    num_vfs, base_pe;
-	struct pnv_phb        *phb;
 	struct pnv_iov_data   *iov;
 
-	phb = pci_bus_to_pnvhb(pdev->bus);
 	iov = pnv_iov_get(pdev);
 	num_vfs = iov->num_vfs;
 	base_pe = iov->vf_pe_arr[0].pe_number;
