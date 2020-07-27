@@ -2179,6 +2179,12 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 
 	perf_read_regs(regs);
 
+	/*
+	 * If perf interrupts hit in a local_irq_disable (soft-masked) region,
+	 * we consider them as NMIs. This is required to prevent hash faults on
+	 * user addresses when reading callchains. See the NMI test in
+	 * do_hash_page.
+	 */
 	nmi = perf_intr_is_nmi(regs);
 	if (nmi)
 		nmi_enter();
