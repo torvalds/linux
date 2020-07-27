@@ -202,40 +202,29 @@ bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
-	int i, queue, pipe, mec;
+	int i, queue, pipe;
 	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
+	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
+				     adev->gfx.mec.num_queue_per_pipe,
+				     adev->gfx.num_compute_rings);
 
-	/* policy for amdgpu compute queue ownership */
-	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
-		queue = i % adev->gfx.mec.num_queue_per_pipe;
-		pipe = (i / adev->gfx.mec.num_queue_per_pipe)
-			% adev->gfx.mec.num_pipe_per_mec;
-		mec = (i / adev->gfx.mec.num_queue_per_pipe)
-			/ adev->gfx.mec.num_pipe_per_mec;
+	if (multipipe_policy) {
+		/* policy: make queues evenly cross all pipes on MEC1 only */
+		for (i = 0; i < max_queues_per_mec; i++) {
+			pipe = i % adev->gfx.mec.num_pipe_per_mec;
+			queue = (i / adev->gfx.mec.num_pipe_per_mec) %
+				adev->gfx.mec.num_queue_per_pipe;
 
-		/* we've run out of HW */
-		if (mec >= adev->gfx.mec.num_mec)
-			break;
-
-		if (multipipe_policy) {
-			/* policy: amdgpu owns the first two queues of the first MEC */
-			if (mec == 0 && queue < 2)
-				set_bit(i, adev->gfx.mec.queue_bitmap);
-		} else {
-			/* policy: amdgpu owns all queues in the first pipe */
-			if (mec == 0 && pipe == 0)
-				set_bit(i, adev->gfx.mec.queue_bitmap);
+			set_bit(pipe * adev->gfx.mec.num_queue_per_pipe + queue,
+					adev->gfx.mec.queue_bitmap);
 		}
+	} else {
+		/* policy: amdgpu owns all queues in the given pipe */
+		for (i = 0; i < max_queues_per_mec; ++i)
+			set_bit(i, adev->gfx.mec.queue_bitmap);
 	}
 
-	/* update the number of active compute rings */
-	adev->gfx.num_compute_rings =
-		bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
-
-	/* If you hit this case and edited the policy, you probably just
-	 * need to increase AMDGPU_MAX_COMPUTE_RINGS */
-	if (WARN_ON(adev->gfx.num_compute_rings > AMDGPU_MAX_COMPUTE_RINGS))
-		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
+	dev_dbg(adev->dev, "mec queue bitmap weight=%d\n", bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
 }
 
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
