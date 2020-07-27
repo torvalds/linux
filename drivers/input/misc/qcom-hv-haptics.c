@@ -34,7 +34,7 @@
 #define TLRA_CL_ERR_MSB_MASK			GENMASK(4, 0)
 /* STATUS_DATA_MSB definition in V1 while MOD_STATUS_SEL is 5 */
 #define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
-/* STATUS DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
+/* STATUS_DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
 #define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2	GENMASK(1, 0)
 
 #define HAP_CFG_STATUS_DATA_LSB_REG		0x0A
@@ -783,12 +783,16 @@ static int haptics_get_closeloop_lra_period_v1(
 	return 0;
 }
 
+/* The offset of SDAM register which saves STATUS_DATA_MSB value */
+#define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
+
+/* constant definitions for calculating TLRA */
 #define TLRA_AUTO_RES_ERR_NO_CAL_STEP_PSEC	1667000
 #define TLRA_AUTO_RES_NO_CAL_STEP_PSEC		3333000
 #define TLRA_AUTO_RES_ERR_AUTO_CAL_STEP_PSEC	1627700
 #define TLRA_AUTO_RES_AUTO_CAL_STEP_PSEC	813850
 static int haptics_get_closeloop_lra_period_v2(
-		struct haptics_chip *chip)
+		struct haptics_chip *chip, bool in_boot)
 {
 	struct haptics_hw_config *config = &chip->config;
 	u16 cal_tlra_cl_sts, tlra_cl_err_sts, tlra_ol, last_good_tlra_cl_sts;
@@ -805,16 +809,31 @@ static int haptics_get_closeloop_lra_period_v2(
 
 	rc_clk_cal = ((val[0] & CAL_RC_CLK_MASK) >> CAL_RC_CLK_SHIFT);
 	/* read auto resonance calibration result */
-	val[0] = MOD_STATUS_SEL_CAL_TLRA_CL_STS_VAL;
-	rc = haptics_write(chip, chip->cfg_addr_base,
-		HAP_CFG_MOD_STATUS_SEL_REG, val, 1);
-	if (rc < 0)
-		return rc;
+	if (in_boot) {
+		if (chip->hap_cfg_nvmem == NULL) {
+			dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
+			return -EINVAL;
+		}
 
-	rc = haptics_read(chip, chip->cfg_addr_base,
-		HAP_CFG_STATUS_DATA_MSB_REG, val, 2);
-	if (rc < 0)
-		return rc;
+		rc = nvmem_device_read(chip->hap_cfg_nvmem,
+				HAP_STATUS_DATA_MSB_SDAM_OFFSET, 2, val);
+		if (rc < 0) {
+			dev_err(chip->dev, "read SDAM %#x failed, rc=%d\n",
+					HAP_STATUS_DATA_MSB_SDAM_OFFSET, rc);
+			return rc;
+		}
+	} else {
+		val[0] = MOD_STATUS_SEL_CAL_TLRA_CL_STS_VAL;
+		rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_MOD_STATUS_SEL_REG, val, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_STATUS_DATA_MSB_REG, val, 2);
+		if (rc < 0)
+			return rc;
+	}
 
 	auto_res_done = !!(val[0] & AUTO_RES_CAL_DONE_BIT);
 	cal_tlra_cl_sts =
@@ -944,14 +963,15 @@ static int haptics_get_closeloop_lra_period_v2(
 	return 0;
 }
 
-static int haptics_get_closeloop_lra_period(struct haptics_chip *chip)
+static int haptics_get_closeloop_lra_period(struct haptics_chip *chip,
+						bool in_boot)
 {
 	int rc = 0;
 
 	if (chip->ptn_revision == HAP_PTN_V1)
 		rc = haptics_get_closeloop_lra_period_v1(chip);
 	else
-		rc = haptics_get_closeloop_lra_period_v2(chip);
+		rc = haptics_get_closeloop_lra_period_v2(chip, in_boot);
 
 	if (rc < 0) {
 		dev_err(chip->dev, "get close loop T LRA failed, rc=%d\n",
@@ -2104,7 +2124,7 @@ static int haptics_hw_init(struct haptics_chip *chip)
 		return rc;
 
 	/* get calibrated close loop period */
-	rc = haptics_get_closeloop_lra_period(chip);
+	rc = haptics_get_closeloop_lra_period(chip, true);
 	if (rc < 0)
 		return rc;
 
@@ -3536,7 +3556,7 @@ static int haptics_start_lra_calibration(struct haptics_chip *chip)
 	/* wait for ~150ms to get the LRA calibration result */
 	usleep_range(150000, 155000);
 
-	rc = haptics_get_closeloop_lra_period(chip);
+	rc = haptics_get_closeloop_lra_period(chip, false);
 	if (rc < 0)
 		goto restore;
 
