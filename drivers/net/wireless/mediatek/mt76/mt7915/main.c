@@ -620,7 +620,6 @@ mt7915_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt7915_mcu_add_tx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		mtxq->agg_ssn = IEEE80211_SN_TO_SEQ(ssn);
 		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_START);
 		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;

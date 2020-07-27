@@ -565,6 +565,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_phy *mphy = &dev->mphy;
@@ -572,6 +573,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	u8 fc_type, fc_stype, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	__le16 fc = hdr->frame_control;
 	u16 tx_count = 15, seqno = 0;
+	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	u32 val;
 
 	if (vif) {
@@ -587,6 +589,10 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	fc_type = (le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE) >> 2;
 	fc_stype = (le16_to_cpu(fc) & IEEE80211_FCTL_STYPE) >> 4;
 
+	txwi[4] = 0;
+	txwi[5] = 0;
+	txwi[6] = 0;
+
 	if (beacon) {
 		p_fmt = MT_TX_TYPE_FW;
 		q_idx = MT_LMAC_BCN0;
@@ -599,6 +605,20 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 			mt7915_lmac_mapping(dev, skb_get_queue_mapping(skb));
 	}
 
+	if (ieee80211_is_action(fc) &&
+	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
+	    mgmt->u.action.u.addba_req.action_code == WLAN_ACTION_ADDBA_REQ) {
+		u16 capab = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+
+		txwi[5] |= cpu_to_le32(MT_TXD5_ADD_BA);
+		tid = (capab >> 2) & IEEE80211_QOS_CTL_TID_MASK;
+	} else if (ieee80211_is_back_req(hdr->frame_control)) {
+		struct ieee80211_bar *bar = (struct ieee80211_bar *)hdr;
+		u16 control = le16_to_cpu(bar->control);
+
+		tid = FIELD_GET(IEEE80211_BAR_CTRL_TID_INFO_MASK, control);
+	}
+
 	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len + MT_TXD_SIZE) |
 	      FIELD_PREP(MT_TXD0_PKT_FMT, p_fmt) |
 	      FIELD_PREP(MT_TXD0_Q_IDX, q_idx);
@@ -609,8 +629,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	      FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_802_11) |
 	      FIELD_PREP(MT_TXD1_HDR_INFO,
 			 ieee80211_get_hdrlen_from_skb(skb) / 2) |
-	      FIELD_PREP(MT_TXD1_TID,
-			 skb->priority & IEEE80211_QOS_CTL_TID_MASK) |
+	      FIELD_PREP(MT_TXD1_TID, tid) |
 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
 
 	if (ext_phy && q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
@@ -633,10 +652,6 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 		txwi[3] = 0;
 	}
 	txwi[2] = cpu_to_le32(val);
-
-	txwi[4] = 0;
-	txwi[5] = 0;
-	txwi[6] = 0;
 
 	if (!ieee80211_is_data(fc) || multicast) {
 		u16 rate;
@@ -668,17 +683,19 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	txwi[7] = cpu_to_le32(val);
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count);
-	if (ieee80211_is_data_qos(fc)) {
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-		val |= MT_TXD3_SN_VALID;
-	} else if (ieee80211_is_back_req(fc)) {
-		struct ieee80211_bar *bar;
+	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+		seqno = le16_to_cpu(hdr->seq_ctrl);
 
-		bar = (struct ieee80211_bar *)skb->data;
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
-		val |= MT_TXD3_SN_VALID;
+		if (ieee80211_is_back_req(hdr->frame_control)) {
+			struct ieee80211_bar *bar;
+
+			bar = (struct ieee80211_bar *)skb->data;
+			seqno = le16_to_cpu(bar->start_seq_num);
+		}
+
+		val |= MT_TXD3_SN_VALID |
+		       FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
 	}
-	val |= FIELD_PREP(MT_TXD3_SEQ, seqno);
 	txwi[3] |= cpu_to_le32(val);
 }
 
