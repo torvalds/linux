@@ -119,8 +119,6 @@ struct fsl_lpspi_data {
 	bool usedma;
 	struct completion dma_rx_completion;
 	struct completion dma_tx_completion;
-
-	int chipselect[];
 };
 
 static const struct of_device_id fsl_lpspi_dt_ids[] = {
