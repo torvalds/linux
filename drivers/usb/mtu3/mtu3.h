@@ -294,7 +294,6 @@ struct mtu3_ep {
 
 	int flags;
 	u8 wedged;
-	u8 busy;
 };
 
 struct mtu3_request {

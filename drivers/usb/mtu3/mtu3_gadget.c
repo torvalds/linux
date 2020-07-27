@@ -17,7 +17,6 @@ __acquires(mep->mtu->lock)
 {
 	struct mtu3_request *mreq;
 	struct mtu3 *mtu;
-	int busy = mep->busy;
 
 	mreq = to_mtu3_request(req);
 	list_del(&mreq->list);
@@ -25,8 +24,6 @@ __acquires(mep->mtu->lock)
 		mreq->request.status = status;
 
 	mtu = mreq->mtu;
-	mep->busy = 1;
-
 	trace_mtu3_req_complete(mreq);
 	spin_unlock(&mtu->lock);
 
@@ -40,14 +37,12 @@ __acquires(mep->mtu->lock)
 	usb_gadget_giveback_request(&mep->ep, &mreq->request);
 
 	spin_lock(&mtu->lock);
-	mep->busy = busy;
 }
 
 static void nuke(struct mtu3_ep *mep, const int status)
 {
 	struct mtu3_request *mreq = NULL;
 
-	mep->busy = 1;
 	if (list_empty(&mep->req_list))
 		return;
 
@@ -195,7 +190,6 @@ static int mtu3_gadget_ep_enable(struct usb_ep *ep,
 	if (ret)
 		goto error;
 
-	mep->busy = 0;
 	mep->wedged = 0;
 	mep->flags |= MTU3_EP_ENABLED;
 	mtu->active_ep++;
