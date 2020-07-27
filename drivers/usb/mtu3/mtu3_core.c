@@ -147,17 +147,6 @@ static void mtu3_device_reset(struct mtu3 *mtu)
 	mtu3_clrbits(ibase, U3D_SSUSB_DEV_RST_CTRL, SSUSB_DEV_SW_RST);
 }
 
-/* disable all interrupts */
-static void mtu3_intr_disable(struct mtu3 *mtu)
-{
-	void __iomem *mbase = mtu->mac_base;
-
-	/* Disable level 1 interrupts */
-	mtu3_writel(mbase, U3D_LV1IECR, ~0x0);
-	/* Disable endpoint interrupts */
-	mtu3_writel(mbase, U3D_EPIECR, ~0x0);
-}
-
 static void mtu3_intr_status_clear(struct mtu3 *mtu)
 {
 	void __iomem *mbase = mtu->mac_base;
@@ -170,6 +159,18 @@ static void mtu3_intr_status_clear(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_LTSSM_INTR, ~0x0);
 	/* Clear speed change interrupt status */
 	mtu3_writel(mbase, U3D_DEV_LINK_INTR, ~0x0);
+	/* Clear QMU interrupt status */
+	mtu3_writel(mbase, U3D_QISAR0, ~0x0);
+}
+
+/* disable all interrupts */
+static void mtu3_intr_disable(struct mtu3 *mtu)
+{
+	/* Disable level 1 interrupts */
+	mtu3_writel(mtu->mac_base, U3D_LV1IECR, ~0x0);
+	/* Disable endpoint interrupts */
+	mtu3_writel(mtu->mac_base, U3D_EPIECR, ~0x0);
+	mtu3_intr_status_clear(mtu);
 }
 
 /* enable system global interrupt */
@@ -312,7 +313,6 @@ void mtu3_stop(struct mtu3 *mtu)
 	dev_dbg(mtu->dev, "%s\n", __func__);
 
 	mtu3_intr_disable(mtu);
-	mtu3_intr_status_clear(mtu);
 
 	if (mtu->softconnect)
 		mtu3_dev_on_off(mtu, 0);
@@ -600,7 +600,6 @@ static void mtu3_regs_init(struct mtu3 *mtu)
 
 	/* be sure interrupts are disabled before registration of ISR */
 	mtu3_intr_disable(mtu);
-	mtu3_intr_status_clear(mtu);
 
 	mtu3_csr_init(mtu);
 
