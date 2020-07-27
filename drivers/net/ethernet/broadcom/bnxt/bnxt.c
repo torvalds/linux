@@ -3750,6 +3750,69 @@ stats_mem_err:
 	return -ENOMEM;
 }
 
+static void bnxt_fill_masks(u64 *mask_arr, u64 mask, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		mask_arr[i] = mask;
+}
+
+static void bnxt_copy_hw_masks(u64 *mask_arr, __le64 *hw_mask_arr, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		mask_arr[i] = le64_to_cpu(hw_mask_arr[i]);
+}
+
+static int bnxt_hwrm_func_qstat_ext(struct bnxt *bp,
+				    struct bnxt_stats_mem *stats)
+{
+	struct hwrm_func_qstats_ext_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qstats_ext_input req = {0};
+	__le64 *hw_masks;
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED) ||
+	    !(bp->flags & BNXT_FLAG_CHIP_P5))
+		return -EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QSTATS_EXT, -1, -1);
+	req.flags = FUNC_QSTATS_EXT_REQ_FLAGS_COUNTER_MASK;
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto qstat_exit;
+
+	hw_masks = &resp->rx_ucast_pkts;
+	bnxt_copy_hw_masks(stats->hw_masks, hw_masks, stats->len / 8);
+
+qstat_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static void bnxt_init_stats(struct bnxt *bp)
+{
+	struct bnxt_napi *bnapi = bp->bnapi[0];
+	struct bnxt_cp_ring_info *cpr;
+	struct bnxt_stats_mem *stats;
+	u64 mask;
+	int rc;
+
+	cpr = &bnapi->cp_ring;
+	stats = &cpr->stats;
+	rc = bnxt_hwrm_func_qstat_ext(bp, stats);
+	if (rc) {
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			mask = (1ULL << 48) - 1;
+		else
+			mask = -1ULL;
+		bnxt_fill_masks(stats->hw_masks, mask, stats->len / 8);
+	}
+}
+
 static void bnxt_free_port_stats(struct bnxt *bp)
 {
 	bp->flags &= ~BNXT_FLAG_PORT_STATS;
@@ -4037,6 +4100,7 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		rc = bnxt_alloc_stats(bp);
 		if (rc)
 			goto alloc_mem_err;
+		bnxt_init_stats(bp);
 
 		rc = bnxt_alloc_ntp_fltrs(bp);
 		if (rc)
