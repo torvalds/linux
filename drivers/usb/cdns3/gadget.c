@@ -242,8 +242,9 @@ int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep)
 			return -ENOMEM;
 
 		priv_ep->alloc_ring_size = ring_size;
-		memset(priv_ep->trb_pool, 0, ring_size);
 	}
+
+	memset(priv_ep->trb_pool, 0, ring_size);
 
 	priv_ep->num_trbs = num_trbs;
 
@@ -1315,7 +1316,6 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 		return;
 
 	writel(USB_CONF_CFGSET, &priv_dev->regs->usb_conf);
-	writel(EP_CMD_ERDY | EP_CMD_REQ_CMPL, &priv_dev->regs->ep_cmd);
 
 	cdns3_set_register_bit(&priv_dev->regs->usb_conf,
 			       USB_CONF_U1EN | USB_CONF_U2EN);
@@ -1332,6 +1332,8 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
 			cdns3_start_all_request(priv_dev, priv_ep);
 		}
 	}
+
+	cdns3_allow_enable_l1(priv_dev, 1);
 }
 
 /**
@@ -3015,7 +3017,7 @@ void cdns3_gadget_exit(struct cdns3 *cdns)
 	kfree(priv_dev->zlp_buf);
 	kfree(priv_dev);
 	cdns->gadget_dev = NULL;
-	cdns3_drd_switch_gadget(cdns, 0);
+	cdns3_drd_gadget_off(cdns);
 }
 
 static int cdns3_gadget_start(struct cdns3 *cdns)
@@ -3146,7 +3148,7 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 		return ret;
 	}
 
-	cdns3_drd_switch_gadget(cdns, 1);
+	cdns3_drd_gadget_on(cdns);
 	pm_runtime_get_sync(cdns->dev);
 
 	ret = cdns3_gadget_start(cdns);

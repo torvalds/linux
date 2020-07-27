@@ -27,13 +27,6 @@
 
 static int cdns3_idle_init(struct cdns3 *cdns);
 
-static inline
-struct cdns3_role_driver *cdns3_get_current_role_driver(struct cdns3 *cdns)
-{
-	WARN_ON(!cdns->roles[cdns->role]);
-	return cdns->roles[cdns->role];
-}
-
 static int cdns3_role_start(struct cdns3 *cdns, enum usb_role role)
 {
 	int ret;
@@ -93,7 +86,7 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 	struct device *dev = cdns->dev;
 	enum usb_dr_mode best_dr_mode;
 	enum usb_dr_mode dr_mode;
-	int ret = 0;
+	int ret;
 
 	dr_mode = usb_get_dr_mode(dev);
 	cdns->role = USB_ROLE_NONE;
@@ -184,7 +177,7 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 		goto err;
 	}
 
-	return ret;
+	return 0;
 err:
 	cdns3_exit_roles(cdns);
 	return ret;
@@ -198,11 +191,17 @@ err:
  */
 static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 {
-	enum usb_role role;
+	enum usb_role role = USB_ROLE_NONE;
 	int id, vbus;
 
-	if (cdns->dr_mode != USB_DR_MODE_OTG)
-		goto not_otg;
+	if (cdns->dr_mode != USB_DR_MODE_OTG) {
+		if (cdns3_is_host(cdns))
+			role = USB_ROLE_HOST;
+		if (cdns3_is_device(cdns))
+			role = USB_ROLE_DEVICE;
+
+		return role;
+	}
 
 	id = cdns3_get_id(cdns);
 	vbus = cdns3_get_vbus(cdns);
@@ -237,14 +236,6 @@ static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 	}
 
 	dev_dbg(cdns->dev, "role %d -> %d\n", cdns->role, role);
-
-	return role;
-
-not_otg:
-	if (cdns3_is_host(cdns))
-		role = USB_ROLE_HOST;
-	if (cdns3_is_device(cdns))
-		role = USB_ROLE_DEVICE;
 
 	return role;
 }
@@ -356,7 +347,6 @@ static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 		case USB_ROLE_HOST:
 			break;
 		default:
-			ret = -EPERM;
 			goto pm_put;
 		}
 	}
@@ -367,17 +357,14 @@ static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 		case USB_ROLE_DEVICE:
 			break;
 		default:
-			ret = -EPERM;
 			goto pm_put;
 		}
 	}
 
 	cdns3_role_stop(cdns);
 	ret = cdns3_role_start(cdns, role);
-	if (ret) {
+	if (ret)
 		dev_err(cdns->dev, "set role %d has failed\n", role);
-		ret = -EPERM;
-	}
 
 pm_put:
 	pm_runtime_put_sync(cdns->dev);
@@ -402,7 +389,7 @@ static int cdns3_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret) {
 		dev_err(dev, "error setting dma mask: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 
 	cdns = devm_kzalloc(dev, sizeof(*cdns), GFP_KERNEL);
