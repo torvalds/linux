@@ -42,12 +42,22 @@ static u32 set_hsync_pulse_width(struct mxsfb_drm_private *mxsfb, u32 val)
 		mxsfb->devdata->hs_wdth_shift;
 }
 
-/* Setup the MXSFB registers for decoding the pixels out of the framebuffer */
-static void mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
+/*
+ * Setup the MXSFB registers for decoding the pixels out of the framebuffer and
+ * outputting them on the bus.
+ */
+static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb)
 {
 	struct drm_device *drm = mxsfb->drm;
 	const u32 format = mxsfb->crtc.primary->state->fb->format->format;
+	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 ctrl, ctrl1;
+
+	if (mxsfb->connector->display_info.num_bus_formats)
+		bus_format = mxsfb->connector->display_info.bus_formats[0];
+
+	DRM_DEV_DEBUG_DRIVER(drm->dev, "Using bus_format: 0x%08X\n",
+			     bus_format);
 
 	ctrl = CTRL_BYPASS_COUNT | CTRL_MASTER;
 
@@ -69,40 +79,23 @@ static void mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 		break;
 	}
 
-	writel(ctrl1, mxsfb->base + LCDC_CTRL1);
-	writel(ctrl, mxsfb->base + LCDC_CTRL);
-}
-
-static void mxsfb_set_bus_fmt(struct mxsfb_drm_private *mxsfb)
-{
-	struct drm_device *drm = mxsfb->drm;
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-	u32 reg;
-
-	reg = readl(mxsfb->base + LCDC_CTRL);
-
-	if (mxsfb->connector->display_info.num_bus_formats)
-		bus_format = mxsfb->connector->display_info.bus_formats[0];
-
-	DRM_DEV_DEBUG_DRIVER(drm->dev, "Using bus_format: 0x%08X\n",
-			     bus_format);
-
-	reg &= ~CTRL_BUS_WIDTH_MASK;
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
-		reg |= CTRL_BUS_WIDTH_16;
+		ctrl |= CTRL_BUS_WIDTH_16;
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
-		reg |= CTRL_BUS_WIDTH_18;
+		ctrl |= CTRL_BUS_WIDTH_18;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
-		reg |= CTRL_BUS_WIDTH_24;
+		ctrl |= CTRL_BUS_WIDTH_24;
 		break;
 	default:
 		dev_err(drm->dev, "Unknown media bus format %d\n", bus_format);
 		break;
 	}
-	writel(reg, mxsfb->base + LCDC_CTRL);
+
+	writel(ctrl1, mxsfb->base + LCDC_CTRL1);
+	writel(ctrl, mxsfb->base + LCDC_CTRL);
 }
 
 static void mxsfb_enable_controller(struct mxsfb_drm_private *mxsfb)
@@ -213,7 +206,7 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	/* Clear the FIFOs */
 	writel(CTRL1_FIFO_CLEAR, mxsfb->base + LCDC_CTRL1 + REG_SET);
 
-	mxsfb_set_pixel_fmt(mxsfb);
+	mxsfb_set_formats(mxsfb);
 
 	clk_set_rate(mxsfb->clk, m->crtc_clock * 1000);
 
@@ -254,8 +247,6 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, mxsfb->base + LCDC_VDCTRL0);
-
-	mxsfb_set_bus_fmt(mxsfb);
 
 	/* Frame length in lines. */
 	writel(m->crtc_vtotal, mxsfb->base + LCDC_VDCTRL1);
