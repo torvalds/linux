@@ -86,9 +86,6 @@ struct intel_pad_context {
  * @irq: Our parent irq
  * @intr_lines: Mapping between 16 HW interrupt wires and GPIO offset (in GPIO number space)
  * @saved_intmask: Interrupt mask saved for system sleep
- *
- * The first group in @groups is expected to contain all pins that can be
- * used as GPIOs.
  */
 struct chv_pinctrl {
 	struct device *dev;
