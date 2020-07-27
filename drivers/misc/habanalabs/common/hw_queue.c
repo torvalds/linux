@@ -48,6 +48,11 @@ void hl_int_hw_queue_update_ci(struct hl_cs *cs)
 		return;
 
 	q = &hdev->kernel_queues[0];
+
+	/* There are no internal queues if H/W queues are being used */
+	if (!hdev->asic_prop.max_queues || q->queue_type == QUEUE_TYPE_HW)
+		return;
+
 	for (i = 0 ; i < hdev->asic_prop.max_queues ; i++, q++) {
 		if (q->queue_type == QUEUE_TYPE_INT)
 			atomic_add(cs->jobs_in_queue_cnt[i], &q->ci);
