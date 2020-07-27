@@ -29,7 +29,6 @@ enum {
 };
 
 #define MAX_SESSIONS	8
-#define NO_TIMESTAMP    0xFF00
 #define FORMAT_LINEAR_PCM   0x0000
 
 struct q6asm_flac_cfg {
