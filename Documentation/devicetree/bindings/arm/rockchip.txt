@@ -164,6 +164,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
 
+- Rockchip PX30 Evaluation board (Linux):
+    Required root node properties:
+      - compatible = "rockchip,px30-evb-ddr3-v11-linux", "rockchip,px30";
+
 - Rockchip PX5 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
