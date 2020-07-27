@@ -2710,7 +2710,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		mutex_lock(&state->sync_mutex);
-		/* fall through */
+		fallthrough;
 	case VCHIQ_SRVSTATE_OPEN:
 		if (close_recvd) {
 			if (!do_abort_bulks(service))
