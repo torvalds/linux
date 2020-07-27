@@ -28,29 +28,21 @@
 #define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
 
 /* show configuration fields */
-#define sdio_config_attr(field, format_string)				\
+#define sdio_config_attr(field, format_string, args...)			\
 static ssize_t								\
 field##_show(struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct sdio_func *func;						\
 									\
 	func = dev_to_sdio_func (dev);					\
-	return sprintf (buf, format_string, func->field);		\
+	return sprintf(buf, format_string, args);			\
 }									\
 static DEVICE_ATTR_RO(field)
 
-sdio_config_attr(class, "0x%02x\n");
-sdio_config_attr(vendor, "0x%04x\n");
-sdio_config_attr(device, "0x%04x\n");
-
-static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct sdio_func *func = dev_to_sdio_func (dev);
-
-	return sprintf(buf, "sdio:c%02Xv%04Xd%04X\n",
-			func->class, func->vendor, func->device);
-}
-static DEVICE_ATTR_RO(modalias);
+sdio_config_attr(class, "0x%02x\n", func->class);
+sdio_config_attr(vendor, "0x%04x\n", func->vendor);
+sdio_config_attr(device, "0x%04x\n", func->device);
+sdio_config_attr(modalias, "sdio:c%02Xv%04Xd%04X\n", func->class, func->vendor, func->device);
 
 static struct attribute *sdio_dev_attrs[] = {
 	&dev_attr_class.attr,
