@@ -696,11 +696,34 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 		.state = SOF_DSP_PM_D0,
 		.substate = SOF_HDA_DSP_PM_D0I0,
 	};
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_ext_link *hlink = NULL;
+#endif
 	int ret;
 
 	/* resume from D0I3 */
 	if (sdev->dsp_power_state.state == SOF_DSP_PM_D0) {
 		hda_codec_i915_display_power(sdev, true);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+		/* power up links that were active before suspend */
+		list_for_each_entry(hlink, &bus->hlink_list, list) {
+			if (hlink->ref_count) {
+				ret = snd_hdac_ext_bus_link_power_up(hlink);
+				if (ret < 0) {
+					dev_dbg(sdev->dev,
+						"error %x in %s: failed to power up links",
+						ret, __func__);
+					return ret;
+				}
+			}
+		}
+
+		/* set up CORB/RIRB buffers if was on before suspend */
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_init_cmd_io(bus);
+#endif
 
 		/* Set DSP power state */
 		ret = snd_sof_dsp_set_power_state(sdev, &target_state);
@@ -807,6 +830,21 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 						HDA_VS_INTEL_EM2,
 						HDA_VS_INTEL_EM2_L1SEN,
 						HDA_VS_INTEL_EM2_L1SEN);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+		/* stop the CORB/RIRB DMA if it is On */
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(bus);
+
+		/* no link can be powered in s0ix state */
+		ret = snd_hdac_ext_bus_link_power_down_all(bus);
+		if (ret < 0) {
+			dev_dbg(sdev->dev,
+				"error %d in %s: failed to power down links",
+				ret, __func__);
+			return ret;
+		}
+#endif
 
 		/* enable the system waking up via IPC IRQ */
 		enable_irq_wake(pci->irq);
