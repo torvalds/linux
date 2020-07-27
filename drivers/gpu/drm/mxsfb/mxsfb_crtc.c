@@ -29,10 +29,6 @@
 #include "mxsfb_drv.h"
 #include "mxsfb_regs.h"
 
-#define MXS_SET_ADDR		0x4
-#define MXS_CLR_ADDR		0x8
-#define MODULE_CLKGATE		BIT(30)
-#define MODULE_SFTRST		BIT(31)
 /* 1 second delay should be plenty of time for block reset */
 #define RESET_TIMEOUT		1000000
 
@@ -162,7 +158,7 @@ static int clear_poll_bit(void __iomem *addr, u32 mask)
 {
 	u32 reg;
 
-	writel(mask, addr + MXS_CLR_ADDR);
+	writel(mask, addr + REG_CLR);
 	return readl_poll_timeout(addr, reg, !(reg & mask), 0, RESET_TIMEOUT);
 }
 
@@ -170,17 +166,17 @@ static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 {
 	int ret;
 
-	ret = clear_poll_bit(mxsfb->base + LCDC_CTRL, MODULE_SFTRST);
+	ret = clear_poll_bit(mxsfb->base + LCDC_CTRL, CTRL_SFTRST);
 	if (ret)
 		return ret;
 
-	writel(MODULE_CLKGATE, mxsfb->base + LCDC_CTRL + MXS_CLR_ADDR);
+	writel(CTRL_CLKGATE, mxsfb->base + LCDC_CTRL + REG_CLR);
 
-	ret = clear_poll_bit(mxsfb->base + LCDC_CTRL, MODULE_SFTRST);
+	ret = clear_poll_bit(mxsfb->base + LCDC_CTRL, CTRL_SFTRST);
 	if (ret)
 		return ret;
 
-	return clear_poll_bit(mxsfb->base + LCDC_CTRL, MODULE_CLKGATE);
+	return clear_poll_bit(mxsfb->base + LCDC_CTRL, CTRL_CLKGATE);
 }
 
 static dma_addr_t mxsfb_get_fb_paddr(struct mxsfb_drm_private *mxsfb)
