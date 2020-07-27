@@ -237,55 +237,53 @@ static int test(void)
 	*fault_addr = PPC_INST_NOP;
 	FAIL_IF(remaining_faults != 0 || fault_code != SEGV_ACCERR);
 
-	/*
-	 * Jump to the executable region when AMR bits are set i.e.
-	 * the pkey permits neither read nor write access.
-	 *
-	 * This should generate a pkey fault based on IAMR bits which
-	 * are set to not permit execution. AMR bits should not affect
-	 * execution.
-	 *
-	 * This also checks if the overwrite of the first instruction
-	 * word from a trap to a no-op succeeded.
-	 */
-	fault_addr = insns;
-	fault_type = PKEY_DISABLE_EXECUTE;
-	fault_pkey = pkey;
-	remaining_faults = 1;
-	FAIL_IF(sys_pkey_mprotect(insns, pgsize, PROT_EXEC, pkey) != 0);
-	pkey_set_rights(pkey, PKEY_DISABLE_ACCESS);
-	printf("execute at %p, pkey permissions are %s\n", fault_addr,
-	       pkey_rights(rights));
-	asm volatile("mtctr	%0; bctrl" : : "r"(insns));
-	FAIL_IF(remaining_faults != 0 || fault_code != SEGV_PKUERR);
-
-	/*
-	 * Free the current pkey and allocate a new one that is
-	 * fully permissive.
-	 */
+	/* Free the current pkey */
 	sys_pkey_free(pkey);
-	rights = 0;
-	pkey = sys_pkey_alloc(0, rights);
 
-	/*
-	 * Jump to the executable region when AMR bits are not set
-	 * i.e. the pkey permits read and write access.
-	 *
-	 * This should not generate any faults as the IAMR bits are
-	 * also not set and hence will the pkey will not restrict
-	 * execution.
-	 */
-	fault_pkey = pkey;
-	remaining_faults = 0;
-	FAIL_IF(sys_pkey_mprotect(insns, pgsize, PROT_EXEC, pkey) != 0);
-	printf("execute at %p, pkey permissions are %s\n", fault_addr,
-	       pkey_rights(rights));
-	asm volatile("mtctr	%0; bctrl" : : "r"(insns));
-	FAIL_IF(remaining_faults != 0);
+	rights = 0;
+	do {
+		/*
+		 * Allocate pkeys with all valid combinations of read,
+		 * write and execute restrictions.
+		 */
+		pkey = sys_pkey_alloc(0, rights);
+		FAIL_IF(pkey < 0);
+
+		/*
+		 * Jump to the executable region. AMR bits may or may not
+		 * be set but they should not affect execution.
+		 *
+		 * This should generate pkey faults based on IAMR bits which
+		 * may be set to restrict execution.
+		 *
+		 * The first iteration also checks if the overwrite of the
+		 * first instruction word from a trap to a no-op succeeded.
+		 */
+		fault_pkey = pkey;
+		fault_type = -1;
+		remaining_faults = 0;
+		if (rights & PKEY_DISABLE_EXECUTE) {
+			fault_type = PKEY_DISABLE_EXECUTE;
+			remaining_faults = 1;
+		}
+
+		FAIL_IF(sys_pkey_mprotect(insns, pgsize, PROT_EXEC, pkey) != 0);
+		printf("execute at %p, pkey permissions are %s\n", fault_addr,
+		       pkey_rights(rights));
+		asm volatile("mtctr	%0; bctrl" : : "r"(insns));
+		FAIL_IF(remaining_faults != 0);
+		if (rights & PKEY_DISABLE_EXECUTE)
+			FAIL_IF(fault_code != SEGV_PKUERR);
+
+		/* Free the current pkey */
+		sys_pkey_free(pkey);
+
+		/* Find next valid combination of pkey rights */
+		rights = next_pkey_rights(rights);
+	} while (rights);
 
 	/* Cleanup */
 	munmap((void *) insns, pgsize);
-	sys_pkey_free(pkey);
 
 	return 0;
 }
