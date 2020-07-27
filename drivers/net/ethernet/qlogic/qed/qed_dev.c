@@ -3102,7 +3102,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		}
 
 		/* Log and clear previous pglue_b errors if such exist */
-		qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_main_ptt);
+		qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_main_ptt, true);
 
 		/* Enable the PF's internal FID_enable in the PXP */
 		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_hwfn->p_main_ptt,

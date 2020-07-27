@@ -26,7 +26,7 @@ Usage
 
 1) Device creation & deletion
 
-    a) ip link add dev bareudp0 type bareudp dstport 6635 ethertype 0x8847.
+    a) ip link add dev bareudp0 type bareudp dstport 6635 ethertype mpls_uc
 
        This creates a bareudp tunnel device which tunnels L3 traffic with ethertype
        0x8847 (MPLS traffic). The destination port of the UDP header will be set to
@@ -34,14 +34,21 @@ Usage
 
     b) ip link delete bareudp0
 
-2) Device creation with multiple proto mode enabled
+2) Device creation with multiproto mode enabled
 
-There are two ways to create a bareudp device for MPLS & IP with multiproto mode
-enabled.
+The multiproto mode allows bareudp tunnels to handle several protocols of the
+same family. It is currently only available for IP and MPLS. This mode has to
+be enabled explicitly with the "multiproto" flag.
 
-    a) ip link add dev  bareudp0 type bareudp dstport 6635 ethertype 0x8847 multiproto
+    a) ip link add dev bareudp0 type bareudp dstport 6635 ethertype ipv4 multiproto
 
-    b) ip link add dev  bareudp0 type bareudp dstport 6635 ethertype mpls
+       For an IPv4 tunnel the multiproto mode allows the tunnel to also handle
+       IPv6.
+
+    b) ip link add dev bareudp0 type bareudp dstport 6635 ethertype mpls_uc multiproto
+
+       For MPLS, the multiproto mode allows the tunnel to handle both unicast
+       and multicast MPLS packets.
 
 3) Device Usage
 
