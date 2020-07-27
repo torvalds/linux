@@ -128,7 +128,7 @@ static void ef100_mcdi_reboot_detected(struct efx_nic *efx)
  */
 static int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V4_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V7_OUT_LEN);
 	struct ef100_nic_data *nic_data = efx->nic_data;
 	u8 vi_window_mode;
 	size_t outlen;
@@ -150,6 +150,11 @@ static int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 					     GET_CAPABILITIES_OUT_FLAGS1);
 	nic_data->datapath_caps2 = MCDI_DWORD(outbuf,
 					      GET_CAPABILITIES_V2_OUT_FLAGS2);
+	if (outlen < MC_CMD_GET_CAPABILITIES_V7_OUT_LEN)
+		nic_data->datapath_caps3 = 0;
+	else
+		nic_data->datapath_caps3 = MCDI_DWORD(outbuf,
+						      GET_CAPABILITIES_V7_OUT_FLAGS3);
 
 	vi_window_mode = MCDI_BYTE(outbuf,
 				   GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE);
@@ -346,6 +351,8 @@ static unsigned int ef100_check_caps(const struct efx_nic *efx,
 		return nic_data->datapath_caps & BIT_ULL(flag);
 	case MC_CMD_GET_CAPABILITIES_V8_OUT_FLAGS2_OFST:
 		return nic_data->datapath_caps2 & BIT_ULL(flag);
+	case MC_CMD_GET_CAPABILITIES_V8_OUT_FLAGS3_OFST:
+		return nic_data->datapath_caps3 & BIT_ULL(flag);
 	default:
 		return 0;
 	}
