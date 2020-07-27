@@ -250,8 +250,6 @@ struct tc_data {
 	/* link settings */
 	struct tc_edp_link	link;
 
-	/* display edid */
-	struct edid		*edid;
 	/* current mode */
 	struct drm_display_mode	mode;
 
@@ -1335,11 +1333,19 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 	tc->mode = *mode;
 }
 
+static struct edid *tc_get_edid(struct drm_bridge *bridge,
+				struct drm_connector *connector)
+{
+	struct tc_data *tc = bridge_to_tc(bridge);
+
+	return drm_get_edid(connector, &tc->aux.ddc);
+}
+
 static int tc_connector_get_modes(struct drm_connector *connector)
 {
 	struct tc_data *tc = connector_to_tc(connector);
+	int num_modes;
 	struct edid *edid;
-	int count;
 	int ret;
 
 	ret = tc_get_display_props(tc);
@@ -1348,21 +1354,15 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	count = drm_panel_get_modes(tc->panel, connector);
-	if (count > 0)
-		return count;
+	num_modes = drm_panel_get_modes(tc->panel, connector);
+	if (num_modes > 0)
+		return num_modes;
 
-	edid = drm_get_edid(connector, &tc->aux.ddc);
+	edid = tc_get_edid(&tc->bridge, connector);
+	num_modes = drm_add_edid_modes(connector, edid);
+	kfree(edid);
 
-	kfree(tc->edid);
-	tc->edid = edid;
-	if (!edid)
-		return 0;
-
-	drm_connector_update_edid_property(connector, edid);
-	count = drm_add_edid_modes(connector, edid);
-
-	return count;
+	return num_modes;
 }
 
 static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
@@ -1465,6 +1465,7 @@ static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.post_disable = tc_bridge_post_disable,
 	.mode_fixup = tc_bridge_mode_fixup,
 	.detect = tc_bridge_detect,
+	.get_edid = tc_get_edid,
 };
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)
@@ -1689,6 +1690,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->bridge.funcs = &tc_bridge_funcs;
 	if (tc->hpd_pin >= 0)
 		tc->bridge.ops |= DRM_BRIDGE_OP_DETECT;
+	tc->bridge.ops |= DRM_BRIDGE_OP_EDID;
 
 	tc->bridge.of_node = dev->of_node;
 	drm_bridge_add(&tc->bridge);
