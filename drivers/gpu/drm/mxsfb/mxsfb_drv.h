@@ -21,6 +21,7 @@ struct mxsfb_devdata {
 	unsigned int	next_buf;
 	unsigned int	hs_wdth_mask;
 	unsigned int	hs_wdth_shift;
+	bool		has_overlay;
 };
 
 struct mxsfb_drm_private {
@@ -32,7 +33,10 @@ struct mxsfb_drm_private {
 	struct clk			*clk_disp_axi;
 
 	struct drm_device		*drm;
-	struct drm_plane		plane;
+	struct {
+		struct drm_plane	primary;
+		struct drm_plane	overlay;
+	} planes;
 	struct drm_crtc			crtc;
 	struct drm_encoder		encoder;
 	struct drm_connector		*connector;

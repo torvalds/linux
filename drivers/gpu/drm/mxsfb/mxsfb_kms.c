@@ -169,9 +169,9 @@ static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 	return clear_poll_bit(mxsfb->base + LCDC_CTRL, CTRL_CLKGATE);
 }
 
-static dma_addr_t mxsfb_get_fb_paddr(struct mxsfb_drm_private *mxsfb)
+static dma_addr_t mxsfb_get_fb_paddr(struct drm_plane *plane)
 {
-	struct drm_framebuffer *fb = mxsfb->plane.state->fb;
+	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_cma_object *gem;
 
 	if (!fb)
@@ -205,6 +205,9 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 
 	/* Clear the FIFOs */
 	writel(CTRL1_FIFO_CLEAR, mxsfb->base + LCDC_CTRL1 + REG_SET);
+
+	if (mxsfb->devdata->has_overlay)
+		writel(0, mxsfb->base + LCDC_AS_CTRL);
 
 	mxsfb_set_formats(mxsfb);
 
@@ -313,7 +316,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	mxsfb_crtc_mode_set_nofb(mxsfb);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
-	paddr = mxsfb_get_fb_paddr(mxsfb);
+	paddr = mxsfb_get_fb_paddr(crtc->primary);
 	if (paddr) {
 		writel(paddr, mxsfb->base + mxsfb->devdata->cur_buf);
 		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
@@ -410,20 +413,85 @@ static int mxsfb_plane_atomic_check(struct drm_plane *plane,
 						   false, true);
 }
 
-static void mxsfb_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_pstate)
+static void mxsfb_plane_primary_atomic_update(struct drm_plane *plane,
+					      struct drm_plane_state *old_pstate)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
 	dma_addr_t paddr;
 
-	paddr = mxsfb_get_fb_paddr(mxsfb);
+	paddr = mxsfb_get_fb_paddr(plane);
 	if (paddr)
 		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
 }
 
-static const struct drm_plane_helper_funcs mxsfb_plane_helper_funcs = {
+static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
+					      struct drm_plane_state *old_pstate)
+{
+	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
+	struct drm_plane_state *state = plane->state;
+	dma_addr_t paddr;
+	u32 ctrl;
+
+	paddr = mxsfb_get_fb_paddr(plane);
+	if (!paddr) {
+		writel(0, mxsfb->base + LCDC_AS_CTRL);
+		return;
+	}
+
+	/*
+	 * HACK: The hardware seems to output 64 bytes of data of unknown
+	 * origin, and then to proceed with the framebuffer. Until the reason
+	 * is understood, live with the 16 initial invalid pixels on the first
+	 * line and start 64 bytes within the framebuffer.
+	 */
+	paddr += 64;
+
+	writel(paddr, mxsfb->base + LCDC_AS_NEXT_BUF);
+
+	/*
+	 * If the plane was previously disabled, write LCDC_AS_BUF as well to
+	 * provide the first buffer.
+	 */
+	if (!old_pstate->fb)
+		writel(paddr, mxsfb->base + LCDC_AS_BUF);
+
+	ctrl = AS_CTRL_AS_ENABLE | AS_CTRL_ALPHA(255);
+
+	switch (state->fb->format->format) {
+	case DRM_FORMAT_XRGB4444:
+		ctrl |= AS_CTRL_FORMAT_RGB444 | AS_CTRL_ALPHA_CTRL_OVERRIDE;
+		break;
+	case DRM_FORMAT_ARGB4444:
+		ctrl |= AS_CTRL_FORMAT_ARGB4444 | AS_CTRL_ALPHA_CTRL_EMBEDDED;
+		break;
+	case DRM_FORMAT_XRGB1555:
+		ctrl |= AS_CTRL_FORMAT_RGB555 | AS_CTRL_ALPHA_CTRL_OVERRIDE;
+		break;
+	case DRM_FORMAT_ARGB1555:
+		ctrl |= AS_CTRL_FORMAT_ARGB1555 | AS_CTRL_ALPHA_CTRL_EMBEDDED;
+		break;
+	case DRM_FORMAT_RGB565:
+		ctrl |= AS_CTRL_FORMAT_RGB565 | AS_CTRL_ALPHA_CTRL_OVERRIDE;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		ctrl |= AS_CTRL_FORMAT_RGB888 | AS_CTRL_ALPHA_CTRL_OVERRIDE;
+		break;
+	case DRM_FORMAT_ARGB8888:
+		ctrl |= AS_CTRL_FORMAT_ARGB8888 | AS_CTRL_ALPHA_CTRL_EMBEDDED;
+		break;
+	}
+
+	writel(ctrl, mxsfb->base + LCDC_AS_CTRL);
+}
+
+static const struct drm_plane_helper_funcs mxsfb_plane_primary_helper_funcs = {
 	.atomic_check = mxsfb_plane_atomic_check,
-	.atomic_update = mxsfb_plane_atomic_update,
+	.atomic_update = mxsfb_plane_primary_atomic_update,
+};
+
+static const struct drm_plane_helper_funcs mxsfb_plane_overlay_helper_funcs = {
+	.atomic_check = mxsfb_plane_atomic_check,
+	.atomic_update = mxsfb_plane_overlay_atomic_update,
 };
 
 static const struct drm_plane_funcs mxsfb_plane_funcs = {
@@ -435,9 +503,19 @@ static const struct drm_plane_funcs mxsfb_plane_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
 };
 
-static const uint32_t mxsfb_formats[] = {
+static const uint32_t mxsfb_primary_plane_formats[] = {
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_RGB565
+};
+
+static const uint32_t mxsfb_overlay_plane_formats[] = {
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 };
 
 static const uint64_t mxsfb_modifiers[] = {
@@ -445,23 +523,44 @@ static const uint64_t mxsfb_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+/* -----------------------------------------------------------------------------
+ * Initialization
+ */
+
 int mxsfb_kms_init(struct mxsfb_drm_private *mxsfb)
 {
 	struct drm_encoder *encoder = &mxsfb->encoder;
-	struct drm_plane *plane = &mxsfb->plane;
 	struct drm_crtc *crtc = &mxsfb->crtc;
 	int ret;
 
-	drm_plane_helper_add(plane, &mxsfb_plane_helper_funcs);
-	ret = drm_universal_plane_init(mxsfb->drm, plane, 0, &mxsfb_plane_funcs,
-				       mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+	drm_plane_helper_add(&mxsfb->planes.primary,
+			     &mxsfb_plane_primary_helper_funcs);
+	ret = drm_universal_plane_init(mxsfb->drm, &mxsfb->planes.primary, 1,
+				       &mxsfb_plane_funcs,
+				       mxsfb_primary_plane_formats,
+				       ARRAY_SIZE(mxsfb_primary_plane_formats),
 				       mxsfb_modifiers, DRM_PLANE_TYPE_PRIMARY,
 				       NULL);
 	if (ret)
 		return ret;
 
+	if (mxsfb->devdata->has_overlay) {
+		drm_plane_helper_add(&mxsfb->planes.overlay,
+				     &mxsfb_plane_overlay_helper_funcs);
+		ret = drm_universal_plane_init(mxsfb->drm,
+					       &mxsfb->planes.overlay, 1,
+					       &mxsfb_plane_funcs,
+					       mxsfb_overlay_plane_formats,
+					       ARRAY_SIZE(mxsfb_overlay_plane_formats),
+					       mxsfb_modifiers, DRM_PLANE_TYPE_OVERLAY,
+					       NULL);
+		if (ret)
+			return ret;
+	}
+
 	drm_crtc_helper_add(crtc, &mxsfb_crtc_helper_funcs);
-	ret = drm_crtc_init_with_planes(mxsfb->drm, crtc, plane, NULL,
+	ret = drm_crtc_init_with_planes(mxsfb->drm, crtc,
+					&mxsfb->planes.primary, NULL,
 					&mxsfb_crtc_funcs, NULL);
 	if (ret)
 		return ret;

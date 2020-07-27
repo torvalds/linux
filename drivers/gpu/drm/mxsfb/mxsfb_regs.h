@@ -27,6 +27,11 @@
 #define LCDC_VDCTRL4			0xb0
 #define LCDC_V4_DEBUG0			0x1d0
 #define LCDC_V3_DEBUG0			0x1f0
+#define LCDC_AS_CTRL			0x210
+#define LCDC_AS_BUF			0x220
+#define LCDC_AS_NEXT_BUF		0x230
+#define LCDC_AS_CLRKEYLOW		0x240
+#define LCDC_AS_CLRKEYHIGH		0x250
 
 #define CTRL_SFTRST			BIT(31)
 #define CTRL_CLKGATE			BIT(30)
@@ -89,6 +94,23 @@
 
 #define DEBUG0_HSYNC			BIT(26)
 #define DEBUG0_VSYNC			BIT(25)
+
+#define AS_CTRL_PS_DISABLE		BIT(23)
+#define AS_CTRL_ALPHA_INVERT		BIT(20)
+#define AS_CTRL_ALPHA(a)		(((a) & 0xff) << 8)
+#define AS_CTRL_FORMAT_RGB565		(0xe << 4)
+#define AS_CTRL_FORMAT_RGB444		(0xd << 4)
+#define AS_CTRL_FORMAT_RGB555		(0xc << 4)
+#define AS_CTRL_FORMAT_ARGB4444		(0x9 << 4)
+#define AS_CTRL_FORMAT_ARGB1555		(0x8 << 4)
+#define AS_CTRL_FORMAT_RGB888		(0x4 << 4)
+#define AS_CTRL_FORMAT_ARGB8888		(0x0 << 4)
+#define AS_CTRL_ENABLE_COLORKEY		BIT(3)
+#define AS_CTRL_ALPHA_CTRL_ROP		(3 << 1)
+#define AS_CTRL_ALPHA_CTRL_MULTIPLY	(2 << 1)
+#define AS_CTRL_ALPHA_CTRL_OVERRIDE	(1 << 1)
+#define AS_CTRL_ALPHA_CTRL_EMBEDDED	(0 << 1)
+#define AS_CTRL_AS_ENABLE		BIT(0)
 
 #define MXSFB_MIN_XRES			120
 #define MXSFB_MIN_YRES			120

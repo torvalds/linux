@@ -49,6 +49,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.next_buf	= LCDC_V3_NEXT_BUF,
 		.hs_wdth_mask	= 0xff,
 		.hs_wdth_shift	= 24,
+		.has_overlay	= false,
 	},
 	[MXSFB_V4] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
@@ -56,6 +57,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.next_buf	= LCDC_V4_NEXT_BUF,
 		.hs_wdth_mask	= 0x3fff,
 		.hs_wdth_shift	= 18,
+		.has_overlay	= false,
 	},
 	[MXSFB_V6] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
@@ -63,6 +65,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.next_buf	= LCDC_V4_NEXT_BUF,
 		.hs_wdth_mask	= 0x3fff,
 		.hs_wdth_shift	= 18,
+		.has_overlay	= true,
 	},
 };
 
