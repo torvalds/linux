@@ -45,6 +45,7 @@
 #include <linux/mlx5/transobj.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
+#include <net/udp_tunnel.h>
 #include <net/switchdev.h>
 #include <net/xdp.h>
 #include <linux/dim.h>
@@ -792,6 +793,7 @@ struct mlx5e_priv {
 	u16                        drop_rq_q_counter;
 	struct notifier_block      events_nb;
 
+	struct udp_tunnel_nic_info nic_info;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
 #endif
@@ -1012,6 +1014,7 @@ int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv);
 int mlx5e_set_dev_port_mtu_ctx(struct mlx5e_priv *priv, void *context);
 int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		     mlx5e_fp_preactivate preactivate);
+void mlx5e_vxlan_set_netdev_info(struct mlx5e_priv *priv);
 
 /* ethtool helpers */
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
@@ -1080,8 +1083,6 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);
 
-void mlx5e_add_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
-void mlx5e_del_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
 netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 				       struct net_device *netdev,
 				       netdev_features_t features);
