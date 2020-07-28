@@ -149,12 +149,51 @@ l2tp_session_id_hash(struct l2tp_tunnel *tunnel, u32 session_id)
 	return &tunnel->session_hlist[hash_32(session_id, L2TP_HASH_BITS)];
 }
 
-void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
+static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 {
 	sock_put(tunnel->sock);
 	/* the tunnel is freed in the socket destructor */
 }
-EXPORT_SYMBOL(l2tp_tunnel_free);
+
+static void l2tp_session_free(struct l2tp_session *session)
+{
+	struct l2tp_tunnel *tunnel = session->tunnel;
+
+	if (tunnel) {
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			goto out;
+		l2tp_tunnel_dec_refcount(tunnel);
+	}
+
+out:
+	kfree(session);
+}
+
+void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
+{
+	refcount_inc(&tunnel->ref_count);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_inc_refcount);
+
+void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
+{
+	if (refcount_dec_and_test(&tunnel->ref_count))
+		l2tp_tunnel_free(tunnel);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_dec_refcount);
+
+void l2tp_session_inc_refcount(struct l2tp_session *session)
+{
+	refcount_inc(&session->ref_count);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_inc_refcount);
+
+void l2tp_session_dec_refcount(struct l2tp_session *session)
+{
+	if (refcount_dec_and_test(&session->ref_count))
+		l2tp_session_free(session);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_dec_refcount);
 
 /* Lookup a tunnel. A new reference is held on the returned tunnel. */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
@@ -1580,23 +1619,6 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 	}
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
-
-/* Really kill the session.
- */
-void l2tp_session_free(struct l2tp_session *session)
-{
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
-	if (tunnel) {
-		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-			goto out;
-		l2tp_tunnel_dec_refcount(tunnel);
-	}
-
-out:
-	kfree(session);
-}
-EXPORT_SYMBOL_GPL(l2tp_session_free);
 
 /* This function is used by the netlink SESSION_DELETE command and by
  * pseudowire modules.

@@ -175,12 +175,15 @@ static inline void *l2tp_session_priv(struct l2tp_session *session)
 	return &session->priv[0];
 }
 
+void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel);
+void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel);
+void l2tp_session_inc_refcount(struct l2tp_session *session);
+void l2tp_session_dec_refcount(struct l2tp_session *session);
+
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth);
 struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
 					     u32 session_id);
-
-void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 
 struct l2tp_session *l2tp_session_get(const struct net *net, u32 session_id);
 struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth);
@@ -202,7 +205,6 @@ int l2tp_session_register(struct l2tp_session *session,
 			  struct l2tp_tunnel *tunnel);
 
 int l2tp_session_delete(struct l2tp_session *session);
-void l2tp_session_free(struct l2tp_session *session);
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
 		      int length);
@@ -216,31 +218,6 @@ int l2tp_nl_register_ops(enum l2tp_pwtype pw_type,
 			 const struct l2tp_nl_cmd_ops *ops);
 void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-
-static inline void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
-{
-	refcount_inc(&tunnel->ref_count);
-}
-
-static inline void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
-{
-	if (refcount_dec_and_test(&tunnel->ref_count))
-		l2tp_tunnel_free(tunnel);
-}
-
-/* Session reference counts. Incremented when code obtains a reference
- * to a session.
- */
-static inline void l2tp_session_inc_refcount(struct l2tp_session *session)
-{
-	refcount_inc(&session->ref_count);
-}
-
-static inline void l2tp_session_dec_refcount(struct l2tp_session *session)
-{
-	if (refcount_dec_and_test(&session->ref_count))
-		l2tp_session_free(session);
-}
 
 static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 {
