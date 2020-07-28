@@ -154,6 +154,12 @@
 		};
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&otp_id>, <&otp_cpu_code>;
+		nvmem-cell-names = "id", "cpu-code";
+	};
+
 	arm-pmu {
 		compatible = "arm,cortex-a7-pmu";
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
@@ -1290,6 +1296,9 @@
 		status = "disabled";
 
 		/* Data cells */
+		otp_cpu_code: cpu-code@2 {
+			reg = <0x02 0x2>;
+		};
 		otp_id: id@7 {
 			reg = <0x07 0x10>;
 		};
