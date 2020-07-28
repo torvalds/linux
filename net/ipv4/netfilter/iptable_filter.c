@@ -72,16 +72,24 @@ static int __net_init iptable_filter_net_init(struct net *net)
 	return 0;
 }
 
+static void __net_exit iptable_filter_net_pre_exit(struct net *net)
+{
+	if (net->ipv4.iptable_filter)
+		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_filter,
+					      filter_ops);
+}
+
 static void __net_exit iptable_filter_net_exit(struct net *net)
 {
 	if (!net->ipv4.iptable_filter)
 		return;
-	ipt_unregister_table(net, net->ipv4.iptable_filter, filter_ops);
+	ipt_unregister_table_exit(net, net->ipv4.iptable_filter);
 	net->ipv4.iptable_filter = NULL;
 }
 
 static struct pernet_operations iptable_filter_net_ops = {
 	.init = iptable_filter_net_init,
+	.pre_exit = iptable_filter_net_pre_exit,
 	.exit = iptable_filter_net_exit,
 };
 

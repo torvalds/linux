@@ -33,6 +33,9 @@ static int __init imx_soc_device_init(void)
 	u32 val;
 	int ret;
 
+	if (of_machine_is_compatible("fsl,ls1021a"))
+		return 0;
+
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return -ENOMEM;

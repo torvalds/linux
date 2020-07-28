@@ -1,26 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test field variable support
+# requires: set_event synthetic_events events/sched/sched_process_fork/hist
 
 fail() { #msg
     echo $1
     exit_fail
 }
-
-if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f synthetic_events ]; then
-    echo "synthetic event is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/hist ]; then
-    echo "hist trigger is not supported"
-    exit_unsupported
-fi
 
 echo "Test field variable support"
 

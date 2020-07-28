@@ -98,7 +98,7 @@ static inline void VXGE_COMPLETE_VPATH_TX(struct vxge_fifo *fifo)
 {
 	struct sk_buff **skb_ptr = NULL;
 	struct sk_buff **temp;
-#define NR_SKB_COMPLETED 128
+#define NR_SKB_COMPLETED 16
 	struct sk_buff *completed[NR_SKB_COMPLETED];
 	int more;
 

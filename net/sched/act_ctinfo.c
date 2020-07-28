@@ -96,19 +96,22 @@ static int tcf_ctinfo_act(struct sk_buff *skb, const struct tc_action *a,
 	action = READ_ONCE(ca->tcf_action);
 
 	wlen = skb_network_offset(skb);
-	if (tc_skb_protocol(skb) == htons(ETH_P_IP)) {
+	switch (skb_protocol(skb, true)) {
+	case htons(ETH_P_IP):
 		wlen += sizeof(struct iphdr);
 		if (!pskb_may_pull(skb, wlen))
 			goto out;
 
 		proto = NFPROTO_IPV4;
-	} else if (tc_skb_protocol(skb) == htons(ETH_P_IPV6)) {
+		break;
+	case htons(ETH_P_IPV6):
 		wlen += sizeof(struct ipv6hdr);
 		if (!pskb_may_pull(skb, wlen))
 			goto out;
 
 		proto = NFPROTO_IPV6;
-	} else {
+		break;
+	default:
 		goto out;
 	}
 

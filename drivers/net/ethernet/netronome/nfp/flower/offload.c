@@ -1619,8 +1619,8 @@ nfp_flower_indr_block_cb_priv_lookup(struct nfp_app *app,
 	return NULL;
 }
 
-int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
-				   void *type_data, void *cb_priv)
+static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
+					  void *type_data, void *cb_priv)
 {
 	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
 	struct flow_cls_offload *flower = type_data;
@@ -1637,7 +1637,7 @@ int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
 	}
 }
 
-static void nfp_flower_setup_indr_tc_release(void *cb_priv)
+void nfp_flower_setup_indr_tc_release(void *cb_priv)
 {
 	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
 
@@ -1647,7 +1647,8 @@ static void nfp_flower_setup_indr_tc_release(void *cb_priv)
 
 static int
 nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
-			       struct flow_block_offload *f)
+			       struct flow_block_offload *f, void *data,
+			       void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct nfp_flower_indr_block_cb_priv *cb_priv;
 	struct nfp_flower_priv *priv = app->priv;
@@ -1676,9 +1677,10 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		cb_priv->app = app;
 		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
 
-		block_cb = flow_block_cb_alloc(nfp_flower_setup_indr_block_cb,
-					       cb_priv, cb_priv,
-					       nfp_flower_setup_indr_tc_release);
+		block_cb = flow_indr_block_cb_alloc(nfp_flower_setup_indr_block_cb,
+						    cb_priv, cb_priv,
+						    nfp_flower_setup_indr_tc_release,
+						    f, netdev, data, app, cleanup);
 		if (IS_ERR(block_cb)) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -1699,7 +1701,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		if (!block_cb)
 			return -ENOENT;
 
-		flow_block_cb_remove(block_cb, f);
+		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
@@ -1710,7 +1712,9 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 
 int
 nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
-			    enum tc_setup_type type, void *type_data)
+			    enum tc_setup_type type, void *type_data,
+			    void *data,
+			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!nfp_fl_is_netdev_to_offload(netdev))
 		return -EOPNOTSUPP;
@@ -1718,7 +1722,7 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return nfp_flower_setup_indr_tc_block(netdev, cb_priv,
-						      type_data);
+						      type_data, data, cleanup);
 	default:
 		return -EOPNOTSUPP;
 	}

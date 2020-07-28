@@ -2593,10 +2593,12 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		    !extent_buffer_uptodate(tree_root->node)) {
 			handle_error = true;
 
-			if (IS_ERR(tree_root->node))
+			if (IS_ERR(tree_root->node)) {
 				ret = PTR_ERR(tree_root->node);
-			else if (!extent_buffer_uptodate(tree_root->node))
+				tree_root->node = NULL;
+			} else if (!extent_buffer_uptodate(tree_root->node)) {
 				ret = -EUCLEAN;
+			}
 
 			btrfs_warn(fs_info, "failed to read tree root");
 			continue;

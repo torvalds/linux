@@ -742,6 +742,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, smmu_pmu);
 
 	smmu_pmu->pmu = (struct pmu) {
+		.module		= THIS_MODULE,
 		.task_ctx_nr    = perf_invalid_context,
 		.pmu_enable	= smmu_pmu_enable,
 		.pmu_disable	= smmu_pmu_disable,
@@ -859,6 +860,7 @@ static void smmu_pmu_shutdown(struct platform_device *pdev)
 static struct platform_driver smmu_pmu_driver = {
 	.driver = {
 		.name = "arm-smmu-v3-pmcg",
+		.suppress_bind_attrs = true,
 	},
 	.probe = smmu_pmu_probe,
 	.remove = smmu_pmu_remove,

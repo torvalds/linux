@@ -1425,13 +1425,28 @@ static unsigned int type_size(const char *name)
 	return 0;
 }
 
+static int append(char **buf, const char *delim, const char *str)
+{
+	char *new_buf;
+
+	new_buf = realloc(*buf, strlen(*buf) + strlen(delim) + strlen(str) + 1);
+	if (!new_buf)
+		return -1;
+	strcat(new_buf, delim);
+	strcat(new_buf, str);
+	*buf = new_buf;
+	return 0;
+}
+
 static int event_read_fields(struct tep_event *event, struct tep_format_field **fields)
 {
 	struct tep_format_field *field = NULL;
 	enum tep_event_type type;
 	char *token;
 	char *last_token;
+	char *delim = " ";
 	int count = 0;
+	int ret;
 
 	do {
 		unsigned int size_dynamic = 0;
@@ -1490,24 +1505,51 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 					field->flags |= TEP_FIELD_IS_POINTER;
 
 				if (field->type) {
-					char *new_type;
-					new_type = realloc(field->type,
-							   strlen(field->type) +
-							   strlen(last_token) + 2);
-					if (!new_type) {
-						free(last_token);
-						goto fail;
-					}
-					field->type = new_type;
-					strcat(field->type, " ");
-					strcat(field->type, last_token);
+					ret = append(&field->type, delim, last_token);
 					free(last_token);
+					if (ret < 0)
+						goto fail;
 				} else
 					field->type = last_token;
 				last_token = token;
+				delim = " ";
 				continue;
 			}
 
+			/* Handle __attribute__((user)) */
+			if ((type == TEP_EVENT_DELIM) &&
+			    strcmp("__attribute__", last_token) == 0 &&
+			    token[0] == '(') {
+				int depth = 1;
+				int ret;
+
+				ret = append(&field->type, " ", last_token);
+				ret |= append(&field->type, "", "(");
+				if (ret < 0)
+					goto fail;
+
+				delim = " ";
+				while ((type = read_token(&token)) != TEP_EVENT_NONE) {
+					if (type == TEP_EVENT_DELIM) {
+						if (token[0] == '(')
+							depth++;
+						else if (token[0] == ')')
+							depth--;
+						if (!depth)
+							break;
+						ret = append(&field->type, "", token);
+						delim = "";
+					} else {
+						ret = append(&field->type, delim, token);
+						delim = " ";
+					}
+					if (ret < 0)
+						goto fail;
+					free(last_token);
+					last_token = token;
+				}
+				continue;
+			}
 			break;
 		}
 
@@ -1523,8 +1565,6 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 		if (strcmp(token, "[") == 0) {
 			enum tep_event_type last_type = type;
 			char *brackets = token;
-			char *new_brackets;
-			int len;
 
 			field->flags |= TEP_FIELD_IS_ARRAY;
 
@@ -1536,29 +1576,27 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 				field->arraylen = 0;
 
 		        while (strcmp(token, "]") != 0) {
+				const char *delim;
+
 				if (last_type == TEP_EVENT_ITEM &&
 				    type == TEP_EVENT_ITEM)
-					len = 2;
+					delim = " ";
 				else
-					len = 1;
+					delim = "";
+
 				last_type = type;
 
-				new_brackets = realloc(brackets,
-						       strlen(brackets) +
-						       strlen(token) + len);
-				if (!new_brackets) {
+				ret = append(&brackets, delim, token);
+				if (ret < 0) {
 					free(brackets);
 					goto fail;
 				}
-				brackets = new_brackets;
-				if (len == 2)
-					strcat(brackets, " ");
-				strcat(brackets, token);
 				/* We only care about the last token */
 				field->arraylen = strtoul(token, NULL, 0);
 				free_token(token);
 				type = read_token(&token);
 				if (type == TEP_EVENT_NONE) {
+					free(brackets);
 					do_warning_event(event, "failed to find token");
 					goto fail;
 				}
@@ -1566,13 +1604,11 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 
 			free_token(token);
 
-			new_brackets = realloc(brackets, strlen(brackets) + 2);
-			if (!new_brackets) {
+			ret = append(&brackets, "", "]");
+			if (ret < 0) {
 				free(brackets);
 				goto fail;
 			}
-			brackets = new_brackets;
-			strcat(brackets, "]");
 
 			/* add brackets to type */
 
@@ -1582,34 +1618,23 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 			 * the format: type [] item;
 			 */
 			if (type == TEP_EVENT_ITEM) {
-				char *new_type;
-				new_type = realloc(field->type,
-						   strlen(field->type) +
-						   strlen(field->name) +
-						   strlen(brackets) + 2);
-				if (!new_type) {
+				ret = append(&field->type, " ", field->name);
+				if (ret < 0) {
 					free(brackets);
 					goto fail;
 				}
-				field->type = new_type;
-				strcat(field->type, " ");
-				strcat(field->type, field->name);
+				ret = append(&field->type, "", brackets);
+
 				size_dynamic = type_size(field->name);
 				free_token(field->name);
-				strcat(field->type, brackets);
 				field->name = field->alias = token;
 				type = read_token(&token);
 			} else {
-				char *new_type;
-				new_type = realloc(field->type,
-						   strlen(field->type) +
-						   strlen(brackets) + 1);
-				if (!new_type) {
+				ret = append(&field->type, "", brackets);
+				if (ret < 0) {
 					free(brackets);
 					goto fail;
 				}
-				field->type = new_type;
-				strcat(field->type, brackets);
 			}
 			free(brackets);
 		}
@@ -2046,19 +2071,16 @@ process_op(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 		/* could just be a type pointer */
 		if ((strcmp(arg->op.op, "*") == 0) &&
 		    type == TEP_EVENT_DELIM && (strcmp(token, ")") == 0)) {
-			char *new_atom;
+			int ret;
 
 			if (left->type != TEP_PRINT_ATOM) {
 				do_warning_event(event, "bad pointer type");
 				goto out_free;
 			}
-			new_atom = realloc(left->atom.atom,
-					    strlen(left->atom.atom) + 3);
-			if (!new_atom)
+			ret = append(&left->atom.atom, " ", "*");
+			if (ret < 0)
 				goto out_warn_free;
 
-			left->atom.atom = new_atom;
-			strcat(left->atom.atom, " *");
 			free(arg->op.op);
 			*arg = *left;
 			free(left);
@@ -3063,6 +3085,37 @@ err:
 }
 
 static enum tep_event_type
+process_builtin_expect(struct tep_event *event, struct tep_print_arg *arg, char **tok)
+{
+	enum tep_event_type type;
+	char *token = NULL;
+
+	/* Handle __builtin_expect( cond, #) */
+	type = process_arg(event, arg, &token);
+
+	if (type != TEP_EVENT_DELIM || token[0] != ',')
+		goto out_free;
+
+	free_token(token);
+
+	/* We don't care what the second parameter is of the __builtin_expect() */
+	if (read_expect_type(TEP_EVENT_ITEM, &token) < 0)
+		goto out_free;
+
+	if (read_expected(TEP_EVENT_DELIM, ")") < 0)
+		goto out_free;
+
+	free_token(token);
+	type = read_token_item(tok);
+	return type;
+
+out_free:
+	free_token(token);
+	*tok = NULL;
+	return TEP_EVENT_ERROR;
+}
+
+static enum tep_event_type
 process_function(struct tep_event *event, struct tep_print_arg *arg,
 		 char *token, char **tok)
 {
@@ -3105,6 +3158,10 @@ process_function(struct tep_event *event, struct tep_print_arg *arg,
 	if (strcmp(token, "__get_dynamic_array_len") == 0) {
 		free_token(token);
 		return process_dynamic_array_len(event, arg, tok);
+	}
+	if (strcmp(token, "__builtin_expect") == 0) {
+		free_token(token);
+		return process_builtin_expect(event, arg, tok);
 	}
 
 	func = find_func_handler(event->tep, token);
@@ -3151,18 +3208,15 @@ process_arg_token(struct tep_event *event, struct tep_print_arg *arg,
 		}
 		/* atoms can be more than one token long */
 		while (type == TEP_EVENT_ITEM) {
-			char *new_atom;
-			new_atom = realloc(atom,
-					   strlen(atom) + strlen(token) + 2);
-			if (!new_atom) {
+			int ret;
+
+			ret = append(&atom, " ", token);
+			if (ret < 0) {
 				free(atom);
 				*tok = NULL;
 				free_token(token);
 				return TEP_EVENT_ERROR;
 			}
-			atom = new_atom;
-			strcat(atom, " ");
-			strcat(atom, token);
 			free_token(token);
 			type = read_token_item(&token);
 		}

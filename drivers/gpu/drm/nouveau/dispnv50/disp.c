@@ -601,6 +601,9 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 				(0x0100 << nv_crtc->index),
 	};
 
+	if (!nv_encoder->audio)
+		return;
+
 	nv_encoder->audio = false;
 	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
 
@@ -2070,7 +2073,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	if (core->assign_windows) {
 		core->func->wndw.owner(core);
-		core->func->update(core, interlock, false);
+		nv50_disp_atomic_commit_core(state, interlock);
 		core->assign_windows = false;
 		interlock[NV50_DISP_INTERLOCK_CORE] = 0;
 	}
@@ -2503,7 +2506,7 @@ nv50_display_create(struct drm_device *dev)
 	if (disp->disp->object.oclass >= TU102_DISP)
 		nouveau_display(dev)->format_modifiers = wndwc57e_modifiers;
 	else
-	if (disp->disp->object.oclass >= GF110_DISP)
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 		nouveau_display(dev)->format_modifiers = disp90xx_modifiers;
 	else
 		nouveau_display(dev)->format_modifiers = disp50xx_modifiers;

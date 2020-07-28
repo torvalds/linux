@@ -33,7 +33,7 @@
  * of two or more hash tables when the rhashtable is being resized.
  * The end of the chain is marked with a special nulls marks which has
  * the least significant bit set but otherwise stores the address of
- * the hash bucket.  This allows us to be be sure we've found the end
+ * the hash bucket.  This allows us to be sure we've found the end
  * of the right list.
  * The value stored in the hash bucket has BIT(0) used as a lock bit.
  * This bit must be atomically set before any changes are made to

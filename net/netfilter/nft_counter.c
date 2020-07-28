@@ -303,3 +303,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("counter");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_COUNTER);
+MODULE_DESCRIPTION("nftables counter rule support");

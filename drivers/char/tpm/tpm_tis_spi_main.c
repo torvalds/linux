@@ -53,8 +53,6 @@ static int tpm_tis_spi_flow_control(struct tpm_tis_spi_phy *phy,
 
 	if ((phy->iobuf[3] & 0x01) == 0) {
 		// handle SPI wait states
-		phy->iobuf[0] = 0;
-
 		for (i = 0; i < TPM_RETRY; i++) {
 			spi_xfer->len = 1;
 			spi_message_init(&m);
@@ -104,6 +102,8 @@ int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 		if (ret < 0)
 			goto exit;
 
+		/* Flow control transfers are receive only */
+		spi_xfer.tx_buf = NULL;
 		ret = phy->flow_control(phy, &spi_xfer);
 		if (ret < 0)
 			goto exit;
@@ -113,9 +113,8 @@ int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 		spi_xfer.delay.value = 5;
 		spi_xfer.delay.unit = SPI_DELAY_UNIT_USECS;
 
-		if (in) {
-			spi_xfer.tx_buf = NULL;
-		} else if (out) {
+		if (out) {
+			spi_xfer.tx_buf = phy->iobuf;
 			spi_xfer.rx_buf = NULL;
 			memcpy(phy->iobuf, out, transfer_len);
 			out += transfer_len;
@@ -288,6 +287,7 @@ static struct spi_driver tpm_tis_spi_driver = {
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_spi_match),
 		.acpi_match_table = ACPI_PTR(acpi_tis_spi_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tpm_tis_spi_driver_probe,
 	.remove = tpm_tis_spi_remove,

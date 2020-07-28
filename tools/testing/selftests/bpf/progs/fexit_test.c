@@ -56,3 +56,25 @@ int BPF_PROG(test6, __u64 a, void *b, short c, int d, void *e, __u64 f, int ret)
 		e == (void *)20 && f == 21 && ret == 111;
 	return 0;
 }
+
+struct bpf_fentry_test_t {
+	struct bpf_fentry_test *a;
+};
+
+__u64 test7_result = 0;
+SEC("fexit/bpf_fentry_test7")
+int BPF_PROG(test7, struct bpf_fentry_test_t *arg)
+{
+	if (arg == 0)
+		test7_result = 1;
+	return 0;
+}
+
+__u64 test8_result = 0;
+SEC("fexit/bpf_fentry_test8")
+int BPF_PROG(test8, struct bpf_fentry_test_t *arg)
+{
+	if (arg->a == 0)
+		test8_result = 1;
+	return 0;
+}

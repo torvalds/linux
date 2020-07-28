@@ -7,6 +7,165 @@
 
 #define SJA1105_SIZE_VL_STATUS			8
 
+/* Insert into the global gate list, sorted by gate action time. */
+static int sja1105_insert_gate_entry(struct sja1105_gating_config *gating_cfg,
+				     struct sja1105_rule *rule,
+				     u8 gate_state, s64 entry_time,
+				     struct netlink_ext_ack *extack)
+{
+	struct sja1105_gate_entry *e;
+	int rc;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e)
+		return -ENOMEM;
+
+	e->rule = rule;
+	e->gate_state = gate_state;
+	e->interval = entry_time;
+
+	if (list_empty(&gating_cfg->entries)) {
+		list_add(&e->list, &gating_cfg->entries);
+	} else {
+		struct sja1105_gate_entry *p;
+
+		list_for_each_entry(p, &gating_cfg->entries, list) {
+			if (p->interval == e->interval) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Gate conflict");
+				rc = -EBUSY;
+				goto err;
+			}
+
+			if (e->interval < p->interval)
+				break;
+		}
+		list_add(&e->list, p->list.prev);
+	}
+
+	gating_cfg->num_entries++;
+
+	return 0;
+err:
+	kfree(e);
+	return rc;
+}
+
+/* The gate entries contain absolute times in their e->interval field. Convert
+ * that to proper intervals (i.e. "0, 5, 10, 15" to "5, 5, 5, 5").
+ */
+static void
+sja1105_gating_cfg_time_to_interval(struct sja1105_gating_config *gating_cfg,
+				    u64 cycle_time)
+{
+	struct sja1105_gate_entry *last_e;
+	struct sja1105_gate_entry *e;
+	struct list_head *prev;
+
+	list_for_each_entry(e, &gating_cfg->entries, list) {
+		struct sja1105_gate_entry *p;
+
+		prev = e->list.prev;
+
+		if (prev == &gating_cfg->entries)
+			continue;
+
+		p = list_entry(prev, struct sja1105_gate_entry, list);
+		p->interval = e->interval - p->interval;
+	}
+	last_e = list_last_entry(&gating_cfg->entries,
+				 struct sja1105_gate_entry, list);
+	last_e->interval = cycle_time - last_e->interval;
+}
+
+static void sja1105_free_gating_config(struct sja1105_gating_config *gating_cfg)
+{
+	struct sja1105_gate_entry *e, *n;
+
+	list_for_each_entry_safe(e, n, &gating_cfg->entries, list) {
+		list_del(&e->list);
+		kfree(e);
+	}
+}
+
+static int sja1105_compose_gating_subschedule(struct sja1105_private *priv,
+					      struct netlink_ext_ack *extack)
+{
+	struct sja1105_gating_config *gating_cfg = &priv->tas_data.gating_cfg;
+	struct sja1105_rule *rule;
+	s64 max_cycle_time = 0;
+	s64 its_base_time = 0;
+	int i, rc = 0;
+
+	sja1105_free_gating_config(gating_cfg);
+
+	list_for_each_entry(rule, &priv->flow_block.rules, list) {
+		if (rule->type != SJA1105_RULE_VL)
+			continue;
+		if (rule->vl.type != SJA1105_VL_TIME_TRIGGERED)
+			continue;
+
+		if (max_cycle_time < rule->vl.cycle_time) {
+			max_cycle_time = rule->vl.cycle_time;
+			its_base_time = rule->vl.base_time;
+		}
+	}
+
+	if (!max_cycle_time)
+		return 0;
+
+	dev_dbg(priv->ds->dev, "max_cycle_time %lld its_base_time %lld\n",
+		max_cycle_time, its_base_time);
+
+	gating_cfg->base_time = its_base_time;
+	gating_cfg->cycle_time = max_cycle_time;
+	gating_cfg->num_entries = 0;
+
+	list_for_each_entry(rule, &priv->flow_block.rules, list) {
+		s64 time;
+		s64 rbt;
+
+		if (rule->type != SJA1105_RULE_VL)
+			continue;
+		if (rule->vl.type != SJA1105_VL_TIME_TRIGGERED)
+			continue;
+
+		/* Calculate the difference between this gating schedule's
+		 * base time, and the base time of the gating schedule with the
+		 * longest cycle time. We call it the relative base time (rbt).
+		 */
+		rbt = future_base_time(rule->vl.base_time, rule->vl.cycle_time,
+				       its_base_time);
+		rbt -= its_base_time;
+
+		time = rbt;
+
+		for (i = 0; i < rule->vl.num_entries; i++) {
+			u8 gate_state = rule->vl.entries[i].gate_state;
+			s64 entry_time = time;
+
+			while (entry_time < max_cycle_time) {
+				rc = sja1105_insert_gate_entry(gating_cfg, rule,
+							       gate_state,
+							       entry_time,
+							       extack);
+				if (rc)
+					goto err;
+
+				entry_time += rule->vl.cycle_time;
+			}
+			time += rule->vl.entries[i].interval;
+		}
+	}
+
+	sja1105_gating_cfg_time_to_interval(gating_cfg, max_cycle_time);
+
+	return 0;
+err:
+	sja1105_free_gating_config(gating_cfg);
+	return rc;
+}
+
 /* The switch flow classification core implements TTEthernet, which 'thinks' in
  * terms of Virtual Links (VL), a concept borrowed from ARINC 664 part 7.
  * However it also has one other operating mode (VLLUPFORMAT=0) where it acts
@@ -342,7 +501,9 @@ int sja1105_vl_redirect(struct sja1105_private *priv, int port,
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on DMAC");
 		return -EOPNOTSUPP;
-	} else if (key->type != SJA1105_KEY_VLAN_AWARE_VL) {
+	} else if ((priv->vlan_state == SJA1105_VLAN_BEST_EFFORT ||
+		    priv->vlan_state == SJA1105_VLAN_FILTERING_FULL) &&
+		   key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on {DMAC, VID, PCP}");
 		return -EOPNOTSUPP;
@@ -388,171 +549,19 @@ int sja1105_vl_delete(struct sja1105_private *priv, int port,
 		kfree(rule);
 	}
 
+	rc = sja1105_compose_gating_subschedule(priv, extack);
+	if (rc)
+		return rc;
+
 	rc = sja1105_init_virtual_links(priv, extack);
 	if (rc)
 		return rc;
 
+	rc = sja1105_init_scheduling(priv);
+	if (rc < 0)
+		return rc;
+
 	return sja1105_static_config_reload(priv, SJA1105_VIRTUAL_LINKS);
-}
-
-/* Insert into the global gate list, sorted by gate action time. */
-static int sja1105_insert_gate_entry(struct sja1105_gating_config *gating_cfg,
-				     struct sja1105_rule *rule,
-				     u8 gate_state, s64 entry_time,
-				     struct netlink_ext_ack *extack)
-{
-	struct sja1105_gate_entry *e;
-	int rc;
-
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
-	if (!e)
-		return -ENOMEM;
-
-	e->rule = rule;
-	e->gate_state = gate_state;
-	e->interval = entry_time;
-
-	if (list_empty(&gating_cfg->entries)) {
-		list_add(&e->list, &gating_cfg->entries);
-	} else {
-		struct sja1105_gate_entry *p;
-
-		list_for_each_entry(p, &gating_cfg->entries, list) {
-			if (p->interval == e->interval) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Gate conflict");
-				rc = -EBUSY;
-				goto err;
-			}
-
-			if (e->interval < p->interval)
-				break;
-		}
-		list_add(&e->list, p->list.prev);
-	}
-
-	gating_cfg->num_entries++;
-
-	return 0;
-err:
-	kfree(e);
-	return rc;
-}
-
-/* The gate entries contain absolute times in their e->interval field. Convert
- * that to proper intervals (i.e. "0, 5, 10, 15" to "5, 5, 5, 5").
- */
-static void
-sja1105_gating_cfg_time_to_interval(struct sja1105_gating_config *gating_cfg,
-				    u64 cycle_time)
-{
-	struct sja1105_gate_entry *last_e;
-	struct sja1105_gate_entry *e;
-	struct list_head *prev;
-
-	list_for_each_entry(e, &gating_cfg->entries, list) {
-		struct sja1105_gate_entry *p;
-
-		prev = e->list.prev;
-
-		if (prev == &gating_cfg->entries)
-			continue;
-
-		p = list_entry(prev, struct sja1105_gate_entry, list);
-		p->interval = e->interval - p->interval;
-	}
-	last_e = list_last_entry(&gating_cfg->entries,
-				 struct sja1105_gate_entry, list);
-	if (last_e->list.prev != &gating_cfg->entries)
-		last_e->interval = cycle_time - last_e->interval;
-}
-
-static void sja1105_free_gating_config(struct sja1105_gating_config *gating_cfg)
-{
-	struct sja1105_gate_entry *e, *n;
-
-	list_for_each_entry_safe(e, n, &gating_cfg->entries, list) {
-		list_del(&e->list);
-		kfree(e);
-	}
-}
-
-static int sja1105_compose_gating_subschedule(struct sja1105_private *priv,
-					      struct netlink_ext_ack *extack)
-{
-	struct sja1105_gating_config *gating_cfg = &priv->tas_data.gating_cfg;
-	struct sja1105_rule *rule;
-	s64 max_cycle_time = 0;
-	s64 its_base_time = 0;
-	int i, rc = 0;
-
-	list_for_each_entry(rule, &priv->flow_block.rules, list) {
-		if (rule->type != SJA1105_RULE_VL)
-			continue;
-		if (rule->vl.type != SJA1105_VL_TIME_TRIGGERED)
-			continue;
-
-		if (max_cycle_time < rule->vl.cycle_time) {
-			max_cycle_time = rule->vl.cycle_time;
-			its_base_time = rule->vl.base_time;
-		}
-	}
-
-	if (!max_cycle_time)
-		return 0;
-
-	dev_dbg(priv->ds->dev, "max_cycle_time %lld its_base_time %lld\n",
-		max_cycle_time, its_base_time);
-
-	sja1105_free_gating_config(gating_cfg);
-
-	gating_cfg->base_time = its_base_time;
-	gating_cfg->cycle_time = max_cycle_time;
-	gating_cfg->num_entries = 0;
-
-	list_for_each_entry(rule, &priv->flow_block.rules, list) {
-		s64 time;
-		s64 rbt;
-
-		if (rule->type != SJA1105_RULE_VL)
-			continue;
-		if (rule->vl.type != SJA1105_VL_TIME_TRIGGERED)
-			continue;
-
-		/* Calculate the difference between this gating schedule's
-		 * base time, and the base time of the gating schedule with the
-		 * longest cycle time. We call it the relative base time (rbt).
-		 */
-		rbt = future_base_time(rule->vl.base_time, rule->vl.cycle_time,
-				       its_base_time);
-		rbt -= its_base_time;
-
-		time = rbt;
-
-		for (i = 0; i < rule->vl.num_entries; i++) {
-			u8 gate_state = rule->vl.entries[i].gate_state;
-			s64 entry_time = time;
-
-			while (entry_time < max_cycle_time) {
-				rc = sja1105_insert_gate_entry(gating_cfg, rule,
-							       gate_state,
-							       entry_time,
-							       extack);
-				if (rc)
-					goto err;
-
-				entry_time += rule->vl.cycle_time;
-			}
-			time += rule->vl.entries[i].interval;
-		}
-	}
-
-	sja1105_gating_cfg_time_to_interval(gating_cfg, max_cycle_time);
-
-	return 0;
-err:
-	sja1105_free_gating_config(gating_cfg);
-	return rc;
 }
 
 int sja1105_vl_gate(struct sja1105_private *priv, int port,
@@ -588,14 +597,12 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 
 	if (priv->vlan_state == SJA1105_VLAN_UNAWARE &&
 	    key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
-		dev_err(priv->ds->dev, "1: vlan state %d key type %d\n",
-			priv->vlan_state, key->type);
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on DMAC");
 		return -EOPNOTSUPP;
-	} else if (key->type != SJA1105_KEY_VLAN_AWARE_VL) {
-		dev_err(priv->ds->dev, "2: vlan state %d key type %d\n",
-			priv->vlan_state, key->type);
+	} else if ((priv->vlan_state == SJA1105_VLAN_BEST_EFFORT ||
+		    priv->vlan_state == SJA1105_VLAN_FILTERING_FULL) &&
+		   key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on {DMAC, VID, PCP}");
 		return -EOPNOTSUPP;

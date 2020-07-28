@@ -565,3 +565,21 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state)
 	state->regs[16].base = CFI_CFA;
 	state->regs[16].offset = -8;
 }
+
+const char *arch_nop_insn(int len)
+{
+	static const char nops[5][5] = {
+		/* 1 */ { 0x90 },
+		/* 2 */ { 0x66, 0x90 },
+		/* 3 */ { 0x0f, 0x1f, 0x00 },
+		/* 4 */ { 0x0f, 0x1f, 0x40, 0x00 },
+		/* 5 */ { 0x0f, 0x1f, 0x44, 0x00, 0x00 },
+	};
+
+	if (len < 1 || len > 5) {
+		WARN("invalid NOP size: %d\n", len);
+		return NULL;
+	}
+
+	return nops[len-1];
+}

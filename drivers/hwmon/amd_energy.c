@@ -362,7 +362,7 @@ static struct platform_driver amd_energy_driver = {
 static struct platform_device *amd_energy_platdev;
 
 static const struct x86_cpu_id cpu_ids[] __initconst = {
-	X86_MATCH_VENDOR_FAM(AMD, 0x17, NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x17, 0x31, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, cpu_ids);

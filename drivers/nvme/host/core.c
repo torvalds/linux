@@ -1116,10 +1116,16 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 		dev_warn(ctrl->device,
 			"Identify Descriptors failed (%d)\n", status);
 		 /*
-		  * Don't treat an error as fatal, as we potentially already
-		  * have a NGUID or EUI-64.
+		  * Don't treat non-retryable errors as fatal, as we potentially
+		  * already have a NGUID or EUI-64.  If we failed with DNR set,
+		  * we want to silently ignore the error as we can still
+		  * identify the device, but if the status has DNR set, we want
+		  * to propagate the error back specifically for the disk
+		  * revalidation flow to make sure we don't abandon the
+		  * device just because of a temporal retry-able error (such
+		  * as path of transport errors).
 		  */
-		if (status > 0 && !(status & NVME_SC_DNR))
+		if (status > 0 && (status & NVME_SC_DNR))
 			status = 0;
 		goto free_data;
 	}
@@ -1974,7 +1980,7 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ns->head->disk) {
 		nvme_update_disk_info(ns->head->disk, ns, id);
 		blk_queue_stack_limits(ns->head->disk->queue, ns->queue);
-		revalidate_disk(ns->head->disk);
+		nvme_mpath_update_disk_size(ns->head->disk);
 	}
 #endif
 	return 0;
@@ -4174,6 +4180,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	ctrl->dev = dev;
 	ctrl->ops = ops;
 	ctrl->quirks = quirks;
+	ctrl->numa_node = NUMA_NO_NODE;
 	INIT_WORK(&ctrl->scan_work, nvme_scan_work);
 	INIT_WORK(&ctrl->async_event_work, nvme_async_event_work);
 	INIT_WORK(&ctrl->fw_act_work, nvme_fw_act_work);

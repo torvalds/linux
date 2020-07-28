@@ -3168,16 +3168,15 @@ union bpf_attr {
  *	Return
  *		The id is returned or 0 in case the id could not be retrieved.
  *
- * void *bpf_ringbuf_output(void *ringbuf, void *data, u64 size, u64 flags)
+ * int bpf_ringbuf_output(void *ringbuf, void *data, u64 size, u64 flags)
  * 	Description
  * 		Copy *size* bytes from *data* into a ring buffer *ringbuf*.
- * 		If BPF_RB_NO_WAKEUP is specified in *flags*, no notification of
- * 		new data availability is sent.
- * 		IF BPF_RB_FORCE_WAKEUP is specified in *flags*, notification of
- * 		new data availability is sent unconditionally.
+ * 		If **BPF_RB_NO_WAKEUP** is specified in *flags*, no notification
+ * 		of new data availability is sent.
+ * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
+ * 		of new data availability is sent unconditionally.
  * 	Return
- * 		0, on success;
- * 		< 0, on error.
+ * 		0 on success, or a negative error in case of failure.
  *
  * void *bpf_ringbuf_reserve(void *ringbuf, u64 size, u64 flags)
  * 	Description
@@ -3189,20 +3188,20 @@ union bpf_attr {
  * void bpf_ringbuf_submit(void *data, u64 flags)
  * 	Description
  * 		Submit reserved ring buffer sample, pointed to by *data*.
- * 		If BPF_RB_NO_WAKEUP is specified in *flags*, no notification of
- * 		new data availability is sent.
- * 		IF BPF_RB_FORCE_WAKEUP is specified in *flags*, notification of
- * 		new data availability is sent unconditionally.
+ * 		If **BPF_RB_NO_WAKEUP** is specified in *flags*, no notification
+ * 		of new data availability is sent.
+ * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
+ * 		of new data availability is sent unconditionally.
  * 	Return
  * 		Nothing. Always succeeds.
  *
  * void bpf_ringbuf_discard(void *data, u64 flags)
  * 	Description
  * 		Discard reserved ring buffer sample, pointed to by *data*.
- * 		If BPF_RB_NO_WAKEUP is specified in *flags*, no notification of
- * 		new data availability is sent.
- * 		IF BPF_RB_FORCE_WAKEUP is specified in *flags*, notification of
- * 		new data availability is sent unconditionally.
+ * 		If **BPF_RB_NO_WAKEUP** is specified in *flags*, no notification
+ * 		of new data availability is sent.
+ * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
+ * 		of new data availability is sent unconditionally.
  * 	Return
  * 		Nothing. Always succeeds.
  *
@@ -3210,16 +3209,18 @@ union bpf_attr {
  *	Description
  *		Query various characteristics of provided ring buffer. What
  *		exactly is queries is determined by *flags*:
- *		  - BPF_RB_AVAIL_DATA - amount of data not yet consumed;
- *		  - BPF_RB_RING_SIZE - the size of ring buffer;
- *		  - BPF_RB_CONS_POS - consumer position (can wrap around);
- *		  - BPF_RB_PROD_POS - producer(s) position (can wrap around);
- *		Data returned is just a momentary snapshots of actual values
+ *
+ *		* **BPF_RB_AVAIL_DATA**: Amount of data not yet consumed.
+ *		* **BPF_RB_RING_SIZE**: The size of ring buffer.
+ *		* **BPF_RB_CONS_POS**: Consumer position (can wrap around).
+ *		* **BPF_RB_PROD_POS**: Producer(s) position (can wrap around).
+ *
+ *		Data returned is just a momentary snapshot of actual values
  *		and could be inaccurate, so this facility should be used to
  *		power heuristics and for reporting, not to make 100% correct
  *		calculation.
  *	Return
- *		Requested value, or 0, if flags are not recognized.
+ *		Requested value, or 0, if *flags* are not recognized.
  *
  * int bpf_csum_level(struct sk_buff *skb, u64 level)
  * 	Description
