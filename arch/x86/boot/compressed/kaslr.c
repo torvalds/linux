@@ -562,7 +562,7 @@ process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 		size = region->size - (addr - region->start);
 
 	/* Check how many 1GB huge pages can be filtered out: */
-	while (size > PUD_SIZE && max_gb_huge_pages) {
+	while (size >= PUD_SIZE && max_gb_huge_pages) {
 		size -= PUD_SIZE;
 		max_gb_huge_pages--;
 		i++;
