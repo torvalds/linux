@@ -3995,10 +3995,8 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 					set_bit(R5_LOCKED, &dev->flags);
 					set_bit(R5_Wantread, &dev->flags);
 					s->locked++;
-				} else {
+				} else
 					set_bit(STRIPE_DELAYED, &sh->state);
-					set_bit(STRIPE_HANDLE, &sh->state);
-				}
 			}
 		}
 	}
@@ -4023,10 +4021,8 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 					set_bit(R5_Wantread, &dev->flags);
 					s->locked++;
 					qread++;
-				} else {
+				} else
 					set_bit(STRIPE_DELAYED, &sh->state);
-					set_bit(STRIPE_HANDLE, &sh->state);
-				}
 			}
 		}
 		if (rcw && conf->mddev->queue)
