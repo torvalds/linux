@@ -3169,51 +3169,51 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		/* SQ corresponding to CQE */
 		switch (roce_get_field(cqe->byte_4, V2_CQE_BYTE_4_OPCODE_M,
 				       V2_CQE_BYTE_4_OPCODE_S) & 0x1f) {
-		case HNS_ROCE_SQ_OPCODE_SEND:
+		case HNS_ROCE_V2_WQE_OP_SEND:
 			wc->opcode = IB_WC_SEND;
 			break;
-		case HNS_ROCE_SQ_OPCODE_SEND_WITH_INV:
+		case HNS_ROCE_V2_WQE_OP_SEND_WITH_INV:
 			wc->opcode = IB_WC_SEND;
 			break;
-		case HNS_ROCE_SQ_OPCODE_SEND_WITH_IMM:
+		case HNS_ROCE_V2_WQE_OP_SEND_WITH_IMM:
 			wc->opcode = IB_WC_SEND;
 			wc->wc_flags |= IB_WC_WITH_IMM;
 			break;
-		case HNS_ROCE_SQ_OPCODE_RDMA_READ:
+		case HNS_ROCE_V2_WQE_OP_RDMA_READ:
 			wc->opcode = IB_WC_RDMA_READ;
 			wc->byte_len = le32_to_cpu(cqe->byte_cnt);
 			break;
-		case HNS_ROCE_SQ_OPCODE_RDMA_WRITE:
+		case HNS_ROCE_V2_WQE_OP_RDMA_WRITE:
 			wc->opcode = IB_WC_RDMA_WRITE;
 			break;
-		case HNS_ROCE_SQ_OPCODE_RDMA_WRITE_WITH_IMM:
+		case HNS_ROCE_V2_WQE_OP_RDMA_WRITE_WITH_IMM:
 			wc->opcode = IB_WC_RDMA_WRITE;
 			wc->wc_flags |= IB_WC_WITH_IMM;
 			break;
-		case HNS_ROCE_SQ_OPCODE_LOCAL_INV:
+		case HNS_ROCE_V2_WQE_OP_LOCAL_INV:
 			wc->opcode = IB_WC_LOCAL_INV;
 			wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 			break;
-		case HNS_ROCE_SQ_OPCODE_ATOMIC_COMP_AND_SWAP:
+		case HNS_ROCE_V2_WQE_OP_ATOM_CMP_AND_SWAP:
 			wc->opcode = IB_WC_COMP_SWAP;
 			wc->byte_len  = 8;
 			break;
-		case HNS_ROCE_SQ_OPCODE_ATOMIC_FETCH_AND_ADD:
+		case HNS_ROCE_V2_WQE_OP_ATOM_FETCH_AND_ADD:
 			wc->opcode = IB_WC_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
-		case HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_COMP_AND_SWAP:
+		case HNS_ROCE_V2_WQE_OP_ATOM_MSK_CMP_AND_SWAP:
 			wc->opcode = IB_WC_MASKED_COMP_SWAP;
 			wc->byte_len  = 8;
 			break;
-		case HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_FETCH_AND_ADD:
+		case HNS_ROCE_V2_WQE_OP_ATOM_MSK_FETCH_AND_ADD:
 			wc->opcode = IB_WC_MASKED_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
-		case HNS_ROCE_SQ_OPCODE_FAST_REG_WR:
+		case HNS_ROCE_V2_WQE_OP_FAST_REG_PMR:
 			wc->opcode = IB_WC_REG_MR;
 			break;
-		case HNS_ROCE_SQ_OPCODE_BIND_MW:
+		case HNS_ROCE_V2_WQE_OP_BIND_MW:
 			wc->opcode = IB_WC_REG_MR;
 			break;
 		default:
