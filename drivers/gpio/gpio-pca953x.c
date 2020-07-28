@@ -865,17 +865,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	bitmap_and(chip->irq_stat, irq_stat, reg_direction, chip->gpio_chip.ngpio);
 	mutex_init(&chip->irq_lock);
 
-	ret = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, pca953x_irq_handler,
-					IRQF_ONESHOT | IRQF_SHARED,
-					dev_name(&client->dev), chip);
-	if (ret) {
-		dev_err(&client->dev, "failed to request irq %d\n",
-			client->irq);
-		return ret;
-	}
-
-	irq_chip->name = dev_name(&chip->client->dev);
+	irq_chip->name = dev_name(&client->dev);
 	irq_chip->irq_mask = pca953x_irq_mask;
 	irq_chip->irq_unmask = pca953x_irq_unmask;
 	irq_chip->irq_set_wake = pca953x_irq_set_wake;
@@ -894,6 +884,16 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 	girq->first = irq_base; /* FIXME: get rid of this */
+
+	ret = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, pca953x_irq_handler,
+					IRQF_ONESHOT | IRQF_SHARED,
+					dev_name(&client->dev), chip);
+	if (ret) {
+		dev_err(&client->dev, "failed to request irq %d\n",
+			client->irq);
+		return ret;
+	}
 
 	return 0;
 }
