@@ -429,7 +429,7 @@ static void igc_ptp_tx_work(struct work_struct *work)
 	}
 
 	tsynctxctl = rd32(IGC_TSYNCTXCTL);
-	if (tsynctxctl & IGC_TSYNCTXCTL_VALID)
+	if (tsynctxctl & IGC_TSYNCTXCTL_TXTT_0)
 		igc_ptp_tx_hwtstamp(adapter);
 	else
 		/* reschedule to check later */
