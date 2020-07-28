@@ -222,18 +222,13 @@ static int cros_ec_regulator_probe(struct platform_device *pdev)
 
 	drvdata->dev = devm_regulator_register(dev, &drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
-		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
-		goto free_name;
+		return PTR_ERR(drvdata->dev);
 	}
 
 	platform_set_drvdata(pdev, drvdata);
 
 	return 0;
-
-free_name:
-	kfree(desc->name);
-	return ret;
 }
 
 static const struct of_device_id regulator_cros_ec_of_match[] = {
