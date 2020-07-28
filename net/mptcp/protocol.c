@@ -143,6 +143,14 @@ static void __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 	MPTCP_SKB_CB(skb)->offset = offset;
 }
 
+static void mptcp_stop_timer(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
+	mptcp_sk(sk)->timer_ival = 0;
+}
+
 /* both sockets must be locked */
 static bool mptcp_subflow_dsn_valid(const struct mptcp_sock *msk,
 				    struct sock *ssk)
@@ -162,6 +170,42 @@ static bool mptcp_subflow_dsn_valid(const struct mptcp_sock *msk,
 
 	subflow->data_avail = 0;
 	return mptcp_subflow_data_available(ssk);
+}
+
+static void mptcp_check_data_fin_ack(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (__mptcp_check_fallback(msk))
+		return;
+
+	/* Look for an acknowledged DATA_FIN */
+	if (((1 << sk->sk_state) &
+	     (TCPF_FIN_WAIT1 | TCPF_CLOSING | TCPF_LAST_ACK)) &&
+	    msk->write_seq == atomic64_read(&msk->snd_una)) {
+		mptcp_stop_timer(sk);
+
+		WRITE_ONCE(msk->snd_data_fin_enable, 0);
+
+		switch (sk->sk_state) {
+		case TCP_FIN_WAIT1:
+			inet_sk_state_store(sk, TCP_FIN_WAIT2);
+			sk->sk_state_change(sk);
+			break;
+		case TCP_CLOSING:
+			fallthrough;
+		case TCP_LAST_ACK:
+			inet_sk_state_store(sk, TCP_CLOSE);
+			sk->sk_state_change(sk);
+			break;
+		}
+
+		if (sk->sk_shutdown == SHUTDOWN_MASK ||
+		    sk->sk_state == TCP_CLOSE)
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
+		else
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	}
 }
 
 static bool mptcp_pending_data_fin(struct sock *sk, u64 *seq)
@@ -222,6 +266,8 @@ static void mptcp_check_data_fin(struct sock *sk)
 		WRITE_ONCE(msk->rcv_data_fin, 0);
 
 		sk->sk_shutdown |= RCV_SHUTDOWN;
+		smp_mb__before_atomic(); /* SHUTDOWN must be visible first */
+		set_bit(MPTCP_DATA_READY, &msk->flags);
 
 		switch (sk->sk_state) {
 		case TCP_ESTABLISHED:
@@ -453,14 +499,6 @@ static void mptcp_check_for_eof(struct mptcp_sock *msk)
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 		sk->sk_data_ready(sk);
 	}
-}
-
-static void mptcp_stop_timer(struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
-	mptcp_sk(sk)->timer_ival = 0;
 }
 
 static bool mptcp_ext_cache_refill(struct mptcp_sock *msk)
