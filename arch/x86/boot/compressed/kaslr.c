@@ -461,7 +461,7 @@ static bool mem_avoid_overlap(struct mem_vector *img,
 {
 	int i;
 	struct setup_data *ptr;
-	unsigned long earliest = img->start + img->size;
+	u64 earliest = img->start + img->size;
 	bool is_overlapping = false;
 
 	for (i = 0; i < MEM_AVOID_MAX; i++) {
@@ -506,7 +506,7 @@ static bool mem_avoid_overlap(struct mem_vector *img,
 }
 
 struct slot_area {
-	unsigned long addr;
+	u64 addr;
 	unsigned long num;
 };
 
@@ -537,7 +537,8 @@ static void store_slot_info(struct mem_vector *region, unsigned long image_size)
 static void
 process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 {
-	unsigned long pud_start, pud_end, gb_huge_pages;
+	u64 pud_start, pud_end;
+	unsigned long gb_huge_pages;
 	struct mem_vector tmp;
 
 	if (!IS_ENABLED(CONFIG_X86_64) || !max_gb_huge_pages) {
@@ -579,7 +580,7 @@ process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 	}
 }
 
-static unsigned long slots_fetch_random(void)
+static u64 slots_fetch_random(void)
 {
 	unsigned long slot;
 	unsigned int i;
@@ -595,7 +596,7 @@ static unsigned long slots_fetch_random(void)
 			slot -= slot_areas[i].num;
 			continue;
 		}
-		return slot_areas[i].addr + slot * CONFIG_PHYSICAL_ALIGN;
+		return slot_areas[i].addr + ((u64)slot * CONFIG_PHYSICAL_ALIGN);
 	}
 
 	if (i == slot_area_index)
@@ -608,7 +609,7 @@ static void __process_mem_region(struct mem_vector *entry,
 				 unsigned long image_size)
 {
 	struct mem_vector region, overlap;
-	unsigned long region_end;
+	u64 region_end;
 
 	/* Enforce minimum and memory limit. */
 	region.start = max_t(u64, entry->start, minimum);
