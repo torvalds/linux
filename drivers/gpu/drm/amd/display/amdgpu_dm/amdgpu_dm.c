@@ -5716,14 +5716,8 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct list_head list;
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
-	uint64_t tiling_flags;
 	uint32_t domain;
 	int r;
-	bool tmz_surface = false;
-	bool force_disable_dcc = false;
-
-	dm_plane_state_old = to_dm_plane_state(plane->state);
-	dm_plane_state_new = to_dm_plane_state(new_state);
 
 	if (!new_state->fb) {
 		DRM_DEBUG_DRIVER("No FB bound\n");
@@ -5767,27 +5761,35 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		return r;
 	}
 
-	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
-
-	tmz_surface = amdgpu_bo_encrypted(rbo);
-
 	ttm_eu_backoff_reservation(&ticket, &list);
 
 	afb->address = amdgpu_bo_gpu_offset(rbo);
 
 	amdgpu_bo_ref(rbo);
 
-	if (dm_plane_state_new->dc_state &&
-			dm_plane_state_old->dc_state != dm_plane_state_new->dc_state) {
-		struct dc_plane_state *plane_state = dm_plane_state_new->dc_state;
+	/**
+	 * We don't do surface updates on planes that have been newly created,
+	 * but we also don't have the afb->address during atomic check.
+	 *
+	 * Fill in buffer attributes depending on the address here, but only on
+	 * newly created planes since they're not being used by DC yet and this
+	 * won't modify global state.
+	 */
+	dm_plane_state_old = to_dm_plane_state(plane->state);
+	dm_plane_state_new = to_dm_plane_state(new_state);
 
-		force_disable_dcc = adev->asic_type == CHIP_RAVEN && adev->in_suspend;
+	if (dm_plane_state_new->dc_state &&
+	    dm_plane_state_old->dc_state != dm_plane_state_new->dc_state) {
+		struct dc_plane_state *plane_state =
+			dm_plane_state_new->dc_state;
+		bool force_disable_dcc = !plane_state->dcc.enable;
+
 		fill_plane_buffer_attributes(
 			adev, afb, plane_state->format, plane_state->rotation,
-			tiling_flags, &plane_state->tiling_info,
-			&plane_state->plane_size, &plane_state->dcc,
-			&plane_state->address, tmz_surface,
-			force_disable_dcc);
+			dm_plane_state_new->tiling_flags,
+			&plane_state->tiling_info, &plane_state->plane_size,
+			&plane_state->dcc, &plane_state->address,
+			dm_plane_state_new->tmz_surface, force_disable_dcc);
 	}
 
 	return 0;
