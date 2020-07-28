@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2020 thingy.jp.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/arm/mstar/mstar,pmsleep.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: MStar/SigmaStar Armv7 SoC pmsleep register region
+
+maintainers:
+  - Daniel Palmer <daniel@thingy.jp>
+
+description: |
+  MStar/Sigmastar's Armv7 SoCs contain a region of registers that are
+  in the always on domain that the vendor code calls the "pmsleep" area.
+
+  This area contains registers and bits for a broad range of functionality
+  ranging from registers that control going into deep sleep to bits that
+  turn things like the internal temperature sensor on and off.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+         - enum:
+             - mstar,pmsleep
+         - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    pmsleep: pmsleep@1c00 {
+        compatible = "mstar,pmsleep", "syscon";
+        reg = <0x0x1c00 0x100>;
+    };
