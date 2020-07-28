@@ -885,6 +885,30 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 	}
 }
 
+/**
+ * kind_show - display device kind
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf: char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t kind_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	ssize_t ret;
+
+	if (dev->kind)
+		ret = sprintf(buf, "%s\n", dev->kind);
+	else
+		ret = sprintf(buf, "%s\n", "mei");
+
+	return ret;
+}
+static DEVICE_ATTR_RO(kind);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
 	&dev_attr_hbm_ver.attr,
@@ -893,6 +917,7 @@ static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_ver.attr,
 	&dev_attr_dev_state.attr,
 	&dev_attr_trc.attr,
+	&dev_attr_kind.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);
