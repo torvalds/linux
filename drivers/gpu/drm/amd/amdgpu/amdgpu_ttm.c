@@ -1979,10 +1979,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * This is used for VGA emulation and pre-OS scanout buffers to
 	 * avoid display artifacts while transitioning between pre-OS
 	 * and driver.  */
-	r = amdgpu_bo_create_kernel(adev, adev->gmc.stolen_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM,
-				    &adev->stolen_vga_memory,
-				    NULL, &stolen_vga_buf);
+	r = amdgpu_bo_create_kernel_at(adev, 0, adev->gmc.stolen_size,
+				       AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->stolen_vga_memory,
+				       &stolen_vga_buf);
 	if (r)
 		return r;
 
