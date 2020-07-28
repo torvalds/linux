@@ -75,7 +75,6 @@ struct nfs4_xattr_cache {
 	spinlock_t listxattr_lock;
 	struct inode *inode;
 	struct nfs4_xattr_entry *listxattr;
-	struct work_struct work;
 };
 
 struct nfs4_xattr_entry {
@@ -100,8 +99,6 @@ static struct list_lru nfs4_xattr_entry_lru;
 static struct list_lru nfs4_xattr_large_entry_lru;
 
 static struct kmem_cache *nfs4_xattr_cache_cachep;
-
-static struct workqueue_struct *nfs4_xattr_cache_wq;
 
 /*
  * Hashing helper functions.
@@ -365,9 +362,8 @@ nfs4_xattr_cache_unlink(struct inode *inode)
 }
 
 /*
- * Discard a cache. Usually called by a worker, since walking all
- * the entries can take up some cycles that we don't want to waste
- * in the I/O path. Can also be called from the shrinker callback.
+ * Discard a cache. Called by get_cache() if there was an old,
+ * invalid cache. Can also be called from a shrinker callback.
  *
  * The cache is dead, it has already been unlinked from its inode,
  * and no longer appears on the cache LRU list.
@@ -412,21 +408,6 @@ nfs4_xattr_discard_cache(struct nfs4_xattr_cache *cache)
 	atomic_long_set(&cache->nent, 0);
 
 	kref_put(&cache->ref, nfs4_xattr_free_cache_cb);
-}
-
-static void
-nfs4_xattr_discard_cache_worker(struct work_struct *work)
-{
-	struct nfs4_xattr_cache *cache = container_of(work,
-	    struct nfs4_xattr_cache, work);
-
-	nfs4_xattr_discard_cache(cache);
-}
-
-static void
-nfs4_xattr_reap_cache(struct nfs4_xattr_cache *cache)
-{
-	queue_work(nfs4_xattr_cache_wq, &cache->work);
 }
 
 /*
@@ -513,10 +494,10 @@ nfs4_xattr_get_cache(struct inode *inode, int add)
 
 out:
 	/*
-	 * Discarding an old cache is done via a workqueue.
+	 * Discard the now orphaned old cache.
 	 */
 	if (oldcache != NULL)
-		nfs4_xattr_reap_cache(oldcache);
+		nfs4_xattr_discard_cache(oldcache);
 
 	return cache;
 }
@@ -1008,7 +989,6 @@ static void nfs4_xattr_cache_init_once(void *p)
 	atomic_long_set(&cache->nent, 0);
 	nfs4_xattr_hash_init(cache);
 	cache->listxattr = NULL;
-	INIT_WORK(&cache->work, nfs4_xattr_discard_cache_worker);
 	INIT_LIST_HEAD(&cache->lru);
 	INIT_LIST_HEAD(&cache->dispose);
 }
@@ -1039,13 +1019,9 @@ int __init nfs4_xattr_cache_init(void)
 	if (ret)
 		goto out2;
 
-	nfs4_xattr_cache_wq = alloc_workqueue("nfs4_xattr", WQ_MEM_RECLAIM, 0);
-	if (nfs4_xattr_cache_wq == NULL)
-		goto out1;
-
 	ret = register_shrinker(&nfs4_xattr_cache_shrinker);
 	if (ret)
-		goto out0;
+		goto out1;
 
 	ret = register_shrinker(&nfs4_xattr_entry_shrinker);
 	if (ret)
@@ -1058,8 +1034,6 @@ int __init nfs4_xattr_cache_init(void)
 	unregister_shrinker(&nfs4_xattr_entry_shrinker);
 out:
 	unregister_shrinker(&nfs4_xattr_cache_shrinker);
-out0:
-	destroy_workqueue(nfs4_xattr_cache_wq);
 out1:
 	list_lru_destroy(&nfs4_xattr_cache_lru);
 out2:
@@ -1079,5 +1053,4 @@ void nfs4_xattr_cache_exit(void)
 	list_lru_destroy(&nfs4_xattr_entry_lru);
 	list_lru_destroy(&nfs4_xattr_cache_lru);
 	kmem_cache_destroy(nfs4_xattr_cache_cachep);
-	destroy_workqueue(nfs4_xattr_cache_wq);
 }
