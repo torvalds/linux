@@ -1838,7 +1838,7 @@ out:
 }
 EXPORT_SYMBOL(ttm_bo_swapout);
 
-void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
+void ttm_bo_swapout_all(void)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
