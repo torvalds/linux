@@ -978,7 +978,8 @@ static void super_written(struct bio *bio)
 	struct mddev *mddev = rdev->mddev;
 
 	if (bio->bi_status) {
-		pr_err("md: super_written gets error=%d\n", bio->bi_status);
+		pr_err("md: %s gets error=%d\n", __func__,
+		       blk_status_to_errno(bio->bi_status));
 		md_error(mddev, rdev);
 		if (!test_bit(Faulty, &rdev->flags)
 		    && (bio->bi_opf & MD_FAILFAST)) {
