@@ -748,6 +748,11 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 restart:
 	mptcp_clean_una(sk);
 
+	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN)) {
+		ret = -EPIPE;
+		goto out;
+	}
+
 wait_for_sndbuf:
 	__mptcp_flush_join_list(msk);
 	ssk = mptcp_subflow_get_send(msk);
