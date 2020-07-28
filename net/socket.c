@@ -2105,7 +2105,7 @@ int __sys_setsockopt(int fd, int level, int optname, char __user *user_optval,
 	if (optlen < 0)
 		return -EINVAL;
 
-	err = init_user_sockptr(&optval, user_optval);
+	err = init_user_sockptr(&optval, user_optval, optlen);
 	if (err)
 		return err;
 

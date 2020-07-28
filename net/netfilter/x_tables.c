@@ -1050,6 +1050,7 @@ EXPORT_SYMBOL_GPL(xt_check_target);
 void *xt_copy_counters(sockptr_t arg, unsigned int len,
 		       struct xt_counters_info *info)
 {
+	size_t offset;
 	void *mem;
 	u64 size;
 
@@ -1067,7 +1068,7 @@ void *xt_copy_counters(sockptr_t arg, unsigned int len,
 
 		memcpy(info->name, compat_tmp.name, sizeof(info->name) - 1);
 		info->num_counters = compat_tmp.num_counters;
-		sockptr_advance(arg, sizeof(compat_tmp));
+		offset = sizeof(compat_tmp);
 	} else
 #endif
 	{
@@ -1078,7 +1079,7 @@ void *xt_copy_counters(sockptr_t arg, unsigned int len,
 		if (copy_from_sockptr(info, arg, sizeof(*info)) != 0)
 			return ERR_PTR(-EFAULT);
 
-		sockptr_advance(arg, sizeof(*info));
+		offset = sizeof(*info);
 	}
 	info->name[sizeof(info->name) - 1] = '\0';
 
@@ -1092,7 +1093,7 @@ void *xt_copy_counters(sockptr_t arg, unsigned int len,
 	if (!mem)
 		return ERR_PTR(-ENOMEM);
 
-	if (copy_from_sockptr(mem, arg, len) == 0)
+	if (copy_from_sockptr_offset(mem, arg, offset, len) == 0)
 		return mem;
 
 	vfree(mem);
