@@ -670,7 +670,7 @@ static int l2tp_nl_cmd_session_delete(struct sk_buff *skb, struct genl_info *inf
 	pw_type = session->pwtype;
 	if (pw_type < __L2TP_PWTYPE_MAX)
 		if (l2tp_nl_cmd_ops[pw_type] && l2tp_nl_cmd_ops[pw_type]->session_delete)
-			ret = (*l2tp_nl_cmd_ops[pw_type]->session_delete)(session);
+			l2tp_nl_cmd_ops[pw_type]->session_delete(session);
 
 	l2tp_session_dec_refcount(session);
 

@@ -1620,13 +1620,10 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
 
-/* This function is used by the netlink SESSION_DELETE command and by
- * pseudowire modules.
- */
-int l2tp_session_delete(struct l2tp_session *session)
+void l2tp_session_delete(struct l2tp_session *session)
 {
 	if (test_and_set_bit(0, &session->dead))
-		return 0;
+		return;
 
 	l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
@@ -1634,8 +1631,6 @@ int l2tp_session_delete(struct l2tp_session *session)
 		(*session->session_close)(session);
 
 	l2tp_session_dec_refcount(session);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);
 

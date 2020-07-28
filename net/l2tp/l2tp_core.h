@@ -167,7 +167,7 @@ struct l2tp_nl_cmd_ops {
 	int (*session_create)(struct net *net, struct l2tp_tunnel *tunnel,
 			      u32 session_id, u32 peer_session_id,
 			      struct l2tp_session_cfg *cfg);
-	int (*session_delete)(struct l2tp_session *session);
+	void (*session_delete)(struct l2tp_session *session);
 };
 
 static inline void *l2tp_session_priv(struct l2tp_session *session)
@@ -204,7 +204,7 @@ struct l2tp_session *l2tp_session_create(int priv_size,
 int l2tp_session_register(struct l2tp_session *session,
 			  struct l2tp_tunnel *tunnel);
 
-int l2tp_session_delete(struct l2tp_session *session);
+void l2tp_session_delete(struct l2tp_session *session);
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
 		      int length);
