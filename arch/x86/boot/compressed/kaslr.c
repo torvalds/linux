@@ -508,16 +508,14 @@ static bool mem_avoid_overlap(struct mem_vector *img,
 
 struct slot_area {
 	unsigned long addr;
-	int num;
+	unsigned long num;
 };
 
 #define MAX_SLOT_AREA 100
 
 static struct slot_area slot_areas[MAX_SLOT_AREA];
-
+static unsigned int slot_area_index;
 static unsigned long slot_max;
-
-static unsigned long slot_area_index;
 
 static void store_slot_info(struct mem_vector *region, unsigned long image_size)
 {
@@ -588,7 +586,7 @@ process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 static unsigned long slots_fetch_random(void)
 {
 	unsigned long slot;
-	int i;
+	unsigned int i;
 
 	/* Handle case of no slots stored. */
 	if (slot_max == 0)
