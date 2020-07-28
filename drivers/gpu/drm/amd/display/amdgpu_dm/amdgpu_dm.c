@@ -8258,6 +8258,8 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	 * TODO: Come up with a more elegant solution for this.
 	 */
 	for_each_oldnew_plane_in_state(state, other, old_other_state, new_other_state, i) {
+		struct dm_plane_state *old_dm_plane_state, *new_dm_plane_state;
+
 		if (other->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
 
@@ -8268,9 +8270,20 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 		if (old_other_state->crtc != new_other_state->crtc)
 			return true;
 
-		/* TODO: Remove this once we can handle fast format changes. */
-		if (old_other_state->fb && new_other_state->fb &&
-		    old_other_state->fb->format != new_other_state->fb->format)
+		/* Framebuffer checks fall at the end. */
+		if (!old_other_state->fb || !new_other_state->fb)
+			continue;
+
+		/* Pixel format changes can require bandwidth updates. */
+		if (old_other_state->fb->format != new_other_state->fb->format)
+			return true;
+
+		old_dm_plane_state = to_dm_plane_state(old_other_state);
+		new_dm_plane_state = to_dm_plane_state(new_other_state);
+
+		/* Tiling and DCC changes also require bandwidth updates. */
+		if (old_dm_plane_state->tiling_flags !=
+		    new_dm_plane_state->tiling_flags)
 			return true;
 	}
 
