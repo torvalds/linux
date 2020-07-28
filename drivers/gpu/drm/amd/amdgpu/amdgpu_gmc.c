@@ -448,7 +448,6 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
-	case CHIP_ARCTURUS:
 	case CHIP_RENOIR:
 		adev->gmc.keep_stolen_vga_memory = true;
 		break;
