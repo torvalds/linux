@@ -33,6 +33,12 @@ static struct clk *rt5682_dai_bclk;
 static struct gpio_desc *dmic_sel;
 void *soc_is_rltk_max(struct device *dev);
 
+enum {
+	RT5682 = 0,
+	MAX,
+	EC,
+};
+
 static int acp3x_5682_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
@@ -242,6 +248,9 @@ SND_SOC_DAILINK_DEF(rt5682,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC5682:00", "rt5682-aif1")));
 SND_SOC_DAILINK_DEF(max,
 	DAILINK_COMP_ARRAY(COMP_CODEC("MX98357A:00", "HiFi")));
+SND_SOC_DAILINK_DEF(rt1015,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1015:00", "rt1015-aif"),
+			COMP_CODEC("i2c-10EC1015:01", "rt1015-aif")));
 SND_SOC_DAILINK_DEF(cros_ec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("GOOG0013:00", "EC Codec I2S RX")));
 
@@ -260,7 +269,7 @@ static struct snd_soc_codec_conf rt1015_conf[] = {
 };
 
 static struct snd_soc_dai_link acp3x_dai[] = {
-	{
+	[RT5682] = {
 		.name = "acp3x-5682-play",
 		.stream_name = "Playback",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
@@ -271,16 +280,19 @@ static struct snd_soc_dai_link acp3x_dai[] = {
 		.ops = &acp3x_5682_ops,
 		SND_SOC_DAILINK_REG(acp3x_i2s, rt5682, platform),
 	},
-	{
+	[MAX] = {
 		.name = "acp3x-max98357-play",
 		.stream_name = "HiFi Playback",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-				| SND_SOC_DAIFMT_CBM_CFM,
+				| SND_SOC_DAIFMT_CBS_CFS,
 		.dpcm_playback = 1,
 		.ops = &acp3x_max_play_ops,
-		SND_SOC_DAILINK_REG(acp3x_bt, max, platform),
+		.cpus = acp3x_bt,
+		.num_cpus = ARRAY_SIZE(acp3x_bt),
+		.platforms = platform,
+		.num_platforms = ARRAY_SIZE(platform),
 	},
-	{
+	[EC] = {
 		.name = "acp3x-ec-dmic0-capture",
 		.stream_name = "Capture DMIC0",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
@@ -390,6 +402,18 @@ void *soc_is_rltk_max(struct device *dev)
 	return (void *)match->driver_data;
 }
 
+static void card_spk_dai_link_present(struct snd_soc_dai_link *links,
+						const char *card_name)
+{
+	if (!strcmp(card_name, "acp3xalc56821015")) {
+		links[1].codecs = rt1015;
+		links[1].num_codecs = ARRAY_SIZE(rt1015);
+	} else {
+		links[1].codecs = max;
+		links[1].num_codecs = ARRAY_SIZE(max);
+	}
+}
+
 static int acp3x_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -405,6 +429,7 @@ static int acp3x_probe(struct platform_device *pdev)
 	if (!machine)
 		return -ENOMEM;
 
+	card_spk_dai_link_present(card->dai_link, card->name);
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
