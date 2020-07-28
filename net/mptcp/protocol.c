@@ -793,7 +793,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 out:
 	if (!retransmission)
 		pfrag->offset += frag_truesize;
-	*write_seq += ret;
+	WRITE_ONCE(*write_seq, *write_seq + ret);
 	mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
 
 	return ret;
