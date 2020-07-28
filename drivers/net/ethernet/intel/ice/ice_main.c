@@ -4467,7 +4467,7 @@ err_reinit:
  * Power Management callback to quiesce the device and prepare
  * for D3 transition.
  */
-static int ice_suspend(struct device *dev)
+static int __maybe_unused ice_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct ice_pf *pf;
@@ -4531,7 +4531,7 @@ static int ice_suspend(struct device *dev)
  * ice_resume - PM callback for waking up from D3
  * @dev: generic device information structure
  */
-static int ice_resume(struct device *dev)
+static int __maybe_unused ice_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	enum ice_reset_req reset_type;
