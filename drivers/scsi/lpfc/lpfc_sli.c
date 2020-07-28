@@ -17977,7 +17977,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
  * receive sequence is only partially assembed by the driver, it shall abort
  * the partially assembled frames for the sequence. Otherwise, if the
  * unsolicited receive sequence has been completely assembled and passed to
- * the Upper Layer Protocol (UPL), it then mark the per oxid status for the
+ * the Upper Layer Protocol (ULP), it then mark the per oxid status for the
  * unsolicited sequence has been aborted. After that, it will issue a basic
  * accept to accept the abort.
  **/
