@@ -1243,7 +1243,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->gmc.stolen_size = gmc_v9_0_get_vbios_fb_size(adev);
+	adev->gmc.stolen_vga_size = gmc_v9_0_get_vbios_fb_size(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
@@ -1282,7 +1282,7 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_vm_manager_fini(adev);
 
 	if (gmc_v9_0_keep_stolen_memory(adev))
-		amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
+		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, &stolen_vga_buf);
 
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
