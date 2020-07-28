@@ -98,7 +98,7 @@ static bool memmap_too_large;
  * Store memory limit: MAXMEM on 64-bit and KERNEL_IMAGE_SIZE on 32-bit.
  * It may be reduced by "mem=nn[KMG]" or "memmap=nn[KMG]" command line options.
  */
-static unsigned long long mem_limit;
+static u64 mem_limit;
 
 /* Number of immovable memory regions */
 static int num_immovable_mem;
@@ -141,8 +141,7 @@ enum parse_mode {
 };
 
 static int
-parse_memmap(char *p, unsigned long long *start, unsigned long long *size,
-		enum parse_mode mode)
+parse_memmap(char *p, u64 *start, u64 *size, enum parse_mode mode)
 {
 	char *oldp;
 
@@ -172,7 +171,7 @@ parse_memmap(char *p, unsigned long long *start, unsigned long long *size,
 			 */
 			*size = 0;
 		} else {
-			unsigned long long flags;
+			u64 flags;
 
 			/*
 			 * efi_fake_mem=nn@ss:attr the attr specifies
@@ -211,7 +210,7 @@ static void mem_avoid_memmap(enum parse_mode mode, char *str)
 
 	while (str && (i < MAX_MEMMAP_REGIONS)) {
 		int rc;
-		unsigned long long start, size;
+		u64 start, size;
 		char *k = strchr(str, ',');
 
 		if (k)
@@ -612,7 +611,7 @@ static void __process_mem_region(struct mem_vector *entry,
 	unsigned long region_end;
 
 	/* Enforce minimum and memory limit. */
-	region.start = max_t(unsigned long long, entry->start, minimum);
+	region.start = max_t(u64, entry->start, minimum);
 	region_end = min(entry->start + entry->size, mem_limit);
 
 	/* Give up if slot area array is full. */
@@ -673,7 +672,7 @@ static bool process_mem_region(struct mem_vector *region,
 	 * immovable memory and @region.
 	 */
 	for (i = 0; i < num_immovable_mem; i++) {
-		unsigned long long start, end, entry_end, region_end;
+		u64 start, end, entry_end, region_end;
 		struct mem_vector entry;
 
 		if (!mem_overlaps(region, &immovable_mem[i]))
