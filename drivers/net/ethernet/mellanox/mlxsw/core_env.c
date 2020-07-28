@@ -11,7 +11,7 @@
 #include "reg.h"
 
 static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
-					  bool *qsfp)
+					  bool *qsfp, bool *cmis)
 {
 	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
@@ -25,15 +25,19 @@ static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 		return err;
 	mlxsw_reg_mcia_eeprom_memcpy_from(mcia_pl, eeprom_tmp);
 	ident = eeprom_tmp[0];
+	*cmis = false;
 	switch (ident) {
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
 		*qsfp = false;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP: /* fall-through */
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28: /* fall-through */
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
+		*qsfp = true;
+		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD:
 		*qsfp = true;
+		*cmis = true;
 		break;
 	default:
 		return -EINVAL;
@@ -117,7 +121,8 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	char mcia_pl[MLXSW_REG_MCIA_LEN] = {0};
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	unsigned int module_temp;
-	bool qsfp;
+	bool qsfp, cmis;
+	int page;
 	int err;
 
 	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
@@ -141,21 +146,28 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	 */
 
 	/* Validate module identifier value. */
-	err = mlxsw_env_validate_cable_ident(core, module, &qsfp);
+	err = mlxsw_env_validate_cable_ident(core, module, &qsfp, &cmis);
 	if (err)
 		return err;
 
-	if (qsfp)
-		mlxsw_reg_mcia_pack(mcia_pl, module, 0,
-				    MLXSW_REG_MCIA_TH_PAGE_NUM,
+	if (qsfp) {
+		/* For QSFP/CMIS module-defined thresholds are located in page
+		 * 02h, otherwise in page 03h.
+		 */
+		if (cmis)
+			page = MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM;
+		else
+			page = MLXSW_REG_MCIA_TH_PAGE_NUM;
+		mlxsw_reg_mcia_pack(mcia_pl, module, 0, page,
 				    MLXSW_REG_MCIA_TH_PAGE_OFF + off,
 				    MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_LOW);
-	else
+	} else {
 		mlxsw_reg_mcia_pack(mcia_pl, module, 0,
 				    MLXSW_REG_MCIA_PAGE0_LO,
 				    off, MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_HIGH);
+	}
 
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
@@ -252,8 +264,8 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 {
 	int offset = ee->offset;
 	unsigned int read_size;
+	bool qsfp, cmis;
 	int i = 0;
-	bool qsfp;
 	int err;
 
 	if (!ee->len)
@@ -261,7 +273,7 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 
 	memset(data, 0, ee->len);
 	/* Validate module identifier value. */
-	err = mlxsw_env_validate_cable_ident(mlxsw_core, module, &qsfp);
+	err = mlxsw_env_validate_cable_ident(mlxsw_core, module, &qsfp, &cmis);
 	if (err)
 		return err;
 
