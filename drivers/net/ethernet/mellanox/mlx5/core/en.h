@@ -530,6 +530,8 @@ typedef struct sk_buff *
 typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
+int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk);
+
 enum mlx5e_rq_flag {
 	MLX5E_RQ_FLAG_XDP_XMIT,
 	MLX5E_RQ_FLAG_XDP_REDIRECT,
@@ -812,6 +814,13 @@ struct mlx5e_priv {
 	struct mlx5e_scratchpad    scratchpad;
 };
 
+struct mlx5e_rx_handlers {
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
+};
+
+extern const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic;
+
 struct mlx5e_profile {
 	int	(*init)(struct mlx5_core_dev *mdev,
 			struct net_device *netdev,
@@ -828,57 +837,16 @@ struct mlx5e_profile {
 	void	(*update_carrier)(struct mlx5e_priv *priv);
 	unsigned int (*stats_grps_num)(struct mlx5e_priv *priv);
 	mlx5e_stats_grp_t *stats_grps;
-	struct {
-		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
-		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
-	} rx_handlers;
+	const struct mlx5e_rx_handlers *rx_handlers;
 	int	max_tc;
 	u8	rq_groups;
 };
 
 void mlx5e_build_ptys2ethtool_map(void);
 
-u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev);
-netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
-void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
-
-void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
-void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe);
-void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
-int mlx5e_napi_poll(struct napi_struct *napi, int budget);
-bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
-int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
-void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
-
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev);
 bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
 				struct mlx5e_params *params);
-
-void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info);
-void mlx5e_page_release_dynamic(struct mlx5e_rq *rq,
-				struct mlx5e_dma_info *dma_info,
-				bool recycle);
-void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
-void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
-bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
-int mlx5e_poll_ico_cq(struct mlx5e_cq *cq);
-bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
-void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
-void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
-struct sk_buff *
-mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
-				u16 cqe_bcnt, u32 head_offset, u32 page_idx);
-struct sk_buff *
-mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
-				   u16 cqe_bcnt, u32 head_offset, u32 page_idx);
-struct sk_buff *
-mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			  struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
-struct sk_buff *
-mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
@@ -982,8 +950,6 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 int mlx5e_modify_rq_state(struct mlx5e_rq *rq, int curr_state, int next_state);
 void mlx5e_activate_rq(struct mlx5e_rq *rq);
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq);
-void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
-void mlx5e_free_rx_in_progress_descs(struct mlx5e_rq *rq);
 void mlx5e_activate_icosq(struct mlx5e_icosq *icosq);
 void mlx5e_deactivate_icosq(struct mlx5e_icosq *icosq);
 
@@ -1008,6 +974,7 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
 int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
 		       bool enable_mc_lb);
+void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc);
 
 /* common netdev helpers */
 void mlx5e_create_q_counters(struct mlx5e_priv *priv);

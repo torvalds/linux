@@ -3,6 +3,7 @@
 
 #include "setup.h"
 #include "en/params.h"
+#include "en/txrx.h"
 
 /* It matches XDP_UMEM_MIN_CHUNK_SIZE, but as this constant is private and may
  * change unexpectedly, and mlx5e has a minimum valid stride size for striding

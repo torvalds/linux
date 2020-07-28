@@ -541,7 +541,7 @@ struct mlx5_priv {
 	/* pages stuff */
 	struct mlx5_nb          pg_nb;
 	struct workqueue_struct *pg_wq;
-	struct rb_root		page_root;
+	struct xarray           page_root_xa;
 	int			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;

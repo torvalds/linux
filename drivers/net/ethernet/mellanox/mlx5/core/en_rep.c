@@ -42,6 +42,7 @@
 #include "esw/chains.h"
 #include "en.h"
 #include "en_rep.h"
+#include "en/txrx.h"
 #include "en_tc.h"
 #include "en/rep/tc.h"
 #include "en/rep/neigh.h"
@@ -699,8 +700,8 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
+	SET_NETDEV_DEV(netdev, mdev->device);
 	if (rep->vport == MLX5_VPORT_UPLINK) {
-		SET_NETDEV_DEV(netdev, mdev->device);
 		netdev->netdev_ops = &mlx5e_netdev_ops_uplink_rep;
 		/* we want a persistent mac for the uplink rep */
 		mlx5_query_mac_address(mdev, netdev->dev_addr);
@@ -1143,8 +1144,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.enable		        = mlx5e_rep_enable,
 	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_update_ndo_stats,
-	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
-	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq_rep,
+	.rx_handlers            = &mlx5e_rx_handlers_rep,
 	.max_tc			= 1,
 	.rq_groups		= MLX5E_NUM_RQ_GROUPS(REGULAR),
 	.stats_grps		= mlx5e_rep_stats_grps,
@@ -1163,8 +1163,7 @@ static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_update_ndo_stats,
 	.update_carrier	        = mlx5e_update_carrier,
-	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
-	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq_rep,
+	.rx_handlers            = &mlx5e_rx_handlers_rep,
 	.max_tc			= MLX5E_MAX_NUM_TC,
 	.rq_groups		= MLX5E_NUM_RQ_GROUPS(REGULAR),
 	.stats_grps		= mlx5e_ul_rep_stats_grps,

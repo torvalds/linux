@@ -271,7 +271,6 @@ struct mlx5_eswitch {
 
 	struct mlx5_esw_offload offloads;
 	int                     mode;
-	int                     nvports;
 	u16                     manager_vport;
 	u16                     first_host_vport;
 	struct mlx5_esw_functions esw_funcs;

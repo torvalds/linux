@@ -5,6 +5,7 @@
 #define __MLX5_EN_TXRX_H___
 
 #include "en.h"
+#include <linux/indirect_call_wrapper.h>
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
@@ -17,6 +18,33 @@ enum mlx5e_icosq_wqe_type {
 	MLX5E_ICOSQ_WQE_GET_PSV_TLS,
 #endif
 };
+
+/* General */
+void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
+void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe);
+void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
+int mlx5e_napi_poll(struct napi_struct *napi, int budget);
+int mlx5e_poll_ico_cq(struct mlx5e_cq *cq);
+
+/* RX */
+void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info);
+void mlx5e_page_release_dynamic(struct mlx5e_rq *rq,
+				struct mlx5e_dma_info *dma_info,
+				bool recycle);
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq));
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq));
+int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
+void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
+void mlx5e_free_rx_in_progress_descs(struct mlx5e_rq *rq);
+
+/* TX */
+u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
+		       struct net_device *sb_dev);
+netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
+void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
+bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
+void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
 
 static inline bool
 mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
@@ -360,7 +388,7 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 	switch (swp_spec->tun_l4_proto) {
 	case IPPROTO_UDP:
 		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
-		/* fall through */
+		fallthrough;
 	case IPPROTO_TCP:
 		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
 		break;

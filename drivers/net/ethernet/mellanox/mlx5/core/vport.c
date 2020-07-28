@@ -110,7 +110,7 @@ void mlx5_query_min_inline(struct mlx5_core_dev *mdev,
 	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
 		if (!mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode))
 			break;
-		/* fall through */
+		fallthrough;
 	case MLX5_CAP_INLINE_MODE_L2:
 		*min_inline_mode = MLX5_INLINE_MODE_L2;
 		break;
