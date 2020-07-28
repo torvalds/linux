@@ -219,6 +219,8 @@ properties:
       - osddisplays,osd070t1718-19ts
         # One Stop Displays OSD101T2045-53TS 10.1" 1920x1200 panel
       - osddisplays,osd101t2045-53ts
+        # POWERTIP PH800480T013-IDF2 7.0" WVGA TFT LCD panel
+      - powertip,ph800480t013-idf02
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel
       - qiaodian,qd43003c0-40
         # Rocktech Displays Ltd. RK101II01D-CT 10.1" TFT 1280x800
