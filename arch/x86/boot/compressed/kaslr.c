@@ -623,34 +623,23 @@ static void __process_mem_region(struct mem_vector *entry,
 				 unsigned long image_size)
 {
 	struct mem_vector region, overlap;
-	unsigned long end;
+	unsigned long region_end;
 
-	/* Ignore entries entirely below our minimum. */
-	if (entry->start + entry->size < minimum)
-		return;
-
-	/* Ignore entries above memory limit */
-	end = min(entry->size + entry->start, mem_limit);
-	if (entry->start >= end)
-		return;
-
-	region.start = entry->start;
+	/* Enforce minimum and memory limit. */
+	region.start = max_t(unsigned long long, entry->start, minimum);
+	region_end = min(entry->start + entry->size, mem_limit);
 
 	/* Give up if slot area array is full. */
 	while (slot_area_index < MAX_SLOT_AREA) {
-		/* Potentially raise address to minimum location. */
-		if (region.start < minimum)
-			region.start = minimum;
-
 		/* Potentially raise address to meet alignment needs. */
 		region.start = ALIGN(region.start, CONFIG_PHYSICAL_ALIGN);
 
 		/* Did we raise the address above the passed in memory entry? */
-		if (region.start > end)
+		if (region.start > region_end)
 			return;
 
 		/* Reduce size by any delta from the original address. */
-		region.size = end - region.start;
+		region.size = region_end - region.start;
 
 		/* Return if region can't contain decompressed kernel */
 		if (region.size < image_size)
@@ -667,10 +656,6 @@ static void __process_mem_region(struct mem_vector *entry,
 			region.size = overlap.start - region.start;
 			process_gb_huge_pages(&region, image_size);
 		}
-
-		/* Return if overlap extends to or past end of region. */
-		if (overlap.start + overlap.size >= region.start + region.size)
-			return;
 
 		/* Clip off the overlapping region and start over. */
 		region.start = overlap.start + overlap.size;
