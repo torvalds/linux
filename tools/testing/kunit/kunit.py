@@ -82,7 +82,9 @@ def build_tests(linux: kunit_kernel.LinuxSourceTree,
 					request.make_options)
 	build_end = time.time()
 	if not success:
-		return KunitResult(KunitStatus.BUILD_FAILURE, 'could not build kernel')
+		return KunitResult(KunitStatus.BUILD_FAILURE,
+				   'could not build kernel',
+				   build_end - build_start)
 	if not success:
 		return KunitResult(KunitStatus.BUILD_FAILURE,
 				   'could not build kernel',

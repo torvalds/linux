@@ -1360,7 +1360,7 @@
  */
 
  /* Register address for bitfield pif_rpf_l3_da0_i[31:0] */
-#define HW_ATL_RPF_L3_DSTA_ADR(filter) (0x000053B0 + (filter) * 0x4)
+#define HW_ATL_RPF_L3_DSTA_ADR(filter) (0x000053D0 + (filter) * 0x4)
 /* Bitmask for bitfield l3_da0[1F:0] */
 #define HW_ATL_RPF_L3_DSTA_MSK 0xFFFFFFFFu
 /* Inverted bitmask for bitfield l3_da0[1F:0] */

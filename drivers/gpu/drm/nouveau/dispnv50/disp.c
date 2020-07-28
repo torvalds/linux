@@ -601,6 +601,9 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 				(0x0100 << nv_crtc->index),
 	};
 
+	if (!nv_encoder->audio)
+		return;
+
 	nv_encoder->audio = false;
 	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
 

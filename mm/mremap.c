@@ -206,9 +206,28 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 
 	/*
 	 * The destination pmd shouldn't be established, free_pgtables()
-	 * should have release it.
+	 * should have released it.
+	 *
+	 * However, there's a case during execve() where we use mremap
+	 * to move the initial stack, and in that case the target area
+	 * may overlap the source area (always moving down).
+	 *
+	 * If everything is PMD-aligned, that works fine, as moving
+	 * each pmd down will clear the source pmd. But if we first
+	 * have a few 4kB-only pages that get moved down, and then
+	 * hit the "now the rest is PMD-aligned, let's do everything
+	 * one pmd at a time", we will still have the old (now empty
+	 * of any 4kB pages, but still there) PMD in the page table
+	 * tree.
+	 *
+	 * Warn on it once - because we really should try to figure
+	 * out how to do this better - but then say "I won't move
+	 * this pmd".
+	 *
+	 * One alternative might be to just unmap the target pmd at
+	 * this point, and verify that it really is empty. We'll see.
 	 */
-	if (WARN_ON(!pmd_none(*new_pmd)))
+	if (WARN_ON_ONCE(!pmd_none(*new_pmd)))
 		return false;
 
 	/*

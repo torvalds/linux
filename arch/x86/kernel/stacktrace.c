@@ -58,7 +58,6 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 			 * or a page fault), which can make frame pointers
 			 * unreliable.
 			 */
-
 			if (IS_ENABLED(CONFIG_FRAME_POINTER))
 				return -EINVAL;
 		}
@@ -79,10 +78,6 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 
 	/* Check for stack corruption */
 	if (unwind_error(&state))
-		return -EINVAL;
-
-	/* Success path for non-user tasks, i.e. kthreads and idle tasks */
-	if (!(task->flags & (PF_KTHREAD | PF_IDLE)))
 		return -EINVAL;
 
 	return 0;

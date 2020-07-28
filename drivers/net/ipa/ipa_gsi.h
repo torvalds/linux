@@ -8,7 +8,9 @@
 
 #include <linux/types.h>
 
+struct gsi;
 struct gsi_trans;
+struct ipa_gsi_endpoint_data;
 
 /**
  * ipa_gsi_trans_complete() - GSI transaction completion callback

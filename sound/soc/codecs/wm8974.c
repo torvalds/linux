@@ -186,7 +186,7 @@ SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_MONOMIX, 0, 1, 0),
 
 /* Boost mixer */
 static const struct snd_kcontrol_new wm8974_boost_mixer[] = {
-SOC_DAPM_SINGLE("Aux Switch", WM8974_INPPGA, 6, 1, 0),
+SOC_DAPM_SINGLE("Aux Switch", WM8974_INPPGA, 6, 1, 1),
 };
 
 /* Input PGA */
@@ -474,6 +474,10 @@ static int wm8974_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface |= 0x0008;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
+		if ((fmt & SND_SOC_DAIFMT_INV_MASK) == SND_SOC_DAIFMT_IB_IF ||
+		    (fmt & SND_SOC_DAIFMT_INV_MASK) == SND_SOC_DAIFMT_NB_IF) {
+			return -EINVAL;
+		}
 		iface |= 0x00018;
 		break;
 	default:

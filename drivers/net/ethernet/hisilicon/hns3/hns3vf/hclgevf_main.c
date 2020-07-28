@@ -1793,6 +1793,11 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	if (hdev->reset_type == HNAE3_VF_FUNC_RESET) {
 		hclgevf_build_send_msg(&send_msg, HCLGE_MBX_RESET, 0);
 		ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to assert VF reset, ret = %d\n", ret);
+			return ret;
+		}
 		hdev->rst_stats.vf_func_rst_cnt++;
 	}
 

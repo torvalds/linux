@@ -396,6 +396,7 @@ static void bnxt_free_vf_resources(struct bnxt *bp)
 		}
 	}
 
+	bp->pf.active_vfs = 0;
 	kfree(bp->pf.vf);
 	bp->pf.vf = NULL;
 }
@@ -835,7 +836,6 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 	bnxt_free_vf_resources(bp);
 
-	bp->pf.active_vfs = 0;
 	/* Reclaim all resources for the PF. */
 	rtnl_lock();
 	bnxt_restore_pf_fw_resources(bp);

@@ -828,10 +828,10 @@ static bool blk_mq_rq_inflight(struct blk_mq_hw_ctx *hctx, struct request *rq,
 			       void *priv, bool reserved)
 {
 	/*
-	 * If we find a request that is inflight and the queue matches,
+	 * If we find a request that isn't idle and the queue matches,
 	 * we know the queue is busy. Return false to stop the iteration.
 	 */
-	if (rq->state == MQ_RQ_IN_FLIGHT && rq->q == hctx->queue) {
+	if (blk_mq_request_started(rq) && rq->q == hctx->queue) {
 		bool *busy = priv;
 
 		*busy = true;

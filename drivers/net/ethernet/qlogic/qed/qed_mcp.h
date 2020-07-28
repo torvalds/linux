@@ -1221,6 +1221,13 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief Delete nvm info shadow in the given hardware function
+ *
+ * @param p_hwfn
+ */
+void qed_mcp_nvm_info_free(struct qed_hwfn *p_hwfn);
+
+/**
  * @brief Get the engine affinity configuration.
  *
  * @param p_hwfn
