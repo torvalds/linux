@@ -3373,11 +3373,33 @@ static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
 	return op + step_idx;
 }
 
+static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj, u64 bt_ba,
+			 u32 hem_type, int step_idx)
+{
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
+	int op;
+
+	op = get_op_for_set_hem(hr_dev, hem_type, step_idx);
+	if (op < 0)
+		return 0;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma, obj,
+				0, op, HNS_ROCE_CMD_TIMEOUT_MSECS);
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+	return ret;
+}
+
 static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_hem_table *table, int obj,
 			       int step_idx)
 {
-	struct hns_roce_cmd_mailbox *mailbox;
 	struct hns_roce_hem_iter iter;
 	struct hns_roce_hem_mhop mhop;
 	struct hns_roce_hem *hem;
@@ -3389,7 +3411,6 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 	u64 bt_ba = 0;
 	u32 chunk_ba_num;
 	u32 hop_num;
-	int op;
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
 		return 0;
@@ -3411,14 +3432,6 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 		hem_idx = i;
 	}
 
-	op = get_op_for_set_hem(hr_dev, table->type, step_idx);
-	if (op == -EINVAL)
-		return 0;
-
-	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-
 	if (table->type == HEM_TYPE_SCCC)
 		obj = mhop.l0_idx;
 
@@ -3427,11 +3440,8 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 		for (hns_roce_hem_first(hem, &iter);
 		     !hns_roce_hem_last(&iter); hns_roce_hem_next(&iter)) {
 			bt_ba = hns_roce_hem_addr(&iter);
-
-			/* configure the ba, tag, and op */
-			ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma,
-						obj, 0, op,
-						HNS_ROCE_CMD_TIMEOUT_MSECS);
+			ret = set_hem_to_hw(hr_dev, obj, bt_ba, table->type,
+					    step_idx);
 		}
 	} else {
 		if (step_idx == 0)
@@ -3439,12 +3449,9 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 		else if (step_idx == 1 && hop_num == 2)
 			bt_ba = table->bt_l1_dma_addr[l1_idx];
 
-		/* configure the ba, tag, and op */
-		ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma, obj,
-					0, op, HNS_ROCE_CMD_TIMEOUT_MSECS);
+		ret = set_hem_to_hw(hr_dev, obj, bt_ba, table->type, step_idx);
 	}
 
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	return ret;
 }
 
