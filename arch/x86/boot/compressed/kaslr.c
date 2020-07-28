@@ -803,6 +803,8 @@ static void process_e820_entries(unsigned long minimum,
 static unsigned long find_random_phys_addr(unsigned long minimum,
 					   unsigned long image_size)
 {
+	u64 phys_addr;
+
 	/* Bail out early if it's impossible to succeed. */
 	if (minimum + image_size > mem_limit)
 		return 0;
@@ -816,7 +818,15 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 	if (!process_efi_entries(minimum, image_size))
 		process_e820_entries(minimum, image_size);
 
-	return slots_fetch_random();
+	phys_addr = slots_fetch_random();
+
+	/* Perform a final check to make sure the address is in range. */
+	if (phys_addr < minimum || phys_addr + image_size > mem_limit) {
+		warn("Invalid physical address chosen!\n");
+		return 0;
+	}
+
+	return (unsigned long)phys_addr;
 }
 
 static unsigned long find_random_virt_addr(unsigned long minimum,
