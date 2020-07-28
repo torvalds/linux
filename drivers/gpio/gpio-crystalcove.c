@@ -364,9 +364,9 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 
-	retval = request_threaded_irq(irq, NULL, crystalcove_gpio_irq_handler,
-				      IRQF_ONESHOT, KBUILD_MODNAME, cg);
-
+	retval = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					   crystalcove_gpio_irq_handler,
+					   IRQF_ONESHOT, KBUILD_MODNAME, cg);
 	if (retval) {
 		dev_warn(&pdev->dev, "request irq failed: %d\n", retval);
 		return retval;
@@ -381,24 +381,12 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int crystalcove_gpio_remove(struct platform_device *pdev)
-{
-	struct crystalcove_gpio *cg = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
-
-	if (irq >= 0)
-		free_irq(irq, cg);
-	return 0;
-}
-
 static struct platform_driver crystalcove_gpio_driver = {
 	.probe = crystalcove_gpio_probe,
-	.remove = crystalcove_gpio_remove,
 	.driver = {
 		.name = "crystal_cove_gpio",
 	},
 };
-
 module_platform_driver(crystalcove_gpio_driver);
 
 MODULE_AUTHOR("Yang, Bin <bin.yang@intel.com>");
