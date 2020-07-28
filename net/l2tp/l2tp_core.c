@@ -808,7 +808,7 @@ discard:
 	atomic_long_inc(&session->stats.rx_errors);
 	kfree_skb(skb);
 }
-EXPORT_SYMBOL(l2tp_recv_common);
+EXPORT_SYMBOL_GPL(l2tp_recv_common);
 
 /* Drop skbs from the session's reorder_q
  */
