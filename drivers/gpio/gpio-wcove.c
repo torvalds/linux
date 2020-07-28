@@ -449,13 +449,6 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		return virq;
 	}
 
-	ret = devm_request_threaded_irq(dev, virq, NULL,
-		wcove_gpio_irq_handler, IRQF_ONESHOT, pdev->name, wg);
-	if (ret) {
-		dev_err(dev, "Failed to request irq %d\n", virq);
-		return ret;
-	}
-
 	girq = &wg->chip.irq;
 	girq->chip = &wcove_irqchip;
 	/* This will let us handle the parent IRQ in the driver */
@@ -465,6 +458,13 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
+
+	ret = devm_request_threaded_irq(dev, virq, NULL, wcove_gpio_irq_handler,
+					IRQF_ONESHOT, pdev->name, wg);
+	if (ret) {
+		dev_err(dev, "Failed to request irq %d\n", virq);
+		return ret;
+	}
 
 	ret = devm_gpiochip_add_data(dev, &wg->chip, wg);
 	if (ret) {
