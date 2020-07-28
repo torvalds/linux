@@ -82,6 +82,9 @@ static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 	if (!info1->dir_fh_totlen)
 		return false;
 
+	if (!fanotify_fsid_equal(&fne1->fsid, &fne2->fsid))
+		return false;
+
 	return fanotify_info_equal(info1, info2);
 }
 
