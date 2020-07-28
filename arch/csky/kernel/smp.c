@@ -156,6 +156,7 @@ void __init setup_smp(void)
 extern void _start_smp_secondary(void);
 
 volatile unsigned int secondary_hint;
+volatile unsigned int secondary_hint2;
 volatile unsigned int secondary_ccr;
 volatile unsigned int secondary_stack;
 
@@ -168,6 +169,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	secondary_stack =
 		(unsigned int) task_stack_page(tidle) + THREAD_SIZE - 8;
 	secondary_hint = mfcr("cr31");
+	secondary_hint2 = mfcr("cr<21, 1>");
 	secondary_ccr  = mfcr("cr18");
 	secondary_msa1 = read_mmu_msa1();
 
@@ -209,6 +211,7 @@ void csky_start_secondary(void)
 	unsigned int cpu = smp_processor_id();
 
 	mtcr("cr31", secondary_hint);
+	mtcr("cr<21, 1>", secondary_hint2);
 	mtcr("cr18", secondary_ccr);
 
 	mtcr("vbr", vec_base);
