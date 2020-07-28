@@ -417,6 +417,60 @@ static int vmd_find_free_domain(void)
 	return domain + 1;
 }
 
+static int vmd_get_phys_offsets(struct vmd_dev *vmd, bool native_hint,
+				resource_size_t *offset1,
+				resource_size_t *offset2)
+{
+	struct pci_dev *dev = vmd->dev;
+	u64 phys1, phys2;
+
+	if (native_hint) {
+		u32 vmlock;
+		int ret;
+
+		ret = pci_read_config_dword(dev, PCI_REG_VMLOCK, &vmlock);
+		if (ret || vmlock == ~0)
+			return -ENODEV;
+
+		if (MB2_SHADOW_EN(vmlock)) {
+			void __iomem *membar2;
+
+			membar2 = pci_iomap(dev, VMD_MEMBAR2, 0);
+			if (!membar2)
+				return -ENOMEM;
+			phys1 = readq(membar2 + MB2_SHADOW_OFFSET);
+			phys2 = readq(membar2 + MB2_SHADOW_OFFSET + 8);
+			pci_iounmap(dev, membar2);
+		} else
+			return 0;
+	} else {
+		/* Hypervisor-Emulated Vendor-Specific Capability */
+		int pos = pci_find_capability(dev, PCI_CAP_ID_VNDR);
+		u32 reg, regu;
+
+		pci_read_config_dword(dev, pos + 4, &reg);
+
+		/* "SHDW" */
+		if (pos && reg == 0x53484457) {
+			pci_read_config_dword(dev, pos + 8, &reg);
+			pci_read_config_dword(dev, pos + 12, &regu);
+			phys1 = (u64) regu << 32 | reg;
+
+			pci_read_config_dword(dev, pos + 16, &reg);
+			pci_read_config_dword(dev, pos + 20, &regu);
+			phys2 = (u64) regu << 32 | reg;
+		} else
+			return 0;
+	}
+
+	*offset1 = dev->resource[VMD_MEMBAR1].start -
+			(phys1 & PCI_BASE_ADDRESS_MEM_MASK);
+	*offset2 = dev->resource[VMD_MEMBAR2].start -
+			(phys2 & PCI_BASE_ADDRESS_MEM_MASK);
+
+	return 0;
+}
+
 static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
@@ -428,6 +482,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	resource_size_t offset[2] = {0};
 	resource_size_t membar2_offset = 0x2000;
 	struct pci_bus *child;
+	int ret;
 
 	/*
 	 * Shadow registers may exist in certain VMD device ids which allow
@@ -436,50 +491,14 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * or 0, depending on an enable bit in the VMD device.
 	 */
 	if (features & VMD_FEAT_HAS_MEMBAR_SHADOW) {
-		u32 vmlock;
-		int ret;
-
 		membar2_offset = MB2_SHADOW_OFFSET + MB2_SHADOW_SIZE;
-		ret = pci_read_config_dword(vmd->dev, PCI_REG_VMLOCK, &vmlock);
-		if (ret || vmlock == ~0)
-			return -ENODEV;
-
-		if (MB2_SHADOW_EN(vmlock)) {
-			void __iomem *membar2;
-
-			membar2 = pci_iomap(vmd->dev, VMD_MEMBAR2, 0);
-			if (!membar2)
-				return -ENOMEM;
-			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
-					(readq(membar2 + MB2_SHADOW_OFFSET) &
-					 PCI_BASE_ADDRESS_MEM_MASK);
-			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
-					(readq(membar2 + MB2_SHADOW_OFFSET + 8) &
-					 PCI_BASE_ADDRESS_MEM_MASK);
-			pci_iounmap(vmd->dev, membar2);
-		}
-	}
-
-	if (features & VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP) {
-		int pos = pci_find_capability(vmd->dev, PCI_CAP_ID_VNDR);
-		u32 reg, regu;
-
-		pci_read_config_dword(vmd->dev, pos + 4, &reg);
-
-		/* "SHDW" */
-		if (pos && reg == 0x53484457) {
-			pci_read_config_dword(vmd->dev, pos + 8, &reg);
-			pci_read_config_dword(vmd->dev, pos + 12, &regu);
-			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
-					(((u64) regu << 32 | reg) &
-					 PCI_BASE_ADDRESS_MEM_MASK);
-
-			pci_read_config_dword(vmd->dev, pos + 16, &reg);
-			pci_read_config_dword(vmd->dev, pos + 20, &regu);
-			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
-					(((u64) regu << 32 | reg) &
-					 PCI_BASE_ADDRESS_MEM_MASK);
-		}
+		ret = vmd_get_phys_offsets(vmd, true, &offset[0], &offset[1]);
+		if (ret)
+			return ret;
+	} else if (features & VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP) {
+		ret = vmd_get_phys_offsets(vmd, false, &offset[0], &offset[1]);
+		if (ret)
+			return ret;
 	}
 
 	/*
