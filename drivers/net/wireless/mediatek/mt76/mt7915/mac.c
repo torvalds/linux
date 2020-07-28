@@ -765,45 +765,29 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	return 0;
 }
 
-static inline bool
-mt7915_tx_check_aggr_tid(struct mt7915_sta *msta, u8 tid)
-{
-	bool ret = false;
-
-	spin_lock_bh(&msta->ampdu_lock);
-	if (msta->ampdu_state[tid] == MT7915_AGGR_STOP)
-		ret = true;
-	spin_unlock_bh(&msta->ampdu_lock);
-
-	return ret;
-}
-
 static void
-mt7915_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
+mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct mt7915_sta *msta;
-	u16 tid;
+	u16 fc, tid;
+	u32 val;
 
-	if (!sta->ht_cap.ht_supported)
+	if (!sta || !sta->ht_cap.ht_supported)
 		return;
 
-	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
+	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
+	if (tid >= 6) /* skip VO queue */
 		return;
 
-	if (unlikely(!ieee80211_is_data_qos(hdr->frame_control)))
-		return;
-
-	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
+	val = le32_to_cpu(txwi[2]);
+	fc = FIELD_GET(MT_TXD2_FRAME_TYPE, val) << 2 |
+	     FIELD_GET(MT_TXD2_SUB_TYPE, val) << 4;
+	if (unlikely(fc != (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA)))
 		return;
 
 	msta = (struct mt7915_sta *)sta->drv_priv;
-	tid = ieee80211_get_tid(hdr);
-
-	if (mt7915_tx_check_aggr_tid(msta, tid)) {
+	if (!test_and_set_bit(tid, &msta->ampdu_state))
 		ieee80211_start_tx_ba_session(sta, tid, 0);
-		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_PROGRESS);
-	}
 }
 
 static inline void
@@ -840,8 +824,6 @@ mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		info->flags |= IEEE80211_TX_STAT_AMPDU;
-	else if (sta)
-		mt7915_tx_check_aggr(sta, skb);
 
 	if (stat)
 		ieee80211_tx_info_clear_status(info);
@@ -931,6 +913,10 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		mt7915_txp_skb_unmap(mdev, txwi);
 		if (txwi->skb) {
+			void *txwi_ptr = mt76_get_txwi_ptr(mdev, txwi);
+
+			if (likely(txwi->skb->protocol != cpu_to_be16(ETH_P_PAE)))
+				mt7915_tx_check_aggr(sta, txwi_ptr);
 			mt7915_tx_complete_status(mdev, txwi->skb, sta, stat);
 			txwi->skb = NULL;
 		}

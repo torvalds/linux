@@ -62,13 +62,6 @@ enum mt7915_rxq_id {
 	MT7915_RXQ_MCU_WA,
 };
 
-enum mt7915_ampdu_state {
-	MT7915_AGGR_STOP,
-	MT7915_AGGR_PROGRESS,
-	MT7915_AGGR_START,
-	MT7915_AGGR_OPERATIONAL
-};
-
 struct mt7915_sta_stats {
 	struct rate_info prob_rate;
 	struct rate_info tx_rate;
@@ -90,8 +83,7 @@ struct mt7915_sta {
 
 	struct mt7915_sta_stats stats;
 
-	spinlock_t ampdu_lock;
-	enum mt7915_ampdu_state ampdu_state[IEEE80211_NUM_TIDS];
+	unsigned long ampdu_state;
 };
 
 struct mt7915_vif {
@@ -276,15 +268,6 @@ static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 		return MT_LMAC_AC01; /* BE */
 
 	return lmac_queue_map[ac];
-}
-
-static inline void
-mt7915_set_aggr_state(struct mt7915_sta *msta, u8 tid,
-		      enum mt7915_ampdu_state state)
-{
-	spin_lock_bh(&msta->ampdu_lock);
-	msta->ampdu_state[tid] = state;
-	spin_unlock_bh(&msta->ampdu_lock);
 }
 
 extern const struct ieee80211_ops mt7915_ops;
