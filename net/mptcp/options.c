@@ -782,6 +782,22 @@ static void update_una(struct mptcp_sock *msk,
 	}
 }
 
+bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
+{
+	/* Skip if DATA_FIN was already received.
+	 * If updating simultaneously with the recvmsg loop, values
+	 * should match. If they mismatch, the peer is misbehaving and
+	 * we will prefer the most recent information.
+	 */
+	if (READ_ONCE(msk->rcv_data_fin) || !READ_ONCE(msk->first))
+		return false;
+
+	WRITE_ONCE(msk->rcv_data_fin_seq, data_fin_seq);
+	WRITE_ONCE(msk->rcv_data_fin, 1);
+
+	return true;
+}
+
 static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 				struct mptcp_options_received *mp_opt)
 {

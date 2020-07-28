@@ -193,12 +193,14 @@ struct mptcp_sock {
 	u64		remote_key;
 	u64		write_seq;
 	u64		ack_seq;
+	u64		rcv_data_fin_seq;
 	atomic64_t	snd_una;
 	unsigned long	timer_ival;
 	u32		token;
 	unsigned long	flags;
 	bool		can_ack;
 	bool		fully_established;
+	bool		rcv_data_fin;
 	bool		snd_data_fin_enable;
 	spinlock_t	join_list_lock;
 	struct work_struct work;
@@ -385,6 +387,7 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk);
 bool mptcp_finish_join(struct sock *sk);
 void mptcp_data_acked(struct sock *sk);
 void mptcp_subflow_eof(struct sock *sk);
+bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq);
 
 void __init mptcp_token_init(void);
 static inline void mptcp_token_init_request(struct request_sock *req)

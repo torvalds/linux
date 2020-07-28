@@ -16,6 +16,7 @@
 #include <net/inet_hashtables.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
+#include <net/tcp_states.h>
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 #include <net/transp_v6.h>
 #endif
@@ -163,6 +164,101 @@ static bool mptcp_subflow_dsn_valid(const struct mptcp_sock *msk,
 	return mptcp_subflow_data_available(ssk);
 }
 
+static bool mptcp_pending_data_fin(struct sock *sk, u64 *seq)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (READ_ONCE(msk->rcv_data_fin) &&
+	    ((1 << sk->sk_state) &
+	     (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 | TCPF_FIN_WAIT2))) {
+		u64 rcv_data_fin_seq = READ_ONCE(msk->rcv_data_fin_seq);
+
+		if (msk->ack_seq == rcv_data_fin_seq) {
+			if (seq)
+				*seq = rcv_data_fin_seq;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void mptcp_set_timeout(const struct sock *sk, const struct sock *ssk)
+{
+	long tout = ssk && inet_csk(ssk)->icsk_pending ?
+				      inet_csk(ssk)->icsk_timeout - jiffies : 0;
+
+	if (tout <= 0)
+		tout = mptcp_sk(sk)->timer_ival;
+	mptcp_sk(sk)->timer_ival = tout > 0 ? tout : TCP_RTO_MIN;
+}
+
+static void mptcp_check_data_fin(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+	u64 rcv_data_fin_seq;
+
+	if (__mptcp_check_fallback(msk) || !msk->first)
+		return;
+
+	/* Need to ack a DATA_FIN received from a peer while this side
+	 * of the connection is in ESTABLISHED, FIN_WAIT1, or FIN_WAIT2.
+	 * msk->rcv_data_fin was set when parsing the incoming options
+	 * at the subflow level and the msk lock was not held, so this
+	 * is the first opportunity to act on the DATA_FIN and change
+	 * the msk state.
+	 *
+	 * If we are caught up to the sequence number of the incoming
+	 * DATA_FIN, send the DATA_ACK now and do state transition.  If
+	 * not caught up, do nothing and let the recv code send DATA_ACK
+	 * when catching up.
+	 */
+
+	if (mptcp_pending_data_fin(sk, &rcv_data_fin_seq)) {
+		struct mptcp_subflow_context *subflow;
+
+		msk->ack_seq++;
+		WRITE_ONCE(msk->rcv_data_fin, 0);
+
+		sk->sk_shutdown |= RCV_SHUTDOWN;
+
+		switch (sk->sk_state) {
+		case TCP_ESTABLISHED:
+			inet_sk_state_store(sk, TCP_CLOSE_WAIT);
+			break;
+		case TCP_FIN_WAIT1:
+			inet_sk_state_store(sk, TCP_CLOSING);
+			break;
+		case TCP_FIN_WAIT2:
+			inet_sk_state_store(sk, TCP_CLOSE);
+			// @@ Close subflows now?
+			break;
+		default:
+			/* Other states not expected */
+			WARN_ON_ONCE(1);
+			break;
+		}
+
+		mptcp_set_timeout(sk, NULL);
+		mptcp_for_each_subflow(msk, subflow) {
+			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+			lock_sock(ssk);
+			tcp_send_ack(ssk);
+			release_sock(ssk);
+		}
+
+		sk->sk_state_change(sk);
+
+		if (sk->sk_shutdown == SHUTDOWN_MASK ||
+		    sk->sk_state == TCP_CLOSE)
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
+		else
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	}
+}
+
 static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 					   struct sock *ssk,
 					   unsigned int *bytes)
@@ -301,16 +397,6 @@ static void __mptcp_flush_join_list(struct mptcp_sock *msk)
 	spin_lock_bh(&msk->join_list_lock);
 	list_splice_tail_init(&msk->join_list, &msk->conn_list);
 	spin_unlock_bh(&msk->join_list_lock);
-}
-
-static void mptcp_set_timeout(const struct sock *sk, const struct sock *ssk)
-{
-	long tout = ssk && inet_csk(ssk)->icsk_pending ?
-				      inet_csk(ssk)->icsk_timeout - jiffies : 0;
-
-	if (tout <= 0)
-		tout = mptcp_sk(sk)->timer_ival;
-	mptcp_sk(sk)->timer_ival = tout > 0 ? tout : TCP_RTO_MIN;
 }
 
 static bool mptcp_timer_pending(struct sock *sk)
