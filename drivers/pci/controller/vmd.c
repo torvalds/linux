@@ -471,6 +471,35 @@ static int vmd_get_phys_offsets(struct vmd_dev *vmd, bool native_hint,
 	return 0;
 }
 
+static int vmd_get_bus_number_start(struct vmd_dev *vmd)
+{
+	struct pci_dev *dev = vmd->dev;
+	u16 reg;
+
+	pci_read_config_word(dev, PCI_REG_VMCAP, &reg);
+	if (BUS_RESTRICT_CAP(reg)) {
+		pci_read_config_word(dev, PCI_REG_VMCONFIG, &reg);
+
+		switch (BUS_RESTRICT_CFG(reg)) {
+		case 0:
+			vmd->busn_start = 0;
+			break;
+		case 1:
+			vmd->busn_start = 128;
+			break;
+		case 2:
+			vmd->busn_start = 224;
+			break;
+		default:
+			pci_err(dev, "Unknown Bus Offset Setting (%d)\n",
+				BUS_RESTRICT_CFG(reg));
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
 static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
@@ -506,27 +535,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * limits the bus range to between 0-127, 128-255, or 224-255
 	 */
 	if (features & VMD_FEAT_HAS_BUS_RESTRICTIONS) {
-		u16 reg16;
-
-		pci_read_config_word(vmd->dev, PCI_REG_VMCAP, &reg16);
-		if (BUS_RESTRICT_CAP(reg16)) {
-			pci_read_config_word(vmd->dev, PCI_REG_VMCONFIG,
-					     &reg16);
-
-			switch (BUS_RESTRICT_CFG(reg16)) {
-			case 1:
-				vmd->busn_start = 128;
-				break;
-			case 2:
-				vmd->busn_start = 224;
-				break;
-			case 3:
-				pci_err(vmd->dev, "Unknown Bus Offset Setting\n");
-				return -ENODEV;
-			default:
-				break;
-			}
-		}
+		ret = vmd_get_bus_number_start(vmd);
+		if (ret)
+			return ret;
 	}
 
 	res = &vmd->dev->resource[VMD_CFGBAR];
