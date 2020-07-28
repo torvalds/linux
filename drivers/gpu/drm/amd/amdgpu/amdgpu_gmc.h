@@ -215,6 +215,7 @@ struct amdgpu_gmc {
 	bool			prt_warning;
 	uint64_t		stolen_vga_size;
 	struct amdgpu_bo	*stolen_vga_memory;
+	bool			keep_stolen_vga_memory;
 	uint32_t		sdpif_register;
 	/* apertures */
 	u64			shared_aperture_start;
