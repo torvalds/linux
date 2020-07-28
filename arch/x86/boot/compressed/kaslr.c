@@ -623,7 +623,7 @@ static void __process_mem_region(struct mem_vector *entry,
 				 unsigned long image_size)
 {
 	struct mem_vector region, overlap;
-	unsigned long start_orig, end;
+	unsigned long end;
 
 	/* Ignore entries entirely below our minimum. */
 	if (entry->start + entry->size < minimum)
@@ -635,12 +635,9 @@ static void __process_mem_region(struct mem_vector *entry,
 		return;
 
 	region.start = entry->start;
-	region.size = end - entry->start;
 
 	/* Give up if slot area array is full. */
 	while (slot_area_index < MAX_SLOT_AREA) {
-		start_orig = region.start;
-
 		/* Potentially raise address to minimum location. */
 		if (region.start < minimum)
 			region.start = minimum;
@@ -653,7 +650,7 @@ static void __process_mem_region(struct mem_vector *entry,
 			return;
 
 		/* Reduce size by any delta from the original address. */
-		region.size -= region.start - start_orig;
+		region.size = end - region.start;
 
 		/* Return if region can't contain decompressed kernel */
 		if (region.size < image_size)
@@ -679,7 +676,6 @@ static void __process_mem_region(struct mem_vector *entry,
 			return;
 
 		/* Clip off the overlapping region and start over. */
-		region.size -= overlap.start - region.start + overlap.size;
 		region.start = overlap.start + overlap.size;
 	}
 }
