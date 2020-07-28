@@ -16,6 +16,12 @@
 
 #include <linux/of.h>
 
+#define ROCKCHIP_CPU_MASK		0xffff0000
+#define ROCKCHIP_CPU_SHIFT		16
+#define ROCKCHIP_CPU_RK312X		0x31260000
+#define ROCKCHIP_CPU_RK3288		0x32880000
+#define ROCKCHIP_CPU_RK3308		0x33080000
+
 #ifdef CONFIG_ROCKCHIP_CPUINFO
 
 extern unsigned long rockchip_soc_id;
@@ -36,6 +42,14 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 		(ver << ROCKCHIP_CPU_VERION_SHIFT) & ROCKCHIP_CPU_VERION_MASK;
 }
 
+static inline void rockchip_set_cpu(unsigned long code)
+{
+	if (!code)
+		return;
+
+	rockchip_soc_id &= ~ROCKCHIP_CPU_MASK;
+	rockchip_soc_id |= (code << ROCKCHIP_CPU_SHIFT) & ROCKCHIP_CPU_MASK;
+}
 #else
 
 #define rockchip_soc_id 0
@@ -49,12 +63,10 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 {
 }
 
+static inline void rockchip_set_cpu(unsigned long code)
+{
+}
 #endif
-
-#define ROCKCHIP_CPU_MASK       0xffff0000
-#define ROCKCHIP_CPU_RK312X     0x31260000
-#define ROCKCHIP_CPU_RK3288     0x32880000
-#define ROCKCHIP_CPU_RK3308	0x33080000
 
 #ifdef CONFIG_CPU_RK312X
 static inline bool cpu_is_rk312x(void)

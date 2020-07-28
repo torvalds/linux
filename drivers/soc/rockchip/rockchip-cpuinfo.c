@@ -32,6 +32,16 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	size_t len;
 	int i;
 
+	cell = nvmem_cell_get(dev, "cpu-code");
+	if (!IS_ERR(cell)) {
+		efuse_buf = nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+
+		if (len == 2)
+			rockchip_set_cpu((efuse_buf[0] << 8 | efuse_buf[1]));
+		kfree(efuse_buf);
+	}
+
 	cell = nvmem_cell_get(dev, "cpu-version");
 	if (!IS_ERR(cell)) {
 		efuse_buf = nvmem_cell_read(cell, &len);
@@ -68,6 +78,7 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	system_serial_low = crc32(0, buf, 8);
 	system_serial_high = crc32(system_serial_low, buf + 8, 8);
 
+	dev_info(dev, "SoC\t\t: %lx\n", rockchip_soc_id);
 	dev_info(dev, "Serial\t\t: %08x%08x\n",
 		 system_serial_high, system_serial_low);
 
