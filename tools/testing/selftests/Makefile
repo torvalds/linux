@@ -88,10 +88,10 @@ endif
 # of the targets gets built.
 FORCE_TARGETS ?=
 
-# Clear LDFLAGS and MAKEFLAGS if called from main
-# Makefile to avoid test build failures when test
-# Makefile doesn't have explicit build rules.
-ifeq (1,$(MAKELEVEL))
+# Clear LDFLAGS and MAKEFLAGS when implicit rules are missing.  This provides
+# implicit rules to sub-test Makefiles which avoids build failures in test
+# Makefile that don't have explicit build rules.
+ifeq (,$(LINK.c))
 override LDFLAGS =
 override MAKEFLAGS =
 endif
