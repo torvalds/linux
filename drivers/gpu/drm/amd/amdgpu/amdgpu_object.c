@@ -374,6 +374,9 @@ int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
+	if ((*bo_ptr) == NULL)
+		return 0;
+
 	/*
 	 * Remove the original mem node and create a new one at the request
 	 * position.
