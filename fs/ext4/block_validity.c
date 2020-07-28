@@ -144,40 +144,6 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 	printk(KERN_CONT "\n");
 }
 
-/*
- * Returns 1 if the passed-in block region (start_blk,
- * start_blk+count) is valid; 0 if some part of the block region
- * overlaps with filesystem metadata blocks.
- */
-static int ext4_data_block_valid_rcu(struct ext4_sb_info *sbi,
-				     struct ext4_system_blocks *system_blks,
-				     ext4_fsblk_t start_blk,
-				     unsigned int count, ino_t ino)
-{
-	struct ext4_system_zone *entry;
-	struct rb_node *n;
-
-	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
-	    (start_blk + count < start_blk) ||
-	    (start_blk + count > ext4_blocks_count(sbi->s_es)))
-		return 0;
-
-	if (system_blks == NULL)
-		return 1;
-
-	n = system_blks->root.rb_node;
-	while (n) {
-		entry = rb_entry(n, struct ext4_system_zone, node);
-		if (start_blk + count - 1 < entry->start_blk)
-			n = n->rb_left;
-		else if (start_blk >= (entry->start_blk + entry->count))
-			n = n->rb_right;
-		else
-			return entry->ino == ino;
-	}
-	return 1;
-}
-
 static int ext4_protect_reserved_inode(struct super_block *sb,
 				       struct ext4_system_blocks *system_blks,
 				       u32 ino)
@@ -333,11 +299,24 @@ void ext4_release_system_zone(struct super_block *sb)
 		call_rcu(&system_blks->rcu, ext4_destroy_system_zone);
 }
 
+/*
+ * Returns 1 if the passed-in block region (start_blk,
+ * start_blk+count) is valid; 0 if some part of the block region
+ * overlaps with some other filesystem metadata blocks.
+ */
 int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
 			  unsigned int count)
 {
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_system_blocks *system_blks;
-	int ret;
+	struct ext4_system_zone *entry;
+	struct rb_node *n;
+	int ret = 1;
+
+	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
+	    (start_blk + count < start_blk) ||
+	    (start_blk + count > ext4_blocks_count(sbi->s_es)))
+		return 0;
 
 	/*
 	 * Lock the system zone to prevent it being released concurrently
@@ -345,9 +324,23 @@ int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
 	 * mount option.
 	 */
 	rcu_read_lock();
-	system_blks = rcu_dereference(EXT4_SB(inode->i_sb)->system_blks);
-	ret = ext4_data_block_valid_rcu(EXT4_SB(inode->i_sb), system_blks,
-					start_blk, count, inode->i_ino);
+	system_blks = rcu_dereference(sbi->system_blks);
+	if (system_blks == NULL)
+		goto out_rcu;
+
+	n = system_blks->root.rb_node;
+	while (n) {
+		entry = rb_entry(n, struct ext4_system_zone, node);
+		if (start_blk + count - 1 < entry->start_blk)
+			n = n->rb_left;
+		else if (start_blk >= (entry->start_blk + entry->count))
+			n = n->rb_right;
+		else {
+			ret = (entry->ino == inode->i_ino);
+			break;
+		}
+	}
+out_rcu:
 	rcu_read_unlock();
 	return ret;
 }
