@@ -22,52 +22,52 @@
 
 #include "leds.h"
 
-#define FLASH_LED_REVISION1		0x00
+#define FLASH_LED_REVISION1			0x00
 
 #define FLASH_LED_PERIPH_SUBTYPE		0x05
 
-#define FLASH_LED_STATUS1		0x06
+#define FLASH_LED_STATUS1			0x06
 
-#define FLASH_LED_STATUS2		0x07
-#define  FLASH_LED_OTST1_STATUS		BIT(5)
-#define  FLASH_LED_OTST2_STATUS		BIT(4)
-#define  FLASH_LED_VPH_PWR_LOW		BIT(0)
+#define FLASH_LED_STATUS2			0x07
+#define  FLASH_LED_OTST1_STATUS			BIT(5)
+#define  FLASH_LED_OTST2_STATUS			BIT(4)
+#define  FLASH_LED_VPH_PWR_LOW			BIT(0)
 
-#define FLASH_INT_RT_STS		0x10
-#define  FLASH_LED_FAULT_RT_STS		BIT(0)
-#define  FLASH_LED_ALL_RAMP_DN_DONE_RT_STS		BIT(3)
-#define  FLASH_LED_ALL_RAMP_UP_DONE_RT_STS		BIT(4)
+#define FLASH_INT_RT_STS			0x10
+#define  FLASH_LED_FAULT_RT_STS			BIT(0)
+#define  FLASH_LED_ALL_RAMP_DN_DONE_RT_STS	BIT(3)
+#define  FLASH_LED_ALL_RAMP_UP_DONE_RT_STS	BIT(4)
 
 #define FLASH_LED_SAFETY_TIMER(id)		(0x3E + id)
 #define  FLASH_LED_SAFETY_TIMER_EN_MASK		BIT(7)
 #define  FLASH_LED_SAFETY_TIMER_EN		BIT(7)
 #define  SAFETY_TIMER_MAX_TIMEOUT_MS		1280
 #define  SAFETY_TIMER_MIN_TIMEOUT_MS		10
-#define  SAFETY_TIMER_STEP_SIZE		10
-#define  SAFETY_TIMER_DEFAULT_TIMEOUT_MS		200
+#define  SAFETY_TIMER_STEP_SIZE			10
+#define  SAFETY_TIMER_DEFAULT_TIMEOUT_MS	200
 
-#define FLASH_LED_ITARGET(id)		(0x42 + id)
-#define  FLASH_LED_ITARGET_MASK		GENMASK(6, 0)
+#define FLASH_LED_ITARGET(id)			(0x42 + id)
+#define  FLASH_LED_ITARGET_MASK			GENMASK(6, 0)
 
-#define FLASH_ENABLE_CONTROL		0x46
-#define  FLASH_MODULE_ENABLE		BIT(7)
-#define  FLASH_MODULE_DISABLE		0x0
+#define FLASH_ENABLE_CONTROL			0x46
+#define  FLASH_MODULE_ENABLE			BIT(7)
+#define  FLASH_MODULE_DISABLE			0x0
 
-#define FLASH_LED_IRESOLUTION		0x49
+#define FLASH_LED_IRESOLUTION			0x49
 #define  FLASH_LED_IRESOLUTION_MASK(id)		BIT(id)
 
-#define FLASH_LED_STROBE_CTRL(id)	(0x4A + id)
+#define FLASH_LED_STROBE_CTRL(id)		(0x4A + id)
 #define  FLASH_LED_STROBE_CFG_MASK		GENMASK(6, 4)
 #define  FLASH_LED_STROBE_CFG_SHIFT		4
 #define  FLASH_LED_HW_SW_STROBE_SEL		BIT(2)
 #define  FLASH_LED_STROBE_SEL_SHIFT		2
 
-#define FLASH_EN_LED_CTRL		0x4E
+#define FLASH_EN_LED_CTRL			0x4E
 #define  FLASH_LED_ENABLE(id)			BIT(id)
-#define  FLASH_LED_DISABLE		0
+#define  FLASH_LED_DISABLE			0
 
 #define FLASH_LED_MITIGATION_SEL		0x63
-#define  FLASH_LED_PREEMPTIVE_LMH_MASK	GENMASK(1, 0)
+#define  FLASH_LED_PREEMPTIVE_LMH_MASK		GENMASK(1, 0)
 #define  FLASH_LED_LMH_MITIGATION_SW		0x2
 
 #define FLASH_LED_THERMAL_OTST2_CFG1		0x78
@@ -77,21 +77,18 @@
 #define  FLASH_LED_V2_OTST1_THRSH_MIN		0x10
 #define  FLASH_LED_OTST2_THRSH_MIN		0x30
 
-#define MAX_IRES_LEVELS		2
-#define IRES_12P5_MAX_CURR_MA	1500
-#define IRES_5P0_MAX_CURR_MA		640
-#define TORCH_MAX_CURR_MA		500
-#define IRES_12P5_UA		12500
-#define IRES_5P0_UA		5000
-#define IRES_DEFAULT_UA		IRES_12P5_UA
-#define MAX_FLASH_CURRENT_MA		2000
+#define MAX_IRES_LEVELS				2
+#define IRES_12P5_MAX_CURR_MA			1500
+#define IRES_5P0_MAX_CURR_MA			640
+#define TORCH_MAX_CURR_MA			500
+#define IRES_12P5_UA				12500
+#define IRES_5P0_UA				5000
+#define IRES_DEFAULT_UA				IRES_12P5_UA
+#define MAX_FLASH_CURRENT_MA			2000
 #define IBATT_OCP_THRESH_DEFAULT_UA		4500000
-#define FLASH_THERMAL_LEVELS		2
-#define OTST1_IDX		0
-#define OTST2_IDX		1
-#define OTST1_CURR_LIM_MA		200
-#define OTST2_CURR_LIM_MA		500
-#define VLED_MAX_DEFAULT_UV		3500000
+#define OTST1_CURR_LIM_MA			200
+#define OTST2_CURR_LIM_MA			500
+#define VLED_MAX_DEFAULT_UV			3500000
 
 enum flash_led_type {
 	FLASH_LED_TYPE_UNKNOWN,
@@ -112,9 +109,15 @@ enum strobe_type {
 	HW_STROBE,
 };
 
+enum thermal_levels {
+	OTST1_IDX,
+	OTST2_IDX,
+	OTST_MAX,
+};
+
 struct flash_node_data {
 	struct qti_flash_led		*led;
-	struct led_classdev_flash		fdev;
+	struct led_classdev_flash	fdev;
 	u32				ires_ua;
 	u32				default_ires_ua;
 	u32				user_current_ma;
@@ -134,8 +137,8 @@ struct flash_node_data {
 struct flash_switch_data {
 	struct qti_flash_led		*led;
 	struct led_classdev		cdev;
-	struct hrtimer		on_timer;
-	struct hrtimer		off_timer;
+	struct hrtimer			on_timer;
+	struct hrtimer			off_timer;
 	u64				on_time_ms;
 	u64				off_time_ms;
 	u32				led_mask;
@@ -145,50 +148,52 @@ struct flash_switch_data {
 
 /**
  * struct qti_flash_led: Main Flash LED data structure
- * @pdev		: Pointer for platform device
- * @regmap		: Pointer for regmap structure
- * @fnode		: Pointer for array of child LED devices
- * @snode		: Pointer for array of child switch devices
- * @batt_psy		: Pointer for battery power supply
- * @lock		: Spinlock to be used for critical section
- * @num_fnodes		: Number of flash/torch nodes defined in device tree
- * @num_snodes		: Number of switch nodes defined in device tree
- * @hw_strobe_gpio		: Pointer for array of GPIOs for HW strobing
- * @all_ramp_up_done_irq		: IRQ number for all ramp up interrupt
- * @all_ramp_down_done_irq		: IRQ number for all ramp down interrupt
- * @led_fault_irq		: IRQ number for LED fault interrupt
- * @max_current		: Maximum current available for flash
- * @thermal_derate_current	: Thermal derating current limits
- * @base		: Base address of the flash LED module
- * @revision		: Revision of the flash LED module
- * @subtype		: Peripheral subtype of the flash LED module
- * @max_channels	: Maximum number of channels supported by flash module
- * @chan_en_map		: Bit map of individual channel enable
- * @module_en		: Flag used to enable/disable flash LED module
- * @trigger_lmh		: Flag to enable lmh mitigation
+ * @pdev:			Pointer for platform device
+ * @regmap:			Pointer for regmap structure
+ * @fnode:			Pointer for array of child LED devices
+ * @snode:			Pointer for array of child switch devices
+ * @batt_psy:			Pointer for battery power supply
+ * @lock:			Spinlock to be used for critical section
+ * @num_fnodes:			Number of flash/torch nodes defined in device
+ *				tree
+ * @num_snodes:			Number of switch nodes defined in device tree
+ * @hw_strobe_gpio:		Pointer for array of GPIOs for HW strobing
+ * @all_ramp_up_done_irq:	IRQ number for all ramp up interrupt
+ * @all_ramp_down_done_irq:	IRQ number for all ramp down interrupt
+ * @led_fault_irq:		IRQ number for LED fault interrupt
+ * @max_current:		Maximum current available for flash
+ * @thermal_derate_current:	Thermal derating current limits
+ * @base:			Base address of the flash LED module
+ * @revision:			Revision of the flash LED module
+ * @subtype:			Peripheral subtype of the flash LED module
+ * @max_channels:		Maximum number of channels supported by flash
+ *				module
+ * @chan_en_map:		Bit map of individual channel enable
+ * @module_en:			Flag used to enable/disable flash LED module
+ * @trigger_lmh:		Flag to enable lmh mitigation
  */
 struct qti_flash_led {
 	struct platform_device		*pdev;
-	struct regmap		*regmap;
+	struct regmap			*regmap;
 	struct flash_node_data		*fnode;
-	struct flash_switch_data		*snode;
+	struct flash_switch_data	*snode;
 	struct power_supply		*batt_psy;
-	spinlock_t		lock;
-	u32			num_fnodes;
-	u32			num_snodes;
-	int			*hw_strobe_gpio;
-	int			all_ramp_up_done_irq;
-	int			all_ramp_down_done_irq;
-	int			led_fault_irq;
-	int			max_current;
-	int			thermal_derate_current[FLASH_THERMAL_LEVELS];
-	u16			base;
-	u8		revision;
-	u8		subtype;
-	u8		max_channels;
-	u8		chan_en_map;
-	bool		module_en;
-	bool		trigger_lmh;
+	spinlock_t			lock;
+	u32				num_fnodes;
+	u32				num_snodes;
+	int				*hw_strobe_gpio;
+	int				all_ramp_up_done_irq;
+	int				all_ramp_down_done_irq;
+	int				led_fault_irq;
+	int				max_current;
+	int				thermal_derate_current[OTST_MAX];
+	u16				base;
+	u8				revision;
+	u8				subtype;
+	u8				max_channels;
+	u8				chan_en_map;
+	bool				module_en;
+	bool				trigger_lmh;
 };
 
 struct flash_current_headroom {
