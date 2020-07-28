@@ -1180,6 +1180,30 @@ end:
 	return;
 }
 
+/* Remove an l2tp session from l2tp_core's hash lists. */
+static void l2tp_session_unhash(struct l2tp_session *session)
+{
+	struct l2tp_tunnel *tunnel = session->tunnel;
+
+	/* Remove the session from core hashes */
+	if (tunnel) {
+		/* Remove from the per-tunnel hash */
+		write_lock_bh(&tunnel->hlist_lock);
+		hlist_del_init(&session->hlist);
+		write_unlock_bh(&tunnel->hlist_lock);
+
+		/* For L2TPv3 we have a per-net hash: remove from there, too */
+		if (tunnel->version != L2TP_HDR_VER_2) {
+			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
+
+			spin_lock_bh(&pn->l2tp_session_hlist_lock);
+			hlist_del_init_rcu(&session->global_hlist);
+			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+			synchronize_rcu();
+		}
+	}
+}
+
 /* When the tunnel is closed, all the attached sessions need to go too.
  */
 static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
@@ -1209,7 +1233,7 @@ again:
 
 			write_unlock_bh(&tunnel->hlist_lock);
 
-			__l2tp_session_unhash(session);
+			l2tp_session_unhash(session);
 			l2tp_session_queue_purge(session);
 
 			if (session->session_close)
@@ -1574,35 +1598,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);
 
-/* Remove an l2tp session from l2tp_core's hash lists.
- * Provides a tidyup interface for pseudowire code which can't just route all
- * shutdown via. l2tp_session_delete and a pseudowire-specific session_close
- * callback.
- */
-void __l2tp_session_unhash(struct l2tp_session *session)
-{
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
-	/* Remove the session from core hashes */
-	if (tunnel) {
-		/* Remove from the per-tunnel hash */
-		write_lock_bh(&tunnel->hlist_lock);
-		hlist_del_init(&session->hlist);
-		write_unlock_bh(&tunnel->hlist_lock);
-
-		/* For L2TPv3 we have a per-net hash: remove from there, too */
-		if (tunnel->version != L2TP_HDR_VER_2) {
-			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-
-			spin_lock_bh(&pn->l2tp_session_hlist_lock);
-			hlist_del_init_rcu(&session->global_hlist);
-			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-			synchronize_rcu();
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(__l2tp_session_unhash);
-
 /* This function is used by the netlink SESSION_DELETE command and by
  * pseudowire modules.
  */
@@ -1611,7 +1606,7 @@ int l2tp_session_delete(struct l2tp_session *session)
 	if (test_and_set_bit(0, &session->dead))
 		return 0;
 
-	__l2tp_session_unhash(session);
+	l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
 	if (session->session_close)
 		(*session->session_close)(session);
