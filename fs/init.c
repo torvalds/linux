@@ -8,6 +8,7 @@
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include <linux/fs_struct.h>
+#include <linux/file.h>
 #include <linux/init_syscalls.h>
 #include <linux/security.h>
 #include "internal.h"
@@ -250,4 +251,15 @@ int __init init_utimes(char *filename, struct timespec64 *ts)
 	error = vfs_utimes(&path, ts);
 	path_put(&path);
 	return error;
+}
+
+int __init init_dup(struct file *file)
+{
+	int fd;
+
+	fd = get_unused_fd_flags(0);
+	if (fd < 0)
+		return fd;
+	fd_install(fd, get_file(file));
+	return 0;
 }

@@ -1467,10 +1467,10 @@ void __init console_on_rootfs(void)
 		pr_err("Warning: unable to open an initial console.\n");
 		return;
 	}
-	get_file_rcu_many(file, 2);
-	fd_install(get_unused_fd_flags(0), file);
-	fd_install(get_unused_fd_flags(0), file);
-	fd_install(get_unused_fd_flags(0), file);
+	init_dup(file);
+	init_dup(file);
+	init_dup(file);
+	fput(file);
 }
 
 static noinline void __init kernel_init_freeable(void)
