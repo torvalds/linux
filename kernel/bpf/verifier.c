@@ -3069,7 +3069,7 @@ static int __check_buffer_access(struct bpf_verifier_env *env,
 {
 	if (off < 0) {
 		verbose(env,
-			"R%d invalid %s buffer access: off=%d, size=%d",
+			"R%d invalid %s buffer access: off=%d, size=%d\n",
 			regno, buf_info, off, size);
 		return -EACCES;
 	}
@@ -3078,7 +3078,7 @@ static int __check_buffer_access(struct bpf_verifier_env *env,
 
 		tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
 		verbose(env,
-			"R%d invalid variable buffer offset: off=%d, var_off=%s",
+			"R%d invalid variable buffer offset: off=%d, var_off=%s\n",
 			regno, off, tn_buf);
 		return -EACCES;
 	}
