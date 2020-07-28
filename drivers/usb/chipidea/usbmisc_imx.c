@@ -367,10 +367,10 @@ static u32 usbmisc_wakeup_setting(struct imx_usbmisc_data *data)
 {
 	u32 wakeup_setting = MX6_USB_OTG_WAKEUP_BITS;
 
-	if (data->ext_id)
+	if (data->ext_id || data->available_role != USB_DR_MODE_OTG)
 		wakeup_setting &= ~MX6_BM_ID_WAKEUP;
 
-	if (data->ext_vbus)
+	if (data->ext_vbus || data->available_role == USB_DR_MODE_HOST)
 		wakeup_setting &= ~MX6_BM_VBUS_WAKEUP;
 
 	return wakeup_setting;
