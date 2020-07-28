@@ -56,6 +56,17 @@ properties:
       - qcom,sm8150-mc-virt
       - qcom,sm8150-mmss-noc
       - qcom,sm8150-system-noc
+      - qcom,sm8250-aggre1-noc
+      - qcom,sm8250-aggre2-noc
+      - qcom,sm8250-compute-noc
+      - qcom,sm8250-config-noc
+      - qcom,sm8250-dc-noc
+      - qcom,sm8250-gem-noc
+      - qcom,sm8250-ipa-virt
+      - qcom,sm8250-mc-virt
+      - qcom,sm8250-mmss-noc
+      - qcom,sm8250-npu-noc
+      - qcom,sm8250-system-noc
 
   '#interconnect-cells':
     const: 1
