@@ -868,15 +868,18 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	if (mp_opt.use_ack)
 		update_una(msk, &mp_opt);
 
-	/* Zero-length packets, like bare ACKs carrying a DATA_FIN, are
-	 * dropped by the caller and not propagated to the MPTCP layer.
-	 * Copy the DATA_FIN information now.
+	/* Zero-data-length packets are dropped by the caller and not
+	 * propagated to the MPTCP layer, so the skb extension does not
+	 * need to be allocated or populated. DATA_FIN information, if
+	 * present, needs to be updated here before the skb is freed.
 	 */
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		if (mp_opt.data_fin && mp_opt.data_len == 1 &&
 		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq) &&
 		    schedule_work(&msk->work))
 			sock_hold(subflow->conn);
+
+		return;
 	}
 
 	mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
