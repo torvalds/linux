@@ -22,6 +22,7 @@ struct fsi_master_aspeed {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
+	struct gpio_desc	*cfam_reset_gpio;
 };
 
 #define to_fsi_master_aspeed(m) \
@@ -425,6 +426,43 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	return 0;
 }
 
+static ssize_t cfam_reset_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct fsi_master_aspeed *aspeed = dev_get_drvdata(dev);
+
+	gpiod_set_value(aspeed->cfam_reset_gpio, 1);
+	usleep_range(900, 1000);
+	gpiod_set_value(aspeed->cfam_reset_gpio, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(cfam_reset, 0200, NULL, cfam_reset_store);
+
+static int setup_cfam_reset(struct fsi_master_aspeed *aspeed)
+{
+	struct device *dev = aspeed->dev;
+	struct gpio_desc *gpio;
+	int rc;
+
+	gpio = devm_gpiod_get_optional(dev, "cfam-reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+	if (!gpio)
+		return 0;
+
+	aspeed->cfam_reset_gpio = gpio;
+
+	rc = device_create_file(dev, &dev_attr_cfam_reset);
+	if (rc) {
+		devm_gpiod_put(dev, gpio);
+		return rc;
+	}
+
+	return 0;
+}
+
 static int tacoma_cabled_fsi_fixup(struct device *dev)
 {
 	struct gpio_desc *routing_gpio, *mux_gpio;
@@ -505,6 +543,11 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(aspeed->dev, "couldn't enable clock\n");
 		return rc;
+	}
+
+	rc = setup_cfam_reset(aspeed);
+	if (rc) {
+		dev_err(&pdev->dev, "CFAM reset GPIO setup failed\n");
 	}
 
 	writel(0x1, aspeed->base + OPB_CLK_SYNC);
