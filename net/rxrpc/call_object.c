@@ -290,7 +290,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	 */
 	ret = rxrpc_connect_call(rx, call, cp, srx, gfp);
 	if (ret < 0)
-		goto error;
+		goto error_attached_to_socket;
 
 	trace_rxrpc_call(call, rxrpc_call_connected, atomic_read(&call->usage),
 			 here, NULL);
@@ -310,18 +310,29 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 error_dup_user_ID:
 	write_unlock(&rx->call_lock);
 	release_sock(&rx->sk);
-	ret = -EEXIST;
-
-error:
 	__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
-				    RX_CALL_DEAD, ret);
+				    RX_CALL_DEAD, -EEXIST);
 	trace_rxrpc_call(call, rxrpc_call_error, atomic_read(&call->usage),
-			 here, ERR_PTR(ret));
+			 here, ERR_PTR(-EEXIST));
 	rxrpc_release_call(rx, call);
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put);
-	_leave(" = %d", ret);
-	return ERR_PTR(ret);
+	_leave(" = -EEXIST");
+	return ERR_PTR(-EEXIST);
+
+	/* We got an error, but the call is attached to the socket and is in
+	 * need of release.  However, we might now race with recvmsg() when
+	 * completing the call queues it.  Return 0 from sys_sendmsg() and
+	 * leave the error to recvmsg() to deal with.
+	 */
+error_attached_to_socket:
+	trace_rxrpc_call(call, rxrpc_call_error, atomic_read(&call->usage),
+			 here, ERR_PTR(ret));
+	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
+	__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
+				    RX_CALL_DEAD, ret);
+	_leave(" = c=%08x [err]", call->debug_id);
+	return call;
 }
 
 /*
