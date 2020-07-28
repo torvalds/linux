@@ -6,7 +6,7 @@
  */
 
 #include "gaudiP.h"
-#include "include/gaudi/asic_reg/gaudi_regs.h"
+#include "../include/gaudi/asic_reg/gaudi_regs.h"
 
 #define GAUDI_NUMBER_OF_RR_REGS		24
 #define GAUDI_NUMBER_OF_LBW_RANGES	12

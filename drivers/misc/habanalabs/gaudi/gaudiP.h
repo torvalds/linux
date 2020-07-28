@@ -9,11 +9,11 @@
 #define GAUDIP_H_
 
 #include <uapi/misc/habanalabs.h>
-#include "habanalabs.h"
-#include "include/common/hl_boot_if.h"
-#include "include/gaudi/gaudi_packets.h"
-#include "include/gaudi/gaudi.h"
-#include "include/gaudi/gaudi_async_events.h"
+#include "../common/habanalabs.h"
+#include "../include/common/hl_boot_if.h"
+#include "../include/gaudi/gaudi_packets.h"
+#include "../include/gaudi/gaudi.h"
+#include "../include/gaudi/gaudi_async_events.h"
 
 #define NUMBER_OF_EXT_HW_QUEUES		12
 #define NUMBER_OF_CMPLT_QUEUES		NUMBER_OF_EXT_HW_QUEUES

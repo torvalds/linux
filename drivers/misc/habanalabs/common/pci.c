@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "include/hw_ip/pci/pci_general.h"
+#include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
 #include <linux/bitfield.h>

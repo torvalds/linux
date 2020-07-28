@@ -6,9 +6,9 @@
  */
 
 #include "gaudiP.h"
-#include "include/gaudi/gaudi_coresight.h"
-#include "include/gaudi/asic_reg/gaudi_regs.h"
-#include "include/gaudi/gaudi_masks.h"
+#include "../include/gaudi/gaudi_coresight.h"
+#include "../include/gaudi/asic_reg/gaudi_regs.h"
+#include "../include/gaudi/gaudi_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 #include <linux/coresight.h>

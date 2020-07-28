@@ -6,12 +6,12 @@
  */
 
 #include "gaudiP.h"
-#include "include/hw_ip/mmu/mmu_general.h"
-#include "include/hw_ip/mmu/mmu_v1_1.h"
-#include "include/gaudi/gaudi_masks.h"
-#include "include/gaudi/gaudi_fw_if.h"
-#include "include/gaudi/gaudi_reg_map.h"
-#include "include/gaudi/gaudi_async_ids_map_extended.h"
+#include "../include/hw_ip/mmu/mmu_general.h"
+#include "../include/hw_ip/mmu/mmu_v1_1.h"
+#include "../include/gaudi/gaudi_masks.h"
+#include "../include/gaudi/gaudi_fw_if.h"
+#include "../include/gaudi/gaudi_reg_map.h"
+#include "../include/gaudi/gaudi_async_ids_map_extended.h"
 
 #include <linux/module.h>
 #include <linux/pci.h>

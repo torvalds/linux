@@ -6,10 +6,10 @@
  */
 
 #include "goyaP.h"
-#include "include/hw_ip/mmu/mmu_general.h"
-#include "include/hw_ip/mmu/mmu_v1_0.h"
-#include "include/goya/asic_reg/goya_masks.h"
-#include "include/goya/goya_reg_map.h"
+#include "../include/hw_ip/mmu/mmu_general.h"
+#include "../include/hw_ip/mmu/mmu_v1_0.h"
+#include "../include/goya/asic_reg/goya_masks.h"
+#include "../include/goya/goya_reg_map.h"
 
 #include <linux/pci.h>
 #include <linux/genalloc.h>

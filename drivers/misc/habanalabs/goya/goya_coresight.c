@@ -6,9 +6,9 @@
  */
 
 #include "goyaP.h"
-#include "include/goya/goya_coresight.h"
-#include "include/goya/asic_reg/goya_regs.h"
-#include "include/goya/asic_reg/goya_masks.h"
+#include "../include/goya/goya_coresight.h"
+#include "../include/goya/asic_reg/goya_regs.h"
+#include "../include/goya/asic_reg/goya_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 

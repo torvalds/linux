@@ -9,12 +9,12 @@
 #define GOYAP_H_
 
 #include <uapi/misc/habanalabs.h>
-#include "habanalabs.h"
-#include "include/common/hl_boot_if.h"
-#include "include/goya/goya_packets.h"
-#include "include/goya/goya.h"
-#include "include/goya/goya_async_events.h"
-#include "include/goya/goya_fw_if.h"
+#include "../common/habanalabs.h"
+#include "../include/common/hl_boot_if.h"
+#include "../include/goya/goya_packets.h"
+#include "../include/goya/goya.h"
+#include "../include/goya/goya_async_events.h"
+#include "../include/goya/goya_fw_if.h"
 
 #define NUMBER_OF_CMPLT_QUEUES		5
 #define NUMBER_OF_EXT_HW_QUEUES		5
