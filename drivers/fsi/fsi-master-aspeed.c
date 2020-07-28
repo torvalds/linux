@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/iopoll.h>
+#include <linux/gpio/consumer.h>
 
 #include "fsi-master.h"
 
@@ -417,12 +418,57 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	return 0;
 }
 
+static int tacoma_cabled_fsi_fixup(struct device *dev)
+{
+	struct gpio_desc *routing_gpio, *mux_gpio;
+	int gpio;
+
+	/*
+	 * The routing GPIO is a jumper indicating we should mux for the
+	 * externally connected FSI cable.
+	 */
+	routing_gpio = devm_gpiod_get_optional(dev, "fsi-routing",
+			GPIOD_IN | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (IS_ERR(routing_gpio))
+		return PTR_ERR(routing_gpio);
+	if (!routing_gpio)
+		return 0;
+
+	mux_gpio = devm_gpiod_get_optional(dev, "fsi-mux", GPIOD_ASIS);
+	if (IS_ERR(mux_gpio))
+		return PTR_ERR(mux_gpio);
+	if (!mux_gpio)
+		return 0;
+
+	gpio = gpiod_get_value(routing_gpio);
+	if (gpio < 0)
+		return gpio;
+
+	/* If the routing GPIO is high we should set the mux to low. */
+	if (gpio) {
+		gpiod_direction_output(mux_gpio, 0);
+		dev_info(dev, "FSI configured for external cable\n");
+	} else {
+		gpiod_direction_output(mux_gpio, 1);
+	}
+
+	devm_gpiod_put(dev, routing_gpio);
+
+	return 0;
+}
+
 static int fsi_master_aspeed_probe(struct platform_device *pdev)
 {
 	struct fsi_master_aspeed *aspeed;
 	struct resource *res;
 	int rc, links, reg;
 	__be32 raw;
+
+	rc = tacoma_cabled_fsi_fixup(&pdev->dev);
+	if (rc) {
+		dev_err(&pdev->dev, "Tacoma FSI cable fixup failed\n");
+		return rc;
+	}
 
 	aspeed = devm_kzalloc(&pdev->dev, sizeof(*aspeed), GFP_KERNEL);
 	if (!aspeed)
