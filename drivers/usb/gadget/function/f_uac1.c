@@ -20,6 +20,9 @@
 #include "u_audio.h"
 #include "u_uac.h"
 
+#define EPIN_EN(_opts) ((_opts)->p_chmask != 0)
+#define EPOUT_EN(_opts) ((_opts)->c_chmask != 0)
+
 /*
  * DESCRIPTORS ... most are static, but strings and full
  * configuration descriptors are built on demand.
@@ -43,7 +46,6 @@ static struct usb_interface_assoc_descriptor iad_desc = {
 	.bDescriptorType = USB_DT_INTERFACE_ASSOCIATION,
 
 	.bFirstInterface = 0,
-	.bInterfaceCount = 3,
 	.bFunctionClass = USB_CLASS_AUDIO,
 	.bFunctionSubClass = USB_SUBCLASS_AUDIOSTREAMING,
 	.bFunctionProtocol = UAC_VERSION_1,
@@ -64,67 +66,53 @@ static struct usb_interface_descriptor ac_interface_desc = {
  */
 DECLARE_UAC_AC_HEADER_DESCRIPTOR(2);
 
-#define UAC_DT_AC_HEADER_LENGTH	UAC_DT_AC_HEADER_SIZE(F_AUDIO_NUM_INTERFACES)
-/* 2 input terminals and 2 output terminals */
-#define UAC_DT_TOTAL_LENGTH (UAC_DT_AC_HEADER_LENGTH \
-	+ 2*UAC_DT_INPUT_TERMINAL_SIZE + 2*UAC_DT_OUTPUT_TERMINAL_SIZE)
 /* B.3.2  Class-Specific AC Interface Descriptor */
 static struct uac1_ac_header_descriptor_2 ac_header_desc = {
-	.bLength =		UAC_DT_AC_HEADER_LENGTH,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_HEADER,
 	.bcdADC =		cpu_to_le16(0x0100),
-	.wTotalLength =		cpu_to_le16(UAC_DT_TOTAL_LENGTH),
-	.bInCollection =	F_AUDIO_NUM_INTERFACES,
 	.baInterfaceNr = {
-	/* Interface number of the AudioStream interfaces */
+	/*
+	 * Assume the maximum interfaces number of the UAC AudioStream
+	 * interfaces
+	 */
 		[0] =		1,
 		[1] =		2,
 	}
 };
 
-#define USB_OUT_IT_ID	1
 static struct uac_input_terminal_descriptor usb_out_it_desc = {
 	.bLength =		UAC_DT_INPUT_TERMINAL_SIZE,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_INPUT_TERMINAL,
-	.bTerminalID =		USB_OUT_IT_ID,
 	.wTerminalType =	cpu_to_le16(UAC_TERMINAL_STREAMING),
 	.bAssocTerminal =	0,
 	.wChannelConfig =	cpu_to_le16(0x3),
 };
 
-#define IO_OUT_OT_ID	2
 static struct uac1_output_terminal_descriptor io_out_ot_desc = {
 	.bLength		= UAC_DT_OUTPUT_TERMINAL_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype	= UAC_OUTPUT_TERMINAL,
-	.bTerminalID		= IO_OUT_OT_ID,
 	.wTerminalType		= cpu_to_le16(UAC_OUTPUT_TERMINAL_SPEAKER),
 	.bAssocTerminal		= 0,
-	.bSourceID		= USB_OUT_IT_ID,
 };
 
-#define IO_IN_IT_ID	3
 static struct uac_input_terminal_descriptor io_in_it_desc = {
 	.bLength		= UAC_DT_INPUT_TERMINAL_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype	= UAC_INPUT_TERMINAL,
-	.bTerminalID		= IO_IN_IT_ID,
 	.wTerminalType		= cpu_to_le16(UAC_INPUT_TERMINAL_MICROPHONE),
 	.bAssocTerminal		= 0,
 	.wChannelConfig		= cpu_to_le16(0x3),
 };
 
-#define USB_IN_OT_ID	4
 static struct uac1_output_terminal_descriptor usb_in_ot_desc = {
 	.bLength =		UAC_DT_OUTPUT_TERMINAL_SIZE,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_OUTPUT_TERMINAL,
-	.bTerminalID =		USB_IN_OT_ID,
 	.wTerminalType =	cpu_to_le16(UAC_TERMINAL_STREAMING),
 	.bAssocTerminal =	0,
-	.bSourceID =		IO_IN_IT_ID,
 };
 
 /* B.4.1  Standard AS Interface Descriptor */
@@ -169,7 +157,6 @@ static struct uac1_as_header_descriptor as_out_header_desc = {
 	.bLength =		UAC_DT_AS_HEADER_SIZE,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_AS_GENERAL,
-	.bTerminalLink =	USB_OUT_IT_ID,
 	.bDelay =		1,
 	.wFormatTag =		cpu_to_le16(UAC_FORMAT_TYPE_I_PCM),
 };
@@ -178,7 +165,6 @@ static struct uac1_as_header_descriptor as_in_header_desc = {
 	.bLength =		UAC_DT_AS_HEADER_SIZE,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_AS_GENERAL,
-	.bTerminalLink =	USB_IN_OT_ID,
 	.bDelay =		1,
 	.wFormatTag =		cpu_to_le16(UAC_FORMAT_TYPE_I_PCM),
 };
@@ -561,6 +547,80 @@ static void f_audio_disable(struct usb_function *f)
 }
 
 /*-------------------------------------------------------------------------*/
+#define USBDHDR(p) (struct usb_descriptor_header *)(p)
+
+static void setup_descriptor(struct f_uac_opts *opts)
+{
+	int i = 1;
+	u16 len = 0;
+
+	if (EPOUT_EN(opts))
+		usb_out_it_desc.bTerminalID = i++;
+	if (EPIN_EN(opts))
+		io_in_it_desc.bTerminalID = i++;
+	if (EPOUT_EN(opts))
+		io_out_ot_desc.bTerminalID = i++;
+	if (EPIN_EN(opts))
+		usb_in_ot_desc.bTerminalID = i++;
+
+	usb_in_ot_desc.bSourceID = io_in_it_desc.bTerminalID;
+	io_out_ot_desc.bSourceID = usb_out_it_desc.bTerminalID;
+	as_out_header_desc.bTerminalLink = usb_out_it_desc.bTerminalID;
+	as_in_header_desc.bTerminalLink = usb_in_ot_desc.bTerminalID;
+
+	iad_desc.bInterfaceCount = 1;
+	ac_header_desc.bInCollection = 0;
+
+	if (EPIN_EN(opts)) {
+		len += UAC_DT_INPUT_TERMINAL_SIZE + UAC_DT_OUTPUT_TERMINAL_SIZE;
+		iad_desc.bInterfaceCount++;
+		ac_header_desc.bInCollection++;
+	}
+
+	if (EPOUT_EN(opts)) {
+		len += UAC_DT_INPUT_TERMINAL_SIZE + UAC_DT_OUTPUT_TERMINAL_SIZE;
+		iad_desc.bInterfaceCount++;
+		ac_header_desc.bInCollection++;
+	}
+	ac_header_desc.bLength =
+		UAC_DT_AC_HEADER_SIZE(ac_header_desc.bInCollection);
+	ac_header_desc.wTotalLength = cpu_to_le16(len + ac_header_desc.bLength);
+
+	i = 0;
+	f_audio_desc[i++] = USBDHDR(&iad_desc);
+	f_audio_desc[i++] = USBDHDR(&ac_interface_desc);
+	f_audio_desc[i++] = USBDHDR(&ac_header_desc);
+
+	if (EPOUT_EN(opts)) {
+		f_audio_desc[i++] = USBDHDR(&usb_out_it_desc);
+		f_audio_desc[i++] = USBDHDR(&io_out_ot_desc);
+	}
+
+	if (EPIN_EN(opts)) {
+		f_audio_desc[i++] = USBDHDR(&io_in_it_desc);
+		f_audio_desc[i++] = USBDHDR(&usb_in_ot_desc);
+	}
+
+	if (EPOUT_EN(opts)) {
+		f_audio_desc[i++] = USBDHDR(&as_out_interface_alt_0_desc);
+		f_audio_desc[i++] = USBDHDR(&as_out_interface_alt_1_desc);
+		f_audio_desc[i++] = USBDHDR(&as_out_header_desc);
+		f_audio_desc[i++] = USBDHDR(&as_out_type_i_desc);
+		f_audio_desc[i++] = USBDHDR(&as_out_ep_desc);
+		f_audio_desc[i++] = USBDHDR(&as_iso_out_desc);
+	}
+
+	if (EPIN_EN(opts)) {
+		f_audio_desc[i++] = USBDHDR(&as_in_interface_alt_0_desc);
+		f_audio_desc[i++] = USBDHDR(&as_in_interface_alt_1_desc);
+		f_audio_desc[i++] = USBDHDR(&as_in_header_desc);
+		f_audio_desc[i++] = USBDHDR(&as_in_type_i_desc);
+		f_audio_desc[i++] = USBDHDR(&as_in_ep_desc);
+		f_audio_desc[i++] = USBDHDR(&as_iso_in_desc);
+	}
+	f_audio_desc[i++] = NULL;
+}
+
 
 /* audio function driver setup/binding */
 static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
@@ -634,39 +694,48 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	uac1->ac_intf = status;
 	uac1->ac_alt = 0;
 
-	status = usb_interface_id(c, f);
-	if (status < 0)
-		goto fail;
-	as_out_interface_alt_0_desc.bInterfaceNumber = status;
-	as_out_interface_alt_1_desc.bInterfaceNumber = status;
-	uac1->as_out_intf = status;
-	uac1->as_out_alt = 0;
+	if (EPOUT_EN(audio_opts)) {
+		status = usb_interface_id(c, f);
+		if (status < 0)
+			goto fail;
+		as_out_interface_alt_0_desc.bInterfaceNumber = status;
+		as_out_interface_alt_1_desc.bInterfaceNumber = status;
+		uac1->as_out_intf = status;
+		uac1->as_out_alt = 0;
+	}
 
-	status = usb_interface_id(c, f);
-	if (status < 0)
-		goto fail;
-	as_in_interface_alt_0_desc.bInterfaceNumber = status;
-	as_in_interface_alt_1_desc.bInterfaceNumber = status;
-	uac1->as_in_intf = status;
-	uac1->as_in_alt = 0;
+	if (EPIN_EN(audio_opts)) {
+		status = usb_interface_id(c, f);
+		if (status < 0)
+			goto fail;
+		as_in_interface_alt_0_desc.bInterfaceNumber = status;
+		as_in_interface_alt_1_desc.bInterfaceNumber = status;
+		uac1->as_in_intf = status;
+		uac1->as_in_alt = 0;
+	}
 
 	audio->gadget = gadget;
 
 	status = -ENODEV;
 
 	/* allocate instance-specific endpoints */
-	ep = usb_ep_autoconfig(cdev->gadget, &as_out_ep_desc);
-	if (!ep)
-		goto fail;
-	audio->out_ep = ep;
-	audio->out_ep->desc = &as_out_ep_desc;
+	if (EPOUT_EN(audio_opts)) {
+		ep = usb_ep_autoconfig(cdev->gadget, &as_out_ep_desc);
+		if (!ep)
+			goto fail;
+		audio->out_ep = ep;
+		audio->out_ep->desc = &as_out_ep_desc;
+	}
 
-	ep = usb_ep_autoconfig(cdev->gadget, &as_in_ep_desc);
-	if (!ep)
-		goto fail;
-	audio->in_ep = ep;
-	audio->in_ep->desc = &as_in_ep_desc;
+	if (EPIN_EN(audio_opts)) {
+		ep = usb_ep_autoconfig(cdev->gadget, &as_in_ep_desc);
+		if (!ep)
+			goto fail;
+		audio->in_ep = ep;
+		audio->in_ep->desc = &as_in_ep_desc;
+	}
 
+	setup_descriptor(audio_opts);
 	/* copy descriptors, and track endpoint copies */
 	status = usb_assign_descriptors(f, f_audio_desc, f_audio_desc, NULL,
 					NULL);
