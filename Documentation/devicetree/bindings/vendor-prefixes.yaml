@@ -193,6 +193,8 @@ patternProperties:
     description: Ceva, Inc.
   "^checkpoint,.*":
     description: Check Point Software Technologies Ltd.
+  "^chefree,.*":
+    description: Chefree Technology Corp.
   "^chipidea,.*":
     description: Chipidea, Inc
   "^chipone,.*":
