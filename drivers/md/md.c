@@ -4253,6 +4253,14 @@ static struct md_sysfs_entry md_raid_disks =
 __ATTR(raid_disks, S_IRUGO|S_IWUSR, raid_disks_show, raid_disks_store);
 
 static ssize_t
+uuid_show(struct mddev *mddev, char *page)
+{
+	return sprintf(page, "%pU\n", mddev->uuid);
+}
+static struct md_sysfs_entry md_uuid =
+__ATTR(uuid, S_IRUGO, uuid_show, NULL);
+
+static ssize_t
 chunk_size_show(struct mddev *mddev, char *page)
 {
 	if (mddev->reshape_position != MaxSector &&
@@ -5508,6 +5516,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_layout.attr,
 	&md_raid_disks.attr,
+	&md_uuid.attr,
 	&md_chunk_size.attr,
 	&md_size.attr,
 	&md_resync_start.attr,
