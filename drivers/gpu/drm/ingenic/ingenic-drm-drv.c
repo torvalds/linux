@@ -215,10 +215,17 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 
 	if (priv->soc_info->has_osd) {
 		f1_state = drm_atomic_get_plane_state(state->state, &priv->f1);
+		if (IS_ERR(f1_state))
+			return PTR_ERR(f1_state);
+
 		f0_state = drm_atomic_get_plane_state(state->state, &priv->f0);
+		if (IS_ERR(f0_state))
+			return PTR_ERR(f0_state);
 
 		if (IS_ENABLED(CONFIG_DRM_INGENIC_IPU) && priv->ipu_plane) {
 			ipu_state = drm_atomic_get_plane_state(state->state, priv->ipu_plane);
+			if (IS_ERR(ipu_state))
+				return PTR_ERR(ipu_state);
 
 			/* IPU and F1 planes cannot be enabled at the same time. */
 			if (f1_state->fb && ipu_state->fb) {
