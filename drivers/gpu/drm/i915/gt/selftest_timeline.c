@@ -491,7 +491,7 @@ checked_intel_timeline_create(struct intel_gt *gt)
 	if (IS_ERR(tl))
 		return tl;
 
-	if (*tl->hwsp_seqno != tl->seqno) {
+	if (READ_ONCE(*tl->hwsp_seqno) != tl->seqno) {
 		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
 		       *tl->hwsp_seqno, tl->seqno);
 		intel_timeline_put(tl);
@@ -561,9 +561,9 @@ static int live_hwsp_engine(void *arg)
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu @ %x, found 0x%x\n",
-			       n, tl->hwsp_offset, *tl->hwsp_seqno);
+		if (!err && READ_ONCE(*tl->hwsp_seqno) != n) {
+			GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x, found 0x%x\n",
+				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqno);
 			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
@@ -633,9 +633,9 @@ out:
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu @ %x, found 0x%x\n",
-			       n, tl->hwsp_offset, *tl->hwsp_seqno);
+		if (!err && READ_ONCE(*tl->hwsp_seqno) != n) {
+			GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x, found 0x%x\n",
+				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqno);
 			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
@@ -733,7 +733,8 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		if (*hwsp_seqno[0] != seqno[0] || *hwsp_seqno[1] != seqno[1]) {
+		if (READ_ONCE(*hwsp_seqno[0]) != seqno[0] ||
+		    READ_ONCE(*hwsp_seqno[1]) != seqno[1]) {
 			pr_err("Bad timeline values: found (%x, %x), expected (%x, %x)\n",
 			       *hwsp_seqno[0], *hwsp_seqno[1],
 			       seqno[0], seqno[1]);
@@ -966,9 +967,10 @@ static int live_hwsp_recycle(void *arg)
 				break;
 			}
 
-			if (*tl->hwsp_seqno != count) {
-				pr_err("Invalid seqno stored in timeline %lu @ tl->hwsp_offset, found 0x%x\n",
-				       count, *tl->hwsp_seqno);
+			if (READ_ONCE(*tl->hwsp_seqno) != count) {
+				GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x found 0x%x\n",
+					      count, tl->fence_context,
+					      tl->hwsp_offset, *tl->hwsp_seqno);
 				GEM_TRACE_DUMP();
 				err = -EINVAL;
 			}
