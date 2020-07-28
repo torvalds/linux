@@ -1298,7 +1298,7 @@ void ql_get_dump(struct ql_adapter *qdev, void *buff)
 	 * If the dump has already been taken and is stored
 	 * in our internal buffer and if force dump is set then
 	 * just start the spool to dump it to the log file
-	 * and also, take a snapshot of the general regs to
+	 * and also, take a snapshot of the general regs
 	 * to the user's buffer or else take complete dump
 	 * to the user's buffer if force is not set.
 	 */
