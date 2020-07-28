@@ -1227,8 +1227,8 @@ static int gc2155_s_stream(struct v4l2_subdev *sd, int on)
 	unsigned int fps;
 	int delay_us;
 
-	fps = DIV_ROUND_CLOSEST(gc2145->frame_size->max_fps.denominator,
-			  gc2145->frame_size->max_fps.numerator);
+	fps = DIV_ROUND_CLOSEST(gc2155->cur_mode->max_fps.denominator,
+			  gc2155->cur_mode->max_fps.numerator);
 
 	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
 				gc2155->cur_mode->width,
