@@ -31,7 +31,7 @@ static int s3c_usb_otgphy_init(struct platform_device *pdev)
 	phyclk = readl(S3C_PHYCLK) & ~S3C_PHYCLK_CLKSEL_MASK;
 
 	xusbxti = clk_get(&pdev->dev, "xusbxti");
-	if (xusbxti && !IS_ERR(xusbxti)) {
+	if (!IS_ERR(xusbxti)) {
 		switch (clk_get_rate(xusbxti)) {
 		case 12 * MHZ:
 			phyclk |= S3C_PHYCLK_CLKSEL_12M;
