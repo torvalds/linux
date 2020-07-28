@@ -465,11 +465,21 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 
 	if (!hw->is_single) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
-		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_RAWAWB_RAM_DATA);
+		rkisp_update_regs(dev, ISP_ACQ_PROP, CSI2RX_VERSION);
+		rkisp_update_regs(dev, ISP_LSC_XGRAD_01, ISP_RAWAWB_RAM_DATA);
+
+		val = rkisp_read(dev, ISP_LSC_CTRL, false);
+		if (val & ISP_LSC_EN) {
+			val = ISP_LSC_LUT_EN | ISP_LSC_EN;
+			rkisp_set_bits(dev, ISP_LSC_CTRL, val, val, true);
+		}
 
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_write(dev, ISP_CTRL, val, true);
+
+		/* wait 50 us to load lsc table, otherwise lsc lut error will occur */
+		udelay(50);
 	}
 	/* not using isp V_START irq to generate sof event */
 	csi->filt_state[CSI_F_VS] = dma2frm + 1;

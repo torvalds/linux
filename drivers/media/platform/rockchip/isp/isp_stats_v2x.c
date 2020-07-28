@@ -43,9 +43,9 @@ rkisp_stats_get_siawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		return;
 
 	pbuf->meas_type |= ISP2X_STAT_SIAWB;
-	reg_val = readl(stats_vdev->dev->base_addr + CIF_ISP_AWB_WHITE_CNT_V10);
+	reg_val = rkisp_read(stats_vdev->dev, CIF_ISP_AWB_WHITE_CNT_V10, true);
 	pbuf->params.siawb.awb_mean[0].cnt = ISP2X_SIAWB_GET_PIXEL_CNT(reg_val);
-	reg_val = readl(stats_vdev->dev->base_addr + CIF_ISP_AWB_MEAN_V10);
+	reg_val = rkisp_read(stats_vdev->dev, CIF_ISP_AWB_MEAN_V10, true);
 
 	pbuf->params.siawb.awb_mean[0].mean_cr_or_r =
 		ISP2X_SIAWB_GET_MEAN_CR_R(reg_val);
@@ -59,7 +59,6 @@ static void
 rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *base_addr = stats_vdev->dev->base_addr;
 	u64 msb, lsb;
 	u32 value;
 	int i;
@@ -71,72 +70,84 @@ rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	for (i = 0; i < ISP2X_RAWAWB_SUM_NUM; i++) {
 		pbuf->params.rawawb.ro_rawawb_sum_r_nor[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_NOR_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_R_NOR_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_g_nor[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_NOR_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_G_NOR_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_b_nor[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_NOR_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_B_NOR_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_wp_num_nor[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NUM_NOR_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_WP_NUM_NOR_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_r_big[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_BIG_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_R_BIG_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_g_big[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_BIG_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_G_BIG_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_b_big[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_BIG_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_B_BIG_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_wp_num_big[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NUM_BIG_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_WP_NUM_BIG_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_r_sma[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_SMA_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_R_SMA_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_g_sma[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_SMA_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_G_SMA_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_sum_b_sma[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_SMA_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_B_SMA_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_rawawb_wp_num_sma[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NUM_SMA_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_WP_NUM_SMA_0 + 0x30 * i, true);
 	}
 
 	for (i = 0; i < ISP2X_RAWAWB_MULWD_NUM; i++) {
 		pbuf->params.rawawb.ro_sum_r_nor_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_NOR_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_R_NOR_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_g_nor_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_NOR_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_G_NOR_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_b_nor_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_NOR_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_B_NOR_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_wp_nm_nor_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NM_NOR_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_WP_NM_NOR_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_r_big_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_BIG_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_R_BIG_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_g_big_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_BIG_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_G_BIG_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_b_big_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_BIG_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_B_BIG_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_wp_nm_big_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NM_BIG_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_WP_NM_BIG_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_r_sma_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_SMA_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_R_SMA_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_g_sma_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_SMA_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_G_SMA_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_sum_b_sma_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_SMA_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_SUM_B_SMA_MULTIWINDOW_0 + 0x30 * i, true);
 		pbuf->params.rawawb.ro_wp_nm_sma_multiwindow[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NM_SMA_MULTIWINDOW_0 + 0x30 * i);
+			rkisp_read(stats_vdev->dev,
+				   ISP_RAWAWB_WP_NM_SMA_MULTIWINDOW_0 + 0x30 * i, true);
 	}
 
 	for (i = 0; i < ISP2X_RAWAWB_SUM_NUM; i++) {
 		pbuf->params.rawawb.ro_sum_r_exc[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_R_EXC_0 + 0x10 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_R_EXC_0 + 0x10 * i, true);
 		pbuf->params.rawawb.ro_sum_g_exc[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_G_EXC_0 + 0x10 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_G_EXC_0 + 0x10 * i, true);
 		pbuf->params.rawawb.ro_sum_b_exc[i] =
-			readl(base_addr + ISP_RAWAWB_SUM_B_EXC_0 + 0x10 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_SUM_B_EXC_0 + 0x10 * i, true);
 		pbuf->params.rawawb.ro_wp_nm_exc[i] =
-			readl(base_addr + ISP_RAWAWB_WP_NM_EXC_0 + 0x10 * i);
+			rkisp_read(stats_vdev->dev, ISP_RAWAWB_WP_NM_EXC_0 + 0x10 * i, true);
 	}
 
 	for (i = 0; i < ISP2X_RAWAWB_RAMDATA_NUM; i++) {
-		lsb = readl(base_addr + ISP_RAWAWB_RAM_DATA);
-		msb = readl(base_addr + ISP_RAWAWB_RAM_DATA);
+		lsb = rkisp_read(stats_vdev->dev, ISP_RAWAWB_RAM_DATA, true);
+		msb = rkisp_read(stats_vdev->dev, ISP_RAWAWB_RAM_DATA, true);
 		pbuf->params.rawawb.ramdata[i].b = lsb & 0x3FFFF;
 		pbuf->params.rawawb.ramdata[i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
 		pbuf->params.rawawb.ramdata[i].r = (msb & 0x3FFFF0) >> 4;
@@ -144,16 +155,15 @@ rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	value = readl(base_addr + ISP_RAWAWB_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAWB_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWAWB_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWAWB_CTRL, value, true);
 }
 
 static void
 rkisp_stats_get_siaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 			      struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *base_addr;
 	struct isp2x_siaf_stat *af;
 
 	if (!pbuf)
@@ -162,20 +172,18 @@ rkisp_stats_get_siaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	pbuf->meas_type |= ISP2X_STAT_SIAF;
 
 	af = &pbuf->params.siaf;
-	base_addr = stats_vdev->dev->base_addr;
-	af->win[0].sum = readl(base_addr + ISP_AFM_SUM_A);
-	af->win[0].lum = readl(base_addr + ISP_AFM_LUM_A);
-	af->win[1].sum = readl(base_addr + ISP_AFM_SUM_B);
-	af->win[1].lum = readl(base_addr + ISP_AFM_LUM_B);
-	af->win[2].sum = readl(base_addr + ISP_AFM_SUM_C);
-	af->win[2].lum = readl(base_addr + ISP_AFM_LUM_C);
+	af->win[0].sum = rkisp_read(stats_vdev->dev, ISP_AFM_SUM_A, true);
+	af->win[0].lum = rkisp_read(stats_vdev->dev, ISP_AFM_LUM_A, true);
+	af->win[1].sum = rkisp_read(stats_vdev->dev, ISP_AFM_SUM_B, true);
+	af->win[1].lum = rkisp_read(stats_vdev->dev, ISP_AFM_LUM_B, true);
+	af->win[2].sum = rkisp_read(stats_vdev->dev, ISP_AFM_SUM_C, true);
+	af->win[2].lum = rkisp_read(stats_vdev->dev, ISP_AFM_LUM_C, true);
 }
 
 static void
 rkisp_stats_get_rawaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *base_addr = stats_vdev->dev->base_addr;
 	struct isp2x_rawaf_stat *af;
 	u32 value, read_line;
 	u32 line_num[ISP2X_RAWAF_LINE_NUM + 1];
@@ -187,15 +195,15 @@ rkisp_stats_get_rawaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	af = &pbuf->params.rawaf;
 	pbuf->meas_type |= ISP2X_STAT_RAWAF;
 
-	af->afm_sum[0] = readl(base_addr + ISP_RAWAF_SUM_A);
-	af->afm_sum[1] = readl(base_addr + ISP_RAWAF_SUM_B);
-	af->afm_lum[0] = readl(base_addr + ISP_RAWAF_LUM_A);
-	af->afm_lum[1] = readl(base_addr + ISP_RAWAF_LUM_B);
-	af->int_state = readl(base_addr + ISP_RAWAF_INT_STATE);
+	af->afm_sum[0] = rkisp_read(stats_vdev->dev, ISP_RAWAF_SUM_A, true);
+	af->afm_sum[1] = rkisp_read(stats_vdev->dev, ISP_RAWAF_SUM_B, true);
+	af->afm_lum[0] = rkisp_read(stats_vdev->dev, ISP_RAWAF_LUM_A, true);
+	af->afm_lum[1] = rkisp_read(stats_vdev->dev, ISP_RAWAF_LUM_B, true);
+	af->int_state = rkisp_read(stats_vdev->dev, ISP_RAWAF_INT_STATE, true);
 
 	memset(line_num, 0, sizeof(line_num));
 	line_num[ISP2X_RAWAF_LINE_NUM] = ISP2X_RAWAF_SUMDATA_ROW;
-	value = readl(base_addr + ISP_RAWAF_INT_LINE);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAF_INT_LINE, true);
 	for (i = 0; i < ISP2X_RAWAF_LINE_NUM; i++) {
 		if (value & (ISP2X_RAWAF_INT_LINE0_EN << i)) {
 			line_num[i] = (value >> (4 * i)) & 0xF;
@@ -213,20 +221,19 @@ rkisp_stats_get_rawaf_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		read_line = line_num[ISP2X_RAWAF_LINE_NUM];
 
 	for (i = 0; i < read_line * ISP2X_RAWAF_SUMDATA_COLUMN; i++)
-		af->ramdata[i] = readl(base_addr + ISP_RAWAF_RAM_DATA);
+		af->ramdata[i] = rkisp_read(stats_vdev->dev, ISP_RAWAF_RAM_DATA, true);
 
 out:
-	value = readl(base_addr + ISP_RAWAF_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAF_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWAF_CTRL);
-	writel(0, base_addr + ISP_RAWAF_INT_STATE);
+	rkisp_write(stats_vdev->dev, ISP_RAWAF_CTRL, value, true);
+	rkisp_write(stats_vdev->dev, ISP_RAWAF_INT_STATE, 0, true);
 }
 
 static void
 rkisp_stats_get_yuvae_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *addr;
 	u32 value;
 	int i;
 
@@ -234,33 +241,30 @@ rkisp_stats_get_yuvae_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		goto out;
 
 	pbuf->meas_type |= ISP2X_STAT_YUVAE;
-	addr = stats_vdev->dev->base_addr + ISP_YUVAE_RO_MEAN_BASE_ADDR;
 	for (i = 0; i < ISP2X_YUVAE_MEAN_NUM / 4; i++) {
-		value = readl(addr);
+		value = rkisp_read(stats_vdev->dev, ISP_YUVAE_RO_MEAN_BASE_ADDR, true);
 		pbuf->params.yuvae.mean[4 * i + 0] = ISP2X_EXP_GET_MEAN_xy0(value);
 		pbuf->params.yuvae.mean[4 * i + 1] = ISP2X_EXP_GET_MEAN_xy1(value);
 		pbuf->params.yuvae.mean[4 * i + 2] = ISP2X_EXP_GET_MEAN_xy2(value);
 		pbuf->params.yuvae.mean[4 * i + 3] = ISP2X_EXP_GET_MEAN_xy3(value);
 	}
-	value = readl(addr);
+	value = rkisp_read(stats_vdev->dev, ISP_YUVAE_RO_MEAN_BASE_ADDR, true);
 	pbuf->params.yuvae.mean[4 * i + 0] = ISP2X_EXP_GET_MEAN_xy0(value);
 
-	addr = stats_vdev->dev->base_addr + ISP_YUVAE_WND1_SUMY;
 	for (i = 0; i < ISP2X_YUVAE_SUBWIN_NUM; i++)
-		pbuf->params.yuvae.ro_yuvae_sumy[i] = readl(addr + 4 * i);
+		pbuf->params.yuvae.ro_yuvae_sumy[i] =
+			rkisp_read(stats_vdev->dev, ISP_YUVAE_WND1_SUMY + 4 * i, true);
 
 out:
-	addr = stats_vdev->dev->base_addr + ISP_YUVAE_CTRL;
-	value = readl(addr);
+	value = rkisp_read(stats_vdev->dev, ISP_YUVAE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr);
+	rkisp_write(stats_vdev->dev, ISP_YUVAE_CTRL, value, true);
 }
 
 static void
 rkisp_stats_get_sihst_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *addr;
 	u32 value;
 	int i, j;
 
@@ -268,11 +272,10 @@ rkisp_stats_get_sihst_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		return;
 
 	pbuf->meas_type |= ISP2X_STAT_SIHST;
-	addr = stats_vdev->dev->base_addr + ISP_HIST_HIST_BIN;
 	for (i = 0; i < ISP2X_SIHIST_WIN_NUM; i++) {
-		addr += i * 0x40;
 		for (j = 0; j < ISP2X_SIHIST_BIN_N_MAX / 2; j++) {
-			value = readl(addr + (j * 4));
+			value = rkisp_read(stats_vdev->dev,
+					   ISP_HIST_HIST_BIN + i * 0x40 + j * 4, true);
 			pbuf->params.sihst.win_stat[i].hist_bins[2 * j] =
 				ISP2X_HIST_GET_BIN0(value);
 			pbuf->params.sihst.win_stat[i].hist_bins[2 * j + 1] =
@@ -285,7 +288,6 @@ static void
 rkisp_stats_get_rawaebig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				  struct isp2x_rawaebig_stat *ae, u32 blk_no)
 {
-	void __iomem *base_addr;
 	u32 addr, value;
 	int i;
 
@@ -304,38 +306,35 @@ rkisp_stats_get_rawaebig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		break;
 	}
 
-	base_addr = stats_vdev->dev->base_addr + addr;
-
 	if (!ae)
 		goto out;
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumr[i] = readl(base_addr + RAWAE_BIG_WND1_SUMR + i * 4);
+		ae->sumr[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMR + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumg[i] = readl(base_addr + RAWAE_BIG_WND1_SUMG + i * 4);
+		ae->sumg[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMG + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumb[i] = readl(base_addr + RAWAE_BIG_WND1_SUMB + i * 4);
+		ae->sumb[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMB + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-		value = readl(base_addr + RAWAE_BIG_RO_MEAN_BASE_ADDR);
+		value = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_RO_MEAN_BASE_ADDR, true);
 		ae->data[i].channelg_xy = ISP2X_RAWAEBIG_GET_MEAN_G(value);
 		ae->data[i].channelb_xy = ISP2X_RAWAEBIG_GET_MEAN_B(value);
 		ae->data[i].channelr_xy = ISP2X_RAWAEBIG_GET_MEAN_R(value);
 	}
 
 out:
-	value = readl(base_addr + RAWAE_BIG_CTRL);
+	value = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + RAWAE_BIG_CTRL);
+	rkisp_write(stats_vdev->dev, addr + RAWAE_BIG_CTRL, value, true);
 }
 
 static void
 rkisp_stats_get_rawhstbig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				   struct isp2x_rawhistbig_stat *hst, u32 blk_no)
 {
-	void __iomem *base_addr;
 	u32 addr, value;
 	int i;
 
@@ -354,17 +353,17 @@ rkisp_stats_get_rawhstbig_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		break;
 	}
 
-	base_addr = stats_vdev->dev->base_addr + addr;
 	if (!hst)
 		goto out;
 
 	for (i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
-		hst->hist_bin[i] = readl(base_addr + ISP_RAWHIST_BIG_RO_BASE_BIN);
+		hst->hist_bin[i] = rkisp_read(stats_vdev->dev,
+					      addr + ISP_RAWHIST_BIG_RO_BASE_BIN, true);
 
 out:
-	value = readl(base_addr + ISP_RAWHIST_BIG_CTRL);
+	value = rkisp_read(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWHIST_BIG_CTRL);
+	rkisp_write(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, value, true);
 }
 
 static void
@@ -432,7 +431,6 @@ rkisp_stats_get_rawaelite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				   struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	struct isp2x_rawaelite_stat *ae;
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	u32 value;
 	int i;
 
@@ -440,22 +438,22 @@ rkisp_stats_get_rawaelite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 		goto out;
 
 	ae = &pbuf->params.rawae0;
-	value = readl(addr + ISP_RAWAE_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, true);
 
 	if ((value & ISP2X_3A_MEAS_DONE) == 0)
 		return;
 
 	for (i = 0; i < ISP2X_RAWAELITE_MEAN_NUM; i++) {
-		value = readl(addr + ISP_RAWAE_LITE_RO_MEAN + 4 * i);
+		value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_RO_MEAN + 4 * i, true);
 		ae->data[i].channelg_xy = ISP2X_RAWAEBIG_GET_MEAN_G(value);
 		ae->data[i].channelb_xy = ISP2X_RAWAEBIG_GET_MEAN_B(value);
 		ae->data[i].channelr_xy = ISP2X_RAWAEBIG_GET_MEAN_R(value);
 	}
 
 out:
-	value = readl(addr + ISP_RAWAE_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr + ISP_RAWAE_LITE_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, value, true);
 }
 
 static void
@@ -463,7 +461,6 @@ rkisp_stats_get_rawhstlite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 				    struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	struct isp2x_rawhistlite_stat *hst;
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	u32 value;
 	int i;
 
@@ -472,19 +469,18 @@ rkisp_stats_get_rawhstlite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	hst = &pbuf->params.rawhist0;
 	for (i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
-		hst->hist_bin[i] = readl(addr + ISP_RAWHIST_LITE_RO_BASE_BIN);
+		hst->hist_bin[i] = rkisp_read(stats_vdev->dev, ISP_RAWHIST_LITE_RO_BASE_BIN, true);
 
 out:
-	value = readl(addr + ISP_RAWHIST_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr + ISP_RAWHIST_LITE_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, value, true);
 }
 
 static void
 rkisp_stats_get_bls_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	struct ispsd_in_fmt in_fmt = stats_vdev->dev->isp_sdev.in_fmt;
 	enum rkisp_fmt_raw_pat_type raw_type = in_fmt.bayer_pat;
 	struct isp2x_bls_stat *bls;
@@ -494,34 +490,34 @@ rkisp_stats_get_bls_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 		return;
 
 	bls = &pbuf->params.bls;
-	value = readl(addr + ISP_BLS_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_BLS_CTRL, true);
 	if (value & (ISP_BLS_ENA | ISP_BLS_MODE_MEASURED)) {
 		pbuf->meas_type |= ISP2X_STAT_BLS;
 
 		switch (raw_type) {
 		case RAW_BGGR:
-			bls->meas_r = readl(addr + ISP_BLS_D_MEASURED);
-			bls->meas_gr = readl(addr + ISP_BLS_C_MEASURED);
-			bls->meas_gb = readl(addr + ISP_BLS_B_MEASURED);
-			bls->meas_b = readl(addr + ISP_BLS_A_MEASURED);
+			bls->meas_r = rkisp_read(stats_vdev->dev, ISP_BLS_D_MEASURED, true);
+			bls->meas_gr = rkisp_read(stats_vdev->dev, ISP_BLS_C_MEASURED, true);
+			bls->meas_gb = rkisp_read(stats_vdev->dev, ISP_BLS_B_MEASURED, true);
+			bls->meas_b = rkisp_read(stats_vdev->dev, ISP_BLS_A_MEASURED, true);
 			break;
 		case RAW_GBRG:
-			bls->meas_r = readl(addr + ISP_BLS_C_MEASURED);
-			bls->meas_gr = readl(addr + ISP_BLS_D_MEASURED);
-			bls->meas_gb = readl(addr + ISP_BLS_A_MEASURED);
-			bls->meas_b = readl(addr + ISP_BLS_B_MEASURED);
+			bls->meas_r = rkisp_read(stats_vdev->dev, ISP_BLS_C_MEASURED, true);
+			bls->meas_gr = rkisp_read(stats_vdev->dev, ISP_BLS_D_MEASURED, true);
+			bls->meas_gb = rkisp_read(stats_vdev->dev, ISP_BLS_A_MEASURED, true);
+			bls->meas_b = rkisp_read(stats_vdev->dev, ISP_BLS_B_MEASURED, true);
 			break;
 		case RAW_GRBG:
-			bls->meas_r = readl(addr + ISP_BLS_B_MEASURED);
-			bls->meas_gr = readl(addr + ISP_BLS_A_MEASURED);
-			bls->meas_gb = readl(addr + ISP_BLS_D_MEASURED);
-			bls->meas_b = readl(addr + ISP_BLS_C_MEASURED);
+			bls->meas_r = rkisp_read(stats_vdev->dev, ISP_BLS_B_MEASURED, true);
+			bls->meas_gr = rkisp_read(stats_vdev->dev, ISP_BLS_A_MEASURED, true);
+			bls->meas_gb = rkisp_read(stats_vdev->dev, ISP_BLS_D_MEASURED, true);
+			bls->meas_b = rkisp_read(stats_vdev->dev, ISP_BLS_C_MEASURED, true);
 			break;
 		case RAW_RGGB:
-			bls->meas_r = readl(addr + ISP_BLS_A_MEASURED);
-			bls->meas_gr = readl(addr + ISP_BLS_B_MEASURED);
-			bls->meas_gb = readl(addr + ISP_BLS_C_MEASURED);
-			bls->meas_b = readl(addr + ISP_BLS_D_MEASURED);
+			bls->meas_r = rkisp_read(stats_vdev->dev, ISP_BLS_A_MEASURED, true);
+			bls->meas_gr = rkisp_read(stats_vdev->dev, ISP_BLS_B_MEASURED, true);
+			bls->meas_gb = rkisp_read(stats_vdev->dev, ISP_BLS_C_MEASURED, true);
+			bls->meas_b = rkisp_read(stats_vdev->dev, ISP_BLS_D_MEASURED, true);
 			break;
 		default:
 			break;
@@ -535,7 +531,6 @@ rkisp_stats_get_tmo_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 {
 	struct rkisp_device *dev = stats_vdev->dev;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
-	void __iomem *addr = dev->base_addr;
 	struct isp2x_hdrtmo_stat *tmo;
 	u32 value, i;
 
@@ -543,35 +538,36 @@ rkisp_stats_get_tmo_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 		return;
 
 	tmo = &pbuf->params.hdrtmo;
-	value = readl(addr + ISP_HDRTMO_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_CTRL, true);
 	if (value & ISP_HDRTMO_EN) {
 		pbuf->meas_type |= ISP2X_STAT_HDRTMO;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO0);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO0, true);
 		tmo->lglow = value >> 16;
 		tmo->lgmin = value & 0xFFFF;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO1);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO1, true);
 		tmo->lghigh = value >> 16;
 		tmo->lgmax = value & 0xFFFF;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO2);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO2, true);
 		tmo->weightkey = (value >> 16) & 0xFF;
 		tmo->lgmean = value & 0xFFFF;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO3);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO3, true);
 		tmo->lgrange1 = value >> 16;
 		tmo->lgrange0 = value & 0xFFFF;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO4);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO4, true);
 		tmo->palpha = (value >> 16) & 0x3FF;
 		tmo->lgavgmax = value & 0xFFFF;
 
-		value = readl(addr + ISP_HDRTMO_LG_RO5);
+		value = rkisp_read(stats_vdev->dev, ISP_HDRTMO_LG_RO5, true);
 		tmo->linecnt = value & 0x1FFF;
 
 		for (i = 0; i < ISP2X_HDRTMO_MINMAX_NUM; i++)
-			tmo->min_max[i] = readl(addr + ISP_HDRTMO_HIST_RO0 + 4 * i);
+			tmo->min_max[i] = rkisp_read(stats_vdev->dev,
+						     ISP_HDRTMO_HIST_RO0 + 4 * i, true);
 	}
 }
 
@@ -579,7 +575,6 @@ static void
 rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 			   struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	struct isp2x_dhaz_stat *dhaz;
 	u32 value, i;
 
@@ -587,32 +582,32 @@ rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 		return;
 
 	dhaz = &pbuf->params.dhaz;
-	value = readl(addr + ISP_DHAZ_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_DHAZ_CTRL, true);
 	if (value & ISP_DHAZ_ENMUX) {
 		pbuf->meas_type |= ISP2X_STAT_DHAZ;
 
-		value = readl(addr + ISP_DHAZ_ADP_RD0);
+		value = rkisp_read(stats_vdev->dev, ISP_DHAZ_ADP_RD0, true);
 		dhaz->dhaz_adp_air_base = value >> 16;
 		dhaz->dhaz_adp_wt = value & 0xFFFF;
 
-		value = readl(addr + ISP_DHAZ_ADP_RD1);
+		value = rkisp_read(stats_vdev->dev, ISP_DHAZ_ADP_RD1, true);
 		dhaz->dhaz_adp_gratio = value >> 16;
 		dhaz->dhaz_adp_tmax = value & 0xFFFF;
 
 		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
-			value = readl(addr + ISP_DHAZ_HIST_REG0 + 4 * i);
+			value = rkisp_read(stats_vdev->dev, ISP_DHAZ_HIST_REG0 + 4 * i, true);
 			dhaz->h_r_iir[2 * i] = value & 0xFFFF;
 			dhaz->h_r_iir[2 * i + 1] = value >> 16;
 		}
 
 		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
-			value = readl(addr + ISP_DHAZ_HIST_REG32 + 4 * i);
+			value = rkisp_read(stats_vdev->dev, ISP_DHAZ_HIST_REG32 + 4 * i, true);
 			dhaz->h_g_iir[2 * i] = value & 0xFFFF;
 			dhaz->h_g_iir[2 * i + 1] = value >> 16;
 		}
 
 		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
-			value = readl(addr + ISP_DHAZ_HIST_REG64 + 4 * i);
+			value = rkisp_read(stats_vdev->dev, ISP_DHAZ_HIST_REG64 + 4 * i, true);
 			dhaz->h_b_iir[2 * i] = value & 0xFFFF;
 			dhaz->h_b_iir[2 * i + 1] = value >> 16;
 		}
@@ -671,7 +666,6 @@ static void
 rkisp_stats_get_rawawb_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *base_addr = stats_vdev->dev->base_addr;
 	u32 value, rd_buf_idx, tmp_oft;
 	u32 *reg_addr, *raw_addr;
 	u64 msb, lsb;
@@ -776,9 +770,9 @@ rkisp_stats_get_rawawb_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	pbuf->params.rawawb.ramdata[2 * i].wp = (msb & 0x01C00000) >> 22;
 
 OUT:
-	value = readl(base_addr + ISP_RAWAWB_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAWB_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWAWB_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWAWB_CTRL, value, true);
 }
 
 static void
@@ -809,7 +803,6 @@ static void
 rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *base_addr = stats_vdev->dev->base_addr;
 	u32 *ddr_addr;
 	struct isp2x_rawaf_stat *af;
 	u32 value, rd_buf_idx;
@@ -824,27 +817,26 @@ rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	rd_buf_idx = stats_vdev->rd_buf_idx;
 	ddr_addr = stats_vdev->stats_buf[rd_buf_idx].vaddr + 0x1C00;
 
-	af->afm_sum[0] = readl(base_addr + ISP_RAWAF_SUM_A);
-	af->afm_sum[1] = readl(base_addr + ISP_RAWAF_SUM_B);
-	af->afm_lum[0] = readl(base_addr + ISP_RAWAF_LUM_A);
-	af->afm_lum[1] = readl(base_addr + ISP_RAWAF_LUM_B);
-	af->int_state = readl(base_addr + ISP_RAWAF_INT_STATE);
+	af->afm_sum[0] = rkisp_read(stats_vdev->dev, ISP_RAWAF_SUM_A, true);
+	af->afm_sum[1] = rkisp_read(stats_vdev->dev, ISP_RAWAF_SUM_B, true);
+	af->afm_lum[0] = rkisp_read(stats_vdev->dev, ISP_RAWAF_LUM_A, true);
+	af->afm_lum[1] = rkisp_read(stats_vdev->dev, ISP_RAWAF_LUM_B, true);
+	af->int_state = rkisp_read(stats_vdev->dev, ISP_RAWAF_INT_STATE, true);
 
 	for (i = 0; i < ISP2X_RAWAF_SUMDATA_ROW * ISP2X_RAWAF_SUMDATA_COLUMN; i++)
 		af->ramdata[i] = ddr_addr[i];
 
 OUT:
-	value = readl(base_addr + ISP_RAWAF_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAF_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWAF_CTRL);
-	writel(0, base_addr + ISP_RAWAF_INT_STATE);
+	rkisp_write(stats_vdev->dev, ISP_RAWAF_CTRL, value, true);
+	rkisp_write(stats_vdev->dev, ISP_RAWAF_INT_STATE, 0, true);
 }
 
 static void
 rkisp_stats_get_yuvae_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf)
 {
-	void __iomem *addr;
 	u32 *ddr_addr;
 	u32 value, rd_buf_idx;
 	int i;
@@ -866,15 +858,14 @@ rkisp_stats_get_yuvae_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	value = ddr_addr[i];
 	pbuf->params.yuvae.mean[4 * i + 0] = ISP2X_EXP_GET_MEAN_xy0(value);
 
-	addr = stats_vdev->dev->base_addr + ISP_YUVAE_WND1_SUMY;
 	for (i = 0; i < ISP2X_YUVAE_SUBWIN_NUM; i++)
-		pbuf->params.yuvae.ro_yuvae_sumy[i] = readl(addr + 4 * i);
+		pbuf->params.yuvae.ro_yuvae_sumy[i] =
+			rkisp_read(stats_vdev->dev, ISP_YUVAE_WND1_SUMY + 4 * i, true);
 
 OUT:
-	addr = stats_vdev->dev->base_addr + ISP_YUVAE_CTRL;
-	value = readl(addr);
+	value = rkisp_read(stats_vdev->dev, ISP_YUVAE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr);
+	rkisp_write(stats_vdev->dev, ISP_YUVAE_CTRL, value, true);
 }
 
 static void
@@ -909,7 +900,6 @@ static void
 rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				  struct isp2x_rawaebig_stat *ae, u32 blk_no)
 {
-	void __iomem *base_addr;
 	u32 *ddr_addr;
 	u32 value, rd_buf_idx;
 	u32 addr;
@@ -932,18 +922,17 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		break;
 	}
 
-	base_addr = stats_vdev->dev->base_addr + addr;
 	if (!ae)
 		goto OUT;
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumr[i] = readl(base_addr + RAWAE_BIG_WND1_SUMR + i * 4);
+		ae->sumr[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMR + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumg[i] = readl(base_addr + RAWAE_BIG_WND1_SUMG + i * 4);
+		ae->sumg[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMG + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++)
-		ae->sumb[i] = readl(base_addr + RAWAE_BIG_WND1_SUMB + i * 4);
+		ae->sumb[i] = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_WND1_SUMB + i * 4, true);
 
 	for (i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
 		value = ddr_addr[i];
@@ -953,16 +942,15 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 OUT:
-	value = readl(base_addr + RAWAE_BIG_CTRL);
+	value = rkisp_read(stats_vdev->dev, addr + RAWAE_BIG_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + RAWAE_BIG_CTRL);
+	rkisp_write(stats_vdev->dev, addr + RAWAE_BIG_CTRL, value, true);
 }
 
 static void
 rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				   struct isp2x_rawhistbig_stat *hst, u32 blk_no)
 {
-	void __iomem *base_addr;
 	u32 *ddr_addr;
 	u32 value, rd_buf_idx;
 	u32 addr;
@@ -985,7 +973,6 @@ rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		break;
 	}
 
-	base_addr = stats_vdev->dev->base_addr + addr;
 	if (!hst)
 		goto OUT;
 
@@ -993,9 +980,9 @@ rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		hst->hist_bin[i] = ddr_addr[i];
 
 OUT:
-	value = readl(base_addr + ISP_RAWHIST_BIG_CTRL);
+	value = rkisp_read(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, base_addr + ISP_RAWHIST_BIG_CTRL);
+	rkisp_write(stats_vdev->dev, addr + ISP_RAWHIST_BIG_CTRL, value, true);
 }
 
 static void
@@ -1063,7 +1050,6 @@ rkisp_stats_get_rawaelite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				   struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	struct isp2x_rawaelite_stat *ae;
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	u32 *ddr_addr;
 	u32 value, rd_buf_idx;
 	int i;
@@ -1072,7 +1058,7 @@ rkisp_stats_get_rawaelite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		goto OUT;
 
 	ae = &pbuf->params.rawae0;
-	value = readl(addr + ISP_RAWAE_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, true);
 	if ((value & ISP2X_3A_MEAS_DONE) == 0)
 		return;
 
@@ -1086,9 +1072,9 @@ rkisp_stats_get_rawaelite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 OUT:
-	value = readl(addr + ISP_RAWAE_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr + ISP_RAWAE_LITE_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWAE_LITE_CTRL, value, true);
 }
 
 static void
@@ -1096,7 +1082,6 @@ rkisp_stats_get_rawhstlite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				    struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	struct isp2x_rawhistlite_stat *hst;
-	void __iomem *addr = stats_vdev->dev->base_addr;
 	u32 *ddr_addr;
 	u32 value, rd_buf_idx;
 	int i;
@@ -1113,9 +1098,9 @@ rkisp_stats_get_rawhstlite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		hst->hist_bin[i] = ddr_addr[i];
 
 OUT:
-	value = readl(addr + ISP_RAWHIST_LITE_CTRL);
+	value = rkisp_read(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	writel(value, addr + ISP_RAWHIST_LITE_CTRL);
+	rkisp_write(stats_vdev->dev, ISP_RAWHIST_LITE_CTRL, value, true);
 }
 
 static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_ddr_ops_v2x = {
@@ -1353,14 +1338,13 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		iq_3a_mask = ISP2X_3A_RAWAE_BIG;
 	spin_lock(&stats_vdev->irq_lock);
 
-	temp_isp_ris = readl(stats_vdev->dev->base_addr + ISP_ISP_RIS);
-	temp_isp3a_ris = readl(stats_vdev->dev->base_addr + ISP_ISP3A_RIS);
+	temp_isp_ris = rkisp_read(stats_vdev->dev, ISP_ISP_RIS, true);
+	temp_isp3a_ris = rkisp_read(stats_vdev->dev, ISP_ISP3A_RIS, true);
 	isp_mis_tmp = isp_ris & iq_isr_mask;
 	if (isp_mis_tmp) {
-		writel(isp_mis_tmp,
-			stats_vdev->dev->base_addr + ISP_ISP_ICR);
+		rkisp_write(stats_vdev->dev, ISP_ISP_ICR, isp_mis_tmp, true);
 
-		isp_mis_tmp &= readl(stats_vdev->dev->base_addr + ISP_ISP_MIS);
+		isp_mis_tmp &= rkisp_read(stats_vdev->dev, ISP_ISP_MIS, true);
 		if (isp_mis_tmp)
 			v4l2_err(stats_vdev->vnode.vdev.v4l2_dev,
 				 "isp icr 3A info err: 0x%x 0x%x\n",
@@ -1369,10 +1353,9 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	isp_mis_tmp = isp3a_ris & iq_3a_mask;
 	if (isp_mis_tmp) {
-		writel(isp_mis_tmp,
-			stats_vdev->dev->base_addr + ISP_ISP3A_ICR);
+		rkisp_write(stats_vdev->dev, ISP_ISP3A_ICR, isp_mis_tmp, true);
 
-		isp_mis_tmp &= readl(stats_vdev->dev->base_addr + ISP_ISP3A_MIS);
+		isp_mis_tmp &= rkisp_read(stats_vdev->dev, ISP_ISP3A_MIS, true);
 		if (isp_mis_tmp)
 			v4l2_err(stats_vdev->vnode.vdev.v4l2_dev,
 				 "isp3A icr 3A info err: 0x%x 0x%x\n",
@@ -1382,14 +1365,18 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!stats_vdev->streamon)
 		goto unlock;
 
-	if (isp_ris & ISP2X_FRAME) {
+	if ((isp_ris & ISP2X_FRAME) && stats_vdev->rd_stats_from_ddr) {
 		wr_buf_idx = stats_vdev->wr_buf_idx;
 		stats_vdev->rd_buf_idx = wr_buf_idx;
 
 		wr_buf_idx = (wr_buf_idx + 1) % RKISP_STATS_DDR_BUF_NUM;
 		stats_vdev->wr_buf_idx = wr_buf_idx;
-		writel(stats_vdev->stats_buf[wr_buf_idx].dma_addr,
-			stats_vdev->dev->base_addr + MI_SWS_3A_WR_BASE);
+		rkisp_write(stats_vdev->dev, MI_DBR_WR_SIZE,
+			    RKISP_RD_STATS_BUF_SIZE, false);
+		rkisp_write(stats_vdev->dev, MI_SWS_3A_WR_BASE,
+			    stats_vdev->stats_buf[wr_buf_idx].dma_addr, false);
+		rkisp_set_bits(stats_vdev->dev, CTRL_SWS_CFG, SW_3A_DDR_WRITE_EN,
+			       SW_3A_DDR_WRITE_EN, false);
 	}
 
 	unhdl_ris = 0;
@@ -1468,16 +1455,16 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 
 void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 {
-	void __iomem *addr;
-
-	addr = stats_vdev->dev->base_addr;
 	if (stats_vdev->rd_stats_from_ddr) {
 		stats_vdev->wr_buf_idx = 0;
 		stats_vdev->rd_buf_idx = 0;
 
-		writel(RKISP_RD_STATS_BUF_SIZE, addr + MI_DBR_WR_SIZE);
-		writel(stats_vdev->stats_buf[0].dma_addr, addr + MI_SWS_3A_WR_BASE);
-		isp_set_bits(addr + CTRL_SWS_CFG, SW_3A_DDR_WRITE_EN, SW_3A_DDR_WRITE_EN);
+		rkisp_write(stats_vdev->dev, MI_DBR_WR_SIZE,
+			    RKISP_RD_STATS_BUF_SIZE, false);
+		rkisp_write(stats_vdev->dev, MI_SWS_3A_WR_BASE,
+			    stats_vdev->stats_buf[0].dma_addr, false);
+		rkisp_set_bits(stats_vdev->dev, CTRL_SWS_CFG, SW_3A_DDR_WRITE_EN,
+			       SW_3A_DDR_WRITE_EN, false);
 	}
 }
 

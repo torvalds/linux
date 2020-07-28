@@ -25,14 +25,14 @@ static inline void
 rkisp_iowrite32(struct rkisp_isp_params_vdev *params_vdev,
 		u32 value, u32 addr)
 {
-	iowrite32(value, params_vdev->dev->base_addr + addr);
+	rkisp_write(params_vdev->dev, addr, value, false);
 }
 
 static inline u32
 rkisp_ioread32(struct rkisp_isp_params_vdev *params_vdev,
 	       u32 addr)
 {
-	return ioread32(params_vdev->dev->base_addr + addr);
+	return rkisp_read(params_vdev->dev, addr, false);
 }
 
 static inline void
@@ -1172,7 +1172,6 @@ isp_ie_enable(struct rkisp_isp_params_vdev *params_vdev,
 	      bool en)
 {
 	if (en) {
-		isp_param_set_bits(params_vdev, CIF_ICCL, CIF_ICCL_IE_CLK);
 		isp_param_set_bits(params_vdev, CIF_IMG_EFF_CTRL,
 				   CIF_IMG_EFF_CTRL_ENABLE);
 		isp_param_set_bits(params_vdev, CIF_IMG_EFF_CTRL,
@@ -1180,7 +1179,6 @@ isp_ie_enable(struct rkisp_isp_params_vdev *params_vdev,
 	} else {
 		isp_param_clear_bits(params_vdev, CIF_IMG_EFF_CTRL,
 				     CIF_IMG_EFF_CTRL_ENABLE);
-		isp_param_clear_bits(params_vdev, CIF_ICCL, CIF_ICCL_IE_CLK);
 	}
 }
 
@@ -3531,6 +3529,7 @@ isp_3dlut_enable(struct rkisp_isp_params_vdev *params_vdev,
 		isp_param_set_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
 	} else {
 		isp_param_clear_bits(params_vdev, ISP_3DLUT_CTRL, 0x01);
+		isp_param_clear_bits(params_vdev, ISP_3DLUT_UPDATE, 0x01);
 	}
 }
 
@@ -3682,6 +3681,35 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
+
+	if (type == RKISP_PARAMS_SHD) {
+		if ((module_en_update & ISP2X_MODULE_HDRMGE) ||
+		    (module_cfg_update & ISP2X_MODULE_HDRMGE)) {
+			if ((module_cfg_update & ISP2X_MODULE_HDRMGE))
+				ops->hdrmge_config(params_vdev,
+					&new_params->others.hdrmge_cfg, type);
+
+			if (module_en_update & ISP2X_MODULE_HDRMGE) {
+				ops->hdrmge_enable(params_vdev,
+					!!(module_ens & ISP2X_MODULE_HDRMGE));
+				priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
+			}
+		}
+
+		if ((module_en_update & ISP2X_MODULE_HDRTMO) ||
+		    (module_cfg_update & ISP2X_MODULE_HDRTMO)) {
+			if ((module_cfg_update & ISP2X_MODULE_HDRTMO))
+				ops->hdrtmo_config(params_vdev,
+					&new_params->others.hdrtmo_cfg, type);
+
+			if (module_en_update & ISP2X_MODULE_HDRTMO) {
+				ops->hdrtmo_enable(params_vdev,
+					!!(module_ens & ISP2X_MODULE_HDRTMO));
+				priv_val->tmo_en = !!(module_ens & ISP2X_MODULE_HDRTMO);
+			}
+		}
+		return;
+	}
 
 	if ((module_en_update & ISP2X_MODULE_DPCC) ||
 	    (module_cfg_update & ISP2X_MODULE_DPCC)) {
@@ -3922,6 +3950,9 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_isp_params_v2x_ops *ops =
 		(struct rkisp_isp_params_v2x_ops *)params_vdev->priv_ops;
 
+	if (type == RKISP_PARAMS_SHD)
+		return;
+
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
@@ -4082,6 +4113,18 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static __maybe_unused
+void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_isp_params_v2x_ops *ops =
+		(struct rkisp_isp_params_v2x_ops *)params_vdev->priv_ops;
+
+	ops->hdrmge_config(params_vdev,
+			   &params_vdev->last_hdrmge, RKISP_PARAMS_SHD);
+	ops->hdrtmo_config(params_vdev,
+			   &params_vdev->last_hdrtmo, RKISP_PARAMS_SHD);
+}
+
+static __maybe_unused
 void __preisp_isr_update_hdrae_para(struct rkisp_isp_params_vdev *params_vdev,
 				    struct isp2x_isp_params_cfg *new_params)
 {
@@ -4117,6 +4160,10 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp2x_params);
+	params_vdev->cur_hdrtmo = params_vdev->isp2x_params->others.hdrtmo_cfg;
+	params_vdev->cur_hdrmge = params_vdev->isp2x_params->others.hdrmge_cfg;
+	params_vdev->last_hdrtmo = params_vdev->cur_hdrtmo;
+	params_vdev->last_hdrmge = params_vdev->cur_hdrmge;
 	spin_unlock(&params_vdev->config_lock);
 }
 
@@ -4189,6 +4236,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	struct isp2x_isp_params_cfg *new_params = NULL;
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
 	struct rkisp_device *dev = params_vdev->dev;
+	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon)
@@ -4224,8 +4272,14 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	new_params = (struct isp2x_isp_params_cfg *)(cur_buf->vaddr[0]);
 	__isp_isr_other_config(params_vdev, new_params, type);
 	__isp_isr_meas_config(params_vdev, new_params, type);
+	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
+		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
+		params_vdev->last_hdrtmo = params_vdev->cur_hdrtmo;
+		params_vdev->last_hdrmge = params_vdev->cur_hdrmge;
+		params_vdev->cur_hdrtmo = new_params->others.hdrtmo_cfg;
+		params_vdev->cur_hdrmge = new_params->others.hdrmge_cfg;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;
 	} else {
