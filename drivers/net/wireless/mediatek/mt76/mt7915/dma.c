@@ -96,8 +96,6 @@ static int mt7915_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7915_tx_cleanup(dev);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
-
 	if (napi_complete_done(napi, 0))
 		mt7915_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
