@@ -1744,27 +1744,25 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->max_srq_wrs	= HNS_ROCE_V2_MAX_SRQ_WR;
 	caps->max_srq_sges	= HNS_ROCE_V2_MAX_SRQ_SGE;
 
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP08_B) {
-		caps->flags |= HNS_ROCE_CAP_FLAG_ATOMIC | HNS_ROCE_CAP_FLAG_MW |
-			       HNS_ROCE_CAP_FLAG_SRQ | HNS_ROCE_CAP_FLAG_FRMR |
-			       HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL;
+	caps->flags |= HNS_ROCE_CAP_FLAG_ATOMIC | HNS_ROCE_CAP_FLAG_MW |
+		       HNS_ROCE_CAP_FLAG_SRQ | HNS_ROCE_CAP_FLAG_FRMR |
+		       HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL;
 
-		caps->num_qpc_timer	  = HNS_ROCE_V2_MAX_QPC_TIMER_NUM;
-		caps->qpc_timer_entry_sz  = HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ;
-		caps->qpc_timer_ba_pg_sz  = 0;
-		caps->qpc_timer_buf_pg_sz = 0;
-		caps->qpc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
-		caps->num_cqc_timer	  = HNS_ROCE_V2_MAX_CQC_TIMER_NUM;
-		caps->cqc_timer_entry_sz  = HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ;
-		caps->cqc_timer_ba_pg_sz  = 0;
-		caps->cqc_timer_buf_pg_sz = 0;
-		caps->cqc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
+	caps->num_qpc_timer	  = HNS_ROCE_V2_MAX_QPC_TIMER_NUM;
+	caps->qpc_timer_entry_sz  = HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ;
+	caps->qpc_timer_ba_pg_sz  = 0;
+	caps->qpc_timer_buf_pg_sz = 0;
+	caps->qpc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
+	caps->num_cqc_timer	  = HNS_ROCE_V2_MAX_CQC_TIMER_NUM;
+	caps->cqc_timer_entry_sz  = HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ;
+	caps->cqc_timer_ba_pg_sz  = 0;
+	caps->cqc_timer_buf_pg_sz = 0;
+	caps->cqc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
 
-		caps->sccc_entry_sz	  = HNS_ROCE_V2_SCCC_ENTRY_SZ;
-		caps->sccc_ba_pg_sz	  = 0;
-		caps->sccc_buf_pg_sz	  = 0;
-		caps->sccc_hop_num	  = HNS_ROCE_SCCC_HOP_NUM;
-	}
+	caps->sccc_entry_sz	  = HNS_ROCE_V2_SCCC_ENTRY_SZ;
+	caps->sccc_ba_pg_sz	  = 0;
+	caps->sccc_buf_pg_sz	  = 0;
+	caps->sccc_hop_num	  = HNS_ROCE_SCCC_HOP_NUM;
 }
 
 static void calc_pg_sz(int obj_num, int obj_size, int hop_num, int ctx_bt_num,
@@ -1995,20 +1993,18 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 		   caps->srqc_bt_num, &caps->srqc_buf_pg_sz,
 		   &caps->srqc_ba_pg_sz, HEM_TYPE_SRQC);
 
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP08_B) {
-		caps->sccc_hop_num = ctx_hop_num;
-		caps->qpc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
-		caps->cqc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
+	caps->sccc_hop_num = ctx_hop_num;
+	caps->qpc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
+	caps->cqc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 
-		calc_pg_sz(caps->num_qps, caps->sccc_entry_sz,
-			   caps->sccc_hop_num, caps->sccc_bt_num,
-			   &caps->sccc_buf_pg_sz, &caps->sccc_ba_pg_sz,
-			   HEM_TYPE_SCCC);
-		calc_pg_sz(caps->num_cqc_timer, caps->cqc_timer_entry_sz,
-			   caps->cqc_timer_hop_num, caps->cqc_timer_bt_num,
-			   &caps->cqc_timer_buf_pg_sz,
-			   &caps->cqc_timer_ba_pg_sz, HEM_TYPE_CQC_TIMER);
-	}
+	calc_pg_sz(caps->num_qps, caps->sccc_entry_sz,
+		   caps->sccc_hop_num, caps->sccc_bt_num,
+		   &caps->sccc_buf_pg_sz, &caps->sccc_ba_pg_sz,
+		   HEM_TYPE_SCCC);
+	calc_pg_sz(caps->num_cqc_timer, caps->cqc_timer_entry_sz,
+		   caps->cqc_timer_hop_num, caps->cqc_timer_bt_num,
+		   &caps->cqc_timer_buf_pg_sz,
+		   &caps->cqc_timer_ba_pg_sz, HEM_TYPE_CQC_TIMER);
 
 	calc_pg_sz(caps->num_cqe_segs, caps->mtt_entry_sz, caps->cqe_hop_num,
 		   1, &caps->cqe_buf_pg_sz, &caps->cqe_ba_pg_sz, HEM_TYPE_CQE);
@@ -2055,22 +2051,19 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP08_B) {
-		ret = hns_roce_query_pf_timer_resource(hr_dev);
-		if (ret) {
-			dev_err(hr_dev->dev,
-				"Query pf timer resource fail, ret = %d.\n",
-				ret);
-			return ret;
-		}
+	ret = hns_roce_query_pf_timer_resource(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev,
+			"failed to query pf timer resource, ret = %d.\n", ret);
+		return ret;
+	}
 
-		ret = hns_roce_set_vf_switch_param(hr_dev, 0);
-		if (ret) {
-			dev_err(hr_dev->dev,
-				"Set function switch param fail, ret = %d.\n",
-				ret);
-			return ret;
-		}
+	ret = hns_roce_set_vf_switch_param(hr_dev, 0);
+	if (ret) {
+		dev_err(hr_dev->dev,
+			"failed to set function switch param, ret = %d.\n",
+			ret);
+		return ret;
 	}
 
 	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
@@ -2336,8 +2329,7 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP08_B)
-		hns_roce_function_clear(hr_dev);
+	hns_roce_function_clear(hr_dev);
 
 	hns_roce_free_link_table(hr_dev, &priv->tpq);
 	hns_roce_free_link_table(hr_dev, &priv->tsq);
@@ -4231,12 +4223,13 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_HOP_LIMIT_M,
 		       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
 
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP08_B && is_udp)
+	if (is_udp)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 			       V2_QPC_BYTE_24_TC_S, grh->traffic_class >> 2);
 	else
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 			       V2_QPC_BYTE_24_TC_S, grh->traffic_class);
+
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 		       V2_QPC_BYTE_24_TC_S, 0);
 	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_FL_M,

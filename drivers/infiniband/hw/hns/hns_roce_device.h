@@ -37,9 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
-/* hip08 is a pci device, it includes two version according pci version id */
-#define PCI_REVISION_ID_HIP08_A			0x20
-#define PCI_REVISION_ID_HIP08_B			0x21
+/* hip08 is a pci device */
+#define PCI_REVISION_ID_HIP08			0x21
 
 #define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
 
