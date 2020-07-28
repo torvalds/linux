@@ -1514,8 +1514,6 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 
 	req_a = (struct hns_roce_vf_res_a *)desc[0].data;
 	req_b = (struct hns_roce_vf_res_b *)desc[1].data;
-	memset(req_a, 0, sizeof(*req_a));
-	memset(req_b, 0, sizeof(*req_b));
 	for (i = 0; i < 2; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc[i],
 					      HNS_ROCE_OPC_ALLOC_VF_RES, false);
