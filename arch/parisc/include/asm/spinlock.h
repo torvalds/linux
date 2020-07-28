@@ -37,11 +37,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *x)
 	volatile unsigned int *a;
 
 	a = __ldcw_align(x);
-#ifdef CONFIG_SMP
-	(void) __ldcw(a);
-#else
 	mb();
-#endif
 	*a = 1;
 }
 

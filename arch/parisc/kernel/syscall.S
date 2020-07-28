@@ -640,9 +640,7 @@ cas_action:
 	sub,<>	%r28, %r25, %r0
 2:	stw	%r24, 0(%r26)
 	/* Free lock */
-#ifdef CONFIG_SMP
-	LDCW	0(%sr2,%r20), %r1			/* Barrier */
-#endif
+	sync
 	stw	%r20, 0(%sr2,%r20)
 #if ENABLE_LWS_DEBUG
 	/* Clear thread register indicator */
@@ -657,9 +655,7 @@ cas_action:
 3:		
 	/* Error occurred on load or store */
 	/* Free lock */
-#ifdef CONFIG_SMP
-	LDCW	0(%sr2,%r20), %r1			/* Barrier */
-#endif
+	sync
 	stw	%r20, 0(%sr2,%r20)
 #if ENABLE_LWS_DEBUG
 	stw	%r0, 4(%sr2,%r20)
@@ -861,9 +857,7 @@ cas2_action:
 
 cas2_end:
 	/* Free lock */
-#ifdef CONFIG_SMP
-	LDCW	0(%sr2,%r20), %r1			/* Barrier */
-#endif
+	sync
 	stw	%r20, 0(%sr2,%r20)
 	/* Enable interrupts */
 	ssm	PSW_SM_I, %r0
@@ -874,9 +868,7 @@ cas2_end:
 22:
 	/* Error occurred on load or store */
 	/* Free lock */
-#ifdef CONFIG_SMP
-	LDCW	0(%sr2,%r20), %r1			/* Barrier */
-#endif
+	sync
 	stw	%r20, 0(%sr2,%r20)
 	ssm	PSW_SM_I, %r0
 	ldo	1(%r0),%r28
