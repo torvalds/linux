@@ -1801,20 +1801,20 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	global_alpha_en = (vop_plane_state->global_alpha == 0xff) ? 0 : 1;
 	if ((is_alpha_support(fb->format->format) || global_alpha_en) &&
 	    (s->dsp_layer_sel & 0x3) != win->win_id) {
-		int src_bland_m0;
+		int src_blend_m0;
 
 		if (is_alpha_support(fb->format->format) && global_alpha_en)
-			src_bland_m0 = ALPHA_PER_PIX_GLOBAL;
+			src_blend_m0 = ALPHA_PER_PIX_GLOBAL;
 		else if (is_alpha_support(fb->format->format))
-			src_bland_m0 = ALPHA_PER_PIX;
+			src_blend_m0 = ALPHA_PER_PIX;
 		else
-			src_bland_m0 = ALPHA_GLOBAL;
+			src_blend_m0 = ALPHA_GLOBAL;
 
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
 			SRC_ALPHA_M0(ALPHA_STRAIGHT) |
-			SRC_BLEND_M0(src_bland_m0) |
+			SRC_BLEND_M0(src_blend_m0) |
 			SRC_ALPHA_CAL_M0(ALPHA_SATURATION) |
 			SRC_FACTOR_M0(global_alpha_en ?
 				      ALPHA_SRC_GLOBAL : ALPHA_ONE);
