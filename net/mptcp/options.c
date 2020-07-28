@@ -482,17 +482,10 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	struct mptcp_sock *msk;
 	unsigned int ack_size;
 	bool ret = false;
-	u8 tcp_fin;
 
-	if (skb) {
-		mpext = mptcp_get_ext(skb);
-		tcp_fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
-	} else {
-		mpext = NULL;
-		tcp_fin = 0;
-	}
+	mpext = skb ? mptcp_get_ext(skb) : NULL;
 
-	if (!skb || (mpext && mpext->use_map) || tcp_fin) {
+	if (!skb || (mpext && mpext->use_map) || subflow->data_fin_tx_enable) {
 		unsigned int map_size;
 
 		map_size = TCPOLEN_MPTCP_DSS_BASE + TCPOLEN_MPTCP_DSS_MAP64;
@@ -502,7 +495,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && tcp_fin && subflow->data_fin_tx_enable)
+		if (skb && subflow->data_fin_tx_enable)
 			mptcp_write_data_fin(subflow, skb, &opts->ext_copy);
 		ret = true;
 	}
