@@ -73,6 +73,11 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x1f000000 0x00400000>;
 
+			pmsleep: syscon@1c00 {
+				compatible = "mstar,pmsleep", "syscon";
+				reg = <0x1c00 0x100>;
+			};
+
 			l3bridge: l3bridge@204400 {
 				compatible = "mstar,l3bridge";
 				reg = <0x204400 0x200>;
