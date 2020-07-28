@@ -225,4 +225,12 @@ config SND_SOC_SAMSUNG_ARIES_WM8994
 	  via ADC, GPIOs, and an extcon device.  Switching between the Mic
 	  and TV-Out path is also handled.
 
+config SND_SOC_SAMSUNG_MIDAS_WM1811
+	tristate "SoC I2S Audio support for Midas boards"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on the Midas boards.
+
 endif #SND_SOC_SAMSUNG
