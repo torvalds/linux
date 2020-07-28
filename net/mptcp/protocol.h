@@ -199,6 +199,7 @@ struct mptcp_sock {
 	unsigned long	flags;
 	bool		can_ack;
 	bool		fully_established;
+	bool		snd_data_fin_enable;
 	spinlock_t	join_list_lock;
 	struct work_struct work;
 	struct list_head conn_list;
@@ -291,10 +292,8 @@ struct mptcp_subflow_context {
 		backup : 1,
 		data_avail : 1,
 		rx_eof : 1,
-		data_fin_tx_enable : 1,
 		use_64bit_ack : 1, /* Set when we received a 64-bit DSN */
 		can_ack : 1;	    /* only after processing the remote a key */
-	u64	data_fin_tx_seq;
 	u32	remote_nonce;
 	u64	thmac;
 	u32	local_nonce;

@@ -1391,8 +1391,7 @@ static void mptcp_cancel_work(struct sock *sk)
 		sock_put(sk);
 }
 
-static void mptcp_subflow_shutdown(struct sock *ssk, int how,
-				   bool data_fin_tx_enable, u64 data_fin_tx_seq)
+static void mptcp_subflow_shutdown(struct sock *ssk, int how)
 {
 	lock_sock(ssk);
 
@@ -1405,14 +1404,6 @@ static void mptcp_subflow_shutdown(struct sock *ssk, int how,
 		tcp_disconnect(ssk, O_NONBLOCK);
 		break;
 	default:
-		if (data_fin_tx_enable) {
-			struct mptcp_subflow_context *subflow;
-
-			subflow = mptcp_subflow_ctx(ssk);
-			subflow->data_fin_tx_seq = data_fin_tx_seq;
-			subflow->data_fin_tx_enable = 1;
-		}
-
 		ssk->sk_shutdown |= how;
 		tcp_shutdown(ssk, how);
 		break;
@@ -1426,7 +1417,6 @@ static void mptcp_close(struct sock *sk, long timeout)
 	struct mptcp_subflow_context *subflow, *tmp;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	LIST_HEAD(conn_list);
-	u64 data_fin_tx_seq;
 
 	lock_sock(sk);
 
@@ -1440,7 +1430,7 @@ static void mptcp_close(struct sock *sk, long timeout)
 	spin_unlock_bh(&msk->join_list_lock);
 	list_splice_init(&msk->conn_list, &conn_list);
 
-	data_fin_tx_seq = msk->write_seq;
+	msk->snd_data_fin_enable = 1;
 
 	__mptcp_clear_xmit(sk);
 
@@ -1448,9 +1438,6 @@ static void mptcp_close(struct sock *sk, long timeout)
 
 	list_for_each_entry_safe(subflow, tmp, &conn_list, node) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-
-		subflow->data_fin_tx_seq = data_fin_tx_seq;
-		subflow->data_fin_tx_enable = 1;
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
 
@@ -2146,10 +2133,12 @@ static int mptcp_shutdown(struct socket *sock, int how)
 	}
 
 	__mptcp_flush_join_list(msk);
+	msk->snd_data_fin_enable = 1;
+
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *tcp_sk = mptcp_subflow_tcp_sock(subflow);
 
-		mptcp_subflow_shutdown(tcp_sk, how, 1, msk->write_seq);
+		mptcp_subflow_shutdown(tcp_sk, how);
 	}
 
 	/* Wake up anyone sleeping in poll. */

@@ -451,6 +451,8 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct sk_buff *skb, struct mptcp_ext *ext)
 {
+	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq);
+
 	if (!ext->use_map || !skb->len) {
 		/* RFC6824 requires a DSS mapping with specific values
 		 * if DATA_FIN is set but no data payload is mapped
@@ -458,10 +460,13 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		ext->data_seq = subflow->data_fin_tx_seq;
+		/* The write_seq value has already been incremented, so
+		 * the actual sequence number for the DATA_FIN is one less.
+		 */
+		ext->data_seq = data_fin_tx_seq - 1;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
-	} else if (ext->data_seq + ext->data_len == subflow->data_fin_tx_seq) {
+	} else if (ext->data_seq + ext->data_len == data_fin_tx_seq) {
 		/* If there's an existing DSS mapping and it is the
 		 * final mapping, DATA_FIN consumes 1 additional byte of
 		 * mapping space.
@@ -477,15 +482,17 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 					  struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	unsigned int dss_size = 0;
+	u64 snd_data_fin_enable;
 	struct mptcp_ext *mpext;
-	struct mptcp_sock *msk;
 	unsigned int ack_size;
 	bool ret = false;
 
 	mpext = skb ? mptcp_get_ext(skb) : NULL;
+	snd_data_fin_enable = READ_ONCE(msk->snd_data_fin_enable);
 
-	if (!skb || (mpext && mpext->use_map) || subflow->data_fin_tx_enable) {
+	if (!skb || (mpext && mpext->use_map) || snd_data_fin_enable) {
 		unsigned int map_size;
 
 		map_size = TCPOLEN_MPTCP_DSS_BASE + TCPOLEN_MPTCP_DSS_MAP64;
@@ -495,7 +502,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && subflow->data_fin_tx_enable)
+		if (skb && snd_data_fin_enable)
 			mptcp_write_data_fin(subflow, skb, &opts->ext_copy);
 		ret = true;
 	}
@@ -504,7 +511,6 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	 * if the first subflow may have the already the remote key handy
 	 */
 	opts->ext_copy.use_ack = 0;
-	msk = mptcp_sk(subflow->conn);
 	if (!READ_ONCE(msk->can_ack)) {
 		*size = ALIGN(dss_size, 4);
 		return ret;
