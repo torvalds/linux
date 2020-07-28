@@ -181,9 +181,6 @@ struct sensor_axis_average {
 
 static struct sensor_axis_average axis_average;
 int gsensor_reset(struct i2c_client *client){
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
-
 	char buffer[7], buffer2[2];
 	/* 1. check D10 , VALUE_STADR = 0x55 , VALUE_STAINT = 0xAA */
 	buffer[0] = REG_STADR;
@@ -422,33 +419,38 @@ struct sensor_operate gsensor_dmard10_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_dmard10_probe(struct i2c_client *client,
+				 const struct i2c_device_id *devid)
 {
-	return &gsensor_dmard10_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_dmard10_ops);
 }
 
-
-static int __init gsensor_dmard10_init(void)
+static int gsensor_dmard10_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gsensor_dmard10_ops);
 }
 
-static void __exit gsensor_dmard10_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static const struct i2c_device_id gsensor_dmard10_id[] = {
+	{"gs_dmard10", ACCEL_ID_DMARD10},
+	{}
+};
 
+static struct i2c_driver gsensor_dmard10_driver = {
+	.probe = gsensor_dmard10_probe,
+	.remove = gsensor_dmard10_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_dmard10_id,
+	.driver = {
+		.name = "gsensor_dmard10",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gsensor_dmard10_init);
-module_exit(gsensor_dmard10_exit);
+module_i2c_driver(gsensor_dmard10_driver);
 
-
+MODULE_AUTHOR("guoyi <gy@rock-chips.com>");
+MODULE_DESCRIPTION("dmard10 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");
 

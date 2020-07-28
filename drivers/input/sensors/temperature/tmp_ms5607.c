@@ -279,31 +279,36 @@ struct sensor_operate temperature_ms5607_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *temperature_get_ops(void)
+static int temperature_ms5607_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
-	return &temperature_ms5607_ops;
+	return sensor_register_device(client, NULL, devid, &temperature_ms5607_ops);
 }
 
-
-static int __init temperature_ms5607_init(void)
+static int temperature_ms5607_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = temperature_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, temperature_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &temperature_ms5607_ops);
 }
 
-static void __exit temperature_ms5607_exit(void)
-{
-	struct sensor_operate *ops = temperature_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, temperature_get_ops);
-}
+static const struct i2c_device_id temperature_ms5607_id[] = {
+	{"tmp_ms5607", TEMPERATURE_ID_MS5607},
+	{}
+};
 
+static struct i2c_driver temperature_ms5607_driver = {
+	.probe = temperature_ms5607_probe,
+	.remove = temperature_ms5607_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = temperature_ms5607_id,
+	.driver = {
+		.name = "temperature_ms5607",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(temperature_ms5607_init);
-module_exit(temperature_ms5607_exit);
+module_i2c_driver(temperature_ms5607_driver);
 
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("ms5607 temperature driver");
+MODULE_LICENSE("GPL");

@@ -11,8 +11,6 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
-#include <mach/gpio.h>
-#include <mach/board.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -404,36 +402,39 @@ struct sensor_operate light_us5152_ops = {
 	.report				= sensor_report_value,
 };
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *light_get_ops(void)
+static int light_us5152_probe(struct i2c_client *client,
+			      const struct i2c_device_id *devid)
 {
-	return &light_us5152_ops;
+	return sensor_register_device(client, NULL, devid, &light_us5152_ops);
 }
 
-
-static int __init us5152_init(void)
+static int light_us5152_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = light_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-
-	return result;
+	return sensor_unregister_device(client, NULL, &light_us5152_ops);
 }
 
-static void __exit us5152_exit(void)
-{
-	struct sensor_operate *ops = light_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, light_get_ops);
-}
+static const struct i2c_device_id light_us5152_id[] = {
+	{"ls_us5152", LIGHT_ID_US5152},
+	{}
+};
+
+static struct i2c_driver light_us5152_driver = {
+	.probe = light_us5152_probe,
+	.remove = light_us5152_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = light_us5152_id,
+	.driver = {
+		.name = "light_us5152",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
+
+
+module_i2c_driver(light_us5152_driver);
 
 MODULE_AUTHOR("Finley Huang finley_huang@upi-semi.com");
 MODULE_DESCRIPTION("us5152 ambient light sensor driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(us5152_init);
-module_exit(us5152_exit);
-

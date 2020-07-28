@@ -168,32 +168,49 @@ struct sensor_operate gyro_mpu6880_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-static struct sensor_operate *gyro_get_ops(void)
+static int gyro_mpu6880_probe(struct i2c_client *client,
+			      const struct i2c_device_id *devid)
 {
-	return &gyro_mpu6880_ops;
+	return sensor_register_device(client, NULL, devid, &gyro_mpu6880_ops);
 }
 
+static int gyro_mpu6880_remove(struct i2c_client *client)
+{
+	return sensor_unregister_device(client, NULL, &gyro_mpu6880_ops);
+}
+
+static const struct i2c_device_id gyro_mpu6880_id[] = {
+	{"mpu6880_gyro", GYRO_ID_MPU6880},
+	{}
+};
+
+static struct i2c_driver gyro_mpu6880_driver = {
+	.probe = gyro_mpu6880_probe,
+	.remove = gyro_mpu6880_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gyro_mpu6880_id,
+	.driver = {
+		.name = "gyro_mpu6880",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
 static int __init gyro_mpu6880_init(void)
 {
-	struct sensor_operate *ops = gyro_get_ops();
-	int type = ops->type;
-
-	return sensor_register_slave(type, NULL, NULL, gyro_get_ops);
+	return i2c_add_driver(&gyro_mpu6880_driver);
 }
 
 static void __exit gyro_mpu6880_exit(void)
 {
-	struct sensor_operate *ops = gyro_get_ops();
-	int type = ops->type;
-
-	sensor_unregister_slave(type, NULL, NULL, gyro_get_ops);
+	i2c_del_driver(&gyro_mpu6880_driver);
 }
 
 /* must register after mpu6880_acc */
 device_initcall_sync(gyro_mpu6880_init);
 module_exit(gyro_mpu6880_exit);
 
-
-
+MODULE_AUTHOR("ouenhui <oeh@rock-chips.com>");
+MODULE_DESCRIPTION("mpu6880_gyro 3-Axis Gyroscope driver");
+MODULE_LICENSE("GPL");

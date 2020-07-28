@@ -4,36 +4,36 @@
 #
 
 menuconfig GYROSCOPE_DEVICE
-	bool "gyroscope device support"
+	tristate "gyroscope device support"
 	default n
 
 if GYROSCOPE_DEVICE
 
 config GYRO_L3G4200D
-  bool "gyroscope l3g4200d"
+	tristate "gyroscope l3g4200d"
 	default n
 
 config GYRO_K3G
-  bool "gyroscope k3g"
+	tristate "gyroscope k3g"
 	default n
 
 config GYRO_L3G20D
-  bool "gyroscope l3g20d"
+	tristate "gyroscope l3g20d"
 	default n
 
 config GYRO_EWTSA
-  bool "gyroscope ewtsa"
+	tristate "gyroscope ewtsa"
 	default n
 
 config GYRO_MPU6500
-  bool "gyroscope mpu6500_gyro"
+	tristate "gyroscope mpu6500_gyro"
         default n
 
 config GYRO_MPU6880
-  bool "gyroscope mpu6880_gyro"
+	tristate "gyroscope mpu6880_gyro"
 	default n
 
 config GYRO_LSM330
-	bool "gyroscope lsm330_gyro"
+	tristate "gyroscope lsm330_gyro"
 	default n
 endif

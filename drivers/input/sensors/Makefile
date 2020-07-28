@@ -11,5 +11,5 @@ obj-$(CONFIG_PRESSURE_DEVICE)			+= pressure/
 obj-$(CONFIG_HALL_DEVICE)			+= hall/
 
 
-obj-$(CONFIG_SENSOR_DEVICE)				+= sensor-i2c.o
-obj-$(CONFIG_SENSOR_DEVICE)				+= sensor-dev.o
+obj-$(CONFIG_SENSOR_DEVICE)			+= sensor_dev.o
+sensor_dev-y = sensor-i2c.o sensor-dev.o

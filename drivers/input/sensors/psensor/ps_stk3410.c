@@ -341,29 +341,37 @@ struct sensor_operate psensor_stk3410_ops = {
 	.report			= sensor_report_value,
 };
 
-static struct sensor_operate *psensor_get_ops(void)
+static int proximity_stk3410_probe(struct i2c_client *client,
+				   const struct i2c_device_id *devid)
 {
-	return &psensor_stk3410_ops;
+	return sensor_register_device(client, NULL, devid, &psensor_stk3410_ops);
 }
 
-static int __init psensor_stk3410_init(void)
+static int proximity_stk3410_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = psensor_get_ops();
-	int result = 0;
-	int type = ops->type;
-
-	result = sensor_register_slave(type, NULL, NULL, psensor_get_ops);
-
-	return result;
+	return sensor_unregister_device(client, NULL, &psensor_stk3410_ops);
 }
 
-static void __exit psensor_stk3410_exit(void)
-{
-	struct sensor_operate *ops = psensor_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id proximity_stk3410_id[] = {
+	{"ps_stk3410", PROXIMITY_ID_STK3410},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, psensor_get_ops);
-}
+static struct i2c_driver proximity_stk3410_driver = {
+	.probe = proximity_stk3410_probe,
+	.remove = proximity_stk3410_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = proximity_stk3410_id,
+	.driver = {
+		.name = "proximity_stk3410",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(psensor_stk3410_init);
-module_exit(psensor_stk3410_exit);
+module_i2c_driver(proximity_stk3410_driver);
+
+MODULE_AUTHOR("Bin Yang <yangbin@rock-chips.com>");
+MODULE_DESCRIPTION("stk3410 proximity driver");
+MODULE_LICENSE("GPL");

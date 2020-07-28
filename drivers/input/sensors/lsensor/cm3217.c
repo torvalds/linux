@@ -202,32 +202,36 @@ struct sensor_operate light_cm3217_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *light_get_ops(void)
+static int light_cm3217_probe(struct i2c_client *client,
+			      const struct i2c_device_id *devid)
 {
-	return &light_cm3217_ops;
+	return sensor_register_device(client, NULL, devid, &light_cm3217_ops);
 }
 
-
-static int __init light_cm3217_init(void)
+static int light_cm3217_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = light_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &light_cm3217_ops);
 }
 
-static void __exit light_cm3217_exit(void)
-{
-	struct sensor_operate *ops = light_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, light_get_ops);
-}
+static const struct i2c_device_id light_cm3217_id[] = {
+	{"light_cm3217", LIGHT_ID_CM3217},
+	{}
+};
 
+static struct i2c_driver light_cm3217_driver = {
+	.probe = light_cm3217_probe,
+	.remove = light_cm3217_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = light_cm3217_id,
+	.driver = {
+		.name = "light_cm3217",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(light_cm3217_init);
-module_exit(light_cm3217_exit);
-
-
+module_i2c_driver(light_cm3217_driver);
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("cm3217 light driver");
+MODULE_LICENSE("GPL");

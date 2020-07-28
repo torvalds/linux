@@ -257,34 +257,44 @@ struct sensor_operate gsensor_mpu6500_ops = {
 	.ctrl_reg 				= MPU6500_PWR_MGMT_2,
 	.int_status_reg 		= MPU6500_INT_STATUS,
 	.range				= {-32768, 32768},
-	.trig					= IRQF_TRIGGER_HIGH |IRQF_ONESHOT,
+	.trig					= IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 	.active				= sensor_active,
 	.init					= sensor_init,
 	.report 				= sensor_report_value,
 };
 
 /****************operate according to sensor chip:end************/
-
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_mpu6500_probe(struct i2c_client *client,
+				 const struct i2c_device_id *devid)
 {
-	return &gsensor_mpu6500_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_mpu6500_ops);
 }
 
-static int __init gsensor_mpu6500_init(void)
+static int gsensor_mpu6500_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-
-	return sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
+	return sensor_unregister_device(client, NULL, &gsensor_mpu6500_ops);
 }
 
-static void __exit gsensor_mpu6500_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id gsensor_mpu6500_id[] = {
+	{"mpu6500_acc", ACCEL_ID_MPU6500},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static struct i2c_driver gsensor_mpu6500_driver = {
+	.probe = gsensor_mpu6500_probe,
+	.remove = gsensor_mpu6500_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_mpu6500_id,
+	.driver = {
+		.name = "gsensor_mpu6500",
+#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+#endif
+	},
+};
 
-module_init(gsensor_mpu6500_init);
-module_exit(gsensor_mpu6500_exit);
+module_i2c_driver(gsensor_mpu6500_driver);
+
+MODULE_AUTHOR("oeh <oeh@rock-chips.com>");
+MODULE_DESCRIPTION("mpu6500_acc 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

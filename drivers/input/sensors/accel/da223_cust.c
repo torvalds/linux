@@ -793,98 +793,106 @@ static int sensor_report_value(struct i2c_client *client)
 /******************************************************************************/
 static int sensor_suspend(struct i2c_client *client)
 {
-    int result = 0;
+	int result = 0;
 
-    MI_FUN;
-
-    mdelay(10);
-
-    result = mir3da_set_enable(client, false);
-    if(result){
-	MI_ERR("sensor_suspend disable  fail!!\n");
-	return result;
-    }
+	MI_FUN;
 
 	mdelay(10);
 
-    return result;
+	result = mir3da_set_enable(client, false);
+	if (result) {
+		MI_ERR("sensor_suspend disable  fail!!\n");
+		return result;
+	}
+
+	mdelay(10);
+
+	return result;
 }
 
 /******************************************************************************/
 static int sensor_resume(struct i2c_client *client)
 {
-    int result = 0;
+	int result = 0;
 
-    MI_FUN;
+	MI_FUN;
 
-    mdelay(10);
+	mdelay(10);
 
-    /*
-    result = mir3da_chip_resume(client);
-    if(result) {
-		MI_ERR("sensor_resume chip resume fail!!\n");
-		return result;
-    }
-    */
-    result = mir3da_set_enable(client, true);
-    if(result){
+	/*
+	 * result = mir3da_chip_resume(client);
+	 * if(result) {
+	 * MI_ERR("sensor_resume chip resume fail!!\n");
+	 * return result;
+	 * }
+	 */
+	result = mir3da_set_enable(client, true);
+	if (result) {
 		MI_ERR("sensor_resume enable  fail!!\n");
 		return result;
-    }
+	}
 
-	 mdelay(10);
+	mdelay(10);
 
-    return result;
+	return result;
 }
 
 /******************************************************************************/
 struct sensor_operate gsensor_ops = {
-    .name           = MIR3DA_DRV_NAME,
-    .type           = SENSOR_TYPE_ACCEL,
-    .id_i2c         = ACCEL_ID_MIR3DA,
-    .read_reg       =-1,
-    .read_len       = 0,
-    .id_reg         =  -1,
-    .id_data            = 0,
-    .precision          = MIR3DA_PRECISION,
-    .ctrl_reg           = -1,
-    .int_status_reg     = 0x00,
-    .range          = {-MIR3DA_RANGE,MIR3DA_RANGE},
-    .trig           = IRQF_TRIGGER_LOW|IRQF_ONESHOT,
-    .active         = sensor_active,
-    .init           = sensor_init,
-    .report         = sensor_report_value,
-    .suspend  =sensor_suspend,
-    .resume   =sensor_resume,
+	.name           = MIR3DA_DRV_NAME,
+	.type           = SENSOR_TYPE_ACCEL,
+	.id_i2c         = ACCEL_ID_MIR3DA,
+	.read_reg       = -1,
+	.read_len       = 0,
+	.id_reg         =  -1,
+	.id_data            = 0,
+	.precision          = MIR3DA_PRECISION,
+	.ctrl_reg           = -1,
+	.int_status_reg     = 0x00,
+	.range          = {-MIR3DA_RANGE, MIR3DA_RANGE},
+	.trig           = IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+	.active         = sensor_active,
+	.init           = sensor_init,
+	.report         = sensor_report_value,
+	.suspend  = sensor_suspend,
+	.resume   = sensor_resume,
 };
+
 /******************************************************************************/
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_mir3da_probe(struct i2c_client *client,
+				const struct i2c_device_id *devid)
 {
-    return &gsensor_ops;
+	MI_FUN;
+
+	return sensor_register_device(client, NULL, devid, &gsensor_ops);
 }
 /******************************************************************************/
-static int __init mir3da_init(void)
+static int gsensor_mir3da_remove(struct i2c_client *client)
 {
-    struct sensor_operate *ops = gsensor_get_ops();
-    int result = 0;
-    int type = ops->type;
+	MI_FUN;
 
-    MI_FUN;
-
-    result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-    return result;
+	return sensor_unregister_device(client, NULL, &gsensor_ops);
 }
 /******************************************************************************/
-static void __exit mir3da_exit(void)
-{
-    struct sensor_operate *ops = gsensor_get_ops();
-    int type = ops->type;
+static const struct i2c_device_id gsensor_mir3da_id[] = {
+	{"gs_da223", ACCEL_ID_MIR3DA},
+	{}
+};
 
-    MI_FUN;
+static struct i2c_driver gsensor_mir3da_driver = {
+	.probe = gsensor_mir3da_probe,
+	.remove = gsensor_mir3da_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_mir3da_id,
+	.driver = {
+		.name = "gsensor_mir3da",
+#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+#endif
+	},
+};
 
-    sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
-/******************************************************************************/
+module_i2c_driver(gsensor_mir3da_driver);
 
-module_init(mir3da_init);
-module_exit(mir3da_exit);
+MODULE_DESCRIPTION("mir3da 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

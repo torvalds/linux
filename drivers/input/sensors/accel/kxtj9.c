@@ -296,31 +296,37 @@ struct sensor_operate gsensor_kxtj9_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_kxtj9_probe(struct i2c_client *client,
+			       const struct i2c_device_id *devid)
 {
-	return &gsensor_kxtj9_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_kxtj9_ops);
 }
 
-
-static int __init gsensor_kxtj9_init(void)
+static int gsensor_kxtj9_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gsensor_kxtj9_ops);
 }
 
-static void __exit gsensor_kxtj9_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static const struct i2c_device_id gsensor_kxtj9_id[] = {
+	{"gs_kxtj9", ACCEL_ID_KXTJ9},
+	{}
+};
 
+static struct i2c_driver gsensor_kxtj9_driver = {
+	.probe = gsensor_kxtj9_probe,
+	.remove = gsensor_kxtj9_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_kxtj9_id,
+	.driver = {
+		.name = "gsensor_kxtj9",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gsensor_kxtj9_init);
-module_exit(gsensor_kxtj9_exit);
+module_i2c_driver(gsensor_kxtj9_driver);
 
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("kxtj9 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

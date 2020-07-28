@@ -221,32 +221,37 @@ static struct sensor_operate gyro_l3g20d_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gyro_get_ops(void)
+static int gyro_l3g20d_probe(struct i2c_client *client,
+			     const struct i2c_device_id *devid)
 {
-	return &gyro_l3g20d_ops;
+	return sensor_register_device(client, NULL, devid, &gyro_l3g20d_ops);
 }
 
-
-static int __init gyro_l3g20d_init(void)
+static int gyro_l3g20d_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gyro_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gyro_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gyro_l3g20d_ops);
 }
 
-static void __exit gyro_l3g20d_exit(void)
-{
-	struct sensor_operate *ops = gyro_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gyro_get_ops);
-}
+static const struct i2c_device_id gyro_l3g20d_id[] = {
+	{"l3g20d_gyro", GYRO_ID_L3G20D},
+	{}
+};
 
+static struct i2c_driver gyro_l3g20d_driver = {
+	.probe = gyro_l3g20d_probe,
+	.remove = gyro_l3g20d_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gyro_l3g20d_id,
+	.driver = {
+		.name = "gyro_l3g20d",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gyro_l3g20d_init);
-module_exit(gyro_l3g20d_exit);
+module_i2c_driver(gyro_l3g20d_driver);
 
-
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("l3g20d 3-Axis Gyroscope driver");
+MODULE_LICENSE("GPL");

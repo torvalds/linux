@@ -678,30 +678,37 @@ struct sensor_operate compass_akm8963_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-static struct sensor_operate *compass_get_ops(void)
+static int compass_akm8963_probe(struct i2c_client *client,
+				 const struct i2c_device_id *devid)
 {
-	return &compass_akm8963_ops;
+	return sensor_register_device(client, NULL, devid, &compass_akm8963_ops);
 }
 
-static int __init compass_akm8963_init(void)
+static int compass_akm8963_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = compass_get_ops();
-	int result = 0;
-	int type = ops->type;
-
-	result = sensor_register_slave(type, NULL, NULL, compass_get_ops);
-
-	return result;
+	return sensor_unregister_device(client, NULL, &compass_akm8963_ops);
 }
 
-static void __exit compass_akm8963_exit(void)
-{
-	struct sensor_operate *ops = compass_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id compass_akm8963_id[] = {
+	{"ak8963", COMPASS_ID_AK8963},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, compass_get_ops);
-}
+static struct i2c_driver compass_akm8963_driver = {
+	.probe = compass_akm8963_probe,
+	.remove = compass_akm8963_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = compass_akm8963_id,
+	.driver = {
+		.name = "compass_akm8963",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(compass_akm8963_init);
-module_exit(compass_akm8963_exit);
+module_i2c_driver(compass_akm8963_driver);
+
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("akm8963 3-Axis compasss driver");
+MODULE_LICENSE("GPL");

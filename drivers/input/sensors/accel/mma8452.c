@@ -388,33 +388,37 @@ struct sensor_operate gsensor_mma8452_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_mma8452_probe(struct i2c_client *client,
+				const struct i2c_device_id *devid)
 {
-	return &gsensor_mma8452_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_mma8452_ops);
 }
 
-
-static int __init gsensor_mma8452_init(void)
+static int gsensor_mma8452_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);	
-	return result;
+	return sensor_unregister_device(client, NULL, &gsensor_mma8452_ops);
 }
 
-static void __exit gsensor_mma8452_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static const struct i2c_device_id gsensor_mma8452_id[] = {
+	{"gs_mma8452", ACCEL_ID_MMA845X},
+	{}
+};
 
+static struct i2c_driver gsensor_mma8452_driver = {
+	.probe = gsensor_mma8452_probe,
+	.remove = gsensor_mma8452_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_mma8452_id,
+	.driver = {
+		.name = "gsensor_mma8452",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gsensor_mma8452_init);
-module_exit(gsensor_mma8452_exit);
+module_i2c_driver(gsensor_mma8452_driver);
 
-
-
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("mma8452 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

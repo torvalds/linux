@@ -183,15 +183,15 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 	s64 result;
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	//int precision = sensor->ops->precision;
+	/* int precision = sensor->ops->precision; */
 	switch (sensor->devid) {	
 		case LIS3DH_DEVID:		
 			result = ((int)high_byte << 8) | (int)low_byte;
 			if (result < LIS3DH_BOUNDARY)
-       			result = result* LIS3DH_GRAVITY_STEP;
-    		else
-       			result = ~( ((~result & (0x7fff>>(16-LIS3DH_PRECISION)) ) + 1) 
-			   			* LIS3DH_GRAVITY_STEP) + 1;
+				result = result * LIS3DH_GRAVITY_STEP;
+			else
+				result = ~(((~result & (0x7fff >> (16 - LIS3DH_PRECISION))) + 1)
+						* LIS3DH_GRAVITY_STEP) + 1;
 			break;
 
 		default:
@@ -304,32 +304,39 @@ struct sensor_operate angle_lis3dh_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *angle_get_ops(void)
+static int angle_lis3dh_probe(struct i2c_client *client,
+			      const struct i2c_device_id *devid)
 {
-	return &angle_lis3dh_ops;
+	return sensor_register_device(client, NULL, devid, &angle_lis3dh_ops);
 }
 
-
-static int __init angle_lis3dh_init(void)
+static int angle_lis3dh_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = angle_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, angle_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &angle_lis3dh_ops);
 }
 
-static void __exit angle_lis3dh_exit(void)
-{
-	struct sensor_operate *ops = angle_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, angle_get_ops);
-}
+static const struct i2c_device_id angle_lis3dh_id[] = {
+	{"angle_lis3dh", ANGLE_ID_LIS3DH},
+	{}
+};
 
+static struct i2c_driver angle_lis3dh_driver = {
+	.probe = angle_lis3dh_probe,
+	.remove = angle_lis3dh_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = angle_lis3dh_id,
+	.driver = {
+		.name = "angle_lis3dh",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(angle_lis3dh_init);
-module_exit(angle_lis3dh_exit);
+module_i2c_driver(angle_lis3dh_driver);
+
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("lis3dh angle driver");
+MODULE_LICENSE("GPL");
 
 

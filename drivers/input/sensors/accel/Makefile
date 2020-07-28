@@ -18,4 +18,4 @@ obj-$(CONFIG_LSM330_ACC)	+= lsm330_acc.o
 obj-$(CONFIG_BMA2XX_ACC)	+= bma2xx.o
 obj-$(CONFIG_STK8BAXX_ACC)	+= stk8baxx.o
 obj-$(CONFIG_GS_DA223)		+= da223.o
-da223-objs			:= da223_cust.o da223_core.o
+da223-y	:= da223_cust.o da223_core.o

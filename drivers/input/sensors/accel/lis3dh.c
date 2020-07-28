@@ -267,26 +267,37 @@ struct sensor_operate gsensor_lis3dh_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_lis3dh_probe(struct i2c_client *client,
+				const struct i2c_device_id *devid)
 {
-	return &gsensor_lis3dh_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_lis3dh_ops);
 }
 
-static int __init gsensor_lis3dh_init(void)
+static int gsensor_lis3dh_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-
-	return sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
+	return sensor_unregister_device(client, NULL, &gsensor_lis3dh_ops);
 }
 
-static void __exit gsensor_lis3dh_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id gsensor_lis3dh_id[] = {
+	{"gs_lis3dh", ACCEL_ID_LIS3DH},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static struct i2c_driver gsensor_lis3dh_driver = {
+	.probe = gsensor_lis3dh_probe,
+	.remove = gsensor_lis3dh_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_lis3dh_id,
+	.driver = {
+		.name = "gsensor_lis3dh",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gsensor_lis3dh_init);
-module_exit(gsensor_lis3dh_exit);
+module_i2c_driver(gsensor_lis3dh_driver);
+
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("lis3dh 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

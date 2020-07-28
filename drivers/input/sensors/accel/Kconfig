@@ -12,130 +12,130 @@ menuconfig GSENSOR_DEVICE
 
 if GSENSOR_DEVICE
 config GS_MMA8452
-	bool "gsensor mma8451/mma8452/mma8453/mma8653"
+	tristate "gsensor mma8451/mma8452/mma8453/mma8653"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config STK8BAXX_ACC
-	bool "gsensor STK8BAXX"
+	tristate "gsensor STK8BAXX"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config MPU6880_ACC
-	bool "Sensor mpu6880_acc"
+	tristate "Sensor mpu6880_acc"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config MPU6500_ACC
-	bool "Sensor mpu6500_acc"
+	tristate "Sensor mpu6500_acc"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_KXTIK
-	bool "gsensor kxtik"
+	tristate "gsensor kxtik"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_KXTJ9
-	bool "gsensor kxtj9"
+	tristate "gsensor kxtj9"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_LIS3DH
-	bool "gsensor lis3dh"
+	tristate "gsensor lis3dh"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_MMA7660
-	bool "gsensor mma7660"
+	tristate "gsensor mma7660"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_MC3230
-	bool "gsensor mc3230"
+	tristate "gsensor mc3230"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_SC7660
-	bool "gsensor sc7660"
+	tristate "gsensor sc7660"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_SC7A20
-	bool "gsensor sc7a20"
+	tristate "gsensor sc7a20"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_SC7A30
-	bool "gsensor sc7a30"
+	tristate "gsensor sc7a30"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_MXC6225
-	bool "gsensor mxc6225"
+	tristate "gsensor mxc6225"
 	help
 	  To have support for your sepcific gsensor you will have to
 	  select het proper drivers which depend on this option.
 
 config GS_MXC6655XA
-	bool "gsensor mxc6655xa"
+	tristate "gsensor mxc6655xa"
 	help
 	  To have support for your sepcific gsensor you will have to
 	  select het proper drivers which depend on this option.
 
 config GS_DMT10
-	bool "gsensor dmard10"
+	tristate "gsensor dmard10"
 	help
 	  To have support for your sepcific gsensor you will have to
 	  select het proper drivers which depend on this option.
 
 config GS_LSM303D
-	bool "gsensor lsm303d"
+	tristate "gsensor lsm303d"
 	default n
 	help
 	  To have support for your sepcific gsensor you will have to
 	  select het proper drivers which depend on this option.
 
 config GS_BMA023
-	bool "gsensor bma023"
+	tristate "gsensor bma023"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config LSM330_ACC
-	bool "gsensor lsm330"
+	tristate "gsensor lsm330"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config BMA2XX_ACC
-	bool "Sensor bma2xx_acc"
+	tristate "Sensor bma2xx_acc"
 	default n
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_DA223
-	bool "gsensor da223"
+	tristate "gsensor da223"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.

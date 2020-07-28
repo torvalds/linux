@@ -240,14 +240,18 @@ struct akm_platform_data {
 	int gpio_RST;
 };
 
-extern int sensor_register_slave(int type, struct i2c_client *client,
+extern int sensor_register_device(struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
-			struct sensor_operate *(*get_sensor_ops)(void));
+			const struct i2c_device_id *devid,
+			struct sensor_operate *ops);
 
 
-extern int sensor_unregister_slave(int type, struct i2c_client *client,
+extern int sensor_unregister_device(struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
-			struct sensor_operate *(*get_sensor_ops)(void));
+			struct sensor_operate *ops);
+
+extern void sensor_shutdown(struct i2c_client *client);
+extern const struct dev_pm_ops sensor_pm_ops;
 
 #define DBG(x...)
 

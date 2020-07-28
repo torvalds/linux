@@ -920,29 +920,36 @@ struct sensor_operate gsensor_stk8baxx_ops = {
 	.report				= sensor_report_value,
 };
 
-static struct sensor_operate *stk8baxx_get_ops(void)
+static int gsensor_stk8baxx_probe(struct i2c_client *client,
+				  const struct i2c_device_id *devid)
 {
-	return &gsensor_stk8baxx_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_stk8baxx_ops);
 }
 
-static int __init stk8baxx_init(void)
+static int gsensor_stk8baxx_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = stk8baxx_get_ops();
-	int type = ops->type;
-
-	return sensor_register_slave(type, NULL, NULL, stk8baxx_get_ops);
+	return sensor_unregister_device(client, NULL, &gsensor_stk8baxx_ops);
 }
 
-static void __exit stk8baxx_exit(void)
-{
-	struct sensor_operate *ops = stk8baxx_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id gsensor_stk8baxx_id[] = {
+	{"gs_stk8baxx", ACCEL_ID_STK8BAXX},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, stk8baxx_get_ops);
-}
+static struct i2c_driver gsensor_stk8baxx_driver = {
+	.probe = gsensor_stk8baxx_probe,
+	.remove = gsensor_stk8baxx_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_stk8baxx_id,
+	.driver = {
+		.name = "gsensor_stk8baxx",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(stk8baxx_init);
-module_exit(stk8baxx_exit);
+module_i2c_driver(gsensor_stk8baxx_driver);
 
 MODULE_AUTHOR("Lex Hsieh, Sensortek");
 MODULE_DESCRIPTION("stk8baxx 3-Axis accelerometer driver");

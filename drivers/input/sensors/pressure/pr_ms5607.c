@@ -262,31 +262,36 @@ struct sensor_operate pressure_ms5607_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *pressure_get_ops(void)
+static int pressure_ms5607_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
-	return &pressure_ms5607_ops;
+	return sensor_register_device(client, NULL, devid, &pressure_ms5607_ops);
 }
 
-
-static int __init pressure_ms5607_init(void)
+static int pressure_ms5607_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = pressure_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, pressure_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &pressure_ms5607_ops);
 }
 
-static void __exit pressure_ms5607_exit(void)
-{
-	struct sensor_operate *ops = pressure_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, pressure_get_ops);
-}
+static const struct i2c_device_id pressure_ms5607_id[] = {
+	{"pr_ms5607", PRESSURE_ID_MS5607},
+	{}
+};
 
+static struct i2c_driver pressure_ms5607_driver = {
+	.probe = pressure_ms5607_probe,
+	.remove = pressure_ms5607_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = pressure_ms5607_id,
+	.driver = {
+		.name = "pressure_ms5607",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(pressure_ms5607_init);
-module_exit(pressure_ms5607_exit);
+module_i2c_driver(pressure_ms5607_driver);
 
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("ms5607 pressure driver");
+MODULE_LICENSE("GPL");

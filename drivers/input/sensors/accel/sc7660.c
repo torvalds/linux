@@ -1619,33 +1619,37 @@ static struct sensor_operate gsensor_sc7660_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gsensor_get_ops(void)
+static int gsensor_sc7660_probe(struct i2c_client *client,
+				const struct i2c_device_id *devid)
 {
-	return &gsensor_sc7660_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_sc7660_ops);
 }
 
-
-static int __init gsensor_sc7660_init(void)
+static int gsensor_sc7660_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gsensor_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gsensor_sc7660_ops);
 }
 
-static void __exit gsensor_sc7660_exit(void)
-{
-	struct sensor_operate *ops = gsensor_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gsensor_get_ops);
-}
+static const struct i2c_device_id gsensor_sc7660_id[] = {
+	{"gs_sc7660", ACCEL_ID_SC7660},
+	{}
+};
 
+static struct i2c_driver gsensor_sc7660_driver = {
+	.probe = gsensor_sc7660_probe,
+	.remove = gsensor_sc7660_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_sc7660_id,
+	.driver = {
+		.name = "gsensor_sc7660",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gsensor_sc7660_init);
-module_exit(gsensor_sc7660_exit);
+module_i2c_driver(gsensor_sc7660_driver);
 
-
-
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("sc7660 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

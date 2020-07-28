@@ -225,32 +225,37 @@ struct sensor_operate proximity_al3006_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *proximity_get_ops(void)
+static int proximity_al3006_probe(struct i2c_client *client,
+				  const struct i2c_device_id *devid)
 {
-	return &proximity_al3006_ops;
+	return sensor_register_device(client, NULL, devid, &proximity_al3006_ops);
 }
 
-
-static int __init proximity_al3006_init(void)
+static int proximity_al3006_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = proximity_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, proximity_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &proximity_al3006_ops);
 }
 
-static void __exit proximity_al3006_exit(void)
-{
-	struct sensor_operate *ops = proximity_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, proximity_get_ops);
-}
+static const struct i2c_device_id proximity_al3006_id[] = {
+	{"proximity_al3006", PROXIMITY_ID_AL3006},
+	{}
+};
 
+static struct i2c_driver proximity_al3006_driver = {
+	.probe = proximity_al3006_probe,
+	.remove = proximity_al3006_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = proximity_al3006_id,
+	.driver = {
+		.name = "proximity_al3006",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(proximity_al3006_init);
-module_exit(proximity_al3006_exit);
+module_i2c_driver(proximity_al3006_driver);
 
-
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("al3006 proximity driver");
+MODULE_LICENSE("GPL");

@@ -425,32 +425,37 @@ struct sensor_operate gyro_ewtsa_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *gyro_get_ops(void)
+static int gyro_ewtsa_probe(struct i2c_client *client,
+			    const struct i2c_device_id *devid)
 {
-	return &gyro_ewtsa_ops;
+	return sensor_register_device(client, NULL, devid, &gyro_ewtsa_ops);
 }
 
-
-static int __init gyro_ewtsa_init(void)
+static int gyro_ewtsa_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = gyro_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gyro_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gyro_ewtsa_ops);
 }
 
-static void __exit gyro_ewtsa_exit(void)
-{
-	struct sensor_operate *ops = gyro_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, gyro_get_ops);
-}
+static const struct i2c_device_id gyro_ewtsa_id[] = {
+	{"ewtsa_gyro", GYRO_ID_EWTSA},
+	{}
+};
 
+static struct i2c_driver gyro_ewtsa_driver = {
+	.probe = gyro_ewtsa_probe,
+	.remove = gyro_ewtsa_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gyro_ewtsa_id,
+	.driver = {
+		.name = "gyro_ewtsa",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(gyro_ewtsa_init);
-module_exit(gyro_ewtsa_exit);
+module_i2c_driver(gyro_ewtsa_driver);
 
-
+MODULE_AUTHOR("zhangaihui <zah@rock-chips.com>");
+MODULE_DESCRIPTION("ewtsa 3-Axis Gyroscope driver");
+MODULE_LICENSE("GPL");

@@ -4,44 +4,44 @@
 #
 
 menuconfig LIGHT_DEVICE
-	bool "light sensor device support"
+	tristate "light sensor device support"
 	default n
 
 if LIGHT_DEVICE
 config LS_CM3217
-  bool "light sensor cm3217"
+	tristate "light sensor cm3217"
 	default n
 	
 config LS_CM3218
-  bool "light sensor cm3218"
+	tristate "light sensor cm3218"
 	default n
  
 config LS_CM3232
-  bool "light sensor cm3232"
+	tristate "light sensor cm3232"
 	default n
  
 config LS_AL3006
-  bool "light sensor al3006"
+	tristate "light sensor al3006"
 	default n
 
 config LS_STK3171
-  bool "light sensor stk3171"
+	tristate "light sensor stk3171"
 	default n	 
 
 config LS_ISL29023
-  bool "light sensor isl29023"
+	tristate "light sensor isl29023"
 	default n	  
 	
 config LS_AP321XX
-  bool "light sensor ap321xx"
+	tristate "light sensor ap321xx"
 	default n
 
 config LS_US5152
-  bool "light sensor us5152"
+	tristate "light sensor us5152"
         default n
 
 config LS_STK3410
-	bool "light sensor stk3410"
+	tristate "light sensor stk3410"
 	default n
 
 endif

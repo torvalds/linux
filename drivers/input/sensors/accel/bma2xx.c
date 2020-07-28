@@ -2232,29 +2232,37 @@ struct sensor_operate gsensor_bma2x2_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-/*function name should not be changed*/
-static struct sensor_operate *bma2x2_get_ops(void)
+static int gsensor_bma2x2_probe(struct i2c_client *client,
+				 const struct i2c_device_id *devid)
 {
-	return &gsensor_bma2x2_ops;
+	return sensor_register_device(client, NULL, devid, &gsensor_bma2x2_ops);
 }
 
-static int __init gsensor_bma2x2_init(void)
+static int gsensor_bma2x2_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = bma2x2_get_ops();
-	int result = 0;
-	int type = ops->type;
-
-	result = sensor_register_slave(type, NULL, NULL, bma2x2_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &gsensor_bma2x2_ops);
 }
 
-static void __exit gsensor_bma2x2_exit(void)
-{
-	struct sensor_operate *ops = bma2x2_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id gsensor_bma2x2_id[] = {
+	{"bma2xx_acc", ACCEL_ID_BMA2XX},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, bma2x2_get_ops);
-}
+static struct i2c_driver gsensor_bma2x2_driver = {
+	.probe = gsensor_bma2x2_probe,
+	.remove = gsensor_bma2x2_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = gsensor_bma2x2_id,
+	.driver = {
+		.name = "gsensor_bma2x2",
+#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+#endif
+	},
+};
 
-module_init(gsensor_bma2x2_init);
-module_exit(gsensor_bma2x2_exit);
+module_i2c_driver(gsensor_bma2x2_driver);
+
+MODULE_AUTHOR("Bin Yang <yangbin@rock - chips.com>");
+MODULE_DESCRIPTION("bma2x2 3-Axis accelerometer driver");
+MODULE_LICENSE("GPL");

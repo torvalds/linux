@@ -590,6 +590,18 @@ error:
 	return result;
 }
 
+void sensor_shutdown(struct i2c_client *client)
+{
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct sensor_private_data *sensor =
+		(struct sensor_private_data *) i2c_get_clientdata(client);
+
+	if ((sensor->ops->suspend) && (sensor->ops->resume))
+		unregister_early_suspend(&sensor->early_suspend);
+#endif
+}
+EXPORT_SYMBOL(sensor_shutdown);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void sensor_suspend(struct early_suspend *h)
 {
@@ -633,9 +645,10 @@ static int __maybe_unused sensor_of_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops sensor_pm_ops = {
+const struct dev_pm_ops sensor_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sensor_of_suspend, sensor_of_resume)
 };
+EXPORT_SYMBOL(sensor_pm_ops);
 
 #define SENSOR_PM_OPS (&sensor_pm_ops)
 #else
@@ -1559,42 +1572,6 @@ error:
 	return result;
 }
 
-int sensor_register_slave(int type, struct i2c_client *client,
-			struct sensor_platform_data *slave_pdata,
-			struct sensor_operate *(*get_sensor_ops)(void))
-{
-	int result = 0;
-	struct sensor_operate *ops = get_sensor_ops();
-
-	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
-		printk(KERN_ERR "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
-		return -1;
-	}
-	sensor_ops[ops->id_i2c] = ops;
-	sensor_probe_times[ops->id_i2c] = 0;
-
-	printk(KERN_INFO "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
-
-	return result;
-}
-
-int sensor_unregister_slave(int type, struct i2c_client *client,
-			struct sensor_platform_data *slave_pdata,
-			struct sensor_operate *(*get_sensor_ops)(void))
-{
-	int result = 0;
-	struct sensor_operate *ops = get_sensor_ops();
-
-	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
-		printk(KERN_ERR "%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
-		return -1;
-	}
-	printk(KERN_INFO "%s:%s,id=%d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
-	sensor_ops[ops->id_i2c] = NULL;
-
-	return result;
-}
-
 static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
 	struct sensor_private_data *sensor;
@@ -1971,17 +1948,6 @@ out_no_free:
 	return result;
 }
 
-static void sensor_shut_down(struct i2c_client *client)
-{
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);
-
-	if ((sensor->ops->suspend) && (sensor->ops->resume))
-		unregister_early_suspend(&sensor->early_suspend);
-#endif
-}
-
 static int sensor_remove(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
@@ -1998,149 +1964,77 @@ static int sensor_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id sensor_id[] = {
-	/*angle*/
-	{"angle_kxtik", ANGLE_ID_KXTIK},
-	{"angle_lis3dh", ANGLE_ID_LIS3DH},
-	/*gsensor*/
-	{"gsensor", ACCEL_ID_ALL},
-	{"gs_mma8452", ACCEL_ID_MMA845X},
-	{"gs_kxtik", ACCEL_ID_KXTIK},
-	{"gs_kxtj9", ACCEL_ID_KXTJ9},
-	{"gs_lis3dh", ACCEL_ID_LIS3DH},
-	{"gs_mma7660", ACCEL_ID_MMA7660},
-	{"gs_mxc6225", ACCEL_ID_MXC6225},
-	{"gs_mxc6655xa", ACCEL_ID_MXC6655XA},
-	{"gs_dmard10", ACCEL_ID_DMARD10},
-	{"gs_lsm303d", ACCEL_ID_LSM303D},
-	{"gs_sc7660", ACCEL_ID_SC7660},
-	{"gs_sc7a20", ACCEL_ID_SC7A20},
-	{"gs_sc7a30",ACCEL_ID_SC7A30},
-	{"gs_mc3230", ACCEL_ID_MC3230},
-	{"mpu6880_acc", ACCEL_ID_MPU6880},
-	{"mpu6500_acc", ACCEL_ID_MPU6500},
-	{"lsm330_acc", ACCEL_ID_LSM330},
-	{"bma2xx_acc", ACCEL_ID_BMA2XX},
-	{"gs_stk8baxx", ACCEL_ID_STK8BAXX},
-	{"gs_da223", ACCEL_ID_MIR3DA},
-	/*compass*/
-	{"compass", COMPASS_ID_ALL},
-	{"ak8975", COMPASS_ID_AK8975},
-	{"ak8963", COMPASS_ID_AK8963},
-	{"ak09911", COMPASS_ID_AK09911},
-	{"mmc314x", COMPASS_ID_MMC314X},
-	/*gyroscope*/
-	{"gyro", GYRO_ID_ALL},
-	{"l3g4200d_gyro", GYRO_ID_L3G4200D},
-	{"l3g20d_gyro", GYRO_ID_L3G20D},
-	{"ewtsa_gyro", GYRO_ID_EWTSA},
-	{"k3g", GYRO_ID_K3G},
-	{"mpu6500_gyro", GYRO_ID_MPU6500},
-	{"mpu6880_gyro", GYRO_ID_MPU6880},
-	{"lsm330_gyro", GYRO_ID_LSM330},
-	/*light sensor*/
-	{"lightsensor", LIGHT_ID_ALL},
-	{"light_cm3217", LIGHT_ID_CM3217},
-	{"light_cm3218", LIGHT_ID_CM3218},
-	{"light_cm3232", LIGHT_ID_CM3232},
-	{"light_al3006", LIGHT_ID_AL3006},
-	{"ls_stk3171", LIGHT_ID_STK3171},
-	{"ls_isl29023", LIGHT_ID_ISL29023},
-	{"ls_ap321xx", LIGHT_ID_AP321XX},
-	{"ls_photoresistor", LIGHT_ID_PHOTORESISTOR},
-	{"ls_us5152", LIGHT_ID_US5152},
-	{"ls_stk3410", LIGHT_ID_STK3410},
-	/*proximity sensor*/
-	{"psensor", PROXIMITY_ID_ALL},
-	{"proximity_al3006", PROXIMITY_ID_AL3006},
-	{"ps_stk3171", PROXIMITY_ID_STK3171},
-	{"ps_ap321xx", PROXIMITY_ID_AP321XX},
-	{"ps_stk3410", PROXIMITY_ID_STK3410},
-	/*temperature*/
-	{"temperature", TEMPERATURE_ID_ALL},
-	{"tmp_ms5607", TEMPERATURE_ID_MS5607},
+int sensor_register_device(struct i2c_client *client,
+			struct sensor_platform_data *slave_pdata,
+			const struct i2c_device_id *devid,
+			struct sensor_operate *ops)
+{
+	int result = 0;
 
-	/*pressure*/
-	{"pressure", PRESSURE_ID_ALL},
-	{"pr_ms5607", PRESSURE_ID_MS5607},
+	if (!client || !ops) {
+		dev_err(&client->dev, "%s: no device or ops.\n", __func__);
+		return -ENODEV;
+	}
 
-	{},
-};
+	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID) ||
+		(((int)devid->driver_data) != ops->id_i2c)) {
+		dev_err(&client->dev, "%s: %s id is error %d\n",
+			__func__, ops->name, ops->id_i2c);
+		return -EINVAL;
+	}
 
-static struct of_device_id sensor_dt_ids[] = {
-	/*gsensor*/
-	{ .compatible = "gs_mma8452" },
-	{ .compatible = "gs_lis3dh" },
-	{ .compatible = "gs_lsm303d" },
-	{ .compatible = "gs_mma7660" },
-	{ .compatible = "gs_mxc6225" },
-	{ .compatible = "gs_mc3230" },
-	{ .compatible = "gs_sc7a30" },
-	{ .compatible = "lsm330_acc" },
-	{ .compatible = "bma2xx_acc" },
-	{ .compatible = "gs_stk8baxx" },
-	{ .compatible = "gs_mxc6655xa"},
+	sensor_ops[ops->id_i2c] = ops;
+	dev_info(&client->dev, "%s: %s, id = %d\n",
+		 __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 
-	/*compass*/
-	{ .compatible = "ak8975" },
-	{ .compatible = "ak8963" },
-	{ .compatible = "ak09911" },
-	{ .compatible = "mmc314x" },
+	sensor_probe(client, devid);
 
-	/* gyroscop*/
-	{ .compatible = "l3g4200d_gyro" },
-	{ .compatible = "l3g20d_gyro" },
-	{ .compatible = "ewtsa_gyro" },
-	{ .compatible = "k3g" },
-	{ .compatible = "lsm330_gyro" },
+	return result;
+}
+EXPORT_SYMBOL(sensor_register_device);
 
-	/*light sensor*/
-	{ .compatible = "light_cm3217" },
-	{ .compatible = "light_cm3232" },
-	{ .compatible = "light_al3006" },
-	{ .compatible = "ls_stk3171" },
-	{ .compatible = "ls_ap321xx" },
+int sensor_unregister_device(struct i2c_client *client,
+		struct sensor_platform_data *slave_pdata,
+		struct sensor_operate *ops)
+{
+	int result = 0;
 
-	{ .compatible = "ls_photoresistor" },
-	{ .compatible = "ls_us5152" },
-	{ .compatible = "ls_stk3410" },
-	{ .compatible = "ps_stk3410" },
+	if (!client || !ops) {
+		dev_err(&client->dev, "%s: no device or ops.\n", __func__);
+		return -ENODEV;
+	}
 
-	/*temperature sensor*/
-	{ .compatible = "tmp_ms5607" },
+	if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID)) {
+		dev_err(&client->dev, "%s: %s id is error %d\n",
+			 __func__, ops->name, ops->id_i2c);
+		return -EINVAL;
+	}
 
-	/*pressure sensor*/
-	{ .compatible = "pr_ms5607" },
+	sensor_remove(client);
 
-	/*hall sensor*/
-	{ .compatible = "hall_och165t" },
-	{ }
-};
+	dev_info(&client->dev, "%s: %s, id = %d\n",
+		 __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	sensor_ops[ops->id_i2c] = NULL;
 
-static struct i2c_driver sensor_driver = {
-	.probe = sensor_probe,
-	.remove = sensor_remove,
-	.shutdown = sensor_shut_down,
-	.id_table = sensor_id,
-	.driver = {
-		.name = "sensors",
-		.of_match_table = of_match_ptr(sensor_dt_ids),
-		.pm = SENSOR_PM_OPS,
-	},
-};
+	return result;
+}
+EXPORT_SYMBOL(sensor_unregister_device);
 
 static int __init sensor_init(void)
 {
 	sensor_class_init();
-	return i2c_add_driver(&sensor_driver);
+
+	return 0;
 }
 
 static void __exit sensor_exit(void)
 {
-	i2c_del_driver(&sensor_driver);
+	class_remove_file(sensor_class, &class_attr_gyro_calibration);
+	class_remove_file(sensor_class, &class_attr_accel_calibration);
+	class_destroy(sensor_class);
 }
 
-late_initcall(sensor_init);
+module_init(sensor_init);
 module_exit(sensor_exit);
 
 MODULE_AUTHOR("ROCKCHIP Corporation:lw@rock-chips.com");

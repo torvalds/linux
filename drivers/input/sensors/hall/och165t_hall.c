@@ -123,32 +123,37 @@ struct sensor_operate hall_och165t_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *hall_get_ops(void)
+static int hall_och165t_probe(struct i2c_client *client,
+			      const struct i2c_device_id *devid)
 {
-	return &hall_och165t_ops;
+	return sensor_register_device(client, NULL, devid, &hall_och165t_ops);
 }
 
-
-static int __init hall_och165t_init(void)
+static int hall_och165t_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = hall_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, hall_get_ops);
-	return result;
+	return sensor_unregister_device(client, NULL, &hall_och165t_ops);
 }
 
-static void __exit hall_och165t_exit(void)
-{
-	struct sensor_operate *ops = hall_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, hall_get_ops);
-}
+static const struct i2c_device_id hall_och165t_id[] = {
+	{"hall_och165t", HALL_ID_OCH165T},
+	{}
+};
 
+static struct i2c_driver hall_och165t_driver = {
+	.probe = hall_och165t_probe,
+	.remove = hall_och165t_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = hall_och165t_id,
+	.driver = {
+		.name = "hall_och165t",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(hall_och165t_init);
-module_exit(hall_och165t_exit);
+module_i2c_driver(hall_och165t_driver);
 
-
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("och165t hall driver");
+MODULE_LICENSE("GPL");

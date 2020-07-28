@@ -338,29 +338,37 @@ struct sensor_operate light_stk3410_ops = {
 	.report			= sensor_report_value,
 };
 
-static struct sensor_operate *light_get_ops(void)
+static int light_stk3410_probe(struct i2c_client *client,
+			       const struct i2c_device_id *devid)
 {
-	return &light_stk3410_ops;
+	return sensor_register_device(client, NULL, devid, &light_stk3410_ops);
 }
 
-static int __init light_stk3410_init(void)
+static int light_stk3410_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = light_get_ops();
-	int result = 0;
-	int type = ops->type;
-
-	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-
-	return result;
+	return sensor_unregister_device(client, NULL, &light_stk3410_ops);
 }
 
-static void __exit light_stk3410_exit(void)
-{
-	struct sensor_operate *ops = light_get_ops();
-	int type = ops->type;
+static const struct i2c_device_id light_stk3410_id[] = {
+	{"ls_stk3410", LIGHT_ID_STK3410},
+	{}
+};
 
-	sensor_unregister_slave(type, NULL, NULL, light_get_ops);
-}
+static struct i2c_driver light_stk3410_driver = {
+	.probe = light_stk3410_probe,
+	.remove = light_stk3410_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = light_stk3410_id,
+	.driver = {
+		.name = "light_stk3410",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(light_stk3410_init);
-module_exit(light_stk3410_exit);
+module_i2c_driver(light_stk3410_driver);
+
+MODULE_AUTHOR("Bin Yang <yangbin@rock-chips.com>");
+MODULE_DESCRIPTION("stk3410 light driver");
+MODULE_LICENSE("GPL");

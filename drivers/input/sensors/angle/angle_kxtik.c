@@ -247,7 +247,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
     s64 result;
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	//int precision = sensor->ops->precision;
+	/* int precision = sensor->ops->precision; */
 	switch (sensor->devid) {	
 		case KXTIK_DEVID_1004:	
 		case KXTIK_DEVID_1013:
@@ -255,10 +255,10 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 		case KXTIK_DEVID_J2_1009:
 			result = (((int)high_byte << 8) | ((int)low_byte ))>>4;
 			if (result < KXTIK_BOUNDARY)
-       			result = result* KXTIK_GRAVITY_STEP;
-    		else
-       			result = ~( ((~result & (0x7fff>>(16-KXTIK_PRECISION)) ) + 1) 
-			   			* KXTIK_GRAVITY_STEP) + 1;
+				result = result * KXTIK_GRAVITY_STEP;
+			else
+				result = ~(((~result & (0x7fff >> (16 - KXTIK_PRECISION))) + 1)
+						* KXTIK_GRAVITY_STEP) + 1;
 			break;
 
 		default:
@@ -362,32 +362,37 @@ struct sensor_operate angle_kxtik_ops = {
 };
 
 /****************operate according to sensor chip:end************/
-
-//function name should not be changed
-static struct sensor_operate *angle_get_ops(void)
+static int angle_kxtik_probe(struct i2c_client *client,
+			     const struct i2c_device_id *devid)
 {
-	return &angle_kxtik_ops;
+	return sensor_register_device(client, NULL, devid, &angle_kxtik_ops);
 }
 
-
-static int __init angle_kxtik_init(void)
+static int angle_kxtik_remove(struct i2c_client *client)
 {
-	struct sensor_operate *ops = angle_get_ops();
-	int result = 0;
-	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, angle_get_ops);
-	printk("%s\n",__func__);
-	return result;
+	return sensor_unregister_device(client, NULL, &angle_kxtik_ops);
 }
 
-static void __exit angle_kxtik_exit(void)
-{
-	struct sensor_operate *ops = angle_get_ops();
-	int type = ops->type;
-	sensor_unregister_slave(type, NULL, NULL, angle_get_ops);
-}
+static const struct i2c_device_id angle_kxtik_id[] = {
+	{"angle_kxtik", ANGLE_ID_KXTIK},
+	{}
+};
 
+static struct i2c_driver angle_kxtik_driver = {
+	.probe = angle_kxtik_probe,
+	.remove = angle_kxtik_remove,
+	.shutdown = sensor_shutdown,
+	.id_table = angle_kxtik_id,
+	.driver = {
+		.name = "angle_kxtik",
+	#ifdef CONFIG_PM
+		.pm = &sensor_pm_ops,
+	#endif
+	},
+};
 
-module_init(angle_kxtik_init);
-module_exit(angle_kxtik_exit);
+module_i2c_driver(angle_kxtik_driver);
 
+MODULE_AUTHOR("luowei <lw@rock-chips.com>");
+MODULE_DESCRIPTION("kxtik angle driver");
+MODULE_LICENSE("GPL");
