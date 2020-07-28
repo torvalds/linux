@@ -70,8 +70,9 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 		if (qsfp) {
 			/* When reading upper pages 1, 2 and 3 the offset
 			 * starts at 128. Please refer to "QSFP+ Memory Map"
-			 * figure in SFF-8436 specification for graphical
-			 * depiction.
+			 * figure in SFF-8436 specification and to "CMIS Module
+			 * Memory Map" figure in CMIS specification for
+			 * graphical depiction.
 			 */
 			page = MLXSW_REG_MCIA_PAGE_GET(offset);
 			offset -= MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH * page;
@@ -220,6 +221,22 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		else
 			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN / 2;
+		break;
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD:
+		/* Use SFF_8636 as base type. ethtool should recognize specific
+		 * type through the identifier value.
+		 */
+		modinfo->type       = ETH_MODULE_SFF_8636;
+		/* Verify if module EEPROM is a flat memory. In case of flat
+		 * memory only page 00h (0-255 bytes) can be read. Otherwise
+		 * upper pages 01h and 02h can also be read. Upper pages 10h
+		 * and 11h are currently not supported by the driver.
+		 */
+		if (module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_TYPE_ID] &
+		    MLXSW_REG_MCIA_EEPROM_CMIS_FLAT_MEMORY)
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		else
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
 		return -EINVAL;
