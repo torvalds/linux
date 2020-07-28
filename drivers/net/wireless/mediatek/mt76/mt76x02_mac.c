@@ -349,6 +349,8 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 
 	memset(txwi, 0, sizeof(*txwi));
 
+	mt76_tx_check_agg_ssn(sta, skb);
+
 	if (!info->control.hw_key && wcid && wcid->hw_key_idx != 0xff &&
 	    ieee80211_has_protected(hdr->frame_control)) {
 		wcid = NULL;

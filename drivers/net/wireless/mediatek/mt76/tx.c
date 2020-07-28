@@ -83,17 +83,27 @@ mt76_txq_get_qid(struct ieee80211_txq *txq)
 	return txq->ac;
 }
 
-static void
-mt76_check_agg_ssn(struct mt76_txq *mtxq, struct sk_buff *skb)
+void
+mt76_tx_check_agg_ssn(struct ieee80211_sta *sta, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_txq *txq;
+	struct mt76_txq *mtxq;
+	u8 tid;
 
-	if (!ieee80211_is_data_qos(hdr->frame_control) ||
+	if (!sta || !ieee80211_is_data_qos(hdr->frame_control) ||
 	    !ieee80211_is_data_present(hdr->frame_control))
+		return;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	txq = sta->txq[tid];
+	mtxq = (struct mt76_txq *)txq->drv_priv;
+	if (!mtxq->aggr)
 		return;
 
 	mtxq->agg_ssn = le16_to_cpu(hdr->seq_ctrl) + 0x10;
 }
+EXPORT_SYMBOL_GPL(mt76_tx_check_agg_ssn);
 
 void
 mt76_tx_status_lock(struct mt76_dev *dev, struct sk_buff_head *list)
@@ -288,19 +298,6 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 		ieee80211_get_tx_rates(info->control.vif, sta, skb,
 				       info->control.rates, 1);
 
-	if (sta && ieee80211_is_data_qos(hdr->frame_control)) {
-		struct ieee80211_txq *txq;
-		struct mt76_txq *mtxq;
-		u8 tid;
-
-		tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-		txq = sta->txq[tid];
-		mtxq = (struct mt76_txq *)txq->drv_priv;
-
-		if (mtxq->aggr)
-			mt76_check_agg_ssn(mtxq, skb);
-	}
-
 	if (ext_phy)
 		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
 
@@ -390,9 +387,6 @@ mt76_release_buffered_frames(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			if (!skb)
 				break;
 
-			if (mtxq->aggr)
-				mt76_check_agg_ssn(mtxq, skb);
-
 			nframes--;
 			if (last_skb)
 				mt76_queue_ps_skb(dev, sta, last_skb, false);
@@ -446,9 +440,6 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_sw_queue *sq,
 	ampdu = IEEE80211_SKB_CB(skb)->flags & IEEE80211_TX_CTL_AMPDU;
 	limit = ampdu ? 16 : 3;
 
-	if (ampdu)
-		mt76_check_agg_ssn(mtxq, skb);
-
 	idx = dev->queue_ops->tx_queue_skb(dev, qid, skb, wcid, txq->sta);
 
 	if (idx < 0)
@@ -478,9 +469,6 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_sw_queue *sq,
 		}
 
 		info->control.rates[0] = tx_rate;
-
-		if (cur_ampdu)
-			mt76_check_agg_ssn(mtxq, skb);
 
 		idx = dev->queue_ops->tx_queue_skb(dev, qid, skb, wcid,
 						   txq->sta);
