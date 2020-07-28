@@ -1116,7 +1116,10 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	}
 
 	/* Setup L2TP header */
-	session->build_header(session, __skb_push(skb, hdr_len));
+	if (tunnel->version == L2TP_HDR_VER_2)
+		l2tp_build_l2tpv2_header(session, __skb_push(skb, hdr_len));
+	else
+		l2tp_build_l2tpv3_header(session, __skb_push(skb, hdr_len));
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1699,11 +1702,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			session->peer_cookie_len = cfg->peer_cookie_len;
 			memcpy(&session->peer_cookie[0], &cfg->peer_cookie[0], cfg->peer_cookie_len);
 		}
-
-		if (tunnel->version == L2TP_HDR_VER_2)
-			session->build_header = l2tp_build_l2tpv2_header;
-		else
-			session->build_header = l2tp_build_l2tpv3_header;
 
 		l2tp_session_set_header_len(session, tunnel->version);
 
