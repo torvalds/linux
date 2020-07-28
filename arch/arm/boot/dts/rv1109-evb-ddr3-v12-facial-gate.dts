@@ -25,10 +25,17 @@
 };
 
 &csi_dphy0 {
+	status = "okay";
 	ports {
 		port@0 {
 			mipi_in_ucam0: endpoint@1 {
-				/delete-property/ remote-endpoint;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			csidphy0_out: endpoint@0 {
+				remote-endpoint = <&mipi_csi2_input>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -36,6 +43,7 @@
 };
 
 &csi_dphy1 {
+	status = "okay";
 	ports {
 		port@0 {
 			csi_dphy1_input: endpoint@1 {
@@ -81,10 +89,54 @@
 			};
 		};
 	};
+
+	gc2053: gc2053@37 {
+		compatible = "galaxycore,gc2053";
+		reg = <0x37>;
+
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-2-V1";
+		rockchip,camera-module-lens-name = "40IR-2MP-F20";
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &mipi_csi2 {
-	status = "disabled";
+	status = "okay";
+	ports {
+		port@0 {
+			mipi_csi2_input: endpoint@1 {
+				remote-endpoint = <&csidphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			mipi_csi2_output: endpoint@0 {
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &pwm11 {
@@ -108,7 +160,13 @@
 };
 
 &rkcif {
-	status = "disabled";
+	status = "okay";
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
 };
 
 &rkisp_vir0 {
@@ -119,4 +177,18 @@
 			};
 		};
 	};
+};
+
+&rkisp_vir1 {
+	status = "okay";
+};
+
+&rkispp_vir1 {
+	status = "okay";
+};
+
+&rkispp {
+	status = "okay";
+	/* the max input w h and fps of mulit sensor */
+	max-input = <1920 1080 30>;
 };
