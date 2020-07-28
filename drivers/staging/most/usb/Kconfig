@@ -5,10 +5,9 @@
 
 config MOST_USB
 	tristate "USB"
-	depends on USB && NET
+	depends on USB
 	help
 	  Say Y here if you want to connect via USB to network transceiver.
-	  This device driver depends on the networking AIM.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called most_usb.
