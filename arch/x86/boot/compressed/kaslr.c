@@ -303,7 +303,7 @@ static void handle_mem_options(void)
 
 		if (!strcmp(param, "memmap")) {
 			mem_avoid_memmap(PARSE_MEMMAP, val);
-		} else if (strstr(param, "hugepages")) {
+		} else if (IS_ENABLED(CONFIG_X86_64) && strstr(param, "hugepages")) {
 			parse_gb_huge_pages(param, val);
 		} else if (!strcmp(param, "mem")) {
 			char *p = val;
@@ -551,7 +551,7 @@ process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 	struct mem_vector tmp;
 	int i = 0;
 
-	if (!max_gb_huge_pages) {
+	if (!IS_ENABLED(CONFIG_X86_64) || !max_gb_huge_pages) {
 		store_slot_info(region, image_size);
 		return;
 	}
