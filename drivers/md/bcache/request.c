@@ -617,28 +617,6 @@ static void cache_lookup(struct closure *cl)
 
 /* Common code for the make_request functions */
 
-static inline void bch_bio_start_io_acct(struct gendisk *acct_bi_disk,
-					 struct bio *bio,
-					 unsigned long *start_time)
-{
-	struct gendisk *saved_bi_disk = bio->bi_disk;
-
-	bio->bi_disk = acct_bi_disk;
-	*start_time = bio_start_io_acct(bio);
-	bio->bi_disk = saved_bi_disk;
-}
-
-static inline void bch_bio_end_io_acct(struct gendisk *acct_bi_disk,
-				       struct bio *bio,
-				       unsigned long start_time)
-{
-	struct gendisk *saved_bi_disk = bio->bi_disk;
-
-	bio->bi_disk = acct_bi_disk;
-	bio_end_io_acct(bio, start_time);
-	bio->bi_disk = saved_bi_disk;
-}
-
 static void request_endio(struct bio *bio)
 {
 	struct closure *cl = bio->bi_private;
@@ -690,7 +668,9 @@ static void backing_request_endio(struct bio *bio)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		bch_bio_end_io_acct(s->d->disk, s->orig_bio, s->start_time);
+		/* Count on bcache device */
+		disk_end_io_acct(s->d->disk, bio_op(s->orig_bio), s->start_time);
+
 		trace_bcache_request_end(s->d, s->orig_bio);
 		s->orig_bio->bi_status = s->iop.status;
 		bio_endio(s->orig_bio);
@@ -750,8 +730,8 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->recoverable		= 1;
 	s->write		= op_is_write(bio_op(bio));
 	s->read_dirty_data	= 0;
-	bch_bio_start_io_acct(d->disk, bio, &s->start_time);
-
+	/* Count on the bcache device */
+	s->start_time		= disk_start_io_acct(d->disk, bio_sectors(bio), bio_op(bio));
 	s->iop.c		= d->c;
 	s->iop.bio		= NULL;
 	s->iop.inode		= d->id;
@@ -1102,7 +1082,8 @@ static void detached_dev_end_io(struct bio *bio)
 	bio->bi_end_io = ddip->bi_end_io;
 	bio->bi_private = ddip->bi_private;
 
-	bch_bio_end_io_acct(ddip->d->disk, bio, ddip->start_time);
+	/* Count on the bcache device */
+	disk_end_io_acct(ddip->d->disk, bio_op(bio), ddip->start_time);
 
 	if (bio->bi_status) {
 		struct cached_dev *dc = container_of(ddip->d,
@@ -1127,8 +1108,8 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
 	 */
 	ddip = kzalloc(sizeof(struct detached_dev_io_private), GFP_NOIO);
 	ddip->d = d;
-	bch_bio_start_io_acct(d->disk, bio, &ddip->start_time);
-
+	/* Count on the bcache device */
+	ddip->start_time = disk_start_io_acct(d->disk, bio_sectors(bio), bio_op(bio));
 	ddip->bi_end_io = bio->bi_end_io;
 	ddip->bi_private = bio->bi_private;
 	bio->bi_end_io = detached_dev_end_io;
