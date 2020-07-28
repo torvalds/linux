@@ -279,10 +279,6 @@ static void handle_mem_options(void)
 	if (!args)
 		return;
 
-	if (!strstr(args, "memmap=") && !strstr(args, "mem=") &&
-		!strstr(args, "hugepages"))
-		return;
-
 	len = strlen(args);
 	tmp_cmdline = malloc(len + 1);
 	if (!tmp_cmdline)
