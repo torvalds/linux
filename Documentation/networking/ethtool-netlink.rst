@@ -1263,6 +1263,9 @@ Kernel response contents:
  | | | | ``ETHTOOL_A_TUNNEL_UDP_ENTRY_TYPE``   | u32    | tunnel type         |
  +-+-+-+---------------------------------------+--------+---------------------+
 
+For UDP tunnel table empty ``ETHTOOL_A_TUNNEL_UDP_TABLE_TYPES`` indicates that
+the table contains static entries, hard-coded by the NIC.
+
 Request translation
 ===================
 

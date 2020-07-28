@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <net/udp_tunnel.h>
+#include <net/vxlan.h>
 
 enum udp_tunnel_nic_table_entry_flags {
 	UDP_TUNNEL_NIC_ENTRY_ADD	= BIT(0),
@@ -504,6 +505,12 @@ __udp_tunnel_nic_add_port(struct net_device *dev, struct udp_tunnel_info *ti)
 		return;
 	if (!netif_running(dev) && info->flags & UDP_TUNNEL_NIC_INFO_OPEN_ONLY)
 		return;
+	if (info->flags & UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN &&
+	    ti->port == htons(IANA_VXLAN_UDP_PORT)) {
+		if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+			netdev_warn(dev, "device assumes port 4789 will be used by vxlan tunnels\n");
+		return;
+	}
 
 	if (!udp_tunnel_nic_is_capable(dev, utn, ti))
 		return;
