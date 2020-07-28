@@ -27,14 +27,6 @@ static inline sockptr_t KERNEL_SOCKPTR(void *p)
 {
 	return (sockptr_t) { .kernel = p };
 }
-
-static inline int __must_check init_user_sockptr(sockptr_t *sp, void __user *p)
-{
-	if ((unsigned long)p >= TASK_SIZE)
-		return -EFAULT;
-	sp->user = p;
-	return 0;
-}
 #else /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
 typedef struct {
 	union {
@@ -53,14 +45,16 @@ static inline sockptr_t KERNEL_SOCKPTR(void *p)
 {
 	return (sockptr_t) { .kernel = p, .is_kernel = true };
 }
+#endif /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
 
-static inline int __must_check init_user_sockptr(sockptr_t *sp, void __user *p)
+static inline int __must_check init_user_sockptr(sockptr_t *sp, void __user *p,
+		size_t size)
 {
-	sp->user = p;
-	sp->is_kernel = false;
+	if (!access_ok(p, size))
+		return -EFAULT;
+	*sp = (sockptr_t) { .user = p };
 	return 0;
 }
-#endif /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
 
 static inline bool sockptr_is_null(sockptr_t sockptr)
 {

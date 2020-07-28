@@ -65,7 +65,7 @@ int bpfilter_ip_get_sockopt(struct sock *sk, int optname,
 
 	if (get_user(len, optlen))
 		return -EFAULT;
-	err = init_user_sockptr(&optval, user_optval);
+	err = init_user_sockptr(&optval, user_optval, len);
 	if (err)
 		return err;
 	return bpfilter_mbox_request(sk, optname, optval, len, false);
