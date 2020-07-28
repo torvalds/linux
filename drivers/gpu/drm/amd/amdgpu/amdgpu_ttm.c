@@ -1915,7 +1915,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	uint64_t gtt_size;
 	int r;
 	u64 vis_vram_limit;
-	void *stolen_vga_buf, *stolen_extended_buf;
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
@@ -1982,14 +1981,14 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	r = amdgpu_bo_create_kernel_at(adev, 0, adev->gmc.stolen_vga_size,
 				       AMDGPU_GEM_DOMAIN_VRAM,
 				       &adev->gmc.stolen_vga_memory,
-				       &stolen_vga_buf);
+				       NULL);
 	if (r)
 		return r;
 	r = amdgpu_bo_create_kernel_at(adev, adev->gmc.stolen_vga_size,
 				       adev->gmc.stolen_extended_size,
 				       AMDGPU_GEM_DOMAIN_VRAM,
 				       &adev->gmc.stolen_extended_memory,
-				       &stolen_extended_buf);
+				       NULL);
 	if (r)
 		return r;
 
@@ -2048,13 +2047,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_late_init(struct amdgpu_device *adev)
 {
-	void *stolen_vga_buf, *stolen_extended_buf;
-
 	/* return the VGA stolen memory (if any) back to VRAM */
 	if (!adev->gmc.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, &stolen_vga_buf);
-	amdgpu_bo_free_kernel(&adev->gmc.stolen_extended_memory, NULL,
-			      &stolen_extended_buf);
+		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gmc.stolen_extended_memory, NULL, NULL);
 }
 
 /**
@@ -2062,15 +2058,13 @@ void amdgpu_ttm_late_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_fini(struct amdgpu_device *adev)
 {
-	void *stolen_vga_buf;
-
 	if (!adev->mman.initialized)
 		return;
 
 	amdgpu_ttm_training_reserve_vram_fini(adev);
 	/* return the stolen vga memory back to VRAM */
 	if (adev->gmc.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, &stolen_vga_buf);
+		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
 	amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
