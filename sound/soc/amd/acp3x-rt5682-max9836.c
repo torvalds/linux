@@ -21,6 +21,7 @@
 
 #include "raven/acp3x.h"
 #include "../codecs/rt5682.h"
+#include "../codecs/rt1015.h"
 
 #define PCO_PLAT_CLK 48000000
 #define RT5682_PLL_FREQ (48000 * 512)
@@ -247,7 +248,18 @@ SND_SOC_DAILINK_DEF(cros_ec,
 SND_SOC_DAILINK_DEF(platform,
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("acp3x_rv_i2s_dma.0")));
 
-static struct snd_soc_dai_link acp3x_dai_5682_98357[] = {
+static struct snd_soc_codec_conf rt1015_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF("i2c-10EC1015:00"),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("i2c-10EC1015:01"),
+		.name_prefix = "Right",
+	},
+};
+
+static struct snd_soc_dai_link acp3x_dai[] = {
 	{
 		.name = "acp3x-5682-play",
 		.stream_name = "Playback",
@@ -317,14 +329,55 @@ static const struct snd_kcontrol_new acp3x_5682_mc_controls[] = {
 static struct snd_soc_card acp3x_5682 = {
 	.name = "acp3xalc5682m98357",
 	.owner = THIS_MODULE,
-	.dai_link = acp3x_dai_5682_98357,
-	.num_links = ARRAY_SIZE(acp3x_dai_5682_98357),
+	.dai_link = acp3x_dai,
+	.num_links = ARRAY_SIZE(acp3x_dai),
 	.dapm_widgets = acp3x_5682_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(acp3x_5682_widgets),
 	.dapm_routes = acp3x_5682_audio_route,
 	.num_dapm_routes = ARRAY_SIZE(acp3x_5682_audio_route),
 	.controls = acp3x_5682_mc_controls,
 	.num_controls = ARRAY_SIZE(acp3x_5682_mc_controls),
+};
+
+static const struct snd_soc_dapm_widget acp3x_1015_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0,
+			 &acp3x_dmic_mux_control),
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
+
+static const struct snd_soc_dapm_route acp3x_1015_route[] = {
+	{"Headphone Jack", NULL, "HPOL"},
+	{"Headphone Jack", NULL, "HPOR"},
+	{"IN1P", NULL, "Headset Mic"},
+	{"Dmic Mux", "Front Mic", "DMIC"},
+	{"Dmic Mux", "Rear Mic", "DMIC"},
+	{"Left Spk", NULL, "Left SPO"},
+	{"Right Spk", NULL, "Right SPO"},
+};
+
+static const struct snd_kcontrol_new acp3x_mc_1015_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+};
+
+static struct snd_soc_card acp3x_1015 = {
+	.name = "acp3xalc56821015",
+	.owner = THIS_MODULE,
+	.dai_link = acp3x_dai,
+	.num_links = ARRAY_SIZE(acp3x_dai),
+	.dapm_widgets = acp3x_1015_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp3x_1015_widgets),
+	.dapm_routes = acp3x_1015_route,
+	.num_dapm_routes = ARRAY_SIZE(acp3x_1015_route),
+	.codec_conf = rt1015_conf,
+	.num_configs = ARRAY_SIZE(rt1015_conf),
+	.controls = acp3x_mc_1015_controls,
+	.num_controls = ARRAY_SIZE(acp3x_mc_1015_controls),
 };
 
 void *soc_is_rltk_max(struct device *dev)
@@ -375,6 +428,7 @@ static int acp3x_probe(struct platform_device *pdev)
 
 static const struct acpi_device_id acp3x_audio_acpi_match[] = {
 	{ "AMDI5682", (unsigned long)&acp3x_5682},
+	{ "AMDI1015", (unsigned long)&acp3x_1015},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, acp3x_audio_acpi_match);
@@ -391,5 +445,6 @@ static struct platform_driver acp3x_audio = {
 module_platform_driver(acp3x_audio);
 
 MODULE_AUTHOR("akshu.agrawal@amd.com");
-MODULE_DESCRIPTION("ALC5682 & MAX98357 audio support");
+MODULE_AUTHOR("Vishnuvardhanrao.Ravulapati@amd.com");
+MODULE_DESCRIPTION("ALC5682 ALC1015 & MAX98357 audio support");
 MODULE_LICENSE("GPL v2");
