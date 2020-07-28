@@ -99,6 +99,16 @@ static struct platform_driver rockchip_cpuinfo_driver = {
 	},
 };
 
+static void rv1109_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RV1109;
+}
+
+static void rv1126_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RV1126;
+}
+
 static void rk3288_init(void)
 {
 	void __iomem *base;
@@ -160,6 +170,10 @@ static int __init rockchip_soc_id_init(void)
 			rk3126_init();
 	} else if (cpu_is_rk3308()) {
 		rk3308_init();
+	} else if (cpu_is_rv1109()) {
+		rv1109_init();
+	} else if (cpu_is_rv1126()) {
+		rv1126_init();
 	}
 
 	return 0;
