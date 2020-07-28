@@ -235,10 +235,13 @@ int ext4_setup_system_zone(struct super_block *sb)
 	for (i=0; i < ngroups; i++) {
 		cond_resched();
 		if (ext4_bg_has_super(sb, i) &&
-		    ((i < 5) || ((i % flex_size) == 0)))
-			add_system_zone(system_blks,
+		    ((i < 5) || ((i % flex_size) == 0))) {
+			ret = add_system_zone(system_blks,
 					ext4_group_first_block_no(sb, i),
 					ext4_bg_num_gdb(sb, i) + 1, 0);
+			if (ret)
+				goto err;
+		}
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		ret = add_system_zone(system_blks,
 				ext4_block_bitmap(sb, gdp), 1, 0);
