@@ -298,6 +298,34 @@ static struct msi_domain_info vmd_msi_domain_info = {
 	.chip		= &vmd_msi_controller,
 };
 
+static int vmd_create_irq_domain(struct vmd_dev *vmd)
+{
+	struct fwnode_handle *fn;
+
+	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
+	if (!fn)
+		return -ENODEV;
+
+	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info,
+						    x86_vector_domain);
+	if (!vmd->irq_domain) {
+		irq_domain_free_fwnode(fn);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static void vmd_remove_irq_domain(struct vmd_dev *vmd)
+{
+	if (vmd->irq_domain) {
+		struct fwnode_handle *fn = vmd->irq_domain->fwnode;
+
+		irq_domain_remove(vmd->irq_domain);
+		irq_domain_free_fwnode(fn);
+	}
+}
+
 static char __iomem *vmd_cfg_addr(struct vmd_dev *vmd, struct pci_bus *bus,
 				  unsigned int devfn, int reg, int len)
 {
@@ -503,7 +531,6 @@ static int vmd_get_bus_number_start(struct vmd_dev *vmd)
 static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
-	struct fwnode_handle *fn;
 	struct resource *res;
 	u32 upper_bits;
 	unsigned long flags;
@@ -598,16 +625,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 
 	sd->node = pcibus_to_node(vmd->dev->bus);
 
-	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
-	if (!fn)
-		return -ENODEV;
-
-	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info,
-						    x86_vector_domain);
-	if (!vmd->irq_domain) {
-		irq_domain_free_fwnode(fn);
-		return -ENODEV;
-	}
+	ret = vmd_create_irq_domain(vmd);
+	if (ret)
+		return ret;
 
 	pci_add_resource(&resources, &vmd->resources[0]);
 	pci_add_resource_offset(&resources, &vmd->resources[1], offset[0]);
@@ -617,13 +637,13 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 				       &vmd_ops, sd, &resources);
 	if (!vmd->bus) {
 		pci_free_resource_list(&resources);
-		irq_domain_remove(vmd->irq_domain);
-		irq_domain_free_fwnode(fn);
+		vmd_remove_irq_domain(vmd);
 		return -ENODEV;
 	}
 
 	vmd_attach_resources(vmd);
-	dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
+	if (vmd->irq_domain)
+		dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
 
 	pci_scan_child_bus(vmd->bus);
 	pci_assign_unassigned_bus_resources(vmd->bus);
@@ -732,15 +752,13 @@ static void vmd_cleanup_srcu(struct vmd_dev *vmd)
 static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
-	struct fwnode_handle *fn = vmd->irq_domain->fwnode;
 
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
 	pci_remove_root_bus(vmd->bus);
 	vmd_cleanup_srcu(vmd);
 	vmd_detach_resources(vmd);
-	irq_domain_remove(vmd->irq_domain);
-	irq_domain_free_fwnode(fn);
+	vmd_remove_irq_domain(vmd);
 }
 
 #ifdef CONFIG_PM_SLEEP
