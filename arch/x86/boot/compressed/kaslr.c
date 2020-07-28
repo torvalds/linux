@@ -664,11 +664,8 @@ static void __process_mem_region(struct mem_vector *entry,
 
 		/* Store beginning of region if holds at least image_size. */
 		if (overlap.start >= region.start + image_size) {
-			struct mem_vector beginning;
-
-			beginning.start = region.start;
-			beginning.size = overlap.start - region.start;
-			process_gb_huge_pages(&beginning, image_size);
+			region.size = overlap.start - region.start;
+			process_gb_huge_pages(&region, image_size);
 		}
 
 		/* Return if overlap extends to or past end of region. */
