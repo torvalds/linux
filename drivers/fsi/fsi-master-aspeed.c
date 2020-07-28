@@ -83,7 +83,11 @@ static const u32 fsi_base = 0xa0000000;
 
 #define FSI_LINK_ENABLE_SETUP_TIME	10	/* in mS */
 
-#define DEFAULT_DIVISOR			14
+/* Run the bus at maximum speed by default */
+#define FSI_DIVISOR_DEFAULT            1
+#define FSI_DIVISOR_CABLED             2
+static u16 aspeed_fsi_divisor = FSI_DIVISOR_DEFAULT;
+
 #define OPB_POLL_TIMEOUT		10000
 
 static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
@@ -385,9 +389,11 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	opb_writel(aspeed, ctrl_base + FSI_MECTRL, reg);
 
 	reg = cpu_to_be32(FSI_MMODE_ECRC | FSI_MMODE_EPC | FSI_MMODE_RELA
-			| fsi_mmode_crs0(DEFAULT_DIVISOR)
-			| fsi_mmode_crs1(DEFAULT_DIVISOR)
+			| fsi_mmode_crs0(aspeed_fsi_divisor)
+			| fsi_mmode_crs1(aspeed_fsi_divisor)
 			| FSI_MMODE_P8_TO_LSB);
+	dev_info(aspeed->dev, "mmode set to %08x (divisor %d)\n",
+			be32_to_cpu(reg), aspeed_fsi_divisor);
 	opb_writel(aspeed, ctrl_base + FSI_MMODE, reg);
 
 	reg = cpu_to_be32(0xffff0000);
@@ -446,6 +452,11 @@ static int tacoma_cabled_fsi_fixup(struct device *dev)
 
 	/* If the routing GPIO is high we should set the mux to low. */
 	if (gpio) {
+		/*
+		 * Cable signal integrity means we should run the bus
+		 * slightly slower
+		 */
+		aspeed_fsi_divisor = FSI_DIVISOR_CABLED;
 		gpiod_direction_output(mux_gpio, 0);
 		dev_info(dev, "FSI configured for external cable\n");
 	} else {
