@@ -401,8 +401,8 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		memset(fl->opt, 0, sizeof(*fl->opt));
 		fl->opt->tot_len = sizeof(*fl->opt) + olen;
 		err = -EFAULT;
-		sockptr_advance(optval, CMSG_ALIGN(sizeof(*freq)));
-		if (copy_from_sockptr(fl->opt + 1, optval, olen))
+		if (copy_from_sockptr_offset(fl->opt + 1, optval,
+				CMSG_ALIGN(sizeof(*freq)), olen))
 			goto done;
 
 		msg.msg_controllen = olen;
@@ -703,9 +703,10 @@ release:
 		goto recheck;
 
 	if (!freq->flr_label) {
-		sockptr_advance(optval,
-				offsetof(struct in6_flowlabel_req, flr_label));
-		if (copy_to_sockptr(optval, &fl->label, sizeof(fl->label))) {
+		size_t offset = offsetof(struct in6_flowlabel_req, flr_label);
+
+		if (copy_to_sockptr_offset(optval, offset, &fl->label,
+				sizeof(fl->label))) {
 			/* Intentionally ignore fault. */
 		}
 	}

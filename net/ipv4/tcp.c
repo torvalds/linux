@@ -2801,12 +2801,13 @@ static int tcp_repair_options_est(struct sock *sk, sockptr_t optbuf,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_repair_opt opt;
+	size_t offset = 0;
 
 	while (len >= sizeof(opt)) {
-		if (copy_from_sockptr(&opt, optbuf, sizeof(opt)))
+		if (copy_from_sockptr_offset(&opt, optbuf, offset, sizeof(opt)))
 			return -EFAULT;
 
-		sockptr_advance(optbuf, sizeof(opt));
+		offset += sizeof(opt);
 		len -= sizeof(opt);
 
 		switch (opt.opt_code) {

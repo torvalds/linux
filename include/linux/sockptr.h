@@ -69,19 +69,26 @@ static inline bool sockptr_is_null(sockptr_t sockptr)
 	return !sockptr.user;
 }
 
-static inline int copy_from_sockptr(void *dst, sockptr_t src, size_t size)
+static inline int copy_from_sockptr_offset(void *dst, sockptr_t src,
+		size_t offset, size_t size)
 {
 	if (!sockptr_is_kernel(src))
-		return copy_from_user(dst, src.user, size);
-	memcpy(dst, src.kernel, size);
+		return copy_from_user(dst, src.user + offset, size);
+	memcpy(dst, src.kernel + offset, size);
 	return 0;
 }
 
-static inline int copy_to_sockptr(sockptr_t dst, const void *src, size_t size)
+static inline int copy_from_sockptr(void *dst, sockptr_t src, size_t size)
+{
+	return copy_from_sockptr_offset(dst, src, 0, size);
+}
+
+static inline int copy_to_sockptr_offset(sockptr_t dst, size_t offset,
+		const void *src, size_t size)
 {
 	if (!sockptr_is_kernel(dst))
-		return copy_to_user(dst.user, src, size);
-	memcpy(dst.kernel, src, size);
+		return copy_to_user(dst.user + offset, src, size);
+	memcpy(dst.kernel + offset, src, size);
 	return 0;
 }
 
@@ -110,14 +117,6 @@ static inline void *memdup_sockptr_nul(sockptr_t src, size_t len)
 	}
 	p[len] = '\0';
 	return p;
-}
-
-static inline void sockptr_advance(sockptr_t sockptr, size_t len)
-{
-	if (sockptr_is_kernel(sockptr))
-		sockptr.kernel += len;
-	else
-		sockptr.user += len;
 }
 
 static inline long strncpy_from_sockptr(char *dst, sockptr_t src, size_t count)
