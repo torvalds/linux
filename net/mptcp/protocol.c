@@ -1421,7 +1421,6 @@ static void mptcp_subflow_shutdown(struct sock *ssk, int how,
 	release_sock(ssk);
 }
 
-/* Called with msk lock held, releases such lock before returning */
 static void mptcp_close(struct sock *sk, long timeout)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
