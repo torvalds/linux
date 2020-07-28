@@ -21,6 +21,7 @@
 #include "bpf_iter_bpf_percpu_array_map.skel.h"
 #include "bpf_iter_bpf_sk_storage_map.skel.h"
 #include "bpf_iter_test_kern5.skel.h"
+#include "bpf_iter_test_kern6.skel.h"
 
 static int duration;
 
@@ -885,6 +886,16 @@ static void test_rdonly_buf_out_of_bound(void)
 	bpf_iter_test_kern5__destroy(skel);
 }
 
+static void test_buf_neg_offset(void)
+{
+	struct bpf_iter_test_kern6 *skel;
+
+	skel = bpf_iter_test_kern6__open_and_load();
+	if (CHECK(skel, "bpf_iter_test_kern6__open_and_load",
+		  "skeleton open_and_load unexpected success\n"))
+		bpf_iter_test_kern6__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -933,4 +944,6 @@ void test_bpf_iter(void)
 		test_bpf_sk_storage_map();
 	if (test__start_subtest("rdonly-buf-out-of-bound"))
 		test_rdonly_buf_out_of_bound();
+	if (test__start_subtest("buf-neg-offset"))
+		test_buf_neg_offset();
 }
