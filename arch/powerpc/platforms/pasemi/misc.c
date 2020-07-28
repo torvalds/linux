@@ -56,8 +56,7 @@ static int __init pasemi_register_i2c_devices(void)
 		if (!adap_node)
 			continue;
 
-		node = NULL;
-		while ((node = of_get_next_child(adap_node, node))) {
+		for_each_child_of_node(adap_node, node) {
 			struct i2c_board_info info = {};
 			const u32 *addr;
 			int len;
