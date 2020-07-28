@@ -212,24 +212,6 @@ static void __notify_execute_cb(struct i915_request *rq)
 	init_llist_head(&rq->execute_cb);
 }
 
-static inline void
-remove_from_client(struct i915_request *request)
-{
-	struct drm_i915_file_private *file_priv;
-
-	if (!READ_ONCE(request->file_priv))
-		return;
-
-	rcu_read_lock();
-	file_priv = xchg(&request->file_priv, NULL);
-	if (file_priv) {
-		spin_lock(&file_priv->mm.lock);
-		list_del(&request->client_link);
-		spin_unlock(&file_priv->mm.lock);
-	}
-	rcu_read_unlock();
-}
-
 static void free_capture_list(struct i915_request *request)
 {
 	struct i915_capture_list *capture;
@@ -330,7 +312,6 @@ bool i915_request_retire(struct i915_request *rq)
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 	spin_unlock_irq(&rq->lock);
 
-	remove_from_client(rq);
 	__list_del_entry(&rq->link); /* poison neither prev/next (RCU walks) */
 
 	intel_context_exit(rq->context);
@@ -757,7 +738,6 @@ static void __i915_request_ctor(void *arg)
 
 	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock, 0, 0);
 
-	rq->file_priv = NULL;
 	rq->capture_list = NULL;
 
 	init_llist_head(&rq->execute_cb);
@@ -847,7 +827,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 
 	/* No zalloc, everything must be cleared after use */
 	rq->batch = NULL;
-	GEM_BUG_ON(rq->file_priv);
 	GEM_BUG_ON(rq->capture_list);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 

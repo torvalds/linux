@@ -2729,7 +2729,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	i915_gem_object_put(obj);
 	intel_context_put(ce);
 
-	rq->client_link.next = &(*prev)->client_link;
+	rq->mock.link.next = &(*prev)->mock.link;
 	*prev = rq;
 	return 0;
 
@@ -2970,8 +2970,7 @@ static int live_preempt_gang(void *arg)
 		}
 
 		while (rq) { /* wait for each rq from highest to lowest prio */
-			struct i915_request *n =
-				list_next_entry(rq, client_link);
+			struct i915_request *n = list_next_entry(rq, mock.link);
 
 			if (err == 0 && i915_request_wait(rq, 0, HZ / 5) < 0) {
 				struct drm_printer p =

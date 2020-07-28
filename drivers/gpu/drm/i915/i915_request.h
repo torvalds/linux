@@ -284,10 +284,6 @@ struct i915_request {
 	/** timeline->request entry for this request */
 	struct list_head link;
 
-	struct drm_i915_file_private *file_priv;
-	/** file_priv list entry for this request */
-	struct list_head client_link;
-
 	I915_SELFTEST_DECLARE(struct {
 		struct list_head link;
 		unsigned long delay;
