@@ -87,6 +87,7 @@ static const u32 fsi_base = 0xa0000000;
 #define FSI_DIVISOR_DEFAULT            1
 #define FSI_DIVISOR_CABLED             2
 static u16 aspeed_fsi_divisor = FSI_DIVISOR_DEFAULT;
+module_param_named(bus_div,aspeed_fsi_divisor, ushort, 0);
 
 #define OPB_POLL_TIMEOUT		10000
 
@@ -454,9 +455,12 @@ static int tacoma_cabled_fsi_fixup(struct device *dev)
 	if (gpio) {
 		/*
 		 * Cable signal integrity means we should run the bus
-		 * slightly slower
+		 * slightly slower. Do not override if a kernel param
+		 * has already overridden.
 		 */
-		aspeed_fsi_divisor = FSI_DIVISOR_CABLED;
+		if (aspeed_fsi_divisor == FSI_DIVISOR_DEFAULT)
+			aspeed_fsi_divisor = FSI_DIVISOR_CABLED;
+
 		gpiod_direction_output(mux_gpio, 0);
 		dev_info(dev, "FSI configured for external cable\n");
 	} else {
