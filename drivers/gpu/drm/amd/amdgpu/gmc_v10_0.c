@@ -747,7 +747,7 @@ static unsigned gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	unsigned size;
 
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
-		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+		size = AMDGPU_VBIOS_VGA_ALLOCATION;
 	} else {
 		u32 viewport;
 		u32 pitch;

@@ -214,6 +214,8 @@ extern int amdgpu_num_kcq;
 #define AMDGPUFB_CONN_LIMIT			4
 #define AMDGPU_BIOS_NUM_SCRATCH			16
 
+#define AMDGPU_VBIOS_VGA_ALLOCATION		(9 * 1024 * 1024) /* reserve 8MB for vga emulator and 1 MB for FB */
+
 /* hard reset data */
 #define AMDGPU_ASIC_RESET_DATA                  0x39d5e86b
 
