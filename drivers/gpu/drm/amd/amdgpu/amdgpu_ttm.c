@@ -1292,7 +1292,7 @@ int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
  * Called by ttm_tt_unbind() on behalf of ttm_bo_move_ttm() and
  * ttm_tt_destroy().
  */
-static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
+static void amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
@@ -1303,14 +1303,13 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 		amdgpu_ttm_tt_unpin_userptr(ttm);
 
 	if (gtt->offset == AMDGPU_BO_INVALID_OFFSET)
-		return 0;
+		return;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
 	r = amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
 	if (r)
 		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
 			  gtt->ttm.ttm.num_pages, gtt->offset);
-	return r;
 }
 
 static void amdgpu_ttm_backend_destroy(struct ttm_tt *ttm)

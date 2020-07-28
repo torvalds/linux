@@ -591,7 +591,7 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 	return 0;
 }
 
-static int radeon_ttm_backend_unbind(struct ttm_tt *ttm)
+static void radeon_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 
@@ -599,8 +599,6 @@ static int radeon_ttm_backend_unbind(struct ttm_tt *ttm)
 
 	if (gtt->userptr)
 		radeon_ttm_tt_unpin_userptr(ttm);
-
-	return 0;
 }
 
 static void radeon_ttm_backend_destroy(struct ttm_tt *ttm)

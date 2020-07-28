@@ -46,12 +46,11 @@ nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *reg)
 	return 0;
 }
 
-static int
+static void
 nv04_sgdma_unbind(struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	nouveau_mem_fini(nvbe->mem);
-	return 0;
 }
 
 static struct ttm_backend_func nv04_sgdma_backend = {

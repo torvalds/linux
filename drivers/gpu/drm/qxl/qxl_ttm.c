@@ -149,10 +149,9 @@ static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
 	return -1;
 }
 
-static int qxl_ttm_backend_unbind(struct ttm_tt *ttm)
+static void qxl_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	/* Not implemented */
-	return -1;
 }
 
 static void qxl_ttm_backend_destroy(struct ttm_tt *ttm)
