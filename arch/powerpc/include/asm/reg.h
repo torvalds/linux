@@ -12,6 +12,7 @@
 #ifdef __KERNEL__
 
 #include <linux/stringify.h>
+#include <linux/const.h>
 #include <asm/cputable.h>
 #include <asm/asm-const.h>
 #include <asm/feature-fixups.h>
@@ -888,7 +889,7 @@
 #define   MMCRA_SLOT	0x07000000UL /* SLOT bits (37-39) */
 #define   MMCRA_SLOT_SHIFT	24
 #define   MMCRA_SAMPLE_ENABLE 0x00000001UL /* enable sampling */
-#define   MMCRA_BHRB_DISABLE  0x2000000000UL // BHRB disable bit for ISA v3.1
+#define   MMCRA_BHRB_DISABLE  _UL(0x2000000000) // BHRB disable bit for ISA v3.1
 #define   POWER6_MMCRA_SDSYNC 0x0000080000000000ULL	/* SDAR/SIAR synced */
 #define   POWER6_MMCRA_SIHV   0x0000040000000000ULL
 #define   POWER6_MMCRA_SIPR   0x0000020000000000ULL
