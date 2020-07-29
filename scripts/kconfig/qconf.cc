@@ -1734,7 +1734,6 @@ void ConfigMainWindow::listFocusChanged(void)
 
 void ConfigMainWindow::goBack(void)
 {
-qInfo() << __FUNCTION__;
 	if (configList->rootEntry == &rootmenu)
 		return;
 
