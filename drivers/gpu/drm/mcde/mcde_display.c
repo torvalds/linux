@@ -968,7 +968,7 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 	dev_info(drm->dev, "MCDE display is disabled\n");
 }
 
-static void mcde_display_send_one_frame(struct mcde *mcde)
+static void mcde_start_flow(struct mcde *mcde)
 {
 	/* Request a TE ACK */
 	if (mcde->te_sync)
@@ -1066,7 +1066,7 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 			 * is not active yet.
 			 */
 			if (mcde->flow_active == 0)
-				mcde_display_send_one_frame(mcde);
+				mcde_start_flow(mcde);
 		}
 		dev_info_once(mcde->dev, "sent first display update\n");
 	} else {
