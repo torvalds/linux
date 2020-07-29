@@ -194,6 +194,8 @@ struct intel_pinctrl_soc_data {
 	size_t ncommunities;
 };
 
+const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev);
+
 struct intel_pad_context;
 struct intel_community_context;
 
