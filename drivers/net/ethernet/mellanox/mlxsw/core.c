@@ -1384,7 +1384,7 @@ static int mlxsw_core_reg_access_emad(struct mlxsw_core *mlxsw_core,
 	err = mlxsw_emad_reg_access(mlxsw_core, reg, payload, type, trans,
 				    bulk_list, cb, cb_priv, tid);
 	if (err) {
-		kfree(trans);
+		kfree_rcu(trans, rcu);
 		return err;
 	}
 	return 0;
