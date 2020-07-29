@@ -16,7 +16,6 @@
 #include "tx_common.h"
 #include "ef100_netdev.h"
 #include "ef100_ethtool.h"
-#include "efx_common.h"
 #include "nic_common.h"
 #include "ef100_nic.h"
 #include "ef100_tx.h"
