@@ -23,7 +23,6 @@
 #include "lkc.h"
 #include "qconf.h"
 
-#include "qconf.moc"
 #include "images.h"
 
 
