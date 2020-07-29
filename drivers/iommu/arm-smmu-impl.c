@@ -147,16 +147,57 @@ static const struct arm_smmu_impl arm_mmu500_impl = {
 	.reset = arm_mmu500_reset,
 };
 
+static u64 mrvl_mmu500_readq(struct arm_smmu_device *smmu, int page, int off)
+{
+	/*
+	 * Marvell Armada-AP806 erratum #582743.
+	 * Split all the readq to double readl
+	 */
+	return hi_lo_readq_relaxed(arm_smmu_page(smmu, page) + off);
+}
+
+static void mrvl_mmu500_writeq(struct arm_smmu_device *smmu, int page, int off,
+			       u64 val)
+{
+	/*
+	 * Marvell Armada-AP806 erratum #582743.
+	 * Split all the writeq to double writel
+	 */
+	hi_lo_writeq_relaxed(val, arm_smmu_page(smmu, page) + off);
+}
+
+static int mrvl_mmu500_cfg_probe(struct arm_smmu_device *smmu)
+{
+
+	/*
+	 * Armada-AP806 erratum #582743.
+	 * Hide the SMMU_IDR2.PTFSv8 fields to sidestep the AArch64
+	 * formats altogether and allow using 32 bits access on the
+	 * interconnect.
+	 */
+	smmu->features &= ~(ARM_SMMU_FEAT_FMT_AARCH64_4K |
+			    ARM_SMMU_FEAT_FMT_AARCH64_16K |
+			    ARM_SMMU_FEAT_FMT_AARCH64_64K);
+
+	return 0;
+}
+
+static const struct arm_smmu_impl mrvl_mmu500_impl = {
+	.read_reg64 = mrvl_mmu500_readq,
+	.write_reg64 = mrvl_mmu500_writeq,
+	.cfg_probe = mrvl_mmu500_cfg_probe,
+	.reset = arm_mmu500_reset,
+};
+
 
 struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 {
 	const struct device_node *np = smmu->dev->of_node;
 
 	/*
-	 * We will inevitably have to combine model-specific implementation
-	 * quirks with platform-specific integration quirks, but everything
-	 * we currently support happens to work out as straightforward
-	 * mutually-exclusive assignments.
+	 * Set the impl for model-specific implementation quirks first,
+	 * such that platform integration quirks can pick it up and
+	 * inherit from it if necessary.
 	 */
 	switch (smmu->model) {
 	case ARM_MMU500:
@@ -168,12 +209,21 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 		break;
 	}
 
+	/* This is implicitly MMU-400 */
 	if (of_property_read_bool(np, "calxeda,smmu-secure-config-access"))
 		smmu->impl = &calxeda_impl;
 
+	if (of_device_is_compatible(np, "nvidia,tegra194-smmu"))
+		return nvidia_smmu_impl_init(smmu);
+
 	if (of_device_is_compatible(np, "qcom,sdm845-smmu-500") ||
-	    of_device_is_compatible(np, "qcom,sc7180-smmu-500"))
+	    of_device_is_compatible(np, "qcom,sc7180-smmu-500") ||
+	    of_device_is_compatible(np, "qcom,sm8150-smmu-500") ||
+	    of_device_is_compatible(np, "qcom,sm8250-smmu-500"))
 		return qcom_smmu_impl_init(smmu);
+
+	if (of_device_is_compatible(np, "marvell,ap806-smmu-500"))
+		smmu->impl = &mrvl_mmu500_impl;
 
 	return smmu;
 }
