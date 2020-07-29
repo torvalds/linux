@@ -1353,9 +1353,8 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 				 CSI_DMA_END_INTSTAT(channel->id) |
 				 CSI_LINE_INTSTAT(channel->id)));
 
-	/* enable mipi id0 frame start int for sof(long frame) */
-	if (dev->hdr.mode != NO_HDR &&
-	    channel->id == RKCIF_STREAM_MIPI_ID0)
+	/* enable id0 frame start int for sof(long frame, for hdr) */
+	if (channel->id == RKCIF_STREAM_MIPI_ID0)
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_START_INTEN(channel->id));
 
