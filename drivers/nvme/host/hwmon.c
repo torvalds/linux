@@ -241,7 +241,8 @@ void nvme_hwmon_init(struct nvme_ctrl *ctrl)
 
 	err = nvme_hwmon_get_smart_log(data);
 	if (err) {
-		dev_warn(dev, "Failed to read smart log (error %d)\n", err);
+		dev_warn(ctrl->device,
+			"Failed to read smart log (error %d)\n", err);
 		devm_kfree(dev, data);
 		return;
 	}
