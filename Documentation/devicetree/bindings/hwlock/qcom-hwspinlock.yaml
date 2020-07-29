@@ -25,37 +25,14 @@ properties:
   '#hwlock-cells':
     const: 1
 
-  syscon:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-    description:
-      Should be a triple of phandle referencing the TCSR mutex syscon, offset
-      of first mutex within the syscon and stride between each mutex.
-
 required:
   - compatible
+  - reg
   - '#hwlock-cells'
-
-oneOf:
-  - required:
-    - reg
-  - required:
-    - syscon
 
 additionalProperties: false
 
 examples:
-  - |
-        tcsr_mutex_block: syscon@fd484000 {
-                compatible = "syscon";
-                reg = <0xfd484000 0x2000>;
-        };
-
-        hwlock {
-                compatible = "qcom,tcsr-mutex";
-                syscon = <&tcsr_mutex_block 0 0x80>;
-
-                #hwlock-cells = <1>;
-        };
   - |
         tcsr_mutex: hwlock@1f40000 {
                 compatible = "qcom,tcsr-mutex";
