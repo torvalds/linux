@@ -146,10 +146,8 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	rereg_priv->old_pnetdev = cur_pnetdev;
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (!pnetdev)  {
-		ret = -1;
+	if (!pnetdev)
 		goto error;
-	}
 
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(adapter_to_dvobj(padapter)));
 
@@ -170,9 +168,7 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	return 0;
 
 error:
-
 	return -1;
-
 }
 
 void rtw_buf_free(u8 **buf, u32 *buf_len)
