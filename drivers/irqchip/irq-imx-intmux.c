@@ -313,12 +313,12 @@ static int imx_intmux_remove(struct platform_device *pdev)
 static int imx_intmux_runtime_suspend(struct device *dev)
 {
 	struct intmux_data *data = dev_get_drvdata(dev);
-	struct intmux_irqchip_data irqchip_data;
+	struct intmux_irqchip_data *irqchip_data;
 	int i;
 
 	for (i = 0; i < data->channum; i++) {
-		irqchip_data = data->irqchip_data[i];
-		irqchip_data.saved_reg = readl_relaxed(data->regs + CHANIER(i));
+		irqchip_data = &data->irqchip_data[i];
+		irqchip_data->saved_reg = readl_relaxed(data->regs + CHANIER(i));
 	}
 
 	clk_disable_unprepare(data->ipg_clk);
@@ -329,7 +329,7 @@ static int imx_intmux_runtime_suspend(struct device *dev)
 static int imx_intmux_runtime_resume(struct device *dev)
 {
 	struct intmux_data *data = dev_get_drvdata(dev);
-	struct intmux_irqchip_data irqchip_data;
+	struct intmux_irqchip_data *irqchip_data;
 	int ret, i;
 
 	ret = clk_prepare_enable(data->ipg_clk);
@@ -339,8 +339,8 @@ static int imx_intmux_runtime_resume(struct device *dev)
 	}
 
 	for (i = 0; i < data->channum; i++) {
-		irqchip_data = data->irqchip_data[i];
-		writel_relaxed(irqchip_data.saved_reg, data->regs + CHANIER(i));
+		irqchip_data = &data->irqchip_data[i];
+		writel_relaxed(irqchip_data->saved_reg, data->regs + CHANIER(i));
 	}
 
 	return 0;
