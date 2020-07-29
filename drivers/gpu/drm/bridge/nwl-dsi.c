@@ -917,11 +917,6 @@ static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct drm_panel *panel;
 	int ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
-		return -EINVAL;
-	}
-
 	ret = drm_of_find_panel_or_bridge(dsi->dev->of_node, 1, 0, &panel,
 					  &panel_bridge);
 	if (ret)
