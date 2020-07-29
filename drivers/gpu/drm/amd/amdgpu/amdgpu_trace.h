@@ -321,6 +321,49 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_cs,
 	    TP_ARGS(mapping)
 );
 
+TRACE_EVENT(amdgpu_vm_update_ptes,
+	    TP_PROTO(struct amdgpu_vm_update_params *p,
+		     uint64_t start, uint64_t end,
+		     unsigned int nptes, uint64_t dst,
+		     uint64_t incr, uint64_t flags,
+		     pid_t pid, uint64_t vm_ctx),
+	TP_ARGS(p, start, end, nptes, dst, incr, flags, pid, vm_ctx),
+	TP_STRUCT__entry(
+			 __field(u64, start)
+			 __field(u64, end)
+			 __field(u64, flags)
+			 __field(unsigned int, nptes)
+			 __field(u64, incr)
+			 __field(pid_t, pid)
+			 __field(u64, vm_ctx)
+			 __dynamic_array(u64, dst, nptes)
+	),
+
+	TP_fast_assign(
+			unsigned int i;
+
+			__entry->start = start;
+			__entry->end = end;
+			__entry->flags = flags;
+			__entry->incr = incr;
+			__entry->nptes = nptes;
+			__entry->pid = pid;
+			__entry->vm_ctx = vm_ctx;
+			for (i = 0; i < nptes; ++i) {
+				u64 addr = p->pages_addr ? amdgpu_vm_map_gart(
+					p->pages_addr, dst) : dst;
+
+				((u64 *)__get_dynamic_array(dst))[i] = addr;
+				dst += incr;
+			}
+	),
+	TP_printk("pid:%u vm_ctx:0x%llx start:0x%010llx end:0x%010llx,"
+		  " flags:0x%llx, incr:%llu, dst:\n%s", __entry->pid,
+		  __entry->vm_ctx, __entry->start, __entry->end,
+		  __entry->flags, __entry->incr,  __print_array(
+		  __get_dynamic_array(dst), __entry->nptes, 8))
+);
+
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint64_t flags, bool direct),
