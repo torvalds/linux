@@ -19,6 +19,7 @@
 #include "regs.h"
 #include "version.h"
 #include "cif-luma.h"
+#include "mipi-csi2.h"
 
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"

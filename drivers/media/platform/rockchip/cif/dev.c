@@ -1389,7 +1389,7 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __init rkcif_clr_unready_dev(void)
+static int __maybe_unused __rkcif_clr_unready_dev(void)
 {
 	struct rkcif_device *cif_dev;
 
@@ -1400,7 +1400,28 @@ static int __init rkcif_clr_unready_dev(void)
 
 	return 0;
 }
+
+static int rkcif_clr_unready_dev_param_set(const char *val, const struct kernel_param *kp)
+{
+#ifdef MODULE
+	__rkcif_clr_unready_dev();
+#endif
+
+	return 0;
+}
+
+module_param_call(clr_unready_dev, rkcif_clr_unready_dev_param_set, NULL, NULL, 0200);
+MODULE_PARM_DESC(clr_unready_dev, "clear unready devices");
+
+#ifndef MODULE
+static int __init rkcif_clr_unready_dev(void)
+{
+	__rkcif_clr_unready_dev();
+
+	return 0;
+}
 late_initcall_sync(rkcif_clr_unready_dev);
+#endif
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
@@ -1418,7 +1439,22 @@ static struct platform_driver rkcif_plat_drv = {
 	.remove = rkcif_plat_remove,
 };
 
+#ifdef MODULE
+static int __init rk_cif_plat_drv_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&rkcif_plat_drv);
+	if (ret)
+		return ret;
+	return rkcif_csi2_plat_drv_init();
+}
+
+module_init(rk_cif_plat_drv_init);
+#else
 module_platform_driver(rkcif_plat_drv);
+#endif
+
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip CIF platform driver");
 MODULE_LICENSE("GPL v2");
