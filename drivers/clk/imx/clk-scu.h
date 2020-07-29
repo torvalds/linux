@@ -47,4 +47,5 @@ static inline struct clk_hw *imx_clk_scu2(const char *name, const char * const *
 struct clk_hw *imx_clk_lpcg_scu(const char *name, const char *parent_name,
 				unsigned long flags, void __iomem *reg,
 				u8 bit_idx, bool hw_gate);
+void imx_clk_lpcg_scu_unregister(struct clk_hw *hw);
 #endif
