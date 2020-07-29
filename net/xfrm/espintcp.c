@@ -15,6 +15,7 @@ static void handle_nonesp(struct espintcp_ctx *ctx, struct sk_buff *skb,
 {
 	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf ||
 	    !sk_rmem_schedule(sk, skb, skb->truesize)) {
+		XFRM_INC_STATS(sock_net(sk), LINUX_MIB_XFRMINERROR);
 		kfree_skb(skb);
 		return;
 	}
@@ -59,6 +60,7 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 
 		err = skb_copy_bits(skb, rxm->offset + 2, &data, 1);
 		if (err < 0) {
+			XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINHDRERROR);
 			kfree_skb(skb);
 			return;
 		}
@@ -71,6 +73,7 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 
 	/* drop other short messages */
 	if (unlikely(len <= sizeof(nonesp_marker))) {
+		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINHDRERROR);
 		kfree_skb(skb);
 		return;
 	}
@@ -78,17 +81,20 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 	err = skb_copy_bits(skb, rxm->offset + 2, &nonesp_marker,
 			    sizeof(nonesp_marker));
 	if (err < 0) {
+		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINHDRERROR);
 		kfree_skb(skb);
 		return;
 	}
 
 	/* remove header, leave non-ESP marker/SPI */
 	if (!__pskb_pull(skb, rxm->offset + 2)) {
+		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINERROR);
 		kfree_skb(skb);
 		return;
 	}
 
 	if (pskb_trim(skb, rxm->full_len - 2) != 0) {
+		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINERROR);
 		kfree_skb(skb);
 		return;
 	}
