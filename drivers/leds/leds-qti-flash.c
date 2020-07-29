@@ -66,9 +66,8 @@
 #define  FLASH_LED_ENABLE(id)			BIT(id)
 #define  FLASH_LED_DISABLE			0
 
-#define FLASH_LED_MITIGATION_SEL		0x63
-#define  FLASH_LED_PREEMPTIVE_LMH_MASK		GENMASK(1, 0)
-#define  FLASH_LED_LMH_MITIGATION_SW		0x2
+#define FLASH_LED_MITIGATION_SW			0x65
+#define  FLASH_LED_LMH_MITIGATION_SW_EN		BIT(0)
 
 #define FLASH_LED_THERMAL_OTST2_CFG1		0x78
 #define FLASH_LED_THERMAL_OTST1_CFG1		0x7A
@@ -317,6 +316,23 @@ static int qti_flash_led_module_control(struct qti_flash_led *led,
 	return rc;
 }
 
+static int qti_flash_lmh_mitigation_config(struct qti_flash_led *led,
+						bool enable)
+{
+	u8 val = enable ? FLASH_LED_LMH_MITIGATION_SW_EN : 0;
+	int rc;
+
+	rc = qti_flash_led_write(led, FLASH_LED_MITIGATION_SW, &val, 1);
+	if (rc < 0)
+		pr_err("Failed to %s LMH mitigation, rc=%d\n",
+			enable ? "enable" : "disable", rc);
+	else
+		pr_debug("%s LMH mitigation\n",
+			enable ? "enabled" : "disabled");
+
+	return rc;
+}
+
 static int qti_flash_led_strobe(struct qti_flash_led *led,
 				struct flash_switch_data *snode,
 				u8 mask, u8 value)
@@ -343,6 +359,15 @@ static int qti_flash_led_strobe(struct qti_flash_led *led,
 					HRTIMER_MODE_REL);
 		}
 
+		if (led->trigger_lmh) {
+			rc = qti_flash_lmh_mitigation_config(led, true);
+			if (rc < 0)
+				return rc;
+
+			/* Wait for LMH mitigation to take effect */
+			udelay(500);
+		}
+
 		rc = qti_flash_led_masked_write(led, FLASH_EN_LED_CTRL,
 				mask, value);
 		if (rc < 0)
@@ -357,6 +382,14 @@ static int qti_flash_led_strobe(struct qti_flash_led *led,
 				mask, value);
 		if (rc < 0)
 			goto error;
+
+		if (led->trigger_lmh) {
+			rc = qti_flash_lmh_mitigation_config(led, false);
+			if (rc < 0)
+				return rc;
+
+			led->trigger_lmh = false;
+		}
 
 		rc = qti_flash_led_module_control(led, enable);
 		if (rc < 0)
@@ -870,13 +903,9 @@ static int qti_flash_led_calc_max_avail_current(
 	vflash_vdip = VDIP_THRESH_DEFAULT_UV;
 
 	if (!led->trigger_lmh) {
-		rc = qti_flash_led_masked_write(led, FLASH_LED_MITIGATION_SEL,
-			FLASH_LED_PREEMPTIVE_LMH_MASK,
-			FLASH_LED_LMH_MITIGATION_SW);
-		if (rc < 0) {
-			pr_err("Failed to enable LMH mitigation, rc=%d\n", rc);
+		rc = qti_flash_lmh_mitigation_config(led, true);
+		if (rc < 0)
 			return rc;
-		}
 
 		/* Wait for lmh mitigation to take effect */
 		udelay(100);
