@@ -28,13 +28,19 @@ struct i915_page_table *alloc_pt(struct i915_address_space *vm)
 	return pt;
 }
 
-struct i915_page_directory *__alloc_pd(size_t sz)
+struct i915_page_directory *__alloc_pd(int count)
 {
 	struct i915_page_directory *pd;
 
-	pd = kzalloc(sz, I915_GFP_ALLOW_FAIL);
+	pd = kzalloc(sizeof(*pd), I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pd))
 		return NULL;
+
+	pd->entry = kcalloc(count, sizeof(*pd->entry), I915_GFP_ALLOW_FAIL);
+	if (unlikely(!pd->entry)) {
+		kfree(pd);
+		return NULL;
+	}
 
 	spin_lock_init(&pd->lock);
 	return pd;
@@ -44,12 +50,13 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 {
 	struct i915_page_directory *pd;
 
-	pd = __alloc_pd(sizeof(*pd));
+	pd = __alloc_pd(I915_PDES);
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
 	pd->pt.base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
 	if (IS_ERR(pd->pt.base)) {
+		kfree(pd->entry);
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -57,9 +64,19 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	return pd;
 }
 
-void free_pt(struct i915_address_space *vm, struct i915_page_table *pt)
+void free_px(struct i915_address_space *vm, struct i915_page_table *pt, int lvl)
 {
-	i915_gem_object_put(pt->base);
+	BUILD_BUG_ON(offsetof(struct i915_page_directory, pt));
+
+	if (lvl) {
+		struct i915_page_directory *pd =
+			container_of(pt, typeof(*pd), pt);
+		kfree(pd->entry);
+	}
+
+	if (pt->base)
+		i915_gem_object_put(pt->base);
+
 	kfree(pt);
 }
 
@@ -82,7 +99,7 @@ __set_pd_entry(struct i915_page_directory * const pd,
 	       u64 (*encode)(const dma_addr_t, const enum i915_cache_level))
 {
 	/* Each thread pre-pins the pd, and we may have a thread per pde. */
-	GEM_BUG_ON(atomic_read(px_used(pd)) > NALLOC * ARRAY_SIZE(pd->entry));
+	GEM_BUG_ON(atomic_read(px_used(pd)) > NALLOC * I915_PDES);
 
 	atomic_inc(px_used(pd));
 	pd->entry[idx] = to;
@@ -263,7 +280,7 @@ void i915_vm_free_pt_stash(struct i915_address_space *vm,
 	for (n = 0; n < ARRAY_SIZE(stash->pt); n++) {
 		while ((pt = stash->pt[n])) {
 			stash->pt[n] = pt->stash;
-			free_px(vm, pt);
+			free_px(vm, pt, n);
 		}
 	}
 }

@@ -181,7 +181,7 @@ static void __gen8_ppgtt_cleanup(struct i915_address_space *vm,
 		} while (pde++, --count);
 	}
 
-	free_px(vm, pd);
+	free_px(vm, &pd->pt, lvl);
 }
 
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
@@ -248,7 +248,7 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 		}
 
 		if (release_pd_entry(pd, idx, pt, scratch))
-			free_px(vm, pt);
+			free_px(vm, pt, lvl);
 	} while (idx++, --len);
 
 	return start;
@@ -628,7 +628,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 		err = pin_pt_dma(vm, pde->pt.base);
 		if (err) {
 			i915_gem_object_put(pde->pt.base);
-			kfree(pde);
+			free_pd(vm, pde);
 			return err;
 		}
 
@@ -648,28 +648,30 @@ gen8_alloc_top_pd(struct i915_address_space *vm)
 	struct i915_page_directory *pd;
 	int err;
 
-	GEM_BUG_ON(count > ARRAY_SIZE(pd->entry));
+	GEM_BUG_ON(count > I915_PDES);
 
-	pd = __alloc_pd(offsetof(typeof(*pd), entry[count]));
+	pd = __alloc_pd(count);
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
 	pd->pt.base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
 	if (IS_ERR(pd->pt.base)) {
-		kfree(pd);
-		return ERR_PTR(-ENOMEM);
+		err = PTR_ERR(pd->pt.base);
+		pd->pt.base = NULL;
+		goto err_pd;
 	}
 
 	err = pin_pt_dma(vm, pd->pt.base);
-	if (err) {
-		i915_gem_object_put(pd->pt.base);
-		kfree(pd);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto err_pd;
 
 	fill_page_dma(px_base(pd), vm->scratch[vm->top]->encode, count);
 	atomic_inc(px_used(pd)); /* mark as pinned */
 	return pd;
+
+err_pd:
+	free_pd(vm, pd);
+	return ERR_PTR(err);
 }
 
 /*

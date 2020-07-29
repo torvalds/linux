@@ -156,7 +156,7 @@ struct i915_page_table {
 struct i915_page_directory {
 	struct i915_page_table pt;
 	spinlock_t lock;
-	void *entry[512];
+	void **entry;
 };
 
 #define __px_choose_expr(x, type, expr, other) \
@@ -519,12 +519,14 @@ void free_scratch(struct i915_address_space *vm);
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz);
 struct i915_page_table *alloc_pt(struct i915_address_space *vm);
 struct i915_page_directory *alloc_pd(struct i915_address_space *vm);
-struct i915_page_directory *__alloc_pd(size_t sz);
+struct i915_page_directory *__alloc_pd(int npde);
 
 int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj);
 
-void free_pt(struct i915_address_space *vm, struct i915_page_table *pt);
-#define free_px(vm, px) free_pt(vm, px_pt(px))
+void free_px(struct i915_address_space *vm,
+	     struct i915_page_table *pt, int lvl);
+#define free_pt(vm, px) free_px(vm, px, 0)
+#define free_pd(vm, px) free_px(vm, px_pt(px), 1)
 
 void
 __set_pd_entry(struct i915_page_directory * const pd,

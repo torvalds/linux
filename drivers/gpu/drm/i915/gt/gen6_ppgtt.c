@@ -261,7 +261,7 @@ static void gen6_ppgtt_free_pd(struct gen6_ppgtt *ppgtt)
 
 	gen6_for_all_pdes(pt, pd, pde)
 		if (pt)
-			free_px(&ppgtt->base.vm, pt);
+			free_pt(&ppgtt->base.vm, pt);
 }
 
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
@@ -275,7 +275,8 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 	mutex_destroy(&ppgtt->flush);
 	mutex_destroy(&ppgtt->pin_mutex);
-	kfree(ppgtt->base.pd);
+
+	free_pd(&ppgtt->base.vm, ppgtt->base.pd);
 }
 
 static int pd_vma_set_pages(struct i915_vma *vma)
@@ -322,7 +323,7 @@ static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 		if (!pt || atomic_read(&pt->used))
 			continue;
 
-		free_px(&ppgtt->base.vm, pt);
+		free_pt(&ppgtt->base.vm, pt);
 		pd->entry[pde] = NULL;
 	}
 
@@ -447,7 +448,7 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 	ppgtt->base.vm.alloc_pt_dma = alloc_pt_dma;
 	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
 
-	ppgtt->base.pd = __alloc_pd(sizeof(*ppgtt->base.pd));
+	ppgtt->base.pd = __alloc_pd(I915_PDES);
 	if (!ppgtt->base.pd) {
 		err = -ENOMEM;
 		goto err_free;
@@ -468,7 +469,7 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 err_scratch:
 	free_scratch(&ppgtt->base.vm);
 err_pd:
-	kfree(ppgtt->base.pd);
+	free_pd(&ppgtt->base.vm, ppgtt->base.pd);
 err_free:
 	mutex_destroy(&ppgtt->pin_mutex);
 	kfree(ppgtt);
