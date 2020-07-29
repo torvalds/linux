@@ -1238,7 +1238,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 
 	if (count < 1) {
 		qInfo() << "Clicked link is empty";
-		delete data;
+		delete[] data;
 		return;
 	}
 
@@ -1251,7 +1251,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 	result = sym_re_search(data);
 	if (!result) {
 		qInfo() << "Clicked symbol is invalid:" << data;
-		delete data;
+		delete[] data;
 		return;
 	}
 
