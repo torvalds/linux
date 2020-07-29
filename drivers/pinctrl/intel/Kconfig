@@ -18,11 +18,7 @@ config PINCTRL_BAYTRAIL
 config PINCTRL_CHERRYVIEW
 	tristate "Intel Cherryview/Braswell pinctrl and GPIO driver"
 	depends on ACPI
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
+	select PINCTRL_INTEL
 	help
 	  Cherryview/Braswell pinctrl driver provides an interface that
 	  allows configuring of SoC pins and using them as GPIOs.
