@@ -117,8 +117,9 @@ static const char * const os04a10_supply_names[] = {
 
 #define OS04A10_NUM_SUPPLIES ARRAY_SIZE(os04a10_supply_names)
 
-#define MIRROR_BIT_MASK      BIT(1)
-#define FLIP_BIT_MASK        BIT(2)
+#define OS04A10_FLIP_REG		0x3820
+#define MIRROR_BIT_MASK			BIT(1)
+#define FLIP_BIT_MASK			BIT(2)
 
 enum os04a10_max_pad {
 	PAD0,
@@ -1067,10 +1068,10 @@ static int os04a10_set_fmt(struct v4l2_subdev *sd,
 				}
 			}
 		}
-		v4l2_ctrl_s_ctrl_int64(os04a10->pixel_rate,
-				       dst_pixel_rate);
-		v4l2_ctrl_s_ctrl(os04a10->link_freq,
-				 dst_link_freq);
+		__v4l2_ctrl_s_ctrl_int64(os04a10->pixel_rate,
+					 dst_pixel_rate);
+		__v4l2_ctrl_s_ctrl(os04a10->link_freq,
+				   dst_link_freq);
 	}
 
 	mutex_unlock(&os04a10->mutex);
@@ -1605,38 +1606,6 @@ static int os04a10_init_conversion_gain(struct os04a10 *os04a10)
 	return ret;
 }
 
-static int os04a10_set_flip(struct os04a10 *os04a10, u8 mode)
-{
-	u32 match_reg = 0;
-	struct i2c_client *client = os04a10->client;
-	int ret = 0;
-
-	ret = os04a10_read_reg(client,
-		0x3820,
-		OS04A10_REG_VALUE_08BIT,
-		&match_reg);
-
-	if (mode == FLIP_BIT_MASK) {
-		match_reg |= FLIP_BIT_MASK;
-		match_reg &= ~MIRROR_BIT_MASK;
-	} else if (mode == MIRROR_BIT_MASK) {
-		match_reg |= MIRROR_BIT_MASK;
-		match_reg &= ~FLIP_BIT_MASK;
-	} else if (mode == (MIRROR_BIT_MASK |
-		FLIP_BIT_MASK)) {
-		match_reg |= FLIP_BIT_MASK;
-		match_reg |= MIRROR_BIT_MASK;
-	} else {
-		match_reg &= ~FLIP_BIT_MASK;
-		match_reg &= ~MIRROR_BIT_MASK;
-	}
-	ret |= os04a10_write_reg(client,
-		0x3820,
-		OS04A10_REG_VALUE_08BIT,
-		match_reg);
-	return ret;
-}
-
 static int __os04a10_start_stream(struct os04a10 *os04a10)
 {
 	int ret;
@@ -1659,6 +1628,9 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 		return ret;
 
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&os04a10->ctrl_handler);
+	if (ret)
+		return ret;
 	if (os04a10->has_init_exp && os04a10->cur_mode->hdr_mode != NO_HDR) {
 		ret = os04a10_ioctl(&os04a10->subdev, PREISP_CMD_SET_HDRAE_EXP, &os04a10->init_hdrae_exp);
 		if (ret) {
@@ -1666,16 +1638,7 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
-	} else {
-		mutex_unlock(&os04a10->mutex);
-		ret = v4l2_ctrl_handler_setup(&os04a10->ctrl_handler);
-		mutex_lock(&os04a10->mutex);
-		if (ret)
-			return ret;
 	}
-	ret = os04a10_set_flip(os04a10, os04a10->flip);
-	if (ret)
-		return ret;
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
 }
@@ -1978,6 +1941,7 @@ static int os04a10_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 again, dgain;
+	u32 val = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -2033,16 +1997,32 @@ static int os04a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = os04a10_enable_test_pattern(os04a10, ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
+		ret = os04a10_read_reg(os04a10->client, OS04A10_FLIP_REG,
+				       OS04A10_REG_VALUE_08BIT,
+				       &val);
 		if (ctrl->val)
-			os04a10->flip |= MIRROR_BIT_MASK;
+			val |= MIRROR_BIT_MASK;
 		else
-			os04a10->flip &= ~MIRROR_BIT_MASK;
+			val &= ~MIRROR_BIT_MASK;
+		ret = os04a10_write_reg(os04a10->client, OS04A10_FLIP_REG,
+					OS04A10_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			os04a10->flip = val;
 		break;
 	case V4L2_CID_VFLIP:
+		ret = os04a10_read_reg(os04a10->client, OS04A10_FLIP_REG,
+				       OS04A10_REG_VALUE_08BIT,
+				       &val);
 		if (ctrl->val)
-			os04a10->flip |= FLIP_BIT_MASK;
+			val |= FLIP_BIT_MASK;
 		else
-			os04a10->flip &= ~FLIP_BIT_MASK;
+			val &= ~FLIP_BIT_MASK;
+		ret = os04a10_write_reg(os04a10->client, OS04A10_FLIP_REG,
+					OS04A10_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			os04a10->flip = val;
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -2093,8 +2073,8 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 			0, PIXEL_RATE_WITH_648M,
 			1, dst_pixel_rate);
 
-	v4l2_ctrl_s_ctrl(os04a10->link_freq,
-			 dst_link_freq);
+	__v4l2_ctrl_s_ctrl(os04a10->link_freq,
+			   dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	os04a10->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
