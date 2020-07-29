@@ -18,17 +18,47 @@
 #define  MP886X_V_BOOT		(1 << 7)
 #define MP886X_SYSCNTLREG1	0x01
 #define  MP886X_MODE		(1 << 0)
+#define  MP886X_SLEW_SHIFT	3
+#define  MP886X_SLEW_MASK	(0x7 << MP886X_SLEW_SHIFT)
 #define  MP886X_GO		(1 << 6)
 #define  MP886X_EN		(1 << 7)
+
+struct mp886x_cfg_info {
+	const struct regulator_ops *rops;
+	const int slew_rates[8];
+};
 
 struct mp886x_device_info {
 	struct device *dev;
 	struct regulator_desc desc;
 	struct regulator_init_data *regulator;
 	struct gpio_desc *en_gpio;
+	const struct mp886x_cfg_info *ci;
 	u32 r[2];
 	unsigned int sel;
 };
+
+static int mp886x_set_ramp(struct regulator_dev *rdev, int ramp)
+{
+	struct mp886x_device_info *di = rdev_get_drvdata(rdev);
+	const struct mp886x_cfg_info *ci = di->ci;
+	int reg = -1, i;
+
+	for (i = 0; i < ARRAY_SIZE(ci->slew_rates); i++) {
+		if (ramp <= ci->slew_rates[i])
+			reg = i;
+		else
+			break;
+	}
+
+	if (reg < 0) {
+		dev_err(di->dev, "unsupported ramp value %d\n", ramp);
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(rdev->regmap, MP886X_SYSCNTLREG1,
+				  MP886X_SLEW_MASK, reg << MP886X_SLEW_SHIFT);
+}
 
 static int mp886x_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
@@ -117,6 +147,21 @@ static const struct regulator_ops mp8869_regulator_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_mode = mp886x_set_mode,
 	.get_mode = mp886x_get_mode,
+	.set_ramp_delay = mp886x_set_ramp,
+};
+
+static const struct mp886x_cfg_info mp8869_ci = {
+	.rops = &mp8869_regulator_ops,
+	.slew_rates = {
+		40000,
+		30000,
+		20000,
+		10000,
+		5000,
+		2500,
+		1250,
+		625,
+	},
 };
 
 static int mp8867_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
@@ -173,6 +218,21 @@ static const struct regulator_ops mp8867_regulator_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_mode = mp886x_set_mode,
 	.get_mode = mp886x_get_mode,
+	.set_ramp_delay = mp886x_set_ramp,
+};
+
+static const struct mp886x_cfg_info mp8867_ci = {
+	.rops = &mp8867_regulator_ops,
+	.slew_rates = {
+		64000,
+		32000,
+		16000,
+		8000,
+		4000,
+		2000,
+		1000,
+		500,
+	},
 };
 
 static int mp886x_regulator_register(struct mp886x_device_info *di,
@@ -183,7 +243,7 @@ static int mp886x_regulator_register(struct mp886x_device_info *di,
 
 	rdesc->name = "mp886x-reg";
 	rdesc->supply_name = "vin";
-	rdesc->ops = of_device_get_match_data(di->dev);
+	rdesc->ops = di->ci->rops;
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->n_voltages = 128;
 	rdesc->enable_reg = MP886X_SYSCNTLREG1;
@@ -234,6 +294,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(di->en_gpio))
 		return PTR_ERR(di->en_gpio);
 
+	di->ci = of_device_get_match_data(dev);
 	di->dev = dev;
 
 	regmap = devm_regmap_init_i2c(client, &mp886x_regmap_config);
@@ -258,11 +319,11 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 static const struct of_device_id mp886x_dt_ids[] = {
 	{
 		.compatible = "mps,mp8867",
-		.data = &mp8867_regulator_ops
+		.data = &mp8867_ci
 	},
 	{
 		.compatible = "mps,mp8869",
-		.data = &mp8869_regulator_ops
+		.data = &mp8869_ci
 	},
 	{ }
 };
