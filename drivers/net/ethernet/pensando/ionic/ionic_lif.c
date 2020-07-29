@@ -2001,7 +2001,7 @@ int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg)
 		netif_device_detach(lif->netdev);
 		err = ionic_stop(lif->netdev);
 		if (err)
-			return err;
+			goto reset_out;
 	}
 
 	if (cb)
@@ -2011,6 +2011,8 @@ int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg)
 		err = ionic_open(lif->netdev);
 		netif_device_attach(lif->netdev);
 	}
+
+reset_out:
 	mutex_unlock(&lif->queue_lock);
 
 	return err;
