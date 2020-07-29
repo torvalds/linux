@@ -2105,10 +2105,21 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	hva = gfn_to_hva_memslot_prot(memslot, gfn, &writable);
 	write_fault = kvm_is_write_fault(vcpu);
 	if (kvm_is_error_hva(hva) || (write_fault && !writable)) {
+		/*
+		 * The guest has put either its instructions or its page-tables
+		 * somewhere it shouldn't have. Userspace won't be able to do
+		 * anything about this (there's no syndrome for a start), so
+		 * re-inject the abort back into the guest.
+		 */
 		if (is_iabt) {
-			/* Prefetch Abort on I/O address */
 			ret = -ENOEXEC;
 			goto out;
+		}
+
+		if (kvm_vcpu_dabt_iss1tw(vcpu)) {
+			kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
+			ret = 1;
+			goto out_unlock;
 		}
 
 		/*
