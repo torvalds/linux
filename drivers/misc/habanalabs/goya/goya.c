@@ -5225,7 +5225,7 @@ static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
 	return RREG32(mmHW_STATE);
 }
 
-int goya_ctx_init(struct hl_ctx *ctx)
+static int goya_ctx_init(struct hl_ctx *ctx)
 {
 	return 0;
 }
