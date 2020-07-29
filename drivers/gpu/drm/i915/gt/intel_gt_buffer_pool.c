@@ -38,8 +38,7 @@ static void node_free(struct intel_gt_buffer_pool_node *node)
 	kfree_rcu(node, rcu);
 }
 
-static bool
-pool_free_older_than(struct intel_gt_buffer_pool *pool, unsigned long old)
+static bool pool_free_older_than(struct intel_gt_buffer_pool *pool, long keep)
 {
 	struct intel_gt_buffer_pool_node *node, *stale = NULL;
 	bool active = false;
@@ -57,8 +56,12 @@ pool_free_older_than(struct intel_gt_buffer_pool *pool, unsigned long old)
 
 			/* Most recent at head; oldest at tail */
 			list_for_each_prev(pos, list) {
+				unsigned long age;
+
 				node = list_entry(pos, typeof(*node), link);
-				if (time_before(node->age, old))
+
+				age = READ_ONCE(node->age);
+				if (!age || jiffies - age < keep)
 					break;
 
 				/* Check we are the first to claim this node */
@@ -90,7 +93,7 @@ static void pool_free_work(struct work_struct *wrk)
 	struct intel_gt_buffer_pool *pool =
 		container_of(wrk, typeof(*pool), work.work);
 
-	if (pool_free_older_than(pool, jiffies - HZ))
+	if (pool_free_older_than(pool, HZ))
 		schedule_delayed_work(&pool->work,
 				      round_jiffies_up_relative(HZ));
 }
@@ -230,7 +233,7 @@ void intel_gt_flush_buffer_pool(struct intel_gt *gt)
 	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
 
 	do {
-		while (pool_free_older_than(pool, jiffies + 1))
+		while (pool_free_older_than(pool, 0))
 			;
 	} while (cancel_delayed_work_sync(&pool->work));
 }
