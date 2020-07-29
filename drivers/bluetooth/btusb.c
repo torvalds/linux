@@ -4086,10 +4086,6 @@ static int btusb_probe(struct usb_interface *intf,
 			set_bit(BTUSB_USE_ALT1_FOR_WBS, &data->flags);
 		else
 			bt_dev_err(hdev, "Device does not support ALT setting 1");
-
-		err = usb_autopm_get_interface(intf);
-		if (err < 0)
-			goto out_free_dev;
 	}
 
 	if (!reset)
