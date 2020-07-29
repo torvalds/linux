@@ -583,6 +583,9 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	if (ret)
 		goto out_put_ctrl;
 
+	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING);
+	WARN_ON_ONCE(!changed);
+
 	ret = -ENOMEM;
 
 	ctrl->ctrl.sqsize = opts->queue_size - 1;
