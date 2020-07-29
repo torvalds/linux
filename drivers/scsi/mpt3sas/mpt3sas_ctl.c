@@ -3386,12 +3386,10 @@ host_trace_buffer_enable_store(struct device *cdev,
 			    &&
 			    (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 			    MPT3_DIAG_BUFFER_IS_APP_OWNED)) {
-				pci_free_consistent(ioc->pdev,
-				    ioc->diag_buffer_sz[
-				    MPI2_DIAG_BUF_TYPE_TRACE],
-				    ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE],
-				    ioc->diag_buffer_dma[
-				    MPI2_DIAG_BUF_TYPE_TRACE]);
+				dma_free_coherent(&ioc->pdev->dev,
+						  ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE],
+						  ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE],
+						  ioc->diag_buffer_dma[MPI2_DIAG_BUF_TYPE_TRACE]);
 				ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE] =
 				    NULL;
 			}
