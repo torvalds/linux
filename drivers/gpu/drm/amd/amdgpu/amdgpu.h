@@ -652,16 +652,6 @@ struct amdgpu_atcs {
 };
 
 /*
- * Firmware VRAM reservation
- */
-struct amdgpu_fw_vram_usage {
-	u64 start_offset;
-	u64 size;
-	struct amdgpu_bo *reserved_bo;
-	void *va;
-};
-
-/*
  * CGS
  */
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev);
@@ -944,8 +934,6 @@ struct amdgpu_device {
 	struct delayed_work     delayed_init_work;
 
 	struct amdgpu_virt	virt;
-	/* firmware VRAM reservation */
-	struct amdgpu_fw_vram_usage fw_vram_usage;
 
 	/* link all shadow bo */
 	struct list_head                shadow_list;
