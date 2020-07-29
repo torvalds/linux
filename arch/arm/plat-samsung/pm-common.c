@@ -55,6 +55,8 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 
 /**
  * s3c_pm_do_restore_core() - early restore register values from save list.
+ * @ptr: Pointer to an array of registers.
+ * @count: Size of the ptr array.
  *
  * This is similar to s3c_pm_do_restore() except we try and minimise the
  * side effects of the function in case registers that hardware might need
