@@ -147,8 +147,10 @@ static void test_egress_only(int parent_cgroup_fd, int child_cgroup_fd)
 		goto close_bpf_object;
 
 close_bpf_object:
-	bpf_link__destroy(parent_link);
-	bpf_link__destroy(child_link);
+	if (!IS_ERR(parent_link))
+		bpf_link__destroy(parent_link);
+	if (!IS_ERR(child_link))
+		bpf_link__destroy(child_link);
 
 	cg_storage_multi_egress_only__destroy(obj);
 }
@@ -262,12 +264,18 @@ static void test_isolated(int parent_cgroup_fd, int child_cgroup_fd)
 		goto close_bpf_object;
 
 close_bpf_object:
-	bpf_link__destroy(parent_egress1_link);
-	bpf_link__destroy(parent_egress2_link);
-	bpf_link__destroy(parent_ingress_link);
-	bpf_link__destroy(child_egress1_link);
-	bpf_link__destroy(child_egress2_link);
-	bpf_link__destroy(child_ingress_link);
+	if (!IS_ERR(parent_egress1_link))
+		bpf_link__destroy(parent_egress1_link);
+	if (!IS_ERR(parent_egress2_link))
+		bpf_link__destroy(parent_egress2_link);
+	if (!IS_ERR(parent_ingress_link))
+		bpf_link__destroy(parent_ingress_link);
+	if (!IS_ERR(child_egress1_link))
+		bpf_link__destroy(child_egress1_link);
+	if (!IS_ERR(child_egress2_link))
+		bpf_link__destroy(child_egress2_link);
+	if (!IS_ERR(child_ingress_link))
+		bpf_link__destroy(child_ingress_link);
 
 	cg_storage_multi_isolated__destroy(obj);
 }
@@ -367,12 +375,18 @@ static void test_shared(int parent_cgroup_fd, int child_cgroup_fd)
 		goto close_bpf_object;
 
 close_bpf_object:
-	bpf_link__destroy(parent_egress1_link);
-	bpf_link__destroy(parent_egress2_link);
-	bpf_link__destroy(parent_ingress_link);
-	bpf_link__destroy(child_egress1_link);
-	bpf_link__destroy(child_egress2_link);
-	bpf_link__destroy(child_ingress_link);
+	if (!IS_ERR(parent_egress1_link))
+		bpf_link__destroy(parent_egress1_link);
+	if (!IS_ERR(parent_egress2_link))
+		bpf_link__destroy(parent_egress2_link);
+	if (!IS_ERR(parent_ingress_link))
+		bpf_link__destroy(parent_ingress_link);
+	if (!IS_ERR(child_egress1_link))
+		bpf_link__destroy(child_egress1_link);
+	if (!IS_ERR(child_egress2_link))
+		bpf_link__destroy(child_egress2_link);
+	if (!IS_ERR(child_ingress_link))
+		bpf_link__destroy(child_ingress_link);
 
 	cg_storage_multi_shared__destroy(obj);
 }
