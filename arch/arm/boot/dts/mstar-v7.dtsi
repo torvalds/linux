@@ -74,7 +74,7 @@
 			ranges = <0x0 0x1f000000 0x00400000>;
 
 			pmsleep: syscon@1c00 {
-				compatible = "mstar,pmsleep", "syscon";
+				compatible = "mstar,msc313-pmsleep", "syscon";
 				reg = <0x1c00 0x100>;
 			};
 
