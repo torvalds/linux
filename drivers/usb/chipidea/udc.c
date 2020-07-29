@@ -487,9 +487,10 @@ static void ci_add_buffer_entry(struct td_node *node, struct scatterlist *s)
 	int empty_td_slot_index = (CI_MAX_BUF_SIZE - node->td_remaining_size)
 			/ CI_HDRC_PAGE_SIZE;
 	int i;
+	u32 token;
 
-	node->ptr->token +=
-		cpu_to_le32(sg_dma_len(s) << __ffs(TD_TOTAL_BYTES));
+	token = le32_to_cpu(node->ptr->token) + (sg_dma_len(s) << __ffs(TD_TOTAL_BYTES));
+	node->ptr->token = cpu_to_le32(token);
 
 	for (i = empty_td_slot_index; i < TD_PAGE_COUNT; i++) {
 		u32 page = (u32) sg_dma_address(s) +
