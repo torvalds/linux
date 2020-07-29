@@ -7,6 +7,7 @@
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/export.h>
+#include <linux/pm_runtime.h>
 
 #include "clk-regmap.h"
 
@@ -271,6 +272,8 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 {
 	int ret;
 
+	rclk->dev = dev;
+
 	if (dev && dev_get_regmap(dev, NULL))
 		rclk->regmap = dev_get_regmap(dev, NULL);
 	else if (dev && dev->parent)
@@ -283,3 +286,24 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
+
+int clk_runtime_get_regmap(struct clk_regmap *rclk)
+{
+	int ret;
+
+	if (pm_runtime_enabled(rclk->dev)) {
+		ret = pm_runtime_get_sync(rclk->dev);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_runtime_get_regmap);
+
+void clk_runtime_put_regmap(struct clk_regmap *rclk)
+{
+	if (pm_runtime_enabled(rclk->dev))
+		pm_runtime_put_sync(rclk->dev);
+}
+EXPORT_SYMBOL(clk_runtime_put_regmap);

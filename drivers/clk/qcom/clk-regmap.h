@@ -47,6 +47,7 @@ struct clk_regmap {
 	struct clk_vdd_class_data vdd_data;
 	struct clk_regmap_ops *ops;
 	struct list_head list_node;
+	struct device *dev;
 };
 
 static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
@@ -65,5 +66,8 @@ int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 			unsigned long cur_rate);
 int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
 bool clk_is_regmap_clk(struct clk_hw *hw);
+
+int clk_runtime_get_regmap(struct clk_regmap *rclk);
+void clk_runtime_put_regmap(struct clk_regmap *rclk);
 
 #endif
