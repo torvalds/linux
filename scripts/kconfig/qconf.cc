@@ -307,10 +307,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
 
-	if (mode == symbolMode)
-		setHeaderLabels(QStringList() << "Item" << "Name" << "N" << "M" << "Y" << "Value");
-	else
-		setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
+	setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
 
 	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
@@ -390,11 +387,6 @@ void ConfigList::updateSelection(void)
 {
 	struct menu *menu;
 	enum prop_type type;
-
-	if (mode == symbolMode)
-		setHeaderLabels(QStringList() << "Item" << "Name" << "N" << "M" << "Y" << "Value");
-	else
-		setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
 
 	if (selectedItems().count() == 0)
 		return;
