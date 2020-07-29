@@ -1978,16 +1978,16 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * This is used for VGA emulation and pre-OS scanout buffers to
 	 * avoid display artifacts while transitioning between pre-OS
 	 * and driver.  */
-	r = amdgpu_bo_create_kernel_at(adev, 0, adev->gmc.stolen_vga_size,
+	r = amdgpu_bo_create_kernel_at(adev, 0, adev->mman.stolen_vga_size,
 				       AMDGPU_GEM_DOMAIN_VRAM,
-				       &adev->gmc.stolen_vga_memory,
+				       &adev->mman.stolen_vga_memory,
 				       NULL);
 	if (r)
 		return r;
-	r = amdgpu_bo_create_kernel_at(adev, adev->gmc.stolen_vga_size,
-				       adev->gmc.stolen_extended_size,
+	r = amdgpu_bo_create_kernel_at(adev, adev->mman.stolen_vga_size,
+				       adev->mman.stolen_extended_size,
 				       AMDGPU_GEM_DOMAIN_VRAM,
-				       &adev->gmc.stolen_extended_memory,
+				       &adev->mman.stolen_extended_memory,
 				       NULL);
 	if (r)
 		return r;
@@ -2048,9 +2048,9 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 void amdgpu_ttm_late_init(struct amdgpu_device *adev)
 {
 	/* return the VGA stolen memory (if any) back to VRAM */
-	if (!adev->gmc.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gmc.stolen_extended_memory, NULL, NULL);
+	if (!adev->mman.keep_stolen_vga_memory)
+		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
 }
 
 /**
@@ -2063,8 +2063,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 
 	amdgpu_ttm_training_reserve_vram_fini(adev);
 	/* return the stolen vga memory back to VRAM */
-	if (adev->gmc.keep_stolen_vga_memory)
-		amdgpu_bo_free_kernel(&adev->gmc.stolen_vga_memory, NULL, NULL);
+	if (adev->mman.keep_stolen_vga_memory)
+		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
 	amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);

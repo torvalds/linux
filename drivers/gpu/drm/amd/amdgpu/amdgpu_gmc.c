@@ -449,10 +449,10 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
-		adev->gmc.keep_stolen_vga_memory = true;
+		adev->mman.keep_stolen_vga_memory = true;
 		break;
 	default:
-		adev->gmc.keep_stolen_vga_memory = false;
+		adev->mman.keep_stolen_vga_memory = false;
 		break;
 	}
 
@@ -466,10 +466,10 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 		size = 0;
 
 	if (size > AMDGPU_VBIOS_VGA_ALLOCATION) {
-		adev->gmc.stolen_vga_size = AMDGPU_VBIOS_VGA_ALLOCATION;
-		adev->gmc.stolen_extended_size = size - adev->gmc.stolen_vga_size;
+		adev->mman.stolen_vga_size = AMDGPU_VBIOS_VGA_ALLOCATION;
+		adev->mman.stolen_extended_size = size - adev->mman.stolen_vga_size;
 	} else {
-		adev->gmc.stolen_vga_size = size;
-		adev->gmc.stolen_extended_size = 0;
+		adev->mman.stolen_vga_size = size;
+		adev->mman.stolen_extended_size = 0;
 	}
 }
