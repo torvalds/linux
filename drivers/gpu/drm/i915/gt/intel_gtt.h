@@ -159,7 +159,10 @@ struct i915_page_scratch {
 
 struct i915_page_table {
 	struct i915_page_dma base;
-	atomic_t used;
+	union {
+		atomic_t used;
+		struct i915_page_table *stash;
+	};
 };
 
 struct i915_page_directory {
@@ -196,12 +199,18 @@ struct drm_i915_gem_object;
 struct i915_vma;
 struct intel_gt;
 
+struct i915_vm_pt_stash {
+	/* preallocated chains of page tables/directories */
+	struct i915_page_table *pt[2];
+};
+
 struct i915_vma_ops {
 	/* Map an object into an address space with the given cache flags. */
-	int (*bind_vma)(struct i915_address_space *vm,
-			struct i915_vma *vma,
-			enum i915_cache_level cache_level,
-			u32 flags);
+	void (*bind_vma)(struct i915_address_space *vm,
+			 struct i915_vm_pt_stash *stash,
+			 struct i915_vma *vma,
+			 enum i915_cache_level cache_level,
+			 u32 flags);
 	/*
 	 * Unmap an object from an address space. This usually consists of
 	 * setting the valid PTE entries to a reserved scratch page.
@@ -257,9 +266,6 @@ struct i915_address_space {
 #define VM_CLASS_PPGTT 1
 
 	struct i915_page_scratch scratch[4];
-	unsigned int scratch_order;
-	unsigned int top;
-
 	/**
 	 * List of vma currently bound.
 	 */
@@ -276,13 +282,18 @@ struct i915_address_space {
 	/* Some systems support read-only mappings for GGTT and/or PPGTT */
 	bool has_read_only:1;
 
+	u8 top;
+	u8 pd_shift;
+	u8 scratch_order;
+
 	u64 (*pte_encode)(dma_addr_t addr,
 			  enum i915_cache_level level,
 			  u32 flags); /* Create a valid PTE */
 #define PTE_READ_ONLY	BIT(0)
 
-	int (*allocate_va_range)(struct i915_address_space *vm,
-				 u64 start, u64 length);
+	void (*allocate_va_range)(struct i915_address_space *vm,
+				  struct i915_vm_pt_stash *stash,
+				  u64 start, u64 length);
 	void (*clear_range)(struct i915_address_space *vm,
 			    u64 start, u64 length);
 	void (*insert_page)(struct i915_address_space *vm,
@@ -568,16 +579,23 @@ int ggtt_set_pages(struct i915_vma *vma);
 int ppgtt_set_pages(struct i915_vma *vma);
 void clear_pages(struct i915_vma *vma);
 
-int ppgtt_bind_vma(struct i915_address_space *vm,
-		   struct i915_vma *vma,
-		   enum i915_cache_level cache_level,
-		   u32 flags);
+void ppgtt_bind_vma(struct i915_address_space *vm,
+		    struct i915_vm_pt_stash *stash,
+		    struct i915_vma *vma,
+		    enum i915_cache_level cache_level,
+		    u32 flags);
 void ppgtt_unbind_vma(struct i915_address_space *vm,
 		      struct i915_vma *vma);
 
 void gtt_write_workarounds(struct intel_gt *gt);
 
 void setup_private_pat(struct intel_uncore *uncore);
+
+int i915_vm_alloc_pt_stash(struct i915_address_space *vm,
+			   struct i915_vm_pt_stash *stash,
+			   u64 size);
+void i915_vm_free_pt_stash(struct i915_address_space *vm,
+			   struct i915_vm_pt_stash *stash);
 
 static inline struct sgt_dma {
 	struct scatterlist *sg;

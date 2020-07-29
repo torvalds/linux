@@ -269,14 +269,12 @@ static void gen8_ppgtt_clear(struct i915_address_space *vm,
 			   start, start + length, vm->top);
 }
 
-static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
-			      struct i915_page_directory * const pd,
-			      u64 * const start, const u64 end, int lvl)
+static void __gen8_ppgtt_alloc(struct i915_address_space * const vm,
+			       struct i915_vm_pt_stash *stash,
+			       struct i915_page_directory * const pd,
+			       u64 * const start, const u64 end, int lvl)
 {
-	const struct i915_page_scratch * const scratch = &vm->scratch[lvl];
-	struct i915_page_table *alloc = NULL;
 	unsigned int idx, len;
-	int ret = 0;
 
 	GEM_BUG_ON(end > vm->total >> GEN8_PTE_SHIFT);
 
@@ -297,49 +295,30 @@ static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 			DBG("%s(%p):{ lvl:%d, idx:%d } allocating new tree\n",
 			    __func__, vm, lvl + 1, idx);
 
-			pt = fetch_and_zero(&alloc);
-			if (lvl) {
-				if (!pt) {
-					pt = &alloc_pd(vm)->pt;
-					if (IS_ERR(pt)) {
-						ret = PTR_ERR(pt);
-						goto out;
-					}
-				}
+			pt = stash->pt[!!lvl];
+			GEM_BUG_ON(!pt);
 
+			if (lvl ||
+			    gen8_pt_count(*start, end) < I915_PDES ||
+			    intel_vgpu_active(vm->i915))
 				fill_px(pt, vm->scratch[lvl].encode);
-			} else {
-				if (!pt) {
-					pt = alloc_pt(vm);
-					if (IS_ERR(pt)) {
-						ret = PTR_ERR(pt);
-						goto out;
-					}
-				}
-
-				if (intel_vgpu_active(vm->i915) ||
-				    gen8_pt_count(*start, end) < I915_PDES)
-					fill_px(pt, vm->scratch[lvl].encode);
-			}
 
 			spin_lock(&pd->lock);
-			if (likely(!pd->entry[idx]))
+			if (likely(!pd->entry[idx])) {
+				stash->pt[!!lvl] = pt->stash;
+				atomic_set(&pt->used, 0);
 				set_pd_entry(pd, idx, pt);
-			else
-				alloc = pt, pt = pd->entry[idx];
+			} else {
+				pt = pd->entry[idx];
+			}
 		}
 
 		if (lvl) {
 			atomic_inc(&pt->used);
 			spin_unlock(&pd->lock);
 
-			ret = __gen8_ppgtt_alloc(vm, as_pd(pt),
-						 start, end, lvl);
-			if (unlikely(ret)) {
-				if (release_pd_entry(pd, idx, pt, scratch))
-					free_px(vm, pt);
-				goto out;
-			}
+			__gen8_ppgtt_alloc(vm, stash,
+					   as_pd(pt), start, end, lvl);
 
 			spin_lock(&pd->lock);
 			atomic_dec(&pt->used);
@@ -359,18 +338,12 @@ static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 		}
 	} while (idx++, --len);
 	spin_unlock(&pd->lock);
-out:
-	if (alloc)
-		free_px(vm, alloc);
-	return ret;
 }
 
-static int gen8_ppgtt_alloc(struct i915_address_space *vm,
-			    u64 start, u64 length)
+static void gen8_ppgtt_alloc(struct i915_address_space *vm,
+			     struct i915_vm_pt_stash *stash,
+			     u64 start, u64 length)
 {
-	u64 from;
-	int err;
-
 	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
 	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
 	GEM_BUG_ON(range_overflows(start, length, vm->total));
@@ -378,15 +351,9 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 	start >>= GEN8_PTE_SHIFT;
 	length >>= GEN8_PTE_SHIFT;
 	GEM_BUG_ON(length == 0);
-	from = start;
 
-	err = __gen8_ppgtt_alloc(vm, i915_vm_to_ppgtt(vm)->pd,
-				 &start, start + length, vm->top);
-	if (unlikely(err && from != start))
-		__gen8_ppgtt_clear(vm, i915_vm_to_ppgtt(vm)->pd,
-				   from, start, vm->top);
-
-	return err;
+	__gen8_ppgtt_alloc(vm, stash, i915_vm_to_ppgtt(vm)->pd,
+			   &start, start + length, vm->top);
 }
 
 static __always_inline void
@@ -703,6 +670,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
 
 	ppgtt_init(ppgtt, gt);
 	ppgtt->vm.top = i915_vm_is_4lvl(&ppgtt->vm) ? 3 : 2;
+	ppgtt->vm.pd_shift = ilog2(SZ_4K * SZ_4K / sizeof(gen8_pte_t));
 
 	/*
 	 * From bdw, there is hw support for read-only pages in the PPGTT.

@@ -38,14 +38,14 @@ static void mock_insert_entries(struct i915_address_space *vm,
 {
 }
 
-static int mock_bind_ppgtt(struct i915_address_space *vm,
-			   struct i915_vma *vma,
-			   enum i915_cache_level cache_level,
-			   u32 flags)
+static void mock_bind_ppgtt(struct i915_address_space *vm,
+			    struct i915_vm_pt_stash *stash,
+			    struct i915_vma *vma,
+			    enum i915_cache_level cache_level,
+			    u32 flags)
 {
 	GEM_BUG_ON(flags & I915_VMA_GLOBAL_BIND);
 	set_bit(I915_VMA_LOCAL_BIND_BIT, __i915_vma_flags(vma));
-	return 0;
 }
 
 static void mock_unbind_ppgtt(struct i915_address_space *vm,
@@ -74,6 +74,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.file = ERR_PTR(-ENODEV);
+	ppgtt->vm.dma = &i915->drm.pdev->dev;
 
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
@@ -90,13 +91,12 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 	return ppgtt;
 }
 
-static int mock_bind_ggtt(struct i915_address_space *vm,
-			  struct i915_vma *vma,
-			  enum i915_cache_level cache_level,
-			  u32 flags)
+static void mock_bind_ggtt(struct i915_address_space *vm,
+			   struct i915_vm_pt_stash *stash,
+			   struct i915_vma *vma,
+			   enum i915_cache_level cache_level,
+			   u32 flags)
 {
-	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
-	return 0;
 }
 
 static void mock_unbind_ggtt(struct i915_address_space *vm,

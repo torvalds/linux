@@ -177,16 +177,16 @@ static void gen6_flush_pd(struct gen6_ppgtt *ppgtt, u64 start, u64 end)
 	mutex_unlock(&ppgtt->flush);
 }
 
-static int gen6_alloc_va_range(struct i915_address_space *vm,
-			       u64 start, u64 length)
+static void gen6_alloc_va_range(struct i915_address_space *vm,
+				struct i915_vm_pt_stash *stash,
+				u64 start, u64 length)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 	struct i915_page_directory * const pd = ppgtt->base.pd;
-	struct i915_page_table *pt, *alloc = NULL;
+	struct i915_page_table *pt;
 	bool flush = false;
 	u64 from = start;
 	unsigned int pde;
-	int ret = 0;
 
 	spin_lock(&pd->lock);
 	gen6_for_each_pde(pt, pd, start, length, pde) {
@@ -195,21 +195,17 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		if (px_base(pt) == px_base(&vm->scratch[1])) {
 			spin_unlock(&pd->lock);
 
-			pt = fetch_and_zero(&alloc);
-			if (!pt)
-				pt = alloc_pt(vm);
-			if (IS_ERR(pt)) {
-				ret = PTR_ERR(pt);
-				goto unwind_out;
-			}
+			pt = stash->pt[0];
+			GEM_BUG_ON(!pt);
 
 			fill32_px(pt, vm->scratch[0].encode);
 
 			spin_lock(&pd->lock);
 			if (pd->entry[pde] == &vm->scratch[1]) {
+				stash->pt[0] = pt->stash;
+				atomic_set(&pt->used, 0);
 				pd->entry[pde] = pt;
 			} else {
-				alloc = pt;
 				pt = pd->entry[pde];
 			}
 
@@ -226,15 +222,6 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		with_intel_runtime_pm(&vm->i915->runtime_pm, wakeref)
 			gen6_flush_pd(ppgtt, from, start);
 	}
-
-	goto out;
-
-unwind_out:
-	gen6_ppgtt_clear_range(vm, from, start - from);
-out:
-	if (alloc)
-		free_px(vm, alloc);
-	return ret;
 }
 
 static int gen6_ppgtt_init_scratch(struct gen6_ppgtt *ppgtt)
@@ -302,10 +289,11 @@ static void pd_vma_clear_pages(struct i915_vma *vma)
 	vma->pages = NULL;
 }
 
-static int pd_vma_bind(struct i915_address_space *vm,
-		       struct i915_vma *vma,
-		       enum i915_cache_level cache_level,
-		       u32 unused)
+static void pd_vma_bind(struct i915_address_space *vm,
+			struct i915_vm_pt_stash *stash,
+			struct i915_vma *vma,
+			enum i915_cache_level cache_level,
+			u32 unused)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct gen6_ppgtt *ppgtt = vma->private;
@@ -315,7 +303,6 @@ static int pd_vma_bind(struct i915_address_space *vm,
 	ppgtt->pd_addr = (gen6_pte_t __iomem *)ggtt->gsm + ggtt_offset;
 
 	gen6_flush_pd(ppgtt, 0, ppgtt->base.vm.total);
-	return 0;
 }
 
 static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
@@ -448,6 +435,7 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 	mutex_init(&ppgtt->pin_mutex);
 
 	ppgtt_init(&ppgtt->base, gt);
+	ppgtt->base.vm.pd_shift = ilog2(SZ_4K * SZ_4K / sizeof(gen6_pte_t));
 	ppgtt->base.vm.top = 1;
 
 	ppgtt->base.vm.bind_async_flags = I915_VMA_LOCAL_BIND;

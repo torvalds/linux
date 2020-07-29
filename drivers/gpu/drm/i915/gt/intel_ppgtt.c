@@ -155,19 +155,16 @@ struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt)
 	return ppgtt;
 }
 
-int ppgtt_bind_vma(struct i915_address_space *vm,
-		   struct i915_vma *vma,
-		   enum i915_cache_level cache_level,
-		   u32 flags)
+void ppgtt_bind_vma(struct i915_address_space *vm,
+		    struct i915_vm_pt_stash *stash,
+		    struct i915_vma *vma,
+		    enum i915_cache_level cache_level,
+		    u32 flags)
 {
 	u32 pte_flags;
-	int err;
 
 	if (!test_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma))) {
-		err = vm->allocate_va_range(vm, vma->node.start, vma->size);
-		if (err)
-			return err;
-
+		vm->allocate_va_range(vm, stash, vma->node.start, vma->size);
 		set_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma));
 	}
 
@@ -178,8 +175,6 @@ int ppgtt_bind_vma(struct i915_address_space *vm,
 
 	vm->insert_entries(vm, vma, cache_level, pte_flags);
 	wmb();
-
-	return 0;
 }
 
 void ppgtt_unbind_vma(struct i915_address_space *vm, struct i915_vma *vma)
@@ -188,12 +183,76 @@ void ppgtt_unbind_vma(struct i915_address_space *vm, struct i915_vma *vma)
 		vm->clear_range(vm, vma->node.start, vma->size);
 }
 
+static unsigned long pd_count(u64 size, int shift)
+{
+	/* Beware later misalignment */
+	return (size + 2 * (BIT_ULL(shift) - 1)) >> shift;
+}
+
+int i915_vm_alloc_pt_stash(struct i915_address_space *vm,
+			   struct i915_vm_pt_stash *stash,
+			   u64 size)
+{
+	unsigned long count;
+	int shift, n;
+
+	shift = vm->pd_shift;
+	if (!shift)
+		return 0;
+
+	count = pd_count(size, shift);
+	while (count--) {
+		struct i915_page_table *pt;
+
+		pt = alloc_pt(vm);
+		if (IS_ERR(pt)) {
+			i915_vm_free_pt_stash(vm, stash);
+			return PTR_ERR(pt);
+		}
+
+		pt->stash = stash->pt[0];
+		stash->pt[0] = pt;
+	}
+
+	for (n = 1; n < vm->top; n++) {
+		shift += ilog2(I915_PDES); /* Each PD holds 512 entries */
+		count = pd_count(size, shift);
+		while (count--) {
+			struct i915_page_directory *pd;
+
+			pd = alloc_pd(vm);
+			if (IS_ERR(pd)) {
+				i915_vm_free_pt_stash(vm, stash);
+				return PTR_ERR(pd);
+			}
+
+			pd->pt.stash = stash->pt[1];
+			stash->pt[1] = &pd->pt;
+		}
+	}
+
+	return 0;
+}
+
+void i915_vm_free_pt_stash(struct i915_address_space *vm,
+			   struct i915_vm_pt_stash *stash)
+{
+	struct i915_page_table *pt;
+	int n;
+
+	for (n = 0; n < ARRAY_SIZE(stash->pt); n++) {
+		while ((pt = stash->pt[n])) {
+			stash->pt[n] = pt->stash;
+			free_px(vm, pt);
+		}
+	}
+}
+
 int ppgtt_set_pages(struct i915_vma *vma)
 {
 	GEM_BUG_ON(vma->pages);
 
 	vma->pages = vma->obj->mm.pages;
-
 	vma->page_sizes = vma->obj->mm.page_sizes;
 
 	return 0;

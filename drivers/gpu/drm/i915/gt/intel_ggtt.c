@@ -436,16 +436,17 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 	intel_gtt_clear_range(start >> PAGE_SHIFT, length >> PAGE_SHIFT);
 }
 
-static int ggtt_bind_vma(struct i915_address_space *vm,
-			 struct i915_vma *vma,
-			 enum i915_cache_level cache_level,
-			 u32 flags)
+static void ggtt_bind_vma(struct i915_address_space *vm,
+			  struct i915_vm_pt_stash *stash,
+			  struct i915_vma *vma,
+			  enum i915_cache_level cache_level,
+			  u32 flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags;
 
 	if (i915_vma_is_bound(vma, ~flags & I915_VMA_BIND_MASK))
-		return 0;
+		return;
 
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
 	pte_flags = 0;
@@ -454,8 +455,6 @@ static int ggtt_bind_vma(struct i915_address_space *vm,
 
 	vm->insert_entries(vm, vma, cache_level, pte_flags);
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
-
-	return 0;
 }
 
 static void ggtt_unbind_vma(struct i915_address_space *vm, struct i915_vma *vma)
@@ -568,31 +567,25 @@ err:
 	return ret;
 }
 
-static int aliasing_gtt_bind_vma(struct i915_address_space *vm,
-				 struct i915_vma *vma,
-				 enum i915_cache_level cache_level,
-				 u32 flags)
+static void aliasing_gtt_bind_vma(struct i915_address_space *vm,
+				  struct i915_vm_pt_stash *stash,
+				  struct i915_vma *vma,
+				  enum i915_cache_level cache_level,
+				  u32 flags)
 {
 	u32 pte_flags;
-	int ret;
 
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
 	if (i915_gem_object_is_readonly(vma->obj))
 		pte_flags |= PTE_READ_ONLY;
 
-	if (flags & I915_VMA_LOCAL_BIND) {
-		struct i915_ppgtt *alias = i915_vm_to_ggtt(vm)->alias;
-
-		ret = ppgtt_bind_vma(&alias->vm, vma, cache_level, flags);
-		if (ret)
-			return ret;
-	}
+	if (flags & I915_VMA_LOCAL_BIND)
+		ppgtt_bind_vma(&i915_vm_to_ggtt(vm)->alias->vm,
+			       stash, vma, cache_level, flags);
 
 	if (flags & I915_VMA_GLOBAL_BIND)
 		vm->insert_entries(vm, vma, cache_level, pte_flags);
-
-	return 0;
 }
 
 static void aliasing_gtt_unbind_vma(struct i915_address_space *vm,
@@ -607,6 +600,7 @@ static void aliasing_gtt_unbind_vma(struct i915_address_space *vm,
 
 static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 {
+	struct i915_vm_pt_stash stash = {};
 	struct i915_ppgtt *ppgtt;
 	int err;
 
@@ -619,15 +613,17 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		goto err_ppgtt;
 	}
 
+	err = i915_vm_alloc_pt_stash(&ppgtt->vm, &stash, ggtt->vm.total);
+	if (err)
+		goto err_ppgtt;
+
 	/*
 	 * Note we only pre-allocate as far as the end of the global
 	 * GTT. On 48b / 4-level page-tables, the difference is very,
 	 * very significant! We have to preallocate as GVT/vgpu does
 	 * not like the page directory disappearing.
 	 */
-	err = ppgtt->vm.allocate_va_range(&ppgtt->vm, 0, ggtt->vm.total);
-	if (err)
-		goto err_ppgtt;
+	ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash, 0, ggtt->vm.total);
 
 	ggtt->alias = ppgtt;
 	ggtt->vm.bind_async_flags |= ppgtt->vm.bind_async_flags;
@@ -638,6 +634,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 	GEM_BUG_ON(ggtt->vm.vma_ops.unbind_vma != ggtt_unbind_vma);
 	ggtt->vm.vma_ops.unbind_vma = aliasing_gtt_unbind_vma;
 
+	i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 	return 0;
 
 err_ppgtt:
@@ -1165,11 +1162,6 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
 	ggtt->invalidate(ggtt);
 }
 
-static unsigned int clear_bind(struct i915_vma *vma)
-{
-	return atomic_fetch_and(~I915_VMA_BIND_MASK, &vma->flags);
-}
-
 void i915_ggtt_resume(struct i915_ggtt *ggtt)
 {
 	struct i915_vma *vma;
@@ -1187,11 +1179,13 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		unsigned int was_bound = clear_bind(vma);
+		unsigned int was_bound =
+			atomic_read(&vma->flags) & I915_VMA_BIND_MASK;
 
-		WARN_ON(i915_vma_bind(vma,
-				      obj ? obj->cache_level : 0,
-				      was_bound, NULL));
+		GEM_BUG_ON(!was_bound);
+		vma->ops->bind_vma(&ggtt->vm, NULL, vma,
+				   obj ? obj->cache_level : 0,
+				   was_bound);
 		if (obj) { /* only used during resume => exclusive access */
 			flush |= fetch_and_zero(&obj->write_domain);
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;

@@ -291,6 +291,8 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 
 struct i915_vma_work {
 	struct dma_fence_work base;
+	struct i915_address_space *vm;
+	struct i915_vm_pt_stash stash;
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *pinned;
 	struct i915_sw_dma_fence_cb cb;
@@ -302,13 +304,10 @@ static int __vma_bind(struct dma_fence_work *work)
 {
 	struct i915_vma_work *vw = container_of(work, typeof(*vw), base);
 	struct i915_vma *vma = vw->vma;
-	int err;
 
-	err = vma->ops->bind_vma(vma->vm, vma, vw->cache_level, vw->flags);
-	if (err)
-		atomic_or(I915_VMA_ERROR, &vma->flags);
-
-	return err;
+	vma->ops->bind_vma(vw->vm, &vw->stash,
+			   vma, vw->cache_level, vw->flags);
+	return 0;
 }
 
 static void __vma_release(struct dma_fence_work *work)
@@ -317,6 +316,9 @@ static void __vma_release(struct dma_fence_work *work)
 
 	if (vw->pinned)
 		__i915_gem_object_unpin_pages(vw->pinned);
+
+	i915_vm_free_pt_stash(vw->vm, &vw->stash);
+	i915_vm_put(vw->vm);
 }
 
 static const struct dma_fence_work_ops bind_ops = {
@@ -376,7 +378,6 @@ int i915_vma_bind(struct i915_vma *vma,
 {
 	u32 bind_flags;
 	u32 vma_flags;
-	int ret;
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->size > vma->node.size);
@@ -433,9 +434,7 @@ int i915_vma_bind(struct i915_vma *vma,
 			work->pinned = vma->obj;
 		}
 	} else {
-		ret = vma->ops->bind_vma(vma->vm, vma, cache_level, bind_flags);
-		if (ret)
-			return ret;
+		vma->ops->bind_vma(vma->vm, NULL, vma, cache_level, bind_flags);
 	}
 
 	atomic_or(bind_flags, &vma->flags);
@@ -879,6 +878,14 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 			err = -ENOMEM;
 			goto err_pages;
 		}
+
+		work->vm = i915_vm_get(vma->vm);
+
+		/* Allocate enough page directories to used PTE */
+		if (vma->vm->allocate_va_range)
+			i915_vm_alloc_pt_stash(vma->vm,
+					       &work->stash,
+					       vma->size);
 	}
 
 	if (flags & PIN_GLOBAL)
