@@ -22,10 +22,14 @@
 #define  MP886X_SLEW_MASK	(0x7 << MP886X_SLEW_SHIFT)
 #define  MP886X_GO		(1 << 6)
 #define  MP886X_EN		(1 << 7)
+#define MP8869_SYSCNTLREG2	0x02
 
 struct mp886x_cfg_info {
 	const struct regulator_ops *rops;
 	const int slew_rates[8];
+	const int switch_freq[4];
+	const u8 fs_reg;
+	const u8 fs_shift;
 };
 
 struct mp886x_device_info {
@@ -58,6 +62,24 @@ static int mp886x_set_ramp(struct regulator_dev *rdev, int ramp)
 
 	return regmap_update_bits(rdev->regmap, MP886X_SYSCNTLREG1,
 				  MP886X_SLEW_MASK, reg << MP886X_SLEW_SHIFT);
+}
+
+static void mp886x_set_switch_freq(struct mp886x_device_info *di,
+				   struct regmap *regmap,
+				   u32 freq)
+{
+	const struct mp886x_cfg_info *ci = di->ci;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ci->switch_freq); i++) {
+		if (freq == ci->switch_freq[i]) {
+			regmap_update_bits(regmap, ci->fs_reg,
+				  0x3 << ci->fs_shift, i << ci->fs_shift);
+			return;
+		}
+	}
+
+	dev_err(di->dev, "invalid frequency %d\n", freq);
 }
 
 static int mp886x_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -162,6 +184,14 @@ static const struct mp886x_cfg_info mp8869_ci = {
 		1250,
 		625,
 	},
+	.switch_freq = {
+		500000,
+		750000,
+		1000000,
+		1250000,
+	},
+	.fs_reg = MP8869_SYSCNTLREG2,
+	.fs_shift = 4,
 };
 
 static int mp8867_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
@@ -233,6 +263,14 @@ static const struct mp886x_cfg_info mp8867_ci = {
 		1000,
 		500,
 	},
+	.switch_freq = {
+		500000,
+		750000,
+		1000000,
+		1500000,
+	},
+	.fs_reg = MP886X_SYSCNTLREG1,
+	.fs_shift = 1,
 };
 
 static int mp886x_regulator_register(struct mp886x_device_info *di,
@@ -273,6 +311,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	struct mp886x_device_info *di;
 	struct regulator_config config = { };
 	struct regmap *regmap;
+	u32 freq;
 	int ret;
 
 	di = devm_kzalloc(dev, sizeof(struct mp886x_device_info), GFP_KERNEL);
@@ -309,6 +348,9 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	config.regmap = regmap;
 	config.driver_data = di;
 	config.of_node = np;
+
+	if (!of_property_read_u32(np, "mps,switch-frequency", &freq))
+		mp886x_set_switch_freq(di, regmap, freq);
 
 	ret = mp886x_regulator_register(di, &config);
 	if (ret < 0)
