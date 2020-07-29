@@ -32,4 +32,8 @@ properties:
       - description: Generic Loongson64 Quad Core + LS7A
         items:
           - const: loongson,loongson64g-4core-ls7a
+
+      - description: Virtual Loongson64 Quad Core + VirtIO
+        items:
+          - const: loongson,loongson64v-4core-virtio
 ...
