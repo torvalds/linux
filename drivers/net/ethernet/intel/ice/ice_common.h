@@ -11,8 +11,6 @@
 #include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
 
-enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw);
-
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
@@ -90,6 +88,8 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 enum ice_status
 ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 		 enum ice_adminq_opc opc, struct ice_sq_cd *cd);
+enum ice_status
+ice_discover_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_caps);
 void
 ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
 		    u16 link_speeds_bitmap);

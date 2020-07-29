@@ -4,6 +4,7 @@
 #include "ice.h"
 #include "ice_lib.h"
 #include "ice_devlink.h"
+#include "ice_fw_update.h"
 
 static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 {
@@ -229,8 +230,61 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	return 0;
 }
 
+/**
+ * ice_devlink_flash_update - Update firmware stored in flash on the device
+ * @devlink: pointer to devlink associated with device to update
+ * @path: the path of the firmware file to use via request_firmware
+ * @component: name of the component to update, or NULL
+ * @extack: netlink extended ACK structure
+ *
+ * Perform a device flash update. The bulk of the update logic is contained
+ * within the ice_flash_pldm_image function.
+ *
+ * Returns: zero on success, or an error code on failure.
+ */
+static int
+ice_devlink_flash_update(struct devlink *devlink, const char *path,
+			 const char *component, struct netlink_ext_ack *extack)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = &pf->pdev->dev;
+	struct ice_hw *hw = &pf->hw;
+	const struct firmware *fw;
+	int err;
+
+	/* individual component update is not yet supported */
+	if (component)
+		return -EOPNOTSUPP;
+
+	if (!hw->dev_caps.common_cap.nvm_unified_update) {
+		NL_SET_ERR_MSG_MOD(extack, "Current firmware does not support unified update");
+		return -EOPNOTSUPP;
+	}
+
+	err = ice_check_for_pending_update(pf, component, extack);
+	if (err)
+		return err;
+
+	err = request_firmware(&fw, path, dev);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Unable to read file from disk");
+		return err;
+	}
+
+	devlink_flash_update_begin_notify(devlink);
+	devlink_flash_update_status_notify(devlink, "Preparing to flash",
+					   component, 0, 0);
+	err = ice_flash_pldm_image(pf, fw, extack);
+	devlink_flash_update_end_notify(devlink);
+
+	release_firmware(fw);
+
+	return err;
+}
+
 static const struct devlink_ops ice_devlink_ops = {
 	.info_get = ice_devlink_info_get,
+	.flash_update = ice_devlink_flash_update,
 };
 
 static void ice_devlink_free(void *devlink_ptr)

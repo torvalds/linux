@@ -244,6 +244,15 @@ struct ice_hw_common_caps {
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
 
 	u8 dcb;
+
+	bool nvm_update_pending_nvm;
+	bool nvm_update_pending_orom;
+	bool nvm_update_pending_netlist;
+#define ICE_NVM_PENDING_NVM_IMAGE		BIT(0)
+#define ICE_NVM_PENDING_OROM			BIT(1)
+#define ICE_NVM_PENDING_NETLIST			BIT(2)
+	bool nvm_unified_update;
+#define ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT	BIT(3)
 };
 
 /* Function specific capabilities */
@@ -771,6 +780,9 @@ struct ice_hw_port_stats {
 #define ICE_OROM_VER_SHIFT		24
 #define ICE_OROM_VER_MASK		(0xff << ICE_OROM_VER_SHIFT)
 #define ICE_SR_PFA_PTR			0x40
+#define ICE_SR_1ST_NVM_BANK_PTR		0x42
+#define ICE_SR_1ST_OROM_BANK_PTR	0x44
+#define ICE_SR_NETLIST_BANK_PTR		0x46
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 
 /* Link override related */

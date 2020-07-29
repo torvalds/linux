@@ -1857,6 +1857,25 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 			  "%s: msix_vector_first_id = %d\n", prefix,
 			  caps->msix_vector_first_id);
 		break;
+	case ICE_AQC_CAPS_PENDING_NVM_VER:
+		caps->nvm_update_pending_nvm = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_nvm\n", prefix);
+		break;
+	case ICE_AQC_CAPS_PENDING_OROM_VER:
+		caps->nvm_update_pending_orom = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_orom\n", prefix);
+		break;
+	case ICE_AQC_CAPS_PENDING_NET_VER:
+		caps->nvm_update_pending_netlist = true;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_pending_netlist\n", prefix);
+		break;
+	case ICE_AQC_CAPS_NVM_MGMT:
+		caps->nvm_unified_update =
+			(number & ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
+			true : false;
+		ice_debug(hw, ICE_DBG_INIT, "%s: nvm_unified_update = %d\n", prefix,
+			  caps->nvm_unified_update);
+		break;
 	case ICE_AQC_CAPS_MAX_MTU:
 		caps->max_mtu = number;
 		ice_debug(hw, ICE_DBG_INIT, "%s: max_mtu = %d\n",
@@ -2204,7 +2223,7 @@ ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
  * Read the device capabilities and extract them into the dev_caps structure
  * for later use.
  */
-static enum ice_status
+enum ice_status
 ice_discover_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_caps)
 {
 	enum ice_status status;
