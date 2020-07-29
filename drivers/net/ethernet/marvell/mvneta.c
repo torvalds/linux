@@ -3637,7 +3637,7 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 
 	phylink_start(pp->phylink);
 
-	/* We may have called phy_speed_down before */
+	/* We may have called phylink_speed_down before */
 	phylink_speed_up(pp->phylink);
 
 	netif_tx_start_all_queues(pp->dev);
