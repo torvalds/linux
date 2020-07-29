@@ -219,6 +219,9 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
+	if (psp->adev->in_pci_err_recovery)
+		return 0;
+
 	for (i = 0; i < adev->usec_timeout; i++) {
 		val = RREG32(reg_index);
 		if (check_changed) {
@@ -244,6 +247,9 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int timeout = 2000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
+
+	if (psp->adev->in_pci_err_recovery)
+		return 0;
 
 	mutex_lock(&psp->mutex);
 
