@@ -98,7 +98,7 @@
 	rk809-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,rk809-codec";
-		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,widgets =
 			"Microphone", "Mic Jack",
 			"Headphone", "Headphone Jack";
