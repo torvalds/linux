@@ -11,8 +11,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define ATOMIC_INIT(i)		{ (i) }
-
 /*
  * Since *_return_relaxed and {cmp}xchg_relaxed are implemented with
  * a "bne-" instruction at the end, so an isync is enough as a acquire barrier
