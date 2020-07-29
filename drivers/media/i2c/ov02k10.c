@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version, only linear mode ready.
+ * V0.0X01.0X01 both linear and HDR modes are ready.
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -71,7 +72,7 @@
 #define OV02K10_GROUP_UPDATE_ADDRESS	0x3208
 #define OV02K10_GROUP_UPDATE_START_DATA	0x00
 #define OV02K10_GROUP_UPDATE_END_DATA	0x10
-#define OV02K10_GROUP_UPDATE_END_LAUNCH	0xA0
+#define OV02K10_GROUP_UPDATE_LAUNCH	0xA0
 
 #define OV02K10_SOFTWARE_RESET_REG	0x0103
 
@@ -99,6 +100,10 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define OV02K10_NAME			"ov02k10"
+
+#define OV02K10_FLIP_REG		0x3820
+#define MIRROR_BIT_MASK			BIT(1)
+#define FLIP_BIT_MASK			(BIT(2) | BIT(3))
 
 #define USED_SYS_DEBUG
 
@@ -158,6 +163,8 @@ struct ov02k10 {
 	struct v4l2_ctrl	*test_pattern;
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
@@ -172,6 +179,7 @@ struct ov02k10 {
 	bool			long_hcg;
 	bool			middle_hcg;
 	bool			short_hcg;
+	u32			flip;
 };
 
 #define to_ov02k10(sd) container_of(sd, struct ov02k10, subdev)
@@ -184,36 +192,19 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x0103, 0x01},
 	{0x0109, 0x01},
 	{0x0104, 0x02},
-	{0x0102, 0x00},
 	{0x0306, 0x00},
 	{0x0307, 0x00},
-	{0x030a, 0x01},
+	{0x032d, 0x02},
 	{0x0317, 0x0a},
 	{0x0323, 0x07},
 	{0x0324, 0x01},
 	{0x0325, 0xb0},
 	{0x0327, 0x07},
-	{0x032c, 0x02},
-	{0x032d, 0x02},
-	{0x032e, 0x05},
 	{0x300f, 0x11},
 	{0x3012, 0x21},
-	{0x3026, 0x10},
-	{0x3027, 0x08},
 	{0x302d, 0x24},
-	{0x3103, 0x29},
-	{0x3106, 0x10},
 	{0x3400, 0x00},
 	{0x3406, 0x08},
-	{0x3408, 0x05},
-	{0x340c, 0x05},
-	{0x3425, 0x51},
-	{0x3426, 0x10},
-	{0x3427, 0x14},
-	{0x3428, 0x10},
-	{0x3429, 0x10},
-	{0x342a, 0x10},
-	{0x342b, 0x04},
 	{0x3504, 0x08},
 	{0x3508, 0x01},
 	{0x3509, 0x00},
@@ -263,43 +254,27 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x3665, 0x12},
 	{0x3667, 0xd4},
 	{0x3668, 0x80},
-	{0x3670, 0xc7},
 	{0x3681, 0x80},
 	{0x3700, 0x26},
 	{0x3701, 0x1e},
 	{0x3702, 0x25},
 	{0x3703, 0x28},
-	{0x3707, 0x0a},
-	{0x3714, 0x01},
-	{0x371b, 0x16},
-	{0x371c, 0x00},
-	{0x371d, 0x08},
-	{0x3762, 0x1d},
-	{0x3776, 0x05},
-	{0x3777, 0x22},
-	{0x3779, 0x60},
-	{0x377c, 0x48},
-	{0x3783, 0x02},
-	{0x3784, 0x06},
-	{0x3785, 0x0a},
 	{0x3790, 0x10},
 	{0x3793, 0x04},
 	{0x3794, 0x07},
 	{0x3796, 0x00},
 	{0x3797, 0x02},
-	{0x379c, 0x4d},
 	{0x37a1, 0x80},
 	{0x37bb, 0x88},
+	{0x37be, 0x01},
 	{0x37bf, 0x00},
+	{0x37c0, 0x01},
 	{0x37c7, 0x56},
 	{0x37ca, 0x21},
-	{0x37cc, 0x13},
 	{0x37cd, 0x90},
 	{0x37cf, 0x02},
-	{0x37d8, 0x01},
 	{0x37da, 0x00},
 	{0x37db, 0x00},
-	{0x37dc, 0x00},
 	{0x37dd, 0x00},
 	{0x3800, 0x00},
 	{0x3801, 0x00},
@@ -319,19 +294,21 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x3815, 0x01},
 	{0x3816, 0x01},
 	{0x3817, 0x01},
-	{0x381c, 0x00},
-	{0x3820, 0x02},
 	{0x3821, 0x00},
 	{0x3822, 0x14},
-	{0x3858, 0x0d},
+	{0x3865, 0x00},
+	{0x3866, 0xc0},
 	{0x3867, 0x00},
+	{0x3868, 0xc0},
 	{0x3900, 0x13},
 	{0x3940, 0x13},
 	{0x3980, 0x13},
+	{0x3c01, 0x11},
 	{0x3c05, 0x00},
 	{0x3c0f, 0x1c},
 	{0x3c12, 0x0d},
-	{0x3c14, 0x21},
+	{0x3c19, 0x01},
+	{0x3c21, 0x40},
 	{0x3c3b, 0x18},
 	{0x3c3d, 0xc9},
 	{0x3c55, 0xcb},
@@ -341,18 +318,21 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x3ce3, 0x00},
 	{0x3d8c, 0x70},
 	{0x3d8d, 0x10},
-	{0x4001, 0x2f},
 	{0x4033, 0x80},
 	{0x4008, 0x02},
 	{0x4009, 0x11},
-	{0x400e, 0x40},
-	{0x4011, 0xbb},
+	{0x4004, 0x01},
+	{0x4005, 0x00},
 	{0x410f, 0x01},
+	{0x402e, 0x01},
+	{0x402f, 0x00},
+	{0x4030, 0x01},
+	{0x4031, 0x00},
 	{0x4032, 0x9f},
 	{0x4050, 0x00},
 	{0x4051, 0x07},
-	{0x4288, 0xcf},
 	{0x4289, 0x03},
+	{0x428a, 0x46},
 	{0x430b, 0xff},
 	{0x430c, 0xff},
 	{0x430d, 0x00},
@@ -360,7 +340,6 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x4500, 0x18},
 	{0x4501, 0x18},
 	{0x4504, 0x00},
-	{0x4507, 0x02},
 	{0x4603, 0x00},
 	{0x4640, 0x62},
 	{0x4646, 0xaa},
@@ -373,10 +352,7 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x4800, 0x04},
 	{0x4810, 0xff},
 	{0x4811, 0xff},
-	{0x480e, 0x00},
-	{0x4813, 0x00},
 	{0x4837, 0x0c},
-	{0x484b, 0x27},
 	{0x4d00, 0x4e},
 	{0x4d01, 0x0c},
 	{0x4d09, 0x4f},
@@ -388,134 +364,170 @@ static const struct regval ov02k10_global_regs[] = {
 	{0x5201, 0x70},
 	{0x5202, 0x03},
 	{0x5203, 0x7f},
-	{0x5780, 0x53},
-	{0x5786, 0x01},
+	{0x3707, 0x0a},
+	{0x3714, 0x01},
+	{0x371c, 0x00},
+	{0x371d, 0x08},
+	{0x3762, 0x1d},
+	{0x3777, 0x22},
+	{0x3779, 0x60},
+	{0x377c, 0x48},
+	{0x379c, 0x4d},
+	{0x3784, 0x06},
+	{0x3785, 0x0a},
+	{0x37d8, 0x01},
+	{0x37dc, 0x00},
 	{REG_NULL, 0x00},
 };
 
 static const struct regval ov02k10_linear12bit_1920x1080_regs[] = {
-	{0x0305, 0x6d},
-	{0x3605, 0x7f},
-	{0x3606, 0x00},
-	{0x366f, 0xc4},
-	{0x3671, 0x08},
-	{0x3673, 0x6a},
-	{0x3706, 0x3e},
-	{0x3708, 0x36},
-	{0x3709, 0x55},
-	{0x370a, 0x00},
-	{0x370b, 0xa3},
-	{0x3756, 0x9b},
-	{0x3757, 0x9b},
-	{0x376c, 0x00},
-	{0x37be, 0x01},
-	{0x37c0, 0x01},
-	{0x37d1, 0x3e},
-	{0x37d2, 0x00},
-	{0x37d3, 0xa3},
-	{0x37d5, 0x3e},
-	{0x37d6, 0x00},
-	{0x37d7, 0xa3},
-	{0x380c, 0x10},
-	{0x380d, 0xe0},
-	{0x380e, 0x04},
-	{0x380f, 0xe2},
-	{0x384c, 0x10},
-	{0x384d, 0xe0},
-	{0x3865, 0x00},
-	{0x3866, 0xc0},
-	{0x3868, 0xc0},
-	{0x3c01, 0x11},
-	{0x3c19, 0x01},
-	{0x3c21, 0x40},
-	{0x3c5d, 0xcf},
-	{0x3c5e, 0xcf},
-	{0x4004, 0x01},
-	{0x4005, 0x00},
-	{0x400a, 0x04},
-	{0x400b, 0xf0},
-	{0x402e, 0x01},
-	{0x402f, 0x00},
-	{0x4030, 0x01},
-	{0x4031, 0x00},
-	{0x428a, 0x46},
-	{0x4314, 0x04},
-	{0x4508, 0x1a},
-	{0x0305, 0x50},
-	{0x4837, 0x10},
-	{0x380e, 0x06},
-	{0x380f, 0x82},
-	{0x3501, 0x06},
-	{0x3502, 0x7a},
-	{REG_NULL, 0x00},
-};
-
-
-static const struct regval ov02k10_hdr12bit_1920x1080_regs[] = {
+	{0x0102, 0x00},
 	{0x0305, 0x6c},
+	{0x3026, 0x10},
+	{0x3027, 0x08},
+	{0x3103, 0x25},
+	{0x3106, 0x10},
+	{0x3408, 0x05},
+	{0x340c, 0x05},
+	{0x3425, 0x51},
+	{0x3426, 0x10},
+	{0x3427, 0x14},
+	{0x3428, 0x50},
+	{0x3429, 0x10},
+	{0x342a, 0x10},
+	{0x342b, 0x04},
 	{0x3605, 0xff},
 	{0x3606, 0x01},
 	{0x366f, 0x00},
-	{0x3671, 0x2c},
+	{0x3670, 0x07},
+	{0x3671, 0x08},
 	{0x3673, 0x2a},
 	{0x3706, 0xb1},
 	{0x3708, 0x34},
 	{0x3709, 0x50},
 	{0x370a, 0x02},
 	{0x370b, 0x21},
+	{0x371b, 0x13},
 	{0x3756, 0xe7},
 	{0x3757, 0xe7},
-	{0x376c, 0x01},
-	{0x37be, 0xb8},
-	{0x37c0, 0xcb},
+	{0x376c, 0x00},
+	{0x3776, 0x03},
+	{0x37cc, 0x10},
 	{0x37d1, 0xb1},
 	{0x37d2, 0x02},
 	{0x37d3, 0x21},
 	{0x37d5, 0xb1},
 	{0x37d6, 0x02},
 	{0x37d7, 0x21},
-	{0x380c, 0x13},
-	{0x380d, 0x20},
+	{0x380d, 0xc8},
 	{0x380e, 0x05},
 	{0x380f, 0xb4},
-	{0x384c, 0x13},
-	{0x384d, 0x20},
-	{0x3865, 0x01},
-	{0x3866, 0xa0},
-	{0x3868, 0x20},
-	{0x3c01, 0x10},
-	{0x3c19, 0x00},
-	{0x3c21, 0x00},
+	{0x381c, 0x00},
+	{0x3820, 0x00},
+	{0x384d, 0xc8},
+	{0x3858, 0x0d},
 	{0x3c5d, 0xec},
 	{0x3c5e, 0xec},
-	{0x4004, 0x00},
-	{0x4005, 0x80},
+	{0x4001, 0x2f},
 	{0x400a, 0x03},
-	{0x400b, 0x3f},
-	{0x402e, 0x00},
-	{0x402f, 0x80},
-	{0x4030, 0x00},
-	{0x4031, 0x80},
-	{0x428a, 0x56},
+	{0x400b, 0x40},
+	{0x4011, 0xff},
+	{0x4288, 0xcf},
 	{0x4314, 0x00},
-	{0x4508, 0x80},
-	{0x0305, 0x3c},
-	{0x4837, 0x16},
-	{0x380e, 0x05},
-	{0x380f, 0xbe},
-	{0x3501, 0x05},
-	{0x3502, 0xb0},
-	{0x3541, 0x00},
-	{0x3542, 0x02},
-	{0x5780, 0x3b},
-	{0x5782, 0xc0},
-	{0x5783, 0xe0},
-	{0x5788, 0x60},
-	{0x5789, 0xe0},
-	{0x5784, 0x01},
-	{0x5785, 0x00},
-	{0x5792, 0x11},
-	{0x5793, 0x33},
+	{0x4507, 0x02},
+	{0x480e, 0x00},
+	{0x4813, 0x00},
+	{0x484b, 0x27},
+	{0x5780, 0x19},
+	{0x5786, 0x02},
+	{0x032e, 0x05},
+	{0x032d, 0x02},
+	{0x3501, 0x02},
+	{0x380c, 0x04},
+	{0x380d, 0xc8},
+	{0x384c, 0x04},
+	{0x384d, 0xc8},
+	{0x380e, 0x0b},
+	{0x380f, 0x7c},
+	{0x3834, 0x00},
+	{0x3832, 0x08},
+	{0x3002, 0x00},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval ov02k10_hdr12bit_1920x1080_regs[] = {
+	{0x0102, 0x01},
+	{0x0305, 0x6d},
+	{0x3026, 0x00},
+	{0x3027, 0x00},
+	{0x3103, 0x29},
+	{0x3106, 0x11},
+	{0x3408, 0x01},
+	{0x340c, 0x10},
+	{0x3425, 0x00},
+	{0x3426, 0x00},
+	{0x3427, 0x00},
+	{0x3428, 0x00},
+	{0x3429, 0x00},
+	{0x342a, 0x00},
+	{0x342b, 0x00},
+	{0x3605, 0x7f},
+	{0x3606, 0x00},
+	{0x366f, 0xc4},
+	{0x3670, 0xc7},
+	{0x3671, 0x0b},
+	{0x3673, 0x6a},
+	{0x3706, 0x3e},
+	{0x3708, 0x36},
+	{0x3709, 0x55},
+	{0x370a, 0x00},
+	{0x370b, 0xa3},
+	{0x371b, 0x16},
+	{0x3756, 0x9b},
+	{0x3757, 0x9b},
+	{0x376c, 0x30},
+	{0x3776, 0x05},
+	{0x37cc, 0x13},
+	{0x37d1, 0x3e},
+	{0x37d2, 0x00},
+	{0x37d3, 0xa3},
+	{0x37d5, 0x3e},
+	{0x37d6, 0x00},
+	{0x37d7, 0xa3},
+	{0x380d, 0x38},
+	{0x380e, 0x04},
+	{0x380f, 0xe2},
+	{0x381c, 0x08},
+	{0x3820, 0x01},
+	{0x384d, 0x38},
+	{0x3858, 0x01},
+	{0x3c5d, 0xcf},
+	{0x3c5e, 0xcf},
+	{0x4001, 0xef},
+	{0x400a, 0x04},
+	{0x400b, 0xf0},
+	{0x4011, 0xbb},
+	{0x4288, 0xce},
+	{0x4314, 0x04},
+	{0x4507, 0x03},
+	{0x4508, 0x1a},
+	{0x480e, 0x04},
+	{0x4813, 0x84},
+	{0x484b, 0x67},
+	{0x5780, 0x53},
+	{0x5786, 0x01},
+	{0x032e, 0x0c},
+	{0x032d, 0x01},
+	{0x3106, 0x10},
+	{0x380c, 0x04},
+	{0x380d, 0x20},
+	{0x384c, 0x04},
+	{0x384d, 0x20},
+	{0x380e, 0x06},
+	{0x380f, 0xa8},
+	{0x3834, 0xf0},
+	{0x3832, 0x28},
+	{0x3002, 0x83},
 	{REG_NULL, 0x00},
 };
 
@@ -543,8 +555,8 @@ static const struct ov02k10_mode supported_modes[] = {
 			.denominator = 300000,
 		},
 		.exp_def = 0x067a,
-		.hts_def = 0x10e0,
-		.vts_def = 0x0682,
+		.hts_def = 0x04c8 * 2,
+		.vts_def = 0x0b7c,
 		.reg_list = ov02k10_linear12bit_1920x1080_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
@@ -556,12 +568,11 @@ static const struct ov02k10_mode supported_modes[] = {
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
-			/*.denominator = 151417,*/
 		},
-		.exp_def = 0x05b0,
-		.hts_def = 0x1320,
-		.vts_def = 0x05be,
-		/*.vts_def = 0x0cb0,*/
+
+		.exp_def = 0x026c,
+		.hts_def = 0x0420 * 2,
+		.vts_def = 0x06a8,
 		.reg_list = ov02k10_hdr12bit_1920x1080_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -815,11 +826,11 @@ static int ov02k10_enable_test_pattern(struct ov02k10 *ov02k10, u32 pattern)
 		val = OV02K10_TEST_PATTERN_DISABLE;
 
 	return ov02k10_write_reg(ov02k10->client, OV02K10_REG_TEST_PATTERN,
-				OV02K10_REG_VALUE_08BIT, val);
+				 OV02K10_REG_VALUE_08BIT, val);
 }
 
 static int ov02k10_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov02k10 *ov02k10 = to_ov02k10(sd);
 	const struct ov02k10_mode *mode = ov02k10->cur_mode;
@@ -832,7 +843,7 @@ static int ov02k10_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int ov02k10_g_mbus_config(struct v4l2_subdev *sd,
-				struct v4l2_mbus_config *config)
+				 struct v4l2_mbus_config *config)
 {
 	struct ov02k10 *ov02k10 = to_ov02k10(sd);
 	const struct ov02k10_mode *mode = ov02k10->cur_mode;
@@ -855,7 +866,7 @@ static int ov02k10_g_mbus_config(struct v4l2_subdev *sd,
 }
 
 static void ov02k10_get_module_inf(struct ov02k10 *ov02k10,
-				  struct rkmodule_inf *inf)
+				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
 	strlcpy(inf->base.sensor, OV02K10_NAME, sizeof(inf->base.sensor));
@@ -864,7 +875,7 @@ static void ov02k10_get_module_inf(struct ov02k10 *ov02k10,
 	strlcpy(inf->base.lens, ov02k10->len_name, sizeof(inf->base.lens));
 }
 
-#define USED_HDR2X_DCG
+
 static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 			     struct preisp_hdrae_exp_s *ae)
 {
@@ -872,7 +883,6 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	u32 l_d_gain = 1024;
 	u32 m_d_gain = 1024;
-	u32 s_d_gain = 1024;
 	int ret = 0;
 	u8 l_cg_mode = 0;
 	u8 m_cg_mode = 0;
@@ -896,10 +906,9 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 	m_cg_mode = ae->middle_cg_mode;
 	s_cg_mode = ae->short_cg_mode;
 	dev_dbg(&ov02k10->client->dev,
-		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
-		l_exp_time, l_a_gain,
-		m_exp_time, m_a_gain,
-		s_exp_time, s_a_gain);
+		"rev exp:M_exp:0x%x,0x%x,cg %d,S_exp:0x%x,0x%x,cg %d\n",
+		m_exp_time, m_a_gain, m_cg_mode,
+		s_exp_time, s_a_gain, s_cg_mode);
 
 	if (ov02k10->cur_mode->hdr_mode == HDR_X2) {
 		//2 stagger
@@ -912,7 +921,7 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 	}
 	ret = ov02k10_read_reg(ov02k10->client, OV02K10_REG_HCG_SWITCH,
 			       OV02K10_REG_VALUE_08BIT, &gain_switch);
-#ifndef USED_HDR2X_DCG
+
 	if (ov02k10->long_hcg && l_cg_mode == GAIN_MODE_LCG) {
 		gain_switch |= 0x10;
 		ov02k10->long_hcg = false;
@@ -932,7 +941,6 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 		is_need_switch++;
 	}
 
-#endif
 	if (l_a_gain > 248) {
 		l_d_gain = l_a_gain * 1024 / 248;
 		l_a_gain = 248;
@@ -941,15 +949,6 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 		m_d_gain = m_a_gain * 1024 / 248;
 		m_a_gain = 248;
 	}
-	if (ov02k10->cur_mode->hdr_mode == HDR_X3 && s_a_gain > 248) {
-		s_d_gain = s_a_gain * 1024 / 248;
-		s_a_gain = 248;
-	}
-
-	ret |= ov02k10_write_reg(ov02k10->client,
-		OV02K10_GROUP_UPDATE_ADDRESS,
-		OV02K10_REG_VALUE_08BIT,
-		OV02K10_GROUP_UPDATE_START_DATA);
 	ret |= ov02k10_write_reg(ov02k10->client,
 		OV02K10_REG_AGAIN_LONG_H,
 		OV02K10_REG_VALUE_16BIT,
@@ -970,49 +969,28 @@ static int ov02k10_set_hdrae(struct ov02k10 *ov02k10,
 		OV02K10_REG_DGAIN_MID_H,
 		OV02K10_REG_VALUE_24BIT,
 		(m_d_gain << 6) & 0xfffc0);
-#ifndef USED_HDR2X_DCG
 	ret |= ov02k10_write_reg(ov02k10->client,
 		OV02K10_REG_EXP_MID_H,
 		OV02K10_REG_VALUE_16BIT,
 		m_exp_time);
-#endif
-	if (ov02k10->cur_mode->hdr_mode == HDR_X3) {
-		//3 stagger
+	if (is_need_switch) {
 		ret |= ov02k10_write_reg(ov02k10->client,
-			OV02K10_REG_AGAIN_VS_H,
-			OV02K10_REG_VALUE_16BIT,
-			(s_a_gain << 4) & 0xff0);
-		ret |= ov02k10_write_reg(ov02k10->client,
-			OV02K10_REG_EXP_VS_H,
-			OV02K10_REG_VALUE_16BIT,
-			s_exp_time);
-		ret |= ov02k10_write_reg(ov02k10->client,
-			OV02K10_REG_DGAIN_VS_H,
-			OV02K10_REG_VALUE_24BIT,
-			(s_d_gain << 6) & 0xfffc0);
-		if (ov02k10->short_hcg && s_cg_mode == GAIN_MODE_LCG) {
-			gain_switch |= 0x40;
-			ov02k10->short_hcg = false;
-			is_need_switch++;
-		} else if (!ov02k10->short_hcg && s_cg_mode == GAIN_MODE_HCG) {
-			gain_switch &= 0xbf;
-			ov02k10->short_hcg = true;
-			is_need_switch++;
-		}
-	}
-	if (is_need_switch)
+			OV02K10_GROUP_UPDATE_ADDRESS,
+			OV02K10_REG_VALUE_08BIT,
+			OV02K10_GROUP_UPDATE_START_DATA);
 		ret |= ov02k10_write_reg(ov02k10->client,
 			OV02K10_REG_HCG_SWITCH,
 			OV02K10_REG_VALUE_08BIT,
 			gain_switch);
-	ret |= ov02k10_write_reg(ov02k10->client,
-		OV02K10_GROUP_UPDATE_ADDRESS,
-		OV02K10_REG_VALUE_08BIT,
-		OV02K10_GROUP_UPDATE_END_DATA);
-	ret |= ov02k10_write_reg(ov02k10->client,
-		OV02K10_GROUP_UPDATE_ADDRESS,
-		OV02K10_REG_VALUE_08BIT,
-		OV02K10_GROUP_UPDATE_END_LAUNCH);
+		ret |= ov02k10_write_reg(ov02k10->client,
+			OV02K10_GROUP_UPDATE_ADDRESS,
+			OV02K10_REG_VALUE_08BIT,
+			OV02K10_GROUP_UPDATE_END_DATA);
+		ret |= ov02k10_write_reg(ov02k10->client,
+			OV02K10_GROUP_UPDATE_ADDRESS,
+			OV02K10_REG_VALUE_08BIT,
+			OV02K10_GROUP_UPDATE_LAUNCH);
+	}
 	return ret;
 }
 
@@ -1025,6 +1003,7 @@ static int ov02k10_set_conversion_gain(struct ov02k10 *ov02k10, u32 *cg)
 	s32 is_need_change = 0;
 
 	dev_dbg(&ov02k10->client->dev, "set conversion gain %d\n", cur_cg);
+	mutex_lock(&ov02k10->mutex);
 	ret = ov02k10_read_reg(client,
 		OV02K10_REG_HCG_SWITCH,
 		OV02K10_REG_VALUE_08BIT,
@@ -1054,8 +1033,11 @@ static int ov02k10_set_conversion_gain(struct ov02k10 *ov02k10, u32 *cg)
 		ret |= ov02k10_write_reg(client,
 			OV02K10_GROUP_UPDATE_ADDRESS,
 			OV02K10_REG_VALUE_08BIT,
-			OV02K10_GROUP_UPDATE_END_LAUNCH);
+			OV02K10_GROUP_UPDATE_LAUNCH);
 	}
+	mutex_unlock(&ov02k10->mutex);
+	dev_dbg(&client->dev, "set conversion gain %d, (reg,val)=(0x%x,0x%x)\n",
+		cur_cg, OV02K10_REG_HCG_SWITCH, val);
 	return ret;
 }
 
@@ -1106,6 +1088,8 @@ static long ov02k10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_hdr_cfg *hdr_cfg;
 	long ret = 0;
 	u32 i, h, w;
+	u64 dst_link_freq = 0;
+	u64 dst_pixel_rate = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1134,6 +1118,19 @@ static long ov02k10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(ov02k10->vblank, h,
 				OV02K10_VTS_MAX - ov02k10->cur_mode->height,
 				1, h);
+			if (ov02k10->cur_mode->hdr_mode == NO_HDR) {
+				dst_link_freq = 0;
+				dst_pixel_rate = PIXEL_RATE_WITH_360M;
+			} else if (ov02k10->cur_mode->hdr_mode == HDR_X2) {
+				dst_link_freq = 1;
+				dst_pixel_rate = PIXEL_RATE_WITH_480M;
+			}
+
+			__v4l2_ctrl_s_ctrl_int64(ov02k10->pixel_rate,
+				       dst_pixel_rate);
+			__v4l2_ctrl_s_ctrl(ov02k10->link_freq,
+				 dst_link_freq);
+
 			dev_info(&ov02k10->client->dev,
 				"sensor mode: %d\n",
 				ov02k10->cur_mode->hdr_mode);
@@ -1276,7 +1273,6 @@ static int __ov02k10_start_stream(struct ov02k10 *ov02k10)
 			 "could not set init registers\n");
 		return ret;
 	}
-
 	ret = ov02k10_write_array(ov02k10->client, ov02k10->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -1284,6 +1280,9 @@ static int __ov02k10_start_stream(struct ov02k10 *ov02k10)
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&ov02k10->ctrl_handler);
+	if (ret)
+		return ret;
 	if (ov02k10->has_init_exp && ov02k10->cur_mode->hdr_mode != NO_HDR) {
 		ret = ov02k10_ioctl(&ov02k10->subdev,
 				    PREISP_CMD_SET_HDRAE_EXP,
@@ -1293,12 +1292,6 @@ static int __ov02k10_start_stream(struct ov02k10 *ov02k10)
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
-	} else {
-		mutex_unlock(&ov02k10->mutex);
-		ret = v4l2_ctrl_handler_setup(&ov02k10->ctrl_handler);
-		mutex_lock(&ov02k10->mutex);
-		if (ret)
-			return ret;
 	}
 	return ov02k10_write_reg(ov02k10->client, OV02K10_REG_CTRL_MODE,
 		OV02K10_REG_VALUE_08BIT, OV02K10_MODE_STREAMING);
@@ -1511,9 +1504,7 @@ static int ov02k10_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ov02k10->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != supported_modes[fie->index].bus_fmt)
-		return -EINVAL;
-
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1562,11 +1553,12 @@ static const struct v4l2_subdev_ops ov02k10_subdev_ops = {
 static int ov02k10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov02k10 *ov02k10 = container_of(ctrl->handler,
-					     struct ov02k10, ctrl_handler);
+					       struct ov02k10, ctrl_handler);
 	struct i2c_client *client = ov02k10->client;
 	s64 max;
 	int ret = 0;
 	u32 again, dgain;
+	u32 val = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1620,6 +1612,40 @@ static int ov02k10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov02k10_enable_test_pattern(ov02k10, ctrl->val);
+		dev_dbg(&client->dev, "set test pattern 0x%x\n",
+			ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		ret = ov02k10_read_reg(ov02k10->client, OV02K10_FLIP_REG,
+				       OV02K10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= MIRROR_BIT_MASK;
+		else
+			val &= ~MIRROR_BIT_MASK;
+		ret = ov02k10_write_reg(ov02k10->client, OV02K10_FLIP_REG,
+					OV02K10_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			ov02k10->flip = val;
+		dev_dbg(&client->dev, "set hflip 0x%x\n",
+			ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = ov02k10_read_reg(ov02k10->client, OV02K10_FLIP_REG,
+				       OV02K10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= FLIP_BIT_MASK;
+		else
+			val &= ~FLIP_BIT_MASK;
+		ret = ov02k10_write_reg(ov02k10->client, OV02K10_FLIP_REG,
+					OV02K10_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			ov02k10->flip = val;
+		dev_dbg(&client->dev, "set vflip 0x%x\n",
+			ctrl->val);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1648,7 +1674,7 @@ static int ov02k10_initialize_controls(struct ov02k10 *ov02k10)
 
 	handler = &ov02k10->ctrl_handler;
 	mode = ov02k10->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &ov02k10->mutex;
@@ -1700,7 +1726,12 @@ static int ov02k10_initialize_controls(struct ov02k10 *ov02k10)
 				&ov02k10_ctrl_ops, V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(ov02k10_test_pattern_menu) - 1,
 				0, 0, ov02k10_test_pattern_menu);
+	ov02k10->h_flip = v4l2_ctrl_new_std(handler, &ov02k10_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
 
+	ov02k10->v_flip = v4l2_ctrl_new_std(handler, &ov02k10_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	ov02k10->flip = 0;
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&ov02k10->client->dev,
@@ -1787,11 +1818,12 @@ static int ov02k10_probe(struct i2c_client *client,
 	}
 
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE,
-			&hdr_mode);
+				   &hdr_mode);
 	if (ret) {
 		hdr_mode = NO_HDR;
 		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
 	}
+
 	ov02k10->cfg_num = ARRAY_SIZE(supported_modes);
 	for (i = 0; i < ov02k10->cfg_num; i++) {
 		if (hdr_mode == supported_modes[i].hdr_mode) {
