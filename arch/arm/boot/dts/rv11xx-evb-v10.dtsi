@@ -951,6 +951,14 @@
 		     &i2s0m0_sdo1_sdi3>;
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &mdio {
 	phy: phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
