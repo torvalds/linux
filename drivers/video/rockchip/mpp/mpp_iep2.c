@@ -223,7 +223,6 @@ struct iep2_dev {
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 	struct reset_control *rst_s;
-	struct iep_task *current_task;
 
 	struct mpp_dma_buffer roi;
 };
@@ -356,12 +355,6 @@ static void *iep2_alloc_task(struct mpp_session *session,
 fail:
 	mpp_task_finalize(session, &task->mpp_task);
 	kfree(task);
-	return NULL;
-}
-
-static void *iep2_prepare(struct mpp_dev *mpp,
-			  struct mpp_task *task)
-{
 	return NULL;
 }
 
@@ -590,15 +583,13 @@ static int iep2_run(struct mpp_dev *mpp,
 		    struct mpp_task *mpp_task)
 {
 	struct iep_task *task = NULL;
-	struct iep2_dev *iep = NULL;
 
 	mpp_debug_enter();
 
 	task = to_iep_task(mpp_task);
-	iep = to_iep2_dev(mpp);
 
 	/* init current task */
-	iep->current_task = task;
+	mpp->cur_task = mpp_task;
 
 	iep2_config(mpp, task);
 	iep2_osd_cfg(mpp, task);
@@ -635,20 +626,19 @@ static int iep2_irq(struct mpp_dev *mpp)
 
 static int iep2_isr(struct mpp_dev *mpp)
 {
-	struct iep_task *task = NULL;
 	struct mpp_task *mpp_task = NULL;
+	struct iep_task *task = NULL;
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	/* FIXME use a spin lock here */
-	task = iep->current_task;
+	mpp_task = mpp->cur_task;
+	task = to_iep_task(mpp_task);
 	if (!task) {
 		dev_err(iep->mpp.dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
 
-	mpp_task = &task->mpp_task;
 	mpp_time_diff(mpp_task);
-	iep->current_task = NULL;
+	mpp->cur_task = NULL;
 	task->irq_status = mpp->irq_status;
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",
 		  task->irq_status);
@@ -917,7 +907,6 @@ static struct mpp_hw_ops iep_v2_hw_ops = {
 
 static struct mpp_dev_ops iep_v2_dev_ops = {
 	.alloc_task = iep2_alloc_task,
-	.prepare = iep2_prepare,
 	.run = iep2_run,
 	.irq = iep2_irq,
 	.isr = iep2_isr,
