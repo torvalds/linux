@@ -42,6 +42,11 @@ void rs780e_early_config(void)
 	node_id_offset = 37;
 }
 
+void virtual_early_config(void)
+{
+	node_id_offset = 44;
+}
+
 void __init prom_init(void)
 {
 	fw_init_cmdline();

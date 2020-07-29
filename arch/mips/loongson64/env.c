@@ -167,14 +167,24 @@ void __init prom_init_env(void)
 	vendor = id & 0xffff;
 	device = (id >> 16) & 0xffff;
 
-	if (vendor == PCI_VENDOR_ID_LOONGSON && device == 0x7a00) {
+	switch (vendor) {
+	case PCI_VENDOR_ID_LOONGSON:
 		pr_info("The bridge chip is LS7A\n");
 		loongson_sysconf.bridgetype = LS7A;
 		loongson_sysconf.early_config = ls7a_early_config;
-	} else {
+		break;
+	case PCI_VENDOR_ID_AMD:
+	case PCI_VENDOR_ID_ATI:
 		pr_info("The bridge chip is RS780E or SR5690\n");
 		loongson_sysconf.bridgetype = RS780E;
 		loongson_sysconf.early_config = rs780e_early_config;
+		break;
+	default:
+		pr_info("The bridge chip is VIRTUAL\n");
+		loongson_sysconf.bridgetype = VIRTUAL;
+		loongson_sysconf.early_config = virtual_early_config;
+		loongson_fdt_blob = __dtb_loongson64v_4core_virtio_begin;
+		break;
 	}
 
 	if ((read_c0_prid() & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64C) {

@@ -478,6 +478,7 @@ config MACH_LOONGSON64
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
+	select PCI_HOST_GENERIC
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
