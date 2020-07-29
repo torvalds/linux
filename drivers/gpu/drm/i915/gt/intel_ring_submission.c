@@ -202,16 +202,18 @@ static struct i915_address_space *vm_alias(struct i915_address_space *vm)
 	return vm;
 }
 
+static u32 pp_dir(struct i915_address_space *vm)
+{
+	return to_gen6_ppgtt(i915_vm_to_ppgtt(vm))->pp_dir;
+}
+
 static void set_pp_dir(struct intel_engine_cs *engine)
 {
 	struct i915_address_space *vm = vm_alias(engine->gt->vm);
 
 	if (vm) {
-		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-
 		ENGINE_WRITE(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
-		ENGINE_WRITE(engine, RING_PP_DIR_BASE,
-			     px_base(ppgtt->pd)->ggtt_offset << 10);
+		ENGINE_WRITE(engine, RING_PP_DIR_BASE, pp_dir(vm));
 	}
 }
 
@@ -609,7 +611,7 @@ static const struct intel_context_ops ring_context_ops = {
 };
 
 static int load_pd_dir(struct i915_request *rq,
-		       const struct i915_ppgtt *ppgtt,
+		       struct i915_address_space *vm,
 		       u32 valid)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
@@ -625,7 +627,7 @@ static int load_pd_dir(struct i915_request *rq,
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = px_base(ppgtt->pd)->ggtt_offset << 10;
+	*cs++ = pp_dir(vm);
 
 	/* Stall until the page table load is complete? */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
@@ -827,7 +829,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 	 * post-sync op, this extra pass appears vital before a
 	 * mm switch!
 	 */
-	ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
+	ret = load_pd_dir(rq, vm, PP_DIR_DCLV_2G);
 	if (ret)
 		return ret;
 

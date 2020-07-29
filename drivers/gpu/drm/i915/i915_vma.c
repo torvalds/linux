@@ -872,24 +872,30 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (err)
 		return err;
 
+	if (flags & PIN_GLOBAL)
+		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
+
 	if (flags & vma->vm->bind_async_flags) {
 		work = i915_vma_work();
 		if (!work) {
 			err = -ENOMEM;
-			goto err_pages;
+			goto err_rpm;
 		}
 
 		work->vm = i915_vm_get(vma->vm);
 
 		/* Allocate enough page directories to used PTE */
-		if (vma->vm->allocate_va_range)
+		if (vma->vm->allocate_va_range) {
 			i915_vm_alloc_pt_stash(vma->vm,
 					       &work->stash,
 					       vma->size);
-	}
 
-	if (flags & PIN_GLOBAL)
-		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
+			err = i915_vm_pin_pt_stash(vma->vm,
+						   &work->stash);
+			if (err)
+				goto err_fence;
+		}
+	}
 
 	/*
 	 * Differentiate between user/kernel vma inside the aliasing-ppgtt.
@@ -978,9 +984,9 @@ err_unlock:
 err_fence:
 	if (work)
 		dma_fence_work_commit_imm(&work->base);
+err_rpm:
 	if (wakeref)
 		intel_runtime_pm_put(&vma->vm->i915->runtime_pm, wakeref);
-err_pages:
 	vma_put_pages(vma);
 	return err;
 }

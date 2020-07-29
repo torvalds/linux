@@ -282,6 +282,7 @@ struct drm_i915_gem_object {
 		} userptr;
 
 		unsigned long scratch;
+		u64 encode;
 
 		void *gvt_info;
 	};

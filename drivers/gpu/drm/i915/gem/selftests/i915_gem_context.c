@@ -1748,7 +1748,7 @@ static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 	if (!vm)
 		return -ENODEV;
 
-	page = vm->scratch[0].base.page;
+	page = __px_page(vm->scratch[0]);
 	if (!page) {
 		pr_err("No scratch page!\n");
 		return -EINVAL;

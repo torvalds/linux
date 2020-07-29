@@ -14,6 +14,7 @@ struct gen6_ppgtt {
 	struct mutex flush;
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
+	u32 pp_dir;
 
 	atomic_t pin_count;
 	struct mutex pin_mutex;

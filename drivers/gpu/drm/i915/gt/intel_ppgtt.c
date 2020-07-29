@@ -18,7 +18,8 @@ struct i915_page_table *alloc_pt(struct i915_address_space *vm)
 	if (unlikely(!pt))
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(setup_page_dma(vm, &pt->base))) {
+	pt->base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
+	if (IS_ERR(pt->base)) {
 		kfree(pt);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -47,7 +48,8 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(setup_page_dma(vm, px_base(pd)))) {
+	pd->pt.base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
+	if (IS_ERR(pd->pt.base)) {
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -55,27 +57,28 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	return pd;
 }
 
-void free_pd(struct i915_address_space *vm, struct i915_page_dma *pd)
+void free_pt(struct i915_address_space *vm, struct i915_page_table *pt)
 {
-	cleanup_page_dma(vm, pd);
-	kfree(pd);
+	i915_gem_object_put(pt->base);
+	kfree(pt);
 }
 
 static inline void
-write_dma_entry(struct i915_page_dma * const pdma,
+write_dma_entry(struct drm_i915_gem_object * const pdma,
 		const unsigned short idx,
 		const u64 encoded_entry)
 {
-	u64 * const vaddr = kmap_atomic(pdma->page);
+	u64 * const vaddr = kmap_atomic(__px_page(pdma));
 
 	vaddr[idx] = encoded_entry;
+	clflush_cache_range(&vaddr[idx], sizeof(u64));
 	kunmap_atomic(vaddr);
 }
 
 void
 __set_pd_entry(struct i915_page_directory * const pd,
 	       const unsigned short idx,
-	       struct i915_page_dma * const to,
+	       struct i915_page_table * const to,
 	       u64 (*encode)(const dma_addr_t, const enum i915_cache_level))
 {
 	/* Each thread pre-pins the pd, and we may have a thread per pde. */
@@ -83,13 +86,13 @@ __set_pd_entry(struct i915_page_directory * const pd,
 
 	atomic_inc(px_used(pd));
 	pd->entry[idx] = to;
-	write_dma_entry(px_base(pd), idx, encode(to->daddr, I915_CACHE_LLC));
+	write_dma_entry(px_base(pd), idx, encode(px_dma(to), I915_CACHE_LLC));
 }
 
 void
 clear_pd_entry(struct i915_page_directory * const pd,
 	       const unsigned short idx,
-	       const struct i915_page_scratch * const scratch)
+	       const struct drm_i915_gem_object * const scratch)
 {
 	GEM_BUG_ON(atomic_read(px_used(pd)) == 0);
 
@@ -102,7 +105,7 @@ bool
 release_pd_entry(struct i915_page_directory * const pd,
 		 const unsigned short idx,
 		 struct i915_page_table * const pt,
-		 const struct i915_page_scratch * const scratch)
+		 const struct drm_i915_gem_object * const scratch)
 {
 	bool free = false;
 
@@ -228,6 +231,23 @@ int i915_vm_alloc_pt_stash(struct i915_address_space *vm,
 
 			pd->pt.stash = stash->pt[1];
 			stash->pt[1] = &pd->pt;
+		}
+	}
+
+	return 0;
+}
+
+int i915_vm_pin_pt_stash(struct i915_address_space *vm,
+			 struct i915_vm_pt_stash *stash)
+{
+	struct i915_page_table *pt;
+	int n, err;
+
+	for (n = 0; n < ARRAY_SIZE(stash->pt); n++) {
+		for (pt = stash->pt[n]; pt; pt = pt->stash) {
+			err = pin_pt_dma(vm, pt->base);
+			if (err)
+				return err;
 		}
 	}
 

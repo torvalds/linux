@@ -1075,6 +1075,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
+	i915_gem_drain_freed_objects(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
 
