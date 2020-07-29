@@ -75,6 +75,7 @@ void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 	loads[1] = (avenrun[1] + offset) << shift;
 	loads[2] = (avenrun[2] + offset) << shift;
 }
+EXPORT_SYMBOL_GPL(get_avenrun);
 
 long calc_load_fold_active(struct rq *this_rq, long adjust)
 {
