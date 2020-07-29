@@ -823,7 +823,7 @@ static void remove_pte_table(pte_t *pte_start, unsigned long addr,
 	}
 }
 
-static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
+static void __meminit remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			     unsigned long end)
 {
 	unsigned long next;
@@ -853,7 +853,7 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 	}
 }
 
-static void remove_pud_table(pud_t *pud_start, unsigned long addr,
+static void __meminit remove_pud_table(pud_t *pud_start, unsigned long addr,
 			     unsigned long end)
 {
 	unsigned long next;
