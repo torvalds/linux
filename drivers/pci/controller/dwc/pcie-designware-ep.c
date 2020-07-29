@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Synopsys DesignWare PCIe Endpoint controller driver
  *
  * Copyright (C) 2017 Texas Instruments
