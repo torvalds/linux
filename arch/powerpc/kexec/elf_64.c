@@ -88,7 +88,8 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 		goto out;
 	}
 
-	ret = setup_new_fdt(image, fdt, initrd_load_addr, initrd_len, cmdline);
+	ret = setup_new_fdt_ppc64(image, fdt, initrd_load_addr,
+				  initrd_len, cmdline);
 	if (ret)
 		goto out;
 
@@ -107,8 +108,8 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	pr_debug("Loaded device tree at 0x%lx\n", fdt_load_addr);
 
 	slave_code = elf_info.buffer + elf_info.proghdrs[0].p_offset;
-	ret = setup_purgatory(image, slave_code, fdt, kernel_load_addr,
-			      fdt_load_addr);
+	ret = setup_purgatory_ppc64(image, slave_code, fdt, kernel_load_addr,
+				    fdt_load_addr);
 	if (ret)
 		pr_err("Error setting up the purgatory.\n");
 

@@ -116,6 +116,15 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 		  unsigned long initrd_load_addr, unsigned long initrd_len,
 		  const char *cmdline);
 int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size);
+
+#ifdef CONFIG_PPC64
+int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
+			  const void *fdt, unsigned long kernel_load_addr,
+			  unsigned long fdt_load_addr);
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
+			unsigned long initrd_load_addr,
+			unsigned long initrd_len, const char *cmdline);
+#endif /* CONFIG_PPC64 */
 #endif /* CONFIG_KEXEC_FILE */
 
 #else /* !CONFIG_KEXEC_CORE */

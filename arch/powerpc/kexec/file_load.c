@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ppc64 code to implement the kexec_file_load syscall
+ * powerpc code to implement the kexec_file_load syscall
  *
  * Copyright (C) 2004  Adam Litke (agl@us.ibm.com)
  * Copyright (C) 2004  IBM Corp.
@@ -20,22 +20,7 @@
 #include <linux/libfdt.h>
 #include <asm/ima.h>
 
-#define SLAVE_CODE_SIZE		256
-
-const struct kexec_file_ops * const kexec_file_loaders[] = {
-	&kexec_elf64_ops,
-	NULL
-};
-
-int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
-				  unsigned long buf_len)
-{
-	/* We don't support crash kernels yet. */
-	if (image->type == KEXEC_TYPE_CRASH)
-		return -EOPNOTSUPP;
-
-	return kexec_image_probe_default(image, buf, buf_len);
-}
+#define SLAVE_CODE_SIZE		256	/* First 0x100 bytes */
 
 /**
  * setup_purgatory - initialize the purgatory's global variables
