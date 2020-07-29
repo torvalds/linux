@@ -386,7 +386,7 @@ __s32 btf__find_by_name_kind(const struct btf *btf, const char *type_name,
 
 void btf__free(struct btf *btf)
 {
-	if (!btf)
+	if (IS_ERR_OR_NULL(btf))
 		return;
 
 	if (btf->fd >= 0)
@@ -1025,7 +1025,7 @@ static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
 
 void btf_ext__free(struct btf_ext *btf_ext)
 {
-	if (!btf_ext)
+	if (IS_ERR_OR_NULL(btf_ext))
 		return;
 	free(btf_ext->data);
 	free(btf_ext);

@@ -6504,7 +6504,7 @@ void bpf_object__close(struct bpf_object *obj)
 {
 	size_t i;
 
-	if (!obj)
+	if (IS_ERR_OR_NULL(obj))
 		return;
 
 	if (obj->clear_priv)
@@ -7690,7 +7690,7 @@ int bpf_link__destroy(struct bpf_link *link)
 {
 	int err = 0;
 
-	if (!link)
+	if (IS_ERR_OR_NULL(link))
 		return 0;
 
 	if (!link->disconnected && link->detach)
@@ -8502,7 +8502,7 @@ void perf_buffer__free(struct perf_buffer *pb)
 {
 	int i;
 
-	if (!pb)
+	if (IS_ERR_OR_NULL(pb))
 		return;
 	if (pb->cpu_bufs) {
 		for (i = 0; i < pb->cpu_cnt; i++) {
@@ -9379,8 +9379,7 @@ void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
 	for (i = 0; i < s->prog_cnt; i++) {
 		struct bpf_link **link = s->progs[i].link;
 
-		if (!IS_ERR_OR_NULL(*link))
-			bpf_link__destroy(*link);
+		bpf_link__destroy(*link);
 		*link = NULL;
 	}
 }

@@ -183,7 +183,7 @@ void btf_dump__free(struct btf_dump *d)
 {
 	int i, cnt;
 
-	if (!d)
+	if (IS_ERR_OR_NULL(d))
 		return;
 
 	free(d->type_states);
