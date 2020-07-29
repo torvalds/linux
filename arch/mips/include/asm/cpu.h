@@ -428,6 +428,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_MM_FULL	BIT_ULL(59)	/* CPU supports write-through full merge */
 #define MIPS_CPU_MAC_2008_ONLY	BIT_ULL(60)	/* CPU Only support MAC2008 Fused multiply-add instruction */
 #define MIPS_CPU_FTLBPAREX	BIT_ULL(61)	/* CPU has FTLB parity exception */
+#define MIPS_CPU_GSEXCEX	BIT_ULL(62)	/* CPU has GSExc exception */
 
 /*
  * CPU ASE encodings

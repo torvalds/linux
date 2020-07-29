@@ -498,6 +498,19 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	KMODE
 	.endm
 
+	.macro __build_clear_gsexc
+	.set	push
+	/*
+	 * We need to specify a selector to access the CP0.Diag1 (GSCause)
+	 * register. All GSExc-equipped processors have MIPS32.
+	 */
+	.set	mips32
+	mfc0	a1, CP0_DIAGNOSTIC1
+	.set	pop
+	TRACE_IRQS_ON
+	STI
+	.endm
+
 	.macro	__BUILD_silent exception
 	.endm
 
@@ -556,6 +569,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 #endif
 	BUILD_HANDLER ftlb ftlb none silent		/* #16 */
+	BUILD_HANDLER gsexc gsexc gsexc silent		/* #16 */
 	BUILD_HANDLER msa msa sti silent		/* #21 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 #ifdef	CONFIG_HARDWARE_WATCHPOINTS

@@ -2043,6 +2043,9 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
 
+	/* All Loongson processors covered here define ExcCode 16 as GSExc. */
+	c->options |= MIPS_CPU_GSEXCEX;
+
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_LOONGSON_64R: /* Loongson-64 Reduced */
 		switch (c->processor_id & PRID_REV_MASK) {

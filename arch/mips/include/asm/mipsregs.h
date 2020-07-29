@@ -474,6 +474,9 @@
 /* Implementation specific trap codes used by MIPS cores */
 #define MIPS_EXCCODE_TLBPAR	16	/* TLB parity error exception */
 
+/* Implementation specific trap codes used by Loongson cores */
+#define LOONGSON_EXCCODE_GSEXC	16	/* Loongson-specific exception */
+
 /*
  * Bits in the coprocessor 0 config register.
  */
