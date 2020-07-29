@@ -38,6 +38,7 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/virtio.h>
+#include <linux/cdev.h>
 #include <linux/completion.h>
 #include <linux/idr.h>
 #include <linux/of.h>
@@ -509,6 +510,8 @@ struct rproc_dump_segment {
  * @autonomous: true if an external entity has booted the remote processor
  * @dump_segments: list of segments in the firmware
  * @nb_vdev: number of vdev currently handled by rproc
+ * @char_dev: character device of the rproc
+ * @cdev_put_on_release: flag to indicate if remoteproc should be shutdown on @char_dev release
  */
 struct rproc {
 	struct list_head node;
@@ -546,6 +549,8 @@ struct rproc {
 	int nb_vdev;
 	u8 elf_class;
 	u16 elf_machine;
+	struct cdev cdev;
+	bool cdev_put_on_release;
 };
 
 /**

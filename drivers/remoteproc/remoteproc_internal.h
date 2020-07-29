@@ -53,6 +53,34 @@ void rproc_exit_sysfs(void);
 void rproc_coredump_cleanup(struct rproc *rproc);
 void rproc_coredump(struct rproc *rproc);
 
+#ifdef CONFIG_REMOTEPROC_CDEV
+void rproc_init_cdev(void);
+void rproc_exit_cdev(void);
+int rproc_char_device_add(struct rproc *rproc);
+void rproc_char_device_remove(struct rproc *rproc);
+#else
+static inline void rproc_init_cdev(void)
+{
+}
+
+static inline void rproc_exit_cdev(void)
+{
+}
+
+/*
+ * The character device interface is an optional feature, if it is not enabled
+ * the function should not return an error.
+ */
+static inline int rproc_char_device_add(struct rproc *rproc)
+{
+	return 0;
+}
+
+static inline void  rproc_char_device_remove(struct rproc *rproc)
+{
+}
+#endif
+
 void rproc_free_vring(struct rproc_vring *rvring);
 int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
 
