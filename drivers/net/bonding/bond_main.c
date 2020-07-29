@@ -4817,15 +4817,19 @@ int bond_create(struct net *net, const char *name)
 	bond_dev->rtnl_link_ops = &bond_link_ops;
 
 	res = register_netdevice(bond_dev);
+	if (res < 0) {
+		free_netdev(bond_dev);
+		rtnl_unlock();
+
+		return res;
+	}
 
 	netif_carrier_off(bond_dev);
 
 	bond_work_init_all(bond);
 
 	rtnl_unlock();
-	if (res < 0)
-		free_netdev(bond_dev);
-	return res;
+	return 0;
 }
 
 static int __net_init bond_net_init(struct net *net)

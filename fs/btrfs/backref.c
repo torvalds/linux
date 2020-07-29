@@ -1419,6 +1419,7 @@ static int btrfs_find_all_roots_safe(struct btrfs_trans_handle *trans,
 		if (ret < 0 && ret != -ENOENT) {
 			ulist_free(tmp);
 			ulist_free(*roots);
+			*roots = NULL;
 			return ret;
 		}
 		node = ulist_next(tmp, &uiter);

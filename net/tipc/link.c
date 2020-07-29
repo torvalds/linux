@@ -928,7 +928,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	int rc = 0;
 
 	if (unlikely(msg_size(hdr) > mtu)) {
-		skb_queue_purge(list);
+		__skb_queue_purge(list);
 		return -EMSGSIZE;
 	}
 
@@ -957,7 +957,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 		if (likely(skb_queue_len(transmq) < maxwin)) {
 			_skb = skb_clone(skb, GFP_ATOMIC);
 			if (!_skb) {
-				skb_queue_purge(list);
+				__skb_queue_purge(list);
 				return -ENOBUFS;
 			}
 			__skb_dequeue(list);
@@ -1429,7 +1429,7 @@ void tipc_link_create_dummy_tnl_msg(struct tipc_link *l,
 	struct sk_buff *skb;
 	u32 dnode = l->addr;
 
-	skb_queue_head_init(&tnlq);
+	__skb_queue_head_init(&tnlq);
 	skb = tipc_msg_create(TUNNEL_PROTOCOL, FAILOVER_MSG,
 			      INT_H_SIZE, BASIC_H_SIZE,
 			      dnode, onode, 0, 0, 0);
@@ -1465,8 +1465,8 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 	if (!tnl)
 		return;
 
-	skb_queue_head_init(&tnlq);
-	skb_queue_head_init(&tmpxq);
+	__skb_queue_head_init(&tnlq);
+	__skb_queue_head_init(&tmpxq);
 
 	/* At least one packet required for safe algorithm => add dummy */
 	skb = tipc_msg_create(TIPC_LOW_IMPORTANCE, TIPC_DIRECT_MSG,
@@ -1476,7 +1476,7 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 		pr_warn("%sunable to create tunnel packet\n", link_co_err);
 		return;
 	}
-	skb_queue_tail(&tnlq, skb);
+	__skb_queue_tail(&tnlq, skb);
 	tipc_link_xmit(l, &tnlq, &tmpxq);
 	__skb_queue_purge(&tmpxq);
 
