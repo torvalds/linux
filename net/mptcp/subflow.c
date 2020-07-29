@@ -598,7 +598,8 @@ static bool validate_mapping(struct sock *ssk, struct sk_buff *skb)
 	return true;
 }
 
-static enum mapping_status get_mapping_status(struct sock *ssk)
+static enum mapping_status get_mapping_status(struct sock *ssk,
+					      struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	struct mptcp_ext *mpext;
@@ -648,7 +649,8 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 
 	if (mpext->data_fin == 1) {
 		if (data_len == 1) {
-			pr_debug("DATA_FIN with no payload");
+			mptcp_update_rcv_data_fin(msk, mpext->data_seq);
+			pr_debug("DATA_FIN with no payload seq=%llu", mpext->data_seq);
 			if (subflow->map_valid) {
 				/* A DATA_FIN might arrive in a DSS
 				 * option before the previous mapping
@@ -660,6 +662,9 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 			} else {
 				return MAPPING_DATA_FIN;
 			}
+		} else {
+			mptcp_update_rcv_data_fin(msk, mpext->data_seq + data_len);
+			pr_debug("DATA_FIN with mapping seq=%llu", mpext->data_seq + data_len);
 		}
 
 		/* Adjust for DATA_FIN using 1 byte of sequence space */
@@ -748,7 +753,7 @@ static bool subflow_check_data_avail(struct sock *ssk)
 		u64 ack_seq;
 		u64 old_ack;
 
-		status = get_mapping_status(ssk);
+		status = get_mapping_status(ssk, msk);
 		pr_debug("msk=%p ssk=%p status=%d", msk, ssk, status);
 		if (status == MAPPING_INVALID) {
 			ssk->sk_err = EBADMSG;
@@ -1154,7 +1159,8 @@ static void subflow_state_change(struct sock *sk)
 	if (mptcp_subflow_data_available(sk))
 		mptcp_data_ready(parent, sk);
 
-	if (!(parent->sk_shutdown & RCV_SHUTDOWN) &&
+	if (__mptcp_check_fallback(mptcp_sk(parent)) &&
+	    !(parent->sk_shutdown & RCV_SHUTDOWN) &&
 	    !subflow->rx_eof && subflow_is_done(sk)) {
 		subflow->rx_eof = 1;
 		mptcp_subflow_eof(parent);
