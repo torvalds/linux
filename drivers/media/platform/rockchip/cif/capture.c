@@ -1517,7 +1517,6 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 	}
 
 	stream->state = RKCIF_STATE_READY;
-	stream->crop_enable = false;
 }
 
 static int rkcif_queue_setup(struct vb2_queue *queue,
@@ -1734,10 +1733,6 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	} else {
 		dev->can_be_reset = true;
 	}
-
-	memset(&stream->pixm, 0x0, sizeof(stream->pixm));
-	memset(&stream->crop, 0x0, sizeof(stream->crop));
-	stream->crop_enable = false;
 
 	if (dev->can_be_reset) {
 		if (dev->hdr.mode != NO_HDR) {
