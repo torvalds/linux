@@ -192,8 +192,10 @@ $(obj)/qconf.o: $(obj)/qconf-cfg $(obj)/qconf.moc
 quiet_cmd_moc = MOC     $@
       cmd_moc = $(shell . $(obj)/qconf-cfg && echo $$moc) -i $< -o $@
 
-$(obj)/%.moc: $(src)/%.h $(obj)/qconf-cfg
-	$(call cmd,moc)
+$(obj)/%.moc: $(src)/%.h $(obj)/qconf-cfg FORCE
+	$(call if_changed,moc)
+
+targets += qconf.moc
 
 # gconf: Used for the gconfig target based on GTK+
 hostprogs	+= gconf
