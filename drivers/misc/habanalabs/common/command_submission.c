@@ -370,7 +370,7 @@ static void cs_do_release(struct kref *ref)
 static void cs_timedout(struct work_struct *work)
 {
 	struct hl_device *hdev;
-	int ctx_asid, rc;
+	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
 	rc = cs_get_unless_zero(cs);
@@ -386,7 +386,6 @@ static void cs_timedout(struct work_struct *work)
 	cs->timedout = true;
 
 	hdev = cs->ctx->hdev;
-	ctx_asid = cs->ctx->asid;
 
 	dev_err(hdev->dev,
 		"Command submission %llu has not finished in time!\n",
