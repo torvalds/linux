@@ -185,6 +185,9 @@ int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
 		vdd_class = desc->clk_regulators[i];
 
 		for (cnt = 0; cnt < vdd_class->num_regulators; cnt++) {
+			if (vdd_class->regulator[cnt])
+				continue;
+
 			name = vdd_class->regulator_names[cnt];
 			regulator = devm_regulator_get(dev, name);
 			if (IS_ERR(regulator)) {
