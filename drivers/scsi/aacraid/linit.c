@@ -1659,7 +1659,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out;
 
 	if (!(aac_drivers[index].quirks & AAC_QUIRK_SRC)) {
-		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (error) {
 			dev_err(&pdev->dev, "PCI 32 BIT dma mask set failed");
 			goto out_disable_pdev;
@@ -1678,7 +1678,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		mask_bits = 32;
 	}
 
-	error = pci_set_consistent_dma_mask(pdev, dmamask);
+	error = dma_set_coherent_mask(&pdev->dev, dmamask);
 	if (error) {
 		dev_err(&pdev->dev, "PCI %d B consistent dma mask set failed\n"
 				, mask_bits);

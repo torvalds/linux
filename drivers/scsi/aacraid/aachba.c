@@ -2229,10 +2229,10 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	if (dev->dac_support) {
-		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
+		if (!dma_set_mask(&dev->pdev->dev, DMA_BIT_MASK(64))) {
 			if (!dev->in_reset)
 				dev_info(&dev->pdev->dev, "64 Bit DAC enabled\n");
-		} else if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(32))) {
+		} else if (!dma_set_mask(&dev->pdev->dev, DMA_BIT_MASK(32))) {
 			dev_info(&dev->pdev->dev, "DMA mask set failed, 64 Bit DAC disabled\n");
 			dev->dac_support = 0;
 		} else {
