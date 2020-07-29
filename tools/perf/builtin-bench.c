@@ -59,6 +59,7 @@ static struct bench syscall_benchmarks[] = {
 static struct bench mem_benchmarks[] = {
 	{ "memcpy",	"Benchmark for memcpy() functions",		bench_mem_memcpy	},
 	{ "memset",	"Benchmark for memset() functions",		bench_mem_memset	},
+	{ "find_bit",	"Benchmark for find_bit() functions",		bench_mem_find_bit	},
 	{ "all",	"Run all memory access benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
