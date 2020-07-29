@@ -2999,6 +2999,7 @@ static const struct attribute *amdgpu_dev_attributes[] = {
 	NULL
 };
 
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3216,6 +3217,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 			goto failed;
 		}
 	}
+
+	pci_enable_pcie_error_reporting(adev->ddev.pdev);
 
 	/* Post card if necessary */
 	if (amdgpu_device_need_post(adev)) {
@@ -4704,4 +4707,162 @@ int amdgpu_device_baco_exit(struct drm_device *dev)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 
 	return 0;
+}
+
+/**
+ * amdgpu_pci_error_detected - Called when a PCI error is detected.
+ * @pdev: PCI device struct
+ * @state: PCI channel state
+ *
+ * Description: Called when a PCI error is detected.
+ *
+ * Return: PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT.
+ */
+pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+
+	DRM_INFO("PCI error: detected callback, state(%d)!!\n", state);
+
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		/* Fatal error, prepare for slot reset */
+		amdgpu_device_lock_adev(adev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		/* Permanent error, prepare for device removal */
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * amdgpu_pci_mmio_enabled - Enable MMIO and dump debug registers
+ * @pdev: pointer to PCI device
+ */
+pci_ers_result_t amdgpu_pci_mmio_enabled(struct pci_dev *pdev)
+{
+
+	DRM_INFO("PCI error: mmio enabled callback!!\n");
+
+	/* TODO - dump whatever for debugging purposes */
+
+	/* This called only if amdgpu_pci_error_detected returns
+	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still
+	 * works, no need to reset slot.
+	 */
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * amdgpu_pci_slot_reset - Called when PCI slot has been reset.
+ * @pdev: PCI device struct
+ *
+ * Description: This routine is called by the pci error recovery
+ * code after the PCI slot has been reset, just before we
+ * should resume normal operations.
+ */
+pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int r;
+	bool vram_lost;
+
+	DRM_INFO("PCI error: slot reset callback!!\n");
+
+	pci_restore_state(pdev);
+
+	r = amdgpu_device_ip_suspend(adev);
+	if (r)
+		goto out;
+
+
+	/* post card */
+	r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	if (r)
+		goto out;
+
+	r = amdgpu_device_ip_resume_phase1(adev);
+	if (r)
+		goto out;
+
+	vram_lost = amdgpu_device_check_vram_lost(adev);
+	if (vram_lost) {
+		DRM_INFO("VRAM is lost due to GPU reset!\n");
+		amdgpu_inc_vram_lost(adev);
+	}
+
+	r = amdgpu_gtt_mgr_recover(
+		&adev->mman.bdev.man[TTM_PL_TT]);
+	if (r)
+		goto out;
+
+	r = amdgpu_device_fw_loading(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_device_ip_resume_phase2(adev);
+	if (r)
+		goto out;
+
+	if (vram_lost)
+		amdgpu_device_fill_reset_magic(adev);
+
+	/*
+	 * Add this ASIC as tracked as reset was already
+	 * complete successfully.
+	 */
+	amdgpu_register_gpu_instance(adev);
+
+	r = amdgpu_device_ip_late_init(adev);
+	if (r)
+		goto out;
+
+	amdgpu_fbdev_set_suspend(adev, 0);
+
+	/* must succeed. */
+	amdgpu_ras_resume(adev);
+
+
+	amdgpu_irq_gpu_reset_resume_helper(adev);
+	r = amdgpu_ib_ring_tests(adev);
+	if (r)
+		goto out;
+
+	r = amdgpu_device_recover_vram(adev);
+
+out:
+
+	if (!r) {
+		DRM_INFO("PCIe error recovery succeeded\n");
+	} else {
+		DRM_ERROR("PCIe error recovery failed, err:%d", r);
+		amdgpu_device_unlock_adev(adev);
+	}
+
+	return r ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * amdgpu_pci_resume() - resume normal ops after PCI reset
+ * @pdev: pointer to PCI device
+ *
+ * Called when the error recovery driver tells us that its
+ * OK to resume normal operation. Use completion to allow
+ * halted scsi ops to resume.
+ */
+void amdgpu_pci_resume(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+
+	amdgpu_device_unlock_adev(adev);
+
+	DRM_INFO("PCI error: resume callback!!\n");
 }
