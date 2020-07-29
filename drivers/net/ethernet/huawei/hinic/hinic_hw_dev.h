@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <net/devlink.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
@@ -164,9 +165,12 @@ enum hinic_ucode_cmd {
 #define NIC_RSS_CMD_TEMP_FREE   0x02
 
 enum hinic_mgmt_msg_cmd {
-	HINIC_MGMT_MSG_CMD_BASE         = 160,
+	HINIC_MGMT_MSG_CMD_BASE         = 0xA0,
 
-	HINIC_MGMT_MSG_CMD_LINK_STATUS  = 160,
+	HINIC_MGMT_MSG_CMD_LINK_STATUS  = 0xA0,
+
+	HINIC_MGMT_MSG_CMD_CABLE_PLUG_EVENT	= 0xE5,
+	HINIC_MGMT_MSG_CMD_LINK_ERR_EVENT	= 0xE6,
 
 	HINIC_MGMT_MSG_CMD_MAX,
 };
@@ -348,6 +352,7 @@ struct hinic_hwdev {
 
 	struct hinic_cap                nic_cap;
 	u8				port_id;
+	struct hinic_devlink_priv	*devlink_dev;
 };
 
 struct hinic_nic_cb {
@@ -359,12 +364,29 @@ struct hinic_nic_cb {
 	unsigned long   cb_state;
 };
 
+#define HINIC_COMM_SELF_CMD_MAX 4
+
+typedef void (*comm_mgmt_self_msg_proc)(void *handle, void *buf_in, u16 in_size,
+					void *buf_out, u16 *out_size);
+
+struct comm_mgmt_self_msg_sub_info {
+	u8 cmd;
+	comm_mgmt_self_msg_proc proc;
+};
+
+struct comm_mgmt_self_msg_info {
+	u8 cmd_num;
+	struct comm_mgmt_self_msg_sub_info info[HINIC_COMM_SELF_CMD_MAX];
+};
+
 struct hinic_pfhwdev {
 	struct hinic_hwdev              hwdev;
 
 	struct hinic_pf_to_mgmt         pf_to_mgmt;
 
 	struct hinic_nic_cb             nic_cb[HINIC_MGMT_NUM_MSG_CMD];
+
+	struct comm_mgmt_self_msg_info	proc;
 };
 
 struct hinic_dev_cap {
@@ -384,6 +406,126 @@ struct hinic_dev_cap {
 	u16	max_vf_sqs;
 	u16     max_vf_rqs;
 	u8      rsvd3[204];
+};
+
+union hinic_fault_hw_mgmt {
+	u32 val[4];
+	/* valid only type == FAULT_TYPE_CHIP */
+	struct {
+		u8 node_id;
+		u8 err_level;
+		u16 err_type;
+		u32 err_csr_addr;
+		u32 err_csr_value;
+		/* func_id valid only if err_level == FAULT_LEVEL_SERIOUS_FLR */
+		u16 func_id;
+		u16 rsvd2;
+	} chip;
+
+	/* valid only if type == FAULT_TYPE_UCODE */
+	struct {
+		u8 cause_id;
+		u8 core_id;
+		u8 c_id;
+		u8 rsvd3;
+		u32 epc;
+		u32 rsvd4;
+		u32 rsvd5;
+	} ucode;
+
+	/* valid only if type == FAULT_TYPE_MEM_RD_TIMEOUT ||
+	 * FAULT_TYPE_MEM_WR_TIMEOUT
+	 */
+	struct {
+		u32 err_csr_ctrl;
+		u32 err_csr_data;
+		u32 ctrl_tab;
+		u32 mem_index;
+	} mem_timeout;
+
+	/* valid only if type == FAULT_TYPE_REG_RD_TIMEOUT ||
+	 * FAULT_TYPE_REG_WR_TIMEOUT
+	 */
+	struct {
+		u32 err_csr;
+		u32 rsvd6;
+		u32 rsvd7;
+		u32 rsvd8;
+	} reg_timeout;
+
+	struct {
+		/* 0: read; 1: write */
+		u8 op_type;
+		u8 port_id;
+		u8 dev_ad;
+		u8 rsvd9;
+		u32 csr_addr;
+		u32 op_data;
+		u32 rsvd10;
+	} phy_fault;
+};
+
+struct hinic_fault_event {
+	u8 type;
+	u8 fault_level;
+	u8 rsvd0[2];
+	union hinic_fault_hw_mgmt event;
+};
+
+struct hinic_cmd_fault_event {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	struct hinic_fault_event event;
+};
+
+enum hinic_fault_type {
+	FAULT_TYPE_CHIP,
+	FAULT_TYPE_UCODE,
+	FAULT_TYPE_MEM_RD_TIMEOUT,
+	FAULT_TYPE_MEM_WR_TIMEOUT,
+	FAULT_TYPE_REG_RD_TIMEOUT,
+	FAULT_TYPE_REG_WR_TIMEOUT,
+	FAULT_TYPE_PHY_FAULT,
+	FAULT_TYPE_MAX,
+};
+
+#define FAULT_SHOW_STR_LEN 16
+
+enum hinic_fault_err_level {
+	FAULT_LEVEL_FATAL,
+	FAULT_LEVEL_SERIOUS_RESET,
+	FAULT_LEVEL_SERIOUS_FLR,
+	FAULT_LEVEL_GENERAL,
+	FAULT_LEVEL_SUGGESTION,
+	FAULT_LEVEL_MAX
+};
+
+struct hinic_mgmt_watchdog_info {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u32 curr_time_h;
+	u32 curr_time_l;
+	u32 task_id;
+	u32 rsv;
+
+	u32 reg[13];
+	u32 pc;
+	u32 lr;
+	u32 cpsr;
+
+	u32 stack_top;
+	u32 stack_bottom;
+	u32 sp;
+	u32 curr_used;
+	u32 peak_used;
+	u32 is_overflow;
+
+	u32 stack_actlen;
+	u8 data[1024];
 };
 
 void hinic_hwdev_cb_register(struct hinic_hwdev *hwdev,
@@ -407,7 +549,7 @@ int hinic_hwdev_ifup(struct hinic_hwdev *hwdev, u16 sq_depth, u16 rq_depth);
 
 void hinic_hwdev_ifdown(struct hinic_hwdev *hwdev);
 
-struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev);
+struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devlink);
 
 void hinic_free_hwdev(struct hinic_hwdev *hwdev);
 

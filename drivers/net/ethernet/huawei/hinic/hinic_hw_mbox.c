@@ -650,6 +650,7 @@ wait_for_mbox_seg_completion(struct hinic_mbox_func_to_func *func_to_func,
 		if (!wait_for_completion_timeout(done, jif)) {
 			dev_err(&hwdev->hwif->pdev->dev, "Send mailbox segment timeout\n");
 			dump_mox_reg(hwdev);
+			hinic_dump_aeq_info(hwdev);
 			return -ETIMEDOUT;
 		}
 
@@ -897,6 +898,7 @@ int hinic_mbox_to_func(struct hinic_mbox_func_to_func *func_to_func,
 		set_mbox_to_func_event(func_to_func, EVENT_TIMEOUT);
 		dev_err(&func_to_func->hwif->pdev->dev,
 			"Send mbox msg timeout, msg_id: %d\n", msg_info.msg_id);
+		hinic_dump_aeq_info(func_to_func->hwdev);
 		err = -ETIMEDOUT;
 		goto err_send_mbox;
 	}

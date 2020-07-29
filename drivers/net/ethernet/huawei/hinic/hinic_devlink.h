@@ -7,6 +7,7 @@
 #define __HINIC_DEVLINK_H__
 
 #include <net/devlink.h>
+#include "hinic_dev.h"
 
 #define MAX_FW_TYPE_NUM 30
 #define HINIC_MAGIC_NUM 0x18221100
@@ -109,7 +110,10 @@ struct host_image_st {
 
 struct devlink *hinic_devlink_alloc(void);
 void hinic_devlink_free(struct devlink *devlink);
-int hinic_devlink_register(struct devlink *devlink, struct device *dev);
-void hinic_devlink_unregister(struct devlink *devlink);
+int hinic_devlink_register(struct hinic_devlink_priv *priv, struct device *dev);
+void hinic_devlink_unregister(struct hinic_devlink_priv *priv);
+
+int hinic_health_reporters_create(struct hinic_devlink_priv *priv);
+void hinic_health_reporters_destroy(struct hinic_devlink_priv *priv);
 
 #endif /* __HINIC_DEVLINK_H__ */

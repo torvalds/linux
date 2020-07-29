@@ -1766,6 +1766,25 @@ static int hinic_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
+static int
+hinic_get_link_ext_state(struct net_device *netdev,
+			 struct ethtool_link_ext_state_info *link_ext_state_info)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	if (netif_carrier_ok(netdev))
+		return -ENODATA;
+
+	if (nic_dev->cable_unplugged)
+		link_ext_state_info->link_ext_state =
+			ETHTOOL_LINK_EXT_STATE_NO_CABLE;
+	else if (nic_dev->module_unrecognized)
+		link_ext_state_info->link_ext_state =
+			ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH;
+
+	return 0;
+}
+
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -1776,6 +1795,7 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.set_link_ksettings = hinic_set_link_ksettings,
 	.get_drvinfo = hinic_get_drvinfo,
 	.get_link = ethtool_op_get_link,
+	.get_link_ext_state = hinic_get_link_ext_state,
 	.get_ringparam = hinic_get_ringparam,
 	.set_ringparam = hinic_set_ringparam,
 	.get_coalesce = hinic_get_coalesce,

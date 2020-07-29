@@ -61,8 +61,8 @@ static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 	    (port_mac_cmd.status  &&
 	    port_mac_cmd.status != HINIC_PF_SET_VF_ALREADY &&
 	    port_mac_cmd.status != HINIC_MGMT_STATUS_EXIST)) {
-		dev_err(&pdev->dev, "Failed to change MAC, ret = %d\n",
-			port_mac_cmd.status);
+		dev_err(&pdev->dev, "Failed to change MAC, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_mac_cmd.status, out_size);
 		return -EFAULT;
 	}
 
@@ -129,8 +129,8 @@ int hinic_port_get_mac(struct hinic_dev *nic_dev, u8 *addr)
 				 &port_mac_cmd, sizeof(port_mac_cmd),
 				 &port_mac_cmd, &out_size);
 	if (err || (out_size != sizeof(port_mac_cmd)) || port_mac_cmd.status) {
-		dev_err(&pdev->dev, "Failed to get mac, ret = %d\n",
-			port_mac_cmd.status);
+		dev_err(&pdev->dev, "Failed to get mac, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_mac_cmd.status, out_size);
 		return -EFAULT;
 	}
 
@@ -172,9 +172,9 @@ int hinic_port_set_mtu(struct hinic_dev *nic_dev, int new_mtu)
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_CHANGE_MTU,
 				 &port_mtu_cmd, sizeof(port_mtu_cmd),
 				 &port_mtu_cmd, &out_size);
-	if (err || (out_size != sizeof(port_mtu_cmd)) || port_mtu_cmd.status) {
-		dev_err(&pdev->dev, "Failed to set mtu, ret = %d\n",
-			port_mtu_cmd.status);
+	if (err || out_size != sizeof(port_mtu_cmd) || port_mtu_cmd.status) {
+		dev_err(&pdev->dev, "Failed to set mtu, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_mtu_cmd.status, out_size);
 		return -EFAULT;
 	}
 
@@ -264,8 +264,8 @@ int hinic_port_link_state(struct hinic_dev *nic_dev,
 				 &link_cmd, sizeof(link_cmd),
 				 &link_cmd, &out_size);
 	if (err || (out_size != sizeof(link_cmd)) || link_cmd.status) {
-		dev_err(&pdev->dev, "Failed to get link state, ret = %d\n",
-			link_cmd.status);
+		dev_err(&pdev->dev, "Failed to get link state, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, link_cmd.status, out_size);
 		return -EINVAL;
 	}
 
@@ -298,8 +298,8 @@ int hinic_port_set_state(struct hinic_dev *nic_dev, enum hinic_port_state state)
 				 &port_state, sizeof(port_state),
 				 &port_state, &out_size);
 	if (err || (out_size != sizeof(port_state)) || port_state.status) {
-		dev_err(&pdev->dev, "Failed to set port state, ret = %d\n",
-			port_state.status);
+		dev_err(&pdev->dev, "Failed to set port state, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_state.status, out_size);
 		return -EFAULT;
 	}
 
@@ -330,8 +330,8 @@ int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 				 &func_state, sizeof(func_state),
 				 &func_state, &out_size);
 	if (err || (out_size != sizeof(func_state)) || func_state.status) {
-		dev_err(&pdev->dev, "Failed to set port func state, ret = %d\n",
-			func_state.status);
+		dev_err(&pdev->dev, "Failed to set port func state, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, func_state.status, out_size);
 		return -EFAULT;
 	}
 
@@ -361,9 +361,9 @@ int hinic_port_get_cap(struct hinic_dev *nic_dev,
 				 port_cap, &out_size);
 	if (err || (out_size != sizeof(*port_cap)) || port_cap->status) {
 		dev_err(&pdev->dev,
-			"Failed to get port capabilities, ret = %d\n",
-			port_cap->status);
-		return -EINVAL;
+			"Failed to get port capabilities, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_cap->status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -393,9 +393,9 @@ int hinic_port_set_tso(struct hinic_dev *nic_dev, enum hinic_tso_state state)
 				 &tso_cfg, &out_size);
 	if (err || out_size != sizeof(tso_cfg) || tso_cfg.status) {
 		dev_err(&pdev->dev,
-			"Failed to set port tso, ret = %d\n",
-			tso_cfg.status);
-		return -EINVAL;
+			"Failed to set port tso, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, tso_cfg.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -423,9 +423,9 @@ int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en)
 				 &rx_csum_cfg, &out_size);
 	if (err || !out_size || rx_csum_cfg.status) {
 		dev_err(&pdev->dev,
-			"Failed to set rx csum offload, ret = %d\n",
-			rx_csum_cfg.status);
-		return -EINVAL;
+			"Failed to set rx csum offload, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, rx_csum_cfg.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -480,9 +480,9 @@ int hinic_set_max_qnum(struct hinic_dev *nic_dev, u8 num_rqs)
 				 &rq_num, &out_size);
 	if (err || !out_size || rq_num.status) {
 		dev_err(&pdev->dev,
-			"Failed to rxq number, ret = %d\n",
-			rq_num.status);
-		return -EINVAL;
+			"Failed to set rxq number, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, rq_num.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -508,9 +508,9 @@ static int hinic_set_rx_lro(struct hinic_dev *nic_dev, u8 ipv4_en, u8 ipv6_en,
 				 &lro_cfg, &out_size);
 	if (err || !out_size || lro_cfg.status) {
 		dev_err(&pdev->dev,
-			"Failed to set lro offload, ret = %d\n",
-			lro_cfg.status);
-		return -EINVAL;
+			"Failed to set lro offload, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, lro_cfg.status, out_size);
+		return -EIO;
 	}
 
 	return 0;
@@ -542,10 +542,10 @@ static int hinic_set_rx_lro_timer(struct hinic_dev *nic_dev, u32 timer_value)
 
 	if (err || !out_size || lro_timer.status) {
 		dev_err(&pdev->dev,
-			"Failed to set lro timer, ret = %d\n",
-			lro_timer.status);
+			"Failed to set lro timer, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, lro_timer.status, out_size);
 
-		return -EINVAL;
+		return -EIO;
 	}
 
 	return 0;

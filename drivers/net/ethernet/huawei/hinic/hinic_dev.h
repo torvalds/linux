@@ -98,10 +98,14 @@ struct hinic_dev {
 	int				lb_pkt_len;
 	u8				*lb_test_rx_buf;
 	struct devlink			*devlink;
+	bool				cable_unplugged;
+	bool				module_unrecognized;
 };
 
 struct hinic_devlink_priv {
 	struct hinic_hwdev		*hwdev;
+	struct devlink_health_reporter  *hw_fault_reporter;
+	struct devlink_health_reporter  *fw_fault_reporter;
 };
 
 #endif
