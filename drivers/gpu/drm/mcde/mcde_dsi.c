@@ -148,9 +148,22 @@ static void mcde_dsi_attach_to_mcde(struct mcde_dsi *d)
 {
 	d->mcde->mdsi = d->mdsi;
 
-	d->mcde->video_mode = !!(d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO);
-	/* Enable use of the TE signal for all command mode panels */
-	d->mcde->te_sync = !d->mcde->video_mode;
+	/*
+	 * Select the way the DSI data flow is pushing to the display:
+	 * currently we just support video or command mode depending
+	 * on the type of display. Video mode defaults to using the
+	 * formatter itself for synchronization (stateless video panel).
+	 *
+	 * FIXME: add flags to struct mipi_dsi_device .flags to indicate
+	 * displays that require BTA (bus turn around) so we can handle
+	 * such displays as well. Figure out how to properly handle
+	 * single frame on-demand updates with DRM for command mode
+	 * displays (MCDE_COMMAND_ONESHOT_FLOW).
+	 */
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		d->mcde->flow_mode = MCDE_VIDEO_FORMATTER_FLOW;
+	else
+		d->mcde->flow_mode = MCDE_COMMAND_TE_FLOW;
 }
 
 static int mcde_dsi_host_attach(struct mipi_dsi_host *host,

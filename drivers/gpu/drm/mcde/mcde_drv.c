@@ -305,9 +305,6 @@ static int mcde_probe(struct platform_device *pdev)
 	mcde->dev = dev;
 	platform_set_drvdata(pdev, drm);
 
-	/* Enable continuous updates: this is what Linux' framebuffer expects */
-	mcde->oneshot_mode = false;
-
 	/* First obtain and turn on the main power */
 	mcde->epod = devm_regulator_get(dev, "epod");
 	if (IS_ERR(mcde->epod)) {

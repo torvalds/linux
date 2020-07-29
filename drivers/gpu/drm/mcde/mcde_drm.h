@@ -9,6 +9,22 @@
 #ifndef _MCDE_DRM_H_
 #define _MCDE_DRM_H_
 
+enum mcde_flow_mode {
+	/* One-shot mode: flow stops after one frame */
+	MCDE_COMMAND_ONESHOT_FLOW,
+	/* Command mode with tearing effect (TE) IRQ sync */
+	MCDE_COMMAND_TE_FLOW,
+	/*
+	 * Command mode with bus turn-around (BTA) and tearing effect
+	 * (TE) IRQ sync.
+	 */
+	MCDE_COMMAND_BTA_TE_FLOW,
+	/* Video mode with tearing effect (TE) sync IRQ */
+	MCDE_VIDEO_TE_FLOW,
+	/* Video mode with the formatter itself as sync source */
+	MCDE_VIDEO_FORMATTER_FLOW,
+};
+
 struct mcde {
 	struct drm_device drm;
 	struct device *dev;
@@ -18,9 +34,7 @@ struct mcde {
 	struct drm_simple_display_pipe pipe;
 	struct mipi_dsi_device *mdsi;
 	s16 stride;
-	bool te_sync;
-	bool video_mode;
-	bool oneshot_mode;
+	enum mcde_flow_mode flow_mode;
 	unsigned int flow_active;
 	spinlock_t flow_lock; /* Locks the channel flow control */
 
@@ -35,6 +49,12 @@ struct mcde {
 };
 
 #define to_mcde(dev) container_of(dev, struct mcde, drm)
+
+static inline bool mcde_flow_is_video(struct mcde *mcde)
+{
+	return (mcde->flow_mode == MCDE_VIDEO_TE_FLOW ||
+		mcde->flow_mode == MCDE_VIDEO_FORMATTER_FLOW);
+}
 
 bool mcde_dsi_irq(struct mipi_dsi_device *mdsi);
 void mcde_dsi_te_request(struct mipi_dsi_device *mdsi);
