@@ -1825,7 +1825,7 @@ static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->c2p_train_data_offset =
-		ALIGN((adev->gmc.mc_vram_size - adev->discovery_tmr_size - SZ_1M), SZ_1M);
+		ALIGN((adev->gmc.mc_vram_size - adev->mman.discovery_tmr_size - SZ_1M), SZ_1M);
 	ctx->p2c_train_data_offset =
 		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
 	ctx->train_data_size =
@@ -1864,10 +1864,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	 * Otherwise, fallback to legacy approach to check and reserve tmr block for ip
 	 * discovery data and G6 memory training data respectively
 	 */
-	adev->discovery_tmr_size =
+	adev->mman.discovery_tmr_size =
 		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!adev->discovery_tmr_size)
-		adev->discovery_tmr_size = DISCOVERY_TMR_OFFSET;
+	if (!adev->mman.discovery_tmr_size)
+		adev->mman.discovery_tmr_size = DISCOVERY_TMR_OFFSET;
 
 	if (mem_train_support) {
 		/* reserve vram for mem train according to TMR location */
@@ -1887,14 +1887,14 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
-				adev->gmc.real_vram_size - adev->discovery_tmr_size,
-				adev->discovery_tmr_size,
+				adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
+				adev->mman.discovery_tmr_size,
 				AMDGPU_GEM_DOMAIN_VRAM,
-				&adev->discovery_memory,
+				&adev->mman.discovery_memory,
 				NULL);
 	if (ret) {
 		DRM_ERROR("alloc tmr failed(%d)!\n", ret);
-		amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
+		amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
 		return ret;
 	}
 
@@ -1968,7 +1968,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * If IP discovery enabled, a block of memory should be
 	 * reserved for IP discovey.
 	 */
-	if (adev->discovery_bin) {
+	if (adev->mman.discovery_bin) {
 		r = amdgpu_ttm_reserve_tmr(adev);
 		if (r)
 			return r;
@@ -2066,7 +2066,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	if (adev->mman.keep_stolen_vga_memory)
 		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
-	amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 
 	if (adev->mman.aper_base_kaddr)

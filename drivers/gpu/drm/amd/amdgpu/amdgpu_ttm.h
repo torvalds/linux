@@ -65,6 +65,11 @@ struct amdgpu_mman {
 	uint64_t		stolen_extended_size;
 	struct amdgpu_bo	*stolen_extended_memory;
 	bool			keep_stolen_vga_memory;
+
+	/* discovery */
+	uint8_t				*discovery_bin;
+	uint32_t			discovery_tmr_size;
+	struct amdgpu_bo		*discovery_memory;
 };
 
 struct amdgpu_copy_mem {

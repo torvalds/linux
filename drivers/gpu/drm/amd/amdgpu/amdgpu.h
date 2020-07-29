@@ -920,11 +920,6 @@ struct amdgpu_device {
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
-	/* discovery */
-	uint8_t				*discovery_bin;
-	uint32_t			discovery_tmr_size;
-	struct amdgpu_bo		*discovery_memory;
-
 	/* mes */
 	bool                            enable_mes;
 	struct amdgpu_mes               mes;

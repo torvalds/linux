@@ -1568,7 +1568,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 
 	adev->firmware.gpu_info_fw = NULL;
 
-	if (adev->discovery_bin) {
+	if (adev->mman.discovery_bin) {
 		amdgpu_discovery_get_gfx_info(adev);
 
 		/*
@@ -3428,7 +3428,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
-	if (adev->discovery_bin)
+	if (adev->mman.discovery_bin)
 		amdgpu_discovery_fini(adev);
 }
 
