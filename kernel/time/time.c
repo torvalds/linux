@@ -686,6 +686,7 @@ u64 nsec_to_clock_t(u64 x)
 	return div_u64(x * 9, (9ull * NSEC_PER_SEC + (USER_HZ / 2)) / USER_HZ);
 #endif
 }
+EXPORT_SYMBOL_GPL(nsec_to_clock_t);
 
 u64 jiffies64_to_nsecs(u64 j)
 {
