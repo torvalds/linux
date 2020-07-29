@@ -767,6 +767,100 @@ static void ice_vsi_link_event(struct ice_vsi *vsi, bool link_up)
 }
 
 /**
+ * ice_set_dflt_mib - send a default config MIB to the FW
+ * @pf: private PF struct
+ *
+ * This function sends a default configuration MIB to the FW.
+ *
+ * If this function errors out at any point, the driver is still able to
+ * function.  The main impact is that LFC may not operate as expected.
+ * Therefore an error state in this function should be treated with a DBG
+ * message and continue on with driver rebuild/reenable.
+ */
+static void ice_set_dflt_mib(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	u8 mib_type, *buf, *lldpmib = NULL;
+	u16 len, typelen, offset = 0;
+	struct ice_lldp_org_tlv *tlv;
+	struct ice_hw *hw;
+	u32 ouisubtype;
+
+	if (!pf) {
+		dev_dbg(dev, "%s NULL pf pointer\n", __func__);
+		return;
+	}
+
+	hw = &pf->hw;
+	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
+	lldpmib = kzalloc(ICE_LLDPDU_SIZE, GFP_KERNEL);
+	if (!lldpmib) {
+		dev_dbg(dev, "%s Failed to allocate MIB memory\n",
+			__func__);
+		return;
+	}
+
+	/* Add ETS CFG TLV */
+	tlv = (struct ice_lldp_org_tlv *)lldpmib;
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_ETS_TLV_LEN);
+	tlv->typelen = htons(typelen);
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	buf = tlv->tlvinfo;
+	buf[0] = 0;
+
+	/* ETS CFG all UPs map to TC 0. Next 4 (1 - 4) Octets = 0.
+	 * Octets 5 - 12 are BW values, set octet 5 to 100% BW.
+	 * Octets 13 - 20 are TSA values - leave as zeros
+	 */
+	buf[5] = 0x64;
+	len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+	offset += len + 2;
+	tlv = (struct ice_lldp_org_tlv *)
+		((char *)tlv + sizeof(tlv->typelen) + len);
+
+	/* Add ETS REC TLV */
+	buf = tlv->tlvinfo;
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_REC);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* First octet of buf is reserved
+	 * Octets 1 - 4 map UP to TC - all UPs map to zero
+	 * Octets 5 - 12 are BW values - set TC 0 to 100%.
+	 * Octets 13 - 20 are TSA value - leave as zeros
+	 */
+	buf[5] = 0x64;
+	offset += len + 2;
+	tlv = (struct ice_lldp_org_tlv *)
+		((char *)tlv + sizeof(tlv->typelen) + len);
+
+	/* Add PFC CFG TLV */
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_PFC_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_PFC_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* Octet 1 left as all zeros - PFC disabled */
+	buf[0] = 0x08;
+	len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+	offset += len + 2;
+
+	if (ice_aq_set_lldp_mib(hw, mib_type, (void *)lldpmib, offset, NULL))
+		dev_dbg(dev, "%s Failed to set default LLDP MIB\n", __func__);
+
+	kfree(lldpmib);
+}
+
+/**
  * ice_link_event - process the link event
  * @pf: PF that the link event is associated with
  * @pi: port_info for the port that the link event is associated with
@@ -800,6 +894,12 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
 			pi->lport);
 
+	/* Check if the link state is up after updating link info, and treat
+	 * this event as an UP event since the link is actually UP now.
+	 */
+	if (phy_info->link_info.link_info & ICE_AQ_LINK_UP)
+		link_up = true;
+
 	vsi = ice_get_main_vsi(pf);
 	if (!vsi || !vsi->port_info)
 		return -EINVAL;
@@ -821,7 +921,13 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	if (link_up == old_link && link_speed == old_link_speed)
 		return result;
 
-	ice_dcb_rebuild(pf);
+	if (ice_is_dcb_active(pf)) {
+		if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
+			ice_dcb_rebuild(pf);
+	} else {
+		if (link_up)
+			ice_set_dflt_mib(pf);
+	}
 	ice_vsi_link_event(vsi, link_up);
 	ice_print_link_msg(vsi, link_up);
 
@@ -3478,6 +3584,60 @@ done:
 }
 
 /**
+ * ice_set_safe_mode_vlan_cfg - configure PF VSI to allow all VLANs in safe mode
+ * @pf: PF to configure
+ *
+ * No VLAN offloads/filtering are advertised in safe mode so make sure the PF
+ * VSI can still Tx/Rx VLAN tagged packets.
+ */
+static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
+{
+	struct ice_vsi *vsi = ice_get_main_vsi(pf);
+	struct ice_vsi_ctx *ctxt;
+	enum ice_status status;
+	struct ice_hw *hw;
+
+	if (!vsi)
+		return;
+
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return;
+
+	hw = &pf->hw;
+	ctxt->info = vsi->info;
+
+	ctxt->info.valid_sections =
+		cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
+			    ICE_AQ_VSI_PROP_SECURITY_VALID |
+			    ICE_AQ_VSI_PROP_SW_VALID);
+
+	/* disable VLAN anti-spoof */
+	ctxt->info.sec_flags &= ~(ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
+				  ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S);
+
+	/* disable VLAN pruning and keep all other settings */
+	ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+
+	/* allow all VLANs on Tx and don't strip on Rx */
+	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL |
+		ICE_AQ_VSI_VLAN_EMOD_NOTHING;
+
+	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
+	if (status) {
+		dev_err(ice_pf_to_dev(vsi->back), "Failed to update VSI for safe mode VLANs, err %s aq_err %s\n",
+			ice_stat_str(status),
+			ice_aq_str(hw->adminq.sq_last_status));
+	} else {
+		vsi->info.sec_flags = ctxt->info.sec_flags;
+		vsi->info.sw_flags2 = ctxt->info.sw_flags2;
+		vsi->info.vlan_flags = ctxt->info.vlan_flags;
+	}
+
+	kfree(ctxt);
+}
+
+/**
  * ice_log_pkg_init - log result of DDP package load
  * @hw: pointer to hardware info
  * @status: status of package load
@@ -3974,7 +4134,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (err) {
 		dev_err(dev, "probe failed sending driver version %s. error: %d\n",
 			UTS_RELEASE, err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	/* since everything is good, start the service timer */
@@ -3983,19 +4143,19 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	err = ice_init_link_events(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_init_link_events failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	err = ice_init_nvm_phy_type(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_init_nvm_phy_type failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	err = ice_update_link_info(pf->hw.port_info);
 	if (err) {
 		dev_err(dev, "ice_update_link_info failed: %d\n", err);
-		goto err_alloc_sw_unroll;
+		goto err_send_version_unroll;
 	}
 
 	ice_init_link_dflt_override(pf->hw.port_info);
@@ -4006,7 +4166,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		err = ice_init_phy_user_cfg(pf->hw.port_info);
 		if (err) {
 			dev_err(dev, "ice_init_phy_user_cfg failed: %d\n", err);
-			goto err_alloc_sw_unroll;
+			goto err_send_version_unroll;
 		}
 
 		if (!test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags)) {
@@ -4033,9 +4193,10 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	/* Disable WoL at init, wait for user to enable */
 	device_set_wakeup_enable(dev, false);
 
-	/* If no DDP driven features have to be setup, we are done with probe */
-	if (ice_is_safe_mode(pf))
+	if (ice_is_safe_mode(pf)) {
+		ice_set_safe_mode_vlan_cfg(pf);
 		goto probe_done;
+	}
 
 	/* initialize DDP driven features */
 
@@ -4059,6 +4220,8 @@ probe_done:
 	clear_bit(__ICE_DOWN, pf->state);
 	return 0;
 
+err_send_version_unroll:
+	ice_vsi_release_all(pf);
 err_alloc_sw_unroll:
 	ice_devlink_destroy_port(pf);
 	set_bit(__ICE_SERVICE_DIS, pf->state);
@@ -4516,6 +4679,8 @@ static void ice_pci_err_resume(struct pci_dev *pdev)
 			__func__);
 		return;
 	}
+
+	ice_restore_all_vfs_msi_state(pdev);
 
 	ice_do_reset(pf, ICE_RESET_PFR);
 	ice_service_task_restart(pf);
@@ -5812,10 +5977,6 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	err = ice_sched_init_port(hw->port_info);
 	if (err)
 		goto err_sched_init_port;
-
-	err = ice_update_link_info(hw->port_info);
-	if (err)
-		dev_err(dev, "Get link status error %d\n", err);
 
 	/* start misc vector */
 	err = ice_req_irq_msix_misc(pf);

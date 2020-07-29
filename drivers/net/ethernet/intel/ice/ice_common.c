@@ -611,8 +611,6 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
 	status = ice_aq_send_cmd(hw, &desc, config, size, NULL);
 	if (!status) {
 		u16 i;
@@ -3907,7 +3905,18 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	 * Without setting the generic section as valid in valid_sections, the
 	 * Admin queue command will fail with error code ICE_AQ_RC_EINVAL.
 	 */
-	buf->txqs[0].info.valid_sections = ICE_AQC_ELEM_VALID_GENERIC;
+	buf->txqs[0].info.valid_sections =
+		ICE_AQC_ELEM_VALID_GENERIC | ICE_AQC_ELEM_VALID_CIR |
+		ICE_AQC_ELEM_VALID_EIR;
+	buf->txqs[0].info.generic = 0;
+	buf->txqs[0].info.cir_bw.bw_profile_idx =
+		cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+	buf->txqs[0].info.cir_bw.bw_alloc =
+		cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
+	buf->txqs[0].info.eir_bw.bw_profile_idx =
+		cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+	buf->txqs[0].info.eir_bw.bw_alloc =
+		cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
 
 	/* add the LAN queue */
 	status = ice_aq_add_lan_txq(hw, num_qgrps, buf, buf_size, cd);
@@ -4356,4 +4365,37 @@ bool ice_is_phy_caps_an_enabled(struct ice_aqc_get_phy_caps_data *caps)
 		return true;
 
 	return false;
+}
+
+/**
+ * ice_aq_set_lldp_mib - Set the LLDP MIB
+ * @hw: pointer to the HW struct
+ * @mib_type: Local, Remote or both Local and Remote MIBs
+ * @buf: pointer to the caller-supplied buffer to store the MIB block
+ * @buf_size: size of the buffer (in bytes)
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set the LLDP MIB. (0x0A08)
+ */
+enum ice_status
+ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
+		    struct ice_sq_cd *cd)
+{
+	struct ice_aqc_lldp_set_local_mib *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.lldp_set_mib;
+
+	if (buf_size == 0 || !buf)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_set_local_mib);
+
+	desc.flags |= cpu_to_le16((u16)ICE_AQ_FLAG_RD);
+	desc.datalen = cpu_to_le16(buf_size);
+
+	cmd->type = mib_type;
+	cmd->length = cpu_to_le16(buf_size);
+
+	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
 }
