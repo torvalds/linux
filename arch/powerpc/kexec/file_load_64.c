@@ -17,8 +17,22 @@
 #include <linux/kexec.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
+#include <linux/of_device.h>
 #include <linux/memblock.h>
+#include <linux/slab.h>
+#include <asm/drmem.h>
 #include <asm/kexec_ranges.h>
+
+struct umem_info {
+	u64 *buf;		/* data buffer for usable-memory property */
+	u32 size;		/* size allocated for the data buffer */
+	u32 max_entries;	/* maximum no. of entries */
+	u32 idx;		/* index of current entry */
+
+	/* usable memory ranges to look up */
+	unsigned int nr_ranges;
+	const struct crash_mem_range *ranges;
+};
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
 	&kexec_elf64_ops,
@@ -71,6 +85,44 @@ static int get_exclude_memory_ranges(struct crash_mem **mem_ranges)
 out:
 	if (ret)
 		pr_err("Failed to setup exclude memory ranges\n");
+	return ret;
+}
+
+/**
+ * get_usable_memory_ranges - Get usable memory ranges. This list includes
+ *                            regions like crashkernel, opal/rtas & tce-table,
+ *                            that kdump kernel could use.
+ * @mem_ranges:               Range list to add the memory ranges to.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+static int get_usable_memory_ranges(struct crash_mem **mem_ranges)
+{
+	int ret;
+
+	/*
+	 * Early boot failure observed on guests when low memory (first memory
+	 * block?) is not added to usable memory. So, add [0, crashk_res.end]
+	 * instead of [crashk_res.start, crashk_res.end] to workaround it.
+	 * Also, crashed kernel's memory must be added to reserve map to
+	 * avoid kdump kernel from using it.
+	 */
+	ret = add_mem_range(mem_ranges, 0, crashk_res.end + 1);
+	if (ret)
+		goto out;
+
+	ret = add_rtas_mem_range(mem_ranges);
+	if (ret)
+		goto out;
+
+	ret = add_opal_mem_range(mem_ranges);
+	if (ret)
+		goto out;
+
+	ret = add_tce_mem_ranges(mem_ranges);
+out:
+	if (ret)
+		pr_err("Failed to setup usable memory ranges\n");
 	return ret;
 }
 
@@ -274,6 +326,286 @@ static int locate_mem_hole_bottom_up_ppc64(struct kexec_buf *kbuf,
 }
 
 /**
+ * check_realloc_usable_mem - Reallocate buffer if it can't accommodate entries
+ * @um_info:                  Usable memory buffer and ranges info.
+ * @cnt:                      No. of entries to accommodate.
+ *
+ * Frees up the old buffer if memory reallocation fails.
+ *
+ * Returns buffer on success, NULL on error.
+ */
+static u64 *check_realloc_usable_mem(struct umem_info *um_info, int cnt)
+{
+	u32 new_size;
+	u64 *tbuf;
+
+	if ((um_info->idx + cnt) <= um_info->max_entries)
+		return um_info->buf;
+
+	new_size = um_info->size + MEM_RANGE_CHUNK_SZ;
+	tbuf = krealloc(um_info->buf, new_size, GFP_KERNEL);
+	if (tbuf) {
+		um_info->buf = tbuf;
+		um_info->size = new_size;
+		um_info->max_entries = (um_info->size / sizeof(u64));
+	}
+
+	return tbuf;
+}
+
+/**
+ * add_usable_mem - Add the usable memory ranges within the given memory range
+ *                  to the buffer
+ * @um_info:        Usable memory buffer and ranges info.
+ * @base:           Base address of memory range to look for.
+ * @end:            End address of memory range to look for.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+static int add_usable_mem(struct umem_info *um_info, u64 base, u64 end)
+{
+	u64 loc_base, loc_end;
+	bool add;
+	int i;
+
+	for (i = 0; i < um_info->nr_ranges; i++) {
+		add = false;
+		loc_base = um_info->ranges[i].start;
+		loc_end = um_info->ranges[i].end;
+		if (loc_base >= base && loc_end <= end)
+			add = true;
+		else if (base < loc_end && end > loc_base) {
+			if (loc_base < base)
+				loc_base = base;
+			if (loc_end > end)
+				loc_end = end;
+			add = true;
+		}
+
+		if (add) {
+			if (!check_realloc_usable_mem(um_info, 2))
+				return -ENOMEM;
+
+			um_info->buf[um_info->idx++] = cpu_to_be64(loc_base);
+			um_info->buf[um_info->idx++] =
+					cpu_to_be64(loc_end - loc_base + 1);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * kdump_setup_usable_lmb - This is a callback function that gets called by
+ *                          walk_drmem_lmbs for every LMB to set its
+ *                          usable memory ranges.
+ * @lmb:                    LMB info.
+ * @usm:                    linux,drconf-usable-memory property value.
+ * @data:                   Pointer to usable memory buffer and ranges info.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
+				  void *data)
+{
+	struct umem_info *um_info;
+	int tmp_idx, ret;
+	u64 base, end;
+
+	/*
+	 * kdump load isn't supported on kernels already booted with
+	 * linux,drconf-usable-memory property.
+	 */
+	if (*usm) {
+		pr_err("linux,drconf-usable-memory property already exists!");
+		return -EINVAL;
+	}
+
+	um_info = data;
+	tmp_idx = um_info->idx;
+	if (!check_realloc_usable_mem(um_info, 1))
+		return -ENOMEM;
+
+	um_info->idx++;
+	base = lmb->base_addr;
+	end = base + drmem_lmb_size() - 1;
+	ret = add_usable_mem(um_info, base, end);
+	if (!ret) {
+		/*
+		 * Update the no. of ranges added. Two entries (base & size)
+		 * for every range added.
+		 */
+		um_info->buf[tmp_idx] =
+				cpu_to_be64((um_info->idx - tmp_idx - 1) / 2);
+	}
+
+	return ret;
+}
+
+#define NODE_PATH_LEN		256
+/**
+ * add_usable_mem_property - Add usable memory property for the given
+ *                           memory node.
+ * @fdt:                     Flattened device tree for the kdump kernel.
+ * @dn:                      Memory node.
+ * @um_info:                 Usable memory buffer and ranges info.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+static int add_usable_mem_property(void *fdt, struct device_node *dn,
+				   struct umem_info *um_info)
+{
+	int n_mem_addr_cells, n_mem_size_cells, node;
+	char path[NODE_PATH_LEN];
+	int i, len, ranges, ret;
+	const __be32 *prop;
+	u64 base, end;
+
+	of_node_get(dn);
+
+	if (snprintf(path, NODE_PATH_LEN, "%pOF", dn) > (NODE_PATH_LEN - 1)) {
+		pr_err("Buffer (%d) too small for memory node: %pOF\n",
+		       NODE_PATH_LEN, dn);
+		return -EOVERFLOW;
+	}
+	pr_debug("Memory node path: %s\n", path);
+
+	/* Now that we know the path, find its offset in kdump kernel's fdt */
+	node = fdt_path_offset(fdt, path);
+	if (node < 0) {
+		pr_err("Malformed device tree: error reading %s\n", path);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Get the address & size cells */
+	n_mem_addr_cells = of_n_addr_cells(dn);
+	n_mem_size_cells = of_n_size_cells(dn);
+	pr_debug("address cells: %d, size cells: %d\n", n_mem_addr_cells,
+		 n_mem_size_cells);
+
+	um_info->idx  = 0;
+	if (!check_realloc_usable_mem(um_info, 2)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	prop = of_get_property(dn, "reg", &len);
+	if (!prop || len <= 0) {
+		ret = 0;
+		goto out;
+	}
+
+	/*
+	 * "reg" property represents sequence of (addr,size) tuples
+	 * each representing a memory range.
+	 */
+	ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
+
+	for (i = 0; i < ranges; i++) {
+		base = of_read_number(prop, n_mem_addr_cells);
+		prop += n_mem_addr_cells;
+		end = base + of_read_number(prop, n_mem_size_cells) - 1;
+		prop += n_mem_size_cells;
+
+		ret = add_usable_mem(um_info, base, end);
+		if (ret)
+			goto out;
+	}
+
+	/*
+	 * No kdump kernel usable memory found in this memory node.
+	 * Write (0,0) tuple in linux,usable-memory property for
+	 * this region to be ignored.
+	 */
+	if (um_info->idx == 0) {
+		um_info->buf[0] = 0;
+		um_info->buf[1] = 0;
+		um_info->idx = 2;
+	}
+
+	ret = fdt_setprop(fdt, node, "linux,usable-memory", um_info->buf,
+			  (um_info->idx * sizeof(u64)));
+
+out:
+	of_node_put(dn);
+	return ret;
+}
+
+
+/**
+ * update_usable_mem_fdt - Updates kdump kernel's fdt with linux,usable-memory
+ *                         and linux,drconf-usable-memory DT properties as
+ *                         appropriate to restrict its memory usage.
+ * @fdt:                   Flattened device tree for the kdump kernel.
+ * @usable_mem:            Usable memory ranges for kdump kernel.
+ *
+ * Returns 0 on success, negative errno on error.
+ */
+static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
+{
+	struct umem_info um_info;
+	struct device_node *dn;
+	int node, ret = 0;
+
+	if (!usable_mem) {
+		pr_err("Usable memory ranges for kdump kernel not found\n");
+		return -ENOENT;
+	}
+
+	node = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
+	if (node == -FDT_ERR_NOTFOUND)
+		pr_debug("No dynamic reconfiguration memory found\n");
+	else if (node < 0) {
+		pr_err("Malformed device tree: error reading /ibm,dynamic-reconfiguration-memory.\n");
+		return -EINVAL;
+	}
+
+	um_info.buf  = NULL;
+	um_info.size = 0;
+	um_info.max_entries = 0;
+	um_info.idx  = 0;
+	/* Memory ranges to look up */
+	um_info.ranges = &(usable_mem->ranges[0]);
+	um_info.nr_ranges = usable_mem->nr_ranges;
+
+	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (dn) {
+		ret = walk_drmem_lmbs(dn, &um_info, kdump_setup_usable_lmb);
+		of_node_put(dn);
+
+		if (ret) {
+			pr_err("Could not setup linux,drconf-usable-memory property for kdump\n");
+			goto out;
+		}
+
+		ret = fdt_setprop(fdt, node, "linux,drconf-usable-memory",
+				  um_info.buf, (um_info.idx * sizeof(u64)));
+		if (ret) {
+			pr_err("Failed to update fdt with linux,drconf-usable-memory property");
+			goto out;
+		}
+	}
+
+	/*
+	 * Walk through each memory node and set linux,usable-memory property
+	 * for the corresponding node in kdump kernel's fdt.
+	 */
+	for_each_node_by_type(dn, "memory") {
+		ret = add_usable_mem_property(fdt, dn, &um_info);
+		if (ret) {
+			pr_err("Failed to set linux,usable-memory property for %s node",
+			       dn->full_name);
+			goto out;
+		}
+	}
+
+out:
+	kfree(um_info.buf);
+	return ret;
+}
+
+/**
  * setup_purgatory_ppc64 - initialize PPC64 specific purgatory's global
  *                         variables and call setup_purgatory() to initialize
  *                         common global variable.
@@ -293,6 +625,25 @@ int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 
 	ret = setup_purgatory(image, slave_code, fdt, kernel_load_addr,
 			      fdt_load_addr);
+	if (ret)
+		goto out;
+
+	if (image->type == KEXEC_TYPE_CRASH) {
+		u32 my_run_at_load = 1;
+
+		/*
+		 * Tell relocatable kernel to run at load address
+		 * via the word meant for that at 0x5c.
+		 */
+		ret = kexec_purgatory_get_set_symbol(image, "run_at_load",
+						     &my_run_at_load,
+						     sizeof(my_run_at_load),
+						     false);
+		if (ret)
+			goto out;
+	}
+
+out:
 	if (ret)
 		pr_err("Failed to setup purgatory symbols");
 	return ret;
@@ -314,7 +665,40 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			unsigned long initrd_load_addr,
 			unsigned long initrd_len, const char *cmdline)
 {
-	return setup_new_fdt(image, fdt, initrd_load_addr, initrd_len, cmdline);
+	struct crash_mem *umem = NULL;
+	int ret;
+
+	ret = setup_new_fdt(image, fdt, initrd_load_addr, initrd_len, cmdline);
+	if (ret)
+		goto out;
+
+	/*
+	 * Restrict memory usage for kdump kernel by setting up
+	 * usable memory ranges.
+	 */
+	if (image->type == KEXEC_TYPE_CRASH) {
+		ret = get_usable_memory_ranges(&umem);
+		if (ret)
+			goto out;
+
+		ret = update_usable_mem_fdt(fdt, umem);
+		if (ret) {
+			pr_err("Error setting up usable-memory property for kdump kernel\n");
+			goto out;
+		}
+
+		/* Ensure we don't touch crashed kernel's memory */
+		ret = fdt_add_mem_rsv(fdt, 0, crashk_res.start);
+		if (ret) {
+			pr_err("Error reserving crash memory: %s\n",
+			       fdt_strerror(ret));
+			goto out;
+		}
+	}
+
+out:
+	kfree(umem);
+	return ret;
 }
 
 /**
