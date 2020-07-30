@@ -779,6 +779,24 @@ static int _set_opp_custom(const struct opp_table *opp_table,
 	return opp_table->set_opp(data);
 }
 
+static int _set_required_opp(struct device *dev, struct device *pd_dev,
+			     struct dev_pm_opp *opp, int i)
+{
+	unsigned int pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
+	int ret;
+
+	if (!pd_dev)
+		return 0;
+
+	ret = dev_pm_genpd_set_performance_state(pd_dev, pstate);
+	if (ret) {
+		dev_err(dev, "Failed to set performance rate of %s: %d (%d)\n",
+			dev_name(pd_dev), pstate, ret);
+	}
+
+	return ret;
+}
+
 /* This is only called for PM domain for now */
 static int _set_required_opps(struct device *dev,
 			      struct opp_table *opp_table,
@@ -786,22 +804,14 @@ static int _set_required_opps(struct device *dev,
 {
 	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
 	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
-	unsigned int pstate;
 	int i, ret = 0;
 
 	if (!required_opp_tables)
 		return 0;
 
 	/* Single genpd case */
-	if (!genpd_virt_devs) {
-		pstate = likely(opp) ? opp->required_opps[0]->pstate : 0;
-		ret = dev_pm_genpd_set_performance_state(dev, pstate);
-		if (ret) {
-			dev_err(dev, "Failed to set performance state of %s: %d (%d)\n",
-				dev_name(dev), pstate, ret);
-		}
-		return ret;
-	}
+	if (!genpd_virt_devs)
+		return _set_required_opp(dev, dev, opp, 0);
 
 	/* Multiple genpd case */
 
@@ -810,19 +820,10 @@ static int _set_required_opps(struct device *dev,
 	 * after it is freed from another thread.
 	 */
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
-
 	for (i = 0; i < opp_table->required_opp_count; i++) {
-		pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
-
-		if (!genpd_virt_devs[i])
-			continue;
-
-		ret = dev_pm_genpd_set_performance_state(genpd_virt_devs[i], pstate);
-		if (ret) {
-			dev_err(dev, "Failed to set performance rate of %s: %d (%d)\n",
-				dev_name(genpd_virt_devs[i]), pstate, ret);
+		ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
+		if (ret)
 			break;
-		}
 	}
 	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 
