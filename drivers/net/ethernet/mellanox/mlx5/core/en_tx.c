@@ -545,7 +545,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			sqcc += wi->num_wqebbs;
 
 			if (unlikely(!skb)) {
-				mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
+				mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
 				continue;
 			}
 
@@ -610,7 +610,7 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 		sqcc += wi->num_wqebbs;
 
 		if (!skb) {
-			mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
+			mlx5e_ktls_tx_try_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
 			continue;
 		}
 
