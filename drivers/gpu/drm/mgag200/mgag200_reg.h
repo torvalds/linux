@@ -282,6 +282,8 @@
 #define PCI_MGA_OPTION2		0x50
 #define PCI_MGA_OPTION3		0x54
 
+#define PCI_MGA_OPTION_HARDPWMSK	BIT(14)
+
 #define RAMDAC_OFFSET		0x3c00
 
 /* TVP3026 direct registers */

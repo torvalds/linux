@@ -44,18 +44,26 @@ static struct drm_driver mgag200_driver = {
  * DRM device
  */
 
-static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
+static bool mgag200_has_sgram(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
-	int ret, option;
+	u32 option;
+	int ret;
 
-	mdev->flags = mgag200_flags_from_driver_data(flags);
-	mdev->type = mgag200_type_from_driver_data(flags);
+	ret = pci_read_config_dword(dev->pdev, PCI_MGA_OPTION, &option);
+	if (drm_WARN(dev, ret, "failed to read PCI config dword: %d\n", ret))
+		return false;
 
-	pci_read_config_dword(dev->pdev, PCI_MGA_OPTION, &option);
-	mdev->has_sdram = !(option & (1 << 14));
+	return !!(option & PCI_MGA_OPTION_HARDPWMSK);
+}
 
-	/* BAR 0 is the framebuffer, BAR 1 contains registers */
+static int mgag200_regs_init(struct mga_device *mdev)
+{
+	struct drm_device *dev = &mdev->base;
+
+	mdev->has_sdram = !mgag200_has_sgram(mdev);
+
+	/* BAR 1 contains registers */
 	mdev->rmmio_base = pci_resource_start(dev->pdev, 1);
 	mdev->rmmio_size = pci_resource_len(dev->pdev, 1);
 
@@ -68,6 +76,21 @@ static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 	mdev->rmmio = pcim_iomap(dev->pdev, 1, 0);
 	if (mdev->rmmio == NULL)
 		return -ENOMEM;
+
+	return 0;
+}
+
+static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
+{
+	struct drm_device *dev = &mdev->base;
+	int ret;
+
+	mdev->flags = mgag200_flags_from_driver_data(flags);
+	mdev->type = mgag200_type_from_driver_data(flags);
+
+	ret = mgag200_regs_init(mdev);
+	if (ret)
+		return ret;
 
 	/* stash G200 SE model number for later use */
 	if (IS_G200_SE(mdev)) {
