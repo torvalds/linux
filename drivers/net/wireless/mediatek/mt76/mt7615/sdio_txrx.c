@@ -196,7 +196,8 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 
 void mt7663s_tx_work(struct work_struct *work)
 {
-	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio, tx_work);
+	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio,
+					      tx.xmit_work);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	int i, nframes = 0;
 
@@ -210,14 +211,15 @@ void mt7663s_tx_work(struct work_struct *work)
 		nframes += ret;
 	}
 	if (nframes)
-		queue_work(sdio->txrx_wq, &sdio->tx_work);
+		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 
-	queue_work(sdio->txrx_wq, &sdio->work);
+	queue_work(sdio->txrx_wq, &sdio->tx.status_work);
 }
 
 void mt7663s_rx_work(struct work_struct *work)
 {
-	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio, rx_work);
+	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio,
+					      rx.recv_work);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	struct mt76s_intr intr;
 	int nframes = 0, ret;
@@ -233,7 +235,7 @@ void mt7663s_rx_work(struct work_struct *work)
 	if (intr.isr & WHIER_RX0_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 0, &intr);
 		if (ret > 0) {
-			queue_work(sdio->txrx_wq, &sdio->work);
+			queue_work(sdio->txrx_wq, &sdio->rx.net_work);
 			nframes += ret;
 		}
 	}
@@ -241,18 +243,18 @@ void mt7663s_rx_work(struct work_struct *work)
 	if (intr.isr & WHIER_RX1_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 1, &intr);
 		if (ret > 0) {
-			queue_work(sdio->txrx_wq, &sdio->work);
+			queue_work(sdio->txrx_wq, &sdio->rx.net_work);
 			nframes += ret;
 		}
 	}
 
 	if (intr.isr & WHIER_TX_DONE_INT_EN) {
 		mt7663s_refill_sched_quota(dev, intr.tx.wtqcr);
-		queue_work(sdio->txrx_wq, &sdio->tx_work);
+		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 	}
 
 	if (nframes) {
-		queue_work(sdio->txrx_wq, &sdio->rx_work);
+		queue_work(sdio->txrx_wq, &sdio->rx.recv_work);
 		return;
 	}
 
@@ -270,5 +272,5 @@ void mt7663s_sdio_irq(struct sdio_func *func)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
 		return;
 
-	queue_work(sdio->txrx_wq, &sdio->rx_work);
+	queue_work(sdio->txrx_wq, &sdio->rx.recv_work);
 }

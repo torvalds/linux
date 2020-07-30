@@ -447,9 +447,14 @@ struct mt76_usb {
 
 struct mt76_sdio {
 	struct workqueue_struct *txrx_wq;
-	struct work_struct tx_work;
-	struct work_struct rx_work;
-	struct work_struct work;
+	struct {
+		struct work_struct xmit_work;
+		struct work_struct status_work;
+	} tx;
+	struct {
+		struct work_struct recv_work;
+		struct work_struct net_work;
+	} rx;
 
 	struct work_struct stat_work;
 

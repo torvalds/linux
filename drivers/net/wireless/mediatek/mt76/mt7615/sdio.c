@@ -368,8 +368,8 @@ static int mt7663s_probe(struct sdio_func *func,
 	if (ret < 0)
 		goto err_free;
 
-	INIT_WORK(&mdev->sdio.tx_work, mt7663s_tx_work);
-	INIT_WORK(&mdev->sdio.rx_work, mt7663s_rx_work);
+	INIT_WORK(&mdev->sdio.tx.xmit_work, mt7663s_tx_work);
+	INIT_WORK(&mdev->sdio.rx.recv_work, mt7663s_rx_work);
 
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
