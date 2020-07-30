@@ -7529,6 +7529,7 @@ static int gfx_v10_0_set_powergating_state(void *handle,
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	default:
