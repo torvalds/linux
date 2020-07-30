@@ -554,7 +554,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		bus->reset_gpiod = gpiod;
 
 		gpiod_set_value_cansleep(gpiod, 1);
-		udelay(bus->reset_delay_us);
+		fsleep(bus->reset_delay_us);
 		gpiod_set_value_cansleep(gpiod, 0);
 	}
 
