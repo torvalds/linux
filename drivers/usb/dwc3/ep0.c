@@ -283,21 +283,33 @@ void dwc3_ep0_out_start(struct dwc3 *dwc)
 
 static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 {
-	struct dwc3_ep		*dep;
+	struct dwc3_ep		*dep = NULL;
 	u32			windex = le16_to_cpu(wIndex_le);
-	u32			epnum;
+	u32			epnum, ep_index;
+	u8			num, direction;
 
-	epnum = (windex & USB_ENDPOINT_NUMBER_MASK) << 1;
-	if ((windex & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-		epnum |= 1;
+	epnum = windex & USB_ENDPOINT_NUMBER_MASK;
+	direction = windex & USB_ENDPOINT_DIR_MASK;
+	ep_index = 0;
 
-	dep = dwc->eps[epnum];
-	if (!dep) {
-		dev_warn(dwc->dev, "epnum %d, windex 0x%08x\n", epnum, windex);
-		return NULL;
+	for (num = 0; num < dwc->num_eps; num++) {
+		dep = dwc->eps[num];
+		if (!dep) {
+			dev_warn(dwc->dev, "dep is NULL, num %d, windex 0x%08x\n",
+				 num, windex);
+			return NULL;
+		}
+
+		if ((direction == USB_DIR_IN && dep->direction) ||
+		    (direction == USB_DIR_OUT && !dep->direction))
+			ep_index++;
+
+		if (ep_index == epnum + 1)
+			break;
 	}
 
-	if (dep->flags & DWC3_EP_ENABLED)
+
+	if (dep && (dep->flags & DWC3_EP_ENABLED))
 		return dep;
 
 	return NULL;

@@ -162,27 +162,26 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 	int		last_fifo_depth;
 	int		fifo_size;
 	int		mdwidth;
-	u8		num, num_in_eps;
+	u8		num, fifo_number;
 
 	if (!dwc->needs_fifo_resize)
 		return 0;
 
-	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
 	mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
 	/* MDWIDTH is represented in bits, we need it in bytes */
 	mdwidth >>= 3;
-
+	fifo_number = 0;
 	fifo_size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(0));
 	last_fifo_depth = DWC3_GTXFIFOSIZ_TXFSTADDR(fifo_size) >> 16;
 
-	for (num = 0; num < num_in_eps; num++) {
-		u8	epnum = (num << 1) | 1;
-		struct dwc3_ep  *dep = dwc->eps[epnum];
-		int	fifo_number = dep->number >> 1;
+	for (num = 0; num < dwc->num_eps; num++) {
+		struct dwc3_ep  *dep = dwc->eps[num];
 		int	mult = 1;
 		int	tmp;
 
-		if (!(dep->flags & DWC3_EP_ENABLED))
+		/* Skip out endpoints */
+		if (!dep || !dep->direction ||
+		    !(dep->flags & DWC3_EP_ENABLED))
 			continue;
 
 		if (usb_endpoint_xfer_bulk(dep->endpoint.desc)) {
@@ -217,6 +216,7 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 			    fifo_size);
 
 		last_fifo_depth += (fifo_size & 0xffff);
+		fifo_number++;
 	}
 
 	return 0;
@@ -2360,13 +2360,24 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 	bool				direction = epnum & 1;
 	int				ret;
 	u8				num = epnum >> 1;
+	u8				num_in_eps, num_out_eps;
+
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
+	num_out_eps = dwc->num_eps - num_in_eps;
 
 	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 	if (!dep)
 		return -ENOMEM;
 
+	/* reconfig direction and num if num_out_eps != num_in_eps */
+	if ((!direction && ((epnum >> 1) + 1) > num_out_eps) ||
+	    (direction && ((epnum >> 1) + 1) > num_in_eps)) {
+		direction = !direction;
+		num = num + (epnum & 1);
+	}
+
 	dep->dwc = dwc;
-	dep->number = epnum;
+	dep->number = num << 1 | direction;
 	dep->direction = direction;
 	dep->regs = dwc->regs + DWC3_DEP_BASE(epnum);
 	dwc->eps[epnum] = dep;
@@ -2407,25 +2418,12 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 
 static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 {
-	u8				epnum, num;
-	u8				num_in_eps, num_out_eps;
-	bool				direction;
-
-	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
-	num_out_eps = total - num_in_eps;
+	u8				epnum;
 
 	INIT_LIST_HEAD(&dwc->gadget.ep_list);
 
 	for (epnum = 0; epnum < total; epnum++) {
 		int			ret;
-		direction = epnum & 1;
-		num = (epnum >> 1) + 1;
-
-		if ((!direction && num > num_out_eps) ||
-		    (direction && num > num_in_eps)) {
-			total++;
-			continue;
-		}
 
 		ret = dwc3_gadget_init_endpoint(dwc, epnum);
 		if (ret)
