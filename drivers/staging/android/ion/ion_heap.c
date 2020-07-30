@@ -240,19 +240,6 @@ static int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
 	return ret;
 }
 
-int ion_heap_buffer_zero(struct ion_buffer *buffer)
-{
-	struct sg_table *table = buffer->sg_table;
-	pgprot_t pgprot;
-
-	if (buffer->flags & ION_FLAG_CACHED)
-		pgprot = PAGE_KERNEL;
-	else
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	return ion_heap_sglist_zero(table->sgl, table->nents, pgprot);
-}
-
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot)
 {
 	struct scatterlist sg;
