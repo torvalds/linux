@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -177,3 +178,4 @@ struct clk_hw *clk_hw_register_gate2(struct device *dev, const char *name,
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(clk_hw_register_gate2);

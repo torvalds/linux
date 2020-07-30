@@ -5,6 +5,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -243,3 +244,4 @@ fail:
 	kfree(mux);
 	return ERR_CAST(hw);
 }
+EXPORT_SYMBOL_GPL(imx8m_clk_hw_composite_flags);

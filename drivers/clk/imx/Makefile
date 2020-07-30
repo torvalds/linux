@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj-$(CONFIG_MXC_CLK) += \
-	clk.o \
-	clk-busy.o \
-	clk-composite-8m.o \
-	clk-cpu.o \
-	clk-composite-7ulp.o \
-	clk-divider-gate.o \
-	clk-fixup-div.o \
-	clk-fixup-mux.o \
-	clk-frac-pll.o \
-	clk-gate-exclusive.o \
-	clk-gate2.o \
-	clk-pfd.o \
-	clk-pfdv2.o \
-	clk-pllv1.o \
-	clk-pllv2.o \
-	clk-pllv3.o \
-	clk-pllv4.o \
-	clk-sscg-pll.o \
-	clk-pll14xx.o
+mxc-clk-objs += clk.o
+mxc-clk-objs += clk-busy.o
+mxc-clk-objs += clk-composite-7ulp.o
+mxc-clk-objs += clk-composite-8m.o
+mxc-clk-objs += clk-cpu.o
+mxc-clk-objs += clk-divider-gate.o
+mxc-clk-objs += clk-fixup-div.o
+mxc-clk-objs += clk-fixup-mux.o
+mxc-clk-objs += clk-frac-pll.o
+mxc-clk-objs += clk-gate2.o
+mxc-clk-objs += clk-gate-exclusive.o
+mxc-clk-objs += clk-pfd.o
+mxc-clk-objs += clk-pfdv2.o
+mxc-clk-objs += clk-pllv1.o
+mxc-clk-objs += clk-pllv2.o
+mxc-clk-objs += clk-pllv3.o
+mxc-clk-objs += clk-pllv4.o
+mxc-clk-objs += clk-pll14xx.o
+mxc-clk-objs += clk-sscg-pll.o
+obj-$(CONFIG_MXC_CLK) += mxc-clk.o
 
 obj-$(CONFIG_MXC_CLK_SCU) += \
 	clk-scu.o \
