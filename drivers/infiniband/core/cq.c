@@ -275,6 +275,7 @@ struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
 	return cq;
 
 out_destroy_cq:
+	rdma_dim_destroy(cq);
 	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, udata);
 out_free_wc:
