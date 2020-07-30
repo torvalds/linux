@@ -70,6 +70,7 @@ void mt76s_stop_txrx(struct mt76_dev *dev)
 
 	cancel_work_sync(&sdio->tx_work);
 	cancel_work_sync(&sdio->rx_work);
+	cancel_work_sync(&sdio->work);
 	cancel_work_sync(&sdio->stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
 
@@ -282,41 +283,29 @@ static const struct mt76_queue_ops sdio_queue_ops = {
 	.tx_queue_skb_raw = mt76s_tx_queue_skb_raw,
 };
 
-static int mt76s_kthread_run(void *data)
+static void mt76s_txrx_work(struct work_struct *work)
 {
-	struct mt76_dev *dev = data;
-	struct mt76_phy *mphy = &dev->phy;
+	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio, work);
+	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
+	int i;
 
-	while (!kthread_should_stop()) {
-		int i, nframes = 0;
+	/* rx processing */
+	local_bh_disable();
+	rcu_read_lock();
 
-		cond_resched();
+	mt76_for_each_q_rx(dev, i)
+		mt76s_process_rx_queue(dev, &dev->q_rx[i]);
 
-		/* rx processing */
-		local_bh_disable();
-		rcu_read_lock();
+	rcu_read_unlock();
+	local_bh_enable();
 
-		mt76_for_each_q_rx(dev, i)
-			nframes += mt76s_process_rx_queue(dev, &dev->q_rx[i]);
+	/* tx processing */
+	for (i = 0; i < MT_TXQ_MCU_WA; i++)
+		mt76s_process_tx_queue(dev, i);
 
-		rcu_read_unlock();
-		local_bh_enable();
-
-		/* tx processing */
-		for (i = 0; i < MT_TXQ_MCU_WA; i++)
-			nframes += mt76s_process_tx_queue(dev, i);
-
-		if (dev->drv->tx_status_data &&
-		    !test_and_set_bit(MT76_READING_STATS, &mphy->state))
-			queue_work(dev->wq, &dev->sdio.stat_work);
-
-		if (!nframes || !test_bit(MT76_STATE_RUNNING, &mphy->state)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-		}
-	}
-
-	return 0;
+	if (dev->drv->tx_status_data &&
+	    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
+		queue_work(dev->wq, &dev->sdio.stat_work);
 }
 
 void mt76s_deinit(struct mt76_dev *dev)
@@ -324,9 +313,7 @@ void mt76s_deinit(struct mt76_dev *dev)
 	struct mt76_sdio *sdio = &dev->sdio;
 	int i;
 
-	kthread_stop(sdio->kthread);
 	mt76s_stop_txrx(dev);
-
 	if (sdio->txrx_wq) {
 		destroy_workqueue(sdio->txrx_wq);
 		sdio->txrx_wq = NULL;
@@ -364,11 +351,8 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	if (!sdio->txrx_wq)
 		return -ENOMEM;
 
-	sdio->kthread = kthread_create(mt76s_kthread_run, dev, "mt76s");
-	if (IS_ERR(sdio->kthread))
-		return PTR_ERR(sdio->kthread);
-
 	INIT_WORK(&sdio->stat_work, mt76s_tx_status_data);
+	INIT_WORK(&sdio->work, mt76s_txrx_work);
 
 	mutex_init(&sdio->sched.lock);
 	dev->queue_ops = &sdio_queue_ops;
