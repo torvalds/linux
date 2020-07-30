@@ -399,6 +399,7 @@ struct vega12_hwmgr {
 
 	unsigned long                  metrics_time;
 	SmuMetrics_t                   metrics_table;
+	struct gpu_metrics_v1_0        gpu_metrics_table;
 };
 
 #define VEGA12_DPM2_NEAR_TDP_DEC                      10

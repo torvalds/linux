@@ -47,6 +47,13 @@
 #include "pp_thermal.h"
 #include "vega12_baco.h"
 
+#define smnPCIE_LC_SPEED_CNTL			0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
+
+#define LINK_WIDTH_MAX				6
+#define LINK_SPEED_MAX				3
+static int link_width[] = {0, 1, 2, 4, 8, 12, 16};
+static int link_speed[] = {25, 50, 80, 160};
 
 static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -2095,6 +2102,46 @@ static int vega12_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 	return 0;
 }
 
+static int vega12_get_current_pcie_link_width_level(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	return (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+		PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+		>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+}
+
+static int vega12_get_current_pcie_link_width(struct pp_hwmgr *hwmgr)
+{
+	uint32_t width_level;
+
+	width_level = vega12_get_current_pcie_link_width_level(hwmgr);
+	if (width_level > LINK_WIDTH_MAX)
+		width_level = 0;
+
+	return link_width[width_level];
+}
+
+static int vega12_get_current_pcie_link_speed_level(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	return (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+		PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+		>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+}
+
+static int vega12_get_current_pcie_link_speed(struct pp_hwmgr *hwmgr)
+{
+	uint32_t speed_level;
+
+	speed_level = vega12_get_current_pcie_link_speed_level(hwmgr);
+	if (speed_level > LINK_SPEED_MAX)
+		speed_level = 0;
+
+	return link_speed[speed_level];
+}
+
 static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
@@ -2682,6 +2729,69 @@ static int vega12_set_mp1_state(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static void vega12_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics)
+{
+	memset(gpu_metrics, 0xFF, sizeof(struct gpu_metrics_v1_0));
+
+	gpu_metrics->common_header.structure_size =
+				sizeof(struct gpu_metrics_v1_0);
+	gpu_metrics->common_header.format_revision = 1;
+	gpu_metrics->common_header.content_revision = 0;
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+}
+
+static ssize_t vega12_get_gpu_metrics(struct pp_hwmgr *hwmgr,
+				      void **table)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	struct gpu_metrics_v1_0 *gpu_metrics =
+			&data->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	uint32_t fan_speed_rpm;
+	int ret;
+
+	ret = vega12_get_metrics_table(hwmgr, &metrics);
+	if (ret)
+		return ret;
+
+	vega12_init_gpu_metrics_v1_0(gpu_metrics);
+
+	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics.TemperatureHBM;
+	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
+	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem;
+
+	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
+
+	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequency;
+
+	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK];
+	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+
+	vega12_fan_ctrl_get_fan_speed_rpm(hwmgr, &fan_speed_rpm);
+	gpu_metrics->current_fan_speed = (uint16_t)fan_speed_rpm;
+
+	gpu_metrics->pcie_link_width =
+			vega12_get_current_pcie_link_width(hwmgr);
+	gpu_metrics->pcie_link_speed =
+			vega12_get_current_pcie_link_speed(hwmgr);
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v1_0);
+}
+
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2739,6 +2849,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.get_ppfeature_status = vega12_get_ppfeature_status,
 	.set_ppfeature_status = vega12_set_ppfeature_status,
 	.set_mp1_state = vega12_set_mp1_state,
+	.get_gpu_metrics = vega12_get_gpu_metrics,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)
