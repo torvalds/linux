@@ -193,7 +193,6 @@ struct ice_rxq_stats {
 	u64 non_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buf_failed;
-	u64 page_reuse_count;
 };
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
