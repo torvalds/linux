@@ -5,8 +5,9 @@ config MXC_CLK
 	depends on ARCH_MXC || COMPILE_TEST
 
 config MXC_CLK_SCU
-	bool
-	depends on IMX_SCU
+	tristate "IMX SCU clock"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on IMX_SCU && HAVE_ARM_SMCCC
 
 config CLK_IMX1
 	def_bool SOC_IMX1
@@ -97,8 +98,9 @@ config CLK_IMX8MQ
 	    Build the driver for i.MX8MQ CCM Clock Driver
 
 config CLK_IMX8QXP
-	bool "IMX8QXP SCU Clock"
-	depends on ARCH_MXC && IMX_SCU && ARM64
+	tristate "IMX8QXP SCU Clock"
+	depends on (ARCH_MXC && ARM64) || COMPILE_TEST
+	depends on IMX_SCU && HAVE_ARM_SMCCC
 	select MXC_CLK_SCU
 	help
 	  Build the driver for IMX8QXP SCU based clocks.
