@@ -894,11 +894,9 @@ static void halbtc_display_wifi_status(struct btc_coexist *btcoexist,
 		   (low_power ? ", 32k" : ""));
 
 	seq_printf(m,
-		   "\n %-35s = %02x %02x %02x %02x %02x %02x (0x%x/0x%x)",
+		   "\n %-35s = %6ph (0x%x/0x%x)",
 		   "Power mode cmd(lps/rpwm)",
-		   btcoexist->pwr_mode_val[0], btcoexist->pwr_mode_val[1],
-		   btcoexist->pwr_mode_val[2], btcoexist->pwr_mode_val[3],
-		   btcoexist->pwr_mode_val[4], btcoexist->pwr_mode_val[5],
+		   btcoexist->pwr_mode_val,
 		   btcoexist->bt_info.lps_val,
 		   btcoexist->bt_info.rpwm_val);
 }
