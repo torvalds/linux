@@ -124,7 +124,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = PTR_ERR(ast);
 		goto err_drm_dev_put;
 	}
-	dev = ast->dev;
+	dev = &ast->base;
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)

@@ -1063,7 +1063,7 @@ static const struct drm_mode_config_funcs ast_mode_config_funcs = {
 
 int ast_mode_config_init(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	int ret;
 
 	ret = ast_cursor_init(ast);

@@ -388,25 +388,17 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 	bool need_post;
 	int ret = 0;
 
-	dev = drm_dev_alloc(drv, &pdev->dev);
-	if (IS_ERR(dev))
-		return ERR_CAST(dev);
+	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_private, base);
+	if (IS_ERR(ast))
+		return ast;
+	dev = &ast->base;
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
-	ast = kzalloc(sizeof(struct ast_private), GFP_KERNEL);
-	if (!ast)
-		return ERR_PTR(-ENOMEM);
-
-	dev->dev_private = ast;
-	ast->dev = dev;
-
 	ast->regs = pci_iomap(dev->pdev, 1, 0);
-	if (!ast->regs) {
-		ret = -EIO;
-		goto out_free;
-	}
+	if (!ast->regs)
+		return ERR_PTR(-EIO);
 
 	/*
 	 * If we don't have IO space at all, use MMIO now and
@@ -421,17 +413,16 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 	/* "map" IO regs if the above hasn't done so already */
 	if (!ast->ioregs) {
 		ast->ioregs = pci_iomap(dev->pdev, 2, 0);
-		if (!ast->ioregs) {
-			ret = -EIO;
-			goto out_free;
-		}
+		if (!ast->ioregs)
+			return ERR_PTR(-EIO);
 	}
 
 	ast_detect_chip(dev, &need_post);
 
 	ret = ast_get_dram_info(dev);
 	if (ret)
-		goto out_free;
+		return ERR_PTR(ret);
+
 	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d\n",
 		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
@@ -440,29 +431,22 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 
 	ret = ast_mm_init(ast);
 	if (ret)
-		goto out_free;
+		return ERR_PTR(ret);
 
 	ret = ast_mode_config_init(ast);
 	if (ret)
-		goto out_free;
+		return ERR_PTR(ret);
 
 	return ast;
-
-out_free:
-	kfree(ast);
-	dev->dev_private = NULL;
-	return ERR_PTR(ret);
 }
 
 void ast_device_destroy(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 
 	/* enable standard VGA decode */
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 
 	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
-
-	kfree(ast);
 }

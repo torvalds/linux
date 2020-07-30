@@ -116,7 +116,7 @@ to_ast_connector(struct drm_connector *connector)
 }
 
 struct ast_private {
-	struct drm_device *dev;
+	struct drm_device base;
 
 	void __iomem *regs;
 	void __iomem *ioregs;
@@ -156,7 +156,7 @@ struct ast_private {
 
 static inline struct ast_private *to_ast_private(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct ast_private, base);
 }
 
 struct ast_private *ast_device_create(struct drm_driver *drv,

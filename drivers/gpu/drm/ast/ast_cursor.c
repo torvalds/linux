@@ -57,7 +57,7 @@ static void ast_cursor_release(struct drm_device *dev, void *ptr)
  */
 int ast_cursor_init(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
 	void __iomem *vaddr;
@@ -168,7 +168,7 @@ static void update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int h
 
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	void *src;
@@ -217,7 +217,7 @@ static void ast_cursor_set_base(struct ast_private *ast, u64 address)
 
 void ast_cursor_page_flip(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
+	struct drm_device *dev = &ast->base;
 	struct drm_gem_vram_object *gbo;
 	s64 off;
 
