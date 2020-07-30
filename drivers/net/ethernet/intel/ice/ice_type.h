@@ -321,7 +321,7 @@ struct ice_nvm_info {
 	u32 flash_size;			/* Size of available flash in bytes */
 	u8 major_ver;			/* major version of NVM package */
 	u8 minor_ver;			/* minor version of dev starter */
-	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
+	u8 blank_nvm_mode;		/* is NVM empty (no FW present) */
 };
 
 struct ice_link_default_override_tlv {

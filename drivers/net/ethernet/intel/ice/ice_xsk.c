@@ -298,7 +298,6 @@ static void ice_xsk_remove_umem(struct ice_vsi *vsi, u16 qid)
 	}
 }
 
-
 /**
  * ice_xsk_umem_disable - disable a UMEM region
  * @vsi: Current VSI
@@ -593,7 +592,6 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 				   ICE_RX_FLX_DESC_PKT_LEN_M;
 		if (!size)
 			break;
-
 
 		rx_buf = &rx_ring->rx_buf[rx_ring->next_to_clean];
 		rx_buf->xdp->data_end = rx_buf->xdp->data + size;

@@ -2974,8 +2974,8 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 		vsi->max_frame = qpi->rxq.max_pkt_size;
 	}
 
-	/* VF can request to configure less than allocated queues
-	 * or default allocated queues. So update the VSI with new number
+	/* VF can request to configure less than allocated queues or default
+	 * allocated queues. So update the VSI with new number
 	 */
 	vsi->num_txq = num_txq;
 	vsi->num_rxq = num_rxq;

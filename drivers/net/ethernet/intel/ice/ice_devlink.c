@@ -357,7 +357,7 @@ void ice_devlink_unregister(struct ice_pf *pf)
  *
  * Create and register a devlink_port for this PF. Note that although each
  * physical function is connected to a separate devlink instance, the port
- * will still be numbered according to the physical function id.
+ * will still be numbered according to the physical function ID.
  *
  * Return: zero on success or an error code on failure.
  */
