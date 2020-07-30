@@ -204,6 +204,32 @@ void mptcp_token_accept(struct mptcp_subflow_request_sock *req,
 	spin_unlock_bh(&bucket->lock);
 }
 
+bool mptcp_token_exists(u32 token)
+{
+	struct hlist_nulls_node *pos;
+	struct token_bucket *bucket;
+	struct mptcp_sock *msk;
+	struct sock *sk;
+
+	rcu_read_lock();
+	bucket = token_bucket(token);
+
+again:
+	sk_nulls_for_each_rcu(sk, pos, &bucket->msk_chain) {
+		msk = mptcp_sk(sk);
+		if (READ_ONCE(msk->token) == token)
+			goto found;
+	}
+	if (get_nulls_value(pos) != (token & token_mask))
+		goto again;
+
+	rcu_read_unlock();
+	return false;
+found:
+	rcu_read_unlock();
+	return true;
+}
+
 /**
  * mptcp_token_get_sock - retrieve mptcp connection sock using its token
  * @token: token of the mptcp connection to retrieve

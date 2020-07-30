@@ -140,10 +140,24 @@ static void subflow_init_req(struct request_sock *req,
 	if (mp_opt.mp_capable && listener->request_mptcp) {
 		int err, retries = 4;
 
+		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 again:
 		do {
 			get_random_bytes(&subflow_req->local_key, sizeof(subflow_req->local_key));
 		} while (subflow_req->local_key == 0);
+
+		if (unlikely(req->syncookie)) {
+			mptcp_crypto_key_sha(subflow_req->local_key,
+					     &subflow_req->token,
+					     &subflow_req->idsn);
+			if (mptcp_token_exists(subflow_req->token)) {
+				if (retries-- > 0)
+					goto again;
+			} else {
+				subflow_req->mp_capable = 1;
+			}
+			return;
+		}
 
 		err = mptcp_token_new_request(req);
 		if (err == 0)
@@ -151,7 +165,6 @@ again:
 		else if (retries-- > 0)
 			goto again;
 
-		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 	} else if (mp_opt.mp_join && listener->request_mptcp) {
 		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 		subflow_req->mp_join = 1;
@@ -164,6 +177,41 @@ again:
 			 subflow_req->remote_nonce, subflow_req->msk);
 	}
 }
+
+int mptcp_subflow_init_cookie_req(struct request_sock *req,
+				  const struct sock *sk_listener,
+				  struct sk_buff *skb)
+{
+	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk_listener);
+	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
+	struct mptcp_options_received mp_opt;
+	int err;
+
+	err = __subflow_init_req(req, sk_listener);
+	if (err)
+		return err;
+
+	mptcp_get_options(skb, &mp_opt);
+
+	if (mp_opt.mp_capable && mp_opt.mp_join)
+		return -EINVAL;
+
+	if (mp_opt.mp_capable && listener->request_mptcp) {
+		if (mp_opt.sndr_key == 0)
+			return -EINVAL;
+
+		subflow_req->local_key = mp_opt.rcvr_key;
+		err = mptcp_token_new_request(req);
+		if (err)
+			return err;
+
+		subflow_req->mp_capable = 1;
+		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq - 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mptcp_subflow_init_cookie_req);
 
 static void subflow_v4_init_req(struct request_sock *req,
 				const struct sock *sk_listener,
