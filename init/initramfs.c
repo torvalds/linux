@@ -202,7 +202,6 @@ static inline void __init eat(unsigned n)
 	byte_count -= n;
 }
 
-static __initdata char *vcollected;
 static __initdata char *collected;
 static long remains __initdata;
 static __initdata char *collect;
@@ -345,7 +344,6 @@ static int __init do_name(void)
 			vfs_fchmod(wfile, mode);
 			if (body_len)
 				vfs_truncate(&wfile->f_path, body_len);
-			vcollected = kstrdup(collected, GFP_KERNEL);
 			state = CopyFile;
 		}
 	} else if (S_ISDIR(mode)) {
@@ -368,11 +366,15 @@ static int __init do_name(void)
 static int __init do_copy(void)
 {
 	if (byte_count >= body_len) {
+		struct timespec64 t[2] = { };
 		if (xwrite(wfile, victim, body_len, &wfile_pos) != body_len)
 			error("write error");
+
+		t[0].tv_sec = mtime;
+		t[1].tv_sec = mtime;
+		vfs_utimes(&wfile->f_path, t);
+
 		fput(wfile);
-		do_utime(vcollected, mtime);
-		kfree(vcollected);
 		eat(body_len);
 		state = SkipIt;
 		return 0;
