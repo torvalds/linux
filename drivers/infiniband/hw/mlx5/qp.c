@@ -1852,8 +1852,6 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	u32 *in;
 	int err;
 
-	mutex_init(&qp->mutex);
-
 	if (attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
 
@@ -1937,7 +1935,6 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	u32 *in;
 	int err;
 
-	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 
@@ -2128,7 +2125,6 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	u32 *in;
 	int err;
 
-	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 
@@ -2969,6 +2965,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 		goto free_ucmd;
 	}
 
+	mutex_init(&qp->mutex);
 	qp->type = type;
 	if (udata) {
 		err = process_vendor_flags(dev, qp, params.ucmd, attr);
