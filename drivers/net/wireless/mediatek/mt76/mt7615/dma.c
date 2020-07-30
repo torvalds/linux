@@ -122,6 +122,7 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7615_tx_cleanup(dev);
 
+	mt7615_pm_power_save_sched(dev);
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 
 	return 0;

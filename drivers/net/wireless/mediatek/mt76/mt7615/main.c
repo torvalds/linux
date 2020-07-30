@@ -706,6 +706,7 @@ mt7615_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 		return;
 	}
 
+	dev->pm.last_activity = jiffies;
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 }
 
@@ -735,6 +736,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 	}
 
 	if (!test_bit(MT76_STATE_PM, &mphy->state)) {
+		dev->pm.last_activity = jiffies;
 		mt76_tx(mphy, control->sta, wcid, skb);
 		return;
 	}

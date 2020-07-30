@@ -1439,10 +1439,14 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	dev_kfree_skb(skb);
 
+	if (test_bit(MT76_STATE_PM, &dev->phy.mt76->state))
+		return;
+
 	rcu_read_lock();
 	mt7615_mac_sta_poll(dev);
 	rcu_read_unlock();
 
+	mt7615_pm_power_save_sched(dev);
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 }
 
