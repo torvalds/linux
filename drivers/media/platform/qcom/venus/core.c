@@ -72,8 +72,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 	while (core->pmdomains[0] && pm_runtime_active(core->pmdomains[0]))
 		usleep_range(1000, 1500);
 
-	hfi_destroy(core);
-	ret |= hfi_create(core, &venus_core_ops);
+	hfi_reinit(core);
 
 	pm_runtime_get_sync(core->dev);
 

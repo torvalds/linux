@@ -10,5 +10,6 @@ struct venus_core;
 
 void venus_hfi_destroy(struct venus_core *core);
 int venus_hfi_create(struct venus_core *core);
+void venus_hfi_queues_reinit(struct venus_core *core);
 
 #endif
