@@ -369,6 +369,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 						~IFF_PROMISC;
 					goto out_promisc;
 				}
+				ice_cfg_vlan_pruning(vsi, false, false);
 			}
 		} else {
 			/* Clear Rx filter to remove traffic from wire */
@@ -381,6 +382,8 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 						IFF_PROMISC;
 					goto out_promisc;
 				}
+				if (vsi->num_vlan > 1)
+					ice_cfg_vlan_pruning(vsi, true, false);
 			}
 		}
 	}
