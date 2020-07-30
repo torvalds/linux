@@ -154,14 +154,6 @@ static inline void dwapb_write(struct dwapb_gpio *gpio, unsigned int offset,
 	gc->write_reg(reg_base + gpio_reg_convert(gpio, offset), val);
 }
 
-static int dwapb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
-{
-	struct dwapb_gpio_port *port = gpiochip_get_data(gc);
-	struct dwapb_gpio *gpio = port->gpio;
-
-	return irq_find_mapping(gpio->domain, offset);
-}
-
 static struct dwapb_gpio_port *dwapb_offs_to_port(struct dwapb_gpio *gpio, unsigned int offs)
 {
 	struct dwapb_gpio_port *port;
@@ -475,8 +467,6 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	}
 
 	girq->chip = &pirq->irqchip;
-
-	port->gc.to_irq = dwapb_gpio_to_irq;
 
 	return;
 
