@@ -946,7 +946,7 @@ static void mgag200_set_dac_regs(struct mga_device *mdev)
 
 static void mgag200_init_regs(struct mga_device *mdev)
 {
-	u8 crtc11, crtcext3, crtcext4, misc;
+	u8 crtc11, crtcext4, misc;
 
 	mgag200_set_dac_regs(mdev);
 
@@ -961,12 +961,8 @@ static void mgag200_init_regs(struct mga_device *mdev)
 	WREG_CRT(14, 0);
 	WREG_CRT(15, 0);
 
-	RREG_ECRT(0x03, crtcext3);
-
-	crtcext3 |= BIT(7); /* enable MGA mode */
 	crtcext4 = 0x00;
 
-	WREG_ECRT(0x03, crtcext3);
 	WREG_ECRT(0x04, crtcext4);
 
 	RREG_CRT(0x11, crtc11);

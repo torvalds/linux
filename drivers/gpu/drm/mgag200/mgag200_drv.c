@@ -61,6 +61,7 @@ static int mgag200_regs_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	u32 option, option2;
+	u8 crtcext3;
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -106,6 +107,10 @@ static int mgag200_regs_init(struct mga_device *mdev)
 	mdev->rmmio = pcim_iomap(dev->pdev, 1, 0);
 	if (mdev->rmmio == NULL)
 		return -ENOMEM;
+
+	RREG_ECRT(0x03, crtcext3);
+	crtcext3 |= MGAREG_CRTCEXT3_MGAMODE;
+	WREG_ECRT(0x03, crtcext3);
 
 	return 0;
 }

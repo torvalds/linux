@@ -256,6 +256,8 @@
 #define MGAREG_CRTCEXT1_VSYNCOFF	BIT(5)
 #define MGAREG_CRTCEXT1_HSYNCOFF	BIT(4)
 
+#define MGAREG_CRTCEXT3_MGAMODE		BIT(7)
+
 /* Cursor X and Y position */
 #define MGA_CURPOSXL 0x3c0c
 #define MGA_CURPOSXH 0x3c0d
