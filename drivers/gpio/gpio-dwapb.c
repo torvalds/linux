@@ -220,6 +220,11 @@ static void dwapb_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
+{
+	return IRQ_RETVAL(dwapb_do_irq(dev_id));
+}
+
 static void dwapb_irq_enable(struct irq_data *d)
 {
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
@@ -347,11 +352,6 @@ static int dwapb_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 
 	debounce = pinconf_to_config_argument(config);
 	return dwapb_gpio_set_debounce(gc, offset, debounce);
-}
-
-static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
-{
-	return IRQ_RETVAL(dwapb_do_irq(dev_id));
 }
 
 static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
