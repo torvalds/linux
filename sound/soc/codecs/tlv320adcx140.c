@@ -790,7 +790,7 @@ static int adcx140_configure_gpo(struct adcx140_priv *adcx140)
 
 		gpo_output_val = gpo_outputs[0] << ADCX140_GPO_SHIFT |
 				 gpo_outputs[1];
-		ret = regmap_write(adcx140->regmap, ADCX140_GPO_CFG1 + i,
+		ret = regmap_write(adcx140->regmap, ADCX140_GPO_CFG0 + i,
 				   gpo_output_val);
 		if (ret)
 			return ret;
