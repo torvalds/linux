@@ -1888,6 +1888,7 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 		return ret;
 
 	sd->entity.ops = &fimc_sd_media_ops;
+	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
 	sd->internal_ops = &fimc_capture_sd_internal_ops;
 	v4l2_set_subdevdata(sd, fimc);
 	return 0;
