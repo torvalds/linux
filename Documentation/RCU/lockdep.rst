@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+========================
 RCU and lockdep checking
+========================
 
 All flavors of RCU have lockdep checking available, so that lockdep is
 aware of when each task enters and leaves any flavor of RCU read-side
@@ -8,7 +12,7 @@ tracking to include RCU state, which can sometimes help when debugging
 deadlocks and the like.
 
 In addition, RCU provides the following primitives that check lockdep's
-state:
+state::
 
 	rcu_read_lock_held() for normal RCU.
 	rcu_read_lock_bh_held() for RCU-bh.
@@ -63,7 +67,7 @@ checking of rcu_dereference() primitives:
 The rcu_dereference_check() check expression can be any boolean
 expression, but would normally include a lockdep expression.  However,
 any boolean expression can be used.  For a moderately ornate example,
-consider the following:
+consider the following::
 
 	file = rcu_dereference_check(fdt->fd[fd],
 				     lockdep_is_held(&files->file_lock) ||
@@ -82,7 +86,7 @@ RCU read-side critical sections, in case (2) the ->file_lock prevents
 any change from taking place, and finally, in case (3) the current task
 is the only task accessing the file_struct, again preventing any change
 from taking place.  If the above statement was invoked only from updater
-code, it could instead be written as follows:
+code, it could instead be written as follows::
 
 	file = rcu_dereference_protected(fdt->fd[fd],
 					 lockdep_is_held(&files->file_lock) ||
@@ -105,7 +109,7 @@ false and they are called from outside any RCU read-side critical section.
 
 For example, the workqueue for_each_pwq() macro is intended to be used
 either within an RCU read-side critical section or with wq->mutex held.
-It is thus implemented as follows:
+It is thus implemented as follows::
 
 	#define for_each_pwq(pwq, wq)
 		list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,

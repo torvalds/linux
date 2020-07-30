@@ -1,7 +1,12 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==========================
 RCU Torture Test Operation
+==========================
 
 
 CONFIG_RCU_TORTURE_TEST
+=======================
 
 The CONFIG_RCU_TORTURE_TEST config option is available for all RCU
 implementations.  It creates an rcutorture kernel module that can
@@ -13,9 +18,10 @@ when the module is loaded, and stops when the module is unloaded.
 Module parameters are prefixed by "rcutorture." in
 Documentation/admin-guide/kernel-parameters.txt.
 
-OUTPUT
+Output
+======
 
-The statistics output is as follows:
+The statistics output is as follows::
 
 	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
 	rcu-torture: rtc:           (null) ver: 155441 tfle: 0 rta: 155441 rtaf: 8884 rtf: 155440 rtmbe: 0 rtbe: 0 rtbke: 0 rtbre: 0 rtbf: 0 rtb: 0 nt: 3055767
@@ -36,53 +42,53 @@ automatic determination as to whether RCU operated correctly.
 
 The entries are as follows:
 
-o	"rtc": The hexadecimal address of the structure currently visible
+*	"rtc": The hexadecimal address of the structure currently visible
 	to readers.
 
-o	"ver": The number of times since boot that the RCU writer task
+*	"ver": The number of times since boot that the RCU writer task
 	has changed the structure visible to readers.
 
-o	"tfle": If non-zero, indicates that the "torture freelist"
+*	"tfle": If non-zero, indicates that the "torture freelist"
 	containing structures to be placed into the "rtc" area is empty.
 	This condition is important, since it can fool you into thinking
 	that RCU is working when it is not.  :-/
 
-o	"rta": Number of structures allocated from the torture freelist.
+*	"rta": Number of structures allocated from the torture freelist.
 
-o	"rtaf": Number of allocations from the torture freelist that have
+*	"rtaf": Number of allocations from the torture freelist that have
 	failed due to the list being empty.  It is not unusual for this
 	to be non-zero, but it is bad for it to be a large fraction of
 	the value indicated by "rta".
 
-o	"rtf": Number of frees into the torture freelist.
+*	"rtf": Number of frees into the torture freelist.
 
-o	"rtmbe": A non-zero value indicates that rcutorture believes that
+*	"rtmbe": A non-zero value indicates that rcutorture believes that
 	rcu_assign_pointer() and rcu_dereference() are not working
 	correctly.  This value should be zero.
 
-o	"rtbe": A non-zero value indicates that one of the rcu_barrier()
+*	"rtbe": A non-zero value indicates that one of the rcu_barrier()
 	family of functions is not working correctly.
 
-o	"rtbke": rcutorture was unable to create the real-time kthreads
+*	"rtbke": rcutorture was unable to create the real-time kthreads
 	used to force RCU priority inversion.  This value should be zero.
 
-o	"rtbre": Although rcutorture successfully created the kthreads
+*	"rtbre": Although rcutorture successfully created the kthreads
 	used to force RCU priority inversion, it was unable to set them
 	to the real-time priority level of 1.  This value should be zero.
 
-o	"rtbf": The number of times that RCU priority boosting failed
+*	"rtbf": The number of times that RCU priority boosting failed
 	to resolve RCU priority inversion.
 
-o	"rtb": The number of times that rcutorture attempted to force
+*	"rtb": The number of times that rcutorture attempted to force
 	an RCU priority inversion condition.  If you are testing RCU
 	priority boosting via the "test_boost" module parameter, this
 	value should be non-zero.
 
-o	"nt": The number of times rcutorture ran RCU read-side code from
+*	"nt": The number of times rcutorture ran RCU read-side code from
 	within a timer handler.  This value should be non-zero only
 	if you specified the "irqreader" module parameter.
 
-o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
+*	"Reader Pipe": Histogram of "ages" of structures seen by readers.
 	If any entries past the first two are non-zero, RCU is broken.
 	And rcutorture prints the error flag string "!!!" to make sure
 	you notice.  The age of a newly allocated structure is zero,
@@ -94,14 +100,14 @@ o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
 	RCU.  If you want to see what it looks like when broken, break
 	it yourself.  ;-)
 
-o	"Reader Batch": Another histogram of "ages" of structures seen
+*	"Reader Batch": Another histogram of "ages" of structures seen
 	by readers, but in terms of counter flips (or batches) rather
 	than in terms of grace periods.  The legal number of non-zero
 	entries is again two.  The reason for this separate view is that
 	it is sometimes easier to get the third entry to show up in the
 	"Reader Batch" list than in the "Reader Pipe" list.
 
-o	"Free-Block Circulation": Shows the number of torture structures
+*	"Free-Block Circulation": Shows the number of torture structures
 	that have reached a given point in the pipeline.  The first element
 	should closely correspond to the number of structures allocated,
 	the second to the number that have been removed from reader view,
@@ -112,7 +118,7 @@ o	"Free-Block Circulation": Shows the number of torture structures
 
 Different implementations of RCU can provide implementation-specific
 additional information.  For example, Tree SRCU provides the following
-additional line:
+additional line::
 
 	srcud-torture: Tree SRCU per-CPU(idx=0): 0(35,-21) 1(-4,24) 2(1,1) 3(-26,20) 4(28,-47) 5(-9,4) 6(-10,14) 7(-14,11) T(1,6)
 
@@ -123,15 +129,15 @@ using a dynamically allocated srcu_struct (hence "srcud-" rather than
 "old" and "current" values to the underlying array, and is useful for
 debugging.  The final "T" entry contains the totals of the counters.
 
-
-USAGE ON SPECIFIC KERNEL BUILDS
+Usage on Specific Kernel Builds
+===============================
 
 It is sometimes desirable to torture RCU on a specific kernel build,
 for example, when preparing to put that kernel build into production.
 In that case, the kernel should be built with CONFIG_RCU_TORTURE_TEST=m
 so that the test can be started using modprobe and terminated using rmmod.
 
-For example, the following script may be used to torture RCU:
+For example, the following script may be used to torture RCU::
 
 	#!/bin/sh
 
@@ -148,7 +154,8 @@ two are self-explanatory, while the last indicates that while there
 were no RCU failures, CPU-hotplug problems were detected.
 
 
-USAGE ON MAINLINE KERNELS
+Usage on Mainline Kernels
+=========================
 
 When using rcutorture to test changes to RCU itself, it is often
 necessary to build a number of kernels in order to test that change
@@ -180,16 +187,16 @@ to Tree SRCU might run only the SRCU-N and SRCU-P scenarios using the
 --configs argument to kvm.sh as follows:  "--configs 'SRCU-N SRCU-P'".
 Large systems can run multiple copies of of the full set of scenarios,
 for example, a system with 448 hardware threads can run five instances
-of the full set concurrently.  To make this happen:
+of the full set concurrently.  To make this happen::
 
 	kvm.sh --cpus 448 --configs '5*CFLIST'
 
 Alternatively, such a system can run 56 concurrent instances of a single
-eight-CPU scenario:
+eight-CPU scenario::
 
 	kvm.sh --cpus 448 --configs '56*TREE04'
 
-Or 28 concurrent instances of each of two eight-CPU scenarios:
+Or 28 concurrent instances of each of two eight-CPU scenarios::
 
 	kvm.sh --cpus 448 --configs '28*TREE03 28*TREE04'
 
@@ -199,14 +206,14 @@ values for memory may require disabling the callback-flooding tests
 using the --bootargs parameter discussed below.
 
 Sometimes additional debugging is useful, and in such cases the --kconfig
-parameter to kvm.sh may be used, for example, "--kconfig 'CONFIG_KASAN=y'".
+parameter to kvm.sh may be used, for example, ``--kconfig 'CONFIG_KASAN=y'``.
 
 Kernel boot arguments can also be supplied, for example, to control
 rcutorture's module parameters.  For example, to test a change to RCU's
 CPU stall-warning code, use "--bootargs 'rcutorture.stall_cpu=30'".
 This will of course result in the scripting reporting a failure, namely
 the resuling RCU CPU stall warning.  As noted above, reducing memory may
-require disabling rcutorture's callback-flooding tests:
+require disabling rcutorture's callback-flooding tests::
 
 	kvm.sh --cpus 448 --configs '56*TREE04' --memory 128M \
 		--bootargs 'rcutorture.fwd_progress=0'
@@ -225,7 +232,7 @@ is listed at the end of the kvm.sh output, which you really should redirect
 to a file.  The build products and console output of each run is kept in
 tools/testing/selftests/rcutorture/res in timestamped directories.  A
 given directory can be supplied to kvm-find-errors.sh in order to have
-it cycle you through summaries of errors and full error logs.  For example:
+it cycle you through summaries of errors and full error logs.  For example::
 
 	tools/testing/selftests/rcutorture/bin/kvm-find-errors.sh \
 		tools/testing/selftests/rcutorture/res/2020.01.20-15.54.23
@@ -245,38 +252,42 @@ that was tested and any uncommitted changes in diff format.
 
 The most frequently used files in each per-scenario-run directory are:
 
-.config: This file contains the Kconfig options.
+.config:
+	This file contains the Kconfig options.
 
-Make.out: This contains build output for a specific scenario.
+Make.out:
+	This contains build output for a specific scenario.
 
-console.log: This contains the console output for a specific scenario.
+console.log:
+	This contains the console output for a specific scenario.
 	This file may be examined once the kernel has booted, but
 	it might not exist if the build failed.
 
-vmlinux: This contains the kernel, which can be useful with tools like
+vmlinux:
+	This contains the kernel, which can be useful with tools like
 	objdump and gdb.
 
 A number of additional files are available, but are less frequently used.
 Many are intended for debugging of rcutorture itself or of its scripting.
 
 As of v5.4, a successful run with the default set of scenarios produces
-the following summary at the end of the run on a 12-CPU system:
+the following summary at the end of the run on a 12-CPU system::
 
-SRCU-N ------- 804233 GPs (148.932/s) [srcu: g10008272 f0x0 ]
-SRCU-P ------- 202320 GPs (37.4667/s) [srcud: g1809476 f0x0 ]
-SRCU-t ------- 1122086 GPs (207.794/s) [srcu: g0 f0x0 ]
-SRCU-u ------- 1111285 GPs (205.794/s) [srcud: g1 f0x0 ]
-TASKS01 ------- 19666 GPs (3.64185/s) [tasks: g0 f0x0 ]
-TASKS02 ------- 20541 GPs (3.80389/s) [tasks: g0 f0x0 ]
-TASKS03 ------- 19416 GPs (3.59556/s) [tasks: g0 f0x0 ]
-TINY01 ------- 836134 GPs (154.84/s) [rcu: g0 f0x0 ] n_max_cbs: 34198
-TINY02 ------- 850371 GPs (157.476/s) [rcu: g0 f0x0 ] n_max_cbs: 2631
-TREE01 ------- 162625 GPs (30.1157/s) [rcu: g1124169 f0x0 ]
-TREE02 ------- 333003 GPs (61.6672/s) [rcu: g2647753 f0x0 ] n_max_cbs: 35844
-TREE03 ------- 306623 GPs (56.782/s) [rcu: g2975325 f0x0 ] n_max_cbs: 1496497
-CPU count limited from 16 to 12
-TREE04 ------- 246149 GPs (45.5831/s) [rcu: g1695737 f0x0 ] n_max_cbs: 434961
-TREE05 ------- 314603 GPs (58.2598/s) [rcu: g2257741 f0x2 ] n_max_cbs: 193997
-TREE07 ------- 167347 GPs (30.9902/s) [rcu: g1079021 f0x0 ] n_max_cbs: 478732
-CPU count limited from 16 to 12
-TREE09 ------- 752238 GPs (139.303/s) [rcu: g13075057 f0x0 ] n_max_cbs: 99011
+    SRCU-N ------- 804233 GPs (148.932/s) [srcu: g10008272 f0x0 ]
+    SRCU-P ------- 202320 GPs (37.4667/s) [srcud: g1809476 f0x0 ]
+    SRCU-t ------- 1122086 GPs (207.794/s) [srcu: g0 f0x0 ]
+    SRCU-u ------- 1111285 GPs (205.794/s) [srcud: g1 f0x0 ]
+    TASKS01 ------- 19666 GPs (3.64185/s) [tasks: g0 f0x0 ]
+    TASKS02 ------- 20541 GPs (3.80389/s) [tasks: g0 f0x0 ]
+    TASKS03 ------- 19416 GPs (3.59556/s) [tasks: g0 f0x0 ]
+    TINY01 ------- 836134 GPs (154.84/s) [rcu: g0 f0x0 ] n_max_cbs: 34198
+    TINY02 ------- 850371 GPs (157.476/s) [rcu: g0 f0x0 ] n_max_cbs: 2631
+    TREE01 ------- 162625 GPs (30.1157/s) [rcu: g1124169 f0x0 ]
+    TREE02 ------- 333003 GPs (61.6672/s) [rcu: g2647753 f0x0 ] n_max_cbs: 35844
+    TREE03 ------- 306623 GPs (56.782/s) [rcu: g2975325 f0x0 ] n_max_cbs: 1496497
+    CPU count limited from 16 to 12
+    TREE04 ------- 246149 GPs (45.5831/s) [rcu: g1695737 f0x0 ] n_max_cbs: 434961
+    TREE05 ------- 314603 GPs (58.2598/s) [rcu: g2257741 f0x2 ] n_max_cbs: 193997
+    TREE07 ------- 167347 GPs (30.9902/s) [rcu: g1079021 f0x0 ] n_max_cbs: 478732
+    CPU count limited from 16 to 12
+    TREE09 ------- 752238 GPs (139.303/s) [rcu: g13075057 f0x0 ] n_max_cbs: 99011

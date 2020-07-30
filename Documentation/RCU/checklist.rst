@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================================
 Review Checklist for RCU Patches
+================================
 
 
 This document contains a checklist for producing and reviewing patches
@@ -411,18 +415,21 @@ over a rather long period of time, but improvements are always welcome!
 	__rcu sparse checks to validate your RCU code.	These can help
 	find problems as follows:
 
-	CONFIG_PROVE_LOCKING: check that accesses to RCU-protected data
+	CONFIG_PROVE_LOCKING:
+		check that accesses to RCU-protected data
 		structures are carried out under the proper RCU
 		read-side critical section, while holding the right
 		combination of locks, or whatever other conditions
 		are appropriate.
 
-	CONFIG_DEBUG_OBJECTS_RCU_HEAD: check that you don't pass the
+	CONFIG_DEBUG_OBJECTS_RCU_HEAD:
+		check that you don't pass the
 		same object to call_rcu() (or friends) before an RCU
 		grace period has elapsed since the last time that you
 		passed that same object to call_rcu() (or friends).
 
-	__rcu sparse checks: tag the pointer to the RCU-protected data
+	__rcu sparse checks:
+		tag the pointer to the RCU-protected data
 		structure with __rcu, and sparse will warn you if you
 		access that pointer without the services of one of the
 		variants of rcu_dereference().
@@ -442,8 +449,8 @@ over a rather long period of time, but improvements are always welcome!
 
 	You instead need to use one of the barrier functions:
 
-	o	call_rcu() -> rcu_barrier()
-	o	call_srcu() -> srcu_barrier()
+	-	call_rcu() -> rcu_barrier()
+	-	call_srcu() -> srcu_barrier()
 
 	However, these barrier functions are absolutely -not- guaranteed
 	to wait for a grace period.  In fact, if there are no call_rcu()
