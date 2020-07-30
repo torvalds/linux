@@ -53,6 +53,9 @@ enum snd_jack_types {
 	SND_JACK_BTN_5		= 0x0200,
 };
 
+/* Keep in sync with definitions above */
+#define SND_JACK_SWITCH_TYPES 6
+
 struct snd_jack {
 	struct list_head kctl_list;
 	struct snd_card *card;
