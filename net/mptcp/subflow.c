@@ -91,17 +91,9 @@ static struct mptcp_sock *subflow_token_join_request(struct request_sock *req,
 	return msk;
 }
 
-static void subflow_init_req(struct request_sock *req,
-			     const struct sock *sk_listener,
-			     struct sk_buff *skb)
+static int __subflow_init_req(struct request_sock *req, const struct sock *sk_listener)
 {
-	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk_listener);
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
-	struct mptcp_options_received mp_opt;
-
-	pr_debug("subflow_req=%p, listener=%p", subflow_req, listener);
-
-	mptcp_get_options(skb, &mp_opt);
 
 	subflow_req->mp_capable = 0;
 	subflow_req->mp_join = 0;
@@ -113,8 +105,28 @@ static void subflow_init_req(struct request_sock *req,
 	 * TCP option space.
 	 */
 	if (rcu_access_pointer(tcp_sk(sk_listener)->md5sig_info))
-		return;
+		return -EINVAL;
 #endif
+
+	return 0;
+}
+
+static void subflow_init_req(struct request_sock *req,
+			     const struct sock *sk_listener,
+			     struct sk_buff *skb)
+{
+	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk_listener);
+	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
+	struct mptcp_options_received mp_opt;
+	int ret;
+
+	pr_debug("subflow_req=%p, listener=%p", subflow_req, listener);
+
+	ret = __subflow_init_req(req, sk_listener);
+	if (ret)
+		return;
+
+	mptcp_get_options(skb, &mp_opt);
 
 	if (mp_opt.mp_capable) {
 		SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_MPCAPABLEPASSIVE);
