@@ -407,6 +407,49 @@ err0_out:
 	return -ENOMEM;
 }
 
+static int sienna_cichlid_get_metrics_table_locked(struct smu_context *smu,
+						   SmuMetrics_t *metrics_table,
+						   bool bypass_cache)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	int ret = 0;
+
+	if (bypass_cache ||
+	    !smu_table->metrics_time ||
+	    time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
+		ret = smu_cmn_update_table(smu,
+				       SMU_TABLE_SMU_METRICS,
+				       0,
+				       smu_table->metrics_table,
+				       false);
+		if (ret) {
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	if (metrics_table)
+		memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	return 0;
+}
+
+static int sienna_cichlid_get_metrics_table(struct smu_context *smu,
+					    SmuMetrics_t *metrics_table,
+					    bool bypass_cache)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->metrics_lock);
+	ret = sienna_cichlid_get_metrics_table_locked(smu,
+						      metrics_table,
+						      bypass_cache);
+	mutex_unlock(&smu->metrics_lock);
+
+	return ret;
+}
+
 static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 					       MetricsMember_t member,
 					       uint32_t *value)
@@ -416,19 +459,13 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
-	if (!smu_table->metrics_time ||
-	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_cmn_update_table(smu,
-				       SMU_TABLE_SMU_METRICS,
-				       0,
-				       smu_table->metrics_table,
-				       false);
-		if (ret) {
-			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
-			mutex_unlock(&smu->metrics_lock);
-			return ret;
-		}
-		smu_table->metrics_time = jiffies;
+
+	ret = sienna_cichlid_get_metrics_table_locked(smu,
+						      NULL,
+						      false);
+	if (ret) {
+		mutex_unlock(&smu->metrics_lock);
+		return ret;
 	}
 
 	switch (member) {
@@ -2670,23 +2707,11 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	mutex_lock(&smu->metrics_lock);
-
-	ret = smu_cmn_update_table(smu,
-				   SMU_TABLE_SMU_METRICS,
-				   0,
-				   smu_table->metrics_table,
-				   false);
-	if (ret) {
-		dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
-		mutex_unlock(&smu->metrics_lock);
+	ret = sienna_cichlid_get_metrics_table(smu,
+					       &metrics,
+					       true);
+	if (ret)
 		return ret;
-	}
-	smu_table->metrics_time = jiffies;
-
-	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_t));
-
-	mutex_unlock(&smu->metrics_lock);
 
 	smu_v11_0_init_gpu_metrics_v1_0(gpu_metrics);
 
