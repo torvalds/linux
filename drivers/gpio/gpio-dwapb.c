@@ -162,7 +162,7 @@ static struct dwapb_gpio_port *dwapb_offs_to_port(struct dwapb_gpio *gpio, unsig
 
 	for (i = 0; i < gpio->nr_ports; i++) {
 		port = &gpio->ports[i];
-		if (port->idx == offs / 32)
+		if (port->idx == offs / DWAPB_MAX_GPIOS)
 			return port;
 	}
 
@@ -182,7 +182,7 @@ static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 
 	pol = dwapb_read(gpio, GPIO_INT_POLARITY);
 	/* Just read the current value right out of the data register */
-	val = gc->get(gc, offs % 32);
+	val = gc->get(gc, offs % DWAPB_MAX_GPIOS);
 	if (val)
 		pol &= ~BIT(offs);
 	else
@@ -197,7 +197,7 @@ static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 	irq_hw_number_t hwirq;
 
 	irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
-	for_each_set_bit(hwirq, &irq_status, 32) {
+	for_each_set_bit(hwirq, &irq_status, DWAPB_MAX_GPIOS) {
 		int gpio_irq = irq_find_mapping(gpio->domain, hwirq);
 		u32 irq_type = irq_get_trigger_type(gpio_irq);
 
@@ -599,7 +599,7 @@ static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 			dev_info(dev,
 				 "failed to get number of gpios for port%d\n",
 				 i);
-			pp->ngpio = 32;
+			pp->ngpio = DWAPB_MAX_GPIOS;
 		}
 
 		pp->irq_shared	= false;
