@@ -293,6 +293,8 @@ struct mii_bus {
 
 	/* GPIO reset pulse width in microseconds */
 	int reset_delay_us;
+	/* GPIO reset deassert delay in microseconds */
+	int reset_post_delay_us;
 	/* RESET GPIO descriptor pointer */
 	struct gpio_desc *reset_gpiod;
 
