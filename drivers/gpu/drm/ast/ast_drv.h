@@ -98,6 +98,22 @@ enum ast_tx_chip {
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
+struct ast_i2c_chan {
+	struct i2c_adapter adapter;
+	struct drm_device *dev;
+	struct i2c_algo_bit_data bit;
+};
+
+struct ast_connector {
+	struct drm_connector base;
+	struct ast_i2c_chan *i2c;
+};
+
+static inline struct ast_connector *
+to_ast_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_connector, base);
+}
 
 struct ast_private {
 	struct drm_device *dev;
@@ -119,9 +135,11 @@ struct ast_private {
 		unsigned int next_index;
 	} cursor;
 
-	struct drm_encoder encoder;
 	struct drm_plane primary_plane;
 	struct drm_plane cursor_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct ast_connector connector;
 
 	bool support_wide_screen;
 	enum {
@@ -225,19 +243,6 @@ static inline void ast_open_key(struct ast_private *ast)
 #define AST_VIDMEM_SIZE_128M  0x08000000
 
 #define AST_VIDMEM_DEFAULT_SIZE AST_VIDMEM_SIZE_8M
-
-struct ast_i2c_chan {
-	struct i2c_adapter adapter;
-	struct drm_device *dev;
-	struct i2c_algo_bit_data bit;
-};
-
-struct ast_connector {
-	struct drm_connector base;
-	struct ast_i2c_chan *i2c;
-};
-
-#define to_ast_connector(x) container_of(x, struct ast_connector, base)
 
 struct ast_vbios_stdtable {
 	u8 misc;
