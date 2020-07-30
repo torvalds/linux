@@ -120,35 +120,24 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	ast = ast_device_create(&ast_driver, pdev, ent->driver_data);
-	if (IS_ERR(ast)) {
-		ret = PTR_ERR(ast);
-		goto err_drm_dev_put;
-	}
+	if (IS_ERR(ast))
+		return PTR_ERR(ast);
 	dev = &ast->base;
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
-		goto err_ast_device_destroy;
+		return ret;
 
 	drm_fbdev_generic_setup(dev, 32);
 
 	return 0;
-
-err_ast_device_destroy:
-	ast_device_destroy(ast);
-err_drm_dev_put:
-	drm_dev_put(dev);
-	return ret;
 }
 
 static void ast_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct ast_private *ast = to_ast_private(dev);
 
 	drm_dev_unregister(dev);
-	ast_device_destroy(ast);
-	drm_dev_put(dev);
 }
 
 static int ast_drm_freeze(struct drm_device *dev)

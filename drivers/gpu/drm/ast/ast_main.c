@@ -380,6 +380,18 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
+/*
+ * Run this function as part of the HW device cleanup; not
+ * when the DRM device gets released.
+ */
+static void ast_device_release(void *data)
+{
+	struct ast_private *ast = data;
+
+	/* enable standard VGA decode */
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+}
+
 struct ast_private *ast_device_create(struct drm_driver *drv,
 				      struct pci_dev *pdev,
 				      unsigned long flags)
@@ -438,11 +450,9 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 	if (ret)
 		return ERR_PTR(ret);
 
-	return ast;
-}
+	ret = devm_add_action_or_reset(dev->dev, ast_device_release, ast);
+	if (ret)
+		return ERR_PTR(ret);
 
-void ast_device_destroy(struct ast_private *ast)
-{
-	/* enable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+	return ast;
 }

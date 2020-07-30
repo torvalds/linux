@@ -162,7 +162,6 @@ static inline struct ast_private *to_ast_private(struct drm_device *dev)
 struct ast_private *ast_device_create(struct drm_driver *drv,
 				      struct pci_dev *pdev,
 				      unsigned long flags);
-void ast_device_destroy(struct ast_private *ast);
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
