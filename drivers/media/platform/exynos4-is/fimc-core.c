@@ -954,9 +954,11 @@ static int fimc_probe(struct platform_device *pdev)
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
-	fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
-	if (IS_ERR(fimc->sysreg))
-		return PTR_ERR(fimc->sysreg);
+	if (fimc->variant->has_isp_wb) {
+		fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
+		if (IS_ERR(fimc->sysreg))
+			return PTR_ERR(fimc->sysreg);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	fimc->regs = devm_ioremap_resource(dev, res);
