@@ -3454,10 +3454,9 @@ static netdev_features_t net_mpls_features(struct sk_buff *skb,
 static netdev_features_t harmonize_features(struct sk_buff *skb,
 	netdev_features_t features)
 {
-	int tmp;
 	__be16 type;
 
-	type = skb_network_protocol(skb, &tmp);
+	type = skb_network_protocol(skb, NULL);
 	features = net_mpls_features(skb, features, type);
 
 	if (skb->ip_summed != CHECKSUM_NONE &&
