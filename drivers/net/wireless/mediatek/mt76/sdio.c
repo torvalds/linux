@@ -69,6 +69,7 @@ void mt76s_stop_txrx(struct mt76_dev *dev)
 	struct mt76_sdio *sdio = &dev->sdio;
 
 	cancel_work_sync(&sdio->tx_work);
+	cancel_work_sync(&sdio->rx_work);
 	cancel_work_sync(&sdio->stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
 

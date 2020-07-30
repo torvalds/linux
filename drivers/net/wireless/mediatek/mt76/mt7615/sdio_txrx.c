@@ -19,9 +19,9 @@
 #include "sdio.h"
 #include "mac.h"
 
-static void mt7663s_refill_sched_quota(struct mt7615_dev *dev, u32 *data)
+static void mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 {
-	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	struct mt76_sdio *sdio = &dev->sdio;
 
 	mutex_lock(&sdio->sched.lock);
 	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
@@ -61,11 +61,11 @@ static struct sk_buff *mt7663s_build_rx_skb(void *data, int data_len,
 	return skb;
 }
 
-static int mt7663s_rx_run_queue(struct mt7615_dev *dev, enum mt76_rxq_id qid,
+static int mt7663s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 				struct mt76s_intr *intr)
 {
-	struct mt76_queue *q = &dev->mt76.q_rx[qid];
-	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	struct mt76_queue *q = &dev->q_rx[qid];
+	struct mt76_sdio *sdio = &dev->sdio;
 	int len = 0, err, i, order;
 	struct page *page;
 	u8 *buf;
@@ -86,9 +86,12 @@ static int mt7663s_rx_run_queue(struct mt7615_dev *dev, enum mt76_rxq_id qid,
 
 	buf = page_address(page);
 
+	sdio_claim_host(sdio->func);
 	err = sdio_readsb(sdio->func, buf, MCR_WRDR(qid), len);
+	sdio_release_host(sdio->func);
+
 	if (err < 0) {
-		dev_err(dev->mt76.dev, "sdio read data failed:%d\n", err);
+		dev_err(dev->dev, "sdio read data failed:%d\n", err);
 		__free_pages(page, order);
 		return err;
 	}
@@ -113,7 +116,7 @@ static int mt7663s_rx_run_queue(struct mt7615_dev *dev, enum mt76_rxq_id qid,
 	q->queued += i;
 	spin_unlock_bh(&q->lock);
 
-	return err;
+	return i;
 }
 
 static int mt7663s_tx_update_sched(struct mt76_dev *dev,
@@ -212,39 +215,60 @@ void mt7663s_tx_work(struct work_struct *work)
 	wake_up_process(sdio->kthread);
 }
 
+void mt7663s_rx_work(struct work_struct *work)
+{
+	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio, rx_work);
+	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
+	struct mt76s_intr intr;
+	int nframes = 0, ret;
+
+	/* disable interrupt */
+	sdio_claim_host(sdio->func);
+	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
+	sdio_readsb(sdio->func, &intr, MCR_WHISR, sizeof(struct mt76s_intr));
+	sdio_release_host(sdio->func);
+
+	trace_dev_irq(dev, intr.isr, 0);
+
+	if (intr.isr & WHIER_RX0_DONE_INT_EN) {
+		ret = mt7663s_rx_run_queue(dev, 0, &intr);
+		if (ret > 0) {
+			wake_up_process(sdio->kthread);
+			nframes += ret;
+		}
+	}
+
+	if (intr.isr & WHIER_RX1_DONE_INT_EN) {
+		ret = mt7663s_rx_run_queue(dev, 1, &intr);
+		if (ret > 0) {
+			wake_up_process(sdio->kthread);
+			nframes += ret;
+		}
+	}
+
+	if (intr.isr & WHIER_TX_DONE_INT_EN) {
+		mt7663s_refill_sched_quota(dev, intr.tx.wtqcr);
+		queue_work(sdio->txrx_wq, &sdio->tx_work);
+	}
+
+	if (nframes) {
+		queue_work(sdio->txrx_wq, &sdio->rx_work);
+		return;
+	}
+
+	/* enable interrupt */
+	sdio_claim_host(sdio->func);
+	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, 0);
+	sdio_release_host(sdio->func);
+}
+
 void mt7663s_sdio_irq(struct sdio_func *func)
 {
 	struct mt7615_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
-	struct mt76s_intr intr;
 
-	/* disable interrupt */
-	sdio_writel(func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
+		return;
 
-	do {
-		sdio_readsb(func, &intr, MCR_WHISR, sizeof(struct mt76s_intr));
-		trace_dev_irq(&dev->mt76, intr.isr, 0);
-
-		if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
-			goto out;
-
-		if (intr.isr & WHIER_RX0_DONE_INT_EN) {
-			mt7663s_rx_run_queue(dev, 0, &intr);
-			wake_up_process(sdio->kthread);
-		}
-
-		if (intr.isr & WHIER_RX1_DONE_INT_EN) {
-			mt7663s_rx_run_queue(dev, 1, &intr);
-			wake_up_process(sdio->kthread);
-		}
-
-		if (intr.isr & WHIER_TX_DONE_INT_EN) {
-			mt7663s_refill_sched_quota(dev, intr.tx.wtqcr);
-			queue_work(sdio->txrx_wq, &sdio->tx_work);
-			wake_up_process(sdio->kthread);
-		}
-	} while (intr.isr);
-out:
-	/* enable interrupt */
-	sdio_writel(func, WHLPCR_INT_EN_SET, MCR_WHLPCR, 0);
+	queue_work(sdio->txrx_wq, &sdio->rx_work);
 }

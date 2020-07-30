@@ -451,6 +451,7 @@ struct mt76_sdio {
 
 	struct workqueue_struct *txrx_wq;
 	struct work_struct tx_work;
+	struct work_struct rx_work;
 
 	unsigned long state;
 
