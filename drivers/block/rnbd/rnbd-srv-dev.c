@@ -99,6 +99,5 @@ struct bio *rnbd_bio_map_kern(void *data, struct bio_set *bs,
 		offset = 0;
 	}
 
-	bio->bi_end_io = bio_put;
 	return bio;
 }
