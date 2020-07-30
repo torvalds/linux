@@ -9,6 +9,7 @@ config CSKY
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS if NR_CPUS>2
 	select ARCH_WANT_FRAME_POINTERS if !CPU_CK610
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select COMMON_CLK
 	select CLKSRC_MMIO
 	select CSKY_MPINTC if CPU_CK860
@@ -38,6 +39,7 @@ config CSKY
 	select GX6605S_TIMER if CPU_CK610
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_BUGVERBOSE
@@ -150,6 +152,14 @@ config L1_CACHE_SHIFT
 	default "4"	if (CPU_CK610)
 	default "5"	if (CPU_CK807 || CPU_CK810)
 	default "6"	if (CPU_CK860)
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 8
+
+# max bits determined by the following formula:
+#  VA_BITS - PAGE_SHIFT - 3
+config ARCH_MMAP_RND_BITS_MAX
+	default 17
 
 menu "Processor type and features"
 
