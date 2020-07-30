@@ -272,6 +272,34 @@ int wait_for_pending_reads(int fd, int timeout_ms,
 	return read_res / sizeof(*prs);
 }
 
+int wait_for_pending_reads2(int fd, int timeout_ms,
+	struct incfs_pending_read_info2 *prs, int prs_count)
+{
+	ssize_t read_res = 0;
+
+	if (timeout_ms > 0) {
+		int poll_res = 0;
+		struct pollfd pollfd = {
+			.fd = fd,
+			.events = POLLIN
+		};
+
+		poll_res = poll(&pollfd, 1, timeout_ms);
+		if (poll_res < 0)
+			return -errno;
+		if (poll_res == 0)
+			return 0;
+		if (!(pollfd.revents | POLLIN))
+			return 0;
+	}
+
+	read_res = read(fd, prs, prs_count * sizeof(*prs));
+	if (read_res < 0)
+		return -errno;
+
+	return read_res / sizeof(*prs);
+}
+
 char *concat_file_name(const char *dir, char *file)
 {
 	char full_name[FILENAME_MAX] = "";

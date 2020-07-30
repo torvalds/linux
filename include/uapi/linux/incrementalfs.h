@@ -96,6 +96,23 @@
 #define INCFS_IOC_CREATE_MAPPED_FILE \
 	_IOWR(INCFS_IOCTL_BASE_CODE, 35, struct incfs_create_mapped_file_args)
 
+/* ===== sysfs feature flags ===== */
+/*
+ * Each flag is represented by a file in /sys/fs/incremental-fs/features
+ * If the file exists the feature is supported
+ * Also the file contents will be the line "supported"
+ */
+
+/*
+ * Basic flag stating that the core incfs file system is available
+ */
+#define INCFS_FEATURE_FLAG_COREFS "corefs"
+
+/*
+ * report_uid mount option is supported
+ */
+#define INCFS_FEATURE_FLAG_REPORT_UID "report_uid"
+
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
 	COMPRESSION_LZ4 = 1
@@ -113,6 +130,8 @@ typedef struct {
 /*
  * Description of a pending read. A pending read - a read call by
  * a userspace program for which the filesystem currently doesn't have data.
+ *
+ * Reads from .pending_reads and .log return an array of these structure
  */
 struct incfs_pending_read_info {
 	/* Id of a file that is being read from. */
@@ -126,6 +145,32 @@ struct incfs_pending_read_info {
 
 	/* A serial number of this pending read. */
 	__u32 serial_number;
+};
+
+/*
+ * Description of a pending read. A pending read - a read call by
+ * a userspace program for which the filesystem currently doesn't have data.
+ *
+ * This version of incfs_pending_read_info is used whenever the file system is
+ * mounted with the report_uid flag
+ */
+struct incfs_pending_read_info2 {
+	/* Id of a file that is being read from. */
+	incfs_uuid_t file_id;
+
+	/* A number of microseconds since system boot to the read. */
+	__aligned_u64 timestamp_us;
+
+	/* Index of a file block that is being read. */
+	__u32 block_index;
+
+	/* A serial number of this pending read. */
+	__u32 serial_number;
+
+	/* The UID of the reading process */
+	__u32 uid;
+
+	__u32 reserved;
 };
 
 /*
