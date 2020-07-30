@@ -3022,6 +3022,7 @@ static unsigned int qeth_tx_select_bulk_max(struct qeth_card *card,
 
 static int qeth_init_qdio_queues(struct qeth_card *card)
 {
+	unsigned int rx_bufs = card->qdio.in_buf_pool.buf_count;
 	unsigned int i;
 	int rc;
 
@@ -3033,16 +3034,14 @@ static int qeth_init_qdio_queues(struct qeth_card *card)
 
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
-	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; i++) {
+	for (i = 0; i < rx_bufs; i++) {
 		rc = qeth_init_input_buffer(card, &card->qdio.in_q->bufs[i]);
 		if (rc)
 			return rc;
 	}
 
-	card->qdio.in_q->next_buf_to_init =
-		card->qdio.in_buf_pool.buf_count - 1;
-	rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0, 0,
-		     card->qdio.in_buf_pool.buf_count - 1);
+	card->qdio.in_q->next_buf_to_init = QDIO_BUFNR(rx_bufs);
+	rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0, 0, rx_bufs);
 	if (rc) {
 		QETH_CARD_TEXT_(card, 2, "1err%d", rc);
 		return rc;
@@ -3535,13 +3534,6 @@ static unsigned int qeth_rx_refill_queue(struct qeth_card *card,
 			return 0;
 		}
 
-		/*
-		 * according to old code it should be avoided to requeue all
-		 * 128 buffers in order to benefit from PCI avoidance.
-		 * this function keeps at least one buffer (the buffer at
-		 * 'index') un-requeued -> this buffer is the first buffer that
-		 * will be requeued the next time
-		 */
 		rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0,
 			     queue->next_buf_to_init, count);
 		if (rc) {
