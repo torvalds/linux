@@ -1036,6 +1036,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @firmware_event_thread: ""
  * @fw_event_lock:
  * @fw_event_list: list of fw events
+ * @current_evet: current processing firmware event
+ * @fw_event_cleanup: set to one while cleaning up the fw events
  * @aen_event_read_flag: event log was read
  * @broadcast_aen_busy: broadcast aen waiting to be serviced
  * @shost_recovery: host reset in progress
@@ -1217,6 +1219,8 @@ struct MPT3SAS_ADAPTER {
 	struct workqueue_struct	*firmware_event_thread;
 	spinlock_t	fw_event_lock;
 	struct list_head fw_event_list;
+	struct fw_event_work	*current_event;
+	u8		fw_events_cleanup;
 
 	 /* misc flags */
 	int		aen_event_read_flag;
