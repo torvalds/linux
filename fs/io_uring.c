@@ -1205,7 +1205,8 @@ static void io_kill_timeout(struct io_kiocb *req)
 
 	ret = hrtimer_try_to_cancel(&req->io->timeout.timer);
 	if (ret != -1) {
-		atomic_inc(&req->ctx->cq_timeouts);
+		atomic_set(&req->ctx->cq_timeouts,
+			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
 		req->flags |= REQ_F_COMP_LOCKED;
 		io_cqring_fill_event(req, 0);
@@ -4972,9 +4973,10 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
-	atomic_inc(&ctx->cq_timeouts);
-
 	spin_lock_irqsave(&ctx->completion_lock, flags);
+	atomic_set(&req->ctx->cq_timeouts,
+		atomic_read(&req->ctx->cq_timeouts) + 1);
+
 	/*
 	 * We could be racing with timeout deletion. If the list is empty,
 	 * then timeout lookup already found it and will be handling it.
