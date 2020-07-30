@@ -116,12 +116,12 @@ static int mt7663s_rx_run_queue(struct mt7615_dev *dev, enum mt76_rxq_id qid,
 	return err;
 }
 
-static int mt7663s_tx_update_sched(struct mt7615_dev *dev,
+static int mt7663s_tx_update_sched(struct mt76_dev *dev,
 				   struct mt76_queue_entry *e,
 				   bool mcu)
 {
-	struct mt76_sdio *sdio = &dev->mt76.sdio;
-	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_sdio *sdio = &dev->sdio;
+	struct mt76_phy *mphy = &dev->phy;
 	struct ieee80211_hdr *hdr;
 	int size, ret = -EBUSY;
 
@@ -157,10 +157,10 @@ static int mt7663s_tx_update_sched(struct mt7615_dev *dev,
 	return ret;
 }
 
-static int mt7663s_tx_run_queue(struct mt7615_dev *dev, struct mt76_queue *q)
+static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool mcu = q == dev->mt76.q_tx[MT_TXQ_MCU].q;
-	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	bool mcu = q == dev->q_tx[MT_TXQ_MCU].q;
+	struct mt76_sdio *sdio = &dev->sdio;
 	int nframes = 0;
 
 	while (q->first != q->tail) {
@@ -174,9 +174,12 @@ static int mt7663s_tx_run_queue(struct mt7615_dev *dev, struct mt76_queue *q)
 			len = roundup(len, sdio->func->cur_blksize);
 
 		/* TODO: skb_walk_frags and then write to SDIO port */
+		sdio_claim_host(sdio->func);
 		err = sdio_writesb(sdio->func, MCR_WTDR1, e->skb->data, len);
+		sdio_release_host(sdio->func);
+
 		if (err) {
-			dev_err(dev->mt76.dev, "sdio write failed: %d\n", err);
+			dev_err(dev->dev, "sdio write failed: %d\n", err);
 			return -EIO;
 		}
 
@@ -188,46 +191,25 @@ static int mt7663s_tx_run_queue(struct mt7615_dev *dev, struct mt76_queue *q)
 	return nframes;
 }
 
-static int mt7663s_tx_run_queues(struct mt7615_dev *dev)
+void mt7663s_tx_work(struct work_struct *work)
 {
+	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio, tx_work);
+	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	int i, nframes = 0;
 
 	for (i = 0; i < MT_TXQ_MCU_WA; i++) {
 		int ret;
 
-		ret = mt7663s_tx_run_queue(dev, dev->mt76.q_tx[i].q);
+		ret = mt7663s_tx_run_queue(dev, dev->q_tx[i].q);
 		if (ret < 0)
-			return ret;
+			break;
 
 		nframes += ret;
 	}
+	if (nframes)
+		queue_work(sdio->txrx_wq, &sdio->tx_work);
 
-	return nframes;
-}
-
-int mt7663s_kthread_run(void *data)
-{
-	struct mt7615_dev *dev = data;
-	struct mt76_phy *mphy = &dev->mt76.phy;
-
-	while (!kthread_should_stop()) {
-		int ret;
-
-		cond_resched();
-
-		sdio_claim_host(dev->mt76.sdio.func);
-		ret = mt7663s_tx_run_queues(dev);
-		sdio_release_host(dev->mt76.sdio.func);
-
-		if (ret <= 0 || !test_bit(MT76_STATE_RUNNING, &mphy->state)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-		} else {
-			wake_up_process(dev->mt76.sdio.kthread);
-		}
-	}
-
-	return 0;
+	wake_up_process(sdio->kthread);
 }
 
 void mt7663s_sdio_irq(struct sdio_func *func)
@@ -258,7 +240,7 @@ void mt7663s_sdio_irq(struct sdio_func *func)
 
 		if (intr.isr & WHIER_TX_DONE_INT_EN) {
 			mt7663s_refill_sched_quota(dev, intr.tx.wtqcr);
-			mt7663s_tx_run_queues(dev);
+			queue_work(sdio->txrx_wq, &sdio->tx_work);
 			wake_up_process(sdio->kthread);
 		}
 	} while (intr.isr);

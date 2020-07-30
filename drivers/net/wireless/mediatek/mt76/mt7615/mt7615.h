@@ -678,7 +678,7 @@ int mt7663u_mcu_init(struct mt7615_dev *dev);
 /* sdio */
 u32 mt7663s_read_pcr(struct mt7615_dev *dev);
 int mt7663s_mcu_init(struct mt7615_dev *dev);
-int mt7663s_kthread_run(void *data);
+void mt7663s_tx_work(struct work_struct *work);
 void mt7663s_sdio_irq(struct sdio_func *func);
 
 #endif

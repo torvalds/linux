@@ -68,6 +68,7 @@ void mt76s_stop_txrx(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
+	cancel_work_sync(&sdio->tx_work);
 	cancel_work_sync(&sdio->stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
 
@@ -179,7 +180,6 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	if (wake)
 		ieee80211_wake_queue(dev->hw, qid);
 
-	wake_up_process(dev->sdio.tx_kthread);
 out:
 	return n_dequeued;
 }
@@ -272,7 +272,7 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	wake_up_process(sdio->tx_kthread);
+	queue_work(sdio->txrx_wq, &sdio->tx_work);
 }
 
 static const struct mt76_queue_ops sdio_queue_ops = {
@@ -324,8 +324,12 @@ void mt76s_deinit(struct mt76_dev *dev)
 	int i;
 
 	kthread_stop(sdio->kthread);
-	kthread_stop(sdio->tx_kthread);
 	mt76s_stop_txrx(dev);
+
+	if (sdio->txrx_wq) {
+		destroy_workqueue(sdio->txrx_wq);
+		sdio->txrx_wq = NULL;
+	}
 
 	sdio_claim_host(sdio->func);
 	sdio_release_irq(sdio->func);
@@ -352,6 +356,12 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	       const struct mt76_bus_ops *bus_ops)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
+
+	sdio->txrx_wq = alloc_workqueue("mt76s_txrx_wq",
+					WQ_UNBOUND | WQ_HIGHPRI,
+					WQ_UNBOUND_MAX_ACTIVE);
+	if (!sdio->txrx_wq)
+		return -ENOMEM;
 
 	sdio->kthread = kthread_create(mt76s_kthread_run, dev, "mt76s");
 	if (IS_ERR(sdio->kthread))

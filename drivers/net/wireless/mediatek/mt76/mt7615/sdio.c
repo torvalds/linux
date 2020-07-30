@@ -364,18 +364,15 @@ static int mt7663s_probe(struct sdio_func *func,
 	dev->ops = ops;
 	sdio_set_drvdata(func, dev);
 
-	mdev->sdio.tx_kthread = kthread_create(mt7663s_kthread_run, dev,
-					       "mt7663s_tx");
-	if (IS_ERR(mdev->sdio.tx_kthread))
-		return PTR_ERR(mdev->sdio.tx_kthread);
-
 	ret = mt76s_init(mdev, func, &mt7663s_ops);
 	if (ret < 0)
 		goto err_free;
 
+	INIT_WORK(&mdev->sdio.tx_work, mt7663s_tx_work);
+
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
-		goto err_free;
+		goto err_deinit;
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
