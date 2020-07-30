@@ -284,7 +284,8 @@ do_reset:
 	tcp_done(sk);
 }
 
-static struct request_sock_ops subflow_request_sock_ops;
+struct request_sock_ops mptcp_subflow_request_sock_ops;
+EXPORT_SYMBOL_GPL(mptcp_subflow_request_sock_ops);
 static struct tcp_request_sock_ops subflow_request_sock_ipv4_ops;
 
 static int subflow_v4_conn_request(struct sock *sk, struct sk_buff *skb)
@@ -297,7 +298,7 @@ static int subflow_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (skb_rtable(skb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		goto drop;
 
-	return tcp_conn_request(&subflow_request_sock_ops,
+	return tcp_conn_request(&mptcp_subflow_request_sock_ops,
 				&subflow_request_sock_ipv4_ops,
 				sk, skb);
 drop:
@@ -322,7 +323,7 @@ static int subflow_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (!ipv6_unicast_destination(skb))
 		goto drop;
 
-	return tcp_conn_request(&subflow_request_sock_ops,
+	return tcp_conn_request(&mptcp_subflow_request_sock_ops,
 				&subflow_request_sock_ipv6_ops, sk, skb);
 
 drop:
@@ -1311,8 +1312,8 @@ static int subflow_ops_init(struct request_sock_ops *subflow_ops)
 
 void __init mptcp_subflow_init(void)
 {
-	subflow_request_sock_ops = tcp_request_sock_ops;
-	if (subflow_ops_init(&subflow_request_sock_ops) != 0)
+	mptcp_subflow_request_sock_ops = tcp_request_sock_ops;
+	if (subflow_ops_init(&mptcp_subflow_request_sock_ops) != 0)
 		panic("MPTCP: failed to init subflow request sock ops\n");
 
 	subflow_request_sock_ipv4_ops = tcp_request_sock_ipv4_ops;
