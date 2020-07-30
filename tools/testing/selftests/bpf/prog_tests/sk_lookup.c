@@ -1290,8 +1290,8 @@ static void run_tests(struct test_sk_lookup *skel)
 static int switch_netns(void)
 {
 	static const char * const setup_script[] = {
-		"ip -6 addr add dev lo " EXT_IP6 "/128 nodad",
-		"ip -6 addr add dev lo " INT_IP6 "/128 nodad",
+		"ip -6 addr add dev lo " EXT_IP6 "/128",
+		"ip -6 addr add dev lo " INT_IP6 "/128",
 		"ip link set dev lo up",
 		NULL,
 	};
