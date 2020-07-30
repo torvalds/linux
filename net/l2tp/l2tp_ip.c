@@ -597,7 +597,7 @@ int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 	return put_user(amount, (int __user *)arg);
 }
-EXPORT_SYMBOL(l2tp_ioctl);
+EXPORT_SYMBOL_GPL(l2tp_ioctl);
 
 static struct proto l2tp_ip_prot = {
 	.name		   = "L2TP/IP",

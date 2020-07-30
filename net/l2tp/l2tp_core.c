@@ -149,12 +149,51 @@ l2tp_session_id_hash(struct l2tp_tunnel *tunnel, u32 session_id)
 	return &tunnel->session_hlist[hash_32(session_id, L2TP_HASH_BITS)];
 }
 
-void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
+static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 {
 	sock_put(tunnel->sock);
 	/* the tunnel is freed in the socket destructor */
 }
-EXPORT_SYMBOL(l2tp_tunnel_free);
+
+static void l2tp_session_free(struct l2tp_session *session)
+{
+	struct l2tp_tunnel *tunnel = session->tunnel;
+
+	if (tunnel) {
+		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
+			goto out;
+		l2tp_tunnel_dec_refcount(tunnel);
+	}
+
+out:
+	kfree(session);
+}
+
+void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
+{
+	refcount_inc(&tunnel->ref_count);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_inc_refcount);
+
+void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
+{
+	if (refcount_dec_and_test(&tunnel->ref_count))
+		l2tp_tunnel_free(tunnel);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_dec_refcount);
+
+void l2tp_session_inc_refcount(struct l2tp_session *session)
+{
+	refcount_inc(&session->ref_count);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_inc_refcount);
+
+void l2tp_session_dec_refcount(struct l2tp_session *session)
+{
+	if (refcount_dec_and_test(&session->ref_count))
+		l2tp_session_free(session);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_dec_refcount);
 
 /* Lookup a tunnel. A new reference is held on the returned tunnel. */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
@@ -769,7 +808,7 @@ discard:
 	atomic_long_inc(&session->stats.rx_errors);
 	kfree_skb(skb);
 }
-EXPORT_SYMBOL(l2tp_recv_common);
+EXPORT_SYMBOL_GPL(l2tp_recv_common);
 
 /* Drop skbs from the session's reorder_q
  */
@@ -1077,7 +1116,10 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	}
 
 	/* Setup L2TP header */
-	session->build_header(session, __skb_push(skb, hdr_len));
+	if (tunnel->version == L2TP_HDR_VER_2)
+		l2tp_build_l2tpv2_header(session, __skb_push(skb, hdr_len));
+	else
+		l2tp_build_l2tpv3_header(session, __skb_push(skb, hdr_len));
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1180,6 +1222,30 @@ end:
 	return;
 }
 
+/* Remove an l2tp session from l2tp_core's hash lists. */
+static void l2tp_session_unhash(struct l2tp_session *session)
+{
+	struct l2tp_tunnel *tunnel = session->tunnel;
+
+	/* Remove the session from core hashes */
+	if (tunnel) {
+		/* Remove from the per-tunnel hash */
+		write_lock_bh(&tunnel->hlist_lock);
+		hlist_del_init(&session->hlist);
+		write_unlock_bh(&tunnel->hlist_lock);
+
+		/* For L2TPv3 we have a per-net hash: remove from there, too */
+		if (tunnel->version != L2TP_HDR_VER_2) {
+			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
+
+			spin_lock_bh(&pn->l2tp_session_hlist_lock);
+			hlist_del_init_rcu(&session->global_hlist);
+			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+			synchronize_rcu();
+		}
+	}
+}
+
 /* When the tunnel is closed, all the attached sessions need to go too.
  */
 static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
@@ -1209,7 +1275,7 @@ again:
 
 			write_unlock_bh(&tunnel->hlist_lock);
 
-			__l2tp_session_unhash(session);
+			l2tp_session_unhash(session);
 			l2tp_session_queue_purge(session);
 
 			if (session->session_close)
@@ -1557,68 +1623,17 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
 
-/* Really kill the session.
- */
-void l2tp_session_free(struct l2tp_session *session)
-{
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
-	if (tunnel) {
-		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-			goto out;
-		l2tp_tunnel_dec_refcount(tunnel);
-	}
-
-out:
-	kfree(session);
-}
-EXPORT_SYMBOL_GPL(l2tp_session_free);
-
-/* Remove an l2tp session from l2tp_core's hash lists.
- * Provides a tidyup interface for pseudowire code which can't just route all
- * shutdown via. l2tp_session_delete and a pseudowire-specific session_close
- * callback.
- */
-void __l2tp_session_unhash(struct l2tp_session *session)
-{
-	struct l2tp_tunnel *tunnel = session->tunnel;
-
-	/* Remove the session from core hashes */
-	if (tunnel) {
-		/* Remove from the per-tunnel hash */
-		write_lock_bh(&tunnel->hlist_lock);
-		hlist_del_init(&session->hlist);
-		write_unlock_bh(&tunnel->hlist_lock);
-
-		/* For L2TPv3 we have a per-net hash: remove from there, too */
-		if (tunnel->version != L2TP_HDR_VER_2) {
-			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-
-			spin_lock_bh(&pn->l2tp_session_hlist_lock);
-			hlist_del_init_rcu(&session->global_hlist);
-			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-			synchronize_rcu();
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(__l2tp_session_unhash);
-
-/* This function is used by the netlink SESSION_DELETE command and by
- * pseudowire modules.
- */
-int l2tp_session_delete(struct l2tp_session *session)
+void l2tp_session_delete(struct l2tp_session *session)
 {
 	if (test_and_set_bit(0, &session->dead))
-		return 0;
+		return;
 
-	__l2tp_session_unhash(session);
+	l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
 	if (session->session_close)
 		(*session->session_close)(session);
 
 	l2tp_session_dec_refcount(session);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);
 
@@ -1687,11 +1702,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			session->peer_cookie_len = cfg->peer_cookie_len;
 			memcpy(&session->peer_cookie[0], &cfg->peer_cookie[0], cfg->peer_cookie_len);
 		}
-
-		if (tunnel->version == L2TP_HDR_VER_2)
-			session->build_header = l2tp_build_l2tpv2_header;
-		else
-			session->build_header = l2tp_build_l2tpv3_header;
 
 		l2tp_session_set_header_len(session, tunnel->version);
 
