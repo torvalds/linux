@@ -264,6 +264,18 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 	if (!icl_combo_phy_enabled(dev_priv, phy))
 		return false;
 
+	if (INTEL_GEN(dev_priv) >= 12) {
+		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_TX_DW8_LN0(phy),
+				     ICL_PORT_TX_DW8_ODCC_CLK_SEL |
+				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK,
+				     ICL_PORT_TX_DW8_ODCC_CLK_SEL |
+				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_DIV2);
+
+		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_PCS_DW1_LN0(phy),
+				     DCC_MODE_SELECT_MASK,
+				     DCC_MODE_SELECT_CONTINUOSLY);
+	}
+
 	ret = cnl_verify_procmon_ref_values(dev_priv, phy);
 
 	if (phy_is_master(dev_priv, phy)) {
@@ -375,6 +387,19 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		intel_de_write(dev_priv, ICL_PHY_MISC(phy), val);
 
 skip_phy_misc:
+		if (INTEL_GEN(dev_priv) >= 12) {
+			val = intel_de_read(dev_priv, ICL_PORT_TX_DW8_LN0(phy));
+			val &= ~ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK;
+			val |= ICL_PORT_TX_DW8_ODCC_CLK_SEL;
+			val |= ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_DIV2;
+			intel_de_write(dev_priv, ICL_PORT_TX_DW8_GRP(phy), val);
+
+			val = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN0(phy));
+			val &= ~DCC_MODE_SELECT_MASK;
+			val |= DCC_MODE_SELECT_CONTINUOSLY;
+			intel_de_write(dev_priv, ICL_PORT_PCS_DW1_GRP(phy), val);
+		}
+
 		cnl_set_procmon_ref_values(dev_priv, phy);
 
 		if (phy_is_master(dev_priv, phy)) {

@@ -2584,6 +2584,46 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 				   gen11_master_intr_enable);
 }
 
+static u32 dg1_master_intr_disable_and_ack(void __iomem * const regs)
+{
+	u32 val;
+
+	/* First disable interrupts */
+	raw_reg_write(regs, DG1_MSTR_UNIT_INTR, 0);
+
+	/* Get the indication levels and ack the master unit */
+	val = raw_reg_read(regs, DG1_MSTR_UNIT_INTR);
+	if (unlikely(!val))
+		return 0;
+
+	raw_reg_write(regs, DG1_MSTR_UNIT_INTR, val);
+
+	/*
+	 * Now with master disabled, get a sample of level indications
+	 * for this interrupt and ack them right away - we keep GEN11_MASTER_IRQ
+	 * out as this bit doesn't exist anymore for DG1
+	 */
+	val = raw_reg_read(regs, GEN11_GFX_MSTR_IRQ) & ~GEN11_MASTER_IRQ;
+	if (unlikely(!val))
+		return 0;
+
+	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, val);
+
+	return val;
+}
+
+static inline void dg1_master_intr_enable(void __iomem * const regs)
+{
+	raw_reg_write(regs, DG1_MSTR_UNIT_INTR, DG1_MSTR_IRQ);
+}
+
+static irqreturn_t dg1_irq_handler(int irq, void *arg)
+{
+	return __gen11_irq_handler(arg,
+				   dg1_master_intr_disable_and_ack,
+				   dg1_master_intr_enable);
+}
+
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -2920,7 +2960,10 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	gen11_master_intr_disable(dev_priv->uncore.regs);
+	if (HAS_MASTER_UNIT_IRQ(dev_priv))
+		dg1_master_intr_disable_and_ack(dev_priv->uncore.regs);
+	else
+		gen11_master_intr_disable(dev_priv->uncore.regs);
 
 	gen11_gt_irq_reset(&dev_priv->gt);
 	gen11_display_irq_reset(dev_priv);
@@ -3071,7 +3114,8 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 	hotplug_irqs = sde_ddi_mask | sde_tc_mask;
 	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
 
-	I915_WRITE(SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
+	if (INTEL_PCH_TYPE(dev_priv) <= PCH_TGP)
+		I915_WRITE(SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
@@ -3517,8 +3561,13 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	gen11_master_intr_enable(uncore->regs);
-	POSTING_READ(GEN11_GFX_MSTR_IRQ);
+	if (HAS_MASTER_UNIT_IRQ(dev_priv)) {
+		dg1_master_intr_enable(uncore->regs);
+		POSTING_READ(DG1_MSTR_UNIT_INTR);
+	} else {
+		gen11_master_intr_enable(uncore->regs);
+		POSTING_READ(GEN11_GFX_MSTR_IRQ);
+	}
 }
 
 static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -4043,6 +4092,8 @@ static irq_handler_t intel_irq_handler(struct drm_i915_private *dev_priv)
 		else
 			return i8xx_irq_handler;
 	} else {
+		if (HAS_MASTER_UNIT_IRQ(dev_priv))
+			return dg1_irq_handler;
 		if (INTEL_GEN(dev_priv) >= 11)
 			return gen11_irq_handler;
 		else if (INTEL_GEN(dev_priv) >= 8)

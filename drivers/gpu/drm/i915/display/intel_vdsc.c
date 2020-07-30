@@ -1045,7 +1045,7 @@ static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
 
@@ -1055,9 +1055,9 @@ static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 	/* Fill the PPS payload bytes as per DSC spec 1.2 Table 4-1 */
 	drm_dsc_pps_payload_pack(&dp_dsc_pps_sdp.pps_payload, vdsc_cfg);
 
-	intel_dig_port->write_infoframe(encoder, crtc_state,
-					DP_SDP_PPS, &dp_dsc_pps_sdp,
-					sizeof(dp_dsc_pps_sdp));
+	dig_port->write_infoframe(encoder, crtc_state,
+				  DP_SDP_PPS, &dp_dsc_pps_sdp,
+				  sizeof(dp_dsc_pps_sdp));
 }
 
 void intel_dsc_enable(struct intel_encoder *encoder,

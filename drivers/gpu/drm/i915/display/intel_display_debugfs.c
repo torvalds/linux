@@ -1194,7 +1194,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *intel_encoder;
-	struct intel_digital_port *intel_dig_port;
+	struct intel_digital_port *dig_port;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
@@ -1207,14 +1207,14 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		if (!intel_encoder || intel_encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
-		intel_dig_port = enc_to_dig_port(intel_encoder);
-		if (!intel_dig_port->dp.can_mst)
+		dig_port = enc_to_dig_port(intel_encoder);
+		if (!dig_port->dp.can_mst)
 			continue;
 
 		seq_printf(m, "MST Source Port [ENCODER:%d:%s]\n",
-			   intel_dig_port->base.base.base.id,
-			   intel_dig_port->base.base.name);
-		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
+			   dig_port->base.base.base.id,
+			   dig_port->base.base.name);
+		drm_dp_mst_dump_topology(m, &dig_port->dp.mst_mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 

@@ -347,7 +347,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			gvt_dbg_mmio("vgpu%d: request GUC Reset\n", vgpu->id);
 			vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
 		}
-		engine_mask &= INTEL_INFO(vgpu->gvt->gt->i915)->engine_mask;
+		engine_mask &= vgpu->gvt->gt->info.engine_mask;
 	}
 
 	/* vgpu_lock already hold by emulate mmio r/w */
@@ -1868,7 +1868,7 @@ static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
 	MMIO_F(prefix(BLT_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(GEN6_BSD_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(VEBOX_RING_BASE), s, f, am, rm, d, r, w); \
-	if (HAS_ENGINE(dev_priv, VCS1)) \
+	if (HAS_ENGINE(gvt->gt, VCS1)) \
 		MMIO_F(prefix(GEN8_BSD2_RING_BASE), s, f, am, rm, d, r, w); \
 } while (0)
 

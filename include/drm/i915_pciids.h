@@ -588,7 +588,11 @@
 	INTEL_VGA_DEVICE(0x4551, info), \
 	INTEL_VGA_DEVICE(0x4541, info), \
 	INTEL_VGA_DEVICE(0x4E71, info), \
+	INTEL_VGA_DEVICE(0x4557, info), \
+	INTEL_VGA_DEVICE(0x4555, info), \
 	INTEL_VGA_DEVICE(0x4E61, info), \
+	INTEL_VGA_DEVICE(0x4E57, info), \
+	INTEL_VGA_DEVICE(0x4E55, info), \
 	INTEL_VGA_DEVICE(0x4E51, info)
 
 /* TGL */
@@ -613,5 +617,9 @@
 	INTEL_VGA_DEVICE(0x4C8C, info), \
 	INTEL_VGA_DEVICE(0x4C90, info), \
 	INTEL_VGA_DEVICE(0x4C9A, info)
+
+/* DG1 */
+#define INTEL_DG1_IDS(info) \
+	INTEL_VGA_DEVICE(0x4905, info)
 
 #endif /* _I915_PCIIDS_H */

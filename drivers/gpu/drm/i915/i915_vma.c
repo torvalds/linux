@@ -196,13 +196,6 @@ vma_create(struct drm_i915_gem_object *obj,
 		 * and dispose of ours.
 		 */
 		cmp = i915_vma_compare(pos, vm, view);
-		if (cmp == 0) {
-			spin_unlock(&obj->vma.lock);
-			i915_vm_put(vm);
-			i915_vma_free(vma);
-			return pos;
-		}
-
 		if (cmp < 0)
 			p = &rb->rb_right;
 		else if (cmp > 0)
@@ -311,7 +304,7 @@ static int __vma_bind(struct dma_fence_work *work)
 	struct i915_vma *vma = vw->vma;
 	int err;
 
-	err = vma->ops->bind_vma(vma, vw->cache_level, vw->flags);
+	err = vma->ops->bind_vma(vma->vm, vma, vw->cache_level, vw->flags);
 	if (err)
 		atomic_or(I915_VMA_ERROR, &vma->flags);
 
@@ -414,7 +407,7 @@ int i915_vma_bind(struct i915_vma *vma,
 
 		work->vma = vma;
 		work->cache_level = cache_level;
-		work->flags = bind_flags | I915_VMA_ALLOC;
+		work->flags = bind_flags;
 
 		/*
 		 * Note we only want to chain up to the migration fence on
@@ -440,7 +433,7 @@ int i915_vma_bind(struct i915_vma *vma,
 			work->pinned = vma->obj;
 		}
 	} else {
-		ret = vma->ops->bind_vma(vma, cache_level, bind_flags);
+		ret = vma->ops->bind_vma(vma->vm, vma, cache_level, bind_flags);
 		if (ret)
 			return ret;
 	}
@@ -1268,7 +1261,7 @@ void __i915_vma_evict(struct i915_vma *vma)
 
 	if (likely(atomic_read(&vma->vm->open))) {
 		trace_i915_vma_unbind(vma);
-		vma->ops->unbind_vma(vma);
+		vma->ops->unbind_vma(vma->vm, vma);
 	}
 	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR | I915_VMA_GGTT_WRITE),
 		   &vma->flags);

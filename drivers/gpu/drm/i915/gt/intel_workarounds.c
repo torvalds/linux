@@ -404,7 +404,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void skl_tune_iz_hashing(struct intel_engine_cs *engine,
 				struct i915_wa_list *wal)
 {
-	struct drm_i915_private *i915 = engine->i915;
+	struct intel_gt *gt = engine->gt;
 	u8 vals[3] = { 0, 0, 0 };
 	unsigned int i;
 
@@ -415,7 +415,7 @@ static void skl_tune_iz_hashing(struct intel_engine_cs *engine,
 		 * Only consider slices where one, and only one, subslice has 7
 		 * EUs
 		 */
-		if (!is_power_of_2(RUNTIME_INFO(i915)->sseu.subslice_7eu[i]))
+		if (!is_power_of_2(gt->info.sseu.subslice_7eu[i]))
 			continue;
 
 		/*
@@ -424,7 +424,7 @@ static void skl_tune_iz_hashing(struct intel_engine_cs *engine,
 		 *
 		 * ->    0 <= ss <= 3;
 		 */
-		ss = ffs(RUNTIME_INFO(i915)->sseu.subslice_7eu[i]) - 1;
+		ss = ffs(gt->info.sseu.subslice_7eu[i]) - 1;
 		vals[i] = 3 - ss;
 	}
 
@@ -1036,7 +1036,7 @@ cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
 	unsigned int slice, subslice;
 	u32 l3_en, mcr, mcr_mask;
 
@@ -1649,11 +1649,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_SARCHKMD,
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 
-		/* Wa_1407928979:tgl */
-		wa_write_or(wal,
-			    GEN7_FF_THREAD_MODE,
-			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
-
 		/* Wa_1408615072:tgl */
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
@@ -1677,6 +1672,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_14010229206:tgl
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+
+		/*
+		 * Wa_1407928979:tgl A*
+		 * Wa_18011464164:tgl B0+
+		 * Wa_22010931296:tgl B0+
+		 */
+		wa_write_or(wal, GEN7_FF_THREAD_MODE,
+			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 	}
 
 	if (IS_GEN(i915, 11)) {

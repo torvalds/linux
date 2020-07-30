@@ -94,15 +94,12 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl,cfl */
-	/* WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl */
+	/*
+	 * WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl
+	 * Display WA #0859: skl,bxt,kbl,glk,cfl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
-		   DISP_FBC_WM_DIS |
 		   DISP_FBC_MEMORY_WAKE);
-
-	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl,cfl */
-	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
-		   ILK_DPFC_DISABLE_DUMMY0);
 
 	if (IS_SKYLAKE(dev_priv)) {
 		/* WaDisableDopClockGating */
@@ -140,6 +137,20 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	 * application, using batch buffers or any other means.
 	 */
 	I915_WRITE(RM_TIMEOUT, MMIO_TIMEOUT_US(950));
+
+	/*
+	 * WaFbcTurnOffFbcWatermark:bxt
+	 * Display WA #0562: bxt
+	 */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
+	/*
+	 * WaFbcHighMemBwCorruptionAvoidance:bxt
+	 * Display WA #0883: bxt
+	 */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_DISABLE_DUMMY0);
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7098,6 +7109,10 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 
 static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	/* Wa_1409120013:icl,ehl */
+	I915_WRITE(ILK_DPFC_CHICKEN,
+		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
+
 	/* This is not an Wa. Enable to reduce Sampler power */
 	I915_WRITE(GEN10_DFR_RATIO_EN_AND_CHICKEN,
 		   I915_READ(GEN10_DFR_RATIO_EN_AND_CHICKEN) & ~DFR_DISABLE);
@@ -7112,9 +7127,13 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 vd_pg_enable = 0;
 	unsigned int i;
 
+	/* Wa_1409120013:tgl */
+	I915_WRITE(ILK_DPFC_CHICKEN,
+		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
+
 	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
 	for (i = 0; i < I915_MAX_VCS; i++) {
-		if (HAS_ENGINE(dev_priv, _VCS(i)))
+		if (HAS_ENGINE(&dev_priv->gt, _VCS(i)))
 			vd_pg_enable |= VDN_HCP_POWERGATE_ENABLE(i) |
 					VDN_MFX_POWERGATE_ENABLE(i);
 	}
@@ -7155,7 +7174,10 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcWakeMemOn:cnl */
+	/*
+	 * WaFbcWakeMemOn:cnl
+	 * Display WA #0859: cnl
+	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
@@ -7181,7 +7203,17 @@ static void cfl_init_clock_gating(struct drm_i915_private *dev_priv)
 	cnp_init_clock_gating(dev_priv);
 	gen9_init_clock_gating(dev_priv);
 
-	/* WaFbcNukeOnHostModify:cfl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:cfl
+	 * Display WA #0562: cfl
+	 */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
+	/*
+	 * WaFbcNukeOnHostModify:cfl
+	 * Display WA #0873: cfl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
@@ -7200,7 +7232,17 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaFbcNukeOnHostModify:kbl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:kbl
+	 * Display WA #0562: kbl
+	 */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
+	/*
+	 * WaFbcNukeOnHostModify:kbl
+	 * Display WA #0873: kbl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
@@ -7213,14 +7255,36 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |
 		   FBC_LLC_FULLY_OPEN);
 
-	/* WaFbcNukeOnHostModify:skl */
+	/*
+	 * WaFbcTurnOffFbcWatermark:skl
+	 * Display WA #0562: skl
+	 */
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+		   DISP_FBC_WM_DIS);
+
+	/*
+	 * WaFbcNukeOnHostModify:skl
+	 * Display WA #0873: skl
+	 */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
+
+	/*
+	 * WaFbcHighMemBwCorruptionAvoidance:skl
+	 * Display WA #0883: skl
+	 */
+	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
+		   ILK_DPFC_DISABLE_DUMMY0);
 }
 
 static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
+
+	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
+	I915_WRITE(CHICKEN_PIPESL_1(PIPE_A),
+		   I915_READ(CHICKEN_PIPESL_1(PIPE_A)) |
+		   HSW_FBCQ_DIS);
 
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
@@ -7269,6 +7333,11 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
+	I915_WRITE(CHICKEN_PIPESL_1(PIPE_A),
+		   I915_READ(CHICKEN_PIPESL_1(PIPE_A)) |
+		   HSW_FBCQ_DIS);
+
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
@@ -7285,6 +7354,11 @@ static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 snpcr;
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaFbcAsynchFlipDisableFbcQueue:ivb */
+	I915_WRITE(ILK_DISPLAY_CHICKEN1,
+		   I915_READ(ILK_DISPLAY_CHICKEN1) |
+		   ILK_FBCQ_DIS);
 
 	/* WaDisableBackToBackFlipFix:ivb */
 	I915_WRITE(IVB_CHICKEN3,
@@ -7471,6 +7545,16 @@ static void i85x_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(MEM_MODE,
 		   _MASKED_BIT_ENABLE(MEM_DISPLAY_TRICKLE_FEED_DISABLE));
+
+	/*
+	 * Have FBC ignore 3D activity since we use software
+	 * render tracking, and otherwise a pure 3D workload
+	 * (even if it just renders a single frame and then does
+	 * abosultely nothing) would not allow FBC to recompress
+	 * until a 2D blit occurs.
+	 */
+	I915_WRITE(SCPD0,
+		   _MASKED_BIT_ENABLE(SCPD_FBC_IGNORE_3D));
 }
 
 static void i830_init_clock_gating(struct drm_i915_private *dev_priv)

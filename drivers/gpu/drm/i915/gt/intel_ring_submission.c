@@ -543,7 +543,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 			   vaddr, engine->context_size);
 
 		i915_gem_object_flush_map(obj);
-		i915_gem_object_unpin_map(obj);
+		__i915_gem_object_release_map(obj);
 	}
 
 	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
@@ -649,7 +649,7 @@ static inline int mi_set_context(struct i915_request *rq,
 	struct drm_i915_private *i915 = engine->i915;
 	enum intel_engine_id id;
 	const int num_engines =
-		IS_HASWELL(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
+		IS_HASWELL(i915) ? engine->gt->info.num_engines - 1 : 0;
 	bool force_restore = false;
 	int len;
 	u32 *cs;

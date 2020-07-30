@@ -2080,8 +2080,15 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * Explicitly stating here that this seems to be currently
 	 * rather a Hack, than final solution.
 	 */
-	if (IS_TIGERLAKE(dev_priv))
-		min_cdclk = max(min_cdclk, (int)crtc_state->pixel_rate);
+	if (IS_TIGERLAKE(dev_priv)) {
+		/*
+		 * Clamp to max_cdclk_freq in case pixel rate is higher,
+		 * in order not to break an 8K, but still leave W/A at place.
+		 */
+		min_cdclk = max_t(int, min_cdclk,
+				  min_t(int, crtc_state->pixel_rate,
+					dev_priv->max_cdclk_freq));
+	}
 
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
 		drm_dbg_kms(&dev_priv->drm,

@@ -143,14 +143,14 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		 * vma, in the same fd namespace, by virtue of flink/open.
 		 */
 
-		mutex_lock(&ctx->mutex);
+		mutex_lock(&ctx->lut_mutex);
 		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
 		if (vma) {
 			GEM_BUG_ON(vma->obj != obj);
 			GEM_BUG_ON(!atomic_read(&vma->open_count));
 			i915_vma_close(vma);
 		}
-		mutex_unlock(&ctx->mutex);
+		mutex_unlock(&ctx->lut_mutex);
 
 		i915_gem_context_put(lut->ctx);
 		i915_lut_handle_free(lut);
@@ -171,14 +171,35 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 	atomic_dec(&i915->mm.free_count);
 }
 
+static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
+{
+	/* Skip serialisation and waking the device if known to be not used. */
+
+	if (obj->userfault_count)
+		i915_gem_object_release_mmap_gtt(obj);
+
+	if (!RB_EMPTY_ROOT(&obj->mmo.offsets)) {
+		struct i915_mmap_offset *mmo, *mn;
+
+		i915_gem_object_release_mmap_offset(obj);
+
+		rbtree_postorder_for_each_entry_safe(mmo, mn,
+						     &obj->mmo.offsets,
+						     offset) {
+			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
+					      &mmo->vma_node);
+			kfree(mmo);
+		}
+		obj->mmo.offsets = RB_ROOT;
+	}
+}
+
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
 	struct drm_i915_gem_object *obj, *on;
 
 	llist_for_each_entry_safe(obj, on, freed, freed) {
-		struct i915_mmap_offset *mmo, *mn;
-
 		trace_i915_gem_object_destroy(obj);
 
 		if (!list_empty(&obj->vma.list)) {
@@ -204,18 +225,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			spin_unlock(&obj->vma.lock);
 		}
 
-		i915_gem_object_release_mmap(obj);
+		__i915_gem_object_free_mmaps(obj);
 
-		rbtree_postorder_for_each_entry_safe(mmo, mn,
-						     &obj->mmo.offsets,
-						     offset) {
-			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
-					      &mmo->vma_node);
-			kfree(mmo);
-		}
-		obj->mmo.offsets = RB_ROOT;
-
-		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
 		atomic_set(&obj->mm.pages_pin_count, 0);

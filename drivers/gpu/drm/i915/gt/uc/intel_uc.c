@@ -267,8 +267,17 @@ static void __uc_fetch_firmwares(struct intel_uc *uc)
 	GEM_BUG_ON(!intel_uc_wants_guc(uc));
 
 	err = intel_uc_fw_fetch(&uc->guc.fw);
-	if (err)
+	if (err) {
+		/* Make sure we transition out of transient "SELECTED" state */
+		if (intel_uc_wants_huc(uc)) {
+			drm_dbg(&uc_to_gt(uc)->i915->drm,
+				"Failed to fetch GuC: %d disabling HuC\n", err);
+			intel_uc_fw_change_status(&uc->huc.fw,
+						  INTEL_UC_FIRMWARE_ERROR);
+		}
+
 		return;
+	}
 
 	if (intel_uc_wants_huc(uc))
 		intel_uc_fw_fetch(&uc->huc.fw);

@@ -27,7 +27,8 @@ cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 	if (unlikely(iir & GT_CS_MASTER_ERROR_INTERRUPT)) {
 		u32 eir;
 
-		eir = ENGINE_READ(engine, RING_EIR);
+		/* Upper 16b are the enabling mask, rsvd for internal errors */
+		eir = ENGINE_READ(engine, RING_EIR) & GENMASK(15, 0);
 		ENGINE_TRACE(engine, "CS error: %x\n", eir);
 
 		/* Disable the error interrupt until after the reset */
@@ -457,7 +458,7 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.
 		 */
-		if (HAS_ENGINE(gt->i915, VECS0)) {
+		if (HAS_ENGINE(gt, VECS0)) {
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 			gt->pm_ier |= PM_VEBOX_USER_INTERRUPT;
 		}

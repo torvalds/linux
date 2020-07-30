@@ -82,6 +82,7 @@ enum intel_platform {
 	/* gen12 */
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
+	INTEL_DG1,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -122,6 +123,7 @@ enum intel_ppgtt_type {
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
 	func(has_logical_ring_preemption); \
+	func(has_master_unit_irq); \
 	func(has_pooled_eu); \
 	func(has_rc6); \
 	func(has_rc6p); \
@@ -157,7 +159,7 @@ struct intel_device_info {
 
 	u8 gen;
 	u8 gt; /* GT number, 0 if undefined */
-	intel_engine_mask_t engine_mask; /* Engines supported by the HW */
+	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
 	enum intel_platform platform;
 
@@ -219,18 +221,10 @@ struct intel_runtime_info {
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 num_scalers[I915_MAX_PIPES];
 
-	u8 num_engines;
-
-	/* Slice/subslice/EU info */
-	struct sseu_dev_info sseu;
-
 	u32 rawclk_freq;
 
 	u32 cs_timestamp_frequency_hz;
 	u32 cs_timestamp_period_ns;
-
-	/* Media engine access to SFC per instance */
-	u8 vdbox_sfc_access;
 };
 
 struct intel_driver_caps {
@@ -247,10 +241,6 @@ void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p);
 void intel_device_info_print_runtime(const struct intel_runtime_info *info,
 				     struct drm_printer *p);
-void intel_device_info_print_topology(const struct sseu_dev_info *sseu,
-				      struct drm_printer *p);
-
-void intel_device_info_init_mmio(struct drm_i915_private *dev_priv);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);
