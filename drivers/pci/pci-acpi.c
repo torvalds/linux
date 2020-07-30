@@ -1167,7 +1167,7 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev)
  * @pdev: the PCI device whose delay is to be updated
  * @handle: ACPI handle of this device
  *
- * Update the d3_delay and d3cold_delay of a PCI device from the ACPI _DSM
+ * Update the d3hot_delay and d3cold_delay of a PCI device from the ACPI _DSM
  * control method of either the device itself or the PCI host bridge.
  *
  * Function 8, "Reset Delay," applies to the entire hierarchy below a PCI
@@ -1206,8 +1206,8 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 		}
 		if (elements[3].type == ACPI_TYPE_INTEGER) {
 			value = (int)elements[3].integer.value / 1000;
-			if (value < PCI_PM_D3_WAIT)
-				pdev->d3_delay = value;
+			if (value < PCI_PM_D3HOT_WAIT)
+				pdev->d3hot_delay = value;
 		}
 	}
 	ACPI_FREE(obj);

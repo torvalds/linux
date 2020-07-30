@@ -44,7 +44,7 @@ int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 int pci_bus_error_reset(struct pci_dev *dev);
 
 #define PCI_PM_D2_DELAY         200
-#define PCI_PM_D3_WAIT          10
+#define PCI_PM_D3HOT_WAIT       10
 #define PCI_PM_D3COLD_WAIT      100
 #define PCI_PM_BUS_WAIT         50
 
@@ -178,7 +178,7 @@ extern struct mutex pci_slot_mutex;
 
 extern raw_spinlock_t pci_lock;
 
-extern unsigned int pci_pm_d3_delay;
+extern unsigned int pci_pm_d3hot_delay;
 
 #ifdef CONFIG_PCI_MSI
 void pci_no_msi(void);
