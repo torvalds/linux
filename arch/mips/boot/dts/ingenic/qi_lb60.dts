@@ -16,6 +16,12 @@
 
 / {
 	compatible = "qi,lb60", "ingenic,jz4740";
+	model = "Ben Nanonote";
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x2000000>;
+	};
 
 	chosen {
 		stdout-path = &uart0;
