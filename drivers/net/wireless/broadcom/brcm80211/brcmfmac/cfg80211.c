@@ -3991,10 +3991,7 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	brcmf_dbg(CONN, "set_pmksa - PMK bssid: %pM =\n", pmk[npmk].bssid);
-	for (i = 0; i < WLAN_PMKID_LEN; i += 4)
-		brcmf_dbg(CONN, "%02x %02x %02x %02x\n", pmk[npmk].pmkid[i],
-			  pmk[npmk].pmkid[i + 1], pmk[npmk].pmkid[i + 2],
-			  pmk[npmk].pmkid[i + 3]);
+	brcmf_dbg(CONN, "%*ph\n", WLAN_PMKID_LEN, pmk[npmk].pmkid);
 
 	err = brcmf_update_pmklist(cfg, ifp);
 
