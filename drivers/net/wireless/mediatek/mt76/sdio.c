@@ -244,21 +244,26 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	struct mt76_queue *q = dev->q_tx[qid].q;
 	int ret = -ENOSPC, len = skb->len;
 
-	spin_lock_bh(&q->lock);
 	if (q->queued == q->ndesc)
-		goto out;
+		goto error;
 
 	ret = mt76_skb_adjust_pad(skb);
 	if (ret)
-		goto out;
+		goto error;
+
+	spin_lock_bh(&q->lock);
 
 	q->entry[q->tail].buf_sz = len;
 	q->entry[q->tail].skb = skb;
 	q->tail = (q->tail + 1) % q->ndesc;
 	q->queued++;
 
-out:
 	spin_unlock_bh(&q->lock);
+
+	return 0;
+
+error:
+	dev_kfree_skb(skb);
 
 	return ret;
 }
