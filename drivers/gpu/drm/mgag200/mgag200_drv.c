@@ -64,6 +64,14 @@ static int mgag200_regs_init(struct mga_device *mdev)
 	u8 crtcext3;
 
 	switch (mdev->type) {
+	case G200_PCI:
+	case G200_AGP:
+		if (mgag200_has_sgram(mdev))
+			option = 0x4049cd21;
+		else
+			option = 0x40499121;
+		option2 = 0x00008000;
+		break;
 	case G200_SE_A:
 	case G200_SE_B:
 		if (mgag200_has_sgram(mdev))
@@ -115,6 +123,129 @@ static int mgag200_regs_init(struct mga_device *mdev)
 	return 0;
 }
 
+static void mgag200_g200_interpret_bios(struct mga_device *mdev,
+					const unsigned char *bios,
+					size_t size)
+{
+	static const char matrox[] = {'M', 'A', 'T', 'R', 'O', 'X'};
+	static const unsigned int expected_length[6] = {
+		0, 64, 64, 64, 128, 128
+	};
+	struct drm_device *dev = &mdev->base;
+	const unsigned char *pins;
+	unsigned int pins_len, version;
+	int offset;
+	int tmp;
+
+	/* Test for MATROX string. */
+	if (size < 45 + sizeof(matrox))
+		return;
+	if (memcmp(&bios[45], matrox, sizeof(matrox)) != 0)
+		return;
+
+	/* Get the PInS offset. */
+	if (size < MGA_BIOS_OFFSET + 2)
+		return;
+	offset = (bios[MGA_BIOS_OFFSET + 1] << 8) | bios[MGA_BIOS_OFFSET];
+
+	/* Get PInS data structure. */
+
+	if (size < offset + 6)
+		return;
+	pins = bios + offset;
+	if (pins[0] == 0x2e && pins[1] == 0x41) {
+		version = pins[5];
+		pins_len = pins[2];
+	} else {
+		version = 1;
+		pins_len = pins[0] + (pins[1] << 8);
+	}
+
+	if (version < 1 || version > 5) {
+		drm_warn(dev, "Unknown BIOS PInS version: %d\n", version);
+		return;
+	}
+	if (pins_len != expected_length[version]) {
+		drm_warn(dev, "Unexpected BIOS PInS size: %d expeced: %d\n",
+			 pins_len, expected_length[version]);
+		return;
+	}
+	if (size < offset + pins_len)
+		return;
+
+	drm_dbg_kms(dev, "MATROX BIOS PInS version %d size: %d found\n",
+		    version, pins_len);
+
+	/* Extract the clock values */
+
+	switch (version) {
+	case 1:
+		tmp = pins[24] + (pins[25] << 8);
+		if (tmp)
+			mdev->model.g200.pclk_max = tmp * 10;
+		break;
+	case 2:
+		if (pins[41] != 0xff)
+			mdev->model.g200.pclk_max = (pins[41] + 100) * 1000;
+		break;
+	case 3:
+		if (pins[36] != 0xff)
+			mdev->model.g200.pclk_max = (pins[36] + 100) * 1000;
+		if (pins[52] & 0x20)
+			mdev->model.g200.ref_clk = 14318;
+		break;
+	case 4:
+		if (pins[39] != 0xff)
+			mdev->model.g200.pclk_max = pins[39] * 4 * 1000;
+		if (pins[92] & 0x01)
+			mdev->model.g200.ref_clk = 14318;
+		break;
+	case 5:
+		tmp = pins[4] ? 8000 : 6000;
+		if (pins[123] != 0xff)
+			mdev->model.g200.pclk_min = pins[123] * tmp;
+		if (pins[38] != 0xff)
+			mdev->model.g200.pclk_max = pins[38] * tmp;
+		if (pins[110] & 0x01)
+			mdev->model.g200.ref_clk = 14318;
+		break;
+	default:
+		break;
+	}
+}
+
+static void mgag200_g200_init_refclk(struct mga_device *mdev)
+{
+	struct drm_device *dev = &mdev->base;
+	unsigned char __iomem *rom;
+	unsigned char *bios;
+	size_t size;
+
+	mdev->model.g200.pclk_min = 50000;
+	mdev->model.g200.pclk_max = 230000;
+	mdev->model.g200.ref_clk = 27050;
+
+	rom = pci_map_rom(dev->pdev, &size);
+	if (!rom)
+		return;
+
+	bios = vmalloc(size);
+	if (!bios)
+		goto out;
+	memcpy_fromio(bios, rom, size);
+
+	if (size != 0 && bios[0] == 0x55 && bios[1] == 0xaa)
+		mgag200_g200_interpret_bios(mdev, bios, size);
+
+	drm_dbg_kms(dev, "pclk_min: %ld pclk_max: %ld ref_clk: %ld\n",
+		    mdev->model.g200.pclk_min, mdev->model.g200.pclk_max,
+		    mdev->model.g200.ref_clk);
+
+	vfree(bios);
+out:
+	pci_unmap_rom(dev->pdev, rom);
+}
+
 static void mgag200_g200se_init_unique_id(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
@@ -138,7 +269,9 @@ static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 	if (ret)
 		return ret;
 
-	if (IS_G200_SE(mdev))
+	if (mdev->type == G200_PCI || mdev->type == G200_AGP)
+		mgag200_g200_init_refclk(mdev);
+	else if (IS_G200_SE(mdev))
 		mgag200_g200se_init_unique_id(mdev);
 
 	ret = mgag200_mm_init(mdev);
@@ -182,6 +315,8 @@ mgag200_device_create(struct pci_dev *pdev, unsigned long flags)
  */
 
 static const struct pci_device_id mgag200_pciidlist[] = {
+	{ PCI_VENDOR_ID_MATROX, 0x520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_PCI },
+	{ PCI_VENDOR_ID_MATROX, 0x521, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_AGP },
 	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		G200_SE_A | MGAG200_FLAG_HW_BUG_NO_STARTADD},
 	{ PCI_VENDOR_ID_MATROX, 0x524, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_B },
