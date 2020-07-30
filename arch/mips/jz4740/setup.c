@@ -67,13 +67,8 @@ static unsigned long __init get_board_mach_type(const void *fdt)
 
 void __init plat_mem_setup(void)
 {
+	void *dtb = (void *)fw_passed_dtb;
 	int offset;
-	void *dtb;
-
-	if (__dtb_start != __dtb_end)
-		dtb = __dtb_start;
-	else
-		dtb = (void *)fw_passed_dtb;
 
 	__dt_setup_arch(dtb);
 
