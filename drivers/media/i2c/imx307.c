@@ -112,8 +112,9 @@ static bool g_isHCG;
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
-#define MIRROR_BIT_MASK      BIT(1)
-#define FLIP_BIT_MASK        BIT(0)
+#define IMX307_FLIP_REG			0x3007
+#define MIRROR_BIT_MASK			BIT(1)
+#define FLIP_BIT_MASK			BIT(0)
 
 static const char * const imx307_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -512,11 +513,11 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.height = 1089,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000 * 2,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0473,
 		.hts_def = 0x07ec,
-		.vts_def = 0x05b8,
+		.vts_def = 0x05b8 * 2,
 		.reg_list = imx307_hdr2_1920x1080_lvds_regs,
 		.hdr_mode = HDR_X2,
 		.lvds_cfg = {
@@ -589,11 +590,11 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.height = 1089,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000 * 2,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0473,
 		.hts_def = 0x07ec,
-		.vts_def = 0x05b8,
+		.vts_def = 0x05b8 * 2,
 		.reg_list = imx307_hdr2_1920x1080_mipi_regs,
 		.hdr_mode = HDR_X2,
 	},
@@ -764,6 +765,7 @@ static int imx307_set_fmt(struct v4l2_subdev *sd,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(imx307->link_freq,
 				   dst_link_freq);
+		imx307->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&imx307->mutex);
@@ -887,7 +889,7 @@ static int imx307_set_hdrae(struct imx307 *imx307,
 	u32 gain_switch = 0;
 	int ret = 0;
 	u8 cg_mode = 0;
-	u32 fsc = imx307->cur_vts * 2;
+	u32 fsc = imx307->cur_vts;//The HDR mode vts is double by default to workaround T-line
 
 	if (!imx307->has_init_exp && !imx307->streaming) {
 		imx307->init_hdrae_exp = *ae;
@@ -1124,6 +1126,7 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						 dst_pixel_rate);
 			__v4l2_ctrl_s_ctrl(imx307->link_freq,
 					   dst_link_freq);
+			imx307->cur_vts = imx307->cur_mode->vts_def;
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
@@ -1250,38 +1253,6 @@ static int imx307_init_conversion_gain(struct imx307 *imx307)
 	return ret;
 }
 
-static int imx307_set_flip(struct imx307 *imx307, u8 mode)
-{
-	u32 match_reg = 0;
-	struct i2c_client *client = imx307->client;
-	int ret = 0;
-
-	ret = imx307_read_reg(client,
-		0x3007,
-		IMX307_REG_VALUE_08BIT,
-		&match_reg);
-
-	if (mode == FLIP_BIT_MASK) {
-		match_reg |= FLIP_BIT_MASK;
-		match_reg &= ~MIRROR_BIT_MASK;
-	} else if (mode == MIRROR_BIT_MASK) {
-		match_reg |= MIRROR_BIT_MASK;
-		match_reg &= ~FLIP_BIT_MASK;
-	} else if (mode == (MIRROR_BIT_MASK |
-		FLIP_BIT_MASK)) {
-		match_reg |= FLIP_BIT_MASK;
-		match_reg |= MIRROR_BIT_MASK;
-	} else {
-		match_reg &= ~FLIP_BIT_MASK;
-		match_reg &= ~MIRROR_BIT_MASK;
-	}
-	ret |= imx307_write_reg(client,
-		0x3007,
-		IMX307_REG_VALUE_08BIT,
-		match_reg);
-	return ret;
-}
-
 static int __imx307_start_stream(struct imx307 *imx307)
 {
 	int ret;
@@ -1293,6 +1264,7 @@ static int __imx307_start_stream(struct imx307 *imx307)
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&imx307->ctrl_handler);
 	if (imx307->has_init_exp && imx307->cur_mode->hdr_mode != NO_HDR) {
 		ret = imx307_ioctl(&imx307->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx307->init_hdrae_exp);
@@ -1301,16 +1273,8 @@ static int __imx307_start_stream(struct imx307 *imx307)
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
-	} else {
-		mutex_unlock(&imx307->mutex);
-		ret = v4l2_ctrl_handler_setup(&imx307->ctrl_handler);
-		mutex_lock(&imx307->mutex);
-		if (ret)
-			return ret;
 	}
-	ret = imx307_set_flip(imx307, imx307->flip);
-	if (ret)
-		return ret;
+
 	ret = imx307_write_reg(imx307->client,
 		IMX307_REG_CTRL_MODE,
 		IMX307_REG_VALUE_08BIT,
@@ -1617,6 +1581,8 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 shs1 = 0;
+	u32 vts = 0;
+	u32 val = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1660,19 +1626,22 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
+		vts = ctrl->val + imx307->cur_mode->height;
+		imx307->cur_vts = vts;
+		if (imx307->cur_mode->hdr_mode == HDR_X2)
+			vts /= 2;
 		ret = imx307_write_reg(imx307->client,
 			IMX307_REG_VTS_H,
 			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_HIGH_BYTE_VTS(ctrl->val + imx307->cur_mode->height));
+			IMX307_FETCH_HIGH_BYTE_VTS(vts));
 		ret |= imx307_write_reg(imx307->client,
 			IMX307_REG_VTS_M,
 			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_MID_BYTE_VTS(ctrl->val + imx307->cur_mode->height));
+			IMX307_FETCH_MID_BYTE_VTS(vts));
 		ret |= imx307_write_reg(imx307->client,
 			IMX307_REG_VTS_L,
 			IMX307_REG_VALUE_08BIT,
-			IMX307_FETCH_LOW_BYTE_VTS(ctrl->val + imx307->cur_mode->height));
-		imx307->cur_vts = ctrl->val + imx307->cur_mode->height;
+			IMX307_FETCH_LOW_BYTE_VTS(vts));
 		break;
 	case V4L2_CID_TEST_PATTERN:
 #ifdef USED_TEST_PATTERN
@@ -1680,16 +1649,36 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 #endif
 		break;
 	case V4L2_CID_HFLIP:
+		ret = imx307_read_reg(client,
+				      IMX307_FLIP_REG,
+				      IMX307_REG_VALUE_08BIT,
+				      &val);
 		if (ctrl->val)
-			imx307->flip |= MIRROR_BIT_MASK;
+			val |= MIRROR_BIT_MASK;
 		else
-			imx307->flip &= ~MIRROR_BIT_MASK;
+			val &= ~MIRROR_BIT_MASK;
+		ret |= imx307_write_reg(client,
+					IMX307_FLIP_REG,
+					IMX307_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			imx307->flip = val;
 		break;
 	case V4L2_CID_VFLIP:
+		ret = imx307_read_reg(client,
+				      IMX307_FLIP_REG,
+				      IMX307_REG_VALUE_08BIT,
+				      &val);
 		if (ctrl->val)
-			imx307->flip |= FLIP_BIT_MASK;
+			val |= FLIP_BIT_MASK;
 		else
-			imx307->flip &= ~FLIP_BIT_MASK;
+			val &= ~FLIP_BIT_MASK;
+		ret |= imx307_write_reg(client,
+					IMX307_FLIP_REG,
+					IMX307_REG_VALUE_08BIT,
+					val);
+		if (ret == 0)
+			imx307->flip = val;
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
