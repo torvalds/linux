@@ -5306,6 +5306,14 @@ populate_lr_context(struct intel_context *ce,
 	return 0;
 }
 
+static struct intel_timeline *pinned_timeline(struct intel_context *ce)
+{
+	struct intel_timeline *tl = fetch_and_zero(&ce->timeline);
+
+	return intel_timeline_create_from_engine(ce->engine,
+						 page_unmask_bits(tl));
+}
+
 static int __execlists_context_alloc(struct intel_context *ce,
 				     struct intel_engine_cs *engine)
 {
@@ -5336,19 +5344,17 @@ static int __execlists_context_alloc(struct intel_context *ce,
 		goto error_deref_obj;
 	}
 
-	if (!ce->timeline) {
+	if (!page_mask_bits(ce->timeline)) {
 		struct intel_timeline *tl;
-		struct i915_vma *hwsp;
 
 		/*
 		 * Use the static global HWSP for the kernel context, and
 		 * a dynamically allocated cacheline for everyone else.
 		 */
-		hwsp = NULL;
-		if (unlikely(intel_context_is_barrier(ce)))
-			hwsp = engine->status_page.vma;
-
-		tl = intel_timeline_create(engine->gt, hwsp);
+		if (unlikely(ce->timeline))
+			tl = pinned_timeline(ce);
+		else
+			tl = intel_timeline_create(engine->gt);
 		if (IS_ERR(tl)) {
 			ret = PTR_ERR(tl);
 			goto error_deref_obj;

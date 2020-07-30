@@ -1250,7 +1250,8 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		return -ENODEV;
 	}
 
-	timeline = intel_timeline_create(engine->gt, engine->status_page.vma);
+	timeline = intel_timeline_create_from_engine(engine,
+						     I915_GEM_HWS_SEQNO_ADDR);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;

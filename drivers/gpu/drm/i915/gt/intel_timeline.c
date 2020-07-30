@@ -215,7 +215,8 @@ static void cacheline_free(struct intel_timeline_cacheline *cl)
 
 static int intel_timeline_init(struct intel_timeline *timeline,
 			       struct intel_gt *gt,
-			       struct i915_vma *hwsp)
+			       struct i915_vma *hwsp,
+			       unsigned int offset)
 {
 	void *vaddr;
 
@@ -246,8 +247,7 @@ static int intel_timeline_init(struct intel_timeline *timeline,
 
 		vaddr = page_mask_bits(cl->vaddr);
 	} else {
-		timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
-
+		timeline->hwsp_offset = offset;
 		vaddr = i915_gem_object_pin_map(hwsp->obj, I915_MAP_WB);
 		if (IS_ERR(vaddr))
 			return PTR_ERR(vaddr);
@@ -297,7 +297,9 @@ static void intel_timeline_fini(struct intel_timeline *timeline)
 }
 
 struct intel_timeline *
-intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
+__intel_timeline_create(struct intel_gt *gt,
+			struct i915_vma *global_hwsp,
+			unsigned int offset)
 {
 	struct intel_timeline *timeline;
 	int err;
@@ -306,7 +308,7 @@ intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
 	if (!timeline)
 		return ERR_PTR(-ENOMEM);
 
-	err = intel_timeline_init(timeline, gt, global_hwsp);
+	err = intel_timeline_init(timeline, gt, global_hwsp, offset);
 	if (err) {
 		kfree(timeline);
 		return ERR_PTR(err);

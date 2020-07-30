@@ -72,7 +72,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		unsigned long cacheline;
 		int err;
 
-		tl = intel_timeline_create(state->gt, NULL);
+		tl = intel_timeline_create(state->gt);
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
@@ -487,7 +487,7 @@ checked_intel_timeline_create(struct intel_gt *gt)
 {
 	struct intel_timeline *tl;
 
-	tl = intel_timeline_create(gt, NULL);
+	tl = intel_timeline_create(gt);
 	if (IS_ERR(tl))
 		return tl;
 
@@ -660,7 +660,7 @@ static int live_hwsp_wrap(void *arg)
 	 * foreign GPU references.
 	 */
 
-	tl = intel_timeline_create(gt, NULL);
+	tl = intel_timeline_create(gt);
 	if (IS_ERR(tl))
 		return PTR_ERR(tl);
 

@@ -785,9 +785,11 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 }
 
 static struct intel_context *
-create_kernel_context(struct intel_engine_cs *engine)
+create_pinned_context(struct intel_engine_cs *engine,
+		      unsigned int hwsp,
+		      struct lock_class_key *key,
+		      const char *name)
 {
-	static struct lock_class_key kernel;
 	struct intel_context *ce;
 	int err;
 
@@ -796,6 +798,7 @@ create_kernel_context(struct intel_engine_cs *engine)
 		return ce;
 
 	__set_bit(CONTEXT_BARRIER_BIT, &ce->flags);
+	ce->timeline = page_pack_bits(NULL, hwsp);
 
 	err = intel_context_pin(ce); /* perma-pin so it is always available */
 	if (err) {
@@ -809,9 +812,18 @@ create_kernel_context(struct intel_engine_cs *engine)
 	 * should we need to inject GPU operations during their request
 	 * construction.
 	 */
-	lockdep_set_class(&ce->timeline->mutex, &kernel);
+	lockdep_set_class_and_name(&ce->timeline->mutex, key, name);
 
 	return ce;
+}
+
+static struct intel_context *
+create_kernel_context(struct intel_engine_cs *engine)
+{
+	static struct lock_class_key kernel;
+
+	return create_pinned_context(engine, I915_GEM_HWS_SEQNO_ADDR,
+				     &kernel, "kernel_context");
 }
 
 /**
