@@ -3276,14 +3276,12 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
-		   "VF[%d]: opcode 0x%02x type 0x%02x [%s %s] [vport 0x%02x] MAC %02x:%02x:%02x:%02x:%02x:%02x, vlan 0x%04x\n",
+		   "VF[%d]: opcode 0x%02x type 0x%02x [%s %s] [vport 0x%02x] MAC %pM, vlan 0x%04x\n",
 		   vf->abs_vf_id, params.opcode, params.type,
 		   params.is_rx_filter ? "RX" : "",
 		   params.is_tx_filter ? "TX" : "",
 		   params.vport_to_add_to,
-		   params.mac[0], params.mac[1],
-		   params.mac[2], params.mac[3],
-		   params.mac[4], params.mac[5], params.vlan);
+		   params.mac, params.vlan);
 
 	if (!vf->vport_instance) {
 		DP_VERBOSE(p_hwfn,
