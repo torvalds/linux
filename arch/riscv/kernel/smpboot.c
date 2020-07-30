@@ -106,7 +106,7 @@ void __init setup_smp(void)
 	}
 }
 
-int start_secondary_cpu(int cpu, struct task_struct *tidle)
+static int start_secondary_cpu(int cpu, struct task_struct *tidle)
 {
 	if (cpu_ops[cpu]->cpu_start)
 		return cpu_ops[cpu]->cpu_start(cpu, tidle);
