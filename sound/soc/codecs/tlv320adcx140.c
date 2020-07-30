@@ -838,6 +838,10 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 
 	bias_cfg = bias_source << ADCX140_MIC_BIAS_SHIFT | vref_source;
 
+	ret = adcx140_reset(adcx140);
+	if (ret)
+		goto out;
+
 	pdm_count = device_property_count_u32(adcx140->dev,
 					      "ti,pdm-edge-select");
 	if (pdm_count <= ADCX140_NUM_PDM_EDGES && pdm_count > 0) {
@@ -882,10 +886,6 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	}
 
 	ret = adcx140_configure_gpo(adcx140);
-	if (ret)
-		goto out;
-
-	ret = adcx140_reset(adcx140);
 	if (ret)
 		goto out;
 
