@@ -9,7 +9,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
@@ -877,45 +876,6 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
-static void mgag200_set_pci_regs(struct mga_device *mdev)
-{
-	uint32_t option = 0, option2 = 0;
-	struct drm_device *dev = &mdev->base;
-
-	switch (mdev->type) {
-	case G200_SE_A:
-	case G200_SE_B:
-		if (mdev->has_sdram)
-			option = 0x40049120;
-		else
-			option = 0x4004d120;
-		option2 = 0x00008000;
-		break;
-	case G200_WB:
-	case G200_EW3:
-		option = 0x41049120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EV:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EH:
-	case G200_EH3:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_ER:
-		break;
-	}
-
-	if (option)
-		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
-
-	if (option2)
-		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION2, option2);
-}
-
 static void mgag200_set_dac_regs(struct mga_device *mdev)
 {
 	size_t i;
@@ -988,7 +948,6 @@ static void mgag200_init_regs(struct mga_device *mdev)
 {
 	u8 crtc11, crtcext3, crtcext4, misc;
 
-	mgag200_set_pci_regs(mdev);
 	mgag200_set_dac_regs(mdev);
 
 	WREG_SEQ(2, 0x0f);

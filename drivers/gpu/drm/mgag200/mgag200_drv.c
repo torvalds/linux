@@ -60,8 +60,38 @@ static bool mgag200_has_sgram(struct mga_device *mdev)
 static int mgag200_regs_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
+	u32 option, option2;
 
-	mdev->has_sdram = !mgag200_has_sgram(mdev);
+	switch (mdev->type) {
+	case G200_SE_A:
+	case G200_SE_B:
+		if (mgag200_has_sgram(mdev))
+			option |= PCI_MGA_OPTION_HARDPWMSK;
+		option2 = 0x00008000;
+		break;
+	case G200_WB:
+	case G200_EW3:
+		option = 0x41049120;
+		option2 = 0x0000b000;
+		break;
+	case G200_EV:
+		option = 0x00000120;
+		option2 = 0x0000b000;
+		break;
+	case G200_EH:
+	case G200_EH3:
+		option = 0x00000120;
+		option2 = 0x0000b000;
+		break;
+	default:
+		option = 0;
+		option2 = 0;
+	}
+
+	if (option)
+		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
+	if (option2)
+		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION2, option2);
 
 	/* BAR 1 contains registers */
 	mdev->rmmio_base = pci_resource_start(dev->pdev, 1);

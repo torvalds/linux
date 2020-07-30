@@ -161,7 +161,6 @@ struct mga_device {
 	size_t				vram_fb_available;
 
 	enum mga_type			type;
-	int				has_sdram;
 
 	int bpp_shifts[4];
 
