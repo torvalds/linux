@@ -1080,32 +1080,15 @@ static inline bool fastpath_timer_check(struct task_struct *tsk)
 	return false;
 }
 
-/*
- * This is called from the timer interrupt handler.  The irq handler has
- * already updated our counts.  We need to check if any timers fire now.
- * Interrupts are disabled.
- */
-void run_posix_cpu_timers(void)
+static void __run_posix_cpu_timers(struct task_struct *tsk)
 {
-	struct task_struct *tsk = current;
 	struct k_itimer *timer, *next;
 	unsigned long flags;
 	LIST_HEAD(firing);
 
-	lockdep_assert_irqs_disabled();
-
-	/*
-	 * The fast path checks that there are no expired thread or thread
-	 * group timers.  If that's so, just return.
-	 */
-	if (!fastpath_timer_check(tsk))
+	if (!lock_task_sighand(tsk, &flags))
 		return;
 
-	lockdep_posixtimer_enter();
-	if (!lock_task_sighand(tsk, &flags)) {
-		lockdep_posixtimer_exit();
-		return;
-	}
 	/*
 	 * Here we take off tsk->signal->cpu_timers[N] and
 	 * tsk->cpu_timers[N] all the timers that are firing, and
@@ -1147,6 +1130,28 @@ void run_posix_cpu_timers(void)
 			cpu_timer_fire(timer);
 		spin_unlock(&timer->it_lock);
 	}
+}
+
+/*
+ * This is called from the timer interrupt handler.  The irq handler has
+ * already updated our counts.  We need to check if any timers fire now.
+ * Interrupts are disabled.
+ */
+void run_posix_cpu_timers(void)
+{
+	struct task_struct *tsk = current;
+
+	lockdep_assert_irqs_disabled();
+
+	/*
+	 * The fast path checks that there are no expired thread or thread
+	 * group timers.  If that's so, just return.
+	 */
+	if (!fastpath_timer_check(tsk))
+		return;
+
+	lockdep_posixtimer_enter();
+	__run_posix_cpu_timers(tsk);
 	lockdep_posixtimer_exit();
 }
 
