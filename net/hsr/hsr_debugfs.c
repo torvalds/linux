@@ -22,12 +22,6 @@
 
 static struct dentry *hsr_debugfs_root_dir;
 
-static void print_mac_address(struct seq_file *sfp, unsigned char *mac)
-{
-	seq_printf(sfp, "%02x:%02x:%02x:%02x:%02x:%02x ",
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
 /* hsr_node_table_show - Formats and prints node_table entries */
 static int
 hsr_node_table_show(struct seq_file *sfp, void *data)
@@ -49,8 +43,8 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 		/* skip self node */
 		if (hsr_addr_is_self(priv, node->macaddress_A))
 			continue;
-		print_mac_address(sfp, &node->macaddress_A[0]);
-		print_mac_address(sfp, &node->macaddress_B[0]);
+		seq_printf(sfp, "%pM ", &node->macaddress_A[0]);
+		seq_printf(sfp, "%pM ", &node->macaddress_B[0]);
 		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_A]);
 		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_B]);
 		seq_printf(sfp, "%14x, ", node->addr_B_port);
