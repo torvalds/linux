@@ -233,6 +233,7 @@ struct dc_panel_patch {
 	unsigned int skip_scdc_overwrite;
 	unsigned int delay_ignore_msa;
 	unsigned int disable_fec;
+	unsigned int extra_t3_ms;
 };
 
 struct dc_edid_caps {

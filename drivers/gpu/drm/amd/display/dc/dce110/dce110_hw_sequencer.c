@@ -720,6 +720,7 @@ void dce110_edp_wait_for_hpd_ready(
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
+	struct dc_sink *sink = link->local_sink;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -750,6 +751,14 @@ void dce110_edp_wait_for_hpd_ready(
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();
 		return;
+	}
+
+	if (sink != NULL) {
+		if (sink->edid_caps.panel_patch.extra_t3_ms > 0) {
+			int extra_t3_in_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+
+			msleep(extra_t3_in_ms);
+		}
 	}
 
 	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
