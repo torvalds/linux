@@ -395,20 +395,14 @@ static void fimc_md_pipelines_free(struct fimc_md *fmd)
 	}
 }
 
-/* Parse port node and register as a sub-device any sensor specified there. */
-static int fimc_md_parse_port_node(struct fimc_md *fmd,
-				   struct device_node *port)
+static int fimc_md_parse_one_endpoint(struct fimc_md *fmd,
+				   struct device_node *ep)
 {
 	int index = fmd->num_sensors;
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
-	struct device_node *rem, *ep, *np;
+	struct device_node *rem, *np;
 	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	int ret;
-
-	/* Assume here a port node can have only one endpoint node. */
-	ep = of_get_next_child(port, NULL);
-	if (!ep)
-		return 0;
 
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &endpoint);
 	if (ret) {
@@ -479,6 +473,22 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	}
 
 	fmd->num_sensors++;
+
+	return 0;
+}
+
+/* Parse port node and register as a sub-device any sensor specified there. */
+static int fimc_md_parse_port_node(struct fimc_md *fmd,
+				   struct device_node *port)
+{
+	struct device_node *ep;
+	int ret;
+
+	for_each_child_of_node(port, ep) {
+		ret = fimc_md_parse_one_endpoint(fmd, ep);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
