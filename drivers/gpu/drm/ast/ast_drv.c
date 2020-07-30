@@ -43,9 +43,33 @@ int ast_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, ast_modeset, int, 0400);
 
-#define PCI_VENDOR_ASPEED 0x1a03
+/*
+ * DRM driver
+ */
 
-static struct drm_driver driver;
+DEFINE_DRM_GEM_FOPS(ast_fops);
+
+static struct drm_driver ast_driver = {
+	.driver_features = DRIVER_ATOMIC |
+			   DRIVER_GEM |
+			   DRIVER_MODESET,
+
+	.fops = &ast_fops,
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
+
+	DRM_GEM_VRAM_DRIVER
+};
+
+/*
+ * PCI driver
+ */
+
+#define PCI_VENDOR_ASPEED 0x1a03
 
 #define AST_VGA_DEVICE(id, info) {		\
 	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
@@ -56,13 +80,13 @@ static struct drm_driver driver;
 	.subdevice = PCI_ANY_ID,		\
 	.driver_data = (unsigned long) info }
 
-static const struct pci_device_id pciidlist[] = {
+static const struct pci_device_id ast_pciidlist[] = {
 	AST_VGA_DEVICE(PCI_CHIP_AST2000, NULL),
 	AST_VGA_DEVICE(PCI_CHIP_AST2100, NULL),
 	{0, 0, 0},
 };
 
-MODULE_DEVICE_TABLE(pci, pciidlist);
+MODULE_DEVICE_TABLE(pci, ast_pciidlist);
 
 static void ast_kick_out_firmware_fb(struct pci_dev *pdev)
 {
@@ -94,7 +118,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
+	dev = drm_dev_alloc(&ast_driver, &pdev->dev);
 	if (IS_ERR(dev))
 		return  PTR_ERR(dev);
 
@@ -118,11 +142,9 @@ err_ast_driver_unload:
 err_drm_dev_put:
 	drm_dev_put(dev);
 	return ret;
-
 }
 
-static void
-ast_pci_remove(struct pci_dev *pdev)
+static void ast_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
@@ -217,28 +239,10 @@ static const struct dev_pm_ops ast_pm_ops = {
 
 static struct pci_driver ast_pci_driver = {
 	.name = DRIVER_NAME,
-	.id_table = pciidlist,
+	.id_table = ast_pciidlist,
 	.probe = ast_pci_probe,
 	.remove = ast_pci_remove,
 	.driver.pm = &ast_pm_ops,
-};
-
-DEFINE_DRM_GEM_FOPS(ast_fops);
-
-static struct drm_driver driver = {
-	.driver_features = DRIVER_ATOMIC |
-			   DRIVER_GEM |
-			   DRIVER_MODESET,
-
-	.fops = &ast_fops,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
-
-	DRM_GEM_VRAM_DRIVER
 };
 
 static int __init ast_init(void)
@@ -261,4 +265,3 @@ module_exit(ast_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
-
