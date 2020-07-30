@@ -484,7 +484,8 @@ static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 	tp->saved_syn = NULL;
 }
 
-struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk);
+struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
+					       const struct sk_buff *orig_skb);
 
 static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 {

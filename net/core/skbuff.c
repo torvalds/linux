@@ -4692,7 +4692,7 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_STATS) &&
 		    sk->sk_protocol == IPPROTO_TCP &&
 		    sk->sk_type == SOCK_STREAM) {
-			skb = tcp_get_timestamping_opt_stats(sk);
+			skb = tcp_get_timestamping_opt_stats(sk, orig_skb);
 			opt_stats = true;
 		} else
 #endif
