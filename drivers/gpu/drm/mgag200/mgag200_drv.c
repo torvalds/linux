@@ -115,6 +115,17 @@ static int mgag200_regs_init(struct mga_device *mdev)
 	return 0;
 }
 
+static void mgag200_g200se_init_unique_id(struct mga_device *mdev)
+{
+	struct drm_device *dev = &mdev->base;
+
+	/* stash G200 SE model number for later use */
+	mdev->model.g200se.unique_rev_id = RREG32(0x1e24);
+
+	drm_dbg(dev, "G200 SE unique revision id is 0x%x\n",
+		mdev->model.g200se.unique_rev_id);
+}
+
 static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 {
 	struct drm_device *dev = &mdev->base;
@@ -127,12 +138,8 @@ static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 	if (ret)
 		return ret;
 
-	/* stash G200 SE model number for later use */
-	if (IS_G200_SE(mdev)) {
-		mdev->unique_rev_id = RREG32(0x1e24);
-		drm_dbg(dev, "G200 SE unique revision id is 0x%x\n",
-			mdev->unique_rev_id);
-	}
+	if (IS_G200_SE(mdev))
+		mgag200_g200se_init_unique_id(mdev);
 
 	ret = mgag200_mm_init(mdev);
 	if (ret)

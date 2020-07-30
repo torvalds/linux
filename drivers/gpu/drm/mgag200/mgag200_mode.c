@@ -112,6 +112,7 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 
 static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 {
+	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
@@ -121,7 +122,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	unsigned int fvv;
 	unsigned int i;
 
-	if (mdev->unique_rev_id <= 0x03) {
+	if (unique_rev_id <= 0x03) {
 
 		m = n = p = 0;
 		vcomax = 320000;
@@ -219,7 +220,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	WREG_DAC(MGA1064_PIX_PLLC_N, n);
 	WREG_DAC(MGA1064_PIX_PLLC_P, p);
 
-	if (mdev->unique_rev_id >= 0x04) {
+	if (unique_rev_id >= 0x04) {
 		WREG_DAC(0x1a, 0x09);
 		msleep(20);
 		WREG_DAC(0x1a, 0x01);
@@ -1183,12 +1184,13 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 					const struct drm_display_mode *mode,
 					const struct drm_framebuffer *fb)
 {
+	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
 	unsigned int hiprilvl;
 	u8 crtcext6;
 
-	if  (mdev->unique_rev_id >= 0x04) {
+	if  (unique_rev_id >= 0x04) {
 		hiprilvl = 0;
-	} else if (mdev->unique_rev_id >= 0x02) {
+	} else if (unique_rev_id >= 0x02) {
 		unsigned int bpp;
 		unsigned long mb;
 
@@ -1213,7 +1215,7 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 		else
 			hiprilvl = 5;
 
-	} else if (mdev->unique_rev_id >= 0x01) {
+	} else if (unique_rev_id >= 0x01) {
 		hiprilvl = 3;
 	} else {
 		hiprilvl = 4;
@@ -1337,7 +1339,9 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 	int bpp = 32;
 
 	if (IS_G200_SE(mdev)) {
-		if (mdev->unique_rev_id == 0x01) {
+		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+
+		if (unique_rev_id == 0x01) {
 			if (mode->hdisplay > 1600)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)
@@ -1345,7 +1349,7 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
 				> (24400 * 1024))
 				return MODE_BANDWIDTH;
-		} else if (mdev->unique_rev_id == 0x02) {
+		} else if (unique_rev_id == 0x02) {
 			if (mode->hdisplay > 1920)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)

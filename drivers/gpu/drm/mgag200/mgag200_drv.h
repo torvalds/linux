@@ -166,8 +166,12 @@ struct mga_device {
 
 	int fb_mtrr;
 
-	/* SE model number stored in reg 0x1e24 */
-	u32 unique_rev_id;
+	union {
+		struct {
+			/* SE model number stored in reg 0x1e24 */
+			u32 unique_rev_id;
+		} g200se;
+	} model;
 
 	struct mga_connector connector;
 	struct drm_simple_display_pipe display_pipe;
