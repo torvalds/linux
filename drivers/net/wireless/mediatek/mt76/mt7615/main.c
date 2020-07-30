@@ -361,7 +361,10 @@ mt7615_queue_key_update(struct mt7615_dev *dev, enum set_key_cmd cmd,
 	wd->key.keylen = key->keylen;
 	wd->key.cmd = cmd;
 
+	spin_lock_bh(&dev->mt76.lock);
 	list_add_tail(&wd->node, &dev->wd_head);
+	spin_unlock_bh(&dev->mt76.lock);
+
 	queue_work(dev->mt76.wq, &dev->wtbl_work);
 
 	return 0;
