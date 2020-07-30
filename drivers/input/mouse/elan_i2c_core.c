@@ -138,6 +138,7 @@ static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 		*validpage_count = 2048;
 		break;
 	case 0x14:
+	case 0x15:
 		*validpage_count = 1024;
 		break;
 	default:
@@ -151,7 +152,7 @@ static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 	*signature_address =
 		(*validpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
 
-	if (ic_type == 0x14 && iap_version >= 2) {
+	if ((ic_type == 0x14 || ic_type == 0x15) && iap_version >= 2) {
 		*validpage_count /= 8;
 		*page_size = ETP_FW_PAGE_SIZE_512;
 	} else if (ic_type >= 0x0D && iap_version >= 1) {
