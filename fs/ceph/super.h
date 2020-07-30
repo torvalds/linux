@@ -118,8 +118,6 @@ struct ceph_fs_client {
 
 	struct ceph_mds_client *mdsc;
 
-	/* writeback */
-	mempool_t *wb_pagevec_pool;
 	atomic_long_t writeback_count;
 
 	struct workqueue_struct *inode_wq;
