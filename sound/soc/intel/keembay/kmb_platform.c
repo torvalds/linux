@@ -28,8 +28,10 @@ static const struct snd_pcm_hardware kmb_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.rates = SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_48000,
-	.rate_min = 16000,
+	.rates = SNDRV_PCM_RATE_8000 |
+		 SNDRV_PCM_RATE_16000 |
+		 SNDRV_PCM_RATE_48000,
+	.rate_min = 8000,
 	.rate_max = 48000,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		   SNDRV_PCM_FMTBIT_S24_LE |
@@ -533,8 +535,10 @@ static struct snd_soc_dai_driver intel_kmb_platform_dai[] = {
 		.playback = {
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_48000,
-			.rate_min = 16000,
+			.rates = SNDRV_PCM_RATE_8000 |
+				 SNDRV_PCM_RATE_16000 |
+				 SNDRV_PCM_RATE_48000,
+			.rate_min = 8000,
 			.rate_max = 48000,
 			.formats = (SNDRV_PCM_FMTBIT_S32_LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
@@ -543,8 +547,14 @@ static struct snd_soc_dai_driver intel_kmb_platform_dai[] = {
 		.capture = {
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_48000,
-			.rate_min = 16000,
+			/*
+			 * .channels_max will be overwritten
+			 * if provided by Device Tree
+			 */
+			.rates = SNDRV_PCM_RATE_8000 |
+				 SNDRV_PCM_RATE_16000 |
+				 SNDRV_PCM_RATE_48000,
+			.rate_min = 8000,
 			.rate_max = 48000,
 			.formats = (SNDRV_PCM_FMTBIT_S32_LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
