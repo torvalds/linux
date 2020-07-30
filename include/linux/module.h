@@ -591,17 +591,6 @@ struct symsearch {
 };
 
 /*
- * Search for an exported symbol by name.
- *
- * Must be called with module_mutex held or preemption disabled.
- */
-const struct kernel_symbol *find_symbol(const char *name,
-					struct module **owner,
-					const s32 **crc,
-					bool gplok,
-					bool warn);
-
-/*
  * Walk the exported symbol table
  *
  * Must be called with module_mutex held or preemption disabled.
