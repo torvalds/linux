@@ -49,6 +49,7 @@ struct ingenic_ipu {
 	struct regmap *map;
 	struct clk *clk;
 	const struct soc_info *soc_info;
+	bool clk_enabled;
 
 	unsigned int num_w, num_h, denom_w, denom_h;
 
@@ -288,11 +289,22 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	const struct drm_format_info *finfo;
 	u32 ctrl, stride = 0, coef_index = 0, format = 0;
 	bool needs_modeset, upscaling_w, upscaling_h;
+	int err;
 
 	if (!state || !state->fb)
 		return;
 
 	finfo = drm_format_info(state->fb->format->format);
+
+	if (!ipu->clk_enabled) {
+		err = clk_enable(ipu->clk);
+		if (err) {
+			dev_err(ipu->dev, "Unable to enable clock: %d\n", err);
+			return;
+		}
+
+		ipu->clk_enabled = true;
+	}
 
 	/* Reset all the registers if needed */
 	needs_modeset = drm_atomic_crtc_needs_modeset(state->crtc->state);
@@ -578,6 +590,11 @@ static void ingenic_ipu_plane_atomic_disable(struct drm_plane *plane,
 	regmap_clear_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_CHIP_EN);
 
 	ingenic_drm_plane_disable(ipu->master, plane);
+
+	if (ipu->clk_enabled) {
+		clk_disable(ipu->clk);
+		ipu->clk_enabled = false;
+	}
 }
 
 static const struct drm_plane_helper_funcs ingenic_ipu_plane_helper_funcs = {
@@ -761,9 +778,9 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 	drm_object_attach_property(&plane->base, ipu->sharpness_prop,
 				   ipu->sharpness);
 
-	err = clk_prepare_enable(ipu->clk);
+	err = clk_prepare(ipu->clk);
 	if (err) {
-		dev_err(dev, "Unable to enable clock\n");
+		dev_err(dev, "Unable to prepare clock\n");
 		return err;
 	}
 
@@ -775,7 +792,7 @@ static void ingenic_ipu_unbind(struct device *dev,
 {
 	struct ingenic_ipu *ipu = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(ipu->clk);
+	clk_unprepare(ipu->clk);
 }
 
 static const struct component_ops ingenic_ipu_ops = {
