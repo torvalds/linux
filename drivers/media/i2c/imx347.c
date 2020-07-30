@@ -715,11 +715,11 @@ static const struct imx347_mode supported_modes[] = {
 		.height = 1536,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000 * 2,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
-		.vts_def = 0x07bc,
+		.vts_def = 0x07bc * 2,
 		.reg_list = imx347_hdr_2x_10bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -748,11 +748,11 @@ static const struct imx347_mode supported_modes[] = {
 		.height = 1538,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000 * 2,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0240,
 		.hts_def = 0x02ee * 4,
-		.vts_def = 0x0640,
+		.vts_def = 0x0640 * 2,
 		.reg_list = imx347_hdr_2x_12bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -905,6 +905,7 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx347->vblank, vblank_def,
 					 IMX347_VTS_MAX - mode->height,
 					 1, vblank_def);
+		imx347->cur_vts = imx347->cur_mode->vts_def;
 		if (mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
 			if (mode->hdr_mode == NO_HDR)
 				imx347->cur_pixel_rate = IMX347_10BIT_LINEAR_PIXEL_RATE;
@@ -1073,7 +1074,7 @@ static int imx347_set_hdrae(struct imx347 *imx347,
 	static int rhs1_old = 209;
 	int rhs1_change_limit;
 	int ret = 0;
-	u32 fsc = imx347->cur_vts * 2;
+	u32 fsc = imx347->cur_vts;
 	u8 cg_mode = 0;
 
 	if (!imx347->has_init_exp && !imx347->streaming) {
@@ -1340,6 +1341,7 @@ static long imx347_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(imx347->vblank, h,
 				IMX347_VTS_MAX - imx347->cur_mode->height,
 				1, h);
+			imx347->cur_vts = imx347->cur_mode->vts_def;
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
@@ -1826,6 +1828,9 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VBLANK:
 		vts = ctrl->val + imx347->cur_mode->height;
+		imx347->cur_vts = vts;
+		if (imx347->cur_mode->hdr_mode == HDR_X2)
+			vts /= 2;
 		ret = imx347_write_reg(imx347->client, IMX347_VTS_REG_L,
 				       IMX347_REG_VALUE_08BIT,
 				       IMX347_FETCH_VTS_L(vts));
@@ -1835,7 +1840,7 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx347_write_reg(imx347->client, IMX347_VTS_REG_H,
 				       IMX347_REG_VALUE_08BIT,
 				       IMX347_FETCH_VTS_H(vts));
-		imx347->cur_vts = vts;
+
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
