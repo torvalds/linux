@@ -1348,7 +1348,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 
 	oreq->rsk_rcv_wnd = 0;
 	oreq->rsk_window_clamp = 0;
-	oreq->cookie_ts = 0;
+	oreq->syncookie = 0;
 	oreq->mss = 0;
 	oreq->ts_recent = 0;
 
