@@ -217,6 +217,7 @@ enum parse_parameter {
 	Opt_no_backing_file_readahead,
 	Opt_rlog_pages,
 	Opt_rlog_wakeup_cnt,
+	Opt_report_uid,
 	Opt_err
 };
 
@@ -239,6 +240,7 @@ static const match_table_t option_tokens = {
 	{ Opt_no_backing_file_readahead, "no_bf_readahead=%u" },
 	{ Opt_rlog_pages, "rlog_pages=%u" },
 	{ Opt_rlog_wakeup_cnt, "rlog_wakeup_cnt=%u" },
+	{ Opt_report_uid, "report_uid" },
 	{ Opt_err, NULL }
 };
 
@@ -298,6 +300,9 @@ static int parse_options(struct mount_options *opts, char *str)
 			if (match_int(&args[0], &value))
 				return -EINVAL;
 			opts->read_log_wakeup_count = value;
+			break;
+		case Opt_report_uid:
+			opts->report_uid = true;
 			break;
 		default:
 			return -EINVAL;
@@ -462,8 +467,12 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 {
 	struct pending_reads_state *pr_state = f->private_data;
 	struct mount_info *mi = get_mount_info(file_superblock(f));
+	bool report_uid;
+	unsigned long page = 0;
 	struct incfs_pending_read_info *reads_buf = NULL;
-	size_t reads_to_collect = len / sizeof(*reads_buf);
+	struct incfs_pending_read_info2 *reads_buf2 = NULL;
+	size_t record_size;
+	size_t reads_to_collect;
 	int last_known_read_sn = READ_ONCE(pr_state->last_pending_read_sn);
 	int new_max_sn = last_known_read_sn;
 	int reads_collected = 0;
@@ -472,18 +481,29 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	if (!mi)
 		return -EFAULT;
 
+	report_uid = mi->mi_options.report_uid;
+	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
+	reads_to_collect = len / record_size;
+
 	if (!incfs_fresh_pending_reads_exist(mi, last_known_read_sn))
 		return 0;
 
-	reads_buf = (struct incfs_pending_read_info *)get_zeroed_page(GFP_NOFS);
-	if (!reads_buf)
+	page = get_zeroed_page(GFP_NOFS);
+	if (!page)
 		return -ENOMEM;
 
-	reads_to_collect =
-		min_t(size_t, PAGE_SIZE / sizeof(*reads_buf), reads_to_collect);
+	if (report_uid)
+		reads_buf2 = (struct incfs_pending_read_info2 *) page;
+	else
+		reads_buf = (struct incfs_pending_read_info *) page;
 
-	reads_collected = incfs_collect_pending_reads(
-		mi, last_known_read_sn, reads_buf, reads_to_collect, &new_max_sn);
+	reads_to_collect =
+		min_t(size_t, PAGE_SIZE / record_size, reads_to_collect);
+
+	reads_collected = incfs_collect_pending_reads(mi, last_known_read_sn,
+				reads_buf, reads_buf2, reads_to_collect,
+				&new_max_sn);
+
 	if (reads_collected < 0) {
 		result = reads_collected;
 		goto out;
@@ -494,19 +514,19 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	 * to reads buffer than userspace can handle.
 	 */
 	reads_collected = min_t(size_t, reads_collected, reads_to_collect);
-	result = reads_collected * sizeof(*reads_buf);
+	result = reads_collected * record_size;
 
 	/* Copy reads info to the userspace buffer */
-	if (copy_to_user(buf, reads_buf, result)) {
+	if (copy_to_user(buf, (void *)page, result)) {
 		result = -EFAULT;
 		goto out;
 	}
 
 	WRITE_ONCE(pr_state->last_pending_read_sn, new_max_sn);
 	*ppos = 0;
+
 out:
-	if (reads_buf)
-		free_page((unsigned long)reads_buf);
+	free_page(page);
 	return result;
 }
 
@@ -588,17 +608,34 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 	int total_reads_collected = 0;
 	int rl_size;
 	ssize_t result = 0;
-	struct incfs_pending_read_info *reads_buf;
-	ssize_t reads_to_collect = len / sizeof(*reads_buf);
-	ssize_t reads_per_page = PAGE_SIZE / sizeof(*reads_buf);
+	bool report_uid;
+	unsigned long page = 0;
+	struct incfs_pending_read_info *reads_buf = NULL;
+	struct incfs_pending_read_info2 *reads_buf2 = NULL;
+	size_t record_size;
+	ssize_t reads_to_collect;
+	ssize_t reads_per_page;
+
+	if (!mi)
+		return -EFAULT;
+
+	report_uid = mi->mi_options.report_uid;
+	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
+	reads_to_collect = len / record_size;
+	reads_per_page = PAGE_SIZE / record_size;
 
 	rl_size = READ_ONCE(mi->mi_log.rl_size);
 	if (rl_size == 0)
 		return 0;
 
-	reads_buf = (struct incfs_pending_read_info *)__get_free_page(GFP_NOFS);
-	if (!reads_buf)
+	page = __get_free_page(GFP_NOFS);
+	if (!page)
 		return -ENOMEM;
+
+	if (report_uid)
+		reads_buf2 = (struct incfs_pending_read_info2 *) page;
+	else
+		reads_buf = (struct incfs_pending_read_info *) page;
 
 	reads_to_collect = min_t(ssize_t, rl_size, reads_to_collect);
 	while (reads_to_collect > 0) {
@@ -607,35 +644,32 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 
 		memcpy(&next_state, &log_state->state, sizeof(next_state));
 		reads_collected = incfs_collect_logged_reads(
-			mi, &next_state, reads_buf,
+			mi, &next_state, reads_buf, reads_buf2,
 			min_t(ssize_t, reads_to_collect, reads_per_page));
 		if (reads_collected <= 0) {
 			result = total_reads_collected ?
-					 total_reads_collected *
-						 sizeof(*reads_buf) :
+					 total_reads_collected * record_size :
 					 reads_collected;
 			goto out;
 		}
-		if (copy_to_user(buf, reads_buf,
-				 reads_collected * sizeof(*reads_buf))) {
+		if (copy_to_user(buf, (void *) page,
+				 reads_collected * record_size)) {
 			result = total_reads_collected ?
-					 total_reads_collected *
-						 sizeof(*reads_buf) :
+					 total_reads_collected * record_size :
 					 -EFAULT;
 			goto out;
 		}
 
 		memcpy(&log_state->state, &next_state, sizeof(next_state));
 		total_reads_collected += reads_collected;
-		buf += reads_collected * sizeof(*reads_buf);
+		buf += reads_collected * record_size;
 		reads_to_collect -= reads_collected;
 	}
 
-	result = total_reads_collected * sizeof(*reads_buf);
+	result = total_reads_collected * record_size;
 	*ppos = 0;
 out:
-	if (reads_buf)
-		free_page((unsigned long)reads_buf);
+	free_page(page);
 	return result;
 }
 
@@ -2473,6 +2507,11 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 	if (err)
 		return err;
 
+	if (options.report_uid != mi->mi_options.report_uid) {
+		pr_err("incfs: Can't change report_uid mount option on remount\n");
+		return -EOPNOTSUPP;
+	}
+
 	err = incfs_realloc_mount_info(mi, &options);
 	if (err)
 		return err;
@@ -2505,5 +2544,7 @@ static int show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",no_bf_cache");
 	if (mi->mi_options.no_backing_file_readahead)
 		seq_puts(m, ",no_bf_readahead");
+	if (mi->mi_options.report_uid)
+		seq_puts(m, ",report_uid");
 	return 0;
 }
