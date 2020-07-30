@@ -173,6 +173,12 @@ again:
 		subflow_req->token = mp_opt.token;
 		subflow_req->remote_nonce = mp_opt.nonce;
 		subflow_req->msk = subflow_token_join_request(req, skb);
+
+		if (unlikely(req->syncookie) && subflow_req->msk) {
+			if (mptcp_can_accept_new_subflow(subflow_req->msk))
+				subflow_init_req_cookie_join_save(subflow_req, skb);
+		}
+
 		pr_debug("token=%u, remote_nonce=%u msk=%p", subflow_req->token,
 			 subflow_req->remote_nonce, subflow_req->msk);
 	}
@@ -206,6 +212,14 @@ int mptcp_subflow_init_cookie_req(struct request_sock *req,
 			return err;
 
 		subflow_req->mp_capable = 1;
+		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq - 1;
+	} else if (mp_opt.mp_join && listener->request_mptcp) {
+		if (!mptcp_token_join_cookie_init_state(subflow_req, skb))
+			return -EINVAL;
+
+		if (mptcp_can_accept_new_subflow(subflow_req->msk))
+			subflow_req->mp_join = 1;
+
 		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq - 1;
 	}
 

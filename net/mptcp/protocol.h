@@ -506,4 +506,24 @@ static inline bool subflow_simultaneous_connect(struct sock *sk)
 	       !subflow->conn_finished;
 }
 
+#ifdef CONFIG_SYN_COOKIES
+void subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *subflow_req,
+				       struct sk_buff *skb);
+bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subflow_req,
+					struct sk_buff *skb);
+void __init mptcp_join_cookie_init(void);
+#else
+static inline void
+subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *subflow_req,
+				  struct sk_buff *skb) {}
+static inline bool
+mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subflow_req,
+				   struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline void mptcp_join_cookie_init(void) {}
+#endif
+
 #endif /* __MPTCP_PROTOCOL_H */
