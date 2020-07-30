@@ -94,6 +94,8 @@ int mgag200_mm_init(struct mga_device *mdev)
 	resource_size_t start, len;
 	int ret;
 
+	WREG_ECRT(0x04, 0x00);
+
 	misc = RREG8(MGA_MISC_IN);
 	misc |= MGAREG_MISC_RAMMAPEN |
 		MGAREG_MISC_HIGH_PG_SEL;
