@@ -90,6 +90,7 @@
 
 #define MAX_CHANNEL_NUM		8
 #define MIN_CHANNEL_NUM		2
+#define MAX_ISR			4
 
 #define TWO_CHANNEL_SUPPORT	2	/* up to 2.0 */
 #define FOUR_CHANNEL_SUPPORT	4	/* up to 3.1 */
