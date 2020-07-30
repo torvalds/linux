@@ -47,7 +47,7 @@ static void ast_cursor_fini(struct ast_private *ast)
 
 static void ast_cursor_release(struct drm_device *dev, void *ptr)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
 	ast_cursor_fini(ast);
 }
