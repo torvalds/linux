@@ -30,6 +30,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
 
@@ -378,15 +379,25 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-int ast_driver_load(struct drm_device *dev, unsigned long flags)
+struct ast_private *ast_device_create(struct drm_driver *drv,
+				      struct pci_dev *pdev,
+				      unsigned long flags)
 {
+	struct drm_device *dev;
 	struct ast_private *ast;
 	bool need_post;
 	int ret = 0;
 
+	dev = drm_dev_alloc(drv, &pdev->dev);
+	if (IS_ERR(dev))
+		return ERR_CAST(dev);
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
 	ast = kzalloc(sizeof(struct ast_private), GFP_KERNEL);
 	if (!ast)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	dev->dev_private = ast;
 	ast->dev = dev;
@@ -435,16 +446,17 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
-	return 0;
+	return ast;
+
 out_free:
 	kfree(ast);
 	dev->dev_private = NULL;
-	return ret;
+	return ERR_PTR(ret);
 }
 
-void ast_driver_unload(struct drm_device *dev)
+void ast_device_destroy(struct ast_private *ast)
 {
-	struct ast_private *ast = to_ast_private(dev);
+	struct drm_device *dev = ast->dev;
 
 	/* enable standard VGA decode */
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
