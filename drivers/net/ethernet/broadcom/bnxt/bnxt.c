@@ -3732,8 +3732,6 @@ static int bnxt_alloc_stats_mem(struct bnxt *bp, struct bnxt_stats_mem *stats,
 	if (!stats->hw_stats)
 		return -ENOMEM;
 
-	memset(stats->hw_stats, 0, stats->len);
-
 	stats->sw_stats = kzalloc(stats->len, GFP_KERNEL);
 	if (!stats->sw_stats)
 		goto stats_mem_err;
