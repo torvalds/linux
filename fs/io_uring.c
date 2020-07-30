@@ -891,7 +891,8 @@ enum io_mem_account {
 	ACCT_PINNED,
 };
 
-static bool io_rw_reissue(struct io_kiocb *req, long res);
+static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
+			     struct io_comp_state *cs);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
 static void io_double_put_req(struct io_kiocb *req);
@@ -902,8 +903,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
 static int io_prep_work_files(struct io_kiocb *req);
-static void io_complete_rw_common(struct kiocb *kiocb, long res,
-				  struct io_comp_state *cs);
 static void __io_clean_op(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
@@ -1976,8 +1975,7 @@ static void io_iopoll_queue(struct list_head *again)
 	do {
 		req = list_first_entry(again, struct io_kiocb, inflight_entry);
 		list_del(&req->inflight_entry);
-		if (!io_rw_reissue(req, -EAGAIN))
-			io_complete_rw_common(&req->rw.kiocb, -EAGAIN, NULL);
+		__io_complete_rw(req, -EAGAIN, 0, NULL);
 	} while (!list_empty(again));
 }
 
