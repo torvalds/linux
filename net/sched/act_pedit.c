@@ -436,8 +436,7 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 		return -ENOBUFS;
 
 	spin_lock_bh(&p->tcf_lock);
-	memcpy(opt->keys, p->tcfp_keys,
-	       p->tcfp_nkeys * sizeof(struct tc_pedit_key));
+	memcpy(opt->keys, p->tcfp_keys, flex_array_size(opt, keys, p->tcfp_nkeys));
 	opt->index = p->tcf_index;
 	opt->nkeys = p->tcfp_nkeys;
 	opt->flags = p->tcfp_flags;
