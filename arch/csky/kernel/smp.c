@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/sched/task_stack.h>
@@ -35,6 +36,7 @@ enum ipi_message_type {
 	IPI_EMPTY,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
+	IPI_IRQ_WORK,
 	IPI_MAX
 };
 
@@ -52,6 +54,9 @@ static irqreturn_t handle_ipi(int irq, void *dev)
 
 		if (ops & (1 << IPI_CALL_FUNC))
 			generic_smp_call_function_interrupt();
+
+		if (ops & (1 << IPI_IRQ_WORK))
+			irq_work_run();
 
 		BUG_ON((ops >> IPI_MAX) != 0);
 	}
@@ -107,6 +112,13 @@ void smp_send_reschedule(int cpu)
 {
 	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
 }
+
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	send_ipi_message(cpumask_of(smp_processor_id()), IPI_IRQ_WORK);
+}
+#endif
 
 void __init smp_prepare_boot_cpu(void)
 {
