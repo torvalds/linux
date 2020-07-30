@@ -1598,6 +1598,24 @@ static int pp_set_xgmi_pstate(void *handle, uint32_t pstate)
 	return 0;
 }
 
+static ssize_t pp_get_gpu_metrics(void *handle, void **table)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	ssize_t size;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->get_gpu_metrics)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&hwmgr->smu_lock);
+	size = hwmgr->hwmgr_func->get_gpu_metrics(hwmgr, table);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return size;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1658,4 +1676,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.smu_i2c_bus_access = pp_smu_i2c_bus_access,
 	.set_df_cstate = pp_set_df_cstate,
 	.set_xgmi_pstate = pp_set_xgmi_pstate,
+	.get_gpu_metrics = pp_get_gpu_metrics,
 };
