@@ -24,6 +24,7 @@
 #define user_mode(regs) (!((regs)->sr & PS_S))
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
+#define trap_no(regs) ((regs->sr >> 16) & 0xff)
 
 static inline void instruction_pointer_set(struct pt_regs *regs,
 					   unsigned long val)

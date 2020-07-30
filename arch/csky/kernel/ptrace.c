@@ -347,13 +347,8 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 }
 
-extern void show_stack(struct task_struct *task, unsigned long *stack, const char *loglvl);
 void show_regs(struct pt_regs *fp)
 {
-	unsigned long   *sp;
-	unsigned char   *tp;
-	int	i;
-
 	pr_info("\nCURRENT PROCESS:\n\n");
 	pr_info("COMM=%s PID=%d\n", current->comm, current->pid);
 
@@ -400,29 +395,9 @@ void show_regs(struct pt_regs *fp)
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
 	pr_info("r10: 0x%08lx  r11: 0x%08lx  r12: 0x%08lx  r13: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r14: 0x%08lx   r1: 0x%08lx  r15: 0x%08lx\n",
-		fp->regs[8], fp->regs[9], fp->lr);
+	pr_info("r14: 0x%08lx   r1: 0x%08lx\n",
+		fp->regs[8], fp->regs[9]);
 #endif
 
-	pr_info("\nCODE:");
-	tp = ((unsigned char *) fp->pc) - 0x20;
-	tp += ((int)tp % 4) ? 2 : 0;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
-
-	pr_info("\nKERNEL STACK:");
-	tp = ((unsigned char *) fp) - 0x40;
-	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
-		if ((i % 0x10) == 0)
-			pr_cont("\n%08x: ", (int) (tp + i));
-		pr_cont("%08x ", (int) *sp++);
-	}
-	pr_cont("\n");
-
-	show_stack(NULL, (unsigned long *)fp->regs[4], KERN_INFO);
 	return;
 }
