@@ -86,19 +86,27 @@ static void check_and_cede_processor(void)
 	}
 }
 
+#define NR_DEDICATED_STATES	2 /* snooze, CEDE */
+
+static u8 cede_latency_hint[NR_DEDICATED_STATES];
+
 static int dedicated_cede_loop(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
+	u8 old_latency_hint;
 
 	pseries_idle_prolog();
 	get_lppaca()->donate_dedicated_cpu = 1;
+	old_latency_hint = get_lppaca()->cede_latency_hint;
+	get_lppaca()->cede_latency_hint = cede_latency_hint[index];
 
 	HMT_medium();
 	check_and_cede_processor();
 
 	local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
+	get_lppaca()->cede_latency_hint = old_latency_hint;
 
 	pseries_idle_epilog();
 
@@ -130,7 +138,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 /*
  * States for dedicated partition case.
  */
-static struct cpuidle_state dedicated_states[] = {
+static struct cpuidle_state dedicated_states[NR_DEDICATED_STATES] = {
 	{ /* Snooze */
 		.name = "snooze",
 		.desc = "snooze",
@@ -233,7 +241,7 @@ static int pseries_idle_probe(void)
 			max_idle_state = ARRAY_SIZE(shared_states);
 		} else {
 			cpuidle_state_table = dedicated_states;
-			max_idle_state = ARRAY_SIZE(dedicated_states);
+			max_idle_state = NR_DEDICATED_STATES;
 		}
 	} else
 		return -ENODEV;
