@@ -343,13 +343,52 @@ static int pseries_cpuidle_driver_init(void)
 	return 0;
 }
 
-static void __init parse_xcede_idle_states(void)
+static void __init fixup_cede0_latency(void)
 {
+	struct xcede_latency_payload *payload;
+	u64 min_latency_us;
+	int i;
+
+	min_latency_us = dedicated_states[1].exit_latency; // CEDE latency
+
 	if (parse_cede_parameters())
 		return;
 
-	pr_info("cpuidle : Skipping the %d Extended CEDE idle states\n",
+	pr_info("cpuidle: Skipping the %d Extended CEDE idle states\n",
 		nr_xcede_records);
+
+	payload = &xcede_latency_parameter.payload;
+	for (i = 0; i < nr_xcede_records; i++) {
+		struct xcede_latency_record *record = &payload->records[i];
+		u64 latency_tb = be64_to_cpu(record->latency_ticks);
+		u64 latency_us = tb_to_ns(latency_tb) / NSEC_PER_USEC;
+
+		if (latency_us < min_latency_us)
+			min_latency_us = latency_us;
+	}
+
+	/*
+	 * By default, we assume that CEDE(0) has exit latency 10us,
+	 * since there is no way for us to query from the platform.
+	 *
+	 * However, if the wakeup latency of an Extended CEDE state is
+	 * smaller than 10us, then we can be sure that CEDE(0)
+	 * requires no more than that.
+	 *
+	 * Perform the fix-up.
+	 */
+	if (min_latency_us < dedicated_states[1].exit_latency) {
+		u64 cede0_latency = min_latency_us - 1;
+
+		if (cede0_latency <= 0)
+			cede0_latency = min_latency_us;
+
+		dedicated_states[1].exit_latency = cede0_latency;
+		dedicated_states[1].target_residency = 10 * (cede0_latency);
+		pr_info("cpuidle: Fixed up CEDE exit latency to %llu us\n",
+			cede0_latency);
+	}
+
 }
 
 /*
@@ -373,7 +412,7 @@ static int pseries_idle_probe(void)
 			cpuidle_state_table = shared_states;
 			max_idle_state = ARRAY_SIZE(shared_states);
 		} else {
-			parse_xcede_idle_states();
+			fixup_cede0_latency();
 			cpuidle_state_table = dedicated_states;
 			max_idle_state = NR_DEDICATED_STATES;
 		}
