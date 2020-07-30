@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/once.h>
-#include <linux/percpu.h>
+#include <asm/percpu.h>
 
 #include <uapi/linux/random.h>
 
