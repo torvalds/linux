@@ -397,9 +397,9 @@ static void fimc_md_pipelines_free(struct fimc_md *fmd)
 
 /* Parse port node and register as a sub-device any sensor specified there. */
 static int fimc_md_parse_port_node(struct fimc_md *fmd,
-				   struct device_node *port,
-				   unsigned int index)
+				   struct device_node *port)
 {
+	int index = fmd->num_sensors;
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
 	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
@@ -489,7 +489,6 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 	struct device_node *parent = fmd->pdev->dev.of_node;
 	struct device_node *ports = NULL;
 	struct device_node *node;
-	int index = 0;
 	int ret;
 
 	/*
@@ -516,13 +515,12 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		if (!port)
 			continue;
 
-		ret = fimc_md_parse_port_node(fmd, port, index);
+		ret = fimc_md_parse_port_node(fmd, port);
 		of_node_put(port);
 		if (ret < 0) {
 			of_node_put(node);
 			goto cleanup;
 		}
-		index++;
 	}
 
 	/* Attach sensors listed in the parallel-ports node */
@@ -531,12 +529,11 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		goto rpm_put;
 
 	for_each_child_of_node(ports, node) {
-		ret = fimc_md_parse_port_node(fmd, node, index);
+		ret = fimc_md_parse_port_node(fmd, node);
 		if (ret < 0) {
 			of_node_put(node);
 			goto cleanup;
 		}
-		index++;
 	}
 	of_node_put(ports);
 
