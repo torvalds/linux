@@ -35,6 +35,7 @@ struct soc_info {
 	const u32 *formats;
 	size_t num_formats;
 	bool has_bicubic;
+	bool manual_restart;
 
 	void (*set_coefs)(struct ingenic_ipu *ipu, unsigned int reg,
 			  unsigned int sharpness, bool downscale,
@@ -645,7 +646,8 @@ static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 	unsigned int dummy;
 
 	/* dummy read allows CPU to reconfigure IPU */
-	regmap_read(ipu->map, JZ_REG_IPU_STATUS, &dummy);
+	if (ipu->soc_info->manual_restart)
+		regmap_read(ipu->map, JZ_REG_IPU_STATUS, &dummy);
 
 	/* ACK interrupt */
 	regmap_write(ipu->map, JZ_REG_IPU_STATUS, 0);
@@ -656,7 +658,8 @@ static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 	regmap_write(ipu->map, JZ_REG_IPU_V_ADDR, ipu->addr_v);
 
 	/* Run IPU for the new frame */
-	regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_RUN);
+	if (ipu->soc_info->manual_restart)
+		regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_RUN);
 
 	drm_crtc_handle_vblank(crtc);
 
@@ -806,6 +809,7 @@ static const struct soc_info jz4725b_soc_info = {
 	.formats	= jz4725b_ipu_formats,
 	.num_formats	= ARRAY_SIZE(jz4725b_ipu_formats),
 	.has_bicubic	= false,
+	.manual_restart	= true,
 	.set_coefs	= jz4725b_set_coefs,
 };
 
@@ -831,6 +835,7 @@ static const struct soc_info jz4760_soc_info = {
 	.formats	= jz4760_ipu_formats,
 	.num_formats	= ARRAY_SIZE(jz4760_ipu_formats),
 	.has_bicubic	= true,
+	.manual_restart	= false,
 	.set_coefs	= jz4760_set_coefs,
 };
 
