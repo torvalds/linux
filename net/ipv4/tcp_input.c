@@ -2950,6 +2950,8 @@ static bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 		u32 delta = tcp_time_stamp(tp) - tp->rx_opt.rcv_tsecr;
 
 		if (likely(delta < INT_MAX / (USEC_PER_SEC / TCP_TS_HZ))) {
+			if (!delta)
+				delta = 1;
 			seq_rtt_us = delta * (USEC_PER_SEC / TCP_TS_HZ);
 			ca_rtt_us = seq_rtt_us;
 		}
