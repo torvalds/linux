@@ -800,7 +800,7 @@ static int _set_required_opp(struct device *dev, struct device *pd_dev,
 /* This is only called for PM domain for now */
 static int _set_required_opps(struct device *dev,
 			      struct opp_table *opp_table,
-			      struct dev_pm_opp *opp)
+			      struct dev_pm_opp *opp, bool up)
 {
 	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
 	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
@@ -820,11 +820,22 @@ static int _set_required_opps(struct device *dev,
 	 * after it is freed from another thread.
 	 */
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
-	for (i = 0; i < opp_table->required_opp_count; i++) {
-		ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
-		if (ret)
-			break;
+
+	/* Scaling up? Set required OPPs in normal order, else reverse */
+	if (up) {
+		for (i = 0; i < opp_table->required_opp_count; i++) {
+			ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
+			if (ret)
+				break;
+		}
+	} else {
+		for (i = opp_table->required_opp_count - 1; i >= 0; i--) {
+			ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
+			if (ret)
+				break;
+		}
 	}
+
 	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 
 	return ret;
@@ -883,7 +894,7 @@ static int _opp_set_rate_zero(struct device *dev, struct opp_table *opp_table)
 	if (opp_table->regulators)
 		regulator_disable(opp_table->regulators[0]);
 
-	ret = _set_required_opps(dev, opp_table, NULL);
+	ret = _set_required_opps(dev, opp_table, NULL, false);
 
 	opp_table->enabled = false;
 	return ret;
@@ -974,7 +985,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Scaling up? Configure required OPPs before frequency */
 	if (freq >= old_freq) {
-		ret = _set_required_opps(dev, opp_table, opp);
+		ret = _set_required_opps(dev, opp_table, opp, true);
 		if (ret)
 			goto put_opp;
 	}
@@ -994,7 +1005,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Scaling down? Configure required OPPs after frequency */
 	if (!ret && freq < old_freq) {
-		ret = _set_required_opps(dev, opp_table, opp);
+		ret = _set_required_opps(dev, opp_table, opp, false);
 		if (ret)
 			dev_err(dev, "Failed to set required opps: %d\n", ret);
 	}
