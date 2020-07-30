@@ -442,11 +442,8 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 
 void ast_device_destroy(struct ast_private *ast)
 {
-	struct drm_device *dev = &ast->base;
-
 	/* enable standard VGA decode */
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 
-	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
 }

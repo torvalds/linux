@@ -312,7 +312,6 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
-void ast_release_firmware(struct drm_device *dev);
 
 /* ast_cursor.c */
 int ast_cursor_init(struct ast_private *ast);
