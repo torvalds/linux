@@ -2029,8 +2029,8 @@ struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	mw->ibmw.rkey = mw->mmkey.key;
 	mw->ndescs = ndescs;
 
-	resp.response_length = min(offsetof(typeof(resp), response_length) +
-				   sizeof(resp.response_length), udata->outlen);
+	resp.response_length =
+		min(offsetofend(typeof(resp), response_length), udata->outlen);
 	if (resp.response_length) {
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err) {

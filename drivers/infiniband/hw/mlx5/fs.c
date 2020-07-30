@@ -136,12 +136,9 @@ static int check_mpls_supp_fields(u32 field_support, const __be32 *set_mask)
 #define LAST_COUNTERS_FIELD counters
 
 /* Field is the last supported field */
-#define FIELDS_NOT_SUPPORTED(filter, field)\
-	memchr_inv((void *)&filter.field  +\
-		   sizeof(filter.field), 0,\
-		   sizeof(filter) -\
-		   offsetof(typeof(filter), field) -\
-		   sizeof(filter.field))
+#define FIELDS_NOT_SUPPORTED(filter, field)                                    \
+	memchr_inv((void *)&filter.field + sizeof(filter.field), 0,            \
+		   sizeof(filter) - offsetofend(typeof(filter), field))
 
 int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 			   bool is_egress,
@@ -1164,8 +1161,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	int underlay_qpn;
 
 	if (udata && udata->inlen) {
-		min_ucmd_sz = offsetof(typeof(ucmd_hdr), reserved) +
-				sizeof(ucmd_hdr.reserved);
+		min_ucmd_sz = offsetofend(struct mlx5_ib_create_flow, reserved);
 		if (udata->inlen < min_ucmd_sz)
 			return ERR_PTR(-EOPNOTSUPP);
 

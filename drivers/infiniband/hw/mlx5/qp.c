@@ -4921,8 +4921,8 @@ static int prepare_user_rq(struct ib_pd *pd,
 	int err;
 	size_t required_cmd_sz;
 
-	required_cmd_sz = offsetof(typeof(ucmd), single_stride_log_num_of_bytes)
-		+ sizeof(ucmd.single_stride_log_num_of_bytes);
+	required_cmd_sz = offsetofend(struct mlx5_ib_create_wq,
+				      single_stride_log_num_of_bytes);
 	if (udata->inlen < required_cmd_sz) {
 		mlx5_ib_dbg(dev, "invalid inlen\n");
 		return -EINVAL;
@@ -5006,7 +5006,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	if (!udata)
 		return ERR_PTR(-ENOSYS);
 
-	min_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
+	min_resp_len = offsetofend(struct mlx5_ib_create_wq_resp, reserved);
 	if (udata->outlen && udata->outlen < min_resp_len)
 		return ERR_PTR(-EINVAL);
 
@@ -5036,8 +5036,8 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	rwq->ibwq.wq_num = rwq->core_qp.qpn;
 	rwq->ibwq.state = IB_WQS_RESET;
 	if (udata->outlen) {
-		resp.response_length = offsetof(typeof(resp), response_length) +
-				sizeof(resp.response_length);
+		resp.response_length = offsetofend(
+			struct mlx5_ib_create_wq_resp, response_length);
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err)
 			goto err_copy;
@@ -5094,7 +5094,8 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 		return ERR_PTR(-EINVAL);
 	}
 
-	min_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
+	min_resp_len =
+		offsetofend(struct mlx5_ib_create_rwq_ind_tbl_resp, reserved);
 	if (udata->outlen && udata->outlen < min_resp_len)
 		return ERR_PTR(-EINVAL);
 
@@ -5128,8 +5129,9 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 
 	rwq_ind_tbl->ib_rwq_ind_tbl.ind_tbl_num = rwq_ind_tbl->rqtn;
 	if (udata->outlen) {
-		resp.response_length = offsetof(typeof(resp), response_length) +
-					sizeof(resp.response_length);
+		resp.response_length =
+			offsetofend(struct mlx5_ib_create_rwq_ind_tbl_resp,
+				    response_length);
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err)
 			goto err_copy;
@@ -5169,7 +5171,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	void *rqc;
 	void *in;
 
-	required_cmd_sz = offsetof(typeof(ucmd), reserved) + sizeof(ucmd.reserved);
+	required_cmd_sz = offsetofend(struct mlx5_ib_modify_wq, reserved);
 	if (udata->inlen < required_cmd_sz)
 		return -EINVAL;
 
