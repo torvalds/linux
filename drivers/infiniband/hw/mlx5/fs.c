@@ -1142,10 +1142,8 @@ err:
 	return ERR_PTR(err);
 }
 
-
 static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 					   struct ib_flow_attr *flow_attr,
-					   int domain,
 					   struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
@@ -1195,10 +1193,9 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto free_ucmd;
 	}
 
-	if (domain != IB_FLOW_DOMAIN_USER ||
-	    flow_attr->port > dev->num_ports ||
-	    (flow_attr->flags & ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP |
-				  IB_FLOW_ATTR_FLAGS_EGRESS))) {
+	if (flow_attr->port > dev->num_ports ||
+	    (flow_attr->flags &
+	     ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP | IB_FLOW_ATTR_FLAGS_EGRESS))) {
 		err = -EINVAL;
 		goto free_ucmd;
 	}

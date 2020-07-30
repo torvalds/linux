@@ -3232,8 +3232,8 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 		goto err_free;
 	}
 
-	flow_id = qp->device->ops.create_flow(
-		qp, flow_attr, IB_FLOW_DOMAIN_USER, &attrs->driver_udata);
+	flow_id = qp->device->ops.create_flow(qp, flow_attr,
+					      &attrs->driver_udata);
 
 	if (IS_ERR(flow_id)) {
 		err = PTR_ERR(flow_id);
