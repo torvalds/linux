@@ -407,7 +407,7 @@ static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
 	return ret;
 }
 
-static struct regulator_ops uV_ops = {
+static const struct regulator_ops uV_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 
 	.set_voltage_sel = rpm_reg_set_uV_sel,
@@ -420,7 +420,7 @@ static struct regulator_ops uV_ops = {
 	.set_load = rpm_reg_set_load,
 };
 
-static struct regulator_ops mV_ops = {
+static const struct regulator_ops mV_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 
 	.set_voltage_sel = rpm_reg_set_mV_sel,
@@ -433,7 +433,7 @@ static struct regulator_ops mV_ops = {
 	.set_load = rpm_reg_set_load,
 };
 
-static struct regulator_ops switch_ops = {
+static const struct regulator_ops switch_ops = {
 	.enable = rpm_reg_switch_enable,
 	.disable = rpm_reg_switch_disable,
 	.is_enabled = rpm_reg_is_enabled,
