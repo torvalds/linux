@@ -2630,21 +2630,10 @@ static const struct i2c_algorithm sienna_cichlid_i2c_algo = {
 	.functionality = sienna_cichlid_i2c_func,
 };
 
-static bool sienna_cichlid_i2c_adapter_is_added(struct i2c_adapter *control)
-{
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-
-	return control->dev.parent == &adev->pdev->dev;
-}
-
 static int sienna_cichlid_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
-
-	/* smu_i2c_eeprom_init may be called twice in sriov */
-	if (sienna_cichlid_i2c_adapter_is_added(control))
-		return 0;
 
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
@@ -2661,9 +2650,6 @@ static int sienna_cichlid_i2c_control_init(struct smu_context *smu, struct i2c_a
 
 static void sienna_cichlid_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
 {
-	if (!sienna_cichlid_i2c_adapter_is_added(control))
-		return;
-
 	i2c_del_adapter(control);
 }
 
