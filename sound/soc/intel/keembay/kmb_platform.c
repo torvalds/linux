@@ -109,14 +109,14 @@ static unsigned int kmb_pcm_rx_fn(struct kmb_i2s_info *kmb_i2s,
 static inline void kmb_i2s_disable_channels(struct kmb_i2s_info *kmb_i2s,
 					    u32 stream)
 {
-	struct i2s_clk_config_data *config = &kmb_i2s->config;
 	u32 i;
 
+	/* Disable all channels regardless of configuration*/
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for (i = 0; i < config->chan_nr / 2; i++)
+		for (i = 0; i < MAX_ISR; i++)
 			writel(0, kmb_i2s->i2s_base + TER(i));
 	} else {
-		for (i = 0; i < config->chan_nr / 2; i++)
+		for (i = 0; i < MAX_ISR; i++)
 			writel(0, kmb_i2s->i2s_base + RER(i));
 	}
 }
@@ -636,6 +636,10 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 		dev_err(dev, "not able to register dai\n");
 		return ret;
 	}
+
+	/* To ensure none of the channels are enabled at boot up */
+	kmb_i2s_disable_channels(kmb_i2s, SNDRV_PCM_STREAM_PLAYBACK);
+	kmb_i2s_disable_channels(kmb_i2s, SNDRV_PCM_STREAM_CAPTURE);
 
 	dev_set_drvdata(dev, kmb_i2s);
 
