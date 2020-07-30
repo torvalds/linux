@@ -20,7 +20,11 @@
 		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
 			     <25 IRQ_TYPE_LEVEL_HIGH>,
 			     <26 IRQ_TYPE_LEVEL_HIGH>,
-			     <27 IRQ_TYPE_LEVEL_HIGH>;
+			     <27 IRQ_TYPE_LEVEL_HIGH>,
+			     <28 IRQ_TYPE_LEVEL_HIGH>,
+			     <29 IRQ_TYPE_LEVEL_HIGH>,
+			     <30 IRQ_TYPE_LEVEL_HIGH>,
+			     <31 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
@@ -31,7 +35,7 @@
 		interrupt-controller;
 		msi-controller;
 		loongson,msi-base-vec = <64>;
-		loongson,msi-num-vecs = <128>;
+		loongson,msi-num-vecs = <192>;
 		interrupt-parent = <&htvec>;
 	};
 };
