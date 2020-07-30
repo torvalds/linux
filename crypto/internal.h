@@ -10,16 +10,14 @@
 
 #include <crypto/algapi.h>
 #include <linux/completion.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/notifier.h>
+#include <linux/numa.h>
+#include <linux/refcount.h>
 #include <linux/rwsem.h>
-#include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/types.h>
 
 struct crypto_instance;
 struct crypto_template;
@@ -138,6 +136,12 @@ static inline int crypto_is_moribund(struct crypto_alg *alg)
 static inline void crypto_notify(unsigned long val, void *v)
 {
 	blocking_notifier_call_chain(&crypto_chain, val, v);
+}
+
+static inline void crypto_yield(u32 flags)
+{
+	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
+		cond_resched();
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

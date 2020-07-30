@@ -277,12 +277,6 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 	return __crypto_memneq(a, b, size) != 0UL ? 1 : 0;
 }
 
-static inline void crypto_yield(u32 flags)
-{
-	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
-		cond_resched();
-}
-
 int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);
 
