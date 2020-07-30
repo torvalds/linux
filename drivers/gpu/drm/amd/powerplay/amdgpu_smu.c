@@ -579,12 +579,18 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_i2c_init(smu, &smu->adev->pm.smu_i2c);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int smu_smc_table_sw_fini(struct smu_context *smu)
 {
 	int ret;
+
+	smu_i2c_fini(smu, &smu->adev->pm.smu_i2c);
 
 	ret = smu_free_memory_pool(smu);
 	if (ret)
@@ -845,10 +851,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = smu_i2c_init(smu, &adev->pm.smu_i2c);
-	if (ret)
-		return ret;
-
 	ret = smu_disable_umc_cdr_12gbps_workaround(smu);
 	if (ret) {
 		dev_err(adev->dev, "Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
@@ -1046,8 +1048,6 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-
-	smu_i2c_fini(smu, &adev->pm.smu_i2c);
 
 	cancel_work_sync(&smu->throttling_logging_work);
 
