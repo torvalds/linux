@@ -600,7 +600,6 @@ enum {
 struct async_poll {
 	struct io_poll_iocb	poll;
 	struct io_poll_iocb	*double_poll;
-	struct io_wq_work	work;
 };
 
 /*
@@ -641,36 +640,26 @@ struct io_kiocb {
 	u16				buf_index;
 	u32				result;
 
-	struct io_ring_ctx	*ctx;
-	unsigned int		flags;
-	refcount_t		refs;
-	struct task_struct	*task;
-	u64			user_data;
+	struct io_ring_ctx		*ctx;
+	unsigned int			flags;
+	refcount_t			refs;
+	struct task_struct		*task;
+	u64				user_data;
 
-	struct list_head	link_list;
+	struct list_head		link_list;
 
 	/*
 	 * 1. used with ctx->iopoll_list with reads/writes
 	 * 2. to track reqs with ->files (see io_op_def::file_table)
 	 */
-	struct list_head	inflight_entry;
+	struct list_head		inflight_entry;
 
-	struct percpu_ref	*fixed_file_refs;
-
-	union {
-		/*
-		 * Only commands that never go async can use the below fields,
-		 * obviously. Right now only IORING_OP_POLL_ADD uses them, and
-		 * async armed poll handlers for regular commands. The latter
-		 * restore the work, if needed.
-		 */
-		struct {
-			struct hlist_node	hash_node;
-			struct async_poll	*apoll;
-		};
-		struct io_wq_work	work;
-	};
-	struct callback_head	task_work;
+	struct percpu_ref		*fixed_file_refs;
+	struct callback_head		task_work;
+	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
+	struct hlist_node		hash_node;
+	struct async_poll		*apoll;
+	struct io_wq_work		work;
 };
 
 struct io_defer_entry {
@@ -4668,10 +4657,6 @@ static void io_async_task_func(struct callback_head *cb)
 	io_poll_remove_double(req, apoll->double_poll);
 	spin_unlock_irq(&ctx->completion_lock);
 
-	/* restore ->work in case we need to retry again */
-	if (req->flags & REQ_F_WORK_INITIALIZED)
-		memcpy(&req->work, &apoll->work, sizeof(req->work));
-
 	if (!READ_ONCE(apoll->poll.canceled))
 		__io_req_task_submit(req);
 	else
@@ -4763,9 +4748,6 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	apoll->double_poll = NULL;
 
 	req->flags |= REQ_F_POLLED;
-	if (req->flags & REQ_F_WORK_INITIALIZED)
-		memcpy(&apoll->work, &req->work, sizeof(req->work));
-
 	io_get_req_task(req);
 	req->apoll = apoll;
 	INIT_HLIST_NODE(&req->hash_node);
@@ -4784,8 +4766,6 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	if (ret) {
 		io_poll_remove_double(req, apoll->double_poll);
 		spin_unlock_irq(&ctx->completion_lock);
-		if (req->flags & REQ_F_WORK_INITIALIZED)
-			memcpy(&req->work, &apoll->work, sizeof(req->work));
 		kfree(apoll->double_poll);
 		kfree(apoll);
 		return false;
@@ -4828,14 +4808,6 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 		do_complete = __io_poll_remove_one(req, &apoll->poll);
 		if (do_complete) {
 			io_put_req(req);
-			/*
-			 * restore ->work because we will call
-			 * io_req_clean_work below when dropping the
-			 * final reference.
-			 */
-			if (req->flags & REQ_F_WORK_INITIALIZED)
-				memcpy(&req->work, &apoll->work,
-				       sizeof(req->work));
 			kfree(apoll->double_poll);
 			kfree(apoll);
 		}
@@ -4968,9 +4940,6 @@ static int io_poll_add(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_poll_table ipt;
 	__poll_t mask;
-
-	/* ->work is in union with hash_node and others */
-	io_req_clean_work(req);
 
 	INIT_HLIST_NODE(&req->hash_node);
 	ipt.pt._qproc = io_poll_queue_proc;
