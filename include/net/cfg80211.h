@@ -267,12 +267,12 @@ struct ieee80211_he_obss_pd {
  * struct cfg80211_he_bss_color - AP settings for BSS coloring
  *
  * @color: the current color.
- * @disabled: is the feature disabled.
+ * @enabled: HE BSS color is used
  * @partial: define the AID equation.
  */
 struct cfg80211_he_bss_color {
 	u8 color;
-	bool disabled;
+	bool enabled;
 	bool partial;
 };
 

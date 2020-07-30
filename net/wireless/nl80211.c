@@ -4713,8 +4713,8 @@ static int nl80211_parse_he_bss_color(struct nlattr *attrs,
 
 	he_bss_color->color =
 		nla_get_u8(tb[NL80211_HE_BSS_COLOR_ATTR_COLOR]);
-	he_bss_color->disabled =
-		nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_DISABLED]);
+	he_bss_color->enabled =
+		!nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_DISABLED]);
 	he_bss_color->partial =
 		nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_PARTIAL]);
 
@@ -4864,9 +4864,6 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		return -EALREADY;
 
 	memset(&params, 0, sizeof(params));
-
-	/* disable BSS color by default */
-	params.he_bss_color.disabled = true;
 
 	/* these are required for START_AP */
 	if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||

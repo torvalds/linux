@@ -3460,11 +3460,11 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		bss_conf->he_bss_color.partial =
 			le32_get_bits(elems->he_operation->he_oper_params,
 				      IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR);
-		bss_conf->he_bss_color.disabled =
-			le32_get_bits(elems->he_operation->he_oper_params,
-				      IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED);
+		bss_conf->he_bss_color.enabled =
+			!le32_get_bits(elems->he_operation->he_oper_params,
+				       IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED);
 
-		if (!bss_conf->he_bss_color.disabled)
+		if (bss_conf->he_bss_color.enabled)
 			changed |= BSS_CHANGED_HE_BSS_COLOR;
 
 		bss_conf->htc_trig_based_pkt_ext =
