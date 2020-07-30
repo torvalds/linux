@@ -90,8 +90,14 @@ static void mgag200_mm_release(struct drm_device *dev, void *ptr)
 int mgag200_mm_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
+	u8 misc;
 	resource_size_t start, len;
 	int ret;
+
+	misc = RREG8(MGA_MISC_IN);
+	misc |= MGAREG_MISC_RAMMAPEN |
+		MGAREG_MISC_HIGH_PG_SEL;
+	WREG8(MGA_MISC_OUT, misc);
 
 	/* BAR 0 is VRAM */
 	start = pci_resource_start(dev->pdev, 0);

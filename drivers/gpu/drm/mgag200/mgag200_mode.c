@@ -978,9 +978,7 @@ static void mgag200_init_regs(struct mga_device *mdev)
 		WREG_ECRT(0x34, 0x5);
 
 	misc = RREG8(MGA_MISC_IN);
-	misc |= MGAREG_MISC_IOADSEL |
-		MGAREG_MISC_RAMMAPEN |
-		MGAREG_MISC_HIGH_PG_SEL;
+	misc |= MGAREG_MISC_IOADSEL;
 	WREG8(MGA_MISC_OUT, misc);
 }
 
