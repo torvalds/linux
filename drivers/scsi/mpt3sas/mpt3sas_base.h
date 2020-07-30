@@ -1529,6 +1529,8 @@ __le32 mpt3sas_base_get_sense_buffer_dma(struct MPT3SAS_ADAPTER *ioc,
 void *mpt3sas_base_get_pcie_sgl(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 dma_addr_t mpt3sas_base_get_pcie_sgl_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 void mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc);
+void mpt3sas_base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc);
 
 void mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 handle);
