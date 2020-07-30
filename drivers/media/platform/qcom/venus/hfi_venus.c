@@ -986,13 +986,6 @@ static void venus_process_msg_sys_error(struct venus_hfi_device *hdev,
 
 	venus_set_state(hdev, VENUS_STATE_DEINIT);
 
-	/*
-	 * Once SYS_ERROR received from HW, it is safe to halt the AXI.
-	 * With SYS_ERROR, Venus FW may have crashed and HW might be
-	 * active and causing unnecessary transactions. Hence it is
-	 * safe to stop all AXI transactions from venus subsystem.
-	 */
-	venus_halt_axi(hdev);
 	venus_sfr_print(hdev);
 }
 
@@ -1009,10 +1002,6 @@ static irqreturn_t venus_isr_thread(struct venus_core *core)
 	res = hdev->core->res;
 	pkt = hdev->pkt_buf;
 
-	if (hdev->irq_status & WRAPPER_INTR_STATUS_A2HWD_MASK) {
-		venus_sfr_print(hdev);
-		hfi_process_watchdog_timeout(core);
-	}
 
 	while (!venus_iface_msgq_read(hdev, pkt)) {
 		msg_ret = hfi_process_msg_packet(core, pkt);

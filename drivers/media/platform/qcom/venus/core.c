@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/interconnect.h>
 #include <linux/ioctl.h>
+#include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -40,13 +41,7 @@ static void venus_event_notify(struct venus_core *core, u32 event)
 	mutex_unlock(&core->lock);
 
 	disable_irq_nosync(core->irq);
-
-	/*
-	 * Delay recovery to ensure venus has completed any pending cache
-	 * operations. Without this sleep, we see device reset when firmware is
-	 * unloaded after a system error.
-	 */
-	schedule_delayed_work(&core->work, msecs_to_jiffies(100));
+	schedule_delayed_work(&core->work, msecs_to_jiffies(10));
 }
 
 static const struct hfi_core_ops venus_core_ops = {
@@ -59,23 +54,30 @@ static void venus_sys_error_handler(struct work_struct *work)
 			container_of(work, struct venus_core, work.work);
 	int ret = 0;
 
-	dev_warn(core->dev, "system error has occurred, starting recovery!\n");
-
 	pm_runtime_get_sync(core->dev);
 
 	hfi_core_deinit(core, true);
-	hfi_destroy(core);
+
+	dev_warn(core->dev, "system error has occurred, starting recovery!\n");
+
 	mutex_lock(&core->lock);
+
+	while (pm_runtime_active(core->dev_dec) || pm_runtime_active(core->dev_enc))
+		msleep(10);
+
 	venus_shutdown(core);
 
 	pm_runtime_put_sync(core->dev);
 
+	while (core->pmdomains[0] && pm_runtime_active(core->pmdomains[0]))
+		usleep_range(1000, 1500);
+
+	hfi_destroy(core);
 	ret |= hfi_create(core, &venus_core_ops);
 
 	pm_runtime_get_sync(core->dev);
 
 	ret |= venus_boot(core);
-
 	ret |= hfi_core_resume(core, true);
 
 	enable_irq(core->irq);
