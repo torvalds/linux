@@ -91,7 +91,6 @@ struct dwapb_gpio_port_irqchip {
 struct dwapb_gpio_port {
 	struct gpio_chip	gc;
 	struct dwapb_gpio_port_irqchip *pirq;
-	bool			is_registered;
 	struct dwapb_gpio	*gpio;
 #ifdef CONFIG_PM_SLEEP
 	struct dwapb_context	*ctx;
@@ -519,30 +518,14 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	if (pp->idx == 0)
 		dwapb_configure_irqs(gpio, port, pp);
 
-	err = gpiochip_add_data(&port->gc, port);
+	err = devm_gpiochip_add_data(gpio->dev, &port->gc, port);
 	if (err) {
 		dev_err(gpio->dev, "failed to register gpiochip for port%d\n",
 			port->idx);
 		return err;
 	}
 
-	port->is_registered = true;
-
 	return 0;
-}
-
-static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
-{
-	unsigned int m;
-
-	for (m = 0; m < gpio->nr_ports; ++m) {
-		struct dwapb_gpio_port *port = &gpio->ports[m];
-
-		if (!port->is_registered)
-			continue;
-
-		gpiochip_remove(&port->gc);
-	}
 }
 
 static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
@@ -738,23 +721,8 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < gpio->nr_ports; i++) {
 		err = dwapb_gpio_add_port(gpio, &pdata->properties[i], i);
 		if (err)
-			goto out_unregister;
+			return err;
 	}
-	platform_set_drvdata(pdev, gpio);
-
-	return 0;
-
-out_unregister:
-	dwapb_gpio_unregister(gpio);
-
-	return err;
-}
-
-static int dwapb_gpio_remove(struct platform_device *pdev)
-{
-	struct dwapb_gpio *gpio = platform_get_drvdata(pdev);
-
-	dwapb_gpio_unregister(gpio);
 
 	return 0;
 }
@@ -858,7 +826,6 @@ static struct platform_driver dwapb_gpio_driver = {
 		.acpi_match_table = dwapb_acpi_match,
 	},
 	.probe		= dwapb_gpio_probe,
-	.remove		= dwapb_gpio_remove,
 };
 
 module_platform_driver(dwapb_gpio_driver);
