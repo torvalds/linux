@@ -526,9 +526,6 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		return err;
 	}
 
-	/* Add GPIO-signaled ACPI event support */
-	acpi_gpiochip_request_interrupts(&port->gc);
-
 	port->is_registered = true;
 
 	return 0;
@@ -544,7 +541,6 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 		if (!port->is_registered)
 			continue;
 
-		acpi_gpiochip_free_interrupts(&port->gc);
 		gpiochip_remove(&port->gc);
 	}
 }
