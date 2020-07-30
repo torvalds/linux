@@ -1027,23 +1027,23 @@ void ice_deinit_hw(struct ice_hw *hw)
  */
 enum ice_status ice_check_reset(struct ice_hw *hw)
 {
-	u32 cnt, reg = 0, grst_delay, uld_mask;
+	u32 cnt, reg = 0, grst_timeout, uld_mask;
 
 	/* Poll for Device Active state in case a recent CORER, GLOBR,
 	 * or EMPR has occurred. The grst delay value is in 100ms units.
 	 * Add 1sec for outstanding AQ commands that can take a long time.
 	 */
-	grst_delay = ((rd32(hw, GLGEN_RSTCTL) & GLGEN_RSTCTL_GRSTDEL_M) >>
-		      GLGEN_RSTCTL_GRSTDEL_S) + 10;
+	grst_timeout = ((rd32(hw, GLGEN_RSTCTL) & GLGEN_RSTCTL_GRSTDEL_M) >>
+			GLGEN_RSTCTL_GRSTDEL_S) + 10;
 
-	for (cnt = 0; cnt < grst_delay; cnt++) {
+	for (cnt = 0; cnt < grst_timeout; cnt++) {
 		mdelay(100);
 		reg = rd32(hw, GLGEN_RSTAT);
 		if (!(reg & GLGEN_RSTAT_DEVSTATE_M))
 			break;
 	}
 
-	if (cnt == grst_delay) {
+	if (cnt == grst_timeout) {
 		ice_debug(hw, ICE_DBG_INIT,
 			  "Global reset polling failed to complete.\n");
 		return ICE_ERR_RESET_FAILED;
