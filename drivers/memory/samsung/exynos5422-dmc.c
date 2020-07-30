@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/of_device.h>
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
@@ -20,6 +21,10 @@
 #include <linux/slab.h>
 #include "../jedec_ddr.h"
 #include "../of_memory.h"
+
+static int irqmode;
+module_param(irqmode, int, 0644);
+MODULE_PARM_DESC(irqmode, "Enable IRQ mode (0=off [default], 1=on)");
 
 #define EXYNOS5_DREXI_TIMINGAREF		(0x0030)
 #define EXYNOS5_DREXI_TIMINGROW0		(0x0034)
@@ -945,6 +950,7 @@ static int exynos5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
  * It provides to the devfreq framework needed functions and polling period.
  */
 static struct devfreq_dev_profile exynos5_dmc_df_profile = {
+	.timer = DEVFREQ_TIMER_DELAYED,
 	.target = exynos5_dmc_target,
 	.get_dev_status = exynos5_dmc_get_status,
 	.get_cur_freq = exynos5_dmc_get_cur_freq,
@@ -1427,7 +1433,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	/* There is two modes in which the driver works: polling or IRQ */
 	irq[0] = platform_get_irq_byname(pdev, "drex_0");
 	irq[1] = platform_get_irq_byname(pdev, "drex_1");
-	if (irq[0] > 0 && irq[1] > 0) {
+	if (irq[0] > 0 && irq[1] > 0 && irqmode) {
 		ret = devm_request_threaded_irq(dev, irq[0], NULL,
 						dmc_irq_thread, IRQF_ONESHOT,
 						dev_name(dev), dmc);
@@ -1465,10 +1471,10 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		 * Setup default thresholds for the devfreq governor.
 		 * The values are chosen based on experiments.
 		 */
-		dmc->gov_data.upthreshold = 30;
+		dmc->gov_data.upthreshold = 10;
 		dmc->gov_data.downdifferential = 5;
 
-		exynos5_dmc_df_profile.polling_ms = 500;
+		exynos5_dmc_df_profile.polling_ms = 100;
 	}
 
 
@@ -1484,7 +1490,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	if (dmc->in_irq_mode)
 		exynos5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
 
-	dev_info(dev, "DMC initialized\n");
+	dev_info(dev, "DMC initialized, in irq mode: %d\n", dmc->in_irq_mode);
 
 	return 0;
 
