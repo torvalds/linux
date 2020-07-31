@@ -8979,10 +8979,18 @@ static void bpf_xdp_link_release(struct bpf_link *link)
 	/* if racing with net_device's tear down, xdp_link->dev might be
 	 * already NULL, in which case link was already auto-detached
 	 */
-	if (xdp_link->dev)
+	if (xdp_link->dev) {
 		WARN_ON(dev_xdp_detach_link(xdp_link->dev, NULL, xdp_link));
+		xdp_link->dev = NULL;
+	}
 
 	rtnl_unlock();
+}
+
+static int bpf_xdp_link_detach(struct bpf_link *link)
+{
+	bpf_xdp_link_release(link);
+	return 0;
 }
 
 static void bpf_xdp_link_dealloc(struct bpf_link *link)
@@ -9066,6 +9074,7 @@ out_unlock:
 static const struct bpf_link_ops bpf_xdp_link_lops = {
 	.release = bpf_xdp_link_release,
 	.dealloc = bpf_xdp_link_dealloc,
+	.detach = bpf_xdp_link_detach,
 	.show_fdinfo = bpf_xdp_link_show_fdinfo,
 	.fill_link_info = bpf_xdp_link_fill_link_info,
 	.update_prog = bpf_xdp_link_update,
