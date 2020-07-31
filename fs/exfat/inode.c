@@ -39,7 +39,7 @@ static int __exfat_write_inode(struct inode *inode, int sync)
 	if (is_dir && ei->dir.dir == sbi->root_dir && ei->entry == -1)
 		return 0;
 
-	exfat_set_vol_flags(sb, VOL_DIRTY);
+	exfat_set_volume_dirty(sb);
 
 	/* get the directory entry of given file or directory */
 	es = exfat_get_dentry_set(sb, &(ei->dir), ei->entry, ES_ALL_ENTRIES);
@@ -167,7 +167,7 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 	}
 
 	if (*clu == EXFAT_EOF_CLUSTER) {
-		exfat_set_vol_flags(sb, VOL_DIRTY);
+		exfat_set_volume_dirty(sb);
 
 		new_clu.dir = (last_clu == EXFAT_EOF_CLUSTER) ?
 				EXFAT_EOF_CLUSTER : last_clu + 1;
