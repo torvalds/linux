@@ -285,10 +285,8 @@ static unsigned long vmemmap_list_free(unsigned long start)
 		vmem_back_prev = vmem_back;
 	}
 
-	if (unlikely(!vmem_back)) {
-		WARN_ON(1);
+	if (unlikely(!vmem_back))
 		return 0;
-	}
 
 	/* remove it from vmemmap_list */
 	if (vmem_back == vmemmap_list) /* remove head */
