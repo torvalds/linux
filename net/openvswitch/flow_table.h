@@ -27,6 +27,12 @@ struct mask_cache_entry {
 	u32 mask_index;
 };
 
+struct mask_cache {
+	struct rcu_head rcu;
+	u32 cache_size;  /* Must be ^2 value. */
+	struct mask_cache_entry __percpu *mask_cache;
+};
+
 struct mask_count {
 	int index;
 	u64 counter;
@@ -53,7 +59,7 @@ struct table_instance {
 struct flow_table {
 	struct table_instance __rcu *ti;
 	struct table_instance __rcu *ufid_ti;
-	struct mask_cache_entry __percpu *mask_cache;
+	struct mask_cache __rcu *mask_cache;
 	struct mask_array __rcu *mask_array;
 	unsigned long last_rehash;
 	unsigned int count;
@@ -77,6 +83,8 @@ int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
 			const struct sw_flow_mask *mask);
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
 int  ovs_flow_tbl_num_masks(const struct flow_table *table);
+u32  ovs_flow_tbl_masks_cache_size(const struct flow_table *table);
+int  ovs_flow_tbl_masks_cache_resize(struct flow_table *table, u32 size);
 struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *table,
 				       u32 *bucket, u32 *idx);
 struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *,

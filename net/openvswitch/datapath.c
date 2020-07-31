@@ -1498,6 +1498,7 @@ static size_t ovs_dp_cmd_msg_size(void)
 	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_stats));
 	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_megaflow_stats));
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_USER_FEATURES */
+	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_MASKS_CACHE_SIZE */
 
 	return msgsize;
 }
@@ -1533,6 +1534,10 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, OVS_DP_ATTR_USER_FEATURES, dp->user_features))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, OVS_DP_ATTR_MASKS_CACHE_SIZE,
+			ovs_flow_tbl_masks_cache_size(&dp->table)))
 		goto nla_put_failure;
 
 	genlmsg_end(skb, ovs_header);
@@ -1597,6 +1602,16 @@ static int ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 		if (user_features & OVS_DP_F_TC_RECIRC_SHARING)
 			return -EOPNOTSUPP;
 #endif
+	}
+
+	if (a[OVS_DP_ATTR_MASKS_CACHE_SIZE]) {
+		int err;
+		u32 cache_size;
+
+		cache_size = nla_get_u32(a[OVS_DP_ATTR_MASKS_CACHE_SIZE]);
+		err = ovs_flow_tbl_masks_cache_resize(&dp->table, cache_size);
+		if (err)
+			return err;
 	}
 
 	dp->user_features = user_features;
@@ -1887,6 +1902,8 @@ static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
 	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
 	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
 	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
+	[OVS_DP_ATTR_MASKS_CACHE_SIZE] =  NLA_POLICY_RANGE(NLA_U32, 0,
+		PCPU_MIN_UNIT_SIZE / sizeof(struct mask_cache_entry)),
 };
 
 static const struct genl_ops dp_datapath_genl_ops[] = {
