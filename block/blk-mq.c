@@ -388,7 +388,7 @@ retry:
 		/*
 		 * Give up the CPU and sleep for a random short time to ensure
 		 * that thread using a realtime scheduling class are migrated
-		 * off the the CPU, and thus off the hctx that is going away.
+		 * off the CPU, and thus off the hctx that is going away.
 		 */
 		msleep(3);
 		goto retry;
