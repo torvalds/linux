@@ -58,22 +58,9 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	if (setup_cgroup_environment()) {
-		printf("Failed to load bpf program\n");
+	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
+	if (cgroup_fd < 0)
 		goto err;
-	}
-
-	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (cgroup_fd < 0) {
-		printf("Failed to create test cgroup\n");
-		goto err;
-	}
-
-	if (join_cgroup(TEST_CGROUP)) {
-		printf("Failed to join cgroup\n");
-		goto err;
-	}
 
 	/* Attach bpf program */
 	if (bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_INET_EGRESS, 0)) {
