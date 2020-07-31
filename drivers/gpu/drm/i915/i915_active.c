@@ -157,6 +157,10 @@ __active_retire(struct i915_active *ref)
 		rb_link_node(&ref->cache->node, NULL, &ref->tree.rb_node);
 		rb_insert_color(&ref->cache->node, &ref->tree);
 		GEM_BUG_ON(ref->tree.rb_node != &ref->cache->node);
+
+		/* Make the cached node available for reuse with any timeline */
+		if (IS_ENABLED(CONFIG_64BIT))
+			ref->cache->timeline = 0; /* needs cmpxchg(u64) */
 	}
 
 	spin_unlock_irqrestore(&ref->tree_lock, flags);
@@ -235,6 +239,8 @@ static struct active_node *__active_lookup(struct i915_active *ref, u64 idx)
 {
 	struct active_node *it;
 
+	GEM_BUG_ON(idx == 0); /* 0 is the unordered timeline, rsvd for cache */
+
 	/*
 	 * We track the most recently used timeline to skip a rbtree search
 	 * for the common case, under typical loads we never need the rbtree
@@ -243,8 +249,28 @@ static struct active_node *__active_lookup(struct i915_active *ref, u64 idx)
 	 * current timeline.
 	 */
 	it = READ_ONCE(ref->cache);
-	if (it && it->timeline == idx)
-		return it;
+	if (it) {
+		u64 cached = READ_ONCE(it->timeline);
+
+		/* Once claimed, this slot will only belong to this idx */
+		if (cached == idx)
+			return it;
+
+#ifdef CONFIG_64BIT /* for cmpxchg(u64) */
+		/*
+		 * An unclaimed cache [.timeline=0] can only be claimed once.
+		 *
+		 * If the value is already non-zero, some other thread has
+		 * claimed the cache and we know that is does not match our
+		 * idx. If, and only if, the timeline is currently zero is it
+		 * worth competing to claim it atomically for ourselves (for
+		 * only the winner of that race will cmpxchg return the old
+		 * value of 0).
+		 */
+		if (!cached && !cmpxchg(&it->timeline, 0, idx))
+			return it;
+#endif
+	}
 
 	BUILD_BUG_ON(offsetof(typeof(*it), node));
 
