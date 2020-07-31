@@ -7748,6 +7748,11 @@ struct bpf_link *bpf_link__open(const char *path)
 	return link;
 }
 
+int bpf_link__detach(struct bpf_link *link)
+{
+	return bpf_link_detach(link->fd) ? -errno : 0;
+}
+
 int bpf_link__pin(struct bpf_link *link, const char *path)
 {
 	int err;
