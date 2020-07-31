@@ -223,6 +223,9 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, RDMA_READ))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_READ;
 
+		if (EFA_DEV_CAP(dev, RNR_RETRY))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RNR_RETRY;
+
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
 		if (err) {
@@ -268,7 +271,7 @@ int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 
 #define EFA_QUERY_QP_SUPP_MASK \
 	(IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT | \
-	 IB_QP_QKEY | IB_QP_SQ_PSN | IB_QP_CAP)
+	 IB_QP_QKEY | IB_QP_SQ_PSN | IB_QP_CAP | IB_QP_RNR_RETRY)
 
 	if (qp_attr_mask & ~EFA_QUERY_QP_SUPP_MASK) {
 		ibdev_dbg(&dev->ibdev,
@@ -290,6 +293,7 @@ int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	qp_attr->sq_psn = result.sq_psn;
 	qp_attr->sq_draining = result.sq_draining;
 	qp_attr->port_num = 1;
+	qp_attr->rnr_retry = result.rnr_retry;
 
 	qp_attr->cap.max_send_wr = qp->max_send_wr;
 	qp_attr->cap.max_recv_wr = qp->max_recv_wr;
@@ -776,7 +780,9 @@ static const struct {
 			.valid = 1,
 			.req_param = IB_QP_SQ_PSN,
 			.opt_param = IB_QP_CUR_STATE |
-				     IB_QP_QKEY,
+				     IB_QP_QKEY |
+				     IB_QP_RNR_RETRY,
+
 		}
 	},
 	[IB_QPS_RTS] = {
@@ -856,7 +862,8 @@ static int efa_modify_qp_validate(struct efa_dev *dev, struct efa_qp *qp,
 
 #define EFA_MODIFY_QP_SUPP_MASK \
 	(IB_QP_STATE | IB_QP_CUR_STATE | IB_QP_EN_SQD_ASYNC_NOTIFY | \
-	 IB_QP_PKEY_INDEX | IB_QP_PORT | IB_QP_QKEY | IB_QP_SQ_PSN)
+	 IB_QP_PKEY_INDEX | IB_QP_PORT | IB_QP_QKEY | IB_QP_SQ_PSN | \
+	 IB_QP_RNR_RETRY)
 
 	if (qp_attr_mask & ~EFA_MODIFY_QP_SUPP_MASK) {
 		ibdev_dbg(&dev->ibdev,
@@ -941,6 +948,12 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	if (qp_attr_mask & IB_QP_SQ_PSN) {
 		EFA_SET(&params.modify_mask, EFA_ADMIN_MODIFY_QP_CMD_SQ_PSN, 1);
 		params.sq_psn = qp_attr->sq_psn;
+	}
+
+	if (qp_attr_mask & IB_QP_RNR_RETRY) {
+		EFA_SET(&params.modify_mask, EFA_ADMIN_MODIFY_QP_CMD_RNR_RETRY,
+			1);
+		params.rnr_retry = qp_attr->rnr_retry;
 	}
 
 	err = efa_com_modify_qp(&dev->edev, &params);

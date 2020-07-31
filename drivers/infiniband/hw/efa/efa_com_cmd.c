@@ -76,6 +76,7 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	cmd.qkey = params->qkey;
 	cmd.sq_psn = params->sq_psn;
 	cmd.sq_drained_async_notify = params->sq_drained_async_notify;
+	cmd.rnr_retry = params->rnr_retry;
 
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&cmd,
@@ -121,6 +122,7 @@ int efa_com_query_qp(struct efa_com_dev *edev,
 	result->qkey = resp.qkey;
 	result->sq_draining = resp.sq_draining;
 	result->sq_psn = resp.sq_psn;
+	result->rnr_retry = resp.rnr_retry;
 
 	return 0;
 }

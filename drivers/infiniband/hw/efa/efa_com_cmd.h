@@ -47,6 +47,7 @@ struct efa_com_modify_qp_params {
 	u32 qkey;
 	u32 sq_psn;
 	u8 sq_drained_async_notify;
+	u8 rnr_retry;
 };
 
 struct efa_com_query_qp_params {
@@ -58,6 +59,7 @@ struct efa_com_query_qp_result {
 	u32 qkey;
 	u32 sq_draining;
 	u32 sq_psn;
+	u8 rnr_retry;
 };
 
 struct efa_com_destroy_qp_params {

@@ -105,6 +105,7 @@ struct efa_ibv_create_ah_resp {
 
 enum {
 	EFA_QUERY_DEVICE_CAPS_RDMA_READ = 1 << 0,
+	EFA_QUERY_DEVICE_CAPS_RNR_RETRY = 1 << 1,
 };
 
 struct efa_ibv_ex_query_device_resp {
