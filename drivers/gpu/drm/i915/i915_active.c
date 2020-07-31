@@ -416,6 +416,14 @@ bool i915_active_acquire_if_busy(struct i915_active *ref)
 	return atomic_add_unless(&ref->count, 1, 0);
 }
 
+static void __i915_active_activate(struct i915_active *ref)
+{
+	spin_lock_irq(&ref->tree_lock); /* __active_retire() */
+	if (!atomic_fetch_inc(&ref->count))
+		debug_active_activate(ref);
+	spin_unlock_irq(&ref->tree_lock);
+}
+
 int i915_active_acquire(struct i915_active *ref)
 {
 	int err;
@@ -423,19 +431,19 @@ int i915_active_acquire(struct i915_active *ref)
 	if (i915_active_acquire_if_busy(ref))
 		return 0;
 
+	if (!ref->active) {
+		__i915_active_activate(ref);
+		return 0;
+	}
+
 	err = mutex_lock_interruptible(&ref->mutex);
 	if (err)
 		return err;
 
 	if (likely(!i915_active_acquire_if_busy(ref))) {
-		if (ref->active)
-			err = ref->active(ref);
-		if (!err) {
-			spin_lock_irq(&ref->tree_lock); /* __active_retire() */
-			debug_active_activate(ref);
-			atomic_inc(&ref->count);
-			spin_unlock_irq(&ref->tree_lock);
-		}
+		err = ref->active(ref);
+		if (!err)
+			__i915_active_activate(ref);
 	}
 
 	mutex_unlock(&ref->mutex);
