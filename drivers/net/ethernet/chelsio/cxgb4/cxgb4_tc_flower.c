@@ -80,6 +80,19 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 				     struct flow_rule *rule,
 				     struct ch_filter_specification *fs)
 {
+	u16 addr_type = 0;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
+
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+	}
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
 		u16 ethtype_key, ethtype_mask;
@@ -102,7 +115,7 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->mask.proto = match.mask->ip_proto;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 		struct flow_match_ipv4_addrs match;
 
 		flow_rule_match_ipv4_addrs(rule, &match);
@@ -117,7 +130,7 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		memcpy(&fs->nat_fip[0], &match.key->src, sizeof(match.key->src));
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
 		struct flow_match_ipv6_addrs match;
 
 		flow_rule_match_ipv6_addrs(rule, &match);
