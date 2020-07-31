@@ -706,8 +706,10 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 		if (err && err != -EINPROGRESS)
 			goto out_free;
 
-		if (!err)
+		if (!err) {
 			*defrag = true;
+			cb.mru = IPCB(skb)->frag_max_size;
+		}
 	} else { /* NFPROTO_IPV6 */
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
@@ -717,8 +719,10 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 		if (err && err != -EINPROGRESS)
 			goto out_free;
 
-		if (!err)
+		if (!err) {
 			*defrag = true;
+			cb.mru = IP6CB(skb)->frag_max_size;
+		}
 #else
 		err = -EOPNOTSUPP;
 		goto out_free;
