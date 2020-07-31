@@ -14188,7 +14188,8 @@ F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
 QUALCOMM GENERIC INTERFACE I2C DRIVER
-M:	Alok Chauhan <alokc@codeaurora.org>
+M:	Akash Asthana <akashast@codeaurora.org>
+M:	Mukesh Savaliya <msavaliy@codeaurora.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
