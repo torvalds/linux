@@ -862,7 +862,7 @@ EXPORT_SYMBOL(bio_add_pc_page);
  * @same_page: return if the segment has been merged inside the same page
  *
  * Try to add the data at @page + @off to the last bvec of @bio.  This is a
- * a useful optimisation for file systems with a block size smaller than the
+ * useful optimisation for file systems with a block size smaller than the
  * page size.
  *
  * Warn if (@len, @off) crosses pages in case that @same_page is true.
@@ -988,7 +988,7 @@ static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
  * Pins pages from *iter and appends them to @bio's bvec array. The
  * pages will have to be released using put_page() when done.
  * For multi-segment *iter, this function only adds pages from the
- * the next non-empty segment of the iov iterator.
+ * next non-empty segment of the iov iterator.
  */
 static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
