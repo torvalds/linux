@@ -1805,6 +1805,33 @@ static bool virtual_matches(const struct virtual_engine *ve,
 	return true;
 }
 
+static void virtual_xfer_context(struct virtual_engine *ve,
+				 struct intel_engine_cs *engine)
+{
+	unsigned int n;
+
+	if (likely(engine == ve->siblings[0]))
+		return;
+
+	GEM_BUG_ON(READ_ONCE(ve->context.inflight));
+	if (!intel_engine_has_relative_mmio(engine))
+		virtual_update_register_offsets(ve->context.lrc_reg_state,
+						engine);
+
+	/*
+	 * Move the bound engine to the top of the list for
+	 * future execution. We then kick this tasklet first
+	 * before checking others, so that we preferentially
+	 * reuse this set of bound registers.
+	 */
+	for (n = 1; n < ve->num_siblings; n++) {
+		if (ve->siblings[n] == engine) {
+			swap(ve->siblings[n], ve->siblings[0]);
+			break;
+		}
+	}
+}
+
 #define for_each_waiter(p__, rq__) \
 	list_for_each_entry_lockless(p__, \
 				     &(rq__)->sched.waiters_list, \
@@ -2245,35 +2272,23 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			GEM_BUG_ON(!(rq->execution_mask & engine->mask));
 			WRITE_ONCE(rq->engine, engine);
 
-			if (engine != ve->siblings[0]) {
-				u32 *regs = ve->context.lrc_reg_state;
-				unsigned int n;
-
-				GEM_BUG_ON(READ_ONCE(ve->context.inflight));
-
-				if (!intel_engine_has_relative_mmio(engine))
-					virtual_update_register_offsets(regs,
-									engine);
-
-				/*
-				 * Move the bound engine to the top of the list
-				 * for future execution. We then kick this
-				 * tasklet first before checking others, so that
-				 * we preferentially reuse this set of bound
-				 * registers.
-				 */
-				for (n = 1; n < ve->num_siblings; n++) {
-					if (ve->siblings[n] == engine) {
-						swap(ve->siblings[n],
-						     ve->siblings[0]);
-						break;
-					}
-				}
-
-				GEM_BUG_ON(ve->siblings[0] != engine);
-			}
-
 			if (__i915_request_submit(rq)) {
+				/*
+				 * Only after we confirm that we will submit
+				 * this request (i.e. it has not already
+				 * completed), do we want to update the context.
+				 *
+				 * This serves two purposes. It avoids
+				 * unnecessary work if we are resubmitting an
+				 * already completed request after timeslicing.
+				 * But more importantly, it prevents us altering
+				 * ve->siblings[] on an idle context, where
+				 * we may be using ve->siblings[] in
+				 * virtual_context_enter / virtual_context_exit.
+				 */
+				virtual_xfer_context(ve, engine);
+				GEM_BUG_ON(ve->siblings[0] != engine);
+
 				submit = true;
 				last = rq;
 			}
