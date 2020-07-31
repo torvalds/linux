@@ -1741,7 +1741,7 @@ __parser_mark_active(struct i915_vma *vma,
 {
 	struct intel_gt_buffer_pool_node *node = vma->private;
 
-	return i915_active_ref(&node->active, tl, fence);
+	return i915_active_ref(&node->active, tl->fence_context, fence);
 }
 
 static int

@@ -163,14 +163,16 @@ void __i915_active_init(struct i915_active *ref,
 	__i915_active_init(ref, active, retire, &__mkey, &__wkey);	\
 } while (0)
 
-int i915_active_ref(struct i915_active *ref,
-		    struct intel_timeline *tl,
-		    struct dma_fence *fence);
+struct dma_fence *
+__i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence);
+int i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence);
 
 static inline int
 i915_active_add_request(struct i915_active *ref, struct i915_request *rq)
 {
-	return i915_active_ref(ref, i915_request_timeline(rq), &rq->fence);
+	return i915_active_ref(ref,
+			       i915_request_timeline(rq)->fence_context,
+			       &rq->fence);
 }
 
 struct dma_fence *
@@ -198,7 +200,9 @@ int i915_request_await_active(struct i915_request *rq,
 #define I915_ACTIVE_AWAIT_BARRIER BIT(2)
 
 int i915_active_acquire(struct i915_active *ref);
+int i915_active_acquire_for_context(struct i915_active *ref, u64 idx);
 bool i915_active_acquire_if_busy(struct i915_active *ref);
+
 void i915_active_release(struct i915_active *ref);
 
 static inline void __i915_active_acquire(struct i915_active *ref)

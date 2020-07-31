@@ -486,7 +486,9 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	 * free it after the current request is retired, which ensures that
 	 * all writes into the cacheline from previous requests are complete.
 	 */
-	err = i915_active_ref(&tl->hwsp_cacheline->active, tl, &rq->fence);
+	err = i915_active_ref(&tl->hwsp_cacheline->active,
+			      tl->fence_context,
+			      &rq->fence);
 	if (err)
 		goto err_cacheline;
 
