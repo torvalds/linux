@@ -1531,11 +1531,10 @@ static inline void pqi_remove_device(struct pqi_ctrl_info *ctrl_info,
 
 	pqi_device_remove_start(device);
 
-	rc = pqi_device_wait_for_pending_io(ctrl_info, device,
-		PQI_PENDING_IO_TIMEOUT_SECS);
+	rc = pqi_device_wait_for_pending_io(ctrl_info, device, PQI_PENDING_IO_TIMEOUT_SECS);
 	if (rc)
 		dev_err(&ctrl_info->pci_dev->dev,
-			"scsi %d:%d:%d:%d removing device with %d outstanding commands\n",
+			"scsi %d:%d:%d:%d removing device with %d outstanding command(s)\n",
 			ctrl_info->scsi_host->host_no, device->bus,
 			device->target, device->lun,
 			atomic_read(&device->scsi_cmds_outstanding));
@@ -1553,10 +1552,8 @@ static struct pqi_scsi_dev *pqi_find_scsi_dev(struct pqi_ctrl_info *ctrl_info,
 {
 	struct pqi_scsi_dev *device;
 
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry)
-		if (device->bus == bus && device->target == target &&
-			device->lun == lun)
+	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry)
+		if (device->bus == bus && device->target == target && device->lun == lun)
 			return device;
 
 	return NULL;
@@ -1582,15 +1579,12 @@ enum pqi_find_result {
 };
 
 static enum pqi_find_result pqi_scsi_find_entry(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_scsi_dev *device_to_find,
-	struct pqi_scsi_dev **matching_device)
+	struct pqi_scsi_dev *device_to_find, struct pqi_scsi_dev **matching_device)
 {
 	struct pqi_scsi_dev *device;
 
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
-		if (pqi_scsi3addr_equal(device_to_find->scsi3addr,
-			device->scsi3addr)) {
+	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry) {
+		if (pqi_scsi3addr_equal(device_to_find->scsi3addr, device->scsi3addr)) {
 			*matching_device = device;
 			if (pqi_device_equal(device_to_find, device)) {
 				if (device_to_find->volume_offline)
@@ -1790,8 +1784,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	/* Assume that all devices in the existing list have gone away. */
-	list_for_each_entry(device, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry)
+	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry)
 		device->device_gone = true;
 
 	for (i = 0; i < num_new_devices; i++) {
@@ -1831,7 +1824,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	list_for_each_entry_safe(device, next, &ctrl_info->scsi_device_list,
 		scsi_device_list_entry) {
 		if (device->device_gone) {
-			list_del(&device->scsi_device_list_entry);
+			list_del_init(&device->scsi_device_list_entry);
 			list_add_tail(&device->delete_list_entry, &delete_list);
 		}
 	}
@@ -1856,18 +1849,19 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 		pqi_ctrl_ofa_done(ctrl_info);
 
 	/* Remove all devices that have gone away. */
-	list_for_each_entry_safe(device, next, &delete_list,
-		delete_list_entry) {
+	list_for_each_entry_safe(device, next, &delete_list, delete_list_entry) {
 		if (device->volume_offline) {
 			pqi_dev_info(ctrl_info, "offline", device);
 			pqi_show_volume_status(ctrl_info, device);
-		} else {
-			pqi_dev_info(ctrl_info, "removed", device);
 		}
-		if (pqi_is_device_added(device))
-			pqi_remove_device(ctrl_info, device);
 		list_del(&device->delete_list_entry);
-		pqi_free_device(device);
+		if (pqi_is_device_added(device)) {
+			pqi_remove_device(ctrl_info, device);
+		} else {
+			if (!device->volume_offline)
+				pqi_dev_info(ctrl_info, "removed", device);
+			pqi_free_device(device);
+		}
 	}
 
 	/*
@@ -2156,31 +2150,6 @@ out:
 	kfree(id_phys);
 
 	return rc;
-}
-
-static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
-{
-	unsigned long flags;
-	struct pqi_scsi_dev *device;
-
-	while (1) {
-		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
-
-		device = list_first_entry_or_null(&ctrl_info->scsi_device_list,
-			struct pqi_scsi_dev, scsi_device_list_entry);
-		if (device)
-			list_del(&device->scsi_device_list_entry);
-
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-			flags);
-
-		if (!device)
-			break;
-
-		if (pqi_is_device_added(device))
-			pqi_remove_device(ctrl_info, device);
-		pqi_free_device(device);
-	}
 }
 
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
@@ -5873,6 +5842,31 @@ static int pqi_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
+static void pqi_slave_destroy(struct scsi_device *sdev)
+{
+	unsigned long flags;
+	struct pqi_scsi_dev *device;
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (device) {
+		sdev->hostdata = NULL;
+		if (!list_empty(&device->scsi_device_list_entry))
+			list_del(&device->scsi_device_list_entry);
+	}
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	if (device) {
+		pqi_dev_info(ctrl_info, "removed", device);
+		pqi_free_device(device);
+	}
+}
+
 static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info,
 	void __user *arg)
 {
@@ -6544,6 +6538,7 @@ static struct scsi_host_template pqi_driver_template = {
 	.ioctl = pqi_ioctl,
 	.slave_alloc = pqi_slave_alloc,
 	.slave_configure = pqi_slave_configure,
+	.slave_destroy = pqi_slave_destroy,
 	.map_queues = pqi_map_queues,
 	.sdev_attrs = pqi_sdev_attrs,
 	.shost_attrs = pqi_shost_attrs,
@@ -7634,7 +7629,6 @@ static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 {
 	pqi_cancel_rescan_worker(ctrl_info);
 	pqi_cancel_update_time_worker(ctrl_info);
-	pqi_remove_all_scsi_devices(ctrl_info);
 	pqi_unregister_scsi(ctrl_info);
 	if (ctrl_info->pqi_mode_enabled)
 		pqi_revert_to_sis_mode(ctrl_info);
