@@ -43,13 +43,13 @@ void z_erofs_exit_zip_subsystem(void)
 static inline int z_erofs_init_workqueue(void)
 {
 	const unsigned int onlinecpus = num_possible_cpus();
-	const unsigned int flags = WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE;
 
 	/*
 	 * no need to spawn too many threads, limiting threads could minimum
 	 * scheduling overhead, perhaps per-CPU threads should be better?
 	 */
-	z_erofs_workqueue = alloc_workqueue("erofs_unzipd", flags,
+	z_erofs_workqueue = alloc_workqueue("erofs_unzipd",
+					    WQ_UNBOUND | WQ_HIGHPRI,
 					    onlinecpus + onlinecpus / 4);
 	return z_erofs_workqueue ? 0 : -ENOMEM;
 }
