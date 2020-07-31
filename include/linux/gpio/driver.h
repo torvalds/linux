@@ -525,8 +525,16 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		gpiochip_add_data_with_key(gc, data, &lock_key, \
 					   &request_key);	  \
 	})
+#define devm_gpiochip_add_data(dev, gc, data) ({ \
+		static struct lock_class_key lock_key;	\
+		static struct lock_class_key request_key;	  \
+		devm_gpiochip_add_data_with_key(dev, gc, data, &lock_key, \
+					   &request_key);	  \
+	})
 #else
 #define gpiochip_add_data(gc, data) gpiochip_add_data_with_key(gc, data, NULL, NULL)
+#define devm_gpiochip_add_data(dev, gc, data) \
+	devm_gpiochip_add_data_with_key(dev, gc, data, NULL, NULL)
 #endif /* CONFIG_LOCKDEP */
 
 static inline int gpiochip_add(struct gpio_chip *gc)
@@ -534,8 +542,9 @@ static inline int gpiochip_add(struct gpio_chip *gc)
 	return gpiochip_add_data(gc, NULL);
 }
 extern void gpiochip_remove(struct gpio_chip *gc);
-extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *gc,
-				  void *data);
+extern int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, void *data,
+					   struct lock_class_key *lock_key,
+					   struct lock_class_key *request_key);
 
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *gc, void *data));
