@@ -150,7 +150,7 @@
 		dovdd-supply = <&vcc_1v8>;
 		dvdd-supply = <&vcc_dvdd>;
 		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
-		rst-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT1607-FV1";
