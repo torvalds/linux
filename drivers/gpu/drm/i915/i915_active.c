@@ -807,7 +807,6 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 	if (RB_EMPTY_ROOT(&ref->tree))
 		return NULL;
 
-	spin_lock_irq(&ref->tree_lock);
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/*
@@ -833,9 +832,9 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 
 		prev = p;
 		if (node->timeline < idx)
-			p = p->rb_right;
+			p = READ_ONCE(p->rb_right);
 		else
-			p = p->rb_left;
+			p = READ_ONCE(p->rb_left);
 	}
 
 	/*
@@ -872,11 +871,10 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 			goto match;
 	}
 
-	spin_unlock_irq(&ref->tree_lock);
-
 	return NULL;
 
 match:
+	spin_lock_irq(&ref->tree_lock);
 	rb_erase(p, &ref->tree); /* Hide from waits and sibling allocations */
 	if (p == &ref->cache->node)
 		WRITE_ONCE(ref->cache, NULL);
@@ -910,7 +908,9 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		struct llist_node *prev = first;
 		struct active_node *node;
 
+		rcu_read_lock();
 		node = reuse_idle_barrier(ref, idx);
+		rcu_read_unlock();
 		if (!node) {
 			node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
 			if (!node)
