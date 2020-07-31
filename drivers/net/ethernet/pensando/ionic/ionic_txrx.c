@@ -331,9 +331,6 @@ static void ionic_rx_page_free(struct ionic_queue *q, struct page *page,
 	__free_page(page);
 }
 
-#define IONIC_RX_RING_DOORBELL_STRIDE		((1 << 5) - 1)
-#define IONIC_RX_RING_HEAD_BUF_SZ		2048
-
 void ionic_rx_fill(struct ionic_queue *q)
 {
 	struct net_device *netdev = q->lif->netdev;
@@ -345,7 +342,6 @@ void ionic_rx_fill(struct ionic_queue *q)
 	unsigned int remain_len;
 	unsigned int seg_len;
 	unsigned int nfrags;
-	bool ring_doorbell;
 	unsigned int i, j;
 	unsigned int len;
 
@@ -360,9 +356,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 		page_info = &desc_info->pages[0];
 
 		if (page_info->page) { /* recycle the buffer */
-			ring_doorbell = ((q->head->index + 1) &
-					IONIC_RX_RING_DOORBELL_STRIDE) == 0;
-			ionic_rxq_post(q, ring_doorbell, ionic_rx_clean, NULL);
+			ionic_rxq_post(q, false, ionic_rx_clean, NULL);
 			continue;
 		}
 
@@ -401,10 +395,11 @@ void ionic_rx_fill(struct ionic_queue *q)
 			page_info++;
 		}
 
-		ring_doorbell = ((q->head->index + 1) &
-				IONIC_RX_RING_DOORBELL_STRIDE) == 0;
-		ionic_rxq_post(q, ring_doorbell, ionic_rx_clean, NULL);
+		ionic_rxq_post(q, false, ionic_rx_clean, NULL);
 	}
+
+	ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
+			 q->dbval | q->head->index);
 }
 
 static void ionic_rx_fill_cb(void *arg)
