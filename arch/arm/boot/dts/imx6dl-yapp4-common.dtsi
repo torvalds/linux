@@ -316,7 +316,20 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	oled: oled@3d {
+	oled_1309: oled@3c {
+		compatible = "solomon,ssd1309fb-i2c";
+		reg = <0x3c>;
+		solomon,height = <64>;
+		solomon,width = <128>;
+		solomon,page-offset = <0>;
+		solomon,segment-no-remap;
+		solomon,prechargep2 = <15>;
+		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
+		vbat-supply = <&sw2_reg>;
+		status = "disabled";
+	};
+
+	oled_1305: oled@3d {
 		compatible = "solomon,ssd1305fb-i2c";
 		reg = <0x3d>;
 		solomon,height = <64>;
