@@ -5377,19 +5377,18 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 			!blk_rq_is_passthrough(scmd->request)) {
 			rc = pqi_raid_bypass_submit_scsi_cmd(ctrl_info, device,
 				scmd, queue_group);
-			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY)
+			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY) {
 				raid_bypassed = true;
+				atomic_inc(&device->raid_bypass_cnt);
+			}
 		}
 		if (!raid_bypassed)
-			rc = pqi_raid_submit_scsi_cmd(ctrl_info, device, scmd,
-				queue_group);
+			rc = pqi_raid_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 	} else {
 		if (device->aio_enabled)
-			rc = pqi_aio_submit_scsi_cmd(ctrl_info, device, scmd,
-				queue_group);
+			rc = pqi_aio_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 		else
-			rc = pqi_raid_submit_scsi_cmd(ctrl_info, device, scmd,
-				queue_group);
+			rc = pqi_raid_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 	}
 
 out:
@@ -5867,8 +5866,7 @@ static void pqi_slave_destroy(struct scsi_device *sdev)
 	}
 }
 
-static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info,
-	void __user *arg)
+static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 {
 	struct pci_dev *pci_dev;
 	u32 subsystem_vendor;
@@ -5885,8 +5883,7 @@ static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info,
 	pciinfo.dev_fn = pci_dev->devfn;
 	subsystem_vendor = pci_dev->subsystem_vendor;
 	subsystem_device = pci_dev->subsystem_device;
-	pciinfo.board_id = ((subsystem_device << 16) & 0xffff0000) |
-		subsystem_vendor;
+	pciinfo.board_id = ((subsystem_device << 16) & 0xffff0000) | subsystem_vendor;
 
 	if (copy_to_user(arg, &pciinfo, sizeof(pciinfo)))
 		return -EFAULT;
@@ -6295,8 +6292,7 @@ static ssize_t pqi_unique_id_show(struct device *dev,
 
 	device = sdev->hostdata;
 	if (!device) {
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-			flags);
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		return -ENODEV;
 	}
 
@@ -6333,8 +6329,7 @@ static ssize_t pqi_lunid_show(struct device *dev,
 
 	device = sdev->hostdata;
 	if (!device) {
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-			flags);
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		return -ENODEV;
 	}
 
@@ -6369,8 +6364,7 @@ static ssize_t pqi_path_info_show(struct device *dev,
 
 	device = sdev->hostdata;
 	if (!device) {
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-			flags);
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		return -ENODEV;
 	}
 
@@ -6446,9 +6440,8 @@ static ssize_t pqi_sas_address_show(struct device *dev,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	device = sdev->hostdata;
-	if (pqi_is_logical_device(device)) {
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-			flags);
+	if (!device || !pqi_is_device_with_sas_address(device)) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		return -ENODEV;
 	}
 
@@ -6473,6 +6466,11 @@ static ssize_t pqi_ssd_smart_path_enabled_show(struct device *dev,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
+
 	buffer[0] = device->raid_bypass_enabled ? '1' : '0';
 	buffer[1] = '\n';
 	buffer[2] = '\0';
@@ -6497,6 +6495,10 @@ static ssize_t pqi_raid_level_show(struct device *dev,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
 
 	if (pqi_is_logical_device(device))
 		raid_level = pqi_raid_level_to_string(device->raid_level);
@@ -6508,13 +6510,40 @@ static ssize_t pqi_raid_level_show(struct device *dev,
 	return snprintf(buffer, PAGE_SIZE, "%s\n", raid_level);
 }
 
+static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	int raid_bypass_cnt;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
+
+	raid_bypass_cnt = atomic_read(&device->raid_bypass_cnt);
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return snprintf(buffer, PAGE_SIZE, "0x%x\n", raid_bypass_cnt);
+}
+
 static DEVICE_ATTR(lunid, 0444, pqi_lunid_show, NULL);
 static DEVICE_ATTR(unique_id, 0444, pqi_unique_id_show, NULL);
 static DEVICE_ATTR(path_info, 0444, pqi_path_info_show, NULL);
 static DEVICE_ATTR(sas_address, 0444, pqi_sas_address_show, NULL);
-static DEVICE_ATTR(ssd_smart_path_enabled, 0444,
-	pqi_ssd_smart_path_enabled_show, NULL);
+static DEVICE_ATTR(ssd_smart_path_enabled, 0444, pqi_ssd_smart_path_enabled_show, NULL);
 static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
+static DEVICE_ATTR(raid_bypass_cnt, 0444, pqi_raid_bypass_cnt_show, NULL);
 
 static struct device_attribute *pqi_sdev_attrs[] = {
 	&dev_attr_lunid,
@@ -6523,6 +6552,7 @@ static struct device_attribute *pqi_sdev_attrs[] = {
 	&dev_attr_sas_address,
 	&dev_attr_ssd_smart_path_enabled,
 	&dev_attr_raid_level,
+	&dev_attr_raid_bypass_cnt,
 	NULL
 };
 
@@ -8543,8 +8573,7 @@ static int __init pqi_init(void)
 
 	pr_info(DRIVER_NAME "\n");
 
-	pqi_sas_transport_template =
-		sas_attach_transport(&pqi_sas_transport_functions);
+	pqi_sas_transport_template = sas_attach_transport(&pqi_sas_transport_functions);
 	if (!pqi_sas_transport_template)
 		return -ENODEV;
 

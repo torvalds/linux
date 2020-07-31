@@ -963,6 +963,7 @@ struct pqi_scsi_dev {
 	struct list_head delete_list_entry;
 
 	atomic_t scsi_cmds_outstanding;
+	atomic_t raid_bypass_cnt;
 };
 
 /* VPD inquiry pages */
