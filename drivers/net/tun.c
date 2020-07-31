@@ -2983,7 +2983,7 @@ unlock:
 	return ret;
 }
 
-static int tun_set_ebpf(struct tun_struct *tun, struct tun_prog **prog_p,
+static int tun_set_ebpf(struct tun_struct *tun, struct tun_prog __rcu **prog_p,
 			void __user *data)
 {
 	struct bpf_prog *prog;
