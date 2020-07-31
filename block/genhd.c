@@ -1773,7 +1773,7 @@ EXPORT_SYMBOL(__alloc_disk_node);
 
 /**
  * get_disk_and_module - increments the gendisk and gendisk fops module refcount
- * @disk: the struct gendisk to to increment the refcount for
+ * @disk: the struct gendisk to increment the refcount for
  *
  * This increments the refcount for the struct gendisk, and the gendisk's
  * fops module owner.
@@ -1802,7 +1802,7 @@ EXPORT_SYMBOL(get_disk_and_module);
 
 /**
  * put_disk - decrements the gendisk refcount
- * @disk: the struct gendisk to to decrement the refcount for
+ * @disk: the struct gendisk to decrement the refcount for
  *
  * This decrements the refcount for the struct gendisk. When this reaches 0
  * we'll have disk_release() called.
@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL(put_disk);
 
 /**
  * put_disk_and_module - decrements the module and gendisk refcount
- * @disk: the struct gendisk to to decrement the refcount for
+ * @disk: the struct gendisk to decrement the refcount for
  *
  * This is a counterpart of get_disk_and_module() and thus also of
  * get_gendisk().
