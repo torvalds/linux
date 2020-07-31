@@ -305,6 +305,25 @@ struct rvt_rq {
 	spinlock_t lock ____cacheline_aligned_in_smp;
 };
 
+/**
+ * rvt_get_rq_count - count numbers of request work queue entries
+ * in circular buffer
+ * @rq: data structure for request queue entry
+ * @head: head indices of the circular buffer
+ * @tail: tail indices of the circular buffer
+ *
+ * Return - total number of entries in the Receive Queue
+ */
+
+static inline u32 rvt_get_rq_count(struct rvt_rq *rq, u32 head, u32 tail)
+{
+	u32 count = head - tail;
+
+	if ((s32)count < 0)
+		count += rq->size;
+	return count;
+}
+
 /*
  * This structure holds the information that the send tasklet needs
  * to send a RDMA read response or atomic operation.
