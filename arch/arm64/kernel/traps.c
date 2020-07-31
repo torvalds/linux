@@ -855,7 +855,7 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 	pr_emerg("Task stack:     [0x%016lx..0x%016lx]\n",
 		 tsk_stk, tsk_stk + THREAD_SIZE);
 	pr_emerg("IRQ stack:      [0x%016lx..0x%016lx]\n",
-		 irq_stk, irq_stk + THREAD_SIZE);
+		 irq_stk, irq_stk + IRQ_STACK_SIZE);
 	pr_emerg("Overflow stack: [0x%016lx..0x%016lx]\n",
 		 ovf_stk, ovf_stk + OVERFLOW_STACK_SIZE);
 
