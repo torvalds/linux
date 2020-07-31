@@ -147,10 +147,6 @@ int meson_card_set_be_link(struct snd_soc_card *card,
 	struct device_node *np;
 	int ret, num_codecs;
 
-	link->no_pcm = 1;
-	link->dpcm_playback = 1;
-	link->dpcm_capture = 1;
-
 	num_codecs = of_get_child_count(node);
 	if (!num_codecs) {
 		dev_err(card->dev, "be link %s has no codec\n",
