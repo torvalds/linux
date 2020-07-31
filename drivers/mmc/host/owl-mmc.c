@@ -689,7 +689,7 @@ MODULE_DEVICE_TABLE(of, owl_mmc_of_match);
 static struct platform_driver owl_mmc_driver = {
 	.driver = {
 		.name	= "owl_mmc",
-		.of_match_table = of_match_ptr(owl_mmc_of_match),
+		.of_match_table = owl_mmc_of_match,
 	},
 	.probe		= owl_mmc_probe,
 	.remove		= owl_mmc_remove,

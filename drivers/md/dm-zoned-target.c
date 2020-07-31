@@ -400,15 +400,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 		dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 	struct dmz_metadata *zmd = dmz->metadata;
 	struct dm_zone *zone;
-	int i, ret;
-
-	/*
-	 * Write may trigger a zone allocation. So make sure the
-	 * allocation can succeed.
-	 */
-	if (bio_op(bio) == REQ_OP_WRITE)
-		for (i = 0; i < dmz->nr_ddevs; i++)
-			dmz_schedule_reclaim(dmz->dev[i].reclaim);
+	int ret;
 
 	dmz_lock_metadata(zmd);
 

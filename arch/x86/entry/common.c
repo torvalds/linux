@@ -45,6 +45,32 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+/* Check that the stack and regs on entry from user mode are sane. */
+static noinstr void check_user_regs(struct pt_regs *regs)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY)) {
+		/*
+		 * Make sure that the entry code gave us a sensible EFLAGS
+		 * register.  Native because we want to check the actual CPU
+		 * state, not the interrupt state as imagined by Xen.
+		 */
+		unsigned long flags = native_save_fl();
+		WARN_ON_ONCE(flags & (X86_EFLAGS_AC | X86_EFLAGS_DF |
+				      X86_EFLAGS_NT));
+
+		/* We think we came from user mode. Make sure pt_regs agrees. */
+		WARN_ON_ONCE(!user_mode(regs));
+
+		/*
+		 * All entries from user mode (except #DF) should be on the
+		 * normal thread stack and should have user pt_regs in the
+		 * correct location.
+		 */
+		WARN_ON_ONCE(!on_thread_stack());
+		WARN_ON_ONCE(regs != task_pt_regs(current));
+	}
+}
+
 #ifdef CONFIG_CONTEXT_TRACKING
 /**
  * enter_from_user_mode - Establish state when coming from user mode
@@ -126,9 +152,6 @@ static long syscall_trace_enter(struct pt_regs *regs)
 	struct thread_info *ti = current_thread_info();
 	unsigned long ret = 0;
 	u32 work;
-
-	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
-		BUG_ON(regs != task_pt_regs(current));
 
 	work = READ_ONCE(ti->flags);
 
@@ -271,7 +294,7 @@ static void __prepare_exit_to_usermode(struct pt_regs *regs)
 #endif
 }
 
-__visible noinstr void prepare_exit_to_usermode(struct pt_regs *regs)
+static noinstr void prepare_exit_to_usermode(struct pt_regs *regs)
 {
 	instrumentation_begin();
 	__prepare_exit_to_usermode(regs);
@@ -346,6 +369,8 @@ __visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 {
 	struct thread_info *ti;
 
+	check_user_regs(regs);
+
 	enter_from_user_mode();
 	instrumentation_begin();
 
@@ -409,6 +434,8 @@ static void do_syscall_32_irqs_on(struct pt_regs *regs)
 /* Handles int $0x80 */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
+	check_user_regs(regs);
+
 	enter_from_user_mode();
 	instrumentation_begin();
 
@@ -460,6 +487,8 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 					vdso_image_32.sym_int80_landing_pad;
 	bool success;
 
+	check_user_regs(regs);
+
 	/*
 	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
 	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
@@ -510,6 +539,18 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF | X86_EFLAGS_VM)) == 0;
 #endif
 }
+
+/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
+__visible noinstr long do_SYSENTER_32(struct pt_regs *regs)
+{
+	/* SYSENTER loses RSP, but the vDSO saved it in RBP. */
+	regs->sp = regs->bp;
+
+	/* SYSENTER clobbers EFLAGS.IF.  Assume it was set in usermode. */
+	regs->flags |= X86_EFLAGS_IF;
+
+	return do_fast_syscall_32(regs);
+}
 #endif
 
 SYSCALL_DEFINE0(ni_syscall)
@@ -553,6 +594,7 @@ SYSCALL_DEFINE0(ni_syscall)
 bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
+		check_user_regs(regs);
 		enter_from_user_mode();
 		return false;
 	}
@@ -686,6 +728,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
  */
 void noinstr idtentry_enter_user(struct pt_regs *regs)
 {
+	check_user_regs(regs);
 	enter_from_user_mode();
 }
 

@@ -361,6 +361,7 @@ static const struct net_device_ops ipip_netdev_ops = {
 static void ipip_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip_netdev_ops;
+	dev->header_ops		= &ip_tunnel_header_ops;
 
 	dev->type		= ARPHRD_TUNNEL;
 	dev->flags		= IFF_NOARP;

@@ -29,6 +29,7 @@ struct mlx5e_dcbx {
 	bool                       manual_buffer;
 	u32                        cable_len;
 	u32                        xoff;
+	u16                        port_buff_cell_sz;
 };
 
 #define MLX5E_MAX_DSCP (64)

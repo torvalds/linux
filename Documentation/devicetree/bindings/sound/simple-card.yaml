@@ -378,6 +378,8 @@ examples:
   - |
     sound {
         compatible = "simple-audio-card";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
         simple-audio-card,name = "rsnd-ak4643";
         simple-audio-card,format = "left_j";
@@ -391,10 +393,12 @@ examples:
                                     "ak4642 Playback", "DAI1 Playback";
 
         dpcmcpu: simple-audio-card,cpu@0 {
+            reg = <0>;
             sound-dai = <&rcar_sound 0>;
         };
 
         simple-audio-card,cpu@1 {
+            reg = <1>;
             sound-dai = <&rcar_sound 1>;
         };
 
@@ -418,6 +422,8 @@ examples:
   - |
     sound {
         compatible = "simple-audio-card";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
         simple-audio-card,routing =
             "pcm3168a Playback", "DAI1 Playback",
@@ -426,6 +432,7 @@ examples:
             "pcm3168a Playback", "DAI4 Playback";
 
         simple-audio-card,dai-link@0 {
+            reg = <0>;
             format = "left_j";
             bitclock-master = <&sndcpu0>;
             frame-master = <&sndcpu0>;
@@ -439,22 +446,23 @@ examples:
         };
 
         simple-audio-card,dai-link@1 {
+            reg = <1>;
             format = "i2s";
             bitclock-master = <&sndcpu1>;
             frame-master = <&sndcpu1>;
 
             convert-channels = <8>; /* TDM Split */
 
-            sndcpu1: cpu@0 {
+            sndcpu1: cpu0 {
                 sound-dai = <&rcar_sound 1>;
             };
-            cpu@1 {
+            cpu1 {
                 sound-dai = <&rcar_sound 2>;
             };
-            cpu@2 {
+            cpu2 {
                 sound-dai = <&rcar_sound 3>;
             };
-            cpu@3 {
+            cpu3 {
                 sound-dai = <&rcar_sound 4>;
             };
             codec {
@@ -466,6 +474,7 @@ examples:
         };
 
         simple-audio-card,dai-link@2 {
+            reg = <2>;
             format = "i2s";
             bitclock-master = <&sndcpu2>;
             frame-master = <&sndcpu2>;

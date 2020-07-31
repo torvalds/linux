@@ -20,6 +20,8 @@
 #include <setjmp.h>
 #include <sys/uio.h>
 
+#include "helpers.h"
+
 #ifdef __x86_64__
 # define VSYS(x) (x)
 #else
@@ -493,20 +495,7 @@ static int test_process_vm_readv(void)
 }
 
 #ifdef __x86_64__
-#define X86_EFLAGS_TF (1UL << 8)
 static volatile sig_atomic_t num_vsyscall_traps;
-
-static unsigned long get_eflags(void)
-{
-	unsigned long eflags;
-	asm volatile ("pushfq\n\tpopq %0" : "=rm" (eflags));
-	return eflags;
-}
-
-static void set_eflags(unsigned long eflags)
-{
-	asm volatile ("pushq %0\n\tpopfq" : : "rm" (eflags) : "flags");
-}
 
 static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 {

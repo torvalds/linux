@@ -335,6 +335,7 @@ void perf_evlist__to_front(struct evlist *evlist,
 	evlist__cpu_iter_start(evlist);			\
 	perf_cpu_map__for_each_cpu (cpu, index, (evlist)->core.all_cpus)
 
+struct evsel *perf_evlist__get_tracking_event(struct evlist *evlist);
 void perf_evlist__set_tracking_event(struct evlist *evlist,
 				     struct evsel *tracking_evsel);
 
