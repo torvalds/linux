@@ -34,6 +34,7 @@
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
+#include "testing_helpers.h"
 #include "test_sk_lookup.skel.h"
 
 /* External (address, port) pairs the client sends packets to. */
@@ -469,34 +470,10 @@ static int update_lookup_map(struct bpf_map *map, int index, int sock_fd)
 	return 0;
 }
 
-static __u32 link_info_prog_id(struct bpf_link *link)
-{
-	struct bpf_link_info info = {};
-	__u32 info_len = sizeof(info);
-	int link_fd, err;
-
-	link_fd = bpf_link__fd(link);
-	if (CHECK(link_fd < 0, "bpf_link__fd", "failed\n")) {
-		errno = -link_fd;
-		log_err("bpf_link__fd failed");
-		return 0;
-	}
-
-	err = bpf_obj_get_info_by_fd(link_fd, &info, &info_len);
-	if (CHECK(err, "bpf_obj_get_info_by_fd", "failed\n")) {
-		log_err("bpf_obj_get_info_by_fd");
-		return 0;
-	}
-	if (CHECK(info_len != sizeof(info), "bpf_obj_get_info_by_fd",
-		  "unexpected info len %u\n", info_len))
-		return 0;
-
-	return info.prog_id;
-}
-
 static void query_lookup_prog(struct test_sk_lookup *skel)
 {
 	struct bpf_link *link[3] = {};
+	struct bpf_link_info info;
 	__u32 attach_flags = 0;
 	__u32 prog_ids[3] = {};
 	__u32 prog_cnt = 3;
@@ -534,18 +511,36 @@ static void query_lookup_prog(struct test_sk_lookup *skel)
 	if (CHECK(prog_cnt != 3, "bpf_prog_query",
 		  "wrong program count on query: %u", prog_cnt))
 		goto detach;
-	prog_id = link_info_prog_id(link[0]);
+	prog_id = link_info_prog_id(link[0], &info);
 	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
 	      "invalid program #0 id on query: %u != %u\n",
 	      prog_ids[0], prog_id);
-	prog_id = link_info_prog_id(link[1]);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	prog_id = link_info_prog_id(link[1], &info);
 	CHECK(prog_ids[1] != prog_id, "bpf_prog_query",
 	      "invalid program #1 id on query: %u != %u\n",
 	      prog_ids[1], prog_id);
-	prog_id = link_info_prog_id(link[2]);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	prog_id = link_info_prog_id(link[2], &info);
 	CHECK(prog_ids[2] != prog_id, "bpf_prog_query",
 	      "invalid program #2 id on query: %u != %u\n",
 	      prog_ids[2], prog_id);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+
+	err = bpf_link__detach(link[0]);
+	if (CHECK(err, "link_detach", "failed %d\n", err))
+		goto detach;
+
+	/* prog id is still there, but netns_ino is zeroed out */
+	prog_id = link_info_prog_id(link[0], &info);
+	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
+	      "invalid program #0 id on query: %u != %u\n",
+	      prog_ids[0], prog_id);
+	CHECK(info.netns.netns_ino != 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
 
 detach:
 	if (link[2])
