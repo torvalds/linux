@@ -740,11 +740,120 @@ err_out:
 	return ERR_PTR(err);
 }
 
+static const struct {
+	int			valid;
+	enum ib_qp_attr_mask	req_param;
+	enum ib_qp_attr_mask	opt_param;
+} srd_qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
+	[IB_QPS_RESET] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_INIT]  = {
+			.valid = 1,
+			.req_param = IB_QP_PKEY_INDEX |
+				     IB_QP_PORT |
+				     IB_QP_QKEY,
+		},
+	},
+	[IB_QPS_INIT] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+		[IB_QPS_INIT]  = {
+			.valid = 1,
+			.opt_param = IB_QP_PKEY_INDEX |
+				     IB_QP_PORT |
+				     IB_QP_QKEY,
+		},
+		[IB_QPS_RTR]   = {
+			.valid = 1,
+			.opt_param = IB_QP_PKEY_INDEX |
+				     IB_QP_QKEY,
+		},
+	},
+	[IB_QPS_RTR] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+		[IB_QPS_RTS]   = {
+			.valid = 1,
+			.req_param = IB_QP_SQ_PSN,
+			.opt_param = IB_QP_CUR_STATE |
+				     IB_QP_QKEY,
+		}
+	},
+	[IB_QPS_RTS] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+		[IB_QPS_RTS]   = {
+			.valid = 1,
+			.opt_param = IB_QP_CUR_STATE |
+				     IB_QP_QKEY,
+		},
+		[IB_QPS_SQD] = {
+			.valid = 1,
+			.opt_param = IB_QP_EN_SQD_ASYNC_NOTIFY,
+		},
+	},
+	[IB_QPS_SQD] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+		[IB_QPS_RTS]   = {
+			.valid = 1,
+			.opt_param = IB_QP_CUR_STATE |
+				     IB_QP_QKEY,
+		},
+		[IB_QPS_SQD] = {
+			.valid = 1,
+			.opt_param = IB_QP_PKEY_INDEX |
+				     IB_QP_QKEY,
+		}
+	},
+	[IB_QPS_SQE] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+		[IB_QPS_RTS]   = {
+			.valid = 1,
+			.opt_param = IB_QP_CUR_STATE |
+				     IB_QP_QKEY,
+		}
+	},
+	[IB_QPS_ERR] = {
+		[IB_QPS_RESET] = { .valid = 1 },
+		[IB_QPS_ERR]   = { .valid = 1 },
+	}
+};
+
+static bool efa_modify_srd_qp_is_ok(enum ib_qp_state cur_state,
+				    enum ib_qp_state next_state,
+				    enum ib_qp_attr_mask mask)
+{
+	enum ib_qp_attr_mask req_param, opt_param;
+
+	if (mask & IB_QP_CUR_STATE  &&
+	    cur_state != IB_QPS_RTR && cur_state != IB_QPS_RTS &&
+	    cur_state != IB_QPS_SQD && cur_state != IB_QPS_SQE)
+		return false;
+
+	if (!srd_qp_state_table[cur_state][next_state].valid)
+		return false;
+
+	req_param = srd_qp_state_table[cur_state][next_state].req_param;
+	opt_param = srd_qp_state_table[cur_state][next_state].opt_param;
+
+	if ((mask & req_param) != req_param)
+		return false;
+
+	if (mask & ~(req_param | opt_param | IB_QP_STATE))
+		return false;
+
+	return true;
+}
+
 static int efa_modify_qp_validate(struct efa_dev *dev, struct efa_qp *qp,
 				  struct ib_qp_attr *qp_attr, int qp_attr_mask,
 				  enum ib_qp_state cur_state,
 				  enum ib_qp_state new_state)
 {
+	int err;
+
 #define EFA_MODIFY_QP_SUPP_MASK \
 	(IB_QP_STATE | IB_QP_CUR_STATE | IB_QP_EN_SQD_ASYNC_NOTIFY | \
 	 IB_QP_PKEY_INDEX | IB_QP_PORT | IB_QP_QKEY | IB_QP_SQ_PSN)
@@ -756,8 +865,14 @@ static int efa_modify_qp_validate(struct efa_dev *dev, struct efa_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, IB_QPT_UD,
-				qp_attr_mask)) {
+	if (qp->ibqp.qp_type == IB_QPT_DRIVER)
+		err = !efa_modify_srd_qp_is_ok(cur_state, new_state,
+					       qp_attr_mask);
+	else
+		err = !ib_modify_qp_is_ok(cur_state, new_state, IB_QPT_UD,
+					  qp_attr_mask);
+
+	if (err) {
 		ibdev_dbg(&dev->ibdev, "Invalid modify QP parameters\n");
 		return -EINVAL;
 	}
