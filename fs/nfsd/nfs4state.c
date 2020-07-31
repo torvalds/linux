@@ -4513,7 +4513,8 @@ static int nfsd4_cb_recall_done(struct nfsd4_callback *cb,
 {
 	struct nfs4_delegation *dp = cb_to_delegation(cb);
 
-	if (dp->dl_stid.sc_type == NFS4_CLOSED_DELEG_STID)
+	if (dp->dl_stid.sc_type == NFS4_CLOSED_DELEG_STID ||
+	    dp->dl_stid.sc_type == NFS4_REVOKED_DELEG_STID)
 	        return 1;
 
 	switch (task->tk_status) {
