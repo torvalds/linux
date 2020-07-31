@@ -142,10 +142,9 @@ to_emmap(struct rdma_user_mmap_entry *rdma_entry)
 	return container_of(rdma_entry, struct efa_user_mmap_entry, rdma_entry);
 }
 
-static inline bool is_rdma_read_cap(struct efa_dev *dev)
-{
-	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
-}
+#define EFA_DEV_CAP(dev, cap) \
+	((dev)->dev_attr.device_caps & \
+	 EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_##cap##_MASK)
 
 #define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
@@ -221,7 +220,7 @@ int efa_query_device(struct ib_device *ibdev,
 		resp.max_rq_wr = dev_attr->max_rq_depth;
 		resp.max_rdma_size = dev_attr->max_rdma_size;
 
-		if (is_rdma_read_cap(dev))
+		if (EFA_DEV_CAP(dev, RDMA_READ))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_READ;
 
 		err = ib_copy_to_udata(udata, &resp,
@@ -1370,7 +1369,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 	supp_access_flags =
 		IB_ACCESS_LOCAL_WRITE |
-		(is_rdma_read_cap(dev) ? IB_ACCESS_REMOTE_READ : 0);
+		(EFA_DEV_CAP(dev, RDMA_READ) ? IB_ACCESS_REMOTE_READ : 0);
 
 	access_flags &= ~IB_ACCESS_OPTIONAL;
 	if (access_flags & ~supp_access_flags) {
