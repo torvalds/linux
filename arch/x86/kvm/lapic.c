@@ -2066,7 +2066,7 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	case APIC_TDCR: {
 		uint32_t old_divisor = apic->divide_count;
 
-		kvm_lapic_set_reg(apic, APIC_TDCR, val);
+		kvm_lapic_set_reg(apic, APIC_TDCR, val & 0xb);
 		update_divide_count(apic);
 		if (apic->divide_count != old_divisor &&
 				apic->lapic_timer.period) {
