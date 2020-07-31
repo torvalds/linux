@@ -416,7 +416,7 @@ static inline int snd_soc_resume(struct device *dev)
 int snd_soc_poweroff(struct device *dev);
 int snd_soc_component_initialize(struct snd_soc_component *component,
 				 const struct snd_soc_component_driver *driver,
-				 struct device *dev, const char *name);
+				 struct device *dev);
 int snd_soc_add_component(struct device *dev,
 		struct snd_soc_component *component,
 		const struct snd_soc_component_driver *component_driver,

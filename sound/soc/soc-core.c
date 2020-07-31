@@ -2440,14 +2440,19 @@ static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 
 int snd_soc_component_initialize(struct snd_soc_component *component,
 				 const struct snd_soc_component_driver *driver,
-				 struct device *dev, const char *name)
+				 struct device *dev)
 {
 	INIT_LIST_HEAD(&component->dai_list);
 	INIT_LIST_HEAD(&component->dobj_list);
 	INIT_LIST_HEAD(&component->card_list);
 	mutex_init(&component->io_mutex);
 
-	component->name		= name;
+	component->name = fmt_single_name(dev, &component->id);
+	if (!component->name) {
+		dev_err(dev, "ASoC: Failed to allocate name\n");
+		return -ENOMEM;
+	}
+
 	component->dev		= dev;
 	component->driver	= driver;
 
@@ -2461,19 +2466,12 @@ int snd_soc_add_component(struct device *dev,
 			struct snd_soc_dai_driver *dai_drv,
 			int num_dai)
 {
-	const char *name = fmt_single_name(dev, &component->id);
 	int ret;
 	int i;
 
-	if (!name) {
-		dev_err(dev, "ASoC: Failed to allocate name\n");
-		return -ENOMEM;
-	}
-
 	mutex_lock(&client_mutex);
 
-	ret = snd_soc_component_initialize(component, component_driver,
-					   dev, name);
+	ret = snd_soc_component_initialize(component, component_driver, dev);
 	if (ret)
 		goto err_free;
 
