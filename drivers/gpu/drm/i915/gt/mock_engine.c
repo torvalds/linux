@@ -152,7 +152,6 @@ static int mock_context_alloc(struct intel_context *ce)
 	if (!ce->ring)
 		return -ENOMEM;
 
-	GEM_BUG_ON(ce->timeline);
 	ce->timeline = intel_timeline_create(ce->engine->gt);
 	if (IS_ERR(ce->timeline)) {
 		kfree(ce->engine);
