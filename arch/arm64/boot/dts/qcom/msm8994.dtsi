@@ -142,6 +142,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-msm8994", "qcom,scm";
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
@@ -169,9 +175,31 @@
 		};
 	};
 
+	smd {
+		compatible = "qcom,smd";
+		rpm {
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+			qcom,local-pid = <0>;
+			qcom,remote-pid = <6>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-msm8994";
+				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: rpmcc {
+					compatible = "qcom,rpmcc-msm8994";
+					#clock-cells = <1>;
+				};
+			};
+		};
+	};
+
 	smem {
 		compatible = "qcom,smem";
 		memory-region = <&smem_mem>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
 		hwlocks = <&tcsr_mutex 3>;
 	};
 
@@ -188,6 +216,12 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 			      <0xf9002000 0x1000>;
+		};
+
+		apcs: mailbox@f900d000 {
+			compatible = "qcom,msm8994-apcs-kpss-global", "syscon";
+			reg = <0xf900d000 0x2000>;
+			#mbox-cells = <1>;
 		};
 
 		timer@f9020000 {
@@ -443,6 +477,11 @@
 			reg = <0xfc400000 0x2000>;
 		};
 
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0xfc428000 0x4000>;
+		};
+
 		restart@fc4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0xfc4ab000 0x4>;
@@ -659,6 +698,16 @@
 			     <GIC_PPI 3 0xff08>,
 			     <GIC_PPI 4 0xff08>,
 			     <GIC_PPI 1 0xff08>;
+	};
+
+	vreg_vph_pwr: vreg-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "vph-pwr";
+
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+
+		regulator-always-on;
 	};
 };
 
