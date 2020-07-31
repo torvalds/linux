@@ -120,7 +120,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	/*
 	 * Make sure sufficient data is present -- note, the same check is
-	 * is also present in sendmsg/sendpage. The checks in sendpage/sendmsg
+	 * also present in sendmsg/sendpage. The checks in sendpage/sendmsg
 	 * shall provide an information to the data sender that something is
 	 * wrong, but they are irrelevant to maintain the kernel integrity.
 	 * We need this check here too in case user space decides to not honor
