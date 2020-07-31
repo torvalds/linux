@@ -804,25 +804,27 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	params.qp_handle = qp->qp_handle;
 
 	if (qp_attr_mask & IB_QP_STATE) {
-		params.modify_mask |= BIT(EFA_ADMIN_QP_STATE_BIT) |
-				      BIT(EFA_ADMIN_CUR_QP_STATE_BIT);
+		EFA_SET(&params.modify_mask, EFA_ADMIN_MODIFY_QP_CMD_QP_STATE,
+			1);
+		EFA_SET(&params.modify_mask,
+			EFA_ADMIN_MODIFY_QP_CMD_CUR_QP_STATE, 1);
 		params.cur_qp_state = qp_attr->cur_qp_state;
 		params.qp_state = qp_attr->qp_state;
 	}
 
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
-		params.modify_mask |=
-			BIT(EFA_ADMIN_SQ_DRAINED_ASYNC_NOTIFY_BIT);
+		EFA_SET(&params.modify_mask,
+			EFA_ADMIN_MODIFY_QP_CMD_SQ_DRAINED_ASYNC_NOTIFY, 1);
 		params.sq_drained_async_notify = qp_attr->en_sqd_async_notify;
 	}
 
 	if (qp_attr_mask & IB_QP_QKEY) {
-		params.modify_mask |= BIT(EFA_ADMIN_QKEY_BIT);
+		EFA_SET(&params.modify_mask, EFA_ADMIN_MODIFY_QP_CMD_QKEY, 1);
 		params.qkey = qp_attr->qkey;
 	}
 
 	if (qp_attr_mask & IB_QP_SQ_PSN) {
-		params.modify_mask |= BIT(EFA_ADMIN_SQ_PSN_BIT);
+		EFA_SET(&params.modify_mask, EFA_ADMIN_MODIFY_QP_CMD_SQ_PSN, 1);
 		params.sq_psn = qp_attr->sq_psn;
 	}
 
