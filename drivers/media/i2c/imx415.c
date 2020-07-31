@@ -4,7 +4,12 @@
  *
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
- * V0.0X01.0X00 first version
+ * V0.0X01.0X00 first version.
+ * V0.0X01.0X01
+ *  1. fix hdr ae ratio error,
+ *     0x3260 should be set 0x01 in normal mode,
+ *     should be 0x00 in hdr mode.
+ *  2. rhs1 should be 4n+1 when set hdr ae.
  */
 
 #define DEBUG
@@ -27,7 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -211,6 +216,7 @@ static __maybe_unused const struct regval imx415_linear_12bit_3864x2192_891M_reg
 	{0x30C1, 0x00},
 	{0x3116, 0x24},
 	{0x311E, 0x24},
+	{0x3260, 0x01},
 	{0x32D4, 0x21},
 	{0x32EC, 0xA1},
 	{0x3452, 0x7F},
@@ -314,6 +320,7 @@ static __maybe_unused const struct regval imx415_hdr_12bit_3864x2192_1782M_regs[
 	{0x30CF, 0x01},
 	{0x3116, 0x24},
 	{0x311E, 0x24},
+	{0x3260, 0x00},
 	{0x32D4, 0x21},
 	{0x32EC, 0xA1},
 	{0x3452, 0x7F},
@@ -410,6 +417,7 @@ static __maybe_unused const struct regval imx415_hdr_10bit_3864x2192_1485M_regs[
 	{0x3116, 0x24},
 	{0x3118, 0xA0},
 	{0x311E, 0x24},
+	{0x3260, 0x00},
 	{0x32D4, 0x21},
 	{0x32EC, 0xA1},
 	{0x3452, 0x7F},
@@ -509,6 +517,7 @@ static __maybe_unused const struct regval imx415_linear_10bit_3864x2192_891M_reg
 	{0x30C1, 0x00},
 	{0x3116, 0x24},
 	{0x311E, 0x24},
+	{0x3260, 0x01},
 	{0x32D4, 0x21},
 	{0x32EC, 0xA1},
 	{0x3452, 0x7F},
@@ -969,7 +978,7 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	int ret = 0;
 	u32 fsc;
 
-	if (!imx415->streaming) {
+	if (!imx415->has_init_exp && !imx415->streaming) {
 		imx415->init_hdrae_exp = *ae;
 		imx415->has_init_exp = true;
 		dev_dbg(&imx415->client->dev, "imx415 is not streaming, save hdr ae!\n");
@@ -1025,10 +1034,11 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 
 	shr0 = clamp(fsc - l_exp_time, 9u, fsc - 8u);
 
-	rhs1_max = min(RHS1_MAX, shr0 - 9u);
+	rhs1_max = min((RHS1_MAX / 4 * 4 + 1), ((shr0 - 9u) / 4 * 4 + 1));
 	rhs1_min = max(SHR1_MIN + 8u, rhs1_old + 2 * BRL - fsc + 2);
-	rhs1 = clamp(SHR1_MIN + s_exp_time, rhs1_min, rhs1_max);
-	rhs1 = rhs1 | 0x1; /* shall be odd value */
+	rhs1_min = (rhs1_min + 3) / 4 * 4 + 1;
+	rhs1 = (SHR1_MIN + s_exp_time) / 4 * 4 + 1;/* shall be 4n + 1 */
+	rhs1 = clamp(rhs1, rhs1_min, rhs1_max);
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d\n",
 		__LINE__, rhs1, s_exp_time, rhs1_old, rhs1);
