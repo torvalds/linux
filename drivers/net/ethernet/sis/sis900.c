@@ -2502,11 +2502,9 @@ static void sis900_remove(struct pci_dev *pci_dev)
 	pci_release_regions(pci_dev);
 }
 
-#ifdef CONFIG_PM
-
-static int sis900_suspend(struct pci_dev *pci_dev, pm_message_t state)
+static int __maybe_unused sis900_suspend(struct device *dev)
 {
-	struct net_device *net_dev = pci_get_drvdata(pci_dev);
+	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
 
@@ -2519,22 +2517,17 @@ static int sis900_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	/* Stop the chip's Tx and Rx Status Machine */
 	sw32(cr, RxDIS | TxDIS | sr32(cr));
 
-	pci_set_power_state(pci_dev, PCI_D3hot);
-	pci_save_state(pci_dev);
-
 	return 0;
 }
 
-static int sis900_resume(struct pci_dev *pci_dev)
+static int __maybe_unused sis900_resume(struct device *dev)
 {
-	struct net_device *net_dev = pci_get_drvdata(pci_dev);
+	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
 
 	if(!netif_running(net_dev))
 		return 0;
-	pci_restore_state(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D0);
 
 	sis900_init_rxfilter(net_dev);
 
@@ -2558,17 +2551,15 @@ static int sis900_resume(struct pci_dev *pci_dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+static SIMPLE_DEV_PM_OPS(sis900_pm_ops, sis900_suspend, sis900_resume);
 
 static struct pci_driver sis900_pci_driver = {
 	.name		= SIS900_MODULE_NAME,
 	.id_table	= sis900_pci_tbl,
 	.probe		= sis900_probe,
 	.remove		= sis900_remove,
-#ifdef CONFIG_PM
-	.suspend	= sis900_suspend,
-	.resume		= sis900_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &sis900_pm_ops,
 };
 
 static int __init sis900_init_module(void)
