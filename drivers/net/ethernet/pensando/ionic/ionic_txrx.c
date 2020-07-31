@@ -15,6 +15,10 @@ static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_cq_info *cq_info,
 			   void *cb_arg);
 
+static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
+
+static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
+
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
 				  ionic_desc_cb cb_func, void *cb_arg)
 {
@@ -249,29 +253,13 @@ static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	return true;
 }
 
-static u32 ionic_rx_walk_cq(struct ionic_cq *rxcq, u32 limit)
-{
-	u32 work_done = 0;
-
-	while (ionic_rx_service(rxcq, rxcq->tail)) {
-		if (rxcq->tail->last)
-			rxcq->done_color = !rxcq->done_color;
-		rxcq->tail = rxcq->tail->next;
-		DEBUG_STATS_CQE_CNT(rxcq);
-
-		if (++work_done >= limit)
-			break;
-	}
-
-	return work_done;
-}
-
 void ionic_rx_flush(struct ionic_cq *cq)
 {
 	struct ionic_dev *idev = &cq->lif->ionic->idev;
 	u32 work_done;
 
-	work_done = ionic_rx_walk_cq(cq, cq->num_descs);
+	work_done = ionic_cq_service(cq, cq->num_descs,
+				     ionic_rx_service, NULL, NULL);
 
 	if (work_done)
 		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
@@ -439,32 +427,42 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 	struct ionic_dev *idev;
 	struct ionic_lif *lif;
 	struct ionic_cq *txcq;
+	u32 rx_work_done = 0;
+	u32 tx_work_done = 0;
 	u32 work_done = 0;
 	u32 flags = 0;
+	bool unmask;
 
 	lif = rxcq->bound_q->lif;
 	idev = &lif->ionic->idev;
 	txcq = &lif->txqcqs[qi].qcq->cq;
 
-	ionic_tx_flush(txcq);
+	tx_work_done = ionic_cq_service(txcq, lif->tx_budget,
+					ionic_tx_service, NULL, NULL);
 
-	work_done = ionic_rx_walk_cq(rxcq, budget);
-
-	if (work_done)
+	rx_work_done = ionic_cq_service(rxcq, budget,
+					ionic_rx_service, NULL, NULL);
+	if (rx_work_done)
 		ionic_rx_fill_cb(rxcq->bound_q);
 
-	if (work_done < budget && napi_complete_done(napi, work_done)) {
+	unmask = (rx_work_done < budget) && (tx_work_done < lif->tx_budget);
+
+	if (unmask && napi_complete_done(napi, rx_work_done)) {
 		flags |= IONIC_INTR_CRED_UNMASK;
 		DEBUG_STATS_INTR_REARM(rxcq->bound_intr);
+		work_done = rx_work_done;
+	} else {
+		work_done = budget;
 	}
 
 	if (work_done || flags) {
 		flags |= IONIC_INTR_CRED_RESET_COALESCE;
 		ionic_intr_credits(idev->intr_ctrl, rxcq->bound_intr->index,
-				   work_done, flags);
+				   tx_work_done + rx_work_done, flags);
 	}
 
-	DEBUG_STATS_NAPI_POLL(qcq, work_done);
+	DEBUG_STATS_NAPI_POLL(qcq, rx_work_done);
+	DEBUG_STATS_NAPI_POLL(qcq, tx_work_done);
 
 	return work_done;
 }
@@ -552,43 +550,39 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	}
 }
 
-void ionic_tx_flush(struct ionic_cq *cq)
+static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_txq_comp *comp = cq->tail->cq_desc;
-	struct ionic_dev *idev = &cq->lif->ionic->idev;
+	struct ionic_txq_comp *comp = cq_info->cq_desc;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
-	unsigned int work_done = 0;
 
-	/* walk the completed cq entries */
-	while (work_done < cq->num_descs &&
-	       color_match(comp->color, cq->done_color)) {
+	if (!color_match(comp->color, cq->done_color))
+		return false;
 
-		/* clean the related q entries, there could be
-		 * several q entries completed for each cq completion
-		 */
-		do {
-			desc_info = q->tail;
-			q->tail = desc_info->next;
-			ionic_tx_clean(q, desc_info, cq->tail,
-				       desc_info->cb_arg);
-			desc_info->cb = NULL;
-			desc_info->cb_arg = NULL;
-		} while (desc_info->index != le16_to_cpu(comp->comp_index));
+	/* clean the related q entries, there could be
+	 * several q entries completed for each cq completion
+	 */
+	do {
+		desc_info = q->tail;
+		q->tail = desc_info->next;
+		ionic_tx_clean(q, desc_info, cq->tail, desc_info->cb_arg);
+		desc_info->cb = NULL;
+		desc_info->cb_arg = NULL;
+	} while (desc_info->index != le16_to_cpu(comp->comp_index));
 
-		if (cq->tail->last)
-			cq->done_color = !cq->done_color;
+	return true;
+}
 
-		cq->tail = cq->tail->next;
-		comp = cq->tail->cq_desc;
-		DEBUG_STATS_CQE_CNT(cq);
+void ionic_tx_flush(struct ionic_cq *cq)
+{
+	struct ionic_dev *idev = &cq->lif->ionic->idev;
+	u32 work_done;
 
-		work_done++;
-	}
-
+	work_done = ionic_cq_service(cq, cq->num_descs,
+				     ionic_tx_service, NULL, NULL);
 	if (work_done)
 		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
-				   work_done, 0);
+				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
 }
 
 void ionic_tx_empty(struct ionic_queue *q)
