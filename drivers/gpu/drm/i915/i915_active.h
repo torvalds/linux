@@ -231,4 +231,19 @@ struct i915_active *i915_active_create(void);
 struct i915_active *i915_active_get(struct i915_active *ref);
 void i915_active_put(struct i915_active *ref);
 
+static inline int __i915_request_await_exclusive(struct i915_request *rq,
+						 struct i915_active *active)
+{
+	struct dma_fence *fence;
+	int err = 0;
+
+	fence = i915_active_fence_get(&active->excl);
+	if (fence) {
+		err = i915_request_await_dma_fence(rq, fence);
+		dma_fence_put(fence);
+	}
+
+	return err;
+}
+
 #endif /* _I915_ACTIVE_H_ */
