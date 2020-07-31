@@ -8,7 +8,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
-#include <linux/platform_data/clk-st.h>
+#include <linux/platform_data/clk-fch.h>
 #include <linux/platform_device.h>
 
 /* Clock Driving Strength 2 register */
@@ -31,7 +31,7 @@ static struct clk_hw *hws[ST_MAX_CLKS];
 
 static int st_clk_probe(struct platform_device *pdev)
 {
-	struct st_clk_data *st_data;
+	struct fch_clk_data *st_data;
 
 	st_data = dev_get_platdata(&pdev->dev);
 	if (!st_data || !st_data->base)
