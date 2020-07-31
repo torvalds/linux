@@ -1534,7 +1534,6 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
-	nfsd_fault_inject_init(); /* nfsd fault injection controls */
 	nfsd_stat_init();	/* Statistics */
 	retval = nfsd_drc_slab_create();
 	if (retval)
@@ -1555,7 +1554,6 @@ out_free_lockd:
 	nfsd_drc_slab_free();
 out_free_stat:
 	nfsd_stat_shutdown();
-	nfsd_fault_inject_cleanup();
 	nfsd4_exit_pnfs();
 out_free_slabs:
 	nfsd4_free_slabs();
@@ -1575,7 +1573,6 @@ static void __exit exit_nfsd(void)
 	nfsd_lockd_shutdown();
 	nfsd4_free_slabs();
 	nfsd4_exit_pnfs();
-	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
 	unregister_cld_notifier();
 	unregister_pernet_subsys(&nfsd_net_ops);

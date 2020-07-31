@@ -156,13 +156,3 @@ config NFSD_V4_SECURITY_LABEL
 
 	If you do not wish to enable fine-grained security labels SELinux or
 	Smack policies on NFSv4 files, say N.
-
-config NFSD_FAULT_INJECTION
-	bool "NFS server manual fault injection"
-	depends on NFSD_V4 && DEBUG_KERNEL && DEBUG_FS && BROKEN
-	help
-	  This option enables support for manually injecting faults
-	  into the NFS server.  This is intended to be used for
-	  testing error recovery on the NFS client.
-
-	  If unsure, say N.
