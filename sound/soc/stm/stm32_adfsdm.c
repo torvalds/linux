@@ -344,12 +344,17 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	component = devm_kzalloc(&pdev->dev, sizeof(*component), GFP_KERNEL);
 	if (!component)
 		return -ENOMEM;
+
+	ret = snd_soc_component_initialize(component,
+					   &stm32_adfsdm_soc_platform,
+					   &pdev->dev);
+	if (ret < 0)
+		return ret;
 #ifdef CONFIG_DEBUG_FS
 	component->debugfs_prefix = "pcm";
 #endif
 
-	ret = snd_soc_add_component(&pdev->dev, component,
-				    &stm32_adfsdm_soc_platform, NULL, 0);
+	ret = snd_soc_add_component(component, NULL, 0);
 	if (ret < 0)
 		dev_err(&pdev->dev, "%s: Failed to register PCM platform\n",
 			__func__);
