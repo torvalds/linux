@@ -1362,12 +1362,14 @@ static int __imx415_power_on(struct imx415 *imx415)
 	}
 
 	/* At least 500ns between power raising and XCLR */
-	udelay(1);
+	/* fix power on timing if insmod this ko */
+	usleep_range(10 * 1000, 20 * 1000);
 	if (!IS_ERR(imx415->reset_gpio))
 		gpiod_set_value_cansleep(imx415->reset_gpio, 0);
 
 	/* At least 1us between XCLR and clk */
-	udelay(1);
+	/* fix power on timing if insmod this ko */
+	usleep_range(10 * 1000, 20 * 1000);
 	ret = clk_set_rate(imx415->xvclk, IMX415_XVCLK_FREQ_37M);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate\n");
@@ -1380,7 +1382,7 @@ static int __imx415_power_on(struct imx415 *imx415)
 	}
 
 	/* At least 20us between XCLR and I2C communication */
-	usleep_range(20, 30);
+	usleep_range(20*1000, 30*1000);
 
 	return 0;
 
