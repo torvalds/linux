@@ -28,6 +28,24 @@
 	ports {
 		port@0 {
 			mipi_in_ucam0: endpoint@1 {
+				/delete-property/ remote-endpoint;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&csi_dphy1 {
+	ports {
+		port@0 {
+			csi_dphy1_input: endpoint@1 {
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			csi_dphy1_output: endpoint@0 {
+				remote-endpoint = <&isp_in>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -36,6 +54,7 @@
 
 &i2c1 {
 	/delete-node/ ar0230@10;
+	/delete-node/ ov4689@36;
 	/delete-node/ os04a10@36;
 	ov2718: ov2718@10 {
 		compatible = "ovti,ov2718";
@@ -44,34 +63,34 @@
 		clock-names = "xvclk";
 		power-domains = <&power RV1126_PD_VI>;
 		pinctrl-names = "rockchip,camera_default";
-		pinctrl-0 = <&mipicsi_clk0>;
+		pinctrl-0 = <&mipicsi_clk1>;
 		avdd-supply = <&vcc_avdd>;
 		dovdd-supply = <&vcc_dovdd>;
 		dvdd-supply = <&vcc_dvdd>;
-		pwd-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		pwd-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "YT-RV1109-3-V1";
 		rockchip,camera-module-lens-name = "M43-4IR-2MP-F2";
 		ir-cut = <&cam_ircut0>;
 		port {
-			ucam_out0: endpoint {
-				remote-endpoint = <&mipi_in_ucam0>;
+			ucam_out1: endpoint {
+				remote-endpoint = <&csi_dphy1_input>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 };
 
+&mipi_csi2 {
+	status = "disabled";
+};
+
 &pwm11 {
 	status = "okay";
 	pinctrl-names = "active";
 	pinctrl-0 = <&pwm11m1_pins_pull_down>;
-};
-
-&rkcif {
-	status = "disabled";
 };
 
 &rk809 {
@@ -84,6 +103,20 @@
 		vcc_avdd: LDO_REG7 {
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
+		};
+	};
+};
+
+&rkcif {
+	status = "disabled";
+};
+
+&rkisp {
+	ports {
+		port@0 {
+			isp_in: endpoint@0 {
+				remote-endpoint = <&csi_dphy1_output>;
+			};
 		};
 	};
 };
