@@ -23,7 +23,39 @@
 struct max98357a_priv {
 	struct gpio_desc *sdmode;
 	unsigned int sdmode_delay;
+	int sdmode_switch;
 };
+
+static int max98357a_daiops_trigger(struct snd_pcm_substream *substream,
+		int cmd, struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct max98357a_priv *max98357a =
+		snd_soc_component_get_drvdata(component);
+
+	if (!max98357a->sdmode)
+		return 0;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		mdelay(max98357a->sdmode_delay);
+		if (max98357a->sdmode_switch) {
+			gpiod_set_value(max98357a->sdmode, 1);
+			dev_dbg(component->dev, "set sdmode to 1");
+		}
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		gpiod_set_value(max98357a->sdmode, 0);
+		dev_dbg(component->dev, "set sdmode to 0");
+		break;
+	}
+
+	return 0;
+}
 
 static int max98357a_sdmode_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
@@ -33,17 +65,10 @@ static int max98357a_sdmode_event(struct snd_soc_dapm_widget *w,
 	struct max98357a_priv *max98357a =
 		snd_soc_component_get_drvdata(component);
 
-	if (!max98357a->sdmode)
-		return 0;
-
-	if (event & SND_SOC_DAPM_POST_PMU) {
-		msleep(max98357a->sdmode_delay);
-		gpiod_set_value(max98357a->sdmode, 1);
-		dev_dbg(component->dev, "set sdmode to 1");
-	} else if (event & SND_SOC_DAPM_PRE_PMD) {
-		gpiod_set_value(max98357a->sdmode, 0);
-		dev_dbg(component->dev, "set sdmode to 0");
-	}
+	if (event & SND_SOC_DAPM_POST_PMU)
+		max98357a->sdmode_switch = 1;
+	else if (event & SND_SOC_DAPM_POST_PMD)
+		max98357a->sdmode_switch = 0;
 
 	return 0;
 }
@@ -52,7 +77,7 @@ static const struct snd_soc_dapm_widget max98357a_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
 	SND_SOC_DAPM_OUT_DRV_E("SD_MODE", SND_SOC_NOPM, 0, 0, NULL, 0,
 			max98357a_sdmode_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route max98357a_dapm_routes[] = {
@@ -69,6 +94,10 @@ static const struct snd_soc_component_driver max98357a_component_driver = {
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
+};
+
+static const struct snd_soc_dai_ops max98357a_dai_ops = {
+	.trigger        = max98357a_daiops_trigger,
 };
 
 static struct snd_soc_dai_driver max98357a_dai_driver = {
@@ -90,6 +119,7 @@ static struct snd_soc_dai_driver max98357a_dai_driver = {
 		.channels_min	= 1,
 		.channels_max	= 2,
 	},
+	.ops    = &max98357a_dai_ops,
 };
 
 static int max98357a_platform_probe(struct platform_device *pdev)
