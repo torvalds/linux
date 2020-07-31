@@ -506,6 +506,10 @@ long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 	int cqe_size_order, smc_order;
 	long rc;
 
+	mutex_lock(&smcibdev->mutex);
+	rc = 0;
+	if (smcibdev->initialized)
+		goto out;
 	/* the calculated number of cq entries fits to mlx5 cq allocation */
 	cqe_size_order = cache_line_size() == 128 ? 7 : 6;
 	smc_order = MAX_ORDER - cqe_size_order - 1;
@@ -517,7 +521,7 @@ long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 	rc = PTR_ERR_OR_ZERO(smcibdev->roce_cq_send);
 	if (IS_ERR(smcibdev->roce_cq_send)) {
 		smcibdev->roce_cq_send = NULL;
-		return rc;
+		goto out;
 	}
 	smcibdev->roce_cq_recv = ib_create_cq(smcibdev->ibdev,
 					      smc_wr_rx_cq_handler, NULL,
@@ -529,21 +533,26 @@ long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 	}
 	smc_wr_add_dev(smcibdev);
 	smcibdev->initialized = 1;
-	return rc;
+	goto out;
 
 err:
 	ib_destroy_cq(smcibdev->roce_cq_send);
+out:
+	mutex_unlock(&smcibdev->mutex);
 	return rc;
 }
 
 static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 {
+	mutex_lock(&smcibdev->mutex);
 	if (!smcibdev->initialized)
-		return;
+		goto out;
 	smcibdev->initialized = 0;
 	ib_destroy_cq(smcibdev->roce_cq_recv);
 	ib_destroy_cq(smcibdev->roce_cq_send);
 	smc_wr_remove_dev(smcibdev);
+out:
+	mutex_unlock(&smcibdev->mutex);
 }
 
 static struct ib_client smc_ib_client;
@@ -566,6 +575,7 @@ static int smc_ib_add_dev(struct ib_device *ibdev)
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
 	atomic_set(&smcibdev->lnk_cnt, 0);
 	init_waitqueue_head(&smcibdev->lnks_deleted);
+	mutex_init(&smcibdev->mutex);
 	mutex_lock(&smc_ib_devices.mutex);
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
 	mutex_unlock(&smc_ib_devices.mutex);

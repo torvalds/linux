@@ -2673,11 +2673,10 @@ void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 				    delay_time);
 }
 
-static int hclge_get_mac_link_status(struct hclge_dev *hdev)
+static int hclge_get_mac_link_status(struct hclge_dev *hdev, int *link_status)
 {
 	struct hclge_link_status_cmd *req;
 	struct hclge_desc desc;
-	int link_status;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_LINK_STATUS, true);
@@ -2689,33 +2688,25 @@ static int hclge_get_mac_link_status(struct hclge_dev *hdev)
 	}
 
 	req = (struct hclge_link_status_cmd *)desc.data;
-	link_status = req->status & HCLGE_LINK_STATUS_UP_M;
+	*link_status = (req->status & HCLGE_LINK_STATUS_UP_M) > 0 ?
+		HCLGE_LINK_STATUS_UP : HCLGE_LINK_STATUS_DOWN;
 
-	return !!link_status;
+	return 0;
 }
 
-static int hclge_get_mac_phy_link(struct hclge_dev *hdev)
+static int hclge_get_mac_phy_link(struct hclge_dev *hdev, int *link_status)
 {
-	unsigned int mac_state;
-	int link_stat;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	*link_status = HCLGE_LINK_STATUS_DOWN;
 
 	if (test_bit(HCLGE_STATE_DOWN, &hdev->state))
 		return 0;
 
-	mac_state = hclge_get_mac_link_status(hdev);
+	if (phydev && (phydev->state != PHY_RUNNING || !phydev->link))
+		return 0;
 
-	if (hdev->hw.mac.phydev) {
-		if (hdev->hw.mac.phydev->state == PHY_RUNNING)
-			link_stat = mac_state &
-				hdev->hw.mac.phydev->link;
-		else
-			link_stat = 0;
-
-	} else {
-		link_stat = mac_state;
-	}
-
-	return !!link_stat;
+	return hclge_get_mac_link_status(hdev, link_status);
 }
 
 static void hclge_update_link_status(struct hclge_dev *hdev)
@@ -2725,6 +2716,7 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	struct hnae3_handle *rhandle;
 	struct hnae3_handle *handle;
 	int state;
+	int ret;
 	int i;
 
 	if (!client)
@@ -2733,7 +2725,12 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	if (test_and_set_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state))
 		return;
 
-	state = hclge_get_mac_phy_link(hdev);
+	ret = hclge_get_mac_phy_link(hdev, &state);
+	if (ret) {
+		clear_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state);
+		return;
+	}
+
 	if (state != hdev->hw.mac.link) {
 		for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 			handle = &hdev->vport[i].nic;
@@ -6524,14 +6521,15 @@ static int hclge_mac_link_status_wait(struct hclge_dev *hdev, int link_ret)
 {
 #define HCLGE_MAC_LINK_STATUS_NUM  100
 
+	int link_status;
 	int i = 0;
 	int ret;
 
 	do {
-		ret = hclge_get_mac_link_status(hdev);
-		if (ret < 0)
+		ret = hclge_get_mac_link_status(hdev, &link_status);
+		if (ret)
 			return ret;
-		else if (ret == link_ret)
+		if (link_status == link_ret)
 			return 0;
 
 		msleep(HCLGE_LINK_STATUS_MS);
@@ -6542,9 +6540,6 @@ static int hclge_mac_link_status_wait(struct hclge_dev *hdev, int link_ret)
 static int hclge_mac_phy_link_status_wait(struct hclge_dev *hdev, bool en,
 					  bool is_phy)
 {
-#define HCLGE_LINK_STATUS_DOWN 0
-#define HCLGE_LINK_STATUS_UP   1
-
 	int link_ret;
 
 	link_ret = en ? HCLGE_LINK_STATUS_UP : HCLGE_LINK_STATUS_DOWN;
