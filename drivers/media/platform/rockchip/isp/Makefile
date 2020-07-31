@@ -2,8 +2,10 @@
 obj-$(CONFIG_VIDEO_ROCKCHIP_ISP) += video_rkisp.o
 
 video_rkisp-objs += rkisp.o \
+			hw.o \
 			dev.o \
 			regs.o \
+			common.o \
 			isp_stats.o \
 			isp_stats_v1x.o \
 			isp_stats_v2x.o \

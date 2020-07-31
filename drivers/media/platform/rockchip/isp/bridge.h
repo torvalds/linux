@@ -8,14 +8,14 @@
 #include "isp_ispp.h"
 
 #define BRIDGE_DEV_NAME DRIVER_NAME "-bridge-ispp"
-#define BRIDGE_BUF_MAX	(RKISP_ISPP_BUF_MAX + 1)
+#define BRIDGE_BUF_MAX	RKISP_ISPP_BUF_MAX
 
 struct rkisp_bridge_device;
 
 struct rkisp_bridge_ops {
 	int (*config)(struct rkisp_bridge_device *dev);
-	void (*disable)(void __iomem *base);
-	bool (*is_stopped)(void __iomem *base);
+	void (*disable)(struct rkisp_bridge_device *dev);
+	bool (*is_stopped)(struct rkisp_bridge_device *dev);
 };
 
 struct rkisp_bridge_config {
@@ -46,11 +46,6 @@ struct rkisp_bridge_device {
 	struct v4l2_rect crop;
 	struct media_pad pad;
 	wait_queue_head_t done;
-	spinlock_t buf_lock;
-	struct list_head list;
-	struct rkisp_bridge_buf bufs[BRIDGE_BUF_MAX];
-	struct rkisp_ispp_buf *cur_buf;
-	struct rkisp_ispp_buf *nxt_buf;
 	struct rkisp_bridge_ops *ops;
 	struct rkisp_bridge_config *cfg;
 	u8 work_mode;

@@ -1502,7 +1502,7 @@ void rkisp_init_stats_vdev_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 		for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
 			stats_vdev->stats_buf[i].is_need_vaddr = true;
 			stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE;
-			rkisp_alloc_buffer(stats_vdev->dev->dev, &stats_vdev->stats_buf[i]);
+			rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
 		}
 	}
 #endif
@@ -1513,6 +1513,6 @@ void rkisp_uninit_stats_vdev_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 	int i;
 
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
-		rkisp_free_buffer(stats_vdev->dev->dev, &stats_vdev->stats_buf[i]);
+		rkisp_free_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
 }
 

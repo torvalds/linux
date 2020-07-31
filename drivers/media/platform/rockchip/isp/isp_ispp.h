@@ -7,9 +7,24 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-subdev.h>
 
-#define RKISP_ISPP_BUF_MAX 4
+#define RKISPP_BUF_MAX 3
+#define RKISP_ISPP_BUF_MAX (RKISPP_BUF_MAX + (2 * DEV_MAX))
+
 #define RKISP_ISPP_CMD_SET_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_ispp_mode)
+
+enum rkisp_ispp_dev {
+	DEV_ID0 = 0,
+	DEV_ID1,
+	DEV_ID2,
+	DEV_ID3,
+	DEV_MAX,
+};
+
+enum rkisp_ispp_sw_reg {
+	SW_REG_CACHE = 0xffffffff,
+	SW_REG_CACHE_SYNC = 0xeeeeeeee,
+};
 
 enum rkisp_ispp_buf_group {
 	GROUP_BUF_PIC = 0,
@@ -24,7 +39,14 @@ enum rkisp_ispp_work_mode {
 	ISP_ISPP_INIT_FAIL = BIT(7),
 };
 
+struct max_input {
+	u32 w;
+	u32 h;
+	u32 fps;
+};
+
 struct rkisp_ispp_mode {
+	struct max_input max_in;
 	u8 work_mode;
 	u8 buf_num;
 };
@@ -35,6 +57,7 @@ struct rkisp_ispp_buf {
 	/* timestamp in ns */
 	u64 frame_timestamp;
 	u32 frame_id;
+	u32 index;
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)

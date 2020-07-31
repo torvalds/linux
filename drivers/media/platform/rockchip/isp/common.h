@@ -63,6 +63,18 @@
 #define RKISP_EMDDATA_FIFO_MAX		4
 #define RKISP_DMATX_CHECK              0xA5A5A5A5
 
+struct rkisp_device;
+
+/* ISP_V10_1 for only support MP */
+enum rkisp_isp_ver {
+	ISP_V10 = 0x00,
+	ISP_V10_1 = 0x01,
+	ISP_V11 = 0x10,
+	ISP_V12 = 0x20,
+	ISP_V13 = 0x30,
+	ISP_V20 = 0x40,
+};
+
 enum rkisp_sd_type {
 	RKISP_SD_SENSOR,
 	RKISP_SD_PHY_CSI,
@@ -114,6 +126,7 @@ struct rkisp_dummy_buffer {
 };
 
 extern int rkisp_debug;
+extern struct platform_driver rkisp_plat_drv;
 
 static inline
 struct rkisp_vdev_node *vdev_to_node(struct video_device *vdev)
@@ -138,61 +151,13 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 	return &vnode->buf_queue;
 }
 
-static inline int rkisp_alloc_buffer(struct device *dev,
-				     struct rkisp_dummy_buffer *buf)
-{
-	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
-	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
-	void *mem_priv;
-	int ret = 0;
+void rkisp_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct);
+u32 rkisp_read(struct rkisp_device *dev, u32 reg, bool is_direct);
+void rkisp_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct);
+void rkisp_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct);
+void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 
-	if (!buf->size) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	mem_priv = ops->alloc(dev, attrs, buf->size,
-			      DMA_BIDIRECTIONAL, GFP_KERNEL);
-	if (IS_ERR_OR_NULL(mem_priv)) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	buf->mem_priv = mem_priv;
-	buf->dma_addr = *((dma_addr_t *)ops->cookie(mem_priv));
-	if (!attrs)
-		buf->vaddr = ops->vaddr(mem_priv);
-	if (buf->is_need_dbuf)
-		buf->dbuf = ops->get_dmabuf(mem_priv, O_RDWR);
-	if (rkisp_debug)
-		dev_info(dev, "%s buf:0x%x~0x%x size:%d\n", __func__,
-			 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
-
-	return ret;
-err:
-	dev_err(dev, "%s failed ret:%d\n", __func__, ret);
-	return ret;
-}
-
-static inline void rkisp_free_buffer(struct device *dev,
-				     struct rkisp_dummy_buffer *buf)
-{
-	const struct vb2_mem_ops *ops = &vb2_dma_contig_memops;
-
-	if (buf && buf->mem_priv) {
-		if (rkisp_debug)
-			dev_info(dev, "%s buf:0x%x~0x%x\n", __func__,
-				 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size);
-		if (buf->dbuf)
-			dma_buf_put(buf->dbuf);
-		ops->put(buf->mem_priv);
-		buf->size = 0;
-		buf->dbuf = NULL;
-		buf->vaddr = NULL;
-		buf->mem_priv = NULL;
-		buf->is_need_dbuf = false;
-		buf->is_need_vaddr = false;
-	}
-}
-
+int rkisp_alloc_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
+void rkisp_free_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
+int rkisp_attach_hw(struct rkisp_device *isp);
 #endif /* _RKISP_COMMON_H */

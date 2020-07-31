@@ -1886,8 +1886,11 @@ static inline void sp_mi_ctrl_autoupdate_en(void __iomem *base)
 	writel(readl(addr) | CIF_MI_SP_AUTOUPDATE_ENABLE, addr);
 }
 
-static inline void force_cfg_update(void __iomem *base)
+static inline void force_cfg_update(struct rkisp_device *dev)
 {
+	void __iomem *base = dev->base_addr;
+
+	dev->hw_dev->is_mi_update = true;
 	writel(CIF_MI_INIT_SOFT_UPD, base + CIF_MI_INIT);
 }
 

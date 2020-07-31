@@ -3,8 +3,11 @@
  * Copyright (C) 2019 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _RKISP1_REGS_V2X_H
-#define _RKISP1_REGS_V2X_H
+#ifndef _RKISP_REGS_V2X_H
+#define _RKISP_REGS_V2X_H
+
+#define ISP_SW_REG_SIZE					0x6000
+#define ISP_SW_MAX_SIZE					(ISP_SW_REG_SIZE * 2)
 
 #define CTRL_BASE					0x00000000
 #define CTRL_VI_ISP_EN					(CTRL_BASE + 0x00000)
@@ -2114,7 +2117,7 @@ static inline void raw_rd_set_pic_size(struct rkisp_stream *stream)
 	u32 h = dev->isp_sdev.in_crop.top + dev->isp_sdev.in_crop.height;
 
 	/* rx height should equal to isp height + offset */
-	writel(h << 16 | w, dev->base_addr + CSI2RX_RAW_RD_PIC_SIZE);
+	rkisp_write(dev, CSI2RX_RAW_RD_PIC_SIZE, h << 16 | w, false);
 }
 
 static inline void raw_rd_ctrl(void __iomem *base, u32 val)
@@ -2122,4 +2125,4 @@ static inline void raw_rd_ctrl(void __iomem *base, u32 val)
 	writel(val, base + CSI2RX_RAW_RD_CTRL);
 }
 
-#endif /* _RKISP1_REGS_V2X_H */
+#endif /* _RKISP_REGS_V2X_H */

@@ -22,6 +22,13 @@
 	 __x == HDR_RDBK_FRAME3); \
 })
 
+enum {
+	T_CMD_QUEUE,
+	T_CMD_DEQUEUE,
+	T_CMD_LEN,
+	T_CMD_END,
+};
+
 enum hdr_op_mode {
 	HDR_NORMAL = 0,
 	HDR_RDBK_FRAME1 = 4,
@@ -89,6 +96,6 @@ void rkisp_unregister_csi_subdev(struct rkisp_device *dev);
 
 int rkisp_csi_config_patch(struct rkisp_device *dev);
 void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm);
-int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg);
+int rkisp_csi_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg);
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id);
 #endif

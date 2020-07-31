@@ -294,39 +294,39 @@ static struct streams_ops rkisp_dmarx_streams_ops = {
 static int rawrd_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	void __iomem *base = dev->base_addr;
 	u32 val;
 
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "%s id:%d %dx%d\n", __func__,
-		 stream->id,
-		 stream->out_fmt.width,
-		 stream->out_fmt.height);
-
+	val = rkisp_read(dev, CSI2RX_DATA_IDS_1, true);
+	val &= ~SW_CSI_ID0(0xff);
 	switch (stream->out_isp_fmt.fourcc) {
 	case V4L2_PIX_FMT_SRGGB8:
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_GREY:
-		val = CIF_CSI2_DT_RAW8;
+		val |= CIF_CSI2_DT_RAW8;
 		break;
 	case V4L2_PIX_FMT_SRGGB10:
 	case V4L2_PIX_FMT_SBGGR10:
 	case V4L2_PIX_FMT_SGRBG10:
 	case V4L2_PIX_FMT_SGBRG10:
 	case V4L2_PIX_FMT_Y10:
-		val = CIF_CSI2_DT_RAW10;
+		val |= CIF_CSI2_DT_RAW10;
 		break;
 	default:
-		val = CIF_CSI2_DT_RAW12;
+		val |= CIF_CSI2_DT_RAW12;
 	}
-	isp_set_bits(base + CSI2RX_DATA_IDS_1,
-		     SW_CSI_ID0(0xff), SW_CSI_ID0(val));
+	rkisp_write(dev, CSI2RX_DATA_IDS_1, val, false);
 	raw_rd_set_pic_size(stream);
-	isp_set_bits(base + CSI2RX_RAW_RD_CTRL, 0,
-		     dev->csi_dev.memory << 2 |
-		     1 << (stream->id - 1));
+	rkisp_set_bits(dev, CSI2RX_RAW_RD_CTRL, 0,
+		       dev->csi_dev.memory << 2 |
+		       1 << (stream->id - 1), true);
+
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s id:%d 0x%x %dx%d\n", __func__,
+		 stream->id, val,
+		 stream->out_fmt.width,
+		 stream->out_fmt.height);
 	return 0;
 }
 
@@ -336,8 +336,9 @@ static void update_rawrd(struct rkisp_stream *stream)
 	void __iomem *base = dev->base_addr;
 
 	if (stream->curr_buf) {
-		mi_set_y_addr(stream,
-			stream->curr_buf->buff_addr[RKISP_PLANE_Y]);
+		rkisp_write(dev, stream->config->mi.y_base_ad_init,
+			    stream->curr_buf->buff_addr[RKISP_PLANE_Y],
+			    false);
 		stream->frame_end = false;
 	} else if (dev->dmarx_dev.trigger == T_AUTO) {
 		/* internal raw wr/rd buf rotate */
@@ -373,17 +374,8 @@ static void update_rawrd(struct rkisp_stream *stream)
 	}
 }
 
-static void rawrd_stop_mi(struct rkisp_stream *stream)
-{
-	void __iomem *base = &stream->ispdev->base_addr;
-
-	isp_clear_bits(base + CSI2RX_RAW_RD_CTRL,
-		       1 << (stream->id - 1));
-}
-
 static struct streams_ops rkisp2_dmarx_streams_ops = {
 	.config_mi = rawrd_config_mi,
-	.stop_mi = rawrd_stop_mi,
 	.update_mi = update_rawrd,
 };
 
@@ -613,7 +605,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->ispdev->apilock;
-	q->dev = stream->ispdev->dev;
+	q->dev = stream->ispdev->hw_dev->dev;
 
 	return vb2_queue_init(q);
 }

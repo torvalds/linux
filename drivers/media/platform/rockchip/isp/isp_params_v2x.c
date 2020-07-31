@@ -4286,7 +4286,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++) {
 		priv_val->buf_3dlut[i].is_need_vaddr = true;
 		priv_val->buf_3dlut[i].size = RKISP_PARAM_3DLUT_BUF_SIZE;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dlut[i]);
+		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
 		if (ret) {
 			dev_err(dev, "can not alloc buffer\n");
 			goto err;
@@ -4297,7 +4297,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++) {
 		priv_val->buf_lsclut[i].is_need_vaddr = true;
 		priv_val->buf_lsclut[i].size = RKISP_PARAM_LSC_LUT_BUF_SIZE;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_lsclut[i]);
+		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
 		if (ret) {
 			dev_err(dev, "can not alloc buffer\n");
 			goto err;
@@ -4308,7 +4308,7 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++) {
 		priv_val->buf_ldch[i].is_need_vaddr = true;
 		priv_val->buf_ldch[i].size = ISP2X_LDCH_MESH_XY_NUM * sizeof(u16);
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_ldch[i]);
+		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_ldch[i]);
 		if (ret) {
 			dev_err(dev, "can not alloc buffer\n");
 			goto err;
@@ -4328,13 +4328,13 @@ int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 
 err:
 	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_3dlut[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
 
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
 
 	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_ldch[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_ldch[i]);
 
 	vfree(params_vdev->isp2x_params);
 
@@ -4344,7 +4344,6 @@ err:
 void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_isp_params_val_v2x *priv_val;
-	struct device *dev = params_vdev->dev->dev;
 	int i;
 
 	priv_val = params_vdev->priv_val;
@@ -4352,13 +4351,13 @@ void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		return;
 
 	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_3dlut[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
 
 	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
 
 	for (i = 0; i < RKISP_PARAM_LDCH_BUF_NUM; i++)
-		rkisp_free_buffer(dev, &priv_val->buf_ldch[i]);
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_ldch[i]);
 
 	vfree(params_vdev->isp2x_params);
 
