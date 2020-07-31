@@ -927,6 +927,7 @@ struct pqi_scsi_dev {
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	u8	rescan : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_reset;
 	bool	in_remove;

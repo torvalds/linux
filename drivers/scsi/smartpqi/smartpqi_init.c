@@ -1688,6 +1688,11 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 		existing_device->target_lun_valid = true;
 	}
 
+	if ((existing_device->volume_status == CISS_LV_QUEUED_FOR_EXPANSION ||
+		existing_device->volume_status == CISS_LV_UNDERGOING_EXPANSION) &&
+		new_device->volume_status == CISS_LV_OK)
+		existing_device->rescan = true;
+
 	/* By definition, the scsi3addr and wwid fields are already the same. */
 
 	existing_device->is_physical_device = new_device->is_physical_device;
@@ -1872,11 +1877,17 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	 */
 	list_for_each_entry(device, &ctrl_info->scsi_device_list,
 		scsi_device_list_entry) {
-		if (device->sdev && device->queue_depth !=
-			device->advertised_queue_depth) {
-			device->advertised_queue_depth = device->queue_depth;
-			scsi_change_queue_depth(device->sdev,
-				device->advertised_queue_depth);
+		if (device->sdev) {
+			if (device->queue_depth !=
+				device->advertised_queue_depth) {
+				device->advertised_queue_depth = device->queue_depth;
+				scsi_change_queue_depth(device->sdev,
+					device->advertised_queue_depth);
+			}
+			if (device->rescan) {
+				scsi_rescan_device(&device->sdev->sdev_gendev);
+				device->rescan = false;
+			}
 		}
 	}
 
