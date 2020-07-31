@@ -31,7 +31,7 @@ enum cxgb4_ethtool_tests {
 };
 
 static const char cxgb4_selftest_strings[CXGB4_ETHTOOL_MAX_TEST][ETH_GSTRING_LEN] = {
-	"Loop back test",
+	"Loop back test (offline)",
 };
 
 static const char * const flash_region_strings[] = {
@@ -2095,12 +2095,13 @@ static void cxgb4_self_test(struct net_device *netdev,
 
 	memset(data, 0, sizeof(u64) * CXGB4_ETHTOOL_MAX_TEST);
 
-	if (!(adap->flags & CXGB4_FW_OK)) {
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE) ||
+	    !(adap->flags & CXGB4_FW_OK)) {
 		eth_test->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
 
-	if (eth_test->flags == ETH_TEST_FL_OFFLINE)
+	if (eth_test->flags & ETH_TEST_FL_OFFLINE)
 		cxgb4_lb_test(netdev, &data[CXGB4_ETHTOOL_LB_TEST]);
 
 	if (data[CXGB4_ETHTOOL_LB_TEST])
