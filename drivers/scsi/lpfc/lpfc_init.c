@@ -14099,17 +14099,18 @@ lpfc_init(void)
 		printk(KERN_ERR "Could not register lpfcmgmt device, "
 			"misc_register returned with status %d", error);
 
+	error = -ENOMEM;
 	lpfc_transport_functions.vport_create = lpfc_vport_create;
 	lpfc_transport_functions.vport_delete = lpfc_vport_delete;
 	lpfc_transport_template =
 				fc_attach_transport(&lpfc_transport_functions);
 	if (lpfc_transport_template == NULL)
-		return -ENOMEM;
+		goto unregister;
 	lpfc_vport_transport_template =
 		fc_attach_transport(&lpfc_vport_transport_functions);
 	if (lpfc_vport_transport_template == NULL) {
 		fc_release_transport(lpfc_transport_template);
-		return -ENOMEM;
+		goto unregister;
 	}
 	lpfc_nvme_cmd_template();
 	lpfc_nvmet_cmd_template();
@@ -14135,6 +14136,8 @@ unwind:
 cpuhp_failure:
 	fc_release_transport(lpfc_transport_template);
 	fc_release_transport(lpfc_vport_transport_template);
+unregister:
+	misc_deregister(&lpfc_mgmt_dev);
 
 	return error;
 }
