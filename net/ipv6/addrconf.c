@@ -7189,7 +7189,7 @@ void addrconf_cleanup(void)
 			continue;
 		addrconf_ifdown(dev, 1);
 	}
-	addrconf_ifdown(init_net.loopback_dev, 2);
+	addrconf_ifdown(init_net.loopback_dev, 1);
 
 	/*
 	 *	Check hash table.
