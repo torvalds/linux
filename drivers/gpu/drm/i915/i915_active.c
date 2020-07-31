@@ -130,8 +130,8 @@ static inline void debug_active_assert(struct i915_active *ref) { }
 static void
 __active_retire(struct i915_active *ref)
 {
+	struct rb_root root = RB_ROOT;
 	struct active_node *it, *n;
-	struct rb_root root;
 	unsigned long flags;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
@@ -143,9 +143,21 @@ __active_retire(struct i915_active *ref)
 	GEM_BUG_ON(rcu_access_pointer(ref->excl.fence));
 	debug_active_deactivate(ref);
 
-	root = ref->tree;
-	ref->tree = RB_ROOT;
-	ref->cache = NULL;
+	/* Even if we have not used the cache, we may still have a barrier */
+	if (!ref->cache)
+		ref->cache = fetch_node(ref->tree.rb_node);
+
+	/* Keep the MRU cached node for reuse */
+	if (ref->cache) {
+		/* Discard all other nodes in the tree */
+		rb_erase(&ref->cache->node, &ref->tree);
+		root = ref->tree;
+
+		/* Rebuild the tree with only the cached node */
+		rb_link_node(&ref->cache->node, NULL, &ref->tree.rb_node);
+		rb_insert_color(&ref->cache->node, &ref->tree);
+		GEM_BUG_ON(ref->tree.rb_node != &ref->cache->node);
+	}
 
 	spin_unlock_irqrestore(&ref->tree_lock, flags);
 
@@ -156,6 +168,7 @@ __active_retire(struct i915_active *ref)
 	/* ... except if you wait on it, you must manage your own references! */
 	wake_up_var(ref);
 
+	/* Finally free the discarded timeline tree  */
 	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
 		GEM_BUG_ON(i915_active_fence_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
@@ -745,16 +758,16 @@ int i915_sw_fence_await_active(struct i915_sw_fence *fence,
 	return await_active(ref, flags, sw_await_fence, fence, fence);
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 void i915_active_fini(struct i915_active *ref)
 {
 	debug_active_fini(ref);
 	GEM_BUG_ON(atomic_read(&ref->count));
 	GEM_BUG_ON(work_pending(&ref->work));
-	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
 	mutex_destroy(&ref->mutex);
+
+	if (ref->cache)
+		kmem_cache_free(global.slab_cache, ref->cache);
 }
-#endif
 
 static inline bool is_idle_barrier(struct active_node *node, u64 idx)
 {
