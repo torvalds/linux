@@ -27,7 +27,7 @@
  *
  * Some code sections either automatically switch back to PSR.I or explicitly
  * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
- * in the  the priority mask, it indicates that PSR.I should be set and
+ * in the priority mask, it indicates that PSR.I should be set and
  * interrupt disabling temporarily does not rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
