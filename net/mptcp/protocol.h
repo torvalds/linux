@@ -400,6 +400,7 @@ void mptcp_token_destroy_request(struct request_sock *req);
 int mptcp_token_new_connect(struct sock *sk);
 void mptcp_token_accept(struct mptcp_subflow_request_sock *r,
 			struct mptcp_sock *msk);
+bool mptcp_token_exists(u32 token);
 struct mptcp_sock *mptcp_token_get_sock(u32 token);
 struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 					 long *s_num);
@@ -504,5 +505,25 @@ static inline bool subflow_simultaneous_connect(struct sock *sk)
 	       !mptcp_sk(parent)->pm.server_side &&
 	       !subflow->conn_finished;
 }
+
+#ifdef CONFIG_SYN_COOKIES
+void subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *subflow_req,
+				       struct sk_buff *skb);
+bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subflow_req,
+					struct sk_buff *skb);
+void __init mptcp_join_cookie_init(void);
+#else
+static inline void
+subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *subflow_req,
+				  struct sk_buff *skb) {}
+static inline bool
+mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subflow_req,
+				   struct sk_buff *skb)
+{
+	return false;
+}
+
+static inline void mptcp_join_cookie_init(void) {}
+#endif
 
 #endif /* __MPTCP_PROTOCOL_H */

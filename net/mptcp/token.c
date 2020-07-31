@@ -109,14 +109,12 @@ static void mptcp_crypto_key_gen_sha(u64 *key, u32 *token, u64 *idsn)
 int mptcp_token_new_request(struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
-	int retries = TOKEN_MAX_RETRIES;
 	struct token_bucket *bucket;
 	u32 token;
 
-again:
-	mptcp_crypto_key_gen_sha(&subflow_req->local_key,
-				 &subflow_req->token,
-				 &subflow_req->idsn);
+	mptcp_crypto_key_sha(subflow_req->local_key,
+			     &subflow_req->token,
+			     &subflow_req->idsn);
 	pr_debug("req=%p local_key=%llu, token=%u, idsn=%llu\n",
 		 req, subflow_req->local_key, subflow_req->token,
 		 subflow_req->idsn);
@@ -126,9 +124,7 @@ again:
 	spin_lock_bh(&bucket->lock);
 	if (__token_bucket_busy(bucket, token)) {
 		spin_unlock_bh(&bucket->lock);
-		if (!--retries)
-			return -EBUSY;
-		goto again;
+		return -EBUSY;
 	}
 
 	hlist_nulls_add_head_rcu(&subflow_req->token_node, &bucket->req_chain);
@@ -206,6 +202,32 @@ void mptcp_token_accept(struct mptcp_subflow_request_sock *req,
 		hlist_nulls_del_init_rcu(&req->token_node);
 	__sk_nulls_add_node_rcu((struct sock *)msk, &bucket->msk_chain);
 	spin_unlock_bh(&bucket->lock);
+}
+
+bool mptcp_token_exists(u32 token)
+{
+	struct hlist_nulls_node *pos;
+	struct token_bucket *bucket;
+	struct mptcp_sock *msk;
+	struct sock *sk;
+
+	rcu_read_lock();
+	bucket = token_bucket(token);
+
+again:
+	sk_nulls_for_each_rcu(sk, pos, &bucket->msk_chain) {
+		msk = mptcp_sk(sk);
+		if (READ_ONCE(msk->token) == token)
+			goto found;
+	}
+	if (get_nulls_value(pos) != (token & token_mask))
+		goto again;
+
+	rcu_read_unlock();
+	return false;
+found:
+	rcu_read_unlock();
+	return true;
 }
 
 /**
