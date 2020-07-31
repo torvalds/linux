@@ -701,10 +701,10 @@ static int parser_init(struct of_pci_range_parser *parser,
 
 	parser->node = node;
 	parser->pna = of_n_addr_cells(node);
+	parser->na = of_bus_n_addr_cells(node);
+	parser->ns = of_bus_n_size_cells(node);
 	parser->dma = !strcmp(name, "dma-ranges");
 	parser->bus = of_match_bus(node);
-
-	parser->bus->count_cells(parser->node, &parser->na, &parser->ns);
 
 	parser->range = of_get_property(node, name, &rlen);
 	if (parser->range == NULL)
