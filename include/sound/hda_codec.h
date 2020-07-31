@@ -415,6 +415,8 @@ __printf(2, 3)
 struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
 				      const char *fmt, ...);
 
+void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec);
+
 static inline void snd_hda_codec_pcm_get(struct hda_pcm *pcm)
 {
 	kref_get(&pcm->kref);

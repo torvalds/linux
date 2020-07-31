@@ -155,6 +155,7 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id max98357a_device_id[] = {
 	{ .compatible = "maxim,max98357a" },
+	{ .compatible = "maxim,max98360a" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, max98357a_device_id);

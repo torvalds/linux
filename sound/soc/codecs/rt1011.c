@@ -1849,13 +1849,13 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 
 	/* Rx slot configuration */
 	rx_slotnum = hweight_long(rx_mask);
-	first_bit = find_next_bit((unsigned long *)&rx_mask, 32, 0);
-	if (rx_slotnum > 1 || rx_slotnum == 0) {
+	if (rx_slotnum > 1 || !rx_slotnum) {
 		ret = -EINVAL;
-		dev_dbg(component->dev, "too many rx slots or zero slot\n");
+		dev_err(component->dev, "too many rx slots or zero slot\n");
 		goto _set_tdm_err_;
 	}
 
+	first_bit = __ffs(rx_mask);
 	switch (first_bit) {
 	case 0:
 	case 2:
@@ -1892,11 +1892,17 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 
 	/* Tx slot configuration */
 	tx_slotnum = hweight_long(tx_mask);
-	first_bit = find_next_bit((unsigned long *)&tx_mask, 32, 0);
-	last_bit = find_last_bit((unsigned long *)&tx_mask, 32);
-	if (tx_slotnum > 2 || (last_bit-first_bit) > 1) {
+	if (tx_slotnum > 2 || !tx_slotnum) {
 		ret = -EINVAL;
-		dev_dbg(component->dev, "too many tx slots or tx slot location error\n");
+		dev_err(component->dev, "too many tx slots or zero slot\n");
+		goto _set_tdm_err_;
+	}
+
+	first_bit = __ffs(tx_mask);
+	last_bit = __fls(tx_mask);
+	if (last_bit - first_bit > 1) {
+		ret = -EINVAL;
+		dev_err(component->dev, "tx slot location error\n");
 		goto _set_tdm_err_;
 	}
 

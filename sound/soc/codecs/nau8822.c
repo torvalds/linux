@@ -188,7 +188,7 @@ static int nau8822_eq_get(struct snd_kcontrol *kcontrol,
 	val = (u16 *)ucontrol->value.bytes.data;
 	reg = NAU8822_REG_EQ1;
 	for (i = 0; i < params->max / sizeof(u16); i++) {
-		reg_val = snd_soc_component_read32(component, reg + i);
+		reg_val = snd_soc_component_read(component, reg + i);
 		/* conversion of 16-bit integers between native CPU format
 		 * and big endian format
 		 */
@@ -445,7 +445,7 @@ static int check_mclk_select_pll(struct snd_soc_dapm_widget *source,
 		snd_soc_dapm_to_component(source->dapm);
 	unsigned int value;
 
-	value = snd_soc_component_read32(component, NAU8822_REG_CLOCKING);
+	value = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
 
 	return (value & NAU8822_CLKM_MASK);
 }
@@ -831,7 +831,7 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ctrl_val, bclk_fs, bclk_div;
 
 	/* make BCLK and LRC divide configuration if the codec as master. */
-	snd_soc_component_read(component, NAU8822_REG_CLOCKING, &ctrl_val);
+	ctrl_val = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
 	if (ctrl_val & NAU8822_CLK_MASTER) {
 		/* get the bclk and fs ratio */
 		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);
@@ -900,7 +900,7 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int nau8822_mute(struct snd_soc_dai *dai, int mute)
+static int nau8822_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -967,10 +967,11 @@ static int nau8822_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops nau8822_dai_ops = {
 	.hw_params	= nau8822_hw_params,
-	.digital_mute	= nau8822_mute,
+	.mute_stream	= nau8822_mute,
 	.set_fmt	= nau8822_set_dai_fmt,
 	.set_sysclk	= nau8822_set_dai_sysclk,
 	.set_pll	= nau8822_set_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver nau8822_dai = {
