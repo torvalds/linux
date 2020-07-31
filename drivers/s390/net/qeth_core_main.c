@@ -204,12 +204,17 @@ EXPORT_SYMBOL_GPL(qeth_threads_running);
 void qeth_clear_working_pool_list(struct qeth_card *card)
 {
 	struct qeth_buffer_pool_entry *pool_entry, *tmp;
+	struct qeth_qdio_q *queue = card->qdio.in_q;
+	unsigned int i;
 
 	QETH_CARD_TEXT(card, 5, "clwrklst");
 	list_for_each_entry_safe(pool_entry, tmp,
 			    &card->qdio.in_buf_pool.entry_list, list){
 			list_del(&pool_entry->list);
 	}
+
+	for (i = 0; i < ARRAY_SIZE(queue->bufs); i++)
+		queue->bufs[i].pool_entry = NULL;
 }
 EXPORT_SYMBOL_GPL(qeth_clear_working_pool_list);
 
@@ -2965,7 +2970,7 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 static int qeth_init_input_buffer(struct qeth_card *card,
 		struct qeth_qdio_buffer *buf)
 {
-	struct qeth_buffer_pool_entry *pool_entry;
+	struct qeth_buffer_pool_entry *pool_entry = buf->pool_entry;
 	int i;
 
 	if ((card->options.cq == QETH_CQ_ENABLED) && (!buf->rx_skb)) {
@@ -2976,9 +2981,13 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 			return -ENOMEM;
 	}
 
-	pool_entry = qeth_find_free_buffer_pool_entry(card);
-	if (!pool_entry)
-		return -ENOBUFS;
+	if (!pool_entry) {
+		pool_entry = qeth_find_free_buffer_pool_entry(card);
+		if (!pool_entry)
+			return -ENOBUFS;
+
+		buf->pool_entry = pool_entry;
+	}
 
 	/*
 	 * since the buffer is accessed only from the input_tasklet
@@ -2986,8 +2995,6 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	 * the QETH_IN_BUF_REQUEUE_THRESHOLD we should never run  out off
 	 * buffers
 	 */
-
-	buf->pool_entry = pool_entry;
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		buf->buffer->element[i].length = PAGE_SIZE;
 		buf->buffer->element[i].addr =
@@ -3015,6 +3022,7 @@ static unsigned int qeth_tx_select_bulk_max(struct qeth_card *card,
 
 static int qeth_init_qdio_queues(struct qeth_card *card)
 {
+	unsigned int rx_bufs = card->qdio.in_buf_pool.buf_count;
 	unsigned int i;
 	int rc;
 
@@ -3026,16 +3034,14 @@ static int qeth_init_qdio_queues(struct qeth_card *card)
 
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
-	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; i++) {
+	for (i = 0; i < rx_bufs; i++) {
 		rc = qeth_init_input_buffer(card, &card->qdio.in_q->bufs[i]);
 		if (rc)
 			return rc;
 	}
 
-	card->qdio.in_q->next_buf_to_init =
-		card->qdio.in_buf_pool.buf_count - 1;
-	rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0, 0,
-		     card->qdio.in_buf_pool.buf_count - 1);
+	card->qdio.in_q->next_buf_to_init = QDIO_BUFNR(rx_bufs);
+	rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0, 0, rx_bufs);
 	if (rc) {
 		QETH_CARD_TEXT_(card, 2, "1err%d", rc);
 		return rc;
@@ -3485,20 +3491,15 @@ static int qeth_check_qdio_errors(struct qeth_card *card,
 	return 0;
 }
 
-static void qeth_queue_input_buffer(struct qeth_card *card, int index)
+static unsigned int qeth_rx_refill_queue(struct qeth_card *card,
+					 unsigned int count)
 {
 	struct qeth_qdio_q *queue = card->qdio.in_q;
 	struct list_head *lh;
-	int count;
 	int i;
 	int rc;
 	int newcount = 0;
 
-	count = (index < queue->next_buf_to_init)?
-		card->qdio.in_buf_pool.buf_count -
-		(queue->next_buf_to_init - index) :
-		card->qdio.in_buf_pool.buf_count -
-		(queue->next_buf_to_init + QDIO_MAX_BUFFERS_PER_Q - index);
 	/* only requeue at a certain threshold to avoid SIGAs */
 	if (count >= QETH_IN_BUF_REQUEUE_THRESHOLD(card)) {
 		for (i = queue->next_buf_to_init;
@@ -3526,21 +3527,13 @@ static void qeth_queue_input_buffer(struct qeth_card *card, int index)
 				i++;
 			if (i == card->qdio.in_buf_pool.buf_count) {
 				QETH_CARD_TEXT(card, 2, "qsarbw");
-				card->reclaim_index = index;
 				schedule_delayed_work(
 					&card->buffer_reclaim_work,
 					QETH_RECLAIM_WORK_TIME);
 			}
-			return;
+			return 0;
 		}
 
-		/*
-		 * according to old code it should be avoided to requeue all
-		 * 128 buffers in order to benefit from PCI avoidance.
-		 * this function keeps at least one buffer (the buffer at
-		 * 'index') un-requeued -> this buffer is the first buffer that
-		 * will be requeued the next time
-		 */
 		rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT, 0,
 			     queue->next_buf_to_init, count);
 		if (rc) {
@@ -3548,7 +3541,10 @@ static void qeth_queue_input_buffer(struct qeth_card *card, int index)
 		}
 		queue->next_buf_to_init = QDIO_BUFNR(queue->next_buf_to_init +
 						     count);
+		return count;
 	}
+
+	return 0;
 }
 
 static void qeth_buffer_reclaim_work(struct work_struct *work)
@@ -3556,8 +3552,10 @@ static void qeth_buffer_reclaim_work(struct work_struct *work)
 	struct qeth_card *card = container_of(work, struct qeth_card,
 		buffer_reclaim_work.work);
 
-	QETH_CARD_TEXT_(card, 2, "brw:%x", card->reclaim_index);
-	qeth_queue_input_buffer(card, card->reclaim_index);
+	local_bh_disable();
+	napi_schedule(&card->napi);
+	/* kick-start the NAPI softirq: */
+	local_bh_enable();
 }
 
 static void qeth_handle_send_error(struct qeth_card *card,
@@ -5736,6 +5734,7 @@ static unsigned int qeth_extract_skbs(struct qeth_card *card, int budget,
 
 static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 {
+	struct qeth_rx *ctx = &card->rx;
 	unsigned int work_done = 0;
 
 	while (budget > 0) {
@@ -5771,8 +5770,11 @@ static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 		if (done) {
 			QETH_CARD_STAT_INC(card, rx_bufs);
 			qeth_put_buffer_pool_entry(card, buffer->pool_entry);
-			qeth_queue_input_buffer(card, card->rx.b_index);
+			buffer->pool_entry = NULL;
 			card->rx.b_count--;
+			ctx->bufs_refill++;
+			ctx->bufs_refill -= qeth_rx_refill_queue(card,
+								 ctx->bufs_refill);
 
 			/* Step forward to next buffer: */
 			card->rx.b_index = QDIO_BUFNR(card->rx.b_index + 1);
@@ -5812,9 +5814,16 @@ int qeth_poll(struct napi_struct *napi, int budget)
 	if (card->options.cq == QETH_CQ_ENABLED)
 		qeth_cq_poll(card);
 
-	/* Exhausted the RX budget. Keep IRQ disabled, we get called again. */
-	if (budget && work_done >= budget)
-		return work_done;
+	if (budget) {
+		struct qeth_rx *ctx = &card->rx;
+
+		/* Process any substantial refill backlog: */
+		ctx->bufs_refill -= qeth_rx_refill_queue(card, ctx->bufs_refill);
+
+		/* Exhausted the RX budget. Keep IRQ disabled, we get called again. */
+		if (work_done >= budget)
+			return work_done;
+	}
 
 	if (napi_complete_done(napi, work_done) &&
 	    qdio_start_irq(CARD_DDEV(card)))
@@ -7001,6 +7010,7 @@ int qeth_stop(struct net_device *dev)
 	}
 
 	napi_disable(&card->napi);
+	cancel_delayed_work_sync(&card->buffer_reclaim_work);
 	qdio_stop_irq(CARD_DDEV(card));
 
 	return 0;
