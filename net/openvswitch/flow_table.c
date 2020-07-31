@@ -667,6 +667,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				   struct mask_array *ma,
 				   const struct sw_flow_key *key,
 				   u32 *n_mask_hit,
+				   u32 *n_cache_hit,
 				   u32 *index)
 {
 	u64 *usage_counters = this_cpu_ptr(ma->masks_usage_cntr);
@@ -682,6 +683,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				u64_stats_update_begin(&ma->syncp);
 				usage_counters[*index]++;
 				u64_stats_update_end(&ma->syncp);
+				(*n_cache_hit)++;
 				return flow;
 			}
 		}
@@ -719,7 +721,8 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 					  const struct sw_flow_key *key,
 					  u32 skb_hash,
-					  u32 *n_mask_hit)
+					  u32 *n_mask_hit,
+					  u32 *n_cache_hit)
 {
 	struct mask_array *ma = rcu_dereference(tbl->mask_array);
 	struct table_instance *ti = rcu_dereference(tbl->ti);
@@ -729,10 +732,13 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 	int seg;
 
 	*n_mask_hit = 0;
+	*n_cache_hit = 0;
 	if (unlikely(!skb_hash)) {
 		u32 mask_index = 0;
+		u32 cache = 0;
 
-		return flow_lookup(tbl, ti, ma, key, n_mask_hit, &mask_index);
+		return flow_lookup(tbl, ti, ma, key, n_mask_hit, &cache,
+				   &mask_index);
 	}
 
 	/* Pre and post recirulation flows usually have the same skb_hash
@@ -753,7 +759,7 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 		e = &entries[index];
 		if (e->skb_hash == skb_hash) {
 			flow = flow_lookup(tbl, ti, ma, key, n_mask_hit,
-					   &e->mask_index);
+					   n_cache_hit, &e->mask_index);
 			if (!flow)
 				e->skb_hash = 0;
 			return flow;
@@ -766,10 +772,12 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 	}
 
 	/* Cache miss, do full lookup. */
-	flow = flow_lookup(tbl, ti, ma, key, n_mask_hit, &ce->mask_index);
+	flow = flow_lookup(tbl, ti, ma, key, n_mask_hit, n_cache_hit,
+			   &ce->mask_index);
 	if (flow)
 		ce->skb_hash = skb_hash;
 
+	*n_cache_hit = 0;
 	return flow;
 }
 
@@ -779,9 +787,10 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 	struct table_instance *ti = rcu_dereference_ovsl(tbl->ti);
 	struct mask_array *ma = rcu_dereference_ovsl(tbl->mask_array);
 	u32 __always_unused n_mask_hit;
+	u32 __always_unused n_cache_hit;
 	u32 index = 0;
 
-	return flow_lookup(tbl, ti, ma, key, &n_mask_hit, &index);
+	return flow_lookup(tbl, ti, ma, key, &n_mask_hit, &n_cache_hit, &index);
 }
 
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,

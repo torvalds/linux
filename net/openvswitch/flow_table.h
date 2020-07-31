@@ -82,7 +82,8 @@ struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *table,
 struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *,
 					  const struct sw_flow_key *,
 					  u32 skb_hash,
-					  u32 *n_mask_hit);
+					  u32 *n_mask_hit,
+					  u32 *n_cache_hit);
 struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
 				    const struct sw_flow_key *);
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,

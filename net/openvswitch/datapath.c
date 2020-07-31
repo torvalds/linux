@@ -225,13 +225,14 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	struct dp_stats_percpu *stats;
 	u64 *stats_counter;
 	u32 n_mask_hit;
+	u32 n_cache_hit;
 	int error;
 
 	stats = this_cpu_ptr(dp->stats_percpu);
 
 	/* Look up flow. */
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, skb_get_hash(skb),
-					 &n_mask_hit);
+					 &n_mask_hit, &n_cache_hit);
 	if (unlikely(!flow)) {
 		struct dp_upcall_info upcall;
 
@@ -262,6 +263,7 @@ out:
 	u64_stats_update_begin(&stats->syncp);
 	(*stats_counter)++;
 	stats->n_mask_hit += n_mask_hit;
+	stats->n_cache_hit += n_cache_hit;
 	u64_stats_update_end(&stats->syncp);
 }
 
@@ -699,6 +701,7 @@ static void get_dp_stats(const struct datapath *dp, struct ovs_dp_stats *stats,
 		stats->n_missed += local_stats.n_missed;
 		stats->n_lost += local_stats.n_lost;
 		mega_stats->n_mask_hit += local_stats.n_mask_hit;
+		mega_stats->n_cache_hit += local_stats.n_cache_hit;
 	}
 }
 
