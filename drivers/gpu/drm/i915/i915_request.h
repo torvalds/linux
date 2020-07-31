@@ -361,10 +361,6 @@ void i915_request_submit(struct i915_request *request);
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
 
-/* Note: part of the intel_breadcrumbs family */
-bool i915_request_enable_breadcrumb(struct i915_request *request);
-void i915_request_cancel_breadcrumb(struct i915_request *request);
-
 long i915_request_wait(struct i915_request *rq,
 		       unsigned int flags,
 		       long timeout)

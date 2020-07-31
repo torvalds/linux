@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 
+#include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
@@ -700,8 +701,13 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
+	engine->breadcrumbs = intel_breadcrumbs_create(engine);
+	if (!engine->breadcrumbs) {
+		err = -ENOMEM;
+		goto err_status;
+	}
+
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
-	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
@@ -716,6 +722,10 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_ctx_wa(engine);
 
 	return 0;
+
+err_status:
+	cleanup_status_page(engine);
+	return err;
 }
 
 struct measure_breadcrumb {
@@ -914,9 +924,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
 	cleanup_status_page(engine);
+	intel_breadcrumbs_free(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
-	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 
 	if (engine->default_state)

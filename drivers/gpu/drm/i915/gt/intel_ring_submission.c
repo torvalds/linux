@@ -32,6 +32,7 @@
 #include "gen6_ppgtt.h"
 #include "gen7_renderclear.h"
 #include "i915_drv.h"
+#include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_gt.h"
 #include "intel_reset.h"
@@ -255,7 +256,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	else
 		ring_setup_status_page(engine);
 
-	intel_engine_reset_breadcrumbs(engine);
+	intel_breadcrumbs_reset(engine->breadcrumbs);
 
 	/* Enforce ordering by reading HEAD register back */
 	ENGINE_POSTING_READ(engine, RING_HEAD);

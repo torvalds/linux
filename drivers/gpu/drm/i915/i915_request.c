@@ -31,6 +31,7 @@
 #include <linux/sched/signal.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
 #include "gt/intel_ring.h"
 #include "gt/intel_rps.h"
