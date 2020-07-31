@@ -21,7 +21,7 @@
 #include <linux/of_platform.h>
 #include <linux/time.h>
 
-#define MPMC_STATIC_CFG(n)		(0x200 + 0x20 * n)
+#define MPMC_STATIC_CFG(n)		(0x200 + 0x20 * (n))
 #define  MPMC_STATIC_CFG_MW_8BIT	0x0
 #define  MPMC_STATIC_CFG_MW_16BIT	0x1
 #define  MPMC_STATIC_CFG_MW_32BIT	0x2
@@ -31,17 +31,17 @@
 #define  MPMC_STATIC_CFG_EW		BIT(8)
 #define  MPMC_STATIC_CFG_B		BIT(19)
 #define  MPMC_STATIC_CFG_P		BIT(20)
-#define MPMC_STATIC_WAIT_WEN(n)		(0x204 + 0x20 * n)
+#define MPMC_STATIC_WAIT_WEN(n)		(0x204 + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_WEN_MAX	0x0f
-#define MPMC_STATIC_WAIT_OEN(n)		(0x208 + 0x20 * n)
+#define MPMC_STATIC_WAIT_OEN(n)		(0x208 + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_OEN_MAX	0x0f
-#define MPMC_STATIC_WAIT_RD(n)		(0x20c + 0x20 * n)
+#define MPMC_STATIC_WAIT_RD(n)		(0x20c + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_RD_MAX	0x1f
-#define MPMC_STATIC_WAIT_PAGE(n)	(0x210 + 0x20 * n)
+#define MPMC_STATIC_WAIT_PAGE(n)	(0x210 + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_PAGE_MAX	0x1f
-#define MPMC_STATIC_WAIT_WR(n)		(0x214 + 0x20 * n)
+#define MPMC_STATIC_WAIT_WR(n)		(0x214 + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_WR_MAX	0x1f
-#define MPMC_STATIC_WAIT_TURN(n)	(0x218 + 0x20 * n)
+#define MPMC_STATIC_WAIT_TURN(n)	(0x218 + 0x20 * (n))
 #define  MPMC_STATIC_WAIT_TURN_MAX	0x0f
 
 /* Maximum number of static chip selects */

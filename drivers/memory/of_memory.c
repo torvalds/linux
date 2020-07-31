@@ -18,7 +18,7 @@
 /**
  * of_get_min_tck() - extract min timing values for ddr
  * @np: pointer to ddr device tree node
- * @device: device requesting for min timing values
+ * @dev: device requesting for min timing values
  *
  * Populates the lpddr2_min_tck structure by extracting data
  * from device tree node. Returns a pointer to the populated
@@ -155,7 +155,7 @@ EXPORT_SYMBOL(of_get_ddr_timings);
 /**
  * of_lpddr3_get_min_tck() - extract min timing values for lpddr3
  * @np: pointer to ddr device tree node
- * @device: device requesting for min timing values
+ * @dev: device requesting for min timing values
  *
  * Populates the lpddr3_min_tck structure by extracting data
  * from device tree node. Returns a pointer to the populated

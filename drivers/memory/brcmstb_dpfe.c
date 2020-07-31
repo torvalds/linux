@@ -23,7 +23,7 @@
  *     - BE kernel + LE firmware image
  *     - BE kernel + BE firmware image
  *
- * The DPCU always runs in big endian mode. The firwmare image, however, can
+ * The DPCU always runs in big endian mode. The firmware image, however, can
  * be in either format. Also, communication between host CPU and DCPU is
  * always in little endian.
  */
