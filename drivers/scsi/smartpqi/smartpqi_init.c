@@ -1300,33 +1300,59 @@ no_buffer:
 	device->volume_offline = volume_offline;
 }
 
-#define PQI_INQUIRY_PAGE0_RETRIES	3
+static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device,
+	struct bmic_identify_physical_device *id_phys)
+{
+	int rc;
 
-static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
+	memset(id_phys, 0, sizeof(*id_phys));
+
+	rc = pqi_identify_physical_device(ctrl_info, device,
+		id_phys, sizeof(*id_phys));
+	if (rc) {
+		device->queue_depth = PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH;
+		return rc;
+	}
+
+	scsi_sanitize_inquiry_string(&id_phys->model[0], 8);
+	scsi_sanitize_inquiry_string(&id_phys->model[8], 16);
+
+	memcpy(device->vendor, &id_phys->model[0], sizeof(device->vendor));
+	memcpy(device->model, &id_phys->model[8], sizeof(device->model));
+
+	device->box_index = id_phys->box_index;
+	device->phys_box_on_bus = id_phys->phys_box_on_bus;
+	device->phy_connected_dev_type = id_phys->phy_connected_dev_type[0];
+	device->queue_depth =
+		get_unaligned_le16(&id_phys->current_queue_depth_limit);
+	device->active_path_index = id_phys->active_path_number;
+	device->path_map = id_phys->redundant_path_present_map;
+	memcpy(&device->box,
+		&id_phys->alternate_paths_phys_box_on_port,
+		sizeof(device->box));
+	memcpy(&device->phys_connector,
+		&id_phys->alternate_paths_phys_connector,
+		sizeof(device->phys_connector));
+	device->bay = id_phys->phys_bay_in_box;
+
+	return 0;
+}
+
+static int pqi_get_logical_device_info(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
 	u8 *buffer;
-	unsigned int retries;
-
-	if (device->is_expander_smp_device)
-		return 0;
 
 	buffer = kmalloc(64, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
 	/* Send an inquiry to the device to see what it is. */
-	for (retries = 0;;) {
-		rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr, 0,
-			buffer, 64);
-		if (rc == 0)
-			break;
-		if (pqi_is_logical_device(device) ||
-			rc != PQI_CMD_STATUS_ABORTED ||
-			++retries > PQI_INQUIRY_PAGE0_RETRIES)
-			goto out;
-	}
+	rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr, 0, buffer, 64);
+	if (rc)
+		goto out;
 
 	scsi_sanitize_inquiry_string(&buffer[8], 8);
 	scsi_sanitize_inquiry_string(&buffer[16], 16);
@@ -1335,7 +1361,7 @@ static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 	memcpy(device->vendor, &buffer[8], sizeof(device->vendor));
 	memcpy(device->model, &buffer[16], sizeof(device->model));
 
-	if (pqi_is_logical_device(device) && device->devtype == TYPE_DISK) {
+	if (device->devtype == TYPE_DISK) {
 		if (device->is_external_raid_device) {
 			device->raid_level = SA_RAID_UNKNOWN;
 			device->volume_status = CISS_LV_OK;
@@ -1353,36 +1379,21 @@ out:
 	return rc;
 }
 
-static void pqi_get_physical_disk_info(struct pqi_ctrl_info *ctrl_info,
+static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device,
 	struct bmic_identify_physical_device *id_phys)
 {
 	int rc;
 
-	memset(id_phys, 0, sizeof(*id_phys));
+	if (device->is_expander_smp_device)
+		return 0;
 
-	rc = pqi_identify_physical_device(ctrl_info, device,
-		id_phys, sizeof(*id_phys));
-	if (rc) {
-		device->queue_depth = PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH;
-		return;
-	}
+	if (pqi_is_logical_device(device))
+		rc = pqi_get_logical_device_info(ctrl_info, device);
+	else
+		rc = pqi_get_physical_device_info(ctrl_info, device, id_phys);
 
-	device->box_index = id_phys->box_index;
-	device->phys_box_on_bus = id_phys->phys_box_on_bus;
-	device->phy_connected_dev_type = id_phys->phy_connected_dev_type[0];
-	device->queue_depth =
-		get_unaligned_le16(&id_phys->current_queue_depth_limit);
-	device->device_type = id_phys->device_type;
-	device->active_path_index = id_phys->active_path_number;
-	device->path_map = id_phys->redundant_path_present_map;
-	memcpy(&device->box,
-		&id_phys->alternate_paths_phys_box_on_port,
-		sizeof(device->box));
-	memcpy(&device->phys_connector,
-		&id_phys->alternate_paths_phys_connector,
-		sizeof(device->phys_connector));
-	device->bay = id_phys->phys_bay_in_box;
+	return rc;
 }
 
 static void pqi_show_volume_status(struct pqi_ctrl_info *ctrl_info,
@@ -1872,9 +1883,10 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	/* Expose any new devices. */
 	list_for_each_entry_safe(device, next, &add_list, add_list_entry) {
 		if (!pqi_is_device_added(device)) {
-			pqi_dev_info(ctrl_info, "added", device);
 			rc = pqi_add_device(ctrl_info, device);
-			if (rc) {
+			if (rc == 0) {
+				pqi_dev_info(ctrl_info, "added", device);
+			} else {
 				dev_warn(&ctrl_info->pci_dev->dev,
 					"scsi %d:%d:%d:%d addition failed, device not added\n",
 					ctrl_info->scsi_host->host_no,
@@ -1886,36 +1898,19 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	}
 }
 
-static bool pqi_is_supported_device(struct pqi_scsi_dev *device)
+static inline bool pqi_is_supported_device(struct pqi_scsi_dev *device)
 {
-	bool is_supported;
+	/*
+	 * Only support the HBA controller itself as a RAID
+	 * controller.  If it's a RAID controller other than
+	 * the HBA itself (an external RAID controller, for
+	 * example), we don't support it.
+	 */
+	if (device->device_type == SA_DEVICE_TYPE_CONTROLLER &&
+		!pqi_is_hba_lunid(device->scsi3addr))
+		return false;
 
-	if (device->is_expander_smp_device)
-		return true;
-
-	is_supported = false;
-
-	switch (device->devtype) {
-	case TYPE_DISK:
-	case TYPE_ZBC:
-	case TYPE_TAPE:
-	case TYPE_MEDIUM_CHANGER:
-	case TYPE_ENCLOSURE:
-		is_supported = true;
-		break;
-	case TYPE_RAID:
-		/*
-		 * Only support the HBA controller itself as a RAID
-		 * controller.  If it's a RAID controller other than
-		 * the HBA itself (an external RAID controller, for
-		 * example), we don't support it.
-		 */
-		if (pqi_is_hba_lunid(device->scsi3addr))
-			is_supported = true;
-		break;
-	}
-
-	return is_supported;
+	return true;
 }
 
 static inline bool pqi_skip_device(u8 *scsi3addr)
@@ -1934,16 +1929,10 @@ static inline void pqi_mask_device(u8 *scsi3addr)
 
 static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
 {
-	if (!device->is_physical_device)
-		return false;
-
-	if (device->is_expander_smp_device)
-		return true;
-
-	switch (device->devtype) {
-	case TYPE_DISK:
-	case TYPE_ZBC:
-	case TYPE_ENCLOSURE:
+	switch (device->device_type) {
+	case SA_DEVICE_TYPE_SAS:
+	case SA_DEVICE_TYPE_EXPANDER_SMP:
+	case SA_DEVICE_TYPE_SES:
 		return true;
 	}
 
@@ -2085,16 +2074,19 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		memcpy(device->scsi3addr, scsi3addr, sizeof(device->scsi3addr));
 		device->is_physical_device = is_physical_device;
 		if (is_physical_device) {
-			if (phys_lun_ext_entry->device_type ==
-				SA_DEVICE_TYPE_EXPANDER_SMP)
+			device->device_type = phys_lun_ext_entry->device_type;
+			if (device->device_type == SA_DEVICE_TYPE_EXPANDER_SMP)
 				device->is_expander_smp_device = true;
 		} else {
 			device->is_external_raid_device =
 				pqi_is_external_raid_addr(scsi3addr);
 		}
 
+		if (!pqi_is_supported_device(device))
+			continue;
+
 		/* Gather information about the device. */
-		rc = pqi_get_device_info(ctrl_info, device);
+		rc = pqi_get_device_info(ctrl_info, device, id_phys);
 		if (rc == -ENOMEM) {
 			dev_warn(&ctrl_info->pci_dev->dev, "%s\n",
 				out_of_memory_msg);
@@ -2115,9 +2107,6 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			continue;
 		}
 
-		if (!pqi_is_supported_device(device))
-			continue;
-
 		pqi_assign_bus_target_lun(device);
 
 		if (device->is_physical_device) {
@@ -2129,7 +2118,6 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 				device->aio_handle =
 					phys_lun_ext_entry->aio_handle;
 			}
-			pqi_get_physical_disk_info(ctrl_info, device, id_phys);
 		} else {
 			memcpy(device->volume_id, log_lun_ext_entry->volume_id,
 				sizeof(device->volume_id));
@@ -5831,6 +5819,16 @@ static int pqi_map_queues(struct Scsi_Host *shost)
 					ctrl_info->pci_dev, 0);
 }
 
+static int pqi_slave_configure(struct scsi_device *sdev)
+{
+	struct pqi_scsi_dev *device;
+
+	device = sdev->hostdata;
+	device->devtype = sdev->type;
+
+	return 0;
+}
+
 static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info,
 	void __user *arg)
 {
@@ -6501,6 +6499,7 @@ static struct scsi_host_template pqi_driver_template = {
 	.eh_device_reset_handler = pqi_eh_device_reset_handler,
 	.ioctl = pqi_ioctl,
 	.slave_alloc = pqi_slave_alloc,
+	.slave_configure = pqi_slave_configure,
 	.map_queues = pqi_map_queues,
 	.sdev_attrs = pqi_sdev_attrs,
 	.shost_attrs = pqi_shost_attrs,

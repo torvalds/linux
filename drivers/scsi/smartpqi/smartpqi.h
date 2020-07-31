@@ -1255,6 +1255,7 @@ struct bmic_sense_subsystem_info {
 #define SA_DEVICE_TYPE_SATA		0x1
 #define SA_DEVICE_TYPE_SAS		0x2
 #define SA_DEVICE_TYPE_EXPANDER_SMP	0x5
+#define SA_DEVICE_TYPE_SES		0x6
 #define SA_DEVICE_TYPE_CONTROLLER	0x7
 #define SA_DEVICE_TYPE_NVME		0x9
 
