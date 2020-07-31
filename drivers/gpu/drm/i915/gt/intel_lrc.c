@@ -1805,18 +1805,6 @@ static bool virtual_matches(const struct virtual_engine *ve,
 	return true;
 }
 
-static void virtual_xfer_breadcrumbs(struct virtual_engine *ve)
-{
-	/*
-	 * All the outstanding signals on ve->siblings[0] must have
-	 * been completed, just pending the interrupt handler. As those
-	 * signals still refer to the old sibling (via rq->engine), we must
-	 * transfer those to the old irq_worker to keep our locking
-	 * consistent.
-	 */
-	intel_engine_transfer_stale_breadcrumbs(ve->siblings[0], &ve->context);
-}
-
 #define for_each_waiter(p__, rq__) \
 	list_for_each_entry_lockless(p__, \
 				     &(rq__)->sched.waiters_list, \
@@ -2266,9 +2254,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				if (!intel_engine_has_relative_mmio(engine))
 					virtual_update_register_offsets(regs,
 									engine);
-
-				if (!list_empty(&ve->context.signals))
-					virtual_xfer_breadcrumbs(ve);
 
 				/*
 				 * Move the bound engine to the top of the list

@@ -142,16 +142,16 @@ static void add_retire(struct intel_breadcrumbs *b, struct intel_timeline *tl)
 	intel_engine_add_retire(engine, tl);
 }
 
-static void __signal_request(struct i915_request *rq, struct list_head *signals)
+static bool __signal_request(struct i915_request *rq, struct list_head *signals)
 {
-	GEM_BUG_ON(!test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
 	clear_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
 
 	if (!__dma_fence_signal(&rq->fence))
-		return;
+		return false;
 
 	i915_request_get(rq);
 	list_add_tail(&rq->signal_link, signals);
+	return true;
 }
 
 static void signal_irq_work(struct irq_work *work)
@@ -278,32 +278,6 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
-void intel_engine_transfer_stale_breadcrumbs(struct intel_engine_cs *engine,
-					     struct intel_context *ce)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	unsigned long flags;
-
-	spin_lock_irqsave(&b->irq_lock, flags);
-	if (!list_empty(&ce->signals)) {
-		struct i915_request *rq, *next;
-
-		/* Queue for executing the signal callbacks in the irq_work */
-		list_for_each_entry_safe(rq, next, &ce->signals, signal_link) {
-			GEM_BUG_ON(rq->engine != engine);
-			GEM_BUG_ON(!__request_completed(rq));
-
-			__signal_request(rq, &b->signaled_requests);
-		}
-
-		INIT_LIST_HEAD(&ce->signals);
-		list_del_init(&ce->signal_link);
-
-		irq_work_queue(&b->irq_work);
-	}
-	spin_unlock_irqrestore(&b->irq_lock, flags);
-}
-
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 {
 }
@@ -316,6 +290,17 @@ static void insert_breadcrumb(struct i915_request *rq,
 
 	if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags))
 		return;
+
+	/*
+	 * If the request is already completed, we can transfer it
+	 * straight onto a signaled list, and queue the irq worker for
+	 * its signal completion.
+	 */
+	if (__request_completed(rq)) {
+		if (__signal_request(rq, &b->signaled_requests))
+			irq_work_queue(&b->irq_work);
+		return;
+	}
 
 	__intel_breadcrumbs_arm_irq(b);
 
@@ -344,8 +329,11 @@ static void insert_breadcrumb(struct i915_request *rq,
 	if (pos == &ce->signals) /* catch transitions from empty list */
 		list_move_tail(&ce->signal_link, &b->signalers);
 	GEM_BUG_ON(!check_signal_order(ce, rq));
-
 	set_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
+
+	/* Check after attaching to irq, interrupt may have already fired. */
+	if (__request_completed(rq))
+		irq_work_queue(&b->irq_work);
 }
 
 bool i915_request_enable_breadcrumb(struct i915_request *rq)
@@ -401,7 +389,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 
 	spin_unlock(&b->irq_lock);
 
-	return !__request_completed(rq);
+	return true;
 }
 
 void i915_request_cancel_breadcrumb(struct i915_request *rq)
