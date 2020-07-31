@@ -419,7 +419,74 @@ void ionic_rx_empty(struct ionic_queue *q)
 	}
 }
 
+int ionic_tx_napi(struct napi_struct *napi, int budget)
+{
+	struct ionic_qcq *qcq = napi_to_qcq(napi);
+	struct ionic_cq *cq = napi_to_cq(napi);
+	struct ionic_dev *idev;
+	struct ionic_lif *lif;
+	u32 work_done = 0;
+	u32 flags = 0;
+
+	lif = cq->bound_q->lif;
+	idev = &lif->ionic->idev;
+
+	work_done = ionic_cq_service(cq, budget,
+				     ionic_tx_service, NULL, NULL);
+
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		flags |= IONIC_INTR_CRED_UNMASK;
+		DEBUG_STATS_INTR_REARM(cq->bound_intr);
+	}
+
+	if (work_done || flags) {
+		flags |= IONIC_INTR_CRED_RESET_COALESCE;
+		ionic_intr_credits(idev->intr_ctrl,
+				   cq->bound_intr->index,
+				   work_done, flags);
+	}
+
+	DEBUG_STATS_NAPI_POLL(qcq, work_done);
+
+	return work_done;
+}
+
 int ionic_rx_napi(struct napi_struct *napi, int budget)
+{
+	struct ionic_qcq *qcq = napi_to_qcq(napi);
+	struct ionic_cq *cq = napi_to_cq(napi);
+	struct ionic_dev *idev;
+	struct ionic_lif *lif;
+	u32 work_done = 0;
+	u32 flags = 0;
+
+	lif = cq->bound_q->lif;
+	idev = &lif->ionic->idev;
+
+	work_done = ionic_cq_service(cq, budget,
+				     ionic_rx_service, NULL, NULL);
+
+	if (work_done)
+		ionic_rx_fill(cq->bound_q);
+
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		flags |= IONIC_INTR_CRED_UNMASK;
+		DEBUG_STATS_INTR_REARM(cq->bound_intr);
+	}
+
+	if (work_done || flags) {
+		flags |= IONIC_INTR_CRED_RESET_COALESCE;
+		ionic_intr_credits(idev->intr_ctrl,
+				   cq->bound_intr->index,
+				   work_done, flags);
+	}
+
+	DEBUG_STATS_NAPI_POLL(qcq, work_done);
+
+	return work_done;
+}
+
+int ionic_txrx_napi(struct napi_struct *napi, int budget)
 {
 	struct ionic_qcq *qcq = napi_to_qcq(napi);
 	struct ionic_cq *rxcq = napi_to_cq(napi);
