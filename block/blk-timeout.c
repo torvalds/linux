@@ -68,7 +68,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
 #endif /* CONFIG_FAIL_IO_TIMEOUT */
 
 /**
- * blk_abort_request -- Request request recovery for the specified command
+ * blk_abort_request - Request recovery for the specified command
  * @req:	pointer to the request of interest
  *
  * This function requests that the block layer start recovery for the
