@@ -914,7 +914,7 @@
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT1607-FV1";
-		rockchip,camera-module-lens-name = "M12-4IR-4MP-F16";
+		rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
 		ir-cut = <&cam_ircut0>;
 		port {
 			ucam_out0: endpoint {
