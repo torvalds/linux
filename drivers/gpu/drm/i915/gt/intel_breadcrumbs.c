@@ -29,6 +29,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_breadcrumbs.h"
+#include "intel_context.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
 
@@ -99,6 +100,22 @@ static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 	intel_gt_pm_put_async(b->irq_engine->gt);
 }
 
+static void add_signaling_context(struct intel_breadcrumbs *b,
+				  struct intel_context *ce)
+{
+	intel_context_get(ce);
+	list_add_tail(&ce->signal_link, &b->signalers);
+	if (list_is_first(&ce->signal_link, &b->signalers))
+		__intel_breadcrumbs_arm_irq(b);
+}
+
+static void remove_signaling_context(struct intel_breadcrumbs *b,
+				     struct intel_context *ce)
+{
+	list_del(&ce->signal_link);
+	intel_context_put(ce);
+}
+
 static inline bool __request_completed(const struct i915_request *rq)
 {
 	return i915_seqno_passed(__hwsp_seqno(rq), rq->fence.seqno);
@@ -107,6 +124,9 @@ static inline bool __request_completed(const struct i915_request *rq)
 __maybe_unused static bool
 check_signal_order(struct intel_context *ce, struct i915_request *rq)
 {
+	if (rq->context != ce)
+		return false;
+
 	if (!list_is_last(&rq->signal_link, &ce->signals) &&
 	    i915_seqno_passed(rq->fence.seqno,
 			      list_next_entry(rq, signal_link)->fence.seqno))
@@ -158,10 +178,11 @@ static bool __signal_request(struct i915_request *rq, struct list_head *signals)
 {
 	clear_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
 
-	if (!__dma_fence_signal(&rq->fence))
+	if (!__dma_fence_signal(&rq->fence)) {
+		i915_request_put(rq);
 		return false;
+	}
 
-	i915_request_get(rq);
 	list_add_tail(&rq->signal_link, signals);
 	return true;
 }
@@ -209,8 +230,8 @@ static void signal_irq_work(struct irq_work *work)
 			/* Advance the list to the first incomplete request */
 			__list_del_many(&ce->signals, pos);
 			if (&ce->signals == pos) { /* now empty */
-				list_del_init(&ce->signal_link);
 				add_retire(b, ce->timeline);
+				remove_signaling_context(b, ce);
 			}
 		}
 	}
@@ -279,6 +300,9 @@ void intel_breadcrumbs_park(struct intel_breadcrumbs *b)
 	spin_lock_irqsave(&b->irq_lock, flags);
 	__intel_breadcrumbs_disarm_irq(b);
 	spin_unlock_irqrestore(&b->irq_lock, flags);
+
+	if (!list_empty(&b->signalers))
+		irq_work_queue(&b->irq_work);
 }
 
 void intel_breadcrumbs_free(struct intel_breadcrumbs *b)
@@ -295,6 +319,8 @@ static void insert_breadcrumb(struct i915_request *rq,
 	if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags))
 		return;
 
+	i915_request_get(rq);
+
 	/*
 	 * If the request is already completed, we can transfer it
 	 * straight onto a signaled list, and queue the irq worker for
@@ -306,32 +332,33 @@ static void insert_breadcrumb(struct i915_request *rq,
 		return;
 	}
 
-	__intel_breadcrumbs_arm_irq(b);
+	if (list_empty(&ce->signals)) {
+		add_signaling_context(b, ce);
+		pos = &ce->signals;
+	} else {
+		/*
+		 * We keep the seqno in retirement order, so we can break
+		 * inside intel_engine_signal_breadcrumbs as soon as we've
+		 * passed the last completed request (or seen a request that
+		 * hasn't event started). We could walk the timeline->requests,
+		 * but keeping a separate signalers_list has the advantage of
+		 * hopefully being much smaller than the full list and so
+		 * provides faster iteration and detection when there are no
+		 * more interrupts required for this context.
+		 *
+		 * We typically expect to add new signalers in order, so we
+		 * start looking for our insertion point from the tail of
+		 * the list.
+		 */
+		list_for_each_prev(pos, &ce->signals) {
+			struct i915_request *it =
+				list_entry(pos, typeof(*it), signal_link);
 
-	/*
-	 * We keep the seqno in retirement order, so we can break
-	 * inside intel_engine_signal_breadcrumbs as soon as we've
-	 * passed the last completed request (or seen a request that
-	 * hasn't event started). We could walk the timeline->requests,
-	 * but keeping a separate signalers_list has the advantage of
-	 * hopefully being much smaller than the full list and so
-	 * provides faster iteration and detection when there are no
-	 * more interrupts required for this context.
-	 *
-	 * We typically expect to add new signalers in order, so we
-	 * start looking for our insertion point from the tail of
-	 * the list.
-	 */
-	list_for_each_prev(pos, &ce->signals) {
-		struct i915_request *it =
-			list_entry(pos, typeof(*it), signal_link);
-
-		if (i915_seqno_passed(rq->fence.seqno, it->fence.seqno))
-			break;
+			if (i915_seqno_passed(rq->fence.seqno, it->fence.seqno))
+				break;
+		}
 	}
 	list_add(&rq->signal_link, pos);
-	if (pos == &ce->signals) /* catch transitions from empty list */
-		list_move_tail(&ce->signal_link, &b->signalers);
 	GEM_BUG_ON(!check_signal_order(ce, rq));
 	set_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
 
@@ -412,22 +439,18 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 
 		list_del(&rq->signal_link);
 		if (list_empty(&ce->signals))
-			list_del_init(&ce->signal_link);
+			remove_signaling_context(b, ce);
 
 		clear_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
+		i915_request_put(rq);
 	}
 	spin_unlock(&b->irq_lock);
 }
 
-void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
-				    struct drm_printer *p)
+static void print_signals(struct intel_breadcrumbs *b, struct drm_printer *p)
 {
-	struct intel_breadcrumbs *b = engine->breadcrumbs;
 	struct intel_context *ce;
 	struct i915_request *rq;
-
-	if (!b || list_empty(&b->signalers))
-		return;
 
 	drm_printf(p, "Signals:\n");
 
@@ -443,4 +466,18 @@ void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
 		}
 	}
 	spin_unlock_irq(&b->irq_lock);
+}
+
+void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
+				    struct drm_printer *p)
+{
+	struct intel_breadcrumbs *b;
+
+	b = engine->breadcrumbs;
+	if (!b)
+		return;
+
+	drm_printf(p, "IRQ: %s\n", enableddisabled(b->irq_armed));
+	if (!list_empty(&b->signalers))
+		print_signals(b, p);
 }

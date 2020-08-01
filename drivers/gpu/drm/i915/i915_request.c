@@ -296,13 +296,12 @@ bool i915_request_retire(struct i915_request *rq)
 	 */
 	remove_from_engine(rq);
 
-	spin_lock_irq(&rq->lock);
 	i915_request_mark_complete(rq);
-	if (!i915_request_signaled(rq))
+	if (!i915_request_signaled(rq)) {
+		spin_lock_irq(&rq->lock);
 		dma_fence_signal_locked(&rq->fence);
-	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
-		i915_request_cancel_breadcrumb(rq);
-	spin_unlock_irq(&rq->lock);
+		spin_unlock_irq(&rq->lock);
+	}
 
 	if (i915_request_has_waitboost(rq)) {
 		GEM_BUG_ON(!atomic_read(&rq->engine->gt->rps.num_waiters));
