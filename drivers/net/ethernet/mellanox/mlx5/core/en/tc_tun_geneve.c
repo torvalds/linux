@@ -301,6 +301,8 @@ static int mlx5e_tc_tun_parse_geneve_params(struct mlx5e_priv *priv,
 		MLX5_SET(fte_match_set_misc, misc_v, geneve_protocol_type, ETH_P_TEB);
 	}
 
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
+
 	return 0;
 }
 

@@ -1923,9 +1923,7 @@ void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 	if (sta) {
 		tx_pending = atomic_sub_return(tx_airtime,
 					       &sta->airtime[ac].aql_tx_pending);
-		if (WARN_ONCE(tx_pending < 0,
-			      "STA %pM AC %d txq pending airtime underflow: %u, %u",
-			      sta->addr, ac, tx_pending, tx_airtime))
+		if (tx_pending < 0)
 			atomic_cmpxchg(&sta->airtime[ac].aql_tx_pending,
 				       tx_pending, 0);
 	}
