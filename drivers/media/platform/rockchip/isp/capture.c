@@ -1063,9 +1063,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.width,
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
-		raw_rd_set_pic_size(base,
-				    stream->out_fmt.width,
-				    stream->out_fmt.height);
+		raw_rd_set_pic_size(stream);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		val |= csi->memory;

@@ -306,9 +306,7 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	}
 	isp_set_bits(base + CSI2RX_DATA_IDS_1,
 		     SW_CSI_ID0(0xff), SW_CSI_ID0(val));
-	raw_rd_set_pic_size(base,
-		stream->out_fmt.width,
-		stream->out_fmt.height);
+	raw_rd_set_pic_size(stream);
 	isp_set_bits(base + CSI2RX_RAW_RD_CTRL, 0,
 		     dev->csi_dev.memory << 2 |
 		     1 << (stream->id - 1));
