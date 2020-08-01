@@ -3334,7 +3334,7 @@ static void acpi_nfit_init_ars(struct acpi_nfit_desc *acpi_desc,
 static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_spa *nfit_spa;
-	int rc;
+	int rc, do_sched_ars = 0;
 
 	set_bit(ARS_VALID, &acpi_desc->scrub_flags);
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
@@ -3346,7 +3346,7 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 		}
 	}
 
-	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
+	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
 		switch (nfit_spa_type(nfit_spa->spa)) {
 		case NFIT_SPA_VOLATILE:
 		case NFIT_SPA_PM:
@@ -3354,6 +3354,13 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 			rc = ars_register(acpi_desc, nfit_spa);
 			if (rc)
 				return rc;
+
+			/*
+			 * Kick off background ARS if at least one
+			 * region successfully registered ARS
+			 */
+			if (!test_bit(ARS_FAILED, &nfit_spa->ars_state))
+				do_sched_ars++;
 			break;
 		case NFIT_SPA_BDW:
 			/* nothing to register */
@@ -3372,8 +3379,10 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 			/* don't register unknown regions */
 			break;
 		}
+	}
 
-	sched_ars(acpi_desc);
+	if (do_sched_ars)
+		sched_ars(acpi_desc);
 	return 0;
 }
 
