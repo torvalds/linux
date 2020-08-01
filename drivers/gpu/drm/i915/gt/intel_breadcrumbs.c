@@ -54,6 +54,36 @@ static void irq_disable(struct intel_engine_cs *engine)
 	spin_unlock(&engine->gt->irq_lock);
 }
 
+static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
+{
+	lockdep_assert_held(&b->irq_lock);
+
+	if (!b->irq_engine || b->irq_armed)
+		return;
+
+	if (!intel_gt_pm_get_if_awake(b->irq_engine->gt))
+		return;
+
+	/*
+	 * The breadcrumb irq will be disarmed on the interrupt after the
+	 * waiters are signaled. This gives us a single interrupt window in
+	 * which we can add a new waiter and avoid the cost of re-enabling
+	 * the irq.
+	 */
+	WRITE_ONCE(b->irq_armed, true);
+
+	/*
+	 * Since we are waiting on a request, the GPU should be busy
+	 * and should have its own rpm reference. This is tracked
+	 * by i915->gt.awake, we can forgo holding our own wakref
+	 * for the interrupt as before i915->gt.awake is released (when
+	 * the driver is idle) we disarm the breadcrumbs.
+	 */
+
+	if (!b->irq_enabled++)
+		irq_enable(b->irq_engine);
+}
+
 static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 {
 	lockdep_assert_held(&b->irq_lock);
@@ -67,18 +97,6 @@ static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 
 	WRITE_ONCE(b->irq_armed, false);
 	intel_gt_pm_put_async(b->irq_engine->gt);
-}
-
-void intel_breadcrumbs_park(struct intel_breadcrumbs *b)
-{
-	unsigned long flags;
-
-	if (!READ_ONCE(b->irq_armed))
-		return;
-
-	spin_lock_irqsave(&b->irq_lock, flags);
-	__intel_breadcrumbs_disarm_irq(b);
-	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 static inline bool __request_completed(const struct i915_request *rq)
@@ -214,36 +232,6 @@ static void signal_irq_work(struct irq_work *work)
 	}
 }
 
-static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
-{
-	lockdep_assert_held(&b->irq_lock);
-
-	if (!b->irq_engine || b->irq_armed)
-		return;
-
-	if (!intel_gt_pm_get_if_awake(b->irq_engine->gt))
-		return;
-
-	/*
-	 * The breadcrumb irq will be disarmed on the interrupt after the
-	 * waiters are signaled. This gives us a single interrupt window in
-	 * which we can add a new waiter and avoid the cost of re-enabling
-	 * the irq.
-	 */
-	WRITE_ONCE(b->irq_armed, true);
-
-	/*
-	 * Since we are waiting on a request, the GPU should be busy
-	 * and should have its own rpm reference. This is tracked
-	 * by i915->gt.awake, we can forgo holding our own wakref
-	 * for the interrupt as before i915->gt.awake is released (when
-	 * the driver is idle) we disarm the breadcrumbs.
-	 */
-
-	if (!b->irq_enabled++)
-		irq_enable(b->irq_engine);
-}
-
 struct intel_breadcrumbs *
 intel_breadcrumbs_create(struct intel_engine_cs *irq_engine)
 {
@@ -278,6 +266,18 @@ void intel_breadcrumbs_reset(struct intel_breadcrumbs *b)
 	else
 		irq_disable(b->irq_engine);
 
+	spin_unlock_irqrestore(&b->irq_lock, flags);
+}
+
+void intel_breadcrumbs_park(struct intel_breadcrumbs *b)
+{
+	unsigned long flags;
+
+	if (!READ_ONCE(b->irq_armed))
+		return;
+
+	spin_lock_irqsave(&b->irq_lock, flags);
+	__intel_breadcrumbs_disarm_irq(b);
 	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
