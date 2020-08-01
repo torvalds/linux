@@ -3446,22 +3446,28 @@ static inline int iocb_flags(struct file *file)
 
 static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 {
+	int kiocb_flags = 0;
+
+	if (!flags)
+		return 0;
 	if (unlikely(flags & ~RWF_SUPPORTED))
 		return -EOPNOTSUPP;
 
 	if (flags & RWF_NOWAIT) {
 		if (!(ki->ki_filp->f_mode & FMODE_NOWAIT))
 			return -EOPNOTSUPP;
-		ki->ki_flags |= IOCB_NOWAIT;
+		kiocb_flags |= IOCB_NOWAIT;
 	}
 	if (flags & RWF_HIPRI)
-		ki->ki_flags |= IOCB_HIPRI;
+		kiocb_flags |= IOCB_HIPRI;
 	if (flags & RWF_DSYNC)
-		ki->ki_flags |= IOCB_DSYNC;
+		kiocb_flags |= IOCB_DSYNC;
 	if (flags & RWF_SYNC)
-		ki->ki_flags |= (IOCB_DSYNC | IOCB_SYNC);
+		kiocb_flags |= (IOCB_DSYNC | IOCB_SYNC);
 	if (flags & RWF_APPEND)
-		ki->ki_flags |= IOCB_APPEND;
+		kiocb_flags |= IOCB_APPEND;
+
+	ki->ki_flags |= kiocb_flags;
 	return 0;
 }
 
