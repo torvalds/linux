@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/qcom,dispcc-sc7180.h>
 #include <dt-bindings/clock/qcom,gcc-sc7180.h>
 #include <dt-bindings/clock/qcom,gpucc-sc7180.h>
+#include <dt-bindings/clock/qcom,lpasscorecc-sc7180.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/clock/qcom,videocc-sc7180.h>
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
@@ -3324,6 +3325,29 @@
 			memory-region = <&wlan_mem>;
 			qcom,msa-fixed-perm;
 			status = "disabled";
+		};
+
+		lpasscc: clock-controller@62d00000 {
+			compatible = "qcom,sc7180-lpasscorecc";
+			reg = <0 0x62d00000 0 0x50000>,
+			      <0 0x62780000 0 0x30000>;
+			reg-names = "lpass_core_cc", "lpass_audio_cc";
+			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "iface", "bi_tcxo";
+			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+			#clock-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		lpass_hm: clock-controller@63000000 {
+			compatible = "qcom,sc7180-lpasshm";
+			reg = <0 0x63000000 0 0x28>;
+			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "iface", "bi_tcxo";
+			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 		};
 	};
 
