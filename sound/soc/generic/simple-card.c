@@ -424,37 +424,6 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
-static int simple_parse_aux_devs(struct device_node *node,
-				 struct asoc_simple_priv *priv)
-{
-	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *aux_node;
-	struct snd_soc_card *card = simple_priv_to_card(priv);
-	int i, n, len;
-
-	if (!of_find_property(node, PREFIX "aux-devs", &len))
-		return 0;		/* Ok to have no aux-devs */
-
-	n = len / sizeof(__be32);
-	if (n <= 0)
-		return -EINVAL;
-
-	card->aux_dev = devm_kcalloc(dev,
-			n, sizeof(*card->aux_dev), GFP_KERNEL);
-	if (!card->aux_dev)
-		return -ENOMEM;
-
-	for (i = 0; i < n; i++) {
-		aux_node = of_parse_phandle(node, PREFIX "aux-devs", i);
-		if (!aux_node)
-			return -EINVAL;
-		card->aux_dev[i].dlc.of_node = aux_node;
-	}
-
-	card->num_aux_devs = n;
-	return 0;
-}
-
 static int simple_parse_of(struct asoc_simple_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -504,7 +473,7 @@ static int simple_parse_of(struct asoc_simple_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	ret = simple_parse_aux_devs(top, priv);
+	ret = snd_soc_of_parse_aux_devs(card, PREFIX "aux-devs");
 
 	return ret;
 }
