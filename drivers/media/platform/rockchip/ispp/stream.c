@@ -1058,6 +1058,7 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
 		/* close dma write immediately */
+		rkispp_clear_bits(base + RKISPP_FEC_CTRL, FMT_FBC << 4);
 		rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL,
 				0, SW_FEC2DDR_DIS);
 	} else if (vdev->module_ens &
@@ -1068,6 +1069,7 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 			writel(val, base + RKISPP_SHARP_WR_Y_BASE);
 			writel(val, base + RKISPP_SHARP_WR_UV_BASE);
 		} else {
+			rkispp_clear_bits(base + RKISPP_SHARP_CTRL, FMT_FBC);
 			rkispp_set_bits(base + RKISPP_SHARP_CORE_CTRL,
 					0, SW_SHP_DMA_DIS);
 		}
