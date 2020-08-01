@@ -663,10 +663,11 @@ qca8k_setup(struct dsa_switch *ds)
 			 * default egress vid
 			 */
 			qca8k_rmw(priv, QCA8K_EGRESS_VLAN(i),
-				  0xffff << shift, 1 << shift);
+				  0xfff << shift,
+				  QCA8K_PORT_VID_DEF << shift);
 			qca8k_write(priv, QCA8K_REG_PORT_VLAN_CTRL0(i),
-				    QCA8K_PORT_VLAN_CVID(1) |
-				    QCA8K_PORT_VLAN_SVID(1));
+				    QCA8K_PORT_VLAN_CVID(QCA8K_PORT_VID_DEF) |
+				    QCA8K_PORT_VLAN_SVID(QCA8K_PORT_VID_DEF));
 		}
 	}
 
@@ -1133,7 +1134,7 @@ qca8k_port_fdb_insert(struct qca8k_priv *priv, const u8 *addr,
 {
 	/* Set the vid to the port vlan id if no vid is set */
 	if (!vid)
-		vid = 1;
+		vid = QCA8K_PORT_VID_DEF;
 
 	return qca8k_fdb_add(priv, addr, port_mask, vid,
 			     QCA8K_ATU_STATUS_STATIC);
@@ -1157,7 +1158,7 @@ qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 	u16 port_mask = BIT(port);
 
 	if (!vid)
-		vid = 1;
+		vid = QCA8K_PORT_VID_DEF;
 
 	return qca8k_fdb_del(priv, addr, port_mask, vid);
 }
