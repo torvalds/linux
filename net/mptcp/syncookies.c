@@ -125,8 +125,6 @@ void __init mptcp_join_cookie_init(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(join_entry_locks); i++)
+	for (i = 0; i < COOKIE_JOIN_SLOTS; i++)
 		spin_lock_init(&join_entry_locks[i]);
-
-	BUILD_BUG_ON(ARRAY_SIZE(join_entry_locks) != ARRAY_SIZE(join_entries));
 }
