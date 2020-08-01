@@ -575,22 +575,6 @@ struct cxgbi_iso_info {
 	u32 buffer_offset;
 };
 
-static inline void *cxgbi_alloc_big_mem(unsigned int size,
-					gfp_t gfp)
-{
-	void *p = kzalloc(size, gfp | __GFP_NOWARN);
-
-	if (!p)
-		p = vzalloc(size);
-
-	return p;
-}
-
-static inline void cxgbi_free_big_mem(void *addr)
-{
-	kvfree(addr);
-}
-
 static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)
 {
 	if (chba->cdev->flags & CXGBI_FLAG_IPV4_SET)
