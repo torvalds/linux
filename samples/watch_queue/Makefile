@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-userprogs := watch_test
-always-y := $(userprogs)
+userprogs-always-y += watch_test
 
 userccflags += -I usr/include

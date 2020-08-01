@@ -749,6 +749,10 @@ Both possibilities are described in the following.
 		hostprogs     := lxdialog
 		always-y      := $(hostprogs)
 
+	Kbuild provides the following shorthand for this:
+
+		hostprogs-always-y := lxdialog
+
 	This will tell kbuild to build lxdialog even if not referenced in
 	any rule.
 
@@ -831,7 +835,32 @@ The syntax is quite similar. The difference is to use "userprogs" instead of
 5.4 When userspace programs are actually built
 ----------------------------------------------
 
-	Same as "When host programs are actually built".
+	Kbuild builds userspace programs only when told to do so.
+	There are two ways to do this.
+
+	(1) Add it as the prerequisite of another file
+
+	Example::
+
+		#net/bpfilter/Makefile
+		userprogs := bpfilter_umh
+		$(obj)/bpfilter_umh_blob.o: $(obj)/bpfilter_umh
+
+	$(obj)/bpfilter_umh is built before $(obj)/bpfilter_umh_blob.o
+
+	(2) Use always-y
+
+	Example::
+
+		userprogs := binderfs_example
+		always-y := $(userprogs)
+
+	Kbuild provides the following shorthand for this:
+
+		userprogs-always-y := binderfs_example
+
+	This will tell Kbuild to build binderfs_example when it visits this
+	Makefile.
 
 6 Kbuild clean infrastructure
 =============================
