@@ -227,9 +227,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = drm_panel_add(&lvds->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&lvds->panel);
 
 	dev_set_drvdata(lvds->dev, lvds);
 	return 0;

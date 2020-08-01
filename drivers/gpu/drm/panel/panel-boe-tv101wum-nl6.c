@@ -787,7 +787,9 @@ static int boe_panel_add(struct boe_panel *boe)
 	boe->base.funcs = &boe_panel_funcs;
 	boe->base.dev = &boe->dsi->dev;
 
-	return drm_panel_add(&boe->base);
+	drm_panel_add(&boe->base);
+
+	return 0;
 }
 
 static int boe_panel_probe(struct mipi_dsi_device *dsi)

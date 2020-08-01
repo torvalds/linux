@@ -479,7 +479,9 @@ static int s6e63m0_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	return drm_panel_add(&ctx->panel);
+	drm_panel_add(&ctx->panel);
+
+	return 0;
 }
 
 static int s6e63m0_remove(struct spi_device *spi)

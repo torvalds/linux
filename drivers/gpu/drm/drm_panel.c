@@ -70,16 +70,12 @@ EXPORT_SYMBOL(drm_panel_init);
  *
  * Add a panel to the global registry so that it can be looked up by display
  * drivers.
- *
- * Return: 0 on success or a negative error code on failure.
  */
-int drm_panel_add(struct drm_panel *panel)
+void drm_panel_add(struct drm_panel *panel)
 {
 	mutex_lock(&panel_lock);
 	list_add_tail(&panel->list, &panel_list);
 	mutex_unlock(&panel_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_panel_add);
 

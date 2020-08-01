@@ -382,7 +382,9 @@ static int kingdisplay_panel_add(struct kingdisplay_panel *kingdisplay)
 	if (err)
 		return err;
 
-	return drm_panel_add(&kingdisplay->base);
+	drm_panel_add(&kingdisplay->base);
+
+	return 0;
 }
 
 static void kingdisplay_panel_del(struct kingdisplay_panel *kingdisplay)

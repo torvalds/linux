@@ -303,11 +303,7 @@ static int nt39016_probe(struct spi_device *spi)
 	drm_panel_init(&panel->drm_panel, dev, &nt39016_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	err = drm_panel_add(&panel->drm_panel);
-	if (err < 0) {
-		dev_err(dev, "Failed to register panel");
-		return err;
-	}
+	drm_panel_add(&panel->drm_panel);
 
 	return 0;
 }

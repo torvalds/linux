@@ -475,9 +475,7 @@ static int innolux_panel_add(struct mipi_dsi_device *dsi,
 	if (err)
 		return err;
 
-	err = drm_panel_add(&innolux->base);
-	if (err < 0)
-		return err;
+	drm_panel_add(&innolux->base);
 
 	mipi_dsi_set_drvdata(dsi, innolux);
 	innolux->link = dsi;

@@ -895,7 +895,9 @@ static int panel_add(struct panel_info *pinfo)
 	if (ret)
 		return ret;
 
-	return drm_panel_add(&pinfo->base);
+	drm_panel_add(&pinfo->base);
+
+	return 0;
 }
 
 static int panel_probe(struct mipi_dsi_device *dsi)

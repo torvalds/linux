@@ -733,9 +733,7 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 	drm_panel_init(&ctx->panel, dev, &s6e3ha2_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		goto unregister_backlight;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -745,8 +743,6 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 remove_panel:
 	drm_panel_remove(&ctx->panel);
-
-unregister_backlight:
 	backlight_device_unregister(ctx->bl_dev);
 
 	return ret;

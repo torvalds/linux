@@ -892,7 +892,9 @@ static int ili9322_probe(struct spi_device *spi)
 	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&ili->panel);
+	drm_panel_add(&ili->panel);
+
+	return 0;
 }
 
 static int ili9322_remove(struct spi_device *spi)

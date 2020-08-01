@@ -613,9 +613,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (err)
 		goto free_ddc;
 
-	err = drm_panel_add(&panel->base);
-	if (err < 0)
-		goto free_ddc;
+	drm_panel_add(&panel->base);
 
 	dev_set_drvdata(dev, panel);
 

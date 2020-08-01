@@ -479,9 +479,7 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 	ctx->bl_dev->props.brightness = DEFAULT_BRIGHTNESS;
 	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		goto unregister_backlight;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -491,8 +489,6 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 remove_panel:
 	drm_panel_remove(&ctx->panel);
-
-unregister_backlight:
 	backlight_device_unregister(ctx->bl_dev);
 
 	return ret;

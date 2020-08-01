@@ -504,9 +504,7 @@ static int acx424akp_probe(struct mipi_dsi_device *dsi)
 	acx->bl->props.brightness = 512;
 	acx->bl->props.power = FB_BLANK_POWERDOWN;
 
-	ret = drm_panel_add(&acx->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&acx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {

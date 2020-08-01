@@ -380,9 +380,7 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	ret = drm_panel_add(&st7701->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&st7701->panel);
 
 	mipi_dsi_set_drvdata(dsi, st7701);
 	st7701->dsi = dsi;

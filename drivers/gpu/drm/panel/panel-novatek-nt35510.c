@@ -956,9 +956,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 		nt->panel.backlight = bl;
 	}
 
-	ret = drm_panel_add(&nt->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&nt->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)

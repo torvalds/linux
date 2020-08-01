@@ -609,9 +609,7 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 		       DRM_MODE_CONNECTOR_DSI);
 	dev_set_drvdata(dev, panel);
 
-	ret = drm_panel_add(&panel->panel);
-	if (ret)
-		return ret;
+	drm_panel_add(&panel->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret)
