@@ -434,7 +434,7 @@ void ConfigList::updateList(ConfigItem* item)
 	}
 	if ((mode == singleMode || (mode == symbolMode && !(rootEntry->flags & MENU_ROOT))) &&
 	    rootEntry->sym && rootEntry->prompt) {
-		item = last ? last->nextSibling() : firstChild();
+		item = last ? last->nextSibling() : nullptr;
 		if (!item)
 			item = new ConfigItem(this, last, rootEntry, true);
 		else
