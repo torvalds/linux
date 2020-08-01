@@ -10400,8 +10400,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 			memcpy(dev->ieee80211_ptr->disconnect_bssid,
 			       connect.bssid, ETH_ALEN);
 		else
-			memset(dev->ieee80211_ptr->disconnect_bssid,
-			       0, ETH_ALEN);
+			eth_zero_addr(dev->ieee80211_ptr->disconnect_bssid);
 	}
 
 	wdev_unlock(dev->ieee80211_ptr);
