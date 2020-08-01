@@ -40,7 +40,7 @@ int rkispp_debug;
 module_param_named(debug, rkispp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
 
-static int rkisp_ispp_mode = ISP_ISPP_422 | ISP_ISPP_FBC;
+static int rkisp_ispp_mode = ISP_ISPP_FBC;
 module_param_named(mode, rkisp_ispp_mode, int, 0644);
 MODULE_PARM_DESC(mode, "isp->ispp mode: bit0 fbc, bit1 yuv422, bit2 quick");
 
