@@ -5038,8 +5038,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 			for (i = 0; i < QED_ETH_VF_NUM_MAC_FILTERS; i++) {
 				if (ether_addr_equal(vf->shadow_config.macs[i],
 						     vf_info->mac)) {
-					memset(vf->shadow_config.macs[i], 0,
-					       ETH_ALEN);
+					eth_zero_addr(vf->shadow_config.macs[i]);
 					DP_VERBOSE(hwfn, QED_MSG_IOV,
 						   "Shadow MAC %pM removed for VF 0x%02x, VF trust mode is ON\n",
 						    vf_info->mac, vf_id);
@@ -5048,7 +5047,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 			}
 
 			ether_addr_copy(vf_info->mac, force_mac);
-			memset(vf_info->forced_mac, 0, ETH_ALEN);
+			eth_zero_addr(vf_info->forced_mac);
 			vf->bulletin.p_virt->valid_bitmap &=
 					~BIT(MAC_ADDR_FORCED);
 			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
@@ -5059,7 +5058,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 	if (!vf_info->is_trusted_configured) {
 		u8 empty_mac[ETH_ALEN];
 
-		memset(empty_mac, 0, ETH_ALEN);
+		eth_zero_addr(empty_mac);
 		for (i = 0; i < QED_ETH_VF_NUM_MAC_FILTERS; i++) {
 			if (ether_addr_equal(vf->shadow_config.macs[i],
 					     empty_mac)) {
