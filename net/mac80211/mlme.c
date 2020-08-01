@@ -533,7 +533,7 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case IEEE80211_SMPS_OFF:
 		cap |= WLAN_HT_CAP_SM_PS_DISABLED <<
 			IEEE80211_HT_CAP_SM_PS_SHIFT;
@@ -1529,7 +1529,7 @@ ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	switch (channel->band) {
 	default:
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case NL80211_BAND_2GHZ:
 	case NL80211_BAND_60GHZ:
 		chan_increment = 1;
@@ -3460,10 +3460,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		bss_conf->he_bss_color.partial =
 			le32_get_bits(elems->he_operation->he_oper_params,
 				      IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR);
-		bss_conf->he_bss_color.disabled =
-			le32_get_bits(elems->he_operation->he_oper_params,
-				      IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED);
-		changed |= BSS_CHANGED_HE_BSS_COLOR;
+		bss_conf->he_bss_color.enabled =
+			!le32_get_bits(elems->he_operation->he_oper_params,
+				       IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED);
+
+		if (bss_conf->he_bss_color.enabled)
+			changed |= BSS_CHANGED_HE_BSS_COLOR;
 
 		bss_conf->htc_trig_based_pkt_ext =
 			le32_get_bits(elems->he_operation->he_oper_params,

@@ -799,7 +799,6 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 				  struct ieee80211_tx_info *info,
 				  int *retry_count)
 {
-	int rates_idx = -1;
 	int count = -1;
 	int i;
 
@@ -821,13 +820,12 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 
 		count += info->status.rates[i].count;
 	}
-	rates_idx = i - 1;
 
 	if (count < 0)
 		count = 0;
 
 	*retry_count = count;
-	return rates_idx;
+	return i - 1;
 }
 
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
