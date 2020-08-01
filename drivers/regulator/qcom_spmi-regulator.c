@@ -1633,45 +1633,43 @@ static int spmi_regulator_init_registers(struct spmi_regulator *vreg,
 		return ret;
 
 	/* Set up enable pin control. */
-	if ((type == SPMI_REGULATOR_LOGICAL_TYPE_SMPS
-	     || type == SPMI_REGULATOR_LOGICAL_TYPE_LDO
-	     || type == SPMI_REGULATOR_LOGICAL_TYPE_VS)
-	    && !(data->pin_ctrl_enable
-			& SPMI_REGULATOR_PIN_CTRL_ENABLE_HW_DEFAULT)) {
-		ctrl_reg[SPMI_COMMON_IDX_ENABLE] &=
-			~SPMI_COMMON_ENABLE_FOLLOW_ALL_MASK;
-		ctrl_reg[SPMI_COMMON_IDX_ENABLE] |=
-		    data->pin_ctrl_enable & SPMI_COMMON_ENABLE_FOLLOW_ALL_MASK;
+	if (!(data->pin_ctrl_enable & SPMI_REGULATOR_PIN_CTRL_ENABLE_HW_DEFAULT)) {
+		switch (type) {
+		case SPMI_REGULATOR_LOGICAL_TYPE_SMPS:
+		case SPMI_REGULATOR_LOGICAL_TYPE_LDO:
+		case SPMI_REGULATOR_LOGICAL_TYPE_VS:
+			ctrl_reg[SPMI_COMMON_IDX_ENABLE] &=
+				~SPMI_COMMON_ENABLE_FOLLOW_ALL_MASK;
+			ctrl_reg[SPMI_COMMON_IDX_ENABLE] |=
+				data->pin_ctrl_enable & SPMI_COMMON_ENABLE_FOLLOW_ALL_MASK;
+			break;
+		default:
+			break;
+		}
 	}
 
 	/* Set up mode pin control. */
-	if ((type == SPMI_REGULATOR_LOGICAL_TYPE_SMPS
-	    || type == SPMI_REGULATOR_LOGICAL_TYPE_LDO)
-		&& !(data->pin_ctrl_hpm
-			& SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT)) {
-		ctrl_reg[SPMI_COMMON_IDX_MODE] &=
-			~SPMI_COMMON_MODE_FOLLOW_ALL_MASK;
-		ctrl_reg[SPMI_COMMON_IDX_MODE] |=
-			data->pin_ctrl_hpm & SPMI_COMMON_MODE_FOLLOW_ALL_MASK;
-	}
-
-	if (type == SPMI_REGULATOR_LOGICAL_TYPE_VS
-	   && !(data->pin_ctrl_hpm & SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT)) {
-		ctrl_reg[SPMI_COMMON_IDX_MODE] &=
-			~SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
-		ctrl_reg[SPMI_COMMON_IDX_MODE] |=
-		       data->pin_ctrl_hpm & SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
-	}
-
-	if ((type == SPMI_REGULATOR_LOGICAL_TYPE_ULT_LO_SMPS
-		|| type == SPMI_REGULATOR_LOGICAL_TYPE_ULT_HO_SMPS
-		|| type == SPMI_REGULATOR_LOGICAL_TYPE_ULT_LDO)
-		&& !(data->pin_ctrl_hpm
-			& SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT)) {
-		ctrl_reg[SPMI_COMMON_IDX_MODE] &=
-			~SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
-		ctrl_reg[SPMI_COMMON_IDX_MODE] |=
-		       data->pin_ctrl_hpm & SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
+	if (!(data->pin_ctrl_hpm & SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT)) {
+		switch (type) {
+		case SPMI_REGULATOR_LOGICAL_TYPE_SMPS:
+		case SPMI_REGULATOR_LOGICAL_TYPE_LDO:
+			ctrl_reg[SPMI_COMMON_IDX_MODE] &=
+				~SPMI_COMMON_MODE_FOLLOW_ALL_MASK;
+			ctrl_reg[SPMI_COMMON_IDX_MODE] |=
+				data->pin_ctrl_hpm & SPMI_COMMON_MODE_FOLLOW_ALL_MASK;
+			break;
+		case SPMI_REGULATOR_LOGICAL_TYPE_VS:
+		case SPMI_REGULATOR_LOGICAL_TYPE_ULT_LO_SMPS:
+		case SPMI_REGULATOR_LOGICAL_TYPE_ULT_HO_SMPS:
+		case SPMI_REGULATOR_LOGICAL_TYPE_ULT_LDO:
+			ctrl_reg[SPMI_COMMON_IDX_MODE] &=
+				~SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
+			ctrl_reg[SPMI_COMMON_IDX_MODE] |=
+				data->pin_ctrl_hpm & SPMI_COMMON_MODE_FOLLOW_AWAKE_MASK;
+			break;
+		default:
+			break;
+		}
 	}
 
 	/* Write back any control register values that were modified. */
