@@ -408,6 +408,112 @@ qca8k_fdb_flush(struct qca8k_priv *priv)
 	mutex_unlock(&priv->reg_mutex);
 }
 
+static int
+qca8k_vlan_access(struct qca8k_priv *priv, enum qca8k_vlan_cmd cmd, u16 vid)
+{
+	u32 reg;
+
+	/* Set the command and VLAN index */
+	reg = QCA8K_VTU_FUNC1_BUSY;
+	reg |= cmd;
+	reg |= vid << QCA8K_VTU_FUNC1_VID_S;
+
+	/* Write the function register triggering the table access */
+	qca8k_write(priv, QCA8K_REG_VTU_FUNC1, reg);
+
+	/* wait for completion */
+	if (qca8k_busy_wait(priv, QCA8K_REG_VTU_FUNC1, QCA8K_VTU_FUNC1_BUSY))
+		return -ETIMEDOUT;
+
+	/* Check for table full violation when adding an entry */
+	if (cmd == QCA8K_VLAN_LOAD) {
+		reg = qca8k_read(priv, QCA8K_REG_VTU_FUNC1);
+		if (reg & QCA8K_VTU_FUNC1_FULL)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int
+qca8k_vlan_add(struct qca8k_priv *priv, u8 port, u16 vid, bool untagged)
+{
+	u32 reg;
+	int ret;
+
+	/*
+	   We do the right thing with VLAN 0 and treat it as untagged while
+	   preserving the tag on egress.
+	 */
+	if (vid == 0)
+		return 0;
+
+	mutex_lock(&priv->reg_mutex);
+	ret = qca8k_vlan_access(priv, QCA8K_VLAN_READ, vid);
+	if (ret < 0)
+		goto out;
+
+	reg = qca8k_read(priv, QCA8K_REG_VTU_FUNC0);
+	reg |= QCA8K_VTU_FUNC0_VALID | QCA8K_VTU_FUNC0_IVL_EN;
+	reg &= ~(QCA8K_VTU_FUNC0_EG_MODE_MASK << QCA8K_VTU_FUNC0_EG_MODE_S(port));
+	if (untagged)
+		reg |= QCA8K_VTU_FUNC0_EG_MODE_UNTAG <<
+				QCA8K_VTU_FUNC0_EG_MODE_S(port);
+	else
+		reg |= QCA8K_VTU_FUNC0_EG_MODE_TAG <<
+				QCA8K_VTU_FUNC0_EG_MODE_S(port);
+
+	qca8k_write(priv, QCA8K_REG_VTU_FUNC0, reg);
+	ret = qca8k_vlan_access(priv, QCA8K_VLAN_LOAD, vid);
+
+out:
+	mutex_unlock(&priv->reg_mutex);
+
+	return ret;
+}
+
+static int
+qca8k_vlan_del(struct qca8k_priv *priv, u8 port, u16 vid)
+{
+	u32 reg, mask;
+	int ret, i;
+	bool del;
+
+	mutex_lock(&priv->reg_mutex);
+	ret = qca8k_vlan_access(priv, QCA8K_VLAN_READ, vid);
+	if (ret < 0)
+		goto out;
+
+	reg = qca8k_read(priv, QCA8K_REG_VTU_FUNC0);
+	reg &= ~(3 << QCA8K_VTU_FUNC0_EG_MODE_S(port));
+	reg |= QCA8K_VTU_FUNC0_EG_MODE_NOT <<
+			QCA8K_VTU_FUNC0_EG_MODE_S(port);
+
+	/* Check if we're the last member to be removed */
+	del = true;
+	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		mask = QCA8K_VTU_FUNC0_EG_MODE_NOT;
+		mask <<= QCA8K_VTU_FUNC0_EG_MODE_S(i);
+
+		if ((reg & mask) != mask) {
+			del = false;
+			break;
+		}
+	}
+
+	if (del) {
+		ret = qca8k_vlan_access(priv, QCA8K_VLAN_PURGE, vid);
+	} else {
+		qca8k_write(priv, QCA8K_REG_VTU_FUNC0, reg);
+		ret = qca8k_vlan_access(priv, QCA8K_VLAN_LOAD, vid);
+	}
+
+out:
+	mutex_unlock(&priv->reg_mutex);
+
+	return ret;
+}
+
 static void
 qca8k_mib_init(struct qca8k_priv *priv)
 {
@@ -1187,6 +1293,76 @@ qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int
+qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+{
+	struct qca8k_priv *priv = ds->priv;
+
+	if (vlan_filtering) {
+		qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
+			  QCA8K_PORT_LOOKUP_VLAN_MODE,
+			  QCA8K_PORT_LOOKUP_VLAN_MODE_SECURE);
+	} else {
+		qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
+			  QCA8K_PORT_LOOKUP_VLAN_MODE,
+			  QCA8K_PORT_LOOKUP_VLAN_MODE_NONE);
+	}
+
+	return 0;
+}
+
+static int
+qca8k_port_vlan_prepare(struct dsa_switch *ds, int port,
+			const struct switchdev_obj_port_vlan *vlan)
+{
+	return 0;
+}
+
+static void
+qca8k_port_vlan_add(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_vlan *vlan)
+{
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	struct qca8k_priv *priv = ds->priv;
+	int ret = 0;
+	u16 vid;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end && !ret; ++vid)
+		ret = qca8k_vlan_add(priv, port, vid, untagged);
+
+	if (ret)
+		dev_err(priv->dev, "Failed to add VLAN to port %d (%d)", port, ret);
+
+	if (pvid) {
+		int shift = 16 * (port % 2);
+
+		qca8k_rmw(priv, QCA8K_EGRESS_VLAN(port),
+			  0xfff << shift,
+			  vlan->vid_end << shift);
+		qca8k_write(priv, QCA8K_REG_PORT_VLAN_CTRL0(port),
+			    QCA8K_PORT_VLAN_CVID(vlan->vid_end) |
+			    QCA8K_PORT_VLAN_SVID(vlan->vid_end));
+	}
+}
+
+static int
+qca8k_port_vlan_del(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_vlan *vlan)
+{
+	struct qca8k_priv *priv = ds->priv;
+	int ret = 0;
+	u16 vid;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end && !ret; ++vid)
+		ret = qca8k_vlan_del(priv, port, vid);
+
+	if (ret)
+		dev_err(priv->dev, "Failed to delete VLAN from port %d (%d)", port, ret);
+
+	return ret;
+}
+
 static enum dsa_tag_protocol
 qca8k_get_tag_protocol(struct dsa_switch *ds, int port,
 		       enum dsa_tag_protocol mp)
@@ -1212,6 +1388,10 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_fdb_add		= qca8k_port_fdb_add,
 	.port_fdb_del		= qca8k_port_fdb_del,
 	.port_fdb_dump		= qca8k_port_fdb_dump,
+	.port_vlan_filtering	= qca8k_port_vlan_filtering,
+	.port_vlan_prepare	= qca8k_port_vlan_prepare,
+	.port_vlan_add		= qca8k_port_vlan_add,
+	.port_vlan_del		= qca8k_port_vlan_del,
 	.phylink_validate	= qca8k_phylink_validate,
 	.phylink_mac_link_state	= qca8k_phylink_mac_link_state,
 	.phylink_mac_config	= qca8k_phylink_mac_config,
@@ -1262,6 +1442,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 
 	priv->ds->dev = &mdiodev->dev;
 	priv->ds->num_ports = QCA8K_NUM_PORTS;
+	priv->ds->configure_vlan_while_not_filtering = true;
 	priv->ds->priv = priv;
 	priv->ops = qca8k_switch_ops;
 	priv->ds->ops = &priv->ops;
