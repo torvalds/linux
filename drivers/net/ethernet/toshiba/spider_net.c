@@ -314,8 +314,6 @@ spider_net_init_chain(struct spider_net_card *card,
 	if (!chain->hwring)
 		return -ENOMEM;
 
-	memset(chain->ring, 0, chain->num_desc * sizeof(struct spider_net_descr));
-
 	/* Set up the hardware pointers in each descriptor */
 	descr = chain->ring;
 	hwdescr = chain->hwring;
