@@ -12,6 +12,8 @@ Required Properties:
 			"ti,am654-sdhci-5.1": SDHCI on AM654 device.
 			"ti,j721e-sdhci-8bit": 8 bit SDHCI on J721E device.
 			"ti,j721e-sdhci-4bit": 4 bit SDHCI on J721E device.
+			"ti,j7200-sdhci-8bit": 8 bit SDHCI on J7200 device.
+			"ti,j7200-sdhci-4bit": 4 bit SDHCI on J7200 device.
 	- reg: Must be two entries.
 		- The first should be the sdhci register space
 		- The second should the subsystem/phy register space
@@ -33,7 +35,9 @@ Required Properties:
 	  These bindings must be provided otherwise the driver will disable the
 	  corresponding speed mode (i.e. all nodes must provide at least -legacy)
 
-Optional Properties (Required for ti,am654-sdhci-5.1 and ti,j721e-sdhci-8bit):
+Optional Properties (Required for ti,am654-sdhci-5.1,
+				  ti,j721e-sdhci-8bit,
+				  ti,j7200-sdhci-8bit):
 	- ti,trm-icp: DLL trim select
 	- ti,driver-strength-ohm: driver strength in ohms.
 				  Valid values are 33, 40, 50, 66 and 100 ohms.
