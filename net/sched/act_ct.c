@@ -1543,10 +1543,10 @@ static int __init ct_init_module(void)
 
 	return 0;
 
-err_tbl_init:
-	destroy_workqueue(act_ct_wq);
 err_register:
 	tcf_ct_flow_tables_uninit();
+err_tbl_init:
+	destroy_workqueue(act_ct_wq);
 	return err;
 }
 

@@ -3072,10 +3072,18 @@ do_hash_page:
 	ori	r0,r0,DSISR_BAD_FAULT_64S@l
 	and.	r0,r5,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
+
+	/*
+	 * If we are in an "NMI" (e.g., an interrupt when soft-disabled), then
+	 * don't call hash_page, just fail the fault. This is required to
+	 * prevent re-entrancy problems in the hash code, namely perf
+	 * interrupts hitting while something holds H_PAGE_BUSY, and taking a
+	 * hash fault. See the comment in hash_preload().
+	 */
 	ld	r11, PACA_THREAD_INFO(r13)
-	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
-	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
-	bne	77f			/* then don't call hash_page now */
+	lwz	r0,TI_PREEMPT(r11)
+	andis.	r0,r0,NMI_MASK@h
+	bne	77f
 
 	/*
 	 * r3 contains the trap number

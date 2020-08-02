@@ -782,7 +782,7 @@ F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 F:	include/linux/mfd/altera-a10sr.h
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Thor Thayer <thor.thayer@linux.intel.com>
+M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/altera/
@@ -1425,7 +1425,7 @@ F:	arch/arm*/include/asm/perf_event.h
 F:	arch/arm*/kernel/hw_breakpoint.c
 F:	arch/arm*/kernel/perf_*
 F:	arch/arm/oprofile/common.c
-F:	drivers/perf/*
+F:	drivers/perf/
 F:	include/linux/perf/arm_pmu.h
 
 ARM PORT
@@ -14191,7 +14191,8 @@ F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
 QUALCOMM GENERIC INTERFACE I2C DRIVER
-M:	Alok Chauhan <alokc@codeaurora.org>
+M:	Akash Asthana <akashast@codeaurora.org>
+M:	Mukesh Savaliya <msavaliy@codeaurora.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported

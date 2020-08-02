@@ -578,8 +578,9 @@ enum hl_pll_frequency {
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
- * @enable_clock_gating: enable clock gating for reducing power consumption.
- * @disable_clock_gating: disable clock for accessing registers on HBW.
+ * @set_clock_gating: enable/disable clock gating per engine according to
+ *                    clock gating mask in hdev
+ * @disable_clock_gating: disable clock gating completely
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
  * @soft_reset_late_init: perform certain actions needed after soft reset.
@@ -587,7 +588,11 @@ enum hl_pll_frequency {
  * @hw_queues_unlock: release H/W queues lock.
  * @get_pci_id: retrieve PCI ID.
  * @get_eeprom_data: retrieve EEPROM data from F/W.
- * @send_cpu_message: send buffer to ArmCP.
+ * @send_cpu_message: send message to F/W. If the message is timedout, the
+ *                    driver will eventually reset the device. The timeout can
+ *                    be determined by the calling function or it can be 0 and
+ *                    then the timeout is the default timeout for the specific
+ *                    ASIC
  * @get_hw_state: retrieve the H/W state
  * @pci_bars_map: Map PCI BARs.
  * @set_dram_bar_base: Set DRAM BAR to map specific device address. Returns
@@ -680,7 +685,7 @@ struct hl_asic_funcs {
 	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
-	void (*enable_clock_gating)(struct hl_device *hdev);
+	void (*set_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u32 *mask,
@@ -1398,6 +1403,9 @@ struct hl_device_idle_busy_ts {
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, the driver will restore
  *             this value and update the F/W after the re-initialization
+ * @clock_gating_mask: is clock gating enabled. bitmask that represents the
+ *                     different engines. See debugfs-driver-habanalabs for
+ *                     details.
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @cs_active_cnt: number of active command submissions on this device (active
@@ -1425,7 +1433,6 @@ struct hl_device_idle_busy_ts {
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @mmu_huge_page_opt: is MMU huge pages optimization enabled.
- * @clock_gating: is clock gating enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
@@ -1493,6 +1500,7 @@ struct hl_device {
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
+	u64				clock_gating_mask;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	int				cs_active_cnt;
@@ -1514,7 +1522,6 @@ struct hl_device {
 	u8				dram_default_page_mapping;
 	u8				pmmu_huge_range;
 	u8				init_done;
-	u8				clock_gating;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
 	u8				in_debug;

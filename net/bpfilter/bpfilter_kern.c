@@ -34,7 +34,7 @@ static void __stop_umh(void)
 static int bpfilter_send_req(struct mbox_request *req)
 {
 	struct mbox_reply reply;
-	loff_t pos;
+	loff_t pos = 0;
 	ssize_t n;
 
 	if (!bpfilter_ops.info.tgid)

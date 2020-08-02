@@ -161,6 +161,7 @@
 			resets = <&ccu RST_BUS_VE>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			allwinner,sram = <&ve_sram 1>;
+			iommus = <&iommu 3>;
 		};
 
 		gpu: gpu@1800000 {

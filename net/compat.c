@@ -202,7 +202,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 
 		/* Advance. */
 		kcmsg = (struct cmsghdr *)((char *)kcmsg + tmp);
-		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, ucmlen);
+		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, cmsg.cmsg_len);
 	}
 
 	/*

@@ -551,19 +551,31 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 		}
 	}
 
-	tun_dst = tun_rx_dst(enc_opts.key.len);
-	if (!tun_dst) {
-		WARN_ON_ONCE(true);
+	if (key.enc_control.addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+		tun_dst = __ip_tun_set_dst(key.enc_ipv4.src, key.enc_ipv4.dst,
+					   key.enc_ip.tos, key.enc_ip.ttl,
+					   key.enc_tp.dst, TUNNEL_KEY,
+					   key32_to_tunnel_id(key.enc_key_id.keyid),
+					   enc_opts.key.len);
+	} else if (key.enc_control.addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+		tun_dst = __ipv6_tun_set_dst(&key.enc_ipv6.src, &key.enc_ipv6.dst,
+					     key.enc_ip.tos, key.enc_ip.ttl,
+					     key.enc_tp.dst, 0, TUNNEL_KEY,
+					     key32_to_tunnel_id(key.enc_key_id.keyid),
+					     enc_opts.key.len);
+	} else {
+		netdev_dbg(priv->netdev,
+			   "Couldn't restore tunnel, unsupported addr_type: %d\n",
+			   key.enc_control.addr_type);
 		return false;
 	}
 
-	ip_tunnel_key_init(&tun_dst->u.tun_info.key,
-			   key.enc_ipv4.src, key.enc_ipv4.dst,
-			   key.enc_ip.tos, key.enc_ip.ttl,
-			   0, /* label */
-			   key.enc_tp.src, key.enc_tp.dst,
-			   key32_to_tunnel_id(key.enc_key_id.keyid),
-			   TUNNEL_KEY);
+	if (!tun_dst) {
+		netdev_dbg(priv->netdev, "Couldn't restore tunnel, no tun_dst\n");
+		return false;
+	}
+
+	tun_dst->u.tun_info.key.tp_src = key.enc_tp.src;
 
 	if (enc_opts.key.len)
 		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,

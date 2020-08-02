@@ -4082,7 +4082,7 @@ int btf_resolve_helper_id(struct bpf_verifier_log *log,
 {
 	int id;
 
-	if (fn->arg_type[arg] != ARG_PTR_TO_BTF_ID)
+	if (fn->arg_type[arg] != ARG_PTR_TO_BTF_ID || !btf_vmlinux)
 		return -EINVAL;
 	id = fn->btf_id[arg];
 	if (!id || id > btf_vmlinux->nr_types)

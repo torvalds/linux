@@ -236,6 +236,15 @@ static struct mlx5_eswitch_rep *mlx5_eswitch_get_rep(struct mlx5_eswitch *esw,
 	return &esw->offloads.vport_reps[idx];
 }
 
+static void
+mlx5_eswitch_set_rule_flow_source(struct mlx5_eswitch *esw,
+				  struct mlx5_flow_spec *spec,
+				  struct mlx5_esw_flow_attr *attr)
+{
+	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
+	    attr && attr->in_rep && attr->in_rep->vport == MLX5_VPORT_UPLINK)
+		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+}
 
 static void
 mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
@@ -259,9 +268,6 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 			 mlx5_eswitch_get_vport_metadata_mask());
 
 		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
-		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
-		if (memchr_inv(misc, 0, MLX5_ST_SZ_BYTES(fte_match_set_misc)))
-			spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
 	} else {
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
 		MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
@@ -279,10 +285,6 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 
 		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
 	}
-
-	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
-	    attr->in_rep->vport == MLX5_VPORT_UPLINK)
-		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 }
 
 struct mlx5_flow_handle *
@@ -396,6 +398,8 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		goto err_esw_get;
 	}
 
+	mlx5_eswitch_set_rule_flow_source(esw, spec, attr);
+
 	if (mlx5_eswitch_termtbl_required(esw, attr, &flow_act, spec))
 		rule = mlx5_eswitch_add_termtbl_rule(esw, fdb, spec, attr,
 						     &flow_act, dest, i);
@@ -462,6 +466,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	i++;
 
 	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
+	mlx5_eswitch_set_rule_flow_source(esw, spec, attr);
 
 	if (attr->outer_match_level != MLX5_MATCH_NONE)
 		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;

@@ -966,7 +966,7 @@ void __init create_mapping_late(struct mm_struct *mm, struct map_desc *md,
 	pud_t *pud;
 
 	p4d = p4d_alloc(mm, pgd_offset(mm, md->virtual), md->virtual);
-	if (!WARN_ON(!p4d))
+	if (WARN_ON(!p4d))
 		return;
 	pud = pud_alloc(mm, p4d, md->virtual);
 	if (WARN_ON(!pud))
