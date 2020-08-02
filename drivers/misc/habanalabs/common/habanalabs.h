@@ -532,7 +532,7 @@ struct hl_cb_mgr {
  * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
  * @ctx: pointer to the CB owner's context.
- * @lock: spinlock to protect mmap/cs flows.
+ * @lock: spinlock to protect mmap flows.
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
  * @va_block_list: list of virtual addresses blocks of the CB if it is mapped to
@@ -561,7 +561,7 @@ struct hl_cb {
 	dma_addr_t		bus_address;
 	u32			mmap_size;
 	u32			size;
-	u32			cs_cnt;
+	atomic_t		cs_cnt;
 	u8			mmap;
 	u8			is_pool;
 	u8			is_internal;

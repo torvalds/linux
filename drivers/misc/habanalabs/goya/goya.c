@@ -4811,7 +4811,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	job->id = 0;
 	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
+	atomic_inc(&job->user_cb->cs_cnt);
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 	job->patched_cb = job->user_cb;
@@ -4823,7 +4823,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
-	cb->cs_cnt--;
+	atomic_dec(&cb->cs_cnt);
 
 release_cb:
 	hl_cb_put(cb);

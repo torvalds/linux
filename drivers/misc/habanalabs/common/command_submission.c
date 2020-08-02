@@ -233,10 +233,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 			job->patched_cb = parser.patched_cb;
 			job->job_cb_size = parser.patched_cb_size;
 			job->contains_dma_pkt = parser.contains_dma_pkt;
-
-			spin_lock(&job->patched_cb->lock);
-			job->patched_cb->cs_cnt++;
-			spin_unlock(&job->patched_cb->lock);
+			atomic_inc(&job->patched_cb->cs_cnt);
 		}
 
 		/*
@@ -244,9 +241,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 		 * original CB anymore because it was already parsed and
 		 * won't be accessed again for this CS
 		 */
-		spin_lock(&job->user_cb->lock);
-		job->user_cb->cs_cnt--;
-		spin_unlock(&job->user_cb->lock);
+		atomic_dec(&job->user_cb->cs_cnt);
 		hl_cb_put(job->user_cb);
 		job->user_cb = NULL;
 	} else if (!rc) {
@@ -268,10 +263,7 @@ static void complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 		 * created, so we need to check it's not NULL
 		 */
 		if (job->patched_cb) {
-			spin_lock(&job->patched_cb->lock);
-			job->patched_cb->cs_cnt--;
-			spin_unlock(&job->patched_cb->lock);
-
+			atomic_dec(&job->patched_cb->cs_cnt);
 			hl_cb_put(job->patched_cb);
 		}
 	}
@@ -284,10 +276,7 @@ static void complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 	if (job->is_kernel_allocated_cb &&
 		((job->queue_type == QUEUE_TYPE_HW && hdev->mmu_enable) ||
 				job->queue_type == QUEUE_TYPE_INT)) {
-		spin_lock(&job->user_cb->lock);
-		job->user_cb->cs_cnt--;
-		spin_unlock(&job->user_cb->lock);
-
+		atomic_dec(&job->user_cb->cs_cnt);
 		hl_cb_put(job->user_cb);
 	}
 
@@ -680,9 +669,7 @@ static struct hl_cb *get_cb_from_cs_chunk(struct hl_device *hdev,
 		goto release_cb;
 	}
 
-	spin_lock(&cb->lock);
-	cb->cs_cnt++;
-	spin_unlock(&cb->lock);
+	atomic_inc(&cb->cs_cnt);
 
 	return cb;
 
@@ -936,9 +923,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	goto put_cs;
 
 release_cb:
-	spin_lock(&cb->lock);
-	cb->cs_cnt--;
-	spin_unlock(&cb->lock);
+	atomic_dec(&cb->cs_cnt);
 	hl_cb_put(cb);
 free_cs_object:
 	cs_rollback(hdev, cs);
@@ -1133,7 +1118,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	job->id = 0;
 	job->cs = cs;
 	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
+	atomic_inc(&job->user_cb->cs_cnt);
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = q_idx;
 

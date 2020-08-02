@@ -116,7 +116,7 @@ static int command_buffers_show(struct seq_file *s, void *data)
 			"   %03llu        %d    0x%08x      %d          %d          %d\n",
 			cb->id, cb->ctx->asid, cb->size,
 			kref_read(&cb->refcount),
-			cb->mmap, cb->cs_cnt);
+			cb->mmap, atomic_read(&cb->cs_cnt));
 	}
 
 	spin_unlock(&dev_entry->cb_spinlock);

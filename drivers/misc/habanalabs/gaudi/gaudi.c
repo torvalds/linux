@@ -838,7 +838,7 @@ static int _gaudi_init_tpc_mem(struct hl_device *hdev,
 
 	job->id = 0;
 	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
+	atomic_inc(&job->user_cb->cs_cnt);
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GAUDI_QUEUE_ID_DMA_0_0;
 	job->patched_cb = job->user_cb;
@@ -861,7 +861,7 @@ free_job:
 	hl_userptr_delete_list(hdev, &job->userptr_list);
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
-	cb->cs_cnt--;
+	atomic_dec(&cb->cs_cnt);
 
 release_cb:
 	hl_cb_put(cb);
@@ -1248,7 +1248,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	job->id = 0;
 	job->cs = cs;
 	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
+	atomic_inc(&job->user_cb->cs_cnt);
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = queue_id;
 
@@ -5570,7 +5570,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 
 	job->id = 0;
 	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
+	atomic_inc(&job->user_cb->cs_cnt);
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GAUDI_QUEUE_ID_DMA_0_0;
 	job->patched_cb = job->user_cb;
@@ -5581,7 +5581,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	rc = gaudi_send_job_on_qman0(hdev, job);
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
-	cb->cs_cnt--;
+	atomic_dec(&cb->cs_cnt);
 
 	/* Verify DMA is OK */
 	err_cause = RREG32(mmDMA0_CORE_ERR_CAUSE);
