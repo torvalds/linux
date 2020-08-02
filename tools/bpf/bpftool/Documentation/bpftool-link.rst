@@ -21,6 +21,7 @@ LINK COMMANDS
 
 |	**bpftool** **link { show | list }** [*LINK*]
 |	**bpftool** **link pin** *LINK* *FILE*
+|	**bpftool** **link detach *LINK*
 |	**bpftool** **link help**
 |
 |	*LINK* := { **id** *LINK_ID* | **pinned** *FILE* }
@@ -48,6 +49,13 @@ DESCRIPTION
 		  Note: *FILE* must be located in *bpffs* mount. It must not
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
+
+	**bpftool link detach** *LINK*
+		  Force-detach link *LINK*. BPF link and its underlying BPF
+		  program will stay valid, but they will be detached from the
+		  respective BPF hook and BPF link will transition into
+		  a defunct state until last open file descriptor for that
+		  link is closed.
 
 	**bpftool link help**
 		  Print short help message.

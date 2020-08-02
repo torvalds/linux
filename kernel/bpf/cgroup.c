@@ -814,6 +814,7 @@ static void bpf_cgroup_link_release(struct bpf_link *link)
 {
 	struct bpf_cgroup_link *cg_link =
 		container_of(link, struct bpf_cgroup_link, link);
+	struct cgroup *cg;
 
 	/* link might have been auto-detached by dying cgroup already,
 	 * in that case our work is done here
@@ -832,8 +833,12 @@ static void bpf_cgroup_link_release(struct bpf_link *link)
 	WARN_ON(__cgroup_bpf_detach(cg_link->cgroup, NULL, cg_link,
 				    cg_link->type));
 
+	cg = cg_link->cgroup;
+	cg_link->cgroup = NULL;
+
 	mutex_unlock(&cgroup_mutex);
-	cgroup_put(cg_link->cgroup);
+
+	cgroup_put(cg);
 }
 
 static void bpf_cgroup_link_dealloc(struct bpf_link *link)
@@ -842,6 +847,13 @@ static void bpf_cgroup_link_dealloc(struct bpf_link *link)
 		container_of(link, struct bpf_cgroup_link, link);
 
 	kfree(cg_link);
+}
+
+static int bpf_cgroup_link_detach(struct bpf_link *link)
+{
+	bpf_cgroup_link_release(link);
+
+	return 0;
 }
 
 static void bpf_cgroup_link_show_fdinfo(const struct bpf_link *link,
@@ -883,6 +895,7 @@ static int bpf_cgroup_link_fill_link_info(const struct bpf_link *link,
 static const struct bpf_link_ops bpf_cgroup_link_lops = {
 	.release = bpf_cgroup_link_release,
 	.dealloc = bpf_cgroup_link_dealloc,
+	.detach = bpf_cgroup_link_detach,
 	.update_prog = cgroup_bpf_replace,
 	.show_fdinfo = bpf_cgroup_link_show_fdinfo,
 	.fill_link_info = bpf_cgroup_link_fill_link_info,

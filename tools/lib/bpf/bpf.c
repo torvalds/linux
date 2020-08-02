@@ -603,6 +603,16 @@ int bpf_link_create(int prog_fd, int target_fd,
 	return sys_bpf(BPF_LINK_CREATE, &attr, sizeof(attr));
 }
 
+int bpf_link_detach(int link_fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.link_detach.link_fd = link_fd;
+
+	return sys_bpf(BPF_LINK_DETACH, &attr, sizeof(attr));
+}
+
 int bpf_link_update(int link_fd, int new_prog_fd,
 		    const struct bpf_link_update_opts *opts)
 {

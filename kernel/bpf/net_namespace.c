@@ -142,7 +142,14 @@ static void bpf_netns_link_release(struct bpf_link *link)
 	bpf_prog_array_free(old_array);
 
 out_unlock:
+	net_link->net = NULL;
 	mutex_unlock(&netns_bpf_mutex);
+}
+
+static int bpf_netns_link_detach(struct bpf_link *link)
+{
+	bpf_netns_link_release(link);
+	return 0;
 }
 
 static void bpf_netns_link_dealloc(struct bpf_link *link)
@@ -228,6 +235,7 @@ static void bpf_netns_link_show_fdinfo(const struct bpf_link *link,
 static const struct bpf_link_ops bpf_netns_link_ops = {
 	.release = bpf_netns_link_release,
 	.dealloc = bpf_netns_link_dealloc,
+	.detach = bpf_netns_link_detach,
 	.update_prog = bpf_netns_link_update_prog,
 	.fill_link_info = bpf_netns_link_fill_info,
 	.show_fdinfo = bpf_netns_link_show_fdinfo,

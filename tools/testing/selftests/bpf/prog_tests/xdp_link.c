@@ -131,6 +131,20 @@ void test_xdp_link(void)
 	CHECK(link_info.xdp.ifindex != IFINDEX_LO, "link_ifindex",
 	      "got %u != exp %u\n", link_info.xdp.ifindex, IFINDEX_LO);
 
+	err = bpf_link__detach(link);
+	if (CHECK(err, "link_detach", "failed %d\n", err))
+		goto cleanup;
+
+	memset(&link_info, 0, sizeof(link_info));
+	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), &link_info, &link_info_len);
+	if (CHECK(err, "link_info", "failed: %d\n", err))
+		goto cleanup;
+	CHECK(link_info.prog_id != id1, "link_prog_id",
+	      "got %u != exp %u\n", link_info.prog_id, id1);
+	/* ifindex should be zeroed out */
+	CHECK(link_info.xdp.ifindex != 0, "link_ifindex",
+	      "got %u != exp %u\n", link_info.xdp.ifindex, 0);
+
 cleanup:
 	test_xdp_link__destroy(skel1);
 	test_xdp_link__destroy(skel2);
