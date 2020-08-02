@@ -2509,6 +2509,7 @@ nla_put_failure:
 
 struct nft_expr_info {
 	const struct nft_expr_ops	*ops;
+	const struct nlattr		*attr;
 	struct nlattr			*tb[NFT_EXPR_MAXATTR + 1];
 };
 
@@ -2556,7 +2557,9 @@ static int nf_tables_expr_parse(const struct nft_ctx *ctx,
 	} else
 		ops = type->ops;
 
+	info->attr = nla;
 	info->ops = ops;
+
 	return 0;
 
 err1:
@@ -3214,8 +3217,10 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 	expr = nft_expr_first(rule);
 	for (i = 0; i < n; i++) {
 		err = nf_tables_newexpr(&ctx, &info[i], expr);
-		if (err < 0)
+		if (err < 0) {
+			NL_SET_BAD_ATTR(extack, info[i].attr);
 			goto err2;
+		}
 
 		if (info[i].ops->validate)
 			nft_validate_state_update(net, NFT_VALIDATE_NEED);
