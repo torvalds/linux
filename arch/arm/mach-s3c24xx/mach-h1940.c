@@ -180,9 +180,9 @@ static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
 		.cfg_gpio = s3c24xx_ts_cfg_gpio,
 };
 
-/**
+/*
  * Set lcd on or off
- **/
+ */
 static struct s3c2410fb_display h1940_lcd __initdata = {
 	.lcdcon5=	S3C2410_LCDCON5_FRM565 | \
 			S3C2410_LCDCON5_INVVLINE | \
