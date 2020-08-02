@@ -1130,7 +1130,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		    !is_zero_ether_addr(match.mask->src)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Cannot match on both source and destination MAC");
-			err = EINVAL;
+			err = -EINVAL;
 			goto free_filter;
 		}
 
@@ -1138,7 +1138,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			if (!is_broadcast_ether_addr(match.mask->dst)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Masked matching on destination MAC not supported");
-				err = EINVAL;
+				err = -EINVAL;
 				goto free_filter;
 			}
 			ether_addr_copy(filter->sid.dst_mac, match.key->dst);
@@ -1149,7 +1149,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			if (!is_broadcast_ether_addr(match.mask->src)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Masked matching on source MAC not supported");
-				err = EINVAL;
+				err = -EINVAL;
 				goto free_filter;
 			}
 			ether_addr_copy(filter->sid.src_mac, match.key->src);
@@ -1157,7 +1157,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		}
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported, must include ETH_ADDRS");
-		err = EINVAL;
+		err = -EINVAL;
 		goto free_filter;
 	}
 
