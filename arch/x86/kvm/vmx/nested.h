@@ -47,6 +47,11 @@ static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->nested.cached_shadow_vmcs12;
 }
 
+/*
+ * Note: the same condition is checked against the state provided by userspace
+ * in vmx_set_nested_state; if it is satisfied, the nested state must include
+ * the VMCS12.
+ */
 static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
