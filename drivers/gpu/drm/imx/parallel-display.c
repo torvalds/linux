@@ -298,9 +298,6 @@ static int imx_pd_register(struct drm_device *drm,
 				   DRM_MODE_CONNECTOR_DPI);
 	}
 
-	if (imxpd->panel)
-		drm_panel_attach(imxpd->panel, &imxpd->connector);
-
 	if (imxpd->next_bridge) {
 		ret = drm_bridge_attach(encoder, imxpd->next_bridge,
 					&imxpd->bridge, 0);
@@ -368,9 +365,6 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
-
-	if (imxpd->panel)
-		drm_panel_detach(imxpd->panel);
 
 	kfree(imxpd->edid);
 }

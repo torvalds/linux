@@ -94,42 +94,6 @@ void drm_panel_remove(struct drm_panel *panel)
 EXPORT_SYMBOL(drm_panel_remove);
 
 /**
- * drm_panel_attach - attach a panel to a connector
- * @panel: DRM panel
- * @connector: DRM connector
- *
- * After obtaining a pointer to a DRM panel a display driver calls this
- * function to attach a panel to a connector.
- *
- * An error is returned if the panel is already attached to another connector.
- *
- * When unloading, the driver should detach from the panel by calling
- * drm_panel_detach().
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
-{
-	return 0;
-}
-EXPORT_SYMBOL(drm_panel_attach);
-
-/**
- * drm_panel_detach - detach a panel from a connector
- * @panel: DRM panel
- *
- * Detaches a panel from the connector it is attached to. If a panel is not
- * attached to any connector this is effectively a no-op.
- *
- * This function should not be called by the panel device itself. It
- * is only for the drm device that called drm_panel_attach().
- */
-void drm_panel_detach(struct drm_panel *panel)
-{
-}
-EXPORT_SYMBOL(drm_panel_detach);
-
-/**
  * drm_panel_prepare - power on a panel
  * @panel: DRM panel
  *

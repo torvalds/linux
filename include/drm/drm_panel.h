@@ -178,9 +178,6 @@ void drm_panel_init(struct drm_panel *panel, struct device *dev,
 void drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);
 
-int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
-void drm_panel_detach(struct drm_panel *panel);
-
 int drm_panel_prepare(struct drm_panel *panel);
 int drm_panel_unprepare(struct drm_panel *panel);
 

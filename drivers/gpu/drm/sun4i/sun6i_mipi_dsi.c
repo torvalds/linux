@@ -973,7 +973,6 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 	dsi->panel = panel;
 	dsi->device = device;
 
-	drm_panel_attach(dsi->panel, &dsi->connector);
 	drm_kms_helper_hotplug_event(dsi->drm);
 
 	dev_info(host->dev, "Attached device %s\n", device->name);
@@ -985,12 +984,10 @@ static int sun6i_dsi_detach(struct mipi_dsi_host *host,
 			    struct mipi_dsi_device *device)
 {
 	struct sun6i_dsi *dsi = host_to_sun6i_dsi(host);
-	struct drm_panel *panel = dsi->panel;
 
 	dsi->panel = NULL;
 	dsi->device = NULL;
 
-	drm_panel_detach(panel);
 	drm_kms_helper_hotplug_event(dsi->drm);
 
 	return 0;
