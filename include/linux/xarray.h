@@ -1524,10 +1524,21 @@ void xas_create_range(struct xa_state *);
 static inline void *xas_reload(struct xa_state *xas)
 {
 	struct xa_node *node = xas->xa_node;
+	void *entry;
+	char offset;
 
-	if (node)
-		return xa_entry(xas->xa, node, xas->xa_offset);
-	return xa_head(xas->xa);
+	if (!node)
+		return xa_head(xas->xa);
+	if (IS_ENABLED(CONFIG_XARRAY_MULTI)) {
+		offset = (xas->xa_index >> node->shift) & XA_CHUNK_MASK;
+		entry = xa_entry(xas->xa, node, offset);
+		if (!xa_is_sibling(entry))
+			return entry;
+		offset = xa_to_sibling(entry);
+	} else {
+		offset = xas->xa_offset;
+	}
+	return xa_entry(xas->xa, node, offset);
 }
 
 /**
