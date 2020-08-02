@@ -403,62 +403,6 @@ static int symbols_collect(struct object *obj)
 	return 0;
 }
 
-static struct btf *btf__parse_raw(const char *file)
-{
-	struct btf *btf;
-	struct stat st;
-	__u8 *buf;
-	FILE *f;
-
-	if (stat(file, &st))
-		return NULL;
-
-	f = fopen(file, "rb");
-	if (!f)
-		return NULL;
-
-	buf = malloc(st.st_size);
-	if (!buf) {
-		btf = ERR_PTR(-ENOMEM);
-		goto exit_close;
-	}
-
-	if ((size_t) st.st_size != fread(buf, 1, st.st_size, f)) {
-		btf = ERR_PTR(-EINVAL);
-		goto exit_free;
-	}
-
-	btf = btf__new(buf, st.st_size);
-
-exit_free:
-	free(buf);
-exit_close:
-	fclose(f);
-	return btf;
-}
-
-static bool is_btf_raw(const char *file)
-{
-	__u16 magic = 0;
-	int fd, nb_read;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		return false;
-
-	nb_read = read(fd, &magic, sizeof(magic));
-	close(fd);
-	return nb_read == sizeof(magic) && magic == BTF_MAGIC;
-}
-
-static struct btf *btf_open(const char *path)
-{
-	if (is_btf_raw(path))
-		return btf__parse_raw(path);
-	else
-		return btf__parse_elf(path, NULL);
-}
-
 static int symbols_resolve(struct object *obj)
 {
 	int nr_typedefs = obj->nr_typedefs;
@@ -469,7 +413,7 @@ static int symbols_resolve(struct object *obj)
 	struct btf *btf;
 	__u32 nr;
 
-	btf = btf_open(obj->btf ?: obj->path);
+	btf = btf__parse(obj->btf ?: obj->path, NULL);
 	err = libbpf_get_error(btf);
 	if (err) {
 		pr_err("FAILED: load BTF from %s: %s",
