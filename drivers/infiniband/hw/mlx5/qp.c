@@ -3088,20 +3088,44 @@ enum {
 	MLX5_PATH_FLAG_COUNTER	= 1 << 2,
 };
 
+static int ib_to_mlx5_rate_map(u8 rate)
+{
+	switch (rate) {
+	case IB_RATE_PORT_CURRENT:
+		return 0;
+	case IB_RATE_56_GBPS:
+		return 1;
+	case IB_RATE_25_GBPS:
+		return 2;
+	case IB_RATE_100_GBPS:
+		return 3;
+	case IB_RATE_200_GBPS:
+		return 4;
+	case IB_RATE_50_GBPS:
+		return 5;
+	default:
+		return rate + MLX5_STAT_RATE_OFFSET;
+	};
+
+	return 0;
+}
+
 static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 {
+	u32 stat_rate_support;
+
 	if (rate == IB_RATE_PORT_CURRENT)
 		return 0;
 
 	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_600_GBPS)
 		return -EINVAL;
 
+	stat_rate_support = MLX5_CAP_GEN(dev->mdev, stat_rate_support);
 	while (rate != IB_RATE_PORT_CURRENT &&
-	       !(1 << (rate + MLX5_STAT_RATE_OFFSET) &
-		 MLX5_CAP_GEN(dev->mdev, stat_rate_support)))
+	       !(1 << ib_to_mlx5_rate_map(rate) & stat_rate_support))
 		--rate;
 
-	return rate ? rate + MLX5_STAT_RATE_OFFSET : rate;
+	return ib_to_mlx5_rate_map(rate);
 }
 
 static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
