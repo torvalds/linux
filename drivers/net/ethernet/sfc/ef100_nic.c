@@ -347,6 +347,37 @@ static int ef100_phy_probe(struct efx_nic *efx)
 	return 0;
 }
 
+static int ef100_filter_table_probe(struct efx_nic *efx)
+{
+	return efx_mcdi_filter_table_probe(efx, true);
+}
+
+static int ef100_filter_table_up(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_mcdi_filter_add_vlan(efx, EFX_FILTER_VID_UNSPEC);
+	if (rc) {
+		efx_mcdi_filter_table_down(efx);
+		return rc;
+	}
+
+	rc = efx_mcdi_filter_add_vlan(efx, 0);
+	if (rc) {
+		efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
+		efx_mcdi_filter_table_down(efx);
+	}
+
+	return rc;
+}
+
+static void ef100_filter_table_down(struct efx_nic *efx)
+{
+	efx_mcdi_filter_del_vlan(efx, 0);
+	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
+	efx_mcdi_filter_table_down(efx);
+}
+
 /*	Other
  */
 static int ef100_reconfigure_mac(struct efx_nic *efx, bool mtu_only)
@@ -393,11 +424,23 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 		__clear_bit(reset_type, &efx->reset_pending);
 		rc = dev_open(efx->net_dev, NULL);
 	} else if (reset_type == RESET_TYPE_ALL) {
+		/* A RESET_TYPE_ALL will cause filters to be removed, so we remove filters
+		 * and reprobe after reset to avoid removing filters twice
+		 */
+		down_read(&efx->filter_sem);
+		ef100_filter_table_down(efx);
+		up_read(&efx->filter_sem);
 		rc = efx_mcdi_reset(efx, reset_type);
 		if (rc)
 			return rc;
 
 		netif_device_attach(efx->net_dev);
+
+		down_read(&efx->filter_sem);
+		rc = ef100_filter_table_up(efx);
+		up_read(&efx->filter_sem);
+		if (rc)
+			return rc;
 
 		rc = dev_open(efx->net_dev, NULL);
 	} else {
@@ -480,6 +523,20 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_remove = efx_mcdi_rx_remove,
 	.rx_write = ef100_rx_write,
 	.rx_packet = __ef100_rx_packet,
+	.max_rx_ip_filters = EFX_MCDI_FILTER_TBL_ROWS,
+	.filter_table_probe = ef100_filter_table_up,
+	.filter_table_restore = efx_mcdi_filter_table_restore,
+	.filter_table_remove = ef100_filter_table_down,
+	.filter_insert = efx_mcdi_filter_insert,
+	.filter_remove_safe = efx_mcdi_filter_remove_safe,
+	.filter_get_safe = efx_mcdi_filter_get_safe,
+	.filter_clear_rx = efx_mcdi_filter_clear_rx,
+	.filter_count_rx_used = efx_mcdi_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_mcdi_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_mcdi_filter_get_rx_ids,
+#ifdef CONFIG_RFS_ACCEL
+	.filter_rfs_expire_one = efx_mcdi_filter_rfs_expire_one,
+#endif
 
 	.get_phys_port_id = efx_ef100_get_phys_port_id,
 
@@ -840,6 +897,12 @@ static int ef100_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 
+	down_write(&efx->filter_sem);
+	rc = ef100_filter_table_probe(efx);
+	up_write(&efx->filter_sem);
+	if (rc)
+		goto fail;
+
 	rc = ef100_register_netdev(efx);
 	if (rc)
 		goto fail;
@@ -877,6 +940,10 @@ void ef100_remove(struct efx_nic *efx)
 	struct ef100_nic_data *nic_data = efx->nic_data;
 
 	ef100_unregister_netdev(efx);
+
+	down_write(&efx->filter_sem);
+	efx_mcdi_filter_table_remove(efx);
+	up_write(&efx->filter_sem);
 	efx_fini_channels(efx);
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
