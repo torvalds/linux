@@ -1549,12 +1549,12 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	default:
 		arg_stateid = &args->stateid;
 	}
+	trace_nfs4_layoutreturn_on_close(args->inode, &args->stateid, ret);
 	pnfs_layoutreturn_free_lsegs(lo, arg_stateid, &args->range,
 			res_stateid);
 	if (ld_private && ld_private->ops && ld_private->ops->free)
 		ld_private->ops->free(ld_private);
 	pnfs_put_layout_hdr(lo);
-	trace_nfs4_layoutreturn_on_close(args->inode, 0);
 }
 
 bool pnfs_wait_on_layoutreturn(struct inode *ino, struct rpc_task *task)
