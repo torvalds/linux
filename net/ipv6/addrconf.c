@@ -1983,6 +1983,45 @@ int ipv6_chk_prefix(const struct in6_addr *addr, struct net_device *dev)
 }
 EXPORT_SYMBOL(ipv6_chk_prefix);
 
+/**
+ * ipv6_dev_find - find the first device with a given source address.
+ * @net: the net namespace
+ * @addr: the source address
+ *
+ * The caller should be protected by RCU, or RTNL.
+ */
+struct net_device *ipv6_dev_find(struct net *net, const struct in6_addr *addr)
+{
+	unsigned int hash = inet6_addr_hash(net, addr);
+	struct inet6_ifaddr *ifp, *result = NULL;
+	struct net_device *dev = NULL;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(ifp, &inet6_addr_lst[hash], addr_lst) {
+		if (net_eq(dev_net(ifp->idev->dev), net) &&
+		    ipv6_addr_equal(&ifp->addr, addr)) {
+			result = ifp;
+			break;
+		}
+	}
+
+	if (!result) {
+		struct rt6_info *rt;
+
+		rt = rt6_lookup(net, addr, NULL, 0, NULL, 0);
+		if (rt) {
+			dev = rt->dst.dev;
+			ip6_rt_put(rt);
+		}
+	} else {
+		dev = result->idev->dev;
+	}
+	rcu_read_unlock();
+
+	return dev;
+}
+EXPORT_SYMBOL(ipv6_dev_find);
+
 struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *addr,
 				     struct net_device *dev, int strict)
 {
