@@ -63,6 +63,7 @@ struct ef100_nic_data {
 	u32 datapath_caps;
 	u32 datapath_caps2;
 	u32 datapath_caps3;
+	unsigned int pf_index;
 	u16 warm_boot_count;
 	u8 port_id[ETH_ALEN];
 	DECLARE_BITMAP(evq_phases, EFX_MAX_CHANNELS);
