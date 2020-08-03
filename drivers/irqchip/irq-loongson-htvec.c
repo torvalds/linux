@@ -19,15 +19,14 @@
 
 /* Registers */
 #define HTVEC_EN_OFF		0x20
-#define HTVEC_MAX_PARENT_IRQ	4
+#define HTVEC_MAX_PARENT_IRQ	8
 
 #define VEC_COUNT_PER_REG	32
-#define VEC_REG_COUNT		4
-#define VEC_COUNT		(VEC_COUNT_PER_REG * VEC_REG_COUNT)
 #define VEC_REG_IDX(irq_id)	((irq_id) / VEC_COUNT_PER_REG)
 #define VEC_REG_BIT(irq_id)	((irq_id) % VEC_COUNT_PER_REG)
 
 struct htvec {
+	int			num_parents;
 	void __iomem		*base;
 	struct irq_domain	*htvec_domain;
 	raw_spinlock_t		htvec_lock;
@@ -43,7 +42,7 @@ static void htvec_irq_dispatch(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	for (i = 0; i < VEC_REG_COUNT; i++) {
+	for (i = 0; i < priv->num_parents; i++) {
 		pending = readl(priv->base + 4 * i);
 		while (pending) {
 			int bit = __ffs(pending);
@@ -109,11 +108,14 @@ static struct irq_chip htvec_irq_chip = {
 static int htvec_domain_alloc(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs, void *arg)
 {
+	int ret;
 	unsigned long hwirq;
 	unsigned int type, i;
 	struct htvec *priv = domain->host_data;
 
-	irq_domain_translate_onecell(domain, arg, &hwirq, &type);
+	ret = irq_domain_translate_onecell(domain, arg, &hwirq, &type);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < nr_irqs; i++) {
 		irq_domain_set_info(domain, virq + i, hwirq + i, &htvec_irq_chip,
@@ -147,7 +149,7 @@ static void htvec_reset(struct htvec *priv)
 	u32 idx;
 
 	/* Clear IRQ cause registers, mask all interrupts */
-	for (idx = 0; idx < VEC_REG_COUNT; idx++) {
+	for (idx = 0; idx < priv->num_parents; idx++) {
 		writel_relaxed(0x0, priv->base + HTVEC_EN_OFF + 4 * idx);
 		writel_relaxed(0xFFFFFFFF, priv->base);
 	}
@@ -157,7 +159,7 @@ static int htvec_of_init(struct device_node *node,
 				struct device_node *parent)
 {
 	struct htvec *priv;
-	int err, parent_irq[4], num_parents = 0, i;
+	int err, parent_irq[8], i;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -176,33 +178,35 @@ static int htvec_of_init(struct device_node *node,
 		if (parent_irq[i] <= 0)
 			break;
 
-		num_parents++;
+		priv->num_parents++;
 	}
 
-	if (!num_parents) {
+	if (!priv->num_parents) {
 		pr_err("Failed to get parent irqs\n");
 		err = -ENODEV;
 		goto iounmap_base;
 	}
 
 	priv->htvec_domain = irq_domain_create_linear(of_node_to_fwnode(node),
-						      VEC_COUNT,
-						      &htvec_domain_ops,
-						      priv);
+					(VEC_COUNT_PER_REG * priv->num_parents),
+					&htvec_domain_ops, priv);
 	if (!priv->htvec_domain) {
 		pr_err("Failed to create IRQ domain\n");
 		err = -ENOMEM;
-		goto iounmap_base;
+		goto irq_dispose;
 	}
 
 	htvec_reset(priv);
 
-	for (i = 0; i < num_parents; i++)
+	for (i = 0; i < priv->num_parents; i++)
 		irq_set_chained_handler_and_data(parent_irq[i],
 						 htvec_irq_dispatch, priv);
 
 	return 0;
 
+irq_dispose:
+	for (; i > 0; i--)
+		irq_dispose_mapping(parent_irq[i - 1]);
 iounmap_base:
 	iounmap(priv->base);
 free_priv:
