@@ -13,8 +13,10 @@
 #include "nic_common.h"
 
 extern const struct efx_nic_type ef100_pf_nic_type;
+extern const struct efx_nic_type ef100_vf_nic_type;
 
 int ef100_probe_pf(struct efx_nic *efx);
+int ef100_probe_vf(struct efx_nic *efx);
 void ef100_remove(struct efx_nic *efx);
 
 enum {
