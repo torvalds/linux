@@ -953,7 +953,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (!flow_is_multicast_only(flow_attr))
 		set_underlay_qp(dev, spec, underlay_qpn);
 
-	if (dev->is_rep) {
+	if (dev->is_rep && flow_attr->type != IB_FLOW_ATTR_SNIFFER) {
 		struct mlx5_eswitch_rep *rep;
 
 		rep = dev->port[flow_attr->port - 1].rep;
@@ -1115,6 +1115,7 @@ static struct mlx5_ib_flow_handler *create_sniffer_rule(struct mlx5_ib_dev *dev,
 	int err;
 	static const struct ib_flow_attr flow_attr  = {
 		.num_of_specs = 0,
+		.type = IB_FLOW_ATTR_SNIFFER,
 		.size = sizeof(flow_attr)
 	};
 
