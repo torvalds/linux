@@ -37,6 +37,11 @@ update_irq_load_avg(struct rq *rq, u64 running)
 }
 #endif
 
+static inline u32 get_pelt_divider(struct sched_avg *avg)
+{
+	return LOAD_AVG_MAX - 1024 + avg->period_contrib;
+}
+
 /*
  * When a task is dequeued, its estimated utilization should not be update if
  * its util_avg has not been updated at least once.
