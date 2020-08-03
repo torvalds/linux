@@ -481,7 +481,8 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 
 		n->c			= c;
 		n->dev			= ptr->dev;
-		n->have_ioref		= bch2_dev_get_ioref(ca, WRITE);
+		n->have_ioref		= bch2_dev_get_ioref(ca,
+					type == BCH_DATA_btree ? READ : WRITE);
 		n->submit_time		= local_clock();
 		n->bio.bi_iter.bi_sector = ptr->offset;
 
