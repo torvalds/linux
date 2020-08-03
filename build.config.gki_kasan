@@ -1,6 +1,5 @@
 DEFCONFIG=gki_defconfig
 POST_DEFCONFIG_CMDS="check_defconfig && update_kasan_config"
-KERNEL_DIR=common
 function update_kasan_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -e CONFIG_KASAN \
