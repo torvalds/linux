@@ -602,6 +602,12 @@ static int ef100_probe_main(struct efx_nic *efx)
 		goto fail;
 	}
 
+	if (efx_has_cap(efx, UNSOL_EV_CREDIT_SUPPORTED)) {
+		netif_info(efx, drv, efx->net_dev, "Firmware uses unsolicited-event credits\n");
+		rc = -EINVAL;
+		goto fail;
+	}
+
 	rc = ef100_phy_probe(efx);
 	if (rc)
 		goto fail;
