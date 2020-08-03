@@ -13650,7 +13650,11 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			/* Handle MDS Loopback frames */
-			lpfc_sli4_handle_mds_loopback(phba->pport, dma_buf);
+			if  (!(phba->pport->load_flag & FC_UNLOADING))
+				lpfc_sli4_handle_mds_loopback(phba->pport,
+							      dma_buf);
+			else
+				lpfc_in_buf_free(phba, &dma_buf->dbuf);
 			break;
 		}
 
@@ -18363,7 +18367,10 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 		vport = phba->pport;
 		/* Handle MDS Loopback frames */
-		lpfc_sli4_handle_mds_loopback(vport, dmabuf);
+		if  (!(phba->pport->load_flag & FC_UNLOADING))
+			lpfc_sli4_handle_mds_loopback(vport, dmabuf);
+		else
+			lpfc_in_buf_free(phba, &dmabuf->dbuf);
 		return;
 	}
 
