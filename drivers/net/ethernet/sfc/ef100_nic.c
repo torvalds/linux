@@ -453,6 +453,171 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 	return rc;
 }
 
+static void ef100_common_stat_mask(unsigned long *mask)
+{
+	__set_bit(EF100_STAT_port_rx_packets, mask);
+	__set_bit(EF100_STAT_port_tx_packets, mask);
+	__set_bit(EF100_STAT_port_rx_bytes, mask);
+	__set_bit(EF100_STAT_port_tx_bytes, mask);
+	__set_bit(EF100_STAT_port_rx_multicast, mask);
+	__set_bit(EF100_STAT_port_rx_bad, mask);
+	__set_bit(EF100_STAT_port_rx_align_error, mask);
+	__set_bit(EF100_STAT_port_rx_overflow, mask);
+}
+
+static void ef100_ethtool_stat_mask(unsigned long *mask)
+{
+	__set_bit(EF100_STAT_port_tx_pause, mask);
+	__set_bit(EF100_STAT_port_tx_unicast, mask);
+	__set_bit(EF100_STAT_port_tx_multicast, mask);
+	__set_bit(EF100_STAT_port_tx_broadcast, mask);
+	__set_bit(EF100_STAT_port_tx_lt64, mask);
+	__set_bit(EF100_STAT_port_tx_64, mask);
+	__set_bit(EF100_STAT_port_tx_65_to_127, mask);
+	__set_bit(EF100_STAT_port_tx_128_to_255, mask);
+	__set_bit(EF100_STAT_port_tx_256_to_511, mask);
+	__set_bit(EF100_STAT_port_tx_512_to_1023, mask);
+	__set_bit(EF100_STAT_port_tx_1024_to_15xx, mask);
+	__set_bit(EF100_STAT_port_tx_15xx_to_jumbo, mask);
+	__set_bit(EF100_STAT_port_rx_good, mask);
+	__set_bit(EF100_STAT_port_rx_pause, mask);
+	__set_bit(EF100_STAT_port_rx_unicast, mask);
+	__set_bit(EF100_STAT_port_rx_broadcast, mask);
+	__set_bit(EF100_STAT_port_rx_lt64, mask);
+	__set_bit(EF100_STAT_port_rx_64, mask);
+	__set_bit(EF100_STAT_port_rx_65_to_127, mask);
+	__set_bit(EF100_STAT_port_rx_128_to_255, mask);
+	__set_bit(EF100_STAT_port_rx_256_to_511, mask);
+	__set_bit(EF100_STAT_port_rx_512_to_1023, mask);
+	__set_bit(EF100_STAT_port_rx_1024_to_15xx, mask);
+	__set_bit(EF100_STAT_port_rx_15xx_to_jumbo, mask);
+	__set_bit(EF100_STAT_port_rx_gtjumbo, mask);
+	__set_bit(EF100_STAT_port_rx_bad_gtjumbo, mask);
+	__set_bit(EF100_STAT_port_rx_length_error, mask);
+	__set_bit(EF100_STAT_port_rx_nodesc_drops, mask);
+	__set_bit(GENERIC_STAT_rx_nodesc_trunc, mask);
+	__set_bit(GENERIC_STAT_rx_noskb_drops, mask);
+}
+
+#define EF100_DMA_STAT(ext_name, mcdi_name)			\
+	[EF100_STAT_ ## ext_name] =				\
+	{ #ext_name, 64, 8 * MC_CMD_MAC_ ## mcdi_name }
+
+static const struct efx_hw_stat_desc ef100_stat_desc[EF100_STAT_COUNT] = {
+	EF100_DMA_STAT(port_tx_bytes, TX_BYTES),
+	EF100_DMA_STAT(port_tx_packets, TX_PKTS),
+	EF100_DMA_STAT(port_tx_pause, TX_PAUSE_PKTS),
+	EF100_DMA_STAT(port_tx_unicast, TX_UNICAST_PKTS),
+	EF100_DMA_STAT(port_tx_multicast, TX_MULTICAST_PKTS),
+	EF100_DMA_STAT(port_tx_broadcast, TX_BROADCAST_PKTS),
+	EF100_DMA_STAT(port_tx_lt64, TX_LT64_PKTS),
+	EF100_DMA_STAT(port_tx_64, TX_64_PKTS),
+	EF100_DMA_STAT(port_tx_65_to_127, TX_65_TO_127_PKTS),
+	EF100_DMA_STAT(port_tx_128_to_255, TX_128_TO_255_PKTS),
+	EF100_DMA_STAT(port_tx_256_to_511, TX_256_TO_511_PKTS),
+	EF100_DMA_STAT(port_tx_512_to_1023, TX_512_TO_1023_PKTS),
+	EF100_DMA_STAT(port_tx_1024_to_15xx, TX_1024_TO_15XX_PKTS),
+	EF100_DMA_STAT(port_tx_15xx_to_jumbo, TX_15XX_TO_JUMBO_PKTS),
+	EF100_DMA_STAT(port_rx_bytes, RX_BYTES),
+	EF100_DMA_STAT(port_rx_packets, RX_PKTS),
+	EF100_DMA_STAT(port_rx_good, RX_GOOD_PKTS),
+	EF100_DMA_STAT(port_rx_bad, RX_BAD_FCS_PKTS),
+	EF100_DMA_STAT(port_rx_pause, RX_PAUSE_PKTS),
+	EF100_DMA_STAT(port_rx_unicast, RX_UNICAST_PKTS),
+	EF100_DMA_STAT(port_rx_multicast, RX_MULTICAST_PKTS),
+	EF100_DMA_STAT(port_rx_broadcast, RX_BROADCAST_PKTS),
+	EF100_DMA_STAT(port_rx_lt64, RX_UNDERSIZE_PKTS),
+	EF100_DMA_STAT(port_rx_64, RX_64_PKTS),
+	EF100_DMA_STAT(port_rx_65_to_127, RX_65_TO_127_PKTS),
+	EF100_DMA_STAT(port_rx_128_to_255, RX_128_TO_255_PKTS),
+	EF100_DMA_STAT(port_rx_256_to_511, RX_256_TO_511_PKTS),
+	EF100_DMA_STAT(port_rx_512_to_1023, RX_512_TO_1023_PKTS),
+	EF100_DMA_STAT(port_rx_1024_to_15xx, RX_1024_TO_15XX_PKTS),
+	EF100_DMA_STAT(port_rx_15xx_to_jumbo, RX_15XX_TO_JUMBO_PKTS),
+	EF100_DMA_STAT(port_rx_gtjumbo, RX_GTJUMBO_PKTS),
+	EF100_DMA_STAT(port_rx_bad_gtjumbo, RX_JABBER_PKTS),
+	EF100_DMA_STAT(port_rx_align_error, RX_ALIGN_ERROR_PKTS),
+	EF100_DMA_STAT(port_rx_length_error, RX_LENGTH_ERROR_PKTS),
+	EF100_DMA_STAT(port_rx_overflow, RX_OVERFLOW_PKTS),
+	EF100_DMA_STAT(port_rx_nodesc_drops, RX_NODESC_DROPS),
+	EFX_GENERIC_SW_STAT(rx_nodesc_trunc),
+	EFX_GENERIC_SW_STAT(rx_noskb_drops),
+};
+
+static size_t ef100_describe_stats(struct efx_nic *efx, u8 *names)
+{
+	DECLARE_BITMAP(mask, EF100_STAT_COUNT) = {};
+
+	ef100_ethtool_stat_mask(mask);
+	return efx_nic_describe_stats(ef100_stat_desc, EF100_STAT_COUNT,
+				      mask, names);
+}
+
+static size_t ef100_update_stats_common(struct efx_nic *efx, u64 *full_stats,
+					struct rtnl_link_stats64 *core_stats)
+{
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	DECLARE_BITMAP(mask, EF100_STAT_COUNT) = {};
+	size_t stats_count = 0, index;
+	u64 *stats = nic_data->stats;
+
+	ef100_ethtool_stat_mask(mask);
+
+	if (full_stats) {
+		for_each_set_bit(index, mask, EF100_STAT_COUNT) {
+			if (ef100_stat_desc[index].name) {
+				*full_stats++ = stats[index];
+				++stats_count;
+			}
+		}
+	}
+
+	if (!core_stats)
+		return stats_count;
+
+	core_stats->rx_packets = stats[EF100_STAT_port_rx_packets];
+	core_stats->tx_packets = stats[EF100_STAT_port_tx_packets];
+	core_stats->rx_bytes = stats[EF100_STAT_port_rx_bytes];
+	core_stats->tx_bytes = stats[EF100_STAT_port_tx_bytes];
+	core_stats->rx_dropped = stats[EF100_STAT_port_rx_nodesc_drops] +
+				 stats[GENERIC_STAT_rx_nodesc_trunc] +
+				 stats[GENERIC_STAT_rx_noskb_drops];
+	core_stats->multicast = stats[EF100_STAT_port_rx_multicast];
+	core_stats->rx_length_errors =
+			stats[EF100_STAT_port_rx_gtjumbo] +
+			stats[EF100_STAT_port_rx_length_error];
+	core_stats->rx_crc_errors = stats[EF100_STAT_port_rx_bad];
+	core_stats->rx_frame_errors =
+			stats[EF100_STAT_port_rx_align_error];
+	core_stats->rx_fifo_errors = stats[EF100_STAT_port_rx_overflow];
+	core_stats->rx_errors = (core_stats->rx_length_errors +
+				 core_stats->rx_crc_errors +
+				 core_stats->rx_frame_errors);
+
+	return stats_count;
+}
+
+static size_t ef100_update_stats(struct efx_nic *efx,
+				 u64 *full_stats,
+				 struct rtnl_link_stats64 *core_stats)
+{
+	__le64 *mc_stats = kmalloc(array_size(efx->num_mac_stats, sizeof(__le64)), GFP_ATOMIC);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	DECLARE_BITMAP(mask, EF100_STAT_COUNT) = {};
+	u64 *stats = nic_data->stats;
+
+	ef100_common_stat_mask(mask);
+	ef100_ethtool_stat_mask(mask);
+
+	efx_nic_copy_stats(efx, mc_stats);
+	efx_nic_update_stats(ef100_stat_desc, EF100_STAT_COUNT, mask,
+			     stats, mc_stats, false);
+
+	kfree(mc_stats);
+
+	return ef100_update_stats_common(efx, full_stats, core_stats);
+}
+
 static int efx_ef100_get_phys_port_id(struct efx_nic *efx,
 				      struct netdev_phys_item_id *ppid)
 {
@@ -557,6 +722,11 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
+	.describe_stats = ef100_describe_stats,
+	.start_stats = efx_mcdi_mac_start_stats,
+	.update_stats = ef100_update_stats,
+	.pull_stats = efx_mcdi_mac_pull_stats,
+	.stop_stats = efx_mcdi_mac_stop_stats,
 
 	/* Per-type bar/size configuration not used on ef100. Location of
 	 * registers is defined by extended capabilities.

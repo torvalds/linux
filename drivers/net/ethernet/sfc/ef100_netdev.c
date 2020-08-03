@@ -86,6 +86,7 @@ static int ef100_net_stop(struct net_device *net_dev)
 
 	netif_stop_queue(net_dev);
 	efx_stop_all(efx);
+	efx_mcdi_mac_fini_stats(efx);
 	efx_disable_interrupts(efx);
 	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
@@ -157,6 +158,10 @@ static int ef100_net_open(struct net_device *net_dev)
 	 */
 	(void) efx_mcdi_poll_reboot(efx);
 
+	rc = efx_mcdi_mac_init_stats(efx);
+	if (rc)
+		goto fail;
+
 	efx_start_all(efx);
 
 	/* Link state detection is normally event-driven; we have
@@ -212,6 +217,7 @@ static const struct net_device_ops ef100_netdev_ops = {
 	.ndo_open               = ef100_net_open,
 	.ndo_stop               = ef100_net_stop,
 	.ndo_start_xmit         = ef100_hard_start_xmit,
+	.ndo_get_stats64        = efx_net_stats,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_rx_mode        = efx_set_rx_mode, /* Lookout */
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
