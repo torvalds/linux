@@ -255,10 +255,8 @@ static noinline void do_no_context(struct pt_regs *regs)
 
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = s390_search_extables(regs->psw.addr);
-	if (fixup) {
-		regs->psw.addr = extable_fixup(fixup);
+	if (fixup && ex_handle(fixup, regs))
 		return;
-	}
 
 	/*
 	 * Oops. The kernel tried to access some bad page. We'll have to
@@ -376,7 +374,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
  * routines.
  *
  * interruption code (int_code):
- *   04       Protection           ->  Write-Protection  (suprression)
+ *   04       Protection           ->  Write-Protection  (suppression)
  *   10       Segment translation  ->  Not present       (nullification)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)

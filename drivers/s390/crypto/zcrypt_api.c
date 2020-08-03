@@ -634,7 +634,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -718,7 +718,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	int qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -803,7 +803,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
 	struct ap_message ap_msg;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	unsigned short *domain, tdom;
 	int qid = 0, rc = -ENODEV;
@@ -822,7 +822,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 	 * domain but a control only domain, use the default domain as target.
 	 */
 	tdom = *domain;
-	if (tdom >= 0 && tdom < AP_DOMAINS &&
+	if (tdom < AP_DOMAINS &&
 	    !ap_test_config_usage_domain(tdom) &&
 	    ap_test_config_ctrl_domain(tdom) &&
 	    ap_domain_index >= 0)
@@ -931,7 +931,7 @@ static long _zcrypt_send_ep11_cprb(struct ap_perms *perms,
 	struct zcrypt_queue *zq, *pref_zq;
 	struct ep11_target_dev *targets;
 	unsigned short target_num;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	int qid = 0, rc = -ENODEV;
@@ -1040,7 +1040,7 @@ static long zcrypt_rng(char *buffer)
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
-	unsigned int weight, pref_weight;
+	unsigned int weight = 0, pref_weight = 0;
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	unsigned int domain;
@@ -1298,6 +1298,99 @@ static int zcrypt_requestq_count(void)
 	return requestq_count;
 }
 
+static int icarsamodexpo_ioctl(struct ap_perms *perms, unsigned long arg)
+{
+	int rc;
+	struct ica_rsa_modexpo mex;
+	struct ica_rsa_modexpo __user *umex = (void __user *) arg;
+
+	if (copy_from_user(&mex, umex, sizeof(mex)))
+		return -EFAULT;
+	do {
+		rc = zcrypt_rsa_modexpo(perms, &mex);
+	} while (rc == -EAGAIN);
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = zcrypt_rsa_modexpo(perms, &mex);
+		} while (rc == -EAGAIN);
+	if (rc) {
+		ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d\n", rc);
+		return rc;
+	}
+	return put_user(mex.outputdatalength, &umex->outputdatalength);
+}
+
+static int icarsacrt_ioctl(struct ap_perms *perms, unsigned long arg)
+{
+	int rc;
+	struct ica_rsa_modexpo_crt crt;
+	struct ica_rsa_modexpo_crt __user *ucrt = (void __user *) arg;
+
+	if (copy_from_user(&crt, ucrt, sizeof(crt)))
+		return -EFAULT;
+	do {
+		rc = zcrypt_rsa_crt(perms, &crt);
+	} while (rc == -EAGAIN);
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = zcrypt_rsa_crt(perms, &crt);
+		} while (rc == -EAGAIN);
+	if (rc) {
+		ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d\n", rc);
+		return rc;
+	}
+	return put_user(crt.outputdatalength, &ucrt->outputdatalength);
+}
+
+static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
+{
+	int rc;
+	struct ica_xcRB xcRB;
+	struct ica_xcRB __user *uxcRB = (void __user *) arg;
+
+	if (copy_from_user(&xcRB, uxcRB, sizeof(xcRB)))
+		return -EFAULT;
+	do {
+		rc = _zcrypt_send_cprb(perms, &xcRB);
+	} while (rc == -EAGAIN);
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = _zcrypt_send_cprb(perms, &xcRB);
+		} while (rc == -EAGAIN);
+	if (rc)
+		ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
+			   rc, xcRB.status);
+	if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
+		return -EFAULT;
+	return rc;
+}
+
+static int zsendep11cprb_ioctl(struct ap_perms *perms, unsigned long arg)
+{
+	int rc;
+	struct ep11_urb xcrb;
+	struct ep11_urb __user *uxcrb = (void __user *)arg;
+
+	if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
+		return -EFAULT;
+	do {
+		rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
+	} while (rc == -EAGAIN);
+	/* on failure: retry once again after a requested rescan */
+	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		do {
+			rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
+		} while (rc == -EAGAIN);
+	if (rc)
+		ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
+	if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
+		return -EFAULT;
+	return rc;
+}
+
 static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				  unsigned long arg)
 {
@@ -1310,87 +1403,14 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		return rc;
 
 	switch (cmd) {
-	case ICARSAMODEXPO: {
-		struct ica_rsa_modexpo __user *umex = (void __user *) arg;
-		struct ica_rsa_modexpo mex;
-
-		if (copy_from_user(&mex, umex, sizeof(mex)))
-			return -EFAULT;
-		do {
-			rc = zcrypt_rsa_modexpo(perms, &mex);
-		} while (rc == -EAGAIN);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
-			do {
-				rc = zcrypt_rsa_modexpo(perms, &mex);
-			} while (rc == -EAGAIN);
-		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d\n", rc);
-			return rc;
-		}
-		return put_user(mex.outputdatalength, &umex->outputdatalength);
-	}
-	case ICARSACRT: {
-		struct ica_rsa_modexpo_crt __user *ucrt = (void __user *) arg;
-		struct ica_rsa_modexpo_crt crt;
-
-		if (copy_from_user(&crt, ucrt, sizeof(crt)))
-			return -EFAULT;
-		do {
-			rc = zcrypt_rsa_crt(perms, &crt);
-		} while (rc == -EAGAIN);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
-			do {
-				rc = zcrypt_rsa_crt(perms, &crt);
-			} while (rc == -EAGAIN);
-		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d\n", rc);
-			return rc;
-		}
-		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
-	}
-	case ZSECSENDCPRB: {
-		struct ica_xcRB __user *uxcRB = (void __user *) arg;
-		struct ica_xcRB xcRB;
-
-		if (copy_from_user(&xcRB, uxcRB, sizeof(xcRB)))
-			return -EFAULT;
-		do {
-			rc = _zcrypt_send_cprb(perms, &xcRB);
-		} while (rc == -EAGAIN);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
-			do {
-				rc = _zcrypt_send_cprb(perms, &xcRB);
-			} while (rc == -EAGAIN);
-		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
-				   rc, xcRB.status);
-		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
-			return -EFAULT;
-		return rc;
-	}
-	case ZSENDEP11CPRB: {
-		struct ep11_urb __user *uxcrb = (void __user *)arg;
-		struct ep11_urb xcrb;
-
-		if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
-			return -EFAULT;
-		do {
-			rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
-		} while (rc == -EAGAIN);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
-			do {
-				rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
-			} while (rc == -EAGAIN);
-		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
-		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
-			return -EFAULT;
-		return rc;
-	}
+	case ICARSAMODEXPO:
+		return icarsamodexpo_ioctl(perms, arg);
+	case ICARSACRT:
+		return icarsacrt_ioctl(perms, arg);
+	case ZSECSENDCPRB:
+		return zsecsendcprb_ioctl(perms, arg);
+	case ZSENDEP11CPRB:
+		return zsendep11cprb_ioctl(perms, arg);
 	case ZCRYPT_DEVICE_STATUS: {
 		struct zcrypt_device_status_ext *device_status;
 		size_t total_size = MAX_ZDEV_ENTRIES_EXT

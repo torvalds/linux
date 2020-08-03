@@ -49,11 +49,6 @@ static inline void set_clock_comparator(__u64 time)
 	asm volatile("sckc %0" : : "Q" (time));
 }
 
-static inline void store_clock_comparator(__u64 *time)
-{
-	asm volatile("stckc %0" : "=Q" (*time));
-}
-
 void clock_comparator_work(void);
 
 void __init time_early_init(void);

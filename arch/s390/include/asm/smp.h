@@ -54,6 +54,10 @@ static inline int smp_get_base_cpu(int cpu)
 	return cpu - (cpu % (smp_cpu_mtid + 1));
 }
 
+static inline void smp_cpus_done(unsigned int max_cpus)
+{
+}
+
 extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
