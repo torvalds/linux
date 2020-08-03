@@ -6748,7 +6748,6 @@ out:
 		free_extent_map(em);
 		return ERR_PTR(err);
 	}
-	BUG_ON(!em); /* Error is always set */
 	return em;
 }
 
