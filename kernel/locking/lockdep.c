@@ -3714,6 +3714,9 @@ void noinstr lockdep_hardirqs_on(unsigned long ip)
 	 * and not rely on hardware state like normal interrupts.
 	 */
 	if (unlikely(in_nmi())) {
+		if (!IS_ENABLED(CONFIG_TRACE_IRQFLAGS_NMI))
+			return;
+
 		/*
 		 * Skip:
 		 *  - recursion check, because NMI can hit lockdep;
@@ -3773,7 +3776,10 @@ void noinstr lockdep_hardirqs_off(unsigned long ip)
 	 * they will restore the software state. This ensures the software
 	 * state is consistent inside NMIs as well.
 	 */
-	if (unlikely(!in_nmi() && (current->lockdep_recursion & LOCKDEP_RECURSION_MASK)))
+	if (in_nmi()) {
+		if (!IS_ENABLED(CONFIG_TRACE_IRQFLAGS_NMI))
+			return;
+	} else if (current->lockdep_recursion & LOCKDEP_RECURSION_MASK)
 		return;
 
 	/*
