@@ -21,6 +21,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kfifo.h>
 #include <linux/pm_runtime.h>
@@ -109,7 +110,7 @@ struct atomisp_acc_pipe *atomisp_to_acc_pipe(struct video_device *dev)
 
 static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 {
-	struct v4l2_subdev_frame_interval fi;
+	struct v4l2_subdev_frame_interval fi = { 0 };
 	struct atomisp_device *isp = asd->isp;
 
 	unsigned short fps = 0;
@@ -206,6 +207,7 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 			 enum atomisp_dfs_mode mode,
 			 bool force)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	/* FIXME! Only use subdev[0] status yet */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	const struct atomisp_dfs_config *dfs;
@@ -219,7 +221,7 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		return -EINVAL;
 	}
 
-	if ((isp->pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
+	if ((pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
 	    ATOMISP_PCI_DEVICE_SOC_CHT && ATOMISP_USE_YUVPP(asd))
 		isp->dfs = &dfs_config_cht_soc;
 
@@ -357,39 +359,41 @@ static void clear_isp_irq(enum hrt_isp_css_irq irq)
 	irq_clear_all(IRQ0_ID);
 }
 
-void atomisp_msi_irq_init(struct atomisp_device *isp, struct pci_dev *dev)
+void atomisp_msi_irq_init(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
-	pci_read_config_dword(dev, PCI_MSI_CAPID, &msg32);
+	pci_read_config_dword(pdev, PCI_MSI_CAPID, &msg32);
 	msg32 |= 1 << MSI_ENABLE_BIT;
-	pci_write_config_dword(dev, PCI_MSI_CAPID, msg32);
+	pci_write_config_dword(pdev, PCI_MSI_CAPID, msg32);
 
 	msg32 = (1 << INTR_IER) | (1 << INTR_IIR);
-	pci_write_config_dword(dev, PCI_INTERRUPT_CTRL, msg32);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg32);
 
-	pci_read_config_word(dev, PCI_COMMAND, &msg16);
+	pci_read_config_word(pdev, PCI_COMMAND, &msg16);
 	msg16 |= (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
 		  PCI_COMMAND_INTX_DISABLE);
-	pci_write_config_word(dev, PCI_COMMAND, msg16);
+	pci_write_config_word(pdev, PCI_COMMAND, msg16);
 }
 
-void atomisp_msi_irq_uninit(struct atomisp_device *isp, struct pci_dev *dev)
+void atomisp_msi_irq_uninit(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg32;
 	u16 msg16;
 
-	pci_read_config_dword(dev, PCI_MSI_CAPID, &msg32);
+	pci_read_config_dword(pdev, PCI_MSI_CAPID, &msg32);
 	msg32 &=  ~(1 << MSI_ENABLE_BIT);
-	pci_write_config_dword(dev, PCI_MSI_CAPID, msg32);
+	pci_write_config_dword(pdev, PCI_MSI_CAPID, msg32);
 
 	msg32 = 0x0;
-	pci_write_config_dword(dev, PCI_INTERRUPT_CTRL, msg32);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg32);
 
-	pci_read_config_word(dev, PCI_COMMAND, &msg16);
+	pci_read_config_word(pdev, PCI_COMMAND, &msg16);
 	msg16 &= ~(PCI_COMMAND_MASTER);
-	pci_write_config_word(dev, PCI_COMMAND, msg16);
+	pci_write_config_word(pdev, PCI_COMMAND, msg16);
 }
 
 static void atomisp_sof_event(struct atomisp_sub_device *asd)
@@ -480,11 +484,12 @@ static void print_csi_rx_errors(enum mipi_port_id port,
 /* Clear irq reg */
 static void clear_irq_reg(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	u32 msg_ret;
 
-	pci_read_config_dword(isp->pdev, PCI_INTERRUPT_CTRL, &msg_ret);
+	pci_read_config_dword(pdev, PCI_INTERRUPT_CTRL, &msg_ret);
 	msg_ret |= 1 << INTR_IIR;
-	pci_write_config_dword(isp->pdev, PCI_INTERRUPT_CTRL, msg_ret);
+	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg_ret);
 }
 
 static struct atomisp_sub_device *
@@ -665,11 +670,10 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe)
 void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		  unsigned int size)
 {
-	u32 __iomem *io_virt_addr;
 	unsigned int data = 0;
 	unsigned int size32 = DIV_ROUND_UP(size, sizeof(u32));
 
-	dev_dbg(isp->dev, "atomisp_io_base:%p\n", atomisp_io_base);
+	dev_dbg(isp->dev, "atomisp mmio base: %p\n", isp->base);
 	dev_dbg(isp->dev, "%s, addr:0x%x, size: %d, size32: %d\n", __func__,
 		addr, size, size32);
 	if (size32 * 4 + addr > 0x4000) {
@@ -678,13 +682,12 @@ void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		return;
 	}
 	addr += SP_DMEM_BASE;
-	io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
+	addr &= 0x003FFFFF;
 	do {
-		data = *io_virt_addr;
+		data = readl(isp->base + addr);
 		dev_dbg(isp->dev, "%s, \t [0x%x]:0x%x\n", __func__, addr, data);
-		io_virt_addr += sizeof(u32);
-		size32 -= 1;
-	} while (size32 > 0);
+		addr += sizeof(u32);
+	} while (--size32);
 }
 
 static struct videobuf_buffer *atomisp_css_frame_to_vbuf(
@@ -1289,6 +1292,7 @@ void atomisp_delayed_init_work(struct work_struct *work)
 
 static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	bool stream_restart[MAX_STREAM_NUM] = {0};
 	bool depth_mode = false;
@@ -1372,8 +1376,8 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	clear_isp_irq(hrt_isp_css_irq_sp);
 
 	/* Set the SRSE to 3 before resetting */
-	pci_write_config_dword(isp->pdev, PCI_I_CONTROL, isp->saved_regs.i_control |
-			       MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+	pci_write_config_dword(pdev, PCI_I_CONTROL,
+			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 
 	/* reset ISP and restore its state */
 	isp->isp_timeout = true;
@@ -6158,6 +6162,7 @@ out:
 /*Turn off ISP dphy */
 int atomisp_ospm_dphy_down(struct atomisp_device *isp)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	unsigned long flags;
 	u32 reg;
 
@@ -6179,9 +6184,9 @@ done:
 	 * MRFLD HW design need all CSI ports are disabled before
 	 * powering down the IUNIT.
 	 */
-	pci_read_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, &reg);
+	pci_read_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, &reg);
 	reg |= MRFLD_ALL_CSI_PORTS_OFF_MASK;
-	pci_write_config_dword(isp->pdev, MRFLD_PCI_CSI_CONTROL, reg);
+	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
 	return 0;
 }
 

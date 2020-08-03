@@ -188,24 +188,6 @@ static void nft_netdev_unregister_hooks(struct net *net,
 		nf_unregister_net_hook(net, &hook->ops);
 }
 
-static int nft_register_basechain_hooks(struct net *net, int family,
-					struct nft_base_chain *basechain)
-{
-	if (family == NFPROTO_NETDEV)
-		return nft_netdev_register_hooks(net, &basechain->hook_list);
-
-	return nf_register_net_hook(net, &basechain->ops);
-}
-
-static void nft_unregister_basechain_hooks(struct net *net, int family,
-					   struct nft_base_chain *basechain)
-{
-	if (family == NFPROTO_NETDEV)
-		nft_netdev_unregister_hooks(net, &basechain->hook_list);
-	else
-		nf_unregister_net_hook(net, &basechain->ops);
-}
-
 static int nf_tables_register_hook(struct net *net,
 				   const struct nft_table *table,
 				   struct nft_chain *chain)
@@ -223,7 +205,10 @@ static int nf_tables_register_hook(struct net *net,
 	if (basechain->type->ops_register)
 		return basechain->type->ops_register(net, ops);
 
-	return nft_register_basechain_hooks(net, table->family, basechain);
+	if (table->family == NFPROTO_NETDEV)
+		return nft_netdev_register_hooks(net, &basechain->hook_list);
+
+	return nf_register_net_hook(net, &basechain->ops);
 }
 
 static void nf_tables_unregister_hook(struct net *net,
@@ -242,7 +227,10 @@ static void nf_tables_unregister_hook(struct net *net,
 	if (basechain->type->ops_unregister)
 		return basechain->type->ops_unregister(net, ops);
 
-	nft_unregister_basechain_hooks(net, table->family, basechain);
+	if (table->family == NFPROTO_NETDEV)
+		nft_netdev_unregister_hooks(net, &basechain->hook_list);
+	else
+		nf_unregister_net_hook(net, &basechain->ops);
 }
 
 static int nft_trans_table_add(struct nft_ctx *ctx, int msg_type)
@@ -832,8 +820,7 @@ static void nft_table_disable(struct net *net, struct nft_table *table, u32 cnt)
 		if (cnt && i++ == cnt)
 			break;
 
-		nft_unregister_basechain_hooks(net, table->family,
-					       nft_base_chain(chain));
+		nf_tables_unregister_hook(net, table, chain);
 	}
 }
 
@@ -848,8 +835,7 @@ static int nf_tables_table_enable(struct net *net, struct nft_table *table)
 		if (!nft_is_base_chain(chain))
 			continue;
 
-		err = nft_register_basechain_hooks(net, table->family,
-						   nft_base_chain(chain));
+		err = nf_tables_register_hook(net, table, chain);
 		if (err < 0)
 			goto err_register_hooks;
 
@@ -894,11 +880,12 @@ static int nf_tables_updtable(struct nft_ctx *ctx)
 		nft_trans_table_enable(trans) = false;
 	} else if (!(flags & NFT_TABLE_F_DORMANT) &&
 		   ctx->table->flags & NFT_TABLE_F_DORMANT) {
+		ctx->table->flags &= ~NFT_TABLE_F_DORMANT;
 		ret = nf_tables_table_enable(ctx->net, ctx->table);
-		if (ret >= 0) {
-			ctx->table->flags &= ~NFT_TABLE_F_DORMANT;
+		if (ret >= 0)
 			nft_trans_table_enable(trans) = true;
-		}
+		else
+			ctx->table->flags |= NFT_TABLE_F_DORMANT;
 	}
 	if (ret < 0)
 		goto err;

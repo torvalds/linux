@@ -80,6 +80,8 @@ static int mlx5e_tc_tun_parse_gretap(struct mlx5e_priv *priv,
 			 gre_key.key, be32_to_cpu(enc_keyid.key->keyid));
 	}
 
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
+
 	return 0;
 }
 

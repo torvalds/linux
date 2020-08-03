@@ -782,6 +782,7 @@ static const struct midr_range erratum_1463225[] = {
 	MIDR_RANGE(MIDR_CORTEX_A76, 0, 0, 3, 1),
 	/* Kryo4xx Gold (rcpe to rfpf) => (r0p0 to r3p1) */
 	MIDR_RANGE(MIDR_QCOM_KRYO_4XX_GOLD, 0xc, 0xe, 0xf, 0xf),
+	{},
 };
 #endif
 

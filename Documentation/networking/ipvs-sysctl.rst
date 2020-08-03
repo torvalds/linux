@@ -114,7 +114,7 @@ drop_entry - INTEGER
 	modes (when there is no enough available memory, the strategy
 	is enabled and the variable is automatically set to 2,
 	otherwise the strategy is disabled and the variable is set to
-	1), and 3 means that that the strategy is always enabled.
+	1), and 3 means that the strategy is always enabled.
 
 drop_packet - INTEGER
 	- 0  - disabled (default)

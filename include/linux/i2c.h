@@ -56,7 +56,7 @@ struct property_entry;
  * on a bus (or read from them). Apart from two basic transfer functions to
  * transmit one message at a time, a more complex version can be used to
  * transmit an arbitrary number of messages without interruption.
- * @count must be be less than 64k since msg.len is u16.
+ * @count must be less than 64k since msg.len is u16.
  */
 int i2c_transfer_buffer_flags(const struct i2c_client *client,
 			      char *buf, int count, u16 flags);
@@ -1001,7 +1001,7 @@ static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
 static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
 					int index, struct i2c_board_info *info)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 static inline struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle handle)
 {

@@ -6,5 +6,5 @@ ksft_skip=4
 
 [ -e /dev/tpm0 ] || exit $ksft_skip
 
-python -m unittest -v tpm2_tests.SmokeTest
-python -m unittest -v tpm2_tests.AsyncTest
+python3 -m unittest -v tpm2_tests.SmokeTest
+python3 -m unittest -v tpm2_tests.AsyncTest

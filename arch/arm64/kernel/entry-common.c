@@ -57,7 +57,7 @@ static void notrace el1_dbg(struct pt_regs *regs, unsigned long esr)
 	/*
 	 * The CPU masked interrupts, and we are leaving them masked during
 	 * do_debug_exception(). Update PMR as if we had called
-	 * local_mask_daif().
+	 * local_daif_mask().
 	 */
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);

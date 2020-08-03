@@ -1833,7 +1833,7 @@ do_connect:
 	/* on successful connect, the msk state will be moved to established by
 	 * subflow_finish_connect()
 	 */
-	if (!err || err == EINPROGRESS)
+	if (!err || err == -EINPROGRESS)
 		mptcp_copy_inaddrs(sock->sk, ssock->sk);
 	else
 		inet_sk_state_store(sock->sk, inet_sk_state_load(ssock->sk));

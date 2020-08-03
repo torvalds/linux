@@ -19,7 +19,7 @@
 #include "efistub.h"
 
 bool efi_nochunk;
-bool efi_nokaslr;
+bool efi_nokaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
 bool efi_noinitrd;
 int efi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
 bool efi_novamap;

@@ -72,6 +72,15 @@ static void rdma_dim_init(struct ib_cq *cq)
 	INIT_WORK(&dim->work, ib_cq_rdma_dim_work);
 }
 
+static void rdma_dim_destroy(struct ib_cq *cq)
+{
+	if (!cq->dim)
+		return;
+
+	cancel_work_sync(&cq->dim->work);
+	kfree(cq->dim);
+}
+
 static int __poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc)
 {
 	int rc;
@@ -266,6 +275,7 @@ struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
 	return cq;
 
 out_destroy_cq:
+	rdma_dim_destroy(cq);
 	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, udata);
 out_free_wc:
@@ -331,12 +341,10 @@ void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 		WARN_ON_ONCE(1);
 	}
 
+	rdma_dim_destroy(cq);
 	trace_cq_free(cq);
 	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, udata);
-	if (cq->dim)
-		cancel_work_sync(&cq->dim->work);
-	kfree(cq->dim);
 	kfree(cq->wc);
 	kfree(cq);
 }

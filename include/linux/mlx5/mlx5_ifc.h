@@ -4381,6 +4381,7 @@ struct mlx5_ifc_query_vport_state_out_bits {
 enum {
 	MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT  = 0x0,
 	MLX5_VPORT_STATE_OP_MOD_ESW_VPORT   = 0x1,
+	MLX5_VPORT_STATE_OP_MOD_UPLINK      = 0x2,
 };
 
 struct mlx5_ifc_arm_monitor_counter_in_bits {
@@ -9958,6 +9959,34 @@ struct mlx5_ifc_pptb_reg_bits {
 	u8         reserved_at_48[0x10];
 	u8         ctrl_buff[0x4];
 	u8         untagged_buff[0x4];
+};
+
+struct mlx5_ifc_sbcam_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         feature_group[0x8];
+	u8         reserved_at_10[0x8];
+	u8         access_reg_group[0x8];
+
+	u8         reserved_at_20[0x20];
+
+	u8         sb_access_reg_cap_mask[4][0x20];
+
+	u8         reserved_at_c0[0x80];
+
+	u8         sb_feature_cap_mask[4][0x20];
+
+	u8         reserved_at_1c0[0x40];
+
+	u8         cap_total_buffer_size[0x20];
+
+	u8         cap_cell_size[0x10];
+	u8         cap_max_pg_buffers[0x8];
+	u8         cap_num_pool_supported[0x8];
+
+	u8         reserved_at_240[0x8];
+	u8         cap_sbsr_stat_size[0x8];
+	u8         cap_max_tclass_data[0x8];
+	u8         cap_max_cpu_ingress_tclass_sb[0x8];
 };
 
 struct mlx5_ifc_pbmc_reg_bits {

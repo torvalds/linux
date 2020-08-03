@@ -2878,6 +2878,10 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!iftd))
 		return;
 
+	/* Check for device HE 6 GHz capability before adding element */
+	if (!iftd->he_6ghz_capa.capa)
+		return;
+
 	cap = le16_to_cpu(iftd->he_6ghz_capa.capa);
 	cap &= ~IEEE80211_HE_6GHZ_CAP_SM_PS;
 
