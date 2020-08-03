@@ -317,8 +317,7 @@
 		};
 
 		watchdog: watchdog@10007000 {
-			compatible = "mediatek,mt8183-wdt",
-				     "mediatek,mt6589-wdt";
+			compatible = "mediatek,mt8183-wdt";
 			reg = <0 0x10007000 0 0x100>;
 			#reset-cells = <1>;
 		};
