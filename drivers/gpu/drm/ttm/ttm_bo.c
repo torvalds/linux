@@ -846,20 +846,20 @@ static int ttm_bo_mem_get(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
 
 	mem->mm_node = NULL;
-	if (!man->func || !man->func->get_node)
+	if (!man->func || !man->func->alloc)
 		return 0;
 
-	return man->func->get_node(man, bo, place, mem);
+	return man->func->alloc(man, bo, place, mem);
 }
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_resource *mem)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
 
-	if (!man->func || !man->func->put_node)
+	if (!man->func || !man->func->free)
 		return;
 
-	man->func->put_node(man, mem);
+	man->func->free(man, mem);
 	mem->mm_node = NULL;
 	mem->mem_type = TTM_PL_SYSTEM;
 }

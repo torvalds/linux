@@ -177,7 +177,7 @@ static void vmw_thp_debug(struct ttm_resource_manager *man,
 }
 
 const struct ttm_resource_manager_func vmw_thp_func = {
-	.get_node = vmw_thp_get_node,
-	.put_node = vmw_thp_put_node,
+	.alloc = vmw_thp_get_node,
+	.free = vmw_thp_put_node,
 	.debug = vmw_thp_debug
 };

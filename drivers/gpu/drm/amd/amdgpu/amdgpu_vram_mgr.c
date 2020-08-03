@@ -606,7 +606,7 @@ static void amdgpu_vram_mgr_debug(struct ttm_resource_manager *man,
 }
 
 static const struct ttm_resource_manager_func amdgpu_vram_mgr_func = {
-	.get_node	= amdgpu_vram_mgr_new,
-	.put_node	= amdgpu_vram_mgr_del,
-	.debug		= amdgpu_vram_mgr_debug
+	.alloc	= amdgpu_vram_mgr_new,
+	.free	= amdgpu_vram_mgr_del,
+	.debug	= amdgpu_vram_mgr_debug
 };

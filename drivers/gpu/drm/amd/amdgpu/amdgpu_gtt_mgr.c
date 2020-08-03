@@ -311,7 +311,7 @@ static void amdgpu_gtt_mgr_debug(struct ttm_resource_manager *man,
 }
 
 static const struct ttm_resource_manager_func amdgpu_gtt_mgr_func = {
-	.get_node = amdgpu_gtt_mgr_new,
-	.put_node = amdgpu_gtt_mgr_del,
+	.alloc = amdgpu_gtt_mgr_new,
+	.free = amdgpu_gtt_mgr_del,
 	.debug = amdgpu_gtt_mgr_debug
 };

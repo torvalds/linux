@@ -64,8 +64,8 @@ nouveau_vram_manager_new(struct ttm_resource_manager *man,
 }
 
 const struct ttm_resource_manager_func nouveau_vram_manager = {
-	.get_node = nouveau_vram_manager_new,
-	.put_node = nouveau_manager_del,
+	.alloc = nouveau_vram_manager_new,
+	.free = nouveau_manager_del,
 };
 
 static int
@@ -87,8 +87,8 @@ nouveau_gart_manager_new(struct ttm_resource_manager *man,
 }
 
 const struct ttm_resource_manager_func nouveau_gart_manager = {
-	.get_node = nouveau_gart_manager_new,
-	.put_node = nouveau_manager_del,
+	.alloc = nouveau_gart_manager_new,
+	.free = nouveau_manager_del,
 };
 
 static int
@@ -119,8 +119,8 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 }
 
 const struct ttm_resource_manager_func nv04_gart_manager = {
-	.get_node = nv04_gart_manager_new,
-	.put_node = nouveau_manager_del,
+	.alloc = nv04_gart_manager_new,
+	.free = nouveau_manager_del,
 };
 
 int

@@ -49,7 +49,7 @@ struct ttm_resource_manager;
 
 struct ttm_resource_manager_func {
 	/**
-	 * struct ttm_resource_manager member get_node
+	 * struct ttm_resource_manager_func member alloc
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
@@ -76,13 +76,13 @@ struct ttm_resource_manager_func {
 	 * an implementation can and must use either a mutex or a spinlock to
 	 * protect any data structures managing the space.
 	 */
-	int  (*get_node)(struct ttm_resource_manager *man,
-			 struct ttm_buffer_object *bo,
-			 const struct ttm_place *place,
-			 struct ttm_resource *mem);
+	int  (*alloc)(struct ttm_resource_manager *man,
+		      struct ttm_buffer_object *bo,
+		      const struct ttm_place *place,
+		      struct ttm_resource *mem);
 
 	/**
-	 * struct ttm_resource_manager member put_node
+	 * struct ttm_resource_manager_func member free
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @mem: Pointer to a struct ttm_resource to be filled in.
@@ -91,11 +91,11 @@ struct ttm_resource_manager_func {
 	 * and that are identified by @mem::mm_node and @mem::start. May not
 	 * be called from within atomic context.
 	 */
-	void (*put_node)(struct ttm_resource_manager *man,
-			 struct ttm_resource *mem);
+	void (*free)(struct ttm_resource_manager *man,
+		     struct ttm_resource *mem);
 
 	/**
-	 * struct ttm_resource_manager member debug
+	 * struct ttm_resource_manager_func member debug
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @printer: Prefix to be used in printout to identify the caller.
