@@ -23,7 +23,7 @@
 #else
 #define INDIRECT_CALL_MT(f, f2, f1, ...) INDIRECT_CALL_1(f, f2, __VA_ARGS__)
 #endif
-#elif CONFIG_IP_MULTIPLE_TABLES
+#elif defined(CONFIG_IP_MULTIPLE_TABLES)
 #define INDIRECT_CALL_MT(f, f2, f1, ...) INDIRECT_CALL_1(f, f1, __VA_ARGS__)
 #else
 #define INDIRECT_CALL_MT(f, f2, f1, ...) f(__VA_ARGS__)
