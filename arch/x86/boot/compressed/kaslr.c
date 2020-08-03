@@ -43,6 +43,10 @@
 #define STATIC
 #include <linux/decompress/mm.h>
 
+#define _SETUP
+#include <asm/setup.h>	/* For COMMAND_LINE_SIZE */
+#undef _SETUP
+
 #ifdef CONFIG_X86_5LEVEL
 unsigned int __pgtable_l5_enabled;
 unsigned int pgdir_shift __ro_after_init = 39;
@@ -278,7 +282,7 @@ static void handle_mem_options(void)
 	if (!args)
 		return;
 
-	len = strlen(args);
+	len = strnlen(args, COMMAND_LINE_SIZE-1);
 	tmp_cmdline = malloc(len + 1);
 	if (!tmp_cmdline)
 		error("Failed to allocate space for tmp_cmdline");
@@ -425,7 +429,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	cmd_line = get_cmd_line_ptr();
 	/* Calculate size of cmd_line. */
 	if (cmd_line) {
-		cmd_line_size = strlen((char *)cmd_line) + 1;
+		cmd_line_size = strnlen((char *)cmd_line, COMMAND_LINE_SIZE-1) + 1;
 		mem_avoid[MEM_AVOID_CMDLINE].start = cmd_line;
 		mem_avoid[MEM_AVOID_CMDLINE].size = cmd_line_size;
 		add_identity_map(mem_avoid[MEM_AVOID_CMDLINE].start,
