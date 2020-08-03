@@ -604,9 +604,6 @@ static void __kobject_del(struct kobject *kobj)
 	struct kernfs_node *sd;
 	const struct kobj_type *ktype;
 
-	if (!kobj)
-		return;
-
 	sd = kobj->sd;
 	ktype = get_ktype(kobj);
 
