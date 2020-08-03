@@ -233,7 +233,8 @@ enum mlx4_ib_mad_ifc_flags {
 };
 
 enum {
-	MLX4_NUM_TUNNEL_BUFS		= 256,
+	MLX4_NUM_TUNNEL_BUFS		= 512,
+	MLX4_NUM_WIRE_BUFS		= 2048,
 };
 
 struct mlx4_ib_tunnel_header {
