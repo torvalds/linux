@@ -51,7 +51,7 @@
 			reg = <0>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -62,7 +62,7 @@
 			reg = <1>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -73,7 +73,7 @@
 			reg = <2>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -84,7 +84,7 @@
 			reg = <3>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
