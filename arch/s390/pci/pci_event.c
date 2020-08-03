@@ -121,7 +121,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		if (!zdev)
 			break;
 		if (pdev)
-			pci_stop_and_remove_bus_device_locked(pdev);
+			zpci_remove_device(zdev);
 
 		ret = zpci_disable_device(zdev);
 		if (ret)
@@ -140,7 +140,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			/* Give the driver a hint that the function is
 			 * already unusable. */
 			pdev->error_state = pci_channel_io_perm_failure;
-			pci_stop_and_remove_bus_device_locked(pdev);
+			zpci_remove_device(zdev);
 		}
 
 		zdev->state = ZPCI_FN_STATE_STANDBY;
