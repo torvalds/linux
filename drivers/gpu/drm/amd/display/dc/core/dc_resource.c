@@ -71,7 +71,7 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASIC_REV_IS_TAHITI_P(asic_id.hw_internal_rev) ||
 		    ASIC_REV_IS_PITCAIRN_PM(asic_id.hw_internal_rev) ||
 		    ASIC_REV_IS_CAPEVERDE_M(asic_id.hw_internal_rev))
-		dc_version = DCE_VERSION_6_0;
+			dc_version = DCE_VERSION_6_0;
 		else if (ASIC_REV_IS_OLAND_M(asic_id.hw_internal_rev))
 			dc_version = DCE_VERSION_6_4;
 		else
