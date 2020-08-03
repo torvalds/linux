@@ -2794,6 +2794,19 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	QUIRK_RENAME_DEVICE("Rane", "SL-1")
 },
 
+/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
+{
+	USB_DEVICE(0x17aa, 0x1046),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
+			     "Lenovo-ThinkStation-P620-Rear"),
+},
+/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
+{
+	USB_DEVICE(0x17aa, 0x104d),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
+			     "Lenovo-ThinkStation-P620-Main"),
+},
+
 /* Native Instruments MK2 series */
 {
 	/* Komplete Audio 6 */

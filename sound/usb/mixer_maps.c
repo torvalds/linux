@@ -370,6 +370,11 @@ static const struct usbmix_name_map asus_rog_map[] = {
 	{}
 };
 
+static const struct usbmix_name_map lenovo_p620_rear_map[] = {
+	{ 19, NULL, 12 }, /* FU, Input Gain Pad */
+	{}
+};
+
 /* TRX40 mobos with Realtek ALC1220-VB */
 static const struct usbmix_name_map trx40_mobo_map[] = {
 	{ 18, NULL }, /* OT, IEC958 - broken response, disabled */
@@ -572,6 +577,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x26ce, 0x0a01),
 		.map = trx40_mobo_map,
 		.connector_map = trx40_mobo_connector_map,
+	},
+	{	/* Lenovo ThinkStation P620 Rear */
+		.id = USB_ID(0x17aa, 0x1046),
+		.map = lenovo_p620_rear_map,
 	},
 	{ 0 } /* terminator */
 };
