@@ -500,6 +500,13 @@ static int get_gids_from_l3_hdr(struct ib_grh *grh, union ib_gid *sgid,
 					 sgid, dgid);
 }
 
+static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
+{
+	int proxy_start = dev->dev->phys_caps.base_proxy_sqpn + 8 * slave;
+
+	return (qpn >= proxy_start && qpn <= proxy_start + 1);
+}
+
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type dest_qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad)
@@ -520,8 +527,10 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	u16 cached_pkey;
 	u8 is_eth = dev->dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH;
 
-	if (dest_qpt > IB_QPT_GSI)
+	if (dest_qpt > IB_QPT_GSI) {
+		pr_debug("dest_qpt (%d) > IB_QPT_GSI\n", dest_qpt);
 		return -EINVAL;
+	}
 
 	tun_ctx = dev->sriov.demux[port-1].tun[slave];
 
@@ -538,12 +547,20 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	if (dest_qpt) {
 		u16 pkey_ix;
 		ret = ib_get_cached_pkey(&dev->ib_dev, port, wc->pkey_index, &cached_pkey);
-		if (ret)
+		if (ret) {
+			pr_debug("unable to get %s cached pkey for index %d, ret %d\n",
+				 is_proxy_qp0(dev, wc->src_qp, slave) ? "SMI" : "GSI",
+				 wc->pkey_index, ret);
 			return -EINVAL;
+		}
 
 		ret = find_slave_port_pkey_ix(dev, slave, port, cached_pkey, &pkey_ix);
-		if (ret)
+		if (ret) {
+			pr_debug("unable to get %s pkey ix for pkey 0x%x, ret %d\n",
+				 is_proxy_qp0(dev, wc->src_qp, slave) ? "SMI" : "GSI",
+				 cached_pkey, ret);
 			return -EINVAL;
+		}
 		tun_pkey_ix = pkey_ix;
 	} else
 		tun_pkey_ix = dev->pkeys.virt2phys_pkey[slave][port - 1][0];
@@ -715,7 +732,8 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 
 		err = mlx4_ib_send_to_slave(dev, slave, port, wc->qp->qp_type, wc, grh, mad);
 		if (err)
-			pr_debug("failed sending to slave %d via tunnel qp (%d)\n",
+			pr_debug("failed sending %s to slave %d via tunnel qp (%d)\n",
+				 is_proxy_qp0(dev, wc->src_qp, slave) ? "SMI" : "GSI",
 				 slave, err);
 		return 0;
 	}
@@ -794,7 +812,8 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 
 	err = mlx4_ib_send_to_slave(dev, slave, port, wc->qp->qp_type, wc, grh, mad);
 	if (err)
-		pr_debug("failed sending to slave %d via tunnel qp (%d)\n",
+		pr_debug("failed sending %s to slave %d via tunnel qp (%d)\n",
+			 is_proxy_qp0(dev, wc->src_qp, slave) ? "SMI" : "GSI",
 			 slave, err);
 	return 0;
 }
@@ -806,27 +825,6 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	u16 slid, prev_lid = 0;
 	int err;
 	struct ib_port_attr pattr;
-
-	if (in_wc && in_wc->qp) {
-		pr_debug("received MAD: port:%d slid:%d sqpn:%d "
-			 "dlid_bits:%d dqpn:%d wc_flags:0x%x tid:%016llx cls:%x mtd:%x atr:%x\n",
-			 port_num,
-			 in_wc->slid, in_wc->src_qp,
-			 in_wc->dlid_path_bits,
-			 in_wc->qp->qp_num,
-			 in_wc->wc_flags,
-			 be64_to_cpu(in_mad->mad_hdr.tid),
-			 in_mad->mad_hdr.mgmt_class, in_mad->mad_hdr.method,
-			 be16_to_cpu(in_mad->mad_hdr.attr_id));
-		if (in_wc->wc_flags & IB_WC_GRH) {
-			pr_debug("sgid_hi:0x%016llx sgid_lo:0x%016llx\n",
-				 be64_to_cpu(in_grh->sgid.global.subnet_prefix),
-				 be64_to_cpu(in_grh->sgid.global.interface_id));
-			pr_debug("dgid_hi:0x%016llx dgid_lo:0x%016llx\n",
-				 be64_to_cpu(in_grh->dgid.global.subnet_prefix),
-				 be64_to_cpu(in_grh->dgid.global.interface_id));
-		}
-	}
 
 	slid = in_wc ? ib_lid_cpu16(in_wc->slid) : be16_to_cpu(IB_LID_PERMISSIVE);
 
@@ -1341,14 +1339,6 @@ static int mlx4_ib_multiplex_sa_handler(struct ib_device *ibdev, int port,
 	return ret;
 }
 
-static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
-{
-	int proxy_start = dev->dev->phys_caps.base_proxy_sqpn + 8 * slave;
-
-	return (qpn >= proxy_start && qpn <= proxy_start + 1);
-}
-
-
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index,
 			 u32 remote_qpn, u32 qkey, struct rdma_ah_attr *attr,
@@ -1484,6 +1474,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	u16 vlan_id;
 	u8 qos;
 	u8 *dmac;
+	int sts;
 
 	/* Get slave that sent this packet */
 	if (wc->src_qp < dev->dev->phys_caps.base_proxy_sqpn ||
@@ -1580,13 +1571,17 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 					&vlan_id, &qos))
 		rdma_ah_set_sl(&ah_attr, qos);
 
-	mlx4_ib_send_to_wire(dev, slave, ctx->port,
-			     is_proxy_qp0(dev, wc->src_qp, slave) ?
-			     IB_QPT_SMI : IB_QPT_GSI,
-			     be16_to_cpu(tunnel->hdr.pkey_index),
-			     be32_to_cpu(tunnel->hdr.remote_qpn),
-			     be32_to_cpu(tunnel->hdr.qkey),
-			     &ah_attr, wc->smac, vlan_id, &tunnel->mad);
+	sts = mlx4_ib_send_to_wire(dev, slave, ctx->port,
+				   is_proxy_qp0(dev, wc->src_qp, slave) ?
+				   IB_QPT_SMI : IB_QPT_GSI,
+				   be16_to_cpu(tunnel->hdr.pkey_index),
+				   be32_to_cpu(tunnel->hdr.remote_qpn),
+				   be32_to_cpu(tunnel->hdr.qkey),
+				   &ah_attr, wc->smac, vlan_id, &tunnel->mad);
+	if (sts)
+		pr_debug("failed sending %s to wire on behalf of slave %d (%d)\n",
+			 is_proxy_qp0(dev, wc->src_qp, slave) ? "SMI" : "GSI",
+			 slave, sts);
 }
 
 static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
@@ -1744,9 +1739,6 @@ static void mlx4_ib_tunnel_comp_worker(struct work_struct *work)
 					       "buf:%lld\n", wc.wr_id);
 				break;
 			case IB_WC_SEND:
-				pr_debug("received tunnel send completion:"
-					 "wrid=0x%llx, status=0x%x\n",
-					 wc.wr_id, wc.status);
 				rdma_destroy_ah(tun_qp->tx_ring[wc.wr_id &
 					      (MLX4_NUM_TUNNEL_BUFS - 1)].ah, 0);
 				tun_qp->tx_ring[wc.wr_id & (MLX4_NUM_TUNNEL_BUFS - 1)].ah
