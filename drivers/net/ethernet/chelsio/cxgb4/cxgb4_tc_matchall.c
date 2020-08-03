@@ -231,8 +231,26 @@ static void cxgb4_matchall_mirror_free(struct net_device *dev)
 	tc_port_matchall->ingress.viid_mirror = 0;
 }
 
-static int cxgb4_matchall_alloc_filter(struct net_device *dev,
-				       struct tc_cls_matchall_offload *cls)
+static int cxgb4_matchall_del_filter(struct net_device *dev, u8 filter_type)
+{
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret;
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	ret = cxgb4_del_filter(dev, tc_port_matchall->ingress.tid[filter_type],
+			       &tc_port_matchall->ingress.fs[filter_type]);
+	if (ret)
+		return ret;
+
+	tc_port_matchall->ingress.tid[filter_type] = 0;
+	return 0;
+}
+
+static int cxgb4_matchall_add_filter(struct net_device *dev,
+				     struct tc_cls_matchall_offload *cls,
+				     u8 filter_type)
 {
 	struct netlink_ext_ack *extack = cls->common.extack;
 	struct cxgb4_tc_port_matchall *tc_port_matchall;
@@ -244,28 +262,24 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	/* Get a free filter entry TID, where we can insert this new
 	 * rule. Only insert rule if its prio doesn't conflict with
 	 * existing rules.
-	 *
-	 * 1 slot is enough to create a wildcard matchall VIID rule.
 	 */
-	fidx = cxgb4_get_free_ftid(dev, PF_INET, false, cls->common.prio);
+	fidx = cxgb4_get_free_ftid(dev, filter_type ? PF_INET6 : PF_INET,
+				   false, cls->common.prio);
 	if (fidx < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "No free LETCAM index available");
 		return -ENOMEM;
 	}
 
-	ret = cxgb4_matchall_mirror_alloc(dev, cls);
-	if (ret)
-		return ret;
-
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
-	fs = &tc_port_matchall->ingress.fs;
+	fs = &tc_port_matchall->ingress.fs[filter_type];
 	memset(fs, 0, sizeof(*fs));
 
 	if (fidx < adap->tids.nhpftids)
 		fs->prio = 1;
 	fs->tc_prio = cls->common.prio;
 	fs->tc_cookie = cls->cookie;
+	fs->type = filter_type;
 	fs->hitcnts = 1;
 
 	fs->val.pfvf_vld = 1;
@@ -276,13 +290,39 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 
 	ret = cxgb4_set_filter(dev, fidx, fs);
 	if (ret)
-		goto out_free;
+		return ret;
 
-	tc_port_matchall->ingress.tid = fidx;
+	tc_port_matchall->ingress.tid[filter_type] = fidx;
+	return 0;
+}
+
+static int cxgb4_matchall_alloc_filter(struct net_device *dev,
+				       struct tc_cls_matchall_offload *cls)
+{
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret, i;
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+
+	ret = cxgb4_matchall_mirror_alloc(dev, cls);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < CXGB4_FILTER_TYPE_MAX; i++) {
+		ret = cxgb4_matchall_add_filter(dev, cls, i);
+		if (ret)
+			goto out_free;
+	}
+
 	tc_port_matchall->ingress.state = CXGB4_MATCHALL_STATE_ENABLED;
 	return 0;
 
 out_free:
+	while (i-- > 0)
+		cxgb4_matchall_del_filter(dev, i);
+
 	cxgb4_matchall_mirror_free(dev);
 	return ret;
 }
@@ -293,20 +333,21 @@ static int cxgb4_matchall_free_filter(struct net_device *dev)
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 	int ret;
+	u8 i;
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 
-	ret = cxgb4_del_filter(dev, tc_port_matchall->ingress.tid,
-			       &tc_port_matchall->ingress.fs);
-	if (ret)
-		return ret;
+	for (i = 0; i < CXGB4_FILTER_TYPE_MAX; i++) {
+		ret = cxgb4_matchall_del_filter(dev, i);
+		if (ret)
+			return ret;
+	}
 
 	cxgb4_matchall_mirror_free(dev);
 
 	tc_port_matchall->ingress.packets = 0;
 	tc_port_matchall->ingress.bytes = 0;
 	tc_port_matchall->ingress.last_used = 0;
-	tc_port_matchall->ingress.tid = 0;
 	tc_port_matchall->ingress.state = CXGB4_MATCHALL_STATE_DISABLED;
 	return 0;
 }
@@ -362,8 +403,12 @@ int cxgb4_tc_matchall_destroy(struct net_device *dev,
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 	if (ingress) {
+		/* All the filter types of this matchall rule save the
+		 * same cookie. So, checking for the first one is
+		 * enough.
+		 */
 		if (cls_matchall->cookie !=
-		    tc_port_matchall->ingress.fs.tc_cookie)
+		    tc_port_matchall->ingress.fs[0].tc_cookie)
 			return -ENOENT;
 
 		return cxgb4_matchall_free_filter(dev);
@@ -379,21 +424,29 @@ int cxgb4_tc_matchall_destroy(struct net_device *dev,
 int cxgb4_tc_matchall_stats(struct net_device *dev,
 			    struct tc_cls_matchall_offload *cls_matchall)
 {
+	u64 tmp_packets, tmp_bytes, packets = 0, bytes = 0;
 	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct cxgb4_matchall_ingress_entry *ingress;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
-	u64 packets, bytes;
 	int ret;
+	u8 i;
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 	if (tc_port_matchall->ingress.state == CXGB4_MATCHALL_STATE_DISABLED)
 		return -ENOENT;
 
-	ret = cxgb4_get_filter_counters(dev, tc_port_matchall->ingress.tid,
-					&packets, &bytes,
-					tc_port_matchall->ingress.fs.hash);
-	if (ret)
-		return ret;
+	ingress = &tc_port_matchall->ingress;
+	for (i = 0; i < CXGB4_FILTER_TYPE_MAX; i++) {
+		ret = cxgb4_get_filter_counters(dev, ingress->tid[i],
+						&tmp_packets, &tmp_bytes,
+						ingress->fs[i].hash);
+		if (ret)
+			return ret;
+
+		packets += tmp_packets;
+		bytes += tmp_bytes;
+	}
 
 	if (tc_port_matchall->ingress.packets != packets) {
 		flow_stats_update(&cls_matchall->stats,

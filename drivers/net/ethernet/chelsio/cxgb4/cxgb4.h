@@ -1438,6 +1438,8 @@ enum {
 	NAT_MODE_ALL		/* NAT on entire 4-tuple */
 };
 
+#define CXGB4_FILTER_TYPE_MAX 2
+
 /* Host shadow copy of ingress filter entry.  This is in host native format
  * and doesn't match the ordering or bit order, etc. of the hardware of the
  * firmware command.  The use of bit-field structure elements is purely to
