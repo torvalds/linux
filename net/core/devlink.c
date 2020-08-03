@@ -8801,6 +8801,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(PTP_GENERAL, CONTROL),
 	DEVLINK_TRAP(FLOW_ACTION_SAMPLE, CONTROL),
 	DEVLINK_TRAP(FLOW_ACTION_TRAP, CONTROL),
+	DEVLINK_TRAP(EARLY_DROP, DROP),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
