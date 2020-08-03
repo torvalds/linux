@@ -8,7 +8,6 @@
 #include <linux/workqueue.h>
 #include <linux/threads.h>
 #include <linux/nsproxy.h>
-#include <linux/kref.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 
@@ -18,7 +17,6 @@
 struct fs_pin;
 
 struct pid_namespace {
-	struct kref kref;
 	struct idr idr;
 	struct rcu_head rcu;
 	unsigned int pid_allocated;
@@ -43,7 +41,7 @@ extern struct pid_namespace init_pid_ns;
 static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)
 {
 	if (ns != &init_pid_ns)
-		kref_get(&ns->kref);
+		refcount_inc(&ns->ns.count);
 	return ns;
 }
 
