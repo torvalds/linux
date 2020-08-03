@@ -633,6 +633,10 @@ static int gmc_v10_0_late_init(void *handle)
 	if (r)
 		return r;
 
+	r = amdgpu_gmc_ras_late_init(adev);
+	if (r)
+		return r;
+
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }
 

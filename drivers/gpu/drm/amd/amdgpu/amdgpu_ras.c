@@ -1965,8 +1965,9 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 	*supported = 0;
 
 	if (amdgpu_sriov_vf(adev) || !adev->is_atom_fw ||
-	    (adev->asic_type != CHIP_VEGA20 &&
-	     adev->asic_type != CHIP_ARCTURUS))
+	    (adev->asic_type != CHIP_VEGA20   &&
+	     adev->asic_type != CHIP_ARCTURUS &&
+	     adev->asic_type != CHIP_SIENNA_CICHLID))
 		return;
 
 	if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
