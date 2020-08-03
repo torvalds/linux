@@ -237,14 +237,12 @@ struct rcu_stall_chk_rdr {
  */
 static bool check_slow_task(struct task_struct *t, void *arg)
 {
-	struct rcu_node *rnp;
 	struct rcu_stall_chk_rdr *rscrp = arg;
 
 	if (task_curr(t))
 		return false; // It is running, so decline to inspect it.
 	rscrp->nesting = t->rcu_read_lock_nesting;
 	rscrp->rs = t->rcu_read_unlock_special;
-	rnp = t->rcu_blocked_node;
 	rscrp->on_blkd_list = !list_empty(&t->rcu_node_entry);
 	return true;
 }
@@ -468,7 +466,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	/*
 	 * OK, time to rat on our buddy...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.rst for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s detected stalls on CPUs/tasks:\n", rcu_state.name);
@@ -535,7 +533,7 @@ static void print_cpu_stall(unsigned long gps)
 
 	/*
 	 * OK, time to rat on ourselves...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.rst for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s self-detected stall on CPU\n", rcu_state.name);
@@ -649,6 +647,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
  */
 void show_rcu_gp_kthreads(void)
 {
+	unsigned long cbs = 0;
 	int cpu;
 	unsigned long j;
 	unsigned long ja;
@@ -690,9 +689,11 @@ void show_rcu_gp_kthreads(void)
 	}
 	for_each_possible_cpu(cpu) {
 		rdp = per_cpu_ptr(&rcu_data, cpu);
+		cbs += data_race(rdp->n_cbs_invoked);
 		if (rcu_segcblist_is_offloaded(&rdp->cblist))
 			show_rcu_nocb_state(rdp);
 	}
+	pr_info("RCU callbacks invoked since boot: %lu\n", cbs);
 	show_rcu_tasks_gp_kthreads();
 }
 EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);

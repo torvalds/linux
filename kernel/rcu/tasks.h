@@ -103,6 +103,7 @@ module_param(rcu_task_stall_timeout, int, 0644);
 #define RTGS_WAIT_READERS	 9
 #define RTGS_INVOKE_CBS		10
 #define RTGS_WAIT_CBS		11
+#ifndef CONFIG_TINY_RCU
 static const char * const rcu_tasks_gp_state_names[] = {
 	"RTGS_INIT",
 	"RTGS_WAIT_WAIT_CBS",
@@ -117,6 +118,7 @@ static const char * const rcu_tasks_gp_state_names[] = {
 	"RTGS_INVOKE_CBS",
 	"RTGS_WAIT_CBS",
 };
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -129,6 +131,7 @@ static void set_tasks_gp_state(struct rcu_tasks *rtp, int newstate)
 	rtp->gp_jiffies = jiffies;
 }
 
+#ifndef CONFIG_TINY_RCU
 /* Return state name. */
 static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 {
@@ -139,6 +142,7 @@ static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 		return "???";
 	return rcu_tasks_gp_state_names[j];
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 // Enqueue a callback for the specified flavor of Tasks RCU.
 static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
@@ -205,7 +209,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			if (!rtp->cbs_head) {
 				WARN_ON(signal_pending(current));
 				set_tasks_gp_state(rtp, RTGS_WAIT_WAIT_CBS);
-				schedule_timeout_interruptible(HZ/10);
+				schedule_timeout_idle(HZ/10);
 			}
 			continue;
 		}
@@ -227,7 +231,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			cond_resched();
 		}
 		/* Paranoid sleep to keep this from entering a tight loop */
-		schedule_timeout_uninterruptible(HZ/10);
+		schedule_timeout_idle(HZ/10);
 
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 	}
@@ -268,6 +272,7 @@ static void __init rcu_tasks_bootup_oddness(void)
 
 #endif /* #ifndef CONFIG_TINY_RCU */
 
+#ifndef CONFIG_TINY_RCU
 /* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
@@ -281,6 +286,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		".C"[!!data_race(rtp->cbs_head)],
 		s);
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 static void exit_tasks_rcu_finish_trace(struct task_struct *t);
 
@@ -336,7 +342,7 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 
 		/* Slowly back off waiting for holdouts */
 		set_tasks_gp_state(rtp, RTGS_WAIT_SCAN_HOLDOUTS);
-		schedule_timeout_interruptible(HZ/fract);
+		schedule_timeout_idle(HZ/fract);
 
 		if (fract > 1)
 			fract--;
@@ -402,7 +408,7 @@ static void rcu_tasks_pertask(struct task_struct *t, struct list_head *hop)
 }
 
 /* Processing between scanning taskslist and draining the holdout list. */
-void rcu_tasks_postscan(struct list_head *hop)
+static void rcu_tasks_postscan(struct list_head *hop)
 {
 	/*
 	 * Wait for tasks that are in the process of exiting.  This
@@ -557,10 +563,12 @@ static int __init rcu_spawn_tasks_kthread(void)
 }
 core_initcall(rcu_spawn_tasks_kthread);
 
+#ifndef CONFIG_TINY_RCU
 static void show_rcu_tasks_classic_gp_kthread(void)
 {
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks, "");
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 /* Do the srcu_read_lock() for the above synchronize_srcu().  */
 void exit_tasks_rcu_start(void) __acquires(&tasks_rcu_exit_srcu)
@@ -682,10 +690,12 @@ static int __init rcu_spawn_tasks_rude_kthread(void)
 }
 core_initcall(rcu_spawn_tasks_rude_kthread);
 
+#ifndef CONFIG_TINY_RCU
 static void show_rcu_tasks_rude_gp_kthread(void)
 {
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks_rude, "");
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #else /* #ifdef CONFIG_TASKS_RUDE_RCU */
 static void show_rcu_tasks_rude_gp_kthread(void) {}
@@ -727,8 +737,8 @@ EXPORT_SYMBOL_GPL(rcu_trace_lock_map);
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
-atomic_t trc_n_readers_need_end;	// Number of waited-for readers.
-DECLARE_WAIT_QUEUE_HEAD(trc_wait);	// List of holdout tasks.
+static atomic_t trc_n_readers_need_end;		// Number of waited-for readers.
+static DECLARE_WAIT_QUEUE_HEAD(trc_wait);	// List of holdout tasks.
 
 // Record outstanding IPIs to each CPU.  No point in sending two...
 static DEFINE_PER_CPU(bool, trc_ipi_to_cpu);
@@ -835,7 +845,7 @@ static bool trc_inspect_reader(struct task_struct *t, void *arg)
 	bool ofl = cpu_is_offline(cpu);
 
 	if (task_curr(t)) {
-		WARN_ON_ONCE(ofl & !is_idle_task(t));
+		WARN_ON_ONCE(ofl && !is_idle_task(t));
 
 		// If no chance of heavyweight readers, do it the hard way.
 		if (!ofl && !IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
@@ -1118,11 +1128,10 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks_trace);
  * synchronize_rcu_tasks_trace - wait for a trace rcu-tasks grace period
  *
  * Control will return to the caller some time after a trace rcu-tasks
- * grace period has elapsed, in other words after all currently
- * executing rcu-tasks read-side critical sections have elapsed.  These
- * read-side critical sections are delimited by calls to schedule(),
- * cond_resched_tasks_rcu_qs(), userspace execution, and (in theory,
- * anyway) cond_resched().
+ * grace period has elapsed, in other words after all currently executing
+ * rcu-tasks read-side critical sections have elapsed.  These read-side
+ * critical sections are delimited by calls to rcu_read_lock_trace()
+ * and rcu_read_unlock_trace().
  *
  * This is a very specialized primitive, intended only for a few uses in
  * tracing and other situations requiring manipulation of function preambles
@@ -1164,6 +1173,7 @@ static int __init rcu_spawn_tasks_trace_kthread(void)
 }
 core_initcall(rcu_spawn_tasks_trace_kthread);
 
+#ifndef CONFIG_TINY_RCU
 static void show_rcu_tasks_trace_gp_kthread(void)
 {
 	char buf[64];
@@ -1174,18 +1184,21 @@ static void show_rcu_tasks_trace_gp_kthread(void)
 		data_race(n_heavy_reader_attempts));
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks_trace, buf);
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #else /* #ifdef CONFIG_TASKS_TRACE_RCU */
 static void exit_tasks_rcu_finish_trace(struct task_struct *t) { }
 static inline void show_rcu_tasks_trace_gp_kthread(void) {}
 #endif /* #else #ifdef CONFIG_TASKS_TRACE_RCU */
 
+#ifndef CONFIG_TINY_RCU
 void show_rcu_tasks_gp_kthreads(void)
 {
 	show_rcu_tasks_classic_gp_kthread();
 	show_rcu_tasks_rude_gp_kthread();
 	show_rcu_tasks_trace_gp_kthread();
 }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
 static inline void rcu_tasks_bootup_oddness(void) {}
