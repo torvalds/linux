@@ -27,6 +27,7 @@ enum dsa_loop_mib_counters {
 struct dsa_loop_port {
 	struct dsa_loop_mib_entry mib[__DSA_LOOP_CNT_MAX];
 	u16 pvid;
+	int mtu;
 };
 
 struct dsa_loop_priv {
