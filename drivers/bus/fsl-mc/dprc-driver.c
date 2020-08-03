@@ -592,6 +592,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
 	u16 major_ver, minor_ver;
+	struct irq_domain *mc_msi_domain;
 
 	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
@@ -621,31 +622,15 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 			return error;
 
 		mc_io_created = true;
+	}
 
-		/*
-		 * Inherit parent MSI domain:
-		 */
-		dev_set_msi_domain(&mc_dev->dev,
-				   dev_get_msi_domain(parent_dev));
-		msi_domain_set = true;
+	mc_msi_domain = fsl_mc_find_msi_domain(&mc_dev->dev);
+	if (!mc_msi_domain) {
+		dev_warn(&mc_dev->dev,
+			 "WARNING: MC bus without interrupt support\n");
 	} else {
-		/*
-		 * This is a root DPRC
-		 */
-		struct irq_domain *mc_msi_domain;
-
-		if (dev_is_fsl_mc(parent_dev))
-			return -EINVAL;
-
-		error = fsl_mc_find_msi_domain(parent_dev,
-					       &mc_msi_domain);
-		if (error < 0) {
-			dev_warn(&mc_dev->dev,
-				 "WARNING: MC bus without interrupt support\n");
-		} else {
-			dev_set_msi_domain(&mc_dev->dev, mc_msi_domain);
-			msi_domain_set = true;
-		}
+		dev_set_msi_domain(&mc_dev->dev, mc_msi_domain);
+		msi_domain_set = true;
 	}
 
 	error = dprc_open(mc_dev->mc_io, 0, mc_dev->obj_desc.id,

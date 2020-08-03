@@ -118,6 +118,7 @@ config ARM64
 	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
+	select GENERIC_VDSO_TIME_NS
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_PCI
@@ -1327,6 +1328,8 @@ config SWP_EMULATION
 	  ARMv8 obsoletes the use of A32 SWP/SWPB instructions such that
 	  they are always undefined. Say Y here to enable software
 	  emulation of these instructions for userspace using LDXR/STXR.
+	  This feature can be controlled at runtime with the abi.swp
+	  sysctl which is disabled by default.
 
 	  In some older versions of glibc [<=2.8] SWP is used during futex
 	  trylock() operations with the assumption that the code will not
@@ -1353,7 +1356,8 @@ config CP15_BARRIER_EMULATION
 	  Say Y here to enable software emulation of these
 	  instructions for AArch32 userspace code. When this option is
 	  enabled, CP15 barrier usage is traced which can help
-	  identify software that needs updating.
+	  identify software that needs updating. This feature can be
+	  controlled at runtime with the abi.cp15_barrier sysctl.
 
 	  If unsure, say Y
 
@@ -1364,7 +1368,8 @@ config SETEND_EMULATION
 	  AArch32 EL0, and is deprecated in ARMv8.
 
 	  Say Y here to enable software emulation of the instruction
-	  for AArch32 userspace code.
+	  for AArch32 userspace code. This feature can be controlled
+	  at runtime with the abi.setend sysctl.
 
 	  Note: All the cpus on the system must have mixed endian support at EL0
 	  for this feature to be enabled. If a new CPU - which doesn't support mixed
@@ -1595,6 +1600,20 @@ config ARM64_AMU_EXTN
 	  symptoms, the values returned by the register reads might not
 	  correctly reflect reality. Most commonly, the value read will be 0,
 	  indicating that the counter is not enabled.
+
+config AS_HAS_ARMV8_4
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.4-a)
+
+config ARM64_TLB_RANGE
+	bool "Enable support for tlbi range feature"
+	default y
+	depends on AS_HAS_ARMV8_4
+	help
+	  ARMv8.4-TLBI provides TLBI invalidation instruction that apply to a
+	  range of input addresses.
+
+	  The feature introduces new assembly instructions, and they were
+	  support when binutils >= 2.30.
 
 endmenu
 
