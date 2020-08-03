@@ -59,6 +59,15 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
 
+static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
+{
+	if ((adev->asic_type == CHIP_VEGA20) ||
+	    (adev->asic_type == CHIP_ARCTURUS))
+		return true;
+
+	return false;
+}
+
 static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 				       uint16_t *i2c_addr)
 {
@@ -276,6 +285,9 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 
 	*exceed_err_limit = false;
 
+	if (!__is_ras_eeprom_supported(adev))
+		return 0;
+
 	/* Verify i2c adapter is initialized */
 	if (!adev->pm.smu_i2c.algo)
 		return -ENOENT;
@@ -430,6 +442,9 @@ int amdgpu_ras_eeprom_check_err_threshold(
 
 	*exceed_err_limit = false;
 
+	if (!__is_ras_eeprom_supported(adev))
+		return 0;
+
 	/* read EEPROM table header */
 	mutex_lock(&control->tbl_mutex);
 	ret = i2c_transfer(&adev->pm.smu_i2c, &msg, 1);
@@ -465,7 +480,7 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	if (adev->asic_type != CHIP_VEGA20 && adev->asic_type != CHIP_ARCTURUS)
+	if (!__is_ras_eeprom_supported(adev))
 		return 0;
 
 	buffs = kcalloc(num, EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE,
