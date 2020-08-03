@@ -1,4 +1,4 @@
-. ${ROOT_DIR}/common/build.config.common
-. ${ROOT_DIR}/common/build.config.arm
-. ${ROOT_DIR}/common/build.config.allmodconfig
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.arm
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.allmodconfig
 

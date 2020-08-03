@@ -1,6 +1,5 @@
 BRANCH=android-mainline
 KMI_GENERATION=0
-KERNEL_DIR=common
 
 CC=clang
 LD=ld.lld
