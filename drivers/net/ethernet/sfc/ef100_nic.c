@@ -263,6 +263,9 @@ static int ef100_ev_process(struct efx_channel *channel, int quota)
 		case ESE_GZ_EF100_EV_MCDI:
 			efx_mcdi_process_event(channel, p_event);
 			break;
+		case ESE_GZ_EF100_EV_TX_COMPLETION:
+			ef100_ev_tx(channel, p_event);
+			break;
 		case ESE_GZ_EF100_EV_DRIVER:
 			netif_info(efx, drv, efx->net_dev,
 				   "Driver initiated event " EFX_QWORD_FMT "\n",
@@ -436,10 +439,15 @@ static unsigned int ef100_check_caps(const struct efx_nic *efx,
 
 /*	NIC level access functions
  */
+#define EF100_OFFLOAD_FEATURES	(NETIF_F_HW_CSUM |			\
+	NETIF_F_HIGHDMA | NETIF_F_SG | NETIF_F_FRAGLIST |		\
+	NETIF_F_TSO_ECN | NETIF_F_TSO_MANGLEID | NETIF_F_HW_VLAN_CTAG_TX)
+
 const struct efx_nic_type ef100_pf_nic_type = {
 	.revision = EFX_REV_EF100,
 	.is_vf = false,
 	.probe = ef100_probe_pf,
+	.offload_features = EF100_OFFLOAD_FEATURES,
 	.mcdi_max_ver = 2,
 	.mcdi_request = ef100_mcdi_request,
 	.mcdi_poll_response = ef100_mcdi_poll_response,

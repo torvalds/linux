@@ -71,6 +71,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 		  "initialising TX queue %d\n", tx_queue->queue);
 
 	tx_queue->insert_count = 0;
+	tx_queue->notify_count = 0;
 	tx_queue->write_count = 0;
 	tx_queue->packet_write_count = 0;
 	tx_queue->old_write_count = 0;
