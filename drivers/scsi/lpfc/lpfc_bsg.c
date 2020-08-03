@@ -2494,13 +2494,12 @@ lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 	diag_status_reply = (struct diag_status *)
 			    bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
-	if (job->reply_len <
-	    sizeof(struct fc_bsg_request) + sizeof(struct diag_status)) {
+	if (job->reply_len < sizeof(*bsg_reply) + sizeof(*diag_status_reply)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"3012 Received Run link diag test reply "
 				"below minimum size (%d): reply_len:%d\n",
-				(int)(sizeof(struct fc_bsg_request) +
-				sizeof(struct diag_status)),
+				(int)(sizeof(*bsg_reply) +
+				sizeof(*diag_status_reply)),
 				job->reply_len);
 		rc = -EINVAL;
 		goto job_error;
@@ -3418,8 +3417,7 @@ lpfc_bsg_get_dfc_rev(struct bsg_job *job)
 	event_reply = (struct get_mgmt_rev_reply *)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
-	if (job->reply_len <
-	    sizeof(struct fc_bsg_request) + sizeof(struct get_mgmt_rev_reply)) {
+	if (job->reply_len < sizeof(*bsg_reply) + sizeof(*event_reply)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2741 Received GET_DFC_REV reply below "
 				"minimum size\n");
@@ -5202,8 +5200,8 @@ lpfc_menlo_cmd(struct bsg_job *job)
 		goto no_dd_data;
 	}
 
-	if (job->reply_len <
-	    sizeof(struct fc_bsg_request) + sizeof(struct menlo_response)) {
+	if (job->reply_len < sizeof(*bsg_reply) +
+				sizeof(struct menlo_response)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2785 Received MENLO_CMD reply below "
 				"minimum size\n");
@@ -5359,9 +5357,7 @@ lpfc_forced_link_speed(struct bsg_job *job)
 	forced_reply = (struct forced_link_speed_support_reply *)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
-	if (job->reply_len <
-	    sizeof(struct fc_bsg_request) +
-	    sizeof(struct forced_link_speed_support_reply)) {
+	if (job->reply_len < sizeof(*bsg_reply) + sizeof(*forced_reply)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"0049 Received FORCED_LINK_SPEED reply below "
 				"minimum size\n");
@@ -5715,8 +5711,7 @@ lpfc_get_trunk_info(struct bsg_job *job)
 	event_reply = (struct lpfc_trunk_info *)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
-	if (job->reply_len <
-	    sizeof(struct fc_bsg_request) + sizeof(struct lpfc_trunk_info)) {
+	if (job->reply_len < sizeof(*bsg_reply) + sizeof(*event_reply)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2728 Received GET TRUNK _INFO reply below "
 				"minimum size\n");
