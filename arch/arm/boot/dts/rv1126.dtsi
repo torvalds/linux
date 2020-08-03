@@ -1582,6 +1582,19 @@
 		status = "disabled";
 	};
 
+	rkacdc_dig: codec-digital@ff850000 {
+		compatible = "rockchip,rv1126-codec-digital", "rockchip,codec-digital-v1";
+		reg = <0xff850000 0x1000>;
+		clocks = <&cru CLK_ACDCDIG_ADC>, <&cru CLK_ACDCDIG_DAC>, <&cru PCLK_ACDCDIG>;
+		clock-names = "adc", "dac", "pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&acodec_pins>;
+		resets = <&cru SRST_ACDCDIG>;
+		reset-names = "reset" ;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	dfi: dfi@ff9c0000 {
 		reg = <0xff9c0000 0x400>;
 		compatible = "rockchip,rv1126-dfi";
