@@ -48,12 +48,10 @@ struct dsa_loop_port {
 	u16 pvid;
 };
 
-#define DSA_LOOP_VLANS	5
-
 struct dsa_loop_priv {
 	struct mii_bus	*bus;
 	unsigned int	port_base;
-	struct dsa_loop_vlan vlans[DSA_LOOP_VLANS];
+	struct dsa_loop_vlan vlans[VLAN_N_VID];
 	struct net_device *netdev;
 	struct dsa_loop_port ports[DSA_MAX_PORTS];
 };
@@ -191,7 +189,7 @@ dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	if (vlan->vid_end > DSA_LOOP_VLANS)
+	if (vlan->vid_end > ARRAY_SIZE(ps->vlans))
 		return -ERANGE;
 
 	return 0;
