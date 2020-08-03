@@ -8,7 +8,7 @@ The embedded controller requires the SPI controller driver to signal readiness
 to receive a transfer (that is, when TX FIFO contains the response data) by
 strobing the ACK pin with the ready signal. See the "ready-gpios" property of the
 SSP binding as documented in:
-<Documentation/devicetree/bindings/spi/spi-pxa2xx.txt>.
+<Documentation/devicetree/bindings/spi/marvell,mmp2-ssp.yaml>.
 
 Example:
 	&ssp3 {

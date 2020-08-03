@@ -751,22 +751,20 @@ out_free:
 	return err;
 }
 
-static void engine_heartbeat_disable(struct intel_engine_cs *engine,
-				     unsigned long *saved)
+static void engine_heartbeat_disable(struct intel_engine_cs *engine)
 {
-	*saved = engine->props.heartbeat_interval_ms;
 	engine->props.heartbeat_interval_ms = 0;
 
 	intel_engine_pm_get(engine);
 	intel_engine_park_heartbeat(engine);
 }
 
-static void engine_heartbeat_enable(struct intel_engine_cs *engine,
-				    unsigned long saved)
+static void engine_heartbeat_enable(struct intel_engine_cs *engine)
 {
 	intel_engine_pm_put(engine);
 
-	engine->props.heartbeat_interval_ms = saved;
+	engine->props.heartbeat_interval_ms =
+		engine->defaults.heartbeat_interval_ms;
 }
 
 static int live_hwsp_rollover_kernel(void *arg)
@@ -785,10 +783,9 @@ static int live_hwsp_rollover_kernel(void *arg)
 		struct intel_context *ce = engine->kernel_context;
 		struct intel_timeline *tl = ce->timeline;
 		struct i915_request *rq[3] = {};
-		unsigned long heartbeat;
 		int i;
 
-		engine_heartbeat_disable(engine, &heartbeat);
+		engine_heartbeat_disable(engine);
 		if (intel_gt_wait_for_idle(gt, HZ / 2)) {
 			err = -EIO;
 			goto out;
@@ -839,7 +836,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 out:
 		for (i = 0; i < ARRAY_SIZE(rq); i++)
 			i915_request_put(rq[i]);
-		engine_heartbeat_enable(engine, heartbeat);
+		engine_heartbeat_enable(engine);
 		if (err)
 			break;
 	}

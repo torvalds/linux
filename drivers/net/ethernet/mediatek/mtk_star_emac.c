@@ -24,7 +24,6 @@
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 
 #define MTK_STAR_DRVNAME			"mtk_star_emac"
 
@@ -262,7 +261,6 @@ struct mtk_star_priv {
 	spinlock_t lock;
 
 	struct rtnl_link_stats64 stats;
-	struct work_struct stats_work;
 };
 
 static struct device *mtk_star_get_dev(struct mtk_star_priv *priv)
@@ -430,42 +428,6 @@ static void mtk_star_intr_enable(struct mtk_star_priv *priv)
 static void mtk_star_intr_disable(struct mtk_star_priv *priv)
 {
 	regmap_write(priv->regs, MTK_STAR_REG_INT_MASK, ~0);
-}
-
-static void mtk_star_intr_enable_tx(struct mtk_star_priv *priv)
-{
-	regmap_clear_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			  MTK_STAR_BIT_INT_STS_TNTC);
-}
-
-static void mtk_star_intr_enable_rx(struct mtk_star_priv *priv)
-{
-	regmap_clear_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			  MTK_STAR_BIT_INT_STS_FNRC);
-}
-
-static void mtk_star_intr_enable_stats(struct mtk_star_priv *priv)
-{
-	regmap_clear_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			  MTK_STAR_REG_INT_STS_MIB_CNT_TH);
-}
-
-static void mtk_star_intr_disable_tx(struct mtk_star_priv *priv)
-{
-	regmap_set_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			MTK_STAR_BIT_INT_STS_TNTC);
-}
-
-static void mtk_star_intr_disable_rx(struct mtk_star_priv *priv)
-{
-	regmap_set_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			MTK_STAR_BIT_INT_STS_FNRC);
-}
-
-static void mtk_star_intr_disable_stats(struct mtk_star_priv *priv)
-{
-	regmap_set_bits(priv->regs, MTK_STAR_REG_INT_MASK,
-			MTK_STAR_REG_INT_STS_MIB_CNT_TH);
 }
 
 static unsigned int mtk_star_intr_read(struct mtk_star_priv *priv)
@@ -663,20 +625,6 @@ static void mtk_star_update_stats(struct mtk_star_priv *priv)
 	stats->rx_errors += stats->rx_fifo_errors;
 }
 
-/* This runs in process context and parallel TX and RX paths executing in
- * napi context may result in losing some stats data but this should happen
- * seldom enough to be acceptable.
- */
-static void mtk_star_update_stats_work(struct work_struct *work)
-{
-	struct mtk_star_priv *priv = container_of(work, struct mtk_star_priv,
-						 stats_work);
-
-	mtk_star_update_stats(priv);
-	mtk_star_reset_counters(priv);
-	mtk_star_intr_enable_stats(priv);
-}
-
 static struct sk_buff *mtk_star_alloc_skb(struct net_device *ndev)
 {
 	uintptr_t tail, offset;
@@ -767,42 +715,25 @@ static void mtk_star_free_tx_skbs(struct mtk_star_priv *priv)
 	mtk_star_ring_free_skbs(priv, ring, mtk_star_dma_unmap_tx);
 }
 
-/* All processing for TX and RX happens in the napi poll callback. */
+/* All processing for TX and RX happens in the napi poll callback.
+ *
+ * FIXME: The interrupt handling should be more fine-grained with each
+ * interrupt enabled/disabled independently when needed. Unfortunatly this
+ * turned out to impact the driver's stability and until we have something
+ * working properly, we're disabling all interrupts during TX & RX processing
+ * or when resetting the counter registers.
+ */
 static irqreturn_t mtk_star_handle_irq(int irq, void *data)
 {
 	struct mtk_star_priv *priv;
 	struct net_device *ndev;
-	bool need_napi = false;
-	unsigned int status;
 
 	ndev = data;
 	priv = netdev_priv(ndev);
 
 	if (netif_running(ndev)) {
-		status = mtk_star_intr_read(priv);
-
-		if (status & MTK_STAR_BIT_INT_STS_TNTC) {
-			mtk_star_intr_disable_tx(priv);
-			need_napi = true;
-		}
-
-		if (status & MTK_STAR_BIT_INT_STS_FNRC) {
-			mtk_star_intr_disable_rx(priv);
-			need_napi = true;
-		}
-
-		if (need_napi)
-			napi_schedule(&priv->napi);
-
-		/* One of the counters reached 0x8000000 - update stats and
-		 * reset all counters.
-		 */
-		if (unlikely(status & MTK_STAR_REG_INT_STS_MIB_CNT_TH)) {
-			mtk_star_intr_disable_stats(priv);
-			schedule_work(&priv->stats_work);
-		}
-
-		mtk_star_intr_ack_all(priv);
+		mtk_star_intr_disable(priv);
+		napi_schedule(&priv->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -1169,8 +1100,6 @@ static void mtk_star_tx_complete_all(struct mtk_star_priv *priv)
 	if (wake && netif_queue_stopped(ndev))
 		netif_wake_queue(ndev);
 
-	mtk_star_intr_enable_tx(priv);
-
 	spin_unlock(&priv->lock);
 }
 
@@ -1332,19 +1261,31 @@ static int mtk_star_process_rx(struct mtk_star_priv *priv, int budget)
 static int mtk_star_poll(struct napi_struct *napi, int budget)
 {
 	struct mtk_star_priv *priv;
+	unsigned int status;
 	int received = 0;
 
 	priv = container_of(napi, struct mtk_star_priv, napi);
 
-	/* Clean-up all TX descriptors. */
-	mtk_star_tx_complete_all(priv);
-	/* Receive up to $budget packets. */
-	received = mtk_star_process_rx(priv, budget);
+	status = mtk_star_intr_read(priv);
+	mtk_star_intr_ack_all(priv);
 
-	if (received < budget) {
-		napi_complete_done(napi, received);
-		mtk_star_intr_enable_rx(priv);
+	if (status & MTK_STAR_BIT_INT_STS_TNTC)
+		/* Clean-up all TX descriptors. */
+		mtk_star_tx_complete_all(priv);
+
+	if (status & MTK_STAR_BIT_INT_STS_FNRC)
+		/* Receive up to $budget packets. */
+		received = mtk_star_process_rx(priv, budget);
+
+	if (unlikely(status & MTK_STAR_REG_INT_STS_MIB_CNT_TH)) {
+		mtk_star_update_stats(priv);
+		mtk_star_reset_counters(priv);
 	}
+
+	if (received < budget)
+		napi_complete_done(napi, received);
+
+	mtk_star_intr_enable(priv);
 
 	return received;
 }
@@ -1532,7 +1473,6 @@ static int mtk_star_probe(struct platform_device *pdev)
 	ndev->max_mtu = MTK_STAR_MAX_FRAME_SIZE;
 
 	spin_lock_init(&priv->lock);
-	INIT_WORK(&priv->stats_work, mtk_star_update_stats_work);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

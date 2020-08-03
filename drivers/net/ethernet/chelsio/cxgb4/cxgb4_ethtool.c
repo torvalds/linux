@@ -588,7 +588,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 /**
  *	lmm_to_fw_caps - translate ethtool Link Mode Mask to Firmware
  *	capabilities
- *	@et_lmm: ethtool Link Mode Mask
+ *	@link_mode_mask: ethtool Link Mode Mask
  *
  *	Translate ethtool Link Mode Mask into a Firmware Port capabilities
  *	value.

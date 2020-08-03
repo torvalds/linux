@@ -1604,7 +1604,8 @@ static int hdmi_audio_hw_params(struct device *dev, void *data,
 	return 0;
 }
 
-static int hdmi_audio_digital_mute(struct device *dev, void *data, bool mute)
+static int hdmi_audio_mute(struct device *dev, void *data,
+			   bool mute, int direction)
 {
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 
@@ -1634,8 +1635,9 @@ static int hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf,
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = hdmi_audio_hw_params,
 	.audio_shutdown = hdmi_audio_shutdown,
-	.digital_mute = hdmi_audio_digital_mute,
+	.mute_stream = hdmi_audio_mute,
 	.get_eld = hdmi_audio_get_eld,
+	.no_capture_mute = 1,
 };
 
 static int hdmi_register_audio_device(struct hdmi_context *hdata)

@@ -209,7 +209,6 @@ static int mcde_modeset_init(struct drm_device *drm)
 
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
-	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 }
@@ -263,6 +262,8 @@ static int mcde_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind;
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 

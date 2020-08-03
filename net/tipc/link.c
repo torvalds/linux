@@ -827,11 +827,11 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		state |= l->bc_rcvlink->rcv_unacked;
 		state |= l->rcv_unacked;
 		state |= !skb_queue_empty(&l->transmq);
-		state |= !skb_queue_empty(&l->deferdq);
 		probe = mstate->probing;
 		probe |= l->silent_intv_cnt;
 		if (probe || mstate->monitoring)
 			l->silent_intv_cnt++;
+		probe |= !skb_queue_empty(&l->deferdq);
 		if (l->snd_nxt == l->checkpoint) {
 			tipc_link_update_cwin(l, 0, 0);
 			probe = true;
@@ -919,6 +919,21 @@ static void link_prepare_wakeup(struct tipc_link *l)
 	skb_queue_splice_tail(&tmpq, inputq);
 	spin_unlock_bh(&inputq->lock);
 
+}
+
+/**
+ * tipc_link_set_skb_retransmit_time - set the time at which retransmission of
+ *                                     the given skb should be next attempted
+ * @skb: skb to set a future retransmission time for
+ * @l: link the skb will be transmitted on
+ */
+static void tipc_link_set_skb_retransmit_time(struct sk_buff *skb,
+					      struct tipc_link *l)
+{
+	if (link_is_bc_sndlink(l))
+		TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+	else
+		TIPC_SKB_CB(skb)->nxt_retr = TIPC_UC_RETR_TIME;
 }
 
 void tipc_link_reset(struct tipc_link *l)
@@ -1036,9 +1051,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 				return -ENOBUFS;
 			}
 			__skb_queue_tail(transmq, skb);
-			/* next retransmit attempt */
-			if (link_is_bc_sndlink(l))
-				TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+			tipc_link_set_skb_retransmit_time(skb, l);
 			__skb_queue_tail(xmitq, _skb);
 			TIPC_SKB_CB(skb)->ackers = l->ackers;
 			l->rcv_unacked = 0;
@@ -1139,9 +1152,7 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 		if (unlikely(skb == l->backlog[imp].target_bskb))
 			l->backlog[imp].target_bskb = NULL;
 		__skb_queue_tail(&l->transmq, skb);
-		/* next retransmit attempt */
-		if (link_is_bc_sndlink(l))
-			TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+		tipc_link_set_skb_retransmit_time(skb, l);
 
 		__skb_queue_tail(xmitq, _skb);
 		TIPC_SKB_CB(skb)->ackers = l->ackers;
@@ -1584,8 +1595,7 @@ release:
 			/* retransmit skb if unrestricted*/
 			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
 				continue;
-			TIPC_SKB_CB(skb)->nxt_retr = (is_uc) ?
-					TIPC_UC_RETR_TIME : TIPC_BC_RETR_LIM;
+			tipc_link_set_skb_retransmit_time(skb, l);
 			_skb = pskb_copy(skb, GFP_ATOMIC);
 			if (!_skb)
 				continue;

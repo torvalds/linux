@@ -918,6 +918,7 @@ static void cm_free_work(struct cm_work *work)
 
 static void cm_queue_work_unlock(struct cm_id_private *cm_id_priv,
 				 struct cm_work *work)
+	__releases(&cm_id_priv->lock)
 {
 	bool immediate;
 
@@ -3675,10 +3676,12 @@ static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
 		return ret;
 	}
 	cm_id_priv->id.state = IB_CM_IDLE;
+	spin_lock_irq(&cm.lock);
 	if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node)) {
 		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		RB_CLEAR_NODE(&cm_id_priv->sidr_id_node);
 	}
+	spin_unlock_irq(&cm.lock);
 	return 0;
 }
 

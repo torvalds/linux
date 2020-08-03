@@ -34,3 +34,4 @@ module_exit(nf_flow_ipv4_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NF_FLOWTABLE(AF_INET);
+MODULE_DESCRIPTION("Netfilter flow table support");

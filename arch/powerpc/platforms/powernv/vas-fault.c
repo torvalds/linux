@@ -79,7 +79,7 @@ static void update_csb(struct vas_window *window,
 	csb_addr = (void __user *)be64_to_cpu(crb->csb_addr);
 
 	memset(&csb, 0, sizeof(csb));
-	csb.cc = CSB_CC_TRANSLATION;
+	csb.cc = CSB_CC_FAULT_ADDRESS;
 	csb.ce = CSB_CE_TERMINATION;
 	csb.cs = 0;
 	csb.count = 0;

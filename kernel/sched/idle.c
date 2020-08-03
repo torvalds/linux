@@ -96,6 +96,15 @@ void __cpuidle default_idle_call(void)
 	}
 }
 
+static int call_cpuidle_s2idle(struct cpuidle_driver *drv,
+			       struct cpuidle_device *dev)
+{
+	if (current_clr_polling_and_test())
+		return -EBUSY;
+
+	return cpuidle_enter_s2idle(drv, dev);
+}
+
 static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		      int next_state)
 {
@@ -171,11 +180,9 @@ static void cpuidle_idle_call(void)
 		if (idle_should_enter_s2idle()) {
 			rcu_idle_enter();
 
-			entered_state = cpuidle_enter_s2idle(drv, dev);
-			if (entered_state > 0) {
-				local_irq_enable();
+			entered_state = call_cpuidle_s2idle(drv, dev);
+			if (entered_state > 0)
 				goto exit_idle;
-			}
 
 			rcu_idle_exit();
 

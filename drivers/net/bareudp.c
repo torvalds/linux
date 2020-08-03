@@ -552,6 +552,8 @@ static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],
 static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
 			struct netlink_ext_ack *extack)
 {
+	memset(conf, 0, sizeof(*conf));
+
 	if (!data[IFLA_BAREUDP_PORT]) {
 		NL_SET_ERR_MSG(extack, "port not specified");
 		return -EINVAL;
@@ -569,6 +571,9 @@ static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
 
 	if (data[IFLA_BAREUDP_SRCPORT_MIN])
 		conf->sport_min =  nla_get_u16(data[IFLA_BAREUDP_SRCPORT_MIN]);
+
+	if (data[IFLA_BAREUDP_MULTIPROTO_MODE])
+		conf->multi_proto_mode = true;
 
 	return 0;
 }

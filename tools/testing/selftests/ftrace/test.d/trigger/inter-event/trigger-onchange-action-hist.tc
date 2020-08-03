@@ -1,18 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger onchange action
+# requires: set_event "onchange(var)":README
 
 fail() { #msg
     echo $1
     exit_fail
 }
-
-if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-grep -q "onchange(var)" README || exit_unsupported # version issue
 
 echo "Test onchange action"
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // TLV320ADCX104 Sound driver
-// Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2020 Texas Instruments Incorporated - https://www.ti.com/
 
 #ifndef _TLV320ADCX140_H
 #define _TLV320ADCX140_H
@@ -36,10 +36,10 @@
 #define ADCX140_PDMCLK_CFG	0x1f
 #define ADCX140_PDM_CFG		0x20
 #define ADCX140_GPIO_CFG0	0x21
-#define ADCX140_GPO_CFG1	0x22
-#define ADCX140_GPO_CFG2	0x23
-#define ADCX140_GPO_CFG3	0x24
-#define ADCX140_GPO_CFG4	0x25
+#define ADCX140_GPO_CFG0	0x22
+#define ADCX140_GPO_CFG1	0x23
+#define ADCX140_GPO_CFG2	0x24
+#define ADCX140_GPO_CFG3	0x25
 #define ADCX140_GPO_VAL		0x29
 #define ADCX140_GPIO_MON	0x2a
 #define ADCX140_GPI_CFG0	0x2b
@@ -138,5 +138,11 @@
 #define ADCX140_GPI2_INDEX		1
 #define ADCX140_GPI3_INDEX		2
 #define ADCX140_GPI4_INDEX		3
+
+#define ADCX140_NUM_GPOS		4
+#define ADCX140_NUM_GPO_CFGS		2
+#define ADCX140_GPO_SHIFT		4
+#define ADCX140_GPO_CFG_MAX		4
+#define ADCX140_GPO_DRV_MAX		5
 
 #endif /* _TLV320ADCX140_ */

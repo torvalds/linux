@@ -264,7 +264,7 @@ static int jz4770_codec_pcm_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int jz4770_codec_digital_mute(struct snd_soc_dai *dai, int mute)
+static int jz4770_codec_mute_stream(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *codec = dai->component;
 	struct jz_codec *jz_codec = snd_soc_component_get_drvdata(codec);
@@ -303,7 +303,6 @@ static int jz4770_codec_digital_mute(struct snd_soc_dai *dai, int mute)
 static const DECLARE_TLV_DB_MINMAX_MUTE(dac_tlv, -3100, 0);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, 0, 100, 0);
 static const DECLARE_TLV_DB_MINMAX(out_tlv, -2500, 600);
-static const DECLARE_TLV_DB_SCALE(mic_boost_tlv, 0, 400, 0);
 static const DECLARE_TLV_DB_SCALE(linein_tlv, -2500, 100, 0);
 
 /* Unconditional controls. */
@@ -753,7 +752,8 @@ static const struct snd_soc_dai_ops jz4770_codec_dai_ops = {
 	.shutdown	= jz4770_codec_shutdown,
 	.hw_params	= jz4770_codec_hw_params,
 	.trigger	= jz4770_codec_pcm_trigger,
-	.digital_mute	= jz4770_codec_digital_mute,
+	.mute_stream	= jz4770_codec_mute_stream,
+	.no_capture_mute = 1,
 };
 
 #define JZ_CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  | \

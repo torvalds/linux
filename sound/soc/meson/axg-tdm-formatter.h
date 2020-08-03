@@ -16,7 +16,6 @@ struct snd_kcontrol;
 
 struct axg_tdm_formatter_hw {
 	unsigned int skew_offset;
-	bool invert_sclk;
 };
 
 struct axg_tdm_formatter_ops {

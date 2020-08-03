@@ -69,6 +69,10 @@
 	status = "okay";
 };
 
+&dma {
+	status = "okay";
+};
+
 &amac0 {
 	status = "okay";
 };

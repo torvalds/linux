@@ -63,6 +63,8 @@ ALL_TESTS="$ALL_TESTS 0008:150:1"
 ALL_TESTS="$ALL_TESTS 0009:150:1"
 ALL_TESTS="$ALL_TESTS 0010:1:1"
 ALL_TESTS="$ALL_TESTS 0011:1:1"
+ALL_TESTS="$ALL_TESTS 0012:1:1"
+ALL_TESTS="$ALL_TESTS 0013:1:1"
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
@@ -470,6 +472,38 @@ kmod_test_0011()
 	echo "$MODPROBE" > /proc/sys/kernel/modprobe
 }
 
+kmod_check_visibility()
+{
+	local name="$1"
+	local cmd="$2"
+
+	modprobe $DEFAULT_KMOD_DRIVER
+
+	local priv=$(eval $cmd)
+	local unpriv=$(capsh --drop=CAP_SYSLOG -- -c "$cmd")
+
+	if [ "$priv" = "$unpriv" ] || \
+	   [ "${priv:0:3}" = "0x0" ] || \
+	   [ "${unpriv:0:3}" != "0x0" ] ; then
+		echo "${FUNCNAME[0]}: FAIL, $name visible to unpriv: '$priv' vs '$unpriv'" >&2
+		exit 1
+	else
+		echo "${FUNCNAME[0]}: OK!"
+	fi
+}
+
+kmod_test_0012()
+{
+	kmod_check_visibility /proc/modules \
+		"grep '^${DEFAULT_KMOD_DRIVER}\b' /proc/modules | awk '{print \$NF}'"
+}
+
+kmod_test_0013()
+{
+	kmod_check_visibility '/sys/module/*/sections/*' \
+		"cat /sys/module/${DEFAULT_KMOD_DRIVER}/sections/.*text | head -n1"
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -489,6 +523,8 @@ list_tests()
 	echo "0009 x $(get_test_count 0009) - multithreaded - push kmod_concurrent over max_modprobes for get_fs_type()"
 	echo "0010 x $(get_test_count 0010) - test nonexistent modprobe path"
 	echo "0011 x $(get_test_count 0011) - test completely disabling module autoloading"
+	echo "0012 x $(get_test_count 0012) - test /proc/modules address visibility under CAP_SYSLOG"
+	echo "0013 x $(get_test_count 0013) - test /sys/module/*/sections/* visibility under CAP_SYSLOG"
 }
 
 usage()

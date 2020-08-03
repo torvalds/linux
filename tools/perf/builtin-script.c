@@ -462,7 +462,7 @@ static int perf_evsel__check_attr(struct evsel *evsel, struct perf_session *sess
 		return -EINVAL;
 
 	if (PRINT_FIELD(IREGS) &&
-	    evsel__check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS", PERF_OUTPUT_IREGS))
+	    evsel__do_check_stype(evsel, PERF_SAMPLE_REGS_INTR, "IREGS", PERF_OUTPUT_IREGS, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(UREGS) &&
@@ -3836,6 +3836,9 @@ int cmd_script(int argc, const char **argv)
 	err = evswitch__init(&script.evswitch, session->evlist, stderr);
 	if (err)
 		goto out_delete;
+
+	if (zstd_init(&(session->zstd_data), 0) < 0)
+		pr_warning("Decompression initialization failed. Reported data may be incomplete.\n");
 
 	err = __cmd_script(&script);
 
