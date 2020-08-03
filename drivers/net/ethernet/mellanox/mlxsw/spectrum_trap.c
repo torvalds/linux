@@ -1675,6 +1675,32 @@ mlxsw_sp_trap_policer_counter_get(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
+int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
+					  bool *p_enabled, u16 *p_hw_id)
+{
+	struct mlxsw_sp_trap_policer_item *pol_item;
+	struct mlxsw_sp_trap_group_item *gr_item;
+	u32 pol_id;
+
+	gr_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, id);
+	if (!gr_item)
+		return -ENOENT;
+
+	pol_id = gr_item->group.init_policer_id;
+	if (!pol_id) {
+		*p_enabled = false;
+		return 0;
+	}
+
+	pol_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, pol_id);
+	if (WARN_ON(!pol_item))
+		return -ENOENT;
+
+	*p_enabled = true;
+	*p_hw_id = pol_item->hw_id;
+	return 0;
+}
+
 static const struct mlxsw_sp_trap_group_item
 mlxsw_sp1_trap_group_items_arr[] = {
 };

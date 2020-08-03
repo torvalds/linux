@@ -984,6 +984,10 @@ struct mlxsw_sp_mall_mirror_entry {
 	int span_id;
 };
 
+struct mlxsw_sp_mall_trap_entry {
+	int span_id;
+};
+
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
@@ -992,6 +996,7 @@ struct mlxsw_sp_mall_entry {
 	bool ingress;
 	union {
 		struct mlxsw_sp_mall_mirror_entry mirror;
+		struct mlxsw_sp_mall_trap_entry trap;
 		struct mlxsw_sp_port_sample sample;
 	};
 	struct rcu_head rcu;
@@ -1199,6 +1204,8 @@ int
 mlxsw_sp_trap_policer_counter_get(struct mlxsw_core *mlxsw_core,
 				  const struct devlink_trap_policer *policer,
 				  u64 *p_drops);
+int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
+					  bool *p_enabled, u16 *p_hw_id);
 
 static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 {
