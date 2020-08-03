@@ -4199,10 +4199,9 @@ static void io_poll_task_handler(struct io_kiocb *req, struct io_kiocb **nxt)
 
 	hash_del(&req->hash_node);
 	io_poll_complete(req, req->result, 0);
-	req->flags |= REQ_F_COMP_LOCKED;
-	io_put_req_find_next(req, nxt);
 	spin_unlock_irq(&ctx->completion_lock);
 
+	io_put_req_find_next(req, nxt);
 	io_cqring_ev_posted(ctx);
 }
 
@@ -4657,6 +4656,10 @@ static int io_poll_add(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_poll_table ipt;
 	__poll_t mask;
+
+	/* ->work is in union with hash_node and others */
+	io_req_work_drop_env(req);
+	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
 	INIT_HLIST_NODE(&req->hash_node);
 	INIT_LIST_HEAD(&req->list);

@@ -1797,9 +1797,7 @@ static bool init_prefetch_work(struct ib_pd *pd,
 		work->frags[i].mr =
 			get_prefetchable_mr(pd, advice, sg_list[i].lkey);
 		if (!work->frags[i].mr) {
-			work->num_sge = i - 1;
-			if (i)
-				destroy_prefetch_work(work);
+			work->num_sge = i;
 			return false;
 		}
 
@@ -1865,6 +1863,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	srcu_key = srcu_read_lock(&dev->odp_srcu);
 	if (!init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge)) {
 		srcu_read_unlock(&dev->odp_srcu, srcu_key);
+		destroy_prefetch_work(work);
 		return -EINVAL;
 	}
 	queue_work(system_unbound_wq, &work->work);

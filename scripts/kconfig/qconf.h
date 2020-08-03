@@ -92,10 +92,6 @@ public:
 	{
 		return this;
 	}
-	ConfigItem* firstChild() const
-	{
-		return (ConfigItem *)children().first();
-	}
 	void addColumn(colIdx idx)
 	{
 		showColumn(idx);
