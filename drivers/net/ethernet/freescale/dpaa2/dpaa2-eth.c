@@ -2330,7 +2330,7 @@ static void cdan_cb(struct dpaa2_io_notification_ctx *ctx)
 	/* Update NAPI statistics */
 	ch->stats.cdan++;
 
-	napi_schedule_irqoff(&ch->napi);
+	napi_schedule(&ch->napi);
 }
 
 /* Allocate and configure a DPCON object */
