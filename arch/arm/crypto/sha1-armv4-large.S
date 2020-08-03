@@ -13,7 +13,7 @@
 @ Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
 @ project. The module is, however, dual licensed under OpenSSL and
 @ CRYPTOGAMS licenses depending on where you obtain it. For further
-@ details see http://www.openssl.org/~appro/cryptogams/.
+@ details see https://www.openssl.org/~appro/cryptogams/.
 @ ====================================================================
 
 @ sha1_block procedure for ARMv4.

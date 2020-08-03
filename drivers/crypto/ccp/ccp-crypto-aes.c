@@ -212,6 +212,7 @@ static const struct skcipher_alg ccp_aes_defaults = {
 	.init			= ccp_aes_init_tfm,
 
 	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_NEED_FALLBACK,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
@@ -229,6 +230,7 @@ static const struct skcipher_alg ccp_aes_rfc3686_defaults = {
 	.init			= ccp_aes_rfc3686_init_tfm,
 
 	.base.cra_flags		= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_NEED_FALLBACK,
 	.base.cra_blocksize	= CTR_RFC3686_BLOCK_SIZE,

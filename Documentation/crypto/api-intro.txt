@@ -169,7 +169,7 @@ Portions of this API were derived from the following projects:
 
 and;
   
-  Nettle (http://www.lysator.liu.se/~nisse/nettle/)
+  Nettle (https://www.lysator.liu.se/~nisse/nettle/)
     Niels Möller
 
 Original developers of the crypto algorithms:
