@@ -291,8 +291,7 @@ static bool nvme_available_path(struct nvme_ns_head *head)
 	return false;
 }
 
-static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
-		struct bio *bio)
+blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
 {
 	struct nvme_ns_head *head = bio->bi_disk->private_data;
 	struct device *dev = disk_to_dev(head->disk);
@@ -301,12 +300,11 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 	int srcu_idx;
 
 	/*
-	 * The namespace might be going away and the bio might
-	 * be moved to a different queue via blk_steal_bios(),
-	 * so we need to use the bio_split pool from the original
-	 * queue to allocate the bvecs from.
+	 * The namespace might be going away and the bio might be moved to a
+	 * different queue via blk_steal_bios(), so we need to use the bio_split
+	 * pool from the original queue to allocate the bvecs from.
 	 */
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	srcu_idx = srcu_read_lock(&head->srcu);
 	ns = nvme_find_path(head);
@@ -316,7 +314,7 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 		trace_block_bio_remap(bio->bi_disk->queue, bio,
 				      disk_devt(ns->head->disk),
 				      bio->bi_iter.bi_sector);
-		ret = direct_make_request(bio);
+		ret = submit_bio_noacct(bio);
 	} else if (nvme_available_path(head)) {
 		dev_warn_ratelimited(dev, "no usable path - requeuing I/O\n");
 
@@ -353,7 +351,7 @@ static void nvme_requeue_work(struct work_struct *work)
 		 * path.
 		 */
 		bio->bi_disk = head->disk;
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 }
 
@@ -375,7 +373,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	if (!(ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) || !multipath)
 		return 0;
 
-	q = blk_alloc_queue(nvme_ns_head_make_request, ctrl->numa_node);
+	q = blk_alloc_queue(ctrl->numa_node);
 	if (!q)
 		goto out;
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);

@@ -4,6 +4,8 @@
 
 #include <asm/dasd.h>
 
+struct gendisk;
+
 extern int dasd_biodasdinfo(struct gendisk *disk, dasd_information2_t *info);
 
 #endif

@@ -677,7 +677,7 @@ static void process_queued_bios(struct work_struct *work)
 			bio_endio(bio);
 			break;
 		case DM_MAPIO_REMAPPED:
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 			break;
 		case DM_MAPIO_SUBMITTED:
 			break;

@@ -1283,7 +1283,8 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
 		case NULL_Q_MQ:
-			blk_mq_complete_request(cmd->rq);
+			if (likely(!blk_should_fake_timeout(cmd->rq->q)))
+				blk_mq_complete_request(cmd->rq);
 			break;
 		case NULL_Q_BIO:
 			/*
@@ -1387,11 +1388,11 @@ static struct nullb_queue *nullb_to_queue(struct nullb *nullb)
 	return &nullb->queues[index];
 }
 
-static blk_qc_t null_queue_bio(struct request_queue *q, struct bio *bio)
+static blk_qc_t null_submit_bio(struct bio *bio)
 {
 	sector_t sector = bio->bi_iter.bi_sector;
 	sector_t nr_sectors = bio_sectors(bio);
-	struct nullb *nullb = q->queuedata;
+	struct nullb *nullb = bio->bi_disk->private_data;
 	struct nullb_queue *nq = nullb_to_queue(nullb);
 	struct nullb_cmd *cmd;
 
@@ -1423,7 +1424,7 @@ static bool should_requeue_request(struct request *rq)
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
 	pr_info("rq %p timed out\n", rq);
-	blk_mq_force_complete_rq(rq);
+	blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
 }
 
@@ -1574,7 +1575,13 @@ static void null_config_discard(struct nullb *nullb)
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nullb->q);
 }
 
-static const struct block_device_operations null_ops = {
+static const struct block_device_operations null_bio_ops = {
+	.owner		= THIS_MODULE,
+	.submit_bio	= null_submit_bio,
+	.report_zones	= null_report_zones,
+};
+
+static const struct block_device_operations null_rq_ops = {
 	.owner		= THIS_MODULE,
 	.report_zones	= null_report_zones,
 };
@@ -1646,7 +1653,10 @@ static int null_gendisk_register(struct nullb *nullb)
 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
 	disk->first_minor	= nullb->index;
-	disk->fops		= &null_ops;
+	if (queue_is_mq(nullb->q))
+		disk->fops		= &null_rq_ops;
+	else
+		disk->fops		= &null_bio_ops;
 	disk->private_data	= nullb;
 	disk->queue		= nullb->q;
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
@@ -1791,7 +1801,7 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_tags;
 		}
 	} else if (dev->queue_mode == NULL_Q_BIO) {
-		nullb->q = blk_alloc_queue(null_queue_bio, dev->home_node);
+		nullb->q = blk_alloc_queue(dev->home_node);
 		if (!nullb->q) {
 			rv = -ENOMEM;
 			goto out_cleanup_queues;
