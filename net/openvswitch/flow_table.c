@@ -38,8 +38,8 @@
 #define MASK_ARRAY_SIZE_MIN	16
 #define REHASH_INTERVAL		(10 * 60 * HZ)
 
+#define MC_DEFAULT_HASH_ENTRIES	256
 #define MC_HASH_SHIFT		8
-#define MC_HASH_ENTRIES		(1u << MC_HASH_SHIFT)
 #define MC_HASH_SEGS		((sizeof(uint32_t) * 8) / MC_HASH_SHIFT)
 
 static struct kmem_cache *flow_cache;
@@ -341,15 +341,79 @@ static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
 	}
 }
 
+static void __mask_cache_destroy(struct mask_cache *mc)
+{
+	free_percpu(mc->mask_cache);
+	kfree(mc);
+}
+
+static void mask_cache_rcu_cb(struct rcu_head *rcu)
+{
+	struct mask_cache *mc = container_of(rcu, struct mask_cache, rcu);
+
+	__mask_cache_destroy(mc);
+}
+
+static struct mask_cache *tbl_mask_cache_alloc(u32 size)
+{
+	struct mask_cache_entry __percpu *cache = NULL;
+	struct mask_cache *new;
+
+	/* Only allow size to be 0, or a power of 2, and does not exceed
+	 * percpu allocation size.
+	 */
+	if ((!is_power_of_2(size) && size != 0) ||
+	    (size * sizeof(struct mask_cache_entry)) > PCPU_MIN_UNIT_SIZE)
+		return NULL;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	new->cache_size = size;
+	if (new->cache_size > 0) {
+		cache = __alloc_percpu(array_size(sizeof(struct mask_cache_entry),
+						  new->cache_size),
+				       __alignof__(struct mask_cache_entry));
+		if (!cache) {
+			kfree(new);
+			return NULL;
+		}
+	}
+
+	new->mask_cache = cache;
+	return new;
+}
+int ovs_flow_tbl_masks_cache_resize(struct flow_table *table, u32 size)
+{
+	struct mask_cache *mc = rcu_dereference(table->mask_cache);
+	struct mask_cache *new;
+
+	if (size == mc->cache_size)
+		return 0;
+
+	if ((!is_power_of_2(size) && size != 0) ||
+	    (size * sizeof(struct mask_cache_entry)) > PCPU_MIN_UNIT_SIZE)
+		return -EINVAL;
+
+	new = tbl_mask_cache_alloc(size);
+	if (!new)
+		return -ENOMEM;
+
+	rcu_assign_pointer(table->mask_cache, new);
+	call_rcu(&mc->rcu, mask_cache_rcu_cb);
+
+	return 0;
+}
+
 int ovs_flow_tbl_init(struct flow_table *table)
 {
 	struct table_instance *ti, *ufid_ti;
+	struct mask_cache *mc;
 	struct mask_array *ma;
 
-	table->mask_cache = __alloc_percpu(sizeof(struct mask_cache_entry) *
-					   MC_HASH_ENTRIES,
-					   __alignof__(struct mask_cache_entry));
-	if (!table->mask_cache)
+	mc = tbl_mask_cache_alloc(MC_DEFAULT_HASH_ENTRIES);
+	if (!mc)
 		return -ENOMEM;
 
 	ma = tbl_mask_array_alloc(MASK_ARRAY_SIZE_MIN);
@@ -367,6 +431,7 @@ int ovs_flow_tbl_init(struct flow_table *table)
 	rcu_assign_pointer(table->ti, ti);
 	rcu_assign_pointer(table->ufid_ti, ufid_ti);
 	rcu_assign_pointer(table->mask_array, ma);
+	rcu_assign_pointer(table->mask_cache, mc);
 	table->last_rehash = jiffies;
 	table->count = 0;
 	table->ufid_count = 0;
@@ -377,7 +442,7 @@ free_ti:
 free_mask_array:
 	__mask_array_destroy(ma);
 free_mask_cache:
-	free_percpu(table->mask_cache);
+	__mask_cache_destroy(mc);
 	return -ENOMEM;
 }
 
@@ -453,9 +518,11 @@ void ovs_flow_tbl_destroy(struct flow_table *table)
 {
 	struct table_instance *ti = rcu_dereference_raw(table->ti);
 	struct table_instance *ufid_ti = rcu_dereference_raw(table->ufid_ti);
+	struct mask_cache *mc = rcu_dereference(table->mask_cache);
+	struct mask_array *ma = rcu_dereference_ovsl(table->mask_array);
 
-	free_percpu(table->mask_cache);
-	call_rcu(&table->mask_array->rcu, mask_array_rcu_cb);
+	call_rcu(&mc->rcu, mask_cache_rcu_cb);
+	call_rcu(&ma->rcu, mask_array_rcu_cb);
 	table_instance_destroy(table, ti, ufid_ti, false);
 }
 
@@ -667,6 +734,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				   struct mask_array *ma,
 				   const struct sw_flow_key *key,
 				   u32 *n_mask_hit,
+				   u32 *n_cache_hit,
 				   u32 *index)
 {
 	u64 *usage_counters = this_cpu_ptr(ma->masks_usage_cntr);
@@ -682,6 +750,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				u64_stats_update_begin(&ma->syncp);
 				usage_counters[*index]++;
 				u64_stats_update_end(&ma->syncp);
+				(*n_cache_hit)++;
 				return flow;
 			}
 		}
@@ -719,8 +788,10 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 					  const struct sw_flow_key *key,
 					  u32 skb_hash,
-					  u32 *n_mask_hit)
+					  u32 *n_mask_hit,
+					  u32 *n_cache_hit)
 {
+	struct mask_cache *mc = rcu_dereference(tbl->mask_cache);
 	struct mask_array *ma = rcu_dereference(tbl->mask_array);
 	struct table_instance *ti = rcu_dereference(tbl->ti);
 	struct mask_cache_entry *entries, *ce;
@@ -729,10 +800,13 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 	int seg;
 
 	*n_mask_hit = 0;
-	if (unlikely(!skb_hash)) {
+	*n_cache_hit = 0;
+	if (unlikely(!skb_hash || mc->cache_size == 0)) {
 		u32 mask_index = 0;
+		u32 cache = 0;
 
-		return flow_lookup(tbl, ti, ma, key, n_mask_hit, &mask_index);
+		return flow_lookup(tbl, ti, ma, key, n_mask_hit, &cache,
+				   &mask_index);
 	}
 
 	/* Pre and post recirulation flows usually have the same skb_hash
@@ -743,17 +817,17 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 
 	ce = NULL;
 	hash = skb_hash;
-	entries = this_cpu_ptr(tbl->mask_cache);
+	entries = this_cpu_ptr(mc->mask_cache);
 
 	/* Find the cache entry 'ce' to operate on. */
 	for (seg = 0; seg < MC_HASH_SEGS; seg++) {
-		int index = hash & (MC_HASH_ENTRIES - 1);
+		int index = hash & (mc->cache_size - 1);
 		struct mask_cache_entry *e;
 
 		e = &entries[index];
 		if (e->skb_hash == skb_hash) {
 			flow = flow_lookup(tbl, ti, ma, key, n_mask_hit,
-					   &e->mask_index);
+					   n_cache_hit, &e->mask_index);
 			if (!flow)
 				e->skb_hash = 0;
 			return flow;
@@ -766,10 +840,12 @@ struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 	}
 
 	/* Cache miss, do full lookup. */
-	flow = flow_lookup(tbl, ti, ma, key, n_mask_hit, &ce->mask_index);
+	flow = flow_lookup(tbl, ti, ma, key, n_mask_hit, n_cache_hit,
+			   &ce->mask_index);
 	if (flow)
 		ce->skb_hash = skb_hash;
 
+	*n_cache_hit = 0;
 	return flow;
 }
 
@@ -779,9 +855,10 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 	struct table_instance *ti = rcu_dereference_ovsl(tbl->ti);
 	struct mask_array *ma = rcu_dereference_ovsl(tbl->mask_array);
 	u32 __always_unused n_mask_hit;
+	u32 __always_unused n_cache_hit;
 	u32 index = 0;
 
-	return flow_lookup(tbl, ti, ma, key, &n_mask_hit, &index);
+	return flow_lookup(tbl, ti, ma, key, &n_mask_hit, &n_cache_hit, &index);
 }
 
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,
@@ -856,6 +933,13 @@ int ovs_flow_tbl_num_masks(const struct flow_table *table)
 {
 	struct mask_array *ma = rcu_dereference_ovsl(table->mask_array);
 	return READ_ONCE(ma->count);
+}
+
+u32 ovs_flow_tbl_masks_cache_size(const struct flow_table *table)
+{
+	struct mask_cache *mc = rcu_dereference(table->mask_cache);
+
+	return READ_ONCE(mc->cache_size);
 }
 
 static struct table_instance *table_instance_expand(struct table_instance *ti,
@@ -1086,8 +1170,8 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 	for (i = 0; i < masks_entries; i++) {
 		int index = masks_and_count[i].index;
 
-		new->masks[new->count++] =
-			rcu_dereference_ovsl(ma->masks[index]);
+		if (ovsl_dereference(ma->masks[index]))
+			new->masks[new->count++] = ma->masks[index];
 	}
 
 	rcu_assign_pointer(table->mask_array, new);
