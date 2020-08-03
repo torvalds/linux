@@ -2965,10 +2965,6 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	if (!wake_page_match(wpq, key))
 		return 0;
 
-	/* Stop waking things up if the page is locked again */
-	if (test_bit(key->bit_nr, &key->page->flags))
-		return -1;
-
 	list_del_init(&wait->entry);
 
 	init_task_work(&req->task_work, io_req_task_submit);
