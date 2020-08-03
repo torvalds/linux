@@ -39,6 +39,20 @@ Mount file system with tag ``myfs`` on ``/mnt``:
 Please see https://virtio-fs.gitlab.io/ for details on how to configure QEMU
 and the virtiofsd daemon.
 
+Mount options
+-------------
+
+virtiofs supports general VFS mount options, for example, remount,
+ro, rw, context, etc. It also supports FUSE mount options.
+
+atime behavior
+^^^^^^^^^^^^^^
+
+The atime-related mount options, for example, noatime, strictatime,
+are ignored. The atime behavior for virtiofs is the same as the
+underlying filesystem of the directory that has been exported
+on the host.
+
 Internals
 =========
 Since the virtio-fs device uses the FUSE protocol for file system requests, the

@@ -51,6 +51,10 @@ static int spi_mux_select(struct spi_device *spi)
 	struct spi_mux_priv *priv = spi_controller_get_devdata(spi->controller);
 	int ret;
 
+	ret = mux_control_select(priv->mux, spi->chip_select);
+	if (ret)
+		return ret;
+
 	if (priv->current_cs == spi->chip_select)
 		return 0;
 
@@ -61,10 +65,6 @@ static int spi_mux_select(struct spi_device *spi)
 	priv->spi->max_speed_hz = spi->max_speed_hz;
 	priv->spi->mode = spi->mode;
 	priv->spi->bits_per_word = spi->bits_per_word;
-
-	ret = mux_control_select(priv->mux, spi->chip_select);
-	if (ret)
-		return ret;
 
 	priv->current_cs = spi->chip_select;
 

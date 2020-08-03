@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2020 Texas Instruments Incorporated
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/bq27xxx.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: TI BQ27XXX fuel gauge family
+
+maintainers:
+  - Pali Rohár <pali@kernel.org>
+  - Andrew F. Davis <afd@ti.com>
+  - Sebastian Reichel <sre@kernel.org>
+
+description: |
+  Support various Texas Instruments fuel gauge devices that share similar
+  register maps and power supply properties
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,bq27200
+      - ti,bq27210
+      - ti,bq27500 # deprecated, use revision specific property below
+      - ti,bq27510 # deprecated, use revision specific property below
+      - ti,bq27520 # deprecated, use revision specific property below
+      - ti,bq27500-1
+      - ti,bq27510g1
+      - ti,bq27510g2
+      - ti,bq27510g3
+      - ti,bq27520g1
+      - ti,bq27520g2
+      - ti,bq27520g3
+      - ti,bq27520g4
+      - ti,bq27521
+      - ti,bq27530
+      - ti,bq27531
+      - ti,bq27541
+      - ti,bq27542
+      - ti,bq27546
+      - ti,bq27742
+      - ti,bq27545
+      - ti,bq27411
+      - ti,bq27421
+      - ti,bq27425
+      - ti,bq27426
+      - ti,bq27441
+      - ti,bq27621
+
+  reg:
+    maxItems: 1
+    description: integer, I2C address of the fuel gauge.
+
+  monitored-battery:
+    description: |
+       phandle of battery characteristics node.
+       The fuel gauge uses the following battery properties:
+       - energy-full-design-microwatt-hours
+       - charge-full-design-microamp-hours
+       - voltage-min-design-microvolt
+       Both or neither of the *-full-design-*-hours properties must be set.
+       See Documentation/devicetree/bindings/power/supply/battery.txt
+
+  power-supplies: true
+
+required:
+  - compatible
+  - reg
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      bat: battery {
+        compatible = "simple-battery";
+        voltage-min-design-microvolt = <3200000>;
+        energy-full-design-microwatt-hours = <5290000>;
+        charge-full-design-microamp-hours = <1430000>;
+      };
+
+      bq27510g3: fuel-gauge@55 {
+        compatible = "ti,bq27510g3";
+        reg = <0x55>;
+        monitored-battery = <&bat>;
+      };
+    };

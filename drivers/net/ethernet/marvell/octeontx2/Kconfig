@@ -21,7 +21,7 @@ config NDC_DIS_DYNAMIC_CACHING
 	bool "Disable caching of dynamic entries in NDC"
 	depends on OCTEONTX2_AF
 	default n
-	---help---
+	help
 	  This config option disables caching of dynamic entries such as NIX SQEs
 	  , NPA stack pages etc in NDC. Also locks down NIX SQ/CQ/RQ/RSS and
 	  NPA Aura/Pool contexts.

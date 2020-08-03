@@ -83,6 +83,8 @@ struct mod_freesync_config {
 	bool btr;
 	unsigned int min_refresh_in_uhz;
 	unsigned int max_refresh_in_uhz;
+	unsigned int fixed_refresh_in_uhz;
+
 };
 
 struct mod_vrr_params_btr {
@@ -112,6 +114,7 @@ struct mod_vrr_params {
 	uint32_t max_duration_in_us;
 	uint32_t max_refresh_in_uhz;
 	uint32_t min_duration_in_us;
+	uint32_t fixed_refresh_in_uhz;
 
 	struct dc_crtc_timing_adjust adjust;
 

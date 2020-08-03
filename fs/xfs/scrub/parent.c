@@ -90,7 +90,7 @@ xchk_parent_count_parent_dentries(
 	 * if there is one.
 	 */
 	lock_mode = xfs_ilock_data_map_shared(parent);
-	if (parent->i_d.di_nextents > 0)
+	if (parent->i_df.if_nextents > 0)
 		error = xfs_dir3_data_readahead(parent, 0, 0);
 	xfs_iunlock(parent, lock_mode);
 	if (error)

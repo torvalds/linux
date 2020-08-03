@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/hashtable.h>
+#include <asm/chsc.h>
 #include <asm/setup.h>
 #include "qeth_core.h"
 #include "qeth_l2.h"
@@ -27,8 +28,8 @@
 static void qeth_bridgeport_query_support(struct qeth_card *card);
 static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
-static void qeth_bridge_host_event(struct qeth_card *card,
-					struct qeth_ipa_cmd *cmd);
+static void qeth_addr_change_event(struct qeth_card *card,
+				   struct qeth_ipa_cmd *cmd);
 static void qeth_l2_vnicc_set_defaults(struct qeth_card *card);
 static void qeth_l2_vnicc_init(struct qeth_card *card);
 static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
@@ -291,6 +292,7 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
+	qeth_flush_local_addrs(card);
 	card->info.promisc_mode = 0;
 }
 
@@ -628,6 +630,72 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 	schedule_work(&card->rx_mode_work);
 }
 
+/**
+ *	qeth_l2_pnso() - perform network subchannel operation
+ *	@card: qeth_card structure pointer
+ *	@cnc: Boolean Change-Notification Control
+ *	@cb: Callback function will be executed for each element
+ *		of the address list
+ *	@priv: Pointer to pass to the callback function.
+ *
+ *	Collects network information in a network address list and calls the
+ *	callback function for every entry in the list. If "change-notification-
+ *	control" is set, further changes in the address list will be reported
+ *	via the IPA command.
+ */
+static int qeth_l2_pnso(struct qeth_card *card, int cnc,
+			void (*cb)(void *priv, struct chsc_pnso_naid_l2 *entry),
+			void *priv)
+{
+	struct ccw_device *ddev = CARD_DDEV(card);
+	struct chsc_pnso_area *rr;
+	u32 prev_instance = 0;
+	int isfirstblock = 1;
+	int i, size, elems;
+	int rc;
+
+	QETH_CARD_TEXT(card, 2, "PNSO");
+	rr = (struct chsc_pnso_area *)get_zeroed_page(GFP_KERNEL);
+	if (rr == NULL)
+		return -ENOMEM;
+	do {
+		/* on the first iteration, naihdr.resume_token will be zero */
+		rc = ccw_device_pnso(ddev, rr, rr->naihdr.resume_token, cnc);
+		if (rc)
+			continue;
+		if (cb == NULL)
+			continue;
+
+		size = rr->naihdr.naids;
+		if (size != sizeof(struct chsc_pnso_naid_l2)) {
+			WARN_ON_ONCE(1);
+			continue;
+		}
+
+		elems = (rr->response.length - sizeof(struct chsc_header) -
+			 sizeof(struct chsc_pnso_naihdr)) / size;
+
+		if (!isfirstblock && (rr->naihdr.instance != prev_instance)) {
+			/* Inform the caller that they need to scrap */
+			/* the data that was already reported via cb */
+			rc = -EAGAIN;
+			break;
+		}
+		isfirstblock = 0;
+		prev_instance = rr->naihdr.instance;
+		for (i = 0; i < elems; i++)
+			(*cb)(priv, &rr->entries[i]);
+	} while ((rc == -EBUSY) || (!rc && /* list stored */
+		   /* resume token is non-zero => list incomplete */
+		   (rr->naihdr.resume_token.t1 || rr->naihdr.resume_token.t2)));
+
+	if (rc)
+		QETH_CARD_TEXT_(card, 2, "PNrp%04x", rr->response.code);
+
+	free_page((unsigned long)rr);
+	return rc;
+}
+
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -709,6 +777,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 
 	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		card->dev->needed_headroom = sizeof(struct qeth_hdr_tso);
+		netif_keep_dst(card->dev);
 		netif_set_gso_max_size(card->dev,
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
@@ -854,7 +923,7 @@ static int qeth_l2_control_event(struct qeth_card *card,
 		} else
 			return 1;
 	case IPA_CMD_ADDRESS_CHANGE_NOTIF:
-		qeth_bridge_host_event(card, cmd);
+		qeth_addr_change_event(card, cmd);
 		return 0;
 	default:
 		return 1;
@@ -971,8 +1040,10 @@ enum qeth_an_event_type {anev_reg_unreg, anev_abort, anev_reset};
  * for all currently registered addresses.
  */
 static void qeth_bridge_emit_host_event(struct qeth_card *card,
-	enum qeth_an_event_type evtype,
-	u8 code, struct net_if_token *token, struct mac_addr_lnid *addr_lnid)
+					enum qeth_an_event_type evtype,
+					u8 code,
+					struct net_if_token *token,
+					struct mac_addr_lnid *addr_lnid)
 {
 	char str[7][32];
 	char *env[8];
@@ -1089,74 +1160,76 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 	queue_work(card->event_wq, &data->worker);
 }
 
-struct qeth_bridge_host_data {
+struct qeth_addr_change_data {
 	struct work_struct worker;
 	struct qeth_card *card;
-	struct qeth_ipacmd_addr_change hostevs;
+	struct qeth_ipacmd_addr_change ac_event;
 };
 
-static void qeth_bridge_host_event_worker(struct work_struct *work)
+static void qeth_addr_change_event_worker(struct work_struct *work)
 {
-	struct qeth_bridge_host_data *data =
-		container_of(work, struct qeth_bridge_host_data, worker);
+	struct qeth_addr_change_data *data =
+		container_of(work, struct qeth_addr_change_data, worker);
 	int i;
 
-	if (data->hostevs.lost_event_mask) {
+	QETH_CARD_TEXT(data->card, 4, "adrchgew");
+	if (data->ac_event.lost_event_mask) {
 		dev_info(&data->card->gdev->dev,
-"Address notification from the Bridge Port stopped %s (%s)\n",
-			data->card->dev->name,
-			(data->hostevs.lost_event_mask == 0x01)
+			 "Address change notification stopped on %s (%s)\n",
+			 data->card->dev->name,
+			(data->ac_event.lost_event_mask == 0x01)
 			? "Overflow"
-			: (data->hostevs.lost_event_mask == 0x02)
+			: (data->ac_event.lost_event_mask == 0x02)
 			? "Bridge port state change"
 			: "Unknown reason");
 		mutex_lock(&data->card->sbp_lock);
 		data->card->options.sbp.hostnotification = 0;
 		mutex_unlock(&data->card->sbp_lock);
 		qeth_bridge_emit_host_event(data->card, anev_abort,
-			0, NULL, NULL);
+					    0, NULL, NULL);
 	} else
-		for (i = 0; i < data->hostevs.num_entries; i++) {
+		for (i = 0; i < data->ac_event.num_entries; i++) {
 			struct qeth_ipacmd_addr_change_entry *entry =
-					&data->hostevs.entry[i];
+					&data->ac_event.entry[i];
 			qeth_bridge_emit_host_event(data->card,
-					anev_reg_unreg,
-					entry->change_code,
-					&entry->token, &entry->addr_lnid);
+						    anev_reg_unreg,
+						    entry->change_code,
+						    &entry->token,
+						    &entry->addr_lnid);
 		}
 	kfree(data);
 }
 
-static void qeth_bridge_host_event(struct qeth_card *card,
-					struct qeth_ipa_cmd *cmd)
+static void qeth_addr_change_event(struct qeth_card *card,
+				   struct qeth_ipa_cmd *cmd)
 {
 	struct qeth_ipacmd_addr_change *hostevs =
 		 &cmd->data.addrchange;
-	struct qeth_bridge_host_data *data;
+	struct qeth_addr_change_data *data;
 	int extrasize;
 
-	QETH_CARD_TEXT(card, 2, "brhostev");
+	QETH_CARD_TEXT(card, 4, "adrchgev");
 	if (cmd->hdr.return_code != 0x0000) {
 		if (cmd->hdr.return_code == 0x0010) {
 			if (hostevs->lost_event_mask == 0x00)
 				hostevs->lost_event_mask = 0xff;
 		} else {
-			QETH_CARD_TEXT_(card, 2, "BPHe%04x",
+			QETH_CARD_TEXT_(card, 2, "ACHN%04x",
 				cmd->hdr.return_code);
 			return;
 		}
 	}
 	extrasize = sizeof(struct qeth_ipacmd_addr_change_entry) *
 						hostevs->num_entries;
-	data = kzalloc(sizeof(struct qeth_bridge_host_data) + extrasize,
-		GFP_ATOMIC);
+	data = kzalloc(sizeof(struct qeth_addr_change_data) + extrasize,
+		       GFP_ATOMIC);
 	if (!data) {
-		QETH_CARD_TEXT(card, 2, "BPHalloc");
+		QETH_CARD_TEXT(card, 2, "ACNalloc");
 		return;
 	}
-	INIT_WORK(&data->worker, qeth_bridge_host_event_worker);
+	INIT_WORK(&data->worker, qeth_addr_change_event_worker);
 	data->card = card;
-	memcpy(&data->hostevs, hostevs,
+	memcpy(&data->ac_event, hostevs,
 			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
 	queue_work(card->event_wq, &data->worker);
 }
@@ -1446,63 +1519,18 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 	return qeth_send_ipa_cmd(card, iob, qeth_bridgeport_set_cb, NULL);
 }
 
-/**
- * qeth_anset_makerc() - derive "traditional" error from hardware codes.
- * @card:		      qeth_card structure pointer, for debug messages.
- *
- * Returns negative errno-compatible error indication or 0 on success.
- */
-static int qeth_anset_makerc(struct qeth_card *card, int pnso_rc, u16 response)
-{
-	int rc;
-
-	if (pnso_rc == 0)
-		switch (response) {
-		case 0x0001:
-			rc = 0;
-			break;
-		case 0x0004:
-		case 0x0100:
-		case 0x0106:
-			rc = -EOPNOTSUPP;
-			dev_err(&card->gdev->dev,
-				"Setting address notification failed\n");
-			break;
-		case 0x0107:
-			rc = -EAGAIN;
-			break;
-		default:
-			rc = -EIO;
-		}
-	else
-		rc = -EIO;
-
-	if (rc) {
-		QETH_CARD_TEXT_(card, 2, "SBPp%04x", pnso_rc);
-		QETH_CARD_TEXT_(card, 2, "SBPr%04x", response);
-	}
-	return rc;
-}
-
 static void qeth_bridgeport_an_set_cb(void *priv,
-		enum qdio_brinfo_entry_type type, void *entry)
+				      struct chsc_pnso_naid_l2 *entry)
 {
 	struct qeth_card *card = (struct qeth_card *)priv;
-	struct qdio_brinfo_entry_l2 *l2entry;
 	u8 code;
 
-	if (type != l2_addr_lnid) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
-	l2entry = (struct qdio_brinfo_entry_l2 *)entry;
 	code = IPA_ADDR_CHANGE_CODE_MACADDR;
-	if (l2entry->addr_lnid.lnid < VLAN_N_VID)
+	if (entry->addr_lnid.lnid < VLAN_N_VID)
 		code |= IPA_ADDR_CHANGE_CODE_VLANID;
 	qeth_bridge_emit_host_event(card, anev_reg_unreg, code,
-		(struct net_if_token *)&l2entry->nit,
-		(struct mac_addr_lnid *)&l2entry->addr_lnid);
+				    (struct net_if_token *)&entry->nit,
+				    (struct mac_addr_lnid *)&entry->addr_lnid);
 }
 
 /**
@@ -1518,22 +1546,16 @@ static void qeth_bridgeport_an_set_cb(void *priv,
 int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 {
 	int rc;
-	u16 response;
-	struct ccw_device *ddev;
-	struct subchannel_id schid;
 
 	if (!card->options.sbp.supported_funcs)
 		return -EOPNOTSUPP;
-	ddev = CARD_DDEV(card);
-	ccw_device_get_schid(ddev, &schid);
 
 	if (enable) {
 		qeth_bridge_emit_host_event(card, anev_reset, 0, NULL, NULL);
-		rc = qdio_pnso_brinfo(schid, 1, &response,
-			qeth_bridgeport_an_set_cb, card);
+		rc = qeth_l2_pnso(card, 1, qeth_bridgeport_an_set_cb, card);
 	} else
-		rc = qdio_pnso_brinfo(schid, 0, &response, NULL, NULL);
-	return qeth_anset_makerc(card, rc, response);
+		rc = qeth_l2_pnso(card, 0, NULL, NULL);
+	return rc;
 }
 
 static bool qeth_bridgeport_is_in_use(struct qeth_card *card)

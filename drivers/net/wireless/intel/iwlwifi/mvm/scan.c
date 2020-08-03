@@ -2051,40 +2051,6 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwl_mvm_scan_umac_v13(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				 struct iwl_mvm_scan_params *params, int type,
-				 int uid)
-{
-	struct iwl_scan_req_umac_v13 *cmd = mvm->scan_cmd;
-	struct iwl_scan_req_params_v13 *scan_p = &cmd->scan_params;
-	int ret;
-	u16 gen_flags;
-	u32 bitmap_ssid = 0;
-
-	mvm->scan_uid_status[uid] = type;
-
-	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
-	cmd->uid = cpu_to_le32(uid);
-
-	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
-	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
-					     &scan_p->general_params,
-					     gen_flags);
-
-	 ret = iwl_mvm_fill_scan_sched_params(params,
-					      scan_p->periodic_params.schedule,
-					      &scan_p->periodic_params.delay);
-	if (ret)
-		return ret;
-
-	iwl_mvm_scan_umac_fill_probe_p_v4(params, &scan_p->probe_params,
-					  &bitmap_ssid);
-	iwl_mvm_scan_umac_fill_ch_p_v4(mvm, params, vif,
-				       &scan_p->channel_params, bitmap_ssid);
-
-	return 0;
-}
-
 static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 struct iwl_mvm_scan_params *params, int type,
 				 int uid)
@@ -2235,7 +2201,6 @@ struct iwl_scan_umac_handler {
 static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
 	/* set the newest version first to shorten the list traverse time */
 	IWL_SCAN_UMAC_HANDLER(14),
-	IWL_SCAN_UMAC_HANDLER(13),
 	IWL_SCAN_UMAC_HANDLER(12),
 };
 
@@ -2263,8 +2228,8 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 
 	hcmd->id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
 
-	scan_ver = iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					  SCAN_REQ_UMAC);
+	scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					 SCAN_REQ_UMAC);
 
 	for (i = 0; i < ARRAY_SIZE(iwl_scan_umac_handlers); i++) {
 		const struct iwl_scan_umac_handler *ver_handler =
@@ -2594,7 +2559,6 @@ static int iwl_scan_req_umac_get_size(u8 scan_ver)
 {
 	switch (scan_ver) {
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(14);
-		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(13);
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(12);
 	}
 
@@ -2604,8 +2568,8 @@ static int iwl_scan_req_umac_get_size(u8 scan_ver)
 int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
 	int base_size, tail_size;
-	u8 scan_ver = iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					     SCAN_REQ_UMAC);
+	u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					    SCAN_REQ_UMAC);
 
 	base_size = iwl_scan_req_umac_get_size(scan_ver);
 	if (base_size)

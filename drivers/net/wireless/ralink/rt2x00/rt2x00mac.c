@@ -468,7 +468,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (!rt2x00_has_cap_hw_crypto(rt2x00dev))
+	/* The hardware can't do MFP */
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || (sta && sta->mfp))
 		return -EOPNOTSUPP;
 
 	/*

@@ -8,6 +8,27 @@
 
 #include "core.h"
 
+static int
+s25fs_s_post_bfpt_fixups(struct spi_nor *nor,
+			 const struct sfdp_parameter_header *bfpt_header,
+			 const struct sfdp_bfpt *bfpt,
+			 struct spi_nor_flash_parameter *params)
+{
+	/*
+	 * The S25FS-S chip family reports 512-byte pages in BFPT but
+	 * in reality the write buffer still wraps at the safe default
+	 * of 256 bytes.  Overwrite the page size advertised by BFPT
+	 * to get the writes working.
+	 */
+	params->page_size = 256;
+
+	return 0;
+}
+
+static struct spi_nor_fixups s25fs_s_fixups = {
+	.post_bfpt = s25fs_s_post_bfpt_fixups,
+};
+
 static const struct flash_info spansion_parts[] = {
 	/* Spansion/Cypress -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
@@ -22,16 +43,27 @@ static const struct flash_info spansion_parts[] = {
 	{ "s25fl128s1", INFO6(0x012018, 0x4d0180, 64 * 1024, 256,
 			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			      USE_CLSR) },
-	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, USE_CLSR) },
-	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512,
-			     SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			     USE_CLSR) },
+	{ "s25fl256s0", INFO6(0x010219, 0x4d0080, 256 * 1024, 128,
+			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			      USE_CLSR) },
+	{ "s25fl256s1", INFO6(0x010219, 0x4d0180, 64 * 1024, 512,
+			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			      USE_CLSR) },
 	{ "s25fl512s",  INFO6(0x010220, 0x4d0080, 256 * 1024, 256,
 			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			      SPI_NOR_HAS_LOCK | USE_CLSR) },
-	{ "s25fs512s",  INFO6(0x010220, 0x4d0081, 256 * 1024, 256,
+	{ "s25fs128s1", INFO6(0x012018, 0x4d0181, 64 * 1024, 256,
+			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR)
+	  .fixups = &s25fs_s_fixups, },
+	{ "s25fs256s0", INFO6(0x010219, 0x4d0081, 256 * 1024, 128,
 			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			      USE_CLSR) },
+	{ "s25fs256s1", INFO6(0x010219, 0x4d0181, 64 * 1024, 512,
+			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			      USE_CLSR) },
+	{ "s25fs512s",  INFO6(0x010220, 0x4d0081, 256 * 1024, 256,
+			      SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR)
+	  .fixups = &s25fs_s_fixups, },
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
@@ -70,6 +102,8 @@ static const struct flash_info spansion_parts[] = {
 	{ "s25fl256l",  INFO(0x016019,      0,  64 * 1024, 512,
 			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			     SPI_NOR_4B_OPCODES) },
+	{ "cy15x104q",  INFO6(0x042cc2, 0x7f7f7f, 512 * 1024, 1,
+			      SPI_NOR_NO_ERASE) },
 };
 
 static void spansion_post_sfdp_fixups(struct spi_nor *nor)

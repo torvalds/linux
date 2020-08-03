@@ -211,10 +211,8 @@ static int jz4780_efuse_probe(struct platform_device *pdev)
 	cfg.priv = efuse;
 
 	nvmem = devm_nvmem_register(dev, &cfg);
-	if (IS_ERR(nvmem))
-		return PTR_ERR(nvmem);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(nvmem);
 }
 
 static const struct of_device_id jz4780_efuse_match[] = {

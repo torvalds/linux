@@ -72,6 +72,8 @@
 
 #include <trace/events/sched.h>
 
+static int bprm_creds_from_file(struct linux_binprm *bprm);
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
@@ -250,7 +252,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 		return -ENOMEM;
 	vma_set_anonymous(vma);
 
-	if (down_write_killable(&mm->mmap_sem)) {
+	if (mmap_write_lock_killable(mm)) {
 		err = -EINTR;
 		goto err_free;
 	}
@@ -272,11 +274,11 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 		goto err;
 
 	mm->stack_vm = mm->total_vm = 1;
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	bprm->p = vma->vm_end - sizeof(void *);
 	return 0;
 err:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 err_free:
 	bprm->vma = NULL;
 	vm_area_free(vma);
@@ -588,24 +590,48 @@ out:
 }
 
 /*
- * Like copy_strings, but get argv and its values from kernel memory.
+ * Copy and argument/environment string from the kernel to the processes stack.
  */
-int copy_strings_kernel(int argc, const char *const *__argv,
-			struct linux_binprm *bprm)
+int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 {
-	int r;
-	mm_segment_t oldfs = get_fs();
-	struct user_arg_ptr argv = {
-		.ptr.native = (const char __user *const  __user *)__argv,
-	};
+	int len = strnlen(arg, MAX_ARG_STRLEN) + 1 /* terminating NUL */;
+	unsigned long pos = bprm->p;
 
-	set_fs(KERNEL_DS);
-	r = copy_strings(argc, argv, bprm);
-	set_fs(oldfs);
+	if (len == 0)
+		return -EFAULT;
+	if (!valid_arg_len(bprm, len))
+		return -E2BIG;
 
-	return r;
+	/* We're going to work our way backwards. */
+	arg += len;
+	bprm->p -= len;
+	if (IS_ENABLED(CONFIG_MMU) && bprm->p < bprm->argmin)
+		return -E2BIG;
+
+	while (len > 0) {
+		unsigned int bytes_to_copy = min_t(unsigned int, len,
+				min_not_zero(offset_in_page(pos), PAGE_SIZE));
+		struct page *page;
+		char *kaddr;
+
+		pos -= bytes_to_copy;
+		arg -= bytes_to_copy;
+		len -= bytes_to_copy;
+
+		page = get_arg_page(bprm, pos, 1);
+		if (!page)
+			return -E2BIG;
+		kaddr = kmap_atomic(page);
+		flush_arg_page(bprm, pos & PAGE_MASK, page);
+		memcpy(kaddr + offset_in_page(pos), arg, bytes_to_copy);
+		flush_kernel_dcache_page(page);
+		kunmap_atomic(kaddr);
+		put_arg_page(page);
+	}
+
+	return 0;
 }
-EXPORT_SYMBOL(copy_strings_kernel);
+EXPORT_SYMBOL(copy_string_kernel);
 
 #ifdef CONFIG_MMU
 
@@ -737,7 +763,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		bprm->loader -= stack_shift;
 	bprm->exec -= stack_shift;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	vm_flags = VM_STACK_FLAGS;
@@ -799,7 +825,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		ret = -EFAULT;
 
 out_unlock:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 EXPORT_SYMBOL(setup_arg_pages);
@@ -1027,14 +1053,17 @@ out:
 }
 EXPORT_SYMBOL_GPL(kernel_read_file_from_fd);
 
+#if defined(CONFIG_HAVE_AOUT) || defined(CONFIG_BINFMT_FLAT) || \
+    defined(CONFIG_BINFMT_ELF_FDPIC)
 ssize_t read_code(struct file *file, unsigned long addr, loff_t pos, size_t len)
 {
 	ssize_t res = vfs_read(file, (void __user *)addr, len, &pos);
 	if (res > 0)
-		flush_icache_range(addr, addr + len);
+		flush_icache_user_range(addr, addr + len);
 	return res;
 }
 EXPORT_SYMBOL(read_code);
+#endif
 
 /*
  * Maps the mm_struct mm into the current task struct.
@@ -1051,22 +1080,23 @@ static int exec_mmap(struct mm_struct *mm)
 	tsk = current;
 	old_mm = current->mm;
 	exec_mm_release(tsk, old_mm);
+	if (old_mm)
+		sync_mm_rss(old_mm);
 
 	ret = mutex_lock_killable(&tsk->signal->exec_update_mutex);
 	if (ret)
 		return ret;
 
 	if (old_mm) {
-		sync_mm_rss(old_mm);
 		/*
 		 * Make sure that if there is a core dump in progress
 		 * for the old mm, we get out and die instead of going
-		 * through with the exec.  We must hold mmap_sem around
+		 * through with the exec.  We must hold mmap_lock around
 		 * checking core_state and changing tsk->mm.
 		 */
-		down_read(&old_mm->mmap_sem);
+		mmap_read_lock(old_mm);
 		if (unlikely(old_mm->core_state)) {
-			up_read(&old_mm->mmap_sem);
+			mmap_read_unlock(old_mm);
 			mutex_unlock(&tsk->signal->exec_update_mutex);
 			return -EINTR;
 		}
@@ -1082,7 +1112,7 @@ static int exec_mmap(struct mm_struct *mm)
 	vmacache_flush(tsk);
 	task_unlock(tsk);
 	if (old_mm) {
-		up_read(&old_mm->mmap_sem);
+		mmap_read_unlock(old_mm);
 		BUG_ON(active_mm != old_mm);
 		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
 		mm_update_next_owner(old_mm);
@@ -1093,12 +1123,6 @@ static int exec_mmap(struct mm_struct *mm)
 	return 0;
 }
 
-/*
- * This function makes sure the current process has its own signal table,
- * so that flush_signal_handlers can later reset the handlers without
- * disturbing other processes.  (Other processes might share the signal
- * table via the CLONE_SIGHAND option to clone().)
- */
 static int de_thread(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
@@ -1176,7 +1200,6 @@ static int de_thread(struct task_struct *tsk)
 		tsk->start_boottime = leader->start_boottime;
 
 		BUG_ON(!same_thread_group(leader, tsk));
-		BUG_ON(has_group_leader_pid(tsk));
 		/*
 		 * An exec() starts a new thread group with the
 		 * TGID of the previous thread group. Rehash the
@@ -1186,11 +1209,8 @@ static int de_thread(struct task_struct *tsk)
 
 		/* Become a process group leader with the old leader's pid.
 		 * The old leader becomes a thread of the this thread group.
-		 * Note: The old leader also uses this pid until release_task
-		 *       is called.  Odd but simple and correct.
 		 */
-		tsk->pid = leader->pid;
-		change_pid(tsk, PIDTYPE_PID, task_pid(leader));
+		exchange_tids(tsk, leader);
 		transfer_pid(leader, tsk, PIDTYPE_TGID);
 		transfer_pid(leader, tsk, PIDTYPE_PGID);
 		transfer_pid(leader, tsk, PIDTYPE_SID);
@@ -1240,6 +1260,12 @@ killed:
 }
 
 
+/*
+ * This function makes sure the current process has its own signal table,
+ * so that flush_signal_handlers can later reset the handlers without
+ * disturbing other processes.  (Other processes might share the signal
+ * table via the CLONE_SIGHAND option to clone().)
+ */
 static int unshare_sighand(struct task_struct *me)
 {
 	struct sighand_struct *oldsighand = me->sighand;
@@ -1296,12 +1322,22 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
  * Calling this is the point of no return. None of the failures will be
  * seen by userspace since either the process is already taking a fatal
  * signal (via de_thread() or coredump), or will have SEGV raised
- * (after exec_mmap()) by search_binary_handlers (see below).
+ * (after exec_mmap()) by search_binary_handler (see below).
  */
-int flush_old_exec(struct linux_binprm * bprm)
+int begin_new_exec(struct linux_binprm * bprm)
 {
 	struct task_struct *me = current;
 	int retval;
+
+	/* Once we are committed compute the creds */
+	retval = bprm_creds_from_file(bprm);
+	if (retval)
+		return retval;
+
+	/*
+	 * Ensure all future errors are fatal.
+	 */
+	bprm->point_of_no_return = true;
 
 	/*
 	 * Make this the only thread in the thread group.
@@ -1317,7 +1353,10 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 */
 	set_mm_exe_file(bprm->mm, bprm->file);
 
+	/* If the binary is not readable then enforce mm->dumpable=0 */
 	would_dump(bprm, bprm->file);
+	if (bprm->have_execfd)
+		would_dump(bprm, bprm->executable);
 
 	/*
 	 * Release all of the old mmap stuff
@@ -1327,13 +1366,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out;
 
-	/*
-	 * After setting bprm->called_exec_mmap (to mark that current is
-	 * using the prepared mm now), we have nothing left of the original
-	 * process. If anything from here on returns an error, the check
-	 * in search_binary_handler() will SEGV current.
-	 */
-	bprm->called_exec_mmap = 1;
 	bprm->mm = NULL;
 
 #ifdef CONFIG_POSIX_TIMERS
@@ -1346,7 +1378,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 */
 	retval = unshare_sighand(me);
 	if (retval)
-		goto out;
+		goto out_unlock;
 
 	set_fs(USER_DS);
 	me->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
@@ -1361,12 +1393,84 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 * undergoing exec(2).
 	 */
 	do_close_on_exec(me->files);
+
+	if (bprm->secureexec) {
+		/* Make sure parent cannot signal privileged process. */
+		me->pdeath_signal = 0;
+
+		/*
+		 * For secureexec, reset the stack limit to sane default to
+		 * avoid bad behavior from the prior rlimits. This has to
+		 * happen before arch_pick_mmap_layout(), which examines
+		 * RLIMIT_STACK, but after the point of no return to avoid
+		 * needing to clean up the change on failure.
+		 */
+		if (bprm->rlim_stack.rlim_cur > _STK_LIM)
+			bprm->rlim_stack.rlim_cur = _STK_LIM;
+	}
+
+	me->sas_ss_sp = me->sas_ss_size = 0;
+
+	/*
+	 * Figure out dumpability. Note that this checking only of current
+	 * is wrong, but userspace depends on it. This should be testing
+	 * bprm->secureexec instead.
+	 */
+	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
+	    !(uid_eq(current_euid(), current_uid()) &&
+	      gid_eq(current_egid(), current_gid())))
+		set_dumpable(current->mm, suid_dumpable);
+	else
+		set_dumpable(current->mm, SUID_DUMP_USER);
+
+	perf_event_exec();
+	__set_task_comm(me, kbasename(bprm->filename), true);
+
+	/* An exec changes our domain. We are no longer part of the thread
+	   group */
+	WRITE_ONCE(me->self_exec_id, me->self_exec_id + 1);
+	flush_signal_handlers(me, 0);
+
+	/*
+	 * install the new credentials for this executable
+	 */
+	security_bprm_committing_creds(bprm);
+
+	commit_creds(bprm->cred);
+	bprm->cred = NULL;
+
+	/*
+	 * Disable monitoring for regular users
+	 * when executing setuid binaries. Must
+	 * wait until new credentials are committed
+	 * by commit_creds() above
+	 */
+	if (get_dumpable(me->mm) != SUID_DUMP_USER)
+		perf_event_exit_task(me);
+	/*
+	 * cred_guard_mutex must be held at least to this point to prevent
+	 * ptrace_attach() from altering our determination of the task's
+	 * credentials; any time after this it may be unlocked.
+	 */
+	security_bprm_committed_creds(bprm);
+
+	/* Pass the opened binary to the interpreter. */
+	if (bprm->have_execfd) {
+		retval = get_unused_fd_flags(0);
+		if (retval < 0)
+			goto out_unlock;
+		fd_install(retval, bprm->executable);
+		bprm->executable = NULL;
+		bprm->execfd = retval;
+	}
 	return 0;
 
+out_unlock:
+	mutex_unlock(&me->signal->exec_update_mutex);
 out:
 	return retval;
 }
-EXPORT_SYMBOL(flush_old_exec);
+EXPORT_SYMBOL(begin_new_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
@@ -1391,58 +1495,20 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
-	/*
-	 * Once here, prepare_binrpm() will not be called any more, so
-	 * the final state of setuid/setgid/fscaps can be merged into the
-	 * secureexec flag.
-	 */
-	bprm->secureexec |= bprm->cap_elevated;
+	/* Setup things that can depend upon the personality */
+	struct task_struct *me = current;
 
-	if (bprm->secureexec) {
-		/* Make sure parent cannot signal privileged process. */
-		current->pdeath_signal = 0;
-
-		/*
-		 * For secureexec, reset the stack limit to sane default to
-		 * avoid bad behavior from the prior rlimits. This has to
-		 * happen before arch_pick_mmap_layout(), which examines
-		 * RLIMIT_STACK, but after the point of no return to avoid
-		 * needing to clean up the change on failure.
-		 */
-		if (bprm->rlim_stack.rlim_cur > _STK_LIM)
-			bprm->rlim_stack.rlim_cur = _STK_LIM;
-	}
-
-	arch_pick_mmap_layout(current->mm, &bprm->rlim_stack);
-
-	current->sas_ss_sp = current->sas_ss_size = 0;
-
-	/*
-	 * Figure out dumpability. Note that this checking only of current
-	 * is wrong, but userspace depends on it. This should be testing
-	 * bprm->secureexec instead.
-	 */
-	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
-	    !(uid_eq(current_euid(), current_uid()) &&
-	      gid_eq(current_egid(), current_gid())))
-		set_dumpable(current->mm, suid_dumpable);
-	else
-		set_dumpable(current->mm, SUID_DUMP_USER);
+	arch_pick_mmap_layout(me->mm, &bprm->rlim_stack);
 
 	arch_setup_new_exec();
-	perf_event_exec();
-	__set_task_comm(current, kbasename(bprm->filename), true);
 
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
 	 * some architectures like powerpc
 	 */
-	current->mm->task_size = TASK_SIZE;
-
-	/* An exec changes our domain. We are no longer part of the thread
-	   group */
-	WRITE_ONCE(current->self_exec_id, current->self_exec_id + 1);
-	flush_signal_handlers(current, 0);
+	me->mm->task_size = TASK_SIZE;
+	mutex_unlock(&me->signal->exec_update_mutex);
+	mutex_unlock(&me->signal->cred_guard_mutex);
 }
 EXPORT_SYMBOL(setup_new_exec);
 
@@ -1458,7 +1524,7 @@ EXPORT_SYMBOL(finalize_exec);
 
 /*
  * Prepare credentials and lock ->cred_guard_mutex.
- * install_exec_creds() commits the new creds and drops the lock.
+ * setup_new_exec() commits the new creds and drops the lock.
  * Or, if exec fails before, free_bprm() should release ->cred and
  * and unlock.
  */
@@ -1479,8 +1545,6 @@ static void free_bprm(struct linux_binprm *bprm)
 {
 	free_arg_pages(bprm);
 	if (bprm->cred) {
-		if (bprm->called_exec_mmap)
-			mutex_unlock(&current->signal->exec_update_mutex);
 		mutex_unlock(&current->signal->cred_guard_mutex);
 		abort_creds(bprm->cred);
 	}
@@ -1488,6 +1552,8 @@ static void free_bprm(struct linux_binprm *bprm)
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+	if (bprm->executable)
+		fput(bprm->executable);
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);
@@ -1505,35 +1571,6 @@ int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 	return 0;
 }
 EXPORT_SYMBOL(bprm_change_interp);
-
-/*
- * install the new credentials for this executable
- */
-void install_exec_creds(struct linux_binprm *bprm)
-{
-	security_bprm_committing_creds(bprm);
-
-	commit_creds(bprm->cred);
-	bprm->cred = NULL;
-
-	/*
-	 * Disable monitoring for regular users
-	 * when executing setuid binaries. Must
-	 * wait until new credentials are committed
-	 * by commit_creds() above
-	 */
-	if (get_dumpable(current->mm) != SUID_DUMP_USER)
-		perf_event_exit_task(current);
-	/*
-	 * cred_guard_mutex must be held at least to this point to prevent
-	 * ptrace_attach() from altering our determination of the task's
-	 * credentials; any time after this it may be unlocked.
-	 */
-	security_bprm_committed_creds(bprm);
-	mutex_unlock(&current->signal->exec_update_mutex);
-	mutex_unlock(&current->signal->cred_guard_mutex);
-}
-EXPORT_SYMBOL(install_exec_creds);
 
 /*
  * determine how safe it is to execute the proposed program
@@ -1572,29 +1609,21 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	spin_unlock(&p->fs->lock);
 }
 
-static void bprm_fill_uid(struct linux_binprm *bprm)
+static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 {
+	/* Handle suid and sgid on files */
 	struct inode *inode;
 	unsigned int mode;
 	kuid_t uid;
 	kgid_t gid;
 
-	/*
-	 * Since this can be called multiple times (via prepare_binprm),
-	 * we must clear any previous work done when setting set[ug]id
-	 * bits from any earlier bprm->file uses (for example when run
-	 * first for a setuid script then again for its interpreter).
-	 */
-	bprm->cred->euid = current_euid();
-	bprm->cred->egid = current_egid();
-
-	if (!mnt_may_suid(bprm->file->f_path.mnt))
+	if (!mnt_may_suid(file->f_path.mnt))
 		return;
 
 	if (task_no_new_privs(current))
 		return;
 
-	inode = bprm->file->f_path.dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	mode = READ_ONCE(inode->i_mode);
 	if (!(mode & (S_ISUID|S_ISGID)))
 		return;
@@ -1625,29 +1654,30 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 }
 
 /*
+ * Compute brpm->cred based upon the final binary.
+ */
+static int bprm_creds_from_file(struct linux_binprm *bprm)
+{
+	/* Compute creds based on which file? */
+	struct file *file = bprm->execfd_creds ? bprm->executable : bprm->file;
+
+	bprm_fill_uid(bprm, file);
+	return security_bprm_creds_from_file(bprm, file);
+}
+
+/*
  * Fill the binprm structure from the inode.
- * Check permissions, then read the first BINPRM_BUF_SIZE bytes
+ * Read the first BINPRM_BUF_SIZE bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
  */
-int prepare_binprm(struct linux_binprm *bprm)
+static int prepare_binprm(struct linux_binprm *bprm)
 {
-	int retval;
 	loff_t pos = 0;
-
-	bprm_fill_uid(bprm);
-
-	/* fill in binprm security blob */
-	retval = security_bprm_set_creds(bprm);
-	if (retval)
-		return retval;
-	bprm->called_set_creds = 1;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
 	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
 }
-
-EXPORT_SYMBOL(prepare_binprm);
 
 /*
  * Arguments are '\0' separated strings found at the location bprm->p
@@ -1694,15 +1724,15 @@ EXPORT_SYMBOL(remove_arg_zero);
 /*
  * cycle the list of binary formats handler, until one recognizes the image
  */
-int search_binary_handler(struct linux_binprm *bprm)
+static int search_binary_handler(struct linux_binprm *bprm)
 {
 	bool need_retry = IS_ENABLED(CONFIG_MODULES);
 	struct linux_binfmt *fmt;
 	int retval;
 
-	/* This allows 4 levels of binfmt rewrites before failing hard. */
-	if (bprm->recursion_depth > 5)
-		return -ELOOP;
+	retval = prepare_binprm(bprm);
+	if (retval < 0)
+		return retval;
 
 	retval = security_bprm_check(bprm);
 	if (retval)
@@ -1716,19 +1746,11 @@ int search_binary_handler(struct linux_binprm *bprm)
 			continue;
 		read_unlock(&binfmt_lock);
 
-		bprm->recursion_depth++;
 		retval = fmt->load_binary(bprm);
-		bprm->recursion_depth--;
 
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (retval < 0 && bprm->called_exec_mmap) {
-			/* we got to flush_old_exec() and failed after it */
-			read_unlock(&binfmt_lock);
-			force_sigsegv(SIGSEGV);
-			return retval;
-		}
-		if (retval != -ENOEXEC || !bprm->file) {
+		if (bprm->point_of_no_return || (retval != -ENOEXEC)) {
 			read_unlock(&binfmt_lock);
 			return retval;
 		}
@@ -1747,12 +1769,11 @@ int search_binary_handler(struct linux_binprm *bprm)
 
 	return retval;
 }
-EXPORT_SYMBOL(search_binary_handler);
 
 static int exec_binprm(struct linux_binprm *bprm)
 {
 	pid_t old_pid, old_vpid;
-	int ret;
+	int ret, depth;
 
 	/* Need to fetch pid before load_binary changes it */
 	old_pid = current->pid;
@@ -1760,15 +1781,38 @@ static int exec_binprm(struct linux_binprm *bprm)
 	old_vpid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
 	rcu_read_unlock();
 
-	ret = search_binary_handler(bprm);
-	if (ret >= 0) {
-		audit_bprm(bprm);
-		trace_sched_process_exec(current, old_pid, bprm);
-		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
-		proc_exec_connector(current);
+	/* This allows 4 levels of binfmt rewrites before failing hard. */
+	for (depth = 0;; depth++) {
+		struct file *exec;
+		if (depth > 5)
+			return -ELOOP;
+
+		ret = search_binary_handler(bprm);
+		if (ret < 0)
+			return ret;
+		if (!bprm->interpreter)
+			break;
+
+		exec = bprm->file;
+		bprm->file = bprm->interpreter;
+		bprm->interpreter = NULL;
+
+		allow_write_access(exec);
+		if (unlikely(bprm->have_execfd)) {
+			if (bprm->executable) {
+				fput(exec);
+				return -ENOEXEC;
+			}
+			bprm->executable = exec;
+		} else
+			fput(exec);
 	}
 
-	return ret;
+	audit_bprm(bprm);
+	trace_sched_process_exec(current, old_pid, bprm);
+	ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
+	proc_exec_connector(current);
+	return 0;
 }
 
 /*
@@ -1861,11 +1905,12 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (retval < 0)
 		goto out;
 
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
+	/* Set the unchanging part of bprm->cred */
+	retval = security_bprm_creds_for_exec(bprm);
+	if (retval)
 		goto out;
 
-	retval = copy_strings_kernel(1, &bprm->filename, bprm);
+	retval = copy_string_kernel(bprm->filename, bprm);
 	if (retval < 0)
 		goto out;
 
@@ -1897,6 +1942,14 @@ static int __do_execve_file(int fd, struct filename *filename,
 	return retval;
 
 out:
+	/*
+	 * If past the point of no return ensure the the code never
+	 * returns to the userspace process.  Use an existing fatal
+	 * signal if present otherwise terminate the process with
+	 * SIGSEGV.
+	 */
+	if (bprm->point_of_no_return && !fatal_signal_pending(current))
+		force_sigsegv(SIGSEGV);
 	if (bprm->mm) {
 		acct_arg_size(bprm, 0);
 		mmput(bprm->mm);

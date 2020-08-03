@@ -74,6 +74,11 @@ struct intel_guc {
 	struct mutex send_mutex;
 };
 
+static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
+{
+	return container_of(log, struct intel_guc, log);
+}
+
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
@@ -189,5 +194,7 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine);
+
+void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 
 #endif

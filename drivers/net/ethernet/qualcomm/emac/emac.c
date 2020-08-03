@@ -115,7 +115,8 @@ static int emac_napi_rtx(struct napi_struct *napi, int budget)
 }
 
 /* Transmit the packet */
-static int emac_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t emac_start_xmit(struct sk_buff *skb,
+				   struct net_device *netdev)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
 

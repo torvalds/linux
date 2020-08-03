@@ -5052,9 +5052,11 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@persist_opcode: see below
  *
- *	MPI_SAS_OP_CLEAR_NOT_PRESENT - Free all persist TargetID mappings for
- *		devices not currently present.
- *	MPI_SAS_OP_CLEAR_ALL_PERSISTENT - Clear al persist TargetID mappings
+ *	===============================  ======================================
+ *	MPI_SAS_OP_CLEAR_NOT_PRESENT     Free all persist TargetID mappings for
+ *					 devices not currently present.
+ *	MPI_SAS_OP_CLEAR_ALL_PERSISTENT  Clear al persist TargetID mappings
+ *	===============================  ======================================
  *
  *	NOTE: Don't use not this function during interrupt time.
  *

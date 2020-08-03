@@ -51,7 +51,7 @@ my %ignore_type = ();
 my @ignore = ();
 my $help = 0;
 my $configuration_file = ".checkpatch.conf";
-my $max_line_length = 80;
+my $max_line_length = 100;
 my $ignore_perl_version = 0;
 my $minimum_perl_version = 5.10.0;
 my $min_conf_desc_length = 4;
@@ -97,9 +97,11 @@ Options:
   --types TYPE(,TYPE2...)    show only these comma separated message types
   --ignore TYPE(,TYPE2...)   ignore various comma separated message types
   --show-types               show the specific message type in the output
-  --max-line-length=n        set the maximum line length, if exceeded, warn
+  --max-line-length=n        set the maximum line length, (default $max_line_length)
+                             if exceeded, warn on patches
+                             requires --strict for use with --file
   --min-conf-desc-length=n   set the min description length, if shorter, warn
-  --tab-size=n               set the number of spaces for tab (default 8)
+  --tab-size=n               set the number of spaces for tab (default $tabsize)
   --root=PATH                PATH to the kernel tree root
   --no-summary               suppress the per-file summary
   --mailback                 only produce a report in case of warnings/errors
@@ -244,6 +246,8 @@ list_types(0) if ($list_types);
 $fix = 1 if ($fix_inplace);
 $check_orig = $check;
 
+die "$P: --git cannot be used with --file or --fix\n" if ($git && ($file || $fix));
+
 my $exit = 0;
 
 my $perl_version_ok = 1;
@@ -267,11 +271,11 @@ if ($color =~ /^[01]$/) {
 } elsif ($color =~ /^auto$/i) {
 	$color = (-t STDOUT);
 } else {
-	die "Invalid color mode: $color\n";
+	die "$P: Invalid color mode: $color\n";
 }
 
 # skip TAB size 1 to avoid additional checks on $tabsize - 1
-die "Invalid TAB size: $tabsize\n" if ($tabsize < 2);
+die "$P: Invalid TAB size: $tabsize\n" if ($tabsize < 2);
 
 sub hash_save_array_words {
 	my ($hashRef, $arrayRef) = @_;
@@ -1058,6 +1062,7 @@ for my $filename (@ARGV) {
 	while (<$FILE>) {
 		chomp;
 		push(@rawlines, $_);
+		$vname = qq("$1") if ($filename eq '-' && $_ =~ m/^Subject:\s+(.+)/i);
 	}
 	close($FILE);
 
@@ -1674,8 +1679,16 @@ sub ctx_statement_level {
 sub ctx_locate_comment {
 	my ($first_line, $end_line) = @_;
 
+	# If c99 comment on the current line, or the line before or after
+	my ($current_comment) = ($rawlines[$end_line - 1] =~ m@^\+.*(//.*$)@);
+	return $current_comment if (defined $current_comment);
+	($current_comment) = ($rawlines[$end_line - 2] =~ m@^[\+ ].*(//.*$)@);
+	return $current_comment if (defined $current_comment);
+	($current_comment) = ($rawlines[$end_line] =~ m@^[\+ ].*(//.*$)@);
+	return $current_comment if (defined $current_comment);
+
 	# Catch a comment on the end of the line itself.
-	my ($current_comment) = ($rawlines[$end_line - 1] =~ m@.*(/\*.*\*/)\s*(?:\\\s*)?$@);
+	($current_comment) = ($rawlines[$end_line - 1] =~ m@.*(/\*.*\*/)\s*(?:\\\s*)?$@);
 	return $current_comment if (defined $current_comment);
 
 	# Look through the context and try and figure out if there is a
@@ -2394,7 +2407,7 @@ sub process {
 
 		if ($rawline=~/^\+\+\+\s+(\S+)/) {
 			$setup_docs = 0;
-			if ($1 =~ m@Documentation/admin-guide/kernel-parameters.rst$@) {
+			if ($1 =~ m@Documentation/admin-guide/kernel-parameters.txt$@) {
 				$setup_docs = 1;
 			}
 			#next;
@@ -2594,7 +2607,7 @@ sub process {
 				if (($last_binding_patch != -1) &&
 				    ($last_binding_patch ^ $is_binding_patch)) {
 					WARN("DT_SPLIT_BINDING_PATCH",
-					     "DT binding docs and includes should be a separate patch. See: Documentation/devicetree/bindings/submitting-patches.txt\n");
+					     "DT binding docs and includes should be a separate patch. See: Documentation/devicetree/bindings/submitting-patches.rst\n");
 				}
 			}
 
@@ -3060,14 +3073,43 @@ sub process {
 			#print "is_start<$is_start> is_end<$is_end> length<$length>\n";
 		}
 
-# check for MAINTAINERS entries that don't have the right form
-		if ($realfile =~ /^MAINTAINERS$/ &&
-		    $rawline =~ /^\+[A-Z]:/ &&
-		    $rawline !~ /^\+[A-Z]:\t\S/) {
-			if (WARN("MAINTAINERS_STYLE",
-				 "MAINTAINERS entries use one tab after TYPE:\n" . $herecurr) &&
-			    $fix) {
-				$fixed[$fixlinenr] =~ s/^(\+[A-Z]):\s*/$1:\t/;
+# check MAINTAINERS entries
+		if ($realfile =~ /^MAINTAINERS$/) {
+# check MAINTAINERS entries for the right form
+			if ($rawline =~ /^\+[A-Z]:/ &&
+			    $rawline !~ /^\+[A-Z]:\t\S/) {
+				if (WARN("MAINTAINERS_STYLE",
+					 "MAINTAINERS entries use one tab after TYPE:\n" . $herecurr) &&
+				    $fix) {
+					$fixed[$fixlinenr] =~ s/^(\+[A-Z]):\s*/$1:\t/;
+				}
+			}
+# check MAINTAINERS entries for the right ordering too
+			my $preferred_order = 'MRLSWQBCPTFXNK';
+			if ($rawline =~ /^\+[A-Z]:/ &&
+			    $prevrawline =~ /^[\+ ][A-Z]:/) {
+				$rawline =~ /^\+([A-Z]):\s*(.*)/;
+				my $cur = $1;
+				my $curval = $2;
+				$prevrawline =~ /^[\+ ]([A-Z]):\s*(.*)/;
+				my $prev = $1;
+				my $prevval = $2;
+				my $curindex = index($preferred_order, $cur);
+				my $previndex = index($preferred_order, $prev);
+				if ($curindex < 0) {
+					WARN("MAINTAINERS_STYLE",
+					     "Unknown MAINTAINERS entry type: '$cur'\n" . $herecurr);
+				} else {
+					if ($previndex >= 0 && $curindex < $previndex) {
+						WARN("MAINTAINERS_STYLE",
+						     "Misordered MAINTAINERS entry - list '$cur:' before '$prev:'\n" . $hereprev);
+					} elsif ((($prev eq 'F' && $cur eq 'F') ||
+						  ($prev eq 'X' && $cur eq 'X')) &&
+						 ($prevval cmp $curval) > 0) {
+						WARN("MAINTAINERS_STYLE",
+						     "Misordered MAINTAINERS entry - list file patterns in alphabetic order\n" . $hereprev);
+					}
+				}
 			}
 		}
 
@@ -3240,8 +3282,10 @@ sub process {
 
 			if ($msg_type ne "" &&
 			    (show_type("LONG_LINE") || show_type($msg_type))) {
-				WARN($msg_type,
-				     "line over $max_line_length characters\n" . $herecurr);
+				my $msg_level = \&WARN;
+				$msg_level = \&CHK if ($file);
+				&{$msg_level}($msg_type,
+					      "line length of $length exceeds $max_line_length columns\n" . $herecurr);
 			}
 		}
 
@@ -4197,6 +4241,17 @@ sub process {
 		if ($line =~ /\bENOSYS\b/) {
 			WARN("ENOSYS",
 			     "ENOSYS means 'invalid syscall nr' and nothing else\n" . $herecurr);
+		}
+
+# ENOTSUPP is not a standard error code and should be avoided in new patches.
+# Folks usually mean EOPNOTSUPP (also called ENOTSUP), when they type ENOTSUPP.
+# Similarly to ENOSYS warning a small number of false positives is expected.
+		if (!$file && $line =~ /\bENOTSUPP\b/) {
+			if (WARN("ENOTSUPP",
+				 "ENOTSUPP is not a SUSV4 error code, prefer EOPNOTSUPP\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\bENOTSUPP\b/EOPNOTSUPP/;
+			}
 		}
 
 # function brace can't be on same line, except for #defines of do while,
@@ -5890,6 +5945,14 @@ sub process {
 			}
 		}
 
+# check for data_race without a comment.
+		if ($line =~ /\bdata_race\s*\(/) {
+			if (!ctx_has_comment($first_line, $linenr)) {
+				WARN("DATA_RACE",
+				     "data_race without comment\n" . $herecurr);
+			}
+		}
+
 # check for smp_read_barrier_depends and read_barrier_depends
 		if (!$file && $line =~ /\b(smp_|)read_barrier_depends\s*\(/) {
 			WARN("READ_BARRIER_DEPENDS",
@@ -6333,7 +6396,7 @@ sub process {
 
 			if (!grep(/$name/, @setup_docs)) {
 				CHK("UNDOCUMENTED_SETUP",
-				    "__setup appears un-documented -- check Documentation/admin-guide/kernel-parameters.rst\n" . $herecurr);
+				    "__setup appears un-documented -- check Documentation/admin-guide/kernel-parameters.txt\n" . $herecurr);
 			}
 		}
 

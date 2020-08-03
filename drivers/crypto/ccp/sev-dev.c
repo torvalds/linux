@@ -20,6 +20,7 @@
 #include <linux/hw_random.h>
 #include <linux/ccp.h>
 #include <linux/firmware.h>
+#include <linux/gfp.h>
 
 #include <asm/smp.h>
 
@@ -43,6 +44,14 @@ MODULE_PARM_DESC(psp_probe_timeout, " default timeout value, in seconds, during 
 
 static bool psp_dead;
 static int psp_timeout;
+
+/* Trusted Memory Region (TMR):
+ *   The TMR is a 1MB area that must be 1MB aligned.  Use the page allocator
+ *   to allocate the memory, which will return aligned memory for the specified
+ *   allocation order.
+ */
+#define SEV_ES_TMR_SIZE		(1024 * 1024)
+static void *sev_es_tmr;
 
 static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
 {
@@ -214,6 +223,20 @@ static int __sev_platform_init_locked(int *error)
 	if (sev->state == SEV_STATE_INIT)
 		return 0;
 
+	if (sev_es_tmr) {
+		u64 tmr_pa;
+
+		/*
+		 * Do not include the encryption mask on the physical
+		 * address of the TMR (firmware should clear it anyway).
+		 */
+		tmr_pa = __pa(sev_es_tmr);
+
+		sev->init_cmd_buf.flags |= SEV_INIT_FLAGS_SEV_ES;
+		sev->init_cmd_buf.tmr_address = tmr_pa;
+		sev->init_cmd_buf.tmr_len = SEV_ES_TMR_SIZE;
+	}
+
 	rc = __sev_do_cmd_locked(SEV_CMD_INIT, &sev->init_cmd_buf, error);
 	if (rc)
 		return rc;
@@ -371,8 +394,7 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp, bool writable)
 		goto cmd;
 
 	/* allocate a physically contiguous buffer to store the CSR blob */
-	if (!access_ok(input.address, input.length) ||
-	    input.length > SEV_FW_BLOB_MAX_SIZE) {
+	if (input.length > SEV_FW_BLOB_MAX_SIZE) {
 		ret = -EFAULT;
 		goto e_free;
 	}
@@ -609,12 +631,6 @@ static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
 
-	/* Check if we have write access to the userspace buffer */
-	if (input.address &&
-	    input.length &&
-	    !access_ok(input.address, input.length))
-		return -EFAULT;
-
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -730,15 +746,13 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 		goto cmd;
 
 	/* Allocate a physically contiguous buffer to store the PDH blob. */
-	if ((input.pdh_cert_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(input.pdh_cert_address, input.pdh_cert_len)) {
+	if (input.pdh_cert_len > SEV_FW_BLOB_MAX_SIZE) {
 		ret = -EFAULT;
 		goto e_free;
 	}
 
 	/* Allocate a physically contiguous buffer to store the cert chain blob. */
-	if ((input.cert_chain_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(input.cert_chain_address, input.cert_chain_len)) {
+	if (input.cert_chain_len > SEV_FW_BLOB_MAX_SIZE) {
 		ret = -EFAULT;
 		goto e_free;
 	}
@@ -1012,6 +1026,7 @@ EXPORT_SYMBOL_GPL(sev_issue_cmd_external_user);
 void sev_pci_init(void)
 {
 	struct sev_device *sev = psp_master->sev_data;
+	struct page *tmr_page;
 	int error, rc;
 
 	if (!sev)
@@ -1040,6 +1055,16 @@ void sev_pci_init(void)
 	if (sev_version_greater_or_equal(0, 15) &&
 	    sev_update_firmware(sev->dev) == 0)
 		sev_get_api_version();
+
+	/* Obtain the TMR memory area for SEV-ES use */
+	tmr_page = alloc_pages(GFP_KERNEL, get_order(SEV_ES_TMR_SIZE));
+	if (tmr_page) {
+		sev_es_tmr = page_address(tmr_page);
+	} else {
+		sev_es_tmr = NULL;
+		dev_warn(sev->dev,
+			 "SEV: TMR allocation failed, SEV-ES support unavailable\n");
+	}
 
 	/* Initialize the platform */
 	rc = sev_platform_init(&error);
@@ -1075,4 +1100,13 @@ void sev_pci_exit(void)
 		return;
 
 	sev_platform_shutdown(NULL);
+
+	if (sev_es_tmr) {
+		/* The TMR area was encrypted, flush it from the cache */
+		wbinvd_on_all_cpus();
+
+		free_pages((unsigned long)sev_es_tmr,
+			   get_order(SEV_ES_TMR_SIZE));
+		sev_es_tmr = NULL;
+	}
 }

@@ -38,19 +38,64 @@ properties:
 
   aspeed,vhub-downstream-ports:
     description: Number of downstream ports supported by the Virtual Hub
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 5
-        minimum: 1
-        maximum: 7
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 5
+    minimum: 1
+    maximum: 7
 
   aspeed,vhub-generic-endpoints:
     description: Number of generic endpoints supported by the Virtual Hub
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 15
-        minimum: 1
-        maximum: 21
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 15
+    minimum: 1
+    maximum: 21
+
+  vhub-vendor-id:
+    description: vhub Vendor ID
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
+
+  vhub-product-id:
+    description: vhub Product ID
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
+
+  vhub-device-revision:
+    description: vhub Device Revision in binary-coded decimal
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
+
+  vhub-strings:
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      '^string@[0-9a-f]+$':
+        type: object
+        description: string descriptors of the specific language
+
+        properties:
+          reg:
+            maxItems: 1
+            description: 16-bit Language Identifier defined by USB-IF
+
+          manufacturer:
+            description: vhub manufacturer
+            $ref: /schemas/types.yaml#/definitions/string
+
+          product:
+            description: vhub product name
+            $ref: /schemas/types.yaml#/definitions/string
+
+          serial-number:
+            description: vhub device serial number
+            $ref: /schemas/types.yaml#/definitions/string
 
 required:
   - compatible
@@ -74,4 +119,19 @@ examples:
             aspeed,vhub-generic-endpoints = <15>;
             pinctrl-names = "default";
             pinctrl-0 = <&pinctrl_usb2ad_default>;
+
+            vhub-vendor-id = <0x1d6b>;
+            vhub-product-id = <0x0107>;
+            vhub-device-revision = <0x0100>;
+            vhub-strings {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                string@0409 {
+                        reg = <0x0409>;
+                        manufacturer = "ASPEED";
+                        product = "USB Virtual Hub";
+                        serial-number = "0000";
+                };
+            };
     };

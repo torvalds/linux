@@ -11,7 +11,7 @@
 #include "i40e_diag.h"
 #include "i40e_xsk.h"
 #include <net/udp_tunnel.h>
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 /* All i40e tracepoints are defined by the include below, which
  * must be included exactly once across the whole kernel with
  * CREATE_TRACE_POINTS defined
@@ -3260,26 +3260,31 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	if (ring->vsi->type == I40E_VSI_MAIN)
 		xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
+	kfree(ring->rx_bi);
 	ring->xsk_umem = i40e_xsk_umem(ring);
 	if (ring->xsk_umem) {
-		ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
-				   XDP_PACKET_HEADROOM;
+		ret = i40e_alloc_rx_bi_zc(ring);
+		if (ret)
+			return ret;
+		ring->rx_buf_len = xsk_umem_get_rx_frame_size(ring->xsk_umem);
 		/* For AF_XDP ZC, we disallow packets to span on
 		 * multiple buffers, thus letting us skip that
 		 * handling in the fast-path.
 		 */
 		chain_len = 1;
-		ring->zca.free = i40e_zca_free;
 		ret = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
-						 MEM_TYPE_ZERO_COPY,
-						 &ring->zca);
+						 MEM_TYPE_XSK_BUFF_POOL,
+						 NULL);
 		if (ret)
 			return ret;
 		dev_info(&vsi->back->pdev->dev,
-			 "Registered XDP mem model MEM_TYPE_ZERO_COPY on Rx ring %d\n",
+			 "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 			 ring->queue_index);
 
 	} else {
+		ret = i40e_alloc_rx_bi(ring);
+		if (ret)
+			return ret;
 		ring->rx_buf_len = vsi->rx_buf_len;
 		if (ring->vsi->type == I40E_VSI_MAIN) {
 			ret = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
@@ -3344,9 +3349,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	ok = ring->xsk_umem ?
-	     i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring)) :
-	     !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	if (ring->xsk_umem) {
+		xsk_buff_set_rxq_info(ring->xsk_umem, &ring->xdp_rxq);
+		ok = i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring));
+	} else {
+		ok = !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	}
 	if (!ok) {
 		/* Log this in case the user has forgotten to give the kernel
 		 * any buffers, even later in the application.
@@ -14478,29 +14486,29 @@ static void i40e_print_features(struct i40e_pf *pf)
 
 	i = snprintf(buf, INFO_STRING_LEN, "Features: PF-id[%d]", hw->pf_id);
 #ifdef CONFIG_PCI_IOV
-	i += snprintf(&buf[i], REMAIN(i), " VFs: %d", pf->num_req_vfs);
+	i += scnprintf(&buf[i], REMAIN(i), " VFs: %d", pf->num_req_vfs);
 #endif
-	i += snprintf(&buf[i], REMAIN(i), " VSIs: %d QP: %d",
+	i += scnprintf(&buf[i], REMAIN(i), " VSIs: %d QP: %d",
 		      pf->hw.func_caps.num_vsis,
 		      pf->vsi[pf->lan_vsi]->num_queue_pairs);
 	if (pf->flags & I40E_FLAG_RSS_ENABLED)
-		i += snprintf(&buf[i], REMAIN(i), " RSS");
+		i += scnprintf(&buf[i], REMAIN(i), " RSS");
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
-		i += snprintf(&buf[i], REMAIN(i), " FD_ATR");
+		i += scnprintf(&buf[i], REMAIN(i), " FD_ATR");
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
-		i += snprintf(&buf[i], REMAIN(i), " FD_SB");
-		i += snprintf(&buf[i], REMAIN(i), " NTUPLE");
+		i += scnprintf(&buf[i], REMAIN(i), " FD_SB");
+		i += scnprintf(&buf[i], REMAIN(i), " NTUPLE");
 	}
 	if (pf->flags & I40E_FLAG_DCB_CAPABLE)
-		i += snprintf(&buf[i], REMAIN(i), " DCB");
-	i += snprintf(&buf[i], REMAIN(i), " VxLAN");
-	i += snprintf(&buf[i], REMAIN(i), " Geneve");
+		i += scnprintf(&buf[i], REMAIN(i), " DCB");
+	i += scnprintf(&buf[i], REMAIN(i), " VxLAN");
+	i += scnprintf(&buf[i], REMAIN(i), " Geneve");
 	if (pf->flags & I40E_FLAG_PTP)
-		i += snprintf(&buf[i], REMAIN(i), " PTP");
+		i += scnprintf(&buf[i], REMAIN(i), " PTP");
 	if (pf->flags & I40E_FLAG_VEB_MODE_ENABLED)
-		i += snprintf(&buf[i], REMAIN(i), " VEB");
+		i += scnprintf(&buf[i], REMAIN(i), " VEB");
 	else
-		i += snprintf(&buf[i], REMAIN(i), " VEPA");
+		i += scnprintf(&buf[i], REMAIN(i), " VEPA");
 
 	dev_info(&pf->pdev->dev, "%s\n", buf);
 	kfree(buf);

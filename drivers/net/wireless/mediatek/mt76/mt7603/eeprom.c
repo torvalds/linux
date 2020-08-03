@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: ISC
 
+#include <linux/of.h>
 #include "mt7603.h"
 #include "eeprom.h"
 
@@ -100,9 +101,13 @@ mt7603_apply_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
 		MT_EE_TX_POWER_1_START_2G,
 		MT_EE_TX_POWER_1_START_2G + 1,
 	};
+	struct device_node *np = dev->mt76.dev->of_node;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	int n = ARRAY_SIZE(cal_free_bytes);
 	int i;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
 
 	if (!mt7603_has_cal_free_data(dev, efuse))
 		return;

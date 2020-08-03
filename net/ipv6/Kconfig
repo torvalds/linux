@@ -7,13 +7,13 @@
 menuconfig IPV6
 	tristate "The IPv6 protocol"
 	default y
-	---help---
+	help
 	  Support for IP version 6 (IPv6).
 
 	  For general information about IPv6, see
 	  <https://en.wikipedia.org/wiki/IPv6>.
 	  For specific information about IPv6 under Linux, see
-	  Documentation/networking/ipv6.txt and read the HOWTO at
+	  Documentation/networking/ipv6.rst and read the HOWTO at
 	  <http://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
 
 	  To compile this protocol support as a module, choose M here: the
@@ -23,7 +23,7 @@ if IPV6
 
 config IPV6_ROUTER_PREF
 	bool "IPv6: Router Preference (RFC 4191) support"
-	---help---
+	help
 	  Router Preference is an optional extension to the Router
 	  Advertisement message which improves the ability of hosts
 	  to pick an appropriate router, especially when the hosts
@@ -34,14 +34,14 @@ config IPV6_ROUTER_PREF
 config IPV6_ROUTE_INFO
 	bool "IPv6: Route Information (RFC 4191) support"
 	depends on IPV6_ROUTER_PREF
-	---help---
+	help
 	  Support of Route Information.
 
 	  If unsure, say N.
 
 config IPV6_OPTIMISTIC_DAD
 	bool "IPv6: Enable RFC 4429 Optimistic DAD"
-	---help---
+	help
 	  Support for optimistic Duplicate Address Detection. It allows for
 	  autoconfigured addresses to be used more quickly.
 
@@ -54,7 +54,7 @@ config INET6_AH
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
-	---help---
+	help
 	  Support for IPsec AH.
 
 	  If unsure, say Y.
@@ -70,7 +70,7 @@ config INET6_ESP
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	select CRYPTO_ECHAINIV
-	---help---
+	help
 	  Support for IPsec ESP.
 
 	  If unsure, say Y.
@@ -80,7 +80,7 @@ config INET6_ESP_OFFLOAD
 	depends on INET6_ESP
 	select XFRM_OFFLOAD
 	default n
-	---help---
+	help
 	  Support for ESP transformation offload. This makes sense
 	  only if this system really does IPsec and want to do it
 	  with high throughput. A typical desktop system does not
@@ -88,11 +88,23 @@ config INET6_ESP_OFFLOAD
 
 	  If unsure, say N.
 
+config INET6_ESPINTCP
+	bool "IPv6: ESP in TCP encapsulation (RFC 8229)"
+	depends on XFRM && INET6_ESP
+	select STREAM_PARSER
+	select NET_SOCK_MSG
+	select XFRM_ESPINTCP
+	help
+	  Support for RFC 8229 encapsulation of ESP and IKE over
+	  TCP/IPv6 sockets.
+
+	  If unsure, say N.
+
 config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
 	select INET6_XFRM_TUNNEL
 	select XFRM_IPCOMP
-	---help---
+	help
 	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
 	  typically needed for IPsec.
 
@@ -101,7 +113,7 @@ config INET6_IPCOMP
 config IPV6_MIP6
 	tristate "IPv6: Mobility"
 	select XFRM
-	---help---
+	help
 	  Support for IPv6 Mobility described in RFC 3775.
 
 	  If unsure, say N.
@@ -111,7 +123,7 @@ config IPV6_ILA
 	depends on NETFILTER
 	select DST_CACHE
 	select LWTUNNEL
-	---help---
+	help
 	  Support for IPv6 Identifier Locator Addressing (ILA).
 
 	  ILA is a mechanism to do network virtualization without
@@ -141,7 +153,7 @@ tristate "Virtual (secure) IPv6: tunneling"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM
-	---help---
+	help
 	Tunneling means encapsulating data of one protocol type within
 	another protocol and sending it over a channel that understands the
 	encapsulating protocol. This can be used with xfrm mode tunnel to give
@@ -154,7 +166,7 @@ config IPV6_SIT
 	select NET_IP_TUNNEL
 	select IPV6_NDISC_NODETYPE
 	default y
-	---help---
+	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
 	  encapsulating protocol. This driver implements encapsulation of IPv6
@@ -167,7 +179,7 @@ config IPV6_SIT_6RD
 	bool "IPv6: IPv6 Rapid Deployment (6RD)"
 	depends on IPV6_SIT
 	default n
-	---help---
+	help
 	  IPv6 Rapid Deployment (6rd; draft-ietf-softwire-ipv6-6rd) builds upon
 	  mechanisms of 6to4 (RFC3056) to enable a service provider to rapidly
 	  deploy IPv6 unicast service to IPv4 sites to which it provides
@@ -190,7 +202,7 @@ config IPV6_TUNNEL
 	select INET6_TUNNEL
 	select DST_CACHE
 	select GRO_CELLS
-	---help---
+	help
 	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
 	  RFC 2473.
 
@@ -201,7 +213,7 @@ config IPV6_GRE
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
 	depends on NET_IPGRE_DEMUX
-	---help---
+	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
@@ -226,13 +238,13 @@ config IPV6_FOU_TUNNEL
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
 	select FIB_RULES
-	---help---
+	help
 	  Support multiple routing tables.
 
 config IPV6_SUBTREES
 	bool "IPv6: source address based routing"
 	depends on IPV6_MULTIPLE_TABLES
-	---help---
+	help
 	  Enable routing by source address or prefix.
 
 	  The destination address is still the primary routing key, so mixing
@@ -247,7 +259,7 @@ config IPV6_MROUTE
 	bool "IPv6: multicast routing"
 	depends on IPV6
 	select IP_MROUTE_COMMON
-	---help---
+	help
 	  Support for IPv6 multicast forwarding.
 	  If unsure, say N.
 
@@ -268,7 +280,7 @@ config IPV6_MROUTE_MULTIPLE_TABLES
 config IPV6_PIMSM_V2
 	bool "IPv6: PIM-SM version 2 support"
 	depends on IPV6_MROUTE
-	---help---
+	help
 	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
 	  If unsure, say N.
 
@@ -278,7 +290,7 @@ config IPV6_SEG6_LWTUNNEL
 	select LWTUNNEL
 	select DST_CACHE
 	select IPV6_MULTIPLE_TABLES
-	---help---
+	help
 	  Support for encapsulation of packets within an outer IPv6
 	  header and a Segment Routing Header using the lightweight
 	  tunnels mechanism. Also enable support for advanced local
@@ -292,7 +304,7 @@ config IPV6_SEG6_HMAC
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
-	---help---
+	help
 	  Support for HMAC signature generation and verification
 	  of SR-enabled packets.
 
@@ -307,7 +319,7 @@ config IPV6_RPL_LWTUNNEL
 	bool "IPv6: RPL Source Routing Header support"
 	depends on IPV6
 	select LWTUNNEL
-	---help---
+	help
 	  Support for RFC6554 RPL Source Routing Header using the lightweight
 	  tunnels mechanism.
 

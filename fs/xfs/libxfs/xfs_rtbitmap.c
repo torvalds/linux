@@ -66,7 +66,7 @@ xfs_rtbuf_get(
 
 	ip = issum ? mp->m_rsumip : mp->m_rbmip;
 
-	error = xfs_bmapi_read(ip, block, 1, &map, &nmap, XFS_DATA_FORK);
+	error = xfs_bmapi_read(ip, block, 1, &map, &nmap, 0);
 	if (error)
 		return error;
 

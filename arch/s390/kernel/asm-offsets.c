@@ -11,9 +11,9 @@
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
+#include <linux/pgtable.h>
 #include <asm/idle.h>
 #include <asm/vdso.h>
-#include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>

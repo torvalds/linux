@@ -47,7 +47,6 @@ void virtio_gpu_create_context(struct drm_device *dev, struct drm_file *file)
 	get_task_comm(dbgname, current);
 	virtio_gpu_cmd_context_create(vgdev, vfpriv->ctx_id,
 				      strlen(dbgname), dbgname);
-	virtio_gpu_notify(vgdev);
 	vfpriv->context_created = true;
 
 out_unlock:

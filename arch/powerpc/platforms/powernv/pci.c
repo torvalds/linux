@@ -955,28 +955,8 @@ static int pnv_tce_iommu_bus_notifier(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct device *dev = data;
-	struct pci_dev *pdev;
-	struct pci_dn *pdn;
-	struct pnv_ioda_pe *pe;
-	struct pci_controller *hose;
-	struct pnv_phb *phb;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
-		pdev = to_pci_dev(dev);
-		pdn = pci_get_pdn(pdev);
-		hose = pci_bus_to_host(pdev->bus);
-		phb = hose->private_data;
-
-		WARN_ON_ONCE(!phb);
-		if (!pdn || pdn->pe_number == IODA_INVALID_PE || !phb)
-			return 0;
-
-		pe = &phb->ioda.pe_array[pdn->pe_number];
-		if (!pe->table_group.group)
-			return 0;
-		iommu_add_device(&pe->table_group, dev);
-		return 0;
 	case BUS_NOTIFY_DEL_DEVICE:
 		iommu_del_device(dev);
 		return 0;

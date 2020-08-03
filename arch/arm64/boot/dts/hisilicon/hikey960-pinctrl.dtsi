@@ -717,7 +717,7 @@
 			spi3_cfg_func: spi3_cfg_func {
 				pinctrl-single,pins = <
 					0x008 0x0 /* SPI3_CLK */
-					0x0 /* SPI3_DI */
+					0x00c 0x0 /* SPI3_DI */
 					0x010 0x0 /* SPI3_DO */
 					0x014 0x0 /* SPI3_CS0_N */
 				>;
@@ -734,7 +734,7 @@
 					PULL_UP
 				>;
 				pinctrl-single,drive-strength = <
-					DRIVE7_02MA DRIVE6_MASK
+					DRIVE7_06MA DRIVE6_MASK
 				>;
 			};
 		};
@@ -1031,7 +1031,7 @@
 					PULL_UP
 				>;
 				pinctrl-single,drive-strength = <
-					DRIVE7_02MA DRIVE6_MASK
+					DRIVE7_06MA DRIVE6_MASK
 				>;
 			};
 

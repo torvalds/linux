@@ -439,9 +439,10 @@
 				status = "disabled";
 			};
 
-			src: src@73fd0000 {
+			src: reset-controller@73fd0000 {
 				compatible = "fsl,imx51-src";
 				reg = <0x73fd0000 0x4000>;
+				interrupts = <75>;
 				#reset-cells = <1>;
 			};
 

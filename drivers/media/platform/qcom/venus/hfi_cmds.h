@@ -107,7 +107,7 @@ struct hfi_session_abort_pkt {
 struct hfi_session_set_property_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 num_properties;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_session_set_buffers_pkt {

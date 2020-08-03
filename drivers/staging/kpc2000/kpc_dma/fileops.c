@@ -75,9 +75,9 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	}
 
 	// Lock the user buffer pages in memory, and hold on to the page pointers (for the sglist)
-	down_read(&current->mm->mmap_sem);      /*  get memory map semaphore */
+	mmap_read_lock(current->mm);      /*  get memory map semaphore */
 	rv = get_user_pages(iov_base, acd->page_count, FOLL_TOUCH | FOLL_WRITE | FOLL_GET, acd->user_pages, NULL);
-	up_read(&current->mm->mmap_sem);        /*  release the semaphore */
+	mmap_read_unlock(current->mm);        /*  release the semaphore */
 	if (rv != acd->page_count) {
 		dev_err(&priv->ldev->pldev->dev, "Couldn't get_user_pages (%ld)\n", rv);
 		goto err_get_user_pages;

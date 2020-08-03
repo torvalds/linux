@@ -21,7 +21,7 @@ struct arpc_request_message {
 	__le16	id;		/* RPC unique id */
 	__le16	size;		/* Size in bytes of header + payload */
 	__u8	type;		/* RPC type */
-	__u8	data[0];	/* ARPC data */
+	__u8	data[];	/* ARPC data */
 } __packed;
 
 struct arpc_response_message {

@@ -62,15 +62,6 @@ struct hsr_tag {
  * with the path field in-between, which seems strange. I'm guessing the MAC
  * address definition is in error.
  */
-static inline u16 get_hsr_tag_path(struct hsr_tag *ht)
-{
-	return ntohs(ht->path_and_LSDU_size) >> 12;
-}
-
-static inline u16 get_hsr_tag_LSDU_size(struct hsr_tag *ht)
-{
-	return ntohs(ht->path_and_LSDU_size) & 0x0FFF;
-}
 
 static inline void set_hsr_tag_path(struct hsr_tag *ht, u16 path)
 {
@@ -102,16 +93,6 @@ struct hsr_sup_tag {
 struct hsr_sup_payload {
 	unsigned char	macaddress_A[ETH_ALEN];
 } __packed;
-
-static inline u16 get_hsr_stag_path(struct hsr_sup_tag *hst)
-{
-	return get_hsr_tag_path((struct hsr_tag *)hst);
-}
-
-static inline u16 get_hsr_stag_HSR_ver(struct hsr_sup_tag *hst)
-{
-	return get_hsr_tag_LSDU_size((struct hsr_tag *)hst);
-}
 
 static inline void set_hsr_stag_path(struct hsr_sup_tag *hst, u16 path)
 {

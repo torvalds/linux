@@ -772,6 +772,29 @@ struct qeth_ipacmd_addr_change {
 	struct qeth_ipacmd_addr_change_entry entry[];
 } __packed;
 
+/* [UN]REGISTER_LOCAL_ADDRESS notifications */
+struct qeth_ipacmd_local_addr4 {
+	__be32 addr;
+	u32 flags;
+};
+
+struct qeth_ipacmd_local_addrs4 {
+	u32 count;
+	u32 addr_length;
+	struct qeth_ipacmd_local_addr4 addrs[];
+};
+
+struct qeth_ipacmd_local_addr6 {
+	struct in6_addr addr;
+	u32 flags;
+};
+
+struct qeth_ipacmd_local_addrs6 {
+	u32 count;
+	u32 addr_length;
+	struct qeth_ipacmd_local_addr6 addrs[];
+};
+
 /* Header for each IPA command */
 struct qeth_ipacmd_hdr {
 	__u8   command;
@@ -803,6 +826,8 @@ struct qeth_ipa_cmd {
 		struct qeth_ipacmd_setbridgeport	sbp;
 		struct qeth_ipacmd_addr_change		addrchange;
 		struct qeth_ipacmd_vnicc		vnicc;
+		struct qeth_ipacmd_local_addrs4		local_addrs4;
+		struct qeth_ipacmd_local_addrs6		local_addrs6;
 	} data;
 } __attribute__ ((packed));
 

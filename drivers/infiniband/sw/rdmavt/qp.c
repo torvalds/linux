@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 - 2019 Intel Corporation.
+ * Copyright(c) 2016 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -525,15 +525,18 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
  * @rdi: rvt device info structure
  * @qpt: queue pair number table pointer
  * @port_num: IB port number, 1 based, comes from core
+ * @exclude_prefix: prefix of special queue pair number being allocated
  *
  * Return: The queue pair number
  */
 static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port_num)
+		     enum ib_qp_type type, u8 port_num, u8 exclude_prefix)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
 	u32 ret;
+	u32 max_qpn = exclude_prefix == RVT_AIP_QP_PREFIX ?
+		RVT_AIP_QPN_MAX : RVT_QPN_MAX;
 
 	if (rdi->driver_f.alloc_qpn)
 		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num);
@@ -553,7 +556,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	}
 
 	qpn = qpt->last + qpt->incr;
-	if (qpn >= RVT_QPN_MAX)
+	if (qpn >= max_qpn)
 		qpn = qpt->incr | ((qpt->last & 1) ^ 1);
 	/* offset carries bit 0 */
 	offset = qpn & RVT_BITS_PER_PAGE_MASK;
@@ -987,6 +990,9 @@ static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 {
 	struct rvt_qpn_map *map;
 
+	if ((qpn & RVT_AIP_QP_PREFIX_MASK) == RVT_AIP_QP_BASE)
+		qpn &= RVT_AIP_QP_SUFFIX;
+
 	map = qpt->map + (qpn & RVT_QPN_MASK) / RVT_BITS_PER_PAGE;
 	if (map->page)
 		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
@@ -1074,13 +1080,15 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
 	void *priv = NULL;
 	size_t sqsize;
+	u8 exclude_prefix = 0;
 
 	if (!rdi)
 		return ERR_PTR(-EINVAL);
 
 	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_send_sge ||
 	    init_attr->cap.max_send_wr > rdi->dparms.props.max_qp_wr ||
-	    init_attr->create_flags)
+	    (init_attr->create_flags &&
+	     init_attr->create_flags != IB_QP_CREATE_NETDEV_USE))
 		return ERR_PTR(-EINVAL);
 
 	/* Check receive queue parameters if no SRQ is specified. */
@@ -1199,14 +1207,20 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			goto bail_driver_priv;
 		}
 
+		if (init_attr->create_flags & IB_QP_CREATE_NETDEV_USE)
+			exclude_prefix = RVT_AIP_QP_PREFIX;
+
 		err = alloc_qpn(rdi, &rdi->qp_dev->qpn_table,
 				init_attr->qp_type,
-				init_attr->port_num);
+				init_attr->port_num,
+				exclude_prefix);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			goto bail_rq_wq;
 		}
 		qp->ibqp.qp_num = err;
+		if (init_attr->create_flags & IB_QP_CREATE_NETDEV_USE)
+			qp->ibqp.qp_num |= RVT_AIP_QP_BASE;
 		qp->port_num = init_attr->port_num;
 		rvt_init_qp(rdi, qp, init_attr->qp_type);
 		if (rdi->driver_f.qp_priv_init) {

@@ -34,7 +34,6 @@
 #include <asm/vsyscall.h>
 #include <asm/cmdline.h>
 #include <asm/pti.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
@@ -448,13 +447,7 @@ static void __init pti_clone_user_shared(void)
 		 * the sp1 and sp2 slots.
 		 *
 		 * This is done for all possible CPUs during boot to ensure
-		 * that it's propagated to all mms.  If we were to add one of
-		 * these mappings during CPU hotplug, we would need to take
-		 * some measure to make sure that every mm that subsequently
-		 * ran on that CPU would have the relevant PGD entry in its
-		 * pagetables.  The usual vmalloc_fault() mechanism would not
-		 * work for page faults taken in entry_SYSCALL_64 before RSP
-		 * is set up.
+		 * that it's propagated to all mms.
 		 */
 
 		unsigned long va = (unsigned long)&per_cpu(cpu_tss_rw, cpu);
@@ -499,12 +492,12 @@ static void __init pti_setup_espfix64(void)
 }
 
 /*
- * Clone the populated PMDs of the entry and irqentry text and force it RO.
+ * Clone the populated PMDs of the entry text and force it RO.
  */
 static void pti_clone_entry_text(void)
 {
 	pti_clone_pgtable((unsigned long) __entry_text_start,
-			  (unsigned long) __irqentry_text_end,
+			  (unsigned long) __entry_text_end,
 			  PTI_CLONE_PMD);
 }
 

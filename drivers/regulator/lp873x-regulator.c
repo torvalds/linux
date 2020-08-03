@@ -54,14 +54,14 @@ struct lp873x_regulator {
 
 static const struct lp873x_regulator regulators[];
 
-static const struct regulator_linear_range buck0_buck1_ranges[] = {
+static const struct linear_range buck0_buck1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x13, 0),
 	REGULATOR_LINEAR_RANGE(700000, 0x14, 0x17, 10000),
 	REGULATOR_LINEAR_RANGE(735000, 0x18, 0x9d, 5000),
 	REGULATOR_LINEAR_RANGE(1420000, 0x9e, 0xff, 20000),
 };
 
-static const struct regulator_linear_range ldo0_ldo1_ranges[] = {
+static const struct linear_range ldo0_ldo1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x19, 100000),
 };
 

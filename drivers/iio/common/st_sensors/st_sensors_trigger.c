@@ -44,8 +44,7 @@ static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 			  sdata->sensor_settings->drdy_irq.stat_drdy.addr,
 			  &status);
 	if (ret < 0) {
-		dev_err(sdata->dev,
-			"error checking samples available\n");
+		dev_err(sdata->dev, "error checking samples available\n");
 		return ret;
 	}
 
@@ -148,9 +147,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	case IRQF_TRIGGER_LOW:
 		if (!sdata->sensor_settings->drdy_irq.addr_ihl) {
 			dev_err(&indio_dev->dev,
-				"falling/low specified for IRQ "
-				"but hardware supports only rising/high: "
-				"will request rising/high\n");
+				"falling/low specified for IRQ but hardware supports only rising/high: will request rising/high\n");
 			if (irq_trig == IRQF_TRIGGER_FALLING)
 				irq_trig = IRQF_TRIGGER_RISING;
 			if (irq_trig == IRQF_TRIGGER_LOW)
@@ -163,8 +160,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 			if (err < 0)
 				goto iio_trigger_free;
 			dev_info(&indio_dev->dev,
-				 "interrupts on the falling edge or "
-				 "active low level\n");
+				 "interrupts on the falling edge or active low level\n");
 		}
 		break;
 	case IRQF_TRIGGER_RISING:
@@ -178,8 +174,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	default:
 		/* This is the most preferred mode, if possible */
 		dev_err(&indio_dev->dev,
-			"unsupported IRQ trigger specified (%lx), enforce "
-			"rising edge\n", irq_trig);
+			"unsupported IRQ trigger specified (%lx), enforce rising edge\n", irq_trig);
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
 

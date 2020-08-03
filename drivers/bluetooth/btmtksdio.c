@@ -51,9 +51,9 @@ static const struct btmtksdio_data mt7668_data = {
 };
 
 static const struct sdio_device_id btmtksdio_table[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7663),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7663),
 	 .driver_data = (kernel_ulong_t)&mt7663_data },
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7668),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7668),
 	 .driver_data = (kernel_ulong_t)&mt7668_data },
 	{ }	/* Terminating entry */
 };

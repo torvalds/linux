@@ -2,7 +2,7 @@
 /* Copyright(c) 2018 Intel Corporation. */
 
 #include <linux/bpf_trace.h>
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 #include <net/xdp.h>
 
 #include "ixgbe.h"
@@ -20,54 +20,11 @@ struct xdp_umem *ixgbe_xsk_umem(struct ixgbe_adapter *adapter,
 	return xdp_get_umem_from_qid(adapter->netdev, qid);
 }
 
-static int ixgbe_xsk_umem_dma_map(struct ixgbe_adapter *adapter,
-				  struct xdp_umem *umem)
-{
-	struct device *dev = &adapter->pdev->dev;
-	unsigned int i, j;
-	dma_addr_t dma;
-
-	for (i = 0; i < umem->npgs; i++) {
-		dma = dma_map_page_attrs(dev, umem->pgs[i], 0, PAGE_SIZE,
-					 DMA_BIDIRECTIONAL, IXGBE_RX_DMA_ATTR);
-		if (dma_mapping_error(dev, dma))
-			goto out_unmap;
-
-		umem->pages[i].dma = dma;
-	}
-
-	return 0;
-
-out_unmap:
-	for (j = 0; j < i; j++) {
-		dma_unmap_page_attrs(dev, umem->pages[i].dma, PAGE_SIZE,
-				     DMA_BIDIRECTIONAL, IXGBE_RX_DMA_ATTR);
-		umem->pages[i].dma = 0;
-	}
-
-	return -1;
-}
-
-static void ixgbe_xsk_umem_dma_unmap(struct ixgbe_adapter *adapter,
-				     struct xdp_umem *umem)
-{
-	struct device *dev = &adapter->pdev->dev;
-	unsigned int i;
-
-	for (i = 0; i < umem->npgs; i++) {
-		dma_unmap_page_attrs(dev, umem->pages[i].dma, PAGE_SIZE,
-				     DMA_BIDIRECTIONAL, IXGBE_RX_DMA_ATTR);
-
-		umem->pages[i].dma = 0;
-	}
-}
-
 static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 				 struct xdp_umem *umem,
 				 u16 qid)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct xdp_umem_fq_reuse *reuseq;
 	bool if_running;
 	int err;
 
@@ -78,13 +35,7 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 	    qid >= netdev->real_num_tx_queues)
 		return -EINVAL;
 
-	reuseq = xsk_reuseq_prepare(adapter->rx_ring[0]->count);
-	if (!reuseq)
-		return -ENOMEM;
-
-	xsk_reuseq_free(xsk_reuseq_swap(umem, reuseq));
-
-	err = ixgbe_xsk_umem_dma_map(adapter, umem);
+	err = xsk_buff_dma_map(umem, &adapter->pdev->dev, IXGBE_RX_DMA_ATTR);
 	if (err)
 		return err;
 
@@ -124,7 +75,7 @@ static int ixgbe_xsk_umem_disable(struct ixgbe_adapter *adapter, u16 qid)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
 	clear_bit(qid, adapter->af_xdp_zc_qps);
-	ixgbe_xsk_umem_dma_unmap(adapter, umem);
+	xsk_buff_dma_unmap(umem, IXGBE_RX_DMA_ATTR);
 
 	if (if_running)
 		ixgbe_txrx_ring_enable(adapter, qid);
@@ -143,25 +94,20 @@ static int ixgbe_run_xdp_zc(struct ixgbe_adapter *adapter,
 			    struct ixgbe_ring *rx_ring,
 			    struct xdp_buff *xdp)
 {
-	struct xdp_umem *umem = rx_ring->xsk_umem;
 	int err, result = IXGBE_XDP_PASS;
 	struct bpf_prog *xdp_prog;
 	struct xdp_frame *xdpf;
-	u64 offset;
 	u32 act;
 
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
-	offset = xdp->data - xdp->data_hard_start;
-
-	xdp->handle = xsk_umem_adjust_offset(umem, xdp->handle, offset);
 
 	switch (act) {
 	case XDP_PASS:
 		break;
 	case XDP_TX:
-		xdpf = convert_to_xdp_frame(xdp);
+		xdpf = xdp_convert_buff_to_frame(xdp);
 		if (unlikely(!xdpf)) {
 			result = IXGBE_XDP_CONSUMED;
 			break;
@@ -186,140 +132,16 @@ static int ixgbe_run_xdp_zc(struct ixgbe_adapter *adapter,
 	return result;
 }
 
-static struct
-ixgbe_rx_buffer *ixgbe_get_rx_buffer_zc(struct ixgbe_ring *rx_ring,
-					unsigned int size)
-{
-	struct ixgbe_rx_buffer *bi;
-
-	bi = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
-
-	/* we are reusing so sync this buffer for CPU use */
-	dma_sync_single_range_for_cpu(rx_ring->dev,
-				      bi->dma, 0,
-				      size,
-				      DMA_BIDIRECTIONAL);
-
-	return bi;
-}
-
-static void ixgbe_reuse_rx_buffer_zc(struct ixgbe_ring *rx_ring,
-				     struct ixgbe_rx_buffer *obi)
-{
-	u16 nta = rx_ring->next_to_alloc;
-	struct ixgbe_rx_buffer *nbi;
-
-	nbi = &rx_ring->rx_buffer_info[rx_ring->next_to_alloc];
-	/* update, and store next to alloc */
-	nta++;
-	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
-
-	/* transfer page from old buffer to new buffer */
-	nbi->dma = obi->dma;
-	nbi->addr = obi->addr;
-	nbi->handle = obi->handle;
-
-	obi->addr = NULL;
-	obi->skb = NULL;
-}
-
-void ixgbe_zca_free(struct zero_copy_allocator *alloc, unsigned long handle)
-{
-	struct ixgbe_rx_buffer *bi;
-	struct ixgbe_ring *rx_ring;
-	u64 hr, mask;
-	u16 nta;
-
-	rx_ring = container_of(alloc, struct ixgbe_ring, zca);
-	hr = rx_ring->xsk_umem->headroom + XDP_PACKET_HEADROOM;
-	mask = rx_ring->xsk_umem->chunk_mask;
-
-	nta = rx_ring->next_to_alloc;
-	bi = rx_ring->rx_buffer_info;
-
-	nta++;
-	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
-
-	handle &= mask;
-
-	bi->dma = xdp_umem_get_dma(rx_ring->xsk_umem, handle);
-	bi->dma += hr;
-
-	bi->addr = xdp_umem_get_data(rx_ring->xsk_umem, handle);
-	bi->addr += hr;
-
-	bi->handle = xsk_umem_adjust_offset(rx_ring->xsk_umem, (u64)handle,
-					    rx_ring->xsk_umem->headroom);
-}
-
-static bool ixgbe_alloc_buffer_zc(struct ixgbe_ring *rx_ring,
-				  struct ixgbe_rx_buffer *bi)
-{
-	struct xdp_umem *umem = rx_ring->xsk_umem;
-	void *addr = bi->addr;
-	u64 handle, hr;
-
-	if (addr)
-		return true;
-
-	if (!xsk_umem_peek_addr(umem, &handle)) {
-		rx_ring->rx_stats.alloc_rx_page_failed++;
-		return false;
-	}
-
-	hr = umem->headroom + XDP_PACKET_HEADROOM;
-
-	bi->dma = xdp_umem_get_dma(umem, handle);
-	bi->dma += hr;
-
-	bi->addr = xdp_umem_get_data(umem, handle);
-	bi->addr += hr;
-
-	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
-
-	xsk_umem_release_addr(umem);
-	return true;
-}
-
-static bool ixgbe_alloc_buffer_slow_zc(struct ixgbe_ring *rx_ring,
-				       struct ixgbe_rx_buffer *bi)
-{
-	struct xdp_umem *umem = rx_ring->xsk_umem;
-	u64 handle, hr;
-
-	if (!xsk_umem_peek_addr_rq(umem, &handle)) {
-		rx_ring->rx_stats.alloc_rx_page_failed++;
-		return false;
-	}
-
-	handle &= rx_ring->xsk_umem->chunk_mask;
-
-	hr = umem->headroom + XDP_PACKET_HEADROOM;
-
-	bi->dma = xdp_umem_get_dma(umem, handle);
-	bi->dma += hr;
-
-	bi->addr = xdp_umem_get_data(umem, handle);
-	bi->addr += hr;
-
-	bi->handle = xsk_umem_adjust_offset(umem, handle, umem->headroom);
-
-	xsk_umem_release_addr_rq(umem);
-	return true;
-}
-
-static __always_inline bool
-__ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
-			    bool alloc(struct ixgbe_ring *rx_ring,
-				       struct ixgbe_rx_buffer *bi))
+bool ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 count)
 {
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	u16 i = rx_ring->next_to_use;
+	dma_addr_t dma;
 	bool ok = true;
 
 	/* nothing to do */
-	if (!cleaned_count)
+	if (!count)
 		return true;
 
 	rx_desc = IXGBE_RX_DESC(rx_ring, i);
@@ -327,21 +149,18 @@ __ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
 	i -= rx_ring->count;
 
 	do {
-		if (!alloc(rx_ring, bi)) {
+		bi->xdp = xsk_buff_alloc(rx_ring->xsk_umem);
+		if (!bi->xdp) {
 			ok = false;
 			break;
 		}
 
-		/* sync the buffer for use by the device */
-		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
-						 bi->page_offset,
-						 rx_ring->rx_buf_len,
-						 DMA_BIDIRECTIONAL);
+		dma = xsk_buff_xdp_get_dma(bi->xdp);
 
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
+		rx_desc->read.pkt_addr = cpu_to_le64(dma);
 
 		rx_desc++;
 		bi++;
@@ -355,16 +174,13 @@ __ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
 		/* clear the length for the next_to_use descriptor */
 		rx_desc->wb.upper.length = 0;
 
-		cleaned_count--;
-	} while (cleaned_count);
+		count--;
+	} while (count);
 
 	i += rx_ring->count;
 
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-
-		/* update next to alloc since we have filled the ring */
-		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
 		 * know there are new descriptors to fetch.  (Only
@@ -378,40 +194,27 @@ __ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
 	return ok;
 }
 
-void ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 count)
-{
-	__ixgbe_alloc_rx_buffers_zc(rx_ring, count,
-				    ixgbe_alloc_buffer_slow_zc);
-}
-
-static bool ixgbe_alloc_rx_buffers_fast_zc(struct ixgbe_ring *rx_ring,
-					   u16 count)
-{
-	return __ixgbe_alloc_rx_buffers_zc(rx_ring, count,
-					   ixgbe_alloc_buffer_zc);
-}
-
 static struct sk_buff *ixgbe_construct_skb_zc(struct ixgbe_ring *rx_ring,
-					      struct ixgbe_rx_buffer *bi,
-					      struct xdp_buff *xdp)
+					      struct ixgbe_rx_buffer *bi)
 {
-	unsigned int metasize = xdp->data - xdp->data_meta;
-	unsigned int datasize = xdp->data_end - xdp->data;
+	unsigned int metasize = bi->xdp->data - bi->xdp->data_meta;
+	unsigned int datasize = bi->xdp->data_end - bi->xdp->data;
 	struct sk_buff *skb;
 
 	/* allocate a skb to store the frags */
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi,
-			       xdp->data_end - xdp->data_hard_start,
+			       bi->xdp->data_end - bi->xdp->data_hard_start,
 			       GFP_ATOMIC | __GFP_NOWARN);
 	if (unlikely(!skb))
 		return NULL;
 
-	skb_reserve(skb, xdp->data - xdp->data_hard_start);
-	memcpy(__skb_put(skb, datasize), xdp->data, datasize);
+	skb_reserve(skb, bi->xdp->data - bi->xdp->data_hard_start);
+	memcpy(__skb_put(skb, datasize), bi->xdp->data, datasize);
 	if (metasize)
 		skb_metadata_set(skb, metasize);
 
-	ixgbe_reuse_rx_buffer_zc(rx_ring, bi);
+	xsk_buff_free(bi->xdp);
+	bi->xdp = NULL;
 	return skb;
 }
 
@@ -434,9 +237,6 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 	unsigned int xdp_res, xdp_xmit = 0;
 	bool failure = false;
 	struct sk_buff *skb;
-	struct xdp_buff xdp;
-
-	xdp.rxq = &rx_ring->xdp_rxq;
 
 	while (likely(total_rx_packets < budget)) {
 		union ixgbe_adv_rx_desc *rx_desc;
@@ -446,8 +246,8 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBE_RX_BUFFER_WRITE) {
 			failure = failure ||
-				  !ixgbe_alloc_rx_buffers_fast_zc(rx_ring,
-								 cleaned_count);
+				  !ixgbe_alloc_rx_buffers_zc(rx_ring,
+							     cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -462,42 +262,40 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		 */
 		dma_rmb();
 
-		bi = ixgbe_get_rx_buffer_zc(rx_ring, size);
+		bi = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
 
 		if (unlikely(!ixgbe_test_staterr(rx_desc,
 						 IXGBE_RXD_STAT_EOP))) {
 			struct ixgbe_rx_buffer *next_bi;
 
-			ixgbe_reuse_rx_buffer_zc(rx_ring, bi);
+			xsk_buff_free(bi->xdp);
+			bi->xdp = NULL;
 			ixgbe_inc_ntc(rx_ring);
 			next_bi =
 			       &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
-			next_bi->skb = ERR_PTR(-EINVAL);
+			next_bi->discard = true;
 			continue;
 		}
 
-		if (unlikely(bi->skb)) {
-			ixgbe_reuse_rx_buffer_zc(rx_ring, bi);
+		if (unlikely(bi->discard)) {
+			xsk_buff_free(bi->xdp);
+			bi->xdp = NULL;
+			bi->discard = false;
 			ixgbe_inc_ntc(rx_ring);
 			continue;
 		}
 
-		xdp.data = bi->addr;
-		xdp.data_meta = xdp.data;
-		xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
-		xdp.data_end = xdp.data + size;
-		xdp.handle = bi->handle;
-
-		xdp_res = ixgbe_run_xdp_zc(adapter, rx_ring, &xdp);
+		bi->xdp->data_end = bi->xdp->data + size;
+		xsk_buff_dma_sync_for_cpu(bi->xdp);
+		xdp_res = ixgbe_run_xdp_zc(adapter, rx_ring, bi->xdp);
 
 		if (xdp_res) {
-			if (xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR)) {
+			if (xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR))
 				xdp_xmit |= xdp_res;
-				bi->addr = NULL;
-				bi->skb = NULL;
-			} else {
-				ixgbe_reuse_rx_buffer_zc(rx_ring, bi);
-			}
+			else
+				xsk_buff_free(bi->xdp);
+
+			bi->xdp = NULL;
 			total_rx_packets++;
 			total_rx_bytes += size;
 
@@ -507,7 +305,7 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		}
 
 		/* XDP_PASS path */
-		skb = ixgbe_construct_skb_zc(rx_ring, bi, &xdp);
+		skb = ixgbe_construct_skb_zc(rx_ring, bi);
 		if (!skb) {
 			rx_ring->rx_stats.alloc_rx_buff_failed++;
 			break;
@@ -559,17 +357,17 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 
 void ixgbe_xsk_clean_rx_ring(struct ixgbe_ring *rx_ring)
 {
-	u16 i = rx_ring->next_to_clean;
-	struct ixgbe_rx_buffer *bi = &rx_ring->rx_buffer_info[i];
+	struct ixgbe_rx_buffer *bi;
+	u16 i;
 
-	while (i != rx_ring->next_to_alloc) {
-		xsk_umem_fq_reuse(rx_ring->xsk_umem, bi->handle);
-		i++;
-		bi++;
-		if (i == rx_ring->count) {
-			i = 0;
-			bi = rx_ring->rx_buffer_info;
-		}
+	for (i = 0; i < rx_ring->count; i++) {
+		bi = &rx_ring->rx_buffer_info[i];
+
+		if (!bi->xdp)
+			continue;
+
+		xsk_buff_free(bi->xdp);
+		bi->xdp = NULL;
 	}
 }
 
@@ -592,10 +390,9 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
 			break;
 
-		dma = xdp_umem_get_dma(xdp_ring->xsk_umem, desc.addr);
-
-		dma_sync_single_for_device(xdp_ring->dev, dma, desc.len,
-					   DMA_BIDIRECTIONAL);
+		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_umem, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_umem, dma,
+						 desc.len);
 
 		tx_bi = &xdp_ring->tx_buffer_info[xdp_ring->next_to_use];
 		tx_bi->bytecount = desc.len;

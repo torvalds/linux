@@ -6,7 +6,6 @@
 #include "i915_drv.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
 
@@ -289,8 +288,7 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_lock(obj);
 	err = i915_sw_fence_await_reservation(&work->wait,
-					      obj->base.resv, NULL,
-					      true, I915_FENCE_TIMEOUT,
+					      obj->base.resv, NULL, true, 0,
 					      I915_FENCE_GFP);
 	if (err < 0) {
 		dma_fence_set_error(&work->dma, err);

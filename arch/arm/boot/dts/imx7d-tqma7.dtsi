@@ -9,3 +9,7 @@
 
 #include "imx7d.dtsi"
 #include "imx7-tqma7.dtsi"
+
+&cpu1 {
+	cpu-supply = <&sw1a_reg>;
+};

@@ -55,16 +55,15 @@ ifneq ($(EXTRA_LDFLAGS),)
 LDFLAGS += $(EXTRA_LDFLAGS)
 endif
 
-LIBS = $(LIBBPF) -lelf -lz
-
 INSTALL ?= install
 RM ?= rm -f
 CLANG ?= clang
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib \
+FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib libcap \
 	clang-bpf-global-var
-FEATURE_DISPLAY = libbfd disassembler-four-args zlib clang-bpf-global-var
+FEATURE_DISPLAY = libbfd disassembler-four-args zlib libcap \
+	clang-bpf-global-var
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -88,6 +87,12 @@ endif
 
 ifeq ($(feature-reallocarray), 0)
 CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
+endif
+
+LIBS = $(LIBBPF) -lelf -lz
+ifeq ($(feature-libcap), 1)
+CFLAGS += -DUSE_LIBCAP
+LIBS += -lcap
 endif
 
 include $(wildcard $(OUTPUT)*.d)
@@ -121,7 +126,7 @@ else
 endif
 
 $(OUTPUT)_prog.o: prog.c
-	$(QUIET_CC)$(COMPILE.c) -MMD -DBPFTOOL_WITHOUT_SKELETONS -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -DBPFTOOL_WITHOUT_SKELETONS -o $@ $<
 
 $(OUTPUT)_bpftool: $(_OBJS) $(LIBBPF)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(_OBJS) $(LIBS)
@@ -136,10 +141,10 @@ profiler.skel.h: $(OUTPUT)_bpftool skeleton/profiler.bpf.o
 	$(QUIET_GEN)$(OUTPUT)./_bpftool gen skeleton skeleton/profiler.bpf.o > $@
 
 $(OUTPUT)prog.o: prog.c profiler.skel.h
-	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
-	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 $(OUTPUT)feature.o: | zdep
 
@@ -147,7 +152,7 @@ $(OUTPUT)bpftool: $(__OBJS) $(LIBBPF)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(__OBJS) $(LIBS)
 
 $(OUTPUT)%.o: %.c
-	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)

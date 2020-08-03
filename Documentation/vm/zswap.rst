@@ -140,10 +140,10 @@ without any real benefit but with a performance drop for the system), a
 special parameter has been introduced to implement a sort of hysteresis to
 refuse taking pages into zswap pool until it has sufficient space if the limit
 has been hit. To set the threshold at which zswap would start accepting pages
-again after it became full, use the sysfs ``accept_threhsold_percent``
+again after it became full, use the sysfs ``accept_threshold_percent``
 attribute, e. g.::
 
-	echo 80 > /sys/module/zswap/parameters/accept_threhsold_percent
+	echo 80 > /sys/module/zswap/parameters/accept_threshold_percent
 
 Setting this parameter to 100 will disable the hysteresis.
 

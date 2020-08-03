@@ -16,7 +16,7 @@
 
 struct net_device;
 
-int lbs_init_mesh(struct lbs_private *priv);
+void lbs_init_mesh(struct lbs_private *priv);
 void lbs_start_mesh(struct lbs_private *priv);
 int lbs_deinit_mesh(struct lbs_private *priv);
 

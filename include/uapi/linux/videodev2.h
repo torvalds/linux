@@ -487,6 +487,8 @@ struct v4l2_capability {
 
 #define V4L2_CAP_TOUCH                  0x10000000  /* Is a touch device */
 
+#define V4L2_CAP_IO_MC			0x20000000  /* Is input/output controlled by the media controller */
+
 #define V4L2_CAP_DEVICE_CAPS            0x80000000  /* sets device capabilities field */
 
 /*
@@ -782,7 +784,8 @@ struct v4l2_fmtdesc {
 	__u32               flags;
 	__u8		    description[32];   /* Description string */
 	__u32		    pixelformat;       /* Format fourcc      */
-	__u32		    reserved[4];
+	__u32		    mbus_code;		/* Media bus code    */
+	__u32		    reserved[3];
 };
 
 #define V4L2_FMT_FLAG_COMPRESSED		0x0001

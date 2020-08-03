@@ -495,14 +495,16 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 	return ret;
 }
 
-void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
-		    struct rdtgroup *rdtgrp, int evtid, int first)
+void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
+		    struct rdt_domain *d, struct rdtgroup *rdtgrp,
+		    int evtid, int first)
 {
 	/*
 	 * setup the parameters to send to the IPI to read the data.
 	 */
 	rr->rgrp = rdtgrp;
 	rr->evtid = evtid;
+	rr->r = r;
 	rr->d = d;
 	rr->val = 0;
 	rr->first = first;
@@ -539,7 +541,7 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 		goto out;
 	}
 
-	mon_event_read(&rr, d, rdtgrp, evtid, false);
+	mon_event_read(&rr, r, d, rdtgrp, evtid, false);
 
 	if (rr.val & RMID_VAL_ERROR)
 		seq_puts(m, "Error\n");

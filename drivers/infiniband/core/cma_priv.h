@@ -95,6 +95,7 @@ struct rdma_id_private {
 	 * Internal to RDMA/core, don't use in the drivers
 	 */
 	struct rdma_restrack_entry     res;
+	struct rdma_ucm_ece ece;
 };
 
 #if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)

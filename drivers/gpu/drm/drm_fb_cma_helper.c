@@ -2,7 +2,7 @@
 /*
  * drm kms/fb cma (contiguous memory allocator) helper functions
  *
- * Copyright (C) 2012 Analog Device Inc.
+ * Copyright (C) 2012 Analog Devices Inc.
  *   Author: Lars-Peter Clausen <lars@metafoo.de>
  *
  * Based on udl_fbdev.c

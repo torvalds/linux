@@ -234,10 +234,6 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 
 	wc->memory_vmapped = false;
 
-	if (!wc->ssd_dev->dax_dev) {
-		r = -EOPNOTSUPP;
-		goto err1;
-	}
 	s = wc->memory_map_size;
 	p = s >> PAGE_SHIFT;
 	if (!p) {
@@ -1143,6 +1139,42 @@ static int writecache_message(struct dm_target *ti, unsigned argc, char **argv,
 	return r;
 }
 
+static void memcpy_flushcache_optimized(void *dest, void *source, size_t size)
+{
+	/*
+	 * clflushopt performs better with block size 1024, 2048, 4096
+	 * non-temporal stores perform better with block size 512
+	 *
+	 * block size   512             1024            2048            4096
+	 * movnti       496 MB/s        642 MB/s        725 MB/s        744 MB/s
+	 * clflushopt   373 MB/s        688 MB/s        1.1 GB/s        1.2 GB/s
+	 *
+	 * We see that movnti performs better for 512-byte blocks, and
+	 * clflushopt performs better for 1024-byte and larger blocks. So, we
+	 * prefer clflushopt for sizes >= 768.
+	 *
+	 * NOTE: this happens to be the case now (with dm-writecache's single
+	 * threaded model) but re-evaluate this once memcpy_flushcache() is
+	 * enabled to use movdir64b which might invalidate this performance
+	 * advantage seen with cache-allocating-writes plus flushing.
+	 */
+#ifdef CONFIG_X86
+	if (static_cpu_has(X86_FEATURE_CLFLUSHOPT) &&
+	    likely(boot_cpu_data.x86_clflush_size == 64) &&
+	    likely(size >= 768)) {
+		do {
+			memcpy((void *)dest, (void *)source, 64);
+			clflushopt((void *)dest);
+			dest += 64;
+			source += 64;
+			size -= 64;
+		} while (size >= 64);
+		return;
+	}
+#endif
+	memcpy_flushcache(dest, source, size);
+}
+
 static void bio_copy_block(struct dm_writecache *wc, struct bio *bio, void *data)
 {
 	void *buf;
@@ -1168,7 +1200,7 @@ static void bio_copy_block(struct dm_writecache *wc, struct bio *bio, void *data
 			}
 		} else {
 			flush_dcache_page(bio_page(bio));
-			memcpy_flushcache(data, buf, size);
+			memcpy_flushcache_optimized(data, buf, size);
 		}
 
 		bvec_kunmap_irq(buf, &flags);

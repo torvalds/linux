@@ -695,7 +695,7 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	dev_dbg(connector->dev->dev, "%s: vclk:%d phy=%d venc=%d hdmi=%d\n",
 		__func__, phy_freq, vclk_freq, venc_freq, hdmi_freq);
 
-	return meson_vclk_vic_supported_freq(phy_freq, vclk_freq);
+	return meson_vclk_vic_supported_freq(priv, phy_freq, vclk_freq);
 }
 
 /* Encoder */

@@ -122,11 +122,10 @@ properties:
       this, "pins" or "pinmux" has to be specified)
 
   pinmux:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
     description:
       The list of numeric pin ids and their mux settings that properties in the
       node apply to (either this, "pins" or "groups" have to be specified)
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   pinctrl-pin-array:
     $ref: /schemas/types.yaml#/definitions/uint32-array

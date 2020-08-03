@@ -10,6 +10,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/ratelimit.h>
+#include <linux/fiemap.h>
 #include "overlayfs.h"
 
 
@@ -456,7 +457,7 @@ int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
 	if (flags & S_ATIME) {
 		struct ovl_fs *ofs = inode->i_sb->s_fs_info;
 		struct path upperpath = {
-			.mnt = ofs->upper_mnt,
+			.mnt = ovl_upper_mnt(ofs),
 			.dentry = ovl_upperdentry_dereference(OVL_I(inode)),
 		};
 
@@ -479,10 +480,6 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -EOPNOTSUPP;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-
-	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC)
-		filemap_write_and_wait(realinode->i_mapping);
-
 	err = realinode->i_op->fiemap(realinode, fieinfo, start, len);
 	revert_creds(old_cred);
 
@@ -908,7 +905,7 @@ struct inode *ovl_get_trap_inode(struct super_block *sb, struct dentry *dir)
  * Does overlay inode need to be hashed by lower inode?
  */
 static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
-			     struct dentry *lower, struct dentry *index)
+			     struct dentry *lower, bool index)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 
@@ -921,7 +918,7 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 		return true;
 
 	/* Yes, if won't be copied up */
-	if (!ofs->upper_mnt)
+	if (!ovl_upper_mnt(ofs))
 		return true;
 
 	/* No, if lower hardlink is or will be broken on copy up */
@@ -957,7 +954,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	bool bylower = ovl_hash_bylower(sb, upperdentry, lowerdentry,
 					oip->index);
 	int fsid = bylower ? lowerpath->layer->fsid : 0;
-	bool is_dir, metacopy = false;
+	bool is_dir;
 	unsigned long ino = 0;
 	int err = oip->newinode ? -EEXIST : -ENOMEM;
 
@@ -1017,15 +1014,6 @@ struct inode *ovl_get_inode(struct super_block *sb,
 
 	if (oip->index)
 		ovl_set_flag(OVL_INDEX, inode);
-
-	if (upperdentry) {
-		err = ovl_check_metacopy_xattr(upperdentry);
-		if (err < 0)
-			goto out_err;
-		metacopy = err;
-		if (!metacopy)
-			ovl_set_flag(OVL_UPPERDATA, inode);
-	}
 
 	OVL_I(inode)->redirect = oip->redirect;
 

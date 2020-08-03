@@ -195,36 +195,6 @@ struct omap_hwmod omap2xxx_iva_hwmod = {
 	.class		= &iva_hwmod_class,
 };
 
-/* timer1 */
-struct omap_hwmod omap2xxx_timer1_hwmod = {
-	.name		= "timer1",
-	.main_clk	= "gpt1_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_GPT1_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_timer_hwmod_class,
-	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
-/* timer2 */
-struct omap_hwmod omap2xxx_timer2_hwmod = {
-	.name		= "timer2",
-	.main_clk	= "gpt2_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = CORE_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_GPT2_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_timer_hwmod_class,
-	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
 /* timer3 */
 struct omap_hwmod omap2xxx_timer3_hwmod = {
 	.name		= "timer3",
@@ -593,23 +563,6 @@ struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_mcspi_class,
-};
-
-static struct omap_hwmod_class omap2xxx_counter_hwmod_class = {
-	.name	= "counter",
-};
-
-struct omap_hwmod omap2xxx_counter_32k_hwmod = {
-	.name		= "counter_32k",
-	.main_clk	= "func_32k_ck",
-	.prcm		= {
-		.omap2	= {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP24XX_ST_32KSYNC_SHIFT,
-		},
-	},
-	.class		= &omap2xxx_counter_hwmod_class,
 };
 
 /* gpmc */

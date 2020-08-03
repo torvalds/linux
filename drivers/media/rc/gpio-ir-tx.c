@@ -42,7 +42,7 @@ static int gpio_ir_tx_set_carrier(struct rc_dev *dev, u32 carrier)
 {
 	struct gpio_ir *gpio_ir = dev->priv;
 
-	if (!carrier)
+	if (carrier > 500000)
 		return -EINVAL;
 
 	gpio_ir->carrier = carrier;
@@ -50,10 +50,35 @@ static int gpio_ir_tx_set_carrier(struct rc_dev *dev, u32 carrier)
 	return 0;
 }
 
-static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
-		      unsigned int count)
+static void gpio_ir_tx_unmodulated(struct gpio_ir *gpio_ir, uint *txbuf,
+				   uint count)
 {
-	struct gpio_ir *gpio_ir = dev->priv;
+	unsigned long flags;
+	ktime_t edge;
+	s32 delta;
+	int i;
+
+	spin_lock_irqsave(&gpio_ir->lock, flags);
+
+	edge = ktime_get();
+
+	for (i = 0; i < count; i++) {
+		gpiod_set_value(gpio_ir->gpio, !(i % 2));
+
+		edge = ktime_add_us(edge, txbuf[i]);
+		delta = ktime_us_delta(edge, ktime_get());
+		if (delta > 0)
+			udelay(delta);
+	}
+
+	gpiod_set_value(gpio_ir->gpio, 0);
+
+	spin_unlock_irqrestore(&gpio_ir->lock, flags);
+}
+
+static void gpio_ir_tx_modulated(struct gpio_ir *gpio_ir, uint *txbuf,
+				 uint count)
+{
 	unsigned long flags;
 	ktime_t edge;
 	/*
@@ -79,13 +104,8 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 			// space
 			edge = ktime_add_us(edge, txbuf[i]);
 			delta = ktime_us_delta(edge, ktime_get());
-			if (delta > 10) {
-				spin_unlock_irqrestore(&gpio_ir->lock, flags);
-				usleep_range(delta, delta + 10);
-				spin_lock_irqsave(&gpio_ir->lock, flags);
-			} else if (delta > 0) {
+			if (delta > 0)
 				udelay(delta);
-			}
 		} else {
 			// pulse
 			ktime_t last = ktime_add_us(edge, txbuf[i]);
@@ -110,6 +130,17 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 	}
 
 	spin_unlock_irqrestore(&gpio_ir->lock, flags);
+}
+
+static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
+		      unsigned int count)
+{
+	struct gpio_ir *gpio_ir = dev->priv;
+
+	if (gpio_ir->carrier)
+		gpio_ir_tx_modulated(gpio_ir, txbuf, count);
+	else
+		gpio_ir_tx_unmodulated(gpio_ir, txbuf, count);
 
 	return count;
 }

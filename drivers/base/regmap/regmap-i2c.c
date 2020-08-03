@@ -246,6 +246,63 @@ static const struct regmap_bus regmap_i2c_smbus_i2c_block = {
 	.max_raw_write = I2C_SMBUS_BLOCK_MAX,
 };
 
+static int regmap_i2c_smbus_i2c_write_reg16(void *context, const void *data,
+				      size_t count)
+{
+	struct device *dev = context;
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (count < 2)
+		return -EINVAL;
+
+	count--;
+	return i2c_smbus_write_i2c_block_data(i2c, ((u8 *)data)[0], count,
+					      (u8 *)data + 1);
+}
+
+static int regmap_i2c_smbus_i2c_read_reg16(void *context, const void *reg,
+				     size_t reg_size, void *val,
+				     size_t val_size)
+{
+	struct device *dev = context;
+	struct i2c_client *i2c = to_i2c_client(dev);
+	int ret, count, len = val_size;
+
+	if (reg_size != 2)
+		return -EINVAL;
+
+	ret = i2c_smbus_write_byte_data(i2c, ((u16 *)reg)[0] & 0xff,
+					((u16 *)reg)[0] >> 8);
+	if (ret < 0)
+		return ret;
+
+	count = 0;
+	do {
+		/* Current Address Read */
+		ret = i2c_smbus_read_byte(i2c);
+		if (ret < 0)
+			break;
+
+		*((u8 *)val++) = ret;
+		count++;
+		len--;
+	} while (len > 0);
+
+	if (count == val_size)
+		return 0;
+	else if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
+static const struct regmap_bus regmap_i2c_smbus_i2c_block_reg16 = {
+	.write = regmap_i2c_smbus_i2c_write_reg16,
+	.read = regmap_i2c_smbus_i2c_read_reg16,
+	.max_raw_read = I2C_SMBUS_BLOCK_MAX,
+	.max_raw_write = I2C_SMBUS_BLOCK_MAX,
+};
+
 static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 					const struct regmap_config *config)
 {
@@ -255,6 +312,10 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_I2C_BLOCK))
 		return &regmap_i2c_smbus_i2c_block;
+	else if (config->val_bits == 8 && config->reg_bits == 16 &&
+		i2c_check_functionality(i2c->adapter,
+					I2C_FUNC_SMBUS_I2C_BLOCK))
+		return &regmap_i2c_smbus_i2c_block_reg16;
 	else if (config->val_bits == 16 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_WORD_DATA))

@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dvb-usb-common.h"
 
@@ -184,10 +184,10 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 }
 
 /* determine the name and the state of the just found USB device */
-static struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device *udev, struct dvb_usb_device_properties *props, int *cold)
+static const struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device *udev, const struct dvb_usb_device_properties *props, int *cold)
 {
 	int i, j;
-	struct dvb_usb_device_description *desc = NULL;
+	const struct dvb_usb_device_description *desc = NULL;
 
 	*cold = -1;
 
@@ -242,13 +242,13 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  * USB
  */
 int dvb_usb_device_init(struct usb_interface *intf,
-			struct dvb_usb_device_properties *props,
+			const struct dvb_usb_device_properties *props,
 			struct module *owner, struct dvb_usb_device **du,
 			short *adapter_nums)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
-	struct dvb_usb_device_description *desc = NULL;
+	const struct dvb_usb_device_description *desc = NULL;
 
 	int ret = -ENOMEM, cold = 0;
 

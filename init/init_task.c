@@ -11,8 +11,8 @@
 #include <linux/mm.h>
 #include <linux/audit.h>
 #include <linux/numa.h>
+#include <linux/scs.h>
 
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 
 static struct signal_struct init_signals = {
@@ -49,6 +49,13 @@ static struct sighand_struct init_sighand = {
 	.siglock	= __SPIN_LOCK_UNLOCKED(init_sighand.siglock),
 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(init_sighand.signalfd_wqh),
 };
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+unsigned long init_shadow_call_stack[SCS_SIZE / sizeof(long)]
+		__init_task_data = {
+	[(SCS_SIZE / sizeof(long)) - 1] = SCS_END_MAGIC
+};
+#endif
 
 /*
  * Set up the first task table, touch at your own risk!. Base=0,
@@ -141,6 +148,11 @@ struct task_struct init_task
 	.rcu_tasks_holdout_list = LIST_HEAD_INIT(init_task.rcu_tasks_holdout_list),
 	.rcu_tasks_idle_cpu = -1,
 #endif
+#ifdef CONFIG_TASKS_TRACE_RCU
+	.trc_reader_nesting = 0,
+	.trc_reader_special.s = 0,
+	.trc_holdout_list = LIST_HEAD_INIT(init_task.trc_holdout_list),
+#endif
 #ifdef CONFIG_CPUSETS
 	.mems_allowed_seq = SEQCNT_ZERO(init_task.mems_allowed_seq),
 #endif
@@ -161,6 +173,16 @@ struct task_struct init_task
 #endif
 #ifdef CONFIG_KASAN
 	.kasan_depth	= 1,
+#endif
+#ifdef CONFIG_KCSAN
+	.kcsan_ctx = {
+		.disable_count		= 0,
+		.atomic_next		= 0,
+		.atomic_nest_count	= 0,
+		.in_flat_atomic		= false,
+		.access_mask		= 0,
+		.scoped_accesses	= {LIST_POISON1, NULL},
+	},
 #endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.softirqs_enabled = 1,

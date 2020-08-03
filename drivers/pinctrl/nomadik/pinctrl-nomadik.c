@@ -1343,8 +1343,6 @@ static const struct nmk_cfg_param nmk_cfg_params[] = {
 
 static int nmk_dt_pin_config(int index, int val, unsigned long *config)
 {
-	int ret = 0;
-
 	if (nmk_cfg_params[index].choice == NULL)
 		*config = nmk_cfg_params[index].config;
 	else {
@@ -1354,7 +1352,7 @@ static int nmk_dt_pin_config(int index, int val, unsigned long *config)
 				nmk_cfg_params[index].choice[val];
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static const char *nmk_find_pin_name(struct pinctrl_dev *pctldev, const char *pin_name)

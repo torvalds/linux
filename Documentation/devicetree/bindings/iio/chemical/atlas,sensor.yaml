@@ -4,19 +4,21 @@
 $id: http://devicetree.org/schemas/iio/chemical/atlas,sensor.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Atlas Scientific OEM sensors
+title: Atlas Scientific OEM + EZO sensors
 
 maintainers:
   - Matt Ranostay <matt.ranostay@konsulko.com>
 
 description: |
-  Atlas Scientific OEM sensors connected via I2C
+  Atlas Scientific OEM + EZO sensors connected via I2C
 
   Datasheets:
     http://www.atlas-scientific.com/_files/_datasheets/_oem/DO_oem_datasheet.pdf
     http://www.atlas-scientific.com/_files/_datasheets/_oem/EC_oem_datasheet.pdf
     http://www.atlas-scientific.com/_files/_datasheets/_oem/ORP_oem_datasheet.pdf
     http://www.atlas-scientific.com/_files/_datasheets/_oem/pH_oem_datasheet.pdf
+    http://www.atlas-scientific.com/_files/_datasheets/_oem/RTD_oem_datasheet.pdf
+    http://www.atlas-scientific.com/_files/_datasheets/_probe/EZO_CO2_Datasheet.pdf
 
 properties:
   compatible:
@@ -25,6 +27,8 @@ properties:
       - atlas,ec-sm
       - atlas,orp-sm
       - atlas,ph-sm
+      - atlas,rtd-sm
+      - atlas,co2-ezo
 
   reg:
      maxItems: 1

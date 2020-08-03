@@ -93,7 +93,6 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow)
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
-
 	/*
 	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 1 means do not allow stutter
 	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0 means allow stutter

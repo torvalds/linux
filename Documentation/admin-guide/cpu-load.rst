@@ -105,7 +105,7 @@ References
 ----------
 
 - http://lkml.org/lkml/2007/2/12/6
-- Documentation/filesystems/proc.txt (1.8)
+- Documentation/filesystems/proc.rst (1.8)
 
 
 Thanks

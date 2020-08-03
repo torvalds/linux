@@ -476,7 +476,8 @@ static int vce_v4_0_sw_init(void *handle)
 			else
 				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring2_3 * 2 + 1;
 		}
-		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0,
+				     AMDGPU_RING_PRIO_DEFAULT);
 		if (r)
 			return r;
 	}
@@ -539,7 +540,6 @@ static int vce_v4_0_hw_init(void *handle)
 static int vce_v4_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* vce_v4_0_wait_for_idle(handle); */
@@ -548,9 +548,6 @@ static int vce_v4_0_hw_fini(void *handle)
 		/* full access mode, so don't touch any VCE register */
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 	}
-
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].sched.ready = false;
 
 	return 0;
 }

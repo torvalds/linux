@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -48,7 +49,7 @@ struct gpio_mockup_line_status {
 struct gpio_mockup_chip {
 	struct gpio_chip gc;
 	struct gpio_mockup_line_status *lines;
-	struct irq_sim irqsim;
+	struct irq_domain *irq_sim_domain;
 	struct dentry *dbg_dir;
 	struct mutex lock;
 };
@@ -144,14 +145,12 @@ static void gpio_mockup_set_multiple(struct gpio_chip *gc,
 static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 				  unsigned int offset, int value)
 {
+	int curr, irq, irq_type, ret = 0;
 	struct gpio_desc *desc;
 	struct gpio_chip *gc;
-	struct irq_sim *sim;
-	int curr, irq, irq_type;
 
 	gc = &chip->gc;
 	desc = &gc->gpiodev->descs[offset];
-	sim = &chip->irqsim;
 
 	mutex_lock(&chip->lock);
 
@@ -161,14 +160,28 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 		if (curr == value)
 			goto out;
 
-		irq = irq_sim_irqnum(sim, offset);
+		irq = irq_find_mapping(chip->irq_sim_domain, offset);
+		if (!irq)
+			/*
+			 * This is fine - it just means, nobody is listening
+			 * for interrupts on this line, otherwise
+			 * irq_create_mapping() would have been called from
+			 * the to_irq() callback.
+			 */
+			goto set_value;
+
 		irq_type = irq_get_trigger_type(irq);
 
 		if ((value == 1 && (irq_type & IRQ_TYPE_EDGE_RISING)) ||
-		    (value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING)))
-			irq_sim_fire(sim, offset);
+		    (value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING))) {
+			ret = irq_set_irqchip_state(irq, IRQCHIP_STATE_PENDING,
+						    true);
+			if (ret)
+				goto out;
+		}
 	}
 
+set_value:
 	/* Change the value unless we're actively driving the line. */
 	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
 	    !test_bit(FLAG_IS_OUT, &desc->flags))
@@ -177,7 +190,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 out:
 	chip->lines[offset].pull = value;
 	mutex_unlock(&chip->lock);
-	return 0;
+	return ret;
 }
 
 static int gpio_mockup_set_config(struct gpio_chip *gc,
@@ -236,7 +249,7 @@ static int gpio_mockup_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	return irq_sim_irqnum(&chip->irqsim, offset);
+	return irq_create_mapping(chip->irq_sim_domain, offset);
 }
 
 static void gpio_mockup_free(struct gpio_chip *gc, unsigned int offset)
@@ -389,6 +402,19 @@ static int gpio_mockup_name_lines(struct device *dev,
 	return 0;
 }
 
+static void gpio_mockup_dispose_mappings(void *data)
+{
+	struct gpio_mockup_chip *chip = data;
+	struct gpio_chip *gc = &chip->gc;
+	int i, irq;
+
+	for (i = 0; i < gc->ngpio; i++) {
+		irq = irq_find_mapping(chip->irq_sim_domain, i);
+		if (irq)
+			irq_dispose_mapping(irq);
+	}
+}
+
 static int gpio_mockup_probe(struct platform_device *pdev)
 {
 	struct gpio_mockup_chip *chip;
@@ -456,8 +482,13 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 			return rv;
 	}
 
-	rv = devm_irq_sim_init(dev, &chip->irqsim, gc->ngpio);
-	if (rv < 0)
+	chip->irq_sim_domain = devm_irq_domain_create_sim(dev, NULL,
+							  gc->ngpio);
+	if (IS_ERR(chip->irq_sim_domain))
+		return PTR_ERR(chip->irq_sim_domain);
+
+	rv = devm_add_action_or_reset(dev, gpio_mockup_dispose_mappings, chip);
+	if (rv)
 		return rv;
 
 	rv = devm_gpiochip_add_data(dev, &chip->gc, chip);

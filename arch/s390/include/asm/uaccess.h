@@ -276,6 +276,6 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 }
 
 int copy_to_user_real(void __user *dest, void *src, unsigned long count);
-void s390_kernel_write(void *dst, const void *src, size_t size);
+void *s390_kernel_write(void *dst, const void *src, size_t size);
 
 #endif /* __S390_UACCESS_H */

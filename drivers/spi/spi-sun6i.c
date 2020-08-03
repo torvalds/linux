@@ -470,6 +470,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 
 	master->max_speed_hz = 100 * 1000 * 1000;
 	master->min_speed_hz = 3 * 1000;
+	master->use_gpio_descriptors = true;
 	master->set_cs = sun6i_spi_set_cs;
 	master->transfer_one = sun6i_spi_transfer_one;
 	master->num_chipselect = 4;

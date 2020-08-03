@@ -39,16 +39,7 @@ ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
 ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
 ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
 ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
-
-test_modprobe()
-{
-       if [ ! -d $DIR ]; then
-               echo "$0: $DIR not present" >&2
-               echo "You must have the following enabled in your kernel:" >&2
-               cat $TEST_DIR/config >&2
-               exit $ksft_skip
-       fi
-}
+ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int"
 
 function allow_user_defaults()
 {
@@ -122,13 +113,15 @@ test_reqs()
 
 function load_req_mod()
 {
-	if [ ! -d $DIR ]; then
+	if [ ! -d $SYSCTL ]; then
 		if ! modprobe -q -n $TEST_DRIVER; then
 			echo "$0: module $TEST_DRIVER not found [SKIP]"
+			echo "You must set CONFIG_TEST_SYSCTL=m in your kernel" >&2
 			exit $ksft_skip
 		fi
 		modprobe $TEST_DRIVER
 		if [ $? -ne 0 ]; then
+			echo "$0: modprobe $TEST_DRIVER failed."
 			exit
 		fi
 	fi
@@ -752,6 +745,46 @@ sysctl_test_0006()
 	run_bitmaptest
 }
 
+sysctl_test_0007()
+{
+	TARGET="${SYSCTL}/boot_int"
+	if [ ! -f $TARGET ]; then
+		echo "Skipping test for $TARGET as it is not present ..."
+		return $ksft_skip
+	fi
+
+	if [ -d $DIR ]; then
+		echo "Boot param test only possible sysctl_test is built-in, not module:"
+		cat $TEST_DIR/config >&2
+		return $ksft_skip
+	fi
+
+	echo -n "Testing if $TARGET is set to 1 ..."
+	ORIG=$(cat "${TARGET}")
+
+	if [ x$ORIG = "x1" ]; then
+		echo "ok"
+		return 0
+	fi
+	echo "FAIL"
+	echo "Checking if /proc/cmdline contains setting of the expected parameter ..."
+	if [ ! -f /proc/cmdline ]; then
+		echo "/proc/cmdline does not exist, test inconclusive"
+		return 0
+	fi
+
+	FOUND=$(grep -c "sysctl[./]debug[./]test_sysctl[./]boot_int=1" /proc/cmdline)
+	if [ $FOUND = "1" ]; then
+		echo "Kernel param found but $TARGET is not 1, TEST FAILED"
+		rc=1
+		test_rc
+	fi
+
+	echo "Skipping test, expected kernel parameter missing."
+	echo "To perform this test, make sure kernel is booted with parameter: sysctl.debug.test_sysctl.boot_int=1"
+	return $ksft_skip
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -766,6 +799,7 @@ list_tests()
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
 	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
+	echo "0007 x $(get_test_count 0007) - tests setting sysctl from kernel boot param"
 }
 
 usage()
@@ -929,7 +963,6 @@ test_reqs
 allow_user_defaults
 check_production_sysctl_writes_strict
 load_req_mod
-test_modprobe
 
 trap "test_finish" EXIT
 

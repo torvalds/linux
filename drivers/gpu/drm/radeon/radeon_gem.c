@@ -342,17 +342,17 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & RADEON_GEM_USERPTR_VALIDATE) {
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		r = radeon_bo_reserve(bo, true);
 		if (r) {
-			up_read(&current->mm->mmap_sem);
+			mmap_read_unlock(current->mm);
 			goto release_object;
 		}
 
 		radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		radeon_bo_unreserve(bo);
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 		if (r)
 			goto release_object;
 	}

@@ -27,39 +27,35 @@ properties:
       clock to this at probe time.
 
   fifo-depth:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The maximum size of the tx/rx fifo's. If this property is not
       specified, the default value of the fifo size is determined from the
       controller registers.
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   card-detect-delay:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 0
     description:
       Delay in milli-seconds before detecting card after card
       insert event. The default value is 0.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
 
   data-addr:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Override fifo address with value provided by DT. The default FIFO reg
       offset is assumed as 0x100 (version < 0x240A) and 0x200(version >= 0x240A)
       by driver. If the controller does not follow this rule, please use
       this property to set fifo address in device tree.
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   fifo-watermark-aligned:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/flag
     description:
       Data done irq is expected if data length is less than
       watermark in PIO mode. But fifo watermark is requested to be aligned
       with data length in some SoC so that TX/RX irq can be generated with
       data done irq. Add this watermark quirk to mark this requirement and
       force fifo watermark setting accordingly.
+    $ref: /schemas/types.yaml#/definitions/flag
 
   dmas:
     maxItems: 1

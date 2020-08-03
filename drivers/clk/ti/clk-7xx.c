@@ -312,15 +312,6 @@ static const char * const dra7_gpu_hyd_mux_parents[] __initconst = {
 	NULL,
 };
 
-static const char * const dra7_gpu_sys_clk_parents[] __initconst = {
-	"sys_clkin",
-	NULL,
-};
-
-static const struct omap_clkctrl_div_data dra7_gpu_sys_clk_data __initconst = {
-	.max_div = 2,
-};
-
 static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst = {
 	{ 24, TI_CLK_MUX, dra7_gpu_core_mux_parents, NULL, },
 	{ 26, TI_CLK_MUX, dra7_gpu_hyd_mux_parents, NULL, },
@@ -328,7 +319,7 @@ static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data dra7_gpu_clkctrl_regs[] __initconst = {
-	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu_cm:clk:0000:24", },
+	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu-clkctrl:0000:24", },
 	{ 0 },
 };
 
@@ -644,7 +635,7 @@ static const struct omap_clkctrl_reg_data dra7_l4sec_clkctrl_regs[] __initconst 
 	{ DRA7_L4SEC_AES1_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_AES2_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_DES_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
-	{ DRA7_L4SEC_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
+	{ DRA7_L4SEC_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_root_clk_div" },
 	{ DRA7_L4SEC_SHAM_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ 0 },
 };
@@ -815,7 +806,7 @@ static const struct omap_clkctrl_reg_data dra7_wkupaon_clkctrl_regs[] __initcons
 	{ DRA7_WKUPAON_COUNTER_32K_CLKCTRL, NULL, 0, "wkupaon_iclk_mux" },
 	{ DRA7_WKUPAON_UART10_CLKCTRL, dra7_uart10_bit_data, CLKF_SW_SUP, "wkupaon-clkctrl:0060:24" },
 	{ DRA7_WKUPAON_DCAN1_CLKCTRL, dra7_dcan1_bit_data, CLKF_SW_SUP, "wkupaon-clkctrl:0068:24" },
-	{ DRA7_WKUPAON_ADC_CLKCTRL, NULL, CLKF_SW_SUP, "mcan_clk" },
+	{ DRA7_WKUPAON_ADC_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_SOC_DRA76, "mcan_clk" },
 	{ 0 },
 };
 

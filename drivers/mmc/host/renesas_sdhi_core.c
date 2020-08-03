@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mfd/tmio.h>
@@ -82,16 +83,11 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct renesas_sdhi *priv = host_to_priv(host);
-	int ret = clk_prepare_enable(priv->clk);
-
-	if (ret < 0)
-		return ret;
+	int ret;
 
 	ret = clk_prepare_enable(priv->clk_cd);
-	if (ret < 0) {
-		clk_disable_unprepare(priv->clk);
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	 * The clock driver may not know what maximum frequency
@@ -197,7 +193,6 @@ static void renesas_sdhi_clk_disable(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 
-	clk_disable_unprepare(priv->clk);
 	clk_disable_unprepare(priv->clk_cd);
 }
 
@@ -237,7 +232,7 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 			MMC_SIGNAL_VOLTAGE_330 ? 0 : -EINVAL;
 
 	ret = mmc_regulator_set_vqmmc(host->mmc, ios);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	return pinctrl_select_state(priv->pinctrl, pin_state);
@@ -325,6 +320,8 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct renesas_sdhi *priv = host_to_priv(host);
+	u32 bad_taps = priv->quirks ? priv->quirks->hs400_bad_taps : 0;
+	bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -352,10 +349,23 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 		       SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN |
 		       0x4 << SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_SHIFT);
 
+	/* Avoid bad TAP */
+	if (bad_taps & BIT(priv->tap_set)) {
+		u32 new_tap = (priv->tap_set + 1) % priv->tap_num;
 
-	if (priv->quirks && priv->quirks->hs400_4taps)
-		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
-			       priv->tap_set / 2);
+		if (bad_taps & BIT(new_tap))
+			new_tap = (priv->tap_set - 1) % priv->tap_num;
+
+		if (bad_taps & BIT(new_tap)) {
+			new_tap = priv->tap_set;
+			dev_dbg(&host->pdev->dev, "Can't handle three bad tap in a row\n");
+		}
+
+		priv->tap_set = new_tap;
+	}
+
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
+		       priv->tap_set / (use_4tap ? 2 : 1));
 
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_CKSEL,
 		       SH_MOBILE_SDHI_SCC_CKSEL_DTSEL |
@@ -422,20 +432,16 @@ static int renesas_sdhi_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_io
 	return 0;
 }
 
-#define SH_MOBILE_SDHI_MAX_TAP 3
+#define SH_MOBILE_SDHI_MIN_TAP_ROW 3
 
 static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	unsigned long tap_cnt;  /* counter of tuning success */
-	unsigned long tap_start;/* start position of tuning success */
-	unsigned long tap_end;  /* end position of tuning success */
-	unsigned long ntap;     /* temporary counter of tuning success */
-	unsigned long i;
+	unsigned int tap_start = 0, tap_end = 0, tap_cnt = 0, rs, re, i;
+	unsigned int taps_size = priv->tap_num * 2, min_tap_row;
+	unsigned long *bitmap;
 
 	priv->doing_tune = false;
-
-	/* Clear SCC_RVSREQ */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ, 0);
 
 	/*
@@ -443,42 +449,42 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	 * result requiring the tap to be good in both runs before
 	 * considering it for tuning selection.
 	 */
-	for (i = 0; i < priv->tap_num * 2; i++) {
+	for (i = 0; i < taps_size; i++) {
 		int offset = priv->tap_num * (i < priv->tap_num ? 1 : -1);
 
 		if (!test_bit(i, priv->taps))
 			clear_bit(i + offset, priv->taps);
+
+		if (!test_bit(i, priv->smpcmp))
+			clear_bit(i + offset, priv->smpcmp);
 	}
 
 	/*
-	 * Find the longest consecutive run of successful probes.  If that
-	 * is more than SH_MOBILE_SDHI_MAX_TAP probes long then use the
-	 * center index as the tap.
+	 * If all TAP are OK, the sampling clock position is selected by
+	 * identifying the change point of data.
 	 */
-	tap_cnt = 0;
-	ntap = 0;
-	tap_start = 0;
-	tap_end = 0;
-	for (i = 0; i < priv->tap_num * 2; i++) {
-		if (test_bit(i, priv->taps)) {
-			ntap++;
-		} else {
-			if (ntap > tap_cnt) {
-				tap_start = i - ntap;
-				tap_end = i - 1;
-				tap_cnt = ntap;
-			}
-			ntap = 0;
+	if (bitmap_full(priv->taps, taps_size)) {
+		bitmap = priv->smpcmp;
+		min_tap_row = 1;
+	} else {
+		bitmap = priv->taps;
+		min_tap_row = SH_MOBILE_SDHI_MIN_TAP_ROW;
+	}
+
+	/*
+	 * Find the longest consecutive run of successful probes. If that
+	 * is at least SH_MOBILE_SDHI_MIN_TAP_ROW probes long then use the
+	 * center index as the tap, otherwise bail out.
+	 */
+	bitmap_for_each_set_region(bitmap, rs, re, 0, taps_size) {
+		if (re - rs > tap_cnt) {
+			tap_end = re;
+			tap_start = rs;
+			tap_cnt = tap_end - tap_start;
 		}
 	}
 
-	if (ntap > tap_cnt) {
-		tap_start = i - ntap;
-		tap_end = i - 1;
-		tap_cnt = ntap;
-	}
-
-	if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP)
+	if (tap_cnt >= min_tap_row)
 		priv->tap_set = (tap_start + tap_end) / 2 % priv->tap_num;
 	else
 		return -EIO;
@@ -511,6 +517,7 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 
 	priv->doing_tune = true;
 	bitmap_zero(priv->taps, priv->tap_num * 2);
+	bitmap_zero(priv->smpcmp, priv->tap_num * 2);
 
 	/* Issue CMD19 twice for each tap */
 	for (i = 0; i < 2 * priv->tap_num; i++) {
@@ -519,6 +526,9 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 
 		if (mmc_send_tuning(host->mmc, opcode, NULL) == 0)
 			set_bit(i, priv->taps);
+
+		if (sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP) == 0)
+			set_bit(i, priv->smpcmp);
 	}
 
 	return renesas_sdhi_select_tuning(host);
@@ -527,7 +537,7 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_4tap)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	unsigned long new_tap = priv->tap_set;
+	unsigned int new_tap = priv->tap_set, error_tap = priv->tap_set;
 	u32 val;
 
 	val = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ);
@@ -539,20 +549,32 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 	/* Change TAP position according to correction status */
 	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN3_SDMMC &&
 	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		u32 bad_taps = priv->quirks ? priv->quirks->hs400_bad_taps : 0;
 		/*
 		 * With HS400, the DAT signal is based on DS, not CLK.
 		 * Therefore, use only CMD status.
 		 */
 		u32 smpcmp = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP) &
 					   SH_MOBILE_SDHI_SCC_SMPCMP_CMD_ERR;
-		if (!smpcmp)
+		if (!smpcmp) {
 			return false;	/* no error in CMD signal */
-		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP)
+		} else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP) {
 			new_tap++;
-		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN)
+			error_tap--;
+		} else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN) {
 			new_tap--;
-		else
+			error_tap++;
+		} else {
 			return true;	/* need retune */
+		}
+
+		/*
+		 * When new_tap is a bad tap, we cannot change. Then, we compare
+		 * with the HS200 tuning result. When smpcmp[error_tap] is OK,
+		 * we can at least retune.
+		 */
+		if (bad_taps & BIT(new_tap % priv->tap_num))
+			return test_bit(error_tap % priv->tap_num, priv->smpcmp);
 	} else {
 		if (val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)
 			return true;    /* need retune */
@@ -705,17 +727,35 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
 
 static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
+	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
 	.hs400_disabled = true,
 };
 
+static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps1357 = {
+	.hs400_bad_taps = BIT(1) | BIT(3) | BIT(5) | BIT(7),
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_bad_taps2367 = {
+	.hs400_bad_taps = BIT(2) | BIT(3) | BIT(6) | BIT(7),
+};
+
+/*
+ * Note for r8a7796 / r8a774a1: we can't distinguish ES1.1 and 1.2 as of now.
+ * So, we want to treat them equally and only have a match for ES1.2 to enforce
+ * this if there ever will be a way to distinguish ES1.2.
+ */
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795", .revision = "ES3.*", .data = &sdhi_quirks_bad_taps2367 },
 	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7796", .revision = "ES3.*", .data = &sdhi_quirks_bad_taps1357 },
+	{ .soc_id = "r8a77965", .data = &sdhi_quirks_bad_taps2367 },
 	{ .soc_id = "r8a77980", .data = &sdhi_quirks_nohs400 },
 	{ /* Sentinel. */ },
 };
@@ -860,6 +900,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
+	dev_pm_domain_start(&pdev->dev);
+
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
 		goto efree;
@@ -933,10 +975,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			goto eirq;
 	}
 
-	dev_info(&pdev->dev, "%s base at 0x%08lx max clock rate %u MHz\n",
-		 mmc_hostname(host->mmc), (unsigned long)
-		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
-		 host->mmc->f_max / 1000000);
+	dev_info(&pdev->dev, "%s base at %pa, max clock rate %u MHz\n",
+		 mmc_hostname(host->mmc), &res->start, host->mmc->f_max / 1000000);
 
 	return ret;
 

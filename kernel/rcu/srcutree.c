@@ -29,6 +29,19 @@
 #include "rcu.h"
 #include "rcu_segcblist.h"
 
+#ifndef data_race
+#define data_race(expr)							\
+	({								\
+		expr;							\
+	})
+#endif
+#ifndef ASSERT_EXCLUSIVE_WRITER
+#define ASSERT_EXCLUSIVE_WRITER(var) do { } while (0)
+#endif
+#ifndef ASSERT_EXCLUSIVE_ACCESS
+#define ASSERT_EXCLUSIVE_ACCESS(var) do { } while (0)
+#endif
+
 /* Holdoff in nanoseconds for auto-expediting. */
 #define DEFAULT_SRCU_EXP_HOLDOFF (25 * 1000)
 static ulong exp_holdoff = DEFAULT_SRCU_EXP_HOLDOFF;
@@ -1268,8 +1281,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		struct srcu_data *sdp;
 
 		sdp = per_cpu_ptr(ssp->sda, cpu);
-		u0 = sdp->srcu_unlock_count[!idx];
-		u1 = sdp->srcu_unlock_count[idx];
+		u0 = data_race(sdp->srcu_unlock_count[!idx]);
+		u1 = data_race(sdp->srcu_unlock_count[idx]);
 
 		/*
 		 * Make sure that a lock is always counted if the corresponding
@@ -1277,8 +1290,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		 */
 		smp_rmb();
 
-		l0 = sdp->srcu_lock_count[!idx];
-		l1 = sdp->srcu_lock_count[idx];
+		l0 = data_race(sdp->srcu_lock_count[!idx]);
+		l1 = data_race(sdp->srcu_lock_count[idx]);
 
 		c0 = l0 - u0;
 		c1 = l1 - u1;

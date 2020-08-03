@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_HOTPLUG_CPU)		+= cpu_hotplug.o
-obj-y	+= grant-table.o features.o balloon.o manage.o preempt.o time.o
+obj-y	+= grant-table.o features.o balloon.o manage.o time.o
 obj-y	+= mem-reservation.o
 obj-y	+= events/
 obj-y	+= xenbus/

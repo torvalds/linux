@@ -44,4 +44,11 @@ config MTK_SCPSYS
 	  Say yes here to add support for the MediaTek SCPSYS power domain
 	  driver.
 
+config MTK_MMSYS
+	bool "MediaTek MMSYS Support"
+	default ARCH_MEDIATEK
+	help
+	  Say yes here to add support for the MediaTek Multimedia
+	  Subsystem (MMSYS).
+
 endmenu

@@ -1422,7 +1422,9 @@ static int charger_manager_prepare_sysfs(struct charger_manager *cm)
 }
 
 static int cm_init_thermal_data(struct charger_manager *cm,
-		struct power_supply *fuel_gauge)
+		struct power_supply *fuel_gauge,
+		enum power_supply_property *properties,
+		size_t *num_properties)
 {
 	struct charger_desc *desc = cm->desc;
 	union power_supply_propval val;
@@ -1433,9 +1435,8 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 					POWER_SUPPLY_PROP_TEMP, &val);
 
 	if (!ret) {
-		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
-				POWER_SUPPLY_PROP_TEMP;
-		cm->charger_psy_desc.num_properties++;
+		properties[*num_properties] = POWER_SUPPLY_PROP_TEMP;
+		(*num_properties)++;
 		cm->desc->measure_battery_temp = true;
 	}
 #ifdef CONFIG_THERMAL
@@ -1446,9 +1447,8 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 			return PTR_ERR(cm->tzd_batt);
 
 		/* Use external thermometer */
-		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
-				POWER_SUPPLY_PROP_TEMP_AMBIENT;
-		cm->charger_psy_desc.num_properties++;
+		properties[*num_properties] = POWER_SUPPLY_PROP_TEMP_AMBIENT;
+		(*num_properties)++;
 		cm->desc->measure_battery_temp = true;
 		ret = 0;
 	}
@@ -1621,6 +1621,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	int j = 0;
 	union power_supply_propval val;
 	struct power_supply *fuel_gauge;
+	enum power_supply_property *properties;
+	size_t num_properties;
 	struct power_supply_config psy_cfg = {};
 
 	if (IS_ERR(desc)) {
@@ -1717,18 +1719,17 @@ static int charger_manager_probe(struct platform_device *pdev)
 	cm->charger_psy_desc.name = cm->psy_name_buf;
 
 	/* Allocate for psy properties because they may vary */
-	cm->charger_psy_desc.properties =
-		devm_kcalloc(&pdev->dev,
+	properties = devm_kcalloc(&pdev->dev,
 			     ARRAY_SIZE(default_charger_props) +
 				NUM_CHARGER_PSY_OPTIONAL,
-			     sizeof(enum power_supply_property), GFP_KERNEL);
-	if (!cm->charger_psy_desc.properties)
+			     sizeof(*properties), GFP_KERNEL);
+	if (!properties)
 		return -ENOMEM;
 
-	memcpy(cm->charger_psy_desc.properties, default_charger_props,
+	memcpy(properties, default_charger_props,
 		sizeof(enum power_supply_property) *
 		ARRAY_SIZE(default_charger_props));
-	cm->charger_psy_desc.num_properties = psy_default.num_properties;
+	num_properties = ARRAY_SIZE(default_charger_props);
 
 	/* Find which optional psy-properties are available */
 	fuel_gauge = power_supply_get_by_name(desc->psy_fuel_gauge);
@@ -1739,24 +1740,27 @@ static int charger_manager_probe(struct platform_device *pdev)
 	}
 	if (!power_supply_get_property(fuel_gauge,
 					  POWER_SUPPLY_PROP_CHARGE_NOW, &val)) {
-		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
+		properties[num_properties] =
 				POWER_SUPPLY_PROP_CHARGE_NOW;
-		cm->charger_psy_desc.num_properties++;
+		num_properties++;
 	}
 	if (!power_supply_get_property(fuel_gauge,
 					  POWER_SUPPLY_PROP_CURRENT_NOW,
 					  &val)) {
-		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
+		properties[num_properties] =
 				POWER_SUPPLY_PROP_CURRENT_NOW;
-		cm->charger_psy_desc.num_properties++;
+		num_properties++;
 	}
 
-	ret = cm_init_thermal_data(cm, fuel_gauge);
+	ret = cm_init_thermal_data(cm, fuel_gauge, properties, &num_properties);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize thermal data\n");
 		cm->desc->measure_battery_temp = false;
 	}
 	power_supply_put(fuel_gauge);
+
+	cm->charger_psy_desc.properties = properties;
+	cm->charger_psy_desc.num_properties = num_properties;
 
 	INIT_DELAYED_WORK(&cm->fullbatt_vchk_work, fullbatt_vchk);
 

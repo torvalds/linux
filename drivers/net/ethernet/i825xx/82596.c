@@ -53,10 +53,10 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
 static char version[] __initdata =

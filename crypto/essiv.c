@@ -66,7 +66,6 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 				 const u8 *key, unsigned int keylen)
 {
 	struct essiv_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
-	SHASH_DESC_ON_STACK(desc, tctx->hash);
 	u8 salt[HASH_MAX_DIGESTSIZE];
 	int err;
 
@@ -78,8 +77,7 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 	if (err)
 		return err;
 
-	desc->tfm = tctx->hash;
-	err = crypto_shash_digest(desc, key, keylen, salt);
+	err = crypto_shash_tfm_digest(tctx->hash, key, keylen, salt);
 	if (err)
 		return err;
 

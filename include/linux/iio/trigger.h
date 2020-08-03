@@ -141,9 +141,6 @@ int __devm_iio_trigger_register(struct device *dev,
  **/
 void iio_trigger_unregister(struct iio_trigger *trig_info);
 
-void devm_iio_trigger_unregister(struct device *dev,
-				 struct iio_trigger *trig_info);
-
 /**
  * iio_trigger_set_immutable() - set an immutable trigger on destination
  *

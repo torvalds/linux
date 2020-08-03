@@ -423,13 +423,6 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
 
-	/* verify user access to buffer */
-	if (!access_ok(buf, nr)) {
-		pr_warn("%s(%d) %s() can't verify user buffer\n",
-				__FILE__, __LINE__, __func__);
-		return -EFAULT;
-	}
-
 	add_wait_queue(&tty->read_wait, &wait);
 
 	for (;;) {

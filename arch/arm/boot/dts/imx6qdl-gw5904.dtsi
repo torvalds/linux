@@ -248,6 +248,15 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	magn@1c {
+		compatible = "st,lsm9ds1-magn";
+		reg = <0x1c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mag>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+	};
+
 	ltc3676: pmic@3c {
 		compatible = "lltc,ltc3676";
 		reg = <0x3c>;
@@ -319,6 +328,16 @@
 				regulator-always-on;
 			};
 		};
+	};
+
+	imu@6a {
+		compatible = "st,lsm9ds1-imu";
+		reg = <0x6a>;
+		st,drdy-int-pin = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_imu>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
@@ -498,6 +517,18 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__I2C3_SCL		0x4001b8b1
 			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
+		>;
+	};
+
+	pinctrl_imu: imugrp {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_PIN2__GPIO4_IO18		0x1b0b0
+		>;
+	};
+
+	pinctrl_mag: maggrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT23__GPIO5_IO17	0x1b0b0
 		>;
 	};
 

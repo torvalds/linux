@@ -877,7 +877,6 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 {
 	struct mv64xxx_i2c_data		*drv_data;
 	struct mv64xxx_i2c_pdata	*pdata = dev_get_platdata(&pd->dev);
-	struct resource	*r;
 	int	rc;
 
 	if ((!pdata && !pd->dev.of_node))
@@ -888,8 +887,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if (!drv_data)
 		return -ENOMEM;
 
-	r = platform_get_resource(pd, IORESOURCE_MEM, 0);
-	drv_data->reg_base = devm_ioremap_resource(&pd->dev, r);
+	drv_data->reg_base = devm_platform_ioremap_resource(pd, 0);
 	if (IS_ERR(drv_data->reg_base))
 		return PTR_ERR(drv_data->reg_base);
 

@@ -1251,6 +1251,7 @@ out:
 	FIF_OTHER_BSS |				\
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_PROBE_REQ |				\
+	FIF_MCAST_ACTION |			\
 	FIF_FCSFAIL)
 
 static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,

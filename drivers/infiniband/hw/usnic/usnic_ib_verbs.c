@@ -322,7 +322,6 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_grp = 0;
 	props->max_mcast_qp_attach = 0;
 	props->max_total_mcast_qp_attach = 0;
-	props->max_map_per_fmr = 0;
 	/* Owned by Userspace
 	 * max_qp_wr, max_sge, max_sge_rd, max_cqe */
 	mutex_unlock(&us_ibdev->usdev_lock);

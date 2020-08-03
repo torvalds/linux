@@ -330,6 +330,10 @@ struct tcf_proto_ops {
 	int			(*dump)(struct net*, struct tcf_proto*, void *,
 					struct sk_buff *skb, struct tcmsg*,
 					bool);
+	int			(*terse_dump)(struct net *net,
+					      struct tcf_proto *tp, void *fh,
+					      struct sk_buff *skb,
+					      struct tcmsg *t, bool rtnl_held);
 	int			(*tmplt_dump)(struct sk_buff *skb,
 					      struct net *net,
 					      void *tmplt_priv);
@@ -709,11 +713,6 @@ static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
 			spin_unlock_bh(qdisc_lock(qdisc));
 		}
 	}
-}
-
-static inline void qdisc_reset_all_tx(struct net_device *dev)
-{
-	qdisc_reset_all_tx_gt(dev, 0);
 }
 
 /* Are all TX queues of the device empty?  */

@@ -53,6 +53,13 @@ enum qed_roce_qp_state {
 	QED_ROCE_QP_STATE_SQE
 };
 
+enum qed_rdma_qp_type {
+	QED_RDMA_QP_TYPE_RC,
+	QED_RDMA_QP_TYPE_XRC_INI,
+	QED_RDMA_QP_TYPE_XRC_TGT,
+	QED_RDMA_QP_TYPE_INVAL = 0xffff,
+};
+
 enum qed_rdma_tid_type {
 	QED_RDMA_TID_REGISTERED_MR,
 	QED_RDMA_TID_FMR,
@@ -91,7 +98,6 @@ struct qed_rdma_device {
 	u64 max_mr_size;
 	u32 max_cqe;
 	u32 max_mw;
-	u32 max_fmr;
 	u32 max_mr_mw_fmr_pbl;
 	u64 max_mr_mw_fmr_size;
 	u32 max_pd;
@@ -291,6 +297,12 @@ struct qed_rdma_create_srq_in_params {
 	u16 num_pages;
 	u16 pd_id;
 	u16 page_size;
+
+	/* XRC related only */
+	bool reserved_key_en;
+	bool is_xrc;
+	u32 cq_cid;
+	u16 xrcd_id;
 };
 
 struct qed_rdma_destroy_cq_in_params {
@@ -319,7 +331,12 @@ struct qed_rdma_create_qp_in_params {
 	u16 rq_num_pages;
 	u64 rq_pbl_ptr;
 	u16 srq_id;
+	u16 xrcd_id;
 	u8 stats_queue;
+	enum qed_rdma_qp_type qp_type;
+	u8 flags;
+#define QED_ROCE_EDPM_MODE_MASK      0x1
+#define QED_ROCE_EDPM_MODE_SHIFT     0
 };
 
 struct qed_rdma_create_qp_out_params {
@@ -429,11 +446,13 @@ struct qed_rdma_create_srq_out_params {
 
 struct qed_rdma_destroy_srq_in_params {
 	u16 srq_id;
+	bool is_xrc;
 };
 
 struct qed_rdma_modify_srq_in_params {
 	u32 wqe_limit;
 	u16 srq_id;
+	bool is_xrc;
 };
 
 struct qed_rdma_stats_out_params {
@@ -611,6 +630,8 @@ struct qed_rdma_ops {
 	int (*rdma_set_rdma_int)(struct qed_dev *cdev, u16 cnt);
 	int (*rdma_alloc_pd)(void *rdma_cxt, u16 *pd);
 	void (*rdma_dealloc_pd)(void *rdma_cxt, u16 pd);
+	int (*rdma_alloc_xrcd)(void *rdma_cxt, u16 *xrcd);
+	void (*rdma_dealloc_xrcd)(void *rdma_cxt, u16 xrcd);
 	int (*rdma_create_cq)(void *rdma_cxt,
 			      struct qed_rdma_create_cq_in_params *params,
 			      u16 *icid);

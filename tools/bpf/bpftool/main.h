@@ -18,6 +18,9 @@
 
 #include "json_writer.h"
 
+/* Make sure we do not use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
@@ -50,6 +53,8 @@
 	"\t            {-m|--mapcompat} | {-n|--nomount} }"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE | name MAP_NAME }"
+#define HELP_SPEC_LINK							\
+	"LINK := { id LINK_ID | pinned FILE }"
 
 static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
@@ -83,6 +88,42 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_EXT]			= "ext",
 };
 
+static const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
+	[BPF_CGROUP_INET_INGRESS] = "ingress",
+	[BPF_CGROUP_INET_EGRESS] = "egress",
+	[BPF_CGROUP_INET_SOCK_CREATE] = "sock_create",
+	[BPF_CGROUP_SOCK_OPS] = "sock_ops",
+	[BPF_CGROUP_DEVICE] = "device",
+	[BPF_CGROUP_INET4_BIND] = "bind4",
+	[BPF_CGROUP_INET6_BIND] = "bind6",
+	[BPF_CGROUP_INET4_CONNECT] = "connect4",
+	[BPF_CGROUP_INET6_CONNECT] = "connect6",
+	[BPF_CGROUP_INET4_POST_BIND] = "post_bind4",
+	[BPF_CGROUP_INET6_POST_BIND] = "post_bind6",
+	[BPF_CGROUP_INET4_GETPEERNAME] = "getpeername4",
+	[BPF_CGROUP_INET6_GETPEERNAME] = "getpeername6",
+	[BPF_CGROUP_INET4_GETSOCKNAME] = "getsockname4",
+	[BPF_CGROUP_INET6_GETSOCKNAME] = "getsockname6",
+	[BPF_CGROUP_UDP4_SENDMSG] = "sendmsg4",
+	[BPF_CGROUP_UDP6_SENDMSG] = "sendmsg6",
+	[BPF_CGROUP_SYSCTL] = "sysctl",
+	[BPF_CGROUP_UDP4_RECVMSG] = "recvmsg4",
+	[BPF_CGROUP_UDP6_RECVMSG] = "recvmsg6",
+	[BPF_CGROUP_GETSOCKOPT] = "getsockopt",
+	[BPF_CGROUP_SETSOCKOPT] = "setsockopt",
+
+	[BPF_SK_SKB_STREAM_PARSER] = "sk_skb_stream_parser",
+	[BPF_SK_SKB_STREAM_VERDICT] = "sk_skb_stream_verdict",
+	[BPF_SK_MSG_VERDICT] = "sk_msg_verdict",
+	[BPF_LIRC_MODE2] = "lirc_mode2",
+	[BPF_FLOW_DISSECTOR] = "flow_dissector",
+	[BPF_TRACE_RAW_TP] = "raw_tp",
+	[BPF_TRACE_FENTRY] = "fentry",
+	[BPF_TRACE_FEXIT] = "fexit",
+	[BPF_MODIFY_RETURN] = "mod_ret",
+	[BPF_LSM_MAC] = "lsm_mac",
+};
+
 extern const char * const map_type_name[];
 extern const size_t map_type_name_size;
 
@@ -90,6 +131,7 @@ enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
 	BPF_OBJ_PROG,
 	BPF_OBJ_MAP,
+	BPF_OBJ_LINK,
 };
 
 extern const char *bin_name;
@@ -102,6 +144,7 @@ extern bool verifier_logs;
 extern bool relaxed_maps;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
+extern struct pinned_obj_table link_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -153,6 +196,7 @@ int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+int do_link(int argc, char **arg);
 int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
@@ -162,6 +206,7 @@ int do_feature(int argc, char **argv);
 int do_btf(int argc, char **argv);
 int do_gen(int argc, char **argv);
 int do_struct_ops(int argc, char **argv);
+int do_iter(int argc, char **argv);
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);

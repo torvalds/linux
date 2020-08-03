@@ -795,12 +795,6 @@ void rpcb_getport_async(struct rpc_task *task)
 
 	child = rpcb_call_async(rpcb_clnt, map, proc);
 	rpc_release_client(rpcb_clnt);
-	if (IS_ERR(child)) {
-		/* rpcb_map_release() has freed the arguments */
-		dprintk("RPC: %5u %s: rpc_run_task failed\n",
-			task->tk_pid, __func__);
-		return;
-	}
 
 	xprt->stat.bind_count++;
 	rpc_put_task(child);

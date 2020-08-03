@@ -179,9 +179,6 @@ struct drm_i915_gem_object {
 #define TILING_MASK (FENCE_MINIMUM_STRIDE - 1)
 #define STRIDE_MASK (~TILING_MASK)
 
-	/** Count of VMA actually bound by this object */
-	atomic_t bind_count;
-
 	struct {
 		/*
 		 * Protects the pages and their use. Do not use directly, but

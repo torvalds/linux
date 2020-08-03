@@ -660,7 +660,7 @@ static int __send_command(struct drbd_connection *connection, int vnr,
 	/* DRBD protocol "pings" are latency critical.
 	 * This is supposed to trigger tcp_push_pending_frames() */
 	if (!err && (cmd == P_PING || cmd == P_PING_ACK))
-		drbd_tcp_nodelay(sock->socket);
+		tcp_sock_set_nodelay(sock->socket->sk);
 
 	return err;
 }

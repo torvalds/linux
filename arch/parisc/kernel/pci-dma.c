@@ -201,7 +201,7 @@ static inline void unmap_uncached_pmd(pgd_t * dir, unsigned long vaddr,
 		pgd_clear(dir);
 		return;
 	}
-	pmd = pmd_offset(dir, vaddr);
+	pmd = pmd_offset(pud_offset(p4d_offset(dir, vaddr), vaddr), vaddr);
 	vaddr &= ~PGDIR_MASK;
 	end = vaddr + size;
 	if (end > PGDIR_SIZE)

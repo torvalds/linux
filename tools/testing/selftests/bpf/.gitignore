@@ -30,8 +30,6 @@ test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user
 test_sysctl
-test_hashmap
-test_btf_dump
 test_current_pid_tgid_new_ns
 xdping
 test_cpp
@@ -39,4 +37,5 @@ test_cpp
 /no_alu32
 /bpf_gcc
 /tools
-
+/runqslower
+/bench

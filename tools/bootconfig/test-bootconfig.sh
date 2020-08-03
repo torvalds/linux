@@ -124,9 +124,16 @@ for i in samples/good-* ; do
   xpass $BOOTCONF -a $i $INITRD
 done
 
+
+echo
+echo "=== Summary ==="
+echo "# of Passed: $(expr $NO - $NG - 1)"
+echo "# of Failed: $NG"
+
 echo
 if [ $NG -eq 0 ]; then
 	echo "All tests passed"
 else
 	echo "$NG tests failed"
+	exit 1
 fi

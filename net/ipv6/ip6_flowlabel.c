@@ -779,7 +779,7 @@ static void *ip6fl_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
 
-	state->pid_ns = proc_pid_ns(file_inode(seq->file));
+	state->pid_ns = proc_pid_ns(file_inode(seq->file)->i_sb);
 
 	rcu_read_lock_bh();
 	return *pos ? ip6fl_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;

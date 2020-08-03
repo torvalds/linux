@@ -309,7 +309,7 @@ static inline void __iomem *otx2_get_regaddr(struct otx2_nic *nic, u64 offset)
 	default:
 		blkaddr = BLKADDR_RVUM;
 		break;
-	};
+	}
 
 	offset &= ~(RVU_FUNC_BLKADDR_MASK << RVU_FUNC_BLKADDR_SHIFT);
 	offset |= (blkaddr << RVU_FUNC_BLKADDR_SHIFT);
@@ -432,18 +432,6 @@ static inline void otx2_aura_freeptr(struct otx2_nic *pfvf,
 {
 	otx2_write128((u64)buf, (u64)aura | BIT_ULL(63),
 		      otx2_get_regaddr(pfvf, NPA_LF_AURA_OP_FREE0));
-}
-
-/* Update page ref count */
-static inline void otx2_get_page(struct otx2_pool *pool)
-{
-	if (!pool->page)
-		return;
-
-	if (pool->pageref)
-		page_ref_add(pool->page, pool->pageref);
-	pool->pageref = 0;
-	pool->page = NULL;
 }
 
 static inline int otx2_get_pool_idx(struct otx2_nic *pfvf, int type, int idx)
@@ -589,8 +577,7 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl);
 int otx2_txsch_alloc(struct otx2_nic *pfvf);
 int otx2_txschq_stop(struct otx2_nic *pfvf);
 void otx2_sqb_flush(struct otx2_nic *pfvf);
-dma_addr_t otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
-			   gfp_t gfp);
+dma_addr_t __otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool);
 int otx2_rxtx_enable(struct otx2_nic *pfvf, bool enable);
 void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
 int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable);

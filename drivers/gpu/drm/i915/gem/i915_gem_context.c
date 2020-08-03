@@ -130,9 +130,7 @@ static void lut_close(struct i915_gem_context *ctx)
 		if (&lut->obj_link != &obj->lut_list) {
 			i915_lut_handle_free(lut);
 			radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
-			if (atomic_dec_and_test(&vma->open_count) &&
-			    !i915_vma_is_ggtt(vma))
-				i915_vma_close(vma);
+			i915_vma_close(vma);
 			i915_gem_object_put(obj);
 		}
 
@@ -232,7 +230,7 @@ static void intel_context_set_gem(struct intel_context *ce,
 		ce->timeline = intel_timeline_get(ctx->timeline);
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
-	    intel_engine_has_semaphores(ce->engine))
+	    intel_engine_has_timeslices(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 }
 
@@ -570,23 +568,19 @@ static void engines_idle_release(struct i915_gem_context *ctx,
 	engines->ctx = i915_gem_context_get(ctx);
 
 	for_each_gem_engine(ce, engines, it) {
-		struct dma_fence *fence;
-		int err = 0;
+		int err;
 
 		/* serialises with execbuf */
 		set_bit(CONTEXT_CLOSED_BIT, &ce->flags);
 		if (!intel_context_pin_if_active(ce))
 			continue;
 
-		fence = i915_active_fence_get(&ce->timeline->last_request);
-		if (fence) {
-			err = i915_sw_fence_await_dma_fence(&engines->fence,
-							    fence, 0,
-							    GFP_KERNEL);
-			dma_fence_put(fence);
-		}
+		/* Wait until context is finally scheduled out and retired */
+		err = i915_sw_fence_await_active(&engines->fence,
+						 &ce->active,
+						 I915_ACTIVE_AWAIT_BARRIER);
 		intel_context_unpin(ce);
-		if (err < 0)
+		if (err)
 			goto kill;
 	}
 
@@ -757,21 +751,46 @@ err_free:
 	return ERR_PTR(err);
 }
 
+static inline struct i915_gem_engines *
+__context_engines_await(const struct i915_gem_context *ctx)
+{
+	struct i915_gem_engines *engines;
+
+	rcu_read_lock();
+	do {
+		engines = rcu_dereference(ctx->engines);
+		GEM_BUG_ON(!engines);
+
+		if (unlikely(!i915_sw_fence_await(&engines->fence)))
+			continue;
+
+		if (likely(engines == rcu_access_pointer(ctx->engines)))
+			break;
+
+		i915_sw_fence_complete(&engines->fence);
+	} while (1);
+	rcu_read_unlock();
+
+	return engines;
+}
+
 static int
 context_apply_all(struct i915_gem_context *ctx,
 		  int (*fn)(struct intel_context *ce, void *data),
 		  void *data)
 {
 	struct i915_gem_engines_iter it;
+	struct i915_gem_engines *e;
 	struct intel_context *ce;
 	int err = 0;
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+	e = __context_engines_await(ctx);
+	for_each_gem_engine(ce, e, it) {
 		err = fn(ce, data);
 		if (err)
 			break;
 	}
-	i915_gem_context_unlock_engines(ctx);
+	i915_sw_fence_complete(&e->fence);
 
 	return err;
 }
@@ -786,11 +805,13 @@ static int __apply_ppgtt(struct intel_context *ce, void *vm)
 static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
-	struct i915_address_space *old = i915_gem_context_vm(ctx);
+	struct i915_address_space *old;
 
+	old = rcu_replace_pointer(ctx->vm,
+				  i915_vm_open(vm),
+				  lockdep_is_held(&ctx->mutex));
 	GEM_BUG_ON(old && i915_vm_is_4lvl(vm) != i915_vm_is_4lvl(old));
 
-	rcu_assign_pointer(ctx->vm, i915_vm_open(vm));
 	context_apply_all(ctx, __apply_ppgtt, vm);
 
 	return old;
@@ -1067,30 +1088,6 @@ static void cb_retire(struct i915_active *base)
 
 	i915_active_fini(&cb->base);
 	kfree(cb);
-}
-
-static inline struct i915_gem_engines *
-__context_engines_await(const struct i915_gem_context *ctx)
-{
-	struct i915_gem_engines *engines;
-
-	rcu_read_lock();
-	do {
-		engines = rcu_dereference(ctx->engines);
-		if (unlikely(!engines))
-			break;
-
-		if (unlikely(!i915_sw_fence_await(&engines->fence)))
-			continue;
-
-		if (likely(engines == rcu_access_pointer(ctx->engines)))
-			break;
-
-		i915_sw_fence_complete(&engines->fence);
-	} while (1);
-	rcu_read_unlock();
-
-	return engines;
 }
 
 I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
@@ -1401,10 +1398,10 @@ static int get_ringsize(struct i915_gem_context *ctx,
 	return 0;
 }
 
-static int
-user_to_context_sseu(struct drm_i915_private *i915,
-		     const struct drm_i915_gem_context_param_sseu *user,
-		     struct intel_sseu *context)
+int
+i915_gem_user_to_context_sseu(struct drm_i915_private *i915,
+			      const struct drm_i915_gem_context_param_sseu *user,
+			      struct intel_sseu *context)
 {
 	const struct sseu_dev_info *device = &RUNTIME_INFO(i915)->sseu;
 
@@ -1539,7 +1536,7 @@ static int set_sseu(struct i915_gem_context *ctx,
 		goto out_ce;
 	}
 
-	ret = user_to_context_sseu(i915, &user_sseu, &sseu);
+	ret = i915_gem_user_to_context_sseu(i915, &user_sseu, &sseu);
 	if (ret)
 		goto out_ce;
 
@@ -1924,11 +1921,6 @@ get_engines(struct i915_gem_context *ctx,
 	}
 
 	user = u64_to_user_ptr(args->value);
-	if (!access_ok(user, size)) {
-		err = -EFAULT;
-		goto err_free;
-	}
-
 	if (put_user(0, &user->extensions)) {
 		err = -EFAULT;
 		goto err_free;
@@ -1972,7 +1964,7 @@ static int __apply_priority(struct intel_context *ce, void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 
-	if (!intel_engine_has_semaphores(ce->engine))
+	if (!intel_engine_has_timeslices(ce->engine))
 		return 0;
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL)

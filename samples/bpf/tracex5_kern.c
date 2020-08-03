@@ -15,16 +15,16 @@
 
 #define PROG(F) SEC("kprobe/"__stringify(F)) int bpf_func_##F
 
-struct bpf_map_def SEC("maps") progs = {
-	.type = BPF_MAP_TYPE_PROG_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u32),
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
 #ifdef __mips__
-	.max_entries = 6000, /* MIPS n64 syscalls start at 5000 */
+	__uint(max_entries, 6000); /* MIPS n64 syscalls start at 5000 */
 #else
-	.max_entries = 1024,
+	__uint(max_entries, 1024);
 #endif
-};
+} progs SEC(".maps");
 
 SEC("kprobe/__seccomp_filter")
 int bpf_prog1(struct pt_regs *ctx)

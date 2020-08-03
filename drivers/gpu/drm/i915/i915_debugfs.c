@@ -32,12 +32,13 @@
 #include <drm/drm_debugfs.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt_buffer_pool.h"
+#include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_rps.h"
-#include "gt/uc/intel_guc_submission.h"
 
 #include "i915_debugfs.h"
 #include "i915_debugfs_params.h"
@@ -218,7 +219,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 struct file_stats {
 	struct i915_address_space *vm;
 	unsigned long count;
-	u64 total, unbound;
+	u64 total;
 	u64 active, inactive;
 	u64 closed;
 };
@@ -234,8 +235,6 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 	stats->count++;
 	stats->total += obj->base.size;
-	if (!atomic_read(&obj->bind_count))
-		stats->unbound += obj->base.size;
 
 	spin_lock(&obj->vma.lock);
 	if (!stats->vm) {
@@ -285,13 +284,12 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 #define print_file_stats(m, name, stats) do { \
 	if (stats.count) \
-		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu unbound, %llu closed)\n", \
+		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu closed)\n", \
 			   name, \
 			   stats.count, \
 			   stats.total, \
 			   stats.active, \
 			   stats.inactive, \
-			   stats.unbound, \
 			   stats.closed); \
 } while (0)
 
@@ -745,7 +743,7 @@ i915_error_state_write(struct file *filp,
 	if (!error)
 		return 0;
 
-	DRM_DEBUG_DRIVER("Resetting error state\n");
+	drm_dbg(&error->i915->drm, "Resetting error state\n");
 	i915_reset_error_state(error->i915);
 
 	return cnt;
@@ -930,21 +928,30 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%dus)\n",
-			   rpupei, GT_PM_INTERVAL_TO_US(dev_priv, rpupei));
-		seq_printf(m, "RP CUR UP: %d (%dus)\n",
-			   rpcurup, GT_PM_INTERVAL_TO_US(dev_priv, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%dus)\n",
-			   rpprevup, GT_PM_INTERVAL_TO_US(dev_priv, rpprevup));
+		seq_printf(m, "RP CUR UP EI: %d (%dns)\n",
+			   rpupei,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpupei));
+		seq_printf(m, "RP CUR UP: %d (%dun)\n",
+			   rpcurup,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpcurup));
+		seq_printf(m, "RP PREV UP: %d (%dns)\n",
+			   rpprevup,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   rps->power.up_threshold);
 
-		seq_printf(m, "RP CUR DOWN EI: %d (%dus)\n",
-			   rpdownei, GT_PM_INTERVAL_TO_US(dev_priv, rpdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%dus)\n",
-			   rpcurdown, GT_PM_INTERVAL_TO_US(dev_priv, rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%dus)\n",
-			   rpprevdown, GT_PM_INTERVAL_TO_US(dev_priv, rpprevdown));
+		seq_printf(m, "RP CUR DOWN EI: %d (%dns)\n",
+			   rpdownei,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
+						      rpdownei));
+		seq_printf(m, "RP CUR DOWN: %d (%dns)\n",
+			   rpcurdown,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
+						      rpcurdown));
+		seq_printf(m, "RP PREV DOWN: %d (%dns)\n",
+			   rpprevdown,
+			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
+						      rpprevdown));
 		seq_printf(m, "Down threshold: %d%%\n",
 			   rps->power.down_threshold);
 
@@ -1193,7 +1200,8 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
-	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
+	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
+	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
 	seq_printf(m, "GPU busy? %s\n", yesno(dev_priv->gt.awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
@@ -1213,7 +1221,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
-	if (INTEL_GEN(dev_priv) >= 6 && rps->enabled && dev_priv->gt.awake) {
+	if (INTEL_GEN(dev_priv) >= 6 && intel_rps_is_active(rps)) {
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
 
@@ -1250,286 +1258,6 @@ static int i915_llc(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static int i915_huc_load_status_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	intel_wakeref_t wakeref;
-	struct drm_printer p;
-
-	if (!HAS_GT_UC(dev_priv))
-		return -ENODEV;
-
-	p = drm_seq_file_printer(m);
-	intel_uc_fw_dump(&dev_priv->gt.uc.huc.fw, &p);
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
-
-	return 0;
-}
-
-static int i915_guc_load_status_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	intel_wakeref_t wakeref;
-	struct drm_printer p;
-
-	if (!HAS_GT_UC(dev_priv))
-		return -ENODEV;
-
-	p = drm_seq_file_printer(m);
-	intel_uc_fw_dump(&dev_priv->gt.uc.guc.fw, &p);
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		u32 tmp = I915_READ(GUC_STATUS);
-		u32 i;
-
-		seq_printf(m, "\nGuC status 0x%08x:\n", tmp);
-		seq_printf(m, "\tBootrom status = 0x%x\n",
-			   (tmp & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT);
-		seq_printf(m, "\tuKernel status = 0x%x\n",
-			   (tmp & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT);
-		seq_printf(m, "\tMIA Core status = 0x%x\n",
-			   (tmp & GS_MIA_MASK) >> GS_MIA_SHIFT);
-		seq_puts(m, "\nScratch registers:\n");
-		for (i = 0; i < 16; i++) {
-			seq_printf(m, "\t%2d: \t0x%x\n",
-				   i, I915_READ(SOFT_SCRATCH(i)));
-		}
-	}
-
-	return 0;
-}
-
-static const char *
-stringify_guc_log_type(enum guc_log_buffer_type type)
-{
-	switch (type) {
-	case GUC_ISR_LOG_BUFFER:
-		return "ISR";
-	case GUC_DPC_LOG_BUFFER:
-		return "DPC";
-	case GUC_CRASH_DUMP_LOG_BUFFER:
-		return "CRASH";
-	default:
-		MISSING_CASE(type);
-	}
-
-	return "";
-}
-
-static void i915_guc_log_info(struct seq_file *m, struct intel_guc_log *log)
-{
-	enum guc_log_buffer_type type;
-
-	if (!intel_guc_log_relay_created(log)) {
-		seq_puts(m, "GuC log relay not created\n");
-		return;
-	}
-
-	seq_puts(m, "GuC logging stats:\n");
-
-	seq_printf(m, "\tRelay full count: %u\n",
-		   log->relay.full_count);
-
-	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
-		seq_printf(m, "\t%s:\tflush count %10u, overflow count %10u\n",
-			   stringify_guc_log_type(type),
-			   log->stats[type].flush,
-			   log->stats[type].sampled_overflow);
-	}
-}
-
-static int i915_guc_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc *uc = &dev_priv->gt.uc;
-
-	if (!intel_uc_uses_guc(uc))
-		return -ENODEV;
-
-	i915_guc_log_info(m, &uc->guc.log);
-
-	/* Add more as required ... */
-
-	return 0;
-}
-
-static int i915_guc_stage_pool(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc *uc = &dev_priv->gt.uc;
-	struct guc_stage_desc *desc = uc->guc.stage_desc_pool_vaddr;
-	int index;
-
-	if (!intel_uc_uses_guc_submission(uc))
-		return -ENODEV;
-
-	for (index = 0; index < GUC_MAX_STAGE_DESCRIPTORS; index++, desc++) {
-		struct intel_engine_cs *engine;
-
-		if (!(desc->attribute & GUC_STAGE_DESC_ATTR_ACTIVE))
-			continue;
-
-		seq_printf(m, "GuC stage descriptor %u:\n", index);
-		seq_printf(m, "\tIndex: %u\n", desc->stage_id);
-		seq_printf(m, "\tAttribute: 0x%x\n", desc->attribute);
-		seq_printf(m, "\tPriority: %d\n", desc->priority);
-		seq_printf(m, "\tDoorbell id: %d\n", desc->db_id);
-		seq_printf(m, "\tEngines used: 0x%x\n",
-			   desc->engines_used);
-		seq_printf(m, "\tDoorbell trigger phy: 0x%llx, cpu: 0x%llx, uK: 0x%x\n",
-			   desc->db_trigger_phy,
-			   desc->db_trigger_cpu,
-			   desc->db_trigger_uk);
-		seq_printf(m, "\tProcess descriptor: 0x%x\n",
-			   desc->process_desc);
-		seq_printf(m, "\tWorkqueue address: 0x%x, size: 0x%x\n",
-			   desc->wq_addr, desc->wq_size);
-		seq_putc(m, '\n');
-
-		for_each_uabi_engine(engine, dev_priv) {
-			u32 guc_engine_id = engine->guc_id;
-			struct guc_execlist_context *lrc =
-						&desc->lrc[guc_engine_id];
-
-			seq_printf(m, "\t%s LRC:\n", engine->name);
-			seq_printf(m, "\t\tContext desc: 0x%x\n",
-				   lrc->context_desc);
-			seq_printf(m, "\t\tContext id: 0x%x\n", lrc->context_id);
-			seq_printf(m, "\t\tLRCA: 0x%x\n", lrc->ring_lrca);
-			seq_printf(m, "\t\tRing begin: 0x%x\n", lrc->ring_begin);
-			seq_printf(m, "\t\tRing end: 0x%x\n", lrc->ring_end);
-			seq_putc(m, '\n');
-		}
-	}
-
-	return 0;
-}
-
-static int i915_guc_log_dump(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_i915_private *dev_priv = node_to_i915(node);
-	bool dump_load_err = !!node->info_ent->data;
-	struct drm_i915_gem_object *obj = NULL;
-	u32 *log;
-	int i = 0;
-
-	if (!HAS_GT_UC(dev_priv))
-		return -ENODEV;
-
-	if (dump_load_err)
-		obj = dev_priv->gt.uc.load_err_log;
-	else if (dev_priv->gt.uc.guc.log.vma)
-		obj = dev_priv->gt.uc.guc.log.vma->obj;
-
-	if (!obj)
-		return 0;
-
-	log = i915_gem_object_pin_map(obj, I915_MAP_WC);
-	if (IS_ERR(log)) {
-		DRM_DEBUG("Failed to pin object\n");
-		seq_puts(m, "(log data unaccessible)\n");
-		return PTR_ERR(log);
-	}
-
-	for (i = 0; i < obj->base.size / sizeof(u32); i += 4)
-		seq_printf(m, "0x%08x 0x%08x 0x%08x 0x%08x\n",
-			   *(log + i), *(log + i + 1),
-			   *(log + i + 2), *(log + i + 3));
-
-	seq_putc(m, '\n');
-
-	i915_gem_object_unpin_map(obj);
-
-	return 0;
-}
-
-static int i915_guc_log_level_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_uc *uc = &dev_priv->gt.uc;
-
-	if (!intel_uc_uses_guc(uc))
-		return -ENODEV;
-
-	*val = intel_guc_log_get_level(&uc->guc.log);
-
-	return 0;
-}
-
-static int i915_guc_log_level_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_uc *uc = &dev_priv->gt.uc;
-
-	if (!intel_uc_uses_guc(uc))
-		return -ENODEV;
-
-	return intel_guc_log_set_level(&uc->guc.log, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
-			i915_guc_log_level_get, i915_guc_log_level_set,
-			"%lld\n");
-
-static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_guc_log *log = &guc->log;
-
-	if (!intel_guc_is_ready(guc))
-		return -ENODEV;
-
-	file->private_data = log;
-
-	return intel_guc_log_relay_open(log);
-}
-
-static ssize_t
-i915_guc_log_relay_write(struct file *filp,
-			 const char __user *ubuf,
-			 size_t cnt,
-			 loff_t *ppos)
-{
-	struct intel_guc_log *log = filp->private_data;
-	int val;
-	int ret;
-
-	ret = kstrtoint_from_user(ubuf, cnt, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Enable and start the guc log relay on value of 1.
-	 * Flush log relay for any other value.
-	 */
-	if (val == 1)
-		ret = intel_guc_log_relay_start(log);
-	else
-		intel_guc_log_relay_flush(log);
-
-	return ret ?: cnt;
-}
-
-static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_guc *guc = &i915->gt.uc.guc;
-
-	intel_guc_log_relay_close(&guc->log);
-	return 0;
-}
-
-static const struct file_operations i915_guc_log_relay_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_guc_log_relay_open,
-	.write = i915_guc_log_relay_write,
-	.release = i915_guc_log_relay_release,
-};
 
 static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
@@ -1576,8 +1304,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT awake? %s [%d]\n",
 		   yesno(dev_priv->gt.awake),
 		   atomic_read(&dev_priv->gt.wakeref.count));
-	seq_printf(m, "CS timestamp frequency: %u kHz\n",
-		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
+	seq_printf(m, "CS timestamp frequency: %u Hz\n",
+		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_hz);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, dev_priv)
@@ -1676,13 +1404,12 @@ static int
 i915_perf_noa_delay_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
 
 	/*
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (val > mul_u32_u32(U32_MAX, clk))
+	if (i915_cs_timestamp_ns_to_ticks(i915, val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);
@@ -1756,6 +1483,9 @@ gt_drop_caches(struct intel_gt *gt, u64 val)
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(gt))
 		intel_gt_handle_error(gt, ALL_ENGINES, 0, NULL);
+
+	if (val & DROP_FREED)
+		intel_gt_flush_buffer_pool(gt);
 
 	return 0;
 }
@@ -2139,12 +1869,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_guc_info", i915_guc_info, 0},
-	{"i915_guc_load_status", i915_guc_load_status_info, 0},
-	{"i915_guc_log_dump", i915_guc_log_dump, 0},
-	{"i915_guc_load_err_log_dump", i915_guc_log_dump, 0, (void *)1},
-	{"i915_guc_stage_pool", i915_guc_stage_pool, 0},
-	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_context_status", i915_context_status, 0},
@@ -2172,11 +1896,9 @@ static const struct i915_debugfs_files {
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_gpu_info", &i915_gpu_info_fops},
 #endif
-	{"i915_guc_log_level", &i915_guc_log_level_fops},
-	{"i915_guc_log_relay", &i915_guc_log_relay_fops},
 };
 
-int i915_debugfs_register(struct drm_i915_private *dev_priv)
+void i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_minor *minor = dev_priv->drm.primary;
 	int i;
@@ -2193,7 +1915,7 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 				    i915_debugfs_files[i].fops);
 	}
 
-	return drm_debugfs_create_files(i915_debugfs_list,
-					I915_DEBUGFS_ENTRIES,
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(i915_debugfs_list,
+				 I915_DEBUGFS_ENTRIES,
+				 minor->debugfs_root, minor);
 }

@@ -106,7 +106,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 	[IPA_ENDPOINT_MODEM_LAN_RX] = {
 		.ee_id		= GSI_EE_MODEM,
 		.channel_id	= 3,
-		.endpoint_id	= 13,
+		.endpoint_id	= 11,
 		.toward_ipa	= false,
 	},
 	[IPA_ENDPOINT_MODEM_AP_TX] = {
@@ -193,7 +193,7 @@ static const struct ipa_resource_data ipa_resource_data = {
 };
 
 /* IPA-resident memory region configuration for the SC7180 SoC. */
-static const struct ipa_mem ipa_mem_data[] = {
+static const struct ipa_mem ipa_mem_local_data[] = {
 	[IPA_MEM_UC_SHARED] = {
 		.offset		= 0x0000,
 		.size		= 0x0080,
@@ -296,12 +296,20 @@ static const struct ipa_mem ipa_mem_data[] = {
 	},
 };
 
+static struct ipa_mem_data ipa_mem_data = {
+	.local_count	= ARRAY_SIZE(ipa_mem_local_data),
+	.local		= ipa_mem_local_data,
+	.imem_addr	= 0x146a8000,
+	.imem_size	= 0x00002000,
+	.smem_id	= 497,
+	.smem_size	= 0x00002000,
+};
+
 /* Configuration data for the SC7180 SoC. */
 const struct ipa_data ipa_data_sc7180 = {
 	.version	= IPA_VERSION_4_2,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
-	.mem_count	= ARRAY_SIZE(ipa_mem_data),
-	.mem_data	= ipa_mem_data,
+	.mem_data	= &ipa_mem_data,
 };

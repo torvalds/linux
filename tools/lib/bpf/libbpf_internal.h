@@ -153,7 +153,7 @@ struct btf_ext_info_sec {
 	__u32	sec_name_off;
 	__u32	num_info;
 	/* Followed by num_info * record_size number of bytes */
-	__u8	data[0];
+	__u8	data[];
 };
 
 /* The minimum bpf_func_info checked by the loader */

@@ -484,7 +484,7 @@ CARD.DOMAIN TYPE  MODE
 05.00ff     CEX5A Accelerator
 =========== ===== ============
 
-Guest2
+Guest3
 ------
 =========== ===== ============
 CARD.DOMAIN TYPE  MODE

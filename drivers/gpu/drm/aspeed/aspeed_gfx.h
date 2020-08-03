@@ -5,6 +5,7 @@
 #include <drm/drm_simple_kms_helper.h>
 
 struct aspeed_gfx {
+	struct drm_device		drm;
 	void __iomem			*base;
 	struct clk			*clk;
 	struct reset_control		*rst;
@@ -12,8 +13,8 @@ struct aspeed_gfx {
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
-	struct drm_fbdev_cma		*fbdev;
 };
+#define to_aspeed_gfx(x) container_of(x, struct aspeed_gfx, drm)
 
 int aspeed_gfx_create_pipe(struct drm_device *drm);
 int aspeed_gfx_create_output(struct drm_device *drm);

@@ -223,7 +223,7 @@ config SERIO_AMS_DELTA
 	tristate "Amstrad Delta (E3) mailboard support"
 	depends on MACH_AMS_DELTA
 	default y
-	---help---
+	help
 	  Say Y here if you have an E3 and want to use its mailboard,
 	  or any standard AT keyboard connected to the mailboard port.
 

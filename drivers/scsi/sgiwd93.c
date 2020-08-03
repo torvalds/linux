@@ -187,7 +187,7 @@ static inline void init_hpc_chain(struct ip22_hostdata *hdata)
 		hcp++;
 		dma += sizeof(struct hpc_chunk);
 		start += sizeof(struct hpc_chunk);
-	};
+	}
 	hcp--;
 	hcp->desc.pnext = hdata->dma;
 }

@@ -445,7 +445,7 @@ bool dm_helpers_dp_read_dpcd(
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+		DC_LOG_DC("Failed to find connector for link!\n");
 		return false;
 	}
 
@@ -554,6 +554,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_sink *sink)
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	struct drm_connector *connector = &aconnector->base;
 	struct i2c_adapter *ddc;
 	int retry = 3;
 	enum dc_edid_status edid_status;
@@ -570,6 +571,15 @@ enum dc_edid_status dm_helpers_read_local_edid(
 	do {
 
 		edid = drm_get_edid(&aconnector->base, ddc);
+
+		/* DP Compliance Test 4.2.2.6 */
+		if (link->aux_mode && connector->edid_corrupt)
+			drm_dp_send_real_edid_checksum(&aconnector->dm_dp_aux.aux, connector->real_edid_checksum);
+
+		if (!edid && connector->edid_corrupt) {
+			connector->edid_corrupt = false;
+			return EDID_BAD_CHECKSUM;
+		}
 
 		if (!edid)
 			return EDID_NO_RESPONSE;
@@ -605,34 +615,10 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		DRM_ERROR("EDID err: %d, on connector: %s",
 				edid_status,
 				aconnector->base.name);
-	if (link->aux_mode) {
-		union test_request test_request = { {0} };
-		union test_response test_response = { {0} };
 
-		dm_helpers_dp_read_dpcd(ctx,
-					link,
-					DP_TEST_REQUEST,
-					&test_request.raw,
-					sizeof(union test_request));
-
-		if (!test_request.bits.EDID_READ)
-			return edid_status;
-
-		test_response.bits.EDID_CHECKSUM_WRITE = 1;
-
-		dm_helpers_dp_write_dpcd(ctx,
-					link,
-					DP_TEST_EDID_CHECKSUM,
-					&sink->dc_edid.raw_edid[sink->dc_edid.length-1],
-					1);
-
-		dm_helpers_dp_write_dpcd(ctx,
-					link,
-					DP_TEST_RESPONSE,
-					&test_response.raw,
-					sizeof(test_response));
-
-	}
+	/* DP Compliance Test 4.2.2.3 */
+	if (link->aux_mode)
+		drm_dp_send_real_edid_checksum(&aconnector->dm_dp_aux.aux, sink->dc_edid.raw_edid[sink->dc_edid.length-1]);
 
 	return edid_status;
 }

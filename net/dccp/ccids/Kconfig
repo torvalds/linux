@@ -3,7 +3,7 @@ menu "DCCP CCIDs Configuration"
 
 config IP_DCCP_CCID2_DEBUG
 	bool "CCID-2 debugging messages"
-	---help---
+	help
 	  Enable CCID-2 specific debugging messages.
 
 	  The debugging output can additionally be toggled by setting the
@@ -14,7 +14,7 @@ config IP_DCCP_CCID2_DEBUG
 config IP_DCCP_CCID3
 	bool "CCID-3 (TCP-Friendly)"
 	def_bool y if (IP_DCCP = y || IP_DCCP = m)
-	---help---
+	help
 	  CCID-3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to
 	  be reasonably fair when competing for bandwidth with TCP-like flows,
@@ -39,7 +39,7 @@ config IP_DCCP_CCID3
 config IP_DCCP_CCID3_DEBUG
 	bool "CCID-3 debugging messages"
 	depends on IP_DCCP_CCID3
-	---help---
+	help
 	  Enable CCID-3 specific debugging messages.
 
 	  The debugging output can additionally be toggled by setting the

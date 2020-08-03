@@ -48,7 +48,7 @@ More details follow::
                                         |
                                         |
                                         v
-                              disable_nonboot_cpus()
+                              freeze_secondary_cpus()
                                    /* start */
                                         |
                                         v
@@ -83,7 +83,7 @@ More details follow::
                             Release cpu_add_remove_lock
                                         |
                                         v
-                       /* disable_nonboot_cpus() complete */
+                       /* freeze_secondary_cpus() complete */
                                         |
                                         v
                                    Do suspend
@@ -93,7 +93,7 @@ More details follow::
 Resuming back is likewise, with the counterparts being (in the order of
 execution during resume):
 
-* enable_nonboot_cpus() which involves::
+* thaw_secondary_cpus() which involves::
 
    |  Acquire cpu_add_remove_lock
    |  Decrease cpu_hotplug_disabled, thereby enabling regular cpu hotplug

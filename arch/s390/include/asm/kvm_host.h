@@ -375,6 +375,8 @@ struct kvm_vcpu_stat {
 	u64 halt_poll_invalid;
 	u64 halt_no_poll_steal;
 	u64 halt_wakeup;
+	u64 halt_poll_success_ns;
+	u64 halt_poll_fail_ns;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
 	u64 instruction_stctl;
@@ -971,16 +973,18 @@ struct kvm_arch_async_pf {
 	unsigned long pfault_token;
 };
 
-bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu);
 
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+bool kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);
 
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 				 struct kvm_async_pf *work);
+
+static inline void kvm_arch_async_page_present_queued(struct kvm_vcpu *vcpu) {}
 
 void kvm_arch_crypto_clear_masks(struct kvm *kvm);
 void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,

@@ -156,11 +156,11 @@ the labels provided by the BIOS won't match the real ones.
 ECC memory
 ----------
 
-As mentioned on the previous section, ECC memory has extra bits to be
-used for error correction. So, on 64 bit systems, a memory module
-has 64 bits of *data width*, and 74 bits of *total width*. So, there are
-8 bits extra bits to be used for the error detection and correction
-mechanisms. Those extra bits are called *syndrome*\ [#f1]_\ [#f2]_.
+As mentioned in the previous section, ECC memory has extra bits to be
+used for error correction. In the above example, a memory module has
+64 bits of *data width*, and 72 bits of *total width*.  The extra 8
+bits which are used for the error detection and correction mechanisms
+are referred to as the *syndrome*\ [#f1]_\ [#f2]_.
 
 So, when the cpu requests the memory controller to write a word with
 *data width*, the memory controller calculates the *syndrome* in real time,
@@ -212,7 +212,7 @@ EDAC - Error Detection And Correction
    purposes.
 
    When the subsystem was pushed upstream for the first time, on
-   Kernel 2.6.16, for the first time, it was renamed to ``EDAC``.
+   Kernel 2.6.16, it was renamed to ``EDAC``.
 
 Purpose
 -------
@@ -351,15 +351,17 @@ controllers. The following example will assume 2 channels:
 	+------------+-----------+-----------+
 	|            |  ``ch0``  |  ``ch1``  |
 	+============+===========+===========+
-	| ``csrow0`` |  DIMM_A0  |  DIMM_B0  |
-	|            |   rank0   |   rank0   |
-	+------------+     -     |     -     |
+	|            |**DIMM_A0**|**DIMM_B0**|
+	+------------+-----------+-----------+
+	| ``csrow0`` |   rank0   |   rank0   |
+	+------------+-----------+-----------+
 	| ``csrow1`` |   rank1   |   rank1   |
 	+------------+-----------+-----------+
-	| ``csrow2`` |  DIMM_A1  | DIMM_B1   |
-	|            |   rank0   |   rank0   |
-	+------------+     -     |     -     |
-	| ``csrow3`` |   rank1   |   rank1   |
+	|            |**DIMM_A1**|**DIMM_B1**|
+	+------------+-----------+-----------+
+	| ``csrow2`` |    rank0  |  rank0    |
+	+------------+-----------+-----------+
+	| ``csrow3`` |    rank1  |  rank1    |
 	+------------+-----------+-----------+
 
 In the above example, there are 4 physical slots on the motherboard

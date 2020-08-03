@@ -17,7 +17,6 @@
 #include <linux/serial_core.h>
 #include <linux/io.h>
 #include <linux/gpio/machine.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>

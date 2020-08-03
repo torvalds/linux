@@ -46,6 +46,25 @@ int mt76_queues_read(struct seq_file *s, void *data)
 }
 EXPORT_SYMBOL_GPL(mt76_queues_read);
 
+static int mt76_rx_queues_read(struct seq_file *s, void *data)
+{
+	struct mt76_dev *dev = dev_get_drvdata(s->private);
+	int i, queued;
+
+	mt76_for_each_q_rx(dev, i) {
+		struct mt76_queue *q = &dev->q_rx[i];
+
+		if (!q->ndesc)
+			continue;
+
+		queued = mt76_is_usb(dev) ? q->ndesc - q->queued : q->queued;
+		seq_printf(s, "%d:	queued=%d head=%d tail=%d\n",
+			   i, queued, q->head, q->tail);
+	}
+
+	return 0;
+}
+
 void mt76_seq_puts_array(struct seq_file *file, const char *str,
 			 s8 *val, int len)
 {
@@ -92,6 +111,8 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 		debugfs_create_blob("otp", 0400, dir, &dev->otp);
 	debugfs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
 				    mt76_read_rate_txpower);
+	debugfs_create_devm_seqfile(dev->dev, "rx-queues", dir,
+				    mt76_rx_queues_read);
 
 	return dir;
 }

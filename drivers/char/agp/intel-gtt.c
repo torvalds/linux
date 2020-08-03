@@ -846,6 +846,7 @@ void intel_gtt_insert_page(dma_addr_t addr,
 			   unsigned int flags)
 {
 	intel_private.driver->write_entry(addr, pg, flags);
+	readl(intel_private.gtt + pg);
 	if (intel_private.driver->chipset_flush)
 		intel_private.driver->chipset_flush();
 }
@@ -871,7 +872,7 @@ void intel_gtt_insert_sg_entries(struct sg_table *st,
 			j++;
 		}
 	}
-	wmb();
+	readl(intel_private.gtt + j - 1);
 	if (intel_private.driver->chipset_flush)
 		intel_private.driver->chipset_flush();
 }
@@ -1105,6 +1106,7 @@ static void i9xx_cleanup(void)
 
 static void i9xx_chipset_flush(void)
 {
+	wmb();
 	if (intel_private.i9xx_flush_page)
 		writel(1, intel_private.i9xx_flush_page);
 }
@@ -1405,13 +1407,16 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 
 	dev_info(&bridge_pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
-	mask = intel_private.driver->dma_mask_size;
-	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
-		dev_err(&intel_private.pcidev->dev,
-			"set gfx device dma mask %d-bit failed!\n", mask);
-	else
-		pci_set_consistent_dma_mask(intel_private.pcidev,
-					    DMA_BIT_MASK(mask));
+	if (bridge) {
+		mask = intel_private.driver->dma_mask_size;
+		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
+			dev_err(&intel_private.pcidev->dev,
+				"set gfx device dma mask %d-bit failed!\n",
+				mask);
+		else
+			pci_set_consistent_dma_mask(intel_private.pcidev,
+						    DMA_BIT_MASK(mask));
+	}
 
 	if (intel_gtt_init() != 0) {
 		intel_gmch_remove();

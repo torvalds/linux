@@ -92,7 +92,6 @@
 #include "intel_wopcm.h"
 
 #include "i915_gem.h"
-#include "i915_gem_fence_reg.h"
 #include "i915_gem_gtt.h"
 #include "i915_gpu_error.h"
 #include "i915_perf_types.h"
@@ -109,8 +108,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200313"
-#define DRIVER_TIMESTAMP	1584144591
+#define DRIVER_DATE		"20200515"
+#define DRIVER_TIMESTAMP	1589543364
 
 struct drm_i915_gem_object;
 
@@ -148,6 +147,8 @@ enum hpd_pin {
 
 struct i915_hotplug {
 	struct delayed_work hotplug_work;
+
+	const u32 *hpd, *pch_hpd;
 
 	struct {
 		unsigned long last_jiffies;
@@ -417,6 +418,7 @@ struct intel_fbc {
 		struct {
 			const struct drm_format_info *format;
 			unsigned int stride;
+			u64 modifier;
 		} fb;
 		u16 gen9_wa_cfb_stride;
 		s8 fence_id;
@@ -510,6 +512,7 @@ struct i915_psr {
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
 	bool force_mode_changed;
+	struct drm_dp_vsc_sdp vsc;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
@@ -540,7 +543,6 @@ struct i915_suspend_saved_registers {
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
 	u32 saveSWF3[3];
-	u64 saveFENCE[I915_MAX_NUM_FENCES];
 	u32 savePCH_PORT_HOTPLUG;
 	u16 saveGCDGMBUS;
 };
@@ -615,13 +617,14 @@ struct i915_gem_mm {
 
 #define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
 
-#define I915_RESET_TIMEOUT (10 * HZ) /* 10s */
-#define I915_FENCE_TIMEOUT (10 * HZ) /* 10s */
+unsigned long i915_fence_context_timeout(const struct drm_i915_private *i915,
+					 u64 context);
 
-#define I915_ENGINE_DEAD_TIMEOUT  (4 * HZ)  /* Seqno, head and subunits dead */
-#define I915_SEQNO_DEAD_TIMEOUT   (12 * HZ) /* Seqno dead with active head */
-
-#define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but no recovery? */
+static inline unsigned long
+i915_fence_timeout(const struct drm_i915_private *i915)
+{
+	return i915_fence_context_timeout(i915, U64_MAX);
+}
 
 /* Amount of SAGV/QGV points, BSpec precisely defines this */
 #define I915_NUM_QGV_POINTS 8
@@ -823,6 +826,9 @@ struct i915_selftest_stash {
 struct drm_i915_private {
 	struct drm_device drm;
 
+	/* FIXME: Device release actions should all be moved to drmm_ */
+	bool do_release;
+
 	const struct intel_device_info __info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
@@ -885,7 +891,6 @@ struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 
-	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct rb_root uabi_engines;
 
 	struct resource mch_res;
@@ -1506,6 +1511,11 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ICL_REVID(p, since, until) \
 	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
+#define EHL_REVID_A0            0x0
+
+#define IS_EHL_REVID(p, since, until) \
+	(IS_ELKHARTLAKE(p) && IS_REVID(p, since, until))
+
 #define TGL_REVID_A0		0x0
 #define TGL_REVID_B0		0x1
 #define TGL_REVID_C0		0x2
@@ -1606,7 +1616,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_DDI(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) (INTEL_INFO(dev_priv)->has_fpga_dbg)
 #define HAS_PSR(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_psr)
-#define HAS_TRANSCODER_EDP(dev_priv)	 (INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_EDP] != 0)
+#define HAS_TRANSCODER(dev_priv, trans)	 ((INTEL_INFO(dev_priv)->cpu_transcoder_mask & BIT(trans)) != 0)
 
 #define HAS_RC6(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6)
 #define HAS_RC6p(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6p)
@@ -1740,6 +1750,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags);
 #define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
+#define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
@@ -1911,6 +1922,18 @@ static inline enum i915_map_type
 i915_coherent_map_type(struct drm_i915_private *i915)
 {
 	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
+}
+
+static inline u64 i915_cs_timestamp_ns_to_ticks(struct drm_i915_private *i915, u64 val)
+{
+	return DIV_ROUND_UP_ULL(val * RUNTIME_INFO(i915)->cs_timestamp_frequency_hz,
+				1000000000);
+}
+
+static inline u64 i915_cs_timestamp_ticks_to_ns(struct drm_i915_private *i915, u64 val)
+{
+	return div_u64(val * 1000000000,
+		       RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
 }
 
 #endif

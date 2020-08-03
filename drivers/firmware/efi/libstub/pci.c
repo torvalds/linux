@@ -28,21 +28,21 @@ void efi_pci_disable_bridge_busmaster(void)
 
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		if (status != EFI_SUCCESS && status != EFI_NOT_FOUND)
-			pr_efi_err("Failed to locate PCI I/O handles'\n");
+			efi_err("Failed to locate PCI I/O handles'\n");
 		return;
 	}
 
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, pci_handle_size,
 			     (void **)&pci_handle);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to allocate memory for 'pci_handle'\n");
+		efi_err("Failed to allocate memory for 'pci_handle'\n");
 		return;
 	}
 
 	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL, &pci_proto,
 			     NULL, &pci_handle_size, pci_handle);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to locate PCI I/O handles'\n");
+		efi_err("Failed to locate PCI I/O handles'\n");
 		goto free_handle;
 	}
 
@@ -69,7 +69,7 @@ void efi_pci_disable_bridge_busmaster(void)
 		 * access to the framebuffer. Drivers for true PCIe graphics
 		 * controllers that are behind a PCIe root port do not use
 		 * DMA to implement the GOP framebuffer anyway [although they
-		 * may use it in their implentation of Gop->Blt()], and so
+		 * may use it in their implementation of Gop->Blt()], and so
 		 * disabling DMA in the PCI bridge should not interfere with
 		 * normal operation of the device.
 		 */
@@ -106,7 +106,7 @@ void efi_pci_disable_bridge_busmaster(void)
 		status = efi_call_proto(pci, pci.write, EfiPciIoWidthUint16,
 					PCI_COMMAND, 1, &command);
 		if (status != EFI_SUCCESS)
-			pr_efi_err("Failed to disable PCI busmastering\n");
+			efi_err("Failed to disable PCI busmastering\n");
 	}
 
 free_handle:

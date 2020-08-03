@@ -54,19 +54,7 @@ typedef int (*hyperv_fill_flush_list_func)(
 	vclocks_set_used(VDSO_CLOCKMODE_HVCLOCK);
 #define hv_get_raw_timer() rdtsc_ordered()
 
-void hyperv_callback_vector(void);
-void hyperv_reenlightenment_vector(void);
-#ifdef CONFIG_TRACING
-#define trace_hyperv_callback_vector hyperv_callback_vector
-#endif
 void hyperv_vector_handler(struct pt_regs *regs);
-
-/*
- * Routines for stimer0 Direct Mode handling.
- * On x86/x64, there are no percpu actions to take.
- */
-void hv_stimer0_vector_handler(struct pt_regs *regs);
-void hv_stimer0_callback_vector(void);
 
 static inline void hv_enable_stimer0_percpu_irq(int irq) {}
 static inline void hv_disable_stimer0_percpu_irq(int irq) {}
@@ -226,7 +214,6 @@ void hyperv_setup_mmu_ops(void);
 void *hv_alloc_hyperv_page(void);
 void *hv_alloc_hyperv_zeroed_page(void);
 void hv_free_hyperv_page(unsigned long addr);
-void hyperv_reenlightenment_intr(struct pt_regs *regs);
 void set_hv_tscchange_cb(void (*cb)(void));
 void clear_hv_tscchange_cb(void);
 void hyperv_stop_tsc_emulation(void);

@@ -1146,9 +1146,8 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			dev_dbg(&dev->dev, "%u:%d: unknown interface protocol %#02x, assuming v1\n",
 				iface_no, altno, protocol);
 			protocol = UAC_VERSION_1;
-			/* fall through */
+			fallthrough;
 		case UAC_VERSION_1:
-			/* fall through */
 		case UAC_VERSION_2: {
 			int bm_quirk = 0;
 

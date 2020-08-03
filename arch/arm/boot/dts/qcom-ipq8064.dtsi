@@ -93,6 +93,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq806x", "qcom,scm";
+		};
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;

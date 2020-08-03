@@ -211,18 +211,18 @@ static int scsi_ioctl_common(struct scsi_device *sdev, int cmd, void __user *arg
 	}
 
 	switch (cmd) {
-	case SCSI_IOCTL_GET_IDLUN:
-		if (!access_ok(arg, sizeof(struct scsi_idlun)))
+	case SCSI_IOCTL_GET_IDLUN: {
+		struct scsi_idlun v = {
+			.dev_id = (sdev->id & 0xff)
+				 + ((sdev->lun & 0xff) << 8)
+				 + ((sdev->channel & 0xff) << 16)
+				 + ((sdev->host->host_no & 0xff) << 24),
+			.host_unique_id = sdev->host->unique_id
+		};
+		if (copy_to_user(arg, &v, sizeof(struct scsi_idlun)))
 			return -EFAULT;
-
-		__put_user((sdev->id & 0xff)
-			 + ((sdev->lun & 0xff) << 8)
-			 + ((sdev->channel & 0xff) << 16)
-			 + ((sdev->host->host_no & 0xff) << 24),
-			 &((struct scsi_idlun __user *)arg)->dev_id);
-		__put_user(sdev->host->unique_id,
-			 &((struct scsi_idlun __user *)arg)->host_unique_id);
 		return 0;
+	}
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		return put_user(sdev->host->host_no, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:

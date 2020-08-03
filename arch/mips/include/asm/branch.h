@@ -27,6 +27,9 @@ extern int __MIPS16e_compute_return_epc(struct pt_regs *regs);
 #define MM_POOL32A_MINOR_SHIFT	0x6
 #define MM_MIPS32_COND_FC	0x30
 
+int isBranchInstr(struct pt_regs *regs,
+	struct mm_decoded_insn dec_insn, unsigned long *contpc);
+
 extern int __mm_isBranchInstr(struct pt_regs *regs,
 	struct mm_decoded_insn dec_insn, unsigned long *contpc);
 

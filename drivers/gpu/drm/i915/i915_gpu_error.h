@@ -42,7 +42,7 @@ struct i915_vma_coredump {
 	int num_pages;
 	int page_count;
 	int unused;
-	u32 *pages[0];
+	u32 *pages[];
 };
 
 struct i915_request_coredump {
@@ -50,7 +50,6 @@ struct i915_request_coredump {
 	pid_t pid;
 	u32 context;
 	u32 seqno;
-	u32 start;
 	u32 head;
 	u32 tail;
 	struct i915_sched_attr sched_attr;

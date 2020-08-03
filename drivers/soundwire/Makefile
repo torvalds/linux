@@ -4,7 +4,8 @@
 #
 
 #Bus Objs
-soundwire-bus-objs := bus_type.o bus.o slave.o mipi_disco.o stream.o
+soundwire-bus-objs := bus_type.o bus.o master.o slave.o mipi_disco.o stream.o  \
+			sysfs_slave.o sysfs_slave_dpn.o
 obj-$(CONFIG_SOUNDWIRE) += soundwire-bus.o
 
 ifdef CONFIG_DEBUG_FS
@@ -16,11 +17,8 @@ soundwire-cadence-objs := cadence_master.o
 obj-$(CONFIG_SOUNDWIRE_CADENCE) += soundwire-cadence.o
 
 #Intel driver
-soundwire-intel-objs :=	intel.o
+soundwire-intel-objs :=	intel.o intel_init.o
 obj-$(CONFIG_SOUNDWIRE_INTEL) += soundwire-intel.o
-
-soundwire-intel-init-objs := intel_init.o
-obj-$(CONFIG_SOUNDWIRE_INTEL) += soundwire-intel-init.o
 
 #Qualcomm driver
 soundwire-qcom-objs :=	qcom.o

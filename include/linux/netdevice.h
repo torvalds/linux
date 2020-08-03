@@ -53,6 +53,7 @@ struct netpoll_info;
 struct device;
 struct phy_device;
 struct dsa_port;
+struct ip_tunnel_parm;
 struct macsec_context;
 struct macsec_ops;
 
@@ -288,6 +289,7 @@ enum netdev_state_t {
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
+	__LINK_STATE_TESTING,
 };
 
 
@@ -328,6 +330,7 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
+	int			defer_hard_irqs_count;
 	unsigned long		gro_bitmask;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
@@ -1146,6 +1149,12 @@ struct netdev_net_notifier {
  * int (*ndo_del_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to release previously enslaved netdev.
  *
+ * struct net_device *(*ndo_get_xmit_slave)(struct net_device *dev,
+ *					    struct sk_buff *skb,
+ *					    bool all_slaves);
+ *	Get the xmit slave of master device. If all_slaves is true, function
+ *	assume all the slaves can transmit.
+ *
  *      Feature/offload setting functions.
  * netdev_features_t (*ndo_fix_features)(struct net_device *dev,
  *		netdev_features_t features);
@@ -1266,6 +1275,9 @@ struct netdev_net_notifier {
  *	Get devlink port instance associated with a given netdev.
  *	Called with a reference on the netdevice and devlink locks only,
  *	rtnl_lock is not held.
+ * int (*ndo_tunnel_ctl)(struct net_device *dev, struct ip_tunnel_parm *p,
+ *			 int cmd);
+ *	Add, change, delete or get information on an IPv4 tunnel.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1389,6 +1401,9 @@ struct net_device_ops {
 						 struct netlink_ext_ack *extack);
 	int			(*ndo_del_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
+	struct net_device*	(*ndo_get_xmit_slave)(struct net_device *dev,
+						      struct sk_buff *skb,
+						      bool all_slaves);
 	netdev_features_t	(*ndo_fix_features)(struct net_device *dev,
 						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
@@ -1468,6 +1483,8 @@ struct net_device_ops {
 	int			(*ndo_xsk_wakeup)(struct net_device *dev,
 						  u32 queue_id, u32 flags);
 	struct devlink_port *	(*ndo_get_devlink_port)(struct net_device *dev);
+	int			(*ndo_tunnel_ctl)(struct net_device *dev,
+						  struct ip_tunnel_parm *p, int cmd);
 };
 
 /**
@@ -1803,13 +1820,9 @@ enum netdev_priv_flags {
  *	@phydev:	Physical device may attach itself
  *			for hardware timestamping
  *	@sfp_bus:	attached &struct sfp_bus structure.
- *	@qdisc_tx_busylock_key: lockdep class annotating Qdisc->busylock
- *				spinlock
- *	@qdisc_running_key:	lockdep class annotating Qdisc->running seqcount
- *	@qdisc_xmit_lock_key:	lockdep class annotating
- *				netdev_queue->_xmit_lock spinlock
- *	@addr_list_lock_key:	lockdep class annotating
- *				net_device->addr_list_lock spinlock
+ *
+ *	@qdisc_tx_busylock: lockdep class annotating Qdisc->busylock spinlock
+ *	@qdisc_running_key: lockdep class annotating Qdisc->running seqcount
  *
  *	@proto_down:	protocol port state information can be sent to the
  *			switch driver and used to set the phys state of the
@@ -1994,6 +2007,7 @@ struct net_device {
 
 	struct bpf_prog __rcu	*xdp_prog;
 	unsigned long		gro_flush_timeout;
+	int			napi_defer_hard_irqs;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
@@ -2109,10 +2123,8 @@ struct net_device {
 #endif
 	struct phy_device	*phydev;
 	struct sfp_bus		*sfp_bus;
-	struct lock_class_key	qdisc_tx_busylock_key;
-	struct lock_class_key	qdisc_running_key;
-	struct lock_class_key	qdisc_xmit_lock_key;
-	struct lock_class_key	addr_list_lock_key;
+	struct lock_class_key	*qdisc_tx_busylock;
+	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
 	unsigned		wol_enabled:1;
 
@@ -2195,6 +2207,23 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 
 	for (i = 0; i < dev->num_tx_queues; i++)
 		f(dev, &dev->_tx[i], arg);
+}
+
+#define netdev_lockdep_set_classes(dev)				\
+{								\
+	static struct lock_class_key qdisc_tx_busylock_key;	\
+	static struct lock_class_key qdisc_running_key;		\
+	static struct lock_class_key qdisc_xmit_lock_key;	\
+	static struct lock_class_key dev_addr_list_lock_key;	\
+	unsigned int i;						\
+								\
+	(dev)->qdisc_tx_busylock = &qdisc_tx_busylock_key;	\
+	(dev)->qdisc_running_key = &qdisc_running_key;		\
+	lockdep_set_class(&(dev)->addr_list_lock,		\
+			  &dev_addr_list_lock_key);		\
+	for (i = 0; i < (dev)->num_tx_queues; i++)		\
+		lockdep_set_class(&(dev)->_tx[i]._xmit_lock,	\
+				  &qdisc_xmit_lock_key);	\
 }
 
 u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
@@ -2731,6 +2760,9 @@ void netdev_freemem(struct net_device *dev);
 void synchronize_net(void);
 int init_dummy_netdev(struct net_device *dev);
 
+struct net_device *netdev_get_xmit_slave(struct net_device *dev,
+					 struct sk_buff *skb,
+					 bool all_slaves);
 struct net_device *dev_get_by_index(struct net *net, int ifindex);
 struct net_device *__dev_get_by_index(struct net *net, int ifindex);
 struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
@@ -3221,7 +3253,6 @@ static inline void netif_stop_queue(struct net_device *dev)
 }
 
 void netif_tx_stop_all_queues(struct net_device *dev);
-void netdev_update_lockdep_key(struct net_device *dev);
 
 static inline bool netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
 {
@@ -3908,6 +3939,46 @@ static inline bool netif_dormant(const struct net_device *dev)
 
 
 /**
+ *	netif_testing_on - mark device as under test.
+ *	@dev: network device
+ *
+ * Mark device as under test (as per RFC2863).
+ *
+ * The testing state indicates that some test(s) must be performed on
+ * the interface. After completion, of the test, the interface state
+ * will change to up, dormant, or down, as appropriate.
+ */
+static inline void netif_testing_on(struct net_device *dev)
+{
+	if (!test_and_set_bit(__LINK_STATE_TESTING, &dev->state))
+		linkwatch_fire_event(dev);
+}
+
+/**
+ *	netif_testing_off - set device as not under test.
+ *	@dev: network device
+ *
+ * Device is not in testing state.
+ */
+static inline void netif_testing_off(struct net_device *dev)
+{
+	if (test_and_clear_bit(__LINK_STATE_TESTING, &dev->state))
+		linkwatch_fire_event(dev);
+}
+
+/**
+ *	netif_testing - test if device is under test
+ *	@dev: network device
+ *
+ * Check if device is under test
+ */
+static inline bool netif_testing(const struct net_device *dev)
+{
+	return test_bit(__LINK_STATE_TESTING, &dev->state);
+}
+
+
+/**
  *	netif_oper_up - test if device is operational
  *	@dev: network device
  *
@@ -4167,6 +4238,11 @@ static inline void netif_addr_lock(struct net_device *dev)
 	spin_lock(&dev->addr_list_lock);
 }
 
+static inline void netif_addr_lock_nested(struct net_device *dev)
+{
+	spin_lock_nested(&dev->addr_list_lock, dev->lower_level);
+}
+
 static inline void netif_addr_lock_bh(struct net_device *dev)
 {
 	spin_lock_bh(&dev->addr_list_lock);
@@ -4207,6 +4283,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 int register_netdev(struct net_device *dev);
 void unregister_netdev(struct net_device *dev);
+
+int devm_register_netdev(struct device *dev, struct net_device *ndev);
 
 /* General hardware address lists handling functions */
 int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
@@ -4868,7 +4946,8 @@ do {								\
 #define MODULE_ALIAS_NETDEV(device) \
 	MODULE_ALIAS("netdev-" device)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
 #define netdev_dbg(__dev, format, args...)			\
 do {								\
 	dynamic_netdev_dbg(__dev, format, ##args);		\
@@ -4938,7 +5017,8 @@ do {								\
 #define netif_info(priv, type, dev, fmt, args...)		\
 	netif_level(info, priv, type, dev, fmt, ##args)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
 #define netif_dbg(priv, type, netdev, format, args...)		\
 do {								\
 	if (netif_msg_##type(priv))				\

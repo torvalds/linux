@@ -42,10 +42,9 @@ properties:
       0 - 50/60Hz rejection
       1 - 60Hz rejection
       2 - 50Hz rejection
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 2
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 2
 
   '#address-cells':
     const: 1
@@ -91,8 +90,7 @@ patternProperties:
           7 - Type T Thermocouple
           8 - Type B Thermocouple
           9 - Custom Thermocouple
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 1
         maximum: 9
 
@@ -121,8 +119,7 @@ patternProperties:
           more details look at table 69 and 70.
           Note should be signed, but dtc doesn't currently maintain the
           sign.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        $ref: /schemas/types.yaml#/definitions/uint64-matrix
         minItems: 3
         maxItems: 64
         items:
@@ -138,8 +135,7 @@ patternProperties:
     properties:
       adi,sensor-type:
         description: Identifies the sensor as a diode.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         const: 28
 
       adi,single-ended:
@@ -196,8 +192,7 @@ patternProperties:
           16 - RTD PT-1000 (0.00375)
           17 - RTD NI-120
           18 - RTD Custom
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 10
         maximum: 18
 
@@ -210,9 +205,8 @@ patternProperties:
         description:
           Identifies the number of wires used by the RTD. Setting this
           property to 5 means 4 wires with Kelvin Rsense.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [2, 3, 4, 5]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [2, 3, 4, 5]
 
       adi,rsense-share:
         description:
@@ -237,18 +231,16 @@ patternProperties:
         description:
           This property set the RTD curve used and the corresponding
           Callendar-VanDusen constants. Look at table 30 of the datasheet.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - minimum: 0
-            maximum: 3
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 3
 
       adi,custom-rtd:
         description:
           This is a table, where each entry should be a pair of
           resistance(ohm)-temperature(K). The entries added here are in uohm
           and uK. For more details values look at table 74 and 75.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        $ref: /schemas/types.yaml#/definitions/uint64-matrix
         items:
           minItems: 3
           maxItems: 64
@@ -260,7 +252,7 @@ patternProperties:
       - adi,rsense-handle
 
     dependencies:
-      adi,current-rotate: [ adi,rsense-share ]
+      adi,current-rotate: [ "adi,rsense-share" ]
 
   "^thermistor@":
     type: object
@@ -280,8 +272,7 @@ patternProperties:
           25 - Thermistor Spectrum 1003k 1kohm
           26 - Thermistor Custom Steinhart-Hart
           27 - Custom Thermistor
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 19
         maximum: 27
 
@@ -314,10 +305,9 @@ patternProperties:
           This property controls the magnitude of the excitation current
           applied to the thermistor. Value 0 set's the sensor in auto-range
           mode.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000,
-                   250000, 500000, 1000000]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000, 250000,
+          500000, 1000000]
 
       adi,custom-thermistor:
         description:
@@ -325,8 +315,7 @@ patternProperties:
           resistance(ohm)-temperature(K). The entries added here are in uohm
           and uK only for custom thermistors. For more details look at table
           78 and 79.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        $ref: /schemas/types.yaml#/definitions/uint64-matrix
         minItems: 3
         maxItems: 64
         items:
@@ -339,8 +328,7 @@ patternProperties:
           be programmed into the device memory using this property. For
           Steinhart sensors the coefficients are given in the raw
           format. Look at table 82 for more information.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         items:
           minItems: 6
           maxItems: 6
@@ -349,7 +337,7 @@ patternProperties:
       - adi,rsense-handle
 
     dependencies:
-      adi,current-rotate: [ adi,rsense-share ]
+      adi,current-rotate: [ "adi,rsense-share" ]
 
   "^adc@":
     type: object
@@ -358,8 +346,7 @@ patternProperties:
     properties:
       adi,sensor-type:
         description: Identifies the sensor as a direct adc.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         const: 30
 
       adi,single-ended:
@@ -379,8 +366,7 @@ patternProperties:
 
       adi,sensor-type:
         description: Identifies the sensor as a rsense.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         const: 29
 
       adi,rsense-val-milli-ohms:

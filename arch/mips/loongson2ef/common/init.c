@@ -19,10 +19,10 @@ unsigned long __maybe_unused _loongson_addrwincfg_base;
 static void __init mips_nmi_setup(void)
 {
 	void *base;
-	extern char except_vec_nmi;
+	extern char except_vec_nmi[];
 
 	base = (void *)(CAC_BASE + 0x380);
-	memcpy(base, &except_vec_nmi, 0x80);
+	memcpy(base, except_vec_nmi, 0x80);
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 

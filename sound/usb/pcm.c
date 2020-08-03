@@ -1696,8 +1696,8 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	int processed = urb->transfer_buffer_length / ep->stride;
 	int est_delay;
 
-	/* ignore the delay accounting when procssed=0 is given, i.e.
-	 * silent payloads are procssed before handling the actual data
+	/* ignore the delay accounting when processed=0 is given, i.e.
+	 * silent payloads are processed before handling the actual data
 	 */
 	if (!processed)
 		return;
@@ -1744,7 +1744,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		subs->trigger_tstamp_pending_update = true;
-		/* fall through */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		subs->data_endpoint->prepare_data_urb = prepare_playback_urb;
 		subs->data_endpoint->retire_data_urb = retire_playback_urb;

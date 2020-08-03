@@ -149,7 +149,6 @@ int
 nv50_fbcon_accel_init(struct fb_info *info)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(nfbdev->helper.fb);
 	struct drm_device *dev = nfbdev->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
@@ -240,8 +239,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, upper_32_bits(fb->vma->addr));
-	OUT_RING(chan, lower_32_bits(fb->vma->addr));
+	OUT_RING(chan, upper_32_bits(nfbdev->vma->addr));
+	OUT_RING(chan, lower_32_bits(nfbdev->vma->addr));
 	BEGIN_NV04(chan, NvSub2D, 0x0230, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
@@ -249,8 +248,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, upper_32_bits(fb->vma->addr));
-	OUT_RING(chan, lower_32_bits(fb->vma->addr));
+	OUT_RING(chan, upper_32_bits(nfbdev->vma->addr));
+	OUT_RING(chan, lower_32_bits(nfbdev->vma->addr));
 	FIRE_RING(chan);
 
 	return 0;

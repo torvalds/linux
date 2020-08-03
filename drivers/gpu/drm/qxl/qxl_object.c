@@ -33,7 +33,7 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	struct qxl_device *qdev;
 
 	bo = to_qxl_bo(tbo);
-	qdev = (struct qxl_device *)bo->tbo.base.dev->dev_private;
+	qdev = to_qxl(bo->tbo.base.dev);
 
 	qxl_surface_evict(qdev, bo, false);
 	WARN_ON_ONCE(bo->map_count > 0);

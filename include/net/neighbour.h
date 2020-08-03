@@ -392,13 +392,12 @@ void *neigh_seq_next(struct seq_file *, void *, loff_t *);
 void neigh_seq_stop(struct seq_file *, void *);
 
 int neigh_proc_dointvec(struct ctl_table *ctl, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos);
+			void *buffer, size_t *lenp, loff_t *ppos);
 int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write,
-				void __user *buffer,
+				void *buffer,
 				size_t *lenp, loff_t *ppos);
 int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
-				   void __user *buffer,
-				   size_t *lenp, loff_t *ppos);
+				   void *buffer, size_t *lenp, loff_t *ppos);
 
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 			  proc_handler *proc_handler);

@@ -138,6 +138,7 @@ struct fs_node {
 
 struct mlx5_flow_rule {
 	struct fs_node				node;
+	struct mlx5_flow_table			*ft;
 	struct mlx5_flow_destination		dest_attr;
 	/* next_ft should be accessed under chain_lock and only of
 	 * destination type is FWD_NEXT_fT.
@@ -175,6 +176,7 @@ struct mlx5_flow_table {
 	u32				flags;
 	struct rhltable			fgs_hash;
 	enum mlx5_flow_table_miss_action def_miss_action;
+	struct mlx5_flow_namespace	*ns;
 };
 
 struct mlx5_ft_underlay_qp {

@@ -123,8 +123,8 @@ The list of watchdog operations is defined as::
 	struct module *owner;
 	/* mandatory operations */
 	int (*start)(struct watchdog_device *);
-	int (*stop)(struct watchdog_device *);
 	/* optional operations */
+	int (*stop)(struct watchdog_device *);
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);

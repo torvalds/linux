@@ -95,11 +95,11 @@ static void remote_function(void *data)
  * @info:	the function call argument
  *
  * Calls the function @func when the task is currently running. This might
- * be on the current CPU, which just calls the function directly
+ * be on the current CPU, which just calls the function directly.  This will
+ * retry due to any failures in smp_call_function_single(), such as if the
+ * task_cpu() goes offline concurrently.
  *
- * returns: @func return value, or
- *	    -ESRCH  - when the process isn't running
- *	    -EAGAIN - when the process moved away
+ * returns @func return value or -ESRCH when the process isn't running
  */
 static int
 task_function_call(struct task_struct *p, remote_function_f func, void *info)
@@ -112,11 +112,16 @@ task_function_call(struct task_struct *p, remote_function_f func, void *info)
 	};
 	int ret;
 
-	do {
-		ret = smp_call_function_single(task_cpu(p), remote_function, &data, 1);
-		if (!ret)
-			ret = data.ret;
-	} while (ret == -EAGAIN);
+	for (;;) {
+		ret = smp_call_function_single(task_cpu(p), remote_function,
+					       &data, 1);
+		ret = !ret ? data.ret : -EAGAIN;
+
+		if (ret != -EAGAIN)
+			break;
+
+		cond_resched();
+	}
 
 	return ret;
 }
@@ -437,8 +442,7 @@ static void update_perf_cpu_limits(void)
 static bool perf_rotate_context(struct perf_cpu_context *cpuctx);
 
 int perf_proc_update_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	int perf_cpu = sysctl_perf_cpu_time_max_percent;
@@ -462,8 +466,7 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
 
 int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp,
-				loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
@@ -1313,7 +1316,7 @@ static void put_ctx(struct perf_event_context *ctx)
  *	    perf_event::child_mutex;
  *	      perf_event_context::lock
  *	    perf_event::mmap_mutex
- *	    mmap_sem
+ *	    mmap_lock
  *	      perf_addr_filters_head::lock
  *
  *    cpu_hotplug_lock
@@ -3077,7 +3080,7 @@ static int perf_event_stop(struct perf_event *event, int restart)
  *     pre-existing mappings, called once when new filters arrive via SET_FILTER
  *     ioctl;
  * (2) perf_addr_filters_adjust(): adjusting filters' offsets based on newly
- *     registered mapping, called for every new mmap(), with mm::mmap_sem down
+ *     registered mapping, called for every new mmap(), with mm::mmap_lock down
  *     for reading;
  * (3) perf_event_addr_filters_exec(): clearing filters' offsets in the process
  *     of exec.
@@ -6931,12 +6934,12 @@ static u64 perf_virt_to_phys(u64 virt)
 		 * Walking the pages tables for user address.
 		 * Interrupts are disabled, so it prevents any tear down
 		 * of the page tables.
-		 * Try IRQ-safe __get_user_pages_fast first.
+		 * Try IRQ-safe get_user_page_fast_only first.
 		 * If failed, leave phys_addr as 0.
 		 */
 		if (current->mm != NULL) {
 			pagefault_disable();
-			if (__get_user_pages_fast(virt, 1, 0, &p) == 1)
+			if (get_user_page_fast_only(virt, 0, &p))
 				phys_addr = page_to_phys(p) + virt % PAGE_SIZE;
 			pagefault_enable();
 		}
@@ -9404,7 +9407,7 @@ static int perf_kprobe_event_init(struct perf_event *event)
 	if (event->attr.type != perf_kprobe.type)
 		return -ENOENT;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!perfmon_capable())
 		return -EACCES;
 
 	/*
@@ -9464,7 +9467,7 @@ static int perf_uprobe_event_init(struct perf_event *event)
 	if (event->attr.type != perf_uprobe.type)
 		return -ENOENT;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!perfmon_capable())
 		return -EACCES;
 
 	/*
@@ -9739,7 +9742,7 @@ static void perf_addr_filters_splice(struct perf_event *event,
 /*
  * Scan through mm's vmas and see if one of them matches the
  * @filter; if so, adjust filter's address range.
- * Called with mm::mmap_sem down for reading.
+ * Called with mm::mmap_lock down for reading.
  */
 static void perf_addr_filter_apply(struct perf_addr_filter *filter,
 				   struct mm_struct *mm,
@@ -9781,7 +9784,7 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 		if (!mm)
 			goto restart;
 
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 	}
 
 	raw_spin_lock_irqsave(&ifh->lock, flags);
@@ -9807,7 +9810,7 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 	raw_spin_unlock_irqrestore(&ifh->lock, flags);
 
 	if (ifh->nr_file_filters) {
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 
 		mmput(mm);
 	}
@@ -11511,7 +11514,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	}
 
 	if (attr.namespaces) {
-		if (!capable(CAP_SYS_ADMIN))
+		if (!perfmon_capable())
 			return -EACCES;
 	}
 
@@ -12217,7 +12220,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
  * When a child task exits, feed back event values to parent events.
  *
  * Can be called with exec_update_mutex held when called from
- * install_exec_creds().
+ * setup_new_exec().
  */
 void perf_event_exit_task(struct task_struct *child)
 {

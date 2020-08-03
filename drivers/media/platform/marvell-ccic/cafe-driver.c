@@ -556,7 +556,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	clkdev_create(mcam->mclk, "xclk", "%d-%04x",
 		i2c_adapter_id(cam->i2c_adapter), ov7670_info.addr);
 
-	if (i2c_new_device(cam->i2c_adapter, &ov7670_info)) {
+	if (!IS_ERR(i2c_new_client_device(cam->i2c_adapter, &ov7670_info))) {
 		cam->registered = 1;
 		return 0;
 	}

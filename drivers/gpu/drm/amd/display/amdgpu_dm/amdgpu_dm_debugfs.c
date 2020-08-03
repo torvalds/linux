@@ -32,7 +32,7 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
 #include "dm_helpers.h"
-#include "dmub/inc/dmub_srv.h"
+#include "dmub/dmub_srv.h"
 
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
@@ -838,6 +838,44 @@ static int vrr_range_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+/*
+ * Returns the HDCP capability of the Display (1.4 for now).
+ *
+ * NOTE* Not all HDMI displays report their HDCP caps even when they are capable.
+ * Since its rare for a display to not be HDCP 1.4 capable, we set HDMI as always capable.
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/hdcp_sink_capability
+ *		or cat /sys/kernel/debug/dri/0/HDMI-A-1/hdcp_sink_capability
+ */
+static int hdcp_sink_capability_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	bool hdcp_cap, hdcp2_cap;
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "%s:%d HDCP version: ", connector->name, connector->base.id);
+
+	hdcp_cap = dc_link_is_hdcp14(aconnector->dc_link);
+	hdcp2_cap = dc_link_is_hdcp22(aconnector->dc_link);
+
+
+	if (hdcp_cap)
+		seq_printf(m, "%s ", "HDCP1.4");
+	if (hdcp2_cap)
+		seq_printf(m, "%s ", "HDCP2.2");
+
+	if (!hdcp_cap && !hdcp2_cap)
+		seq_printf(m, "%s ", "None");
+
+	seq_puts(m, "\n");
+
+	return 0;
+}
+#endif
 /* function description
  *
  * generic SDP message access for testing
@@ -964,6 +1002,9 @@ DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
 DEFINE_SHOW_ATTRIBUTE(output_bpc);
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
+#endif
 
 static const struct file_operations dp_link_settings_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -1019,12 +1060,23 @@ static const struct {
 		{"test_pattern", &dp_phy_test_pattern_fops},
 		{"output_bpc", &output_bpc_fops},
 		{"vrr_range", &vrr_range_fops},
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+		{"hdcp_sink_capability", &hdcp_sink_capability_fops},
+#endif
 		{"sdp_message", &sdp_message_fops},
 		{"aux_dpcd_address", &dp_dpcd_address_debugfs_fops},
 		{"aux_dpcd_size", &dp_dpcd_size_debugfs_fops},
 		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+static const struct {
+	char *name;
+	const struct file_operations *fops;
+} hdmi_debugfs_entries[] = {
+		{"hdcp_sink_capability", &hdcp_sink_capability_fops}
+};
+#endif
 /*
  * Force YUV420 output if available from the given mode
  */
@@ -1093,6 +1145,15 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	connector->debugfs_dpcd_address = 0;
 	connector->debugfs_dpcd_size = 0;
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+		for (i = 0; i < ARRAY_SIZE(hdmi_debugfs_entries); i++) {
+			debugfs_create_file(hdmi_debugfs_entries[i].name,
+					    0644, dir, connector,
+					    hdmi_debugfs_entries[i].fops);
+		}
+	}
+#endif
 }
 
 /*
@@ -1167,8 +1228,9 @@ static int current_backlight_read(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;
@@ -1184,8 +1246,9 @@ static int target_backlight_read(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;

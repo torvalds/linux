@@ -54,6 +54,16 @@ properties:
 
       - description: RZ/G1H (R8A77420)
         items:
+          - enum:
+              # iWave Systems RZ/G1H Qseven System On Module (iW-RainboW-G21M-Qseven)
+              - iwave,g21m
+          - const: renesas,r8a7742
+
+      - items:
+          - enum:
+              # iWave Systems RZ/G1H Qseven Development Platform (iW-RainboW-G21D-Qseven)
+              - iwave,g21d
+          - const: iwave,g21m
           - const: renesas,r8a7742
 
       - description: RZ/G1M (R8A77430)

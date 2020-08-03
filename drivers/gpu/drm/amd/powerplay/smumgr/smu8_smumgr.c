@@ -610,18 +610,21 @@ static int smu8_download_pptable_settings(struct pp_hwmgr *hwmgr, void **table)
 
 	*table = (struct SMU8_Fusion_ClkTable *)smu8_smu->scratch_buffer[i].kaddr;
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
-				upper_32_bits(smu8_smu->scratch_buffer[i].mc_addr));
+				upper_32_bits(smu8_smu->scratch_buffer[i].mc_addr),
+				NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
-				lower_32_bits(smu8_smu->scratch_buffer[i].mc_addr));
+				lower_32_bits(smu8_smu->scratch_buffer[i].mc_addr),
+				NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
-				smu8_smu->toc_entry_clock_table);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
+				smu8_smu->toc_entry_clock_table,
+				NULL);
 
-	smu8_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToDram);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToDram, NULL);
 
 	return 0;
 }
@@ -637,18 +640,21 @@ static int smu8_upload_pptable_settings(struct pp_hwmgr *hwmgr)
 			break;
 	}
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
-				upper_32_bits(smu8_smu->scratch_buffer[i].mc_addr));
+				upper_32_bits(smu8_smu->scratch_buffer[i].mc_addr),
+				NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
-				lower_32_bits(smu8_smu->scratch_buffer[i].mc_addr));
+				lower_32_bits(smu8_smu->scratch_buffer[i].mc_addr),
+				NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
-				smu8_smu->toc_entry_clock_table);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
+				smu8_smu->toc_entry_clock_table,
+				NULL);
 
-	smu8_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToSmu);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToSmu, NULL);
 
 	return 0;
 }
@@ -671,25 +677,30 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 
 	smu8_write_smc_sram_dword(hwmgr, smc_address, 0, smc_address+4);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrHi,
-					upper_32_bits(smu8_smu->toc_buffer.mc_addr));
+					upper_32_bits(smu8_smu->toc_buffer.mc_addr),
+					NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrLo,
-					lower_32_bits(smu8_smu->toc_buffer.mc_addr));
+					lower_32_bits(smu8_smu->toc_buffer.mc_addr),
+					NULL);
 
-	smu8_send_msg_to_smc(hwmgr, PPSMC_MSG_InitJobs);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_InitJobs, NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
-					smu8_smu->toc_entry_aram);
-	smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
-				smu8_smu->toc_entry_power_profiling_index);
+					smu8_smu->toc_entry_aram,
+					NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
+				smu8_smu->toc_entry_power_profiling_index,
+				NULL);
 
-	smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
-					smu8_smu->toc_entry_initialize_index);
+					smu8_smu->toc_entry_initialize_index,
+					NULL);
 
 	fw_to_check = UCODE_ID_RLC_G_MASK |
 			UCODE_ID_SDMA0_MASK |
@@ -860,11 +871,13 @@ static bool smu8_dpm_check_smu_features(struct pp_hwmgr *hwmgr,
 				unsigned long check_feature)
 {
 	int result;
-	unsigned long features;
+	uint32_t features;
 
-	result = smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetFeatureStatus, 0);
+	result = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_GetFeatureStatus,
+				0,
+				&features);
 	if (result == 0) {
-		features = smum_get_argument(hwmgr);
 		if (features & check_feature)
 			return true;
 	}

@@ -128,18 +128,22 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 		.bits_per_word = bits,
 	};
 
-	if (mode & SPI_TX_QUAD)
+	if (mode & SPI_TX_OCTAL)
+		tr.tx_nbits = 8;
+	else if (mode & SPI_TX_QUAD)
 		tr.tx_nbits = 4;
 	else if (mode & SPI_TX_DUAL)
 		tr.tx_nbits = 2;
-	if (mode & SPI_RX_QUAD)
+	if (mode & SPI_RX_OCTAL)
+		tr.rx_nbits = 8;
+	else if (mode & SPI_RX_QUAD)
 		tr.rx_nbits = 4;
 	else if (mode & SPI_RX_DUAL)
 		tr.rx_nbits = 2;
 	if (!(mode & SPI_LOOP)) {
-		if (mode & (SPI_TX_QUAD | SPI_TX_DUAL))
+		if (mode & (SPI_TX_OCTAL | SPI_TX_QUAD | SPI_TX_DUAL))
 			tr.rx_buf = 0;
-		else if (mode & (SPI_RX_QUAD | SPI_RX_DUAL))
+		else if (mode & (SPI_RX_OCTAL | SPI_RX_QUAD | SPI_RX_DUAL))
 			tr.tx_buf = 0;
 	}
 
@@ -187,6 +191,7 @@ static void print_usage(const char *prog)
 	     "  -R --ready    slave pulls low to pause\n"
 	     "  -2 --dual     dual transfer\n"
 	     "  -4 --quad     quad transfer\n"
+	     "  -8 --octal    octal transfer\n"
 	     "  -S --size     transfer size\n"
 	     "  -I --iter     iterations\n");
 	exit(1);
@@ -213,13 +218,14 @@ static void parse_opts(int argc, char *argv[])
 			{ "dual",    0, 0, '2' },
 			{ "verbose", 0, 0, 'v' },
 			{ "quad",    0, 0, '4' },
+			{ "octal",   0, 0, '8' },
 			{ "size",    1, 0, 'S' },
 			{ "iter",    1, 0, 'I' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:i:o:lHOLC3NR24p:vS:I:",
+		c = getopt_long(argc, argv, "D:s:d:b:i:o:lHOLC3NR248p:vS:I:",
 				lopts, NULL);
 
 		if (c == -1)
@@ -280,6 +286,9 @@ static void parse_opts(int argc, char *argv[])
 		case '4':
 			mode |= SPI_TX_QUAD;
 			break;
+		case '8':
+			mode |= SPI_TX_OCTAL;
+			break;
 		case 'S':
 			transfer_size = atoi(optarg);
 			break;
@@ -295,6 +304,8 @@ static void parse_opts(int argc, char *argv[])
 			mode |= SPI_RX_DUAL;
 		if (mode & SPI_TX_QUAD)
 			mode |= SPI_RX_QUAD;
+		if (mode & SPI_TX_OCTAL)
+			mode |= SPI_RX_OCTAL;
 	}
 }
 

@@ -425,7 +425,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
  * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
  *
  * Assumes @task and @mm are valid (i.e. at least one reference on each), and
- * that mmap_sem is held as writer.
+ * that mmap_lock is held as writer.
  *
  * Return:
  * * 0       on success
@@ -437,7 +437,7 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
 	unsigned long locked_vm, limit;
 	int ret = 0;
 
-	lockdep_assert_held_write(&mm->mmap_sem);
+	mmap_assert_write_locked(mm);
 
 	locked_vm = mm->locked_vm;
 	if (inc) {
@@ -481,10 +481,10 @@ int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc)
 	if (pages == 0 || !mm)
 		return 0;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 	ret = __account_locked_vm(mm, pages, inc, current,
 				  capable(CAP_IPC_LOCK));
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	return ret;
 }
@@ -501,11 +501,11 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 
 	ret = security_mmap_file(file, prot, flag);
 	if (!ret) {
-		if (down_write_killable(&mm->mmap_sem))
+		if (mmap_write_lock_killable(mm))
 			return -EINTR;
 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
 				    &populate, &uf);
-		up_write(&mm->mmap_sem);
+		mmap_write_unlock(mm);
 		userfaultfd_unmap_complete(mm, &uf);
 		if (populate)
 			mm_populate(ret, populate);
@@ -580,7 +580,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	if (ret || size <= PAGE_SIZE)
 		return ret;
 
-	return __vmalloc_node_flags_caller(size, node, flags,
+	return __vmalloc_node(size, 1, flags, node,
 			__builtin_return_address(0));
 }
 EXPORT_SYMBOL(kvmalloc_node);
@@ -603,6 +603,24 @@ void kvfree(const void *addr)
 		kfree(addr);
 }
 EXPORT_SYMBOL(kvfree);
+
+/**
+ * kvfree_sensitive - Free a data object containing sensitive information.
+ * @addr: address of the data object to be freed.
+ * @len: length of the data object.
+ *
+ * Use the special memzero_explicit() function to clear the content of a
+ * kvmalloc'ed object containing sensitive data to make sure that the
+ * compiler won't optimize out the data clearing.
+ */
+void kvfree_sensitive(const void *addr, size_t len)
+{
+	if (likely(!ZERO_OR_NULL_PTR(addr))) {
+		memzero_explicit((void *)addr, len);
+		kvfree(addr);
+	}
+}
+EXPORT_SYMBOL(kvfree_sensitive);
 
 static inline void *__page_rmapping(struct page *page)
 {
@@ -717,9 +735,8 @@ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
 unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
 
-int overcommit_ratio_handler(struct ctl_table *table, int write,
-			     void __user *buffer, size_t *lenp,
-			     loff_t *ppos)
+int overcommit_ratio_handler(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
@@ -729,9 +746,8 @@ int overcommit_ratio_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-int overcommit_kbytes_handler(struct ctl_table *table, int write,
-			     void __user *buffer, size_t *lenp,
-			     loff_t *ppos)
+int overcommit_kbytes_handler(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
@@ -797,10 +813,6 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
 int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 {
 	long allowed;
-
-	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
-			-(s64)vm_committed_as_batch * num_online_cpus(),
-			"memory commitment underflow");
 
 	vm_acct_memory(pages);
 

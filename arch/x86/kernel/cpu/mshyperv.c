@@ -23,6 +23,7 @@
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
+#include <asm/idtentry.h>
 #include <asm/irq_regs.h>
 #include <asm/i8259.h>
 #include <asm/apic.h>
@@ -40,11 +41,10 @@ static void (*hv_stimer0_handler)(void);
 static void (*hv_kexec_handler)(void);
 static void (*hv_crash_handler)(struct pt_regs *regs);
 
-__visible void __irq_entry hyperv_vector_handler(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	entering_irq();
 	inc_irq_stat(irq_hv_callback_count);
 	if (vmbus_handler)
 		vmbus_handler();
@@ -52,7 +52,6 @@ __visible void __irq_entry hyperv_vector_handler(struct pt_regs *regs)
 	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
 		ack_APIC_irq();
 
-	exiting_irq();
 	set_irq_regs(old_regs);
 }
 
@@ -73,19 +72,16 @@ EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
  * Routines to do per-architecture handling of stimer0
  * interrupts when in Direct Mode
  */
-
-__visible void __irq_entry hv_stimer0_vector_handler(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_stimer0)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	entering_irq();
 	inc_irq_stat(hyperv_stimer0_count);
 	if (hv_stimer0_handler)
 		hv_stimer0_handler();
 	add_interrupt_randomness(HYPERV_STIMER0_VECTOR, 0);
 	ack_APIC_irq();
 
-	exiting_irq();
 	set_irq_regs(old_regs);
 }
 
@@ -331,17 +327,19 @@ static void __init ms_hyperv_init_platform(void)
 	x86_platform.apic_post_init = hyperv_init;
 	hyperv_setup_mmu_ops();
 	/* Setup the IDT for hypervisor callback */
-	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, asm_sysvec_hyperv_callback);
 
 	/* Setup the IDT for reenlightenment notifications */
-	if (ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT)
+	if (ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT) {
 		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
-				hyperv_reenlightenment_vector);
+				asm_sysvec_hyperv_reenlightenment);
+	}
 
 	/* Setup the IDT for stimer0 */
-	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
+	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE) {
 		alloc_intr_gate(HYPERV_STIMER0_VECTOR,
-				hv_stimer0_callback_vector);
+				asm_sysvec_hyperv_stimer0);
+	}
 
 # ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = hv_smp_prepare_boot_cpu;

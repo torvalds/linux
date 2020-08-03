@@ -64,6 +64,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
+#include "fw/api/nvm-reg.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
 
@@ -75,6 +76,7 @@
 #define ACPI_SPLC_METHOD	"SPLC"
 #define ACPI_ECKV_METHOD	"ECKV"
 #define ACPI_PPAG_METHOD	"PPAG"
+#define ACPI_WTAS_METHOD	"WTAS"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -95,6 +97,12 @@
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
+
+/*
+ * 1 type, 1 enabled, 1 black list size, 16 black list array
+ */
+#define APCI_WTAS_BLACK_LIST_MAX	16
+#define ACPI_WTAS_WIFI_DATA_SIZE	(3 + APCI_WTAS_BLACK_LIST_MAX)
 
 #define ACPI_WGDS_NUM_BANDS		2
 #define ACPI_WGDS_TABLE_SIZE		3
@@ -119,11 +127,22 @@ struct iwl_geo_profile {
 	u8 values[ACPI_GEO_TABLE_SIZE];
 };
 
+enum iwl_dsm_funcs_rev_0 {
+	DSM_FUNC_QUERY = 0,
+	DSM_FUNC_DISABLE_SRD = 1,
+	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
+};
+
 #ifdef CONFIG_ACPI
 
 struct iwl_fw_runtime;
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
+
+void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
+			      union acpi_object *args);
+
+int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
@@ -174,11 +193,25 @@ int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset_group *table);
 
+int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *black_list_array,
+		     int *black_list_size);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 {
 	return ERR_PTR(-ENOENT);
+}
+
+static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					    int func, union acpi_object *args)
+{
+	return ERR_PTR(-ENOENT);
+}
+
+static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func)
+{
+	return -ENOENT;
 }
 
 static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
@@ -250,5 +283,11 @@ static inline int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 	return -ENOENT;
 }
 
+static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
+				   __le32 *black_list_array,
+				   int *black_list_size)
+{
+	return -ENOENT;
+}
 #endif /* CONFIG_ACPI */
 #endif /* __iwl_fw_acpi__ */

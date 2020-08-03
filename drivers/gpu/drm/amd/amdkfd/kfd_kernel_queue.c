@@ -126,6 +126,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 
 	prop.queue_size = queue_size;
 	prop.is_interop = false;
+	prop.is_gws = false;
 	prop.priority = 1;
 	prop.queue_percent = 100;
 	prop.type = type;

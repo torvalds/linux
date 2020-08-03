@@ -20,11 +20,13 @@ struct ionic_tx_stats {
 	u64 bytes;
 	u64 clean;
 	u64 linearize;
-	u64 no_csum;
+	u64 csum_none;
 	u64 csum;
 	u64 crc32_csum;
 	u64 tso;
+	u64 tso_bytes;
 	u64 frags;
+	u64 vlan_inserted;
 	u64 sg_cntr[IONIC_MAX_NUM_SG_CNTR];
 };
 
@@ -38,6 +40,7 @@ struct ionic_rx_stats {
 	u64 csum_error;
 	u64 buffers_posted;
 	u64 dropped;
+	u64 vlan_stripped;
 };
 
 #define IONIC_QCQ_F_INITED		BIT(0)
@@ -114,11 +117,17 @@ struct ionic_lif_sw_stats {
 	u64 rx_packets;
 	u64 rx_bytes;
 	u64 tx_tso;
-	u64 tx_no_csum;
+	u64 tx_tso_bytes;
+	u64 tx_csum_none;
 	u64 tx_csum;
 	u64 rx_csum_none;
 	u64 rx_csum_complete;
 	u64 rx_csum_error;
+	u64 hw_tx_dropped;
+	u64 hw_rx_dropped;
+	u64 hw_rx_over_errors;
+	u64 hw_rx_missed_errors;
+	u64 hw_tx_aborted_errors;
 };
 
 enum ionic_lif_state_flags {
@@ -131,6 +140,17 @@ enum ionic_lif_state_flags {
 
 	/* leave this as last */
 	IONIC_LIF_F_STATE_SIZE
+};
+
+struct ionic_qtype_info {
+	u8  version;
+	u8  supported;
+	u64 features;
+	u16 desc_sz;
+	u16 comp_sz;
+	u16 sg_desc_sz;
+	u16 max_sg_elems;
+	u16 sg_desc_stride;
 };
 
 #define IONIC_LIF_NAME_MAX_SZ		32
@@ -161,11 +181,13 @@ struct ionic_lif {
 	bool mc_overflow;
 	unsigned int nmcast;
 	bool uc_overflow;
+	u16 lif_type;
 	unsigned int nucast;
 
 	struct ionic_lif_info *info;
 	dma_addr_t info_pa;
 	u32 info_sz;
+	struct ionic_qtype_info qtype_info[IONIC_QTYPE_MAX];
 
 	u16 rss_types;
 	u8 rss_hash_key[IONIC_RSS_HASH_KEY_SIZE];
@@ -227,6 +249,8 @@ static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
 }
 
 void ionic_link_status_check_request(struct ionic_lif *lif);
+void ionic_get_stats64(struct net_device *netdev,
+		       struct rtnl_link_stats64 *ns);
 void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
 				struct ionic_deferred_work *work);
 int ionic_lifs_alloc(struct ionic *ionic);

@@ -32,7 +32,6 @@ struct cgs_device;
  * enum cgs_ind_reg - Indirect register spaces
  */
 enum cgs_ind_reg {
-	CGS_IND_REG__MMIO,
 	CGS_IND_REG__PCIE,
 	CGS_IND_REG__SMC,
 	CGS_IND_REG__UVD_CTX,

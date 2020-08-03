@@ -8,7 +8,7 @@
  *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include <media/dvb-usb-ids.h>
 #include "dw2102.h"
@@ -955,8 +955,8 @@ static int su3000_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 }
 
 static int su3000_identify_state(struct usb_device *udev,
-				 struct dvb_usb_device_properties *props,
-				 struct dvb_usb_device_description **desc,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
 				 int *cold)
 {
 	info("%s", __func__);
@@ -1779,6 +1779,8 @@ enum dw2102_table_entry {
 	TERRATEC_CINERGY_S2_R2,
 	TERRATEC_CINERGY_S2_R3,
 	TERRATEC_CINERGY_S2_R4,
+	TERRATEC_CINERGY_S2_1,
+	TERRATEC_CINERGY_S2_2,
 	GOTVIEW_SAT_HD,
 	GENIATECH_T220,
 	TECHNOTREND_S2_4600,
@@ -1806,9 +1808,16 @@ static struct usb_device_id dw2102_table[] = {
 	[X3M_SPC1400HD] = {USB_DEVICE(0x1f4d, 0x3100)},
 	[TEVII_S421] = {USB_DEVICE(0x9022, USB_PID_TEVII_S421)},
 	[TEVII_S632] = {USB_DEVICE(0x9022, USB_PID_TEVII_S632)},
-	[TERRATEC_CINERGY_S2_R2] = {USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R2)},
-	[TERRATEC_CINERGY_S2_R3] = {USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R3)},
-	[TERRATEC_CINERGY_S2_R4] = {USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R4)},
+	[TERRATEC_CINERGY_S2_R2] = {USB_DEVICE(USB_VID_TERRATEC,
+				    USB_PID_TERRATEC_CINERGY_S2_R2)},
+	[TERRATEC_CINERGY_S2_R3] = {USB_DEVICE(USB_VID_TERRATEC,
+				    USB_PID_TERRATEC_CINERGY_S2_R3)},
+	[TERRATEC_CINERGY_S2_R4] = {USB_DEVICE(USB_VID_TERRATEC,
+				    USB_PID_TERRATEC_CINERGY_S2_R4)},
+	[TERRATEC_CINERGY_S2_1] = {USB_DEVICE(USB_VID_TERRATEC_2,
+				   USB_PID_TERRATEC_CINERGY_S2_1)},
+	[TERRATEC_CINERGY_S2_2] = {USB_DEVICE(USB_VID_TERRATEC_2,
+				   USB_PID_TERRATEC_CINERGY_S2_2)},
 	[GOTVIEW_SAT_HD] = {USB_DEVICE(0x1FE1, USB_PID_GOTVIEW_SAT_HD)},
 	[GENIATECH_T220] = {USB_DEVICE(0x1f4d, 0xD220)},
 	[TECHNOTREND_S2_4600] = {USB_DEVICE(USB_VID_TECHNOTREND,
@@ -2221,7 +2230,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 		}},
 		}
 	},
-	.num_device_descs = 6,
+	.num_device_descs = 8,
 	.devices = {
 		{ "SU3000HD DVB-S USB2.0",
 			{ &dw2102_table[GENIATECH_SU3000], NULL },
@@ -2241,6 +2250,14 @@ static struct dvb_usb_device_properties su3000_properties = {
 		},
 		{ "Terratec Cinergy S2 USB HD Rev.3",
 			{ &dw2102_table[TERRATEC_CINERGY_S2_R3], NULL },
+			{ NULL },
+		},
+		{ "Terratec Cinergy S2 PCIe Dual Port 1",
+			{ &dw2102_table[TERRATEC_CINERGY_S2_1], NULL },
+			{ NULL },
+		},
+		{ "Terratec Cinergy S2 PCIe Dual Port 2",
+			{ &dw2102_table[TERRATEC_CINERGY_S2_2], NULL },
 			{ NULL },
 		},
 		{ "GOTVIEW Satellite HD",

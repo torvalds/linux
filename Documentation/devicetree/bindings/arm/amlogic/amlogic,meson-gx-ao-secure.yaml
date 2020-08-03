@@ -25,7 +25,7 @@ select:
 
 properties:
   compatible:
-   items:
+    items:
       - const: amlogic,meson-gx-ao-secure
       - const: syscon
 

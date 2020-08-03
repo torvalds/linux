@@ -98,6 +98,12 @@ _bpftool_get_btf_ids()
         command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_link_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp link 2>&1 | \
+        command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
 _bpftool_get_obj_map_names()
 {
     local obj
@@ -466,6 +472,8 @@ _bpftool()
                                 lwt_seg6local sockops sk_skb sk_msg \
                                 lirc_mode2 cgroup/bind4 cgroup/bind6 \
                                 cgroup/connect4 cgroup/connect6 \
+                                cgroup/getpeername4 cgroup/getpeername6 \
+                                cgroup/getsockname4 cgroup/getsockname6 \
                                 cgroup/sendmsg4 cgroup/sendmsg6 \
                                 cgroup/recvmsg4 cgroup/recvmsg6 \
                                 cgroup/post_bind4 cgroup/post_bind6 \
@@ -600,6 +608,19 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'register unregister show list dump help' \
+                            -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        iter)
+            case $command in
+                pin)
+                    _filedir
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'pin help' \
                             -- "$cur" ) )
                     ;;
             esac
@@ -947,9 +968,10 @@ _bpftool()
                     ;;
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
-                        device bind4 bind6 post_bind4 post_bind6 connect4 \
-                        connect6 sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl \
-                        getsockopt setsockopt'
+                        device bind4 bind6 post_bind4 post_bind6 connect4 connect6 \
+                        getpeername4 getpeername6 getsockname4 getsockname6 \
+                        sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl getsockopt \
+                        setsockopt'
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag name'
                     case $prev in
@@ -958,9 +980,9 @@ _bpftool()
                             return 0
                             ;;
                         ingress|egress|sock_create|sock_ops|device|bind4|bind6|\
-                        post_bind4|post_bind6|connect4|connect6|sendmsg4|\
-                        sendmsg6|recvmsg4|recvmsg6|sysctl|getsockopt|\
-                        setsockopt)
+                        post_bind4|post_bind6|connect4|connect6|getpeername4|\
+                        getpeername6|getsockname4|getsockname6|sendmsg4|sendmsg6|\
+                        recvmsg4|recvmsg6|sysctl|getsockopt|setsockopt)
                             COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
                                 "$cur" ) )
                             return 0
@@ -1073,12 +1095,45 @@ _bpftool()
                         COMPREPLY+=( $( compgen -W 'macros' -- "$cur" ) )
                     fi
                     _bpftool_one_of_list 'kernel dev'
-                    _bpftool_once_attr 'full'
+                    _bpftool_once_attr 'full unprivileged'
                     return 0
                     ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'help probe' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        link)
+            case $command in
+                show|list|pin)
+                    case $prev in
+                        id)
+                            _bpftool_get_link_ids
+                            return 0
+                            ;;
+                    esac
+                    ;;
+            esac
+
+            local LINK_TYPE='id pinned'
+            case $command in
+                show|list)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W "$LINK_TYPE" -- "$cur" ) )
+                    return 0
+                    ;;
+                pin)
+                    if [[ $prev == "$command" ]]; then
+                        COMPREPLY=( $( compgen -W "$LINK_TYPE" -- "$cur" ) )
+                    else
+                        _filedir
+                    fi
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help pin show list' -- "$cur" ) )
                     ;;
             esac
             ;;

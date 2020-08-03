@@ -94,6 +94,9 @@ optprobe_template_insn:
 	/* 2, Pass instruction to be emulated in r4 */
 	nop
 	nop
+	nop
+	nop
+	nop
 
 	.global optprobe_template_call_emulate
 optprobe_template_call_emulate:

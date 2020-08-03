@@ -2375,7 +2375,6 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	struct qib_devdata *dd = ppd->dd;
 	u64 val, guid, ibc;
 	unsigned long flags;
-	int ret = 0;
 
 	/*
 	 * SerDes model not in Pd, but still need to
@@ -2510,7 +2509,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 		val | ERR_MASK_N(IBStatusChanged));
 
 	/* Always zero until we start messing with SerDes for real */
-	return ret;
+	return 0;
 }
 
 /**
@@ -6875,7 +6874,7 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 	struct qib_devdata *dd = ppd->dd;
 	unsigned lastbuf, erstbuf;
 	u64 senddmabufmask[3] = { 0 };
-	int n, ret = 0;
+	int n;
 
 	qib_write_kreg_port(ppd, krp_senddmabase, ppd->sdma_descq_phys);
 	qib_sdma_7322_setlengen(ppd);
@@ -6904,7 +6903,7 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_senddmabufmask0, senddmabufmask[0]);
 	qib_write_kreg_port(ppd, krp_senddmabufmask1, senddmabufmask[1]);
 	qib_write_kreg_port(ppd, krp_senddmabufmask2, senddmabufmask[2]);
-	return ret;
+	return 0;
 }
 
 /* sdma_lock must be held */

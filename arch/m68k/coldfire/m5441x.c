@@ -52,7 +52,7 @@ DEFINE_CLK(0, "mcfssi.0", 47, MCF_CLK);
 DEFINE_CLK(0, "pll.0", 48, MCF_CLK);
 DEFINE_CLK(0, "mcfrng.0", 49, MCF_CLK);
 DEFINE_CLK(0, "mcfssi.1", 50, MCF_CLK);
-DEFINE_CLK(0, "mcfsdhc.0", 51, MCF_CLK);
+DEFINE_CLK(0, "sdhci-esdhc-mcf.0", 51, MCF_CLK);
 DEFINE_CLK(0, "enet-fec.0", 53, MCF_CLK);
 DEFINE_CLK(0, "enet-fec.1", 54, MCF_CLK);
 DEFINE_CLK(0, "switch.0", 55, MCF_CLK);
@@ -73,6 +73,10 @@ DEFINE_CLK(1, "mcfuart.9", 29, MCF_BUSCLK);
 DEFINE_CLK(1, "mcfpwm.0", 34, MCF_BUSCLK);
 DEFINE_CLK(1, "sys.0", 36, MCF_BUSCLK);
 DEFINE_CLK(1, "gpio.0", 37, MCF_BUSCLK);
+
+DEFINE_CLK(2, "ipg.0", 0, MCF_CLK);
+DEFINE_CLK(2, "ahb.0", 1, MCF_CLK);
+DEFINE_CLK(2, "per.0", 2, MCF_CLK);
 
 struct clk *mcf_clks[] = {
 	&__clk_0_2,
@@ -131,6 +135,11 @@ struct clk *mcf_clks[] = {
 	&__clk_1_34,
 	&__clk_1_36,
 	&__clk_1_37,
+
+	&__clk_2_0,
+	&__clk_2_1,
+	&__clk_2_2,
+
 	NULL,
 };
 
@@ -151,6 +160,7 @@ static struct clk * const enable_clks[] __initconst = {
 	&__clk_0_33, /* pit.1 */
 	&__clk_0_37, /* eport */
 	&__clk_0_48, /* pll */
+	&__clk_0_51, /* esdhc */
 
 	&__clk_1_36, /* CCM/reset module/Power management */
 	&__clk_1_37, /* gpio */
@@ -192,6 +202,21 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_1_27, /* uart 7 */
 	&__clk_1_28, /* uart 8 */
 	&__clk_1_29, /* uart 9 */
+};
+
+static void __clk_enable2(struct clk *clk)
+{
+	__raw_writel(__raw_readl(MCFSDHC_CLK) | (1 << clk->slot), MCFSDHC_CLK);
+}
+
+static void __clk_disable2(struct clk *clk)
+{
+	__raw_writel(__raw_readl(MCFSDHC_CLK) & ~(1 << clk->slot), MCFSDHC_CLK);
+}
+
+struct clk_ops clk_ops2 = {
+	.enable		= __clk_enable2,
+	.disable	= __clk_disable2,
 };
 
 static void __init m5441x_clk_init(void)

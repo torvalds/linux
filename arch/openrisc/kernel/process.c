@@ -36,7 +36,6 @@
 #include <linux/fs.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/spr_defs.h>

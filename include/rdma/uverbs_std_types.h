@@ -88,7 +88,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_DESTROY);
 }
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
@@ -107,7 +107,7 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 static inline void uobj_alloc_abort(struct ib_uobject *uobj,
 				    struct uverbs_attr_bundle *attrs)
 {
-	rdma_alloc_abort_uobject(uobj, attrs);
+	rdma_alloc_abort_uobject(uobj, attrs, false);
 }
 
 static inline struct ib_uobject *

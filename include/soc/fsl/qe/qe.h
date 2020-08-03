@@ -307,7 +307,7 @@ struct qe_firmware {
 		u8 revision;		/* The microcode version revision */
 		u8 padding;		/* Reserved, for alignment */
 		u8 reserved[4];		/* Reserved, for future expansion */
-	} __attribute__ ((packed)) microcode[1];
+	} __packed microcode[];
 	/* All microcode binaries should be located here */
 	/* CRC32 should be located here, after the microcode binaries */
 } __attribute__ ((packed));

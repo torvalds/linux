@@ -376,7 +376,7 @@ qla2x00_start_scsi(srb_t *sp)
 	/* Calculate the number of request entries needed. */
 	req_cnt = ha->isp_ops->calc_req_entries(tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
-		cnt = RD_REG_WORD_RELAXED(ISP_REQ_Q_OUT(ha, reg));
+		cnt = rd_reg_word_relaxed(ISP_REQ_Q_OUT(ha, reg));
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -428,8 +428,8 @@ qla2x00_start_scsi(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), req->ring_index);
-	RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
+	wrt_reg_word(ISP_REQ_Q_IN(ha, reg), req->ring_index);
+	rd_reg_word_relaxed(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
@@ -472,21 +472,21 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 
 		/* Set chip new ring index. */
 		if (ha->mqenable || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
-			WRT_REG_DWORD(req->req_q_in, req->ring_index);
+			wrt_reg_dword(req->req_q_in, req->ring_index);
 		} else if (IS_QLA83XX(ha)) {
-			WRT_REG_DWORD(req->req_q_in, req->ring_index);
-			RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
+			wrt_reg_dword(req->req_q_in, req->ring_index);
+			rd_reg_dword_relaxed(&ha->iobase->isp24.hccr);
 		} else if (IS_QLAFX00(ha)) {
-			WRT_REG_DWORD(&reg->ispfx00.req_q_in, req->ring_index);
-			RD_REG_DWORD_RELAXED(&reg->ispfx00.req_q_in);
+			wrt_reg_dword(&reg->ispfx00.req_q_in, req->ring_index);
+			rd_reg_dword_relaxed(&reg->ispfx00.req_q_in);
 			QLAFX00_SET_HST_INTR(ha, ha->rqstq_intr_code);
 		} else if (IS_FWI2_CAPABLE(ha)) {
-			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
-			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+			wrt_reg_dword(&reg->isp24.req_q_in, req->ring_index);
+			rd_reg_dword_relaxed(&reg->isp24.req_q_in);
 		} else {
-			WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp),
+			wrt_reg_word(ISP_REQ_Q_IN(ha, &reg->isp),
 				req->ring_index);
-			RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+			rd_reg_word_relaxed(ISP_REQ_Q_IN(ha, &reg->isp));
 		}
 	}
 }
@@ -661,7 +661,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	cur_dsd->address = 0;
 	cur_dsd->length = 0;
 	cur_dsd++;
-	cmd_pkt->control_flags |= CF_DATA_SEG_DESCR_ENABLE;
+	cmd_pkt->control_flags |= cpu_to_le16(CF_DATA_SEG_DESCR_ENABLE);
 	return 0;
 }
 
@@ -755,8 +755,8 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 }
 
 struct fw_dif_context {
-	uint32_t ref_tag;
-	uint16_t app_tag;
+	__le32	ref_tag;
+	__le16	app_tag;
 	uint8_t ref_tag_mask[4];	/* Validation/Replacement Mask*/
 	uint8_t app_tag_mask[2];	/* Validation/Replacement Mask*/
 };
@@ -1389,7 +1389,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
     uint16_t tot_dsds, uint16_t tot_prot_dsds, uint16_t fw_prot_opts)
 {
 	struct dsd64		*cur_dsd;
-	uint32_t		*fcp_dl;
+	__be32			*fcp_dl;
 	scsi_qla_host_t		*vha;
 	struct scsi_cmnd	*cmd;
 	uint32_t		total_bytes = 0;
@@ -1456,7 +1456,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    &crc_ctx_pkt->ref_tag, tot_prot_dsds);
 
 	put_unaligned_le64(crc_ctx_dma, &cmd_pkt->crc_context_address);
-	cmd_pkt->crc_context_len = CRC_CONTEXT_LEN_FW;
+	cmd_pkt->crc_context_len = cpu_to_le16(CRC_CONTEXT_LEN_FW);
 
 	/* Determine SCSI command length -- align to 4 byte boundary */
 	if (cmd->cmd_len > 16) {
@@ -1545,7 +1545,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	crc_ctx_pkt->guard_seed = cpu_to_le16(0);
 	/* Fibre channel byte count */
 	cmd_pkt->byte_count = cpu_to_le32(total_bytes);
-	fcp_dl = (uint32_t *)(crc_ctx_pkt->fcp_cmnd.cdb + 16 +
+	fcp_dl = (__be32 *)(crc_ctx_pkt->fcp_cmnd.cdb + 16 +
 	    additional_fcpcdb_len);
 	*fcp_dl = htonl(total_bytes);
 
@@ -1637,7 +1637,7 @@ qla24xx_start_scsi(srb_t *sp)
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -1698,7 +1698,7 @@ qla24xx_start_scsi(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;
@@ -1822,7 +1822,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 	tot_dsds += nseg;
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -1881,7 +1881,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 		req->ring_ptr++;
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -1957,7 +1957,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -2018,7 +2018,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
 	return QLA_SUCCESS;
@@ -2157,7 +2157,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 	tot_dsds += nseg;
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else
@@ -2214,7 +2214,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 		req->ring_ptr++;
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
@@ -2266,13 +2266,13 @@ __qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 			cnt = *req->out_ptr;
 		else if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
 		    IS_QLA28XX(ha))
-			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
+			cnt = rd_reg_dword(&reg->isp25mq.req_q_out);
 		else if (IS_P3P_TYPE(ha))
-			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
+			cnt = rd_reg_dword(reg->isp82.req_q_out);
 		else if (IS_FWI2_CAPABLE(ha))
-			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
+			cnt = rd_reg_dword(&reg->isp24.req_q_out);
 		else if (IS_QLAFX00(ha))
-			cnt = RD_REG_DWORD(&reg->ispfx00.req_q_out);
+			cnt = rd_reg_dword(&reg->ispfx00.req_q_out);
 		else
 			cnt = qla2x00_debounce_register(
 			    ISP_REQ_Q_OUT(ha, &reg->isp));
@@ -2305,8 +2305,8 @@ __qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 	pkt = req->ring_ptr;
 	memset(pkt, 0, REQUEST_ENTRY_SIZE);
 	if (IS_QLAFX00(ha)) {
-		WRT_REG_BYTE((void __iomem *)&pkt->entry_count, req_cnt);
-		WRT_REG_WORD((void __iomem *)&pkt->handle, handle);
+		wrt_reg_byte((void __iomem *)&pkt->entry_count, req_cnt);
+		wrt_reg_word((void __iomem *)&pkt->handle, handle);
 	} else {
 		pkt->entry_count = req_cnt;
 		pkt->handle = handle;
@@ -2344,9 +2344,10 @@ qla24xx_prli_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
 	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI) {
-		logio->control_flags |= LCF_NVME_PRLI;
+		logio->control_flags |= cpu_to_le16(LCF_NVME_PRLI);
 		if (sp->vha->flags.nvme_first_burst)
-			logio->io_parameter[0] = NVME_PRLI_SP_FIRST_BURST;
+			logio->io_parameter[0] =
+				cpu_to_le32(NVME_PRLI_SP_FIRST_BURST);
 	}
 
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
@@ -2680,7 +2681,7 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	els_iocb->entry_status = 0;
 	els_iocb->handle = sp->handle;
 	els_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
-	els_iocb->tx_dsd_count = 1;
+	els_iocb->tx_dsd_count = cpu_to_le16(1);
 	els_iocb->vp_index = vha->vp_idx;
 	els_iocb->sof_type = EST_SOFI3;
 	els_iocb->rx_dsd_count = 0;
@@ -2700,7 +2701,7 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 			cpu_to_le32(sizeof(struct els_plogi_payload));
 		put_unaligned_le64(elsio->u.els_plogi.els_plogi_pyld_dma,
 				   &els_iocb->tx_address);
-		els_iocb->rx_dsd_count = 1;
+		els_iocb->rx_dsd_count = cpu_to_le16(1);
 		els_iocb->rx_byte_count = els_iocb->rx_len =
 			cpu_to_le32(sizeof(struct els_plogi_payload));
 		put_unaligned_le64(elsio->u.els_plogi.els_resp_pyld_dma,
@@ -2712,7 +2713,7 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		    (uint8_t *)els_iocb,
 		    sizeof(*els_iocb));
 	} else {
-		els_iocb->control_flags = 1 << 13;
+		els_iocb->control_flags = cpu_to_le16(1 << 13);
 		els_iocb->tx_byte_count =
 			cpu_to_le32(sizeof(struct els_logo_payload));
 		put_unaligned_le64(elsio->u.els_logo.els_logo_pyld_dma,
@@ -2787,7 +2788,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	struct qla_work_evt *e;
 	struct fc_port *conflict_fcport;
 	port_id_t cid;	/* conflict Nport id */
-	u32 *fw_status = sp->u.iocb_cmd.u.els_plogi.fw_status;
+	const __le32 *fw_status = sp->u.iocb_cmd.u.els_plogi.fw_status;
 	u16 lid;
 
 	ql_dbg(ql_dbg_disc, vha, 0x3072,
@@ -2800,7 +2801,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	if (sp->flags & SRB_WAKEUP_ON_COMP)
 		complete(&lio->u.els_plogi.comp);
 	else {
-		switch (fw_status[0]) {
+		switch (le32_to_cpu(fw_status[0])) {
 		case CS_DATA_UNDERRUN:
 		case CS_COMPLETE:
 			memset(&ea, 0, sizeof(ea));
@@ -2810,9 +2811,9 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 			break;
 
 		case CS_IOCB_ERROR:
-			switch (fw_status[1]) {
+			switch (le32_to_cpu(fw_status[1])) {
 			case LSC_SCODE_PORTID_USED:
-				lid = fw_status[2] & 0xffff;
+				lid = le32_to_cpu(fw_status[2]) & 0xffff;
 				qlt_find_sess_invalidate_other(vha,
 				    wwn_to_u64(fcport->port_name),
 				    fcport->d_id, lid, &conflict_fcport);
@@ -2846,9 +2847,11 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 				break;
 
 			case LSC_SCODE_NPORT_USED:
-				cid.b.domain = (fw_status[2] >> 16) & 0xff;
-				cid.b.area   = (fw_status[2] >>  8) & 0xff;
-				cid.b.al_pa  = fw_status[2] & 0xff;
+				cid.b.domain = (le32_to_cpu(fw_status[2]) >> 16)
+					& 0xff;
+				cid.b.area   = (le32_to_cpu(fw_status[2]) >>  8)
+					& 0xff;
+				cid.b.al_pa  = le32_to_cpu(fw_status[2]) & 0xff;
 				cid.b.rsvd_1 = 0;
 
 				ql_dbg(ql_dbg_disc, vha, 0x20ec,
@@ -3022,7 +3025,7 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
         els_iocb->sys_define = 0;
         els_iocb->entry_status = 0;
         els_iocb->handle = sp->handle;
-        els_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	els_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	els_iocb->tx_dsd_count = cpu_to_le16(bsg_job->request_payload.sg_cnt);
 	els_iocb->vp_index = sp->vha->vp_idx;
         els_iocb->sof_type = EST_SOFI3;
@@ -3216,7 +3219,7 @@ qla82xx_start_scsi(srb_t *sp)
 	uint16_t	tot_dsds;
 	struct device_reg_82xx __iomem *reg;
 	uint32_t dbval;
-	uint32_t *fcp_dl;
+	__be32 *fcp_dl;
 	uint8_t additional_cdb_len;
 	struct ct6_dsd *ctx;
 	struct scsi_qla_host *vha = sp->vha;
@@ -3310,7 +3313,7 @@ sufficient_dsds:
 		req_cnt = 1;
 
 		if (req->cnt < (req_cnt + 2)) {
-			cnt = (uint16_t)RD_REG_DWORD_RELAXED(
+			cnt = (uint16_t)rd_reg_dword_relaxed(
 				&reg->req_q_out[0]);
 			if (req->ring_index < cnt)
 				req->cnt = cnt - req->ring_index;
@@ -3398,7 +3401,7 @@ sufficient_dsds:
 
 		memcpy(ctx->fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
 
-		fcp_dl = (uint32_t *)(ctx->fcp_cmnd->cdb + 16 +
+		fcp_dl = (__be32 *)(ctx->fcp_cmnd->cdb + 16 +
 		    additional_cdb_len);
 		*fcp_dl = htonl((uint32_t)scsi_bufflen(cmd));
 
@@ -3419,7 +3422,7 @@ sufficient_dsds:
 
 		req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 		if (req->cnt < (req_cnt + 2)) {
-			cnt = (uint16_t)RD_REG_DWORD_RELAXED(
+			cnt = (uint16_t)rd_reg_dword_relaxed(
 			    &reg->req_q_out[0]);
 			if (req->ring_index < cnt)
 				req->cnt = cnt - req->ring_index;
@@ -3495,10 +3498,10 @@ sufficient_dsds:
 	if (ql2xdbwr)
 		qla82xx_wr_32(ha, (uintptr_t __force)ha->nxdb_wr_ptr, dbval);
 	else {
-		WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
+		wrt_reg_dword(ha->nxdb_wr_ptr, dbval);
 		wmb();
-		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
-			WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
+		while (rd_reg_dword(ha->nxdb_rd_ptr) != dbval) {
+			wrt_reg_dword(ha->nxdb_wr_ptr, dbval);
 			wmb();
 		}
 	}
@@ -3536,7 +3539,7 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
 	abt_iocb->entry_count = 1;
-	abt_iocb->handle = cpu_to_le32(make_handle(req->id, sp->handle));
+	abt_iocb->handle = make_handle(req->id, sp->handle);
 	if (sp->fcport) {
 		abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 		abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -3544,10 +3547,10 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	}
 	abt_iocb->handle_to_abort =
-	    cpu_to_le32(make_handle(aio->u.abt.req_que_no,
-				    aio->u.abt.cmd_hndl));
+		make_handle(le16_to_cpu(aio->u.abt.req_que_no),
+			    aio->u.abt.cmd_hndl);
 	abt_iocb->vp_index = vha->vp_idx;
-	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
+	abt_iocb->req_que_no = aio->u.abt.req_que_no;
 	/* Send the command to the firmware */
 	wmb();
 }
@@ -3562,7 +3565,7 @@ qla2x00_mb_iocb(srb_t *sp, struct mbx_24xx_entry *mbx)
 	sz = min(ARRAY_SIZE(mbx->mb), ARRAY_SIZE(sp->u.iocb_cmd.u.mbx.out_mb));
 
 	for (i = 0; i < sz; i++)
-		mbx->mb[i] = cpu_to_le16(sp->u.iocb_cmd.u.mbx.out_mb[i]);
+		mbx->mb[i] = sp->u.iocb_cmd.u.mbx.out_mb[i];
 }
 
 static void
@@ -3586,7 +3589,7 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 	nack->u.isp24.nport_handle = ntfy->u.isp24.nport_handle;
 	if (le16_to_cpu(ntfy->u.isp24.status) == IMM_NTFY_ELS) {
 		nack->u.isp24.flags = ntfy->u.isp24.flags &
-			cpu_to_le32(NOTIFY24XX_FLAGS_PUREX_IOCB);
+			cpu_to_le16(NOTIFY24XX_FLAGS_PUREX_IOCB);
 	}
 	nack->u.isp24.srr_rx_id = ntfy->u.isp24.srr_rx_id;
 	nack->u.isp24.status = ntfy->u.isp24.status;
@@ -3604,32 +3607,29 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 /*
  * Build NVME LS request
  */
-static int
+static void
 qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
 {
 	struct srb_iocb *nvme;
-	int     rval = QLA_SUCCESS;
 
 	nvme = &sp->u.iocb_cmd;
 	cmd_pkt->entry_type = PT_LS4_REQUEST;
 	cmd_pkt->entry_count = 1;
-	cmd_pkt->control_flags = CF_LS4_ORIGINATOR << CF_LS4_SHIFT;
+	cmd_pkt->control_flags = cpu_to_le16(CF_LS4_ORIGINATOR << CF_LS4_SHIFT);
 
 	cmd_pkt->timeout = cpu_to_le16(nvme->u.nvme.timeout_sec);
 	cmd_pkt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	cmd_pkt->vp_index = sp->fcport->vha->vp_idx;
 
-	cmd_pkt->tx_dseg_count = 1;
-	cmd_pkt->tx_byte_count = nvme->u.nvme.cmd_len;
-	cmd_pkt->dsd[0].length = nvme->u.nvme.cmd_len;
+	cmd_pkt->tx_dseg_count = cpu_to_le16(1);
+	cmd_pkt->tx_byte_count = cpu_to_le32(nvme->u.nvme.cmd_len);
+	cmd_pkt->dsd[0].length = cpu_to_le32(nvme->u.nvme.cmd_len);
 	put_unaligned_le64(nvme->u.nvme.cmd_dma, &cmd_pkt->dsd[0].address);
 
-	cmd_pkt->rx_dseg_count = 1;
-	cmd_pkt->rx_byte_count = nvme->u.nvme.rsp_len;
-	cmd_pkt->dsd[1].length  = nvme->u.nvme.rsp_len;
+	cmd_pkt->rx_dseg_count = cpu_to_le16(1);
+	cmd_pkt->rx_byte_count = cpu_to_le32(nvme->u.nvme.rsp_len);
+	cmd_pkt->dsd[1].length = cpu_to_le32(nvme->u.nvme.rsp_len);
 	put_unaligned_le64(nvme->u.nvme.rsp_dma, &cmd_pkt->dsd[1].address);
-
-	return rval;
 }
 
 static void
@@ -3894,7 +3894,7 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt + 2) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 		if  (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
 		else

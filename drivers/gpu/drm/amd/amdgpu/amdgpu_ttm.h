@@ -24,8 +24,9 @@
 #ifndef __AMDGPU_TTM_H__
 #define __AMDGPU_TTM_H__
 
-#include "amdgpu.h"
+#include <linux/dma-direction.h>
 #include <drm/gpu_scheduler.h>
+#include "amdgpu.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
 #define AMDGPU_PL_GWS		(TTM_PL_PRIV + 1)
@@ -74,6 +75,15 @@ uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man);
 
 u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo);
+int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
+			      struct ttm_mem_reg *mem,
+			      struct device *dev,
+			      enum dma_data_direction dir,
+			      struct sg_table **sgt);
+void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
+			      struct device *dev,
+			      enum dma_data_direction dir,
+			      struct sg_table *sgt);
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
 
@@ -87,11 +97,11 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
-		       bool vm_needs_flush);
+		       bool vm_needs_flush, bool tmz);
 int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
-			       struct amdgpu_copy_mem *src,
-			       struct amdgpu_copy_mem *dst,
-			       uint64_t size,
+			       const struct amdgpu_copy_mem *src,
+			       const struct amdgpu_copy_mem *dst,
+			       uint64_t size, bool tmz,
 			       struct dma_resv *resv,
 			       struct dma_fence **f);
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,

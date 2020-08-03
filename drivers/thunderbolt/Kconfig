@@ -2,7 +2,6 @@
 menuconfig USB4
 	tristate "Unified support for USB4 and Thunderbolt"
 	depends on PCI
-	depends on X86 || COMPILE_TEST
 	select APPLE_PROPERTIES if EFI_STUB && X86
 	select CRC32
 	select CRYPTO

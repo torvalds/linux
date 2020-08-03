@@ -677,13 +677,15 @@ static int bind4_prog_load(const struct sock_addr_test *test)
 		uint8_t u4_addr8[4];
 		uint16_t u4_addr16[2];
 		uint32_t u4_addr32;
-	} ip4;
+	} ip4, port;
 	struct sockaddr_in addr4_rw;
 
 	if (inet_pton(AF_INET, SERV4_IP, (void *)&ip4) != 1) {
 		log_err("Invalid IPv4: %s", SERV4_IP);
 		return -1;
 	}
+
+	port.u4_addr32 = htons(SERV4_PORT);
 
 	if (mk_sockaddr(AF_INET, SERV4_REWRITE_IP, SERV4_REWRITE_PORT,
 			(struct sockaddr *)&addr4_rw, sizeof(addr4_rw)) == -1)
@@ -696,49 +698,65 @@ static int bind4_prog_load(const struct sock_addr_test *test)
 		/* if (sk.family == AF_INET && */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 24),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 32),
 
 		/*     (sk.type == SOCK_DGRAM || sk.type == SOCK_STREAM) && */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, type)),
 		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_DGRAM, 1),
 		BPF_JMP_A(1),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_STREAM, 20),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_STREAM, 28),
 
 		/*     1st_byte_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[0], 18),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[0], 26),
 
 		/*     2nd_byte_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4) + 1),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[1], 16),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[1], 24),
 
 		/*     3rd_byte_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[2], 14),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[2], 22),
 
 		/*     4th_byte_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4) + 3),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[3], 12),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[3], 20),
 
 		/*     1st_half_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[0], 10),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[0], 18),
 
 		/*     2nd_half_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[1], 8),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[1], 16),
 
-		/*     whole_user_ip4 == expected) { */
+		/*     whole_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4)),
 		BPF_LD_IMM64(BPF_REG_8, ip4.u4_addr32), /* See [2]. */
+		BPF_JMP_REG(BPF_JNE, BPF_REG_7, BPF_REG_8, 12),
+
+		/*     1st_byte_of_user_port == expected && */
+		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_port)),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, port.u4_addr8[0], 10),
+
+		/*     1st_half_of_user_port == expected && */
+		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_port)),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, port.u4_addr16[0], 8),
+
+		/*     user_port == expected) { */
+		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_port)),
+		BPF_LD_IMM64(BPF_REG_8, port.u4_addr32), /* See [2]. */
 		BPF_JMP_REG(BPF_JNE, BPF_REG_7, BPF_REG_8, 4),
 
 		/*      user_ip4 = addr4_rw.sin_addr */

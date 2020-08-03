@@ -331,27 +331,6 @@ bnx2x_vf_set_igu_info(struct bnx2x *bp, u8 igu_sb_id, u8 abs_vfid)
 	BP_VFDB(bp)->vf_sbs_pool++;
 }
 
-static inline void bnx2x_vf_vlan_credit(struct bnx2x *bp,
-					struct bnx2x_vlan_mac_obj *obj,
-					atomic_t *counter)
-{
-	struct list_head *pos;
-	int read_lock;
-	int cnt = 0;
-
-	read_lock = bnx2x_vlan_mac_h_read_lock(bp, obj);
-	if (read_lock)
-		DP(BNX2X_MSG_SP, "Failed to take vlan mac read head; continuing anyway\n");
-
-	list_for_each(pos, &obj->head)
-		cnt++;
-
-	if (!read_lock)
-		bnx2x_vlan_mac_h_read_unlock(bp, obj);
-
-	atomic_set(counter, cnt);
-}
-
 static int bnx2x_vf_vlan_mac_clear(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				   int qid, bool drv_only, int type)
 {

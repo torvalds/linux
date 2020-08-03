@@ -32,7 +32,7 @@
 bool
 curs507a_space(struct nv50_wndw *wndw)
 {
-	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 2,
+	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
 		if (nvif_rd32(&wndw->wimm.base.user, 0x0008) >= 4)
 			return true;
 	);

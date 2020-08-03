@@ -212,7 +212,7 @@ err:
 int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
 		    int mss, struct sk_buff_head *txq)
 {
-	struct sk_buff *skb, *prev;
+	struct sk_buff *skb;
 	int accounted, total, curr;
 	int mlen, cpy, rem = dlen;
 	struct tipc_msg *hdr;
@@ -221,9 +221,8 @@ int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
 	accounted = skb ? msg_blocks(buf_msg(skb)) : 0;
 	total = accounted;
 
-	while (rem) {
+	do {
 		if (!skb || skb->len >= mss) {
-			prev = skb;
 			skb = tipc_buf_acquire(mss, GFP_KERNEL);
 			if (unlikely(!skb))
 				return -ENOMEM;
@@ -235,21 +234,18 @@ int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
 			msg_set_size(hdr, MIN_H_SIZE);
 			__skb_queue_tail(txq, skb);
 			total += 1;
-			if (prev)
-				msg_set_ack_required(buf_msg(prev), 0);
-			msg_set_ack_required(hdr, 1);
 		}
 		hdr = buf_msg(skb);
 		curr = msg_blocks(hdr);
 		mlen = msg_size(hdr);
-		cpy = min_t(int, rem, mss - mlen);
+		cpy = min_t(size_t, rem, mss - mlen);
 		if (cpy != copy_from_iter(skb->data + mlen, cpy, &m->msg_iter))
 			return -EFAULT;
 		msg_set_size(hdr, mlen + cpy);
 		skb_put(skb, cpy);
 		rem -= cpy;
 		total += msg_blocks(hdr) - curr;
-	}
+	} while (rem > 0);
 	return total - accounted;
 }
 
@@ -825,19 +821,19 @@ bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
  * @seqno: sequence number of buffer to add
  * @skb: buffer to add
  */
-void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
+bool __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 			     struct sk_buff *skb)
 {
 	struct sk_buff *_skb, *tmp;
 
 	if (skb_queue_empty(list) || less(seqno, buf_seqno(skb_peek(list)))) {
 		__skb_queue_head(list, skb);
-		return;
+		return true;
 	}
 
 	if (more(seqno, buf_seqno(skb_peek_tail(list)))) {
 		__skb_queue_tail(list, skb);
-		return;
+		return true;
 	}
 
 	skb_queue_walk_safe(list, _skb, tmp) {
@@ -846,9 +842,10 @@ void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 		if (seqno == buf_seqno(_skb))
 			break;
 		__skb_queue_before(list, _skb, skb);
-		return;
+		return true;
 	}
 	kfree_skb(skb);
+	return false;
 }
 
 void tipc_skb_reject(struct net *net, int err, struct sk_buff *skb,

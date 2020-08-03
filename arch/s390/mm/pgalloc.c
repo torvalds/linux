@@ -114,7 +114,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	spin_lock_bh(&mm->page_table_lock);
 
 	/*
-	 * This routine gets called with mmap_sem lock held and there is
+	 * This routine gets called with mmap_lock lock held and there is
 	 * no reason to optimize for the case of otherwise. However, if
 	 * that would ever change, the below check will let us know.
 	 */

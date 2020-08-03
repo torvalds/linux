@@ -6,8 +6,8 @@
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
+#include <linux/pgtable.h>
 #include <asm/tlbflush.h>
-#include <asm/pgtable.h>
 #include <asm/fixmap.h>
 
 extern pgd_t early_pg_dir[PTRS_PER_PGD];

@@ -1425,23 +1425,16 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 			   le16_to_cpu(ver_words[2]),
 			   le16_to_cpu(ver_words[3]));
 
-	/* EF10 may have multiple datapath firmware variants within a
-	 * single version.  Report which variants are running.
+	if (efx->type->print_additional_fwver)
+		offset += efx->type->print_additional_fwver(efx, buf + offset,
+							    len - offset);
+
+	/* It's theoretically possible for the string to exceed 31
+	 * characters, though in practice the first three version
+	 * components are short enough that this doesn't happen.
 	 */
-	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
-		struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-		offset += scnprintf(buf + offset, len - offset, " rx%x tx%x",
-				    nic_data->rx_dpcpu_fw_id,
-				    nic_data->tx_dpcpu_fw_id);
-
-		/* It's theoretically possible for the string to exceed 31
-		 * characters, though in practice the first three version
-		 * components are short enough that this doesn't happen.
-		 */
-		if (WARN_ON(offset >= len))
-			buf[0] = 0;
-	}
+	if (WARN_ON(offset >= len))
+		buf[0] = 0;
 
 	return;
 

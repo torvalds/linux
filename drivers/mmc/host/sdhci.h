@@ -200,12 +200,10 @@
 #define  SDHCI_CTRL_PRESET_VAL_ENABLE	0x8000
 
 #define SDHCI_CAPABILITIES	0x40
-#define  SDHCI_TIMEOUT_CLK_MASK	0x0000003F
-#define  SDHCI_TIMEOUT_CLK_SHIFT 0
+#define  SDHCI_TIMEOUT_CLK_MASK		GENMASK(5, 0)
 #define  SDHCI_TIMEOUT_CLK_UNIT	0x00000080
-#define  SDHCI_CLOCK_BASE_MASK	0x00003F00
-#define  SDHCI_CLOCK_V3_BASE_MASK	0x0000FF00
-#define  SDHCI_CLOCK_BASE_SHIFT	8
+#define  SDHCI_CLOCK_BASE_MASK		GENMASK(13, 8)
+#define  SDHCI_CLOCK_V3_BASE_MASK	GENMASK(15, 8)
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
 #define  SDHCI_CAN_DO_8BIT	0x00040000
@@ -220,32 +218,25 @@
 #define  SDHCI_CAN_64BIT_V4	0x08000000
 #define  SDHCI_CAN_64BIT	0x10000000
 
+#define SDHCI_CAPABILITIES_1	0x44
 #define  SDHCI_SUPPORT_SDR50	0x00000001
 #define  SDHCI_SUPPORT_SDR104	0x00000002
 #define  SDHCI_SUPPORT_DDR50	0x00000004
 #define  SDHCI_DRIVER_TYPE_A	0x00000010
 #define  SDHCI_DRIVER_TYPE_C	0x00000020
 #define  SDHCI_DRIVER_TYPE_D	0x00000040
-#define  SDHCI_RETUNING_TIMER_COUNT_MASK	0x00000F00
-#define  SDHCI_RETUNING_TIMER_COUNT_SHIFT	8
+#define  SDHCI_RETUNING_TIMER_COUNT_MASK	GENMASK(11, 8)
 #define  SDHCI_USE_SDR50_TUNING			0x00002000
-#define  SDHCI_RETUNING_MODE_MASK		0x0000C000
-#define  SDHCI_RETUNING_MODE_SHIFT		14
-#define  SDHCI_CLOCK_MUL_MASK	0x00FF0000
-#define  SDHCI_CLOCK_MUL_SHIFT	16
+#define  SDHCI_RETUNING_MODE_MASK		GENMASK(15, 14)
+#define  SDHCI_CLOCK_MUL_MASK			GENMASK(23, 16)
 #define  SDHCI_CAN_DO_ADMA3	0x08000000
 #define  SDHCI_SUPPORT_HS400	0x80000000 /* Non-standard */
 
-#define SDHCI_CAPABILITIES_1	0x44
-
 #define SDHCI_MAX_CURRENT		0x48
-#define  SDHCI_MAX_CURRENT_LIMIT	0xFF
-#define  SDHCI_MAX_CURRENT_330_MASK	0x0000FF
-#define  SDHCI_MAX_CURRENT_330_SHIFT	0
-#define  SDHCI_MAX_CURRENT_300_MASK	0x00FF00
-#define  SDHCI_MAX_CURRENT_300_SHIFT	8
-#define  SDHCI_MAX_CURRENT_180_MASK	0xFF0000
-#define  SDHCI_MAX_CURRENT_180_SHIFT	16
+#define  SDHCI_MAX_CURRENT_LIMIT	GENMASK(7, 0)
+#define  SDHCI_MAX_CURRENT_330_MASK	GENMASK(7, 0)
+#define  SDHCI_MAX_CURRENT_300_MASK	GENMASK(15, 8)
+#define  SDHCI_MAX_CURRENT_180_MASK	GENMASK(23, 16)
 #define   SDHCI_MAX_CURRENT_MULTIPLIER	4
 
 /* 4C-4F reserved for more max current */
@@ -540,6 +531,7 @@ struct sdhci_host {
 	struct mmc_request *mrqs_done[SDHCI_MAX_MRQS];	/* Requests done */
 	struct mmc_command *cmd;	/* Current command */
 	struct mmc_command *data_cmd;	/* Current data command */
+	struct mmc_command *deferred_cmd;	/* Deferred command */
 	struct mmc_data *data;	/* Current data request */
 	unsigned int data_early:1;	/* Data finished before cmd */
 
@@ -653,8 +645,12 @@ struct sdhci_ops {
 	void	(*voltage_switch)(struct sdhci_host *host);
 	void	(*adma_write_desc)(struct sdhci_host *host, void **desc,
 				   dma_addr_t addr, int len, unsigned int cmd);
+	void	(*copy_to_bounce_buffer)(struct sdhci_host *host,
+					 struct mmc_data *data,
+					 unsigned int length);
 	void	(*request_done)(struct sdhci_host *host,
 				struct mmc_request *mrq);
+	void    (*dump_vendor_regs)(struct sdhci_host *host);
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
@@ -757,7 +753,6 @@ void sdhci_cleanup_host(struct sdhci_host *host);
 int __sdhci_add_host(struct sdhci_host *host);
 int sdhci_add_host(struct sdhci_host *host);
 void sdhci_remove_host(struct sdhci_host *host, int dead);
-void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd);
 
 static inline void sdhci_read_caps(struct sdhci_host *host)
 {
@@ -776,6 +771,7 @@ void sdhci_set_power_and_bus_voltage(struct sdhci_host *host,
 void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
 			   unsigned short vdd);
 void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq);
+int sdhci_request_atomic(struct mmc_host *mmc, struct mmc_request *mrq);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);
 void sdhci_reset(struct sdhci_host *host, u8 mask);
 void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);

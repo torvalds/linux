@@ -83,6 +83,8 @@ struct sev_user_data_status {
 	__u32 guest_count;			/* Out */
 } __packed;
 
+#define SEV_STATUS_FLAGS_CONFIG_ES	0x0100
+
 /**
  * struct sev_user_data_pek_csr - PEK_CSR command parameters
  *

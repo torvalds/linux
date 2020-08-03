@@ -7,7 +7,7 @@ config NET_VENDOR_SILAN
 	bool "Silan devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +21,7 @@ config SC92031
 	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the Silan SC92031 chip (sometimes also called Rsltek 8139D). If you
 	  have one of these, say Y here.

@@ -24,8 +24,6 @@
 #define PMKID_FOUND				1
 #define NUM_STA_ASSOCIATED			8
 
-#define NUM_REG_FRAME				2
-
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
 
@@ -151,11 +149,6 @@ struct wilc_priv {
 	u64 inc_roc_cookie;
 };
 
-struct frame_reg {
-	u16 type;
-	bool reg;
-};
-
 #define MAX_TCP_SESSION                25
 #define MAX_PENDING_ACKS               256
 
@@ -187,7 +180,7 @@ struct wilc_vif {
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	struct frame_reg frame_reg[NUM_REG_FRAME];
+	u32 mgmt_reg_stypes;
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 bssid[ETH_ALEN];

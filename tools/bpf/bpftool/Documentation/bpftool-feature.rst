@@ -19,7 +19,7 @@ SYNOPSIS
 FEATURE COMMANDS
 ================
 
-|	**bpftool** **feature probe** [*COMPONENT*] [**full**] [**macros** [**prefix** *PREFIX*]]
+|	**bpftool** **feature probe** [*COMPONENT*] [**full**] [**unprivileged**] [**macros** [**prefix** *PREFIX*]]
 |	**bpftool** **feature help**
 |
 |	*COMPONENT* := { **kernel** | **dev** *NAME* }
@@ -28,7 +28,7 @@ DESCRIPTION
 ===========
 	**bpftool feature probe** [**kernel**] [**full**] [**macros** [**prefix** *PREFIX*]]
 		  Probe the running kernel and dump a number of eBPF-related
-		  parameters, such as availability of the **bpf()** system call,
+		  parameters, such as availability of the **bpf**\ () system call,
 		  JIT status, eBPF program types availability, eBPF helper
 		  functions availability, and more.
 
@@ -48,6 +48,16 @@ DESCRIPTION
 
 		  Keyword **kernel** can be omitted. If no probe target is
 		  specified, probing the kernel is the default behaviour.
+
+		  When the **unprivileged** keyword is used, bpftool will dump
+		  only the features available to a user who does not have the
+		  **CAP_SYS_ADMIN** capability set. The features available in
+		  that case usually represent a small subset of the parameters
+		  supported by the system. Unprivileged users MUST use the
+		  **unprivileged** keyword: This is to avoid misdetection if
+		  bpftool is inadvertently run as non-root, for example. This
+		  keyword is unavailable if bpftool was compiled without
+		  libcap.
 
 	**bpftool feature probe dev** *NAME* [**full**] [**macros** [**prefix** *PREFIX*]]
 		  Probe network device for supported eBPF features and dump
@@ -83,9 +93,13 @@ SEE ALSO
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-map**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
+	**bpftool-map**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-prog**\ (8),
+	**bpftool-struct_ops**\ (8)

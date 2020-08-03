@@ -410,6 +410,42 @@
 			ti,hwmods = "dmm";
 		};
 
+		ipu1: ipu@58820000 {
+			compatible = "ti,dra7-ipu";
+			reg = <0x58820000 0x10000>;
+			reg-names = "l2ram";
+			iommus = <&mmu_ipu1>;
+			status = "disabled";
+			resets = <&prm_ipu 0>, <&prm_ipu 1>;
+			clocks = <&ipu1_clkctrl DRA7_IPU1_MMU_IPU1_CLKCTRL 0>;
+			firmware-name = "dra7-ipu1-fw.xem4";
+		};
+
+		ipu2: ipu@55020000 {
+			compatible = "ti,dra7-ipu";
+			reg = <0x55020000 0x10000>;
+			reg-names = "l2ram";
+			iommus = <&mmu_ipu2>;
+			status = "disabled";
+			resets = <&prm_core 0>, <&prm_core 1>;
+			clocks = <&ipu2_clkctrl DRA7_IPU2_MMU_IPU2_CLKCTRL 0>;
+			firmware-name = "dra7-ipu2-fw.xem4";
+		};
+
+		dsp1: dsp@40800000 {
+			compatible = "ti,dra7-dsp";
+			reg = <0x40800000 0x48000>,
+			      <0x40e00000 0x8000>,
+			      <0x40f00000 0x8000>;
+			reg-names = "l2ram", "l1pram", "l1dram";
+			ti,bootreg = <&scm_conf 0x55c 10>;
+			iommus = <&mmu0_dsp1>, <&mmu1_dsp1>;
+			status = "disabled";
+			resets = <&prm_dsp1 0>;
+			clocks = <&dsp1_clkctrl DRA7_DSP1_MMU0_DSP1_CLKCTRL 0>;
+			firmware-name = "dra7-dsp1-fw.xe66";
+		};
+
 		target-module@40d01000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0x40d01000 0x4>,
@@ -1042,5 +1078,15 @@
 	prm_eve4: prm@1c00 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1c00 0x60>;
+	};
+};
+
+/* Preferred always-on timer for clockevent */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&wkupaon_clkctrl DRA7_TIMER1_CLKCTRL 24>;
+		assigned-clock-parents = <&sys_32k_ck>;
 	};
 };

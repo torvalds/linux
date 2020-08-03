@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2014-2020 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -138,14 +138,6 @@
 /* reserved (1 << 2) */
 #define OPA_CAP_MASK3_IsVLMarkerSupported         (1 << 1)
 #define OPA_CAP_MASK3_IsVLrSupported              (1 << 0)
-
-/**
- * new MTU values
- */
-enum {
-	OPA_MTU_8192  = 6,
-	OPA_MTU_10240 = 7,
-};
 
 enum {
 	OPA_PORT_PHYS_CONF_DISCONNECTED = 0,

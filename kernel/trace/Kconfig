@@ -10,11 +10,6 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
-config HAVE_FTRACE_NMI_ENTER
-	bool
-	help
-	  See Documentation/trace/ftrace-design.rst
-
 config HAVE_FUNCTION_TRACER
 	bool
 	help
@@ -71,11 +66,6 @@ config RING_BUFFER
 	bool
 	select TRACE_CLOCK
 	select IRQ_WORK
-
-config FTRACE_NMI_ENTER
-       bool
-       depends on HAVE_FTRACE_NMI_ENTER
-       default y
 
 config EVENT_TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -158,6 +148,7 @@ config FUNCTION_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select GLOB
 	select TASKS_RCU if PREEMPTION
+	select TASKS_RUDE_RCU
 	help
 	  Enable the kernel to trace every kernel function. This is done
 	  by using a compiler feature to insert a small, 5-byte No-Operation
@@ -257,15 +248,6 @@ config TRACE_PREEMPT_TOGGLE
 	help
 	  Enables hooks which will be called when preemption is first disabled,
 	  and last enabled.
-
-config PREEMPTIRQ_EVENTS
-	bool "Enable trace events for preempt and irq disable/enable"
-	select TRACE_IRQFLAGS
-	select TRACE_PREEMPT_TOGGLE if PREEMPTION
-	select GENERIC_TRACER
-	default n
-	help
-	  Enable tracing of disable and enable events for preemption and irqs.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
@@ -623,12 +605,30 @@ config TRACING_MAP
 	  generally used outside of that context, and is normally
 	  selected by tracers that use it.
 
+config SYNTH_EVENTS
+	bool "Synthetic trace events"
+	select TRACING
+	select DYNAMIC_EVENTS
+	default n
+	help
+	  Synthetic events are user-defined trace events that can be
+	  used to combine data from other trace events or in fact any
+	  data source.  Synthetic events can be generated indirectly
+	  via the trace() action of histogram triggers or directly
+	  by way of an in-kernel API.
+
+	  See Documentation/trace/events.rst or
+	  Documentation/trace/histogram.rst for details and examples.
+
+	  If in doubt, say N.
+
 config HIST_TRIGGERS
 	bool "Histogram triggers"
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select TRACING_MAP
 	select TRACING
 	select DYNAMIC_EVENTS
+	select SYNTH_EVENTS
 	default n
 	help
 	  Hist triggers allow one or more arbitrary trace event fields
@@ -824,7 +824,7 @@ config PREEMPTIRQ_DELAY_TEST
 
 config SYNTH_EVENT_GEN_TEST
 	tristate "Test module for in-kernel synthetic event generation"
-	depends on HIST_TRIGGERS
+	depends on SYNTH_EVENTS
 	help
           This option creates a test module to check the base
           functionality of in-kernel synthetic event definition and
@@ -846,6 +846,29 @@ config KPROBE_EVENT_GEN_TEST
 	  for the generated kprobe events.
 
 	  If unsure, say N.
+
+config HIST_TRIGGERS_DEBUG
+	bool "Hist trigger debug support"
+	depends on HIST_TRIGGERS
+	help
+          Add "hist_debug" file for each event, which when read will
+          dump out a bunch of internal details about the hist triggers
+          defined on that event.
+
+          The hist_debug file serves a couple of purposes:
+
+            - Helps developers verify that nothing is broken.
+
+            - Provides educational information to support the details
+              of the hist trigger internals as described by
+              Documentation/trace/histogram-design.rst.
+
+          The hist_debug output only covers the data structures
+          related to the histogram definitions themselves and doesn't
+          display the internals of map buckets or variable values of
+          running histograms.
+
+          If unsure, say N.
 
 endif # FTRACE
 

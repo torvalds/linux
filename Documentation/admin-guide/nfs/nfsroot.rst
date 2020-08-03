@@ -18,7 +18,7 @@ Mounting the root filesystem via NFS (nfsroot)
 In order to use a diskless system, such as an X-terminal or printer server for
 example, it is necessary for the root filesystem to be present on a non-disk
 device. This may be an initramfs (see
-Documentation/filesystems/ramfs-rootfs-initramfs.txt), a ramdisk (see
+Documentation/filesystems/ramfs-rootfs-initramfs.rst), a ramdisk (see
 Documentation/admin-guide/initrd.rst) or a filesystem mounted via NFS. The
 following text describes on how to use NFS for the root filesystem. For the rest
 of this text 'client' means the diskless system, and 'server' means the NFS

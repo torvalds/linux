@@ -107,7 +107,7 @@ ingress_flow_action_drop_test()
 
 	RET=0
 
-	devlink_trap_drop_test ingress_flow_action_drop acl_drops $swp2 101
+	devlink_trap_drop_test ingress_flow_action_drop $swp2 101
 
 	log_test "ingress_flow_action_drop"
 
@@ -132,7 +132,7 @@ egress_flow_action_drop_test()
 
 	RET=0
 
-	devlink_trap_drop_test egress_flow_action_drop acl_drops $swp2 102
+	devlink_trap_drop_test egress_flow_action_drop $swp2 102
 
 	log_test "egress_flow_action_drop"
 

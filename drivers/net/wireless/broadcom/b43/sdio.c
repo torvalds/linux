@@ -180,8 +180,8 @@ static void b43_sdio_remove(struct sdio_func *func)
 }
 
 static const struct sdio_device_id b43_sdio_ids[] = {
-	{ SDIO_DEVICE(0x02d0, 0x044b) }, /* Nintendo Wii WLAN daughter card */
-	{ SDIO_DEVICE(0x0092, 0x0004) }, /* C-guys, Inc. EW-CG1102GC */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_NINTENDO_WII) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_CGUYS, SDIO_DEVICE_ID_CGUYS_EW_CG1102GC) },
 	{ },
 };
 

@@ -35,15 +35,6 @@ config QCOM_GENI_SE
 	  driver is also used to manage the common aspects of multiple Serial
 	  Engines present in the QUP.
 
-config QCOM_GLINK_SSR
-	tristate "Qualcomm Glink SSR driver"
-	depends on RPMSG
-	depends on QCOM_RPROC_COMMON
-	help
-	  Say y here to enable GLINK SSR support. The GLINK SSR driver
-	  implements the SSR protocol for notifying the remote processor about
-	  neighboring subsystems going up or down.
-
 config QCOM_GSBI
 	tristate "QCOM General Serial Bus Interface"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -80,16 +71,6 @@ config QCOM_PDR_HELPERS
 	tristate
 	select QCOM_QMI_HELPERS
 
-config QCOM_PM
-	bool "Qualcomm Power Management"
-	depends on ARCH_QCOM && !ARM64
-	select ARM_CPU_SUSPEND
-	select QCOM_SCM
-	help
-	  QCOM Platform specific power driver to manage cores and L2 low power
-	  modes. It interface with various system drivers to put the cores in
-	  low power modes.
-
 config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
@@ -117,7 +98,7 @@ config QCOM_RPMH
 	  help apply the aggregated state on the resource.
 
 config QCOM_RPMHPD
-	bool "Qualcomm RPMh Power domain driver"
+	tristate "Qualcomm RPMh Power domain driver"
 	depends on QCOM_RPMH && QCOM_COMMAND_DB
 	help
 	  QCOM RPMh Power domain driver to support power-domains with
@@ -126,8 +107,8 @@ config QCOM_RPMHPD
 	  for the voltage rail.
 
 config QCOM_RPMPD
-	bool "Qualcomm RPM Power domain driver"
-	depends on QCOM_SMD_RPM=y
+	tristate "Qualcomm RPM Power domain driver"
+	depends on QCOM_SMD_RPM
 	help
 	  QCOM RPM Power domain driver to support power-domains with
 	  performance states. The driver communicates a performance state

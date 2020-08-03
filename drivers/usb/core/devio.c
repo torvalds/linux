@@ -1136,11 +1136,6 @@ static int proc_control(struct usb_dev_state *ps, void __user *arg)
 		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
 		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
-		if (ctrl.wLength && !access_ok(ctrl.data,
-					       ctrl.wLength)) {
-			ret = -EINVAL;
-			goto done;
-		}
 		pipe = usb_rcvctrlpipe(dev, 0);
 		snoop_urb(dev, NULL, pipe, ctrl.wLength, tmo, SUBMIT, NULL, 0);
 
@@ -1225,10 +1220,6 @@ static int proc_bulk(struct usb_dev_state *ps, void __user *arg)
 	}
 	tmo = bulk.timeout;
 	if (bulk.ep & 0x80) {
-		if (len1 && !access_ok(bulk.data, len1)) {
-			ret = -EINVAL;
-			goto done;
-		}
 		snoop_urb(dev, NULL, pipe, len1, tmo, SUBMIT, NULL, 0);
 
 		usb_unlock_device(dev);

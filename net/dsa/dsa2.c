@@ -24,6 +24,27 @@ LIST_HEAD(dsa_tree_list);
 static const struct devlink_ops dsa_devlink_ops = {
 };
 
+struct dsa_switch *dsa_switch_find(int tree_index, int sw_index)
+{
+	struct dsa_switch_tree *dst;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dst, &dsa_tree_list, list) {
+		if (dst->index != tree_index)
+			continue;
+
+		list_for_each_entry(dp, &dst->ports, list) {
+			if (dp->ds->index != sw_index)
+				continue;
+
+			return dp->ds;
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(dsa_switch_find);
+
 static struct dsa_switch_tree *dsa_tree_find(int index)
 {
 	struct dsa_switch_tree *dst;

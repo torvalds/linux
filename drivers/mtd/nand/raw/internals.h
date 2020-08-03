@@ -75,6 +75,9 @@ extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
 extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
 extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
 
+/* MLC pairing schemes */
+extern const struct mtd_pairing_scheme dist3_pairing_scheme;
+
 /* Core functions */
 const struct nand_manufacturer *nand_get_manufacturer(u8 id);
 int nand_bbm_get_next_page(struct nand_chip *chip, int page);
@@ -104,6 +107,15 @@ static inline bool nand_has_exec_op(struct nand_chip *chip)
 		return false;
 
 	return true;
+}
+
+static inline int nand_check_op(struct nand_chip *chip,
+				const struct nand_operation *op)
+{
+	if (!nand_has_exec_op(chip))
+		return 0;
+
+	return chip->controller->ops->exec_op(chip, op, true);
 }
 
 static inline int nand_exec_op(struct nand_chip *chip,

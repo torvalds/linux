@@ -559,20 +559,6 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
 				    struct ib_mad_send_wc *mad_send_wc);
 
 /**
- * ib_mad_snoop_handler - Callback handler for snooping sent MADs.
- * @mad_agent: MAD agent that snooped the MAD.
- * @send_buf: send MAD data buffer.
- * @mad_send_wc: Work completion information on the sent MAD.  Valid
- *   only for snooping that occurs on a send completion.
- *
- * Clients snooping MADs should not modify data referenced by the @send_buf
- * or @mad_send_wc.
- */
-typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
-				     struct ib_mad_send_buf *send_buf,
-				     struct ib_mad_send_wc *mad_send_wc);
-
-/**
  * ib_mad_recv_handler - callback handler for a received MAD.
  * @mad_agent: MAD agent requesting the received MAD.
  * @send_buf: Send buffer if found, else NULL
@@ -581,8 +567,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * MADs received in response to a send request operation will be handed to
  * the user before the send operation completes.  All data buffers given
  * to registered agents through this routine are owned by the receiving
- * client, except for snooping agents.  Clients snooping MADs should not
- * modify the data referenced by @mad_recv_wc.
+ * client.
  */
 typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
 				    struct ib_mad_send_buf *send_buf,
@@ -595,7 +580,6 @@ typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
  * @mr: Memory region for system memory usable for DMA.
  * @recv_handler: Callback handler for a received MAD.
  * @send_handler: Callback handler for a sent MAD.
- * @snoop_handler: Callback handler for snooped sent MADs.
  * @context: User-specified context associated with this registration.
  * @hi_tid: Access layer assigned transaction ID for this client.
  *   Unsolicited MADs sent by this client will have the upper 32-bits
@@ -612,7 +596,6 @@ struct ib_mad_agent {
 	struct ib_qp		*qp;
 	ib_mad_recv_handler	recv_handler;
 	ib_mad_send_handler	send_handler;
-	ib_mad_snoop_handler	snoop_handler;
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
@@ -720,36 +703,6 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 					   ib_mad_recv_handler recv_handler,
 					   void *context,
 					   u32 registration_flags);
-
-enum ib_mad_snoop_flags {
-	/*IB_MAD_SNOOP_POSTED_SENDS	   = 1,*/
-	/*IB_MAD_SNOOP_RMPP_SENDS	   = (1<<1),*/
-	IB_MAD_SNOOP_SEND_COMPLETIONS	   = (1<<2),
-	/*IB_MAD_SNOOP_RMPP_SEND_COMPLETIONS = (1<<3),*/
-	IB_MAD_SNOOP_RECVS		   = (1<<4)
-	/*IB_MAD_SNOOP_RMPP_RECVS	   = (1<<5),*/
-	/*IB_MAD_SNOOP_REDIRECTED_QPS	   = (1<<6)*/
-};
-
-/**
- * ib_register_mad_snoop - Register to snoop sent and received MADs.
- * @device: The device to register with.
- * @port_num: The port on the specified device to use.
- * @qp_type: Specifies which QP traffic to snoop.  Must be either
- *   IB_QPT_SMI or IB_QPT_GSI.
- * @mad_snoop_flags: Specifies information where snooping occurs.
- * @send_handler: The callback routine invoked for a snooped send.
- * @recv_handler: The callback routine invoked for a snooped receive.
- * @context: User specified context associated with the registration.
- */
-struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
-					   u8 port_num,
-					   enum ib_qp_type qp_type,
-					   int mad_snoop_flags,
-					   ib_mad_snoop_handler snoop_handler,
-					   ib_mad_recv_handler recv_handler,
-					   void *context);
-
 /**
  * ib_unregister_mad_agent - Unregisters a client from using MAD services.
  * @mad_agent: Corresponding MAD registration request to deregister.

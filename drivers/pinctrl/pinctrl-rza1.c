@@ -93,7 +93,7 @@ struct rza1_bidir_entry {
 };
 
 /**
- * rza1_swio_pin - describe a single pin that needs bidir flag applied.
+ * rza1_swio_pin - describe a single pin that needs swio flag applied.
  */
 struct rza1_swio_pin {
 	u16 pin: 4;
@@ -418,7 +418,7 @@ static const struct rza1_bidir_entry rza1l_bidir_entries[RZA1_NPORTS] = {
 };
 
 static const struct rza1_swio_entry rza1l_swio_entries[] = {
-	[0] = { ARRAY_SIZE(rza1h_swio_pins), rza1h_swio_pins },
+	[0] = { ARRAY_SIZE(rza1l_swio_pins), rza1l_swio_pins },
 };
 
 /* RZ/A1L (r7s72102x) pinmux flags table */

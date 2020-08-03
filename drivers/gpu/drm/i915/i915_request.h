@@ -84,19 +84,26 @@ enum {
 	I915_FENCE_FLAG_PQUEUE,
 
 	/*
+	 * I915_FENCE_FLAG_HOLD - this request is currently on hold
+	 *
+	 * This request has been suspended, pending an ongoing investigation.
+	 */
+	I915_FENCE_FLAG_HOLD,
+
+	/*
+	 * I915_FENCE_FLAG_INITIAL_BREADCRUMB - this request has the initial
+	 * breadcrumb that marks the end of semaphore waits and start of the
+	 * user payload.
+	 */
+	I915_FENCE_FLAG_INITIAL_BREADCRUMB,
+
+	/*
 	 * I915_FENCE_FLAG_SIGNAL - this request is currently on signal_list
 	 *
 	 * Internal bookkeeping used by the breadcrumb code to track when
 	 * a request is on the various signal_list.
 	 */
 	I915_FENCE_FLAG_SIGNAL,
-
-	/*
-	 * I915_FENCE_FLAG_HOLD - this request is currently on hold
-	 *
-	 * This request has been suspended, pending an ongoing investigation.
-	 */
-	I915_FENCE_FLAG_HOLD,
 
 	/*
 	 * I915_FENCE_FLAG_NOPREEMPT - this request should not be preempted
@@ -209,7 +216,6 @@ struct i915_request {
 	};
 	struct list_head execute_cb;
 	struct i915_sw_fence semaphore;
-	struct irq_work semaphore_work;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -300,6 +306,8 @@ static inline bool dma_fence_is_i915(const struct dma_fence *fence)
 	return fence->ops == &i915_fence_ops;
 }
 
+struct kmem_cache *i915_request_slab_cache(void);
+
 struct i915_request * __must_check
 __i915_request_create(struct intel_context *ce, gfp_t gfp);
 struct i915_request * __must_check
@@ -386,6 +394,12 @@ static inline bool i915_request_is_active(const struct i915_request *rq)
 static inline bool i915_request_in_priority_queue(const struct i915_request *rq)
 {
 	return test_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+}
+
+static inline bool
+i915_request_has_initial_breadcrumb(const struct i915_request *rq)
+{
+	return test_bit(I915_FENCE_FLAG_INITIAL_BREADCRUMB, &rq->fence.flags);
 }
 
 /**

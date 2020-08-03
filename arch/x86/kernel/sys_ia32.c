@@ -135,26 +135,30 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	typeof(ubuf->st_gid) gid = 0;
 	SET_UID(uid, from_kuid_munged(current_user_ns(), stat->uid));
 	SET_GID(gid, from_kgid_munged(current_user_ns(), stat->gid));
-	if (!access_ok(ubuf, sizeof(struct stat64)) ||
-	    __put_user(huge_encode_dev(stat->dev), &ubuf->st_dev) ||
-	    __put_user(stat->ino, &ubuf->__st_ino) ||
-	    __put_user(stat->ino, &ubuf->st_ino) ||
-	    __put_user(stat->mode, &ubuf->st_mode) ||
-	    __put_user(stat->nlink, &ubuf->st_nlink) ||
-	    __put_user(uid, &ubuf->st_uid) ||
-	    __put_user(gid, &ubuf->st_gid) ||
-	    __put_user(huge_encode_dev(stat->rdev), &ubuf->st_rdev) ||
-	    __put_user(stat->size, &ubuf->st_size) ||
-	    __put_user(stat->atime.tv_sec, &ubuf->st_atime) ||
-	    __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec) ||
-	    __put_user(stat->mtime.tv_sec, &ubuf->st_mtime) ||
-	    __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
-	    __put_user(stat->ctime.tv_sec, &ubuf->st_ctime) ||
-	    __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
-	    __put_user(stat->blksize, &ubuf->st_blksize) ||
-	    __put_user(stat->blocks, &ubuf->st_blocks))
+	if (!user_write_access_begin(ubuf, sizeof(struct stat64)))
 		return -EFAULT;
+	unsafe_put_user(huge_encode_dev(stat->dev), &ubuf->st_dev, Efault);
+	unsafe_put_user(stat->ino, &ubuf->__st_ino, Efault);
+	unsafe_put_user(stat->ino, &ubuf->st_ino, Efault);
+	unsafe_put_user(stat->mode, &ubuf->st_mode, Efault);
+	unsafe_put_user(stat->nlink, &ubuf->st_nlink, Efault);
+	unsafe_put_user(uid, &ubuf->st_uid, Efault);
+	unsafe_put_user(gid, &ubuf->st_gid, Efault);
+	unsafe_put_user(huge_encode_dev(stat->rdev), &ubuf->st_rdev, Efault);
+	unsafe_put_user(stat->size, &ubuf->st_size, Efault);
+	unsafe_put_user(stat->atime.tv_sec, &ubuf->st_atime, Efault);
+	unsafe_put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec, Efault);
+	unsafe_put_user(stat->mtime.tv_sec, &ubuf->st_mtime, Efault);
+	unsafe_put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec, Efault);
+	unsafe_put_user(stat->ctime.tv_sec, &ubuf->st_ctime, Efault);
+	unsafe_put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec, Efault);
+	unsafe_put_user(stat->blksize, &ubuf->st_blksize, Efault);
+	unsafe_put_user(stat->blocks, &ubuf->st_blocks, Efault);
+	user_access_end();
 	return 0;
+Efault:
+	user_write_access_end();
+	return -EFAULT;
 }
 
 COMPAT_SYSCALL_DEFINE2(ia32_stat64, const char __user *, filename,

@@ -10,6 +10,7 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "sun8i_dw_hdmi.h"
 #include "sun8i_tcon_top.h"
@@ -27,10 +28,6 @@ static void sun8i_dw_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 static const struct drm_encoder_helper_funcs
 sun8i_dw_hdmi_encoder_helper_funcs = {
 	.mode_set = sun8i_dw_hdmi_encoder_mode_set,
-};
-
-static const struct drm_encoder_funcs sun8i_dw_hdmi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 static enum drm_mode_status
@@ -220,8 +217,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	}
 
 	drm_encoder_helper_add(encoder, &sun8i_dw_hdmi_encoder_helper_funcs);
-	drm_encoder_init(drm, encoder, &sun8i_dw_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_TMDS);
 
 	sun8i_hdmi_phy_init(hdmi->phy);
 

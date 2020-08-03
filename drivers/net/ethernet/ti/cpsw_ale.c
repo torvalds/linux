@@ -604,10 +604,44 @@ void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
 	}
 }
 
+static void cpsw_ale_vlan_set_unreg_mcast(struct cpsw_ale *ale, u32 *ale_entry,
+					  int allmulti)
+{
+	int unreg_mcast;
+
+	unreg_mcast =
+		cpsw_ale_get_vlan_unreg_mcast(ale_entry,
+					      ale->vlan_field_bits);
+	if (allmulti)
+		unreg_mcast |= ALE_PORT_HOST;
+	else
+		unreg_mcast &= ~ALE_PORT_HOST;
+	cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast,
+				      ale->vlan_field_bits);
+}
+
+static void
+cpsw_ale_vlan_set_unreg_mcast_idx(struct cpsw_ale *ale, u32 *ale_entry,
+				  int allmulti)
+{
+	int unreg_mcast;
+	int idx;
+
+	idx = cpsw_ale_get_vlan_unreg_mcast_idx(ale_entry);
+
+	unreg_mcast = readl(ale->params.ale_regs + ALE_VLAN_MASK_MUX(idx));
+
+	if (allmulti)
+		unreg_mcast |= ALE_PORT_HOST;
+	else
+		unreg_mcast &= ~ALE_PORT_HOST;
+
+	writel(unreg_mcast, ale->params.ale_regs + ALE_VLAN_MASK_MUX(idx));
+}
+
 void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti, int port)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS];
-	int unreg_mcast = 0;
 	int type, idx;
 
 	for (idx = 0; idx < ale->params.ale_entries; idx++) {
@@ -624,15 +658,12 @@ void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti, int port)
 		if (port != -1 && !(vlan_members & BIT(port)))
 			continue;
 
-		unreg_mcast =
-			cpsw_ale_get_vlan_unreg_mcast(ale_entry,
-						      ale->vlan_field_bits);
-		if (allmulti)
-			unreg_mcast |= ALE_PORT_HOST;
+		if (!ale->params.nu_switch_ale)
+			cpsw_ale_vlan_set_unreg_mcast(ale, ale_entry, allmulti);
 		else
-			unreg_mcast &= ~ALE_PORT_HOST;
-		cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast,
-					      ale->vlan_field_bits);
+			cpsw_ale_vlan_set_unreg_mcast_idx(ale, ale_entry,
+							  allmulti);
+
 		cpsw_ale_write(ale, idx, ale_entry);
 	}
 }

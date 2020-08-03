@@ -88,6 +88,8 @@ int		nfsd_pool_stats_release(struct inode *, struct file *);
 
 void		nfsd_destroy(struct net *net);
 
+bool		i_am_nfsd(void);
+
 struct nfsdfs_client {
 	struct kref cl_ref;
 	void (*cl_release)(struct kref *kref);

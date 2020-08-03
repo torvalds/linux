@@ -1070,6 +1070,20 @@ iter_next_cumulative_entry(struct hist_entry_iter *iter,
 	return fill_callchain_info(al, node, iter->hide_unresolved);
 }
 
+static bool
+hist_entry__fast__sym_diff(struct hist_entry *left,
+			   struct hist_entry *right)
+{
+	struct symbol *sym_l = left->ms.sym;
+	struct symbol *sym_r = right->ms.sym;
+
+	if (!sym_l && !sym_r)
+		return left->ip != right->ip;
+
+	return !!_sort__sym_cmp(sym_l, sym_r);
+}
+
+
 static int
 iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 			       struct addr_location *al)
@@ -1096,6 +1110,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	};
 	int i;
 	struct callchain_cursor cursor;
+	bool fast = hists__has(he_tmp.hists, sym);
 
 	callchain_cursor_snapshot(&cursor, &callchain_cursor);
 
@@ -1106,6 +1121,14 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	 * It's possible that it has cycles or recursive calls.
 	 */
 	for (i = 0; i < iter->curr; i++) {
+		/*
+		 * For most cases, there are no duplicate entries in callchain.
+		 * The symbols are usually different. Do a quick check for
+		 * symbols first.
+		 */
+		if (fast && hist_entry__fast__sym_diff(he_cache[i], &he_tmp))
+			continue;
+
 		if (hist_entry__cmp(he_cache[i], &he_tmp) == 0) {
 			/* to avoid calling callback function */
 			iter->he = NULL;
@@ -1907,8 +1930,8 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	}
 }
 
-void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
-				  hists__resort_cb_t cb, void *cb_arg)
+void evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
+			     hists__resort_cb_t cb, void *cb_arg)
 {
 	bool use_callchain;
 
@@ -1922,9 +1945,9 @@ void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
 	output_resort(evsel__hists(evsel), prog, use_callchain, cb, cb_arg);
 }
 
-void perf_evsel__output_resort(struct evsel *evsel, struct ui_progress *prog)
+void evsel__output_resort(struct evsel *evsel, struct ui_progress *prog)
 {
-	return perf_evsel__output_resort_cb(evsel, prog, NULL, NULL);
+	return evsel__output_resort_cb(evsel, prog, NULL, NULL);
 }
 
 void hists__output_resort(struct hists *hists, struct ui_progress *prog)
@@ -2637,7 +2660,7 @@ size_t perf_evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp)
 	size_t ret = 0;
 
 	evlist__for_each_entry(evlist, pos) {
-		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
+		ret += fprintf(fp, "%s stats:\n", evsel__name(pos));
 		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
 	}
 
@@ -2661,7 +2684,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
 	struct evsel *evsel = hists_to_evsel(hists);
-	const char *ev_name = perf_evsel__name(evsel);
+	const char *ev_name = evsel__name(evsel);
 	char buf[512], sample_freq_str[64] = "";
 	size_t buflen = sizeof(buf);
 	char ref[30] = " show reference callgraph, ";
@@ -2672,10 +2695,10 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 		nr_events = hists->stats.total_non_filtered_period;
 	}
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
-		perf_evsel__group_desc(evsel, buf, buflen);
+		evsel__group_desc(evsel, buf, buflen);
 		ev_name = buf;
 
 		for_each_group_member(pos, evsel) {
@@ -2822,9 +2845,8 @@ static int hists_evsel__init(struct evsel *evsel)
 
 int hists__init(void)
 {
-	int err = perf_evsel__object_config(sizeof(struct hists_evsel),
-					    hists_evsel__init,
-					    hists_evsel__exit);
+	int err = evsel__object_config(sizeof(struct hists_evsel),
+				       hists_evsel__init, hists_evsel__exit);
 	if (err)
 		fputs("FATAL ERROR: Couldn't setup hists class\n", stderr);
 

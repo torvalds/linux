@@ -1056,7 +1056,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			goto err;
 	}
 
-	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	r = amdgpu_job_alloc_with_ib(adev, 64, direct ? AMDGPU_IB_POOL_DIRECT :
+				     AMDGPU_IB_POOL_DELAYED, &job);
 	if (r)
 		goto err;
 

@@ -25,9 +25,9 @@ properties:
   compatible:
     items:
       - enum:
-        - fsl,imx8mn-ddrc
-        - fsl,imx8mm-ddrc
-        - fsl,imx8mq-ddrc
+          - fsl,imx8mn-ddrc
+          - fsl,imx8mm-ddrc
+          - fsl,imx8mq-ddrc
       - const: fsl,imx8m-ddrc
 
   reg:

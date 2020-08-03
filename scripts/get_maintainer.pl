@@ -19,6 +19,7 @@ my $V = '0.26';
 use Getopt::Long qw(:config no_auto_abbrev);
 use Cwd;
 use File::Find;
+use File::Spec::Functions;
 
 my $cur_path = fastgetcwd() . '/';
 my $lk_path = "./";
@@ -57,7 +58,7 @@ my $status = 0;
 my $letters = "";
 my $keywords = 1;
 my $sections = 0;
-my $file_emails = 0;
+my $email_file_emails = 0;
 my $from_filename = 0;
 my $pattern_depth = 0;
 my $self_test = undef;
@@ -68,6 +69,12 @@ my $maintainer_path;
 my $vcs_used = 0;
 
 my $exit = 0;
+
+my @files = ();
+my @fixes = ();			# If a patch description includes Fixes: lines
+my @range = ();
+my @keyword_tvi = ();
+my @file_emails = ();
 
 my %commit_author_hash;
 my %commit_signer_hash;
@@ -266,7 +273,7 @@ if (!GetOptions(
 		'pattern-depth=i' => \$pattern_depth,
 		'k|keywords!' => \$keywords,
 		'sections!' => \$sections,
-		'fe|file-emails!' => \$file_emails,
+		'fe|file-emails!' => \$email_file_emails,
 		'f|file' => \$from_filename,
 		'find-maintainer-files' => \$find_maintainer_files,
 		'mpath|maintainer-path=s' => \$maintainer_path,
@@ -424,6 +431,22 @@ sub read_all_maintainer_files {
     }
 }
 
+sub maintainers_in_file {
+    my ($file) = @_;
+
+    return if ($file =~ m@\bMAINTAINERS$@);
+
+    if (-f $file && ($email_file_emails || $file =~ /\.yaml$/)) {
+	open(my $f, '<', $file)
+	    or die "$P: Can't open $file: $!\n";
+	my $text = do { local($/) ; <$f> };
+	close($f);
+
+	my @poss_addr = $text =~ m$[A-Za-zÀ-ÿ\"\' \,\.\+-]*\s*[\,]*\s*[\(\<\{]{0,1}[A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+\.[A-Za-z0-9]+[\)\>\}]{0,1}$g;
+	push(@file_emails, clean_file_emails(@poss_addr));
+    }
+}
+
 #
 # Read mail address map
 #
@@ -504,18 +527,13 @@ sub read_mailmap {
 
 ## use the filenames on the command line or find the filenames in the patchfiles
 
-my @files = ();
-my @fixes = ();			# If a patch description includes Fixes: lines
-my @range = ();
-my @keyword_tvi = ();
-my @file_emails = ();
-
 if (!@ARGV) {
     push(@ARGV, "&STDIN");
 }
 
 foreach my $file (@ARGV) {
     if ($file ne "&STDIN") {
+	$file = canonpath($file);
 	##if $file is a directory and it lacks a trailing slash, add one
 	if ((-d $file)) {
 	    $file =~ s@([^/])$@$1/@;
@@ -527,7 +545,7 @@ foreach my $file (@ARGV) {
 	$file =~ s/^\Q${cur_path}\E//;	#strip any absolute path
 	$file =~ s/^\Q${lk_path}\E//;	#or the path to the lk tree
 	push(@files, $file);
-	if ($file ne "MAINTAINERS" && -f $file && ($keywords || $file_emails)) {
+	if ($file ne "MAINTAINERS" && -f $file && $keywords) {
 	    open(my $f, '<', $file)
 		or die "$P: Can't open $file: $!\n";
 	    my $text = do { local($/) ; <$f> };
@@ -538,10 +556,6 @@ foreach my $file (@ARGV) {
 			push(@keyword_tvi, $line);
 		    }
 		}
-	    }
-	    if ($file_emails) {
-		my @poss_addr = $text =~ m$[A-Za-zÀ-ÿ\"\' \,\.\+-]*\s*[\,]*\s*[\(\<\{]{0,1}[A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+\.[A-Za-z0-9]+[\)\>\}]{0,1}$g;
-		push(@file_emails, clean_file_emails(@poss_addr));
 	    }
 	}
     } else {
@@ -923,6 +937,8 @@ sub get_maintainers {
 		print("\n");
 	    }
 	}
+
+	maintainers_in_file($file);
     }
 
     if ($keywords) {
@@ -1835,7 +1851,7 @@ tm toggle maintainers
 tg toggle git entries
 tl toggle open list entries
 ts toggle subscriber list entries
-f  emails in file       [$file_emails]
+f  emails in file       [$email_file_emails]
 k  keywords in file     [$keywords]
 r  remove duplicates    [$email_remove_duplicates]
 p# pattern match depth  [$pattern_depth]
@@ -1960,7 +1976,7 @@ EOT
 		bool_invert(\$email_git_all_signature_types);
 		$rerun = 1;
 	    } elsif ($sel eq "f") {
-		bool_invert(\$file_emails);
+		bool_invert(\$email_file_emails);
 		$rerun = 1;
 	    } elsif ($sel eq "r") {
 		bool_invert(\$email_remove_duplicates);

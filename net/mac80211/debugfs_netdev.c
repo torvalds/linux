@@ -236,7 +236,7 @@ IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
+IEEE80211_IF_FILE(aid, vif.bss_conf.aid, DEC);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,

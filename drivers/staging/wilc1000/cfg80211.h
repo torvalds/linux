@@ -21,8 +21,9 @@ void wilc_wfi_deinit_mon_interface(struct wilc *wl, bool rtnl_locked);
 struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 					       const char *name,
 					       struct net_device *real_dev);
-void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
-			      u16 frame_type, bool reg);
+void wilc_update_mgmt_frame_registrations(struct wiphy *wiphy,
+					  struct wireless_dev *wdev,
+					  struct mgmt_frame_regs *upd);
 struct wilc_vif *wilc_get_interface(struct wilc *wl);
 struct wilc_vif *wilc_get_wl_to_vif(struct wilc *wl);
 void wlan_deinit_locks(struct wilc *wilc);

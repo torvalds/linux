@@ -104,7 +104,7 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 	return 0;
 }
 
-struct pci_ecam_ops hisi_pcie_ops = {
+const struct pci_ecam_ops hisi_pcie_ops = {
 	.bus_shift    = 20,
 	.init         =  hisi_pcie_init,
 	.pci_ops      = {
@@ -332,15 +332,6 @@ static struct platform_driver hisi_pcie_driver = {
 };
 builtin_platform_driver(hisi_pcie_driver);
 
-static int hisi_pcie_almost_ecam_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct pci_ecam_ops *ops;
-
-	ops = (struct pci_ecam_ops *)of_device_get_match_data(dev);
-	return pci_host_common_probe(pdev, ops);
-}
-
 static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
@@ -362,7 +353,7 @@ static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 	return 0;
 }
 
-struct pci_ecam_ops hisi_pcie_platform_ops = {
+static const struct pci_ecam_ops hisi_pcie_platform_ops = {
 	.bus_shift    = 20,
 	.init         =  hisi_pcie_platform_init,
 	.pci_ops      = {
@@ -375,17 +366,17 @@ struct pci_ecam_ops hisi_pcie_platform_ops = {
 static const struct of_device_id hisi_pcie_almost_ecam_of_match[] = {
 	{
 		.compatible =  "hisilicon,hip06-pcie-ecam",
-		.data	    = (void *) &hisi_pcie_platform_ops,
+		.data	    =  &hisi_pcie_platform_ops,
 	},
 	{
 		.compatible =  "hisilicon,hip07-pcie-ecam",
-		.data       = (void *) &hisi_pcie_platform_ops,
+		.data       =  &hisi_pcie_platform_ops,
 	},
 	{},
 };
 
 static struct platform_driver hisi_pcie_almost_ecam_driver = {
-	.probe  = hisi_pcie_almost_ecam_probe,
+	.probe  = pci_host_common_probe,
 	.driver = {
 		   .name = "hisi-pcie-almost-ecam",
 		   .of_match_table = hisi_pcie_almost_ecam_of_match,

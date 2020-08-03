@@ -5,7 +5,7 @@
 
 menuconfig SFI
 	bool "SFI (Simple Firmware Interface) Support"
-	---help---
+	help
 	The Simple Firmware Interface (SFI) provides a lightweight method
 	for platform firmware to pass information to the operating system
 	via static tables in memory.  Kernel SFI support is required to

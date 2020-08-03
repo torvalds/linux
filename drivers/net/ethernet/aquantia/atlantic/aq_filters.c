@@ -153,6 +153,8 @@ aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 		       struct aq_hw_rx_fltrs_s *rx_fltrs,
 		       struct ethtool_rx_flow_spec *fsp)
 {
+	struct aq_nic_cfg_s *cfg = &aq_nic->aq_nic_cfg;
+
 	if (fsp->location < AQ_RX_FIRST_LOC_FVLANID ||
 	    fsp->location > AQ_RX_LAST_LOC_FVLANID) {
 		netdev_err(aq_nic->ndev,
@@ -170,10 +172,10 @@ aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 		return -EINVAL;
 	}
 
-	if (fsp->ring_cookie > aq_nic->aq_nic_cfg.num_rss_queues) {
+	if (fsp->ring_cookie > cfg->num_rss_queues * cfg->tcs) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: queue number must be in range [0, %d]",
-			   aq_nic->aq_nic_cfg.num_rss_queues - 1);
+			   cfg->num_rss_queues * cfg->tcs - 1);
 		return -EINVAL;
 	}
 	return 0;
@@ -262,6 +264,7 @@ static bool __must_check
 aq_rule_is_not_correct(struct aq_nic_s *aq_nic,
 		       struct ethtool_rx_flow_spec *fsp)
 {
+	struct aq_nic_cfg_s *cfg = &aq_nic->aq_nic_cfg;
 	bool rule_is_not_correct = false;
 
 	if (!aq_nic) {
@@ -274,11 +277,11 @@ aq_rule_is_not_correct(struct aq_nic_s *aq_nic,
 	} else if (aq_check_filter(aq_nic, fsp)) {
 		rule_is_not_correct = true;
 	} else if (fsp->ring_cookie != RX_CLS_FLOW_DISC) {
-		if (fsp->ring_cookie >= aq_nic->aq_nic_cfg.num_rss_queues) {
+		if (fsp->ring_cookie >= cfg->num_rss_queues * cfg->tcs) {
 			netdev_err(aq_nic->ndev,
 				   "ethtool: The specified action is invalid.\n"
 				   "Maximum allowable value action is %u.\n",
-				   aq_nic->aq_nic_cfg.num_rss_queues - 1);
+				   cfg->num_rss_queues * cfg->tcs - 1);
 			rule_is_not_correct = true;
 		}
 	}

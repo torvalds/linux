@@ -80,7 +80,7 @@ static int al_pcie_init(struct pci_config_window *cfg)
 	return 0;
 }
 
-struct pci_ecam_ops al_pcie_ops = {
+const struct pci_ecam_ops al_pcie_ops = {
 	.bus_shift    = 20,
 	.init         =  al_pcie_init,
 	.pci_ops      = {

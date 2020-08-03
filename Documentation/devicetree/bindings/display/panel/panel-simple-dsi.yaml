@@ -29,6 +29,20 @@ properties:
       # compatible must be listed in alphabetical order, ordered by compatible.
       # The description in the comment is mandatory for each compatible.
 
+        # AU Optronics Corporation 8.0" WUXGA TFT LCD panel
+      - auo,b080uan01
+        # Boe Corporation 8.0" WUXGA TFT LCD panel
+      - boe,tv080wum-nl0
+        # Kingdisplay KD097D04 9.7" 1536x2048 TFT LCD panel
+      - kingdisplay,kd097d04
+        # LG ACX467AKM-7 4.95" 1080×1920 LCD Panel
+      - lg,acx467akm-7
+        # LG Corporation 7" WXGA TFT LCD panel
+      - lg,ld070wx3-sl01
+        # One Stop Displays OSD101T2587-53TS 10.1" 1920x1200 panel
+      - osddisplays,osd101t2587-53ts
+        # Panasonic 10" WUXGA TFT LCD panel
+      - panasonic,vvx10f004b00
         # Panasonic 10" WUXGA TFT LCD panel
       - panasonic,vvx10f034n00
 

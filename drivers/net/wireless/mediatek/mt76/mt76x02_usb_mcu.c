@@ -123,7 +123,7 @@ mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 	struct sk_buff *skb;
 	int err;
 
-	skb = mt76_mcu_msg_alloc(data, MT_CMD_HDR_LEN, len, 8);
+	skb = mt76_mcu_msg_alloc(dev, data, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -291,6 +291,8 @@ EXPORT_SYMBOL_GPL(mt76x02u_mcu_fw_send_data);
 void mt76x02u_init_mcu(struct mt76_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x02u_mcu_ops = {
+		.headroom = MT_CMD_HDR_LEN,
+		.tailroom = 8,
 		.mcu_send_msg = mt76x02u_mcu_send_msg,
 		.mcu_wr_rp = mt76x02u_mcu_wr_rp,
 		.mcu_rd_rp = mt76x02u_mcu_rd_rp,

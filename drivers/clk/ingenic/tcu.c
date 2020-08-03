@@ -323,7 +323,7 @@ static const struct ingenic_soc_info x1000_soc_info = {
 	.has_tcu_clk = false,
 };
 
-static const struct of_device_id ingenic_tcu_of_match[] __initconst = {
+static const struct of_device_id __maybe_unused ingenic_tcu_of_match[] __initconst = {
 	{ .compatible = "ingenic,jz4740-tcu", .data = &jz4740_soc_info, },
 	{ .compatible = "ingenic,jz4725b-tcu", .data = &jz4725b_soc_info, },
 	{ .compatible = "ingenic,jz4770-tcu", .data = &jz4770_soc_info, },

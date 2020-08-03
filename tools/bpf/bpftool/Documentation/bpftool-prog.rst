@@ -21,11 +21,11 @@ SYNOPSIS
 PROG COMMANDS
 =============
 
-|	**bpftool** **prog { show | list }** [*PROG*]
+|	**bpftool** **prog** { **show** | **list** } [*PROG*]
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual** | **linum**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes** | **linum**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
+|	**bpftool** **prog** { **load** | **loadall** } *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
@@ -41,7 +41,8 @@ PROG COMMANDS
 |		**cgroup/sock** | **cgroup/dev** | **lwt_in** | **lwt_out** | **lwt_xmit** |
 |		**lwt_seg6local** | **sockops** | **sk_skb** | **sk_msg** | **lirc_mode2** |
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
-|		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
+|		**cgroup/connect4** | **cgroup/connect6** | **cgroup/getpeername4** | **cgroup/getpeername6** |
+|               **cgroup/getsockname4** | **cgroup/getsockname6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
 |		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl** |
 |		**cgroup/getsockopt** | **cgroup/setsockopt** |
 |		**struct_ops** | **fentry** | **fexit** | **freplace**
@@ -49,7 +50,7 @@ PROG COMMANDS
 |       *ATTACH_TYPE* := {
 |		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
 |	}
-|	*METRIC* := {
+|	*METRICs* := {
 |		**cycles** | **instructions** | **l1d_loads** | **llc_misses**
 |	}
 
@@ -155,7 +156,7 @@ DESCRIPTION
 	**bpftool prog tracelog**
 		  Dump the trace pipe of the system to the console (stdout).
 		  Hit <Ctrl+C> to stop printing. BPF programs can write to this
-		  trace pipe at runtime with the **bpf_trace_printk()** helper.
+		  trace pipe at runtime with the **bpf_trace_printk**\ () helper.
 		  This should be used only for debugging purposes. For
 		  streaming data from BPF programs to user space, one can use
 		  perf events (see also **bpftool-map**\ (8)).
@@ -195,9 +196,9 @@ DESCRIPTION
 
 	**bpftool prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 		  Profile *METRICs* for bpf program *PROG* for *DURATION*
-		  seconds or until user hits Ctrl-C. *DURATION* is optional.
+		  seconds or until user hits <Ctrl+C>. *DURATION* is optional.
 		  If *DURATION* is not specified, the profiling will run up to
-		  UINT_MAX seconds.
+		  **UINT_MAX** seconds.
 
 	**bpftool prog help**
 		  Print short help message.
@@ -267,7 +268,7 @@ EXAMPLES
 
 |
 | **# bpftool prog dump xlated id 10 file /tmp/t**
-| **# ls -l /tmp/t**
+| **$ ls -l /tmp/t**
 
 ::
 
@@ -325,6 +326,7 @@ EXAMPLES
 | **# bpftool prog profile id 337 duration 10 cycles instructions llc_misses**
 
 ::
+
          51397 run_cnt
       40176203 cycles                                                 (83.05%)
       42518139 instructions    #   1.06 insns per cycle               (83.39%)
@@ -335,9 +337,13 @@ SEE ALSO
 	**bpf**\ (2),
 	**bpf-helpers**\ (7),
 	**bpftool**\ (8),
-	**bpftool-map**\ (8),
+	**bpftool-btf**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
+	**bpftool-gen**\ (8),
+	**bpftool-iter**\ (8),
+	**bpftool-link**\ (8),
+	**bpftool-map**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8),
-	**bpftool-btf**\ (8)
+	**bpftool-struct_ops**\ (8)

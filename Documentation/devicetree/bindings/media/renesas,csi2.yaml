@@ -135,7 +135,7 @@ examples:
 
     csi20: csi2@fea80000 {
             compatible = "renesas,r8a7796-csi2";
-            reg = <0 0xfea80000 0 0x10000>;
+            reg = <0xfea80000 0x10000>;
             interrupts = <0 184 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 714>;
             power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;

@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
@@ -166,6 +167,24 @@ static const struct rpmhpd_desc sm8150_desc = {
 	.num_pds = ARRAY_SIZE(sm8150_rpmhpds),
 };
 
+static struct rpmhpd *sm8250_rpmhpds[] = {
+	[SM8250_CX] = &sdm845_cx,
+	[SM8250_CX_AO] = &sdm845_cx_ao,
+	[SM8250_EBI] = &sdm845_ebi,
+	[SM8250_GFX] = &sdm845_gfx,
+	[SM8250_LCX] = &sdm845_lcx,
+	[SM8250_LMX] = &sdm845_lmx,
+	[SM8250_MMCX] = &sm8150_mmcx,
+	[SM8250_MMCX_AO] = &sm8150_mmcx_ao,
+	[SM8250_MX] = &sdm845_mx,
+	[SM8250_MX_AO] = &sdm845_mx_ao,
+};
+
+static const struct rpmhpd_desc sm8250_desc = {
+	.rpmhpds = sm8250_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8250_rpmhpds),
+};
+
 /* SC7180 RPMH powerdomains */
 static struct rpmhpd *sc7180_rpmhpds[] = {
 	[SC7180_CX] = &sdm845_cx,
@@ -187,8 +206,10 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sc7180-rpmhpd", .data = &sc7180_desc },
 	{ .compatible = "qcom,sdm845-rpmhpd", .data = &sdm845_desc },
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
+	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
 
 static int rpmhpd_send_corner(struct rpmhpd *pd, int state,
 			      unsigned int corner, bool sync)
@@ -460,3 +481,6 @@ static int __init rpmhpd_init(void)
 	return platform_driver_register(&rpmhpd_driver);
 }
 core_initcall(rpmhpd_init);
+
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMh Power Domain Driver");
+MODULE_LICENSE("GPL v2");

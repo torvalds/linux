@@ -42,6 +42,11 @@ static bool enable_acomp = true;
 module_param(enable_acomp, bool, 0444);
 MODULE_PARM_DESC(enable_acomp, "Enable audio component binding (default=yes)");
 
+static bool enable_silent_stream =
+IS_ENABLED(CONFIG_SND_HDA_INTEL_HDMI_SILENT_STREAM);
+module_param(enable_silent_stream, bool, 0644);
+MODULE_PARM_DESC(enable_silent_stream, "Enable Silent Stream for HDMI devices");
+
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
 	int assigned;
@@ -167,6 +172,7 @@ struct hdmi_spec {
 	hda_nid_t vendor_nid;
 	const int *port_map;
 	int port_num;
+	bool send_silent_stream; /* Flag to enable silent stream feature */
 };
 
 #ifdef CONFIG_SND_HDA_COMPONENT
@@ -1635,21 +1641,72 @@ static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	snd_hda_power_down_pm(codec);
 }
 
+static void silent_stream_enable(struct hda_codec *codec,
+				struct hdmi_spec_per_pin *per_pin)
+{
+	unsigned int newval, oldval;
+
+	codec_dbg(codec, "hdmi: enabling silent stream for NID %d\n",
+			per_pin->pin_nid);
+
+	mutex_lock(&per_pin->lock);
+
+	if (!per_pin->channels)
+		per_pin->channels = 2;
+
+	oldval = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+			AC_VERB_GET_CONV, 0);
+	newval = (oldval & 0xF0) | 0xF;
+	snd_hda_codec_write(codec, per_pin->pin_nid, 0,
+			AC_VERB_SET_CHANNEL_STREAMID, newval);
+
+	hdmi_setup_audio_infoframe(codec, per_pin, per_pin->non_pcm);
+
+	mutex_unlock(&per_pin->lock);
+}
+
 /* update ELD and jack state via audio component */
 static void sync_eld_via_acomp(struct hda_codec *codec,
 			       struct hdmi_spec_per_pin *per_pin)
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
+	bool monitor_prev, monitor_next;
 
 	mutex_lock(&per_pin->lock);
 	eld->monitor_present = false;
+	monitor_prev = per_pin->sink_eld.monitor_present;
 	eld->eld_size = snd_hdac_acomp_get_eld(&codec->core, per_pin->pin_nid,
 				      per_pin->dev_id, &eld->monitor_present,
 				      eld->eld_buffer, ELD_MAX_SIZE);
 	eld->eld_valid = (eld->eld_size > 0);
 	update_eld(codec, per_pin, eld, 0);
+	monitor_next = per_pin->sink_eld.monitor_present;
 	mutex_unlock(&per_pin->lock);
+
+	/*
+	 * Power-up will call hdmi_present_sense, so the PM calls
+	 * have to be done without mutex held.
+	 */
+
+	if (spec->send_silent_stream) {
+		int pm_ret;
+
+		if (!monitor_prev && monitor_next) {
+			pm_ret = snd_hda_power_up_pm(codec);
+			if (pm_ret < 0)
+				codec_err(codec,
+				"Monitor plugged-in, Failed to power up codec ret=[%d]\n",
+				pm_ret);
+			silent_stream_enable(codec, per_pin);
+		} else if (monitor_prev && !monitor_next) {
+			pm_ret = snd_hda_power_down_pm(codec);
+			if (pm_ret < 0)
+				codec_err(codec,
+				"Monitor plugged-out, Failed to power down codec ret=[%d]\n",
+				pm_ret);
+		}
+	}
 }
 
 static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
@@ -2801,6 +2858,13 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid,
 
 	spec->ops.setup_stream = i915_hsw_setup_stream;
 	spec->ops.pin_cvt_fixup = i915_pin_cvt_fixup;
+
+	/*
+	 * Enable silent stream feature, if it is enabled via
+	 * module param or Kconfig option
+	 */
+	if (enable_silent_stream)
+		spec->send_silent_stream = true;
 
 	return parse_intel_hdmi(codec);
 }

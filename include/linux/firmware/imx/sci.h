@@ -11,7 +11,6 @@
 #define _SC_SCI_H
 
 #include <linux/firmware/imx/ipc.h>
-#include <linux/firmware/imx/types.h>
 
 #include <linux/firmware/imx/svc/misc.h>
 #include <linux/firmware/imx/svc/pm.h>

@@ -114,7 +114,11 @@ static int clk_pm_runtime_get(struct clk_core *core)
 		return 0;
 
 	ret = pm_runtime_get_sync(core->dev);
-	return ret < 0 ? ret : 0;
+	if (ret < 0) {
+		pm_runtime_put_noidle(core->dev);
+		return ret;
+	}
+	return 0;
 }
 
 static void clk_pm_runtime_put(struct clk_core *core)
@@ -3295,10 +3299,6 @@ static int __init clk_debug_init(void)
 late_initcall(clk_debug_init);
 #else
 static inline void clk_debug_register(struct clk_core *core) { }
-static inline void clk_debug_reparent(struct clk_core *core,
-				      struct clk_core *new_parent)
-{
-}
 static inline void clk_debug_unregister(struct clk_core *core)
 {
 }

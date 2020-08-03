@@ -34,6 +34,9 @@ static DEFINE_SPINLOCK(lweventlist_lock);
 
 static unsigned char default_operstate(const struct net_device *dev)
 {
+	if (netif_testing(dev))
+		return IF_OPER_TESTING;
+
 	if (!netif_carrier_ok(dev))
 		return (dev->ifindex != dev_get_iflink(dev) ?
 			IF_OPER_LOWERLAYERDOWN : IF_OPER_DOWN);
@@ -55,11 +58,15 @@ static void rfc2863_policy(struct net_device *dev)
 	write_lock_bh(&dev_base_lock);
 
 	switch(dev->link_mode) {
+	case IF_LINK_MODE_TESTING:
+		if (operstate == IF_OPER_UP)
+			operstate = IF_OPER_TESTING;
+		break;
+
 	case IF_LINK_MODE_DORMANT:
 		if (operstate == IF_OPER_UP)
 			operstate = IF_OPER_DORMANT;
 		break;
-
 	case IF_LINK_MODE_DEFAULT:
 	default:
 		break;
@@ -74,7 +81,8 @@ static void rfc2863_policy(struct net_device *dev)
 void linkwatch_init_dev(struct net_device *dev)
 {
 	/* Handle pre-registration link state changes */
-	if (!netif_carrier_ok(dev) || netif_dormant(dev))
+	if (!netif_carrier_ok(dev) || netif_dormant(dev) ||
+	    netif_testing(dev))
 		rfc2863_policy(dev);
 }
 

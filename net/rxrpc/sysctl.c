@@ -21,7 +21,7 @@ static const unsigned long max_jiffies = MAX_JIFFY_OFFSET;
 /*
  * RxRPC operating parameters.
  *
- * See Documentation/networking/rxrpc.txt and the variable definitions for more
+ * See Documentation/networking/rxrpc.rst and the variable definitions for more
  * information on the individual parameters.
  */
 static struct ctl_table rxrpc_sysctl_table[] = {

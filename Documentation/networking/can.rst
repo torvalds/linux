@@ -1058,7 +1058,7 @@ drivers you mainly have to deal with:
 - TX: Put the CAN frame from the socket buffer to the CAN controller.
 - RX: Put the CAN frame from the CAN controller to the socket buffer.
 
-See e.g. at Documentation/networking/netdevices.txt . The differences
+See e.g. at Documentation/networking/netdevices.rst . The differences
 for writing CAN network device driver are described below:
 
 

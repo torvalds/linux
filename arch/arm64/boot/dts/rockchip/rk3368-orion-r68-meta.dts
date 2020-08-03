@@ -50,7 +50,7 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
-		red {
+		red_led: led-0 {
 			gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 			label = "orion:red:led";
 			pinctrl-names = "default";
@@ -58,7 +58,7 @@
 			default-state = "on";
 		};
 
-		blue {
+		blue_led: led-1 {
 			gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 			label = "orion:blue:led";
 			pinctrl-names = "default";

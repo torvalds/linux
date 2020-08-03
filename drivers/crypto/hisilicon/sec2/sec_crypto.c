@@ -148,6 +148,7 @@ static int sec_aead_verify(struct sec_req *req)
 static void sec_req_cb(struct hisi_qp *qp, void *resp)
 {
 	struct sec_qp_ctx *qp_ctx = qp->qp_ctx;
+	struct sec_dfx *dfx = &qp_ctx->ctx->sec->debug.dfx;
 	struct sec_sqe *bd = resp;
 	struct sec_ctx *ctx;
 	struct sec_req *req;
@@ -157,11 +158,16 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 
 	type = bd->type_cipher_auth & SEC_TYPE_MASK;
 	if (unlikely(type != SEC_BD_TYPE2)) {
+		atomic64_inc(&dfx->err_bd_cnt);
 		pr_err("err bd type [%d]\n", type);
 		return;
 	}
 
 	req = qp_ctx->req_list[le16_to_cpu(bd->type2.tag)];
+	if (unlikely(!req)) {
+		atomic64_inc(&dfx->invalid_req_cnt);
+		return;
+	}
 	req->err_type = bd->type2.error_type;
 	ctx = req->ctx;
 	done = le16_to_cpu(bd->type2.done_flag) & SEC_DONE_MASK;
@@ -174,12 +180,13 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 			"err_type[%d],done[%d],flag[%d]\n",
 			req->err_type, done, flag);
 		err = -EIO;
+		atomic64_inc(&dfx->done_flag_cnt);
 	}
 
 	if (ctx->alg_type == SEC_AEAD && !req->c_req.encrypt)
 		err = sec_aead_verify(req);
 
-	atomic64_inc(&ctx->sec->debug.dfx.recv_cnt);
+	atomic64_inc(&dfx->recv_cnt);
 
 	ctx->req_op->buf_unmap(ctx, req);
 
@@ -200,10 +207,12 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 		return -ENOBUFS;
 
 	if (!ret) {
-		if (req->fake_busy)
+		if (req->fake_busy) {
+			atomic64_inc(&ctx->sec->debug.dfx.send_busy_cnt);
 			ret = -EBUSY;
-		else
+		} else {
 			ret = -EINPROGRESS;
+		}
 	}
 
 	return ret;
@@ -832,7 +841,6 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 				 struct crypto_authenc_keys *keys)
 {
 	struct crypto_shash *hash_tfm = ctx->hash_tfm;
-	SHASH_DESC_ON_STACK(shash, hash_tfm);
 	int blocksize, ret;
 
 	if (!keys->authkeylen) {
@@ -842,8 +850,8 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 
 	blocksize = crypto_shash_blocksize(hash_tfm);
 	if (keys->authkeylen > blocksize) {
-		ret = crypto_shash_digest(shash, keys->authkey,
-					  keys->authkeylen, ctx->a_key);
+		ret = crypto_shash_tfm_digest(hash_tfm, keys->authkey,
+					      keys->authkeylen, ctx->a_key);
 		if (ret) {
 			pr_err("hisi_sec2: aead auth digest error!\n");
 			return -EINVAL;

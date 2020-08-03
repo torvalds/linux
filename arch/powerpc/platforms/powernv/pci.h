@@ -33,6 +33,24 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
 
+/*
+ * A brief note on PNV_IODA_PE_BUS_ALL
+ *
+ * This is needed because of the behaviour of PCIe-to-PCI bridges. The PHB uses
+ * the Requester ID field of the PCIe request header to determine the device
+ * (and PE) that initiated a DMA. In legacy PCI individual memory read/write
+ * requests aren't tagged with the RID. To work around this the PCIe-to-PCI
+ * bridge will use (secondary_bus_no << 8) | 0x00 as the RID on the PCIe side.
+ *
+ * PCIe-to-X bridges have a similar issue even though PCI-X requests also have
+ * a RID in the transaction header. The PCIe-to-X bridge is permitted to "take
+ * ownership" of a transaction by a PCI-X device when forwarding it to the PCIe
+ * side of the bridge.
+ *
+ * To work around these problems we use the BUS_ALL flag since every subordinate
+ * bus of the bridge should go into the same PE.
+ */
+
 /* Indicates operations are frozen for a PE: MMIO in PESTA & DMA in PESTB. */
 #define PNV_IODA_STOPPED_STATE	0x8000000000000000
 
@@ -118,7 +136,6 @@ struct pnv_phb {
 		unsigned int		total_pe_num;
 		unsigned int		reserved_pe_idx;
 		unsigned int		root_pe_idx;
-		bool			root_pe_populated;
 
 		/* 32-bit MMIO window */
 		unsigned int		m32_size;
@@ -190,6 +207,7 @@ extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
 extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
+extern struct pnv_ioda_pe *pnv_pci_bdfn_to_pe(struct pnv_phb *phb, u16 bdfn);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
 extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
@@ -209,11 +227,7 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 /* Nvlink functions */
 extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
 extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
-extern struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe);
-extern struct iommu_table_group *pnv_try_setup_npu_table_group(
-		struct pnv_ioda_pe *pe);
-extern struct iommu_table_group *pnv_npu_compound_attach(
-		struct pnv_ioda_pe *pe);
+extern void pnv_pci_npu_setup_iommu_groups(void);
 
 /* pci-ioda-tce.c */
 #define POWERNV_IOMMU_DEFAULT_LEVELS	2
@@ -243,5 +257,7 @@ extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
 extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 		void *tce_mem, u64 tce_size,
 		u64 dma_offset, unsigned int page_shift);
+
+extern unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
 
 #endif /* __POWERNV_PCI_H */

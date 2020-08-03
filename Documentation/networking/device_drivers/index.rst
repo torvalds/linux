@@ -27,6 +27,30 @@ Contents:
    netronome/nfp
    pensando/ionic
    stmicro/stmmac
+   3com/3c509
+   3com/vortex
+   amazon/ena
+   aquantia/atlantic
+   chelsio/cxgb
+   cirrus/cs89x0
+   davicom/dm9000
+   dec/de4x5
+   dec/dmfe
+   dlink/dl2k
+   freescale/dpaa
+   freescale/gianfar
+   intel/ipw2100
+   intel/ipw2200
+   microsoft/netvsc
+   neterion/s2io
+   neterion/vxge
+   qualcomm/rmnet
+   sb1000
+   smsc/smc9
+   ti/cpsw_switchdev
+   ti/cpsw
+   ti/tlan
+   toshiba/spider_net
 
 .. only::  subproject and html
 

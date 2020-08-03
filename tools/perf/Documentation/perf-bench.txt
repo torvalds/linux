@@ -61,6 +61,9 @@ SUBSYSTEM
 'epoll'::
 	Eventpoll (epoll) stressing benchmarks.
 
+'internals'::
+	Benchmark internal perf functionality.
+
 'all'::
 	All benchmark subsystems.
 
@@ -213,6 +216,11 @@ Suite for evaluating concurrent epoll_wait calls.
 
 *ctl*::
 Suite for evaluating multiple epoll_ctl calls.
+
+SUITES FOR 'internals'
+~~~~~~~~~~~~~~~~~~~~~~
+*synthesize*::
+Suite for evaluating perf's event synthesis performance.
 
 SEE ALSO
 --------

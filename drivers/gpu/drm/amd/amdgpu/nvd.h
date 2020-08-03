@@ -256,6 +256,54 @@
 #define	PACKET3_BLK_CNTX_UPDATE				0x53
 #define	PACKET3_INCR_UPDT_STATE				0x55
 #define	PACKET3_ACQUIRE_MEM				0x58
+/* 1.  HEADER
+ * 2.  COHER_CNTL [30:0]
+ * 2.1 ENGINE_SEL [31:31]
+ * 2.  COHER_SIZE [31:0]
+ * 3.  COHER_SIZE_HI [7:0]
+ * 4.  COHER_BASE_LO [31:0]
+ * 5.  COHER_BASE_HI [23:0]
+ * 7.  POLL_INTERVAL [15:0]
+ * 8.  GCR_CNTL [18:0]
+ */
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLI_INV(x) ((x) << 0)
+		/*
+		 * 0:NOP
+		 * 1:ALL
+		 * 2:RANGE
+		 * 3:FIRST_LAST
+		 */
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL1_RANGE(x) ((x) << 2)
+		/*
+		 * 0:ALL
+		 * 1:reserved
+		 * 2:RANGE
+		 * 3:FIRST_LAST
+		 */
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLM_WB(x) ((x) << 4)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLM_INV(x) ((x) << 5)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLK_WB(x) ((x) << 6)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLK_INV(x) ((x) << 7)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLV_INV(x) ((x) << 8)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL1_INV(x) ((x) << 9)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL2_US(x) ((x) << 10)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL2_RANGE(x) ((x) << 11)
+		/*
+		 * 0:ALL
+		 * 1:VOL
+		 * 2:RANGE
+		 * 3:FIRST_LAST
+		 */
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL2_DISCARD(x)  ((x) << 13)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL2_INV(x) ((x) << 14)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GL2_WB(x) ((x) << 15)
+#define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_SEQ(x) ((x) << 16)
+		/*
+		 * 0: PARALLEL
+		 * 1: FORWARD
+		 * 2: REVERSE
+		 */
+#define 	PACKET3_ACQUIRE_MEM_GCR_RANGE_IS_PA  (1 << 18)
 #define	PACKET3_REWIND					0x59
 #define	PACKET3_INTERRUPT				0x5A
 #define	PACKET3_GEN_PDEPTE				0x5B
@@ -306,6 +354,7 @@
 #define	PACKET3_GET_LOD_STATS				0x8E
 #define	PACKET3_DRAW_MULTI_PREAMBLE			0x8F
 #define	PACKET3_FRAME_CONTROL				0x90
+#			define FRAME_TMZ	(1 << 0)
 #			define FRAME_CMD(x) ((x) << 28)
 			/*
 			 * x=0: tmz_begin

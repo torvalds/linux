@@ -53,6 +53,8 @@
 #define ATLAS_REG_DO_CALIB_STATUS_PRESSURE	BIT(0)
 #define ATLAS_REG_DO_CALIB_STATUS_DO		BIT(1)
 
+#define ATLAS_REG_RTD_DATA		0x0e
+
 #define ATLAS_REG_PH_TEMP_DATA		0x0e
 #define ATLAS_REG_PH_DATA		0x16
 
@@ -72,12 +74,14 @@
 #define ATLAS_EC_INT_TIME_IN_MS		650
 #define ATLAS_ORP_INT_TIME_IN_MS	450
 #define ATLAS_DO_INT_TIME_IN_MS		450
+#define ATLAS_RTD_INT_TIME_IN_MS	450
 
 enum {
 	ATLAS_PH_SM,
 	ATLAS_EC_SM,
 	ATLAS_ORP_SM,
 	ATLAS_DO_SM,
+	ATLAS_RTD_SM,
 };
 
 struct atlas_data {
@@ -216,6 +220,22 @@ static const struct iio_chan_spec atlas_do_channels[] = {
 		.output = 1,
 		.scan_index = -1
 	},
+};
+
+static const struct iio_chan_spec atlas_rtd_channels[] = {
+	{
+		.type = IIO_TEMP,
+		.address = ATLAS_REG_RTD_DATA,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_BE,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static int atlas_check_ph_calibration(struct atlas_data *data)
@@ -362,6 +382,12 @@ static struct atlas_device atlas_devices[] = {
 				.calibration = &atlas_check_do_calibration,
 				.delay = ATLAS_DO_INT_TIME_IN_MS,
 	},
+	[ATLAS_RTD_SM] = {
+				.channels = atlas_rtd_channels,
+				.num_channels = 2,
+				.data_reg = ATLAS_REG_RTD_DATA,
+				.delay = ATLAS_RTD_INT_TIME_IN_MS,
+	},
 };
 
 static int atlas_set_powermode(struct atlas_data *data, int on)
@@ -438,8 +464,7 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, data->chip->data_reg,
-			      (u8 *) &data->buffer,
-			      sizeof(__be32) * channels);
+			      &data->buffer, sizeof(__be32) * channels);
 
 	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
@@ -475,7 +500,7 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 	if (suspended)
 		msleep(data->chip->delay);
 
-	ret = regmap_bulk_read(data->regmap, reg, (u8 *) val, sizeof(*val));
+	ret = regmap_bulk_read(data->regmap, reg, val, sizeof(*val));
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -490,6 +515,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 	struct atlas_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
 	case IIO_CHAN_INFO_RAW: {
 		int ret;
 		__be32 reg;
@@ -497,7 +523,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_TEMP:
 			ret = regmap_bulk_read(data->regmap, chan->address,
-					      (u8 *) &reg, sizeof(reg));
+					       &reg, sizeof(reg));
 			break;
 		case IIO_PH:
 		case IIO_CONCENTRATION:
@@ -578,6 +604,7 @@ static const struct i2c_device_id atlas_id[] = {
 	{ "atlas-ec-sm", ATLAS_EC_SM},
 	{ "atlas-orp-sm", ATLAS_ORP_SM},
 	{ "atlas-do-sm", ATLAS_DO_SM},
+	{ "atlas-rtd-sm", ATLAS_RTD_SM},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);
@@ -587,6 +614,7 @@ static const struct of_device_id atlas_dt_ids[] = {
 	{ .compatible = "atlas,ec-sm", .data = (void *)ATLAS_EC_SM, },
 	{ .compatible = "atlas,orp-sm", .data = (void *)ATLAS_ORP_SM, },
 	{ .compatible = "atlas,do-sm", .data = (void *)ATLAS_DO_SM, },
+	{ .compatible = "atlas,rtd-sm", .data = (void *)ATLAS_RTD_SM, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, atlas_dt_ids);

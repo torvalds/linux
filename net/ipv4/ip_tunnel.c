@@ -860,7 +860,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 	netdev_state_change(dev);
 }
 
-int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
+int ip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 {
 	int err = 0;
 	struct ip_tunnel *t = netdev_priv(dev);
@@ -958,6 +958,20 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 	}
 
 done:
+	return err;
+}
+EXPORT_SYMBOL_GPL(ip_tunnel_ctl);
+
+int ip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct ip_tunnel_parm p;
+	int err;
+
+	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
+		return -EFAULT;
+	err = dev->netdev_ops->ndo_tunnel_ctl(dev, &p, cmd);
+	if (!err && copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
+		return -EFAULT;
 	return err;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_ioctl);

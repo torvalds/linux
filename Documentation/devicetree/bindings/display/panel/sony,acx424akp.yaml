@@ -18,7 +18,7 @@ properties:
   reg: true
   reset-gpios: true
   vddi-supply:
-     description: regulator that supplies the vddi voltage
+    description: regulator that supplies the vddi voltage
   enforce-video-mode: true
 
 required:

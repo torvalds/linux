@@ -93,11 +93,11 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  * i_mmap_rwsem (inode->i_mmap_rwsem)!
  *
  * page fault path:
- * mmap_sem -> sb_start_pagefault -> i_mmap_sem (r) -> transaction start ->
+ * mmap_lock -> sb_start_pagefault -> i_mmap_sem (r) -> transaction start ->
  *   page lock -> i_data_sem (rw)
  *
  * buffered write path:
- * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> mmap_lock
  * sb_start_write -> i_mutex -> transaction start -> page lock ->
  *   i_data_sem (rw)
  *
@@ -107,7 +107,7 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  *   i_data_sem (rw)
  *
  * direct IO:
- * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> mmap_lock
  * sb_start_write -> i_mutex -> transaction start -> i_data_sem (rw)
  *
  * writepages:
@@ -1106,6 +1106,7 @@ static void ext4_put_super(struct super_block *sb)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->s_blockgroup_lock);
 	fs_put_dax(sbi->s_daxdev);
+	fscrypt_free_dummy_context(&sbi->s_dummy_enc_ctx);
 #ifdef CONFIG_UNICODE
 	utf8_unload(sbi->s_encoding);
 #endif
@@ -1389,9 +1390,10 @@ retry:
 	return res;
 }
 
-static bool ext4_dummy_context(struct inode *inode)
+static const union fscrypt_context *
+ext4_get_dummy_context(struct super_block *sb)
 {
-	return DUMMY_ENCRYPTION_ENABLED(EXT4_SB(inode->i_sb));
+	return EXT4_SB(sb)->s_dummy_enc_ctx.ctx;
 }
 
 static bool ext4_has_stable_inodes(struct super_block *sb)
@@ -1410,7 +1412,7 @@ static const struct fscrypt_operations ext4_cryptops = {
 	.key_prefix		= "ext4:",
 	.get_context		= ext4_get_context,
 	.set_context		= ext4_set_context,
-	.dummy_context		= ext4_dummy_context,
+	.get_dummy_context	= ext4_get_dummy_context,
 	.empty_dir		= ext4_empty_dir,
 	.max_namelen		= EXT4_NAME_LEN,
 	.has_stable_inodes	= ext4_has_stable_inodes,
@@ -1605,6 +1607,7 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
+	{Opt_test_dummy_encryption, "test_dummy_encryption=%s"},
 	{Opt_test_dummy_encryption, "test_dummy_encryption"},
 	{Opt_nombcache, "nombcache"},
 	{Opt_nombcache, "no_mbcache"},	/* for backward compatibility */
@@ -1816,7 +1819,7 @@ static const struct mount_opts {
 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
-	{Opt_test_dummy_encryption, 0, MOPT_GTE0},
+	{Opt_test_dummy_encryption, 0, MOPT_STRING},
 	{Opt_nombcache, EXT4_MOUNT_NO_MBCACHE, MOPT_SET},
 	{Opt_err, 0, 0}
 };
@@ -1850,6 +1853,48 @@ static int ext4_sb_read_encoding(const struct ext4_super_block *es,
 	return 0;
 }
 #endif
+
+static int ext4_set_test_dummy_encryption(struct super_block *sb,
+					  const char *opt,
+					  const substring_t *arg,
+					  bool is_remount)
+{
+#ifdef CONFIG_FS_ENCRYPTION
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int err;
+
+	/*
+	 * This mount option is just for testing, and it's not worthwhile to
+	 * implement the extra complexity (e.g. RCU protection) that would be
+	 * needed to allow it to be set or changed during remount.  We do allow
+	 * it to be specified during remount, but only if there is no change.
+	 */
+	if (is_remount && !sbi->s_dummy_enc_ctx.ctx) {
+		ext4_msg(sb, KERN_WARNING,
+			 "Can't set test_dummy_encryption on remount");
+		return -1;
+	}
+	err = fscrypt_set_test_dummy_encryption(sb, arg, &sbi->s_dummy_enc_ctx);
+	if (err) {
+		if (err == -EEXIST)
+			ext4_msg(sb, KERN_WARNING,
+				 "Can't change test_dummy_encryption on remount");
+		else if (err == -EINVAL)
+			ext4_msg(sb, KERN_WARNING,
+				 "Value of option \"%s\" is unrecognized", opt);
+		else
+			ext4_msg(sb, KERN_WARNING,
+				 "Error processing option \"%s\" [%d]",
+				 opt, err);
+		return -1;
+	}
+	ext4_msg(sb, KERN_WARNING, "Test dummy encryption mode enabled");
+#else
+	ext4_msg(sb, KERN_WARNING,
+		 "Test dummy encryption mount option ignored");
+#endif
+	return 1;
+}
 
 static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			    substring_t *args, unsigned long *journal_devnum,
@@ -2047,14 +2092,8 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		*journal_ioprio =
 			IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, arg);
 	} else if (token == Opt_test_dummy_encryption) {
-#ifdef CONFIG_FS_ENCRYPTION
-		sbi->s_mount_flags |= EXT4_MF_TEST_DUMMY_ENCRYPTION;
-		ext4_msg(sb, KERN_WARNING,
-			 "Test dummy encryption mode enabled");
-#else
-		ext4_msg(sb, KERN_WARNING,
-			 "Test dummy encryption mount option ignored");
-#endif
+		return ext4_set_test_dummy_encryption(sb, opt, &args[0],
+						      is_remount);
 	} else if (m->flags & MOPT_DATAJ) {
 		if (is_remount) {
 			if (!sbi->s_journal)
@@ -2311,8 +2350,8 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 		SEQ_OPTS_PRINT("max_dir_size_kb=%u", sbi->s_max_dir_size_kb);
 	if (test_opt(sb, DATA_ERR_ABORT))
 		SEQ_OPTS_PUTS("data_err=abort");
-	if (DUMMY_ENCRYPTION_ENABLED(sbi))
-		SEQ_OPTS_PUTS("test_dummy_encryption");
+
+	fscrypt_show_test_dummy_encryption(seq, sep, sb);
 
 	ext4_show_quota_options(seq, sb);
 	return 0;
@@ -3679,7 +3718,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	int blocksize, clustersize;
 	unsigned int db_count;
 	unsigned int i;
-	int needs_recovery, has_huge_files, has_bigalloc;
+	int needs_recovery, has_huge_files;
 	__u64 blocks_count;
 	int err = 0;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
@@ -3971,15 +4010,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
 		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with data=journal disables delayed allocation, dioread_nolock, and O_DIRECT support!\n");
+		/* can't mount with both data=journal and dioread_nolock. */
 		clear_opt(sb, DIOREAD_NOLOCK);
 		if (test_opt2(sb, EXPLICIT_DELALLOC)) {
 			ext4_msg(sb, KERN_ERR, "can't mount with "
 				 "both data=journal and delalloc");
-			goto failed_mount;
-		}
-		if (test_opt(sb, DIOREAD_NOLOCK)) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and dioread_nolock");
 			goto failed_mount;
 		}
 		if (test_opt(sb, DAX)) {
@@ -4198,8 +4233,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* Handle clustersize */
 	clustersize = BLOCK_SIZE << le32_to_cpu(es->s_log_cluster_size);
-	has_bigalloc = ext4_has_feature_bigalloc(sb);
-	if (has_bigalloc) {
+	if (ext4_has_feature_bigalloc(sb)) {
 		if (clustersize < blocksize) {
 			ext4_msg(sb, KERN_ERR,
 				 "cluster size (%d) smaller than "
@@ -4780,6 +4814,7 @@ failed_mount:
 	for (i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(get_qf_name(sb, sbi, i));
 #endif
+	fscrypt_free_dummy_context(&sbi->s_dummy_enc_ctx);
 	ext4_blkdev_remove(sbi);
 	brelse(bh);
 out_fail:
@@ -5256,7 +5291,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 		needs_barrier = true;
 	if (needs_barrier) {
 		int err;
-		err = blkdev_issue_flush(sb->s_bdev, GFP_KERNEL, NULL);
+		err = blkdev_issue_flush(sb->s_bdev, GFP_KERNEL);
 		if (!ret)
 			ret = err;
 	}
@@ -5885,7 +5920,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		EXT4_I(inode)->i_flags |= EXT4_NOATIME_FL | EXT4_IMMUTABLE_FL;
 		inode_set_flags(inode, S_NOATIME | S_IMMUTABLE,
 				S_NOATIME | S_IMMUTABLE);
-		ext4_mark_inode_dirty(handle, inode);
+		err = ext4_mark_inode_dirty(handle, inode);
 		ext4_journal_stop(handle);
 	unlock_inode:
 		inode_unlock(inode);
@@ -5987,12 +6022,14 @@ static int ext4_quota_off(struct super_block *sb, int type)
 	 * this is not a hard failure and quotas are already disabled.
 	 */
 	handle = ext4_journal_start(inode, EXT4_HT_QUOTA, 1);
-	if (IS_ERR(handle))
+	if (IS_ERR(handle)) {
+		err = PTR_ERR(handle);
 		goto out_unlock;
+	}
 	EXT4_I(inode)->i_flags &= ~(EXT4_NOATIME_FL | EXT4_IMMUTABLE_FL);
 	inode_set_flags(inode, 0, S_NOATIME | S_IMMUTABLE);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
+	err = ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
 out_unlock:
 	inode_unlock(inode);
@@ -6050,7 +6087,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
 	ext4_lblk_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
-	int err, offset = off & (sb->s_blocksize - 1);
+	int err = 0, err2 = 0, offset = off & (sb->s_blocksize - 1);
 	int retries = 0;
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
@@ -6098,9 +6135,11 @@ out:
 	if (inode->i_size < off + len) {
 		i_size_write(inode, off + len);
 		EXT4_I(inode)->i_disksize = inode->i_size;
-		ext4_mark_inode_dirty(handle, inode);
+		err2 = ext4_mark_inode_dirty(handle, inode);
+		if (unlikely(err2 && !err))
+			err = err2;
 	}
-	return len;
+	return err ? err : len;
 }
 #endif
 

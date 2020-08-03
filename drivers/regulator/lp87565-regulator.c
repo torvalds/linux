@@ -46,7 +46,7 @@ struct lp87565_regulator {
 
 static const struct lp87565_regulator regulators[];
 
-static const struct regulator_linear_range buck0_1_2_3_ranges[] = {
+static const struct linear_range buck0_1_2_3_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0xA, 0x17, 10000),
 	REGULATOR_LINEAR_RANGE(735000, 0x18, 0x9d, 5000),
 	REGULATOR_LINEAR_RANGE(1420000, 0x9e, 0xff, 20000),

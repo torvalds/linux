@@ -227,8 +227,9 @@ void emac_mac_stop(struct emac_adapter *adpt);
 void emac_mac_mode_config(struct emac_adapter *adpt);
 void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 			 int *num_pkts, int max_pkts);
-int emac_mac_tx_buf_send(struct emac_adapter *adpt, struct emac_tx_queue *tx_q,
-			 struct sk_buff *skb);
+netdev_tx_t emac_mac_tx_buf_send(struct emac_adapter *adpt,
+				 struct emac_tx_queue *tx_q,
+				 struct sk_buff *skb);
 void emac_mac_tx_process(struct emac_adapter *adpt, struct emac_tx_queue *tx_q);
 void emac_mac_rx_tx_ring_init_all(struct platform_device *pdev,
 				  struct emac_adapter *adpt);

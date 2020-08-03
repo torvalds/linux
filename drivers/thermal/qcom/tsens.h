@@ -580,11 +580,6 @@ void compute_intercept_slope(struct tsens_priv *priv, u32 *pt1, u32 *pt2, u32 mo
 int init_common(struct tsens_priv *priv);
 int get_temp_tsens_valid(const struct tsens_sensor *s, int *temp);
 int get_temp_common(const struct tsens_sensor *s, int *temp);
-int tsens_enable_irq(struct tsens_priv *priv);
-void tsens_disable_irq(struct tsens_priv *priv);
-int tsens_set_trips(void *_sensor, int low, int high);
-irqreturn_t tsens_irq_thread(int irq, void *data);
-irqreturn_t tsens_critical_irq_thread(int irq, void *data);
 
 /* TSENS target */
 extern struct tsens_plat_data data_8960;

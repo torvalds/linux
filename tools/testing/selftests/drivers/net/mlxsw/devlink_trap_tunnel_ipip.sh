@@ -140,7 +140,6 @@ ecn_payload_get()
 ecn_decap_test()
 {
 	local trap_name="decap_error"
-	local group_name="tunnel_drops"
 	local desc=$1; shift
 	local ecn_desc=$1; shift
 	local outer_tos=$1; shift
@@ -161,7 +160,7 @@ ecn_decap_test()
 
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
 	check_err $? "Packets were not dropped"
@@ -200,7 +199,6 @@ ipip_payload_get()
 no_matching_tunnel_test()
 {
 	local trap_name="decap_error"
-	local group_name="tunnel_drops"
 	local desc=$1; shift
 	local sip=$1; shift
 	local mz_pid
@@ -218,7 +216,7 @@ no_matching_tunnel_test()
 		-A $sip -B 192.0.2.65 -t ip len=48,proto=47,p=$payload -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
 	check_err $? "Packets were not dropped"

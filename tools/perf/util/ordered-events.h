@@ -29,7 +29,7 @@ typedef int (*ordered_events__deliver_t)(struct ordered_events *oe,
 
 struct ordered_events_buffer {
 	struct list_head	list;
-	struct ordered_event	event[0];
+	struct ordered_event	event[];
 };
 
 struct ordered_events {

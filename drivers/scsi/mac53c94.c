@@ -20,9 +20,9 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pgtable.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/macio.h>
 

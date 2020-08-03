@@ -224,6 +224,9 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 
 	expected = sg_dma_address(sg->sgl);
 	for_each_sg(sg->sgl, s, sg->nents, i) {
+		if (!sg_dma_len(s))
+			break;
+
 		if (sg_dma_address(s) != expected) {
 			DRM_ERROR("sg_table is not contiguous");
 			ret = -EINVAL;

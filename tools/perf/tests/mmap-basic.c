@@ -79,14 +79,14 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		char name[64];
 
 		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
-		evsels[i] = perf_evsel__newtp("syscalls", name);
+		evsels[i] = evsel__newtp("syscalls", name);
 		if (IS_ERR(evsels[i])) {
-			pr_debug("perf_evsel__new(%s)\n", name);
+			pr_debug("evsel__new(%s)\n", name);
 			goto out_delete_evlist;
 		}
 
 		evsels[i]->core.attr.wakeup_events = 1;
-		perf_evsel__set_sample_id(evsels[i], false);
+		evsel__set_sample_id(evsels[i], false);
 
 		evlist__add(evlist, evsels[i]);
 
@@ -150,7 +150,7 @@ out_init:
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
-				 perf_evsel__name(evsel), nr_events[evsel->idx]);
+				 evsel__name(evsel), nr_events[evsel->idx]);
 			err = -1;
 			goto out_delete_evlist;
 		}

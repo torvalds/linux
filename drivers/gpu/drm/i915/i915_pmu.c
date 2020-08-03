@@ -439,29 +439,10 @@ static u64 count_interrupts(struct drm_i915_private *i915)
 	return sum;
 }
 
-static void engine_event_destroy(struct perf_event *event)
-{
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct intel_engine_cs *engine;
-
-	engine = intel_engine_lookup_user(i915,
-					  engine_event_class(event),
-					  engine_event_instance(event));
-	if (drm_WARN_ON_ONCE(&i915->drm, !engine))
-		return;
-
-	if (engine_event_sample(event) == I915_SAMPLE_BUSY &&
-	    intel_engine_supports_stats(engine))
-		intel_disable_engine_stats(engine);
-}
-
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
 	WARN_ON(event->parent);
-
-	if (is_engine_event(event))
-		engine_event_destroy(event);
+	module_put(THIS_MODULE);
 }
 
 static int
@@ -514,23 +495,13 @@ static int engine_event_init(struct perf_event *event)
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
 	struct intel_engine_cs *engine;
-	u8 sample;
-	int ret;
 
 	engine = intel_engine_lookup_user(i915, engine_event_class(event),
 					  engine_event_instance(event));
 	if (!engine)
 		return -ENODEV;
 
-	sample = engine_event_sample(event);
-	ret = engine_event_status(engine, sample);
-	if (ret)
-		return ret;
-
-	if (sample == I915_SAMPLE_BUSY && intel_engine_supports_stats(engine))
-		ret = intel_enable_engine_stats(engine);
-
-	return ret;
+	return engine_event_status(engine, engine_event_sample(event));
 }
 
 static int i915_pmu_event_init(struct perf_event *event)
@@ -563,8 +534,10 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (!event->parent)
+	if (!event->parent) {
+		__module_get(THIS_MODULE);
 		event->destroy = i915_pmu_event_destroy;
+	}
 
 	return 0;
 }
@@ -1115,7 +1088,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
-		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
+		drm_info(&i915->drm, "PMU not supported for this GPU.");
 		return;
 	}
 
@@ -1178,7 +1151,7 @@ err_name:
 	if (!is_igp(i915))
 		kfree(pmu->name);
 err:
-	dev_notice(i915->drm.dev, "Failed to register PMU!\n");
+	drm_notice(&i915->drm, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)

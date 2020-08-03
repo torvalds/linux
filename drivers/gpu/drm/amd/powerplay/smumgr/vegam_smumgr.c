@@ -356,7 +356,8 @@ static int vegam_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_StablePState))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UVDDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.UvdBootLevel));
+				(uint32_t)(1 << smu_data->smc_state_table.UvdBootLevel),
+				NULL);
 	return 0;
 }
 
@@ -388,7 +389,8 @@ static int vegam_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_VCEDPM_SetEnabledMask,
-				(uint32_t)1 << smu_data->smc_state_table.VceBootLevel);
+				(uint32_t)1 << smu_data->smc_state_table.VceBootLevel,
+				NULL);
 	return 0;
 }
 
@@ -1906,7 +1908,8 @@ static int vegam_enable_reconfig_cus(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					    PPSMC_MSG_EnableModeSwitchRLCNotification,
-					    adev->gfx.cu_info.number);
+					    adev->gfx.cu_info.number,
+					    NULL);
 
 	return 0;
 }
@@ -2060,7 +2063,7 @@ static int vegam_init_smc_table(struct pp_hwmgr *hwmgr)
 		table->AcDcGpio = gpio_pin.uc_gpio_pin_bit_shift;
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_AutomaticDCTransition) &&
-				!smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UseNewGPIOScheme))
+				!smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UseNewGPIOScheme, NULL))
 			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SMCtoPPLIBAcdcGpioScheme);
 	} else {
@@ -2250,10 +2253,12 @@ int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 	if (!hwmgr->avfs_supported)
 		return 0;
 
-	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
+	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs, NULL);
 	if (!ret) {
 		if (data->apply_avfs_cks_off_voltage)
-			ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
+			ret = smum_send_msg_to_smc(hwmgr,
+					PPSMC_MSG_ApplyAvfsCksOffVoltage,
+					NULL);
 	}
 
 	return ret;
@@ -2279,6 +2284,7 @@ const struct pp_smumgr_func vegam_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.process_firmware_header = vegam_process_firmware_header,
 	.is_dpm_running = vegam_is_dpm_running,
 	.get_mac_definition = vegam_get_mac_definition,

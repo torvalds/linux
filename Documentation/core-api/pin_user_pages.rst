@@ -148,23 +148,46 @@ NOTE: Some pages, such as DAX pages, cannot be pinned with longterm pins. That's
 because DAX pages do not have a separate page cache, and so "pinning" implies
 locking down file system blocks, which is not (yet) supported in that way.
 
-CASE 3: Hardware with page faulting support
--------------------------------------------
-Here, a well-written driver doesn't normally need to pin pages at all. However,
-if the driver does choose to do so, it can register MMU notifiers for the range,
-and will be called back upon invalidation. Either way (avoiding page pinning, or
-using MMU notifiers to unpin upon request), there is proper synchronization with
-both filesystem and mm (page_mkclean(), munmap(), etc).
+CASE 3: MMU notifier registration, with or without page faulting hardware
+-------------------------------------------------------------------------
+Device drivers can pin pages via get_user_pages*(), and register for mmu
+notifier callbacks for the memory range. Then, upon receiving a notifier
+"invalidate range" callback , stop the device from using the range, and unpin
+the pages. There may be other possible schemes, such as for example explicitly
+synchronizing against pending IO, that accomplish approximately the same thing.
 
-Therefore, neither flag needs to be set.
+Or, if the hardware supports replayable page faults, then the device driver can
+avoid pinning entirely (this is ideal), as follows: register for mmu notifier
+callbacks as above, but instead of stopping the device and unpinning in the
+callback, simply remove the range from the device's page tables.
 
-In this case, ideally, neither get_user_pages() nor pin_user_pages() should be
-called. Instead, the software should be written so that it does not pin pages.
-This allows mm and filesystems to operate more efficiently and reliably.
+Either way, as long as the driver unpins the pages upon mmu notifier callback,
+then there is proper synchronization with both filesystem and mm
+(page_mkclean(), munmap(), etc). Therefore, neither flag needs to be set.
 
 CASE 4: Pinning for struct page manipulation only
 -------------------------------------------------
-Here, normal GUP calls are sufficient, so neither flag needs to be set.
+If only struct page data (as opposed to the actual memory contents that a page
+is tracking) is affected, then normal GUP calls are sufficient, and neither flag
+needs to be set.
+
+CASE 5: Pinning in order to write to the data within the page
+-------------------------------------------------------------
+Even though neither DMA nor Direct IO is involved, just a simple case of "pin,
+write to a page's data, unpin" can cause a problem. Case 5 may be considered a
+superset of Case 1, plus Case 2, plus anything that invokes that pattern. In
+other words, if the code is neither Case 1 nor Case 2, it may still require
+FOLL_PIN, for patterns like this:
+
+Correct (uses FOLL_PIN calls):
+    pin_user_pages()
+    write to the data within the pages
+    unpin_user_pages()
+
+INCORRECT (uses FOLL_GET calls):
+    get_user_pages()
+    write to the data within the pages
+    put_page()
 
 page_maybe_dma_pinned(): the whole point of pinning
 ===================================================

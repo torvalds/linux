@@ -9,8 +9,12 @@ menuconfig BPFILTER
 if BPFILTER
 config BPFILTER_UMH
 	tristate "bpfilter kernel module with user mode helper"
-	depends on CC_CAN_LINK
+	depends on CC_CAN_LINK_STATIC
 	default m
 	help
 	  This builds bpfilter kernel module with embedded user mode helper
+
+	  Note: your toolchain must support building static binaries, since
+	  rootfs isn't mounted at the time when __init functions are called
+	  and do_execv won't be able to find the elf interpreter.
 endif

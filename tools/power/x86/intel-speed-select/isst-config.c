@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.3";
+static const char *version_str = "v1.4";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -25,7 +25,7 @@ static FILE *outf;
 static int cpu_model;
 static int cpu_stepping;
 
-#define MAX_CPUS_IN_ONE_REQ 64
+#define MAX_CPUS_IN_ONE_REQ 256
 static short max_target_cpus;
 static unsigned short target_cpus[MAX_CPUS_IN_ONE_REQ];
 
@@ -653,7 +653,7 @@ void set_cpu_mask_from_punit_coremask(int cpu, unsigned long long core_mask,
 	pkg_id = get_physical_package_id(cpu);
 
 	for (i = 0; i < 64; ++i) {
-		if (core_mask & BIT(i)) {
+		if (core_mask & BIT_ULL(i)) {
 			int j;
 
 			for (j = 0; j < topo_max_cpus; ++j) {
@@ -1169,6 +1169,7 @@ static void dump_clx_n_config_for_cpu(int cpu, void *arg1, void *arg2,
 
 		ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
 		pbf_info = &ctdp_level->pbf_info;
+		clx_n_pkg_dev.processed = 1;
 		isst_ctdp_display_information(cpu, outf, tdp_level, &clx_n_pkg_dev);
 		free_cpu_set(ctdp_level->core_cpumask);
 		free_cpu_set(pbf_info->core_cpumask);
@@ -1631,6 +1632,8 @@ static int set_pbf_core_power(int cpu)
 static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			    void *arg4)
 {
+	struct isst_pkg_ctdp_level_info ctdp_level;
+	struct isst_pkg_ctdp pkg_dev;
 	int ret;
 	int status = *(int *)arg4;
 
@@ -1643,6 +1646,24 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			set_scaling_max_to_cpuinfo_max(cpu);
 			set_scaling_min_to_cpuinfo_min(cpu);
 		}
+		goto disp_result;
+	}
+
+	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get number of levels", 0, 0);
+		goto disp_result;
+	}
+
+	ret = isst_get_ctdp_control(cpu, pkg_dev.current_level, &ctdp_level);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get current level", 0, 0);
+		goto disp_result;
+	}
+
+	if (!ctdp_level.pbf_support) {
+		isst_display_error_info_message(1, "base-freq feature is not present at this level", 1, pkg_dev.current_level);
+		ret = -1;
 		goto disp_result;
 	}
 
@@ -1772,10 +1793,30 @@ static void dump_fact_config(int arg)
 static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			     void *arg4)
 {
+	struct isst_pkg_ctdp_level_info ctdp_level;
+	struct isst_pkg_ctdp pkg_dev;
 	int ret;
 	int status = *(int *)arg4;
 
-	if (auto_mode && status) {
+	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get number of levels", 0, 0);
+		goto disp_results;
+	}
+
+	ret = isst_get_ctdp_control(cpu, pkg_dev.current_level, &ctdp_level);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get current level", 0, 0);
+		goto disp_results;
+	}
+
+	if (!ctdp_level.fact_support) {
+		isst_display_error_info_message(1, "turbo-freq feature is not present at this level", 1, pkg_dev.current_level);
+		ret = -1;
+		goto disp_results;
+	}
+
+	if (status) {
 		ret = isst_pm_qos_config(cpu, 1, 1);
 		if (ret)
 			goto disp_results;

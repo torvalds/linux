@@ -154,8 +154,8 @@ extern int snapshot_write_next(struct snapshot_handle *handle);
 extern void snapshot_write_finalize(struct snapshot_handle *handle);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
 
-/* If unset, the snapshot device cannot be open. */
-extern atomic_t snapshot_device_available;
+extern bool hibernate_acquire(void);
+extern void hibernate_release(void);
 
 extern sector_t alloc_swapdev_block(int swap);
 extern void free_all_swap_pages(int swap);

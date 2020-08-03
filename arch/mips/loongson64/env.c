@@ -14,11 +14,14 @@
  * Author: Wu Zhangjin, wuzhangjin@gmail.com
  */
 #include <linux/export.h>
+#include <linux/pci_ids.h>
 #include <asm/bootinfo.h>
 #include <loongson.h>
 #include <boot_param.h>
 #include <builtin_dtbs.h>
 #include <workarounds.h>
+
+#define HOST_BRIDGE_CONFIG_ADDR	((void __iomem *)TO_UNCAC(0x1a000000))
 
 u32 cpu_clock_freq;
 EXPORT_SYMBOL(cpu_clock_freq);
@@ -43,6 +46,8 @@ void __init prom_init_env(void)
 	struct system_loongson *esys;
 	struct efi_cpuinfo_loongson *ecpu;
 	struct irq_source_routing_table *eirq_source;
+	u32 id;
+	u16 vendor, device;
 
 	/* firmware arguments are initialized in head.S */
 	boot_p = (struct boot_params *)fw_arg2;
@@ -178,4 +183,19 @@ void __init prom_init_env(void)
 		memcpy(loongson_sysconf.sensors, esys->sensors,
 			sizeof(struct sensor_device) * loongson_sysconf.nr_sensors);
 	pr_info("CpuClock = %u\n", cpu_clock_freq);
+
+	/* Read the ID of PCI host bridge to detect bridge type */
+	id = readl(HOST_BRIDGE_CONFIG_ADDR);
+	vendor = id & 0xffff;
+	device = (id >> 16) & 0xffff;
+
+	if (vendor == PCI_VENDOR_ID_LOONGSON && device == 0x7a00) {
+		pr_info("The bridge chip is LS7A\n");
+		loongson_sysconf.bridgetype = LS7A;
+		loongson_sysconf.early_config = ls7a_early_config;
+	} else {
+		pr_info("The bridge chip is RS780E or SR5690\n");
+		loongson_sysconf.bridgetype = RS780E;
+		loongson_sysconf.early_config = rs780e_early_config;
+	}
 }

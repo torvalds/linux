@@ -56,14 +56,14 @@ static const unsigned int LDO1_VSEL_table[] = {
 	2800000, 3000000, 3100000, 3300000,
 };
 
-static const struct regulator_linear_range tps65217_uv1_ranges[] = {
+static const struct linear_range tps65217_uv1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 24, 25000),
 	REGULATOR_LINEAR_RANGE(1550000, 25, 52, 50000),
 	REGULATOR_LINEAR_RANGE(3000000, 53, 55, 100000),
 	REGULATOR_LINEAR_RANGE(3300000, 56, 63, 0),
 };
 
-static const struct regulator_linear_range tps65217_uv2_ranges[] = {
+static const struct linear_range tps65217_uv2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1500000, 0, 8, 50000),
 	REGULATOR_LINEAR_RANGE(2000000, 9, 13, 100000),
 	REGULATOR_LINEAR_RANGE(2450000, 14, 31, 50000),

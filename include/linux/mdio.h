@@ -9,6 +9,13 @@
 #include <uapi/linux/mdio.h>
 #include <linux/mod_devicetable.h>
 
+/* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
+ * IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips.
+ */
+#define MII_ADDR_C45		(1<<30)
+#define MII_DEVADDR_C45_SHIFT	16
+#define MII_REGADDR_C45_MASK	GENMASK(15, 0)
+
 struct gpio_desc;
 struct mii_bus;
 
@@ -325,6 +332,30 @@ int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 int mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
 		   u16 set);
+
+static inline u32 mdiobus_c45_addr(int devad, u16 regnum)
+{
+	return MII_ADDR_C45 | devad << MII_DEVADDR_C45_SHIFT | regnum;
+}
+
+static inline int __mdiobus_c45_read(struct mii_bus *bus, int prtad, int devad,
+				     u16 regnum)
+{
+	return __mdiobus_read(bus, prtad, mdiobus_c45_addr(devad, regnum));
+}
+
+static inline int __mdiobus_c45_write(struct mii_bus *bus, int prtad, int devad,
+				      u16 regnum, u16 val)
+{
+	return __mdiobus_write(bus, prtad, mdiobus_c45_addr(devad, regnum),
+			       val);
+}
+
+static inline int mdiobus_c45_read(struct mii_bus *bus, int prtad, int devad,
+				   u16 regnum)
+{
+	return mdiobus_read(bus, prtad, mdiobus_c45_addr(devad, regnum));
+}
 
 int mdiobus_register_device(struct mdio_device *mdiodev);
 int mdiobus_unregister_device(struct mdio_device *mdiodev);

@@ -48,6 +48,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->chunk_sectors = 0;
 	lim->max_write_same_sectors = 0;
 	lim->max_write_zeroes_sectors = 0;
+	lim->max_zone_append_sectors = 0;
 	lim->max_discard_sectors = 0;
 	lim->max_hw_discard_sectors = 0;
 	lim->discard_granularity = 0;
@@ -83,6 +84,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_same_sectors = UINT_MAX;
 	lim->max_write_zeroes_sectors = UINT_MAX;
+	lim->max_zone_append_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
 
@@ -220,6 +222,33 @@ void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 	q->limits.max_write_zeroes_sectors = max_write_zeroes_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_write_zeroes_sectors);
+
+/**
+ * blk_queue_max_zone_append_sectors - set max sectors for a single zone append
+ * @q:  the request queue for the device
+ * @max_zone_append_sectors: maximum number of sectors to write per command
+ **/
+void blk_queue_max_zone_append_sectors(struct request_queue *q,
+		unsigned int max_zone_append_sectors)
+{
+	unsigned int max_sectors;
+
+	if (WARN_ON(!blk_queue_is_zoned(q)))
+		return;
+
+	max_sectors = min(q->limits.max_hw_sectors, max_zone_append_sectors);
+	max_sectors = min(q->limits.chunk_sectors, max_sectors);
+
+	/*
+	 * Signal eventual driver bugs resulting in the max_zone_append sectors limit
+	 * being 0 due to a 0 argument, the chunk_sectors limit (zone size) not set,
+	 * or the max_hw_sectors limit not set.
+	 */
+	WARN_ON(!max_sectors);
+
+	q->limits.max_zone_append_sectors = max_sectors;
+}
+EXPORT_SYMBOL_GPL(blk_queue_max_zone_append_sectors);
 
 /**
  * blk_queue_max_segments - set max hw segments for a request for this queue
@@ -470,6 +499,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					b->max_write_same_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
+	t->max_zone_append_sectors = min(t->max_zone_append_sectors,
+					b->max_zone_append_sectors);
 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
@@ -650,43 +681,6 @@ void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
 		q->dma_pad_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_update_dma_pad);
-
-/**
- * blk_queue_dma_drain - Set up a drain buffer for excess dma.
- * @q:  the request queue for the device
- * @dma_drain_needed: fn which returns non-zero if drain is necessary
- * @buf:	physically contiguous buffer
- * @size:	size of the buffer in bytes
- *
- * Some devices have excess DMA problems and can't simply discard (or
- * zero fill) the unwanted piece of the transfer.  They have to have a
- * real area of memory to transfer it into.  The use case for this is
- * ATAPI devices in DMA mode.  If the packet command causes a transfer
- * bigger than the transfer size some HBAs will lock up if there
- * aren't DMA elements to contain the excess transfer.  What this API
- * does is adjust the queue so that the buf is always appended
- * silently to the scatterlist.
- *
- * Note: This routine adjusts max_hw_segments to make room for appending
- * the drain buffer.  If you call blk_queue_max_segments() after calling
- * this routine, you must set the limit to one fewer than your device
- * can support otherwise there won't be room for the drain buffer.
- */
-int blk_queue_dma_drain(struct request_queue *q,
-			       dma_drain_needed_fn *dma_drain_needed,
-			       void *buf, unsigned int size)
-{
-	if (queue_max_segments(q) < 2)
-		return -EINVAL;
-	/* make room for appending the drain */
-	blk_queue_max_segments(q, queue_max_segments(q) - 1);
-	q->dma_drain_needed = dma_drain_needed;
-	q->dma_drain_buffer = buf;
-	q->dma_drain_size = size;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blk_queue_dma_drain);
 
 /**
  * blk_queue_segment_boundary - set boundary rules for segment merging

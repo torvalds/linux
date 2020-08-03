@@ -328,12 +328,6 @@ config HAVE_FUNCTION_ARG_ACCESS_API
 	  the API needed to access function arguments from pt_regs,
 	  declared in asm/ptrace.h
 
-config HAVE_CLK
-	bool
-	help
-	  The <linux/clk.h> calls support software clock gating and
-	  thus are a key power management tool on many systems.
-
 config HAVE_HW_BREAKPOINT
 	bool
 	depends on PERF_EVENTS
@@ -532,6 +526,31 @@ config STACKPROTECTOR_STRONG
 	  On an x86 "defconfig" build, this feature adds canary checks to
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
+
+config ARCH_SUPPORTS_SHADOW_CALL_STACK
+	bool
+	help
+	  An architecture should select this if it supports Clang's Shadow
+	  Call Stack and implements runtime support for shadow stack
+	  switching.
+
+config SHADOW_CALL_STACK
+	bool "Clang Shadow Call Stack"
+	depends on CC_IS_CLANG && ARCH_SUPPORTS_SHADOW_CALL_STACK
+	depends on DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
+	help
+	  This option enables Clang's Shadow Call Stack, which uses a
+	  shadow stack to protect function return addresses from being
+	  overwritten by an attacker. More information can be found in
+	  Clang's documentation:
+
+	    https://clang.llvm.org/docs/ShadowCallStack.html
+
+	  Note that security guarantees in the kernel differ from the
+	  ones documented for user space. The kernel must store addresses
+	  of shadow stacks in memory, which means an attacker capable of
+	  reading and writing arbitrary memory may be able to locate them
+	  and hijack control flow by modifying the stacks.
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool
@@ -857,7 +876,7 @@ config VMAP_STACK
 	bool "Use a virtually-mapped stack"
 	depends on HAVE_ARCH_VMAP_STACK
 	depends on !KASAN || KASAN_VMALLOC
-	---help---
+	help
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
 	  caught immediately rather than causing difficult-to-diagnose
@@ -929,7 +948,7 @@ config ARCH_USE_MEMREMAP_PROT
 config LOCK_EVENT_COUNTS
 	bool "Locking event counts collection"
 	depends on DEBUG_FS
-	---help---
+	help
 	  Enable light-weight counting of various locking related events
 	  in the system with minimal performance impact. This reduces
 	  the chance of application behavior change because of timing

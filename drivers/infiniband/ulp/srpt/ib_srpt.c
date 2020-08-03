@@ -81,7 +81,7 @@ MODULE_PARM_DESC(srpt_srq_size,
 
 static int srpt_get_u64_x(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "0x%016llx", *(u64 *)kp->arg);
+	return sprintf(buffer, "0x%016llx\n", *(u64 *)kp->arg);
 }
 module_param_call(srpt_service_guid, NULL, srpt_get_u64_x, &srpt_service_guid,
 		  0444);
@@ -135,13 +135,10 @@ static bool srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new)
 static void srpt_event_handler(struct ib_event_handler *handler,
 			       struct ib_event *event)
 {
-	struct srpt_device *sdev;
+	struct srpt_device *sdev =
+		container_of(handler, struct srpt_device, event_handler);
 	struct srpt_port *sport;
 	u8 port_num;
-
-	sdev = ib_get_client_data(event->device, &srpt_client);
-	if (!sdev || sdev->device != event->device)
-		return;
 
 	pr_debug("ASYNC event= %d on device= %s\n", event->event,
 		 dev_name(&sdev->device->dev));
@@ -217,8 +214,9 @@ static const char *get_ch_state_name(enum rdma_ch_state s)
  */
 static void srpt_qp_event(struct ib_event *event, struct srpt_rdma_ch *ch)
 {
-	pr_debug("QP event %d on ch=%p sess_name=%s state=%d\n",
-		 event->event, ch, ch->sess_name, ch->state);
+	pr_debug("QP event %d on ch=%p sess_name=%s-%d state=%s\n",
+		 event->event, ch, ch->sess_name, ch->qp->qp_num,
+		 get_ch_state_name(ch->state));
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
@@ -610,6 +608,11 @@ static int srpt_refresh_port(struct srpt_port *sport)
 			       dev_name(&sport->sdev->device->dev), sport->port,
 			       PTR_ERR(sport->mad_agent));
 			sport->mad_agent = NULL;
+			memset(&port_modify, 0, sizeof(port_modify));
+			port_modify.clr_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP;
+			ib_modify_port(sport->sdev->device, sport->port, 0,
+				       &port_modify);
+
 		}
 	}
 
@@ -633,9 +636,8 @@ static void srpt_unregister_mad_agent(struct srpt_device *sdev)
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
 		WARN_ON(sport->port != i);
-		if (ib_modify_port(sdev->device, i, 0, &port_modify) < 0)
-			pr_err("disabling MAD processing failed.\n");
 		if (sport->mad_agent) {
+			ib_modify_port(sdev->device, i, 0, &port_modify);
 			ib_unregister_mad_agent(sport->mad_agent);
 			sport->mad_agent = NULL;
 		}
@@ -1814,18 +1816,13 @@ retry:
 	 */
 	qp_init->cap.max_send_wr = min(sq_size / 2, attrs->max_qp_wr);
 	qp_init->cap.max_rdma_ctxs = sq_size / 2;
-	qp_init->cap.max_send_sge = min(attrs->max_send_sge,
-					SRPT_MAX_SG_PER_WQE);
-	qp_init->cap.max_recv_sge = min(attrs->max_recv_sge,
-					SRPT_MAX_SG_PER_WQE);
+	qp_init->cap.max_send_sge = attrs->max_send_sge;
+	qp_init->cap.max_recv_sge = 1;
 	qp_init->port_num = ch->sport->port;
-	if (sdev->use_srq) {
+	if (sdev->use_srq)
 		qp_init->srq = sdev->srq;
-	} else {
+	else
 		qp_init->cap.max_recv_wr = ch->rq_size;
-		qp_init->cap.max_recv_sge = min(attrs->max_recv_sge,
-						SRPT_MAX_SG_PER_WQE);
-	}
 
 	if (ch->using_rdma_cm) {
 		ret = rdma_create_qp(ch->rdma_cm.cm_id, sdev->pd, qp_init);
@@ -1984,8 +1981,8 @@ static void __srpt_close_all_ch(struct srpt_port *sport)
 	list_for_each_entry(nexus, &sport->nexus_list, entry) {
 		list_for_each_entry(ch, &nexus->ch_list, list) {
 			if (srpt_disconnect_ch(ch) >= 0)
-				pr_info("Closing channel %s because target %s_%d has been disabled\n",
-					ch->sess_name,
+				pr_info("Closing channel %s-%d because target %s_%d has been disabled\n",
+					ch->sess_name, ch->qp->qp_num,
 					dev_name(&sport->sdev->device->dev),
 					sport->port);
 			srpt_close_ch(ch);
@@ -2496,7 +2493,8 @@ reject:
 				   SRP_BUF_FORMAT_INDIRECT);
 
 	if (rdma_cm_id)
-		rdma_reject(rdma_cm_id, rej, sizeof(*rej));
+		rdma_reject(rdma_cm_id, rej, sizeof(*rej),
+			    IB_CM_REJ_CONSUMER_DEFINED);
 	else
 		ib_send_cm_rej(ib_cm_id, IB_CM_REJ_CONSUMER_DEFINED, NULL, 0,
 			       rej, sizeof(*rej));
@@ -3104,7 +3102,7 @@ static int srpt_use_srq(struct srpt_device *sdev, bool use_srq)
  * srpt_add_one - InfiniBand device addition callback function
  * @device: Describes a HCA.
  */
-static void srpt_add_one(struct ib_device *device)
+static int srpt_add_one(struct ib_device *device)
 {
 	struct srpt_device *sdev;
 	struct srpt_port *sport;
@@ -3115,14 +3113,16 @@ static void srpt_add_one(struct ib_device *device)
 	sdev = kzalloc(struct_size(sdev, port, device->phys_port_cnt),
 		       GFP_KERNEL);
 	if (!sdev)
-		goto err;
+		return -ENOMEM;
 
 	sdev->device = device;
 	mutex_init(&sdev->sdev_mutex);
 
 	sdev->pd = ib_alloc_pd(device, 0);
-	if (IS_ERR(sdev->pd))
+	if (IS_ERR(sdev->pd)) {
+		ret = PTR_ERR(sdev->pd);
 		goto free_dev;
+	}
 
 	sdev->lkey = sdev->pd->local_dma_lkey;
 
@@ -3138,6 +3138,7 @@ static void srpt_add_one(struct ib_device *device)
 	if (IS_ERR(sdev->cm_id)) {
 		pr_info("ib_create_cm_id() failed: %ld\n",
 			PTR_ERR(sdev->cm_id));
+		ret = PTR_ERR(sdev->cm_id);
 		sdev->cm_id = NULL;
 		if (!rdma_cm_id)
 			goto err_ring;
@@ -3182,7 +3183,8 @@ static void srpt_add_one(struct ib_device *device)
 		mutex_init(&sport->port_gid_id.mutex);
 		INIT_LIST_HEAD(&sport->port_gid_id.tpg_list);
 
-		if (srpt_refresh_port(sport)) {
+		ret = srpt_refresh_port(sport);
+		if (ret) {
 			pr_err("MAD registration failed for %s-%d.\n",
 			       dev_name(&sdev->device->dev), i);
 			goto err_event;
@@ -3193,10 +3195,9 @@ static void srpt_add_one(struct ib_device *device)
 	list_add_tail(&sdev->list, &srpt_dev_list);
 	spin_unlock(&srpt_dev_lock);
 
-out:
 	ib_set_client_data(device, &srpt_client, sdev);
 	pr_debug("added %s.\n", dev_name(&device->dev));
-	return;
+	return 0;
 
 err_event:
 	ib_unregister_event_handler(&sdev->event_handler);
@@ -3208,10 +3209,8 @@ err_ring:
 	ib_dealloc_pd(sdev->pd);
 free_dev:
 	kfree(sdev);
-err:
-	sdev = NULL;
 	pr_info("%s(%s) failed.\n", __func__, dev_name(&device->dev));
-	goto out;
+	return ret;
 }
 
 /**
@@ -3223,12 +3222,6 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 {
 	struct srpt_device *sdev = client_data;
 	int i;
-
-	if (!sdev) {
-		pr_info("%s(%s): nothing to do.\n", __func__,
-			dev_name(&device->dev));
-		return;
-	}
 
 	srpt_unregister_mad_agent(sdev);
 

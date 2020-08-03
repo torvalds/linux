@@ -150,6 +150,7 @@
 		compatible = "ti,omap-dmtimer-pwm";
 		ti,timers = <&timer11>;
 		#pwm-cells = <3>;
+		ti,clock-source = <0x01>;
 	};
 
 	hsusb2_phy: hsusb2_phy {

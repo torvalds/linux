@@ -293,10 +293,10 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 	 * This must be a normal message, or retry of a normal message
 	 */
 	if (msg->address == TLB_FLUSH_ALL) {
-		local_flush_tlb();
+		flush_tlb_local();
 		stat->d_alltlb++;
 	} else {
-		__flush_tlb_one_user(msg->address);
+		flush_tlb_one_user(msg->address);
 		stat->d_onetlb++;
 	}
 	stat->d_requestee++;
@@ -1272,7 +1272,7 @@ static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
  * (the resource will not be freed until noninterruptable cpus see this
  *  interrupt; hardware may timeout the s/w ack and reply ERROR)
  */
-void uv_bau_message_interrupt(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_uv_bau_message)
 {
 	int count = 0;
 	cycles_t time_start;

@@ -253,10 +253,21 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_lsm(struct bpf_program *prog);
 LIBBPF_API struct bpf_link *
 bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_netns(struct bpf_program *prog, int netns_fd);
 
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(struct bpf_map *map);
+
+struct bpf_iter_attach_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+};
+#define bpf_iter_attach_opts__last_field sz
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_iter(struct bpf_program *prog,
+			 const struct bpf_iter_attach_opts *opts);
 
 struct bpf_insn;
 
@@ -469,6 +480,27 @@ LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 				     size_t info_size, __u32 flags);
 
+/* Ring buffer APIs */
+struct ring_buffer;
+
+typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
+
+struct ring_buffer_opts {
+	size_t sz; /* size of this struct, for forward/backward compatiblity */
+};
+
+#define ring_buffer_opts__last_field sz
+
+LIBBPF_API struct ring_buffer *
+ring_buffer__new(int map_fd, ring_buffer_sample_fn sample_cb, void *ctx,
+		 const struct ring_buffer_opts *opts);
+LIBBPF_API void ring_buffer__free(struct ring_buffer *rb);
+LIBBPF_API int ring_buffer__add(struct ring_buffer *rb, int map_fd,
+				ring_buffer_sample_fn sample_cb, void *ctx);
+LIBBPF_API int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms);
+LIBBPF_API int ring_buffer__consume(struct ring_buffer *rb);
+
+/* Perf buffer APIs */
 struct perf_buffer;
 
 typedef void (*perf_buffer_sample_fn)(void *ctx, int cpu,
@@ -524,6 +556,7 @@ perf_buffer__new_raw(int map_fd, size_t page_cnt,
 
 LIBBPF_API void perf_buffer__free(struct perf_buffer *pb);
 LIBBPF_API int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms);
+LIBBPF_API int perf_buffer__consume(struct perf_buffer *pb);
 
 typedef enum bpf_perf_event_ret
 	(*bpf_perf_event_print_t)(struct perf_event_header *hdr,

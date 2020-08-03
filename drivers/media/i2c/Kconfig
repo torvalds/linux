@@ -5,6 +5,9 @@
 
 if VIDEO_V4L2
 
+comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
+
 config VIDEO_IR_I2C
 	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT || EXPERT
 	depends on I2C && RC_CORE
@@ -19,16 +22,17 @@ config VIDEO_IR_I2C
 	  In doubt, say Y.
 
 #
+# V4L2 I2C drivers that aren't related with Camera support
+#
+
+comment "audio, video and radio I2C drivers auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+#
 # Encoder / Decoder module configuration
 #
 
-comment "I2C drivers hidden by 'Autoselect ancillary drivers'"
-	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
-
-menu "I2C Encoders, decoders, sensors and other helper chips"
+menu "Audio decoders, processors and mixers"
 	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
-
-comment "Audio decoders, processors and mixers"
 
 config VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
@@ -62,11 +66,13 @@ config VIDEO_TDA9840
 
 config VIDEO_TDA1997X
 	tristate "NXP TDA1997x HDMI receiver"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on SND_SOC
 	select HDMI
 	select SND_PCM
 	select V4L2_FWNODE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  V4L2 subdevice driver for the NXP TDA1997x HDMI receivers.
 
@@ -185,8 +191,10 @@ config VIDEO_SONY_BTF_MPX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sony-btf-mpx.
+endmenu
 
-comment "RDS decoders"
+menu "RDS decoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support"
@@ -199,12 +207,16 @@ config VIDEO_SAA6588
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa6588.
+endmenu
 
-comment "Video decoders"
+menu "Video decoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
-	depends on GPIOLIB && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on GPIOLIB && VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Support for the Analog Devices ADV7180 video decoder.
 
@@ -223,8 +235,10 @@ config VIDEO_ADV7183
 
 config VIDEO_ADV748X
 	tristate "Analog Devices ADV748x decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on OF
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	select V4L2_FWNODE
 	help
@@ -236,8 +250,10 @@ config VIDEO_ADV748X
 
 config VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on GPIOLIB || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	select HDMI
 	select V4L2_FWNODE
@@ -260,7 +276,9 @@ config VIDEO_ADV7604_CEC
 
 config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	help
 	  Support for the Analog Devices ADV7842 video decoder.
@@ -347,7 +365,9 @@ config VIDEO_SAA711X
 
 config VIDEO_TC358743
 	tristate "Toshiba TC358743 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
 	help
@@ -457,7 +477,10 @@ config VIDEO_SAA717X
 
 source "drivers/media/i2c/cx25840/Kconfig"
 
-comment "Video encoders"
+endmenu
+
+menu "Video encoders"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
@@ -515,8 +538,10 @@ config VIDEO_ADV7393
 
 config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on DRM_I2C_ADV7511=n || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	help
 	  Support for the Analog Devices ADV7511 video encoder.
@@ -536,7 +561,10 @@ config VIDEO_ADV7511_CEC
 
 config VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+
 	help
 	  Support for the Analog Devices AD9389B video encoder.
 
@@ -559,8 +587,124 @@ config VIDEO_THS8200
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths8200.
+endmenu
 
-comment "Camera sensor devices"
+menu "Video improvement chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
+
+config VIDEO_UPD64031A
+	tristate "NEC Electronics uPD64031A Ghost Reduction"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the NEC Electronics uPD64031A Ghost Reduction
+	  video chip. It is most often found in NTSC TV cards made for
+	  Japan and is used to reduce the 'ghosting' effect that can
+	  be present in analog TV broadcasts.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64031a.
+
+config VIDEO_UPD64083
+	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
+	  separation video chip. It is used to improve the quality of
+	  the colors of a composite signal.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64083.
+endmenu
+
+menu "Audio/Video compression chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
+
+config VIDEO_SAA6752HS
+	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
+	depends on VIDEO_V4L2 && I2C
+	select CRC32
+	help
+	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
+	  audio encoder with multiplexer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6752hs.
+
+endmenu
+
+menu "SDR tuner chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
+
+config SDR_MAX2175
+	tristate "Maxim 2175 RF to Bits tuner"
+	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
+	select REGMAP_I2C
+	help
+	  Support for Maxim 2175 tuner. It is an advanced analog/digital
+	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called max2175.
+
+
+endmenu
+
+menu "Miscellaneous helper chips"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
+
+config VIDEO_THS7303
+	tristate "THS7303/53 Video Amplifier"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for TI THS7303/53 video amplifier
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths7303.
+
+config VIDEO_M52790
+	tristate "Mitsubishi M52790 A/V switch"
+	depends on VIDEO_V4L2 && I2C
+	help
+	 Support for the Mitsubishi M52790 A/V switch.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called m52790.
+
+config VIDEO_I2C
+	tristate "I2C transport video support"
+	depends on VIDEO_V4L2 && I2C
+	select VIDEOBUF2_VMALLOC
+	imply HWMON
+	help
+	  Enable the I2C transport video support which supports the
+	  following:
+	   * Panasonic AMG88xx Grid-Eye Sensors
+	   * Melexis MLX90640 Thermal Cameras
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called video-i2c
+
+config VIDEO_ST_MIPID02
+	tristate "STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
+	  It is used to allow usage of CSI-2 sensor with PARALLEL port
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st-mipid02.
+endmenu
+
+#
+# V4L2 I2C drivers that are related with Camera support
+#
+
+menu "Camera sensor devices"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_APTINA_PLL
 	tristate
@@ -568,12 +712,11 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
-if MEDIA_CAMERA_SUPPORT
-
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Hynix
@@ -584,8 +727,10 @@ config VIDEO_HI556
 
 config VIDEO_IMX214
 	tristate "Sony IMX214 sensor support"
-	depends on GPIOLIB && I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on GPIOLIB && I2C && VIDEO_V4L2
 	depends on V4L2_FWNODE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
@@ -596,7 +741,9 @@ config VIDEO_IMX214
 
 config VIDEO_IMX219
 	tristate "Sony IMX219 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
@@ -607,7 +754,9 @@ config VIDEO_IMX219
 
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX258 camera.
@@ -617,7 +766,9 @@ config VIDEO_IMX258
 
 config VIDEO_IMX274
 	tristate "Sony IMX274 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	help
 	  This is a V4L2 sensor driver for the Sony IMX274
@@ -625,7 +776,9 @@ config VIDEO_IMX274
 
 config VIDEO_IMX290
 	tristate "Sony IMX290 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	select V4L2_FWNODE
 	help
@@ -637,7 +790,9 @@ config VIDEO_IMX290
 
 config VIDEO_IMX319
 	tristate "Sony IMX319 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX319 camera.
@@ -647,7 +802,9 @@ config VIDEO_IMX319
 
 config VIDEO_IMX355
 	tristate "Sony IMX355 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX355 camera.
@@ -678,7 +835,8 @@ config VIDEO_OV2659
 
 config VIDEO_OV2680
 	tristate "OmniVision OV2680 sensor support"
-	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -689,7 +847,8 @@ config VIDEO_OV2680
 
 config VIDEO_OV2685
 	tristate "OmniVision OV2685 sensor support"
-	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -698,10 +857,25 @@ config VIDEO_OV2685
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2685.
 
+config VIDEO_OV2740
+	tristate "OmniVision OV2740 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV2740 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2740.
+
 config VIDEO_OV5640
 	tristate "OmniVision OV5640 sensor support"
 	depends on OF
-	depends on GPIOLIB && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on GPIOLIB && VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Omnivision
@@ -710,7 +884,9 @@ config VIDEO_OV5640
 config VIDEO_OV5645
 	tristate "OmniVision OV5645 sensor support"
 	depends on OF
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -721,7 +897,9 @@ config VIDEO_OV5645
 
 config VIDEO_OV5647
 	tristate "OmniVision OV5647 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -742,8 +920,9 @@ config VIDEO_OV6650
 
 config VIDEO_OV5670
 	tristate "OmniVision OV5670 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -754,8 +933,9 @@ config VIDEO_OV5670
 
 config VIDEO_OV5675
 	tristate "OmniVision OV5675 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -777,7 +957,9 @@ config VIDEO_OV5695
 
 config VIDEO_OV7251
 	tristate "OmniVision OV7251 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -826,7 +1008,9 @@ config VIDEO_OV7740
 
 config VIDEO_OV8856
 	tristate "OmniVision OV8856 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -844,7 +1028,9 @@ config VIDEO_OV9640
 
 config VIDEO_OV9650
 	tristate "OmniVision OV9650/OV9652 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_SCCB
 	help
 	  This is a V4L2 sensor driver for the Omnivision
@@ -852,7 +1038,9 @@ config VIDEO_OV9650
 
 config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -870,14 +1058,18 @@ config VIDEO_VS6624
 
 config VIDEO_MT9M001
 	tristate "mt9m001 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This driver supports MT9M001 cameras from Micron, monochrome
 	  and colour models.
 
 config VIDEO_MT9M032
 	tristate "MT9M032 camera sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
 	help
 	  This driver supports MT9M032 camera sensors from Aptina, monochrome
@@ -893,7 +1085,9 @@ config VIDEO_MT9M111
 
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
 	help
 	  This is a Video4Linux2 sensor driver for the Aptina
@@ -901,7 +1095,9 @@ config VIDEO_MT9P031
 
 config VIDEO_MT9T001
 	tristate "Aptina MT9T001 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor driver for the Aptina
 	  (Micron) mt0t001 3 Mpixel camera.
@@ -926,7 +1122,9 @@ config VIDEO_MT9V011
 
 config VIDEO_MT9V032
 	tristate "Micron MT9V032 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	select V4L2_FWNODE
 	help
@@ -951,7 +1149,9 @@ config VIDEO_SR030PC30
 
 config VIDEO_NOON010PC30
 	tristate "Siliconfile NOON010PC30 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
@@ -969,21 +1169,27 @@ config VIDEO_RJ54N1
 
 config VIDEO_S5K6AA
 	tristate "Samsung S5K6AAFX sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a V4L2 sensor driver for Samsung S5K6AA(FX) 1.3M
 	  camera sensor with an embedded SoC image signal processor.
 
 config VIDEO_S5K6A3
 	tristate "Samsung S5K6A3 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
 
 config VIDEO_S5K4ECGX
 	tristate "Samsung S5K4ECGX sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select CRC32
 	help
 	  This is a V4L2 sensor driver for Samsung S5K4ECGX 5M
@@ -991,7 +1197,9 @@ config VIDEO_S5K4ECGX
 
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a V4L2 sensor driver for Samsung S5K5BAF 2M
@@ -1002,28 +1210,32 @@ source "drivers/media/i2c/et8ek8/Kconfig"
 
 config VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
-	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && SPI && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a V4L2 sensor driver for Samsung S5C73M3
 	  8 Mpixel camera.
-endif
 
-comment "Lens drivers"
+endmenu
 
-if MEDIA_CAMERA_SUPPORT
+menu "Lens drivers"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_AD5820
 	tristate "AD5820 lens voice coil support"
-	depends on GPIOLIB && I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on GPIOLIB && I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
 	help
 	  This is a driver for the AD5820 camera lens voice coil.
 	  It is used for example in Nokia N900 (RX-51).
 
 config VIDEO_AK7375
 	tristate "AK7375 lens voice coil support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a driver for the AK7375 camera lens voice coil.
 	  AK7375 is a 12 bit DAC with 120mA output current sink
@@ -1032,8 +1244,9 @@ config VIDEO_AK7375
 
 config VIDEO_DW9714
 	tristate "DW9714 lens voice coil support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a driver for the DW9714 camera lens voice coil.
 	  DW9714 is a 10 bit DAC with 120mA output current sink
@@ -1042,30 +1255,32 @@ config VIDEO_DW9714
 
 config VIDEO_DW9807_VCM
 	tristate "DW9807 lens voice coil support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a driver for the DW9807 camera lens voice coil.
 	  DW9807 is a 10 bit DAC with 100mA output current sink
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
-endif
+endmenu
 
-comment "Flash devices"
-
-if MEDIA_CAMERA_SUPPORT
+menu "Flash devices"
+	visible if MEDIA_CAMERA_SUPPORT
 
 config VIDEO_ADP1653
 	tristate "ADP1653 flash support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
 	help
 	  This is a driver for the ADP1653 flash controller. It is used for
 	  example in Nokia N900.
 
 config VIDEO_LM3560
 	tristate "LM3560 dual flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
 	select REGMAP_I2C
 	help
 	  This is a driver for the lm3560 dual flash controllers. It controls
@@ -1073,112 +1288,12 @@ config VIDEO_LM3560
 
 config VIDEO_LM3646
 	tristate "LM3646 dual flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
 	select REGMAP_I2C
 	help
 	  This is a driver for the lm3646 dual flash controllers. It controls
 	  flash, torch LEDs.
-
-endif
-
-comment "Video improvement chips"
-
-config VIDEO_UPD64031A
-	tristate "NEC Electronics uPD64031A Ghost Reduction"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for the NEC Electronics uPD64031A Ghost Reduction
-	  video chip. It is most often found in NTSC TV cards made for
-	  Japan and is used to reduce the 'ghosting' effect that can
-	  be present in analog TV broadcasts.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called upd64031a.
-
-config VIDEO_UPD64083
-	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
-	  separation video chip. It is used to improve the quality of
-	  the colors of a composite signal.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called upd64083.
-
-comment "Audio/Video compression chips"
-
-config VIDEO_SAA6752HS
-	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
-	depends on VIDEO_V4L2 && I2C
-	select CRC32
-	help
-	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
-	  audio encoder with multiplexer.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa6752hs.
-
-comment "SDR tuner chips"
-
-config SDR_MAX2175
-	tristate "Maxim 2175 RF to Bits tuner"
-	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
-	select REGMAP_I2C
-	help
-	  Support for Maxim 2175 tuner. It is an advanced analog/digital
-	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
-
-	  To compile this driver as a module, choose M here; the
-	  module will be called max2175.
-
-comment "Miscellaneous helper chips"
-
-config VIDEO_THS7303
-	tristate "THS7303/53 Video Amplifier"
-	depends on VIDEO_V4L2 && I2C
-	help
-	  Support for TI THS7303/53 video amplifier
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ths7303.
-
-config VIDEO_M52790
-	tristate "Mitsubishi M52790 A/V switch"
-	depends on VIDEO_V4L2 && I2C
-	help
-	 Support for the Mitsubishi M52790 A/V switch.
-
-	 To compile this driver as a module, choose M here: the
-	 module will be called m52790.
-
-config VIDEO_I2C
-	tristate "I2C transport video support"
-	depends on VIDEO_V4L2 && I2C
-	select VIDEOBUF2_VMALLOC
-	imply HWMON
-	help
-	  Enable the I2C transport video support which supports the
-	  following:
-	   * Panasonic AMG88xx Grid-Eye Sensors
-	   * Melexis MLX90640 Thermal Cameras
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called video-i2c
-
-config VIDEO_ST_MIPID02
-	tristate "STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select V4L2_FWNODE
-	help
-	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
-	  It is used to allow usage of CSI-2 sensor with PARALLEL port
-	  controller.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called st-mipid02.
-
 endmenu
 
-endif
+endif # VIDEO_V4L2

@@ -226,12 +226,11 @@ static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
 static void
 ieee80211_tdls_add_aid(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 *pos = skb_put(skb, 4);
 
 	*pos++ = WLAN_EID_AID;
 	*pos++ = 2; /* len */
-	put_unaligned_le16(ifmgd->aid, pos);
+	put_unaligned_le16(sdata->vif.bss_conf.aid, pos);
 }
 
 /* translate numbering in the WMM parameter IE to the mac80211 notation */
@@ -1055,7 +1054,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 
 	/* disable bottom halves when entering the Tx path */
 	local_bh_disable();
-	__ieee80211_subif_start_xmit(skb, dev, flags, 0);
+	__ieee80211_subif_start_xmit(skb, dev, flags, 0, NULL);
 	local_bh_enable();
 
 	return ret;
@@ -1566,6 +1565,10 @@ ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct sk_buff *skb = NULL;
 	u32 ch_sw_tm_ie;
 	int ret;
+
+	if (chandef->chan->freq_offset)
+		/* this may work, but is untested */
+		return -EOPNOTSUPP;
 
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, addr);

@@ -831,13 +831,26 @@ tooling to work, you can do::
 swappiness
 ==========
 
-This control is used to define how aggressive the kernel will swap
-memory pages.  Higher values will increase aggressiveness, lower values
-decrease the amount of swap.  A value of 0 instructs the kernel not to
-initiate swap until the amount of free and file-backed pages is less
-than the high water mark in a zone.
+This control is used to define the rough relative IO cost of swapping
+and filesystem paging, as a value between 0 and 200. At 100, the VM
+assumes equal IO cost and will thus apply memory pressure to the page
+cache and swap-backed pages equally; lower values signify more
+expensive swap IO, higher values indicates cheaper.
+
+Keep in mind that filesystem IO patterns under memory pressure tend to
+be more efficient than swap's random IO. An optimal value will require
+experimentation and will also be workload-dependent.
 
 The default value is 60.
+
+For in-memory swap, like zram or zswap, as well as hybrid setups that
+have swap on faster devices than the filesystem, values beyond 100 can
+be considered. For example, if the random IO against the swap device
+is on average 2x faster than IO from the filesystem, swappiness should
+be 133 (x + 2x = 200, 2x = 133.33).
+
+At 0, the kernel will not initiate swap until the amount of free and
+file-backed pages is less than the high watermark in a zone.
 
 
 unprivileged_userfaultfd

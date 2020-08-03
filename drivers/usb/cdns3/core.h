@@ -62,7 +62,6 @@ struct cdns3_role_driver {
  *           This field based on firmware setting, kernel configuration
  *           and hardware configuration.
  * @role_sw: pointer to role switch object.
- * @role_override: set 1 if role rely on SW.
  */
 struct cdns3 {
 	struct device			*dev;
@@ -90,7 +89,6 @@ struct cdns3 {
 	struct mutex			mutex;
 	enum usb_dr_mode		dr_mode;
 	struct usb_role_switch		*role_sw;
-	int				role_override;
 };
 
 int cdns3_hw_role_switch(struct cdns3 *cdns);

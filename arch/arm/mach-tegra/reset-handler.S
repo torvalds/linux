@@ -98,7 +98,12 @@ ENTRY(tegra_resume_trusted_foundations)
 	reteq	lr
 
  .arch_extension sec
-	/* First call after suspend wakes firmware. No arguments required. */
+	/*
+	 * First call after suspend wakes firmware. No arguments required
+	 * for some firmware versions. Downstream kernel of ASUS TF300T uses
+	 * r0=3 for the wake-up notification.
+	 */
+	mov	r0, #3
 	smc	#0
 
 	b	cpu_resume

@@ -1,7 +1,7 @@
 #ifndef _OPA_VNIC_H
 #define _OPA_VNIC_H
 /*
- * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2017 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -132,7 +132,7 @@ struct opa_vnic_stats {
 static inline bool rdma_cap_opa_vnic(struct ib_device *device)
 {
 	return !!(device->attrs.device_cap_flags &
-		  IB_DEVICE_RDMA_NETDEV_OPA_VNIC);
+		  IB_DEVICE_RDMA_NETDEV_OPA);
 }
 
 #endif /* _OPA_VNIC_H */

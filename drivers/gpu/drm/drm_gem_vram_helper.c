@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/module.h>
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_mode.h>
@@ -18,13 +21,93 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 /**
  * DOC: overview
  *
- * This library provides a GEM buffer object that is backed by video RAM
- * (VRAM). It can be used for framebuffer devices with dedicated memory.
+ * This library provides &struct drm_gem_vram_object (GEM VRAM), a GEM
+ * buffer object that is backed by video RAM (VRAM). It can be used for
+ * framebuffer devices with dedicated memory.
  *
  * The data structure &struct drm_vram_mm and its helpers implement a memory
- * manager for simple framebuffer devices with dedicated video memory. Buffer
- * objects are either placed in video RAM or evicted to system memory. The rsp.
- * buffer object is provided by &struct drm_gem_vram_object.
+ * manager for simple framebuffer devices with dedicated video memory. GEM
+ * VRAM buffer objects are either placed in the video memory or remain evicted
+ * to system memory.
+ *
+ * With the GEM interface userspace applications create, manage and destroy
+ * graphics buffers, such as an on-screen framebuffer. GEM does not provide
+ * an implementation of these interfaces. It's up to the DRM driver to
+ * provide an implementation that suits the hardware. If the hardware device
+ * contains dedicated video memory, the DRM driver can use the VRAM helper
+ * library. Each active buffer object is stored in video RAM. Active
+ * buffer are used for drawing the current frame, typically something like
+ * the frame's scanout buffer or the cursor image. If there's no more space
+ * left in VRAM, inactive GEM objects can be moved to system memory.
+ *
+ * The easiest way to use the VRAM helper library is to call
+ * drm_vram_helper_alloc_mm(). The function allocates and initializes an
+ * instance of &struct drm_vram_mm in &struct drm_device.vram_mm . Use
+ * &DRM_GEM_VRAM_DRIVER to initialize &struct drm_driver and
+ * &DRM_VRAM_MM_FILE_OPERATIONS to initialize &struct file_operations;
+ * as illustrated below.
+ *
+ * .. code-block:: c
+ *
+ *	struct file_operations fops ={
+ *		.owner = THIS_MODULE,
+ *		DRM_VRAM_MM_FILE_OPERATION
+ *	};
+ *	struct drm_driver drv = {
+ *		.driver_feature = DRM_ ... ,
+ *		.fops = &fops,
+ *		DRM_GEM_VRAM_DRIVER
+ *	};
+ *
+ *	int init_drm_driver()
+ *	{
+ *		struct drm_device *dev;
+ *		uint64_t vram_base;
+ *		unsigned long vram_size;
+ *		int ret;
+ *
+ *		// setup device, vram base and size
+ *		// ...
+ *
+ *		ret = drm_vram_helper_alloc_mm(dev, vram_base, vram_size);
+ *		if (ret)
+ *			return ret;
+ *		return 0;
+ *	}
+ *
+ * This creates an instance of &struct drm_vram_mm, exports DRM userspace
+ * interfaces for GEM buffer management and initializes file operations to
+ * allow for accessing created GEM buffers. With this setup, the DRM driver
+ * manages an area of video RAM with VRAM MM and provides GEM VRAM objects
+ * to userspace.
+ *
+ * To clean up the VRAM memory management, call drm_vram_helper_release_mm()
+ * in the driver's clean-up code.
+ *
+ * .. code-block:: c
+ *
+ *	void fini_drm_driver()
+ *	{
+ *		struct drm_device *dev = ...;
+ *
+ *		drm_vram_helper_release_mm(dev);
+ *	}
+ *
+ * For drawing or scanout operations, buffer object have to be pinned in video
+ * RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
+ * &DRM_GEM_VRAM_PL_FLAG_SYSTEM to pin a buffer object in video RAM or system
+ * memory. Call drm_gem_vram_unpin() to release the pinned object afterwards.
+ *
+ * A buffer object that is pinned in video RAM has a fixed address within that
+ * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically
+ * it's used to program the hardware's scanout engine for framebuffers, set
+ * the cursor overlay's image for a mouse cursor, or use it as input to the
+ * hardware's draing engine.
+ *
+ * To access a buffer object's memory from the DRM driver, call
+ * drm_gem_vram_kmap(). It (optionally) maps the buffer into kernel address
+ * space and returns the memory address. Use drm_gem_vram_kunmap() to
+ * release the mapping.
  */
 
 /*
@@ -670,9 +753,9 @@ EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
  * @plane:	a DRM plane
  * @new_state:	the plane's new state
  *
- * During plane updates, this function pins the GEM VRAM
- * objects of the plane's new framebuffer to VRAM. Call
- * drm_gem_vram_plane_helper_cleanup_fb() to unpin them.
+ * During plane updates, this function sets the plane's fence and
+ * pins the GEM VRAM objects of the plane's new framebuffer to VRAM.
+ * Call drm_gem_vram_plane_helper_cleanup_fb() to unpin them.
  *
  * Returns:
  *	0 on success, or
@@ -697,6 +780,10 @@ drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
 		if (ret)
 			goto err_drm_gem_vram_unpin;
 	}
+
+	ret = drm_gem_fb_prepare_fb(plane, new_state);
+	if (ret)
+		goto err_drm_gem_vram_unpin;
 
 	return 0;
 
@@ -1018,7 +1105,6 @@ static struct ttm_bo_driver bo_driver = {
  * struct drm_vram_mm
  */
 
-#if defined(CONFIG_DEBUG_FS)
 static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1035,27 +1121,18 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 static const struct drm_info_list drm_vram_mm_debugfs_list[] = {
 	{ "vram-mm", drm_vram_mm_debugfs, 0, NULL },
 };
-#endif
 
 /**
  * drm_vram_mm_debugfs_init() - Register VRAM MM debugfs file.
  *
  * @minor: drm minor device.
  *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
  */
-int drm_vram_mm_debugfs_init(struct drm_minor *minor)
+void drm_vram_mm_debugfs_init(struct drm_minor *minor)
 {
-	int ret = 0;
-
-#if defined(CONFIG_DEBUG_FS)
-	ret = drm_debugfs_create_files(drm_vram_mm_debugfs_list,
-				       ARRAY_SIZE(drm_vram_mm_debugfs_list),
-				       minor->debugfs_root, minor);
-#endif
-	return ret;
+	drm_debugfs_create_files(drm_vram_mm_debugfs_list,
+				 ARRAY_SIZE(drm_vram_mm_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
 
@@ -1202,3 +1279,6 @@ drm_vram_helper_mode_valid(struct drm_device *dev,
 	return drm_vram_helper_mode_valid_internal(dev, mode, max_bpp);
 }
 EXPORT_SYMBOL(drm_vram_helper_mode_valid);
+
+MODULE_DESCRIPTION("DRM VRAM memory-management helpers");
+MODULE_LICENSE("GPL");

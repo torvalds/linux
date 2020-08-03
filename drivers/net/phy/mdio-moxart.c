@@ -12,7 +12,6 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
 
 #define REG_PHY_CTRL            0
 #define REG_PHY_WRITE_DATA      4

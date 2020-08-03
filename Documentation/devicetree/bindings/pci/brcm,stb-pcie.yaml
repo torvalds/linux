@@ -56,6 +56,8 @@ properties:
     description: Indicates usage of spread-spectrum clocking.
     type: boolean
 
+  aspm-no-l0s: true
+
 required:
   - reg
   - dma-ranges

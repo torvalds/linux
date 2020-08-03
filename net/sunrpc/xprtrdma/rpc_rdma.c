@@ -892,8 +892,8 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 * or privacy, direct data placement of individual data items
 	 * is not allowed.
 	 */
-	ddp_allowed = !(rqst->rq_cred->cr_auth->au_flags &
-						RPCAUTH_AUTH_DATATOUCH);
+	ddp_allowed = !test_bit(RPCAUTH_AUTH_DATATOUCH,
+				&rqst->rq_cred->cr_auth->au_flags);
 
 	/*
 	 * Chunks needed for results?

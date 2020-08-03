@@ -15,15 +15,15 @@ description: |
   power domains.
 
 properties:
-  compatible :
+  compatible:
     enum:
-       - qcom,mmcc-apq8064
-       - qcom,mmcc-apq8084
-       - qcom,mmcc-msm8660
-       - qcom,mmcc-msm8960
-       - qcom,mmcc-msm8974
-       - qcom,mmcc-msm8996
-       - qcom,mmcc-msm8998
+      - qcom,mmcc-apq8064
+      - qcom,mmcc-apq8084
+      - qcom,mmcc-msm8660
+      - qcom,mmcc-msm8960
+      - qcom,mmcc-msm8974
+      - qcom,mmcc-msm8996
+      - qcom,mmcc-msm8998
 
   clocks:
     items:
@@ -66,6 +66,10 @@ properties:
   protected-clocks:
     description:
        Protected clock specifier list as per common clock binding
+
+  vdd-gfx-supply:
+    description:
+      Regulator supply for the GPU_GX GDSC
 
 required:
   - compatible

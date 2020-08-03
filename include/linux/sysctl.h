@@ -44,35 +44,26 @@ struct ctl_dir;
 
 extern const int sysctl_vals[];
 
-typedef int proc_handler (struct ctl_table *ctl, int write,
-			  void __user *buffer, size_t *lenp, loff_t *ppos);
+typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
-extern int proc_dostring(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_dointvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_douintvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_dointvec_minmax(struct ctl_table *, int,
-				void __user *, size_t *, loff_t *);
-extern int proc_douintvec_minmax(struct ctl_table *table, int write,
-				 void __user *buffer, size_t *lenp,
-				 loff_t *ppos);
-extern int proc_dointvec_jiffies(struct ctl_table *, int,
-				 void __user *, size_t *, loff_t *);
-extern int proc_dointvec_userhz_jiffies(struct ctl_table *, int,
-					void __user *, size_t *, loff_t *);
-extern int proc_dointvec_ms_jiffies(struct ctl_table *, int,
-				    void __user *, size_t *, loff_t *);
-extern int proc_doulongvec_minmax(struct ctl_table *, int,
-				  void __user *, size_t *, loff_t *);
-extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
-				      void __user *, size_t *, loff_t *);
-extern int proc_do_large_bitmap(struct ctl_table *, int,
-				void __user *, size_t *, loff_t *);
-extern int proc_do_static_key(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp,
-			      loff_t *ppos);
+int proc_dostring(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
+int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_userhz_jiffies(struct ctl_table *, int, void *, size_t *,
+		loff_t *);
+int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
+		loff_t *);
+int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
+		size_t *, loff_t *);
+int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
@@ -206,8 +197,17 @@ struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 void unregister_sysctl_table(struct ctl_table_header * table);
 
 extern int sysctl_init(void);
+void do_sysctl_args(void);
+
+extern int pwrsw_enabled;
+extern int unaligned_enabled;
+extern int unaligned_dump_stack;
+extern int no_unaligned_warning;
 
 extern struct ctl_table sysctl_mount_point[];
+extern struct ctl_table random_table[];
+extern struct ctl_table firmware_config_table[];
+extern struct ctl_table epoll_table[];
 
 #else /* CONFIG_SYSCTL */
 static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
@@ -236,9 +236,12 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 {
 }
 
+static inline void do_sysctl_args(void)
+{
+}
 #endif /* CONFIG_SYSCTL */
 
-int sysctl_max_threads(struct ctl_table *table, int write,
-		       void __user *buffer, size_t *lenp, loff_t *ppos);
+int sysctl_max_threads(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SYSCTL_H */

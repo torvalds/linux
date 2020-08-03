@@ -22,7 +22,7 @@ ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc, const u16 stat_err_bits)
 }
 
 static inline __le64
-build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
+ice_build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 {
 	return cpu_to_le64(ICE_TX_DESC_DTYPE_DATA |
 			   (td_cmd    << ICE_TXD_QW1_CMD_S) |
@@ -49,7 +49,7 @@ static inline void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
 void ice_finalize_xdp_rx(struct ice_ring *rx_ring, unsigned int xdp_res);
 int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring);
 int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring);
-void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val);
+void ice_release_rx_desc(struct ice_ring *rx_ring, u16 val);
 void
 ice_process_skb_fields(struct ice_ring *rx_ring,
 		       union ice_32b_rx_flex_desc *rx_desc,

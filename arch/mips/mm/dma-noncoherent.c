@@ -33,6 +33,7 @@ static inline bool cpu_needs_post_dma_flush(void)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_BMIPS5000:
+	case CPU_LOONGSON2EF:
 		return true;
 	default:
 		/*

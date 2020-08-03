@@ -29,6 +29,7 @@ void __delay(unsigned long loops)
 		: "0" (loops)
 		: "t");
 }
+EXPORT_SYMBOL(__delay);
 
 inline void __const_udelay(unsigned long xloops)
 {

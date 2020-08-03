@@ -28,8 +28,6 @@ SYM_FUNC_START(__efi64_thunk)
 	push	%rbx
 
 	leaq	1f(%rip), %rbp
-	leaq	efi_gdt64(%rip), %rbx
-	movl	%ebx, 2(%rbx)		/* Fixup the gdt base address */
 
 	movl	%ds, %eax
 	push	%rax
@@ -48,7 +46,8 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%r8d, 0xc(%rsp)
 	movl	%r9d, 0x10(%rsp)
 
-	sgdt	0x14(%rsp)
+	leaq	0x14(%rsp), %rbx
+	sgdt	(%rbx)
 
 	/*
 	 * Switch to gdt with 32-bit segments. This is the firmware GDT
@@ -68,8 +67,7 @@ SYM_FUNC_START(__efi64_thunk)
 	pushq	%rax
 	lretq
 
-1:	lgdt	0x14(%rsp)
-	addq	$32, %rsp
+1:	addq	$32, %rsp
 	movq	%rdi, %rax
 
 	pop	%rbx
@@ -175,14 +173,3 @@ SYM_DATA_END(efi32_boot_cs)
 SYM_DATA_START(efi32_boot_ds)
 	.word	0
 SYM_DATA_END(efi32_boot_ds)
-
-SYM_DATA_START(efi_gdt64)
-	.word	efi_gdt64_end - efi_gdt64
-	.long	0			/* Filled out by user */
-	.word	0
-	.quad	0x0000000000000000	/* NULL descriptor */
-	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
-	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
-	.quad	0x0080890000000000	/* TS descriptor */
-	.quad   0x0000000000000000	/* TS continued */
-SYM_DATA_END_LABEL(efi_gdt64, SYM_L_LOCAL, efi_gdt64_end)

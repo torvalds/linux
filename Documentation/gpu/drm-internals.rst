@@ -132,6 +132,18 @@ be unmapped; on many devices, the ROM address decoder is shared with
 other BARs, so leaving it mapped could cause undesired behaviour like
 hangs or memory corruption.
 
+Managed Resources
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :doc: managed resources
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_managed.h
+   :internal:
+
 Bus-specific Device Registration and PCI Support
 ------------------------------------------------
 

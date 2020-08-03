@@ -77,7 +77,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
 	int ret, numa_node = bpf_map_attr_numa_node(attr);
 	u32 elem_size, index_mask, max_entries;
-	bool unpriv = !capable(CAP_SYS_ADMIN);
+	bool bypass_spec_v1 = bpf_bypass_spec_v1();
 	u64 cost, array_size, mask64;
 	struct bpf_map_memory mem;
 	struct bpf_array *array;
@@ -95,7 +95,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	mask64 -= 1;
 
 	index_mask = mask64;
-	if (unpriv) {
+	if (!bypass_spec_v1) {
 		/* round up array size to nearest power of 2,
 		 * since cpu will speculate within index_mask limits
 		 */
@@ -149,7 +149,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 	}
 	array->index_mask = index_mask;
-	array->map.unpriv_array = unpriv;
+	array->map.bypass_spec_v1 = bypass_spec_v1;
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&array->map, attr);
@@ -219,7 +219,7 @@ static u32 array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
 	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
-	if (map->unpriv_array) {
+	if (!map->bypass_spec_v1) {
 		*insn++ = BPF_JMP_IMM(BPF_JGE, ret, map->max_entries, 4);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, ret, array->index_mask);
 	} else {
@@ -1058,7 +1058,7 @@ static u32 array_of_map_gen_lookup(struct bpf_map *map,
 
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
 	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
-	if (map->unpriv_array) {
+	if (!map->bypass_spec_v1) {
 		*insn++ = BPF_JMP_IMM(BPF_JGE, ret, map->max_entries, 6);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, ret, array->index_mask);
 	} else {

@@ -25,12 +25,14 @@
 #include "nouveau_dma.h"
 #include "nouveau_mem.h"
 #include "nouveau_bo.h"
+#include "nouveau_svm.h"
 
 #include <nvif/class.h>
 #include <nvif/object.h>
 #include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
+#include <nvif/if000c.h>
 
 #include <linux/sched/mm.h>
 #include <linux/hmm.h>
@@ -54,66 +56,69 @@ enum nouveau_aper {
 typedef int (*nouveau_migrate_copy_t)(struct nouveau_drm *drm, u64 npages,
 				      enum nouveau_aper, u64 dst_addr,
 				      enum nouveau_aper, u64 src_addr);
+typedef int (*nouveau_clear_page_t)(struct nouveau_drm *drm, u32 length,
+				      enum nouveau_aper, u64 dst_addr);
 
 struct nouveau_dmem_chunk {
 	struct list_head list;
 	struct nouveau_bo *bo;
 	struct nouveau_drm *drm;
-	unsigned long pfn_first;
 	unsigned long callocated;
-	unsigned long bitmap[BITS_TO_LONGS(DMEM_CHUNK_NPAGES)];
-	spinlock_t lock;
+	struct dev_pagemap pagemap;
 };
 
 struct nouveau_dmem_migrate {
 	nouveau_migrate_copy_t copy_func;
+	nouveau_clear_page_t clear_func;
 	struct nouveau_channel *chan;
 };
 
 struct nouveau_dmem {
 	struct nouveau_drm *drm;
-	struct dev_pagemap pagemap;
 	struct nouveau_dmem_migrate migrate;
-	struct list_head chunk_free;
-	struct list_head chunk_full;
-	struct list_head chunk_empty;
+	struct list_head chunks;
 	struct mutex mutex;
+	struct page *free_pages;
+	spinlock_t lock;
 };
 
-static inline struct nouveau_dmem *page_to_dmem(struct page *page)
+static struct nouveau_dmem_chunk *nouveau_page_to_chunk(struct page *page)
 {
-	return container_of(page->pgmap, struct nouveau_dmem, pagemap);
+	return container_of(page->pgmap, struct nouveau_dmem_chunk, pagemap);
 }
 
-static unsigned long nouveau_dmem_page_addr(struct page *page)
+static struct nouveau_drm *page_to_drm(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = page->zone_device_data;
-	unsigned long idx = page_to_pfn(page) - chunk->pfn_first;
+	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
 
-	return (idx << PAGE_SHIFT) + chunk->bo->bo.offset;
+	return chunk->drm;
+}
+
+unsigned long nouveau_dmem_page_addr(struct page *page)
+{
+	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
+	unsigned long off = (page_to_pfn(page) << PAGE_SHIFT) -
+				chunk->pagemap.res.start;
+
+	return chunk->bo->bo.offset + off;
 }
 
 static void nouveau_dmem_page_free(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = page->zone_device_data;
-	unsigned long idx = page_to_pfn(page) - chunk->pfn_first;
+	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
+	struct nouveau_dmem *dmem = chunk->drm->dmem;
 
-	/*
-	 * FIXME:
-	 *
-	 * This is really a bad example, we need to overhaul nouveau memory
-	 * management to be more page focus and allow lighter locking scheme
-	 * to be use in the process.
-	 */
-	spin_lock(&chunk->lock);
-	clear_bit(idx, chunk->bitmap);
+	spin_lock(&dmem->lock);
+	page->zone_device_data = dmem->free_pages;
+	dmem->free_pages = page;
+
 	WARN_ON(!chunk->callocated);
 	chunk->callocated--;
 	/*
 	 * FIXME when chunk->callocated reach 0 we should add the chunk to
 	 * a reclaim list so that it can be freed in case of memory pressure.
 	 */
-	spin_unlock(&chunk->lock);
+	spin_unlock(&dmem->lock);
 }
 
 static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
@@ -165,8 +170,8 @@ error_free_page:
 
 static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 {
-	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
-	struct nouveau_drm *drm = dmem->drm;
+	struct nouveau_drm *drm = page_to_drm(vmf->page);
+	struct nouveau_dmem *dmem = drm->dmem;
 	struct nouveau_fence *fence;
 	unsigned long src = 0, dst = 0;
 	dma_addr_t dma_addr = 0;
@@ -209,131 +214,105 @@ static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
 };
 
 static int
-nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
+nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 {
 	struct nouveau_dmem_chunk *chunk;
+	struct resource *res;
+	struct page *page;
+	void *ptr;
+	unsigned long i, pfn_first;
 	int ret;
 
-	if (drm->dmem == NULL)
-		return -EINVAL;
-
-	mutex_lock(&drm->dmem->mutex);
-	chunk = list_first_entry_or_null(&drm->dmem->chunk_empty,
-					 struct nouveau_dmem_chunk,
-					 list);
+	chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
 	if (chunk == NULL) {
-		mutex_unlock(&drm->dmem->mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	list_del(&chunk->list);
-	mutex_unlock(&drm->dmem->mutex);
+	/* Allocate unused physical address space for device private pages. */
+	res = request_free_mem_region(&iomem_resource, DMEM_CHUNK_SIZE,
+				      "nouveau_dmem");
+	if (IS_ERR(res)) {
+		ret = PTR_ERR(res);
+		goto out_free;
+	}
+
+	chunk->drm = drm;
+	chunk->pagemap.type = MEMORY_DEVICE_PRIVATE;
+	chunk->pagemap.res = *res;
+	chunk->pagemap.ops = &nouveau_dmem_pagemap_ops;
+	chunk->pagemap.owner = drm->dev;
 
 	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
 	if (ret)
-		goto out;
+		goto out_release;
 
 	ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
-	if (ret) {
-		nouveau_bo_ref(NULL, &chunk->bo);
-		goto out;
+	if (ret)
+		goto out_bo_free;
+
+	ptr = memremap_pages(&chunk->pagemap, numa_node_id());
+	if (IS_ERR(ptr)) {
+		ret = PTR_ERR(ptr);
+		goto out_bo_unpin;
 	}
 
-	bitmap_zero(chunk->bitmap, DMEM_CHUNK_NPAGES);
-	spin_lock_init(&chunk->lock);
-
-out:
 	mutex_lock(&drm->dmem->mutex);
-	if (chunk->bo)
-		list_add(&chunk->list, &drm->dmem->chunk_empty);
-	else
-		list_add_tail(&chunk->list, &drm->dmem->chunk_empty);
+	list_add(&chunk->list, &drm->dmem->chunks);
 	mutex_unlock(&drm->dmem->mutex);
 
-	return ret;
-}
-
-static struct nouveau_dmem_chunk *
-nouveau_dmem_chunk_first_free_locked(struct nouveau_drm *drm)
-{
-	struct nouveau_dmem_chunk *chunk;
-
-	chunk = list_first_entry_or_null(&drm->dmem->chunk_free,
-					 struct nouveau_dmem_chunk,
-					 list);
-	if (chunk)
-		return chunk;
-
-	chunk = list_first_entry_or_null(&drm->dmem->chunk_empty,
-					 struct nouveau_dmem_chunk,
-					 list);
-	if (chunk->bo)
-		return chunk;
-
-	return NULL;
-}
-
-static int
-nouveau_dmem_pages_alloc(struct nouveau_drm *drm,
-			 unsigned long npages,
-			 unsigned long *pages)
-{
-	struct nouveau_dmem_chunk *chunk;
-	unsigned long c;
-	int ret;
-
-	memset(pages, 0xff, npages * sizeof(*pages));
-
-	mutex_lock(&drm->dmem->mutex);
-	for (c = 0; c < npages;) {
-		unsigned long i;
-
-		chunk = nouveau_dmem_chunk_first_free_locked(drm);
-		if (chunk == NULL) {
-			mutex_unlock(&drm->dmem->mutex);
-			ret = nouveau_dmem_chunk_alloc(drm);
-			if (ret) {
-				if (c)
-					return 0;
-				return ret;
-			}
-			mutex_lock(&drm->dmem->mutex);
-			continue;
-		}
-
-		spin_lock(&chunk->lock);
-		i = find_first_zero_bit(chunk->bitmap, DMEM_CHUNK_NPAGES);
-		while (i < DMEM_CHUNK_NPAGES && c < npages) {
-			pages[c] = chunk->pfn_first + i;
-			set_bit(i, chunk->bitmap);
-			chunk->callocated++;
-			c++;
-
-			i = find_next_zero_bit(chunk->bitmap,
-					DMEM_CHUNK_NPAGES, i);
-		}
-		spin_unlock(&chunk->lock);
+	pfn_first = chunk->pagemap.res.start >> PAGE_SHIFT;
+	page = pfn_to_page(pfn_first);
+	spin_lock(&drm->dmem->lock);
+	for (i = 0; i < DMEM_CHUNK_NPAGES - 1; ++i, ++page) {
+		page->zone_device_data = drm->dmem->free_pages;
+		drm->dmem->free_pages = page;
 	}
-	mutex_unlock(&drm->dmem->mutex);
+	*ppage = page;
+	chunk->callocated++;
+	spin_unlock(&drm->dmem->lock);
+
+	NV_INFO(drm, "DMEM: registered %ldMB of device memory\n",
+		DMEM_CHUNK_SIZE >> 20);
 
 	return 0;
+
+out_bo_unpin:
+	nouveau_bo_unpin(chunk->bo);
+out_bo_free:
+	nouveau_bo_ref(NULL, &chunk->bo);
+out_release:
+	release_mem_region(chunk->pagemap.res.start,
+			   resource_size(&chunk->pagemap.res));
+out_free:
+	kfree(chunk);
+out:
+	return ret;
 }
 
 static struct page *
 nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
 {
-	unsigned long pfns[1];
-	struct page *page;
+	struct nouveau_dmem_chunk *chunk;
+	struct page *page = NULL;
 	int ret;
 
-	/* FIXME stop all the miss-match API ... */
-	ret = nouveau_dmem_pages_alloc(drm, 1, pfns);
-	if (ret)
-		return NULL;
+	spin_lock(&drm->dmem->lock);
+	if (drm->dmem->free_pages) {
+		page = drm->dmem->free_pages;
+		drm->dmem->free_pages = page->zone_device_data;
+		chunk = nouveau_page_to_chunk(page);
+		chunk->callocated++;
+		spin_unlock(&drm->dmem->lock);
+	} else {
+		spin_unlock(&drm->dmem->lock);
+		ret = nouveau_dmem_chunk_alloc(drm, &page);
+		if (ret)
+			return NULL;
+	}
 
-	page = pfn_to_page(pfns[0]);
 	get_page(page);
 	lock_page(page);
 	return page;
@@ -356,12 +335,7 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 		return;
 
 	mutex_lock(&drm->dmem->mutex);
-	list_for_each_entry (chunk, &drm->dmem->chunk_free, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
-		/* FIXME handle pin failure */
-		WARN_ON(ret);
-	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
+	list_for_each_entry(chunk, &drm->dmem->chunks, list) {
 		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
@@ -378,12 +352,8 @@ nouveau_dmem_suspend(struct nouveau_drm *drm)
 		return;
 
 	mutex_lock(&drm->dmem->mutex);
-	list_for_each_entry (chunk, &drm->dmem->chunk_free, list) {
+	list_for_each_entry(chunk, &drm->dmem->chunks, list)
 		nouveau_bo_unpin(chunk->bo);
-	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
-		nouveau_bo_unpin(chunk->bo);
-	}
 	mutex_unlock(&drm->dmem->mutex);
 }
 
@@ -397,15 +367,13 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 
 	mutex_lock(&drm->dmem->mutex);
 
-	WARN_ON(!list_empty(&drm->dmem->chunk_free));
-	WARN_ON(!list_empty(&drm->dmem->chunk_full));
-
-	list_for_each_entry_safe (chunk, tmp, &drm->dmem->chunk_empty, list) {
-		if (chunk->bo) {
-			nouveau_bo_unpin(chunk->bo);
-			nouveau_bo_ref(NULL, &chunk->bo);
-		}
+	list_for_each_entry_safe(chunk, tmp, &drm->dmem->chunks, list) {
+		nouveau_bo_unpin(chunk->bo);
+		nouveau_bo_ref(NULL, &chunk->bo);
 		list_del(&chunk->list);
+		memunmap_pages(&chunk->pagemap);
+		release_mem_region(chunk->pagemap.res.start,
+				   resource_size(&chunk->pagemap.res));
 		kfree(chunk);
 	}
 
@@ -472,6 +440,52 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 }
 
 static int
+nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
+		     enum nouveau_aper dst_aper, u64 dst_addr)
+{
+	struct nouveau_channel *chan = drm->dmem->migrate.chan;
+	u32 launch_dma = (1 << 10) /* REMAP_ENABLE_TRUE */ |
+			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
+			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
+			 (1 << 2) /* FLUSH_ENABLE_TRUE. */ |
+			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
+	u32 remap = (4 <<  0) /* DST_X_CONST_A */ |
+		    (5 <<  4) /* DST_Y_CONST_B */ |
+		    (3 << 16) /* COMPONENT_SIZE_FOUR */ |
+		    (1 << 24) /* NUM_DST_COMPONENTS_TWO */;
+	int ret;
+
+	ret = RING_SPACE(chan, 12);
+	if (ret)
+		return ret;
+
+	switch (dst_aper) {
+	case NOUVEAU_APER_VRAM:
+		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
+			break;
+	case NOUVEAU_APER_HOST:
+		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+	launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
+
+	BEGIN_NVC0(chan, NvSubCopy, 0x0700, 3);
+	OUT_RING(chan, 0);
+	OUT_RING(chan, 0);
+	OUT_RING(chan, remap);
+	BEGIN_NVC0(chan, NvSubCopy, 0x0408, 2);
+	OUT_RING(chan, upper_32_bits(dst_addr));
+	OUT_RING(chan, lower_32_bits(dst_addr));
+	BEGIN_NVC0(chan, NvSubCopy, 0x0418, 1);
+	OUT_RING(chan, length >> 3);
+	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
+	OUT_RING(chan, launch_dma);
+	return 0;
+}
+
+static int
 nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 {
 	switch (drm->ttm.copy.oclass) {
@@ -480,6 +494,7 @@ nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 	case  VOLTA_DMA_COPY_A:
 	case TURING_DMA_COPY_A:
 		drm->dmem->migrate.copy_func = nvc0b5_migrate_copy;
+		drm->dmem->migrate.clear_func = nvc0b5_migrate_clear;
 		drm->dmem->migrate.chan = drm->ttm.chan;
 		return 0;
 	default:
@@ -491,9 +506,6 @@ nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 void
 nouveau_dmem_init(struct nouveau_drm *drm)
 {
-	struct device *device = drm->dev->dev;
-	struct resource *res;
-	unsigned long i, size, pfn_first;
 	int ret;
 
 	/* This only make sense on PASCAL or newer */
@@ -505,84 +517,53 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 
 	drm->dmem->drm = drm;
 	mutex_init(&drm->dmem->mutex);
-	INIT_LIST_HEAD(&drm->dmem->chunk_free);
-	INIT_LIST_HEAD(&drm->dmem->chunk_full);
-	INIT_LIST_HEAD(&drm->dmem->chunk_empty);
-
-	size = ALIGN(drm->client.device.info.ram_user, DMEM_CHUNK_SIZE);
+	INIT_LIST_HEAD(&drm->dmem->chunks);
+	mutex_init(&drm->dmem->mutex);
+	spin_lock_init(&drm->dmem->lock);
 
 	/* Initialize migration dma helpers before registering memory */
 	ret = nouveau_dmem_migrate_init(drm);
-	if (ret)
-		goto out_free;
-
-	/*
-	 * FIXME we need some kind of policy to decide how much VRAM we
-	 * want to register with HMM. For now just register everything
-	 * and latter if we want to do thing like over commit then we
-	 * could revisit this.
-	 */
-	res = devm_request_free_mem_region(device, &iomem_resource, size);
-	if (IS_ERR(res))
-		goto out_free;
-	drm->dmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-	drm->dmem->pagemap.res = *res;
-	drm->dmem->pagemap.ops = &nouveau_dmem_pagemap_ops;
-	drm->dmem->pagemap.owner = drm->dev;
-	if (IS_ERR(devm_memremap_pages(device, &drm->dmem->pagemap)))
-		goto out_free;
-
-	pfn_first = res->start >> PAGE_SHIFT;
-	for (i = 0; i < (size / DMEM_CHUNK_SIZE); ++i) {
-		struct nouveau_dmem_chunk *chunk;
-		struct page *page;
-		unsigned long j;
-
-		chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
-		if (chunk == NULL) {
-			nouveau_dmem_fini(drm);
-			return;
-		}
-
-		chunk->drm = drm;
-		chunk->pfn_first = pfn_first + (i * DMEM_CHUNK_NPAGES);
-		list_add_tail(&chunk->list, &drm->dmem->chunk_empty);
-
-		page = pfn_to_page(chunk->pfn_first);
-		for (j = 0; j < DMEM_CHUNK_NPAGES; ++j, ++page)
-			page->zone_device_data = chunk;
+	if (ret) {
+		kfree(drm->dmem);
+		drm->dmem = NULL;
 	}
-
-	NV_INFO(drm, "DMEM: registered %ldMB of device memory\n", size >> 20);
-	return;
-out_free:
-	kfree(drm->dmem);
-	drm->dmem = NULL;
 }
 
 static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
-		unsigned long src, dma_addr_t *dma_addr)
+		unsigned long src, dma_addr_t *dma_addr, u64 *pfn)
 {
 	struct device *dev = drm->dev->dev;
 	struct page *dpage, *spage;
+	unsigned long paddr;
 
 	spage = migrate_pfn_to_page(src);
-	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
+	if (!(src & MIGRATE_PFN_MIGRATE))
 		goto out;
 
 	dpage = nouveau_dmem_page_alloc_locked(drm);
 	if (!dpage)
-		return 0;
+		goto out;
 
-	*dma_addr = dma_map_page(dev, spage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, *dma_addr))
-		goto out_free_page;
+	paddr = nouveau_dmem_page_addr(dpage);
+	if (spage) {
+		*dma_addr = dma_map_page(dev, spage, 0, page_size(spage),
+					 DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(dev, *dma_addr))
+			goto out_free_page;
+		if (drm->dmem->migrate.copy_func(drm, page_size(spage),
+			NOUVEAU_APER_VRAM, paddr, NOUVEAU_APER_HOST, *dma_addr))
+			goto out_dma_unmap;
+	} else {
+		*dma_addr = DMA_MAPPING_ERROR;
+		if (drm->dmem->migrate.clear_func(drm, page_size(dpage),
+			NOUVEAU_APER_VRAM, paddr))
+			goto out_free_page;
+	}
 
-	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
-			nouveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
-			*dma_addr))
-		goto out_dma_unmap;
-
+	*pfn = NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
+		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
+	if (src & MIGRATE_PFN_WRITE)
+		*pfn |= NVIF_VMM_PFNMAP_V0_W;
 	return migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
 
 out_dma_unmap:
@@ -590,19 +571,21 @@ out_dma_unmap:
 out_free_page:
 	nouveau_dmem_page_free_locked(drm, dpage);
 out:
+	*pfn = NVIF_VMM_PFNMAP_V0_NONE;
 	return 0;
 }
 
 static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
-		struct migrate_vma *args, dma_addr_t *dma_addrs)
+		struct nouveau_svmm *svmm, struct migrate_vma *args,
+		dma_addr_t *dma_addrs, u64 *pfns)
 {
 	struct nouveau_fence *fence;
 	unsigned long addr = args->start, nr_dma = 0, i;
 
 	for (i = 0; addr < args->end; i++) {
 		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->src[i],
-				dma_addrs + nr_dma);
-		if (args->dst[i])
+				dma_addrs + nr_dma, pfns + i);
+		if (!dma_mapping_error(drm->dev->dev, dma_addrs[nr_dma]))
 			nr_dma++;
 		addr += PAGE_SIZE;
 	}
@@ -610,20 +593,18 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 	nouveau_fence_new(drm->dmem->migrate.chan, false, &fence);
 	migrate_vma_pages(args);
 	nouveau_dmem_fence_done(&fence);
+	nouveau_pfns_map(svmm, args->vma->vm_mm, args->start, pfns, i);
 
 	while (nr_dma--) {
 		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
 				DMA_BIDIRECTIONAL);
 	}
-	/*
-	 * FIXME optimization: update GPU page table to point to newly migrated
-	 * memory.
-	 */
 	migrate_vma_finalize(args);
 }
 
 int
 nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+			 struct nouveau_svmm *svmm,
 			 struct vm_area_struct *vma,
 			 unsigned long start,
 			 unsigned long end)
@@ -635,8 +616,12 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 		.vma		= vma,
 		.start		= start,
 	};
-	unsigned long c, i;
+	unsigned long i;
+	u64 *pfns;
 	int ret = -ENOMEM;
+
+	if (drm->dmem == NULL)
+		return -ENODEV;
 
 	args.src = kcalloc(max, sizeof(*args.src), GFP_KERNEL);
 	if (!args.src)
@@ -649,19 +634,25 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	if (!dma_addrs)
 		goto out_free_dst;
 
-	for (i = 0; i < npages; i += c) {
-		c = min(SG_MAX_SINGLE_ALLOC, npages);
-		args.end = start + (c << PAGE_SHIFT);
+	pfns = nouveau_pfns_alloc(max);
+	if (!pfns)
+		goto out_free_dma;
+
+	for (i = 0; i < npages; i += max) {
+		args.end = start + (max << PAGE_SHIFT);
 		ret = migrate_vma_setup(&args);
 		if (ret)
-			goto out_free_dma;
+			goto out_free_pfns;
 
 		if (args.cpages)
-			nouveau_dmem_migrate_chunk(drm, &args, dma_addrs);
+			nouveau_dmem_migrate_chunk(drm, svmm, &args, dma_addrs,
+						   pfns);
 		args.start = args.end;
 	}
 
 	ret = 0;
+out_free_pfns:
+	nouveau_pfns_free(pfns);
 out_free_dma:
 	kfree(dma_addrs);
 out_free_dst:
@@ -670,29 +661,4 @@ out_free_src:
 	kfree(args.src);
 out:
 	return ret;
-}
-
-void
-nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
-			 struct hmm_range *range)
-{
-	unsigned long i, npages;
-
-	npages = (range->end - range->start) >> PAGE_SHIFT;
-	for (i = 0; i < npages; ++i) {
-		struct page *page;
-		uint64_t addr;
-
-		page = hmm_device_entry_to_page(range, range->pfns[i]);
-		if (page == NULL)
-			continue;
-
-		if (!is_device_private_page(page))
-			continue;
-
-		addr = nouveau_dmem_page_addr(page);
-		range->pfns[i] &= ((1UL << range->pfn_shift) - 1);
-		range->pfns[i] |= (addr >> PAGE_SHIFT) << range->pfn_shift;
-		range->pfns[i] |= NVIF_VMM_PFNMAP_V0_VRAM;
-	}
 }

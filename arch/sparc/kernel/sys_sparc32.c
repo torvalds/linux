@@ -22,7 +22,6 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/uio.h>
-#include <linux/nfs_fs.h>
 #include <linux/quota.h>
 #include <linux/poll.h>
 #include <linux/personality.h>

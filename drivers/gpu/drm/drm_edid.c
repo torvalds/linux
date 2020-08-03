@@ -1584,8 +1584,6 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
-static void drm_get_displayid(struct drm_connector *connector,
-			      struct edid *edid);
 static int validate_displayid(u8 *displayid, int length, int idx);
 
 static int drm_edid_block_checksum(const u8 *raw_edid)
@@ -2019,18 +2017,13 @@ EXPORT_SYMBOL(drm_probe_ddc);
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter)
 {
-	struct edid *edid;
-
 	if (connector->force == DRM_FORCE_OFF)
 		return NULL;
 
 	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
 		return NULL;
 
-	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
-	if (edid)
-		drm_get_displayid(connector, edid);
-	return edid;
+	return drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
 }
 EXPORT_SYMBOL(drm_get_edid);
 
@@ -2386,6 +2379,14 @@ bad_std_timing(u8 a, u8 b)
 	return (a == 0x00 && b == 0x00) ||
 	       (a == 0x01 && b == 0x01) ||
 	       (a == 0x20 && b == 0x20);
+}
+
+static int drm_mode_hsync(const struct drm_display_mode *mode)
+{
+	if (mode->htotal <= 0)
+		return 0;
+
+	return DIV_ROUND_CLOSEST(mode->clock, mode->htotal);
 }
 
 /**
@@ -3213,16 +3214,33 @@ static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 }
 
 
-static u8 *drm_find_displayid_extension(const struct edid *edid)
+static u8 *drm_find_displayid_extension(const struct edid *edid,
+					int *length, int *idx)
 {
-	return drm_find_edid_extension(edid, DISPLAYID_EXT);
+	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT);
+	struct displayid_hdr *base;
+	int ret;
+
+	if (!displayid)
+		return NULL;
+
+	/* EDID extensions block checksum isn't for us */
+	*length = EDID_LENGTH - 1;
+	*idx = 1;
+
+	ret = validate_displayid(displayid, *length, *idx);
+	if (ret)
+		return NULL;
+
+	base = (struct displayid_hdr *)&displayid[*idx];
+	*length = *idx + sizeof(*base) + base->bytes;
+
+	return displayid;
 }
 
 static u8 *drm_find_cea_extension(const struct edid *edid)
 {
-	int ret;
-	int idx = 1;
-	int length = EDID_LENGTH;
+	int length, idx;
 	struct displayid_block *block;
 	u8 *cea;
 	u8 *displayid;
@@ -3233,12 +3251,8 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 		return cea;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	displayid = drm_find_displayid_extension(edid);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid)
-		return NULL;
-
-	ret = validate_displayid(displayid, length, idx);
-	if (ret)
 		return NULL;
 
 	idx += sizeof(struct displayid_hdr);
@@ -5085,7 +5099,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {
-	int i;
+	int i, dispid_length;
 	u8 csum = 0;
 	struct displayid_hdr *base;
 
@@ -5094,15 +5108,18 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
 
-	if (base->bytes + 5 > length - idx)
+	/* +1 for DispID checksum */
+	dispid_length = sizeof(*base) + base->bytes + 1;
+	if (dispid_length > length - idx)
 		return -EINVAL;
-	for (i = idx; i <= base->bytes + 5; i++) {
-		csum += displayid[i];
-	}
+
+	for (i = 0; i < dispid_length; i++)
+		csum += displayid[idx + i];
 	if (csum) {
 		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -5181,18 +5198,12 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 					struct edid *edid)
 {
 	u8 *displayid;
-	int ret;
-	int idx = 1;
-	int length = EDID_LENGTH;
+	int length, idx;
 	struct displayid_block *block;
 	int num_modes = 0;
 
-	displayid = drm_find_displayid_extension(edid);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid)
-		return 0;
-
-	ret = validate_displayid(displayid, length, idx);
-	if (ret)
 		return 0;
 
 	idx += sizeof(struct displayid_hdr);
@@ -5783,9 +5794,9 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_vendor_infoframe_from_display_mode);
 
 static int drm_parse_tiled_block(struct drm_connector *connector,
-				 struct displayid_block *block)
+				 const struct displayid_block *block)
 {
-	struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
+	const struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
 	u16 w, h;
 	u8 tile_v_loc, tile_h_loc;
 	u8 num_v_tile, num_h_tile;
@@ -5836,21 +5847,11 @@ static int drm_parse_tiled_block(struct drm_connector *connector,
 	return 0;
 }
 
-static int drm_parse_display_id(struct drm_connector *connector,
-				u8 *displayid, int length,
-				bool is_edid_extension)
+static int drm_displayid_parse_tiled(struct drm_connector *connector,
+				     const u8 *displayid, int length, int idx)
 {
-	/* if this is an EDID extension the first byte will be 0x70 */
-	int idx = 0;
-	struct displayid_block *block;
+	const struct displayid_block *block;
 	int ret;
-
-	if (is_edid_extension)
-		idx = 1;
-
-	ret = validate_displayid(displayid, length, idx);
-	if (ret)
-		return ret;
 
 	idx += sizeof(struct displayid_hdr);
 	for_each_displayid_db(displayid, block, idx, length) {
@@ -5863,12 +5864,6 @@ static int drm_parse_display_id(struct drm_connector *connector,
 			if (ret)
 				return ret;
 			break;
-		case DATA_BLOCK_TYPE_1_DETAILED_TIMING:
-			/* handled in mode gathering code. */
-			break;
-		case DATA_BLOCK_CTA:
-			/* handled in the cea parser code. */
-			break;
 		default:
 			DRM_DEBUG_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
 			break;
@@ -5877,19 +5872,21 @@ static int drm_parse_display_id(struct drm_connector *connector,
 	return 0;
 }
 
-static void drm_get_displayid(struct drm_connector *connector,
-			      struct edid *edid)
+void drm_update_tile_info(struct drm_connector *connector,
+			  const struct edid *edid)
 {
-	void *displayid = NULL;
+	const void *displayid = NULL;
+	int length, idx;
 	int ret;
+
 	connector->has_tile = false;
-	displayid = drm_find_displayid_extension(edid);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid) {
 		/* drop reference to any tile group we had */
 		goto out_drop_ref;
 	}
 
-	ret = drm_parse_display_id(connector, displayid, EDID_LENGTH, true);
+	ret = drm_displayid_parse_tiled(connector, displayid, length, idx);
 	if (ret < 0)
 		goto out_drop_ref;
 	if (!connector->has_tile)

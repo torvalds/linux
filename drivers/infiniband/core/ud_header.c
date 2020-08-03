@@ -41,7 +41,7 @@
 
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
-	.struct_size_bytes   = sizeof ((struct ib_unpacked_ ## header *) 0)->field, \
+	.struct_size_bytes   = sizeof_field(struct ib_unpacked_ ## header, field), \
 	.field_name          = #header ":" #field
 
 static const struct ib_field lrh_table[]  = {

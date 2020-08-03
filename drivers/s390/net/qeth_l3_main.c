@@ -1176,6 +1176,7 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
+	qeth_flush_local_addrs(card);
 	card->info.promisc_mode = 0;
 }
 
@@ -1693,8 +1694,8 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 
 		if (skb->protocol == htons(ETH_P_AF_IUCV)) {
 			l3_hdr->flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
-			l3_hdr->next_hop.ipv6_addr.s6_addr16[0] = htons(0xfe80);
-			memcpy(&l3_hdr->next_hop.ipv6_addr.s6_addr32[2],
+			l3_hdr->next_hop.addr.s6_addr16[0] = htons(0xfe80);
+			memcpy(&l3_hdr->next_hop.addr.s6_addr32[2],
 			       iucv_trans_hdr(skb)->destUserID, 8);
 			return;
 		}
@@ -1728,18 +1729,10 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	l3_hdr->flags |= qeth_l3_cast_type_to_flag(cast_type);
 
 	if (ipv == 4) {
-		struct rtable *rt = (struct rtable *) dst;
-
-		*((__be32 *) &hdr->hdr.l3.next_hop.ipv4.addr) = (rt) ?
-				rt_nexthop(rt, ip_hdr(skb)->daddr) :
-				ip_hdr(skb)->daddr;
+		l3_hdr->next_hop.addr.s6_addr32[3] =
+					qeth_next_hop_v4_rcu(skb, dst);
 	} else if (ipv == 6) {
-		struct rt6_info *rt = (struct rt6_info *) dst;
-
-		if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
-			l3_hdr->next_hop.ipv6_addr = rt->rt6i_gateway;
-		else
-			l3_hdr->next_hop.ipv6_addr = ipv6_hdr(skb)->daddr;
+		l3_hdr->next_hop.addr = *qeth_next_hop_v6_rcu(skb, dst);
 
 		hdr->hdr.l3.flags |= QETH_HDR_IPV6;
 		if (!IS_IQD(card))

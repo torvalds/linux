@@ -355,7 +355,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	if (tlbsel == 1) {
 		struct vm_area_struct *vma;
-		down_read(&kvm->mm->mmap_sem);
+		mmap_read_lock(kvm->mm);
 
 		vma = find_vma(kvm->mm, hva);
 		if (vma && hva >= vma->vm_start &&
@@ -441,7 +441,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 			tsize = max(BOOK3E_PAGESZ_4K, tsize & ~1);
 		}
 
-		up_read(&kvm->mm->mmap_sem);
+		mmap_read_unlock(kvm->mm);
 	}
 
 	if (likely(!pfnmap)) {

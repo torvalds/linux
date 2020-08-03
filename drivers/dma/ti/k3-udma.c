@@ -231,7 +231,6 @@ struct udma_chan {
 	struct udma_tx_drain tx_drain;
 
 	u32 bcnt; /* number of bytes completed since the start of the channel */
-	u32 in_ring_cnt; /* number of descriptors in flight */
 
 	/* Channel configuration parameters */
 	struct udma_chan_config config;
@@ -574,7 +573,6 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 	struct udma_desc *d = uc->desc;
 	struct k3_ring *ring = NULL;
 	dma_addr_t paddr;
-	int ret;
 
 	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
@@ -598,11 +596,7 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 		udma_sync_for_device(uc, idx);
 	}
 
-	ret = k3_ringacc_ring_push(ring, &paddr);
-	if (!ret)
-		uc->in_ring_cnt++;
-
-	return ret;
+	return k3_ringacc_ring_push(ring, &paddr);
 }
 
 static bool udma_desc_is_rx_flush(struct udma_chan *uc, dma_addr_t addr)
@@ -655,9 +649,6 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 						d->hwdesc[0].cppi5_desc_size,
 						DMA_FROM_DEVICE);
 		rmb(); /* Ensure that reads are not moved before this point */
-
-		if (!ret)
-			uc->in_ring_cnt--;
 	}
 
 	return ret;
@@ -697,8 +688,6 @@ static void udma_reset_rings(struct udma_chan *uc)
 		udma_desc_free(&uc->terminated_desc->vd);
 		uc->terminated_desc = NULL;
 	}
-
-	uc->in_ring_cnt = 0;
 }
 
 static void udma_reset_counters(struct udma_chan *uc)
@@ -1073,9 +1062,6 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 
 	/* Teardown completion message */
 	if (cppi5_desc_is_tdcm(paddr)) {
-		/* Compensate our internal pop/push counter */
-		uc->in_ring_cnt++;
-
 		complete_all(&uc->teardown_completed);
 
 		if (uc->terminated_desc) {
@@ -1291,10 +1277,8 @@ static int udma_get_tchan(struct udma_chan *uc)
 	}
 
 	uc->tchan = __udma_reserve_tchan(ud, uc->config.channel_tpl, -1);
-	if (IS_ERR(uc->tchan))
-		return PTR_ERR(uc->tchan);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(uc->tchan);
 }
 
 static int udma_get_rchan(struct udma_chan *uc)
@@ -1308,10 +1292,8 @@ static int udma_get_rchan(struct udma_chan *uc)
 	}
 
 	uc->rchan = __udma_reserve_rchan(ud, uc->config.channel_tpl, -1);
-	if (IS_ERR(uc->rchan))
-		return PTR_ERR(uc->rchan);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(uc->rchan);
 }
 
 static int udma_get_chan_pair(struct udma_chan *uc)
@@ -1373,10 +1355,8 @@ static int udma_get_rflow(struct udma_chan *uc, int flow_id)
 	}
 
 	uc->rflow = __udma_get_rflow(ud, flow_id);
-	if (IS_ERR(uc->rflow))
-		return PTR_ERR(uc->rflow);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(uc->rflow);
 }
 
 static void udma_put_rchan(struct udma_chan *uc)
@@ -1870,6 +1850,7 @@ static int udma_alloc_chan_resources(struct dma_chan *chan)
 		udma_stop(uc);
 		if (udma_is_chan_running(uc)) {
 			dev_err(ud->dev, "chan%d: won't stop!\n", uc->id);
+			ret = -EBUSY;
 			goto err_res_free;
 		}
 	}
@@ -3189,7 +3170,7 @@ static struct udma_match_data am654_main_data = {
 
 static struct udma_match_data am654_mcu_data = {
 	.psil_base = 0x6000,
-	.enable_memcpy_support = true, /* TEST: DMA domains */
+	.enable_memcpy_support = false,
 	.statictr_z_mask = GENMASK(11, 0),
 	.rchan_oes_offset = 0x2000,
 	.tpl_levels = 2,
@@ -3470,6 +3451,9 @@ static int udma_setup_rx_flush(struct udma_dev *ud)
 	tr_req->addr = rx_flush->buffer_paddr;
 	tr_req->icnt0 = rx_flush->buffer_size;
 	tr_req->icnt1 = 1;
+
+	dma_sync_single_for_device(dev, hwdesc->cppi5_desc_paddr,
+				   hwdesc->cppi5_desc_size, DMA_TO_DEVICE);
 
 	/* Set up descriptor to be used for packet mode */
 	hwdesc = &rx_flush->hwdescs[1];

@@ -115,7 +115,7 @@ struct pkt_attrib {
 	u8	icv_len;
 	unsigned char iv[8];
 	unsigned char icv[8];
-	u8	dst[ETH_ALEN];
+	u8	dst[ETH_ALEN] __aligned(2);	/* for ether_addr_copy */
 	u8	src[ETH_ALEN];
 	u8	ta[ETH_ALEN];
 	u8	ra[ETH_ALEN];

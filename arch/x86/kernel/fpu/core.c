@@ -291,15 +291,13 @@ void fpu__drop(struct fpu *fpu)
 }
 
 /*
- * Clear FPU registers by setting them up from
- * the init fpstate:
+ * Clear FPU registers by setting them up from the init fpstate.
+ * Caller must do fpregs_[un]lock() around it.
  */
-static inline void copy_init_fpstate_to_fpregs(void)
+static inline void copy_init_fpstate_to_fpregs(u64 features_mask)
 {
-	fpregs_lock();
-
 	if (use_xsave())
-		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
+		copy_kernel_to_xregs(&init_fpstate.xsave, features_mask);
 	else if (static_cpu_has(X86_FEATURE_FXSR))
 		copy_kernel_to_fxregs(&init_fpstate.fxsave);
 	else
@@ -307,9 +305,6 @@ static inline void copy_init_fpstate_to_fpregs(void)
 
 	if (boot_cpu_has(X86_FEATURE_OSPKE))
 		copy_init_pkru_to_fpregs();
-
-	fpregs_mark_activate();
-	fpregs_unlock();
 }
 
 /*
@@ -318,18 +313,40 @@ static inline void copy_init_fpstate_to_fpregs(void)
  * Called by sys_execve(), by the signal handler code and by various
  * error paths.
  */
-void fpu__clear(struct fpu *fpu)
+static void fpu__clear(struct fpu *fpu, bool user_only)
 {
-	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
+	WARN_ON_FPU(fpu != &current->thread.fpu);
 
-	fpu__drop(fpu);
+	if (!static_cpu_has(X86_FEATURE_FPU)) {
+		fpu__drop(fpu);
+		fpu__initialize(fpu);
+		return;
+	}
 
-	/*
-	 * Make sure fpstate is cleared and initialized.
-	 */
-	fpu__initialize(fpu);
-	if (static_cpu_has(X86_FEATURE_FPU))
-		copy_init_fpstate_to_fpregs();
+	fpregs_lock();
+
+	if (user_only) {
+		if (!fpregs_state_valid(fpu, smp_processor_id()) &&
+		    xfeatures_mask_supervisor())
+			copy_kernel_to_xregs(&fpu->state.xsave,
+					     xfeatures_mask_supervisor());
+		copy_init_fpstate_to_fpregs(xfeatures_mask_user());
+	} else {
+		copy_init_fpstate_to_fpregs(xfeatures_mask_all);
+	}
+
+	fpregs_mark_activate();
+	fpregs_unlock();
+}
+
+void fpu__clear_user_states(struct fpu *fpu)
+{
+	fpu__clear(fpu, true);
+}
+
+void fpu__clear_all(struct fpu *fpu)
+{
+	fpu__clear(fpu, false);
 }
 
 /*

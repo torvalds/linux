@@ -447,6 +447,16 @@ static inline int fib_num_tclassid_users(struct net *net)
 #endif
 int fib_unmerge(struct net *net);
 
+static inline bool nhc_l3mdev_matches_dev(const struct fib_nh_common *nhc,
+const struct net_device *dev)
+{
+	if (nhc->nhc_dev == dev ||
+	    l3mdev_master_ifindex_rcu(nhc->nhc_dev) == dev->ifindex)
+		return true;
+
+	return false;
+}
+
 /* Exported by fib_semantics.c */
 int ip_fib_check_default(__be32 gw, struct net_device *dev);
 int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force);
@@ -479,6 +489,8 @@ void fib_nh_common_release(struct fib_nh_common *nhc);
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri);
 void fib_trie_init(void);
 struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
+bool fib_lookup_good_nhc(const struct fib_nh_common *nhc, int fib_flags,
+			 const struct flowi4 *flp);
 
 static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {

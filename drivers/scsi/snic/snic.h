@@ -399,7 +399,7 @@ void snic_handle_link_event(struct snic *);
 void snic_handle_link(struct work_struct *);
 
 int snic_queue_exch_ver_req(struct snic *);
-int snic_io_exch_ver_cmpl_handler(struct snic *, struct snic_fw_req *);
+void snic_io_exch_ver_cmpl_handler(struct snic *, struct snic_fw_req *);
 
 int snic_queue_wq_desc(struct snic *, void *os_buf, u16 len);
 

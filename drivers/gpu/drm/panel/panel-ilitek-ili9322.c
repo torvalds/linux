@@ -379,7 +379,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 				"can't set up VCOM amplitude (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	if (ili->vcom_high != U8_MAX) {
 		ret = regmap_write(ili->regmap, ILI9322_VCOM_HIGH,
@@ -388,7 +388,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 			dev_err(ili->dev, "can't set up VCOM high (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	/* Set up gamma correction */
 	for (i = 0; i < ARRAY_SIZE(ili->gamma); i++) {

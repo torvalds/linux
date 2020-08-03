@@ -31,6 +31,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
 
 #define DPRINTK(fmt, args...)				\
 	pr_debug("xenbus_probe (%s:%d) " fmt ".\n",	\
@@ -51,7 +52,6 @@
 #include <linux/module.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/xen/hypervisor.h>
 
 #include <xen/xen.h>
@@ -608,7 +608,7 @@ int xenbus_dev_suspend(struct device *dev)
 	if (drv->suspend)
 		err = drv->suspend(xdev);
 	if (err)
-		pr_warn("suspend %s failed: %i\n", dev_name(dev), err);
+		dev_warn(dev, "suspend failed: %i\n", err);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_suspend);
@@ -627,8 +627,7 @@ int xenbus_dev_resume(struct device *dev)
 	drv = to_xenbus_driver(dev->driver);
 	err = talk_to_otherend(xdev);
 	if (err) {
-		pr_warn("resume (talk_to_otherend) %s failed: %i\n",
-			dev_name(dev), err);
+		dev_warn(dev, "resume (talk_to_otherend) failed: %i\n", err);
 		return err;
 	}
 
@@ -637,15 +636,14 @@ int xenbus_dev_resume(struct device *dev)
 	if (drv->resume) {
 		err = drv->resume(xdev);
 		if (err) {
-			pr_warn("resume %s failed: %i\n", dev_name(dev), err);
+			dev_warn(dev, "resume failed: %i\n", err);
 			return err;
 		}
 	}
 
 	err = watch_otherend(xdev);
 	if (err) {
-		pr_warn("resume (watch_otherend) %s failed: %d.\n",
-			dev_name(dev), err);
+		dev_warn(dev, "resume (watch_otherend) failed: %d\n", err);
 		return err;
 	}
 

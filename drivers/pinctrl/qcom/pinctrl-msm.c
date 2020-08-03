@@ -23,7 +23,6 @@
 #include <linux/pm.h>
 #include <linux/log2.h>
 #include <linux/qcom_scm.h>
-#include <linux/io.h>
 
 #include <linux/soc/qcom/irq.h>
 

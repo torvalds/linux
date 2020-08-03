@@ -54,6 +54,9 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_PTE_SYSTEM	(1ULL << 1)
 #define AMDGPU_PTE_SNOOPED	(1ULL << 2)
 
+/* RV+ */
+#define AMDGPU_PTE_TMZ		(1ULL << 3)
+
 /* VI only */
 #define AMDGPU_PTE_EXECUTABLE	(1ULL << 4)
 
@@ -203,9 +206,14 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_vm *vm;
 
 	/**
-	 * @direct: if changes should be made directly
+	 * @immediate: if changes should be made immediately
 	 */
-	bool direct;
+	bool immediate;
+
+	/**
+	 * @unlocked: true if the root BO is not locked
+	 */
+	bool unlocked;
 
 	/**
 	 * @pages_addr:
@@ -271,11 +279,11 @@ struct amdgpu_vm {
 	struct dma_fence	*last_update;
 
 	/* Scheduler entities for page table updates */
-	struct drm_sched_entity	direct;
+	struct drm_sched_entity	immediate;
 	struct drm_sched_entity	delayed;
 
-	/* Last submission to the scheduler entities */
-	struct dma_fence	*last_direct;
+	/* Last unlocked submission to the scheduler entities */
+	struct dma_fence	*last_unlocked;
 
 	unsigned int		pasid;
 	/* dedicated to vm */
@@ -349,10 +357,6 @@ struct amdgpu_vm_manager {
 	 */
 	struct idr				pasid_idr;
 	spinlock_t				pasid_lock;
-
-	/* counter of mapped memory through xgmi */
-	uint32_t				xgmi_map_counter;
-	struct mutex				lock_pstate;
 };
 
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
@@ -380,7 +384,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync);
 int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
-			  struct amdgpu_vm *vm, bool direct);
+			  struct amdgpu_vm *vm, bool immediate);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm,
 			  struct dma_fence **fence);

@@ -135,7 +135,7 @@ struct ptp_qoriq_registers {
 #define DEFAULT_CKSEL		1
 #define DEFAULT_TMR_PRSC	2
 #define DEFAULT_FIPER1_PERIOD	1000000000
-#define DEFAULT_FIPER2_PERIOD	100000
+#define DEFAULT_FIPER2_PERIOD	1000000000
 
 struct ptp_qoriq {
 	void __iomem *base;

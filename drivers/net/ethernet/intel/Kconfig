@@ -6,7 +6,7 @@
 config NET_VENDOR_INTEL
 	bool "Intel devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on PCI
 	select MII
-	---help---
+	help
 	  This driver supports Intel(R) PRO/100 family of adapters.
 	  To verify that your adapter is supported, find the board ID number
 	  on the adapter. Look for a label that has a barcode and a number
@@ -42,7 +42,7 @@ config E100
 config E1000
 	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"
 	depends on PCI
-	---help---
+	help
 	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
 	  to the Adapter & Driver ID Guide that can be located at:
@@ -60,7 +60,7 @@ config E1000E
 	depends on PCI && (!SPARC32 || BROKEN)
 	select CRC32
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
 	  use the regular e1000 driver For more information on how to
@@ -79,7 +79,7 @@ config E1000E_HWTS
 	bool "Support HW cross-timestamp on PCH devices"
 	default y
 	depends on E1000E && X86
-	---help---
+	help
 	 Say Y to enable hardware supported cross-timestamping on PCH
 	 devices. The cross-timestamp is available through the PTP clock
 	 driver precise cross-timestamp ioctl (PTP_SYS_OFFSET_PRECISE).
@@ -90,7 +90,7 @@ config IGB
 	imply PTP_1588_CLOCK
 	select I2C
 	select I2C_ALGOBIT
-	---help---
+	help
 	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
 	  to the Adapter & Driver ID Guide that can be located at:
@@ -107,7 +107,7 @@ config IGB_HWMON
 	bool "Intel(R) PCI-Express Gigabit adapters HWMON support"
 	default y
 	depends on IGB && HWMON && !(IGB=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose thermal sensor data on Intel devices.
 
 	  Some of our devices contain thermal sensors, both external and internal.
@@ -118,7 +118,7 @@ config IGB_DCA
 	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on IGB && DCA && !(IGB=y && DCA=m)
-	---help---
+	help
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
@@ -126,7 +126,7 @@ config IGB_DCA
 config IGBVF
 	tristate "Intel(R) 82576 Virtual Function Ethernet support"
 	depends on PCI
-	---help---
+	help
 	  This driver supports Intel(R) 82576 virtual functions.  For more
 	  information on how to identify your adapter, go to the Adapter &
 	  Driver ID Guide that can be located at:
@@ -142,7 +142,7 @@ config IGBVF
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
 	depends on PCI
-	---help---
+	help
 	  This driver supports Intel(R) PRO/10GbE family of adapters for
 	  PCI-X type cards. For PCI-E type cards, use the "ixgbe" driver
 	  instead. For more information on how to identify your adapter, go
@@ -162,7 +162,7 @@ config IXGBE
 	select MDIO
 	select PHYLIB
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
 	  to the Adapter & Driver ID Guide that can be located at:
@@ -179,7 +179,7 @@ config IXGBE_HWMON
 	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
 	default y
 	depends on IXGBE && HWMON && !(IXGBE=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose the thermal sensor data on some of
 	  our cards, via a hwmon sysfs interface.
 
@@ -187,7 +187,7 @@ config IXGBE_DCA
 	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
-	---help---
+	help
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
@@ -196,7 +196,7 @@ config IXGBE_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n
 	depends on IXGBE && DCB
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 
@@ -208,13 +208,13 @@ config IXGBE_IPSEC
 	depends on XFRM_OFFLOAD
 	default y
 	select XFRM_ALGO
-	---help---
+	help
 	  Enable support for IPSec offload in ixgbe.ko
 
 config IXGBEVF
 	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
 	depends on PCI_MSI
-	---help---
+	help
 	  This driver supports Intel(R) PCI Express virtual functions for the
 	  Intel(R) ixgbe driver.  For more information on how to identify your
 	  adapter, go to the Adapter & Driver ID Guide that can be located at:
@@ -234,14 +234,14 @@ config IXGBEVF_IPSEC
 	depends on XFRM_OFFLOAD
 	default y
 	select XFRM_ALGO
-	---help---
+	help
 	  Enable support for IPSec offload in ixgbevf.ko
 
 config I40E
 	tristate "Intel(R) Ethernet Controller XL710 Family support"
 	imply PTP_1588_CLOCK
 	depends on PCI
-	---help---
+	help
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
 	  devices.  For more information on how to identify your adapter, go
 	  to the Adapter & Driver ID Guide that can be located at:
@@ -258,7 +258,7 @@ config I40E_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n
 	depends on I40E && DCB
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 
@@ -272,7 +272,7 @@ config I40EVF
 	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
 	select IAVF
 	depends on PCI_MSI
-	---help---
+	help
 	  This driver supports virtual functions for Intel XL710,
 	  X710, X722, XXV710, and all devices advertising support for
 	  Intel Ethernet Adaptive Virtual Function devices. For more
@@ -295,7 +295,7 @@ config ICE
 	default n
 	depends on PCI_MSI
 	select NET_DEVLINK
-	---help---
+	help
 	  This driver supports Intel(R) Ethernet Connection E800 Series of
 	  devices.  For more information on how to identify your adapter, go
 	  to the Adapter & Driver ID Guide that can be located at:
@@ -313,7 +313,7 @@ config FM10K
 	default n
 	depends on PCI_MSI
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports Intel(R) FM10000 Ethernet Switch Host
 	  Interface.  For more information on how to identify your adapter,
 	  go to the Adapter & Driver ID Guide that can be located at:
@@ -330,7 +330,7 @@ config IGC
 	tristate "Intel(R) Ethernet Controller I225-LM/I225-V support"
 	default n
 	depends on PCI
-	---help---
+	help
 	  This driver supports Intel(R) Ethernet Controller I225-LM/I225-V
 	  family of adapters.
 

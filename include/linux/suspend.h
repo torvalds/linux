@@ -466,6 +466,12 @@ static inline bool system_entering_hibernation(void) { return false; }
 static inline bool hibernation_available(void) { return false; }
 #endif /* CONFIG_HIBERNATION */
 
+#ifdef CONFIG_HIBERNATION_SNAPSHOT_DEV
+int is_hibernate_resume_dev(const struct inode *);
+#else
+static inline int is_hibernate_resume_dev(const struct inode *i) { return 0; }
+#endif
+
 /* Hibernation and suspend events */
 #define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
 #define PM_POST_HIBERNATION	0x0002 /* Hibernation finished */

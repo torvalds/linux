@@ -29,6 +29,9 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+#include "hdcp_types.h"
+#endif
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
@@ -39,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.76"
+#define DC_VER "3.2.84"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -95,6 +98,49 @@ struct dc_plane_cap {
 	} max_downscale_factor;
 };
 
+// Color management caps (DPP and MPC)
+struct rom_curve_caps {
+	uint16_t srgb : 1;
+	uint16_t bt2020 : 1;
+	uint16_t gamma2_2 : 1;
+	uint16_t pq : 1;
+	uint16_t hlg : 1;
+};
+
+struct dpp_color_caps {
+	uint16_t dcn_arch : 1; // all DCE generations treated the same
+	// input lut is different than most LUTs, just plain 256-entry lookup
+	uint16_t input_lut_shared : 1; // shared with DGAM
+	uint16_t icsc : 1;
+	uint16_t dgam_ram : 1;
+	uint16_t post_csc : 1; // before gamut remap
+	uint16_t gamma_corr : 1;
+
+	// hdr_mult and gamut remap always available in DPP (in that order)
+	// 3d lut implies shaper LUT,
+	// it may be shared with MPC - check MPC:shared_3d_lut flag
+	uint16_t hw_3d_lut : 1;
+	uint16_t ogam_ram : 1; // blnd gam
+	uint16_t ocsc : 1;
+	struct rom_curve_caps dgam_rom_caps;
+	struct rom_curve_caps ogam_rom_caps;
+};
+
+struct mpc_color_caps {
+	uint16_t gamut_remap : 1;
+	uint16_t ogam_ram : 1;
+	uint16_t ocsc : 1;
+	uint16_t num_3dluts : 3; //3d lut always assumes a preceding shaper LUT
+	uint16_t shared_3d_lut:1; //can be in either DPP or MPC, but single instance
+
+	struct rom_curve_caps ogam_rom_caps;
+};
+
+struct dc_color_caps {
+	struct dpp_color_caps dpp;
+	struct mpc_color_caps mpc;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -117,9 +163,9 @@ struct dc_caps {
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
-	bool hw_3d_lut;
 	enum dp_protocol_version max_dp_protocol_version;
 	struct dc_plane_cap planes[MAX_PLANES];
+	struct dc_color_caps color;
 };
 
 struct dc_bug_wa {
@@ -230,7 +276,8 @@ struct dc_config {
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
-	bool psr_on_dmub;
+	bool disable_dmcu;
+	bool enable_4to1MPC;
 };
 
 enum visual_confirm {
@@ -238,6 +285,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SURFACE = 1,
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
+	VISUAL_CONFIRM_PSR = 5,
 };
 
 enum dcc_option {
@@ -429,6 +477,7 @@ struct dc_debug_options {
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
 	bool disable_dsc;
+	bool enable_dram_clock_change_one_display_vactive;
 };
 
 struct dc_debug_data {
@@ -474,6 +523,7 @@ struct dc_bounding_box_overrides {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	int dummy_clock_change_latency_ns;
 	/* This forces a hard min on the DCFCLK we use
 	 * for DML.  Unlike the debug option for forcing
 	 * DCFCLK, this override affects watermark calculations
@@ -987,6 +1037,7 @@ struct dpcd_caps {
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;
+	struct psr_caps psr_caps;
 
 };
 
@@ -1003,6 +1054,35 @@ union dpcd_sink_ext_caps {
 	} bits;
 	uint8_t raw;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+union hdcp_rx_caps {
+	struct {
+		uint8_t version;
+		uint8_t reserved;
+		struct {
+			uint8_t repeater	: 1;
+			uint8_t hdcp_capable	: 1;
+			uint8_t reserved	: 6;
+		} byte0;
+	} fields;
+	uint8_t raw[3];
+};
+
+union hdcp_bcaps {
+	struct {
+		uint8_t HDCP_CAPABLE:1;
+		uint8_t REPEATER:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+struct hdcp_caps {
+	union hdcp_rx_caps rx_caps;
+	union hdcp_bcaps bcaps;
+};
+#endif
 
 #include "dc_link.h"
 
@@ -1046,7 +1126,7 @@ struct dc_sink {
 	void *priv;
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
-
+	bool is_mst_legacy;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
 
@@ -1073,6 +1153,7 @@ struct dc_sink_init_data {
 	struct dc_link *link;
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
+	bool sink_is_legacy;
 };
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
@@ -1104,9 +1185,16 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
-unsigned int dc_get_current_backlight_pwm(struct dc *dc);
-unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+/*
+ * HDCP Interfaces
+ */
+enum hdcp_message_status dc_process_hdcp_msg(
+		enum signal_type signal,
+		struct dc_link *link,
+		struct hdcp_protection_message *message_info);
+#endif
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);

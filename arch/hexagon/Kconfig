@@ -31,13 +31,13 @@ config HEXAGON
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select MODULES_USE_ELF_RELA
 	select GENERIC_CPU_DEVICES
-	---help---
+	help
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
 
 config HEXAGON_PHYS_OFFSET
 	def_bool y
-	---help---
+	help
 	  Platforms that don't load the kernel at zero set this.
 
 config FRAME_POINTER
@@ -83,7 +83,7 @@ choice
 
 config HEXAGON_COMET
 	bool "Comet Board"
-	---help---
+	help
 	  Support for the Comet platform.
 
 endchoice
@@ -104,7 +104,7 @@ config CMDLINE
 
 config SMP
 	bool "Multi-Processing support"
-	---help---
+	help
 	  Enables SMP support in the kernel.  If unsure, say "Y"
 
 config NR_CPUS
@@ -112,7 +112,7 @@ config NR_CPUS
 	range 2 6 if SMP
 	default "1" if !SMP
 	default "6" if SMP
-	---help---
+	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 6 and the
 	  minimum value which makes sense is 2.
@@ -123,7 +123,7 @@ config NR_CPUS
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB
-	---help---
+	help
 	  Changes the default page size; use with caution.
 
 config PAGE_SIZE_4KB

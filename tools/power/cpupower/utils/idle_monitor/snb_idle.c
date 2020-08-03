@@ -77,7 +77,7 @@ static int snb_get_count(enum intel_snb_id id, unsigned long long *val,
 		break;
 	default:
 		return -1;
-	};
+	}
 	if (read_msr(cpu, msr, val))
 		return -1;
 	return 0;

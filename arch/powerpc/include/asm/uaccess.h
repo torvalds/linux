@@ -93,17 +93,62 @@ static inline int __access_ok(unsigned long addr, unsigned long size,
 #define __get_user(x, ptr) \
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)), true)
 #define __put_user(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), true)
+	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+#define __put_user_goto(x, ptr, label) \
+	__put_user_nocheck_goto((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), label)
 
 #define __get_user_allowed(x, ptr) \
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)), false)
-#define __put_user_allowed(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), false)
 
 #define __get_user_inatomic(x, ptr) \
 	__get_user_nosleep((x), (ptr), sizeof(*(ptr)))
 #define __put_user_inatomic(x, ptr) \
 	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+
+#ifdef CONFIG_PPC64
+
+#define ___get_user_instr(gu_op, dest, ptr)				\
+({									\
+	long __gui_ret = 0;						\
+	unsigned long __gui_ptr = (unsigned long)ptr;			\
+	struct ppc_inst __gui_inst;					\
+	unsigned int __prefix, __suffix;				\
+	__gui_ret = gu_op(__prefix, (unsigned int __user *)__gui_ptr);	\
+	if (__gui_ret == 0) {						\
+		if ((__prefix >> 26) == OP_PREFIX) {			\
+			__gui_ret = gu_op(__suffix,			\
+				(unsigned int __user *)__gui_ptr + 1);	\
+			__gui_inst = ppc_inst_prefix(__prefix,		\
+						     __suffix);		\
+		} else {						\
+			__gui_inst = ppc_inst(__prefix);		\
+		}							\
+		if (__gui_ret == 0)					\
+			(dest) = __gui_inst;				\
+	}								\
+	__gui_ret;							\
+})
+
+#define get_user_instr(x, ptr) \
+	___get_user_instr(get_user, x, ptr)
+
+#define __get_user_instr(x, ptr) \
+	___get_user_instr(__get_user, x, ptr)
+
+#define __get_user_instr_inatomic(x, ptr) \
+	___get_user_instr(__get_user_inatomic, x, ptr)
+
+#else /* !CONFIG_PPC64 */
+#define get_user_instr(x, ptr) \
+	get_user((x).val, (u32 __user *)(ptr))
+
+#define __get_user_instr(x, ptr) \
+	__get_user_nocheck((x).val, (u32 __user *)(ptr), sizeof(u32), true)
+
+#define __get_user_instr_inatomic(x, ptr) \
+	__get_user_nosleep((x).val, (u32 __user *)(ptr), sizeof(u32))
+
+#endif /* CONFIG_PPC64 */
 
 extern long __put_user_bad(void);
 
@@ -162,7 +207,7 @@ do {								\
 	prevent_write_to_user(ptr, size);			\
 } while (0)
 
-#define __put_user_nocheck(x, ptr, size, do_allow)			\
+#define __put_user_nocheck(x, ptr, size)			\
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
@@ -172,10 +217,7 @@ do {								\
 	if (!is_kernel_addr((unsigned long)__pu_addr))		\
 		might_fault();					\
 	__chk_user_ptr(__pu_addr);				\
-	if (do_allow)								\
-		__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err);	\
-	else									\
-		__put_user_size_allowed(__pu_val, __pu_addr, __pu_size, __pu_err); \
+	__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err);	\
 								\
 	__pu_err;						\
 })
@@ -206,6 +248,52 @@ do {								\
 								\
 	__pu_err;						\
 })
+
+
+#define __put_user_asm_goto(x, addr, label, op)			\
+	asm volatile goto(					\
+		"1:	" op "%U1%X1 %0,%1	# put_user\n"	\
+		EX_TABLE(1b, %l2)				\
+		:						\
+		: "r" (x), "m" (*addr)				\
+		:						\
+		: label)
+
+#ifdef __powerpc64__
+#define __put_user_asm2_goto(x, ptr, label)			\
+	__put_user_asm_goto(x, ptr, label, "std")
+#else /* __powerpc64__ */
+#define __put_user_asm2_goto(x, addr, label)			\
+	asm volatile goto(					\
+		"1:	stw%X1 %0, %1\n"			\
+		"2:	stw%X1 %L0, %L1\n"			\
+		EX_TABLE(1b, %l2)				\
+		EX_TABLE(2b, %l2)				\
+		:						\
+		: "r" (x), "m" (*addr)				\
+		:						\
+		: label)
+#endif /* __powerpc64__ */
+
+#define __put_user_size_goto(x, ptr, size, label)		\
+do {								\
+	switch (size) {						\
+	case 1: __put_user_asm_goto(x, ptr, label, "stb"); break;	\
+	case 2: __put_user_asm_goto(x, ptr, label, "sth"); break;	\
+	case 4: __put_user_asm_goto(x, ptr, label, "stw"); break;	\
+	case 8: __put_user_asm2_goto(x, ptr, label); break;	\
+	default: __put_user_bad();				\
+	}							\
+} while (0)
+
+#define __put_user_nocheck_goto(x, ptr, size, label)		\
+do {								\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+	if (!is_kernel_addr((unsigned long)__pu_addr))		\
+		might_fault();					\
+	__chk_user_ptr(ptr);					\
+	__put_user_size_goto((x), __pu_addr, (size), label);	\
+} while (0)
 
 
 extern long __get_user_bad(void);
@@ -489,10 +577,51 @@ static __must_check inline bool user_access_begin(const void __user *ptr, size_t
 #define user_access_save	prevent_user_access_return
 #define user_access_restore	restore_user_access
 
+static __must_check inline bool
+user_read_access_begin(const void __user *ptr, size_t len)
+{
+	if (unlikely(!access_ok(ptr, len)))
+		return false;
+	allow_read_from_user(ptr, len);
+	return true;
+}
+#define user_read_access_begin	user_read_access_begin
+#define user_read_access_end		prevent_current_read_from_user
+
+static __must_check inline bool
+user_write_access_begin(const void __user *ptr, size_t len)
+{
+	if (unlikely(!access_ok(ptr, len)))
+		return false;
+	allow_write_to_user((void __user *)ptr, len);
+	return true;
+}
+#define user_write_access_begin	user_write_access_begin
+#define user_write_access_end		prevent_current_write_to_user
+
 #define unsafe_op_wrap(op, err) do { if (unlikely(op)) goto err; } while (0)
 #define unsafe_get_user(x, p, e) unsafe_op_wrap(__get_user_allowed(x, p), e)
-#define unsafe_put_user(x, p, e) unsafe_op_wrap(__put_user_allowed(x, p), e)
+#define unsafe_put_user(x, p, e) __put_user_goto(x, p, e)
+
 #define unsafe_copy_to_user(d, s, l, e) \
-	unsafe_op_wrap(raw_copy_to_user_allowed(d, s, l), e)
+do {									\
+	u8 __user *_dst = (u8 __user *)(d);				\
+	const u8 *_src = (const u8 *)(s);				\
+	size_t _len = (l);						\
+	int _i;								\
+									\
+	for (_i = 0; _i < (_len & ~(sizeof(long) - 1)); _i += sizeof(long))		\
+		__put_user_goto(*(long*)(_src + _i), (long __user *)(_dst + _i), e);\
+	if (IS_ENABLED(CONFIG_PPC64) && (_len & 4)) {			\
+		__put_user_goto(*(u32*)(_src + _i), (u32 __user *)(_dst + _i), e);	\
+		_i += 4;						\
+	}								\
+	if (_len & 2) {							\
+		__put_user_goto(*(u16*)(_src + _i), (u16 __user *)(_dst + _i), e);	\
+		_i += 2;						\
+	}								\
+	if (_len & 1) \
+		__put_user_goto(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e);\
+} while (0)
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */

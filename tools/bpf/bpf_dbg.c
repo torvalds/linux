@@ -13,7 +13,7 @@
  * for making a verdict when multiple simple BPF programs are combined
  * into one in order to prevent parsing same headers multiple times.
  *
- * More on how to debug BPF opcodes see Documentation/networking/filter.txt
+ * More on how to debug BPF opcodes see Documentation/networking/filter.rst
  * which is the main document on BPF. Mini howto for getting started:
  *
  *  1) `./bpf_dbg` to enter the shell (shell cmds denoted with '>'):

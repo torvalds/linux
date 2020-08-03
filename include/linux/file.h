@@ -94,4 +94,6 @@ extern void fd_install(unsigned int fd, struct file *file);
 extern void flush_delayed_fput(void);
 extern void __fput_sync(struct file *);
 
+extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
+
 #endif /* __LINUX_FILE_H */

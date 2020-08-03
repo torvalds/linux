@@ -166,13 +166,13 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	mov WORD_SIZE(%_ASM_SP), %_ASM_AX
 
 	/* Save all guest registers, including RAX from the stack */
-	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
-	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
-	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
-	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
-	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
-	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
-	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
+	pop           VCPU_RAX(%_ASM_AX)
+	mov %_ASM_CX, VCPU_RCX(%_ASM_AX)
+	mov %_ASM_DX, VCPU_RDX(%_ASM_AX)
+	mov %_ASM_BX, VCPU_RBX(%_ASM_AX)
+	mov %_ASM_BP, VCPU_RBP(%_ASM_AX)
+	mov %_ASM_SI, VCPU_RSI(%_ASM_AX)
+	mov %_ASM_DI, VCPU_RDI(%_ASM_AX)
 #ifdef CONFIG_X86_64
 	mov %r8,  VCPU_R8 (%_ASM_AX)
 	mov %r9,  VCPU_R9 (%_ASM_AX)

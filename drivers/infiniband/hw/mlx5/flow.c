@@ -67,46 +67,41 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 	},
 };
 
-#define MLX5_IB_CREATE_FLOW_MAX_FLOW_ACTIONS 2
-static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
-	struct uverbs_attr_bundle *attrs)
+static int get_dests(struct uverbs_attr_bundle *attrs,
+		     struct mlx5_ib_flow_matcher *fs_matcher, int *dest_id,
+		     int *dest_type, struct ib_qp **qp, u32 *flags)
 {
-	struct mlx5_flow_context flow_context = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
-	struct mlx5_ib_flow_handler *flow_handler;
-	struct mlx5_ib_flow_matcher *fs_matcher;
-	struct ib_uobject **arr_flow_actions;
-	struct ib_uflow_resources *uflow_res;
-	struct mlx5_flow_act flow_act = {};
-	void *devx_obj;
-	int dest_id, dest_type;
-	void *cmd_in;
-	int inlen;
 	bool dest_devx, dest_qp;
-	struct ib_qp *qp = NULL;
-	struct ib_uobject *uobj =
-		uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
-	struct mlx5_ib_dev *dev = mlx5_udata_to_mdev(&attrs->driver_udata);
-	int len, ret, i;
-	u32 counter_id = 0;
-	u32 *offset_attr;
-	u32 offset = 0;
+	void *devx_obj;
+	int err;
 
-	if (!capable(CAP_NET_RAW))
-		return -EPERM;
-
-	dest_devx =
-		uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
+	dest_devx = uverbs_attr_is_valid(attrs,
+					 MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
 	dest_qp = uverbs_attr_is_valid(attrs,
 				       MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
 
-	fs_matcher = uverbs_attr_get_obj(attrs,
-					 MLX5_IB_ATTR_CREATE_FLOW_MATCHER);
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS &&
-	    ((dest_devx && dest_qp) || (!dest_devx && !dest_qp)))
+	*flags = 0;
+	err = uverbs_get_flags32(flags, attrs, MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
+				 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS |
+					 MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP);
+	if (err)
+		return err;
+
+	/* Both flags are not allowed */
+	if (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS &&
+	    *flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)
 		return -EINVAL;
 
-	/* Allow only DEVX object as dest when inserting to FDB */
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !dest_devx)
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
+		if (dest_devx && (dest_qp || *flags))
+			return -EINVAL;
+		else if (dest_qp && *flags)
+			return -EINVAL;
+	}
+
+	/* Allow only DEVX object, drop as dest for FDB */
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !(dest_devx ||
+	     (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)))
 		return -EINVAL;
 
 	/* Allow only DEVX object or QP as dest when inserting to RDMA_RX */
@@ -114,42 +109,85 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	    ((!dest_devx && !dest_qp) || (dest_devx && dest_qp)))
 		return -EINVAL;
 
+	*qp = NULL;
 	if (dest_devx) {
-		devx_obj = uverbs_attr_get_obj(
-			attrs, MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
-		if (IS_ERR(devx_obj))
-			return PTR_ERR(devx_obj);
+		devx_obj =
+			uverbs_attr_get_obj(attrs,
+					    MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
 
 		/* Verify that the given DEVX object is a flow
 		 * steering destination.
 		 */
-		if (!mlx5_ib_devx_is_flow_dest(devx_obj, &dest_id, &dest_type))
+		if (!mlx5_ib_devx_is_flow_dest(devx_obj, dest_id, dest_type))
 			return -EINVAL;
 		/* Allow only flow table as dest when inserting to FDB or RDMA_RX */
 		if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB ||
 		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
-		    dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
+		    *dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
 			return -EINVAL;
 	} else if (dest_qp) {
 		struct mlx5_ib_qp *mqp;
 
-		qp = uverbs_attr_get_obj(attrs,
-					 MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
-		if (IS_ERR(qp))
-			return PTR_ERR(qp);
+		*qp = uverbs_attr_get_obj(attrs,
+					  MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
+		if (IS_ERR(*qp))
+			return PTR_ERR(*qp);
 
-		if (qp->qp_type != IB_QPT_RAW_PACKET)
+		if ((*qp)->qp_type != IB_QPT_RAW_PACKET)
 			return -EINVAL;
 
-		mqp = to_mqp(qp);
-		if (mqp->flags & MLX5_IB_QP_RSS)
-			dest_id = mqp->rss_qp.tirn;
+		mqp = to_mqp(*qp);
+		if (mqp->is_rss)
+			*dest_id = mqp->rss_qp.tirn;
 		else
-			dest_id = mqp->raw_packet_qp.rq.tirn;
-		dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	} else {
-		dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
+			*dest_id = mqp->raw_packet_qp.rq.tirn;
+		*dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS) {
+		*dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 	}
+
+	if (*dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
+	    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS)
+		return -EINVAL;
+
+	return 0;
+}
+
+#define MLX5_IB_CREATE_FLOW_MAX_FLOW_ACTIONS 2
+static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_flow_context flow_context = {.flow_tag =
+		MLX5_FS_DEFAULT_FLOW_TAG};
+	u32 *offset_attr, offset = 0, counter_id = 0;
+	int dest_id, dest_type, inlen, len, ret, i;
+	struct mlx5_ib_flow_handler *flow_handler;
+	struct mlx5_ib_flow_matcher *fs_matcher;
+	struct ib_uobject **arr_flow_actions;
+	struct ib_uflow_resources *uflow_res;
+	struct mlx5_flow_act flow_act = {};
+	struct ib_qp *qp = NULL;
+	void *devx_obj, *cmd_in;
+	struct ib_uobject *uobj;
+	struct mlx5_ib_dev *dev;
+	u32 flags;
+
+	if (!capable(CAP_NET_RAW))
+		return -EPERM;
+
+	fs_matcher = uverbs_attr_get_obj(attrs,
+					 MLX5_IB_ATTR_CREATE_FLOW_MATCHER);
+	uobj =  uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
+	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
+
+	if (get_dests(attrs, fs_matcher, &dest_id, &dest_type, &qp, &flags))
+		return -EINVAL;
+
+	if (flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DEFAULT_MISS)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS;
+
+	if (flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
 
 	len = uverbs_attr_get_uobjs_arr(attrs,
 		MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX, &arr_flow_actions);
@@ -179,10 +217,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	}
-
-	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
-	    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS)
-		return -EINVAL;
 
 	cmd_in = uverbs_attr_get_alloced_ptr(
 		attrs, MLX5_IB_ATTR_CREATE_FLOW_MATCH_VALUE);
@@ -404,7 +438,10 @@ static bool mlx5_ib_modify_header_supported(struct mlx5_ib_dev *dev)
 {
 	return MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 					 max_modify_header_actions) ||
-	       MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, max_modify_header_actions);
+	       MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
+					 max_modify_header_actions) ||
+	       MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev,
+					 max_modify_header_actions);
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
@@ -427,7 +464,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 
 	num_actions = uverbs_attr_ptr_get_array_size(
 		attrs, MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
-		MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto));
+		MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto));
 	if (num_actions < 0)
 		return num_actions;
 
@@ -626,7 +663,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX_OFFSET,
 			   UVERBS_ATTR_MIN_SIZE(sizeof(u32)),
 			   UA_OPTIONAL,
-			   UA_ALLOC_AND_COPY));
+			   UA_ALLOC_AND_COPY),
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_FLAGS,
+			     enum mlx5_ib_create_flow_flags,
+			     UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DESTROY_FLOW,
@@ -648,7 +688,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
 			   UVERBS_ATTR_MIN_SIZE(MLX5_UN_SZ_BYTES(
-				   set_action_in_add_action_in_auto)),
+				   set_add_copy_action_in_auto)),
 			   UA_MANDATORY,
 			   UA_ALLOC_AND_COPY),
 	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE,

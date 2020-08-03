@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
-#include <asm/asm-405.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 
@@ -47,7 +46,6 @@ static __inline__ void atomic_##op(int a, atomic_t *v)			\
 	__asm__ __volatile__(						\
 "1:	lwarx	%0,0,%3		# atomic_" #op "\n"			\
 	#asm_op " %0,%2,%0\n"						\
-	PPC405_ERR77(0,%3)						\
 "	stwcx.	%0,0,%3 \n"						\
 "	bne-	1b\n"							\
 	: "=&r" (t), "+m" (v->counter)					\
@@ -63,7 +61,6 @@ static inline int atomic_##op##_return_relaxed(int a, atomic_t *v)	\
 	__asm__ __volatile__(						\
 "1:	lwarx	%0,0,%3		# atomic_" #op "_return_relaxed\n"	\
 	#asm_op " %0,%2,%0\n"						\
-	PPC405_ERR77(0, %3)						\
 "	stwcx.	%0,0,%3\n"						\
 "	bne-	1b\n"							\
 	: "=&r" (t), "+m" (v->counter)					\
@@ -81,7 +78,6 @@ static inline int atomic_fetch_##op##_relaxed(int a, atomic_t *v)	\
 	__asm__ __volatile__(						\
 "1:	lwarx	%0,0,%4		# atomic_fetch_" #op "_relaxed\n"	\
 	#asm_op " %1,%3,%0\n"						\
-	PPC405_ERR77(0, %4)						\
 "	stwcx.	%1,0,%4\n"						\
 "	bne-	1b\n"							\
 	: "=&r" (res), "=&r" (t), "+m" (v->counter)			\
@@ -130,7 +126,6 @@ static __inline__ void atomic_inc(atomic_t *v)
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2		# atomic_inc\n\
 	addic	%0,%0,1\n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%0,0,%2 \n\
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
@@ -146,7 +141,6 @@ static __inline__ int atomic_inc_return_relaxed(atomic_t *v)
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2		# atomic_inc_return_relaxed\n"
 "	addic	%0,%0,1\n"
-	PPC405_ERR77(0, %2)
 "	stwcx.	%0,0,%2\n"
 "	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
@@ -163,7 +157,6 @@ static __inline__ void atomic_dec(atomic_t *v)
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2		# atomic_dec\n\
 	addic	%0,%0,-1\n"
-	PPC405_ERR77(0,%2)\
 "	stwcx.	%0,0,%2\n\
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
@@ -179,7 +172,6 @@ static __inline__ int atomic_dec_return_relaxed(atomic_t *v)
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2		# atomic_dec_return_relaxed\n"
 "	addic	%0,%0,-1\n"
-	PPC405_ERR77(0, %2)
 "	stwcx.	%0,0,%2\n"
 "	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
@@ -220,7 +212,6 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	cmpw	0,%0,%3 \n\
 	beq	2f \n\
 	add	%0,%2,%0 \n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%0,0,%1 \n\
 	bne-	1b \n"
 	PPC_ATOMIC_EXIT_BARRIER
@@ -251,7 +242,6 @@ static __inline__ int atomic_inc_not_zero(atomic_t *v)
 	cmpwi	0,%0,0\n\
 	beq-	2f\n\
 	addic	%1,%0,1\n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%1,0,%2\n\
 	bne-	1b\n"
 	PPC_ATOMIC_EXIT_BARRIER
@@ -280,7 +270,6 @@ static __inline__ int atomic_dec_if_positive(atomic_t *v)
 	cmpwi	%0,1\n\
 	addi	%0,%0,-1\n\
 	blt-	2f\n"
-	PPC405_ERR77(0,%1)
 "	stwcx.	%0,0,%1\n\
 	bne-	1b"
 	PPC_ATOMIC_EXIT_BARRIER

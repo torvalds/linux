@@ -197,6 +197,7 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 	err = devlink_region_snapshot_id_get(devlink, &id);
 	if (err) {
 		mlx4_err(dev, "crdump: devlink get snapshot id err %d\n", err);
+		iounmap(cr_space);
 		return err;
 	}
 

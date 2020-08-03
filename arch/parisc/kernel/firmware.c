@@ -4,7 +4,8 @@
  *
  *	PDC == Processor Dependent Code
  *
- * See http://www.parisc-linux.org/documentation/index.html
+ * See PDC documentation at
+ * https://parisc.wiki.kernel.org/index.php/Technical_Documentation
  * for documentation describing the entry points and calling
  * conventions defined below.
  *

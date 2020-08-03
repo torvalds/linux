@@ -284,14 +284,23 @@
 #ifndef cpu_has_mips32r2
 # define cpu_has_mips32r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M32R2)
 #endif
+#ifndef cpu_has_mips32r5
+# define cpu_has_mips32r5	__isa_range_or_flag(5, 6, MIPS_CPU_ISA_M32R5)
+#endif
 #ifndef cpu_has_mips32r6
 # define cpu_has_mips32r6	__isa_ge_or_flag(6, MIPS_CPU_ISA_M32R6)
 #endif
 #ifndef cpu_has_mips64r1
-# define cpu_has_mips64r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M64R1)
+# define cpu_has_mips64r1	(cpu_has_64bits && \
+				 __isa_range_or_flag(1, 6, MIPS_CPU_ISA_M64R1))
 #endif
 #ifndef cpu_has_mips64r2
-# define cpu_has_mips64r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2)
+# define cpu_has_mips64r2	(cpu_has_64bits && \
+				 __isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2))
+#endif
+#ifndef cpu_has_mips64r5
+# define cpu_has_mips64r5	(cpu_has_64bits && \
+				 __isa_range_or_flag(5, 6, MIPS_CPU_ISA_M64R5))
 #endif
 #ifndef cpu_has_mips64r6
 # define cpu_has_mips64r6	__isa_ge_and_flag(6, MIPS_CPU_ISA_M64R6)
@@ -313,19 +322,25 @@
 				(cpu_has_mips_3 | cpu_has_mips_4_5_64_r2_r6)
 #define cpu_has_mips_4_5_64_r2_r6					\
 				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
-				 cpu_has_mips_r2 | cpu_has_mips_r6)
+				 cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
-#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
-#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
+			 cpu_has_mips32r5 | cpu_has_mips32r6)
+#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
 #define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
+#define cpu_has_mips_r5	(cpu_has_mips32r5 | cpu_has_mips64r5)
 #define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6)
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
-			 cpu_has_mips32r6 | cpu_has_mips64r1 | \
-			 cpu_has_mips64r2 | cpu_has_mips64r6)
+			 cpu_has_mips32r5 | cpu_has_mips32r6 | \
+			 cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 
-/* MIPSR2 and MIPSR6 have a lot of similarities */
-#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
+/* MIPSR2 - MIPSR6 have a lot of similarities */
+#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
 /*
  * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
@@ -435,9 +450,6 @@
 # ifndef cpu_has_64bit_gp_regs
 # define cpu_has_64bit_gp_regs		0
 # endif
-# ifndef cpu_has_64bit_addresses
-# define cpu_has_64bit_addresses	0
-# endif
 # ifndef cpu_vmbits
 # define cpu_vmbits 31
 # endif
@@ -455,9 +467,6 @@
 # endif
 # ifndef cpu_has_64bit_gp_regs
 # define cpu_has_64bit_gp_regs		1
-# endif
-# ifndef cpu_has_64bit_addresses
-# define cpu_has_64bit_addresses	1
 # endif
 # ifndef cpu_vmbits
 # define cpu_vmbits cpu_data[0].vmbits
@@ -620,6 +629,14 @@
 # endif
 #endif
 
+#ifndef cpu_has_mm_sysad
+# define cpu_has_mm_sysad	__opt(MIPS_CPU_MM_SYSAD)
+#endif
+
+#ifndef cpu_has_mm_full
+# define cpu_has_mm_full	__opt(MIPS_CPU_MM_FULL)
+#endif
+
 /*
  * Guest capabilities
  */
@@ -664,6 +681,9 @@
 #endif
 #ifndef cpu_guest_has_htw
 #define cpu_guest_has_htw	(cpu_data[0].guest.options & MIPS_CPU_HTW)
+#endif
+#ifndef cpu_guest_has_ldpte
+#define cpu_guest_has_ldpte	(cpu_data[0].guest.options & MIPS_CPU_LDPTE)
 #endif
 #ifndef cpu_guest_has_mvh
 #define cpu_guest_has_mvh	(cpu_data[0].guest.options & MIPS_CPU_MVH)

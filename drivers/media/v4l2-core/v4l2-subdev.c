@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/export.h>
+#include <linux/version.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -22,24 +23,22 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	if (sd->entity.num_pads) {
 		fh->pad = v4l2_subdev_alloc_pad_config(sd);
 		if (fh->pad == NULL)
 			return -ENOMEM;
 	}
-#endif
+
 	return 0;
 }
 
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	v4l2_subdev_free_pad_config(fh->pad);
 	fh->pad = NULL;
-#endif
 }
 
 static int subdev_open(struct file *file)
@@ -111,6 +110,17 @@ static int subdev_close(struct file *file)
 
 	return 0;
 }
+#else /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+static int subdev_open(struct file *file)
+{
+	return -ENODEV;
+}
+
+static int subdev_close(struct file *file)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 static inline int check_which(u32 which)
 {
@@ -324,17 +334,27 @@ const struct v4l2_subdev_ops v4l2_subdev_call_wrappers = {
 };
 EXPORT_SYMBOL(v4l2_subdev_call_wrappers);
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_fh *vfh = file->private_data;
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
-#endif
+	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 	int rval;
 
 	switch (cmd) {
+	case VIDIOC_SUBDEV_QUERYCAP: {
+		struct v4l2_subdev_capability *cap = arg;
+
+		memset(cap->reserved, 0, sizeof(cap->reserved));
+		cap->version = LINUX_VERSION_CODE;
+		cap->capabilities = ro_subdev ? V4L2_SUBDEV_CAP_RO_SUBDEV : 0;
+
+		return 0;
+	}
+
 	case VIDIOC_QUERYCTRL:
 		/*
 		 * TODO: this really should be folded into v4l2_queryctrl (this
@@ -465,7 +485,6 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return ret;
 	}
 
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	case VIDIOC_SUBDEV_G_FMT: {
 		struct v4l2_subdev_format *format = arg;
 
@@ -476,6 +495,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_FMT: {
 		struct v4l2_subdev_format *format = arg;
+
+		if (format->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
+			return -EPERM;
 
 		memset(format->reserved, 0, sizeof(format->reserved));
 		memset(format->format.reserved, 0, sizeof(format->format.reserved));
@@ -503,6 +525,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_SUBDEV_S_CROP: {
 		struct v4l2_subdev_crop *crop = arg;
 		struct v4l2_subdev_selection sel;
+
+		if (crop->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
+			return -EPERM;
 
 		memset(crop->reserved, 0, sizeof(crop->reserved));
 		memset(&sel, 0, sizeof(sel));
@@ -545,6 +570,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
 		struct v4l2_subdev_frame_interval *fi = arg;
 
+		if (ro_subdev)
+			return -EPERM;
+
 		memset(fi->reserved, 0, sizeof(fi->reserved));
 		return v4l2_subdev_call(sd, video, s_frame_interval, arg);
 	}
@@ -567,6 +595,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_SELECTION: {
 		struct v4l2_subdev_selection *sel = arg;
+
+		if (sel->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
+			return -EPERM;
 
 		memset(sel->reserved, 0, sizeof(sel->reserved));
 		return v4l2_subdev_call(
@@ -604,6 +635,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return v4l2_subdev_call(sd, video, g_dv_timings, arg);
 
 	case VIDIOC_SUBDEV_S_DV_TIMINGS:
+		if (ro_subdev)
+			return -EPERM;
+
 		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
 
 	case VIDIOC_SUBDEV_G_STD:
@@ -611,6 +645,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_STD: {
 		v4l2_std_id *std = arg;
+
+		if (ro_subdev)
+			return -EPERM;
 
 		return v4l2_subdev_call(sd, video, s_std, *std);
 	}
@@ -627,7 +664,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_QUERYSTD:
 		return v4l2_subdev_call(sd, video, querystd, arg);
-#endif
+
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
 	}
@@ -667,6 +704,22 @@ static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
 }
 #endif
 
+#else /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+static long subdev_ioctl(struct file *file, unsigned int cmd,
+			 unsigned long arg)
+{
+	return -ENODEV;
+}
+
+#ifdef CONFIG_COMPAT
+static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	return -ENODEV;
+}
+#endif
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
+
 static __poll_t subdev_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -696,6 +749,28 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 };
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+
+int v4l2_subdev_get_fwnode_pad_1_to_1(struct media_entity *entity,
+				      struct fwnode_endpoint *endpoint)
+{
+	struct fwnode_handle *fwnode;
+	struct v4l2_subdev *sd;
+
+	if (!is_media_entity_v4l2_subdev(entity))
+		return -EINVAL;
+
+	sd = media_entity_to_v4l2_subdev(entity);
+
+	fwnode = fwnode_graph_get_port_parent(endpoint->local_fwnode);
+	fwnode_handle_put(fwnode);
+
+	if (dev_fwnode(sd->dev) == fwnode)
+		return endpoint->port;
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_get_fwnode_pad_1_to_1);
+
 int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 				      struct media_link *link,
 				      struct v4l2_subdev_format *source_fmt,

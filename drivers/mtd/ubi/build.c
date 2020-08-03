@@ -867,8 +867,11 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	 * Both UBI and UBIFS have been designed for SLC NAND and NOR flashes.
 	 * MLC NAND is different and needs special care, otherwise UBI or UBIFS
 	 * will die soon and you will lose all your data.
+	 * Relax this rule if the partition we're attaching to operates in SLC
+	 * mode.
 	 */
-	if (mtd->type == MTD_MLCNANDFLASH) {
+	if (mtd->type == MTD_MLCNANDFLASH &&
+	    !(mtd->flags & MTD_SLC_ON_MLC_EMULATION)) {
 		pr_err("ubi: refuse attaching mtd%d - MLC NAND is not supported\n",
 			mtd->index);
 		return -EINVAL;

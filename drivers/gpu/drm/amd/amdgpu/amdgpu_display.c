@@ -523,7 +523,8 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 			break;
 		case CHIP_RAVEN:
 			/* enable S/G on PCO and RV2 */
-			if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+			if ((adev->apu_flags & AMD_APU_IS_RAVEN2) ||
+			    (adev->apu_flags & AMD_APU_IS_PICASSO))
 				domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
 		default:

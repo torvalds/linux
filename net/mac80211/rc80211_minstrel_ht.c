@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (C) 2019-2020 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -490,7 +491,7 @@ minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
 	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_avg;
 	tmp_mcs_tp = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
-	if (tmp_cck_tp_rate && tmp_cck_tp > tmp_mcs_tp) {
+	if (tmp_cck_tp > tmp_mcs_tp) {
 		for(i = 0; i < MAX_THR_RATES; i++) {
 			minstrel_ht_sort_best_tp_rates(mi, tmp_cck_tp_rate[i],
 						       tmp_mcs_tp_rate);

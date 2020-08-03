@@ -286,7 +286,7 @@ static int pearl_skb2rbd_attach(struct qtnf_pcie_pearl_state *ps, u16 index)
 	struct sk_buff *skb;
 	dma_addr_t paddr;
 
-	skb = __netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE, GFP_ATOMIC);
+	skb = netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE);
 	if (!skb) {
 		priv->rx_skb[index] = NULL;
 		return -ENOMEM;

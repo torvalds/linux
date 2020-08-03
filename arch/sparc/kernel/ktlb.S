@@ -7,10 +7,10 @@
  * Copyright (C) 1996,98,99 Jakub Jelinek  (jj@sunsite.mff.cuni.cz)
  */
 
+#include <linux/pgtable.h>
 #include <asm/head.h>
 #include <asm/asi.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/tsb.h>
 
 	.text

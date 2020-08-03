@@ -4,7 +4,7 @@
  *
  * Copyright (C) Intuitive Aerial AB
  * Written by Marten Svanfeldt, marten@intuitiveaerial.com
- * Copyright (C) 2012, Analog Device Inc.
+ * Copyright (C) 2012, Analog Devices Inc.
  *	Author: Lars-Peter Clausen <lars@metafoo.de>
  * Copyright (C) 2015, Intel Corporation
  */

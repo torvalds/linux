@@ -121,7 +121,7 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 		pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
 		trace_pwm_get(pwm, &pwm->state);
 
-		if (IS_ENABLED(PWM_DEBUG))
+		if (IS_ENABLED(CONFIG_PWM_DEBUG))
 			pwm->last = pwm->state;
 	}
 
@@ -537,7 +537,7 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 
 	if (!state->enabled && s2.enabled && s2.duty_cycle > 0)
 		dev_warn(chip->dev,
-			 "requested disabled, but yielded enabled with duty > 0");
+			 "requested disabled, but yielded enabled with duty > 0\n");
 
 	/* reapply the state that the driver reported being configured. */
 	err = chip->ops->apply(chip, pwm, &s1);

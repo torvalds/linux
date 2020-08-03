@@ -143,7 +143,7 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 		return;
 	}
 
-	buf_len	= sizeof(struct hclge_desc) * bd_num;
+	buf_len = sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
 	if (!desc_src)
 		return;
@@ -171,6 +171,114 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	}
 
 	kfree(desc_src);
+}
+
+static void hclge_dbg_dump_mac_enable_status(struct hclge_dev *hdev)
+{
+	struct hclge_config_mac_mode_cmd *req;
+	struct hclge_desc desc;
+	u32 loop_en;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac enable status, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_mac_mode_cmd *)desc.data;
+	loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
+
+	dev_info(&hdev->pdev->dev, "config_mac_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_EN_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_EN_B));
+	dev_info(&hdev->pdev->dev, "config_pad_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_PAD_TX_B));
+	dev_info(&hdev->pdev->dev, "config_pad_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_PAD_RX_B));
+	dev_info(&hdev->pdev->dev, "config_1588_trans_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_1588_TX_B));
+	dev_info(&hdev->pdev->dev, "config_1588_rcv_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_1588_RX_B));
+	dev_info(&hdev->pdev->dev, "config_mac_app_loop_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_APP_LP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_line_loop_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_LINE_LP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_fcs_tx_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_FCS_TX_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_oversize_truncate_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_fcs_strip_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B));
+	dev_info(&hdev->pdev->dev, "config_mac_rx_fcs_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_B));
+	dev_info(&hdev->pdev->dev, "config_mac_tx_under_min_err_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B));
+	dev_info(&hdev->pdev->dev, "config_mac_tx_oversize_truncate_en: %#x\n",
+		 hnae3_get_bit(loop_en, HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B));
+}
+
+static void hclge_dbg_dump_mac_frame_size(struct hclge_dev *hdev)
+{
+	struct hclge_config_max_frm_size_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac frame size, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
+
+	dev_info(&hdev->pdev->dev, "max_frame_size: %u\n",
+		 le16_to_cpu(req->max_frm_size));
+	dev_info(&hdev->pdev->dev, "min_frame_size: %u\n", req->min_frm_size);
+}
+
+static void hclge_dbg_dump_mac_speed_duplex(struct hclge_dev *hdev)
+{
+#define HCLGE_MAC_SPEED_SHIFT	0
+#define HCLGE_MAC_SPEED_MASK	GENMASK(5, 0)
+#define HCLGE_MAC_DUPLEX_SHIFT	7
+
+	struct hclge_config_mac_speed_dup_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_SPEED_DUP, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump mac speed duplex, ret = %d\n", ret);
+		return;
+	}
+
+	req = (struct hclge_config_mac_speed_dup_cmd *)desc.data;
+
+	dev_info(&hdev->pdev->dev, "speed: %#lx\n",
+		 hnae3_get_field(req->speed_dup, HCLGE_MAC_SPEED_MASK,
+				 HCLGE_MAC_SPEED_SHIFT));
+	dev_info(&hdev->pdev->dev, "duplex: %#x\n",
+		 hnae3_get_bit(req->speed_dup, HCLGE_MAC_DUPLEX_SHIFT));
+}
+
+static void hclge_dbg_dump_mac(struct hclge_dev *hdev)
+{
+	hclge_dbg_dump_mac_enable_status(hdev);
+
+	hclge_dbg_dump_mac_frame_size(hdev);
+
+	hclge_dbg_dump_mac_speed_duplex(hdev);
 }
 
 static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
@@ -302,6 +410,11 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 			hclge_dbg_dump_reg_common(hdev, reg_info, cmd_buf);
 			has_dump = true;
 		}
+	}
+
+	if (strncmp(cmd_buf, "mac", strlen("mac")) == 0) {
+		hclge_dbg_dump_mac(hdev);
+		has_dump = true;
 	}
 
 	if (strncmp(cmd_buf, "dcb", 3) == 0) {
@@ -578,7 +691,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	enum hclge_opcode_type cmd;
 	struct hclge_desc desc;
 	int queue_id, group_id;
-	u32 qset_maping[32];
+	u32 qset_mapping[32];
 	int tc_id, qset_id;
 	int pri_id, ret;
 	u32 i;
@@ -633,7 +746,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 		if (ret)
 			goto err_tm_map_cmd_send;
 
-		qset_maping[group_id] =
+		qset_mapping[group_id] =
 			le32_to_cpu(bp_to_qs_map_cmd->qs_bit_map);
 	}
 
@@ -643,11 +756,11 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	for (group_id = 0; group_id < 4; group_id++) {
 		dev_info(&hdev->pdev->dev,
 			 "%04d  | %08x:%08x:%08x:%08x:%08x:%08x:%08x:%08x\n",
-			 group_id * 256, qset_maping[(u32)(i + 7)],
-			 qset_maping[(u32)(i + 6)], qset_maping[(u32)(i + 5)],
-			 qset_maping[(u32)(i + 4)], qset_maping[(u32)(i + 3)],
-			 qset_maping[(u32)(i + 2)], qset_maping[(u32)(i + 1)],
-			 qset_maping[i]);
+			 group_id * 256, qset_mapping[(u32)(i + 7)],
+			 qset_mapping[(u32)(i + 6)], qset_mapping[(u32)(i + 5)],
+			 qset_mapping[(u32)(i + 4)], qset_mapping[(u32)(i + 3)],
+			 qset_mapping[(u32)(i + 2)], qset_mapping[(u32)(i + 1)],
+			 qset_mapping[i]);
 		i += 8;
 	}
 
@@ -1145,6 +1258,7 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 {
 #define HCLGE_MAX_NCL_CONFIG_OFFSET	4096
 #define HCLGE_NCL_CONFIG_LENGTH_IN_EACH_CMD	(20 + 24 * 4)
+#define HCLGE_NCL_CONFIG_PARAM_NUM	2
 
 	struct hclge_desc desc[HCLGE_CMD_NCL_CONFIG_BD_NUM];
 	int bd_num = HCLGE_CMD_NCL_CONFIG_BD_NUM;
@@ -1154,13 +1268,17 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 	int ret;
 
 	ret = sscanf(cmd_buf, "%x %x", &offset, &length);
-	if (ret != 2 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
-	    length > HCLGE_MAX_NCL_CONFIG_OFFSET - offset) {
-		dev_err(&hdev->pdev->dev, "Invalid offset or length.\n");
+	if (ret != HCLGE_NCL_CONFIG_PARAM_NUM) {
+		dev_err(&hdev->pdev->dev,
+			"Too few parameters, num = %d.\n", ret);
 		return;
 	}
-	if (offset < 0 || length <= 0) {
-		dev_err(&hdev->pdev->dev, "Non-positive offset or length.\n");
+
+	if (offset < 0 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
+	    length <= 0 || length > HCLGE_MAX_NCL_CONFIG_OFFSET - offset) {
+		dev_err(&hdev->pdev->dev,
+			"Invalid input, offset = %d, length = %d.\n",
+			offset, length);
 		return;
 	}
 
@@ -1328,6 +1446,49 @@ static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
 	hclge_dbg_dump_qs_shaper_single(hdev, qsid);
 }
 
+static int hclge_dbg_dump_mac_list(struct hclge_dev *hdev, const char *cmd_buf,
+				   bool is_unicast)
+{
+	struct hclge_mac_node *mac_node, *tmp;
+	struct hclge_vport *vport;
+	struct list_head *list;
+	u32 func_id;
+	int ret;
+
+	ret = kstrtouint(cmd_buf, 0, &func_id);
+	if (ret < 0) {
+		dev_err(&hdev->pdev->dev,
+			"dump mac list: bad command string, ret = %d\n", ret);
+		return -EINVAL;
+	}
+
+	if (func_id >= hdev->num_alloc_vport) {
+		dev_err(&hdev->pdev->dev,
+			"function id(%u) is out of range(0-%u)\n", func_id,
+			hdev->num_alloc_vport - 1);
+		return -EINVAL;
+	}
+
+	vport = &hdev->vport[func_id];
+
+	list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
+
+	dev_info(&hdev->pdev->dev, "vport %u %s mac list:\n",
+		 func_id, is_unicast ? "uc" : "mc");
+	dev_info(&hdev->pdev->dev, "mac address              state\n");
+
+	spin_lock_bh(&vport->mac_list_lock);
+
+	list_for_each_entry_safe(mac_node, tmp, list, node) {
+		dev_info(&hdev->pdev->dev, "%pM         %d\n",
+			 mac_node->mac_addr, mac_node->state);
+	}
+
+	spin_unlock_bh(&vport->mac_list_lock);
+
+	return 0;
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
 #define DUMP_REG	"dump reg"
@@ -1372,6 +1533,14 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
+	} else if (strncmp(cmd_buf, "dump uc mac list", 16) == 0) {
+		hclge_dbg_dump_mac_list(hdev,
+					&cmd_buf[sizeof("dump uc mac list")],
+					true);
+	} else if (strncmp(cmd_buf, "dump mc mac list", 16) == 0) {
+		hclge_dbg_dump_mac_list(hdev,
+					&cmd_buf[sizeof("dump mc mac list")],
+					false);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

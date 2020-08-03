@@ -112,9 +112,10 @@
 #define PCIE_ATU_UNR_REGION_CTRL2	0x04
 #define PCIE_ATU_UNR_LOWER_BASE		0x08
 #define PCIE_ATU_UNR_UPPER_BASE		0x0C
-#define PCIE_ATU_UNR_LIMIT		0x10
+#define PCIE_ATU_UNR_LOWER_LIMIT	0x10
 #define PCIE_ATU_UNR_LOWER_TARGET	0x14
 #define PCIE_ATU_UNR_UPPER_TARGET	0x18
+#define PCIE_ATU_UNR_UPPER_LIMIT	0x20
 
 /*
  * The default address offset between dbi_base and atu_base. Root controller

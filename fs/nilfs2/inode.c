@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/uio.h>
+#include <linux/fiemap.h>
 #include "nilfs.h"
 #include "btnode.h"
 #include "segment.h"
@@ -145,18 +146,9 @@ static int nilfs_readpage(struct file *file, struct page *page)
 	return mpage_readpage(page, nilfs_get_block);
 }
 
-/**
- * nilfs_readpages() - implement readpages() method of nilfs_aops {}
- * address_space_operations.
- * @file - file struct of the file to be read
- * @mapping - address_space struct used for reading multiple pages
- * @pages - the pages to be read
- * @nr_pages - number of pages to be read
- */
-static int nilfs_readpages(struct file *file, struct address_space *mapping,
-			   struct list_head *pages, unsigned int nr_pages)
+static void nilfs_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, nilfs_get_block);
+	mpage_readahead(rac, nilfs_get_block);
 }
 
 static int nilfs_writepages(struct address_space *mapping,
@@ -308,7 +300,7 @@ const struct address_space_operations nilfs_aops = {
 	.readpage		= nilfs_readpage,
 	.writepages		= nilfs_writepages,
 	.set_page_dirty		= nilfs_set_page_dirty,
-	.readpages		= nilfs_readpages,
+	.readahead		= nilfs_readahead,
 	.write_begin		= nilfs_write_begin,
 	.write_end		= nilfs_write_end,
 	/* .releasepage		= nilfs_releasepage, */
@@ -1005,7 +997,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	unsigned int blkbits = inode->i_blkbits;
 	int ret, n;
 
-	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC);
+	ret = fiemap_prep(inode, fieinfo, start, &len, 0);
 	if (ret)
 		return ret;
 

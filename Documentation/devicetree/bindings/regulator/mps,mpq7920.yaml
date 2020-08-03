@@ -21,17 +21,16 @@ properties:
 
   regulators:
     type: object
-    allOf:
-      - $ref: regulator.yaml#
+    $ref: regulator.yaml#
+
     description: |
       list of regulators provided by this controller, must be named
       after their hardware counterparts BUCK[1-4], one LDORTC, and LDO[2-5]
 
     properties:
       mps,switch-freq:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint8"
-        enum: [ 0, 1, 2, 3 ]
+        $ref: "/schemas/types.yaml#/definitions/uint8"
+        enum: [0, 1, 2, 3]
         default: 2
         description: |
           switching frequency must be one of following corresponding value
@@ -40,32 +39,27 @@ properties:
     patternProperties:
       "^ldo[1-4]$":
         type: object
-        allOf:
-          - $ref: regulator.yaml#
+        $ref: regulator.yaml#
 
       "^ldortc$":
         type: object
-        allOf:
-          - $ref: regulator.yaml#
+        $ref: regulator.yaml#
 
       "^buck[1-4]$":
         type: object
-        allOf:
-          - $ref: regulator.yaml#
+        $ref: regulator.yaml#
 
         properties:
           mps,buck-softstart:
-            allOf:
-              - $ref: "/schemas/types.yaml#/definitions/uint8"
-            enum: [ 0, 1, 2, 3 ]
+            $ref: "/schemas/types.yaml#/definitions/uint8"
+            enum: [0, 1, 2, 3]
             description: |
               defines the soft start time of this buck, must be one of the following
               corresponding values 150us, 300us, 610us, 920us
 
           mps,buck-phase-delay:
-            allOf:
-              - $ref: "/schemas/types.yaml#/definitions/uint8"
-            enum: [ 0, 1, 2, 3 ]
+            $ref: "/schemas/types.yaml#/definitions/uint8"
+            enum: [0, 1, 2, 3]
             description: |
               defines the phase delay of this buck, must be one of the following
               corresponding values 0deg, 90deg, 180deg, 270deg

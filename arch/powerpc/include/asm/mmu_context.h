@@ -185,11 +185,41 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 			dec_mm_active_cpus(mm);
 	}
 }
+
+/*
+ * vas_windows counter shows number of open windows in the mm
+ * context. During context switch, use this counter to clear the
+ * foreign real address mapping (CP_ABORT) for the thread / process
+ * that intend to use COPY/PASTE. When a process closes all windows,
+ * disable CP_ABORT which is expensive to run.
+ *
+ * For user context, register a copro so that TLBIs are seen by the
+ * nest MMU. mm_context_add/remove_vas_window() are used only for user
+ * space windows.
+ */
+static inline void mm_context_add_vas_window(struct mm_struct *mm)
+{
+	atomic_inc(&mm->context.vas_windows);
+	mm_context_add_copro(mm);
+}
+
+static inline void mm_context_remove_vas_window(struct mm_struct *mm)
+{
+	int v;
+
+	mm_context_remove_copro(mm);
+	v = atomic_dec_if_positive(&mm->context.vas_windows);
+
+	/* Detect imbalance between add and remove */
+	WARN_ON(v < 0);
+}
 #else
 static inline void inc_mm_active_cpus(struct mm_struct *mm) { }
 static inline void dec_mm_active_cpus(struct mm_struct *mm) { }
 static inline void mm_context_add_copro(struct mm_struct *mm) { }
 static inline void mm_context_remove_copro(struct mm_struct *mm) { }
+static inline void mm_context_add_vas_windows(struct mm_struct *mm) { }
+static inline void mm_context_remove_vas_windows(struct mm_struct *mm) { }
 #endif
 
 

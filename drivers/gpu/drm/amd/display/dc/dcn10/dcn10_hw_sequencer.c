@@ -737,7 +737,8 @@ void dcn10_bios_golden_init(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 		if (allow_self_fresh_force_enable == false &&
 				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub, true);
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
+										!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 
 }
 
@@ -826,6 +827,14 @@ enum dc_status dcn10_enable_stream_timing(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		black_color.color_r_cr = black_color.color_g_y;
+
 	if (pipe_ctx->stream_res.tg->funcs->set_blank_color)
 		pipe_ctx->stream_res.tg->funcs->set_blank_color(
 				pipe_ctx->stream_res.tg,
@@ -903,7 +912,7 @@ static void dcn10_reset_back_end_for_pipe(
 	if (pipe_ctx->top_pipe == NULL) {
 
 		if (pipe_ctx->stream_res.abm)
-			pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(pipe_ctx->stream_res.abm);
+			dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
@@ -1238,12 +1247,13 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 
 void dcn10_init_hw(struct dc *dc)
 {
-	int i;
+	int i, j;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -1333,17 +1343,28 @@ void dcn10_init_hw(struct dc *dc)
 				continue;
 
 			/*
-			 * core_link_read_dpcd() will invoke dm_helpers_dp_read_dpcd(),
-			 * which needs to read dpcd info with the help of aconnector.
-			 * If aconnector (dc->links[i]->prev) is NULL, then dpcd status
-			 * cannot be read.
+			 * If any of the displays are lit up turn them off.
+			 * The reason is that some MST hubs cannot be turned off
+			 * completely until we tell them to do so.
+			 * If not turned off, then displays connected to MST hub
+			 * won't light up.
 			 */
-			if (dc->links[i]->priv) {
-				/* if any of the displays are lit up turn them off */
-				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-								&dpcd_power_state, sizeof(dpcd_power_state));
-				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
-					dp_receiver_power_ctrl(dc->links[i], false);
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+							&dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				/* blank dp stream before power off receiver*/
+				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
+
+					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+						if (fe == dc->res_pool->stream_enc[j]->id) {
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+										dc->res_pool->stream_enc[j]);
+							break;
+						}
+					}
+				}
+				dp_receiver_power_ctrl(dc->links[i], false);
 			}
 		}
 	}
@@ -1361,16 +1382,53 @@ void dcn10_init_hw(struct dc *dc)
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 	}
 
+	/* In headless boot cases, DIG may be turned
+	 * on which causes HW/SW discrepancies.
+	 * To avoid this, power down hardware on boot
+	 * if DIG is turned on and seamless boot not enabled
+	 */
+	if (dc->config.power_down_display_on_boot) {
+		struct dc_link *edp_link = get_edp_link(dc);
+
+		if (edp_link &&
+				edp_link->link_enc->funcs->is_dig_enabled &&
+				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+				dc->hwss.edp_backlight_control &&
+				dc->hwss.power_down &&
+				dc->hwss.edp_power_control) {
+			dc->hwss.edp_backlight_control(edp_link, false);
+			dc->hwss.power_down(dc);
+			dc->hwss.edp_power_control(edp_link, false);
+		} else {
+			for (i = 0; i < dc->link_count; i++) {
+				struct dc_link *link = dc->links[i];
+
+				if (link->link_enc->funcs->is_dig_enabled &&
+						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
+						dc->hwss.power_down) {
+					dc->hwss.power_down(dc);
+					break;
+				}
+
+			}
+		}
+	}
+
 	for (i = 0; i < res_pool->audio_count; i++) {
 		struct audio *audio = res_pool->audios[i];
 
 		audio->funcs->hw_init(audio);
 	}
 
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
+	for (i = 0; i < dc->link_count; i++) {
+		struct dc_link *link = dc->links[i];
+
+		if (link->panel_cntl)
+			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
 	}
+
+	if (abm != NULL)
+		abm->funcs->abm_init(abm, backlight);
 
 	if (dmcu != NULL && !dmcu->auto_load_dmcu)
 		dmcu->funcs->dmcu_init(dmcu);
@@ -1684,6 +1742,8 @@ static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	/* Stall out until the cursor update completes. */
+	if (vupdate_end < vupdate_start)
+		vupdate_end += stream->timing.v_total;
 	us_vupdate = (vupdate_end - vupdate_start + 1) * us_per_line;
 	udelay(us_to_vupdate + us_vupdate);
 }
@@ -2162,25 +2222,25 @@ void dcn10_get_surface_visual_confirm_color(
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
+		/* set border color to red */
 		color->color_r_cr = color_value;
 		break;
 
 	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
+		/* set border color to blue */
 		color->color_b_cb = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
+		/* set border color to green */
 		color->color_g_y = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
+		/* set border color to yellow */
 		color->color_g_y = color_value;
 		color->color_r_cr = color_value;
 		break;
 	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
+		/* set border color to white */
 		color->color_r_cr = color_value;
 		color->color_b_cb = color_value;
 		color->color_g_y = color_value;
@@ -2205,25 +2265,25 @@ void dcn10_get_hdr_visual_confirm_color(
 	switch (top_pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB2101010:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, ARGB2101010 - set boarder color to red */
+			/* HDR10, ARGB2101010 - set border color to red */
 			color->color_r_cr = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 ARGB2101010 - set boarder color to pink */
+			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
 		}
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, FP16 - set boarder color to blue */
+			/* HDR10, FP16 - set border color to blue */
 			color->color_b_cb = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 HDR - set boarder color to green */
+			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
 		}
 		break;
 	default:
-		/* SDR - set boarder color to Gray */
+		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
@@ -2271,6 +2331,14 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				dc, pipe_ctx->stream->output_color_space,
 				&blnd_cfg.black_color);
 	}
+
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		blnd_cfg.black_color.color_r_cr = blnd_cfg.black_color.color_g_y;
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
@@ -2508,12 +2576,12 @@ void dcn10_blank_pixel_data(
 		if (stream_res->tg->funcs->set_blank)
 			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 		if (stream_res->abm) {
-			stream_res->abm->funcs->set_pipe(stream_res->abm, stream_res->tg->inst + 1);
+			stream_res->abm->funcs->set_pipe(stream_res->abm, stream_res->tg->inst + 1,
+					stream->link->panel_cntl->inst);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
 	} else if (blank) {
-		if (stream_res->abm)
-			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 		if (stream_res->tg->funcs->set_blank)
 			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 	}

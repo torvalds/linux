@@ -18,6 +18,7 @@
 #include "psoc_mme_pll_regs.h"
 #include "psoc_pci_pll_regs.h"
 #include "psoc_emmc_pll_regs.h"
+#include "psoc_timestamp_regs.h"
 #include "cpu_if_regs.h"
 #include "cpu_ca53_cfg_regs.h"
 #include "cpu_pll_regs.h"

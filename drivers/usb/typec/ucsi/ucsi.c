@@ -492,19 +492,45 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 	}
 }
 
+static void ucsi_get_pdos(struct ucsi_connector *con, int is_partner)
+{
+	struct ucsi *ucsi = con->ucsi;
+	u64 command;
+	int ret;
+
+	command = UCSI_COMMAND(UCSI_GET_PDOS) | UCSI_CONNECTOR_NUMBER(con->num);
+	command |= UCSI_GET_PDOS_PARTNER_PDO(is_partner);
+	command |= UCSI_GET_PDOS_NUM_PDOS(UCSI_MAX_PDOS - 1);
+	command |= UCSI_GET_PDOS_SRC_PDOS;
+	ret = ucsi_run_command(ucsi, command, con->src_pdos,
+			       sizeof(con->src_pdos));
+	if (ret < 0) {
+		dev_err(ucsi->dev, "UCSI_GET_PDOS failed (%d)\n", ret);
+		return;
+	}
+	con->num_pdos = ret / sizeof(u32); /* number of bytes to 32-bit PDOs */
+	if (ret == 0)
+		dev_warn(ucsi->dev, "UCSI_GET_PDOS returned 0 bytes\n");
+}
+
 static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 {
 	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
+		con->rdo = con->status.request_data_obj;
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_PD);
+		ucsi_get_pdos(con, 1);
 		break;
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
+		con->rdo = 0;
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_1_5A);
 		break;
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0:
+		con->rdo = 0;
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_3_0A);
 		break;
 	default:
+		con->rdo = 0;
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_USB);
 		break;
 	}
@@ -566,6 +592,8 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 
 	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
+	case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
+	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 		typec_set_data_role(con->port, TYPEC_HOST);
 		break;
 	case UCSI_CONSTAT_PARTNER_TYPE_DFP:
@@ -611,7 +639,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
 
-	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE)
+	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE ||
+	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE)
 		ucsi_pwr_opmode_change(con);
 
 	if (con->status.change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
@@ -627,6 +656,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
+		case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
+		case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 			typec_set_data_role(con->port, TYPEC_HOST);
 			break;
 		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
@@ -905,6 +936,10 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	cap->driver_data = con;
 	cap->ops = &ucsi_ops;
 
+	ret = ucsi_register_port_psy(con);
+	if (ret)
+		return ret;
+
 	/* Register the connector */
 	con->port = typec_register_port(ucsi->dev, cap);
 	if (IS_ERR(con->port))
@@ -927,6 +962,8 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 
 	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
+	case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
+	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 		typec_set_data_role(con->port, TYPEC_HOST);
 		break;
 	case UCSI_CONSTAT_PARTNER_TYPE_DFP:
@@ -1029,6 +1066,7 @@ err_unregister:
 	for (con = ucsi->connector; con->port; con++) {
 		ucsi_unregister_partner(con);
 		ucsi_unregister_altmodes(con, UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(con);
 		typec_unregister_port(con->port);
 		con->port = NULL;
 	}
@@ -1152,6 +1190,7 @@ void ucsi_unregister(struct ucsi *ucsi)
 		ucsi_unregister_partner(&ucsi->connector[i]);
 		ucsi_unregister_altmodes(&ucsi->connector[i],
 					 UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(&ucsi->connector[i]);
 		typec_unregister_port(ucsi->connector[i].port);
 	}
 

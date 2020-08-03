@@ -14,25 +14,23 @@ properties:
     pattern: "^ethernet(@.*)?$"
 
   local-mac-address:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint8-array
-      - items:
-          - minItems: 6
-            maxItems: 6
     description:
       Specifies the MAC address that was assigned to the network device.
+    $ref: /schemas/types.yaml#definitions/uint8-array
+    items:
+      - minItems: 6
+        maxItems: 6
 
   mac-address:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint8-array
-      - items:
-          - minItems: 6
-            maxItems: 6
     description:
       Specifies the MAC address that was last used by the boot
       program; should be used in cases where the MAC address assigned
       to the device by the boot program is different from the
       local-mac-address property.
+    $ref: /schemas/types.yaml#definitions/uint8-array
+    items:
+      - minItems: 6
+        maxItems: 6
 
   max-frame-size:
     $ref: /schemas/types.yaml#definitions/uint32
@@ -133,15 +131,14 @@ properties:
       is used for components that can have configurable fifo sizes.
 
   managed:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
-      - default: auto
-        enum:
-          - auto
-          - in-band-status
     description:
       Specifies the PHY management type. If auto is set and fixed-link
       is not specified, it uses MDIO for management.
+    $ref: /schemas/types.yaml#definitions/string
+    default: auto
+    enum:
+      - auto
+      - in-band-status
 
   fixed-link:
     allOf:
@@ -183,11 +180,10 @@ properties:
         then:
           properties:
             speed:
-              allOf:
-                - $ref: /schemas/types.yaml#definitions/uint32
-                - enum: [10, 100, 1000]
               description:
                 Link speed.
+              $ref: /schemas/types.yaml#definitions/uint32
+              enum: [10, 100, 1000]
 
             full-duplex:
               $ref: /schemas/types.yaml#definitions/flag

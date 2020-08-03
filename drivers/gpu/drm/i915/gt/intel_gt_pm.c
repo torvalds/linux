@@ -12,6 +12,7 @@
 #include "intel_context.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
+#include "intel_gt_clock_utils.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
 #include "intel_llc.h"
@@ -138,6 +139,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 
+	intel_gt_check_clock_frequency(gt);
+
 	/*
 	 * As we have just resumed the machine and woken the device up from
 	 * deep PCI sleep (presumably D3_cold), assume the HW has been reset
@@ -155,6 +158,10 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 
 	intel_uc_reset_prepare(&gt->uc);
 
+	for_each_engine(engine, gt, id)
+		if (engine->sanitize)
+			engine->sanitize(engine);
+
 	if (reset_engines(gt) || force) {
 		for_each_engine(engine, gt, id)
 			__intel_engine_reset(engine, false);
@@ -163,6 +170,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
 			engine->reset.finish(engine);
+
+	intel_rps_sanitize(&gt->rps);
 
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
@@ -191,11 +200,12 @@ int intel_gt_resume(struct intel_gt *gt)
 	 * Only the kernel contexts should remain pinned over suspend,
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
+	gt_sanitize(gt, true);
+
 	intel_gt_pm_get(gt);
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
-	gt_sanitize(gt, true);
 	if (intel_gt_is_wedged(gt)) {
 		err = -EIO;
 		goto out_fw;
@@ -204,7 +214,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_init_hw(gt);
 	if (err) {
-		dev_err(gt->i915->drm.dev,
+		drm_err(&gt->i915->drm,
 			"Failed to initialize GPU, declaring it wedged!\n");
 		goto err_wedged;
 	}
@@ -220,7 +230,7 @@ int intel_gt_resume(struct intel_gt *gt)
 
 		intel_engine_pm_put(engine);
 		if (err) {
-			dev_err(gt->i915->drm.dev,
+			drm_err(&gt->i915->drm,
 				"Failed to restart %s (%d)\n",
 				engine->name, err);
 			goto err_wedged;
@@ -324,6 +334,7 @@ int intel_gt_runtime_resume(struct intel_gt *gt)
 {
 	GT_TRACE(gt, "\n");
 	intel_gt_init_swizzling(gt);
+	intel_ggtt_restore_fences(gt->ggtt);
 
 	return intel_uc_runtime_resume(&gt->uc);
 }

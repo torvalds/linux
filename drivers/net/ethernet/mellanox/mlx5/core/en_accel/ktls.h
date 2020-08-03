@@ -9,6 +9,7 @@
 #ifdef CONFIG_MLX5_EN_TLS
 #include <net/tls.h>
 #include "accel/tls.h"
+#include "en_accel/tls_rxtx.h"
 
 #define MLX5E_KTLS_STATIC_UMR_WQE_SZ \
 	(offsetof(struct mlx5e_umr_wqe, tls_static_params_ctx) + \
@@ -26,6 +27,14 @@ struct mlx5e_dump_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_wqe_data_seg data;
 };
+
+#define MLX5E_TLS_FETCH_UMR_WQE(sq, pi) \
+	((struct mlx5e_umr_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, MLX5E_KTLS_STATIC_UMR_WQE_SZ))
+#define MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi) \
+	((struct mlx5e_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, MLX5E_KTLS_PROGRESS_WQE_SZ))
+#define MLX5E_TLS_FETCH_DUMP_WQE(sq, pi) \
+	((struct mlx5e_dump_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, \
+						  sizeof(struct mlx5e_dump_wqe)))
 
 #define MLX5E_KTLS_DUMP_WQEBBS \
 	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
@@ -87,22 +96,22 @@ mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv);
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx);
 
-struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
-					 struct mlx5e_txqsq *sq,
-					 struct sk_buff *skb,
-					 struct mlx5e_tx_wqe **wqe, u16 *pi);
+bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
+			      struct sk_buff *skb, int datalen,
+			      struct mlx5e_accel_tx_tls_state *state);
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
 					   u32 *dma_fifo_cc);
+u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq);
+
 static inline u8
-mlx5e_ktls_dumps_num_wqebbs(struct mlx5e_txqsq *sq, unsigned int nfrags,
-			    unsigned int sync_len)
+mlx5e_ktls_dumps_num_wqes(struct mlx5e_txqsq *sq, unsigned int nfrags,
+			  unsigned int sync_len)
 {
 	/* Given the MTU and sync_len, calculates an upper bound for the
-	 * number of WQEBBs needed for the TX resync DUMP WQEs of a record.
+	 * number of DUMP WQEs needed for the TX resync of a record.
 	 */
-	return MLX5E_KTLS_DUMP_WQEBBS *
-		(nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu));
+	return nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu);
 }
 #else
 
@@ -114,7 +123,6 @@ static inline void
 mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 				      struct mlx5e_tx_wqe_info *wi,
 				      u32 *dma_fifo_cc) {}
-
 #endif
 
 #endif /* __MLX5E_TLS_H__ */

@@ -320,7 +320,7 @@ static inline int user_regset_copyout_zero(unsigned int *pos,
 		if (*kbuf) {
 			memset(*kbuf, 0, copy);
 			*kbuf += copy;
-		} else if (__clear_user(*ubuf, copy))
+		} else if (clear_user(*ubuf, copy))
 			return -EFAULT;
 		else
 			*ubuf += copy;

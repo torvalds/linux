@@ -197,15 +197,15 @@ struct dfl_feature_driver {
  *		    feature dev (platform device)'s reources.
  * @ioaddr: mapped mmio resource address.
  * @ops: ops of this sub feature.
+ * @priv: priv data of this feature.
  */
 struct dfl_feature {
 	u64 id;
 	int resource_index;
 	void __iomem *ioaddr;
 	const struct dfl_feature_ops *ops;
+	void *priv;
 };
-
-#define DEV_STATUS_IN_USE	0
 
 #define FEATURE_DEV_ID_UNUSED	(-1)
 
@@ -219,8 +219,9 @@ struct dfl_feature {
  * @dfl_cdev: ptr to container device.
  * @id: id used for this feature device.
  * @disable_count: count for port disable.
+ * @excl_open: set on feature device exclusive open.
+ * @open_count: count for feature device open.
  * @num: number for sub features.
- * @dev_status: dev status (e.g. DEV_STATUS_IN_USE).
  * @private: ptr to feature dev private data.
  * @features: sub features of this feature dev.
  */
@@ -232,18 +233,27 @@ struct dfl_feature_platform_data {
 	struct dfl_fpga_cdev *dfl_cdev;
 	int id;
 	unsigned int disable_count;
-	unsigned long dev_status;
+	bool excl_open;
+	int open_count;
 	void *private;
 	int num;
-	struct dfl_feature features[0];
+	struct dfl_feature features[];
 };
 
 static inline
-int dfl_feature_dev_use_begin(struct dfl_feature_platform_data *pdata)
+int dfl_feature_dev_use_begin(struct dfl_feature_platform_data *pdata,
+			      bool excl)
 {
-	/* Test and set IN_USE flags to ensure file is exclusively used */
-	if (test_and_set_bit_lock(DEV_STATUS_IN_USE, &pdata->dev_status))
+	if (pdata->excl_open)
 		return -EBUSY;
+
+	if (excl) {
+		if (pdata->open_count)
+			return -EBUSY;
+
+		pdata->excl_open = true;
+	}
+	pdata->open_count++;
 
 	return 0;
 }
@@ -251,7 +261,18 @@ int dfl_feature_dev_use_begin(struct dfl_feature_platform_data *pdata)
 static inline
 void dfl_feature_dev_use_end(struct dfl_feature_platform_data *pdata)
 {
-	clear_bit_unlock(DEV_STATUS_IN_USE, &pdata->dev_status);
+	pdata->excl_open = false;
+
+	if (WARN_ON(pdata->open_count <= 0))
+		return;
+
+	pdata->open_count--;
+}
+
+static inline
+int dfl_feature_dev_use_count(struct dfl_feature_platform_data *pdata)
+{
+	return pdata->open_count;
 }
 
 static inline

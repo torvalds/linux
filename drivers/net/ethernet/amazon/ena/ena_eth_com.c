@@ -519,7 +519,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	struct ena_eth_io_rx_cdesc_base *cdesc = NULL;
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
-	u16 i;
+	u16 i = 0;
 
 	WARN(io_cq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX, "wrong Q type");
 
@@ -538,13 +538,19 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return -ENOSPC;
 	}
 
-	for (i = 0; i < nb_hw_desc; i++) {
+	cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx);
+	ena_rx_ctx->pkt_offset = cdesc->offset;
+
+	do {
+		ena_buf[i].len = cdesc->length;
+		ena_buf[i].req_id = cdesc->req_id;
+
+		if (++i >= nb_hw_desc)
+			break;
+
 		cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i);
 
-		ena_buf->len = cdesc->length;
-		ena_buf->req_id = cdesc->req_id;
-		ena_buf++;
-	}
+	} while (1);
 
 	/* Update SQ head ptr */
 	io_sq->next_to_comp += nb_hw_desc;
@@ -578,10 +584,10 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	desc->length = ena_buf->len;
 
-	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_LAST_MASK;
-	desc->ctrl |= io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
+	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
+		ENA_ETH_IO_RX_DESC_LAST_MASK |
+		(io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
+		ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
 
 	desc->req_id = req_id;
 

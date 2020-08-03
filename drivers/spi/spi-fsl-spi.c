@@ -588,7 +588,7 @@ static void fsl_spi_grlib_probe(struct device *dev)
 	pdata->cs_control = fsl_spi_grlib_cs_control;
 }
 
-static struct spi_master * fsl_spi_probe(struct device *dev,
+static struct spi_master *fsl_spi_probe(struct device *dev,
 		struct resource *mem, unsigned int irq)
 {
 	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);

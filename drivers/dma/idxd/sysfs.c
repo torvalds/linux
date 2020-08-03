@@ -1092,6 +1092,16 @@ static const struct attribute_group *idxd_wq_attribute_groups[] = {
 };
 
 /* IDXD device attribs */
+static ssize_t version_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct idxd_device *idxd =
+		container_of(dev, struct idxd_device, conf_dev);
+
+	return sprintf(buf, "%#x\n", idxd->hw.version);
+}
+static DEVICE_ATTR_RO(version);
+
 static ssize_t max_work_queues_size_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -1313,6 +1323,7 @@ static ssize_t cdev_major_show(struct device *dev,
 static DEVICE_ATTR_RO(cdev_major);
 
 static struct attribute *idxd_device_attributes[] = {
+	&dev_attr_version.attr,
 	&dev_attr_max_groups.attr,
 	&dev_attr_max_work_queues.attr,
 	&dev_attr_max_work_queues_size.attr,

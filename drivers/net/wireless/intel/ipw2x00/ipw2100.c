@@ -8352,7 +8352,7 @@ static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 	if (IPW2100_FW_MAJOR(h->version) != IPW2100_FW_MAJOR_VERSION) {
 		printk(KERN_WARNING DRV_NAME ": Firmware image not compatible "
 		       "(detected version id of %u). "
-		       "See Documentation/networking/device_drivers/intel/ipw2100.txt\n",
+		       "See Documentation/networking/device_drivers/intel/ipw2100.rst\n",
 		       h->version);
 		return 1;
 	}

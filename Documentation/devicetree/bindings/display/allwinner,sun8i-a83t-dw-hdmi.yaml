@@ -29,11 +29,11 @@ properties:
       - const: allwinner,sun50i-h6-dw-hdmi
 
       - items:
-        - enum:
-          - allwinner,sun8i-h3-dw-hdmi
-          - allwinner,sun8i-r40-dw-hdmi
-          - allwinner,sun50i-a64-dw-hdmi
-        - const: allwinner,sun8i-a83t-dw-hdmi
+          - enum:
+              - allwinner,sun8i-h3-dw-hdmi
+              - allwinner,sun8i-r40-dw-hdmi
+              - allwinner,sun50i-a64-dw-hdmi
+          - const: allwinner,sun8i-a83t-dw-hdmi
 
   reg:
     maxItems: 1

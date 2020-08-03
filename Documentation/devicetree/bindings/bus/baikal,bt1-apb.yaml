@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 BAIKAL ELECTRONICS, JSC
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/baikal,bt1-apb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Baikal-T1 APB-bus
+
+maintainers:
+  - Serge Semin <fancer.lancer@gmail.com>
+
+description: |
+  Baikal-T1 CPU or DMAC MMIO requests are handled by the AMBA 3 AXI Interconnect
+  which routes them to the AXI-APB bridge. This interface is a single master
+  multiple slaves bus in turn serializing IO accesses and routing them to the
+  addressed APB slave devices. In case of any APB protocol collisions, slave
+  device not responding on timeout an IRQ is raised with an erroneous address
+  reported to the APB terminator (APB Errors Handler Block).
+
+allOf:
+ - $ref: /schemas/simple-bus.yaml#
+
+properties:
+  compatible:
+    contains:
+      const: baikal,bt1-apb
+
+  reg:
+    items:
+      - description: APB EHB MMIO registers
+      - description: APB MMIO region with no any device mapped
+
+  reg-names:
+    items:
+      - const: ehb
+      - const: nodev
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: APB reference clock
+
+  clock-names:
+    items:
+      - const: pclk
+
+  resets:
+    items:
+      - description: APB domain reset line
+
+  reset-names:
+    items:
+      - const: prst
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+
+    bus@1f059000 {
+      compatible = "baikal,bt1-apb", "simple-bus";
+      reg = <0x1f059000 0x1000>,
+            <0x1d000000 0x2040000>;
+      reg-names = "ehb", "nodev";
+      #address-cells = <1>;
+      #size-cells = <1>;
+
+      ranges;
+
+      interrupts = <GIC_SHARED 16 IRQ_TYPE_LEVEL_HIGH>;
+
+      clocks = <&ccu_sys 1>;
+      clock-names = "pclk";
+
+      resets = <&ccu_sys 1>;
+      reset-names = "prst";
+    };
+...

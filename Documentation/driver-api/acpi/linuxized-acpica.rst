@@ -175,9 +175,9 @@ illustrated in the following figure::
     B. acpica / master - "master" branch of the git repository at
        <https://github.com/acpica/acpica.git>.
     C. linux-pm / linux-next - "linux-next" branch of the git repository at
-       <http://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git>.
+       <https://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git>.
     D. linux / master - "master" branch of the git repository at
-       <http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git>.
+       <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git>.
 
    Before the linuxized ACPICA patches are sent to the Linux ACPI community
    for review, there is a quality assurance build test process to reduce
@@ -274,6 +274,6 @@ before they become available from the ACPICA release process.
    a diff file indicating the state of the current divergences::
 
    # git clone https://github.com/acpica/acpica
-   # git clone http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+   # git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
    # cd acpica
    # generate/linux/divergences.sh -s ../linux

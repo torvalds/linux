@@ -16,6 +16,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -36,6 +37,7 @@
 #define CCS811_ERR		0xE0
 /* Used to transition from boot to application mode */
 #define CCS811_APP_START	0xF4
+#define CCS811_SW_RESET		0xFF
 
 /* Status register flags */
 #define CCS811_STATUS_ERROR		BIT(0)
@@ -74,6 +76,7 @@ struct ccs811_data {
 	struct mutex lock; /* Protect readings */
 	struct ccs811_reading buffer;
 	struct iio_trigger *drdy_trig;
+	struct gpio_desc *wakeup_gpio;
 	bool drdy_trig_on;
 };
 
@@ -166,9 +169,24 @@ static int ccs811_setup(struct i2c_client *client)
 					 CCS811_MODE_IAQ_1SEC);
 }
 
+static void ccs811_set_wakeup(struct ccs811_data *data, bool enable)
+{
+	if (!data->wakeup_gpio)
+		return;
+
+	gpiod_set_value(data->wakeup_gpio, enable);
+
+	if (enable)
+		usleep_range(50, 60);
+	else
+		usleep_range(20, 30);
+}
+
 static int ccs811_get_measurement(struct ccs811_data *data)
 {
 	int ret, tries = 11;
+
+	ccs811_set_wakeup(data, true);
 
 	/* Maximum waiting time: 1s, as measurements are made every second */
 	while (tries-- > 0) {
@@ -183,9 +201,12 @@ static int ccs811_get_measurement(struct ccs811_data *data)
 	if (!(ret & CCS811_STATUS_DATA_READY))
 		return -EIO;
 
-	return i2c_smbus_read_i2c_block_data(data->client,
+	ret = i2c_smbus_read_i2c_block_data(data->client,
 					    CCS811_ALG_RESULT_DATA, 8,
 					    (char *)&data->buffer);
+	ccs811_set_wakeup(data, false);
+
+	return ret;
 }
 
 static int ccs811_read_raw(struct iio_dev *indio_dev,
@@ -336,6 +357,45 @@ static irqreturn_t ccs811_data_rdy_trigger_poll(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int ccs811_reset(struct i2c_client *client)
+{
+	struct gpio_desc *reset_gpio;
+	int ret;
+
+	reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+					     GPIOD_OUT_LOW);
+	if (IS_ERR(reset_gpio))
+		return PTR_ERR(reset_gpio);
+
+	/* Try to reset using nRESET pin if available else do SW reset */
+	if (reset_gpio) {
+		gpiod_set_value(reset_gpio, 1);
+		usleep_range(20, 30);
+		gpiod_set_value(reset_gpio, 0);
+	} else {
+		/*
+		 * As per the datasheet, this sequence of values needs to be
+		 * written to the SW_RESET register for triggering the soft
+		 * reset in the device and placing it in boot mode.
+		 */
+		static const u8 reset_seq[] = {
+			0x11, 0xE5, 0x72, 0x8A,
+		};
+
+		ret = i2c_smbus_write_i2c_block_data(client, CCS811_SW_RESET,
+					     sizeof(reset_seq), reset_seq);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to reset sensor\n");
+			return ret;
+		}
+	}
+
+	/* tSTART delay required after reset */
+	usleep_range(1000, 2000);
+
+	return 0;
+}
+
 static int ccs811_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -348,36 +408,59 @@ static int ccs811_probe(struct i2c_client *client,
 				     | I2C_FUNC_SMBUS_READ_I2C_BLOCK))
 		return -EOPNOTSUPP;
 
-	/* Check hardware id (should be 0x81 for this family of devices) */
-	ret = i2c_smbus_read_byte_data(client, CCS811_HW_ID);
-	if (ret < 0)
-		return ret;
-
-	if (ret != CCS811_HW_ID_VALUE) {
-		dev_err(&client->dev, "hardware id doesn't match CCS81x\n");
-		return -ENODEV;
-	}
-
-	ret = i2c_smbus_read_byte_data(client, CCS811_HW_VERSION);
-	if (ret < 0)
-		return ret;
-
-	if ((ret & CCS811_HW_VERSION_MASK) != CCS811_HW_VERSION_VALUE) {
-		dev_err(&client->dev, "no CCS811 sensor\n");
-		return -ENODEV;
-	}
-
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	ret = ccs811_setup(client);
-	if (ret < 0)
-		return ret;
-
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
+
+	data->wakeup_gpio = devm_gpiod_get_optional(&client->dev, "wakeup",
+						    GPIOD_OUT_HIGH);
+	if (IS_ERR(data->wakeup_gpio))
+		return PTR_ERR(data->wakeup_gpio);
+
+	ccs811_set_wakeup(data, true);
+
+	ret = ccs811_reset(client);
+	if (ret) {
+		ccs811_set_wakeup(data, false);
+		return ret;
+	}
+
+	/* Check hardware id (should be 0x81 for this family of devices) */
+	ret = i2c_smbus_read_byte_data(client, CCS811_HW_ID);
+	if (ret < 0) {
+		ccs811_set_wakeup(data, false);
+		return ret;
+	}
+
+	if (ret != CCS811_HW_ID_VALUE) {
+		dev_err(&client->dev, "hardware id doesn't match CCS81x\n");
+		ccs811_set_wakeup(data, false);
+		return -ENODEV;
+	}
+
+	ret = i2c_smbus_read_byte_data(client, CCS811_HW_VERSION);
+	if (ret < 0) {
+		ccs811_set_wakeup(data, false);
+		return ret;
+	}
+
+	if ((ret & CCS811_HW_VERSION_MASK) != CCS811_HW_VERSION_VALUE) {
+		dev_err(&client->dev, "no CCS811 sensor\n");
+		ccs811_set_wakeup(data, false);
+		return -ENODEV;
+	}
+
+	ret = ccs811_setup(client);
+	if (ret < 0) {
+		ccs811_set_wakeup(data, false);
+		return ret;
+	}
+
+	ccs811_set_wakeup(data, false);
 
 	mutex_init(&data->lock);
 
@@ -466,9 +549,16 @@ static const struct i2c_device_id ccs811_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ccs811_id);
 
+static const struct of_device_id ccs811_dt_ids[] = {
+	{ .compatible = "ams,ccs811" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ccs811_dt_ids);
+
 static struct i2c_driver ccs811_driver = {
 	.driver = {
 		.name = "ccs811",
+		.of_match_table = ccs811_dt_ids,
 	},
 	.probe = ccs811_probe,
 	.remove = ccs811_remove,

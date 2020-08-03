@@ -275,26 +275,18 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *inode_root;
 	struct inode *inode;
-	struct btrfs_key key;
 	struct btrfs_ioctl_defrag_range_args range;
 	int num_defrag;
 	int ret;
 
 	/* get the inode */
-	key.objectid = defrag->root;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
-	inode_root = btrfs_get_fs_root(fs_info, &key, true);
+	inode_root = btrfs_get_fs_root(fs_info, defrag->root, true);
 	if (IS_ERR(inode_root)) {
 		ret = PTR_ERR(inode_root);
 		goto cleanup;
 	}
 
-	key.objectid = defrag->ino;
-	key.type = BTRFS_INODE_ITEM_KEY;
-	key.offset = 0;
-	inode = btrfs_iget(fs_info->sb, &key, inode_root);
+	inode = btrfs_iget(fs_info->sb, defrag->ino, inode_root);
 	btrfs_put_root(inode_root);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
@@ -775,7 +767,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	if (start >= BTRFS_I(inode)->disk_i_size && !replace_extent)
 		modify_tree = 0;
 
-	update_refs = (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
+	update_refs = (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
 		       root == fs_info->tree_root);
 	while (1) {
 		recow = 0;

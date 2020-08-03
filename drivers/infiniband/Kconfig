@@ -8,7 +8,7 @@ menuconfig INFINIBAND
 	depends on !ALPHA
 	select IRQ_POLL
 	select DIMLIB
-	---help---
+	help
 	  Core support for InfiniBand (IB).  Make sure to also select
 	  any protocols you wish to use as well as drivers for your
 	  InfiniBand hardware.
@@ -18,7 +18,7 @@ if INFINIBAND
 config INFINIBAND_USER_MAD
 	tristate "InfiniBand userspace MAD support"
 	depends on INFINIBAND
-	---help---
+	help
 	  Userspace InfiniBand Management Datagram (MAD) support.  This
 	  is the kernel side of the userspace MAD support, which allows
 	  userspace processes to send and receive MADs. You will also
@@ -28,7 +28,7 @@ config INFINIBAND_USER_MAD
 config INFINIBAND_USER_ACCESS
 	tristate "InfiniBand userspace access (verbs and CM)"
 	depends on MMU
-	---help---
+	help
 	  Userspace InfiniBand access support.  This enables the
 	  kernel side of userspace verbs and the userspace
 	  communication manager (CM).  This allows userspace processes
@@ -40,7 +40,7 @@ config INFINIBAND_USER_ACCESS
 config INFINIBAND_EXP_LEGACY_VERBS_NEW_UAPI
 	bool "Allow experimental legacy verbs in new ioctl uAPI  (EXPERIMENTAL)"
 	depends on INFINIBAND_USER_ACCESS
-	---help---
+	help
 	  IOCTL based uAPI support for Infiniband is enabled by default for
 	  new verbs only. This allows userspace to invoke the IOCTL based uAPI
 	  for current legacy verbs too.
@@ -57,7 +57,7 @@ config INFINIBAND_ON_DEMAND_PAGING
 	select MMU_NOTIFIER
 	select INTERVAL_TREE
 	default y
-	---help---
+	help
 	  On demand paging support for the InfiniBand subsystem.
 	  Together with driver support this allows registration of
 	  memory regions without pinning their pages, fetching the
@@ -67,7 +67,7 @@ config INFINIBAND_ADDR_TRANS
 	bool "RDMA/CM"
 	depends on INFINIBAND
 	default y
-	---help---
+	help
 	  Support for RDMA communication manager (CM).
 	  This allows for a generic connection abstraction over RDMA.
 
@@ -75,7 +75,7 @@ config INFINIBAND_ADDR_TRANS_CONFIGFS
 	bool
 	depends on INFINIBAND_ADDR_TRANS && CONFIGFS_FS && !(INFINIBAND=y && CONFIGFS_FS=m)
 	default y
-	---help---
+	help
 	  ConfigFS support for RDMA communication manager (CM).
 	  This allows the user to config the default GID type that the CM
 	  uses for each device, when initiaing new connections.
@@ -107,6 +107,7 @@ source "drivers/infiniband/ulp/srpt/Kconfig"
 
 source "drivers/infiniband/ulp/iser/Kconfig"
 source "drivers/infiniband/ulp/isert/Kconfig"
+source "drivers/infiniband/ulp/rtrs/Kconfig"
 
 source "drivers/infiniband/ulp/opa_vnic/Kconfig"
 

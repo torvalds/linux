@@ -10,10 +10,12 @@
  *  Copyright (C) 2013 Texas Instruments
  *  Copyright (C) 2013 Eduardo Valentin <eduardo.valentin@ti.com>
  */
-#include <linux/hwmon.h>
-#include <linux/thermal.h>
-#include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/export.h>
+#include <linux/hwmon.h>
+#include <linux/slab.h>
+#include <linux/thermal.h>
+
 #include "thermal_hwmon.h"
 
 /* hwmon sys I/F */

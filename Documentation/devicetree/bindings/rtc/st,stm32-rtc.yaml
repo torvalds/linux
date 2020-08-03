@@ -32,16 +32,15 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/phandle-array"
-      - items:
-          minItems: 3
-          maxItems: 3
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      minItems: 3
+      maxItems: 3
     description: |
-       Phandle/offset/mask triplet. The phandle to pwrcfg used to
-       access control register at offset, and change the dbp (Disable Backup
-       Protection) bit represented by the mask, mandatory to disable/enable backup
-       domain (RTC registers) write protection.
+      Phandle/offset/mask triplet. The phandle to pwrcfg used to
+      access control register at offset, and change the dbp (Disable Backup
+      Protection) bit represented by the mask, mandatory to disable/enable backup
+      domain (RTC registers) write protection.
 
   assigned-clocks:
     description: |
@@ -78,14 +77,14 @@ allOf:
             const: st,stm32h7-rtc
 
     then:
-       properties:
-         clocks:
-           minItems: 2
-           maxItems: 2
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
 
-       required:
-         - clock-names
-         - st,syscfg
+      required:
+        - clock-names
+        - st,syscfg
 
   - if:
       properties:
@@ -94,16 +93,16 @@ allOf:
             const: st,stm32mp1-rtc
 
     then:
-       properties:
-         clocks:
-           minItems: 2
-           maxItems: 2
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
 
-         assigned-clocks: false
-         assigned-clock-parents: false
+        assigned-clocks: false
+        assigned-clock-parents: false
 
-       required:
-         - clock-names
+      required:
+        - clock-names
 
 required:
   - compatible

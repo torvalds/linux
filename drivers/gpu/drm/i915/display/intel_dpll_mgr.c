@@ -80,7 +80,7 @@ intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 
-	WARN_ON(!drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
+	drm_WARN_ON(s->dev, !drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
 
 	if (!state->dpll_set) {
 		state->dpll_set = true;
@@ -979,7 +979,7 @@ hsw_ddi_spll_get_dpll(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (WARN_ON(crtc_state->port_clock / 2 != 135000))
+	if (drm_WARN_ON(crtc->base.dev, crtc_state->port_clock / 2 != 135000))
 		return NULL;
 
 	crtc_state->dpll_hw_state.spll = SPLL_PLL_ENABLE | SPLL_FREQ_1350MHz |
@@ -1616,7 +1616,7 @@ static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 	dco_freq += ((pll_state->cfgcr1 & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9) *
 		    ref_clock / 0x8000;
 
-	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
+	if (drm_WARN_ON(&i915->drm, p0 == 0 || p1 == 0 || p2 == 0))
 		return 0;
 
 	return dco_freq / (p0 * p1 * p2 * 5);
@@ -2074,7 +2074,7 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 
 	clk_div->p1 = best_clock.p1;
 	clk_div->p2 = best_clock.p2;
-	WARN_ON(best_clock.m1 != 2);
+	drm_WARN_ON(&i915->drm, best_clock.m1 != 2);
 	clk_div->n = best_clock.n;
 	clk_div->m2_int = best_clock.m2 >> 22;
 	clk_div->m2_frac = best_clock.m2 & ((1 << 22) - 1);

@@ -59,6 +59,7 @@ config KASAN_SHADOW_OFFSET
 config S390
 	def_bool y
 	select ARCH_BINFMT_ELF_STATE
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -162,7 +163,6 @@ config S390
 	select HAVE_LIVEPATCH
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
 	select MMU_GATHER_NO_GATHER
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -696,7 +696,7 @@ menu "I/O subsystem"
 config QDIO
 	def_tristate y
 	prompt "QDIO support"
-	---help---
+	help
 	  This driver provides the Queued Direct I/O base support for
 	  IBM System z.
 

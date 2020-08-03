@@ -772,6 +772,7 @@ struct se_device {
 #define DF_USING_UDEV_PATH			0x00000008
 #define DF_USING_ALIAS				0x00000010
 #define DF_READ_ONLY				0x00000020
+	u8			transport_flags;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */

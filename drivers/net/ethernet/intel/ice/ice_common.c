@@ -316,12 +316,78 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 }
 
 /**
+ * ice_fill_tx_timer_and_fc_thresh
+ * @hw: pointer to the HW struct
+ * @cmd: pointer to MAC cfg structure
+ *
+ * Add Tx timer and FC refresh threshold info to Set MAC Config AQ command
+ * descriptor
+ */
+static void
+ice_fill_tx_timer_and_fc_thresh(struct ice_hw *hw,
+				struct ice_aqc_set_mac_cfg *cmd)
+{
+	u16 fc_thres_val, tx_timer_val;
+	u32 val;
+
+	/* We read back the transmit timer and FC threshold value of
+	 * LFC. Thus, we will use index =
+	 * PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA_MAX_INDEX.
+	 *
+	 * Also, because we are operating on transmit timer and FC
+	 * threshold of LFC, we don't turn on any bit in tx_tmr_priority
+	 */
+#define IDX_OF_LFC PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA_MAX_INDEX
+
+	/* Retrieve the transmit timer */
+	val = rd32(hw, PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA(IDX_OF_LFC));
+	tx_timer_val = val &
+		PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA_HSEC_CTL_TX_PAUSE_QUANTA_M;
+	cmd->tx_tmr_value = cpu_to_le16(tx_timer_val);
+
+	/* Retrieve the FC threshold */
+	val = rd32(hw, PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER(IDX_OF_LFC));
+	fc_thres_val = val & PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_M;
+
+	cmd->fc_refresh_threshold = cpu_to_le16(fc_thres_val);
+}
+
+/**
+ * ice_aq_set_mac_cfg
+ * @hw: pointer to the HW struct
+ * @max_frame_size: Maximum Frame Size to be supported
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set MAC configuration (0x0603)
+ */
+enum ice_status
+ice_aq_set_mac_cfg(struct ice_hw *hw, u16 max_frame_size, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_mac_cfg *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_mac_cfg;
+
+	if (max_frame_size == 0)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_mac_cfg);
+
+	cmd->max_frame_size = cpu_to_le16(max_frame_size);
+
+	ice_fill_tx_timer_and_fc_thresh(hw, cmd);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * ice_init_fltr_mgmt_struct - initializes filter management list and locks
  * @hw: pointer to the HW struct
  */
 static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 {
 	struct ice_switch_info *sw;
+	enum ice_status status;
 
 	hw->switch_info = devm_kzalloc(ice_hw_to_dev(hw),
 				       sizeof(*hw->switch_info), GFP_KERNEL);
@@ -332,7 +398,12 @@ static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 
 	INIT_LIST_HEAD(&sw->vsi_list_map_head);
 
-	return ice_init_def_sw_recp(hw);
+	status = ice_init_def_sw_recp(hw);
+	if (status) {
+		devm_kfree(ice_hw_to_dev(hw), hw->switch_info);
+		return status;
+	}
+	return 0;
 }
 
 /**
@@ -653,6 +724,10 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_cqinit;
 
+	/* Set bit to enable Flow Director filters */
+	wr32(hw, PFQF_FD_ENA, PFQF_FD_ENA_FD_ENA_M);
+	INIT_LIST_HEAD(&hw->fdir_list_head);
+
 	ice_clear_pxe_mode(hw);
 
 	status = ice_init_nvm(hw);
@@ -743,9 +818,18 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
+	/* enable jumbo frame support at MAC level */
+	status = ice_aq_set_mac_cfg(hw, ICE_AQ_SET_MAC_FRAME_SIZE_MAX, NULL);
+	if (status)
+		goto err_unroll_fltr_mgmt_struct;
+	/* Obtain counter base index which would be used by flow director */
+	status = ice_alloc_fd_res_cntr(hw, &hw->fd_ctr_base);
+	if (status)
+		goto err_unroll_fltr_mgmt_struct;
 	status = ice_init_hw_tbls(hw);
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
+	mutex_init(&hw->tnl_lock);
 	return 0;
 
 err_unroll_fltr_mgmt_struct:
@@ -769,12 +853,14 @@ err_unroll_cqinit:
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
+	ice_free_fd_res_cntr(hw, hw->fd_ctr_base);
 	ice_cleanup_fltr_mgmt_struct(hw);
 
 	ice_sched_cleanup_all(hw);
 	ice_sched_clear_agg(hw);
 	ice_free_seg(hw);
 	ice_free_hw_tbls(hw);
+	mutex_destroy(&hw->tnl_lock);
 
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
@@ -878,7 +964,12 @@ static enum ice_status ice_pf_reset(struct ice_hw *hw)
 
 	wr32(hw, PFGEN_CTRL, (reg | PFGEN_CTRL_PFSWR_M));
 
-	for (cnt = 0; cnt < ICE_PF_RESET_WAIT_COUNT; cnt++) {
+	/* Wait for the PFR to complete. The wait time is the global config lock
+	 * timeout plus the PFR timeout which will account for a possible reset
+	 * that is occurring during a download package operation.
+	 */
+	for (cnt = 0; cnt < ICE_GLOBAL_CFG_LOCK_TIMEOUT +
+	     ICE_PF_RESET_WAIT_COUNT; cnt++) {
 		reg = rd32(hw, PFGEN_CTRL);
 		if (!(reg & PFGEN_CTRL_PFSWR_M))
 			break;
@@ -1012,7 +1103,7 @@ ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 
 	rlan_ctx->prefena = 1;
 
-	ice_set_ctx((u8 *)rlan_ctx, ctx_buf, ice_rlan_ctx_info);
+	ice_set_ctx(hw, (u8 *)rlan_ctx, ctx_buf, ice_rlan_ctx_info);
 	return ice_copy_rxq_ctx_to_hw(hw, ctx_buf, rxq_index);
 }
 
@@ -1678,6 +1769,33 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 				  "%s: msix_vector_first_id = %d\n", prefix,
 				  caps->msix_vector_first_id);
 			break;
+		case ICE_AQC_CAPS_FD:
+			if (dev_p) {
+				dev_p->num_flow_director_fltr = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: num_flow_director_fltr = %d\n",
+					  prefix,
+					  dev_p->num_flow_director_fltr);
+			}
+			if (func_p) {
+				u32 reg_val, val;
+
+				reg_val = rd32(hw, GLQF_FD_SIZE);
+				val = (reg_val & GLQF_FD_SIZE_FD_GSIZE_M) >>
+				      GLQF_FD_SIZE_FD_GSIZE_S;
+				func_p->fd_fltr_guar =
+				      ice_get_num_per_func(hw, val);
+				val = (reg_val & GLQF_FD_SIZE_FD_BSIZE_M) >>
+				      GLQF_FD_SIZE_FD_BSIZE_S;
+				func_p->fd_fltr_best_effort = val;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: fd_fltr_guar = %d\n",
+					  prefix, func_p->fd_fltr_guar);
+				ice_debug(hw, ICE_DBG_INIT,
+					  "%s: fd_fltr_best_effort = %d\n",
+					  prefix, func_p->fd_fltr_best_effort);
+			}
+			break;
 		case ICE_AQC_CAPS_MAX_MTU:
 			caps->max_mtu = number;
 			ice_debug(hw, ICE_DBG_INIT, "%s: max_mtu = %d\n",
@@ -1887,10 +2005,7 @@ ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_write);
 
 	cmd->flags = flags;
-
-	/* Prep values for flags, sah, sal */
-	cmd->sah = htons(*((const u16 *)mac_addr));
-	cmd->sal = htonl(*((const u32 *)(mac_addr + 2)));
+	ether_addr_copy(cmd->mac_addr, mac_addr);
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -2117,6 +2232,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc;
+	enum ice_status status;
 
 	if (!cfg)
 		return ICE_ERR_PARAM;
@@ -2145,7 +2261,11 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	ice_debug(hw, ICE_DBG_LINK, "eeer_value = 0x%x\n", cfg->eeer_value);
 	ice_debug(hw, ICE_DBG_LINK, "link_fec_opt = 0x%x\n", cfg->link_fec_opt);
 
-	return ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
+	status = ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
+	if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
+		status = 0;
+
+	return status;
 }
 
 /**
@@ -3089,12 +3209,14 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 /**
  * ice_set_ctx - set context bits in packed structure
+ * @hw: pointer to the hardware structure
  * @src_ctx:  pointer to a generic non-packed context structure
  * @dest_ctx: pointer to memory for the packed structure
  * @ce_info:  a description of the structure to be transformed
  */
 enum ice_status
-ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
+	    const struct ice_ctx_ele *ce_info)
 {
 	int f;
 
@@ -3103,6 +3225,12 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 		 * using the correct size so that we are correct regardless
 		 * of the endianness of the machine.
 		 */
+		if (ce_info[f].width > (ce_info[f].size_of * BITS_PER_BYTE)) {
+			ice_debug(hw, ICE_DBG_QCTX,
+				  "Field %d width of %d bits larger than size of %d byte(s) ... skipping write\n",
+				  f, ce_info[f].width, ce_info[f].size_of);
+			continue;
+		}
 		switch (ce_info[f].size_of) {
 		case sizeof(u8):
 			ice_write_byte(src_ctx, dest_ctx, &ce_info[f]);

@@ -271,7 +271,6 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 {
 	struct sirfsoc_i2c *siic;
 	struct i2c_adapter *adap;
-	struct resource *mem_res;
 	struct clk *clk;
 	int bitrate;
 	int ctrl_speed;
@@ -309,8 +308,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	adap = &siic->adapter;
 	adap->class = I2C_CLASS_DEPRECATED;
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	siic->base = devm_ioremap_resource(&pdev->dev, mem_res);
+	siic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(siic->base)) {
 		err = PTR_ERR(siic->base);
 		goto out;

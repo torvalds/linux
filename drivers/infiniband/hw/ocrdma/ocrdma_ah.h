@@ -51,7 +51,7 @@ enum {
 	OCRDMA_AH_L3_TYPE_SHIFT		= 0x1D /* 29 bits */
 };
 
-int ocrdma_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+int ocrdma_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		     struct ib_udata *udata);
 void ocrdma_destroy_ah(struct ib_ah *ah, u32 flags);
 int ocrdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);

@@ -24,7 +24,7 @@
 static void tidss_crtc_finish_page_flip(struct tidss_crtc *tcrtc)
 {
 	struct drm_device *ddev = tcrtc->crtc.dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct drm_pending_vblank_event *event;
 	unsigned long flags;
 	bool busy;
@@ -88,7 +88,7 @@ static int tidss_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state)
 {
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct dispc_device *dispc = tidss->dispc;
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	u32 hw_videoport = tcrtc->hw_videoport;
@@ -165,7 +165,7 @@ static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	unsigned long flags;
 
 	dev_dbg(ddev->dev,
@@ -216,7 +216,7 @@ static void tidss_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	unsigned long flags;
 	int r;
@@ -259,7 +259,7 @@ static void tidss_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	unsigned long flags;
 
 	dev_dbg(ddev->dev, "%s, event %p\n", __func__, crtc->state->event);
@@ -295,7 +295,7 @@ enum drm_mode_status tidss_crtc_mode_valid(struct drm_crtc *crtc,
 {
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 
 	return dispc_vp_mode_valid(tidss->dispc, tcrtc->hw_videoport, mode);
 }
@@ -314,7 +314,7 @@ static const struct drm_crtc_helper_funcs tidss_crtc_helper_funcs = {
 static int tidss_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 
 	dev_dbg(ddev->dev, "%s\n", __func__);
 
@@ -328,7 +328,7 @@ static int tidss_crtc_enable_vblank(struct drm_crtc *crtc)
 static void tidss_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 
 	dev_dbg(ddev->dev, "%s\n", __func__);
 

@@ -30,7 +30,8 @@ __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-extern __wsum csum_partial_copy_from_user(const void __user *src,
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
+extern __wsum csum_and_copy_from_user(const void __user *src,
 						void *dst,
 						int len, __wsum sum,
 						int *csum_err);

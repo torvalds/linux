@@ -224,10 +224,11 @@ static struct drm_info_list hdlcd_debugfs_list[] = {
 	{ "clocks", hdlcd_show_pxlclock, 0 },
 };
 
-static int hdlcd_debugfs_init(struct drm_minor *minor)
+static void hdlcd_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(hdlcd_debugfs_list,
-		ARRAY_SIZE(hdlcd_debugfs_list),	minor->debugfs_root, minor);
+	drm_debugfs_create_files(hdlcd_debugfs_list,
+				 ARRAY_SIZE(hdlcd_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 #endif
 

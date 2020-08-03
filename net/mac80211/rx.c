@@ -93,13 +93,44 @@ static u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
  * This function cleans up the SKB, i.e. it removes all the stuff
  * only useful for monitoring.
  */
-static void remove_monitor_info(struct sk_buff *skb,
-				unsigned int present_fcs_len,
-				unsigned int rtap_space)
+static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
+					   unsigned int present_fcs_len,
+					   unsigned int rtap_space)
 {
+	struct ieee80211_hdr *hdr;
+	unsigned int hdrlen;
+	__le16 fc;
+
 	if (present_fcs_len)
 		__pskb_trim(skb, skb->len - present_fcs_len);
 	__pskb_pull(skb, rtap_space);
+
+	hdr = (void *)skb->data;
+	fc = hdr->frame_control;
+
+	/*
+	 * Remove the HT-Control field (if present) on management
+	 * frames after we've sent the frame to monitoring. We
+	 * (currently) don't need it, and don't properly parse
+	 * frames with it present, due to the assumption of a
+	 * fixed management header length.
+	 */
+	if (likely(!ieee80211_is_mgmt(fc) || !ieee80211_has_order(fc)))
+		return skb;
+
+	hdrlen = ieee80211_hdrlen(fc);
+	hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_ORDER);
+
+	if (!pskb_may_pull(skb, hdrlen)) {
+		dev_kfree_skb(skb);
+		return NULL;
+	}
+
+	memmove(skb->data + IEEE80211_HT_CTL_LEN, skb->data,
+		hdrlen - IEEE80211_HT_CTL_LEN);
+	__pskb_pull(skb, IEEE80211_HT_CTL_LEN);
+
+	return skb;
 }
 
 static inline bool should_drop_frame(struct sk_buff *skb, int present_fcs_len,
@@ -412,6 +443,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos++;
 
 	/* IEEE80211_RADIOTAP_CHANNEL */
+	/* TODO: frequency offset in KHz */
 	put_unaligned_le16(status->freq, pos);
 	pos += 2;
 	if (status->bw == RATE_INFO_BW_10)
@@ -826,8 +858,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 			return NULL;
 		}
 
-		remove_monitor_info(origskb, present_fcs_len, rtap_space);
-		return origskb;
+		return ieee80211_clean_skb(origskb, present_fcs_len,
+					   rtap_space);
 	}
 
 	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_space);
@@ -870,8 +902,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (!origskb)
 		return NULL;
 
-	remove_monitor_info(origskb, present_fcs_len, rtap_space);
-	return origskb;
+	return ieee80211_clean_skb(origskb, present_fcs_len, rtap_space);
 }
 
 static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
@@ -1984,8 +2015,12 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		if (mmie_keyidx < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS ||
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS +
-		    NUM_DEFAULT_BEACON_KEYS)
+		    NUM_DEFAULT_BEACON_KEYS) {
+			cfg80211_rx_unprot_mlme_mgmt(rx->sdata->dev,
+						     skb->data,
+						     skb->len);
 			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+		}
 
 		rx->key = ieee80211_rx_get_bigtk(rx, mmie_keyidx);
 		if (!rx->key)
@@ -2130,6 +2165,10 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 	/* either the frame has been decrypted or will be dropped */
 	status->flag |= RX_FLAG_DECRYPTED;
+
+	if (unlikely(ieee80211_is_beacon(fc) && result == RX_DROP_UNUSABLE))
+		cfg80211_rx_unprot_mlme_mgmt(rx->sdata->dev,
+					     skb->data, skb->len);
 
 	return result;
 }
@@ -2411,8 +2450,12 @@ static int ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 			return -EACCES;
 		}
 		if (unlikely(ieee80211_is_beacon(fc) && rx->key &&
-			     ieee80211_get_mmie_keyidx(rx->skb) < 0))
+			     ieee80211_get_mmie_keyidx(rx->skb) < 0)) {
+			cfg80211_rx_unprot_mlme_mgmt(rx->sdata->dev,
+						     rx->skb->data,
+						     rx->skb->len);
 			return -EACCES;
+		}
 		/*
 		 * When using MFP, Action frames are not allowed prior to
 		 * having configured keys.
@@ -3082,9 +3125,10 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 		    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
 			sig = status->signal;
 
-		cfg80211_report_obss_beacon(rx->local->hw.wiphy,
-					    rx->skb->data, rx->skb->len,
-					    status->freq, sig);
+		cfg80211_report_obss_beacon_khz(rx->local->hw.wiphy,
+						rx->skb->data, rx->skb->len,
+						ieee80211_rx_status_to_khz(status),
+						sig);
 		rx->flags |= IEEE80211_RX_BEACON_REPORTED;
 	}
 
@@ -3340,19 +3384,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			}
 		}
 		break;
-	case WLAN_CATEGORY_SA_QUERY:
-		if (len < (IEEE80211_MIN_ACTION_SIZE +
-			   sizeof(mgmt->u.action.u.sa_query)))
-			break;
-
-		switch (mgmt->u.action.u.sa_query.action) {
-		case WLAN_ACTION_SA_QUERY_REQUEST:
-			if (sdata->vif.type != NL80211_IFTYPE_STATION)
-				break;
-			ieee80211_process_sa_query_req(sdata, mgmt, len);
-			goto handled;
-		}
-		break;
 	case WLAN_CATEGORY_SELF_PROTECTED:
 		if (len < (IEEE80211_MIN_ACTION_SIZE +
 			   sizeof(mgmt->u.action.u.self_prot.action_code)))
@@ -3430,8 +3461,9 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
 		sig = status->signal;
 
-	if (cfg80211_rx_mgmt(&rx->sdata->wdev, status->freq, sig,
-			     rx->skb->data, rx->skb->len, 0)) {
+	if (cfg80211_rx_mgmt_khz(&rx->sdata->wdev,
+				 ieee80211_rx_status_to_khz(status), sig,
+				 rx->skb->data, rx->skb->len, 0)) {
 		if (rx->sta)
 			rx->sta->rx_stats.packets++;
 		dev_kfree_skb(rx->skb);
@@ -3439,6 +3471,41 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	}
 
 	return RX_CONTINUE;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_action_post_userspace(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	int len = rx->skb->len;
+
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return RX_CONTINUE;
+
+	switch (mgmt->u.action.category) {
+	case WLAN_CATEGORY_SA_QUERY:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.sa_query)))
+			break;
+
+		switch (mgmt->u.action.u.sa_query.action) {
+		case WLAN_ACTION_SA_QUERY_REQUEST:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+			ieee80211_process_sa_query_req(sdata, mgmt, len);
+			goto handled;
+		}
+		break;
+	}
+
+	return RX_CONTINUE;
+
+ handled:
+	if (rx->sta)
+		rx->sta->rx_stats.packets++;
+	dev_kfree_skb(rx->skb);
+	return RX_QUEUED;
 }
 
 static ieee80211_rx_result debug_noinline
@@ -3721,6 +3788,7 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		CALL_RXH(ieee80211_rx_h_mgmt_check);
 		CALL_RXH(ieee80211_rx_h_action);
 		CALL_RXH(ieee80211_rx_h_userspace_mgmt);
+		CALL_RXH(ieee80211_rx_h_action_post_userspace);
 		CALL_RXH(ieee80211_rx_h_action_return);
 		CALL_RXH(ieee80211_rx_h_mgmt);
 
@@ -4626,7 +4694,7 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 			 * rate_idx is MCS index, which can be [0-76]
 			 * as documented on:
 			 *
-			 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
+			 * https://wireless.wiki.kernel.org/en/developers/Documentation/ieee80211/802.11n
 			 *
 			 * Anything else would be some sort of driver or
 			 * hardware error. The driver should catch hardware

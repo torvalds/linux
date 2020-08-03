@@ -36,12 +36,11 @@
  * Global resources are common to all the netdevices crated on the same nic.
  */
 
-int mlx5e_create_tir(struct mlx5_core_dev *mdev,
-		     struct mlx5e_tir *tir, u32 *in, int inlen)
+int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 *in)
 {
 	int err;
 
-	err = mlx5_core_create_tir(mdev, in, inlen, &tir->tirn);
+	err = mlx5_core_create_tir(mdev, in, &tir->tirn);
 	if (err)
 		return err;
 
@@ -142,10 +141,12 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	memset(res, 0, sizeof(*res));
 }
 
-int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
+int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
+		       bool enable_mc_lb)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_tir *tir;
+	u8 lb_flags = 0;
 	int err  = 0;
 	u32 tirn = 0;
 	int inlen;
@@ -159,15 +160,20 @@ int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
 	}
 
 	if (enable_uc_lb)
-		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
+		lb_flags = MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+
+	if (enable_mc_lb)
+		lb_flags |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
+
+	if (lb_flags)
+		MLX5_SET(modify_tir_in, in, ctx.self_lb_block, lb_flags);
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
 	mutex_lock(&mdev->mlx5e_res.td.list_lock);
 	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
 		tirn = tir->tirn;
-		err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
+		err = mlx5_core_modify_tir(mdev, tirn, in);
 		if (err)
 			goto out;
 	}

@@ -36,6 +36,9 @@ properties:
         - if a USB DRD channel: first clock should be host and second
           one should be peripheral
 
+  power-domains:
+    maxItems: 1
+
   big-endian:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -72,6 +75,9 @@ properties:
 
   phy-names:
     const: usb
+
+  iommus:
+    maxItems: 1
 
 required:
   - compatible

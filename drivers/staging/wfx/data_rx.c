@@ -49,7 +49,7 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 	}
 
 	/* Firmware strips ICV in case of MIC failure. */
-	if (arg->status == HIF_STATUS_MICFAILURE)
+	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		icv_len = 0;
 
 	if (skb->len < hdrlen + iv_len + icv_len) {
@@ -79,7 +79,7 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	     ieee80211_is_beacon(frame->frame_control)))
 		goto drop;
 
-	if (arg->status == HIF_STATUS_MICFAILURE)
+	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		hdr->flag |= RX_FLAG_MMIC_ERROR;
 	else if (arg->status)
 		goto drop;
@@ -118,18 +118,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	    arg->rx_flags.match_uc_addr &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK)
 		goto drop;
-	if (ieee80211_is_beacon(frame->frame_control) &&
-	    !arg->status && wvif->vif &&
-	    ether_addr_equal(ieee80211_get_SA(frame),
-			     wvif->vif->bss_conf.bssid)) {
-		/* Disable beacon filter once we're associated... */
-		if (wvif->disable_beacon_filter &&
-		    (wvif->vif->bss_conf.assoc ||
-		     wvif->vif->bss_conf.ibss_joined)) {
-			wvif->disable_beacon_filter = false;
-			schedule_work(&wvif->update_filtering_work);
-		}
-	}
 	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
 
 	return;

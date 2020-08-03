@@ -185,6 +185,9 @@ void ifcvf_set_status(struct ifcvf_hw *hw, u8 status)
 
 void ifcvf_reset(struct ifcvf_hw *hw)
 {
+	hw->config_cb.callback = NULL;
+	hw->config_cb.private = NULL;
+
 	ifcvf_set_status(hw, 0);
 	/* flush set_status, make sure VF is stopped, reset */
 	ifcvf_get_status(hw);

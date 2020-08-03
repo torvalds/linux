@@ -1401,7 +1401,7 @@ fast_isolate_freepages(struct compact_control *cc)
 		if (scan_start) {
 			/*
 			 * Use the highest PFN found above min. If one was
-			 * not found, be pessemistic for direct compaction
+			 * not found, be pessimistic for direct compaction
 			 * and use the min mark.
 			 */
 			if (highest) {
@@ -1409,7 +1409,9 @@ fast_isolate_freepages(struct compact_control *cc)
 				cc->free_pfn = highest;
 			} else {
 				if (cc->direct_compaction && pfn_valid(min_pfn)) {
-					page = pfn_to_page(min_pfn);
+					page = pageblock_pfn_to_page(min_pfn,
+						pageblock_end_pfn(min_pfn),
+						cc->zone);
 					cc->free_pfn = min_pfn;
 				}
 			}
@@ -1966,7 +1968,7 @@ static enum compact_result compact_finished(struct compact_control *cc)
  */
 static enum compact_result __compaction_suitable(struct zone *zone, int order,
 					unsigned int alloc_flags,
-					int classzone_idx,
+					int highest_zoneidx,
 					unsigned long wmark_target)
 {
 	unsigned long watermark;
@@ -1979,7 +1981,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	 * If watermarks for high-order allocation are already met, there
 	 * should be no need for compaction at all.
 	 */
-	if (zone_watermark_ok(zone, order, watermark, classzone_idx,
+	if (zone_watermark_ok(zone, order, watermark, highest_zoneidx,
 								alloc_flags))
 		return COMPACT_SUCCESS;
 
@@ -1989,9 +1991,9 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	 * watermark and alloc_flags have to match, or be more pessimistic than
 	 * the check in __isolate_free_page(). We don't use the direct
 	 * compactor's alloc_flags, as they are not relevant for freepage
-	 * isolation. We however do use the direct compactor's classzone_idx to
-	 * skip over zones where lowmem reserves would prevent allocation even
-	 * if compaction succeeds.
+	 * isolation. We however do use the direct compactor's highest_zoneidx
+	 * to skip over zones where lowmem reserves would prevent allocation
+	 * even if compaction succeeds.
 	 * For costly orders, we require low watermark instead of min for
 	 * compaction to proceed to increase its chances.
 	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
@@ -2000,7 +2002,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
 				low_wmark_pages(zone) : min_wmark_pages(zone);
 	watermark += compact_gap(order);
-	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+	if (!__zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
 						ALLOC_CMA, wmark_target))
 		return COMPACT_SKIPPED;
 
@@ -2009,12 +2011,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 
 enum compact_result compaction_suitable(struct zone *zone, int order,
 					unsigned int alloc_flags,
-					int classzone_idx)
+					int highest_zoneidx)
 {
 	enum compact_result ret;
 	int fragindex;
 
-	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
+	ret = __compaction_suitable(zone, order, alloc_flags, highest_zoneidx,
 				    zone_page_state(zone, NR_FREE_PAGES));
 	/*
 	 * fragmentation index determines if allocation failures are due to
@@ -2055,8 +2057,8 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 	 * Make sure at least one zone would pass __compaction_suitable if we continue
 	 * retrying the reclaim.
 	 */
-	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
-					ac->nodemask) {
+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
+				ac->highest_zoneidx, ac->nodemask) {
 		unsigned long available;
 		enum compact_result compact_result;
 
@@ -2069,7 +2071,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		available = zone_reclaimable_pages(zone) / order;
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 		compact_result = __compaction_suitable(zone, order, alloc_flags,
-				ac_classzone_idx(ac), available);
+				ac->highest_zoneidx, available);
 		if (compact_result != COMPACT_SKIPPED)
 			return true;
 	}
@@ -2098,9 +2100,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	INIT_LIST_HEAD(&cc->freepages);
 	INIT_LIST_HEAD(&cc->migratepages);
 
-	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+	cc->migratetype = gfp_migratetype(cc->gfp_mask);
 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
-							cc->classzone_idx);
+							cc->highest_zoneidx);
 	/* Compaction is likely to fail */
 	if (ret == COMPACT_SUCCESS || ret == COMPACT_SKIPPED)
 		return ret;
@@ -2243,15 +2245,11 @@ check_drain:
 		 * would succeed.
 		 */
 		if (cc->order > 0 && last_migrated_pfn) {
-			int cpu;
 			unsigned long current_block_start =
 				block_start_pfn(cc->migrate_pfn, cc->order);
 
 			if (last_migrated_pfn < current_block_start) {
-				cpu = get_cpu();
-				lru_add_drain_cpu(cpu);
-				drain_local_pages(cc->zone);
-				put_cpu();
+				lru_add_drain_cpu_zone(cc->zone);
 				/* No more flushing until we migrate again */
 				last_migrated_pfn = 0;
 			}
@@ -2295,7 +2293,7 @@ out:
 
 static enum compact_result compact_zone_order(struct zone *zone, int order,
 		gfp_t gfp_mask, enum compact_priority prio,
-		unsigned int alloc_flags, int classzone_idx,
+		unsigned int alloc_flags, int highest_zoneidx,
 		struct page **capture)
 {
 	enum compact_result ret;
@@ -2307,7 +2305,7 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 		.mode = (prio == COMPACT_PRIO_ASYNC) ?
 					MIGRATE_ASYNC :	MIGRATE_SYNC_LIGHT,
 		.alloc_flags = alloc_flags,
-		.classzone_idx = classzone_idx,
+		.highest_zoneidx = highest_zoneidx,
 		.direct_compaction = true,
 		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
 		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
@@ -2363,8 +2361,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, prio);
 
 	/* Compact each zone in the list */
-	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
-								ac->nodemask) {
+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
+					ac->highest_zoneidx, ac->nodemask) {
 		enum compact_result status;
 
 		if (prio > MIN_COMPACT_PRIORITY
@@ -2374,7 +2372,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 		}
 
 		status = compact_zone_order(zone, order, gfp_mask, prio,
-				alloc_flags, ac_classzone_idx(ac), capture);
+				alloc_flags, ac->highest_zoneidx, capture);
 		rc = max(status, rc);
 
 		/* The allocation should succeed, stop compacting */
@@ -2463,7 +2461,7 @@ int sysctl_compact_memory;
  * /proc/sys/vm/compact_memory
  */
 int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *length, loff_t *ppos)
+			void *buffer, size_t *length, loff_t *ppos)
 {
 	if (write)
 		compact_nodes();
@@ -2509,16 +2507,16 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 {
 	int zoneid;
 	struct zone *zone;
-	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
+	enum zone_type highest_zoneidx = pgdat->kcompactd_highest_zoneidx;
 
-	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
+	for (zoneid = 0; zoneid <= highest_zoneidx; zoneid++) {
 		zone = &pgdat->node_zones[zoneid];
 
 		if (!populated_zone(zone))
 			continue;
 
 		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
-					classzone_idx) == COMPACT_CONTINUE)
+					highest_zoneidx) == COMPACT_CONTINUE)
 			return true;
 	}
 
@@ -2536,16 +2534,16 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 	struct compact_control cc = {
 		.order = pgdat->kcompactd_max_order,
 		.search_order = pgdat->kcompactd_max_order,
-		.classzone_idx = pgdat->kcompactd_classzone_idx,
+		.highest_zoneidx = pgdat->kcompactd_highest_zoneidx,
 		.mode = MIGRATE_SYNC_LIGHT,
 		.ignore_skip_hint = false,
 		.gfp_mask = GFP_KERNEL,
 	};
 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
-							cc.classzone_idx);
+							cc.highest_zoneidx);
 	count_compact_event(KCOMPACTD_WAKE);
 
-	for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
+	for (zoneid = 0; zoneid <= cc.highest_zoneidx; zoneid++) {
 		int status;
 
 		zone = &pgdat->node_zones[zoneid];
@@ -2594,16 +2592,16 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 
 	/*
 	 * Regardless of success, we are done until woken up next. But remember
-	 * the requested order/classzone_idx in case it was higher/tighter than
-	 * our current ones
+	 * the requested order/highest_zoneidx in case it was higher/tighter
+	 * than our current ones
 	 */
 	if (pgdat->kcompactd_max_order <= cc.order)
 		pgdat->kcompactd_max_order = 0;
-	if (pgdat->kcompactd_classzone_idx >= cc.classzone_idx)
-		pgdat->kcompactd_classzone_idx = pgdat->nr_zones - 1;
+	if (pgdat->kcompactd_highest_zoneidx >= cc.highest_zoneidx)
+		pgdat->kcompactd_highest_zoneidx = pgdat->nr_zones - 1;
 }
 
-void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
+void wakeup_kcompactd(pg_data_t *pgdat, int order, int highest_zoneidx)
 {
 	if (!order)
 		return;
@@ -2611,8 +2609,8 @@ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
 	if (pgdat->kcompactd_max_order < order)
 		pgdat->kcompactd_max_order = order;
 
-	if (pgdat->kcompactd_classzone_idx > classzone_idx)
-		pgdat->kcompactd_classzone_idx = classzone_idx;
+	if (pgdat->kcompactd_highest_zoneidx > highest_zoneidx)
+		pgdat->kcompactd_highest_zoneidx = highest_zoneidx;
 
 	/*
 	 * Pairs with implicit barrier in wait_event_freezable()
@@ -2625,7 +2623,7 @@ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
 		return;
 
 	trace_mm_compaction_wakeup_kcompactd(pgdat->node_id, order,
-							classzone_idx);
+							highest_zoneidx);
 	wake_up_interruptible(&pgdat->kcompactd_wait);
 }
 
@@ -2646,7 +2644,7 @@ static int kcompactd(void *p)
 	set_freezable();
 
 	pgdat->kcompactd_max_order = 0;
-	pgdat->kcompactd_classzone_idx = pgdat->nr_zones - 1;
+	pgdat->kcompactd_highest_zoneidx = pgdat->nr_zones - 1;
 
 	while (!kthread_should_stop()) {
 		unsigned long pflags;

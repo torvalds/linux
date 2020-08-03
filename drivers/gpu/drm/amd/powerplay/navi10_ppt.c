@@ -423,6 +423,7 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *smc_pptable = table_context->driver_pptable;
 	struct atom_smc_dpm_info_v4_5 *smc_dpm_table;
+	struct atom_smc_dpm_info_v4_7 *smc_dpm_table_v4_7;
 	int index, ret;
 
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
@@ -433,77 +434,33 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	memcpy(smc_pptable->I2cControllers, smc_dpm_table->I2cControllers,
-	       sizeof(I2cControllerConfig_t) * NUM_I2C_CONTROLLERS);
+	pr_info("smc_dpm_info table revision(format.content): %d.%d\n",
+			smc_dpm_table->table_header.format_revision,
+			smc_dpm_table->table_header.content_revision);
 
-	/* SVI2 Board Parameters */
-	smc_pptable->MaxVoltageStepGfx = smc_dpm_table->MaxVoltageStepGfx;
-	smc_pptable->MaxVoltageStepSoc = smc_dpm_table->MaxVoltageStepSoc;
-	smc_pptable->VddGfxVrMapping = smc_dpm_table->VddGfxVrMapping;
-	smc_pptable->VddSocVrMapping = smc_dpm_table->VddSocVrMapping;
-	smc_pptable->VddMem0VrMapping = smc_dpm_table->VddMem0VrMapping;
-	smc_pptable->VddMem1VrMapping = smc_dpm_table->VddMem1VrMapping;
-	smc_pptable->GfxUlvPhaseSheddingMask = smc_dpm_table->GfxUlvPhaseSheddingMask;
-	smc_pptable->SocUlvPhaseSheddingMask = smc_dpm_table->SocUlvPhaseSheddingMask;
-	smc_pptable->ExternalSensorPresent = smc_dpm_table->ExternalSensorPresent;
-	smc_pptable->Padding8_V = smc_dpm_table->Padding8_V;
+	if (smc_dpm_table->table_header.format_revision != 4) {
+		pr_err("smc_dpm_info table format revision is not 4!\n");
+		return -EINVAL;
+	}
 
-	/* Telemetry Settings */
-	smc_pptable->GfxMaxCurrent = smc_dpm_table->GfxMaxCurrent;
-	smc_pptable->GfxOffset = smc_dpm_table->GfxOffset;
-	smc_pptable->Padding_TelemetryGfx = smc_dpm_table->Padding_TelemetryGfx;
-	smc_pptable->SocMaxCurrent = smc_dpm_table->SocMaxCurrent;
-	smc_pptable->SocOffset = smc_dpm_table->SocOffset;
-	smc_pptable->Padding_TelemetrySoc = smc_dpm_table->Padding_TelemetrySoc;
-	smc_pptable->Mem0MaxCurrent = smc_dpm_table->Mem0MaxCurrent;
-	smc_pptable->Mem0Offset = smc_dpm_table->Mem0Offset;
-	smc_pptable->Padding_TelemetryMem0 = smc_dpm_table->Padding_TelemetryMem0;
-	smc_pptable->Mem1MaxCurrent = smc_dpm_table->Mem1MaxCurrent;
-	smc_pptable->Mem1Offset = smc_dpm_table->Mem1Offset;
-	smc_pptable->Padding_TelemetryMem1 = smc_dpm_table->Padding_TelemetryMem1;
-
-	/* GPIO Settings */
-	smc_pptable->AcDcGpio = smc_dpm_table->AcDcGpio;
-	smc_pptable->AcDcPolarity = smc_dpm_table->AcDcPolarity;
-	smc_pptable->VR0HotGpio = smc_dpm_table->VR0HotGpio;
-	smc_pptable->VR0HotPolarity = smc_dpm_table->VR0HotPolarity;
-	smc_pptable->VR1HotGpio = smc_dpm_table->VR1HotGpio;
-	smc_pptable->VR1HotPolarity = smc_dpm_table->VR1HotPolarity;
-	smc_pptable->GthrGpio = smc_dpm_table->GthrGpio;
-	smc_pptable->GthrPolarity = smc_dpm_table->GthrPolarity;
-
-	/* LED Display Settings */
-	smc_pptable->LedPin0 = smc_dpm_table->LedPin0;
-	smc_pptable->LedPin1 = smc_dpm_table->LedPin1;
-	smc_pptable->LedPin2 = smc_dpm_table->LedPin2;
-	smc_pptable->padding8_4 = smc_dpm_table->padding8_4;
-
-	/* GFXCLK PLL Spread Spectrum */
-	smc_pptable->PllGfxclkSpreadEnabled = smc_dpm_table->PllGfxclkSpreadEnabled;
-	smc_pptable->PllGfxclkSpreadPercent = smc_dpm_table->PllGfxclkSpreadPercent;
-	smc_pptable->PllGfxclkSpreadFreq = smc_dpm_table->PllGfxclkSpreadFreq;
-
-	/* GFXCLK DFLL Spread Spectrum */
-	smc_pptable->DfllGfxclkSpreadEnabled = smc_dpm_table->DfllGfxclkSpreadEnabled;
-	smc_pptable->DfllGfxclkSpreadPercent = smc_dpm_table->DfllGfxclkSpreadPercent;
-	smc_pptable->DfllGfxclkSpreadFreq = smc_dpm_table->DfllGfxclkSpreadFreq;
-
-	/* UCLK Spread Spectrum */
-	smc_pptable->UclkSpreadEnabled = smc_dpm_table->UclkSpreadEnabled;
-	smc_pptable->UclkSpreadPercent = smc_dpm_table->UclkSpreadPercent;
-	smc_pptable->UclkSpreadFreq = smc_dpm_table->UclkSpreadFreq;
-
-	/* SOCCLK Spread Spectrum */
-	smc_pptable->SoclkSpreadEnabled = smc_dpm_table->SoclkSpreadEnabled;
-	smc_pptable->SocclkSpreadPercent = smc_dpm_table->SocclkSpreadPercent;
-	smc_pptable->SocclkSpreadFreq = smc_dpm_table->SocclkSpreadFreq;
-
-	/* Total board power */
-	smc_pptable->TotalBoardPower = smc_dpm_table->TotalBoardPower;
-	smc_pptable->BoardPadding = smc_dpm_table->BoardPadding;
-
-	/* Mvdd Svi2 Div Ratio Setting */
-	smc_pptable->MvddRatio = smc_dpm_table->MvddRatio;
+	switch (smc_dpm_table->table_header.content_revision) {
+	case 5: /* nv10 and nv14 */
+		memcpy(smc_pptable->I2cControllers, smc_dpm_table->I2cControllers,
+			sizeof(*smc_dpm_table) - sizeof(smc_dpm_table->table_header));
+		break;
+	case 7: /* nv12 */
+		ret = smu_get_atom_data_table(smu, index, NULL, NULL, NULL,
+					      (uint8_t **)&smc_dpm_table_v4_7);
+		if (ret)
+			return ret;
+		memcpy(smc_pptable->I2cControllers, smc_dpm_table_v4_7->I2cControllers,
+			sizeof(*smc_dpm_table_v4_7) - sizeof(smc_dpm_table_v4_7->table_header));
+		break;
+	default:
+		pr_err("smc_dpm_info with unsupported content revision %d!\n",
+				smc_dpm_table->table_header.content_revision);
+		return -EINVAL;
+	}
 
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		/* TODO: remove it once SMU fw fix it */
@@ -1336,8 +1293,6 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 	}
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 0)
-			return -EINVAL;
 
 		ret = smu_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
@@ -1860,7 +1815,8 @@ static int navi10_get_power_limit(struct smu_context *smu,
 	int power_src;
 
 	if (!smu->power_limit) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT) &&
+			!amdgpu_sriov_vf(smu->adev)) {
 			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
 			if (power_src < 0)
 				return -EINVAL;
@@ -2002,6 +1958,9 @@ static bool navi10_is_baco_supported(struct smu_context *smu)
 static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
 	OverDriveTable_t *od_table, *boot_od_table;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
 
 	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
 	if (ret)

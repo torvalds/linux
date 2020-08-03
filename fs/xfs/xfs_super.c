@@ -47,6 +47,39 @@ static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
 static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
 #endif
 
+enum xfs_dax_mode {
+	XFS_DAX_INODE = 0,
+	XFS_DAX_ALWAYS = 1,
+	XFS_DAX_NEVER = 2,
+};
+
+static void
+xfs_mount_set_dax_mode(
+	struct xfs_mount	*mp,
+	enum xfs_dax_mode	mode)
+{
+	switch (mode) {
+	case XFS_DAX_INODE:
+		mp->m_flags &= ~(XFS_MOUNT_DAX_ALWAYS | XFS_MOUNT_DAX_NEVER);
+		break;
+	case XFS_DAX_ALWAYS:
+		mp->m_flags |= XFS_MOUNT_DAX_ALWAYS;
+		mp->m_flags &= ~XFS_MOUNT_DAX_NEVER;
+		break;
+	case XFS_DAX_NEVER:
+		mp->m_flags |= XFS_MOUNT_DAX_NEVER;
+		mp->m_flags &= ~XFS_MOUNT_DAX_ALWAYS;
+		break;
+	}
+}
+
+static const struct constant_table dax_param_enums[] = {
+	{"inode",	XFS_DAX_INODE },
+	{"always",	XFS_DAX_ALWAYS },
+	{"never",	XFS_DAX_NEVER },
+	{}
+};
+
 /*
  * Table driven mount option parser.
  */
@@ -59,7 +92,7 @@ enum {
 	Opt_filestreams, Opt_quota, Opt_noquota, Opt_usrquota, Opt_grpquota,
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
-	Opt_discard, Opt_nodiscard, Opt_dax,
+	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum,
 };
 
 static const struct fs_parameter_spec xfs_fs_parameters[] = {
@@ -103,6 +136,7 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_flag("discard",		Opt_discard),
 	fsparam_flag("nodiscard",	Opt_nodiscard),
 	fsparam_flag("dax",		Opt_dax),
+	fsparam_enum("dax",		Opt_dax_enum, dax_param_enums),
 	{}
 };
 
@@ -129,7 +163,8 @@ xfs_fs_show_options(
 		{ XFS_MOUNT_GRPID,		",grpid" },
 		{ XFS_MOUNT_DISCARD,		",discard" },
 		{ XFS_MOUNT_LARGEIO,		",largeio" },
-		{ XFS_MOUNT_DAX,		",dax" },
+		{ XFS_MOUNT_DAX_ALWAYS,		",dax=always" },
+		{ XFS_MOUNT_DAX_NEVER,		",dax=never" },
 		{ 0, NULL }
 	};
 	struct xfs_mount	*mp = XFS_M(root->d_sb);
@@ -305,7 +340,7 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->bt_bdev, GFP_NOFS, NULL);
+	blkdev_issue_flush(buftarg->bt_bdev, GFP_NOFS);
 }
 
 STATIC void
@@ -702,7 +737,7 @@ xfs_fs_drop_inode(
 		return 0;
 	}
 
-	return generic_drop_inode(inode) || (ip->i_flags & XFS_IDONTCACHE);
+	return generic_drop_inode(inode);
 }
 
 static void
@@ -772,7 +807,8 @@ xfs_fs_statfs(
 	statp->f_blocks = sbp->sb_dblocks - lsize;
 	spin_unlock(&mp->m_sb_lock);
 
-	statp->f_bfree = fdblocks - mp->m_alloc_set_aside;
+	/* make sure statp->f_bfree does not underflow */
+	statp->f_bfree = max_t(int64_t, fdblocks - mp->m_alloc_set_aside, 0);
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
@@ -838,8 +874,10 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * there is no log replay required to write the inodes to disk - this is the
  * primary difference between a sync and a quiesce.
  *
- * Note: xfs_log_quiesce() stops background log work - the callers must ensure
- * it is started again when appropriate.
+ * We cancel log work early here to ensure all transactions the log worker may
+ * run have finished before we clean up and log the superblock and write an
+ * unmount record. The unfreeze process is responsible for restarting the log
+ * worker correctly.
  */
 void
 xfs_quiesce_attr(
@@ -847,9 +885,7 @@ xfs_quiesce_attr(
 {
 	int	error = 0;
 
-	/* wait for all modifications to complete */
-	while (atomic_read(&mp->m_active_trans) > 0)
-		delay(100);
+	cancel_delayed_work_sync(&mp->m_log->l_work);
 
 	/* force the log to unpin objects from the now complete transactions */
 	xfs_log_force(mp, XFS_LOG_SYNC);
@@ -863,12 +899,6 @@ xfs_quiesce_attr(
 	if (error)
 		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
-	/*
-	 * Just warn here till VFS can correctly support
-	 * read-only remount without racing.
-	 */
-	WARN_ON(atomic_read(&mp->m_active_trans) != 0);
-
 	xfs_log_quiesce(mp);
 }
 
@@ -1261,7 +1291,10 @@ xfs_fc_parse_param(
 		return 0;
 #ifdef CONFIG_FS_DAX
 	case Opt_dax:
-		mp->m_flags |= XFS_MOUNT_DAX;
+		xfs_mount_set_dax_mode(mp, XFS_DAX_ALWAYS);
+		return 0;
+	case Opt_dax_enum:
+		xfs_mount_set_dax_mode(mp, result.uint_32);
 		return 0;
 #endif
 	default:
@@ -1454,7 +1487,7 @@ xfs_fc_fill_super(
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
 		sb->s_flags |= SB_I_VERSION;
 
-	if (mp->m_flags & XFS_MOUNT_DAX) {
+	if (mp->m_flags & XFS_MOUNT_DAX_ALWAYS) {
 		bool rtdev_is_dax = false, datadev_is_dax;
 
 		xfs_warn(mp,
@@ -1468,7 +1501,7 @@ xfs_fc_fill_super(
 		if (!rtdev_is_dax && !datadev_is_dax) {
 			xfs_alert(mp,
 			"DAX unsupported by block device. Turning off DAX.");
-			mp->m_flags &= ~XFS_MOUNT_DAX;
+			xfs_mount_set_dax_mode(mp, XFS_DAX_NEVER);
 		}
 		if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 			xfs_alert(mp,
@@ -1754,7 +1787,6 @@ static int xfs_init_fs_context(
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	spin_lock_init(&mp->m_perag_lock);
 	mutex_init(&mp->m_growlock);
-	atomic_set(&mp->m_active_trans, 0);
 	INIT_WORK(&mp->m_flush_inodes_work, xfs_flush_inodes_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);

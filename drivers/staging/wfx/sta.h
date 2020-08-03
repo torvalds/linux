@@ -10,34 +10,13 @@
 
 #include <net/mac80211.h>
 
-#include "hif_api_cmd.h"
-
 struct wfx_dev;
 struct wfx_vif;
-
-enum wfx_state {
-	WFX_STATE_PASSIVE = 0,
-	WFX_STATE_PRE_STA,
-	WFX_STATE_STA,
-	WFX_STATE_IBSS,
-	WFX_STATE_AP,
-};
-
-struct wfx_hif_event {
-	struct list_head link;
-	struct hif_ind_event evt;
-};
-
-struct wfx_grp_addr_table {
-	bool enable;
-	int num_addresses;
-	u8 address_list[8][ETH_ALEN];
-};
 
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;
-	u8 buffered[IEEE80211_NUM_TIDS];
+	int buffered[IEEE80211_NUM_TIDS];
 	// Ensure atomicity of "buffered" and calls to ieee80211_sta_set_buffered()
 	spinlock_t lock;
 };
@@ -47,6 +26,8 @@ int wfx_start(struct ieee80211_hw *hw);
 void wfx_stop(struct ieee80211_hw *hw);
 int wfx_config(struct ieee80211_hw *hw, u32 changed);
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
+void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif, int idx);
 u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
 			  struct netdev_hw_addr_list *mc_list);
 void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
@@ -54,8 +35,10 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 
 int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       u32 queues, bool drop);
+int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		u16 queue, const struct ieee80211_tx_queue_params *params);
 void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -82,12 +65,13 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_chanctx_conf *conf);
 
 // WSM Callbacks
+void wfx_cooling_timeout_work(struct work_struct *work);
+void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd);
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
+void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi);
 
 // Other Helpers
-void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);
-void wfx_update_filtering(struct wfx_vif *wvif);
-int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable);
+void wfx_reset(struct wfx_vif *wvif);
 u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates);
 
 #endif /* WFX_STA_H */

@@ -49,14 +49,13 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 	int tap, phase, phase_sum_left, phase_sum_right;
 	int exponent = imgu_css_scaler_get_exp(output_width, input_width);
 	int mantissa = (1 << exponent) * output_width;
-	unsigned int phase_step;
+	unsigned int phase_step, phase_taps;
 
 	if (input_width == output_width) {
 		for (phase = 0; phase < IMGU_SCALER_PHASES; phase++) {
-			for (tap = 0; tap < taps; tap++) {
-				coeff_lut[phase * IMGU_SCALER_FILTER_TAPS + tap]
-					= 0;
-			}
+			phase_taps = phase * IMGU_SCALER_FILTER_TAPS;
+			for (tap = 0; tap < taps; tap++)
+				coeff_lut[phase_taps + tap] = 0;
 		}
 
 		info->phase_step = IMGU_SCALER_PHASES *
@@ -71,6 +70,7 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 	}
 
 	for (phase = 0; phase < IMGU_SCALER_PHASES; phase++) {
+		phase_taps = phase * IMGU_SCALER_FILTER_TAPS;
 		for (tap = 0; tap < taps; tap++) {
 			/* flip table to for convolution reverse indexing */
 			s64 coeff = coeffs[coeffs_size -
@@ -81,9 +81,7 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 			/* Add +"0.5" */
 			coeff += 1 << (IMGU_SCALER_COEFF_BITS - 1);
 			coeff >>= IMGU_SCALER_COEFF_BITS;
-
-			coeff_lut[phase * IMGU_SCALER_FILTER_TAPS + tap] =
-				coeff;
+			coeff_lut[phase_taps + tap] = coeff;
 		}
 	}
 

@@ -14,7 +14,7 @@ static int igt_gem_object(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
-	int err = -ENOMEM;
+	int err;
 
 	/* Basic test to ensure we can create an object */
 

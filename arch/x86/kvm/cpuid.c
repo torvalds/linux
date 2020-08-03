@@ -86,12 +86,10 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 0);
 	if (!best) {
 		vcpu->arch.guest_supported_xcr0 = 0;
-		vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 	} else {
 		vcpu->arch.guest_supported_xcr0 =
 			(best->eax | ((u64)best->edx << 32)) & supported_xcr0;
-		vcpu->arch.guest_xstate_size = best->ebx =
-			xstate_required_size(vcpu->arch.xcr0, false);
+		best->ebx = xstate_required_size(vcpu->arch.xcr0, false);
 	}
 
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 1);
@@ -124,8 +122,9 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 					   MSR_IA32_MISC_ENABLE_MWAIT);
 	}
 
-	/* Update physical-address width */
+	/* Note, maxphyaddr must be updated before tdp_level. */
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
+	vcpu->arch.tdp_level = kvm_x86_ops.get_tdp_level(vcpu);
 	kvm_mmu_reset_context(vcpu);
 
 	kvm_pmu_refresh(vcpu);
@@ -182,17 +181,14 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		goto out;
-	r = -ENOMEM;
 	if (cpuid->nent) {
-		cpuid_entries =
-			vmalloc(array_size(sizeof(struct kvm_cpuid_entry),
-					   cpuid->nent));
-		if (!cpuid_entries)
+		cpuid_entries = vmemdup_user(entries,
+					     array_size(sizeof(struct kvm_cpuid_entry),
+							cpuid->nent));
+		if (IS_ERR(cpuid_entries)) {
+			r = PTR_ERR(cpuid_entries);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(cpuid_entries, entries,
-				   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
-			goto out;
+		}
 	}
 	for (i = 0; i < cpuid->nent; i++) {
 		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
@@ -212,8 +208,8 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	kvm_x86_ops.cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 
+	kvfree(cpuid_entries);
 out:
-	vfree(cpuid_entries);
 	return r;
 }
 
@@ -297,7 +293,7 @@ void kvm_set_cpu_caps(void)
 		F(XMM3) | F(PCLMULQDQ) | 0 /* DTES64, MONITOR */ |
 		0 /* DS-CPL, VMX, SMX, EST */ |
 		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
-		F(FMA) | F(CX16) | 0 /* xTPR Update, PDCM */ |
+		F(FMA) | F(CX16) | 0 /* xTPR Update */ | F(PDCM) |
 		F(PCID) | 0 /* Reserved, DCA */ | F(XMM4_1) |
 		F(XMM4_2) | F(X2APIC) | F(MOVBE) | F(POPCNT) |
 		0 /* Reserved*/ | F(AES) | F(XSAVE) | 0 /* OSXSAVE */ | F(AVX) |
@@ -326,7 +322,7 @@ void kvm_set_cpu_caps(void)
 	);
 
 	kvm_cpu_cap_mask(CPUID_7_ECX,
-		F(AVX512VBMI) | F(LA57) | 0 /*PKU*/ | 0 /*OSPKE*/ | F(RDPID) |
+		F(AVX512VBMI) | F(LA57) | F(PKU) | 0 /*OSPKE*/ | F(RDPID) |
 		F(AVX512_VPOPCNTDQ) | F(UMIP) | F(AVX512_VBMI2) | F(GFNI) |
 		F(VAES) | F(VPCLMULQDQ) | F(AVX512_VNNI) | F(AVX512_BITALG) |
 		F(CLDEMOTE) | F(MOVDIRI) | F(MOVDIR64B) | 0 /*WAITPKG*/
@@ -334,6 +330,13 @@ void kvm_set_cpu_caps(void)
 	/* Set LA57 based on hardware capability. */
 	if (cpuid_ecx(7) & F(LA57))
 		kvm_cpu_cap_set(X86_FEATURE_LA57);
+
+	/*
+	 * PKU not yet implemented for shadow paging and requires OSPKE
+	 * to be set on the host. Clear it if that is not the case
+	 */
+	if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
+		kvm_cpu_cap_clear(X86_FEATURE_PKU);
 
 	kvm_cpu_cap_mask(CPUID_7_EDX,
 		F(AVX512_4VNNIW) | F(AVX512_4FMAPS) | F(SPEC_CTRL) |
@@ -427,7 +430,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
-	const int maxnent;
+	int maxnent;
 	int nent;
 };
 
@@ -712,7 +715,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			     (1 << KVM_FEATURE_ASYNC_PF_VMEXIT) |
 			     (1 << KVM_FEATURE_PV_SEND_IPI) |
 			     (1 << KVM_FEATURE_POLL_CONTROL) |
-			     (1 << KVM_FEATURE_PV_SCHED_YIELD);
+			     (1 << KVM_FEATURE_PV_SCHED_YIELD) |
+			     (1 << KVM_FEATURE_ASYNC_PF_INT);
 
 		if (sched_info_on())
 			entry->eax |= (1 << KVM_FEATURE_STEAL_TIME);
@@ -727,6 +731,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	case 0x80000001:
 		cpuid_entry_override(entry, CPUID_8000_0001_EDX);
 		cpuid_entry_override(entry, CPUID_8000_0001_ECX);
+		break;
+	case 0x80000006:
+		/* L2 cache and TLB: pass through host info. */
 		break;
 	case 0x80000007: /* Advanced power management */
 		/* invariant TSC is CPUID.80000007H:EDX[8] */
@@ -867,7 +874,6 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 
 	struct kvm_cpuid_array array = {
 		.nent = 0,
-		.maxnent = cpuid->nent,
 	};
 	int r, i;
 
@@ -883,6 +889,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 					   cpuid->nent));
 	if (!array.entries)
 		return -ENOMEM;
+
+	array.maxnent = cpuid->nent;
 
 	for (i = 0; i < ARRAY_SIZE(funcs); i++) {
 		r = get_cpuid_func(&array, funcs[i], type);

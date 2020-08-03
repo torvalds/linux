@@ -587,6 +587,13 @@ lock_service(struct vchiq_service *service);
 extern void
 unlock_service(struct vchiq_service *service);
 
+extern enum vchiq_status
+vchiq_queue_message(unsigned int handle,
+		    ssize_t (*copy_callback)(void *context, void *dest,
+					     size_t offset, size_t maxsize),
+		    void *context,
+		    size_t size);
+
 /* The following functions are called from vchiq_core, and external
 ** implementations must be provided. */
 

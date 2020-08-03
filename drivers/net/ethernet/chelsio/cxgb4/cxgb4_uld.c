@@ -174,13 +174,14 @@ static int
 setup_sge_queues_uld(struct adapter *adap, unsigned int uld_type, bool lro)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
-	int i, ret = 0;
+	int i, ret;
 
-	ret = !(!alloc_uld_rxqs(adap, rxq_info, lro));
+	ret = alloc_uld_rxqs(adap, rxq_info, lro);
+	if (ret)
+		return ret;
 
 	/* Tell uP to route control queue completions to rdma rspq */
-	if (adap->flags & CXGB4_FULL_INIT_DONE &&
-	    !ret && uld_type == CXGB4_ULD_RDMA) {
+	if (adap->flags & CXGB4_FULL_INIT_DONE && uld_type == CXGB4_ULD_RDMA) {
 		struct sge *s = &adap->sge;
 		unsigned int cmplqid;
 		u32 param, cmdop;
@@ -663,23 +664,127 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
 }
 
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
+static bool cxgb4_uld_in_use(struct adapter *adap)
+{
+	const struct tid_info *t = &adap->tids;
+
+	return (atomic_read(&t->conns_in_use) || t->stids_in_use);
+}
+
 /* cxgb4_set_ktls_feature: request FW to enable/disable ktls settings.
  * @adap: adapter info
  * @enable: 1 to enable / 0 to disable ktls settings.
  */
-static void cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
+int cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 {
-	u32 params = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
-		      FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_KTLS_TX_HW) |
-		      FW_PARAMS_PARAM_Y_V(enable));
 	int ret = 0;
+	u32 params =
+		FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_KTLS_HW) |
+		FW_PARAMS_PARAM_Y_V(enable) |
+		FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE);
 
-	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &params, &params);
-	/* if fw returns failure, clear the ktls flag */
-	if (ret)
-		adap->params.crypto &= ~ULP_CRYPTO_KTLS_INLINE;
+	if (enable) {
+		if (!refcount_read(&adap->chcr_ktls.ktls_refcount)) {
+			/* At this moment if ULD connection are up means, other
+			 * ULD is/are already active, return failure.
+			 */
+			if (cxgb4_uld_in_use(adap)) {
+				dev_warn(adap->pdev_dev,
+					 "ULD connections (tid/stid) active. Can't enable kTLS\n");
+				return -EINVAL;
+			}
+			ret = t4_set_params(adap, adap->mbox, adap->pf,
+					    0, 1, &params, &params);
+			if (ret)
+				return ret;
+			refcount_set(&adap->chcr_ktls.ktls_refcount, 1);
+			pr_info("kTLS has been enabled. Restrictions placed on ULD support\n");
+		} else {
+			/* ktls settings already up, just increment refcount. */
+			refcount_inc(&adap->chcr_ktls.ktls_refcount);
+		}
+	} else {
+		/* return failure if refcount is already 0. */
+		if (!refcount_read(&adap->chcr_ktls.ktls_refcount))
+			return -EINVAL;
+		/* decrement refcount and test, if 0, disable ktls feature,
+		 * else return command success.
+		 */
+		if (refcount_dec_and_test(&adap->chcr_ktls.ktls_refcount)) {
+			ret = t4_set_params(adap, adap->mbox, adap->pf,
+					    0, 1, &params, &params);
+			if (ret)
+				return ret;
+			pr_info("kTLS is disabled. Restrictions on ULD support removed\n");
+		}
+	}
+
+	return ret;
 }
 #endif
+
+static void cxgb4_uld_alloc_resources(struct adapter *adap,
+				      enum cxgb4_uld type,
+				      const struct cxgb4_uld_info *p)
+{
+	int ret = 0;
+
+	if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
+	    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
+		return;
+	if (type == CXGB4_ULD_ISCSIT && is_t4(adap->params.chip))
+		return;
+	ret = cfg_queues_uld(adap, type, p);
+	if (ret)
+		goto out;
+	ret = setup_sge_queues_uld(adap, type, p->lro);
+	if (ret)
+		goto free_queues;
+	if (adap->flags & CXGB4_USING_MSIX) {
+		ret = request_msix_queue_irqs_uld(adap, type);
+		if (ret)
+			goto free_rxq;
+	}
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
+		enable_rx_uld(adap, type);
+	if (adap->uld[type].add)
+		goto free_irq;
+	ret = setup_sge_txq_uld(adap, type, p);
+	if (ret)
+		goto free_irq;
+	adap->uld[type] = *p;
+	ret = uld_attach(adap, type);
+	if (ret)
+		goto free_txq;
+	return;
+free_txq:
+	release_sge_txq_uld(adap, type);
+free_irq:
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
+		quiesce_rx_uld(adap, type);
+	if (adap->flags & CXGB4_USING_MSIX)
+		free_msix_queue_irqs_uld(adap, type);
+free_rxq:
+	free_sge_queues_uld(adap, type);
+free_queues:
+	free_queues_uld(adap, type);
+out:
+	dev_warn(adap->pdev_dev,
+		 "ULD registration failed for uld type %d\n", type);
+}
+
+void cxgb4_uld_enable(struct adapter *adap)
+{
+	struct cxgb4_uld_list *uld_entry;
+
+	mutex_lock(&uld_mutex);
+	list_add_tail(&adap->list_node, &adapter_list);
+	list_for_each_entry(uld_entry, &uld_list, list_node)
+		cxgb4_uld_alloc_resources(adap, uld_entry->uld_type,
+					  &uld_entry->uld_info);
+	mutex_unlock(&uld_mutex);
+}
 
 /* cxgb4_register_uld - register an upper-layer driver
  * @type: the ULD type
@@ -691,63 +796,23 @@ static void cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 void cxgb4_register_uld(enum cxgb4_uld type,
 			const struct cxgb4_uld_info *p)
 {
+	struct cxgb4_uld_list *uld_entry;
 	struct adapter *adap;
-	int ret = 0;
 
 	if (type >= CXGB4_ULD_MAX)
 		return;
 
+	uld_entry = kzalloc(sizeof(*uld_entry), GFP_KERNEL);
+	if (!uld_entry)
+		return;
+
+	memcpy(&uld_entry->uld_info, p, sizeof(struct cxgb4_uld_info));
 	mutex_lock(&uld_mutex);
-	list_for_each_entry(adap, &adapter_list, list_node) {
-		if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
-		    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
-			continue;
-		if (type == CXGB4_ULD_ISCSIT && is_t4(adap->params.chip))
-			continue;
-		ret = cfg_queues_uld(adap, type, p);
-		if (ret)
-			goto out;
-		ret = setup_sge_queues_uld(adap, type, p->lro);
-		if (ret)
-			goto free_queues;
-		if (adap->flags & CXGB4_USING_MSIX) {
-			ret = request_msix_queue_irqs_uld(adap, type);
-			if (ret)
-				goto free_rxq;
-		}
-		if (adap->flags & CXGB4_FULL_INIT_DONE)
-			enable_rx_uld(adap, type);
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-		/* send mbox to enable ktls related settings. */
-		if (type == CXGB4_ULD_CRYPTO &&
-		    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
-			cxgb4_set_ktls_feature(adap, 1);
-#endif
-		if (adap->uld[type].add)
-			goto free_irq;
-		ret = setup_sge_txq_uld(adap, type, p);
-		if (ret)
-			goto free_irq;
-		adap->uld[type] = *p;
-		ret = uld_attach(adap, type);
-		if (ret)
-			goto free_txq;
-		continue;
-free_txq:
-		release_sge_txq_uld(adap, type);
-free_irq:
-		if (adap->flags & CXGB4_FULL_INIT_DONE)
-			quiesce_rx_uld(adap, type);
-		if (adap->flags & CXGB4_USING_MSIX)
-			free_msix_queue_irqs_uld(adap, type);
-free_rxq:
-		free_sge_queues_uld(adap, type);
-free_queues:
-		free_queues_uld(adap, type);
-out:
-		dev_warn(adap->pdev_dev,
-			 "ULD registration failed for uld type %d\n", type);
-	}
+	list_for_each_entry(adap, &adapter_list, list_node)
+		cxgb4_uld_alloc_resources(adap, type, p);
+
+	uld_entry->uld_type = type;
+	list_add_tail(&uld_entry->list_node, &uld_list);
 	mutex_unlock(&uld_mutex);
 	return;
 }
@@ -761,6 +826,7 @@ EXPORT_SYMBOL(cxgb4_register_uld);
  */
 int cxgb4_unregister_uld(enum cxgb4_uld type)
 {
+	struct cxgb4_uld_list *uld_entry, *tmp;
 	struct adapter *adap;
 
 	if (type >= CXGB4_ULD_MAX)
@@ -775,13 +841,13 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 			continue;
 
 		cxgb4_shutdown_uld_adapter(adap, type);
+	}
 
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-		/* send mbox to disable ktls related settings. */
-		if (type == CXGB4_ULD_CRYPTO &&
-		    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
-			cxgb4_set_ktls_feature(adap, 0);
-#endif
+	list_for_each_entry_safe(uld_entry, tmp, &uld_list, list_node) {
+		if (uld_entry->uld_type == type) {
+			list_del(&uld_entry->list_node);
+			kfree(uld_entry);
+		}
 	}
 	mutex_unlock(&uld_mutex);
 

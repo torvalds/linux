@@ -21,10 +21,6 @@
 #define SFDP_4BAIT_ID		0xff84  /* 4-byte Address Instruction Table */
 
 #define SFDP_SIGNATURE		0x50444653U
-#define SFDP_JESD216_MAJOR	1
-#define SFDP_JESD216_MINOR	0
-#define SFDP_JESD216A_MINOR	5
-#define SFDP_JESD216B_MINOR	6
 
 struct sfdp_header {
 	u32		signature; /* Ox50444653U <=> "SFDP" */
@@ -437,7 +433,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	struct sfdp_bfpt bfpt;
 	size_t len;
 	int i, cmd, err;
-	u32 addr;
+	u32 addr, val;
 	u16 half;
 	u8 erase_mask;
 
@@ -460,6 +456,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	/* Number of address bytes. */
 	switch (bfpt.dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
 	case BFPT_DWORD1_ADDRESS_BYTES_3_ONLY:
+	case BFPT_DWORD1_ADDRESS_BYTES_3_OR_4:
 		nor->addr_width = 3;
 		break;
 
@@ -472,21 +469,21 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	/* Flash Memory Density (in bits). */
-	params->size = bfpt.dwords[BFPT_DWORD(2)];
-	if (params->size & BIT(31)) {
-		params->size &= ~BIT(31);
+	val = bfpt.dwords[BFPT_DWORD(2)];
+	if (val & BIT(31)) {
+		val &= ~BIT(31);
 
 		/*
 		 * Prevent overflows on params->size. Anyway, a NOR of 2^64
 		 * bits is unlikely to exist so this error probably means
 		 * the BFPT we are reading is corrupted/wrong.
 		 */
-		if (params->size > 63)
+		if (val > 63)
 			return -EINVAL;
 
-		params->size = 1ULL << params->size;
+		params->size = 1ULL << val;
 	} else {
-		params->size++;
+		params->size = val + 1;
 	}
 	params->size >>= 3; /* Convert to bytes. */
 
@@ -548,15 +545,15 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 				  SNOR_ERASE_TYPE_MASK;
 
 	/* Stop here if not JESD216 rev A or later. */
-	if (bfpt_header->length < BFPT_DWORD_MAX)
+	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216)
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt,
 						params);
 
 	/* Page size: this field specifies 'N' so the page size = 2^N bytes. */
-	params->page_size = bfpt.dwords[BFPT_DWORD(11)];
-	params->page_size &= BFPT_DWORD11_PAGE_SIZE_MASK;
-	params->page_size >>= BFPT_DWORD11_PAGE_SIZE_SHIFT;
-	params->page_size = 1U << params->page_size;
+	val = bfpt.dwords[BFPT_DWORD(11)];
+	val &= BFPT_DWORD11_PAGE_SIZE_MASK;
+	val >>= BFPT_DWORD11_PAGE_SIZE_SHIFT;
+	params->page_size = 1U << val;
 
 	/* Quad Enable Requirements. */
 	switch (bfpt.dwords[BFPT_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
@@ -603,6 +600,11 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	default:
 		return -EINVAL;
 	}
+
+	/* Stop here if not JESD216 rev C or later. */
+	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216B)
+		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt,
+						params);
 
 	return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt, params);
 }

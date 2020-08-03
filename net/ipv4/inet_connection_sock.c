@@ -901,10 +901,7 @@ void inet_csk_prepare_forced_close(struct sock *sk)
 	/* sk_clone_lock locked the socket and set refcnt to 2 */
 	bh_unlock_sock(sk);
 	sock_put(sk);
-
-	/* The below has to be done to allow calling inet_csk_destroy_sock */
-	sock_set_flag(sk, SOCK_DEAD);
-	percpu_counter_inc(sk->sk_prot->orphan_count);
+	inet_csk_prepare_for_destroy_sock(sk);
 	inet_sk(sk)->inet_num = 0;
 }
 EXPORT_SYMBOL(inet_csk_prepare_forced_close);

@@ -23,9 +23,9 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 			       unsigned int num_resources);
 
 /*
- * We only allow atomic transfers for very late communication, e.g. to send
- * the powerdown command to a PMIC. Atomic transfers are a corner case and not
- * for generic use!
+ * We only allow atomic transfers for very late communication, e.g. to access a
+ * PMIC when powering down. Atomic transfers are a corner case and not for
+ * generic use!
  */
 static inline bool i2c_in_atomic_xfer_mode(void)
 {

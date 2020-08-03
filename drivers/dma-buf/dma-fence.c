@@ -106,7 +106,7 @@ EXPORT_SYMBOL(dma_fence_get_stub);
 u64 dma_fence_context_alloc(unsigned num)
 {
 	WARN_ON(!num);
-	return atomic64_add_return(num, &dma_fence_context_counter) - num;
+	return atomic64_fetch_add(num, &dma_fence_context_counter);
 }
 EXPORT_SYMBOL(dma_fence_context_alloc);
 

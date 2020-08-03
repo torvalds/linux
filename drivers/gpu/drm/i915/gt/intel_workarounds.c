@@ -485,24 +485,13 @@ static void cfl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void cnl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	struct drm_i915_private *i915 = engine->i915;
-
 	/* WaForceContextSaveRestoreNonCoherent:cnl */
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
 
-	/* WaThrottleEUPerfToAvoidTDBackPressure:cnl(pre-prod) */
-	if (IS_CNL_REVID(i915, CNL_REVID_B0, CNL_REVID_B0))
-		WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, THROTTLE_12_5);
-
 	/* WaDisableReplayBufferBankArbitrationOptimization:cnl */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	/* WaDisableEnhancedSBEVertexCaching:cnl (pre-prod) */
-	if (IS_CNL_REVID(i915, 0, CNL_REVID_B0))
-		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
 
 	/* WaPushConstantDereferenceHoldDisable:cnl */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
@@ -837,7 +826,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3) &
 			GEN10_L3BANK_MASK;
 
-		DRM_DEBUG_DRIVER("L3 fuse = %x\n", l3_fuse);
+		drm_dbg(&i915->drm, "L3 fuse = %x\n", l3_fuse);
 		l3_en = ~(l3_fuse << GEN10_L3BANK_PAIR_COUNT | l3_fuse);
 	} else {
 		l3_en = ~0;
@@ -846,7 +835,8 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	slice = fls(sseu->slice_mask) - 1;
 	subslice = fls(l3_en & intel_sseu_get_subslices(sseu, slice));
 	if (!subslice) {
-		DRM_WARN("No common index found between subslice mask %x and L3 bank mask %x!\n",
+		drm_warn(&i915->drm,
+			 "No common index found between subslice mask %x and L3 bank mask %x!\n",
 			 intel_sseu_get_subslices(sseu, slice), l3_en);
 		subslice = fls(l3_en);
 		drm_WARN_ON(&i915->drm, !subslice);
@@ -861,7 +851,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
 	}
 
-	DRM_DEBUG_DRIVER("MCR slice/subslice = %x\n", mcr);
+	drm_dbg(&i915->drm, "MCR slice/subslice = %x\n", mcr);
 
 	wa_write_masked_or(wal, GEN8_MCR_SELECTOR, mcr_mask, mcr);
 }
@@ -870,12 +860,6 @@ static void
 cnl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	wa_init_mcr(i915, wal);
-
-	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
-	if (IS_CNL_REVID(i915, CNL_REVID_B0, CNL_REVID_B0))
-		wa_write_or(wal,
-			    GAMT_CHKN_BIT_REG,
-			    GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
 
 	/* WaInPlaceDecompressionHang:cnl */
 	wa_write_or(wal,
@@ -933,15 +917,20 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GAMT_CHKN_BIT_REG,
 		    GAMT_CHKN_DISABLE_L3_COH_PIPE);
 
-	/* Wa_1607087056:icl */
-	wa_write_or(wal,
-		    SLICE_UNIT_LEVEL_CLKGATE,
-		    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
+	/* Wa_1607087056:icl,ehl,jsl */
+	if (IS_ICELAKE(i915) ||
+	    IS_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
+		wa_write_or(wal,
+			    SLICE_UNIT_LEVEL_CLKGATE,
+			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
+	}
 }
 
 static void
 tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
+	wa_init_mcr(i915, wal);
+
 	/* Wa_1409420604:tgl */
 	if (IS_TGL_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
 		wa_write_or(wal,
@@ -1379,12 +1368,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
-		/*
-		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl
-		 */
-		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
-
 		/* Wa_1408615072:tgl */
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
@@ -1402,6 +1385,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_masked_en(wal,
 			     GEN9_CS_DEBUG_MODE1,
 			     FF_DOP_CLOCK_GATE_DISABLE);
+
+		/*
+		 * Wa_1409085225:tgl
+		 * Wa_14010229206:tgl
+		 */
+		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 	}
 
 	if (IS_GEN(i915, 11)) {

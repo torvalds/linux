@@ -36,7 +36,6 @@
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 
@@ -145,6 +144,7 @@ static void show_pte(unsigned long addr)
 	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
 
 	do {
+		p4d_t *p4dp, p4d;
 		pud_t *pudp, pud;
 		pmd_t *pmdp, pmd;
 		pte_t *ptep, pte;
@@ -152,7 +152,13 @@ static void show_pte(unsigned long addr)
 		if (pgd_none(pgd) || pgd_bad(pgd))
 			break;
 
-		pudp = pud_offset(pgdp, addr);
+		p4dp = p4d_offset(pgdp, addr);
+		p4d = READ_ONCE(*p4dp);
+		pr_cont(", p4d=%016llx", p4d_val(p4d));
+		if (p4d_none(p4d) || p4d_bad(p4d))
+			break;
+
+		pudp = pud_offset(p4dp, addr);
 		pud = READ_ONCE(*pudp);
 		pr_cont(", pud=%016llx", pud_val(pud));
 		if (pud_none(pud) || pud_bad(pud))
@@ -491,11 +497,11 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	 * validly references user space from well defined areas of the code,
 	 * we can bug out early if this is from code which shouldn't.
 	 */
-	if (!down_read_trylock(&mm->mmap_sem)) {
+	if (!mmap_read_trylock(mm)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->pc))
 			goto no_context;
 retry:
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 	} else {
 		/*
 		 * The above down_read_trylock() might have succeeded in which
@@ -504,7 +510,7 @@ retry:
 		might_sleep();
 #ifdef CONFIG_DEBUG_VM
 		if (!user_mode(regs) && !search_exception_tables(regs->pc)) {
-			up_read(&mm->mmap_sem);
+			mmap_read_unlock(mm);
 			goto no_context;
 		}
 #endif
@@ -526,7 +532,7 @@ retry:
 			goto retry;
 		}
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	/*
 	 * Handle the "normal" (no error) case first.
@@ -635,11 +641,13 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 
 	inf = esr_to_fault_info(esr);
 
-	/*
-	 * Return value ignored as we rely on signal merging.
-	 * Future patches will make this more robust.
-	 */
-	apei_claim_sea(regs);
+	if (user_mode(regs) && apei_claim_sea(regs) == 0) {
+		/*
+		 * APEI claimed this as a firmware-first notification.
+		 * Some processing deferred to task_work before ret_to_user().
+		 */
+		return 0;
+	}
 
 	if (esr & ESR_ELx_FnV)
 		siaddr = NULL;

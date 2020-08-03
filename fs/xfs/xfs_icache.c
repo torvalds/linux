@@ -22,6 +22,7 @@
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
+#include "xfs_ialloc.h"
 
 #include <linux/iversion.h>
 
@@ -62,8 +63,6 @@ xfs_inode_alloc(
 	memset(&ip->i_imap, 0, sizeof(struct xfs_imap));
 	ip->i_afp = NULL;
 	ip->i_cowfp = NULL;
-	ip->i_cnextents = 0;
-	ip->i_cformat = XFS_DINODE_FMT_EXTENTS;
 	memset(&ip->i_df, 0, sizeof(ip->i_df));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
@@ -88,15 +87,18 @@ xfs_inode_free_callback(
 	case S_IFREG:
 	case S_IFDIR:
 	case S_IFLNK:
-		xfs_idestroy_fork(ip, XFS_DATA_FORK);
+		xfs_idestroy_fork(&ip->i_df);
 		break;
 	}
 
-	if (ip->i_afp)
-		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
-	if (ip->i_cowfp)
-		xfs_idestroy_fork(ip, XFS_COW_FORK);
-
+	if (ip->i_afp) {
+		xfs_idestroy_fork(ip->i_afp);
+		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
+	}
+	if (ip->i_cowfp) {
+		xfs_idestroy_fork(ip->i_cowfp);
+		kmem_cache_free(xfs_ifork_zone, ip->i_cowfp);
+	}
 	if (ip->i_itemp) {
 		ASSERT(!test_bit(XFS_LI_IN_AIL,
 				 &ip->i_itemp->ili_item.li_flags));
@@ -423,6 +425,7 @@ xfs_iget_cache_hit(
 		spin_unlock(&ip->i_flags_lock);
 		rcu_read_unlock();
 
+		ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 		error = xfs_reinit_inode(mp, inode);
 		if (error) {
 			bool wake;
@@ -456,9 +459,6 @@ xfs_iget_cache_hit(
 		ip->i_sick = 0;
 		ip->i_checked = 0;
 
-		ASSERT(!rwsem_is_locked(&inode->i_rwsem));
-		init_rwsem(&inode->i_rwsem);
-
 		spin_unlock(&ip->i_flags_lock);
 		spin_unlock(&pag->pag_ici_lock);
 	} else {
@@ -479,7 +479,7 @@ xfs_iget_cache_hit(
 		xfs_ilock(ip, lock_flags);
 
 	if (!(flags & XFS_IGET_INCORE))
-		xfs_iflags_clear(ip, XFS_ISTALE | XFS_IDONTCACHE);
+		xfs_iflags_clear(ip, XFS_ISTALE);
 	XFS_STATS_INC(mp, xs_ig_found);
 
 	return 0;
@@ -510,17 +510,41 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return -ENOMEM;
 
-	error = xfs_iread(mp, tp, ip, flags);
+	error = xfs_imap(mp, tp, ip->i_ino, &ip->i_imap, flags);
 	if (error)
 		goto out_destroy;
 
-	if (!xfs_inode_verify_forks(ip)) {
-		error = -EFSCORRUPTED;
-		goto out_destroy;
+	/*
+	 * For version 5 superblocks, if we are initialising a new inode and we
+	 * are not utilising the XFS_MOUNT_IKEEP inode cluster mode, we can
+	 * simply build the new inode core with a random generation number.
+	 *
+	 * For version 4 (and older) superblocks, log recovery is dependent on
+	 * the di_flushiter field being initialised from the current on-disk
+	 * value and hence we must also read the inode off disk even when
+	 * initializing new inodes.
+	 */
+	if (xfs_sb_version_has_v3inode(&mp->m_sb) &&
+	    (flags & XFS_IGET_CREATE) && !(mp->m_flags & XFS_MOUNT_IKEEP)) {
+		VFS_I(ip)->i_generation = prandom_u32();
+	} else {
+		struct xfs_dinode	*dip;
+		struct xfs_buf		*bp;
+
+		error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &bp, 0);
+		if (error)
+			goto out_destroy;
+
+		error = xfs_inode_from_disk(ip, dip);
+		if (!error)
+			xfs_buf_set_ref(bp, XFS_INO_REF);
+		xfs_trans_brelse(tp, bp);
+
+		if (error)
+			goto out_destroy;
 	}
 
 	trace_xfs_iget_miss(ip);
-
 
 	/*
 	 * Check the inode free state is valid. This also detects lookup
@@ -561,7 +585,7 @@ xfs_iget_cache_miss(
 	 */
 	iflags = XFS_INEW;
 	if (flags & XFS_IGET_DONTCACHE)
-		iflags |= XFS_IDONTCACHE;
+		d_mark_dontcache(VFS_I(ip));
 	ip->i_udquot = NULL;
 	ip->i_gdquot = NULL;
 	ip->i_pdquot = NULL;
@@ -737,13 +761,18 @@ xfs_icache_inode_is_allocated(
  */
 #define XFS_LOOKUP_BATCH	32
 
-STATIC int
-xfs_inode_ag_walk_grab(
+/*
+ * Decide if the given @ip is eligible to be a part of the inode walk, and
+ * grab it if so.  Returns true if it's ready to go or false if we should just
+ * ignore it.
+ */
+STATIC bool
+xfs_inode_walk_ag_grab(
 	struct xfs_inode	*ip,
 	int			flags)
 {
 	struct inode		*inode = VFS_I(ip);
-	bool			newinos = !!(flags & XFS_AGITER_INEW_WAIT);
+	bool			newinos = !!(flags & XFS_INODE_WALK_INEW_WAIT);
 
 	ASSERT(rcu_read_lock_held());
 
@@ -768,39 +797,41 @@ xfs_inode_ag_walk_grab(
 
 	/* nothing to sync during shutdown */
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return -EFSCORRUPTED;
+		return false;
 
 	/* If we can't grab the inode, it must on it's way to reclaim. */
 	if (!igrab(inode))
-		return -ENOENT;
+		return false;
 
 	/* inode is valid */
-	return 0;
+	return true;
 
 out_unlock_noent:
 	spin_unlock(&ip->i_flags_lock);
-	return -ENOENT;
+	return false;
 }
 
+/*
+ * For a given per-AG structure @pag, grab, @execute, and rele all incore
+ * inodes with the given radix tree @tag.
+ */
 STATIC int
-xfs_inode_ag_walk(
-	struct xfs_mount	*mp,
+xfs_inode_walk_ag(
 	struct xfs_perag	*pag,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
+	int			iter_flags,
+	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
-	int			tag,
-	int			iter_flags)
+	int			tag)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	uint32_t		first_index;
 	int			last_error = 0;
 	int			skipped;
-	int			done;
+	bool			done;
 	int			nr_found;
 
 restart:
-	done = 0;
+	done = false;
 	skipped = 0;
 	first_index = 0;
 	nr_found = 0;
@@ -811,7 +842,7 @@ restart:
 
 		rcu_read_lock();
 
-		if (tag == -1)
+		if (tag == XFS_ICI_NO_TAG)
 			nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
 					(void **)batch, first_index,
 					XFS_LOOKUP_BATCH);
@@ -833,7 +864,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			struct xfs_inode *ip = batch[i];
 
-			if (done || xfs_inode_ag_walk_grab(ip, iter_flags))
+			if (done || !xfs_inode_walk_ag_grab(ip, iter_flags))
 				batch[i] = NULL;
 
 			/*
@@ -852,7 +883,7 @@ restart:
 				continue;
 			first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 			if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
-				done = 1;
+				done = true;
 		}
 
 		/* unlock now we've grabbed the inodes. */
@@ -861,10 +892,10 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			if (!batch[i])
 				continue;
-			if ((iter_flags & XFS_AGITER_INEW_WAIT) &&
+			if ((iter_flags & XFS_INODE_WALK_INEW_WAIT) &&
 			    xfs_iflags_test(batch[i], XFS_INEW))
 				xfs_inew_wait(batch[i]);
-			error = execute(batch[i], flags, args);
+			error = execute(batch[i], args);
 			xfs_irele(batch[i]);
 			if (error == -EAGAIN) {
 				skipped++;
@@ -885,6 +916,49 @@ restart:
 	if (skipped) {
 		delay(1);
 		goto restart;
+	}
+	return last_error;
+}
+
+/* Fetch the next (possibly tagged) per-AG structure. */
+static inline struct xfs_perag *
+xfs_inode_walk_get_perag(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	int			tag)
+{
+	if (tag == XFS_ICI_NO_TAG)
+		return xfs_perag_get(mp, agno);
+	return xfs_perag_get_tag(mp, agno, tag);
+}
+
+/*
+ * Call the @execute function on all incore inodes matching the radix tree
+ * @tag.
+ */
+int
+xfs_inode_walk(
+	struct xfs_mount	*mp,
+	int			iter_flags,
+	int			(*execute)(struct xfs_inode *ip, void *args),
+	void			*args,
+	int			tag)
+{
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			last_error = 0;
+	xfs_agnumber_t		ag;
+
+	ag = 0;
+	while ((pag = xfs_inode_walk_get_perag(mp, ag, tag))) {
+		ag = pag->pag_agno + 1;
+		error = xfs_inode_walk_ag(pag, iter_flags, execute, args, tag);
+		xfs_perag_put(pag);
+		if (error) {
+			last_error = error;
+			if (error == -EFSCORRUPTED)
+				break;
+		}
 	}
 	return last_error;
 }
@@ -950,75 +1024,6 @@ xfs_cowblocks_worker(
 	sb_end_write(mp->m_super);
 
 	xfs_queue_cowblocks(mp);
-}
-
-int
-xfs_inode_ag_iterator_flags(
-	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
-	void			*args,
-	int			iter_flags)
-{
-	struct xfs_perag	*pag;
-	int			error = 0;
-	int			last_error = 0;
-	xfs_agnumber_t		ag;
-
-	ag = 0;
-	while ((pag = xfs_perag_get(mp, ag))) {
-		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, -1,
-					  iter_flags);
-		xfs_perag_put(pag);
-		if (error) {
-			last_error = error;
-			if (error == -EFSCORRUPTED)
-				break;
-		}
-	}
-	return last_error;
-}
-
-int
-xfs_inode_ag_iterator(
-	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
-	void			*args)
-{
-	return xfs_inode_ag_iterator_flags(mp, execute, flags, args, 0);
-}
-
-int
-xfs_inode_ag_iterator_tag(
-	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
-	void			*args,
-	int			tag)
-{
-	struct xfs_perag	*pag;
-	int			error = 0;
-	int			last_error = 0;
-	xfs_agnumber_t		ag;
-
-	ag = 0;
-	while ((pag = xfs_perag_get_tag(mp, ag, tag))) {
-		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, tag,
-					  0);
-		xfs_perag_put(pag);
-		if (error) {
-			last_error = error;
-			if (error == -EFSCORRUPTED)
-				break;
-		}
-	}
-	return last_error;
 }
 
 /*
@@ -1128,7 +1133,7 @@ restart:
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_iunpin_wait(ip);
 		/* xfs_iflush_abort() drops the flush lock */
-		xfs_iflush_abort(ip, false);
+		xfs_iflush_abort(ip);
 		goto reclaim;
 	}
 	if (xfs_ipincount(ip)) {
@@ -1419,59 +1424,90 @@ xfs_reclaim_inodes_count(
 	return reclaimable;
 }
 
-STATIC int
+STATIC bool
 xfs_inode_match_id(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
 	    !uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
-		return 0;
+		return false;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
 	    !gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
-		return 0;
+		return false;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
 	    ip->i_d.di_projid != eofb->eof_prid)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*
  * A union-based inode filtering algorithm. Process the inode if any of the
  * criteria match. This is for global/internal scans only.
  */
-STATIC int
+STATIC bool
 xfs_inode_match_id_union(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
 	    uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
-		return 1;
+		return true;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
 	    gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
-		return 1;
+		return true;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
 	    ip->i_d.di_projid == eofb->eof_prid)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
+}
+
+/*
+ * Is this inode @ip eligible for eof/cow block reclamation, given some
+ * filtering parameters @eofb?  The inode is eligible if @eofb is null or
+ * if the predicate functions match.
+ */
+static bool
+xfs_inode_matches_eofb(
+	struct xfs_inode	*ip,
+	struct xfs_eofblocks	*eofb)
+{
+	bool			match;
+
+	if (!eofb)
+		return true;
+
+	if (eofb->eof_flags & XFS_EOF_FLAGS_UNION)
+		match = xfs_inode_match_id_union(ip, eofb);
+	else
+		match = xfs_inode_match_id(ip, eofb);
+	if (!match)
+		return false;
+
+	/* skip the inode if the file size is too small */
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE) &&
+	    XFS_ISIZE(ip) < eofb->eof_min_file_size)
+		return false;
+
+	return true;
 }
 
 STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
-	int ret = 0;
-	struct xfs_eofblocks *eofb = args;
-	int match;
+	struct xfs_eofblocks	*eofb = args;
+	bool			wait;
+	int			ret;
+
+	wait = eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC);
 
 	if (!xfs_can_free_eofblocks(ip, false)) {
 		/* inode could be preallocated or append-only */
@@ -1484,54 +1520,26 @@ xfs_inode_free_eofblocks(
 	 * If the mapping is dirty the operation can block and wait for some
 	 * time. Unless we are waiting, skip it.
 	 */
-	if (!(flags & SYNC_WAIT) &&
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
+	if (!wait && mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
-	if (eofb) {
-		if (eofb->eof_flags & XFS_EOF_FLAGS_UNION)
-			match = xfs_inode_match_id_union(ip, eofb);
-		else
-			match = xfs_inode_match_id(ip, eofb);
-		if (!match)
-			return 0;
-
-		/* skip the inode if the file size is too small */
-		if (eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE &&
-		    XFS_ISIZE(ip) < eofb->eof_min_file_size)
-			return 0;
-	}
+	if (!xfs_inode_matches_eofb(ip, eofb))
+		return 0;
 
 	/*
 	 * If the caller is waiting, return -EAGAIN to keep the background
 	 * scanner moving and revisit the inode in a subsequent pass.
 	 */
 	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
-		if (flags & SYNC_WAIT)
-			ret = -EAGAIN;
-		return ret;
+		if (wait)
+			return -EAGAIN;
+		return 0;
 	}
+
 	ret = xfs_free_eofblocks(ip);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
 	return ret;
-}
-
-static int
-__xfs_icache_free_eofblocks(
-	struct xfs_mount	*mp,
-	struct xfs_eofblocks	*eofb,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			tag)
-{
-	int flags = SYNC_TRYLOCK;
-
-	if (eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC))
-		flags = SYNC_WAIT;
-
-	return xfs_inode_ag_iterator_tag(mp, execute, flags,
-					 eofb, tag);
 }
 
 int
@@ -1539,7 +1547,7 @@ xfs_icache_free_eofblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
 {
-	return __xfs_icache_free_eofblocks(mp, eofb, xfs_inode_free_eofblocks,
+	return xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, eofb,
 			XFS_ICI_EOFBLOCKS_TAG);
 }
 
@@ -1756,29 +1764,16 @@ xfs_prep_free_cowblocks(
 STATIC int
 xfs_inode_free_cowblocks(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
 	struct xfs_eofblocks	*eofb = args;
-	int			match;
 	int			ret = 0;
 
 	if (!xfs_prep_free_cowblocks(ip))
 		return 0;
 
-	if (eofb) {
-		if (eofb->eof_flags & XFS_EOF_FLAGS_UNION)
-			match = xfs_inode_match_id_union(ip, eofb);
-		else
-			match = xfs_inode_match_id(ip, eofb);
-		if (!match)
-			return 0;
-
-		/* skip the inode if the file size is too small */
-		if (eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE &&
-		    XFS_ISIZE(ip) < eofb->eof_min_file_size)
-			return 0;
-	}
+	if (!xfs_inode_matches_eofb(ip, eofb))
+		return 0;
 
 	/* Free the CoW blocks */
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
@@ -1802,7 +1797,7 @@ xfs_icache_free_cowblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
 {
-	return __xfs_icache_free_eofblocks(mp, eofb, xfs_inode_free_cowblocks,
+	return xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, eofb,
 			XFS_ICI_COWBLOCKS_TAG);
 }
 

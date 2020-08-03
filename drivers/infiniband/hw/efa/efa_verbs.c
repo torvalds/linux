@@ -37,13 +37,16 @@ struct efa_user_mmap_entry {
 	op(EFA_RX_DROPS, "rx_drops") \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
+	op(EFA_CMDS_ERR, "cmds_err") \
 	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
 	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
 	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
 	op(EFA_CREATE_QP_ERR, "create_qp_err") \
+	op(EFA_CREATE_CQ_ERR, "create_cq_err") \
 	op(EFA_REG_MR_ERR, "reg_mr_err") \
 	op(EFA_ALLOC_UCONTEXT_ERR, "alloc_ucontext_err") \
-	op(EFA_CREATE_AH_ERR, "create_ah_err")
+	op(EFA_CREATE_AH_ERR, "create_ah_err") \
+	op(EFA_MMAP_ERR, "mmap_err")
 
 #define EFA_STATS_ENUM(ename, name) ename,
 #define EFA_STATS_STR(ename, name) [ename] = name,
@@ -1568,6 +1571,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		ibdev_dbg(&dev->ibdev,
 			  "pgoff[%#lx] does not have valid entry\n",
 			  vma->vm_pgoff);
+		atomic64_inc(&dev->stats.sw_stats.mmap_err);
 		return -EINVAL;
 	}
 	entry = to_emmap(rdma_entry);
@@ -1603,12 +1607,14 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		err = -EINVAL;
 	}
 
-	if (err)
+	if (err) {
 		ibdev_dbg(
 			&dev->ibdev,
 			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
 			entry->address, rdma_entry->npages * PAGE_SIZE,
 			entry->mmap_flag, err);
+		atomic64_inc(&dev->stats.sw_stats.mmap_err);
+	}
 
 	rdma_user_mmap_entry_put(rdma_entry);
 	return err;
@@ -1639,10 +1645,10 @@ static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
 }
 
 int efa_create_ah(struct ib_ah *ibah,
-		  struct rdma_ah_attr *ah_attr,
-		  u32 flags,
+		  struct rdma_ah_init_attr *init_attr,
 		  struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	struct efa_dev *dev = to_edev(ibah->device);
 	struct efa_com_create_ah_params params = {};
 	struct efa_ibv_create_ah_resp resp = {};
@@ -1650,7 +1656,7 @@ int efa_create_ah(struct ib_ah *ibah,
 	struct efa_ah *ah = to_eah(ibah);
 	int err;
 
-	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
+	if (!(init_attr->flags & RDMA_CREATE_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Create address handle is not supported in atomic context\n");
 		err = -EOPNOTSUPP;
@@ -1747,15 +1753,18 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	as = &dev->edev.aq.stats;
 	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
 	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_CMDS_ERR] = atomic64_read(&as->cmd_err);
 	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
 
 	s = &dev->stats;
 	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
 	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->sw_stats.alloc_pd_err);
 	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->sw_stats.create_qp_err);
+	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->sw_stats.create_cq_err);
 	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->sw_stats.reg_mr_err);
 	stats->value[EFA_ALLOC_UCONTEXT_ERR] = atomic64_read(&s->sw_stats.alloc_ucontext_err);
 	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->sw_stats.create_ah_err);
+	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->sw_stats.mmap_err);
 
 	return ARRAY_SIZE(efa_stats_names);
 }

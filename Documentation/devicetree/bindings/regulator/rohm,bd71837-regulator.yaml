@@ -30,8 +30,7 @@ description: |
 patternProperties:
   "^LDO[1-7]$":
     type: object
-    allOf:
-      - $ref: regulator.yaml#
+    $ref: regulator.yaml#
     description:
       Properties for single LDO regulator.
 
@@ -45,8 +44,7 @@ patternProperties:
 
   "^BUCK[1-8]$":
     type: object
-    allOf:
-      - $ref: regulator.yaml#
+    $ref: regulator.yaml#
     description:
       Properties for single BUCK regulator.
 
@@ -57,28 +55,25 @@ patternProperties:
           should be "buck1", ..., "buck8"
 
       rohm,dvs-run-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 1300000
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
         description:
           PMIC default "RUN" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
 
       rohm,dvs-idle-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 1300000
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
         description:
           PMIC default "IDLE" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.
 
       rohm,dvs-suspend-voltage:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 1300000
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 1300000
         description:
           PMIC default "SUSPEND" state voltage in uV. See below table for
           bucks which support this. 0 means disabled.

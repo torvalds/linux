@@ -47,6 +47,7 @@ static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, ids);
 
 /*
  * get_asic_type - translate device id to asic type
@@ -171,6 +172,7 @@ out_err:
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
+
 	return rc;
 }
 
@@ -230,8 +232,15 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->fw_loading = 1;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
+	hdev->clock_gating = 1;
 
 	hdev->reset_pcilink = 0;
+	hdev->axi_drain = 0;
+	hdev->sram_scrambler_enable = 1;
+	hdev->dram_scrambler_enable = 1;
+	hdev->rl_enable = 1;
+	hdev->bmc_enable = 1;
+	hdev->hard_reset_on_fw_events = 1;
 }
 
 /*
@@ -265,11 +274,6 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		hdev->asic_type = get_asic_type(pdev->device);
 		if (hdev->asic_type == ASIC_INVALID) {
 			dev_err(&pdev->dev, "Unsupported ASIC\n");
-			rc = -ENODEV;
-			goto free_hdev;
-		} else if (hdev->asic_type == ASIC_GAUDI) {
-			dev_err(&pdev->dev,
-				"GAUDI is not supported by the current kernel\n");
 			rc = -ENODEV;
 			goto free_hdev;
 		}

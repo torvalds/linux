@@ -94,45 +94,6 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 	return 0;
 }
 
-void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	__le32 *rxd = (__le32 *)skb->data;
-	__le32 *end = (__le32 *)&skb->data[skb->len];
-	enum rx_pkt_type type;
-	u16 flag;
-
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
-	flag = FIELD_GET(MT_RXD0_PKT_FLAG, le32_to_cpu(rxd[0]));
-	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
-		type = PKT_TYPE_NORMAL_MCU;
-
-	switch (type) {
-	case PKT_TYPE_TXS:
-		for (rxd++; rxd + 7 <= end; rxd += 7)
-			mt7615_mac_add_txs(dev, rxd);
-		dev_kfree_skb(skb);
-		break;
-	case PKT_TYPE_TXRX_NOTIFY:
-		mt7615_mac_tx_free(dev, skb);
-		break;
-	case PKT_TYPE_RX_EVENT:
-		mt7615_mcu_rx_event(dev, skb);
-		break;
-	case PKT_TYPE_NORMAL_MCU:
-	case PKT_TYPE_NORMAL:
-		if (!mt7615_mac_fill_rx(dev, skb)) {
-			mt76_rx(&dev->mt76, q, skb);
-			return;
-		}
-		/* fall through */
-	default:
-		dev_kfree_skb(skb);
-		break;
-	}
-}
-
 static void
 mt7615_tx_cleanup(struct mt7615_dev *dev)
 {
@@ -160,9 +121,48 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7615_tx_cleanup(dev);
 
+	rcu_read_lock();
 	mt7615_mac_sta_poll(dev);
+	rcu_read_unlock();
 
 	tasklet_schedule(&dev->mt76.tx_tasklet);
+
+	return 0;
+}
+
+int mt7615_wait_pdma_busy(struct mt7615_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (!is_mt7663(mdev)) {
+		u32 mask = MT_PDMA_TX_BUSY | MT_PDMA_RX_BUSY;
+		u32 reg = mt7615_reg_map(dev, MT_PDMA_BUSY);
+
+		if (!mt76_poll_msec(dev, reg, mask, 0, 1000)) {
+			dev_err(mdev->dev, "PDMA engine busy\n");
+			return -EIO;
+		}
+
+		return 0;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PDMA_BUSY_STATUS,
+			    MT_PDMA_TX_IDX_BUSY, 0, 1000)) {
+		dev_err(mdev->dev, "PDMA engine tx busy\n");
+		return -EIO;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PSE_PG_INFO,
+			    MT_PSE_SRC_CNT, 0, 1000)) {
+		dev_err(mdev->dev, "PSE engine busy\n");
+		return -EIO;
+	}
+
+	if (!mt76_poll_msec(dev, MT_PDMA_BUSY_STATUS,
+			    MT_PDMA_BUSY_IDX, 0, 1000)) {
+		dev_err(mdev->dev, "PDMA engine busy\n");
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -229,7 +229,12 @@ static void mt7663_dma_sched_init(struct mt7615_dev *dev)
 int mt7615_dma_init(struct mt7615_dev *dev)
 {
 	int rx_ring_size = MT7615_RX_RING_SIZE;
+	int rx_buf_size = MT_RX_BUF_SIZE;
 	int ret;
+
+	/* Increase buffer size to receive large VHT MPDUs */
+	if (dev->mt76.cap.has_5ghz)
+		rx_buf_size *= 2;
 
 	mt76_dma_attach(&dev->mt76);
 
@@ -271,7 +276,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 
 	/* init rx queues */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
-			       MT7615_RX_MCU_RING_SIZE, MT_RX_BUF_SIZE,
+			       MT7615_RX_MCU_RING_SIZE, rx_buf_size,
 			       MT_RX_RING_BASE);
 	if (ret)
 		return ret;
@@ -280,7 +285,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	    rx_ring_size /= 2;
 
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN], 0,
-			       rx_ring_size, MT_RX_BUF_SIZE, MT_RX_RING_BASE);
+			       rx_ring_size, rx_buf_size, MT_RX_RING_BASE);
 	if (ret)
 		return ret;
 

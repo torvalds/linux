@@ -299,7 +299,6 @@ void __init iop_init(void)
 
 /*
  * Register the interrupt handler for the IOPs.
- * TODO: might be wrong for non-OSS machines. Anyone?
  */
 
 void __init iop_register_interrupts(void)
@@ -566,36 +565,42 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 	uint iop_num = (uint) dev_id;
 	volatile struct mac_iop *iop = iop_base[iop_num];
 	int i,state;
+	u8 events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
 
 	iop_pr_debug("status %02X\n", iop->status_ctrl);
 
-	/* INT0 indicates a state change on an outgoing message channel */
-
-	if (iop->status_ctrl & IOP_INT0) {
-		iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, send states", iop->status_ctrl);
-		for (i = 0 ; i < NUM_IOP_CHAN  ; i++) {
-			state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
-			iop_pr_cont(" %02X", state);
-			if (state == IOP_MSG_COMPLETE) {
-				iop_handle_send(iop_num, i);
+	do {
+		/* INT0 indicates state change on an outgoing message channel */
+		if (events & IOP_INT0) {
+			iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
+			iop_pr_debug("new status %02X, send states",
+				     iop->status_ctrl);
+			for (i = 0; i < NUM_IOP_CHAN; i++) {
+				state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
+				iop_pr_cont(" %02X", state);
+				if (state == IOP_MSG_COMPLETE)
+					iop_handle_send(iop_num, i);
 			}
+			iop_pr_cont("\n");
 		}
-		iop_pr_cont("\n");
-	}
 
-	if (iop->status_ctrl & IOP_INT1) {	/* INT1 for incoming msgs */
-		iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, recv states", iop->status_ctrl);
-		for (i = 0 ; i < NUM_IOP_CHAN ; i++) {
-			state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
-			iop_pr_cont(" %02X", state);
-			if (state == IOP_MSG_NEW) {
-				iop_handle_recv(iop_num, i);
+		/* INT1 for incoming messages */
+		if (events & IOP_INT1) {
+			iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
+			iop_pr_debug("new status %02X, recv states",
+				     iop->status_ctrl);
+			for (i = 0; i < NUM_IOP_CHAN; i++) {
+				state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
+				iop_pr_cont(" %02X", state);
+				if (state == IOP_MSG_NEW)
+					iop_handle_recv(iop_num, i);
 			}
+			iop_pr_cont("\n");
 		}
-		iop_pr_cont("\n");
-	}
+
+		events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
+	} while (events);
+
 	return IRQ_HANDLED;
 }
 

@@ -17,6 +17,7 @@ struct evlist;
 struct parse_events_error;
 
 struct option;
+struct perf_pmu;
 
 struct tracepoint_path {
 	char *system;
@@ -31,6 +32,7 @@ bool have_tracepoints(struct list_head *evlist);
 const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
+int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
 int parse_events(struct evlist *evlist, const char *str,
 		 struct parse_events_error *error);
 int parse_events_terms(struct list_head *terms, const char *str);
@@ -127,6 +129,7 @@ struct parse_events_state {
 	struct parse_events_error *error;
 	struct evlist	  *evlist;
 	struct list_head	  *terms;
+	int			   stoken;
 };
 
 void parse_events__handle_error(struct parse_events_error *err, int idx,
@@ -185,6 +188,9 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *head_config,
 			 bool auto_merge_stats,
 			 bool use_alias);
+
+struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
+					char *name, struct perf_pmu *pmu);
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,

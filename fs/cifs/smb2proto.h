@@ -143,7 +143,9 @@ extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     struct smb2_file_all_info *buf,
 		     struct create_posix_rsp *posix,
 		     struct kvec *err_iov, int *resp_buftype);
-extern int SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+extern int SMB2_open_init(struct cifs_tcon *tcon,
+			  struct TCP_Server_Info *server,
+			  struct smb_rqst *rqst,
 			  __u8 *oplock, struct cifs_open_parms *oparms,
 			  __le16 *path);
 extern void SMB2_open_free(struct smb_rqst *rqst);
@@ -151,7 +153,9 @@ extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen, u32 maxoutlen,
 		     char **out_data, u32 *plen /* returned data len */);
-extern int SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+extern int SMB2_ioctl_init(struct cifs_tcon *tcon,
+			   struct TCP_Server_Info *server,
+			   struct smb_rqst *rqst,
 			   u64 persistent_fid, u64 volatile_fid, u32 opcode,
 			   bool is_fsctl, char *in_data, u32 indatalen,
 			   __u32 max_response_size);
@@ -165,19 +169,27 @@ extern int __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 			struct smb2_file_network_open_info *pbuf);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
-extern int SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
-		      u64 persistent_fid, u64 volatile_fid, bool query_attrs);
+extern int SMB2_close_init(struct cifs_tcon *tcon,
+			   struct TCP_Server_Info *server,
+			   struct smb_rqst *rqst,
+			   u64 persistent_fid, u64 volatile_fid,
+			   bool query_attrs);
 extern void SMB2_close_free(struct smb_rqst *rqst);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 			   struct cifs_tcon *tcon,
+			   struct TCP_Server_Info *server,
 			   u64 persistent_file_id, u64 volatile_file_id);
 extern void SMB2_flush_free(struct smb_rqst *rqst);
+extern int SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen);
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
-extern int SMB2_query_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+extern int SMB2_query_info_init(struct cifs_tcon *tcon,
+				struct TCP_Server_Info *server,
+				struct smb_rqst *rqst,
 				u64 persistent_fid, u64 volatile_fid,
 				u8 info_class, u8 info_type,
 				u32 additional_info, size_t output_len,
@@ -201,6 +213,7 @@ extern int SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 				u64 persistent_fid, u64 volatile_fid, int index,
 				struct cifs_search_info *srch_inf);
 extern int SMB2_query_directory_init(unsigned int xid, struct cifs_tcon *tcon,
+				     struct TCP_Server_Info *server,
 				     struct smb_rqst *rqst,
 				     u64 persistent_fid, u64 volatile_fid,
 				     int index, int info_level);
@@ -208,7 +221,9 @@ extern void SMB2_query_directory_free(struct smb_rqst *rqst);
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
 			__le64 *eof);
-extern int SMB2_set_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+extern int SMB2_set_info_init(struct cifs_tcon *tcon,
+			      struct TCP_Server_Info *server,
+			      struct smb_rqst *rqst,
 			      u64 persistent_fid, u64 volatile_fid, u32 pid,
 			      u8 info_class, u8 info_type, u32 additional_info,
 			      void **data, unsigned int *size);
@@ -276,6 +291,10 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    u32 class, u32 type, u32 output_len,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
+/* query path info from the server using SMB311 POSIX extensions*/
+extern int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+			struct cifs_sb_info *sb, const char *path, struct smb311_posix_qinfo *qinf,
+			bool *adjust_tx, bool *symlink);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);

@@ -3,7 +3,7 @@
  * Xilinx XADC driver
  *
  * Copyright 2013-2014 Analog Devices Inc.
- *  Author: Lars-Peter Clauen <lars@metafoo.de>
+ *  Author: Lars-Peter Clausen <lars@metafoo.de>
  *
  * Documentation for the parts can be found at:
  *  - XADC hardmacro: Xilinx UG480
@@ -663,7 +663,7 @@ static int xadc_trigger_set_state(struct iio_trigger *trigger, bool state)
 	mutex_lock(&xadc->mutex);
 
 	if (state) {
-		/* Only one of the two triggers can be active at the a time. */
+		/* Only one of the two triggers can be active at a time. */
 		if (xadc->trigger != NULL) {
 			ret = -EBUSY;
 			goto err_out;

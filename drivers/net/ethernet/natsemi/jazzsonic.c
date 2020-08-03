@@ -36,9 +36,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/pgtable.h>
 
 #include <asm/bootinfo.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/jazz.h>

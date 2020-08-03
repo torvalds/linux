@@ -8,7 +8,7 @@ config HAVE_GCC_PLUGINS
 menuconfig GCC_PLUGINS
 	bool "GCC plugins"
 	depends on HAVE_GCC_PLUGINS
-	depends on CC_IS_GCC && GCC_VERSION >= 40800
+	depends on CC_IS_GCC
 	depends on $(success,$(srctree)/scripts/gcc-plugin.sh $(CC))
 	default y
 	help

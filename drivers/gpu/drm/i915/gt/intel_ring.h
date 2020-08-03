@@ -88,6 +88,8 @@ static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 static inline void
 assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 {
+	unsigned int head = READ_ONCE(ring->head);
+
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
 
 	/*
@@ -105,8 +107,7 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	 * into the same cacheline as ring->head.
 	 */
 #define cacheline(a) round_down(a, CACHELINE_BYTES)
-	GEM_BUG_ON(cacheline(tail) == cacheline(ring->head) &&
-		   tail < ring->head);
+	GEM_BUG_ON(cacheline(tail) == cacheline(head) && tail < head);
 #undef cacheline
 }
 

@@ -147,36 +147,6 @@ static struct omap_hwmod_class omap3xxx_timer_hwmod_class = {
 	.sysc = &omap3xxx_timer_sysc,
 };
 
-/* timer1 */
-static struct omap_hwmod omap3xxx_timer1_hwmod = {
-	.name		= "timer1",
-	.main_clk	= "gpt1_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_GPT1_SHIFT,
-		},
-	},
-	.class		= &omap3xxx_timer_hwmod_class,
-	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
-/* timer2 */
-static struct omap_hwmod omap3xxx_timer2_hwmod = {
-	.name		= "timer2",
-	.main_clk	= "gpt2_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = OMAP3430_PER_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_GPT2_SHIFT,
-		},
-	},
-	.class		= &omap3xxx_timer_hwmod_class,
-	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
 /* timer3 */
 static struct omap_hwmod omap3xxx_timer3_hwmod = {
 	.name		= "timer3",
@@ -306,21 +276,6 @@ static struct omap_hwmod omap3xxx_timer11_hwmod = {
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT11_SHIFT,
-		},
-	},
-	.class		= &omap3xxx_timer_hwmod_class,
-	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
-};
-
-/* timer12 */
-static struct omap_hwmod omap3xxx_timer12_hwmod = {
-	.name		= "timer12",
-	.main_clk	= "gpt12_fck",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_GPT12_SHIFT,
 		},
 	},
 	.class		= &omap3xxx_timer_hwmod_class,
@@ -1525,38 +1480,6 @@ static struct omap_hwmod omap3xxx_sad2d_hwmod = {
 };
 
 /*
- * '32K sync counter' class
- * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
- */
-static struct omap_hwmod_class_sysconfig omap3xxx_counter_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0004,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap3xxx_counter_hwmod_class = {
-	.name	= "counter",
-	.sysc	= &omap3xxx_counter_sysc,
-};
-
-static struct omap_hwmod omap3xxx_counter_32k_hwmod = {
-	.name		= "counter_32k",
-	.class		= &omap3xxx_counter_hwmod_class,
-	.clkdm_name	= "wkup_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE,
-	.main_clk	= "wkup_32k_fck",
-	.prcm		= {
-		.omap2	= {
-			.module_offs = WKUP_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_32KSYNC_SHIFT,
-		},
-	},
-};
-
-/*
  * 'gpmc' class
  * general purpose memory controller
  */
@@ -1868,25 +1791,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l3__iva = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-
-/* l4_wkup -> timer1 */
-static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__timer1 = {
-	.master		= &omap3xxx_l4_wkup_hwmod,
-	.slave		= &omap3xxx_timer1_hwmod,
-	.clk		= "gpt1_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-
-/* l4_per -> timer2 */
-static struct omap_hwmod_ocp_if omap3xxx_l4_per__timer2 = {
-	.master		= &omap3xxx_l4_per_hwmod,
-	.slave		= &omap3xxx_timer2_hwmod,
-	.clk		= "gpt2_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-
 /* l4_per -> timer3 */
 static struct omap_hwmod_ocp_if omap3xxx_l4_per__timer3 = {
 	.master		= &omap3xxx_l4_per_hwmod,
@@ -1962,15 +1866,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__timer11 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_timer11_hwmod,
 	.clk		= "gpt11_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-
-/* l4_core -> timer12 */
-static struct omap_hwmod_ocp_if omap3xxx_l4_sec__timer12 = {
-	.master		= &omap3xxx_l4_sec_hwmod,
-	.slave		= &omap3xxx_timer12_hwmod,
-	.clk		= "gpt12_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2325,16 +2220,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__hdq1w = {
 	.flags		= OMAP_FIREWALL_L4 | OCPIF_SWSUP_IDLE,
 };
 
-/* l4_wkup -> 32ksync_counter */
-
-
-static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
-	.master		= &omap3xxx_l4_wkup_hwmod,
-	.slave		= &omap3xxx_counter_32k_hwmod,
-	.clk		= "omap_32ksync_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* am35xx has Davinci MDIO & EMAC */
 static struct omap_hwmod_class am35xx_mdio_class = {
 	.name = "davinci_mdio",
@@ -2551,8 +2436,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3_l4_core__i2c2,
 	&omap3_l4_core__i2c3,
 	&omap3xxx_l4_wkup__l4_sec,
-	&omap3xxx_l4_wkup__timer1,
-	&omap3xxx_l4_per__timer2,
 	&omap3xxx_l4_per__timer3,
 	&omap3xxx_l4_per__timer4,
 	&omap3xxx_l4_per__timer5,
@@ -2580,24 +2463,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__mcspi2,
 	&omap34xx_l4_core__mcspi3,
 	&omap34xx_l4_core__mcspi4,
-	&omap3xxx_l4_wkup__counter_32k,
 	&omap3xxx_l3_main__gpmc,
-	NULL,
-};
-
-/* GP-only hwmod links */
-static struct omap_hwmod_ocp_if *omap34xx_gp_hwmod_ocp_ifs[] __initdata = {
-	&omap3xxx_l4_sec__timer12,
-	NULL,
-};
-
-static struct omap_hwmod_ocp_if *omap36xx_gp_hwmod_ocp_ifs[] __initdata = {
-	&omap3xxx_l4_sec__timer12,
-	NULL,
-};
-
-static struct omap_hwmod_ocp_if *am35xx_gp_hwmod_ocp_ifs[] __initdata = {
-	&omap3xxx_l4_sec__timer12,
 	NULL,
 };
 
@@ -2774,7 +2640,7 @@ static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_node *bus,
 int __init omap3xxx_hwmod_init(void)
 {
 	int r;
-	struct omap_hwmod_ocp_if **h = NULL, **h_gp = NULL, **h_sham = NULL;
+	struct omap_hwmod_ocp_if **h = NULL, **h_sham = NULL;
 	struct omap_hwmod_ocp_if **h_aes = NULL;
 	struct device_node *bus;
 	unsigned int rev;
@@ -2797,18 +2663,15 @@ int __init omap3xxx_hwmod_init(void)
 	    rev == OMAP3430_REV_ES2_1 || rev == OMAP3430_REV_ES3_0 ||
 	    rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2) {
 		h = omap34xx_hwmod_ocp_ifs;
-		h_gp = omap34xx_gp_hwmod_ocp_ifs;
 		h_sham = omap34xx_sham_hwmod_ocp_ifs;
 		h_aes = omap34xx_aes_hwmod_ocp_ifs;
 	} else if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
 		h = am35xx_hwmod_ocp_ifs;
-		h_gp = am35xx_gp_hwmod_ocp_ifs;
 		h_sham = am35xx_sham_hwmod_ocp_ifs;
 		h_aes = am35xx_aes_hwmod_ocp_ifs;
 	} else if (rev == OMAP3630_REV_ES1_0 || rev == OMAP3630_REV_ES1_1 ||
 		   rev == OMAP3630_REV_ES1_2) {
 		h = omap36xx_hwmod_ocp_ifs;
-		h_gp = omap36xx_gp_hwmod_ocp_ifs;
 		h_sham = omap36xx_sham_hwmod_ocp_ifs;
 		h_aes = omap36xx_aes_hwmod_ocp_ifs;
 	} else {
@@ -2819,13 +2682,6 @@ int __init omap3xxx_hwmod_init(void)
 	r = omap_hwmod_register_links(h);
 	if (r < 0)
 		return r;
-
-	/* Register GP-only hwmod links. */
-	if (h_gp && omap_type() == OMAP2_DEVICE_TYPE_GP) {
-		r = omap_hwmod_register_links(h_gp);
-		if (r < 0)
-			return r;
-	}
 
 	/*
 	 * Register crypto hwmod links only if they are not disabled in DT.

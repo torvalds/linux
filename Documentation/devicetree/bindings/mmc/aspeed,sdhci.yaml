@@ -41,8 +41,8 @@ properties:
 patternProperties:
   "^sdhci@[0-9a-f]+$":
     type: object
-    allOf:
-        - $ref: mmc-controller.yaml
+    $ref: mmc-controller.yaml
+
     properties:
       compatible:
         enum:

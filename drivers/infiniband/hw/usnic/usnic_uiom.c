@@ -123,7 +123,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	npages = PAGE_ALIGN(size + (addr & ~PAGE_MASK)) >> PAGE_SHIFT;
 
 	uiomr->owning_mm = mm = current->mm;
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	locked = atomic64_add_return(npages, &current->mm->pinned_vm);
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -187,7 +187,7 @@ out:
 	} else
 		mmgrab(uiomr->owning_mm);
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	free_page((unsigned long) page_list);
 	return ret;
 }

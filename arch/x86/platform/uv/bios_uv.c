@@ -45,7 +45,8 @@ static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 	return ret;
 }
 
-s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
+static s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4,
+		u64 a5)
 {
 	s64 ret;
 
@@ -57,10 +58,9 @@ s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(uv_bios_call);
 
-s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
-					u64 a4, u64 a5)
+static s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
+		u64 a4, u64 a5)
 {
 	unsigned long bios_flags;
 	s64 ret;
@@ -77,18 +77,13 @@ s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 	return ret;
 }
 
-
 long sn_partition_id;
 EXPORT_SYMBOL_GPL(sn_partition_id);
 long sn_coherency_id;
-EXPORT_SYMBOL_GPL(sn_coherency_id);
 long sn_region_size;
 EXPORT_SYMBOL_GPL(sn_region_size);
 long system_serial_number;
-EXPORT_SYMBOL_GPL(system_serial_number);
 int uv_type;
-EXPORT_SYMBOL_GPL(uv_type);
-
 
 s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 		long *region, long *ssn)
@@ -115,7 +110,6 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 		*ssn = v1;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(uv_bios_get_sn_info);
 
 int
 uv_bios_mq_watchlist_alloc(unsigned long addr, unsigned int mq_size,
@@ -166,7 +160,6 @@ s64 uv_bios_freq_base(u64 clock_type, u64 *ticks_per_second)
 	return uv_bios_call(UV_BIOS_FREQ_BASE, clock_type,
 			   (u64)ticks_per_second, 0, 0, 0);
 }
-EXPORT_SYMBOL_GPL(uv_bios_freq_base);
 
 /*
  * uv_bios_set_legacy_vga_target - Set Legacy VGA I/O Target
@@ -185,7 +178,6 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 	return uv_bios_call(UV_BIOS_SET_LEGACY_VGA_TARGET,
 				(u64)decode, (u64)domain, (u64)bus, 0, 0);
 }
-EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 
 int uv_bios_init(void)
 {

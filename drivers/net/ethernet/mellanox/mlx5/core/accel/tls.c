@@ -56,8 +56,8 @@ void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 	mlx5_fpga_tls_del_flow(mdev, swid, GFP_KERNEL, direction_sx);
 }
 
-int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
-			     u64 rcd_sn)
+int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+			     u32 seq, __be64 rcd_sn)
 {
 	return mlx5_fpga_tls_resync_rx(mdev, handle, seq, rcd_sn);
 }

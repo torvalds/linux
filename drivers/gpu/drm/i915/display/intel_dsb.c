@@ -34,7 +34,7 @@
 #define DSB_BYTE_EN_SHIFT		20
 #define DSB_REG_VALUE_MASK		0xfffff
 
-static inline bool is_dsb_busy(struct intel_dsb *dsb)
+static bool is_dsb_busy(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -43,7 +43,7 @@ static inline bool is_dsb_busy(struct intel_dsb *dsb)
 	return DSB_STATUS & intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 }
 
-static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
+static bool intel_dsb_enable_engine(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -63,7 +63,7 @@ static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
 	return true;
 }
 
-static inline bool intel_dsb_disable_engine(struct intel_dsb *dsb)
+static bool intel_dsb_disable_engine(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = container_of(dsb, typeof(*crtc), dsb);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);

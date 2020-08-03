@@ -103,28 +103,6 @@ struct ipa_cmd_ip_packet_init {
 /* Field masks for ipa_cmd_ip_packet_init dest_endpoint field */
 #define IPA_PACKET_INIT_DEST_ENDPOINT_FMASK		GENMASK(4, 0)
 
-/* IPA_CMD_DMA_TASK_32B_ADDR */
-
-/* This opcode gets modified with a DMA operation count */
-
-#define DMA_TASK_32B_ADDR_OPCODE_COUNT_FMASK		GENMASK(15, 8)
-
-struct ipa_cmd_hw_dma_task_32b_addr {
-	__le16 flags;
-	__le16 size;
-	__le32 addr;
-	__le16 packet_size;
-	u8 reserved[6];
-};
-
-/* Field masks for ipa_cmd_hw_dma_task_32b_addr flags field */
-#define DMA_TASK_32B_ADDR_FLAGS_SW_RSVD_FMASK		GENMASK(10, 0)
-#define DMA_TASK_32B_ADDR_FLAGS_CMPLT_FMASK		GENMASK(11, 11)
-#define DMA_TASK_32B_ADDR_FLAGS_EOF_FMASK		GENMASK(12, 12)
-#define DMA_TASK_32B_ADDR_FLAGS_FLSH_FMASK		GENMASK(13, 13)
-#define DMA_TASK_32B_ADDR_FLAGS_LOCK_FMASK		GENMASK(14, 14)
-#define DMA_TASK_32B_ADDR_FLAGS_UNLOCK_FMASK		GENMASK(15, 15)
-
 /* IPA_CMD_DMA_SHARED_MEM */
 
 /* For IPA v4.0+, this opcode gets modified with pipeline clear options */
@@ -163,7 +141,6 @@ union ipa_cmd_payload {
 	struct ipa_cmd_hw_hdr_init_local hdr_init_local;
 	struct ipa_cmd_register_write register_write;
 	struct ipa_cmd_ip_packet_init ip_packet_init;
-	struct ipa_cmd_hw_dma_task_32b_addr dma_task_32b_addr;
 	struct ipa_cmd_hw_dma_mem_mem dma_shared_mem;
 	struct ipa_cmd_ip_packet_tag_status ip_packet_tag_status;
 };
@@ -503,42 +480,6 @@ static void ipa_cmd_ip_packet_init_add(struct gsi_trans *trans, u8 endpoint_id)
 
 	payload->dest_endpoint = u8_encode_bits(endpoint_id,
 					IPA_PACKET_INIT_DEST_ENDPOINT_FMASK);
-
-	gsi_trans_cmd_add(trans, payload, sizeof(*payload), payload_addr,
-			  direction, opcode);
-}
-
-/* Use a 32-bit DMA command to zero a block of memory */
-void ipa_cmd_dma_task_32b_addr_add(struct gsi_trans *trans, u16 size,
-				   dma_addr_t addr, bool toward_ipa)
-{
-	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	enum ipa_cmd_opcode opcode = IPA_CMD_DMA_TASK_32B_ADDR;
-	struct ipa_cmd_hw_dma_task_32b_addr *payload;
-	union ipa_cmd_payload *cmd_payload;
-	enum dma_data_direction direction;
-	dma_addr_t payload_addr;
-	u16 flags;
-
-	/* assert(addr <= U32_MAX); */
-	addr &= GENMASK_ULL(31, 0);
-
-	/* The opcode encodes the number of DMA operations in the high byte */
-	opcode |= u16_encode_bits(1, DMA_TASK_32B_ADDR_OPCODE_COUNT_FMASK);
-
-	direction = toward_ipa ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
-	/* complete: 0 = don't interrupt; eof: 0 = don't assert eot */
-	flags = DMA_TASK_32B_ADDR_FLAGS_FLSH_FMASK;
-	/* lock: 0 = don't lock endpoint; unlock: 0 = don't unlock */
-
-	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
-	payload = &cmd_payload->dma_task_32b_addr;
-
-	payload->flags = cpu_to_le16(flags);
-	payload->size = cpu_to_le16(size);
-	payload->addr = cpu_to_le32((u32)addr);
-	payload->packet_size = cpu_to_le16(size);
 
 	gsi_trans_cmd_add(trans, payload, sizeof(*payload), payload_addr,
 			  direction, opcode);

@@ -166,16 +166,17 @@ file::
     };
 
     struct debugfs_regset32 {
-	struct debugfs_reg32 *regs;
+	const struct debugfs_reg32 *regs;
 	int nregs;
 	void __iomem *base;
+	struct device *dev;     /* Optional device for Runtime PM */
     };
 
     debugfs_create_regset32(const char *name, umode_t mode,
 			    struct dentry *parent,
 			    struct debugfs_regset32 *regset);
 
-    void debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
+    void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix);
 
 The "base" argument may be 0, but you may want to build the reg32 array

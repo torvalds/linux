@@ -159,11 +159,15 @@ Byte sequences
            distance = 16384 + (H << 14) + D
            state = S (copy S literals after this block)
            End of stream is reached if distance == 16384
+           In version 1 only, to prevent ambiguity with the RLE case when
+           ((distance & 0x803f) == 0x803f) && (261 <= length <= 264), the
+           compressor must not emit block copies where distance and length
+           meet these conditions.
 
         In version 1 only, this instruction is also used to encode a run of
-        zeros if distance = 0xbfff, i.e. H = 1 and the D bits are all 1.
+           zeros if distance = 0xbfff, i.e. H = 1 and the D bits are all 1.
            In this case, it is followed by a fourth byte, X.
-           run length = ((X << 3) | (0 0 0 0 0 L L L)) + 4.
+           run length = ((X << 3) | (0 0 0 0 0 L L L)) + 4
 
       0 0 1 L L L L L  (32..63)
            Copy of small block within 16kB distance (preferably less than 34B)

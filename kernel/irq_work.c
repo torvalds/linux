@@ -31,7 +31,7 @@ static bool irq_work_claim(struct irq_work *work)
 {
 	int oflags;
 
-	oflags = atomic_fetch_or(IRQ_WORK_CLAIMED, &work->flags);
+	oflags = atomic_fetch_or(IRQ_WORK_CLAIMED | CSD_TYPE_IRQ_WORK, &work->flags);
 	/*
 	 * If the work is already pending, no need to raise the IPI.
 	 * The pairing atomic_fetch_andnot() in irq_work_run() makes sure
@@ -102,8 +102,7 @@ bool irq_work_queue_on(struct irq_work *work, int cpu)
 	if (cpu != smp_processor_id()) {
 		/* Arch remote IPI send/receive backend aren't NMI safe */
 		WARN_ON_ONCE(in_nmi());
-		if (llist_add(&work->llnode, &per_cpu(raised_list, cpu)))
-			arch_send_call_function_single_ipi(cpu);
+		__smp_call_single_queue(cpu, &work->llnode);
 	} else {
 		__irq_work_queue_local(work);
 	}
@@ -131,6 +130,31 @@ bool irq_work_needs_cpu(void)
 	return true;
 }
 
+void irq_work_single(void *arg)
+{
+	struct irq_work *work = arg;
+	int flags;
+
+	/*
+	 * Clear the PENDING bit, after this point the @work
+	 * can be re-used.
+	 * Make it immediately visible so that other CPUs trying
+	 * to claim that work don't rely on us to handle their data
+	 * while we are in the middle of the func.
+	 */
+	flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->flags);
+
+	lockdep_irq_work_enter(work);
+	work->func(work);
+	lockdep_irq_work_exit(work);
+	/*
+	 * Clear the BUSY bit and return to the free state if
+	 * no-one else claimed it meanwhile.
+	 */
+	flags &= ~IRQ_WORK_PENDING;
+	(void)atomic_cmpxchg(&work->flags, flags, flags & ~IRQ_WORK_BUSY);
+}
+
 static void irq_work_run_list(struct llist_head *list)
 {
 	struct irq_work *work, *tmp;
@@ -142,27 +166,8 @@ static void irq_work_run_list(struct llist_head *list)
 		return;
 
 	llnode = llist_del_all(list);
-	llist_for_each_entry_safe(work, tmp, llnode, llnode) {
-		int flags;
-		/*
-		 * Clear the PENDING bit, after this point the @work
-		 * can be re-used.
-		 * Make it immediately visible so that other CPUs trying
-		 * to claim that work don't rely on us to handle their data
-		 * while we are in the middle of the func.
-		 */
-		flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->flags);
-
-		lockdep_irq_work_enter(work);
-		work->func(work);
-		lockdep_irq_work_exit(work);
-		/*
-		 * Clear the BUSY bit and return to the free state if
-		 * no-one else claimed it meanwhile.
-		 */
-		flags &= ~IRQ_WORK_PENDING;
-		(void)atomic_cmpxchg(&work->flags, flags, flags & ~IRQ_WORK_BUSY);
-	}
+	llist_for_each_entry_safe(work, tmp, llnode, llnode)
+		irq_work_single(work);
 }
 
 /*

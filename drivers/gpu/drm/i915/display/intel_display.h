@@ -320,9 +320,13 @@ enum phy_fia {
 	for_each_pipe(__dev_priv, __p) \
 		for_each_if((__mask) & BIT(__p))
 
-#define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
+#define for_each_cpu_transcoder(__dev_priv, __t) \
 	for ((__t) = 0; (__t) < I915_MAX_TRANSCODERS; (__t)++)	\
-		for_each_if ((__mask) & (1 << (__t)))
+		for_each_if (INTEL_INFO(__dev_priv)->cpu_transcoder_mask & BIT(__t))
+
+#define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
+	for_each_cpu_transcoder(__dev_priv, __t) \
+		for_each_if ((__mask) & BIT(__t))
 
 #define for_each_universal_plane(__dev_priv, __pipe, __p)		\
 	for ((__p) = 0;							\
@@ -579,13 +583,14 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain intel_port_to_power_domain(enum port port);
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);
+enum intel_display_power_domain
+intel_legacy_aux_to_power_domain(enum aux_ch aux_ch);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
 
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
-int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,

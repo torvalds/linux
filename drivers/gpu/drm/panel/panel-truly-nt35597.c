@@ -490,9 +490,7 @@ static int truly_nt35597_panel_add(struct truly_nt35597 *ctx)
 {
 	struct device *dev = ctx->dev;
 	int ret, i;
-	const struct nt35597_config *config;
 
-	config = ctx->config;
 	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++)
 		ctx->supplies[i].supply = regulator_names[i];
 

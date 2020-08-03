@@ -8,6 +8,8 @@
 
 #include <linux/const.h>
 
+#include <vdso/processor.h>
+
 #include <asm/ptrace.h>
 
 /*
@@ -58,16 +60,6 @@ static inline void release_thread(struct task_struct *dead_task)
 extern unsigned long get_wchan(struct task_struct *p);
 
 
-static inline void cpu_relax(void)
-{
-#ifdef __riscv_muldiv
-	int dummy;
-	/* In lieu of a halt instruction, induce a long-latency stall. */
-	__asm__ __volatile__ ("div %0, %0, zero" : "=r" (dummy));
-#endif
-	barrier();
-}
-
 static inline void wait_for_interrupt(void)
 {
 	__asm__ __volatile__ ("wfi");
@@ -75,6 +67,7 @@ static inline void wait_for_interrupt(void)
 
 struct device_node;
 int riscv_of_processor_hartid(struct device_node *node);
+int riscv_of_parent_hartid(struct device_node *node);
 
 extern void riscv_fill_hwcap(void);
 

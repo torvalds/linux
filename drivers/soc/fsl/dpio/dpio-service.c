@@ -58,7 +58,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 	 * If cpu == -1, choose the current cpu, with no guarantees about
 	 * potentially being migrated away.
 	 */
-	if (unlikely(cpu < 0))
+	if (cpu < 0)
 		cpu = smp_processor_id();
 
 	/* If a specific cpu was requested, pick it up immediately */
@@ -67,6 +67,10 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 
 static inline struct dpaa2_io *service_select(struct dpaa2_io *d)
 {
+	if (d)
+		return d;
+
+	d = service_select_by_cpu(d, -1);
 	if (d)
 		return d;
 

@@ -10,7 +10,7 @@
 
 #include <linux/in.h>
 
-#define AFS_MAXCELLNAME		64  	/* Maximum length of a cell name */
+#define AFS_MAXCELLNAME		256  	/* Maximum length of a cell name */
 #define AFS_MAXVOLNAME		64  	/* Maximum length of a volume name */
 #define AFS_MAXNSERVERS		8   	/* Maximum servers in a basic volume record */
 #define AFS_NMAXNSERVERS	13  	/* Maximum servers in a N/U-class volume record */
@@ -146,7 +146,6 @@ struct afs_file_status {
 struct afs_status_cb {
 	struct afs_file_status	status;
 	struct afs_callback	callback;
-	unsigned int		cb_break;	/* Pre-op callback break counter */
 	bool			have_status;	/* True if status record was retrieved */
 	bool			have_cb;	/* True if cb record was retrieved */
 	bool			have_error;	/* True if status.abort_code indicates an error */

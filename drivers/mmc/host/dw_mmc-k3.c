@@ -424,7 +424,7 @@ static int dw_mci_hi3660_switch_voltage(struct mmc_host *mmc,
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		ret = mmc_regulator_set_vqmmc(mmc, ios);
-		if (ret) {
+		if (ret < 0) {
 			dev_err(host->dev, "Regulator set error %d\n", ret);
 			return ret;
 		}

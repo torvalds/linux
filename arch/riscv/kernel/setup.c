@@ -22,7 +22,6 @@
 #include <asm/cpu_ops.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 #include <asm/sbi.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
@@ -75,7 +74,11 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_bootmem();
 	paging_init();
+#if IS_ENABLED(CONFIG_BUILTIN_DTB)
+	unflatten_and_copy_device_tree();
+#else
 	unflatten_device_tree();
+#endif
 	clint_init_boot_cpu();
 
 #ifdef CONFIG_SWIOTLB

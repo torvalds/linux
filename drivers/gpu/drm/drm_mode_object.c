@@ -402,12 +402,13 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_mode_obj_get_properties *arg = data;
 	struct drm_mode_object *obj;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	drm_modeset_lock_all(dev);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!obj) {
@@ -427,7 +428,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 out_unref:
 	drm_mode_object_put(obj);
 out:
-	drm_modeset_unlock_all(dev);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 	return ret;
 }
 
@@ -449,12 +450,13 @@ static int set_property_legacy(struct drm_mode_object *obj,
 {
 	struct drm_device *dev = prop->dev;
 	struct drm_mode_object *ref;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = -EINVAL;
 
 	if (!drm_property_change_valid_get(prop, prop_value, &ref))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 	switch (obj->type) {
 	case DRM_MODE_OBJECT_CONNECTOR:
 		ret = drm_connector_set_obj_prop(obj, prop, prop_value);
@@ -468,7 +470,7 @@ static int set_property_legacy(struct drm_mode_object *obj,
 		break;
 	}
 	drm_property_change_valid_put(prop, ref);
-	drm_modeset_unlock_all(dev);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 
 	return ret;
 }

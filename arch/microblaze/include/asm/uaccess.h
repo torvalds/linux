@@ -12,7 +12,7 @@
 
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/extable.h>
 #include <linux/string.h>
 

@@ -660,7 +660,7 @@ int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 	struct device *spdev = NULL;
 
 	if (msg->uop > SCIF_EXIT_ACK) {
-		/* Dont send messages once the exit flow has begun */
+		/* Don't send messages once the exit flow has begun */
 		if (OP_IDLE != scifdev->exit)
 			return -ENODEV;
 		spdev = scif_get_peer_dev(scifdev);

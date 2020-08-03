@@ -2223,10 +2223,12 @@ static int cadence_nand_exec_op(struct nand_chip *chip,
 				const struct nand_operation *op,
 				bool check_only)
 {
-	int status = cadence_nand_select_target(chip);
+	if (!check_only) {
+		int status = cadence_nand_select_target(chip);
 
-	if (status)
-		return status;
+		if (status)
+			return status;
+	}
 
 	return nand_op_parser_exec_op(chip, &cadence_nand_op_parser, op,
 				      check_only);
@@ -2592,7 +2594,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 	return 0;
 }
 
-int cadence_nand_attach_chip(struct nand_chip *chip)
+static int cadence_nand_attach_chip(struct nand_chip *chip)
 {
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
 	struct cdns_nand_chip *cdns_chip = to_cdns_nand_chip(chip);
@@ -2778,9 +2780,14 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 static void cadence_nand_chips_cleanup(struct cdns_nand_ctrl *cdns_ctrl)
 {
 	struct cdns_nand_chip *entry, *temp;
+	struct nand_chip *chip;
+	int ret;
 
 	list_for_each_entry_safe(entry, temp, &cdns_ctrl->chips, node) {
-		nand_release(&entry->chip);
+		chip = &entry->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
 		list_del(&entry->node);
 	}
 }

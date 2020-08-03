@@ -296,6 +296,8 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 
 	for (i = 0; i < count; i++) {
 		GET_DPM_CUR_FREQ(clk_table, clk_type, i, value);
+		if (!value)
+			continue;
 		size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
 				cur_value == value ? "*" : "");
 		if (cur_value == value)
@@ -847,7 +849,7 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 
-	if (!smu->pm_enabled || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
@@ -898,7 +900,7 @@ static bool renoir_is_dpm_running(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 
 	/*
-	 * Util now, the pmfw hasn't exported the interface of SMU
+	 * Until now, the pmfw hasn't exported the interface of SMU
 	 * feature mask to APU SKU so just force on all the feature
 	 * at early initial stage.
 	 */
@@ -955,6 +957,6 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &renoir_ppt_funcs;
-	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
+	smu->smc_driver_if_version = SMU12_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 }

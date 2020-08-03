@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CLK_LGM_CGU
+	depends on OF && HAS_IOMEM && (X86 || COMPILE_TEST)
+	select OF_EARLY_FLATTREE
+	bool "Clock driver for Lightning Mountain(LGM) platform"
+	help
+	  Clock Generation Unit(CGU) driver for Intel Lightning Mountain(LGM)
+	  network processor SoC.

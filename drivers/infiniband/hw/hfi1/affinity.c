@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -64,6 +64,7 @@ struct hfi1_affinity_node_list node_affinity = {
 static const char * const irq_type_names[] = {
 	"SDMA",
 	"RCVCTXT",
+	"NETDEVCTXT",
 	"GENERAL",
 	"OTHER",
 };
@@ -915,6 +916,11 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 			set = &entry->rcv_intr;
 		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
 		break;
+	case IRQ_NETDEVCTXT:
+		rcd = (struct hfi1_ctxtdata *)msix->arg;
+		set = &entry->def_intr;
+		scnprintf(extra, 64, "ctxt %u", rcd->ctxt);
+		break;
 	default:
 		dd_dev_err(dd, "Invalid IRQ type %d\n", msix->type);
 		return -EINVAL;
@@ -986,6 +992,10 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 		/* Don't do accounting for control contexts */
 		if (rcd->ctxt != HFI1_CTRL_CTXT)
 			set = &entry->rcv_intr;
+		break;
+	case IRQ_NETDEVCTXT:
+		rcd = (struct hfi1_ctxtdata *)msix->arg;
+		set = &entry->def_intr;
 		break;
 	default:
 		mutex_unlock(&node_affinity.lock);

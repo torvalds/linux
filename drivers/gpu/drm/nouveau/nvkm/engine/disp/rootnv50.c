@@ -99,7 +99,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		} *args = data;
 		int ret = -ENOSYS;
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER);
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.hda);
 			if (ret == 0) {
 				args->v0.or = outp->ior->id;
 				args->v0.link = outp->ior->asy.link;
@@ -119,7 +119,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 			if (args->v0.data & 0xfff00000)
 				return -EINVAL;
-			ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV);
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV, false);
 			if (ret)
 				return ret;
 			ret = outp->ior->func->sense(outp->ior, args->v0.data);
@@ -155,7 +155,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, true);
 			ior->func->hda.hpd(ior, hidx, true);
-			ior->func->hda.eld(ior, data, size);
+			ior->func->hda.eld(ior, hidx, data, size);
 		} else {
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, false);

@@ -83,6 +83,12 @@ enum hdcp_link {
 	HDCP_LINK_SECONDARY
 };
 
+enum hdcp_message_status {
+	HDCP_MESSAGE_SUCCESS,
+	HDCP_MESSAGE_FAILURE,
+	HDCP_MESSAGE_UNSUPPORTED
+};
+
 struct hdcp_protection_message {
 	enum hdcp_version version;
 	/* relevant only for DVI */
@@ -91,6 +97,7 @@ struct hdcp_protection_message {
 	uint32_t length;
 	uint8_t max_retries;
 	uint8_t *data;
+	enum hdcp_message_status status;
 };
 
 #endif

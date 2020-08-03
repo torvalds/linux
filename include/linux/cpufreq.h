@@ -330,7 +330,7 @@ struct cpufreq_driver {
 	 *
 	 * get_intermediate should return a stable intermediate frequency
 	 * platform wants to switch to and target_intermediate() should set CPU
-	 * to to that frequency, before jumping to the frequency corresponding
+	 * to that frequency, before jumping to the frequency corresponding
 	 * to 'index'. Core will take care of sending notifications and driver
 	 * doesn't have to handle them in target_intermediate() or
 	 * target_index().
@@ -367,7 +367,7 @@ struct cpufreq_driver {
 
 	/* platform specific boost support code */
 	bool		boost_enabled;
-	int		(*set_boost)(int state);
+	int		(*set_boost)(struct cpufreq_policy *policy, int state);
 };
 
 /* flags */

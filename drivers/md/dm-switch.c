@@ -53,7 +53,7 @@ struct switch_ctx {
 	/*
 	 * Array of dm devices to switch between.
 	 */
-	struct switch_path path_list[0];
+	struct switch_path path_list[];
 };
 
 static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned nr_paths,

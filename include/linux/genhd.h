@@ -39,15 +39,6 @@ extern struct class block_class;
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 
-struct disk_stats {
-	u64 nsecs[NR_STAT_GROUPS];
-	unsigned long sectors[NR_STAT_GROUPS];
-	unsigned long ios[NR_STAT_GROUPS];
-	unsigned long merges[NR_STAT_GROUPS];
-	unsigned long io_ticks;
-	local_t in_flight[2];
-};
-
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
  * Enough for the string representation of any kind of UUID plus NULL.
@@ -68,7 +59,13 @@ struct hd_struct {
 	 * can be non-atomic on 32bit machines with 64bit sector_t.
 	 */
 	sector_t nr_sects;
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	seqcount_t nr_sects_seq;
+#endif
+	unsigned long stamp;
+	struct disk_stats __percpu *dkstats;
+	struct percpu_ref ref;
+
 	sector_t alignment_offset;
 	unsigned int discard_alignment;
 	struct device __dev;
@@ -78,13 +75,6 @@ struct hd_struct {
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
 #endif
-	unsigned long stamp;
-#ifdef	CONFIG_SMP
-	struct disk_stats __percpu *dkstats;
-#else
-	struct disk_stats dkstats;
-#endif
-	struct percpu_ref ref;
 	struct rcu_work rcu_work;
 };
 
@@ -169,8 +159,6 @@ struct disk_part_tbl {
 struct disk_events;
 struct badblocks;
 
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-
 struct blk_integrity {
 	const struct blk_integrity_profile	*profile;
 	unsigned char				flags;
@@ -178,8 +166,6 @@ struct blk_integrity {
 	unsigned char				interval_exp;
 	unsigned char				tag_size;
 };
-
-#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 struct gendisk {
 	/* major, first_minor and minors are input parameters only,
@@ -217,10 +203,19 @@ struct gendisk {
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct kobject integrity_kobj;
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
+#if IS_ENABLED(CONFIG_CDROM)
+	struct cdrom_device_info *cdi;
+#endif
 	int node_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 };
+
+#if IS_REACHABLE(CONFIG_CDROM)
+#define disk_to_cdi(disk)	((disk)->cdi)
+#else
+#define disk_to_cdi(disk)	NULL
+#endif
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
 {
@@ -263,6 +258,13 @@ static inline void disk_put_part(struct hd_struct *part)
 {
 	if (likely(part))
 		put_device(part_to_dev(part));
+}
+
+static inline void hd_sects_seq_init(struct hd_struct *p)
+{
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	seqcount_init(&p->nr_sects_seq);
+#endif
 }
 
 /*
@@ -339,7 +341,7 @@ extern dev_t blk_lookup_devt(const char *name, int partno);
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
-int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev);
+int blk_drop_partitions(struct block_device *bdev);
 extern void printk_all_partitions(void);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);

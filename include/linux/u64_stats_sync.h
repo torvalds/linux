@@ -3,33 +3,36 @@
 #define _LINUX_U64_STATS_SYNC_H
 
 /*
- * To properly implement 64bits network statistics on 32bit and 64bit hosts,
- * we provide a synchronization point, that is a noop on 64bit or UP kernels.
+ * Protect against 64-bit values tearing on 32-bit architectures. This is
+ * typically used for statistics read/update in different subsystems.
  *
  * Key points :
- * 1) Use a seqcount on SMP 32bits, with low overhead.
- * 2) Whole thing is a noop on 64bit arches or UP kernels.
- * 3) Write side must ensure mutual exclusion or one seqcount update could
+ *
+ * -  Use a seqcount on 32-bit SMP, only disable preemption for 32-bit UP.
+ * -  The whole thing is a no-op on 64-bit architectures.
+ *
+ * Usage constraints:
+ *
+ * 1) Write side must ensure mutual exclusion, or one seqcount update could
  *    be lost, thus blocking readers forever.
- *    If this synchronization point is not a mutex, but a spinlock or
- *    spinlock_bh() or disable_bh() :
- * 3.1) Write side should not sleep.
- * 3.2) Write side should not allow preemption.
- * 3.3) If applicable, interrupts should be disabled.
+ *
+ * 2) Write side must disable preemption, or a seqcount reader can preempt the
+ *    writer and also spin forever.
+ *
+ * 3) Write side must use the _irqsave() variant if other writers, or a reader,
+ *    can be invoked from an IRQ context.
  *
  * 4) If reader fetches several counters, there is no guarantee the whole values
- *    are consistent (remember point 1) : this is a noop on 64bit arches anyway)
+ *    are consistent w.r.t. each other (remember point #2: seqcounts are not
+ *    used for 64bit architectures).
  *
- * 5) readers are allowed to sleep or be preempted/interrupted : They perform
- *    pure reads. But if they have to fetch many values, it's better to not allow
- *    preemptions/interruptions to avoid many retries.
+ * 5) Readers are allowed to sleep or be preempted/interrupted: they perform
+ *    pure reads.
  *
- * 6) If counter might be written by an interrupt, readers should block interrupts.
- *    (On UP, there is no seqcount_t protection, a reader allowing interrupts could
- *     read partial values)
- *
- * 7) For irq and softirq uses, readers can use u64_stats_fetch_begin_irq() and
- *    u64_stats_fetch_retry_irq() helpers
+ * 6) Readers must use both u64_stats_fetch_{begin,retry}_irq() if the stats
+ *    might be updated from a hardirq or softirq context (remember point #1:
+ *    seqcounts are not used for UP kernels). 32-bit UP stat readers could read
+ *    corrupted 64-bit values otherwise.
  *
  * Usage :
  *

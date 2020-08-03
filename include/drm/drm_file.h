@@ -202,6 +202,17 @@ struct drm_file {
 	bool writeback_connectors;
 
 	/**
+	 * @was_master:
+	 *
+	 * This client has or had, master capability. Protected by struct
+	 * &drm_device.master_mutex.
+	 *
+	 * This is used to ensure that CAP_SYS_ADMIN is not enforced, if the
+	 * client is or was master in the past.
+	 */
+	bool was_master;
+
+	/**
 	 * @is_master:
 	 *
 	 * This client is the creator of @master. Protected by struct

@@ -54,11 +54,9 @@ properties:
       and each bit in the cell refers to a children interrupt fron 0 to 31.
       If a CPU interrupt line didn't connected with liointc, then keep it's
       cell with zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 4
-        maxItems: 4
-
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 4
+    maxItems: 4
 
 required:
   - compatible

@@ -1135,6 +1135,40 @@ static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 static void esdhc_set_uhs_signaling(struct sdhci_host *host,
 				   unsigned int timing)
 {
+	u32 val;
+
+	/*
+	 * There are specific registers setting for HS400 mode.
+	 * Clean all of them if controller is in HS400 mode to
+	 * exit HS400 mode before re-setting any speed mode.
+	 */
+	val = sdhci_readl(host, ESDHC_TBCTL);
+	if (val & ESDHC_HS400_MODE) {
+		val = sdhci_readl(host, ESDHC_SDTIMNGCTL);
+		val &= ~ESDHC_FLW_CTL_BG;
+		sdhci_writel(host, val, ESDHC_SDTIMNGCTL);
+
+		val = sdhci_readl(host, ESDHC_SDCLKCTL);
+		val &= ~ESDHC_CMD_CLK_CTL;
+		sdhci_writel(host, val, ESDHC_SDCLKCTL);
+
+		esdhc_clock_enable(host, false);
+		val = sdhci_readl(host, ESDHC_TBCTL);
+		val &= ~ESDHC_HS400_MODE;
+		sdhci_writel(host, val, ESDHC_TBCTL);
+		esdhc_clock_enable(host, true);
+
+		val = sdhci_readl(host, ESDHC_DLLCFG0);
+		val &= ~(ESDHC_DLL_ENABLE | ESDHC_DLL_FREQ_SEL);
+		sdhci_writel(host, val, ESDHC_DLLCFG0);
+
+		val = sdhci_readl(host, ESDHC_TBCTL);
+		val &= ~ESDHC_HS400_WNDW_ADJUST;
+		sdhci_writel(host, val, ESDHC_TBCTL);
+
+		esdhc_tuning_block_enable(host, false);
+	}
+
 	if (timing == MMC_TIMING_MMC_HS400)
 		esdhc_tuning_block_enable(host, true);
 	else

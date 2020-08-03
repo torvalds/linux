@@ -172,7 +172,7 @@ no_preference:
  *
  * Initialise a record of a cache and fill in the name.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 void fscache_init_cache(struct fscache_cache *cache,
@@ -207,7 +207,7 @@ EXPORT_SYMBOL(fscache_init_cache);
  *
  * Add a cache to the system, making it available for netfs's to use.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 int fscache_add_cache(struct fscache_cache *cache,
@@ -307,7 +307,7 @@ EXPORT_SYMBOL(fscache_add_cache);
  * Note that an I/O error occurred in a cache and that it should no longer be
  * used for anything.  This also reports the error into the kernel log.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 void fscache_io_error(struct fscache_cache *cache)
@@ -355,7 +355,7 @@ static void fscache_withdraw_all_objects(struct fscache_cache *cache,
  * Withdraw a cache from service, unbinding all its cache objects from the
  * netfs cookies they're currently representing.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 void fscache_withdraw_cache(struct fscache_cache *cache)

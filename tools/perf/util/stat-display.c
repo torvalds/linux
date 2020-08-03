@@ -237,8 +237,6 @@ static bool valid_only_metric(const char *unit)
 	if (!unit)
 		return false;
 	if (strstr(unit, "/sec") ||
-	    strstr(unit, "hz") ||
-	    strstr(unit, "Hz") ||
 	    strstr(unit, "CPUs utilized"))
 		return false;
 	return true;
@@ -248,7 +246,7 @@ static const char *fixunit(char *buf, struct evsel *evsel,
 			   const char *unit)
 {
 	if (!strncmp(unit, "of all", 6)) {
-		snprintf(buf, 1024, "%s %s", perf_evsel__name(evsel),
+		snprintf(buf, 1024, "%s %s", evsel__name(evsel),
 			 unit);
 		return buf;
 	}
@@ -335,7 +333,7 @@ static int first_shadow_cpu(struct perf_stat_config *config,
 	if (config->aggr_mode == AGGR_GLOBAL)
 		return 0;
 
-	for (i = 0; i < perf_evsel__nr_cpus(evsel); i++) {
+	for (i = 0; i < evsel__nr_cpus(evsel); i++) {
 		int cpu2 = evsel__cpus(evsel)->map[i];
 
 		if (config->aggr_get_id(config, evlist->core.cpus, cpu2) == id)
@@ -369,7 +367,7 @@ static void abs_printout(struct perf_stat_config *config,
 			config->csv_output ? 0 : config->unit_width,
 			evsel->unit, config->csv_sep);
 
-	fprintf(output, "%-*s", config->csv_output ? 0 : 25, perf_evsel__name(evsel));
+	fprintf(output, "%-*s", config->csv_output ? 0 : 25, evsel__name(evsel));
 
 	print_cgroup(config, evsel);
 }
@@ -463,8 +461,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 			counter->unit, config->csv_sep);
 
 		fprintf(config->output, "%*s",
-			config->csv_output ? 0 : -25,
-			perf_evsel__name(counter));
+			config->csv_output ? 0 : -25, evsel__name(counter));
 
 		print_cgroup(config, counter);
 
@@ -510,7 +507,7 @@ static void aggr_update_shadow(struct perf_stat_config *config,
 		id = config->aggr_map->map[s];
 		evlist__for_each_entry(evlist, counter) {
 			val = 0;
-			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
+			for (cpu = 0; cpu < evsel__nr_cpus(counter); cpu++) {
 				s2 = config->aggr_get_id(config, evlist->core.cpus, cpu);
 				if (s2 != id)
 					continue;
@@ -561,11 +558,11 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 
 	alias = list_prepare_entry(counter, &(evlist->core.entries), core.node);
 	list_for_each_entry_continue (alias, &evlist->core.entries, core.node) {
-		if (strcmp(perf_evsel__name(alias), perf_evsel__name(counter)) ||
+		if (strcmp(evsel__name(alias), evsel__name(counter)) ||
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
 		    strcmp(alias->unit, counter->unit) ||
-		    perf_evsel__is_clock(alias) != perf_evsel__is_clock(counter) ||
+		    evsel__is_clock(alias) != evsel__is_clock(counter) ||
 		    !strcmp(alias->pmu_name, counter->pmu_name))
 			break;
 		alias->merged_stat = true;
@@ -601,7 +598,7 @@ static void aggr_cb(struct perf_stat_config *config,
 	struct aggr_data *ad = data;
 	int cpu, s2;
 
-	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
+	for (cpu = 0; cpu < evsel__nr_cpus(counter); cpu++) {
 		struct perf_counts_values *counts;
 
 		s2 = config->aggr_get_id(config, evsel__cpus(counter), cpu);
@@ -849,7 +846,7 @@ static void print_counter(struct perf_stat_config *config,
 	double uval;
 	int cpu;
 
-	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
+	for (cpu = 0; cpu < evsel__nr_cpus(counter); cpu++) {
 		struct aggr_data ad = { .cpu = cpu };
 
 		if (!collect_data(config, counter, counter_cb, &ad))
@@ -1150,7 +1147,7 @@ static void print_percore_thread(struct perf_stat_config *config,
 	int s, s2, id;
 	bool first = true;
 
-	for (int i = 0; i < perf_evsel__nr_cpus(counter); i++) {
+	for (int i = 0; i < evsel__nr_cpus(counter); i++) {
 		s2 = config->aggr_get_id(config, evsel__cpus(counter), i);
 		for (s = 0; s < config->aggr_map->nr; s++) {
 			id = config->aggr_map->map[s];

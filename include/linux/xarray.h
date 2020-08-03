@@ -576,7 +576,7 @@ void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
@@ -602,7 +602,7 @@ static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)

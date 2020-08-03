@@ -275,7 +275,6 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		__rxrpc_call_completed(call);
-		rxrpc_notify_socket(call);
 		state = call->state;
 		break;
 
@@ -1013,9 +1012,8 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 
 	_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
 
-	if (rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
-				      abort_code, -ECONNABORTED))
-		rxrpc_notify_socket(call);
+	rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
+				  abort_code, -ECONNABORTED);
 }
 
 /*
@@ -1102,7 +1100,6 @@ static void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
 	spin_lock(&rx->incoming_lock);
 	__rxrpc_disconnect_call(conn, call);
 	spin_unlock(&rx->incoming_lock);
-	rxrpc_notify_socket(call);
 }
 
 /*

@@ -16,16 +16,38 @@
 
 typedef void (*smp_call_func_t)(void *info);
 typedef bool (*smp_cond_func_t)(int cpu, void *info);
+
+enum {
+	CSD_FLAG_LOCK		= 0x01,
+
+	/* IRQ_WORK_flags */
+
+	CSD_TYPE_ASYNC		= 0x00,
+	CSD_TYPE_SYNC		= 0x10,
+	CSD_TYPE_IRQ_WORK	= 0x20,
+	CSD_TYPE_TTWU		= 0x30,
+	CSD_FLAG_TYPE_MASK	= 0xF0,
+};
+
+/*
+ * structure shares (partial) layout with struct irq_work
+ */
 struct __call_single_data {
 	struct llist_node llist;
+	unsigned int flags;
 	smp_call_func_t func;
 	void *info;
-	unsigned int flags;
 };
 
 /* Use __aligned() to avoid to use 2 cache lines for 1 csd */
 typedef struct __call_single_data call_single_data_t
 	__aligned(sizeof(struct __call_single_data));
+
+/*
+ * Enqueue a llist_node on the call_single_queue; be very careful, read
+ * flush_smp_call_function_queue() in detail.
+ */
+extern void __smp_call_single_queue(int cpu, struct llist_node *node);
 
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
@@ -227,8 +249,8 @@ static inline int get_boot_cpu_id(void)
  */
 extern void arch_disable_smp_support(void);
 
-extern void arch_enable_nonboot_cpus_begin(void);
-extern void arch_enable_nonboot_cpus_end(void);
+extern void arch_thaw_secondary_cpus_begin(void);
+extern void arch_thaw_secondary_cpus_end(void);
 
 void smp_setup_processor_id(void);
 

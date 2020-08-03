@@ -35,9 +35,12 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 					   const struct mtd_partition *part,
 					   int partno, uint64_t cur_offset)
 {
-	int wr_alignment = (parent->flags & MTD_NO_ERASE) ? parent->writesize :
-							    parent->erasesize;
-	struct mtd_info *child, *master = mtd_get_master(parent);
+	struct mtd_info *master = mtd_get_master(parent);
+	int wr_alignment = (parent->flags & MTD_NO_ERASE) ?
+			   master->writesize : master->erasesize;
+	u64 parent_size = mtd_is_partition(parent) ?
+			  parent->part.size : parent->size;
+	struct mtd_info *child;
 	u32 remainder;
 	char *name;
 	u64 tmp;
@@ -56,8 +59,9 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	/* set up the MTD object for this partition */
 	child->type = parent->type;
 	child->part.flags = parent->flags & ~part->mask_flags;
+	child->part.flags |= part->add_flags;
 	child->flags = child->part.flags;
-	child->size = part->size;
+	child->part.size = part->size;
 	child->writesize = parent->writesize;
 	child->writebufsize = parent->writebufsize;
 	child->oobsize = parent->oobsize;
@@ -98,29 +102,29 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	}
 	if (child->part.offset == MTDPART_OFS_RETAIN) {
 		child->part.offset = cur_offset;
-		if (parent->size - child->part.offset >= child->size) {
-			child->size = parent->size - child->part.offset -
-				      child->size;
+		if (parent_size - child->part.offset >= child->part.size) {
+			child->part.size = parent_size - child->part.offset -
+					   child->part.size;
 		} else {
 			printk(KERN_ERR "mtd partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
-				part->name, parent->size - child->part.offset,
-				child->size);
+				part->name, parent_size - child->part.offset,
+				child->part.size);
 			/* register to preserve ordering */
 			goto out_register;
 		}
 	}
-	if (child->size == MTDPART_SIZ_FULL)
-		child->size = parent->size - child->part.offset;
+	if (child->part.size == MTDPART_SIZ_FULL)
+		child->part.size = parent_size - child->part.offset;
 
 	printk(KERN_NOTICE "0x%012llx-0x%012llx : \"%s\"\n",
-	       child->part.offset, child->part.offset + child->size,
+	       child->part.offset, child->part.offset + child->part.size,
 	       child->name);
 
 	/* let's do some sanity checks */
-	if (child->part.offset >= parent->size) {
+	if (child->part.offset >= parent_size) {
 		/* let's register it anyway to preserve ordering */
 		child->part.offset = 0;
-		child->size = 0;
+		child->part.size = 0;
 
 		/* Initialize ->erasesize to make add_mtd_device() happy. */
 		child->erasesize = parent->erasesize;
@@ -128,15 +132,16 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 			part->name);
 		goto out_register;
 	}
-	if (child->part.offset + child->size > parent->size) {
-		child->size = parent->size - child->part.offset;
+	if (child->part.offset + child->part.size > parent->size) {
+		child->part.size = parent_size - child->part.offset;
 		printk(KERN_WARNING"mtd: partition \"%s\" extends beyond the end of device \"%s\" -- size truncated to %#llx\n",
-			part->name, parent->name, child->size);
+			part->name, parent->name, child->part.size);
 	}
+
 	if (parent->numeraseregions > 1) {
 		/* Deal with variable erase size stuff */
 		int i, max = parent->numeraseregions;
-		u64 end = child->part.offset + child->size;
+		u64 end = child->part.offset + child->part.size;
 		struct mtd_erase_region_info *regions = parent->eraseregions;
 
 		/* Find the first erase regions which is part of this
@@ -156,7 +161,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 		BUG_ON(child->erasesize == 0);
 	} else {
 		/* Single erase size */
-		child->erasesize = parent->erasesize;
+		child->erasesize = master->erasesize;
 	}
 
 	/*
@@ -178,7 +183,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 			part->name);
 	}
 
-	tmp = mtd_get_master_ofs(child, 0) + child->size;
+	tmp = mtd_get_master_ofs(child, 0) + child->part.size;
 	remainder = do_div(tmp, wr_alignment);
 	if ((child->flags & MTD_WRITEABLE) && remainder) {
 		child->flags &= ~MTD_WRITEABLE;
@@ -186,6 +191,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 			part->name);
 	}
 
+	child->size = child->part.size;
 	child->ecc_step_size = parent->ecc_step_size;
 	child->ecc_strength = parent->ecc_strength;
 	child->bitflip_threshold = parent->bitflip_threshold;
@@ -193,7 +199,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	if (master->_block_isbad) {
 		uint64_t offs = 0;
 
-		while (offs < child->size) {
+		while (offs < child->part.size) {
 			if (mtd_block_isreserved(child, offs))
 				child->ecc_stats.bbtblocks++;
 			else if (mtd_block_isbad(child, offs))
@@ -234,6 +240,8 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 		      long long offset, long long length)
 {
 	struct mtd_info *master = mtd_get_master(parent);
+	u64 parent_size = mtd_is_partition(parent) ?
+			  parent->part.size : parent->size;
 	struct mtd_partition part;
 	struct mtd_info *child;
 	int ret = 0;
@@ -244,7 +252,7 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 		return -EINVAL;
 
 	if (length == MTDPART_SIZ_FULL)
-		length = parent->size - offset;
+		length = parent_size - offset;
 
 	if (length <= 0)
 		return -EINVAL;
@@ -419,7 +427,7 @@ int add_mtd_partitions(struct mtd_info *parent,
 		/* Look for subpartitions */
 		parse_mtd_partitions(child, parts[i].types, NULL);
 
-		cur_offset = child->part.offset + child->size;
+		cur_offset = child->part.offset + child->part.size;
 	}
 
 	return 0;

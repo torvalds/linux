@@ -495,6 +495,5 @@ void intel_dram_edram_detect(struct drm_i915_private *i915)
 	else
 		i915->edram_size_mb = gen9_edram_size_mb(i915, edram_cap);
 
-	dev_info(i915->drm.dev,
-		 "Found %uMB of eDRAM\n", i915->edram_size_mb);
+	drm_info(&i915->drm, "Found %uMB of eDRAM\n", i915->edram_size_mb);
 }

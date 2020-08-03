@@ -308,14 +308,30 @@
 				ti,hwmods = "mcspi4";
 			};
 
-			timer1: timer@2e000 {
-				compatible = "ti,dm814-timer";
-				reg = <0x2e000 0x2000>;
-				interrupts = <67>;
-				ti,hwmods = "timer1";
-				ti,timer-alwon;
+			timer1_target: target-module@2e000 {
+				compatible = "ti,sysc-omap4-timer", "ti,sysc";
+				reg = <0x2e000 0x4>,
+				      <0x2e010 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>,
+						<SYSC_IDLE_SMART>,
+						<SYSC_IDLE_SMART_WKUP>;
 				clocks = <&timer1_fck>;
 				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x2e000 0x1000>;
+
+				timer1: timer@0 {
+					compatible = "ti,am335x-timer-1ms";
+					reg = <0x0 0x400>;
+					interrupts = <67>;
+					ti,timer-alwon;
+					clocks = <&timer1_fck>;
+					clock-names = "fck";
+				};
 			};
 
 			uart1: uart@20000 {
@@ -348,13 +364,29 @@
 				dma-names = "tx", "rx";
 			};
 
-			timer2: timer@40000 {
-				compatible = "ti,dm814-timer";
-				reg = <0x40000 0x2000>;
-				interrupts = <68>;
-				ti,hwmods = "timer2";
+			timer2_target: target-module@40000 {
+				compatible = "ti,sysc-omap4-timer", "ti,sysc";
+				reg = <0x40000 0x4>,
+				      <0x40010 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>,
+						<SYSC_IDLE_SMART>,
+						<SYSC_IDLE_SMART_WKUP>;
 				clocks = <&timer2_fck>;
 				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x40000 0x1000>;
+
+				timer2: timer@0 {
+					compatible = "ti,dm814-timer";
+					reg = <0 0x1000>;
+					interrupts = <68>;
+					clocks = <&timer2_fck>;
+					clock-names = "fck";
+				};
 			};
 
 			timer3: timer@42000 {
@@ -693,7 +725,7 @@
 
 					davinci_mdio: mdio@800 {
 						compatible = "ti,cpsw-mdio", "ti,davinci_mdio";
-						clocks = <&alwon_ethernet_clkctrl DM814_ETHERNET_CPGMAC0_CLKCTRL 0>;
+						clocks = <&cpsw_125mhz_gclk>;
 						clock-names = "fck";
 						#address-cells = <1>;
 						#size-cells = <0>;
@@ -735,3 +767,23 @@
 };
 
 #include "dm814x-clocks.dtsi"
+
+/* Preferred always-on timer for clocksource */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&timer1_fck>;
+		assigned-clock-parents = <&devosc_ck>;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer2_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&timer2_fck>;
+		assigned-clock-parents = <&devosc_ck>;
+	};
+};

@@ -27,7 +27,7 @@ properties:
   gpio-controller: true
 
   '#gpio-cells':
-      const: 2
+    const: 2
 
   ngpios:
     minimum: 0

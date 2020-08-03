@@ -44,9 +44,8 @@
 #define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
 #define	_PAGE_USER	0x010	/* matches one of the zone permission bits */
 #define	_PAGE_SPECIAL	0x020	/* software: Special page */
-#define	_PAGE_RW	0x040	/* software: Writes permitted */
 #define	_PAGE_DIRTY	0x080	/* software: dirty page */
-#define _PAGE_HWWRITE	0x100	/* hardware: Dirty & RW, set in exception */
+#define _PAGE_RW	0x100	/* hardware: WR, anded with dirty in exception */
 #define _PAGE_EXEC	0x200	/* hardware: EX permission */
 #define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
 
@@ -58,8 +57,8 @@
 
 #define _PAGE_KERNEL_RO		0
 #define _PAGE_KERNEL_ROX	_PAGE_EXEC
-#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
-#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE | _PAGE_EXEC)
+#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW)
+#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_EXEC)
 
 #define _PMD_PRESENT	0x400	/* PMD points to page of PTEs */
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
@@ -84,22 +83,6 @@
 #define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 #define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-
-#ifndef __ASSEMBLY__
-static inline pte_t pte_wrprotect(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~(_PAGE_RW | _PAGE_HWWRITE));
-}
-
-#define pte_wrprotect pte_wrprotect
-
-static inline pte_t pte_mkclean(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~(_PAGE_DIRTY | _PAGE_HWWRITE));
-}
-
-#define pte_mkclean pte_mkclean
-#endif
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_32_PTE_40x_H */

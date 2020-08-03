@@ -81,7 +81,8 @@ properties:
     $ref: /schemas/types.yaml#definitions/flag
     description:
       If set, indicates the PHY device does not correctly release
-      the turn around line low at the end of a MDIO transaction.
+      the turn around line low at end of the control phase of the
+      MDIO transaction.
 
   enet-phy-lane-swap:
     $ref: /schemas/types.yaml#definitions/flag

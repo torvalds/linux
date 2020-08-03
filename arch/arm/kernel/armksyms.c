@@ -7,7 +7,6 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/cryptohash.h>
 #include <linux/delay.h>
 #include <linux/in6.h>
 #include <linux/syscalls.h>

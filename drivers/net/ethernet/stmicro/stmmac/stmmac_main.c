@@ -630,7 +630,8 @@ static int stmmac_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 			ptp_v2 = PTP_TCR_TSVER2ENA;
 			snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
-			ts_event_en = PTP_TCR_TSEVNTENA;
+			if (priv->synopsys_id != DWMAC_CORE_5_10)
+				ts_event_en = PTP_TCR_TSEVNTENA;
 			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
 			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
 			ptp_over_ethernet = PTP_TCR_TSIPENA;
@@ -3541,15 +3542,6 @@ static void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 		skb_pull(skb, VLAN_HLEN);
 		__vlan_hwaccel_put_tag(skb, vlan_proto, vlanid);
 	}
-}
-
-
-static inline int stmmac_rx_threshold_count(struct stmmac_rx_queue *rx_q)
-{
-	if (rx_q->rx_zeroc_thresh < STMMAC_RX_THRESH)
-		return 0;
-
-	return 1;
 }
 
 /**

@@ -430,7 +430,7 @@ static struct security_hook_list yama_hooks[] __lsm_ro_after_init = {
 
 #ifdef CONFIG_SYSCTL
 static int yama_dointvec_minmax(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table table_copy;
 

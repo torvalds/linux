@@ -125,6 +125,7 @@ extern int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *,
 extern int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *);
 extern int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *,
 					    struct fsf_qtcb_bottom_port *);
+extern u32 zfcp_fsf_convert_portspeed(u32 fsf_speed);
 extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int zfcp_fsf_status_read(struct zfcp_qdio *);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
@@ -134,6 +135,7 @@ extern int zfcp_fsf_send_els(struct zfcp_adapter *, u32,
 			     struct zfcp_fsf_ct_els *, unsigned int);
 extern int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *);
 extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
+extern void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter);
 extern struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_device *sdev,
 						   u8 tm_flags);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *);
@@ -153,6 +155,8 @@ extern int zfcp_qdio_sbal_get(struct zfcp_qdio *);
 extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_qdio_req *);
 extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 				   struct scatterlist *);
+extern void zfcp_qdio_shost_update(struct zfcp_adapter *const adapter,
+				   const struct zfcp_qdio *const qdio);
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
@@ -169,6 +173,13 @@ extern void zfcp_scsi_schedule_rport_block(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *);
 extern void zfcp_scsi_set_prot(struct zfcp_adapter *);
 extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
+extern void zfcp_scsi_shost_update_config_data(
+	struct zfcp_adapter *const adapter,
+	const struct fsf_qtcb_bottom_config *const bottom,
+	const bool bottom_incomplete);
+extern void zfcp_scsi_shost_update_port_data(
+	struct zfcp_adapter *const adapter,
+	const struct fsf_qtcb_bottom_port *const bottom);
 
 /* zfcp_sysfs.c */
 extern const struct attribute_group *zfcp_unit_attr_groups[];

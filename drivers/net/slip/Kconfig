@@ -6,7 +6,7 @@
 config SLIP
 	tristate "SLIP (serial line) support"
 	depends on TTY
-	---help---
+	help
 	  Say Y if you intend to use SLIP or CSLIP (compressed SLIP) to
 	  connect to your Internet service provider or to connect to some
 	  other local Unix box or if you want to configure your Linux box as a
@@ -36,7 +36,7 @@ config SLIP
 
 config SLHC
 	tristate
-	---help---
+	help
 	  This option enables Van Jacobsen serial line header compression
 	  routines.
 
@@ -46,7 +46,7 @@ config SLIP_COMPRESSED
 	bool "CSLIP compressed headers"
 	depends on SLIP
 	select SLHC
-	---help---
+	help
 	  This protocol is faster than SLIP because it uses compression on the
 	  TCP/IP headers (not on the data itself), but it has to be supported
 	  on both ends. Ask your access provider if you are not sure and
@@ -61,7 +61,7 @@ config SLIP_COMPRESSED
 config SLIP_SMART
 	bool "Keepalive and linefill"
 	depends on SLIP
-	---help---
+	help
 	  Adds additional capabilities to the SLIP driver to support the
 	  RELCOM line fill and keepalive monitoring. Ideal on poor quality
 	  analogue lines.
@@ -69,7 +69,7 @@ config SLIP_SMART
 config SLIP_MODE_SLIP6
 	bool "Six bit SLIP encapsulation"
 	depends on SLIP
-	---help---
+	help
 	  Just occasionally you may need to run IP over hostile serial
 	  networks that don't pass all control characters or are only seven
 	  bit. Saying Y here adds an extra mode you can use with SLIP:

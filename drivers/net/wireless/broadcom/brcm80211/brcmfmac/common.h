@@ -72,4 +72,8 @@ static inline void
 brcmf_dmi_probe(struct brcmf_mp_device *settings, u32 chip, u32 chiprev) {}
 #endif
 
+u8 brcmf_map_prio_to_prec(void *cfg, u8 prio);
+
+u8 brcmf_map_prio_to_aci(void *cfg, u8 prio);
+
 #endif /* BRCMFMAC_COMMON_H */

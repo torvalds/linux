@@ -65,3 +65,27 @@ usb_gadget_get_string (const struct usb_gadget_strings *table, int id, u8 *buf)
 	return buf [0];
 }
 EXPORT_SYMBOL_GPL(usb_gadget_get_string);
+
+/**
+ * usb_validate_langid - validate usb language identifiers
+ * @lang: usb language identifier
+ *
+ * Returns true for valid language identifier, otherwise false.
+ */
+bool usb_validate_langid(u16 langid)
+{
+	u16 primary_lang = langid & 0x3ff;	/* bit [9:0] */
+	u16 sub_lang = langid >> 10;		/* bit [15:10] */
+
+	switch (primary_lang) {
+	case 0:
+	case 0x62 ... 0xfe:
+	case 0x100 ... 0x3ff:
+		return false;
+	}
+	if (!sub_lang)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(usb_validate_langid);

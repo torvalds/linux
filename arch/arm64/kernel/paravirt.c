@@ -120,7 +120,7 @@ static bool has_pv_steal_clock(void)
 	struct arm_smccc_res res;
 
 	/* To detect the presence of PV time support we require SMCCC 1.1+ */
-	if (psci_ops.smccc_version < SMCCC_VERSION_1_1)
+	if (arm_smccc_1_1_get_conduit() == SMCCC_CONDUIT_NONE)
 		return false;
 
 	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,

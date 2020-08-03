@@ -18,7 +18,6 @@
 #include <linux/mm.h>
 
 #include <linux/sizes.h>
-#include <asm/pgtable.h>
 #include <mach/hardware.h>
 
 /* Platform_data reserved for unifb registers. */

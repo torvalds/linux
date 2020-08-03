@@ -28,7 +28,7 @@ config PARIDE_PCD
 	depends on PARIDE
 	select CDROM
 	select BLK_SCSI_REQUEST # only for the generic cdrom code
-	---help---
+	help
 	  This option enables the high-level driver for ATAPI CD-ROM devices
 	  connected through a parallel port. If you chose to build PARIDE
 	  support into your kernel, you may answer Y here to build in the
@@ -71,7 +71,7 @@ config PARIDE_PT
 config PARIDE_PG
 	tristate "Parallel port generic ATAPI devices"
 	depends on PARIDE
-	---help---
+	help
 	  This option enables a special high-level driver for generic ATAPI
 	  devices connected through a parallel port. The driver allows user
 	  programs, such as cdrtools, to send ATAPI commands directly to a
@@ -111,7 +111,7 @@ config PARIDE_ATEN
 config PARIDE_BPCK
 	tristate "MicroSolutions backpack (Series 5) protocol"
 	depends on PARIDE
-	---help---
+	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 5 IDE protocol.  (Most BACKPACK drives made
 	  before 1999 were Series 5) Series 5 drives will NOT always have the
@@ -129,7 +129,7 @@ config PARIDE_BPCK
 config PARIDE_BPCK6
 	tristate "MicroSolutions backpack (Series 6) protocol"
 	depends on PARIDE && !64BIT
-	---help---
+	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 6 IDE protocol.  (Most BACKPACK drives made
 	  after 1999 were Series 6) Series 6 drives will have the Series noted

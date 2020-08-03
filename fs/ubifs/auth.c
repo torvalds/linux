@@ -31,15 +31,9 @@ int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *node,
 			    u8 *hash)
 {
 	const struct ubifs_ch *ch = node;
-	SHASH_DESC_ON_STACK(shash, c->hash_tfm);
-	int err;
 
-	shash->tfm = c->hash_tfm;
-
-	err = crypto_shash_digest(shash, node, le32_to_cpu(ch->len), hash);
-	if (err < 0)
-		return err;
-	return 0;
+	return crypto_shash_tfm_digest(c->hash_tfm, node, le32_to_cpu(ch->len),
+				       hash);
 }
 
 /**
@@ -53,15 +47,7 @@ int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *node,
 static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 				 u8 *hmac)
 {
-	SHASH_DESC_ON_STACK(shash, c->hmac_tfm);
-	int err;
-
-	shash->tfm = c->hmac_tfm;
-
-	err = crypto_shash_digest(shash, hash, c->hash_len, hmac);
-	if (err < 0)
-		return err;
-	return 0;
+	return crypto_shash_tfm_digest(c->hmac_tfm, hash, c->hash_len, hmac);
 }
 
 /**

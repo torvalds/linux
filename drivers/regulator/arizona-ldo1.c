@@ -87,7 +87,7 @@ static const struct regulator_ops arizona_ldo1_hc_ops = {
 	.set_bypass = regulator_set_bypass_regmap,
 };
 
-static const struct regulator_linear_range arizona_ldo1_hc_ranges[] = {
+static const struct linear_range arizona_ldo1_hc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 0x6, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 0x7, 0x7, 0),
 };

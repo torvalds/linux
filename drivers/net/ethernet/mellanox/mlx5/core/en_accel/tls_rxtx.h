@@ -40,11 +40,14 @@
 #include "en.h"
 #include "en/txrx.h"
 
-struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
-					struct mlx5e_txqsq *sq,
-					struct sk_buff *skb,
-					struct mlx5e_tx_wqe **wqe,
-					u16 *pi);
+struct mlx5e_accel_tx_tls_state {
+	u32 tls_tisn;
+};
+
+bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state);
+void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			     struct mlx5e_accel_tx_tls_state *state);
 
 void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 			     u32 *cqe_bcnt);

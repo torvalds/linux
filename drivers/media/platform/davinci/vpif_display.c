@@ -1225,7 +1225,6 @@ static int vpif_probe_complete(void)
 probe_out:
 	for (k = 0; k < j; k++) {
 		ch = vpif_obj.dev[k];
-		common = &ch->common[k];
 		video_unregister_device(&ch->video_dev);
 	}
 	return err;

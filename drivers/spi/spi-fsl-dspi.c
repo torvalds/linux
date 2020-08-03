@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
 // Copyright 2013 Freescale Semiconductor, Inc.
+// Copyright 2020 NXP
 //
 // Freescale DSPI driver
 // This file contains a driver for the Freescale DSPI
@@ -26,6 +27,9 @@
 #define SPI_MCR_CLR_TXF			BIT(11)
 #define SPI_MCR_CLR_RXF			BIT(10)
 #define SPI_MCR_XSPI			BIT(3)
+#define SPI_MCR_DIS_TXF			BIT(13)
+#define SPI_MCR_DIS_RXF			BIT(12)
+#define SPI_MCR_HALT			BIT(0)
 
 #define SPI_TCR				0x08
 #define SPI_TCR_GET_TCNT(x)		(((x) & GENMASK(31, 16)) >> 16)
@@ -246,13 +250,33 @@ struct fsl_dspi {
 
 static void dspi_native_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
 {
-	memcpy(txdata, dspi->tx, dspi->oper_word_size);
+	switch (dspi->oper_word_size) {
+	case 1:
+		*txdata = *(u8 *)dspi->tx;
+		break;
+	case 2:
+		*txdata = *(u16 *)dspi->tx;
+		break;
+	case 4:
+		*txdata = *(u32 *)dspi->tx;
+		break;
+	}
 	dspi->tx += dspi->oper_word_size;
 }
 
 static void dspi_native_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
 {
-	memcpy(dspi->rx, &rxdata, dspi->oper_word_size);
+	switch (dspi->oper_word_size) {
+	case 1:
+		*(u8 *)dspi->rx = rxdata;
+		break;
+	case 2:
+		*(u16 *)dspi->rx = rxdata;
+		break;
+	case 4:
+		*(u32 *)dspi->rx = rxdata;
+		break;
+	}
 	dspi->rx += dspi->oper_word_size;
 }
 
@@ -1417,6 +1441,24 @@ static int dspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void dspi_shutdown(struct platform_device *pdev)
+{
+	struct spi_controller *ctlr = platform_get_drvdata(pdev);
+	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
+
+	/* Disable RX and TX */
+	regmap_update_bits(dspi->regmap, SPI_MCR,
+			   SPI_MCR_DIS_TXF | SPI_MCR_DIS_RXF,
+			   SPI_MCR_DIS_TXF | SPI_MCR_DIS_RXF);
+
+	/* Stop Running */
+	regmap_update_bits(dspi->regmap, SPI_MCR, SPI_MCR_HALT, SPI_MCR_HALT);
+
+	dspi_release_dma(dspi);
+	clk_disable_unprepare(dspi->clk);
+	spi_unregister_controller(dspi->ctlr);
+}
+
 static struct platform_driver fsl_dspi_driver = {
 	.driver.name		= DRIVER_NAME,
 	.driver.of_match_table	= fsl_dspi_dt_ids,
@@ -1424,6 +1466,7 @@ static struct platform_driver fsl_dspi_driver = {
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
 	.remove			= dspi_remove,
+	.shutdown		= dspi_shutdown,
 };
 module_platform_driver(fsl_dspi_driver);
 

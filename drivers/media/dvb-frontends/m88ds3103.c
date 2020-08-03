@@ -980,6 +980,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			goto err;
 
 		ret = m88ds3103_update_bits(dev, 0xc9, 0x08, 0x08);
+		if (ret)
+			goto err;
 	}
 
 	dev_dbg(&client->dev, "carrier offset=%d\n",
@@ -1898,7 +1900,7 @@ static int m88ds3103_probe(struct i2c_client *client,
 		if (ret)
 			goto err_kfree;
 		dev->dt_addr = ((utmp & 0x80) == 0) ? 0x42 >> 1 : 0x40 >> 1;
-		dev_err(&client->dev, "dt addr is 0x%02x", dev->dt_addr);
+		dev_dbg(&client->dev, "dt addr is 0x%02x\n", dev->dt_addr);
 
 		dev->dt_client = i2c_new_dummy_device(client->adapter,
 						      dev->dt_addr);

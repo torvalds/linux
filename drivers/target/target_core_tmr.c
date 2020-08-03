@@ -148,8 +148,8 @@ void core_tmr_abort_task(
 		 * code.
 		 */
 		if (!tmr->tmr_dev)
-			WARN_ON_ONCE(transport_lookup_tmr_lun(tmr->task_cmd,
-						se_cmd->orig_fe_lun) < 0);
+			WARN_ON_ONCE(transport_lookup_tmr_lun(tmr->task_cmd) <
+					0);
 
 		target_put_cmd_and_wait(se_cmd);
 

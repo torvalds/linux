@@ -24,6 +24,7 @@
 #include <asm/disassemble.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/sstep.h>
+#include <asm/inst.h>
 
 struct aligninfo {
 	unsigned char len;
@@ -104,7 +105,7 @@ static struct aligninfo spe_aligninfo[32] = {
  * so we don't need the address swizzling.
  */
 static int emulate_spe(struct pt_regs *regs, unsigned int reg,
-		       unsigned int instr)
+		       struct ppc_inst ppc_instr)
 {
 	int ret;
 	union {
@@ -115,8 +116,9 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 	} data, temp;
 	unsigned char __user *p, *addr;
 	unsigned long *evr = &current->thread.evr[reg];
-	unsigned int nb, flags;
+	unsigned int nb, flags, instr;
 
+	instr = ppc_inst_val(ppc_instr);
 	instr = (instr >> 1) & 0x1f;
 
 	/* DAR has the operand effective address */
@@ -293,7 +295,7 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 
 int fix_alignment(struct pt_regs *regs)
 {
-	unsigned int instr;
+	struct ppc_inst instr;
 	struct instruction_op op;
 	int r, type;
 
@@ -303,18 +305,18 @@ int fix_alignment(struct pt_regs *regs)
 	 */
 	CHECK_FULL_REGS(regs);
 
-	if (unlikely(__get_user(instr, (unsigned int __user *)regs->nip)))
+	if (unlikely(__get_user_instr(instr, (void __user *)regs->nip)))
 		return -EFAULT;
 	if ((regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE)) {
 		/* We don't handle PPC little-endian any more... */
 		if (cpu_has_feature(CPU_FTR_PPC_LE))
 			return -EIO;
-		instr = swab32(instr);
+		instr = ppc_inst_swab(instr);
 	}
 
 #ifdef CONFIG_SPE
-	if ((instr >> 26) == 0x4) {
-		int reg = (instr >> 21) & 0x1f;
+	if (ppc_inst_primary_opcode(instr) == 0x4) {
+		int reg = (ppc_inst_val(instr) >> 21) & 0x1f;
 		PPC_WARN_ALIGNMENT(spe, regs);
 		return emulate_spe(regs, reg, instr);
 	}
@@ -331,7 +333,7 @@ int fix_alignment(struct pt_regs *regs)
 	 * when pasting to a co-processor. Furthermore, paste_last is the
 	 * synchronisation point for preceding copy/paste sequences.
 	 */
-	if ((instr & 0xfc0006fe) == (PPC_INST_COPY & 0xfc0006fe))
+	if ((ppc_inst_val(instr) & 0xfc0006fe) == (PPC_INST_COPY & 0xfc0006fe))
 		return -EIO;
 
 	r = analyse_instr(&op, regs, instr);

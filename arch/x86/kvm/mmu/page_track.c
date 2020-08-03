@@ -61,7 +61,7 @@ static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
 {
 	int index, val;
 
-	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
 
 	val = slot->arch.gfn_track[mode][index];
 
@@ -151,7 +151,7 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (!slot)
 		return false;
 
-	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
 	return !!READ_ONCE(slot->arch.gfn_track[mode][index]);
 }
 

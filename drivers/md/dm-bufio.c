@@ -256,10 +256,33 @@ static struct dm_buffer *__find(struct dm_bufio_client *c, sector_t block)
 		if (b->block == block)
 			return b;
 
-		n = (b->block < block) ? n->rb_left : n->rb_right;
+		n = block < b->block ? n->rb_left : n->rb_right;
 	}
 
 	return NULL;
+}
+
+static struct dm_buffer *__find_next(struct dm_bufio_client *c, sector_t block)
+{
+	struct rb_node *n = c->buffer_tree.rb_node;
+	struct dm_buffer *b;
+	struct dm_buffer *best = NULL;
+
+	while (n) {
+		b = container_of(n, struct dm_buffer, node);
+
+		if (b->block == block)
+			return b;
+
+		if (block <= b->block) {
+			n = n->rb_left;
+			best = b;
+		} else {
+			n = n->rb_right;
+		}
+	}
+
+	return best;
 }
 
 static void __insert(struct dm_bufio_client *c, struct dm_buffer *b)
@@ -276,8 +299,8 @@ static void __insert(struct dm_bufio_client *c, struct dm_buffer *b)
 		}
 
 		parent = *new;
-		new = (found->block < b->block) ?
-			&((*new)->rb_left) : &((*new)->rb_right);
+		new = b->block < found->block ?
+			&found->node.rb_left : &found->node.rb_right;
 	}
 
 	rb_link_node(&b->node, parent, new);
@@ -400,13 +423,13 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	 */
 	if (gfp_mask & __GFP_NORETRY) {
 		unsigned noio_flag = memalloc_noio_save();
-		void *ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+		void *ptr = __vmalloc(c->block_size, gfp_mask);
 
 		memalloc_noio_restore(noio_flag);
 		return ptr;
 	}
 
-	return __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+	return __vmalloc(c->block_size, gfp_mask);
 }
 
 /*
@@ -631,6 +654,19 @@ dmio:
 	submit_bio(bio);
 }
 
+static inline sector_t block_to_sector(struct dm_bufio_client *c, sector_t block)
+{
+	sector_t sector;
+
+	if (likely(c->sectors_per_block_bits >= 0))
+		sector = block << c->sectors_per_block_bits;
+	else
+		sector = block * (c->block_size >> SECTOR_SHIFT);
+	sector += c->start;
+
+	return sector;
+}
+
 static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buffer *, blk_status_t))
 {
 	unsigned n_sectors;
@@ -639,11 +675,7 @@ static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buff
 
 	b->end_io = end_io;
 
-	if (likely(b->c->sectors_per_block_bits >= 0))
-		sector = b->block << b->c->sectors_per_block_bits;
-	else
-		sector = b->block * (b->c->block_size >> SECTOR_SHIFT);
-	sector += b->c->start;
+	sector = block_to_sector(b->c, b->block);
 
 	if (rw != REQ_OP_WRITE) {
 		n_sectors = b->c->block_size >> SECTOR_SHIFT;
@@ -1326,6 +1358,30 @@ int dm_bufio_issue_flush(struct dm_bufio_client *c)
 EXPORT_SYMBOL_GPL(dm_bufio_issue_flush);
 
 /*
+ * Use dm-io to send a discard request to flush the device.
+ */
+int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count)
+{
+	struct dm_io_request io_req = {
+		.bi_op = REQ_OP_DISCARD,
+		.bi_op_flags = REQ_SYNC,
+		.mem.type = DM_IO_KMEM,
+		.mem.ptr.addr = NULL,
+		.client = c->dm_io,
+	};
+	struct dm_io_region io_reg = {
+		.bdev = c->bdev,
+		.sector = block_to_sector(c, block),
+		.count = block_to_sector(c, count),
+	};
+
+	BUG_ON(dm_bufio_in_request());
+
+	return dm_io(&io_req, 1, &io_reg, NULL);
+}
+EXPORT_SYMBOL_GPL(dm_bufio_issue_discard);
+
+/*
  * We first delete any other buffer that may be at that new location.
  *
  * Then, we write the buffer to the original location if it was dirty.
@@ -1401,6 +1457,14 @@ retry:
 }
 EXPORT_SYMBOL_GPL(dm_bufio_release_move);
 
+static void forget_buffer_locked(struct dm_buffer *b)
+{
+	if (likely(!b->hold_count) && likely(!b->state)) {
+		__unlink_buffer(b);
+		__free_buffer_wake(b);
+	}
+}
+
 /*
  * Free the given buffer.
  *
@@ -1414,14 +1478,35 @@ void dm_bufio_forget(struct dm_bufio_client *c, sector_t block)
 	dm_bufio_lock(c);
 
 	b = __find(c, block);
-	if (b && likely(!b->hold_count) && likely(!b->state)) {
-		__unlink_buffer(b);
-		__free_buffer_wake(b);
-	}
+	if (b)
+		forget_buffer_locked(b);
 
 	dm_bufio_unlock(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_forget);
+
+void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t n_blocks)
+{
+	struct dm_buffer *b;
+	sector_t end_block = block + n_blocks;
+
+	while (block < end_block) {
+		dm_bufio_lock(c);
+
+		b = __find_next(c, block);
+		if (b) {
+			block = b->block + 1;
+			forget_buffer_locked(b);
+		}
+
+		dm_bufio_unlock(c);
+
+		if (!b)
+			break;
+	}
+
+}
+EXPORT_SYMBOL_GPL(dm_bufio_forget_buffers);
 
 void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n)
 {

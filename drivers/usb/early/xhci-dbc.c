@@ -18,7 +18,6 @@
 #include <asm/fixmap.h>
 #include <linux/bcd.h>
 #include <linux/export.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>

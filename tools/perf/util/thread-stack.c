@@ -80,6 +80,10 @@ struct thread_stack_entry {
  * @comm: current comm
  * @arr_sz: size of array if this is the first element of an array
  * @rstate: used to detect retpolines
+ * @br_stack_rb: branch stack (ring buffer)
+ * @br_stack_sz: maximum branch stack size
+ * @br_stack_pos: current position in @br_stack_rb
+ * @mispred_all: mark all branches as mispredicted
  */
 struct thread_stack {
 	struct thread_stack_entry *stack;
@@ -95,6 +99,10 @@ struct thread_stack {
 	struct comm *comm;
 	unsigned int arr_sz;
 	enum retpoline_state_t rstate;
+	struct branch_stack *br_stack_rb;
+	unsigned int br_stack_sz;
+	unsigned int br_stack_pos;
+	bool mispred_all;
 };
 
 /*
@@ -126,13 +134,26 @@ static int thread_stack__grow(struct thread_stack *ts)
 }
 
 static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
-			      struct call_return_processor *crp)
+			      struct call_return_processor *crp,
+			      bool callstack, unsigned int br_stack_sz)
 {
 	int err;
 
-	err = thread_stack__grow(ts);
-	if (err)
-		return err;
+	if (callstack) {
+		err = thread_stack__grow(ts);
+		if (err)
+			return err;
+	}
+
+	if (br_stack_sz) {
+		size_t sz = sizeof(struct branch_stack);
+
+		sz += br_stack_sz * sizeof(struct branch_entry);
+		ts->br_stack_rb = zalloc(sz);
+		if (!ts->br_stack_rb)
+			return -ENOMEM;
+		ts->br_stack_sz = br_stack_sz;
+	}
 
 	if (thread->maps && thread->maps->machine) {
 		struct machine *machine = thread->maps->machine;
@@ -150,7 +171,9 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 }
 
 static struct thread_stack *thread_stack__new(struct thread *thread, int cpu,
-					      struct call_return_processor *crp)
+					      struct call_return_processor *crp,
+					      bool callstack,
+					      unsigned int br_stack_sz)
 {
 	struct thread_stack *ts = thread->ts, *new_ts;
 	unsigned int old_sz = ts ? ts->arr_sz : 0;
@@ -176,7 +199,7 @@ static struct thread_stack *thread_stack__new(struct thread *thread, int cpu,
 		ts += cpu;
 
 	if (!ts->stack &&
-	    thread_stack__init(ts, thread, crp))
+	    thread_stack__init(ts, thread, crp, callstack, br_stack_sz))
 		return NULL;
 
 	return ts;
@@ -319,6 +342,9 @@ static int __thread_stack__flush(struct thread *thread, struct thread_stack *ts)
 
 	if (!crp) {
 		ts->cnt = 0;
+		ts->br_stack_pos = 0;
+		if (ts->br_stack_rb)
+			ts->br_stack_rb->nr = 0;
 		return 0;
 	}
 
@@ -353,8 +379,33 @@ int thread_stack__flush(struct thread *thread)
 	return err;
 }
 
+static void thread_stack__update_br_stack(struct thread_stack *ts, u32 flags,
+					  u64 from_ip, u64 to_ip)
+{
+	struct branch_stack *bs = ts->br_stack_rb;
+	struct branch_entry *be;
+
+	if (!ts->br_stack_pos)
+		ts->br_stack_pos = ts->br_stack_sz;
+
+	ts->br_stack_pos -= 1;
+
+	be              = &bs->entries[ts->br_stack_pos];
+	be->from        = from_ip;
+	be->to          = to_ip;
+	be->flags.value = 0;
+	be->flags.abort = !!(flags & PERF_IP_FLAG_TX_ABORT);
+	be->flags.in_tx = !!(flags & PERF_IP_FLAG_IN_TX);
+	/* No support for mispredict */
+	be->flags.mispred = ts->mispred_all;
+
+	if (bs->nr < ts->br_stack_sz)
+		bs->nr += 1;
+}
+
 int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
-			u64 to_ip, u16 insn_len, u64 trace_nr)
+			u64 to_ip, u16 insn_len, u64 trace_nr, bool callstack,
+			unsigned int br_stack_sz, bool mispred_all)
 {
 	struct thread_stack *ts = thread__stack(thread, cpu);
 
@@ -362,12 +413,13 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 		return -EINVAL;
 
 	if (!ts) {
-		ts = thread_stack__new(thread, cpu, NULL);
+		ts = thread_stack__new(thread, cpu, NULL, callstack, br_stack_sz);
 		if (!ts) {
 			pr_warning("Out of memory: no thread stack\n");
 			return -ENOMEM;
 		}
 		ts->trace_nr = trace_nr;
+		ts->mispred_all = mispred_all;
 	}
 
 	/*
@@ -381,8 +433,14 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 		ts->trace_nr = trace_nr;
 	}
 
-	/* Stop here if thread_stack__process() is in use */
-	if (ts->crp)
+	if (br_stack_sz)
+		thread_stack__update_br_stack(ts, flags, from_ip, to_ip);
+
+	/*
+	 * Stop here if thread_stack__process() is in use, or not recording call
+	 * stack.
+	 */
+	if (ts->crp || !callstack)
 		return 0;
 
 	if (flags & PERF_IP_FLAG_CALL) {
@@ -430,6 +488,7 @@ static void __thread_stack__free(struct thread *thread, struct thread_stack *ts)
 {
 	__thread_stack__flush(thread, ts);
 	zfree(&ts->stack);
+	zfree(&ts->br_stack_rb);
 }
 
 static void thread_stack__reset(struct thread *thread, struct thread_stack *ts)
@@ -495,6 +554,199 @@ void thread_stack__sample(struct thread *thread, int cpu,
 	}
 
 	chain->nr = i;
+}
+
+/*
+ * Hardware sample records, created some time after the event occurred, need to
+ * have subsequent addresses removed from the call chain.
+ */
+void thread_stack__sample_late(struct thread *thread, int cpu,
+			       struct ip_callchain *chain, size_t sz,
+			       u64 sample_ip, u64 kernel_start)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	u64 sample_context = callchain_context(sample_ip, kernel_start);
+	u64 last_context, context, ip;
+	size_t nr = 0, j;
+
+	if (sz < 2) {
+		chain->nr = 0;
+		return;
+	}
+
+	if (!ts)
+		goto out;
+
+	/*
+	 * When tracing kernel space, kernel addresses occur at the top of the
+	 * call chain after the event occurred but before tracing stopped.
+	 * Skip them.
+	 */
+	for (j = 1; j <= ts->cnt; j++) {
+		ip = ts->stack[ts->cnt - j].ret_addr;
+		context = callchain_context(ip, kernel_start);
+		if (context == PERF_CONTEXT_USER ||
+		    (context == sample_context && ip == sample_ip))
+			break;
+	}
+
+	last_context = sample_ip; /* Use sample_ip as an invalid context */
+
+	for (; nr < sz && j <= ts->cnt; nr++, j++) {
+		ip = ts->stack[ts->cnt - j].ret_addr;
+		context = callchain_context(ip, kernel_start);
+		if (context != last_context) {
+			if (nr >= sz - 1)
+				break;
+			chain->ips[nr++] = context;
+			last_context = context;
+		}
+		chain->ips[nr] = ip;
+	}
+out:
+	if (nr) {
+		chain->nr = nr;
+	} else {
+		chain->ips[0] = sample_context;
+		chain->ips[1] = sample_ip;
+		chain->nr = 2;
+	}
+}
+
+void thread_stack__br_sample(struct thread *thread, int cpu,
+			     struct branch_stack *dst, unsigned int sz)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	const size_t bsz = sizeof(struct branch_entry);
+	struct branch_stack *src;
+	struct branch_entry *be;
+	unsigned int nr;
+
+	dst->nr = 0;
+
+	if (!ts)
+		return;
+
+	src = ts->br_stack_rb;
+	if (!src->nr)
+		return;
+
+	dst->nr = min((unsigned int)src->nr, sz);
+
+	be = &dst->entries[0];
+	nr = min(ts->br_stack_sz - ts->br_stack_pos, (unsigned int)dst->nr);
+	memcpy(be, &src->entries[ts->br_stack_pos], bsz * nr);
+
+	if (src->nr >= ts->br_stack_sz) {
+		sz -= nr;
+		be = &dst->entries[nr];
+		nr = min(ts->br_stack_pos, sz);
+		memcpy(be, &src->entries[0], bsz * ts->br_stack_pos);
+	}
+}
+
+/* Start of user space branch entries */
+static bool us_start(struct branch_entry *be, u64 kernel_start, bool *start)
+{
+	if (!*start)
+		*start = be->to && be->to < kernel_start;
+
+	return *start;
+}
+
+/*
+ * Start of branch entries after the ip fell in between 2 branches, or user
+ * space branch entries.
+ */
+static bool ks_start(struct branch_entry *be, u64 sample_ip, u64 kernel_start,
+		     bool *start, struct branch_entry *nb)
+{
+	if (!*start) {
+		*start = (nb && sample_ip >= be->to && sample_ip <= nb->from) ||
+			 be->from < kernel_start ||
+			 (be->to && be->to < kernel_start);
+	}
+
+	return *start;
+}
+
+/*
+ * Hardware sample records, created some time after the event occurred, need to
+ * have subsequent addresses removed from the branch stack.
+ */
+void thread_stack__br_sample_late(struct thread *thread, int cpu,
+				  struct branch_stack *dst, unsigned int sz,
+				  u64 ip, u64 kernel_start)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	struct branch_entry *d, *s, *spos, *ssz;
+	struct branch_stack *src;
+	unsigned int nr = 0;
+	bool start = false;
+
+	dst->nr = 0;
+
+	if (!ts)
+		return;
+
+	src = ts->br_stack_rb;
+	if (!src->nr)
+		return;
+
+	spos = &src->entries[ts->br_stack_pos];
+	ssz  = &src->entries[ts->br_stack_sz];
+
+	d = &dst->entries[0];
+	s = spos;
+
+	if (ip < kernel_start) {
+		/*
+		 * User space sample: start copying branch entries when the
+		 * branch is in user space.
+		 */
+		for (s = spos; s < ssz && nr < sz; s++) {
+			if (us_start(s, kernel_start, &start)) {
+				*d++ = *s;
+				nr += 1;
+			}
+		}
+
+		if (src->nr >= ts->br_stack_sz) {
+			for (s = &src->entries[0]; s < spos && nr < sz; s++) {
+				if (us_start(s, kernel_start, &start)) {
+					*d++ = *s;
+					nr += 1;
+				}
+			}
+		}
+	} else {
+		struct branch_entry *nb = NULL;
+
+		/*
+		 * Kernel space sample: start copying branch entries when the ip
+		 * falls in between 2 branches (or the branch is in user space
+		 * because then the start must have been missed).
+		 */
+		for (s = spos; s < ssz && nr < sz; s++) {
+			if (ks_start(s, ip, kernel_start, &start, nb)) {
+				*d++ = *s;
+				nr += 1;
+			}
+			nb = s;
+		}
+
+		if (src->nr >= ts->br_stack_sz) {
+			for (s = &src->entries[0]; s < spos && nr < sz; s++) {
+				if (ks_start(s, ip, kernel_start, &start, nb)) {
+					*d++ = *s;
+					nr += 1;
+				}
+				nb = s;
+			}
+		}
+	}
+
+	dst->nr = nr;
 }
 
 struct call_return_processor *
@@ -864,7 +1116,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	}
 
 	if (!ts) {
-		ts = thread_stack__new(thread, sample->cpu, crp);
+		ts = thread_stack__new(thread, sample->cpu, crp, true, 0);
 		if (!ts)
 			return -ENOMEM;
 		ts->comm = comm;

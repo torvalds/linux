@@ -526,7 +526,7 @@ static int inv_mpu6050_sensor_set(struct inv_mpu6050_state  *st, int reg,
 	__be16 d = cpu_to_be16(val);
 
 	ind = (axis - IIO_MOD_X) * 2;
-	result = regmap_bulk_write(st->map, reg + ind, (u8 *)&d, 2);
+	result = regmap_bulk_write(st->map, reg + ind, &d, sizeof(d));
 	if (result)
 		return -EINVAL;
 
@@ -540,7 +540,7 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	__be16 d;
 
 	ind = (axis - IIO_MOD_X) * 2;
-	result = regmap_bulk_read(st->map, reg + ind, (u8 *)&d, 2);
+	result = regmap_bulk_read(st->map, reg + ind, &d, sizeof(d));
 	if (result)
 		return -EINVAL;
 	*val = (short)be16_to_cpup(&d);
@@ -1248,12 +1248,31 @@ static const struct attribute_group inv_attribute_group = {
 	.attrs = inv_attributes
 };
 
+static int inv_mpu6050_reg_access(struct iio_dev *indio_dev,
+				  unsigned int reg,
+				  unsigned int writeval,
+				  unsigned int *readval)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+	if (readval)
+		ret = regmap_read(st->map, reg, readval);
+	else
+		ret = regmap_write(st->map, reg, writeval);
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static const struct iio_info mpu_info = {
 	.read_raw = &inv_mpu6050_read_raw,
 	.write_raw = &inv_mpu6050_write_raw,
 	.write_raw_get_fmt = &inv_write_raw_get_fmt,
 	.attrs = &inv_attribute_group,
 	.validate_trigger = inv_mpu6050_validate_trigger,
+	.debugfs_reg_access = &inv_mpu6050_reg_access,
 };
 
 /**

@@ -126,6 +126,13 @@ struct wmi_ops {
 	struct sk_buff *(*gen_pdev_set_wmm)(struct ath10k *ar,
 					    const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_request_stats)(struct ath10k *ar, u32 stats_mask);
+	struct sk_buff *(*gen_request_peer_stats_info)(struct ath10k *ar,
+						       u32 vdev_id,
+						       enum
+						       wmi_peer_stats_info_request_type
+						       type,
+						       u8 *addr,
+						       u32 reset);
 	struct sk_buff *(*gen_force_fw_hang)(struct ath10k *ar,
 					     enum wmi_force_fw_hang_type type,
 					     u32 delay_ms);
@@ -133,6 +140,7 @@ struct wmi_ops {
 	struct sk_buff *(*gen_mgmt_tx_send)(struct ath10k *ar,
 					    struct sk_buff *skb,
 					    dma_addr_t paddr);
+	int (*cleanup_mgmt_tx_send)(struct ath10k *ar, struct sk_buff *msdu);
 	struct sk_buff *(*gen_dbglog_cfg)(struct ath10k *ar, u64 module_enable,
 					  u32 log_level);
 	struct sk_buff *(*gen_pktlog_enable)(struct ath10k *ar, u32 filter);
@@ -439,6 +447,15 @@ ath10k_wmi_get_txbf_conf_scheme(struct ath10k *ar)
 		return WMI_TXBF_CONF_UNSUPPORTED;
 
 	return ar->wmi.ops->get_txbf_conf_scheme(ar);
+}
+
+static inline int
+ath10k_wmi_cleanup_mgmt_tx_send(struct ath10k *ar, struct sk_buff *msdu)
+{
+	if (!ar->wmi.ops->cleanup_mgmt_tx_send)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->cleanup_mgmt_tx_send(ar, msdu);
 }
 
 static inline int
@@ -1062,6 +1079,29 @@ ath10k_wmi_request_stats(struct ath10k *ar, u32 stats_mask)
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->request_stats_cmdid);
+}
+
+static inline int
+ath10k_wmi_request_peer_stats_info(struct ath10k *ar,
+				   u32 vdev_id,
+				   enum wmi_peer_stats_info_request_type type,
+				   u8 *addr,
+				   u32 reset)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_request_peer_stats_info)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_request_peer_stats_info(ar,
+						       vdev_id,
+						       type,
+						       addr,
+						       reset);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->request_peer_stats_info_cmdid);
 }
 
 static inline int

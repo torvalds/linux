@@ -248,7 +248,18 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 		if (anno_type != RXRPC_TX_ANNO_RETRANS)
 			continue;
 
+		/* We need to reset the retransmission state, but we need to do
+		 * so before we drop the lock as a new ACK/NAK may come in and
+		 * confuse things
+		 */
+		annotation &= ~RXRPC_TX_ANNO_MASK;
+		annotation |= RXRPC_TX_ANNO_RESENT;
+		call->rxtx_annotations[ix] = annotation;
+
 		skb = call->rxtx_buffer[ix];
+		if (!skb)
+			continue;
+
 		rxrpc_get_skb(skb, rxrpc_skb_got);
 		spin_unlock_bh(&call->lock);
 
@@ -262,24 +273,6 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 
 		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		spin_lock_bh(&call->lock);
-
-		/* We need to clear the retransmit state, but there are two
-		 * things we need to be aware of: A new ACK/NAK might have been
-		 * received and the packet might have been hard-ACK'd (in which
-		 * case it will no longer be in the buffer).
-		 */
-		if (after(seq, call->tx_hard_ack)) {
-			annotation = call->rxtx_annotations[ix];
-			anno_type = annotation & RXRPC_TX_ANNO_MASK;
-			if (anno_type == RXRPC_TX_ANNO_RETRANS ||
-			    anno_type == RXRPC_TX_ANNO_NAK) {
-				annotation &= ~RXRPC_TX_ANNO_MASK;
-				annotation |= RXRPC_TX_ANNO_UNACK;
-			}
-			annotation |= RXRPC_TX_ANNO_RESENT;
-			call->rxtx_annotations[ix] = annotation;
-		}
-
 		if (after(call->tx_hard_ack, seq))
 			seq = call->tx_hard_ack;
 	}
@@ -320,7 +313,6 @@ recheck_state:
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
 		del_timer_sync(&call->timer);
-		rxrpc_notify_socket(call);
 		goto out_put;
 	}
 

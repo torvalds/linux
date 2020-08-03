@@ -19,6 +19,7 @@
 #include <linux/rcupdate.h>
 #include <linux/blkdev.h>
 #include <linux/radix-tree.h>
+#include <linux/t10-pi.h>
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
@@ -77,6 +78,8 @@ struct nvmet_ns {
 
 	int			use_p2pmem;
 	struct pci_dev		*p2p_dev;
+	int			pi_type;
+	int			metadata_size;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
@@ -142,6 +145,7 @@ struct nvmet_port {
 	bool				enabled;
 	int				inline_data_size;
 	const struct nvmet_fabrics_ops	*tr_ops;
+	bool				pi_enable;
 };
 
 static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
@@ -201,6 +205,7 @@ struct nvmet_ctrl {
 	spinlock_t		error_lock;
 	u64			err_counter;
 	struct nvme_error_slot	slots[NVMET_ERROR_LOG_SLOTS];
+	bool			pi_support;
 };
 
 struct nvmet_subsys_model {
@@ -230,6 +235,7 @@ struct nvmet_subsys {
 	u64			ver;
 	u64			serial;
 	char			*subsysnqn;
+	bool			pi_support;
 
 	struct config_group	group;
 
@@ -281,6 +287,7 @@ struct nvmet_fabrics_ops {
 	unsigned int type;
 	unsigned int msdbd;
 	bool has_keyed_sgls : 1;
+	bool metadata_support : 1;
 	void (*queue_response)(struct nvmet_req *req);
 	int (*add_port)(struct nvmet_port *port);
 	void (*remove_port)(struct nvmet_port *port);
@@ -302,6 +309,7 @@ struct nvmet_req {
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
 	struct scatterlist	*sg;
+	struct scatterlist	*metadata_sg;
 	struct bio_vec		inline_bvec[NVMET_MAX_INLINE_BIOVEC];
 	union {
 		struct {
@@ -315,8 +323,10 @@ struct nvmet_req {
 		} f;
 	};
 	int			sg_cnt;
+	int			metadata_sg_cnt;
 	/* data length as parsed from the SGL descriptor: */
 	size_t			transfer_len;
+	size_t			metadata_len;
 
 	struct nvmet_port	*port;
 
@@ -384,11 +394,11 @@ u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops);
 void nvmet_req_uninit(struct nvmet_req *req);
-bool nvmet_check_data_len(struct nvmet_req *req, size_t data_len);
+bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len);
 bool nvmet_check_data_len_lte(struct nvmet_req *req, size_t data_len);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
-int nvmet_req_alloc_sgl(struct nvmet_req *req);
-void nvmet_req_free_sgl(struct nvmet_req *req);
+int nvmet_req_alloc_sgls(struct nvmet_req *req);
+void nvmet_req_free_sgls(struct nvmet_req *req);
 
 void nvmet_execute_keep_alive(struct nvmet_req *req);
 
@@ -498,11 +508,22 @@ void nvmet_file_ns_disable(struct nvmet_ns *ns);
 u16 nvmet_bdev_flush(struct nvmet_req *req);
 u16 nvmet_file_flush(struct nvmet_req *req);
 void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
+void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns);
+int nvmet_file_ns_revalidate(struct nvmet_ns *ns);
+void nvmet_ns_revalidate(struct nvmet_ns *ns);
 
-static inline u32 nvmet_rw_len(struct nvmet_req *req)
+static inline u32 nvmet_rw_data_len(struct nvmet_req *req)
 {
 	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
 			req->ns->blksize_shift;
+}
+
+static inline u32 nvmet_rw_metadata_len(struct nvmet_req *req)
+{
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
+		return 0;
+	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) *
+			req->ns->metadata_size;
 }
 
 static inline u32 nvmet_dsm_len(struct nvmet_req *req)
@@ -517,6 +538,13 @@ u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 static inline __le16 to0based(u32 a)
 {
 	return cpu_to_le16(max(1U, min(1U << 16, a)) - 1);
+}
+
+static inline bool nvmet_ns_has_pi(struct nvmet_ns *ns)
+{
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
+		return false;
+	return ns->pi_type && ns->metadata_size == sizeof(struct t10_pi_tuple);
 }
 
 #endif /* _NVMET_H */

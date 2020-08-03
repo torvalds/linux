@@ -858,7 +858,7 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 		goto out;
 
 	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
-	mlx5e_modify_tirs_hash(priv, in, inlen);
+	mlx5e_modify_tirs_hash(priv, in);
 
 out:
 	mutex_unlock(&priv->state_lock);

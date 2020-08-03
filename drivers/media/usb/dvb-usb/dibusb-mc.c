@@ -7,7 +7,7 @@
  * based on GPL code from DiBcom, which has
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 

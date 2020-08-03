@@ -23,13 +23,6 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 	return 0;
 }
 
-static int msm_iommu_attach(struct msm_mmu *mmu)
-{
-	struct msm_iommu *iommu = to_msm_iommu(mmu);
-
-	return iommu_attach_device(iommu->domain, mmu->dev);
-}
-
 static void msm_iommu_detach(struct msm_mmu *mmu)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
@@ -38,7 +31,7 @@ static void msm_iommu_detach(struct msm_mmu *mmu)
 }
 
 static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
-		struct sg_table *sgt, unsigned len, int prot)
+		struct sg_table *sgt, size_t len, int prot)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	size_t ret;
@@ -49,7 +42,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 	return (ret == len) ? 0 : -EINVAL;
 }
 
-static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, unsigned len)
+static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, size_t len)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 
@@ -66,7 +59,6 @@ static void msm_iommu_destroy(struct msm_mmu *mmu)
 }
 
 static const struct msm_mmu_funcs funcs = {
-		.attach = msm_iommu_attach,
 		.detach = msm_iommu_detach,
 		.map = msm_iommu_map,
 		.unmap = msm_iommu_unmap,
@@ -76,6 +68,10 @@ static const struct msm_mmu_funcs funcs = {
 struct msm_mmu *msm_iommu_new(struct device *dev, struct iommu_domain *domain)
 {
 	struct msm_iommu *iommu;
+	int ret;
+
+	if (!domain)
+		return ERR_PTR(-ENODEV);
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
@@ -84,6 +80,12 @@ struct msm_mmu *msm_iommu_new(struct device *dev, struct iommu_domain *domain)
 	iommu->domain = domain;
 	msm_mmu_init(&iommu->base, dev, &funcs);
 	iommu_set_fault_handler(domain, msm_fault_handler, iommu);
+
+	ret = iommu_attach_device(iommu->domain, dev);
+	if (ret) {
+		kfree(iommu);
+		return ERR_PTR(ret);
+	}
 
 	return &iommu->base;
 }

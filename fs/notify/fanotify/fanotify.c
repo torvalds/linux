@@ -70,7 +70,7 @@ static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 	return !memcmp(fne1->name, fne2->name, fne1->name_len);
 }
 
-static bool should_merge(struct fsnotify_event *old_fsn,
+static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
 			 struct fsnotify_event *new_fsn)
 {
 	struct fanotify_event *old, *new;
@@ -129,7 +129,7 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 		return 0;
 
 	list_for_each_entry_reverse(test_event, list, list) {
-		if (should_merge(test_event, event)) {
+		if (fanotify_should_merge(test_event, event)) {
 			FANOTIFY_E(test_event)->mask |= new->mask;
 			return 1;
 		}
@@ -232,6 +232,10 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 		if (!fsnotify_iter_should_report_type(iter_info, type))
 			continue;
 		mark = iter_info->marks[type];
+
+		/* Apply ignore mask regardless of ISDIR and ON_CHILD flags */
+		marks_ignored_mask |= mark->ignored_mask;
+
 		/*
 		 * If the event is on dir and this mark doesn't care about
 		 * events on dir, don't send it!
@@ -249,7 +253,6 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 			continue;
 
 		marks_mask |= mark->mask;
-		marks_ignored_mask |= mark->ignored_mask;
 	}
 
 	test_mask = event_mask & marks_mask & ~marks_ignored_mask;
@@ -520,7 +523,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
 	BUILD_BUG_ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 20);
+	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 19);
 
 	mask = fanotify_group_event_mask(group, iter_info, mask, data,
 					 data_type);

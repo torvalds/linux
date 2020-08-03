@@ -160,12 +160,16 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 		return 0;
 	}
 err:
-	DP_NOTICE(p_hwfn,
-		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
-		  le32_to_cpu(p_ent->elem.hdr.cid),
-		  p_ent->elem.hdr.cmd_id,
-		  p_ent->elem.hdr.protocol_id,
-		  le16_to_cpu(p_ent->elem.hdr.echo));
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EBUSY;
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_RAMROD_FAIL,
+			  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
+			  le32_to_cpu(p_ent->elem.hdr.cid),
+			  p_ent->elem.hdr.cmd_id,
+			  p_ent->elem.hdr.protocol_id,
+			  le16_to_cpu(p_ent->elem.hdr.echo));
+	qed_ptt_release(p_hwfn, p_ptt);
 
 	return -EBUSY;
 }

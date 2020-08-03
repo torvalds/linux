@@ -31,7 +31,8 @@
 #include <linux/platform_data/spi-ep93xx.h>
 
 #define SSPCR0			0x0000
-#define SSPCR0_MODE_SHIFT	6
+#define SSPCR0_SPO		BIT(6)
+#define SSPCR0_SPH		BIT(7)
 #define SSPCR0_SCR_SHIFT	8
 
 #define SSPCR1			0x0004
@@ -159,7 +160,10 @@ static int ep93xx_spi_chip_setup(struct spi_master *master,
 		return err;
 
 	cr0 = div_scr << SSPCR0_SCR_SHIFT;
-	cr0 |= (spi->mode & (SPI_CPHA | SPI_CPOL)) << SSPCR0_MODE_SHIFT;
+	if (spi->mode & SPI_CPOL)
+		cr0 |= SSPCR0_SPO;
+	if (spi->mode & SPI_CPHA)
+		cr0 |= SSPCR0_SPH;
 	cr0 |= dss;
 
 	dev_dbg(&master->dev, "setup: mode %d, cpsr %d, scr %d, dss %d\n",

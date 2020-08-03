@@ -193,10 +193,23 @@
 			};
 		};
 
-		counter32k: counter@48320000 {
-			compatible = "ti,omap-counter32k";
-			reg = <0x48320000 0x20>;
-			ti,hwmods = "counter_32k";
+		target-module@48320000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x48320000 0x4>,
+			      <0x48320004 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			clocks = <&wkup_32k_fck>, <&omap_32ksync_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48320000 0x1000>;
+
+			counter32k: counter@0 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x0 0x20>;
+			};
 		};
 
 		intc: interrupt-controller@48200000 {
@@ -637,19 +650,63 @@
 			dma-names = "rx";
 		};
 
-		timer1: timer@48318000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x48318000 0x400>;
-			interrupts = <37>;
-			ti,hwmods = "timer1";
-			ti,timer-alwon;
+		timer1_target: target-module@48318000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x48318000 0x4>,
+			      <0x48318010 0x4>,
+			      <0x48318014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt1_fck>, <&gpt1_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48318000 0x1000>;
+
+			timer1: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&gpt1_fck>;
+				clock-names = "fck";
+				interrupts = <37>;
+				ti,timer-alwon;
+			};
 		};
 
-		timer2: timer@49032000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x49032000 0x400>;
-			interrupts = <38>;
-			ti,hwmods = "timer2";
+		timer2_target: target-module@49032000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x49032000 0x4>,
+			      <0x49032010 0x4>,
+			      <0x49032014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt2_fck>, <&gpt2_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49032000 0x1000>;
+
+			timer2: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0 0x400>;
+				interrupts = <38>;
+			};
 		};
 
 		timer3: timer@49034000 {
@@ -723,13 +780,34 @@
 			ti,timer-pwm;
 		};
 
-		timer12: timer@48304000 {
-			compatible = "ti,omap3430-timer";
-			reg = <0x48304000 0x400>;
-			interrupts = <95>;
-			ti,hwmods = "timer12";
-			ti,timer-alwon;
-			ti,timer-secure;
+		timer12_target: target-module@48304000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x48304000 0x4>,
+			      <0x48304010 0x4>,
+			      <0x48304014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt12_fck>, <&gpt12_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48304000 0x1000>;
+
+			timer12: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0 0x400>;
+				interrupts = <95>;
+				ti,timer-alwon;
+				ti,timer-secure;
+			};
 		};
 
 		usbhstll: usbhstll@48062000 {
@@ -886,4 +964,14 @@
 	};
 };
 
-/include/ "omap3xxx-clocks.dtsi"
+#include "omap3xxx-clocks.dtsi"
+
+/* Preferred always-on timer for clockevent. Some boards must use dmtimer12 */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&omap_32k_fck>;
+	};
+};

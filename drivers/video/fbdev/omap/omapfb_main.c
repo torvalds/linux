@@ -1247,7 +1247,7 @@ static ssize_t omapfb_show_caps_num(struct device *dev,
 	size = 0;
 	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 			"plane#%d %#010x %#010x %#010x\n",
 			plane, caps.ctrl, caps.plane_color, caps.wnd_color);
 		plane++;
@@ -1268,28 +1268,28 @@ static ssize_t omapfb_show_caps_text(struct device *dev,
 	size = 0;
 	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 "plane#%d:\n", plane);
 		for (i = 0; i < ARRAY_SIZE(ctrl_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (ctrl_caps[i].flag & caps.ctrl)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					" %s\n", ctrl_caps[i].name);
 		}
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 " plane colors:\n");
 		for (i = 0; i < ARRAY_SIZE(color_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (color_caps[i].flag & caps.plane_color)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					"  %s\n", color_caps[i].name);
 		}
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 " window colors:\n");
 		for (i = 0; i < ARRAY_SIZE(color_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (color_caps[i].flag & caps.wnd_color)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					"  %s\n", color_caps[i].name);
 		}
 

@@ -15,7 +15,7 @@
 #include <linux/mfd/intel_soc_pmic_bxtwc.h>
 #include <linux/module.h>
 
-#include <asm/intel_pmc_ipc.h>
+#include <asm/intel_scu_ipc.h>
 
 /* PMIC device registers */
 #define REG_ADDR_MASK		0xFF00
@@ -57,6 +57,10 @@
 
 /* Whiskey Cove PMIC share same ACPI ID between different platforms */
 #define BROXTON_PMIC_WC_HRV	4
+
+#define PMC_PMIC_ACCESS		0xFF
+#define PMC_PMIC_READ		0x0
+#define PMC_PMIC_WRITE		0x1
 
 enum bxtwc_irqs {
 	BXTWC_PWRBTN_LVL1_IRQ = 0,
@@ -288,13 +292,12 @@ static int regmap_ipc_byte_reg_read(void *context, unsigned int reg,
 
 	ipc_in[0] = reg;
 	ipc_in[1] = i2c_addr;
-	ret = intel_pmc_ipc_command(PMC_IPC_PMIC_ACCESS,
-			PMC_IPC_PMIC_ACCESS_READ,
-			ipc_in, sizeof(ipc_in), (u32 *)ipc_out, 1);
-	if (ret) {
-		dev_err(pmic->dev, "Failed to read from PMIC\n");
+	ret = intel_scu_ipc_dev_command(pmic->scu, PMC_PMIC_ACCESS,
+					PMC_PMIC_READ, ipc_in, sizeof(ipc_in),
+					ipc_out, sizeof(ipc_out));
+	if (ret)
 		return ret;
-	}
+
 	*val = ipc_out[0];
 
 	return 0;
@@ -303,7 +306,6 @@ static int regmap_ipc_byte_reg_read(void *context, unsigned int reg,
 static int regmap_ipc_byte_reg_write(void *context, unsigned int reg,
 				       unsigned int val)
 {
-	int ret;
 	int i2c_addr;
 	u8 ipc_in[3];
 	struct intel_soc_pmic *pmic = context;
@@ -321,15 +323,9 @@ static int regmap_ipc_byte_reg_write(void *context, unsigned int reg,
 	ipc_in[0] = reg;
 	ipc_in[1] = i2c_addr;
 	ipc_in[2] = val;
-	ret = intel_pmc_ipc_command(PMC_IPC_PMIC_ACCESS,
-			PMC_IPC_PMIC_ACCESS_WRITE,
-			ipc_in, sizeof(ipc_in), NULL, 0);
-	if (ret) {
-		dev_err(pmic->dev, "Failed to write to PMIC\n");
-		return ret;
-	}
-
-	return 0;
+	return intel_scu_ipc_dev_command(pmic->scu, PMC_PMIC_ACCESS,
+					 PMC_PMIC_WRITE, ipc_in, sizeof(ipc_in),
+					 NULL, 0);
 }
 
 /* sysfs interfaces to r/w PMIC registers, required by initial script */
@@ -456,6 +452,10 @@ static int bxtwc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, pmic);
 	pmic->dev = &pdev->dev;
+
+	pmic->scu = devm_intel_scu_ipc_dev_get(&pdev->dev);
+	if (!pmic->scu)
+		return -EPROBE_DEFER;
 
 	pmic->regmap = devm_regmap_init(&pdev->dev, NULL, pmic,
 					&bxtwc_regmap_config);

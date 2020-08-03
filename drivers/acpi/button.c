@@ -24,7 +24,6 @@
 #define PREFIX "ACPI: "
 
 #define ACPI_BUTTON_CLASS		"button"
-#define ACPI_BUTTON_FILE_INFO		"info"
 #define ACPI_BUTTON_FILE_STATE		"state"
 #define ACPI_BUTTON_TYPE_UNKNOWN	0x00
 #define ACPI_BUTTON_NOTIFY_STATUS	0x80

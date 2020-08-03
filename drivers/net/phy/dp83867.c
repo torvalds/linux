@@ -365,7 +365,7 @@ static int dp83867_get_downshift(struct phy_device *phydev, u8 *data)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	*data = enable ? count : DOWNSHIFT_DEV_DISABLE;
 
@@ -400,7 +400,7 @@ static int dp83867_set_downshift(struct phy_device *phydev, u8 cnt)
 			phydev_err(phydev,
 				   "Downshift count must be 1, 2, 4 or 8\n");
 			return -EINVAL;
-	};
+	}
 
 	val = DP83867_DOWNSHIFT_EN;
 	val |= FIELD_PREP(DP83867_DOWNSHIFT_ATTEMPT_MASK, count);
@@ -488,7 +488,7 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 	return 0;
 }
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;

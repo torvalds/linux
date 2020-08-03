@@ -113,27 +113,6 @@ int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
 EXPORT_SYMBOL(rproc_elf_sanity_check);
 
 /**
- * rproc_elf_sanity_check() - Sanity Check ELF32 firmware image
- * @rproc: the remote processor handle
- * @fw: the ELF32 firmware image
- *
- * Make sure this fw image is sane.
- */
-int rproc_elf32_sanity_check(struct rproc *rproc, const struct firmware *fw)
-{
-	int ret = rproc_elf_sanity_check(rproc, fw);
-
-	if (ret)
-		return ret;
-
-	if (fw_elf_get_class(fw) == ELFCLASS32)
-		return 0;
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL(rproc_elf32_sanity_check);
-
-/**
  * rproc_elf_get_boot_addr() - Get rproc's boot address.
  * @rproc: the remote processor handle
  * @fw: the ELF firmware image
@@ -247,9 +226,6 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		if (memsz > filesz)
 			memset(ptr + filesz, 0, memsz - filesz);
 	}
-
-	if (ret == 0)
-		rproc->elf_class = class;
 
 	return ret;
 }

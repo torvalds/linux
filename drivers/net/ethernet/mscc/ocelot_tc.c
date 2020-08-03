@@ -48,7 +48,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Only one policer per port is supported\n");
+					   "Only one policer per port is supported");
 			return -EEXIST;
 		}
 
@@ -59,7 +59,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		err = ocelot_port_policer_add(ocelot, port, &pol);
 		if (err) {
-			NL_SET_ERR_MSG_MOD(extack, "Could not add policer\n");
+			NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
 			return err;
 		}
 
@@ -73,7 +73,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 		err = ocelot_port_policer_del(ocelot, port);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Could not delete policer\n");
+					   "Could not delete policer");
 			return err;
 		}
 		priv->tc.police_id = 0;

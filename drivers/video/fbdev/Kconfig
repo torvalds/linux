@@ -13,7 +13,7 @@ menuconfig FB
 	tristate "Support for frame buffer devices"
 	select FB_CMDLINE
 	select FB_NOTIFY
-	---help---
+	help
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
 	  allows application software to access the graphics hardware through
@@ -48,7 +48,7 @@ menuconfig FB
 config FIRMWARE_EDID
 	bool "Enable firmware EDID"
 	depends on FB
-	---help---
+	help
 	  This enables access to the EDID transferred from the firmware.
 	  On the i386, this is from the Video BIOS. Enable this if DDC/I2C
 	  transfers do not work for your driver and if you are using
@@ -69,14 +69,14 @@ config FB_DDC
 config FB_BOOT_VESA_SUPPORT
 	bool
 	depends on FB
-	---help---
+	help
 	  If true, at least one selected framebuffer driver can take advantage
 	  of VESA video modes set at an early boot stage via the vga= parameter.
 
 config FB_CFB_FILLRECT
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the cfb_fillrect function for generic software rectangle
 	  filling. This is used by drivers that don't provide their own
 	  (accelerated) version.
@@ -84,7 +84,7 @@ config FB_CFB_FILLRECT
 config FB_CFB_COPYAREA
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the cfb_copyarea function for generic software area copying.
 	  This is used by drivers that don't provide their own (accelerated)
 	  version.
@@ -92,7 +92,7 @@ config FB_CFB_COPYAREA
 config FB_CFB_IMAGEBLIT
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the cfb_imageblit function for generic software image
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version.
@@ -100,7 +100,7 @@ config FB_CFB_IMAGEBLIT
 config FB_CFB_REV_PIXELS_IN_BYTE
 	bool
 	depends on FB
-	---help---
+	help
 	  Allow generic frame-buffer functions to work on displays with 1, 2
 	  and 4 bits per pixel depths which has opposite order of pixels in
 	  byte order to bytes in long order.
@@ -108,7 +108,7 @@ config FB_CFB_REV_PIXELS_IN_BYTE
 config FB_SYS_FILLRECT
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the sys_fillrect function for generic software rectangle
 	  filling. This is used by drivers that don't provide their own
 	  (accelerated) version and the framebuffer is in system RAM.
@@ -116,7 +116,7 @@ config FB_SYS_FILLRECT
 config FB_SYS_COPYAREA
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the sys_copyarea function for generic software area copying.
 	  This is used by drivers that don't provide their own (accelerated)
 	  version and the framebuffer is in system RAM.
@@ -124,7 +124,7 @@ config FB_SYS_COPYAREA
 config FB_SYS_IMAGEBLIT
 	tristate
 	depends on FB
-	---help---
+	help
 	  Include the sys_imageblit function for generic software image
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version and the framebuffer is in system RAM.
@@ -132,14 +132,14 @@ config FB_SYS_IMAGEBLIT
 config FB_PROVIDE_GET_FB_UNMAPPED_AREA
 	bool
 	depends on FB
-	---help---
+	help
 	  Allow generic frame-buffer to provide get_fb_unmapped_area
 	  function.
 
 menuconfig FB_FOREIGN_ENDIAN
 	bool "Framebuffer foreign endianness support"
 	depends on FB
-	---help---
+	help
 	  This menu will let you enable support for the framebuffers with
 	  non-native endianness (e.g. Little-Endian framebuffer on a
 	  Big-Endian machine). Most probably you don't have such hardware,
@@ -176,7 +176,7 @@ config FB_HECUBA
 config FB_SVGALIB
 	tristate
 	depends on FB
-	---help---
+	help
 	  Common utility functions useful to fbdev drivers of VGA-based
 	  cards.
 
@@ -192,7 +192,7 @@ config FB_BACKLIGHT
 config FB_MODE_HELPERS
 	bool "Enable Video Mode Handling Helpers"
 	depends on FB
-	---help---
+	help
 	  This enables functions for handling video modes using the
 	  Generalized Timing Formula and the EDID parser. A few drivers rely
 	  on this feature such as the radeonfb, rivafb, and the i810fb. If
@@ -202,7 +202,7 @@ config FB_MODE_HELPERS
 config FB_TILEBLITTING
 	bool "Enable Tile Blitting Support"
 	depends on FB
-	---help---
+	help
 	  This enables tile blitting.  Tile blitting is a drawing technique
 	  where the screen is divided into rectangular sections (tiles), whereas
 	  the standard blitting divides the screen into pixels. Because the
@@ -225,7 +225,7 @@ config FB_GRVGA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  This enables support for the SVGACTRL framebuffer in the GRLIB IP library from Aeroflex Gaisler.
 
 config FB_CIRRUS
@@ -234,7 +234,7 @@ config FB_CIRRUS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  This enables support for Cirrus Logic GD542x/543x based boards on
 	  Amiga: SD64, Piccolo, Picasso II/II+, Picasso IV, or EGS Spectrum.
 
@@ -472,7 +472,7 @@ config FB_OF
 
 config FB_CONTROL
 	bool "Apple \"control\" display support"
-	depends on (FB = y) && PPC_PMAC && PPC32
+	depends on (FB = y) && ((PPC_PMAC && PPC32) || COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -553,7 +553,7 @@ config FB_STI
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	default y
-	---help---
+	help
 	  STI refers to the HP "Standard Text Interface" which is a set of
 	  BIOS routines contained in a ROM chip in HP PA-RISC based machines.
 	  Enabling this option will implement the linux framebuffer device
@@ -587,7 +587,7 @@ config FB_TGA
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select BITREVERSE
-	---help---
+	help
 	  This is the frame buffer device driver for generic TGA and SFB+
 	  graphic cards.  These include DEC ZLXp-E1, -E2 and -E3 PCI cards,
 	  also known as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
@@ -815,7 +815,7 @@ config FB_PVR2
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Say Y here if you have a PowerVR 2 card in your box.  If you plan to
 	  run linux on your Dreamcast, you will have to say Y here.
 	  This driver may or may not work on other PowerVR 2 cards, but is
@@ -1066,7 +1066,7 @@ config FB_INTEL
 config FB_INTEL_DEBUG
 	bool "Intel driver Debug Messages"
 	depends on FB_INTEL
-	---help---
+	help
 	  Say Y here if you want the Intel driver to output all sorts
 	  of debugging information to provide to the maintainer when
 	  something goes wrong.
@@ -1087,7 +1087,7 @@ config FB_MATROX
 	select FB_CFB_IMAGEBLIT
 	select FB_TILEBLITTING
 	select FB_MACMODES if PPC_PMAC
-	---help---
+	help
 	  Say Y here if you have a Matrox Millennium, Matrox Millennium II,
 	  Matrox Mystique, Matrox Mystique 220, Matrox Productiva G100, Matrox
 	  Mystique G200, Matrox Millennium G200, Matrox Marvel G200 video,
@@ -1123,7 +1123,7 @@ config FB_MATROX_MYSTIQUE
 config FB_MATROX_G
 	bool "G100/G200/G400/G450/G550 support"
 	depends on FB_MATROX
-	---help---
+	help
 	  Say Y here if you have a Matrox G100, G200, G400, G450 or G550 based
 	  video card. If you select "Advanced lowlevel driver options", you
 	  should check 8 bpp packed pixel, 16 bpp packed pixel, 24 bpp packed
@@ -1154,7 +1154,7 @@ config FB_MATROX_I2C
 	tristate "Matrox I2C support"
 	depends on FB_MATROX
 	select FB_DDC
-	---help---
+	help
 	  This drivers creates I2C buses which are needed for accessing the
 	  DDC (I2C) bus present on all Matroxes, an I2C bus which
 	  interconnects Matrox optional devices, like MGA-TVO on G200 and
@@ -1170,7 +1170,7 @@ config FB_MATROX_I2C
 config FB_MATROX_MAVEN
 	tristate "G400 second head support"
 	depends on FB_MATROX_G && FB_MATROX_I2C
-	---help---
+	help
 	  WARNING !!! This support does not work with G450 !!!
 
 	  Say Y or M here if you want to use a secondary head (meaning two
@@ -1321,7 +1321,7 @@ config FB_S3
 	select FB_SVGALIB
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
-	---help---
+	help
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
 config FB_S3_DDC
@@ -1484,7 +1484,7 @@ config FB_3DFX
 config FB_3DFX_ACCEL
 	bool "3Dfx Acceleration functions"
 	depends on FB_3DFX
-	---help---
+	help
 	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
 	device driver with acceleration functions.
 
@@ -1502,7 +1502,7 @@ config FB_VOODOO1
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Say Y here if you have a 3Dfx Voodoo Graphics (Voodoo1/sst1) or
 	  Voodoo2 (cvg) based graphics card.
 
@@ -1524,7 +1524,7 @@ config FB_VT8623
 	select FB_SVGALIB
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
-	---help---
+	help
 	  Driver for CastleRock integrated graphics core in the
 	  VIA VT8623 [Apollo CLE266] chipset.
 
@@ -1536,7 +1536,7 @@ config FB_TRIDENT
 	select FB_CFB_IMAGEBLIT
 	select FB_DDC
 	select FB_MODE_HELPERS
-	---help---
+	help
 	  This is the frame buffer device driver for Trident PCI/AGP chipsets.
 	  Supported chipset families are TGUI 9440/96XX, 3DImage, Blade3D
 	  and Blade XP.
@@ -1560,7 +1560,7 @@ config FB_ARK
 	select FB_SVGALIB
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
-	---help---
+	help
 	  Driver for PCI graphics boards with ARK 2000PV chip
 	  and ICS 5342 RAMDAC.
 
@@ -1738,7 +1738,7 @@ config FB_PXA168
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the built-in LCD controller in the Marvell
 	  MMP processor.
 
@@ -1750,7 +1750,7 @@ config FB_PXA
 	select FB_CFB_IMAGEBLIT
 	select VIDEOMODE_HELPERS if OF
 	select FB_MODE_HELPERS if OF
-	---help---
+	help
 	  Frame buffer driver for the built-in LCD controller in the Intel
 	  PXA2x0 processor.
 
@@ -1772,7 +1772,7 @@ config FB_PXA_SMARTPANEL
 config FB_PXA_PARAMETERS
 	bool "PXA LCD command line parameters"
 	depends on FB_PXA
-	---help---
+	help
 	  Enable the use of kernel command line or module parameters
 	  to configure the physical properties of the LCD panel when
 	  using the PXA LCD driver.
@@ -1801,14 +1801,14 @@ config FB_MBX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Framebuffer driver for the Intel 2700G (Marathon) Graphics
 	  Accelerator
 
 config FB_MBX_DEBUG
 	bool "Enable debugging info via debugfs"
 	depends on FB_MBX && DEBUG_FS
-	---help---
+	help
 	  Enable this if you want debugging information using the debug
 	  filesystem (debugfs)
 
@@ -1822,7 +1822,7 @@ config FB_FSL_DIU
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select PPC_LIB_RHEAP
-	---help---
+	help
 	  Framebuffer driver for the Freescale SoC DIU
 
 config FB_W100
@@ -1831,7 +1831,7 @@ config FB_W100
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series.
 	  It can also drive the w3220 chip found on iPAQ hx4700.
 
@@ -1852,7 +1852,7 @@ config FB_SH_MOBILE_LCDC
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
 	select FB_BACKLIGHT
-	---help---
+	help
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
 config FB_TMIO
@@ -1861,7 +1861,7 @@ config FB_TMIO
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the Toshiba Mobile IO integrated as found
 	  on the Sharp SL-6000 series
 
@@ -1884,7 +1884,7 @@ config FB_S3C
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the built-in FB controller in the Samsung
 	  SoC line from the S3C2443 onwards, including the S3C2416, S3C2450,
 	  and the S3C64XX series such as the S3C6400 and S3C6410.
@@ -1899,7 +1899,7 @@ config FB_S3C
 config FB_S3C_DEBUG_REGWRITE
 	bool "Debug register writes"
 	depends on FB_S3C
-	---help---
+	help
 	  Show all register writes via pr_debug()
 
 config FB_S3C2410
@@ -1908,7 +1908,7 @@ config FB_S3C2410
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the built-in LCD controller in the Samsung
 	  S3C2410 processor.
 
@@ -1931,7 +1931,7 @@ config FB_SM501
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for the CRT and LCD controllers in the Silicon
 	  Motion SM501.
 
@@ -1951,7 +1951,7 @@ config FB_SMSCUFX
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
-	---help---
+	help
 	  This is a kernel framebuffer driver for SMSC UFX USB devices.
 	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
 	  mplayer -vo fbdev. Supports both UFX6000 (USB 2.0) and UFX7000
@@ -1967,7 +1967,7 @@ config FB_UDL
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
-	---help---
+	help
 	  This is a kernel framebuffer driver for DisplayLink USB devices.
 	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
 	  mplayer -vo fbdev. Supports all USB 2.0 era DisplayLink devices.
@@ -1979,7 +1979,7 @@ config FB_IBM_GXT4500
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Say Y here to enable support for the IBM GXT4000P/6000P and
 	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
 	  found on some IBM System P (pSeries) machines. This driver
@@ -1993,14 +1993,14 @@ config FB_PS3
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
-	---help---
+	help
 	  Include support for the virtual frame buffer in the PS3 platform.
 
 config FB_PS3_DEFAULT_SIZE_M
 	int "PS3 default frame buffer size (in MiB)"
 	depends on FB_PS3
 	default 9
-	---help---
+	help
 	  This is the default size (in MiB) of the virtual frame buffer in
 	  the PS3.
 	  The default value can be overridden on the kernel command line
@@ -2008,11 +2008,11 @@ config FB_PS3_DEFAULT_SIZE_M
 
 config FB_XILINX
 	tristate "Xilinx frame buffer support"
-	depends on FB && (XILINX_VIRTEX || MICROBLAZE || ARCH_ZYNQ || ARCH_ZYNQMP)
+	depends on FB && (MICROBLAZE || ARCH_ZYNQ || ARCH_ZYNQMP)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Include support for the Xilinx ML300/ML403 reference design
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
@@ -2024,7 +2024,7 @@ config FB_GOLDFISH
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Framebuffer driver for Goldfish Virtual Platform
 
 config FB_COBALT
@@ -2038,7 +2038,7 @@ config FB_SH7760
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Support for the SH7760/SH7763/SH7720/SH7721 integrated
 	  (D)STN/TFT LCD Controller.
 	  Supports display resolutions up to 1024x1024 pixel, grayscale and
@@ -2056,7 +2056,7 @@ config FB_DA8XX
 	select FB_CFB_REV_PIXELS_IN_BYTE
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
-	---help---
+	help
 	  This is the frame buffer device driver for the TI LCD controller
 	  found on DA8xx/OMAP-L1xx/AM335x SoCs.
 	  If unsure, say N.
@@ -2068,7 +2068,7 @@ config FB_VIRTUAL
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
-	---help---
+	help
 	  This is a `virtual' frame buffer device. It operates on a chunk of
 	  unswappable kernel memory instead of on the memory of a graphics
 	  board. This means you cannot see any output sent to this frame
@@ -2119,7 +2119,7 @@ config FB_MB862XX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Frame buffer driver for Fujitsu Carmine/Coral-P(A)/Lime controllers.
 
 choice
@@ -2129,7 +2129,7 @@ choice
 config FB_MB862XX_PCI_GDC
 	bool "Carmine/Coral-P(A) GDC"
 	depends on PCI
-	---help---
+	help
 	  This enables framebuffer support for Fujitsu Carmine/Coral-P(A)
 	  PCI graphics controller devices.
 
@@ -2138,7 +2138,7 @@ config FB_MB862XX_LIME
 	depends on OF && PPC
 	select FB_FOREIGN_ENDIAN
 	select FB_LITTLE_ENDIAN
-	---help---
+	help
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
 
 endchoice
@@ -2159,7 +2159,7 @@ config FB_EP93XX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  Framebuffer driver for the Cirrus Logic EP93XX series of processors.
 	  This driver is also available as a module. The module will be called
 	  ep93xx-fb.
@@ -2167,7 +2167,7 @@ config FB_EP93XX
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
 	depends on FB && FB_MB862XX_LIME
-	---help---
+	help
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
 

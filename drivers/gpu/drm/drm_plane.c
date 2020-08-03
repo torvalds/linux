@@ -289,6 +289,8 @@ EXPORT_SYMBOL(drm_universal_plane_init);
 
 int drm_plane_register_all(struct drm_device *dev)
 {
+	unsigned int num_planes = 0;
+	unsigned int num_zpos = 0;
 	struct drm_plane *plane;
 	int ret = 0;
 
@@ -297,7 +299,14 @@ int drm_plane_register_all(struct drm_device *dev)
 			ret = plane->funcs->late_register(plane);
 		if (ret)
 			return ret;
+
+		if (plane->zpos_property)
+			num_zpos++;
+		num_planes++;
 	}
+
+	drm_WARN(dev, num_zpos && num_planes != num_zpos,
+		 "Mixing planes with and without zpos property is invalid\n");
 
 	return 0;
 }

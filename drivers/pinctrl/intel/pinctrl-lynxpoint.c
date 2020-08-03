@@ -794,11 +794,11 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	const struct intel_pinctrl_soc_data *soc;
 	struct intel_pinctrl *lg;
 	struct gpio_chip *gc;
-	struct resource *io_rc, *irq_rc;
 	struct device *dev = &pdev->dev;
+	struct resource *io_rc;
 	void __iomem *regs;
 	unsigned int i;
-	int ret;
+	int irq, ret;
 
 	soc = (const struct intel_pinctrl_soc_data *)device_get_match_data(dev);
 	if (!soc)
@@ -870,8 +870,8 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->parent = dev;
 
 	/* set up interrupts  */
-	irq_rc = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (irq_rc && irq_rc->start) {
+	irq = platform_get_irq_optional(pdev, 0);
+	if (irq > 0) {
 		struct gpio_irq_chip *girq;
 
 		girq = &gc->irq;
@@ -884,7 +884,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 					     GFP_KERNEL);
 		if (!girq->parents)
 			return -ENOMEM;
-		girq->parents[0] = (unsigned int)irq_rc->start;
+		girq->parents[0] = irq;
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_bad_irq;
 	}

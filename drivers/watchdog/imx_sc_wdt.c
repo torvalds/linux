@@ -175,6 +175,11 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 	wdog->timeout = DEFAULT_TIMEOUT;
 
 	watchdog_init_timeout(wdog, 0, dev);
+
+	ret = imx_sc_wdt_set_timeout(wdog, wdog->timeout);
+	if (ret)
+		return ret;
+
 	watchdog_stop_on_reboot(wdog);
 	watchdog_stop_on_unregister(wdog);
 

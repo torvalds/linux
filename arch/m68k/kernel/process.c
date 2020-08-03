@@ -36,7 +36,6 @@
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 
 
 asmlinkage void ret_from_fork(void);

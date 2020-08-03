@@ -25,6 +25,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_managed.h>
 #include <uapi/drm/v3d_drm.h>
 
 #include "v3d_drv.h"
@@ -104,7 +105,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		if (args->value != 0)
 			return -EINVAL;
 
-		ret = pm_runtime_get_sync(v3d->dev);
+		ret = pm_runtime_get_sync(v3d->drm.dev);
 		if (ret < 0)
 			return ret;
 		if (args->param >= DRM_V3D_PARAM_V3D_CORE0_IDENT0 &&
@@ -113,8 +114,8 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		} else {
 			args->value = V3D_READ(offset);
 		}
-		pm_runtime_mark_last_busy(v3d->dev);
-		pm_runtime_put_autosuspend(v3d->dev);
+		pm_runtime_mark_last_busy(v3d->drm.dev);
+		pm_runtime_put_autosuspend(v3d->drm.dev);
 		return 0;
 	}
 
@@ -234,9 +235,9 @@ static int
 map_regs(struct v3d_dev *v3d, void __iomem **regs, const char *name)
 {
 	struct resource *res =
-		platform_get_resource_byname(v3d->pdev, IORESOURCE_MEM, name);
+		platform_get_resource_byname(v3d_to_pdev(v3d), IORESOURCE_MEM, name);
 
-	*regs = devm_ioremap_resource(v3d->dev, res);
+	*regs = devm_ioremap_resource(v3d->drm.dev, res);
 	return PTR_ERR_OR_ZERO(*regs);
 }
 
@@ -250,20 +251,21 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	u32 ident1;
 
 
-	v3d = kzalloc(sizeof(*v3d), GFP_KERNEL);
-	if (!v3d)
-		return -ENOMEM;
-	v3d->dev = dev;
-	v3d->pdev = pdev;
+	v3d = devm_drm_dev_alloc(dev, &v3d_drm_driver, struct v3d_dev, drm);
+	if (IS_ERR(v3d))
+		return PTR_ERR(v3d);
+
 	drm = &v3d->drm;
+
+	platform_set_drvdata(pdev, drm);
 
 	ret = map_regs(v3d, &v3d->hub_regs, "hub");
 	if (ret)
-		goto dev_free;
+		return ret;
 
 	ret = map_regs(v3d, &v3d->core_regs[0], "core0");
 	if (ret)
-		goto dev_free;
+		return ret;
 
 	mmu_debug = V3D_READ(V3D_MMU_DEBUG_INFO);
 	dev->coherent_dma_mask =
@@ -281,45 +283,37 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 		ret = PTR_ERR(v3d->reset);
 
 		if (ret == -EPROBE_DEFER)
-			goto dev_free;
+			return ret;
 
 		v3d->reset = NULL;
 		ret = map_regs(v3d, &v3d->bridge_regs, "bridge");
 		if (ret) {
 			dev_err(dev,
 				"Failed to get reset control or bridge regs\n");
-			goto dev_free;
+			return ret;
 		}
 	}
 
 	if (v3d->ver < 41) {
 		ret = map_regs(v3d, &v3d->gca_regs, "gca");
 		if (ret)
-			goto dev_free;
+			return ret;
 	}
 
 	v3d->mmu_scratch = dma_alloc_wc(dev, 4096, &v3d->mmu_scratch_paddr,
 					GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!v3d->mmu_scratch) {
 		dev_err(dev, "Failed to allocate MMU scratch page\n");
-		ret = -ENOMEM;
-		goto dev_free;
+		return -ENOMEM;
 	}
 
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 50);
 	pm_runtime_enable(dev);
 
-	ret = drm_dev_init(&v3d->drm, &v3d_drm_driver, dev);
-	if (ret)
-		goto dma_free;
-
-	platform_set_drvdata(pdev, drm);
-	drm->dev_private = v3d;
-
 	ret = v3d_gem_init(drm);
 	if (ret)
-		goto dev_destroy;
+		goto dma_free;
 
 	ret = v3d_irq_init(v3d);
 	if (ret)
@@ -335,12 +329,8 @@ irq_disable:
 	v3d_irq_disable(v3d);
 gem_destroy:
 	v3d_gem_destroy(drm);
-dev_destroy:
-	drm_dev_put(drm);
 dma_free:
 	dma_free_wc(dev, 4096, v3d->mmu_scratch, v3d->mmu_scratch_paddr);
-dev_free:
-	kfree(v3d);
 	return ret;
 }
 
@@ -353,9 +343,8 @@ static int v3d_platform_drm_remove(struct platform_device *pdev)
 
 	v3d_gem_destroy(drm);
 
-	drm_dev_put(drm);
-
-	dma_free_wc(v3d->dev, 4096, v3d->mmu_scratch, v3d->mmu_scratch_paddr);
+	dma_free_wc(v3d->drm.dev, 4096, v3d->mmu_scratch,
+		    v3d->mmu_scratch_paddr);
 
 	return 0;
 }

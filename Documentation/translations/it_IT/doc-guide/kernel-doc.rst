@@ -515,6 +515,22 @@ internal: *[source-pattern ...]*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :internal:
 
+identifiers: *[ function/type ...]*
+  Include la documentazione per ogni *function* e *type*  in *source*.
+  Se non vengono esplicitamente specificate le funzioni da includere, allora
+  verranno incluse tutte quelle disponibili in *source*.
+
+  Esempi::
+
+    .. kernel-doc:: lib/bitmap.c
+       :identifiers: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :identifiers:
+
+functions: *[ function ...]*
+  Questo è uno pseudonimo, deprecato, per la direttiva 'identifiers'.
+
 doc: *title*
   Include la documentazione del paragrafo ``DOC:`` identificato dal titolo
   (*title*) all'interno del file sorgente (*source*). Gli spazi in *title* sono
@@ -527,15 +543,6 @@ doc: *title*
 
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
-
-functions: *function* *[...]*
-  Dal file sorgente (*source*) include la documentazione per le funzioni
-  elencate (*function*).
-
-  Esempio::
-
-    .. kernel-doc:: lib/bitmap.c
-       :functions: bitmap_parselist bitmap_parselist_user
 
 Senza alcuna opzione, la direttiva kernel-doc include tutti i commenti di
 documentazione presenti nel file sorgente (*source*).

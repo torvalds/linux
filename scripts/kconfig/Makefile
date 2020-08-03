@@ -96,11 +96,13 @@ configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/c
 
 PHONY += kvmconfig
 kvmconfig: kvm_guest.config
-	@:
+	@echo >&2 "WARNING: 'make $@' will be removed after Linux 5.10"
+	@echo >&2 "         Please use 'make $<' instead."
 
 PHONY += xenconfig
 xenconfig: xen.config
-	@:
+	@echo >&2 "WARNING: 'make $@' will be removed after Linux 5.10"
+	@echo >&2 "         Please use 'make $<' instead."
 
 PHONY += tinyconfig
 tinyconfig:
@@ -123,7 +125,9 @@ help:
 	@echo  '  gconfig	  - Update current config utilising a GTK+ based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
+	@echo  '                    except those preserved by LMC_KEEP environment variable'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
+	@echo  '                    except those preserved by LMC_KEEP environment variable'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
 	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
@@ -137,9 +141,6 @@ help:
 	@echo  '  helpnewconfig   - List new options and help text'
 	@echo  '  olddefconfig	  - Same as oldconfig but sets new symbols to their'
 	@echo  '                    default value without prompting'
-	@echo  '  kvmconfig	  - Enable additional options for kvm guest kernel support'
-	@echo  '  xenconfig       - Enable additional options for xen dom0 and guest kernel'
-	@echo  '                    support'
 	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
 	@echo  '  testconfig	  - Run Kconfig unit tests (requires python3 and pytest)'
 

@@ -45,7 +45,7 @@ static const struct fb_fix_screeninfo uvesafb_fix = {
 };
 
 static int mtrr		= 3;	/* enable mtrr by default */
-static bool blank	= 1;	/* enable blanking by default */
+static bool blank	= true;	/* enable blanking by default */
 static int ypan		= 1;	/* 0: scroll, 1: ypan, 2: ywrap */
 static bool pmi_setpal	= true; /* use PMI for palette changes */
 static bool nocrtc;		/* ignore CRTC settings */
@@ -1560,7 +1560,7 @@ static ssize_t uvesafb_show_vbe_modes(struct device *dev,
 	int ret = 0, i;
 
 	for (i = 0; i < par->vbe_modes_cnt && ret < PAGE_SIZE; i++) {
-		ret += snprintf(buf + ret, PAGE_SIZE - ret,
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 			"%dx%d-%d, 0x%.4x\n",
 			par->vbe_modes[i].x_res, par->vbe_modes[i].y_res,
 			par->vbe_modes[i].depth, par->vbe_modes[i].mode_id);
@@ -1824,19 +1824,19 @@ static int uvesafb_setup(char *options)
 		else if (!strcmp(this_opt, "ywrap"))
 			ypan = 2;
 		else if (!strcmp(this_opt, "vgapal"))
-			pmi_setpal = 0;
+			pmi_setpal = false;
 		else if (!strcmp(this_opt, "pmipal"))
-			pmi_setpal = 1;
+			pmi_setpal = true;
 		else if (!strncmp(this_opt, "mtrr:", 5))
 			mtrr = simple_strtoul(this_opt+5, NULL, 0);
 		else if (!strcmp(this_opt, "nomtrr"))
 			mtrr = 0;
 		else if (!strcmp(this_opt, "nocrtc"))
-			nocrtc = 1;
+			nocrtc = true;
 		else if (!strcmp(this_opt, "noedid"))
-			noedid = 1;
+			noedid = true;
 		else if (!strcmp(this_opt, "noblank"))
-			blank = 0;
+			blank = true;
 		else if (!strncmp(this_opt, "vtotal:", 7))
 			vram_total = simple_strtoul(this_opt + 7, NULL, 0);
 		else if (!strncmp(this_opt, "vremap:", 7))

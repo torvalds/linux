@@ -390,8 +390,8 @@ static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
 	 * For custom steinhart, the full u32 is taken. For all the others
 	 * the MSB is discarded.
 	 */
-	const u8 n_size = (is_steinhart == true) ? 4 : 3;
-	const u8 e_size = (is_steinhart == true) ? sizeof(u32) : sizeof(u64);
+	const u8 n_size = is_steinhart ? 4 : 3;
+	const u8 e_size = is_steinhart ? sizeof(u32) : sizeof(u64);
 
 	n_entries = of_property_count_elems_of_size(np, propname, e_size);
 	/* n_entries must be an even number */

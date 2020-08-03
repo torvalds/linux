@@ -31,7 +31,6 @@
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
 #include "intel_engine_user.h"
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
@@ -327,6 +326,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	if (INTEL_GEN(i915) == 12 && engine->class == RENDER_CLASS)
 		engine->props.preempt_timeout_ms = 0;
 
+	engine->defaults = engine->props; /* never to change again */
+
 	engine->context_size = intel_engine_context_size(gt, engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
@@ -346,8 +347,6 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 
 	gt->engine_class[info->class][info->instance] = engine;
 	gt->engine[id] = engine;
-
-	i915->engine[id] = engine;
 
 	return 0;
 }
@@ -425,9 +424,15 @@ void intel_engines_release(struct intel_gt *gt)
 		engine->release = NULL;
 
 		memset(&engine->reset, 0, sizeof(engine->reset));
-
-		gt->i915->engine[id] = NULL;
 	}
+}
+
+void intel_engine_free_request_pool(struct intel_engine_cs *engine)
+{
+	if (!engine->request_pool)
+		return;
+
+	kmem_cache_free(i915_request_slab_cache(), engine->request_pool);
 }
 
 void intel_engines_free(struct intel_gt *gt)
@@ -435,7 +440,11 @@ void intel_engines_free(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	/* Free the requests! dma-resv keeps fences around for an eternity */
+	rcu_barrier();
+
 	for_each_engine(engine, gt, id) {
+		intel_engine_free_request_pool(engine);
 		kfree(engine);
 		gt->engine[id] = NULL;
 	}
@@ -622,8 +631,6 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
 	intel_engine_init_retire(engine);
-
-	intel_engine_pool_init(&engine->pool);
 
 	/* Use the whole device by default */
 	engine->sseu =
@@ -821,12 +828,11 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	cleanup_status_page(engine);
 
 	intel_engine_fini_retire(engine);
-	intel_engine_pool_fini(&engine->pool);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 
 	if (engine->default_state)
-		i915_gem_object_put(engine->default_state);
+		fput(engine->default_state);
 
 	if (engine->kernel_context) {
 		intel_context_unpin(engine->kernel_context);
@@ -1225,6 +1231,49 @@ static void print_request(struct drm_printer *m,
 		   name);
 }
 
+static struct intel_timeline *get_timeline(struct i915_request *rq)
+{
+	struct intel_timeline *tl;
+
+	/*
+	 * Even though we are holding the engine->active.lock here, there
+	 * is no control over the submission queue per-se and we are
+	 * inspecting the active state at a random point in time, with an
+	 * unknown queue. Play safe and make sure the timeline remains valid.
+	 * (Only being used for pretty printing, one extra kref shouldn't
+	 * cause a camel stampede!)
+	 */
+	rcu_read_lock();
+	tl = rcu_dereference(rq->timeline);
+	if (!kref_get_unless_zero(&tl->kref))
+		tl = NULL;
+	rcu_read_unlock();
+
+	return tl;
+}
+
+static int print_ring(char *buf, int sz, struct i915_request *rq)
+{
+	int len = 0;
+
+	if (!i915_request_signaled(rq)) {
+		struct intel_timeline *tl = get_timeline(rq);
+
+		len = scnprintf(buf, sz,
+				"ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
+				i915_ggtt_offset(rq->ring->vma),
+				tl ? tl->hwsp_offset : 0,
+				hwsp_seqno(rq),
+				DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
+						      1000 * 1000));
+
+		if (tl)
+			intel_timeline_put(tl);
+	}
+
+	return len;
+}
+
 static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 {
 	const size_t rowsize = 8 * sizeof(u32);
@@ -1252,27 +1301,6 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 		prev = buf + pos;
 		skip = false;
 	}
-}
-
-static struct intel_timeline *get_timeline(struct i915_request *rq)
-{
-	struct intel_timeline *tl;
-
-	/*
-	 * Even though we are holding the engine->active.lock here, there
-	 * is no control over the submission queue per-se and we are
-	 * inspecting the active state at a random point in time, with an
-	 * unknown queue. Play safe and make sure the timeline remains valid.
-	 * (Only being used for pretty printing, one extra kref shouldn't
-	 * cause a camel stampede!)
-	 */
-	rcu_read_lock();
-	tl = rcu_dereference(rq->timeline);
-	if (!kref_get_unless_zero(&tl->kref))
-		tl = NULL;
-	rcu_read_unlock();
-
-	return tl;
 }
 
 static const char *repr_timer(const struct timer_list *t)
@@ -1393,39 +1421,24 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tActive[%d]: ",
-					(int)(port - execlists->active));
-			if (!i915_request_signaled(rq)) {
-				struct intel_timeline *tl = get_timeline(rq);
-
-				len += scnprintf(hdr + len, sizeof(hdr) - len,
-						 "ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
-						 i915_ggtt_offset(rq->ring->vma),
-						 tl ? tl->hwsp_offset : 0,
-						 hwsp_seqno(rq),
-						 DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
-								       1000 * 1000));
-
-				if (tl)
-					intel_timeline_put(tl);
-			}
+					"\t\tActive[%d]:  ccid:%08x, ",
+					(int)(port - execlists->active),
+					rq->context->lrc.ccid);
+			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
-			struct intel_timeline *tl = get_timeline(rq);
-			char hdr[80];
+			char hdr[160];
+			int len;
 
-			snprintf(hdr, sizeof(hdr),
-				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
-				 (int)(port - execlists->pending),
-				 i915_ggtt_offset(rq->ring->vma),
-				 tl ? tl->hwsp_offset : 0,
-				 hwsp_seqno(rq));
+			len = scnprintf(hdr, sizeof(hdr),
+					"\t\tPending[%d]: ccid:%08x, ",
+					(int)(port - execlists->pending),
+					rq->context->lrc.ccid);
+			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
+			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
-
-			if (tl)
-				intel_timeline_put(tl);
 		}
 		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
@@ -1574,58 +1587,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	intel_engine_print_breadcrumbs(engine, m);
 }
 
-/**
- * intel_enable_engine_stats() - Enable engine busy tracking on engine
- * @engine: engine to enable stats collection
- *
- * Start collecting the engine busyness data for @engine.
- *
- * Returns 0 on success or a negative error code.
- */
-int intel_enable_engine_stats(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists *execlists = &engine->execlists;
-	unsigned long flags;
-	int err = 0;
-
-	if (!intel_engine_supports_stats(engine))
-		return -ENODEV;
-
-	execlists_active_lock_bh(execlists);
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-
-	if (unlikely(engine->stats.enabled == ~0)) {
-		err = -EBUSY;
-		goto unlock;
-	}
-
-	if (engine->stats.enabled++ == 0) {
-		struct i915_request * const *port;
-		struct i915_request *rq;
-
-		engine->stats.enabled_at = ktime_get();
-
-		/* XXX submission method oblivious? */
-		for (port = execlists->active; (rq = *port); port++)
-			engine->stats.active++;
-
-		for (port = execlists->pending; (rq = *port); port++) {
-			/* Exclude any contexts already counted in active */
-			if (!intel_context_inflight_count(rq->context))
-				engine->stats.active++;
-		}
-
-		if (engine->stats.active)
-			engine->stats.start = engine->stats.enabled_at;
-	}
-
-unlock:
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-	execlists_active_unlock_bh(execlists);
-
-	return err;
-}
-
 static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
 {
 	ktime_t total = engine->stats.total;
@@ -1634,7 +1595,7 @@ static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
 	 * If the engine is executing something at the moment
 	 * add it to the total.
 	 */
-	if (engine->stats.active)
+	if (atomic_read(&engine->stats.active))
 		total = ktime_add(total,
 				  ktime_sub(ktime_get(), engine->stats.start));
 
@@ -1658,28 +1619,6 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine)
 	} while (read_seqretry(&engine->stats.lock, seq));
 
 	return total;
-}
-
-/**
- * intel_disable_engine_stats() - Disable engine busy tracking on engine
- * @engine: engine to disable stats collection
- *
- * Stops collecting the engine busyness data for @engine.
- */
-void intel_disable_engine_stats(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	if (!intel_engine_supports_stats(engine))
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-	WARN_ON_ONCE(engine->stats.enabled == 0);
-	if (--engine->stats.enabled == 0) {
-		engine->stats.total = __intel_engine_get_busy_time(engine);
-		engine->stats.active = 0;
-	}
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static bool match_ring(struct i915_request *rq)

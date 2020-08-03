@@ -6,6 +6,7 @@
  *		 2015 Ludovic Desroches <ludovic.desroches@atmel.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -120,9 +121,12 @@ static void sdhci_at91_reset(struct sdhci_host *host, u8 mask)
 	    || mmc_gpio_get_cd(host->mmc) >= 0)
 		sdhci_at91_set_force_card_detect(host);
 
-	if (priv->cal_always_on && (mask & SDHCI_RESET_ALL))
-		sdhci_writel(host, SDMMC_CALCR_ALWYSON | SDMMC_CALCR_EN,
+	if (priv->cal_always_on && (mask & SDHCI_RESET_ALL)) {
+		u32 calcr = sdhci_readl(host, SDMMC_CALCR);
+
+		sdhci_writel(host, calcr | SDMMC_CALCR_ALWYSON | SDMMC_CALCR_EN,
 			     SDMMC_CALCR);
+	}
 }
 
 static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
@@ -179,9 +183,9 @@ static int sdhci_at91_set_clks_presets(struct device *dev)
 	clk_mul = gck_rate / clk_base_rate - 1;
 
 	caps0 &= ~SDHCI_CLOCK_V3_BASE_MASK;
-	caps0 |= (clk_base << SDHCI_CLOCK_BASE_SHIFT) & SDHCI_CLOCK_V3_BASE_MASK;
+	caps0 |= FIELD_PREP(SDHCI_CLOCK_V3_BASE_MASK, clk_base);
 	caps1 &= ~SDHCI_CLOCK_MUL_MASK;
-	caps1 |= (clk_mul << SDHCI_CLOCK_MUL_SHIFT) & SDHCI_CLOCK_MUL_MASK;
+	caps1 |= FIELD_PREP(SDHCI_CLOCK_MUL_MASK, clk_mul);
 	/* Set capabilities in r/w mode. */
 	writel(SDMMC_CACR_KEY | SDMMC_CACR_CAPWREN, host->ioaddr + SDMMC_CACR);
 	writel(caps0, host->ioaddr + SDHCI_CAPABILITIES);

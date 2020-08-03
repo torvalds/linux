@@ -31,7 +31,6 @@
  *  more details.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -48,11 +47,36 @@
 #include <linux/nvram.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
+#ifdef CONFIG_PPC_PMAC
 #include <asm/prom.h>
 #include <asm/btext.h>
+#endif
 
 #include "macmodes.h"
 #include "controlfb.h"
+
+#if !defined(CONFIG_PPC_PMAC) || !defined(CONFIG_PPC32)
+#define invalid_vram_cache(addr)
+#undef in_8
+#undef out_8
+#undef in_le32
+#undef out_le32
+#define in_8(addr)		0
+#define out_8(addr, val)
+#define in_le32(addr)		0
+#define out_le32(addr, val)
+#define pgprot_cached_wthru(prot) (prot)
+#else
+static void invalid_vram_cache(void __force *addr)
+{
+	eieio();
+	dcbf(addr);
+	mb();
+	eieio();
+	dcbf(addr);
+	mb();
+}
+#endif
 
 struct fb_par_control {
 	int	vmode, cmode;
@@ -117,38 +141,6 @@ struct fb_info_control {
 #define CNTRL_REG(INFO,REG) (&(((INFO)->control_regs->REG).r))
 
 
-/******************** Prototypes for exported functions ********************/
-/*
- * struct fb_ops
- */
-static int controlfb_pan_display(struct fb_var_screeninfo *var,
-	struct fb_info *info);
-static int controlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
-	u_int transp, struct fb_info *info);
-static int controlfb_blank(int blank_mode, struct fb_info *info);
-static int controlfb_mmap(struct fb_info *info,
-	struct vm_area_struct *vma);
-static int controlfb_set_par (struct fb_info *info);
-static int controlfb_check_var (struct fb_var_screeninfo *var, struct fb_info *info);
-
-/******************** Prototypes for internal functions **********************/
-
-static void set_control_clock(unsigned char *params);
-static int init_control(struct fb_info_control *p);
-static void control_set_hardware(struct fb_info_control *p,
-	struct fb_par_control *par);
-static int control_of_init(struct device_node *dp);
-static void find_vram_size(struct fb_info_control *p);
-static int read_control_sense(struct fb_info_control *p);
-static int calc_clock_params(unsigned long clk, unsigned char *param);
-static int control_var_to_par(struct fb_var_screeninfo *var,
-	struct fb_par_control *par, const struct fb_info *fb_info);
-static inline void control_par_to_var(struct fb_par_control *par,
-	struct fb_var_screeninfo *var);
-static void control_init_info(struct fb_info *info, struct fb_info_control *p);
-static void control_cleanup(void);
-
-
 /************************** Internal variables *******************************/
 
 static struct fb_info_control *control_fb;
@@ -156,189 +148,6 @@ static struct fb_info_control *control_fb;
 static int default_vmode __initdata = VMODE_NVRAM;
 static int default_cmode __initdata = CMODE_NVRAM;
 
-
-static const struct fb_ops controlfb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_check_var	= controlfb_check_var,
-	.fb_set_par	= controlfb_set_par,
-	.fb_setcolreg	= controlfb_setcolreg,
-	.fb_pan_display = controlfb_pan_display,
-	.fb_blank	= controlfb_blank,
-	.fb_mmap	= controlfb_mmap,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
-};
-
-
-/********************  The functions for controlfb_ops ********************/
-
-#ifdef MODULE
-MODULE_LICENSE("GPL");
-
-int init_module(void)
-{
-	struct device_node *dp;
-	int ret = -ENXIO;
-
-	dp = of_find_node_by_name(NULL, "control");
-	if (dp && !control_of_init(dp))
-		ret = 0;
-	of_node_put(dp);
-
-	return ret;
-}
-
-void cleanup_module(void)
-{
-	control_cleanup();
-}
-#endif
-
-/*
- * Checks a var structure
- */
-static int controlfb_check_var (struct fb_var_screeninfo *var, struct fb_info *info)
-{
-	struct fb_par_control par;
-	int err;
-
-	err = control_var_to_par(var, &par, info);
-	if (err)
-		return err;	
-	control_par_to_var(&par, var);
-
-	return 0;
-}
-
-/*
- * Applies current var to display
- */
-static int controlfb_set_par (struct fb_info *info)
-{
-	struct fb_info_control *p =
-		container_of(info, struct fb_info_control, info);
-	struct fb_par_control par;
-	int err;
-
-	if((err = control_var_to_par(&info->var, &par, info))) {
-		printk (KERN_ERR "controlfb_set_par: error calling"
-				 " control_var_to_par: %d.\n", err);
-		return err;
-	}
-	
-	control_set_hardware(p, &par);
-
-	info->fix.visual = (p->par.cmode == CMODE_8) ?
-		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
-	info->fix.line_length = p->par.pitch;
-	info->fix.xpanstep = 32 >> p->par.cmode;
-	info->fix.ypanstep = 1;
-
-	return 0;
-}
-
-/*
- * Set screen start address according to var offset values
- */
-static inline void set_screen_start(int xoffset, int yoffset,
-	struct fb_info_control *p)
-{
-	struct fb_par_control *par = &p->par;
-
-	par->xoffset = xoffset;
-	par->yoffset = yoffset;
-	out_le32(CNTRL_REG(p,start_addr),
-		 par->yoffset * par->pitch + (par->xoffset << par->cmode));
-}
-
-
-static int controlfb_pan_display(struct fb_var_screeninfo *var,
-				 struct fb_info *info)
-{
-	unsigned int xoffset, hstep;
-	struct fb_info_control *p =
-		container_of(info, struct fb_info_control, info);
-	struct fb_par_control *par = &p->par;
-
-	/*
-	 * make sure start addr will be 32-byte aligned
-	 */
-	hstep = 0x1f >> par->cmode;
-	xoffset = (var->xoffset + hstep) & ~hstep;
-
-	if (xoffset+par->xres > par->vxres ||
-	    var->yoffset+par->yres > par->vyres)
-		return -EINVAL;
-
-	set_screen_start(xoffset, var->yoffset, p);
-
-	return 0;
-}
-
-
-/*
- * Private mmap since we want to have a different caching on the framebuffer
- * for controlfb.
- * Note there's no locking in here; it's done in fb_mmap() in fbmem.c.
- */
-static int controlfb_mmap(struct fb_info *info,
-                       struct vm_area_struct *vma)
-{
-	unsigned long mmio_pgoff;
-	unsigned long start;
-	u32 len;
-
-	start = info->fix.smem_start;
-	len = info->fix.smem_len;
-	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
-	if (vma->vm_pgoff >= mmio_pgoff) {
-		if (info->var.accel_flags)
-			return -EINVAL;
-		vma->vm_pgoff -= mmio_pgoff;
-		start = info->fix.mmio_start;
-		len = info->fix.mmio_len;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	} else {
-		/* framebuffer */
-		vma->vm_page_prot = pgprot_cached_wthru(vma->vm_page_prot);
-	}
-
-	return vm_iomap_memory(vma, start, len);
-}
-
-static int controlfb_blank(int blank_mode, struct fb_info *info)
-{
-	struct fb_info_control *p =
-		container_of(info, struct fb_info_control, info);
-	unsigned ctrl;
-
-	ctrl = le32_to_cpup(CNTRL_REG(p,ctrl));
-	if (blank_mode > 0)
-		switch (blank_mode) {
-		case FB_BLANK_VSYNC_SUSPEND:
-			ctrl &= ~3;
-			break;
-		case FB_BLANK_HSYNC_SUSPEND:
-			ctrl &= ~0x30;
-			break;
-		case FB_BLANK_POWERDOWN:
-			ctrl &= ~0x33;
-			/* fall through */
-		case FB_BLANK_NORMAL:
-			ctrl |= 0x400;
-			break;
-		default:
-			break;
-		}
-	else {
-		ctrl &= ~0x400;
-		ctrl |= 0x33;
-	}
-	out_le32(CNTRL_REG(p,ctrl), ctrl);
-
-	return 0;
-}
 
 static int controlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info)
@@ -396,75 +205,18 @@ static void set_control_clock(unsigned char *params)
 #endif	
 }
 
-
 /*
- * finish off the driver initialization and register
+ * Set screen start address according to var offset values
  */
-static int __init init_control(struct fb_info_control *p)
+static inline void set_screen_start(int xoffset, int yoffset,
+	struct fb_info_control *p)
 {
-	int full, sense, vmode, cmode, vyres;
-	struct fb_var_screeninfo var;
-	int rc;
-	
-	printk(KERN_INFO "controlfb: ");
+	struct fb_par_control *par = &p->par;
 
-	full = p->total_vram == 0x400000;
-
-	/* Try to pick a video mode out of NVRAM if we have one. */
-	cmode = default_cmode;
-	if (IS_REACHABLE(CONFIG_NVRAM) && cmode == CMODE_NVRAM)
-		cmode = nvram_read_byte(NV_CMODE);
-	if (cmode < CMODE_8 || cmode > CMODE_32)
-		cmode = CMODE_8;
-
-	vmode = default_vmode;
-	if (IS_REACHABLE(CONFIG_NVRAM) && vmode == VMODE_NVRAM)
-		vmode = nvram_read_byte(NV_VMODE);
-	if (vmode < 1 || vmode > VMODE_MAX ||
-	    control_mac_modes[vmode - 1].m[full] < cmode) {
-		sense = read_control_sense(p);
-		printk(KERN_CONT "Monitor sense value = 0x%x, ", sense);
-		vmode = mac_map_monitor_sense(sense);
-		if (control_mac_modes[vmode - 1].m[full] < 0)
-			vmode = VMODE_640_480_60;
-		cmode = min(cmode, control_mac_modes[vmode - 1].m[full]);
-	}
-
-	/* Initialize info structure */
-	control_init_info(&p->info, p);
-
-	/* Setup default var */
-	if (mac_vmode_to_var(vmode, cmode, &var) < 0) {
-		/* This shouldn't happen! */
-		printk("mac_vmode_to_var(%d, %d,) failed\n", vmode, cmode);
-try_again:
-		vmode = VMODE_640_480_60;
-		cmode = CMODE_8;
-		if (mac_vmode_to_var(vmode, cmode, &var) < 0) {
-			printk(KERN_ERR "controlfb: mac_vmode_to_var() failed\n");
-			return -ENXIO;
-		}
-		printk(KERN_INFO "controlfb: ");
-	}
-	printk("using video mode %d and color mode %d.\n", vmode, cmode);
-
-	vyres = (p->total_vram - CTRLFB_OFF) / (var.xres << cmode);
-	if (vyres > var.yres)
-		var.yres_virtual = vyres;
-
-	/* Apply default var */
-	var.activate = FB_ACTIVATE_NOW;
-	rc = fb_set_var(&p->info, &var);
-	if (rc && (vmode != VMODE_640_480_60 || cmode != CMODE_8))
-		goto try_again;
-
-	/* Register with fbdev layer */
-	if (register_framebuffer(&p->info) < 0)
-		return -ENXIO;
-
-	fb_info(&p->info, "control display adapter\n");
-
-	return 0;
+	par->xoffset = xoffset;
+	par->yoffset = yoffset;
+	out_le32(CNTRL_REG(p,start_addr),
+		 par->yoffset * par->pitch + (par->xoffset << par->cmode));
 }
 
 #define RADACAL_WRITE(a,d) \
@@ -528,67 +280,6 @@ static void control_set_hardware(struct fb_info_control *p, struct fb_par_contro
 #endif /* CONFIG_BOOTX_TEXT */
 }
 
-
-/*
- * Parse user specified options (`video=controlfb:')
- */
-static void __init control_setup(char *options)
-{
-	char *this_opt;
-
-	if (!options || !*options)
-		return;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!strncmp(this_opt, "vmode:", 6)) {
-			int vmode = simple_strtoul(this_opt+6, NULL, 0);
-			if (vmode > 0 && vmode <= VMODE_MAX &&
-			    control_mac_modes[vmode - 1].m[1] >= 0)
-				default_vmode = vmode;
-		} else if (!strncmp(this_opt, "cmode:", 6)) {
-			int depth = simple_strtoul(this_opt+6, NULL, 0);
-			switch (depth) {
-			 case CMODE_8:
-			 case CMODE_16:
-			 case CMODE_32:
-			 	default_cmode = depth;
-			 	break;
-			 case 8:
-				default_cmode = CMODE_8;
-				break;
-			 case 15:
-			 case 16:
-				default_cmode = CMODE_16;
-				break;
-			 case 24:
-			 case 32:
-				default_cmode = CMODE_32;
-				break;
-			}
-		}
-	}
-}
-
-static int __init control_init(void)
-{
-	struct device_node *dp;
-	char *option = NULL;
-	int ret = -ENXIO;
-
-	if (fb_get_options("controlfb", &option))
-		return -ENODEV;
-	control_setup(option);
-
-	dp = of_find_node_by_name(NULL, "control");
-	if (dp && !control_of_init(dp))
-		ret = 0;
-	of_node_put(dp);
-
-	return ret;
-}
-
-module_init(control_init);
-
 /* Work out which banks of VRAM we have installed. */
 /* danj: I guess the card just ignores writes to nonexistant VRAM... */
 
@@ -605,12 +296,7 @@ static void __init find_vram_size(struct fb_info_control *p)
 
 	out_8(&p->frame_buffer[0x600000], 0xb3);
 	out_8(&p->frame_buffer[0x600001], 0x71);
-	asm volatile("eieio; dcbf 0,%0" : : "r" (&p->frame_buffer[0x600000])
-					: "memory" );
-	mb();
-	asm volatile("eieio; dcbi 0,%0" : : "r" (&p->frame_buffer[0x600000])
-					: "memory" );
-	mb();
+	invalid_vram_cache(&p->frame_buffer[0x600000]);
 
 	bank2 = (in_8(&p->frame_buffer[0x600000]) == 0xb3)
 		&& (in_8(&p->frame_buffer[0x600001]) == 0x71);
@@ -624,12 +310,7 @@ static void __init find_vram_size(struct fb_info_control *p)
 
 	out_8(&p->frame_buffer[0], 0x5a);
 	out_8(&p->frame_buffer[1], 0xc7);
-	asm volatile("eieio; dcbf 0,%0" : : "r" (&p->frame_buffer[0])
-					: "memory" );
-	mb();
-	asm volatile("eieio; dcbi 0,%0" : : "r" (&p->frame_buffer[0])
-					: "memory" );
-	mb();
+	invalid_vram_cache(&p->frame_buffer[0]);
 
 	bank1 = (in_8(&p->frame_buffer[0]) == 0x5a)
 		&& (in_8(&p->frame_buffer[1]) == 0xc7);
@@ -661,78 +342,6 @@ static void __init find_vram_size(struct fb_info_control *p)
 	printk(KERN_INFO "controlfb: VRAM Total = %dMB "
 			"(%dMB @ bank 1, %dMB @ bank 2)\n",
 			(bank1 + bank2) << 1, bank1 << 1, bank2 << 1);
-}
-
-
-/*
- * find "control" and initialize
- */
-static int __init control_of_init(struct device_node *dp)
-{
-	struct fb_info_control	*p;
-	struct resource		fb_res, reg_res;
-
-	if (control_fb) {
-		printk(KERN_ERR "controlfb: only one control is supported\n");
-		return -ENXIO;
-	}
-
-	if (of_pci_address_to_resource(dp, 2, &fb_res) ||
-	    of_pci_address_to_resource(dp, 1, &reg_res)) {
-		printk(KERN_ERR "can't get 2 addresses for control\n");
-		return -ENXIO;
-	}
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-	control_fb = p;	/* save it for cleanups */
-
-	/* Map in frame buffer and registers */
-	p->fb_orig_base = fb_res.start;
-	p->fb_orig_size = resource_size(&fb_res);
-	/* use the big-endian aperture (??) */
-	p->frame_buffer_phys = fb_res.start + 0x800000;
-	p->control_regs_phys = reg_res.start;
-	p->control_regs_size = resource_size(&reg_res);
-
-	if (!p->fb_orig_base ||
-	    !request_mem_region(p->fb_orig_base,p->fb_orig_size,"controlfb")) {
-		p->fb_orig_base = 0;
-		goto error_out;
-	}
-	/* map at most 8MB for the frame buffer */
-	p->frame_buffer = ioremap_wt(p->frame_buffer_phys, 0x800000);
-
-	if (!p->control_regs_phys ||
-	    !request_mem_region(p->control_regs_phys, p->control_regs_size,
-	    "controlfb regs")) {
-		p->control_regs_phys = 0;
-		goto error_out;
-	}
-	p->control_regs = ioremap(p->control_regs_phys, p->control_regs_size);
-
-	p->cmap_regs_phys = 0xf301b000;	 /* XXX not in prom? */
-	if (!request_mem_region(p->cmap_regs_phys, 0x1000, "controlfb cmap")) {
-		p->cmap_regs_phys = 0;
-		goto error_out;
-	}
-	p->cmap_regs = ioremap(p->cmap_regs_phys, 0x1000);
-
-	if (!p->cmap_regs || !p->control_regs || !p->frame_buffer)
-		goto error_out;
-
-	find_vram_size(p);
-	if (!p->total_vram)
-		goto error_out;
-
-	if (init_control(p) < 0)
-		goto error_out;
-
-	return 0;
-
-error_out:
-	control_cleanup();
-	return -ENXIO;
 }
 
 /*
@@ -1019,6 +628,150 @@ static void control_par_to_var(struct fb_par_control *par, struct fb_var_screeni
 	var->pixclock >>= par->regvals.clock_params[2];
 }
 
+/********************  The functions for controlfb_ops ********************/
+
+/*
+ * Checks a var structure
+ */
+static int controlfb_check_var (struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct fb_par_control par;
+	int err;
+
+	err = control_var_to_par(var, &par, info);
+	if (err)
+		return err;	
+	control_par_to_var(&par, var);
+
+	return 0;
+}
+
+/*
+ * Applies current var to display
+ */
+static int controlfb_set_par (struct fb_info *info)
+{
+	struct fb_info_control *p =
+		container_of(info, struct fb_info_control, info);
+	struct fb_par_control par;
+	int err;
+
+	if((err = control_var_to_par(&info->var, &par, info))) {
+		printk (KERN_ERR "controlfb_set_par: error calling"
+				 " control_var_to_par: %d.\n", err);
+		return err;
+	}
+	
+	control_set_hardware(p, &par);
+
+	info->fix.visual = (p->par.cmode == CMODE_8) ?
+		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
+	info->fix.line_length = p->par.pitch;
+	info->fix.xpanstep = 32 >> p->par.cmode;
+	info->fix.ypanstep = 1;
+
+	return 0;
+}
+
+static int controlfb_pan_display(struct fb_var_screeninfo *var,
+				 struct fb_info *info)
+{
+	unsigned int xoffset, hstep;
+	struct fb_info_control *p =
+		container_of(info, struct fb_info_control, info);
+	struct fb_par_control *par = &p->par;
+
+	/*
+	 * make sure start addr will be 32-byte aligned
+	 */
+	hstep = 0x1f >> par->cmode;
+	xoffset = (var->xoffset + hstep) & ~hstep;
+
+	if (xoffset+par->xres > par->vxres ||
+	    var->yoffset+par->yres > par->vyres)
+		return -EINVAL;
+
+	set_screen_start(xoffset, var->yoffset, p);
+
+	return 0;
+}
+
+static int controlfb_blank(int blank_mode, struct fb_info *info)
+{
+	struct fb_info_control __maybe_unused *p =
+		container_of(info, struct fb_info_control, info);
+	unsigned ctrl;
+
+	ctrl = in_le32(CNTRL_REG(p, ctrl));
+	if (blank_mode > 0)
+		switch (blank_mode) {
+		case FB_BLANK_VSYNC_SUSPEND:
+			ctrl &= ~3;
+			break;
+		case FB_BLANK_HSYNC_SUSPEND:
+			ctrl &= ~0x30;
+			break;
+		case FB_BLANK_POWERDOWN:
+			ctrl &= ~0x33;
+			/* fall through */
+		case FB_BLANK_NORMAL:
+			ctrl |= 0x400;
+			break;
+		default:
+			break;
+		}
+	else {
+		ctrl &= ~0x400;
+		ctrl |= 0x33;
+	}
+	out_le32(CNTRL_REG(p,ctrl), ctrl);
+
+	return 0;
+}
+
+/*
+ * Private mmap since we want to have a different caching on the framebuffer
+ * for controlfb.
+ * Note there's no locking in here; it's done in fb_mmap() in fbmem.c.
+ */
+static int controlfb_mmap(struct fb_info *info,
+                       struct vm_area_struct *vma)
+{
+	unsigned long mmio_pgoff;
+	unsigned long start;
+	u32 len;
+
+	start = info->fix.smem_start;
+	len = info->fix.smem_len;
+	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
+	if (vma->vm_pgoff >= mmio_pgoff) {
+		if (info->var.accel_flags)
+			return -EINVAL;
+		vma->vm_pgoff -= mmio_pgoff;
+		start = info->fix.mmio_start;
+		len = info->fix.mmio_len;
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	} else {
+		/* framebuffer */
+		vma->vm_page_prot = pgprot_cached_wthru(vma->vm_page_prot);
+	}
+
+	return vm_iomap_memory(vma, start, len);
+}
+
+static const struct fb_ops controlfb_ops = {
+	.owner		= THIS_MODULE,
+	.fb_check_var	= controlfb_check_var,
+	.fb_set_par	= controlfb_set_par,
+	.fb_setcolreg	= controlfb_setcolreg,
+	.fb_pan_display = controlfb_pan_display,
+	.fb_blank	= controlfb_blank,
+	.fb_mmap	= controlfb_mmap,
+	.fb_fillrect	= cfb_fillrect,
+	.fb_copyarea	= cfb_copyarea,
+	.fb_imageblit	= cfb_imageblit,
+};
+
 /*
  * Set misc info vars for this driver
  */
@@ -1045,6 +798,115 @@ static void __init control_init_info(struct fb_info *info, struct fb_info_contro
         info->fix.accel = FB_ACCEL_NONE;
 }
 
+/*
+ * Parse user specified options (`video=controlfb:')
+ */
+static void __init control_setup(char *options)
+{
+	char *this_opt;
+
+	if (!options || !*options)
+		return;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!strncmp(this_opt, "vmode:", 6)) {
+			int vmode = simple_strtoul(this_opt+6, NULL, 0);
+			if (vmode > 0 && vmode <= VMODE_MAX &&
+			    control_mac_modes[vmode - 1].m[1] >= 0)
+				default_vmode = vmode;
+		} else if (!strncmp(this_opt, "cmode:", 6)) {
+			int depth = simple_strtoul(this_opt+6, NULL, 0);
+			switch (depth) {
+			 case CMODE_8:
+			 case CMODE_16:
+			 case CMODE_32:
+			 	default_cmode = depth;
+			 	break;
+			 case 8:
+				default_cmode = CMODE_8;
+				break;
+			 case 15:
+			 case 16:
+				default_cmode = CMODE_16;
+				break;
+			 case 24:
+			 case 32:
+				default_cmode = CMODE_32;
+				break;
+			}
+		}
+	}
+}
+
+/*
+ * finish off the driver initialization and register
+ */
+static int __init init_control(struct fb_info_control *p)
+{
+	int full, sense, vmode, cmode, vyres;
+	struct fb_var_screeninfo var;
+	int rc;
+	
+	printk(KERN_INFO "controlfb: ");
+
+	full = p->total_vram == 0x400000;
+
+	/* Try to pick a video mode out of NVRAM if we have one. */
+	cmode = default_cmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && cmode == CMODE_NVRAM)
+		cmode = nvram_read_byte(NV_CMODE);
+	if (cmode < CMODE_8 || cmode > CMODE_32)
+		cmode = CMODE_8;
+
+	vmode = default_vmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && vmode == VMODE_NVRAM)
+		vmode = nvram_read_byte(NV_VMODE);
+	if (vmode < 1 || vmode > VMODE_MAX ||
+	    control_mac_modes[vmode - 1].m[full] < cmode) {
+		sense = read_control_sense(p);
+		printk(KERN_CONT "Monitor sense value = 0x%x, ", sense);
+		vmode = mac_map_monitor_sense(sense);
+		if (control_mac_modes[vmode - 1].m[full] < 0)
+			vmode = VMODE_640_480_60;
+		cmode = min(cmode, control_mac_modes[vmode - 1].m[full]);
+	}
+
+	/* Initialize info structure */
+	control_init_info(&p->info, p);
+
+	/* Setup default var */
+	if (mac_vmode_to_var(vmode, cmode, &var) < 0) {
+		/* This shouldn't happen! */
+		printk("mac_vmode_to_var(%d, %d,) failed\n", vmode, cmode);
+try_again:
+		vmode = VMODE_640_480_60;
+		cmode = CMODE_8;
+		if (mac_vmode_to_var(vmode, cmode, &var) < 0) {
+			printk(KERN_ERR "controlfb: mac_vmode_to_var() failed\n");
+			return -ENXIO;
+		}
+		printk(KERN_INFO "controlfb: ");
+	}
+	printk("using video mode %d and color mode %d.\n", vmode, cmode);
+
+	vyres = (p->total_vram - CTRLFB_OFF) / (var.xres << cmode);
+	if (vyres > var.yres)
+		var.yres_virtual = vyres;
+
+	/* Apply default var */
+	var.activate = FB_ACTIVATE_NOW;
+	rc = fb_set_var(&p->info, &var);
+	if (rc && (vmode != VMODE_640_480_60 || cmode != CMODE_8))
+		goto try_again;
+
+	/* Register with fbdev layer */
+	if (register_framebuffer(&p->info) < 0)
+		return -ENXIO;
+
+	fb_info(&p->info, "control display adapter\n");
+
+	return 0;
+}
 
 static void control_cleanup(void)
 {
@@ -1071,4 +933,93 @@ static void control_cleanup(void)
 	kfree(p);
 }
 
+/*
+ * find "control" and initialize
+ */
+static int __init control_of_init(struct device_node *dp)
+{
+	struct fb_info_control	*p;
+	struct resource		fb_res, reg_res;
 
+	if (control_fb) {
+		printk(KERN_ERR "controlfb: only one control is supported\n");
+		return -ENXIO;
+	}
+
+	if (of_pci_address_to_resource(dp, 2, &fb_res) ||
+	    of_pci_address_to_resource(dp, 1, &reg_res)) {
+		printk(KERN_ERR "can't get 2 addresses for control\n");
+		return -ENXIO;
+	}
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	control_fb = p;	/* save it for cleanups */
+
+	/* Map in frame buffer and registers */
+	p->fb_orig_base = fb_res.start;
+	p->fb_orig_size = resource_size(&fb_res);
+	/* use the big-endian aperture (??) */
+	p->frame_buffer_phys = fb_res.start + 0x800000;
+	p->control_regs_phys = reg_res.start;
+	p->control_regs_size = resource_size(&reg_res);
+
+	if (!p->fb_orig_base ||
+	    !request_mem_region(p->fb_orig_base,p->fb_orig_size,"controlfb")) {
+		p->fb_orig_base = 0;
+		goto error_out;
+	}
+	/* map at most 8MB for the frame buffer */
+	p->frame_buffer = ioremap_wt(p->frame_buffer_phys, 0x800000);
+
+	if (!p->control_regs_phys ||
+	    !request_mem_region(p->control_regs_phys, p->control_regs_size,
+	    "controlfb regs")) {
+		p->control_regs_phys = 0;
+		goto error_out;
+	}
+	p->control_regs = ioremap(p->control_regs_phys, p->control_regs_size);
+
+	p->cmap_regs_phys = 0xf301b000;	 /* XXX not in prom? */
+	if (!request_mem_region(p->cmap_regs_phys, 0x1000, "controlfb cmap")) {
+		p->cmap_regs_phys = 0;
+		goto error_out;
+	}
+	p->cmap_regs = ioremap(p->cmap_regs_phys, 0x1000);
+
+	if (!p->cmap_regs || !p->control_regs || !p->frame_buffer)
+		goto error_out;
+
+	find_vram_size(p);
+	if (!p->total_vram)
+		goto error_out;
+
+	if (init_control(p) < 0)
+		goto error_out;
+
+	return 0;
+
+error_out:
+	control_cleanup();
+	return -ENXIO;
+}
+
+static int __init control_init(void)
+{
+	struct device_node *dp;
+	char *option = NULL;
+	int ret = -ENXIO;
+
+	if (fb_get_options("controlfb", &option))
+		return -ENODEV;
+	control_setup(option);
+
+	dp = of_find_node_by_name(NULL, "control");
+	if (dp && !control_of_init(dp))
+		ret = 0;
+	of_node_put(dp);
+
+	return ret;
+}
+
+device_initcall(control_init);

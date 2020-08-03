@@ -10,7 +10,7 @@ if VDPA
 
 config VDPA_SIM
 	tristate "vDPA device simulator"
-	depends on RUNTIME_TESTING_MENU && HAS_DMA && VHOST_DPN
+	depends on RUNTIME_TESTING_MENU && HAS_DMA
 	select VHOST_RING
 	default n
 	help

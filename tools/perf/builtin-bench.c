@@ -67,14 +67,20 @@ static struct bench futex_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 static struct bench epoll_benchmarks[] = {
 	{ "wait",	"Benchmark epoll concurrent epoll_waits",       bench_epoll_wait	},
 	{ "ctl",	"Benchmark epoll concurrent epoll_ctls",        bench_epoll_ctl		},
 	{ "all",	"Run all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
-#endif // HAVE_EVENTFD
+#endif // HAVE_EVENTFD_SUPPORT
+
+static struct bench internals_benchmarks[] = {
+	{ "synthesize", "Benchmark perf event synthesis",	bench_synthesize	},
+	{ "kallsyms-parse", "Benchmark kallsyms parsing",	bench_kallsyms_parse	},
+	{ NULL,		NULL,					NULL			}
+};
 
 struct collection {
 	const char	*name;
@@ -89,9 +95,10 @@ static struct collection collections[] = {
 	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
 	{"futex",       "Futex stressing benchmarks",                   futex_benchmarks        },
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 	{"epoll",       "Epoll stressing benchmarks",                   epoll_benchmarks        },
 #endif
+	{ "internals",	"Perf-internals benchmarks",			internals_benchmarks	},
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };

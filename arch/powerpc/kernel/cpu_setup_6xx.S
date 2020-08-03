@@ -288,6 +288,7 @@ _GLOBAL(__init_fpu_registers)
 	mtmsr	r10
 	isync
 	blr
+_ASM_NOKPROBE_SYMBOL(__init_fpu_registers)
 
 
 /* Definitions for the table use to save CPU states */
@@ -483,4 +484,5 @@ _GLOBAL(__restore_cpu_setup)
 1:
 	mtcr	r7
 	blr
+_ASM_NOKPROBE_SYMBOL(__restore_cpu_setup)
 

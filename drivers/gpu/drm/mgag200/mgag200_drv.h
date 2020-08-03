@@ -104,11 +104,6 @@ struct mga_crtc {
 	bool enabled;
 };
 
-struct mga_mode_info {
-	bool mode_config_initialized;
-	struct mga_crtc *crtc;
-};
-
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
@@ -160,17 +155,14 @@ struct mga_device {
 	void __iomem			*rmmio;
 
 	struct mga_mc			mc;
-	struct mga_mode_info		mode_info;
 
 	struct mga_cursor cursor;
 
 	size_t vram_fb_available;
 
 	bool				suspended;
-	int				num_crtc;
 	enum mga_type			type;
 	int				has_sdram;
-	struct drm_display_mode		mode;
 
 	int bpp_shifts[4];
 
@@ -179,8 +171,14 @@ struct mga_device {
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
 
+	struct mga_connector connector;
 	struct drm_encoder encoder;
 };
+
+static inline struct mga_device *to_mga_device(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
 
 static inline enum mga_type
 mgag200_type_from_driver_data(kernel_ulong_t driver_data)
@@ -196,7 +194,6 @@ mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
-void mgag200_modeset_fini(struct mga_device *mdev);
 
 				/* mgag200_main.c */
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);

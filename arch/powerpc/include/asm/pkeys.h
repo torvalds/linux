@@ -101,7 +101,7 @@ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 
 /*
  * Returns a positive, 5-bit key on success, or -1 on failure.
- * Relies on the mmap_sem to protect against concurrency in mm_pkey_alloc() and
+ * Relies on the mmap_lock to protect against concurrency in mm_pkey_alloc() and
  * mm_pkey_free().
  */
 static inline int mm_pkey_alloc(struct mm_struct *mm)

@@ -11,7 +11,7 @@ config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN (iwl4965)"
 	depends on PCI && MAC80211
 	select IWLEGACY
-	---help---
+	help
 	  This option enables support for
 
 	  Select to build the driver supporting the:
@@ -39,7 +39,7 @@ config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
 	depends on PCI && MAC80211
 	select IWLEGACY
-	---help---
+	help
 	  Select to build the driver supporting the:
 
 	  Intel PRO/Wireless 3945ABG/BG Network Connection
@@ -67,7 +67,7 @@ menu "iwl3945 / iwl4965 Debugging Options"
 config IWLEGACY_DEBUG
 	bool "Enable full debugging output in iwlegacy (iwl 3945/4965) drivers"
 	depends on IWLEGACY
-	---help---
+	help
 	  This option will enable debug tracing output for the iwlegacy
 	  drivers.
 
@@ -93,7 +93,7 @@ config IWLEGACY_DEBUG
 config IWLEGACY_DEBUGFS
 	bool "iwlegacy (iwl 3945/4965) debugfs support"
 	depends on IWLEGACY && MAC80211_DEBUGFS
-	---help---
+	help
 	  Enable creation of debugfs files for the iwlegacy drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.

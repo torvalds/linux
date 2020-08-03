@@ -21,6 +21,7 @@ mlxsw_spectrum-objs		:= spectrum.o spectrum_buffers.o \
 				   spectrum_acl_atcam.o spectrum_acl_erp.o \
 				   spectrum1_acl_tcam.o spectrum2_acl_tcam.o \
 				   spectrum_acl_bloom_filter.o spectrum_acl.o \
+				   spectrum_flow.o spectrum_matchall.o \
 				   spectrum_flower.o spectrum_cnt.o \
 				   spectrum_fid.o spectrum_ipip.o \
 				   spectrum_acl_flex_actions.o \

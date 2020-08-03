@@ -210,14 +210,15 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 {
 	struct task_struct *t = tk->tsk;
 	short addr_lsb = tk->size_shift;
-	int ret;
+	int ret = 0;
 
 	pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware memory corruption\n",
-		pfn, t->comm, t->pid);
+			pfn, t->comm, t->pid);
 
-	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
-		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
-				       addr_lsb);
+	if (flags & MF_ACTION_REQUIRED) {
+		WARN_ON_ONCE(t != current);
+		ret = force_sig_mceerr(BUS_MCEERR_AR,
+					 (void __user *)tk->addr, addr_lsb);
 	} else {
 		/*
 		 * Don't use force here, it's convenient if the signal
@@ -399,9 +400,15 @@ static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
 {
 	struct task_struct *t;
 
-	for_each_thread(tsk, t)
-		if ((t->flags & PF_MCE_PROCESS) && (t->flags & PF_MCE_EARLY))
-			return t;
+	for_each_thread(tsk, t) {
+		if (t->flags & PF_MCE_PROCESS) {
+			if (t->flags & PF_MCE_EARLY)
+				return t;
+		} else {
+			if (sysctl_memory_failure_early_kill)
+				return t;
+		}
+	}
 	return NULL;
 }
 
@@ -410,21 +417,26 @@ static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
  * to be signaled when some page under the process is hwpoisoned.
  * Return task_struct of the dedicated thread (main thread unless explicitly
  * specified) if the process is "early kill," and otherwise returns NULL.
+ *
+ * Note that the above is true for Action Optional case, but not for Action
+ * Required case where SIGBUS should sent only to the current thread.
  */
 static struct task_struct *task_early_kill(struct task_struct *tsk,
 					   int force_early)
 {
-	struct task_struct *t;
 	if (!tsk->mm)
 		return NULL;
-	if (force_early)
-		return tsk;
-	t = find_early_kill_thread(tsk);
-	if (t)
-		return t;
-	if (sysctl_memory_failure_early_kill)
-		return tsk;
-	return NULL;
+	if (force_early) {
+		/*
+		 * Comparing ->mm here because current task might represent
+		 * a subthread, while tsk always points to the main thread.
+		 */
+		if (tsk->mm == current->mm)
+			return current;
+		else
+			return NULL;
+	}
+	return find_early_kill_thread(tsk);
 }
 
 /*
@@ -1493,7 +1505,7 @@ static void memory_failure_work_func(struct work_struct *work)
 	unsigned long proc_flags;
 	int gotten;
 
-	mf_cpu = this_cpu_ptr(&memory_failure_cpu);
+	mf_cpu = container_of(work, struct memory_failure_cpu, work);
 	for (;;) {
 		spin_lock_irqsave(&mf_cpu->lock, proc_flags);
 		gotten = kfifo_get(&mf_cpu->fifo, &entry);
@@ -1505,6 +1517,19 @@ static void memory_failure_work_func(struct work_struct *work)
 		else
 			memory_failure(entry.pfn, entry.flags);
 	}
+}
+
+/*
+ * Process memory_failure work queued on the specified CPU.
+ * Used to avoid return-to-userspace racing with the memory_failure workqueue.
+ */
+void memory_failure_queue_kick(int cpu)
+{
+	struct memory_failure_cpu *mf_cpu;
+
+	mf_cpu = &per_cpu(memory_failure_cpu, cpu);
+	cancel_work_sync(&mf_cpu->work);
+	memory_failure_work_func(&mf_cpu->work);
 }
 
 static int __init memory_failure_init(void)

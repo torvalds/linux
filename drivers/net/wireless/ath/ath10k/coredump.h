@@ -88,7 +88,7 @@ struct ath10k_dump_file_data {
 	u8 unused[128];
 
 	/* struct ath10k_tlv_dump_data + more */
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ath10k_dump_ram_data_hdr {
@@ -100,7 +100,7 @@ struct ath10k_dump_ram_data_hdr {
 	/* length of payload data, not including this header */
 	__le32 length;
 
-	u8 data[0];
+	u8 data[];
 };
 
 /* magic number to fill the holes not copied due to sections in regions */

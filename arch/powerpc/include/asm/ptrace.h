@@ -179,6 +179,22 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
 
 #define current_pt_regs() \
 	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
+
+#ifdef __powerpc64__
+#ifdef CONFIG_PPC_BOOK3S
+#define TRAP_FLAGS_MASK		0x10
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define FULL_REGS(regs)		true
+#define SET_FULL_REGS(regs)	do { } while (0)
+#else
+#define TRAP_FLAGS_MASK		0x11
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
+#define SET_FULL_REGS(regs)	((regs)->trap |= 1)
+#endif
+#define CHECK_FULL_REGS(regs)	BUG_ON(!FULL_REGS(regs))
+#define NV_REG_POISON		0xdeadbeefdeadbeefUL
+#else
 /*
  * We use the least-significant bit of the trap field to indicate
  * whether we have saved the full set of registers, or only a
@@ -186,17 +202,13 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
  * On 4xx we use the next bit to indicate whether the exception
  * is a critical exception (1 means it is).
  */
+#define TRAP_FLAGS_MASK		0x1F
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
-#ifndef __powerpc64__
+#define SET_FULL_REGS(regs)	((regs)->trap |= 1)
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
-#endif /* ! __powerpc64__ */
-#define TRAP(regs)		((regs)->trap & ~0xF)
-#ifdef __powerpc64__
-#define NV_REG_POISON		0xdeadbeefdeadbeefUL
-#define CHECK_FULL_REGS(regs)	BUG_ON(regs->trap & 1)
-#else
 #define NV_REG_POISON		0xdeadbeef
 #define CHECK_FULL_REGS(regs)						      \
 do {									      \
@@ -204,6 +216,26 @@ do {									      \
 		printk(KERN_CRIT "%s: partial register set\n", __func__); \
 } while (0)
 #endif /* __powerpc64__ */
+
+static inline void set_trap(struct pt_regs *regs, unsigned long val)
+{
+	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
+}
+
+static inline bool trap_is_syscall(struct pt_regs *regs)
+{
+	return TRAP(regs) == 0xc00;
+}
+
+static inline bool trap_norestart(struct pt_regs *regs)
+{
+	return regs->trap & 0x10;
+}
+
+static inline void set_trap_norestart(struct pt_regs *regs)
+{
+	regs->trap |= 0x10;
+}
 
 #define arch_has_single_step()	(1)
 #ifndef CONFIG_BOOK3S_601

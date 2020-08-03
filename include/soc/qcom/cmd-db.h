@@ -4,6 +4,7 @@
 #ifndef __QCOM_COMMAND_DB_H__
 #define __QCOM_COMMAND_DB_H__
 
+#include <linux/err.h>
 
 enum cmd_db_hw_type {
 	CMD_DB_HW_INVALID = 0,

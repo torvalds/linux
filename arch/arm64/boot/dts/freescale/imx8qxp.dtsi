@@ -141,17 +141,11 @@
 
 	scu {
 		compatible = "fsl,imx-scu";
-		mbox-names = "tx0", "tx1", "tx2", "tx3",
-			     "rx0", "rx1", "rx2", "rx3",
+		mbox-names = "tx0",
+			     "rx0",
 			     "gip3";
 		mboxes = <&lsio_mu1 0 0
-			  &lsio_mu1 0 1
-			  &lsio_mu1 0 2
-			  &lsio_mu1 0 3
 			  &lsio_mu1 1 0
-			  &lsio_mu1 1 1
-			  &lsio_mu1 1 2
-			  &lsio_mu1 1 3
 			  &lsio_mu1 3 3>;
 
 		clk: clock-controller {
@@ -548,14 +542,14 @@
 		};
 
 		lsio_mu1: mailbox@5d1c0000 {
-			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			compatible = "fsl,imx8-mu-scu", "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1c0000 0x10000>;
 			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
 		lsio_mu2: mailbox@5d1d0000 {
-			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			compatible = "fsl,imx8-mu-scu", "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1d0000 0x10000>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
@@ -563,7 +557,7 @@
 		};
 
 		lsio_mu3: mailbox@5d1e0000 {
-			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			compatible = "fsl,imx8-mu-scu", "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1e0000 0x10000>;
 			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
@@ -571,7 +565,7 @@
 		};
 
 		lsio_mu4: mailbox@5d1f0000 {
-			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			compatible = "fsl,imx8-mu-scu", "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1f0000 0x10000>;
 			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;

@@ -129,7 +129,7 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 {
 	switch (dpcd_throughput) {
-	case DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED:
+	case DP_DSC_THROUGHPUT_MODE_0_UNSUPPORTED:
 		*throughput = 0;
 		break;
 	case DP_DSC_THROUGHPUT_MODE_0_170:

@@ -48,18 +48,6 @@ void ecryptfs_from_hex(char *dst, char *src, int dst_size)
 	}
 }
 
-static int ecryptfs_hash_digest(struct crypto_shash *tfm,
-				char *src, int len, char *dst)
-{
-	SHASH_DESC_ON_STACK(desc, tfm);
-	int err;
-
-	desc->tfm = tfm;
-	err = crypto_shash_digest(desc, src, len, dst);
-	shash_desc_zero(desc);
-	return err;
-}
-
 /**
  * ecryptfs_calculate_md5 - calculates the md5 of @src
  * @dst: Pointer to 16 bytes of allocated memory
@@ -74,11 +62,8 @@ static int ecryptfs_calculate_md5(char *dst,
 				  struct ecryptfs_crypt_stat *crypt_stat,
 				  char *src, int len)
 {
-	struct crypto_shash *tfm;
-	int rc = 0;
+	int rc = crypto_shash_tfm_digest(crypt_stat->hash_tfm, src, len, dst);
 
-	tfm = crypt_stat->hash_tfm;
-	rc = ecryptfs_hash_digest(tfm, src, len, dst);
 	if (rc) {
 		printk(KERN_ERR
 		       "%s: Error computing crypto hash; rc = [%d]\n",

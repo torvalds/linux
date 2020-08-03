@@ -4,7 +4,7 @@
  * Phillip Lougher <phillip@squashfs.org.uk>
  */
 
-#include <linux/buffer_head.h>
+#include <linux/bio.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -89,20 +89,23 @@ static void lz4_free(void *strm)
 
 
 static int lz4_uncompress(struct squashfs_sb_info *msblk, void *strm,
-	struct buffer_head **bh, int b, int offset, int length,
+	struct bio *bio, int offset, int length,
 	struct squashfs_page_actor *output)
 {
+	struct bvec_iter_all iter_all = {};
+	struct bio_vec *bvec = bvec_init_iter_all(&iter_all);
 	struct squashfs_lz4 *stream = strm;
 	void *buff = stream->input, *data;
-	int avail, i, bytes = length, res;
+	int bytes = length, res;
 
-	for (i = 0; i < b; i++) {
-		avail = min(bytes, msblk->devblksize - offset);
-		memcpy(buff, bh[i]->b_data + offset, avail);
+	while (bio_next_segment(bio, &iter_all)) {
+		int avail = min(bytes, ((int)bvec->bv_len) - offset);
+
+		data = page_address(bvec->bv_page) + bvec->bv_offset;
+		memcpy(buff, data + offset, avail);
 		buff += avail;
 		bytes -= avail;
 		offset = 0;
-		put_bh(bh[i]);
 	}
 
 	res = LZ4_decompress_safe(stream->input, stream->output,

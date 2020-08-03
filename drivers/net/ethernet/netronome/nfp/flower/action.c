@@ -209,7 +209,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 					    NFP_FL_OUT_FLAGS_USE_TUN);
 		output->port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
 	} else if (netif_is_lag_master(out_dev) &&
-		   priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		   priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		int gid;
 
 		output->flags = cpu_to_be16(tmp_flags);
@@ -956,7 +956,7 @@ nfp_flower_output_action(struct nfp_app *app,
 
 	*a_len += sizeof(struct nfp_fl_output);
 
-	if (priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+	if (priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		/* nfp_fl_pre_lag returns -err or size of prelag action added.
 		 * This will be 0 if it is not egressing to a lag dev.
 		 */

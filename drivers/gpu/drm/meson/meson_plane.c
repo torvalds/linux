@@ -223,7 +223,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 			priv->viu.osd1_blk0_cfg[0] |= OSD_BLK_MODE_16 |
 						OSD_COLOR_MATRIX_16_RGB565;
 			break;
-		};
+		}
 	}
 
 	switch (fb->format->format) {

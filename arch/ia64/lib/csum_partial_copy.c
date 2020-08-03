@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
-#include <linux/uaccess.h>
+#include <net/checksum.h>
 
 /*
  * XXX Fixme: those 2 inlines are meant for debugging and will go away
@@ -103,39 +103,11 @@ out:
  * This is very ugly but temporary. THIS NEEDS SERIOUS ENHANCEMENTS.
  * But it's very tricky to get right even in C.
  */
-extern unsigned long do_csum(const unsigned char *, long);
-
-__wsum
-csum_partial_copy_from_user(const void __user *src, void *dst,
-				int len, __wsum psum, int *errp)
-{
-	unsigned long result;
-
-	/* XXX Fixme
-	 * for now we separate the copy from checksum for obvious
-	 * alignment difficulties. Look at the Alpha code and you'll be
-	 * scared.
-	 */
-
-	if (__copy_from_user(dst, src, len) != 0 && errp)
-		*errp = -EFAULT;
-
-	result = do_csum(dst, len);
-
-	/* add in old sum, and carry.. */
-	result += (__force u32)psum;
-	/* 32+c bits -> 32 bits */
-	result = (result & 0xffffffff) + (result >> 32);
-	return (__force __wsum)result;
-}
-
-EXPORT_SYMBOL(csum_partial_copy_from_user);
-
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {
-	return csum_partial_copy_from_user((__force const void __user *)src,
-					   dst, len, sum, NULL);
+	memcpy(dst, src, len);
+	return csum_partial(dst, len, sum);
 }
 
 EXPORT_SYMBOL(csum_partial_copy_nocheck);

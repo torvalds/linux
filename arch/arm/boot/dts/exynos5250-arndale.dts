@@ -454,7 +454,7 @@
 			};
 
 			buck1_reg: BUCK1 {
-				regulator-name = "vdd_mif";
+				regulator-name = "VDD_MIF";
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
@@ -463,7 +463,7 @@
 			};
 
 			buck2_reg: BUCK2 {
-				regulator-name = "vdd_arm";
+				regulator-name = "VDD_ARM";
 				regulator-min-microvolt = <912500>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
@@ -472,7 +472,7 @@
 			};
 
 			buck3_reg: BUCK3 {
-				regulator-name = "vdd_int";
+				regulator-name = "VDD_INT";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
@@ -481,7 +481,7 @@
 			};
 
 			buck4_reg: BUCK4 {
-				regulator-name = "vdd_g3d";
+				regulator-name = "VDD_G3D";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
@@ -641,9 +641,8 @@
 		pinctrl-0 = <&i2c2_gpio_bus>;
 		status = "okay";
 		compatible = "i2c-gpio";
-		gpios = <&gpa0 6 0 /* sda */
-			 &gpa0 7 0 /* scl */
-			>;
+		sda-gpios = <&gpa0 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpa0 7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;

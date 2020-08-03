@@ -4,7 +4,7 @@
  * Copyright 2013 Qtechnology/AS
  *
  * Author: Peter Meerwald <p.meerwald@bct-electronic.com>
- * Author: Ricardo Ribalda <ricardo.ribalda@gmail.com>
+ * Author: Ricardo Ribalda <ribalda@kernel.org>
  *
  * Based on leds-pca955x.c
  *

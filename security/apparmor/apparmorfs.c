@@ -341,38 +341,6 @@ static struct dentry *aafs_create_dir(const char *name, struct dentry *parent)
 }
 
 /**
- * aafs_create_symlink - create a symlink in the apparmorfs filesystem
- * @name: name of dentry to create
- * @parent: parent directory for this dentry
- * @target: if symlink, symlink target string
- * @private: private data
- * @iops: struct of inode_operations that should be used
- *
- * If @target parameter is %NULL, then the @iops parameter needs to be
- * setup to handle .readlink and .get_link inode_operations.
- */
-static struct dentry *aafs_create_symlink(const char *name,
-					  struct dentry *parent,
-					  const char *target,
-					  void *private,
-					  const struct inode_operations *iops)
-{
-	struct dentry *dent;
-	char *link = NULL;
-
-	if (target) {
-		if (!link)
-			return ERR_PTR(-ENOMEM);
-	}
-	dent = aafs_create(name, S_IFLNK | 0444, parent, private, link, NULL,
-			   iops);
-	if (IS_ERR(dent))
-		kfree(link);
-
-	return dent;
-}
-
-/**
  * aafs_remove - removes a file or directory from the apparmorfs filesystem
  *
  * @dentry: dentry of the file/directory/symlink to removed.
@@ -624,7 +592,7 @@ static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 
 void __aa_bump_ns_revision(struct aa_ns *ns)
 {
-	WRITE_ONCE(ns->revision, ns->revision + 1);
+	WRITE_ONCE(ns->revision, READ_ONCE(ns->revision) + 1);
 	wake_up_interruptible(&ns->wait);
 }
 
@@ -840,7 +808,7 @@ static ssize_t query_label(char *buf, size_t buf_len,
 struct multi_transaction {
 	struct kref count;
 	ssize_t size;
-	char data[0];
+	char data[];
 };
 
 #define MULTI_TRANSACTION_LIMIT (PAGE_SIZE - sizeof(struct multi_transaction))
@@ -1763,25 +1731,25 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	}
 
 	if (profile->rawdata) {
-		dent = aafs_create_symlink("raw_sha1", dir, NULL,
-					   profile->label.proxy,
-					   &rawdata_link_sha1_iops);
+		dent = aafs_create("raw_sha1", S_IFLNK | 0444, dir,
+				   profile->label.proxy, NULL, NULL,
+				   &rawdata_link_sha1_iops);
 		if (IS_ERR(dent))
 			goto fail;
 		aa_get_proxy(profile->label.proxy);
 		profile->dents[AAFS_PROF_RAW_HASH] = dent;
 
-		dent = aafs_create_symlink("raw_abi", dir, NULL,
-					   profile->label.proxy,
-					   &rawdata_link_abi_iops);
+		dent = aafs_create("raw_abi", S_IFLNK | 0444, dir,
+				   profile->label.proxy, NULL, NULL,
+				   &rawdata_link_abi_iops);
 		if (IS_ERR(dent))
 			goto fail;
 		aa_get_proxy(profile->label.proxy);
 		profile->dents[AAFS_PROF_RAW_ABI] = dent;
 
-		dent = aafs_create_symlink("raw_data", dir, NULL,
-					   profile->label.proxy,
-					   &rawdata_link_data_iops);
+		dent = aafs_create("raw_data", S_IFLNK | 0444, dir,
+				   profile->label.proxy, NULL, NULL,
+				   &rawdata_link_data_iops);
 		if (IS_ERR(dent))
 			goto fail;
 		aa_get_proxy(profile->label.proxy);
@@ -2364,6 +2332,8 @@ static struct aa_sfs_entry aa_sfs_entry_versions[] = {
 static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_DIR("versions",			aa_sfs_entry_versions),
 	AA_SFS_FILE_BOOLEAN("set_load",		1),
+	/* number of out of band transitions supported */
+	AA_SFS_FILE_U64("outofband",		MAX_OOB_SUPPORTED),
 	{ }
 };
 

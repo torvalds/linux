@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_BRNDOWN_MIN		0x20
 #define NOTIFY_BRNDOWN_MAX		0x2e
 #define NOTIFY_FNLOCK_TOGGLE		0x4e
+#define NOTIFY_KBD_DOCK_CHANGE		0x75
 #define NOTIFY_KBD_BRTUP		0xc4
 #define NOTIFY_KBD_BRTDWN		0xc5
 #define NOTIFY_KBD_BRTTOGGLE		0xc7
@@ -116,6 +117,8 @@ struct bios_args {
 	u32 arg0;
 	u32 arg1;
 	u32 arg2; /* At least TUF Gaming series uses 3 dword input buffer. */
+	u32 arg4;
+	u32 arg5;
 } __packed;
 
 /*
@@ -222,45 +225,6 @@ struct asus_wmi {
 	struct asus_wmi_driver *driver;
 };
 
-/* Input **********************************************************************/
-
-static int asus_wmi_input_init(struct asus_wmi *asus)
-{
-	int err;
-
-	asus->inputdev = input_allocate_device();
-	if (!asus->inputdev)
-		return -ENOMEM;
-
-	asus->inputdev->name = asus->driver->input_name;
-	asus->inputdev->phys = asus->driver->input_phys;
-	asus->inputdev->id.bustype = BUS_HOST;
-	asus->inputdev->dev.parent = &asus->platform_device->dev;
-	set_bit(EV_REP, asus->inputdev->evbit);
-
-	err = sparse_keymap_setup(asus->inputdev, asus->driver->keymap, NULL);
-	if (err)
-		goto err_free_dev;
-
-	err = input_register_device(asus->inputdev);
-	if (err)
-		goto err_free_dev;
-
-	return 0;
-
-err_free_dev:
-	input_free_device(asus->inputdev);
-	return err;
-}
-
-static void asus_wmi_input_exit(struct asus_wmi *asus)
-{
-	if (asus->inputdev)
-		input_unregister_device(asus->inputdev);
-
-	asus->inputdev = NULL;
-}
-
 /* WMI ************************************************************************/
 
 static int asus_wmi_evaluate_method3(u32 method_id,
@@ -309,7 +273,7 @@ static int asus_wmi_evaluate_method_agfn(const struct acpi_buffer args)
 	struct acpi_buffer input;
 	u64 phys_addr;
 	u32 retval;
-	u32 status = -1;
+	u32 status;
 
 	/*
 	 * Copy to dma capable address otherwise memory corruption occurs as
@@ -379,6 +343,53 @@ static bool asus_wmi_dev_is_present(struct asus_wmi *asus, u32 dev_id)
 	int status = asus_wmi_get_devstate(asus, dev_id, &retval);
 
 	return status == 0 && (retval & ASUS_WMI_DSTS_PRESENCE_BIT);
+}
+
+/* Input **********************************************************************/
+
+static int asus_wmi_input_init(struct asus_wmi *asus)
+{
+	int err, result;
+
+	asus->inputdev = input_allocate_device();
+	if (!asus->inputdev)
+		return -ENOMEM;
+
+	asus->inputdev->name = asus->driver->input_name;
+	asus->inputdev->phys = asus->driver->input_phys;
+	asus->inputdev->id.bustype = BUS_HOST;
+	asus->inputdev->dev.parent = &asus->platform_device->dev;
+	set_bit(EV_REP, asus->inputdev->evbit);
+
+	err = sparse_keymap_setup(asus->inputdev, asus->driver->keymap, NULL);
+	if (err)
+		goto err_free_dev;
+
+	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_KBD_DOCK);
+	if (result >= 0) {
+		input_set_capability(asus->inputdev, EV_SW, SW_TABLET_MODE);
+		input_report_switch(asus->inputdev, SW_TABLET_MODE, !result);
+	} else if (result != -ENODEV) {
+		pr_err("Error checking for keyboard-dock: %d\n", result);
+	}
+
+	err = input_register_device(asus->inputdev);
+	if (err)
+		goto err_free_dev;
+
+	return 0;
+
+err_free_dev:
+	input_free_device(asus->inputdev);
+	return err;
+}
+
+static void asus_wmi_input_exit(struct asus_wmi *asus)
+{
+	if (asus->inputdev)
+		input_unregister_device(asus->inputdev);
+
+	asus->inputdev = NULL;
 }
 
 /* Battery ********************************************************************/
@@ -675,14 +686,11 @@ static enum led_brightness lightbar_led_get(struct led_classdev *led_cdev)
 
 static void asus_wmi_led_exit(struct asus_wmi *asus)
 {
-	if (!IS_ERR_OR_NULL(asus->kbd_led.dev))
-		led_classdev_unregister(&asus->kbd_led);
-	if (!IS_ERR_OR_NULL(asus->tpd_led.dev))
-		led_classdev_unregister(&asus->tpd_led);
-	if (!IS_ERR_OR_NULL(asus->wlan_led.dev))
-		led_classdev_unregister(&asus->wlan_led);
-	if (!IS_ERR_OR_NULL(asus->lightbar_led.dev))
-		led_classdev_unregister(&asus->lightbar_led);
+	led_classdev_unregister(&asus->kbd_led);
+	led_classdev_unregister(&asus->tpd_led);
+	led_classdev_unregister(&asus->wlan_led);
+	led_classdev_unregister(&asus->lightbar_led);
+
 	if (asus->led_workqueue)
 		destroy_workqueue(asus->led_workqueue);
 }
@@ -2058,9 +2066,9 @@ static int asus_wmi_get_event_code(u32 value)
 
 static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 {
-	int orig_code;
 	unsigned int key_value = 1;
 	bool autorelease = 1;
+	int result, orig_code;
 
 	orig_code = code;
 
@@ -2102,6 +2110,17 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 	if (code == NOTIFY_FNLOCK_TOGGLE) {
 		asus->fnlock_locked = !asus->fnlock_locked;
 		asus_wmi_fnlock_update(asus);
+		return;
+	}
+
+	if (code == NOTIFY_KBD_DOCK_CHANGE) {
+		result = asus_wmi_get_devstate_simple(asus,
+						      ASUS_WMI_DEVID_KBD_DOCK);
+		if (result >= 0) {
+			input_report_switch(asus->inputdev, SW_TABLET_MODE,
+					    !result);
+			input_sync(asus->inputdev);
+		}
 		return;
 	}
 

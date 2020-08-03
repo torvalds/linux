@@ -7,7 +7,7 @@ The Maintainer Entry Profile supplements the top-level process documents
 (submitting-patches, submitting drivers...) with
 subsystem/device-driver-local customs as well as details about the patch
 submission life-cycle. A contributor uses this document to level set
-their expectations and avoid common mistakes, maintainers may use these
+their expectations and avoid common mistakes; maintainers may use these
 profiles to look across subsystems for opportunities to converge on
 common practices.
 
@@ -26,7 +26,7 @@ Example questions to consider:
 - Does the subsystem have a patchwork instance? Are patchwork state
   changes notified?
 - Any bots or CI infrastructure that watches the list, or automated
-  testing feedback that the subsystem gates acceptance?
+  testing feedback that the subsystem uses to gate acceptance?
 - Git branches that are pulled into -next?
 - What branch should contributors submit against?
 - Links to any other Maintainer Entry Profiles? For example a
@@ -54,8 +54,8 @@ One of the common misunderstandings of submitters is that patches can be
 sent at any time before the merge window closes and can still be
 considered for the next -rc1. The reality is that most patches need to
 be settled in soaking in linux-next in advance of the merge window
-opening. Clarify for the submitter the key dates (in terms rc release
-week) that patches might considered for merging and when patches need to
+opening. Clarify for the submitter the key dates (in terms of -rc release
+week) that patches might be considered for merging and when patches need to
 wait for the next -rc. At a minimum:
 
 - Last -rc for new feature submissions:
@@ -70,8 +70,8 @@ wait for the next -rc. At a minimum:
 - Last -rc to merge features: Deadline for merge decisions
   Indicate to contributors the point at which an as yet un-applied patch
   set will need to wait for the NEXT+1 merge window. Of course there is no
-  obligation to ever except any given patchset, but if the review has not
-  concluded by this point the expectation the contributor should wait and
+  obligation to ever accept any given patchset, but if the review has not
+  concluded by this point the expectation is the contributor should wait and
   resubmit for the following merge window.
 
 Optional:

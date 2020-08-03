@@ -57,7 +57,22 @@ MODULE_PARM_DESC(ahash_bufsize, "Maximum ahash buffer size");
 static struct crypto_shash *ima_shash_tfm;
 static struct crypto_ahash *ima_ahash_tfm;
 
-int __init ima_init_crypto(void)
+struct ima_algo_desc {
+	struct crypto_shash *tfm;
+	enum hash_algo algo;
+};
+
+int ima_sha1_idx __ro_after_init;
+int ima_hash_algo_idx __ro_after_init;
+/*
+ * Additional number of slots reserved, as needed, for SHA1
+ * and IMA default algo.
+ */
+int ima_extra_slots __ro_after_init;
+
+static struct ima_algo_desc *ima_algo_array;
+
+static int __init ima_init_ima_crypto(void)
 {
 	long rc;
 
@@ -76,26 +91,137 @@ int __init ima_init_crypto(void)
 static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
 {
 	struct crypto_shash *tfm = ima_shash_tfm;
-	int rc;
+	int rc, i;
 
 	if (algo < 0 || algo >= HASH_ALGO__LAST)
 		algo = ima_hash_algo;
 
-	if (algo != ima_hash_algo) {
-		tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
-		if (IS_ERR(tfm)) {
-			rc = PTR_ERR(tfm);
-			pr_err("Can not allocate %s (reason: %d)\n",
-			       hash_algo_name[algo], rc);
-		}
+	if (algo == ima_hash_algo)
+		return tfm;
+
+	for (i = 0; i < NR_BANKS(ima_tpm_chip) + ima_extra_slots; i++)
+		if (ima_algo_array[i].tfm && ima_algo_array[i].algo == algo)
+			return ima_algo_array[i].tfm;
+
+	tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
+	if (IS_ERR(tfm)) {
+		rc = PTR_ERR(tfm);
+		pr_err("Can not allocate %s (reason: %d)\n",
+		       hash_algo_name[algo], rc);
 	}
 	return tfm;
 }
 
+int __init ima_init_crypto(void)
+{
+	enum hash_algo algo;
+	long rc;
+	int i;
+
+	rc = ima_init_ima_crypto();
+	if (rc)
+		return rc;
+
+	ima_sha1_idx = -1;
+	ima_hash_algo_idx = -1;
+
+	for (i = 0; i < NR_BANKS(ima_tpm_chip); i++) {
+		algo = ima_tpm_chip->allocated_banks[i].crypto_id;
+		if (algo == HASH_ALGO_SHA1)
+			ima_sha1_idx = i;
+
+		if (algo == ima_hash_algo)
+			ima_hash_algo_idx = i;
+	}
+
+	if (ima_sha1_idx < 0) {
+		ima_sha1_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
+		if (ima_hash_algo == HASH_ALGO_SHA1)
+			ima_hash_algo_idx = ima_sha1_idx;
+	}
+
+	if (ima_hash_algo_idx < 0)
+		ima_hash_algo_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
+
+	ima_algo_array = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
+				 sizeof(*ima_algo_array), GFP_KERNEL);
+	if (!ima_algo_array) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < NR_BANKS(ima_tpm_chip); i++) {
+		algo = ima_tpm_chip->allocated_banks[i].crypto_id;
+		ima_algo_array[i].algo = algo;
+
+		/* unknown TPM algorithm */
+		if (algo == HASH_ALGO__LAST)
+			continue;
+
+		if (algo == ima_hash_algo) {
+			ima_algo_array[i].tfm = ima_shash_tfm;
+			continue;
+		}
+
+		ima_algo_array[i].tfm = ima_alloc_tfm(algo);
+		if (IS_ERR(ima_algo_array[i].tfm)) {
+			if (algo == HASH_ALGO_SHA1) {
+				rc = PTR_ERR(ima_algo_array[i].tfm);
+				ima_algo_array[i].tfm = NULL;
+				goto out_array;
+			}
+
+			ima_algo_array[i].tfm = NULL;
+		}
+	}
+
+	if (ima_sha1_idx >= NR_BANKS(ima_tpm_chip)) {
+		if (ima_hash_algo == HASH_ALGO_SHA1) {
+			ima_algo_array[ima_sha1_idx].tfm = ima_shash_tfm;
+		} else {
+			ima_algo_array[ima_sha1_idx].tfm =
+						ima_alloc_tfm(HASH_ALGO_SHA1);
+			if (IS_ERR(ima_algo_array[ima_sha1_idx].tfm)) {
+				rc = PTR_ERR(ima_algo_array[ima_sha1_idx].tfm);
+				goto out_array;
+			}
+		}
+
+		ima_algo_array[ima_sha1_idx].algo = HASH_ALGO_SHA1;
+	}
+
+	if (ima_hash_algo_idx >= NR_BANKS(ima_tpm_chip) &&
+	    ima_hash_algo_idx != ima_sha1_idx) {
+		ima_algo_array[ima_hash_algo_idx].tfm = ima_shash_tfm;
+		ima_algo_array[ima_hash_algo_idx].algo = ima_hash_algo;
+	}
+
+	return 0;
+out_array:
+	for (i = 0; i < NR_BANKS(ima_tpm_chip) + ima_extra_slots; i++) {
+		if (!ima_algo_array[i].tfm ||
+		    ima_algo_array[i].tfm == ima_shash_tfm)
+			continue;
+
+		crypto_free_shash(ima_algo_array[i].tfm);
+	}
+out:
+	crypto_free_shash(ima_shash_tfm);
+	return rc;
+}
+
 static void ima_free_tfm(struct crypto_shash *tfm)
 {
-	if (tfm != ima_shash_tfm)
-		crypto_free_shash(tfm);
+	int i;
+
+	if (tfm == ima_shash_tfm)
+		return;
+
+	for (i = 0; i < NR_BANKS(ima_tpm_chip) + ima_extra_slots; i++)
+		if (ima_algo_array[i].tfm == tfm)
+			return;
+
+	crypto_free_shash(tfm);
 }
 
 /**
@@ -464,17 +590,15 @@ out:
  * Calculate the hash of template data
  */
 static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
-					 struct ima_template_desc *td,
-					 int num_fields,
-					 struct ima_digest_data *hash,
-					 struct crypto_shash *tfm)
+					 struct ima_template_entry *entry,
+					 int tfm_idx)
 {
-	SHASH_DESC_ON_STACK(shash, tfm);
+	SHASH_DESC_ON_STACK(shash, ima_algo_array[tfm_idx].tfm);
+	struct ima_template_desc *td = entry->template_desc;
+	int num_fields = entry->template_desc->num_fields;
 	int rc, i;
 
-	shash->tfm = tfm;
-
-	hash->length = crypto_shash_digestsize(tfm);
+	shash->tfm = ima_algo_array[tfm_idx].tfm;
 
 	rc = crypto_shash_init(shash);
 	if (rc != 0)
@@ -504,27 +628,44 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 	}
 
 	if (!rc)
-		rc = crypto_shash_final(shash, hash->digest);
+		rc = crypto_shash_final(shash, entry->digests[tfm_idx].digest);
 
 	return rc;
 }
 
 int ima_calc_field_array_hash(struct ima_field_data *field_data,
-			      struct ima_template_desc *desc, int num_fields,
-			      struct ima_digest_data *hash)
+			      struct ima_template_entry *entry)
 {
-	struct crypto_shash *tfm;
-	int rc;
+	u16 alg_id;
+	int rc, i;
 
-	tfm = ima_alloc_tfm(hash->algo);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	rc = ima_calc_field_array_hash_tfm(field_data, entry, ima_sha1_idx);
+	if (rc)
+		return rc;
 
-	rc = ima_calc_field_array_hash_tfm(field_data, desc, num_fields,
-					   hash, tfm);
+	entry->digests[ima_sha1_idx].alg_id = TPM_ALG_SHA1;
 
-	ima_free_tfm(tfm);
+	for (i = 0; i < NR_BANKS(ima_tpm_chip) + ima_extra_slots; i++) {
+		if (i == ima_sha1_idx)
+			continue;
 
+		if (i < NR_BANKS(ima_tpm_chip)) {
+			alg_id = ima_tpm_chip->allocated_banks[i].alg_id;
+			entry->digests[i].alg_id = alg_id;
+		}
+
+		/* for unmapped TPM algorithms digest is still a padded SHA1 */
+		if (!ima_algo_array[i].tfm) {
+			memcpy(entry->digests[i].digest,
+			       entry->digests[ima_sha1_idx].digest,
+			       TPM_DIGEST_SIZE);
+			continue;
+		}
+
+		rc = ima_calc_field_array_hash_tfm(field_data, entry, i);
+		if (rc)
+			return rc;
+	}
 	return rc;
 }
 
@@ -645,7 +786,7 @@ int ima_calc_buffer_hash(const void *buf, loff_t len,
 	return calc_buffer_shash(buf, len, hash);
 }
 
-static void __init ima_pcrread(u32 idx, struct tpm_digest *d)
+static void ima_pcrread(u32 idx, struct tpm_digest *d)
 {
 	if (!ima_tpm_chip)
 		return;
@@ -655,17 +796,28 @@ static void __init ima_pcrread(u32 idx, struct tpm_digest *d)
 }
 
 /*
- * Calculate the boot aggregate hash
+ * The boot_aggregate is a cumulative hash over TPM registers 0 - 7.  With
+ * TPM 1.2 the boot_aggregate was based on reading the SHA1 PCRs, but with
+ * TPM 2.0 hash agility, TPM chips could support multiple TPM PCR banks,
+ * allowing firmware to configure and enable different banks.
+ *
+ * Knowing which TPM bank is read to calculate the boot_aggregate digest
+ * needs to be conveyed to a verifier.  For this reason, use the same
+ * hash algorithm for reading the TPM PCRs as for calculating the boot
+ * aggregate digest as stored in the measurement list.
  */
-static int __init ima_calc_boot_aggregate_tfm(char *digest,
-					      struct crypto_shash *tfm)
+static int ima_calc_boot_aggregate_tfm(char *digest, u16 alg_id,
+				       struct crypto_shash *tfm)
 {
-	struct tpm_digest d = { .alg_id = TPM_ALG_SHA1, .digest = {0} };
+	struct tpm_digest d = { .alg_id = alg_id, .digest = {0} };
 	int rc;
 	u32 i;
 	SHASH_DESC_ON_STACK(shash, tfm);
 
 	shash->tfm = tfm;
+
+	pr_devel("calculating the boot-aggregate based on TPM bank: %04x\n",
+		 d.alg_id);
 
 	rc = crypto_shash_init(shash);
 	if (rc != 0)
@@ -675,24 +827,48 @@ static int __init ima_calc_boot_aggregate_tfm(char *digest,
 	for (i = TPM_PCR0; i < TPM_PCR8; i++) {
 		ima_pcrread(i, &d);
 		/* now accumulate with current aggregate */
-		rc = crypto_shash_update(shash, d.digest, TPM_DIGEST_SIZE);
+		rc = crypto_shash_update(shash, d.digest,
+					 crypto_shash_digestsize(tfm));
 	}
 	if (!rc)
 		crypto_shash_final(shash, digest);
 	return rc;
 }
 
-int __init ima_calc_boot_aggregate(struct ima_digest_data *hash)
+int ima_calc_boot_aggregate(struct ima_digest_data *hash)
 {
 	struct crypto_shash *tfm;
-	int rc;
+	u16 crypto_id, alg_id;
+	int rc, i, bank_idx = -1;
+
+	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++) {
+		crypto_id = ima_tpm_chip->allocated_banks[i].crypto_id;
+		if (crypto_id == hash->algo) {
+			bank_idx = i;
+			break;
+		}
+
+		if (crypto_id == HASH_ALGO_SHA256)
+			bank_idx = i;
+
+		if (bank_idx == -1 && crypto_id == HASH_ALGO_SHA1)
+			bank_idx = i;
+	}
+
+	if (bank_idx == -1) {
+		pr_err("No suitable TPM algorithm for boot aggregate\n");
+		return 0;
+	}
+
+	hash->algo = ima_tpm_chip->allocated_banks[bank_idx].crypto_id;
 
 	tfm = ima_alloc_tfm(hash->algo);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
 	hash->length = crypto_shash_digestsize(tfm);
-	rc = ima_calc_boot_aggregate_tfm(hash->digest, tfm);
+	alg_id = ima_tpm_chip->allocated_banks[bank_idx].alg_id;
+	rc = ima_calc_boot_aggregate_tfm(hash->digest, alg_id, tfm);
 
 	ima_free_tfm(tfm);
 

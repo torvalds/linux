@@ -632,7 +632,6 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	attr->max_mr_size = qed_attr->max_mr_size;
 	attr->max_cqe = min_t(u64, qed_attr->max_cqe, QEDR_MAX_CQES);
 	attr->max_mw = qed_attr->max_mw;
-	attr->max_fmr = qed_attr->max_fmr;
 	attr->max_mr_mw_fmr_pbl = qed_attr->max_mr_mw_fmr_pbl;
 	attr->max_mr_mw_fmr_size = qed_attr->max_mr_mw_fmr_size;
 	attr->max_pd = qed_attr->max_pd;

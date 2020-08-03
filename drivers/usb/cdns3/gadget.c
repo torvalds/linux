@@ -512,8 +512,8 @@ static void cdns3_wa2_descmiss_copy_data(struct cdns3_endpoint *priv_ep,
 }
 
 static struct usb_request *cdns3_wa2_gadget_giveback(struct cdns3_device *priv_dev,
-					      struct cdns3_endpoint *priv_ep,
-					      struct cdns3_request *priv_req)
+						     struct cdns3_endpoint *priv_ep,
+						     struct cdns3_request *priv_req)
 {
 	if (priv_ep->flags & EP_QUIRK_EXTRA_BUF_EN &&
 	    priv_req->flags & REQUEST_INTERNAL) {
@@ -552,8 +552,8 @@ static struct usb_request *cdns3_wa2_gadget_giveback(struct cdns3_device *priv_d
 }
 
 static int cdns3_wa2_gadget_ep_queue(struct cdns3_device *priv_dev,
-			      struct cdns3_endpoint *priv_ep,
-			      struct cdns3_request *priv_req)
+				     struct cdns3_endpoint *priv_ep,
+				     struct cdns3_request *priv_req)
 {
 	int deferred = 0;
 
@@ -1905,7 +1905,7 @@ static int cdns3_ep_onchip_buffer_reserve(struct cdns3_device *priv_dev,
 }
 
 static void cdns3_stream_ep_reconfig(struct cdns3_device *priv_dev,
-			      struct cdns3_endpoint *priv_ep)
+				     struct cdns3_endpoint *priv_ep)
 {
 	if (!priv_ep->use_streams || priv_dev->gadget.speed < USB_SPEED_SUPER)
 		return;
@@ -1926,7 +1926,7 @@ static void cdns3_stream_ep_reconfig(struct cdns3_device *priv_dev,
 }
 
 static void cdns3_configure_dmult(struct cdns3_device *priv_dev,
-			   struct cdns3_endpoint *priv_ep)
+				  struct cdns3_endpoint *priv_ep)
 {
 	struct cdns3_usb_regs __iomem *regs = priv_dev->regs;
 
@@ -2965,7 +2965,7 @@ static int cdns3_init_eps(struct cdns3_device *priv_dev)
 
 		priv_ep->flags = 0;
 
-		dev_info(priv_dev->dev, "Initialized  %s support: %s %s\n",
+		dev_dbg(priv_dev->dev, "Initialized  %s support: %s %s\n",
 			 priv_ep->name,
 			 priv_ep->endpoint.caps.type_bulk ? "BULK, INT" : "",
 			 priv_ep->endpoint.caps.type_iso ? "ISO" : "");
@@ -3069,6 +3069,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	priv_dev->gadget.name = "usb-ss-gadget";
 	priv_dev->gadget.sg_supported = 1;
 	priv_dev->gadget.quirk_avoids_skb_reserve = 1;
+	priv_dev->gadget.irq = cdns->dev_irq;
 
 	spin_lock_init(&priv_dev->lock);
 	INIT_WORK(&priv_dev->pending_status_wq,

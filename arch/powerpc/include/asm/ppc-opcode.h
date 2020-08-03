@@ -158,6 +158,9 @@
 /* VMX Vector Store Instructions */
 #define OP_31_XOP_STVX          231
 
+/* Prefixed Instructions */
+#define OP_PREFIX		1
+
 #define OP_31   31
 #define OP_LWZ  32
 #define OP_STFS 52

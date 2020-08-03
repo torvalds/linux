@@ -375,6 +375,10 @@ skip_rdma:
 				ses->ses_count, ses->serverOS, ses->serverNOS,
 				ses->capabilities, ses->status);
 			}
+
+			seq_printf(m,"Security type: %s\n",
+				get_security_type_str(server->ops->select_sectype(server, ses->sectype)));
+
 			if (server->rdma)
 				seq_printf(m, "RDMA\n\t");
 			seq_printf(m, "TCP status: %d Instance: %d\n\tLocal Users To "

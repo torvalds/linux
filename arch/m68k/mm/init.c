@@ -84,7 +84,7 @@ void __init paging_init(void)
 	 * page_alloc get different views of the world.
 	 */
 	unsigned long end_mem = memory_end & PAGE_MASK;
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 
 	high_memory = (void *) end_mem;
 
@@ -98,8 +98,8 @@ void __init paging_init(void)
 	 */
 	set_fs (USER_DS);
 
-	zones_size[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
-	free_area_init(zones_size);
+	max_zone_pfn[ZONE_DMA] = end_mem >> PAGE_SHIFT;
+	free_area_init(max_zone_pfn);
 }
 
 #endif /* CONFIG_MMU */
@@ -141,7 +141,7 @@ static inline void init_pointer_tables(void)
 			if (!pmd_present(*pmd))
 				continue;
 
-			pte_dir = (pte_t *)__pmd_page(*pmd);
+			pte_dir = (pte_t *)pmd_page_vaddr(*pmd);
 			init_pointer_table(pte_dir, TABLE_PTE);
 		}
 	}

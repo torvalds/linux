@@ -8,6 +8,8 @@
 #include <linux/netdevice.h>
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
+#include <linux/pkt_sched.h>
+#include <net/sch_generic.h>
 
 TRACE_EVENT(qdisc_dequeue,
 
@@ -42,6 +44,79 @@ TRACE_EVENT(qdisc_dequeue,
 	TP_printk("dequeue ifindex=%d qdisc handle=0x%X parent=0x%X txq_state=0x%lX packets=%d skbaddr=%p",
 		  __entry->ifindex, __entry->handle, __entry->parent,
 		  __entry->txq_state, __entry->packets, __entry->skbaddr )
+);
+
+TRACE_EVENT(qdisc_reset,
+
+	TP_PROTO(struct Qdisc *q),
+
+	TP_ARGS(q),
+
+	TP_STRUCT__entry(
+		__string(	dev,		qdisc_dev(q)	)
+		__string(	kind,		q->ops->id	)
+		__field(	u32,		parent		)
+		__field(	u32,		handle		)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, qdisc_dev(q));
+		__assign_str(kind, q->ops->id);
+		__entry->parent = q->parent;
+		__entry->handle = q->handle;
+	),
+
+	TP_printk("dev=%s kind=%s parent=%x:%x handle=%x:%x", __get_str(dev),
+		  __get_str(kind), TC_H_MAJ(__entry->parent) >> 16, TC_H_MIN(__entry->parent),
+		  TC_H_MAJ(__entry->handle) >> 16, TC_H_MIN(__entry->handle))
+);
+
+TRACE_EVENT(qdisc_destroy,
+
+	TP_PROTO(struct Qdisc *q),
+
+	TP_ARGS(q),
+
+	TP_STRUCT__entry(
+		__string(	dev,		qdisc_dev(q)	)
+		__string(	kind,		q->ops->id	)
+		__field(	u32,		parent		)
+		__field(	u32,		handle		)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, qdisc_dev(q));
+		__assign_str(kind, q->ops->id);
+		__entry->parent = q->parent;
+		__entry->handle = q->handle;
+	),
+
+	TP_printk("dev=%s kind=%s parent=%x:%x handle=%x:%x", __get_str(dev),
+		  __get_str(kind), TC_H_MAJ(__entry->parent) >> 16, TC_H_MIN(__entry->parent),
+		  TC_H_MAJ(__entry->handle) >> 16, TC_H_MIN(__entry->handle))
+);
+
+TRACE_EVENT(qdisc_create,
+
+	TP_PROTO(const struct Qdisc_ops *ops, struct net_device *dev, u32 parent),
+
+	TP_ARGS(ops, dev, parent),
+
+	TP_STRUCT__entry(
+		__string(	dev,		dev->name	)
+		__string(	kind,		ops->id		)
+		__field(	u32,		parent		)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, dev->name);
+		__assign_str(kind, ops->id);
+		__entry->parent = parent;
+	),
+
+	TP_printk("dev=%s kind=%s parent=%x:%x",
+		  __get_str(dev), __get_str(kind),
+		  TC_H_MAJ(__entry->parent) >> 16, TC_H_MIN(__entry->parent))
 );
 
 #endif /* _TRACE_QDISC_H */

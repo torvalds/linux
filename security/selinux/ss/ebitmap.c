@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/jhash.h>
 #include <net/netlabel.h>
 #include "ebitmap.h"
 #include "policydb.h"
@@ -540,6 +541,19 @@ int ebitmap_write(struct ebitmap *e, void *fp)
 			return rc;
 	}
 	return 0;
+}
+
+u32 ebitmap_hash(const struct ebitmap *e, u32 hash)
+{
+	struct ebitmap_node *node;
+
+	/* need to change hash even if ebitmap is empty */
+	hash = jhash_1word(e->highbit, hash);
+	for (node = e->node; node; node = node->next) {
+		hash = jhash_1word(node->startbit, hash);
+		hash = jhash(node->maps, sizeof(node->maps), hash);
+	}
+	return hash;
 }
 
 void __init ebitmap_cache_init(void)

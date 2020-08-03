@@ -18,6 +18,8 @@
 #include <linux/util_macros.h>
 #include <linux/acpi.h>
 
+#include <asm/unaligned.h>
+
 /* I2C commands: */
 #define HP206C_CMD_SOFT_RST	0x06
 
@@ -93,12 +95,12 @@ static int hp206c_read_20bit(struct i2c_client *client, u8 cmd)
 	int ret;
 	u8 values[3];
 
-	ret = i2c_smbus_read_i2c_block_data(client, cmd, 3, values);
+	ret = i2c_smbus_read_i2c_block_data(client, cmd, sizeof(values), values);
 	if (ret < 0)
 		return ret;
-	if (ret != 3)
+	if (ret != sizeof(values))
 		return -EIO;
-	return ((values[0] & 0xF) << 16) | (values[1] << 8) | (values[2]);
+	return get_unaligned_be24(&values[0]) & GENMASK(19, 0);
 }
 
 /* Spin for max 160ms until DEV_RDY is 1, or return error. */

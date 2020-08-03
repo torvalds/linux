@@ -252,7 +252,6 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 					struct drm_property *property,
 					uint64_t value);
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
-extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
 
 /* intel_gmbus.c */
 extern void gma_intel_i2c_reset(struct drm_device *dev);

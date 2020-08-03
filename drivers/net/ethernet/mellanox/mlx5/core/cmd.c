@@ -1072,7 +1072,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 
 	ds = ent->ts2 - ent->ts1;
 	op = MLX5_GET(mbox_in, in->first.data, opcode);
-	if (op < ARRAY_SIZE(cmd->stats)) {
+	if (op < MLX5_CMD_OP_MAX) {
 		stats = &cmd->stats[op];
 		spin_lock_irq(&stats->lock);
 		stats->sum += ds;
@@ -1551,7 +1551,7 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 
 			if (ent->callback) {
 				ds = ent->ts2 - ent->ts1;
-				if (ent->op < ARRAY_SIZE(cmd->stats)) {
+				if (ent->op < MLX5_CMD_OP_MAX) {
 					stats = &cmd->stats[ent->op];
 					spin_lock_irqsave(&stats->lock, flags);
 					stats->sum += ds;
@@ -1936,6 +1936,11 @@ static void free_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 			  cmd->alloc_dma);
 }
 
+static u16 cmdif_rev(struct mlx5_core_dev *dev)
+{
+	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
+}
+
 int mlx5_cmd_init(struct mlx5_core_dev *dev)
 {
 	int size = sizeof(struct mlx5_cmd_prot_block);
@@ -1955,9 +1960,15 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		return -EINVAL;
 	}
 
-	cmd->pool = dma_pool_create("mlx5_cmd", dev->device, size, align, 0);
-	if (!cmd->pool)
+	cmd->stats = kvzalloc(MLX5_CMD_OP_MAX * sizeof(*cmd->stats), GFP_KERNEL);
+	if (!cmd->stats)
 		return -ENOMEM;
+
+	cmd->pool = dma_pool_create("mlx5_cmd", dev->device, size, align, 0);
+	if (!cmd->pool) {
+		err = -ENOMEM;
+		goto dma_pool_err;
+	}
 
 	err = alloc_cmd_page(dev, cmd);
 	if (err)
@@ -1994,7 +2005,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	spin_lock_init(&cmd->alloc_lock);
 	spin_lock_init(&cmd->token_lock);
-	for (i = 0; i < ARRAY_SIZE(cmd->stats); i++)
+	for (i = 0; i < MLX5_CMD_OP_MAX; i++)
 		spin_lock_init(&cmd->stats[i].lock);
 
 	sema_init(&cmd->sem, cmd->max_reg_cmds);
@@ -2041,7 +2052,8 @@ err_free_page:
 
 err_free_pool:
 	dma_pool_destroy(cmd->pool);
-
+dma_pool_err:
+	kvfree(cmd->stats);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_cmd_init);
@@ -2055,6 +2067,7 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);
 	dma_pool_destroy(cmd->pool);
+	kvfree(cmd->stats);
 }
 EXPORT_SYMBOL(mlx5_cmd_cleanup);
 

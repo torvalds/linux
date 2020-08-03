@@ -683,7 +683,6 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask = 1 << ((mmTPC0_CFG_SEMAPHORE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_VFLAGS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_SFLAGS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC0_CFG_LFSR_POLYNOM & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_STATUS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
@@ -695,7 +694,6 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC0_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC0_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_TPC_STALL & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_MSS_CONFIG & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
@@ -875,6 +873,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC1_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC1_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC1_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC1_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC1_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC1_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC1_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -882,6 +890,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC1_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1057,6 +1069,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC2_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC2_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC2_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC2_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC2_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC2_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC2_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -1064,6 +1086,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC2_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1239,6 +1265,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC3_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC3_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC3_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC3_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC3_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC3_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC3_CFG_CFG_BASE_ADDRESS_HIGH
 			& PROT_BITS_OFFS) >> 7) << 2;
@@ -1246,6 +1282,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC3_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1421,6 +1461,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC4_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC4_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC4_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC4_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC4_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC4_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC4_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -1428,6 +1478,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC4_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1603,6 +1657,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC5_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC5_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC5_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC5_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC5_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC5_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC5_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -1610,6 +1674,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC5_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1785,6 +1853,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC6_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC6_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC6_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC6_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC6_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC6_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) + PROT_BITS_OFFS;
 	word_offset = ((mmTPC6_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -1792,6 +1870,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC6_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1967,6 +2049,16 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	goya_pb_set_block(hdev, mmTPC7_RD_REGULATOR_BASE);
 	goya_pb_set_block(hdev, mmTPC7_WR_REGULATOR_BASE);
 
+	pb_addr = (mmTPC7_CFG_SEMAPHORE & ~0xFFF) + PROT_BITS_OFFS;
+	word_offset = ((mmTPC7_CFG_SEMAPHORE & PROT_BITS_OFFS) >> 7) << 2;
+
+	mask = 1 << ((mmTPC7_CFG_SEMAPHORE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_VFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_SFLAGS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_STATUS & 0x7F) >> 2);
+
+	WREG32(pb_addr + word_offset, ~mask);
+
 	pb_addr = (mmTPC7_CFG_CFG_BASE_ADDRESS_HIGH & ~0xFFF) +	PROT_BITS_OFFS;
 	word_offset = ((mmTPC7_CFG_CFG_BASE_ADDRESS_HIGH &
 			PROT_BITS_OFFS) >> 7) << 2;
@@ -1974,6 +2066,10 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC7_CFG_CFG_SUBTRACT_VALUE & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CFG_SM_BASE_ADDRESS_LOW & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CFG_SM_BASE_ADDRESS_HIGH & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_TPC_STALL & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_MSS_CONFIG & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_TPC_INTR_CAUSE & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CFG_TPC_INTR_MASK & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 

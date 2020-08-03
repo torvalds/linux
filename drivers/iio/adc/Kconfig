@@ -246,6 +246,41 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config AD9467
+	tristate "Analog Devices AD9467 High Speed ADC driver"
+	depends on SPI
+	select ADI_AXI_ADC
+	help
+	  Say yes here to build support for Analog Devices:
+	  * AD9467 16-Bit, 200 MSPS/250 MSPS Analog-to-Digital Converter
+
+	  The driver requires the assistance of the AXI ADC IP core to operate,
+	  since SPI is used for configuration only, while data has to be
+	  streamed into memory via DMA.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad9467.
+
+config ADI_AXI_ADC
+	tristate "Analog Devices Generic AXI ADC IP core driver"
+	select IIO_BUFFER
+	select IIO_BUFFER_HW_CONSUMER
+	select IIO_BUFFER_DMAENGINE
+	help
+	  Say yes here to build support for Analog Devices Generic
+	  AXI ADC IP core. The IP core is used for interfacing with
+	  analog-to-digital (ADC) converters that require either a high-speed
+	  serial interface (JESD204B/C) or a source synchronous parallel
+	  interface (LVDS/CMOS).
+	  Typically (for such devices) SPI will be used for configuration only,
+	  while this IP core handles the streaming of data into memory via DMA.
+
+	  Link: https://wiki.analog.com/resources/fpga/docs/axi_adc_ip
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adi-axi-adc.
+
 config ASPEED_ADC
 	tristate "Aspeed ADC"
 	depends on ARCH_ASPEED || COMPILE_TEST
@@ -595,6 +630,16 @@ config MAX1118
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1118.
 
+config MAX1241
+	tristate "Maxim max1241 ADC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Maxim max1241 12-bit, single-channel
+	  ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1241.
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
@@ -691,6 +736,16 @@ config MESON_SARADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_saradc.
+
+config MP2629_ADC
+	tristate "Monolithic MP2629 ADC driver"
+	depends on MFD_MP2629
+	help
+	  Say yes to have support for battery charger IC MP2629 ADC device
+	  accessed over I2C.
+
+	  This driver provides ADC conversion of system, input power supply
+	  and battery voltage & current information.
 
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"

@@ -41,7 +41,7 @@ void intel_huc_init_early(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 
-	intel_huc_fw_init_early(huc);
+	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC);
 
 	if (INTEL_GEN(i915) >= 11) {
 		huc->status.reg = GEN11_HUC_KERNEL_LOAD_INFO;
@@ -200,9 +200,13 @@ fail:
  * This function reads status register to verify if HuC
  * firmware was successfully loaded.
  *
- * Returns: 1 if HuC firmware is loaded and verified,
- * 0 if HuC firmware is not loaded and -ENODEV if HuC
- * is not present on this platform.
+ * Returns:
+ *  * -ENODEV if HuC is not present on this platform,
+ *  * -EOPNOTSUPP if HuC firmware is disabled,
+ *  * -ENOPKG if HuC firmware was not installed,
+ *  * -ENOEXEC if HuC firmware is invalid or mismatched,
+ *  * 0 if HuC firmware is not running,
+ *  * 1 if HuC firmware is authenticated and running.
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
@@ -210,11 +214,50 @@ int intel_huc_check_status(struct intel_huc *huc)
 	intel_wakeref_t wakeref;
 	u32 status = 0;
 
-	if (!intel_huc_is_supported(huc))
+	switch (__intel_uc_fw_status(&huc->fw)) {
+	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
 		return -ENODEV;
+	case INTEL_UC_FIRMWARE_DISABLED:
+		return -EOPNOTSUPP;
+	case INTEL_UC_FIRMWARE_MISSING:
+		return -ENOPKG;
+	case INTEL_UC_FIRMWARE_ERROR:
+		return -ENOEXEC;
+	default:
+		break;
+	}
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		status = intel_uncore_read(gt->uncore, huc->status.reg);
 
 	return (status & huc->status.mask) == huc->status.value;
+}
+
+/**
+ * intel_huc_load_status - dump information about HuC load status
+ * @huc: the HuC
+ * @p: the &drm_printer
+ *
+ * Pretty printer for HuC load status.
+ */
+void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p)
+{
+	struct intel_gt *gt = huc_to_gt(huc);
+	intel_wakeref_t wakeref;
+
+	if (!intel_huc_is_supported(huc)) {
+		drm_printf(p, "HuC not supported\n");
+		return;
+	}
+
+	if (!intel_huc_is_wanted(huc)) {
+		drm_printf(p, "HuC disabled\n");
+		return;
+	}
+
+	intel_uc_fw_dump(&huc->fw, p);
+
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		drm_printf(p, "HuC status: 0x%08x\n",
+			   intel_uncore_read(gt->uncore, huc->status.reg));
 }

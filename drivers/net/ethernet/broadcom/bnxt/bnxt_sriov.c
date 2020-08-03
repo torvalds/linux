@@ -645,7 +645,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 				  FUNC_CFG_REQ_ENABLES_NUM_VNICS |
 				  FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS);
 
-	mtu = bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+	mtu = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
 	req.mru = cpu_to_le16(mtu);
 	req.mtu = cpu_to_le16(mtu);
 

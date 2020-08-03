@@ -65,7 +65,7 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
 	return __raw_readl(eth->base + reg);
 }
 
-u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
+static u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
 {
 	u32 val;
 
@@ -1122,7 +1122,7 @@ static void mtk_stop_queue(struct mtk_eth *eth)
 	}
 }
 
-static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;

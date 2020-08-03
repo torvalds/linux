@@ -2345,8 +2345,6 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			goto out_free;
 		}
 
-		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
-
 		if (enable_4k_uar || !dev->persist->num_vfs) {
 			init_hca->log_uar_sz = ilog2(dev->caps.num_uars) +
 						    PAGE_SHIFT - DEFAULT_UAR_PAGE_SHIFT;

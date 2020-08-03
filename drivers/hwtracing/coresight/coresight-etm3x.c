@@ -504,7 +504,7 @@ static int etm_enable_perf(struct coresight_device *csdev,
 static int etm_enable_sysfs(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-	struct etm_enable_arg arg = { 0 };
+	struct etm_enable_arg arg = { };
 	int ret;
 
 	spin_lock(&drvdata->spinlock);

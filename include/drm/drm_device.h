@@ -67,15 +67,33 @@ struct drm_device {
 	/** @dev: Device structure of bus-device */
 	struct device *dev;
 
+	/**
+	 * @managed:
+	 *
+	 * Managed resources linked to the lifetime of this &drm_device as
+	 * tracked by @ref.
+	 */
+	struct {
+		/** @managed.resources: managed resources list */
+		struct list_head resources;
+		/** @managed.final_kfree: pointer for final kfree() call */
+		void *final_kfree;
+		/** @managed.lock: protects @managed.resources */
+		spinlock_t lock;
+	} managed;
+
 	/** @driver: DRM driver managing the device */
 	struct drm_driver *driver;
 
 	/**
 	 * @dev_private:
 	 *
-	 * DRM driver private data. Instead of using this pointer it is
-	 * recommended that drivers use drm_dev_init() and embed struct
-	 * &drm_device in their larger per-device structure.
+	 * DRM driver private data. This is deprecated and should be left set to
+	 * NULL.
+	 *
+	 * Instead of using this pointer it is recommended that drivers use
+	 * drm_dev_init() and embed struct &drm_device in their larger
+	 * per-device structure.
 	 */
 	void *dev_private;
 

@@ -2624,8 +2624,8 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	if (fnic->internal_reset_inprogress == 0) {
-		fnic->internal_reset_inprogress = 1;
+	if (!fnic->internal_reset_inprogress) {
+		fnic->internal_reset_inprogress = true;
 	} else {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
@@ -2654,7 +2654,7 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	}
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	fnic->internal_reset_inprogress = 0;
+	fnic->internal_reset_inprogress = false;
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 	return ret;
 }

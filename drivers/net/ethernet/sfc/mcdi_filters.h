@@ -55,6 +55,8 @@ struct efx_mcdi_filter_table {
 	u32 rx_match_mcdi_flags[
 		MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_MAXNUM * 2];
 	unsigned int rx_match_count;
+	/* Our RSS context is exclusive (as opposed to shared) */
+	bool rx_rss_context_exclusive;
 
 	struct rw_semaphore lock; /* Protects entries */
 	struct {
@@ -75,13 +77,26 @@ struct efx_mcdi_filter_table {
 /* Whether in multicast promiscuous mode when last changed */
 	bool mc_promisc_last;
 	bool mc_overflow; /* Too many MC addrs; should always imply mc_promisc */
+	/* RSS contexts have yet to be restored after MC reboot */
+	bool must_restore_rss_contexts;
+	/* filters have yet to be restored after MC reboot */
+	bool must_restore_filters;
+	/* Multicast filter chaining allows less-specific filters to receive
+	 * multicast packets that matched more-specific filters.  Early EF10
+	 * firmware didn't support this (SF bug 26807); if mc_chaining == false
+	 * then we still subscribe the dev_mc_list even when mc_promisc to
+	 * prevent another VI stealing the traffic.
+	 */
+	bool mc_chaining;
 	bool vlan_filter;
 	struct list_head vlan_list;
 };
 
-int efx_mcdi_filter_table_probe(struct efx_nic *efx);
+int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining);
 void efx_mcdi_filter_table_remove(struct efx_nic *efx);
 void efx_mcdi_filter_table_restore(struct efx_nic *efx);
+
+void efx_mcdi_filter_table_reset_mc_allocations(struct efx_nic *efx);
 
 /*
  * The filter table(s) are managed by firmware and we have write-only

@@ -19,10 +19,12 @@ CPUs".
 Each scheduling domain must have one or more CPU groups (struct sched_group)
 which are organised as a circular one way linked list from the ->groups
 pointer. The union of cpumasks of these groups MUST be the same as the
-domain's span. The intersection of cpumasks from any two of these groups
-MUST be the empty set. The group pointed to by the ->groups pointer MUST
-contain the CPU to which the domain belongs. Groups may be shared among
-CPUs as they contain read only data after they have been set up.
+domain's span. The group pointed to by the ->groups pointer MUST contain the CPU
+to which the domain belongs. Groups may be shared among CPUs as they contain
+read only data after they have been set up. The intersection of cpumasks from
+any two of these groups may be non empty. If this is the case the SD_OVERLAP
+flag is set on the corresponding scheduling domain and its groups may not be
+shared between CPUs.
 
 Balancing within a sched domain occurs between groups. That is, each group
 is treated as one entity. The load of a group is defined as the sum of the

@@ -46,7 +46,6 @@ struct zynqmp_aead_drv_ctx {
 	} alg;
 	struct device *dev;
 	struct crypto_engine *engine;
-	const struct zynqmp_eemi_ops *eemi_ops;
 };
 
 struct zynqmp_aead_hw_req {
@@ -80,20 +79,14 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	struct zynqmp_aead_tfm_ctx *tfm_ctx = crypto_aead_ctx(aead);
 	struct zynqmp_aead_req_ctx *rq_ctx = aead_request_ctx(req);
 	struct device *dev = tfm_ctx->dev;
-	struct aead_alg *alg = crypto_aead_alg(aead);
-	struct zynqmp_aead_drv_ctx *drv_ctx;
 	struct zynqmp_aead_hw_req *hwreq;
 	dma_addr_t dma_addr_data, dma_addr_hw_req;
 	unsigned int data_size;
 	unsigned int status;
+	int ret;
 	size_t dma_size;
 	char *kbuf;
 	int err;
-
-	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead);
-
-	if (!drv_ctx->eemi_ops->aes)
-		return -ENOTSUPP;
 
 	if (tfm_ctx->keysrc == ZYNQMP_AES_KUP_KEY)
 		dma_size = req->cryptlen + ZYNQMP_AES_KEY_SIZE
@@ -136,9 +129,12 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		hwreq->key = 0;
 	}
 
-	drv_ctx->eemi_ops->aes(dma_addr_hw_req, &status);
+	ret = zynqmp_pm_aes_engine(dma_addr_hw_req, &status);
 
-	if (status) {
+	if (ret) {
+		dev_err(dev, "ERROR: AES PM API failed\n");
+		err = ret;
+	} else if (status) {
 		switch (status) {
 		case ZYNQMP_AES_GCM_TAG_MISMATCH_ERR:
 			dev_err(dev, "ERROR: Gcm Tag mismatch\n");
@@ -387,12 +383,6 @@ static int zynqmp_aes_aead_probe(struct platform_device *pdev)
 		aes_drv_ctx.dev = dev;
 	else
 		return -ENODEV;
-
-	aes_drv_ctx.eemi_ops = zynqmp_pm_get_eemi_ops();
-	if (IS_ERR(aes_drv_ctx.eemi_ops)) {
-		dev_err(dev, "Failed to get ZynqMP EEMI interface\n");
-		return PTR_ERR(aes_drv_ctx.eemi_ops);
-	}
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(ZYNQMP_DMA_BIT_MASK));
 	if (err < 0) {

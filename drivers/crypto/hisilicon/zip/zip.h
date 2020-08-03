@@ -28,12 +28,20 @@ enum hisi_zip_error_type {
 	HZIP_NC_ERR = 0x0d,
 };
 
+struct hisi_zip_dfx {
+	atomic64_t send_cnt;
+	atomic64_t recv_cnt;
+	atomic64_t send_busy_cnt;
+	atomic64_t err_bd_cnt;
+};
+
 struct hisi_zip_ctrl;
 
 struct hisi_zip {
 	struct hisi_qm qm;
 	struct list_head list;
 	struct hisi_zip_ctrl *ctrl;
+	struct hisi_zip_dfx dfx;
 };
 
 struct hisi_zip_sqe {

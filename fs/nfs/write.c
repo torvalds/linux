@@ -946,9 +946,9 @@ nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 static void
 nfs_clear_page_commit(struct page *page)
 {
-	dec_node_page_state(page, NR_UNSTABLE_NFS);
+	dec_node_page_state(page, NR_WRITEBACK);
 	dec_wb_stat(&inode_to_bdi(page_file_mapping(page)->host)->wb,
-		    WB_RECLAIMABLE);
+		    WB_WRITEBACK);
 }
 
 /* Called holding the request lock on @req */

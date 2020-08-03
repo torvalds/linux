@@ -52,20 +52,25 @@ struct dib0700_state {
 	struct i2c_client *i2c_client_tuner;
 };
 
-extern int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
-			       u32 *romversion, u32 *ramversion, u32 *fwtype);
-extern int dib0700_set_gpio(struct dvb_usb_device *, enum dib07x0_gpios gpio, u8 gpio_dir, u8 gpio_val);
-extern int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3);
-extern int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen);
-extern int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw);
-extern int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf);
-extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
-extern struct i2c_algorithm dib0700_i2c_algo;
-extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-			struct dvb_usb_device_description **desc, int *cold);
-extern int dib0700_change_protocol(struct rc_dev *dev, u64 *rc_proto);
-extern int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz);
+int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
+			u32 *romversion, u32 *ramversion, u32 *fwtype);
+int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio,
+		     u8 gpio_dir, u8 gpio_val);
+int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3);
+int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx,
+		    u8 rxlen);
+int dib0700_download_firmware(struct usb_device *d,
+			      const struct firmware *fw);
+int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf);
+int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
+int dib0700_identify_state(struct usb_device *d,
+			   const struct dvb_usb_device_properties *props,
+			   const struct dvb_usb_device_description **desc,
+			   int *cold);
+int dib0700_change_protocol(struct rc_dev *dev, u64 *rc_proto);
+int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz);
 
+extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_device_count;
 extern int dvb_usb_dib0700_ir_proto;
 extern struct dvb_usb_device_properties dib0700_devices[];

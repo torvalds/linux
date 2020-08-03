@@ -5,7 +5,7 @@ config INFINIBAND_CXGB4
 	depends on INFINIBAND_ADDR_TRANS
 	select CHELSIO_LIB
 	select GENERIC_ALLOCATOR
-	---help---
+	help
 	  This is an iWARP/RDMA driver for the Chelsio T4 and T5
 	  1GbE, 10GbE adapters and T5 40GbE adapter.
 

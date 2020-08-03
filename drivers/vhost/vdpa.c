@@ -15,12 +15,14 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/mm.h>
 #include <linux/iommu.h>
 #include <linux/uuid.h>
 #include <linux/vdpa.h>
 #include <linux/nospec.h>
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
+#include <linux/kernel.h>
 
 #include "vhost.h"
 
@@ -70,6 +72,7 @@ struct vhost_vdpa {
 	int nvqs;
 	int virtio_id;
 	int minor;
+	struct eventfd_ctx *config_ctx;
 };
 
 static DEFINE_IDA(vhost_vdpa_ida);
@@ -97,6 +100,17 @@ static irqreturn_t vhost_vdpa_virtqueue_cb(void *private)
 
 	if (call_ctx)
 		eventfd_signal(call_ctx, 1);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t vhost_vdpa_config_cb(void *private)
+{
+	struct vhost_vdpa *v = private;
+	struct eventfd_ctx *config_ctx = v->config_ctx;
+
+	if (config_ctx)
+		eventfd_signal(config_ctx, 1);
 
 	return IRQ_HANDLED;
 }
@@ -288,6 +302,36 @@ static long vhost_vdpa_get_vring_num(struct vhost_vdpa *v, u16 __user *argp)
 	return 0;
 }
 
+static void vhost_vdpa_config_put(struct vhost_vdpa *v)
+{
+	if (v->config_ctx)
+		eventfd_ctx_put(v->config_ctx);
+}
+
+static long vhost_vdpa_set_config_call(struct vhost_vdpa *v, u32 __user *argp)
+{
+	struct vdpa_callback cb;
+	int fd;
+	struct eventfd_ctx *ctx;
+
+	cb.callback = vhost_vdpa_config_cb;
+	cb.private = v->vdpa;
+	if (copy_from_user(&fd, argp, sizeof(fd)))
+		return  -EFAULT;
+
+	ctx = fd == VHOST_FILE_UNBIND ? NULL : eventfd_ctx_fdget(fd);
+	swap(ctx, v->config_ctx);
+
+	if (!IS_ERR_OR_NULL(ctx))
+		eventfd_ctx_put(ctx);
+
+	if (IS_ERR(v->config_ctx))
+		return PTR_ERR(v->config_ctx);
+
+	v->vdpa->config->set_config_cb(v->vdpa, &cb);
+
+	return 0;
+}
 static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 				   void __user *argp)
 {
@@ -394,6 +438,9 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 	case VHOST_SET_LOG_BASE:
 	case VHOST_SET_LOG_FD:
 		r = -ENOIOCTLCMD;
+		break;
+	case VHOST_VDPA_SET_CONFIG_CALL:
+		r = vhost_vdpa_set_config_call(v, argp);
 		break;
 	default:
 		r = vhost_dev_ioctl(&v->vdev, cmd, argp);
@@ -527,7 +574,7 @@ static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
 	if (!npages)
 		return -EINVAL;
 
-	down_read(&dev->mm->mmap_sem);
+	mmap_read_lock(dev->mm);
 
 	locked = atomic64_add_return(npages, &dev->mm->pinned_vm);
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -580,7 +627,7 @@ out:
 		vhost_vdpa_unmap(v, msg->iova, msg->size);
 		atomic64_sub(npages, &dev->mm->pinned_vm);
 	}
-	up_read(&dev->mm->mmap_sem);
+	mmap_read_unlock(dev->mm);
 	free_page((unsigned long)page_list);
 	return ret;
 }
@@ -694,7 +741,7 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 		vqs[i] = &v->vqs[i];
 		vqs[i]->handle_kick = handle_vq_kick;
 	}
-	vhost_dev_init(dev, vqs, nvqs, 0, 0, 0,
+	vhost_dev_init(dev, vqs, nvqs, 0, 0, 0, false,
 		       vhost_vdpa_process_iotlb_msg);
 
 	dev->iotlb = vhost_iotlb_alloc(0, 0);
@@ -729,6 +776,7 @@ static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 	vhost_dev_stop(&v->vdev);
 	vhost_vdpa_iotlb_free(v);
 	vhost_vdpa_free_domain(v);
+	vhost_vdpa_config_put(v);
 	vhost_dev_cleanup(&v->vdev);
 	kfree(v->vdev.vqs);
 	mutex_unlock(&d->mutex);
@@ -739,12 +787,74 @@ static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+#ifdef CONFIG_MMU
+static vm_fault_t vhost_vdpa_fault(struct vm_fault *vmf)
+{
+	struct vhost_vdpa *v = vmf->vma->vm_file->private_data;
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+	struct vdpa_notification_area notify;
+	struct vm_area_struct *vma = vmf->vma;
+	u16 index = vma->vm_pgoff;
+
+	notify = ops->get_vq_notification(vdpa, index);
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	if (remap_pfn_range(vma, vmf->address & PAGE_MASK,
+			    notify.addr >> PAGE_SHIFT, PAGE_SIZE,
+			    vma->vm_page_prot))
+		return VM_FAULT_SIGBUS;
+
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct vhost_vdpa_vm_ops = {
+	.fault = vhost_vdpa_fault,
+};
+
+static int vhost_vdpa_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct vhost_vdpa *v = vma->vm_file->private_data;
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+	struct vdpa_notification_area notify;
+	int index = vma->vm_pgoff;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+	if ((vma->vm_flags & VM_SHARED) == 0)
+		return -EINVAL;
+	if (vma->vm_flags & VM_READ)
+		return -EINVAL;
+	if (index > 65535)
+		return -EINVAL;
+	if (!ops->get_vq_notification)
+		return -ENOTSUPP;
+
+	/* To be safe and easily modelled by userspace, We only
+	 * support the doorbell which sits on the page boundary and
+	 * does not share the page with other registers.
+	 */
+	notify = ops->get_vq_notification(vdpa, index);
+	if (notify.addr & (PAGE_SIZE - 1))
+		return -EINVAL;
+	if (vma->vm_end - vma->vm_start != notify.size)
+		return -ENOTSUPP;
+
+	vma->vm_ops = &vhost_vdpa_vm_ops;
+	return 0;
+}
+#endif /* CONFIG_MMU */
+
 static const struct file_operations vhost_vdpa_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vhost_vdpa_open,
 	.release	= vhost_vdpa_release,
 	.write_iter	= vhost_vdpa_chr_write_iter,
 	.unlocked_ioctl	= vhost_vdpa_unlocked_ioctl,
+#ifdef CONFIG_MMU
+	.mmap		= vhost_vdpa_mmap,
+#endif /* CONFIG_MMU */
 	.compat_ioctl	= compat_ptr_ioctl,
 };
 

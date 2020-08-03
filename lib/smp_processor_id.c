@@ -8,7 +8,7 @@
 #include <linux/kprobes.h>
 #include <linux/sched.h>
 
-notrace static nokprobe_inline
+noinstr static
 unsigned int check_preemption_disabled(const char *what1, const char *what2)
 {
 	int this_cpu = raw_smp_processor_id();
@@ -37,6 +37,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	 */
 	preempt_disable_notrace();
 
+	instrumentation_begin();
 	if (!printk_ratelimit())
 		goto out_enable;
 
@@ -45,6 +46,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 
 	printk("caller is %pS\n", __builtin_return_address(0));
 	dump_stack();
+	instrumentation_end();
 
 out_enable:
 	preempt_enable_no_resched_notrace();
@@ -52,16 +54,14 @@ out:
 	return this_cpu;
 }
 
-notrace unsigned int debug_smp_processor_id(void)
+noinstr unsigned int debug_smp_processor_id(void)
 {
 	return check_preemption_disabled("smp_processor_id", "");
 }
 EXPORT_SYMBOL(debug_smp_processor_id);
-NOKPROBE_SYMBOL(debug_smp_processor_id);
 
-notrace void __this_cpu_preempt_check(const char *op)
+noinstr void __this_cpu_preempt_check(const char *op)
 {
 	check_preemption_disabled("__this_cpu_", op);
 }
 EXPORT_SYMBOL(__this_cpu_preempt_check);
-NOKPROBE_SYMBOL(__this_cpu_preempt_check);

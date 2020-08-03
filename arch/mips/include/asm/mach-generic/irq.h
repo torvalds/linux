@@ -36,10 +36,4 @@
 
 #endif /* CONFIG_IRQ_MIPS_CPU */
 
-#ifdef CONFIG_MIPS_GIC
-#ifndef MIPS_GIC_IRQ_BASE
-#define MIPS_GIC_IRQ_BASE (MIPS_CPU_IRQ_BASE + 8)
-#endif
-#endif /* CONFIG_MIPS_GIC */
-
 #endif /* __ASM_MACH_GENERIC_IRQ_H */

@@ -176,7 +176,7 @@
  * - updates to non leaf nodes just happen synchronously (see btree_split()).
  */
 
-#define pr_fmt(fmt) "bcache: %s() " fmt "\n", __func__
+#define pr_fmt(fmt) "bcache: %s() " fmt, __func__
 
 #include <linux/bcache.h>
 #include <linux/bio.h>

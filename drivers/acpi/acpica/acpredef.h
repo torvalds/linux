@@ -640,10 +640,10 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_NIC", METHOD_0ARGS,	/* ACPI 6.3 */
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
-	{{"_NIG", METHOD_1ARGS(ACPI_TYPE_BUFFER),	/* ACPI 6.3 */
+	{{"_NIG", METHOD_0ARGS, /* ACPI 6.3 */
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
-	{{"_NIH", METHOD_0ARGS,	/* ACPI 6.3 */
+	{{"_NIH", METHOD_1ARGS(ACPI_TYPE_BUFFER), /* ACPI 6.3 */
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
 	{{"_NTT", METHOD_0ARGS,

@@ -463,6 +463,8 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (fastopen && !fastopen->sk)
 			break;
 
+		ipv6_icmp_error(sk, skb, err, th->dest, ntohl(info), (u8 *)th);
+
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 			sk->sk_error_report(sk);		/* Wake people up to see the error (see connect in sock.c) */
@@ -471,6 +473,15 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		} else
 			sk->sk_err_soft = err;
 		goto out;
+	case TCP_LISTEN:
+		break;
+	default:
+		/* check if this ICMP message allows revert of backoff.
+		 * (see RFC 6069)
+		 */
+		if (!fastopen && type == ICMPV6_DEST_UNREACH &&
+		    code == ICMPV6_NOROUTE)
+			tcp_ld_RTO_revert(sk, seq);
 	}
 
 	if (!sock_owned_by_user(sk) && np->recverr) {
@@ -2110,6 +2121,7 @@ struct proto tcpv6_prot = {
 #endif
 	.diag_destroy		= tcp_abort,
 };
+EXPORT_SYMBOL_GPL(tcpv6_prot);
 
 /* thinking of making this const? Don't.
  * early_demux can change based on sysctl.

@@ -61,7 +61,7 @@ struct merkle_tree_params {
 	u64 level_start[FS_VERITY_MAX_LEVELS];
 };
 
-/**
+/*
  * fsverity_info - cached verity metadata for an inode
  *
  * When a verity file is first opened, an instance of this struct is allocated
@@ -134,7 +134,7 @@ void __init fsverity_check_hash_algs(void);
 
 /* init.c */
 
-extern void __printf(3, 4) __cold
+void __printf(3, 4) __cold
 fsverity_msg(const struct inode *inode, const char *level,
 	     const char *fmt, ...);
 

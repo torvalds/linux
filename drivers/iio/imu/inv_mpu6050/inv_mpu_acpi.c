@@ -135,6 +135,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 	st->mux_client = NULL;
 	if (ACPI_HANDLE(&client->dev)) {
 		struct i2c_board_info info;
+		struct i2c_client *mux_client;
 		struct acpi_device *adev;
 		int ret = -1;
 
@@ -172,9 +173,10 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 			} else
 				return 0; /* no secondary addr, which is OK */
 		}
-		st->mux_client = i2c_new_device(st->muxc->adapter[0], &info);
-		if (!st->mux_client)
-			return -ENODEV;
+		mux_client = i2c_new_client_device(st->muxc->adapter[0], &info);
+		if (IS_ERR(mux_client))
+			return PTR_ERR(mux_client);
+		st->mux_client = mux_client;
 	}
 
 	return 0;

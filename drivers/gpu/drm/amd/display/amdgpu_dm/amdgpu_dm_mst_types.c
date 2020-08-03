@@ -41,51 +41,8 @@
 #include "amdgpu_dm_debugfs.h"
 #endif
 
-
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dc/dcn20/dcn20_resource.h"
-#endif
-
-/* #define TRACE_DPCD */
-
-#ifdef TRACE_DPCD
-#define SIDE_BAND_MSG(address) (address >= DP_SIDEBAND_MSG_DOWN_REQ_BASE && address < DP_SINK_COUNT_ESI)
-
-static inline char *side_band_msg_type_to_str(uint32_t address)
-{
-	static char str[10] = {0};
-
-	if (address < DP_SIDEBAND_MSG_UP_REP_BASE)
-		strcpy(str, "DOWN_REQ");
-	else if (address < DP_SIDEBAND_MSG_DOWN_REP_BASE)
-		strcpy(str, "UP_REP");
-	else if (address < DP_SIDEBAND_MSG_UP_REQ_BASE)
-		strcpy(str, "DOWN_REP");
-	else
-		strcpy(str, "UP_REQ");
-
-	return str;
-}
-
-static void log_dpcd(uint8_t type,
-		     uint32_t address,
-		     uint8_t *data,
-		     uint32_t size,
-		     bool res)
-{
-	DRM_DEBUG_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
-			(type == DP_AUX_NATIVE_READ) ||
-			(type == DP_AUX_I2C_READ) ?
-					"Read" : "Write",
-			address,
-			SIDE_BAND_MSG(address) ?
-					side_band_msg_type_to_str(address) : "Nop",
-			res ? "OK" : "Fail");
-
-	if (res) {
-		print_hex_dump(KERN_INFO, "Body: ", DUMP_PREFIX_NONE, 16, 1, data, size, false);
-	}
-}
 #endif
 
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
@@ -136,17 +93,23 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 static void
 dm_dp_mst_connector_destroy(struct drm_connector *connector)
 {
-	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
-	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
+	struct amdgpu_dm_connector *aconnector =
+		to_amdgpu_dm_connector(connector);
+	struct amdgpu_encoder *amdgpu_encoder = aconnector->mst_encoder;
 
-	kfree(amdgpu_dm_connector->edid);
-	amdgpu_dm_connector->edid = NULL;
+	if (aconnector->dc_sink) {
+		dc_link_remove_remote_sink(aconnector->dc_link,
+					   aconnector->dc_sink);
+		dc_sink_release(aconnector->dc_sink);
+	}
+
+	kfree(aconnector->edid);
 
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
-	drm_dp_mst_put_port_malloc(amdgpu_dm_connector->port);
-	kfree(amdgpu_dm_connector);
+	drm_dp_mst_put_port_malloc(aconnector->port);
+	kfree(aconnector);
 }
 
 static int
@@ -435,40 +398,13 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	 */
 	amdgpu_dm_connector_funcs_reset(connector);
 
-	DRM_INFO("DM_MST: added connector: %p [id: %d] [master: %p]\n",
-		 aconnector, connector->base.id, aconnector->mst_port);
-
 	drm_dp_mst_get_port_malloc(port);
-
-	DRM_DEBUG_KMS(":%d\n", connector->base.id);
 
 	return connector;
 }
 
-static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_connector *connector)
-{
-	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-
-	DRM_INFO("DM_MST: Disabling connector: %p [id: %d] [master: %p]\n",
-		 aconnector, connector->base.id, aconnector->mst_port);
-
-	if (aconnector->dc_sink) {
-		amdgpu_dm_update_freesync_caps(connector, NULL);
-		dc_link_remove_remote_sink(aconnector->dc_link,
-					   aconnector->dc_sink);
-		dc_sink_release(aconnector->dc_sink);
-		aconnector->dc_sink = NULL;
-		aconnector->dc_link->cur_link_settings.lane_count = 0;
-	}
-
-	drm_connector_unregister(connector);
-	drm_connector_put(connector);
-}
-
 static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.add_connector = dm_dp_add_mst_connector,
-	.destroy_connector = dm_dp_destroy_mst_connector,
 };
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,

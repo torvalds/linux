@@ -10,7 +10,6 @@
 #include <linux/sched.h>
 #include <asm/current.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <kern_util.h>
 #include <os.h>
 

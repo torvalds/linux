@@ -48,7 +48,7 @@ __kmem_vmalloc(size_t size, xfs_km_flags_t flags)
 	if (flags & KM_NOFS)
 		nofs_flag = memalloc_nofs_save();
 
-	ptr = __vmalloc(size, lflags, PAGE_KERNEL);
+	ptr = __vmalloc(size, lflags);
 
 	if (flags & KM_NOFS)
 		memalloc_nofs_restore(nofs_flag);

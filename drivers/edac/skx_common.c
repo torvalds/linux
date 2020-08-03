@@ -197,12 +197,11 @@ static int get_width(u32 mtr)
 }
 
 /*
- * We use the per-socket device @did to count how many sockets are present,
+ * We use the per-socket device @cfg->did to count how many sockets are present,
  * and to detemine which PCI buses are associated with each socket. Allocate
  * and build the full list of all the skx_dev structures that we need here.
  */
-int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
-			     struct list_head **list)
+int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 {
 	struct pci_dev *pdev, *prev;
 	struct skx_dev *d;
@@ -211,7 +210,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 
 	prev = NULL;
 	for (;;) {
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, did, prev);
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, cfg->decs_did, prev);
 		if (!pdev)
 			break;
 		ndev++;
@@ -221,7 +220,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 			return -ENOMEM;
 		}
 
-		if (pci_read_config_dword(pdev, off, &reg)) {
+		if (pci_read_config_dword(pdev, cfg->busno_cfg_offset, &reg)) {
 			kfree(d);
 			pci_dev_put(pdev);
 			skx_printk(KERN_ERR, "Failed to read bus idx\n");
@@ -230,7 +229,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 
 		d->bus[0] = GET_BITFIELD(reg, 0, 7);
 		d->bus[1] = GET_BITFIELD(reg, 8, 15);
-		if (type == SKX) {
+		if (cfg->type == SKX) {
 			d->seg = pci_domain_nr(pdev->bus);
 			d->bus[2] = GET_BITFIELD(reg, 16, 23);
 			d->bus[3] = GET_BITFIELD(reg, 24, 31);
@@ -304,7 +303,7 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numrow(reg)	skx_get_dimm_attr(reg, 2, 4, 12, 1, 6, "rows")
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
-int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
+int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 		      struct skx_imc *imc, int chan, int dimmno)
 {
 	int  banks = 16, ranks, rows, cols, npages;
@@ -324,8 +323,8 @@ int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 		 imc->mc, chan, dimmno, size, npages,
 		 banks, 1 << ranks, rows, cols);
 
-	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mtr, 0, 0);
-	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mtr, 9, 9);
+	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mcmtr, 0, 0);
+	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mcmtr, 9, 9);
 	imc->chan[chan].dimms[dimmno].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
 	imc->chan[chan].dimms[dimmno].rowbits = rows;
 	imc->chan[chan].dimms[dimmno].colbits = cols;
@@ -574,7 +573,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
+	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
 	/* ignore unless this is memory related with an address */
@@ -616,6 +615,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	skx_mce_output_error(mci, mce, &res);
 
+	mce->kflags |= MCE_HANDLED_EDAC;
 	return NOTIFY_DONE;
 }
 

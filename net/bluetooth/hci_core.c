@@ -44,6 +44,7 @@
 #include "hci_debugfs.h"
 #include "smp.h"
 #include "leds.h"
+#include "msft.h"
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
@@ -637,6 +638,14 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT)
 			events[0] |= 0x40;	/* LE Data Length Change */
 
+		/* If the controller supports LL Privacy feature, enable
+		 * the corresponding event.
+		 */
+		if (hdev->le_features[0] & HCI_LE_LL_PRIVACY)
+			events[1] |= 0x02;	/* LE Enhanced Connection
+						 * Complete
+						 */
+
 		/* If the controller supports Extended Scanner Filter
 		 * Policies, enable the correspondig event.
 		 */
@@ -708,14 +717,6 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (use_ext_scan(hdev))
 			events[1] |= 0x10;	/* LE Extended Advertising
 						 * Report
-						 */
-
-		/* If the controller supports the LE Extended Create Connection
-		 * command, enable the corresponding event.
-		 */
-		if (use_ext_conn(hdev))
-			events[1] |= 0x02;      /* LE Enhanced Connection
-						 * Complete
 						 */
 
 		/* If the controller supports the LE Extended Advertising
@@ -825,6 +826,10 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 	/* Read local codec list if the HCI command is supported */
 	if (hdev->commands[29] & 0x20)
 		hci_req_add(req, HCI_OP_READ_LOCAL_CODECS, 0, NULL);
+
+	/* Read local pairing options if the HCI command is supported */
+	if (hdev->commands[41] & 0x08)
+		hci_req_add(req, HCI_OP_READ_LOCAL_PAIRING_OPTS, 0, NULL);
 
 	/* Get MWS transport configuration if the HCI command is supported */
 	if (hdev->commands[30] & 0x08)
@@ -1563,6 +1568,8 @@ setup_failed:
 	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
 		ret = hdev->set_diag(hdev, true);
 
+	msft_do_open(hdev);
+
 	clear_bit(HCI_INIT, &hdev->flags);
 
 	if (!ret) {
@@ -1757,6 +1764,8 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	smp_unregister(hdev);
 
 	hci_sock_dev_event(hdev, HCI_DEV_DOWN);
+
+	msft_do_close(hdev);
 
 	if (hdev->flush)
 		hdev->flush(hdev);
@@ -3341,10 +3350,12 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		 */
 		ret = hci_change_suspend_state(hdev, BT_SUSPEND_DISCONNECT);
 
-		/* Only configure whitelist if disconnect succeeded */
-		if (!ret)
+		/* Only configure whitelist if disconnect succeeded and wake
+		 * isn't being prevented.
+		 */
+		if (!ret && !(hdev->prevent_wake && hdev->prevent_wake(hdev)))
 			ret = hci_change_suspend_state(hdev,
-						       BT_SUSPEND_COMPLETE);
+						BT_SUSPEND_CONFIGURE_WAKE);
 	} else if (action == PM_POST_SUSPEND) {
 		ret = hci_change_suspend_state(hdev, BT_RUNNING);
 	}
@@ -4240,6 +4251,54 @@ static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 	}
 }
 
+/* Schedule SCO */
+static void hci_sched_sco(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	struct sk_buff *skb;
+	int quote;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!hci_conn_num(hdev, SCO_LINK))
+		return;
+
+	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, SCO_LINK, &quote))) {
+		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
+			BT_DBG("skb %p len %d", skb, skb->len);
+			hci_send_frame(hdev, skb);
+
+			conn->sent++;
+			if (conn->sent == ~0)
+				conn->sent = 0;
+		}
+	}
+}
+
+static void hci_sched_esco(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	struct sk_buff *skb;
+	int quote;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!hci_conn_num(hdev, ESCO_LINK))
+		return;
+
+	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK,
+						     &quote))) {
+		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
+			BT_DBG("skb %p len %d", skb, skb->len);
+			hci_send_frame(hdev, skb);
+
+			conn->sent++;
+			if (conn->sent == ~0)
+				conn->sent = 0;
+		}
+	}
+}
+
 static void hci_sched_acl_pkt(struct hci_dev *hdev)
 {
 	unsigned int cnt = hdev->acl_cnt;
@@ -4271,6 +4330,10 @@ static void hci_sched_acl_pkt(struct hci_dev *hdev)
 			hdev->acl_cnt--;
 			chan->sent++;
 			chan->conn->sent++;
+
+			/* Send pending SCO packets right away */
+			hci_sched_sco(hdev);
+			hci_sched_esco(hdev);
 		}
 	}
 
@@ -4355,54 +4418,6 @@ static void hci_sched_acl(struct hci_dev *hdev)
 	}
 }
 
-/* Schedule SCO */
-static void hci_sched_sco(struct hci_dev *hdev)
-{
-	struct hci_conn *conn;
-	struct sk_buff *skb;
-	int quote;
-
-	BT_DBG("%s", hdev->name);
-
-	if (!hci_conn_num(hdev, SCO_LINK))
-		return;
-
-	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, SCO_LINK, &quote))) {
-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
-			hci_send_frame(hdev, skb);
-
-			conn->sent++;
-			if (conn->sent == ~0)
-				conn->sent = 0;
-		}
-	}
-}
-
-static void hci_sched_esco(struct hci_dev *hdev)
-{
-	struct hci_conn *conn;
-	struct sk_buff *skb;
-	int quote;
-
-	BT_DBG("%s", hdev->name);
-
-	if (!hci_conn_num(hdev, ESCO_LINK))
-		return;
-
-	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK,
-						     &quote))) {
-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
-			hci_send_frame(hdev, skb);
-
-			conn->sent++;
-			if (conn->sent == ~0)
-				conn->sent = 0;
-		}
-	}
-}
-
 static void hci_sched_le(struct hci_dev *hdev)
 {
 	struct hci_chan *chan;
@@ -4437,6 +4452,10 @@ static void hci_sched_le(struct hci_dev *hdev)
 			cnt--;
 			chan->sent++;
 			chan->conn->sent++;
+
+			/* Send pending SCO packets right away */
+			hci_sched_sco(hdev);
+			hci_sched_esco(hdev);
 		}
 	}
 
@@ -4459,9 +4478,9 @@ static void hci_tx_work(struct work_struct *work)
 
 	if (!hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 		/* Schedule queues and send stuff to HCI driver */
-		hci_sched_acl(hdev);
 		hci_sched_sco(hdev);
 		hci_sched_esco(hdev);
+		hci_sched_acl(hdev);
 		hci_sched_le(hdev);
 	}
 

@@ -100,6 +100,11 @@ static inline bool input_is_mt_axis(int axis)
 bool input_mt_report_slot_state(struct input_dev *dev,
 				unsigned int tool_type, bool active);
 
+static inline void input_mt_report_slot_inactive(struct input_dev *dev)
+{
+	input_mt_report_slot_state(dev, 0, false);
+}
+
 void input_mt_report_finger_count(struct input_dev *dev, int count);
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count);
 void input_mt_drop_unused(struct input_dev *dev);

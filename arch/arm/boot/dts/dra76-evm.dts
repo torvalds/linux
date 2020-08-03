@@ -25,6 +25,40 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipu2_cma_pool: ipu2_cma@95800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x95800000 0x0 0x3800000>;
+			reusable;
+			status = "okay";
+		};
+
+		dsp1_cma_pool: dsp1_cma@99000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x99000000 0x0 0x4000000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu1_cma_pool: ipu1_cma@9d000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9d000000 0x0 0x2000000>;
+			reusable;
+			status = "okay";
+		};
+
+		dsp2_cma_pool: dsp2_cma@9f000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9f000000 0x0 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	vsys_12v0: fixedregulator-vsys12v0 {
 		/* main supply */
 		compatible = "regulator-fixed";
@@ -547,4 +581,24 @@
 		clock-lanes = <0>;
 		data-lanes = <1 2>;
 	};
+};
+
+&ipu2 {
+	status = "okay";
+	memory-region = <&ipu2_cma_pool>;
+};
+
+&ipu1 {
+	status = "okay";
+	memory-region = <&ipu1_cma_pool>;
+};
+
+&dsp1 {
+	status = "okay";
+	memory-region = <&dsp1_cma_pool>;
+};
+
+&dsp2 {
+	status = "okay";
+	memory-region = <&dsp2_cma_pool>;
 };

@@ -127,7 +127,7 @@ config IP6_NF_MATCH_HL
 	tristate '"hl" hoplimit match support'
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_XT_MATCH_HL
-	---help---
+	help
 	  This is a backwards-compat option for the user's convenience
 	  (e.g. when running oldconfig). It selects
 	  CONFIG_NETFILTER_XT_MATCH_HL.
@@ -153,7 +153,7 @@ config IP6_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
 	depends on NETFILTER_ADVANCED
 	depends on IP6_NF_MANGLE || IP6_NF_RAW
-	---help---
+	help
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
 
@@ -183,7 +183,7 @@ config IP6_NF_TARGET_HL
 	tristate '"HL" hoplimit target support'
 	depends on NETFILTER_ADVANCED && IP6_NF_MANGLE
 	select NETFILTER_XT_TARGET_HL
-	---help---
+	help
 	  This is a backwards-compatible option for the user's convenience
 	  (e.g. when running oldconfig). It selects
 	  CONFIG_NETFILTER_XT_TARGET_HL.

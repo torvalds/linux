@@ -1042,7 +1042,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 	 * each ring/block may need up to 8 bytes for alignment, hence the
 	 * additional 40 bytes tacked onto the end.
 	 */
-	ring_header->size = size =
+	ring_header->size =
 		sizeof(struct tx_packet_desc) * tpd_ring->count
 		+ sizeof(struct rx_free_desc) * rfd_ring->count
 		+ sizeof(struct rx_return_desc) * rrd_ring->count

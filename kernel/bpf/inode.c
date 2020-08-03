@@ -358,8 +358,11 @@ static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
 
 static int bpf_mklink(struct dentry *dentry, umode_t mode, void *arg)
 {
+	struct bpf_link *link = arg;
+
 	return bpf_mkobj_ops(dentry, mode, arg, &bpf_link_iops,
-			     &bpffs_obj_fops);
+			     bpf_link_is_iter(link) ?
+			     &bpf_iter_fops : &bpffs_obj_fops);
 }
 
 static struct dentry *

@@ -1209,7 +1209,9 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 					/* The completion must point to the
 					** msgbuf. */
-					completion->header = msgbuf;
+					completion->header =
+						(struct vchiq_header __force *)
+						msgbuf;
 				}
 
 				if ((completion->reason ==
@@ -2353,7 +2355,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 	enum vchiq_status ret = VCHIQ_SUCCESS;
 	char entity[16];
 	int *entity_uc;
-	int local_uc, local_entity_uc;
+	int local_uc;
 
 	if (!arm_state)
 		goto out;
@@ -2377,7 +2379,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 
 	write_lock_bh(&arm_state->susp_res_lock);
 	local_uc = ++arm_state->videocore_use_count;
-	local_entity_uc = ++(*entity_uc);
+	++(*entity_uc);
 
 	vchiq_log_trace(vchiq_susp_log_level,
 		"%s %s count %d, state count %d",

@@ -53,7 +53,7 @@ static int cpuidle_start(void)
 			dprint("CPU %d - State: %d - Val: %llu\n",
 			       cpu, state, previous_count[cpu][state]);
 		}
-	};
+	}
 	return 0;
 }
 
@@ -72,7 +72,7 @@ static int cpuidle_stop(void)
 			dprint("CPU %d - State: %d - Val: %llu\n",
 			       cpu, state, previous_count[cpu][state]);
 		}
-	};
+	}
 	return 0;
 }
 
@@ -172,7 +172,7 @@ static struct cpuidle_monitor *cpuidle_register(void)
 		cpuidle_cstates[num].id = num;
 		cpuidle_cstates[num].get_count_percent =
 			cpuidle_get_count_percent;
-	};
+	}
 
 	/* Free this at program termination */
 	previous_count = malloc(sizeof(long long *) * cpu_count);

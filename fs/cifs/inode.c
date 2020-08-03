@@ -25,12 +25,14 @@
 #include <linux/freezer.h>
 #include <linux/sched/signal.h>
 #include <linux/wait_bit.h>
+#include <linux/fiemap.h>
 
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
+#include "smb2proto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
@@ -447,7 +449,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	struct cifs_tcon *tcon;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -593,6 +595,62 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	return -EOPNOTSUPP;
 #endif
 }
+
+/* Fill a cifs_fattr struct with info from POSIX info struct */
+static void
+smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct smb311_posix_qinfo *info,
+			   struct super_block *sb, bool adjust_tz, bool symlink)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+
+	memset(fattr, 0, sizeof(*fattr));
+
+	/* no fattr->flags to set */
+	fattr->cf_cifsattrs = le32_to_cpu(info->DosAttributes);
+	fattr->cf_uniqueid = le64_to_cpu(info->Inode);
+
+	if (info->LastAccessTime)
+		fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
+	else
+		ktime_get_coarse_real_ts64(&fattr->cf_atime);
+
+	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
+	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
+
+	if (adjust_tz) {
+		fattr->cf_ctime.tv_sec += tcon->ses->server->timeAdj;
+		fattr->cf_mtime.tv_sec += tcon->ses->server->timeAdj;
+	}
+
+	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
+	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
+
+	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
+	fattr->cf_mode = (umode_t) le32_to_cpu(info->Mode);
+	/* The srv fs device id is overridden on network mount so setting rdev isn't needed here */
+	/* fattr->cf_rdev = le32_to_cpu(info->DeviceId); */
+
+	if (symlink) {
+		fattr->cf_mode |= S_IFLNK;
+		fattr->cf_dtype = DT_LNK;
+	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+		fattr->cf_mode |= S_IFDIR;
+		fattr->cf_dtype = DT_DIR;
+	} else { /* file */
+		fattr->cf_mode |= S_IFREG;
+		fattr->cf_dtype = DT_REG;
+	}
+	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
+
+	fattr->cf_uid = cifs_sb->mnt_uid; /* TODO: map uid and gid from SID */
+	fattr->cf_gid = cifs_sb->mnt_gid;
+
+	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
+		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
+}
+
 
 /* Fill a cifs_fattr struct with info from FILE_ALL_INFO */
 static void
@@ -1022,6 +1080,121 @@ out:
 	return rc;
 }
 
+int
+smb311_posix_get_inode_info(struct inode **inode,
+		    const char *full_path,
+		    struct super_block *sb, unsigned int xid)
+{
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
+	struct tcon_link *tlink;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	bool adjust_tz = false;
+	struct cifs_fattr fattr = {0};
+	bool symlink = false;
+	struct smb311_posix_qinfo *data = NULL;
+	int rc = 0;
+	int tmprc = 0;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
+
+	/*
+	 * 1. Fetch file metadata
+	 */
+
+	if (is_inode_cache_good(*inode)) {
+		cifs_dbg(FYI, "No need to revalidate cached inode sizes\n");
+		goto out;
+	}
+	data = kmalloc(sizeof(struct smb311_posix_qinfo), GFP_KERNEL);
+	if (!data) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
+						  full_path, data,
+						  &adjust_tz, &symlink);
+
+	/*
+	 * 2. Convert it to internal cifs metadata (fattr)
+	 */
+
+	switch (rc) {
+	case 0:
+		smb311_posix_info_to_fattr(&fattr, data, sb, adjust_tz, symlink);
+		break;
+	case -EREMOTE:
+		/* DFS link, no metadata available on this server */
+		cifs_create_dfs_fattr(&fattr, sb);
+		rc = 0;
+		break;
+	case -EACCES:
+		/*
+		 * For SMB2 and later the backup intent flag
+		 * is already sent if needed on open and there
+		 * is no path based FindFirst operation to use
+		 * to retry with so nothing we can do, bail out
+		 */
+		goto out;
+	default:
+		cifs_dbg(FYI, "%s: unhandled err rc %d\n", __func__, rc);
+		goto out;
+	}
+
+
+	/*
+	 * 3. Tweak fattr based on mount options
+	 */
+
+	/* check for Minshall+French symlinks */
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {
+		tmprc = check_mf_symlink(xid, tcon, cifs_sb, &fattr,
+					 full_path);
+		if (tmprc)
+			cifs_dbg(FYI, "check_mf_symlink: %d\n", tmprc);
+	}
+
+	/*
+	 * 4. Update inode with final fattr data
+	 */
+
+	if (!*inode) {
+		*inode = cifs_iget(sb, &fattr);
+		if (!*inode)
+			rc = -ENOMEM;
+	} else {
+		/* we already have inode, update it */
+
+		/* if uniqueid is different, return error */
+		if (unlikely(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM &&
+		    CIFS_I(*inode)->uniqueid != fattr.cf_uniqueid)) {
+			CIFS_I(*inode)->time = 0; /* force reval */
+			rc = -ESTALE;
+			goto out;
+		}
+
+		/* if filetype is different, return error */
+		if (unlikely(((*inode)->i_mode & S_IFMT) !=
+		    (fattr.cf_mode & S_IFMT))) {
+			CIFS_I(*inode)->time = 0; /* force reval */
+			rc = -ESTALE;
+			goto out;
+		}
+
+		cifs_fattr_to_inode(*inode, &fattr);
+	}
+out:
+	cifs_put_tlink(tlink);
+	kfree(data);
+	return rc;
+}
+
+
 static const struct inode_operations cifs_ipc_inode_ops = {
 	.lookup = cifs_lookup,
 };
@@ -1155,12 +1328,15 @@ struct inode *cifs_root_iget(struct super_block *sb)
 		/* some servers mistakenly claim POSIX support */
 		if (rc != -EOPNOTSUPP)
 			goto iget_no_retry;
-		cifs_dbg(VFS, "server does not support POSIX extensions");
+		cifs_dbg(VFS, "server does not support POSIX extensions\n");
 		tcon->unix_ext = false;
 	}
 
 	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
-	rc = cifs_get_inode_info(&inode, path, NULL, sb, xid, NULL);
+	if (tcon->posix_extensions)
+		rc = smb311_posix_get_inode_info(&inode, path, sb, xid);
+	else
+		rc = cifs_get_inode_info(&inode, path, NULL, sb, xid, NULL);
 
 iget_no_retry:
 	if (!inode) {
@@ -1418,6 +1594,11 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 
 	xid = get_xid();
 
+	if (tcon->nodelete) {
+		rc = -EACCES;
+		goto unlink_out;
+	}
+
 	/* Unlink can be called from rename so we can not take the
 	 * sb->s_vfs_rename_mutex here */
 	full_path = build_path_from_dentry(dentry);
@@ -1511,7 +1692,9 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 	int rc = 0;
 	struct inode *inode = NULL;
 
-	if (tcon->unix_ext)
+	if (tcon->posix_extensions)
+		rc = smb311_posix_get_inode_info(&inode, full_path, parent->i_sb, xid);
+	else if (tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, parent->i_sb,
 					      xid);
 	else
@@ -1742,6 +1925,12 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	if (!server->ops->rmdir) {
 		rc = -ENOSYS;
+		cifs_put_tlink(tlink);
+		goto rmdir_exit;
+	}
+
+	if (tcon->nodelete) {
+		rc = -EACCES;
 		cifs_put_tlink(tlink);
 		goto rmdir_exit;
 	}
@@ -1999,7 +2188,7 @@ cifs_invalidate_mapping(struct inode *inode)
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = invalidate_inode_pages2(inode->i_mapping);
 		if (rc)
-			cifs_dbg(VFS, "%s: could not invalidate inode %p\n",
+			cifs_dbg(VFS, "%s: Could not invalidate inode %p\n",
 				 __func__, inode);
 	}
 
@@ -2102,7 +2291,9 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 		 dentry, cifs_get_time(dentry), jiffies);
 
 again:
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
+	if (cifs_sb_master_tcon(CIFS_SB(sb))->posix_extensions)
+		rc = smb311_posix_get_inode_info(&inode, full_path, sb, xid);
+	else if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
 	else
 		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,

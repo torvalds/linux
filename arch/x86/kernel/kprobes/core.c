@@ -41,11 +41,11 @@
 #include <linux/kasan.h>
 #include <linux/moduleloader.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
@@ -1073,13 +1073,6 @@ NOKPROBE_SYMBOL(kprobe_fault_handler);
 
 int __init arch_populate_kprobe_blacklist(void)
 {
-	int ret;
-
-	ret = kprobe_add_area_blacklist((unsigned long)__irqentry_text_start,
-					 (unsigned long)__irqentry_text_end);
-	if (ret)
-		return ret;
-
 	return kprobe_add_area_blacklist((unsigned long)__entry_text_start,
 					 (unsigned long)__entry_text_end);
 }

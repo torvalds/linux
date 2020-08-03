@@ -3416,7 +3416,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
-	const char *ev_name = perf_evsel__name(evsel);
+	const char *ev_name = evsel__name(evsel);
 	char bf[256], unit;
 	const char *warn = " ";
 	size_t printed;
@@ -3424,10 +3424,10 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
 
-	if (perf_evsel__is_group_event(evsel)) {
+	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
 
-		ev_name = perf_evsel__group_name(evsel);
+		ev_name = evsel__group_name(evsel);
 
 		for_each_group_member(pos, evsel) {
 			struct hists *pos_hists = evsel__hists(pos);
@@ -3512,13 +3512,13 @@ browse_hists:
 				if (pos->core.node.next == &evlist->core.entries)
 					pos = evlist__first(evlist);
 				else
-					pos = perf_evsel__next(pos);
+					pos = evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
 				if (pos->core.node.prev == &evlist->core.entries)
 					pos = evlist__last(evlist);
 				else
-					pos = perf_evsel__prev(pos);
+					pos = evsel__prev(pos);
 				goto browse_hists;
 			case K_SWITCH_INPUT_DATA:
 			case K_RELOAD:
@@ -3554,7 +3554,7 @@ static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 {
 	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 
-	if (symbol_conf.event_group && !perf_evsel__is_group_leader(evsel))
+	if (symbol_conf.event_group && !evsel__is_group_leader(evsel))
 		return true;
 
 	return false;
@@ -3587,7 +3587,7 @@ static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 	ui_helpline__push("Press ESC to exit");
 
 	evlist__for_each_entry(evlist, pos) {
-		const char *ev_name = perf_evsel__name(pos);
+		const char *ev_name = evsel__name(pos);
 		size_t line_len = strlen(ev_name) + 7;
 
 		if (menu.b.width < line_len)
@@ -3622,7 +3622,7 @@ single_entry:
 
 		nr_entries = 0;
 		evlist__for_each_entry(evlist, pos) {
-			if (perf_evsel__is_group_leader(pos))
+			if (evsel__is_group_leader(pos))
 				nr_entries++;
 		}
 
@@ -3640,7 +3640,7 @@ static int block_hists_browser__title(struct hist_browser *browser, char *bf,
 				      size_t size)
 {
 	struct hists *hists = evsel__hists(browser->block_evsel);
-	const char *evname = perf_evsel__name(browser->block_evsel);
+	const char *evname = evsel__name(browser->block_evsel);
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	int ret;
 

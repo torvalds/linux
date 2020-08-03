@@ -7,7 +7,7 @@ menuconfig PNP
 	bool "Plug and Play support"
 	depends on HAS_IOMEM
 	depends on ISA || ACPI
-	---help---
+	help
 	  Plug and Play (PnP) is a standard for peripherals which allows those
 	  peripherals to be configured by software, e.g. assign IRQ's or other
 	  parameters. No jumpers on the cards are needed, instead the values

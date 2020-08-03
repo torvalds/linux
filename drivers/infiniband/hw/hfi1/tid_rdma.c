@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
- * Copyright(c) 2018 Intel Corporation.
+ * Copyright(c) 2018 - 2020 Intel Corporation.
  *
  */
 
@@ -194,7 +194,7 @@ void tid_rdma_opfn_init(struct rvt_qp *qp, struct tid_rdma_params *p)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	p->qp = (kdeth_qp << 16) | priv->rcd->ctxt;
+	p->qp = (RVT_KDETH_QP_PREFIX << 16) | priv->rcd->ctxt;
 	p->max_len = TID_RDMA_MAX_SEGMENT_SIZE;
 	p->jkey = priv->rcd->jkey;
 	p->max_read = TID_RDMA_MAX_READ_SEGS_PER_REQ;

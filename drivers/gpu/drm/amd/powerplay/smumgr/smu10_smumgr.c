@@ -126,15 +126,18 @@ static int smu10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL;);
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			priv->smu_tables.entry[table_id].table_id);
+			priv->smu_tables.entry[table_id].table_id,
+			NULL);
 
 	/* flush hdp cache */
 	amdgpu_asic_flush_hdp(adev, NULL);
@@ -164,15 +167,18 @@ static int smu10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	amdgpu_asic_flush_hdp(adev, NULL);
 
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr),
+			NULL);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			priv->smu_tables.entry[table_id].table_id);
+			priv->smu_tables.entry[table_id].table_id,
+			NULL);
 
 	return 0;
 }
@@ -181,9 +187,9 @@ static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 {
 	uint32_t smc_driver_if_version;
 
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetDriverIfVersion);
-	smc_driver_if_version = smu10_read_arg_from_smc(hwmgr);
+	smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetDriverIfVersion,
+			&smc_driver_if_version);
 
 	if ((smc_driver_if_version != SMU10_DRIVER_IF_VERSION) &&
 	    (smc_driver_if_version != SMU10_DRIVER_IF_VERSION + 1)) {
@@ -217,11 +223,11 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	hwmgr->smu_version = smu10_read_arg_from_smc(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion, &hwmgr->smu_version);
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
-	if (adev->rev_id < 0x8 && adev->pdev->device != 0x15d8 &&
+	if (!(adev->apu_flags & AMD_APU_IS_RAVEN2) &&
+	    (adev->apu_flags & AMD_APU_IS_RAVEN) &&
 	    adev->pm.fw_version < 0x1e45)
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 

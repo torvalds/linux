@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +62,7 @@
 #include "api/commands.h"
 #include "debugfs.h"
 #include "dbg.h"
+#include <linux/seq_file.h>
 
 #define FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)		\
 struct dbgfs_##name##_data {						\
@@ -329,11 +328,108 @@ static ssize_t iwl_dbgfs_fw_dbg_domain_read(struct iwl_fw_runtime *fwrt,
 
 FWRT_DEBUGFS_READ_FILE_OPS(fw_dbg_domain, 20);
 
+struct iwl_dbgfs_fw_info_priv {
+	struct iwl_fw_runtime *fwrt;
+};
+
+struct iwl_dbgfs_fw_info_state {
+	loff_t pos;
+};
+
+static void *iwl_dbgfs_fw_info_seq_next(struct seq_file *seq,
+					void *v, loff_t *pos)
+{
+	struct iwl_dbgfs_fw_info_state *state = v;
+	struct iwl_dbgfs_fw_info_priv *priv = seq->private;
+	const struct iwl_fw *fw = priv->fwrt->fw;
+
+	*pos = ++state->pos;
+	if (*pos >= fw->ucode_capa.n_cmd_versions)
+		return NULL;
+
+	return state;
+}
+
+static void iwl_dbgfs_fw_info_seq_stop(struct seq_file *seq,
+				       void *v)
+{
+	kfree(v);
+}
+
+static void *iwl_dbgfs_fw_info_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	struct iwl_dbgfs_fw_info_priv *priv = seq->private;
+	const struct iwl_fw *fw = priv->fwrt->fw;
+	struct iwl_dbgfs_fw_info_state *state;
+
+	if (*pos >= fw->ucode_capa.n_cmd_versions)
+		return NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+	state->pos = *pos;
+	return state;
+};
+
+static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
+{
+	struct iwl_dbgfs_fw_info_state *state = v;
+	struct iwl_dbgfs_fw_info_priv *priv = seq->private;
+	const struct iwl_fw *fw = priv->fwrt->fw;
+	const struct iwl_fw_cmd_version *ver;
+	u32 cmd_id;
+
+	if (!state->pos)
+		seq_puts(seq, "fw_api_ver:\n");
+
+	ver = &fw->ucode_capa.cmd_versions[state->pos];
+
+	cmd_id = iwl_cmd_id(ver->cmd, ver->group, 0);
+
+	seq_printf(seq, "  0x%04x:\n", cmd_id);
+	seq_printf(seq, "    name: %s\n",
+		   iwl_get_cmd_string(priv->fwrt->trans, cmd_id));
+	seq_printf(seq, "    cmd_ver: %d\n", ver->cmd_ver);
+	seq_printf(seq, "    notif_ver: %d\n", ver->notif_ver);
+	return 0;
+}
+
+static const struct seq_operations iwl_dbgfs_info_seq_ops = {
+	.start = iwl_dbgfs_fw_info_seq_start,
+	.next = iwl_dbgfs_fw_info_seq_next,
+	.stop = iwl_dbgfs_fw_info_seq_stop,
+	.show = iwl_dbgfs_fw_info_seq_show,
+};
+
+static int iwl_dbgfs_fw_info_open(struct inode *inode, struct file *filp)
+{
+	struct iwl_dbgfs_fw_info_priv *priv;
+
+	priv = __seq_open_private(filp, &iwl_dbgfs_info_seq_ops,
+				  sizeof(*priv));
+
+	if (!priv)
+		return -ENOMEM;
+
+	priv->fwrt = inode->i_private;
+	return 0;
+}
+
+static const struct file_operations iwl_dbgfs_fw_info_ops = {
+	.owner = THIS_MODULE,
+	.open = iwl_dbgfs_fw_info_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private,
+};
+
 void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
 	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(fw_info, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(fw_dbg_domain, dbgfs_dir, 0400);
 }

@@ -625,7 +625,7 @@ static int bpf_sk_storage_map_alloc_check(union bpf_attr *attr)
 	    !attr->btf_key_type_id || !attr->btf_value_type_id)
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return -EPERM;
 
 	if (attr->value_size > MAX_VALUE_SIZE)
@@ -978,7 +978,7 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 	/* bpf_sk_storage_map is currently limited to CAP_SYS_ADMIN as
 	 * the map_alloc_check() side also does.
 	 */
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
 	nla_for_each_nested(nla, nla_stgs, rem) {

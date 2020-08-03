@@ -340,7 +340,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
-		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL);
 
 	inode_unlock(inode);
 

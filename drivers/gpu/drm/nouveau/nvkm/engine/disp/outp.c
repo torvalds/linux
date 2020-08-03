@@ -111,8 +111,44 @@ nvkm_outp_acquire_ior(struct nvkm_outp *outp, u8 user, struct nvkm_ior *ior)
 	return 0;
 }
 
+static inline int
+nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
+		      u8 user, bool hda)
+{
+	struct nvkm_ior *ior;
+
+	/* First preference is to reuse the OR that is currently armed
+	 * on HW, if any, in order to prevent unnecessary switching.
+	 */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
+		    !ior->asy.outp && ior->arm.outp == outp)
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	/* Failing that, a completely unused OR is the next best thing. */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
+		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	/* Last resort is to assign an OR that's already active on HW,
+	 * but will be released during the next modeset.
+	 */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
+		    !ior->asy.outp && ior->type == type &&
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	return -ENOSPC;
+}
+
 int
-nvkm_outp_acquire(struct nvkm_outp *outp, u8 user)
+nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 {
 	struct nvkm_ior *ior = outp->ior;
 	enum nvkm_ior_proto proto;
@@ -137,32 +173,25 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user)
 		return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
-	/* First preference is to reuse the OR that is currently armed
-	 * on HW, if any, in order to prevent unnecessary switching.
+	/* If we don't need HDA, first try to acquire an OR that doesn't
+	 * support it to leave free the ones that do.
 	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity && !ior->asy.outp && ior->arm.outp == outp)
-			return nvkm_outp_acquire_ior(outp, user, ior);
+	if (!hda) {
+		if (!nvkm_outp_acquire_hda(outp, type, user, false))
+			return 0;
+
+		/* Use a HDA-supporting SOR anyway. */
+		return nvkm_outp_acquire_hda(outp, type, user, true);
 	}
 
-	/* Failing that, a completely unused OR is the next best thing. */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity &&
-		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
-		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
+	/* We want HDA, try to acquire an OR that supports it. */
+	if (!nvkm_outp_acquire_hda(outp, type, user, true))
+		return 0;
 
-	/* Last resort is to assign an OR that's already active on HW,
-	 * but will be released during the next modeset.
+	/* There weren't any free ORs that support HDA, grab one that
+	 * doesn't and at least allow display to work still.
 	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity && !ior->asy.outp && ior->type == type &&
-		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
-
-	return -ENOSPC;
+	return nvkm_outp_acquire_hda(outp, type, user, false);
 }
 
 void

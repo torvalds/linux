@@ -3,14 +3,17 @@
 
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/xarray.h>
+#include <linux/vmalloc.h>
+#include <linux/pm_runtime.h>
 
+#include "lima_devfreq.h"
 #include "lima_drv.h"
 #include "lima_sched.h"
 #include "lima_vm.h"
 #include "lima_mmu.h"
 #include "lima_l2_cache.h"
 #include "lima_gem.h"
+#include "lima_trace.h"
 
 struct lima_fence {
 	struct dma_fence base;
@@ -176,6 +179,7 @@ struct dma_fence *lima_sched_context_queue_task(struct lima_sched_context *conte
 {
 	struct dma_fence *fence = dma_fence_get(&task->base.s_fence->finished);
 
+	trace_lima_task_submit(task);
 	drm_sched_entity_push_job(&task->base, &context->base);
 	return fence;
 }
@@ -191,14 +195,36 @@ static struct dma_fence *lima_sched_dependency(struct drm_sched_job *job,
 	return NULL;
 }
 
+static int lima_pm_busy(struct lima_device *ldev)
+{
+	int ret;
+
+	/* resume GPU if it has been suspended by runtime PM */
+	ret = pm_runtime_get_sync(ldev->dev);
+	if (ret < 0)
+		return ret;
+
+	lima_devfreq_record_busy(&ldev->devfreq);
+	return 0;
+}
+
+static void lima_pm_idle(struct lima_device *ldev)
+{
+	lima_devfreq_record_idle(&ldev->devfreq);
+
+	/* GPU can do auto runtime suspend */
+	pm_runtime_mark_last_busy(ldev->dev);
+	pm_runtime_put_autosuspend(ldev->dev);
+}
+
 static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 {
 	struct lima_sched_task *task = to_lima_task(job);
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
+	struct lima_device *ldev = pipe->ldev;
 	struct lima_fence *fence;
 	struct dma_fence *ret;
-	struct lima_vm *vm = NULL, *last_vm = NULL;
-	int i;
+	int i, err;
 
 	/* after GPU reset */
 	if (job->s_fence->finished.error < 0)
@@ -207,6 +233,13 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	fence = lima_fence_create(pipe);
 	if (!fence)
 		return NULL;
+
+	err = lima_pm_busy(ldev);
+	if (err < 0) {
+		dma_fence_put(&fence->base);
+		return NULL;
+	}
+
 	task->fence = &fence->base;
 
 	/* for caller usage of the fence, otherwise irq handler
@@ -234,21 +267,17 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	for (i = 0; i < pipe->num_l2_cache; i++)
 		lima_l2_cache_flush(pipe->l2_cache[i]);
 
-	if (task->vm != pipe->current_vm) {
-		vm = lima_vm_get(task->vm);
-		last_vm = pipe->current_vm;
-		pipe->current_vm = task->vm;
-	}
+	lima_vm_put(pipe->current_vm);
+	pipe->current_vm = lima_vm_get(task->vm);
 
 	if (pipe->bcast_mmu)
-		lima_mmu_switch_vm(pipe->bcast_mmu, vm);
+		lima_mmu_switch_vm(pipe->bcast_mmu, pipe->current_vm);
 	else {
 		for (i = 0; i < pipe->num_mmu; i++)
-			lima_mmu_switch_vm(pipe->mmu[i], vm);
+			lima_mmu_switch_vm(pipe->mmu[i], pipe->current_vm);
 	}
 
-	if (last_vm)
-		lima_vm_put(last_vm);
+	trace_lima_task_run(task);
 
 	pipe->error = false;
 	pipe->task_run(pipe, task);
@@ -256,10 +285,139 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	return task->fence;
 }
 
+static void lima_sched_build_error_task_list(struct lima_sched_task *task)
+{
+	struct lima_sched_error_task *et;
+	struct lima_sched_pipe *pipe = to_lima_pipe(task->base.sched);
+	struct lima_ip *ip = pipe->processor[0];
+	int pipe_id = ip->id == lima_ip_gp ? lima_pipe_gp : lima_pipe_pp;
+	struct lima_device *dev = ip->dev;
+	struct lima_sched_context *sched_ctx =
+		container_of(task->base.entity,
+			     struct lima_sched_context, base);
+	struct lima_ctx *ctx =
+		container_of(sched_ctx, struct lima_ctx, context[pipe_id]);
+	struct lima_dump_task *dt;
+	struct lima_dump_chunk *chunk;
+	struct lima_dump_chunk_pid *pid_chunk;
+	struct lima_dump_chunk_buffer *buffer_chunk;
+	u32 size, task_size, mem_size;
+	int i;
+
+	mutex_lock(&dev->error_task_list_lock);
+
+	if (dev->dump.num_tasks >= lima_max_error_tasks) {
+		dev_info(dev->dev, "fail to save task state from %s pid %d: "
+			 "error task list is full\n", ctx->pname, ctx->pid);
+		goto out;
+	}
+
+	/* frame chunk */
+	size = sizeof(struct lima_dump_chunk) + pipe->frame_size;
+	/* process name chunk */
+	size += sizeof(struct lima_dump_chunk) + sizeof(ctx->pname);
+	/* pid chunk */
+	size += sizeof(struct lima_dump_chunk);
+	/* buffer chunks */
+	for (i = 0; i < task->num_bos; i++) {
+		struct lima_bo *bo = task->bos[i];
+
+		size += sizeof(struct lima_dump_chunk);
+		size += bo->heap_size ? bo->heap_size : lima_bo_size(bo);
+	}
+
+	task_size = size + sizeof(struct lima_dump_task);
+	mem_size = task_size + sizeof(*et);
+	et = kvmalloc(mem_size, GFP_KERNEL);
+	if (!et) {
+		dev_err(dev->dev, "fail to alloc task dump buffer of size %x\n",
+			mem_size);
+		goto out;
+	}
+
+	et->data = et + 1;
+	et->size = task_size;
+
+	dt = et->data;
+	memset(dt, 0, sizeof(*dt));
+	dt->id = pipe_id;
+	dt->size = size;
+
+	chunk = (struct lima_dump_chunk *)(dt + 1);
+	memset(chunk, 0, sizeof(*chunk));
+	chunk->id = LIMA_DUMP_CHUNK_FRAME;
+	chunk->size = pipe->frame_size;
+	memcpy(chunk + 1, task->frame, pipe->frame_size);
+	dt->num_chunks++;
+
+	chunk = (void *)(chunk + 1) + chunk->size;
+	memset(chunk, 0, sizeof(*chunk));
+	chunk->id = LIMA_DUMP_CHUNK_PROCESS_NAME;
+	chunk->size = sizeof(ctx->pname);
+	memcpy(chunk + 1, ctx->pname, sizeof(ctx->pname));
+	dt->num_chunks++;
+
+	pid_chunk = (void *)(chunk + 1) + chunk->size;
+	memset(pid_chunk, 0, sizeof(*pid_chunk));
+	pid_chunk->id = LIMA_DUMP_CHUNK_PROCESS_ID;
+	pid_chunk->pid = ctx->pid;
+	dt->num_chunks++;
+
+	buffer_chunk = (void *)(pid_chunk + 1) + pid_chunk->size;
+	for (i = 0; i < task->num_bos; i++) {
+		struct lima_bo *bo = task->bos[i];
+		void *data;
+
+		memset(buffer_chunk, 0, sizeof(*buffer_chunk));
+		buffer_chunk->id = LIMA_DUMP_CHUNK_BUFFER;
+		buffer_chunk->va = lima_vm_get_va(task->vm, bo);
+
+		if (bo->heap_size) {
+			buffer_chunk->size = bo->heap_size;
+
+			data = vmap(bo->base.pages, bo->heap_size >> PAGE_SHIFT,
+				    VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+			if (!data) {
+				kvfree(et);
+				goto out;
+			}
+
+			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+
+			vunmap(data);
+		} else {
+			buffer_chunk->size = lima_bo_size(bo);
+
+			data = drm_gem_shmem_vmap(&bo->base.base);
+			if (IS_ERR_OR_NULL(data)) {
+				kvfree(et);
+				goto out;
+			}
+
+			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+
+			drm_gem_shmem_vunmap(&bo->base.base, data);
+		}
+
+		buffer_chunk = (void *)(buffer_chunk + 1) + buffer_chunk->size;
+		dt->num_chunks++;
+	}
+
+	list_add(&et->list, &dev->error_task_list);
+	dev->dump.size += et->size;
+	dev->dump.num_tasks++;
+
+	dev_info(dev->dev, "save error task state success\n");
+
+out:
+	mutex_unlock(&dev->error_task_list_lock);
+}
+
 static void lima_sched_timedout_job(struct drm_sched_job *job)
 {
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_sched_task *task = to_lima_task(job);
+	struct lima_device *ldev = pipe->ldev;
 
 	if (!pipe->error)
 		DRM_ERROR("lima job timeout\n");
@@ -267,6 +425,8 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 	drm_sched_stop(&pipe->base, &task->base);
 
 	drm_sched_increase_karma(&task->base);
+
+	lima_sched_build_error_task_list(task);
 
 	pipe->task_error(pipe);
 
@@ -279,11 +439,11 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 			lima_mmu_page_fault_resume(pipe->mmu[i]);
 	}
 
-	if (pipe->current_vm)
-		lima_vm_put(pipe->current_vm);
-
+	lima_vm_put(pipe->current_vm);
 	pipe->current_vm = NULL;
 	pipe->current_task = NULL;
+
+	lima_pm_idle(ldev);
 
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
@@ -355,6 +515,7 @@ void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)
 void lima_sched_pipe_task_done(struct lima_sched_pipe *pipe)
 {
 	struct lima_sched_task *task = pipe->current_task;
+	struct lima_device *ldev = pipe->ldev;
 
 	if (pipe->error) {
 		if (task && task->recoverable)
@@ -364,5 +525,7 @@ void lima_sched_pipe_task_done(struct lima_sched_pipe *pipe)
 	} else {
 		pipe->task_fini(pipe);
 		dma_fence_signal(task->fence);
+
+		lima_pm_idle(ldev);
 	}
 }

@@ -70,11 +70,11 @@ struct mfd_cell {
 	size_t			pdata_size;
 
 	/* device properties passed to the sub devices drivers */
-	struct property_entry *properties;
+	const struct property_entry *properties;
 
 	/*
 	 * Device Tree compatible string
-	 * See: Documentation/devicetree/usage-model.txt Chapter 2.2 for details
+	 * See: Documentation/devicetree/usage-model.rst Chapter 2.2 for details
 	 */
 	const char		*of_compatible;
 

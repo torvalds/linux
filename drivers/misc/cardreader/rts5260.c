@@ -570,30 +570,6 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-static void rts5260_set_aspm(struct rtsx_pcr *pcr, bool enable)
-{
-	struct rtsx_cr_option *option = &pcr->option;
-	u8 val = 0;
-
-	if (pcr->aspm_enabled == enable)
-		return;
-
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		if (enable)
-			val = pcr->aspm_en;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0;
-
-		if (!enable)
-			val = FORCE_ASPM_CTL0;
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-	}
-
-	pcr->aspm_enabled = enable;
-}
-
 static void rts5260_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 {
 	struct rtsx_cr_option *option = &pcr->option;
@@ -639,7 +615,6 @@ static const struct pcr_ops rts5260_pcr_ops = {
 	.switch_output_voltage = rts5260_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.stop_cmd = rts5260_stop_cmd,
-	.set_aspm = rts5260_set_aspm,
 	.set_l1off_cfg_sub_d0 = rts5260_set_l1off_cfg_sub_d0,
 	.enable_ocp = rts5260_enable_ocp,
 	.disable_ocp = rts5260_disable_ocp,
@@ -683,7 +658,6 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
 	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
 	option->ltr_l1off_snooze_sspwrgate =

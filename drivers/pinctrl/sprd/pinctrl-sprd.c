@@ -68,8 +68,8 @@
 #define SLEEP_PULL_UP_MASK		0x1
 #define SLEEP_PULL_UP_SHIFT		3
 
-#define PULL_UP_20K			(BIT(12) | BIT(7))
-#define PULL_UP_4_7K			BIT(12)
+#define PULL_UP_4_7K			(BIT(12) | BIT(7))
+#define PULL_UP_20K			BIT(7)
 #define PULL_UP_MASK			0x21
 #define PULL_UP_SHIFT			7
 

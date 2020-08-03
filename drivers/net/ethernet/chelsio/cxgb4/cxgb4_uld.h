@@ -147,6 +147,9 @@ struct tid_info {
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
 	atomic_t conns_in_use;
+	/* ETHOFLD TIDs used for rate limiting */
+	atomic_t eotids_in_use;
+
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
 
@@ -221,12 +224,14 @@ static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
 {
 	set_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = data;
+	atomic_inc(&t->eotids_in_use);
 }
 
 static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
 {
 	clear_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = NULL;
+	atomic_dec(&t->eotids_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -261,6 +266,10 @@ struct filter_ctx {
 	void *closure;			/* caller's opaque information */
 	int result;			/* result of operation */
 	u32 tid;			/* to store tid */
+};
+
+struct chcr_ktls {
+	refcount_t ktls_refcount;
 };
 
 struct ch_filter_specification;
@@ -322,6 +331,7 @@ enum cxgb4_control {
 	CXGB4_CONTROL_DB_DROP,
 };
 
+struct adapter;
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -458,8 +468,12 @@ struct cxgb4_uld_info {
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	const struct tlsdev_ops *tlsdev_ops;
+#endif
 };
 
+void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);

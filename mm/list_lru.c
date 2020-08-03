@@ -213,7 +213,7 @@ restart:
 
 		/*
 		 * decrement nr_to_walk first so that we don't livelock if we
-		 * get stuck on large numbesr of LRU_RETRY items
+		 * get stuck on large numbers of LRU_RETRY items
 		 */
 		if (!*nr_to_walk)
 			break;

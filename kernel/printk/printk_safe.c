@@ -6,10 +6,12 @@
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
 #include <linux/debug_locks.h>
+#include <linux/kdb.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/irq_work.h>
 #include <linux/printk.h>
+#include <linux/kprobes.h>
 
 #include "internal.h"
 
@@ -293,14 +295,14 @@ static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 	return printk_safe_log_store(s, fmt, args);
 }
 
-void notrace printk_nmi_enter(void)
+void noinstr printk_nmi_enter(void)
 {
-	this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
+	this_cpu_add(printk_context, PRINTK_NMI_CONTEXT_OFFSET);
 }
 
-void notrace printk_nmi_exit(void)
+void noinstr printk_nmi_exit(void)
 {
-	this_cpu_and(printk_context, ~PRINTK_NMI_CONTEXT_MASK);
+	this_cpu_sub(printk_context, PRINTK_NMI_CONTEXT_OFFSET);
 }
 
 /*
@@ -359,6 +361,12 @@ void __printk_safe_exit(void)
 
 __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 {
+#ifdef CONFIG_KGDB_KDB
+	/* Allow to pass printk() to kdb but avoid a recursion. */
+	if (unlikely(kdb_trap_printk && kdb_printf_cpu < 0))
+		return vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
+#endif
+
 	/*
 	 * Try to use the main logbuf even in NMI. But avoid calling console
 	 * drivers that might have their own locks.

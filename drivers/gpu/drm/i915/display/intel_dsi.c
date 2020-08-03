@@ -31,20 +31,21 @@ int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi)
 
 int intel_dsi_get_modes(struct drm_connector *connector)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *mode;
 
-	DRM_DEBUG_KMS("\n");
+	drm_dbg_kms(&i915->drm, "\n");
 
 	if (!intel_connector->panel.fixed_mode) {
-		DRM_DEBUG_KMS("no fixed mode\n");
+		drm_dbg_kms(&i915->drm, "no fixed mode\n");
 		return 0;
 	}
 
 	mode = drm_mode_duplicate(connector->dev,
 				  intel_connector->panel.fixed_mode);
 	if (!mode) {
-		DRM_DEBUG_KMS("drm_mode_duplicate failed\n");
+		drm_dbg_kms(&i915->drm, "drm_mode_duplicate failed\n");
 		return 0;
 	}
 
@@ -60,7 +61,7 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
-	DRM_DEBUG_KMS("\n");
+	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;

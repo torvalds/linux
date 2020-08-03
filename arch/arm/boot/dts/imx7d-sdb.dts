@@ -162,6 +162,10 @@
 	cpu-supply = <&sw1a_reg>;
 };
 
+&cpu1 {
+	cpu-supply = <&sw1a_reg>;
+};
+
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;

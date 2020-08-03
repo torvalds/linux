@@ -95,6 +95,7 @@ struct perf_c2c {
 	bool			 use_stdio;
 	bool			 stats_only;
 	bool			 symbol_full;
+	bool			 stitch_lbr;
 
 	/* HITM shared clines stats */
 	struct c2c_stats	hitm_stats;
@@ -272,6 +273,9 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 			 event->header.type);
 		return -1;
 	}
+
+	if (c2c.stitch_lbr)
+		al.thread->lbr_stitch_enable = true;
 
 	ret = sample__resolve_callchain(sample, &callchain_cursor, NULL,
 					evsel, &al, sysctl_perf_event_max_stack);
@@ -1705,7 +1709,7 @@ static struct c2c_dimension *get_dimension(const char *name)
 
 		if (!strcmp(dim->name, name))
 			return dim;
-	};
+	}
 
 	return NULL;
 }
@@ -1921,7 +1925,7 @@ static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 		FILTER_HITM(tot_hitm);
 	default:
 		break;
-	};
+	}
 
 #undef FILTER_HITM
 
@@ -2255,8 +2259,7 @@ static void print_c2c_info(FILE *out, struct perf_session *session)
 	fprintf(out, "=================================================\n");
 
 	evlist__for_each_entry(evlist, evsel) {
-		fprintf(out, "%-36s: %s\n", first ? "  Events" : "",
-			perf_evsel__name(evsel));
+		fprintf(out, "%-36s: %s\n", first ? "  Events" : "", evsel__name(evsel));
 		first = false;
 	}
 	fprintf(out, "  Cachelines sort on                : %s HITMs\n",
@@ -2601,6 +2604,12 @@ static int setup_callchain(struct evlist *evlist)
 		}
 	}
 
+	if (c2c.stitch_lbr && (mode != CALLCHAIN_LBR)) {
+		ui__warning("Can't find LBR callchain. Switch off --stitch-lbr.\n"
+			    "Please apply --call-graph lbr when recording.\n");
+		c2c.stitch_lbr = false;
+	}
+
 	callchain_param.record_mode = mode;
 	callchain_param.min_percent = 0;
 	return 0;
@@ -2752,6 +2761,8 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_STRING('c', "coalesce", &coalesce, "coalesce fields",
 		   "coalesce fields: pid,tid,iaddr,dso"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
+	OPT_BOOLEAN(0, "stitch-lbr", &c2c.stitch_lbr,
+		    "Enable LBR callgraph stitching approach"),
 	OPT_PARENT(c2c_options),
 	OPT_END()
 	};
@@ -2876,8 +2887,15 @@ static int parse_record_events(const struct option *opt,
 {
 	bool *event_set = (bool *) opt->value;
 
+	if (!strcmp(str, "list")) {
+		perf_mem_events__list();
+		exit(0);
+	}
+	if (perf_mem_events__parse(str))
+		exit(-1);
+
 	*event_set = true;
-	return perf_mem_events__parse(str);
+	return 0;
 }
 
 
@@ -2947,7 +2965,7 @@ static int perf_c2c__record(int argc, const char **argv)
 
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = perf_mem_events__name(j);
-	};
+	}
 
 	if (all_user)
 		rec_argv[i++] = "--all-user";

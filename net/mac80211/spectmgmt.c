@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2008, Intel Corporation
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018        Intel Corporation
+ * Copyright (C) 2018, 2020 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -22,6 +22,7 @@
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
+				 u32 vht_cap_info,
 				 u32 sta_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
 {
@@ -150,6 +151,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 		/* ignore if parsing fails */
 		if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
+						vht_cap_info,
 						&vht_oper, &ht_oper,
 						&new_vht_chandef))
 			new_vht_chandef.chan = NULL;

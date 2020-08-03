@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "main.h"
 #include "coex.h"
 #include "fw.h"
@@ -23,7 +25,7 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 
 	switch (sub_cmd_id) {
 	case C2H_CCX_RPT:
-		rtw_tx_report_handle(rtwdev, skb);
+		rtw_tx_report_handle(rtwdev, skb, C2H_CCX_RPT);
 		break;
 	default:
 		break;
@@ -140,6 +142,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		goto unlock;
 
 	switch (c2h->id) {
+	case C2H_CCX_TX_RPT:
+		rtw_tx_report_handle(rtwdev, skb, C2H_CCX_TX_RPT);
+		break;
 	case C2H_BT_INFO:
 		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
 		break;
@@ -153,6 +158,7 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		rtw_fw_ra_report_handle(rtwdev, c2h->payload, len);
 		break;
 	default:
+		rtw_dbg(rtwdev, RTW_DBG_FW, "C2H 0x%x isn't handled\n", c2h->id);
 		break;
 	}
 
@@ -193,8 +199,8 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 	u8 box;
 	u8 box_state;
 	u32 box_reg, box_ex_reg;
-	u32 h2c_wait;
 	int idx;
+	int ret;
 
 	rtw_dbg(rtwdev, RTW_DBG_FW,
 		"send H2C content %02x%02x%02x%02x %02x%02x%02x%02x\n",
@@ -226,12 +232,11 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 		goto out;
 	}
 
-	h2c_wait = 20;
-	do {
-		box_state = rtw_read8(rtwdev, REG_HMETFR);
-	} while ((box_state >> box) & 0x1 && --h2c_wait > 0);
+	ret = read_poll_timeout_atomic(rtw_read8, box_state,
+				       !((box_state >> box) & 0x1), 100, 3000,
+				       false, rtwdev, REG_HMETFR);
 
-	if (!h2c_wait) {
+	if (ret) {
 		rtw_err(rtwdev, "failed to send h2c command\n");
 		goto out;
 	}
@@ -270,6 +275,9 @@ rtw_fw_send_general_info(struct rtw_dev *rtwdev)
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 	u16 total_size = H2C_PKT_HDR_SIZE + 4;
 
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return;
+
 	rtw_h2c_pkt_set_header(h2c_pkt, H2C_PKT_GENERAL_INFO);
 
 	SET_PKT_H2C_TOTAL_LEN(h2c_pkt, total_size);
@@ -289,6 +297,9 @@ rtw_fw_send_phydm_info(struct rtw_dev *rtwdev)
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 	u16 total_size = H2C_PKT_HDR_SIZE + 8;
 	u8 fw_rf_type = 0;
+
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return;
 
 	if (hal->rf_type == RF_1T1R)
 		fw_rf_type = FW_RF_1T1R;
@@ -319,6 +330,7 @@ void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para)
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
 }
+EXPORT_SYMBOL(rtw_fw_do_iqk);
 
 void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 {
@@ -630,8 +642,8 @@ void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
-					struct cfg80211_ssid *ssid)
+static u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
+					       struct cfg80211_ssid *ssid)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 	u8 location = 0;
@@ -647,8 +659,8 @@ u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
 	return location;
 }
 
-u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
-				     struct cfg80211_ssid *ssid)
+static u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
+					    struct cfg80211_ssid *ssid)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 	u16 size = 0;
@@ -1078,6 +1090,8 @@ int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 	u8 bckp[2];
 	u8 val;
 	u16 rsvd_pg_head;
+	u32 bcn_valid_addr;
+	u32 bcn_valid_mask;
 	int ret;
 
 	lockdep_assert_held(&rtwdev->mutex);
@@ -1085,8 +1099,13 @@ int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 	if (!size)
 		return -EINVAL;
 
-	pg_addr &= BIT_MASK_BCN_HEAD_1_V1;
-	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, pg_addr | BIT_BCN_VALID_V1);
+	if (rtw_chip_wcpu_11n(rtwdev)) {
+		rtw_write32_set(rtwdev, REG_DWBCN0_CTRL, BIT_BCN_VALID);
+	} else {
+		pg_addr &= BIT_MASK_BCN_HEAD_1_V1;
+		pg_addr |= BIT_BCN_VALID_V1;
+		rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, pg_addr);
+	}
 
 	val = rtw_read8(rtwdev, REG_CR + 1);
 	bckp[0] = val;
@@ -1104,7 +1123,15 @@ int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 		goto restore;
 	}
 
-	if (!check_hw_ready(rtwdev, REG_FIFOPAGE_CTRL_2, BIT_BCN_VALID_V1, 1)) {
+	if (rtw_chip_wcpu_11n(rtwdev)) {
+		bcn_valid_addr = REG_DWBCN0_CTRL;
+		bcn_valid_mask = BIT_BCN_VALID;
+	} else {
+		bcn_valid_addr = REG_FIFOPAGE_CTRL_2;
+		bcn_valid_mask = BIT_BCN_VALID_V1;
+	}
+
+	if (!check_hw_ready(rtwdev, bcn_valid_addr, bcn_valid_mask, 1)) {
 		rtw_err(rtwdev, "error beacon valid\n");
 		ret = -EBUSY;
 	}

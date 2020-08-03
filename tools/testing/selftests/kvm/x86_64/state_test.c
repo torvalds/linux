@@ -18,14 +18,46 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "vmx.h"
+#include "svm_util.h"
 
 #define VCPU_ID		5
+#define L2_GUEST_STACK_SIZE 256
 
-void l2_guest_code(void)
+void svm_l2_guest_code(void)
+{
+	GUEST_SYNC(4);
+	/* Exit to L1 */
+	vmcall();
+	GUEST_SYNC(6);
+	/* Done, exit to L1 and never come back.  */
+	vmcall();
+}
+
+static void svm_l1_guest_code(struct svm_test_data *svm)
+{
+	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+	struct vmcb *vmcb = svm->vmcb;
+
+	GUEST_ASSERT(svm->vmcb_gpa);
+	/* Prepare for L2 execution. */
+	generic_svm_setup(svm, svm_l2_guest_code,
+			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+
+	GUEST_SYNC(3);
+	run_guest(vmcb, svm->vmcb_gpa);
+	GUEST_ASSERT(vmcb->control.exit_code == SVM_EXIT_VMMCALL);
+	GUEST_SYNC(5);
+	vmcb->save.rip += 3;
+	run_guest(vmcb, svm->vmcb_gpa);
+	GUEST_ASSERT(vmcb->control.exit_code == SVM_EXIT_VMMCALL);
+	GUEST_SYNC(7);
+}
+
+void vmx_l2_guest_code(void)
 {
 	GUEST_SYNC(6);
 
-        /* Exit to L1 */
+	/* Exit to L1 */
 	vmcall();
 
 	/* L1 has now set up a shadow VMCS for us.  */
@@ -42,10 +74,9 @@ void l2_guest_code(void)
 	vmcall();
 }
 
-void l1_guest_code(struct vmx_pages *vmx_pages)
+static void vmx_l1_guest_code(struct vmx_pages *vmx_pages)
 {
-#define L2_GUEST_STACK_SIZE 64
-        unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 
 	GUEST_ASSERT(vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
@@ -56,7 +87,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_SYNC(4);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
-	prepare_vmcs(vmx_pages, l2_guest_code,
+	prepare_vmcs(vmx_pages, vmx_l2_guest_code,
 		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
 	GUEST_SYNC(5);
@@ -106,20 +137,24 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(vmresume());
 }
 
-void guest_code(struct vmx_pages *vmx_pages)
+static void __attribute__((__flatten__)) guest_code(void *arg)
 {
 	GUEST_SYNC(1);
 	GUEST_SYNC(2);
 
-	if (vmx_pages)
-		l1_guest_code(vmx_pages);
+	if (arg) {
+		if (cpu_has_svm())
+			svm_l1_guest_code(arg);
+		else
+			vmx_l1_guest_code(arg);
+	}
 
 	GUEST_DONE();
 }
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva = 0;
+	vm_vaddr_t nested_gva = 0;
 
 	struct kvm_regs regs1, regs2;
 	struct kvm_vm *vm;
@@ -136,12 +171,16 @@ int main(int argc, char *argv[])
 	vcpu_regs_get(vm, VCPU_ID, &regs1);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		vcpu_alloc_vmx(vm, &vmx_pages_gva);
-		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
-	} else {
-		pr_info("will skip nested state checks\n");
-		vcpu_args_set(vm, VCPU_ID, 1, 0);
+		if (nested_svm_supported())
+			vcpu_alloc_svm(vm, &nested_gva);
+		else if (nested_vmx_supported())
+			vcpu_alloc_vmx(vm, &nested_gva);
 	}
+
+	if (!nested_gva)
+		pr_info("will skip nested state checks\n");
+
+	vcpu_args_set(vm, VCPU_ID, 1, nested_gva);
 
 	for (stage = 1;; stage++) {
 		_vcpu_run(vm, VCPU_ID);

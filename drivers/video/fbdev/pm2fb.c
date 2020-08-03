@@ -54,7 +54,7 @@
 #define DPRINTK(a, b...)	\
 	printk(KERN_DEBUG "pm2fb: %s: " a, __func__ , ## b)
 #else
-#define DPRINTK(a, b...)
+#define DPRINTK(a, b...)	no_printk(a, ##b)
 #endif
 
 #define PM2_PIXMAP_SIZE	(1600 * 4)

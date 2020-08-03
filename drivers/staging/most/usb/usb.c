@@ -5,7 +5,6 @@
  * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/usb.h>
@@ -140,9 +139,10 @@ static void wq_netinfo(struct work_struct *wq_obj);
 static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 {
 	int retval;
-	__le16 *dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
+	__le16 *dma_buf;
 	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 
+	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	if (!dma_buf)
 		return -ENOMEM;
 
@@ -153,7 +153,9 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 	*buf = le16_to_cpu(*dma_buf);
 	kfree(dma_buf);
 
-	return retval;
+	if (retval < 0)
+		return retval;
+	return 0;
 }
 
 /**
@@ -184,16 +186,18 @@ static inline int start_sync_ep(struct usb_device *usb_dev, u16 ep)
 
 /**
  * get_stream_frame_size - calculate frame size of current configuration
+ * @dev: device structure
  * @cfg: channel configuration
  */
-static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
+static unsigned int get_stream_frame_size(struct device *dev,
+					  struct most_channel_config *cfg)
 {
-	unsigned int frame_size = 0;
+	unsigned int frame_size;
 	unsigned int sub_size = cfg->subbuffer_size;
 
 	if (!sub_size) {
-		pr_warn("Misconfig: Subbuffer size zero.\n");
-		return frame_size;
+		dev_warn(dev, "Misconfig: Subbuffer size zero.\n");
+		return 0;
 	}
 	switch (cfg->data_type) {
 	case MOST_CH_ISOC:
@@ -201,7 +205,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		break;
 	case MOST_CH_SYNC:
 		if (cfg->packets_per_xact == 0) {
-			pr_warn("Misconfig: Packets per XACT zero\n");
+			dev_warn(dev, "Misconfig: Packets per XACT zero\n");
 			frame_size = 0;
 		} else if (cfg->packets_per_xact == 0xFF) {
 			frame_size = (USB_MTU / sub_size) * sub_size;
@@ -210,7 +214,8 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		}
 		break;
 	default:
-		pr_warn("Query frame size of non-streaming channel\n");
+		dev_warn(dev, "Query frame size of non-streaming channel\n");
+		frame_size = 0;
 		break;
 	}
 	return frame_size;
@@ -233,11 +238,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 	unsigned long flags;
 	spinlock_t *lock; /* temp. lock */
 
-	if (unlikely(!iface)) {
-		dev_warn(&mdev->usb_device->dev, "Poison: Bad interface.\n");
-		return -EIO;
-	}
-	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
+	if (channel < 0 || channel >= iface->num_channels) {
 		dev_warn(&mdev->usb_device->dev, "Channel ID out of range.\n");
 		return -ECHRNG;
 	}
@@ -274,17 +275,17 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 {
 	struct most_channel_config *conf = &mdev->conf[channel];
-	unsigned int frame_size = get_stream_frame_size(conf);
+	unsigned int frame_size = get_stream_frame_size(&mdev->dev, conf);
 	unsigned int j, num_frames;
 
 	if (!frame_size)
-		return -EIO;
+		return -EINVAL;
 	num_frames = mbo->buffer_length / frame_size;
 
 	if (num_frames < 1) {
 		dev_err(&mdev->usb_device->dev,
 			"Missed minimal transfer unit.\n");
-		return -EIO;
+		return -EINVAL;
 	}
 
 	for (j = num_frames - 1; j > 0; j--)
@@ -308,11 +309,11 @@ static int hdm_remove_padding(struct most_dev *mdev, int channel,
 			      struct mbo *mbo)
 {
 	struct most_channel_config *const conf = &mdev->conf[channel];
-	unsigned int frame_size = get_stream_frame_size(conf);
+	unsigned int frame_size = get_stream_frame_size(&mdev->dev, conf);
 	unsigned int j, num_frames;
 
 	if (!frame_size)
-		return -EIO;
+		return -EINVAL;
 	num_frames = mbo->processed_length / USB_MTU;
 
 	for (j = 1; j < num_frames; j++)
@@ -386,103 +387,6 @@ static void hdm_write_completion(struct urb *urb)
  * padding bytes -if necessary- and calls the completion function.
  *
  * Context: interrupt!
- *
- * **************************************************************************
- *                   Error codes returned by in urb->status
- *                   or in iso_frame_desc[n].status (for ISO)
- * *************************************************************************
- *
- * USB device drivers may only test urb status values in completion handlers.
- * This is because otherwise there would be a race between HCDs updating
- * these values on one CPU, and device drivers testing them on another CPU.
- *
- * A transfer's actual_length may be positive even when an error has been
- * reported.  That's because transfers often involve several packets, so that
- * one or more packets could finish before an error stops further endpoint I/O.
- *
- * For isochronous URBs, the urb status value is non-zero only if the URB is
- * unlinked, the device is removed, the host controller is disabled or the total
- * transferred length is less than the requested length and the URB_SHORT_NOT_OK
- * flag is set.  Completion handlers for isochronous URBs should only see
- * urb->status set to zero, -ENOENT, -ECONNRESET, -ESHUTDOWN, or -EREMOTEIO.
- * Individual frame descriptor status fields may report more status codes.
- *
- *
- * 0			Transfer completed successfully
- *
- * -ENOENT		URB was synchronously unlinked by usb_unlink_urb
- *
- * -EINPROGRESS		URB still pending, no results yet
- *			(That is, if drivers see this it's a bug.)
- *
- * -EPROTO (*, **)	a) bitstuff error
- *			b) no response packet received within the
- *			   prescribed bus turn-around time
- *			c) unknown USB error
- *
- * -EILSEQ (*, **)	a) CRC mismatch
- *			b) no response packet received within the
- *			   prescribed bus turn-around time
- *			c) unknown USB error
- *
- *			Note that often the controller hardware does not
- *			distinguish among cases a), b), and c), so a
- *			driver cannot tell whether there was a protocol
- *			error, a failure to respond (often caused by
- *			device disconnect), or some other fault.
- *
- * -ETIME (**)		No response packet received within the prescribed
- *			bus turn-around time.  This error may instead be
- *			reported as -EPROTO or -EILSEQ.
- *
- * -ETIMEDOUT		Synchronous USB message functions use this code
- *			to indicate timeout expired before the transfer
- *			completed, and no other error was reported by HC.
- *
- * -EPIPE (**)		Endpoint stalled.  For non-control endpoints,
- *			reset this status with usb_clear_halt().
- *
- * -ECOMM		During an IN transfer, the host controller
- *			received data from an endpoint faster than it
- *			could be written to system memory
- *
- * -ENOSR		During an OUT transfer, the host controller
- *			could not retrieve data from system memory fast
- *			enough to keep up with the USB data rate
- *
- * -EOVERFLOW (*)	The amount of data returned by the endpoint was
- *			greater than either the max packet size of the
- *			endpoint or the remaining buffer size.  "Babble".
- *
- * -EREMOTEIO		The data read from the endpoint did not fill the
- *			specified buffer, and URB_SHORT_NOT_OK was set in
- *			urb->transfer_flags.
- *
- * -ENODEV		Device was removed.  Often preceded by a burst of
- *			other errors, since the hub driver doesn't detect
- *			device removal events immediately.
- *
- * -EXDEV		ISO transfer only partially completed
- *			(only set in iso_frame_desc[n].status, not urb->status)
- *
- * -EINVAL		ISO madness, if this happens: Log off and go home
- *
- * -ECONNRESET		URB was asynchronously unlinked by usb_unlink_urb
- *
- * -ESHUTDOWN		The device or host controller has been disabled due
- *			to some problem that could not be worked around,
- *			such as a physical disconnect.
- *
- *
- * (*) Error codes like -EPROTO, -EILSEQ and -EOVERFLOW normally indicate
- * hardware problems such as bad devices (including firmware) or cables.
- *
- * (**) This is also one of several codes that different kinds of host
- * controller use to indicate a transfer has failed because of device
- * disconnect.  In the interval before the hub driver starts disconnect
- * processing, devices may receive such fault reports for every request.
- *
- * See <https://www.kernel.org/doc/Documentation/driver-api/usb/error-codes.rst>
  */
 static void hdm_read_completion(struct urb *urb)
 {
@@ -552,36 +456,33 @@ static void hdm_read_completion(struct urb *urb)
 static int hdm_enqueue(struct most_interface *iface, int channel,
 		       struct mbo *mbo)
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = to_mdev(iface);
 	struct most_channel_config *conf;
 	int retval = 0;
 	struct urb *urb;
 	unsigned long length;
 	void *virt_address;
 
-	if (unlikely(!iface || !mbo))
-		return -EIO;
-	if (unlikely(iface->num_channels <= channel || channel < 0))
+	if (!mbo)
+		return -EINVAL;
+	if (iface->num_channels <= channel || channel < 0)
 		return -ECHRNG;
 
-	mdev = to_mdev(iface);
+	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
 	conf = &mdev->conf[channel];
 
 	mutex_lock(&mdev->io_mutex);
 	if (!mdev->usb_device) {
 		retval = -ENODEV;
-		goto unlock_io_mutex;
-	}
-
-	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
-	if (!urb) {
-		retval = -ENOMEM;
-		goto unlock_io_mutex;
+		goto err_free_urb;
 	}
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
 	    hdm_add_padding(mdev, channel, mbo)) {
-		retval = -EIO;
+		retval = -EINVAL;
 		goto err_free_urb;
 	}
 
@@ -619,13 +520,13 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 			"URB submit failed with error %d.\n", retval);
 		goto err_unanchor_urb;
 	}
-	goto unlock_io_mutex;
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
 
 err_unanchor_urb:
 	usb_unanchor_urb(urb);
 err_free_urb:
 	usb_free_urb(urb);
-unlock_io_mutex:
 	mutex_unlock(&mdev->io_mutex);
 	return retval;
 }
@@ -669,19 +570,20 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	struct most_dev *mdev = to_mdev(iface);
 	struct device *dev = &mdev->usb_device->dev;
 
+	if (!conf) {
+		dev_err(dev, "Bad config pointer.\n");
+		return -EINVAL;
+	}
+	if (channel < 0 || channel >= iface->num_channels) {
+		dev_err(dev, "Channel ID out of range.\n");
+		return -EINVAL;
+	}
+
 	mdev->is_channel_healthy[channel] = true;
 	mdev->clear_work[channel].channel = channel;
 	mdev->clear_work[channel].mdev = mdev;
 	INIT_WORK(&mdev->clear_work[channel].ws, wq_clear_halt);
 
-	if (unlikely(!iface || !conf)) {
-		dev_err(dev, "Bad interface or config pointer.\n");
-		return -EINVAL;
-	}
-	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
-		dev_err(dev, "Channel ID out of range.\n");
-		return -EINVAL;
-	}
 	if (!conf->num_buffers || !conf->buffer_size) {
 		dev_err(dev, "Misconfig: buffer size or #buffers zero.\n");
 		return -EINVAL;
@@ -701,7 +603,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 
 	mdev->padding_active[channel] = true;
 
-	frame_size = get_stream_frame_size(conf);
+	frame_size = get_stream_frame_size(&mdev->dev, conf);
 	if (frame_size == 0 || frame_size > USB_MTU) {
 		dev_warn(dev, "Misconfig: frame size wrong\n");
 		return -EINVAL;
@@ -745,10 +647,8 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
 						   unsigned char,
 						   unsigned char *))
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = to_mdev(iface);
 
-	BUG_ON(!iface);
-	mdev = to_mdev(iface);
 	mdev->on_netinfo = on_netinfo;
 	if (!on_netinfo)
 		return;
@@ -787,22 +687,22 @@ static void wq_netinfo(struct work_struct *wq_obj)
 	u16 hi, mi, lo, link;
 	u8 hw_addr[6];
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi)) {
 		dev_err(dev, "Vendor request 'hw_addr_hi' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi)) {
 		dev_err(dev, "Vendor request 'hw_addr_mid' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo)) {
 		dev_err(dev, "Vendor request 'hw_addr_low' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link)) {
 		dev_err(dev, "Vendor request 'link status' failed\n");
 		return;
 	}
@@ -830,6 +730,8 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	struct most_dev *mdev = clear_work->mdev;
 	unsigned int channel = clear_work->channel;
 	int pipe = clear_work->pipe;
+	int snd_pipe;
+	int peer;
 
 	mutex_lock(&mdev->io_mutex);
 	most_stop_enqueue(&mdev->iface, channel);
@@ -847,9 +749,12 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	 */
 	if (mdev->conf[channel].data_type == MOST_CH_ASYNC &&
 	    mdev->conf[channel].direction == MOST_CH_RX) {
-		int peer = 1 - channel;
-		int snd_pipe = usb_sndbulkpipe(mdev->usb_device,
-					       mdev->ep_address[peer]);
+		if (channel == 0)
+			peer = 1;
+		else
+			peer = 0;
+		snd_pipe = usb_sndbulkpipe(mdev->usb_device,
+					   mdev->ep_address[peer]);
 		usb_clear_halt(mdev->usb_device, snd_pipe);
 	}
 	mdev->is_channel_healthy[channel] = true;
@@ -904,12 +809,12 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 	int i;
 
 	for (i = 0; i < size; i++) {
-		if (!strcmp(name, regs[i].name)) {
+		if (sysfs_streq(name, regs[i].name)) {
 			*reg_addr = regs[i].reg;
 			return 0;
 		}
 	}
-	return -EFAULT;
+	return -EINVAL;
 }
 
 #define get_static_reg_addr(regs, name, reg_addr) \
@@ -924,14 +829,14 @@ static ssize_t value_show(struct device *dev, struct device_attribute *attr,
 	u16 reg_addr;
 	int err;
 
-	if (!strcmp(name, "arb_address"))
+	if (sysfs_streq(name, "arb_address"))
 		return snprintf(buf, PAGE_SIZE, "%04x\n", dci_obj->reg_addr);
 
-	if (!strcmp(name, "arb_value"))
+	if (sysfs_streq(name, "arb_value"))
 		reg_addr = dci_obj->reg_addr;
 	else if (get_static_reg_addr(ro_regs, name, &reg_addr) &&
 		 get_static_reg_addr(rw_regs, name, &reg_addr))
-		return -EFAULT;
+		return -EINVAL;
 
 	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &val);
 	if (err < 0)
@@ -948,24 +853,25 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 	const char *name = attr->attr.name;
 	struct most_dci_obj *dci_obj = to_dci_obj(dev);
 	struct usb_device *usb_dev = dci_obj->usb_device;
-	int err = kstrtou16(buf, 16, &val);
+	int err;
 
+	err = kstrtou16(buf, 16, &val);
 	if (err)
 		return err;
 
-	if (!strcmp(name, "arb_address")) {
+	if (sysfs_streq(name, "arb_address")) {
 		dci_obj->reg_addr = val;
 		return count;
 	}
 
-	if (!strcmp(name, "arb_value"))
+	if (sysfs_streq(name, "arb_value"))
 		err = drci_wr_reg(usb_dev, dci_obj->reg_addr, val);
-	else if (!strcmp(name, "sync_ep"))
+	else if (sysfs_streq(name, "sync_ep"))
 		err = start_sync_ep(usb_dev, val);
 	else if (!get_static_reg_addr(rw_regs, name, &reg_addr))
 		err = drci_wr_reg(usb_dev, reg_addr, val);
 	else
-		return -EFAULT;
+		return -EINVAL;
 
 	if (err < 0)
 		return err;
@@ -1008,19 +914,13 @@ static struct attribute *dci_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dci_attr_group = {
-	.attrs = dci_attrs,
-};
-
-static const struct attribute_group *dci_attr_groups[] = {
-	&dci_attr_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(dci);
 
 static void release_dci(struct device *dev)
 {
 	struct most_dci_obj *dci = to_dci_obj(dev);
 
+	put_device(dev->parent);
 	kfree(dci);
 }
 
@@ -1048,18 +948,23 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct usb_host_interface *usb_iface_desc = interface->cur_altsetting;
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
 	struct device *dev = &usb_dev->dev;
-	struct most_dev *mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	struct most_dev *mdev;
 	unsigned int i;
 	unsigned int num_endpoints;
 	struct most_channel_capability *tmp_cap;
 	struct usb_endpoint_descriptor *ep_desc;
-	int ret = 0;
+	int ret = -ENOMEM;
 
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		goto err_out_of_memory;
+		return -ENOMEM;
 
 	usb_set_intfdata(interface, mdev);
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
+	if (num_endpoints > MAX_NUM_ENDPOINTS) {
+		kfree(mdev);
+		return -EINVAL;
+	}
 	mutex_init(&mdev->io_mutex);
 	INIT_WORK(&mdev->poll_work_obj, wq_netinfo);
 	timer_setup(&mdev->link_stat_timer, link_stat_timer_handler, 0);
@@ -1134,17 +1039,17 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		init_usb_anchor(&mdev->busy_urbs[i]);
 		spin_lock_init(&mdev->channel_lock[i]);
 	}
-	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
-		   le16_to_cpu(usb_dev->descriptor.idVendor),
-		   le16_to_cpu(usb_dev->descriptor.idProduct),
-		   usb_dev->bus->busnum,
-		   usb_dev->devnum);
+	dev_dbg(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
+		le16_to_cpu(usb_dev->descriptor.idVendor),
+		le16_to_cpu(usb_dev->descriptor.idProduct),
+		usb_dev->bus->busnum,
+		usb_dev->devnum);
 
-	dev_notice(dev, "device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
-		   usb_dev->bus->busnum,
-		   usb_dev->devpath,
-		   usb_dev->config->desc.bConfigurationValue,
-		   usb_iface_desc->desc.bInterfaceNumber);
+	dev_dbg(dev, "device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
+		usb_dev->bus->busnum,
+		usb_dev->devpath,
+		usb_dev->config->desc.bConfigurationValue,
+		usb_iface_desc->desc.bInterfaceNumber);
 
 	ret = most_register_interface(&mdev->iface);
 	if (ret)
@@ -1164,7 +1069,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 		mdev->dci->dev.init_name = "dci";
 		mdev->dci->dev.parent = get_device(mdev->iface.dev);
-		mdev->dci->dev.groups = dci_attr_groups;
+		mdev->dci->dev.groups = dci_groups;
 		mdev->dci->dev.release = release_dci;
 		if (device_register(&mdev->dci->dev)) {
 			mutex_unlock(&mdev->io_mutex);
@@ -1188,11 +1093,6 @@ err_free_conf:
 	kfree(mdev->conf);
 err_free_mdev:
 	put_device(&mdev->dev);
-err_out_of_memory:
-	if (ret == 0 || ret == -ENOMEM) {
-		ret = -ENOMEM;
-		dev_err(dev, "out of memory\n");
-	}
 	return ret;
 }
 
@@ -1225,7 +1125,34 @@ static void hdm_disconnect(struct usb_interface *interface)
 	kfree(mdev->cap);
 	kfree(mdev->conf);
 	kfree(mdev->ep_address);
+	put_device(&mdev->dci->dev);
 	put_device(&mdev->dev);
+}
+
+static int hdm_suspend(struct usb_interface *interface, pm_message_t message)
+{
+	struct most_dev *mdev = usb_get_intfdata(interface);
+	int i;
+
+	mutex_lock(&mdev->io_mutex);
+	for (i = 0; i < mdev->iface.num_channels; i++) {
+		most_stop_enqueue(&mdev->iface, i);
+		usb_kill_anchored_urbs(&mdev->busy_urbs[i]);
+	}
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
+}
+
+static int hdm_resume(struct usb_interface *interface)
+{
+	struct most_dev *mdev = usb_get_intfdata(interface);
+	int i;
+
+	mutex_lock(&mdev->io_mutex);
+	for (i = 0; i < mdev->iface.num_channels; i++)
+		most_resume_enqueue(&mdev->iface, i);
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
 }
 
 static struct usb_driver hdm_usb = {
@@ -1233,6 +1160,8 @@ static struct usb_driver hdm_usb = {
 	.id_table = usbid,
 	.probe = hdm_probe,
 	.disconnect = hdm_disconnect,
+	.resume = hdm_resume,
+	.suspend = hdm_suspend,
 };
 
 module_usb_driver(hdm_usb);

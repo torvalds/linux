@@ -166,7 +166,7 @@ config TMPFS
 	  space. If you unmount a tmpfs instance, everything stored therein is
 	  lost.
 
-	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+	  See <file:Documentation/filesystems/tmpfs.rst> for details.
 
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
@@ -229,7 +229,7 @@ endmenu
 menuconfig MISC_FILESYSTEMS
 	bool "Miscellaneous filesystems"
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for various miscellaneous
 	  filesystems, such as filesystems that came from other
 	  operating systems.
@@ -274,7 +274,7 @@ menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"
 	default y
 	depends on NET
-	---help---
+	help
 	  Say Y here to get to see options for network filesystems and
 	  filesystem-related networking code, such as NFS daemon and
 	  RPCSEC security modules.

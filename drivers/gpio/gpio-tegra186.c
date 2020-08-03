@@ -894,6 +894,7 @@ static const struct of_device_id tegra186_gpio_of_match[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, tegra186_gpio_of_match);
 
 static struct platform_driver tegra186_gpio_driver = {
 	.driver = {

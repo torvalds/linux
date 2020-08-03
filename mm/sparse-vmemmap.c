@@ -29,7 +29,6 @@
 #include <linux/sched.h>
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 /*
  * Allocate a block of memory to be used to back the virtual memory map

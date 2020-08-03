@@ -105,6 +105,27 @@ static int ice_info_ddp_pkg_version(struct ice_pf *pf, char *buf, size_t len)
 	return 0;
 }
 
+static int ice_info_netlist_ver(struct ice_pf *pf, char *buf, size_t len)
+{
+	struct ice_netlist_ver_info *netlist = &pf->hw.netlist_ver;
+
+	/* The netlist version fields are BCD formatted */
+	snprintf(buf, len, "%x.%x.%x-%x.%x.%x", netlist->major, netlist->minor,
+		 netlist->type >> 16, netlist->type & 0xFFFF, netlist->rev,
+		 netlist->cust_ver);
+
+	return 0;
+}
+
+static int ice_info_netlist_build(struct ice_pf *pf, char *buf, size_t len)
+{
+	struct ice_netlist_ver_info *netlist = &pf->hw.netlist_ver;
+
+	snprintf(buf, len, "0x%08x", netlist->hash);
+
+	return 0;
+}
+
 #define fixed(key, getter) { ICE_VERSION_FIXED, key, getter }
 #define running(key, getter) { ICE_VERSION_RUNNING, key, getter }
 
@@ -128,6 +149,8 @@ static const struct ice_devlink_version {
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, ice_info_eetrack),
 	running("fw.app.name", ice_info_ddp_pkg_name),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_APP, ice_info_ddp_pkg_version),
+	running("fw.netlist", ice_info_netlist_ver),
+	running("fw.netlist.build", ice_info_netlist_build),
 };
 
 /**

@@ -287,28 +287,22 @@ not_angel:
 		 */
 		mov	r0, pc
 		cmp	r0, r4
-		ldrcc	r0, LC0+28
+		ldrcc	r0, .Lheadroom
 		addcc	r0, r0, pc
 		cmpcc	r4, r0
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
 		blcs	cache_on
 
-restart:	adr	r0, LC0
-		ldmia	r0, {r1, r2, r3, r6, r11, r12}
-		ldr	sp, [r0, #24]
-
-		/*
-		 * We might be running at a different address.  We need
-		 * to fix up various pointers.
-		 */
-		sub	r0, r0, r1		@ calculate the delta offset
-		add	r6, r6, r0		@ _edata
+restart:	adr	r0, LC1
+		ldr	sp, [r0]
+		ldr	r6, [r0, #4]
+		add	sp, sp, r0
+		add	r6, r6, r0
 
 		get_inflated_image_size	r9, r10, lr
 
 #ifndef CONFIG_ZBOOT_ROM
 		/* malloc space is above the relocated stack (64k max) */
-		add	sp, sp, r0
 		add	r10, sp, #0x10000
 #else
 		/*
@@ -322,9 +316,6 @@ restart:	adr	r0, LC0
 		mov	r5, #0			@ init dtb size to 0
 #ifdef CONFIG_ARM_APPENDED_DTB
 /*
- *   r0  = delta
- *   r2  = BSS start
- *   r3  = BSS end
  *   r4  = final kernel address (possibly with LSB set)
  *   r5  = appended dtb size (still unknown)
  *   r6  = _edata
@@ -332,8 +323,6 @@ restart:	adr	r0, LC0
  *   r8  = atags/device tree pointer
  *   r9  = size of decompressed image
  *   r10 = end of this image, including  bss/stack/malloc space if non XIP
- *   r11 = GOT start
- *   r12 = GOT end
  *   sp  = stack pointer
  *
  * if there are device trees (dtb) appended to zImage, advance r10 so that the
@@ -381,7 +370,6 @@ restart:	adr	r0, LC0
 		/* temporarily relocate the stack past the DTB work space */
 		add	sp, sp, r5
 
-		stmfd	sp!, {r0-r3, ip, lr}
 		mov	r0, r8
 		mov	r1, r6
 		mov	r2, r5
@@ -400,7 +388,6 @@ restart:	adr	r0, LC0
 		mov	r2, r5
 		bleq	atags_to_fdt
 
-		ldmfd	sp!, {r0-r3, ip, lr}
 		sub	sp, sp, r5
 #endif
 
@@ -537,6 +524,10 @@ dtb_check_done:
 		mov	pc, r0
 
 wont_overwrite:
+		adr	r0, LC0
+		ldmia	r0, {r1, r2, r3, r11, r12}
+		sub	r0, r0, r1		@ calculate the delta offset
+
 /*
  * If delta is zero, we are running at the address we were linked at.
  *   r0  = delta
@@ -660,12 +651,17 @@ not_relocated:	mov	r0, #0
 LC0:		.word	LC0			@ r1
 		.word	__bss_start		@ r2
 		.word	_end			@ r3
-		.word	_edata			@ r6
 		.word	_got_start		@ r11
 		.word	_got_end		@ ip
-		.word	.L_user_stack_end	@ sp
-		.word	_end - restart + 16384 + 1024*1024
 		.size	LC0, . - LC0
+
+		.type	LC1, #object
+LC1:		.word	.L_user_stack_end - LC1	@ sp
+		.word	_edata - LC1		@ r6
+		.size	LC1, . - LC1
+
+.Lheadroom:
+		.word	_end - restart + 16384 + 1024*1024
 
 .Linflated_image_size_offset:
 		.long	(input_data_end - 4) - .
@@ -1414,7 +1410,11 @@ memdump:	mov	r12, r0
 __hyp_reentry_vectors:
 		W(b)	.			@ reset
 		W(b)	.			@ undef
+#ifdef CONFIG_EFI_STUB
+		W(b)	__enter_kernel_from_hyp	@ hvc from HYP
+#else
 		W(b)	.			@ svc
+#endif
 		W(b)	.			@ pabort
 		W(b)	.			@ dabort
 		W(b)	__enter_kernel		@ hyp
@@ -1433,39 +1433,85 @@ __enter_kernel:
 reloc_code_end:
 
 #ifdef CONFIG_EFI_STUB
+__enter_kernel_from_hyp:
+		mrc	p15, 4, r0, c1, c0, 0	@ read HSCTLR
+		bic	r0, r0, #0x5		@ disable MMU and caches
+		mcr	p15, 4, r0, c1, c0, 0	@ write HSCTLR
+		isb
+		b	__enter_kernel
+
 ENTRY(efi_enter_kernel)
-		mov	r7, r0				@ preserve image base
-		mov	r4, r1				@ preserve DT pointer
+		mov	r4, r0			@ preserve image base
+		mov	r8, r1			@ preserve DT pointer
 
-		mov	r0, r4				@ DT start
-		add	r1, r4, r2			@ DT end
-		bl	cache_clean_flush
-
-		mov	r0, r7				@ relocated zImage
-		ldr	r1, =_edata			@ size of zImage
-		add	r1, r1, r0			@ end of zImage
-		bl	cache_clean_flush
-
-		@ The PE/COFF loader might not have cleaned the code we are
-		@ running beyond the PoU, and so calling cache_off below from
-		@ inside the PE/COFF loader allocated region is unsafe unless
-		@ we explicitly clean it to the PoC.
  ARM(		adrl	r0, call_cache_fn	)
- THUMB(		adr	r0, call_cache_fn	)	@ region of code we will
-		adr	r1, 0f				@ run with MMU off
-		bl	cache_clean_flush
-		bl	cache_off
+ THUMB(		adr	r0, call_cache_fn	)
+		adr	r1, 0f			@ clean the region of code we
+		bl	cache_clean_flush	@ may run with the MMU off
 
-		@ Set parameters for booting zImage according to boot protocol
-		@ put FDT address in r2, it was returned by efi_entry()
-		@ r1 is the machine type, and r0 needs to be 0
-		mov	r0, #0
-		mov	r1, #0xFFFFFFFF
-		mov	r2, r4
-		add	r7, r7, #(__efi_start - start)
-		mov	pc, r7				@ no mode switch
+#ifdef CONFIG_ARM_VIRT_EXT
+		@
+		@ The EFI spec does not support booting on ARM in HYP mode,
+		@ since it mandates that the MMU and caches are on, with all
+		@ 32-bit addressable DRAM mapped 1:1 using short descriptors.
+		@
+		@ While the EDK2 reference implementation adheres to this,
+		@ U-Boot might decide to enter the EFI stub in HYP mode
+		@ anyway, with the MMU and caches either on or off.
+		@
+		mrs	r0, cpsr		@ get the current mode
+		msr	spsr_cxsf, r0		@ record boot mode
+		and	r0, r0, #MODE_MASK	@ are we running in HYP mode?
+		cmp	r0, #HYP_MODE
+		bne	.Lefi_svc
+
+		mrc	p15, 4, r1, c1, c0, 0	@ read HSCTLR
+		tst	r1, #0x1		@ MMU enabled at HYP?
+		beq	1f
+
+		@
+		@ When running in HYP mode with the caches on, we're better
+		@ off just carrying on using the cached 1:1 mapping that the
+		@ firmware provided. Set up the HYP vectors so HVC instructions
+		@ issued from HYP mode take us to the correct handler code. We
+		@ will disable the MMU before jumping to the kernel proper.
+		@
+		adr	r0, __hyp_reentry_vectors
+		mcr	p15, 4, r0, c12, c0, 0	@ set HYP vector base (HVBAR)
+		isb
+		b	.Lefi_hyp
+
+		@
+		@ When running in HYP mode with the caches off, we need to drop
+		@ into SVC mode now, and let the decompressor set up its cached
+		@ 1:1 mapping as usual.
+		@
+1:		mov	r9, r4			@ preserve image base
+		bl	__hyp_stub_install	@ install HYP stub vectors
+		safe_svcmode_maskall	r1	@ drop to SVC mode
+		msr	spsr_cxsf, r0		@ record boot mode
+		orr	r4, r9, #1		@ restore image base and set LSB
+		b	.Lefi_hyp
+.Lefi_svc:
+#endif
+		mrc	p15, 0, r0, c1, c0, 0	@ read SCTLR
+		tst	r0, #0x1		@ MMU enabled?
+		orreq	r4, r4, #1		@ set LSB if not
+
+.Lefi_hyp:
+		mov	r0, r8			@ DT start
+		add	r1, r8, r2		@ DT end
+		bl	cache_clean_flush
+
+		adr	r0, 0f			@ switch to our stack
+		ldr	sp, [r0]
+		add	sp, sp, r0
+
+		mov	r5, #0			@ appended DTB size
+		mov	r7, #0xFFFFFFFF		@ machine ID
+		b	wont_overwrite
 ENDPROC(efi_enter_kernel)
-0:
+0:		.long	.L_user_stack_end - .
 #endif
 
 		.align

@@ -129,7 +129,7 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 						    qp->integrity_en);
 	int i, j, ret = 0, count = 0;
 
-	ctx->nr_ops = (sg_cnt + pages_per_mr - 1) / pages_per_mr;
+	ctx->nr_ops = DIV_ROUND_UP(sg_cnt, pages_per_mr);
 	ctx->reg = kcalloc(ctx->nr_ops, sizeof(*ctx->reg), GFP_KERNEL);
 	if (!ctx->reg) {
 		ret = -ENOMEM;

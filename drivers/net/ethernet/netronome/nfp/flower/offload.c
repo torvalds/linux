@@ -1440,7 +1440,8 @@ __nfp_flower_update_merge_stats(struct nfp_app *app,
 		ctx_id = be32_to_cpu(sub_flow->meta.host_ctx_id);
 		priv->stats[ctx_id].pkts += pkts;
 		priv->stats[ctx_id].bytes += bytes;
-		max_t(u64, priv->stats[ctx_id].used, used);
+		priv->stats[ctx_id].used = max_t(u64, used,
+						 priv->stats[ctx_id].used);
 	}
 }
 
@@ -1618,8 +1619,8 @@ nfp_flower_indr_block_cb_priv_lookup(struct nfp_app *app,
 	return NULL;
 }
 
-static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
-					  void *type_data, void *cb_priv)
+int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
+				   void *type_data, void *cb_priv)
 {
 	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
 	struct flow_cls_offload *flower = type_data;
@@ -1707,10 +1708,13 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 	return 0;
 }
 
-static int
+int
 nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
 			    enum tc_setup_type type, void *type_data)
 {
+	if (!nfp_fl_is_netdev_to_offload(netdev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return nfp_flower_setup_indr_tc_block(netdev, cb_priv,
@@ -1718,30 +1722,4 @@ nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
-				       struct net_device *netdev,
-				       unsigned long event)
-{
-	int err;
-
-	if (!nfp_fl_is_netdev_to_offload(netdev))
-		return NOTIFY_OK;
-
-	if (event == NETDEV_REGISTER) {
-		err = __flow_indr_block_cb_register(netdev, app,
-						    nfp_flower_indr_setup_tc_cb,
-						    app);
-		if (err)
-			nfp_flower_cmsg_warn(app,
-					     "Indirect block reg failed - %s\n",
-					     netdev->name);
-	} else if (event == NETDEV_UNREGISTER) {
-		__flow_indr_block_cb_unregister(netdev,
-						nfp_flower_indr_setup_tc_cb,
-						app);
-	}
-
-	return NOTIFY_OK;
 }

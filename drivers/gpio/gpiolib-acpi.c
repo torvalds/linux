@@ -1353,7 +1353,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 }
 
 /* Run deferred acpi_gpiochip_request_irqs() */
-static int acpi_gpio_handle_deferred_request_irqs(void)
+static int __init acpi_gpio_handle_deferred_request_irqs(void)
 {
 	struct acpi_gpio_chip *acpi_gpio, *tmp;
 
@@ -1371,7 +1371,7 @@ static int acpi_gpio_handle_deferred_request_irqs(void)
 /* We must use _sync so that this runs after the first deferred_probe run */
 late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
 
-static const struct dmi_system_id gpiolib_acpi_quirks[] = {
+static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 	{
 		/*
 		 * The Minix Neo Z83-4 has a micro-USB-B id-pin handler for
@@ -1455,7 +1455,7 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] = {
 	{} /* Terminating entry */
 };
 
-static int acpi_gpio_setup_params(void)
+static int __init acpi_gpio_setup_params(void)
 {
 	const struct acpi_gpiolib_dmi_quirk *quirk = NULL;
 	const struct dmi_system_id *id;

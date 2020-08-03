@@ -29,7 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/gfp.h>
 #include <linux/random.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
 #include <asm/espfix.h>

@@ -18,6 +18,11 @@ void nouveau_svmm_fini(struct nouveau_svmm **);
 int nouveau_svmm_join(struct nouveau_svmm *, u64 inst);
 void nouveau_svmm_part(struct nouveau_svmm *, u64 inst);
 int nouveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
+
+u64 *nouveau_pfns_alloc(unsigned long npages);
+void nouveau_pfns_free(u64 *pfns);
+void nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
+		      unsigned long addr, u64 *pfns, unsigned long npages);
 #else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
 static inline void nouveau_svm_init(struct nouveau_drm *drm) {}
 static inline void nouveau_svm_fini(struct nouveau_drm *drm) {}

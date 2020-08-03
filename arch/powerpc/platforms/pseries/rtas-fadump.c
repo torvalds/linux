@@ -506,7 +506,7 @@ void __init rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	fadump_conf->fadump_supported	= 1;
 
 	/* Firmware supports 64-bit value for size, align it to pagesize. */
-	fadump_conf->max_copy_size = _ALIGN_DOWN(U64_MAX, PAGE_SIZE);
+	fadump_conf->max_copy_size = ALIGN_DOWN(U64_MAX, PAGE_SIZE);
 
 	/*
 	 * The 'ibm,kernel-dump' rtas node is present only if there is

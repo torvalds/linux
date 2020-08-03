@@ -62,8 +62,10 @@ MODULE_PARM_DESC(aqmask, "AP bus domain mask.");
 
 static struct device *ap_root_device;
 
-DEFINE_SPINLOCK(ap_list_lock);
-LIST_HEAD(ap_card_list);
+/* Hashtable of all queue devices on the AP bus */
+DEFINE_HASHTABLE(ap_queues, 8);
+/* lock used for the ap_queues hashtable */
+DEFINE_SPINLOCK(ap_queues_lock);
 
 /* Default permissions (ioctl, card and domain masking) */
 struct ap_perms ap_perms;
@@ -414,7 +416,7 @@ static void ap_interrupt_handler(struct airq_struct *airq, bool floating)
  */
 static void ap_tasklet_fn(unsigned long dummy)
 {
-	struct ap_card *ac;
+	int bkt;
 	struct ap_queue *aq;
 	enum ap_wait wait = AP_WAIT_NONE;
 
@@ -425,34 +427,30 @@ static void ap_tasklet_fn(unsigned long dummy)
 	if (ap_using_interrupts())
 		xchg(ap_airq.lsi_ptr, 0);
 
-	spin_lock_bh(&ap_list_lock);
-	for_each_ap_card(ac) {
-		for_each_ap_queue(aq, ac) {
-			spin_lock_bh(&aq->lock);
-			wait = min(wait, ap_sm_event_loop(aq, AP_EVENT_POLL));
-			spin_unlock_bh(&aq->lock);
-		}
+	spin_lock_bh(&ap_queues_lock);
+	hash_for_each(ap_queues, bkt, aq, hnode) {
+		spin_lock_bh(&aq->lock);
+		wait = min(wait, ap_sm_event_loop(aq, AP_EVENT_POLL));
+		spin_unlock_bh(&aq->lock);
 	}
-	spin_unlock_bh(&ap_list_lock);
+	spin_unlock_bh(&ap_queues_lock);
 
 	ap_wait(wait);
 }
 
 static int ap_pending_requests(void)
 {
-	struct ap_card *ac;
+	int bkt;
 	struct ap_queue *aq;
 
-	spin_lock_bh(&ap_list_lock);
-	for_each_ap_card(ac) {
-		for_each_ap_queue(aq, ac) {
-			if (aq->queue_count == 0)
-				continue;
-			spin_unlock_bh(&ap_list_lock);
-			return 1;
-		}
+	spin_lock_bh(&ap_queues_lock);
+	hash_for_each(ap_queues, bkt, aq, hnode) {
+		if (aq->queue_count == 0)
+			continue;
+		spin_unlock_bh(&ap_queues_lock);
+		return 1;
 	}
-	spin_unlock_bh(&ap_list_lock);
+	spin_unlock_bh(&ap_queues_lock);
 	return 0;
 }
 
@@ -683,24 +681,20 @@ static int ap_device_probe(struct device *dev)
 	}
 
 	/* Add queue/card to list of active queues/cards */
-	spin_lock_bh(&ap_list_lock);
-	if (is_card_dev(dev))
-		list_add(&to_ap_card(dev)->list, &ap_card_list);
-	else
-		list_add(&to_ap_queue(dev)->list,
-			 &to_ap_queue(dev)->card->queues);
-	spin_unlock_bh(&ap_list_lock);
+	spin_lock_bh(&ap_queues_lock);
+	if (is_queue_dev(dev))
+		hash_add(ap_queues, &to_ap_queue(dev)->hnode,
+			 to_ap_queue(dev)->qid);
+	spin_unlock_bh(&ap_queues_lock);
 
 	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
 
 	if (rc) {
-		spin_lock_bh(&ap_list_lock);
-		if (is_card_dev(dev))
-			list_del_init(&to_ap_card(dev)->list);
-		else
-			list_del_init(&to_ap_queue(dev)->list);
-		spin_unlock_bh(&ap_list_lock);
+		spin_lock_bh(&ap_queues_lock);
+		if (is_queue_dev(dev))
+			hash_del(&to_ap_queue(dev)->hnode);
+		spin_unlock_bh(&ap_queues_lock);
 		ap_dev->drv = NULL;
 	}
 
@@ -725,15 +719,32 @@ static int ap_device_remove(struct device *dev)
 		ap_queue_remove(to_ap_queue(dev));
 
 	/* Remove queue/card from list of active queues/cards */
-	spin_lock_bh(&ap_list_lock);
-	if (is_card_dev(dev))
-		list_del_init(&to_ap_card(dev)->list);
-	else
-		list_del_init(&to_ap_queue(dev)->list);
-	spin_unlock_bh(&ap_list_lock);
+	spin_lock_bh(&ap_queues_lock);
+	if (is_queue_dev(dev))
+		hash_del(&to_ap_queue(dev)->hnode);
+	spin_unlock_bh(&ap_queues_lock);
 
 	return 0;
 }
+
+struct ap_queue *ap_get_qdev(ap_qid_t qid)
+{
+	int bkt;
+	struct ap_queue *aq;
+
+	spin_lock_bh(&ap_queues_lock);
+	hash_for_each(ap_queues, bkt, aq, hnode) {
+		if (aq->qid == qid) {
+			get_device(&aq->ap_dev.device);
+			spin_unlock_bh(&ap_queues_lock);
+			return aq;
+		}
+	}
+	spin_unlock_bh(&ap_queues_lock);
+
+	return NULL;
+}
+EXPORT_SYMBOL(ap_get_qdev);
 
 int ap_driver_register(struct ap_driver *ap_drv, struct module *owner,
 		       char *name)
@@ -1505,6 +1516,9 @@ static int __init ap_module_init(void)
 		pr_warn("The hardware system does not support AP instructions\n");
 		return -ENODEV;
 	}
+
+	/* init ap_queue hashtable */
+	hash_init(ap_queues);
 
 	/* set up the AP permissions (ioctls, ap and aq masks) */
 	ap_perms_init();

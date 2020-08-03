@@ -2,7 +2,7 @@
 config DCB
 	bool "Data Center Bridging support"
 	default n
-	---help---
+	help
 	  This enables support for configuring Data Center Bridging (DCB)
 	  features on DCB capable Ethernet adapters via rtnetlink.  Say 'Y'
 	  if you have a DCB capable Ethernet adapter which supports this

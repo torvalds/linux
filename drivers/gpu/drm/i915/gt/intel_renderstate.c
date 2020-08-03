@@ -102,7 +102,7 @@ static int render_state_setup(struct intel_renderstate *so,
 	}
 
 	if (rodata->reloc[reloc_index] != -1) {
-		DRM_ERROR("only %d relocs resolved\n", reloc_index);
+		drm_err(&i915->drm, "only %d relocs resolved\n", reloc_index);
 		goto err;
 	}
 
@@ -194,7 +194,7 @@ int intel_renderstate_init(struct intel_renderstate *so,
 
 	err = i915_vma_pin(so->vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
-		goto err_vma;
+		goto err_obj;
 
 	err = render_state_setup(so, engine->i915);
 	if (err)
@@ -204,8 +204,6 @@ int intel_renderstate_init(struct intel_renderstate *so,
 
 err_unpin:
 	i915_vma_unpin(so->vma);
-err_vma:
-	i915_vma_close(so->vma);
 err_obj:
 	i915_gem_object_put(obj);
 	so->vma = NULL;
@@ -221,6 +219,14 @@ int intel_renderstate_emit(struct intel_renderstate *so,
 	if (!so->vma)
 		return 0;
 
+	i915_vma_lock(so->vma);
+	err = i915_request_await_object(rq, so->vma->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(so->vma, rq, 0);
+	i915_vma_unlock(so->vma);
+	if (err)
+		return err;
+
 	err = engine->emit_bb_start(rq,
 				    so->batch_offset, so->batch_size,
 				    I915_DISPATCH_SECURE);
@@ -235,13 +241,7 @@ int intel_renderstate_emit(struct intel_renderstate *so,
 			return err;
 	}
 
-	i915_vma_lock(so->vma);
-	err = i915_request_await_object(rq, so->vma->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(so->vma, rq, 0);
-	i915_vma_unlock(so->vma);
-
-	return err;
+	return 0;
 }
 
 void intel_renderstate_fini(struct intel_renderstate *so)

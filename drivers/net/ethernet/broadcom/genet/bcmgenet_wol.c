@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) Wake-on-LAN support
  *
- * Copyright (c) 2014-2017 Broadcom
+ * Copyright (c) 2014-2020 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet_wol: " fmt
@@ -41,18 +41,13 @@
 void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	u32 reg;
 
-	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE;
+	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
 	wol->wolopts = priv->wolopts;
 	memset(wol->sopass, 0, sizeof(wol->sopass));
 
-	if (wol->wolopts & WAKE_MAGICSECURE) {
-		reg = bcmgenet_umac_readl(priv, UMAC_MPD_PW_MS);
-		put_unaligned_be16(reg, &wol->sopass[0]);
-		reg = bcmgenet_umac_readl(priv, UMAC_MPD_PW_LS);
-		put_unaligned_be32(reg, &wol->sopass[2]);
-	}
+	if (wol->wolopts & WAKE_MAGICSECURE)
+		memcpy(wol->sopass, priv->sopass, sizeof(priv->sopass));
 }
 
 /* ethtool function - set WOL (Wake on LAN) settings.
@@ -62,25 +57,15 @@ int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
-	u32 reg;
 
 	if (!device_can_wakeup(kdev))
 		return -ENOTSUPP;
 
-	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_MAGICSECURE))
+	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER))
 		return -EINVAL;
 
-	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-	if (wol->wolopts & WAKE_MAGICSECURE) {
-		bcmgenet_umac_writel(priv, get_unaligned_be16(&wol->sopass[0]),
-				     UMAC_MPD_PW_MS);
-		bcmgenet_umac_writel(priv, get_unaligned_be32(&wol->sopass[2]),
-				     UMAC_MPD_PW_LS);
-		reg |= MPD_PW_EN;
-	} else {
-		reg &= ~MPD_PW_EN;
-	}
-	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	if (wol->wolopts & WAKE_MAGICSECURE)
+		memcpy(priv->sopass, wol->sopass, sizeof(priv->sopass));
 
 	/* Flag the device and relevant IRQ as wakeup capable */
 	if (wol->wolopts) {
@@ -120,12 +105,21 @@ static int bcmgenet_poll_wol_status(struct bcmgenet_priv *priv)
 	return retries;
 }
 
+static void bcmgenet_set_mpd_password(struct bcmgenet_priv *priv)
+{
+	bcmgenet_umac_writel(priv, get_unaligned_be16(&priv->sopass[0]),
+			     UMAC_MPD_PW_MS);
+	bcmgenet_umac_writel(priv, get_unaligned_be32(&priv->sopass[2]),
+			     UMAC_MPD_PW_LS);
+}
+
 int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 				enum bcmgenet_power_mode mode)
 {
 	struct net_device *dev = priv->dev;
+	struct bcmgenet_rxnfc_rule *rule;
+	u32 reg, hfb_ctrl_reg, hfb_enable = 0;
 	int retries = 0;
-	u32 reg;
 
 	if (mode != GENET_POWER_WOL_MAGIC) {
 		netif_err(priv, wol, dev, "unsupported mode: %d\n", mode);
@@ -142,21 +136,47 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	mdelay(10);
 
-	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-	reg |= MPD_EN;
-	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	if (priv->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE)) {
+		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
+		reg |= MPD_EN;
+		if (priv->wolopts & WAKE_MAGICSECURE) {
+			bcmgenet_set_mpd_password(priv);
+			reg |= MPD_PW_EN;
+		}
+		bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	}
+
+	hfb_ctrl_reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+	if (priv->wolopts & WAKE_FILTER) {
+		list_for_each_entry(rule, &priv->rxnfc_list, list)
+			if (rule->fs.ring_cookie == RX_CLS_FLOW_WAKE)
+				hfb_enable |= (1 << rule->fs.location);
+		reg = (hfb_ctrl_reg & ~RBUF_HFB_EN) | RBUF_ACPI_EN;
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	}
 
 	/* Do not leave UniMAC in MPD mode only */
 	retries = bcmgenet_poll_wol_status(priv);
 	if (retries < 0) {
 		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-		reg &= ~MPD_EN;
+		reg &= ~(MPD_EN | MPD_PW_EN);
 		bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+		bcmgenet_hfb_reg_writel(priv, hfb_ctrl_reg, HFB_CTRL);
 		return retries;
 	}
 
 	netif_dbg(priv, wol, dev, "MPD WOL-ready status set after %d msec\n",
 		  retries);
+
+	clk_prepare_enable(priv->clk_wol);
+	priv->wol_active = 1;
+
+	if (hfb_enable) {
+		bcmgenet_hfb_reg_writel(priv, hfb_enable,
+					HFB_FLT_ENABLE_V3PLUS + 4);
+		hfb_ctrl_reg = RBUF_HFB_EN | RBUF_ACPI_EN;
+		bcmgenet_hfb_reg_writel(priv, hfb_ctrl_reg, HFB_CTRL);
+	}
 
 	/* Enable CRC forward */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
@@ -173,6 +193,12 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
 
+	reg = UMAC_IRQ_MPD_R;
+	if (hfb_enable)
+		reg |=  UMAC_IRQ_HFB_SM | UMAC_IRQ_HFB_MM;
+
+	bcmgenet_intrl2_0_writel(priv, reg, INTRL2_CPU_MASK_CLEAR);
+
 	return 0;
 }
 
@@ -186,11 +212,21 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 		return;
 	}
 
+	if (!priv->wol_active)
+		return;	/* failed to suspend so skip the rest */
+
+	priv->wol_active = 0;
+	clk_disable_unprepare(priv->clk_wol);
+
+	/* Disable Magic Packet Detection */
 	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
-	if (!(reg & MPD_EN))
-		return;	/* already powered up so skip the rest */
-	reg &= ~MPD_EN;
+	reg &= ~(MPD_EN | MPD_PW_EN);
 	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+
+	/* Disable WAKE_FILTER Detection */
+	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+	reg &= ~(RBUF_HFB_EN | RBUF_ACPI_EN);
+	bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
 
 	/* Disable CRC Forward */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);

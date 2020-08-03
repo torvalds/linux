@@ -40,7 +40,7 @@ struct madvise_walk_private {
 
 /*
  * Any behaviour which results in changes to the vma->vm_flags needs to
- * take mmap_sem for writing. Others, which simply traverse vmas, need
+ * take mmap_lock for writing. Others, which simply traverse vmas, need
  * to only take it for reading.
  */
 static int madvise_need_mmap_write(int behavior)
@@ -165,7 +165,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
 
 success:
 	/*
-	 * vm_flags is protected by the mmap_sem held in write mode.
+	 * vm_flags is protected by the mmap_lock held in write mode.
 	 */
 	vma->vm_flags = new_flags;
 
@@ -285,16 +285,16 @@ static long madvise_willneed(struct vm_area_struct *vma,
 	 * Filesystem's fadvise may need to take various locks.  We need to
 	 * explicitly grab a reference because the vma (and hence the
 	 * vma's reference to the file) can go away as soon as we drop
-	 * mmap_sem.
+	 * mmap_lock.
 	 */
-	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
+	*prev = NULL;	/* tell sys_madvise we drop mmap_lock */
 	get_file(file);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 	offset = (loff_t)(start - vma->vm_start)
 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 	vfs_fadvise(file, offset, end - start, POSIX_FADV_WILLNEED);
 	fput(file);
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	return 0;
 }
 
@@ -768,9 +768,9 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 		return -EINVAL;
 
 	if (!userfaultfd_remove(vma, start, end)) {
-		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
+		*prev = NULL; /* mmap_lock has been dropped, prev is stale */
 
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		vma = find_vma(current->mm, start);
 		if (!vma)
 			return -ENOMEM;
@@ -791,7 +791,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 		if (end > vma->vm_end) {
 			/*
 			 * Don't fail if end > vma->vm_end. If the old
-			 * vma was splitted while the mmap_sem was
+			 * vma was splitted while the mmap_lock was
 			 * released the effect of the concurrent
 			 * operation may not cause madvise() to
 			 * have an undefined result. There may be an
@@ -826,7 +826,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 	int error;
 	struct file *f;
 
-	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
+	*prev = NULL;	/* tell sys_madvise we drop mmap_lock */
 
 	if (vma->vm_flags & VM_LOCKED)
 		return -EINVAL;
@@ -847,18 +847,18 @@ static long madvise_remove(struct vm_area_struct *vma,
 	 * Filesystem's fallocate may need to take i_mutex.  We need to
 	 * explicitly grab a reference because the vma (and hence the
 	 * vma's reference to the file) can go away as soon as we drop
-	 * mmap_sem.
+	 * mmap_lock.
 	 */
 	get_file(f);
 	if (userfaultfd_remove(vma, start, end)) {
-		/* mmap_sem was not released by userfaultfd_remove() */
-		up_read(&current->mm->mmap_sem);
+		/* mmap_lock was not released by userfaultfd_remove() */
+		mmap_read_unlock(current->mm);
 	}
 	error = vfs_fallocate(f,
 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				offset, end - start);
 	fput(f);
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	return error;
 }
 
@@ -1089,7 +1089,7 @@ int do_madvise(unsigned long start, size_t len_in, int behavior)
 
 	write = madvise_need_mmap_write(behavior);
 	if (write) {
-		if (down_write_killable(&current->mm->mmap_sem))
+		if (mmap_write_lock_killable(current->mm))
 			return -EINTR;
 
 		/*
@@ -1105,11 +1105,11 @@ int do_madvise(unsigned long start, size_t len_in, int behavior)
 		 * model.
 		 */
 		if (!mmget_still_valid(current->mm)) {
-			up_write(&current->mm->mmap_sem);
+			mmap_write_unlock(current->mm);
 			return -EINTR;
 		}
 	} else {
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 	}
 
 	/*
@@ -1153,15 +1153,15 @@ int do_madvise(unsigned long start, size_t len_in, int behavior)
 			goto out;
 		if (prev)
 			vma = prev->vm_next;
-		else	/* madvise_remove dropped mmap_sem */
+		else	/* madvise_remove dropped mmap_lock */
 			vma = find_vma(current->mm, start);
 	}
 out:
 	blk_finish_plug(&plug);
 	if (write)
-		up_write(&current->mm->mmap_sem);
+		mmap_write_unlock(current->mm);
 	else
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 
 	return error;
 }

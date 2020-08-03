@@ -49,18 +49,20 @@ void unmap_page_range(struct mmu_gather *tlb,
 			     unsigned long addr, unsigned long end,
 			     struct zap_details *details);
 
-extern unsigned int __do_page_cache_readahead(struct address_space *mapping,
-		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
+void force_page_cache_readahead(struct address_space *, struct file *,
+		pgoff_t index, unsigned long nr_to_read);
+void __do_page_cache_readahead(struct address_space *, struct file *,
+		pgoff_t index, unsigned long nr_to_read,
 		unsigned long lookahead_size);
 
 /*
  * Submit IO for the read-ahead request in file_ra_state.
  */
-static inline unsigned long ra_submit(struct file_ra_state *ra,
+static inline void ra_submit(struct file_ra_state *ra,
 		struct address_space *mapping, struct file *filp)
 {
-	return __do_page_cache_readahead(mapping, filp,
-					ra->start, ra->size, ra->async_size);
+	__do_page_cache_readahead(mapping, filp,
+			ra->start, ra->size, ra->async_size);
 }
 
 /**
@@ -125,12 +127,12 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
  * between functions involved in allocations, including the alloc_pages*
  * family of functions.
  *
- * nodemask, migratetype and high_zoneidx are initialized only once in
+ * nodemask, migratetype and highest_zoneidx are initialized only once in
  * __alloc_pages_nodemask() and then never change.
  *
- * zonelist, preferred_zone and classzone_idx are set first in
+ * zonelist, preferred_zone and highest_zoneidx are set first in
  * __alloc_pages_nodemask() for the fast path, and might be later changed
- * in __alloc_pages_slowpath(). All other functions pass the whole strucure
+ * in __alloc_pages_slowpath(). All other functions pass the whole structure
  * by a const pointer.
  */
 struct alloc_context {
@@ -138,11 +140,20 @@ struct alloc_context {
 	nodemask_t *nodemask;
 	struct zoneref *preferred_zoneref;
 	int migratetype;
-	enum zone_type high_zoneidx;
+
+	/*
+	 * highest_zoneidx represents highest usable zone index of
+	 * the allocation request. Due to the nature of the zone,
+	 * memory on lower zone than the highest_zoneidx will be
+	 * protected by lowmem_reserve[highest_zoneidx].
+	 *
+	 * highest_zoneidx is also used by reclaim/compaction to limit
+	 * the target zone since higher zone than this index cannot be
+	 * usable for this allocation request.
+	 */
+	enum zone_type highest_zoneidx;
 	bool spread_dirty_pages;
 };
-
-#define ac_classzone_idx(ac) zonelist_zone_idx(ac->preferred_zoneref)
 
 /*
  * Locate the struct page for both the matching buddy in our
@@ -222,7 +233,7 @@ struct compact_control {
 	int order;			/* order a direct compactor needs */
 	int migratetype;		/* migratetype of direct compactor */
 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
-	const int classzone_idx;	/* zone index of a direct compactor */
+	const int highest_zoneidx;	/* zone index of a direct compactor */
 	enum migrate_mode mode;		/* Async or sync migration mode */
 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
 	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
@@ -333,7 +344,7 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
 }
 
 /*
- * must be called with vma's mmap_sem held for read or write, and page locked.
+ * must be called with vma's mmap_lock held for read or write, and page locked.
  */
 extern void mlock_vma_page(struct page *page);
 extern unsigned int munlock_vma_page(struct page *page);
@@ -402,13 +413,13 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 
 	/*
 	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
-	 * anything, so we only pin the file and drop the mmap_sem if only
+	 * anything, so we only pin the file and drop the mmap_lock if only
 	 * FAULT_FLAG_ALLOW_RETRY is set, while this is the first attempt.
 	 */
 	if (fault_flag_allow_retry_first(flags) &&
 	    !(flags & FAULT_FLAG_RETRY_NOWAIT)) {
 		fpin = get_file(vmf->vma->vm_file);
-		up_read(&vmf->vma->vm_mm->mmap_sem);
+		mmap_read_unlock(vmf->vma->vm_mm);
 	}
 	return fpin;
 }
@@ -527,7 +538,7 @@ extern unsigned long  __must_check vm_mmap_pgoff(struct file *, unsigned long,
         unsigned long, unsigned long);
 
 extern void set_pageblock_order(void);
-unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 					    struct list_head *page_list);
 /* The ALLOC_WMARK bits are used as an index to zone->watermark */
 #define ALLOC_WMARK_MIN		WMARK_MIN

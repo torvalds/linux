@@ -7,6 +7,7 @@
 
 #include <asm/nops.h>
 #include <asm/processor-flags.h>
+#include <linux/irqflags.h>
 #include <linux/jump_label.h>
 
 /*
@@ -27,14 +28,14 @@ static inline unsigned long native_read_cr0(void)
 	return val;
 }
 
-static inline unsigned long native_read_cr2(void)
+static __always_inline unsigned long native_read_cr2(void)
 {
 	unsigned long val;
 	asm volatile("mov %%cr2,%0\n\t" : "=r" (val), "=m" (__force_order));
 	return val;
 }
 
-static inline void native_write_cr2(unsigned long val)
+static __always_inline void native_write_cr2(unsigned long val)
 {
 	asm volatile("mov %0,%%cr2": : "r" (val), "m" (__force_order));
 }
@@ -129,7 +130,16 @@ static inline void native_wbinvd(void)
 	asm volatile("wbinvd": : :"memory");
 }
 
-extern asmlinkage void native_load_gs_index(unsigned);
+extern asmlinkage void asm_load_gs_index(unsigned int selector);
+
+static inline void native_load_gs_index(unsigned int selector)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	asm_load_gs_index(selector);
+	local_irq_restore(flags);
+}
 
 static inline unsigned long __read_cr4(void)
 {
@@ -150,12 +160,12 @@ static inline void write_cr0(unsigned long x)
 	native_write_cr0(x);
 }
 
-static inline unsigned long read_cr2(void)
+static __always_inline unsigned long read_cr2(void)
 {
 	return native_read_cr2();
 }
 
-static inline void write_cr2(unsigned long x)
+static __always_inline void write_cr2(unsigned long x)
 {
 	native_write_cr2(x);
 }
@@ -186,7 +196,7 @@ static inline void wbinvd(void)
 
 #ifdef CONFIG_X86_64
 
-static inline void load_gs_index(unsigned selector)
+static inline void load_gs_index(unsigned int selector)
 {
 	native_load_gs_index(selector);
 }

@@ -19,6 +19,7 @@
 #define CHIP_ID2  0x21
 #define CHIP_ID_F81865 0x0407
 #define CHIP_ID_F81866 0x1010
+#define CHIP_ID_F81966 0x0215
 #define CHIP_ID_F81216AD 0x1602
 #define CHIP_ID_F81216H 0x0501
 #define CHIP_ID_F81216 0x0802
@@ -62,9 +63,9 @@
 #define F81216_LDN_HIGH	0x4
 
 /*
- * F81866 registers
+ * F81866/966 registers
  *
- * The IRQ setting mode of F81866 is not the same with F81216 series.
+ * The IRQ setting mode of F81866/966 is not the same with F81216 series.
  *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
  *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
  *
@@ -155,6 +156,7 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 	switch (chip) {
 	case CHIP_ID_F81865:
 	case CHIP_ID_F81866:
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216H:
 	case CHIP_ID_F81216:
@@ -171,6 +173,7 @@ static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
 				     int *max)
 {
 	switch (pdata->pid) {
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81865:
 	case CHIP_ID_F81866:
 		*min = F81866_LDN_LOW;
@@ -248,6 +251,7 @@ static void fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool is_level)
 	sio_write_reg(pdata, LDN, pdata->index);
 
 	switch (pdata->pid) {
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		sio_write_mask_reg(pdata, F81866_FIFO_CTRL, F81866_IRQ_MODE1,
 				   0);
@@ -274,6 +278,7 @@ static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
 {
 	switch (pdata->pid) {
 	case CHIP_ID_F81216H: /* 128Bytes FIFO */
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		sio_write_mask_reg(pdata, FIFO_CTRL,
 				   FIFO_MODE_MASK | RXFTHR_MODE_MASK,
@@ -291,6 +296,7 @@ static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
 	sio_write_reg(pdata, LDN, pdata->index);
 
 	switch (pdata->pid) {
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866: /* set uart clock for high speed serial mode */
 		sio_write_mask_reg(pdata, F81866_UART_CLK,
 			F81866_UART_CLK_MASK,
@@ -327,6 +333,7 @@ static void fintek_8250_set_termios(struct uart_port *port,
 	case CHIP_ID_F81216H:
 		reg = RS485;
 		break;
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		reg = F81866_UART_CLK;
 		break;
@@ -373,6 +380,7 @@ static void fintek_8250_set_termios_handler(struct uart_8250_port *uart)
 
 	switch (pdata->pid) {
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 		uart->port.set_termios = fintek_8250_set_termios;
 		break;
@@ -443,6 +451,7 @@ static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 	switch (pdata->pid) {
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81966:
 	case CHIP_ID_F81866:
 	case CHIP_ID_F81865:
 		uart->port.rs485_config = fintek_8250_rs485_config;

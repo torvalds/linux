@@ -286,7 +286,7 @@ static int otx2_rx_napi_handler(struct otx2_nic *pfvf,
 
 	/* Refill pool with new buffers */
 	while (cq->pool_ptrs) {
-		bufptr = otx2_alloc_rbuf(pfvf, cq->rbpool, GFP_ATOMIC);
+		bufptr = __otx2_alloc_rbuf(pfvf, cq->rbpool);
 		if (unlikely(bufptr <= 0)) {
 			struct refill_work *work;
 			struct delayed_work *dwork;
@@ -304,7 +304,6 @@ static int otx2_rx_napi_handler(struct otx2_nic *pfvf,
 		otx2_aura_freeptr(pfvf, cq->cq_idx, bufptr + OTX2_HEAD_ROOM);
 		cq->pool_ptrs--;
 	}
-	otx2_get_page(cq->rbpool);
 
 	return processed_cqe;
 }

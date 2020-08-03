@@ -19,7 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <linux/mmu_context.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "gc/gc_10_1_0_offset.h"
@@ -542,6 +541,9 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	unsigned long end_jiffies;
 	uint32_t temp;
 	struct v10_compute_mqd *m = get_mqd(mqd);
+
+	if (adev->in_gpu_reset)
+		return -EIO;
 
 #if 0
 	unsigned long flags;

@@ -96,6 +96,7 @@ enum {
 	INET_DIAG_BC_MARK_COND,
 	INET_DIAG_BC_S_EQ,
 	INET_DIAG_BC_D_EQ,
+	INET_DIAG_BC_CGROUP_COND,   /* u64 cgroup v2 ID */
 };
 
 struct inet_diag_hostcond {
@@ -157,6 +158,7 @@ enum {
 	INET_DIAG_MD5SIG,
 	INET_DIAG_ULP_INFO,
 	INET_DIAG_SK_BPF_STORAGES,
+	INET_DIAG_CGROUP_ID,
 	__INET_DIAG_MAX,
 };
 

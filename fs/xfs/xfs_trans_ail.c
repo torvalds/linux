@@ -345,6 +345,45 @@ xfs_ail_delete(
 	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
+/*
+ * Requeue a failed buffer for writeback.
+ *
+ * We clear the log item failed state here as well, but we have to be careful
+ * about reference counts because the only active reference counts on the buffer
+ * may be the failed log items. Hence if we clear the log item failed state
+ * before queuing the buffer for IO we can release all active references to
+ * the buffer and free it, leading to use after free problems in
+ * xfs_buf_delwri_queue. It makes no difference to the buffer or log items which
+ * order we process them in - the buffer is locked, and we own the buffer list
+ * so nothing on them is going to change while we are performing this action.
+ *
+ * Hence we can safely queue the buffer for IO before we clear the failed log
+ * item state, therefore  always having an active reference to the buffer and
+ * avoiding the transient zero-reference state that leads to use-after-free.
+ */
+static inline int
+xfsaild_resubmit_item(
+	struct xfs_log_item	*lip,
+	struct list_head	*buffer_list)
+{
+	struct xfs_buf		*bp = lip->li_buf;
+
+	if (!xfs_buf_trylock(bp))
+		return XFS_ITEM_LOCKED;
+
+	if (!xfs_buf_delwri_queue(bp, buffer_list)) {
+		xfs_buf_unlock(bp);
+		return XFS_ITEM_FLUSHING;
+	}
+
+	/* protected by ail_lock */
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+		xfs_clear_li_failed(lip);
+
+	xfs_buf_unlock(bp);
+	return XFS_ITEM_SUCCESS;
+}
+
 static inline uint
 xfsaild_push_item(
 	struct xfs_ail		*ailp,
@@ -365,6 +404,8 @@ xfsaild_push_item(
 	 */
 	if (!lip->li_ops->iop_push)
 		return XFS_ITEM_PINNED;
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags))
+		return xfsaild_resubmit_item(lip, &ailp->ail_buf_list);
 	return lip->li_ops->iop_push(lip, &ailp->ail_buf_list);
 }
 
@@ -774,6 +815,17 @@ xfs_trans_ail_update_bulk(
 	xfs_ail_update_finish(ailp, tail_lsn);
 }
 
+/* Insert a log item into the AIL. */
+void
+xfs_trans_ail_insert(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn)
+{
+	spin_lock(&ailp->ail_lock);
+	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
+}
+
 /*
  * Delete one log item from the AIL.
  *
@@ -800,39 +852,19 @@ xfs_ail_delete_one(
 	return 0;
 }
 
-/**
- * Remove a log items from the AIL
- *
- * @xfs_trans_ail_delete_bulk takes an array of log items that all need to
- * removed from the AIL. The caller is already holding the AIL lock, and done
- * all the checks necessary to ensure the items passed in via @log_items are
- * ready for deletion. This includes checking that the items are in the AIL.
- *
- * For each log item to be removed, unlink it  from the AIL, clear the IN_AIL
- * flag from the item and reset the item's lsn to 0. If we remove the first
- * item in the AIL, update the log tail to match the new minimum LSN in the
- * AIL.
- *
- * This function will not drop the AIL lock until all items are removed from
- * the AIL to minimise the amount of lock traffic on the AIL. This does not
- * greatly increase the AIL hold time, but does significantly reduce the amount
- * of traffic on the lock, especially during IO completion.
- *
- * This function must be called with the AIL lock held.  The lock is dropped
- * before returning.
- */
 void
 xfs_trans_ail_delete(
-	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip,
 	int			shutdown_type)
 {
+	struct xfs_ail		*ailp = lip->li_ailp;
 	struct xfs_mount	*mp = ailp->ail_mount;
 	xfs_lsn_t		tail_lsn;
 
+	spin_lock(&ailp->ail_lock);
 	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 		spin_unlock(&ailp->ail_lock);
-		if (!XFS_FORCED_SHUTDOWN(mp)) {
+		if (shutdown_type && !XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
 	"%s: attempting to delete a log item that is not in the AIL",
 					__func__);
@@ -841,6 +873,7 @@ xfs_trans_ail_delete(
 		return;
 	}
 
+	/* xfs_ail_update_finish() drops the AIL lock */
 	tail_lsn = xfs_ail_delete_one(ailp, lip);
 	xfs_ail_update_finish(ailp, tail_lsn);
 }

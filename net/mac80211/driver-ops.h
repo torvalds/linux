@@ -1375,12 +1375,12 @@ static inline int drv_set_tid_config(struct ieee80211_local *local,
 
 static inline int drv_reset_tid_config(struct ieee80211_local *local,
 				       struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_sta *sta, u8 tid)
+				       struct ieee80211_sta *sta, u8 tids)
 {
 	int ret;
 
 	might_sleep();
-	ret = local->ops->reset_tid_config(&local->hw, &sdata->vif, sta, tid);
+	ret = local->ops->reset_tid_config(&local->hw, &sdata->vif, sta, tids);
 	trace_drv_return_int(local, ret);
 
 	return ret;

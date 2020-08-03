@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  HIDPP protocol for Logitech Unifying receivers
+ *  HIDPP protocol for Logitech receivers
  *
  *  Copyright (c) 2011 Logitech (c)
  *  Copyright (c) 2012-2013 Google (c)

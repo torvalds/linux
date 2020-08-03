@@ -231,13 +231,13 @@ prints help, and C) an action_msg string, that will print right before your
 handler is called. Your handler must conform to the prototype in 'sysrq.h'.
 
 After the ``sysrq_key_op`` is created, you can call the kernel function
-``register_sysrq_key(int key, struct sysrq_key_op *op_p);`` this will
+``register_sysrq_key(int key, const struct sysrq_key_op *op_p);`` this will
 register the operation pointed to by ``op_p`` at table key 'key',
 if that slot in the table is blank. At module unload time, you must call
-the function ``unregister_sysrq_key(int key, struct sysrq_key_op *op_p)``, which
-will remove the key op pointed to by 'op_p' from the key 'key', if and only if
-it is currently registered in that slot. This is in case the slot has been
-overwritten since you registered it.
+the function ``unregister_sysrq_key(int key, const struct sysrq_key_op *op_p)``,
+which will remove the key op pointed to by 'op_p' from the key 'key', if and
+only if it is currently registered in that slot. This is in case the slot has
+been overwritten since you registered it.
 
 The Magic SysRQ system works by registering key operations against a key op
 lookup table, which is defined in 'drivers/tty/sysrq.c'. This key table has

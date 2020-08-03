@@ -189,7 +189,8 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 			skb->offload_fwd_mark = 1;
 
 		skb->protocol = eth_type_trans(skb, dev);
-		netif_rx(skb);
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(skb);
 		dev->stats.rx_bytes += len;
 		dev->stats.rx_packets++;
 	} while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp));
@@ -366,6 +367,23 @@ static const struct vcap_props vsc7514_vcap_props[] = {
 	},
 };
 
+static struct ptp_clock_info ocelot_ptp_clock_info = {
+	.owner		= THIS_MODULE,
+	.name		= "ocelot ptp",
+	.max_adj	= 0x7fffffff,
+	.n_alarm	= 0,
+	.n_ext_ts	= 0,
+	.n_per_out	= OCELOT_PTP_PINS_NUM,
+	.n_pins		= OCELOT_PTP_PINS_NUM,
+	.pps		= 0,
+	.gettime64	= ocelot_ptp_gettime64,
+	.settime64	= ocelot_ptp_settime64,
+	.adjtime	= ocelot_ptp_adjtime,
+	.adjfine	= ocelot_ptp_adjfine,
+	.verify		= ocelot_ptp_verify,
+	.enable		= ocelot_ptp_enable,
+};
+
 static int mscc_ocelot_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -469,6 +487,15 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot->vcap = vsc7514_vcap_props;
 
 	ocelot_init(ocelot);
+	if (ocelot->ptp) {
+		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
+		if (err) {
+			dev_err(ocelot->dev,
+				"Timestamp initialization failed\n");
+			ocelot->ptp = 0;
+		}
+	}
+
 	/* No NPI port */
 	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
 			     OCELOT_TAG_PREFIX_NONE);
@@ -574,6 +601,7 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
+	ocelot_deinit_timestamp(ocelot);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);

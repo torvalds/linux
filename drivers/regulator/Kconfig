@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
+	select LINEAR_RANGES
 	help
 	  Generic Voltage and Current Regulator support.
 
@@ -584,6 +585,16 @@ config REGULATOR_MAX77802
 	  via I2C bus. The provided regulator is suitable for
 	  Exynos5420/Exynos5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
+
+config REGULATOR_MAX77826
+	tristate "Maxim 77826 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a Maxim 77826 regulator via I2C bus.
+	  The regulator include 15 LDOs, BUCK and BUCK BOOST regulator.
+	  It includes support for control of output voltage. This
+	  regulator is found on the Samsung Galaxy S5 (klte) smartphone.
 
 config REGULATOR_MC13XXX_CORE
 	tristate

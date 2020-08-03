@@ -42,7 +42,7 @@ If you are interested in the deep debugging of HD-audio, read the
 HD-audio specification at first.  The specification is found on
 Intel's web page, for example:
 
-* http://www.intel.com/standards/hdaudio/
+* https://www.intel.com/standards/hdaudio/
 
 
 HD-Audio Controller
@@ -728,7 +728,7 @@ version can be found on git repository:
 
 The script can be fetched directly from the following URL, too:
 
-* http://www.alsa-project.org/alsa-info.sh
+* https://www.alsa-project.org/alsa-info.sh
 
 Run this script as root, and it will gather the important information
 such as the module lists, module parameters, proc file contents
@@ -818,7 +818,7 @@ proc-compatible output.
 
 The hda-analyzer:
 
-* http://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
+* https://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
 
 is a part of alsa.git repository in alsa-project.org:
 

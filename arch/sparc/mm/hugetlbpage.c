@@ -14,7 +14,6 @@
 
 #include <asm/mman.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>

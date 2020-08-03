@@ -673,7 +673,7 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 	 *   { .type = "bq24190", .addr = 0x6b, .properties = pe, .irq = irq };
 	 * struct i2c_adapter ad = { ... };
 	 * i2c_add_adapter(&ad);
-	 * i2c_new_device(&ad, &bi);
+	 * i2c_new_client_device(&ad, &bi);
 	 */
 	if (device_property_read_bool(bdi->dev, "disable-reset"))
 		return 0;

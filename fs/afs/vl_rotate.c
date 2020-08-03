@@ -151,6 +151,10 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		vc->error = error;
 		vc->flags |= AFS_VL_CURSOR_RETRY;
 		goto next_server;
+
+	case -EOPNOTSUPP:
+		_debug("notsupp");
+		goto next_server;
 	}
 
 restart_from_beginning:

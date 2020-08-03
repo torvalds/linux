@@ -195,7 +195,7 @@ int fat_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	if (err)
 		return err;
 
-	return blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+	return blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL);
 }
 
 

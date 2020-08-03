@@ -428,6 +428,10 @@ struct net_bridge {
 	int offload_fwd_mark;
 #endif
 	struct hlist_head		fdb_list;
+
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+	struct list_head		__rcu mrp_list;
+#endif
 };
 
 struct br_input_skb_cb {
@@ -594,10 +598,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev);
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
 {
-	struct netpoll *np = p->np;
-
-	if (np)
-		netpoll_send_skb(np, skb);
+	netpoll_send_skb(p->np, skb);
 }
 
 int br_netpoll_enable(struct net_bridge_port *p);
@@ -701,16 +702,16 @@ int nbp_backup_change(struct net_bridge_port *p, struct net_device *backup_dev);
 
 /* br_input.c */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
-rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
+rx_handler_func_t *br_get_rx_handler(const struct net_device *dev);
 
 static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
 {
-	return rcu_dereference(dev->rx_handler) == br_handle_frame;
+	return rcu_dereference(dev->rx_handler) == br_get_rx_handler(dev);
 }
 
 static inline bool br_rx_handler_check_rtnl(const struct net_device *dev)
 {
-	return rcu_dereference_rtnl(dev->rx_handler) == br_handle_frame;
+	return rcu_dereference_rtnl(dev->rx_handler) == br_get_rx_handler(dev);
 }
 
 static inline struct net_bridge_port *br_port_get_check_rcu(const struct net_device *dev)
@@ -1279,7 +1280,8 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time);
 /* br_stp_if.c */
 void br_stp_enable_bridge(struct net_bridge *br);
 void br_stp_disable_bridge(struct net_bridge *br);
-void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
+int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
+		       struct netlink_ext_ack *extack);
 void br_stp_enable_port(struct net_bridge_port *p);
 void br_stp_disable_port(struct net_bridge_port *p);
 bool br_stp_recalculate_bridge_id(struct net_bridge *br);
@@ -1302,6 +1304,37 @@ unsigned long br_timer_value(const struct timer_list *timer);
 /* br.c */
 #if IS_ENABLED(CONFIG_ATM_LANE)
 extern int (*br_fdb_test_addr_hook)(struct net_device *dev, unsigned char *addr);
+#endif
+
+/* br_mrp.c */
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
+		 struct nlattr *attr, int cmd, struct netlink_ext_ack *extack);
+int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb);
+bool br_mrp_enabled(struct net_bridge *br);
+void br_mrp_port_del(struct net_bridge *br, struct net_bridge_port *p);
+#else
+static inline int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
+			       struct nlattr *attr, int cmd,
+			       struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb)
+{
+	return 0;
+}
+
+static inline bool br_mrp_enabled(struct net_bridge *br)
+{
+	return false;
+}
+
+static inline void br_mrp_port_del(struct net_bridge *br,
+				   struct net_bridge_port *p)
+{
+}
 #endif
 
 /* br_netlink.c */

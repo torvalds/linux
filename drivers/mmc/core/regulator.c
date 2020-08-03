@@ -136,12 +136,22 @@ static int mmc_regulator_set_voltage_if_supported(struct regulator *regulator,
 						  int min_uV, int target_uV,
 						  int max_uV)
 {
+	int current_uV;
+
 	/*
 	 * Check if supported first to avoid errors since we may try several
 	 * signal levels during power up and don't want to show errors.
 	 */
 	if (!regulator_is_supported_voltage(regulator, min_uV, max_uV))
 		return -EINVAL;
+
+	/*
+	 * The voltage is already set, no need to switch.
+	 * Return 1 to indicate that no switch happened.
+	 */
+	current_uV = regulator_get_voltage(regulator);
+	if (current_uV == target_uV)
+		return 1;
 
 	return regulator_set_voltage_triplet(regulator, min_uV, target_uV,
 					     max_uV);
@@ -198,9 +208,10 @@ int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * voltage in two steps and try to stay close to vmmc
 		 * with a 0.3V tolerance at first.
 		 */
-		if (!mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
-						min_uV, volt, max_uV))
-			return 0;
+		ret = mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
+							min_uV, volt, max_uV);
+		if (ret >= 0)
+			return ret;
 
 		return mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
 						2700000, volt, 3600000);

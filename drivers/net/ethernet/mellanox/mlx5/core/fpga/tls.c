@@ -194,8 +194,8 @@ static void mlx5_fpga_tls_flow_to_cmd(void *flow, void *cmd)
 		 MLX5_GET(tls_flow, flow, direction_sx));
 }
 
-int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
-			    u64 rcd_sn)
+int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+			    u32 seq, __be64 rcd_sn)
 {
 	struct mlx5_fpga_dma_buf *buf;
 	int size = sizeof(*buf) + MLX5_TLS_COMMAND_SIZE;

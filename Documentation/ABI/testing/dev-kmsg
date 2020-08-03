@@ -56,6 +56,11 @@ Description:	The /dev/kmsg character device node provides userspace access
 		  seek after the last record available at the time
 		  the last SYSLOG_ACTION_CLEAR was issued.
 
+		Due to the record nature of this interface with a "read all"
+		behavior and the specific positions each seek operation sets,
+		SEEK_CUR is not supported, returning -ESPIPE (invalid seek) to
+		errno whenever requested.
+
 		The output format consists of a prefix carrying the syslog
 		prefix including priority and facility, the 64 bit message
 		sequence number and the monotonic timestamp in microseconds,

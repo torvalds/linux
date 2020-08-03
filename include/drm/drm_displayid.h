@@ -97,7 +97,7 @@ struct displayid_detailed_timing_block {
 	     (idx) + sizeof(struct displayid_block) <= (length) && \
 	     (idx) + sizeof(struct displayid_block) + (block)->num_bytes <= (length) && \
 	     (block)->num_bytes > 0; \
-	     (idx) += (block)->num_bytes + sizeof(struct displayid_block), \
+	     (idx) += sizeof(struct displayid_block) + (block)->num_bytes, \
 	     (block) = (struct displayid_block *)&(displayid)[idx])
 
 #endif

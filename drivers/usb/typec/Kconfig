@@ -64,7 +64,8 @@ config TYPEC_HD3SS3220
 config TYPEC_TPS6598X
 	tristate "TI TPS6598x USB Power Delivery controller driver"
 	depends on I2C
-	select REGMAP_I2C
+	depends on REGMAP_I2C
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  Say Y or M here if your system has TI TPS65982 or TPS65983 USB Power
 	  Delivery controller.

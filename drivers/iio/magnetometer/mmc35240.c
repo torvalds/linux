@@ -239,7 +239,7 @@ static int mmc35240_init(struct mmc35240_data *data)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, MMC35240_OTP_START_ADDR,
-			       (u8 *)otp_data, sizeof(otp_data));
+			       otp_data, sizeof(otp_data));
 	if (ret < 0)
 		return ret;
 
@@ -295,7 +295,7 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 	if (ret < 0)
 		return ret;
 
-	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, (u8 *)buf,
+	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, buf,
 				3 * sizeof(__le16));
 }
 

@@ -1796,7 +1796,7 @@ static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
 			"PD_Data_error_rate_coeff"};
 	int result = 0;
 
-	if (!smu->pm_enabled || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
@@ -1887,8 +1887,6 @@ static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, u
 
 	smu->power_profile_mode = input[size];
 
-	if (!smu->pm_enabled)
-		return ret;
 	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
 		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;

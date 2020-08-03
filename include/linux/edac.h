@@ -31,14 +31,6 @@ struct device;
 extern int edac_op_state;
 
 struct bus_type *edac_get_sysfs_subsys(void);
-int edac_get_report_status(void);
-void edac_set_report_status(int new);
-
-enum {
-	EDAC_REPORTING_ENABLED,
-	EDAC_REPORTING_DISABLED,
-	EDAC_REPORTING_FORCE
-};
 
 static inline void opstate_init(void)
 {

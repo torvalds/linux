@@ -17,7 +17,6 @@
 #include <linux/cma.h>
 #endif
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include "internal.h"
 
 void __attribute__((weak)) arch_report_meminfo(struct seq_file *m)
@@ -103,11 +102,14 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
 	seq_printf(m, "KernelStack:    %8lu kB\n",
 		   global_zone_page_state(NR_KERNEL_STACK_KB));
+#ifdef CONFIG_SHADOW_CALL_STACK
+	seq_printf(m, "ShadowCallStack:%8lu kB\n",
+		   global_zone_page_state(NR_KERNEL_SCS_KB));
+#endif
 	show_val_kb(m, "PageTables:     ",
 		    global_zone_page_state(NR_PAGETABLE));
 
-	show_val_kb(m, "NFS_Unstable:   ",
-		    global_node_page_state(NR_UNSTABLE_NFS));
+	show_val_kb(m, "NFS_Unstable:   ", 0);
 	show_val_kb(m, "Bounce:         ",
 		    global_zone_page_state(NR_BOUNCE));
 	show_val_kb(m, "WritebackTmp:   ",

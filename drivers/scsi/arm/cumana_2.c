@@ -23,11 +23,11 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/pgtable.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_host.h>

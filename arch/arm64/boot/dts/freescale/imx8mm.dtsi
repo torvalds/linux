@@ -270,6 +270,7 @@
 			ranges = <0x30000000 0x30000000 0x400000>;
 
 			sai1: sai@30010000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx8mm-sai", "fsl,imx8mq-sai";
 				reg = <0x30010000 0x10000>;
 				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -283,6 +284,7 @@
 			};
 
 			sai2: sai@30020000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx8mm-sai", "fsl,imx8mq-sai";
 				reg = <0x30020000 0x10000>;
 				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -310,6 +312,7 @@
 			};
 
 			sai5: sai@30050000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx8mm-sai", "fsl,imx8mq-sai";
 				reg = <0x30050000 0x10000>;
 				interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
@@ -323,6 +326,7 @@
 			};
 
 			sai6: sai@30060000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx8mm-sai", "fsl,imx8mq-sai";
 				reg = <0x30060000 0x10000>;
 				interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
@@ -515,16 +519,20 @@
 					 <&clk_ext3>, <&clk_ext4>;
 				clock-names = "osc_32k", "osc_24m", "clk_ext1", "clk_ext2",
 					      "clk_ext3", "clk_ext4";
-				assigned-clocks = <&clk IMX8MM_CLK_NOC>,
+				assigned-clocks = <&clk IMX8MM_CLK_A53_SRC>,
+						<&clk IMX8MM_CLK_A53_CORE>,
+						<&clk IMX8MM_CLK_NOC>,
 						<&clk IMX8MM_CLK_AUDIO_AHB>,
 						<&clk IMX8MM_CLK_IPG_AUDIO_ROOT>,
 						<&clk IMX8MM_SYS_PLL3>,
 						<&clk IMX8MM_VIDEO_PLL1>,
 						<&clk IMX8MM_AUDIO_PLL1>,
 						<&clk IMX8MM_AUDIO_PLL2>;
-				assigned-clock-parents = <&clk IMX8MM_SYS_PLL3_OUT>,
+				assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_800M>,
+							 <&clk IMX8MM_ARM_PLL_OUT>,
+							 <&clk IMX8MM_SYS_PLL3_OUT>,
 							 <&clk IMX8MM_SYS_PLL1_800M>;
-				assigned-clock-rates = <0>,
+				assigned-clock-rates = <0>, <0>, <0>,
 							<400000000>,
 							<400000000>,
 							<750000000>,

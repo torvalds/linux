@@ -54,6 +54,7 @@ struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags)
 
 /**
  * fscrypt_free_bounce_page() - free a ciphertext bounce page
+ * @bounce_page: the bounce page to free, or NULL
  *
  * Free a bounce page that was allocated by fscrypt_encrypt_pagecache_blocks(),
  * or by fscrypt_alloc_bounce_page() directly.
@@ -76,8 +77,12 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 	memset(iv, 0, ci->ci_mode->ivsize);
 
 	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
-		WARN_ON_ONCE((u32)lblk_num != lblk_num);
+		WARN_ON_ONCE(lblk_num > U32_MAX);
+		WARN_ON_ONCE(ci->ci_inode->i_ino > U32_MAX);
 		lblk_num |= (u64)ci->ci_inode->i_ino << 32;
+	} else if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+		WARN_ON_ONCE(lblk_num > U32_MAX);
+		lblk_num = (u32)(ci->ci_hashed_ino + lblk_num);
 	} else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
 		memcpy(iv->nonce, ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE);
 	}
@@ -132,7 +137,8 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 }
 
 /**
- * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a pagecache page
+ * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a
+ *					pagecache page
  * @page:      The locked pagecache page containing the block(s) to encrypt
  * @len:       Total size of the block(s) to encrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -222,7 +228,8 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
 /**
- * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a pagecache page
+ * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a
+ *					pagecache page
  * @page:      The locked pagecache page containing the block(s) to decrypt
  * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -346,6 +353,8 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 
 /**
  * fscrypt_init() - Set up for fs encryption.
+ *
+ * Return: 0 on success; -errno on failure
  */
 static int __init fscrypt_init(void)
 {

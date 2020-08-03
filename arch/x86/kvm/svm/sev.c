@@ -336,8 +336,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	/* Avoid using vmalloc for smaller buffers. */
 	size = npages * sizeof(struct page *);
 	if (size > PAGE_SIZE)
-		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_ZERO,
-				  PAGE_KERNEL);
+		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	else
 		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
 

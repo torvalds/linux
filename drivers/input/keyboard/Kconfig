@@ -701,7 +701,7 @@ config KEYBOARD_SPEAR
 	  Say Y here if you want to use the SPEAR keyboard.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called spear-keboard.
+	  module will be called spear-keyboard.
 
 config KEYBOARD_TC3589X
 	tristate "TC3589X Keypad support"

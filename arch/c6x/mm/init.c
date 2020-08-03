@@ -33,7 +33,7 @@ EXPORT_SYMBOL(empty_zero_page);
 void __init paging_init(void)
 {
 	struct pglist_data *pgdat = NODE_DATA(0);
-	unsigned long zones_size[MAX_NR_ZONES] = {0, };
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = {0, };
 
 	empty_zero_page      = (unsigned long) memblock_alloc(PAGE_SIZE,
 							      PAGE_SIZE);
@@ -49,11 +49,9 @@ void __init paging_init(void)
 	/*
 	 * Define zones
 	 */
-	zones_size[ZONE_NORMAL] = (memory_end - PAGE_OFFSET) >> PAGE_SHIFT;
-	pgdat->node_zones[ZONE_NORMAL].zone_start_pfn =
-		__pa(PAGE_OFFSET) >> PAGE_SHIFT;
+	max_zone_pfn[ZONE_NORMAL] = memory_end >> PAGE_SHIFT;
 
-	free_area_init(zones_size);
+	free_area_init(max_zone_pfn);
 }
 
 void __init mem_init(void)

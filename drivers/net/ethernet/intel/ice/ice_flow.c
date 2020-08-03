@@ -42,7 +42,10 @@ struct ice_flow_field_info ice_flds_info[ICE_FLOW_FIELD_IDX_MAX] = {
 	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_SCTP, 0, sizeof(__be16)),
 	/* ICE_FLOW_FIELD_IDX_SCTP_DST_PORT */
 	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_SCTP, 2, sizeof(__be16)),
-
+	/* GRE */
+	/* ICE_FLOW_FIELD_IDX_GRE_KEYID */
+	ICE_FLOW_FLD_INFO(ICE_FLOW_SEG_HDR_GRE, 12,
+			  sizeof_field(struct gre_full_hdr, key)),
 };
 
 /* Bitmaps indicating relevant packet types for a particular protocol header
@@ -134,6 +137,18 @@ static const u32 ice_ptypes_sctp_il[] = {
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
+/* Packet types for packets with an Outermost/First GRE header */
+static const u32 ice_ptypes_gre_of[] = {
+	0x00000000, 0xBFBF7800, 0x000001DF, 0xFEFDE000,
+	0x0000017E, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+};
+
 /* Manage parameters and info. used during the creation of a flow profile */
 struct ice_flow_prof_params {
 	enum ice_block blk;
@@ -176,6 +191,40 @@ ice_flow_val_hdrs(struct ice_flow_seg_info *segs, u8 segs_cnt)
 	}
 
 	return 0;
+}
+
+/* Sizes of fixed known protocol headers without header options */
+#define ICE_FLOW_PROT_HDR_SZ_MAC	14
+#define ICE_FLOW_PROT_HDR_SZ_IPV4	20
+#define ICE_FLOW_PROT_HDR_SZ_IPV6	40
+#define ICE_FLOW_PROT_HDR_SZ_TCP	20
+#define ICE_FLOW_PROT_HDR_SZ_UDP	8
+#define ICE_FLOW_PROT_HDR_SZ_SCTP	12
+
+/**
+ * ice_flow_calc_seg_sz - calculates size of a packet segment based on headers
+ * @params: information about the flow to be processed
+ * @seg: index of packet segment whose header size is to be determined
+ */
+static u16 ice_flow_calc_seg_sz(struct ice_flow_prof_params *params, u8 seg)
+{
+	u16 sz = ICE_FLOW_PROT_HDR_SZ_MAC;
+
+	/* L3 headers */
+	if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_IPV4)
+		sz += ICE_FLOW_PROT_HDR_SZ_IPV4;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_IPV6)
+		sz += ICE_FLOW_PROT_HDR_SZ_IPV6;
+
+	/* L4 headers */
+	if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_TCP)
+		sz += ICE_FLOW_PROT_HDR_SZ_TCP;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_UDP)
+		sz += ICE_FLOW_PROT_HDR_SZ_UDP;
+	else if (params->prof->segs[seg].hdrs & ICE_FLOW_SEG_HDR_SCTP)
+		sz += ICE_FLOW_PROT_HDR_SZ_SCTP;
+
+	return sz;
 }
 
 /**
@@ -225,6 +274,12 @@ ice_flow_proc_seg_hdrs(struct ice_flow_prof_params *params)
 			src = (const unsigned long *)ice_ptypes_sctp_il;
 			bitmap_and(params->ptypes, params->ptypes, src,
 				   ICE_FLOW_PTYPE_MAX);
+		} else if (hdrs & ICE_FLOW_SEG_HDR_GRE) {
+			if (!i) {
+				src = (const unsigned long *)ice_ptypes_gre_of;
+				bitmap_and(params->ptypes, params->ptypes,
+					   src, ICE_FLOW_PTYPE_MAX);
+			}
 		}
 	}
 
@@ -275,6 +330,9 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 	case ICE_FLOW_FIELD_IDX_SCTP_DST_PORT:
 		prot_id = ICE_PROT_SCTP_IL;
 		break;
+	case ICE_FLOW_FIELD_IDX_GRE_KEYID:
+		prot_id = ICE_PROT_GRE_OF;
+		break;
 	default:
 		return ICE_ERR_NOT_IMPL;
 	}
@@ -324,6 +382,81 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 }
 
 /**
+ * ice_flow_xtract_raws - Create extract sequence entries for raw bytes
+ * @hw: pointer to the HW struct
+ * @params: information about the flow to be processed
+ * @seg: index of packet segment whose raw fields are to be be extracted
+ */
+static enum ice_status
+ice_flow_xtract_raws(struct ice_hw *hw, struct ice_flow_prof_params *params,
+		     u8 seg)
+{
+	u16 fv_words;
+	u16 hdrs_sz;
+	u8 i;
+
+	if (!params->prof->segs[seg].raws_cnt)
+		return 0;
+
+	if (params->prof->segs[seg].raws_cnt >
+	    ARRAY_SIZE(params->prof->segs[seg].raws))
+		return ICE_ERR_MAX_LIMIT;
+
+	/* Offsets within the segment headers are not supported */
+	hdrs_sz = ice_flow_calc_seg_sz(params, seg);
+	if (!hdrs_sz)
+		return ICE_ERR_PARAM;
+
+	fv_words = hw->blk[params->blk].es.fvw;
+
+	for (i = 0; i < params->prof->segs[seg].raws_cnt; i++) {
+		struct ice_flow_seg_fld_raw *raw;
+		u16 off, cnt, j;
+
+		raw = &params->prof->segs[seg].raws[i];
+
+		/* Storing extraction information */
+		raw->info.xtrct.prot_id = ICE_PROT_MAC_OF_OR_S;
+		raw->info.xtrct.off = (raw->off / ICE_FLOW_FV_EXTRACT_SZ) *
+			ICE_FLOW_FV_EXTRACT_SZ;
+		raw->info.xtrct.disp = (raw->off % ICE_FLOW_FV_EXTRACT_SZ) *
+			BITS_PER_BYTE;
+		raw->info.xtrct.idx = params->es_cnt;
+
+		/* Determine the number of field vector entries this raw field
+		 * consumes.
+		 */
+		cnt = DIV_ROUND_UP(raw->info.xtrct.disp +
+				   (raw->info.src.last * BITS_PER_BYTE),
+				   (ICE_FLOW_FV_EXTRACT_SZ * BITS_PER_BYTE));
+		off = raw->info.xtrct.off;
+		for (j = 0; j < cnt; j++) {
+			u16 idx;
+
+			/* Make sure the number of extraction sequence required
+			 * does not exceed the block's capability
+			 */
+			if (params->es_cnt >= hw->blk[params->blk].es.count ||
+			    params->es_cnt >= ICE_MAX_FV_WORDS)
+				return ICE_ERR_MAX_LIMIT;
+
+			/* some blocks require a reversed field vector layout */
+			if (hw->blk[params->blk].es.reverse)
+				idx = fv_words - params->es_cnt - 1;
+			else
+				idx = params->es_cnt;
+
+			params->es[idx].prot_id = raw->info.xtrct.prot_id;
+			params->es[idx].off = off;
+			params->es_cnt++;
+			off += ICE_FLOW_FV_EXTRACT_SZ;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * ice_flow_create_xtrct_seq - Create an extraction sequence for given segments
  * @hw: pointer to the HW struct
  * @params: information about the flow to be processed
@@ -349,6 +482,11 @@ ice_flow_create_xtrct_seq(struct ice_hw *hw,
 			if (status)
 				return status;
 		}
+
+		/* Process raw matching bytes */
+		status = ice_flow_xtract_raws(hw, params, i);
+		if (status)
+			return status;
 	}
 
 	return status;
@@ -373,10 +511,8 @@ ice_flow_proc_segs(struct ice_hw *hw, struct ice_flow_prof_params *params)
 		return status;
 
 	switch (params->blk) {
+	case ICE_BLK_FD:
 	case ICE_BLK_RSS:
-		/* Only header information is provided for RSS configuration.
-		 * No further processing is needed.
-		 */
 		status = 0;
 		break;
 	default:
@@ -455,6 +591,43 @@ ice_flow_find_prof_id(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 			return p;
 
 	return NULL;
+}
+
+/**
+ * ice_dealloc_flow_entry - Deallocate flow entry memory
+ * @hw: pointer to the HW struct
+ * @entry: flow entry to be removed
+ */
+static void
+ice_dealloc_flow_entry(struct ice_hw *hw, struct ice_flow_entry *entry)
+{
+	if (!entry)
+		return;
+
+	if (entry->entry)
+		devm_kfree(ice_hw_to_dev(hw), entry->entry);
+
+	devm_kfree(ice_hw_to_dev(hw), entry);
+}
+
+/**
+ * ice_flow_rem_entry_sync - Remove a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @entry: flow entry to be removed
+ */
+static enum ice_status
+ice_flow_rem_entry_sync(struct ice_hw *hw, enum ice_block __always_unused blk,
+			struct ice_flow_entry *entry)
+{
+	if (!entry)
+		return ICE_ERR_BAD_PTR;
+
+	list_del(&entry->l_entry);
+
+	ice_dealloc_flow_entry(hw, entry);
+
+	return 0;
 }
 
 /**
@@ -544,6 +717,21 @@ ice_flow_rem_prof_sync(struct ice_hw *hw, enum ice_block blk,
 {
 	enum ice_status status;
 
+	/* Remove all remaining flow entries before removing the flow profile */
+	if (!list_empty(&prof->entries)) {
+		struct ice_flow_entry *e, *t;
+
+		mutex_lock(&prof->entries_lock);
+
+		list_for_each_entry_safe(e, t, &prof->entries, l_entry) {
+			status = ice_flow_rem_entry_sync(hw, blk, e);
+			if (status)
+				break;
+		}
+
+		mutex_unlock(&prof->entries_lock);
+	}
+
 	/* Remove all hardware profiles associated with this flow profile */
 	status = ice_rem_prof(hw, blk, prof->id);
 	if (!status) {
@@ -629,7 +817,7 @@ ice_flow_disassoc_prof(struct ice_hw *hw, enum ice_block blk,
  * @segs_cnt: number of packet segments provided
  * @prof: stores the returned flow profile added
  */
-static enum ice_status
+enum ice_status
 ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt,
 		  struct ice_flow_prof **prof)
@@ -667,7 +855,7 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
  * @blk: the block for which the flow profile is to be removed
  * @prof_id: unique ID of the flow profile to be removed
  */
-static enum ice_status
+enum ice_status
 ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 {
 	struct ice_flow_prof *prof;
@@ -686,6 +874,113 @@ ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
 
 out:
 	mutex_unlock(&hw->fl_profs_locks[blk]);
+
+	return status;
+}
+
+/**
+ * ice_flow_add_entry - Add a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @prof_id: ID of the profile to add a new flow entry to
+ * @entry_id: unique ID to identify this flow entry
+ * @vsi_handle: software VSI handle for the flow entry
+ * @prio: priority of the flow entry
+ * @data: pointer to a data buffer containing flow entry's match values/masks
+ * @entry_h: pointer to buffer that receives the new flow entry's handle
+ */
+enum ice_status
+ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
+		   u64 entry_id, u16 vsi_handle, enum ice_flow_priority prio,
+		   void *data, u64 *entry_h)
+{
+	struct ice_flow_entry *e = NULL;
+	struct ice_flow_prof *prof;
+	enum ice_status status;
+
+	/* No flow entry data is expected for RSS */
+	if (!entry_h || (!data && blk != ICE_BLK_RSS))
+		return ICE_ERR_BAD_PTR;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	mutex_lock(&hw->fl_profs_locks[blk]);
+
+	prof = ice_flow_find_prof_id(hw, blk, prof_id);
+	if (!prof) {
+		status = ICE_ERR_DOES_NOT_EXIST;
+	} else {
+		/* Allocate memory for the entry being added and associate
+		 * the VSI to the found flow profile
+		 */
+		e = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*e), GFP_KERNEL);
+		if (!e)
+			status = ICE_ERR_NO_MEMORY;
+		else
+			status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
+	}
+
+	mutex_unlock(&hw->fl_profs_locks[blk]);
+	if (status)
+		goto out;
+
+	e->id = entry_id;
+	e->vsi_handle = vsi_handle;
+	e->prof = prof;
+	e->priority = prio;
+
+	switch (blk) {
+	case ICE_BLK_FD:
+	case ICE_BLK_RSS:
+		break;
+	default:
+		status = ICE_ERR_NOT_IMPL;
+		goto out;
+	}
+
+	mutex_lock(&prof->entries_lock);
+	list_add(&e->l_entry, &prof->entries);
+	mutex_unlock(&prof->entries_lock);
+
+	*entry_h = ICE_FLOW_ENTRY_HNDL(e);
+
+out:
+	if (status && e) {
+		if (e->entry)
+			devm_kfree(ice_hw_to_dev(hw), e->entry);
+		devm_kfree(ice_hw_to_dev(hw), e);
+	}
+
+	return status;
+}
+
+/**
+ * ice_flow_rem_entry - Remove a flow entry
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @entry_h: handle to the flow entry to be removed
+ */
+enum ice_status ice_flow_rem_entry(struct ice_hw *hw, enum ice_block blk,
+				   u64 entry_h)
+{
+	struct ice_flow_entry *entry;
+	struct ice_flow_prof *prof;
+	enum ice_status status = 0;
+
+	if (entry_h == ICE_FLOW_ENTRY_HANDLE_INVAL)
+		return ICE_ERR_PARAM;
+
+	entry = ICE_FLOW_ENTRY_PTR(entry_h);
+
+	/* Retain the pointer to the flow profile as the entry will be freed */
+	prof = entry->prof;
+
+	if (prof) {
+		mutex_lock(&prof->entries_lock);
+		status = ice_flow_rem_entry_sync(hw, blk, entry);
+		mutex_unlock(&prof->entries_lock);
+	}
 
 	return status;
 }
@@ -752,7 +1047,7 @@ ice_flow_set_fld_ext(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
  * create the content of a match entry. This function should only be used for
  * fixed-size data structures.
  */
-static void
+void
 ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		 u16 val_loc, u16 mask_loc, u16 last_loc, bool range)
 {
@@ -760,6 +1055,42 @@ ice_flow_set_fld(struct ice_flow_seg_info *seg, enum ice_flow_field fld,
 		ICE_FLOW_FLD_TYPE_RANGE : ICE_FLOW_FLD_TYPE_REG;
 
 	ice_flow_set_fld_ext(seg, fld, t, val_loc, mask_loc, last_loc);
+}
+
+/**
+ * ice_flow_add_fld_raw - sets locations of a raw field from entry's input buf
+ * @seg: packet segment the field being set belongs to
+ * @off: offset of the raw field from the beginning of the segment in bytes
+ * @len: length of the raw pattern to be matched
+ * @val_loc: location of the value to match from entry's input buffer
+ * @mask_loc: location of mask value from entry's input buffer
+ *
+ * This function specifies the offset of the raw field to be match from the
+ * beginning of the specified packet segment, and the locations, in the form of
+ * byte offsets from the start of the input buffer for a flow entry, from where
+ * the value to match and the mask value to be extracted. These locations are
+ * then stored in the flow profile. When adding flow entries to the associated
+ * flow profile, these locations can be used to quickly extract the values to
+ * create the content of a match entry. This function should only be used for
+ * fixed-size data structures.
+ */
+void
+ice_flow_add_fld_raw(struct ice_flow_seg_info *seg, u16 off, u8 len,
+		     u16 val_loc, u16 mask_loc)
+{
+	if (seg->raws_cnt < ICE_FLOW_SEG_RAW_FLD_MAX) {
+		seg->raws[seg->raws_cnt].off = off;
+		seg->raws[seg->raws_cnt].info.type = ICE_FLOW_FLD_TYPE_SIZE;
+		seg->raws[seg->raws_cnt].info.src.val = val_loc;
+		seg->raws[seg->raws_cnt].info.src.mask = mask_loc;
+		/* The "last" field is used to store the length of the field */
+		seg->raws[seg->raws_cnt].info.src.last = len;
+	}
+
+	/* Overflows of "raws" will be handled as an error condition later in
+	 * the flow when this information is processed.
+	 */
+	seg->raws_cnt++;
 }
 
 #define ICE_FLOW_RSS_SEG_HDR_L3_MASKS \
@@ -945,6 +1276,7 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 #define ICE_FLOW_PROF_ENCAP_M	(BIT_ULL(ICE_FLOW_PROF_ENCAP_S))
 
 #define ICE_RSS_OUTER_HEADERS	1
+#define ICE_RSS_INNER_HEADERS	2
 
 /* Flow profile ID format:
  * [0:31] - Packet match fields
@@ -1085,6 +1417,9 @@ ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 	mutex_lock(&hw->rss_locks);
 	status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds, addl_hdrs,
 				      ICE_RSS_OUTER_HEADERS);
+	if (!status)
+		status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds,
+					      addl_hdrs, ICE_RSS_INNER_HEADERS);
 	mutex_unlock(&hw->rss_locks);
 
 	return status;
@@ -1236,6 +1571,12 @@ enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 						      r->hashed_flds,
 						      r->packet_hdr,
 						      ICE_RSS_OUTER_HEADERS);
+			if (status)
+				break;
+			status = ice_add_rss_cfg_sync(hw, vsi_handle,
+						      r->hashed_flds,
+						      r->packet_hdr,
+						      ICE_RSS_INNER_HEADERS);
 			if (status)
 				break;
 		}

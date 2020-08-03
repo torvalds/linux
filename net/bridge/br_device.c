@@ -105,6 +105,13 @@ out:
 	return NETDEV_TX_OK;
 }
 
+static struct lock_class_key bridge_netdev_addr_lock_key;
+
+static void br_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &bridge_netdev_addr_lock_key);
+}
+
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -143,6 +150,7 @@ static int br_dev_init(struct net_device *dev)
 		br_fdb_hash_fini(br);
 	}
 
+	br_set_lockdep_class(dev);
 	return err;
 }
 
@@ -463,6 +471,9 @@ void br_dev_setup(struct net_device *dev)
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
 	INIT_HLIST_HEAD(&br->fdb_list);
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+	INIT_LIST_HEAD(&br->mrp_list);
+#endif
 	spin_lock_init(&br->hash_lock);
 
 	br->bridge_id.prio[0] = 0x80;

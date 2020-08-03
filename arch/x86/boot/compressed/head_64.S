@@ -42,6 +42,7 @@
 	.hidden _ebss
 	.hidden _got
 	.hidden _egot
+	.hidden _end
 
 	__HEAD
 	.code32
@@ -392,6 +393,14 @@ SYM_CODE_START(startup_64)
 	leaq	gdt64(%rip), %rax
 	addq	%rax, 2(%rax)
 	lgdt	(%rax)
+
+	/* Reload CS so IRET returns to a CS actually in the GDT */
+	pushq	$__KERNEL_CS
+	leaq	.Lon_kernel_cs(%rip), %rax
+	pushq	%rax
+	lretq
+
+.Lon_kernel_cs:
 
 	/*
 	 * paging_prepare() sets up the trampoline and checks if we need to

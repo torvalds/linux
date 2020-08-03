@@ -157,17 +157,18 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	}
 	buf->result++;
 	dirent = buf->dirent;
-	if (!access_ok(dirent,
+	if (!user_write_access_begin(dirent,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
 		goto efault;
-	if (	__put_user(d_ino, &dirent->d_ino) ||
-		__put_user(offset, &dirent->d_offset) ||
-		__put_user(namlen, &dirent->d_namlen) ||
-		__copy_to_user(dirent->d_name, name, namlen) ||
-		__put_user(0, dirent->d_name + namlen))
-		goto efault;
+	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(offset, &dirent->d_offset, efault_end);
+	unsafe_put_user(namlen, &dirent->d_namlen, efault_end);
+	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
+	user_write_access_end();
 	return 0;
+efault_end:
+	user_write_access_end();
 efault:
 	buf->result = -EFAULT;
 	return -EFAULT;
@@ -242,7 +243,7 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		return -EINTR;
 	dirent = buf->current_dir;
 	prev = (void __user *) dirent - prev_reclen;
-	if (!user_access_begin(prev, reclen + prev_reclen))
+	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
 
 	/* This might be 'dirent->d_off', but if so it will get overwritten */
@@ -251,14 +252,14 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, (char __user *) dirent + reclen - 1, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
-	user_access_end();
+	user_write_access_end();
 
 	buf->current_dir = (void __user *)dirent + reclen;
 	buf->prev_reclen = reclen;
 	buf->count -= reclen;
 	return 0;
 efault_end:
-	user_access_end();
+	user_write_access_end();
 efault:
 	buf->error = -EFAULT;
 	return -EFAULT;
@@ -274,9 +275,6 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		.current_dir = dirent
 	};
 	int error;
-
-	if (!access_ok(dirent, count))
-		return -EFAULT;
 
 	f = fdget_pos(fd);
 	if (!f.file)
@@ -327,7 +325,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 		return -EINTR;
 	dirent = buf->current_dir;
 	prev = (void __user *)dirent - prev_reclen;
-	if (!user_access_begin(prev, reclen + prev_reclen))
+	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
 
 	/* This might be 'dirent->d_off', but if so it will get overwritten */
@@ -336,7 +334,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, &dirent->d_type, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
-	user_access_end();
+	user_write_access_end();
 
 	buf->prev_reclen = reclen;
 	buf->current_dir = (void __user *)dirent + reclen;
@@ -344,7 +342,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	return 0;
 
 efault_end:
-	user_access_end();
+	user_write_access_end();
 efault:
 	buf->error = -EFAULT;
 	return -EFAULT;
@@ -361,9 +359,6 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	};
 	int error;
 
-	if (!access_ok(dirent, count))
-		return -EFAULT;
-
 	f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
@@ -376,7 +371,7 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		typeof(lastdirent->d_off) d_off = buf.ctx.pos;
 
 		lastdirent = (void __user *) buf.current_dir - buf.prev_reclen;
-		if (__put_user(d_off, &lastdirent->d_off))
+		if (put_user(d_off, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
@@ -424,17 +419,18 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 	}
 	buf->result++;
 	dirent = buf->dirent;
-	if (!access_ok(dirent,
+	if (!user_write_access_begin(dirent,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
 		goto efault;
-	if (	__put_user(d_ino, &dirent->d_ino) ||
-		__put_user(offset, &dirent->d_offset) ||
-		__put_user(namlen, &dirent->d_namlen) ||
-		__copy_to_user(dirent->d_name, name, namlen) ||
-		__put_user(0, dirent->d_name + namlen))
-		goto efault;
+	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(offset, &dirent->d_offset, efault_end);
+	unsafe_put_user(namlen, &dirent->d_namlen, efault_end);
+	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
+	user_write_access_end();
 	return 0;
+efault_end:
+	user_write_access_end();
 efault:
 	buf->result = -EFAULT;
 	return -EFAULT;
@@ -471,7 +467,7 @@ struct compat_linux_dirent {
 struct compat_getdents_callback {
 	struct dir_context ctx;
 	struct compat_linux_dirent __user *current_dir;
-	struct compat_linux_dirent __user *previous;
+	int prev_reclen;
 	int count;
 	int error;
 };
@@ -479,13 +475,17 @@ struct compat_getdents_callback {
 static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct compat_linux_dirent __user * dirent;
+	struct compat_linux_dirent __user *dirent, *prev;
 	struct compat_getdents_callback *buf =
 		container_of(ctx, struct compat_getdents_callback, ctx);
 	compat_ulong_t d_ino;
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
+	int prev_reclen;
 
+	buf->error = verify_dirent_name(name, namlen);
+	if (unlikely(buf->error))
+		return buf->error;
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
@@ -494,29 +494,27 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-	dirent = buf->previous;
-	if (dirent) {
-		if (signal_pending(current))
-			return -EINTR;
-		if (__put_user(offset, &dirent->d_off))
-			goto efault;
-	}
+	prev_reclen = buf->prev_reclen;
+	if (prev_reclen && signal_pending(current))
+		return -EINTR;
 	dirent = buf->current_dir;
-	if (__put_user(d_ino, &dirent->d_ino))
+	prev = (void __user *) dirent - prev_reclen;
+	if (!user_write_access_begin(prev, reclen + prev_reclen))
 		goto efault;
-	if (__put_user(reclen, &dirent->d_reclen))
-		goto efault;
-	if (copy_to_user(dirent->d_name, name, namlen))
-		goto efault;
-	if (__put_user(0, dirent->d_name + namlen))
-		goto efault;
-	if (__put_user(d_type, (char  __user *) dirent + reclen - 1))
-		goto efault;
-	buf->previous = dirent;
-	dirent = (void __user *)dirent + reclen;
-	buf->current_dir = dirent;
+
+	unsafe_put_user(offset, &prev->d_off, efault_end);
+	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
+	unsafe_put_user(d_type, (char __user *) dirent + reclen - 1, efault_end);
+	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
+	user_write_access_end();
+
+	buf->prev_reclen = reclen;
+	buf->current_dir = (void __user *)dirent + reclen;
 	buf->count -= reclen;
 	return 0;
+efault_end:
+	user_write_access_end();
 efault:
 	buf->error = -EFAULT;
 	return -EFAULT;
@@ -526,16 +524,12 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		struct compat_linux_dirent __user *, dirent, unsigned int, count)
 {
 	struct fd f;
-	struct compat_linux_dirent __user * lastdirent;
 	struct compat_getdents_callback buf = {
 		.ctx.actor = compat_filldir,
 		.current_dir = dirent,
 		.count = count
 	};
 	int error;
-
-	if (!access_ok(dirent, count))
-		return -EFAULT;
 
 	f = fdget_pos(fd);
 	if (!f.file)
@@ -544,8 +538,10 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	error = iterate_dir(f.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
-	lastdirent = buf.previous;
-	if (lastdirent) {
+	if (buf.prev_reclen) {
+		struct compat_linux_dirent __user * lastdirent;
+		lastdirent = (void __user *)buf.current_dir - buf.prev_reclen;
+
 		if (put_user(buf.ctx.pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else

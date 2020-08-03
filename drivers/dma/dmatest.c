@@ -60,9 +60,9 @@ MODULE_PARM_DESC(pq_sources,
 		"Number of p+q source buffers (default: 3)");
 
 static int timeout = 3000;
-module_param(timeout, uint, S_IRUGO | S_IWUSR);
+module_param(timeout, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
-		 "Pass 0xFFFFFFFF (4294967295) for maximum timeout");
+		 "Pass -1 for infinite timeout");
 
 static bool noverify;
 module_param(noverify, bool, S_IRUGO | S_IWUSR);
@@ -71,10 +71,6 @@ MODULE_PARM_DESC(noverify, "Disable data verification (default: verify)");
 static bool norandom;
 module_param(norandom, bool, 0644);
 MODULE_PARM_DESC(norandom, "Disable random offset setup (default: random)");
-
-static bool polled;
-module_param(polled, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(polled, "Use polling for completion instead of interrupts");
 
 static bool verbose;
 module_param(verbose, bool, S_IRUGO | S_IWUSR);
@@ -88,6 +84,10 @@ static unsigned int transfer_size;
 module_param(transfer_size, uint, 0644);
 MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: not used (0))");
 
+static bool polled;
+module_param(polled, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(polled, "Use polling for completion instead of interrupts");
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -98,7 +98,12 @@ MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default
  * @iterations:		iterations before stopping test
  * @xor_sources:	number of xor source buffers
  * @pq_sources:		number of p+q source buffers
- * @timeout:		transfer timeout in msec, 0 - 0xFFFFFFFF (4294967295)
+ * @timeout:		transfer timeout in msec, -1 for infinite timeout
+ * @noverify:		disable data verification
+ * @norandom:		disable random offset setup
+ * @alignment:		custom data address alignment taken as 2^alignment
+ * @transfer_size:	custom transfer size in bytes
+ * @polled:		use polling for completion instead of interrupts
  */
 struct dmatest_params {
 	unsigned int	buf_size;
@@ -109,7 +114,7 @@ struct dmatest_params {
 	unsigned int	iterations;
 	unsigned int	xor_sources;
 	unsigned int	pq_sources;
-	unsigned int	timeout;
+	int		timeout;
 	bool		noverify;
 	bool		norandom;
 	int		alignment;
@@ -120,7 +125,10 @@ struct dmatest_params {
 /**
  * struct dmatest_info - test information.
  * @params:		test parameters
+ * @channels:		channels under test
+ * @nr_channels:	number of channels under test
  * @lock:		access protection to the fields of this structure
+ * @did_init:		module has been initialized completely
  */
 static struct dmatest_info {
 	/* Test parameters */

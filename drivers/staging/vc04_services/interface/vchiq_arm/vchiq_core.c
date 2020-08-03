@@ -372,6 +372,10 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 			service->state->id, service->handle);
 		status = VCHIQ_SUCCESS;
 	}
+
+	if (reason != VCHIQ_MESSAGE_AVAILABLE)
+		vchiq_release_message(service->handle, header);
+
 	return status;
 }
 
@@ -1478,15 +1482,6 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 				vchiq_set_service_state(service,
 					service->sync ? VCHIQ_SRVSTATE_OPENSYNC
 					: VCHIQ_SRVSTATE_OPEN);
-			}
-
-			service->remoteport = remoteport;
-			service->client_id = ((int *)header->data)[1];
-			if (make_service_callback(service, VCHIQ_SERVICE_OPENED,
-				NULL, NULL) == VCHIQ_RETRY) {
-				/* Bail out if not ready */
-				service->remoteport = VCHIQ_PORT_FREE;
-				goto bail_not_ready;
 			}
 
 			/* Success - the message has been dealt with */
@@ -3145,6 +3140,12 @@ error_exit:
 		unlock_service(service);
 
 	return status;
+}
+
+enum vchiq_status vchiq_queue_kernel_message(unsigned int handle, void *context,
+				      size_t size)
+{
+	return vchiq_queue_message(handle, memcpy_copy_callback, context, size);
 }
 
 void

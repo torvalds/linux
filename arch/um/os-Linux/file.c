@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -289,7 +290,7 @@ int os_write_file(int fd, const void *buf, int len)
 
 int os_sync_file(int fd)
 {
-	int n = fsync(fd);
+	int n = fdatasync(fd);
 
 	if (n < 0)
 		return -errno;

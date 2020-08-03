@@ -992,23 +992,31 @@ static bool acpi_s2idle_wake(void)
 		 * wakeup is pending anyway and the SCI is not the source of
 		 * it).
 		 */
-		if (irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq)))
+		if (irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
+			pm_pr_dbg("Wakeup unrelated to ACPI SCI\n");
 			return true;
+		}
 
 		/*
 		 * If the status bit of any enabled fixed event is set, the
 		 * wakeup is regarded as valid.
 		 */
-		if (acpi_any_fixed_event_status_set())
+		if (acpi_any_fixed_event_status_set()) {
+			pm_pr_dbg("ACPI fixed event wakeup\n");
 			return true;
+		}
 
 		/* Check wakeups from drivers sharing the SCI. */
-		if (acpi_check_wakeup_handlers())
+		if (acpi_check_wakeup_handlers()) {
+			pm_pr_dbg("ACPI custom handler wakeup\n");
 			return true;
+		}
 
 		/* Check non-EC GPE wakeups and dispatch the EC GPE. */
-		if (acpi_ec_dispatch_gpe())
+		if (acpi_ec_dispatch_gpe()) {
+			pm_pr_dbg("ACPI non-EC GPE wakeup\n");
 			return true;
+		}
 
 		/*
 		 * Cancel the SCI wakeup and process all pending events in case
@@ -1027,8 +1035,10 @@ static bool acpi_s2idle_wake(void)
 		 * are pending here, they must be resulting from the processing
 		 * of EC events above or coming from somewhere else.
 		 */
-		if (pm_wakeup_pending())
+		if (pm_wakeup_pending()) {
+			pm_pr_dbg("Wakeup after ACPI Notify sync\n");
 			return true;
+		}
 
 		rearm_wake_irq(acpi_sci_irq);
 	}
@@ -1280,8 +1290,10 @@ static void acpi_sleep_hibernate_setup(void)
 		return;
 
 	acpi_get_table(ACPI_SIG_FACS, 1, (struct acpi_table_header **)&facs);
-	if (facs)
+	if (facs) {
 		s4_hardware_signature = facs->hardware_signature;
+		acpi_put_table((struct acpi_table_header *)facs);
+	}
 }
 #else /* !CONFIG_HIBERNATION */
 static inline void acpi_sleep_hibernate_setup(void) {}

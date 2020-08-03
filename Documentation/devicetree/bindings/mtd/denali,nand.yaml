@@ -54,8 +54,8 @@ properties:
         reg:  register reset
     oneOf:
       - items:
-        - const: nand
-        - const: reg
+          - const: nand
+          - const: reg
       - const: nand
       - const: reg
 

@@ -170,6 +170,7 @@
 	__SMU_DUMMY_MAP(SetSoftMinJpeg),              \
 	__SMU_DUMMY_MAP(SetHardMinFclkByFreq),        \
 	__SMU_DUMMY_MAP(DFCstateControl), \
+	__SMU_DUMMY_MAP(GmiPwrDnControl), \
 	__SMU_DUMMY_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE), \
 	__SMU_DUMMY_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE), \
 

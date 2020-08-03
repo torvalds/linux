@@ -94,3 +94,16 @@ config ARM_TEGRA_CPUIDLE
 	select ARM_CPU_SUSPEND
 	help
 	  Select this to enable cpuidle for NVIDIA Tegra20/30/114/124 SoCs.
+
+config ARM_QCOM_SPM_CPUIDLE
+	bool "CPU Idle Driver for Qualcomm Subsystem Power Manager (SPM)"
+	depends on (ARCH_QCOM || COMPILE_TEST) && !ARM64
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	select DT_IDLE_STATES
+	select QCOM_SCM
+	help
+	  Select this to enable cpuidle for Qualcomm processors.
+	  The Subsystem Power Manager (SPM) controls low power modes for the
+	  CPU and L2 cores. It interface with various system drivers to put
+	  the cores in low power modes.

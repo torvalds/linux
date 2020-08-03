@@ -13,6 +13,6 @@ properties:
   compatible:
     items:
       - enum:
-        - bitmain,sophon-edge
+          - bitmain,sophon-edge
       - const: bitmain,bm1880
 ...

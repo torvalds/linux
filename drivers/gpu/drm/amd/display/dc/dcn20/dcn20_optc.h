@@ -36,6 +36,7 @@
 	SRI(OTG_GSL_WINDOW_Y, OTG, inst),\
 	SRI(OTG_VUPDATE_KEEPOUT, OTG, inst),\
 	SRI(OTG_DSC_START_POSITION, OTG, inst),\
+	SRI(OTG_CRC_CNTL2, OTG, inst),\
 	SRI(OPTC_DATA_FORMAT_CONTROL, ODM, inst),\
 	SRI(OPTC_BYTES_PER_PIXEL, ODM, inst),\
 	SRI(OPTC_WIDTH_CONTROL, ODM, inst),\
@@ -62,6 +63,10 @@
 	SF(OTG0_OTG_GSL_CONTROL, OTG_MASTER_UPDATE_LOCK_GSL_EN, mask_sh), \
 	SF(OTG0_OTG_DSC_START_POSITION, OTG_DSC_START_POSITION_X, mask_sh), \
 	SF(OTG0_OTG_DSC_START_POSITION, OTG_DSC_START_POSITION_LINE_NUM, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DSC_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_COMBINE_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_SPLIT_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_FORMAT, mask_sh),\
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_SEG0_SRC_SEL, mask_sh),\
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_SEG1_SRC_SEL, mask_sh),\
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_NUM_OF_INPUT_SEGMENT, mask_sh),\
@@ -109,4 +114,6 @@ void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_setup_manual_trigger(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);
 bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
+bool optc2_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params);
 #endif /* __DC_OPTC_DCN20_H__ */

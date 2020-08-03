@@ -42,17 +42,6 @@
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
 
 /*
- * Valid machtype for group PMC-MSP
- */
-#define MACH_MSP4200_EVAL	0	/* PMC-Sierra MSP4200 Evaluation */
-#define MACH_MSP4200_GW		1	/* PMC-Sierra MSP4200 Gateway demo */
-#define MACH_MSP4200_FPGA	2	/* PMC-Sierra MSP4200 Emulation */
-#define MACH_MSP7120_EVAL	3	/* PMC-Sierra MSP7120 Evaluation */
-#define MACH_MSP7120_GW		4	/* PMC-Sierra MSP7120 Residential GW */
-#define MACH_MSP7120_FPGA	5	/* PMC-Sierra MSP7120 Emulation */
-#define MACH_MSP_OTHER	      255	/* PMC-Sierra unknown board type */
-
-/*
  * Valid machtype for group Mikrotik
  */
 #define MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532	*/
@@ -121,7 +110,7 @@ extern unsigned long fw_passed_dtb;
 #endif
 
 /*
- * Platform memory detection hook called by setup_arch
+ * Platform memory detection hook called by arch_mem_init()
  */
 extern void plat_mem_setup(void);
 
