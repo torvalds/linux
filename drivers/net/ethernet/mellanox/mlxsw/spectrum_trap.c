@@ -1063,10 +1063,10 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp_trap_policer_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	size_t elem_size = sizeof(struct mlxsw_sp_trap_policer_item);
-	u64 arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
-	u64 free_policers = 0;
+	size_t free_policers = 0;
 	u32 last_id;
 	int i;
 
