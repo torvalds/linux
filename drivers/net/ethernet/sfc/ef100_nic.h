@@ -26,6 +26,10 @@ struct ef100_nic_data {
 	u16 warm_boot_count;
 	u8 port_id[ETH_ALEN];
 	DECLARE_BITMAP(evq_phases, EFX_MAX_CHANNELS);
+	u16 tso_max_hdr_len;
+	u16 tso_max_payload_num_segs;
+	u16 tso_max_frames;
+	unsigned int tso_max_payload_len;
 };
 
 #define efx_ef100_has_cap(caps, flag) \

@@ -515,6 +515,208 @@ static int compare_versions(const char *a, const char *b)
 	return a_patch - b_patch;
 }
 
+enum ef100_tlv_state_machine {
+	EF100_TLV_TYPE,
+	EF100_TLV_TYPE_CONT,
+	EF100_TLV_LENGTH,
+	EF100_TLV_VALUE
+};
+
+struct ef100_tlv_state {
+	enum ef100_tlv_state_machine state;
+	u64 value;
+	u32 value_offset;
+	u16 type;
+	u8 len;
+};
+
+static int ef100_tlv_feed(struct ef100_tlv_state *state, u8 byte)
+{
+	switch (state->state) {
+	case EF100_TLV_TYPE:
+		state->type = byte & 0x7f;
+		state->state = (byte & 0x80) ? EF100_TLV_TYPE_CONT
+					     : EF100_TLV_LENGTH;
+		/* Clear ready to read in a new entry */
+		state->value = 0;
+		state->value_offset = 0;
+		return 0;
+	case EF100_TLV_TYPE_CONT:
+		state->type |= byte << 7;
+		state->state = EF100_TLV_LENGTH;
+		return 0;
+	case EF100_TLV_LENGTH:
+		state->len = byte;
+		/* We only handle TLVs that fit in a u64 */
+		if (state->len > sizeof(state->value))
+			return -EOPNOTSUPP;
+		/* len may be zero, implying a value of zero */
+		state->state = state->len ? EF100_TLV_VALUE : EF100_TLV_TYPE;
+		return 0;
+	case EF100_TLV_VALUE:
+		state->value |= ((u64)byte) << (state->value_offset * 8);
+		state->value_offset++;
+		if (state->value_offset >= state->len)
+			state->state = EF100_TLV_TYPE;
+		return 0;
+	default: /* state machine error, can't happen */
+		WARN_ON_ONCE(1);
+		return -EIO;
+	}
+}
+
+static int ef100_process_design_param(struct efx_nic *efx,
+				      const struct ef100_tlv_state *reader)
+{
+	struct ef100_nic_data *nic_data = efx->nic_data;
+
+	switch (reader->type) {
+	case ESE_EF100_DP_GZ_PAD: /* padding, skip it */
+		return 0;
+	case ESE_EF100_DP_GZ_PARTIAL_TSTAMP_SUB_NANO_BITS:
+		/* Driver doesn't support timestamping yet, so we don't care */
+		return 0;
+	case ESE_EF100_DP_GZ_EVQ_UNSOL_CREDIT_SEQ_BITS:
+		/* Driver doesn't support unsolicited-event credits yet, so
+		 * we don't care
+		 */
+		return 0;
+	case ESE_EF100_DP_GZ_NMMU_GROUP_SIZE:
+		/* Driver doesn't manage the NMMU (so we don't care) */
+		return 0;
+	case ESE_EF100_DP_GZ_RX_L4_CSUM_PROTOCOLS:
+		/* Driver uses CHECKSUM_COMPLETE, so we don't care about
+		 * protocol checksum validation
+		 */
+		return 0;
+	case ESE_EF100_DP_GZ_TSO_MAX_HDR_LEN:
+		nic_data->tso_max_hdr_len = min_t(u64, reader->value, 0xffff);
+		return 0;
+	case ESE_EF100_DP_GZ_TSO_MAX_HDR_NUM_SEGS:
+		/* We always put HDR_NUM_SEGS=1 in our TSO descriptors */
+		if (!reader->value) {
+			netif_err(efx, probe, efx->net_dev,
+				  "TSO_MAX_HDR_NUM_SEGS < 1\n");
+			return -EOPNOTSUPP;
+		}
+		return 0;
+	case ESE_EF100_DP_GZ_RXQ_SIZE_GRANULARITY:
+	case ESE_EF100_DP_GZ_TXQ_SIZE_GRANULARITY:
+		/* Our TXQ and RXQ sizes are always power-of-two and thus divisible by
+		 * EFX_MIN_DMAQ_SIZE, so we just need to check that
+		 * EFX_MIN_DMAQ_SIZE is divisible by GRANULARITY.
+		 * This is very unlikely to fail.
+		 */
+		if (EFX_MIN_DMAQ_SIZE % reader->value) {
+			netif_err(efx, probe, efx->net_dev,
+				  "%s size granularity is %llu, can't guarantee safety\n",
+				  reader->type == ESE_EF100_DP_GZ_RXQ_SIZE_GRANULARITY ? "RXQ" : "TXQ",
+				  reader->value);
+			return -EOPNOTSUPP;
+		}
+		return 0;
+	case ESE_EF100_DP_GZ_TSO_MAX_PAYLOAD_LEN:
+		nic_data->tso_max_payload_len = min_t(u64, reader->value, GSO_MAX_SIZE);
+		efx->net_dev->gso_max_size = nic_data->tso_max_payload_len;
+		return 0;
+	case ESE_EF100_DP_GZ_TSO_MAX_PAYLOAD_NUM_SEGS:
+		nic_data->tso_max_payload_num_segs = min_t(u64, reader->value, 0xffff);
+		efx->net_dev->gso_max_segs = nic_data->tso_max_payload_num_segs;
+		return 0;
+	case ESE_EF100_DP_GZ_TSO_MAX_NUM_FRAMES:
+		nic_data->tso_max_frames = min_t(u64, reader->value, 0xffff);
+		return 0;
+	case ESE_EF100_DP_GZ_COMPAT:
+		if (reader->value) {
+			netif_err(efx, probe, efx->net_dev,
+				  "DP_COMPAT has unknown bits %#llx, driver not compatible with this hw\n",
+				  reader->value);
+			return -EOPNOTSUPP;
+		}
+		return 0;
+	case ESE_EF100_DP_GZ_MEM2MEM_MAX_LEN:
+		/* Driver doesn't use mem2mem transfers */
+		return 0;
+	case ESE_EF100_DP_GZ_EVQ_TIMER_TICK_NANOS:
+		/* Driver doesn't currently use EVQ_TIMER */
+		return 0;
+	case ESE_EF100_DP_GZ_NMMU_PAGE_SIZES:
+		/* Driver doesn't manage the NMMU (so we don't care) */
+		return 0;
+	case ESE_EF100_DP_GZ_VI_STRIDES:
+		/* We never try to set the VI stride, and we don't rely on
+		 * being able to find VIs past VI 0 until after we've learned
+		 * the current stride from MC_CMD_GET_CAPABILITIES.
+		 * So the value of this shouldn't matter.
+		 */
+		if (reader->value != ESE_EF100_DP_GZ_VI_STRIDES_DEFAULT)
+			netif_dbg(efx, probe, efx->net_dev,
+				  "NIC has other than default VI_STRIDES (mask "
+				  "%#llx), early probing might use wrong one\n",
+				  reader->value);
+		return 0;
+	case ESE_EF100_DP_GZ_RX_MAX_RUNT:
+		/* Driver doesn't look at L2_STATUS:LEN_ERR bit, so we don't
+		 * care whether it indicates runt or overlength for any given
+		 * packet, so we don't care about this parameter.
+		 */
+		return 0;
+	default:
+		/* Host interface says "Drivers should ignore design parameters
+		 * that they do not recognise."
+		 */
+		netif_dbg(efx, probe, efx->net_dev,
+			  "Ignoring unrecognised design parameter %u\n",
+			  reader->type);
+		return 0;
+	}
+}
+
+static int ef100_check_design_params(struct efx_nic *efx)
+{
+	struct ef100_tlv_state reader = {};
+	u32 total_len, offset = 0;
+	efx_dword_t reg;
+	int rc = 0, i;
+	u32 data;
+
+	efx_readd(efx, &reg, ER_GZ_PARAMS_TLV_LEN);
+	total_len = EFX_DWORD_FIELD(reg, EFX_DWORD_0);
+	netif_dbg(efx, probe, efx->net_dev, "%u bytes of design parameters\n",
+		  total_len);
+	while (offset < total_len) {
+		efx_readd(efx, &reg, ER_GZ_PARAMS_TLV + offset);
+		data = EFX_DWORD_FIELD(reg, EFX_DWORD_0);
+		for (i = 0; i < sizeof(data); i++) {
+			rc = ef100_tlv_feed(&reader, data);
+			/* Got a complete value? */
+			if (!rc && reader.state == EF100_TLV_TYPE)
+				rc = ef100_process_design_param(efx, &reader);
+			if (rc)
+				goto out;
+			data >>= 8;
+			offset++;
+		}
+	}
+	/* Check we didn't end halfway through a TLV entry, which could either
+	 * mean that the TLV stream is truncated or just that it's corrupted
+	 * and our state machine is out of sync.
+	 */
+	if (reader.state != EF100_TLV_TYPE) {
+		if (reader.state == EF100_TLV_TYPE_CONT)
+			netif_err(efx, probe, efx->net_dev,
+				  "truncated design parameter (incomplete type %u)\n",
+				  reader.type);
+		else
+			netif_err(efx, probe, efx->net_dev,
+				  "truncated design parameter %u\n",
+				  reader.type);
+		rc = -EIO;
+	}
+out:
+	return rc;
+}
+
 /*	NIC probe and remove
  */
 static int ef100_probe_main(struct efx_nic *efx)
@@ -535,6 +737,20 @@ static int ef100_probe_main(struct efx_nic *efx)
 	nic_data->efx = efx;
 	net_dev->features |= efx->type->offload_features;
 	net_dev->hw_features |= efx->type->offload_features;
+
+	/* Populate design-parameter defaults */
+	nic_data->tso_max_hdr_len = ESE_EF100_DP_GZ_TSO_MAX_HDR_LEN_DEFAULT;
+	nic_data->tso_max_frames = ESE_EF100_DP_GZ_TSO_MAX_NUM_FRAMES_DEFAULT;
+	nic_data->tso_max_payload_num_segs = ESE_EF100_DP_GZ_TSO_MAX_PAYLOAD_NUM_SEGS_DEFAULT;
+	nic_data->tso_max_payload_len = ESE_EF100_DP_GZ_TSO_MAX_PAYLOAD_LEN_DEFAULT;
+	net_dev->gso_max_segs = ESE_EF100_DP_GZ_TSO_MAX_HDR_NUM_SEGS_DEFAULT;
+	/* Read design parameters */
+	rc = ef100_check_design_params(efx);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Unsupported design parameters\n");
+		goto fail;
+	}
 
 	/* we assume later that we can copy from this buffer in dwords */
 	BUILD_BUG_ON(MCDI_CTL_SDU_LEN_MAX_V2 % 4);
