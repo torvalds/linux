@@ -6679,8 +6679,14 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		}
 	} else if (lpfc_is_link_up(phba) && (phba->hba_flag & HBA_FCOE_MODE)) {
 		switch (phba->fc_linkspeed) {
+		case LPFC_ASYNC_LINK_SPEED_1GBPS:
+			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
+			break;
 		case LPFC_ASYNC_LINK_SPEED_10GBPS:
 			fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_20GBPS:
+			fc_host_speed(shost) = FC_PORTSPEED_20GBIT;
 			break;
 		case LPFC_ASYNC_LINK_SPEED_25GBPS:
 			fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
