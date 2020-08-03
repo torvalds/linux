@@ -1950,8 +1950,7 @@ static int snd_echo_create(struct snd_card *card,
 		snd_echo_free(chip);
 		return -EBUSY;
 	}
-	chip->dsp_registers = (volatile u32 __iomem *)
-		ioremap(chip->dsp_registers_phys, sz);
+	chip->dsp_registers = ioremap(chip->dsp_registers_phys, sz);
 	if (!chip->dsp_registers) {
 		dev_err(chip->card->dev, "ioremap failed\n");
 		snd_echo_free(chip);
