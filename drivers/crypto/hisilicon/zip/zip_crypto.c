@@ -158,13 +158,13 @@ static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *ctx)
 	hisi_qm_release_qp(ctx->qp);
 }
 
-static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type)
+static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int node)
 {
 	struct hisi_qp *qps[HZIP_CTX_Q_NUM] = { NULL };
 	struct hisi_zip *hisi_zip;
 	int ret, i, j;
 
-	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM);
+	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, node);
 	if (ret) {
 		pr_err("Can not create zip qps!\n");
 		return -ENODEV;
@@ -379,7 +379,7 @@ static int hisi_zip_acomp_init(struct crypto_acomp *tfm)
 	struct hisi_zip_ctx *ctx = crypto_tfm_ctx(&tfm->base);
 	int ret;
 
-	ret = hisi_zip_ctx_init(ctx, COMP_NAME_TO_TYPE(alg_name));
+	ret = hisi_zip_ctx_init(ctx, COMP_NAME_TO_TYPE(alg_name), tfm->base.node);
 	if (ret)
 		return ret;
 

@@ -469,7 +469,7 @@ static int caam_get_era(struct caam_ctrl __iomem *ctrl)
  * pipeline to a depth of 1 (from it's default of 4) to preclude this situation
  * from occurring.
  */
-static void handle_imx6_err005766(u32 *mcr)
+static void handle_imx6_err005766(u32 __iomem *mcr)
 {
 	if (of_machine_is_compatible("fsl,imx6q") ||
 	    of_machine_is_compatible("fsl,imx6dl") ||
@@ -527,11 +527,21 @@ static const struct caam_imx_data caam_imx6ul_data = {
 	.num_clks = ARRAY_SIZE(caam_imx6ul_clks),
 };
 
+static const struct clk_bulk_data caam_vf610_clks[] = {
+	{ .id = "ipg" },
+};
+
+static const struct caam_imx_data caam_vf610_data = {
+	.clks = caam_vf610_clks,
+	.num_clks = ARRAY_SIZE(caam_vf610_clks),
+};
+
 static const struct soc_device_attribute caam_imx_soc_table[] = {
 	{ .soc_id = "i.MX6UL", .data = &caam_imx6ul_data },
 	{ .soc_id = "i.MX6*",  .data = &caam_imx6_data },
 	{ .soc_id = "i.MX7*",  .data = &caam_imx7_data },
 	{ .soc_id = "i.MX8M*", .data = &caam_imx7_data },
+	{ .soc_id = "VF*",     .data = &caam_vf610_data },
 	{ .family = "Freescale i.MX" },
 	{ /* sentinel */ }
 };
