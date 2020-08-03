@@ -45,6 +45,7 @@ static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 
 struct dsa_loop_port {
 	struct dsa_loop_mib_entry mib[__DSA_LOOP_CNT_MAX];
+	u16 pvid;
 };
 
 #define DSA_LOOP_VLANS	5
@@ -55,7 +56,6 @@ struct dsa_loop_priv {
 	struct dsa_loop_vlan vlans[DSA_LOOP_VLANS];
 	struct net_device *netdev;
 	struct dsa_loop_port ports[DSA_MAX_PORTS];
-	u16 pvid;
 };
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
@@ -224,7 +224,7 @@ static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
 	}
 
 	if (pvid)
-		ps->pvid = vid;
+		ps->ports[port].pvid = vid;
 }
 
 static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
@@ -234,7 +234,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid, pvid = ps->pvid;
+	u16 vid, pvid = ps->ports[port].pvid;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
@@ -252,7 +252,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
 			__func__, port, vid, untagged ? "un" : "", pvid);
 	}
-	ps->pvid = pvid;
+	ps->ports[port].pvid = pvid;
 
 	return 0;
 }
