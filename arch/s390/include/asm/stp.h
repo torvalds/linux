@@ -6,6 +6,8 @@
 #ifndef __S390_STP_H
 #define __S390_STP_H
 
+#include <linux/compiler.h>
+
 /* notifier for syncs */
 extern struct atomic_notifier_head s390_epoch_delta_notifier;
 
@@ -16,7 +18,7 @@ struct stp_irq_parm {
 	unsigned int lac	: 1;	/* Link availability change */
 	unsigned int tcpc	: 1;	/* Time control parameter change */
 	unsigned int _pad2	: 15;
-} __attribute__ ((packed));
+} __packed;
 
 #define STP_OP_SYNC	1
 #define STP_OP_CTRL	3
@@ -42,7 +44,7 @@ struct stp_sstpi {
 	unsigned int rsvd5;
 	unsigned int todoff[4];
 	unsigned int rsvd6[48];
-} __attribute__ ((packed));
+} __packed;
 
 /* Functions needed by the machine check handler */
 int stp_sync_check(void);
