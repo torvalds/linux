@@ -14,46 +14,16 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/if_bridge.h>
+#include <linux/dsa/loop.h>
 #include <net/dsa.h>
 
 #include "dsa_loop.h"
-
-struct dsa_loop_vlan {
-	u16 members;
-	u16 untagged;
-};
-
-struct dsa_loop_mib_entry {
-	char name[ETH_GSTRING_LEN];
-	unsigned long val;
-};
-
-enum dsa_loop_mib_counters {
-	DSA_LOOP_PHY_READ_OK,
-	DSA_LOOP_PHY_READ_ERR,
-	DSA_LOOP_PHY_WRITE_OK,
-	DSA_LOOP_PHY_WRITE_ERR,
-	__DSA_LOOP_CNT_MAX,
-};
 
 static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 	[DSA_LOOP_PHY_READ_OK]	= { "phy_read_ok", },
 	[DSA_LOOP_PHY_READ_ERR]	= { "phy_read_err", },
 	[DSA_LOOP_PHY_WRITE_OK] = { "phy_write_ok", },
 	[DSA_LOOP_PHY_WRITE_ERR] = { "phy_write_err", },
-};
-
-struct dsa_loop_port {
-	struct dsa_loop_mib_entry mib[__DSA_LOOP_CNT_MAX];
-	u16 pvid;
-};
-
-struct dsa_loop_priv {
-	struct mii_bus	*bus;
-	unsigned int	port_base;
-	struct dsa_loop_vlan vlans[VLAN_N_VID];
-	struct net_device *netdev;
-	struct dsa_loop_port ports[DSA_MAX_PORTS];
 };
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
