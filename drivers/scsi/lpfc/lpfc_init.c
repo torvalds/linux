@@ -8637,7 +8637,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-					"2005 Reducing Queues: "
+					"2005 Reducing Queues - "
+					"FW resource limitation: "
 					"WQ %d CQ %d EQ %d: min %d: "
 					"IRQ %d HDWQ %d\n",
 					phba->sli4_hba.max_cfg_param.max_wq,

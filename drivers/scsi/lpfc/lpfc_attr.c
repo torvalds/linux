@@ -7412,12 +7412,26 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 void
 lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 {
-	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu)
+	int  logit = 0;
+
+	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu) {
 		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_irq_chann > phba->sli4_hba.num_present_cpu)
+		logit = 1;
+	}
+	if (phba->cfg_irq_chann > phba->sli4_hba.num_present_cpu) {
 		phba->cfg_irq_chann = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_irq_chann > phba->cfg_hdw_queue)
+		logit = 1;
+	}
+	if (phba->cfg_irq_chann > phba->cfg_hdw_queue) {
 		phba->cfg_irq_chann = phba->cfg_hdw_queue;
+		logit = 1;
+	}
+	if (logit)
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2006 Reducing Queues - CPU limitation: "
+				"IRQ %d HDWQ %d\n",
+				phba->cfg_irq_chann,
+				phba->cfg_hdw_queue);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME &&
 	    phba->nvmet_support) {
