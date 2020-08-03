@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/plist.h>
 #include <linux/hrtimer.h>
+#include <linux/irqflags.h>
 #include <linux/seccomp.h>
 #include <linux/nodemask.h>
 #include <linux/rcupdate.h>
@@ -980,19 +981,9 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-	unsigned int			irq_events;
+	struct irqtrace_events		irqtrace;
 	unsigned int			hardirq_threaded;
-	unsigned long			hardirq_enable_ip;
-	unsigned long			hardirq_disable_ip;
-	unsigned int			hardirq_enable_event;
-	unsigned int			hardirq_disable_event;
-	int				hardirqs_enabled;
-	int				hardirq_context;
 	u64				hardirq_chain_key;
-	unsigned long			softirq_disable_ip;
-	unsigned long			softirq_enable_ip;
-	unsigned int			softirq_disable_event;
-	unsigned int			softirq_enable_event;
 	int				softirqs_enabled;
 	int				softirq_context;
 	int				irq_config;
@@ -1193,8 +1184,12 @@ struct task_struct {
 #ifdef CONFIG_KASAN
 	unsigned int			kasan_depth;
 #endif
+
 #ifdef CONFIG_KCSAN
 	struct kcsan_ctx		kcsan_ctx;
+#ifdef CONFIG_TRACE_IRQFLAGS
+	struct irqtrace_events		kcsan_save_irqtrace;
+#endif
 #endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

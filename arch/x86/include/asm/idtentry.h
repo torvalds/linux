@@ -13,8 +13,15 @@
 void idtentry_enter_user(struct pt_regs *regs);
 void idtentry_exit_user(struct pt_regs *regs);
 
-bool idtentry_enter_cond_rcu(struct pt_regs *regs);
-void idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit);
+typedef struct idtentry_state {
+	bool exit_rcu;
+} idtentry_state_t;
+
+idtentry_state_t idtentry_enter(struct pt_regs *regs);
+void idtentry_exit(struct pt_regs *regs, idtentry_state_t state);
+
+bool idtentry_enter_nmi(struct pt_regs *regs);
+void idtentry_exit_nmi(struct pt_regs *regs, bool irq_state);
 
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
@@ -54,12 +61,12 @@ static __always_inline void __##func(struct pt_regs *regs);		\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__##func (regs);						\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
@@ -101,12 +108,12 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 __visible noinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__##func (regs, error_code);					\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs,		\
@@ -199,7 +206,7 @@ static __always_inline void __##func(struct pt_regs *regs, u8 vector);	\
 __visible noinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	irq_enter_rcu();						\
@@ -207,7 +214,7 @@ __visible noinstr void func(struct pt_regs *regs,			\
 	__##func (regs, (u8)error_code);				\
 	irq_exit_rcu();							\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs, u8 vector)
@@ -241,7 +248,7 @@ static void __##func(struct pt_regs *regs);				\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	irq_enter_rcu();						\
@@ -249,7 +256,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	run_on_irqstack_cond(__##func, regs, regs);			\
 	irq_exit_rcu();							\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static noinline void __##func(struct pt_regs *regs)
@@ -270,7 +277,7 @@ static __always_inline void __##func(struct pt_regs *regs);		\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+	idtentry_state_t state = idtentry_enter(regs);			\
 									\
 	instrumentation_begin();					\
 	__irq_enter_raw();						\
@@ -278,7 +285,7 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	__##func (regs);						\
 	__irq_exit_raw();						\
 	instrumentation_end();						\
-	idtentry_exit_cond_rcu(regs, rcu_exit);				\
+	idtentry_exit(regs, state);					\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
