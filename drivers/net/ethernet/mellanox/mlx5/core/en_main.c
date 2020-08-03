@@ -396,7 +396,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq_xdp_ix += params->num_channels * MLX5E_RQ_GROUP_XSK;
 	err = xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq_xdp_ix);
 	if (err < 0)
-		goto err_rq_wq_destroy;
+		goto err_rq_xdp_prog;
 
 	rq->buff.map_dir = params->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 	rq->buff.headroom = mlx5e_get_rq_headroom(mdev, params, xsk);
@@ -407,7 +407,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		err = mlx5_wq_ll_create(mdev, &rqp->wq, rqc_wq, &rq->mpwqe.wq,
 					&rq->wq_ctrl);
 		if (err)
-			goto err_rq_wq_destroy;
+			goto err_rq_xdp;
 
 		rq->mpwqe.wq.db = &rq->mpwqe.wq.db[MLX5_RCV_DBR];
 
@@ -429,13 +429,13 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
 		if (err)
-			goto err_free;
+			goto err_rq_mkey;
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		err = mlx5_wq_cyc_create(mdev, &rqp->wq, rqc_wq, &rq->wqe.wq,
 					 &rq->wq_ctrl);
 		if (err)
-			goto err_rq_wq_destroy;
+			goto err_rq_xdp;
 
 		rq->wqe.wq.db = &rq->wqe.wq.db[MLX5_RCV_DBR];
 
@@ -450,19 +450,19 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 		if (!rq->wqe.frags) {
 			err = -ENOMEM;
-			goto err_free;
+			goto err_rq_wq_destroy;
 		}
 
 		err = mlx5e_init_di_list(rq, wq_sz, c->cpu);
 		if (err)
-			goto err_free;
+			goto err_rq_frags;
 
 		rq->mkey_be = c->mkey_be;
 	}
 
 	err = mlx5e_rq_set_handlers(rq, params, xsk);
 	if (err)
-		goto err_free;
+		goto err_free_by_rq_type;
 
 	if (xsk) {
 		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
@@ -486,13 +486,13 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		if (IS_ERR(rq->page_pool)) {
 			err = PTR_ERR(rq->page_pool);
 			rq->page_pool = NULL;
-			goto err_free;
+			goto err_free_by_rq_type;
 		}
 		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 						 MEM_TYPE_PAGE_POOL, rq->page_pool);
 	}
 	if (err)
-		goto err_free;
+		goto err_free_by_rq_type;
 
 	for (i = 0; i < wq_sz; i++) {
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
@@ -542,23 +542,25 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	return 0;
 
-err_free:
+err_free_by_rq_type:
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		kvfree(rq->mpwqe.info);
+err_rq_mkey:
 		mlx5_core_destroy_mkey(mdev, &rq->umr_mkey);
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
-		kvfree(rq->wqe.frags);
 		mlx5e_free_di_list(rq);
+err_rq_frags:
+		kvfree(rq->wqe.frags);
 	}
-
 err_rq_wq_destroy:
+	mlx5_wq_destroy(&rq->wq_ctrl);
+err_rq_xdp:
+	xdp_rxq_info_unreg(&rq->xdp_rxq);
+err_rq_xdp_prog:
 	if (params->xdp_prog)
 		bpf_prog_put(params->xdp_prog);
-	xdp_rxq_info_unreg(&rq->xdp_rxq);
-	page_pool_destroy(rq->page_pool);
-	mlx5_wq_destroy(&rq->wq_ctrl);
 
 	return err;
 }
