@@ -79,7 +79,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 2);
+	__uint(max_entries, 3);
 	__type(key, int);
 	__type(value, int);
 } sock_skb_opts SEC(".maps");
@@ -94,6 +94,12 @@ struct {
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
 {
+	int *f, two = 2;
+
+	f = bpf_map_lookup_elem(&sock_skb_opts, &two);
+	if (f && *f) {
+		return *f;
+	}
 	return skb->len;
 }
 

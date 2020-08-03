@@ -2,6 +2,7 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 
+#include <asm/cpu.h>
 #include <asm/cpufeature.h>
 
 #include "cpu.h"

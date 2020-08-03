@@ -451,7 +451,7 @@ The bridge driver also has some helper functions it can use:
 					"module_foo", "chipid", 0x36, NULL);
 
 This loads the given module (can be ``NULL`` if no module needs to be loaded)
-and calls :c:func:`i2c_new_device` with the given ``i2c_adapter`` and
+and calls :c:func:`i2c_new_client_device` with the given ``i2c_adapter`` and
 chip/address arguments. If all goes well, then it registers the subdev with
 the v4l2_device.
 

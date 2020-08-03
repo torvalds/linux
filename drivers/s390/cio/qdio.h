@@ -182,10 +182,9 @@ enum qdio_irq_poll_states {
 };
 
 struct qdio_input_q {
-	/* first ACK'ed buffer */
-	int ack_start;
-	/* how many SBALs are acknowledged */
-	int ack_count;
+	/* Batch of SBALs that we processed while polling the queue: */
+	unsigned int batch_start;
+	unsigned int batch_count;
 	/* last time of noticing incoming data */
 	u64 timestamp;
 };

@@ -110,8 +110,8 @@ static int qstat_show(struct seq_file *m, void *v)
 	seq_printf(m, "nr_used: %d  ftc: %d\n",
 		   atomic_read(&q->nr_buf_used), q->first_to_check);
 	if (q->is_input_q) {
-		seq_printf(m, "ack start: %d  ack count: %d\n",
-			   q->u.in.ack_start, q->u.in.ack_count);
+		seq_printf(m, "batch start: %u  batch count: %u\n",
+			   q->u.in.batch_start, q->u.in.batch_count);
 		seq_printf(m, "DSCI: %x   IRQs disabled: %u\n",
 			   *(u8 *)q->irq_ptr->dsci,
 			   test_bit(QDIO_IRQ_DISABLED,

@@ -1,14 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - Max stack tracer
+# requires: stack_trace stack_trace_filter
 # Test the basic function of max-stack usage tracing
-
-if [ ! -f stack_trace ]; then
-  echo "Max stack tracer is not supported - please make CONFIG_STACK_TRACER=y"
-  exit_unsupported
-fi
-
-check_filter_file stack_trace_filter
 
 echo > stack_trace_filter
 echo 0 > stack_max_size

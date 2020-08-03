@@ -3091,6 +3091,8 @@ static const struct pci_device_id lan743x_pcidev_tbl[] = {
 	{ 0, }
 };
 
+MODULE_DEVICE_TABLE(pci, lan743x_pcidev_tbl);
+
 static struct pci_driver lan743x_pcidev_driver = {
 	.name     = DRIVER_NAME,
 	.id_table = lan743x_pcidev_tbl,

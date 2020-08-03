@@ -104,7 +104,7 @@ struct ibft_control {
 	u16 tgt0_off;
 	u16 nic1_off;
 	u16 tgt1_off;
-	u16 expansion[0];
+	u16 expansion[];
 } __attribute__((__packed__));
 
 struct ibft_initiator {

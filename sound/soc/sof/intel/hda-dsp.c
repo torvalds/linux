@@ -408,11 +408,13 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		value = SOF_HDA_VS_D0I3C_I3;
 
 		/*
-		 * Trace DMA is disabled by default when the DSP enters D0I3.
-		 * But it can be kept enabled when the DSP enters D0I3 while the
-		 * system is in S0 for debug.
+		 * Trace DMA need to be disabled when the DSP enters
+		 * D0I3 for S0Ix suspend, but it can be kept enabled
+		 * when the DSP enters D0I3 while the system is in S0
+		 * for debug purpose.
 		 */
-		if (hda_enable_trace_D0I3_S0 &&
+		if (!sdev->dtrace_is_supported ||
+		    !hda_enable_trace_D0I3_S0 ||
 		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
 			flags = HDA_PM_NO_DMA_TRACE;
 	} else {
@@ -696,11 +698,34 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 		.state = SOF_DSP_PM_D0,
 		.substate = SOF_HDA_DSP_PM_D0I0,
 	};
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_ext_link *hlink = NULL;
+#endif
 	int ret;
 
 	/* resume from D0I3 */
 	if (sdev->dsp_power_state.state == SOF_DSP_PM_D0) {
 		hda_codec_i915_display_power(sdev, true);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+		/* power up links that were active before suspend */
+		list_for_each_entry(hlink, &bus->hlink_list, list) {
+			if (hlink->ref_count) {
+				ret = snd_hdac_ext_bus_link_power_up(hlink);
+				if (ret < 0) {
+					dev_dbg(sdev->dev,
+						"error %x in %s: failed to power up links",
+						ret, __func__);
+					return ret;
+				}
+			}
+		}
+
+		/* set up CORB/RIRB buffers if was on before suspend */
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_init_cmd_io(bus);
+#endif
 
 		/* Set DSP power state */
 		ret = snd_sof_dsp_set_power_state(sdev, &target_state);
@@ -808,6 +833,21 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 						HDA_VS_INTEL_EM2_L1SEN,
 						HDA_VS_INTEL_EM2_L1SEN);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+		/* stop the CORB/RIRB DMA if it is On */
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(bus);
+
+		/* no link can be powered in s0ix state */
+		ret = snd_hdac_ext_bus_link_power_down_all(bus);
+		if (ret < 0) {
+			dev_dbg(sdev->dev,
+				"error %d in %s: failed to power down links",
+				ret, __func__);
+			return ret;
+		}
+#endif
+
 		/* enable the system waking up via IPC IRQ */
 		enable_irq_wake(pci->irq);
 		pci_save_state(pci);
@@ -846,7 +886,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 		 * explicitly during suspend.
 		 */
 		if (stream->link_substream) {
-			rtd = snd_pcm_substream_chip(stream->link_substream);
+			rtd = asoc_substream_to_rtd(stream->link_substream);
 			name = asoc_rtd_to_codec(rtd, 0)->component->name;
 			link = snd_hdac_ext_bus_get_link(bus, name);
 			if (!link)

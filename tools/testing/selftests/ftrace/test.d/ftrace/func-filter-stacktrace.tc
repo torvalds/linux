@@ -1,9 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - stacktrace filter command
+# requires: set_ftrace_filter
 # flags: instance
-
-check_filter_file set_ftrace_filter
 
 echo _do_fork:stacktrace >> set_ftrace_filter
 

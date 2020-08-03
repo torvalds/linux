@@ -648,7 +648,7 @@ static void afs_do_lookup_success(struct afs_operation *op)
 			vp = &op->file[0];
 			abort_code = vp->scb.status.abort_code;
 			if (abort_code != 0) {
-				op->abort_code = abort_code;
+				op->ac.abort_code = abort_code;
 				op->error = afs_abort_to_error(abort_code);
 			}
 			break;
@@ -696,10 +696,11 @@ static const struct afs_operation_ops afs_inline_bulk_status_operation = {
 	.success	= afs_do_lookup_success,
 };
 
-static const struct afs_operation_ops afs_fetch_status_operation = {
+static const struct afs_operation_ops afs_lookup_fetch_status_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_status,
 	.issue_yfs_rpc	= yfs_fs_fetch_status,
 	.success	= afs_do_lookup_success,
+	.aborted	= afs_check_for_remote_deletion,
 };
 
 /*
@@ -844,7 +845,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		 * to FS.FetchStatus for op->file[1].
 		 */
 		op->fetch_status.which = 1;
-		op->ops = &afs_fetch_status_operation;
+		op->ops = &afs_lookup_fetch_status_operation;
 		afs_begin_vnode_operation(op);
 		afs_wait_for_operation(op);
 	}
@@ -1236,6 +1237,17 @@ void afs_d_release(struct dentry *dentry)
 	_enter("%pd", dentry);
 }
 
+void afs_check_for_remote_deletion(struct afs_operation *op)
+{
+	struct afs_vnode *vnode = op->file[0].vnode;
+
+	switch (op->ac.abort_code) {
+	case VNOVNODE:
+		set_bit(AFS_VNODE_DELETED, &vnode->flags);
+		afs_break_callback(vnode, afs_cb_break_for_deleted);
+	}
+}
+
 /*
  * Create a new inode for create/mkdir/symlink
  */
@@ -1268,7 +1280,7 @@ static void afs_vnode_new_inode(struct afs_operation *op)
 static void afs_create_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, op->file[0].vnode);
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
 	afs_vnode_new_inode(op);
@@ -1302,6 +1314,7 @@ static const struct afs_operation_ops afs_mkdir_operation = {
 	.issue_afs_rpc	= afs_fs_make_dir,
 	.issue_yfs_rpc	= yfs_fs_make_dir,
 	.success	= afs_create_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_create_edit_dir,
 	.put		= afs_create_put,
 };
@@ -1325,6 +1338,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 	op->dentry	= dentry;
 	op->create.mode	= S_IFDIR | mode;
 	op->create.reason = afs_edit_dir_for_mkdir;
@@ -1350,7 +1364,7 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 static void afs_rmdir_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, op->file[0].vnode);
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
 }
@@ -1382,6 +1396,7 @@ static const struct afs_operation_ops afs_rmdir_operation = {
 	.issue_afs_rpc	= afs_fs_remove_dir,
 	.issue_yfs_rpc	= yfs_fs_remove_dir,
 	.success	= afs_rmdir_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_rmdir_edit_dir,
 	.put		= afs_rmdir_put,
 };
@@ -1404,6 +1419,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
 	op->ops		= &afs_rmdir_operation;
@@ -1479,7 +1495,8 @@ static void afs_dir_remove_link(struct afs_operation *op)
 static void afs_unlink_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, op->file[0].vnode);
+	op->ctime = op->file[0].scb.status.mtime_client;
+	afs_check_dir_conflict(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[1]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
@@ -1511,6 +1528,7 @@ static const struct afs_operation_ops afs_unlink_operation = {
 	.issue_afs_rpc	= afs_fs_remove_file,
 	.issue_yfs_rpc	= yfs_fs_remove_file,
 	.success	= afs_unlink_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_unlink_edit_dir,
 	.put		= afs_unlink_put,
 };
@@ -1537,6 +1555,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	/* Try to make sure we have a callback promise on the victim. */
 	ret = afs_validate(vnode, op->key);
@@ -1561,9 +1580,25 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 
 	op->file[1].vnode = vnode;
+	op->file[1].update_ctime = true;
+	op->file[1].op_unlinked = true;
 	op->dentry	= dentry;
 	op->ops		= &afs_unlink_operation;
-	return afs_do_sync_operation(op);
+	afs_begin_vnode_operation(op);
+	afs_wait_for_operation(op);
+
+	/* If there was a conflict with a third party, check the status of the
+	 * unlinked vnode.
+	 */
+	if (op->error == 0 && (op->flags & AFS_OPERATION_DIR_CONFLICT)) {
+		op->file[1].update_ctime = false;
+		op->fetch_status.which = 1;
+		op->ops = &afs_fetch_status_operation;
+		afs_begin_vnode_operation(op);
+		afs_wait_for_operation(op);
+	}
+
+	return afs_put_operation(op);
 
 error:
 	return afs_put_operation(op);
@@ -1573,6 +1608,7 @@ static const struct afs_operation_ops afs_create_operation = {
 	.issue_afs_rpc	= afs_fs_create_file,
 	.issue_yfs_rpc	= yfs_fs_create_file,
 	.success	= afs_create_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_create_edit_dir,
 	.put		= afs_create_put,
 };
@@ -1601,6 +1637,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
 	op->create.mode	= S_IFREG | mode;
@@ -1620,6 +1657,7 @@ static void afs_link_success(struct afs_operation *op)
 	struct afs_vnode_param *vp = &op->file[1];
 
 	_enter("op=%08x", op->debug_id);
+	op->ctime = dvp->scb.status.mtime_client;
 	afs_vnode_commit_status(op, dvp);
 	afs_vnode_commit_status(op, vp);
 	afs_update_dentry_version(op, dvp, op->dentry);
@@ -1640,6 +1678,7 @@ static const struct afs_operation_ops afs_link_operation = {
 	.issue_afs_rpc	= afs_fs_link,
 	.issue_yfs_rpc	= yfs_fs_link,
 	.success	= afs_link_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_create_edit_dir,
 	.put		= afs_link_put,
 };
@@ -1672,6 +1711,8 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, vnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry		= dentry;
 	op->dentry_2		= from;
@@ -1689,6 +1730,7 @@ static const struct afs_operation_ops afs_symlink_operation = {
 	.issue_afs_rpc	= afs_fs_symlink,
 	.issue_yfs_rpc	= yfs_fs_symlink,
 	.success	= afs_create_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_create_edit_dir,
 	.put		= afs_create_put,
 };
@@ -1740,9 +1782,13 @@ static void afs_rename_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
 
+	op->ctime = op->file[0].scb.status.mtime_client;
+	afs_check_dir_conflict(op, &op->file[1]);
 	afs_vnode_commit_status(op, &op->file[0]);
-	if (op->file[1].vnode != op->file[0].vnode)
+	if (op->file[1].vnode != op->file[0].vnode) {
+		op->ctime = op->file[1].scb.status.mtime_client;
 		afs_vnode_commit_status(op, &op->file[1]);
+	}
 }
 
 static void afs_rename_edit_dir(struct afs_operation *op)
@@ -1860,6 +1906,8 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	afs_op_set_vnode(op, 1, new_dvnode); /* May be same as orig_dvnode */
 	op->file[0].dv_delta = 1;
 	op->file[1].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry		= old_dentry;
 	op->dentry_2		= new_dentry;

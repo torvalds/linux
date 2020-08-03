@@ -18,9 +18,9 @@ description: |
   microphone bias or supply voltage generation.
 
   Specifications can be found at:
-    http://www.ti.com/lit/ds/symlink/tlv320adc3140.pdf
-    http://www.ti.com/lit/ds/symlink/tlv320adc5140.pdf
-    http://www.ti.com/lit/ds/symlink/tlv320adc6140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc3140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc5140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc6140.pdf
 
 properties:
   compatible:
@@ -108,6 +108,32 @@ properties:
       maximum: 7
     default: [0, 0, 0, 0]
 
+patternProperties:
+ '^ti,gpo-config-[1-4]$':
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+       Defines the configuration and output driver for the general purpose
+       output pins (GPO).  These values are pairs, the first value is for the
+       configuration type and the second value is for the output drive type.
+       The array is defined as <GPO_CFG GPO_DRV>
+
+       GPO output configuration can be one of the following:
+
+       0 - (default) disabled
+       1 - GPOX is configured as a general-purpose output (GPO)
+       2 - GPOX is configured as a device interrupt output (IRQ)
+       3 - GPOX is configured as a secondary ASI output (SDOUT2)
+       4 - GPOX is configured as a PDM clock output (PDMCLK)
+
+       GPO output drive configuration for the GPO pins can be one of the following:
+
+       0d - (default) Hi-Z output
+       1d - Drive active low and active high
+       2d - Drive active low and weak high
+       3d - Drive active low and Hi-Z
+       4d - Drive weak low and active high
+       5d - Drive Hi-Z and active high
+
 required:
   - compatible
   - reg
@@ -124,6 +150,8 @@ examples:
         ti,mic-bias-source = <6>;
         ti,pdm-edge-select = <0 1 0 1>;
         ti,gpi-config = <4 5 6 7>;
+        ti,gpo-config-1 = <0 0>;
+        ti,gpo-config-2 = <0 0>;
         reset-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
       };
     };

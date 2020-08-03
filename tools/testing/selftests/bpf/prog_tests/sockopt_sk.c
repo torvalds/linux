@@ -13,6 +13,7 @@ static int getsetsockopt(void)
 		char cc[16]; /* TCP_CA_NAME_MAX */
 	} buf = {};
 	socklen_t optlen;
+	char *big_buf = NULL;
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -22,24 +23,31 @@ static int getsetsockopt(void)
 
 	/* IP_TOS - BPF bypass */
 
-	buf.u8[0] = 0x08;
-	err = setsockopt(fd, SOL_IP, IP_TOS, &buf, 1);
+	optlen = getpagesize() * 2;
+	big_buf = calloc(1, optlen);
+	if (!big_buf) {
+		log_err("Couldn't allocate two pages");
+		goto err;
+	}
+
+	*(int *)big_buf = 0x08;
+	err = setsockopt(fd, SOL_IP, IP_TOS, big_buf, optlen);
 	if (err) {
 		log_err("Failed to call setsockopt(IP_TOS)");
 		goto err;
 	}
 
-	buf.u8[0] = 0x00;
+	memset(big_buf, 0, optlen);
 	optlen = 1;
-	err = getsockopt(fd, SOL_IP, IP_TOS, &buf, &optlen);
+	err = getsockopt(fd, SOL_IP, IP_TOS, big_buf, &optlen);
 	if (err) {
 		log_err("Failed to call getsockopt(IP_TOS)");
 		goto err;
 	}
 
-	if (buf.u8[0] != 0x08) {
-		log_err("Unexpected getsockopt(IP_TOS) buf[0] 0x%02x != 0x08",
-			buf.u8[0]);
+	if (*(int *)big_buf != 0x08) {
+		log_err("Unexpected getsockopt(IP_TOS) optval 0x%x != 0x08",
+			*(int *)big_buf);
 		goto err;
 	}
 
@@ -76,6 +84,28 @@ static int getsetsockopt(void)
 	if (buf.u8[0] != 0x01) {
 		log_err("Unexpected buf[0] 0x%02x != 0x01", buf.u8[0]);
 		goto err;
+	}
+
+	/* IP_FREEBIND - BPF can't access optval past PAGE_SIZE */
+
+	optlen = getpagesize() * 2;
+	memset(big_buf, 0, optlen);
+
+	err = setsockopt(fd, SOL_IP, IP_FREEBIND, big_buf, optlen);
+	if (err != 0) {
+		log_err("Failed to call setsockopt, ret=%d", err);
+		goto err;
+	}
+
+	err = getsockopt(fd, SOL_IP, IP_FREEBIND, big_buf, &optlen);
+	if (err != 0) {
+		log_err("Failed to call getsockopt, ret=%d", err);
+		goto err;
+	}
+
+	if (optlen != 1 || *(__u8 *)big_buf != 0x55) {
+		log_err("Unexpected IP_FREEBIND getsockopt, optlen=%d, optval=0x%x",
+			optlen, *(__u8 *)big_buf);
 	}
 
 	/* SO_SNDBUF is overwritten */
@@ -124,9 +154,11 @@ static int getsetsockopt(void)
 		goto err;
 	}
 
+	free(big_buf);
 	close(fd);
 	return 0;
 err:
+	free(big_buf);
 	close(fd);
 	return -1;
 }

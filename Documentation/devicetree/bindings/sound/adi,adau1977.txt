@@ -1,9 +1,9 @@
 Analog Devices ADAU1977/ADAU1978/ADAU1979
 
 Datasheets:
-http://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1977.pdf
-http://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1978.pdf
-http://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1979.pdf
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1977.pdf
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1978.pdf
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1979.pdf
 
 This driver supports both the I2C and SPI bus.
 

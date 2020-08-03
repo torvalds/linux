@@ -974,16 +974,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 		user->idx = log_next_idx;
 		user->seq = log_next_seq;
 		break;
-	case SEEK_CUR:
-		/*
-		 * It isn't supported due to the record nature of this
-		 * interface: _SET _DATA and _END point to very specific
-		 * record positions, while _CUR would be more useful in case
-		 * of a byte-based log. Because of that, return the default
-		 * errno value for invalid seek operation.
-		 */
-		ret = -ESPIPE;
-		break;
 	default:
 		ret = -EINVAL;
 	}

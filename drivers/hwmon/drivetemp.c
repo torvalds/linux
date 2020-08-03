@@ -285,6 +285,42 @@ static int drivetemp_get_scttemp(struct drivetemp_data *st, u32 attr, long *val)
 	return err;
 }
 
+static const char * const sct_avoid_models[] = {
+/*
+ * These drives will have WRITE FPDMA QUEUED command timeouts and sometimes just
+ * freeze until power-cycled under heavy write loads when their temperature is
+ * getting polled in SCT mode. The SMART mode seems to be fine, though.
+ *
+ * While only the 3 TB model (DT01ACA3) was actually caught exhibiting the
+ * problem let's play safe here to avoid data corruption and ban the whole
+ * DT01ACAx family.
+
+ * The models from this array are prefix-matched.
+ */
+	"TOSHIBA DT01ACA",
+};
+
+static bool drivetemp_sct_avoid(struct drivetemp_data *st)
+{
+	struct scsi_device *sdev = st->sdev;
+	unsigned int ctr;
+
+	if (!sdev->model)
+		return false;
+
+	/*
+	 * The "model" field contains just the raw SCSI INQUIRY response
+	 * "product identification" field, which has a width of 16 bytes.
+	 * This field is space-filled, but is NOT NULL-terminated.
+	 */
+	for (ctr = 0; ctr < ARRAY_SIZE(sct_avoid_models); ctr++)
+		if (!strncmp(sdev->model, sct_avoid_models[ctr],
+			     strlen(sct_avoid_models[ctr])))
+			return true;
+
+	return false;
+}
+
 static int drivetemp_identify_sata(struct drivetemp_data *st)
 {
 	struct scsi_device *sdev = st->sdev;
@@ -326,6 +362,13 @@ static int drivetemp_identify_sata(struct drivetemp_data *st)
 	/* bail out if this is not a SATA device */
 	if (!is_ata || !is_sata)
 		return -ENODEV;
+
+	if (have_sct && drivetemp_sct_avoid(st)) {
+		dev_notice(&sdev->sdev_gendev,
+			   "will avoid using SCT for temperature monitoring\n");
+		have_sct = false;
+	}
+
 	if (!have_sct)
 		goto skip_sct;
 

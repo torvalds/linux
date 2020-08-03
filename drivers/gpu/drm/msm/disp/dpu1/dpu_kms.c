@@ -780,7 +780,7 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 
 	mmu = msm_iommu_new(dpu_kms->dev->dev, domain);
 	aspace = msm_gem_address_space_create(mmu, "dpu1",
-		0x1000, 0xfffffff);
+		0x1000, 0x100000000 - 0x1000);
 
 	if (IS_ERR(aspace)) {
 		mmu->funcs->destroy(mmu);

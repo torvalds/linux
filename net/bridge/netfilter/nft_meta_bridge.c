@@ -155,3 +155,4 @@ module_exit(nft_meta_bridge_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("wenxu <wenxu@ucloud.cn>");
 MODULE_ALIAS_NFT_AF_EXPR(AF_BRIDGE, "meta");
+MODULE_DESCRIPTION("Support for bridge dedicated meta key");

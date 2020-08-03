@@ -1199,11 +1199,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tegra_phy);
 
-	err = usb_add_phy_dev(&tegra_phy->u_phy);
-	if (err)
-		return err;
-
-	return 0;
+	return usb_add_phy_dev(&tegra_phy->u_phy);
 }
 
 static int tegra_usb_phy_remove(struct platform_device *pdev)

@@ -180,6 +180,7 @@ struct wmfw_coeff_item {
 
 #define WMFW_ABSOLUTE         0xf0
 #define WMFW_ALGORITHM_DATA   0xf2
+#define WMFW_METADATA         0xfc
 #define WMFW_NAME_TEXT        0xfe
 #define WMFW_INFO_TEXT        0xff
 

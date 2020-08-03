@@ -726,7 +726,7 @@ static int sta350_hw_params(struct snd_pcm_substream *substream,
 	switch (params_width(params)) {
 	case 24:
 		dev_dbg(component->dev, "24bit\n");
-		/* fall through */
+		fallthrough;
 	case 32:
 		dev_dbg(component->dev, "24bit or 32bit\n");
 		switch (sta350->format) {

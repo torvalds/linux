@@ -64,19 +64,7 @@ VERSION
 		__vdso_clock_gettime;
 		__vdso_gettimeofday;
 		__vdso_clock_getres;
-		__kernel_sigreturn_arm;
-		__kernel_sigreturn_thumb;
-		__kernel_rt_sigreturn_arm;
-		__kernel_rt_sigreturn_thumb;
 		__vdso_clock_gettime64;
 	local: *;
 	};
 }
-
-/*
- * Make the sigreturn code visible to the kernel.
- */
-VDSO_compat_sigreturn_arm	= __kernel_sigreturn_arm;
-VDSO_compat_sigreturn_thumb	= __kernel_sigreturn_thumb;
-VDSO_compat_rt_sigreturn_arm	= __kernel_rt_sigreturn_arm;
-VDSO_compat_rt_sigreturn_thumb	= __kernel_rt_sigreturn_thumb;

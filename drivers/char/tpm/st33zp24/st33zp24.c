@@ -502,7 +502,7 @@ static const struct tpm_class_ops st33zp24_tpm = {
 
 /*
  * st33zp24_probe initialize the TPM device
- * @param: client, the i2c_client drescription (TPM I2C description).
+ * @param: client, the i2c_client description (TPM I2C description).
  * @param: id, the i2c_device_id struct.
  * @return: 0 in case of success.
  *	 -1 in other case.

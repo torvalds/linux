@@ -332,6 +332,7 @@ struct ceph_options *ceph_alloc_options(void)
 	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
 	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
 	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
+	opt->read_from_replica = CEPH_READ_FROM_REPLICA_DEFAULT;
 	return opt;
 }
 EXPORT_SYMBOL(ceph_alloc_options);
@@ -490,16 +491,13 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_read_from_replica:
 		switch (result.uint_32) {
 		case Opt_read_from_replica_no:
-			opt->osd_req_flags &= ~(CEPH_OSD_FLAG_BALANCE_READS |
-						CEPH_OSD_FLAG_LOCALIZE_READS);
+			opt->read_from_replica = 0;
 			break;
 		case Opt_read_from_replica_balance:
-			opt->osd_req_flags |= CEPH_OSD_FLAG_BALANCE_READS;
-			opt->osd_req_flags &= ~CEPH_OSD_FLAG_LOCALIZE_READS;
+			opt->read_from_replica = CEPH_OSD_FLAG_BALANCE_READS;
 			break;
 		case Opt_read_from_replica_localize:
-			opt->osd_req_flags |= CEPH_OSD_FLAG_LOCALIZE_READS;
-			opt->osd_req_flags &= ~CEPH_OSD_FLAG_BALANCE_READS;
+			opt->read_from_replica = CEPH_OSD_FLAG_LOCALIZE_READS;
 			break;
 		default:
 			BUG();
@@ -613,9 +611,9 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 		}
 		seq_putc(m, ',');
 	}
-	if (opt->osd_req_flags & CEPH_OSD_FLAG_BALANCE_READS) {
+	if (opt->read_from_replica == CEPH_OSD_FLAG_BALANCE_READS) {
 		seq_puts(m, "read_from_replica=balance,");
-	} else if (opt->osd_req_flags & CEPH_OSD_FLAG_LOCALIZE_READS) {
+	} else if (opt->read_from_replica == CEPH_OSD_FLAG_LOCALIZE_READS) {
 		seq_puts(m, "read_from_replica=localize,");
 	}
 

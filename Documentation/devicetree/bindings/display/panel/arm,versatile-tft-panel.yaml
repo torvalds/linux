@@ -33,7 +33,7 @@ additionalProperties: false
 
 examples:
   - |
-    sysreg {
+    sysreg@0 {
         compatible = "arm,versatile-sysreg", "syscon", "simple-mfd";
         reg = <0x00000 0x1000>;
 

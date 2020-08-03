@@ -170,6 +170,15 @@ config ARC_CPU_HS
 
 endchoice
 
+config ARC_TUNE_MCPU
+	string "Override default -mcpu compiler flag"
+	default ""
+	help
+	  Override default -mcpu=xxx compiler flag (which is set depending on
+	  the ISA version) with the specified value.
+	  NOTE: If specified flag isn't supported by current compiler the
+	  ISA default value will be used as a fallback.
+
 config CPU_BIG_ENDIAN
 	bool "Enable Big Endian Mode"
 	help
@@ -464,6 +473,12 @@ config ARC_IRQ_NO_AUTOSAVE
 	  On HS cores, taken interrupt auto saves the regfile on stack.
 	  This is programmable and can be optionally disabled in which case
 	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
+
+config ARC_LPB_DISABLE
+	bool "Disable loop buffer (LPB)"
+	help
+	  On HS cores, loop buffer (LPB) is programmable in runtime and can
+	  be optionally disabled.
 
 endif # ISA_ARCV2
 

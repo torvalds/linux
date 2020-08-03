@@ -149,3 +149,4 @@ module_exit(nft_reject_inet_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_AF_EXPR(1, "reject");
+MODULE_DESCRIPTION("Netfilter nftables reject inet support");

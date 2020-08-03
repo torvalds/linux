@@ -382,7 +382,7 @@ static inline u32 masked_irq(u32 hw_id, u32 mask, enum tsens_ver ver)
  *
  * Return: IRQ_HANDLED
  */
-irqreturn_t tsens_critical_irq_thread(int irq, void *data)
+static irqreturn_t tsens_critical_irq_thread(int irq, void *data)
 {
 	struct tsens_priv *priv = data;
 	struct tsens_irq_data d;
@@ -452,7 +452,7 @@ irqreturn_t tsens_critical_irq_thread(int irq, void *data)
  *
  * Return: IRQ_HANDLED
  */
-irqreturn_t tsens_irq_thread(int irq, void *data)
+static irqreturn_t tsens_irq_thread(int irq, void *data)
 {
 	struct tsens_priv *priv = data;
 	struct tsens_irq_data d;
@@ -520,7 +520,7 @@ irqreturn_t tsens_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int tsens_set_trips(void *_sensor, int low, int high)
+static int tsens_set_trips(void *_sensor, int low, int high)
 {
 	struct tsens_sensor *s = _sensor;
 	struct tsens_priv *priv = s->priv;
@@ -557,7 +557,7 @@ int tsens_set_trips(void *_sensor, int low, int high)
 	return 0;
 }
 
-int tsens_enable_irq(struct tsens_priv *priv)
+static int tsens_enable_irq(struct tsens_priv *priv)
 {
 	int ret;
 	int val = tsens_version(priv) > VER_1_X ? 7 : 1;
@@ -570,7 +570,7 @@ int tsens_enable_irq(struct tsens_priv *priv)
 	return ret;
 }
 
-void tsens_disable_irq(struct tsens_priv *priv)
+static void tsens_disable_irq(struct tsens_priv *priv)
 {
 	regmap_field_write(priv->rf[INT_EN], 0);
 }

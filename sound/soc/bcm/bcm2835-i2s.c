@@ -841,9 +841,12 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	dev->clk_prepared = false;
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "could not get clk: %ld\n",
-			PTR_ERR(dev->clk));
-		return PTR_ERR(dev->clk);
+		ret = PTR_ERR(dev->clk);
+		if (ret == -EPROBE_DEFER)
+			dev_dbg(&pdev->dev, "could not get clk: %d\n", ret);
+		else
+			dev_err(&pdev->dev, "could not get clk: %d\n", ret);
+		return ret;
 	}
 
 	/* Request ioarea */
