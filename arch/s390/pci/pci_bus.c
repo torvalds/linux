@@ -189,6 +189,19 @@ static inline int zpci_bus_setup_virtfn(struct zpci_bus *zbus,
 }
 #endif
 
+void pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+
+	/*
+	 * With pdev->no_vf_scan the common PCI probing code does not
+	 * perform PF/VF linking.
+	 */
+	if (zdev->vfn)
+		zpci_bus_setup_virtfn(zdev->zbus, pdev, zdev->vfn);
+
+}
+
 static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
 	struct pci_bus *bus;
@@ -219,20 +232,10 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 	}
 
 	pdev = pci_scan_single_device(bus, zdev->devfn);
-	if (pdev) {
-		if (!zdev->is_physfn) {
-			rc = zpci_bus_setup_virtfn(zbus, pdev, zdev->vfn);
-			if (rc)
-				goto failed_with_pdev;
-		}
+	if (pdev)
 		pci_bus_add_device(pdev);
-	}
-	return 0;
 
-failed_with_pdev:
-	pci_stop_and_remove_bus_device(pdev);
-	pci_dev_put(pdev);
-	return rc;
+	return 0;
 }
 
 static void zpci_bus_add_devices(struct zpci_bus *zbus)

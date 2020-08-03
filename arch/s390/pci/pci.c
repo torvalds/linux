@@ -678,8 +678,11 @@ void zpci_remove_device(struct zpci_dev *zdev)
 	struct pci_dev *pdev;
 
 	pdev = pci_get_slot(zbus->bus, zdev->devfn);
-	if (pdev)
+	if (pdev) {
+		if (pdev->is_virtfn)
+			return zpci_remove_virtfn(pdev, zdev->vfn);
 		pci_stop_and_remove_bus_device_locked(pdev);
+	}
 }
 
 int zpci_create_device(struct zpci_dev *zdev)
