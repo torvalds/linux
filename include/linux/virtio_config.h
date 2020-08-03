@@ -288,112 +288,103 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 	return __cpu_to_virtio64(virtio_is_little_endian(vdev), val);
 }
 
-/*
- * Only the checker differentiates between __virtioXX and __uXX types. But we
- * try to share as much code as we can with the regular GCC build.
- */
-#if !defined(CONFIG_CC_IS_GCC) && !defined(__CHECKER__)
+#define virtio_to_cpu(vdev, x) \
+	_Generic((x), \
+		__u8: (x), \
+		__virtio16: virtio16_to_cpu((vdev), (x)), \
+		__virtio32: virtio32_to_cpu((vdev), (x)), \
+		__virtio64: virtio64_to_cpu((vdev), (x)), \
+		/*
+		 * Why define a default? checker can distinguish between
+		 * e.g. __u16, __le16 and __virtio16, but GCC can't so
+		 * attempts to define variants for both look like a duplicate
+		 * variant to it.
+		 */ \
+		default: _Generic((x), \
+				 __u8: (x), \
+				 __le16: virtio16_to_cpu((vdev), (__force __virtio16)(x)), \
+				 __le32: virtio32_to_cpu((vdev), (__force __virtio32)(x)), \
+				 __le64: virtio64_to_cpu((vdev), (__force __virtio64)(x)), \
+				 default: _Generic((x), \
+						  __u8: (x), \
+						  __u16: virtio16_to_cpu((vdev), (__force __virtio16)(x)), \
+						  __u32: virtio32_to_cpu((vdev), (__force __virtio32)(x)), \
+						  __u64: virtio64_to_cpu((vdev), (__force __virtio64)(x)) \
+						  ) \
+				 ) \
+		)
 
-/* Not a checker - we can keep things simple */
-#define __virtio_native_typeof(x) typeof(x)
-
-#else
-
-/*
- * We build this out of a couple of helper macros in a vain attempt to
- * help you keep your lunch down while reading it.
- */
-#define __virtio_pick_value(x, type, then, otherwise)			\
-	__builtin_choose_expr(__same_type(x, type), then, otherwise)
-
-#define __virtio_pick_type(x, type, then, otherwise)			\
-	__virtio_pick_value(x, type, (then)0, otherwise)
-
-#define __virtio_pick_endian(x, x16, x32, x64, otherwise)			\
-	__virtio_pick_type(x, x16, __u16,					\
-		__virtio_pick_type(x, x32, __u32,				\
-			__virtio_pick_type(x, x64, __u64,			\
-				otherwise)))
-
-#define __virtio_native_typeof(x) typeof(					\
-	__virtio_pick_type(x, __u8, __u8,					\
-		__virtio_pick_endian(x, __virtio16, __virtio32, __virtio64,	\
-			__virtio_pick_endian(x, __le16, __le32, __le64,		\
-				/* No other type allowed */			\
-				(void)0))))
-
-#endif
+#define cpu_to_virtio(vdev, x, m) \
+	_Generic((m), \
+		__u8: (x), \
+		__virtio16: cpu_to_virtio16((vdev), (x)), \
+		__virtio32: cpu_to_virtio32((vdev), (x)), \
+		__virtio64: cpu_to_virtio64((vdev), (x)), \
+		/*
+		 * Why define a default? checker can distinguish between
+		 * e.g. __u16, __le16 and __virtio16, but GCC can't so
+		 * attempts to define variants for both look like a duplicate
+		 * variant to it.
+		 */ \
+		default: _Generic((m), \
+				 __u8: (x), \
+				 __le16: (__force __le16)cpu_to_virtio16((vdev), (x)), \
+				 __le32: (__force __le32)cpu_to_virtio32((vdev), (x)), \
+				 __le64: (__force __le64)cpu_to_virtio64((vdev), (x)), \
+				 default: _Generic((m), \
+						  __u8: (x), \
+						  __u16: (__force __u16)cpu_to_virtio16((vdev), (x)), \
+						  __u32: (__force __u32)cpu_to_virtio32((vdev), (x)), \
+						  __u64: (__force __u64)cpu_to_virtio64((vdev), (x)) \
+						  ) \
+				 ) \
+		)
 
 #define __virtio_native_type(structname, member) \
-	__virtio_native_typeof(((structname*)0)->member)
-
-#define __virtio_typecheck(structname, member, val) \
-		/* Must match the member's type, and be integer */ \
-		typecheck(__virtio_native_type(structname, member), (val))
-
+	typeof(virtio_to_cpu(NULL, ((structname*)0)->member))
 
 /* Config space accessors. */
 #define virtio_cread(vdev, structname, member, ptr)			\
 	do {								\
-		might_sleep();						\
-		/* Must match the member's type, and be integer */	\
-		if (!__virtio_typecheck(structname, member, *(ptr)))	\
-			(*ptr) = 1;					\
+		typeof(((structname*)0)->member) virtio_cread_v;	\
 									\
-		switch (sizeof(*ptr)) {					\
+		might_sleep();						\
+		/* Sanity check: must match the member's type */	\
+		typecheck(typeof(virtio_to_cpu((vdev), virtio_cread_v)), *(ptr)); \
+									\
+		switch (sizeof(virtio_cread_v)) {			\
 		case 1:							\
-			*(ptr) = virtio_cread8(vdev,			\
-					       offsetof(structname, member)); \
-			break;						\
 		case 2:							\
-			*(ptr) = virtio_cread16(vdev,			\
-						offsetof(structname, member)); \
-			break;						\
 		case 4:							\
-			*(ptr) = virtio_cread32(vdev,			\
-						offsetof(structname, member)); \
-			break;						\
-		case 8:							\
-			*(ptr) = virtio_cread64(vdev,			\
-						offsetof(structname, member)); \
+			vdev->config->get((vdev), 			\
+					  offsetof(structname, member), \
+					  &virtio_cread_v,		\
+					  sizeof(virtio_cread_v));	\
 			break;						\
 		default:						\
-			BUG();						\
+			__virtio_cread_many((vdev), 			\
+					  offsetof(structname, member), \
+					  &virtio_cread_v,		\
+					  1,				\
+					  sizeof(virtio_cread_v));	\
+			break;						\
 		}							\
+		*(ptr) = virtio_to_cpu(vdev, virtio_cread_v);		\
 	} while(0)
 
 /* Config space accessors. */
 #define virtio_cwrite(vdev, structname, member, ptr)			\
 	do {								\
-		might_sleep();						\
-		/* Must match the member's type, and be integer */	\
-		if (!__virtio_typecheck(structname, member, *(ptr)))	\
-			BUG_ON((*ptr) == 1);				\
+		typeof(((structname*)0)->member) virtio_cwrite_v =	\
+			cpu_to_virtio(vdev, *(ptr), ((structname*)0)->member); \
 									\
-		switch (sizeof(*ptr)) {					\
-		case 1:							\
-			virtio_cwrite8(vdev,				\
-				       offsetof(structname, member),	\
-				       *(ptr));				\
-			break;						\
-		case 2:							\
-			virtio_cwrite16(vdev,				\
-					offsetof(structname, member),	\
-					*(ptr));			\
-			break;						\
-		case 4:							\
-			virtio_cwrite32(vdev,				\
-					offsetof(structname, member),	\
-					*(ptr));			\
-			break;						\
-		case 8:							\
-			virtio_cwrite64(vdev,				\
-					offsetof(structname, member),	\
-					*(ptr));			\
-			break;						\
-		default:						\
-			BUG();						\
-		}							\
+		might_sleep();						\
+		/* Sanity check: must match the member's type */	\
+		typecheck(typeof(virtio_to_cpu((vdev), virtio_cwrite_v)), *(ptr)); \
+									\
+		vdev->config->set((vdev), offsetof(structname, member),	\
+				  &virtio_cwrite_v,			\
+				  sizeof(virtio_cwrite_v));		\
 	} while(0)
 
 /* Read @count fields, @bytes each. */
