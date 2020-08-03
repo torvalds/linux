@@ -810,7 +810,8 @@ static int nsim_dev_devlink_trap_init(struct devlink *devlink,
 static int
 nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 				 const struct devlink_trap *trap,
-				 enum devlink_trap_action action)
+				 enum devlink_trap_action action,
+				 struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 	struct nsim_trap_item *nsim_trap_item;
@@ -829,7 +830,8 @@ nsim_dev_devlink_trap_action_set(struct devlink *devlink,
 static int
 nsim_dev_devlink_trap_group_set(struct devlink *devlink,
 				const struct devlink_trap_group *group,
-				const struct devlink_trap_policer *policer)
+				const struct devlink_trap_policer *policer,
+				struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 

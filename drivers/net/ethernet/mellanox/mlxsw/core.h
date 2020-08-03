@@ -326,12 +326,14 @@ struct mlxsw_driver {
 			  const struct devlink_trap *trap, void *trap_ctx);
 	int (*trap_action_set)(struct mlxsw_core *mlxsw_core,
 			       const struct devlink_trap *trap,
-			       enum devlink_trap_action action);
+			       enum devlink_trap_action action,
+			       struct netlink_ext_ack *extack);
 	int (*trap_group_init)(struct mlxsw_core *mlxsw_core,
 			       const struct devlink_trap_group *group);
 	int (*trap_group_set)(struct mlxsw_core *mlxsw_core,
 			      const struct devlink_trap_group *group,
-			      const struct devlink_trap_policer *policer);
+			      const struct devlink_trap_policer *policer,
+			      struct netlink_ext_ack *extack);
 	int (*trap_policer_init)(struct mlxsw_core *mlxsw_core,
 				 const struct devlink_trap_policer *policer);
 	void (*trap_policer_fini)(struct mlxsw_core *mlxsw_core,

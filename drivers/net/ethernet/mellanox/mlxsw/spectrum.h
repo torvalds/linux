@@ -1177,12 +1177,14 @@ void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 			const struct devlink_trap *trap, void *trap_ctx);
 int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap *trap,
-			     enum devlink_trap_action action);
+			     enum devlink_trap_action action,
+			     struct netlink_ext_ack *extack);
 int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap_group *group);
 int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 			    const struct devlink_trap_group *group,
-			    const struct devlink_trap_policer *policer);
+			    const struct devlink_trap_policer *policer,
+			    struct netlink_ext_ack *extack);
 int
 mlxsw_sp_trap_policer_init(struct mlxsw_core *mlxsw_core,
 			   const struct devlink_trap_policer *policer);
