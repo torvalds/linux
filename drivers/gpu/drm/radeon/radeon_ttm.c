@@ -271,7 +271,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	}
 	r = ttm_bo_move_ttm(bo, &ctx, new_mem);
 out_cleanup:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_resource_free(bo, &tmp_mem);
 	return r;
 }
 
@@ -309,7 +309,7 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 		goto out_cleanup;
 	}
 out_cleanup:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_resource_free(bo, &tmp_mem);
 	return r;
 }
 

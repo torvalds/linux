@@ -42,6 +42,8 @@
 #include <linux/bitmap.h>
 #include <linux/dma-resv.h>
 
+#include "ttm_resource.h"
+
 struct ttm_bo_global;
 
 struct ttm_bo_device;
@@ -53,57 +55,6 @@ struct ttm_placement;
 struct ttm_place;
 
 struct ttm_lru_bulk_move;
-
-struct ttm_resource_manager;
-
-/**
- * struct ttm_bus_placement
- *
- * @addr:		mapped virtual address
- * @base:		bus base address
- * @is_iomem:		is this io memory ?
- * @size:		size in byte
- * @offset:		offset from the base address
- * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
- * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
- *
- * Structure indicating the bus placement of an object.
- */
-struct ttm_bus_placement {
-	void		*addr;
-	phys_addr_t	base;
-	unsigned long	size;
-	unsigned long	offset;
-	bool		is_iomem;
-	bool		io_reserved_vm;
-	uint64_t        io_reserved_count;
-};
-
-
-/**
- * struct ttm_resource
- *
- * @mm_node: Memory manager node.
- * @size: Requested size of memory region.
- * @num_pages: Actual size of memory region in pages.
- * @page_alignment: Page alignment.
- * @placement: Placement flags.
- * @bus: Placement on io bus accessible to the CPU
- *
- * Structure indicating the placement and space resources used by a
- * buffer object.
- */
-
-struct ttm_resource {
-	void *mm_node;
-	unsigned long start;
-	unsigned long size;
-	unsigned long num_pages;
-	uint32_t page_alignment;
-	uint32_t mem_type;
-	uint32_t placement;
-	struct ttm_bus_placement bus;
-};
 
 /**
  * enum ttm_bo_type
@@ -534,17 +485,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
 		  struct ttm_buffer_object **p_bo);
 
 /**
- * ttm_resource_manager_init
- *
- * @man: memory manager object to init
- * @p_size: size managed area in pages.
- *
- * Initialise core parts of a manager object.
- */
-void ttm_resource_manager_init(struct ttm_resource_manager *man,
-			       unsigned long p_size);
-
-/**
  * ttm_bo_evict_mm
  *
  * @bdev: Pointer to a ttm_bo_device struct.
@@ -679,6 +619,12 @@ static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 {
 	return bo->base.dev != NULL;
 }
+
+int ttm_mem_evict_first(struct ttm_bo_device *bdev,
+			struct ttm_resource_manager *man,
+			const struct ttm_place *place,
+			struct ttm_operation_ctx *ctx,
+			struct ww_acquire_ctx *ticket);
 
 /* Default number of pre-faulted pages in the TTM fault handler */
 #define TTM_BO_VM_NUM_PREFAULT 16

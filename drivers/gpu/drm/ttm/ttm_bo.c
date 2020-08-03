@@ -77,19 +77,6 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-void ttm_resource_manager_debug(struct ttm_resource_manager *man,
-				struct drm_printer *p)
-{
-	drm_printf(p, "    use_type: %d\n", man->use_type);
-	drm_printf(p, "    use_tt: %d\n", man->use_tt);
-	drm_printf(p, "    size: %llu\n", man->size);
-	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
-	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
-	if (man->func && man->func->debug)
-		(*man->func->debug)(man, p);
-}
-EXPORT_SYMBOL(ttm_resource_manager_debug);
-
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
@@ -363,7 +350,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 
 	ttm_tt_destroy(bo->ttm);
 	bo->ttm = NULL;
-	ttm_bo_mem_put(bo, &bo->mem);
+	ttm_resource_free(bo, &bo->mem);
 }
 
 static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
@@ -678,7 +665,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	if (unlikely(ret)) {
 		if (ret != -ERESTARTSYS)
 			pr_err("Buffer eviction failed\n");
-		ttm_bo_mem_put(bo, &evict_mem);
+		ttm_resource_free(bo, &evict_mem);
 		goto out;
 	}
 	bo->evicted = true;
@@ -767,11 +754,11 @@ static int ttm_mem_evict_wait_busy(struct ttm_buffer_object *busy_bo,
 	return r == -EDEADLK ? -EBUSY : r;
 }
 
-static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
-			       struct ttm_resource_manager *man,
-			       const struct ttm_place *place,
-			       struct ttm_operation_ctx *ctx,
-			       struct ww_acquire_ctx *ticket)
+int ttm_mem_evict_first(struct ttm_bo_device *bdev,
+			struct ttm_resource_manager *man,
+			const struct ttm_place *place,
+			struct ttm_operation_ctx *ctx,
+			struct ww_acquire_ctx *ticket)
 {
 	struct ttm_buffer_object *bo = NULL, *busy_bo = NULL;
 	bool locked = false;
@@ -839,32 +826,6 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	return ret;
 }
 
-static int ttm_bo_mem_get(struct ttm_buffer_object *bo,
-			  const struct ttm_place *place,
-			  struct ttm_resource *mem)
-{
-	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
-
-	mem->mm_node = NULL;
-	if (!man->func || !man->func->alloc)
-		return 0;
-
-	return man->func->alloc(man, bo, place, mem);
-}
-
-void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_resource *mem)
-{
-	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
-
-	if (!man->func || !man->func->free)
-		return;
-
-	man->func->free(man, mem);
-	mem->mm_node = NULL;
-	mem->mem_type = TTM_PL_SYSTEM;
-}
-EXPORT_SYMBOL(ttm_bo_mem_put);
-
 /**
  * Add the last move fence to the BO and reserve a new shared slot.
  */
@@ -915,7 +876,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 
 	ticket = dma_resv_locking_ctx(bo->base.resv);
 	do {
-		ret = ttm_bo_mem_get(bo, place, mem);
+		ret = ttm_resource_alloc(bo, place, mem);
 		if (likely(!ret))
 			break;
 		if (unlikely(ret != -ENOSPC))
@@ -1056,7 +1017,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			goto error;
 
 		type_found = true;
-		ret = ttm_bo_mem_get(bo, place, mem);
+		ret = ttm_resource_alloc(bo, place, mem);
 		if (ret == -ENOSPC)
 			continue;
 		if (unlikely(ret))
@@ -1065,7 +1026,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		man = ttm_manager_type(bdev, mem->mem_type);
 		ret = ttm_bo_add_move_fence(bo, man, mem, ctx->no_wait_gpu);
 		if (unlikely(ret)) {
-			ttm_bo_mem_put(bo, mem);
+			ttm_resource_free(bo, mem);
 			if (ret == -EBUSY)
 				continue;
 
@@ -1132,7 +1093,7 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx);
 out_unlock:
 	if (ret)
-		ttm_bo_mem_put(bo, &mem);
+		ttm_resource_free(bo, &mem);
 	return ret;
 }
 
@@ -1404,52 +1365,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_bo_create);
 
-int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_resource_manager *man)
-{
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false,
-		.flags = TTM_OPT_FLAG_FORCE_ALLOC
-	};
-	struct ttm_bo_global *glob = &ttm_bo_glob;
-	struct dma_fence *fence;
-	int ret;
-	unsigned i;
-
-	/*
-	 * Can't use standard list traversal since we're unlocking.
-	 */
-
-	spin_lock(&glob->lru_lock);
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
-		while (!list_empty(&man->lru[i])) {
-			spin_unlock(&glob->lru_lock);
-			ret = ttm_mem_evict_first(bdev, man, NULL, &ctx,
-						  NULL);
-			if (ret)
-				return ret;
-			spin_lock(&glob->lru_lock);
-		}
-	}
-	spin_unlock(&glob->lru_lock);
-
-	spin_lock(&man->move_lock);
-	fence = dma_fence_get(man->move);
-	spin_unlock(&man->move_lock);
-
-	if (fence) {
-		ret = dma_fence_wait(fence, false);
-		dma_fence_put(fence);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(ttm_resource_manager_force_list_clean);
-
-
 int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem_type);
@@ -1467,23 +1382,6 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 	return ttm_resource_manager_force_list_clean(bdev, man);
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
-
-void ttm_resource_manager_init(struct ttm_resource_manager *man,
-			       unsigned long p_size)
-{
-	unsigned i;
-
-	man->use_io_reserve_lru = false;
-	mutex_init(&man->io_reserve_mutex);
-	spin_lock_init(&man->move_lock);
-	INIT_LIST_HEAD(&man->io_reserve_lru);
-	man->size = p_size;
-
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
-		INIT_LIST_HEAD(&man->lru[i]);
-	man->move = NULL;
-}
-EXPORT_SYMBOL(ttm_resource_manager_init);
 
 static void ttm_bo_global_kobj_release(struct kobject *kobj)
 {

@@ -43,131 +43,6 @@
 #include "ttm_placement.h"
 #include "ttm_tt.h"
 
-#define TTM_MAX_BO_PRIORITY	4U
-
-struct ttm_resource_manager;
-
-struct ttm_resource_manager_func {
-	/**
-	 * struct ttm_resource_manager_func member alloc
-	 *
-	 * @man: Pointer to a memory type manager.
-	 * @bo: Pointer to the buffer object we're allocating space for.
-	 * @placement: Placement details.
-	 * @flags: Additional placement flags.
-	 * @mem: Pointer to a struct ttm_resource to be filled in.
-	 *
-	 * This function should allocate space in the memory type managed
-	 * by @man. Placement details if
-	 * applicable are given by @placement. If successful,
-	 * @mem::mm_node should be set to a non-null value, and
-	 * @mem::start should be set to a value identifying the beginning
-	 * of the range allocated, and the function should return zero.
-	 * If the memory region accommodate the buffer object, @mem::mm_node
-	 * should be set to NULL, and the function should return 0.
-	 * If a system error occurred, preventing the request to be fulfilled,
-	 * the function should return a negative error code.
-	 *
-	 * Note that @mem::mm_node will only be dereferenced by
-	 * struct ttm_resource_manager functions and optionally by the driver,
-	 * which has knowledge of the underlying type.
-	 *
-	 * This function may not be called from within atomic context, so
-	 * an implementation can and must use either a mutex or a spinlock to
-	 * protect any data structures managing the space.
-	 */
-	int  (*alloc)(struct ttm_resource_manager *man,
-		      struct ttm_buffer_object *bo,
-		      const struct ttm_place *place,
-		      struct ttm_resource *mem);
-
-	/**
-	 * struct ttm_resource_manager_func member free
-	 *
-	 * @man: Pointer to a memory type manager.
-	 * @mem: Pointer to a struct ttm_resource to be filled in.
-	 *
-	 * This function frees memory type resources previously allocated
-	 * and that are identified by @mem::mm_node and @mem::start. May not
-	 * be called from within atomic context.
-	 */
-	void (*free)(struct ttm_resource_manager *man,
-		     struct ttm_resource *mem);
-
-	/**
-	 * struct ttm_resource_manager_func member debug
-	 *
-	 * @man: Pointer to a memory type manager.
-	 * @printer: Prefix to be used in printout to identify the caller.
-	 *
-	 * This function is called to print out the state of the memory
-	 * type manager to aid debugging of out-of-memory conditions.
-	 * It may not be called from within atomic context.
-	 */
-	void (*debug)(struct ttm_resource_manager *man,
-		      struct drm_printer *printer);
-};
-
-/**
- * struct ttm_resource_manager
- *
- * @use_type: The memory type is enabled.
- * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
- * managed by this memory type.
- * @gpu_offset: If used, the GPU offset of the first managed page of
- * fixed memory or the first managed location in an aperture.
- * @size: Size of the managed region.
- * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
- * as defined in ttm_placement_common.h
- * @default_caching: The default caching policy used for a buffer object
- * placed in this memory type if the user doesn't provide one.
- * @func: structure pointer implementing the range manager. See above
- * @io_reserve_mutex: Mutex optionally protecting shared io_reserve structures
- * @use_io_reserve_lru: Use an lru list to try to unreserve io_mem_regions
- * reserved by the TTM vm system.
- * @io_reserve_lru: Optional lru list for unreserving io mem regions.
- * @move_lock: lock for move fence
- * static information. bdev::driver::io_mem_free is never used.
- * @lru: The lru list for this memory type.
- * @move: The fence of the last pipelined move operation.
- *
- * This structure is used to identify and manage memory types for a device.
- */
-
-
-
-struct ttm_resource_manager {
-	/*
-	 * No protection. Constant from start.
-	 */
-	bool use_type;
-	bool use_tt;
-	uint64_t size;
-	uint32_t available_caching;
-	uint32_t default_caching;
-	const struct ttm_resource_manager_func *func;
-	struct mutex io_reserve_mutex;
-	bool use_io_reserve_lru;
-	spinlock_t move_lock;
-
-	/*
-	 * Protected by @io_reserve_mutex:
-	 */
-
-	struct list_head io_reserve_lru;
-
-	/*
-	 * Protected by the global->lru_lock.
-	 */
-
-	struct list_head lru[TTM_MAX_BO_PRIORITY];
-
-	/*
-	 * Protected by @move_lock.
-	 */
-	struct dma_fence *move;
-};
-
 /**
  * struct ttm_bo_driver
  *
@@ -537,8 +412,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_resource *mem,
 		     struct ttm_operation_ctx *ctx);
 
-void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_resource *mem);
-
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
@@ -674,59 +547,6 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 	ttm_bo_move_to_lru_tail_unlocked(bo);
 	dma_resv_unlock(bo->base.resv);
 }
-
-/**
- * ttm_resource_manager_set_used
- *
- * @man: A memory manager object.
- * @used: usage state to set.
- *
- * Set the manager in use flag. If disabled the manager is no longer
- * used for object placement.
- */
-static inline void ttm_resource_manager_set_used(struct ttm_resource_manager *man, bool used)
-{
-	man->use_type = used;
-}
-
-/**
- * ttm_resource_manager_used
- *
- * @man: Manager to get used state for
- *
- * Get the in use flag for a manager.
- * Returns:
- * true is used, false if not.
- */
-static inline bool ttm_resource_manager_used(struct ttm_resource_manager *man)
-{
-	return man->use_type;
-}
-
-/**
- * ttm_resource_manager_cleanup
- *
- * @man: A memory manager object.
- *
- * Cleanup the move fences from the memory manager object.
- */
-static inline void ttm_resource_manager_cleanup(struct ttm_resource_manager *man)
-{
-	dma_fence_put(man->move);
-	man->move = NULL;
-}
-
-/*
- * ttm_resource_manager_force_list_clean
- *
- * @bdev - device to use
- * @man - manager to use
- *
- * Force all the objects out of a memory manager until clean.
- * Part of memory manager cleanup sequence.
- */
-int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_resource_manager *man);
 
 /*
  * ttm_bo_util.c
@@ -873,14 +693,5 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
  */
 int ttm_range_man_fini(struct ttm_bo_device *bdev,
 		       unsigned type);
-
-/**
- * ttm_resource_manager_debug
- *
- * @man: manager type to dump.
- * @p: printer to use for debug.
- */
-void ttm_resource_manager_debug(struct ttm_resource_manager *man,
-				struct drm_printer *p);
 
 #endif

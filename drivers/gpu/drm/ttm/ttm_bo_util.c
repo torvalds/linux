@@ -47,7 +47,7 @@ struct ttm_transfer_obj {
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
-	ttm_bo_mem_put(bo, &bo->mem);
+	ttm_resource_free(bo, &bo->mem);
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
@@ -398,7 +398,7 @@ out:
 	 * On error, keep the mm node!
 	 */
 	if (!ret)
-		ttm_bo_mem_put(bo, &old_copy);
+		ttm_resource_free(bo, &old_copy);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);

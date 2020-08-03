@@ -578,7 +578,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 	/* move BO (in tmp_mem) to new_mem */
 	r = ttm_bo_move_ttm(bo, ctx, new_mem);
 out_cleanup:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_resource_free(bo, &tmp_mem);
 	return r;
 }
 
@@ -625,7 +625,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
 		goto out_cleanup;
 	}
 out_cleanup:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_resource_free(bo, &tmp_mem);
 	return r;
 }
 
@@ -1203,11 +1203,11 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 		gtt->offset = (u64)tmp.start << PAGE_SHIFT;
 		r = amdgpu_ttm_gart_bind(adev, bo, flags);
 		if (unlikely(r)) {
-			ttm_bo_mem_put(bo, &tmp);
+			ttm_resource_free(bo, &tmp);
 			return r;
 		}
 
-		ttm_bo_mem_put(bo, &bo->mem);
+		ttm_resource_free(bo, &bo->mem);
 		bo->mem = tmp;
 	}
 
