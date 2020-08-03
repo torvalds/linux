@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <time.h>
+#include <asm/cputable.h>
 #include "utils.h"
 
 #define SIZE 256
@@ -151,6 +152,11 @@ static int testcase(bool islarge)
 
 static int testcases(void)
 {
+#ifdef __powerpc64__
+	// vcmpequd used in memcmp_64.S is v2.07
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
+#endif
+
 	testcase(0);
 	testcase(1);
 	return 0;

@@ -11,9 +11,9 @@ $(OUTPUT)/fpu_syscall: fpu_asm.S
 $(OUTPUT)/fpu_preempt: fpu_asm.S
 $(OUTPUT)/fpu_signal:  fpu_asm.S
 
-$(OUTPUT)/vmx_syscall: vmx_asm.S
-$(OUTPUT)/vmx_preempt: vmx_asm.S
-$(OUTPUT)/vmx_signal: vmx_asm.S
+$(OUTPUT)/vmx_syscall: vmx_asm.S ../utils.c
+$(OUTPUT)/vmx_preempt: vmx_asm.S ../utils.c
+$(OUTPUT)/vmx_signal: vmx_asm.S ../utils.c
 
 $(OUTPUT)/vsx_preempt: CFLAGS += -mvsx
-$(OUTPUT)/vsx_preempt: vsx_asm.S
+$(OUTPUT)/vsx_preempt: vsx_asm.S ../utils.c
