@@ -632,6 +632,50 @@ static int efx_ef100_get_phys_port_id(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_ef100_irq_test_generate(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_TRIGGER_INTERRUPT_IN_LEN);
+
+	BUILD_BUG_ON(MC_CMD_TRIGGER_INTERRUPT_OUT_LEN != 0);
+
+	MCDI_SET_DWORD(inbuf, TRIGGER_INTERRUPT_IN_INTR_LEVEL, efx->irq_level);
+	return efx_mcdi_rpc_quiet(efx, MC_CMD_TRIGGER_INTERRUPT,
+				  inbuf, sizeof(inbuf), NULL, 0, NULL);
+}
+
+#define EFX_EF100_TEST 1
+
+static void efx_ef100_ev_test_generate(struct efx_channel *channel)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_DRIVER_EVENT_IN_LEN);
+	struct efx_nic *efx = channel->efx;
+	efx_qword_t event;
+	int rc;
+
+	EFX_POPULATE_QWORD_2(event,
+			     ESF_GZ_E_TYPE, ESE_GZ_EF100_EV_DRIVER,
+			     ESF_GZ_DRIVER_DATA, EFX_EF100_TEST);
+
+	MCDI_SET_DWORD(inbuf, DRIVER_EVENT_IN_EVQ, channel->channel);
+
+	/* MCDI_SET_QWORD is not appropriate here since EFX_POPULATE_* has
+	 * already swapped the data to little-endian order.
+	 */
+	memcpy(MCDI_PTR(inbuf, DRIVER_EVENT_IN_DATA), &event.u64[0],
+	       sizeof(efx_qword_t));
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_DRIVER_EVENT, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL);
+	if (rc && (rc != -ENETDOWN))
+		goto fail;
+
+	return;
+
+fail:
+	WARN_ON(true);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+}
+
 static unsigned int ef100_check_caps(const struct efx_nic *efx,
 				     u8 flag, u32 offset)
 {
@@ -668,6 +712,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.mcdi_poll_reboot = ef100_mcdi_poll_reboot,
 	.mcdi_reboot_detected = ef100_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
+	.irq_test_generate = efx_ef100_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,
 	.push_irq_moderation = efx_channel_dummy_op_void,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
@@ -684,6 +729,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.irq_handle_msi = ef100_msi_interrupt,
 	.ev_process = ef100_ev_process,
 	.ev_read_ack = ef100_ev_read_ack,
+	.ev_test_generate = efx_ef100_ev_test_generate,
 	.tx_probe = ef100_tx_probe,
 	.tx_init = ef100_tx_init,
 	.tx_write = ef100_tx_write,
@@ -722,6 +768,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
+	.test_nvram = efx_new_mcdi_nvram_test_all,
 	.describe_stats = ef100_describe_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
 	.update_stats = ef100_update_stats,
