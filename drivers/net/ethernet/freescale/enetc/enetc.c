@@ -270,7 +270,7 @@ static irqreturn_t enetc_msix(int irq, void *data)
 	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i), 0);
 
-	napi_schedule_irqoff(&v->napi);
+	napi_schedule(&v->napi);
 
 	return IRQ_HANDLED;
 }
