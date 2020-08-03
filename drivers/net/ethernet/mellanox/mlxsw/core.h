@@ -89,13 +89,15 @@ struct mlxsw_listener {
 };
 
 #define __MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
-		    _dis_action, _enabled_on_register, _dis_trap_group)		\
+		    _dis_action, _enabled_on_register, _dis_trap_group,		\
+		    _mirror_reason)						\
 	{									\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,				\
 		.rx_listener =							\
 		{								\
 			.func = _func,						\
 			.local_port = MLXSW_PORT_DONT_CARE,			\
+			.mirror_reason = _mirror_reason,			\
 			.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
 		},								\
 		.en_action = MLXSW_REG_HPKT_ACTION_##_en_action,		\
@@ -109,12 +111,17 @@ struct mlxsw_listener {
 #define MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,		\
 		  _dis_action)							\
 	__MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,		\
-		    _dis_action, true, _trap_group)
+		    _dis_action, true, _trap_group, 0)
 
 #define MLXSW_RXL_DIS(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
 		      _dis_action, _dis_trap_group)				\
 	__MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
-		    _dis_action, false, _dis_trap_group)
+		    _dis_action, false, _dis_trap_group, 0)
+
+#define MLXSW_RXL_MIRROR(_func, _session_id, _trap_group, _mirror_reason)	\
+	__MLXSW_RXL(_func, MIRROR_SESSION##_session_id,	TRAP_TO_CPU, false,	\
+		    _trap_group, TRAP_TO_CPU, true, _trap_group,		\
+		    _mirror_reason)
 
 #define MLXSW_EVENTL(_func, _trap_id, _trap_group)				\
 	{									\

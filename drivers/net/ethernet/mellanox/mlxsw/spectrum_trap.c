@@ -21,6 +21,7 @@ struct mlxsw_sp_trap_group_item {
 	struct devlink_trap_group group;
 	u16 hw_group_id;
 	u8 priority;
+	u8 fixed_policer:1; /* Whether policer binding can change */
 };
 
 #define MLXSW_SP_TRAP_LISTENERS_MAX 3
@@ -28,6 +29,7 @@ struct mlxsw_sp_trap_group_item {
 struct mlxsw_sp_trap_item {
 	struct devlink_trap trap;
 	struct mlxsw_listener listeners_arr[MLXSW_SP_TRAP_LISTENERS_MAX];
+	u8 is_source:1;
 };
 
 /* All driver-specific traps must be documented in
@@ -45,6 +47,11 @@ enum {
 	"erif_disabled"
 
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
+
+enum {
+	/* Packet was early dropped. */
+	MLXSW_SP_MIRROR_REASON_INGRESS_WRED = 9,
+};
 
 static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 				u8 local_port,
@@ -222,6 +229,11 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA | (_metadata))
 
+#define MLXSW_SP_TRAP_BUFFER_DROP(_id)					      \
+	DEVLINK_TRAP_GENERIC(DROP, TRAP, _id,				      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,      \
+			     MLXSW_SP_TRAP_METADATA)
+
 #define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
 			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
@@ -247,6 +259,10 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 	MLXSW_RXL_DIS(mlxsw_sp_rx_acl_drop_listener, DISCARD_##_id,	      \
 		      TRAP_EXCEPTION_TO_CPU, false, SP_##_en_group_id,	      \
 		      SET_FW_DEFAULT, SP_##_dis_group_id)
+
+#define MLXSW_SP_RXL_BUFFER_DISCARD(_mirror_reason)			      \
+	MLXSW_RXL_MIRROR(mlxsw_sp_rx_drop_listener, 0, SP_BUFFER_DISCARDS,    \
+			 MLXSW_SP_MIRROR_REASON_##_mirror_reason)
 
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
 	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id,			      \
@@ -330,6 +346,9 @@ mlxsw_sp_trap_policer_items_arr[] = {
 	},
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(19, 1024, 512),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(20, 10240, 4096),
 	},
 };
 
@@ -1429,6 +1448,11 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 	if (WARN_ON(!trap_item))
 		return -EINVAL;
 
+	if (trap_item->is_source) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing the action of source traps is not supported");
+		return -EOPNOTSUPP;
+	}
+
 	for (i = 0; i < MLXSW_SP_TRAP_LISTENERS_MAX; i++) {
 		const struct mlxsw_listener *listener;
 		bool enabled;
@@ -1469,6 +1493,11 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 	group_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, group->id);
 	if (WARN_ON(!group_item))
 		return -EINVAL;
+
+	if (group_item->fixed_policer && policer_id != group->init_policer_id) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing the policer binding of this group is not supported");
+		return -EOPNOTSUPP;
+	}
 
 	if (policer_id) {
 		struct mlxsw_sp_trap_policer_item *policer_item;
@@ -1682,10 +1711,23 @@ const struct mlxsw_sp_trap_ops mlxsw_sp1_trap_ops = {
 
 static const struct mlxsw_sp_trap_group_item
 mlxsw_sp2_trap_group_items_arr[] = {
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS, 20),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_BUFFER_DISCARDS,
+		.priority = 0,
+		.fixed_policer = true,
+	},
 };
 
 static const struct mlxsw_sp_trap_item
 mlxsw_sp2_trap_items_arr[] = {
+	{
+		.trap = MLXSW_SP_TRAP_BUFFER_DROP(EARLY_DROP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_BUFFER_DISCARD(INGRESS_WRED),
+		},
+		.is_source = true,
+	},
 };
 
 static int
