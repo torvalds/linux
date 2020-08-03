@@ -17,7 +17,7 @@
  * blocks below. Those offsets must be multiplied by 4 before adding them to
  * the base address to get the right value
  *
- * [0] http://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
+ * [0] https://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
  */
 #define HHI_GP_PLL_CNTL			0x40  /* 0x10 offset in data sheet */
 #define HHI_GP_PLL_CNTL2		0x44  /* 0x11 offset in data sheet */
@@ -180,8 +180,10 @@
 #define CLKID_CTS_AMCLK_DIV	208
 #define CLKID_CTS_MCLK_I958_SEL	210
 #define CLKID_CTS_MCLK_I958_DIV	211
+#define CLKID_VCLK_EN		214
+#define CLKID_VCLK2_EN		215
 
-#define CLK_NR_CLKS		214
+#define CLK_NR_CLKS		216
 
 /*
  * include the CLKID and RESETID that have
