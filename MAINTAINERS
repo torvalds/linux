@@ -13601,16 +13601,6 @@ F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
 F:	include/uapi/linux/pktcdvd.h
 
-PKUNITY SOC DRIVERS
-M:	Guan Xuetao <gxt@pku.edu.cn>
-S:	Maintained
-W:	http://mprc.pku.edu.cn/~guanxuetao/linux
-T:	git git://github.com/gxt/linux.git
-F:	drivers/i2c/busses/i2c-puv3.c
-F:	drivers/input/serio/i8042-unicore32io.h
-F:	drivers/rtc/rtc-puv3.c
-F:	drivers/video/fbdev/fb-puv3.c
-
 PLANTOWER PMS7003 AIR POLLUTION SENSOR DRIVER
 M:	Tomasz Duszynski <tduszyns@gmail.com>
 S:	Maintained
@@ -17554,13 +17544,6 @@ M:	Gabriel Krisman Bertazi <krisman@collabora.com>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/unicode/
-
-UNICORE32 ARCHITECTURE
-M:	Guan Xuetao <gxt@pku.edu.cn>
-S:	Maintained
-W:	http://mprc.pku.edu.cn/~guanxuetao/linux
-T:	git git://github.com/gxt/linux.git
-F:	arch/unicore32/
 
 UNIFDEF
 M:	Tony Finch <dot@dotat.at>

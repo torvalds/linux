@@ -21,8 +21,6 @@
 #include "i8042-sparcio.h"
 #elif defined(CONFIG_X86) || defined(CONFIG_IA64)
 #include "i8042-x86ia64io.h"
-#elif defined(CONFIG_UNICORE32)
-#include "i8042-unicore32io.h"
 #else
 #include "i8042-io.h"
 #endif
