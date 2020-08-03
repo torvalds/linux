@@ -682,7 +682,7 @@ static inline int uv_node_to_blade_id(int nid)
 	return nid;
 }
 
-/* Convert a cpu number to the the UV blade number */
+/* Convert a CPU number to the UV blade number */
 static inline int uv_cpu_to_blade_id(int cpu)
 {
 	return uv_node_to_blade_id(cpu_to_node(cpu));
