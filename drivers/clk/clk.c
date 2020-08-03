@@ -500,12 +500,6 @@ static unsigned long clk_core_get_accuracy_no_lock(struct clk_core *core)
 	return core->accuracy;
 }
 
-unsigned long __clk_get_flags(struct clk *clk)
-{
-	return !clk ? 0 : clk->core->flags;
-}
-EXPORT_SYMBOL_GPL(__clk_get_flags);
-
 unsigned long clk_hw_get_flags(const struct clk_hw *hw)
 {
 	return hw->core->flags;
