@@ -1896,8 +1896,6 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 
 static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
@@ -1908,7 +1906,6 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 				return ret;
 			}
 		}
-		power_gate->vcn_gated = false;
 	} else {
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
@@ -1917,7 +1914,6 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 				return ret;
 			}
 		}
-		power_gate->vcn_gated = true;
 	}
 
 	return ret;

@@ -133,6 +133,56 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_dpm_set_vcn_enable(struct smu_context *smu,
+				  bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (!smu->ppt_funcs->dpm_set_vcn_enable)
+		return 0;
+
+	mutex_lock(&power_gate->vcn_gate_lock);
+
+	if (atomic_read(&power_gate->vcn_gated) ^ enable)
+		goto out;
+
+	ret = smu->ppt_funcs->dpm_set_vcn_enable(smu, enable);
+	if (!ret)
+		atomic_set(&power_gate->vcn_gated, !enable);
+
+out:
+	mutex_unlock(&power_gate->vcn_gate_lock);
+
+	return ret;
+}
+
+static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
+				   bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (!smu->ppt_funcs->dpm_set_jpeg_enable)
+		return 0;
+
+	mutex_lock(&power_gate->jpeg_gate_lock);
+
+	if (atomic_read(&power_gate->jpeg_gated) ^ enable)
+		goto out;
+
+	ret = smu->ppt_funcs->dpm_set_jpeg_enable(smu, enable);
+	if (!ret)
+		atomic_set(&power_gate->jpeg_gated, !enable);
+
+out:
+	mutex_unlock(&power_gate->jpeg_gate_lock);
+
+	return ret;
+}
+
 /**
  * smu_dpm_set_power_gate - power gate/ungate the specific IP block
  *
@@ -649,6 +699,11 @@ static int smu_sw_init(void *handle)
 	smu->watermarks_bitmap = 0;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+
+	atomic_set(&smu->smu_power.power_gate.vcn_gated, 1);
+	atomic_set(&smu->smu_power.power_gate.jpeg_gated, 1);
+	mutex_init(&smu->smu_power.power_gate.vcn_gate_lock);
+	mutex_init(&smu->smu_power.power_gate.jpeg_gate_lock);
 
 	smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
 	smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
@@ -1974,7 +2029,7 @@ int smu_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
-		*(uint32_t *)data = smu->smu_power.power_gate.vcn_gated ? 0 : 1;
+		*(uint32_t *)data = atomic_read(&smu->smu_power.power_gate.vcn_gated) ? 0: 1;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
