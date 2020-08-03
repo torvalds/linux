@@ -485,6 +485,36 @@ const struct efx_nic_type ef100_pf_nic_type = {
 
 };
 
+static int compare_versions(const char *a, const char *b)
+{
+	int a_major, a_minor, a_point, a_patch;
+	int b_major, b_minor, b_point, b_patch;
+	int a_matched, b_matched;
+
+	a_matched = sscanf(a, "%d.%d.%d.%d", &a_major, &a_minor, &a_point, &a_patch);
+	b_matched = sscanf(b, "%d.%d.%d.%d", &b_major, &b_minor, &b_point, &b_patch);
+
+	if (a_matched == 4 && b_matched != 4)
+		return +1;
+
+	if (a_matched != 4 && b_matched == 4)
+		return -1;
+
+	if (a_matched != 4 && b_matched != 4)
+		return 0;
+
+	if (a_major != b_major)
+		return a_major - b_major;
+
+	if (a_minor != b_minor)
+		return a_minor - b_minor;
+
+	if (a_point != b_point)
+		return a_point - b_point;
+
+	return a_patch - b_patch;
+}
+
 /*	NIC probe and remove
  */
 static int ef100_probe_main(struct efx_nic *efx)
@@ -492,6 +522,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 	unsigned int bar_size = resource_size(&efx->pci_dev->resource[efx->mem_bar]);
 	struct net_device *net_dev = efx->net_dev;
 	struct ef100_nic_data *nic_data;
+	char fw_version[32];
 	int i, rc;
 
 	if (WARN_ON(bar_size == 0))
@@ -561,6 +592,15 @@ static int ef100_probe_main(struct efx_nic *efx)
 	if (rc < 0)
 		goto fail;
 	efx->port_num = rc;
+
+	efx_mcdi_print_fwver(efx, fw_version, sizeof(fw_version));
+	netif_dbg(efx, drv, efx->net_dev, "Firmware version %s\n", fw_version);
+
+	if (compare_versions(fw_version, "1.1.0.1000") < 0) {
+		netif_info(efx, drv, efx->net_dev, "Firmware uses old event descriptors\n");
+		rc = -EINVAL;
+		goto fail;
+	}
 
 	rc = ef100_phy_probe(efx);
 	if (rc)
