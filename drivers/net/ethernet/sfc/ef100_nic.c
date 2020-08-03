@@ -260,6 +260,10 @@ static int ef100_ev_process(struct efx_channel *channel, int quota)
 		ev_type = EFX_QWORD_FIELD(*p_event, ESF_GZ_E_TYPE);
 
 		switch (ev_type) {
+		case ESE_GZ_EF100_EV_RX_PKTS:
+			efx_ef100_ev_rx(channel, p_event);
+			++spent;
+			break;
 		case ESE_GZ_EF100_EV_MCDI:
 			efx_mcdi_process_event(channel, p_event);
 			break;
@@ -482,9 +486,10 @@ static unsigned int ef100_check_caps(const struct efx_nic *efx,
 
 /*	NIC level access functions
  */
-#define EF100_OFFLOAD_FEATURES	(NETIF_F_HW_CSUM |			\
+#define EF100_OFFLOAD_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_RXCSUM |	\
 	NETIF_F_HIGHDMA | NETIF_F_SG | NETIF_F_FRAGLIST |		\
-	NETIF_F_TSO_ECN | NETIF_F_TSO_MANGLEID | NETIF_F_HW_VLAN_CTAG_TX)
+	NETIF_F_RXHASH | NETIF_F_RXFCS | NETIF_F_TSO_ECN | NETIF_F_RXALL | \
+	NETIF_F_TSO_MANGLEID | NETIF_F_HW_VLAN_CTAG_TX)
 
 const struct efx_nic_type ef100_pf_nic_type = {
 	.revision = EFX_REV_EF100,
@@ -539,6 +544,16 @@ const struct efx_nic_type ef100_pf_nic_type = {
 #endif
 
 	.get_phys_port_id = efx_ef100_get_phys_port_id,
+
+	.rx_prefix_size = ESE_GZ_RX_PKT_PREFIX_LEN,
+	.rx_hash_offset = ESF_GZ_RX_PREFIX_RSS_HASH_LBN / 8,
+	.rx_ts_offset = ESF_GZ_RX_PREFIX_PARTIAL_TSTAMP_LBN / 8,
+	.rx_hash_key_size = 40,
+	.rx_pull_rss_config = efx_mcdi_rx_pull_rss_config,
+	.rx_push_rss_config = efx_mcdi_pf_rx_push_rss_config,
+	.rx_push_rss_context_config = efx_mcdi_rx_push_rss_context_config,
+	.rx_pull_rss_context_config = efx_mcdi_rx_pull_rss_context_config,
+	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
 
@@ -902,6 +917,12 @@ static int ef100_probe_main(struct efx_nic *efx)
 	up_write(&efx->filter_sem);
 	if (rc)
 		goto fail;
+
+	netdev_rss_key_fill(efx->rss_context.rx_hash_key,
+			    sizeof(efx->rss_context.rx_hash_key));
+
+	/* Don't fail init if RSS setup doesn't work. */
+	efx_mcdi_push_default_indir_table(efx, efx->n_rx_channels);
 
 	rc = ef100_register_netdev(efx);
 	if (rc)
