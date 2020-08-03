@@ -85,9 +85,9 @@ References
 ==========
 
 [1] Hierarchical Data Extension UUID For _DSD.
-<http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
+<https://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
 referenced 2018-07-17.
 
 [2] Device Properties UUID For _DSD.
-<http://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf>,
+<https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf>,
 referenced 2016-10-04.

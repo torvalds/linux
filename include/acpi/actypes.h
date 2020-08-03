@@ -1201,12 +1201,18 @@ struct acpi_pci_id {
 	u16 function;
 };
 
+struct acpi_mem_mapping {
+	acpi_physical_address physical_address;
+	u8 *logical_address;
+	acpi_size length;
+	struct acpi_mem_mapping *next_mm;
+};
+
 struct acpi_mem_space_context {
 	u32 length;
 	acpi_physical_address address;
-	acpi_physical_address mapped_physical_address;
-	u8 *mapped_logical_address;
-	acpi_size mapped_length;
+	struct acpi_mem_mapping *cur_mm;
+	struct acpi_mem_mapping *first_mm;
 };
 
 /*
