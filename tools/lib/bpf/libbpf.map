@@ -293,5 +293,7 @@ LIBBPF_0.1.0 {
 		bpf_program__is_sk_lookup;
 		bpf_program__set_autoload;
 		bpf_program__set_sk_lookup;
+		btf__parse;
+		btf__parse_raw;
 		btf__set_fd;
 } LIBBPF_0.0.9;
