@@ -281,9 +281,12 @@
 };
 
 &usbotg_hs {
-	dr_mode = "peripheral";
-	phys = <&usbphyc_port1 0>;
+	dr_mode = "otg";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
 	phy-names = "usb2-phy";
+	phys = <&usbphyc_port1 0>;
+	vbus-supply = <&vbus_otg>;
 	status = "okay";
 };
 
