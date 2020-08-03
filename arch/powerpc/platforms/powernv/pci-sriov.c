@@ -253,9 +253,9 @@ void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 						      int resno)
 {
+	resource_size_t align = pci_iov_resource_size(pdev, resno);
 	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
 	struct pnv_iov_data *iov = pnv_iov_get(pdev);
-	resource_size_t align;
 
 	/*
 	 * iov can be null if we have an SR-IOV device with IOV BAR that can't
@@ -265,8 +265,6 @@ resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 	 */
 	if (!iov)
 		return align;
-
-	align = pci_iov_resource_size(pdev, resno);
 
 	/*
 	 * If we're using single mode then we can just use the native VF BAR
