@@ -638,7 +638,7 @@ static int lp55xx_parse_logical_led(struct device_node *np,
 	if (ret)
 		return ret;
 
-	if (led_color == LED_COLOR_ID_MULTI)
+	if (led_color == LED_COLOR_ID_RGB)
 		return lp55xx_parse_multi_led(np, cfg, child_number);
 
 	ret =  lp55xx_parse_common_child(np, cfg, child_number, &chan_nr);
