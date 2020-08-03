@@ -237,10 +237,10 @@ commit_trans:
 	return 0;
 }
 
-int btrfs_check_data_free_space(struct inode *inode,
+int btrfs_check_data_free_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int ret;
 
 	/* align the range */
@@ -248,14 +248,14 @@ int btrfs_check_data_free_space(struct inode *inode,
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode), len);
+	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
 	if (ret < 0)
 		return ret;
 
 	/* Use new btrfs_qgroup_reserve_data to reserve precious data space. */
 	ret = btrfs_qgroup_reserve_data(inode, reserved, start, len);
 	if (ret < 0)
-		btrfs_free_reserved_data_space_noquota(inode, start, len);
+		btrfs_free_reserved_data_space_noquota(fs_info, len);
 	else
 		ret = 0;
 	return ret;
@@ -269,16 +269,12 @@ int btrfs_check_data_free_space(struct inode *inode,
  * which we can't sleep and is sure it won't affect qgroup reserved space.
  * Like clear_bit_hook().
  */
-void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
+void btrfs_free_reserved_data_space_noquota(struct btrfs_fs_info *fs_info,
 					    u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_space_info *data_sinfo;
 
-	/* Make sure the range is aligned to sectorsize */
-	len = round_up(start + len, fs_info->sectorsize) -
-	      round_down(start, fs_info->sectorsize);
-	start = round_down(start, fs_info->sectorsize);
+	ASSERT(IS_ALIGNED(len, fs_info->sectorsize));
 
 	data_sinfo = fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
@@ -293,17 +289,17 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
  * This one will handle the per-inode data rsv map for accurate reserved
  * space framework.
  */
-void btrfs_free_reserved_data_space(struct inode *inode,
+void btrfs_free_reserved_data_space(struct btrfs_inode *inode,
 			struct extent_changeset *reserved, u64 start, u64 len)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	/* Make sure the range is aligned to sectorsize */
-	len = round_up(start + len, root->fs_info->sectorsize) -
-	      round_down(start, root->fs_info->sectorsize);
-	start = round_down(start, root->fs_info->sectorsize);
+	len = round_up(start + len, fs_info->sectorsize) -
+	      round_down(start, fs_info->sectorsize);
+	start = round_down(start, fs_info->sectorsize);
 
-	btrfs_free_reserved_data_space_noquota(inode, start, len);
+	btrfs_free_reserved_data_space_noquota(fs_info, len);
 	btrfs_qgroup_free_data(inode, reserved, start, len);
 }
 
@@ -557,7 +553,7 @@ void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes)
  * Return 0 for success
  * Return <0 for error(-ENOSPC or -EQUOT)
  */
-int btrfs_delalloc_reserve_space(struct inode *inode,
+int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len)
 {
 	int ret;
@@ -565,7 +561,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
 	ret = btrfs_check_data_free_space(inode, reserved, start, len);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len);
+	ret = btrfs_delalloc_reserve_metadata(inode, len);
 	if (ret < 0)
 		btrfs_free_reserved_data_space(inode, *reserved, start, len);
 	return ret;
@@ -583,10 +579,10 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
  * list if there are no delalloc bytes left.
  * Also it will handle the qgroup reserved space.
  */
-void btrfs_delalloc_release_space(struct inode *inode,
+void btrfs_delalloc_release_space(struct btrfs_inode *inode,
 				  struct extent_changeset *reserved,
 				  u64 start, u64 len, bool qgroup_free)
 {
-	btrfs_delalloc_release_metadata(BTRFS_I(inode), len, qgroup_free);
+	btrfs_delalloc_release_metadata(inode, len, qgroup_free);
 	btrfs_free_reserved_data_space(inode, reserved, start, len);
 }

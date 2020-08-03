@@ -468,8 +468,8 @@ again:
 			"block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s",
 			cache->start, cache->length, cache->used, cache->pinned,
 			cache->reserved, cache->ro ? "[readonly]" : "");
-		btrfs_dump_free_space(cache, bytes);
 		spin_unlock(&cache->lock);
+		btrfs_dump_free_space(cache, bytes);
 	}
 	if (++index < BTRFS_NR_RAID_TYPES)
 		goto again;

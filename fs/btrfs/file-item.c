@@ -522,10 +522,10 @@ fail:
  *		 means this bio can contains potentially discontigous bio vecs
  *		 so the logical offset of each should be calculated separately.
  */
-blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
+blk_status_t btrfs_csum_one_bio(struct btrfs_inode *inode, struct bio *bio,
 		       u64 file_start, int contig)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_ordered_extent *ordered = NULL;
