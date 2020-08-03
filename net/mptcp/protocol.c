@@ -2249,7 +2249,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		 * This is needed so NOSPACE flag can be set from tcp stack.
 		 */
 		__mptcp_flush_join_list(msk);
-		list_for_each_entry(subflow, &msk->conn_list, node) {
+		mptcp_for_each_subflow(msk, subflow) {
 			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
 			if (!ssk->sk_socket)
