@@ -837,7 +837,8 @@ static int mlxsw_sp_span_policer_id_base_set(struct mlxsw_sp_span *span,
 
 static void mlxsw_sp_span_policer_id_base_unset(struct mlxsw_sp_span *span)
 {
-	refcount_dec(&span->policer_id_base_ref_count);
+	if (refcount_dec_and_test(&span->policer_id_base_ref_count))
+		span->policer_id_base = 0;
 }
 
 static struct mlxsw_sp_span_entry *
