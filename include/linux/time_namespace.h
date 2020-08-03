@@ -4,7 +4,6 @@
 
 
 #include <linux/sched.h>
-#include <linux/kref.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/err.h>
@@ -18,7 +17,6 @@ struct timens_offsets {
 };
 
 struct time_namespace {
-	struct kref		kref;
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	struct ns_common	ns;
@@ -37,20 +35,21 @@ extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
 
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)
 {
-	kref_get(&ns->kref);
+	refcount_inc(&ns->ns.count);
 	return ns;
 }
 
 struct time_namespace *copy_time_ns(unsigned long flags,
 				    struct user_namespace *user_ns,
 				    struct time_namespace *old_ns);
-void free_time_ns(struct kref *kref);
+void free_time_ns(struct time_namespace *ns);
 int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
 struct vdso_data *arch_get_vdso_data(void *vvar_page);
 
 static inline void put_time_ns(struct time_namespace *ns)
 {
-	kref_put(&ns->kref, free_time_ns);
+	if (refcount_dec_and_test(&ns->ns.count))
+		free_time_ns(ns);
 }
 
 void proc_timens_show_offsets(struct task_struct *p, struct seq_file *m);
