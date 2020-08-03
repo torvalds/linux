@@ -252,7 +252,8 @@ static int rk817_reset(struct snd_soc_component *component)
 {
 	snd_soc_component_write(component, RK817_CODEC_DTOP_LPT_SRST, 0x40);
 	snd_soc_component_write(component, RK817_CODEC_DDAC_POPD_DACST, 0x02);
-	snd_soc_component_write(component, RK817_CODEC_DTOP_DIGEN_CLKE, 0x0f);
+	snd_soc_component_write(component, RK817_CODEC_DI2S_CKM, 0x00);
+	snd_soc_component_write(component, RK817_CODEC_DTOP_DIGEN_CLKE, 0xff);
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x04);
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG1, 0x58);
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG2, 0x2d);
@@ -1138,7 +1139,7 @@ static const struct regmap_config rk817_codec_regmap_config = {
 	.val_bits = 8,
 	.reg_stride = 1,
 	.max_register = 0x4f,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_FLAT,
 	.volatile_reg = rk817_volatile_register,
 	.writeable_reg = rk817_codec_register,
 	.readable_reg = rk817_codec_register,
