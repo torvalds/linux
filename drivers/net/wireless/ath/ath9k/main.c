@@ -19,6 +19,9 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
+static void ath9k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			u32 queues, bool drop);
+
 u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
@@ -1699,6 +1702,15 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		 * frames is a acceptable to allow RSN IBSS to be used.
 		 */
 		return -EOPNOTSUPP;
+	}
+
+	/* There may be MPDUs queued for the outgoing PTK key. Flush queues to
+	 * make sure these are not send unencrypted or with a wrong (new) key
+	 */
+	if (cmd == DISABLE_KEY && key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
+		ieee80211_stop_queues(hw);
+		ath9k_flush(hw, vif, 0, true);
+		ieee80211_wake_queues(hw);
 	}
 
 	mutex_lock(&sc->mutex);
