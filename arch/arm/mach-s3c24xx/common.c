@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 #include <linux/dmaengine.h>
+#include <linux/clk/samsung.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
