@@ -769,13 +769,12 @@ static int ttm_mem_evict_wait_busy(struct ttm_buffer_object *busy_bo,
 }
 
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
-			       uint32_t mem_type,
+			       struct ttm_mem_type_manager *man,
 			       const struct ttm_place *place,
 			       struct ttm_operation_ctx *ctx,
 			       struct ww_acquire_ctx *ticket)
 {
 	struct ttm_buffer_object *bo = NULL, *busy_bo = NULL;
-	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	bool locked = false;
 	unsigned i;
 	int ret;
@@ -922,7 +921,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			break;
 		if (unlikely(ret != -ENOSPC))
 			return ret;
-		ret = ttm_mem_evict_first(bdev, mem->mem_type, place, ctx,
+		ret = ttm_mem_evict_first(bdev, man, place, ctx,
 					  ticket);
 		if (unlikely(ret != 0))
 			return ret;
@@ -1407,14 +1406,13 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 EXPORT_SYMBOL(ttm_bo_create);
 
 static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
-				   unsigned mem_type)
+				   struct ttm_mem_type_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false,
 		.flags = TTM_OPT_FLAG_FORCE_ALLOC
 	};
-	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	struct dma_fence *fence;
 	int ret;
@@ -1428,7 +1426,7 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		while (!list_empty(&man->lru[i])) {
 			spin_unlock(&glob->lru_lock);
-			ret = ttm_mem_evict_first(bdev, mem_type, NULL, &ctx,
+			ret = ttm_mem_evict_first(bdev, man, NULL, &ctx,
 						  NULL);
 			if (ret)
 				return ret;
@@ -1473,7 +1471,7 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 	ret = 0;
 	if (mem_type > 0) {
-		ret = ttm_bo_force_list_clean(bdev, mem_type);
+		ret = ttm_bo_force_list_clean(bdev, man);
 		if (ret) {
 			pr_err("Cleanup eviction failed\n");
 			return ret;
@@ -1503,7 +1501,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return 0;
 	}
 
-	return ttm_bo_force_list_clean(bdev, mem_type);
+	return ttm_bo_force_list_clean(bdev, man);
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 
