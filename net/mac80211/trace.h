@@ -22,7 +22,8 @@
 #define LOCAL_PR_ARG	__entry->wiphy_name
 
 #define STA_ENTRY	__array(char, sta_addr, ETH_ALEN)
-#define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : memset(__entry->sta_addr, 0, ETH_ALEN))
+#define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : \
+				eth_zero_addr(__entry->sta_addr))
 #define STA_NAMED_ASSIGN(s)	memcpy(__entry->sta_addr, (s)->addr, ETH_ALEN)
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr

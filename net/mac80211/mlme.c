@@ -2988,7 +2988,10 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 		cfg80211_rx_mlme_mgmt(sdata->dev, (u8 *)mgmt, len);
 
 		if (auth_alg == WLAN_AUTH_SAE &&
-		    status_code == WLAN_STATUS_ANTI_CLOG_REQUIRED)
+		    (status_code == WLAN_STATUS_ANTI_CLOG_REQUIRED ||
+		     (auth_transaction == 1 &&
+		      (status_code == WLAN_STATUS_SAE_HASH_TO_ELEMENT ||
+		       status_code == WLAN_STATUS_SAE_PK))))
 			return;
 
 		sdata_info(sdata, "%pM denied authentication (status %d)\n",
@@ -4558,6 +4561,9 @@ static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
+		return;
+
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
 		return;
 
 	sdata->u.mgd.connection_loss = false;
