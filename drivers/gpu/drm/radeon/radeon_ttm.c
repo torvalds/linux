@@ -827,8 +827,8 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 		}
 		radeon_bo_unref(&rdev->stolen_vga_memory);
 	}
-	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_VRAM);
-	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_TT);
+	ttm_range_man_fini(&rdev->mman.bdev, &rdev->mman.bdev.man[TTM_PL_VRAM]);
+	ttm_range_man_fini(&rdev->mman.bdev, &rdev->mman.bdev.man[TTM_PL_TT]);
 	ttm_bo_device_release(&rdev->mman.bdev);
 	radeon_gart_fini(rdev);
 	rdev->mman.initialized = false;
