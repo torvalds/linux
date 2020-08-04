@@ -1138,7 +1138,7 @@ static irqreturn_t aer_isr(int irq, void *context)
 {
 	struct pcie_device *dev = (struct pcie_device *)context;
 	struct aer_rpc *rpc = get_service_data(dev);
-	struct aer_err_source uninitialized_var(e_src);
+	struct aer_err_source e_src;
 
 	if (kfifo_is_empty(&rpc->aer_fifo))
 		return IRQ_NONE;

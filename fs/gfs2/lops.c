@@ -419,7 +419,7 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
 			      struct page *page)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	struct gfs2_log_header_host uninitialized_var(lh);
+	struct gfs2_log_header_host lh;
 	void *kaddr = kmap_atomic(page);
 	unsigned int offset;
 	bool ret = false;
