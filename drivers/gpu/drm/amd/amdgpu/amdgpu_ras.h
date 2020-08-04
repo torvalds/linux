@@ -343,6 +343,9 @@ struct amdgpu_ras {
 
 	/* bad page count threshold */
 	uint32_t bad_page_cnt_threshold;
+
+	/* disable ras error count harvest in recovery */
+	bool disable_ras_err_cnt_harvest;
 };
 
 struct ras_fs_data {

@@ -1547,17 +1547,19 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct list_head device_list, *device_list_handle =  NULL;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, false);
 
-	/* Build list of devices to query RAS related errors */
-	if  (hive && adev->gmc.xgmi.num_physical_nodes > 1)
-		device_list_handle = &hive->device_list;
-	else {
-		INIT_LIST_HEAD(&device_list);
-		list_add_tail(&adev->gmc.xgmi.head, &device_list);
-		device_list_handle = &device_list;
-	}
+	if (!ras->disable_ras_err_cnt_harvest) {
+		/* Build list of devices to query RAS related errors */
+		if  (hive && adev->gmc.xgmi.num_physical_nodes > 1) {
+			device_list_handle = &hive->device_list;
+		} else {
+			INIT_LIST_HEAD(&device_list);
+			list_add_tail(&adev->gmc.xgmi.head, &device_list);
+			device_list_handle = &device_list;
+		}
 
-	list_for_each_entry(remote_adev, device_list_handle, gmc.xgmi.head) {
-		amdgpu_ras_log_on_err_counter(remote_adev);
+		list_for_each_entry(remote_adev,
+				device_list_handle, gmc.xgmi.head)
+			amdgpu_ras_log_on_err_counter(remote_adev);
 	}
 
 	if (amdgpu_device_should_recover_gpu(ras->adev))
