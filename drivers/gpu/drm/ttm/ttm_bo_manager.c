@@ -129,26 +129,11 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_range_man_init);
 
-static int ttm_bo_man_takedown_private(struct ttm_mem_type_manager *man)
-{
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
-	struct drm_mm *mm = &rman->mm;
-
-	spin_lock(&rman->lock);
-	if (drm_mm_clean(mm)) {
-		drm_mm_takedown(mm);
-		spin_unlock(&rman->lock);
-		kfree(rman);
-		man->priv = NULL;
-		return 0;
-	}
-	spin_unlock(&rman->lock);
-	return -EBUSY;
-}
-
 int ttm_range_man_fini(struct ttm_bo_device *bdev,
 		       struct ttm_mem_type_manager *man)
 {
+	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct drm_mm *mm = &rman->mm;
 	int ret;
 
 	ttm_mem_type_manager_disable(man);
@@ -157,7 +142,13 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 	if (ret)
 		return ret;
 
-	ttm_bo_man_takedown_private(man);
+	spin_lock(&rman->lock);
+	drm_mm_clean(mm);
+	drm_mm_takedown(mm);
+	spin_unlock(&rman->lock);
+	kfree(rman);
+	man->priv = NULL;
+
 	ttm_mem_type_manager_cleanup(man);
 	return 0;
 }
@@ -174,7 +165,6 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 }
 
 static const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	.takedown = ttm_bo_man_takedown_private,
 	.get_node = ttm_bo_man_get_node,
 	.put_node = ttm_bo_man_put_node,
 	.debug = ttm_bo_man_debug
