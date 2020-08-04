@@ -650,23 +650,22 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 		    (service_rc == 8 && service_rs == 72) ||
 		    (service_rc == 8 && service_rs == 770) ||
 		    (service_rc == 12 && service_rs == 769)) {
-			ZCRYPT_DBF(DBF_DEBUG,
-				   "device=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
-				   AP_QID_CARD(zq->queue->qid),
-				   AP_QID_QUEUE(zq->queue->qid),
-				   (int) service_rc, (int) service_rs);
+			ZCRYPT_DBF_WARN("dev=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
+					AP_QID_CARD(zq->queue->qid),
+					AP_QID_QUEUE(zq->queue->qid),
+					(int) service_rc, (int) service_rs);
 			return -EINVAL;
 		}
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x rc/rs=%d/%d online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rc/rs=%d/%d => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (int) service_rc, (int) service_rs);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) service_rc, (int) service_rs);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x rc/rs=%d/%d => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) service_rc, (int) service_rs);
+		return -EAGAIN;
 	}
 	data = msg->text;
 	reply_len = msg->length - 2;
@@ -800,17 +799,18 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
 		fallthrough;	/* wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+	default:
+		/* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (int) msg->hdr.type);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) msg->hdr.type);
+		return -EAGAIN;
 	}
 }
 
@@ -836,15 +836,15 @@ static int convert_response_xcrb(bool userspace, struct zcrypt_queue *zq,
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (int) msg->hdr.type);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) msg->hdr.type);
+		return -EAGAIN;
 	}
 }
 
@@ -865,15 +865,15 @@ static int convert_response_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 		fallthrough;	/* wrong cprb version is an unknown resp */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (int) msg->hdr.type);
-		return -EAGAIN; /* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) msg->hdr.type);
+		return -EAGAIN;
 	}
 }
 
@@ -895,15 +895,15 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 		fallthrough;	/* wrong cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (int) msg->hdr.type);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) msg->hdr.type);
+		return -EAGAIN;
 	}
 }
 

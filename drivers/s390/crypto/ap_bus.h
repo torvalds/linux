@@ -50,6 +50,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESPONSE_NO_FIRST_PART	0x13
 #define AP_RESPONSE_MESSAGE_TOO_BIG	0x15
 #define AP_RESPONSE_REQ_FAC_NOT_INST	0x16
+#define AP_RESPONSE_INVALID_DOMAIN	0x42
 
 /*
  * Known device types

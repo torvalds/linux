@@ -356,15 +356,15 @@ static int convert_type80(struct zcrypt_queue *zq,
 	if (t80h->len < sizeof(*t80h) + outputdatalength) {
 		/* The result is too short, the CEXxA card may not do that.. */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   t80h->code);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       t80h->code);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       t80h->code);
+		return -EAGAIN;
 	}
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
 		BUG_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
@@ -376,10 +376,10 @@ static int convert_type80(struct zcrypt_queue *zq,
 	return 0;
 }
 
-static int convert_response(struct zcrypt_queue *zq,
-			    struct ap_message *reply,
-			    char __user *outputdata,
-			    unsigned int outputdatalength)
+static int convert_response_cex2a(struct zcrypt_queue *zq,
+				  struct ap_message *reply,
+				  char __user *outputdata,
+				  unsigned int outputdatalength)
 {
 	/* Response type byte is the second byte in the response. */
 	unsigned char rtype = ((unsigned char *) reply->msg)[1];
@@ -393,15 +393,15 @@ static int convert_response(struct zcrypt_queue *zq,
 				      outputdata, outputdatalength);
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
-		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
-			   AP_QID_CARD(zq->queue->qid),
-			   AP_QID_QUEUE(zq->queue->qid),
-			   (unsigned int) rtype);
-		return -EAGAIN;	/* repeat the request on a different device. */
+		       AP_QID_QUEUE(zq->queue->qid),
+		       (int) rtype);
+		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			       AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid),
+			       (int) rtype);
+		return -EAGAIN;
 	}
 }
 
@@ -478,8 +478,9 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 	if (rc == 0) {
 		rc = ap_msg.rc;
 		if (rc == 0)
-			rc = convert_response(zq, &ap_msg, mex->outputdata,
-					      mex->outputdatalength);
+			rc = convert_response_cex2a(zq, &ap_msg,
+						    mex->outputdata,
+						    mex->outputdatalength);
 	} else
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, &ap_msg);
@@ -524,8 +525,9 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 	if (rc == 0) {
 		rc = ap_msg.rc;
 		if (rc == 0)
-			rc = convert_response(zq, &ap_msg, crt->outputdata,
-					      crt->outputdatalength);
+			rc = convert_response_cex2a(zq, &ap_msg,
+						    crt->outputdata,
+						    crt->outputdatalength);
 	} else
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, &ap_msg);

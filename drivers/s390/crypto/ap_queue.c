@@ -241,6 +241,9 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		return AP_SM_WAIT_TIMEOUT;
+	case AP_RESPONSE_INVALID_DOMAIN:
+		AP_DBF(DBF_WARN, "AP_RESPONSE_INVALID_DOMAIN on NQAP\n");
+		fallthrough;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
 	case AP_RESPONSE_REQ_FAC_NOT_INST:
 		list_del_init(&ap_msg->list);
@@ -286,11 +289,6 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		aq->interrupt = AP_INTR_DISABLED;
 		return AP_SM_WAIT_TIMEOUT;
-	case AP_RESPONSE_BUSY:
-		return AP_SM_WAIT_TIMEOUT;
-	case AP_RESPONSE_Q_NOT_AVAIL:
-	case AP_RESPONSE_DECONFIGURED:
-	case AP_RESPONSE_CHECKSTOPPED:
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
