@@ -156,8 +156,7 @@ struct coprocessor_request_block {
 	u8 reserved[32];
 
 	struct coprocessor_status_block csb;
-} __packed;
-
+} __aligned(128);
 
 /* RFC02167 Initiate Coprocessor Instructions document
  * Chapter 8.2.1.1.1 RS
@@ -187,6 +186,9 @@ static inline int icswx(__be32 ccw, struct coprocessor_request_block *crb)
 {
 	__be64 ccw_reg = ccw;
 	u32 cr;
+
+	/* NB: the same structures are used by VAS-NX */
+	BUILD_BUG_ON(sizeof(*crb) != 128);
 
 	__asm__ __volatile__(
 	PPC_ICSWX(%1,0,%2) "\n"
