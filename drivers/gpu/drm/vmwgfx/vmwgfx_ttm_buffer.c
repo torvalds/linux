@@ -819,3 +819,35 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.swap_notify = vmw_swap_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 };
+
+int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
+			       unsigned long bo_size,
+			       struct ttm_buffer_object **bo_p)
+{
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
+	struct ttm_buffer_object *bo;
+	int ret;
+
+	ret = ttm_bo_create(&dev_priv->bdev, bo_size,
+			    ttm_bo_type_device,
+			    &vmw_sys_ne_placement,
+			    0, false, &bo);
+
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_bo_reserve(bo, false, true, NULL);
+	BUG_ON(ret != 0);
+	ret = vmw_bo_driver.ttm_tt_populate(bo->ttm, &ctx);
+	if (likely(ret == 0))
+		ret = vmw_bo_map_dma(bo);
+
+	ttm_bo_unreserve(bo);
+
+	if (likely(ret == 0))
+		*bo_p = bo;
+	return ret;
+}

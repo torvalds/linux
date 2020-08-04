@@ -1023,6 +1023,10 @@ extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
 extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
 extern const struct vmw_sg_table *
 vmw_bo_sg_table(struct ttm_buffer_object *bo);
+extern int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
+				      unsigned long bo_size,
+				      struct ttm_buffer_object **bo_p);
+
 extern void vmw_piter_start(struct vmw_piter *viter,
 			    const struct vmw_sg_table *vsgt,
 			    unsigned long p_offs);
