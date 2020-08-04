@@ -495,8 +495,4 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name,
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
 					   bool rb);
-struct drm_display_mode *
-drm_display_mode_from_vic_index(struct drm_connector *connector,
-				const u8 *video_db, u8 video_len,
-				u8 video_index);
 #endif /* __DRM_EDID_H__ */

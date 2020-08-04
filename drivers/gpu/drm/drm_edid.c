@@ -3292,7 +3292,7 @@ static u8 svd_to_vic(u8 svd)
 	return svd;
 }
 
-struct drm_display_mode *
+static struct drm_display_mode *
 drm_display_mode_from_vic_index(struct drm_connector *connector,
 				const u8 *video_db, u8 video_len,
 				u8 video_index)
@@ -3317,7 +3317,6 @@ drm_display_mode_from_vic_index(struct drm_connector *connector,
 
 	return newmode;
 }
-EXPORT_SYMBOL(drm_display_mode_from_vic_index);
 
 /*
  * do_y420vdb_modes - Parse YCBCR 420 only modes
