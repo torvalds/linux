@@ -280,12 +280,10 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 static int qxl_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_mm *mm = (struct drm_mm *)node->info_ent->data;
+	struct ttm_mem_type_manager *man = (struct ttm_mem_type_manager *)node->info_ent->data;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&ttm_bo_glob.lru_lock);
-	drm_mm_print(mm, &p);
-	spin_unlock(&ttm_bo_glob.lru_lock);
+	ttm_mem_type_manager_debug(man, &p);
 	return 0;
 }
 #endif
@@ -306,9 +304,9 @@ void qxl_ttm_debugfs_init(struct qxl_device *qdev)
 		qxl_mem_types_list[i].show = &qxl_mm_dump_table;
 		qxl_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_VRAM].priv;
+			qxl_mem_types_list[i].data = &qdev->mman.bdev.man[TTM_PL_VRAM];
 		else
-			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_PRIV].priv;
+			qxl_mem_types_list[i].data = &qdev->mman.bdev.man[TTM_PL_PRIV];
 
 	}
 	qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
