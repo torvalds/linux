@@ -1520,9 +1520,7 @@ vm_fault_t vmw_bo_vm_huge_fault(struct vm_fault *vmf,
 
 /* Transparent hugepage support - vmwgfx_thp.c */
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern const struct ttm_mem_type_manager_func vmw_thp_func;
-#else
-#define vmw_thp_func ttm_bo_manager_func
+extern int vmw_thp_init(struct vmw_private *dev_priv);
 #endif
 
 /**

@@ -620,6 +620,23 @@ static int vmw_dma_masks(struct vmw_private *dev_priv)
 	return ret;
 }
 
+static int vmw_vram_manager_init(struct vmw_private *dev_priv)
+{
+	int ret;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	ret = vmw_thp_init(dev_priv);
+#else
+	struct ttm_mem_type_manager *man = &dev_priv->bdev.man[TTM_PL_VRAM];
+
+	man->available_caching = TTM_PL_FLAG_CACHED;
+	man->default_caching = TTM_PL_FLAG_CACHED;
+
+	ret = ttm_range_man_init(&dev_priv->bdev, man,
+				 dev_priv->vram_size >> PAGE_SHIFT);
+#endif
+	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+	return ret;
+}
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
@@ -866,16 +883,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	 * Enable VRAM, but initially don't use it until SVGA is enabled and
 	 * unhidden.
 	 */
-	dev_priv->bdev.man[TTM_PL_VRAM].func = &vmw_thp_func;
-	dev_priv->bdev.man[TTM_PL_VRAM].available_caching = TTM_PL_FLAG_CACHED;
-	dev_priv->bdev.man[TTM_PL_VRAM].default_caching = TTM_PL_FLAG_CACHED;
-	ret = ttm_bo_init_mm(&dev_priv->bdev, TTM_PL_VRAM,
-			     (dev_priv->vram_size >> PAGE_SHIFT));
+
+	ret = vmw_vram_manager_init(dev_priv);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing memory manager for VRAM.\n");
 		goto out_no_vram;
 	}
-	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
 
 	/*
 	 * "Guest Memory Regions" is an aperture like feature with

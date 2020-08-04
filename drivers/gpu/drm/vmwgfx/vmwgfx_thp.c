@@ -115,18 +115,23 @@ static void vmw_thp_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static int vmw_thp_init(struct ttm_mem_type_manager *man,
-			unsigned long p_size)
+int vmw_thp_init(struct vmw_private *dev_priv)
 {
+	struct ttm_mem_type_manager *man = &dev_priv->bdev.man[TTM_PL_VRAM];
 	struct vmw_thp_manager *rman;
+	man->available_caching = TTM_PL_FLAG_CACHED;
+	man->default_caching = TTM_PL_FLAG_CACHED;
 
+	ttm_mem_type_manager_init(&dev_priv->bdev, man,
+				  dev_priv->vram_size >> PAGE_SHIFT);
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
 
-	drm_mm_init(&rman->mm, 0, p_size);
+	drm_mm_init(&rman->mm, 0, man->size);
 	spin_lock_init(&rman->lock);
 	man->priv = rman;
+	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
 
@@ -158,7 +163,6 @@ static void vmw_thp_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func vmw_thp_func = {
-	.init = vmw_thp_init,
 	.takedown = vmw_thp_takedown,
 	.get_node = vmw_thp_get_node,
 	.put_node = vmw_thp_put_node,
