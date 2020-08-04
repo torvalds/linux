@@ -1108,6 +1108,13 @@ int hinic_vf_func_init(struct hinic_hwdev *hwdev)
 	int err = 0;
 	u32 size, i;
 
+	err = hinic_vf_mbox_random_id_init(hwdev);
+	if (err) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to init vf mbox random id, err: %d\n",
+			err);
+		return err;
+	}
+
 	nic_io = &hwdev->func_to_io;
 
 	if (HINIC_IS_VF(hwdev->hwif)) {

@@ -486,6 +486,111 @@ err_alloc_rcv_mbox_msg:
 	kfree(rcv_mbox_temp);
 }
 
+static int set_vf_mbox_random_id(struct hinic_hwdev *hwdev, u16 func_id)
+{
+	struct hinic_mbox_func_to_func *func_to_func = hwdev->func_to_func;
+	struct hinic_set_random_id rand_info = {0};
+	u16 out_size = sizeof(rand_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int ret;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	rand_info.version = HINIC_CMD_VER_FUNC_ID;
+	rand_info.func_idx = func_id;
+	rand_info.vf_in_pf = func_id - hinic_glb_pf_vf_offset(hwdev->hwif);
+	rand_info.random_id = get_random_u32();
+
+	func_to_func->vf_mbx_rand_id[func_id] = rand_info.random_id;
+
+	ret = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_MGMT_CMD_SET_VF_RANDOM_ID,
+				&rand_info, sizeof(rand_info),
+				&rand_info, &out_size, HINIC_MGMT_MSG_SYNC);
+	if ((rand_info.status != HINIC_MGMT_CMD_UNSUPPORTED &&
+	     rand_info.status) || !out_size || ret) {
+		dev_err(&hwdev->hwif->pdev->dev, "Set VF random id failed, err: %d, status: 0x%x, out size: 0x%x\n",
+			ret, rand_info.status, out_size);
+		return -EIO;
+	}
+
+	if (rand_info.status == HINIC_MGMT_CMD_UNSUPPORTED)
+		return rand_info.status;
+
+	func_to_func->vf_mbx_old_rand_id[func_id] =
+				func_to_func->vf_mbx_rand_id[func_id];
+
+	return 0;
+}
+
+static void update_random_id_work_handler(struct work_struct *work)
+{
+	struct hinic_mbox_work *mbox_work =
+			container_of(work, struct hinic_mbox_work, work);
+	struct hinic_mbox_func_to_func *func_to_func;
+	u16 src = mbox_work->src_func_idx;
+
+	func_to_func = mbox_work->func_to_func;
+
+	if (set_vf_mbox_random_id(func_to_func->hwdev, src))
+		dev_warn(&func_to_func->hwdev->hwif->pdev->dev, "Update VF id: 0x%x random id failed\n",
+			 mbox_work->src_func_idx);
+
+	kfree(mbox_work);
+}
+
+static bool check_vf_mbox_random_id(struct hinic_mbox_func_to_func *func_to_func,
+				    u8 *header)
+{
+	struct hinic_hwdev *hwdev = func_to_func->hwdev;
+	struct hinic_mbox_work *mbox_work = NULL;
+	u64 mbox_header = *((u64 *)header);
+	u16 offset, src;
+	u32 random_id;
+	int vf_in_pf;
+
+	src = HINIC_MBOX_HEADER_GET(mbox_header, SRC_GLB_FUNC_IDX);
+
+	if (IS_PF_OR_PPF_SRC(src) || !func_to_func->support_vf_random)
+		return true;
+
+	if (!HINIC_IS_PPF(hwdev->hwif)) {
+		offset = hinic_glb_pf_vf_offset(hwdev->hwif);
+		vf_in_pf = src - offset;
+
+		if (vf_in_pf < 1 || vf_in_pf > hwdev->nic_cap.max_vf) {
+			dev_warn(&hwdev->hwif->pdev->dev,
+				 "Receive vf id(0x%x) is invalid, vf id should be from 0x%x to 0x%x\n",
+				 src, offset + 1,
+				 hwdev->nic_cap.max_vf + offset);
+			return false;
+		}
+	}
+
+	random_id = be32_to_cpu(*(u32 *)(header + MBOX_SEG_LEN +
+					 MBOX_HEADER_SZ));
+
+	if (random_id == func_to_func->vf_mbx_rand_id[src] ||
+	    random_id == func_to_func->vf_mbx_old_rand_id[src])
+		return true;
+
+	dev_warn(&hwdev->hwif->pdev->dev,
+		 "The mailbox random id(0x%x) of func_id(0x%x) doesn't match with pf reservation(0x%x)\n",
+		 random_id, src, func_to_func->vf_mbx_rand_id[src]);
+
+	mbox_work = kzalloc(sizeof(*mbox_work), GFP_KERNEL);
+	if (!mbox_work)
+		return false;
+
+	mbox_work->func_to_func = func_to_func;
+	mbox_work->src_func_idx = src;
+
+	INIT_WORK(&mbox_work->work, update_random_id_work_handler);
+	queue_work(func_to_func->workq, &mbox_work->work);
+
+	return false;
+}
+
 void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 {
 	struct hinic_mbox_func_to_func *func_to_func;
@@ -503,6 +608,9 @@ void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 			"Mailbox source function id:%u is invalid\n", (u32)src);
 		return;
 	}
+
+	if (!check_vf_mbox_random_id(func_to_func, header))
+		return;
 
 	recv_mbox = (dir == HINIC_HWIF_DIRECT_SEND) ?
 		    &func_to_func->mbox_send[src] :
@@ -1209,4 +1317,33 @@ void hinic_func_to_func_free(struct hinic_hwdev *hwdev)
 	free_mbox_info(func_to_func->mbox_send);
 
 	kfree(func_to_func);
+}
+
+int hinic_vf_mbox_random_id_init(struct hinic_hwdev *hwdev)
+{
+	u16 vf_offset;
+	u8 vf_in_pf;
+	int err = 0;
+
+	if (HINIC_IS_VF(hwdev->hwif))
+		return 0;
+
+	vf_offset = hinic_glb_pf_vf_offset(hwdev->hwif);
+
+	for (vf_in_pf = 1; vf_in_pf <= hwdev->nic_cap.max_vf; vf_in_pf++) {
+		err = set_vf_mbox_random_id(hwdev, vf_offset + vf_in_pf);
+		if (err)
+			break;
+	}
+
+	if (err == HINIC_MGMT_CMD_UNSUPPORTED) {
+		hwdev->func_to_func->support_vf_random = false;
+		err = 0;
+		dev_warn(&hwdev->hwif->pdev->dev, "Mgmt is unsupported to set VF%d random id\n",
+			 vf_in_pf - 1);
+	} else if (!err) {
+		hwdev->func_to_func->support_vf_random = true;
+	}
+
+	return err;
 }
