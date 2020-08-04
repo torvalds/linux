@@ -77,26 +77,26 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p,
-			       int mem_type)
+void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
+				struct drm_printer *p)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
-
 	drm_printf(p, "    has_type: %d\n", man->has_type);
 	drm_printf(p, "    use_type: %d\n", man->use_type);
 	drm_printf(p, "    use_tt: %d\n", man->use_tt);
 	drm_printf(p, "    size: %llu\n", man->size);
 	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
 	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
-	if (mem_type != TTM_PL_SYSTEM)
+	if (man->func && man->func->debug)
 		(*man->func->debug)(man, p);
 }
+EXPORT_SYMBOL(ttm_mem_type_manager_debug);
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
 	struct drm_printer p = drm_debug_printer(TTM_PFX);
 	int i, ret, mem_type;
+	struct ttm_mem_type_manager *man;
 
 	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
 		   bo, bo->mem.num_pages, bo->mem.size >> 10,
@@ -108,7 +108,8 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 			return;
 		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
 			   i, placement->placement[i].flags, mem_type);
-		ttm_mem_type_debug(bo->bdev, &p, mem_type);
+		man = &bo->bdev->man[mem_type];
+		ttm_mem_type_manager_debug(man, &p);
 	}
 }
 

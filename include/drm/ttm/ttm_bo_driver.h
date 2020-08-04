@@ -806,4 +806,12 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
+/**
+ * ttm_mem_type_manager_debug
+ *
+ * @man: manager type to dump.
+ * @p: printer to use for debug.
+ */
+void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
+				struct drm_printer *p);
 #endif
