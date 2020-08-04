@@ -1615,7 +1615,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 
 	bdev->driver = driver;
 
-	memset(bdev->man, 0, sizeof(bdev->man));
+	memset(bdev->man_priv, 0, sizeof(bdev->man_priv));
 
 	ttm_bo_init_sysman(bdev);
 
