@@ -896,14 +896,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	 *  slots as well as the bo size.
 	 */
 	dev_priv->has_gmr = true;
-	dev_priv->bdev.man[VMW_PL_GMR].func = &vmw_gmrid_manager_func;
-	dev_priv->bdev.man[VMW_PL_GMR].available_caching = TTM_PL_FLAG_CACHED;
-	dev_priv->bdev.man[VMW_PL_GMR].default_caching = TTM_PL_FLAG_CACHED;
 	/* TODO: This is most likely not correct */
-	dev_priv->bdev.man[VMW_PL_GMR].use_tt = true;
 	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
-	    refuse_dma || ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
-					 VMW_PL_GMR) != 0) {
+	    refuse_dma ||
+	    vmw_gmrid_man_init(dev_priv, VMW_PL_GMR) != 0) {
 		DRM_INFO("No GMR memory available. "
 			 "Graphics memory resources are very limited.\n");
 		dev_priv->has_gmr = false;
@@ -911,13 +907,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS && !refuse_dma) {
 		dev_priv->has_mob = true;
-		dev_priv->bdev.man[VMW_PL_MOB].func = &vmw_gmrid_manager_func;
-		dev_priv->bdev.man[VMW_PL_MOB].available_caching = TTM_PL_FLAG_CACHED;
-		dev_priv->bdev.man[VMW_PL_MOB].default_caching = TTM_PL_FLAG_CACHED;
-		/* TODO: This is most likely not correct */
-		dev_priv->bdev.man[VMW_PL_MOB].use_tt = true;
-		if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_MOB,
-				   VMW_PL_MOB) != 0) {
+
+		if (vmw_gmrid_man_init(dev_priv, VMW_PL_MOB) != 0) {
 			DRM_INFO("No MOB memory available. "
 				 "3D will be disabled.\n");
 			dev_priv->has_mob = false;

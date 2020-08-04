@@ -1221,7 +1221,7 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
  * GMR Id manager
  */
 
-extern const struct ttm_mem_type_manager_func vmw_gmrid_manager_func;
+int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type);
 
 /**
  * Prime - vmwgfx_prime.c
