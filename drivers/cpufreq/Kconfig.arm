@@ -41,6 +41,7 @@ config ARM_ARMADA_37XX_CPUFREQ
 config ARM_ARMADA_8K_CPUFREQ
 	tristate "Armada 8K CPUFreq driver"
 	depends on ARCH_MVEBU && CPUFREQ_DT
+	select ARMADA_AP_CPU_CLK
 	help
 	  This enables the CPUFreq driver support for Marvell
 	  Armada8k SOCs.
@@ -93,6 +94,7 @@ config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
 	depends on REGULATOR_ANATOP
+	select NVMEM_IMX_OCOTP
 	select PM_OPP
 	help
 	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
@@ -313,6 +315,13 @@ config ARM_TEGRA186_CPUFREQ
 	depends on ARCH_TEGRA && TEGRA_BPMP
 	help
 	  This adds the CPUFreq driver support for Tegra186 SOCs.
+
+config ARM_TEGRA194_CPUFREQ
+	tristate "Tegra194 CPUFreq support"
+	depends on ARCH_TEGRA_194_SOC && TEGRA_BPMP
+	default y
+	help
+	  This adds CPU frequency driver support for Tegra194 SOCs.
 
 config ARM_TI_CPUFREQ
 	bool "Texas Instruments CPUFreq support"
