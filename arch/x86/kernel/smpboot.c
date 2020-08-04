@@ -51,7 +51,6 @@
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>
-#include <linux/stackprotector.h>
 #include <linux/gfp.h>
 #include <linux/cpuidle.h>
 #include <linux/numa.h>
@@ -81,6 +80,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/spec-ctrl.h>
 #include <asm/hw_irq.h>
+#include <asm/stackprotector.h>
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
@@ -260,21 +260,10 @@ static void notrace start_secondary(void *unused)
 	/* enable local interrupts */
 	local_irq_enable();
 
-	/* to prevent fake stack check failure in clock setup */
-	boot_init_stack_canary();
-
 	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
-
-	/*
-	 * Prevent tail call to cpu_startup_entry() because the stack protector
-	 * guard has been changed a couple of function calls up, in
-	 * boot_init_stack_canary() and must not be checked before tail calling
-	 * another function.
-	 */
-	prevent_tail_call_optimization();
 }
 
 /**
@@ -1012,6 +1001,7 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	alternatives_enable_smp();
 
 	per_cpu(current_task, cpu) = idle;
+	cpu_init_stack_canary(cpu, idle);
 
 	/* Initialize the interrupt stack(s) */
 	ret = irq_init_percpu_irqstack(cpu);
