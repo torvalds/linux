@@ -25,10 +25,16 @@
 #include "amdgpu.h"
 
 struct amdgpu_gtt_mgr {
+	struct ttm_mem_type_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 	atomic64_t available;
 };
+
+static inline struct amdgpu_gtt_mgr *to_gtt_mgr(struct ttm_mem_type_manager *man)
+{
+	return container_of(man, struct amdgpu_gtt_mgr, manager);
+}
 
 struct amdgpu_gtt_node {
 	struct drm_mm_node node;
@@ -87,11 +93,16 @@ static const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
  */
 int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
+	struct ttm_mem_type_manager *man;
 	struct amdgpu_gtt_mgr *mgr;
 	uint64_t start, size;
 	int ret;
 
+	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	if (!mgr)
+		return -ENOMEM;
+
+	man = &mgr->manager;
 	man->use_tt = true;
 	man->func = &amdgpu_gtt_mgr_func;
 	man->available_caching = TTM_PL_MASK_CACHING;
@@ -99,16 +110,11 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 
 	ttm_mem_type_manager_init(&adev->mman.bdev, man, gtt_size >> PAGE_SHIFT);
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
-	if (!mgr)
-		return -ENOMEM;
-
 	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
 	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
 	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
 	atomic64_set(&mgr->available, gtt_size >> PAGE_SHIFT);
-	man->priv = mgr;
 
 	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_total);
 	if (ret) {
@@ -121,6 +127,7 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 		return ret;
 	}
 
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, &mgr->manager);
 	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
@@ -136,7 +143,7 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
 {
 	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	int ret;
 
 	ttm_mem_type_manager_disable(man);
@@ -148,13 +155,13 @@ void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
 	spin_lock(&mgr->lock);
 	drm_mm_takedown(&mgr->mm);
 	spin_unlock(&mgr->lock);
-	kfree(mgr);
-	man->priv = NULL;
 
 	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_total);
 	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_used);
 
 	ttm_mem_type_manager_cleanup(man);
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, NULL);
+	kfree(mgr);
 }
 
 /**
@@ -184,7 +191,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 			      const struct ttm_place *place,
 			      struct ttm_mem_reg *mem)
 {
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	struct amdgpu_gtt_node *node;
 	int r;
 
@@ -247,7 +254,7 @@ err_out:
 static void amdgpu_gtt_mgr_del(struct ttm_mem_type_manager *man,
 			       struct ttm_mem_reg *mem)
 {
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	struct amdgpu_gtt_node *node = mem->mm_node;
 
 	if (node) {
@@ -269,7 +276,7 @@ static void amdgpu_gtt_mgr_del(struct ttm_mem_type_manager *man,
  */
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man)
 {
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	s64 result = man->size - atomic64_read(&mgr->available);
 
 	return (result > 0 ? result : 0) * PAGE_SIZE;
@@ -277,7 +284,7 @@ uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man)
 
 int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man)
 {
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	struct amdgpu_gtt_node *node;
 	struct drm_mm_node *mm_node;
 	int r = 0;
@@ -305,7 +312,7 @@ int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man)
 static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 				 struct drm_printer *printer)
 {
-	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 
 	spin_lock(&mgr->lock);
 	drm_mm_print(&mgr->mm, printer);

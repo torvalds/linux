@@ -29,11 +29,17 @@
 #include "atom.h"
 
 struct amdgpu_vram_mgr {
+	struct ttm_mem_type_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 	atomic64_t usage;
 	atomic64_t vis_usage;
 };
+
+static inline struct amdgpu_vram_mgr *to_vram_mgr(struct ttm_mem_type_manager *man)
+{
+	return container_of(man, struct amdgpu_vram_mgr, manager);
+}
 
 /**
  * DOC: mem_info_vram_total
@@ -170,9 +176,15 @@ static const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
  */
 int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	struct ttm_mem_type_manager *man;
 	struct amdgpu_vram_mgr *mgr;
 	int ret;
+
+	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	if (!mgr)
+		return -ENOMEM;
+
+	man = &mgr->manager;
 
 	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 	man->default_caching = TTM_PL_FLAG_WC;
@@ -180,19 +192,16 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 	ttm_mem_type_manager_init(&adev->mman.bdev, man, adev->gmc.real_vram_size >> PAGE_SHIFT);
 
 	man->func = &amdgpu_vram_mgr_func;
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
-	if (!mgr)
-		return -ENOMEM;
 
 	drm_mm_init(&mgr->mm, 0, man->size);
 	spin_lock_init(&mgr->lock);
-	man->priv = mgr;
 
 	/* Add the two VRAM-related sysfs files */
 	ret = sysfs_create_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
 	if (ret)
 		DRM_ERROR("Failed to register sysfs\n");
 
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, &mgr->manager);
 	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
@@ -208,7 +217,7 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 {
 	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	int ret;
 
 	ttm_mem_type_manager_disable(man);
@@ -220,11 +229,12 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 	spin_lock(&mgr->lock);
 	drm_mm_takedown(&mgr->mm);
 	spin_unlock(&mgr->lock);
-	kfree(mgr);
-	man->priv = NULL;
+
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
 
 	ttm_mem_type_manager_cleanup(man);
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, NULL);
+	kfree(mgr);
 }
 
 /**
@@ -314,7 +324,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 			       struct ttm_mem_reg *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct drm_mm *mm = &mgr->mm;
 	struct drm_mm_node *nodes;
 	enum drm_mm_insert_mode mode;
@@ -432,7 +442,7 @@ static void amdgpu_vram_mgr_del(struct ttm_mem_type_manager *man,
 				struct ttm_mem_reg *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct drm_mm_node *nodes = mem->mm_node;
 	uint64_t usage = 0, vis_usage = 0;
 	unsigned pages = mem->num_pages;
@@ -564,7 +574,7 @@ void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
  */
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man)
 {
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 
 	return atomic64_read(&mgr->usage);
 }
@@ -578,7 +588,7 @@ uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man)
  */
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man)
 {
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 
 	return atomic64_read(&mgr->vis_usage);
 }
@@ -594,7 +604,7 @@ uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man)
 static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 				  struct drm_printer *printer)
 {
-	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 
 	spin_lock(&mgr->lock);
 	drm_mm_print(&mgr->mm, printer);
