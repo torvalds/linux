@@ -1101,9 +1101,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 error:
 	if (bo->mem.mem_type == TTM_PL_SYSTEM && !list_empty(&bo->lru)) {
-		spin_lock(&ttm_bo_glob.lru_lock);
-		ttm_bo_move_to_lru_tail(bo, NULL);
-		spin_unlock(&ttm_bo_glob.lru_lock);
+		ttm_bo_move_to_lru_tail_unlocked(bo);
 	}
 
 	return ret;
@@ -1318,9 +1316,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		return ret;
 	}
 
-	spin_lock(&ttm_bo_glob.lru_lock);
-	ttm_bo_move_to_lru_tail(bo, NULL);
-	spin_unlock(&ttm_bo_glob.lru_lock);
+	ttm_bo_move_to_lru_tail_unlocked(bo);
 
 	return ret;
 }

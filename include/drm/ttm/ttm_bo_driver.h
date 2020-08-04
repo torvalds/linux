@@ -669,6 +669,13 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	return 0;
 }
 
+static inline void ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
+{
+	spin_lock(&ttm_bo_glob.lru_lock);
+	ttm_bo_move_to_lru_tail(bo, NULL);
+	spin_unlock(&ttm_bo_glob.lru_lock);
+}
+
 /**
  * ttm_bo_unreserve
  *
@@ -678,9 +685,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
  */
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
-	spin_lock(&ttm_bo_glob.lru_lock);
-	ttm_bo_move_to_lru_tail(bo, NULL);
-	spin_unlock(&ttm_bo_glob.lru_lock);
+	ttm_bo_move_to_lru_tail_unlocked(bo);
 	dma_resv_unlock(bo->base.resv);
 }
 
