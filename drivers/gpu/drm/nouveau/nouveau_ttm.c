@@ -156,7 +156,7 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 static int
 nouveau_ttm_init_vram(struct nouveau_drm *drm)
 {
-	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_VRAM];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 	struct nvif_mmu *mmu = &drm->client.mmu;
 
 	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
@@ -186,7 +186,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 static void
 nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 {
-	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_VRAM];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ttm_mem_type_manager_disable(man);
@@ -199,7 +199,7 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 static int
 nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 {
-	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_TT];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_TT);
 	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
 	man->use_tt = true;
 	if (drm->agp.bridge) {
@@ -228,7 +228,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 static void
 nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 {
-	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_TT];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_TT);
 
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA &&
 	    drm->agp.bridge)
