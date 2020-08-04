@@ -18,6 +18,8 @@ Optional properties:
 			 format depends on the interrupt controller.
 			 It should be a DCF interrupt. When DDR DVFS finishes
 			 a DCF interrupt is triggered.
+- rockchip,pmu:		 Phandle to the syscon managing the "PMU general register
+			 files".
 
 Following properties relate to DDR timing:
 
