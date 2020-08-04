@@ -375,15 +375,16 @@ static int i2c_gpio_init_recovery(struct i2c_adapter *adap)
 	return i2c_gpio_init_generic_recovery(adap);
 }
 
-static void i2c_init_recovery(struct i2c_adapter *adap)
+static int i2c_init_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
 	char *err_str;
 
 	if (!bri)
-		return;
+		return 0;
 
-	i2c_gpio_init_recovery(adap);
+	if (i2c_gpio_init_recovery(adap) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	if (!bri->recover_bus) {
 		err_str = "no recover_bus() found";
@@ -399,10 +400,7 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 			if (gpiod_get_direction(bri->sda_gpiod) == 0)
 				bri->set_sda = set_sda_gpio_value;
 		}
-		return;
-	}
-
-	if (bri->recover_bus == i2c_generic_scl_recovery) {
+	} else if (bri->recover_bus == i2c_generic_scl_recovery) {
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
 			err_str = "no {get|set}_scl() found";
@@ -414,10 +412,12 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		}
 	}
 
-	return;
+	return 0;
  err:
 	dev_err(&adap->dev, "Not using recovery: %s\n", err_str);
 	adap->bus_recovery_info = NULL;
+
+	return -EINVAL;
 }
 
 static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
@@ -1444,11 +1444,15 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	if (res)
 		goto out_reg;
 
-	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
-
 	pm_runtime_no_callbacks(&adap->dev);
 	pm_suspend_ignore_children(&adap->dev, true);
 	pm_runtime_enable(&adap->dev);
+
+	res = i2c_init_recovery(adap);
+	if (res == -EPROBE_DEFER)
+		goto out_reg;
+
+	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
 #ifdef CONFIG_I2C_COMPAT
 	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
@@ -1457,8 +1461,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		dev_warn(&adap->dev,
 			 "Failed to create compatibility class link\n");
 #endif
-
-	i2c_init_recovery(adap);
 
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
