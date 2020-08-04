@@ -1648,6 +1648,22 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 }
 EXPORT_SYMBOL(ttm_bo_device_release);
 
+static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
+{
+	struct ttm_mem_type_manager *man = &bdev->man[TTM_PL_SYSTEM];
+
+	/*
+	 * Initialize the system memory buffer type.
+	 * Other types need to be driver / IOCTL initialized.
+	 */
+	man->use_tt = true;
+	man->available_caching = TTM_PL_MASK_CACHING;
+	man->default_caching = TTM_PL_FLAG_CACHED;
+
+	ttm_mem_type_manager_init(bdev, man, 0);
+	ttm_mem_type_manager_set_used(man, true);
+}
+
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
@@ -1668,16 +1684,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 
 	memset(bdev->man, 0, sizeof(bdev->man));
 
-	/*
-	 * Initialize the system memory buffer type.
-	 * Other types need to be driver / IOCTL initialized.
-	 */
-	bdev->man[TTM_PL_SYSTEM].use_tt = true;
-	bdev->man[TTM_PL_SYSTEM].available_caching = TTM_PL_MASK_CACHING;
-	bdev->man[TTM_PL_SYSTEM].default_caching = TTM_PL_FLAG_CACHED;
-	ret = ttm_bo_init_mm(bdev, TTM_PL_SYSTEM, 0);
-	if (unlikely(ret != 0))
-		goto out_no_sys;
+	ttm_bo_init_sysman(bdev);
 
 	bdev->vma_manager = vma_manager;
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
@@ -1689,9 +1696,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	mutex_unlock(&ttm_global_mutex);
 
 	return 0;
-out_no_sys:
-	ttm_bo_global_release();
-	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_device_init);
 
