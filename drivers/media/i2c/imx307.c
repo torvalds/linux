@@ -5,6 +5,9 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * v1.0x01.0x01 support lvds interface,include linear and hdr transmission via vipcap
  * support mipi linear mode
+ * v1.0x01.0x02
+ * 1.fixed lvds output data offset, because lvds regards ob line as valid data output
+ * 2.support test pattern
  */
 
 #include <linux/clk.h>
@@ -29,7 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -85,10 +88,10 @@
 #define IMX307_GROUP_HOLD_START		0x01
 #define IMX307_GROUP_HOLD_END		0x00
 
+#define USED_TEST_PATTERN
 #ifdef USED_TEST_PATTERN
-#define IMX307_REG_TEST_PATTERN		0x5e00
-#define	IMX307_TEST_PATTERN_ENABLE	0x80
-#define	IMX307_TEST_PATTERN_DISABLE	0x0
+#define IMX307_REG_TEST_PATTERN		0x308c
+#define	IMX307_TEST_PATTERN_ENABLE	BIT(0)
 #endif
 
 #define IMX307_REG_VTS_H		0x301a
@@ -480,9 +483,9 @@ static const struct regval imx307_hdr2_1920x1080_mipi_regs[] = {
  */
 static const struct imx307_mode lvds_supported_modes[] = {
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1948,
-		.height = 1097,
+		.height = 1110,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 250000,
@@ -508,9 +511,9 @@ static const struct imx307_mode lvds_supported_modes[] = {
 			},
 		},
 	}, {
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1948,
-		.height = 1089,
+		.height = 1098,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 250000,
@@ -608,10 +611,21 @@ static const s64 link_freq_menu_items[] = {
 #ifdef USED_TEST_PATTERN
 static const char * const imx307_test_pattern_menu[] = {
 	"Disabled",
-	"Vertical Color Bar Type 1",
-	"Vertical Color Bar Type 2",
-	"Vertical Color Bar Type 3",
-	"Vertical Color Bar Type 4"
+	"Bar Type 1",
+	"Bar Type 2",
+	"Bar Type 3",
+	"Bar Type 4",
+	"Bar Type 5",
+	"Bar Type 6",
+	"Bar Type 7",
+	"Bar Type 8",
+	"Bar Type 9",
+	"Bar Type 10",
+	"Bar Type 11",
+	"Bar Type 12",
+	"Bar Type 13",
+	"Bar Type 14",
+	"Bar Type 15"
 };
 #endif
 
@@ -835,17 +849,37 @@ static int imx307_enum_frame_sizes(struct v4l2_subdev *sd,
 #ifdef USED_TEST_PATTERN
 static int imx307_enable_test_pattern(struct imx307 *imx307, u32 pattern)
 {
-	u32 val;
+	u32 val = 0;
 
-	if (pattern)
-		val = (pattern - 1) | IMX307_TEST_PATTERN_ENABLE;
-	else
-		val = IMX307_TEST_PATTERN_DISABLE;
-
+	imx307_read_reg(imx307->client,
+			IMX307_REG_TEST_PATTERN,
+			IMX307_REG_VALUE_08BIT,
+			&val);
+	if (pattern) {
+		val = ((pattern - 1) << 4) | IMX307_TEST_PATTERN_ENABLE;
+		imx307_write_reg(imx307->client,
+				 0x300a,
+				 IMX307_REG_VALUE_08BIT,
+				 0x00);
+		imx307_write_reg(imx307->client,
+				 0x300e,
+				 IMX307_REG_VALUE_08BIT,
+				 0x00);
+	} else {
+		val &= ~IMX307_TEST_PATTERN_ENABLE;
+		imx307_write_reg(imx307->client,
+				 0x300a,
+				 IMX307_REG_VALUE_08BIT,
+				 0x3c);
+		imx307_write_reg(imx307->client,
+				 0x300e,
+				 IMX307_REG_VALUE_08BIT,
+				 0x01);
+	}
 	return imx307_write_reg(imx307->client,
-		IMX307_REG_TEST_PATTERN,
-		IMX307_REG_VALUE_08BIT,
-		val);
+				IMX307_REG_TEST_PATTERN,
+				IMX307_REG_VALUE_08BIT,
+				val);
 }
 #endif
 
@@ -1526,7 +1560,14 @@ static int imx307_get_selection(struct v4l2_subdev *sd,
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
 		sel->r.left = CROP_START(imx307->cur_mode->width, DST_WIDTH);
 		sel->r.width = DST_WIDTH;
-		sel->r.top = CROP_START(imx307->cur_mode->height, DST_HEIGHT);
+		if (imx307->bus_cfg.bus_type == 3) {
+			if (imx307->cur_mode->hdr_mode == NO_HDR)
+				sel->r.top = 21;
+			else
+				sel->r.top = 13;
+		} else {
+			sel->r.top = CROP_START(imx307->cur_mode->height, DST_HEIGHT);
+		}
 		sel->r.height = DST_HEIGHT;
 		return 0;
 	}
@@ -1614,8 +1655,8 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 			IMX307_REG_SHS1_L,
 			IMX307_REG_VALUE_08BIT,
 			IMX307_FETCH_LOW_BYTE_EXP(shs1));
-		dev_dbg(&client->dev, "set exposure 0x%x\n",
-			ctrl->val);
+		dev_dbg(&client->dev, "set exposure 0x%x, cur_vts 0x%x,shs1 0x%x\n",
+			ctrl->val, imx307->cur_vts, shs1);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		ret = imx307_write_reg(imx307->client,
@@ -1642,6 +1683,8 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 			IMX307_REG_VTS_L,
 			IMX307_REG_VALUE_08BIT,
 			IMX307_FETCH_LOW_BYTE_VTS(vts));
+		dev_dbg(&client->dev, "set vts 0x%x\n",
+			vts);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 #ifdef USED_TEST_PATTERN
