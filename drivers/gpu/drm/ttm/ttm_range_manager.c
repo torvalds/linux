@@ -54,10 +54,10 @@ static inline struct ttm_range_manager *to_range_manager(struct ttm_mem_type_man
 	return container_of(man, struct ttm_range_manager, manager);
 }
 
-static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
-			       struct ttm_buffer_object *bo,
-			       const struct ttm_place *place,
-			       struct ttm_mem_reg *mem)
+static int ttm_range_man_get_node(struct ttm_mem_type_manager *man,
+				  struct ttm_buffer_object *bo,
+				  const struct ttm_place *place,
+				  struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
@@ -95,8 +95,8 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	return ret;
 }
 
-static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
-				struct ttm_mem_reg *mem)
+static void ttm_range_man_put_node(struct ttm_mem_type_manager *man,
+				   struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 
@@ -110,7 +110,7 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static const struct ttm_mem_type_manager_func ttm_bo_manager_func;
+static const struct ttm_mem_type_manager_func ttm_range_manager_func;
 
 int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       unsigned type,
@@ -131,7 +131,7 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 	man->default_caching = default_caching;
 	man->use_tt = use_tt;
 
-	man->func = &ttm_bo_manager_func;
+	man->func = &ttm_range_manager_func;
 
 	ttm_mem_type_manager_init(man, p_size);
 
@@ -170,8 +170,8 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_range_man_fini);
 
-static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
-			     struct drm_printer *printer)
+static void ttm_range_man_debug(struct ttm_mem_type_manager *man,
+				struct drm_printer *printer)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 
@@ -180,8 +180,8 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 	spin_unlock(&rman->lock);
 }
 
-static const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	.get_node = ttm_bo_man_get_node,
-	.put_node = ttm_bo_man_put_node,
-	.debug = ttm_bo_man_debug
+static const struct ttm_mem_type_manager_func ttm_range_manager_func = {
+	.get_node = ttm_range_man_get_node,
+	.put_node = ttm_range_man_put_node,
+	.debug = ttm_range_man_debug
 };
