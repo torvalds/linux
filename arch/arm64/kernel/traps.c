@@ -200,9 +200,9 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_exit();
 
 	if (in_interrupt())
-		panic("Fatal exception in interrupt");
+		panic("%s: Fatal exception in interrupt", str);
 	if (panic_on_oops)
-		panic("Fatal exception");
+		panic("%s: Fatal exception", str);
 
 	raw_spin_unlock_irqrestore(&die_lock, flags);
 
