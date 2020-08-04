@@ -61,7 +61,6 @@
 #include <plat/adc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "crag6410.h"

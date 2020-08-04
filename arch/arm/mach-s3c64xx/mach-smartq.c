@@ -32,7 +32,6 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "mach-smartq.h"

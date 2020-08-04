@@ -42,7 +42,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
-#include <plat/samsung-time.h>
 
 #include "bast.h"
 #include "common.h"

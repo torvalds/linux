@@ -53,7 +53,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
-#include <plat/samsung-time.h>
 #include <plat/gpio-cfg.h>
 
 #include "common.h"

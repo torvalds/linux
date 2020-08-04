@@ -52,7 +52,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/samsung-time.h>
 
 #include <sound/s3c24xx_uda134x.h>
 

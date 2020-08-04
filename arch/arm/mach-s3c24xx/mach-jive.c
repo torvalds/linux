@@ -48,7 +48,6 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "s3c2412-power.h"

@@ -23,7 +23,6 @@
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "mach-smartq.h"

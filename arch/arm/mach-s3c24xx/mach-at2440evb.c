@@ -43,7 +43,6 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <linux/platform_data/mmc-s3cmci.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 

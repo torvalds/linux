@@ -48,7 +48,6 @@
 #include <plat/gpio-cfg.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 

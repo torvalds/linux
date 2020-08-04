@@ -39,7 +39,6 @@
 
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
-#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "regs-modem.h"

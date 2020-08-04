@@ -45,8 +45,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
 
-#include <plat/samsung-time.h>
-
 #include "common.h"
 
 static struct resource amlm5900_nor_resource =
