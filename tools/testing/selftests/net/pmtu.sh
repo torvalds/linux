@@ -59,6 +59,25 @@
 #	Same as pmtu_ipv6_vxlan6_exception, but using a GENEVE tunnel instead of
 #	VXLAN
 #
+# - pmtu_ipv{4,6}_br_vxlan{4,6}_exception
+#	Set up three namespaces, A, B, and C, with routing between A and B over
+#	R1. R2 is unused in these tests. A has a veth connection to C, and is
+#	connected to B via a VXLAN endpoint, which is directly bridged to C.
+#	MTU on the B-R1 link is lower than other MTUs.
+#
+#	Check that both C and A are able to communicate with B over the VXLAN
+#	tunnel, and that PMTU exceptions with the correct values are created.
+#
+#	                  segment a_r1    segment b_r1            b_r1: 4000
+#	                .--------------R1--------------.    everything
+#	   C---veth     A                               B         else: 5000
+#	        ' bridge                                |
+#	            '---- - - - - - VXLAN - - - - - - - '
+#
+# - pmtu_ipv{4,6}_br_geneve{4,6}_exception
+#	Same as pmtu_ipv{4,6}_br_vxlan{4,6}_exception, with a GENEVE tunnel
+#	instead.
+#
 # - pmtu_ipv{4,6}_fou{4,6}_exception
 #	Same as pmtu_ipv4_vxlan4, but using a direct IPv4/IPv6 encapsulation
 #	(FoU) over IPv4/IPv6, instead of VXLAN
@@ -147,6 +166,14 @@ tests="
 	pmtu_ipv6_geneve4_exception	IPv6 over geneve4: PMTU exceptions	1
 	pmtu_ipv4_geneve6_exception	IPv4 over geneve6: PMTU exceptions	1
 	pmtu_ipv6_geneve6_exception	IPv6 over geneve6: PMTU exceptions	1
+	pmtu_ipv4_br_vxlan4_exception	IPv4, bridged vxlan4: PMTU exceptions	1
+	pmtu_ipv6_br_vxlan4_exception	IPv6, bridged vxlan4: PMTU exceptions	1
+	pmtu_ipv4_br_vxlan6_exception	IPv4, bridged vxlan6: PMTU exceptions	1
+	pmtu_ipv6_br_vxlan6_exception	IPv6, bridged vxlan6: PMTU exceptions	1
+	pmtu_ipv4_br_geneve4_exception	IPv4, bridged geneve4: PMTU exceptions	1
+	pmtu_ipv6_br_geneve4_exception	IPv6, bridged geneve4: PMTU exceptions	1
+	pmtu_ipv4_br_geneve6_exception	IPv4, bridged geneve6: PMTU exceptions	1
+	pmtu_ipv6_br_geneve6_exception	IPv6, bridged geneve6: PMTU exceptions	1
 	pmtu_ipv4_fou4_exception	IPv4 over fou4: PMTU exceptions		1
 	pmtu_ipv6_fou4_exception	IPv6 over fou4: PMTU exceptions		1
 	pmtu_ipv4_fou6_exception	IPv4 over fou6: PMTU exceptions		1
@@ -173,10 +200,12 @@ tests="
 
 NS_A="ns-A"
 NS_B="ns-B"
+NS_C="ns-C"
 NS_R1="ns-R1"
 NS_R2="ns-R2"
 ns_a="ip netns exec ${NS_A}"
 ns_b="ip netns exec ${NS_B}"
+ns_c="ip netns exec ${NS_C}"
 ns_r1="ip netns exec ${NS_R1}"
 ns_r2="ip netns exec ${NS_R2}"
 
@@ -239,9 +268,11 @@ routes_nh="
 
 veth4_a_addr="192.168.1.1"
 veth4_b_addr="192.168.1.2"
+veth4_c_addr="192.168.2.10"
 veth4_mask="24"
 veth6_a_addr="fd00:1::a"
 veth6_b_addr="fd00:1::b"
+veth6_c_addr="fd00:2::c"
 veth6_mask="64"
 
 tunnel4_a_addr="192.168.2.1"
@@ -428,7 +459,7 @@ setup_ip6ip6() {
 }
 
 setup_namespaces() {
-	for n in ${NS_A} ${NS_B} ${NS_R1} ${NS_R2}; do
+	for n in ${NS_A} ${NS_B} ${NS_C} ${NS_R1} ${NS_R2}; do
 		ip netns add ${n} || return 1
 
 		# Disable DAD, so that we don't have to wait to use the
@@ -484,6 +515,7 @@ setup_vxlan_or_geneve() {
 	a_addr="${2}"
 	b_addr="${3}"
 	opts="${4}"
+	br_if_a="${5}"
 
 	if [ "${type}" = "vxlan" ]; then
 		opts="${opts} ttl 64 dstport 4789"
@@ -497,10 +529,16 @@ setup_vxlan_or_geneve() {
 	run_cmd ${ns_a} ip link add ${type}_a type ${type} id 1 ${opts_a} remote ${b_addr} ${opts} || return 1
 	run_cmd ${ns_b} ip link add ${type}_b type ${type} id 1 ${opts_b} remote ${a_addr} ${opts}
 
-	run_cmd ${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask} dev ${type}_a
-	run_cmd ${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask} dev ${type}_b
+	if [ -n "${br_if_a}" ]; then
+		run_cmd ${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask} dev ${br_if_a}
+		run_cmd ${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask} dev ${br_if_a}
+		run_cmd ${ns_a} ip link set ${type}_a master ${br_if_a}
+	else
+		run_cmd ${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask} dev ${type}_a
+		run_cmd ${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask} dev ${type}_a
+	fi
 
-	run_cmd ${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask} dev ${type}_a
+	run_cmd ${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask} dev ${type}_b
 	run_cmd ${ns_b} ip addr add ${tunnel6_b_addr}/${tunnel6_mask} dev ${type}_b
 
 	run_cmd ${ns_a} ip link set ${type}_a up
@@ -516,11 +554,27 @@ setup_vxlan4() {
 }
 
 setup_geneve6() {
-	setup_vxlan_or_geneve geneve ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1
+	setup_vxlan_or_geneve geneve ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1 ""
 }
 
 setup_vxlan6() {
-	setup_vxlan_or_geneve vxlan  ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1
+	setup_vxlan_or_geneve vxlan  ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1 ""
+}
+
+setup_bridged_geneve4() {
+	setup_vxlan_or_geneve geneve ${prefix4}.${a_r1}.1  ${prefix4}.${b_r1}.1  "df set" "br0"
+}
+
+setup_bridged_vxlan4() {
+	setup_vxlan_or_geneve vxlan  ${prefix4}.${a_r1}.1  ${prefix4}.${b_r1}.1  "df set" "br0"
+}
+
+setup_bridged_geneve6() {
+	setup_vxlan_or_geneve geneve ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1 "" "br0"
+}
+
+setup_bridged_vxlan6() {
+	setup_vxlan_or_geneve vxlan  ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1 "" "br0"
 }
 
 setup_xfrm() {
@@ -630,6 +684,20 @@ setup_routing() {
 	return 0
 }
 
+setup_bridge() {
+	run_cmd ${ns_a} ip link add br0 type bridge || return 2
+	run_cmd ${ns_a} ip link set br0 up
+
+	run_cmd ${ns_c} ip link add veth_C-A type veth peer name veth_A-C
+	run_cmd ${ns_c} ip link set veth_A-C netns ns-A
+
+	run_cmd ${ns_a} ip link set veth_A-C up
+	run_cmd ${ns_c} ip link set veth_C-A up
+	run_cmd ${ns_c} ip addr add ${veth4_c_addr}/${veth4_mask} dev veth_C-A
+	run_cmd ${ns_c} ip addr add ${veth6_c_addr}/${veth6_mask} dev veth_C-A
+	run_cmd ${ns_a} ip link set veth_A-C master br0
+}
+
 setup() {
 	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return $ksft_skip
 
@@ -657,7 +725,7 @@ cleanup() {
 	done
 	tcpdump_pids=
 
-	for n in ${NS_A} ${NS_B} ${NS_R1} ${NS_R2}; do
+	for n in ${NS_A} ${NS_B} ${NS_C} ${NS_R1} ${NS_R2}; do
 		ip netns del ${n} 2> /dev/null
 	done
 }
@@ -890,6 +958,90 @@ test_pmtu_ipv4_geneve6_exception() {
 
 test_pmtu_ipv6_geneve6_exception() {
 	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 6 6
+}
+
+test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception() {
+	type=${1}
+	family=${2}
+	outer_family=${3}
+	ll_mtu=4000
+
+	if [ ${outer_family} -eq 4 ]; then
+		setup namespaces routing bridge bridged_${type}4 || return 2
+		#                      IPv4 header   UDP header   VXLAN/GENEVE header   Ethernet header
+		exp_mtu=$((${ll_mtu} - 20          - 8          - 8                   - 14))
+	else
+		setup namespaces routing bridge bridged_${type}6 || return 2
+		#                      IPv6 header   UDP header   VXLAN/GENEVE header   Ethernet header
+		exp_mtu=$((${ll_mtu} - 40          - 8          - 8                   - 14))
+	fi
+
+	trace "${ns_a}" ${type}_a    "${ns_b}"  ${type}_b \
+	      "${ns_a}" veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_b}" veth_B-R1    "${ns_r1}" veth_R1-B \
+	      "${ns_a}" br0          "${ns_a}"  veth-A-C  \
+	      "${ns_c}" veth_C-A
+
+	if [ ${family} -eq 4 ]; then
+		ping=ping
+		dst=${tunnel4_b_addr}
+	else
+		ping=${ping6}
+		dst=${tunnel6_b_addr}
+	fi
+
+	# Create route exception by exceeding link layer MTU
+	mtu "${ns_a}"  veth_A-R1 $((${ll_mtu} + 1000))
+	mtu "${ns_a}"  br0       $((${ll_mtu} + 1000))
+	mtu "${ns_a}"  veth_A-C  $((${ll_mtu} + 1000))
+	mtu "${ns_c}"  veth_C-A  $((${ll_mtu} + 1000))
+	mtu "${ns_r1}" veth_R1-A $((${ll_mtu} + 1000))
+	mtu "${ns_b}"  veth_B-R1 ${ll_mtu}
+	mtu "${ns_r1}" veth_R1-B ${ll_mtu}
+
+	mtu "${ns_a}" ${type}_a $((${ll_mtu} + 1000))
+	mtu "${ns_b}" ${type}_b $((${ll_mtu} + 1000))
+
+	run_cmd ${ns_c} ${ping} -q -M want -i 0.1 -c 10 -s $((${ll_mtu} + 500)) ${dst} || return 1
+	run_cmd ${ns_a} ${ping} -q -M want -i 0.1 -w 1  -s $((${ll_mtu} + 500)) ${dst} || return 1
+
+	# Check that exceptions were created
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_c}" ${dst})"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on bridged ${type} interface"
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on locally bridged ${type} interface"
+}
+
+test_pmtu_ipv4_br_vxlan4_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception vxlan  4 4
+}
+
+test_pmtu_ipv6_br_vxlan4_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception vxlan  6 4
+}
+
+test_pmtu_ipv4_br_geneve4_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception geneve 4 4
+}
+
+test_pmtu_ipv6_br_geneve4_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception geneve 6 4
+}
+
+test_pmtu_ipv4_br_vxlan6_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception vxlan  4 6
+}
+
+test_pmtu_ipv6_br_vxlan6_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception vxlan  6 6
+}
+
+test_pmtu_ipv4_br_geneve6_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception geneve 4 6
+}
+
+test_pmtu_ipv6_br_geneve6_exception() {
+	test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception geneve 6 6
 }
 
 test_pmtu_ipvX_over_fouY_or_gueY() {
