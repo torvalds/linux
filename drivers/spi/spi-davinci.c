@@ -236,7 +236,8 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 
 /**
  * davinci_spi_get_prescale - Calculates the correct prescale value
- * @maxspeed_hz: the maximum rate the SPI clock can run at
+ * @dspi: the controller data
+ * @max_speed_hz: the maximum rate the SPI clock can run at
  *
  * This function calculates the prescale value that generates a clock rate
  * less than or equal to the specified maximum.
@@ -711,7 +712,7 @@ err_desc:
 /**
  * dummy_thread_fn - dummy thread function
  * @irq: IRQ number for this SPI Master
- * @context_data: structure for SPI Master controller davinci_spi
+ * @data: structure for SPI Master controller davinci_spi
  *
  * This is to satisfy the request_threaded_irq() API so that the irq
  * handler is called in interrupt context.
@@ -724,7 +725,7 @@ static irqreturn_t dummy_thread_fn(s32 irq, void *data)
 /**
  * davinci_spi_irq - Interrupt handler for SPI Master Controller
  * @irq: IRQ number for this SPI Master
- * @context_data: structure for SPI Master controller davinci_spi
+ * @data: structure for SPI Master controller davinci_spi
  *
  * ISR will determine that interrupt arrives either for READ or WRITE command.
  * According to command it will do the appropriate action. It will check

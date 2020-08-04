@@ -130,9 +130,11 @@ struct s3c64xx_spi_dma_data {
  * @fifo_lvl_mask: Bit-mask for {TX|RX}_FIFO_LVL bits in SPI_STATUS register.
  * @rx_lvl_offset: Bit offset of RX_FIFO_LVL bits in SPI_STATUS regiter.
  * @tx_st_done: Bit offset of TX_DONE bit in SPI_STATUS regiter.
+ * @quirks: Bitmask of known quirks
  * @high_speed: True, if the controller supports HIGH_SPEED_EN bit.
  * @clk_from_cmu: True, if the controller does not include a clock mux and
  *	prescaler unit.
+ * @clk_ioclk: True if clock is present on this device
  *
  * The Samsung s3c64xx SPI controller are used on various Samsung SoC's but
  * differ in some aspects such as the size of the fifo and spi bus clock
@@ -154,6 +156,7 @@ struct s3c64xx_spi_port_config {
  * @clk: Pointer to the spi clock.
  * @src_clk: Pointer to the clock used to generate SPI signals.
  * @ioclk: Pointer to the i/o clock between master and slave
+ * @pdev: Pointer to device's platform device data
  * @master: Pointer to the SPI Protocol master.
  * @cntrlr_info: Platform specific data for the controller this driver manages.
  * @lock: Controller specific lock.
@@ -166,7 +169,11 @@ struct s3c64xx_spi_port_config {
  * @xfer_completion: To indicate completion of xfer task.
  * @cur_mode: Stores the active configuration of the controller.
  * @cur_bpw: Stores the active bits per word settings.
- * @cur_speed: Stores the active xfer clock speed.
+ * @cur_speed: Current clock speed
+ * @rx_dma: Local receive DMA data (e.g. chan and direction)
+ * @tx_dma: Local transmit DMA data (e.g. chan and direction)
+ * @port_conf: Local SPI port configuartion data
+ * @port_id: Port identification number
  */
 struct s3c64xx_spi_driver_data {
 	void __iomem                    *regs;
