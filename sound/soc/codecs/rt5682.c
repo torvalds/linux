@@ -2548,7 +2548,7 @@ static unsigned long rt5682_wclk_recalc_rate(struct clk_hw *hw,
 		container_of(hw, struct rt5682_priv,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 
 	if (!rt5682_clk_check(rt5682))
 		return 0;
@@ -2572,7 +2572,7 @@ static long rt5682_wclk_round_rate(struct clk_hw *hw, unsigned long rate,
 		container_of(hw, struct rt5682_priv,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 
 	if (!rt5682_clk_check(rt5682))
 		return -EINVAL;
@@ -2597,7 +2597,7 @@ static int rt5682_wclk_set_rate(struct clk_hw *hw, unsigned long rate,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
 	struct clk *parent_clk;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 	int pre_div;
 	unsigned int clk_pll2_out;
 
@@ -2755,33 +2755,31 @@ static int rt5682_register_dai_clks(struct snd_soc_component *component)
 	struct device *dev = component->dev;
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 	struct rt5682_platform_data *pdata = &rt5682->pdata;
-	struct clk_init_data init;
 	struct clk *dai_clk;
 	struct clk_lookup *dai_clk_lookup;
 	struct clk_hw *dai_clk_hw;
-	const char *parent_name;
 	int i, ret;
 
 	for (i = 0; i < RT5682_DAI_NUM_CLKS; ++i) {
+		struct clk_init_data init = { };
+
 		dai_clk_hw = &rt5682->dai_clks_hw[i];
 
 		switch (i) {
 		case RT5682_DAI_WCLK_IDX:
 			/* Make MCLK the parent of WCLK */
 			if (rt5682->mclk) {
-				parent_name = __clk_get_name(rt5682->mclk);
-				init.parent_names = &parent_name;
+				init.parent_data = &(struct clk_parent_data){
+					.fw_name = "mclk",
+				};
 				init.num_parents = 1;
-			} else {
-				init.parent_names = NULL;
-				init.num_parents = 0;
 			}
 			break;
 		case RT5682_DAI_BCLK_IDX:
 			/* Make WCLK the parent of BCLK */
-			parent_name = __clk_get_name(
-				rt5682->dai_clks[RT5682_DAI_WCLK_IDX]);
-			init.parent_names = &parent_name;
+			init.parent_hws = &(const struct clk_hw *){
+				&rt5682->dai_clks_hw[RT5682_DAI_WCLK_IDX]
+			};
 			init.num_parents = 1;
 			break;
 		default:
