@@ -1215,6 +1215,13 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 	 */
 	debugfs_create_bool("auto_reboot", S_IWUGO | S_IRUGO, con->dir,
 				&con->reboot);
+
+	/*
+	 * User could set this not to clean up hardware's error count register
+	 * of RAS IPs during ras recovery.
+	 */
+	debugfs_create_bool("disable_ras_err_cnt_harvest", 0644,
+			con->dir, &con->disable_ras_err_cnt_harvest);
 }
 
 void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
