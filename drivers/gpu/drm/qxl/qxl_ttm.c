@@ -222,11 +222,10 @@ static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 {
 	struct ttm_mem_type_manager *man = &qdev->mman.bdev.man[type];
 
-	man->func = &ttm_bo_manager_func;
 	man->available_caching = TTM_PL_MASK_CACHING;
 	man->default_caching = TTM_PL_FLAG_CACHED;
 
-	return ttm_bo_init_mm(&qdev->mman.bdev, type, size);
+	return ttm_range_man_init(&qdev->mman.bdev, man, size);
 }
 
 int qxl_ttm_init(struct qxl_device *qdev)
