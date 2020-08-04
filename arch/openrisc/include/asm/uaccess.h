@@ -55,9 +55,6 @@ static inline int __range_ok(unsigned long addr, unsigned long size)
 	return size <= fs && addr <= (fs - size);
 }
 
-/* Ensure that addr is below task's addr_limit */
-#define __addr_ok(addr) ((unsigned long) addr < get_fs())
-
 #define access_ok(addr, size)						\
 ({ 									\
 	__range_ok((unsigned long)(addr), (size));			\
