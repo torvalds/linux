@@ -377,12 +377,17 @@ out:
 		return count;
 	}
 	if (!strcmp(a->attr.name, "gc_idle")) {
-		if (t == GC_IDLE_CB)
+		if (t == GC_IDLE_CB) {
 			sbi->gc_mode = GC_IDLE_CB;
-		else if (t == GC_IDLE_GREEDY)
+		} else if (t == GC_IDLE_GREEDY) {
 			sbi->gc_mode = GC_IDLE_GREEDY;
-		else
+		} else if (t == GC_IDLE_AT) {
+			if (!sbi->am.atgc_enabled)
+				return -EINVAL;
+			sbi->gc_mode = GC_AT;
+		} else {
 			sbi->gc_mode = GC_NORMAL;
+		}
 		return count;
 	}
 

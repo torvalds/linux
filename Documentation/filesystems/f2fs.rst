@@ -266,6 +266,8 @@ inlinecrypt		 When possible, encrypt/decrypt the contents of encrypted
 			 inline encryption hardware. The on-disk format is
 			 unaffected. For more details, see
 			 Documentation/block/inline-encryption.rst.
+atgc			 Enable age-threshold garbage collection, it provides high
+			 effectiveness and efficiency on background GC.
 ======================== ============================================================
 
 Debugfs Entries

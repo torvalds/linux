@@ -98,6 +98,7 @@ extern const char *f2fs_fault_name[FAULT_MAX];
 #define F2FS_MOUNT_RESERVE_ROOT		0x01000000
 #define F2FS_MOUNT_DISABLE_CHECKPOINT	0x02000000
 #define F2FS_MOUNT_NORECOVERY		0x04000000
+#define F2FS_MOUNT_ATGC			0x08000000
 
 #define F2FS_OPTION(sbi)	((sbi)->mount_opt)
 #define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
@@ -978,7 +979,7 @@ static inline void set_new_dnode(struct dnode_of_data *dn, struct inode *inode,
  */
 #define	NR_CURSEG_DATA_TYPE	(3)
 #define NR_CURSEG_NODE_TYPE	(3)
-#define NR_CURSEG_INMEM_TYPE	(1)
+#define NR_CURSEG_INMEM_TYPE	(2)
 #define NR_CURSEG_PERSIST_TYPE	(NR_CURSEG_DATA_TYPE + NR_CURSEG_NODE_TYPE)
 #define NR_CURSEG_TYPE		(NR_CURSEG_INMEM_TYPE + NR_CURSEG_PERSIST_TYPE)
 
@@ -992,6 +993,7 @@ enum {
 	NR_PERSISTENT_LOG,	/* number of persistent log */
 	CURSEG_COLD_DATA_PINNED = NR_PERSISTENT_LOG,
 				/* pinned file that needs consecutive block address */
+	CURSEG_ALL_DATA_ATGC,	/* SSR alloctor in hot/warm/cold data area */
 	NO_CHECK_TYPE,		/* number of persistent & inmem log */
 };
 
@@ -1238,6 +1240,18 @@ struct inode_management {
 	unsigned long ino_num;			/* number of entries */
 };
 
+/* for GC_AT */
+struct atgc_management {
+	bool atgc_enabled;			/* ATGC is enabled or not */
+	struct rb_root_cached root;		/* root of victim rb-tree */
+	struct list_head victim_list;		/* linked with all victim entries */
+	unsigned int victim_count;		/* victim count in rb-tree */
+	unsigned int candidate_ratio;		/* candidate ratio */
+	unsigned int max_candidate_count;	/* max candidate count */
+	unsigned int age_weight;		/* age weight, vblock_weight = 100 - age_weight */
+	unsigned long long age_threshold;	/* age threshold */
+};
+
 /* For s_flag in struct f2fs_sb_info */
 enum {
 	SBI_IS_DIRTY,				/* dirty flag for checkpoint */
@@ -1270,6 +1284,7 @@ enum {
 	GC_NORMAL,
 	GC_IDLE_CB,
 	GC_IDLE_GREEDY,
+	GC_IDLE_AT,
 	GC_URGENT_HIGH,
 	GC_URGENT_LOW,
 };
@@ -1521,6 +1536,7 @@ struct f2fs_sb_info {
 						 * race between GC and GC or CP
 						 */
 	struct f2fs_gc_kthread	*gc_thread;	/* GC thread */
+	struct atgc_management am;		/* atgc management */
 	unsigned int cur_victim_sec;		/* current victim section num */
 	unsigned int gc_mode;			/* current GC state */
 	unsigned int next_victim_seg[2];	/* next segment in victim section */
@@ -3338,8 +3354,11 @@ block_t f2fs_get_unusable_blocks(struct f2fs_sb_info *sbi);
 int f2fs_disable_cp_again(struct f2fs_sb_info *sbi, block_t unusable);
 void f2fs_release_discard_addrs(struct f2fs_sb_info *sbi);
 int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra);
-void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi, int type);
-void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi, int type);
+void f2fs_init_inmem_curseg(struct f2fs_sb_info *sbi);
+void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi);
+void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi);
+void f2fs_get_new_segment(struct f2fs_sb_info *sbi,
+			unsigned int *newseg, bool new_sec, int dir);
 void f2fs_allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
 					unsigned int start, unsigned int end);
 void f2fs_allocate_new_segment(struct f2fs_sb_info *sbi, int type);
@@ -3367,7 +3386,7 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 			block_t old_blkaddr, block_t *new_blkaddr,
 			struct f2fs_summary *sum, int type,
-			struct f2fs_io_info *fio, bool from_gc);
+			struct f2fs_io_info *fio);
 void f2fs_wait_on_page_writeback(struct page *page,
 			enum page_type type, bool ordered, bool locked);
 void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr);
@@ -3506,6 +3525,8 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background,
 			unsigned int segno);
 void f2fs_build_gc_manager(struct f2fs_sb_info *sbi);
 int f2fs_resize_fs(struct f2fs_sb_info *sbi, __u64 block_count);
+int __init f2fs_create_garbage_collection_cache(void);
+void f2fs_destroy_garbage_collection_cache(void);
 
 /*
  * recovery.c

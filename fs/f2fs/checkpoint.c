@@ -1620,7 +1620,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	f2fs_flush_sit_entries(sbi, cpc);
 
 	/* save inmem log status */
-	f2fs_save_inmem_curseg(sbi, CURSEG_COLD_DATA_PINNED);
+	f2fs_save_inmem_curseg(sbi);
 
 	err = do_checkpoint(sbi, cpc);
 	if (err)
@@ -1628,7 +1628,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	else
 		f2fs_clear_prefree_segments(sbi, cpc);
 
-	f2fs_restore_inmem_curseg(sbi, CURSEG_COLD_DATA_PINNED);
+	f2fs_restore_inmem_curseg(sbi);
 stop:
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);

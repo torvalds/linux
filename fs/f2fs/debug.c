@@ -397,6 +397,10 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->curseg[CURSEG_COLD_DATA_PINNED],
 			   si->cursec[CURSEG_COLD_DATA_PINNED],
 			   si->curzone[CURSEG_COLD_DATA_PINNED]);
+		seq_printf(s, "  - ATGC   data: %8d %8d %8d\n",
+			   si->curseg[CURSEG_ALL_DATA_ATGC],
+			   si->cursec[CURSEG_ALL_DATA_ATGC],
+			   si->curzone[CURSEG_ALL_DATA_ATGC]);
 		seq_printf(s, "\n  - Valid: %d\n  - Dirty: %d\n",
 			   si->main_area_segs - si->dirty_count -
 			   si->prefree_count - si->free_segs,

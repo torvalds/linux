@@ -24,6 +24,12 @@
 #define IS_DATASEG(t)	((t) <= CURSEG_COLD_DATA)
 #define IS_NODESEG(t)	((t) >= CURSEG_HOT_NODE && (t) <= CURSEG_COLD_NODE)
 
+static inline void sanity_check_seg_type(struct f2fs_sb_info *sbi,
+						unsigned short seg_type)
+{
+	f2fs_bug_on(sbi, seg_type >= NR_PERSISTENT_LOG);
+}
+
 #define IS_HOT(t)	((t) == CURSEG_HOT_NODE || (t) == CURSEG_HOT_DATA)
 #define IS_WARM(t)	((t) == CURSEG_WARM_NODE || (t) == CURSEG_WARM_DATA)
 #define IS_COLD(t)	((t) == CURSEG_COLD_NODE || (t) == CURSEG_COLD_DATA)
@@ -35,7 +41,8 @@
 	 ((seg) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
 	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
 	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA_PINNED)->segno))
+	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA_PINNED)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_ALL_DATA_ATGC)->segno))
 
 #define IS_CURSEC(sbi, secno)						\
 	(((secno) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
@@ -51,6 +58,8 @@
 	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
 	  (sbi)->segs_per_sec) ||	\
 	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_DATA_PINNED)->segno /	\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_ALL_DATA_ATGC)->segno /	\
 	  (sbi)->segs_per_sec))
 
 #define MAIN_BLKADDR(sbi)						\
@@ -135,20 +144,25 @@ enum {
  * In the victim_sel_policy->alloc_mode, there are two block allocation modes.
  * LFS writes data sequentially with cleaning operations.
  * SSR (Slack Space Recycle) reuses obsolete space without cleaning operations.
+ * AT_SSR (Age Threshold based Slack Space Recycle) merges fragments into
+ * fragmented segment which has similar aging degree.
  */
 enum {
 	LFS = 0,
-	SSR
+	SSR,
+	AT_SSR,
 };
 
 /*
  * In the victim_sel_policy->gc_mode, there are two gc, aka cleaning, modes.
  * GC_CB is based on cost-benefit algorithm.
  * GC_GREEDY is based on greedy algorithm.
+ * GC_AT is based on age-threshold algorithm.
  */
 enum {
 	GC_CB = 0,
 	GC_GREEDY,
+	GC_AT,
 	ALLOC_NEXT,
 	FLUSH_DEVICE,
 	MAX_GC_POLICY,
@@ -177,7 +191,10 @@ struct victim_sel_policy {
 	unsigned int offset;		/* last scanned bitmap offset */
 	unsigned int ofs_unit;		/* bitmap search unit */
 	unsigned int min_cost;		/* minimum cost */
+	unsigned long long oldest_age;	/* oldest age of segments having the same min cost */
 	unsigned int min_segno;		/* segment # having min. cost */
+	unsigned long long age;		/* mtime of GCed section*/
+	unsigned long long age_threshold;/* age threshold */
 };
 
 struct seg_entry {
@@ -243,6 +260,8 @@ struct sit_info {
 	unsigned long long mounted_time;	/* mount time */
 	unsigned long long min_mtime;		/* min. modification time */
 	unsigned long long max_mtime;		/* max. modification time */
+	unsigned long long dirty_min_mtime;	/* rerange candidates in GC_AT */
+	unsigned long long dirty_max_mtime;	/* rerange candidates in GC_AT */
 
 	unsigned int last_victim[MAX_GC_POLICY]; /* last victim segment # */
 };
@@ -281,7 +300,7 @@ struct dirty_seglist_info {
 /* victim selection function for cleaning and SSR */
 struct victim_selection {
 	int (*get_victim)(struct f2fs_sb_info *, unsigned int *,
-							int, int, char);
+					int, int, char, unsigned long long);
 };
 
 /* for active log information */
