@@ -7,6 +7,31 @@
 #include <linux/vdpa.h>
 #include <linux/mlx5/driver.h>
 
+struct mlx5_vdpa_direct_mr {
+	u64 start;
+	u64 end;
+	u32 perm;
+	struct mlx5_core_mkey mr;
+	struct sg_table sg_head;
+	int log_size;
+	int nsg;
+	struct list_head list;
+	u64 offset;
+};
+
+struct mlx5_vdpa_mr {
+	struct mlx5_core_mkey mkey;
+
+	/* list of direct MRs descendants of this indirect mr */
+	struct list_head head;
+	unsigned long num_directs;
+	unsigned long num_klms;
+	bool initialized;
+
+	/* serialize mkey creation and destruction */
+	struct mutex mkey_mtx;
+};
+
 struct mlx5_vdpa_resources {
 	u32 pdn;
 	struct mlx5_uars_page *uar;
@@ -26,6 +51,8 @@ struct mlx5_vdpa_dev {
 	u8 status;
 	u32 max_vqs;
 	u32 generation;
+
+	struct mlx5_vdpa_mr mr;
 };
 
 int mlx5_vdpa_alloc_pd(struct mlx5_vdpa_dev *dev, u32 *pdn, u16 uid);
@@ -41,6 +68,13 @@ int mlx5_vdpa_alloc_transport_domain(struct mlx5_vdpa_dev *mvdev, u32 *tdn);
 void mlx5_vdpa_dealloc_transport_domain(struct mlx5_vdpa_dev *mvdev, u32 tdn);
 int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev);
 void mlx5_vdpa_free_resources(struct mlx5_vdpa_dev *mvdev);
+int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, struct mlx5_core_mkey *mkey, u32 *in,
+			  int inlen);
+int mlx5_vdpa_destroy_mkey(struct mlx5_vdpa_dev *mvdev, struct mlx5_core_mkey *mkey);
+int mlx5_vdpa_handle_set_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
+			     bool *change_map);
+int mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb);
+void mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev);
 
 #define mlx5_vdpa_warn(__dev, format, ...)                                                         \
 	dev_warn((__dev)->mdev->device, "%s:%d:(pid %d) warning: " format, __func__, __LINE__,     \
