@@ -153,7 +153,6 @@ enum hinic_mbox_tx_status {
 			(MBOX_MSG_ID(func_to_func_mbox) + 1) & MBOX_MSG_ID_MASK)
 
 #define FUNC_ID_OFF_SET_8B		8
-#define FUNC_ID_OFF_SET_10B		10
 
 /* max message counter wait to process for one function */
 #define HINIC_MAX_MSG_CNT_TO_PROCESS	10
@@ -188,6 +187,37 @@ enum mbox_aeq_trig_type {
 	NOT_TRIGGER,
 	TRIGGER,
 };
+
+static bool check_func_id(struct hinic_hwdev *hwdev, u16 src_func_idx,
+			  const void *buf_in, u16 in_size, u16 offset)
+{
+	u16 func_idx;
+
+	if (in_size < offset + sizeof(func_idx)) {
+		dev_warn(&hwdev->hwif->pdev->dev,
+			 "Receive mailbox msg len: %d less than %d Bytes is invalid\n",
+			 in_size, offset);
+		return false;
+	}
+
+	func_idx = *((u16 *)((u8 *)buf_in + offset));
+
+	if (src_func_idx != func_idx) {
+		dev_warn(&hwdev->hwif->pdev->dev,
+			 "Receive mailbox function id: 0x%x not equal to msg function id: 0x%x\n",
+			 src_func_idx, func_idx);
+		return false;
+	}
+
+	return true;
+}
+
+bool hinic_mbox_check_func_id_8B(struct hinic_hwdev *hwdev, u16 func_idx,
+				 void *buf_in, u16 in_size)
+{
+	return check_func_id(hwdev, func_idx, buf_in, in_size,
+			     FUNC_ID_OFF_SET_8B);
+}
 
 /**
  * hinic_register_pf_mbox_cb - register mbox callback for pf
@@ -1205,14 +1235,155 @@ static void free_mbox_wb_status(struct hinic_mbox_func_to_func *func_to_func)
 			  send_mbox->wb_paddr);
 }
 
+bool hinic_mbox_check_cmd_valid(struct hinic_hwdev *hwdev,
+				struct vf_cmd_check_handle *cmd_handle,
+				u16 vf_id, u8 cmd, void *buf_in,
+				u16 in_size, u8 size)
+{
+	u16 src_idx = vf_id + hinic_glb_pf_vf_offset(hwdev->hwif);
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (cmd == cmd_handle[i].cmd) {
+			if (cmd_handle[i].check_cmd)
+				return cmd_handle[i].check_cmd(hwdev, src_idx,
+							       buf_in, in_size);
+			else
+				return true;
+		}
+	}
+
+	dev_err(&hwdev->hwif->pdev->dev,
+		"PF Receive VF(%d) unsupported cmd(0x%x)\n",
+		vf_id + hinic_glb_pf_vf_offset(hwdev->hwif), cmd);
+
+	return false;
+}
+
+static bool hinic_cmdq_check_vf_ctxt(struct hinic_hwdev *hwdev,
+				     struct hinic_cmdq_ctxt *cmdq_ctxt)
+{
+	struct hinic_cmdq_ctxt_info *ctxt_info = &cmdq_ctxt->ctxt_info;
+	u64 curr_pg_pfn, wq_block_pfn;
+
+	if (cmdq_ctxt->ppf_idx != HINIC_HWIF_PPF_IDX(hwdev->hwif) ||
+	    cmdq_ctxt->cmdq_type > HINIC_MAX_CMDQ_TYPES)
+		return false;
+
+	curr_pg_pfn = HINIC_CMDQ_CTXT_PAGE_INFO_GET
+		(ctxt_info->curr_wqe_page_pfn, CURR_WQE_PAGE_PFN);
+	wq_block_pfn = HINIC_CMDQ_CTXT_BLOCK_INFO_GET
+		(ctxt_info->wq_block_pfn, WQ_BLOCK_PFN);
+	/* VF must use 0-level CLA */
+	if (curr_pg_pfn != wq_block_pfn)
+		return false;
+
+	return true;
+}
+
+static bool check_cmdq_ctxt(struct hinic_hwdev *hwdev, u16 func_idx,
+			    void *buf_in, u16 in_size)
+{
+	if (!hinic_mbox_check_func_id_8B(hwdev, func_idx, buf_in, in_size))
+		return false;
+
+	return hinic_cmdq_check_vf_ctxt(hwdev, buf_in);
+}
+
+#define HW_CTX_QPS_VALID(hw_ctxt)   \
+		((hw_ctxt)->rq_depth >= HINIC_QUEUE_MIN_DEPTH &&	\
+		(hw_ctxt)->rq_depth <= HINIC_QUEUE_MAX_DEPTH &&	\
+		(hw_ctxt)->sq_depth >= HINIC_QUEUE_MIN_DEPTH &&	\
+		(hw_ctxt)->sq_depth <= HINIC_QUEUE_MAX_DEPTH &&	\
+		(hw_ctxt)->rx_buf_sz_idx <= HINIC_MAX_RX_BUFFER_SIZE)
+
+static bool hw_ctxt_qps_param_valid(struct hinic_cmd_hw_ioctxt *hw_ctxt)
+{
+	if (HW_CTX_QPS_VALID(hw_ctxt))
+		return true;
+
+	if (!hw_ctxt->rq_depth && !hw_ctxt->sq_depth &&
+	    !hw_ctxt->rx_buf_sz_idx)
+		return true;
+
+	return false;
+}
+
+static bool check_hwctxt(struct hinic_hwdev *hwdev, u16 func_idx,
+			 void *buf_in, u16 in_size)
+{
+	struct hinic_cmd_hw_ioctxt *hw_ctxt = buf_in;
+
+	if (!hinic_mbox_check_func_id_8B(hwdev, func_idx, buf_in, in_size))
+		return false;
+
+	if (hw_ctxt->ppf_idx != HINIC_HWIF_PPF_IDX(hwdev->hwif))
+		return false;
+
+	if (hw_ctxt->set_cmdq_depth) {
+		if (hw_ctxt->cmdq_depth >= HINIC_QUEUE_MIN_DEPTH &&
+		    hw_ctxt->cmdq_depth <= HINIC_QUEUE_MAX_DEPTH)
+			return true;
+
+		return false;
+	}
+
+	return hw_ctxt_qps_param_valid(hw_ctxt);
+}
+
+static bool check_set_wq_page_size(struct hinic_hwdev *hwdev, u16 func_idx,
+				   void *buf_in, u16 in_size)
+{
+	struct hinic_wq_page_size *page_size_info = buf_in;
+
+	if (!hinic_mbox_check_func_id_8B(hwdev, func_idx, buf_in, in_size))
+		return false;
+
+	if (page_size_info->ppf_idx != HINIC_HWIF_PPF_IDX(hwdev->hwif))
+		return false;
+
+	if (((1U << page_size_info->page_size) * SZ_4K) !=
+	    HINIC_DEFAULT_WQ_PAGE_SIZE)
+		return false;
+
+	return true;
+}
+
+static struct vf_cmd_check_handle hw_cmd_support_vf[] = {
+	{HINIC_COMM_CMD_START_FLR, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_DMA_ATTR_SET, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_CMDQ_CTXT_SET, check_cmdq_ctxt},
+	{HINIC_COMM_CMD_CMDQ_CTXT_GET, check_cmdq_ctxt},
+	{HINIC_COMM_CMD_HWCTXT_SET, check_hwctxt},
+	{HINIC_COMM_CMD_HWCTXT_GET, check_hwctxt},
+	{HINIC_COMM_CMD_SQ_HI_CI_SET, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_RES_STATE_SET, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_IO_RES_CLEAR, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_CEQ_CTRL_REG_WR_BY_UP, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_MSI_CTRL_REG_WR_BY_UP, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_MSI_CTRL_REG_RD_BY_UP, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_L2NIC_RESET, hinic_mbox_check_func_id_8B},
+	{HINIC_COMM_CMD_PAGESIZE_SET, check_set_wq_page_size},
+};
+
 static int comm_pf_mbox_handler(void *handle, u16 vf_id, u8 cmd, void *buf_in,
 				u16 in_size, void *buf_out, u16 *out_size)
 {
+	u8 size = ARRAY_SIZE(hw_cmd_support_vf);
 	struct hinic_hwdev *hwdev = handle;
 	struct hinic_pfhwdev *pfhwdev;
 	int err = 0;
 
 	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	if (!hinic_mbox_check_cmd_valid(handle, hw_cmd_support_vf, vf_id, cmd,
+					buf_in, in_size, size)) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"PF Receive VF: %d common cmd: 0x%x or mbox len: 0x%x is invalid\n",
+			vf_id + hinic_glb_pf_vf_offset(hwdev->hwif), cmd,
+			in_size);
+		return HINIC_MBOX_VF_CMD_ERROR;
+	}
 
 	if (cmd == HINIC_COMM_CMD_START_FLR) {
 		*out_size = 0;

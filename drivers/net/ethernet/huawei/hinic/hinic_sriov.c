@@ -429,6 +429,18 @@ static int hinic_get_vf_link_status_msg_handler(void *hwdev, u16 vf_id,
 	return 0;
 }
 
+static bool check_func_table(struct hinic_hwdev *hwdev, u16 func_idx,
+			     void *buf_in, u16 in_size)
+{
+	struct hinic_cmd_fw_ctxt *function_table = buf_in;
+
+	if (!hinic_mbox_check_func_id_8B(hwdev, func_idx, buf_in, in_size) ||
+	    !function_table->rx_buf_sz)
+		return false;
+
+	return true;
+}
+
 static struct vf_cmd_msg_handle nic_vf_cmd_msg_handler[] = {
 	{HINIC_PORT_CMD_VF_REGISTER, hinic_register_vf_msg_handler},
 	{HINIC_PORT_CMD_VF_UNREGISTER, hinic_unregister_vf_msg_handler},
@@ -437,6 +449,45 @@ static struct vf_cmd_msg_handle nic_vf_cmd_msg_handler[] = {
 	{HINIC_PORT_CMD_SET_MAC, hinic_set_vf_mac_msg_handler},
 	{HINIC_PORT_CMD_DEL_MAC, hinic_del_vf_mac_msg_handler},
 	{HINIC_PORT_CMD_GET_LINK_STATE, hinic_get_vf_link_status_msg_handler},
+};
+
+static struct vf_cmd_check_handle nic_cmd_support_vf[] = {
+	{HINIC_PORT_CMD_VF_REGISTER, NULL},
+	{HINIC_PORT_CMD_VF_UNREGISTER, NULL},
+	{HINIC_PORT_CMD_CHANGE_MTU, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_ADD_VLAN, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_DEL_VLAN, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_MAC, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_MAC, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_DEL_MAC, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RX_MODE, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_PAUSE_INFO, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_LINK_STATE, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_LRO, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RX_CSUM, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RX_VLAN_OFFLOAD, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_VPORT_STAT, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_CLEAN_VPORT_STAT, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_RSS_TEMPLATE_INDIR_TBL,
+	 hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RSS_TEMPLATE_TBL, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_RSS_TEMPLATE_TBL, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RSS_HASH_ENGINE, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_RSS_HASH_ENGINE, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_RSS_CTX_TBL, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RSS_CTX_TBL, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_RSS_TEMP_MGR, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_RSS_CFG, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_FWCTXT_INIT, check_func_table},
+	{HINIC_PORT_CMD_GET_MGMT_VERSION, NULL},
+	{HINIC_PORT_CMD_SET_FUNC_STATE, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_GLOBAL_QPN, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_TSO, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_SET_RQ_IQ_MAP, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_LINK_STATUS_REPORT, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_UPDATE_MAC, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_CAP, hinic_mbox_check_func_id_8B},
+	{HINIC_PORT_CMD_GET_LINK_MODE, hinic_mbox_check_func_id_8B},
 };
 
 #define CHECK_IPSU_15BIT	0X8000
@@ -972,6 +1023,7 @@ int hinic_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 static int nic_pf_mbox_handler(void *hwdev, u16 vf_id, u8 cmd, void *buf_in,
 			       u16 in_size, void *buf_out, u16 *out_size)
 {
+	u8 size = ARRAY_SIZE(nic_cmd_support_vf);
 	struct vf_cmd_msg_handle *vf_msg_handle;
 	struct hinic_hwdev *dev = hwdev;
 	struct hinic_func_to_io *nic_io;
@@ -980,7 +1032,15 @@ static int nic_pf_mbox_handler(void *hwdev, u16 vf_id, u8 cmd, void *buf_in,
 	u32 i;
 
 	if (!hwdev)
-		return -EFAULT;
+		return -EINVAL;
+
+	if (!hinic_mbox_check_cmd_valid(hwdev, nic_cmd_support_vf, vf_id, cmd,
+					buf_in, in_size, size)) {
+		dev_err(&dev->hwif->pdev->dev,
+			"PF Receive VF nic cmd: 0x%x, mbox len: 0x%x is invalid\n",
+			cmd, in_size);
+		return HINIC_MBOX_VF_CMD_ERROR;
+	}
 
 	pfhwdev = container_of(dev, struct hinic_pfhwdev, hwdev);
 	nic_io = &dev->func_to_io;
