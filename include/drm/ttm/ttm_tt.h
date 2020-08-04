@@ -30,7 +30,7 @@
 #include <linux/types.h>
 
 struct ttm_tt;
-struct ttm_mem_reg;
+struct ttm_resource;
 struct ttm_buffer_object;
 struct ttm_operation_ctx;
 
@@ -53,14 +53,14 @@ struct ttm_backend_func {
 	 * struct ttm_backend_func member bind
 	 *
 	 * @ttm: Pointer to a struct ttm_tt.
-	 * @bo_mem: Pointer to a struct ttm_mem_reg describing the
+	 * @bo_mem: Pointer to a struct ttm_resource describing the
 	 * memory type and location for binding.
 	 *
 	 * Bind the backend pages into the aperture in the location
 	 * indicated by @bo_mem. This function should be able to handle
 	 * differences between aperture and system page sizes.
 	 */
-	int (*bind) (struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+	int (*bind) (struct ttm_tt *ttm, struct ttm_resource *bo_mem);
 
 	/**
 	 * struct ttm_backend_func member unbind
@@ -179,11 +179,11 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
  * ttm_ttm_bind:
  *
  * @ttm: The struct ttm_tt containing backing pages.
- * @bo_mem: The struct ttm_mem_reg identifying the binding location.
+ * @bo_mem: The struct ttm_resource identifying the binding location.
  *
  * Bind the pages of @ttm to an aperture location identified by @bo_mem
  */
-int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem,
 		struct ttm_operation_ctx *ctx);
 
 /**

@@ -793,7 +793,7 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_mem_reg *mem);
+				  struct ttm_resource *mem);
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
@@ -878,7 +878,7 @@ extern void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 extern void *vmw_bo_map_and_cache(struct vmw_buffer_object *vbo);
 extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
 extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
-			       struct ttm_mem_reg *mem);
+			       struct ttm_resource *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 extern struct vmw_buffer_object *
 vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle);

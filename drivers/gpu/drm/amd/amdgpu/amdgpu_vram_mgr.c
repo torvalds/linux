@@ -272,7 +272,7 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct ttm_mem_reg *mem = &bo->tbo.mem;
+	struct ttm_resource *mem = &bo->tbo.mem;
 	struct drm_mm_node *nodes = mem->mm_node;
 	unsigned pages = mem->num_pages;
 	u64 usage;
@@ -292,13 +292,13 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 /**
  * amdgpu_vram_mgr_virt_start - update virtual start address
  *
- * @mem: ttm_mem_reg to update
+ * @mem: ttm_resource to update
  * @node: just allocated node
  *
  * Calculate a virtual BO start address to easily check if everything is CPU
  * accessible.
  */
-static void amdgpu_vram_mgr_virt_start(struct ttm_mem_reg *mem,
+static void amdgpu_vram_mgr_virt_start(struct ttm_resource *mem,
 				       struct drm_mm_node *node)
 {
 	unsigned long start;
@@ -324,7 +324,7 @@ static void amdgpu_vram_mgr_virt_start(struct ttm_mem_reg *mem,
 static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			       struct ttm_buffer_object *tbo,
 			       const struct ttm_place *place,
-			       struct ttm_mem_reg *mem)
+			       struct ttm_resource *mem)
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct amdgpu_device *adev = mgr->adev;
@@ -442,7 +442,7 @@ error:
  * Free the allocated VRAM again.
  */
 static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
-				struct ttm_mem_reg *mem)
+				struct ttm_resource *mem)
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct amdgpu_device *adev = mgr->adev;
@@ -482,7 +482,7 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
  * Allocate and fill a sg table from a VRAM allocation.
  */
 int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
-			      struct ttm_mem_reg *mem,
+			      struct ttm_resource *mem,
 			      struct device *dev,
 			      enum dma_data_direction dir,
 			      struct sg_table **sgt)

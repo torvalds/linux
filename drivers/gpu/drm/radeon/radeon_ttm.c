@@ -166,9 +166,9 @@ static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 }
 
 static void radeon_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_mem_reg *new_mem)
+			     struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 
 	BUG_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
@@ -177,8 +177,8 @@ static void radeon_move_null(struct ttm_buffer_object *bo,
 
 static int radeon_move_blit(struct ttm_buffer_object *bo,
 			bool evict, bool no_wait_gpu,
-			struct ttm_mem_reg *new_mem,
-			struct ttm_mem_reg *old_mem)
+			struct ttm_resource *new_mem,
+			struct ttm_resource *old_mem)
 {
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
@@ -233,11 +233,11 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 				bool evict, bool interruptible,
 				bool no_wait_gpu,
-				struct ttm_mem_reg *new_mem)
+				struct ttm_resource *new_mem)
 {
 	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource tmp_mem;
 	struct ttm_place placements;
 	struct ttm_placement placement;
 	int r;
@@ -278,11 +278,11 @@ out_cleanup:
 static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 				bool evict, bool interruptible,
 				bool no_wait_gpu,
-				struct ttm_mem_reg *new_mem)
+				struct ttm_resource *new_mem)
 {
 	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource tmp_mem;
 	struct ttm_placement placement;
 	struct ttm_place placements;
 	int r;
@@ -315,11 +315,11 @@ out_cleanup:
 
 static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 			  struct ttm_operation_ctx *ctx,
-			  struct ttm_mem_reg *new_mem)
+			  struct ttm_resource *new_mem)
 {
 	struct radeon_device *rdev;
 	struct radeon_bo *rbo;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
 	r = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
@@ -376,7 +376,7 @@ memcpy:
 	return 0;
 }
 
-static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
 {
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 
@@ -544,7 +544,7 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 }
 
 static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
-				   struct ttm_mem_reg *bo_mem)
+				   struct ttm_resource *bo_mem)
 {
 	struct radeon_ttm_tt *gtt = (void*)ttm;
 	uint32_t flags = RADEON_GART_PAGE_VALID | RADEON_GART_PAGE_READ |

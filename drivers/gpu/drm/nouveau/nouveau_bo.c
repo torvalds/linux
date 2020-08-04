@@ -679,7 +679,7 @@ nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 10);
@@ -711,7 +711,7 @@ nvc0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nvc0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	u64 src_offset = mem->vma[0].addr;
@@ -749,7 +749,7 @@ nvc0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	u64 src_offset = mem->vma[0].addr;
@@ -788,7 +788,7 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nva3_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	u64 src_offset = mem->vma[0].addr;
@@ -826,7 +826,7 @@ nva3_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nv98_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 7);
@@ -844,7 +844,7 @@ nv98_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nv84_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 7);
@@ -878,7 +878,7 @@ nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	u64 length = (new_reg->num_pages << PAGE_SHIFT);
@@ -965,7 +965,7 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static inline uint32_t
 nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
-		      struct nouveau_channel *chan, struct ttm_mem_reg *reg)
+		      struct nouveau_channel *chan, struct ttm_resource *reg)
 {
 	if (reg->mem_type == TTM_PL_TT)
 		return NvDmaTT;
@@ -974,7 +974,7 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 
 static int
 nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
+		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	u32 src_offset = old_reg->start << PAGE_SHIFT;
 	u32 dst_offset = new_reg->start << PAGE_SHIFT;
@@ -1020,7 +1020,7 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
-		     struct ttm_mem_reg *reg)
+		     struct ttm_resource *reg)
 {
 	struct nouveau_mem *old_mem = nouveau_mem(&bo->mem);
 	struct nouveau_mem *new_mem = nouveau_mem(reg);
@@ -1052,7 +1052,7 @@ done:
 
 static int
 nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
-		     bool no_wait_gpu, struct ttm_mem_reg *new_reg)
+		     bool no_wait_gpu, struct ttm_resource *new_reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
@@ -1062,7 +1062,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 
 	/* create temporary vmas for the transfer and attach them to the
 	 * old nvkm_mem node, these will get cleaned up after ttm has
-	 * destroyed the ttm_mem_reg
+	 * destroyed the ttm_resource
 	 */
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_move_prep(drm, bo, new_reg);
@@ -1098,7 +1098,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		s32 oclass;
 		int (*exec)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
-			    struct ttm_mem_reg *, struct ttm_mem_reg *);
+			    struct ttm_resource *, struct ttm_resource *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
 		{  "COPY", 4, 0xc5b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -1160,7 +1160,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 
 static int
 nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait_gpu, struct ttm_mem_reg *new_reg)
+		      bool no_wait_gpu, struct ttm_resource *new_reg)
 {
 	struct ttm_operation_ctx ctx = { intr, no_wait_gpu };
 	struct ttm_place placement_memtype = {
@@ -1169,7 +1169,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
-	struct ttm_mem_reg tmp_reg;
+	struct ttm_resource tmp_reg;
 	int ret;
 
 	placement.num_placement = placement.num_busy_placement = 1;
@@ -1197,7 +1197,7 @@ out:
 
 static int
 nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait_gpu, struct ttm_mem_reg *new_reg)
+		      bool no_wait_gpu, struct ttm_resource *new_reg)
 {
 	struct ttm_operation_ctx ctx = { intr, no_wait_gpu };
 	struct ttm_place placement_memtype = {
@@ -1206,7 +1206,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
-	struct ttm_mem_reg tmp_reg;
+	struct ttm_resource tmp_reg;
 	int ret;
 
 	placement.num_placement = placement.num_busy_placement = 1;
@@ -1233,7 +1233,7 @@ out:
 
 static void
 nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
-		     struct ttm_mem_reg *new_reg)
+		     struct ttm_resource *new_reg)
 {
 	struct nouveau_mem *mem = new_reg ? nouveau_mem(new_reg) : NULL;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
@@ -1265,7 +1265,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 }
 
 static int
-nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_reg,
+nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_resource *new_reg,
 		   struct nouveau_drm_tile **new_tile)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -1301,11 +1301,11 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 static int
 nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 		struct ttm_operation_ctx *ctx,
-		struct ttm_mem_reg *new_reg)
+		struct ttm_resource *new_reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct ttm_mem_reg *old_reg = &bo->mem;
+	struct ttm_resource *old_reg = &bo->mem;
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
@@ -1374,7 +1374,7 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 }
 
 static int
-nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
+nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
@@ -1454,7 +1454,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 }
 
 static void
-nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
+nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_mem *mem = nouveau_mem(reg);

@@ -1268,11 +1268,11 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
  */
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 			   bool evict,
-			   struct ttm_mem_reg *new_mem)
+			   struct ttm_resource *new_mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct amdgpu_bo *abo;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 
 	if (!amdgpu_bo_is_amdgpu_bo(bo))
 		return;

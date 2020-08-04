@@ -653,7 +653,7 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 
 static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 					       bool evict,
-					       struct ttm_mem_reg *new_mem)
+					       struct ttm_resource *new_mem)
 {
 	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
 
@@ -1020,7 +1020,7 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 
 static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
-				  struct ttm_mem_reg *new_mem)
+				  struct ttm_resource *new_mem)
 {
 	struct drm_gem_vram_object *gbo;
 
@@ -1034,7 +1034,7 @@ static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 }
 
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
-				    struct ttm_mem_reg *mem)
+				    struct ttm_resource *mem)
 {
 	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bdev);
 

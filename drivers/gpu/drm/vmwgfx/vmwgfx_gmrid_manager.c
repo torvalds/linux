@@ -53,7 +53,7 @@ static struct vmwgfx_gmrid_man *to_gmrid_manager(struct ttm_resource_manager *ma
 static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
-				  struct ttm_mem_reg *mem)
+				  struct ttm_resource *mem)
 {
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 	int id;
@@ -85,7 +85,7 @@ nospace:
 }
 
 static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
-				   struct ttm_mem_reg *mem)
+				   struct ttm_resource *mem)
 {
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 

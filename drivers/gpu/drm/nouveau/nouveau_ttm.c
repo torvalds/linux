@@ -32,7 +32,7 @@
 #include <core/tegra.h>
 
 static void
-nouveau_manager_del(struct ttm_resource_manager *man, struct ttm_mem_reg *reg)
+nouveau_manager_del(struct ttm_resource_manager *man, struct ttm_resource *reg)
 {
 	nouveau_mem_del(reg);
 }
@@ -41,7 +41,7 @@ static int
 nouveau_vram_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *reg)
+			 struct ttm_resource *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -72,7 +72,7 @@ static int
 nouveau_gart_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *reg)
+			 struct ttm_resource *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -95,7 +95,7 @@ static int
 nv04_gart_manager_new(struct ttm_resource_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_mem_reg *reg)
+		      struct ttm_resource *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);

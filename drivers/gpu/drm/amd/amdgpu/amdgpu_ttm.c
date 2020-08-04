@@ -182,9 +182,9 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
  * Assign the memory from new_mem to the memory of the buffer object bo.
  */
 static void amdgpu_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_mem_reg *new_mem)
+			     struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 
 	BUG_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
@@ -201,7 +201,7 @@ static void amdgpu_move_null(struct ttm_buffer_object *bo,
  */
 static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 				    struct drm_mm_node *mm_node,
-				    struct ttm_mem_reg *mem)
+				    struct ttm_resource *mem)
 {
 	uint64_t addr = 0;
 
@@ -221,7 +221,7 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
  * @offset: The offset that drm_mm_node is used for finding.
  *
  */
-static struct drm_mm_node *amdgpu_find_mm_node(struct ttm_mem_reg *mem,
+static struct drm_mm_node *amdgpu_find_mm_node(struct ttm_resource *mem,
 					       uint64_t *offset)
 {
 	struct drm_mm_node *mm_node = mem->mm_node;
@@ -249,7 +249,7 @@ static struct drm_mm_node *amdgpu_find_mm_node(struct ttm_mem_reg *mem,
  * the physical address for local memory.
  */
 static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
-				 struct ttm_mem_reg *mem,
+				 struct ttm_resource *mem,
 				 struct drm_mm_node *mm_node,
 				 unsigned num_pages, uint64_t offset,
 				 unsigned window, struct amdgpu_ring *ring,
@@ -473,8 +473,8 @@ error:
  */
 static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 			    bool evict, bool no_wait_gpu,
-			    struct ttm_mem_reg *new_mem,
-			    struct ttm_mem_reg *old_mem)
+			    struct ttm_resource *new_mem,
+			    struct ttm_resource *old_mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
@@ -533,10 +533,10 @@ error:
  */
 static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 				struct ttm_operation_ctx *ctx,
-				struct ttm_mem_reg *new_mem)
+				struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource tmp_mem;
 	struct ttm_place placements;
 	struct ttm_placement placement;
 	int r;
@@ -589,10 +589,10 @@ out_cleanup:
  */
 static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
 				struct ttm_operation_ctx *ctx,
-				struct ttm_mem_reg *new_mem)
+				struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource tmp_mem;
 	struct ttm_placement placement;
 	struct ttm_place placements;
 	int r;
@@ -635,7 +635,7 @@ out_cleanup:
  * Called by amdgpu_bo_move()
  */
 static bool amdgpu_mem_visible(struct amdgpu_device *adev,
-			       struct ttm_mem_reg *mem)
+			       struct ttm_resource *mem)
 {
 	struct drm_mm_node *nodes = mem->mm_node;
 
@@ -645,7 +645,7 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 	if (mem->mem_type != TTM_PL_VRAM)
 		return false;
 
-	/* ttm_mem_reg_ioremap only supports contiguous memory */
+	/* ttm_resource_ioremap only supports contiguous memory */
 	if (nodes->size != mem->num_pages)
 		return false;
 
@@ -660,11 +660,11 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
  */
 static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 			  struct ttm_operation_ctx *ctx,
-			  struct ttm_mem_reg *new_mem)
+			  struct ttm_resource *new_mem)
 {
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *abo;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
 	/* Can't move a pinned BO */
@@ -746,7 +746,7 @@ memcpy:
  *
  * Called by ttm_mem_io_reserve() ultimately via ttm_bo_vm_fault()
  */
-static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct drm_mm_node *mm_node = mem->mm_node;
@@ -770,7 +770,7 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 			return -EINVAL;
 		/* Only physically contiguous buffers apply. In a contiguous
 		 * buffer, size of the first mm_node would match the number of
-		 * pages in ttm_mem_reg.
+		 * pages in ttm_resource.
 		 */
 		if (adev->mman.aper_base_kaddr &&
 		    (mm_node->size == mem->num_pages))
@@ -1115,7 +1115,7 @@ gart_bind_fail:
  * This handles binding GTT memory to the device address space.
  */
 static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
-				   struct ttm_mem_reg *bo_mem)
+				   struct ttm_resource *bo_mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void*)ttm;
@@ -1166,7 +1166,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_ttm_tt *gtt = (void*)bo->ttm;
-	struct ttm_mem_reg tmp;
+	struct ttm_resource tmp;
 	struct ttm_placement placement;
 	struct ttm_place placements;
 	uint64_t addr, flags;
@@ -1507,7 +1507,7 @@ bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
  *
  * Figure out the flags to use for a VM PDE (Page Directory Entry).
  */
-uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
+uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 {
 	uint64_t flags = 0;
 
@@ -1533,7 +1533,7 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
  * Figure out the flags to use for a VM PTE (Page Table Entry).
  */
 uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
-				 struct ttm_mem_reg *mem)
+				 struct ttm_resource *mem)
 {
 	uint64_t flags = amdgpu_ttm_tt_pde_flags(ttm, mem);
 

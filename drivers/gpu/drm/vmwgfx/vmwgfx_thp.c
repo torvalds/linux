@@ -29,7 +29,7 @@ static struct vmw_thp_manager *to_thp_manager(struct ttm_resource_manager *man)
 static int vmw_thp_insert_aligned(struct drm_mm *mm, struct drm_mm_node *node,
 				  unsigned long align_pages,
 				  const struct ttm_place *place,
-				  struct ttm_mem_reg *mem,
+				  struct ttm_resource *mem,
 				  unsigned long lpfn,
 				  enum drm_mm_insert_mode mode)
 {
@@ -47,7 +47,7 @@ static int vmw_thp_insert_aligned(struct drm_mm *mm, struct drm_mm_node *node,
 static int vmw_thp_get_node(struct ttm_resource_manager *man,
 			    struct ttm_buffer_object *bo,
 			    const struct ttm_place *place,
-			    struct ttm_mem_reg *mem)
+			    struct ttm_resource *mem)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
 	struct drm_mm *mm = &rman->mm;
@@ -107,7 +107,7 @@ found_unlock:
 
 
 static void vmw_thp_put_node(struct ttm_resource_manager *man,
-			     struct ttm_mem_reg *mem)
+			     struct ttm_resource *mem)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
 

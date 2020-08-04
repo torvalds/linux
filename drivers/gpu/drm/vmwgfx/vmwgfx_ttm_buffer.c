@@ -539,7 +539,7 @@ const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
 }
 
 
-static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
+static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
@@ -713,7 +713,7 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return vmw_user_bo_verify_access(bo, tfile);
 }
 
-static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
 
@@ -743,7 +743,7 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
  * vmw_move_notify - TTM move_notify_callback
  *
  * @bo: The TTM buffer object about to move.
- * @mem: The struct ttm_mem_reg indicating to what memory
+ * @mem: The struct ttm_resource indicating to what memory
  *       region the move is taking place.
  *
  * Calls move_notify for all subsystems needing it.
@@ -751,7 +751,7 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
  */
 static void vmw_move_notify(struct ttm_buffer_object *bo,
 			    bool evict,
-			    struct ttm_mem_reg *mem)
+			    struct ttm_resource *mem)
 {
 	vmw_bo_move_notify(bo, mem);
 	vmw_query_move_notify(bo, mem);

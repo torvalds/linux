@@ -322,7 +322,7 @@ void ttm_tt_unbind(struct ttm_tt *ttm)
 	}
 }
 
-int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem,
 		struct ttm_operation_ctx *ctx)
 {
 	int ret = 0;

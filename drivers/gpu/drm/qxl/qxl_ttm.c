@@ -71,7 +71,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 }
 
 int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
-			   struct ttm_mem_reg *mem)
+			   struct ttm_resource *mem)
 {
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
 
@@ -111,7 +111,7 @@ struct qxl_ttm_tt {
 };
 
 static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
-				struct ttm_mem_reg *bo_mem)
+				struct ttm_resource *bo_mem)
 {
 	struct qxl_ttm_tt *gtt = (void *)ttm;
 
@@ -164,9 +164,9 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 }
 
 static void qxl_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_mem_reg *new_mem)
+			     struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 
 	BUG_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
@@ -175,9 +175,9 @@ static void qxl_move_null(struct ttm_buffer_object *bo,
 
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		       struct ttm_operation_ctx *ctx,
-		       struct ttm_mem_reg *new_mem)
+		       struct ttm_resource *new_mem)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
 	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
@@ -193,7 +193,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 			       bool evict,
-			       struct ttm_mem_reg *new_mem)
+			       struct ttm_resource *new_mem)
 {
 	struct qxl_bo *qbo;
 	struct qxl_device *qdev;

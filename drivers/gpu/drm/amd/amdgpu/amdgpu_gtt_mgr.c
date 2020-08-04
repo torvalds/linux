@@ -171,7 +171,7 @@ void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
  *
  * Check if a mem object has already address space allocated.
  */
-bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem)
+bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *mem)
 {
 	return mem->mm_node != NULL;
 }
@@ -189,7 +189,7 @@ bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem)
 static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 			      struct ttm_buffer_object *tbo,
 			      const struct ttm_place *place,
-			      struct ttm_mem_reg *mem)
+			      struct ttm_resource *mem)
 {
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	struct amdgpu_gtt_node *node;
@@ -252,7 +252,7 @@ err_out:
  * Free the allocated GTT again.
  */
 static void amdgpu_gtt_mgr_del(struct ttm_resource_manager *man,
-			       struct ttm_mem_reg *mem)
+			       struct ttm_resource *mem)
 {
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
 	struct amdgpu_gtt_node *node = mem->mm_node;

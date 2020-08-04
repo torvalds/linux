@@ -57,7 +57,7 @@ static inline struct ttm_range_manager *to_range_manager(struct ttm_resource_man
 static int ttm_range_man_get_node(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
-				  struct ttm_mem_reg *mem)
+				  struct ttm_resource *mem)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
@@ -96,7 +96,7 @@ static int ttm_range_man_get_node(struct ttm_resource_manager *man,
 }
 
 static void ttm_range_man_put_node(struct ttm_resource_manager *man,
-				   struct ttm_mem_reg *mem)
+				   struct ttm_resource *mem)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 

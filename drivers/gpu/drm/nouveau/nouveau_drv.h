@@ -155,7 +155,7 @@ struct nouveau_drm {
 		atomic_t validate_sequence;
 		int (*move)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
-			    struct ttm_mem_reg *, struct ttm_mem_reg *);
+			    struct ttm_resource *, struct ttm_resource *);
 		struct nouveau_channel *chan;
 		struct nvif_object copy;
 		int mtrr;
