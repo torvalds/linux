@@ -67,8 +67,8 @@ struct amdgpu_copy_mem {
 	unsigned long			offset;
 };
 
-extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
-extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
+int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size);
+int amdgpu_vram_mgr_init(struct amdgpu_device *adev);
 
 bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);

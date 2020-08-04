@@ -76,6 +76,7 @@ static DEVICE_ATTR(mem_info_gtt_total, S_IRUGO,
 static DEVICE_ATTR(mem_info_gtt_used, S_IRUGO,
 	           amdgpu_mem_info_gtt_used_show, NULL);
 
+static const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
 /**
  * amdgpu_gtt_mgr_init - init GTT manager and DRM MM
  *
@@ -84,13 +85,19 @@ static DEVICE_ATTR(mem_info_gtt_used, S_IRUGO,
  *
  * Allocate and initialize the GTT manager.
  */
-static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
-			       unsigned long p_size)
+int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 {
-	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_TT];
 	struct amdgpu_gtt_mgr *mgr;
 	uint64_t start, size;
 	int ret;
+
+	man->use_tt = true;
+	man->func = &amdgpu_gtt_mgr_func;
+	man->available_caching = TTM_PL_MASK_CACHING;
+	man->default_caching = TTM_PL_FLAG_CACHED;
+
+	ttm_mem_type_manager_init(&adev->mman.bdev, man, gtt_size >> PAGE_SHIFT);
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
@@ -100,7 +107,7 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
 	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
-	atomic64_set(&mgr->available, p_size);
+	atomic64_set(&mgr->available, gtt_size >> PAGE_SHIFT);
 	man->priv = mgr;
 
 	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_total);
@@ -114,6 +121,7 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 		return ret;
 	}
 
+	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
 
@@ -300,8 +308,7 @@ static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 		   amdgpu_gtt_mgr_usage(man) >> 20);
 }
 
-const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func = {
-	.init = amdgpu_gtt_mgr_init,
+static const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func = {
 	.takedown = amdgpu_gtt_mgr_fini,
 	.get_node = amdgpu_gtt_mgr_new,
 	.put_node = amdgpu_gtt_mgr_del,

@@ -158,6 +158,8 @@ static const struct attribute *amdgpu_vram_mgr_attributes[] = {
 	NULL
 };
 
+static const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
+
 /**
  * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
  *
@@ -166,18 +168,23 @@ static const struct attribute *amdgpu_vram_mgr_attributes[] = {
  *
  * Allocate and initialize the VRAM manager.
  */
-static int amdgpu_vram_mgr_init(struct ttm_mem_type_manager *man,
-				unsigned long p_size)
+int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	struct amdgpu_vram_mgr *mgr;
 	int ret;
 
+	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
+	man->default_caching = TTM_PL_FLAG_WC;
+
+	ttm_mem_type_manager_init(&adev->mman.bdev, man, adev->gmc.real_vram_size >> PAGE_SHIFT);
+
+	man->func = &amdgpu_vram_mgr_func;
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
 		return -ENOMEM;
 
-	drm_mm_init(&mgr->mm, 0, p_size);
+	drm_mm_init(&mgr->mm, 0, man->size);
 	spin_lock_init(&mgr->lock);
 	man->priv = mgr;
 
@@ -186,6 +193,7 @@ static int amdgpu_vram_mgr_init(struct ttm_mem_type_manager *man,
 	if (ret)
 		DRM_ERROR("Failed to register sysfs\n");
 
+	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
 
@@ -589,8 +597,7 @@ static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 		   amdgpu_vram_mgr_vis_usage(man) >> 20);
 }
 
-const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
-	.init		= amdgpu_vram_mgr_init,
+static const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
 	.takedown	= amdgpu_vram_mgr_fini,
 	.get_node	= amdgpu_vram_mgr_new,
 	.put_node	= amdgpu_vram_mgr_del,
