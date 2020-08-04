@@ -3265,11 +3265,15 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
+/*
+ * The original product_name is "USB Sound Device", however this name
+ * is also used by the CM106 based cards, so make it unique.
+ */
 {
-	/*
-	 * The original product_name is "USB Sound Device", however this name
-	 * is also used by the CM106 based cards, so make it unique.
-	 */
+	USB_DEVICE(0x0d8c, 0x0102),
+	QUIRK_RENAME_DEVICE(NULL, "ICUSBAUDIO7D")
+},
+{
 	USB_DEVICE(0x0d8c, 0x0103),
 	QUIRK_RENAME_DEVICE(NULL, "Audio Advantage MicroII")
 },
