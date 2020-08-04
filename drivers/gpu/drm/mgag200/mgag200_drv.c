@@ -74,6 +74,7 @@ static int mgag200_regs_init(struct mga_device *mdev)
 		break;
 	case G200_SE_A:
 	case G200_SE_B:
+		option = 0x40049120;
 		if (mgag200_has_sgram(mdev))
 			option |= PCI_MGA_OPTION_HARDPWMSK;
 		option2 = 0x00008000;
