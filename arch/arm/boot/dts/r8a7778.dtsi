@@ -78,7 +78,8 @@
 			<0xfe780010 4>,
 			<0xfe780024 4>,
 			<0xfe780044 4>,
-			<0xfe780064 4>;
+			<0xfe780064 4>,
+			<0xfe780000 4>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
@@ -400,7 +401,7 @@
 		status = "disabled";
 	};
 
-	sdhi0: sd@ffe4c000 {
+	sdhi0: mmc@ffe4c000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4c000 0x100>;
@@ -410,7 +411,7 @@
 		status = "disabled";
 	};
 
-	sdhi1: sd@ffe4d000 {
+	sdhi1: mmc@ffe4d000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4d000 0x100>;
@@ -420,7 +421,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sd@ffe4f000 {
+	sdhi2: mmc@ffe4f000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4f000 0x100>;

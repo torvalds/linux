@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for AM6 SoC Family Wakeup Domain peripherals
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_wakeup {
@@ -32,6 +32,11 @@
 			compatible = "ti,sci-reset";
 			#reset-cells = <2>;
 		};
+	};
+
+	chipid@43000014 {
+		compatible = "ti,am654-chipid";
+		reg = <0x43000014 0x4>;
 	};
 
 	wkup_pmx0: pinmux@4301c000 {

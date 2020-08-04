@@ -1011,7 +1011,7 @@
 				status = "disabled";
 			};
 
-			ocotp: ocotp@8002c000 {
+			ocotp: efuse@8002c000 {
 				compatible = "fsl,imx28-ocotp", "fsl,ocotp";
 				#address-cells = <1>;
 				#size-cells = <1>;

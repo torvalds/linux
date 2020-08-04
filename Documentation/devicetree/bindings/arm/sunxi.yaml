@@ -657,6 +657,11 @@ properties:
           - const: pine64,pinephone-1.1
           - const: allwinner,sun50i-a64
 
+      - description: Pine64 PinePhone (1.2)
+        items:
+          - const: pine64,pinephone-1.2
+          - const: allwinner,sun50i-a64
+
       - description: Pine64 PineTab
         items:
           - const: pine64,pinetab
