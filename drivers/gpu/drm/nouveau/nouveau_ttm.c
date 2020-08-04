@@ -32,12 +32,6 @@
 #include <core/tegra.h>
 
 static int
-nouveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	return 0;
-}
-
-static int
 nouveau_manager_fini(struct ttm_mem_type_manager *man)
 {
 	return 0;
@@ -76,7 +70,6 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_vram_manager_new,
 	.put_node = nouveau_manager_del,
@@ -101,7 +94,6 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_gart_manager_new,
 	.put_node = nouveau_manager_del,
@@ -135,7 +127,6 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nv04_gart_manager_new,
 	.put_node = nouveau_manager_del,
@@ -191,27 +182,21 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 
 		man->func = &nouveau_vram_manager;
 		man->use_io_reserve_lru = true;
+		ttm_mem_type_manager_init(&drm->ttm.bdev, man,
+					  drm->gem.vram_available >> PAGE_SHIFT);
+		ttm_mem_type_manager_set_used(man, true);
+		return 0;
 	} else {
-		man->func = &ttm_bo_manager_func;
+		return ttm_range_man_init(&drm->ttm.bdev, man,
+					  drm->gem.vram_available >> PAGE_SHIFT);
 	}
-
-	return ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
-			      drm->gem.vram_available >> PAGE_SHIFT);
 }
 
 static int
 nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 {
 	struct ttm_mem_type_manager *man = &drm->ttm.bdev.man[TTM_PL_TT];
-
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-		man->func = &nouveau_gart_manager;
-	else
-	if (!drm->agp.bridge)
-		man->func = &nv04_gart_manager;
-	else
-		man->func = &ttm_bo_manager_func;
-
+	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
 	man->use_tt = true;
 	if (drm->agp.bridge) {
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
@@ -222,8 +207,18 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 		man->default_caching = TTM_PL_FLAG_CACHED;
 	}
 
-	return ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_TT,
-			      drm->gem.gart_available >> PAGE_SHIFT);
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
+		man->func = &nouveau_gart_manager;
+	else if (!drm->agp.bridge)
+		man->func = &nv04_gart_manager;
+	else
+		return ttm_range_man_init(&drm->ttm.bdev, man,
+					  size_pages);
+
+	ttm_mem_type_manager_init(&drm->ttm.bdev, man,
+				  size_pages);
+	ttm_mem_type_manager_set_used(man, true);
+	return 0;
 }
 
 int
