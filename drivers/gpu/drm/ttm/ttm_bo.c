@@ -1556,6 +1556,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 
 	man = ttm_manager_type(bdev, TTM_PL_SYSTEM);
 	ttm_mem_type_manager_disable(man);
+	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, NULL);
 
 	mutex_lock(&ttm_global_mutex);
 	list_del(&bdev->device_list);
@@ -1581,7 +1582,7 @@ EXPORT_SYMBOL(ttm_bo_device_release);
 
 static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, TTM_PL_SYSTEM);
+	struct ttm_mem_type_manager *man = &bdev->sysman;
 
 	/*
 	 * Initialize the system memory buffer type.
@@ -1592,6 +1593,7 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 	man->default_caching = TTM_PL_FLAG_CACHED;
 
 	ttm_mem_type_manager_init(man, 0);
+	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);
 	ttm_mem_type_manager_set_used(man, true);
 }
 
@@ -1612,8 +1614,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		return ret;
 
 	bdev->driver = driver;
-
-	memset(bdev->man_priv, 0, sizeof(bdev->man_priv));
 
 	ttm_bo_init_sysman(bdev);
 
