@@ -31,9 +31,9 @@
 
 #define SI_PKEY_OFFSET	0x20
 
-#define SYS_pkey_mprotect	386
-#define SYS_pkey_alloc		384
-#define SYS_pkey_free		385
+#define __NR_pkey_mprotect	386
+#define __NR_pkey_alloc		384
+#define __NR_pkey_free		385
 
 #define PKEY_BITS_PER_PKEY	2
 #define NR_PKEYS		32
@@ -62,17 +62,17 @@ void pkey_set_rights(int pkey, unsigned long rights)
 
 int sys_pkey_mprotect(void *addr, size_t len, int prot, int pkey)
 {
-	return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
+	return syscall(__NR_pkey_mprotect, addr, len, prot, pkey);
 }
 
 int sys_pkey_alloc(unsigned long flags, unsigned long rights)
 {
-	return syscall(SYS_pkey_alloc, flags, rights);
+	return syscall(__NR_pkey_alloc, flags, rights);
 }
 
 int sys_pkey_free(int pkey)
 {
-	return syscall(SYS_pkey_free, pkey);
+	return syscall(__NR_pkey_free, pkey);
 }
 
 int pkeys_unsupported(void)
