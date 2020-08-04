@@ -198,7 +198,8 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = latency;
 
-	policy->fast_switch_possible = true;
+	policy->fast_switch_possible =
+		handle->perf_ops->fast_switch_possible(handle, cpu_dev);
 
 	em_register_perf_domain(policy->cpus, nr_opp, &em_cb);
 
