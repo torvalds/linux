@@ -113,7 +113,8 @@ static inline bool arm_vdso_hres_capable(void)
 }
 #define __arch_vdso_hres_capable arm_vdso_hres_capable
 
-static __always_inline u64 __arch_get_hw_counter(int clock_mode)
+static __always_inline u64 __arch_get_hw_counter(int clock_mode,
+						 const struct vdso_data *vd)
 {
 #ifdef CONFIG_ARM_ARCH_TIMER
 	u64 cycle_now;
