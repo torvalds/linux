@@ -267,8 +267,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 
 void qxl_ttm_fini(struct qxl_device *qdev)
 {
-	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_VRAM);
-	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_PRIV);
+	ttm_range_man_fini(&qdev->mman.bdev, &qdev->mman.bdev.man[TTM_PL_VRAM]);
+	ttm_range_man_fini(&qdev->mman.bdev, &qdev->mman.bdev.man[TTM_PL_PRIV]);
 	ttm_bo_device_release(&qdev->mman.bdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
