@@ -1962,7 +1962,7 @@ static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 
 	mutex_lock(&dirty_i->seglist_lock);
 	for_each_set_bit(segno, dirty_i->dirty_segmap[PRE], MAIN_SEGS(sbi))
-		__set_test_and_free(sbi, segno);
+		__set_test_and_free(sbi, segno, false);
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
@@ -2500,6 +2500,7 @@ static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	struct summary_footer *sum_footer;
 
+	curseg->inited = true;
 	curseg->segno = curseg->next_segno;
 	curseg->zone = GET_ZONE_FROM_SEG(sbi, curseg->segno);
 	curseg->next_blkoff = 0;
@@ -2507,24 +2508,31 @@ static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
 
 	sum_footer = &(curseg->sum_blk->footer);
 	memset(sum_footer, 0, sizeof(struct summary_footer));
-	if (IS_DATASEG(type))
+	if (IS_DATASEG(curseg->seg_type))
 		SET_SUM_TYPE(sum_footer, SUM_TYPE_DATA);
-	if (IS_NODESEG(type))
+	if (IS_NODESEG(curseg->seg_type))
 		SET_SUM_TYPE(sum_footer, SUM_TYPE_NODE);
-	__set_sit_entry_type(sbi, type, curseg->segno, modified);
+	__set_sit_entry_type(sbi, curseg->seg_type, curseg->segno, modified);
 }
 
 static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 {
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+
 	/* if segs_per_sec is large than 1, we need to keep original policy. */
 	if (__is_large_section(sbi))
-		return CURSEG_I(sbi, type)->segno;
+		return curseg->segno;
+
+	/* inmem log may not locate on any segment after mount */
+	if (!curseg->inited)
+		return 0;
 
 	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return 0;
 
 	if (test_opt(sbi, NOHEAP) &&
-		(type == CURSEG_HOT_DATA || IS_NODESEG(type)))
+		(curseg->seg_type == CURSEG_HOT_DATA ||
+		IS_NODESEG(curseg->seg_type)))
 		return 0;
 
 	if (SIT_I(sbi)->last_victim[ALLOC_NEXT])
@@ -2534,7 +2542,7 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 	if (F2FS_OPTION(sbi).alloc_mode == ALLOC_MODE_REUSE)
 		return 0;
 
-	return CURSEG_I(sbi, type)->segno;
+	return curseg->segno;
 }
 
 /*
@@ -2544,12 +2552,14 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 static void new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
+	unsigned short seg_type = curseg->seg_type;
 	unsigned int segno = curseg->segno;
 	int dir = ALLOC_LEFT;
 
-	write_sum_page(sbi, curseg->sum_blk,
+	if (curseg->inited)
+		write_sum_page(sbi, curseg->sum_blk,
 				GET_SUM_BLOCK(sbi, segno));
-	if (type == CURSEG_WARM_DATA || type == CURSEG_COLD_DATA)
+	if (seg_type == CURSEG_WARM_DATA || seg_type == CURSEG_COLD_DATA)
 		dir = ALLOC_RIGHT;
 
 	if (test_opt(sbi, NOHEAP))
@@ -2624,6 +2634,43 @@ static void change_curseg(struct f2fs_sb_info *sbi, int type)
 	sum_node = (struct f2fs_summary_block *)page_address(sum_page);
 	memcpy(curseg->sum_blk, sum_node, SUM_ENTRY_SIZE);
 	f2fs_put_page(sum_page, 1);
+}
+
+void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+
+	mutex_lock(&curseg->curseg_mutex);
+	if (!curseg->inited)
+		goto out;
+
+	if (get_valid_blocks(sbi, curseg->segno, false)) {
+		write_sum_page(sbi, curseg->sum_blk,
+				GET_SUM_BLOCK(sbi, curseg->segno));
+	} else {
+		mutex_lock(&DIRTY_I(sbi)->seglist_lock);
+		__set_test_and_free(sbi, curseg->segno, true);
+		mutex_unlock(&DIRTY_I(sbi)->seglist_lock);
+	}
+out:
+	mutex_unlock(&curseg->curseg_mutex);
+}
+
+void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+
+	mutex_lock(&curseg->curseg_mutex);
+	if (!curseg->inited)
+		goto out;
+	if (get_valid_blocks(sbi, curseg->segno, false))
+		goto out;
+
+	mutex_lock(&DIRTY_I(sbi)->seglist_lock);
+	__set_test_and_inuse(sbi, curseg->segno);
+	mutex_unlock(&DIRTY_I(sbi)->seglist_lock);
+out:
+	mutex_unlock(&curseg->curseg_mutex);
 }
 
 static int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
@@ -2742,11 +2789,15 @@ static void __allocate_new_segment(struct f2fs_sb_info *sbi, int type)
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int old_segno;
 
+	if (!curseg->inited)
+		goto alloc;
+
 	if (!curseg->next_blkoff &&
 		!get_valid_blocks(sbi, curseg->segno, false) &&
 		!get_ckpt_valid_blocks(sbi, curseg->segno))
 		return;
 
+alloc:
 	old_segno = curseg->segno;
 	SIT_I(sbi)->s_ops->allocate_segment(sbi, type, true);
 	locate_dirty_segment(sbi, old_segno);
@@ -3130,19 +3181,6 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	bool put_pin_sem = false;
-
-	if (type == CURSEG_COLD_DATA) {
-		/* GC during CURSEG_COLD_DATA_PINNED allocation */
-		if (down_read_trylock(&sbi->pin_sem)) {
-			put_pin_sem = true;
-		} else {
-			type = CURSEG_WARM_DATA;
-			curseg = CURSEG_I(sbi, type);
-		}
-	} else if (type == CURSEG_COLD_DATA_PINNED) {
-		type = CURSEG_COLD_DATA;
-	}
 
 	down_read(&SM_I(sbi)->curseg_lock);
 
@@ -3208,9 +3246,6 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_unlock(&curseg->curseg_mutex);
 
 	up_read(&SM_I(sbi)->curseg_lock);
-
-	if (put_pin_sem)
-		up_read(&sbi->pin_sem);
 }
 
 static void update_device_state(struct f2fs_io_info *fio)
@@ -3578,7 +3613,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 		blk_off = le16_to_cpu(ckpt->cur_data_blkoff[type -
 							CURSEG_HOT_DATA]);
 		if (__exist_node_summaries(sbi))
-			blk_addr = sum_blk_addr(sbi, NR_CURSEG_TYPE, type);
+			blk_addr = sum_blk_addr(sbi, NR_CURSEG_PERSIST_TYPE, type);
 		else
 			blk_addr = sum_blk_addr(sbi, NR_CURSEG_DATA_TYPE, type);
 	} else {
@@ -3656,8 +3691,9 @@ static int restore_curseg_summaries(struct f2fs_sb_info *sbi)
 	}
 
 	if (__exist_node_summaries(sbi))
-		f2fs_ra_meta_pages(sbi, sum_blk_addr(sbi, NR_CURSEG_TYPE, type),
-					NR_CURSEG_TYPE - type, META_CP, true);
+		f2fs_ra_meta_pages(sbi,
+				sum_blk_addr(sbi, NR_CURSEG_PERSIST_TYPE, type),
+				NR_CURSEG_PERSIST_TYPE - type, META_CP, true);
 
 	for (; type <= CURSEG_COLD_NODE; type++) {
 		err = read_normal_summaries(sbi, type);
@@ -4159,14 +4195,14 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 	struct curseg_info *array;
 	int i;
 
-	array = f2fs_kzalloc(sbi, array_size(NR_CURSEG_TYPE, sizeof(*array)),
-			     GFP_KERNEL);
+	array = f2fs_kzalloc(sbi, array_size(NR_CURSEG_TYPE,
+					sizeof(*array)), GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
 
 	SM_I(sbi)->curseg_array = array;
 
-	for (i = 0; i < NR_CURSEG_TYPE; i++) {
+	for (i = 0; i < NO_CHECK_TYPE; i++) {
 		mutex_init(&array[i].curseg_mutex);
 		array[i].sum_blk = f2fs_kzalloc(sbi, PAGE_SIZE, GFP_KERNEL);
 		if (!array[i].sum_blk)
@@ -4176,8 +4212,13 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 				sizeof(struct f2fs_journal), GFP_KERNEL);
 		if (!array[i].journal)
 			return -ENOMEM;
+		if (i < NR_PERSISTENT_LOG)
+			array[i].seg_type = CURSEG_HOT_DATA + i;
+		else if (i == CURSEG_COLD_DATA_PINNED)
+			array[i].seg_type = CURSEG_COLD_DATA;
 		array[i].segno = NULL_SEGNO;
 		array[i].next_blkoff = 0;
+		array[i].inited = false;
 	}
 	return restore_curseg_summaries(sbi);
 }
@@ -4416,7 +4457,7 @@ static int sanity_check_curseg(struct f2fs_sb_info *sbi)
 	 * In LFS/SSR curseg, .next_blkoff should point to an unused blkaddr;
 	 * In LFS curseg, all blkaddr after .next_blkoff should be unused.
 	 */
-	for (i = 0; i < NO_CHECK_TYPE; i++) {
+	for (i = 0; i < NR_PERSISTENT_LOG; i++) {
 		struct curseg_info *curseg = CURSEG_I(sbi, i);
 		struct seg_entry *se = get_seg_entry(sbi, curseg->segno);
 		unsigned int blkofs = curseg->next_blkoff;
@@ -4645,7 +4686,7 @@ int f2fs_fix_curseg_write_pointer(struct f2fs_sb_info *sbi)
 {
 	int i, ret;
 
-	for (i = 0; i < NO_CHECK_TYPE; i++) {
+	for (i = 0; i < NR_PERSISTENT_LOG; i++) {
 		ret = fix_curseg_write_pointer(sbi, i);
 		if (ret)
 			return ret;

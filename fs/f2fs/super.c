@@ -580,7 +580,8 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 		case Opt_active_logs:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
+			if (arg != 2 && arg != 4 &&
+				arg != NR_CURSEG_PERSIST_TYPE)
 				return -EINVAL;
 			F2FS_OPTION(sbi).active_logs = arg;
 			break;
@@ -1001,7 +1002,7 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 	}
 
 	/* Not pass down write hints if the number of active logs is lesser
-	 * than NR_CURSEG_TYPE.
+	 * than NR_CURSEG_PERSIST_TYPE.
 	 */
 	if (F2FS_OPTION(sbi).active_logs != NR_CURSEG_TYPE)
 		F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
@@ -1641,7 +1642,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 static void default_options(struct f2fs_sb_info *sbi)
 {
 	/* init some FS parameters */
-	F2FS_OPTION(sbi).active_logs = NR_CURSEG_TYPE;
+	F2FS_OPTION(sbi).active_logs = NR_CURSEG_PERSIST_TYPE;
 	F2FS_OPTION(sbi).inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
 	F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
 	F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
@@ -2996,7 +2997,7 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	cp_payload = __cp_payload(sbi);
 	if (cp_pack_start_sum < cp_payload + 1 ||
 		cp_pack_start_sum > blocks_per_seg - 1 -
-			NR_CURSEG_TYPE) {
+			NR_CURSEG_PERSIST_TYPE) {
 		f2fs_err(sbi, "Wrong cp_pack_start_sum: %u",
 			 cp_pack_start_sum);
 		return 1;

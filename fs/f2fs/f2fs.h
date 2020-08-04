@@ -973,7 +973,9 @@ static inline void set_new_dnode(struct dnode_of_data *dn, struct inode *inode,
  */
 #define	NR_CURSEG_DATA_TYPE	(3)
 #define NR_CURSEG_NODE_TYPE	(3)
-#define NR_CURSEG_TYPE	(NR_CURSEG_DATA_TYPE + NR_CURSEG_NODE_TYPE)
+#define NR_CURSEG_INMEM_TYPE	(1)
+#define NR_CURSEG_PERSIST_TYPE	(NR_CURSEG_DATA_TYPE + NR_CURSEG_NODE_TYPE)
+#define NR_CURSEG_TYPE		(NR_CURSEG_INMEM_TYPE + NR_CURSEG_PERSIST_TYPE)
 
 enum {
 	CURSEG_HOT_DATA	= 0,	/* directory entry blocks */
@@ -982,8 +984,10 @@ enum {
 	CURSEG_HOT_NODE,	/* direct node blocks of directory files */
 	CURSEG_WARM_NODE,	/* direct node blocks of normal files */
 	CURSEG_COLD_NODE,	/* indirect node blocks */
-	NO_CHECK_TYPE,
-	CURSEG_COLD_DATA_PINNED,/* cold data for pinned file */
+	NR_PERSISTENT_LOG,	/* number of persistent log */
+	CURSEG_COLD_DATA_PINNED = NR_PERSISTENT_LOG,
+				/* pinned file that needs consecutive block address */
+	NO_CHECK_TYPE,		/* number of persistent & inmem log */
 };
 
 struct flush_cmd {
@@ -3333,6 +3337,8 @@ block_t f2fs_get_unusable_blocks(struct f2fs_sb_info *sbi);
 int f2fs_disable_cp_again(struct f2fs_sb_info *sbi, block_t unusable);
 void f2fs_release_discard_addrs(struct f2fs_sb_info *sbi);
 int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra);
+void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi, int type);
+void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi, int type);
 void f2fs_allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
 					unsigned int start, unsigned int end);
 void f2fs_allocate_new_segment(struct f2fs_sb_info *sbi, int type);
