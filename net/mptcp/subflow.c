@@ -1137,6 +1137,12 @@ int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 	struct socket *sf;
 	int err;
 
+	/* un-accepted server sockets can reach here - on bad configuration
+	 * bail early to avoid greater trouble later
+	 */
+	if (unlikely(!sk->sk_socket))
+		return -EINVAL;
+
 	err = sock_create_kern(net, sk->sk_family, SOCK_STREAM, IPPROTO_TCP,
 			       &sf);
 	if (err)
