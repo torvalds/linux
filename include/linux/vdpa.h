@@ -28,6 +28,14 @@ struct vdpa_notification_area {
 };
 
 /**
+ * vDPA vq_state definition
+ * @avail_index: available index
+ */
+struct vdpa_vq_state {
+	u16	avail_index;
+};
+
+/**
  * vDPA device - representation of a vDPA device
  * @dev: underlying device
  * @dma_dev: the actual device that is performing DMA
@@ -80,12 +88,12 @@ struct vdpa_device {
  * @set_vq_state:		Set the state for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				@state: virtqueue state (last_avail_idx)
+ *				@state: pointer to set virtqueue state (last_avail_idx)
  *				Returns integer: success (0) or error (< 0)
  * @get_vq_state:		Get the state for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				Returns virtqueue state (last_avail_idx)
+ *				@state: pointer to returned state (last_avail_idx)
  * @get_vq_notification: 	Get the notification area for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
@@ -183,8 +191,10 @@ struct vdpa_config_ops {
 			  struct vdpa_callback *cb);
 	void (*set_vq_ready)(struct vdpa_device *vdev, u16 idx, bool ready);
 	bool (*get_vq_ready)(struct vdpa_device *vdev, u16 idx);
-	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx, u64 state);
-	u64 (*get_vq_state)(struct vdpa_device *vdev, u16 idx);
+	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx,
+			    const struct vdpa_vq_state *state);
+	void (*get_vq_state)(struct vdpa_device *vdev, u16 idx,
+			     struct vdpa_vq_state *state);
 	struct vdpa_notification_area
 	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
 	/* vq irq is not expected to be changed once DRIVER_OK is set */

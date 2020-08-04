@@ -450,26 +450,28 @@ static bool vdpasim_get_vq_ready(struct vdpa_device *vdpa, u16 idx)
 	return vq->ready;
 }
 
-static int vdpasim_set_vq_state(struct vdpa_device *vdpa, u16 idx, u64 state)
+static int vdpasim_set_vq_state(struct vdpa_device *vdpa, u16 idx,
+				const struct vdpa_vq_state *state)
 {
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
 	struct vringh *vrh = &vq->vring;
 
 	spin_lock(&vdpasim->lock);
-	vrh->last_avail_idx = state;
+	vrh->last_avail_idx = state->avail_index;
 	spin_unlock(&vdpasim->lock);
 
 	return 0;
 }
 
-static u64 vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx)
+static void vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx,
+				 struct vdpa_vq_state *state)
 {
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
 	struct vringh *vrh = &vq->vring;
 
-	return vrh->last_avail_idx;
+	state->avail_index = vrh->last_avail_idx;
 }
 
 static u32 vdpasim_get_vq_align(struct vdpa_device *vdpa)
