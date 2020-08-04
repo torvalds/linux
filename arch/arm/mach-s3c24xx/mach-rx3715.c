@@ -3,7 +3,7 @@
 // Copyright (c) 2003-2004 Simtec Electronics
 //	Ben Dooks <ben@simtec.co.uk>
 //
-// http://www.handhelds.org/projects/rx3715.html
+// https://www.handhelds.org/projects/rx3715.html
 
 #include <linux/kernel.h>
 #include <linux/types.h>

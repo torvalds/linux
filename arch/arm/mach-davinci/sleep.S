@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * (C) Copyright 2009, Texas Instruments, Inc. http://www.ti.com/
+ * (C) Copyright 2009, Texas Instruments, Inc. https://www.ti.com/
  */
 
 /* replicated define because linux/bitops.h cannot be included in assembly */
