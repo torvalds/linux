@@ -220,7 +220,7 @@ static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 				 unsigned int type,
 				 uint64_t size)
 {
-	struct ttm_mem_type_manager *man = &qdev->mman.bdev.man[type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&qdev->mman.bdev, type);
 
 	man->available_caching = TTM_PL_MASK_CACHING;
 	man->default_caching = TTM_PL_FLAG_CACHED;
@@ -267,8 +267,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 
 void qxl_ttm_fini(struct qxl_device *qdev)
 {
-	ttm_range_man_fini(&qdev->mman.bdev, &qdev->mman.bdev.man[TTM_PL_VRAM]);
-	ttm_range_man_fini(&qdev->mman.bdev, &qdev->mman.bdev.man[TTM_PL_PRIV]);
+	ttm_range_man_fini(&qdev->mman.bdev, ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM));
+	ttm_range_man_fini(&qdev->mman.bdev, ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV));
 	ttm_bo_device_release(&qdev->mman.bdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
@@ -303,9 +303,9 @@ void qxl_ttm_debugfs_init(struct qxl_device *qdev)
 		qxl_mem_types_list[i].show = &qxl_mm_dump_table;
 		qxl_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			qxl_mem_types_list[i].data = &qdev->mman.bdev.man[TTM_PL_VRAM];
+			qxl_mem_types_list[i].data = ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM);
 		else
-			qxl_mem_types_list[i].data = &qdev->mman.bdev.man[TTM_PL_PRIV];
+			qxl_mem_types_list[i].data = ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV);
 
 	}
 	qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
