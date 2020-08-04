@@ -32,9 +32,6 @@ enum {
 	(1ULL << VHOST_BACKEND_F_IOTLB_BATCH),
 };
 
-/* Currently, only network backend w/o multiqueue is supported. */
-#define VHOST_VDPA_VQ_MAX	2
-
 #define VHOST_VDPA_DEV_MAX (1U << MINORBITS)
 
 struct vhost_vdpa {
@@ -930,7 +927,7 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 {
 	const struct vdpa_config_ops *ops = vdpa->config;
 	struct vhost_vdpa *v;
-	int minor, nvqs = VHOST_VDPA_VQ_MAX;
+	int minor;
 	int r;
 
 	/* Currently, we only accept the network devices. */
@@ -951,14 +948,14 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	atomic_set(&v->opened, 0);
 	v->minor = minor;
 	v->vdpa = vdpa;
-	v->nvqs = nvqs;
+	v->nvqs = vdpa->nvqs;
 	v->virtio_id = ops->get_device_id(vdpa);
 
 	device_initialize(&v->dev);
 	v->dev.release = vhost_vdpa_release_dev;
 	v->dev.parent = &vdpa->dev;
 	v->dev.devt = MKDEV(MAJOR(vhost_vdpa_major), minor);
-	v->vqs = kmalloc_array(nvqs, sizeof(struct vhost_virtqueue),
+	v->vqs = kmalloc_array(v->nvqs, sizeof(struct vhost_virtqueue),
 			       GFP_KERNEL);
 	if (!v->vqs) {
 		r = -ENOMEM;

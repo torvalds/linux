@@ -41,6 +41,7 @@ struct vdpa_device {
 	const struct vdpa_config_ops *config;
 	unsigned int index;
 	bool features_valid;
+	int nvqs;
 };
 
 /**
@@ -218,11 +219,12 @@ struct vdpa_config_ops {
 
 struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 					const struct vdpa_config_ops *config,
+					int nvqs,
 					size_t size);
 
-#define vdpa_alloc_device(dev_struct, member, parent, config)   \
+#define vdpa_alloc_device(dev_struct, member, parent, config, nvqs)   \
 			  container_of(__vdpa_alloc_device( \
-				       parent, config, \
+				       parent, config, nvqs, \
 				       sizeof(dev_struct) + \
 				       BUILD_BUG_ON_ZERO(offsetof( \
 				       dev_struct, member))), \
