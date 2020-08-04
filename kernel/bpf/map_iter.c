@@ -7,7 +7,7 @@
 #include <linux/btf_ids.h>
 
 struct bpf_iter_seq_map_info {
-	u32 mid;
+	u32 map_id;
 };
 
 static void *bpf_map_seq_start(struct seq_file *seq, loff_t *pos)
@@ -15,27 +15,23 @@ static void *bpf_map_seq_start(struct seq_file *seq, loff_t *pos)
 	struct bpf_iter_seq_map_info *info = seq->private;
 	struct bpf_map *map;
 
-	map = bpf_map_get_curr_or_next(&info->mid);
+	map = bpf_map_get_curr_or_next(&info->map_id);
 	if (!map)
 		return NULL;
 
-	++*pos;
+	if (*pos == 0)
+		++*pos;
 	return map;
 }
 
 static void *bpf_map_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct bpf_iter_seq_map_info *info = seq->private;
-	struct bpf_map *map;
 
 	++*pos;
-	++info->mid;
+	++info->map_id;
 	bpf_map_put((struct bpf_map *)v);
-	map = bpf_map_get_curr_or_next(&info->mid);
-	if (!map)
-		return NULL;
-
-	return map;
+	return bpf_map_get_curr_or_next(&info->map_id);
 }
 
 struct bpf_iter__bpf_map {
@@ -85,23 +81,79 @@ static const struct seq_operations bpf_map_seq_ops = {
 BTF_ID_LIST(btf_bpf_map_id)
 BTF_ID(struct, bpf_map)
 
-static struct bpf_iter_reg bpf_map_reg_info = {
-	.target			= "bpf_map",
+static const struct bpf_iter_seq_info bpf_map_seq_info = {
 	.seq_ops		= &bpf_map_seq_ops,
 	.init_seq_private	= NULL,
 	.fini_seq_private	= NULL,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_map_info),
+};
+
+static struct bpf_iter_reg bpf_map_reg_info = {
+	.target			= "bpf_map",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__bpf_map, map),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &bpf_map_seq_info,
+};
+
+static int bpf_iter_check_map(struct bpf_prog *prog,
+			      struct bpf_iter_aux_info *aux)
+{
+	u32 key_acc_size, value_acc_size, key_size, value_size;
+	struct bpf_map *map = aux->map;
+	bool is_percpu = false;
+
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		is_percpu = true;
+	else if (map->map_type != BPF_MAP_TYPE_HASH &&
+		 map->map_type != BPF_MAP_TYPE_LRU_HASH &&
+		 map->map_type != BPF_MAP_TYPE_ARRAY)
+		return -EINVAL;
+
+	key_acc_size = prog->aux->max_rdonly_access;
+	value_acc_size = prog->aux->max_rdwr_access;
+	key_size = map->key_size;
+	if (!is_percpu)
+		value_size = map->value_size;
+	else
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+
+	if (key_acc_size > key_size || value_acc_size > value_size)
+		return -EACCES;
+
+	return 0;
+}
+
+DEFINE_BPF_ITER_FUNC(bpf_map_elem, struct bpf_iter_meta *meta,
+		     struct bpf_map *map, void *key, void *value)
+
+static const struct bpf_iter_reg bpf_map_elem_reg_info = {
+	.target			= "bpf_map_elem",
+	.check_target		= bpf_iter_check_map,
+	.req_linfo		= BPF_ITER_LINK_MAP_FD,
+	.ctx_arg_info_size	= 2,
+	.ctx_arg_info		= {
+		{ offsetof(struct bpf_iter__bpf_map_elem, key),
+		  PTR_TO_RDONLY_BUF_OR_NULL },
+		{ offsetof(struct bpf_iter__bpf_map_elem, value),
+		  PTR_TO_RDWR_BUF_OR_NULL },
+	},
 };
 
 static int __init bpf_map_iter_init(void)
 {
+	int ret;
+
 	bpf_map_reg_info.ctx_arg_info[0].btf_id = *btf_bpf_map_id;
-	return bpf_iter_reg_target(&bpf_map_reg_info);
+	ret = bpf_iter_reg_target(&bpf_map_reg_info);
+	if (ret)
+		return ret;
+
+	return bpf_iter_reg_target(&bpf_map_elem_reg_info);
 }
 
 late_initcall(bpf_map_iter_init);

@@ -34,6 +34,7 @@
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
+#include "testing_helpers.h"
 #include "test_sk_lookup.skel.h"
 
 /* External (address, port) pairs the client sends packets to. */
@@ -74,6 +75,7 @@ struct test {
 	struct inet_addr connect_to;
 	struct inet_addr listen_at;
 	enum server accept_on;
+	bool reuseport_has_conns; /* Add a connected socket to reuseport group */
 };
 
 static __u32 duration;		/* for CHECK macro */
@@ -468,34 +470,10 @@ static int update_lookup_map(struct bpf_map *map, int index, int sock_fd)
 	return 0;
 }
 
-static __u32 link_info_prog_id(struct bpf_link *link)
-{
-	struct bpf_link_info info = {};
-	__u32 info_len = sizeof(info);
-	int link_fd, err;
-
-	link_fd = bpf_link__fd(link);
-	if (CHECK(link_fd < 0, "bpf_link__fd", "failed\n")) {
-		errno = -link_fd;
-		log_err("bpf_link__fd failed");
-		return 0;
-	}
-
-	err = bpf_obj_get_info_by_fd(link_fd, &info, &info_len);
-	if (CHECK(err, "bpf_obj_get_info_by_fd", "failed\n")) {
-		log_err("bpf_obj_get_info_by_fd");
-		return 0;
-	}
-	if (CHECK(info_len != sizeof(info), "bpf_obj_get_info_by_fd",
-		  "unexpected info len %u\n", info_len))
-		return 0;
-
-	return info.prog_id;
-}
-
 static void query_lookup_prog(struct test_sk_lookup *skel)
 {
 	struct bpf_link *link[3] = {};
+	struct bpf_link_info info;
 	__u32 attach_flags = 0;
 	__u32 prog_ids[3] = {};
 	__u32 prog_cnt = 3;
@@ -533,18 +511,36 @@ static void query_lookup_prog(struct test_sk_lookup *skel)
 	if (CHECK(prog_cnt != 3, "bpf_prog_query",
 		  "wrong program count on query: %u", prog_cnt))
 		goto detach;
-	prog_id = link_info_prog_id(link[0]);
+	prog_id = link_info_prog_id(link[0], &info);
 	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
 	      "invalid program #0 id on query: %u != %u\n",
 	      prog_ids[0], prog_id);
-	prog_id = link_info_prog_id(link[1]);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	prog_id = link_info_prog_id(link[1], &info);
 	CHECK(prog_ids[1] != prog_id, "bpf_prog_query",
 	      "invalid program #1 id on query: %u != %u\n",
 	      prog_ids[1], prog_id);
-	prog_id = link_info_prog_id(link[2]);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	prog_id = link_info_prog_id(link[2], &info);
 	CHECK(prog_ids[2] != prog_id, "bpf_prog_query",
 	      "invalid program #2 id on query: %u != %u\n",
 	      prog_ids[2], prog_id);
+	CHECK(info.netns.netns_ino == 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+
+	err = bpf_link__detach(link[0]);
+	if (CHECK(err, "link_detach", "failed %d\n", err))
+		goto detach;
+
+	/* prog id is still there, but netns_ino is zeroed out */
+	prog_id = link_info_prog_id(link[0], &info);
+	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
+	      "invalid program #0 id on query: %u != %u\n",
+	      prog_ids[0], prog_id);
+	CHECK(info.netns.netns_ino != 0, "netns_ino",
+	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
 
 detach:
 	if (link[2])
@@ -559,7 +555,8 @@ close:
 
 static void run_lookup_prog(const struct test *t)
 {
-	int client_fd, server_fds[MAX_SERVERS] = { -1 };
+	int server_fds[MAX_SERVERS] = { -1 };
+	int client_fd, reuse_conn_fd = -1;
 	struct bpf_link *lookup_link;
 	int i, err;
 
@@ -583,6 +580,32 @@ static void run_lookup_prog(const struct test *t)
 			break;
 	}
 
+	/* Regular UDP socket lookup with reuseport behaves
+	 * differently when reuseport group contains connected
+	 * sockets. Check that adding a connected UDP socket to the
+	 * reuseport group does not affect how reuseport works with
+	 * BPF socket lookup.
+	 */
+	if (t->reuseport_has_conns) {
+		struct sockaddr_storage addr = {};
+		socklen_t len = sizeof(addr);
+
+		/* Add an extra socket to reuseport group */
+		reuse_conn_fd = make_server(t->sotype, t->listen_at.ip,
+					    t->listen_at.port,
+					    t->reuseport_prog);
+		if (reuse_conn_fd < 0)
+			goto close;
+
+		/* Connect the extra socket to itself */
+		err = getsockname(reuse_conn_fd, (void *)&addr, &len);
+		if (CHECK(err, "getsockname", "errno %d\n", errno))
+			goto close;
+		err = connect(reuse_conn_fd, (void *)&addr, len);
+		if (CHECK(err, "connect", "errno %d\n", errno))
+			goto close;
+	}
+
 	client_fd = make_client(t->sotype, t->connect_to.ip, t->connect_to.port);
 	if (client_fd < 0)
 		goto close;
@@ -594,6 +617,8 @@ static void run_lookup_prog(const struct test *t)
 
 	close(client_fd);
 close:
+	if (reuse_conn_fd != -1)
+		close(reuse_conn_fd);
 	for (i = 0; i < ARRAY_SIZE(server_fds); i++) {
 		if (server_fds[i] != -1)
 			close(server_fds[i]);
@@ -711,6 +736,17 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 			.accept_on	= SERVER_B,
 		},
 		{
+			.desc		= "UDP IPv4 redir and reuseport with conns",
+			.lookup_prog	= skel->progs.select_sock_a,
+			.reuseport_prog	= skel->progs.select_sock_b,
+			.sock_map	= skel->maps.redir_map,
+			.sotype		= SOCK_DGRAM,
+			.connect_to	= { EXT_IP4, EXT_PORT },
+			.listen_at	= { INT_IP4, INT_PORT },
+			.accept_on	= SERVER_B,
+			.reuseport_has_conns = true,
+		},
+		{
 			.desc		= "UDP IPv4 redir skip reuseport",
 			.lookup_prog	= skel->progs.select_sock_a_no_reuseport,
 			.reuseport_prog	= skel->progs.select_sock_b,
@@ -753,6 +789,17 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 			.connect_to	= { EXT_IP6, EXT_PORT },
 			.listen_at	= { INT_IP6, INT_PORT },
 			.accept_on	= SERVER_B,
+		},
+		{
+			.desc		= "UDP IPv6 redir and reuseport with conns",
+			.lookup_prog	= skel->progs.select_sock_a,
+			.reuseport_prog	= skel->progs.select_sock_b,
+			.sock_map	= skel->maps.redir_map,
+			.sotype		= SOCK_DGRAM,
+			.connect_to	= { EXT_IP6, EXT_PORT },
+			.listen_at	= { INT_IP6, INT_PORT },
+			.accept_on	= SERVER_B,
+			.reuseport_has_conns = true,
 		},
 		{
 			.desc		= "UDP IPv6 redir skip reuseport",
@@ -1238,8 +1285,8 @@ static void run_tests(struct test_sk_lookup *skel)
 static int switch_netns(void)
 {
 	static const char * const setup_script[] = {
-		"ip -6 addr add dev lo " EXT_IP6 "/128 nodad",
-		"ip -6 addr add dev lo " INT_IP6 "/128 nodad",
+		"ip -6 addr add dev lo " EXT_IP6 "/128",
+		"ip -6 addr add dev lo " INT_IP6 "/128",
 		"ip link set dev lo up",
 		NULL,
 	};

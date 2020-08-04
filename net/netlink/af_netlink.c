@@ -2807,17 +2807,21 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 BTF_ID_LIST(btf_netlink_sock_id)
 BTF_ID(struct, netlink_sock)
 
-static struct bpf_iter_reg netlink_reg_info = {
-	.target			= "netlink",
+static const struct bpf_iter_seq_info netlink_seq_info = {
 	.seq_ops		= &netlink_seq_ops,
 	.init_seq_private	= bpf_iter_init_seq_net,
 	.fini_seq_private	= bpf_iter_fini_seq_net,
 	.seq_priv_size		= sizeof(struct nl_seq_iter),
+};
+
+static struct bpf_iter_reg netlink_reg_info = {
+	.target			= "netlink",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__netlink, sk),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &netlink_seq_info,
 };
 
 static int __init bpf_iter_register(void)

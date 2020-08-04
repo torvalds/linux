@@ -6427,17 +6427,21 @@ DEFINE_BPF_ITER_FUNC(ipv6_route, struct bpf_iter_meta *meta, struct fib6_info *r
 BTF_ID_LIST(btf_fib6_info_id)
 BTF_ID(struct, fib6_info)
 
-static struct bpf_iter_reg ipv6_route_reg_info = {
-	.target			= "ipv6_route",
+static const struct bpf_iter_seq_info ipv6_route_seq_info = {
 	.seq_ops		= &ipv6_route_seq_ops,
 	.init_seq_private	= bpf_iter_init_seq_net,
 	.fini_seq_private	= bpf_iter_fini_seq_net,
 	.seq_priv_size		= sizeof(struct ipv6_route_iter),
+};
+
+static struct bpf_iter_reg ipv6_route_reg_info = {
+	.target			= "ipv6_route",
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__ipv6_route, rt),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+	.seq_info		= &ipv6_route_seq_info,
 };
 
 static int __init bpf_iter_register(void)

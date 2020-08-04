@@ -654,15 +654,10 @@ static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	struct efx_nic *efx = netdev_priv(dev);
-	struct bpf_prog *xdp_prog;
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return efx_xdp_setup_prog(efx, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp_prog = rtnl_dereference(efx->xdp_prog);
-		xdp->prog_id = xdp_prog ? xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}

@@ -422,54 +422,6 @@ done:
 	return err;
 }
 
-static struct btf *btf__parse_raw(const char *file)
-{
-	struct btf *btf;
-	struct stat st;
-	__u8 *buf;
-	FILE *f;
-
-	if (stat(file, &st))
-		return NULL;
-
-	f = fopen(file, "rb");
-	if (!f)
-		return NULL;
-
-	buf = malloc(st.st_size);
-	if (!buf) {
-		btf = ERR_PTR(-ENOMEM);
-		goto exit_close;
-	}
-
-	if ((size_t) st.st_size != fread(buf, 1, st.st_size, f)) {
-		btf = ERR_PTR(-EINVAL);
-		goto exit_free;
-	}
-
-	btf = btf__new(buf, st.st_size);
-
-exit_free:
-	free(buf);
-exit_close:
-	fclose(f);
-	return btf;
-}
-
-static bool is_btf_raw(const char *file)
-{
-	__u16 magic = 0;
-	int fd, nb_read;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		return false;
-
-	nb_read = read(fd, &magic, sizeof(magic));
-	close(fd);
-	return nb_read == sizeof(magic) && magic == BTF_MAGIC;
-}
-
 static int do_dump(int argc, char **argv)
 {
 	struct btf *btf = NULL;
@@ -547,11 +499,7 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		if (is_btf_raw(*argv))
-			btf = btf__parse_raw(*argv);
-		else
-			btf = btf__parse_elf(*argv, NULL);
-
+		btf = btf__parse(*argv, NULL);
 		if (IS_ERR(btf)) {
 			err = -PTR_ERR(btf);
 			btf = NULL;
@@ -596,7 +544,7 @@ static int do_dump(int argc, char **argv)
 			goto done;
 		}
 		if (!btf) {
-			err = ENOENT;
+			err = -ENOENT;
 			p_err("can't find btf with ID (%u)", btf_id);
 			goto done;
 		}

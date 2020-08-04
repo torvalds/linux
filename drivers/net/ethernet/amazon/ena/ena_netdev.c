@@ -576,15 +576,9 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
  */
 static int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 {
-	struct ena_adapter *adapter = netdev_priv(netdev);
-
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
 		return ena_xdp_set(netdev, bpf);
-	case XDP_QUERY_PROG:
-		bpf->prog_id = adapter->xdp_bpf_prog ?
-			adapter->xdp_bpf_prog->aux->id : 0;
-		break;
 	default:
 		return -EINVAL;
 	}

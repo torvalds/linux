@@ -6,12 +6,16 @@
 
 void test_core_retro(void)
 {
-	int err, zero = 0, res, duration = 0;
+	int err, zero = 0, res, duration = 0, my_pid = getpid();
 	struct test_core_retro *skel;
 
 	/* load program */
 	skel = test_core_retro__open_and_load();
 	if (CHECK(!skel, "skel_load", "skeleton open/load failed\n"))
+		goto out_close;
+
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.exp_tgid_map), &zero, &my_pid, 0);
+	if (CHECK(err, "map_update", "failed to set expected PID: %d\n", errno))
 		goto out_close;
 
 	/* attach probe */
@@ -26,7 +30,7 @@ void test_core_retro(void)
 	if (CHECK(err, "map_lookup", "failed to lookup result: %d\n", errno))
 		goto out_close;
 
-	CHECK(res != getpid(), "pid_check", "got %d != exp %d\n", res, getpid());
+	CHECK(res != my_pid, "pid_check", "got %d != exp %d\n", res, my_pid);
 
 out_close:
 	test_core_retro__destroy(skel);

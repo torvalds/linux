@@ -64,8 +64,9 @@ struct btf_ext_header {
 
 LIBBPF_API void btf__free(struct btf *btf);
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
-LIBBPF_API struct btf *btf__parse_elf(const char *path,
-				      struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_raw(const char *path);
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,

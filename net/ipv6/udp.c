@@ -155,9 +155,6 @@ static struct sock *lookup_reuseport(struct net *net, struct sock *sk,
 		hash = udp6_ehashfn(net, daddr, hnum, saddr, sport);
 		reuse_sk = reuseport_select_sock(sk, hash, skb,
 						 sizeof(struct udphdr));
-		/* Fall back to scoring if group has connections */
-		if (reuseport_has_conns(sk, false))
-			return NULL;
 	}
 	return reuse_sk;
 }
@@ -211,7 +208,7 @@ static inline struct sock *udp6_lookup_run_bpf(struct net *net,
 		return sk;
 
 	reuse_sk = lookup_reuseport(net, sk, skb, saddr, sport, daddr, hnum);
-	if (reuse_sk && !reuseport_has_conns(sk, false))
+	if (reuse_sk)
 		sk = reuse_sk;
 	return sk;
 }

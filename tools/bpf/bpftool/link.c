@@ -22,6 +22,8 @@ static const char * const link_type_name[] = {
 
 static int link_parse_fd(int *argc, char ***argv)
 {
+	int fd;
+
 	if (is_prefix(**argv, "id")) {
 		unsigned int id;
 		char *endptr;
@@ -35,7 +37,10 @@ static int link_parse_fd(int *argc, char ***argv)
 		}
 		NEXT_ARGP();
 
-		return bpf_link_get_fd_by_id(id);
+		fd = bpf_link_get_fd_by_id(id);
+		if (fd < 0)
+			p_err("failed to get link with ID %d: %s", id, strerror(errno));
+		return fd;
 	} else if (is_prefix(**argv, "pinned")) {
 		char *path;
 
@@ -316,6 +321,34 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+static int do_detach(int argc, char **argv)
+{
+	int err, fd;
+
+	if (argc != 2) {
+		p_err("link specifier is invalid or missing\n");
+		return 1;
+	}
+
+	fd = link_parse_fd(&argc, &argv);
+	if (fd < 0)
+		return 1;
+
+	err = bpf_link_detach(fd);
+	if (err)
+		err = -errno;
+	close(fd);
+	if (err) {
+		p_err("failed link detach: %s", strerror(-err));
+		return 1;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -326,6 +359,7 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %1$s %2$s { show | list }   [LINK]\n"
 		"       %1$s %2$s pin        LINK  FILE\n"
+		"       %1$s %2$s detach     LINK\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_LINK "\n"
@@ -341,6 +375,7 @@ static const struct cmd cmds[] = {
 	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "pin",	do_pin },
+	{ "detach",	do_detach },
 	{ 0 }
 };
 
