@@ -194,7 +194,7 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 	struct ttm_mem_type_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ttm_mem_type_manager_disable(man);
+		ttm_mem_type_manager_set_used(man, false);
 		ttm_mem_type_manager_force_list_clean(&drm->ttm.bdev, man);
 		ttm_mem_type_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, NULL);
@@ -253,7 +253,7 @@ nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 	    drm->agp.bridge)
 		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_TT);
 	else {
-		ttm_mem_type_manager_disable(man);
+		ttm_mem_type_manager_set_used(man, false);
 		ttm_mem_type_manager_force_list_clean(&drm->ttm.bdev, man);
 		ttm_mem_type_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, NULL);

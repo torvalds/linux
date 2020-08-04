@@ -152,7 +152,7 @@ void vmw_thp_fini(struct vmw_private *dev_priv)
 	struct drm_mm *mm = &rman->mm;
 	int ret;
 
-	ttm_mem_type_manager_disable(man);
+	ttm_mem_type_manager_set_used(man, false);
 
 	ret = ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
 	if (ret)

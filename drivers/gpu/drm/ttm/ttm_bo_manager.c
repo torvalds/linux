@@ -152,7 +152,7 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 	struct drm_mm *mm = &rman->mm;
 	int ret;
 
-	ttm_mem_type_manager_disable(man);
+	ttm_mem_type_manager_set_used(man, false);
 
 	ret = ttm_mem_type_manager_force_list_clean(bdev, man);
 	if (ret)

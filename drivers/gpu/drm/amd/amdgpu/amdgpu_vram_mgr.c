@@ -223,7 +223,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	int ret;
 
-	ttm_mem_type_manager_disable(man);
+	ttm_mem_type_manager_set_used(man, false);
 
 	ret = ttm_mem_type_manager_force_list_clean(&adev->mman.bdev, man);
 	if (ret)

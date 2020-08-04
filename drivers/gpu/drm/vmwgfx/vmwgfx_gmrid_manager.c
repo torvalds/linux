@@ -143,7 +143,7 @@ void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, type);
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
-	ttm_mem_type_manager_disable(man);
+	ttm_mem_type_manager_set_used(man, false);
 
 	ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
 

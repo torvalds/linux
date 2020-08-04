@@ -111,7 +111,6 @@ struct ttm_mem_type_manager_func {
 /**
  * struct ttm_mem_type_manager
  *
- * @has_type: The memory type has been initialized.
  * @use_type: The memory type is enabled.
  * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
  * managed by this memory type.
@@ -141,8 +140,6 @@ struct ttm_mem_type_manager {
 	/*
 	 * No protection. Constant from start.
 	 */
-
-	bool has_type;
 	bool use_type;
 	bool use_tt;
 	uint64_t size;
@@ -689,21 +686,7 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
  */
 static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *man, bool used)
 {
-	man->has_type = true;
 	man->use_type = used;
-}
-
-/**
- * ttm_mem_type_manager_disable.
- *
- * @man: A memory manager object.
- *
- * Indicate the manager is not to be used and deregistered. (temporary during rework).
- */
-static inline void ttm_mem_type_manager_disable(struct ttm_mem_type_manager *man)
-{
-	man->has_type = false;
-	man->use_type = false;
 }
 
 /**

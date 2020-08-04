@@ -80,7 +80,6 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
 				struct drm_printer *p)
 {
-	drm_printf(p, "    has_type: %d\n", man->has_type);
 	drm_printf(p, "    use_type: %d\n", man->use_type);
 	drm_printf(p, "    use_tt: %d\n", man->use_tt);
 	drm_printf(p, "    size: %llu\n", man->size);
@@ -1001,7 +1000,7 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 		return ret;
 
 	man = ttm_manager_type(bdev, mem_type);
-	if (!man->has_type || !man->use_type)
+	if (!man || !man->use_type)
 		return -EBUSY;
 
 	if (!ttm_bo_mt_compatible(man, mem_type, place, &cur_flags))
@@ -1460,7 +1459,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return -EINVAL;
 	}
 
-	if (!man->has_type) {
+	if (!man) {
 		pr_err("Memory type %u has not been initialized\n", mem_type);
 		return 0;
 	}
@@ -1474,7 +1473,6 @@ void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
 {
 	unsigned i;
 
-	BUG_ON(man->has_type);
 	man->use_io_reserve_lru = false;
 	mutex_init(&man->io_reserve_mutex);
 	spin_lock_init(&man->move_lock);
@@ -1555,7 +1553,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	struct ttm_mem_type_manager *man;
 
 	man = ttm_manager_type(bdev, TTM_PL_SYSTEM);
-	ttm_mem_type_manager_disable(man);
+	ttm_mem_type_manager_set_used(man, false);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, NULL);
 
 	mutex_lock(&ttm_global_mutex);
