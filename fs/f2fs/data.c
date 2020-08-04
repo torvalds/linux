@@ -517,7 +517,7 @@ static inline void __submit_bio(struct f2fs_sb_info *sbi,
 
 			zero_user_segment(page, 0, PAGE_SIZE);
 			SetPagePrivate(page);
-			set_page_private(page, (unsigned long)DUMMY_WRITTEN_PAGE);
+			set_page_private(page, DUMMY_WRITTEN_PAGE);
 			lock_page(page);
 			if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE)
 				f2fs_bug_on(sbi, 1);

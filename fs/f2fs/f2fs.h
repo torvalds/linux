@@ -1304,9 +1304,9 @@ enum fsync_mode {
 #define DUMMY_WRITTEN_PAGE		((unsigned long)-2)
 
 #define IS_ATOMIC_WRITTEN_PAGE(page)			\
-		(page_private(page) == (unsigned long)ATOMIC_WRITTEN_PAGE)
+		(page_private(page) == ATOMIC_WRITTEN_PAGE)
 #define IS_DUMMY_WRITTEN_PAGE(page)			\
-		(page_private(page) == (unsigned long)DUMMY_WRITTEN_PAGE)
+		(page_private(page) == DUMMY_WRITTEN_PAGE)
 
 #ifdef CONFIG_F2FS_IO_TRACE
 #define IS_IO_TRACED_PAGE(page)			\
