@@ -362,5 +362,4 @@ MACHINE_START(MINI6410, "MINI6410")
 	.map_io		= mini6410_map_io,
 	.init_machine	= mini6410_machine_init,
 	.init_time	= samsung_timer_init,
-	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -151,5 +151,4 @@ MACHINE_START(SMARTQ5, "SmartQ 5")
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq5_machine_init,
 	.init_time	= samsung_timer_init,
-	.restart	= s3c64xx_restart,
 MACHINE_END

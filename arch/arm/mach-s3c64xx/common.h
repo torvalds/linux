@@ -19,8 +19,6 @@
 void s3c64xx_init_irq(u32 vic0, u32 vic1);
 void s3c64xx_init_io(struct map_desc *mach_desc, int size);
 
-void s3c64xx_restart(enum reboot_mode mode, const char *cmd);
-
 struct device_node;
 void s3c64xx_set_xtal_freq(unsigned long freq);
 void s3c64xx_set_xusbxti_freq(unsigned long freq);

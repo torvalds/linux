@@ -18,9 +18,10 @@ menuconfig ARCH_S3C64XX
 	select PM_GENERIC_DOMAINS if PM
 	select S3C_DEV_NAND if ATAGS
 	select S3C_GPIO_TRACK if ATAGS
+	select S3C2410_WATCHDOG
 	select SAMSUNG_ATAGS if ATAGS
 	select SAMSUNG_WAKEMASK if PM
-	select SAMSUNG_WDT_RESET
+	select WATCHDOG
 	help
 	  Samsung S3C64XX series based systems
 

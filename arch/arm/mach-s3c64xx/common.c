@@ -50,7 +50,6 @@
 
 #include "common.h"
 #include "irq-uart.h"
-#include "watchdog-reset.h"
 
 /* External clock frequency */
 static unsigned long xtal_f __ro_after_init = 12000000;
@@ -229,13 +228,7 @@ core_initcall(s3c64xx_dev_init);
 
 void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
-	/*
-	 * FIXME: there is no better place to put this at the moment
-	 * (s3c64xx_clk_init needs ioremap and must happen before init_time
-	 * samsung_wdt_reset_init needs clocks)
-	 */
 	s3c64xx_clk_init(NULL, xtal_f, xusbxti_f, soc_is_s3c6400(), S3C_VA_SYS);
-	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 
 	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
 
@@ -429,12 +422,3 @@ static int __init s3c64xx_init_irq_eint(void)
 	return 0;
 }
 arch_initcall(s3c64xx_init_irq_eint);
-
-void s3c64xx_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode != REBOOT_SOFT)
-		samsung_wdt_reset();
-
-	/* if all else fails, or mode was for soft, jump to 0 */
-	soft_restart(0);
-}

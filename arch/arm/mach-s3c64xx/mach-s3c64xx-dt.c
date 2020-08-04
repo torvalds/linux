@@ -12,7 +12,6 @@
 #include <mach/map.h>
 
 #include "common.h"
-#include "watchdog-reset.h"
 
 /*
  * IO mapping for shared system controller IP.
@@ -39,20 +38,6 @@ static void __init s3c64xx_dt_map_io(void)
 		panic("SoC is not S3C64xx!");
 }
 
-static void __init s3c64xx_dt_init_machine(void)
-{
-	samsung_wdt_reset_of_init();
-}
-
-static void s3c64xx_dt_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode != REBOOT_SOFT)
-		samsung_wdt_reset();
-
-	/* if all else fails, or mode was for soft, jump to 0 */
-	soft_restart(0);
-}
-
 static const char *const s3c64xx_dt_compat[] __initconst = {
 	"samsung,s3c6400",
 	"samsung,s3c6410",
@@ -63,6 +48,4 @@ DT_MACHINE_START(S3C6400_DT, "Samsung S3C64xx (Flattened Device Tree)")
 	/* Maintainer: Tomasz Figa <tomasz.figa@gmail.com> */
 	.dt_compat	= s3c64xx_dt_compat,
 	.map_io		= s3c64xx_dt_map_io,
-	.init_machine	= s3c64xx_dt_init_machine,
-	.restart        = s3c64xx_dt_restart,
 MACHINE_END

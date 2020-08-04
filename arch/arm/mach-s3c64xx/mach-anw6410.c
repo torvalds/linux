@@ -228,5 +228,4 @@ MACHINE_START(ANW6410, "A&W6410")
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
 	.init_time	= samsung_timer_init,
-	.restart	= s3c64xx_restart,
 MACHINE_END
