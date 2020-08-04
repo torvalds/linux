@@ -205,10 +205,17 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
  * Destroy and free the VRAM manager, returns -EBUSY if ranges are still
  * allocated inside it.
  */
-static int amdgpu_vram_mgr_fini(struct ttm_mem_type_manager *man)
+void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	struct amdgpu_vram_mgr *mgr = man->priv;
+	int ret;
+
+	ttm_mem_type_manager_disable(man);
+
+	ret = ttm_mem_type_manager_force_list_clean(&adev->mman.bdev, man);
+	if (ret)
+		return;
 
 	spin_lock(&mgr->lock);
 	drm_mm_takedown(&mgr->mm);
@@ -216,7 +223,8 @@ static int amdgpu_vram_mgr_fini(struct ttm_mem_type_manager *man)
 	kfree(mgr);
 	man->priv = NULL;
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
-	return 0;
+
+	ttm_mem_type_manager_cleanup(man);
 }
 
 /**
@@ -598,7 +606,6 @@ static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 }
 
 static const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
-	.takedown	= amdgpu_vram_mgr_fini,
 	.get_node	= amdgpu_vram_mgr_new,
 	.put_node	= amdgpu_vram_mgr_del,
 	.debug		= amdgpu_vram_mgr_debug

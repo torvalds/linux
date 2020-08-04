@@ -1994,11 +1994,11 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		iounmap(adev->mman.aper_base_kaddr);
 	adev->mman.aper_base_kaddr = NULL;
 
-	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_VRAM);
-	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_TT);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
+	amdgpu_vram_mgr_fini(adev);
+	amdgpu_gtt_mgr_fini(adev);
+	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_GDS]);
+	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_GWS]);
+	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_OA]);
 	ttm_bo_device_release(&adev->mman.bdev);
 	adev->mman.initialized = false;
 	DRM_INFO("amdgpu: ttm finalized\n");
