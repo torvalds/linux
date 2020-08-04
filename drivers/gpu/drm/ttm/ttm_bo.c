@@ -1405,8 +1405,8 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_bo_create);
 
-static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
-				   struct ttm_mem_type_manager *man)
+int ttm_mem_type_manager_force_list_clean(struct ttm_bo_device *bdev,
+					  struct ttm_mem_type_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
@@ -1448,6 +1448,7 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 
 	return 0;
 }
+EXPORT_SYMBOL(ttm_mem_type_manager_force_list_clean);
 
 int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
@@ -1470,13 +1471,14 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 	ret = 0;
 	if (mem_type > 0) {
-		ret = ttm_bo_force_list_clean(bdev, man);
+		ret = ttm_mem_type_manager_force_list_clean(bdev, man);
 		if (ret) {
 			pr_err("Cleanup eviction failed\n");
 			return ret;
 		}
 
-		ret = (*man->func->takedown)(man);
+		if (man->func->takedown)
+			ret = (*man->func->takedown)(man);
 	}
 
 	ttm_mem_type_manager_cleanup(man);
@@ -1499,7 +1501,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return 0;
 	}
 
-	return ttm_bo_force_list_clean(bdev, man);
+	return ttm_mem_type_manager_force_list_clean(bdev, man);
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 

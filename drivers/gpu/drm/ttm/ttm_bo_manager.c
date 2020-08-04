@@ -129,7 +129,7 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_range_man_init);
 
-static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
+static int ttm_bo_man_takedown_private(struct ttm_mem_type_manager *man)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
@@ -146,6 +146,23 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	return -EBUSY;
 }
 
+int ttm_range_man_fini(struct ttm_bo_device *bdev,
+		       struct ttm_mem_type_manager *man)
+{
+	int ret;
+
+	ttm_mem_type_manager_disable(man);
+
+	ret = ttm_mem_type_manager_force_list_clean(bdev, man);
+	if (ret)
+		return ret;
+
+	ttm_bo_man_takedown_private(man);
+	ttm_mem_type_manager_cleanup(man);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_range_man_fini);
+
 static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 			     struct drm_printer *printer)
 {
@@ -157,7 +174,7 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 }
 
 static const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	.takedown = ttm_bo_man_takedown,
+	.takedown = ttm_bo_man_takedown_private,
 	.get_node = ttm_bo_man_get_node,
 	.put_node = ttm_bo_man_put_node,
 	.debug = ttm_bo_man_debug
