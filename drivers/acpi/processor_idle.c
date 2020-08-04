@@ -203,8 +203,7 @@ static void tsc_check_state(int state)
 		 */
 		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			return;
-
-		/*FALL THROUGH*/
+		fallthrough;
 	default:
 		/* TSC could halt in idle, so notify users */
 		if (state > ACPI_STATE_C1)
