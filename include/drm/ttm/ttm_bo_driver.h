@@ -419,7 +419,7 @@ struct ttm_bo_device {
 	 * access via ttm_manager_type.
 	 */
 	struct ttm_mem_type_manager man_priv[TTM_NUM_MEM_TYPES];
-
+	struct ttm_mem_type_manager *man_drv[TTM_NUM_MEM_TYPES];
 	/*
 	 * Protected by internal locks.
 	 */
@@ -450,7 +450,16 @@ struct ttm_bo_device {
 static inline struct ttm_mem_type_manager *ttm_manager_type(struct ttm_bo_device *bdev,
 							    int mem_type)
 {
+	if (bdev->man_drv[mem_type])
+		return bdev->man_drv[mem_type];
 	return &bdev->man_priv[mem_type];
+}
+
+static inline void ttm_set_driver_manager(struct ttm_bo_device *bdev,
+					  int type,
+					  struct ttm_mem_type_manager *manager)
+{
+	bdev->man_drv[type] = manager;
 }
 
 /**
