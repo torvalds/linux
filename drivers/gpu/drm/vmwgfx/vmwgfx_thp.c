@@ -135,21 +135,25 @@ int vmw_thp_init(struct vmw_private *dev_priv)
 	return 0;
 }
 
-static int vmw_thp_takedown(struct ttm_mem_type_manager *man)
+void vmw_thp_fini(struct vmw_private *dev_priv)
 {
+	struct ttm_mem_type_manager *man = &dev_priv->bdev.man[TTM_PL_VRAM];
 	struct vmw_thp_manager *rman = (struct vmw_thp_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
+	int ret;
 
+	ttm_mem_type_manager_disable(man);
+
+	ret = ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
+	if (ret)
+		return;
 	spin_lock(&rman->lock);
-	if (drm_mm_clean(mm)) {
-		drm_mm_takedown(mm);
-		spin_unlock(&rman->lock);
-		kfree(rman);
-		man->priv = NULL;
-		return 0;
-	}
+	drm_mm_clean(mm);
+	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
-	return -EBUSY;
+	kfree(rman);
+	man->priv = NULL;
+	ttm_mem_type_manager_cleanup(man);
 }
 
 static void vmw_thp_debug(struct ttm_mem_type_manager *man,
@@ -163,7 +167,6 @@ static void vmw_thp_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func vmw_thp_func = {
-	.takedown = vmw_thp_takedown,
 	.get_node = vmw_thp_get_node,
 	.put_node = vmw_thp_put_node,
 	.debug = vmw_thp_debug
