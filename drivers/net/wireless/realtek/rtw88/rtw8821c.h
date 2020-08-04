@@ -160,6 +160,18 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(11, 8))
 #define GET_PHY_STAT_P1_HT_RXSC(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(15, 12))
+#define GET_PHY_STAT_P1_RXEVM_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXEVM_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_CFO_TAIL_A(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_CFO_TAIL_B(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_RXSNR_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXSNR_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(15, 8))
 
 #define REG_INIRTS_RATE_SEL 0x0480
 #define REG_HTSTFWT	0x800
@@ -217,6 +229,20 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_CCA_CCK	0xfcc
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
+#define BIT_MASK_R_RFE_SEL_15	GENMASK(31, 28)
+#define BIT_SDIO_INT BIT(18)
+#define SAMPLE_RATE_MASK GENMASK(5, 0)
+#define SAMPLE_RATE	0x5
+#define BT_CNT_ENABLE	0x1
+#define BIT_BCN_QUEUE	BIT(3)
+#define BCN_PRI_EN	0x1
+#define PTA_CTRL_PIN	0x66
+#define DPDT_CTRL_PIN	0x77
+#define ANTDIC_CTRL_PIN	0x88
+#define REG_CTRL_TYPE	0x67
+#define BIT_CTRL_TYPE1	BIT(5)
+#define BIT_CTRL_TYPE2	BIT(4)
+#define CTRL_TYPE_MASK	GENMASK(15, 8)
 
 #define RF18_BAND_MASK		(BIT(16) | BIT(9) | BIT(8))
 #define RF18_BAND_2G		(0)

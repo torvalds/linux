@@ -3366,8 +3366,8 @@ static void prism2_free_local_data(struct net_device *dev)
 }
 
 
-#if (defined(PRISM2_PCI) && defined(CONFIG_PM)) || defined(PRISM2_PCCARD)
-static void prism2_suspend(struct net_device *dev)
+#if defined(PRISM2_PCI) || defined(PRISM2_PCCARD)
+static void __maybe_unused prism2_suspend(struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	struct local_info *local;
@@ -3385,7 +3385,7 @@ static void prism2_suspend(struct net_device *dev)
 	/* Disable hardware and firmware */
 	prism2_hw_shutdown(dev, 0);
 }
-#endif /* (PRISM2_PCI && CONFIG_PM) || PRISM2_PCCARD */
+#endif /* PRISM2_PCI || PRISM2_PCCARD */
 
 
 /* These might at some point be compiled separately and used as separate

@@ -592,6 +592,8 @@ struct rtw_tx_pkt_info {
 	bool dis_qselseq;
 	bool en_hwseq;
 	u8 hw_ssn_sel;
+	bool nav_use_hdr;
+	bool bt_null;
 };
 
 struct rtw_rx_pkt_stat {

@@ -74,16 +74,19 @@ MODULE_DEVICE_TABLE(pci, card_ids);
 
 static int airo_pci_probe(struct pci_dev *, const struct pci_device_id *);
 static void airo_pci_remove(struct pci_dev *);
-static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state);
-static int airo_pci_resume(struct pci_dev *pdev);
+static int __maybe_unused airo_pci_suspend(struct device *dev);
+static int __maybe_unused airo_pci_resume(struct device *dev);
+
+static SIMPLE_DEV_PM_OPS(airo_pci_pm_ops,
+			 airo_pci_suspend,
+			 airo_pci_resume);
 
 static struct pci_driver airo_driver = {
-	.name     = DRV_NAME,
-	.id_table = card_ids,
-	.probe    = airo_pci_probe,
-	.remove   = airo_pci_remove,
-	.suspend  = airo_pci_suspend,
-	.resume   = airo_pci_resume,
+	.name      = DRV_NAME,
+	.id_table  = card_ids,
+	.probe     = airo_pci_probe,
+	.remove    = airo_pci_remove,
+	.driver.pm = &airo_pci_pm_ops,
 };
 #endif /* CONFIG_PCI */
 
@@ -5573,9 +5576,9 @@ static void airo_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused airo_pci_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct airo_info *ai = dev->ml_priv;
 	Cmd cmd;
 	Resp rsp;
@@ -5591,25 +5594,21 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		return -EAGAIN;
 	disable_MAC(ai, 0);
 	netif_device_detach(dev);
-	ai->power = state;
+	ai->power = PMSG_SUSPEND;
 	cmd.cmd = HOSTSLEEP;
 	issuecommand(ai, &cmd, &rsp);
 
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	device_wakeup_enable(dev_d);
 	return 0;
 }
 
-static int airo_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused airo_pci_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct airo_info *ai = dev->ml_priv;
-	pci_power_t prev_state = pdev->current_state;
+	pci_power_t prev_state = to_pci_dev(dev_d)->current_state;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_enable_wake(pdev, PCI_D0, 0);
+	device_wakeup_disable(dev_d);
 
 	if (prev_state != PCI_D1) {
 		reset_card(dev, 0);

@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
 #include <linux/of_irq.h>
@@ -15,11 +16,8 @@
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 
-#define SDIO_VENDOR_ID_WILC 0x0296
-#define SDIO_DEVICE_ID_WILC 0x5347
-
 static const struct sdio_device_id wilc_sdio_ids[] = {
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_WILC, SDIO_DEVICE_ID_WILC) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MICROCHIP_WILC, SDIO_DEVICE_ID_MICROCHIP_WILC1000) },
 	{ },
 };
 

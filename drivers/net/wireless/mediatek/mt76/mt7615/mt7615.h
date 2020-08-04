@@ -4,6 +4,7 @@
 #ifndef __MT7615_H
 #define __MT7615_H
 
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/regmap.h>
@@ -18,6 +19,7 @@
 #define MT7615_WTBL_STA			(MT7615_WTBL_RESERVED - \
 					 MT7615_MAX_INTERFACES)
 
+#define MT7615_PM_TIMEOUT		(HZ / 12)
 #define MT7615_WATCHDOG_TIME		(HZ / 10)
 #define MT7615_HW_SCAN_TIMEOUT		(HZ / 10)
 #define MT7615_RESET_TIMEOUT		(30 * HZ)
@@ -30,6 +32,8 @@
 
 #define MT7615_RX_RING_SIZE		1024
 #define MT7615_RX_MCU_RING_SIZE		512
+
+#define MT7615_DRV_OWN_RETRY_COUNT	10
 
 #define MT7615_FIRMWARE_CR4		"mediatek/mt7615_cr4.bin"
 #define MT7615_FIRMWARE_N9		"mediatek/mt7615_n9.bin"
@@ -169,6 +173,8 @@ struct mt7615_phy {
 	struct mt76_phy *mt76;
 	struct mt7615_dev *dev;
 
+	struct ieee80211_vif *monitor_vif;
+
 	u32 rxfilter;
 	u32 omac_mask;
 
@@ -240,10 +246,10 @@ struct mt7615_dev {
 		struct mt76_phy mphy;
 	};
 
+	const struct mt76_bus_ops *bus_ops;
 	struct tasklet_struct irq_tasklet;
 
 	struct mt7615_phy phy;
-	u32 vif_mask;
 	u32 omac_mask;
 
 	u16 chainmask;
@@ -280,6 +286,37 @@ struct mt7615_dev {
 
 	struct work_struct wtbl_work;
 	struct list_head wd_head;
+
+	u32 debugfs_rf_wf;
+	u32 debugfs_rf_reg;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 *reg_backup;
+
+		s16 last_freq_offset;
+		u8 last_rcpi[4];
+		s8 last_ib_rssi;
+		s8 last_wb_rssi;
+	} test;
+#endif
+
+	struct {
+		bool enable;
+
+		spinlock_t txq_lock;
+		struct {
+			struct mt7615_sta *msta;
+			struct sk_buff *skb;
+		} tx_q[IEEE80211_NUM_ACS];
+
+		struct work_struct wake_work;
+		struct completion wake_cmpl;
+
+		struct delayed_work ps_work;
+		unsigned long last_activity;
+		unsigned long idle_timeout;
+	} pm;
 };
 
 enum tx_pkt_queue_idx {
@@ -372,8 +409,10 @@ extern struct ieee80211_rate mt7615_rates[12];
 extern const struct ieee80211_ops mt7615_ops;
 extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
 extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
+extern const u32 mt7663_usb_sdio_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
+extern const struct mt76_testmode_ops mt7615_testmode_ops;
 
 #ifdef CONFIG_MT7622_WMAC
 int mt7622_wmac_init(struct mt7615_dev *dev);
@@ -408,6 +447,11 @@ bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev);
 void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
+int mt7615_pm_set_enable(struct mt7615_dev *dev, bool enable);
+void mt7615_pm_wake_work(struct work_struct *work);
+int mt7615_pm_wake(struct mt7615_dev *dev);
+void mt7615_pm_power_save_sched(struct mt7615_dev *dev);
+void mt7615_pm_power_save_work(struct work_struct *work);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
@@ -462,6 +506,20 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 		return MT7615_WTBL_SIZE;
 }
 
+static inline void mt7615_mutex_acquire(struct mt7615_dev *dev)
+	 __acquires(&dev->mt76.mutex)
+{
+	mutex_lock(&dev->mt76.mutex);
+	mt7615_pm_wake(dev);
+}
+
+static inline void mt7615_mutex_release(struct mt7615_dev *dev)
+	__releases(&dev->mt76.mutex)
+{
+	mt7615_pm_power_save_sched(dev);
+	mutex_unlock(&dev->mt76.mutex);
+}
+
 static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
 {
 	static const u8 lmac_queue_map[] = {
@@ -485,6 +543,7 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt7615_phy_init(struct mt7615_dev *dev);
 void mt7615_mac_init(struct mt7615_dev *dev);
+int mt7615_set_channel(struct mt7615_phy *phy);
 
 int mt7615_mcu_restart(struct mt76_dev *dev);
 void mt7615_update_channel(struct mt76_dev *mdev);
@@ -516,15 +575,19 @@ int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
 			       enum mt7615_cipher_type cipher,
 			       enum set_key_cmd cmd);
 void mt7615_mac_reset_work(struct work_struct *work);
+u32 mt7615_mac_get_sta_tid_sn(struct mt7615_dev *dev, int wcid, u8 tid);
 
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
 int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			int len, bool wait_resp);
+u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg);
+int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);
 int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
 int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index);
+int mt7615_mcu_set_tx_power(struct mt7615_phy *phy);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq);
@@ -563,6 +626,8 @@ int mt7615_mcu_set_pulse_th(struct mt7615_dev *dev,
 			    const struct mt7615_dfs_pulse *pulse);
 int mt7615_mcu_set_radar_th(struct mt7615_dev *dev, int index,
 			    const struct mt7615_dfs_pattern *pattern);
+int mt7615_mcu_set_test_param(struct mt7615_dev *dev, u8 param, bool test_mode,
+			      u32 val);
 int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable);
 int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy);
 int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);
@@ -579,18 +644,40 @@ int mt7615_driver_own(struct mt7615_dev *dev);
 int mt7615_init_debugfs(struct mt7615_dev *dev);
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
 
+int mt7615_mcu_set_bss_pm(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+			  bool enable);
 int mt7615_mcu_set_hif_suspend(struct mt7615_dev *dev, bool suspend);
 void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 				 struct ieee80211_vif *vif);
 int mt7615_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct cfg80211_gtk_rekey_data *key);
-
+int mt7615_mcu_update_arp_filter(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *info);
 int __mt7663_load_firmware(struct mt7615_dev *dev);
+u32 mt7615_mcu_reg_rr(struct mt76_dev *dev, u32 offset);
+void mt7615_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val);
 
 /* usb */
-void mt7663u_wtbl_work(struct work_struct *work);
+int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				   struct ieee80211_sta *sta,
+				   struct mt76_tx_info *tx_info);
+bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
+void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
+				     enum mt76_txq_id qid,
+				     struct mt76_queue_entry *e);
+void mt7663_usb_sdio_wtbl_work(struct work_struct *work);
+int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
-int mt7663u_register_device(struct mt7615_dev *dev);
+
+/* sdio */
+u32 mt7663s_read_pcr(struct mt7615_dev *dev);
+int mt7663s_mcu_init(struct mt7615_dev *dev);
+int mt7663s_driver_own(struct mt7615_dev *dev);
+int mt7663s_firmware_own(struct mt7615_dev *dev);
+int mt7663s_kthread_run(void *data);
+void mt7663s_sdio_irq(struct sdio_func *func);
 
 #endif
