@@ -28,7 +28,7 @@
 #include "spi-s3c24xx-fiq.h"
 
 /**
- * s3c24xx_spi_devstate - per device data
+ * struct s3c24xx_spi_devstate - per device data
  * @hz: Last frequency calculated for @sppre field.
  * @mode: Last mode setting for the @spcon field.
  * @spcon: Value to write to the SPCON register.
