@@ -92,6 +92,9 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			ret = clp_add_pci_device(ccdf->fid, ccdf->fh, 1);
 			break;
 		}
+		/* the configuration request may be stale */
+		if (zdev->state != ZPCI_FN_STATE_STANDBY)
+			break;
 		zdev->fh = ccdf->fh;
 		zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		ret = zpci_enable_device(zdev);
