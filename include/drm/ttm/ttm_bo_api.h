@@ -547,34 +547,6 @@ void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
 			       unsigned long p_size);
 
 /**
- * ttm_bo_clean_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- *
- * Take down a manager for a given memory type after first walking
- * the LRU list to evict any buffers left alive.
- *
- * Normally, this function is part of lastclose() or unload(), and at that
- * point there shouldn't be any buffers left created by user-space, since
- * there should've been removed by the file descriptor release() method.
- * However, before this function is run, make sure to signal all sync objects,
- * and verify that the delayed delete queue is empty. The driver must also
- * make sure that there are no NO_EVICT buffers present in this memory type
- * when the call is made.
- *
- * If this function is part of a VT switch, the caller must make sure that
- * there are no appications currently validating buffers before this
- * function is called. The caller can do that by first taking the
- * struct ttm_bo_device::ttm_lock in write mode.
- *
- * Returns:
- * -EINVAL: invalid or uninitialized memory type.
- * -EBUSY: There are still buffers left in this memory type.
- */
-int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
-
-/**
  * ttm_bo_evict_mm
  *
  * @bdev: Pointer to a ttm_bo_device struct.

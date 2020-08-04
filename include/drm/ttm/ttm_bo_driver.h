@@ -49,16 +49,6 @@ struct ttm_mem_type_manager;
 
 struct ttm_mem_type_manager_func {
 	/**
-	 * struct ttm_mem_type_manager member takedown
-	 *
-	 * @man: Pointer to a memory type manager.
-	 *
-	 * Called to undo the setup done in init. All allocated resources
-	 * should be freed.
-	 */
-	int  (*takedown)(struct ttm_mem_type_manager *man);
-
-	/**
 	 * struct ttm_mem_type_manager member get_node
 	 *
 	 * @man: Pointer to a memory type manager.

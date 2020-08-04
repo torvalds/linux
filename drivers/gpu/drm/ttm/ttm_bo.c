@@ -1450,42 +1450,6 @@ int ttm_mem_type_manager_force_list_clean(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_mem_type_manager_force_list_clean);
 
-int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
-{
-	struct ttm_mem_type_manager *man;
-	int ret = -EINVAL;
-
-	if (mem_type >= TTM_NUM_MEM_TYPES) {
-		pr_err("Illegal memory type %d\n", mem_type);
-		return ret;
-	}
-	man = &bdev->man[mem_type];
-
-	if (!man->has_type) {
-		pr_err("Trying to take down uninitialized memory manager type %u\n",
-		       mem_type);
-		return ret;
-	}
-
-	ttm_mem_type_manager_disable(man);
-
-	ret = 0;
-	if (mem_type > 0) {
-		ret = ttm_mem_type_manager_force_list_clean(bdev, man);
-		if (ret) {
-			pr_err("Cleanup eviction failed\n");
-			return ret;
-		}
-
-		if (man->func->takedown)
-			ret = (*man->func->takedown)(man);
-	}
-
-	ttm_mem_type_manager_cleanup(man);
-
-	return ret;
-}
-EXPORT_SYMBOL(ttm_bo_clean_mm);
 
 int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
@@ -1589,21 +1553,11 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 {
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	int ret = 0;
-	unsigned i = TTM_NUM_MEM_TYPES;
+	unsigned i;
 	struct ttm_mem_type_manager *man;
 
-	while (i--) {
-		man = &bdev->man[i];
-		if (man->has_type) {
-			man->use_type = false;
-			if ((i != TTM_PL_SYSTEM) && ttm_bo_clean_mm(bdev, i)) {
-				ret = -EBUSY;
-				pr_err("DRM memory manager type %d is not clean\n",
-				       i);
-			}
-			man->has_type = false;
-		}
-	}
+	man = &bdev->man[TTM_PL_SYSTEM];
+	ttm_mem_type_manager_disable(man);
 
 	mutex_lock(&ttm_global_mutex);
 	list_del(&bdev->device_list);
@@ -1616,7 +1570,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
-		if (list_empty(&bdev->man[0].lru[0]))
+		if (list_empty(&man->lru[0]))
 			pr_debug("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
