@@ -49,12 +49,6 @@ nouveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
 	nouveau_mem_del(reg);
 }
 
-static void
-nouveau_manager_debug(struct ttm_mem_type_manager *man,
-		      struct drm_printer *printer)
-{
-}
-
 static int
 nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
@@ -86,7 +80,6 @@ const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_vram_manager_new,
 	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug,
 };
 
 static int
@@ -112,7 +105,6 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_gart_manager_new,
 	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
 };
 
 static int
@@ -147,7 +139,6 @@ const struct ttm_mem_type_manager_func nv04_gart_manager = {
 	.takedown = nouveau_manager_fini,
 	.get_node = nv04_gart_manager_new,
 	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
 };
 
 int
