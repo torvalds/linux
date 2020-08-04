@@ -11,7 +11,7 @@ extern struct kunit_suite * const * const __kunit_suites_end[];
 
 #if IS_BUILTIN(CONFIG_KUNIT)
 
-static int kunit_run_all_tests(void)
+int kunit_run_all_tests(void)
 {
 	struct kunit_suite * const * const *suites;
 
@@ -22,7 +22,5 @@ static int kunit_run_all_tests(void)
 
 	return 0;
 }
-
-late_initcall(kunit_run_all_tests);
 
 #endif /* IS_BUILTIN(CONFIG_KUNIT) */
