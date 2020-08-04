@@ -1656,6 +1656,11 @@
 		};
 	};
 
+	dmcdbg: dmcdbg {
+		compatible = "rockchip,rv1126-dmcdbg";
+		status = "disabled";
+	};
+
 	rkcif: rkcif@ffae0000 {
 		compatible = "rockchip,rv1126-cif";
 		reg = <0xffae0000 0x8000>;
