@@ -444,6 +444,8 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 asmlinkage long sys_openat2(int dfd, const char __user *filename,
 			    struct open_how *how, size_t size);
 asmlinkage long sys_close(unsigned int fd);
+asmlinkage long sys_close_range(unsigned int fd, unsigned int max_fd,
+				unsigned int flags);
 asmlinkage long sys_vhangup(void);
 
 /* fs/pipe.c */
