@@ -2,6 +2,13 @@
 #ifndef _POWERNV_H
 #define _POWERNV_H
 
+/*
+ * There's various hacks scattered throughout the generic powerpc arch code
+ * that needs to call into powernv platform stuff. The prototypes for those
+ * functions are in asm/powernv.h
+ */
+#include <asm/powernv.h>
+
 #ifdef CONFIG_SMP
 extern void pnv_smp_init(void);
 #else
