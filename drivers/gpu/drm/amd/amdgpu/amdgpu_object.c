@@ -449,7 +449,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	 * allow fall back to GTT
 	 */
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
-		man = &adev->mman.bdev.man[TTM_PL_TT];
+		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 
 		if (size < (man->size << PAGE_SHIFT))
 			return true;
@@ -458,7 +458,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
-		man = &adev->mman.bdev.man[TTM_PL_VRAM];
+		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 
 		if (size < (man->size << PAGE_SHIFT))
 			return true;

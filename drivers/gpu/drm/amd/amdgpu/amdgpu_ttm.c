@@ -66,7 +66,7 @@ static int amdgpu_ttm_init_on_chip(struct amdgpu_device *adev,
 				    unsigned int type,
 				    uint64_t size)
 {
-	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, type);
 
 	man->available_caching = TTM_PL_FLAG_UNCACHED;
 	man->default_caching = TTM_PL_FLAG_UNCACHED;
@@ -1996,9 +1996,9 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 
 	amdgpu_vram_mgr_fini(adev);
 	amdgpu_gtt_mgr_fini(adev);
-	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_GDS]);
-	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_GWS]);
-	ttm_range_man_fini(&adev->mman.bdev, &adev->mman.bdev.man[AMDGPU_PL_OA]);
+	ttm_range_man_fini(&adev->mman.bdev, ttm_manager_type(&adev->mman.bdev, AMDGPU_PL_GDS));
+	ttm_range_man_fini(&adev->mman.bdev, ttm_manager_type(&adev->mman.bdev, AMDGPU_PL_GWS));
+	ttm_range_man_fini(&adev->mman.bdev, ttm_manager_type(&adev->mman.bdev, AMDGPU_PL_OA));
 	ttm_bo_device_release(&adev->mman.bdev);
 	adev->mman.initialized = false;
 	DRM_INFO("amdgpu: ttm finalized\n");
@@ -2015,7 +2015,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 {
-	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	uint64_t size;
 	int r;
 
@@ -2237,7 +2237,7 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	unsigned ttm_pl = (uintptr_t)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[ttm_pl];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, ttm_pl);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	man->func->debug(man, &p);

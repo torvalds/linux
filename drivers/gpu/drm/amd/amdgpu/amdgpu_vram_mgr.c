@@ -82,9 +82,9 @@ static ssize_t amdgpu_mem_info_vram_used_show(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
-
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]));
+			amdgpu_vram_mgr_usage(man));
 }
 
 /**
@@ -100,9 +100,9 @@ static ssize_t amdgpu_mem_info_vis_vram_used_show(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
-
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]));
+			amdgpu_vram_mgr_vis_usage(man));
 }
 
 static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
@@ -170,7 +170,7 @@ static const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
  */
 int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 {
-	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	struct amdgpu_vram_mgr *mgr;
 	int ret;
 
@@ -207,7 +207,7 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
  */
 void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 {
-	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
+	struct ttm_mem_type_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	struct amdgpu_vram_mgr *mgr = man->priv;
 	int ret;
 
