@@ -519,43 +519,6 @@ static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
 	vmw_tt->mapped = false;
 }
 
-
-/**
- * vmw_bo_map_dma - Make sure buffer object pages are visible to the device
- *
- * @bo: Pointer to a struct ttm_buffer_object
- *
- * Wrapper around vmw_ttm_map_dma, that takes a TTM buffer object pointer
- * instead of a pointer to a struct vmw_ttm_backend as argument.
- * Note that the buffer object must be either pinned or reserved before
- * calling this function.
- */
-int vmw_bo_map_dma(struct ttm_buffer_object *bo)
-{
-	struct vmw_ttm_tt *vmw_tt =
-		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
-
-	return vmw_ttm_map_dma(vmw_tt);
-}
-
-
-/**
- * vmw_bo_unmap_dma - Make sure buffer object pages are visible to the device
- *
- * @bo: Pointer to a struct ttm_buffer_object
- *
- * Wrapper around vmw_ttm_unmap_dma, that takes a TTM buffer object pointer
- * instead of a pointer to a struct vmw_ttm_backend as argument.
- */
-void vmw_bo_unmap_dma(struct ttm_buffer_object *bo)
-{
-	struct vmw_ttm_tt *vmw_tt =
-		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
-
-	vmw_ttm_unmap_dma(vmw_tt);
-}
-
-
 /**
  * vmw_bo_sg_table - Return a struct vmw_sg_table object for a
  * TTM buffer object
@@ -841,9 +804,12 @@ int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_reserve(bo, false, true, NULL);
 	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(bo->ttm, &ctx);
-	if (likely(ret == 0))
-		ret = vmw_bo_map_dma(bo);
+	ret = vmw_ttm_populate(bo->ttm, &ctx);
+	if (likely(ret == 0)) {
+		struct vmw_ttm_tt *vmw_tt =
+			container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		ret = vmw_ttm_map_dma(vmw_tt);
+	}
 
 	ttm_bo_unreserve(bo);
 

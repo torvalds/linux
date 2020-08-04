@@ -1019,8 +1019,6 @@ extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
-extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
-extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
 extern const struct vmw_sg_table *
 vmw_bo_sg_table(struct ttm_buffer_object *bo);
 extern int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
