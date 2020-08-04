@@ -38,7 +38,7 @@
 
 static int eeh_event_irq = -EINVAL;
 
-void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
+static void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
 	eeh_probe_device(pdev);
@@ -190,7 +190,7 @@ PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
 #endif /* CONFIG_DEBUG_FS */
 
-void pnv_eeh_enable_phbs(void)
+static void pnv_eeh_enable_phbs(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
