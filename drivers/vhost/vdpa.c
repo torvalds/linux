@@ -172,7 +172,6 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 
 	ops->set_status(vdpa, status);
 
-	/* vq irq is not expected to be changed once DRIVER_OK is set */
 	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) && !(status_old & VIRTIO_CONFIG_S_DRIVER_OK))
 		for (i = 0; i < nvqs; i++)
 			vhost_vdpa_setup_vq_irq(v, i);
