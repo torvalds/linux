@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 
 struct vmwgfx_gmrid_man {
+	struct ttm_mem_type_manager manager;
 	spinlock_t lock;
 	struct ida gmr_ida;
 	uint32_t max_gmr_ids;
@@ -44,13 +45,17 @@ struct vmwgfx_gmrid_man {
 	uint32_t used_gmr_pages;
 };
 
+static struct vmwgfx_gmrid_man *to_gmrid_manager(struct ttm_mem_type_manager *man)
+{
+	return container_of(man, struct vmwgfx_gmrid_man, manager);
+}
+
 static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
 				  struct ttm_mem_reg *mem)
 {
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 	int id;
 
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
@@ -82,8 +87,7 @@ nospace:
 static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
 				   struct ttm_mem_reg *mem)
 {
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
 	if (mem->mm_node) {
 		ida_free(&gman->gmr_ida, mem->start);
@@ -98,12 +102,14 @@ static const struct ttm_mem_type_manager_func vmw_gmrid_manager_func;
 
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, type);
+	struct ttm_mem_type_manager *man;
 	struct vmwgfx_gmrid_man *gman =
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
 	if (unlikely(!gman))
 		return -ENOMEM;
+
+	man = &gman->manager;
 
 	man->func = &vmw_gmrid_manager_func;
 	man->available_caching = TTM_PL_FLAG_CACHED;
@@ -127,8 +133,7 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 	default:
 		BUG();
 	}
-	man->priv = (void *) gman;
-
+	ttm_set_driver_manager(&dev_priv->bdev, type, &gman->manager);
 	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
@@ -136,19 +141,18 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 {
 	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, type);
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
 	ttm_mem_type_manager_disable(man);
 
 	ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
 
-	if (gman) {
-		ida_destroy(&gman->gmr_ida);
-		kfree(gman);
-	}
-
 	ttm_mem_type_manager_cleanup(man);
+
+	ttm_set_driver_manager(&dev_priv->bdev, type, NULL);
+	ida_destroy(&gman->gmr_ida);
+	kfree(gman);
+
 }
 
 static const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
