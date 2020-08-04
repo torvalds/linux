@@ -856,14 +856,20 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
  * ttm_range_man_init
  *
  * @bdev: ttm device
- * @man: the manager to initialise with the range manager.
+ * @type: memory manager type
+ * @available_caching: TTM_PL_FLAG_* for allowed caching modes
+ * @default_caching: default caching mode
+ * @use_tt: if the memory manager uses tt
  * @p_size: size of area to be managed in pages.
  *
  * Initialise a generic range manager for the selected memory type.
  * The range manager is installed for this device in the type slot.
  */
 int ttm_range_man_init(struct ttm_bo_device *bdev,
-		       struct ttm_mem_type_manager *man,
+		       unsigned type,
+		       uint32_t available_caching,
+		       uint32_t default_caching,
+		       bool use_tt,
 		       unsigned long p_size);
 
 /**
@@ -875,7 +881,7 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
  * Remove the generic range manager from a slot and tear it down.
  */
 int ttm_range_man_fini(struct ttm_bo_device *bdev,
-		       struct ttm_mem_type_manager *man);
+		       unsigned type);
 
 /**
  * ttm_mem_type_manager_debug

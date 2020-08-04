@@ -68,35 +68,34 @@ struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 
 static int radeon_ttm_init_vram(struct radeon_device *rdev)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
-
-	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
-	man->default_caching = TTM_PL_FLAG_WC;
-
-	return ttm_range_man_init(&rdev->mman.bdev, man,
+	return ttm_range_man_init(&rdev->mman.bdev, TTM_PL_VRAM,
+				  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
+				  TTM_PL_FLAG_WC, false,
 				  rdev->mc.real_vram_size >> PAGE_SHIFT);
 }
 
 static int radeon_ttm_init_gtt(struct radeon_device *rdev)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_TT);
+	uint32_t available_caching, default_caching;
 
-	man->available_caching = TTM_PL_MASK_CACHING;
-	man->default_caching = TTM_PL_FLAG_CACHED;
-	man->use_tt = true;
+	available_caching = TTM_PL_MASK_CACHING;
+	default_caching = TTM_PL_FLAG_CACHED;
+
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
 		if (!rdev->ddev->agp) {
 			DRM_ERROR("AGP is not enabled\n");
 			return -EINVAL;
 		}
-		man->available_caching = TTM_PL_FLAG_UNCACHED |
-					 TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
+		available_caching = TTM_PL_FLAG_UNCACHED |
+			TTM_PL_FLAG_WC;
+		default_caching = TTM_PL_FLAG_WC;
 	}
 #endif
 
-	return ttm_range_man_init(&rdev->mman.bdev, man,
+	return ttm_range_man_init(&rdev->mman.bdev, TTM_PL_TT,
+				  available_caching,
+				  default_caching, true,
 				  rdev->mc.gtt_size >> PAGE_SHIFT);
 }
 
@@ -827,8 +826,8 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 		}
 		radeon_bo_unref(&rdev->stolen_vga_memory);
 	}
-	ttm_range_man_fini(&rdev->mman.bdev, ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM));
-	ttm_range_man_fini(&rdev->mman.bdev, ttm_manager_type(&rdev->mman.bdev, TTM_PL_TT));
+	ttm_range_man_fini(&rdev->mman.bdev, TTM_PL_VRAM);
+	ttm_range_man_fini(&rdev->mman.bdev, TTM_PL_TT);
 	ttm_bo_device_release(&rdev->mman.bdev);
 	radeon_gart_fini(rdev);
 	rdev->mman.initialized = false;

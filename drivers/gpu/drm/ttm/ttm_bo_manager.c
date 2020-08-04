@@ -107,18 +107,26 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 static const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 int ttm_range_man_init(struct ttm_bo_device *bdev,
-		       struct ttm_mem_type_manager *man,
+		       unsigned type,
+		       uint32_t available_caching,
+		       uint32_t default_caching,
+		       bool use_tt,
 		       unsigned long p_size)
 {
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, type);
 	struct ttm_range_manager *rman;
 
-	man->func = &ttm_bo_manager_func;
-
-	ttm_mem_type_manager_init(bdev, man, p_size);
+	man->available_caching = available_caching;
+	man->default_caching = default_caching;
+	man->use_tt = use_tt;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
+
+	man->func = &ttm_bo_manager_func;
+
+	ttm_mem_type_manager_init(bdev, man, p_size);
 
 	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
@@ -130,8 +138,9 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 EXPORT_SYMBOL(ttm_range_man_init);
 
 int ttm_range_man_fini(struct ttm_bo_device *bdev,
-		       struct ttm_mem_type_manager *man)
+		       unsigned type)
 {
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, type);
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
 	int ret;

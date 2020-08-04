@@ -1103,7 +1103,6 @@ EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
 static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 			    uint64_t vram_base, size_t vram_size)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&vmm->bdev, TTM_PL_VRAM);
 	int ret;
 
 	vmm->vram_base = vram_base;
@@ -1116,9 +1115,10 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
-	man->default_caching = TTM_PL_FLAG_WC;
-	ret = ttm_range_man_init(&vmm->bdev, man, vram_size >> PAGE_SHIFT);
+	ret = ttm_range_man_init(&vmm->bdev, TTM_PL_VRAM,
+				 TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC,
+				 TTM_PL_FLAG_WC, false,
+				 vram_size >> PAGE_SHIFT);
 	if (ret)
 		return ret;
 
@@ -1127,7 +1127,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 
 static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
 {
-	ttm_range_man_fini(&vmm->bdev, ttm_manager_type(&vmm->bdev, TTM_PL_VRAM));
+	ttm_range_man_fini(&vmm->bdev, TTM_PL_VRAM);
 	ttm_bo_device_release(&vmm->bdev);
 }
 

@@ -220,12 +220,8 @@ static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 				 unsigned int type,
 				 uint64_t size)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&qdev->mman.bdev, type);
-
-	man->available_caching = TTM_PL_MASK_CACHING;
-	man->default_caching = TTM_PL_FLAG_CACHED;
-
-	return ttm_range_man_init(&qdev->mman.bdev, man, size);
+	return ttm_range_man_init(&qdev->mman.bdev, type, TTM_PL_MASK_CACHING,
+				  TTM_PL_FLAG_CACHED, false, size);
 }
 
 int qxl_ttm_init(struct qxl_device *qdev)
@@ -267,8 +263,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 
 void qxl_ttm_fini(struct qxl_device *qdev)
 {
-	ttm_range_man_fini(&qdev->mman.bdev, ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM));
-	ttm_range_man_fini(&qdev->mman.bdev, ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV));
+	ttm_range_man_fini(&qdev->mman.bdev, TTM_PL_VRAM);
+	ttm_range_man_fini(&qdev->mman.bdev, TTM_PL_PRIV);
 	ttm_bo_device_release(&qdev->mman.bdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
