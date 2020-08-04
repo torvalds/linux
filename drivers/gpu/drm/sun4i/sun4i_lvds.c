@@ -47,7 +47,7 @@ static int sun4i_lvds_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(lvds->panel, connector);
 }
 
-static struct drm_connector_helper_funcs sun4i_lvds_con_helper_funcs = {
+static const struct drm_connector_helper_funcs sun4i_lvds_con_helper_funcs = {
 	.get_modes	= sun4i_lvds_get_modes,
 };
 

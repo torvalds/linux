@@ -825,7 +825,7 @@ static int sun4i_tcon_init_irq(struct device *dev,
 	return 0;
 }
 
-static struct regmap_config sun4i_tcon_regmap_config = {
+static const struct regmap_config sun4i_tcon_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
