@@ -20,7 +20,7 @@
 
 		service_reserved: svcbuffer@0 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x0 0x0 0x1000000>;
+			reg = <0x0 0x0 0x0 0x2000000>;
 			alignment = <0x1000>;
 			no-map;
 		};
