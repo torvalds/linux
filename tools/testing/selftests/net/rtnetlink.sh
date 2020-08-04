@@ -564,9 +564,12 @@ kci_test_encap()
 	check_err $?
 
 	kci_test_encap_vxlan "$testns"
+	check_err $?
 	kci_test_encap_fou "$testns"
+	check_err $?
 
 	ip netns del "$testns"
+	return $ret
 }
 
 kci_test_macsec()
