@@ -558,11 +558,6 @@ static void at91rm9200_idle(void)
 	writel(AT91_PMC_PCK, soc_pm.data.pmc + AT91_PMC_SCDR);
 }
 
-static void at91sam9x60_idle(void)
-{
-	cpu_do_idle();
-}
-
 static void at91sam9_idle(void)
 {
 	writel(AT91_PMC_PCK, soc_pm.data.pmc + AT91_PMC_SCDR);
@@ -907,7 +902,7 @@ void __init sam9x60_pm_init(void)
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init();
 	at91_dt_ramc();
-	at91_pm_init(at91sam9x60_idle);
+	at91_pm_init(NULL);
 
 	soc_pm.ws_ids = sam9x60_ws_ids;
 	soc_pm.config_pmc_ws = at91_sam9x60_config_pmc_ws;
