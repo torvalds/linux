@@ -1466,8 +1466,7 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return ret;
 	}
 
-	man->use_type = false;
-	man->has_type = false;
+	ttm_mem_type_manager_disable(man);
 
 	ret = 0;
 	if (mem_type > 0) {
@@ -1480,8 +1479,7 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		ret = (*man->func->takedown)(man);
 	}
 
-	dma_fence_put(man->move);
-	man->move = NULL;
+	ttm_mem_type_manager_cleanup(man);
 
 	return ret;
 }

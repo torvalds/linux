@@ -691,6 +691,32 @@ static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *ma
 	man->use_type = used;
 }
 
+/**
+ * ttm_mem_type_manager_disable.
+ *
+ * @man: A memory manager object.
+ *
+ * Indicate the manager is not to be used and deregistered. (temporary during rework).
+ */
+static inline void ttm_mem_type_manager_disable(struct ttm_mem_type_manager *man)
+{
+	man->has_type = false;
+	man->use_type = false;
+}
+
+/**
+ * ttm_mem_type_manager_cleanup
+ *
+ * @man: A memory manager object.
+ *
+ * Cleanup the move fences from the memory manager object.
+ */
+static inline void ttm_mem_type_manager_cleanup(struct ttm_mem_type_manager *man)
+{
+	dma_fence_put(man->move);
+	man->move = NULL;
+}
+
 /*
  * ttm_bo_util.c
  */
