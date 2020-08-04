@@ -133,20 +133,25 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 	return 0;
 }
 
-static int vmw_gmrid_man_takedown(struct ttm_mem_type_manager *man)
+void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 {
+	struct ttm_mem_type_manager *man = &dev_priv->bdev.man[type];
 	struct vmwgfx_gmrid_man *gman =
 		(struct vmwgfx_gmrid_man *)man->priv;
+
+	ttm_mem_type_manager_disable(man);
+
+	ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
 
 	if (gman) {
 		ida_destroy(&gman->gmr_ida);
 		kfree(gman);
 	}
-	return 0;
+
+	ttm_mem_type_manager_cleanup(man);
 }
 
 static const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
-	.takedown = vmw_gmrid_man_takedown,
 	.get_node = vmw_gmrid_man_get_node,
 	.put_node = vmw_gmrid_man_put_node,
 };

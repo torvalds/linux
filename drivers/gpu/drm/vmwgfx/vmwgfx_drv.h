@@ -1222,6 +1222,7 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
  */
 
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type);
+void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type);
 
 /**
  * Prime - vmwgfx_prime.c
