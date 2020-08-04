@@ -632,12 +632,13 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 	}
 
 	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
+
+	up_read(&adev->reset_sem);
+
 	if (ret) {
 		DRM_ERROR("amdgpu: failed to schedule IB.\n");
 		goto err_ib_sched;
 	}
-
-	up_read(&adev->reset_sem);
 
 	ret = dma_fence_wait(f, false);
 
