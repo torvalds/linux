@@ -464,7 +464,7 @@ int mlx5_vdpa_handle_set_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *io
 			     bool *change_map)
 {
 	struct mlx5_vdpa_mr *mr = &mvdev->mr;
-	int err;
+	int err = 0;
 
 	*change_map = false;
 	if (map_empty(iotlb)) {
