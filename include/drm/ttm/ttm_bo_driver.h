@@ -819,6 +819,20 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
  */
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
+/**
+ * ttm_range_man_init
+ *
+ * @bdev: ttm device
+ * @man: the manager to initialise with the range manager.
+ * @p_size: size of area to be managed in pages.
+ *
+ * Initialise a generic range manager for the selected memory type.
+ * The range manager is installed for this device in the type slot.
+ */
+int ttm_range_man_init(struct ttm_bo_device *bdev,
+		       struct ttm_mem_type_manager *man,
+		       unsigned long p_size);
+
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 /**

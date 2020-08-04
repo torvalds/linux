@@ -104,8 +104,8 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
-			   unsigned long p_size)
+static int ttm_bo_man_init_private(struct ttm_mem_type_manager *man,
+				   unsigned long p_size)
 {
 	struct ttm_range_manager *rman;
 
@@ -118,6 +118,23 @@ static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 	man->priv = rman;
 	return 0;
 }
+
+int ttm_range_man_init(struct ttm_bo_device *bdev,
+		       struct ttm_mem_type_manager *man,
+		       unsigned long p_size)
+{
+	int ret;
+
+	man->func = &ttm_bo_manager_func;
+
+	ttm_mem_type_manager_init(bdev, man, p_size);
+	ret = ttm_bo_man_init_private(man, p_size);
+	if (ret)
+		return ret;
+	ttm_mem_type_manager_set_used(man, true);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_range_man_init);
 
 static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 {
@@ -147,7 +164,7 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	.init = ttm_bo_man_init,
+	.init = ttm_bo_man_init_private,
 	.takedown = ttm_bo_man_takedown,
 	.get_node = ttm_bo_man_get_node,
 	.put_node = ttm_bo_man_put_node,
