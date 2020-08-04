@@ -2482,7 +2482,7 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 static bool rt5682_clk_check(struct rt5682_priv *rt5682)
 {
 	if (!rt5682->master[RT5682_AIF1]) {
-		dev_err(rt5682->component->dev, "sysclk/dai not set correctly\n");
+		dev_dbg(rt5682->component->dev, "sysclk/dai not set correctly\n");
 		return false;
 	}
 	return true;
