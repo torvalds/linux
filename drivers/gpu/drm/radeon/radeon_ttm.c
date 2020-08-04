@@ -70,19 +70,17 @@ static int radeon_ttm_init_vram(struct radeon_device *rdev)
 {
 	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[TTM_PL_VRAM];
 
-	man->func = &ttm_bo_manager_func;
 	man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 	man->default_caching = TTM_PL_FLAG_WC;
 
-	return ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
-			      rdev->mc.real_vram_size >> PAGE_SHIFT);
+	return ttm_range_man_init(&rdev->mman.bdev, man,
+				  rdev->mc.real_vram_size >> PAGE_SHIFT);
 }
 
 static int radeon_ttm_init_gtt(struct radeon_device *rdev)
 {
 	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[TTM_PL_TT];
 
-	man->func = &ttm_bo_manager_func;
 	man->available_caching = TTM_PL_MASK_CACHING;
 	man->default_caching = TTM_PL_FLAG_CACHED;
 	man->use_tt = true;
@@ -98,8 +96,8 @@ static int radeon_ttm_init_gtt(struct radeon_device *rdev)
 	}
 #endif
 
-	return ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
-			      rdev->mc.gtt_size >> PAGE_SHIFT);
+	return ttm_range_man_init(&rdev->mman.bdev, man,
+				  rdev->mc.gtt_size >> PAGE_SHIFT);
 }
 
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
