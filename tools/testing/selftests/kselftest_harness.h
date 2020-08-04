@@ -195,8 +195,9 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE_DATA(datatype name)
+ *     FIXTURE_DATA(datatype_name)
  *
+ * Almost always, you want just FIXTURE() instead (see below).
  * This call may be used when the type of the fixture data
  * is needed.  In general, this should not be needed unless
  * the *self* is being passed to a helper directly.
@@ -211,7 +212,7 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE(datatype name) {
+ *     FIXTURE(fixture_name) {
  *       type property1;
  *       ...
  *     };
@@ -238,7 +239,7 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE_SETUP(fixture name) { implementation }
+ *     FIXTURE_SETUP(fixture_name) { implementation }
  *
  * Populates the required "setup" function for a fixture.  An instance of the
  * datatype defined with FIXTURE_DATA() will be exposed as *self* for the
@@ -264,7 +265,7 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE_TEARDOWN(fixture name) { implementation }
+ *     FIXTURE_TEARDOWN(fixture_name) { implementation }
  *
  * Populates the required "teardown" function for a fixture.  An instance of the
  * datatype defined with FIXTURE_DATA() will be exposed as *self* for the
@@ -285,7 +286,7 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE_VARIANT(datatype name) {
+ *     FIXTURE_VARIANT(fixture_name) {
  *       type property1;
  *       ...
  *     };
@@ -305,8 +306,8 @@
  *
  * .. code-block:: c
  *
- *     FIXTURE_ADD(datatype name) {
- *       .property1 = val1;
+ *     FIXTURE_VARIANT_ADD(fixture_name, variant_name) {
+ *       .property1 = val1,
  *       ...
  *     };
  *
