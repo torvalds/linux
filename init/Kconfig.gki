@@ -161,6 +161,8 @@ config GKI_HIDDEN_GPU_CONFIGS
 config GKI_HIDDEN_IRQ_CONFIGS
 	bool "Hidden IRQ configuration needed for GKI"
 	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	help
 	  Dummy config option used to enable GENERIC_IRQ_CHIP hidden
 	  config, required by various SoC platforms. This is usually
