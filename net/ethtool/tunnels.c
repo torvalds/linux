@@ -2,6 +2,7 @@
 
 #include <linux/ethtool_netlink.h>
 #include <net/udp_tunnel.h>
+#include <net/vxlan.h>
 
 #include "bitset.h"
 #include "common.h"
@@ -18,6 +19,20 @@ static_assert(ETHTOOL_UDP_TUNNEL_TYPE_GENEVE == ilog2(UDP_TUNNEL_TYPE_GENEVE));
 static_assert(ETHTOOL_UDP_TUNNEL_TYPE_VXLAN_GPE ==
 	      ilog2(UDP_TUNNEL_TYPE_VXLAN_GPE));
 
+static ssize_t ethnl_udp_table_reply_size(unsigned int types, bool compact)
+{
+	ssize_t size;
+
+	size = ethnl_bitset32_size(&types, NULL, __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
+				   udp_tunnel_type_names, compact);
+	if (size < 0)
+		return size;
+
+	return size +
+		nla_total_size(0) + /* _UDP_TABLE */
+		nla_total_size(sizeof(u32)); /* _UDP_TABLE_SIZE */
+}
+
 static ssize_t
 ethnl_tunnel_info_reply_size(const struct ethnl_req_info *req_base,
 			     struct netlink_ext_ack *extack)
@@ -25,8 +40,8 @@ ethnl_tunnel_info_reply_size(const struct ethnl_req_info *req_base,
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
 	const struct udp_tunnel_nic_info *info;
 	unsigned int i;
+	ssize_t ret;
 	size_t size;
-	int ret;
 
 	info = req_base->dev->udp_tunnel_nic_info;
 	if (!info) {
@@ -39,18 +54,26 @@ ethnl_tunnel_info_reply_size(const struct ethnl_req_info *req_base,
 
 	for (i = 0; i < UDP_TUNNEL_NIC_MAX_TABLES; i++) {
 		if (!info->tables[i].n_entries)
-			return size;
+			break;
 
-		size += nla_total_size(0); /* _UDP_TABLE */
-		size +=	nla_total_size(sizeof(u32)); /* _UDP_TABLE_SIZE */
-		ret = ethnl_bitset32_size(&info->tables[i].tunnel_types, NULL,
-					  __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
-					  udp_tunnel_type_names, compact);
+		ret = ethnl_udp_table_reply_size(info->tables[i].tunnel_types,
+						 compact);
 		if (ret < 0)
 			return ret;
 		size += ret;
 
 		size += udp_tunnel_nic_dump_size(req_base->dev, i);
+	}
+
+	if (info->flags & UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN) {
+		ret = ethnl_udp_table_reply_size(0, compact);
+		if (ret < 0)
+			return ret;
+		size += ret;
+
+		size += nla_total_size(0) +		 /* _TABLE_ENTRY */
+			nla_total_size(sizeof(__be16)) + /* _ENTRY_PORT */
+			nla_total_size(sizeof(u32));	 /* _ENTRY_TYPE */
 	}
 
 	return size;
@@ -62,7 +85,7 @@ ethnl_tunnel_info_fill_reply(const struct ethnl_req_info *req_base,
 {
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
 	const struct udp_tunnel_nic_info *info;
-	struct nlattr *ports, *table;
+	struct nlattr *ports, *table, *entry;
 	unsigned int i;
 
 	info = req_base->dev->udp_tunnel_nic_info;
@@ -97,10 +120,40 @@ ethnl_tunnel_info_fill_reply(const struct ethnl_req_info *req_base,
 		nla_nest_end(skb, table);
 	}
 
+	if (info->flags & UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN) {
+		u32 zero = 0;
+
+		table = nla_nest_start(skb, ETHTOOL_A_TUNNEL_UDP_TABLE);
+		if (!table)
+			goto err_cancel_ports;
+
+		if (nla_put_u32(skb, ETHTOOL_A_TUNNEL_UDP_TABLE_SIZE, 1))
+			goto err_cancel_table;
+
+		if (ethnl_put_bitset32(skb, ETHTOOL_A_TUNNEL_UDP_TABLE_TYPES,
+				       &zero, NULL,
+				       __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
+				       udp_tunnel_type_names, compact))
+			goto err_cancel_table;
+
+		entry = nla_nest_start(skb, ETHTOOL_A_TUNNEL_UDP_TABLE_ENTRY);
+
+		if (nla_put_be16(skb, ETHTOOL_A_TUNNEL_UDP_ENTRY_PORT,
+				 htons(IANA_VXLAN_UDP_PORT)) ||
+		    nla_put_u32(skb, ETHTOOL_A_TUNNEL_UDP_ENTRY_TYPE,
+				ilog2(UDP_TUNNEL_TYPE_VXLAN)))
+			goto err_cancel_entry;
+
+		nla_nest_end(skb, entry);
+		nla_nest_end(skb, table);
+	}
+
 	nla_nest_end(skb, ports);
 
 	return 0;
 
+err_cancel_entry:
+	nla_nest_cancel(skb, entry);
 err_cancel_table:
 	nla_nest_cancel(skb, table);
 err_cancel_ports:

@@ -611,6 +611,29 @@ static struct devlink_port *mlx5e_rep_get_devlink_port(struct net_device *dev)
 	return &rpriv->dl_port;
 }
 
+static int mlx5e_rep_change_carrier(struct net_device *dev, bool new_carrier)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	int err;
+
+	if (new_carrier) {
+		err = mlx5_modify_vport_admin_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
+						    rep->vport, 1, MLX5_VPORT_ADMIN_STATE_UP);
+		if (err)
+			return err;
+		netif_carrier_on(dev);
+	} else {
+		err = mlx5_modify_vport_admin_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
+						    rep->vport, 1, MLX5_VPORT_ADMIN_STATE_DOWN);
+		if (err)
+			return err;
+		netif_carrier_off(dev);
+	}
+	return 0;
+}
+
 static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_open                = mlx5e_rep_open,
 	.ndo_stop                = mlx5e_rep_close,
@@ -621,6 +644,7 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_has_offload_stats	 = mlx5e_rep_has_offload_stats,
 	.ndo_get_offload_stats	 = mlx5e_rep_get_offload_stats,
 	.ndo_change_mtu          = mlx5e_rep_change_mtu,
+	.ndo_change_carrier      = mlx5e_rep_change_carrier,
 };
 
 static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
@@ -634,8 +658,8 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_has_offload_stats	 = mlx5e_rep_has_offload_stats,
 	.ndo_get_offload_stats	 = mlx5e_rep_get_offload_stats,
 	.ndo_change_mtu          = mlx5e_uplink_rep_change_mtu,
-	.ndo_udp_tunnel_add      = mlx5e_add_vxlan_port,
-	.ndo_udp_tunnel_del      = mlx5e_del_vxlan_port,
+	.ndo_udp_tunnel_add      = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del      = udp_tunnel_nic_del_port,
 	.ndo_features_check      = mlx5e_features_check,
 	.ndo_set_vf_mac          = mlx5e_set_vf_mac,
 	.ndo_set_vf_rate         = mlx5e_set_vf_rate,
@@ -706,6 +730,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 		/* we want a persistent mac for the uplink rep */
 		mlx5_query_mac_address(mdev, netdev->dev_addr);
 		netdev->ethtool_ops = &mlx5e_uplink_rep_ethtool_ops;
+		mlx5e_vxlan_set_netdev_info(priv);
 		mlx5e_dcbnl_build_rep_netdev(netdev);
 	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_rep;

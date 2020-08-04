@@ -193,6 +193,11 @@ enum udp_tunnel_nic_info_flags {
 	UDP_TUNNEL_NIC_INFO_OPEN_ONLY	= BIT(1),
 	/* Device supports only IPv4 tunnels */
 	UDP_TUNNEL_NIC_INFO_IPV4_ONLY	= BIT(2),
+	/* Device has hard-coded the IANA VXLAN port (4789) as VXLAN.
+	 * This port must not be counted towards n_entries of any table.
+	 * Driver will not receive any callback associated with port 4789.
+	 */
+	UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN	= BIT(3),
 };
 
 /**
