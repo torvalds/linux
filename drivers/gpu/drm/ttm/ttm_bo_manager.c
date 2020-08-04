@@ -44,16 +44,22 @@
  */
 
 struct ttm_range_manager {
+	struct ttm_mem_type_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 };
+
+static inline struct ttm_range_manager *to_range_manager(struct ttm_mem_type_manager *man)
+{
+	return container_of(man, struct ttm_range_manager, manager);
+}
 
 static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
 			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
 	struct drm_mm_node *node;
 	enum drm_mm_insert_mode mode;
@@ -92,7 +98,7 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 				struct ttm_mem_reg *mem)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 
 	if (mem->mm_node) {
 		spin_lock(&rman->lock);
@@ -113,16 +119,17 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       bool use_tt,
 		       unsigned long p_size)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, type);
+	struct ttm_mem_type_manager *man;
 	struct ttm_range_manager *rman;
-
-	man->available_caching = available_caching;
-	man->default_caching = default_caching;
-	man->use_tt = use_tt;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
+
+	man = &rman->manager;
+	man->available_caching = available_caching;
+	man->default_caching = default_caching;
+	man->use_tt = use_tt;
 
 	man->func = &ttm_bo_manager_func;
 
@@ -130,8 +137,8 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 
 	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
-	man->priv = rman;
 
+	ttm_set_driver_manager(bdev, type, &rman->manager);
 	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
@@ -141,7 +148,7 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 		       unsigned type)
 {
 	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, type);
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
 	int ret;
 
@@ -155,10 +162,10 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 	drm_mm_clean(mm);
 	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
-	kfree(rman);
-	man->priv = NULL;
 
 	ttm_mem_type_manager_cleanup(man);
+	ttm_set_driver_manager(bdev, type, NULL);
+	kfree(rman);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_range_man_fini);
@@ -166,7 +173,7 @@ EXPORT_SYMBOL(ttm_range_man_fini);
 static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 			     struct drm_printer *printer)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 
 	spin_lock(&rman->lock);
 	drm_mm_print(&rman->mm, printer);
