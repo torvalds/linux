@@ -177,6 +177,11 @@ Documentation/recipes.txt
 Documentation/references.txt
 	Provides background reading.
 
+Documentation/simple.txt
+	Starting point for someone new to Linux-kernel concurrency.
+	And also for those needing a reminder of the simpler approaches
+	to concurrency!
+
 linux-kernel.bell
 	Categorizes the relevant instructions, including memory
 	references, memory barriers, atomic read-modify-write operations,

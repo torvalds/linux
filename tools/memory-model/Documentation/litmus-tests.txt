@@ -726,8 +726,12 @@ P0()'s line 10 initializes "x" to the value 1 then line 11 links to "x"
 from "y", replacing "z".
 
 P1()'s line 20 loads a pointer from "y", and line 21 dereferences that
-pointer.  The RCU read-side critical section spanning lines 19-22 is
-just for show in this example.
+pointer.  The RCU read-side critical section spanning lines 19-22 is just
+for show in this example.  Note that the address used for line 21's load
+depends on (in this case, "is exactly the same as") the value loaded by
+line 20.  This is an example of what is called an "address dependency".
+This particular address dependency extends from the load on line 20 to the
+load on line 21.  Address dependencies provide a weak form of ordering.
 
 Running this test results in the following:
 
