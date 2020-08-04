@@ -1021,11 +1021,16 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 static void mt76u_free_tx(struct mt76_dev *dev)
 {
-	struct mt76_queue *q;
-	int i, j;
+	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		struct mt76_queue *q;
+		int j;
+
 		q = dev->q_tx[i].q;
+		if (!q)
+			continue;
+
 		for (j = 0; j < q->ndesc; j++)
 			usb_free_urb(q->entry[j].urb);
 	}
@@ -1033,17 +1038,22 @@ static void mt76u_free_tx(struct mt76_dev *dev)
 
 void mt76u_stop_tx(struct mt76_dev *dev)
 {
-	struct mt76_queue_entry entry;
-	struct mt76_queue *q;
-	int i, j, ret;
+	int ret;
 
 	ret = wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(&dev->phy),
 				 HZ / 5);
 	if (!ret) {
+		struct mt76_queue_entry entry;
+		struct mt76_queue *q;
+		int i, j;
+
 		dev_err(dev->dev, "timed out waiting for pending tx\n");
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 			q = dev->q_tx[i].q;
+			if (!q)
+				continue;
+
 			for (j = 0; j < q->ndesc; j++)
 				usb_kill_urb(q->entry[j].urb);
 		}
@@ -1055,6 +1065,8 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 		 */
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 			q = dev->q_tx[i].q;
+			if (!q)
+				continue;
 
 			/* Assure we are in sync with killed tasklet. */
 			spin_lock_bh(&q->lock);
