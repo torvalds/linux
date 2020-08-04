@@ -10,6 +10,8 @@
 
 struct platform_device; /* don't need the contents */
 
+#include <linux/platform_data/touchscreen-s3c2410.h>
+
 #include <plat/gpio-cfg.h>
 #include <mach/hardware.h>
 #include <mach/gpio-samsung.h>
