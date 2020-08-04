@@ -8,19 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
 
-Copyright (C) 2013-2018 by the following authors:
+Copyright (C) 2013-2020 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -48,7 +50,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 enum a3xx_tile_mode {
 	LINEAR = 0,
+	TILE_4X4 = 1,
 	TILE_32X32 = 2,
+	TILE_4X2 = 3,
 };
 
 enum a3xx_state_block_id {
@@ -123,6 +127,7 @@ enum a3xx_vtx_fmt {
 	VFMT_2_10_10_10_UNORM = 61,
 	VFMT_2_10_10_10_SINT = 62,
 	VFMT_2_10_10_10_SNORM = 63,
+	VFMT_NONE = 255,
 };
 
 enum a3xx_tex_fmt {
@@ -206,15 +211,7 @@ enum a3xx_tex_fmt {
 	TFMT_ETC2_RGBA8 = 116,
 	TFMT_ETC2_RGB8A1 = 117,
 	TFMT_ETC2_RGB8 = 118,
-};
-
-enum a3xx_tex_fetchsize {
-	TFETCH_DISABLE = 0,
-	TFETCH_1_BYTE = 1,
-	TFETCH_2_BYTE = 2,
-	TFETCH_4_BYTE = 3,
-	TFETCH_8_BYTE = 4,
-	TFETCH_16_BYTE = 5,
+	TFMT_NONE = 255,
 };
 
 enum a3xx_color_fmt {
@@ -228,8 +225,8 @@ enum a3xx_color_fmt {
 	RB_R8G8B8A8_SINT = 11,
 	RB_R8G8_UNORM = 12,
 	RB_R8G8_SNORM = 13,
-	RB_R8_UINT = 14,
-	RB_R8_SINT = 15,
+	RB_R8G8_UINT = 14,
+	RB_R8G8_SINT = 15,
 	RB_R10G10B10A2_UNORM = 16,
 	RB_A2R10G10B10_UNORM = 17,
 	RB_R10G10B10A2_UINT = 18,
@@ -261,6 +258,7 @@ enum a3xx_color_fmt {
 	RB_R32_UINT = 56,
 	RB_R32G32_UINT = 57,
 	RB_R32G32B32A32_UINT = 59,
+	RB_NONE = 255,
 };
 
 enum a3xx_cp_perfcounter_select {
@@ -932,6 +930,9 @@ static inline uint32_t REG_A3XX_CP_PROTECT_REG(uint32_t i0) { return 0x00000460 
 
 #define REG_A3XX_GRAS_CL_CLIP_CNTL				0x00002040
 #define A3XX_GRAS_CL_CLIP_CNTL_IJ_PERSP_CENTER			0x00001000
+#define A3XX_GRAS_CL_CLIP_CNTL_IJ_NON_PERSP_CENTER		0x00002000
+#define A3XX_GRAS_CL_CLIP_CNTL_IJ_PERSP_CENTROID		0x00004000
+#define A3XX_GRAS_CL_CLIP_CNTL_IJ_NON_PERSP_CENTROID		0x00008000
 #define A3XX_GRAS_CL_CLIP_CNTL_CLIP_DISABLE			0x00010000
 #define A3XX_GRAS_CL_CLIP_CNTL_ZFAR_CLIP_DISABLE		0x00020000
 #define A3XX_GRAS_CL_CLIP_CNTL_VP_CLIP_CODE_IGNORE		0x00080000
@@ -1170,10 +1171,12 @@ static inline uint32_t A3XX_RB_RENDER_CONTROL_BIN_WIDTH(uint32_t val)
 }
 #define A3XX_RB_RENDER_CONTROL_DISABLE_COLOR_PIPE		0x00001000
 #define A3XX_RB_RENDER_CONTROL_ENABLE_GMEM			0x00002000
-#define A3XX_RB_RENDER_CONTROL_XCOORD				0x00004000
-#define A3XX_RB_RENDER_CONTROL_YCOORD				0x00008000
-#define A3XX_RB_RENDER_CONTROL_ZCOORD				0x00010000
-#define A3XX_RB_RENDER_CONTROL_WCOORD				0x00020000
+#define A3XX_RB_RENDER_CONTROL_COORD_MASK__MASK			0x0003c000
+#define A3XX_RB_RENDER_CONTROL_COORD_MASK__SHIFT		14
+static inline uint32_t A3XX_RB_RENDER_CONTROL_COORD_MASK(uint32_t val)
+{
+	return ((val) << A3XX_RB_RENDER_CONTROL_COORD_MASK__SHIFT) & A3XX_RB_RENDER_CONTROL_COORD_MASK__MASK;
+}
 #define A3XX_RB_RENDER_CONTROL_I_CLAMP_ENABLE			0x00080000
 #define A3XX_RB_RENDER_CONTROL_COV_VALUE_OUTPUT_ENABLE		0x00100000
 #define A3XX_RB_RENDER_CONTROL_ALPHA_TEST			0x00400000
@@ -1755,11 +1758,29 @@ static inline uint32_t A3XX_HLSQ_CONTROL_2_REG_PRIMALLOCTHRESHOLD(uint32_t val)
 }
 
 #define REG_A3XX_HLSQ_CONTROL_3_REG				0x00002203
-#define A3XX_HLSQ_CONTROL_3_REG_REGID__MASK			0x000000ff
-#define A3XX_HLSQ_CONTROL_3_REG_REGID__SHIFT			0
-static inline uint32_t A3XX_HLSQ_CONTROL_3_REG_REGID(uint32_t val)
+#define A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTERREGID__MASK	0x000000ff
+#define A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTERREGID__SHIFT	0
+static inline uint32_t A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTERREGID(uint32_t val)
 {
-	return ((val) << A3XX_HLSQ_CONTROL_3_REG_REGID__SHIFT) & A3XX_HLSQ_CONTROL_3_REG_REGID__MASK;
+	return ((val) << A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTERREGID__SHIFT) & A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTERREGID__MASK;
+}
+#define A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTERREGID__MASK	0x0000ff00
+#define A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTERREGID__SHIFT	8
+static inline uint32_t A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTERREGID(uint32_t val)
+{
+	return ((val) << A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTERREGID__SHIFT) & A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTERREGID__MASK;
+}
+#define A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTROIDREGID__MASK	0x00ff0000
+#define A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTROIDREGID__SHIFT	16
+static inline uint32_t A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTROIDREGID(uint32_t val)
+{
+	return ((val) << A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTROIDREGID__SHIFT) & A3XX_HLSQ_CONTROL_3_REG_IJPERSPCENTROIDREGID__MASK;
+}
+#define A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTROIDREGID__MASK	0xff000000
+#define A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTROIDREGID__SHIFT	24
+static inline uint32_t A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTROIDREGID(uint32_t val)
+{
+	return ((val) << A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTROIDREGID__SHIFT) & A3XX_HLSQ_CONTROL_3_REG_IJNONPERSPCENTROIDREGID__MASK;
 }
 
 #define REG_A3XX_HLSQ_VS_CONTROL_REG				0x00002204
@@ -1941,8 +1962,6 @@ static inline uint32_t A3XX_VFD_CONTROL_1_REGID4INST(uint32_t val)
 #define REG_A3XX_VFD_INDEX_MAX					0x00002243
 
 #define REG_A3XX_VFD_INSTANCEID_OFFSET				0x00002244
-
-#define REG_A3XX_VFD_INDEX_OFFSET				0x00002245
 
 #define REG_A3XX_VFD_INDEX_OFFSET				0x00002245
 
@@ -3107,7 +3126,12 @@ static inline uint32_t A3XX_TEX_SAMP_1_MIN_LOD(float val)
 }
 
 #define REG_A3XX_TEX_CONST_0					0x00000000
-#define A3XX_TEX_CONST_0_TILED					0x00000001
+#define A3XX_TEX_CONST_0_TILE_MODE__MASK			0x00000003
+#define A3XX_TEX_CONST_0_TILE_MODE__SHIFT			0
+static inline uint32_t A3XX_TEX_CONST_0_TILE_MODE(enum a3xx_tile_mode val)
+{
+	return ((val) << A3XX_TEX_CONST_0_TILE_MODE__SHIFT) & A3XX_TEX_CONST_0_TILE_MODE__MASK;
+}
 #define A3XX_TEX_CONST_0_SRGB					0x00000004
 #define A3XX_TEX_CONST_0_SWIZ_X__MASK				0x00000070
 #define A3XX_TEX_CONST_0_SWIZ_X__SHIFT				4
@@ -3172,11 +3196,11 @@ static inline uint32_t A3XX_TEX_CONST_1_WIDTH(uint32_t val)
 {
 	return ((val) << A3XX_TEX_CONST_1_WIDTH__SHIFT) & A3XX_TEX_CONST_1_WIDTH__MASK;
 }
-#define A3XX_TEX_CONST_1_FETCHSIZE__MASK			0xf0000000
-#define A3XX_TEX_CONST_1_FETCHSIZE__SHIFT			28
-static inline uint32_t A3XX_TEX_CONST_1_FETCHSIZE(enum a3xx_tex_fetchsize val)
+#define A3XX_TEX_CONST_1_PITCHALIGN__MASK			0xf0000000
+#define A3XX_TEX_CONST_1_PITCHALIGN__SHIFT			28
+static inline uint32_t A3XX_TEX_CONST_1_PITCHALIGN(uint32_t val)
 {
-	return ((val) << A3XX_TEX_CONST_1_FETCHSIZE__SHIFT) & A3XX_TEX_CONST_1_FETCHSIZE__MASK;
+	return ((val) << A3XX_TEX_CONST_1_PITCHALIGN__SHIFT) & A3XX_TEX_CONST_1_PITCHALIGN__MASK;
 }
 
 #define REG_A3XX_TEX_CONST_2					0x00000002
