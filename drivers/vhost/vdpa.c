@@ -375,7 +375,10 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		ops->set_vq_ready(vdpa, idx, s.num);
 		return 0;
 	case VHOST_GET_VRING_BASE:
-		ops->get_vq_state(v->vdpa, idx, &vq_state);
+		r = ops->get_vq_state(v->vdpa, idx, &vq_state);
+		if (r)
+			return r;
+
 		vq->last_avail_idx = vq_state.avail_index;
 		break;
 	case VHOST_GET_BACKEND_FEATURES:

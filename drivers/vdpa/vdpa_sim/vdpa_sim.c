@@ -464,14 +464,15 @@ static int vdpasim_set_vq_state(struct vdpa_device *vdpa, u16 idx,
 	return 0;
 }
 
-static void vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx,
-				 struct vdpa_vq_state *state)
+static int vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx,
+				struct vdpa_vq_state *state)
 {
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
 	struct vringh *vrh = &vq->vring;
 
 	state->avail_index = vrh->last_avail_idx;
+	return 0;
 }
 
 static u32 vdpasim_get_vq_align(struct vdpa_device *vdpa)

@@ -193,8 +193,8 @@ struct vdpa_config_ops {
 	bool (*get_vq_ready)(struct vdpa_device *vdev, u16 idx);
 	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx,
 			    const struct vdpa_vq_state *state);
-	void (*get_vq_state)(struct vdpa_device *vdev, u16 idx,
-			     struct vdpa_vq_state *state);
+	int (*get_vq_state)(struct vdpa_device *vdev, u16 idx,
+			    struct vdpa_vq_state *state);
 	struct vdpa_notification_area
 	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
 	/* vq irq is not expected to be changed once DRIVER_OK is set */
