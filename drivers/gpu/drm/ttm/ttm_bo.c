@@ -1507,35 +1507,41 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 
-int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
-			unsigned long p_size)
+void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
+			       struct ttm_mem_type_manager *man,
+			       unsigned long p_size)
 {
-	int ret;
-	struct ttm_mem_type_manager *man;
 	unsigned i;
 
-	BUG_ON(type >= TTM_NUM_MEM_TYPES);
-	man = &bdev->man[type];
 	BUG_ON(man->has_type);
 	man->use_io_reserve_lru = false;
 	mutex_init(&man->io_reserve_mutex);
 	spin_lock_init(&man->move_lock);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
 	man->bdev = bdev;
+	man->size = p_size;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
+		INIT_LIST_HEAD(&man->lru[i]);
+	man->move = NULL;
+}
+EXPORT_SYMBOL(ttm_mem_type_manager_init);
+
+int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
+		   unsigned long p_size)
+{
+	int ret;
+	struct ttm_mem_type_manager *man;
+
+	BUG_ON(type >= TTM_NUM_MEM_TYPES);
+	ttm_mem_type_manager_init(bdev, &bdev->man[type], p_size);
 
 	if (type != TTM_PL_SYSTEM) {
 		ret = (*man->func->init)(man, p_size);
 		if (ret)
 			return ret;
 	}
-	man->has_type = true;
-	man->use_type = true;
-	man->size = p_size;
-
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
-		INIT_LIST_HEAD(&man->lru[i]);
-	man->move = NULL;
-
+	ttm_mem_type_manager_set_used(man, true);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_init_mm);

@@ -689,6 +689,21 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 	dma_resv_unlock(bo->base.resv);
 }
 
+/**
+ * ttm_mem_type_manager_set_used
+ *
+ * @man: A memory manager object.
+ * @used: usage state to set.
+ *
+ * Set the manager in use flag. If disabled the manager is no longer
+ * used for object placement.
+ */
+static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *man, bool used)
+{
+	man->has_type = true;
+	man->use_type = used;
+}
+
 /*
  * ttm_bo_util.c
  */
