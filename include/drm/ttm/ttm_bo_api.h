@@ -536,14 +536,12 @@ int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
 /**
  * ttm_mem_type_manager_init
  *
- * @bdev: Pointer to a ttm_bo_device struct.
  * @man: memory manager object to init
  * @p_size: size managed area in pages.
  *
- * Initialise core parts of a a manager object.
+ * Initialise core parts of a manager object.
  */
-void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
-			       struct ttm_mem_type_manager *man,
+void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
 			       unsigned long p_size);
 
 /**

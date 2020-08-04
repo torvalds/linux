@@ -138,8 +138,6 @@ struct ttm_mem_type_manager_func {
 
 
 struct ttm_mem_type_manager {
-	struct ttm_bo_device *bdev;
-
 	/*
 	 * No protection. Constant from start.
 	 */

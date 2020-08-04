@@ -1469,8 +1469,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 
-void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
-			       struct ttm_mem_type_manager *man,
+void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
 			       unsigned long p_size)
 {
 	unsigned i;
@@ -1480,7 +1479,6 @@ void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
 	mutex_init(&man->io_reserve_mutex);
 	spin_lock_init(&man->move_lock);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
-	man->bdev = bdev;
 	man->size = p_size;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
@@ -1593,7 +1591,7 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 	man->available_caching = TTM_PL_MASK_CACHING;
 	man->default_caching = TTM_PL_FLAG_CACHED;
 
-	ttm_mem_type_manager_init(bdev, man, 0);
+	ttm_mem_type_manager_init(man, 0);
 	ttm_mem_type_manager_set_used(man, true);
 }
 

@@ -175,7 +175,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 		man->func = &nouveau_vram_manager;
 		man->use_io_reserve_lru = true;
 
-		ttm_mem_type_manager_init(&drm->ttm.bdev, man,
+		ttm_mem_type_manager_init(man,
 					  drm->gem.vram_available >> PAGE_SHIFT);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, man);
 		ttm_mem_type_manager_set_used(man, true);
@@ -237,9 +237,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 	man->available_caching = available_caching;
 	man->default_caching = default_caching;
 	man->use_tt = true;
-	ttm_mem_type_manager_init(&drm->ttm.bdev, man,
-				  size_pages);
-
+	ttm_mem_type_manager_init(man, size_pages);
 	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);
 	ttm_mem_type_manager_set_used(man, true);
 

@@ -133,7 +133,7 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 
 	man->func = &ttm_bo_manager_func;
 
-	ttm_mem_type_manager_init(bdev, man, p_size);
+	ttm_mem_type_manager_init(man, p_size);
 
 	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
