@@ -47,8 +47,8 @@ struct dac5571_data {
 	struct mutex lock;
 	struct regulator *vref;
 	u16 val[4];
-	bool powerdown;
-	u8 powerdown_mode;
+	bool powerdown[4];
+	u8 powerdown_mode[4];
 	struct dac5571_spec const *spec;
 	int (*dac5571_cmd)(struct dac5571_data *data, int channel, u16 val);
 	int (*dac5571_pwrdwn)(struct dac5571_data *data, int channel, u8 pwrdwn);
@@ -125,7 +125,7 @@ static int dac5571_get_powerdown_mode(struct iio_dev *indio_dev,
 {
 	struct dac5571_data *data = iio_priv(indio_dev);
 
-	return data->powerdown_mode;
+	return data->powerdown_mode[chan->channel];
 }
 
 static int dac5571_set_powerdown_mode(struct iio_dev *indio_dev,
@@ -135,17 +135,17 @@ static int dac5571_set_powerdown_mode(struct iio_dev *indio_dev,
 	struct dac5571_data *data = iio_priv(indio_dev);
 	int ret = 0;
 
-	if (data->powerdown_mode == mode)
+	if (data->powerdown_mode[chan->channel] == mode)
 		return 0;
 
 	mutex_lock(&data->lock);
-	if (data->powerdown) {
+	if (data->powerdown[chan->channel]) {
 		ret = data->dac5571_pwrdwn(data, chan->channel,
 					   DAC5571_POWERDOWN(mode));
 		if (ret)
 			goto out;
 	}
-	data->powerdown_mode = mode;
+	data->powerdown_mode[chan->channel] = mode;
 
  out:
 	mutex_unlock(&data->lock);
@@ -167,7 +167,7 @@ static ssize_t dac5571_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct dac5571_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->powerdown);
+	return sprintf(buf, "%d\n", data->powerdown[chan->channel]);
 }
 
 static ssize_t dac5571_write_powerdown(struct iio_dev *indio_dev,
@@ -183,19 +183,20 @@ static ssize_t dac5571_write_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	if (data->powerdown == powerdown)
+	if (data->powerdown[chan->channel] == powerdown)
 		return len;
 
 	mutex_lock(&data->lock);
 	if (powerdown)
 		ret = data->dac5571_pwrdwn(data, chan->channel,
-			    DAC5571_POWERDOWN(data->powerdown_mode));
+			    DAC5571_POWERDOWN(data->powerdown_mode[chan->channel]));
 	else
-		ret = data->dac5571_cmd(data, chan->channel, data->val[0]);
+		ret = data->dac5571_cmd(data, chan->channel,
+				data->val[chan->channel]);
 	if (ret)
 		goto out;
 
-	data->powerdown = powerdown;
+	data->powerdown[chan->channel] = powerdown;
 
  out:
 	mutex_unlock(&data->lock);
@@ -209,9 +210,9 @@ static const struct iio_chan_spec_ext_info dac5571_ext_info[] = {
 		.name	   = "powerdown",
 		.read	   = dac5571_read_powerdown,
 		.write	   = dac5571_write_powerdown,
-		.shared	   = IIO_SHARED_BY_TYPE,
+		.shared	   = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &dac5571_powerdown_mode),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &dac5571_powerdown_mode),
 	{},
 };
@@ -276,7 +277,7 @@ static int dac5571_write_raw(struct iio_dev *indio_dev,
 		if (val >= (1 << data->spec->resolution) || val < 0)
 			return -EINVAL;
 
-		if (data->powerdown)
+		if (data->powerdown[chan->channel])
 			return -EBUSY;
 
 		mutex_lock(&data->lock);
