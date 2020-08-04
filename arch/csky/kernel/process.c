@@ -40,7 +40,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sw->r15;
 }
 
-int copy_thread_tls(unsigned long clone_flags,
+int copy_thread(unsigned long clone_flags,
 		unsigned long usp,
 		unsigned long kthread_arg,
 		struct task_struct *p,

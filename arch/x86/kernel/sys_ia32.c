@@ -251,9 +251,6 @@ COMPAT_SYSCALL_DEFINE5(ia32_clone, unsigned long, clone_flags,
 		.tls		= tls_val,
 	};
 
-	if (!legacy_clone_args_valid(&args))
-		return -EINVAL;
-
 	return _do_fork(&args);
 }
 #endif /* CONFIG_IA32_EMULATION */

@@ -269,7 +269,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		/*
 		 * kthreads (other than the boot CPU's idle thread) have some
 		 * partial regs at the end of their stack which were placed
-		 * there by copy_thread_tls().  But the regs don't have any
+		 * there by copy_thread().  But the regs don't have any
 		 * useful information, so we can skip them.
 		 *
 		 * This user_mode() check is slightly broader than a PF_KTHREAD
