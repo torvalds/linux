@@ -196,15 +196,11 @@ static int s10_ops_write_init(struct fpga_manager *mgr,
 	if (ret < 0)
 		goto init_done;
 
-	ret = wait_for_completion_interruptible_timeout(
+	ret = wait_for_completion_timeout(
 		&priv->status_return_completion, S10_RECONFIG_TIMEOUT);
 	if (!ret) {
 		dev_err(dev, "timeout waiting for RECONFIG_REQUEST\n");
 		ret = -ETIMEDOUT;
-		goto init_done;
-	}
-	if (ret < 0) {
-		dev_err(dev, "error (%d) waiting for RECONFIG_REQUEST\n", ret);
 		goto init_done;
 	}
 
@@ -318,7 +314,7 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		 */
 		wait_status = 1; /* not timed out */
 		if (!priv->status)
-			wait_status = wait_for_completion_interruptible_timeout(
+			wait_status = wait_for_completion_timeout(
 				&priv->status_return_completion,
 				S10_BUFFER_TIMEOUT);
 
@@ -338,13 +334,6 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		if (!wait_status) {
 			dev_err(dev, "timeout waiting for svc layer buffers\n");
 			ret = -ETIMEDOUT;
-			break;
-		}
-		if (wait_status < 0) {
-			ret = wait_status;
-			dev_err(dev,
-				"error (%d) waiting for svc layer buffers\n",
-				ret);
 			break;
 		}
 	}
@@ -372,18 +361,12 @@ static int s10_ops_write_complete(struct fpga_manager *mgr,
 		if (ret < 0)
 			break;
 
-		ret = wait_for_completion_interruptible_timeout(
+		ret = wait_for_completion_timeout(
 			&priv->status_return_completion, timeout);
 		if (!ret) {
 			dev_err(dev,
 				"timeout waiting for RECONFIG_COMPLETED\n");
 			ret = -ETIMEDOUT;
-			break;
-		}
-		if (ret < 0) {
-			dev_err(dev,
-				"error (%d) waiting for RECONFIG_COMPLETED\n",
-				ret);
 			break;
 		}
 		/* Not error or timeout, so ret is # of jiffies until timeout */
