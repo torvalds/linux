@@ -22,6 +22,14 @@
 #define HINIC_FUNC_CSR_MAILBOX_RESULT_H_OFF		0x0108
 #define HINIC_FUNC_CSR_MAILBOX_RESULT_L_OFF		0x010C
 
+#define MAX_FUNCTION_NUM		512
+
+struct vf_cmd_check_handle {
+	u8 cmd;
+	bool (*check_cmd)(struct hinic_hwdev *hwdev, u16 src_func_idx,
+			  void *buf_in, u16 in_size);
+};
+
 enum hinic_mbox_ack_type {
 	MBOX_ACK,
 	MBOX_NO_ACK,
@@ -100,6 +108,10 @@ struct hinic_mbox_func_to_func {
 
 	/* lock for mbox event flag */
 	spinlock_t mbox_lock;
+
+	u32 vf_mbx_old_rand_id[MAX_FUNCTION_NUM];
+	u32 vf_mbx_rand_id[MAX_FUNCTION_NUM];
+	bool support_vf_random;
 };
 
 struct hinic_mbox_work {
@@ -115,6 +127,14 @@ struct vf_cmd_msg_handle {
 			       void *buf_in, u16 in_size,
 			       void *buf_out, u16 *out_size);
 };
+
+bool hinic_mbox_check_func_id_8B(struct hinic_hwdev *hwdev, u16 func_idx,
+				 void *buf_in, u16 in_size);
+
+bool hinic_mbox_check_cmd_valid(struct hinic_hwdev *hwdev,
+				struct vf_cmd_check_handle *cmd_handle,
+				u16 vf_id, u8 cmd, void *buf_in,
+				u16 in_size, u8 size);
 
 int hinic_register_pf_mbox_cb(struct hinic_hwdev *hwdev,
 			      enum hinic_mod_type mod,
@@ -150,5 +170,7 @@ int hinic_mbox_to_func(struct hinic_mbox_func_to_func *func_to_func,
 int hinic_mbox_to_vf(struct hinic_hwdev *hwdev,
 		     enum hinic_mod_type mod, u16 vf_id, u8 cmd, void *buf_in,
 		     u16 in_size, void *buf_out, u16 *out_size, u32 timeout);
+
+int hinic_vf_mbox_random_id_init(struct hinic_hwdev *hwdev);
 
 #endif

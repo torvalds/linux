@@ -93,6 +93,8 @@ enum hinic_comm_cmd {
 
 	HINIC_COMM_CMD_WATCHDOG_INFO	= 0x56,
 
+	HINIC_MGMT_CMD_SET_VF_RANDOM_ID = 0x61,
+
 	HINIC_COMM_CMD_MAX,
 };
 

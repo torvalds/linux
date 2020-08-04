@@ -28,6 +28,8 @@
 #define HINIC_MGMT_STATUS_EXIST				0x6
 #define HINIC_MGMT_CMD_UNSUPPORTED			0xFF
 
+#define HINIC_CMD_VER_FUNC_ID				2
+
 struct hinic_cap {
 	u16     max_qps;
 	u16     num_qps;
@@ -311,6 +313,17 @@ struct hinic_msix_config {
 	u8	lli_credit_cnt;
 	u8	resend_timer_cnt;
 	u8	rsvd1[3];
+};
+
+struct hinic_set_random_id {
+	u8    status;
+	u8    version;
+	u8    rsvd0[6];
+
+	u8    vf_in_pf;
+	u8    rsvd1;
+	u16   func_idx;
+	u32   random_id;
 };
 
 struct hinic_board_info {
