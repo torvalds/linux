@@ -75,49 +75,58 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.fmt_val = YUV_OUTPUT_422 | UV_STORAGE_ORDER_UVUV,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV61,
 		.fmt_val = YUV_OUTPUT_422 | UV_STORAGE_ORDER_VUVU,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV12,
 		.fmt_val = YUV_OUTPUT_420 | UV_STORAGE_ORDER_UVUV,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_YUV420SP,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV21,
 		.fmt_val = YUV_OUTPUT_420 | UV_STORAGE_ORDER_VUVU,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_YUV420SP,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YVYU,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_VYUY,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB24,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 24 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RGB888,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.cplanes = 1,
@@ -134,72 +143,84 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 8 },
 		.raw_bpp = 8,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
 		.raw_bpp = 8,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
 		.raw_bpp = 8,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 8 },
 		.raw_bpp = 8,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 10,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 10,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 10,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR10,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 10,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 12,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 12,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 12,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR12,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 12,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR16,
 		.cplanes = 1,
@@ -1266,7 +1287,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->enable = 1;
 	channel->width = stream->pixm.width;
 	channel->height = stream->pixm.height;
-	channel->fmt_val = stream->cif_fmt_in->csi_fmt_val;
+
+	channel->fmt_val = stream->cif_fmt_out->csi_fmt_val;
+
 	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
 
 	if (stream->crop_enable) {
@@ -1307,7 +1330,11 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		else
 			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
 	} else {
-		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
+		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
+			channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
+		else
+			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
 	}
 
 	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)

@@ -168,18 +168,21 @@ struct rkcif_sensor_info {
 /*
  * struct cif_output_fmt - The output format
  *
- * @fourcc: pixel format in fourcc
- * @cplanes: number of colour planes
- * @fmt_val: the fmt val corresponding to CIF_FOR register
  * @bpp: bits per pixel for each cplanes
+ * @fourcc: pixel format in fourcc
+ * @fmt_val: the fmt val corresponding to CIF_FOR register
+ * @csi_fmt_val: the fmt val corresponding to CIF_CSI_ID_CTRL
+ * @cplanes: number of colour planes
+ * @mplanes: number of planes for format
  * @raw_bpp: bits per pixel for raw format
  */
 struct cif_output_fmt {
+	u8 bpp[VIDEO_MAX_PLANES];
 	u32 fourcc;
+	u32 fmt_val;
+	u32 csi_fmt_val;
 	u8 cplanes;
 	u8 mplanes;
-	u32 fmt_val;
-	u8 bpp[VIDEO_MAX_PLANES];
 	u8 raw_bpp;
 };
 

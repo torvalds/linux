@@ -364,6 +364,8 @@ enum cif_reg_index {
 #define CSI_WRDDR_TYPE_RAW12		(0x2 << 1)
 #define CSI_WRDDR_TYPE_RGB888		(0x3 << 1)
 #define CSI_WRDDR_TYPE_YUV422		(0x4 << 1)
+#define CSI_WRDDR_TYPE_YUV420SP		(0x5 << 1)
+#define CSI_WRDDR_TYPE_YUV400		(0x6 << 1)
 #define CSI_DISABLE_COMMAND_MODE	(0x0 << 4)
 #define CSI_ENABLE_COMMAND_MODE		(0x1 << 4)
 #define CSI_DISABLE_CROP		(0x0 << 5)
