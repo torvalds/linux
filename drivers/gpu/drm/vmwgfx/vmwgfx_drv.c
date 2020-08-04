@@ -630,7 +630,7 @@ static int vmw_vram_manager_init(struct vmw_private *dev_priv)
 				 TTM_PL_FLAG_CACHED, TTM_PL_FLAG_CACHED,
 				 false, dev_priv->vram_size >> PAGE_SHIFT);
 #endif
-	ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM)->use_type = false;
+	ttm_mem_type_manager_set_used(ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM), false);
 	return ret;
 }
 
@@ -1192,9 +1192,9 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
 	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 
 	spin_lock(&dev_priv->svga_lock);
-	if (!man->use_type) {
+	if (!ttm_mem_type_manager_used(man)) {
 		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE);
-		man->use_type = true;
+		ttm_mem_type_manager_set_used(man, true);
 	}
 	spin_unlock(&dev_priv->svga_lock);
 }
@@ -1223,8 +1223,8 @@ static void __vmw_svga_disable(struct vmw_private *dev_priv)
 	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 
 	spin_lock(&dev_priv->svga_lock);
-	if (man->use_type) {
-		man->use_type = false;
+	if (ttm_mem_type_manager_used(man)) {
+		ttm_mem_type_manager_set_used(man, false);
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
@@ -1257,8 +1257,8 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	vmw_kms_lost_device(dev_priv->dev);
 	ttm_write_lock(&dev_priv->reservation_sem, false);
 	spin_lock(&dev_priv->svga_lock);
-	if (man->use_type) {
-		man->use_type = false;
+	if (ttm_mem_type_manager_used(man)) {
+		ttm_mem_type_manager_set_used(man, false);
 		spin_unlock(&dev_priv->svga_lock);
 		if (ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");

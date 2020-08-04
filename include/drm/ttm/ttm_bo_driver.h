@@ -690,6 +690,20 @@ static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *ma
 }
 
 /**
+ * ttm_mem_type_manager_used
+ *
+ * @man: Manager to get used state for
+ *
+ * Get the in use flag for a manager.
+ * Returns:
+ * true is used, false if not.
+ */
+static inline bool ttm_mem_type_manager_used(struct ttm_mem_type_manager *man)
+{
+	return man->use_type;
+}
+
+/**
  * ttm_mem_type_manager_cleanup
  *
  * @man: A memory manager object.

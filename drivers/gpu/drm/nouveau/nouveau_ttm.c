@@ -240,7 +240,6 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 	ttm_mem_type_manager_init(man, size_pages);
 	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);
 	ttm_mem_type_manager_set_used(man, true);
-
 	return 0;
 }
 
