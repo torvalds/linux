@@ -6,6 +6,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>

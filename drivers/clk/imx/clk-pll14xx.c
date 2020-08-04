@@ -3,7 +3,7 @@
  * Copyright 2017-2018 NXP.
  */
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/export.h>

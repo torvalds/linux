@@ -2,6 +2,7 @@
 #ifndef __MACH_IMX_CLK_H
 #define __MACH_IMX_CLK_H
 
+#include <linux/bits.h>
 #include <linux/spinlock.h>
 #include <linux/clk-provider.h>
 

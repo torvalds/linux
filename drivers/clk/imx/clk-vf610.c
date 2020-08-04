@@ -4,6 +4,7 @@
  */
 
 #include <linux/of_address.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/vf610-clock.h>
