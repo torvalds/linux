@@ -897,9 +897,10 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 		return ret;
 	}
 
-	if (smu_version >= 0x361200) {
+	if ((smu_version >= 0x361200) &&
+	    (smu_version <= 0x361a00)) {
 		dev_err(smu->adev->dev, "Forcing clock level is not supported with "
-		       "54.18 and onwards SMU firmwares\n");
+		       "54.18 - 54.26(included) SMU firmwares\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1392,9 +1393,10 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		if (smu_version >= 0x361200) {
+		if ((smu_version >= 0x361200) &&
+		    (smu_version <= 0x361a00)) {
 			dev_err(smu->adev->dev, "Forcing clock level is not supported with "
-			       "54.18 and onwards SMU firmwares\n");
+			       "54.18 - 54.26(included) SMU firmwares\n");
 			return -EOPNOTSUPP;
 		}
 		break;
