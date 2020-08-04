@@ -547,24 +547,6 @@ void ttm_mem_type_manager_init(struct ttm_bo_device *bdev,
 			       unsigned long p_size);
 
 /**
- * ttm_bo_init_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- * @p_size: size managed area in pages.
- *
- * Initialize a manager for a given memory type.
- * Note: if part of driver firstopen, it must be protected from a
- * potentially racing lastclose.
- * Returns:
- * -EINVAL: invalid size or memory type.
- * -ENOMEM: Not enough memory.
- * May also return driver-specified errors.
- */
-int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
-		   unsigned long p_size);
-
-/**
  * ttm_bo_clean_mm
  *
  * @bdev: Pointer to a ttm_bo_device struct.

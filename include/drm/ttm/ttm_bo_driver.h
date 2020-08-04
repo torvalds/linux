@@ -49,19 +49,6 @@ struct ttm_mem_type_manager;
 
 struct ttm_mem_type_manager_func {
 	/**
-	 * struct ttm_mem_type_manager member init
-	 *
-	 * @man: Pointer to a memory type manager.
-	 * @p_size: Implementation dependent, but typically the size of the
-	 * range to be managed in pages.
-	 *
-	 * Called to initialize a private range manager. The function is
-	 * expected to initialize the man::priv member.
-	 * Returns 0 on success, negative error code on failure.
-	 */
-	int  (*init)(struct ttm_mem_type_manager *man, unsigned long p_size);
-
-	/**
 	 * struct ttm_mem_type_manager member takedown
 	 *
 	 * @man: Pointer to a memory type manager.
@@ -832,8 +819,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       struct ttm_mem_type_manager *man,
 		       unsigned long p_size);
-
-extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 /**
  * ttm_mem_type_manager_debug
