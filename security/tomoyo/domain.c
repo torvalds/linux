@@ -767,7 +767,7 @@ retry:
 
 	/*
 	 * Check for domain transition preference if "file execute" matched.
-	 * If preference is given, make do_execve() fail if domain transition
+	 * If preference is given, make execve() fail if domain transition
 	 * has failed, for domain transition preference should be used with
 	 * destination domain defined.
 	 */
@@ -810,7 +810,7 @@ force_reset_domain:
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
 			 candidate->name);
 		/*
-		 * Make do_execve() fail if domain transition across namespaces
+		 * Make execve() fail if domain transition across namespaces
 		 * has failed.
 		 */
 		reject_on_transition_failure = true;

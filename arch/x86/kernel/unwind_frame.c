@@ -275,7 +275,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		 * This user_mode() check is slightly broader than a PF_KTHREAD
 		 * check because it also catches the awkward situation where a
 		 * newly forked kthread transitions into a user task by calling
-		 * do_execve(), which eventually clears PF_KTHREAD.
+		 * kernel_execve(), which eventually clears PF_KTHREAD.
 		 */
 		if (!user_mode(regs))
 			goto the_end;
