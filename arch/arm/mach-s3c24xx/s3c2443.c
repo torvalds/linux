@@ -38,6 +38,7 @@
 #include <plat/cpu.h>
 #include <plat/adc-core.h>
 
+#include "common.h"
 #include "fb-core.h"
 #include "nand-core.h"
 #include "spi-core.h"
