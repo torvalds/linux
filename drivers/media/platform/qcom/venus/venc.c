@@ -584,6 +584,7 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 {
 	struct venus_inst *inst = to_inst(file);
 	const struct venus_format *fmt;
+	unsigned int framerate_factor = 1;
 
 	fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
@@ -608,12 +609,17 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 	    fival->height < frame_height_min(inst))
 		return -EINVAL;
 
+	if (IS_V1(inst->core)) {
+		/* framerate is reported in 1/65535 fps unit */
+		framerate_factor = (1 << 16);
+	}
+
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.min.denominator = frate_max(inst);
+	fival->stepwise.min.denominator = frate_max(inst) / framerate_factor;
 	fival->stepwise.max.numerator = 1;
-	fival->stepwise.max.denominator = frate_min(inst);
+	fival->stepwise.max.denominator = frate_min(inst) / framerate_factor;
 	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = frate_max(inst);
+	fival->stepwise.step.denominator = frate_max(inst) / framerate_factor;
 
 	return 0;
 }
