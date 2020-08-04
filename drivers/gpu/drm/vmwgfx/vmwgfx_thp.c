@@ -16,12 +16,12 @@
  * @lock: Manager lock.
  */
 struct vmw_thp_manager {
-	struct ttm_mem_type_manager manager;
+	struct ttm_resource_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 };
 
-static struct vmw_thp_manager *to_thp_manager(struct ttm_mem_type_manager *man)
+static struct vmw_thp_manager *to_thp_manager(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct vmw_thp_manager, manager);
 }
@@ -44,7 +44,7 @@ static int vmw_thp_insert_aligned(struct drm_mm *mm, struct drm_mm_node *node,
 	return -ENOSPC;
 }
 
-static int vmw_thp_get_node(struct ttm_mem_type_manager *man,
+static int vmw_thp_get_node(struct ttm_resource_manager *man,
 			    struct ttm_buffer_object *bo,
 			    const struct ttm_place *place,
 			    struct ttm_mem_reg *mem)
@@ -106,7 +106,7 @@ found_unlock:
 
 
 
-static void vmw_thp_put_node(struct ttm_mem_type_manager *man,
+static void vmw_thp_put_node(struct ttm_resource_manager *man,
 			     struct ttm_mem_reg *mem)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
@@ -123,7 +123,7 @@ static void vmw_thp_put_node(struct ttm_mem_type_manager *man,
 
 int vmw_thp_init(struct vmw_private *dev_priv)
 {
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 	struct vmw_thp_manager *rman;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
@@ -134,39 +134,39 @@ int vmw_thp_init(struct vmw_private *dev_priv)
 	man->available_caching = TTM_PL_FLAG_CACHED;
 	man->default_caching = TTM_PL_FLAG_CACHED;
 
-	ttm_mem_type_manager_init(man,
+	ttm_resource_manager_init(man,
 				  dev_priv->vram_size >> PAGE_SHIFT);
 
 	drm_mm_init(&rman->mm, 0, man->size);
 	spin_lock_init(&rman->lock);
 
 	ttm_set_driver_manager(&dev_priv->bdev, TTM_PL_VRAM, &rman->manager);
-	ttm_mem_type_manager_set_used(man, true);
+	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
 
 void vmw_thp_fini(struct vmw_private *dev_priv)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 	struct vmw_thp_manager *rman = to_thp_manager(man);
 	struct drm_mm *mm = &rman->mm;
 	int ret;
 
-	ttm_mem_type_manager_set_used(man, false);
+	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_mem_type_manager_force_list_clean(&dev_priv->bdev, man);
+	ret = ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
 	if (ret)
 		return;
 	spin_lock(&rman->lock);
 	drm_mm_clean(mm);
 	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
-	ttm_mem_type_manager_cleanup(man);
+	ttm_resource_manager_cleanup(man);
 	ttm_set_driver_manager(&dev_priv->bdev, TTM_PL_VRAM, NULL);
 	kfree(rman);
 }
 
-static void vmw_thp_debug(struct ttm_mem_type_manager *man,
+static void vmw_thp_debug(struct ttm_resource_manager *man,
 			  struct drm_printer *printer)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
@@ -176,7 +176,7 @@ static void vmw_thp_debug(struct ttm_mem_type_manager *man,
 	spin_unlock(&rman->lock);
 }
 
-const struct ttm_mem_type_manager_func vmw_thp_func = {
+const struct ttm_resource_manager_func vmw_thp_func = {
 	.get_node = vmw_thp_get_node,
 	.put_node = vmw_thp_put_node,
 	.debug = vmw_thp_debug

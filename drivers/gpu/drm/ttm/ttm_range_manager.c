@@ -44,17 +44,17 @@
  */
 
 struct ttm_range_manager {
-	struct ttm_mem_type_manager manager;
+	struct ttm_resource_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 };
 
-static inline struct ttm_range_manager *to_range_manager(struct ttm_mem_type_manager *man)
+static inline struct ttm_range_manager *to_range_manager(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct ttm_range_manager, manager);
 }
 
-static int ttm_range_man_get_node(struct ttm_mem_type_manager *man,
+static int ttm_range_man_get_node(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
 				  struct ttm_mem_reg *mem)
@@ -95,7 +95,7 @@ static int ttm_range_man_get_node(struct ttm_mem_type_manager *man,
 	return ret;
 }
 
-static void ttm_range_man_put_node(struct ttm_mem_type_manager *man,
+static void ttm_range_man_put_node(struct ttm_resource_manager *man,
 				   struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
@@ -110,7 +110,7 @@ static void ttm_range_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static const struct ttm_mem_type_manager_func ttm_range_manager_func;
+static const struct ttm_resource_manager_func ttm_range_manager_func;
 
 int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       unsigned type,
@@ -119,7 +119,7 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 		       bool use_tt,
 		       unsigned long p_size)
 {
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 	struct ttm_range_manager *rman;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
@@ -133,13 +133,13 @@ int ttm_range_man_init(struct ttm_bo_device *bdev,
 
 	man->func = &ttm_range_manager_func;
 
-	ttm_mem_type_manager_init(man, p_size);
+	ttm_resource_manager_init(man, p_size);
 
 	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
 
 	ttm_set_driver_manager(bdev, type, &rman->manager);
-	ttm_mem_type_manager_set_used(man, true);
+	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_range_man_init);
@@ -147,14 +147,14 @@ EXPORT_SYMBOL(ttm_range_man_init);
 int ttm_range_man_fini(struct ttm_bo_device *bdev,
 		       unsigned type)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, type);
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, type);
 	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
 	int ret;
 
-	ttm_mem_type_manager_set_used(man, false);
+	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_mem_type_manager_force_list_clean(bdev, man);
+	ret = ttm_resource_manager_force_list_clean(bdev, man);
 	if (ret)
 		return ret;
 
@@ -163,14 +163,14 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
 
-	ttm_mem_type_manager_cleanup(man);
+	ttm_resource_manager_cleanup(man);
 	ttm_set_driver_manager(bdev, type, NULL);
 	kfree(rman);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_range_man_fini);
 
-static void ttm_range_man_debug(struct ttm_mem_type_manager *man,
+static void ttm_range_man_debug(struct ttm_resource_manager *man,
 				struct drm_printer *printer)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
@@ -180,7 +180,7 @@ static void ttm_range_man_debug(struct ttm_mem_type_manager *man,
 	spin_unlock(&rman->lock);
 }
 
-static const struct ttm_mem_type_manager_func ttm_range_manager_func = {
+static const struct ttm_resource_manager_func ttm_range_manager_func = {
 	.get_node = ttm_range_man_get_node,
 	.put_node = ttm_range_man_put_node,
 	.debug = ttm_range_man_debug

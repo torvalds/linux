@@ -54,7 +54,7 @@ struct ttm_place;
 
 struct ttm_lru_bulk_move;
 
-struct ttm_mem_type_manager;
+struct ttm_resource_manager;
 
 /**
  * struct ttm_bus_placement
@@ -534,14 +534,14 @@ int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
 		  struct ttm_buffer_object **p_bo);
 
 /**
- * ttm_mem_type_manager_init
+ * ttm_resource_manager_init
  *
  * @man: memory manager object to init
  * @p_size: size managed area in pages.
  *
  * Initialise core parts of a manager object.
  */
-void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
+void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size);
 
 /**

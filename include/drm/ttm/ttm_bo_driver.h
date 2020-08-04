@@ -45,11 +45,11 @@
 
 #define TTM_MAX_BO_PRIORITY	4U
 
-struct ttm_mem_type_manager;
+struct ttm_resource_manager;
 
-struct ttm_mem_type_manager_func {
+struct ttm_resource_manager_func {
 	/**
-	 * struct ttm_mem_type_manager member get_node
+	 * struct ttm_resource_manager member get_node
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
@@ -69,20 +69,20 @@ struct ttm_mem_type_manager_func {
 	 * the function should return a negative error code.
 	 *
 	 * Note that @mem::mm_node will only be dereferenced by
-	 * struct ttm_mem_type_manager functions and optionally by the driver,
+	 * struct ttm_resource_manager functions and optionally by the driver,
 	 * which has knowledge of the underlying type.
 	 *
 	 * This function may not be called from within atomic context, so
 	 * an implementation can and must use either a mutex or a spinlock to
 	 * protect any data structures managing the space.
 	 */
-	int  (*get_node)(struct ttm_mem_type_manager *man,
+	int  (*get_node)(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
 
 	/**
-	 * struct ttm_mem_type_manager member put_node
+	 * struct ttm_resource_manager member put_node
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
@@ -91,11 +91,11 @@ struct ttm_mem_type_manager_func {
 	 * and that are identified by @mem::mm_node and @mem::start. May not
 	 * be called from within atomic context.
 	 */
-	void (*put_node)(struct ttm_mem_type_manager *man,
+	void (*put_node)(struct ttm_resource_manager *man,
 			 struct ttm_mem_reg *mem);
 
 	/**
-	 * struct ttm_mem_type_manager member debug
+	 * struct ttm_resource_manager member debug
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @printer: Prefix to be used in printout to identify the caller.
@@ -104,12 +104,12 @@ struct ttm_mem_type_manager_func {
 	 * type manager to aid debugging of out-of-memory conditions.
 	 * It may not be called from within atomic context.
 	 */
-	void (*debug)(struct ttm_mem_type_manager *man,
+	void (*debug)(struct ttm_resource_manager *man,
 		      struct drm_printer *printer);
 };
 
 /**
- * struct ttm_mem_type_manager
+ * struct ttm_resource_manager
  *
  * @use_type: The memory type is enabled.
  * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
@@ -136,7 +136,7 @@ struct ttm_mem_type_manager_func {
 
 
 
-struct ttm_mem_type_manager {
+struct ttm_resource_manager {
 	/*
 	 * No protection. Constant from start.
 	 */
@@ -145,7 +145,7 @@ struct ttm_mem_type_manager {
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
-	const struct ttm_mem_type_manager_func *func;
+	const struct ttm_resource_manager_func *func;
 	struct mutex io_reserve_mutex;
 	bool use_io_reserve_lru;
 	spinlock_t move_lock;
@@ -390,7 +390,7 @@ extern struct ttm_bo_global {
  * struct ttm_bo_device - Buffer object driver device-specific data.
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
- * @man: An array of mem_type_managers.
+ * @man: An array of resource_managers.
  * @vma_manager: Address space manager (pointer)
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
@@ -411,8 +411,8 @@ struct ttm_bo_device {
 	/*
 	 * access via ttm_manager_type.
 	 */
-	struct ttm_mem_type_manager sysman;
-	struct ttm_mem_type_manager *man_drv[TTM_NUM_MEM_TYPES];
+	struct ttm_resource_manager sysman;
+	struct ttm_resource_manager *man_drv[TTM_NUM_MEM_TYPES];
 	/*
 	 * Protected by internal locks.
 	 */
@@ -440,7 +440,7 @@ struct ttm_bo_device {
 	bool no_retry;
 };
 
-static inline struct ttm_mem_type_manager *ttm_manager_type(struct ttm_bo_device *bdev,
+static inline struct ttm_resource_manager *ttm_manager_type(struct ttm_bo_device *bdev,
 							    int mem_type)
 {
 	return bdev->man_drv[mem_type];
@@ -448,7 +448,7 @@ static inline struct ttm_mem_type_manager *ttm_manager_type(struct ttm_bo_device
 
 static inline void ttm_set_driver_manager(struct ttm_bo_device *bdev,
 					  int type,
-					  struct ttm_mem_type_manager *manager)
+					  struct ttm_resource_manager *manager)
 {
 	bdev->man_drv[type] = manager;
 }
@@ -581,8 +581,8 @@ void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
 
 int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
 void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
-int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible);
-void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
+int ttm_mem_io_lock(struct ttm_resource_manager *man, bool interruptible);
+void ttm_mem_io_unlock(struct ttm_resource_manager *man);
 
 /**
  * ttm_bo_reserve:
@@ -676,7 +676,7 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 }
 
 /**
- * ttm_mem_type_manager_set_used
+ * ttm_resource_manager_set_used
  *
  * @man: A memory manager object.
  * @used: usage state to set.
@@ -684,13 +684,13 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
  * Set the manager in use flag. If disabled the manager is no longer
  * used for object placement.
  */
-static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *man, bool used)
+static inline void ttm_resource_manager_set_used(struct ttm_resource_manager *man, bool used)
 {
 	man->use_type = used;
 }
 
 /**
- * ttm_mem_type_manager_used
+ * ttm_resource_manager_used
  *
  * @man: Manager to get used state for
  *
@@ -698,26 +698,26 @@ static inline void ttm_mem_type_manager_set_used(struct ttm_mem_type_manager *ma
  * Returns:
  * true is used, false if not.
  */
-static inline bool ttm_mem_type_manager_used(struct ttm_mem_type_manager *man)
+static inline bool ttm_resource_manager_used(struct ttm_resource_manager *man)
 {
 	return man->use_type;
 }
 
 /**
- * ttm_mem_type_manager_cleanup
+ * ttm_resource_manager_cleanup
  *
  * @man: A memory manager object.
  *
  * Cleanup the move fences from the memory manager object.
  */
-static inline void ttm_mem_type_manager_cleanup(struct ttm_mem_type_manager *man)
+static inline void ttm_resource_manager_cleanup(struct ttm_resource_manager *man)
 {
 	dma_fence_put(man->move);
 	man->move = NULL;
 }
 
 /*
- * ttm_mem_type_manager_force_list_clean
+ * ttm_resource_manager_force_list_clean
  *
  * @bdev - device to use
  * @man - manager to use
@@ -725,8 +725,8 @@ static inline void ttm_mem_type_manager_cleanup(struct ttm_mem_type_manager *man
  * Force all the objects out of a memory manager until clean.
  * Part of memory manager cleanup sequence.
  */
-int ttm_mem_type_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_mem_type_manager *man);
+int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
+					  struct ttm_resource_manager *man);
 
 /*
  * ttm_bo_util.c
@@ -875,12 +875,12 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 		       unsigned type);
 
 /**
- * ttm_mem_type_manager_debug
+ * ttm_resource_manager_debug
  *
  * @man: manager type to dump.
  * @p: printer to use for debug.
  */
-void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
+void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 				struct drm_printer *p);
 
 #endif

@@ -77,7 +77,7 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
+void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 				struct drm_printer *p)
 {
 	drm_printf(p, "    use_type: %d\n", man->use_type);
@@ -88,14 +88,14 @@ void ttm_mem_type_manager_debug(struct ttm_mem_type_manager *man,
 	if (man->func && man->func->debug)
 		(*man->func->debug)(man, p);
 }
-EXPORT_SYMBOL(ttm_mem_type_manager_debug);
+EXPORT_SYMBOL(ttm_resource_manager_debug);
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
 	struct drm_printer p = drm_debug_printer(TTM_PFX);
 	int i, ret, mem_type;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
 	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
 		   bo, bo->mem.num_pages, bo->mem.size >> 10,
@@ -108,7 +108,7 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
 			   i, placement->placement[i].flags, mem_type);
 		man = ttm_manager_type(bo->bdev, mem_type);
-		ttm_mem_type_manager_debug(man, &p);
+		ttm_resource_manager_debug(man, &p);
 	}
 }
 
@@ -148,7 +148,7 @@ static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
 	if (!list_empty(&bo->lru))
 		return;
@@ -223,7 +223,7 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		struct ttm_lru_bulk_move_pos *pos = &bulk->tt[i];
-		struct ttm_mem_type_manager *man;
+		struct ttm_resource_manager *man;
 
 		if (!pos->first)
 			continue;
@@ -238,7 +238,7 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		struct ttm_lru_bulk_move_pos *pos = &bulk->vram[i];
-		struct ttm_mem_type_manager *man;
+		struct ttm_resource_manager *man;
 
 		if (!pos->first)
 			continue;
@@ -272,8 +272,8 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_operation_ctx *ctx)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *old_man = ttm_manager_type(bdev, bo->mem.mem_type);
-	struct ttm_mem_type_manager *new_man = ttm_manager_type(bdev, mem->mem_type);
+	struct ttm_resource_manager *old_man = ttm_manager_type(bdev, bo->mem.mem_type);
+	struct ttm_resource_manager *new_man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 
 	ret = ttm_mem_io_lock(old_man, true);
@@ -551,7 +551,7 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_buffer_object *bo =
 	    container_of(kref, struct ttm_buffer_object, kref);
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
 	size_t acc_size = bo->acc_size;
 	int ret;
 
@@ -768,7 +768,7 @@ static int ttm_mem_evict_wait_busy(struct ttm_buffer_object *busy_bo,
 }
 
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
-			       struct ttm_mem_type_manager *man,
+			       struct ttm_resource_manager *man,
 			       const struct ttm_place *place,
 			       struct ttm_operation_ctx *ctx,
 			       struct ww_acquire_ctx *ticket)
@@ -843,7 +843,7 @@ static int ttm_bo_mem_get(struct ttm_buffer_object *bo,
 			  const struct ttm_place *place,
 			  struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
 
 	mem->mm_node = NULL;
 	if (!man->func || !man->func->get_node)
@@ -854,7 +854,7 @@ static int ttm_bo_mem_get(struct ttm_buffer_object *bo,
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, mem->mem_type);
 
 	if (!man->func || !man->func->put_node)
 		return;
@@ -869,7 +869,7 @@ EXPORT_SYMBOL(ttm_bo_mem_put);
  * Add the last move fence to the BO and reserve a new shared slot.
  */
 static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
-				 struct ttm_mem_type_manager *man,
+				 struct ttm_resource_manager *man,
 				 struct ttm_mem_reg *mem,
 				 bool no_wait_gpu)
 {
@@ -909,7 +909,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 				  struct ttm_operation_ctx *ctx)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, mem->mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem->mem_type);
 	struct ww_acquire_ctx *ticket;
 	int ret;
 
@@ -929,7 +929,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	return ttm_bo_add_move_fence(bo, man, mem, ctx->no_wait_gpu);
 }
 
-static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
+static uint32_t ttm_bo_select_caching(struct ttm_resource_manager *man,
 				      uint32_t cur_placement,
 				      uint32_t proposed_placement)
 {
@@ -954,7 +954,7 @@ static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
 	return result;
 }
 
-static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
+static bool ttm_bo_mt_compatible(struct ttm_resource_manager *man,
 				 uint32_t mem_type,
 				 const struct ttm_place *place,
 				 uint32_t *masked_placement)
@@ -991,7 +991,7 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	uint32_t mem_type = TTM_PL_SYSTEM;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 	uint32_t cur_flags = 0;
 	int ret;
 
@@ -1000,7 +1000,7 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 		return ret;
 
 	man = ttm_manager_type(bdev, mem_type);
-	if (!man || !ttm_mem_type_manager_used(man))
+	if (!man || !ttm_resource_manager_used(man))
 		return -EBUSY;
 
 	if (!ttm_bo_mt_compatible(man, mem_type, place, &cur_flags))
@@ -1047,7 +1047,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 	for (i = 0; i < placement->num_placement; ++i) {
 		const struct ttm_place *place = &placement->placement[i];
-		struct ttm_mem_type_manager *man;
+		struct ttm_resource_manager *man;
 
 		ret = ttm_bo_mem_placement(bo, place, mem, ctx);
 		if (ret == -EBUSY)
@@ -1404,8 +1404,8 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_bo_create);
 
-int ttm_mem_type_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_mem_type_manager *man)
+int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
+					  struct ttm_resource_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
@@ -1447,12 +1447,12 @@ int ttm_mem_type_manager_force_list_clean(struct ttm_bo_device *bdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(ttm_mem_type_manager_force_list_clean);
+EXPORT_SYMBOL(ttm_resource_manager_force_list_clean);
 
 
 int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem_type);
 
 	if (mem_type == 0 || mem_type >= TTM_NUM_MEM_TYPES) {
 		pr_err("Illegal memory manager memory type %u\n", mem_type);
@@ -1464,11 +1464,11 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return 0;
 	}
 
-	return ttm_mem_type_manager_force_list_clean(bdev, man);
+	return ttm_resource_manager_force_list_clean(bdev, man);
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 
-void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
+void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size)
 {
 	unsigned i;
@@ -1483,7 +1483,7 @@ void ttm_mem_type_manager_init(struct ttm_mem_type_manager *man,
 		INIT_LIST_HEAD(&man->lru[i]);
 	man->move = NULL;
 }
-EXPORT_SYMBOL(ttm_mem_type_manager_init);
+EXPORT_SYMBOL(ttm_resource_manager_init);
 
 static void ttm_bo_global_kobj_release(struct kobject *kobj)
 {
@@ -1550,10 +1550,10 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	int ret = 0;
 	unsigned i;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
 	man = ttm_manager_type(bdev, TTM_PL_SYSTEM);
-	ttm_mem_type_manager_set_used(man, false);
+	ttm_resource_manager_set_used(man, false);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, NULL);
 
 	mutex_lock(&ttm_global_mutex);
@@ -1580,7 +1580,7 @@ EXPORT_SYMBOL(ttm_bo_device_release);
 
 static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 {
-	struct ttm_mem_type_manager *man = &bdev->sysman;
+	struct ttm_resource_manager *man = &bdev->sysman;
 
 	/*
 	 * Initialize the system memory buffer type.
@@ -1590,9 +1590,9 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 	man->available_caching = TTM_PL_MASK_CACHING;
 	man->default_caching = TTM_PL_FLAG_CACHED;
 
-	ttm_mem_type_manager_init(man, 0);
+	ttm_resource_manager_init(man, 0);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);
-	ttm_mem_type_manager_set_used(man, true);
+	ttm_resource_manager_set_used(man, true);
 }
 
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
@@ -1643,7 +1643,7 @@ void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, bo->mem.mem_type);
 
 	ttm_mem_io_lock(man, false);
 	ttm_bo_unmap_virtual_locked(bo);

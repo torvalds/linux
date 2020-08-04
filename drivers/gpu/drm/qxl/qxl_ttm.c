@@ -275,10 +275,10 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 static int qxl_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct ttm_mem_type_manager *man = (struct ttm_mem_type_manager *)node->info_ent->data;
+	struct ttm_resource_manager *man = (struct ttm_resource_manager *)node->info_ent->data;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	ttm_mem_type_manager_debug(man, &p);
+	ttm_resource_manager_debug(man, &p);
 	return 0;
 }
 #endif

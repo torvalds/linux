@@ -442,7 +442,7 @@ void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 					  unsigned long size, u32 domain)
 {
-	struct ttm_mem_type_manager *man = NULL;
+	struct ttm_resource_manager *man = NULL;
 
 	/*
 	 * If GTT is part of requested domains the check must succeed to

@@ -224,7 +224,7 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_info *args = data;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
 	man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
 

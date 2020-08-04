@@ -838,7 +838,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
  * isn't running */
 void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 {
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
 	if (!rdev->mman.initialized)
 		return;
@@ -897,7 +897,7 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 	unsigned ttm_pl = *(int*)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct ttm_mem_type_manager *man = ttm_manager_type(&rdev->mman.bdev, ttm_pl);
+	struct ttm_resource_manager *man = ttm_manager_type(&rdev->mman.bdev, ttm_pl);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	man->func->debug(man, &p);

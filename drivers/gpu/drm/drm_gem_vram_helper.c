@@ -1075,10 +1075,10 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
-	struct ttm_mem_type_manager *man = ttm_manager_type(&vmm->bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man = ttm_manager_type(&vmm->bdev, TTM_PL_VRAM);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	ttm_mem_type_manager_debug(man, &p);
+	ttm_resource_manager_debug(man, &p);
 	return 0;
 }
 

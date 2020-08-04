@@ -616,9 +616,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_MEMORY: {
 		struct drm_amdgpu_memory_info mem;
-		struct ttm_mem_type_manager *vram_man =
+		struct ttm_resource_manager *vram_man =
 			ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-		struct ttm_mem_type_manager *gtt_man =
+		struct ttm_resource_manager *gtt_man =
 			ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 		memset(&mem, 0, sizeof(mem));
 		mem.vram.total_heap_size = adev->gmc.real_vram_size;
