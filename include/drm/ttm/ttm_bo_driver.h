@@ -444,6 +444,12 @@ struct ttm_bo_device {
 	bool no_retry;
 };
 
+static inline struct ttm_mem_type_manager *ttm_manager_type(struct ttm_bo_device *bdev,
+							    int mem_type)
+{
+	return &bdev->man[mem_type];
+}
+
 /**
  * struct ttm_lru_bulk_move_pos
  *

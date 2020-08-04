@@ -129,7 +129,7 @@ static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 
 	if (mem->bus.io_reserved_count++)
@@ -162,7 +162,7 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
 
 int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo)
 {
-	struct ttm_mem_type_manager *man = &bo->bdev->man[bo->mem.mem_type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(bo->bdev, bo->mem.mem_type);
 	struct ttm_mem_reg *mem = &bo->mem;
 	int ret;
 
@@ -195,7 +195,7 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev,
 			       struct ttm_mem_reg *mem,
 			       void **virtual)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 	void *addr;
 
@@ -232,7 +232,7 @@ static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev,
 {
 	struct ttm_mem_type_manager *man;
 
-	man = &bdev->man[mem->mem_type];
+	man = ttm_manager_type(bdev, mem->mem_type);
 
 	if (virtual && mem->bus.addr == NULL)
 		iounmap(virtual);
@@ -303,7 +303,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg old_copy = *old_mem;
@@ -571,7 +571,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		struct ttm_bo_kmap_obj *map)
 {
 	struct ttm_mem_type_manager *man =
-		&bo->bdev->man[bo->mem.mem_type];
+		ttm_manager_type(bo->bdev, bo->mem.mem_type);
 	unsigned long offset, size;
 	int ret;
 
@@ -601,7 +601,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 {
 	struct ttm_buffer_object *bo = map->bo;
 	struct ttm_mem_type_manager *man =
-		&bo->bdev->man[bo->mem.mem_type];
+		ttm_manager_type(bo->bdev, bo->mem.mem_type);
 
 	if (!map->virtual)
 		return;
@@ -634,7 +634,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
+	struct ttm_mem_type_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
@@ -697,8 +697,8 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	struct ttm_mem_type_manager *from = &bdev->man[old_mem->mem_type];
-	struct ttm_mem_type_manager *to = &bdev->man[new_mem->mem_type];
+	struct ttm_mem_type_manager *from = ttm_manager_type(bdev, old_mem->mem_type);
+	struct ttm_mem_type_manager *to = ttm_manager_type(bdev, new_mem->mem_type);
 
 	int ret;
 
