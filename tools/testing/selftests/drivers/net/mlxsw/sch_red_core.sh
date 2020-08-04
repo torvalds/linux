@@ -568,17 +568,12 @@ do_drop_test()
 	busywait 1100 until_counter_is ">= $((base + 1))" $fetch_counter >/dev/null
 	check_fail $? "Spurious packets observed without buffer pressure"
 
-	qevent_rule_uninstall_$subtest
-
 	# Push to the queue until it's at the limit. The configured limit is
 	# rounded by the qdisc and then by the driver, so this is the best we
-	# can do to get to the real limit of the system. Do this with the rules
-	# uninstalled so that the inevitable drops don't get counted.
+	# can do to get to the real limit of the system.
 	build_backlog $vlan $((3 * limit / 2)) udp >/dev/null
 
-	qevent_rule_install_$subtest
 	base=$($fetch_counter)
-
 	send_packets $vlan udp 11
 
 	now=$(busywait 1100 until_counter_is ">= $((base + 10))" $fetch_counter)
@@ -630,4 +625,32 @@ do_drop_mirror_test()
 		     qevent_counter_fetch_mirror
 
 	tc filter del dev $h2 ingress pref 1 handle 101 flower
+}
+
+qevent_rule_install_trap()
+{
+	tc filter add block 10 pref 1234 handle 102 matchall skip_sw \
+	   action trap hw_stats disabled
+}
+
+qevent_rule_uninstall_trap()
+{
+	tc filter del block 10 pref 1234 handle 102 matchall
+}
+
+qevent_counter_fetch_trap()
+{
+	local trap_name=$1; shift
+
+	devlink_trap_rx_packets_get "$trap_name"
+}
+
+do_drop_trap_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local trap_name=$1; shift
+
+	do_drop_test "$vlan" "$limit" "$trap_name" trap \
+		     "qevent_counter_fetch_trap $trap_name"
 }

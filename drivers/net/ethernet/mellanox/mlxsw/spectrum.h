@@ -177,6 +177,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
 	const struct mlxsw_sp_span_ops *span_ops;
 	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
+	const struct mlxsw_sp_trap_ops *trap_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
@@ -983,6 +984,10 @@ struct mlxsw_sp_mall_mirror_entry {
 	int span_id;
 };
 
+struct mlxsw_sp_mall_trap_entry {
+	int span_id;
+};
+
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
@@ -991,6 +996,7 @@ struct mlxsw_sp_mall_entry {
 	bool ingress;
 	union {
 		struct mlxsw_sp_mall_mirror_entry mirror;
+		struct mlxsw_sp_mall_trap_entry trap;
 		struct mlxsw_sp_port_sample sample;
 	};
 	struct rcu_head rcu;
@@ -1177,12 +1183,14 @@ void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 			const struct devlink_trap *trap, void *trap_ctx);
 int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap *trap,
-			     enum devlink_trap_action action);
+			     enum devlink_trap_action action,
+			     struct netlink_ext_ack *extack);
 int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap_group *group);
 int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 			    const struct devlink_trap_group *group,
-			    const struct devlink_trap_policer *policer);
+			    const struct devlink_trap_policer *policer,
+			    struct netlink_ext_ack *extack);
 int
 mlxsw_sp_trap_policer_init(struct mlxsw_core *mlxsw_core,
 			   const struct devlink_trap_policer *policer);
@@ -1196,6 +1204,8 @@ int
 mlxsw_sp_trap_policer_counter_get(struct mlxsw_core *mlxsw_core,
 				  const struct devlink_trap_policer *policer,
 				  u64 *p_drops);
+int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
+					  bool *p_enabled, u16 *p_hw_id);
 
 static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
 {

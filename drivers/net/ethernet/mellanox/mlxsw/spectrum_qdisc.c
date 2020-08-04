@@ -1289,19 +1289,18 @@ struct mlxsw_sp_qevent_binding {
 
 static LIST_HEAD(mlxsw_sp_qevent_block_cb_list);
 
-static int mlxsw_sp_qevent_mirror_configure(struct mlxsw_sp *mlxsw_sp,
-					    struct mlxsw_sp_mall_entry *mall_entry,
-					    struct mlxsw_sp_qevent_binding *qevent_binding)
+static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_mall_entry *mall_entry,
+					  struct mlxsw_sp_qevent_binding *qevent_binding,
+					  const struct mlxsw_sp_span_agent_parms *agent_parms,
+					  int *p_span_id)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = qevent_binding->mlxsw_sp_port;
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
-	struct mlxsw_sp_span_agent_parms agent_parms = {
-		.to_dev = mall_entry->mirror.to_dev,
-	};
 	int span_id;
 	int err;
 
-	err = mlxsw_sp_span_agent_get(mlxsw_sp, &span_id, &agent_parms);
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &span_id, agent_parms);
 	if (err)
 		return err;
 
@@ -1320,7 +1319,7 @@ static int mlxsw_sp_qevent_mirror_configure(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_trigger_enable;
 
-	mall_entry->mirror.span_id = span_id;
+	*p_span_id = span_id;
 	return 0;
 
 err_trigger_enable:
@@ -1333,13 +1332,13 @@ err_analyzed_port_get:
 	return err;
 }
 
-static void mlxsw_sp_qevent_mirror_deconfigure(struct mlxsw_sp *mlxsw_sp,
-					       struct mlxsw_sp_mall_entry *mall_entry,
-					       struct mlxsw_sp_qevent_binding *qevent_binding)
+static void mlxsw_sp_qevent_span_deconfigure(struct mlxsw_sp *mlxsw_sp,
+					     struct mlxsw_sp_qevent_binding *qevent_binding,
+					     int span_id)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = qevent_binding->mlxsw_sp_port;
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {
-		.span_id = mall_entry->mirror.span_id,
+		.span_id = span_id,
 	};
 
 	mlxsw_sp_span_trigger_disable(mlxsw_sp_port, qevent_binding->span_trigger,
@@ -1347,7 +1346,51 @@ static void mlxsw_sp_qevent_mirror_deconfigure(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_span_agent_unbind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
 				   &trigger_parms);
 	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
-	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->mirror.span_id);
+	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
+}
+
+static int mlxsw_sp_qevent_mirror_configure(struct mlxsw_sp *mlxsw_sp,
+					    struct mlxsw_sp_mall_entry *mall_entry,
+					    struct mlxsw_sp_qevent_binding *qevent_binding)
+{
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.to_dev = mall_entry->mirror.to_dev,
+	};
+
+	return mlxsw_sp_qevent_span_configure(mlxsw_sp, mall_entry, qevent_binding,
+					      &agent_parms, &mall_entry->mirror.span_id);
+}
+
+static void mlxsw_sp_qevent_mirror_deconfigure(struct mlxsw_sp *mlxsw_sp,
+					       struct mlxsw_sp_mall_entry *mall_entry,
+					       struct mlxsw_sp_qevent_binding *qevent_binding)
+{
+	mlxsw_sp_qevent_span_deconfigure(mlxsw_sp, qevent_binding, mall_entry->mirror.span_id);
+}
+
+static int mlxsw_sp_qevent_trap_configure(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_mall_entry *mall_entry,
+					  struct mlxsw_sp_qevent_binding *qevent_binding)
+{
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
+	int err;
+
+	err = mlxsw_sp_trap_group_policer_hw_id_get(mlxsw_sp,
+						    DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,
+						    &agent_parms.policer_enable,
+						    &agent_parms.policer_id);
+	if (err)
+		return err;
+
+	return mlxsw_sp_qevent_span_configure(mlxsw_sp, mall_entry, qevent_binding,
+					      &agent_parms, &mall_entry->trap.span_id);
+}
+
+static void mlxsw_sp_qevent_trap_deconfigure(struct mlxsw_sp *mlxsw_sp,
+					     struct mlxsw_sp_mall_entry *mall_entry,
+					     struct mlxsw_sp_qevent_binding *qevent_binding)
+{
+	mlxsw_sp_qevent_span_deconfigure(mlxsw_sp, qevent_binding, mall_entry->trap.span_id);
 }
 
 static int mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
@@ -1357,6 +1400,8 @@ static int mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
 	switch (mall_entry->type) {
 	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
 		return mlxsw_sp_qevent_mirror_configure(mlxsw_sp, mall_entry, qevent_binding);
+	case MLXSW_SP_MALL_ACTION_TYPE_TRAP:
+		return mlxsw_sp_qevent_trap_configure(mlxsw_sp, mall_entry, qevent_binding);
 	default:
 		/* This should have been validated away. */
 		WARN_ON(1);
@@ -1371,6 +1416,8 @@ static void mlxsw_sp_qevent_entry_deconfigure(struct mlxsw_sp *mlxsw_sp,
 	switch (mall_entry->type) {
 	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
 		return mlxsw_sp_qevent_mirror_deconfigure(mlxsw_sp, mall_entry, qevent_binding);
+	case MLXSW_SP_MALL_ACTION_TYPE_TRAP:
+		return mlxsw_sp_qevent_trap_deconfigure(mlxsw_sp, mall_entry, qevent_binding);
 	default:
 		WARN_ON(1);
 		return;
@@ -1490,6 +1537,8 @@ static int mlxsw_sp_qevent_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	if (act->id == FLOW_ACTION_MIRRED) {
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
+	} else if (act->id == FLOW_ACTION_TRAP) {
+		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_TRAP;
 	} else {
 		NL_SET_ERR_MSG(f->common.extack, "Unsupported action");
 		err = -EOPNOTSUPP;

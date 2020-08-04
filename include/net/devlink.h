@@ -703,6 +703,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_PTP_GENERAL,
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_SAMPLE,
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_TRAP,
+	DEVLINK_TRAP_GENERIC_ID_EARLY_DROP,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -891,6 +892,8 @@ enum devlink_trap_group_generic_id {
 	"flow_action_sample"
 #define DEVLINK_TRAP_GENERIC_NAME_FLOW_ACTION_TRAP \
 	"flow_action_trap"
+#define DEVLINK_TRAP_GENERIC_NAME_EARLY_DROP \
+	"early_drop"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"
@@ -1074,7 +1077,8 @@ struct devlink_ops {
 	 */
 	int (*trap_action_set)(struct devlink *devlink,
 			       const struct devlink_trap *trap,
-			       enum devlink_trap_action action);
+			       enum devlink_trap_action action,
+			       struct netlink_ext_ack *extack);
 	/**
 	 * @trap_group_init: Trap group initialization function.
 	 *
@@ -1091,7 +1095,8 @@ struct devlink_ops {
 	 */
 	int (*trap_group_set)(struct devlink *devlink,
 			      const struct devlink_trap_group *group,
-			      const struct devlink_trap_policer *policer);
+			      const struct devlink_trap_policer *policer,
+			      struct netlink_ext_ack *extack);
 	/**
 	 * @trap_policer_init: Trap policer initialization function.
 	 *
