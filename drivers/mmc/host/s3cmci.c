@@ -396,9 +396,6 @@ static void s3cmci_enable_irq(struct s3cmci_host *host, bool more)
 	local_irq_restore(flags);
 }
 
-/**
- *
- */
 static void s3cmci_disable_irq(struct s3cmci_host *host, bool transfer)
 {
 	unsigned long flags;
