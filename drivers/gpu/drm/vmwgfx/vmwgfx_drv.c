@@ -634,7 +634,7 @@ static int vmw_vram_manager_init(struct vmw_private *dev_priv)
 	ret = ttm_range_man_init(&dev_priv->bdev, man,
 				 dev_priv->vram_size >> PAGE_SHIFT);
 #endif
-	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+	ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM)->use_type = false;
 	return ret;
 }
 
@@ -644,7 +644,7 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 	vmw_thp_fini(dev_priv);
 #else
 	ttm_bo_man_fini(&dev_priv->bdev,
-			    &dev_priv->bdev.man[TTM_PL_VRAM]);
+			ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM));
 #endif
 }
 
@@ -887,7 +887,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
 		goto out_no_bdev;
 	}
-	dev_priv->bdev.man[TTM_PL_SYSTEM].available_caching =
+	ttm_manager_type(&dev_priv->bdev, TTM_PL_SYSTEM)->available_caching =
 		TTM_PL_FLAG_CACHED;
 
 	/*
@@ -1194,10 +1194,12 @@ static void vmw_master_drop(struct drm_device *dev,
  */
 static void __vmw_svga_enable(struct vmw_private *dev_priv)
 {
+	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
+
 	spin_lock(&dev_priv->svga_lock);
-	if (!dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
+	if (!man->use_type) {
 		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE);
-		dev_priv->bdev.man[TTM_PL_VRAM].use_type = true;
+		man->use_type = true;
 	}
 	spin_unlock(&dev_priv->svga_lock);
 }
@@ -1223,9 +1225,11 @@ void vmw_svga_enable(struct vmw_private *dev_priv)
  */
 static void __vmw_svga_disable(struct vmw_private *dev_priv)
 {
+	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
+
 	spin_lock(&dev_priv->svga_lock);
-	if (dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
-		dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+	if (man->use_type) {
+		man->use_type = false;
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
@@ -1242,6 +1246,7 @@ static void __vmw_svga_disable(struct vmw_private *dev_priv)
  */
 void vmw_svga_disable(struct vmw_private *dev_priv)
 {
+	struct ttm_mem_type_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 	/*
 	 * Disabling SVGA will turn off device modesetting capabilities, so
 	 * notify KMS about that so that it doesn't cache atomic state that
@@ -1257,8 +1262,8 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	vmw_kms_lost_device(dev_priv->dev);
 	ttm_write_lock(&dev_priv->reservation_sem, false);
 	spin_lock(&dev_priv->svga_lock);
-	if (dev_priv->bdev.man[TTM_PL_VRAM].use_type) {
-		dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
+	if (man->use_type) {
+		man->use_type = false;
 		spin_unlock(&dev_priv->svga_lock);
 		if (ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
