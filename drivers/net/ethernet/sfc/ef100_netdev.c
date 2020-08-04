@@ -86,9 +86,11 @@ static int ef100_net_stop(struct net_device *net_dev)
 
 	netif_stop_queue(net_dev);
 	efx_stop_all(efx);
+	efx_mcdi_mac_fini_stats(efx);
 	efx_disable_interrupts(efx);
 	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
+	efx_remove_filters(efx);
 	efx_fini_napi(efx);
 	efx_remove_channels(efx);
 	efx_mcdi_free_vis(efx);
@@ -138,6 +140,10 @@ static int ef100_net_open(struct net_device *net_dev)
 
 	efx_init_napi(efx);
 
+	rc = efx_probe_filters(efx);
+	if (rc)
+		goto fail;
+
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail;
@@ -151,6 +157,10 @@ static int ef100_net_open(struct net_device *net_dev)
 	 * to the warm reboot count
 	 */
 	(void) efx_mcdi_poll_reboot(efx);
+
+	rc = efx_mcdi_mac_init_stats(efx);
+	if (rc)
+		goto fail;
 
 	efx_start_all(efx);
 
@@ -207,8 +217,14 @@ static const struct net_device_ops ef100_netdev_ops = {
 	.ndo_open               = ef100_net_open,
 	.ndo_stop               = ef100_net_stop,
 	.ndo_start_xmit         = ef100_hard_start_xmit,
+	.ndo_get_stats64        = efx_net_stats,
+	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_rx_mode        = efx_set_rx_mode, /* Lookout */
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name = efx_get_phys_port_name,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer      = efx_filter_rfs,
+#endif
 };
 
 /*	Netdev registration
