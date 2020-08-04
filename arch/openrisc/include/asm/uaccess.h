@@ -48,16 +48,19 @@
 /* Ensure that the range from addr to addr+size is all within the process'
  * address space
  */
-#define __range_ok(addr, size) (size <= get_fs() && addr <= (get_fs()-size))
+static inline int __range_ok(unsigned long addr, unsigned long size)
+{
+	const mm_segment_t fs = get_fs();
+
+	return size <= fs && addr <= (fs - size);
+}
 
 /* Ensure that addr is below task's addr_limit */
 #define __addr_ok(addr) ((unsigned long) addr < get_fs())
 
 #define access_ok(addr, size)						\
 ({ 									\
-	unsigned long __ao_addr = (unsigned long)(addr);		\
-	unsigned long __ao_size = (unsigned long)(size);		\
-	__range_ok(__ao_addr, __ao_size);				\
+	__range_ok((unsigned long)(addr), (size));			\
 })
 
 /*
