@@ -15,6 +15,7 @@
 #include "helpers.h"
 #include "hfi_helper.h"
 #include "pm_helpers.h"
+#include "hfi_platform.h"
 
 struct intbuf {
 	struct list_head list;
@@ -1042,36 +1043,6 @@ int venus_helper_set_work_mode(struct venus_inst *inst, u32 mode)
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_work_mode);
 
-int venus_helper_init_codec_freq_data(struct venus_inst *inst)
-{
-	const struct codec_freq_data *data;
-	unsigned int i, data_size;
-	u32 pixfmt;
-	int ret = 0;
-
-	if (!IS_V4(inst->core))
-		return 0;
-
-	data = inst->core->res->codec_freq_data;
-	data_size = inst->core->res->codec_freq_data_size;
-	pixfmt = inst->session_type == VIDC_SESSION_TYPE_DEC ?
-			inst->fmt_out->pixfmt : inst->fmt_cap->pixfmt;
-
-	for (i = 0; i < data_size; i++) {
-		if (data[i].pixfmt == pixfmt &&
-		    data[i].session_type == inst->session_type) {
-			inst->clk_data.codec_freq_data = &data[i];
-			break;
-		}
-	}
-
-	if (!inst->clk_data.codec_freq_data)
-		ret = -EINVAL;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(venus_helper_init_codec_freq_data);
-
 int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 			      unsigned int output_bufs,
 			      unsigned int output2_bufs)
@@ -1526,6 +1497,29 @@ void venus_helper_m2m_job_abort(void *priv)
 	v4l2_m2m_job_finish(inst->m2m_dev, inst->m2m_ctx);
 }
 EXPORT_SYMBOL_GPL(venus_helper_m2m_job_abort);
+
+int venus_helper_session_init(struct venus_inst *inst)
+{
+	enum hfi_version version = inst->core->res->hfi_version;
+	u32 session_type = inst->session_type;
+	u32 codec;
+	int ret;
+
+	codec = inst->session_type == VIDC_SESSION_TYPE_DEC ?
+			inst->fmt_out->pixfmt : inst->fmt_cap->pixfmt;
+
+	ret = hfi_session_init(inst, codec);
+	if (ret)
+		return ret;
+
+	inst->clk_data.vpp_freq = hfi_platform_get_codec_vpp_freq(version, codec,
+								  session_type);
+	inst->clk_data.vsp_freq = hfi_platform_get_codec_vsp_freq(version, codec,
+								  session_type);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_session_init);
 
 void venus_helper_init_instance(struct venus_inst *inst)
 {
