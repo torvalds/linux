@@ -217,6 +217,14 @@
 #define HAP_BOOST_V0P0				0x0000
 #define HAP_BOOST_V0P1				0x0001
 
+#define HAP_BOOST_HW_CTRL_FOLLOW_REG		0x41
+#define FOLLOW_HW_EN_BIT			BIT(7)
+#define FOLLOW_HW_CCM_BIT			BIT(6)
+#define FOLLOW_HW_VSET_BIT			BIT(5)
+
+#define HAP_BOOST_VREG_EN_REG			0x46
+#define VREG_EN_BIT				BIT(7)
+
 #define HAP_BOOST_V0P0_CLAMP_REG		0xF1
 #define HAP_BOOST_V0P1_CLAMP_REG		0x70
 #define CLAMP_5V_BIT				BIT(0)
@@ -1090,6 +1098,24 @@ static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
 	return rc;
 }
 
+static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val;
+
+	rc = haptics_read(chip, chip->hbst_addr_base,
+			HAP_BOOST_HW_CTRL_FOLLOW_REG, &val, 1);
+	if (!rc && !(val & FOLLOW_HW_EN_BIT)) {
+		rc = haptics_read(chip, chip->hbst_addr_base,
+				HAP_BOOST_VREG_EN_REG, &val, 1);
+		if (!rc && (val & VREG_EN_BIT))
+			return true;
+	}
+
+	dev_dbg(chip->dev, "HBoost is not enabled in open loop condition\n");
+	return false;
+}
+
 static int haptics_enable_play(struct haptics_chip *chip, bool en)
 {
 	struct haptics_play_info *play = &chip->play;
@@ -1103,6 +1129,33 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 				HAP_CFG_FAULT_CLR_REG, &val, 1);
 		if (rc < 0)
 			return rc;
+
+		/*
+		 * Toggle RC_CLK_CAL_EN if it's in auto mode and
+		 * haptics boost is working in open loop
+		 */
+		rc = haptics_read(chip, chip->cfg_addr_base,
+				HAP_CFG_CAL_EN_REG, &val, 1);
+		if (rc < 0)
+			return rc;
+
+		if (((val & CAL_RC_CLK_MASK) ==
+				CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT)
+				&& is_boost_vreg_enabled_in_open_loop(chip)) {
+			rc = haptics_masked_write(chip, chip->cfg_addr_base,
+					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
+					CAL_RC_CLK_DISABLED_VAL);
+			if (rc < 0)
+				return rc;
+
+			rc = haptics_masked_write(chip, chip->cfg_addr_base,
+					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
+					CAL_RC_CLK_AUTO_VAL);
+			if (rc < 0)
+				return rc;
+
+			dev_dbg(chip->dev, "Toggle CAL_EN in open-loop-VREG playing\n");
+		}
 	}
 
 	val = play->pattern_src;
