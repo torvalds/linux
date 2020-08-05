@@ -152,7 +152,7 @@
 /* The following are PA function descriptors 
  *
  * addr:	the absolute address of the function
- * gp:		either the data pointer (r27) for non-PIC code or the
+ * gp:		either the data pointer (r27) for non-PIC code or
  *		the PLT pointer (r19) for PIC code */
 
 /* Format for the Elf32 Function descriptor */
