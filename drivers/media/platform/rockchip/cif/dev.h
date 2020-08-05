@@ -20,6 +20,7 @@
 #include "version.h"
 #include "cif-luma.h"
 #include "mipi-csi2.h"
+#include "hw.h"
 
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
@@ -45,9 +46,7 @@
 #define RKCIF_MAX_STREAM_LVDS	4
 #define RKCIF_STREAM_DVP	4
 
-#define RKCIF_MAX_BUS_CLK	8
 #define RKCIF_MAX_SENSOR	2
-#define RKCIF_MAX_RESET		15
 #define RKCIF_MAX_CSI_CHANNEL	4
 #define RKCIF_MAX_PIPELINE	4
 
@@ -61,14 +60,6 @@
 #define RDBK_L			0
 #define RDBK_M			1
 #define RDBK_S			2
-
-
-#define write_cif_reg(base, addr, val) writel(val, (addr) + (base))
-#define read_cif_reg(base, addr) readl((addr) + (base))
-#define write_cif_reg_or(base, addr, val) \
-	writel(readl((addr) + (base)) | (val), (addr) + (base))
-#define write_cif_reg_and(base, addr, val) \
-	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
 /*
  * for distinguishing cropping from senosr or usr
@@ -93,18 +84,6 @@ enum rkcif_state {
 	RKCIF_STATE_STREAMING
 };
 
-/* when add new chip id, add it in tail for increase */
-enum rkcif_chip_id {
-	CHIP_PX30_CIF,
-	CHIP_RK1808_CIF,
-	CHIP_RK3128_CIF,
-	CHIP_RK3288_CIF,
-	CHIP_RK3328_CIF,
-	CHIP_RK3368_CIF,
-	CHIP_RV1126_CIF,
-	CHIP_RV1126_CIF_LITE,
-};
-
 enum host_type_t {
 	RK_CSI_RXHOST,
 	RK_DSI_RXHOST
@@ -122,6 +101,11 @@ enum rkcif_lvds_pad {
 enum rkcif_lvds_state {
 	RKCIF_LVDS_STOP = 0,
 	RKCIF_LVDS_START,
+};
+
+enum rkcif_inf_id {
+	RKCIF_DVP,
+	RKCIF_MIPI_LVDS,
 };
 
 /*
@@ -315,9 +299,9 @@ struct rkcif_lvds_subdev {
 	struct v4l2_rect crop;
 	const struct cif_output_fmt	*cif_fmt_out;
 	const struct cif_input_fmt	*cif_fmt_in;
-	enum rkcif_lvds_state state;
-	struct rkcif_sensor_info sensor_self;
-	atomic_t frm_sync_seq;
+	enum rkcif_lvds_state		state;
+	struct rkcif_sensor_info	sensor_self;
+	atomic_t			frm_sync_seq;
 };
 
 static inline struct rkcif_buffer *to_rkcif_buffer(struct vb2_v4l2_buffer *vb)
@@ -358,15 +342,6 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 struct rkcif_device {
 	struct list_head		list;
 	struct device			*dev;
-	int				irq;
-	void __iomem			*base_addr;
-	void __iomem			*csi_base;
-	struct clk			*clks[RKCIF_MAX_BUS_CLK];
-	int				clk_size;
-	bool				iommu_en;
-	struct iommu_domain		*domain;
-	struct reset_control		*cif_rst[RKCIF_MAX_RESET];
-
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;
 	struct v4l2_async_notifier	notifier;
@@ -386,13 +361,18 @@ struct rkcif_device {
 	atomic_t			fh_cnt;
 	struct mutex			stream_lock; /* lock between streams */
 	enum rkcif_workmode		workmode;
-	const struct cif_reg		*cif_regs;
 	bool				can_be_reset;
 	struct rkcif_hdr		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
 	struct rkcif_luma_vdev		luma_vdev;
 	struct rkcif_lvds_subdev	lvds_subdev;
+
+	struct rkcif_hw *hw_dev;
+	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
+	int inf_id;
 };
+
+extern struct platform_driver rkcif_plat_drv;
 
 void rkcif_write_register(struct rkcif_device *dev,
 			  enum cif_reg_index index, u32 val);
@@ -411,10 +391,13 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id);
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev);
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev);
 void rkcif_soft_reset(struct rkcif_device *cif_dev,
-			   bool is_rst_iommu);
+		      bool is_rst_iommu);
 int rkcif_register_lvds_subdev(struct rkcif_device *dev);
 void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
 void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev);
 u32 rkcif_get_sof(struct rkcif_device *cif_dev);
+int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id);
+int rkcif_plat_uninit(struct rkcif_device *cif_dev);
+int rkcif_attach_hw(struct rkcif_device *cif_dev);
 
 #endif

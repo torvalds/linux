@@ -1627,7 +1627,7 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 		void *addr = vb2_plane_vaddr(vb, i);
 
 		cifbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
-		if (rkcif_debug && addr && !stream->cifdev->iommu_en) {
+		if (rkcif_debug && addr && !stream->cifdev->hw_dev->iommu_en) {
 			memset(addr, 0, pixm->plane_fmt[i].sizeimage);
 			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
 				 "Clear buffer, size: 0x%08x\n",
@@ -2462,6 +2462,10 @@ static int rkcif_fh_open(struct file *filp)
 	struct rkcif_stream *stream = to_rkcif_stream(vnode);
 	struct rkcif_device *cifdev = stream->cifdev;
 	int ret;
+
+	ret = rkcif_attach_hw(cifdev);
+	if (ret)
+		return ret;
 
 	/* Make sure active sensor is valid before .set_fmt() */
 	ret = rkcif_update_sensor_info(stream);
@@ -3324,11 +3328,7 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 	 *  - PST_INF_FRAME_END: cif FIFO is ready, this is prior to FRAME_END
 	 *  -         FRAME_END: cif has saved frame to memory, a frame ready
 	 */
-	if (cif_dev->chip_id == CHIP_RK1808_CIF ||
-	    cif_dev->chip_id == CHIP_RV1126_CIF)
-		stream = &cif_dev->stream[RKCIF_STREAM_DVP];
-	else
-		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
+	stream = &cif_dev->stream[RKCIF_STREAM_CIF];
 
 	if ((intstat & PST_INF_FRAME_END)) {
 		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
@@ -3500,10 +3500,14 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
 	struct rkcif_buffer *active_buf = NULL;
-	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
-	void __iomem *base = cif_dev->base_addr;
+	struct v4l2_mbus_config *mbus;
+	void __iomem *base = cif_dev->hw_dev->base_addr;
 	unsigned int intstat, i = 0xff;
 
+	if (!cif_dev->active_sensor)
+		return;
+
+	mbus = &cif_dev->active_sensor->mbus;
 	if ((mbus->type == V4L2_MBUS_CSI2 ||
 	     mbus->type == V4L2_MBUS_CCP2) &&
 	    (cif_dev->chip_id == CHIP_RK1808_CIF ||
@@ -3656,11 +3660,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		lastpix =  CIF_FETCH_Y_LAST_LINE(lastpix);
 		ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 
-		if (cif_dev->chip_id == CHIP_RK1808_CIF ||
-		    cif_dev->chip_id == CHIP_RV1126_CIF)
-			stream = &cif_dev->stream[RKCIF_STREAM_DVP];
-		else
-			stream = &cif_dev->stream[RKCIF_STREAM_CIF];
+		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
 
 		/* There are two irqs enabled:
 		 *  - PST_INF_FRAME_END: cif FIFO is ready,
