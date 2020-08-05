@@ -81,6 +81,8 @@ struct lkl_jmp_buf {
  * the function that will eventually call longjmp here
  *
  * @jmp_buf_longjmp - perform a jump back to the saved jump buffer
+ *
+ * @memcpy - copy memory
  */
 struct lkl_host_operations {
 	const char *virtio_devices;
@@ -127,6 +129,8 @@ struct lkl_host_operations {
 
 	void (*jmp_buf_set)(struct lkl_jmp_buf *jmpb, void (*f)(void));
 	void (*jmp_buf_longjmp)(struct lkl_jmp_buf *jmpb, int val);
+
+	void* (*memcpy)(void *dest, const void *src, unsigned long count);
 };
 
 /**

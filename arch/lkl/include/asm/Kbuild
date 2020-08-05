@@ -63,7 +63,6 @@ generic-y += socket.h
 generic-y += sockios.h
 generic-y += stat.h
 generic-y += statfs.h
-generic-y += string.h
 generic-y += swab.h
 generic-y += switch_to.h
 generic-y += syscall.h
