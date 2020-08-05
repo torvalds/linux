@@ -5250,7 +5250,7 @@ static int gaudi_extract_ecc_info(struct hl_device *hdev,
 	*memory_wrapper_idx = 0xFF;
 
 	/* Iterate through memory wrappers, a single bit must be set */
-	for (i = 0 ; i > num_mem_regs ; i++) {
+	for (i = 0 ; i < num_mem_regs ; i++) {
 		err_addr += i * 4;
 		err_word = RREG32(err_addr);
 		if (err_word) {
