@@ -1191,8 +1191,7 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 				   struct irq_affinity *affd)
 {
 	struct irq_affinity msi_default_affd = {0};
-	int msix_vecs = -ENOSPC;
-	int msi_vecs = -ENOSPC;
+	int nvecs = -ENOSPC;
 
 	if (flags & PCI_IRQ_AFFINITY) {
 		if (!affd)
@@ -1203,17 +1202,16 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 	}
 
 	if (flags & PCI_IRQ_MSIX) {
-		msix_vecs = __pci_enable_msix_range(dev, NULL, min_vecs,
-						    max_vecs, affd, flags);
-		if (msix_vecs > 0)
-			return msix_vecs;
+		nvecs = __pci_enable_msix_range(dev, NULL, min_vecs, max_vecs,
+						affd, flags);
+		if (nvecs > 0)
+			return nvecs;
 	}
 
 	if (flags & PCI_IRQ_MSI) {
-		msi_vecs = __pci_enable_msi_range(dev, min_vecs, max_vecs,
-						  affd);
-		if (msi_vecs > 0)
-			return msi_vecs;
+		nvecs = __pci_enable_msi_range(dev, min_vecs, max_vecs, affd);
+		if (nvecs > 0)
+			return nvecs;
 	}
 
 	/* use legacy IRQ if allowed */
@@ -1231,9 +1229,7 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 		}
 	}
 
-	if (msix_vecs == -ENOSPC)
-		return -ENOSPC;
-	return msi_vecs;
+	return nvecs;
 }
 EXPORT_SYMBOL(pci_alloc_irq_vectors_affinity);
 
