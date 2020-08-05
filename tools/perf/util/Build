@@ -128,6 +128,7 @@ perf-y += expr-bison.o
 perf-y += expr.o
 perf-y += branch.o
 perf-y += mem2node.o
+perf-y += clockid.o
 
 perf-$(CONFIG_LIBBPF) += bpf-loader.o
 perf-$(CONFIG_LIBBPF) += bpf_map.o
