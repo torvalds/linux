@@ -1240,7 +1240,7 @@ static void genwqe_remove(struct pci_dev *pci_dev)
  * error is detected.
  */
 static pci_ers_result_t genwqe_err_error_detected(struct pci_dev *pci_dev,
-						 enum pci_channel_state state)
+						 pci_channel_state_t state)
 {
 	struct genwqe_dev *cd;
 

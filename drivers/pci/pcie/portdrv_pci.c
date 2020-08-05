@@ -146,7 +146,7 @@ static void pcie_portdrv_remove(struct pci_dev *dev)
 }
 
 static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
-					enum pci_channel_state error)
+					pci_channel_state_t error)
 {
 	/* Root Port has no impact. Always recovers. */
 	return PCI_ERS_RESULT_CAN_RECOVER;

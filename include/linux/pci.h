@@ -179,7 +179,7 @@ static inline const char *pci_power_name(pci_power_t state)
  */
 typedef unsigned int __bitwise pci_channel_state_t;
 
-enum pci_channel_state {
+enum {
 	/* I/O channel is in normal state */
 	pci_channel_io_normal = (__force pci_channel_state_t) 1,
 
@@ -792,7 +792,7 @@ enum pci_ers_result {
 struct pci_error_handlers {
 	/* PCI bus error detected on this device */
 	pci_ers_result_t (*error_detected)(struct pci_dev *dev,
-					   enum pci_channel_state error);
+					   pci_channel_state_t error);
 
 	/* MMIO has been re-enabled, but not DMA */
 	pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
