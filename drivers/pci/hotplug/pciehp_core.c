@@ -153,6 +153,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 /**
  * pciehp_check_presence() - synthesize event if presence has changed
+ * @ctrl: controller to check
  *
  * On probe and resume, an explicit presence check is necessary to bring up an
  * occupied slot or bring down an unoccupied slot.  This can't be triggered by

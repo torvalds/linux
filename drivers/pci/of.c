@@ -243,6 +243,8 @@ EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
  * @busno: bus number associated with the bridge root bus
  * @bus_max: maximum number of buses for this bridge
  * @resources: list where the range of resources will be added after DT parsing
+ * @ib_resources: list where the range of inbound resources (with addresses
+ *                from 'dma-ranges') will be added after DT parsing
  * @io_base: pointer to a variable that will contain on return the physical
  * address for the start of the I/O range. Can be NULL if the caller doesn't
  * expect I/O ranges to be present in the device tree.

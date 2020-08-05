@@ -22,6 +22,7 @@
 /**
  * struct rockchip_pcie_ep - private data for PCIe endpoint controller driver
  * @rockchip: Rockchip PCIe controller
+ * @epc: PCI EPC device
  * @max_regions: maximum number of regions supported by hardware
  * @ob_region_map: bitmask of mapped outbound regions
  * @ob_addr: base addresses in the AXI bus where the outbound regions start
