@@ -3,7 +3,7 @@
  * PCIe host controller driver for Kirin Phone SoCs
  *
  * Copyright (C) 2017 HiSilicon Electronics Co., Ltd.
- *		http://www.huawei.com
+ *		https://www.huawei.com
  *
  * Author: Xiaowei Song <songxiaowei@huawei.com>
  */

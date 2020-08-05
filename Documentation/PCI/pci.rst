@@ -17,7 +17,7 @@ PCI device drivers.
 A more complete resource is the third edition of "Linux Device Drivers"
 by Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman.
 LDD3 is available for free (under Creative Commons License) from:
-http://lwn.net/Kernel/LDD3/.
+https://lwn.net/Kernel/LDD3/.
 
 However, keep in mind that all documents are subject to "bit rot".
 Refer to the source code if things are not working as described here.
@@ -214,7 +214,7 @@ the PCI device by calling pci_enable_device(). This will:
    problem and unlikely to get fixed soon.
 
    This has been discussed before but not changed as of 2.6.19:
-   http://lkml.org/lkml/2006/3/2/194
+   https://lore.kernel.org/r/20060302180025.GC28895@flint.arm.linux.org.uk/
 
 
 pci_set_master() will enable DMA by setting the bus master bit
@@ -514,9 +514,8 @@ your driver if they're helpful, or just use plain hex constants.
 The device IDs are arbitrary hex numbers (vendor controlled) and normally used
 only in a single location, the pci_device_id table.
 
-Please DO submit new vendor/device IDs to http://pci-ids.ucw.cz/.
-There are mirrors of the pci.ids file at http://pciids.sourceforge.net/
-and https://github.com/pciutils/pciids.
+Please DO submit new vendor/device IDs to https://pci-ids.ucw.cz/.
+There's a mirror of the pci.ids file at https://github.com/pciutils/pciids.
 
 
 Obsolete functions
