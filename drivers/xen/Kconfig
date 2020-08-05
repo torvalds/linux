@@ -179,6 +179,7 @@ config XEN_GRANT_DMA_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
+	select DMA_OPS
 	select SWIOTLB
 
 config XEN_PCIDEV_BACKEND

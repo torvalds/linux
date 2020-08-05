@@ -15,6 +15,7 @@ config SPARC
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT if SPARC64 && PCI
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select DMA_OPS
 	select OF
 	select OF_PROMTREE
 	select HAVE_ASM_MODVERSIONS
