@@ -164,6 +164,39 @@ static const u16 csc_coeff_full_to_limited[3][4] = {
 	{ 0x0000, 0x0000, 0x36f7, 0x0040 }
 };
 
+static const struct drm_display_mode dw_hdmi_default_modes[] = {
+	/* 4 - 1280x720@60Hz 16:9 */
+	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1390,
+		   1430, 1650, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 16 - 1920x1080@60Hz 16:9 */
+	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2008,
+		   2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 31 - 1920x1080@50Hz 16:9 */
+	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2448,
+		   2492, 2640, 0, 1080, 1084, 1089, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 50, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 19 - 1280x720@50Hz 16:9 */
+	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1720,
+		   1760, 1980, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 50, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	/* 17 - 720x576@50Hz 4:3 */
+	{ DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 27000, 720, 732,
+		   796, 864, 0, 576, 581, 586, 625, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
+	  .vrefresh = 50, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
+	/* 2 - 720x480@60Hz 4:3 */
+	{ DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 27000, 720, 736,
+		   798, 858, 0, 480, 489, 495, 525, 0,
+		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
+};
+
 struct hdmi_vmode {
 	bool mdataenablepolarity;
 
@@ -2606,7 +2639,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			&connector->hdr_sink_metadata.hdmi_type1;
 	struct edid *edid;
 	struct drm_display_mode *mode;
-	const u8 def_modes[6] = {4, 16, 31, 19, 17, 2};
 	struct drm_display_info *info = &connector->display_info;
 	int i, ret = 0;
 
@@ -2629,10 +2661,12 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	} else {
 		hdmi->sink_is_hdmi = true;
 		hdmi->sink_has_audio = true;
-		for (i = 0; i < sizeof(def_modes); i++) {
-			mode = drm_display_mode_from_vic_index(connector,
-							       def_modes,
-							       31, i);
+
+		for (i = 0; i < ARRAY_SIZE(dw_hdmi_default_modes); i++) {
+			const struct drm_display_mode *ptr =
+				&dw_hdmi_default_modes[i];
+
+			mode = drm_mode_duplicate(connector->dev, ptr);
 			if (mode) {
 				if (!i)
 					mode->type = DRM_MODE_TYPE_PREFERRED;
