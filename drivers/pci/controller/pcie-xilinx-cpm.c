@@ -539,7 +539,7 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 	struct xilinx_cpm_pcie_port *port;
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
-	struct resource *bus_range;
+	struct resource_entry *bus;
 	int err;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
@@ -550,18 +550,15 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 
 	port->dev = dev;
 
-	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, &bus_range);
-	if (err) {
-		dev_err(dev, "Getting bridge resources failed\n");
-		return err;
-	}
-
 	err = xilinx_cpm_pcie_init_irq_domain(port);
 	if (err)
 		return err;
 
-	err = xilinx_cpm_pcie_parse_dt(port, bus_range);
+	bus = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
+	if (!bus)
+		return -ENODEV;
+
+	err = xilinx_cpm_pcie_parse_dt(port, bus->res);
 	if (err) {
 		dev_err(dev, "Parsing DT failed\n");
 		goto err_parse_dt;

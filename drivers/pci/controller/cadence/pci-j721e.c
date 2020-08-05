@@ -245,11 +245,7 @@ static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 static int cdns_ti_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 				    int where, int size, u32 *value)
 {
-	struct pci_host_bridge *bridge = pci_find_host_bridge(bus);
-	struct cdns_pcie_rc *rc = pci_host_bridge_priv(bridge);
-	unsigned int busn = bus->number;
-
-	if (busn == rc->bus_range->start)
+	if (pci_is_root_bus(bus))
 		return pci_generic_config_read32(bus, devfn, where, size,
 						 value);
 
@@ -259,11 +255,7 @@ static int cdns_ti_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 static int cdns_ti_pcie_config_write(struct pci_bus *bus, unsigned int devfn,
 				     int where, int size, u32 value)
 {
-	struct pci_host_bridge *bridge = pci_find_host_bridge(bus);
-	struct cdns_pcie_rc *rc = pci_host_bridge_priv(bridge);
-	unsigned int busn = bus->number;
-
-	if (busn == rc->bus_range->start)
+	if (pci_is_root_bus(bus))
 		return pci_generic_config_write32(bus, devfn, where, size,
 						  value);
 

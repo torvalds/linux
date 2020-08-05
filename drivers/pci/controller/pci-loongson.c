@@ -218,14 +218,6 @@ static int loongson_pci_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-						&bridge->dma_ranges, NULL);
-	if (err) {
-		dev_err(dev, "failed to get bridge resources\n");
-		return err;
-	}
-
-	bridge->dev.parent = dev;
 	bridge->sysdata = priv;
 	bridge->ops = &loongson_pci_ops;
 	bridge->map_irq = loongson_map_irq;

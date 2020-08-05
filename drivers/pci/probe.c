@@ -628,8 +628,14 @@ struct pci_host_bridge *devm_pci_alloc_host_bridge(struct device *dev,
 	if (!bridge)
 		return NULL;
 
+	bridge->dev.parent = dev;
+
 	ret = devm_add_action_or_reset(dev, devm_pci_alloc_host_bridge_release,
 				       bridge);
+	if (ret)
+		return NULL;
+
+	ret = devm_of_pci_bridge_init(dev, bridge);
 	if (ret)
 		return NULL;
 
@@ -3086,6 +3092,7 @@ int pci_scan_root_bus_bridge(struct pci_host_bridge *bridge)
 
 	resource_list_for_each_entry(window, &bridge->windows)
 		if (window->res->flags & IORESOURCE_BUS) {
+			bridge->busnr = window->res->start;
 			found = true;
 			break;
 		}
