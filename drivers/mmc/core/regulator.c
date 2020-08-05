@@ -159,6 +159,8 @@ static int mmc_regulator_set_voltage_if_supported(struct regulator *regulator,
 
 /**
  * mmc_regulator_set_vqmmc - Set VQMMC as per the ios
+ * @mmc: the host to regulate
+ * @ios: io bus settings
  *
  * For 3.3V signaling, we try to match VQMMC to VMMC as closely as possible.
  * That will match the behavior of old boards where VQMMC and VMMC were supplied

@@ -675,11 +675,11 @@ static u8 sd_search_final_phase(struct realtek_pci_sdmmc *host, u32 phase_map)
 
 static void sd_wait_data_idle(struct realtek_pci_sdmmc *host)
 {
-	int err, i;
+	int i;
 	u8 val = 0;
 
 	for (i = 0; i < 100; i++) {
-		err = rtsx_pci_read_register(host->pcr, SD_DATA_STATE, &val);
+		rtsx_pci_read_register(host->pcr, SD_DATA_STATE, &val);
 		if (val & SD_DATA_IDLE)
 			return;
 
