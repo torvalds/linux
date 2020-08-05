@@ -26,7 +26,6 @@
 #include <linux/mmc/slot-gpio.h>
 
 #include <plat/gpio-cfg.h>
-#include <mach/dma.h>
 #include <mach/gpio-samsung.h>
 
 #include <linux/platform_data/mmc-s3cmci.h>
