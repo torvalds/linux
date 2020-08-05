@@ -201,7 +201,6 @@ static struct attribute *cm_counter_default_attrs[] = {
 struct cm_port {
 	struct cm_device *cm_dev;
 	struct ib_mad_agent *mad_agent;
-	struct kobject port_obj;
 	u8 port_num;
 	struct list_head cm_priv_prim_list;
 	struct list_head cm_priv_altr_list;
@@ -4295,20 +4294,6 @@ static struct kobj_type cm_counter_obj_type = {
 	.default_attrs = cm_counter_default_attrs
 };
 
-static char *cm_devnode(struct device *dev, umode_t *mode)
-{
-	if (mode)
-		*mode = 0666;
-	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
-}
-
-struct class cm_class = {
-	.owner   = THIS_MODULE,
-	.name    = "infiniband_cm",
-	.devnode = cm_devnode,
-};
-EXPORT_SYMBOL(cm_class);
-
 static int cm_create_port_fs(struct cm_port *port)
 {
 	int i, ret;
@@ -4511,12 +4496,6 @@ static int __init ib_cm_init(void)
 	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	INIT_LIST_HEAD(&cm.timewait_list);
 
-	ret = class_register(&cm_class);
-	if (ret) {
-		ret = -ENOMEM;
-		goto error1;
-	}
-
 	cm.wq = alloc_workqueue("ib_cm", 0, 1);
 	if (!cm.wq) {
 		ret = -ENOMEM;
@@ -4531,8 +4510,6 @@ static int __init ib_cm_init(void)
 error3:
 	destroy_workqueue(cm.wq);
 error2:
-	class_unregister(&cm_class);
-error1:
 	return ret;
 }
 
@@ -4553,7 +4530,6 @@ static void __exit ib_cm_cleanup(void)
 		kfree(timewait_info);
 	}
 
-	class_unregister(&cm_class);
 	WARN_ON(!xa_empty(&cm.local_id_table));
 }
 
