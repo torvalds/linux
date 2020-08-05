@@ -1594,7 +1594,7 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 	mutex_unlock(&c->ec_stripe_head_lock);
 
 	mutex_lock(&c->ec_stripe_new_lock);
-	list_for_each_entry(h, &c->ec_stripe_new_list, list) {
+	list_for_each_entry(s, &c->ec_stripe_new_list, list) {
 		pr_buf(out, "\tin flight: blocks %u allocated %u pin %u\n",
 		       s->blocks.nr,
 		       bitmap_weight(s->blocks_allocated,
