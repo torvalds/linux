@@ -75,7 +75,7 @@ int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
 		ret = -errno;
 		fprintf(stderr, "Failed to open %s, %s\n",
 			chrdev_name, strerror(errno));
-		goto exit_close_error;
+		goto exit_free_name;
 	}
 
 	for (i = 0; i < nlines; i++)
@@ -94,9 +94,9 @@ int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
 			"GPIO_GET_LINEHANDLE_IOCTL", ret, strerror(errno));
 	}
 
-exit_close_error:
 	if (close(fd) == -1)
 		perror("Failed to close GPIO character device file");
+exit_free_name:
 	free(chrdev_name);
 	return ret < 0 ? ret : req.fd;
 }
