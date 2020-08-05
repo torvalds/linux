@@ -392,6 +392,9 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	u32 pixelformat;
 
 	switch (pixelcode) {
+	case MEDIA_BUS_FMT_Y8_1X8:
+		pixelformat = V4L2_PIX_FMT_GREY;
+		break;
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		pixelformat = V4L2_PIX_FMT_SBGGR8;
 		break;
@@ -404,6 +407,9 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		pixelformat = V4L2_PIX_FMT_SRGGB8;
 		break;
+	case MEDIA_BUS_FMT_Y10_1X10:
+		pixelformat = V4L2_PIX_FMT_Y10;
+		break;
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		pixelformat = V4L2_PIX_FMT_SBGGR10;
 		break;
@@ -415,6 +421,9 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 		break;
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
 		pixelformat = V4L2_PIX_FMT_SRGGB10;
+		break;
+	case MEDIA_BUS_FMT_Y12_1X12:
+		pixelformat = V4L2_PIX_FMT_Y12;
 		break;
 	case MEDIA_BUS_FMT_SBGGR12_1X12:
 		pixelformat = V4L2_PIX_FMT_SBGGR12;

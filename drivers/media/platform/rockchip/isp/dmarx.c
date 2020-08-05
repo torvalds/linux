@@ -122,6 +122,11 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.bpp = { 8 },
 		.mplanes = 1,
 	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
@@ -142,6 +147,11 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.bpp = { 10 },
 		.mplanes = 1,
 	}, {
+		.fourcc = V4L2_PIX_FMT_Y10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
@@ -158,6 +168,11 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.mplanes = 1,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
@@ -293,12 +308,14 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_GREY:
 		val = CIF_CSI2_DT_RAW8;
 		break;
 	case V4L2_PIX_FMT_SRGGB10:
 	case V4L2_PIX_FMT_SBGGR10:
 	case V4L2_PIX_FMT_SGRBG10:
 	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_Y10:
 		val = CIF_CSI2_DT_RAW10;
 		break;
 	default:

@@ -475,6 +475,11 @@ static const struct capture_fmt dmatx_fmts[] = {
 		.bpp = { 8 },
 		.mplanes = 1,
 	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
@@ -491,6 +496,11 @@ static const struct capture_fmt dmatx_fmts[] = {
 		.mplanes = 1,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
@@ -514,7 +524,12 @@ static const struct capture_fmt dmatx_fmts[] = {
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
-	},
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}
 };
 
 static struct stream_config rkisp_mp_stream_config = {
