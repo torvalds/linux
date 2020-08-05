@@ -147,23 +147,18 @@ static long kirin_pcie_get_clk(struct kirin_pcie *kirin_pcie,
 static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 				    struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct resource *apb;
-	struct resource *phy;
-	struct resource *dbi;
-
-	apb = platform_get_resource_byname(pdev, IORESOURCE_MEM, "apb");
-	kirin_pcie->apb_base = devm_ioremap_resource(dev, apb);
+	kirin_pcie->apb_base =
+		devm_platform_ioremap_resource_byname(pdev, "apb");
 	if (IS_ERR(kirin_pcie->apb_base))
 		return PTR_ERR(kirin_pcie->apb_base);
 
-	phy = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	kirin_pcie->phy_base = devm_ioremap_resource(dev, phy);
+	kirin_pcie->phy_base =
+		devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(kirin_pcie->phy_base))
 		return PTR_ERR(kirin_pcie->phy_base);
 
-	dbi = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	kirin_pcie->pci->dbi_base = devm_ioremap_resource(dev, dbi);
+	kirin_pcie->pci->dbi_base =
+		devm_platform_ioremap_resource_byname(pdev, "dbi");
 	if (IS_ERR(kirin_pcie->pci->dbi_base))
 		return PTR_ERR(kirin_pcie->pci->dbi_base);
 
