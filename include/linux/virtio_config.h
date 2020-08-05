@@ -357,10 +357,10 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
  */
 #define virtio_le_to_cpu(x) \
 	_Generic((x), \
-		__u8: (x), \
-		 __le16: le16_to_cpu(x), \
-		 __le32: le32_to_cpu(x), \
-		 __le64: le64_to_cpu(x) \
+		__u8: (u8)(x), \
+		 __le16: (u16)le16_to_cpu(x), \
+		 __le32: (u32)le32_to_cpu(x), \
+		 __le64: (u64)le64_to_cpu(x) \
 		)
 
 #define virtio_cpu_to_le(x, m) \
@@ -400,7 +400,6 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 		*(ptr) = virtio_le_to_cpu(virtio_cread_v);		\
 	} while(0)
 
-/* Config space accessors. */
 #define virtio_cwrite_le(vdev, structname, member, ptr)			\
 	do {								\
 		typeof(((structname*)0)->member) virtio_cwrite_v =	\
