@@ -455,8 +455,7 @@ out:
  * @node: node is returned here
  *
  * This function reads a node defined by @zbr from the flash media. Returns
- * zero in case of success or a negative negative error code in case of
- * failure.
+ * zero in case of success or a negative error code in case of failure.
  */
 int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			void *node)

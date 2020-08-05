@@ -834,7 +834,7 @@ out_fname:
  *
  * This function checks if directory @dir is empty. Returns zero if the
  * directory is empty, %-ENOTEMPTY if it is not, and other negative error codes
- * in case of of errors.
+ * in case of errors.
  */
 int ubifs_check_dir_empty(struct inode *dir)
 {

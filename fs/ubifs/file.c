@@ -205,7 +205,7 @@ static void release_new_page_budget(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This is a helper function which releases budget corresponding to the budget
- * of changing one one page of data which already exists on the flash media.
+ * of changing one page of data which already exists on the flash media.
  */
 static void release_existing_page_budget(struct ubifs_info *c)
 {

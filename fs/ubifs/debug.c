@@ -1012,7 +1012,7 @@ void dbg_save_space_info(struct ubifs_info *c)
  *
  * This function compares current flash space information with the information
  * which was saved when the 'dbg_save_space_info()' function was called.
- * Returns zero if the information has not changed, and %-EINVAL it it has
+ * Returns zero if the information has not changed, and %-EINVAL if it has
  * changed.
  */
 int dbg_check_space_info(struct ubifs_info *c)

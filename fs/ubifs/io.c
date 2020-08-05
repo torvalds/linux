@@ -1046,7 +1046,7 @@ out:
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
  *
- * This function reads a node of known type and and length, checks it and
+ * This function reads a node of known type and length, checks it and
  * stores in @buf. Returns zero in case of success, %-EUCLEAN if CRC mismatched
  * and a negative error code in case of failure.
  */
