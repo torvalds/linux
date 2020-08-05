@@ -694,7 +694,6 @@ static void altera_pcie_irq_teardown(struct altera_pcie *pcie)
 
 static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 {
-	struct device *dev = &pcie->pdev->dev;
 	struct platform_device *pdev = pcie->pdev;
 
 	pcie->cra_base = devm_platform_ioremap_resource_byname(pdev, "Cra");
@@ -710,10 +709,8 @@ static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 
 	/* setup IRQ */
 	pcie->irq = platform_get_irq(pdev, 0);
-	if (pcie->irq < 0) {
-		dev_err(dev, "failed to get IRQ: %d\n", pcie->irq);
+	if (pcie->irq < 0)
 		return pcie->irq;
-	}
 
 	irq_set_chained_handler_and_data(pcie->irq, altera_pcie_isr, pcie);
 	return 0;

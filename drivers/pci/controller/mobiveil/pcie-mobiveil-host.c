@@ -519,10 +519,8 @@ static int mobiveil_pcie_integrated_interrupt_init(struct mobiveil_pcie *pcie)
 	mobiveil_pcie_enable_msi(pcie);
 
 	rp->irq = platform_get_irq(pdev, 0);
-	if (rp->irq < 0) {
-		dev_err(dev, "failed to map IRQ: %d\n", rp->irq);
+	if (rp->irq < 0)
 		return rp->irq;
-	}
 
 	/* initialize the IRQ domains */
 	ret = mobiveil_pcie_init_irq_domain(pcie);
