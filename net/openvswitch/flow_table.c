@@ -518,8 +518,8 @@ void ovs_flow_tbl_destroy(struct flow_table *table)
 {
 	struct table_instance *ti = rcu_dereference_raw(table->ti);
 	struct table_instance *ufid_ti = rcu_dereference_raw(table->ufid_ti);
-	struct mask_cache *mc = rcu_dereference(table->mask_cache);
-	struct mask_array *ma = rcu_dereference_ovsl(table->mask_array);
+	struct mask_cache *mc = rcu_dereference_raw(table->mask_cache);
+	struct mask_array *ma = rcu_dereference_raw(table->mask_array);
 
 	call_rcu(&mc->rcu, mask_cache_rcu_cb);
 	call_rcu(&ma->rcu, mask_array_rcu_cb);
@@ -937,7 +937,7 @@ int ovs_flow_tbl_num_masks(const struct flow_table *table)
 
 u32 ovs_flow_tbl_masks_cache_size(const struct flow_table *table)
 {
-	struct mask_cache *mc = rcu_dereference(table->mask_cache);
+	struct mask_cache *mc = rcu_dereference_ovsl(table->mask_cache);
 
 	return READ_ONCE(mc->cache_size);
 }
