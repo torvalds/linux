@@ -1039,6 +1039,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		}
 
 		journal_seq += 4;
+
+		/*
+		 * The superblock needs to be written before we do any btree
+		 * node writes: it will be in the read_write() path
+		 */
 	}
 
 	ret = bch2_blacklist_table_initialize(c);

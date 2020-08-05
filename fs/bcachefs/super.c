@@ -352,8 +352,8 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 {
 	bool ret = !test_and_set_bit(BCH_FS_EMERGENCY_RO, &c->flags);
 
-	bch2_fs_read_only_async(c);
 	bch2_journal_halt(&c->journal);
+	bch2_fs_read_only_async(c);
 
 	wake_up(&bch_read_only_wait);
 	return ret;
@@ -409,6 +409,13 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
+
+	/*
+	 * We need to write out a journal entry before we start doing btree
+	 * updates, to ensure that on unclean shutdown new journal blacklist
+	 * entries are created:
+	 */
+	bch2_journal_meta(&c->journal);
 
 	clear_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
 

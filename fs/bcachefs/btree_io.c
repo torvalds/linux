@@ -597,34 +597,6 @@ void bch2_btree_init_next(struct bch_fs *c, struct btree *b,
 		bch2_btree_iter_reinit_node(iter, b);
 }
 
-static struct nonce btree_nonce(struct bset *i, unsigned offset)
-{
-	return (struct nonce) {{
-		[0] = cpu_to_le32(offset),
-		[1] = ((__le32 *) &i->seq)[0],
-		[2] = ((__le32 *) &i->seq)[1],
-		[3] = ((__le32 *) &i->journal_seq)[0]^BCH_NONCE_BTREE,
-	}};
-}
-
-static void bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
-{
-	struct nonce nonce = btree_nonce(i, offset);
-
-	if (!offset) {
-		struct btree_node *bn = container_of(i, struct btree_node, keys);
-		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
-
-		bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, &bn->flags,
-			     bytes);
-
-		nonce = nonce_add(nonce, round_up(bytes, CHACHA_BLOCK_SIZE));
-	}
-
-	bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, i->_data,
-		     vstruct_end(i) - (void *) i->_data);
-}
-
 static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)

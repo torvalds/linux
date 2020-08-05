@@ -36,15 +36,6 @@
  * that bset, until that btree node is rewritten.
  */
 
-static unsigned
-blacklist_nr_entries(struct bch_sb_field_journal_seq_blacklist *bl)
-{
-	return bl
-		? ((vstruct_end(&bl->field) - (void *) &bl->start[0]) /
-		   sizeof(struct journal_seq_blacklist_entry))
-		: 0;
-}
-
 static unsigned sb_blacklist_u64s(unsigned nr)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl;

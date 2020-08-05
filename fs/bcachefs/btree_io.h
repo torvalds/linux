@@ -5,6 +5,7 @@
 #include "bkey_methods.h"
 #include "bset.h"
 #include "btree_locking.h"
+#include "checksum.h"
 #include "extents.h"
 #include "io_types.h"
 
@@ -80,6 +81,34 @@ static inline bool bch2_maybe_compact_whiteouts(struct bch_fs *c, struct btree *
 			return bch2_compact_whiteouts(c, b, COMPACT_LAZY);
 
 	return false;
+}
+
+static inline struct nonce btree_nonce(struct bset *i, unsigned offset)
+{
+	return (struct nonce) {{
+		[0] = cpu_to_le32(offset),
+		[1] = ((__le32 *) &i->seq)[0],
+		[2] = ((__le32 *) &i->seq)[1],
+		[3] = ((__le32 *) &i->journal_seq)[0]^BCH_NONCE_BTREE,
+	}};
+}
+
+static inline void bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
+{
+	struct nonce nonce = btree_nonce(i, offset);
+
+	if (!offset) {
+		struct btree_node *bn = container_of(i, struct btree_node, keys);
+		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
+
+		bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, &bn->flags,
+			     bytes);
+
+		nonce = nonce_add(nonce, round_up(bytes, CHACHA_BLOCK_SIZE));
+	}
+
+	bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, i->_data,
+		     vstruct_end(i) - (void *) i->_data);
 }
 
 void bch2_btree_sort_into(struct bch_fs *, struct btree *, struct btree *);
