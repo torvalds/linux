@@ -366,7 +366,7 @@ static enum drm_mode_status mdfld_dsi_connector_mode_valid(struct drm_connector 
 	/**
 	 * FIXME: current DC has no fitting unit, reject any mode setting
 	 * request
-	 * Will figure out a way to do up-scaling(pannel fitting) later.
+	 * Will figure out a way to do up-scaling(panel fitting) later.
 	 **/
 	if (fixed_mode) {
 		if (mode->hdisplay != fixed_mode->hdisplay)
@@ -531,7 +531,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	dsi_config->connector = dsi_connector;
 
 	if (!dsi_config->fixed_mode) {
-		DRM_ERROR("No pannel fixed mode was found\n");
+		DRM_ERROR("No panel fixed mode was found\n");
 		goto dsi_init_err0;
 	}
 
