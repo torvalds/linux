@@ -124,7 +124,7 @@
  * /sys/fs/ext4/<partition>/mb_group_prealloc. The value is represented in
  * terms of number of blocks. If we have mounted the file system with -O
  * stripe=<value> option the group prealloc request is normalized to the
- * the smallest multiple of the stripe value (sbi->s_stripe) which is
+ * smallest multiple of the stripe value (sbi->s_stripe) which is
  * greater than the default mb_group_prealloc.
  *
  * The regular allocator (using the buddy cache) supports a few tunables.
@@ -2019,7 +2019,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			/*
 			 * IF we have corrupt bitmap, we won't find any
 			 * free blocks even though group info says we
-			 * we have free blocks
+			 * have free blocks
 			 */
 			ext4_grp_locked_error(sb, e4b->bd_group, 0, 0,
 					"%d free clusters as per "

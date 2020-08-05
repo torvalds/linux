@@ -1033,7 +1033,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			brelse(bh);
 
 			/*
-			 * Everything below this this pointer has been
+			 * Everything below this pointer has been
 			 * released.  Now let this top-of-subtree go.
 			 *
 			 * We want the freeing of this indirect block to be

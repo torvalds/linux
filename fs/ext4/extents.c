@@ -4023,7 +4023,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  *
- * return > 0, number of of blocks already mapped/allocated
+ * return > 0, number of blocks already mapped/allocated
  *          if create == 0 and these are pre-allocated blocks
  *          	buffer head is unmapped
  *          otherwise blocks are mapped

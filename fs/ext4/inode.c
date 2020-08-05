@@ -2785,7 +2785,7 @@ retry:
 		 * ext4_journal_stop() can wait for transaction commit
 		 * to finish which may depend on writeback of pages to
 		 * complete or on page lock to be released.  In that
-		 * case, we have to wait until after after we have
+		 * case, we have to wait until after we have
 		 * submitted all the IO, released page locks we hold,
 		 * and dropped io_end reference (for extent conversion
 		 * to be able to complete) before stopping the handle.
