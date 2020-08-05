@@ -2,7 +2,7 @@
 /*
  * twl6030_usb - TWL6030 USB transceiver, talking to OMAP OTG driver.
  *
- * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Hema HK <hemahk@ti.com>
  */

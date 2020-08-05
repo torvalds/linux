@@ -2,7 +2,7 @@
 /*
  * xhci-plat.c - xHCI host controller driver platform Bus Glue.
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
  * A lot of code borrowed from the Linux xHCI driver.
@@ -454,12 +454,14 @@ static const struct dev_pm_ops xhci_plat_pm_ops = {
 			   NULL)
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id usb_xhci_acpi_match[] = {
 	/* XHCI-compliant USB Controller */
 	{ "PNP0D10", },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
+#endif
 
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_plat_probe,

@@ -2015,6 +2015,8 @@ int xhci_alloc_erst(struct xhci_hcd *xhci,
 		struct xhci_ring *evt_ring,
 		struct xhci_erst *erst,
 		gfp_t flags);
+void xhci_initialize_ring_info(struct xhci_ring *ring,
+			unsigned int cycle_state);
 void xhci_free_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_free_endpoint_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,

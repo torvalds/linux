@@ -2039,7 +2039,7 @@ static int do_scsi_command(struct fsg_common *common)
 	case RELEASE:
 	case RESERVE:
 	case SEND_DIAGNOSTIC:
-		/* Fall through */
+		fallthrough;
 
 	default:
 unknown_cmnd:

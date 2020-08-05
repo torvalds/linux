@@ -40,6 +40,7 @@ config USB_CONN_GPIO
 	tristate "USB GPIO Based Connection Detection Driver"
 	depends on GPIOLIB
 	select USB_ROLE_SWITCH
+	select POWER_SUPPLY
 	help
 	  The driver supports USB role switch between host and device via GPIO
 	  based USB cable detection, used typically if an input GPIO is used

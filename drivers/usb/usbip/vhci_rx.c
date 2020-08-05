@@ -27,7 +27,7 @@ struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 
 		switch (status) {
 		case -ENOENT:
-			/* fall through */
+			fallthrough;
 		case -ECONNRESET:
 			dev_dbg(&urb->dev->dev,
 				 "urb seq# %u was unlinked %ssynchronously\n",

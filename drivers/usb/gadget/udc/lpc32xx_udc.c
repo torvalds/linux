@@ -2986,7 +2986,7 @@ static void lpc32xx_rmwkup_chg(int remote_wakup_enable)
 	/* Enable or disable USB remote wakeup */
 }
 
-struct lpc32xx_usbd_cfg lpc32xx_usbddata = {
+static struct lpc32xx_usbd_cfg lpc32xx_usbddata = {
 	.vbus_drv_pol = 0,
 	.conn_chgb = &lpc32xx_usbd_conn_chg,
 	.susp_chgb = &lpc32xx_usbd_susp_chg,

@@ -2475,7 +2475,7 @@ restart:
 			ehci_dbg(ehci, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
 			/* BUG(); */
-			/* FALL THROUGH */
+			fallthrough;
 		case Q_TYPE_QH:
 		case Q_TYPE_FSTN:
 			/* End of the iTDs and siTDs */

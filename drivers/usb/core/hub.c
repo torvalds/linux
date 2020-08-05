@@ -35,7 +35,7 @@
 #include <asm/byteorder.h>
 
 #include "hub.h"
-#include "otg_whitelist.h"
+#include "otg_productlist.h"
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define USB_VENDOR_SMSC				0x0424
@@ -1834,7 +1834,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -E2BIG;
 	}
 
-#ifdef	CONFIG_USB_OTG_BLACKLIST_HUB
+#ifdef	CONFIG_USB_OTG_DISABLE_EXTERNAL_HUB
 	if (hdev->parent) {
 		dev_warn(&intf->dev, "ignoring external hub\n");
 		return -ENODEV;
@@ -2403,7 +2403,7 @@ static int usb_enumerate_device(struct usb_device *udev)
 	if (err < 0)
 		return err;
 
-	if (IS_ENABLED(CONFIG_USB_OTG_WHITELIST) && hcd->tpl_support &&
+	if (IS_ENABLED(CONFIG_USB_OTG_PRODUCTLIST) && hcd->tpl_support &&
 		!is_targeted(udev)) {
 		/* Maybe it can talk to us, though we can't talk to it.
 		 * (Includes HNP test device.)
@@ -4698,7 +4698,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						r = 0;
 						break;
 					}
-					/* FALL THROUGH */
+					fallthrough;
 				default:
 					if (r == 0)
 						r = -EPROTO;

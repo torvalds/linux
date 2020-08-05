@@ -271,7 +271,7 @@ static struct usb_driver tower_driver = {
 };
 
 
-/**
+/*
  *	lego_usb_tower_debug_data
  */
 static inline void lego_usb_tower_debug_data(struct device *dev,
@@ -283,7 +283,7 @@ static inline void lego_usb_tower_debug_data(struct device *dev,
 }
 
 
-/**
+/*
  *	tower_delete
  */
 static inline void tower_delete(struct lego_usb_tower *dev)
@@ -299,7 +299,7 @@ static inline void tower_delete(struct lego_usb_tower *dev)
 }
 
 
-/**
+/*
  *	tower_open
  */
 static int tower_open(struct inode *inode, struct file *file)
@@ -398,7 +398,7 @@ exit:
 	return retval;
 }
 
-/**
+/*
  *	tower_release
  */
 static int tower_release(struct inode *inode, struct file *file)
@@ -440,7 +440,7 @@ exit:
 	return retval;
 }
 
-/**
+/*
  *	tower_check_for_read_packet
  *
  *      To get correct semantics for signals and non-blocking I/O
@@ -461,7 +461,7 @@ static void tower_check_for_read_packet(struct lego_usb_tower *dev)
 }
 
 
-/**
+/*
  *	tower_poll
  */
 static __poll_t tower_poll(struct file *file, poll_table *wait)
@@ -487,7 +487,7 @@ static __poll_t tower_poll(struct file *file, poll_table *wait)
 }
 
 
-/**
+/*
  *	tower_llseek
  */
 static loff_t tower_llseek(struct file *file, loff_t off, int whence)
@@ -496,7 +496,7 @@ static loff_t tower_llseek(struct file *file, loff_t off, int whence)
 }
 
 
-/**
+/*
  *	tower_read
  */
 static ssize_t tower_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
@@ -580,7 +580,7 @@ exit:
 }
 
 
-/**
+/*
  *	tower_write
  */
 static ssize_t tower_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
@@ -662,7 +662,7 @@ exit:
 }
 
 
-/**
+/*
  *	tower_interrupt_in_callback
  */
 static void tower_interrupt_in_callback(struct urb *urb)
@@ -717,7 +717,7 @@ exit:
 }
 
 
-/**
+/*
  *	tower_interrupt_out_callback
  */
 static void tower_interrupt_out_callback(struct urb *urb)
@@ -742,7 +742,7 @@ static void tower_interrupt_out_callback(struct urb *urb)
 }
 
 
-/**
+/*
  *	tower_probe
  *
  *	Called by the usb core when a new device is connected that it thinks
@@ -854,7 +854,7 @@ error:
 }
 
 
-/**
+/*
  *	tower_disconnect
  *
  *	Called by the usb core when the device is removed from the system.

@@ -162,7 +162,7 @@ struct td {
 
 
 /* map OHCI TD status codes (CC) to errno values */
-static const int cc_to_error [16] = {
+static const int __maybe_unused cc_to_error [16] = {
 	/* No  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,

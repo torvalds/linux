@@ -1,18 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * drivers/usb/core/otg_whitelist.h
- *
- * Copyright (C) 2004 Texas Instruments
- */
+/* Copyright (C) 2004 Texas Instruments */
 
 /*
- * This OTG and Embedded Host Whitelist is "Targeted Peripheral List".
+ * This OTG and Embedded Host list is "Targeted Peripheral List".
  * It should mostly use of USB_DEVICE() or USB_DEVICE_VER() entries..
  *
  * YOU _SHOULD_ CHANGE THIS LIST TO MATCH YOUR PRODUCT AND ITS TESTING!
  */
 
-static struct usb_device_id whitelist_table[] = {
+static struct usb_device_id productlist_table[] = {
 
 /* hubs are optional in OTG, but very handy ... */
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },
@@ -44,7 +40,7 @@ static struct usb_device_id whitelist_table[] = {
 
 static int is_targeted(struct usb_device *dev)
 {
-	struct usb_device_id	*id = whitelist_table;
+	struct usb_device_id	*id = productlist_table;
 
 	/* HNP test device is _never_ targeted (see OTG spec 6.6.6) */
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a &&
@@ -59,7 +55,7 @@ static int is_targeted(struct usb_device *dev)
 	/* NOTE: can't use usb_match_id() since interface caches
 	 * aren't set up yet. this is cut/paste from that code.
 	 */
-	for (id = whitelist_table; id->match_flags; id++) {
+	for (id = productlist_table; id->match_flags; id++) {
 		if ((id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
 		    id->idVendor != le16_to_cpu(dev->descriptor.idVendor))
 			continue;

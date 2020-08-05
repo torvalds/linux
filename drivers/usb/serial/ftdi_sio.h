@@ -302,7 +302,7 @@ enum ftdi_sio_baudrate {
 /*
  * FTDI_SIO_GET_LATENCY_TIMER
  *
- * Set the timeout interval. The FTDI collects data from the slave
+ * Set the timeout interval. The FTDI collects data from the
  * device, transmitting it to the host when either A) 62 bytes are
  * received, or B) the timeout interval has elapsed and the buffer
  * contains at least 1 byte.  Setting this value to a small number
@@ -324,7 +324,7 @@ enum ftdi_sio_baudrate {
 /*
  * FTDI_SIO_SET_LATENCY_TIMER
  *
- * Set the timeout interval. The FTDI collects data from the slave
+ * Set the timeout interval. The FTDI collects data from the
  * device, transmitting it to the host when either A) 62 bytes are
  * received, or B) the timeout interval has elapsed and the buffer
  * contains at least 1 byte.  Setting this value to a small number

@@ -224,7 +224,7 @@ static void setup_etd_dword0(struct imx21 *imx21,
 		((u32) maxpacket << DW0_MAXPKTSIZ));
 }
 
-/**
+/*
  * Copy buffer to data controller data memory.
  * We cannot use memcpy_toio() because the hardware requires 32bit writes
  */
