@@ -276,7 +276,7 @@ static int hub_master_remove(struct device *dev)
 	return 0;
 }
 
-static struct fsi_device_id hub_master_ids[] = {
+static const struct fsi_device_id hub_master_ids[] = {
 	{
 		.engine_type = FSI_ENGID_HUB_MASTER,
 		.version = FSI_VERSION_ANY,
