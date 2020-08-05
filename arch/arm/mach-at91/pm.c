@@ -51,10 +51,11 @@ static struct at91_soc_pm soc_pm = {
 };
 
 static const match_table_t pm_modes __initconst = {
-	{ AT91_PM_STANDBY, "standby" },
-	{ AT91_PM_ULP0, "ulp0" },
-	{ AT91_PM_ULP1, "ulp1" },
-	{ AT91_PM_BACKUP, "backup" },
+	{ AT91_PM_STANDBY,	"standby" },
+	{ AT91_PM_ULP0,		"ulp0" },
+	{ AT91_PM_ULP0_FAST,    "ulp0-fast" },
+	{ AT91_PM_ULP1,		"ulp1" },
+	{ AT91_PM_BACKUP,	"backup" },
 	{ -1, NULL },
 };
 
