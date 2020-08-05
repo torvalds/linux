@@ -396,7 +396,7 @@ static int pm2_int_reg3(void *pm2_data, int val)
 
 	if (val & (PM2XXX_INT4_ITCHARGINGON)) {
 		dev_dbg(pm2->dev ,
-			"chargind operation has started\n");
+			"charging operation has started\n");
 	}
 
 	if (val & (PM2XXX_INT4_ITVRESUME)) {
