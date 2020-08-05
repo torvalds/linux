@@ -45,7 +45,8 @@ properties:
 
       - contains:
           const: syscon
-        additionalItems: true
+        minItems: 2
+        maxItems: 4  # Should be enough
 
   reg:
     maxItems: 1

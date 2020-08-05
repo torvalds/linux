@@ -2,7 +2,7 @@ SN65DSI86 DSI to eDP bridge chip
 --------------------------------
 
 This is the binding for Texas Instruments SN65DSI86 bridge.
-http://www.ti.com/general/docs/lit/getliterature.tsp?genericPartNumber=sn65dsi86&fileType=pdf
+https://www.ti.com/general/docs/lit/getliterature.tsp?genericPartNumber=sn65dsi86&fileType=pdf
 
 Required properties:
 - compatible: Must be "ti,sn65dsi86"

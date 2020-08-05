@@ -18,9 +18,6 @@ description: |+
 
   Be aware that the clocksource driver supports only uniprocessor systems.
 
-allOf:
-  - $ref: pwm.yaml#
-
 properties:
   compatible:
     enum:
@@ -63,7 +60,8 @@ properties:
 
   interrupts:
     description:
-      One interrupt per timer, starting at timer 0.
+      One interrupt per timer, starting at timer 0. Necessary only for SoCs which
+      use PWM clocksource.
     minItems: 1
     maxItems: 5
 
@@ -88,11 +86,26 @@ required:
   - clocks
   - clock-names
   - compatible
-  - interrupts
   - "#pwm-cells"
   - reg
 
 additionalProperties: false
+
+allOf:
+  - $ref: pwm.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s3c2410-pwm
+              - samsung,s3c6400-pwm
+              - samsung,s5p6440-pwm
+              - samsung,s5pc100-pwm
+    then:
+      required:
+        - interrupts
 
 examples:
   - |
