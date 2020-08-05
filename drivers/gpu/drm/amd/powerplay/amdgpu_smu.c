@@ -133,8 +133,8 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_dpm_set_vcn_enable(struct smu_context *smu,
-				  bool enable)
+static int smu_dpm_set_vcn_enable_locked(struct smu_context *smu,
+					 bool enable)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
@@ -143,17 +143,48 @@ static int smu_dpm_set_vcn_enable(struct smu_context *smu,
 	if (!smu->ppt_funcs->dpm_set_vcn_enable)
 		return 0;
 
-	mutex_lock(&power_gate->vcn_gate_lock);
-
 	if (atomic_read(&power_gate->vcn_gated) ^ enable)
-		goto out;
+		return 0;
 
 	ret = smu->ppt_funcs->dpm_set_vcn_enable(smu, enable);
 	if (!ret)
 		atomic_set(&power_gate->vcn_gated, !enable);
 
-out:
+	return ret;
+}
+
+static int smu_dpm_set_vcn_enable(struct smu_context *smu,
+				  bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	mutex_lock(&power_gate->vcn_gate_lock);
+
+	ret = smu_dpm_set_vcn_enable_locked(smu, enable);
+
 	mutex_unlock(&power_gate->vcn_gate_lock);
+
+	return ret;
+}
+
+static int smu_dpm_set_jpeg_enable_locked(struct smu_context *smu,
+					  bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (!smu->ppt_funcs->dpm_set_jpeg_enable)
+		return 0;
+
+	if (atomic_read(&power_gate->jpeg_gated) ^ enable)
+		return 0;
+
+	ret = smu->ppt_funcs->dpm_set_jpeg_enable(smu, enable);
+	if (!ret)
+		atomic_set(&power_gate->jpeg_gated, !enable);
 
 	return ret;
 }
@@ -165,19 +196,10 @@ static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
-	if (!smu->ppt_funcs->dpm_set_jpeg_enable)
-		return 0;
-
 	mutex_lock(&power_gate->jpeg_gate_lock);
 
-	if (atomic_read(&power_gate->jpeg_gated) ^ enable)
-		goto out;
+	ret = smu_dpm_set_jpeg_enable_locked(smu, enable);
 
-	ret = smu->ppt_funcs->dpm_set_jpeg_enable(smu, enable);
-	if (!ret)
-		atomic_set(&power_gate->jpeg_gated, !enable);
-
-out:
 	mutex_unlock(&power_gate->jpeg_gate_lock);
 
 	return ret;
@@ -401,6 +423,45 @@ static int smu_early_init(void *handle)
 	mutex_init(&smu->mutex);
 
 	return smu_set_funcs(adev);
+}
+
+static int smu_set_default_dpm_table(struct smu_context *smu)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int vcn_gate, jpeg_gate;
+	int ret = 0;
+
+	if (!smu->ppt_funcs->set_default_dpm_table)
+		return 0;
+
+	mutex_lock(&power_gate->vcn_gate_lock);
+	mutex_lock(&power_gate->jpeg_gate_lock);
+
+	vcn_gate = atomic_read(&power_gate->vcn_gated);
+	jpeg_gate = atomic_read(&power_gate->jpeg_gated);
+
+	ret = smu_dpm_set_vcn_enable_locked(smu, true);
+	if (ret)
+		goto err0_out;
+
+	ret = smu_dpm_set_jpeg_enable_locked(smu, true);
+	if (ret)
+		goto err1_out;
+
+	ret = smu->ppt_funcs->set_default_dpm_table(smu);
+	if (ret)
+		dev_err(smu->adev->dev,
+			"Failed to setup default dpm clock tables!\n");
+
+	smu_dpm_set_jpeg_enable_locked(smu, !jpeg_gate);
+err1_out:
+	smu_dpm_set_vcn_enable_locked(smu, !vcn_gate);
+err0_out:
+	mutex_unlock(&power_gate->jpeg_gate_lock);
+	mutex_unlock(&power_gate->vcn_gate_lock);
+
+	return ret;
 }
 
 static int smu_late_init(void *handle)
