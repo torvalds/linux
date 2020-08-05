@@ -113,11 +113,10 @@ static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 	u64 data_units_read = 0, data_units_written = 0;
 	struct nvmet_ns *ns;
 	struct nvmet_ctrl *ctrl;
+	unsigned long idx;
 
 	ctrl = req->sq->ctrl;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link) {
+	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
 		/* we don't have the right data for file backed ns */
 		if (!ns->bdev)
 			continue;
@@ -127,9 +126,7 @@ static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 		host_writes += part_stat_read(ns->bdev->bd_part, ios[WRITE]);
 		data_units_written += DIV_ROUND_UP(
 			part_stat_read(ns->bdev->bd_part, sectors[WRITE]), 1000);
-
 	}
-	rcu_read_unlock();
 
 	put_unaligned_le64(host_reads, &slog->host_reads[0]);
 	put_unaligned_le64(data_units_read, &slog->data_units_read[0]);
@@ -230,14 +227,13 @@ static u32 nvmet_format_ana_group(struct nvmet_req *req, u32 grpid,
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvmet_ns *ns;
+	unsigned long idx;
 	u32 count = 0;
 
 	if (!(req->cmd->get_log_page.lsp & NVME_ANA_LOG_RGO)) {
-		rcu_read_lock();
-		list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link)
+		xa_for_each(&ctrl->subsys->namespaces, idx, ns)
 			if (ns->anagrpid == grpid)
 				desc->nsids[count++] = cpu_to_le32(ns->nsid);
-		rcu_read_unlock();
 	}
 
 	desc->grpid = cpu_to_le32(grpid);
@@ -427,7 +423,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->awupf = 0;
 
 	id->sgls = cpu_to_le32(1 << 0);	/* we always support SGLs */
-	if (ctrl->ops->has_keyed_sgls)
+	if (ctrl->ops->flags & NVMF_KEYED_SGLS)
 		id->sgls |= cpu_to_le32(1 << 2);
 	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
@@ -556,6 +552,7 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 	static const int buf_size = NVME_IDENTIFY_DATA_SIZE;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvmet_ns *ns;
+	unsigned long idx;
 	u32 min_nsid = le32_to_cpu(req->cmd->identify.nsid);
 	__le32 *list;
 	u16 status = 0;
@@ -567,15 +564,13 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 		goto out;
 	}
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link) {
+	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->nsid <= min_nsid)
 			continue;
 		list[i++] = cpu_to_le32(ns->nsid);
 		if (i == buf_size / sizeof(__le32))
 			break;
 	}
-	rcu_read_unlock();
 
 	status = nvmet_copy_to_sgl(req, 0, list, buf_size);
 
@@ -754,7 +749,7 @@ u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask)
 	return 0;
 }
 
-static void nvmet_execute_set_features(struct nvmet_req *req)
+void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
@@ -829,7 +824,7 @@ void nvmet_get_feat_async_event(struct nvmet_req *req)
 	nvmet_set_result(req, READ_ONCE(req->sq->ctrl->aen_enabled));
 }
 
-static void nvmet_execute_get_features(struct nvmet_req *req)
+void nvmet_execute_get_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
@@ -944,6 +939,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 	ret = nvmet_check_ctrl_status(req, cmd);
 	if (unlikely(ret))
 		return ret;
+
+	if (nvmet_req_passthru_ctrl(req))
+		return nvmet_parse_passthru_admin_cmd(req);
 
 	switch (cmd->common.opcode) {
 	case nvme_admin_get_log_page:

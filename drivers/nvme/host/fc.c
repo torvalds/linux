@@ -826,6 +826,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 		break;
 
 	case NVME_CTRL_DELETING:
+	case NVME_CTRL_DELETING_NOIO:
 	default:
 		/* no action to take - let it delete */
 		break;
@@ -3001,8 +3002,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	if (ret)
 		goto out_disconnect_admin_queue;
 
-	ctrl->ctrl.max_hw_sectors =
-		(ctrl->lport->ops->max_sgl_segments - 1) << (PAGE_SHIFT - 9);
+	ctrl->ctrl.max_segments = ctrl->lport->ops->max_sgl_segments;
+	ctrl->ctrl.max_hw_sectors = ctrl->ctrl.max_segments <<
+						(ilog2(SZ_4K) - 9);
 
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 
