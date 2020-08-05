@@ -2502,8 +2502,10 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 
 		return scnprintf(msg + printed, size - printed,
 		 "Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\n"
-		 "access to performance monitoring and observability operations for users\n"
-		 "without CAP_PERFMON or CAP_SYS_ADMIN Linux capability.\n"
+		 "access to performance monitoring and observability operations for processes\n"
+		 "without CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.\n"
+		 "More information can be found at 'Perf events and tool security' document:\n"
+		 "https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html\n"
 		 "perf_event_paranoid setting is %d:\n"
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 "      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK\n"
