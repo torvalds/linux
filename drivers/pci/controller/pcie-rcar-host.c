@@ -986,7 +986,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	err = pm_runtime_get_sync(pcie->dev);
 	if (err < 0) {
 		dev_err(pcie->dev, "pm_runtime_get_sync failed\n");
-		goto err_pm_disable;
+		goto err_pm_put;
 	}
 
 	err = rcar_pcie_get_resources(host);
@@ -1057,8 +1057,6 @@ err_unmap_msi_irqs:
 
 err_pm_put:
 	pm_runtime_put(dev);
-
-err_pm_disable:
 	pm_runtime_disable(dev);
 	pci_free_resource_list(&host->resources);
 

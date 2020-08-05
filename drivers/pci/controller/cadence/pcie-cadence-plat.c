@@ -128,9 +128,8 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 	}
 
  err_init:
-	pm_runtime_put_sync(dev);
-
  err_get_sync:
+	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	cdns_pcie_disable_phy(cdns_plat_pcie->pcie);
 	phy_count = cdns_plat_pcie->pcie->phy_count;

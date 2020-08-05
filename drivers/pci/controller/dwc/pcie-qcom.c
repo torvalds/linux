@@ -1382,10 +1382,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_disable(dev);
-		return ret;
-	}
+	if (ret < 0)
+		goto err_pm_runtime_put;
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
