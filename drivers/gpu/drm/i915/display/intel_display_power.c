@@ -3927,12 +3927,13 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 	int ret;
 
 	while (1) {
-		u32 low_val = 0, high_val;
+		u32 low_val;
+		u32 high_val = 0;
 
 		if (block)
-			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_BLOCK_REQ;
+			low_val = TGL_PCODE_EXIT_TCCOLD_DATA_L_BLOCK_REQ;
 		else
-			high_val = TGL_PCODE_EXIT_TCCOLD_DATA_H_UNBLOCK_REQ;
+			low_val = TGL_PCODE_EXIT_TCCOLD_DATA_L_UNBLOCK_REQ;
 
 		/*
 		 * Spec states that we should timeout the request after 200us
@@ -3951,8 +3952,7 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 		if (++tries == 3)
 			break;
 
-		if (ret == -EAGAIN)
-			msleep(1);
+		msleep(1);
 	}
 
 	if (ret)
