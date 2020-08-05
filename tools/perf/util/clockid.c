@@ -106,3 +106,14 @@ int parse_clockid(const struct option *opt, const char *str, int unset)
 	ui__warning("unknown clockid %s, check man page\n", ostr);
 	return -1;
 }
+
+const char *clockid_name(clockid_t clk_id)
+{
+	const struct clockid_map *cm;
+
+	for (cm = clockids; cm->name; cm++) {
+		if (cm->clockid == clk_id)
+			return cm->name;
+	}
+	return "(not found)";
+}

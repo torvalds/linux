@@ -6,4 +6,6 @@
 struct option;
 int parse_clockid(const struct option *opt, const char *str, int unset);
 
+const char *clockid_name(clockid_t clk_id);
+
 #endif
