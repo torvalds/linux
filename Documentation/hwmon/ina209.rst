@@ -10,7 +10,7 @@ Supported chips:
     Addresses scanned: -
 
     Datasheet:
-	http://www.ti.com/lit/gpn/ina209
+	https://www.ti.com/lit/gpn/ina209
 
 Author:
 	- Paul Hays <Paul.Hays@cattail.ca>

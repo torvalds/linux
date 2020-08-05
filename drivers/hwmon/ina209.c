@@ -14,7 +14,7 @@
  *	Thanks to Jan Volkering
  *
  * Datasheet:
- * http://www.ti.com/lit/gpn/ina209
+ * https://www.ti.com/lit/gpn/ina209
  */
 
 #include <linux/kernel.h>

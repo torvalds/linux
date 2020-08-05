@@ -145,7 +145,7 @@ motherboard, so the driver assumes that the BIOS set the method
 properly.
 
 Note that the lowest numbered temperature zone trip point corresponds to
-to the border between the highest and one but highest temperature zones, and
+the border between the highest and one but highest temperature zones, and
 vica versa. So the temperature zone trip points 1-4 (or 1-2) go from high temp
 to low temp! This is how things are implemented in the IC, and the driver
 mimics this.
