@@ -1155,7 +1155,12 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 }
 
 /**
- * amdgpu_ttm_alloc_gart - Allocate GART memory for buffer object
+ * amdgpu_ttm_alloc_gart - Make sure buffer object is accessible either
+ * through AGP or GART aperture.
+ *
+ * If bo is accessible through AGP aperture, then use AGP aperture
+ * to access bo; otherwise allocate logical space in GART aperture
+ * and map bo to GART aperture.
  */
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 {
