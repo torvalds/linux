@@ -14,6 +14,8 @@
 /**
  * scif_invalidate_ep() - Set state for all connected endpoints
  * to disconnected and wake up all send/recv waitqueues
+ *
+ * @node: Node to invalidate
  */
 static void scif_invalidate_ep(int node)
 {
@@ -99,11 +101,10 @@ void scif_send_acks(struct scif_dev *dev)
 	}
 }
 
-/*
- * scif_cleanup_scifdev
- *
+/**
+ * scif_cleanup_scifdev - Uninitialize SCIF data structures for remote
+ *                        SCIF device.
  * @dev: Remote SCIF device.
- * Uninitialize SCIF data structures for remote SCIF device.
  */
 void scif_cleanup_scifdev(struct scif_dev *dev)
 {
@@ -136,8 +137,8 @@ void scif_cleanup_scifdev(struct scif_dev *dev)
 	scif_cleanup_qp(dev);
 }
 
-/*
- * scif_remove_node:
+/**
+ * scif_remove_node
  *
  * @node: Node to remove
  */
@@ -162,9 +163,9 @@ static int scif_send_rmnode_msg(int node, int remove_node)
 }
 
 /**
- * scif_node_disconnect:
+ * scif_node_disconnect
  *
- * @node_id[in]: source node id.
+ * @node_id: source node id [in]
  * @mgmt_initiated: Disconnection initiated from the mgmt node
  *
  * Disconnect a node from the scif network.

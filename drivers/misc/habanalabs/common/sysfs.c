@@ -331,6 +331,9 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 	char *data;
 	int rc;
 
+	if (hl_device_disabled_or_in_reset(hdev))
+		return -ENODEV;
+
 	if (!max_size)
 		return -EINVAL;
 

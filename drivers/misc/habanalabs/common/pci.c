@@ -6,16 +6,22 @@
  */
 
 #include "habanalabs.h"
-#include "include/hw_ip/pci/pci_general.h"
+#include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
+#include <linux/bitfield.h>
 
 #define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 10)
+
+#define IATU_REGION_CTRL_REGION_EN_MASK		BIT(31)
+#define IATU_REGION_CTRL_MATCH_MODE_MASK	BIT(30)
+#define IATU_REGION_CTRL_NUM_MATCH_EN_MASK	BIT(19)
+#define IATU_REGION_CTRL_BAR_NUM_MASK		GENMASK(10, 8)
 
 /**
  * hl_pci_bars_map() - Map PCI BARs.
  * @hdev: Pointer to hl_device structure.
- * @bar_name: Array of BAR names.
+ * @name: Array of BAR names.
  * @is_wc: Array with flag per BAR whether a write-combined mapping is needed.
  *
  * Request PCI regions and map them to kernel virtual addresses.
@@ -61,7 +67,7 @@ err:
 	return rc;
 }
 
-/*
+/**
  * hl_pci_bars_unmap() - Unmap PCI BARS.
  * @hdev: Pointer to hl_device structure.
  *
@@ -80,9 +86,11 @@ static void hl_pci_bars_unmap(struct hl_device *hdev)
 	pci_release_regions(pdev);
 }
 
-/*
+/**
  * hl_pci_elbi_write() - Write through the ELBI interface.
  * @hdev: Pointer to hl_device structure.
+ * @addr: Address to write to
+ * @data: Data to write
  *
  * Return: 0 on success, negative value for failure.
  */
@@ -140,6 +148,8 @@ static int hl_pci_elbi_write(struct hl_device *hdev, u64 addr, u32 data)
 /**
  * hl_pci_iatu_write() - iatu write routine.
  * @hdev: Pointer to hl_device structure.
+ * @addr: Address to write to
+ * @data: Data to write
  *
  * Return: 0 on success, negative value for failure.
  */
@@ -161,7 +171,7 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 	return 0;
 }
 
-/*
+/**
  * hl_pci_reset_link_through_bridge() - Reset PCI link.
  * @hdev: Pointer to hl_device structure.
  */
@@ -183,110 +193,94 @@ static void hl_pci_reset_link_through_bridge(struct hl_device *hdev)
 }
 
 /**
- * hl_pci_set_dram_bar_base() - Set DDR BAR to map specific device address.
+ * hl_pci_set_inbound_region() - Configure inbound region
  * @hdev: Pointer to hl_device structure.
- * @inbound_region: Inbound region number.
- * @bar: PCI BAR number.
- * @addr: Address in DRAM. Must be aligned to DRAM bar size.
+ * @region: Inbound region number.
+ * @pci_region: Inbound region parameters.
  *
- * Configure the iATU so that the DRAM bar will start at the specified address.
+ * Configure the iATU inbound region.
  *
  * Return: 0 on success, negative value for failure.
  */
-int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
-				u64 addr)
+int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
+		struct hl_inbound_pci_region *pci_region)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 offset;
-	int rc;
+	u64 bar_phys_base, region_base, region_end_address;
+	u32 offset, ctrl_reg_val;
+	int rc = 0;
 
-	switch (inbound_region) {
-	case 0:
-		offset = 0x100;
-		break;
-	case 1:
-		offset = 0x300;
-		break;
-	case 2:
-		offset = 0x500;
-		break;
-	default:
-		dev_err(hdev->dev, "Invalid inbound region %d\n",
-			inbound_region);
-		return -EINVAL;
-	}
+	/* region offset */
+	offset = (0x200 * region) + 0x100;
 
-	if (bar != 0 && bar != 2 && bar != 4) {
-		dev_err(hdev->dev, "Invalid PCI BAR %d\n", bar);
-		return -EINVAL;
+	if (pci_region->mode == PCI_ADDRESS_MATCH_MODE) {
+		bar_phys_base = hdev->pcie_bar_phys[pci_region->bar];
+		region_base = bar_phys_base + pci_region->offset_in_bar;
+		region_end_address = region_base + pci_region->size - 1;
+
+		rc |= hl_pci_iatu_write(hdev, offset + 0x8,
+				lower_32_bits(region_base));
+		rc |= hl_pci_iatu_write(hdev, offset + 0xC,
+				upper_32_bits(region_base));
+		rc |= hl_pci_iatu_write(hdev, offset + 0x10,
+				lower_32_bits(region_end_address));
 	}
 
 	/* Point to the specified address */
-	rc = hl_pci_iatu_write(hdev, offset + 0x14, lower_32_bits(addr));
-	rc |= hl_pci_iatu_write(hdev, offset + 0x18, upper_32_bits(addr));
+	rc = hl_pci_iatu_write(hdev, offset + 0x14,
+			lower_32_bits(pci_region->addr));
+	rc |= hl_pci_iatu_write(hdev, offset + 0x18,
+			upper_32_bits(pci_region->addr));
 	rc |= hl_pci_iatu_write(hdev, offset + 0x0, 0);
-	/* Enable + BAR match + match enable + BAR number */
-	rc |= hl_pci_iatu_write(hdev, offset + 0x4, 0xC0080000 | (bar << 8));
+
+	/* Enable + bar/address match + match enable + bar number */
+	ctrl_reg_val = FIELD_PREP(IATU_REGION_CTRL_REGION_EN_MASK, 1);
+	ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_MATCH_MODE_MASK,
+			pci_region->mode);
+	ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_NUM_MATCH_EN_MASK, 1);
+
+	if (pci_region->mode == PCI_BAR_MATCH_MODE)
+		ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_BAR_NUM_MASK,
+				pci_region->bar);
+
+	rc |= hl_pci_iatu_write(hdev, offset + 0x4, ctrl_reg_val);
 
 	/* Return the DBI window to the default location */
 	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
 	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
 
 	if (rc)
-		dev_err(hdev->dev, "failed to map DRAM bar to 0x%08llx\n",
-			addr);
+		dev_err(hdev->dev, "failed to map bar %u to 0x%08llx\n",
+				pci_region->bar, pci_region->addr);
 
 	return rc;
 }
 
 /**
- * hl_pci_init_iatu() - Initialize the iATU unit inside the PCI controller.
+ * hl_pci_set_outbound_region() - Configure outbound region 0
  * @hdev: Pointer to hl_device structure.
- * @sram_base_address: SRAM base address.
- * @dram_base_address: DRAM base address.
- * @host_phys_base_address: Base physical address of host memory for device
- *                          transactions.
- * @host_phys_size: Size of host memory for device transactions.
+ * @pci_region: Outbound region parameters.
  *
- * This is needed in case the firmware doesn't initialize the iATU.
+ * Configure the iATU outbound region 0.
  *
  * Return: 0 on success, negative value for failure.
  */
-int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
-			u64 dram_base_address, u64 host_phys_base_address,
-			u64 host_phys_size)
+int hl_pci_set_outbound_region(struct hl_device *hdev,
+		struct hl_outbound_pci_region *pci_region)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 host_phys_end_addr;
+	u64 outbound_region_end_address;
 	int rc = 0;
 
-	/* Inbound Region 0 - Bar 0 - Point to SRAM base address */
-	rc  = hl_pci_iatu_write(hdev, 0x114, lower_32_bits(sram_base_address));
-	rc |= hl_pci_iatu_write(hdev, 0x118, upper_32_bits(sram_base_address));
-	rc |= hl_pci_iatu_write(hdev, 0x100, 0);
-	/* Enable + Bar match + match enable */
-	rc |= hl_pci_iatu_write(hdev, 0x104, 0xC0080000);
-
-	/* Return the DBI window to the default location */
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
-
-	hdev->asic_funcs->set_dma_mask_from_fw(hdev);
-
-	/* Point to DRAM */
-	if (!hdev->asic_funcs->set_dram_bar_base)
-		return -EINVAL;
-	if (hdev->asic_funcs->set_dram_bar_base(hdev, dram_base_address) ==
-								U64_MAX)
-		return -EIO;
-
-	/* Outbound Region 0 - Point to Host */
-	host_phys_end_addr = host_phys_base_address + host_phys_size - 1;
+	/* Outbound Region 0 */
+	outbound_region_end_address =
+			pci_region->addr + pci_region->size - 1;
 	rc |= hl_pci_iatu_write(hdev, 0x008,
-				lower_32_bits(host_phys_base_address));
+				lower_32_bits(pci_region->addr));
 	rc |= hl_pci_iatu_write(hdev, 0x00C,
-				upper_32_bits(host_phys_base_address));
-	rc |= hl_pci_iatu_write(hdev, 0x010, lower_32_bits(host_phys_end_addr));
+				upper_32_bits(pci_region->addr));
+	rc |= hl_pci_iatu_write(hdev, 0x010,
+				lower_32_bits(outbound_region_end_address));
 	rc |= hl_pci_iatu_write(hdev, 0x014, 0);
 
 	if ((hdev->power9_64bit_dma_enable) && (hdev->dma_mask == 64))
@@ -294,7 +288,8 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 	else
 		rc |= hl_pci_iatu_write(hdev, 0x018, 0);
 
-	rc |= hl_pci_iatu_write(hdev, 0x020, upper_32_bits(host_phys_end_addr));
+	rc |= hl_pci_iatu_write(hdev, 0x020,
+				upper_32_bits(outbound_region_end_address));
 	/* Increase region size */
 	rc |= hl_pci_iatu_write(hdev, 0x000, 0x00002000);
 	/* Enable */
@@ -304,16 +299,12 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
 	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
 
-	if (rc)
-		return -EIO;
-
-	return 0;
+	return rc;
 }
 
 /**
  * hl_pci_set_dma_mask() - Set DMA masks for the device.
  * @hdev: Pointer to hl_device structure.
- * @dma_mask: number of bits for the requested dma mask.
  *
  * This function sets the DMA masks (regular and consistent) for a specified
  * value. If it doesn't succeed, it tries to set it to a fall-back value

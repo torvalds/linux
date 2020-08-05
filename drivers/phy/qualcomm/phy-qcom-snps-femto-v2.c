@@ -77,6 +77,7 @@ static const char * const qcom_snps_hsphy_vreg_names[] = {
  * @phy_reset: phy reset control
  * @vregs: regulator supplies bulk data
  * @phy_initialized: if PHY has been initialized correctly
+ * @mode: contains the current mode the PHY is in
  */
 struct qcom_snps_hsphy {
 	struct phy *phy;
@@ -88,6 +89,7 @@ struct qcom_snps_hsphy {
 	struct regulator_bulk_data vregs[SNPS_HS_NUM_VREGS];
 
 	bool phy_initialized;
+	enum phy_mode mode;
 };
 
 static inline void qcom_snps_hsphy_write_mask(void __iomem *base, u32 offset,
@@ -102,6 +104,72 @@ static inline void qcom_snps_hsphy_write_mask(void __iomem *base, u32 offset,
 
 	/* Ensure above write is completed */
 	readl_relaxed(base + offset);
+}
+
+static int qcom_snps_hsphy_suspend(struct qcom_snps_hsphy *hsphy)
+{
+	dev_dbg(&hsphy->phy->dev, "Suspend QCOM SNPS PHY\n");
+
+	if (hsphy->mode == PHY_MODE_USB_HOST) {
+		/* Enable auto-resume to meet remote wakeup timing */
+		qcom_snps_hsphy_write_mask(hsphy->base,
+					   USB2_PHY_USB_PHY_HS_PHY_CTRL2,
+					   USB2_AUTO_RESUME,
+					   USB2_AUTO_RESUME);
+		usleep_range(500, 1000);
+		qcom_snps_hsphy_write_mask(hsphy->base,
+					   USB2_PHY_USB_PHY_HS_PHY_CTRL2,
+					   0, USB2_AUTO_RESUME);
+	}
+
+	clk_disable_unprepare(hsphy->cfg_ahb_clk);
+	return 0;
+}
+
+static int qcom_snps_hsphy_resume(struct qcom_snps_hsphy *hsphy)
+{
+	int ret;
+
+	dev_dbg(&hsphy->phy->dev, "Resume QCOM SNPS PHY, mode\n");
+
+	ret = clk_prepare_enable(hsphy->cfg_ahb_clk);
+	if (ret) {
+		dev_err(&hsphy->phy->dev, "failed to enable cfg ahb clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused qcom_snps_hsphy_runtime_suspend(struct device *dev)
+{
+	struct qcom_snps_hsphy *hsphy = dev_get_drvdata(dev);
+
+	if (!hsphy->phy_initialized)
+		return 0;
+
+	qcom_snps_hsphy_suspend(hsphy);
+	return 0;
+}
+
+static int __maybe_unused qcom_snps_hsphy_runtime_resume(struct device *dev)
+{
+	struct qcom_snps_hsphy *hsphy = dev_get_drvdata(dev);
+
+	if (!hsphy->phy_initialized)
+		return 0;
+
+	qcom_snps_hsphy_resume(hsphy);
+	return 0;
+}
+
+static int qcom_snps_hsphy_set_mode(struct phy *phy, enum phy_mode mode,
+				    int submode)
+{
+	struct qcom_snps_hsphy *hsphy = phy_get_drvdata(phy);
+
+	hsphy->mode = mode;
+	return 0;
 }
 
 static int qcom_snps_hsphy_init(struct phy *phy)
@@ -201,6 +269,7 @@ static int qcom_snps_hsphy_exit(struct phy *phy)
 static const struct phy_ops qcom_snps_hsphy_gen_ops = {
 	.init		= qcom_snps_hsphy_init,
 	.exit		= qcom_snps_hsphy_exit,
+	.set_mode	= qcom_snps_hsphy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -211,6 +280,11 @@ static const struct of_device_id qcom_snps_hsphy_of_match_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_snps_hsphy_of_match_table);
+
+static const struct dev_pm_ops qcom_snps_hsphy_pm_ops = {
+	SET_RUNTIME_PM_OPS(qcom_snps_hsphy_runtime_suspend,
+			   qcom_snps_hsphy_runtime_resume, NULL)
+};
 
 static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 {
@@ -255,6 +329,14 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	/*
+	 * Prevent runtime pm from being ON by default. Users can enable
+	 * it using power/control in sysfs.
+	 */
+	pm_runtime_forbid(dev);
+
 	generic_phy = devm_phy_create(dev, NULL, &qcom_snps_hsphy_gen_ops);
 	if (IS_ERR(generic_phy)) {
 		ret = PTR_ERR(generic_phy);
@@ -269,6 +351,8 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (!IS_ERR(phy_provider))
 		dev_dbg(dev, "Registered Qcom-SNPS HS phy\n");
+	else
+		pm_runtime_disable(dev);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
@@ -277,6 +361,7 @@ static struct platform_driver qcom_snps_hsphy_driver = {
 	.probe		= qcom_snps_hsphy_probe,
 	.driver = {
 		.name	= "qcom-snps-hs-femto-v2-phy",
+		.pm = &qcom_snps_hsphy_pm_ops,
 		.of_match_table = qcom_snps_hsphy_of_match_table,
 	},
 };

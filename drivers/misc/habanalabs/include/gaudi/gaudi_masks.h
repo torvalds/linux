@@ -455,4 +455,7 @@ enum axi_id {
 					QM_ARB_ERR_MSG_EN_CHOISE_WDT_MASK |\
 					QM_ARB_ERR_MSG_EN_AXI_LBW_ERR_MASK)
 
+#define PCIE_AUX_FLR_CTRL_HW_CTRL_MASK                               0x1
+#define PCIE_AUX_FLR_CTRL_INT_MASK_MASK                              0x2
+
 #endif /* GAUDI_MASKS_H_ */

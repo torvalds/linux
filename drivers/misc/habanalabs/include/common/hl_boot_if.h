@@ -44,6 +44,15 @@
  *					The NIC FW loading and initialization
  *					failed. This means NICs are not usable.
  *
+ * CPU_BOOT_ERR0_SECURITY_NOT_RDY	Chip security initialization has been
+ *					started, but is not ready yet - chip
+ *					cannot be accessed.
+ *
+ * CPU_BOOT_ERR0_SECURITY_FAIL		Security related tasks have failed.
+ *					The tasks are security init (root of
+ *					trust), boot authentication (chain of
+ *					trust), data packets authentication.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -57,6 +66,8 @@
 #define CPU_BOOT_ERR0_BMC_WAIT_SKIPPED		(1 << 4)
 #define CPU_BOOT_ERR0_NIC_DATA_NOT_RDY		(1 << 5)
 #define CPU_BOOT_ERR0_NIC_FW_FAIL		(1 << 6)
+#define CPU_BOOT_ERR0_SECURITY_NOT_RDY		(1 << 7)
+#define CPU_BOOT_ERR0_SECURITY_FAIL		(1 << 8)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
@@ -79,7 +90,10 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_BMC_WAITING_SKIPPED, /* deprecated - will be removed */
 	/* Last boot loader progress status, ready to receive commands */
 	CPU_BOOT_STATUS_READY_TO_BOOT = 15,
+	/* Internal Boot finished, ready for boot-fit */
 	CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT = 16,
+	/* Internal Security has been initialized, device can be accessed */
+	CPU_BOOT_STATUS_SECURITY_READY = 17,
 };
 
 enum kmd_msg {

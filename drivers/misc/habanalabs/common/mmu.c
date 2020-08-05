@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "include/hw_ip/mmu/mmu_general.h"
+#include "../include/hw_ip/mmu/mmu_general.h"
 
 #include <linux/genalloc.h>
 #include <linux/slab.h>
@@ -502,7 +502,6 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
 		return 0;
 
 	mutex_init(&ctx->mmu_lock);
-	hash_init(ctx->mmu_phys_hash);
 	hash_init(ctx->mmu_shadow_hash);
 
 	return dram_default_mapping_init(ctx);

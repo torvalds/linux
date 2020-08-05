@@ -276,6 +276,27 @@ static int time_sync_info(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(time_sync))) ? -EFAULT : 0;
 }
 
+static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_cs_counters cs_counters = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	memcpy(&cs_counters.cs_counters, &hdev->aggregated_cs_counters,
+			sizeof(struct hl_cs_counters));
+
+	if (hpriv->ctx)
+		memcpy(&cs_counters.ctx_cs_counters, &hpriv->ctx->cs_counters,
+				sizeof(struct hl_cs_counters));
+
+	return copy_to_user(out, &cs_counters,
+		min((size_t) max_size, sizeof(cs_counters))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -335,6 +356,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_TIME_SYNC:
 		return time_sync_info(hdev, args);
+
+	case HL_INFO_CS_COUNTERS:
+		return cs_counters_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

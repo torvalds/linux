@@ -246,6 +246,18 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	kfree(job);
 }
 
+static void cs_counters_aggregate(struct hl_device *hdev, struct hl_ctx *ctx)
+{
+	hdev->aggregated_cs_counters.device_in_reset_drop_cnt +=
+			ctx->cs_counters.device_in_reset_drop_cnt;
+	hdev->aggregated_cs_counters.out_of_mem_drop_cnt +=
+			ctx->cs_counters.out_of_mem_drop_cnt;
+	hdev->aggregated_cs_counters.parsing_drop_cnt +=
+			ctx->cs_counters.parsing_drop_cnt;
+	hdev->aggregated_cs_counters.queue_full_drop_cnt +=
+			ctx->cs_counters.queue_full_drop_cnt;
+}
+
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs,
@@ -349,13 +361,16 @@ static void cs_do_release(struct kref *ref)
 	dma_fence_signal(cs->fence);
 	dma_fence_put(cs->fence);
 
+	cs_counters_aggregate(hdev, cs->ctx);
+
+	kfree(cs->jobs_in_queue_cnt);
 	kfree(cs);
 }
 
 static void cs_timedout(struct work_struct *work)
 {
 	struct hl_device *hdev;
-	int ctx_asid, rc;
+	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
 	rc = cs_get_unless_zero(cs);
@@ -371,11 +386,10 @@ static void cs_timedout(struct work_struct *work)
 	cs->timedout = true;
 
 	hdev = cs->ctx->hdev;
-	ctx_asid = cs->ctx->asid;
 
-	/* TODO: add information about last signaled seq and last emitted seq */
-	dev_err(hdev->dev, "User %d command submission %llu got stuck!\n",
-		ctx_asid, cs->sequence);
+	dev_err(hdev->dev,
+		"Command submission %llu has not finished in time!\n",
+		cs->sequence);
 
 	cs_put(cs);
 
@@ -418,12 +432,19 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	spin_lock(&ctx->cs_lock);
 
 	cs_cmpl->cs_seq = ctx->cs_sequence;
-	other = ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)];
+	other = ctx->cs_pending[cs_cmpl->cs_seq &
+				(hdev->asic_prop.max_pending_cs - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
-		spin_unlock(&ctx->cs_lock);
 		dev_dbg(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
 		rc = -EAGAIN;
+		goto free_fence;
+	}
+
+	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
+			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
+	if (!cs->jobs_in_queue_cnt) {
+		rc = -ENOMEM;
 		goto free_fence;
 	}
 
@@ -432,7 +453,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	cs->sequence = cs_cmpl->cs_seq;
 
-	ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)] =
+	ctx->cs_pending[cs_cmpl->cs_seq &
+			(hdev->asic_prop.max_pending_cs - 1)] =
 							&cs_cmpl->base_fence;
 	ctx->cs_sequence++;
 
@@ -447,6 +469,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	return 0;
 
 free_fence:
+	spin_unlock(&ctx->cs_lock);
 	kfree(cs_cmpl);
 free_cs:
 	kfree(cs);
@@ -463,10 +486,12 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 
 void hl_cs_rollback_all(struct hl_device *hdev)
 {
+	int i;
 	struct hl_cs *cs, *tmp;
 
 	/* flush all completions */
-	flush_workqueue(hdev->cq_wq);
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		flush_workqueue(hdev->cq_wq[i]);
 
 	/* Make sure we don't have leftovers in the H/W queues mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->hw_queues_mirror_list,
@@ -502,7 +527,7 @@ static int validate_queue_index(struct hl_device *hdev,
 	/* This must be checked here to prevent out-of-bounds access to
 	 * hw_queues_props array
 	 */
-	if (chunk->queue_index >= HL_MAX_QUEUES) {
+	if (chunk->queue_index >= asic->max_queues) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n",
 			chunk->queue_index);
 		return -EINVAL;
@@ -511,7 +536,7 @@ static int validate_queue_index(struct hl_device *hdev,
 	hw_queue_prop = &asic->hw_queues_props[chunk->queue_index];
 
 	if (hw_queue_prop->type == QUEUE_TYPE_NA) {
-		dev_err(hdev->dev, "Queue index %d is not applicable\n",
+		dev_err(hdev->dev, "Queue index %d is invalid\n",
 			chunk->queue_index);
 		return -EINVAL;
 	}
@@ -638,12 +663,15 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = validate_queue_index(hdev, chunk, &queue_type,
 						&is_kernel_allocated_cb);
-		if (rc)
+		if (rc) {
+			hpriv->ctx->cs_counters.parsing_drop_cnt++;
 			goto free_cs_object;
+		}
 
 		if (is_kernel_allocated_cb) {
 			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
+				hpriv->ctx->cs_counters.parsing_drop_cnt++;
 				rc = -EINVAL;
 				goto free_cs_object;
 			}
@@ -657,6 +685,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		job = hl_cs_allocate_job(hdev, queue_type,
 						is_kernel_allocated_cb);
 		if (!job) {
+			hpriv->ctx->cs_counters.out_of_mem_drop_cnt++;
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
 			if (is_kernel_allocated_cb)
@@ -689,6 +718,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = cs_parser(hpriv, job);
 		if (rc) {
+			hpriv->ctx->cs_counters.parsing_drop_cnt++;
 			dev_err(hdev->dev,
 				"Failed to parse JOB %d.%llu.%d, err %d, rejecting the CS\n",
 				cs->ctx->asid, cs->sequence, job->id, rc);
@@ -697,6 +727,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	}
 
 	if (int_queues_only) {
+		hpriv->ctx->cs_counters.parsing_drop_cnt++;
 		dev_err(hdev->dev,
 			"Reject CS %d.%llu because only internal queues jobs are present\n",
 			cs->ctx->asid, cs->sequence);
@@ -746,6 +777,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
+	enum hl_queue_type q_type;
 	u64 *signal_seq_arr = NULL, signal_seq;
 	u32 size_to_copy, q_idx, signal_seq_arr_len, cb_size;
 	int rc;
@@ -778,9 +810,10 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	chunk = &cs_chunk_array[0];
 	q_idx = chunk->queue_index;
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
+	q_type = hw_queue_prop->type;
 
-	if ((q_idx >= HL_MAX_QUEUES) ||
-			(hw_queue_prop->type != QUEUE_TYPE_EXT)) {
+	if ((q_idx >= hdev->asic_prop.max_queues) ||
+			(!hw_queue_prop->supports_sync_stream)) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n", q_idx);
 		rc = -EINVAL;
 		goto free_cs_chunk_array;
@@ -877,17 +910,11 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	*cs_seq = cs->sequence;
 
-	job = hl_cs_allocate_job(hdev, QUEUE_TYPE_EXT, true);
+	job = hl_cs_allocate_job(hdev, q_type, true);
 	if (!job) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;
-		goto put_cs;
-	}
-
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
-	if (!cb) {
-		kfree(job);
-		rc = -EFAULT;
 		goto put_cs;
 	}
 
@@ -895,6 +922,15 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		cb_size = hdev->asic_funcs->get_wait_cb_size(hdev);
 	else
 		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
+
+	cb = hl_cb_kernel_create(hdev, cb_size,
+				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
+	if (!cb) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
+		kfree(job);
+		rc = -EFAULT;
+		goto put_cs;
+	}
 
 	job->id = 0;
 	job->cs = cs;
@@ -1134,7 +1170,7 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 		rc = PTR_ERR(fence);
 		if (rc == -EINVAL)
 			dev_notice_ratelimited(hdev->dev,
-				"Can't wait on seq %llu because current CS is at seq %llu\n",
+				"Can't wait on CS %llu because current CS is at seq %llu\n",
 				seq, ctx->cs_sequence);
 	} else if (fence) {
 		rc = dma_fence_wait_timeout(fence, true, timeout);
@@ -1167,15 +1203,21 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc < 0) {
-		dev_err_ratelimited(hdev->dev,
-				"Error %ld on waiting for CS handle %llu\n",
-				rc, seq);
 		if (rc == -ERESTARTSYS) {
+			dev_err_ratelimited(hdev->dev,
+				"user process got signal while waiting for CS handle %llu\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
 			rc = -EINTR;
 		} else if (rc == -ETIMEDOUT) {
+			dev_err_ratelimited(hdev->dev,
+				"CS %llu has timed-out while user process is waiting for it\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_TIMEDOUT;
 		} else if (rc == -EIO) {
+			dev_err_ratelimited(hdev->dev,
+				"CS %llu has been aborted while user process is waiting for it\n",
+				seq);
 			args->out.status = HL_WAIT_CS_STATUS_ABORTED;
 		}
 		return rc;

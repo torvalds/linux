@@ -10,11 +10,12 @@
 #include <linux/slab.h>
 
 /**
- * This structure is used to schedule work of EQ entry and armcp_reset event
+ * struct hl_eqe_work - This structure is used to schedule work of EQ
+ *                      entry and armcp_reset event
  *
- * @eq_work          - workqueue object to run when EQ entry is received
- * @hdev             - pointer to device structure
- * @eq_entry         - copy of the EQ entry
+ * @eq_work:          workqueue object to run when EQ entry is received
+ * @hdev:             pointer to device structure
+ * @eq_entry:         copy of the EQ entry
  */
 struct hl_eqe_work {
 	struct work_struct	eq_work;
@@ -22,7 +23,7 @@ struct hl_eqe_work {
 	struct hl_eq_entry	eq_entry;
 };
 
-/*
+/**
  * hl_cq_inc_ptr - increment ci or pi of cq
  *
  * @ptr: the current ci or pi value of the completion queue
@@ -38,7 +39,7 @@ inline u32 hl_cq_inc_ptr(u32 ptr)
 	return ptr;
 }
 
-/*
+/**
  * hl_eq_inc_ptr - increment ci of eq
  *
  * @ptr: the current ci value of the event queue
@@ -65,7 +66,7 @@ static void irq_handle_eqe(struct work_struct *work)
 	kfree(eqe_work);
 }
 
-/*
+/**
  * hl_irq_handler_cq - irq handler for completion queue
  *
  * @irq: irq number
@@ -118,15 +119,10 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 
 		if ((shadow_index_valid) && (!hdev->disabled)) {
 			job = queue->shadow_queue[hl_pi_2_offset(shadow_index)];
-			queue_work(hdev->cq_wq, &job->finish_work);
+			queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
 		}
 
-		/* Update ci of the context's queue. There is no
-		 * need to protect it with spinlock because this update is
-		 * done only inside IRQ and there is a different IRQ per
-		 * queue
-		 */
-		queue->ci = hl_queue_inc_ptr(queue->ci);
+		atomic_inc(&queue->ci);
 
 		/* Clear CQ entry ready bit */
 		cq_entry->data = cpu_to_le32(le32_to_cpu(cq_entry->data) &
@@ -141,7 +137,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/*
+/**
  * hl_irq_handler_eq - irq handler for event queue
  *
  * @irq: irq number
@@ -205,7 +201,7 @@ skip_irq:
 	return IRQ_HANDLED;
 }
 
-/*
+/**
  * hl_cq_init - main initialization function for an cq object
  *
  * @hdev: pointer to device structure
@@ -218,8 +214,6 @@ skip_irq:
 int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 {
 	void *p;
-
-	BUILD_BUG_ON(HL_CQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
 				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
@@ -237,7 +231,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 	return 0;
 }
 
-/*
+/**
  * hl_cq_fini - destroy completion queue
  *
  * @hdev: pointer to device structure
@@ -268,7 +262,7 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 	memset((void *) (uintptr_t) q->kernel_address, 0, HL_CQ_SIZE_IN_BYTES);
 }
 
-/*
+/**
  * hl_eq_init - main initialization function for an event queue object
  *
  * @hdev: pointer to device structure
@@ -280,8 +274,6 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
 	void *p;
-
-	BUILD_BUG_ON(HL_EQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
 							HL_EQ_SIZE_IN_BYTES,
@@ -296,7 +288,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 	return 0;
 }
 
-/*
+/**
  * hl_eq_fini - destroy event queue
  *
  * @hdev: pointer to device structure
