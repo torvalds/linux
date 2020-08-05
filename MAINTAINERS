@@ -11194,6 +11194,19 @@ W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 F:	arch/microblaze/
 
+MICROCHIP AT91 DMA DRIVERS
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	dmaengine@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/dma/atmel-dma.txt
+F:	drivers/dma/at_hdmac.c
+F:	drivers/dma/at_hdmac_regs.h
+F:	drivers/dma/at_xdmac.c
+F:	include/dt-bindings/dma/at91.h
+F:	include/linux/platform_data/dma-atmel.h
+
 MICROCHIP AT91 SERIAL DRIVER
 M:	Richard Genoud <richard.genoud@gmail.com>
 S:	Maintained
@@ -11221,17 +11234,6 @@ M:	Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/atmel
-
-MICROCHIP DMA DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-L:	dmaengine@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/dma/atmel-dma.txt
-F:	drivers/dma/at_hdmac.c
-F:	drivers/dma/at_hdmac_regs.h
-F:	include/dt-bindings/dma/at91.h
-F:	include/linux/platform_data/dma-atmel.h
 
 MICROCHIP ECC DRIVER
 M:	Tudor Ambarus <tudor.ambarus@microchip.com>
@@ -11361,13 +11363,6 @@ M:	Cristian Birsan <cristian.birsan@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/usb/gadget/udc/atmel_usba_udc.*
-
-MICROCHIP XDMA DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org
-L:	dmaengine@vger.kernel.org
-S:	Supported
-F:	drivers/dma/at_xdmac.c
 
 MICROSEMI ETHERNET SWITCH DRIVER
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>

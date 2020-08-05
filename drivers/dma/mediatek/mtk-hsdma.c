@@ -107,10 +107,10 @@ enum mtk_hsdma_vdesc_flag {
  * struct mtk_hsdma_pdesc - This is the struct holding info describing physical
  *			    descriptor (PD) and its placement must be kept at
  *			    4-bytes alignment in little endian order.
- * @desc[1-4]:		    The control pad used to indicate hardware how to
- *			    deal with the descriptor such as source and
- *			    destination address and data length. The maximum
- *			    data length each pdesc can handle is 0x3f80 bytes
+ * @desc1:		    | The control pad used to indicate hardware how to
+ * @desc2:		    | deal with the descriptor such as source and
+ * @desc3:		    | destination address and data length. The maximum
+ * @desc4:		    | data length each pdesc can handle is 0x3f80 bytes
  */
 struct mtk_hsdma_pdesc {
 	__le32 desc1;
