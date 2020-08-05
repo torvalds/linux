@@ -114,6 +114,32 @@ enum perf_output_field {
 	PERF_OUTPUT_MISC            = 1ULL << 29,
 	PERF_OUTPUT_SRCCODE	    = 1ULL << 30,
 	PERF_OUTPUT_IPC             = 1ULL << 31,
+	PERF_OUTPUT_TOD             = 1ULL << 32,
+};
+
+struct perf_script {
+	struct perf_tool	tool;
+	struct perf_session	*session;
+	bool			show_task_events;
+	bool			show_mmap_events;
+	bool			show_switch_events;
+	bool			show_namespace_events;
+	bool			show_lost_events;
+	bool			show_round_events;
+	bool			show_bpf_events;
+	bool			show_cgroup_events;
+	bool			show_text_poke_events;
+	bool			allocated;
+	bool			per_event_dump;
+	bool			stitch_lbr;
+	struct evswitch		evswitch;
+	struct perf_cpu_map	*cpus;
+	struct perf_thread_map *threads;
+	int			name_width;
+	const char              *time_str;
+	struct perf_time_interval *ptime_range;
+	int			range_size;
+	int			range_num;
 };
 
 struct output_option {
@@ -152,6 +178,7 @@ struct output_option {
 	{.str = "misc", .field = PERF_OUTPUT_MISC},
 	{.str = "srccode", .field = PERF_OUTPUT_SRCCODE},
 	{.str = "ipc", .field = PERF_OUTPUT_IPC},
+	{.str = "tod", .field = PERF_OUTPUT_TOD},
 };
 
 enum {
@@ -502,6 +529,7 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
  */
 static int perf_session__check_output_opt(struct perf_session *session)
 {
+	bool tod = false;
 	unsigned int j;
 	struct evsel *evsel;
 
@@ -528,6 +556,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 			continue;
 
 		set_print_ip_opts(&evsel->core.attr);
+		tod |= output[j].fields & PERF_OUTPUT_TOD;
 	}
 
 	if (!no_callchain) {
@@ -568,13 +597,17 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		}
 	}
 
+	if (tod && !session->header.env.clock.enabled) {
+		pr_err("Can't provide 'tod' time, missing clock data. "
+		       "Please record with -k/--clockid option.\n");
+		return -1;
+	}
 out:
 	return 0;
 }
 
 static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask,
-				     FILE *fp
-)
+				     FILE *fp)
 {
 	unsigned i = 0, r;
 	int printed = 0;
@@ -592,6 +625,56 @@ static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask,
 	return printed;
 }
 
+#define DEFAULT_TOD_FMT "%F %H:%M:%S"
+
+static char*
+tod_scnprintf(struct perf_script *script, char *buf, int buflen,
+	     u64 timestamp)
+{
+	u64 tod_ns, clockid_ns;
+	struct perf_env *env;
+	unsigned long nsec;
+	struct tm ltime;
+	char date[64];
+	time_t sec;
+
+	buf[0] = '\0';
+	if (buflen < 64 || !script)
+		return buf;
+
+	env = &script->session->header.env;
+	if (!env->clock.enabled) {
+		scnprintf(buf, buflen, "disabled");
+		return buf;
+	}
+
+	clockid_ns = env->clock.clockid_ns;
+	tod_ns     = env->clock.tod_ns;
+
+	if (timestamp > clockid_ns)
+		tod_ns += timestamp - clockid_ns;
+	else
+		tod_ns -= clockid_ns - timestamp;
+
+	sec  = (time_t) (tod_ns / NSEC_PER_SEC);
+	nsec = tod_ns - sec * NSEC_PER_SEC;
+
+	if (localtime_r(&sec, &ltime) == NULL) {
+		scnprintf(buf, buflen, "failed");
+	} else {
+		strftime(date, sizeof(date), DEFAULT_TOD_FMT, &ltime);
+
+		if (symbol_conf.nanosecs) {
+			snprintf(buf, buflen, "%s.%09lu", date, nsec);
+		} else {
+			snprintf(buf, buflen, "%s.%06lu",
+				 date, nsec / NSEC_PER_USEC);
+		}
+	}
+
+	return buf;
+}
+
 static int perf_sample__fprintf_iregs(struct perf_sample *sample,
 				      struct perf_event_attr *attr, FILE *fp)
 {
@@ -606,7 +689,8 @@ static int perf_sample__fprintf_uregs(struct perf_sample *sample,
 					 attr->sample_regs_user, fp);
 }
 
-static int perf_sample__fprintf_start(struct perf_sample *sample,
+static int perf_sample__fprintf_start(struct perf_script *script,
+				      struct perf_sample *sample,
 				      struct thread *thread,
 				      struct evsel *evsel,
 				      u32 type, FILE *fp)
@@ -615,6 +699,7 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 	unsigned long secs;
 	unsigned long long nsecs;
 	int printed = 0;
+	char tstr[128];
 
 	if (PRINT_FIELD(COMM)) {
 		if (latency_format)
@@ -681,6 +766,11 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 
 		ret += fprintf(fp, "%*s", 6 - ret, " ");
 		printed += ret;
+	}
+
+	if (PRINT_FIELD(TOD)) {
+		tod_scnprintf(script, tstr, sizeof(tstr), sample->time);
+		printed += fprintf(fp, "%s ", tstr);
 	}
 
 	if (PRINT_FIELD(TIME)) {
@@ -1667,31 +1757,6 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 	return 0;
 }
 
-struct perf_script {
-	struct perf_tool	tool;
-	struct perf_session	*session;
-	bool			show_task_events;
-	bool			show_mmap_events;
-	bool			show_switch_events;
-	bool			show_namespace_events;
-	bool			show_lost_events;
-	bool			show_round_events;
-	bool			show_bpf_events;
-	bool			show_cgroup_events;
-	bool			show_text_poke_events;
-	bool			allocated;
-	bool			per_event_dump;
-	bool			stitch_lbr;
-	struct evswitch		evswitch;
-	struct perf_cpu_map	*cpus;
-	struct perf_thread_map *threads;
-	int			name_width;
-	const char              *time_str;
-	struct perf_time_interval *ptime_range;
-	int			range_size;
-	int			range_num;
-};
-
 static int evlist__max_name_len(struct evlist *evlist)
 {
 	struct evsel *evsel;
@@ -1739,7 +1804,7 @@ static void script_print_metric(struct perf_stat_config *config __maybe_unused,
 
 	if (!fmt)
 		return;
-	perf_sample__fprintf_start(mctx->sample, mctx->thread, mctx->evsel,
+	perf_sample__fprintf_start(NULL, mctx->sample, mctx->thread, mctx->evsel,
 				   PERF_RECORD_SAMPLE, mctx->fp);
 	fputs("\tmetric: ", mctx->fp);
 	if (color)
@@ -1754,7 +1819,7 @@ static void script_new_line(struct perf_stat_config *config __maybe_unused,
 {
 	struct metric_ctx *mctx = ctx;
 
-	perf_sample__fprintf_start(mctx->sample, mctx->thread, mctx->evsel,
+	perf_sample__fprintf_start(NULL, mctx->sample, mctx->thread, mctx->evsel,
 				   PERF_RECORD_SAMPLE, mctx->fp);
 	fputs("\tmetric: ", mctx->fp);
 }
@@ -1865,7 +1930,7 @@ static void process_event(struct perf_script *script,
 
 	++es->samples;
 
-	perf_sample__fprintf_start(sample, thread, evsel,
+	perf_sample__fprintf_start(script, sample, thread, evsel,
 				   PERF_RECORD_SAMPLE, fp);
 
 	if (PRINT_FIELD(PERIOD))
@@ -2174,7 +2239,7 @@ static int print_event_with_time(struct perf_tool *tool,
 		thread = machine__findnew_thread(machine, pid, tid);
 
 	if (thread && evsel) {
-		perf_sample__fprintf_start(sample, thread, evsel,
+		perf_sample__fprintf_start(script, sample, thread, evsel,
 					   event->header.type, stdout);
 	}
 
@@ -3439,7 +3504,7 @@ int cmd_script(int argc, const char **argv)
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
 		     "brstacksym,flags,bpf-output,brstackinsn,brstackoff,"
-		     "callindent,insn,insnlen,synth,phys_addr,metric,misc,ipc",
+		     "callindent,insn,insnlen,synth,phys_addr,metric,misc,ipc,tod",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
