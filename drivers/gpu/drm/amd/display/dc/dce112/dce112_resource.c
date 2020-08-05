@@ -1287,6 +1287,7 @@ struct resource_pool *dce112_create_resource_pool(
 	if (construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
+	kfree(pool);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
