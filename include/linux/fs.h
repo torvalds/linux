@@ -2675,7 +2675,7 @@ static inline errseq_t filemap_sample_wb_err(struct address_space *mapping)
 
 /**
  * file_sample_sb_err - sample the current errseq_t to test for later errors
- * @mapping: mapping to be sampled
+ * @file: file pointer to be sampled
  *
  * Grab the most current superblock-level errseq_t value for the given
  * struct file.

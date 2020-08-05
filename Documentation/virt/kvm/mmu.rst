@@ -480,4 +480,4 @@ Further reading
 ===============
 
 - NPT presentation from KVM Forum 2008
-  http://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf
+  https://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf

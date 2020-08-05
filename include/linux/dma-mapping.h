@@ -14,7 +14,7 @@
 
 /**
  * List of possible attributes associated with a DMA mapping. The semantics
- * of each attribute should be defined in Documentation/DMA-attributes.txt.
+ * of each attribute should be defined in Documentation/core-api/dma-attributes.rst.
  */
 
 /*

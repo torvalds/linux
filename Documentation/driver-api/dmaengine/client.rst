@@ -5,7 +5,7 @@ DMA Engine API Guide
 Vinod Koul <vinod dot koul at intel.com>
 
 .. note:: For DMA Engine usage in async_tx please see:
-          ``Documentation/crypto/async-tx-api.txt``
+          ``Documentation/crypto/async-tx-api.rst``
 
 
 Below is a guide to device driver writers on how to use the Slave-DMA API of the

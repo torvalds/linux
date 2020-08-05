@@ -348,7 +348,7 @@ data cached therein; nor is it permitted to create new files in the cache.
 
 There are policy source files available in:
 
-	http://people.redhat.com/~dhowells/fscache/cachefilesd-0.8.tar.bz2
+	https://people.redhat.com/~dhowells/fscache/cachefilesd-0.8.tar.bz2
 
 and later versions.  In that tarball, see the files::
 

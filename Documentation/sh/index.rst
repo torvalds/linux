@@ -4,6 +4,12 @@ SuperH Interfaces Guide
 
 :Author: Paul Mundt
 
+.. toctree::
+    :maxdepth: 1
+
+    new-machine
+    register-banks
+
 Memory Management
 =================
 

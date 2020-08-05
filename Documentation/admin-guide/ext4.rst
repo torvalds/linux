@@ -618,7 +618,7 @@ kernel source:	<file:fs/ext4/>
 
 programs:	http://e2fsprogs.sourceforge.net/
 
-useful links:	http://fedoraproject.org/wiki/ext3-devel
+useful links:	https://fedoraproject.org/wiki/ext3-devel
 		http://www.bullopensource.org/ext4/
 		http://ext4.wiki.kernel.org/index.php/Main_Page
-		http://fedoraproject.org/wiki/Features/Ext4
+		https://fedoraproject.org/wiki/Features/Ext4

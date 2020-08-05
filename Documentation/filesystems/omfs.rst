@@ -24,7 +24,7 @@ More information is available at:
 Various utilities, including mkomfs and omfsck, are included with
 omfsprogs, available at:
 
-    http://bobcopeland.com/karma/
+    https://bobcopeland.com/karma/
 
 Instructions are included in its README.
 

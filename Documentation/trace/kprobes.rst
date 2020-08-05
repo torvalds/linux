@@ -20,6 +20,7 @@ Kernel Probes (Kprobes)
   10. Deprecated Features
   Appendix A: The kprobes debugfs interface
   Appendix B: The kprobes sysctl interface
+  Appendix C: References
 
 Concepts: Kprobes and Return Probes
 =========================================
@@ -710,13 +711,6 @@ Kretprobes Example
 
 See samples/kprobes/kretprobe_example.c
 
-For additional information on Kprobes, refer to the following URLs:
-
-- http://www-106.ibm.com/developerworks/library/l-kprobes.html?ca=dgr-lnxw42Kprobe
-- http://www.redhat.com/magazine/005mar05/features/kprobes/
-- http://www-users.cs.umn.edu/~boutcher/kprobes/
-- http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)
-
 Deprecated Features
 ===================
 
@@ -798,4 +792,12 @@ unoptimized, and any new probes registered after that will not be optimized.
 Note that this knob *changes* the optimized state. This means that optimized
 probes (marked [OPTIMIZED]) will be unoptimized ([OPTIMIZED] tag will be
 removed). If the knob is turned on, they will be optimized again.
+
+References
+==========
+
+For additional information on Kprobes, refer to the following URLs:
+
+- https://www.ibm.com/developerworks/library/l-kprobes/index.html
+- https://www.kernel.org/doc/ols/2006/ols2006v2-pages-109-124.pdf
 

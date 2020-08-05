@@ -7,7 +7,7 @@ Read/Write HPFS 2.09
 1998-2004, Mikulas Patocka
 
 :email: mikulas@artax.karlin.mff.cuni.cz
-:homepage: http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
+:homepage: https://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
 
 Credits
 =======

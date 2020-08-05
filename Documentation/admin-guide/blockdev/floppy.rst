@@ -6,7 +6,7 @@ FAQ list:
 =========
 
 A FAQ list may be found in the fdutils package (see below), and also
-at <http://fdutils.linux.lu/faq.html>.
+at <https://fdutils.linux.lu/faq.html>.
 
 
 LILO configuration options (Thinkpad users, read this)
@@ -220,11 +220,11 @@ It also contains additional documentation about the floppy driver.
 
 The latest version can be found at fdutils homepage:
 
- http://fdutils.linux.lu
+ https://fdutils.linux.lu
 
 The fdutils releases can be found at:
 
- http://fdutils.linux.lu/download.html
+ https://fdutils.linux.lu/download.html
 
  http://www.tux.org/pub/knaff/fdutils/
 

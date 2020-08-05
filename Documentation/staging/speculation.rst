@@ -1,9 +1,11 @@
-This document explains potential effects of speculation, and how undesirable
-effects can be mitigated portably using common APIs.
-
 ===========
 Speculation
 ===========
+
+This document explains potential effects of speculation, and how undesirable
+effects can be mitigated portably using common APIs.
+
+------------------------------------------------------------------------------
 
 To improve performance and minimize average latencies, many contemporary CPUs
 employ speculative execution techniques such as branch prediction, performing

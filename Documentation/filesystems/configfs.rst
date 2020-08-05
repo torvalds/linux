@@ -226,7 +226,7 @@ filename.  configfs_attribute->ca_mode specifies the file permissions.
 If an attribute is readable and provides a ->show method, that method will
 be called whenever userspace asks for a read(2) on the attribute.  If an
 attribute is writable and provides a ->store  method, that method will be
-be called whenever userspace asks for a write(2) on the attribute.
+called whenever userspace asks for a write(2) on the attribute.
 
 struct configfs_bin_attribute
 =============================

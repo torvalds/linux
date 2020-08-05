@@ -27,7 +27,7 @@ Crosspoint PMU events require "xp" (index), "bus" (bus number)
 and "vc" (virtual channel ID).
 
 Crosspoint watchpoint-based events (special "event" value 0xfe)
-require "xp" and "vc" as as above plus "port" (device port index),
+require "xp" and "vc" as above plus "port" (device port index),
 "dir" (transmit/receive direction), comparator values ("cmp_l"
 and "cmp_h") and "mask", being index of the comparator mask.
 

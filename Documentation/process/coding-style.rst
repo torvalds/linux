@@ -1149,7 +1149,7 @@ Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
-gcc internals and indent, all available from http://www.gnu.org/manual/
+gcc internals and indent, all available from https://www.gnu.org/manual/
 
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/

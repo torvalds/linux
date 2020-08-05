@@ -95,7 +95,7 @@ accommodates that API in some cases, and made some design choices to
 ensure that it stayed compatible.
 
 For more information on the Async TX API, please look the relevant
-documentation file in Documentation/crypto/async-tx-api.txt.
+documentation file in Documentation/crypto/async-tx-api.rst.
 
 DMAEngine APIs
 ==============

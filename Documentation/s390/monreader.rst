@@ -146,7 +146,7 @@ start offset relative to a 4K page (frame) boundary.
 
 See "Appendix A: `*MONITOR`" in the "z/VM Performance" document for a description
 of the monitor control element layout. The layout of the monitor records can
-be found here (z/VM 5.1): http://www.vm.ibm.com/pubs/mon510/index.html
+be found here (z/VM 5.1): https://www.vm.ibm.com/pubs/mon510/index.html
 
 The layout of the data stream provided by the monreader device is as follows::
 

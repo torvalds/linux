@@ -273,7 +273,7 @@ only use the _DSD Device Properties UUID [5]:
 
    - UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
 
-   - http://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
+   - https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
 
 The UEFI Forum provides a mechanism for registering device properties [4]
 so that they may be used across all operating systems supporting ACPI.
@@ -470,7 +470,7 @@ likely be willing to assist in submitting ECRs.
 
 Linux Code
 ----------
-Individual items specific to Linux on ARM, contained in the the Linux
+Individual items specific to Linux on ARM, contained in the Linux
 source code, are in the list that follows:
 
 ACPI_OS_NAME

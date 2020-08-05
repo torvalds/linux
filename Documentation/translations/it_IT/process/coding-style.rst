@@ -1097,7 +1097,7 @@ la direttiva condizionale su di esse.
 
 Se avete una variabile o funzione che potrebbe non essere usata in alcune
 configurazioni, e quindi il compilatore potrebbe avvisarvi circa la definizione
-inutilizzata, marcate questa definizione come __maybe_used piuttosto che
+inutilizzata, marcate questa definizione come __maybe_unused piuttosto che
 racchiuderla in una direttiva condizionale del preprocessore.  (Comunque,
 se una variabile o funzione è *sempre* inutilizzata, rimuovetela).
 

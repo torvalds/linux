@@ -43,7 +43,7 @@ engine for this process. Once a connection is established, the application
 should use the mmap() system call to map the hardware address of engine's
 request queue into the application's virtual address space.
 
-The application can then submit one or more requests to the the engine by
+The application can then submit one or more requests to the engine by
 using copy/paste instructions and pasting the CRBs to the virtual address
 (aka paste_address) returned by mmap(). User space can close the
 established connection or send window by closing the file descriptior
@@ -87,6 +87,7 @@ Applications may chose a specific instance of the NX co-processor using
 the vas_id field in the VAS_TX_WIN_OPEN ioctl as detailed below.
 
 A userspace library libnxz is available here but still in development:
+
 	 https://github.com/abalib/power-gzip
 
 Applications that use inflate / deflate calls can link with libnxz
@@ -110,6 +111,7 @@ Applications should use the VAS_TX_WIN_OPEN ioctl as follows to establish
 a connection with NX co-processor engine:
 
 	::
+
 		struct vas_tx_win_open_attr {
 			__u32   version;
 			__s16   vas_id; /* specific instance of vas or -1
@@ -119,8 +121,10 @@ a connection with NX co-processor engine:
 			__u64   reserved2[6];
 		};
 
-	version: The version field must be currently set to 1.
-	vas_id: If '-1' is passed, kernel will make a best-effort attempt
+	version:
+		The version field must be currently set to 1.
+	vas_id:
+		If '-1' is passed, kernel will make a best-effort attempt
 		to assign an optimal instance of NX for the process. To
 		select the specific VAS instance, refer
 		"Discovery of available VAS engines" section below.
@@ -129,7 +133,8 @@ a connection with NX co-processor engine:
 	and must be set to 0.
 
 	The attributes attr for the VAS_TX_WIN_OPEN ioctl are defined as
-	follows:
+	follows::
+
 		#define VAS_MAGIC 'v'
 		#define VAS_TX_WIN_OPEN _IOW(VAS_MAGIC, 1,
 						struct vas_tx_win_open_attr)
@@ -141,6 +146,8 @@ a connection with NX co-processor engine:
 	returns -1 and sets the errno variable to indicate the error.
 
 	Error conditions:
+
+		======	================================================
 		EINVAL	fd does not refer to a valid VAS device.
 		EINVAL	Invalid vas ID
 		EINVAL	version is not set with proper value
@@ -149,6 +156,7 @@ a connection with NX co-processor engine:
 		ENOSPC	System has too many active windows (connections)
 			opened
 		EINVAL	reserved fields are not set to 0.
+		======	================================================
 
 	See the ioctl(2) man page for more details, error codes and
 	restrictions.
@@ -158,11 +166,13 @@ mmap() NX-GZIP device
 
 The mmap() system call for a NX-GZIP device fd returns a paste_address
 that the application can use to copy/paste its CRB to the hardware engines.
+
 	::
 
 		paste_addr = mmap(addr, size, prot, flags, fd, offset);
 
 	Only restrictions on mmap for a NX-GZIP device fd are:
+
 		* size should be PAGE_SIZE
 		* offset parameter should be 0ULL
 
@@ -170,10 +180,12 @@ that the application can use to copy/paste its CRB to the hardware engines.
 	In addition to the error conditions listed on the mmap(2) man
 	page, can also fail with one of the following error codes:
 
+		======	=============================================
 		EINVAL	fd is not associated with an open window
 			(i.e mmap() does not follow a successful call
 			to the VAS_TX_WIN_OPEN ioctl).
 		EINVAL	offset field is not 0ULL.
+		======	=============================================
 
 Discovery of available VAS engines
 ==================================
@@ -210,7 +222,7 @@ In case if NX encounters translation error (called NX page fault) on CSB
 address or any request buffer, raises an interrupt on the CPU to handle the
 fault. Page fault can happen if an application passes invalid addresses or
 request buffers are not in memory. The operating system handles the fault by
-updating CSB with the following data:
+updating CSB with the following data::
 
 	csb.flags = CSB_V;
 	csb.cc = CSB_CC_FAULT_ADDRESS;
@@ -223,7 +235,7 @@ the application can resend this request to NX.
 
 If the OS can not update CSB due to invalid CSB address, sends SEGV signal
 to the process who opened the send window on which the original request was
-issued. This signal returns with the following siginfo struct:
+issued. This signal returns with the following siginfo struct::
 
 	siginfo.si_signo = SIGSEGV;
 	siginfo.si_errno = EFAULT;
@@ -248,6 +260,7 @@ Simple example
 ==============
 
 	::
+
 		int use_nx_gzip()
 		{
 			int rc, fd;
