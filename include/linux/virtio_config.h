@@ -555,4 +555,14 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 		_r;							\
 	})
 
+/* Conditional config space accessors. */
+#define virtio_cread_le_feature(vdev, fbit, structname, member, ptr)	\
+	({								\
+		int _r = 0;						\
+		if (!virtio_has_feature(vdev, fbit))			\
+			_r = -ENOENT;					\
+		else							\
+			virtio_cread_le((vdev), structname, member, ptr); \
+		_r;							\
+	})
 #endif /* _LINUX_VIRTIO_CONFIG_H */
