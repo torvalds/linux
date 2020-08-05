@@ -397,7 +397,6 @@ static int ad9834_probe(struct spi_device *spi)
 	struct regulator *reg;
 	int ret;
 
-
 	reg = devm_regulator_get(&spi->dev, "avdd");
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
