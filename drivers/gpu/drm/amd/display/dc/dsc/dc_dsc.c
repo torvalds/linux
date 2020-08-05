@@ -192,8 +192,10 @@ static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 }
 
 
-static bool dsc_bpp_increment_div_from_dpcd(int bpp_increment_dpcd, uint32_t *bpp_increment_div)
+static bool dsc_bpp_increment_div_from_dpcd(uint8_t bpp_increment_dpcd, uint32_t *bpp_increment_div)
 {
+	// Mask bpp increment dpcd field to avoid reading other fields
+	bpp_increment_dpcd &= 0x7;
 
 	switch (bpp_increment_dpcd) {
 	case 0:
