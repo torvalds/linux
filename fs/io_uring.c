@@ -8341,6 +8341,16 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx->user = user;
 	ctx->creds = get_current_cred();
 
+	/*
+	 * Account memory _before_ installing the file descriptor. Once
+	 * the descriptor is installed, it can get closed at any time. Also
+	 * do this before hitting the general error path, as ring freeing
+	 * will un-account as well.
+	 */
+	io_account_mem(ctx, ring_pages(p->sq_entries, p->cq_entries),
+		       ACCT_LOCKED);
+	ctx->limit_mem = limit_mem;
+
 	ret = io_allocate_scq_urings(ctx, p);
 	if (ret)
 		goto err;
@@ -8376,14 +8386,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		ret = -EFAULT;
 		goto err;
 	}
-
-	/*
-	 * Account memory _before_ installing the file descriptor. Once
-	 * the descriptor is installed, it can get closed at any time.
-	 */
-	io_account_mem(ctx, ring_pages(p->sq_entries, p->cq_entries),
-		       ACCT_LOCKED);
-	ctx->limit_mem = limit_mem;
 
 	/*
 	 * Install ring fd as the very last thing, so we don't risk someone
