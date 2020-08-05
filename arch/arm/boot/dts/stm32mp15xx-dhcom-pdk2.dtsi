@@ -271,7 +271,8 @@
 
 &uart8 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart8_pins_a>;
+	pinctrl-0 = <&uart8_pins_a &uart8_rtscts_pins_a>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
