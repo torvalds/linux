@@ -293,19 +293,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 		__u8: (x), \
 		__virtio16: virtio16_to_cpu((vdev), (x)), \
 		__virtio32: virtio32_to_cpu((vdev), (x)), \
-		__virtio64: virtio64_to_cpu((vdev), (x)), \
-		/*
-		 * Why define a default? checker can distinguish between
-		 * e.g. __u16, __le16 and __virtio16, but GCC can't so
-		 * attempts to define variants for both look like a duplicate
-		 * variant to it.
-		 */ \
-		default: _Generic((x), \
-				 __u8: (x), \
-				 __le16: virtio16_to_cpu((vdev), (__force __virtio16)(x)), \
-				 __le32: virtio32_to_cpu((vdev), (__force __virtio32)(x)), \
-				 __le64: virtio64_to_cpu((vdev), (__force __virtio64)(x)) \
-				 ) \
+		__virtio64: virtio64_to_cpu((vdev), (x)) \
 		)
 
 #define cpu_to_virtio(vdev, x, m) \
@@ -313,19 +301,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 		__u8: (x), \
 		__virtio16: cpu_to_virtio16((vdev), (x)), \
 		__virtio32: cpu_to_virtio32((vdev), (x)), \
-		__virtio64: cpu_to_virtio64((vdev), (x)), \
-		/*
-		 * Why define a default? checker can distinguish between
-		 * e.g. __u16, __le16 and __virtio16, but GCC can't so
-		 * attempts to define variants for both look like a duplicate
-		 * variant to it.
-		 */ \
-		default: _Generic((m), \
-				 __u8: (x), \
-				 __le16: (__force __le16)cpu_to_virtio16((vdev), (x)), \
-				 __le32: (__force __le32)cpu_to_virtio32((vdev), (x)), \
-				 __le64: (__force __le64)cpu_to_virtio64((vdev), (x)) \
-				 ) \
+		__virtio64: cpu_to_virtio64((vdev), (x)) \
 		)
 
 #define __virtio_native_type(structname, member) \
