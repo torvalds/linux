@@ -3066,7 +3066,10 @@ static int io_iter_do_read(struct io_kiocb *req, struct iov_iter *iter)
 {
 	if (req->file->f_op->read_iter)
 		return call_read_iter(req->file, &req->rw.kiocb, iter);
-	return loop_rw_iter(READ, req->file, &req->rw.kiocb, iter);
+	else if (req->file->f_op->read)
+		return loop_rw_iter(READ, req->file, &req->rw.kiocb, iter);
+	else
+		return -EINVAL;
 }
 
 static int io_read(struct io_kiocb *req, bool force_nonblock,
@@ -3203,8 +3206,10 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 
 	if (req->file->f_op->write_iter)
 		ret2 = call_write_iter(req->file, kiocb, &iter);
-	else
+	else if (req->file->f_op->write)
 		ret2 = loop_rw_iter(WRITE, req->file, kiocb, &iter);
+	else
+		ret2 = -EINVAL;
 
 	/*
 	 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
