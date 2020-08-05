@@ -1353,7 +1353,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	/*
 	 * at this point the pages are under IO and we're happy,
-	 * The caller is responsible for waiting on them and updating the
+	 * The caller is responsible for waiting on them and updating
 	 * the cache and the inode
 	 */
 	io_ctl->entries = entries;

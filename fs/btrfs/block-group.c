@@ -2785,7 +2785,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 			 * finished yet (no block group item in the extent tree
 			 * yet, etc). If this is the case, wait for all free
 			 * space endio workers to finish and retry. This is a
-			 * a very rare case so no need for a more efficient and
+			 * very rare case so no need for a more efficient and
 			 * complex approach.
 			 */
 			if (ret == -ENOENT) {

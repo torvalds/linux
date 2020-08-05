@@ -4883,7 +4883,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 		 * Check the inode's logged_trans only instead of
 		 * btrfs_inode_in_log(). This is because the last_log_commit of
 		 * the inode is not updated when we only log that it exists and
-		 * and it has the full sync bit set (see btrfs_log_inode()).
+		 * it has the full sync bit set (see btrfs_log_inode()).
 		 */
 		if (BTRFS_I(inode)->logged_trans == trans->transid) {
 			spin_unlock(&BTRFS_I(inode)->lock);
@@ -6380,7 +6380,7 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  *            committed by the caller, and BTRFS_DONT_NEED_TRANS_COMMIT
  *            otherwise.
  * When false: returns BTRFS_DONT_NEED_LOG_SYNC if the caller does not need to
- *             to sync the log, BTRFS_NEED_LOG_SYNC if it needs to sync the log,
+ *             sync the log, BTRFS_NEED_LOG_SYNC if it needs to sync the log,
  *             or BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
  *             committed (without attempting to sync the log).
  */
