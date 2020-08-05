@@ -2758,11 +2758,13 @@ int rk818_bat_temp_notifier_register(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&rk818_bat_notifier_chain, nb);
 }
+EXPORT_SYMBOL_GPL(rk818_bat_temp_notifier_register);
 
 int rk818_bat_temp_notifier_unregister(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&rk818_bat_notifier_chain, nb);
 }
+EXPORT_SYMBOL_GPL(rk818_bat_temp_notifier_unregister);
 
 static void rk818_bat_temp_notifier_callback(int temp)
 {

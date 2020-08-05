@@ -680,7 +680,7 @@ config CHARGER_RK817
 	  This driver can give support for Rk817 Charger Interface.
 
 config BATTERY_RK818
-	bool "RK818 Battery driver"
+	tristate "RK818 Battery driver"
 	depends on MFD_RK808
 	default n
 	help
@@ -688,7 +688,7 @@ config BATTERY_RK818
 	  This driver can give support for Rk818 Battery Charge Interface.
 
 config CHARGER_RK818
-	bool "RK818 Charger driver"
+	tristate "RK818 Charger driver"
 	depends on MFD_RK808
 	default n
 	help
