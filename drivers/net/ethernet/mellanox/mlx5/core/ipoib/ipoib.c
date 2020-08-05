@@ -226,12 +226,19 @@ void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 
 int mlx5i_create_underlay_qp(struct mlx5e_priv *priv)
 {
+	unsigned char *dev_addr = priv->netdev->dev_addr;
 	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(create_qp_in)] = {};
 	struct mlx5i_priv *ipriv = priv->ppriv;
 	void *addr_path;
+	int qpn = 0;
 	int ret = 0;
 	void *qpc;
+
+	if (MLX5_CAP_GEN(priv->mdev, mkey_by_name)) {
+		qpn = (dev_addr[1] << 16) + (dev_addr[2] << 8) + dev_addr[3];
+		MLX5_SET(create_qp_in, in, input_qpn, qpn);
+	}
 
 	qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_UD);
