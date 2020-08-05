@@ -659,7 +659,7 @@ config BATTERY_CW2015
 	  This driver can give support for CW2015 Battery Interface.
 
 config BATTERY_RK816
-	bool "RK816 Battery driver"
+	tristate "RK816 Battery driver"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the battery of RK816 PMIC.
