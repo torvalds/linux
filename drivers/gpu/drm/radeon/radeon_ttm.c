@@ -76,26 +76,9 @@ static int radeon_ttm_init_vram(struct radeon_device *rdev)
 
 static int radeon_ttm_init_gtt(struct radeon_device *rdev)
 {
-	uint32_t available_caching, default_caching;
-
-	available_caching = TTM_PL_MASK_CACHING;
-	default_caching = TTM_PL_FLAG_CACHED;
-
-#if IS_ENABLED(CONFIG_AGP)
-	if (rdev->flags & RADEON_IS_AGP) {
-		if (!rdev->ddev->agp) {
-			DRM_ERROR("AGP is not enabled\n");
-			return -EINVAL;
-		}
-		available_caching = TTM_PL_FLAG_UNCACHED |
-			TTM_PL_FLAG_WC;
-		default_caching = TTM_PL_FLAG_WC;
-	}
-#endif
-
 	return ttm_range_man_init(&rdev->mman.bdev, TTM_PL_TT,
-				  available_caching,
-				  default_caching, true,
+				  TTM_PL_MASK_CACHING,
+				  TTM_PL_FLAG_CACHED, true,
 				  rdev->mc.gtt_size >> PAGE_SHIFT);
 }
 
