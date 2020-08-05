@@ -879,7 +879,6 @@ static int pch_i2c_suspend(struct pci_dev *pdev, pm_message_t state)
 		return ret;
 	}
 
-	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
@@ -898,8 +897,6 @@ static int pch_i2c_resume(struct pci_dev *pdev)
 		pch_pci_err(pdev, "pch_i2c_resume:pci_enable_device FAILED\n");
 		return -EIO;
 	}
-
-	pci_enable_wake(pdev, PCI_D3hot, 0);
 
 	for (i = 0; i < adap_info->ch_num; i++)
 		pch_i2c_init(&adap_info->pch_data[i]);
