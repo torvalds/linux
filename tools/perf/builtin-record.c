@@ -1566,6 +1566,9 @@ static int record__init_clock(struct record *rec)
 	if (!rec->opts.use_clockid)
 		return 0;
 
+	if (rec->opts.use_clockid && rec->opts.clockid_res_ns)
+		session->header.env.clock.clockid_res_ns = rec->opts.clockid_res_ns;
+
 	session->header.env.clock.clockid = rec->opts.clockid;
 
 	if (gettimeofday(&ref_tod, NULL) != 0) {
@@ -1674,9 +1677,6 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		return -1;
 
 	record__init_features(rec);
-
-	if (rec->opts.use_clockid && rec->opts.clockid_res_ns)
-		session->header.env.clockid_res_ns = rec->opts.clockid_res_ns;
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(rec->evlist, &opts->target,

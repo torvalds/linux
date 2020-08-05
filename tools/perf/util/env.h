@@ -77,7 +77,6 @@ struct perf_env {
 	struct numa_node	*numa_nodes;
 	struct memory_node	*memory_nodes;
 	unsigned long long	 memory_bsize;
-	u64                     clockid_res_ns;
 
 	/*
 	 * bpf_info_lock protects bpf rbtrees. This is needed because the
@@ -105,6 +104,7 @@ struct perf_env {
 	struct {
 		u64	tod_ns;
 		u64	clockid_ns;
+		u64     clockid_res_ns;
 		int	clockid;
 		/*
 		 * enabled is valid for report mode, and is true if above
