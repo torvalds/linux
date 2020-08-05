@@ -77,7 +77,7 @@ run_one()
 		echo "ok $test_num $TEST_HDR_MSG") ||
 		(rc=$?;	\
 		if [ $rc -eq $skip_rc ]; then	\
-			echo "not ok $test_num $TEST_HDR_MSG # SKIP"
+			echo "ok $test_num $TEST_HDR_MSG # SKIP"
 		elif [ $rc -eq $timeout_rc ]; then \
 			echo "#"
 			echo "not ok $test_num $TEST_HDR_MSG # TIMEOUT"
