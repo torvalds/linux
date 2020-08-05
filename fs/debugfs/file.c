@@ -273,7 +273,7 @@ static int full_proxy_release(struct inode *inode, struct file *filp)
 		r = real_fops->release(inode, filp);
 
 	replace_fops(filp, d_inode(dentry)->i_fop);
-	kfree((void *)proxy_fops);
+	kfree(proxy_fops);
 	fops_put(real_fops);
 	return r;
 }
