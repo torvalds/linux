@@ -131,7 +131,7 @@
 
 	snps,reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <10000 10000 0>;
+	snps,reset-delays-us = <0 50000 10000>;
 
 	assigned-clocks = <&cru CLK_GMAC_SRC_M0>, <&cru CLK_GMAC_SRC>, <&cru CLK_GMAC_TX_RX>;
 	assigned-clock-rates = <0>, <50000000>;
