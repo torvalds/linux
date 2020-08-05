@@ -846,7 +846,7 @@ SYM_CODE_START(ret_from_fork)
 2:
 	/* When we fork, we trace the syscall return in the child, too. */
 	movl    %esp, %eax
-	call    syscall_return_slowpath
+	call    syscall_exit_to_user_mode
 	jmp     .Lsyscall_32_done
 
 	/* kernel thread */
