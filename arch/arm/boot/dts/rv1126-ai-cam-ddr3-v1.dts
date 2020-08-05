@@ -61,7 +61,7 @@
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "PCORW0009A";
-		rockchip,camera-module-lens-name = "4mm-4M";
+		rockchip,camera-module-lens-name = "40IRC-4M";
 		// NO_HDR:0 HDR_X2:5 HDR_X3:6
 		rockchip,camera-hdr-mode = <0>;
 		port {
