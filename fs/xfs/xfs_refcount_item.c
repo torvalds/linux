@@ -485,7 +485,7 @@ xfs_cui_item_recover(
 	 * transaction.  Normally, any work that needs to be deferred
 	 * gets attached to the same defer_ops that scheduled the
 	 * refcount update.  However, we're in log recovery here, so we
-	 * we use the passed in defer_ops and to finish up any work that
+	 * use the passed in defer_ops and to finish up any work that
 	 * doesn't fit.  We need to reserve enough blocks to handle a
 	 * full btree split on either end of the refcount range.
 	 */

@@ -127,7 +127,7 @@ xfs_buf_item_size_segment(
  * stretch of non-contiguous chunks to be logged.  Contiguous chunks are logged
  * in a single iovec.
  *
- * Discontiguous buffers need a format structure per region that that is being
+ * Discontiguous buffers need a format structure per region that is being
  * logged. This makes the changes in the buffer appear to log recovery as though
  * they came from separate buffers, just like would occur if multiple buffers
  * were used instead of a single discontiguous buffer. This enables

@@ -865,7 +865,7 @@ xfs_buffered_write_iomap_begin(
 	}
 
 	/*
-	 * Search the data fork fork first to look up our source mapping.  We
+	 * Search the data fork first to look up our source mapping.  We
 	 * always need the data fork map, as we have to return it to the
 	 * iomap code so that the higher level write code can read data in to
 	 * perform read-modify-write cycles for unaligned writes.
