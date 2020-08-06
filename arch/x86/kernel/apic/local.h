@@ -10,6 +10,7 @@
 
 #include <linux/jump_label.h>
 
+#include <asm/irq_vectors.h>
 #include <asm/apic.h>
 
 /* APIC flat 64 */
