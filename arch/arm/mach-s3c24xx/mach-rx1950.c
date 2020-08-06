@@ -46,6 +46,7 @@
 
 #include <sound/uda1380.h>
 
+#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
 

@@ -8,7 +8,6 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/hardware.h>
 #include <mach/map.h>
 
 #include <mach/regs-irq.h>

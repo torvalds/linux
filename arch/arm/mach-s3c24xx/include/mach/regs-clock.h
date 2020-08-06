@@ -9,6 +9,8 @@
 #ifndef __ASM_ARM_REGS_CLOCK
 #define __ASM_ARM_REGS_CLOCK
 
+#include <mach/map.h>
+
 #define S3C2410_CLKREG(x) ((x) + S3C24XX_VA_CLKPWR)
 
 #define S3C2410_PLLVAL(_m,_p,_s) ((_m) << 12 | ((_p) << 4) | ((_s)))
