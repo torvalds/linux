@@ -222,7 +222,7 @@ int fscrypt_derive_raw_secret(struct super_block *sb,
 {
 	struct request_queue *q;
 
-	q = sb->s_bdev->bd_queue;
+	q = bdev_get_queue(sb->s_bdev);
 	if (!q->ksm)
 		return -EOPNOTSUPP;
 

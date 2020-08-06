@@ -1400,8 +1400,8 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 * Attempt to prefetch the pieces we likely need later.
 	 */
 	prefetch(&bdev->bd_disk->part_tbl);
-	prefetch(bdev->bd_queue);
-	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
+	prefetch(bdev->bd_disk->queue);
+	prefetch((char *)bdev->bd_disk->queue + SMP_CACHE_BYTES);
 
 	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
 				     end_io, submit_io, flags);

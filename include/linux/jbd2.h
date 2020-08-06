@@ -27,6 +27,7 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/bit_spinlock.h>
+#include <linux/blkdev.h>
 #include <crypto/hash.h>
 #endif
 

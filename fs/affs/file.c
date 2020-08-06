@@ -14,6 +14,7 @@
  */
 
 #include <linux/uio.h>
+#include <linux/blkdev.h>
 #include "affs.h"
 
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);

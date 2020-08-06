@@ -59,7 +59,7 @@ EXPORT_SYMBOL(bdev_dax_pgoff);
 #if IS_ENABLED(CONFIG_FS_DAX)
 struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 {
-	if (!blk_queue_dax(bdev->bd_queue))
+	if (!blk_queue_dax(bdev->bd_disk->queue))
 		return NULL;
 	return dax_get_by_host(bdev->bd_disk->disk_name);
 }

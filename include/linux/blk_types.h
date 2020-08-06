@@ -14,11 +14,38 @@ struct bio_set;
 struct bio;
 struct bio_integrity_payload;
 struct page;
-struct block_device;
 struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 struct bio_crypt_ctx;
+
+struct block_device {
+	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
+	int			bd_openers;
+	struct inode *		bd_inode;	/* will die */
+	struct super_block *	bd_super;
+	struct mutex		bd_mutex;	/* open/close mutex */
+	void *			bd_claiming;
+	void *			bd_holder;
+	int			bd_holders;
+	bool			bd_write_holder;
+#ifdef CONFIG_SYSFS
+	struct list_head	bd_holder_disks;
+#endif
+	struct block_device *	bd_contains;
+	u8			bd_partno;
+	struct hd_struct *	bd_part;
+	/* number of times partitions within this device have been opened. */
+	unsigned		bd_part_count;
+	int			bd_invalidated;
+	struct gendisk *	bd_disk;
+	struct backing_dev_info *bd_bdi;
+
+	/* The counter of freeze processes */
+	int			bd_fsfreeze_count;
+	/* Mutex for freeze */
+	struct mutex		bd_fsfreeze_mutex;
+} __randomize_layout;
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
@@ -303,12 +330,8 @@ enum req_opf {
 	REQ_OP_DISCARD		= 3,
 	/* securely erase sectors */
 	REQ_OP_SECURE_ERASE	= 5,
-	/* reset a zone write pointer */
-	REQ_OP_ZONE_RESET	= 6,
 	/* write the same sector many times */
 	REQ_OP_WRITE_SAME	= 7,
-	/* reset all the zone present on the device */
-	REQ_OP_ZONE_RESET_ALL	= 8,
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 9,
 	/* Open a zone */
@@ -319,6 +342,10 @@ enum req_opf {
 	REQ_OP_ZONE_FINISH	= 12,
 	/* write data at the current zone write pointer */
 	REQ_OP_ZONE_APPEND	= 13,
+	/* reset a zone write pointer */
+	REQ_OP_ZONE_RESET	= 15,
+	/* reset all the zone present on the device */
+	REQ_OP_ZONE_RESET_ALL	= 17,
 
 	/* SCSI passthrough using struct scsi_request */
 	REQ_OP_SCSI_IN		= 32,

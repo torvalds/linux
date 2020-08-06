@@ -4205,7 +4205,6 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 	struct bio_vec bio_vec;
 	struct page *page;
 	struct rb0_cbdata cbdata;
-	size_t size;
 
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
@@ -4213,15 +4212,11 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 		return -ENOMEM;
 	}
 
-	size = bdev->bd_block_size;
-	if (!size)
-		size = 1024;
-
 	cbdata.drive = drive;
 
 	bio_init(&bio, &bio_vec, 1);
 	bio_set_dev(&bio, bdev);
-	bio_add_page(&bio, page, size, 0);
+	bio_add_page(&bio, page, block_size(bdev), 0);
 
 	bio.bi_iter.bi_sector = 0;
 	bio.bi_flags |= (1 << BIO_QUIET);

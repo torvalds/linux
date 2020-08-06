@@ -173,7 +173,7 @@ class IocgStat:
         self.usages = []
         self.usage = 0
         for i in range(NR_USAGE_SLOTS):
-            usage = iocg.usages[(usage_idx + i) % NR_USAGE_SLOTS].value_()
+            usage = iocg.usages[(usage_idx + 1 + i) % NR_USAGE_SLOTS].value_()
             upct = usage * 100 / HWEIGHT_WHOLE
             self.usages.append(upct)
             self.usage = max(self.usage, upct)

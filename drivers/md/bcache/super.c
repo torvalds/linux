@@ -680,7 +680,16 @@ static int ioctl_dev(struct block_device *b, fmode_t mode,
 	return d->ioctl(d, mode, cmd, arg);
 }
 
-static const struct block_device_operations bcache_ops = {
+static const struct block_device_operations bcache_cached_ops = {
+	.submit_bio	= cached_dev_submit_bio,
+	.open		= open_dev,
+	.release	= release_dev,
+	.ioctl		= ioctl_dev,
+	.owner		= THIS_MODULE,
+};
+
+static const struct block_device_operations bcache_flash_ops = {
+	.submit_bio	= flash_dev_submit_bio,
 	.open		= open_dev,
 	.release	= release_dev,
 	.ioctl		= ioctl_dev,
@@ -820,8 +829,8 @@ static void bcache_device_free(struct bcache_device *d)
 }
 
 static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
-			      sector_t sectors, make_request_fn make_request_fn,
-			      struct block_device *cached_bdev)
+		sector_t sectors, struct block_device *cached_bdev,
+		const struct block_device_operations *ops)
 {
 	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
@@ -868,16 +877,14 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 
 	d->disk->major		= bcache_major;
 	d->disk->first_minor	= idx_to_first_minor(idx);
-	d->disk->fops		= &bcache_ops;
+	d->disk->fops		= ops;
 	d->disk->private_data	= d;
 
-	q = blk_alloc_queue(make_request_fn, NUMA_NO_NODE);
+	q = blk_alloc_queue(NUMA_NO_NODE);
 	if (!q)
 		return -ENOMEM;
 
 	d->disk->queue			= q;
-	q->queuedata			= d;
-	q->backing_dev_info->congested_data = d;
 	q->limits.max_hw_sectors	= UINT_MAX;
 	q->limits.max_sectors		= UINT_MAX;
 	q->limits.max_segment_size	= UINT_MAX;
@@ -1356,7 +1363,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 
 	ret = bcache_device_init(&dc->disk, block_size,
 			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset,
-			 cached_dev_make_request, dc->bdev);
+			 dc->bdev, &bcache_cached_ops);
 	if (ret)
 		return ret;
 
@@ -1469,7 +1476,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 	kobject_init(&d->kobj, &bch_flash_dev_ktype);
 
 	if (bcache_device_init(d, block_bytes(c), u->sectors,
-			flash_dev_make_request, NULL))
+			NULL, &bcache_flash_ops))
 		goto err;
 
 	bcache_device_attach(d, c, u - c->uuids);

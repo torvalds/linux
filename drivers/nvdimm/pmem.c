@@ -189,7 +189,7 @@ static blk_status_t pmem_do_write(struct pmem_device *pmem,
 	return rc;
 }
 
-static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t pmem_submit_bio(struct bio *bio)
 {
 	int ret = 0;
 	blk_status_t rc = 0;
@@ -281,6 +281,7 @@ __weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 
 static const struct block_device_operations pmem_fops = {
 	.owner =		THIS_MODULE,
+	.submit_bio =		pmem_submit_bio,
 	.rw_page =		pmem_rw_page,
 	.revalidate_disk =	nvdimm_revalidate_disk,
 };
@@ -423,7 +424,7 @@ static int pmem_attach_disk(struct device *dev,
 		return -EBUSY;
 	}
 
-	q = blk_alloc_queue(pmem_make_request, dev_to_node(dev));
+	q = blk_alloc_queue(dev_to_node(dev));
 	if (!q)
 		return -ENOMEM;
 

@@ -70,7 +70,8 @@ static void default_key_dtr(struct dm_target *ti)
 	int err;
 
 	if (dkc->dev) {
-		err = blk_crypto_evict_key(dkc->dev->bdev->bd_queue, &dkc->key);
+		err = blk_crypto_evict_key(bdev_get_queue(dkc->dev->bdev),
+					   &dkc->key);
 		if (err && err != -ENOKEY)
 			DMWARN("Failed to evict crypto key: %d", err);
 		dm_put_device(ti, dkc->dev);
@@ -245,7 +246,8 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	err = blk_crypto_start_using_key(&dkc->key, dkc->dev->bdev->bd_queue);
+	err = blk_crypto_start_using_key(&dkc->key,
+					 bdev_get_queue(dkc->dev->bdev));
 	if (err) {
 		ti->error = "Error starting to use blk-crypto";
 		goto bad;

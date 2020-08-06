@@ -612,9 +612,6 @@ static bool rootdir_empty(struct super_block *sb, unsigned long block)
 
 /*
  * Initialize the superblock and read the root inode.
- *
- * Note: a check_disk_change() has been done immediately prior
- * to this call, so we don't need to check again.
  */
 static int isofs_fill_super(struct super_block *s, void *data, int silent)
 {

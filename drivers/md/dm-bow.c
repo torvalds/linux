@@ -716,7 +716,8 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	bc->block_size = bc->dev->bdev->bd_queue->limits.logical_block_size;
+	bc->block_size =
+		bdev_get_queue(bc->dev->bdev)->limits.logical_block_size;
 	if (argc > 1) {
 		ret = dm_bow_ctr_optional(ti, argc - 1, &argv[1]);
 		if (ret)
