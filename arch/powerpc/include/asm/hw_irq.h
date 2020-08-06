@@ -372,12 +372,6 @@ static inline void may_hard_irq_enable(void) { }
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
 
-/*
- * interrupt-retrigger: should we handle this via lost interrupts and IPIs
- * or should we not care like we do now ? --BenH.
- */
-struct irq_chip;
-
 #endif  /* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */
