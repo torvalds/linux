@@ -895,16 +895,11 @@ static int rcu_torture_boost(void *arg)
 	unsigned long endtime;
 	unsigned long oldstarttime;
 	struct rcu_boost_inflight rbi = { .inflight = 0 };
-	struct sched_param sp;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_boost started");
 
 	/* Set real-time priority. */
-	sp.sched_priority = 1;
-	if (sched_setscheduler(current, SCHED_FIFO, &sp) < 0) {
-		VERBOSE_TOROUT_STRING("rcu_torture_boost RT prio failed!");
-		n_rcu_torture_boost_rterror++;
-	}
+	sched_set_fifo_low(current);
 
 	init_rcu_head_on_stack(&rbi.rcu);
 	/* Each pass through the following loop does one boost-test cycle. */
