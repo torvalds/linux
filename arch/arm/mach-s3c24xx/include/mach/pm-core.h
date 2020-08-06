@@ -12,6 +12,7 @@
 
 #include "regs-clock.h"
 #include "regs-irq.h"
+#include <mach/irqs.h>
 
 static inline void s3c_pm_debug_init_uart(void)
 {

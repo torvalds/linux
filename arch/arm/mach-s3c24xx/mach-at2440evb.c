@@ -134,7 +134,7 @@ static struct platform_device at2440evb_device_eth = {
 };
 
 static struct s3c24xx_mci_pdata at2440evb_mci_pdata __initdata = {
-	/* Intentionally left blank */
+	.set_power	= s3c24xx_mci_def_set_power,
 };
 
 static struct gpiod_lookup_table at2440evb_mci_gpio_table = {
@@ -142,9 +142,17 @@ static struct gpiod_lookup_table at2440evb_mci_gpio_table = {
 	.table = {
 		/* Card detect S3C2410_GPG(10) */
 		GPIO_LOOKUP("GPIOG", 10, "cd", GPIO_ACTIVE_LOW),
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
+
 
 /* 7" LCD panel */
 

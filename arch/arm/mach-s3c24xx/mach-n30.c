@@ -368,6 +368,8 @@ static struct s3c2410fb_mach_info n30_fb_info __initdata = {
 
 static void n30_sdi_set_power(unsigned char power_mode, unsigned short vdd)
 {
+	s3c24xx_mci_def_set_power(power_mode, vdd);
+
 	switch (power_mode) {
 	case MMC_POWER_ON:
 	case MMC_POWER_UP:
@@ -393,6 +395,13 @@ static struct gpiod_lookup_table n30_mci_gpio_table = {
 		/* Write protect S3C2410_GPG(10) */
 		GPIO_LOOKUP("GPIOG", 10, "wp", GPIO_ACTIVE_LOW),
 		{ },
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
 	},
 };
 

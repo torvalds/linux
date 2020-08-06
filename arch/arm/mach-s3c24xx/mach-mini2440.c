@@ -234,7 +234,7 @@ static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 
 static struct s3c24xx_mci_pdata mini2440_mmc_cfg __initdata = {
 	.wprotect_invert	= 1,
-	.set_power		= NULL,
+	.set_power		= s3c24xx_mci_def_set_power,
 	.ocr_avail		= MMC_VDD_32_33|MMC_VDD_33_34,
 };
 
@@ -245,6 +245,13 @@ static struct gpiod_lookup_table mini2440_mmc_gpio_table = {
 		GPIO_LOOKUP("GPIOG", 8, "cd", GPIO_ACTIVE_LOW),
 		/* Write protect S3C2410_GPH(8) */
 		GPIO_LOOKUP("GPIOH", 8, "wp", GPIO_ACTIVE_HIGH),
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

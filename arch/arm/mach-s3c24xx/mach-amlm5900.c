@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -121,6 +122,19 @@ static struct s3c2410_uartcfg amlm5900_uartcfgs[] = {
 	}
 };
 
+static struct gpiod_lookup_table amlm5900_mmc_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 static struct platform_device *amlm5900_devices[] __initdata = {
 #ifdef CONFIG_FB_S3C2410
@@ -216,6 +230,7 @@ static void __init amlm5900_init(void)
 	s3c24xx_fb_set_platdata(&amlm5900_fb_info);
 #endif
 	s3c_i2c0_set_platdata(NULL);
+	gpiod_add_lookup_table(&amlm5900_mmc_gpio_table);
 	platform_add_devices(amlm5900_devices, ARRAY_SIZE(amlm5900_devices));
 }
 

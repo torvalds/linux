@@ -548,6 +548,8 @@ static struct platform_device rx1950_backlight = {
 
 static void rx1950_set_mmc_power(unsigned char power_mode, unsigned short vdd)
 {
+	s3c24xx_mci_def_set_power(power_mode, vdd);
+
 	switch (power_mode) {
 	case MMC_POWER_OFF:
 		gpio_direction_output(S3C2410_GPJ(1), 0);
@@ -573,6 +575,13 @@ static struct gpiod_lookup_table rx1950_mmc_gpio_table = {
 		GPIO_LOOKUP("GPIOF", 5, "cd", GPIO_ACTIVE_LOW),
 		/* Write protect S3C2410_GPH(8) */
 		GPIO_LOOKUP("GPIOH", 8, "wp", GPIO_ACTIVE_LOW),
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

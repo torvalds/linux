@@ -5,6 +5,7 @@
 //
 // Base Samsung platform device definitions
 
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -39,6 +40,7 @@
 
 #include <mach/irqs.h>
 #include <mach/map.h>
+#include <mach/gpio-samsung.h>
 
 #ifdef CONFIG_PLAT_S3C24XX
 #include <mach/regs-s3c2443-clock.h>
@@ -46,6 +48,7 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/gpio-cfg.h>
 #include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/ata-samsung_cf.h>
 #include <plat/fb.h>
@@ -835,9 +838,34 @@ struct platform_device s3c_device_rtc = {
 /* SDI */
 
 #ifdef CONFIG_PLAT_S3C24XX
+void s3c24xx_mci_def_set_power(unsigned char power_mode, unsigned short vdd)
+{
+	switch (power_mode) {
+	case MMC_POWER_ON:
+	case MMC_POWER_UP:
+		/* Configure GPE5...GPE10 pins in SD mode */
+		s3c_gpio_cfgall_range(S3C2410_GPE(5), 6, S3C_GPIO_SFN(2),
+				      S3C_GPIO_PULL_NONE);
+		break;
+
+	case MMC_POWER_OFF:
+	default:
+		gpio_direction_output(S3C2410_GPE(5), 0);
+		break;
+	}
+}
+
 static struct resource s3c_sdi_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C24XX_PA_SDI, S3C24XX_SZ_SDI),
 	[1] = DEFINE_RES_IRQ(IRQ_SDI),
+};
+
+static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
+	/* This is currently here to avoid a number of if (host->pdata)
+	 * checks. Any zero fields to ensure reasonable defaults are picked. */
+	.no_wprotect = 1,
+	.no_detect = 1,
+	.set_power = s3c24xx_mci_def_set_power,
 };
 
 struct platform_device s3c_device_sdi = {
@@ -845,6 +873,7 @@ struct platform_device s3c_device_sdi = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s3c_sdi_resource),
 	.resource	= s3c_sdi_resource,
+	.dev.platform_data = &s3cmci_def_pdata,
 };
 
 void __init s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata)

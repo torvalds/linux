@@ -7,6 +7,7 @@
 // derived from linux/arch/arm/mach-s3c2410/mach-bast.c, written by
 // Ben Dooks <ben@simtec.co.uk>
 
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -101,6 +102,19 @@ static struct s3c2410_uartcfg tct_hammer_uartcfgs[] = {
 	}
 };
 
+static struct gpiod_lookup_table tct_hammer_mmc_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* bus pins */
+		GPIO_LOOKUP_IDX("GPIOE",  5, "bus", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  6, "bus", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  7, "bus", 2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  8, "bus", 3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE",  9, "bus", 4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("GPIOE", 10, "bus", 5, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 static struct platform_device *tct_hammer_devices[] __initdata = {
 	&s3c_device_adc,
@@ -129,6 +143,7 @@ static void __init tct_hammer_init_time(void)
 static void __init tct_hammer_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+	gpiod_add_lookup_table(&tct_hammer_mmc_gpio_table);
 	platform_add_devices(tct_hammer_devices, ARRAY_SIZE(tct_hammer_devices));
 }
 
