@@ -3692,8 +3692,7 @@ static int tegra_xudc_powerdomain_init(struct tegra_xudc *xudc)
 	struct device *dev = xudc->dev;
 	int err;
 
-	xudc->genpd_dev_device = dev_pm_domain_attach_by_name(dev,
-								"dev");
+	xudc->genpd_dev_device = dev_pm_domain_attach_by_name(dev, "dev");
 	if (IS_ERR(xudc->genpd_dev_device)) {
 		err = PTR_ERR(xudc->genpd_dev_device);
 		dev_err(dev, "failed to get device power domain: %d\n", err);
@@ -3708,16 +3707,16 @@ static int tegra_xudc_powerdomain_init(struct tegra_xudc *xudc)
 	}
 
 	xudc->genpd_dl_device = device_link_add(dev, xudc->genpd_dev_device,
-					       DL_FLAG_PM_RUNTIME |
-					       DL_FLAG_STATELESS);
+						DL_FLAG_PM_RUNTIME |
+						DL_FLAG_STATELESS);
 	if (!xudc->genpd_dl_device) {
 		dev_err(dev, "failed to add USB device link\n");
 		return -ENODEV;
 	}
 
 	xudc->genpd_dl_ss = device_link_add(dev, xudc->genpd_dev_ss,
-					     DL_FLAG_PM_RUNTIME |
-					     DL_FLAG_STATELESS);
+					    DL_FLAG_PM_RUNTIME |
+					    DL_FLAG_STATELESS);
 	if (!xudc->genpd_dl_ss) {
 		dev_err(dev, "failed to add SuperSpeed device link\n");
 		return -ENODEV;
@@ -3772,16 +3771,15 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	xudc->clks = devm_kcalloc(&pdev->dev, xudc->soc->num_clks,
-				      sizeof(*xudc->clks), GFP_KERNEL);
+	xudc->clks = devm_kcalloc(&pdev->dev, xudc->soc->num_clks, sizeof(*xudc->clks),
+				  GFP_KERNEL);
 	if (!xudc->clks)
 		return -ENOMEM;
 
 	for (i = 0; i < xudc->soc->num_clks; i++)
 		xudc->clks[i].id = xudc->soc->clock_names[i];
 
-	err = devm_clk_bulk_get(&pdev->dev, xudc->soc->num_clks,
-				      xudc->clks);
+	err = devm_clk_bulk_get(&pdev->dev, xudc->soc->num_clks, xudc->clks);
 	if (err) {
 		dev_err(xudc->dev, "failed to request clocks: %d\n", err);
 		return err;
