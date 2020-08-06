@@ -605,6 +605,10 @@ config SND_SOC_ES7134
 config SND_SOC_ES7241
        tristate "Everest Semi ES7241 CODEC"
 
+config SND_SOC_ES8311
+	tristate "Everest Semi ES8311 CODEC"
+	depends on I2C
+
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
 	depends on I2C
