@@ -39,6 +39,13 @@ properties:
       and must therefore be appropriately determined based on all devices
       requirements (maximum value of all per-device RESET pulse widths).
 
+  reset-post-delay-us:
+    description:
+      Delay after reset deassert in microseconds. It applies to all MDIO
+      devices and it's determined by how fast all devices are ready for
+      communication. This delay happens just before e.g. Ethernet PHY
+      type ID auto detection.
+
   clock-frequency:
     description:
       Desired MDIO bus clock frequency in Hz. Values greater than IEEE 802.3

@@ -22,6 +22,7 @@ select:
           - amlogic,meson8m2-dwmac
           - amlogic,meson-gxbb-dwmac
           - amlogic,meson-axg-dwmac
+          - amlogic,meson-g12a-dwmac
   required:
     - compatible
 
@@ -36,6 +37,7 @@ allOf:
               - amlogic,meson8m2-dwmac
               - amlogic,meson-gxbb-dwmac
               - amlogic,meson-axg-dwmac
+              - amlogic,meson-g12a-dwmac
 
     then:
       properties:
@@ -95,6 +97,7 @@ properties:
           - amlogic,meson8m2-dwmac
           - amlogic,meson-gxbb-dwmac
           - amlogic,meson-axg-dwmac
+          - amlogic,meson-g12a-dwmac
     contains:
       enum:
         - snps,dwmac-3.70a

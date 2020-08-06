@@ -9,7 +9,7 @@ mt76_reg_set(void *data, u64 val)
 {
 	struct mt76_dev *dev = data;
 
-	dev->bus->wr(dev, dev->debugfs_reg, val);
+	__mt76_wr(dev, dev->debugfs_reg, val);
 	return 0;
 }
 
@@ -18,7 +18,7 @@ mt76_reg_get(void *data, u64 *val)
 {
 	struct mt76_dev *dev = data;
 
-	*val = dev->bus->rr(dev, dev->debugfs_reg);
+	*val = __mt76_rr(dev, dev->debugfs_reg);
 	return 0;
 }
 
@@ -53,9 +53,6 @@ static int mt76_rx_queues_read(struct seq_file *s, void *data)
 
 	mt76_for_each_q_rx(dev, i) {
 		struct mt76_queue *q = &dev->q_rx[i];
-
-		if (!q->ndesc)
-			continue;
 
 		queued = mt76_is_usb(dev) ? q->ndesc - q->queued : q->queued;
 		seq_printf(s, "%d:	queued=%d head=%d tail=%d\n",

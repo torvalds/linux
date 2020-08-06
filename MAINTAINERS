@@ -147,7 +147,7 @@ Maintainers List
 M:	Steffen Klassert <klassert@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Odd Fixes
-F:	Documentation/networking/device_drivers/3com/vortex.rst
+F:	Documentation/networking/device_drivers/ethernet/3com/vortex.rst
 F:	drivers/net/ethernet/3com/3c59x.c
 
 3CR990 NETWORK DRIVER
@@ -816,7 +816,7 @@ R:	Saeed Bishara <saeedb@amazon.com>
 R:	Zorik Machulsky <zorik@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/amazon/ena.rst
+F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
 F:	drivers/net/ethernet/amazon/
 
 AMAZON RDMA EFA DRIVER
@@ -1307,7 +1307,7 @@ L:	netdev@vger.kernel.org
 S:	Supported
 W:	https://www.marvell.com/
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
-F:	Documentation/networking/device_drivers/aquantia/atlantic.rst
+F:	Documentation/networking/device_drivers/ethernet/aquantia/atlantic.rst
 F:	drivers/net/ethernet/aquantia/atlantic/
 
 AQUANTIA ETHERNET DRIVER PTP SUBSYSTEM
@@ -4798,7 +4798,7 @@ F:	net/ax25/sysctl_net_ax25.c
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 L:	netdev@vger.kernel.org
 S:	Orphan
-F:	Documentation/networking/device_drivers/dec/dmfe.rst
+F:	Documentation/networking/device_drivers/ethernet/dec/dmfe.rst
 F:	drivers/net/ethernet/dec/tulip/dmfe.c
 
 DC390/AM53C974 SCSI driver
@@ -5286,8 +5286,8 @@ M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 M:	Ioana Radulescu <ruxandra.radulescu@nxp.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/freescale/dpaa2/ethernet-driver.rst
-F:	Documentation/networking/device_drivers/freescale/dpaa2/mac-phy-support.rst
+F:	Documentation/networking/device_drivers/ethernet/freescale/dpaa2/ethernet-driver.rst
+F:	Documentation/networking/device_drivers/ethernet/freescale/dpaa2/mac-phy-support.rst
 F:	drivers/net/ethernet/freescale/dpaa2/Kconfig
 F:	drivers/net/ethernet/freescale/dpaa2/Makefile
 F:	drivers/net/ethernet/freescale/dpaa2/dpaa2-eth*
@@ -7364,7 +7364,7 @@ R:	Sagi Shahar <sagis@google.com>
 R:	Jon Olson <jonolson@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/google/gve.rst
+F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
 F:	drivers/net/ethernet/google
 
 GPD POCKET FAN DRIVER
@@ -7975,7 +7975,7 @@ HUAWEI ETHERNET DRIVER
 M:	Bin Luo <luobin9@huawei.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/hinic.rst
+F:	Documentation/networking/device_drivers/ethernet/huawei/hinic.rst
 F:	drivers/net/ethernet/huawei/hinic/
 
 HUGETLB FILESYSTEM
@@ -8027,7 +8027,7 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
 F:	Documentation/ABI/stable/sysfs-bus-vmbus
 F:	Documentation/ABI/testing/debugfs-hyperv
-F:	Documentation/networking/device_drivers/microsoft/netvsc.rst
+F:	Documentation/networking/device_drivers/ethernet/microsoft/netvsc.rst
 F:	arch/x86/hyperv
 F:	arch/x86/include/asm/hyperv-tlfs.h
 F:	arch/x86/include/asm/mshyperv.h
@@ -8715,18 +8715,7 @@ W:	http://e1000.sourceforge.net/
 Q:	http://patchwork.ozlabs.org/project/intel-wired-lan/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-queue.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/next-queue.git
-F:	Documentation/networking/device_drivers/intel/e100.rst
-F:	Documentation/networking/device_drivers/intel/e1000.rst
-F:	Documentation/networking/device_drivers/intel/e1000e.rst
-F:	Documentation/networking/device_drivers/intel/fm10k.rst
-F:	Documentation/networking/device_drivers/intel/i40e.rst
-F:	Documentation/networking/device_drivers/intel/iavf.rst
-F:	Documentation/networking/device_drivers/intel/ice.rst
-F:	Documentation/networking/device_drivers/intel/igb.rst
-F:	Documentation/networking/device_drivers/intel/igbvf.rst
-F:	Documentation/networking/device_drivers/intel/ixgb.rst
-F:	Documentation/networking/device_drivers/intel/ixgbe.rst
-F:	Documentation/networking/device_drivers/intel/ixgbevf.rst
+F:	Documentation/networking/device_drivers/ethernet/intel/
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
 F:	include/linux/avf/virtchnl.h
@@ -8916,8 +8905,8 @@ INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
 M:	Stanislav Yakovlev <stas.yakovlev@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/intel/ipw2100.rst
-F:	Documentation/networking/device_drivers/intel/ipw2200.rst
+F:	Documentation/networking/device_drivers/wifi/intel/ipw2100.rst
+F:	Documentation/networking/device_drivers/wifi/intel/ipw2200.rst
 F:	drivers/net/wireless/intel/ipw2x00/
 
 INTEL PSTATE DRIVER
@@ -10441,7 +10430,7 @@ M:	Geetha sowjanya <gakula@marvell.com>
 M:	Jerin Jacob <jerinj@marvell.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/marvell/octeontx2.rst
+F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
@@ -11110,7 +11099,7 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
-F:	Documentation/networking/device_drivers/mellanox/
+F:	Documentation/networking/device_drivers/ethernet/mellanox/
 F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
 
@@ -11457,6 +11446,13 @@ M:	Cristian Birsan <cristian.birsan@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/usb/gadget/udc/atmel_usba_udc.*
+
+MICROCHIP WILC1000 WIFI DRIVER
+M:	Ajay Singh <ajay.kathat@microchip.com>
+M:	Claudiu Beznea <claudiu.beznea@microchip.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+F:	drivers/net/wireless/microchip/wilc1000/
 
 MICROCHIP XDMA DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
@@ -11902,8 +11898,8 @@ NETERION 10GbE DRIVERS (s2io/vxge)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/neterion/s2io.rst
-F:	Documentation/networking/device_drivers/neterion/vxge.rst
+F:	Documentation/networking/device_drivers/ethernet/neterion/s2io.rst
+F:	Documentation/networking/device_drivers/ethernet/neterion/vxge.rst
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER
@@ -13468,7 +13464,7 @@ M:	Shannon Nelson <snelson@pensando.io>
 M:	Pensando Drivers <drivers@pensando.io>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/pensando/ionic.rst
+F:	Documentation/networking/device_drivers/ethernet/pensando/ionic.rst
 F:	drivers/net/ethernet/pensando/
 
 PER-CPU MEMORY ALLOCATOR
@@ -13683,6 +13679,13 @@ M:	Tomasz Duszynski <tduszyns@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/chemical/plantower,pms7003.yaml
 F:	drivers/iio/chemical/pms7003.c
+
+PLDMFW LIBRARY
+M:	Jacob Keller <jacob.e.keller@intel.com>
+S:	Maintained
+F:	Documentation/driver-api/pldmfw/
+F:	include/linux/pldmfw.h
+F:	lib/pldmfw/
 
 PLX DMA DRIVER
 M:	Logan Gunthorpe <logang@deltatee.com>
@@ -14141,7 +14144,7 @@ QLOGIC QLA3XXX NETWORK DRIVER
 M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/qlogic/LICENSE.qla3xxx
+F:	Documentation/networking/device_drivers/ethernet/qlogic/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLA4XXX iSCSI DRIVER
@@ -14192,7 +14195,7 @@ M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/misc/fsl,qoriq-mc.txt
-F:	Documentation/networking/device_drivers/freescale/dpaa2/overview.rst
+F:	Documentation/networking/device_drivers/ethernet/freescale/dpaa2/overview.rst
 F:	drivers/bus/fsl-mc/
 
 QT1010 MEDIA DRIVER
@@ -14314,7 +14317,7 @@ M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
 M:	Sean Tranchetti <stranche@codeaurora.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/device_drivers/qualcomm/rmnet.rst
+F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
 F:	drivers/net/ethernet/qualcomm/rmnet/
 F:	include/linux/if_rmnet.h
 
@@ -16199,7 +16202,7 @@ SPIDERNET NETWORK DRIVER for CELL
 M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/toshiba/spider_net.rst
+F:	Documentation/networking/device_drivers/ethernet/toshiba/spider_net.rst
 F:	drivers/net/ethernet/toshiba/spider_net*
 
 SPMI SUBSYSTEM
@@ -16357,13 +16360,6 @@ M:	Forest Bond <forest@alittletooquiet.net>
 S:	Odd Fixes
 F:	drivers/staging/vt665?/
 
-STAGING - WILC1000 WIFI DRIVER
-M:	Adham Abozaeid <adham.abozaeid@microchip.com>
-M:	Ajay Singh <ajay.kathat@microchip.com>
-L:	linux-wireless@vger.kernel.org
-S:	Supported
-F:	drivers/staging/wilc1000/
-
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	devel@driverdev.osuosl.org
@@ -16426,7 +16422,7 @@ M:	Jose Abreu <joabreu@synopsys.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.stlinux.com
-F:	Documentation/networking/device_drivers/stmicro/
+F:	Documentation/networking/device_drivers/ethernet/stmicro/
 F:	drivers/net/ethernet/stmicro/stmmac/
 
 SUN3/3X
@@ -17314,7 +17310,7 @@ M:	Samuel Chessman <chessman@tux.org>
 L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 W:	http://sourceforge.net/projects/tlan/
-F:	Documentation/networking/device_drivers/ti/tlan.rst
+F:	Documentation/networking/device_drivers/ethernet/ti/tlan.rst
 F:	drivers/net/ethernet/ti/tlan.*
 
 TM6000 VIDEO4LINUX DRIVER
@@ -19017,7 +19013,7 @@ L:	linux-hams@vger.kernel.org
 S:	Maintained
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
-F:	Documentation/networking/z8530drv.rst
+F:	Documentation/networking/device_drivers/hamradio/z8530drv.rst
 F:	drivers/net/hamradio/*scc.c
 F:	drivers/net/hamradio/z8530.h
 

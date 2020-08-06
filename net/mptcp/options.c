@@ -451,6 +451,8 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct sk_buff *skb, struct mptcp_ext *ext)
 {
+	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq);
+
 	if (!ext->use_map || !skb->len) {
 		/* RFC6824 requires a DSS mapping with specific values
 		 * if DATA_FIN is set but no data payload is mapped
@@ -458,10 +460,13 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		ext->data_seq = subflow->data_fin_tx_seq;
+		/* The write_seq value has already been incremented, so
+		 * the actual sequence number for the DATA_FIN is one less.
+		 */
+		ext->data_seq = data_fin_tx_seq - 1;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
-	} else if (ext->data_seq + ext->data_len == subflow->data_fin_tx_seq) {
+	} else if (ext->data_seq + ext->data_len == data_fin_tx_seq) {
 		/* If there's an existing DSS mapping and it is the
 		 * final mapping, DATA_FIN consumes 1 additional byte of
 		 * mapping space.
@@ -477,22 +482,17 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 					  struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	unsigned int dss_size = 0;
+	u64 snd_data_fin_enable;
 	struct mptcp_ext *mpext;
-	struct mptcp_sock *msk;
 	unsigned int ack_size;
 	bool ret = false;
-	u8 tcp_fin;
 
-	if (skb) {
-		mpext = mptcp_get_ext(skb);
-		tcp_fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
-	} else {
-		mpext = NULL;
-		tcp_fin = 0;
-	}
+	mpext = skb ? mptcp_get_ext(skb) : NULL;
+	snd_data_fin_enable = READ_ONCE(msk->snd_data_fin_enable);
 
-	if (!skb || (mpext && mpext->use_map) || tcp_fin) {
+	if (!skb || (mpext && mpext->use_map) || snd_data_fin_enable) {
 		unsigned int map_size;
 
 		map_size = TCPOLEN_MPTCP_DSS_BASE + TCPOLEN_MPTCP_DSS_MAP64;
@@ -502,7 +502,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && tcp_fin && subflow->data_fin_tx_enable)
+		if (skb && snd_data_fin_enable)
 			mptcp_write_data_fin(subflow, skb, &opts->ext_copy);
 		ret = true;
 	}
@@ -511,7 +511,6 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	 * if the first subflow may have the already the remote key handy
 	 */
 	opts->ext_copy.use_ack = 0;
-	msk = mptcp_sk(subflow->conn);
 	if (!READ_ONCE(msk->can_ack)) {
 		*size = ALIGN(dss_size, 4);
 		return ret;
@@ -624,6 +623,9 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 
 	opts->suboptions = 0;
 
+	if (unlikely(mptcp_check_fallback(sk)))
+		return false;
+
 	if (mptcp_established_options_mp(sk, skb, &opt_size, remaining, opts))
 		ret = true;
 	else if (mptcp_established_options_dss(sk, skb, &opt_size, remaining,
@@ -706,6 +708,7 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
 		 * additional ack.
 		 */
 		subflow->fully_established = 1;
+		WRITE_ONCE(msk->fully_established, true);
 		goto fully_established;
 	}
 
@@ -714,15 +717,14 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
 	 */
 	if (!mp_opt->mp_capable) {
 		subflow->mp_capable = 0;
-		tcp_sk(sk)->is_mptcp = 0;
+		pr_fallback(msk);
+		__mptcp_do_fallback(msk);
 		return false;
 	}
 
 	if (unlikely(!READ_ONCE(msk->pm.server_side)))
 		pr_warn_once("bogus mpc option on established client sk");
-	subflow->fully_established = 1;
-	subflow->remote_key = mp_opt->sndr_key;
-	subflow->can_ack = 1;
+	mptcp_subflow_fully_established(subflow, mp_opt);
 
 fully_established:
 	if (likely(subflow->pm_notified))
@@ -780,6 +782,22 @@ static void update_una(struct mptcp_sock *msk,
 	}
 }
 
+bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
+{
+	/* Skip if DATA_FIN was already received.
+	 * If updating simultaneously with the recvmsg loop, values
+	 * should match. If they mismatch, the peer is misbehaving and
+	 * we will prefer the most recent information.
+	 */
+	if (READ_ONCE(msk->rcv_data_fin) || !READ_ONCE(msk->first))
+		return false;
+
+	WRITE_ONCE(msk->rcv_data_fin_seq, data_fin_seq);
+	WRITE_ONCE(msk->rcv_data_fin, 1);
+
+	return true;
+}
+
 static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 				struct mptcp_options_received *mp_opt)
 {
@@ -814,6 +832,9 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	struct mptcp_options_received mp_opt;
 	struct mptcp_ext *mpext;
 
+	if (__mptcp_check_fallback(msk))
+		return;
+
 	mptcp_get_options(skb, &mp_opt);
 	if (!check_fully_established(msk, sk, subflow, skb, &mp_opt))
 		return;
@@ -846,6 +867,20 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	 */
 	if (mp_opt.use_ack)
 		update_una(msk, &mp_opt);
+
+	/* Zero-data-length packets are dropped by the caller and not
+	 * propagated to the MPTCP layer, so the skb extension does not
+	 * need to be allocated or populated. DATA_FIN information, if
+	 * present, needs to be updated here before the skb is freed.
+	 */
+	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
+		if (mp_opt.data_fin && mp_opt.data_len == 1 &&
+		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq) &&
+		    schedule_work(&msk->work))
+			sock_hold(subflow->conn);
+
+		return;
+	}
 
 	mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
 	if (!mpext)

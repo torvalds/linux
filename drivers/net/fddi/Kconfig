@@ -77,8 +77,8 @@ config SKFP
 	  - Netelligent 100 FDDI SAS UTP
 	  - Netelligent 100 FDDI SAS Fibre MIC
 
-	  Read <file:Documentation/networking/skfp.rst> for information about
-	  the driver.
+	  Read <file:Documentation/networking/device_drivers/fddi/skfp.rst>
+	  for information about the driver.
 
 	  Questions concerning this driver can be addressed to:
 	  <linux@syskonnect.de>

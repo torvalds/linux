@@ -3899,6 +3899,7 @@ static const struct rtw_rfe_def rtw8822c_rfe_defs[] = {
 	[1] = RTW_DEF_RFE(8822c, 0, 0),
 	[2] = RTW_DEF_RFE(8822c, 0, 0),
 	[5] = RTW_DEF_RFE(8822c, 0, 5),
+	[6] = RTW_DEF_RFE(8822c, 0, 0),
 };
 
 static const struct rtw_hw_reg rtw8822c_dig[] = {
@@ -3997,7 +3998,7 @@ static const struct coex_table_para table_sant_8822c[] = {
 	{0x66555555, 0x5a5a5a5a},
 	{0x66555555, 0x6a5a5a5a}, /* case-10 */
 	{0x66555555, 0xfafafafa},
-	{0x66555555, 0x6a5a5aaa},
+	{0x66555555, 0x5a5a5aaa},
 	{0x66555555, 0x5aaa5aaa},
 	{0x66555555, 0xaaaa5aaa},
 	{0x66555555, 0xaaaaaaaa}, /* case-15 */
@@ -4073,7 +4074,8 @@ static const struct coex_tdma_para tdma_sant_8822c[] = {
 	{ {0x55, 0x08, 0x03, 0x10, 0x54} },
 	{ {0x65, 0x10, 0x03, 0x11, 0x11} },
 	{ {0x51, 0x10, 0x03, 0x10, 0x51} }, /* case-25 */
-	{ {0x51, 0x08, 0x03, 0x10, 0x50} }
+	{ {0x51, 0x08, 0x03, 0x10, 0x50} },
+	{ {0x61, 0x08, 0x03, 0x11, 0x11} }
 };
 
 /* Non-Shared-Antenna TDMA */
@@ -4343,8 +4345,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.wowlan_stub = &rtw_wowlan_stub_8822c,
 	.max_sched_scan_ssids = 4,
 #endif
-	.coex_para_ver = 0x19062706,
-	.bt_desired_ver = 0x6,
+	.coex_para_ver = 0x20070217,
+	.bt_desired_ver = 0x17,
 	.scbd_support = true,
 	.new_scbd10_def = true,
 	.pstdma_type = COEX_PSTDMA_FORCE_LPSOFF,

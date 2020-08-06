@@ -1006,7 +1006,7 @@ static void cfhsi_aggregation_tout(struct timer_list *t)
 	cfhsi_start_tx(cfhsi);
 }
 
-static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct cfhsi *cfhsi = NULL;
 	int start_xfer = 0;
@@ -1072,7 +1072,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_bh(&cfhsi->lock);
 		if (aggregate_ready)
 			cfhsi_start_tx(cfhsi);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* Delete inactivity timer if started. */
@@ -1102,7 +1102,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 			queue_work(cfhsi->wq, &cfhsi->wake_up_work);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops cfhsi_netdevops;

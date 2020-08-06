@@ -415,7 +415,7 @@ int t4vf_eth_eq_free(struct adapter *, unsigned int);
 int t4vf_update_port_info(struct port_info *pi);
 int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
-int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int port,
 			unsigned int *naddr, u8 *addr);
 int t4vf_get_vf_vlan_acl(struct adapter *adapter);
 

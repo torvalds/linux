@@ -213,13 +213,6 @@ static void ringbuf_map_free(struct bpf_map *map)
 {
 	struct bpf_ringbuf_map *rb_map;
 
-	/* at this point bpf_prog->aux->refcnt == 0 and this map->refcnt == 0,
-	 * so the programs (can be more than one that used this map) were
-	 * disconnected from events. Wait for outstanding critical sections in
-	 * these programs to complete
-	 */
-	synchronize_rcu();
-
 	rb_map = container_of(map, struct bpf_ringbuf_map, map);
 	bpf_ringbuf_free(rb_map->rb);
 	kfree(rb_map);
@@ -292,6 +285,7 @@ static __poll_t ringbuf_map_poll(struct bpf_map *map, struct file *filp,
 	return 0;
 }
 
+static int ringbuf_map_btf_id;
 const struct bpf_map_ops ringbuf_map_ops = {
 	.map_alloc = ringbuf_map_alloc,
 	.map_free = ringbuf_map_free,
@@ -301,6 +295,8 @@ const struct bpf_map_ops ringbuf_map_ops = {
 	.map_update_elem = ringbuf_map_update_elem,
 	.map_delete_elem = ringbuf_map_delete_elem,
 	.map_get_next_key = ringbuf_map_get_next_key,
+	.map_btf_name = "bpf_ringbuf_map",
+	.map_btf_id = &ringbuf_map_btf_id,
 };
 
 /* Given pointer to ring buffer record metadata and struct bpf_ringbuf itself,

@@ -124,5 +124,12 @@ runqslower_install:
 runqslower_clean:
 	$(call descend,runqslower,clean)
 
+resolve_btfids:
+	$(call descend,resolve_btfids)
+
+resolve_btfids_clean:
+	$(call descend,resolve_btfids,clean)
+
 .PHONY: all install clean bpftool bpftool_install bpftool_clean \
-	runqslower runqslower_install runqslower_clean
+	runqslower runqslower_install runqslower_clean \
+	resolve_btfids resolve_btfids_clean

@@ -17,7 +17,6 @@
 #include "igc_hw.h"
 #include "igc_tsn.h"
 
-#define DRV_VERSION	"0.0.1-k"
 #define DRV_SUMMARY	"Intel(R) 2.5G Ethernet Linux Driver"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
@@ -27,12 +26,10 @@ static int debug = -1;
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 char igc_driver_name[] = "igc";
-char igc_driver_version[] = DRV_VERSION;
 static const char igc_driver_string[] = DRV_SUMMARY;
 static const char igc_copyright[] =
 	"Copyright(c) 2018 Intel Corporation.";
@@ -63,16 +60,6 @@ enum latency_range {
 	bulk_latency = 2,
 	latency_invalid = 255
 };
-
-/**
- * igc_power_down_link - Power down the phy/serdes link
- * @adapter: address of board private structure
- */
-static void igc_power_down_link(struct igc_adapter *adapter)
-{
-	if (adapter->hw.phy.media_type == igc_media_type_copper)
-		igc_power_down_phy_copper_base(&adapter->hw);
-}
 
 void igc_reset(struct igc_adapter *adapter)
 {
@@ -105,8 +92,11 @@ void igc_reset(struct igc_adapter *adapter)
 	if (hw->mac.ops.init_hw(hw))
 		netdev_err(dev, "Error on hardware initialization\n");
 
+	/* Re-establish EEE setting */
+	igc_set_eee_i225(hw, true, true, true);
+
 	if (!netif_running(adapter->netdev))
-		igc_power_down_link(adapter);
+		igc_power_down_phy_copper_base(&adapter->hw);
 
 	/* Re-enable PTP, where applicable. */
 	igc_ptp_reset(adapter);
@@ -125,8 +115,7 @@ static void igc_power_up_link(struct igc_adapter *adapter)
 {
 	igc_reset_phy(&adapter->hw);
 
-	if (adapter->hw.phy.media_type == igc_media_type_copper)
-		igc_power_up_phy_copper(&adapter->hw);
+	igc_power_up_phy_copper(&adapter->hw);
 
 	igc_setup_link(&adapter->hw);
 }
@@ -980,7 +969,7 @@ csum_failed:
 	switch (skb->csum_offset) {
 	case offsetof(struct tcphdr, check):
 		type_tucmd = IGC_ADVTXD_TUCMD_L4T_TCP;
-		/* fall through */
+		fallthrough;
 	case offsetof(struct udphdr, check):
 		break;
 	case offsetof(struct sctphdr, checksum):
@@ -992,7 +981,7 @@ csum_failed:
 			type_tucmd = IGC_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		skb_checksum_help(skb);
 		goto csum_failed;
@@ -1479,9 +1468,9 @@ static inline void igc_rx_hash(struct igc_ring *ring,
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
  *
- * This function checks the ring, descriptor, and packet information in
- * order to populate the hash, checksum, VLAN, timestamp, protocol, and
- * other fields within the skb.
+ * This function checks the ring, descriptor, and packet information in order
+ * to populate the hash, checksum, VLAN, protocol, and other fields within the
+ * skb.
  */
 static void igc_process_skb_fields(struct igc_ring *rx_ring,
 				   union igc_adv_rx_desc *rx_desc,
@@ -1490,10 +1479,6 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 	igc_rx_hash(rx_ring, rx_desc, skb);
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
-
-	if (igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TS) &&
-	    !igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))
-		igc_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -1975,7 +1960,7 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		/* probably a little skewed due to removing CRC */
 		total_bytes += skb->len;
 
-		/* populate checksum, timestamp, VLAN, and protocol */
+		/* populate checksum, VLAN, and protocol */
 		igc_process_skb_fields(rx_ring, rx_desc, skb);
 
 		napi_gro_receive(&q_vector->napi, skb);
@@ -3284,7 +3269,6 @@ static void igc_cache_ring_register(struct igc_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case igc_i225:
-	/* Fall through */
 	default:
 		for (; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->reg_idx = i;
@@ -3744,17 +3728,8 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.algnerrc += rd32(IGC_ALGNERRC);
 
 	adapter->stats.tsctc += rd32(IGC_TSCTC);
-	adapter->stats.tsctfc += rd32(IGC_TSCTFC);
 
 	adapter->stats.iac += rd32(IGC_IAC);
-	adapter->stats.icrxoc += rd32(IGC_ICRXOC);
-	adapter->stats.icrxptc += rd32(IGC_ICRXPTC);
-	adapter->stats.icrxatc += rd32(IGC_ICRXATC);
-	adapter->stats.ictxptc += rd32(IGC_ICTXPTC);
-	adapter->stats.ictxatc += rd32(IGC_ICTXATC);
-	adapter->stats.ictxqec += rd32(IGC_ICTXQEC);
-	adapter->stats.ictxqmtc += rd32(IGC_ICTXQMTC);
-	adapter->stats.icrxdmtc += rd32(IGC_ICRXDMTC);
 
 	/* Fill out the OS statistics structure */
 	net_stats->multicast = adapter->stats.mprc;
@@ -4255,6 +4230,15 @@ static void igc_watchdog_task(struct work_struct *work)
 				    (ctrl & IGC_CTRL_RFCE) ?  "RX" :
 				    (ctrl & IGC_CTRL_TFCE) ?  "TX" : "None");
 
+			/* disable EEE if enabled */
+			if ((adapter->flags & IGC_FLAG_EEE) &&
+			    adapter->link_duplex == HALF_DUPLEX) {
+				netdev_info(netdev,
+					    "EEE Disabled: unsupported at half duplex. Re-enable using ethtool when at full duplex\n");
+				adapter->hw.dev_spec._base.eee_enable = false;
+				adapter->flags &= ~IGC_FLAG_EEE;
+			}
+
 			/* check if SmartSpeed worked */
 			igc_check_downshift(hw);
 			if (phy->speed_downgraded)
@@ -4611,7 +4595,7 @@ err_set_queues:
 	igc_free_irq(adapter);
 err_req_irq:
 	igc_release_hw_control(adapter);
-	igc_power_down_link(adapter);
+	igc_power_down_phy_copper_base(&adapter->hw);
 	igc_free_all_rx_resources(adapter);
 err_setup_rx:
 	igc_free_all_tx_resources(adapter);
@@ -5185,6 +5169,10 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev_info(netdev, "MAC: %pM\n", netdev->dev_addr);
 
 	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+	/* Disable EEE for internal PHY devices */
+	hw->dev_spec._base.eee_enable = false;
+	adapter->flags &= ~IGC_FLAG_EEE;
+	igc_set_eee_i225(hw, false, false, false);
 
 	pm_runtime_put_noidle(&pdev->dev);
 
@@ -5305,7 +5293,7 @@ static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	wake = wufc || adapter->en_mng_pt;
 	if (!wake)
-		igc_power_down_link(adapter);
+		igc_power_down_phy_copper_base(&adapter->hw);
 	else
 		igc_power_up_link(adapter);
 
@@ -5614,9 +5602,7 @@ static int __init igc_init_module(void)
 {
 	int ret;
 
-	pr_info("%s - version %s\n",
-		igc_driver_string, igc_driver_version);
-
+	pr_info("%s\n", igc_driver_string);
 	pr_info("%s\n", igc_copyright);
 
 	ret = pci_register_driver(&igc_driver);

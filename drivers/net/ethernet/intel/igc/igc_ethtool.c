@@ -4,6 +4,7 @@
 /* ethtool support for igc */
 #include <linux/if_vlan.h>
 #include <linux/pm_runtime.h>
+#include <linux/mdio.h>
 
 #include "igc.h"
 #include "igc_diag.h"
@@ -130,7 +131,6 @@ static void igc_ethtool_get_drvinfo(struct net_device *netdev,
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver,  igc_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, igc_driver_version, sizeof(drvinfo->version));
 
 	/* add fw_version here */
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
@@ -1015,37 +1015,29 @@ static int igc_ethtool_get_rss_hash_opts(struct igc_adapter *adapter,
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case UDP_V4_FLOW:
 		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case SCTP_V4_FLOW:
-		/* Fall through */
 	case AH_ESP_V4_FLOW:
-		/* Fall through */
 	case AH_V4_FLOW:
-		/* Fall through */
 	case ESP_V4_FLOW:
-		/* Fall through */
 	case IPV4_FLOW:
 		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;
 	case TCP_V6_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case UDP_V6_FLOW:
 		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case SCTP_V6_FLOW:
-		/* Fall through */
 	case AH_ESP_V6_FLOW:
-		/* Fall through */
 	case AH_V6_FLOW:
-		/* Fall through */
 	case ESP_V6_FLOW:
-		/* Fall through */
 	case IPV6_FLOW:
 		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;
@@ -1549,6 +1541,98 @@ static int igc_ethtool_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 	return 0;
 }
 
+static int igc_ethtool_get_eee(struct net_device *netdev,
+			       struct ethtool_eee *edata)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	u32 eeer;
+
+	if (hw->dev_spec._base.eee_enable)
+		edata->advertised =
+			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
+
+	*edata = adapter->eee;
+	edata->supported = SUPPORTED_Autoneg;
+
+	eeer = rd32(IGC_EEER);
+
+	/* EEE status on negotiated link */
+	if (eeer & IGC_EEER_EEE_NEG)
+		edata->eee_active = true;
+
+	if (eeer & IGC_EEER_TX_LPI_EN)
+		edata->tx_lpi_enabled = true;
+
+	edata->eee_enabled = hw->dev_spec._base.eee_enable;
+
+	edata->advertised = SUPPORTED_Autoneg;
+	edata->lp_advertised = SUPPORTED_Autoneg;
+
+	/* Report correct negotiated EEE status for devices that
+	 * wrongly report EEE at half-duplex
+	 */
+	if (adapter->link_duplex == HALF_DUPLEX) {
+		edata->eee_enabled = false;
+		edata->eee_active = false;
+		edata->tx_lpi_enabled = false;
+		edata->advertised &= ~edata->advertised;
+	}
+
+	return 0;
+}
+
+static int igc_ethtool_set_eee(struct net_device *netdev,
+			       struct ethtool_eee *edata)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_curr;
+	s32 ret_val;
+
+	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
+
+	ret_val = igc_ethtool_get_eee(netdev, &eee_curr);
+	if (ret_val) {
+		netdev_err(netdev,
+			   "Problem setting EEE advertisement options\n");
+		return -EINVAL;
+	}
+
+	if (eee_curr.eee_enabled) {
+		if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
+			netdev_err(netdev,
+				   "Setting EEE tx-lpi is not supported\n");
+			return -EINVAL;
+		}
+
+		/* Tx LPI timer is not implemented currently */
+		if (edata->tx_lpi_timer) {
+			netdev_err(netdev,
+				   "Setting EEE Tx LPI timer is not supported\n");
+			return -EINVAL;
+		}
+	} else if (!edata->eee_enabled) {
+		netdev_err(netdev,
+			   "Setting EEE options are not supported with EEE disabled\n");
+		return -EINVAL;
+	}
+
+	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised);
+	if (hw->dev_spec._base.eee_enable != edata->eee_enabled) {
+		hw->dev_spec._base.eee_enable = edata->eee_enabled;
+		adapter->flags |= IGC_FLAG_EEE;
+
+		/* reset link */
+		if (netif_running(netdev))
+			igc_reinit_locked(adapter);
+		else
+			igc_reset(adapter);
+	}
+
+	return 0;
+}
+
 static int igc_ethtool_begin(struct net_device *netdev)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
@@ -1830,6 +1914,8 @@ static const struct ethtool_ops igc_ethtool_ops = {
 	.set_channels		= igc_ethtool_set_channels,
 	.get_priv_flags		= igc_ethtool_get_priv_flags,
 	.set_priv_flags		= igc_ethtool_set_priv_flags,
+	.get_eee		= igc_ethtool_get_eee,
+	.set_eee		= igc_ethtool_set_eee,
 	.begin			= igc_ethtool_begin,
 	.complete		= igc_ethtool_complete,
 	.get_link_ksettings	= igc_ethtool_get_link_ksettings,

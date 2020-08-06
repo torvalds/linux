@@ -383,6 +383,23 @@ skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
 }
 EXPORT_SYMBOL(skb_flow_dissect_tunnel_info);
 
+void skb_flow_dissect_hash(const struct sk_buff *skb,
+			   struct flow_dissector *flow_dissector,
+			   void *target_container)
+{
+	struct flow_dissector_key_hash *key;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_HASH))
+		return;
+
+	key = skb_flow_dissector_target(flow_dissector,
+					FLOW_DISSECTOR_KEY_HASH,
+					target_container);
+
+	key->hash = skb_get_hash_raw(skb);
+}
+EXPORT_SYMBOL(skb_flow_dissect_hash);
+
 static enum flow_dissect_ret
 __skb_flow_dissect_mpls(const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,

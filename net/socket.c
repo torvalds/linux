@@ -586,15 +586,6 @@ struct socket *sock_alloc(void)
 }
 EXPORT_SYMBOL(sock_alloc);
 
-/**
- *	sock_release - close a socket
- *	@sock: socket to close
- *
- *	The socket is released from the protocol stack if it has a release
- *	callback, and the inode is then released if the socket is bound to
- *	an inode not a file.
- */
-
 static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
@@ -620,6 +611,14 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 	sock->file = NULL;
 }
 
+/**
+ *	sock_release - close a socket
+ *	@sock: socket to close
+ *
+ *	The socket is released from the protocol stack if it has a release
+ *	callback, and the inode is then released if the socket is bound to
+ *	an inode not a file.
+ */
 void sock_release(struct socket *sock)
 {
 	__sock_release(sock, NULL);
@@ -2080,15 +2079,25 @@ SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 	return __sys_recvfrom(fd, ubuf, size, flags, NULL, NULL);
 }
 
+static bool sock_use_custom_sol_socket(const struct socket *sock)
+{
+	const struct sock *sk = sock->sk;
+
+	/* Use sock->ops->setsockopt() for MPTCP */
+	return IS_ENABLED(CONFIG_MPTCP) &&
+	       sk->sk_protocol == IPPROTO_MPTCP &&
+	       sk->sk_type == SOCK_STREAM &&
+	       (sk->sk_family == AF_INET || sk->sk_family == AF_INET6);
+}
+
 /*
  *	Set a socket option. Because we don't know the option lengths we have
  *	to pass the user mode parameter for the protocols to sort out.
  */
-
-static int __sys_setsockopt(int fd, int level, int optname,
-			    char __user *optval, int optlen)
+int __sys_setsockopt(int fd, int level, int optname, char __user *user_optval,
+		int optlen)
 {
-	mm_segment_t oldfs = get_fs();
+	sockptr_t optval;
 	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
@@ -2096,44 +2105,41 @@ static int __sys_setsockopt(int fd, int level, int optname,
 	if (optlen < 0)
 		return -EINVAL;
 
+	err = init_user_sockptr(&optval, user_optval, optlen);
+	if (err)
+		return err;
+
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
-	if (sock != NULL) {
-		err = security_socket_setsockopt(sock, level, optname);
-		if (err)
-			goto out_put;
+	if (!sock)
+		return err;
 
-		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level,
-						     &optname, optval, &optlen,
+	err = security_socket_setsockopt(sock, level, optname);
+	if (err)
+		goto out_put;
+
+	if (!in_compat_syscall())
+		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level, &optname,
+						     user_optval, &optlen,
 						     &kernel_optval);
-
-		if (err < 0) {
-			goto out_put;
-		} else if (err > 0) {
-			err = 0;
-			goto out_put;
-		}
-
-		if (kernel_optval) {
-			set_fs(KERNEL_DS);
-			optval = (char __user __force *)kernel_optval;
-		}
-
-		if (level == SOL_SOCKET)
-			err =
-			    sock_setsockopt(sock, level, optname, optval,
-					    optlen);
-		else
-			err =
-			    sock->ops->setsockopt(sock, level, optname, optval,
-						  optlen);
-
-		if (kernel_optval) {
-			set_fs(oldfs);
-			kfree(kernel_optval);
-		}
-out_put:
-		fput_light(sock->file, fput_needed);
+	if (err < 0)
+		goto out_put;
+	if (err > 0) {
+		err = 0;
+		goto out_put;
 	}
+
+	if (kernel_optval)
+		optval = KERNEL_SOCKPTR(kernel_optval);
+	if (level == SOL_SOCKET && !sock_use_custom_sol_socket(sock))
+		err = sock_setsockopt(sock, level, optname, optval, optlen);
+	else if (unlikely(!sock->ops->setsockopt))
+		err = -EOPNOTSUPP;
+	else
+		err = sock->ops->setsockopt(sock, level, optname, optval,
+					    optlen);
+	kfree(kernel_optval);
+out_put:
+	fput_light(sock->file, fput_needed);
 	return err;
 }
 
@@ -2147,37 +2153,38 @@ SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
  *	Get a socket option. Because we don't know the option lengths we have
  *	to pass a user mode parameter for the protocols to sort out.
  */
-
-static int __sys_getsockopt(int fd, int level, int optname,
-			    char __user *optval, int __user *optlen)
+int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+		int __user *optlen)
 {
 	int err, fput_needed;
 	struct socket *sock;
 	int max_optlen;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
-	if (sock != NULL) {
-		err = security_socket_getsockopt(sock, level, optname);
-		if (err)
-			goto out_put;
+	if (!sock)
+		return err;
 
+	err = security_socket_getsockopt(sock, level, optname);
+	if (err)
+		goto out_put;
+
+	if (!in_compat_syscall())
 		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
 
-		if (level == SOL_SOCKET)
-			err =
-			    sock_getsockopt(sock, level, optname, optval,
+	if (level == SOL_SOCKET)
+		err = sock_getsockopt(sock, level, optname, optval, optlen);
+	else if (unlikely(!sock->ops->getsockopt))
+		err = -EOPNOTSUPP;
+	else
+		err = sock->ops->getsockopt(sock, level, optname, optval,
 					    optlen);
-		else
-			err =
-			    sock->ops->getsockopt(sock, level, optname, optval,
-						  optlen);
 
+	if (!in_compat_syscall())
 		err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname,
-						     optval, optlen,
-						     max_optlen, err);
+						     optval, optlen, max_optlen,
+						     err);
 out_put:
-		fput_light(sock->file, fput_needed);
-	}
+	fput_light(sock->file, fput_needed);
 	return err;
 }
 

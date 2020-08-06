@@ -238,7 +238,7 @@ static void chipco_powercontrol_init(struct ssb_chipcommon *cc)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
+/* https://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
 static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
@@ -255,7 +255,7 @@ static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
+/* https://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
 static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;

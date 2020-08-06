@@ -361,11 +361,9 @@ static struct proto_ops algif_aead_ops = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg,
@@ -454,11 +452,9 @@ static struct proto_ops algif_aead_ops_nokey = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg_nokey,

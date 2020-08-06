@@ -435,8 +435,8 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 	__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 
-	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, mtu,
-			     (dev->flags & IFF_PROMISC) ? 1 : 0,
+	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, pi->viid_mirror,
+			     mtu, (dev->flags & IFF_PROMISC) ? 1 : 0,
 			     (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
 			     sleep_ok);
 }
@@ -503,15 +503,16 @@ set_hash:
  */
 static int link_start(struct net_device *dev)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
-	unsigned int mb = pi->adapter->pf;
+	unsigned int mb = pi->adapter->mbox;
+	int ret;
 
 	/*
 	 * We do not set address filters and promiscuity here, the stack does
 	 * that step explicitly.
 	 */
-	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
+	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, pi->viid_mirror,
+			    dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0)
 		ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
@@ -822,6 +823,31 @@ static void adap_config_hpfilter(struct adapter *adapter)
 			"HP filter region isn't supported by FW\n");
 }
 
+static int cxgb4_config_rss(const struct port_info *pi, u16 *rss,
+			    u16 rss_size, u16 viid)
+{
+	struct adapter *adap = pi->adapter;
+	int ret;
+
+	ret = t4_config_rss_range(adap, adap->mbox, viid, 0, rss_size, rss,
+				  rss_size);
+	if (ret)
+		return ret;
+
+	/* If Tunnel All Lookup isn't specified in the global RSS
+	 * Configuration, then we need to specify a default Ingress
+	 * Queue for any ingress packets which aren't hashed.  We'll
+	 * use our first ingress queue ...
+	 */
+	return t4_config_vi_rss(adap, adap->mbox, viid,
+				FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F |
+				FW_RSS_VI_CONFIG_CMD_UDPEN_F,
+				rss[0]);
+}
+
 /**
  *	cxgb4_write_rss - write the RSS table for a given port
  *	@pi: the port
@@ -833,10 +859,10 @@ static void adap_config_hpfilter(struct adapter *adapter)
  */
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 {
-	u16 *rss;
-	int i, err;
 	struct adapter *adapter = pi->adapter;
 	const struct sge_eth_rxq *rxq;
+	int i, err;
+	u16 *rss;
 
 	rxq = &adapter->sge.ethrxq[pi->first_qset];
 	rss = kmalloc_array(pi->rss_size, sizeof(u16), GFP_KERNEL);
@@ -847,21 +873,7 @@ int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 	for (i = 0; i < pi->rss_size; i++, queues++)
 		rss[i] = rxq[*queues].rspq.abs_id;
 
-	err = t4_config_rss_range(adapter, adapter->pf, pi->viid, 0,
-				  pi->rss_size, rss, pi->rss_size);
-	/* If Tunnel All Lookup isn't specified in the global RSS
-	 * Configuration, then we need to specify a default Ingress
-	 * Queue for any ingress packets which aren't hashed.  We'll
-	 * use our first ingress queue ...
-	 */
-	if (!err)
-		err = t4_config_vi_rss(adapter, adapter->mbox, pi->viid,
-				       FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F |
-				       FW_RSS_VI_CONFIG_CMD_UDPEN_F,
-				       rss[0]);
+	err = cxgb4_config_rss(pi, rss, pi->rss_size, pi->viid);
 	kfree(rss);
 	return err;
 }
@@ -1259,15 +1271,15 @@ int cxgb4_set_rspq_intr_params(struct sge_rspq *q,
 
 static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
-	const struct port_info *pi = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
+	const struct port_info *pi = netdev_priv(dev);
 	int err;
 
 	if (!(changed & NETIF_F_HW_VLAN_CTAG_RX))
 		return 0;
 
-	err = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, -1,
-			    -1, -1, -1,
+	err = t4_set_rxmode(pi->adapter, pi->adapter->mbox, pi->viid,
+			    pi->viid_mirror, -1, -1, -1, -1,
 			    !!(features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (unlikely(err))
 		dev->features = features ^ NETIF_F_HW_VLAN_CTAG_RX;
@@ -1283,6 +1295,292 @@ static int setup_debugfs(struct adapter *adap)
 	t4_setup_debugfs(adap);
 #endif
 	return 0;
+}
+
+static void cxgb4_port_mirror_free_rxq(struct adapter *adap,
+				       struct sge_eth_rxq *mirror_rxq)
+{
+	if ((adap->flags & CXGB4_FULL_INIT_DONE) &&
+	    !(adap->flags & CXGB4_SHUTTING_DOWN))
+		cxgb4_quiesce_rx(&mirror_rxq->rspq);
+
+	if (adap->flags & CXGB4_USING_MSIX) {
+		cxgb4_clear_msix_aff(mirror_rxq->msix->vec,
+				     mirror_rxq->msix->aff_mask);
+		free_irq(mirror_rxq->msix->vec, &mirror_rxq->rspq);
+		cxgb4_free_msix_idx_in_bmap(adap, mirror_rxq->msix->idx);
+	}
+
+	free_rspq_fl(adap, &mirror_rxq->rspq, &mirror_rxq->fl);
+}
+
+static int cxgb4_port_mirror_alloc_queues(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_eth_rxq *mirror_rxq;
+	struct sge *s = &adap->sge;
+	int ret = 0, msix = 0;
+	u16 i, rxqid;
+	u16 *rss;
+
+	if (!pi->vi_mirror_count)
+		return 0;
+
+	if (s->mirror_rxq[pi->port_id])
+		return 0;
+
+	mirror_rxq = kcalloc(pi->nmirrorqsets, sizeof(*mirror_rxq), GFP_KERNEL);
+	if (!mirror_rxq)
+		return -ENOMEM;
+
+	s->mirror_rxq[pi->port_id] = mirror_rxq;
+
+	if (!(adap->flags & CXGB4_USING_MSIX))
+		msix = -((int)adap->sge.intrq.abs_id + 1);
+
+	for (i = 0, rxqid = 0; i < pi->nmirrorqsets; i++, rxqid++) {
+		mirror_rxq = &s->mirror_rxq[pi->port_id][i];
+
+		/* Allocate Mirror Rxqs */
+		if (msix >= 0) {
+			msix = cxgb4_get_msix_idx_from_bmap(adap);
+			if (msix < 0) {
+				ret = msix;
+				goto out_free_queues;
+			}
+
+			mirror_rxq->msix = &adap->msix_info[msix];
+			snprintf(mirror_rxq->msix->desc,
+				 sizeof(mirror_rxq->msix->desc),
+				 "%s-mirrorrxq%d", dev->name, i);
+		}
+
+		init_rspq(adap, &mirror_rxq->rspq,
+			  CXGB4_MIRROR_RXQ_DEFAULT_INTR_USEC,
+			  CXGB4_MIRROR_RXQ_DEFAULT_PKT_CNT,
+			  CXGB4_MIRROR_RXQ_DEFAULT_DESC_NUM,
+			  CXGB4_MIRROR_RXQ_DEFAULT_DESC_SIZE);
+
+		mirror_rxq->fl.size = CXGB4_MIRROR_FLQ_DEFAULT_DESC_NUM;
+
+		ret = t4_sge_alloc_rxq(adap, &mirror_rxq->rspq, false,
+				       dev, msix, &mirror_rxq->fl,
+				       t4_ethrx_handler, NULL, 0);
+		if (ret)
+			goto out_free_msix_idx;
+
+		/* Setup MSI-X vectors for Mirror Rxqs */
+		if (adap->flags & CXGB4_USING_MSIX) {
+			ret = request_irq(mirror_rxq->msix->vec,
+					  t4_sge_intr_msix, 0,
+					  mirror_rxq->msix->desc,
+					  &mirror_rxq->rspq);
+			if (ret)
+				goto out_free_rxq;
+
+			cxgb4_set_msix_aff(adap, mirror_rxq->msix->vec,
+					   &mirror_rxq->msix->aff_mask, i);
+		}
+
+		/* Start NAPI for Mirror Rxqs */
+		cxgb4_enable_rx(adap, &mirror_rxq->rspq);
+	}
+
+	/* Setup RSS for Mirror Rxqs */
+	rss = kcalloc(pi->rss_size, sizeof(u16), GFP_KERNEL);
+	if (!rss) {
+		ret = -ENOMEM;
+		goto out_free_queues;
+	}
+
+	mirror_rxq = &s->mirror_rxq[pi->port_id][0];
+	for (i = 0; i < pi->rss_size; i++)
+		rss[i] = mirror_rxq[i % pi->nmirrorqsets].rspq.abs_id;
+
+	ret = cxgb4_config_rss(pi, rss, pi->rss_size, pi->viid_mirror);
+	kfree(rss);
+	if (ret)
+		goto out_free_queues;
+
+	return 0;
+
+out_free_rxq:
+	free_rspq_fl(adap, &mirror_rxq->rspq, &mirror_rxq->fl);
+
+out_free_msix_idx:
+	cxgb4_free_msix_idx_in_bmap(adap, mirror_rxq->msix->idx);
+
+out_free_queues:
+	while (rxqid-- > 0)
+		cxgb4_port_mirror_free_rxq(adap,
+					   &s->mirror_rxq[pi->port_id][rxqid]);
+
+	kfree(s->mirror_rxq[pi->port_id]);
+	s->mirror_rxq[pi->port_id] = NULL;
+	return ret;
+}
+
+static void cxgb4_port_mirror_free_queues(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge *s = &adap->sge;
+	u16 i;
+
+	if (!pi->vi_mirror_count)
+		return;
+
+	if (!s->mirror_rxq[pi->port_id])
+		return;
+
+	for (i = 0; i < pi->nmirrorqsets; i++)
+		cxgb4_port_mirror_free_rxq(adap,
+					   &s->mirror_rxq[pi->port_id][i]);
+
+	kfree(s->mirror_rxq[pi->port_id]);
+	s->mirror_rxq[pi->port_id] = NULL;
+}
+
+static int cxgb4_port_mirror_start(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret, idx = -1;
+
+	if (!pi->vi_mirror_count)
+		return 0;
+
+	/* Mirror VIs can be created dynamically after stack had
+	 * already setup Rx modes like MTU, promisc, allmulti, etc.
+	 * on main VI. So, parse what the stack had setup on the
+	 * main VI and update the same on the mirror VI.
+	 */
+	ret = t4_set_rxmode(adap, adap->mbox, pi->viid, pi->viid_mirror,
+			    dev->mtu, (dev->flags & IFF_PROMISC) ? 1 : 0,
+			    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1,
+			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Failed start up Rx mode for Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+		return ret;
+	}
+
+	/* Enable replication bit for the device's MAC address
+	 * in MPS TCAM, so that the packets for the main VI are
+	 * replicated to mirror VI.
+	 */
+	ret = cxgb4_update_mac_filt(pi, pi->viid_mirror, &idx,
+				    dev->dev_addr, true, NULL);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Failed updating MAC filter for Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+		return ret;
+	}
+
+	/* Enabling a Virtual Interface can result in an interrupt
+	 * during the processing of the VI Enable command and, in some
+	 * paths, result in an attempt to issue another command in the
+	 * interrupt context. Thus, we disable interrupts during the
+	 * course of the VI Enable command ...
+	 */
+	local_bh_disable();
+	ret = t4_enable_vi_params(adap, adap->mbox, pi->viid_mirror, true, true,
+				  false);
+	local_bh_enable();
+	if (ret)
+		dev_err(adap->pdev_dev,
+			"Failed starting Mirror VI 0x%x, ret: %d\n",
+			pi->viid_mirror, ret);
+
+	return ret;
+}
+
+static void cxgb4_port_mirror_stop(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	if (!pi->vi_mirror_count)
+		return;
+
+	t4_enable_vi_params(adap, adap->mbox, pi->viid_mirror, false, false,
+			    false);
+}
+
+int cxgb4_port_mirror_alloc(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret = 0;
+
+	if (!pi->nmirrorqsets)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pi->vi_mirror_mutex);
+	if (pi->viid_mirror) {
+		pi->vi_mirror_count++;
+		goto out_unlock;
+	}
+
+	ret = t4_init_port_mirror(pi, adap->mbox, pi->port_id, adap->pf, 0,
+				  &pi->viid_mirror);
+	if (ret)
+		goto out_unlock;
+
+	pi->vi_mirror_count = 1;
+
+	if (adap->flags & CXGB4_FULL_INIT_DONE) {
+		ret = cxgb4_port_mirror_alloc_queues(dev);
+		if (ret)
+			goto out_free_vi;
+
+		ret = cxgb4_port_mirror_start(dev);
+		if (ret)
+			goto out_free_queues;
+	}
+
+	mutex_unlock(&pi->vi_mirror_mutex);
+	return 0;
+
+out_free_queues:
+	cxgb4_port_mirror_free_queues(dev);
+
+out_free_vi:
+	pi->vi_mirror_count = 0;
+	t4_free_vi(adap, adap->mbox, adap->pf, 0, pi->viid_mirror);
+	pi->viid_mirror = 0;
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
+	return ret;
+}
+
+void cxgb4_port_mirror_free(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	mutex_lock(&pi->vi_mirror_mutex);
+	if (!pi->viid_mirror)
+		goto out_unlock;
+
+	if (pi->vi_mirror_count > 1) {
+		pi->vi_mirror_count--;
+		goto out_unlock;
+	}
+
+	cxgb4_port_mirror_stop(dev);
+	cxgb4_port_mirror_free_queues(dev);
+
+	pi->vi_mirror_count = 0;
+	t4_free_vi(adap, adap->mbox, adap->pf, 0, pi->viid_mirror);
+	pi->viid_mirror = 0;
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
 }
 
 /*
@@ -2557,8 +2855,29 @@ int cxgb_open(struct net_device *dev)
 		return err;
 
 	err = link_start(dev);
-	if (!err)
-		netif_tx_start_all_queues(dev);
+	if (err)
+		return err;
+
+	if (pi->nmirrorqsets) {
+		mutex_lock(&pi->vi_mirror_mutex);
+		err = cxgb4_port_mirror_alloc_queues(dev);
+		if (err)
+			goto out_unlock;
+
+		err = cxgb4_port_mirror_start(dev);
+		if (err)
+			goto out_free_queues;
+		mutex_unlock(&pi->vi_mirror_mutex);
+	}
+
+	netif_tx_start_all_queues(dev);
+	return 0;
+
+out_free_queues:
+	cxgb4_port_mirror_free_queues(dev);
+
+out_unlock:
+	mutex_unlock(&pi->vi_mirror_mutex);
 	return err;
 }
 
@@ -2576,7 +2895,17 @@ int cxgb_close(struct net_device *dev)
 	cxgb4_dcb_reset(dev);
 	dcb_tx_queue_prio_enable(dev, false);
 #endif
-	return ret;
+	if (ret)
+		return ret;
+
+	if (pi->nmirrorqsets) {
+		mutex_lock(&pi->vi_mirror_mutex);
+		cxgb4_port_mirror_stop(dev);
+		cxgb4_port_mirror_free_queues(dev);
+		mutex_unlock(&pi->vi_mirror_mutex);
+	}
+
+	return 0;
 }
 
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
@@ -2842,11 +3171,11 @@ static void cxgb_set_rxmode(struct net_device *dev)
 
 static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
+	int ret;
 
-	ret = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, new_mtu, -1,
-			    -1, -1, -1, true);
+	ret = t4_set_rxmode(pi->adapter, pi->adapter->mbox, pi->viid,
+			    pi->viid_mirror, new_mtu, -1, -1, -1, -1, true);
 	if (!ret)
 		dev->mtu = new_mtu;
 	return ret;
@@ -3403,129 +3732,71 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
-static void cxgb_del_udp_tunnel(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int cxgb_udp_tunnel_unset_port(struct net_device *netdev,
+				      unsigned int table, unsigned int entry,
+				      struct udp_tunnel_info *ti)
 {
 	struct port_info *pi = netdev_priv(netdev);
 	struct adapter *adapter = pi->adapter;
-	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 	int ret = 0, i;
 
-	if (chip_ver < CHELSIO_T6)
-		return;
-
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!adapter->vxlan_port_cnt ||
-		    adapter->vxlan_port != ti->port)
-			return; /* Invalid VxLAN destination port */
-
-		adapter->vxlan_port_cnt--;
-		if (adapter->vxlan_port_cnt)
-			return;
-
 		adapter->vxlan_port = 0;
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A, 0);
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!adapter->geneve_port_cnt ||
-		    adapter->geneve_port != ti->port)
-			return; /* Invalid GENEVE destination port */
-
-		adapter->geneve_port_cnt--;
-		if (adapter->geneve_port_cnt)
-			return;
-
 		adapter->geneve_port = 0;
 		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A, 0);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	/* Matchall mac entries can be deleted only after all tunnel ports
 	 * are brought down or removed.
 	 */
 	if (!adapter->rawf_cnt)
-		return;
+		return 0;
 	for_each_port(adapter, i) {
 		pi = adap2pinfo(adapter, i);
 		ret = t4_free_raw_mac_filt(adapter, pi->viid,
 					   match_all_mac, match_all_mac,
-					   adapter->rawf_start +
-					    pi->port_id,
+					   adapter->rawf_start + pi->port_id,
 					   1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
 				    i);
-			return;
+			return ret;
 		}
 	}
+
+	return 0;
 }
 
-static void cxgb_add_udp_tunnel(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int cxgb_udp_tunnel_set_port(struct net_device *netdev,
+				    unsigned int table, unsigned int entry,
+				    struct udp_tunnel_info *ti)
 {
 	struct port_info *pi = netdev_priv(netdev);
 	struct adapter *adapter = pi->adapter;
-	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 	int i, ret;
 
-	if (chip_ver < CHELSIO_T6 || !adapter->rawf_cnt)
-		return;
-
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
-		/* Callback for adding vxlan port can be called with the same
-		 * port for both IPv4 and IPv6. We should not disable the
-		 * offloading when the same port for both protocols is added
-		 * and later one of them is removed.
-		 */
-		if (adapter->vxlan_port_cnt &&
-		    adapter->vxlan_port == ti->port) {
-			adapter->vxlan_port_cnt++;
-			return;
-		}
-
-		/* We will support only one VxLAN port */
-		if (adapter->vxlan_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
-				    be16_to_cpu(adapter->vxlan_port),
-				    be16_to_cpu(ti->port));
-			return;
-		}
-
 		adapter->vxlan_port = ti->port;
-		adapter->vxlan_port_cnt = 1;
-
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A,
 			     VXLAN_V(be16_to_cpu(ti->port)) | VXLAN_EN_F);
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
-		if (adapter->geneve_port_cnt &&
-		    adapter->geneve_port == ti->port) {
-			adapter->geneve_port_cnt++;
-			return;
-		}
-
-		/* We will support only one GENEVE port */
-		if (adapter->geneve_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
-				    be16_to_cpu(adapter->geneve_port),
-				    be16_to_cpu(ti->port));
-			return;
-		}
-
 		adapter->geneve_port = ti->port;
-		adapter->geneve_port_cnt = 1;
-
 		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A,
 			     GENEVE_V(be16_to_cpu(ti->port)) | GENEVE_EN_F);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	/* Create a 'match all' mac filter entry for inner mac,
@@ -3540,17 +3811,26 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 		ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
 					    match_all_mac,
 					    match_all_mac,
-					    adapter->rawf_start +
-					    pi->port_id,
+					    adapter->rawf_start + pi->port_id,
 					    1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
 				    be16_to_cpu(ti->port));
-			cxgb_del_udp_tunnel(netdev, ti);
-			return;
+			return ret;
 		}
 	}
+
+	return 0;
 }
+
+static const struct udp_tunnel_nic_info cxgb_udp_tunnels = {
+	.set_port	= cxgb_udp_tunnel_set_port,
+	.unset_port	= cxgb_udp_tunnel_unset_port,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+};
 
 static netdev_features_t cxgb_features_check(struct sk_buff *skb,
 					     struct net_device *dev,
@@ -3601,8 +3881,8 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
-	.ndo_udp_tunnel_add   = cxgb_add_udp_tunnel,
-	.ndo_udp_tunnel_del   = cxgb_del_udp_tunnel,
+	.ndo_udp_tunnel_add   = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del   = udp_tunnel_nic_del_port,
 	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
 };
@@ -4147,9 +4427,10 @@ static int adap_init0_phy(struct adapter *adap)
 
 	/* Load PHY Firmware onto adapter.
 	 */
-	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
-			     phy_info->phy_fw_version,
+	spin_lock_bh(&adap->win0_lock);
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, phy_info->phy_fw_version,
 			     (u8 *)phyf->data, phyf->size);
+	spin_unlock_bh(&adap->win0_lock);
 	if (ret < 0)
 		dev_err(adap->pdev_dev, "PHY Firmware transfer error %d\n",
 			-ret);
@@ -5503,6 +5784,19 @@ static int cfg_queues(struct adapter *adap)
 		avail_qsets -= s->eoqsets;
 	}
 
+	/* Mirror queues must follow same scheme as normal Ethernet
+	 * Queues, when there are enough queues available. Otherwise,
+	 * allocate at least 1 queue per port. If even 1 queue is not
+	 * available, then disable mirror queues support.
+	 */
+	if (avail_qsets >= s->max_ethqsets)
+		s->mirrorqsets = s->max_ethqsets;
+	else if (avail_qsets >= adap->params.nports)
+		s->mirrorqsets = adap->params.nports;
+	else
+		s->mirrorqsets = 0;
+	avail_qsets -= s->mirrorqsets;
+
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
@@ -5616,8 +5910,8 @@ void cxgb4_free_msix_idx_in_bmap(struct adapter *adap,
 
 static int enable_msix(struct adapter *adap)
 {
-	u32 eth_need, uld_need = 0, ethofld_need = 0;
-	u32 ethqsets = 0, ofldqsets = 0, eoqsets = 0;
+	u32 eth_need, uld_need = 0, ethofld_need = 0, mirror_need = 0;
+	u32 ethqsets = 0, ofldqsets = 0, eoqsets = 0, mirrorqsets = 0;
 	u8 num_uld = 0, nchan = adap->params.nports;
 	u32 i, want, need, num_vec;
 	struct sge *s = &adap->sge;
@@ -5646,6 +5940,12 @@ static int enable_msix(struct adapter *adap)
 		want += s->eoqsets;
 		ethofld_need = eth_need;
 		need += ethofld_need;
+	}
+
+	if (s->mirrorqsets) {
+		want += s->mirrorqsets;
+		mirror_need = nchan;
+		need += mirror_need;
 	}
 
 	want += EXTRA_VECS;
@@ -5681,8 +5981,10 @@ static int enable_msix(struct adapter *adap)
 		adap->params.ethofld = 0;
 		s->ofldqsets = 0;
 		s->eoqsets = 0;
+		s->mirrorqsets = 0;
 		uld_need = 0;
 		ethofld_need = 0;
+		mirror_need = 0;
 	}
 
 	num_vec = allocated;
@@ -5696,6 +5998,8 @@ static int enable_msix(struct adapter *adap)
 			ofldqsets = nchan;
 		if (is_ethofld(adap))
 			eoqsets = ethofld_need;
+		if (s->mirrorqsets)
+			mirrorqsets = mirror_need;
 
 		num_vec -= need;
 		while (num_vec) {
@@ -5727,12 +6031,25 @@ static int enable_msix(struct adapter *adap)
 				num_vec -= uld_need;
 			}
 		}
+
+		if (s->mirrorqsets) {
+			while (num_vec) {
+				if (num_vec < mirror_need ||
+				    mirrorqsets > s->mirrorqsets)
+					break;
+
+				mirrorqsets++;
+				num_vec -= mirror_need;
+			}
+		}
 	} else {
 		ethqsets = s->max_ethqsets;
 		if (is_uld(adap))
 			ofldqsets = s->ofldqsets;
 		if (is_ethofld(adap))
 			eoqsets = s->eoqsets;
+		if (s->mirrorqsets)
+			mirrorqsets = s->mirrorqsets;
 	}
 
 	if (ethqsets < s->max_ethqsets) {
@@ -5748,6 +6065,15 @@ static int enable_msix(struct adapter *adap)
 	if (is_ethofld(adap))
 		s->eoqsets = eoqsets;
 
+	if (s->mirrorqsets) {
+		s->mirrorqsets = mirrorqsets;
+		for_each_port(adap, i) {
+			pi = adap2pinfo(adap, i);
+			pi->nmirrorqsets = s->mirrorqsets / nchan;
+			mutex_init(&pi->vi_mirror_mutex);
+		}
+	}
+
 	/* map for msix */
 	ret = alloc_msix_info(adap, allocated);
 	if (ret)
@@ -5759,8 +6085,9 @@ static int enable_msix(struct adapter *adap)
 	}
 
 	dev_info(adap->pdev_dev,
-		 "%d MSI-X vectors allocated, nic %d eoqsets %d per uld %d\n",
-		 allocated, s->max_ethqsets, s->eoqsets, s->nqs_per_uld);
+		 "%d MSI-X vectors allocated, nic %d eoqsets %d per uld %d mirrorqsets %d\n",
+		 allocated, s->max_ethqsets, s->eoqsets, s->nqs_per_uld,
+		 s->mirrorqsets);
 
 	kfree(entries);
 	return 0;
@@ -5861,6 +6188,7 @@ static void free_some_resources(struct adapter *adapter)
 	cxgb4_cleanup_tc_mqprio(adapter);
 	cxgb4_cleanup_tc_flower(adapter);
 	cxgb4_cleanup_tc_u32(adapter);
+	cxgb4_cleanup_ethtool_filters(adapter);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
 	kfree(adapter->sge.starving_fl);
@@ -6371,7 +6699,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_GRO |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-			NETIF_F_HW_TC;
+			NETIF_F_HW_TC | NETIF_F_NTUPLE;
 
 		if (chip_ver > CHELSIO_T5) {
 			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
@@ -6384,6 +6712,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
 					       NETIF_F_GSO_UDP_TUNNEL_CSUM |
 					       NETIF_F_HW_TLS_RECORD;
+
+			if (adapter->rawf_cnt)
+				netdev->udp_tunnel_nic_info = &cxgb_udp_tunnels;
 		}
 
 		if (highdma)
@@ -6494,6 +6825,24 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 i);
 	}
 
+	if (is_offload(adapter) || is_hashfilter(adapter)) {
+		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
+			u32 v;
+
+			v = t4_read_reg(adapter, LE_DB_HASH_CONFIG_A);
+			if (chip_ver <= CHELSIO_T5) {
+				adapter->tids.nhash = 1 << HASHTIDSIZE_G(v);
+				v = t4_read_reg(adapter, LE_DB_TID_HASHBASE_A);
+				adapter->tids.hash_base = v / 4;
+			} else {
+				adapter->tids.nhash = HASHTBLSIZE_G(v) << 3;
+				v = t4_read_reg(adapter,
+						T6_LE_DB_HASH_TID_BASE_A);
+				adapter->tids.hash_base = v;
+			}
+		}
+	}
+
 	if (tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");
@@ -6515,22 +6864,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (cxgb4_init_tc_matchall(adapter))
 			dev_warn(&pdev->dev,
 				 "could not offload tc matchall, continuing\n");
-	}
-
-	if (is_offload(adapter) || is_hashfilter(adapter)) {
-		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
-			u32 hash_base, hash_reg;
-
-			if (chip_ver <= CHELSIO_T5) {
-				hash_reg = LE_DB_TID_HASHBASE_A;
-				hash_base = t4_read_reg(adapter, hash_reg);
-				adapter->tids.hash_base = hash_base / 4;
-			} else {
-				hash_reg = T6_LE_DB_HASH_TID_BASE_A;
-				hash_base = t4_read_reg(adapter, hash_reg);
-				adapter->tids.hash_base = hash_base;
-			}
-		}
+		if (cxgb4_init_ethtool_filters(adapter))
+			dev_warn(&pdev->dev,
+				 "could not initialize ethtool filters, continuing\n");
 	}
 
 	/* See what interrupts we'll be using */

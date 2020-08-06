@@ -124,7 +124,7 @@ module_param_array(fst_excluded_list, int, NULL, 0);
 /*      The Am186CH/CC processors support a SmartDMA mode using circular pools
  *      of buffer descriptors. The structure is almost identical to that used
  *      in the LANCE Ethernet controllers. Details available as PDF from the
- *      AMD web site: http://www.amd.com/products/epd/processors/\
+ *      AMD web site: https://www.amd.com/products/epd/processors/\
  *                    2.16bitcont/3.am186cxfa/a21914/21914.pdf
  */
 struct txdesc {			/* Transmit descriptor */
@@ -2553,16 +2553,16 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * Allocate a dma buffer for transmit and receives
 		 */
 		card->rx_dma_handle_host =
-		    pci_alloc_consistent(card->device, FST_MAX_MTU,
-					 &card->rx_dma_handle_card);
+		    dma_alloc_coherent(&card->device->dev, FST_MAX_MTU,
+				       &card->rx_dma_handle_card, GFP_KERNEL);
 		if (card->rx_dma_handle_host == NULL) {
 			pr_err("Could not allocate rx dma buffer\n");
 			err = -ENOMEM;
 			goto rx_dma_fail;
 		}
 		card->tx_dma_handle_host =
-		    pci_alloc_consistent(card->device, FST_MAX_MTU,
-					 &card->tx_dma_handle_card);
+		    dma_alloc_coherent(&card->device->dev, FST_MAX_MTU,
+				       &card->tx_dma_handle_card, GFP_KERNEL);
 		if (card->tx_dma_handle_host == NULL) {
 			pr_err("Could not allocate tx dma buffer\n");
 			err = -ENOMEM;
@@ -2572,9 +2572,8 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;		/* Success */
 
 tx_dma_fail:
-	pci_free_consistent(card->device, FST_MAX_MTU,
-			    card->rx_dma_handle_host,
-			    card->rx_dma_handle_card);
+	dma_free_coherent(&card->device->dev, FST_MAX_MTU,
+			  card->rx_dma_handle_host, card->rx_dma_handle_card);
 rx_dma_fail:
 	fst_disable_intr(card);
 	for (i = 0 ; i < card->nports ; i++)
@@ -2625,23 +2624,21 @@ fst_remove_one(struct pci_dev *pdev)
 		/*
 		 * Free dma buffers
 		 */
-		pci_free_consistent(card->device, FST_MAX_MTU,
-				    card->rx_dma_handle_host,
-				    card->rx_dma_handle_card);
-		pci_free_consistent(card->device, FST_MAX_MTU,
-				    card->tx_dma_handle_host,
-				    card->tx_dma_handle_card);
+		dma_free_coherent(&card->device->dev, FST_MAX_MTU,
+				  card->rx_dma_handle_host,
+				  card->rx_dma_handle_card);
+		dma_free_coherent(&card->device->dev, FST_MAX_MTU,
+				  card->tx_dma_handle_host,
+				  card->tx_dma_handle_card);
 	}
 	fst_card_array[card->card_no] = NULL;
 }
 
 static struct pci_driver fst_driver = {
-        .name		= FST_NAME,
-        .id_table	= fst_pci_dev_id,
-        .probe		= fst_add_one,
-        .remove	= fst_remove_one,
-        .suspend	= NULL,
-        .resume	= NULL,
+	.name		= FST_NAME,
+	.id_table	= fst_pci_dev_id,
+	.probe		= fst_add_one,
+	.remove		= fst_remove_one,
 };
 
 static int __init

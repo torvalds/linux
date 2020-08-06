@@ -87,8 +87,10 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	u32 info;
 	int ret;
 
-	if (test_bit(MT76_REMOVED, &dev->phy.state))
-		return 0;
+	if (test_bit(MT76_REMOVED, &dev->phy.state)) {
+		ret = 0;
+		goto out;
+	}
 
 	if (wait_resp) {
 		seq = ++dev->mcu.msg_seq & 0xf;
@@ -111,6 +113,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	if (wait_resp)
 		ret = mt76x02u_mcu_wait_resp(dev, seq);
 
+out:
 	consume_skb(skb);
 
 	return ret;

@@ -126,6 +126,21 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 }
 EXPORT_SYMBOL_GPL(nf_reject_ip6_tcphdr_put);
 
+static int nf_reject6_fill_skb_dst(struct sk_buff *skb_in)
+{
+	struct dst_entry *dst = NULL;
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(struct flowi));
+	fl.u.ip6.daddr = ipv6_hdr(skb_in)->saddr;
+	nf_ip6_route(dev_net(skb_in->dev), &dst, &fl, false);
+	if (!dst)
+		return -1;
+
+	skb_dst_set(skb_in, dst);
+	return 0;
+}
+
 void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 {
 	struct net_device *br_indev __maybe_unused;
@@ -154,6 +169,14 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 	fl6.daddr = oip6h->saddr;
 	fl6.fl6_sport = otcph->dest;
 	fl6.fl6_dport = otcph->source;
+
+	if (hook == NF_INET_PRE_ROUTING) {
+		nf_ip6_route(net, &dst, flowi6_to_flowi(&fl6), false);
+		if (!dst)
+			return;
+		skb_dst_set(oldskb, dst);
+	}
+
 	fl6.flowi6_oif = l3mdev_master_ifindex(skb_dst(oldskb)->dev);
 	fl6.flowi6_mark = IP6_REPLY_MARK(net, oldskb->mark);
 	security_skb_classify_flow(oldskb, flowi6_to_flowi(&fl6));
@@ -244,6 +267,9 @@ void nf_send_unreach6(struct net *net, struct sk_buff *skb_in,
 
 	if (hooknum == NF_INET_LOCAL_OUT && skb_in->dev == NULL)
 		skb_in->dev = net->loopback_dev;
+
+	if (hooknum == NF_INET_PRE_ROUTING && nf_reject6_fill_skb_dst(skb_in))
+		return;
 
 	icmpv6_send(skb_in, ICMPV6_DEST_UNREACH, code, 0);
 }

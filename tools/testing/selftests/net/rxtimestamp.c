@@ -44,6 +44,7 @@ struct test_case {
 	struct options sockopt;
 	struct tstamps expected;
 	bool enabled;
+	bool warn_on_fail;
 };
 
 struct sof_flag {
@@ -67,44 +68,44 @@ static struct socket_type socket_types[] = {
 static struct test_case test_cases[] = {
 	{ {}, {} },
 	{
-		{ so_timestamp: 1 },
-		{ tstamp: true }
+		{ .so_timestamp = 1 },
+		{ .tstamp = true }
 	},
 	{
-		{ so_timestampns: 1 },
-		{ tstampns: true }
+		{ .so_timestampns = 1 },
+		{ .tstampns = true }
 	},
 	{
-		{ so_timestamp: 1, so_timestampns: 1 },
-		{ tstampns: true }
+		{ .so_timestamp = 1, .so_timestampns = 1 },
+		{ .tstampns = true }
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_RX_SOFTWARE },
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE },
 		{}
 	},
 	{
 		/* Loopback device does not support hw timestamps. */
-		{ so_timestamping: SOF_TIMESTAMPING_RX_HARDWARE },
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_SOFTWARE },
-		{}
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE },
+		.warn_on_fail = true
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_RX_SOFTWARE
+		{ .so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE
 			| SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
 	},
 	{
-		{ so_timestamping: SOF_TIMESTAMPING_SOFTWARE
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
 			| SOF_TIMESTAMPING_RX_SOFTWARE },
-		{ swtstamp: true }
+		{ .swtstamp = true }
 	},
 	{
-		{ so_timestamp: 1, so_timestamping: SOF_TIMESTAMPING_SOFTWARE
+		{ .so_timestamp = 1, .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
 			| SOF_TIMESTAMPING_RX_SOFTWARE },
-		{ tstamp: true, swtstamp: true }
+		{ .tstamp = true, .swtstamp = true }
 	},
 };
 
@@ -115,6 +116,9 @@ static struct option long_options[] = {
 	{ "tcp", no_argument, 0, 't' },
 	{ "udp", no_argument, 0, 'u' },
 	{ "ip", no_argument, 0, 'i' },
+	{ "strict", no_argument, 0, 'S' },
+	{ "ipv4", no_argument, 0, '4' },
+	{ "ipv6", no_argument, 0, '6' },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -270,37 +274,55 @@ void config_so_flags(int rcv, struct options o)
 		error(1, errno, "Failed to set SO_TIMESTAMPING");
 }
 
-bool run_test_case(struct socket_type s, struct test_case t)
+bool run_test_case(struct socket_type *s, int test_num, char ip_version,
+		   bool strict)
 {
-	int port = (s.type == SOCK_RAW) ? 0 : next_port++;
+	union {
+		struct sockaddr_in6 addr6;
+		struct sockaddr_in addr4;
+		struct sockaddr addr_un;
+	} addr;
 	int read_size = op_size;
-	struct sockaddr_in addr;
+	int src, dst, rcv, port;
+	socklen_t addr_size;
 	bool failed = false;
-	int src, dst, rcv;
 
-	src = socket(AF_INET, s.type, s.protocol);
+	port = (s->type == SOCK_RAW) ? 0 : next_port++;
+	memset(&addr, 0, sizeof(addr));
+	if (ip_version == '4') {
+		addr.addr4.sin_family = AF_INET;
+		addr.addr4.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		addr.addr4.sin_port = htons(port);
+		addr_size = sizeof(addr.addr4);
+		if (s->type == SOCK_RAW)
+			read_size += 20;  /* for IPv4 header */
+	} else {
+		addr.addr6.sin6_family = AF_INET6;
+		addr.addr6.sin6_addr = in6addr_loopback;
+		addr.addr6.sin6_port = htons(port);
+		addr_size = sizeof(addr.addr6);
+	}
+	printf("Starting testcase %d over ipv%c...\n", test_num, ip_version);
+	src = socket(addr.addr_un.sa_family, s->type,
+		     s->protocol);
 	if (src < 0)
 		error(1, errno, "Failed to open src socket");
 
-	dst = socket(AF_INET, s.type, s.protocol);
+	dst = socket(addr.addr_un.sa_family, s->type,
+		     s->protocol);
 	if (dst < 0)
 		error(1, errno, "Failed to open dst socket");
 
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	addr.sin_port = htons(port);
-
-	if (bind(dst, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+	if (bind(dst, &addr.addr_un, addr_size) < 0)
 		error(1, errno, "Failed to bind to port %d", port);
 
-	if (s.type == SOCK_STREAM && (listen(dst, 1) < 0))
+	if (s->type == SOCK_STREAM && (listen(dst, 1) < 0))
 		error(1, errno, "Failed to listen");
 
-	if (connect(src, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+	if (connect(src, &addr.addr_un, addr_size) < 0)
 		error(1, errno, "Failed to connect");
 
-	if (s.type == SOCK_STREAM) {
+	if (s->type == SOCK_STREAM) {
 		rcv = accept(dst, NULL, NULL);
 		if (rcv < 0)
 			error(1, errno, "Failed to accept");
@@ -309,17 +331,22 @@ bool run_test_case(struct socket_type s, struct test_case t)
 		rcv = dst;
 	}
 
-	config_so_flags(rcv, t.sockopt);
+	config_so_flags(rcv, test_cases[test_num].sockopt);
 	usleep(20000); /* setsockopt for SO_TIMESTAMPING is asynchronous */
 	do_send(src);
 
-	if (s.type == SOCK_RAW)
-		read_size += 20;  /* for IP header */
-	failed = do_recv(rcv, read_size, t.expected);
+	failed = do_recv(rcv, read_size, test_cases[test_num].expected);
 
 	close(rcv);
 	close(src);
 
+	if (failed) {
+		printf("FAILURE in testcase %d over ipv%c ", test_num,
+		       ip_version);
+		print_test_case(&test_cases[test_num]);
+		if (!strict && test_cases[test_num].warn_on_fail)
+			failed = false;
+	}
 	return failed;
 }
 
@@ -327,6 +354,9 @@ int main(int argc, char **argv)
 {
 	bool all_protocols = true;
 	bool all_tests = true;
+	bool cfg_ipv4 = false;
+	bool cfg_ipv6 = false;
+	bool strict = false;
 	int arg_index = 0;
 	int failures = 0;
 	int s, t, opt;
@@ -362,6 +392,15 @@ int main(int argc, char **argv)
 			all_protocols = false;
 			socket_types[0].enabled = true;
 			break;
+		case 'S':
+			strict = true;
+			break;
+		case '4':
+			cfg_ipv4 = true;
+			break;
+		case '6':
+			cfg_ipv6 = true;
+			break;
 		default:
 			error(1, 0, "Failed to parse parameters.");
 		}
@@ -375,13 +414,14 @@ int main(int argc, char **argv)
 		for (t = 0; t < ARRAY_SIZE(test_cases); t++) {
 			if (!all_tests && !test_cases[t].enabled)
 				continue;
-
-			printf("Starting testcase %d...\n", t);
-			if (run_test_case(socket_types[s], test_cases[t])) {
-				failures++;
-				printf("FAILURE in test case ");
-				print_test_case(&test_cases[t]);
-			}
+			if (cfg_ipv4 || !cfg_ipv6)
+				if (run_test_case(&socket_types[s], t, '4',
+						  strict))
+					failures++;
+			if (cfg_ipv6 || !cfg_ipv4)
+				if (run_test_case(&socket_types[s], t, '6',
+						  strict))
+					failures++;
 		}
 	}
 	if (!failures)

@@ -471,48 +471,29 @@ static int qlcnic_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
-static void qlcnic_add_vxlan_port(struct net_device *netdev,
-				  struct udp_tunnel_info *ti)
+static int qlcnic_udp_tunnel_sync(struct net_device *dev, unsigned int table)
 {
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	struct udp_tunnel_info ti;
+	int err;
 
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	/* Adapter supports only one VXLAN port. Use very first port
-	 * for enabling offload
-	 */
-	if (!qlcnic_encap_rx_offload(adapter))
-		return;
-	if (!ahw->vxlan_port_count) {
-		ahw->vxlan_port_count = 1;
-		ahw->vxlan_port = ntohs(ti->port);
-		adapter->flags |= QLCNIC_ADD_VXLAN_PORT;
-		return;
+	udp_tunnel_nic_get_port(dev, table, 0, &ti);
+	if (ti.port) {
+		err = qlcnic_set_vxlan_port(adapter, ntohs(ti.port));
+		if (err)
+			return err;
 	}
-	if (ahw->vxlan_port == ntohs(ti->port))
-		ahw->vxlan_port_count++;
 
+	return qlcnic_set_vxlan_parsing(adapter, ntohs(ti.port));
 }
 
-static void qlcnic_del_vxlan_port(struct net_device *netdev,
-				  struct udp_tunnel_info *ti)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	if (!qlcnic_encap_rx_offload(adapter) || !ahw->vxlan_port_count ||
-	    (ahw->vxlan_port != ntohs(ti->port)))
-		return;
-
-	ahw->vxlan_port_count--;
-	if (!ahw->vxlan_port_count)
-		adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
-}
+static const struct udp_tunnel_nic_info qlcnic_udp_tunnels = {
+	.sync_table	= qlcnic_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+};
 
 static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
 					       struct net_device *dev,
@@ -540,8 +521,8 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_fdb_del		= qlcnic_fdb_del,
 	.ndo_fdb_dump		= qlcnic_fdb_dump,
 	.ndo_get_phys_port_id	= qlcnic_get_phys_port_id,
-	.ndo_udp_tunnel_add	= qlcnic_add_vxlan_port,
-	.ndo_udp_tunnel_del	= qlcnic_del_vxlan_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= qlcnic_features_check,
 #ifdef CONFIG_QLCNIC_SRIOV
 	.ndo_set_vf_mac		= qlcnic_sriov_set_vf_mac,
@@ -2017,7 +1998,7 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 	qlcnic_create_sysfs_entries(adapter);
 
 	if (qlcnic_encap_rx_offload(adapter))
-		udp_tunnel_get_rx_info(netdev);
+		udp_tunnel_nic_reset_ntf(netdev);
 
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
 	return 0;
@@ -2335,8 +2316,11 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 					  NETIF_F_TSO6;
 	}
 
-	if (qlcnic_encap_rx_offload(adapter))
+	if (qlcnic_encap_rx_offload(adapter)) {
 		netdev->hw_enc_features |= NETIF_F_RXCSUM;
+
+		netdev->udp_tunnel_nic_info = &qlcnic_udp_tunnels;
+	}
 
 	netdev->hw_features = netdev->features;
 	netdev->priv_flags |= IFF_UNICAST_FLT;
@@ -2811,35 +2795,17 @@ static void qlcnic_shutdown(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int qlcnic_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused qlcnic_suspend(struct device *dev_d)
 {
-	int retval;
-
-	retval = __qlcnic_shutdown(pdev);
-	if (retval)
-		return retval;
-
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return 0;
+	return __qlcnic_shutdown(to_pci_dev(dev_d));
 }
 
-static int qlcnic_resume(struct pci_dev *pdev)
+static int __maybe_unused qlcnic_resume(struct device *dev_d)
 {
-	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
-	int err;
-
-	err = pci_enable_device(pdev);
-	if (err)
-		return err;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_set_master(pdev);
-	pci_restore_state(pdev);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev_d);
 
 	return  __qlcnic_resume(adapter);
 }
-#endif
 
 static int qlcnic_open(struct net_device *netdev)
 {
@@ -4258,15 +4224,14 @@ static const struct pci_error_handlers qlcnic_err_handler = {
 	.resume = qlcnic_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(qlcnic_pm_ops, qlcnic_suspend, qlcnic_resume);
+
 static struct pci_driver qlcnic_driver = {
 	.name = qlcnic_driver_name,
 	.id_table = qlcnic_pci_tbl,
 	.probe = qlcnic_probe,
 	.remove = qlcnic_remove,
-#ifdef CONFIG_PM
-	.suspend = qlcnic_suspend,
-	.resume = qlcnic_resume,
-#endif
+	.driver.pm = &qlcnic_pm_ops,
 	.shutdown = qlcnic_shutdown,
 	.err_handler = &qlcnic_err_handler,
 #ifdef CONFIG_QLCNIC_SRIOV

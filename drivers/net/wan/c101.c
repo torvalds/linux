@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2000-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *
- * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
+ * For information see <https://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
  * Sources of information:
  *    Hitachi HD64570 SCA User's Manual

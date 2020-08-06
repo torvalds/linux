@@ -509,8 +509,8 @@ static unsigned int ice_rx_offset(struct ice_ring *rx_ring)
 	return 0;
 }
 
-static unsigned int ice_rx_frame_truesize(struct ice_ring *rx_ring,
-					  unsigned int size)
+static unsigned int
+ice_rx_frame_truesize(struct ice_ring *rx_ring, unsigned int __maybe_unused size)
 {
 	unsigned int truesize;
 
@@ -631,10 +631,8 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	dma_addr_t dma;
 
 	/* since we are recycling buffers we should seldom need to alloc */
-	if (likely(page)) {
-		rx_ring->rx_stats.page_reuse_count++;
+	if (likely(page))
 		return true;
-	}
 
 	/* alloc new page for storage */
 	page = dev_alloc_pages(ice_rx_pg_order(rx_ring));
@@ -1033,7 +1031,6 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 	if (ice_can_reuse_rx_page(rx_buf)) {
 		/* hand second half of page back to the ring */
 		ice_reuse_rx_page(rx_ring, rx_buf);
-		rx_ring->rx_stats.page_reuse_count++;
 	} else {
 		/* we are not reusing the buffer so unmap it */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
@@ -1254,12 +1251,12 @@ construct_skb:
  * @itr: ITR value to update
  *
  * Calculate how big of an increment should be applied to the ITR value passed
- * in based on wmem_default, SKB overhead, Ethernet overhead, and the current
+ * in based on wmem_default, SKB overhead, ethernet overhead, and the current
  * link speed.
  *
  * The following is a calculation derived from:
  *  wmem_default / (size + overhead) = desired_pkts_per_int
- *  rate / bits_per_byte / (size + Ethernet overhead) = pkt_rate
+ *  rate / bits_per_byte / (size + ethernet overhead) = pkt_rate
  *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
  *
  * Assuming wmem_default is 212992 and overhead is 640 bytes per
@@ -2294,9 +2291,29 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	/* Walk through fragments adding latest fragment, testing it, and
 	 * then removing stale fragments from the sum.
 	 */
-	stale = &skb_shinfo(skb)->frags[0];
-	for (;;) {
+	for (stale = &skb_shinfo(skb)->frags[0];; stale++) {
+		int stale_size = skb_frag_size(stale);
+
 		sum += skb_frag_size(frag++);
+
+		/* The stale fragment may present us with a smaller
+		 * descriptor than the actual fragment size. To account
+		 * for that we need to remove all the data on the front and
+		 * figure out what the remainder would be in the last
+		 * descriptor associated with the fragment.
+		 */
+		if (stale_size > ICE_MAX_DATA_PER_TXD) {
+			int align_pad = -(skb_frag_off(stale)) &
+					(ICE_MAX_READ_REQ_SIZE - 1);
+
+			sum -= align_pad;
+			stale_size -= align_pad;
+
+			do {
+				sum -= ICE_MAX_DATA_PER_TXD_ALIGNED;
+				stale_size -= ICE_MAX_DATA_PER_TXD_ALIGNED;
+			} while (stale_size > ICE_MAX_DATA_PER_TXD);
+		}
 
 		/* if sum is negative we failed to make sufficient progress */
 		if (sum < 0)
@@ -2305,7 +2322,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 		if (!nr_frags--)
 			break;
 
-		sum -= skb_frag_size(stale++);
+		sum -= stale_size;
 	}
 
 	return false;

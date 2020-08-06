@@ -14,6 +14,20 @@
 #include <net/sock.h>
 #include <net/fib_rules.h>
 #include <net/ip_tunnels.h>
+#include <linux/indirect_call_wrapper.h>
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+#define INDIRECT_CALL_MT(f, f2, f1, ...) \
+	INDIRECT_CALL_INET(f, f2, f1, __VA_ARGS__)
+#else
+#define INDIRECT_CALL_MT(f, f2, f1, ...) INDIRECT_CALL_1(f, f2, __VA_ARGS__)
+#endif
+#elif defined(CONFIG_IP_MULTIPLE_TABLES)
+#define INDIRECT_CALL_MT(f, f2, f1, ...) INDIRECT_CALL_1(f, f1, __VA_ARGS__)
+#else
+#define INDIRECT_CALL_MT(f, f2, f1, ...) f(__VA_ARGS__)
+#endif
 
 static const struct fib_kuid_range fib_kuid_range_unset = {
 	KUIDT_INIT(0),
@@ -267,7 +281,10 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 	    uid_gt(fl->flowi_uid, rule->uid_range.end))
 		goto out;
 
-	ret = ops->match(rule, fl, flags);
+	ret = INDIRECT_CALL_MT(ops->match,
+			       fib6_rule_match,
+			       fib4_rule_match,
+			       rule, fl, flags);
 out:
 	return (rule->flags & FIB_RULE_INVERT) ? !ret : ret;
 }
@@ -298,9 +315,15 @@ jumped:
 		} else if (rule->action == FR_ACT_NOP)
 			continue;
 		else
-			err = ops->action(rule, fl, flags, arg);
+			err = INDIRECT_CALL_MT(ops->action,
+					       fib6_rule_action,
+					       fib4_rule_action,
+					       rule, fl, flags, arg);
 
-		if (!err && ops->suppress && ops->suppress(rule, arg))
+		if (!err && ops->suppress && INDIRECT_CALL_MT(ops->suppress,
+							      fib6_rule_suppress,
+							      fib4_rule_suppress,
+							      rule, arg))
 			continue;
 
 		if (err != -EAGAIN) {

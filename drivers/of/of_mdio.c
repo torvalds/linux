@@ -268,6 +268,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
 	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
+	mdio->reset_post_delay_us = 0;
+	of_property_read_u32(np, "reset-post-delay-us", &mdio->reset_post_delay_us);
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);
@@ -385,7 +387,7 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	if (!phy)
 		return NULL;
 
-	phy->dev_flags = flags;
+	phy->dev_flags |= flags;
 
 	ret = phy_connect_direct(dev, phy, hndlr, iface);
 

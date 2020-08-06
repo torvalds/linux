@@ -96,6 +96,7 @@ available subsections can be seen below.
    phy/index
    pti_intel_mid
    pwm
+   pldmfw/index
    rfkill
    serial/index
    sm501

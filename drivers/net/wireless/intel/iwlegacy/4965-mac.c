@@ -1415,7 +1415,7 @@ il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 /*
  * mac80211 queues, ACs, hardware queues, FIFOs.
  *
- * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
+ * Cf. https://wireless.wiki.kernel.org/en/developers/Documentation/mac80211/queues
  *
  * Mac80211 uses the following numbers, which we get as from it
  * by way of skb_get_queue_mapping(skb):

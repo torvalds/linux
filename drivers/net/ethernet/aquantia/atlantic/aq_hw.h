@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_hw.h: Declaration of abstract interface for NIC hardware specific
@@ -35,6 +36,8 @@ enum aq_tc_mode {
 			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
 #define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
 
+#define AQ_FRAC_PER_NS 0x100000000LL
+
 /* Used for rate to Mbps conversion */
 #define AQ_MBPS_DIVISOR         125000 /* 1000000 / 8 */
 
@@ -64,12 +67,16 @@ struct aq_hw_caps_s {
 	u8 rx_rings;
 	bool flow_control;
 	bool is_64_dma;
+	bool op64bit;
 	u32 quirks;
 	u32 priv_data_len;
 };
 
 struct aq_hw_link_status_s {
 	unsigned int mbps;
+	bool full_duplex;
+	u32 lp_link_speed_msk;
+	u32 lp_flow_control;
 };
 
 struct aq_stats_s {
@@ -327,6 +334,8 @@ struct aq_hw_ops {
 	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 
 	int (*hw_set_loopback)(struct aq_hw_s *self, u32 mode, bool enable);
+
+	int (*hw_get_mac_temp)(struct aq_hw_s *self, u32 *temp);
 };
 
 struct aq_fw_ops {
@@ -348,6 +357,8 @@ struct aq_fw_ops {
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	int (*get_mac_temp)(struct aq_hw_s *self, int *temp);
 
 	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
 

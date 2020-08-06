@@ -468,6 +468,9 @@ choice
 	config DEFAULT_FQ_CODEL
 		bool "Fair Queue Controlled Delay" if NET_SCH_FQ_CODEL
 
+	config DEFAULT_FQ_PIE
+		bool "Flow Queue Proportional Integral controller Enhanced" if NET_SCH_FQ_PIE
+
 	config DEFAULT_SFQ
 		bool "Stochastic Fair Queue" if NET_SCH_SFQ
 
@@ -480,6 +483,7 @@ config DEFAULT_NET_SCH
 	default "pfifo_fast" if DEFAULT_PFIFO_FAST
 	default "fq" if DEFAULT_FQ
 	default "fq_codel" if DEFAULT_FQ_CODEL
+	default "fq_pie" if DEFAULT_FQ_PIE
 	default "sfq" if DEFAULT_SFQ
 	default "pfifo_fast"
 endif

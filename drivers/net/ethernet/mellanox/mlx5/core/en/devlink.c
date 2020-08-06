@@ -6,17 +6,16 @@
 int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 {
 	struct devlink *devlink = priv_to_devlink(priv->mdev);
+	struct devlink_port_attrs attrs = {};
 
-	if (mlx5_core_is_pf(priv->mdev))
-		devlink_port_attrs_set(&priv->dl_port,
-				       DEVLINK_PORT_FLAVOUR_PHYSICAL,
-				       PCI_FUNC(priv->mdev->pdev->devfn),
-				       false, 0,
-				       NULL, 0);
-	else
-		devlink_port_attrs_set(&priv->dl_port,
-				       DEVLINK_PORT_FLAVOUR_VIRTUAL,
-				       0, false, 0, NULL, 0);
+	if (mlx5_core_is_pf(priv->mdev)) {
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+		attrs.phys.port_number = PCI_FUNC(priv->mdev->pdev->devfn);
+	} else {
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_VIRTUAL;
+	}
+
+	devlink_port_attrs_set(&priv->dl_port, &attrs);
 
 	return devlink_port_register(devlink, &priv->dl_port, 1);
 }

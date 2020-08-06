@@ -136,8 +136,7 @@ static int rpl_do_srh_inline(struct sk_buff *skb, const struct rpl_lwt *rlwt,
 
 	oldhdr = ipv6_hdr(skb);
 
-	buf = kzalloc(ipv6_rpl_srh_alloc_size(srh->segments_left - 1) * 2,
-		      GFP_ATOMIC);
+	buf = kcalloc(struct_size(srh, segments.addr, srh->segments_left), 2, GFP_ATOMIC);
 	if (!buf)
 		return -ENOMEM;
 

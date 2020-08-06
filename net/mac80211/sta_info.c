@@ -1050,7 +1050,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	might_sleep();
 	lockdep_assert_held(&local->sta_mtx);
 
-	while (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
+	if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 		ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 		WARN_ON_ONCE(ret);
 	}
@@ -1455,7 +1455,7 @@ static void ieee80211_send_null_response(struct sta_info *sta, int tid,
 	}
 
 	info->band = chanctx_conf->def.chan->band;
-	ieee80211_xmit(sdata, sta, skb, 0);
+	ieee80211_xmit(sdata, sta, skb);
 	rcu_read_unlock();
 }
 
@@ -2424,7 +2424,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 				 BIT_ULL(NL80211_STA_INFO_LOCAL_PM) |
 				 BIT_ULL(NL80211_STA_INFO_PEER_PM) |
 				 BIT_ULL(NL80211_STA_INFO_NONPEER_PM) |
-				 BIT_ULL(NL80211_STA_INFO_CONNECTED_TO_GATE);
+				 BIT_ULL(NL80211_STA_INFO_CONNECTED_TO_GATE) |
+				 BIT_ULL(NL80211_STA_INFO_CONNECTED_TO_AS);
 
 		sinfo->llid = sta->mesh->llid;
 		sinfo->plid = sta->mesh->plid;
@@ -2437,6 +2438,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		sinfo->peer_pm = sta->mesh->peer_pm;
 		sinfo->nonpeer_pm = sta->mesh->nonpeer_pm;
 		sinfo->connected_to_gate = sta->mesh->connected_to_gate;
+		sinfo->connected_to_as = sta->mesh->connected_to_as;
 #endif
 	}
 

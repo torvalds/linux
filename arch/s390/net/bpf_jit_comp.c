@@ -490,6 +490,24 @@ static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 	} while (re <= last);
 }
 
+static void bpf_skip(struct bpf_jit *jit, int size)
+{
+	if (size >= 6 && !is_valid_rel(size)) {
+		/* brcl 0xf,size */
+		EMIT6_PCREL_RIL(0xc0f4000000, size);
+		size -= 6;
+	} else if (size >= 4 && is_valid_rel(size)) {
+		/* brc 0xf,size */
+		EMIT4_PCREL(0xa7f40000, size);
+		size -= 4;
+	}
+	while (size >= 2) {
+		/* bcr 0,%0 */
+		_EMIT2(0x0700);
+		size -= 2;
+	}
+}
+
 /*
  * Emit function prologue
  *
@@ -502,10 +520,11 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
 		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
 	} else {
-		/* j tail_call_start: NOP if no tail calls are used */
-		EMIT4_PCREL(0xa7f40000, 6);
-		/* bcr 0,%0 */
-		EMIT2(0x0700, 0, REG_0);
+		/*
+		 * There are no tail calls. Insert nops in order to have
+		 * tail_call_start at a predictable offset.
+		 */
+		bpf_skip(jit, 6);
 	}
 	/* Tail calls have to skip above initialization */
 	jit->tail_call_start = jit->prg;
@@ -1358,8 +1377,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		last = (i == fp->len - 1) ? 1 : 0;
 		if (last)
 			break;
-		/* j <exit> */
-		EMIT4_PCREL(0xa7f40000, jit->exit_ip - jit->prg);
+		if (!is_first_pass(jit) && can_use_rel(jit, jit->exit_ip))
+			/* brc 0xf, <exit> */
+			EMIT4_PCREL_RIC(0xa7040000, 0xf, jit->exit_ip);
+		else
+			/* brcl 0xf, <exit> */
+			EMIT6_PCREL_RILC(0xc0040000, 0xf, jit->exit_ip);
 		break;
 	/*
 	 * Branch relative (number of skipped instructions) to offset on
@@ -1507,21 +1530,10 @@ branch_ks:
 		}
 		break;
 branch_ku:
-		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
-		/* clfi or clgfi %dst,imm */
-		EMIT6_IMM(is_jmp32 ? 0xc20f0000 : 0xc20e0000,
-			  dst_reg, imm);
-		if (!is_first_pass(jit) &&
-		    can_use_rel(jit, addrs[i + off + 1])) {
-			/* brc mask,off */
-			EMIT4_PCREL_RIC(0xa7040000,
-					mask >> 12, addrs[i + off + 1]);
-		} else {
-			/* brcl mask,off */
-			EMIT6_PCREL_RILC(0xc0040000,
-					 mask >> 12, addrs[i + off + 1]);
-		}
-		break;
+		/* lgfi %w1,imm (load sign extend imm) */
+		src_reg = REG_1;
+		EMIT6_IMM(0xc0010000, src_reg, imm);
+		goto branch_xu;
 branch_xs:
 		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		if (!is_first_pass(jit) &&
@@ -1617,7 +1629,14 @@ static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
  */
 static int bpf_set_addr(struct bpf_jit *jit, int i)
 {
-	if (!bpf_is_new_addr_sane(jit, i))
+	int delta;
+
+	if (is_codegen_pass(jit)) {
+		delta = jit->prg - jit->addrs[i];
+		if (delta < 0)
+			bpf_skip(jit, -delta);
+	}
+	if (WARN_ON_ONCE(!bpf_is_new_addr_sane(jit, i)))
 		return -1;
 	jit->addrs[i] = jit->prg;
 	return 0;

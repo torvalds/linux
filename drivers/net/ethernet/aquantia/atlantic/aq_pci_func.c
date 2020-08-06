@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_pci_func.c: Definition of PCI functions. */
@@ -114,7 +115,7 @@ static int aq_pci_probe_get_hw_by_id(struct pci_dev *pdev,
 	return 0;
 }
 
-int aq_pci_func_init(struct pci_dev *pdev)
+static int aq_pci_func_init(struct pci_dev *pdev)
 {
 	int err;
 

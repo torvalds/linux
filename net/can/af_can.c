@@ -410,6 +410,7 @@ static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
 
 /**
  * can_rx_register - subscribe CAN frames from a specific interface
+ * @net: the applicable net namespace
  * @dev: pointer to netdevice (NULL => subcribe from 'all' CAN devices list)
  * @can_id: CAN identifier (see description)
  * @mask: CAN mask (see description)
@@ -498,6 +499,7 @@ static void can_rx_delete_receiver(struct rcu_head *rp)
 
 /**
  * can_rx_unregister - unsubscribe CAN frames from a specific interface
+ * @net: the applicable net namespace
  * @dev: pointer to netdevice (NULL => unsubscribe from 'all' CAN devices list)
  * @can_id: CAN identifier
  * @mask: CAN mask

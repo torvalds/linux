@@ -734,7 +734,7 @@ static void b43_short_slot_timing_disable(struct b43_wldev *dev)
 }
 
 /* DummyTransmission function, as documented on
- * http://bcm-v4.sipsolutions.net/802.11/DummyTransmission
+ * https://bcm-v4.sipsolutions.net/802.11/DummyTransmission
  */
 void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 {
@@ -1198,7 +1198,7 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/BmacCorePllReset */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/BmacCorePllReset */
 void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 {
 	struct bcma_drv_cc *bcma_cc __maybe_unused;
@@ -2164,7 +2164,7 @@ static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
 {
 	const char text[] =
 		"You must go to " \
-		"http://wireless.kernel.org/en/users/Drivers/b43#devicefirmware " \
+		"https://wireless.wiki.kernel.org/en/users/Drivers/b43#devicefirmware " \
 		"and download the correct firmware for this driver version. " \
 		"Please carefully read all instructions on this website.\n";
 
@@ -2290,7 +2290,7 @@ err_format:
 	return -EPROTO;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/Init/Firmware */
+/* https://bcm-v4.sipsolutions.net/802.11/Init/Firmware */
 static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 {
 	struct b43_wldev *dev = ctx->dev;
@@ -2843,7 +2843,7 @@ static int b43_upload_initvals_band(struct b43_wldev *dev)
 }
 
 /* Initialize the GPIOs
- * http://bcm-specs.sipsolutions.net/GPIO
+ * https://bcm-specs.sipsolutions.net/GPIO
  */
 
 #ifdef CONFIG_B43_SSB
@@ -2971,7 +2971,7 @@ void b43_mac_enable(struct b43_wldev *dev)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/SuspendMAC */
+/* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43_mac_suspend(struct b43_wldev *dev)
 {
 	int i;
@@ -3004,7 +3004,7 @@ out:
 	dev->mac_suspended++;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
 void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 {
 	u32 tmp;
@@ -3231,7 +3231,7 @@ static void b43_chip_exit(struct b43_wldev *dev)
 }
 
 /* Initialize the chip
- * http://bcm-specs.sipsolutions.net/ChipInit
+ * https://bcm-specs.sipsolutions.net/ChipInit
  */
 static int b43_chip_init(struct b43_wldev *dev)
 {

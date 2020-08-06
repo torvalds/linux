@@ -10,7 +10,7 @@ config WIL6210
 	  wil6210 chip by Wilocity. It supports operation on the
 	  60 GHz band, covered by the IEEE802.11ad standard.
 
-	  http://wireless.kernel.org/en/users/Drivers/wil6210
+	  https://wireless.wiki.kernel.org/en/users/Drivers/wil6210
 
 	  If you choose to build it as a module, it will be called
 	  wil6210

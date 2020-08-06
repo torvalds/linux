@@ -9873,9 +9873,9 @@ static void niu_pci_remove_one(struct pci_dev *pdev)
 	}
 }
 
-static int niu_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused niu_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct niu *np = netdev_priv(dev);
 	unsigned long flags;
 
@@ -9897,22 +9897,18 @@ static int niu_suspend(struct pci_dev *pdev, pm_message_t state)
 	niu_stop_hw(np);
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	pci_save_state(pdev);
-
 	return 0;
 }
 
-static int niu_resume(struct pci_dev *pdev)
+static int __maybe_unused niu_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct niu *np = netdev_priv(dev);
 	unsigned long flags;
 	int err;
 
 	if (!netif_running(dev))
 		return 0;
-
-	pci_restore_state(pdev);
 
 	netif_device_attach(dev);
 
@@ -9930,13 +9926,14 @@ static int niu_resume(struct pci_dev *pdev)
 	return err;
 }
 
+static SIMPLE_DEV_PM_OPS(niu_pm_ops, niu_suspend, niu_resume);
+
 static struct pci_driver niu_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= niu_pci_tbl,
 	.probe		= niu_pci_init_one,
 	.remove		= niu_pci_remove_one,
-	.suspend	= niu_suspend,
-	.resume		= niu_resume,
+	.driver.pm	= &niu_pm_ops,
 };
 
 #ifdef CONFIG_SPARC64

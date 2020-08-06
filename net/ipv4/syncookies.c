@@ -212,6 +212,12 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 		refcount_set(&req->rsk_refcnt, 1);
 		tcp_sk(child)->tsoffset = tsoff;
 		sock_rps_save_rxhash(child, skb);
+
+		if (rsk_drop_req(req)) {
+			refcount_set(&req->rsk_refcnt, 2);
+			return child;
+		}
+
 		if (inet_csk_reqsk_queue_add(sk, req, child))
 			return child;
 
@@ -276,6 +282,40 @@ bool cookie_ecn_ok(const struct tcp_options_received *tcp_opt,
 }
 EXPORT_SYMBOL(cookie_ecn_ok);
 
+struct request_sock *cookie_tcp_reqsk_alloc(const struct request_sock_ops *ops,
+					    struct sock *sk,
+					    struct sk_buff *skb)
+{
+	struct request_sock *req;
+
+#ifdef CONFIG_MPTCP
+	struct tcp_request_sock *treq;
+
+	if (sk_is_mptcp(sk))
+		ops = &mptcp_subflow_request_sock_ops;
+#endif
+
+	req = inet_reqsk_alloc(ops, sk, false);
+	if (!req)
+		return NULL;
+
+#if IS_ENABLED(CONFIG_MPTCP)
+	treq = tcp_rsk(req);
+	treq->is_mptcp = sk_is_mptcp(sk);
+	if (treq->is_mptcp) {
+		int err = mptcp_subflow_init_cookie_req(req, sk, skb);
+
+		if (err) {
+			reqsk_free(req);
+			return NULL;
+		}
+	}
+#endif
+
+	return req;
+}
+EXPORT_SYMBOL_GPL(cookie_tcp_reqsk_alloc);
+
 /* On input, sk is a listener.
  * Output is listener if incoming packet would not create a child
  *           NULL if memory could not be allocated.
@@ -326,7 +366,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	ret = NULL;
-	req = inet_reqsk_alloc(&tcp_request_sock_ops, sk, false); /* for safety */
+	req = cookie_tcp_reqsk_alloc(&tcp_request_sock_ops, sk, skb);
 	if (!req)
 		goto out;
 
@@ -349,9 +389,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 	treq->snt_synack	= 0;
 	treq->tfo_listener	= false;
-
-	if (IS_ENABLED(CONFIG_MPTCP))
-		treq->is_mptcp = 0;
 
 	if (IS_ENABLED(CONFIG_SMC))
 		ireq->smc_ok = 0;

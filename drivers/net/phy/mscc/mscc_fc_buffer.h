@@ -2,7 +2,7 @@
 /*
  * Driver for Microsemi VSC85xx PHYs
  *
- * Copyright (C) 2019 Microsemi Corporation
+ * Copyright (C) 2020 Microsemi Corporation
  */
 
 #ifndef _MSCC_PHY_FC_BUFFER_H_

@@ -30,6 +30,7 @@ enum {
 	NDA_SRC_VNI,
 	NDA_PROTOCOL,  /* Originator of entry */
 	NDA_NH_ID,
+	NDA_FDB_EXT_ATTRS,
 	__NDA_MAX
 };
 
@@ -171,5 +172,28 @@ enum {
 	__NDTA_MAX
 };
 #define NDTA_MAX (__NDTA_MAX - 1)
+
+ /* FDB activity notification bits used in NFEA_ACTIVITY_NOTIFY:
+  * - FDB_NOTIFY_BIT - notify on activity/expire for any entry
+  * - FDB_NOTIFY_INACTIVE_BIT - mark as inactive to avoid multiple notifications
+  */
+enum {
+	FDB_NOTIFY_BIT		= (1 << 0),
+	FDB_NOTIFY_INACTIVE_BIT	= (1 << 1)
+};
+
+/* embedded into NDA_FDB_EXT_ATTRS:
+ * [NDA_FDB_EXT_ATTRS] = {
+ *     [NFEA_ACTIVITY_NOTIFY]
+ *     ...
+ * }
+ */
+enum {
+	NFEA_UNSPEC,
+	NFEA_ACTIVITY_NOTIFY,
+	NFEA_DONT_REFRESH,
+	__NFEA_MAX
+};
+#define NFEA_MAX (__NFEA_MAX - 1)
 
 #endif

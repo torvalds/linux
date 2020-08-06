@@ -648,20 +648,19 @@ no_route:
 EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 
 /* Decide when to expire the request and when to resend SYN-ACK */
-static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
-				  const int max_retries,
-				  const u8 rskq_defer_accept,
-				  int *expire, int *resend)
+static void syn_ack_recalc(struct request_sock *req,
+			   const int max_syn_ack_retries,
+			   const u8 rskq_defer_accept,
+			   int *expire, int *resend)
 {
 	if (!rskq_defer_accept) {
-		*expire = req->num_timeout >= thresh;
+		*expire = req->num_timeout >= max_syn_ack_retries;
 		*resend = 1;
 		return;
 	}
-	*expire = req->num_timeout >= thresh &&
-		  (!inet_rsk(req)->acked || req->num_timeout >= max_retries);
-	/*
-	 * Do not resend while waiting for data after ACK,
+	*expire = req->num_timeout >= max_syn_ack_retries &&
+		  (!inet_rsk(req)->acked || req->num_timeout >= rskq_defer_accept);
+	/* Do not resend while waiting for data after ACK,
 	 * start to resend on end of deferring period to give
 	 * last chance for data or ACK to create established socket.
 	 */
@@ -720,15 +719,12 @@ static void reqsk_timer_handler(struct timer_list *t)
 	struct net *net = sock_net(sk_listener);
 	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
-	int qlen, expire = 0, resend = 0;
-	int max_retries, thresh;
-	u8 defer_accept;
+	int max_syn_ack_retries, qlen, expire = 0, resend = 0;
 
 	if (inet_sk_state_load(sk_listener) != TCP_LISTEN)
 		goto drop;
 
-	max_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;
-	thresh = max_retries;
+	max_syn_ack_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;
 	/* Normally all the openreqs are young and become mature
 	 * (i.e. converted to established socket) for first timeout.
 	 * If synack was not acknowledged for 1 second, it means
@@ -750,17 +746,14 @@ static void reqsk_timer_handler(struct timer_list *t)
 	if ((qlen << 1) > max(8U, READ_ONCE(sk_listener->sk_max_ack_backlog))) {
 		int young = reqsk_queue_len_young(queue) << 1;
 
-		while (thresh > 2) {
+		while (max_syn_ack_retries > 2) {
 			if (qlen < young)
 				break;
-			thresh--;
+			max_syn_ack_retries--;
 			young <<= 1;
 		}
 	}
-	defer_accept = READ_ONCE(queue->rskq_defer_accept);
-	if (defer_accept)
-		max_retries = defer_accept;
-	syn_ack_recalc(req, thresh, max_retries, defer_accept,
+	syn_ack_recalc(req, max_syn_ack_retries, READ_ONCE(queue->rskq_defer_accept),
 		       &expire, &resend);
 	req->rsk_ops->syn_ack_timeout(req);
 	if (!expire &&
@@ -1063,34 +1056,6 @@ void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 	sin->sin_port		= inet->inet_dport;
 }
 EXPORT_SYMBOL_GPL(inet_csk_addr2sockaddr);
-
-#ifdef CONFIG_COMPAT
-int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, int __user *optlen)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (icsk->icsk_af_ops->compat_getsockopt)
-		return icsk->icsk_af_ops->compat_getsockopt(sk, level, optname,
-							    optval, optlen);
-	return icsk->icsk_af_ops->getsockopt(sk, level, optname,
-					     optval, optlen);
-}
-EXPORT_SYMBOL_GPL(inet_csk_compat_getsockopt);
-
-int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, unsigned int optlen)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (icsk->icsk_af_ops->compat_setsockopt)
-		return icsk->icsk_af_ops->compat_setsockopt(sk, level, optname,
-							    optval, optlen);
-	return icsk->icsk_af_ops->setsockopt(sk, level, optname,
-					     optval, optlen);
-}
-EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
-#endif
 
 static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
 {

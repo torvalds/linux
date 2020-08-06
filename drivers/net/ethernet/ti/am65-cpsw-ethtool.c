@@ -445,7 +445,7 @@ static int am65_cpsw_set_channels(struct net_device *ndev,
 	/* Check if interface is up. Can change the num queues when
 	 * the interface is down.
 	 */
-	if (netif_running(ndev))
+	if (common->usage_count)
 		return -EBUSY;
 
 	am65_cpsw_nuss_remove_tx_chns(common);
@@ -734,6 +734,9 @@ static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 
 	rrobin = !!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
 
+	if (common->usage_count)
+		return -EBUSY;
+
 	if (common->est_enabled && rrobin) {
 		netdev_err(ndev,
 			   "p0-rx-ptype-rrobin flag conflicts with QOS\n");
@@ -741,7 +744,6 @@ static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 	}
 
 	common->pf_p0_rx_ptype_rrobin = rrobin;
-	am65_cpsw_nuss_set_p0_ptype(common);
 
 	return 0;
 }

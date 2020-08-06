@@ -87,11 +87,25 @@ enum ice_fc_mode {
 	ICE_FC_DFLT
 };
 
+enum ice_phy_cache_mode {
+	ICE_FC_MODE = 0,
+	ICE_SPEED_MODE,
+	ICE_FEC_MODE
+};
+
 enum ice_fec_mode {
 	ICE_FEC_NONE = 0,
 	ICE_FEC_RS,
 	ICE_FEC_BASER,
 	ICE_FEC_AUTO
+};
+
+struct ice_phy_cache_mode_data {
+	union {
+		enum ice_fec_mode curr_user_fec_req;
+		enum ice_fc_mode curr_user_fc_req;
+		u16 curr_user_speed_req;
+	} data;
 };
 
 enum ice_set_fc_aq_failures {
@@ -104,6 +118,7 @@ enum ice_set_fc_aq_failures {
 /* Various MAC types */
 enum ice_mac_type {
 	ICE_MAC_UNKNOWN = 0,
+	ICE_MAC_E810,
 	ICE_MAC_GENERIC,
 };
 
@@ -160,6 +175,13 @@ struct ice_phy_info {
 	u64 phy_type_high;
 	enum ice_media_type media_type;
 	u8 get_link_info;
+	/* Please refer to struct ice_aqc_get_link_status_data to get
+	 * detail of enable bit in curr_user_speed_req
+	 */
+	u16 curr_user_speed_req;
+	enum ice_fec_mode curr_user_fec_req;
+	enum ice_fc_mode curr_user_fc_req;
+	struct ice_aqc_set_phy_cfg_data curr_user_phy_cfg;
 };
 
 /* protocol enumeration for filters */
@@ -222,6 +244,15 @@ struct ice_hw_common_caps {
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
 
 	u8 dcb;
+
+	bool nvm_update_pending_nvm;
+	bool nvm_update_pending_orom;
+	bool nvm_update_pending_netlist;
+#define ICE_NVM_PENDING_NVM_IMAGE		BIT(0)
+#define ICE_NVM_PENDING_OROM			BIT(1)
+#define ICE_NVM_PENDING_NETLIST			BIT(2)
+	bool nvm_unified_update;
+#define ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT	BIT(3)
 };
 
 /* Function specific capabilities */
@@ -290,7 +321,29 @@ struct ice_nvm_info {
 	u32 flash_size;			/* Size of available flash in bytes */
 	u8 major_ver;			/* major version of NVM package */
 	u8 minor_ver;			/* minor version of dev starter */
-	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
+	u8 blank_nvm_mode;		/* is NVM empty (no FW present) */
+};
+
+struct ice_link_default_override_tlv {
+	u8 options;
+#define ICE_LINK_OVERRIDE_OPT_M		0x3F
+#define ICE_LINK_OVERRIDE_STRICT_MODE	BIT(0)
+#define ICE_LINK_OVERRIDE_EPCT_DIS	BIT(1)
+#define ICE_LINK_OVERRIDE_PORT_DIS	BIT(2)
+#define ICE_LINK_OVERRIDE_EN		BIT(3)
+#define ICE_LINK_OVERRIDE_AUTO_LINK_DIS	BIT(4)
+#define ICE_LINK_OVERRIDE_EEE_EN	BIT(5)
+	u8 phy_config;
+#define ICE_LINK_OVERRIDE_PHY_CFG_S	8
+#define ICE_LINK_OVERRIDE_PHY_CFG_M	(0xC3 << ICE_LINK_OVERRIDE_PHY_CFG_S)
+#define ICE_LINK_OVERRIDE_PAUSE_M	0x3
+#define ICE_LINK_OVERRIDE_LESM_EN	BIT(6)
+#define ICE_LINK_OVERRIDE_AUTO_FEC_EN	BIT(7)
+	u8 fec_options;
+#define ICE_LINK_OVERRIDE_FEC_OPT_M	0xFF
+	u8 rsvd1;
+	u64 phy_type_low;
+	u64 phy_type_high;
 };
 
 #define ICE_NVM_VER_LEN	32
@@ -356,7 +409,7 @@ enum ice_rl_type {
 #define ICE_SCHED_DFLT_BW		0xFFFFFFFF	/* unlimited */
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
 #define ICE_SCHED_NO_SHARED_RL_PROF_ID	0xFFFF
-#define ICE_SCHED_DFLT_BW_WT		1
+#define ICE_SCHED_DFLT_BW_WT		4
 #define ICE_SCHED_INVAL_PROF_ID		0xFFFF
 #define ICE_SCHED_DFLT_BURST_SIZE	(15 * 1024)	/* in bytes (15k) */
 
@@ -444,6 +497,7 @@ struct ice_dcb_app_priority_table {
 #define ICE_APP_SEL_ETHTYPE	0x1
 #define ICE_APP_SEL_TCPIP	0x2
 #define ICE_CEE_APP_SEL_ETHTYPE	0x0
+#define ICE_SR_LINK_DEFAULT_OVERRIDE_PTR	0x134
 #define ICE_CEE_APP_SEL_TCPIP	0x1
 
 struct ice_dcbx_cfg {
@@ -709,6 +763,7 @@ struct ice_hw_port_stats {
 
 /* Checksum and Shadow RAM pointers */
 #define ICE_SR_BOOT_CFG_PTR		0x132
+#define ICE_SR_NVM_WOL_CFG		0x19
 #define ICE_NVM_OROM_VER_OFF		0x02
 #define ICE_SR_PBA_BLOCK_PTR		0x16
 #define ICE_SR_NVM_DEV_STARTER_VER	0x18
@@ -725,7 +780,21 @@ struct ice_hw_port_stats {
 #define ICE_OROM_VER_SHIFT		24
 #define ICE_OROM_VER_MASK		(0xff << ICE_OROM_VER_SHIFT)
 #define ICE_SR_PFA_PTR			0x40
+#define ICE_SR_1ST_NVM_BANK_PTR		0x42
+#define ICE_SR_1ST_OROM_BANK_PTR	0x44
+#define ICE_SR_NETLIST_BANK_PTR		0x46
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
+
+/* Link override related */
+#define ICE_SR_PFA_LINK_OVERRIDE_WORDS		10
+#define ICE_SR_PFA_LINK_OVERRIDE_PHY_WORDS	4
+#define ICE_SR_PFA_LINK_OVERRIDE_OFFSET		2
+#define ICE_SR_PFA_LINK_OVERRIDE_FEC_OFFSET	1
+#define ICE_SR_PFA_LINK_OVERRIDE_PHY_OFFSET	2
+#define ICE_FW_API_LINK_OVERRIDE_MAJ		1
+#define ICE_FW_API_LINK_OVERRIDE_MIN		5
+#define ICE_FW_API_LINK_OVERRIDE_PATCH		2
+
 #define ICE_SR_WORDS_IN_1KB		512
 
 /* Hash redirection LUT for VSI - maximum array size */

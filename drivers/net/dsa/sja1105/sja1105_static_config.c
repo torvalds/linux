@@ -838,12 +838,7 @@ sja1105_static_config_get_length(const struct sja1105_static_config *config)
 /* Compatibility matrices */
 
 /* SJA1105E: First generation, no TTEthernet */
-struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
-	[BLK_IDX_SCHEDULE] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},
-	[BLK_IDX_VL_LOOKUP] = {0},
-	[BLK_IDX_VL_POLICING] = {0},
-	[BLK_IDX_VL_FORWARDING] = {0},
+const struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.packing = sja1105et_l2_lookup_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_entry),
@@ -874,9 +869,6 @@ struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105ET_SIZE_MAC_CONFIG_ENTRY,
 		.max_entry_count = SJA1105_MAX_MAC_CONFIG_COUNT,
 	},
-	[BLK_IDX_SCHEDULE_PARAMS] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS_PARAMS] = {0},
-	[BLK_IDX_VL_FORWARDING_PARAMS] = {0},
 	[BLK_IDX_L2_LOOKUP_PARAMS] = {
 		.packing = sja1105et_l2_lookup_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_params_entry),
@@ -916,7 +908,7 @@ struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
 };
 
 /* SJA1105T: First generation, TTEthernet */
-struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX] = {
+const struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {
 		.packing = sja1105_schedule_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_schedule_entry),
@@ -1034,12 +1026,7 @@ struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX] = {
 };
 
 /* SJA1105P: Second generation, no TTEthernet, no SGMII */
-struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
-	[BLK_IDX_SCHEDULE] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},
-	[BLK_IDX_VL_LOOKUP] = {0},
-	[BLK_IDX_VL_POLICING] = {0},
-	[BLK_IDX_VL_FORWARDING] = {0},
+const struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.packing = sja1105pqrs_l2_lookup_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_entry),
@@ -1070,9 +1057,6 @@ struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY,
 		.max_entry_count = SJA1105_MAX_MAC_CONFIG_COUNT,
 	},
-	[BLK_IDX_SCHEDULE_PARAMS] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS_PARAMS] = {0},
-	[BLK_IDX_VL_FORWARDING_PARAMS] = {0},
 	[BLK_IDX_L2_LOOKUP_PARAMS] = {
 		.packing = sja1105pqrs_l2_lookup_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_params_entry),
@@ -1112,7 +1096,7 @@ struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 };
 
 /* SJA1105Q: Second generation, TTEthernet, no SGMII */
-struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
+const struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {
 		.packing = sja1105_schedule_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_schedule_entry),
@@ -1230,12 +1214,7 @@ struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
 };
 
 /* SJA1105R: Second generation, no TTEthernet, SGMII */
-struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
-	[BLK_IDX_SCHEDULE] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},
-	[BLK_IDX_VL_LOOKUP] = {0},
-	[BLK_IDX_VL_POLICING] = {0},
-	[BLK_IDX_VL_FORWARDING] = {0},
+const struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.packing = sja1105pqrs_l2_lookup_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_entry),
@@ -1266,9 +1245,6 @@ struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY,
 		.max_entry_count = SJA1105_MAX_MAC_CONFIG_COUNT,
 	},
-	[BLK_IDX_SCHEDULE_PARAMS] = {0},
-	[BLK_IDX_SCHEDULE_ENTRY_POINTS_PARAMS] = {0},
-	[BLK_IDX_VL_FORWARDING_PARAMS] = {0},
 	[BLK_IDX_L2_LOOKUP_PARAMS] = {
 		.packing = sja1105pqrs_l2_lookup_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_l2_lookup_params_entry),
@@ -1308,7 +1284,7 @@ struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
 };
 
 /* SJA1105S: Second generation, TTEthernet, SGMII */
-struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX] = {
+const struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {
 		.packing = sja1105_schedule_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_schedule_entry),

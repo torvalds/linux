@@ -114,7 +114,7 @@ static int run_test(int cgroup_fd, int server_fd, int family, int type)
 		goto close_bpf_object;
 	}
 
-	fd = connect_to_fd(family, type, server_fd);
+	fd = connect_to_fd(server_fd, 0);
 	if (fd < 0) {
 		err = -1;
 		goto close_bpf_object;
@@ -137,25 +137,25 @@ void test_connect_force_port(void)
 	if (CHECK_FAIL(cgroup_fd < 0))
 		return;
 
-	server_fd = start_server_with_port(AF_INET, SOCK_STREAM, 60123);
+	server_fd = start_server(AF_INET, SOCK_STREAM, NULL, 60123, 0);
 	if (CHECK_FAIL(server_fd < 0))
 		goto close_cgroup_fd;
 	CHECK_FAIL(run_test(cgroup_fd, server_fd, AF_INET, SOCK_STREAM));
 	close(server_fd);
 
-	server_fd = start_server_with_port(AF_INET6, SOCK_STREAM, 60124);
+	server_fd = start_server(AF_INET6, SOCK_STREAM, NULL, 60124, 0);
 	if (CHECK_FAIL(server_fd < 0))
 		goto close_cgroup_fd;
 	CHECK_FAIL(run_test(cgroup_fd, server_fd, AF_INET6, SOCK_STREAM));
 	close(server_fd);
 
-	server_fd = start_server_with_port(AF_INET, SOCK_DGRAM, 60123);
+	server_fd = start_server(AF_INET, SOCK_DGRAM, NULL, 60123, 0);
 	if (CHECK_FAIL(server_fd < 0))
 		goto close_cgroup_fd;
 	CHECK_FAIL(run_test(cgroup_fd, server_fd, AF_INET, SOCK_DGRAM));
 	close(server_fd);
 
-	server_fd = start_server_with_port(AF_INET6, SOCK_DGRAM, 60124);
+	server_fd = start_server(AF_INET6, SOCK_DGRAM, NULL, 60124, 0);
 	if (CHECK_FAIL(server_fd < 0))
 		goto close_cgroup_fd;
 	CHECK_FAIL(run_test(cgroup_fd, server_fd, AF_INET6, SOCK_DGRAM));

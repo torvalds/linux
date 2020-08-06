@@ -1,29 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
-/* "undefine" structs in vmlinux.h, because we "override" them below */
-#define bpf_iter_meta bpf_iter_meta___not_used
-#define bpf_iter__netlink bpf_iter__netlink___not_used
-#include "vmlinux.h"
-#undef bpf_iter_meta
-#undef bpf_iter__netlink
+#include "bpf_iter.h"
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
 char _license[] SEC("license") = "GPL";
-
-#define sk_rmem_alloc	sk_backlog.rmem_alloc
-#define sk_refcnt	__sk_common.skc_refcnt
-
-struct bpf_iter_meta {
-	struct seq_file *seq;
-	__u64 session_id;
-	__u64 seq_num;
-} __attribute__((preserve_access_index));
-
-struct bpf_iter__netlink {
-	struct bpf_iter_meta *meta;
-	struct netlink_sock *sk;
-} __attribute__((preserve_access_index));
 
 static __attribute__((noinline)) struct inode *SOCK_INODE(struct socket *socket)
 {
@@ -54,10 +36,10 @@ int dump_netlink(struct bpf_iter__netlink *ctx)
 	if (!nlk->groups)  {
 		group = 0;
 	} else {
-		/* FIXME: temporary use bpf_probe_read here, needs
+		/* FIXME: temporary use bpf_probe_read_kernel here, needs
 		 * verifier support to do direct access.
 		 */
-		bpf_probe_read(&group, sizeof(group), &nlk->groups[0]);
+		bpf_probe_read_kernel(&group, sizeof(group), &nlk->groups[0]);
 	}
 	BPF_SEQ_PRINTF(seq, "%-10u %08x %-8d %-8d %-5d %-8d ",
 		       nlk->portid, (u32)group,
@@ -74,7 +56,7 @@ int dump_netlink(struct bpf_iter__netlink *ctx)
 		 * with current verifier.
 		 */
 		inode = SOCK_INODE(sk);
-		bpf_probe_read(&ino, sizeof(ino), &inode->i_ino);
+		bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
 	}
 	BPF_SEQ_PRINTF(seq, "%-8u %-8lu\n", s->sk_drops.counter, ino);
 

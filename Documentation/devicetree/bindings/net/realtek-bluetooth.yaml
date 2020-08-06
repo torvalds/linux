@@ -44,7 +44,7 @@ examples:
     uart1 {
         pinctrl-names = "default";
         pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
-        uart-has-rtscts = <1>;
+        uart-has-rtscts;
 
         bluetooth {
             compatible = "realtek,rtl8723bs-bt";

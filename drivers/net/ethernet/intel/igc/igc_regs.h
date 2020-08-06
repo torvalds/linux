@@ -58,16 +58,6 @@
 #define IGC_IVAR_MISC		0x01740  /* IVAR for "other" causes - RW */
 #define IGC_GPIE		0x01514  /* General Purpose Intr Enable - RW */
 
-/* Interrupt Cause */
-#define IGC_ICRXPTC		0x04104  /* Rx Packet Timer Expire Count */
-#define IGC_ICRXATC		0x04108  /* Rx Absolute Timer Expire Count */
-#define IGC_ICTXPTC		0x0410C  /* Tx Packet Timer Expire Count */
-#define IGC_ICTXATC		0x04110  /* Tx Absolute Timer Expire Count */
-#define IGC_ICTXQEC		0x04118  /* Tx Queue Empty Count */
-#define IGC_ICTXQMTC		0x0411C  /* Tx Queue Min Threshold Count */
-#define IGC_ICRXDMTC		0x04120  /* Rx Descriptor Min Threshold Count */
-#define IGC_ICRXOC		0x04124  /* Receiver Overrun Count */
-
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
 
@@ -181,13 +171,10 @@
 #define IGC_MPTC	0x040F0  /* Multicast Packets Tx Count - R/clr */
 #define IGC_BPTC	0x040F4  /* Broadcast Packets Tx Count - R/clr */
 #define IGC_TSCTC	0x040F8  /* TCP Segmentation Context Tx - R/clr */
-#define IGC_TSCTFC	0x040FC  /* TCP Segmentation Context Tx Fail - R/clr */
 #define IGC_IAC		0x04100  /* Interrupt Assertion Count */
-#define IGC_ICTXPTC	0x0410C  /* Interrupt Cause Tx Pkt Timer Expire Count */
-#define IGC_ICTXATC	0x04110  /* Interrupt Cause Tx Abs Timer Expire Count */
-#define IGC_ICTXQEC	0x04118  /* Interrupt Cause Tx Queue Empty Count */
-#define IGC_ICTXQMTC	0x0411C  /* Interrupt Cause Tx Queue Min Thresh Count */
 #define IGC_RPTHC	0x04104  /* Rx Packets To Host */
+#define IGC_TLPIC	0x04148  /* EEE Tx LPI Count */
+#define IGC_RLPIC	0x0414C  /* EEE Rx LPI Count */
 #define IGC_HGPTC	0x04118  /* Host Good Packets Tx Count */
 #define IGC_RXDMTC	0x04120  /* Rx Descriptor Minimum Threshold Count */
 #define IGC_HGORCL	0x04128  /* Host Good Octets Received Count Low */
@@ -228,8 +215,6 @@
 #define IGC_SYSTIMR	0x0B6F8  /* System time register Residue */
 #define IGC_TIMINCA	0x0B608  /* Increment attributes register - RW */
 
-#define IGC_RXSTMPL	0x0B624  /* Rx timestamp Low - RO */
-#define IGC_RXSTMPH	0x0B628  /* Rx timestamp High - RO */
 #define IGC_TXSTMPL	0x0B618  /* Tx timestamp value Low - RO */
 #define IGC_TXSTMPH	0x0B61C  /* Tx timestamp value High - RO */
 
@@ -247,6 +232,17 @@
 
 /* Wake Up packet memory */
 #define IGC_WUPM_REG(_i)	(0x05A00 + ((_i) * 4))
+
+/* Energy Efficient Ethernet "EEE" registers */
+#define IGC_EEER	0x0E30 /* Energy Efficient Ethernet "EEE"*/
+#define IGC_IPCNFG	0x0E38 /* Internal PHY Configuration */
+#define IGC_EEE_SU	0x0E34 /* EEE Setup */
+
+/* LTR registers */
+#define IGC_LTRC	0x01A0 /* Latency Tolerance Reporting Control */
+#define IGC_DMACR	0x02508 /* DMA Coalescing Control Register */
+#define IGC_LTRMINV	0x5BB0 /* LTR Minimum Value */
+#define IGC_LTRMAXV	0x5BB4 /* LTR Maximum Value */
 
 /* forward declaration */
 struct igc_hw;

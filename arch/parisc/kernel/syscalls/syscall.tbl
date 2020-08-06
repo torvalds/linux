@@ -198,8 +198,8 @@
 178	common	rt_sigqueueinfo		sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 179	common	rt_sigsuspend		sys_rt_sigsuspend		compat_sys_rt_sigsuspend
 180	common	chown			sys_chown
-181	common	setsockopt		sys_setsockopt			compat_sys_setsockopt
-182	common	getsockopt		sys_getsockopt			compat_sys_getsockopt
+181	common	setsockopt		sys_setsockopt			sys_setsockopt
+182	common	getsockopt		sys_getsockopt			sys_getsockopt
 183	common	sendmsg			sys_sendmsg			compat_sys_sendmsg
 184	common	recvmsg			sys_recvmsg			compat_sys_recvmsg
 185	common	semop			sys_semop

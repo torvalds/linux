@@ -297,8 +297,8 @@ inittiger(struct tiger_hw *card)
 {
 	int i;
 
-	card->dma_p = pci_alloc_consistent(card->pdev, NJ_DMA_SIZE,
-					   &card->dma);
+	card->dma_p = dma_alloc_coherent(&card->pdev->dev, NJ_DMA_SIZE,
+					 &card->dma, GFP_ATOMIC);
 	if (!card->dma_p) {
 		pr_info("%s: No DMA memory\n", card->name);
 		return -ENOMEM;
@@ -965,8 +965,8 @@ nj_release(struct tiger_hw *card)
 		kfree(card->bc[i].hrbuf);
 	}
 	if (card->dma_p)
-		pci_free_consistent(card->pdev, NJ_DMA_SIZE,
-				    card->dma_p, card->dma);
+		dma_free_coherent(&card->pdev->dev, NJ_DMA_SIZE, card->dma_p,
+				  card->dma);
 	write_lock_irqsave(&card_lock, flags);
 	list_del(&card->list);
 	write_unlock_irqrestore(&card_lock, flags);

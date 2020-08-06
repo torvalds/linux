@@ -803,10 +803,11 @@ int wiphy_register(struct wiphy *wiphy)
 		if (WARN_ON(!sband->n_channels))
 			return -EINVAL;
 		/*
-		 * on 60GHz band, there are no legacy rates, so
+		 * on 60GHz or sub-1Ghz band, there are no legacy rates, so
 		 * n_bitrates is 0
 		 */
-		if (WARN_ON(band != NL80211_BAND_60GHZ &&
+		if (WARN_ON((band != NL80211_BAND_60GHZ &&
+			     band != NL80211_BAND_S1GHZ) &&
 			    !sband->n_bitrates))
 			return -EINVAL;
 

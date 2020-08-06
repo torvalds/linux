@@ -8,6 +8,8 @@
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
+bool ice_pf_state_is_nominal(struct ice_pf *pf);
+
 void ice_update_eth_stats(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);

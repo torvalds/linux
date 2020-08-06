@@ -38,8 +38,6 @@ const char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "4.1.0-k"
-const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2018 Intel Corporation.";
 
@@ -81,7 +79,6 @@ MODULE_DEVICE_TABLE(pci, ixgbevf_pci_tbl);
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) 10 Gigabit Virtual Function Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
@@ -1082,10 +1079,10 @@ static struct sk_buff *ixgbevf_run_xdp(struct ixgbevf_adapter *adapter,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping packet */
+		fallthrough; /* handle aborts by dropping packet */
 	case XDP_DROP:
 		result = IXGBEVF_XDP_CONSUMED;
 		break;
@@ -2605,7 +2602,7 @@ static int ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
  * important, starting with the "most" number of features turned on at once,
  * and ending with the smallest set of features.  This way large combinations
  * can be allocated if they're turned on, and smaller combinations are the
- * fallthrough conditions.
+ * fall through conditions.
  *
  **/
 static void ixgbevf_set_num_queues(struct ixgbevf_adapter *adapter)
@@ -3877,7 +3874,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 	switch (skb->csum_offset) {
 	case offsetof(struct tcphdr, check):
 		type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_TCP;
-		/* fall through */
+		fallthrough;
 	case offsetof(struct udphdr, check):
 		break;
 	case offsetof(struct sctphdr, checksum):
@@ -3889,7 +3886,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 			type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		skb_checksum_help(skb);
 		goto no_csum;
@@ -4300,13 +4297,10 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-static int ixgbevf_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused ixgbevf_suspend(struct device *dev_d)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev_d);
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-#ifdef CONFIG_PM
-	int retval = 0;
-#endif
 
 	rtnl_lock();
 	netif_device_detach(netdev);
@@ -4317,36 +4311,15 @@ static int ixgbevf_suspend(struct pci_dev *pdev, pm_message_t state)
 	ixgbevf_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
 
-#ifdef CONFIG_PM
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-
-#endif
-	if (!test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state))
-		pci_disable_device(pdev);
-
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ixgbevf_resume(struct pci_dev *pdev)
+static int __maybe_unused ixgbevf_resume(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	u32 err;
-
-	pci_restore_state(pdev);
-	/* pci_restore_state clears dev->state_saved so call
-	 * pci_save_state to restore it.
-	 */
-	pci_save_state(pdev);
-
-	err = pci_enable_device_mem(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
-		return err;
-	}
 
 	adapter->hw.hw_addr = adapter->io_addr;
 	smp_mb__before_atomic();
@@ -4368,10 +4341,9 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 	return err;
 }
 
-#endif /* CONFIG_PM */
 static void ixgbevf_shutdown(struct pci_dev *pdev)
 {
-	ixgbevf_suspend(pdev, PMSG_SUSPEND);
+	ixgbevf_suspend(&pdev->dev);
 }
 
 static void ixgbevf_get_tx_ring_stats(struct rtnl_link_stats64 *stats,
@@ -4505,15 +4477,9 @@ static int ixgbevf_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 
 static int ixgbevf_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
-	struct ixgbevf_adapter *adapter = netdev_priv(dev);
-
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return ixgbevf_xdp_setup(dev, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = adapter->xdp_prog ?
-			       adapter->xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -4891,16 +4857,17 @@ static const struct pci_error_handlers ixgbevf_err_handler = {
 	.resume = ixgbevf_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(ixgbevf_pm_ops, ixgbevf_suspend, ixgbevf_resume);
+
 static struct pci_driver ixgbevf_driver = {
 	.name		= ixgbevf_driver_name,
 	.id_table	= ixgbevf_pci_tbl,
 	.probe		= ixgbevf_probe,
 	.remove		= ixgbevf_remove,
-#ifdef CONFIG_PM
+
 	/* Power Management Hooks */
-	.suspend	= ixgbevf_suspend,
-	.resume		= ixgbevf_resume,
-#endif
+	.driver.pm	= &ixgbevf_pm_ops,
+
 	.shutdown	= ixgbevf_shutdown,
 	.err_handler	= &ixgbevf_err_handler
 };
@@ -4913,9 +4880,7 @@ static struct pci_driver ixgbevf_driver = {
  **/
 static int __init ixgbevf_init_module(void)
 {
-	pr_info("%s - version %s\n", ixgbevf_driver_string,
-		ixgbevf_driver_version);
-
+	pr_info("%s\n", ixgbevf_driver_string);
 	pr_info("%s\n", ixgbevf_copyright);
 	ixgbevf_wq = create_singlethread_workqueue(ixgbevf_driver_name);
 	if (!ixgbevf_wq) {

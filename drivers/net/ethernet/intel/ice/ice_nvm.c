@@ -108,6 +108,76 @@ ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
 }
 
 /**
+ * ice_aq_update_nvm
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ * @offset: byte offset from the module beginning
+ * @length: length of the section to be written (in bytes from the offset)
+ * @data: command buffer (size [bytes] = length)
+ * @last_command: tells if this is the last command in a series
+ * @command_flags: command parameters
+ * @cd: pointer to command details structure or NULL
+ *
+ * Update the NVM using the admin queue commands (0x0703)
+ */
+enum ice_status
+ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
+		  u16 length, void *data, bool last_command, u8 command_flags,
+		  struct ice_sq_cd *cd)
+{
+	struct ice_aq_desc desc;
+	struct ice_aqc_nvm *cmd;
+
+	cmd = &desc.params.nvm;
+
+	/* In offset the highest byte must be zeroed. */
+	if (offset & 0xFF000000)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write);
+
+	cmd->cmd_flags |= command_flags;
+
+	/* If this is the last command in a series, set the proper flag. */
+	if (last_command)
+		cmd->cmd_flags |= ICE_AQC_NVM_LAST_CMD;
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->offset_low = cpu_to_le16(offset & 0xFFFF);
+	cmd->offset_high = (offset >> 16) & 0xFF;
+	cmd->length = cpu_to_le16(length);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	return ice_aq_send_cmd(hw, &desc, data, length, cd);
+}
+
+/**
+ * ice_aq_erase_nvm
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ * @cd: pointer to command details structure or NULL
+ *
+ * Erase the NVM sector using the admin queue commands (0x0702)
+ */
+enum ice_status
+ice_aq_erase_nvm(struct ice_hw *hw, u16 module_typeid, struct ice_sq_cd *cd)
+{
+	struct ice_aq_desc desc;
+	struct ice_aqc_nvm *cmd;
+
+	cmd = &desc.params.nvm;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_erase);
+
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->length = cpu_to_le16(ICE_AQC_NVM_ERASE_LEN);
+	cmd->offset_low = 0;
+	cmd->offset_high = 0;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * ice_read_sr_word_aq - Reads Shadow RAM via AQ
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
@@ -172,8 +242,7 @@ void ice_release_nvm(struct ice_hw *hw)
  *
  * Reads one 16 bit word from the Shadow RAM using the ice_read_sr_word_aq.
  */
-static enum ice_status
-ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
+enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
 {
 	enum ice_status status;
 
@@ -197,7 +266,7 @@ ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
  * Area (PFA) and returns the TLV pointer and length. The caller can
  * use these to read the variable length TLV value.
  */
-static enum ice_status
+enum ice_status
 ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		       u16 module_type)
 {
@@ -633,5 +702,121 @@ enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw)
 		if (le16_to_cpu(cmd->checksum) != ICE_AQC_NVM_CHECKSUM_CORRECT)
 			status = ICE_ERR_NVM_CHECKSUM;
 
+	return status;
+}
+
+/**
+ * ice_nvm_write_activate
+ * @hw: pointer to the HW struct
+ * @cmd_flags: NVM activate admin command bits (banks to be validated)
+ *
+ * Update the control word with the required banks' validity bits
+ * and dumps the Shadow RAM to flash (0x0707)
+ */
+enum ice_status ice_nvm_write_activate(struct ice_hw *hw, u8 cmd_flags)
+{
+	struct ice_aqc_nvm *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.nvm;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write_activate);
+
+	cmd->cmd_flags = cmd_flags;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/**
+ * ice_aq_nvm_update_empr
+ * @hw: pointer to the HW struct
+ *
+ * Update empr (0x0709). This command allows SW to
+ * request an EMPR to activate new FW.
+ */
+enum ice_status ice_aq_nvm_update_empr(struct ice_hw *hw)
+{
+	struct ice_aq_desc desc;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_update_empr);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/* ice_nvm_set_pkg_data
+ * @hw: pointer to the HW struct
+ * @del_pkg_data_flag: If is set then the current pkg_data store by FW
+ *		       is deleted.
+ *		       If bit is set to 1, then buffer should be size 0.
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set package data (0x070A). This command is equivalent to the reception
+ * of a PLDM FW Update GetPackageData cmd. This command should be sent
+ * as part of the NVM update as the first cmd in the flow.
+ */
+
+enum ice_status
+ice_nvm_set_pkg_data(struct ice_hw *hw, bool del_pkg_data_flag, u8 *data,
+		     u16 length, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_nvm_pkg_data *cmd;
+	struct ice_aq_desc desc;
+
+	if (length != 0 && !data)
+		return ICE_ERR_PARAM;
+
+	cmd = &desc.params.pkg_data;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_pkg_data);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	if (del_pkg_data_flag)
+		cmd->cmd_flags |= ICE_AQC_NVM_PKG_DELETE;
+
+	return ice_aq_send_cmd(hw, &desc, data, length, cd);
+}
+
+/* ice_nvm_pass_component_tbl
+ * @hw: pointer to the HW struct
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ * @transfer_flag: parameter for determining stage of the update
+ * @comp_response: a pointer to the response from the 0x070B AQC.
+ * @comp_response_code: a pointer to the response code from the 0x070B AQC.
+ * @cd: pointer to command details structure or NULL
+ *
+ * Pass component table (0x070B). This command is equivalent to the reception
+ * of a PLDM FW Update PassComponentTable cmd. This command should be sent once
+ * per component. It can be only sent after Set Package Data cmd and before
+ * actual update. FW will assume these commands are going to be sent until
+ * the TransferFlag is set to End or StartAndEnd.
+ */
+
+enum ice_status
+ice_nvm_pass_component_tbl(struct ice_hw *hw, u8 *data, u16 length,
+			   u8 transfer_flag, u8 *comp_response,
+			   u8 *comp_response_code, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_nvm_pass_comp_tbl *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	if (!data || !comp_response || !comp_response_code)
+		return ICE_ERR_PARAM;
+
+	cmd = &desc.params.pass_comp_tbl;
+
+	ice_fill_dflt_direct_cmd_desc(&desc,
+				      ice_aqc_opc_nvm_pass_component_tbl);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	cmd->transfer_flag = transfer_flag;
+	status = ice_aq_send_cmd(hw, &desc, data, length, cd);
+
+	if (!status) {
+		*comp_response = cmd->component_response;
+		*comp_response_code = cmd->component_response_code;
+	}
 	return status;
 }

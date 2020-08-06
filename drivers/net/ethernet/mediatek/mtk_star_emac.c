@@ -1389,7 +1389,7 @@ static int mtk_star_mdio_init(struct net_device *ndev)
 	priv->mii->write = mtk_star_mdio_write;
 	priv->mii->priv = priv;
 
-	ret = of_mdiobus_register(priv->mii, mdio_node);
+	ret = devm_of_mdiobus_register(dev, priv->mii, mdio_node);
 
 out_put_node:
 	of_node_put(mdio_node);
@@ -1439,13 +1439,6 @@ static void mtk_star_clk_disable_unprepare(void *data)
 	struct mtk_star_priv *priv = data;
 
 	clk_bulk_disable_unprepare(MTK_STAR_NCLKS, priv->clks);
-}
-
-static void mtk_star_mdiobus_unregister(void *data)
-{
-	struct mtk_star_priv *priv = data;
-
-	mdiobus_unregister(priv->mii);
 }
 
 static int mtk_star_probe(struct platform_device *pdev)
@@ -1546,10 +1539,6 @@ static int mtk_star_probe(struct platform_device *pdev)
 	mtk_star_init_config(priv);
 
 	ret = mtk_star_mdio_init(ndev);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, mtk_star_mdiobus_unregister, priv);
 	if (ret)
 		return ret;
 

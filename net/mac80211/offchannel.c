@@ -264,7 +264,7 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 	if (roc->mgmt_tx_cookie) {
 		if (!WARN_ON(!roc->frame)) {
 			ieee80211_tx_skb_tid_band(roc->sdata, roc->frame, 7,
-						  roc->chan->band, 0);
+						  roc->chan->band);
 			roc->frame = NULL;
 		}
 	} else {
@@ -808,13 +808,13 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->vif.bss_conf.ibss_joined)
 			need_offchan = true;
 #ifdef CONFIG_MAC80211_MESH
-		/* fall through */
+		fallthrough;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif) &&
 		    !sdata->u.mesh.mesh_id_len)
 			need_offchan = true;
 #endif
-		/* fall through */
+		fallthrough;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_GO:

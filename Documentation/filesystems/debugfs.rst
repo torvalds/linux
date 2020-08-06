@@ -185,13 +185,17 @@ byte offsets over a base for the register block.
 
 If you want to dump an u32 array in debugfs, you can create file with::
 
+    struct debugfs_u32_array {
+	u32 *array;
+	u32 n_elements;
+    };
+
     void debugfs_create_u32_array(const char *name, umode_t mode,
 			struct dentry *parent,
-			u32 *array, u32 elements);
+			struct debugfs_u32_array *array);
 
-The "array" argument provides data, and the "elements" argument is
-the number of elements in the array. Note: Once array is created its
-size can not be changed.
+The "array" argument wraps a pointer to the array's data and the number
+of its elements. Note: Once array is created its size can not be changed.
 
 There is a helper function to create device related seq_file::
 

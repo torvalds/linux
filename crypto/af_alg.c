@@ -197,8 +197,7 @@ unlock:
 	return err;
 }
 
-static int alg_setkey(struct sock *sk, char __user *ukey,
-		      unsigned int keylen)
+static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	const struct af_alg_type *type = ask->type;
@@ -210,7 +209,7 @@ static int alg_setkey(struct sock *sk, char __user *ukey,
 		return -ENOMEM;
 
 	err = -EFAULT;
-	if (copy_from_user(key, ukey, keylen))
+	if (copy_from_sockptr(key, ukey, keylen))
 		goto out;
 
 	err = type->setkey(ask->private, key, keylen);
@@ -222,7 +221,7 @@ out:
 }
 
 static int alg_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -335,7 +334,6 @@ static const struct proto_ops alg_proto_ops = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.sendpage	=	sock_no_sendpage,
 	.sendmsg	=	sock_no_sendmsg,

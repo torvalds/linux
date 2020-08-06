@@ -26,6 +26,10 @@ struct mlxsw_afa_ops {
 			  bool ingress, int *p_span_id);
 	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
 			   bool ingress);
+	int (*policer_add)(void *priv, u64 rate_bytes_ps, u32 burst,
+			   u16 *p_policer_index,
+			   struct netlink_ext_ack *extack);
+	void (*policer_del)(void *priv, u16 policer_index);
 	bool dummy_first_set;
 };
 
@@ -82,5 +86,11 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,
 				    bool rmid_valid, u32 kvdl_index);
+int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, u16 l4_port,
+				  struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_police(struct mlxsw_afa_block *block,
+				  u32 fa_index, u64 rate_bytes_ps, u32 burst,
+				  u16 *p_policer_index,
+				  struct netlink_ext_ack *extack);
 
 #endif

@@ -15,6 +15,412 @@
 #include "cudbg_lib.h"
 #include "cudbg_zlib.h"
 
+static const u32 t6_tp_pio_array[][IREG_NUM_ELEM] = {
+	{0x7e40, 0x7e44, 0x020, 28}, /* t6_tp_pio_regs_20_to_3b */
+	{0x7e40, 0x7e44, 0x040, 10}, /* t6_tp_pio_regs_40_to_49 */
+	{0x7e40, 0x7e44, 0x050, 10}, /* t6_tp_pio_regs_50_to_59 */
+	{0x7e40, 0x7e44, 0x060, 14}, /* t6_tp_pio_regs_60_to_6d */
+	{0x7e40, 0x7e44, 0x06F, 1}, /* t6_tp_pio_regs_6f */
+	{0x7e40, 0x7e44, 0x070, 6}, /* t6_tp_pio_regs_70_to_75 */
+	{0x7e40, 0x7e44, 0x130, 18}, /* t6_tp_pio_regs_130_to_141 */
+	{0x7e40, 0x7e44, 0x145, 19}, /* t6_tp_pio_regs_145_to_157 */
+	{0x7e40, 0x7e44, 0x160, 1}, /* t6_tp_pio_regs_160 */
+	{0x7e40, 0x7e44, 0x230, 25}, /* t6_tp_pio_regs_230_to_248 */
+	{0x7e40, 0x7e44, 0x24a, 3}, /* t6_tp_pio_regs_24c */
+	{0x7e40, 0x7e44, 0x8C0, 1} /* t6_tp_pio_regs_8c0 */
+};
+
+static const u32 t5_tp_pio_array[][IREG_NUM_ELEM] = {
+	{0x7e40, 0x7e44, 0x020, 28}, /* t5_tp_pio_regs_20_to_3b */
+	{0x7e40, 0x7e44, 0x040, 19}, /* t5_tp_pio_regs_40_to_52 */
+	{0x7e40, 0x7e44, 0x054, 2}, /* t5_tp_pio_regs_54_to_55 */
+	{0x7e40, 0x7e44, 0x060, 13}, /* t5_tp_pio_regs_60_to_6c */
+	{0x7e40, 0x7e44, 0x06F, 1}, /* t5_tp_pio_regs_6f */
+	{0x7e40, 0x7e44, 0x120, 4}, /* t5_tp_pio_regs_120_to_123 */
+	{0x7e40, 0x7e44, 0x12b, 2}, /* t5_tp_pio_regs_12b_to_12c */
+	{0x7e40, 0x7e44, 0x12f, 21}, /* t5_tp_pio_regs_12f_to_143 */
+	{0x7e40, 0x7e44, 0x145, 19}, /* t5_tp_pio_regs_145_to_157 */
+	{0x7e40, 0x7e44, 0x230, 25}, /* t5_tp_pio_regs_230_to_248 */
+	{0x7e40, 0x7e44, 0x8C0, 1} /* t5_tp_pio_regs_8c0 */
+};
+
+static const u32 t6_tp_tm_pio_array[][IREG_NUM_ELEM] = {
+	{0x7e18, 0x7e1c, 0x0, 12}
+};
+
+static const u32 t5_tp_tm_pio_array[][IREG_NUM_ELEM] = {
+	{0x7e18, 0x7e1c, 0x0, 12}
+};
+
+static const u32 t6_tp_mib_index_array[6][IREG_NUM_ELEM] = {
+	{0x7e50, 0x7e54, 0x0, 13},
+	{0x7e50, 0x7e54, 0x10, 6},
+	{0x7e50, 0x7e54, 0x18, 21},
+	{0x7e50, 0x7e54, 0x30, 32},
+	{0x7e50, 0x7e54, 0x50, 22},
+	{0x7e50, 0x7e54, 0x68, 12}
+};
+
+static const u32 t5_tp_mib_index_array[9][IREG_NUM_ELEM] = {
+	{0x7e50, 0x7e54, 0x0, 13},
+	{0x7e50, 0x7e54, 0x10, 6},
+	{0x7e50, 0x7e54, 0x18, 8},
+	{0x7e50, 0x7e54, 0x20, 13},
+	{0x7e50, 0x7e54, 0x30, 16},
+	{0x7e50, 0x7e54, 0x40, 16},
+	{0x7e50, 0x7e54, 0x50, 16},
+	{0x7e50, 0x7e54, 0x60, 6},
+	{0x7e50, 0x7e54, 0x68, 4}
+};
+
+static const u32 t5_sge_dbg_index_array[2][IREG_NUM_ELEM] = {
+	{0x10cc, 0x10d0, 0x0, 16},
+	{0x10cc, 0x10d4, 0x0, 16},
+};
+
+static const u32 t6_sge_qbase_index_array[] = {
+	/* 1 addr reg SGE_QBASE_INDEX and 4 data reg SGE_QBASE_MAP[0-3] */
+	0x1250, 0x1240, 0x1244, 0x1248, 0x124c,
+};
+
+static const u32 t5_pcie_pdbg_array[][IREG_NUM_ELEM] = {
+	{0x5a04, 0x5a0c, 0x00, 0x20}, /* t5_pcie_pdbg_regs_00_to_20 */
+	{0x5a04, 0x5a0c, 0x21, 0x20}, /* t5_pcie_pdbg_regs_21_to_40 */
+	{0x5a04, 0x5a0c, 0x41, 0x10}, /* t5_pcie_pdbg_regs_41_to_50 */
+};
+
+static const u32 t5_pcie_cdbg_array[][IREG_NUM_ELEM] = {
+	{0x5a10, 0x5a18, 0x00, 0x20}, /* t5_pcie_cdbg_regs_00_to_20 */
+	{0x5a10, 0x5a18, 0x21, 0x18}, /* t5_pcie_cdbg_regs_21_to_37 */
+};
+
+static const u32 t5_pm_rx_array[][IREG_NUM_ELEM] = {
+	{0x8FD0, 0x8FD4, 0x10000, 0x20}, /* t5_pm_rx_regs_10000_to_10020 */
+	{0x8FD0, 0x8FD4, 0x10021, 0x0D}, /* t5_pm_rx_regs_10021_to_1002c */
+};
+
+static const u32 t5_pm_tx_array[][IREG_NUM_ELEM] = {
+	{0x8FF0, 0x8FF4, 0x10000, 0x20}, /* t5_pm_tx_regs_10000_to_10020 */
+	{0x8FF0, 0x8FF4, 0x10021, 0x1D}, /* t5_pm_tx_regs_10021_to_1003c */
+};
+
+static const u32 t5_pcie_config_array[][2] = {
+	{0x0, 0x34},
+	{0x3c, 0x40},
+	{0x50, 0x64},
+	{0x70, 0x80},
+	{0x94, 0xa0},
+	{0xb0, 0xb8},
+	{0xd0, 0xd4},
+	{0x100, 0x128},
+	{0x140, 0x148},
+	{0x150, 0x164},
+	{0x170, 0x178},
+	{0x180, 0x194},
+	{0x1a0, 0x1b8},
+	{0x1c0, 0x208},
+};
+
+static const u32 t6_ma_ireg_array[][IREG_NUM_ELEM] = {
+	{0x78f8, 0x78fc, 0xa000, 23}, /* t6_ma_regs_a000_to_a016 */
+	{0x78f8, 0x78fc, 0xa400, 30}, /* t6_ma_regs_a400_to_a41e */
+	{0x78f8, 0x78fc, 0xa800, 20} /* t6_ma_regs_a800_to_a813 */
+};
+
+static const u32 t6_ma_ireg_array2[][IREG_NUM_ELEM] = {
+	{0x78f8, 0x78fc, 0xe400, 17}, /* t6_ma_regs_e400_to_e600 */
+	{0x78f8, 0x78fc, 0xe640, 13} /* t6_ma_regs_e640_to_e7c0 */
+};
+
+static const u32 t6_up_cim_reg_array[][IREG_NUM_ELEM + 1] = {
+	{0x7b50, 0x7b54, 0x2000, 0x20, 0}, /* up_cim_2000_to_207c */
+	{0x7b50, 0x7b54, 0x2080, 0x1d, 0}, /* up_cim_2080_to_20fc */
+	{0x7b50, 0x7b54, 0x00, 0x20, 0}, /* up_cim_00_to_7c */
+	{0x7b50, 0x7b54, 0x80, 0x20, 0}, /* up_cim_80_to_fc */
+	{0x7b50, 0x7b54, 0x100, 0x11, 0}, /* up_cim_100_to_14c */
+	{0x7b50, 0x7b54, 0x200, 0x10, 0}, /* up_cim_200_to_23c */
+	{0x7b50, 0x7b54, 0x240, 0x2, 0}, /* up_cim_240_to_244 */
+	{0x7b50, 0x7b54, 0x250, 0x2, 0}, /* up_cim_250_to_254 */
+	{0x7b50, 0x7b54, 0x260, 0x2, 0}, /* up_cim_260_to_264 */
+	{0x7b50, 0x7b54, 0x270, 0x2, 0}, /* up_cim_270_to_274 */
+	{0x7b50, 0x7b54, 0x280, 0x20, 0}, /* up_cim_280_to_2fc */
+	{0x7b50, 0x7b54, 0x300, 0x20, 0}, /* up_cim_300_to_37c */
+	{0x7b50, 0x7b54, 0x380, 0x14, 0}, /* up_cim_380_to_3cc */
+	{0x7b50, 0x7b54, 0x4900, 0x4, 0x4}, /* up_cim_4900_to_4c60 */
+	{0x7b50, 0x7b54, 0x4904, 0x4, 0x4}, /* up_cim_4904_to_4c64 */
+	{0x7b50, 0x7b54, 0x4908, 0x4, 0x4}, /* up_cim_4908_to_4c68 */
+	{0x7b50, 0x7b54, 0x4910, 0x4, 0x4}, /* up_cim_4910_to_4c70 */
+	{0x7b50, 0x7b54, 0x4914, 0x4, 0x4}, /* up_cim_4914_to_4c74 */
+	{0x7b50, 0x7b54, 0x4920, 0x10, 0x10}, /* up_cim_4920_to_4a10 */
+	{0x7b50, 0x7b54, 0x4924, 0x10, 0x10}, /* up_cim_4924_to_4a14 */
+	{0x7b50, 0x7b54, 0x4928, 0x10, 0x10}, /* up_cim_4928_to_4a18 */
+	{0x7b50, 0x7b54, 0x492c, 0x10, 0x10}, /* up_cim_492c_to_4a1c */
+};
+
+static const u32 t5_up_cim_reg_array[][IREG_NUM_ELEM + 1] = {
+	{0x7b50, 0x7b54, 0x2000, 0x20, 0}, /* up_cim_2000_to_207c */
+	{0x7b50, 0x7b54, 0x2080, 0x19, 0}, /* up_cim_2080_to_20ec */
+	{0x7b50, 0x7b54, 0x00, 0x20, 0}, /* up_cim_00_to_7c */
+	{0x7b50, 0x7b54, 0x80, 0x20, 0}, /* up_cim_80_to_fc */
+	{0x7b50, 0x7b54, 0x100, 0x11, 0}, /* up_cim_100_to_14c */
+	{0x7b50, 0x7b54, 0x200, 0x10, 0}, /* up_cim_200_to_23c */
+	{0x7b50, 0x7b54, 0x240, 0x2, 0}, /* up_cim_240_to_244 */
+	{0x7b50, 0x7b54, 0x250, 0x2, 0}, /* up_cim_250_to_254 */
+	{0x7b50, 0x7b54, 0x260, 0x2, 0}, /* up_cim_260_to_264 */
+	{0x7b50, 0x7b54, 0x270, 0x2, 0}, /* up_cim_270_to_274 */
+	{0x7b50, 0x7b54, 0x280, 0x20, 0}, /* up_cim_280_to_2fc */
+	{0x7b50, 0x7b54, 0x300, 0x20, 0}, /* up_cim_300_to_37c */
+	{0x7b50, 0x7b54, 0x380, 0x14, 0}, /* up_cim_380_to_3cc */
+};
+
+static const u32 t6_hma_ireg_array[][IREG_NUM_ELEM] = {
+	{0x51320, 0x51324, 0xa000, 32} /* t6_hma_regs_a000_to_a01f */
+};
+
+u32 cudbg_get_entity_length(struct adapter *adap, u32 entity)
+{
+	struct cudbg_tcam tcam_region = { 0 };
+	u32 value, n = 0, len = 0;
+
+	switch (entity) {
+	case CUDBG_REG_DUMP:
+		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+		case CHELSIO_T4:
+			len = T4_REGMAP_SIZE;
+			break;
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			len = T5_REGMAP_SIZE;
+			break;
+		default:
+			break;
+		}
+		break;
+	case CUDBG_DEV_LOG:
+		len = adap->params.devlog.size;
+		break;
+	case CUDBG_CIM_LA:
+		if (is_t6(adap->params.chip)) {
+			len = adap->params.cim_la_size / 10 + 1;
+			len *= 10 * sizeof(u32);
+		} else {
+			len = adap->params.cim_la_size / 8;
+			len *= 8 * sizeof(u32);
+		}
+		len += sizeof(u32); /* for reading CIM LA configuration */
+		break;
+	case CUDBG_CIM_MA_LA:
+		len = 2 * CIM_MALA_SIZE * 5 * sizeof(u32);
+		break;
+	case CUDBG_CIM_QCFG:
+		len = sizeof(struct cudbg_cim_qcfg);
+		break;
+	case CUDBG_CIM_IBQ_TP0:
+	case CUDBG_CIM_IBQ_TP1:
+	case CUDBG_CIM_IBQ_ULP:
+	case CUDBG_CIM_IBQ_SGE0:
+	case CUDBG_CIM_IBQ_SGE1:
+	case CUDBG_CIM_IBQ_NCSI:
+		len = CIM_IBQ_SIZE * 4 * sizeof(u32);
+		break;
+	case CUDBG_CIM_OBQ_ULP0:
+		len = cudbg_cim_obq_size(adap, 0);
+		break;
+	case CUDBG_CIM_OBQ_ULP1:
+		len = cudbg_cim_obq_size(adap, 1);
+		break;
+	case CUDBG_CIM_OBQ_ULP2:
+		len = cudbg_cim_obq_size(adap, 2);
+		break;
+	case CUDBG_CIM_OBQ_ULP3:
+		len = cudbg_cim_obq_size(adap, 3);
+		break;
+	case CUDBG_CIM_OBQ_SGE:
+		len = cudbg_cim_obq_size(adap, 4);
+		break;
+	case CUDBG_CIM_OBQ_NCSI:
+		len = cudbg_cim_obq_size(adap, 5);
+		break;
+	case CUDBG_CIM_OBQ_RXQ0:
+		len = cudbg_cim_obq_size(adap, 6);
+		break;
+	case CUDBG_CIM_OBQ_RXQ1:
+		len = cudbg_cim_obq_size(adap, 7);
+		break;
+	case CUDBG_EDC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EDRAM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EDRAM0_BAR_A);
+			len = EDRAM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_EDC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EDRAM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EDRAM1_BAR_A);
+			len = EDRAM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+			len = EXT_MEM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_RSS:
+		len = t4_chip_rss_size(adap) * sizeof(u16);
+		break;
+	case CUDBG_RSS_VF_CONF:
+		len = adap->params.arch.vfcount *
+		      sizeof(struct cudbg_rss_vf_conf);
+		break;
+	case CUDBG_PATH_MTU:
+		len = NMTUS * sizeof(u16);
+		break;
+	case CUDBG_PM_STATS:
+		len = sizeof(struct cudbg_pm_stats);
+		break;
+	case CUDBG_HW_SCHED:
+		len = sizeof(struct cudbg_hw_sched);
+		break;
+	case CUDBG_TP_INDIRECT:
+		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+		case CHELSIO_T5:
+			n = sizeof(t5_tp_pio_array) +
+			    sizeof(t5_tp_tm_pio_array) +
+			    sizeof(t5_tp_mib_index_array);
+			break;
+		case CHELSIO_T6:
+			n = sizeof(t6_tp_pio_array) +
+			    sizeof(t6_tp_tm_pio_array) +
+			    sizeof(t6_tp_mib_index_array);
+			break;
+		default:
+			break;
+		}
+		n = n / (IREG_NUM_ELEM * sizeof(u32));
+		len = sizeof(struct ireg_buf) * n;
+		break;
+	case CUDBG_SGE_INDIRECT:
+		len = sizeof(struct ireg_buf) * 2 +
+		      sizeof(struct sge_qbase_reg_field);
+		break;
+	case CUDBG_ULPRX_LA:
+		len = sizeof(struct cudbg_ulprx_la);
+		break;
+	case CUDBG_TP_LA:
+		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
+		break;
+	case CUDBG_MEMINFO:
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_meminfo);
+		break;
+	case CUDBG_CIM_PIF_LA:
+		len = sizeof(struct cudbg_cim_pif_la);
+		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
+		break;
+	case CUDBG_CLK:
+		len = sizeof(struct cudbg_clk_info);
+		break;
+	case CUDBG_PCIE_INDIRECT:
+		n = sizeof(t5_pcie_pdbg_array) / (IREG_NUM_ELEM * sizeof(u32));
+		len = sizeof(struct ireg_buf) * n * 2;
+		break;
+	case CUDBG_PM_INDIRECT:
+		n = sizeof(t5_pm_rx_array) / (IREG_NUM_ELEM * sizeof(u32));
+		len = sizeof(struct ireg_buf) * n * 2;
+		break;
+	case CUDBG_TID_INFO:
+		len = sizeof(struct cudbg_tid_info_region_rev1);
+		break;
+	case CUDBG_PCIE_CONFIG:
+		len = sizeof(u32) * CUDBG_NUM_PCIE_CONFIG_REGS;
+		break;
+	case CUDBG_DUMP_CONTEXT:
+		len = cudbg_dump_context_size(adap);
+		break;
+	case CUDBG_MPS_TCAM:
+		len = sizeof(struct cudbg_mps_tcam) *
+		      adap->params.arch.mps_tcam_size;
+		break;
+	case CUDBG_VPD_DATA:
+		len = sizeof(struct cudbg_vpd_data);
+		break;
+	case CUDBG_LE_TCAM:
+		cudbg_fill_le_tcam_info(adap, &tcam_region);
+		len = sizeof(struct cudbg_tcam) +
+		      sizeof(struct cudbg_tid_data) * tcam_region.max_tid;
+		break;
+	case CUDBG_CCTRL:
+		len = sizeof(u16) * NMTUS * NCCTRL_WIN;
+		break;
+	case CUDBG_MA_INDIRECT:
+		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+			n = sizeof(t6_ma_ireg_array) /
+			    (IREG_NUM_ELEM * sizeof(u32));
+			len = sizeof(struct ireg_buf) * n * 2;
+		}
+		break;
+	case CUDBG_ULPTX_LA:
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_ulptx_la);
+		break;
+	case CUDBG_UP_CIM_INDIRECT:
+		n = 0;
+		if (is_t5(adap->params.chip))
+			n = sizeof(t5_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+		else if (is_t6(adap->params.chip))
+			n = sizeof(t6_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+		len = sizeof(struct ireg_buf) * n;
+		break;
+	case CUDBG_PBT_TABLE:
+		len = sizeof(struct cudbg_pbt_tables);
+		break;
+	case CUDBG_MBOX_LOG:
+		len = sizeof(struct cudbg_mbox_log) * adap->mbox_log->size;
+		break;
+	case CUDBG_HMA_INDIRECT:
+		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+			n = sizeof(t6_hma_ireg_array) /
+			    (IREG_NUM_ELEM * sizeof(u32));
+			len = sizeof(struct ireg_buf) * n;
+		}
+		break;
+	case CUDBG_HMA:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & HMA_MUX_F) {
+			/* In T6, there's no MC1.  So, HMA shares MC1
+			 * address space.
+			 */
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_QDESC:
+		cudbg_fill_qdesc_num_and_size(adap, NULL, &len);
+		break;
+	default:
+		break;
+	}
+
+	return len;
+}
+
 static int cudbg_do_compression(struct cudbg_init *pdbg_init,
 				struct cudbg_buffer *pin_buff,
 				struct cudbg_buffer *dbg_buff)
@@ -3156,5 +3562,42 @@ out_free:
 #undef QDESC_GET_TXQ
 #undef QDESC_GET
 
+	return rc;
+}
+
+int cudbg_collect_flash(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	u32 count = padap->params.sf_size, n;
+	struct cudbg_buffer temp_buff = {0};
+	u32 addr, i;
+	int rc;
+
+	addr = FLASH_EXP_ROM_START;
+
+	for (i = 0; i < count; i += SF_PAGE_SIZE) {
+		n = min_t(u32, count - i, SF_PAGE_SIZE);
+
+		rc = cudbg_get_buff(pdbg_init, dbg_buff, n, &temp_buff);
+		if (rc) {
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			goto out;
+		}
+		rc = t4_read_flash(padap, addr, n, (u32 *)temp_buff.data, 0);
+		if (rc)
+			goto out;
+
+		addr += (n * 4);
+		rc = cudbg_write_and_release_buff(pdbg_init, &temp_buff,
+						  dbg_buff);
+		if (rc) {
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			goto out;
+		}
+	}
+
+out:
 	return rc;
 }

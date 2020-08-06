@@ -56,6 +56,7 @@ TARGETS += splice
 TARGETS += static_keys
 TARGETS += sync
 TARGETS += sysctl
+TARGETS += tc-testing
 TARGETS += timens
 ifneq (1, $(quicktest))
 TARGETS += timers

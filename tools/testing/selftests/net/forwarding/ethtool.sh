@@ -50,23 +50,6 @@ cleanup()
 	h1_destroy
 }
 
-different_speeds_get()
-{
-	local dev1=$1; shift
-	local dev2=$1; shift
-	local with_mode=$1; shift
-	local adver=$1; shift
-
-	local -a speeds_arr
-
-	speeds_arr=($(common_speeds_get $dev1 $dev2 $with_mode $adver))
-	if [[ ${#speeds_arr[@]} < 2 ]]; then
-		check_err 1 "cannot check different speeds. There are not enough speeds"
-	fi
-
-	echo ${speeds_arr[0]} ${speeds_arr[1]}
-}
-
 same_speeds_autoneg_off()
 {
 	# Check that when each of the reported speeds is forced, the links come
