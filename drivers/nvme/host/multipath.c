@@ -233,7 +233,7 @@ static struct nvme_ns *nvme_next_ns(struct nvme_ns_head *head,
 static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 		int node, struct nvme_ns *old)
 {
-	struct nvme_ns *ns, *found, *fallback = NULL;
+	struct nvme_ns *ns, *found = NULL;
 
 	if (list_is_singular(&head->list)) {
 		if (nvme_path_is_disabled(old))
@@ -252,7 +252,7 @@ static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 			goto out;
 		}
 		if (ns->ana_state == NVME_ANA_NONOPTIMIZED)
-			fallback = ns;
+			found = ns;
 	}
 
 	/*
@@ -263,12 +263,11 @@ static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 	 */
 	if (!nvme_path_is_disabled(old) &&
 	    (old->ana_state == NVME_ANA_OPTIMIZED ||
-	     (!fallback && old->ana_state == NVME_ANA_NONOPTIMIZED)))
+	     (!found && old->ana_state == NVME_ANA_NONOPTIMIZED)))
 		return old;
 
-	if (!fallback)
+	if (!found)
 		return NULL;
-	found = fallback;
 out:
 	rcu_assign_pointer(head->current_path[node], found);
 	return found;
