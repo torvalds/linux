@@ -29,6 +29,15 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int audit_info)
 {
+	integrity_audit_message(audit_msgno, inode, fname, op, cause,
+				result, audit_info, 0);
+}
+
+void integrity_audit_message(int audit_msgno, struct inode *inode,
+			     const unsigned char *fname, const char *op,
+			     const char *cause, int result, int audit_info,
+			     int errno)
+{
 	struct audit_buffer *ab;
 	char name[TASK_COMM_LEN];
 
@@ -53,6 +62,6 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 		audit_log_untrustedstring(ab, inode->i_sb->s_id);
 		audit_log_format(ab, " ino=%lu", inode->i_ino);
 	}
-	audit_log_format(ab, " res=%d", !result);
+	audit_log_format(ab, " res=%d errno=%d", !result, errno);
 	audit_log_end(ab);
 }
