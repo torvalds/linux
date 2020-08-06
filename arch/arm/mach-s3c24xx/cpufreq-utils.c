@@ -60,3 +60,35 @@ void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg)
 	if (!IS_ERR(cfg->mpll))
 		clk_set_rate(cfg->mpll, cfg->pll.frequency);
 }
+
+#if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
+u32 s3c2440_read_camdivn(void)
+{
+	return __raw_readl(S3C2440_CAMDIVN);
+}
+
+void s3c2440_write_camdivn(u32 camdiv)
+{
+	__raw_writel(camdiv, S3C2440_CAMDIVN);
+}
+#endif
+
+u32 s3c24xx_read_clkdivn(void)
+{
+	return __raw_readl(S3C2410_CLKDIVN);
+}
+
+void s3c24xx_write_clkdivn(u32 clkdiv)
+{
+	__raw_writel(clkdiv, S3C2410_CLKDIVN);
+}
+
+u32 s3c24xx_read_mpllcon(void)
+{
+	return __raw_readl(S3C2410_MPLLCON);
+}
+
+void s3c24xx_write_locktime(u32 locktime)
+{
+	return __raw_writel(locktime, S3C2410_LOCKTIME);
+}

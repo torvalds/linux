@@ -196,7 +196,6 @@ config ARM_S3C24XX_CPUFREQ_DEBUGFS
 config ARM_S3C2410_CPUFREQ
 	bool
 	depends on ARM_S3C24XX_CPUFREQ && CPU_S3C2410
-	select S3C2410_CPUFREQ_UTILS
 	help
 	  CPU Frequency scaling support for S3C2410
 
@@ -233,7 +232,6 @@ config ARM_S3C2416_CPUFREQ_VCORESCALE
 config ARM_S3C2440_CPUFREQ
 	bool "S3C2440/S3C2442 CPU Frequency scaling support"
 	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2440 || CPU_S3C2442)
-	select S3C2410_CPUFREQ_UTILS
 	default y
 	help
 	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.

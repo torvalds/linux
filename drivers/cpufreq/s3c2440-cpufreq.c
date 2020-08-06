@@ -26,12 +26,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/map.h>
-
-#define S3C2410_CLKREG(x) ((x) + S3C24XX_VA_CLKPWR)
-#define S3C2410_CLKDIVN	    S3C2410_CLKREG(0x14)
-#define S3C2440_CAMDIVN	    S3C2410_CLKREG(0x18)
-
 #define S3C2440_CLKDIVN_PDIVN	     (1<<0)
 #define S3C2440_CLKDIVN_HDIVN_MASK   (3<<1)
 #define S3C2440_CLKDIVN_HDIVN_1      (0<<1)
@@ -162,8 +156,8 @@ static void s3c2440_cpufreq_setdivs(struct s3c_cpufreq_config *cfg)
 	s3c_freq_dbg("%s: divisors: h=%d, p=%d\n", __func__,
 		     cfg->divs.h_divisor, cfg->divs.p_divisor);
 
-	clkdiv = __raw_readl(S3C2410_CLKDIVN);
-	camdiv = __raw_readl(S3C2440_CAMDIVN);
+	clkdiv = s3c24xx_read_clkdivn();
+	camdiv = s3c2440_read_camdivn();
 
 	clkdiv &= ~(S3C2440_CLKDIVN_HDIVN_MASK | S3C2440_CLKDIVN_PDIVN);
 	camdiv &= ~CAMDIVN_HCLK_HALF;
@@ -203,11 +197,11 @@ static void s3c2440_cpufreq_setdivs(struct s3c_cpufreq_config *cfg)
 	 * then make a short delay and remove the hclk halving if necessary.
 	 */
 
-	__raw_writel(camdiv | CAMDIVN_HCLK_HALF, S3C2440_CAMDIVN);
-	__raw_writel(clkdiv, S3C2410_CLKDIVN);
+	s3c2440_write_camdivn(camdiv | CAMDIVN_HCLK_HALF);
+	s3c24xx_write_clkdivn(clkdiv);
 
 	ndelay(20);
-	__raw_writel(camdiv, S3C2440_CAMDIVN);
+	s3c2440_write_camdivn(camdiv);
 
 	clk_set_parent(armclk, cfg->divs.dvs ? hclk : fclk);
 }
