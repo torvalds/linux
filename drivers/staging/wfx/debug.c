@@ -267,7 +267,7 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	if (count < sizeof(struct hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() chekc that reply buffer is wide enough, but do not
+	// wfx_cmd_send() checks that reply buffer is wide enough, but does not
 	// return precise length read. User have to know how many bytes should
 	// be read. Filling reply buffer with a memory pattern may help user.
 	memset(context->reply, 0xFF, sizeof(context->reply));
@@ -299,8 +299,8 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return ret;
 	if (context->ret < 0)
 		return context->ret;
-	// Be carefull, write() is waiting for a full message while read()
-	// only return a payload
+	// Be careful, write() is waiting for a full message while read()
+	// only returns a payload
 	if (copy_to_user(user_buf, context->reply, count))
 		return -EFAULT;
 

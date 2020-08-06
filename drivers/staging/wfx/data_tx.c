@@ -234,7 +234,7 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 	int i;
 	bool finished;
 
-	// Firmware is not able to mix rates with differents flags
+	// Firmware is not able to mix rates with different flags
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		if (rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 			rates[i].flags |= IEEE80211_TX_RC_SHORT_GI;

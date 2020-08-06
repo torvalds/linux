@@ -214,7 +214,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
 	    wvif->vif->type != NL80211_IFTYPE_AP) {
 		// It is necessary to enable powersave if channels
-		// are differents.
+		// are different.
 		if (enable_ps)
 			*enable_ps = true;
 		if (wvif->wdev->force_ps_timeout > -1)
