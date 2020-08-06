@@ -79,5 +79,13 @@ int smu_cmn_write_watermarks_table(struct smu_context *smu);
 
 int smu_cmn_write_pptable(struct smu_context *smu);
 
+int smu_cmn_get_metrics_table_locked(struct smu_context *smu,
+				     void *metrics_table,
+				     bool bypass_cache);
+
+int smu_cmn_get_metrics_table(struct smu_context *smu,
+			      void *metrics_table,
+			      bool bypass_cache);
+
 #endif
 #endif

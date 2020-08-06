@@ -631,3 +631,48 @@ int smu_cmn_write_pptable(struct smu_context *smu)
 				    pptable,
 				    true);
 }
+
+int smu_cmn_get_metrics_table_locked(struct smu_context *smu,
+				     void *metrics_table,
+				     bool bypass_cache)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	uint32_t table_size =
+		smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	int ret = 0;
+
+	if (bypass_cache ||
+	    !smu_table->metrics_time ||
+	    time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
+		ret = smu_cmn_update_table(smu,
+				       SMU_TABLE_SMU_METRICS,
+				       0,
+				       smu_table->metrics_table,
+				       false);
+		if (ret) {
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	if (metrics_table)
+		memcpy(metrics_table, smu_table->metrics_table, table_size);
+
+	return 0;
+}
+
+int smu_cmn_get_metrics_table(struct smu_context *smu,
+			      void *metrics_table,
+			      bool bypass_cache)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->metrics_lock);
+	ret = smu_cmn_get_metrics_table_locked(smu,
+					       metrics_table,
+					       bypass_cache);
+	mutex_unlock(&smu->metrics_lock);
+
+	return ret;
+}

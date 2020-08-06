@@ -541,49 +541,6 @@ static int arcturus_freqs_in_same_level(int32_t frequency1,
 	return (abs(frequency1 - frequency2) <= EPSILON);
 }
 
-static int arcturus_get_metrics_table_locked(struct smu_context *smu,
-					     SmuMetrics_t *metrics_table,
-					     bool bypass_cache)
-{
-	struct smu_table_context *smu_table= &smu->smu_table;
-	int ret = 0;
-
-	if (bypass_cache ||
-	    !smu_table->metrics_time ||
-	    time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_cmn_update_table(smu,
-				       SMU_TABLE_SMU_METRICS,
-				       0,
-				       smu_table->metrics_table,
-				       false);
-		if (ret) {
-			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
-			return ret;
-		}
-		smu_table->metrics_time = jiffies;
-	}
-
-	if (metrics_table)
-		memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
-
-	return 0;
-}
-
-static int arcturus_get_metrics_table(struct smu_context *smu,
-				      SmuMetrics_t *metrics_table,
-				      bool bypass_cache)
-{
-	int ret = 0;
-
-	mutex_lock(&smu->metrics_lock);
-	ret = arcturus_get_metrics_table_locked(smu,
-						metrics_table,
-						bypass_cache);
-	mutex_unlock(&smu->metrics_lock);
-
-	return ret;
-}
-
 static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 					 MetricsMember_t member,
 					 uint32_t *value)
@@ -594,9 +551,9 @@ static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 
 	mutex_lock(&smu->metrics_lock);
 
-	ret = arcturus_get_metrics_table_locked(smu,
-						NULL,
-						false);
+	ret = smu_cmn_get_metrics_table_locked(smu,
+					       NULL,
+					       false);
 	if (ret) {
 		mutex_unlock(&smu->metrics_lock);
 		return ret;
@@ -2305,9 +2262,9 @@ static ssize_t arcturus_get_gpu_metrics(struct smu_context *smu,
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	ret = arcturus_get_metrics_table(smu,
-					 &metrics,
-					 true);
+	ret = smu_cmn_get_metrics_table(smu,
+					&metrics,
+					true);
 	if (ret)
 		return ret;
 

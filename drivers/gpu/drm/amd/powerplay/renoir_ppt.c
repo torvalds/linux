@@ -128,36 +128,6 @@ static struct cmn2asic_mapping renoir_workload_map[PP_SMC_POWER_PROFILE_COUNT] =
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
-static int renoir_get_metrics_table(struct smu_context *smu,
-				    SmuMetrics_t *metrics_table,
-				    bool bypass_cache)
-{
-	struct smu_table_context *smu_table= &smu->smu_table;
-	int ret = 0;
-
-	mutex_lock(&smu->metrics_lock);
-
-	if (bypass_cache ||
-	    !smu_table->metrics_time ||
-	    time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_cmn_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
-				(void *)smu_table->metrics_table, false);
-		if (ret) {
-			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
-			mutex_unlock(&smu->metrics_lock);
-			return ret;
-		}
-		smu_table->metrics_time = jiffies;
-	}
-
-	if (metrics_table)
-		memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
-
-	mutex_unlock(&smu->metrics_lock);
-
-	return ret;
-}
-
 static int renoir_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -381,7 +351,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 
 	memset(&metrics, 0, sizeof(metrics));
 
-	ret = renoir_get_metrics_table(smu, &metrics, false);
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
 
@@ -527,7 +497,7 @@ static int renoir_get_current_clk_freq_by_table(struct smu_context *smu,
 	int ret = 0, clk_id = 0;
 	SmuMetrics_t metrics;
 
-	ret = renoir_get_metrics_table(smu, &metrics, false);
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
 
@@ -610,7 +580,7 @@ static int renoir_get_gpu_temperature(struct smu_context *smu, uint32_t *value)
 	if (!value)
 		return -EINVAL;
 
-	ret = renoir_get_metrics_table(smu, &metrics, false);
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
 
@@ -630,7 +600,7 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	ret = renoir_get_metrics_table(smu, &metrics, false);
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
 
@@ -1016,7 +986,7 @@ static ssize_t renoir_get_gpu_metrics(struct smu_context *smu,
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	ret = renoir_get_metrics_table(smu, &metrics, true);
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
 	if (ret)
 		return ret;
 
