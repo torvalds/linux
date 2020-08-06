@@ -5,7 +5,6 @@
  *  VMA_VM_FLAGS
  *  VM_EXEC
  */
-#include <linux/const.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
@@ -31,8 +30,7 @@
  * act_mm - get current->active_mm
  */
 	.macro	act_mm, rd
-	bic	\rd, sp, #(THREAD_SIZE - 1) & ~63
-	bic	\rd, \rd, #63
+	get_thread_info \rd
 	ldr	\rd, [\rd, #TI_TASK]
 	.if (TSK_ACTIVE_MM > IMM12_MASK)
 	add	\rd, \rd, #TSK_ACTIVE_MM & ~IMM12_MASK
