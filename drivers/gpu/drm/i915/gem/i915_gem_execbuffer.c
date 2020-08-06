@@ -2289,6 +2289,7 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 
 		if (err && !(user_fence.flags & I915_EXEC_FENCE_SIGNAL)) {
 			DRM_DEBUG("Syncobj handle missing requested point %llu\n", point);
+			dma_fence_put(fence);
 			drm_syncobj_put(syncobj);
 			return err;
 		}
