@@ -127,7 +127,7 @@ struct rkisp1_buffer {
 	struct list_head queue;
 	union {
 		u32 buff_addr[VIDEO_MAX_PLANES];
-		void *vaddr[VIDEO_MAX_PLANES];
+		void *vaddr;
 	};
 };
 

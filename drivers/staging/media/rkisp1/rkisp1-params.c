@@ -1209,7 +1209,7 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1, u32 isp_mis)
 	if (!cur_buf)
 		return;
 
-	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr[0]);
+	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr);
 
 	if (isp_mis & RKISP1_CIF_ISP_FRAME) {
 		u32 isp_ctrl;
@@ -1457,7 +1457,7 @@ static void rkisp1_params_vb2_buf_queue(struct vb2_buffer *vb)
 		return;
 	}
 
-	params_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
+	params_buf->vaddr = vb2_plane_vaddr(vb, 0);
 	spin_lock_irqsave(&params->config_lock, flags);
 	list_add_tail(&params_buf->queue, &params->params);
 	spin_unlock_irqrestore(&params->config_lock, flags);
