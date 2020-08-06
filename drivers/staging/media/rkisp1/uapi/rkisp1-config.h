@@ -113,7 +113,7 @@
  */
 #define RKISP1_CIF_ISP_STAT_AWB           BIT(0)
 #define RKISP1_CIF_ISP_STAT_AUTOEXP       BIT(1)
-#define RKISP1_CIF_ISP_STAT_AFM_FIN       BIT(2)
+#define RKISP1_CIF_ISP_STAT_AFM           BIT(2)
 #define RKISP1_CIF_ISP_STAT_HIST          BIT(3)
 
 enum rkisp1_cif_isp_histogram_mode {
