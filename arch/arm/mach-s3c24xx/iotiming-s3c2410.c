@@ -17,7 +17,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 
-#include <plat/cpu-freq-core.h>
+#include <linux/soc/samsung/s3c-cpufreq-core.h>
 
 #include "regs-mem.h"
 

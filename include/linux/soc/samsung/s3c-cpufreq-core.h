@@ -6,8 +6,10 @@
  *
  * S3C CPU frequency scaling support - core support
  */
+#ifndef __LINUX_SOC_SAMSUNG_S3C_CPUFREQ_CORE_H
+#define __LINUX_SOC_SAMSUNG_S3C_CPUFREQ_CORE_H
 
-#include <plat/cpu-freq.h>
+#include <linux/soc/samsung/s3c-cpu-freq.h>
 
 struct seq_file;
 
@@ -285,3 +287,5 @@ static inline int s3c_cpufreq_addfreq(struct cpufreq_frequency_table *table,
 
 	return index + 1;
 }
+
+#endif

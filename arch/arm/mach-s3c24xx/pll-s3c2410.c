@@ -15,8 +15,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <plat/cpu.h>
-#include <plat/cpu-freq-core.h>
+#include <linux/soc/samsung/s3c-cpufreq-core.h>
+#include <linux/soc/samsung/s3c-pm.h>
 
 /* This array should be sorted in ascending order of the frequencies */
 static struct cpufreq_frequency_table pll_vals_12MHz[] = {

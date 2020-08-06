@@ -123,15 +123,6 @@ extern struct syscore_ops s3c2412_pm_syscore_ops;
 extern struct syscore_ops s3c2416_pm_syscore_ops;
 extern struct syscore_ops s3c244x_pm_syscore_ops;
 
-/* system device subsystems */
-
-extern struct bus_type s3c2410_subsys;
-extern struct bus_type s3c2410a_subsys;
-extern struct bus_type s3c2412_subsys;
-extern struct bus_type s3c2416_subsys;
-extern struct bus_type s3c2440_subsys;
-extern struct bus_type s3c2442_subsys;
-extern struct bus_type s3c2443_subsys;
 extern struct bus_type s3c6410_subsys;
 
 #endif

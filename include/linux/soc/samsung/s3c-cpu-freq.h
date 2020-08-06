@@ -6,6 +6,8 @@
  *
  * S3C CPU frequency scaling support - driver and board
  */
+#ifndef __LINUX_SOC_SAMSUNG_S3C_CPU_FREQ_H
+#define __LINUX_SOC_SAMSUNG_S3C_CPU_FREQ_H
 
 #include <linux/cpufreq.h>
 
@@ -139,3 +141,5 @@ static inline int s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	return 0;
 }
 #endif  /* CONFIG_ARM_S3C_CPUFREQ */
+
+#endif

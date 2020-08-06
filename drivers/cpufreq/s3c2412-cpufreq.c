@@ -19,14 +19,13 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/soc/samsung/s3c-cpufreq-core.h>
+#include <linux/soc/samsung/s3c-pm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <mach/s3c2412.h>
-
-#include <plat/cpu.h>
-#include <plat/cpu-freq-core.h>
 
 #include <mach/map.h>
 

@@ -24,7 +24,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/cpu.h>
-#include <plat/cpu-freq-core.h>
+#include <linux/soc/samsung/s3c-cpufreq-core.h>
 
 #include <mach/s3c2412.h>
 

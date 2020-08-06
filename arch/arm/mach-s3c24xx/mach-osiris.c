@@ -37,7 +37,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <plat/cpu.h>
-#include <plat/cpu-freq.h>
+#include <linux/soc/samsung/s3c-cpu-freq.h>
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
 

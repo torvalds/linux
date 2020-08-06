@@ -81,4 +81,14 @@ extern void s3c_pm_check_store(void);
 #define s3c_pm_check_store()   do { } while (0)
 #endif
 
+/* system device subsystems */
+
+extern struct bus_type s3c2410_subsys;
+extern struct bus_type s3c2410a_subsys;
+extern struct bus_type s3c2412_subsys;
+extern struct bus_type s3c2416_subsys;
+extern struct bus_type s3c2440_subsys;
+extern struct bus_type s3c2442_subsys;
+extern struct bus_type s3c2443_subsys;
+
 #endif

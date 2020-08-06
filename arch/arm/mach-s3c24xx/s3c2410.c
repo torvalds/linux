@@ -30,7 +30,6 @@
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
-#include <plat/cpu-freq.h>
 
 #include <mach/regs-clock.h>
 

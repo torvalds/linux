@@ -34,7 +34,6 @@
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
-#include <plat/cpu-freq.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 

@@ -37,7 +37,6 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/cpu-freq.h>
 #include <plat/pwm-core.h>
 
 #include "common.h"
