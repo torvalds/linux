@@ -541,6 +541,8 @@
 				mode = "peripheral";
 				usb-role-switch;
 
+				vbus-supply = <&vdd_5v0_usb>;
+
 				connector {
 					compatible = "gpio-usb-b-connector",
 						     "usb-b-connector";
@@ -842,5 +844,15 @@
 		enable-active-high;
 
 		vin-supply = <&avdd_1v05_pll>;
+	};
+
+	vdd_5v0_usb: regulator@8 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_5V_USB";
+		regulator-min-microvolt = <50000000>;
+		regulator-max-microvolt = <50000000>;
+
+		vin-supply = <&vdd_5v0_sys>;
 	};
 };
