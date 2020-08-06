@@ -278,6 +278,10 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 		if (ret)
 			drm_connector_update_edid_property(connector,
 								edid);
+	} else {
+		ret = rockchip_drm_add_modes_noedid(connector);
+
+		dev_info(dp->dev, "failed to get edid\n");
 	}
 	mutex_unlock(&dp->lock);
 
