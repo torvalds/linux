@@ -45,6 +45,7 @@ struct	es8311_priv {
 	int adc_volume;
 	int dac_volume;
 	int aec_mode;
+	int delay_pa_drv_ms;
 };
 
 static const DECLARE_TLV_DB_SCALE(vdac_tlv,
@@ -280,9 +281,9 @@ static int es8311_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	u8 adciface = 0;
 	u8 daciface = 0;
 
-	iface    = snd_soc_component_read32(component, ES8311_RESET_REG00);
-	adciface = snd_soc_component_read32(component, ES8311_SDPOUT_REG0A);
-	daciface = snd_soc_component_read32(component, ES8311_SDPIN_REG09);
+	iface    = snd_soc_component_read(component, ES8311_RESET_REG00);
+	adciface = snd_soc_component_read(component, ES8311_SDPOUT_REG0A);
+	daciface = snd_soc_component_read(component, ES8311_SDPIN_REG09);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -326,7 +327,7 @@ static int es8311_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	iface = snd_soc_component_read32(component, ES8311_CLK_MANAGER_REG06);
+	iface = snd_soc_component_read(component, ES8311_CLK_MANAGER_REG06);
 	/* clock inversion */
 	if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S) ||
 	    ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_LEFT_J)) {
@@ -392,7 +393,7 @@ static int es8311_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 iface;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		iface = snd_soc_component_read32(component, ES8311_SDPIN_REG09) & 0xE3;
+		iface = snd_soc_component_read(component, ES8311_SDPIN_REG09) & 0xE3;
 		/* bit size */
 		switch (params_format(params)) {
 		case SNDRV_PCM_FORMAT_S16_LE:
@@ -410,7 +411,7 @@ static int es8311_pcm_hw_params(struct snd_pcm_substream *substream,
 		/* set iface */
 		snd_soc_component_write(component, ES8311_SDPIN_REG09, iface);
 	} else {
-		iface = snd_soc_component_read32(component, ES8311_SDPOUT_REG0A) & 0xE3;
+		iface = snd_soc_component_read(component, ES8311_SDPOUT_REG0A) & 0xE3;
 		/* bit size */
 		switch (params_format(params)) {
 		case SNDRV_PCM_FORMAT_S16_LE:
@@ -476,7 +477,7 @@ static int es8311_set_tristate(struct snd_soc_dai *dai, int tristate)
 	return 0;
 }
 
-static int es8311_mute(struct snd_soc_dai *dai, int mute)
+static int es8311_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8311_priv *es8311 = snd_soc_component_get_drvdata(component);
@@ -489,8 +490,11 @@ static int es8311_mute(struct snd_soc_dai *dai, int mute)
 	} else {
 		snd_soc_component_update_bits(component, ES8311_DAC_REG31, 0x60, 0x00);
 		snd_soc_component_write(component, ES8311_SYSTEM_REG12, 0x00);
-		if (es8311->spk_ctl_gpio)
+		if (es8311->spk_ctl_gpio) {
 			gpiod_direction_output(es8311->spk_ctl_gpio, 1);
+			if (es8311->delay_pa_drv_ms)
+				msleep(es8311->delay_pa_drv_ms);
+		}
 	}
 	return 0;
 }
@@ -504,8 +508,9 @@ static struct snd_soc_dai_ops es8311_ops = {
 	.shutdown = es8311_pcm_shutdown,
 	.hw_params = es8311_pcm_hw_params,
 	.set_fmt = es8311_set_dai_fmt,
-	.digital_mute = es8311_mute,
+	.mute_stream = es8311_mute,
 	.set_tristate = es8311_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8311_dai = {
@@ -615,10 +620,30 @@ static int es8311_parse_dt(struct i2c_client *client,
 	struct device_node *np;
 	const char *str;
 	u32 v;
+	int ret;
 
 	np = client->dev.of_node;
 	if (!np)
 		return -EINVAL;
+
+	es8311->delay_pa_drv_ms = 0;
+	es8311->spk_ctl_gpio = devm_gpiod_get_optional(&client->dev, "spk-ctl",
+			       GPIOD_OUT_LOW);
+	if (!es8311->spk_ctl_gpio) {
+		dev_info(&client->dev, "Don't need spk-ctl gpio\n");
+	} else if (IS_ERR(es8311->spk_ctl_gpio)) {
+		ret = PTR_ERR(es8311->spk_ctl_gpio);
+		dev_err(&client->dev, "Unable to claim gpio spk-ctl\n");
+		return ret;
+	}
+	ret = of_property_read_s32(np, "delay-pa-drv-ms",
+				   &es8311->delay_pa_drv_ms);
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&client->dev,
+			"Failed to read 'rockchip,delay-pa-drv-ms': %d\n",
+			ret);
+		return ret;
+	}
 
 	es8311->adc_pga_gain = 0; /* ADC PGA Gain is 0dB by default reset. */
 	if (!of_property_read_u32(np, "adc-pga-gain", &v)) {
@@ -683,16 +708,6 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client,
 	es8311->mclk_in = devm_clk_get(&i2c_client->dev, "mclk");
 	if (IS_ERR(es8311->mclk_in))
 		return PTR_ERR(es8311->mclk_in);
-
-	es8311->spk_ctl_gpio = devm_gpiod_get_optional(&i2c_client->dev, "spk-ctl",
-			       GPIOD_OUT_LOW);
-	if (!es8311->spk_ctl_gpio) {
-		dev_info(&i2c_client->dev, "Don't need spk-ctl gpio\n");
-	} else if (IS_ERR(es8311->spk_ctl_gpio)) {
-		ret = PTR_ERR(es8311->spk_ctl_gpio);
-		dev_err(&i2c_client->dev, "Unable to claim gpio spk-ctl\n");
-		return ret;
-	}
 
 	ret = es8311_parse_dt(i2c_client, es8311);
 	if (ret < 0) {
