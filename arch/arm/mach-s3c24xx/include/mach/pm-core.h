@@ -77,11 +77,6 @@ static inline void s3c_pm_arch_show_resume_irqs(void)
 				s3c_irqwake_eintmask);
 }
 
-static inline void s3c_pm_arch_update_uart(void __iomem *regs,
-					   struct pm_uart_save *save)
-{
-}
-
 static inline void s3c_pm_restored_gpios(void) { }
 static inline void samsung_pm_saved_gpios(void) { }
 

@@ -305,6 +305,56 @@ static void s3c64xx_pm_prepare(void)
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);
 }
 
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
+void s3c_pm_arch_update_uart(void __iomem *regs, struct pm_uart_save *save)
+{
+	u32 ucon;
+	u32 ucon_clk
+	u32 save_clk;
+	u32 new_ucon;
+	u32 delta;
+
+	if (!soc_is_s3c64xx())
+		return;
+
+	ucon = __raw_readl(regs + S3C2410_UCON);
+	ucon_clk = ucon & S3C6400_UCON_CLKMASK;
+	sav_clk = save->ucon & S3C6400_UCON_CLKMASK;
+
+	/* S3C64XX UART blocks only support level interrupts, so ensure that
+	 * when we restore unused UART blocks we force the level interrupt
+	 * settigs. */
+	save->ucon |= S3C2410_UCON_TXILEVEL | S3C2410_UCON_RXILEVEL;
+
+	/* We have a constraint on changing the clock type of the UART
+	 * between UCLKx and PCLK, so ensure that when we restore UCON
+	 * that the CLK field is correctly modified if the bootloader
+	 * has changed anything.
+	 */
+	if (ucon_clk != save_clk) {
+		new_ucon = save->ucon;
+		delta = ucon_clk ^ save_clk;
+
+		/* change from UCLKx => wrong PCLK,
+		 * either UCLK can be tested for by a bit-test
+		 * with UCLK0 */
+		if (ucon_clk & S3C6400_UCON_UCLK0 &&
+		    !(save_clk & S3C6400_UCON_UCLK0) &&
+		    delta & S3C6400_UCON_PCLK2) {
+			new_ucon &= ~S3C6400_UCON_UCLK0;
+		} else if (delta == S3C6400_UCON_PCLK2) {
+			/* as an precaution, don't change from
+			 * PCLK2 => PCLK or vice-versa */
+			new_ucon ^= S3C6400_UCON_PCLK2;
+		}
+
+		S3C_PMDBG("ucon change %04x => %04x (save=%04x)\n",
+			  ucon, new_ucon, save->ucon);
+		save->ucon = new_ucon;
+	}
+}
+#endif
+
 int __init s3c64xx_pm_init(void)
 {
 	int i;

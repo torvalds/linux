@@ -71,13 +71,24 @@ extern void s3c_pm_dbg(const char *msg, ...);
 
 #define S3C_PMDBG(fmt...) s3c_pm_dbg(fmt)
 
-extern void s3c_pm_save_uarts(void);
-extern void s3c_pm_restore_uarts(void);
+extern void s3c_pm_save_uarts(bool is_s3c24xx);
+extern void s3c_pm_restore_uarts(bool is_s3c24xx);
+
+#ifdef CONFIG_ARCH_S3C64XX
+extern void s3c_pm_arch_update_uart(void __iomem *regs,
+				    struct pm_uart_save *save);
+#else
+static inline void
+s3c_pm_arch_update_uart(void __iomem *regs, struct pm_uart_save *save)
+{
+}
+#endif
+
 #else
 #define S3C_PMDBG(fmt...) pr_debug(fmt)
 
-static inline void s3c_pm_save_uarts(void) { }
-static inline void s3c_pm_restore_uarts(void) { }
+static inline void s3c_pm_save_uarts(bool is_s3c24xx) { }
+static inline void s3c_pm_restore_uarts(bool is_s3c24xx) { }
 #endif
 
 /* suspend memory checking */

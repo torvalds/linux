@@ -111,7 +111,7 @@ static int s5pv210_suspend_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
-	s3c_pm_save_uarts();
+	s3c_pm_save_uarts(false);
 	s5pv210_pm_prepare();
 	flush_cache_all();
 	s3c_pm_check_store();
@@ -120,7 +120,7 @@ static int s5pv210_suspend_enter(suspend_state_t state)
 	if (ret)
 		return ret;
 
-	s3c_pm_restore_uarts();
+	s3c_pm_restore_uarts(false);
 
 	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
 			__raw_readl(S5P_WAKEUP_STAT));
