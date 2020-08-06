@@ -867,11 +867,11 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 
 		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9064 BLKGRD: %s: Too many sg segments from "
-			       "dma_map_sg.  Config %d, seg_cnt %d\n",
-			       __func__, phba->cfg_sg_seg_cnt,
-			       lpfc_cmd->seg_cnt);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"9064 BLKGRD: %s: Too many sg segments"
+					" from dma_map_sg.  Config %d, seg_cnt"
+					" %d\n", __func__, phba->cfg_sg_seg_cnt,
+					lpfc_cmd->seg_cnt);
 			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
@@ -1061,7 +1061,8 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 					 * inserted in middle of the IO.
 					 */
 
-					lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					lpfc_printf_log(phba, KERN_ERR,
+							LOG_TRACE_EVENT,
 					"9076 BLKGRD: Injecting reftag error: "
 					"write lba x%lx + x%x oldrefTag x%x\n",
 					(unsigned long)lba, blockoff,
@@ -1111,7 +1112,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_TGT | BG_ERR_CHECK;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9078 BLKGRD: Injecting reftag error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1132,7 +1133,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_INIT;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9077 BLKGRD: Injecting reftag error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1159,7 +1160,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_INIT;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9079 BLKGRD: Injecting reftag error: "
 					"read lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1181,7 +1182,8 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 					 * inserted in middle of the IO.
 					 */
 
-					lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					lpfc_printf_log(phba, KERN_ERR,
+							LOG_TRACE_EVENT,
 					"9080 BLKGRD: Injecting apptag error: "
 					"write lba x%lx + x%x oldappTag x%x\n",
 					(unsigned long)lba, blockoff,
@@ -1230,7 +1232,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_TGT | BG_ERR_CHECK;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0813 BLKGRD: Injecting apptag error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1251,7 +1253,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_INIT;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0812 BLKGRD: Injecting apptag error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1278,7 +1280,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				}
 				rc = BG_ERR_INIT;
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0814 BLKGRD: Injecting apptag error: "
 					"read lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1313,7 +1315,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				rc |= BG_ERR_TGT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0817 BLKGRD: Injecting guard error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1335,7 +1337,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				rc = BG_ERR_INIT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0816 BLKGRD: Injecting guard error: "
 					"write lba x%lx\n", (unsigned long)lba);
 				break;
@@ -1363,7 +1365,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				rc = BG_ERR_INIT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
 
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0818 BLKGRD: Injecting guard error: "
 					"read lba x%lx\n", (unsigned long)lba);
 			}
@@ -1413,7 +1415,7 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		case SCSI_PROT_NORMAL:
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"9063 BLKGRD: Bad op/guard:%d/IP combination\n",
 					scsi_get_prot_op(sc));
 			ret = 1;
@@ -1442,7 +1444,7 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		case SCSI_PROT_NORMAL:
 		default:
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"9075 BLKGRD: Bad op/guard:%d/CRC combination\n",
 					scsi_get_prot_op(sc));
 			ret = 1;
@@ -1728,7 +1730,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	sgde = scsi_sglist(sc);
 
 	if (!sgpe || !sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"9020 Invalid s/g entry: data=x%px prot=x%px\n",
 				sgpe, sgde);
 		return 0;
@@ -1840,7 +1842,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				return num_bde + 1;
 
 			if (!sgde) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9065 BLKGRD:%s Invalid data segment\n",
 						__func__);
 				return 0;
@@ -1903,8 +1905,8 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			reftag += protgrp_blks;
 		} else {
 			/* if we're here, we have a bug */
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9054 BLKGRD: bug in %s\n", __func__);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"9054 BLKGRD: bug in %s\n", __func__);
 		}
 
 	} while (!alldone);
@@ -2154,7 +2156,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	sgde = scsi_sglist(sc);
 
 	if (!sgpe || !sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"9082 Invalid s/g entry: data=x%px prot=x%px\n",
 				sgpe, sgde);
 		return 0;
@@ -2307,7 +2309,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				return num_sge + 1;
 
 			if (!sgde) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9086 BLKGRD:%s Invalid data segment\n",
 						__func__);
 				return 0;
@@ -2412,8 +2414,8 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			reftag += protgrp_blks;
 		} else {
 			/* if we're here, we have a bug */
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9085 BLKGRD: bug in %s\n", __func__);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"9085 BLKGRD: bug in %s\n", __func__);
 		}
 
 	} while (!alldone);
@@ -2453,7 +2455,7 @@ lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 		break;
 	default:
 		if (phba)
-			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9021 Unsupported protection op:%d\n",
 					op);
 		break;
@@ -2617,7 +2619,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			scsi_dma_unmap(scsi_cmnd);
 			lpfc_cmd->seg_cnt = 0;
 
-			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9022 Unexpected protection group %i\n",
 					prot_group_type);
 			return 2;
@@ -2661,7 +2663,7 @@ err:
 			     scsi_prot_sg_count(scsi_cmnd),
 			     scsi_cmnd->sc_data_direction);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"9023 Cannot setup S/G List for HBA"
 			"IO segs %d/%d BPL %d SCSI %d: %d %d\n",
 			lpfc_cmd->seg_cnt, lpfc_cmd->prot_seg_cnt,
@@ -3085,11 +3087,12 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		lpfc_cmd->seg_cnt = nseg;
 		if (!phba->cfg_xpsgl &&
 		    lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9074 BLKGRD:"
-				" %s: Too many sg segments from "
-				"dma_map_sg.  Config %d, seg_cnt %d\n",
-				__func__, phba->cfg_sg_seg_cnt,
-			       lpfc_cmd->seg_cnt);
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"9074 BLKGRD:"
+					" %s: Too many sg segments from "
+					"dma_map_sg.  Config %d, seg_cnt %d\n",
+					__func__, phba->cfg_sg_seg_cnt,
+					lpfc_cmd->seg_cnt);
 			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
@@ -3366,7 +3369,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			scsi_dma_unmap(scsi_cmnd);
 			lpfc_cmd->seg_cnt = 0;
 
-			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"9083 Unexpected protection group %i\n",
 					prot_group_type);
 			return 2;
@@ -3422,7 +3425,7 @@ err:
 			     scsi_prot_sg_count(scsi_cmnd),
 			     scsi_cmnd->sc_data_direction);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"9084 Cannot setup S/G List for HBA"
 			"IO segs %d/%d SGL %d SCSI %d: %d %d\n",
 			lpfc_cmd->seg_cnt, lpfc_cmd->prot_seg_cnt,
@@ -3632,17 +3635,17 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 	if (resp_info & RSP_LEN_VALID) {
 		rsplen = be32_to_cpu(fcprsp->rspRspLen);
 		if (rsplen != 0 && rsplen != 4 && rsplen != 8) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "2719 Invalid response length: "
-				 "tgt x%x lun x%llx cmnd x%x rsplen x%x\n",
-				 cmnd->device->id,
-				 cmnd->device->lun, cmnd->cmnd[0],
-				 rsplen);
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+					 "2719 Invalid response length: "
+					 "tgt x%x lun x%llx cmnd x%x rsplen "
+					 "x%x\n", cmnd->device->id,
+					 cmnd->device->lun, cmnd->cmnd[0],
+					 rsplen);
 			host_status = DID_ERROR;
 			goto out;
 		}
 		if (fcprsp->rspInfo3 != RSP_NO_FAILURE) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "2757 Protocol failure detected during "
 				 "processing of FCP I/O op: "
 				 "tgt x%x lun x%llx cmnd x%x rspInfo3 x%x\n",
@@ -3812,7 +3815,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	/* Sanity check on return of outstanding command */
 	cmd = lpfc_cmd->pCmd;
 	if (!cmd || !phba) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "2621 IO completion: Not an active IO\n");
 		spin_unlock(&lpfc_cmd->buf_lock);
 		return;
@@ -4277,7 +4280,7 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf_s4;
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"1418 Invalid HBA PCI-device group: 0x%x\n",
 				dev_grp);
 		return -ENODEV;
@@ -4324,7 +4327,7 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
  *      0,    successful
  */
 int
-lpfc_check_pci_resettable(const struct lpfc_hba *phba)
+lpfc_check_pci_resettable(struct lpfc_hba *phba)
 {
 	const struct pci_dev *pdev = phba->pcidev;
 	struct pci_dev *ptr = NULL;
@@ -4528,7 +4531,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if ((scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) &&
 		(!(phba->sli3_options & LPFC_SLI3_BG_ENABLED))) {
 
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"9058 BLKGRD: ERROR: rcvd protected cmd:%02x"
 				" op:%02x str=%s without registering for"
 				" BlockGuard - Rejecting command\n",
@@ -4887,7 +4890,7 @@ wait_for_cmpl:
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0748 abort handler timed out waiting "
 				 "for aborting I/O (xri:x%x) to complete: "
 				 "ret %#x, ID %d, LUN %llu\n",
@@ -5080,7 +5083,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct scsi_cmnd *cmnd,
 	    (iocbqrsp->iocb.ulpStatus != IOSTAT_SUCCESS)) {
 		if (status != IOCB_SUCCESS ||
 		    iocbqrsp->iocb.ulpStatus != IOSTAT_FCP_RSP_ERROR)
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "0727 TMF %s to TGT %d LUN %llu "
 					 "failed (%d, %d) iocb_flag x%x\n",
 					 lpfc_taskmgmt_name(task_mgmt_cmd),
@@ -5195,7 +5198,7 @@ lpfc_reset_flush_io_context(struct lpfc_vport *vport, uint16_t tgt_id,
 		cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
 	}
 	if (cnt) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"0724 I/O flush failure for context %s : cnt x%x\n",
 			((context == LPFC_CTX_LUN) ? "LUN" :
 			 ((context == LPFC_CTX_TGT) ? "TGT" :
@@ -5231,7 +5234,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata || !rdata->pnode) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0798 Device Reset rdata failure: rdata x%px\n",
 				 rdata);
 		return FAILED;
@@ -5243,7 +5246,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"0721 Device Reset rport failure: rdata x%px\n", rdata);
 		return FAILED;
 	}
@@ -5260,7 +5263,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	status = lpfc_send_taskmgmt(vport, cmnd, tgt_id, lun_id,
 						FCP_LUN_RESET);
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0713 SCSI layer issued Device Reset (%d, %llu) "
 			 "return x%x\n", tgt_id, lun_id, status);
 
@@ -5302,7 +5305,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata || !rdata->pnode) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0799 Target Reset rdata failure: rdata x%px\n",
 				 rdata);
 		return FAILED;
@@ -5314,7 +5317,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"0722 Target Reset rport failure: rdata x%px\n", rdata);
 		if (pnode) {
 			spin_lock_irq(shost->host_lock);
@@ -5339,7 +5342,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	status = lpfc_send_taskmgmt(vport, cmnd, tgt_id, lun_id,
 					FCP_TARGET_RESET);
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0723 SCSI layer issued Target Reset (%d, %llu) "
 			 "return x%x\n", tgt_id, lun_id, status);
 
@@ -5420,7 +5423,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 					i, 0, FCP_TARGET_RESET);
 
 		if (status != SUCCESS) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "0700 Bus Reset on target %d failed\n",
 					 i);
 			ret = FAILED;
@@ -5437,7 +5440,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	if (status != SUCCESS)
 		ret = FAILED;
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0714 SCSI layer issued Bus Reset Data: x%x\n", ret);
 	return ret;
 }
@@ -5466,7 +5469,7 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_hba *phba = vport->phba;
 	int rc, ret = SUCCESS;
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "3172 SCSI layer issued Host Reset Data:\n");
 
 	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
@@ -5483,7 +5486,7 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 
 	return ret;
 error:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "3323 Failed host reset\n");
 	lpfc_unblock_mgmt_io(phba);
 	return FAILED;
@@ -5594,7 +5597,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	}
 	num_allocated = lpfc_new_scsi_buf_s3(vport, num_to_alloc);
 	if (num_to_alloc != num_allocated) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "0708 Allocation request of %d "
 					 "command buffers did not succeed.  "
 					 "Allocated %d buffers.\n",

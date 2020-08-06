@@ -2404,33 +2404,27 @@ lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t shdr_status, shdr_add_status;
 	struct diag_status *diag_status_reply;
-	int mbxstatus, rc = 0;
+	int mbxstatus, rc = -ENODEV, rc1 = 0;
 
 	shost = fc_bsg_to_shost(job);
-	if (!shost) {
-		rc = -ENODEV;
+	if (!shost)
 		goto job_error;
-	}
-	vport = shost_priv(shost);
-	if (!vport) {
-		rc = -ENODEV;
-		goto job_error;
-	}
-	phba = vport->phba;
-	if (!phba) {
-		rc = -ENODEV;
-		goto job_error;
-	}
 
-	if (phba->sli_rev < LPFC_SLI_REV4) {
-		rc = -ENODEV;
+	vport = shost_priv(shost);
+	if (!vport)
 		goto job_error;
-	}
+
+	phba = vport->phba;
+	if (!phba)
+		goto job_error;
+
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		goto job_error;
+
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
-	    LPFC_SLI_INTF_IF_TYPE_2) {
-		rc = -ENODEV;
+	    LPFC_SLI_INTF_IF_TYPE_2)
 		goto job_error;
-	}
 
 	if (job->request_len < sizeof(struct fc_bsg_request) +
 	    sizeof(struct sli4_link_diag)) {
@@ -2465,8 +2459,10 @@ lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 				     LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE,
 				     req_len, LPFC_SLI4_MBX_EMBED);
-	if (alloc_len != req_len)
+	if (alloc_len != req_len) {
+		rc = -ENOMEM;
 		goto link_diag_test_exit;
+	}
 
 	run_link_diag_test = &pmboxq->u.mqe.un.link_diag_test;
 	bf_set(lpfc_mbx_run_diag_test_link_num, &run_link_diag_test->u.req,
@@ -2515,7 +2511,7 @@ lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 	diag_status_reply->shdr_add_status = shdr_add_status;
 
 link_diag_test_exit:
-	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 0);
+	rc1 = lpfc_sli4_bsg_set_link_diag_state(phba, 0);
 
 	if (pmboxq)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -2524,6 +2520,8 @@ link_diag_test_exit:
 
 job_error:
 	/* make error code available to userspace */
+	if (rc1 && !rc)
+		rc = rc1;
 	bsg_reply->result = rc;
 	/* complete the job back to userspace if no error */
 	if (rc == 0)
@@ -4306,6 +4304,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 			case COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES:
 			case COMN_OPCODE_GET_CNTL_ATTRIBUTES:
 			case COMN_OPCODE_GET_PROFILE_CONFIG:
+			case COMN_OPCODE_SET_FEATURES:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 						"3106 Handled SLI_CONFIG "
 						"subsys_comn, opcode:x%x\n",
