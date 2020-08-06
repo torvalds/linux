@@ -330,6 +330,27 @@
 		};
 	};
 
+	rkcif_dvp: rkcif_dvp {
+		compatible = "rockchip,rkcif-dvp";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_lite_mipi_lvds: rkcif_lite_mipi_lvds {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif_lite>;
+		iommus = <&rkcif_lite_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds: rkcif_mipi_lvds {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rv1126";
 		status = "disabled";
