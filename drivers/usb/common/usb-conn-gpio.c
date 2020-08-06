@@ -206,7 +206,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 
 	if (IS_ERR(info->vbus)) {
 		if (PTR_ERR(info->vbus) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vbus\n");
+			dev_err(dev, "failed to get vbus: %ld\n", PTR_ERR(info->vbus));
 		return PTR_ERR(info->vbus);
 	}
 
