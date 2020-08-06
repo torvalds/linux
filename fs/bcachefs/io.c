@@ -55,7 +55,9 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 		return false;
 
 	rcu_read_lock();
-	devs = bch2_target_to_mask(c, target);
+	devs = bch2_target_to_mask(c, target) ?:
+		&c->rw_devs[BCH_DATA_user];
+
 	for_each_set_bit(d, devs->d, BCH_SB_MEMBERS_MAX) {
 		ca = rcu_dereference(c->devs[d]);
 		if (!ca)
