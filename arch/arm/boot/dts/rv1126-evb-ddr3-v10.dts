@@ -8,7 +8,7 @@
 #include "rv11xx-evb-v10.dtsi"
 
 / {
-	model = "Rockchip RV1126 EVB DDR3 Board";
+	model = "Rockchip RV1126 EVB DDR3 V10 Board";
 	compatible = "rockchip,rv1126-evb-ddr3-v10", "rockchip,rv1126";
 
 	chosen {
