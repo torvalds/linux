@@ -47,7 +47,6 @@ struct amdgpu_vram_mgr {
 	spinlock_t lock;
 	atomic64_t usage;
 	atomic64_t vis_usage;
-	struct amdgpu_device *adev;
 };
 
 struct amdgpu_gtt_mgr {

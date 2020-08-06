@@ -33,6 +33,11 @@ static inline struct amdgpu_vram_mgr *to_vram_mgr(struct ttm_resource_manager *m
 	return container_of(man, struct amdgpu_vram_mgr, manager);
 }
 
+static inline struct amdgpu_device *to_amdgpu_device(struct amdgpu_vram_mgr *mgr)
+{
+	return container_of(mgr, struct amdgpu_device, mman.vram_mgr);
+}
+
 /**
  * DOC: mem_info_vram_total
  *
@@ -182,8 +187,6 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 	drm_mm_init(&mgr->mm, 0, man->size);
 	spin_lock_init(&mgr->lock);
 
-	mgr->adev = adev;
-
 	/* Add the two VRAM-related sysfs files */
 	ret = sysfs_create_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
 	if (ret)
@@ -311,7 +314,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			       struct ttm_resource *mem)
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
-	struct amdgpu_device *adev = mgr->adev;
+	struct amdgpu_device *adev = to_amdgpu_device(mgr);
 	struct drm_mm *mm = &mgr->mm;
 	struct drm_mm_node *nodes;
 	enum drm_mm_insert_mode mode;
@@ -429,7 +432,7 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
 				struct ttm_resource *mem)
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
-	struct amdgpu_device *adev = mgr->adev;
+	struct amdgpu_device *adev = to_amdgpu_device(mgr);
 	struct drm_mm_node *nodes = mem->mm_node;
 	uint64_t usage = 0, vis_usage = 0;
 	unsigned pages = mem->num_pages;
