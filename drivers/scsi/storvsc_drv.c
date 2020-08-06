@@ -462,6 +462,11 @@ struct storvsc_device {
 	 * Mask of CPUs bound to subchannels.
 	 */
 	struct cpumask alloced_cpus;
+	/*
+	 * Serializes modifications of stor_chns[] from storvsc_do_io()
+	 * and storvsc_change_target_cpu().
+	 */
+	spinlock_t lock;
 	/* Used for vsc/vsp channel reset process */
 	struct storvsc_cmd_request init_request;
 	struct storvsc_cmd_request reset_request;
@@ -639,7 +644,7 @@ static void storvsc_change_target_cpu(struct vmbus_channel *channel, u32 old,
 		return;
 
 	/* See storvsc_do_io() -> get_og_chn(). */
-	spin_lock_irqsave(&device->channel->lock, flags);
+	spin_lock_irqsave(&stor_device->lock, flags);
 
 	/*
 	 * Determines if the storvsc device has other channels assigned to
@@ -676,7 +681,7 @@ old_is_alloced:
 	WRITE_ONCE(stor_device->stor_chns[new], channel);
 	cpumask_set_cpu(new, &stor_device->alloced_cpus);
 
-	spin_unlock_irqrestore(&device->channel->lock, flags);
+	spin_unlock_irqrestore(&stor_device->lock, flags);
 }
 
 static void handle_sc_creation(struct vmbus_channel *new_sc)
@@ -1433,14 +1438,14 @@ static int storvsc_do_io(struct hv_device *device,
 			}
 		}
 	} else {
-		spin_lock_irqsave(&device->channel->lock, flags);
+		spin_lock_irqsave(&stor_device->lock, flags);
 		outgoing_channel = stor_device->stor_chns[q_num];
 		if (outgoing_channel != NULL) {
-			spin_unlock_irqrestore(&device->channel->lock, flags);
+			spin_unlock_irqrestore(&stor_device->lock, flags);
 			goto found_channel;
 		}
 		outgoing_channel = get_og_chn(stor_device, q_num);
-		spin_unlock_irqrestore(&device->channel->lock, flags);
+		spin_unlock_irqrestore(&stor_device->lock, flags);
 	}
 
 found_channel:
@@ -1881,6 +1886,7 @@ static int storvsc_probe(struct hv_device *device,
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
 	stor_device->host = host;
+	spin_lock_init(&stor_device->lock);
 	hv_set_drvdata(device, stor_device);
 
 	stor_device->port_number = host->host_no;
