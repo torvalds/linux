@@ -5,7 +5,7 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv11xx-evb-v10.dtsi"
+#include "rv1126-evb-v10.dtsi"
 
 / {
 	model = "Rockchip RV1126 EVB DDR3 V10 Board";

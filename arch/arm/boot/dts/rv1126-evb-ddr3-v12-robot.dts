@@ -4,8 +4,8 @@
  */
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv11xx-evb-v12.dtsi"
-#include "rv11xx-evb-v10-robot.dtsi"
+#include "rv1126-evb-v12.dtsi"
+#include "rv1126-evb-v10-robot.dtsi"
 
 / {
 	model = "Rockchip RV1126 EVB DDR3 Board For Robot";

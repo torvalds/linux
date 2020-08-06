@@ -5,7 +5,7 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv11xx-ai-cam.dtsi"
+#include "rv1126-ai-cam.dtsi"
 
 / {
 	model = "Rockchip RV1126 AI CAMERA DDR3L Board";

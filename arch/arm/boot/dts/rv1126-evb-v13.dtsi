@@ -3,7 +3,7 @@
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  */
 
-#include "rv11xx-evb-v12.dtsi"
+#include "rv1126-evb-v12.dtsi"
 
 &backlight {
 	pwms = <&pwm0 0 25000 0>;

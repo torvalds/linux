@@ -5,9 +5,9 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv11xx-evb-v13.dtsi"
-#include "rv11xx-thunder-boot-emmc.dtsi"
-#include "rv11xx-evb-thunder-boot.dtsi"
+#include "rv1126-evb-v13.dtsi"
+#include "rv1126-thunder-boot-emmc.dtsi"
+#include "rv1126-evb-thunder-boot.dtsi"
 
 / {
 	model = "Rockchip RV1126 EVB DDR3 V13 with eMMC (Thunder Boot)";

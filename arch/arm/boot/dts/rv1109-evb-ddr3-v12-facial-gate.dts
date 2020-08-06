@@ -4,7 +4,7 @@
  */
 /dts-v1/;
 #include "rv1109.dtsi"
-#include "rv11xx-evb-v12.dtsi"
+#include "rv1126-evb-v12.dtsi"
 / {
 	model = "Rockchip RV1109 V12 FACIAL GATE Board";
 	compatible = "rockchip,rv1109-evb-ddr3-v12-facial-gate", "rockchip,rv1109";

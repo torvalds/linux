@@ -5,7 +5,7 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv11xx-ipc.dtsi"
+#include "rv1126-ipc.dtsi"
 
 / {
 	model = "Rockchip RV1126 38x38 V10 SPI NOR DDR3 Board";
