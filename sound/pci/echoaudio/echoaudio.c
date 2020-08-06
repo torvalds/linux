@@ -2,6 +2,7 @@
 /*
  *  ALSA driver for Echoaudio soundcards.
  *  Copyright (C) 2003-2004 Giuliano Pochini <pochini@shiny.it>
+ *  Copyright (C) 2020 Mark Hills <mark@xwax.org>
  */
 
 #include <linux/module.h>
@@ -245,13 +246,20 @@ static int hw_rule_sample_rate(struct snd_pcm_hw_params *params,
 						      SNDRV_PCM_HW_PARAM_RATE);
 	struct echoaudio *chip = rule->private;
 	struct snd_interval fixed;
+	int err;
 
-	if (!chip->can_set_rate) {
+	mutex_lock(&chip->mode_mutex);
+
+	if (chip->can_set_rate) {
+		err = 0;
+	} else {
 		snd_interval_any(&fixed);
 		fixed.min = fixed.max = chip->sample_rate;
-		return snd_interval_refine(rate, &fixed);
+		err = snd_interval_refine(rate, &fixed);
 	}
-	return 0;
+
+	mutex_unlock(&chip->mode_mutex);
+	return err;
 }
 
 
@@ -322,13 +330,24 @@ static int pcm_open(struct snd_pcm_substream *substream,
 				       SNDRV_PCM_HW_PARAM_RATE, -1)) < 0)
 		return err;
 
-	/* Finally allocate a page for the scatter-gather list */
+	/* Allocate a page for the scatter-gather list */
 	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 				       &chip->pci->dev,
 				       PAGE_SIZE, &pipe->sgpage)) < 0) {
 		dev_err(chip->card->dev, "s-g list allocation failed\n");
 		return err;
 	}
+
+	/*
+	 * Sole ownership required to set the rate
+	 */
+
+	dev_dbg(chip->card->dev, "pcm_open opencount=%d can_set_rate=%d, rate_set=%d",
+		chip->opencount, chip->can_set_rate, chip->rate_set);
+
+	chip->opencount++;
+	if (chip->opencount > 1 && chip->rate_set)
+		chip->can_set_rate = 0;
 
 	return 0;
 }
@@ -353,12 +372,7 @@ static int pcm_analog_in_open(struct snd_pcm_substream *substream)
 				       hw_rule_capture_format_by_channels, NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		return err;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
-	dev_dbg(chip->card->dev, "pcm_analog_in_open  cs=%d  oc=%d  r=%d\n",
-		chip->can_set_rate, atomic_read(&chip->opencount),
-		chip->sample_rate);
+
 	return 0;
 }
 
@@ -388,12 +402,7 @@ static int pcm_analog_out_open(struct snd_pcm_substream *substream)
 				       NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		return err;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
-	dev_dbg(chip->card->dev, "pcm_analog_out_open  cs=%d  oc=%d  r=%d\n",
-		chip->can_set_rate, atomic_read(&chip->opencount),
-		chip->sample_rate);
+
 	return 0;
 }
 
@@ -428,10 +437,6 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 				       hw_rule_capture_format_by_channels, NULL,
 				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
 		goto din_exit;
-
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
 
 din_exit:
 	mutex_unlock(&chip->mode_mutex);
@@ -471,9 +476,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 				       NULL, SNDRV_PCM_HW_PARAM_CHANNELS,
 				       -1)) < 0)
 		goto dout_exit;
-	atomic_inc(&chip->opencount);
-	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
-		chip->can_set_rate=0;
+
 dout_exit:
 	mutex_unlock(&chip->mode_mutex);
 	return err;
@@ -488,23 +491,29 @@ dout_exit:
 static int pcm_close(struct snd_pcm_substream *substream)
 {
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
-	int oc;
 
 	/* Nothing to do here. Audio is already off and pipe will be
 	 * freed by its callback
 	 */
 
-	atomic_dec(&chip->opencount);
-	oc = atomic_read(&chip->opencount);
-	dev_dbg(chip->card->dev, "pcm_close  oc=%d  cs=%d  rs=%d\n", oc,
-		chip->can_set_rate, chip->rate_set);
-	if (oc < 2)
-		chip->can_set_rate = 1;
-	if (oc == 0)
-		chip->rate_set = 0;
-	dev_dbg(chip->card->dev, "pcm_close2 oc=%d  cs=%d  rs=%d\n", oc,
-		chip->can_set_rate, chip->rate_set);
+	mutex_lock(&chip->mode_mutex);
 
+	dev_dbg(chip->card->dev, "pcm_open opencount=%d can_set_rate=%d, rate_set=%d",
+		chip->opencount, chip->can_set_rate, chip->rate_set);
+
+	chip->opencount--;
+
+	switch (chip->opencount) {
+	case 1:
+		chip->can_set_rate = 1;
+		break;
+
+	case 0:
+		chip->rate_set = 0;
+		break;
+	}
+
+	mutex_unlock(&chip->mode_mutex);
 	return 0;
 }
 
@@ -582,7 +591,7 @@ static int init_engine(struct snd_pcm_substream *substream,
 	/* This stuff is used by the irq handler, so it must be
 	 * initialized before chip->substream
 	 */
-	chip->last_period[pipe_index] = 0;
+	pipe->last_period = 0;
 	pipe->last_counter = 0;
 	pipe->position = 0;
 	smp_wmb();
@@ -690,7 +699,7 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 		break;
 	case SNDRV_PCM_FORMAT_S32_BE:
 		format.data_are_bigendian = 1;
-		/* fall through */
+		fallthrough;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		format.bits_per_sample = 32;
 		break;
@@ -703,9 +712,22 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 
 	if (snd_BUG_ON(pipe_index >= px_num(chip)))
 		return -EINVAL;
-	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index)))
+
+	/*
+	 * We passed checks we can do independently; now take
+	 * exclusive control
+	 */
+
+	spin_lock_irq(&chip->lock);
+
+	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index))) {
+		spin_unlock_irq(&chip->lock);
 		return -EINVAL;
+	}
+
 	set_audio_format(chip, pipe_index, &format);
+	spin_unlock_irq(&chip->lock);
+
 	return 0;
 }
 
@@ -738,11 +760,11 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 				pipe = chip->substream[i]->runtime->private_data;
 				switch (pipe->state) {
 				case PIPE_STATE_STOPPED:
-					chip->last_period[i] = 0;
+					pipe->last_period = 0;
 					pipe->last_counter = 0;
 					pipe->position = 0;
 					*pipe->dma_counter = 0;
-					/* fall through */
+					fallthrough;
 				case PIPE_STATE_PAUSED:
 					pipe->state = PIPE_STATE_STARTED;
 					break;
@@ -786,19 +808,26 @@ static snd_pcm_uframes_t pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audiopipe *pipe = runtime->private_data;
-	size_t cnt, bufsize, pos;
+	u32 counter, step;
 
-	cnt = le32_to_cpu(*pipe->dma_counter);
-	pipe->position += cnt - pipe->last_counter;
-	pipe->last_counter = cnt;
-	bufsize = substream->runtime->buffer_size;
-	pos = bytes_to_frames(substream->runtime, pipe->position);
+	/*
+	 * IRQ handling runs concurrently. Do not share tracking of
+	 * counter with it, which would race or require locking
+	 */
 
-	while (pos >= bufsize) {
-		pipe->position -= frames_to_bytes(substream->runtime, bufsize);
-		pos -= bufsize;
-	}
-	return pos;
+	counter = le32_to_cpu(*pipe->dma_counter);  /* presumed atomic */
+
+	step = counter - pipe->last_counter;  /* handles wrapping */
+	pipe->last_counter = counter;
+
+	/* counter doesn't neccessarily wrap on a multiple of
+	 * buffer_size, so can't derive the position; must
+	 * accumulate */
+
+	pipe->position += step;
+	pipe->position %= frames_to_bytes(runtime, runtime->buffer_size); /* wrap */
+
+	return bytes_to_frames(runtime, pipe->position);
 }
 
 
@@ -1409,7 +1438,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 		/* Do not allow the user to change the digital mode when a pcm
 		device is open because it also changes the number of channels
 		and the allowed sample rates */
-		if (atomic_read(&chip->opencount)) {
+		if (chip->opencount) {
 			changed = -EAGAIN;
 		} else {
 			changed = set_digital_mode(chip, dmode);
@@ -1761,14 +1790,43 @@ static const struct snd_kcontrol_new snd_echo_channels_info = {
 
 
 /******************************************************************************
-	IRQ Handler
+	IRQ Handling
 ******************************************************************************/
+/* Check if a period has elapsed since last interrupt
+ *
+ * Don't make any updates to state; PCM core handles this with the
+ * correct locks.
+ *
+ * \return true if a period has elapsed, otherwise false
+ */
+static bool period_has_elapsed(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct audiopipe *pipe = runtime->private_data;
+	u32 counter, step;
+	size_t period_bytes;
+
+	if (pipe->state != PIPE_STATE_STARTED)
+		return false;
+
+	period_bytes = frames_to_bytes(runtime, runtime->period_size);
+
+	counter = le32_to_cpu(*pipe->dma_counter);  /* presumed atomic */
+
+	step = counter - pipe->last_period;  /* handles wrapping */
+	step -= step % period_bytes;  /* acknowledge whole periods only */
+
+	if (step == 0)
+		return false;  /* haven't advanced a whole period yet */
+
+	pipe->last_period += step;  /* used exclusively by us */
+	return true;
+}
 
 static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 {
 	struct echoaudio *chip = dev_id;
-	struct snd_pcm_substream *substream;
-	int period, ss, st;
+	int ss, st;
 
 	spin_lock(&chip->lock);
 	st = service_irq(chip);
@@ -1779,17 +1837,13 @@ static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 	/* The hardware doesn't tell us which substream caused the irq,
 	thus we have to check all running substreams. */
 	for (ss = 0; ss < DSP_MAXPIPES; ss++) {
+		struct snd_pcm_substream *substream;
+
 		substream = chip->substream[ss];
-		if (substream && ((struct audiopipe *)substream->runtime->
-				private_data)->state == PIPE_STATE_STARTED) {
-			period = pcm_pointer(substream) /
-				substream->runtime->period_size;
-			if (period != chip->last_period[ss]) {
-				chip->last_period[ss] = period;
-				spin_unlock(&chip->lock);
-				snd_pcm_period_elapsed(substream);
-				spin_lock(&chip->lock);
-			}
+		if (substream && period_has_elapsed(substream)) {
+			spin_unlock(&chip->lock);
+			snd_pcm_period_elapsed(substream);
+			spin_lock(&chip->lock);
 		}
 	}
 	spin_unlock(&chip->lock);
@@ -1874,7 +1928,7 @@ static int snd_echo_create(struct snd_card *card,
 		chip->card = card;
 		chip->pci = pci;
 		chip->irq = -1;
-		atomic_set(&chip->opencount, 0);
+		chip->opencount = 0;
 		mutex_init(&chip->mode_mutex);
 		chip->can_set_rate = 1;
 	} else {
@@ -1955,7 +2009,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct echoaudio *chip;
 	char *dsp;
-	int i, err;
+	__maybe_unused int i;
+	int err;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;

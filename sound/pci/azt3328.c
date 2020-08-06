@@ -1232,7 +1232,7 @@ snd_azf3328_codec_setfmt(struct snd_azf3328_codec_data *codec,
 	case AZF_FREQ_32000: freq = SOUNDFORMAT_FREQ_32000; break;
 	default:
 		snd_printk(KERN_WARNING "unknown bitrate %d, assuming 44.1kHz!\n", bitrate);
-		/* fall-through */
+		fallthrough;
 	case AZF_FREQ_44100: freq = SOUNDFORMAT_FREQ_44100; break;
 	case AZF_FREQ_48000: freq = SOUNDFORMAT_FREQ_48000; break;
 	case AZF_FREQ_66200: freq = SOUNDFORMAT_FREQ_SUSPECTED_66200; break;

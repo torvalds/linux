@@ -203,7 +203,10 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	mutex_unlock(&snd_card_mutex);
 	card->dev = parent;
 	card->number = idx;
+#ifdef MODULE
+	WARN_ON(!module);
 	card->module = module;
+#endif
 	INIT_LIST_HEAD(&card->devices);
 	init_rwsem(&card->controls_rwsem);
 	rwlock_init(&card->ctl_files_rwlock);

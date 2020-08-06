@@ -79,11 +79,8 @@ static int fsl_easrc_get_reg(struct snd_kcontrol *kcontrol,
 	struct soc_mreg_control *mc =
 		(struct soc_mreg_control *)kcontrol->private_value;
 	unsigned int regval;
-	int ret;
 
-	ret = snd_soc_component_read(component, mc->regbase, &regval);
-	if (ret < 0)
-		return ret;
+	regval = snd_soc_component_read(component, mc->regbase);
 
 	ucontrol->value.integer.value[0] = regval;
 
@@ -179,22 +176,21 @@ static int fsl_easrc_set_rs_ratio(struct fsl_asrc_pair *ctx)
 	struct fsl_easrc_ctx_priv *ctx_priv = ctx->private;
 	unsigned int in_rate = ctx_priv->in_params.norm_rate;
 	unsigned int out_rate = ctx_priv->out_params.norm_rate;
-	unsigned int int_bits;
 	unsigned int frac_bits;
 	u64 val;
 	u32 *r;
 
 	switch (easrc_priv->rs_num_taps) {
 	case EASRC_RS_32_TAPS:
-		int_bits = 5;
+		/* integer bits = 5; */
 		frac_bits = 39;
 		break;
 	case EASRC_RS_64_TAPS:
-		int_bits = 6;
+		/* integer bits = 6; */
 		frac_bits = 38;
 		break;
 	case EASRC_RS_128_TAPS:
-		int_bits = 7;
+		/* integer bits = 7; */
 		frac_bits = 37;
 		break;
 	default:
@@ -390,11 +386,11 @@ static int fsl_easrc_resampler_config(struct fsl_asrc *easrc)
  *  For input int[16, 24, 32] -> output float32
  *      scale it by multiplying filter coefficients by 2^-15, 2^-23, 2^-31
  *  input:
- *      asrc:  Structure pointer of fsl_asrc
- *      infilter : Pointer to non-scaled input filter
- *      shift:  The multiply factor
+ *      @easrc:  Structure pointer of fsl_asrc
+ *      @infilter : Pointer to non-scaled input filter
+ *      @shift:  The multiply factor
  *  output:
- *      outfilter: scaled filter
+ *      @outfilter: scaled filter
  */
 static int fsl_easrc_normalize_filter(struct fsl_asrc *easrc,
 				      u64 *infilter,
@@ -964,7 +960,7 @@ static int fsl_easrc_release_slot(struct fsl_asrc *easrc, unsigned int ctx_id)
  *
  * Configure the register relate with context.
  */
-int fsl_easrc_config_context(struct fsl_asrc *easrc, unsigned int ctx_id)
+static int fsl_easrc_config_context(struct fsl_asrc *easrc, unsigned int ctx_id)
 {
 	struct fsl_easrc_ctx_priv *ctx_priv;
 	struct fsl_asrc_pair *ctx;
@@ -1125,15 +1121,15 @@ static int fsl_easrc_process_format(struct fsl_asrc_pair *ctx,
 	return 0;
 }
 
-int fsl_easrc_set_ctx_format(struct fsl_asrc_pair *ctx,
-			     snd_pcm_format_t *in_raw_format,
-			     snd_pcm_format_t *out_raw_format)
+static int fsl_easrc_set_ctx_format(struct fsl_asrc_pair *ctx,
+				    snd_pcm_format_t *in_raw_format,
+				    snd_pcm_format_t *out_raw_format)
 {
 	struct fsl_asrc *easrc = ctx->asrc;
 	struct fsl_easrc_ctx_priv *ctx_priv = ctx->private;
 	struct fsl_easrc_data_fmt *in_fmt = &ctx_priv->in_params.fmt;
 	struct fsl_easrc_data_fmt *out_fmt = &ctx_priv->out_params.fmt;
-	int ret;
+	int ret = 0;
 
 	/* Get the bitfield values for input data format */
 	if (in_raw_format && out_raw_format) {
@@ -1198,10 +1194,9 @@ int fsl_easrc_set_ctx_format(struct fsl_asrc_pair *ctx,
  * to conform with this format. Interleaving parameters are accessed
  * through the ASRC_CTRL_IN_ACCESSa and ASRC_CTRL_OUT_ACCESSa registers
  */
-int fsl_easrc_set_ctx_organziation(struct fsl_asrc_pair *ctx)
+static int fsl_easrc_set_ctx_organziation(struct fsl_asrc_pair *ctx)
 {
 	struct fsl_easrc_ctx_priv *ctx_priv;
-	struct device *dev;
 	struct fsl_asrc *easrc;
 
 	if (!ctx)
@@ -1209,7 +1204,6 @@ int fsl_easrc_set_ctx_organziation(struct fsl_asrc_pair *ctx)
 
 	easrc = ctx->asrc;
 	ctx_priv = ctx->private;
-	dev = &easrc->pdev->dev;
 
 	/* input interleaving parameters */
 	regmap_update_bits(easrc->regmap, REG_EASRC_CIA(ctx->index),
@@ -1242,7 +1236,7 @@ int fsl_easrc_set_ctx_organziation(struct fsl_asrc_pair *ctx)
  * Returns a negative number on error and >=0 as context id
  * on success
  */
-int fsl_easrc_request_context(int channels, struct fsl_asrc_pair *ctx)
+static int fsl_easrc_request_context(int channels, struct fsl_asrc_pair *ctx)
 {
 	enum asrc_pair_index index = ASRC_INVALID_PAIR;
 	struct fsl_asrc *easrc = ctx->asrc;
@@ -1287,17 +1281,15 @@ int fsl_easrc_request_context(int channels, struct fsl_asrc_pair *ctx)
  *
  * This funciton is mainly doing the revert thing in request context
  */
-void fsl_easrc_release_context(struct fsl_asrc_pair *ctx)
+static void fsl_easrc_release_context(struct fsl_asrc_pair *ctx)
 {
 	unsigned long lock_flags;
 	struct fsl_asrc *easrc;
-	struct device *dev;
 
 	if (!ctx)
 		return;
 
 	easrc = ctx->asrc;
-	dev = &easrc->pdev->dev;
 
 	spin_lock_irqsave(&easrc->lock, lock_flags);
 
@@ -1314,7 +1306,7 @@ void fsl_easrc_release_context(struct fsl_asrc_pair *ctx)
  *
  * Enable the DMA request and context
  */
-int fsl_easrc_start_context(struct fsl_asrc_pair *ctx)
+static int fsl_easrc_start_context(struct fsl_asrc_pair *ctx)
 {
 	struct fsl_asrc *easrc = ctx->asrc;
 
@@ -1332,7 +1324,7 @@ int fsl_easrc_start_context(struct fsl_asrc_pair *ctx)
  *
  * Disable the DMA request and context
  */
-int fsl_easrc_stop_context(struct fsl_asrc_pair *ctx)
+static int fsl_easrc_stop_context(struct fsl_asrc_pair *ctx)
 {
 	struct fsl_asrc *easrc = ctx->asrc;
 	int val, i;
@@ -1379,8 +1371,8 @@ int fsl_easrc_stop_context(struct fsl_asrc_pair *ctx)
 	return 0;
 }
 
-struct dma_chan *fsl_easrc_get_dma_channel(struct fsl_asrc_pair *ctx,
-					   bool dir)
+static struct dma_chan *fsl_easrc_get_dma_channel(struct fsl_asrc_pair *ctx,
+						  bool dir)
 {
 	struct fsl_asrc *easrc = ctx->asrc;
 	enum asrc_pair_index index = ctx->index;
@@ -1391,7 +1383,6 @@ struct dma_chan *fsl_easrc_get_dma_channel(struct fsl_asrc_pair *ctx,
 
 	return dma_request_slave_channel(&easrc->pdev->dev, name);
 };
-EXPORT_SYMBOL_GPL(fsl_easrc_get_dma_channel);
 
 static const unsigned int easrc_rates[] = {
 	8000, 11025, 12000, 16000,

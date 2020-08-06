@@ -2831,6 +2831,8 @@ static int sof_link_sai_load(struct snd_soc_component *scomp, int index,
 	}
 
 	config->sai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
+	config->sai.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
+	config->sai.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
 	config->sai.mclk_direction = hw_config->mclk_direction;
 
 	config->sai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);

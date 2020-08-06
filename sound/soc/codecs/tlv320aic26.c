@@ -131,10 +131,10 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/**
+/*
  * aic26_mute - Mute control to reduce noise when changing audio format
  */
-static int aic26_mute(struct snd_soc_dai *dai, int mute)
+static int aic26_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct aic26 *aic26 = snd_soc_component_get_drvdata(component);
@@ -211,9 +211,10 @@ static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static const struct snd_soc_dai_ops aic26_dai_ops = {
 	.hw_params	= aic26_hw_params,
-	.digital_mute	= aic26_mute,
+	.mute_stream	= aic26_mute,
 	.set_sysclk	= aic26_set_sysclk,
 	.set_fmt	= aic26_set_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic26_dai = {
@@ -266,7 +267,7 @@ static ssize_t aic26_keyclick_show(struct device *dev,
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 	int val, amp, freq, len;
 
-	val = snd_soc_component_read32(aic26->component, AIC26_REG_AUDIO_CTRL2);
+	val = snd_soc_component_read(aic26->component, AIC26_REG_AUDIO_CTRL2);
 	amp = (val >> 12) & 0x7;
 	freq = (125 << ((val >> 8) & 0x7)) >> 1;
 	len = 2 * (1 + ((val >> 4) & 0xf));
@@ -306,7 +307,7 @@ static int aic26_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, AIC26_REG_POWER_CTRL, 0);
 
 	/* Audio Control 3 (master mode, fsref rate) */
-	reg = snd_soc_component_read32(component, AIC26_REG_AUDIO_CTRL3);
+	reg = snd_soc_component_read(component, AIC26_REG_AUDIO_CTRL3);
 	reg &= ~0xf800;
 	reg |= 0x0800; /* set master mode */
 	snd_soc_component_write(component, AIC26_REG_AUDIO_CTRL3, reg);

@@ -230,7 +230,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		dev_warn(&dev->dev,
 			 "unknown interface protocol %#02x, assuming v1\n",
 			 protocol);
-		/* fall through */
+		fallthrough;
 
 	case UAC_VERSION_1: {
 		struct uac1_ac_header_descriptor *h1;

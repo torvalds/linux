@@ -30,7 +30,7 @@ static int index[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -2}; /* Exclude the
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int digital_rate[SNDRV_CARDS];	/* digital input rate */
-static bool load_all;	/* allow to load the non-whitelisted cards */
+static bool load_all;	/* allow to load cards not the allowlist */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Bt87x soundcard");
@@ -41,7 +41,7 @@ MODULE_PARM_DESC(enable, "Enable Bt87x soundcard");
 module_param_array(digital_rate, int, NULL, 0444);
 MODULE_PARM_DESC(digital_rate, "Digital input rate for Bt87x soundcard");
 module_param(load_all, bool, 0444);
-MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
+MODULE_PARM_DESC(load_all, "Allow to load cards not on the allowlist");
 
 
 /* register offsets */
@@ -801,7 +801,7 @@ MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
  * (DVB cards use the audio function to transfer MPEG data) */
 static struct {
 	unsigned short subvendor, subdevice;
-} blacklist[] = {
+} denylist[] = {
 	{0x0071, 0x0101}, /* Nebula Electronics DigiTV */
 	{0x11bd, 0x001c}, /* Pinnacle PCTV Sat */
 	{0x11bd, 0x0026}, /* Pinnacle PCTV SAT CI */
@@ -817,7 +817,7 @@ static struct {
 
 static struct pci_driver driver;
 
-/* return the id of the card, or a negative value if it's blacklisted */
+/* return the id of the card, or a negative value if it's on the denylist */
 static int snd_bt87x_detect_card(struct pci_dev *pci)
 {
 	int i;
@@ -827,9 +827,9 @@ static int snd_bt87x_detect_card(struct pci_dev *pci)
 	if (supported && supported->driver_data > 0)
 		return supported->driver_data;
 
-	for (i = 0; i < ARRAY_SIZE(blacklist); ++i)
-		if (blacklist[i].subvendor == pci->subsystem_vendor &&
-		    blacklist[i].subdevice == pci->subsystem_device) {
+	for (i = 0; i < ARRAY_SIZE(denylist); ++i)
+		if (denylist[i].subvendor == pci->subsystem_vendor &&
+		    denylist[i].subdevice == pci->subsystem_device) {
 			dev_dbg(&pci->dev,
 				"card %#04x-%#04x:%#04x has no audio\n",
 				    pci->device, pci->subsystem_vendor, pci->subsystem_device);

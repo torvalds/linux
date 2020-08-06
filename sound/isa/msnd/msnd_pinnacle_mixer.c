@@ -219,11 +219,9 @@ static int snd_msndmix_set(struct snd_msnd *dev, int d, int left, int right)
 	case MSND_MIXER_VOLUME:		/* master volume */
 		writew(wLeft, dev->SMA + SMA_wCurrMastVolLeft);
 		writew(wRight, dev->SMA + SMA_wCurrMastVolRight);
-		/* fall through */
-
+		fallthrough;
 	case MSND_MIXER_AUX:			/* aux pot control */
 		/* scaled by master volume */
-		/* fall through */
 
 		/* digital controls */
 	case MSND_MIXER_SYNTH:			/* synth vol (dsp mix) */

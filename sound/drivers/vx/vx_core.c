@@ -511,8 +511,9 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	/* The start on time code conditions are filled (ie the time code
 	 * received by the board is equal to one of those given to it).
 	 */
-	if (events & TIME_CODE_EVENT_PENDING)
+	if (events & TIME_CODE_EVENT_PENDING) {
 		; /* so far, nothing to do yet */
+	}
 
 	/* The frequency has changed on the board (UER mode). */
 	if (events & FREQUENCY_CHANGE_EVENT_PENDING)

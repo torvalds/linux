@@ -127,7 +127,7 @@
 /*
  * HP Wireless Audio
  * When not ignored, causes instability issues for some users, forcing them to
- * blacklist the entire module.
+ * skip the entire module.
  */
 {
 	USB_DEVICE(0x0424, 0xb832),
@@ -2794,6 +2794,19 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	QUIRK_RENAME_DEVICE("Rane", "SL-1")
 },
 
+/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
+{
+	USB_DEVICE(0x17aa, 0x1046),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
+			     "Lenovo-ThinkStation-P620-Rear"),
+},
+/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
+{
+	USB_DEVICE(0x17aa, 0x104d),
+	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
+			     "Lenovo-ThinkStation-P620-Main"),
+},
+
 /* Native Instruments MK2 series */
 {
 	/* Komplete Audio 6 */
@@ -3252,11 +3265,15 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
+/*
+ * The original product_name is "USB Sound Device", however this name
+ * is also used by the CM106 based cards, so make it unique.
+ */
 {
-	/*
-	 * The original product_name is "USB Sound Device", however this name
-	 * is also used by the CM106 based cards, so make it unique.
-	 */
+	USB_DEVICE(0x0d8c, 0x0102),
+	QUIRK_RENAME_DEVICE(NULL, "ICUSBAUDIO7D")
+},
+{
 	USB_DEVICE(0x0d8c, 0x0103),
 	QUIRK_RENAME_DEVICE(NULL, "Audio Advantage MicroII")
 },
