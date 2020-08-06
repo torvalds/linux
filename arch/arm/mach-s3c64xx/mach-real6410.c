@@ -29,7 +29,7 @@
 #include <mach/gpio-samsung.h>
 #include <mach/irqs.h>
 
-#include <plat/adc.h>
+#include <linux/soc/samsung/s3c-adc.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>

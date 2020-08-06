@@ -7,8 +7,8 @@
  * S3C ADC driver information
  */
 
-#ifndef __ASM_PLAT_ADC_H
-#define __ASM_PLAT_ADC_H __FILE__
+#ifndef __LINUX_SOC_SAMSUNG_S3C_ADC_H
+#define __LINUX_SOC_SAMSUNG_S3C_ADC_H __FILE__
 
 struct s3c_adc_client;
 struct platform_device;
@@ -29,4 +29,4 @@ extern struct s3c_adc_client *
 
 extern void s3c_adc_release(struct s3c_adc_client *client);
 
-#endif /* __ASM_PLAT_ADC_H */
+#endif /* __LINUX_SOC_SAMSUNG_S3C_ADC_H */

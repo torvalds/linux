@@ -60,7 +60,7 @@
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/adc.h>
+#include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
 
