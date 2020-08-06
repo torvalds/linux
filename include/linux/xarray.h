@@ -1714,13 +1714,12 @@ enum {
  * @xas: XArray operation state.
  * @entry: Entry retrieved from the array.
  *
- * The loop body will be executed for each entry in the XArray that lies
- * within the range specified by @xas.  If the loop completes successfully,
- * any entries that lie in this range will be replaced by @entry.  The caller
- * may break out of the loop; if they do so, the contents of the XArray will
- * be unchanged.  The operation may fail due to an out of memory condition.
- * The caller may also call xa_set_err() to exit the loop while setting an
- * error to record the reason.
+ * The loop body will be executed for each entry in the XArray that
+ * lies within the range specified by @xas.  If the loop terminates
+ * normally, @entry will be %NULL.  The user may break out of the loop,
+ * which will leave @entry set to the conflicting entry.  The caller
+ * may also call xa_set_err() to exit the loop while setting an error
+ * to record the reason.
  */
 #define xas_for_each_conflict(xas, entry) \
 	while ((entry = xas_find_conflict(xas)))
