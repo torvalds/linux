@@ -420,13 +420,11 @@ struct rkisp1_cif_isp_bdm_config {
  * @coeff: color correction matrix. Values are 11-bit signed fixed-point numbers with 4 bit integer
  *		and 7 bit fractional part, ranging from -8 (0x400) to +7.992 (0x3FF). 0 is
  *		represented by 0x000 and a coefficient value of 1 as 0x080.
- * @ct_offset_b: offset for the crosstalk correction matrix
+ * @ct_offset: Red, Green, Blue offsets for the crosstalk correction matrix
  */
 struct rkisp1_cif_isp_ctk_config {
 	__u16 coeff[3][3];
-	__u16 ct_offset_r;
-	__u16 ct_offset_g;
-	__u16 ct_offset_b;
+	__u16 ct_offset[3];
 } __packed;
 
 enum rkisp1_cif_isp_goc_mode {

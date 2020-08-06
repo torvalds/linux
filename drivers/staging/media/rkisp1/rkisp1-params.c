@@ -408,12 +408,9 @@ static void rkisp1_ctk_config(struct rkisp1_params *params,
 		for (j = 0; j < 3; j++)
 			rkisp1_write(params->rkisp1, arg->coeff[i][j],
 				     RKISP1_CIF_ISP_CT_COEFF_0 + 4 * k++);
-	rkisp1_write(params->rkisp1, arg->ct_offset_r,
-		     RKISP1_CIF_ISP_CT_OFFSET_R);
-	rkisp1_write(params->rkisp1, arg->ct_offset_g,
-		     RKISP1_CIF_ISP_CT_OFFSET_G);
-	rkisp1_write(params->rkisp1, arg->ct_offset_b,
-		     RKISP1_CIF_ISP_CT_OFFSET_B);
+	for (i = 0; i < 3; i++)
+		rkisp1_write(params->rkisp1, arg->ct_offset[i],
+			     RKISP1_CIF_ISP_CT_OFFSET_R + i * 4);
 }
 
 static void rkisp1_ctk_enable(struct rkisp1_params *params, bool en)
