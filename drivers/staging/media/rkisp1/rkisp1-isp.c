@@ -989,8 +989,7 @@ static const struct v4l2_subdev_ops rkisp1_isp_ops = {
 	.pad = &rkisp1_isp_pad_ops,
 };
 
-int rkisp1_isp_register(struct rkisp1_device *rkisp1,
-			struct v4l2_device *v4l2_dev)
+int rkisp1_isp_register(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_isp *isp = &rkisp1->isp;
 	struct media_pad *pads = isp->pads;
@@ -1018,7 +1017,7 @@ int rkisp1_isp_register(struct rkisp1_device *rkisp1,
 	if (ret)
 		return ret;
 
-	ret = v4l2_device_register_subdev(v4l2_dev, sd);
+	ret = v4l2_device_register_subdev(&rkisp1->v4l2_dev, sd);
 	if (ret) {
 		dev_err(rkisp1->dev, "Failed to register isp subdev\n");
 		goto err_cleanup_media_entity;

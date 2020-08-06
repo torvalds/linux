@@ -303,8 +303,7 @@ void rkisp1_sd_adjust_crop_rect(struct v4l2_rect *crop,
 void rkisp1_sd_adjust_crop(struct v4l2_rect *crop,
 			   const struct v4l2_mbus_framefmt *bounds);
 
-int rkisp1_isp_register(struct rkisp1_device *rkisp1,
-			struct v4l2_device *v4l2_dev);
+int rkisp1_isp_register(struct rkisp1_device *rkisp1);
 void rkisp1_isp_unregister(struct rkisp1_device *rkisp1);
 
 const struct rkisp1_isp_mbus_info *rkisp1_isp_mbus_info_get(u32 mbus_code);
@@ -321,19 +320,15 @@ void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1);
 int rkisp1_resizer_devs_register(struct rkisp1_device *rkisp1);
 void rkisp1_resizer_devs_unregister(struct rkisp1_device *rkisp1);
 
-int rkisp1_stats_register(struct rkisp1_stats *stats,
-			  struct v4l2_device *v4l2_dev,
-			  struct rkisp1_device *rkisp1);
-void rkisp1_stats_unregister(struct rkisp1_stats *stats);
+int rkisp1_stats_register(struct rkisp1_device *rkisp1);
+void rkisp1_stats_unregister(struct rkisp1_device *rkisp1);
 
 void rkisp1_params_configure(struct rkisp1_params *params,
 			     enum rkisp1_fmt_raw_pat_type bayer_pat,
 			     enum v4l2_quantization quantization);
 void rkisp1_params_disable(struct rkisp1_params *params);
-int rkisp1_params_register(struct rkisp1_params *params,
-			   struct v4l2_device *v4l2_dev,
-			   struct rkisp1_device *rkisp1);
-void rkisp1_params_unregister(struct rkisp1_params *params);
+int rkisp1_params_register(struct rkisp1_device *rkisp1);
+void rkisp1_params_unregister(struct rkisp1_device *rkisp1);
 
 void rkisp1_params_isr_handler(struct rkisp1_device *rkisp1, u32 isp_mis);
 

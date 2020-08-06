@@ -1564,10 +1564,9 @@ static void rkisp1_init_params(struct rkisp1_params *params)
 		sizeof(struct rkisp1_params_cfg);
 }
 
-int rkisp1_params_register(struct rkisp1_params *params,
-			   struct v4l2_device *v4l2_dev,
-			   struct rkisp1_device *rkisp1)
+int rkisp1_params_register(struct rkisp1_device *rkisp1)
 {
+	struct rkisp1_params *params = &rkisp1->params;
 	struct rkisp1_vdev_node *node = &params->vnode;
 	struct video_device *vdev = &node->vdev;
 	int ret;
@@ -1587,7 +1586,7 @@ int rkisp1_params_register(struct rkisp1_params *params,
 	 * to protect all fops and v4l2 ioctls.
 	 */
 	vdev->lock = &node->vlock;
-	vdev->v4l2_dev = v4l2_dev;
+	vdev->v4l2_dev = &rkisp1->v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;
 	vdev->vfl_dir = VFL_DIR_TX;
@@ -1611,8 +1610,9 @@ err_cleanup_media_entity:
 	return ret;
 }
 
-void rkisp1_params_unregister(struct rkisp1_params *params)
+void rkisp1_params_unregister(struct rkisp1_device *rkisp1)
 {
+	struct rkisp1_params *params = &rkisp1->params;
 	struct rkisp1_vdev_node *node = &params->vnode;
 	struct video_device *vdev = &node->vdev;
 
