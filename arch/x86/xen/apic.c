@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
+#include <linux/thread_info.h>
 
 #include <asm/x86_init.h>
 #include <asm/apic.h>

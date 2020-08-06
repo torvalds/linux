@@ -11,6 +11,7 @@
 #define __LINUX_LOCKDEP_H
 
 #include <linux/lockdep_types.h>
+#include <linux/smp.h>
 #include <asm/percpu.h>
 
 struct task_struct;

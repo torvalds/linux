@@ -19,7 +19,6 @@
 #include <linux/mutex.h>
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
-#include <linux/ww_mutex.h>
 
 #include <asm/processor.h>
 
