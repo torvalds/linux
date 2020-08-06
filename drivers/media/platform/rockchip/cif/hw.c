@@ -735,8 +735,10 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	rkcif_hw_soft_reset(cif_hw, true);
 
 	if (data->chip_id == CHIP_RK1808_CIF ||
-	    data->chip_id == CHIP_RV1126_CIF)
+	    data->chip_id == CHIP_RV1126_CIF) {
 		platform_driver_register(&rkcif_plat_drv);
+		platform_driver_register(&rkcif_subdev_driver);
+	}
 
 	return 0;
 }

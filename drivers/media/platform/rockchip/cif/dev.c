@@ -676,7 +676,6 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 {
 	struct device *dev = cif_dev->dev;
 	struct v4l2_device *v4l2_dev;
-	char name[V4L2_DEVICE_NAME_SIZE] = {'\0'};
 	int ret;
 
 	cif_dev->hdr.mode = NO_HDR;
@@ -710,17 +709,12 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->workmode = RKCIF_WORKMODE_PINGPONG;
 #endif
 
-	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
-		strncpy(name, "rkcif_lite", strlen("rkcif_lite"));
-	else
-		strncpy(name, "rkcif", strlen("rkcif"));
-
-	strlcpy(cif_dev->media_dev.model, name,
+	strlcpy(cif_dev->media_dev.model, dev_name(dev),
 		sizeof(cif_dev->media_dev.model));
 	cif_dev->media_dev.dev = dev;
 	v4l2_dev = &cif_dev->v4l2_dev;
 	v4l2_dev->mdev = &cif_dev->media_dev;
-	strlcpy(v4l2_dev->name, name, sizeof(v4l2_dev->name));
+	strlcpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
 
 	ret = v4l2_device_register(cif_dev->dev, &cif_dev->v4l2_dev);
 	if (ret < 0)

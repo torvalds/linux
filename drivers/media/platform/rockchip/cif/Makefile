@@ -4,4 +4,5 @@ video_rkcif-objs += dev.o \
 			capture.o \
 			mipi-csi2.o \
 			cif-luma.o \
-			hw.o
+			hw.o \
+			subdev-itf.o

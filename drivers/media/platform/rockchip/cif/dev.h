@@ -21,6 +21,7 @@
 #include "cif-luma.h"
 #include "mipi-csi2.h"
 #include "hw.h"
+#include "subdev-itf.h"
 
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
@@ -370,6 +371,8 @@ struct rkcif_device {
 	struct rkcif_hw *hw_dev;
 	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
 	int inf_id;
+
+	struct sditf_priv *sditf;
 };
 
 extern struct platform_driver rkcif_plat_drv;
