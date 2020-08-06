@@ -504,6 +504,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	struct gb_connection *connection;
 	struct gb_gpio_controller *ggc;
 	struct gpio_chip *gpio;
+	struct gpio_irq_chip *girq;
 	struct irq_chip *irqc;
 	int ret;
 
@@ -561,6 +562,15 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	gpio->ngpio = ggc->line_max + 1;
 	gpio->can_sleep = true;
 
+	girq = &gpio->irq;
+	girq->chip = irqc;
+	/* The event comes from the outside so no parent handler */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto exit_line_free;
@@ -571,18 +581,9 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 		goto exit_line_free;
 	}
 
-	ret = gpiochip_irqchip_add(gpio, irqc, 0, handle_level_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&gbphy_dev->dev, "failed to add irq chip: %d\n", ret);
-		goto exit_gpiochip_remove;
-	}
-
 	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
-exit_gpiochip_remove:
-	gpiochip_remove(gpio);
 exit_line_free:
 	kfree(ggc->lines);
 exit_connection_disable:

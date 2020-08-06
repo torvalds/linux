@@ -736,8 +736,6 @@ static int sx9310_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops sx9310_buffer_setup_ops = {
 	.preenable = sx9310_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = sx9310_buffer_postdisable,
 };
 
@@ -931,7 +929,6 @@ static int sx9310_probe(struct i2c_client *client,
 		return ret;
 
 	ACPI_COMPANION_SET(&indio_dev->dev, ACPI_COMPANION(&client->dev));
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = sx9310_channels;
 	indio_dev->num_channels = ARRAY_SIZE(sx9310_channels);
 	indio_dev->info = &sx9310_info;

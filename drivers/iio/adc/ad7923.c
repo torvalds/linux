@@ -151,9 +151,9 @@ static const struct ad7923_chip_info ad7923_chip_info[] = {
 	},
 };
 
-/**
+/*
  * ad7923_update_scan_mode() setup the spi transfer buffer for the new scan mask
- **/
+ */
 static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *active_scan_mask)
 {
@@ -192,12 +192,12 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-/**
+/*
  * ad7923_trigger_handler() bh of trigger launched polling to ring buffer
  *
  * Currently there is no option in this driver to disable the saving of
  * timestamps within the ring.
- **/
+ */
 static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -315,8 +315,6 @@ static int ad7923_probe(struct spi_device *spi)
 	info = &ad7923_chip_info[spi_get_device_id(spi)->driver_data];
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;

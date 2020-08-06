@@ -202,7 +202,6 @@ static int al3320a_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &al3320a_info;
 	indio_dev->name = AL3320A_DRV_NAME;
 	indio_dev->channels = al3320a_channels;

@@ -63,13 +63,8 @@ static int hif_tx_confirm(struct wfx_dev *wdev,
 			  const struct hif_msg *hif, const void *buf)
 {
 	const struct hif_cnf_tx *body = buf;
-	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 
-	WARN_ON(!wvif);
-	if (!wvif)
-		return -EFAULT;
-
-	wfx_tx_confirm_cb(wvif, body);
+	wfx_tx_confirm_cb(wdev, body);
 	return 0;
 }
 
@@ -77,16 +72,11 @@ static int hif_multi_tx_confirm(struct wfx_dev *wdev,
 				const struct hif_msg *hif, const void *buf)
 {
 	const struct hif_cnf_multi_transmit *body = buf;
-	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	int i;
 
 	WARN(body->num_tx_confs <= 0, "corrupted message");
-	WARN_ON(!wvif);
-	if (!wvif)
-		return -EFAULT;
-
 	for (i = 0; i < body->num_tx_confs; i++)
-		wfx_tx_confirm_cb(wvif, &body->tx_conf_payload[i]);
+		wfx_tx_confirm_cb(wdev, &body->tx_conf_payload[i]);
 	return 0;
 }
 
@@ -159,7 +149,6 @@ static int hif_event_indication(struct wfx_dev *wdev,
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	const struct hif_ind_event *body = buf;
 	int type = le32_to_cpu(body->event_id);
-	int cause;
 
 	if (!wvif) {
 		dev_warn(wdev->dev, "received event for non-existent vif\n");
@@ -178,13 +167,8 @@ static int hif_event_indication(struct wfx_dev *wdev,
 		dev_dbg(wdev->dev, "ignore BSSREGAINED indication\n");
 		break;
 	case HIF_EVENT_IND_PS_MODE_ERROR:
-		cause = le32_to_cpu(body->event_data.ps_mode_error);
 		dev_warn(wdev->dev, "error while processing power save request: %d\n",
-			 cause);
-		if (cause == HIF_PS_ERROR_AP_NOT_RESP_TO_POLL) {
-			wvif->bss_not_support_ps_poll = true;
-			schedule_work(&wvif->update_pm_work);
-		}
+			 le32_to_cpu(body->event_data.ps_mode_error));
 		break;
 	default:
 		dev_warn(wdev->dev, "unhandled event indication: %.2x\n",

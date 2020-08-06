@@ -407,61 +407,29 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-#ifdef CONFIG_PM
-static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
+static int __maybe_unused lynxfb_suspend(struct device *dev)
 {
 	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
-	int ret;
-
-	if (mesg.event == pdev->dev.power.power_state.event)
-		return 0;
-
-	ret = 0;
-	sm750_dev = pci_get_drvdata(pdev);
-	switch (mesg.event) {
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		pdev->dev.power.power_state = mesg;
-		return 0;
-	}
+	sm750_dev = dev_get_drvdata(dev);
 
 	console_lock();
-	if (mesg.event & PM_EVENT_SLEEP) {
-		info = sm750_dev->fbinfo[0];
-		if (info)
-			/* 1 means do suspend */
-			fb_set_suspend(info, 1);
-		info = sm750_dev->fbinfo[1];
-		if (info)
-			/* 1 means do suspend */
-			fb_set_suspend(info, 1);
+	info = sm750_dev->fbinfo[0];
+	if (info)
+		/* 1 means do suspend */
+		fb_set_suspend(info, 1);
+	info = sm750_dev->fbinfo[1];
+	if (info)
+		/* 1 means do suspend */
+		fb_set_suspend(info, 1);
 
-		ret = pci_save_state(pdev);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_save_state\n", ret);
-			goto lynxfb_suspend_err;
-		}
-
-		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_set_power_state\n",
-				ret);
-			goto lynxfb_suspend_err;
-		}
-	}
-
-	pdev->dev.power.power_state = mesg;
-
-lynxfb_suspend_err:
 	console_unlock();
-	return ret;
+	return 0;
 }
 
-static int lynxfb_resume(struct pci_dev *pdev)
+static int __maybe_unused lynxfb_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
 
@@ -469,31 +437,9 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	struct lynxfb_crtc *crtc;
 	struct lynx_cursor *cursor;
 
-	int ret;
-
-	ret = 0;
 	sm750_dev = pci_get_drvdata(pdev);
 
 	console_lock();
-
-	ret = pci_set_power_state(pdev, PCI_D0);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"error:%d occurred in pci_set_power_state\n", ret);
-		goto lynxfb_resume_err;
-	}
-
-	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
-		pci_restore_state(pdev);
-		ret = pci_enable_device(pdev);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_enable_device\n",
-				ret);
-			goto lynxfb_resume_err;
-		}
-		pci_set_master(pdev);
-	}
 
 	hw_sm750_inithw(sm750_dev, pdev);
 
@@ -523,11 +469,9 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	pdev->dev.power.power_state.event = PM_EVENT_RESUME;
 
-lynxfb_resume_err:
 	console_unlock();
-	return ret;
+	return 0;
 }
-#endif
 
 static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info)
@@ -1210,15 +1154,14 @@ static const struct pci_device_id smi_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, smi_pci_table);
 
+static SIMPLE_DEV_PM_OPS(lynxfb_pm_ops, lynxfb_suspend, lynxfb_resume);
+
 static struct pci_driver lynxfb_driver = {
 	.name =		"sm750fb",
 	.id_table =	smi_pci_table,
 	.probe =	lynxfb_pci_probe,
 	.remove =	lynxfb_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = lynxfb_suspend,
-	.resume = lynxfb_resume,
-#endif
+	.driver.pm =	&lynxfb_pm_ops,
 };
 
 static int __init lynxfb_init(void)

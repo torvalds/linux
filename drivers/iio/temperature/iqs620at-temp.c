@@ -74,7 +74,6 @@ static int iqs620_temp_probe(struct platform_device *pdev)
 	iio_device_set_drvdata(indio_dev, iqs62x);
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->channels = iqs620_temp_channels;
 	indio_dev->num_channels = ARRAY_SIZE(iqs620_temp_channels);
 	indio_dev->name = iqs62x->dev_desc->dev_name;

@@ -115,8 +115,7 @@ extern unsigned char WMM_PARA_OUI[];
 /* 	If you just wnat to customize the acitions(scan period or join actions) about one of the channel plan, */
 /* 	customize them in RT_CHANNEL_INFO in the RT_CHANNEL_LIST. */
 /*  */
-typedef enum _RT_CHANNEL_DOMAIN
-{
+typedef enum _RT_CHANNEL_DOMAIN {
 	/*  old channel plan mapping ===== */
 	RT_CHANNEL_DOMAIN_FCC = 0x00,
 	RT_CHANNEL_DOMAIN_IC = 0x01,
@@ -184,8 +183,7 @@ typedef enum _RT_CHANNEL_DOMAIN
 	RT_CHANNEL_DOMAIN_REALTEK_DEFINE = 0x7F,
 } RT_CHANNEL_DOMAIN, *PRT_CHANNEL_DOMAIN;
 
-typedef enum _RT_CHANNEL_DOMAIN_2G
-{
+typedef enum _RT_CHANNEL_DOMAIN_2G {
 	RT_CHANNEL_DOMAIN_2G_WORLD = 0x00,		/* Worldwird 13 */
 	RT_CHANNEL_DOMAIN_2G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_2G_FCC1 = 0x02,		/* US */
@@ -197,8 +195,7 @@ typedef enum _RT_CHANNEL_DOMAIN_2G
 	RT_CHANNEL_DOMAIN_2G_MAX,
 } RT_CHANNEL_DOMAIN_2G, *PRT_CHANNEL_DOMAIN_2G;
 
-typedef enum _RT_CHANNEL_DOMAIN_5G
-{
+typedef enum _RT_CHANNEL_DOMAIN_5G {
 	RT_CHANNEL_DOMAIN_5G_NULL = 0x00,
 	RT_CHANNEL_DOMAIN_5G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_5G_ETSI2 = 0x02,		/* Australia, New Zealand */
@@ -241,32 +238,27 @@ typedef enum _RT_CHANNEL_DOMAIN_5G
 
 #define rtw_is_channel_plan_valid(chplan) (chplan < RT_CHANNEL_DOMAIN_MAX || chplan == RT_CHANNEL_DOMAIN_REALTEK_DEFINE)
 
-typedef struct _RT_CHANNEL_PLAN
-{
+typedef struct _RT_CHANNEL_PLAN {
 	unsigned char Channel[MAX_CHANNEL_NUM];
 	unsigned char Len;
 } RT_CHANNEL_PLAN, *PRT_CHANNEL_PLAN;
 
-typedef struct _RT_CHANNEL_PLAN_2G
-{
+typedef struct _RT_CHANNEL_PLAN_2G {
 	unsigned char Channel[MAX_CHANNEL_NUM_2G];
 	unsigned char Len;
 } RT_CHANNEL_PLAN_2G, *PRT_CHANNEL_PLAN_2G;
 
-typedef struct _RT_CHANNEL_PLAN_5G
-{
+typedef struct _RT_CHANNEL_PLAN_5G {
 	unsigned char Channel[MAX_CHANNEL_NUM_5G];
 	unsigned char Len;
 } RT_CHANNEL_PLAN_5G, *PRT_CHANNEL_PLAN_5G;
 
-typedef struct _RT_CHANNEL_PLAN_MAP
-{
+typedef struct _RT_CHANNEL_PLAN_MAP {
 	unsigned char Index2G;
 	unsigned char Index5G;
 } RT_CHANNEL_PLAN_MAP, *PRT_CHANNEL_PLAN_MAP;
 
-enum Associated_AP
-{
+enum Associated_AP {
 	atherosAP	= 0,
 	broadcomAP	= 1,
 	ciscoAP		= 2,
@@ -278,8 +270,7 @@ enum Associated_AP
 	maxAP,
 };
 
-typedef enum _HT_IOT_PEER
-{
+typedef enum _HT_IOT_PEER {
 	HT_IOT_PEER_UNKNOWN			= 0,
 	HT_IOT_PEER_REALTEK			= 1,
 	HT_IOT_PEER_REALTEK_92SE		= 2,
@@ -302,8 +293,7 @@ typedef enum _HT_IOT_PEER
 } HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
 
-enum SCAN_STATE
-{
+enum SCAN_STATE {
 	SCAN_DISABLE = 0,
 	SCAN_START = 1,
 	SCAN_TXNULL = 2,
@@ -324,8 +314,7 @@ struct action_handler {
 	unsigned int (*func)(struct adapter *padapter, union recv_frame *precv_frame);
 };
 
-struct	ss_res
-{
+struct	ss_res {
 	int	state;
 	int	bss_cnt;
 	int	channel_idx;
@@ -355,8 +344,7 @@ struct	ss_res
 
 #define	WIFI_FW_LINKING_STATE		(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE | WIFI_FW_AUTH_SUCCESS | WIFI_FW_ASSOC_STATE)
 
-struct FW_Sta_Info
-{
+struct FW_Sta_Info {
 	struct sta_info *psta;
 	u32 status;
 	u32 rx_pkt;
@@ -382,8 +370,7 @@ struct FW_Sta_Info
  * 4. Back to channel 1 for 300 milliseconds
  * 5. ... and so on, till survey done.
  */
-struct mlme_ext_info
-{
+struct mlme_ext_info {
 	u32 state;
 	u32 reauth_count;
 	u32 reassoc_count;
@@ -430,8 +417,7 @@ struct mlme_ext_info
 };
 
 /*  The channel information about this channel including joining, scanning, and power constraints. */
-typedef struct _RT_CHANNEL_INFO
-{
+typedef struct _RT_CHANNEL_INFO {
 	u8 		ChannelNum;		/*  The channel number. */
 	RT_SCAN_TYPE	ScanType;		/*  Scan type such as passive or active scan. */
 } RT_CHANNEL_INFO, *PRT_CHANNEL_INFO;
@@ -472,8 +458,7 @@ struct p2p_oper_class_map {
 	enum { BW20, BW40PLUS, BW40MINUS } bw;
 };
 
-struct mlme_ext_priv
-{
+struct mlme_ext_priv {
 	struct adapter	*padapter;
 	u8 mlmeext_init;
 	atomic_t		event_seq;
@@ -786,8 +771,7 @@ u8 run_in_thread_hdl(struct adapter *padapter, u8 *pbuf);
 #define GEN_DRV_CMD_HANDLER(size, cmd)	{size, &cmd ## _hdl},
 #define GEN_MLME_EXT_HANDLER(size, cmd)	{size, cmd},
 
-struct C2HEvent_Header
-{
+struct C2HEvent_Header {
 
 #ifdef __LITTLE_ENDIAN
 
@@ -805,8 +789,7 @@ struct C2HEvent_Header
 void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
-enum rtw_c2h_event
-{
+enum rtw_c2h_event {
 	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
 	GEN_EVT_CODE(_Read_BBREG),
 	GEN_EVT_CODE(_Read_RFREG),

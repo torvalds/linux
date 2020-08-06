@@ -314,7 +314,6 @@ static int rescale_probe(struct platform_device *pdev)
 	rescale->source = source;
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &rescale_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &rescale->chan;

@@ -301,7 +301,6 @@ static int hid_als_probe(struct platform_device *pdev)
 
 	indio_dev->num_channels =
 				ARRAY_SIZE(als_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &als_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

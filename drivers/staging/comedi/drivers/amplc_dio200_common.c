@@ -4,7 +4,7 @@
  *
  * Common support code for "amplc_dio200" and "amplc_dio200_pci".
  *
- * Copyright (C) 2005-2013 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2005-2013 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
@@ -853,6 +853,6 @@ static void __exit amplc_dio200_common_exit(void)
 }
 module_exit(amplc_dio200_common_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for amplc_dio200 and amplc_dio200_pci");
 MODULE_LICENSE("GPL");

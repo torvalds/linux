@@ -224,7 +224,6 @@ int ad7091r_probe(struct device *dev, const char *name,
 	st->chip_info = chip_info;
 	st->map = map;
 
-	iio_dev->dev.parent = dev;
 	iio_dev->name = name;
 	iio_dev->info = &ad7091r_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;

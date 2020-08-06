@@ -759,7 +759,6 @@ static int ad5933_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&st->work, ad5933_work);
 	st->poll_time_jiffies = msecs_to_jiffies(AD5933_POLL_TIME_ms);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad5933_info;
 	indio_dev->name = id->name;
 	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);

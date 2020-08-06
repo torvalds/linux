@@ -6,11 +6,11 @@
  * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * Datasheets:
- * http://www.ti.com/product/HDC1000/datasheet
- * http://www.ti.com/product/HDC1008/datasheet
- * http://www.ti.com/product/HDC1010/datasheet
- * http://www.ti.com/product/HDC1050/datasheet
- * http://www.ti.com/product/HDC1080/datasheet
+ * https://www.ti.com/product/HDC1000/datasheet
+ * https://www.ti.com/product/HDC1008/datasheet
+ * https://www.ti.com/product/HDC1010/datasheet
+ * https://www.ti.com/product/HDC1050/datasheet
+ * https://www.ti.com/product/HDC1080/datasheet
  */
 
 #include <linux/delay.h>
@@ -283,17 +283,11 @@ static int hdc100x_buffer_postenable(struct iio_dev *indio_dev)
 	struct hdc100x_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
-
 	/* Buffer is enabled. First set ACQ Mode, then attach poll func */
 	mutex_lock(&data->lock);
 	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE,
 				    HDC100X_REG_CONFIG_ACQ_MODE);
 	mutex_unlock(&data->lock);
-	if (ret)
-		iio_triggered_buffer_predisable(indio_dev);
 
 	return ret;
 }
@@ -301,15 +295,11 @@ static int hdc100x_buffer_postenable(struct iio_dev *indio_dev)
 static int hdc100x_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct hdc100x_data *data = iio_priv(indio_dev);
-	int ret, ret2;
+	int ret;
 
 	mutex_lock(&data->lock);
 	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
 	mutex_unlock(&data->lock);
-
-	ret2 = iio_triggered_buffer_predisable(indio_dev);
-	if (ret == 0)
-		ret = ret2;
 
 	return ret;
 }
@@ -378,7 +368,6 @@ static int hdc100x_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &hdc100x_info;

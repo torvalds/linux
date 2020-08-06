@@ -200,7 +200,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	mutex_unlock(&wdev->conf_mutex);
 }
 
-int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
+static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 {
 	struct ieee80211_channel *chan0 = NULL, *chan1 = NULL;
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
@@ -217,14 +217,18 @@ int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 		// are differents.
 		if (enable_ps)
 			*enable_ps = true;
-		if (wvif->bss_not_support_ps_poll)
-			return 30;
-		else
+		if (wvif->wdev->force_ps_timeout > -1)
+			return wvif->wdev->force_ps_timeout;
+		else if (wfx_api_older_than(wvif->wdev, 3, 2))
 			return 0;
+		else
+			return 30;
 	}
 	if (enable_ps)
 		*enable_ps = wvif->vif->bss_conf.ps;
-	if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
+	if (wvif->wdev->force_ps_timeout > -1)
+		return wvif->wdev->force_ps_timeout;
+	else if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
 		return conf->dynamic_ps_timeout;
 	else
 		return -1;
@@ -249,14 +253,6 @@ int wfx_update_pm(struct wfx_vif *wvif)
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
 	return hif_set_pm(wvif, ps, ps_timeout);
-}
-
-static void wfx_update_pm_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    update_pm_work);
-
-	wfx_update_pm(wvif);
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -368,7 +364,6 @@ void wfx_reset(struct wfx_vif *wvif)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_tx_unlock(wdev);
 	wvif->join_in_progress = false;
-	wvif->bss_not_support_ps_poll = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 	wvif =  NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
@@ -430,7 +425,6 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
-	spin_lock_init(&sta_priv->lock);
 	sta_priv->vif_id = wvif->id;
 
 	// In station mode, the firmware interprets new link-id as a TDLS peer.
@@ -450,14 +444,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
-		if (sta_priv->buffered[i])
-			// Not an error if paired with trace in
-			// wfx_tx_update_sta()
-			dev_dbg(wvif->wdev->dev, "release station while %d pending frame on queue %d",
-				sta_priv->buffered[i], i);
 	// See note in wfx_sta_add()
 	if (!sta_priv->link_id)
 		return 0;
@@ -794,7 +781,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
-	INIT_WORK(&wvif->update_pm_work, wfx_update_pm_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	mutex_init(&wvif->scan_lock);
@@ -805,6 +791,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	hif_set_macaddr(wvif, vif->addr);
 
+	wfx_tx_queues_init(wvif);
 	wfx_tx_policy_init(wvif);
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
@@ -823,6 +810,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wait_for_completion_timeout(&wvif->set_pm_mode_complete, msecs_to_jiffies(300));
+	wfx_tx_queues_check_empty(wvif);
 
 	mutex_lock(&wdev->conf_mutex);
 	WARN(wvif->link_id_map != 1, "corrupted state");
@@ -855,5 +843,5 @@ void wfx_stop(struct ieee80211_hw *hw)
 {
 	struct wfx_dev *wdev = hw->priv;
 
-	wfx_tx_queues_check_empty(wdev);
+	WARN_ON(!skb_queue_empty_lockless(&wdev->tx_pending));
 }

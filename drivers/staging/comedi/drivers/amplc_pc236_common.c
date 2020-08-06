@@ -3,7 +3,7 @@
  * comedi/drivers/amplc_pc236_common.c
  * Common support code for "amplc_pc236" and "amplc_pci236".
  *
- * Copyright (C) 2002-2014 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2002-2014 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -186,6 +186,6 @@ static void __exit amplc_pc236_common_exit(void)
 }
 module_exit(amplc_pc236_common_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for amplc_pc236 and amplc_pci236");
 MODULE_LICENSE("GPL");

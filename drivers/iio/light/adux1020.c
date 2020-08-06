@@ -785,7 +785,6 @@ static int adux1020_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &adux1020_info;
 	indio_dev->name = ADUX1020_DRV_NAME;
 	indio_dev->channels = adux1020_channels;

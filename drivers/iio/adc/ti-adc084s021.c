@@ -4,12 +4,13 @@
  *
  * Driver for Texas Instruments' ADC084S021 ADC chip.
  * Datasheets can be found here:
- * http://www.ti.com/lit/ds/symlink/adc084s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc084s021.pdf
  */
 
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -187,8 +188,6 @@ static const struct iio_info adc084s021_info = {
 
 static const struct iio_buffer_setup_ops adc084s021_buffer_setup_ops = {
 	.preenable = adc084s021_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = adc084s021_buffer_postdisable,
 };
 
@@ -211,8 +210,6 @@ static int adc084s021_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	/* Initiate the Industrial I/O device */
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc084s021_info;
@@ -258,7 +255,7 @@ MODULE_DEVICE_TABLE(spi, adc084s021_id);
 static struct spi_driver adc084s021_driver = {
 	.driver = {
 		.name = ADC084S021_DRIVER_NAME,
-		.of_match_table = of_match_ptr(adc084s021_of_match),
+		.of_match_table = adc084s021_of_match,
 	},
 	.probe = adc084s021_probe,
 	.id_table = adc084s021_id,

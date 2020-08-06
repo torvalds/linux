@@ -254,7 +254,6 @@ static int bh1750_probe(struct i2c_client *client,
 		return ret;
 
 	mutex_init(&data->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &bh1750_info;
 	indio_dev->name = id->name;
 	indio_dev->channels = bh1750_channels;

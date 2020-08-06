@@ -36,7 +36,6 @@ struct tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	struct ieee80211_key_conf *hw_key;
-	bool has_sta;
 } __packed;
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
@@ -44,7 +43,7 @@ void wfx_tx_policy_upload_work(struct work_struct *work);
 
 void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	    struct sk_buff *skb);
-void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg);
+void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg);
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       u32 queues, bool drop);
 
