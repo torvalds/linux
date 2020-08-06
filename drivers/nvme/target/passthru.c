@@ -230,7 +230,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		if (unlikely(!ns)) {
 			pr_err("failed to get passthru ns nsid:%u\n", nsid);
 			status = NVME_SC_INVALID_NS | NVME_SC_DNR;
-			goto fail_out;
+			goto out;
 		}
 
 		q = ns->queue;
@@ -240,14 +240,14 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 	if (IS_ERR(rq)) {
 		rq = NULL;
 		status = NVME_SC_INTERNAL;
-		goto fail_out;
+		goto out_put_ns;
 	}
 
 	if (req->sg_cnt) {
 		ret = nvmet_passthru_map_sg(req, rq);
 		if (unlikely(ret)) {
 			status = NVME_SC_INTERNAL;
-			goto fail_out;
+			goto out_put_ns;
 		}
 	}
 
@@ -274,9 +274,10 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	return;
 
-fail_out:
+out_put_ns:
 	if (ns)
 		nvme_put_ns(ns);
+out:
 	nvmet_req_complete(req, status);
 	blk_put_request(rq);
 }
