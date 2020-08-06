@@ -15305,6 +15305,7 @@ F:	Documentation/devicetree/bindings/clock/samsung,s5p*
 F:	drivers/clk/samsung/
 F:	include/dt-bindings/clock/exynos*.h
 F:	include/linux/clk/samsung.h
+F:	include/linux/platform_data/clk-s3c2410.h
 
 SAMSUNG SPI DRIVERS
 M:	Kukjin Kim <kgene@kernel.org>

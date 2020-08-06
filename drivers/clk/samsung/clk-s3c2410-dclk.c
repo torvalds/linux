@@ -11,6 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/clk-s3c2410.h>
 #include <linux/module.h>
 #include "clk.h"
 
@@ -89,9 +90,13 @@ static struct clk_hw *s3c24xx_register_clkout(struct device *dev,
 		const char *name, const char **parent_names, u8 num_parents,
 		u8 shift, u32 mask)
 {
+	struct s3c2410_clk_platform_data *pdata = dev_get_platdata(dev);
 	struct s3c24xx_clkout *clkout;
 	struct clk_init_data init;
 	int ret;
+
+	if (!pdata)
+		return ERR_PTR(-EINVAL);
 
 	/* allocate the clkout */
 	clkout = kzalloc(sizeof(*clkout), GFP_KERNEL);
@@ -107,7 +112,7 @@ static struct clk_hw *s3c24xx_register_clkout(struct device *dev,
 	clkout->shift = shift;
 	clkout->mask = mask;
 	clkout->hw.init = &init;
-	clkout->modify_misccr = dev->platform_data;
+	clkout->modify_misccr = pdata->modify_misccr;
 
 	ret = clk_hw_register(dev, &clkout->hw);
 	if (ret)

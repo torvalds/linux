@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-s3c2410.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 #include <linux/dmaengine.h>
 #include <linux/clk/samsung.h>
@@ -663,13 +664,17 @@ static struct resource s3c2410_dclk_resource[] = {
 	[0] = DEFINE_RES_MEM(0x56000084, 0x4),
 };
 
+static struct s3c2410_clk_platform_data s3c_clk_platform_data = {
+	.modify_misccr = s3c2410_modify_misccr,
+};
+
 struct platform_device s3c2410_device_dclk = {
 	.name		= "s3c2410-dclk",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(s3c2410_dclk_resource),
 	.resource	= s3c2410_dclk_resource,
 	.dev		= {
-		.platform_data = s3c2410_modify_misccr,
+		.platform_data = &s3c_clk_platform_data,
 	},
 };
 #endif
