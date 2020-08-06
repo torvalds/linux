@@ -24,6 +24,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/gpio-samsung.h>
+#include <mach/irqs.h>
 #include <asm/irq.h>
 
 #include <linux/platform_data/usb-ohci-s3c2410.h>

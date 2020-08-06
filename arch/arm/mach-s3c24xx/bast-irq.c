@@ -16,6 +16,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/regs-irq.h>
+#include <mach/irqs.h>
 
 #include "bast.h"
 
