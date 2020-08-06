@@ -2946,7 +2946,8 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 							&fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
-			"Failed to allocate memory for queue testing\n");
+			"Failed to allocate memory for H/W queue %d testing\n",
+			hw_queue_id);
 		return -ENOMEM;
 	}
 
@@ -2957,7 +2958,8 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 					GFP_KERNEL, &pkt_dma_addr);
 	if (!fence_pkt) {
 		dev_err(hdev->dev,
-			"Failed to allocate packet for queue testing\n");
+			"Failed to allocate packet for H/W queue %d testing\n",
+			hw_queue_id);
 		rc = -ENOMEM;
 		goto free_fence_ptr;
 	}
@@ -2974,7 +2976,8 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 					pkt_dma_addr);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send fence packet\n");
+			"Failed to send fence packet to H/W queue %d\n",
+			hw_queue_id);
 		goto free_pkt;
 	}
 
