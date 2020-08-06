@@ -129,6 +129,8 @@ struct seccomp_data {
 #  define __NR_seccomp 358
 # elif defined(__s390__)
 #  define __NR_seccomp 348
+# elif defined(__xtensa__)
+#  define __NR_seccomp 337
 # else
 #  warning "seccomp syscall number unknown for this architecture"
 #  define __NR_seccomp 0xffff
@@ -1699,6 +1701,14 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_SYSCALL_NUM regs[4]
 # define SYSCALL_RET	regs[2]
 # define SYSCALL_NUM_RET_SHARE_REG
+#elif defined(__xtensa__)
+# define ARCH_REGS	struct user_pt_regs
+# define SYSCALL_NUM	syscall
+/*
+ * On xtensa syscall return value is in the register
+ * a2 of the current window which is not fixed.
+ */
+#define SYSCALL_RET(reg) a[(reg).windowbase * 4 + 2]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
@@ -1770,7 +1780,8 @@ void change_syscall(struct __test_metadata *_metadata,
 	EXPECT_EQ(0, ret) {}
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
-	defined(__s390__) || defined(__hppa__) || defined(__riscv)
+	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
+	defined(__xtensa__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}
@@ -1813,6 +1824,9 @@ void change_syscall(struct __test_metadata *_metadata,
 	if (syscall == -1)
 #ifdef SYSCALL_NUM_RET_SHARE_REG
 		TH_LOG("Can't modify syscall return on this architecture");
+
+#elif defined(__xtensa__)
+		regs.SYSCALL_RET(regs) = result;
 #else
 		regs.SYSCALL_RET = result;
 #endif

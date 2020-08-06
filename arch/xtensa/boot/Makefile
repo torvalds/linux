@@ -17,6 +17,8 @@ BIG_ENDIAN	:= $(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
 export BIG_ENDIAN
 
 subdir-y	:= lib
+targets		+= vmlinux.bin vmlinux.bin.gz
+targets		+= uImage xipImage
 
 # Subdirs for the boot loader(s)
 
@@ -35,19 +37,19 @@ boot-elf boot-redboot: $(addprefix $(obj)/,$(subdir-y))
 
 OBJCOPYFLAGS = --strip-all -R .comment -R .notes -O binary
 
-vmlinux.bin: vmlinux FORCE
+$(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-vmlinux.bin.gz: vmlinux.bin FORCE
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
 
-boot-elf: vmlinux.bin
-boot-redboot: vmlinux.bin.gz
+boot-elf: $(obj)/vmlinux.bin
+boot-redboot: $(obj)/vmlinux.bin.gz
 
 UIMAGE_LOADADDR = $(CONFIG_KERNEL_LOAD_ADDRESS)
 UIMAGE_COMPRESSION = gzip
 
-$(obj)/uImage: vmlinux.bin.gz FORCE
+$(obj)/uImage: $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,uimage)
 	$(Q)$(kecho) '  Kernel: $@ is ready'
 
