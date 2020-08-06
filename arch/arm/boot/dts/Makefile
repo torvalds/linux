@@ -844,11 +844,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1108-evb.dtb \
 	rv1109-38-v10-spi-nand.dtb \
 	rv1109-ai-cam-ddr3-v1.dtb \
-	rv1109-evb-ddr3-v10.dtb \
-	rv1109-evb-ddr3-v12.dtb \
 	rv1109-evb-ddr3-v12-facial-gate.dtb \
-	rv1109-evb-ddr3-v12-tb-emmc.dtb \
-	rv1109-evb-lp3-v10.dtb \
 	rv1109-fpga.dtb \
 	rv1126-38x38-v10-spi-nor.dtb \
 	rv1126-ai-cam-ddr3-v1.dtb \
@@ -862,7 +858,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1126-evb-ddr3-v12-tb-emmc.dtb \
 	rv1126-evb-ddr3-v12-tb-spi-nor.dtb \
 	rv1126-evb-ddr3-v13.dtb \
-	rv1126-evb-lp3-v10.dtb \
 	rv1126-iotest-v10.dtb \
 	rv1126-ipc2-ddr3-v10.dtb \
 	rv1126-sphericalipc-ddr3-v10.dtb \
