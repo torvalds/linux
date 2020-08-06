@@ -975,7 +975,7 @@ static int pep_init(struct sock *sk)
 }
 
 static int pep_setsockopt(struct sock *sk, int level, int optname,
-				char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	int val = 0, err = 0;
@@ -983,7 +983,7 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 	if (level != SOL_PNPIPE)
 		return -ENOPROTOOPT;
 	if (optlen >= sizeof(int)) {
-		if (get_user(val, (int __user *) optval))
+		if (copy_from_sockptr(&val, optval, sizeof(int)))
 			return -EFAULT;
 	}
 

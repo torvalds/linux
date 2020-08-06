@@ -1432,6 +1432,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ "INT33C0", LPSS_LPT_SSP },
 	{ "INT33C1", LPSS_LPT_SSP },
@@ -1442,6 +1443,7 @@ static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
+#endif
 
 /*
  * PCI IDs of compound devices that integrate both host controller and private

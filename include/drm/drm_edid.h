@@ -359,13 +359,22 @@ drm_load_edid_firmware(struct drm_connector *connector)
 }
 #endif
 
+/**
+ * drm_edid_are_equal - compare two edid blobs.
+ * @edid1: pointer to first blob
+ * @edid2: pointer to second blob
+ * This helper can be used during probing to determine if
+ * edid had changed.
+ */
+bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2);
+
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 struct drm_connector *connector,
+					 const struct drm_connector *connector,
 					 const struct drm_display_mode *mode);
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
-					    struct drm_connector *connector,
+					    const struct drm_connector *connector,
 					    const struct drm_display_mode *mode);
 
 void
@@ -378,7 +387,7 @@ drm_hdmi_avi_infoframe_bars(struct hdmi_avi_infoframe *frame,
 
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
-				   struct drm_connector *connector,
+				   const struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range);
 

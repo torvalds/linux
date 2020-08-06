@@ -45,7 +45,7 @@ EXPORT_SYMBOL_GPL(usb_of_get_device_node);
  *
  * Determine whether a USB device has a so called combined node which is
  * shared with its sole interface. This is the case if and only if the device
- * has a node and its decriptors report the following:
+ * has a node and its descriptors report the following:
  *
  *	1) bDeviceClass is 0 or 9, and
  *	2) bNumConfigurations is 1, and

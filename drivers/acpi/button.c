@@ -405,7 +405,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
 		event = ACPI_BUTTON_NOTIFY_STATUS;
-		/* fall through */
+		fallthrough;
 	case ACPI_BUTTON_NOTIFY_STATUS:
 		input = button->input;
 		if (button->type == ACPI_BUTTON_TYPE_LID) {

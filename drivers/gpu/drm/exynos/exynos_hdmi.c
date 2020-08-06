@@ -921,7 +921,8 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 
 	DRM_DEV_DEBUG_KMS(hdata->dev,
 			  "xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
-			  mode->hdisplay, mode->vdisplay, mode->vrefresh,
+			  mode->hdisplay, mode->vdisplay,
+			  drm_mode_vrefresh(mode),
 			  (mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
 			  false, mode->clock * 1000);
 
@@ -1020,7 +1021,7 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 			DRM_DEV_DEBUG_KMS(dev->dev,
 					  "Adjusted Mode: [%d]x[%d] [%d]Hz\n",
 					  m->hdisplay, m->vdisplay,
-					  m->vrefresh);
+					  drm_mode_vrefresh(m));
 
 			drm_mode_copy(adjusted_mode, m);
 			break;

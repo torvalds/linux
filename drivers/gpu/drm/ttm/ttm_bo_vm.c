@@ -351,6 +351,11 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 
 		};
 
+		if (ttm_tt_create(bo, true)) {
+			ret = VM_FAULT_OOM;
+			goto out_io_unlock;
+		}
+
 		ttm = bo->ttm;
 		if (ttm_tt_populate(bo->ttm, &ctx)) {
 			ret = VM_FAULT_OOM;

@@ -203,6 +203,7 @@
 };
 
 &pwm2 {
+	#pwm-cells = <2>;
 	status = "okay";
 };
 

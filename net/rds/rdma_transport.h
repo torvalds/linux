@@ -13,7 +13,7 @@
 
 /* Below reject reason is for legacy interoperability issue with non-linux
  * RDS endpoints where older version incompatibility is conveyed via value 1.
- * For future version(s), proper encoded reject reason should be be used.
+ * For future version(s), proper encoded reject reason should be used.
  */
 #define RDS_RDMA_REJ_INCOMPAT		1
 

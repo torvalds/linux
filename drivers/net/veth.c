@@ -1198,26 +1198,11 @@ err:
 	return err;
 }
 
-static u32 veth_xdp_query(struct net_device *dev)
-{
-	struct veth_priv *priv = netdev_priv(dev);
-	const struct bpf_prog *xdp_prog;
-
-	xdp_prog = priv->_xdp_prog;
-	if (xdp_prog)
-		return xdp_prog->aux->id;
-
-	return 0;
-}
-
 static int veth_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return veth_xdp_set(dev, xdp->prog, xdp->extack);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = veth_xdp_query(dev);
-		return 0;
 	default:
 		return -EINVAL;
 	}

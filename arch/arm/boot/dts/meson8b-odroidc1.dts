@@ -15,6 +15,7 @@
 	aliases {
 		serial0 = &uart_AO;
 		mmc0 = &sd_card_slot;
+		mmc1 = &sdhc;
 	};
 
 	chosen {
@@ -24,6 +25,11 @@
 	memory {
 		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
 	};
 
 	leds {
@@ -308,6 +314,26 @@
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8>;
+};
+
+&sdhc {
+	status = "okay";
+
+	pinctrl-0 = <&sdxc_c_pins>;
+	pinctrl-names = "default";
+
+	bus-width = <8>;
+	max-frequency = <100000000>;
+
+	disable-wp;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	no-sdio;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
+
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vcc_1v8>;
 };
 
 &sdio {

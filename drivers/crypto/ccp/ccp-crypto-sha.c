@@ -19,6 +19,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <crypto/scatterwalk.h>
+#include <linux/string.h>
 
 #include "ccp-crypto.h"
 
@@ -424,7 +425,7 @@ static int ccp_register_hmac_alg(struct list_head *head,
 	*ccp_alg = *base_alg;
 	INIT_LIST_HEAD(&ccp_alg->entry);
 
-	strncpy(ccp_alg->child_alg, def->name, CRYPTO_MAX_ALG_NAME);
+	strscpy(ccp_alg->child_alg, def->name, CRYPTO_MAX_ALG_NAME);
 
 	alg = &ccp_alg->alg;
 	alg->setkey = ccp_sha_setkey;
@@ -486,6 +487,7 @@ static int ccp_register_sha_alg(struct list_head *head,
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->drv_name);
 	base->cra_flags = CRYPTO_ALG_ASYNC |
+			  CRYPTO_ALG_ALLOCATES_MEMORY |
 			  CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = def->block_size;

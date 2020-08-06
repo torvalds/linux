@@ -486,7 +486,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_INT:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;
@@ -519,7 +519,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if ((urb->interval < 6)
 				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
-			/* fall through */
+			fallthrough;
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

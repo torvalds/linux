@@ -1644,7 +1644,7 @@ dump_last:
 				goto next_set;
 			if (set->variant->uref)
 				set->variant->uref(set, cb, true);
-			/* fall through */
+			fallthrough;
 		default:
 			ret = set->variant->list(set, skb, cb);
 			if (!cb->args[IPSET_CB_ARG0])

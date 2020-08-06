@@ -155,7 +155,7 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init encoder: %d\n", ret);
 		return ret;
-	};
+	}
 
 	drm_encoder_helper_add(encoder, &zx_vga_encoder_helper_funcs);
 
@@ -168,7 +168,7 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init connector: %d\n", ret);
 		goto clean_encoder;
-	};
+	}
 
 	drm_connector_helper_add(connector, &zx_vga_connector_helper_funcs);
 
@@ -176,7 +176,7 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to attach encoder: %d\n", ret);
 		goto clean_connector;
-	};
+	}
 
 	return 0;
 

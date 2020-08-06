@@ -360,7 +360,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 
 	buf[0] = pixel_clock_10kHz & 0xff;
 	buf[1] = pixel_clock_10kHz >> 8;
-	buf[2] = adj->vrefresh;
+	buf[2] = drm_mode_vrefresh(adj);
 	buf[3] = 0x00;
 	buf[4] = adj->hdisplay;
 	buf[5] = adj->hdisplay >> 8;

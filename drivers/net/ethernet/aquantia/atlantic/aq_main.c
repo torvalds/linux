@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_main.c: Main file for aQuantia Linux driver. */
@@ -94,10 +95,11 @@ err_exit:
 	return err;
 }
 
-static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	if (unlikely(aq_utils_obj_test(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP))) {
 		/* Hardware adds the Timestamp for PTPv2 802.AS1
 		 * and PTPv2 IPv4 UDP.
@@ -114,6 +116,7 @@ static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		    unlikely(eth_hdr(skb)->h_proto == htons(ETH_P_1588)))
 			return aq_ptp_xmit(aq_nic, skb);
 	}
+#endif
 
 	skb_tx_timestamp(skb);
 	return aq_nic_xmit(aq_nic, skb);
@@ -222,6 +225,7 @@ static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 	(void)aq_nic_set_multicast_list(aq_nic, ndev);
 }
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 static int aq_ndev_config_hwtstamp(struct aq_nic_s *aq_nic,
 				   struct hwtstamp_config *config)
 {
@@ -256,26 +260,31 @@ static int aq_ndev_config_hwtstamp(struct aq_nic_s *aq_nic,
 
 	return aq_ptp_hwtstamp_config_set(aq_nic->aq_ptp, config);
 }
+#endif
 
 static int aq_ndev_hwtstamp_set(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	int ret_val;
+#endif
 
 	if (!aq_nic->aq_ptp)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
-
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	ret_val = aq_ndev_config_hwtstamp(aq_nic, &config);
 	if (ret_val)
 		return ret_val;
+#endif
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	       -EFAULT : 0;
 }
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 static int aq_ndev_hwtstamp_get(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
@@ -287,6 +296,7 @@ static int aq_ndev_hwtstamp_get(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	       -EFAULT : 0;
 }
+#endif
 
 static int aq_ndev_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
@@ -296,8 +306,10 @@ static int aq_ndev_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		return aq_ndev_hwtstamp_set(aq_nic, ifr);
 
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	case SIOCGHWTSTAMP:
 		return aq_ndev_hwtstamp_get(aq_nic, ifr);
+#endif
 	}
 
 	return -EOPNOTSUPP;

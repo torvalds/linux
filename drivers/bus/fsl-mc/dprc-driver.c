@@ -27,7 +27,16 @@ static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 {
 	return mc_dev->obj_desc.id == obj_desc->id &&
 	       strcmp(mc_dev->obj_desc.type, obj_desc->type) == 0;
+}
 
+static bool fsl_mc_obj_desc_is_allocatable(struct fsl_mc_obj_desc *obj)
+{
+	if (strcmp(obj->type, "dpmcp") == 0 ||
+	    strcmp(obj->type, "dpcon") == 0 ||
+	    strcmp(obj->type, "dpbp") == 0)
+		return true;
+	else
+		return false;
 }
 
 static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
@@ -150,6 +159,27 @@ static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
 	}
 }
 
+static void fsl_mc_obj_device_add(struct fsl_mc_device *mc_bus_dev,
+				  struct fsl_mc_obj_desc *obj_desc)
+{
+	int error;
+	struct fsl_mc_device *child_dev;
+
+	/*
+	 * Check if device is already known to Linux:
+	 */
+	child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
+	if (child_dev) {
+		check_plugged_state_change(child_dev, obj_desc);
+		put_device(&child_dev->dev);
+	} else {
+		error = fsl_mc_device_add(obj_desc, NULL, &mc_bus_dev->dev,
+					  &child_dev);
+		if (error < 0)
+			return;
+	}
+}
+
 /**
  * dprc_add_new_devices - Adds devices to the logical bus for a DPRC
  *
@@ -166,30 +196,23 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 				 struct fsl_mc_obj_desc *obj_desc_array,
 				 int num_child_objects_in_mc)
 {
-	int error;
 	int i;
 
+	/* probe the allocable objects first */
 	for (i = 0; i < num_child_objects_in_mc; i++) {
-		struct fsl_mc_device *child_dev;
 		struct fsl_mc_obj_desc *obj_desc = &obj_desc_array[i];
 
-		if (strlen(obj_desc->type) == 0)
-			continue;
+		if (strlen(obj_desc->type) > 0 &&
+		    fsl_mc_obj_desc_is_allocatable(obj_desc))
+			fsl_mc_obj_device_add(mc_bus_dev, obj_desc);
+	}
 
-		/*
-		 * Check if device is already known to Linux:
-		 */
-		child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
-		if (child_dev) {
-			check_plugged_state_change(child_dev, obj_desc);
-			put_device(&child_dev->dev);
-			continue;
-		}
+	for (i = 0; i < num_child_objects_in_mc; i++) {
+		struct fsl_mc_obj_desc *obj_desc = &obj_desc_array[i];
 
-		error = fsl_mc_device_add(obj_desc, NULL, &mc_bus_dev->dev,
-					  &child_dev);
-		if (error < 0)
-			continue;
+		if (strlen(obj_desc->type) > 0 &&
+		    !fsl_mc_obj_desc_is_allocatable(obj_desc))
+			fsl_mc_obj_device_add(mc_bus_dev, obj_desc);
 	}
 }
 
@@ -592,6 +615,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
 	u16 major_ver, minor_ver;
+	struct irq_domain *mc_msi_domain;
 
 	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
@@ -621,31 +645,15 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 			return error;
 
 		mc_io_created = true;
+	}
 
-		/*
-		 * Inherit parent MSI domain:
-		 */
-		dev_set_msi_domain(&mc_dev->dev,
-				   dev_get_msi_domain(parent_dev));
-		msi_domain_set = true;
+	mc_msi_domain = fsl_mc_find_msi_domain(&mc_dev->dev);
+	if (!mc_msi_domain) {
+		dev_warn(&mc_dev->dev,
+			 "WARNING: MC bus without interrupt support\n");
 	} else {
-		/*
-		 * This is a root DPRC
-		 */
-		struct irq_domain *mc_msi_domain;
-
-		if (dev_is_fsl_mc(parent_dev))
-			return -EINVAL;
-
-		error = fsl_mc_find_msi_domain(parent_dev,
-					       &mc_msi_domain);
-		if (error < 0) {
-			dev_warn(&mc_dev->dev,
-				 "WARNING: MC bus without interrupt support\n");
-		} else {
-			dev_set_msi_domain(&mc_dev->dev, mc_msi_domain);
-			msi_domain_set = true;
-		}
+		dev_set_msi_domain(&mc_dev->dev, mc_msi_domain);
+		msi_domain_set = true;
 	}
 
 	error = dprc_open(mc_dev->mc_io, 0, mc_dev->obj_desc.id,

@@ -38,6 +38,7 @@ struct cp_psp_stream_config {
 };
 
 struct cp_psp_funcs {
+	bool (*enable_assr)(void *handle, struct dc_link *link);
 	void (*update_stream_config)(void *handle, struct cp_psp_stream_config *config);
 };
 

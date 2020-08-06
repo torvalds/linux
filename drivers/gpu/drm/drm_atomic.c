@@ -575,6 +575,7 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 					   fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
+
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
 				 plane->base.id, plane->name,
 				 drm_get_format_name(fb->format->format,

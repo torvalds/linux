@@ -329,6 +329,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	every chipselect is connected to a slave.
  * @dma_alignment: SPI controller constraint on DMA buffers alignment.
  * @mode_bits: flags understood by this controller driver
+ * @buswidth_override_bits: flags to override for this controller driver
  * @bits_per_word_mask: A mask indicating which values of bits_per_word are
  *	supported by the driver. Bit n indicates that a bits_per_word n+1 is
  *	supported. If set, the SPI core will reject any transfer with an
@@ -358,8 +359,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cleanup: frees controller-specific state
  * @can_dma: determine whether this controller supports DMA
  * @queued: whether this controller is providing an internal message queue
- * @kworker: thread struct for message pump
- * @kworker_task: pointer to task for message pump kworker thread
+ * @kworker: pointer to thread struct for message pump
  * @pump_messages: work struct for scheduling work to the message pump
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
@@ -368,6 +368,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cur_msg_prepared: spi_prepare_message was called for the currently
  *                    in-flight message
  * @cur_msg_mapped: message has been mapped for DMA
+ * @last_cs_enable: was enable true on the last call to set_cs.
+ * @last_cs_mode_high: was (mode & SPI_CS_HIGH) true on the last call to set_cs.
  * @xfer_completion: used by core transfer_one_message()
  * @busy: message pump is busy
  * @running: message pump is running
@@ -447,6 +449,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	If the driver does not set this, the SPI core takes the snapshot as
  *	close to the driver hand-over as possible.
  * @irq_flags: Interrupt enable state during PTP system timestamping
+ * @fallback: fallback to pio if dma transfer return failure with
+ *	SPI_TRANS_FAIL_NO_START.
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -589,8 +593,7 @@ struct spi_controller {
 	 * Over time we expect SPI drivers to be phased over to this API.
 	 */
 	bool				queued;
-	struct kthread_worker		kworker;
-	struct task_struct		*kworker_task;
+	struct kthread_worker		*kworker;
 	struct kthread_work		pump_messages;
 	spinlock_t			queue_lock;
 	struct list_head		queue;
@@ -602,6 +605,9 @@ struct spi_controller {
 	bool				auto_runtime_pm;
 	bool                            cur_msg_prepared;
 	bool				cur_msg_mapped;
+	bool				last_cs_enable;
+	bool				last_cs_mode_high;
+	bool                            fallback;
 	struct completion               xfer_completion;
 	size_t				max_dma_len;
 
@@ -841,12 +847,8 @@ extern void spi_res_release(struct spi_controller *ctlr,
  *	processed the word, i.e. the "pre" timestamp should be taken before
  *	transmitting the "pre" word, and the "post" timestamp after receiving
  *	transmit confirmation from the controller for the "post" word.
- * @timestamped_pre: Set by the SPI controller driver to denote it has acted
- *	upon the @ptp_sts request. Not set when the SPI core has taken care of
- *	the task. SPI device drivers are free to print a warning if this comes
- *	back unset and they need the better resolution.
- * @timestamped_post: See above. The reason why both exist is that these
- *	booleans are also used to keep state in the core SPI logic.
+ * @timestamped: true if the transfer has been timestamped
+ * @error: Error status logged by spi controller driver.
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide @rx_buf and/or @tx_buf.
@@ -940,6 +942,9 @@ struct spi_transfer {
 	bool		timestamped;
 
 	struct list_head transfer_list;
+
+#define SPI_TRANS_FAIL_NO_START	BIT(0)
+	u16		error;
 };
 
 /**
@@ -962,7 +967,7 @@ struct spi_transfer {
  * each represented by a struct spi_transfer.  The sequence is "atomic"
  * in the sense that no other spi_message may use that SPI bus until that
  * sequence completes.  On some systems, many such sequences can execute as
- * as single programmed DMA transfer.  On all systems, these messages are
+ * a single programmed DMA transfer.  On all systems, these messages are
  * queued, and might complete after transactions to other devices.  Messages
  * sent to a given spi_device are always executed in FIFO order.
  *
@@ -1225,7 +1230,7 @@ extern int spi_bus_unlock(struct spi_controller *ctlr);
  *
  * For more specific semantics see spi_sync().
  *
- * Return: Return: zero on success, else a negative error code.
+ * Return: zero on success, else a negative error code.
  */
 static inline int
 spi_sync_transfer(struct spi_device *spi, struct spi_transfer *xfers,

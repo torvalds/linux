@@ -400,6 +400,7 @@ kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 	mig.end = end;
 	mig.src = &src_pfn;
 	mig.dst = &dst_pfn;
+	mig.flags = MIGRATE_VMA_SELECT_SYSTEM;
 
 	/*
 	 * We come here with mmap_lock write lock held just for
@@ -577,7 +578,8 @@ kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
 	mig.end = end;
 	mig.src = &src_pfn;
 	mig.dst = &dst_pfn;
-	mig.src_owner = &kvmppc_uvmem_pgmap;
+	mig.pgmap_owner = &kvmppc_uvmem_pgmap;
+	mig.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
 	/* The requested page is already paged-out, nothing to do */

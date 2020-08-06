@@ -12,6 +12,10 @@ config MT76_USB
 	tristate
 	depends on MT76_CORE
 
+config MT76_SDIO
+	tristate
+	depends on MT76_CORE
+
 config MT76x02_LIB
 	tristate
 	select MT76_CORE

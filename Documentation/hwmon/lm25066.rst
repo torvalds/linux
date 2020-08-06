@@ -11,9 +11,9 @@ Supported chips:
 
     Datasheets:
 
-	http://www.ti.com/lit/gpn/lm25056
+	https://www.ti.com/lit/gpn/lm25056
 
-	http://www.ti.com/lit/gpn/lm25056a
+	https://www.ti.com/lit/gpn/lm25056a
 
   * National Semiconductor LM25066
 
@@ -55,7 +55,7 @@ Supported chips:
 
 	Datasheet:
 
-    http://www.ti.com/product/LM5066I
+    https://www.ti.com/product/LM5066I
 
 
 Author: Guenter Roeck <linux@roeck-us.net>

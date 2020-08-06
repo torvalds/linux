@@ -872,7 +872,7 @@ The kgdboc driver contains logic to configure communications with an
 attached keyboard. The keyboard infrastructure is only compiled into the
 kernel when ``CONFIG_KDB_KEYBOARD=y`` is set in the kernel configuration.
 
-The core polled keyboard driver driver for PS/2 type keyboards is in
+The core polled keyboard driver for PS/2 type keyboards is in
 ``drivers/char/kdb_keyboard.c``. This driver is hooked into the debug core
 when kgdboc populates the callback in the array called
 :c:type:`kdb_poll_funcs[]`. The :c:func:`kdb_get_kbd_char` is the top-level

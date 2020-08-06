@@ -279,10 +279,8 @@ static struct proto_ops algif_hash_ops = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	hash_sendmsg,
@@ -383,10 +381,8 @@ static struct proto_ops algif_hash_ops_nokey = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	hash_sendmsg_nokey,

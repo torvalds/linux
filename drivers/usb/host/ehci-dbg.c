@@ -823,7 +823,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 				break;
 			case 0:		/* illegal reserved capability */
 				cap = 0;
-				/* FALLTHROUGH */
+				fallthrough;
 			default:		/* unknown */
 				break;
 			}

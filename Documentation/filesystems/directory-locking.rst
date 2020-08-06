@@ -28,7 +28,7 @@ RENAME_EXCHANGE in flags argument) lock both.  In any case,
 if the target already exists, lock it.  If the source is a non-directory,
 lock it.  If we need to lock both, lock them in inode pointer order.
 Then call the method.  All locks are exclusive.
-NB: we might get away with locking the the source (and target in exchange
+NB: we might get away with locking the source (and target in exchange
 case) shared.
 
 5) link creation.  Locking rules:
@@ -56,7 +56,7 @@ rules:
 	* call the method.
 
 All ->i_rwsem are taken exclusive.  Again, we might get away with locking
-the the source (and target in exchange case) shared.
+the source (and target in exchange case) shared.
 
 The rules above obviously guarantee that all directories that are going to be
 read, modified or removed by method will be locked by caller.

@@ -527,8 +527,8 @@ static void program_hpx_type3_register(struct pci_dev *dev,
 			return;
 
 		break;
-	case HPX_CFG_VEND_CAP:	/* Fall through */
-	case HPX_CFG_DVSEC:	/* Fall through */
+	case HPX_CFG_VEND_CAP:
+	case HPX_CFG_DVSEC:
 	default:
 		pci_warn(dev, "Encountered _HPX type 3 with unsupported config space location");
 		return;
@@ -1001,7 +1001,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:

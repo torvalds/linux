@@ -144,8 +144,12 @@ static const char *type2name[] = {
 	[dma_debug_resource] = "resource",
 };
 
-static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
-				   "DMA_FROM_DEVICE", "DMA_NONE" };
+static const char *dir2name[] = {
+	[DMA_BIDIRECTIONAL]	= "DMA_BIDIRECTIONAL",
+	[DMA_TO_DEVICE]		= "DMA_TO_DEVICE",
+	[DMA_FROM_DEVICE]	= "DMA_FROM_DEVICE",
+	[DMA_NONE]		= "DMA_NONE",
+};
 
 /*
  * The access to some variables in this macro is racy. We can't use atomic_t
@@ -882,7 +886,7 @@ static int device_dma_allocations(struct device *dev, struct dma_debug_entry **o
 static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
-	struct dma_debug_entry *uninitialized_var(entry);
+	struct dma_debug_entry *entry;
 	int count;
 
 	if (dma_debug_disabled())
@@ -1071,7 +1075,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	/*
 	 * Drivers should use dma_mapping_error() to check the returned
 	 * addresses of dma_map_single() and dma_map_page().
-	 * If not, print this warning message. See Documentation/DMA-API.txt.
+	 * If not, print this warning message. See Documentation/core-api/dma-api.rst.
 	 */
 	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
 		err_printk(ref->dev, entry,

@@ -27,7 +27,7 @@ config HERMES
 
 	  You will also very likely also need the Wireless Tools in order to
 	  configure your card and that /etc/pcmcia/wireless.opts works :
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
 
 config HERMES_PRISM
 	bool "Support Prism 2/2.5 chipset"
@@ -120,7 +120,7 @@ config PCMCIA_HERMES
 
 	  You will very likely need the Wireless Tools in order to
 	  configure your card and that /etc/pcmcia/wireless.opts works:
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
 config PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"

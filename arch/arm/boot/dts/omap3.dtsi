@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for OMAP3 SoC
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -157,13 +157,56 @@
 			};
 		};
 
-		aes: aes@480c5000 {
-			compatible = "ti,omap3-aes";
-			ti,hwmods = "aes";
-			reg = <0x480c5000 0x50>;
-			interrupts = <0>;
-			dmas = <&sdma 65 &sdma 66>;
-			dma-names = "tx", "rx";
+		aes1_target: target-module@480a6000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480a6044 0x4>,
+			      <0x480a6048 0x4>,
+			      <0x480a604c 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&aes1_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480a6000 0x2000>;
+
+			aes1: aes1@0 {
+				compatible = "ti,omap3-aes";
+				reg = <0 0x50>;
+				interrupts = <0>;
+				dmas = <&sdma 9 &sdma 10>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		aes2_target: target-module@480c5000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480c5044 0x4>,
+			      <0x480c5048 0x4>,
+			      <0x480c504c 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&aes2_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480c5000 0x2000>;
+
+			aes2: aes2@0 {
+				compatible = "ti,omap3-aes";
+				reg = <0 0x50>;
+				interrupts = <0>;
+				dmas = <&sdma 65 &sdma 66>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		prm: prm@48306000 {

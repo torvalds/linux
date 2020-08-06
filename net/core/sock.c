@@ -113,6 +113,7 @@
 #include <linux/static_key.h>
 #include <linux/memcontrol.h>
 #include <linux/prefetch.h>
+#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 
@@ -360,7 +361,8 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 	return sizeof(tv);
 }
 
-static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool old_timeval)
+static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
+			    bool old_timeval)
 {
 	struct __kernel_sock_timeval tv;
 
@@ -370,7 +372,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool
 		if (optlen < sizeof(tv32))
 			return -EINVAL;
 
-		if (copy_from_user(&tv32, optval, sizeof(tv32)))
+		if (copy_from_sockptr(&tv32, optval, sizeof(tv32)))
 			return -EFAULT;
 		tv.tv_sec = tv32.tv_sec;
 		tv.tv_usec = tv32.tv_usec;
@@ -379,14 +381,14 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool
 
 		if (optlen < sizeof(old_tv))
 			return -EINVAL;
-		if (copy_from_user(&old_tv, optval, sizeof(old_tv)))
+		if (copy_from_sockptr(&old_tv, optval, sizeof(old_tv)))
 			return -EFAULT;
 		tv.tv_sec = old_tv.tv_sec;
 		tv.tv_usec = old_tv.tv_usec;
 	} else {
 		if (optlen < sizeof(tv))
 			return -EINVAL;
-		if (copy_from_user(&tv, optval, sizeof(tv)))
+		if (copy_from_sockptr(&tv, optval, sizeof(tv)))
 			return -EFAULT;
 	}
 	if (tv.tv_usec < 0 || tv.tv_usec >= USEC_PER_SEC)
@@ -608,8 +610,7 @@ int sock_bindtoindex(struct sock *sk, int ifindex, bool lock_sk)
 }
 EXPORT_SYMBOL(sock_bindtoindex);
 
-static int sock_setbindtodevice(struct sock *sk, char __user *optval,
-				int optlen)
+static int sock_setbindtodevice(struct sock *sk, sockptr_t optval, int optlen)
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
@@ -631,7 +632,7 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 	memset(devname, 0, sizeof(devname));
 
 	ret = -EFAULT;
-	if (copy_from_user(devname, optval, optlen))
+	if (copy_from_sockptr(devname, optval, optlen))
 		goto out;
 
 	index = 0;
@@ -693,15 +694,6 @@ out:
 #endif
 
 	return ret;
-}
-
-static inline void sock_valbool_flag(struct sock *sk, enum sock_flags bit,
-				     int valbool)
-{
-	if (valbool)
-		sock_set_flag(sk, bit);
-	else
-		sock_reset_flag(sk, bit);
 }
 
 bool sk_mc_loop(struct sock *sk)
@@ -834,7 +826,7 @@ EXPORT_SYMBOL(sock_set_rcvbuf);
  */
 
 int sock_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, unsigned int optlen)
+		    sockptr_t optval, unsigned int optlen)
 {
 	struct sock_txtime sk_txtime;
 	struct sock *sk = sock->sk;
@@ -853,7 +845,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	if (optlen < sizeof(int))
 		return -EINVAL;
 
-	if (get_user(val, (int __user *)optval))
+	if (copy_from_sockptr(&val, optval, sizeof(val)))
 		return -EFAULT;
 
 	valbool = val ? 1 : 0;
@@ -966,7 +958,7 @@ set_sndbuf:
 			ret = -EINVAL;	/* 1003.1g */
 			break;
 		}
-		if (copy_from_user(&ling, optval, sizeof(ling))) {
+		if (copy_from_sockptr(&ling, optval, sizeof(ling))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1060,60 +1052,52 @@ set_sndbuf:
 
 	case SO_RCVTIMEO_OLD:
 	case SO_RCVTIMEO_NEW:
-		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval, optlen, optname == SO_RCVTIMEO_OLD);
+		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval,
+				       optlen, optname == SO_RCVTIMEO_OLD);
 		break;
 
 	case SO_SNDTIMEO_OLD:
 	case SO_SNDTIMEO_NEW:
-		ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen, optname == SO_SNDTIMEO_OLD);
+		ret = sock_set_timeout(&sk->sk_sndtimeo, optval,
+				       optlen, optname == SO_SNDTIMEO_OLD);
 		break;
 
-	case SO_ATTACH_FILTER:
-		ret = -EINVAL;
-		if (optlen == sizeof(struct sock_fprog)) {
-			struct sock_fprog fprog;
+	case SO_ATTACH_FILTER: {
+		struct sock_fprog fprog;
 
-			ret = -EFAULT;
-			if (copy_from_user(&fprog, optval, sizeof(fprog)))
-				break;
-
+		ret = copy_bpf_fprog_from_user(&fprog, optval, optlen);
+		if (!ret)
 			ret = sk_attach_filter(&fprog, sk);
-		}
 		break;
-
+	}
 	case SO_ATTACH_BPF:
 		ret = -EINVAL;
 		if (optlen == sizeof(u32)) {
 			u32 ufd;
 
 			ret = -EFAULT;
-			if (copy_from_user(&ufd, optval, sizeof(ufd)))
+			if (copy_from_sockptr(&ufd, optval, sizeof(ufd)))
 				break;
 
 			ret = sk_attach_bpf(ufd, sk);
 		}
 		break;
 
-	case SO_ATTACH_REUSEPORT_CBPF:
-		ret = -EINVAL;
-		if (optlen == sizeof(struct sock_fprog)) {
-			struct sock_fprog fprog;
+	case SO_ATTACH_REUSEPORT_CBPF: {
+		struct sock_fprog fprog;
 
-			ret = -EFAULT;
-			if (copy_from_user(&fprog, optval, sizeof(fprog)))
-				break;
-
+		ret = copy_bpf_fprog_from_user(&fprog, optval, optlen);
+		if (!ret)
 			ret = sk_reuseport_attach_filter(&fprog, sk);
-		}
 		break;
-
+	}
 	case SO_ATTACH_REUSEPORT_EBPF:
 		ret = -EINVAL;
 		if (optlen == sizeof(u32)) {
 			u32 ufd;
 
 			ret = -EFAULT;
-			if (copy_from_user(&ufd, optval, sizeof(ufd)))
+			if (copy_from_sockptr(&ufd, optval, sizeof(ufd)))
 				break;
 
 			ret = sk_reuseport_attach_bpf(ufd, sk);
@@ -1193,7 +1177,7 @@ set_sndbuf:
 
 		if (sizeof(ulval) != sizeof(val) &&
 		    optlen >= sizeof(ulval) &&
-		    get_user(ulval, (unsigned long __user *)optval)) {
+		    copy_from_sockptr(&ulval, optval, sizeof(ulval))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1236,7 +1220,7 @@ set_sndbuf:
 		if (optlen != sizeof(struct sock_txtime)) {
 			ret = -EINVAL;
 			break;
-		} else if (copy_from_user(&sk_txtime, optval,
+		} else if (copy_from_sockptr(&sk_txtime, optval,
 			   sizeof(struct sock_txtime))) {
 			ret = -EFAULT;
 			break;
@@ -1973,7 +1957,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
-		 * (Documentation/RCU/rculist_nulls.txt for details)
+		 * (Documentation/RCU/rculist_nulls.rst for details)
 		 */
 		smp_wmb();
 		refcount_set(&newsk->sk_refcnt, 2);
@@ -2802,20 +2786,6 @@ int sock_no_shutdown(struct socket *sock, int how)
 }
 EXPORT_SYMBOL(sock_no_shutdown);
 
-int sock_no_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, unsigned int optlen)
-{
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(sock_no_setsockopt);
-
-int sock_no_getsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int __user *optlen)
-{
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(sock_no_getsockopt);
-
 int sock_no_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 {
 	return -EOPNOTSUPP;
@@ -2841,6 +2811,27 @@ int sock_no_mmap(struct file *file, struct socket *sock, struct vm_area_struct *
 	return -ENODEV;
 }
 EXPORT_SYMBOL(sock_no_mmap);
+
+/*
+ * When a file is received (via SCM_RIGHTS, etc), we must bump the
+ * various sock-based usage counts.
+ */
+void __receive_sock(struct file *file)
+{
+	struct socket *sock;
+	int error;
+
+	/*
+	 * The resulting value of "error" is ignored here since we only
+	 * need to take action when the file is a socket and testing
+	 * "sock" for NULL is sufficient.
+	 */
+	sock = sock_from_file(file, &error);
+	if (sock) {
+		sock_update_netprioidx(&sock->sk->sk_cgrp_data);
+		sock_update_classid(&sock->sk->sk_cgrp_data);
+	}
+}
 
 ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags)
 {
@@ -3035,7 +3026,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk_rx_queue_clear(sk);
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
-	 * (Documentation/RCU/rculist_nulls.txt for details)
+	 * (Documentation/RCU/rculist_nulls.rst for details)
 	 */
 	smp_wmb();
 	refcount_set(&sk->sk_refcnt, 1);
@@ -3222,20 +3213,6 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 }
 EXPORT_SYMBOL(sock_common_getsockopt);
 
-#ifdef CONFIG_COMPAT
-int compat_sock_common_getsockopt(struct socket *sock, int level, int optname,
-				  char __user *optval, int __user *optlen)
-{
-	struct sock *sk = sock->sk;
-
-	if (sk->sk_prot->compat_getsockopt != NULL)
-		return sk->sk_prot->compat_getsockopt(sk, level, optname,
-						      optval, optlen);
-	return sk->sk_prot->getsockopt(sk, level, optname, optval, optlen);
-}
-EXPORT_SYMBOL(compat_sock_common_getsockopt);
-#endif
-
 int sock_common_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			int flags)
 {
@@ -3255,27 +3232,13 @@ EXPORT_SYMBOL(sock_common_recvmsg);
  *	Set socket options on an inet socket.
  */
 int sock_common_setsockopt(struct socket *sock, int level, int optname,
-			   char __user *optval, unsigned int optlen)
+			   sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 
 	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(sock_common_setsockopt);
-
-#ifdef CONFIG_COMPAT
-int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
-				  char __user *optval, unsigned int optlen)
-{
-	struct sock *sk = sock->sk;
-
-	if (sk->sk_prot->compat_setsockopt != NULL)
-		return sk->sk_prot->compat_setsockopt(sk, level, optname,
-						      optval, optlen);
-	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
-}
-EXPORT_SYMBOL(compat_sock_common_setsockopt);
-#endif
 
 void sk_common_release(struct sock *sk)
 {
@@ -3575,6 +3538,7 @@ int sock_load_diag_module(int family, int protocol)
 #ifdef CONFIG_INET
 	if (family == AF_INET &&
 	    protocol != IPPROTO_RAW &&
+	    protocol < MAX_INET_PROTOS &&
 	    !rcu_access_pointer(inet_protos[protocol]))
 		return -ENOENT;
 #endif

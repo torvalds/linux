@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
 
-    Datasheet: http://www.winbond.com
+    Datasheet: https://www.winbond.com
 
   * Winbond W83783S
 

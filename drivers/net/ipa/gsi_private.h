@@ -44,7 +44,7 @@ void gsi_trans_complete(struct gsi_trans *trans);
  * @channel:	Channel associated with the transaction
  * @index:	Index of the TRE having a transaction
  *
- * @Return:	The GSI transaction pointer associated with the TRE index
+ * Return:	The GSI transaction pointer associated with the TRE index
  */
 struct gsi_trans *gsi_channel_trans_mapped(struct gsi_channel *channel,
 					   u32 index);
@@ -53,7 +53,7 @@ struct gsi_trans *gsi_channel_trans_mapped(struct gsi_channel *channel,
  * gsi_channel_trans_complete() - Return a channel's next completed transaction
  * @channel:	Channel whose next transaction is to be returned
  *
- * @Return:	The next completed transaction, or NULL if nothing new
+ * Return:	The next completed transaction, or NULL if nothing new
  */
 struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel);
 
@@ -76,7 +76,7 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel);
  * @gsi:	GSI pointer
  * @channel_id:	Channel number
  *
- * @Return:	0 if successful, or -ENOMEM on allocation failure
+ * Return:	0 if successful, or -ENOMEM on allocation failure
  *
  * Creates and sets up information for managing transactions on a channel
  */

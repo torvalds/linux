@@ -84,8 +84,9 @@ config SCC
 	help
 	  These cards are used to connect your Linux box to an amateur radio
 	  in order to communicate with other computers. If you want to use
-	  this, read <file:Documentation/networking/z8530drv.rst> and the
-	  AX25-HOWTO, available from
+	  this, read
+	  <file:Documentation/networking/device_drivers/hamradio/z8530drv.rst>
+	  and the AX25-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>. Also make sure to say Y
 	  to "Amateur Radio AX.25 Level 2" support.
 
@@ -98,7 +99,8 @@ config SCC_DELAY
 	help
 	  Say Y here if you experience problems with the SCC driver not
 	  working properly; please read
-	  <file:Documentation/networking/z8530drv.rst> for details.
+	  <file:Documentation/networking/device_drivers/hamradio/z8530drv.rst>
+	  for details.
 
 	  If unsure, say N.
 
@@ -127,7 +129,7 @@ config BAYCOM_SER_FDX
 	  your serial interface chip. To configure the driver, use the sethdlc
 	  utility available in the standard ax25 utilities package. For
 	  information on the modems, see <http://www.baycom.de/> and
-	  <file:Documentation/networking/baycom.rst>.
+	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_ser_fdx.  This is recommended.
@@ -145,7 +147,7 @@ config BAYCOM_SER_HDX
 	  the driver, use the sethdlc utility available in the standard ax25
 	  utilities package. For information on the modems, see
 	  <http://www.baycom.de/> and
-	  <file:Documentation/networking/baycom.rst>.
+	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_ser_hdx.  This is recommended.
@@ -160,7 +162,7 @@ config BAYCOM_PAR
 	  par96 designs. To configure the driver, use the sethdlc utility
 	  available in the standard ax25 utilities package. For information on
 	  the modems, see <http://www.baycom.de/> and the file
-	  <file:Documentation/networking/baycom.rst>.
+	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_par.  This is recommended.
@@ -175,7 +177,7 @@ config BAYCOM_EPP
 	  designs. To configure the driver, use the sethdlc utility available
 	  in the standard ax25 utilities package. For information on the
 	  modems, see <http://www.baycom.de/> and the file
-	  <file:Documentation/networking/baycom.rst>.
+	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called baycom_epp.  This is recommended.

@@ -300,7 +300,7 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  * elephant: The extended version of eboiv with additional Elephant diffuser
  *           used with Bitlocker CBC mode.
  *           This mode was used in older Windows systems
- *           http://download.microsoft.com/download/0/2/3/0238acaf-d3bf-4a6d-b3d6-0a0be4bbb36e/bitlockercipher200608.pdf
+ *           https://download.microsoft.com/download/0/2/3/0238acaf-d3bf-4a6d-b3d6-0a0be4bbb36e/bitlockercipher200608.pdf
  */
 
 static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv,
@@ -1789,7 +1789,7 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 		return 1;
 	}
 
-	generic_make_request(clone);
+	submit_bio_noacct(clone);
 	return 0;
 }
 
@@ -1815,7 +1815,7 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
 {
 	struct bio *clone = io->ctx.bio_out;
 
-	generic_make_request(clone);
+	submit_bio_noacct(clone);
 }
 
 #define crypt_io_from_node(node) rb_entry((node), struct dm_crypt_io, rb_node)
@@ -1893,7 +1893,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	if (likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) {
-		generic_make_request(clone);
+		submit_bio_noacct(clone);
 		return;
 	}
 

@@ -215,10 +215,7 @@ static struct uac2_ac_header_descriptor ac_hdr_desc = {
 	.bDescriptorSubtype = UAC_MS_HEADER,
 	.bcdADC = cpu_to_le16(0x200),
 	.bCategory = UAC2_FUNCTION_IO_BOX,
-	.wTotalLength = cpu_to_le16(sizeof in_clk_src_desc
-			+ sizeof out_clk_src_desc + sizeof usb_out_it_desc
-			+ sizeof io_in_it_desc + sizeof usb_in_ot_desc
-			+ sizeof io_out_ot_desc),
+	/* .wTotalLength = DYNAMIC */
 	.bmControls = 0,
 };
 
@@ -501,7 +498,7 @@ static void setup_descriptor(struct f_uac2_opts *opts)
 	as_in_hdr_desc.bTerminalLink = usb_in_ot_desc.bTerminalID;
 
 	iad_desc.bInterfaceCount = 1;
-	ac_hdr_desc.wTotalLength = 0;
+	ac_hdr_desc.wTotalLength = cpu_to_le16(sizeof(ac_hdr_desc));
 
 	if (EPIN_EN(opts)) {
 		u16 len = le16_to_cpu(ac_hdr_desc.wTotalLength);

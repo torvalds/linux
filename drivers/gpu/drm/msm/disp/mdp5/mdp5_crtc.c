@@ -166,7 +166,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct msm_kms *kms = &mdp5_kms->base.base;
 
 	msm_gem_unpin_iova(val, kms->aspace);
-	drm_gem_object_put_unlocked(val);
+	drm_gem_object_put(val);
 }
 
 static void mdp5_crtc_destroy(struct drm_crtc *crtc)
@@ -1117,8 +1117,6 @@ static void mdp5_crtc_reset(struct drm_crtc *crtc)
 		mdp5_crtc_destroy_state(crtc, crtc->state);
 
 	__drm_atomic_helper_crtc_reset(crtc, &mdp5_cstate->base);
-
-	drm_crtc_vblank_reset(crtc);
 }
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {

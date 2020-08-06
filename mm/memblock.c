@@ -44,19 +44,20 @@
  *   in the system, for instance when the memory is restricted with
  *   ``mem=`` command line parameter
  * * ``reserved`` - describes the regions that were allocated
- * * ``physmap`` - describes the actual physical memory regardless of
- *   the possible restrictions; the ``physmap`` type is only available
- *   on some architectures.
+ * * ``physmem`` - describes the actual physical memory available during
+ *   boot regardless of the possible restrictions and memory hot(un)plug;
+ *   the ``physmem`` type is only available on some architectures.
  *
  * Each region is represented by :c:type:`struct memblock_region` that
  * defines the region extents, its attributes and NUMA node id on NUMA
  * systems. Every memory type is described by the :c:type:`struct
  * memblock_type` which contains an array of memory regions along with
- * the allocator metadata. The memory types are nicely wrapped with
- * :c:type:`struct memblock`. This structure is statically initialzed
- * at build time. The region arrays for the "memory" and "reserved"
- * types are initially sized to %INIT_MEMBLOCK_REGIONS and for the
- * "physmap" type to %INIT_PHYSMEM_REGIONS.
+ * the allocator metadata. The "memory" and "reserved" types are nicely
+ * wrapped with :c:type:`struct memblock`. This structure is statically
+ * initialized at build time. The region arrays are initially sized to
+ * %INIT_MEMBLOCK_REGIONS for "memory" and %INIT_MEMBLOCK_RESERVED_REGIONS
+ * for "reserved". The region array for "physmem" is initially sized to
+ * %INIT_PHYSMEM_REGIONS.
  * The memblock_allow_resize() enables automatic resizing of the region
  * arrays during addition of new regions. This feature should be used
  * with care so that memory allocated for the region array will not
@@ -87,8 +88,8 @@
  * function frees all the memory to the buddy page allocator.
  *
  * Unless an architecture enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
- * memblock data structures will be discarded after the system
- * initialization completes.
+ * memblock data structures (except "physmem") will be discarded after the
+ * system initialization completes.
  */
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -104,7 +105,7 @@ unsigned long long max_possible_pfn;
 static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
 static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_RESERVED_REGIONS] __initdata_memblock;
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
+static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS];
 #endif
 
 struct memblock memblock __initdata_memblock = {
@@ -118,16 +119,18 @@ struct memblock memblock __initdata_memblock = {
 	.reserved.max		= INIT_MEMBLOCK_RESERVED_REGIONS,
 	.reserved.name		= "reserved",
 
-#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	.physmem.regions	= memblock_physmem_init_regions,
-	.physmem.cnt		= 1,	/* empty dummy entry */
-	.physmem.max		= INIT_PHYSMEM_REGIONS,
-	.physmem.name		= "physmem",
-#endif
-
 	.bottom_up		= false,
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
+
+#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+struct memblock_type physmem = {
+	.regions		= memblock_physmem_init_regions,
+	.cnt			= 1,	/* empty dummy entry */
+	.max			= INIT_PHYSMEM_REGIONS,
+	.name			= "physmem",
+};
+#endif
 
 int memblock_debug __initdata_memblock;
 static bool system_has_some_mirror __initdata_memblock = false;
@@ -838,7 +841,7 @@ int __init_memblock memblock_physmem_add(phys_addr_t base, phys_addr_t size)
 	memblock_dbg("%s: [%pa-%pa] %pS\n", __func__,
 		     &base, &end, (void *)_RET_IP_);
 
-	return memblock_add_range(&memblock.physmem, base, size, MAX_NUMNODES, 0);
+	return memblock_add_range(&physmem, base, size, MAX_NUMNODES, 0);
 }
 #endif
 
@@ -1019,12 +1022,10 @@ static bool should_skip_region(struct memblock_region *m, int nid, int flags)
  * As both region arrays are sorted, the function advances the two indices
  * in lockstep and returns each intersection.
  */
-void __init_memblock __next_mem_range(u64 *idx, int nid,
-				      enum memblock_flags flags,
-				      struct memblock_type *type_a,
-				      struct memblock_type *type_b,
-				      phys_addr_t *out_start,
-				      phys_addr_t *out_end, int *out_nid)
+void __next_mem_range(u64 *idx, int nid, enum memblock_flags flags,
+		      struct memblock_type *type_a,
+		      struct memblock_type *type_b, phys_addr_t *out_start,
+		      phys_addr_t *out_end, int *out_nid)
 {
 	int idx_a = *idx & 0xffffffff;
 	int idx_b = *idx >> 32;
@@ -1924,7 +1925,7 @@ void __init_memblock __memblock_dump_all(void)
 	memblock_dump(&memblock.memory);
 	memblock_dump(&memblock.reserved);
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	memblock_dump(&memblock.physmem);
+	memblock_dump(&physmem);
 #endif
 }
 
@@ -2064,8 +2065,8 @@ static int __init memblock_init_debugfs(void)
 	debugfs_create_file("reserved", 0444, root,
 			    &memblock.reserved, &memblock_debug_fops);
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	debugfs_create_file("physmem", 0444, root,
-			    &memblock.physmem, &memblock_debug_fops);
+	debugfs_create_file("physmem", 0444, root, &physmem,
+			    &memblock_debug_fops);
 #endif
 
 	return 0;

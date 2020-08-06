@@ -5,9 +5,140 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/sort.h>
+
+#include "intel_gt_clock_utils.h"
+
 #include "selftest_llc.h"
 #include "selftest_rc6.h"
 #include "selftest_rps.h"
+
+static int cmp_u64(const void *A, const void *B)
+{
+	const u64 *a = A, *b = B;
+
+	if (a < b)
+		return -1;
+	else if (a > b)
+		return 1;
+	else
+		return 0;
+}
+
+static int cmp_u32(const void *A, const void *B)
+{
+	const u32 *a = A, *b = B;
+
+	if (a < b)
+		return -1;
+	else if (a > b)
+		return 1;
+	else
+		return 0;
+}
+
+static void measure_clocks(struct intel_engine_cs *engine,
+			   u32 *out_cycles, ktime_t *out_dt)
+{
+	ktime_t dt[5];
+	u32 cycles[5];
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		preempt_disable();
+		cycles[i] = -ENGINE_READ_FW(engine, RING_TIMESTAMP);
+		dt[i] = ktime_get();
+
+		udelay(1000);
+
+		dt[i] = ktime_sub(ktime_get(), dt[i]);
+		cycles[i] += ENGINE_READ_FW(engine, RING_TIMESTAMP);
+		preempt_enable();
+	}
+
+	/* Use the median of both cycle/dt; close enough */
+	sort(cycles, 5, sizeof(*cycles), cmp_u32, NULL);
+	*out_cycles = (cycles[1] + 2 * cycles[2] + cycles[3]) / 4;
+
+	sort(dt, 5, sizeof(*dt), cmp_u64, NULL);
+	*out_dt = div_u64(dt[1] + 2 * dt[2] + dt[3], 4);
+}
+
+static int live_gt_clocks(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	if (!RUNTIME_INFO(gt->i915)->cs_timestamp_frequency_hz) { /* unknown */
+		pr_info("CS_TIMESTAMP frequency unknown\n");
+		return 0;
+	}
+
+	if (INTEL_GEN(gt->i915) < 4) /* Any CS_TIMESTAMP? */
+		return 0;
+
+	if (IS_GEN(gt->i915, 5))
+		/*
+		 * XXX CS_TIMESTAMP low dword is dysfunctional?
+		 *
+		 * Ville's experiments indicate the high dword still works,
+		 * but at a correspondingly reduced frequency.
+		 */
+		return 0;
+
+	if (IS_GEN(gt->i915, 4))
+		/*
+		 * XXX CS_TIMESTAMP appears gibberish
+		 *
+		 * Ville's experiments indicate that it mostly appears 'stuck'
+		 * in that we see the register report the same cycle count
+		 * for a couple of reads.
+		 */
+		return 0;
+
+	intel_gt_pm_get(gt);
+	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+
+	for_each_engine(engine, gt, id) {
+		u32 cycles;
+		u32 expected;
+		u64 time;
+		u64 dt;
+
+		if (INTEL_GEN(engine->i915) < 7 && engine->id != RCS0)
+			continue;
+
+		measure_clocks(engine, &cycles, &dt);
+
+		time = i915_cs_timestamp_ticks_to_ns(engine->i915, cycles);
+		expected = i915_cs_timestamp_ns_to_ticks(engine->i915, dt);
+
+		pr_info("%s: TIMESTAMP %d cycles [%lldns] in %lldns [%d cycles], using CS clock frequency of %uKHz\n",
+			engine->name, cycles, time, dt, expected,
+			RUNTIME_INFO(engine->i915)->cs_timestamp_frequency_hz / 1000);
+
+		if (9 * time < 8 * dt || 8 * time > 9 * dt) {
+			pr_err("%s: CS ticks did not match walltime!\n",
+			       engine->name);
+			err = -EINVAL;
+			break;
+		}
+
+		if (9 * expected < 8 * cycles || 8 * expected > 9 * cycles) {
+			pr_err("%s: walltime did not match CS ticks!\n",
+			       engine->name);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
+	intel_gt_pm_put(gt);
+
+	return err;
+}
 
 static int live_gt_resume(void *arg)
 {
@@ -52,6 +183,7 @@ static int live_gt_resume(void *arg)
 int intel_gt_pm_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(live_gt_clocks),
 		SUBTEST(live_rc6_manual),
 		SUBTEST(live_rps_clock_interval),
 		SUBTEST(live_rps_control),

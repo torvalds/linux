@@ -127,6 +127,7 @@ struct ena_com_llq_info {
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
 	u16 max_entries_in_tx_burst;
+	bool disable_meta_caching;
 };
 
 struct ena_com_io_cq {
@@ -189,6 +190,8 @@ struct ena_com_io_sq {
 	enum queue_direction direction;
 	enum ena_admin_placement_policy_type mem_queue_type;
 
+	bool disable_meta_caching;
+
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
 	struct ena_com_llq_info llq_info;
@@ -230,11 +233,11 @@ struct ena_com_admin_sq {
 };
 
 struct ena_com_stats_admin {
-	u32 aborted_cmd;
-	u32 submitted_cmd;
-	u32 completed_cmd;
-	u32 out_of_space;
-	u32 no_completion;
+	u64 aborted_cmd;
+	u64 submitted_cmd;
+	u64 completed_cmd;
+	u64 out_of_space;
+	u64 no_completion;
 };
 
 struct ena_com_admin_queue {

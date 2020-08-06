@@ -229,8 +229,7 @@ struct pch_udc_data_dma_desc {
  *				 for control data
  * @status:	Status
  * @reserved:	Reserved
- * @data12:	First setup word
- * @data34:	Second setup word
+ * @request:	Control Request
  */
 struct pch_udc_stp_dma_desc {
 	u32 status;
@@ -304,8 +303,8 @@ struct pch_udc_ep {
  *					for detecting VBUS
  * @port:		gpio port number
  * @intr:		gpio interrupt number
- * @irq_work_fall	Structure for WorkQueue
- * @irq_work_rise	Structure for WorkQueue
+ * @irq_work_fall:	Structure for WorkQueue
+ * @irq_work_rise:	Structure for WorkQueue
  */
 struct pch_vbus_gpio_data {
 	int			port;
@@ -475,7 +474,7 @@ static void pch_udc_csr_busy(struct pch_udc_dev *dev)
  * pch_udc_write_csr() - Write the command and status registers.
  * @dev:	Reference to pch_udc_dev structure
  * @val:	value to be written to CSR register
- * @addr:	address of CSR register
+ * @ep:		end-point number
  */
 static void pch_udc_write_csr(struct pch_udc_dev *dev, unsigned long val,
 			       unsigned int ep)
@@ -490,7 +489,7 @@ static void pch_udc_write_csr(struct pch_udc_dev *dev, unsigned long val,
 /**
  * pch_udc_read_csr() - Read the command and status registers.
  * @dev:	Reference to pch_udc_dev structure
- * @addr:	address of CSR register
+ * @ep:		end-point number
  *
  * Return codes:	content of CSR register
  */
@@ -656,6 +655,7 @@ static inline void pch_udc_ep_set_trfr_type(struct pch_udc_ep *ep,
  * pch_udc_ep_set_bufsz() - Set the maximum packet size for the endpoint
  * @ep:		Reference to structure of type pch_udc_ep_regs
  * @buf_size:	The buffer word size
+ * @ep_in:	EP is IN
  */
 static void pch_udc_ep_set_bufsz(struct pch_udc_ep *ep,
 						 u32 buf_size, u32 ep_in)
@@ -968,7 +968,8 @@ static void pch_udc_ep_fifo_flush(struct pch_udc_ep *ep, int dir)
 
 /**
  * pch_udc_ep_enable() - This api enables endpoint
- * @regs:	Reference to structure pch_udc_ep_regs
+ * @ep:		reference to structure of type pch_udc_ep_regs
+ * @cfg:	current configuration information
  * @desc:	endpoint descriptor
  */
 static void pch_udc_ep_enable(struct pch_udc_ep *ep,
@@ -1004,7 +1005,7 @@ static void pch_udc_ep_enable(struct pch_udc_ep *ep,
 
 /**
  * pch_udc_ep_disable() - This api disables endpoint
- * @regs:	Reference to structure pch_udc_ep_regs
+ * @ep:		reference to structure of type pch_udc_ep_regs
  */
 static void pch_udc_ep_disable(struct pch_udc_ep *ep)
 {
@@ -1024,7 +1025,7 @@ static void pch_udc_ep_disable(struct pch_udc_ep *ep)
 
 /**
  * pch_udc_wait_ep_stall() - Wait EP stall.
- * @dev:	Reference to pch_udc_dev structure
+ * @ep:		reference to structure of type pch_udc_ep_regs
  */
 static void pch_udc_wait_ep_stall(struct pch_udc_ep *ep)
 {
@@ -1331,7 +1332,7 @@ static void pch_vbus_gpio_work_rise(struct work_struct *irq_work)
 /**
  * pch_vbus_gpio_irq() - IRQ handler for GPIO interrupt for changing VBUS
  * @irq:	Interrupt request number
- * @dev:	Reference to the device structure
+ * @data:	Reference to the device structure
  *
  * Return codes:
  *	0: Success
@@ -1354,8 +1355,8 @@ static irqreturn_t pch_vbus_gpio_irq(int irq, void *data)
 
 /**
  * pch_vbus_gpio_init() - This API initializes GPIO port detecting VBUS.
- * @dev:	Reference to the driver structure
- * @vbus_gpio	Number of GPIO port to detect gpio
+ * @dev:		Reference to the driver structure
+ * @vbus_gpio_port:	Number of GPIO port to detect gpio
  *
  * Return codes:
  *	0: Success
@@ -1499,8 +1500,8 @@ static void empty_req_queue(struct pch_udc_ep *ep)
 /**
  * pch_udc_free_dma_chain() - This function frees the DMA chain created
  *				for the request
- * @dev		Reference to the driver structure
- * @req		Reference to the request to be freed
+ * @dev:	Reference to the driver structure
+ * @req:	Reference to the request to be freed
  *
  * Return codes:
  *	0: Success
@@ -1707,7 +1708,7 @@ static int pch_udc_pcd_ep_enable(struct usb_ep *usbep,
 /**
  * pch_udc_pcd_ep_disable() - This API disables endpoint and is called
  *				from gadget driver
- * @usbep	Reference to the USB endpoint structure
+ * @usbep:	Reference to the USB endpoint structure
  *
  * Return codes:
  *	0:		Success
@@ -1996,7 +1997,6 @@ static int pch_udc_pcd_set_halt(struct usb_ep *usbep, int halt)
  * pch_udc_pcd_set_wedge() - This function Sets or clear the endpoint
  *				halt feature
  * @usbep:	Reference to the USB endpoint structure
- * @halt:	Specifies whether to set or clear the feature
  *
  * Return codes:
  *	0:			Success
@@ -2750,7 +2750,7 @@ static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 /**
  * pch_udc_isr() - This function handles interrupts from the PCH USB Device
  * @irq:	Interrupt request number
- * @dev:	Reference to the device structure
+ * @pdev:	Reference to the device structure
  */
 static irqreturn_t pch_udc_isr(int irq, void *pdev)
 {
@@ -2900,7 +2900,7 @@ static int pch_udc_pcd_init(struct pch_udc_dev *dev)
 
 /**
  * init_dma_pools() - create dma pools during initialization
- * @pdev:	reference to struct pci_dev
+ * @dev:	reference to struct pci_dev
  */
 static int init_dma_pools(struct pch_udc_dev *dev)
 {

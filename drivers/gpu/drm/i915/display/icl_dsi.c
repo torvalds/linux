@@ -1469,8 +1469,7 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
 
 	if (gen11_dsi_is_periodic_cmd_mode(intel_dsi))
-		pipe_config->hw.adjusted_mode.private_flags |=
-					I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
+		pipe_config->mode_flags |= I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
 }
 
 static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
@@ -1558,10 +1557,6 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = afe_clk(encoder, pipe_config) / 5;
 
-	/* We would not operate in periodic command mode */
-	pipe_config->hw.adjusted_mode.private_flags &=
-					~I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
-
 	/*
 	 * In case of TE GATE cmd mode, we
 	 * receive TE from the slave if
@@ -1569,14 +1564,14 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	 */
 	if (is_cmd_mode(intel_dsi)) {
 		if (intel_dsi->ports == (BIT(PORT_B) | BIT(PORT_A)))
-			pipe_config->hw.adjusted_mode.private_flags |=
+			pipe_config->mode_flags |=
 						I915_MODE_FLAG_DSI_USE_TE1 |
 						I915_MODE_FLAG_DSI_USE_TE0;
 		else if (intel_dsi->ports == BIT(PORT_B))
-			pipe_config->hw.adjusted_mode.private_flags |=
+			pipe_config->mode_flags |=
 						I915_MODE_FLAG_DSI_USE_TE1;
 		else
-			pipe_config->hw.adjusted_mode.private_flags |=
+			pipe_config->mode_flags |=
 						I915_MODE_FLAG_DSI_USE_TE0;
 	}
 
@@ -1954,6 +1949,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	return;
 
 err:
+	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(&encoder->base);
 	kfree(intel_dsi);
 	kfree(intel_connector);

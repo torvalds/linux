@@ -13,6 +13,7 @@
 #define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
 #define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
 #define IONIC_RX_COPYBREAK_DEFAULT	256
+#define IONIC_TX_BUDGET_DEFAULT		256
 
 struct ionic_tx_stats {
 	u64 dma_map_err;
@@ -136,6 +137,7 @@ enum ionic_lif_state_flags {
 	IONIC_LIF_F_UP,
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
 	IONIC_LIF_F_FW_RESET,
+	IONIC_LIF_F_SPLIT_INTR,
 
 	/* leave this as last */
 	IONIC_LIF_F_STATE_SIZE
@@ -176,6 +178,7 @@ struct ionic_lif {
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	u32 rx_copybreak;
+	u32 tx_budget;
 	unsigned int rx_mode;
 	u64 hw_features;
 	bool mc_overflow;
@@ -184,6 +187,7 @@ struct ionic_lif {
 	u16 lif_type;
 	unsigned int nucast;
 
+	union ionic_lif_identity *identity;
 	struct ionic_lif_info *info;
 	dma_addr_t info_pa;
 	u32 info_sz;
@@ -202,6 +206,8 @@ struct ionic_lif {
 	struct dentry *dentry;
 	u32 rx_coalesce_usecs;		/* what the user asked for */
 	u32 rx_coalesce_hw;		/* what the hw is using */
+	u32 tx_coalesce_usecs;		/* what the user asked for */
+	u32 tx_coalesce_hw;		/* what the hw is using */
 
 	struct work_struct tx_timeout_work;
 };
@@ -227,19 +233,6 @@ static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 
 	/* Convert from usecs to device units */
 	return (usecs * mult) / div;
-}
-
-static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
-{
-	u32 mult = le32_to_cpu(ionic->ident.dev.intr_coal_mult);
-	u32 div = le32_to_cpu(ionic->ident.dev.intr_coal_div);
-
-	/* Div-by-zero should never be an issue, but check anyway */
-	if (!div || !mult)
-		return 0;
-
-	/* Convert from device units to usec */
-	return (units * div) / mult;
 }
 
 typedef void (*ionic_reset_cb)(struct ionic_lif *lif, void *arg);

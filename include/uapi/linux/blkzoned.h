@@ -74,6 +74,15 @@ enum blk_zone_cond {
 };
 
 /**
+ * enum blk_zone_report_flags - Feature flags of reported zone descriptors.
+ *
+ * @BLK_ZONE_REP_CAPACITY: Zone descriptor has capacity field.
+ */
+enum blk_zone_report_flags {
+	BLK_ZONE_REP_CAPACITY	= (1 << 0),
+};
+
+/**
  * struct blk_zone - Zone descriptor for BLKREPORTZONE ioctl.
  *
  * @start: Zone start in 512 B sector units
@@ -99,7 +108,9 @@ struct blk_zone {
 	__u8	cond;		/* Zone condition */
 	__u8	non_seq;	/* Non-sequential write resources active */
 	__u8	reset;		/* Reset write pointer recommended */
-	__u8	reserved[36];
+	__u8	resv[4];
+	__u64	capacity;	/* Zone capacity in number of sectors */
+	__u8	reserved[24];
 };
 
 /**
@@ -115,7 +126,7 @@ struct blk_zone {
 struct blk_zone_report {
 	__u64		sector;
 	__u32		nr_zones;
-	__u8		reserved[4];
+	__u32		flags;
 	struct blk_zone zones[0];
 };
 

@@ -2115,12 +2115,12 @@ offload_to_thread:
 		dio->in_flight = (atomic_t)ATOMIC_INIT(1);
 		dio->completion = NULL;
 
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 
 		return;
 	}
 
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 
 	if (need_sync_io) {
 		wait_for_completion_io(&read_comp);

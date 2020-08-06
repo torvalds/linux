@@ -1299,6 +1299,14 @@ static void efx_mcdi_abandon(struct efx_nic *efx)
 	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
+static void efx_handle_drain_event(struct efx_nic *efx)
+{
+	if (atomic_dec_and_test(&efx->active_queues))
+		wake_up(&efx->flush_wq);
+
+	WARN_ON(atomic_read(&efx->active_queues) < 0);
+}
+
 /* Called from efx_farch_ev_process and efx_ef10_ev_process for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
@@ -1329,7 +1337,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_process_link_change(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SENSOREVT:
-		efx_mcdi_sensor_event(efx, event);
+		efx_sensor_event(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SCHEDERR:
 		netif_dbg(efx, hw, efx->net_dev,
@@ -1371,7 +1379,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
 			     MCDI_EVENT_RX_FLUSH_TO_DRIVER_LBN);
 		if (!MCDI_EVENT_FIELD(*event, TX_FLUSH_TO_DRIVER))
-			efx_ef10_handle_drain_event(efx);
+			efx_handle_drain_event(efx);
 		break;
 	case MCDI_EVENT_CODE_TX_ERR:
 	case MCDI_EVENT_CODE_RX_ERR:
@@ -1613,6 +1621,35 @@ fail:
 	return rc;
 }
 
+/* This function finds types using the new NVRAM_PARTITIONS mcdi. */
+static int efx_new_mcdi_nvram_types(struct efx_nic *efx, u32 *number,
+				    u32 *nvram_types)
+{
+	efx_dword_t *outbuf = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				      GFP_KERNEL);
+	size_t outlen;
+	int rc;
+
+	if (!outbuf)
+		return -ENOMEM;
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_PARTITIONS, NULL, 0,
+			  outbuf, MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2, &outlen);
+	if (rc)
+		goto fail;
+
+	*number = MCDI_DWORD(outbuf, NVRAM_PARTITIONS_OUT_NUM_PARTITIONS);
+
+	memcpy(nvram_types, MCDI_PTR(outbuf, NVRAM_PARTITIONS_OUT_TYPE_ID),
+	       *number * sizeof(u32));
+
+fail:
+	kfree(outbuf);
+	return rc;
+}
+
 int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
 			bool *protected_out)
@@ -1664,6 +1701,39 @@ static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 	default:
 		return -EIO;
 	}
+}
+
+/* This function tests nvram partitions using the new mcdi partition lookup scheme */
+int efx_new_mcdi_nvram_test_all(struct efx_nic *efx)
+{
+	u32 *nvram_types = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
+				   GFP_KERNEL);
+	unsigned int number;
+	int rc, i;
+
+	if (!nvram_types)
+		return -ENOMEM;
+
+	rc = efx_new_mcdi_nvram_types(efx, &number, nvram_types);
+	if (rc)
+		goto fail;
+
+	/* Require at least one check */
+	rc = -EAGAIN;
+
+	for (i = 0; i < number; i++) {
+		if (nvram_types[i] == NVRAM_PARTITION_TYPE_PARTITION_MAP ||
+		    nvram_types[i] == NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG)
+			continue;
+
+		rc = efx_mcdi_nvram_test(efx, nvram_types[i]);
+		if (rc)
+			goto fail;
+	}
+
+fail:
+	kfree(nvram_types);
+	return rc;
 }
 
 int efx_mcdi_nvram_test_all(struct efx_nic *efx)

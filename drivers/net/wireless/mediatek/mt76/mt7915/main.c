@@ -125,7 +125,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mvif->idx = ffs(~phy->vif_mask) - 1;
+	mvif->idx = ffs(~phy->mt76->vif_mask) - 1;
 	if (mvif->idx >= MT7915_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
@@ -150,7 +150,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	phy->vif_mask |= BIT(mvif->idx);
+	phy->mt76->vif_mask |= BIT(mvif->idx);
 	phy->omac_mask |= BIT(mvif->omac_idx);
 
 	idx = MT7915_WTBL_RESERVED - mvif->idx;
@@ -194,7 +194,7 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 		mt76_txq_remove(&dev->mt76, vif->txq);
 
 	mutex_lock(&dev->mt76.mutex);
-	phy->vif_mask &= ~BIT(mvif->idx);
+	phy->mt76->vif_mask &= ~BIT(mvif->idx);
 	phy->omac_mask &= ~BIT(mvif->omac_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
@@ -350,13 +350,12 @@ static int
 mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
-	mvif->wmm[queue].cw_min = params->cw_min;
-	mvif->wmm[queue].cw_max = params->cw_max;
-	mvif->wmm[queue].aifs = params->aifs;
-	mvif->wmm[queue].txop = params->txop;
+	queue = mt7915_lmac_mapping(dev, queue);
+	mvif->queue_params[queue] = *params;
 
 	return 0;
 }

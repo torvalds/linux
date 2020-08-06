@@ -8,7 +8,7 @@ Description:
 		to device min/max capabilities. Values are integer as they are
 		stored in a 8bit register in the device. Lowest value is
 		automatically put to TL. Once set, alarms could be search at
-		master level, refer to Documentation/w1/w1_generic.rst for
+		master level, refer to Documentation/w1/w1-generic.rst for
 		detailed information
 Users:		any user space application which wants to communicate with
 		w1_term device

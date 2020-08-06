@@ -27,7 +27,7 @@ static u32 chipid;
 
 u32 tegra_read_chipid(void)
 {
-	WARN(!chipid, "Tegra ABP MISC not yet available\n");
+	WARN(!chipid, "Tegra APB MISC not yet available\n");
 
 	return chipid;
 }

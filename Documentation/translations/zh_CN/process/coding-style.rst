@@ -946,7 +946,7 @@ Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
 GNU 手册 - 遵循 K&R 标准和此文本 - cpp, gcc, gcc internals and indent,
-都可以从 http://www.gnu.org/manual/ 找到
+都可以从 https://www.gnu.org/manual/ 找到
 
 WG14 是 C 语言的国际标准化工作组，URL: http://www.open-std.org/JTC1/SC22/WG14/
 

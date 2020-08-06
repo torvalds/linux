@@ -389,7 +389,7 @@ int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, i
 	int ret = default_wake_function(wq_entry, mode, sync, key);
 
 	if (ret)
-		list_del_init(&wq_entry->entry);
+		list_del_init_careful(&wq_entry->entry);
 
 	return ret;
 }

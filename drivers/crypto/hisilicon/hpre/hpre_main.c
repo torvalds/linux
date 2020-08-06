@@ -12,7 +12,6 @@
 #include <linux/topology.h>
 #include "hpre.h"
 
-#define HPRE_VF_NUM			63
 #define HPRE_QUEUE_NUM_V2		1024
 #define HPRE_QM_ABNML_INT_MASK		0x100004
 #define HPRE_CTRL_CNT_CLR_CE_BIT	BIT(0)
@@ -46,9 +45,9 @@
 #define HPRE_CORE_IS_SCHD_OFFSET	0x90
 
 #define HPRE_RAS_CE_ENB			0x301410
-#define HPRE_HAC_RAS_CE_ENABLE		0x3f
+#define HPRE_HAC_RAS_CE_ENABLE		0x1
 #define HPRE_RAS_NFE_ENB		0x301414
-#define HPRE_HAC_RAS_NFE_ENABLE		0x3fffc0
+#define HPRE_HAC_RAS_NFE_ENABLE		0x3ffffe
 #define HPRE_RAS_FE_ENB			0x301418
 #define HPRE_HAC_RAS_FE_ENABLE		0
 
@@ -82,6 +81,10 @@
 
 #define HPRE_CORE_ECC_2BIT_ERR		BIT(1)
 #define HPRE_OOO_ECC_2BIT_ERR		BIT(5)
+
+#define HPRE_QM_BME_FLR			BIT(7)
+#define HPRE_QM_PM_FLR			BIT(11)
+#define HPRE_QM_SRIOV_FLR		BIT(12)
 
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
@@ -231,6 +234,22 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 	return 0;
 }
 
+/*
+ * For Hi1620, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
+ * Or it may stay in D3 state when we bind and unbind hpre quickly,
+ * as it does FLR triggered by hardware.
+ */
+static void disable_flr_of_bme(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl(HPRE_ADDR(qm, QM_PEH_AXUSER_CFG));
+	val &= ~(HPRE_QM_BME_FLR | HPRE_QM_SRIOV_FLR);
+	val |= HPRE_QM_PM_FLR;
+	writel(val, HPRE_ADDR(qm, QM_PEH_AXUSER_CFG));
+	writel(PEH_AXUSER_CFG_ENABLE, HPRE_ADDR(qm, QM_PEH_AXUSER_CFG_ENABLE));
+}
+
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -241,10 +260,6 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_ARUSER_M_CFG_ENABLE));
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_AWUSER_M_CFG_ENABLE));
 	writel_relaxed(HPRE_QM_AXI_CFG_MASK, HPRE_ADDR(qm, QM_AXI_M_CFG));
-
-	/* disable FLR triggered by BME(bus master enable) */
-	writel(PEH_AXUSER_CFG, HPRE_ADDR(qm, QM_PEH_AXUSER_CFG));
-	writel(PEH_AXUSER_CFG_ENABLE, HPRE_ADDR(qm, QM_PEH_AXUSER_CFG_ENABLE));
 
 	/* HPRE need more time, we close this interrupt */
 	val = readl_relaxed(HPRE_ADDR(qm, HPRE_QM_ABNML_INT_MASK));
@@ -264,7 +279,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_AWUSR_CFG));
 	writel(0x1, HPRE_ADDR(qm, HPRE_RDCHN_INI_CFG));
 	ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, HPRE_RDCHN_INI_ST), val,
-			val & BIT(0),
+					 val & BIT(0),
 			HPRE_REG_RD_INTVRL_US,
 			HPRE_REG_RD_TMOUT_US);
 	if (ret) {
@@ -295,6 +310,8 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	ret = hpre_cfg_by_dsm(qm);
 	if (ret)
 		dev_err(dev, "acpi_evaluate_dsm err.\n");
+
+	disable_flr_of_bme(qm);
 
 	return ret;
 }
@@ -372,7 +389,6 @@ static int hpre_current_qm_write(struct hpre_debugfs_file *file, u32 val)
 	u32 num_vfs = qm->vfs_num;
 	u32 vfq_num, tmp;
 
-
 	if (val > num_vfs)
 		return -EINVAL;
 
@@ -449,7 +465,7 @@ static int hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
 }
 
 static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
-			       size_t count, loff_t *pos)
+				    size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
@@ -477,7 +493,7 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 }
 
 static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
-				size_t count, loff_t *pos)
+				     size_t count, loff_t *pos)
 {
 	struct hpre_debugfs_file *file = filp->private_data;
 	char tbuf[HPRE_DBGFS_VAL_MAX_LEN];
@@ -548,13 +564,15 @@ static int hpre_debugfs_atomic64_get(void *data, u64 *val)
 static int hpre_debugfs_atomic64_set(void *data, u64 val)
 {
 	struct hpre_dfx *dfx_item = data;
-	struct hpre_dfx *hpre_dfx = dfx_item - HPRE_OVERTIME_THRHLD;
+	struct hpre_dfx *hpre_dfx = NULL;
 
-	if (val)
-		return -EINVAL;
-
-	if (dfx_item->type == HPRE_OVERTIME_THRHLD)
+	if (dfx_item->type == HPRE_OVERTIME_THRHLD) {
+		hpre_dfx = dfx_item - HPRE_OVERTIME_THRHLD;
 		atomic64_set(&hpre_dfx[HPRE_OVER_THRHLD_CNT].value, 0);
+	} else if (val) {
+		return -EINVAL;
+	}
+
 	atomic64_set(&dfx_item->value, val);
 
 	return 0;
@@ -563,15 +581,17 @@ static int hpre_debugfs_atomic64_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(hpre_atomic64_ops, hpre_debugfs_atomic64_get,
 			 hpre_debugfs_atomic64_set, "%llu\n");
 
-static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
+static int hpre_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
+	struct hpre *hpre = container_of(qm, struct hpre, qm);
+	struct hpre_debug *dbg = &hpre->debug;
 	struct dentry *file_dir;
 
 	if (dir)
 		file_dir = dir;
 	else
-		file_dir = dbg->debug_root;
+		file_dir = qm->debug.debug_root;
 
 	if (type >= HPRE_DEBUG_FILE_NUM)
 		return -EINVAL;
@@ -586,10 +606,8 @@ static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 	return 0;
 }
 
-static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
+static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 {
-	struct hpre *hpre = container_of(debug, struct hpre, debug);
-	struct hisi_qm *qm = &hpre->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
 
@@ -601,14 +619,12 @@ static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
 	regset->base = qm->io_base;
 
-	debugfs_create_regset32("regs", 0444,  debug->debug_root, regset);
+	debugfs_create_regset32("regs", 0444,  qm->debug.debug_root, regset);
 	return 0;
 }
 
-static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
+static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 {
-	struct hpre *hpre = container_of(debug, struct hpre, debug);
-	struct hisi_qm *qm = &hpre->qm;
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
@@ -619,7 +635,7 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 		ret = snprintf(buf, HPRE_DBGFS_VAL_MAX_LEN, "cluster%d", i);
 		if (ret < 0)
 			return -EINVAL;
-		tmp_d = debugfs_create_dir(buf, debug->debug_root);
+		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
 
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
@@ -630,7 +646,7 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 		regset->base = qm->io_base + hpre_cluster_offsets[i];
 
 		debugfs_create_regset32("regs", 0444, tmp_d, regset);
-		ret = hpre_create_debugfs_file(debug, tmp_d, HPRE_CLUSTER_CTRL,
+		ret = hpre_create_debugfs_file(qm, tmp_d, HPRE_CLUSTER_CTRL,
 					       i + HPRE_CLUSTER_CTRL);
 		if (ret)
 			return ret;
@@ -639,32 +655,31 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 	return 0;
 }
 
-static int hpre_ctrl_debug_init(struct hpre_debug *debug)
+static int hpre_ctrl_debug_init(struct hisi_qm *qm)
 {
 	int ret;
 
-	ret = hpre_create_debugfs_file(debug, NULL, HPRE_CURRENT_QM,
+	ret = hpre_create_debugfs_file(qm, NULL, HPRE_CURRENT_QM,
 				       HPRE_CURRENT_QM);
 	if (ret)
 		return ret;
 
-	ret = hpre_create_debugfs_file(debug, NULL, HPRE_CLEAR_ENABLE,
+	ret = hpre_create_debugfs_file(qm, NULL, HPRE_CLEAR_ENABLE,
 				       HPRE_CLEAR_ENABLE);
 	if (ret)
 		return ret;
 
-	ret = hpre_pf_comm_regs_debugfs_init(debug);
+	ret = hpre_pf_comm_regs_debugfs_init(qm);
 	if (ret)
 		return ret;
 
-	return hpre_cluster_debugfs_init(debug);
+	return hpre_cluster_debugfs_init(qm);
 }
 
-static void hpre_dfx_debug_init(struct hpre_debug *debug)
+static void hpre_dfx_debug_init(struct hisi_qm *qm)
 {
-	struct hpre *hpre = container_of(debug, struct hpre, debug);
+	struct hpre *hpre = container_of(qm, struct hpre, qm);
 	struct hpre_dfx *dfx = hpre->debug.dfx;
-	struct hisi_qm *qm = &hpre->qm;
 	struct dentry *parent;
 	int i;
 
@@ -676,30 +691,27 @@ static void hpre_dfx_debug_init(struct hpre_debug *debug)
 	}
 }
 
-static int hpre_debugfs_init(struct hpre *hpre)
+static int hpre_debugfs_init(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
 	struct device *dev = &qm->pdev->dev;
-	struct dentry *dir;
 	int ret;
 
-	dir = debugfs_create_dir(dev_name(dev), hpre_debugfs_root);
-	qm->debug.debug_root = dir;
+	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
+						  hpre_debugfs_root);
+
 	qm->debug.sqe_mask_offset = HPRE_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = HPRE_SQE_MASK_LEN;
-
 	ret = hisi_qm_debug_init(qm);
 	if (ret)
 		goto failed_to_create;
 
 	if (qm->pdev->device == HPRE_PCI_DEVICE_ID) {
-		hpre->debug.debug_root = dir;
-		ret = hpre_ctrl_debug_init(&hpre->debug);
+		ret = hpre_ctrl_debug_init(qm);
 		if (ret)
 			goto failed_to_create;
 	}
 
-	hpre_dfx_debug_init(&hpre->debug);
+	hpre_dfx_debug_init(qm);
 
 	return 0;
 
@@ -708,10 +720,8 @@ failed_to_create:
 	return ret;
 }
 
-static void hpre_debugfs_exit(struct hpre *hpre)
+static void hpre_debugfs_exit(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
-
 	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
@@ -732,6 +742,7 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	if (qm->fun_type == QM_HW_PF) {
 		qm->qp_base = HPRE_PF_DEF_Q_BASE;
 		qm->qp_num = pf_q_num;
+		qm->debug.curr_qm_qp_num = pf_q_num;
 		qm->qm_list = &hpre_devices;
 	}
 
@@ -849,7 +860,7 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_with_err_init;
 
-	ret = hpre_debugfs_init(hpre);
+	ret = hpre_debugfs_init(qm);
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
@@ -874,6 +885,7 @@ err_with_crypto_register:
 
 err_with_qm_start:
 	hisi_qm_del_from_list(qm, &hpre_devices);
+	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm);
 
 err_with_err_init:
@@ -905,7 +917,7 @@ static void hpre_remove(struct pci_dev *pdev)
 		qm->debug.curr_qm_qp_num = 0;
 	}
 
-	hpre_debugfs_exit(hpre);
+	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm);
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
@@ -924,7 +936,8 @@ static struct pci_driver hpre_pci_driver = {
 	.id_table		= hpre_dev_ids,
 	.probe			= hpre_probe,
 	.remove			= hpre_remove,
-	.sriov_configure	= hisi_qm_sriov_configure,
+	.sriov_configure	= IS_ENABLED(CONFIG_PCI_IOV) ?
+				  hisi_qm_sriov_configure : NULL,
 	.err_handler		= &hpre_err_handler,
 };
 

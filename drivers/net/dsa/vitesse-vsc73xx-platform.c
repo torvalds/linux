@@ -28,7 +28,7 @@
 #define VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK		0xf
 #define VSC73XX_CMD_PLATFORM_REGISTER_SHIFT		2
 
-/**
+/*
  * struct vsc73xx_platform - VSC73xx Platform state container
  */
 struct vsc73xx_platform {

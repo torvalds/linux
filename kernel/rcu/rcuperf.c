@@ -69,6 +69,11 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
  *	value specified by nr_cpus for a read-only test.
  *
  * Various other use cases may of course be specified.
+ *
+ * Note that this test's readers are intended only as a test load for
+ * the writers.  The reader performance statistics will be overly
+ * pessimistic due to the per-critical-section interrupt disabling,
+ * test-end checks, and the pair of calls through pointers.
  */
 
 #ifdef MODULE
@@ -309,8 +314,10 @@ static void rcu_perf_wait_shutdown(void)
 }
 
 /*
- * RCU perf reader kthread.  Repeatedly does empty RCU read-side
- * critical section, minimizing update-side interference.
+ * RCU perf reader kthread.  Repeatedly does empty RCU read-side critical
+ * section, minimizing update-side interference.  However, the point of
+ * this test is not to evaluate reader performance, but instead to serve
+ * as a test load for update-side performance testing.
  */
 static int
 rcu_perf_reader(void *arg)
@@ -576,11 +583,8 @@ static int compute_real(int n)
 static int
 rcu_perf_shutdown(void *arg)
 {
-	do {
-		wait_event(shutdown_wq,
-			   atomic_read(&n_rcu_perf_writer_finished) >=
-			   nrealwriters);
-	} while (atomic_read(&n_rcu_perf_writer_finished) < nrealwriters);
+	wait_event(shutdown_wq,
+		   atomic_read(&n_rcu_perf_writer_finished) >= nrealwriters);
 	smp_mb(); /* Wake before output. */
 	rcu_perf_cleanup();
 	kernel_power_off();
@@ -693,11 +697,8 @@ kfree_perf_cleanup(void)
 static int
 kfree_perf_shutdown(void *arg)
 {
-	do {
-		wait_event(shutdown_wq,
-			   atomic_read(&n_kfree_perf_thread_ended) >=
-			   kfree_nrealthreads);
-	} while (atomic_read(&n_kfree_perf_thread_ended) < kfree_nrealthreads);
+	wait_event(shutdown_wq,
+		   atomic_read(&n_kfree_perf_thread_ended) >= kfree_nrealthreads);
 
 	smp_mb(); /* Wake before output. */
 

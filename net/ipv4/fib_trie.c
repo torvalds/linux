@@ -13,7 +13,7 @@
  *
  * An experimental study of compression methods for dynamic tries
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
- * http://www.csc.kth.se/~snilsson/software/dyntrie2/
+ * https://www.csc.kth.se/~snilsson/software/dyntrie2/
  *
  * IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
  * IEEE Journal on Selected Areas in Communications, 17(6):1083-1092, June 1999

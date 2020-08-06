@@ -132,6 +132,8 @@ struct psb_intel_sdvo {
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
 
+	u8 pixel_multiplier;
+
 	/* Input timings for adjusted_mode */
 	struct psb_intel_sdvo_dtd input_dtd;
 
@@ -928,7 +930,6 @@ static bool psb_intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = to_psb_intel_sdvo(encoder);
-	int multiplier;
 
 	/* We need to construct preferred input timings based on our
 	 * output timings.  To do that, we have to set the output
@@ -955,8 +956,9 @@ static bool psb_intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	/* Make the CRTC code factor in the SDVO pixel multiplier.  The
 	 * SDVO device will factor out the multiplier during mode_set.
 	 */
-	multiplier = psb_intel_sdvo_get_pixel_multiplier(adjusted_mode);
-	psb_intel_mode_set_pixel_multiplier(adjusted_mode, multiplier);
+	psb_intel_sdvo->pixel_multiplier =
+		psb_intel_sdvo_get_pixel_multiplier(adjusted_mode);
+	adjusted_mode->clock *= psb_intel_sdvo->pixel_multiplier;
 
 	return true;
 }
@@ -972,7 +974,6 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 	u32 sdvox;
 	struct psb_intel_sdvo_in_out_map in_out;
 	struct psb_intel_sdvo_dtd input_dtd;
-	int pixel_multiplier = psb_intel_mode_get_pixel_multiplier(adjusted_mode);
 	int rate;
 	int need_aux = IS_MRST(dev) ? 1 : 0;
 
@@ -1030,7 +1031,7 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	(void) psb_intel_sdvo_set_input_timing(psb_intel_sdvo, &input_dtd);
 
-	switch (pixel_multiplier) {
+	switch (psb_intel_sdvo->pixel_multiplier) {
 	default:
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;

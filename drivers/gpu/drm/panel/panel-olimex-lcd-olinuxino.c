@@ -170,7 +170,6 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel,
 				  lcd_mode->vpw;
 		mode->vtotal = lcd_mode->vactive + lcd_mode->vfp +
 			       lcd_mode->vpw + lcd_mode->vbp;
-		mode->vrefresh = lcd_mode->refresh;
 
 		/* Always make the first mode preferred */
 		if (i == 0)

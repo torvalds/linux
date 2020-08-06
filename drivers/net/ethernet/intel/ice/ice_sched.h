@@ -56,7 +56,7 @@ struct ice_sched_agg_info {
 /* FW AQ command calls */
 enum ice_status
 ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
-			 struct ice_aqc_get_elem *buf, u16 buf_size,
+			 struct ice_aqc_txsched_elem_data *buf, u16 buf_size,
 			 u16 *elems_ret, struct ice_sq_cd *cd);
 enum ice_status ice_sched_init_port(struct ice_port_info *pi);
 enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw);

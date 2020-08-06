@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2002-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
- * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
+ * For information see <https://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
  * Sources of information:
  *    Hitachi HD64572 SCA-II User's Manual

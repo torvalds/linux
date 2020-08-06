@@ -218,7 +218,7 @@ static void __rfcomm_sock_close(struct sock *sk)
 	case BT_CONFIG:
 	case BT_CONNECTED:
 		rfcomm_dlc_close(d, 0);
-		/* fall through */
+		fallthrough;
 
 	default:
 		sock_set_flag(sk, SOCK_ZAPPED);
@@ -644,7 +644,8 @@ static int rfcomm_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	return len;
 }
 
-static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, unsigned int optlen)
+static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname,
+		sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
@@ -656,7 +657,7 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __u
 
 	switch (optname) {
 	case RFCOMM_LM:
-		if (get_user(opt, (u32 __user *) optval)) {
+		if (copy_from_sockptr(&opt, optval, sizeof(u32))) {
 			err = -EFAULT;
 			break;
 		}
@@ -685,7 +686,8 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __u
 	return err;
 }
 
-static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
+static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct bt_security sec;
@@ -713,7 +715,7 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 		sec.level = BT_SECURITY_LOW;
 
 		len = min_t(unsigned int, sizeof(sec), optlen);
-		if (copy_from_user((char *) &sec, optval, len)) {
+		if (copy_from_sockptr(&sec, optval, len)) {
 			err = -EFAULT;
 			break;
 		}
@@ -732,7 +734,7 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 			break;
 		}
 
-		if (get_user(opt, (u32 __user *) optval)) {
+		if (copy_from_sockptr(&opt, optval, sizeof(u32))) {
 			err = -EFAULT;
 			break;
 		}

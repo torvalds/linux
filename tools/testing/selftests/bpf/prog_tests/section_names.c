@@ -35,7 +35,7 @@ static struct sec_name_test tests[] = {
 		{-EINVAL, 0},
 	},
 	{"raw_tp/", {0, BPF_PROG_TYPE_RAW_TRACEPOINT, 0}, {-EINVAL, 0} },
-	{"xdp", {0, BPF_PROG_TYPE_XDP, 0}, {-EINVAL, 0} },
+	{"xdp", {0, BPF_PROG_TYPE_XDP, BPF_XDP}, {0, BPF_XDP} },
 	{"perf_event", {0, BPF_PROG_TYPE_PERF_EVENT, 0}, {-EINVAL, 0} },
 	{"lwt_in", {0, BPF_PROG_TYPE_LWT_IN, 0}, {-EINVAL, 0} },
 	{"lwt_out", {0, BPF_PROG_TYPE_LWT_OUT, 0}, {-EINVAL, 0} },

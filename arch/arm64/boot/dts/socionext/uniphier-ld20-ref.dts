@@ -20,7 +20,7 @@
 
 	aliases {
 		serial0 = &serial0;
-		serial1 = &serial1;
+		serial1 = &serialsc;
 		serial2 = &serial2;
 		serial3 = &serial3;
 		i2c0 = &i2c0;
@@ -39,6 +39,10 @@
 };
 
 &ethsc {
+	interrupts = <0 8>;
+};
+
+&serialsc {
 	interrupts = <0 8>;
 };
 
@@ -64,7 +68,7 @@
 };
 
 &mdio {
-	ethphy: ethphy@0 {
+	ethphy: ethernet-phy@0 {
 		reg = <0>;
 	};
 };

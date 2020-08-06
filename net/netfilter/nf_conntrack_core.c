@@ -1006,7 +1006,7 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
  *
  * @skb: skb that causes the clash
  * @h: tuplehash of the clashing entry already in table
- * @hash_reply: hash slot for reply direction
+ * @reply_hash: hash slot for reply direction
  *
  * A conntrack entry can be inserted to the connection tracking table
  * if there is no existing entry with an identical tuple.
@@ -1342,18 +1342,6 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 		return true;
 
 	return false;
-}
-
-#define	DAY	(86400 * HZ)
-
-/* Set an arbitrary timeout large enough not to ever expire, this save
- * us a check for the IPS_OFFLOAD_BIT from the packet path via
- * nf_ct_is_expired().
- */
-static void nf_ct_offload_timeout(struct nf_conn *ct)
-{
-	if (nf_ct_expires(ct) < DAY / 2)
-		ct->timeout = nfct_time_stamp + DAY;
 }
 
 static void gc_worker(struct work_struct *work)

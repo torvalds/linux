@@ -375,7 +375,6 @@ struct iavf_device {
 
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
-extern const char iavf_driver_version[];
 extern struct workqueue_struct *iavf_wq;
 
 int iavf_up(struct iavf_adapter *adapter);

@@ -214,7 +214,7 @@ static __init void davinci_ntosd2_init(void)
 	 * Mux the pins to be GPIOs, VLYNQEN is already done at startup.
 	 * The AEAWx are five new AEAW pins that can be muxed by separately.
 	 * They are a bitmask for GPIO management. According TI
-	 * documentation (http://www.ti.com/lit/gpn/tms320dm6446) to employ
+	 * documentation (https://www.ti.com/lit/gpn/tms320dm6446) to employ
 	 * gpio(10,11,12,13) for leds any combination of bits works except
 	 * four last. So we are to reset all five.
 	 */

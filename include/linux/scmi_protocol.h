@@ -9,6 +9,7 @@
 #define _LINUX_SCMI_PROTOCOL_H
 
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/types.h>
 
 #define SCMI_MAX_STR_SIZE	16
@@ -118,6 +119,8 @@ struct scmi_perf_ops {
 			unsigned long *rate, bool poll);
 	int (*est_power_get)(const struct scmi_handle *handle, u32 domain,
 			     unsigned long *rate, unsigned long *power);
+	bool (*fast_switch_possible)(const struct scmi_handle *handle,
+				     struct device *dev);
 };
 
 /**
@@ -173,18 +176,13 @@ enum scmi_sensor_class {
  *
  * @count_get: get the count of sensors provided by SCMI
  * @info_get: get the information of the specified sensor
- * @trip_point_notify: control notifications on cross-over events for
- *	the trip-points
  * @trip_point_config: selects and configures a trip-point of interest
  * @reading_get: gets the current value of the sensor
  */
 struct scmi_sensor_ops {
 	int (*count_get)(const struct scmi_handle *handle);
-
 	const struct scmi_sensor_info *(*info_get)
 		(const struct scmi_handle *handle, u32 sensor_id);
-	int (*trip_point_notify)(const struct scmi_handle *handle,
-				 u32 sensor_id, bool enable);
 	int (*trip_point_config)(const struct scmi_handle *handle,
 				 u32 sensor_id, u8 trip_id, u64 trip_value);
 	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
@@ -212,6 +210,49 @@ struct scmi_reset_ops {
 };
 
 /**
+ * struct scmi_notify_ops  - represents notifications' operations provided by
+ * SCMI core
+ * @register_event_notifier: Register a notifier_block for the requested event
+ * @unregister_event_notifier: Unregister a notifier_block for the requested
+ *			       event
+ *
+ * A user can register/unregister its own notifier_block against the wanted
+ * platform instance regarding the desired event identified by the
+ * tuple: (proto_id, evt_id, src_id) using the provided register/unregister
+ * interface where:
+ *
+ * @handle: The handle identifying the platform instance to use
+ * @proto_id: The protocol ID as in SCMI Specification
+ * @evt_id: The message ID of the desired event as in SCMI Specification
+ * @src_id: A pointer to the desired source ID if different sources are
+ *	    possible for the protocol (like domain_id, sensor_id...etc)
+ *
+ * @src_id can be provided as NULL if it simply does NOT make sense for
+ * the protocol at hand, OR if the user is explicitly interested in
+ * receiving notifications from ANY existent source associated to the
+ * specified proto_id / evt_id.
+ *
+ * Received notifications are finally delivered to the registered users,
+ * invoking the callback provided with the notifier_block *nb as follows:
+ *
+ *	int user_cb(nb, evt_id, report)
+ *
+ * with:
+ *
+ * @nb: The notifier block provided by the user
+ * @evt_id: The message ID of the delivered event
+ * @report: A custom struct describing the specific event delivered
+ */
+struct scmi_notify_ops {
+	int (*register_event_notifier)(const struct scmi_handle *handle,
+				       u8 proto_id, u8 evt_id, u32 *src_id,
+				       struct notifier_block *nb);
+	int (*unregister_event_notifier)(const struct scmi_handle *handle,
+					 u8 proto_id, u8 evt_id, u32 *src_id,
+					 struct notifier_block *nb);
+};
+
+/**
  * struct scmi_handle - Handle returned to ARM SCMI clients for usage.
  *
  * @dev: pointer to the SCMI device
@@ -221,6 +262,7 @@ struct scmi_reset_ops {
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
+ * @notify_ops: pointer to set of notifications related operations
  * @perf_priv: pointer to private data structure specific to performance
  *	protocol(for internal use only)
  * @clk_priv: pointer to private data structure specific to clock
@@ -231,6 +273,8 @@ struct scmi_reset_ops {
  *	protocol(for internal use only)
  * @reset_priv: pointer to private data structure specific to reset
  *	protocol(for internal use only)
+ * @notify_priv: pointer to private data structure specific to notifications
+ *	(for internal use only)
  */
 struct scmi_handle {
 	struct device *dev;
@@ -240,12 +284,14 @@ struct scmi_handle {
 	struct scmi_power_ops *power_ops;
 	struct scmi_sensor_ops *sensor_ops;
 	struct scmi_reset_ops *reset_ops;
+	struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
 	void *power_priv;
 	void *sensor_priv;
 	void *reset_priv;
+	void *notify_priv;
 };
 
 enum scmi_std_protocol {
@@ -323,5 +369,59 @@ static inline void scmi_driver_unregister(struct scmi_driver *driver) {}
 typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
 int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn);
 void scmi_protocol_unregister(int protocol_id);
+
+/* SCMI Notification API - Custom Event Reports */
+enum scmi_notification_events {
+	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
+	SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED = 0x0,
+	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
+	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
+	SCMI_EVENT_RESET_ISSUED = 0x0,
+	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
+};
+
+struct scmi_power_state_changed_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	power_state;
+};
+
+struct scmi_perf_limits_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	range_max;
+	unsigned int	range_min;
+};
+
+struct scmi_perf_level_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	performance_level;
+};
+
+struct scmi_sensor_trip_point_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	sensor_id;
+	unsigned int	trip_point_desc;
+};
+
+struct scmi_reset_issued_report {
+	ktime_t		timestamp;
+	unsigned int	agent_id;
+	unsigned int	domain_id;
+	unsigned int	reset_state;
+};
+
+struct scmi_base_error_report {
+	ktime_t			timestamp;
+	unsigned int		agent_id;
+	bool			fatal;
+	unsigned int		cmd_count;
+	unsigned long long	reports[];
+};
 
 #endif /* _LINUX_SCMI_PROTOCOL_H */

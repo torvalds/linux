@@ -909,8 +909,8 @@ extern const struct rxrpc_security rxrpc_no_security;
 extern struct key_type key_type_rxrpc;
 extern struct key_type key_type_rxrpc_s;
 
-int rxrpc_request_key(struct rxrpc_sock *, char __user *, int);
-int rxrpc_server_keyring(struct rxrpc_sock *, char __user *, int);
+int rxrpc_request_key(struct rxrpc_sock *, sockptr_t , int);
+int rxrpc_server_keyring(struct rxrpc_sock *, sockptr_t, int);
 int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time64_t,
 			      u32);
 

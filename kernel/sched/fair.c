@@ -22,8 +22,6 @@
  */
 #include "sched.h"
 
-#include <trace/events/sched.h>
-
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
@@ -3094,7 +3092,7 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 
 #ifdef CONFIG_SMP
 	do {
-		u32 divider = LOAD_AVG_MAX - 1024 + se->avg.period_contrib;
+		u32 divider = get_pelt_divider(&se->avg);
 
 		se->avg.load_avg = div_u64(se_weight(se) * se->avg.load_sum, divider);
 	} while (0);
@@ -3440,15 +3438,17 @@ static inline void
 update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq *gcfs_rq)
 {
 	long delta = gcfs_rq->avg.util_avg - se->avg.util_avg;
-	/*
-	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
-	 * See ___update_load_avg() for details.
-	 */
-	u32 divider = LOAD_AVG_MAX - 1024 + cfs_rq->avg.period_contrib;
+	u32 divider;
 
 	/* Nothing to update */
 	if (!delta)
 		return;
+
+	/*
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
+	 */
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	/* Set new sched_entity's utilization */
 	se->avg.util_avg = gcfs_rq->avg.util_avg;
@@ -3463,15 +3463,17 @@ static inline void
 update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq *gcfs_rq)
 {
 	long delta = gcfs_rq->avg.runnable_avg - se->avg.runnable_avg;
-	/*
-	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
-	 * See ___update_load_avg() for details.
-	 */
-	u32 divider = LOAD_AVG_MAX - 1024 + cfs_rq->avg.period_contrib;
+	u32 divider;
 
 	/* Nothing to update */
 	if (!delta)
 		return;
+
+	/*
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
+	 */
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	/* Set new sched_entity's runnable */
 	se->avg.runnable_avg = gcfs_rq->avg.runnable_avg;
@@ -3500,7 +3502,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
 	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
 	 * See ___update_load_avg() for details.
 	 */
-	divider = LOAD_AVG_MAX - 1024 + cfs_rq->avg.period_contrib;
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	if (runnable_sum >= 0) {
 		/*
@@ -3646,7 +3648,7 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 
 	if (cfs_rq->removed.nr) {
 		unsigned long r;
-		u32 divider = LOAD_AVG_MAX - 1024 + sa->period_contrib;
+		u32 divider = get_pelt_divider(&cfs_rq->avg);
 
 		raw_spin_lock(&cfs_rq->removed.lock);
 		swap(cfs_rq->removed.util_avg, removed_util);
@@ -3701,7 +3703,7 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
 	 * See ___update_load_avg() for details.
 	 */
-	u32 divider = LOAD_AVG_MAX - 1024 + cfs_rq->avg.period_contrib;
+	u32 divider = get_pelt_divider(&cfs_rq->avg);
 
 	/*
 	 * When we attach the @se to the @cfs_rq, we must align the decay
@@ -3922,6 +3924,8 @@ static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
 	enqueued  = cfs_rq->avg.util_est.enqueued;
 	enqueued += _task_util_est(p);
 	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, enqueued);
+
+	trace_sched_util_est_cfs_tp(cfs_rq);
 }
 
 /*
@@ -3951,6 +3955,8 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	ue.enqueued  = cfs_rq->avg.util_est.enqueued;
 	ue.enqueued -= min_t(unsigned int, ue.enqueued, _task_util_est(p));
 	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, ue.enqueued);
+
+	trace_sched_util_est_cfs_tp(cfs_rq);
 
 	/*
 	 * Skip update of task's estimated utilization when the task has not
@@ -4017,6 +4023,8 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	ue.ewma >>= UTIL_EST_WEIGHT_SHIFT;
 done:
 	WRITE_ONCE(p->se.avg.util_est, ue);
+
+	trace_sched_util_est_se_tp(&p->se);
 }
 
 static inline int task_fits_capacity(struct task_struct *p, long capacity)
@@ -5618,14 +5626,14 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	}
 
-dequeue_throttle:
-	if (!se)
-		sub_nr_running(rq, 1);
+	/* At this point se is NULL and we are at root level*/
+	sub_nr_running(rq, 1);
 
 	/* balance early to pull high priority tasks */
 	if (unlikely(!was_sched_idle && sched_idle_rq(rq)))
 		rq->next_balance = jiffies;
 
+dequeue_throttle:
 	util_est_dequeue(&rq->cfs, p, task_sleep);
 	hrtick_update(rq);
 }
@@ -6501,7 +6509,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 		max_util = max(max_util, cpu_util);
 	}
 
-	return em_pd_energy(pd->em_pd, max_util, sum_util);
+	return em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
 /*
@@ -7161,7 +7169,7 @@ static void yield_task_fair(struct rq *rq)
 	set_skip_buddy(se);
 }
 
-static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preempt)
+static bool yield_to_task_fair(struct rq *rq, struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
 
@@ -8049,7 +8057,7 @@ static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 	};
 }
 
-static unsigned long scale_rt_capacity(struct sched_domain *sd, int cpu)
+static unsigned long scale_rt_capacity(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long max = arch_scale_cpu_capacity(cpu);
@@ -8081,7 +8089,7 @@ static unsigned long scale_rt_capacity(struct sched_domain *sd, int cpu)
 
 static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 {
-	unsigned long capacity = scale_rt_capacity(sd, cpu);
+	unsigned long capacity = scale_rt_capacity(cpu);
 	struct sched_group *sdg = sd->groups;
 
 	cpu_rq(cpu)->cpu_capacity_orig = arch_scale_cpu_capacity(cpu);
@@ -8703,8 +8711,14 @@ static bool update_pick_idlest(struct sched_group *idlest,
 
 	case group_has_spare:
 		/* Select group with most idle CPUs */
-		if (idlest_sgs->idle_cpus >= sgs->idle_cpus)
+		if (idlest_sgs->idle_cpus > sgs->idle_cpus)
 			return false;
+
+		/* Select group with lowest group_util */
+		if (idlest_sgs->idle_cpus == sgs->idle_cpus &&
+			idlest_sgs->group_util <= sgs->group_util)
+			return false;
+
 		break;
 	}
 
@@ -10027,7 +10041,12 @@ static void kick_ilb(unsigned int flags)
 {
 	int ilb_cpu;
 
-	nohz.next_balance++;
+	/*
+	 * Increase nohz.next_balance only when if full ilb is triggered but
+	 * not if we only update stats.
+	 */
+	if (flags & NOHZ_BALANCE_KICK)
+		nohz.next_balance = jiffies+1;
 
 	ilb_cpu = find_new_ilb();
 
@@ -10348,6 +10367,14 @@ static bool _nohz_idle_balance(struct rq *this_rq, unsigned int flags,
 		}
 	}
 
+	/*
+	 * next_balance will be updated only when there is a need.
+	 * When the CPU is attached to null domain for ex, it will not be
+	 * updated.
+	 */
+	if (likely(update_next_balance))
+		nohz.next_balance = next_balance;
+
 	/* Newly idle CPU doesn't need an update */
 	if (idle != CPU_NEWLY_IDLE) {
 		update_blocked_averages(this_cpu);
@@ -10367,14 +10394,6 @@ abort:
 	/* There is still blocked load, enable periodic update */
 	if (has_blocked_load)
 		WRITE_ONCE(nohz.has_blocked, 1);
-
-	/*
-	 * next_balance will be updated only when there is a need.
-	 * When the CPU is attached to null domain for ex, it will not be
-	 * updated.
-	 */
-	if (likely(update_next_balance))
-		nohz.next_balance = next_balance;
 
 	return ret;
 }
@@ -11118,8 +11137,8 @@ static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task
 /*
  * All the scheduling class methods:
  */
-const struct sched_class fair_sched_class = {
-	.next			= &idle_sched_class,
+const struct sched_class fair_sched_class
+	__attribute__((section("__fair_sched_class"))) = {
 	.enqueue_task		= enqueue_task_fair,
 	.dequeue_task		= dequeue_task_fair,
 	.yield_task		= yield_task_fair,
@@ -11292,3 +11311,9 @@ const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
 #endif
 }
 EXPORT_SYMBOL_GPL(sched_trace_rd_span);
+
+int sched_trace_rq_nr_running(struct rq *rq)
+{
+        return rq ? rq->nr_running : -1;
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_nr_running);

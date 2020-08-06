@@ -1128,7 +1128,7 @@ static int __init hvsi_console_setup(struct console *console, char *options)
 	int ret;
 
 	if (console->index < 0 || console->index >= hvsi_count)
-		return -1;
+		return -EINVAL;
 	hp = &hvsi_ports[console->index];
 
 	/* give the FSP a chance to change the baud rate when we re-open */

@@ -73,8 +73,7 @@ EXPORT_SYMBOL(ap_perms);
 DEFINE_MUTEX(ap_perms_mutex);
 EXPORT_SYMBOL(ap_perms_mutex);
 
-static struct ap_config_info *ap_configuration;
-static bool initialised;
+static struct ap_config_info *ap_qci_info;
 
 /*
  * AP bus related debug feature things.
@@ -93,7 +92,7 @@ static DECLARE_WORK(ap_scan_work, ap_scan_bus);
  * Tasklet & timer for AP request polling and interrupts
  */
 static void ap_tasklet_fn(unsigned long);
-static DECLARE_TASKLET(ap_tasklet, ap_tasklet_fn, 0);
+static DECLARE_TASKLET_OLD(ap_tasklet, ap_tasklet_fn);
 static DECLARE_WAIT_QUEUE_HEAD(ap_poll_wait);
 static struct task_struct *ap_poll_kthread;
 static DEFINE_MUTEX(ap_poll_thread_mutex);
@@ -105,8 +104,10 @@ static struct hrtimer ap_poll_timer;
  */
 static unsigned long long poll_timeout = 250000;
 
-/* Maximum domain id */
-static int ap_max_domain_id;
+/* Maximum domain id, if not given via qci */
+static int ap_max_domain_id = 15;
+/* Maximum adapter id, if not given via qci */
+static int ap_max_adapter_id = 63;
 
 static struct bus_type ap_bus_type;
 
@@ -154,12 +155,12 @@ static int ap_interrupts_available(void)
 }
 
 /**
- * ap_configuration_available(): Test if AP configuration
- * information is available.
+ * ap_qci_available(): Test if AP configuration
+ * information can be queried via QCI subfunction.
  *
- * Returns 1 if AP configuration information is available.
+ * Returns 1 if subfunction PQAP(QCI) is available.
  */
-static int ap_configuration_available(void)
+static int ap_qci_available(void)
 {
 	return test_facility(12);
 }
@@ -182,22 +183,22 @@ static int ap_apft_available(void)
  */
 static inline int ap_qact_available(void)
 {
-	if (ap_configuration)
-		return ap_configuration->qact;
+	if (ap_qci_info)
+		return ap_qci_info->qact;
 	return 0;
 }
 
 /*
- * ap_query_configuration(): Fetch cryptographic config info
+ * ap_fetch_qci_info(): Fetch cryptographic config info
  *
  * Returns the ap configuration info fetched via PQAP(QCI).
  * On success 0 is returned, on failure a negative errno
  * is returned, e.g. if the PQAP(QCI) instruction is not
  * available, the return value will be -EOPNOTSUPP.
  */
-static inline int ap_query_configuration(struct ap_config_info *info)
+static inline int ap_fetch_qci_info(struct ap_config_info *info)
 {
-	if (!ap_configuration_available())
+	if (!ap_qci_available())
 		return -EOPNOTSUPP;
 	if (!info)
 		return -EINVAL;
@@ -205,20 +206,39 @@ static inline int ap_query_configuration(struct ap_config_info *info)
 }
 
 /**
- * ap_init_configuration(): Allocate and query configuration array.
- */
-static void ap_init_configuration(void)
-{
-	if (!ap_configuration_available())
-		return;
+ * ap_init_qci_info(): Allocate and query qci config info.
+ * Does also update the static variables ap_max_domain_id
+ * and ap_max_adapter_id if this info is available.
 
-	ap_configuration = kzalloc(sizeof(*ap_configuration), GFP_KERNEL);
-	if (!ap_configuration)
+ */
+static void __init ap_init_qci_info(void)
+{
+	if (!ap_qci_available()) {
+		AP_DBF(DBF_INFO, "%s QCI not supported\n", __func__);
 		return;
-	if (ap_query_configuration(ap_configuration) != 0) {
-		kfree(ap_configuration);
-		ap_configuration = NULL;
+	}
+
+	ap_qci_info = kzalloc(sizeof(*ap_qci_info), GFP_KERNEL);
+	if (!ap_qci_info)
 		return;
+	if (ap_fetch_qci_info(ap_qci_info) != 0) {
+		kfree(ap_qci_info);
+		ap_qci_info = NULL;
+		return;
+	}
+	AP_DBF(DBF_INFO, "%s successful fetched initial qci info\n", __func__);
+
+	if (ap_qci_info->apxa) {
+		if (ap_qci_info->Na) {
+			ap_max_adapter_id = ap_qci_info->Na;
+			AP_DBF(DBF_INFO, "%s new ap_max_adapter_id is %d\n",
+			       __func__, ap_max_adapter_id);
+		}
+		if (ap_qci_info->Nd) {
+			ap_max_domain_id = ap_qci_info->Nd;
+			AP_DBF(DBF_INFO, "%s new ap_max_domain_id is %d\n",
+			       __func__, ap_max_domain_id);
+		}
 	}
 }
 
@@ -233,7 +253,6 @@ static inline int ap_test_config(unsigned int *field, unsigned int nr)
 
 /*
  * ap_test_config_card_id(): Test, whether an AP card ID is configured.
- * @id AP card ID
  *
  * Returns 0 if the card is not configured
  *	   1 if the card is configured or
@@ -241,16 +260,16 @@ static inline int ap_test_config(unsigned int *field, unsigned int nr)
  */
 static inline int ap_test_config_card_id(unsigned int id)
 {
-	if (!ap_configuration)	/* QCI not supported */
-		/* only ids 0...3F may be probed */
-		return id < 0x40 ? 1 : 0;
-	return ap_test_config(ap_configuration->apm, id);
+	if (id > ap_max_adapter_id)
+		return 0;
+	if (ap_qci_info)
+		return ap_test_config(ap_qci_info->apm, id);
+	return 1;
 }
 
 /*
  * ap_test_config_usage_domain(): Test, whether an AP usage domain
  * is configured.
- * @domain AP usage domain ID
  *
  * Returns 0 if the usage domain is not configured
  *	   1 if the usage domain is configured or
@@ -258,9 +277,11 @@ static inline int ap_test_config_card_id(unsigned int id)
  */
 int ap_test_config_usage_domain(unsigned int domain)
 {
-	if (!ap_configuration)	/* QCI not supported */
-		return domain < 16;
-	return ap_test_config(ap_configuration->aqm, domain);
+	if (domain > ap_max_domain_id)
+		return 0;
+	if (ap_qci_info)
+		return ap_test_config(ap_qci_info->aqm, domain);
+	return 1;
 }
 EXPORT_SYMBOL(ap_test_config_usage_domain);
 
@@ -274,43 +295,44 @@ EXPORT_SYMBOL(ap_test_config_usage_domain);
  */
 int ap_test_config_ctrl_domain(unsigned int domain)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_qci_info || domain > ap_max_domain_id)
 		return 0;
-	return ap_test_config(ap_configuration->adm, domain);
+	return ap_test_config(ap_qci_info->adm, domain);
 }
 EXPORT_SYMBOL(ap_test_config_ctrl_domain);
 
-/**
- * ap_query_queue(): Check if an AP queue is available.
- * @qid: The AP queue number
- * @queue_depth: Pointer to queue depth value
- * @device_type: Pointer to device type value
- * @facilities: Pointer to facility indicator
+/*
+ * ap_queue_info(): Check and get AP queue info.
+ * Returns true if TAPQ succeeded and the info is filled or
+ * false otherwise.
  */
-static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
-			  unsigned int *facilities)
+static bool ap_queue_info(ap_qid_t qid, int *q_type,
+			  unsigned int *q_fac, int *q_depth)
 {
 	struct ap_queue_status status;
-	unsigned long info;
-	int nd;
+	unsigned long info = 0;
 
-	if (!ap_test_config_card_id(AP_QID_CARD(qid)))
-		return -ENODEV;
+	/* make sure we don't run into a specifiation exception */
+	if (AP_QID_CARD(qid) > ap_max_adapter_id ||
+	    AP_QID_QUEUE(qid) > ap_max_domain_id)
+		return false;
 
+	/* call TAPQ on this APQN */
 	status = ap_test_queue(qid, ap_apft_available(), &info);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
-		*queue_depth = (int)(info & 0xff);
-		*device_type = (int)((info >> 24) & 0xff);
-		*facilities = (unsigned int)(info >> 32);
-		/* Update maximum domain id */
-		nd = (info >> 16) & 0xff;
-		/* if N bit is available, z13 and newer */
-		if ((info & (1UL << 57)) && nd > 0)
-			ap_max_domain_id = nd;
-		else /* older machine types */
-			ap_max_domain_id = 15;
-		switch (*device_type) {
+	case AP_RESPONSE_RESET_IN_PROGRESS:
+		/*
+		 * According to the architecture in all these cases the
+		 * info should be filled. All bits 0 is not possible as
+		 * there is at least one of the mode bits set.
+		 */
+		if (WARN_ON_ONCE(!info))
+			return false;
+		*q_type = (int)((info >> 24) & 0xff);
+		*q_fac = (unsigned int)(info >> 32);
+		*q_depth = (int)(info & 0xff);
+		switch (*q_type) {
 			/* For CEX2 and CEX3 the available functions
 			 * are not reflected by the facilities bits.
 			 * Instead it is coded into the type. So here
@@ -318,37 +340,31 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 			 */
 		case AP_DEVICE_TYPE_CEX2A:
 		case AP_DEVICE_TYPE_CEX3A:
-			*facilities |= 0x08000000;
+			*q_fac |= 0x08000000;
 			break;
 		case AP_DEVICE_TYPE_CEX2C:
 		case AP_DEVICE_TYPE_CEX3C:
-			*facilities |= 0x10000000;
+			*q_fac |= 0x10000000;
 			break;
 		default:
 			break;
 		}
-		return 0;
-	case AP_RESPONSE_Q_NOT_AVAIL:
-	case AP_RESPONSE_DECONFIGURED:
-	case AP_RESPONSE_CHECKSTOPPED:
-	case AP_RESPONSE_INVALID_ADDRESS:
-		return -ENODEV;
-	case AP_RESPONSE_RESET_IN_PROGRESS:
-	case AP_RESPONSE_OTHERWISE_CHANGED:
-	case AP_RESPONSE_BUSY:
-		return -EBUSY;
+		return true;
 	default:
-		BUG();
+		/*
+		 * A response code which indicates, there is no info available.
+		 */
+		return false;
 	}
 }
 
-void ap_wait(enum ap_wait wait)
+void ap_wait(enum ap_sm_wait wait)
 {
 	ktime_t hr_time;
 
 	switch (wait) {
-	case AP_WAIT_AGAIN:
-	case AP_WAIT_INTERRUPT:
+	case AP_SM_WAIT_AGAIN:
+	case AP_SM_WAIT_INTERRUPT:
 		if (ap_using_interrupts())
 			break;
 		if (ap_poll_kthread) {
@@ -356,7 +372,7 @@ void ap_wait(enum ap_wait wait)
 			break;
 		}
 		fallthrough;
-	case AP_WAIT_TIMEOUT:
+	case AP_SM_WAIT_TIMEOUT:
 		spin_lock_bh(&ap_poll_timer_lock);
 		if (!hrtimer_is_queued(&ap_poll_timer)) {
 			hr_time = poll_timeout;
@@ -365,7 +381,7 @@ void ap_wait(enum ap_wait wait)
 		}
 		spin_unlock_bh(&ap_poll_timer_lock);
 		break;
-	case AP_WAIT_NONE:
+	case AP_SM_WAIT_NONE:
 	default:
 		break;
 	}
@@ -382,7 +398,7 @@ void ap_request_timeout(struct timer_list *t)
 	struct ap_queue *aq = from_timer(aq, t, timeout);
 
 	spin_lock_bh(&aq->lock);
-	ap_wait(ap_sm_event(aq, AP_EVENT_TIMEOUT));
+	ap_wait(ap_sm_event(aq, AP_SM_EVENT_TIMEOUT));
 	spin_unlock_bh(&aq->lock);
 }
 
@@ -418,7 +434,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 {
 	int bkt;
 	struct ap_queue *aq;
-	enum ap_wait wait = AP_WAIT_NONE;
+	enum ap_sm_wait wait = AP_SM_WAIT_NONE;
 
 	/* Reset the indicator if interrupts are used. Thus new interrupts can
 	 * be received. Doing it in the beginning of the tasklet is therefor
@@ -430,7 +446,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 	spin_lock_bh(&ap_queues_lock);
 	hash_for_each(ap_queues, bkt, aq, hnode) {
 		spin_lock_bh(&aq->lock);
-		wait = min(wait, ap_sm_event_loop(aq, AP_EVENT_POLL));
+		wait = min(wait, ap_sm_event_loop(aq, AP_SM_EVENT_POLL));
 		spin_unlock_bh(&aq->lock);
 	}
 	spin_unlock_bh(&ap_queues_lock);
@@ -751,9 +767,6 @@ int ap_driver_register(struct ap_driver *ap_drv, struct module *owner,
 {
 	struct device_driver *drv = &ap_drv->driver;
 
-	if (!initialised)
-		return -ENODEV;
-
 	drv->bus = &ap_bus_type;
 	drv->probe = ap_device_probe;
 	drv->remove = ap_device_remove;
@@ -929,11 +942,12 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	    domain < 0 || domain > ap_max_domain_id ||
 	    !test_bit_inv(domain, ap_perms.aqm))
 		return -EINVAL;
+
 	spin_lock_bh(&ap_domain_lock);
 	ap_domain_index = domain;
 	spin_unlock_bh(&ap_domain_lock);
 
-	AP_DBF(DBF_DEBUG, "stored new default domain=%d\n", domain);
+	AP_DBF(DBF_INFO, "stored new default domain=%d\n", domain);
 
 	return count;
 }
@@ -942,45 +956,45 @@ static BUS_ATTR_RW(ap_domain);
 
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_qci_info)	/* QCI not supported */
 		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
 	return scnprintf(buf, PAGE_SIZE,
 			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			 ap_configuration->adm[0], ap_configuration->adm[1],
-			 ap_configuration->adm[2], ap_configuration->adm[3],
-			 ap_configuration->adm[4], ap_configuration->adm[5],
-			 ap_configuration->adm[6], ap_configuration->adm[7]);
+			 ap_qci_info->adm[0], ap_qci_info->adm[1],
+			 ap_qci_info->adm[2], ap_qci_info->adm[3],
+			 ap_qci_info->adm[4], ap_qci_info->adm[5],
+			 ap_qci_info->adm[6], ap_qci_info->adm[7]);
 }
 
 static BUS_ATTR_RO(ap_control_domain_mask);
 
 static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_qci_info)	/* QCI not supported */
 		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
 	return scnprintf(buf, PAGE_SIZE,
 			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			 ap_configuration->aqm[0], ap_configuration->aqm[1],
-			 ap_configuration->aqm[2], ap_configuration->aqm[3],
-			 ap_configuration->aqm[4], ap_configuration->aqm[5],
-			 ap_configuration->aqm[6], ap_configuration->aqm[7]);
+			 ap_qci_info->aqm[0], ap_qci_info->aqm[1],
+			 ap_qci_info->aqm[2], ap_qci_info->aqm[3],
+			 ap_qci_info->aqm[4], ap_qci_info->aqm[5],
+			 ap_qci_info->aqm[6], ap_qci_info->aqm[7]);
 }
 
 static BUS_ATTR_RO(ap_usage_domain_mask);
 
 static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
 {
-	if (!ap_configuration)	/* QCI not supported */
+	if (!ap_qci_info)	/* QCI not supported */
 		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
 	return scnprintf(buf, PAGE_SIZE,
 			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			 ap_configuration->apm[0], ap_configuration->apm[1],
-			 ap_configuration->apm[2], ap_configuration->apm[3],
-			 ap_configuration->apm[4], ap_configuration->apm[5],
-			 ap_configuration->apm[6], ap_configuration->apm[7]);
+			 ap_qci_info->apm[0], ap_qci_info->apm[1],
+			 ap_qci_info->apm[2], ap_qci_info->apm[3],
+			 ap_qci_info->apm[4], ap_qci_info->apm[5],
+			 ap_qci_info->apm[6], ap_qci_info->apm[7]);
 }
 
 static BUS_ATTR_RO(ap_adapter_mask);
@@ -1066,16 +1080,17 @@ static BUS_ATTR_RW(poll_timeout);
 
 static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 {
-	int max_domain_id;
-
-	if (ap_configuration)
-		max_domain_id = ap_max_domain_id ? : -1;
-	else
-		max_domain_id = 15;
-	return scnprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_max_domain_id);
 }
 
 static BUS_ATTR_RO(ap_max_domain_id);
+
+static ssize_t ap_max_adapter_id_show(struct bus_type *bus, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_max_adapter_id);
+}
+
+static BUS_ATTR_RO(ap_max_adapter_id);
 
 static ssize_t apmask_show(struct bus_type *bus, char *buf)
 {
@@ -1149,6 +1164,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_interrupts,
 	&bus_attr_poll_timeout,
 	&bus_attr_ap_max_domain_id,
+	&bus_attr_ap_max_adapter_id,
 	&bus_attr_apmask,
 	&bus_attr_aqmask,
 	NULL,
@@ -1160,47 +1176,42 @@ static struct bus_attribute *const ap_bus_attrs[] = {
  */
 static void ap_select_domain(void)
 {
-	int count, max_count, best_domain;
 	struct ap_queue_status status;
-	int i, j;
+	int card, dom;
 
 	/*
-	 * We want to use a single domain. Either the one specified with
-	 * the "domain=" parameter or the domain with the maximum number
-	 * of devices.
+	 * Choose the default domain. Either the one specified with
+	 * the "domain=" parameter or the first domain with at least
+	 * one valid APQN.
 	 */
 	spin_lock_bh(&ap_domain_lock);
 	if (ap_domain_index >= 0) {
 		/* Domain has already been selected. */
-		spin_unlock_bh(&ap_domain_lock);
-		return;
+		goto out;
 	}
-	best_domain = -1;
-	max_count = 0;
-	for (i = 0; i < AP_DOMAINS; i++) {
-		if (!ap_test_config_usage_domain(i) ||
-		    !test_bit_inv(i, ap_perms.aqm))
+	for (dom = 0; dom <= ap_max_domain_id; dom++) {
+		if (!ap_test_config_usage_domain(dom) ||
+		    !test_bit_inv(dom, ap_perms.aqm))
 			continue;
-		count = 0;
-		for (j = 0; j < AP_DEVICES; j++) {
-			if (!ap_test_config_card_id(j))
+		for (card = 0; card <= ap_max_adapter_id; card++) {
+			if (!ap_test_config_card_id(card) ||
+			    !test_bit_inv(card, ap_perms.apm))
 				continue;
-			status = ap_test_queue(AP_MKQID(j, i),
+			status = ap_test_queue(AP_MKQID(card, dom),
 					       ap_apft_available(),
 					       NULL);
-			if (status.response_code != AP_RESPONSE_NORMAL)
-				continue;
-			count++;
+			if (status.response_code == AP_RESPONSE_NORMAL)
+				break;
 		}
-		if (count > max_count) {
-			max_count = count;
-			best_domain = i;
-		}
+		if (card <= ap_max_adapter_id)
+			break;
 	}
-	if (best_domain >= 0) {
-		ap_domain_index = best_domain;
-		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
+	if (dom <= ap_max_domain_id) {
+		ap_domain_index = dom;
+		AP_DBF(DBF_DEBUG, "%s new default domain is %d\n",
+		       __func__, ap_domain_index);
 	}
+out:
 	spin_unlock_bh(&ap_domain_lock);
 }
 
@@ -1279,12 +1290,13 @@ static int __match_queue_device_with_queue_id(struct device *dev, const void *da
  */
 static void _ap_scan_bus_adapter(int id)
 {
+	bool broken;
 	ap_qid_t qid;
 	unsigned int func;
 	struct ap_card *ac;
 	struct device *dev;
 	struct ap_queue *aq;
-	int rc, dom, depth, type, comp_type, borked;
+	int rc, dom, depth, type, comp_type;
 
 	/* check if there is a card device registered with this id */
 	dev = bus_find_device(&ap_bus_type, NULL,
@@ -1312,23 +1324,23 @@ static void _ap_scan_bus_adapter(int id)
 		/* find the first valid queue */
 		for (dom = 0; dom < AP_DOMAINS; dom++) {
 			qid = AP_MKQID(id, dom);
-			if (ap_query_queue(qid, &depth, &type, &func) == 0)
+			if (ap_queue_info(qid, &type, &func, &depth))
 				break;
 		}
-		borked = 0;
+		broken = false;
 		if (dom >= AP_DOMAINS) {
 			/* no accessible queue on this card */
-			borked = 1;
+			broken = true;
 		} else if (ac->raw_hwtype != type) {
 			/* card type has changed */
 			AP_DBF(DBF_INFO, "card=%02x type changed.\n", id);
-			borked = 1;
+			broken = true;
 		} else if (ac->functions != func) {
 			/* card functions have changed */
 			AP_DBF(DBF_INFO, "card=%02x functions changed.\n", id);
-			borked = 1;
+			broken = true;
 		}
-		if (borked) {
+		if (broken) {
 			/* unregister card device and associated queues */
 			bus_for_each_dev(&ap_bus_type, NULL,
 					 (void *)(long) id,
@@ -1364,16 +1376,14 @@ static void _ap_scan_bus_adapter(int id)
 			continue;
 		}
 		/* try to fetch infos about this queue */
-		rc = ap_query_queue(qid, &depth, &type, &func);
+		broken = !ap_queue_info(qid, &type, &func, &depth);
 		if (dev) {
-			if (rc == -ENODEV)
-				borked = 1;
-			else {
+			if (!broken) {
 				spin_lock_bh(&aq->lock);
-				borked = aq->state == AP_STATE_BORKED;
+				broken = aq->sm_state == AP_SM_STATE_BORKED;
 				spin_unlock_bh(&aq->lock);
 			}
-			if (borked) {
+			if (broken) {
 				/* Remove broken device */
 				AP_DBF(DBF_DEBUG,
 				       "removing broken queue=%02x.%04x\n",
@@ -1383,7 +1393,7 @@ static void _ap_scan_bus_adapter(int id)
 			put_device(dev);
 			continue;
 		}
-		if (rc)
+		if (broken)
 			continue;
 		/* a new queue device is needed, check out comp type */
 		comp_type = ap_get_compatible_type(qid, type, func);
@@ -1435,10 +1445,10 @@ static void ap_scan_bus(struct work_struct *unused)
 {
 	int id;
 
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
-
-	ap_query_configuration(ap_configuration);
+	ap_fetch_qci_info(ap_qci_info);
 	ap_select_domain();
+
+	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	/* loop over all possible adapters */
 	for (id = 0; id < AP_DEVICES; id++)
@@ -1505,7 +1515,6 @@ static void __init ap_perms_init(void)
  */
 static int __init ap_module_init(void)
 {
-	int max_domain_id;
 	int rc, i;
 
 	rc = ap_debug_init();
@@ -1524,14 +1533,10 @@ static int __init ap_module_init(void)
 	ap_perms_init();
 
 	/* Get AP configuration data if available */
-	ap_init_configuration();
+	ap_init_qci_info();
 
-	if (ap_configuration)
-		max_domain_id =
-			ap_max_domain_id ? ap_max_domain_id : AP_DOMAINS - 1;
-	else
-		max_domain_id = 15;
-	if (ap_domain_index < -1 || ap_domain_index > max_domain_id ||
+	/* check default domain setting */
+	if (ap_domain_index < -1 || ap_domain_index > ap_max_domain_id ||
 	    (ap_domain_index >= 0 &&
 	     !test_bit_inv(ap_domain_index, ap_perms.aqm))) {
 		pr_warn("%d is not a valid cryptographic domain\n",
@@ -1539,6 +1544,7 @@ static int __init ap_module_init(void)
 		ap_domain_index = -1;
 	}
 
+	/* enable interrupts if available */
 	if (ap_interrupts_available()) {
 		rc = register_adapter_interrupt(&ap_airq);
 		ap_airq_flag = (rc == 0);
@@ -1581,7 +1587,6 @@ static int __init ap_module_init(void)
 	}
 
 	queue_work(system_long_wq, &ap_scan_work);
-	initialised = true;
 
 	return 0;
 
@@ -1595,7 +1600,7 @@ out_bus:
 out:
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
-	kfree(ap_configuration);
+	kfree(ap_qci_info);
 	return rc;
 }
 device_initcall(ap_module_init);

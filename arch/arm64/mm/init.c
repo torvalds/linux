@@ -425,8 +425,8 @@ void __init bootmem_init(void)
 	 * initialize node_online_map that gets used in hugetlb_cma_reserve()
 	 * while allocating required CMA size across online nodes.
 	 */
-#ifdef CONFIG_ARM64_4K_PAGES
-	hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
+	arm64_hugetlb_cma_reserve();
 #endif
 
 	/*
@@ -563,27 +563,11 @@ void free_initmem(void)
 	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
 }
 
-/*
- * Dump out memory limit information on panic.
- */
-static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
+void dump_mem_limit(void)
 {
 	if (memory_limit != PHYS_ADDR_MAX) {
 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
 	} else {
 		pr_emerg("Memory Limit: none\n");
 	}
-	return 0;
 }
-
-static struct notifier_block mem_limit_notifier = {
-	.notifier_call = dump_mem_limit,
-};
-
-static int __init register_mem_limit_dumper(void)
-{
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &mem_limit_notifier);
-	return 0;
-}
-__initcall(register_mem_limit_dumper);

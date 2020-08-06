@@ -476,6 +476,38 @@ config DEBUG_FS
 
 	  If unsure, say N.
 
+choice
+	prompt "Debugfs default access"
+	depends on DEBUG_FS
+	default DEBUG_FS_ALLOW_ALL
+	help
+	  This selects the default access restrictions for debugfs.
+	  It can be overridden with kernel command line option
+	  debugfs=[on,no-mount,off]. The restrictions apply for API access
+	  and filesystem registration.
+
+config DEBUG_FS_ALLOW_ALL
+	bool "Access normal"
+	help
+	  No restrictions apply. Both API and filesystem registration
+	  is on. This is the normal default operation.
+
+config DEBUG_FS_DISALLOW_MOUNT
+	bool "Do not register debugfs as filesystem"
+	help
+	  The API is open but filesystem is not loaded. Clients can still do
+	  their work and read with debug tools that do not need
+	  debugfs filesystem.
+
+config DEBUG_FS_ALLOW_NONE
+	bool "No access"
+	help
+	  Access is off. Clients get -PERM when trying to create nodes in
+	  debugfs tree and debugfs is not registered as a filesystem.
+	  Client can then back-off or continue without debugfs access.
+
+endchoice
+
 source "lib/Kconfig.kgdb"
 
 source "lib/Kconfig.ubsan"
@@ -844,10 +876,10 @@ config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"
 	depends on DEBUG_KERNEL
 	help
-	  Enable this to generate a spurious interrupt as soon as a shared
-	  interrupt handler is registered, and just before one is deregistered.
-	  Drivers ought to be able to handle interrupts coming in at those
-	  points; some don't and need to be caught.
+	  Enable this to generate a spurious interrupt just before a shared
+	  interrupt handler is deregistered (generating one when registering
+	  is currently disabled). Drivers need to handle this correctly. Some
+	  don't and need to be caught.
 
 menu "Debug Oops, Lockups and Hangs"
 
@@ -1117,6 +1149,7 @@ config PROVE_LOCKING
 	select DEBUG_RWSEMS
 	select DEBUG_WW_MUTEX_SLOWPATH
 	select DEBUG_LOCK_ALLOC
+	select PREEMPT_COUNT if !ARCH_NO_PREEMPT
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1325,10 +1358,16 @@ config WW_MUTEX_SELFTEST
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS
+	depends on TRACE_IRQFLAGS_SUPPORT
 	bool
 	help
 	  Enables hooks to interrupt enabling and disabling for
 	  either tracing or lock debugging.
+
+config TRACE_IRQFLAGS_NMI
+	def_bool y
+	depends on TRACE_IRQFLAGS
+	depends on TRACE_IRQFLAGS_NMI_SUPPORT
 
 config STACKTRACE
 	bool "Stack backtrace support"
@@ -2304,6 +2343,17 @@ config TEST_HMM
 	  This is a pseudo device driver solely for testing HMM.
 	  Say M here if you want to build the HMM test module.
 	  Doing so will allow you to run tools/testing/selftest/vm/hmm-tests.
+
+	  If unsure, say N.
+
+config TEST_FPU
+	tristate "Test floating point operations in kernel space"
+	depends on X86 && !KCOV_INSTRUMENT_ALL
+	help
+	  Enable this option to add /sys/kernel/debug/selftest_helpers/test_fpu
+	  which will trigger a sequence of floating point operations. This is used
+	  for self-testing floating point control register setting in
+	  kernel_fpu_begin().
 
 	  If unsure, say N.
 

@@ -9,6 +9,7 @@
 #include "mock_region.h"
 
 static const struct drm_i915_gem_object_ops mock_region_obj_ops = {
+	.name = "mock-region",
 	.get_pages = i915_gem_object_get_pages_buddy,
 	.put_pages = i915_gem_object_put_pages_buddy,
 	.release = i915_gem_object_release_memory_region,

@@ -864,7 +864,7 @@ EXPORT_SYMBOL_GPL(of_address_to_resource);
 
 /**
  * of_iomap - Maps the memory mapped IO for a given device_node
- * @device:	the device whose io range will be mapped
+ * @np:		the device whose io range will be mapped
  * @index:	index of the io range
  *
  * Returns a pointer to the mapped memory

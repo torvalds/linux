@@ -190,7 +190,7 @@ Security
 Secure operations are initiated by acquiring a key using the klog program.  A
 very primitive klog program is available at:
 
-	http://people.redhat.com/~dhowells/rxrpc/klog.c
+	https://people.redhat.com/~dhowells/rxrpc/klog.c
 
 This should be compiled by::
 

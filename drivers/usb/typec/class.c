@@ -580,7 +580,7 @@ EXPORT_SYMBOL_GPL(typec_partner_set_identity);
  * SVID listed in response to Discover Modes command need to be listed in an
  * array in @desc.
  *
- * Returns handle to the alternate mode on success or NULL on failure.
+ * Returns handle to the alternate mode on success or ERR_PTR on failure.
  */
 struct typec_altmode *
 typec_partner_register_altmode(struct typec_partner *partner,

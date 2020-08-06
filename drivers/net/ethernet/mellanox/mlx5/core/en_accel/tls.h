@@ -53,6 +53,7 @@ struct mlx5e_tls_sw_stats {
 
 struct mlx5e_tls {
 	struct mlx5e_tls_sw_stats sw_stats;
+	struct workqueue_struct *rx_wq;
 };
 
 struct mlx5e_tls_offload_context_tx {
@@ -86,6 +87,11 @@ mlx5e_get_tls_rx_context(struct tls_context *tls_ctx)
 			    base);
 }
 
+static inline bool mlx5e_is_tls_on(struct mlx5e_priv *priv)
+{
+	return priv->tls;
+}
+
 void mlx5e_tls_build_netdev(struct mlx5e_priv *priv);
 int mlx5e_tls_init(struct mlx5e_priv *priv);
 void mlx5e_tls_cleanup(struct mlx5e_priv *priv);
@@ -93,8 +99,6 @@ void mlx5e_tls_cleanup(struct mlx5e_priv *priv);
 int mlx5e_tls_get_count(struct mlx5e_priv *priv);
 int mlx5e_tls_get_strings(struct mlx5e_priv *priv, uint8_t *data);
 int mlx5e_tls_get_stats(struct mlx5e_priv *priv, u64 *data);
-
-u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq);
 
 #else
 
@@ -104,16 +108,12 @@ static inline void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 		mlx5e_ktls_build_netdev(priv);
 }
 
+static inline bool mlx5e_is_tls_on(struct mlx5e_priv *priv) { return false; }
 static inline int mlx5e_tls_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tls_cleanup(struct mlx5e_priv *priv) { }
 static inline int mlx5e_tls_get_count(struct mlx5e_priv *priv) { return 0; }
 static inline int mlx5e_tls_get_strings(struct mlx5e_priv *priv, uint8_t *data) { return 0; }
 static inline int mlx5e_tls_get_stats(struct mlx5e_priv *priv, u64 *data) { return 0; }
-
-static inline u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
-{
-	return 0;
-}
 
 #endif
 

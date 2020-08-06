@@ -596,7 +596,6 @@ static void pkcs1pad_free(struct akcipher_instance *inst)
 
 static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
-	struct crypto_attr_type *algt;
 	u32 mask;
 	struct akcipher_instance *inst;
 	struct pkcs1pad_inst_ctx *ctx;
@@ -604,14 +603,9 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 	const char *hash_name;
 	int err;
 
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_AKCIPHER) & algt->mask)
-		return -EINVAL;
-
-	mask = crypto_requires_sync(algt->type, algt->mask);
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_AKCIPHER, &mask);
+	if (err)
+		return err;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
@@ -658,7 +652,6 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 			goto err_free_inst;
 	}
 
-	inst->alg.base.cra_flags = rsa_alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = rsa_alg->base.cra_priority;
 	inst->alg.base.cra_ctxsize = sizeof(struct pkcs1pad_ctx);
 

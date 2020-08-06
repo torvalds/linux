@@ -122,7 +122,7 @@ nv04_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		break;
 	case NV_MEM_ACCESS_WO:
 		dmaobj->flags0 |= 0x00008000;
-		/* fall through */
+		fallthrough;
 	case NV_MEM_ACCESS_RW:
 		dmaobj->flags2 |= 0x00000002;
 		break;

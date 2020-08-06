@@ -803,9 +803,10 @@ static int decode_evnt(struct dp83640_private *dp83640,
 
 static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 {
-	u16 *seqid, hash;
 	unsigned int offset = 0;
 	u8 *msgtype, *data = skb_mac_header(skb);
+	__be16 *seqid;
+	u16 hash;
 
 	/* check sequenceID, messageType, 12 bit hash of offset 20-29 */
 
@@ -836,7 +837,7 @@ static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 	if (rxts->msgtype != (*msgtype & 0xf))
 		return 0;
 
-	seqid = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+	seqid = (__be16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
 	if (rxts->seqid != ntohs(*seqid))
 		return 0;
 

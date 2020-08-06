@@ -1863,13 +1863,5 @@ static struct pci_driver rio_driver = {
 };
 
 module_pci_driver(rio_driver);
-/*
 
-Compile command:
-
-gcc -D__KERNEL__ -DMODULE -I/usr/src/linux/include -Wall -Wstrict-prototypes -O2 -c dl2k.c
-
-Read Documentation/networking/device_drivers/dlink/dl2k.rst for details.
-
-*/
-
+/* Read Documentation/networking/device_drivers/ethernet/dlink/dl2k.rst. */

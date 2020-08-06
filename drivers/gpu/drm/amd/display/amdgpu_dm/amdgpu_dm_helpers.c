@@ -627,3 +627,23 @@ void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 {
 	/* TODO: something */
 }
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+void *dm_helpers_allocate_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		size_t size,
+		long long *addr)
+{
+	// TODO
+	return NULL;
+}
+
+void dm_helpers_free_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		void *pvMem)
+{
+	// TODO
+}
+#endif

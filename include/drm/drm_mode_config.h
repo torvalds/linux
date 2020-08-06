@@ -603,22 +603,22 @@ struct drm_mode_config {
 	struct drm_property *prop_src_h;
 	/**
 	 * @prop_crtc_x: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_x;
 	/**
 	 * @prop_crtc_y: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_y;
 	/**
 	 * @prop_crtc_w: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_w;
 	/**
 	 * @prop_crtc_h: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_h;
 	/**

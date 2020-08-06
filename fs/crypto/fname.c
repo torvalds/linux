@@ -61,30 +61,13 @@ struct fscrypt_nokey_name {
  */
 #define FSCRYPT_NOKEY_NAME_MAX	offsetofend(struct fscrypt_nokey_name, sha256)
 
-static struct crypto_shash *sha256_hash_tfm;
-
-static int fscrypt_do_sha256(const u8 *data, unsigned int data_len, u8 *result)
+static void fscrypt_do_sha256(const u8 *data, unsigned int data_len, u8 *result)
 {
-	struct crypto_shash *tfm = READ_ONCE(sha256_hash_tfm);
+	struct sha256_state sctx;
 
-	if (unlikely(!tfm)) {
-		struct crypto_shash *prev_tfm;
-
-		tfm = crypto_alloc_shash("sha256", 0, 0);
-		if (IS_ERR(tfm)) {
-			fscrypt_err(NULL,
-				    "Error allocating SHA-256 transform: %ld",
-				    PTR_ERR(tfm));
-			return PTR_ERR(tfm);
-		}
-		prev_tfm = cmpxchg(&sha256_hash_tfm, NULL, tfm);
-		if (prev_tfm) {
-			crypto_free_shash(tfm);
-			tfm = prev_tfm;
-		}
-	}
-
-	return crypto_shash_tfm_digest(tfm, data, data_len, result);
+	sha256_init(&sctx);
+	sha256_update(&sctx, data, data_len);
+	sha256_final(&sctx, result);
 }
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
@@ -115,7 +98,7 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	const struct fscrypt_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	struct scatterlist sg;
 	int res;
@@ -171,7 +154,7 @@ static int fname_decrypt(const struct inode *inode,
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
 	const struct fscrypt_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	int res;
 
@@ -349,7 +332,6 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 	const struct qstr qname = FSTR_TO_QSTR(iname);
 	struct fscrypt_nokey_name nokey_name;
 	u32 size; /* size of the unencoded no-key name */
-	int err;
 
 	if (fscrypt_is_dot_dotdot(&qname)) {
 		oname->name[0] = '.';
@@ -387,11 +369,9 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 	} else {
 		memcpy(nokey_name.bytes, iname->name, sizeof(nokey_name.bytes));
 		/* Compute strong hash of remaining part of name. */
-		err = fscrypt_do_sha256(&iname->name[sizeof(nokey_name.bytes)],
-					iname->len - sizeof(nokey_name.bytes),
-					nokey_name.sha256);
-		if (err)
-			return err;
+		fscrypt_do_sha256(&iname->name[sizeof(nokey_name.bytes)],
+				  iname->len - sizeof(nokey_name.bytes),
+				  nokey_name.sha256);
 		size = FSCRYPT_NOKEY_NAME_MAX;
 	}
 	oname->len = base64_encode((const u8 *)&nokey_name, size, oname->name);
@@ -530,9 +510,8 @@ bool fscrypt_match_name(const struct fscrypt_name *fname,
 		return false;
 	if (memcmp(de_name, nokey_name->bytes, sizeof(nokey_name->bytes)))
 		return false;
-	if (fscrypt_do_sha256(&de_name[sizeof(nokey_name->bytes)],
-			      de_name_len - sizeof(nokey_name->bytes), sha256))
-		return false;
+	fscrypt_do_sha256(&de_name[sizeof(nokey_name->bytes)],
+			  de_name_len - sizeof(nokey_name->bytes), sha256);
 	return !memcmp(sha256, nokey_name->sha256, sizeof(sha256));
 }
 EXPORT_SYMBOL_GPL(fscrypt_match_name);

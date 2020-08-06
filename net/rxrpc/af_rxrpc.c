@@ -267,7 +267,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
  * @upgrade: Request service upgrade for call
- * @intr: The call is interruptible
+ * @interruptibility: The call is interruptible, or can be canceled.
  * @debug_id: The debug ID for tracing to be assigned to the call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
@@ -588,7 +588,7 @@ EXPORT_SYMBOL(rxrpc_sock_set_min_security_level);
  * set RxRPC socket options
  */
 static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
-			    char __user *optval, unsigned int optlen)
+			    sockptr_t optval, unsigned int optlen)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	unsigned int min_sec_level;
@@ -639,8 +639,8 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			ret = -EISCONN;
 			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
-			ret = get_user(min_sec_level,
-				       (unsigned int __user *) optval);
+			ret = copy_from_sockptr(&min_sec_level, optval,
+				       sizeof(unsigned int));
 			if (ret < 0)
 				goto error;
 			ret = -EINVAL;
@@ -658,7 +658,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (rx->sk.sk_state != RXRPC_SERVER_BOUND2)
 				goto error;
 			ret = -EFAULT;
-			if (copy_from_user(service_upgrade, optval,
+			if (copy_from_sockptr(service_upgrade, optval,
 					   sizeof(service_upgrade)) != 0)
 				goto error;
 			ret = -EINVAL;

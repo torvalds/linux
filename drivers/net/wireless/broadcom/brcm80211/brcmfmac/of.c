@@ -17,7 +17,6 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 {
 	struct brcmfmac_sdio_pd *sdio = &settings->bus.sdio;
 	struct device_node *root, *np = dev->of_node;
-	struct property *prop;
 	int irq;
 	u32 irqf;
 	u32 val;
@@ -25,8 +24,22 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 	/* Set board-type to the first string of the machine compatible prop */
 	root = of_find_node_by_path("/");
 	if (root) {
-		prop = of_find_property(root, "compatible", NULL);
-		settings->board_type = of_prop_next_string(prop, NULL);
+		int i, len;
+		char *board_type;
+		const char *tmp;
+
+		of_property_read_string_index(root, "compatible", 0, &tmp);
+
+		/* get rid of '/' in the compatible string to be able to find the FW */
+		len = strlen(tmp) + 1;
+		board_type = devm_kzalloc(dev, len, GFP_KERNEL);
+		strscpy(board_type, tmp, len);
+		for (i = 0; i < board_type[i]; i++) {
+			if (board_type[i] == '/')
+				board_type[i] = '-';
+		}
+		settings->board_type = board_type;
+
 		of_node_put(root);
 	}
 

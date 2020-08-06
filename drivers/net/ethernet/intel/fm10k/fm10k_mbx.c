@@ -967,7 +967,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
 		if (tail != mbx->head)
 			return FM10K_MBX_ERR_TAIL;
 
-		/* fall through */
+		fallthrough;
 	case FM10K_MSG_DATA:
 		/* validate that head is moving correctly */
 		if (!head || (head == FM10K_MSG_HDR_MASK(HEAD)))
@@ -987,7 +987,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
 		if ((size < FM10K_VFMBX_MSG_MTU) || (size & (size + 1)))
 			return FM10K_MBX_ERR_SIZE;
 
-		/* fall through */
+		fallthrough;
 	case FM10K_MSG_ERROR:
 		if (!head || (head == FM10K_MSG_HDR_MASK(HEAD)))
 			return FM10K_MBX_ERR_HEAD;
@@ -1570,7 +1570,7 @@ s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 			mbx->mbmem_reg = FM10K_MBMEM_VF(id, 0);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return FM10K_MBX_ERR_NO_MBX;
 	}

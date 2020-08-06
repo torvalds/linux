@@ -81,7 +81,7 @@ struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
  */
 static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
 {
-	drm_gem_object_put_unlocked(&exynos_gem->base);
+	drm_gem_object_put(&exynos_gem->base);
 }
 
 /* get buffer information to memory region allocated by gem. */

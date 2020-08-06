@@ -171,14 +171,15 @@ static int tcf_gact_act(struct sk_buff *skb, const struct tc_action *a,
 	return action;
 }
 
-static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-				  u64 lastuse, bool hw)
+static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				  u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
 	struct tcf_t *tm = &gact->tcf_tm;
 
-	tcf_action_update_stats(a, bytes, packets, action == TC_ACT_SHOT, hw);
+	tcf_action_update_stats(a, bytes, packets,
+				action == TC_ACT_SHOT ? packets : drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 

@@ -9,6 +9,12 @@
 	compatible = "samsung,a5u-eur", "qcom,msm8916";
 };
 
+&accelerometer {
+	mount-matrix = "-1", "0", "0",
+			"0", "1", "0",
+			"0", "0", "1";
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -38,14 +44,10 @@
 
 &msmgpio {
 	ts_int_default: ts-int-default {
-		pinmux {
-			function = "gpio";
-			pins = "gpio13";
-		};
-		pinconf {
-			pins = "gpio13";
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio13";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

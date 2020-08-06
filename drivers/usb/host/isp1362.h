@@ -56,7 +56,7 @@ typedef const unsigned char isp1362_reg_t;
 #define ISP1362_REG_NO(r)		(r)
 
 #define ISP1362_REG(name, addr, width, rw) \
-static isp1362_reg_t ISP1362_REG_##name = addr
+static isp1362_reg_t __maybe_unused ISP1362_REG_##name = addr
 
 #define REG_ACCESS_TEST(r)		do {} while (0)
 #define REG_WIDTH_TEST(r, w)		do {} while (0)

@@ -136,8 +136,6 @@ ATOMIC_OPS(xor, ^=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #ifdef CONFIG_64BIT
 
 #define ATOMIC64_INIT(i) { (i) }

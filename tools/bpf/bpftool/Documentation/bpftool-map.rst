@@ -62,6 +62,11 @@ DESCRIPTION
 		  Output will start with map ID followed by map type and
 		  zero or more named attributes (depending on kernel version).
 
+		  Since Linux 5.8 bpftool is able to discover information about
+		  processes that hold open file descriptors (FDs) against BPF
+		  maps. On such kernels bpftool will automatically emit this
+		  information as well.
+
 	**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 		  Create a new map with given parameters and pin it to *bpffs*
 		  as *FILE*.
@@ -180,7 +185,8 @@ EXAMPLES
 ::
 
   10: hash  name some_map  flags 0x0
-	key 4B  value 8B  max_entries 2048  memlock 167936B
+        key 4B  value 8B  max_entries 2048  memlock 167936B
+        pids systemd(1)
 
 The following three commands are equivalent:
 

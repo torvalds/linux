@@ -27,9 +27,8 @@ static int coresight_alloc_conns(struct device *dev,
 				 struct coresight_platform_data *pdata)
 {
 	if (pdata->nr_outport) {
-		pdata->conns = devm_kzalloc(dev, pdata->nr_outport *
-					    sizeof(*pdata->conns),
-					    GFP_KERNEL);
+		pdata->conns = devm_kcalloc(dev, pdata->nr_outport,
+					    sizeof(*pdata->conns), GFP_KERNEL);
 		if (!pdata->conns)
 			return -ENOMEM;
 	}

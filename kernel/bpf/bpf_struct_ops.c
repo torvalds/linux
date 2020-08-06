@@ -611,6 +611,7 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	return map;
 }
 
+static int bpf_struct_ops_map_btf_id;
 const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_alloc_check = bpf_struct_ops_map_alloc_check,
 	.map_alloc = bpf_struct_ops_map_alloc,
@@ -620,6 +621,8 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_delete_elem = bpf_struct_ops_map_delete_elem,
 	.map_update_elem = bpf_struct_ops_map_update_elem,
 	.map_seq_show_elem = bpf_struct_ops_map_seq_show_elem,
+	.map_btf_name = "bpf_struct_ops_map",
+	.map_btf_id = &bpf_struct_ops_map_btf_id,
 };
 
 /* "const void *" because some subsystem is

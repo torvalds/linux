@@ -88,10 +88,10 @@ enum sdw_slave_status {
  * @SDW_CLK_POST_DEPREPARE: post clock stop de-prepare
  */
 enum sdw_clk_stop_type {
-	       SDW_CLK_PRE_PREPARE = 0,
-	       SDW_CLK_POST_PREPARE,
-	       SDW_CLK_PRE_DEPREPARE,
-	       SDW_CLK_POST_DEPREPARE,
+	SDW_CLK_PRE_PREPARE = 0,
+	SDW_CLK_POST_PREPARE,
+	SDW_CLK_PRE_DEPREPARE,
+	SDW_CLK_POST_DEPREPARE,
 };
 
 /**
@@ -152,19 +152,19 @@ enum sdw_data_direction {
  *
  * @SDW_PORT_DATA_MODE_NORMAL: Normal data mode where audio data is received
  * and transmitted.
+ * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
+ * a pseudo random data pattern that is transferred
+ * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
+ * logic 0. The encoding will result in no signal transitions
  * @SDW_PORT_DATA_MODE_STATIC_1: Simple test mode which uses static value of
  * logic 1. The encoding will result in signal transitions at every bitslot
  * owned by this Port
- * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
- * logic 0. The encoding will result in no signal transitions
- * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
- * a pseudo random data pattern that is transferred
  */
 enum sdw_port_data_mode {
 	SDW_PORT_DATA_MODE_NORMAL = 0,
-	SDW_PORT_DATA_MODE_STATIC_1 = 1,
+	SDW_PORT_DATA_MODE_PRBS = 1,
 	SDW_PORT_DATA_MODE_STATIC_0 = 2,
-	SDW_PORT_DATA_MODE_PRBS = 3,
+	SDW_PORT_DATA_MODE_STATIC_1 = 3,
 };
 
 /*
@@ -426,8 +426,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * struct sdw_slave_id - Slave ID
  * @mfg_id: MIPI Manufacturer ID
  * @part_id: Device Part ID
- * @class_id: MIPI Class ID, unused now.
- * Currently a placeholder in MIPI SoundWire Spec
+ * @class_id: MIPI Class ID (defined starting with SoundWire 1.2 spec)
  * @unique_id: Device unique ID
  * @sdw_version: SDW version implemented
  *
@@ -659,9 +658,13 @@ struct sdw_driver {
 	struct device_driver driver;
 };
 
-#define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data) \
-	{ .mfg_id = (_mfg_id), .part_id = (_part_id), \
+#define SDW_SLAVE_ENTRY_EXT(_mfg_id, _part_id, _version, _c_id, _drv_data) \
+	{ .mfg_id = (_mfg_id), .part_id = (_part_id),		\
+	  .sdw_version = (_version), .class_id = (_c_id),	\
 	  .driver_data = (unsigned long)(_drv_data) }
+
+#define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data)	\
+	SDW_SLAVE_ENTRY_EXT((_mfg_id), (_part_id), 0, 0, (_drv_data))
 
 int sdw_handle_slave_status(struct sdw_bus *bus,
 			enum sdw_slave_status status[]);
@@ -952,10 +955,12 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 		struct sdw_stream_runtime *stream);
 int sdw_stream_remove_slave(struct sdw_slave *slave,
 		struct sdw_stream_runtime *stream);
+int sdw_startup_stream(void *sdw_substream);
 int sdw_prepare_stream(struct sdw_stream_runtime *stream);
 int sdw_enable_stream(struct sdw_stream_runtime *stream);
 int sdw_disable_stream(struct sdw_stream_runtime *stream);
 int sdw_deprepare_stream(struct sdw_stream_runtime *stream);
+void sdw_shutdown_stream(void *sdw_substream);
 int sdw_bus_prep_clk_stop(struct sdw_bus *bus);
 int sdw_bus_clk_stop(struct sdw_bus *bus);
 int sdw_bus_exit_clk_stop(struct sdw_bus *bus);

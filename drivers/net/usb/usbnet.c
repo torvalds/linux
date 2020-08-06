@@ -1108,12 +1108,13 @@ static void __handle_link_change(struct usbnet *dev)
 	clear_bit(EVENT_LINK_CHANGE, &dev->flags);
 }
 
-static void usbnet_set_rx_mode(struct net_device *net)
+void usbnet_set_rx_mode(struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 
 	usbnet_defer_kevent(dev, EVENT_SET_RX_MODE);
 }
+EXPORT_SYMBOL_GPL(usbnet_set_rx_mode);
 
 static void __handle_set_rx_mode(struct usbnet *dev)
 {

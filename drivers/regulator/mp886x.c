@@ -206,8 +206,7 @@ static const struct regmap_config mp886x_regmap_config = {
 	.val_bits = 8,
 };
 
-static int mp886x_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int mp886x_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
@@ -280,7 +279,7 @@ static struct i2c_driver mp886x_regulator_driver = {
 		.name = "mp886x-regulator",
 		.of_match_table = of_match_ptr(mp886x_dt_ids),
 	},
-	.probe = mp886x_i2c_probe,
+	.probe_new = mp886x_i2c_probe,
 	.id_table = mp886x_id,
 };
 module_i2c_driver(mp886x_regulator_driver);

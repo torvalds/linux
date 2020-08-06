@@ -99,18 +99,6 @@
 #define rtsx_pci_readb(pcr, reg) \
 	ioread8((pcr)->remap_addr + reg)
 
-#define rtsx_pci_read_config_byte(pcr, where, val) \
-	pci_read_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_byte(pcr, where, val) \
-	pci_write_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_read_config_dword(pcr, where, val) \
-	pci_read_config_dword((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_dword(pcr, where, val) \
-	pci_write_config_dword((pcr)->pci, where, val)
-
 #define STATE_TRANS_NONE		0
 #define STATE_TRANS_CMD			1
 #define STATE_TRANS_BUF			2
@@ -305,6 +293,8 @@
 #define   SD30_CLK_STOP_CFG0		0x01
 #define REG_PRE_RW_MODE			0xFD70
 #define EN_INFINITE_MODE		0x01
+#define REG_CRC_DUMMY_0		0xFD71
+#define CFG_SD_POW_AUTO_PD		(1<<0)
 
 #define SRCTL				0xFC13
 
@@ -599,6 +589,7 @@
 
 #define ASPM_FORCE_CTL			0xFE57
 #define   FORCE_ASPM_CTL0		0x10
+#define   FORCE_ASPM_CTL1		0x20
 #define   FORCE_ASPM_VAL_MASK		0x03
 #define   FORCE_ASPM_L1_EN		0x02
 #define   FORCE_ASPM_L0_EN		0x01
@@ -666,6 +657,11 @@
 #define   RESET_PIN_WAKE		0x02
 #define   PM_WAKE_EN			0x01
 #define PM_CTRL4			0xFF47
+
+#define REG_CFG_OOBS_OFF_TIMER 0xFEA6
+#define REG_CFG_OOBS_ON_TIMER 0xFEA7
+#define REG_CFG_VCM_ON_TIMER 0xFEA8
+#define REG_CFG_OOBS_POLLING 0xFEA9
 
 /* Memory mapping */
 #define SRAM_BASE			0xE600
@@ -1041,10 +1037,6 @@
 #define   PHY_DIG1E_RX_EN_KEEP		0x0001
 #define PHY_DUM_REG			0x1F
 
-#define PCR_ASPM_SETTING_REG1		0x160
-#define PCR_ASPM_SETTING_REG2		0x168
-#define PCR_ASPM_SETTING_5260		0x178
-
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
@@ -1090,11 +1082,6 @@ struct pcr_ops {
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
-
-#define ASPM_L1_1_EN_MASK		BIT(3)
-#define ASPM_L1_2_EN_MASK		BIT(2)
-#define PM_L1_1_EN_MASK		BIT(1)
-#define PM_L1_2_EN_MASK		BIT(0)
 
 #define ASPM_L1_1_EN			BIT(0)
 #define ASPM_L1_2_EN			BIT(1)
@@ -1158,7 +1145,6 @@ struct rtsx_hw_param {
 struct rtsx_pcr {
 	struct pci_dev			*pci;
 	unsigned int			id;
-	int				pcie_cap;
 	struct rtsx_cr_option	option;
 	struct rtsx_hw_param hw_param;
 
@@ -1204,6 +1190,7 @@ struct rtsx_pcr {
 #define EXTRA_CAPS_MMC_HSDDR		(1 << 3)
 #define EXTRA_CAPS_MMC_HS200		(1 << 4)
 #define EXTRA_CAPS_MMC_8BIT		(1 << 5)
+#define EXTRA_CAPS_NO_MMC		(1 << 7)
 	u32				extra_caps;
 
 #define IC_VER_A			0
@@ -1242,6 +1229,7 @@ struct rtsx_pcr {
 	u8				dma_error_count;
 	u8			ocp_stat;
 	u8			ocp_stat2;
+	u8			rtd3_en;
 };
 
 #define PID_524A	0x524A
@@ -1250,6 +1238,7 @@ struct rtsx_pcr {
 #define PID_525A	0x525A
 #define PID_5260	0x5260
 #define PID_5261	0x5261
+#define PID_5228	0x5228
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)

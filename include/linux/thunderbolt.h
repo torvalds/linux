@@ -504,8 +504,6 @@ struct tb_ring {
 #define RING_FLAG_NO_SUSPEND	BIT(0)
 /* Configure the ring to be in frame mode */
 #define RING_FLAG_FRAME		BIT(1)
-/* Enable end-to-end flow control */
-#define RING_FLAG_E2E		BIT(2)
 
 struct ring_frame;
 typedef void (*ring_cb)(struct tb_ring *, struct ring_frame *, bool canceled);

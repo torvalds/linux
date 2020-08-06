@@ -118,6 +118,7 @@ properties:
         items:
           - enum:
               - hoperun,hihope-rzg2m # HopeRun HiHope RZ/G2M platform
+              - beacon,beacon-rzg2m # Beacon EmbeddedWorks RZ/G2M Kit
           - const: renesas,r8a774a1
 
       - items:
@@ -149,6 +150,18 @@ properties:
               - si-linux,cat875 # Silicon Linux sub board for CAT874 (CAT875)
           - const: si-linux,cat874
           - const: renesas,r8a774c0
+
+      - description: RZ/G2H (R8A774E1)
+        items:
+          - enum:
+              - hoperun,hihope-rzg2h # HopeRun HiHope RZ/G2H platform
+          - const: renesas,r8a774e1
+
+      - items:
+          - enum:
+              - hoperun,hihope-rzg2-ex # HopeRun expansion board for HiHope RZ/G2 platforms
+          - const: hoperun,hihope-rzg2h
+          - const: renesas,r8a774e1
 
       - description: R-Car M1A (R8A77781)
         items:

@@ -2751,6 +2751,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;
 	struct sk_buff_head list;
+	__u32 skb_mark;
 
 	spin_lock(&pq->hold_queue.lock);
 	skb = skb_peek(&pq->hold_queue);
@@ -2760,7 +2761,12 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	}
 	dst = skb_dst(skb);
 	sk = skb->sk;
+
+	/* Fixup the mark to support VTI. */
+	skb_mark = skb->mark;
+	skb->mark = pol->mark.v;
 	xfrm_decode_session(skb, &fl, dst->ops->family);
+	skb->mark = skb_mark;
 	spin_unlock(&pq->hold_queue.lock);
 
 	dst_hold(xfrm_dst_path(dst));
@@ -2792,7 +2798,12 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	while (!skb_queue_empty(&list)) {
 		skb = __skb_dequeue(&list);
 
+		/* Fixup the mark to support VTI. */
+		skb_mark = skb->mark;
+		skb->mark = pol->mark.v;
 		xfrm_decode_session(skb, &fl, skb_dst(skb)->ops->family);
+		skb->mark = skb_mark;
+
 		dst_hold(xfrm_dst_path(skb_dst(skb)));
 		dst = xfrm_lookup(net, xfrm_dst_path(skb_dst(skb)), &fl, skb->sk, 0);
 		if (IS_ERR(dst)) {

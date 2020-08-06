@@ -376,7 +376,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start	= 1280 + 30,
 	.vsync_end	= 1280 + 30 + 4,
 	.vtotal		= 1280 + 30 + 4 + 12,
-	.vrefresh	= 60,
 	.clock		= 69217,
 	.width_mm	= 62,
 	.height_mm	= 110,
@@ -392,7 +391,7 @@ static int ltk500hd1829_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		DRM_DEV_ERROR(ctx->dev, "failed to add mode %ux%ux@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
-			      default_mode.vrefresh);
+			      drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

@@ -59,6 +59,7 @@ comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
+	select REGMAP_MMIO
 	help
 	  This is the driver for the Altera SPI Controller.
 
@@ -102,7 +103,7 @@ config SPI_AT91_USART
 
 config SPI_ATMEL_QUADSPI
 	tristate "Atmel Quad SPI Controller"
-	depends on ARCH_AT91 || (ARM && COMPILE_TEST && !ARCH_EBSA110)
+	depends on ARCH_AT91 || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	help
 	  This enables support for the Quad SPI controller in master mode.
@@ -149,13 +150,13 @@ config SPI_BCM2835AUX
 
 config SPI_BCM63XX
 	tristate "Broadcom BCM63xx SPI controller"
-	depends on BCM63XX || COMPILE_TEST
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	help
 	  Enable support for the SPI controller on the Broadcom BCM63xx SoCs.
 
 config SPI_BCM63XX_HSSPI
 	tristate "Broadcom BCM63XX HS SPI controller driver"
-	depends on BCM63XX || ARCH_BCM_63XX || COMPILE_TEST
+	depends on BCM63XX || BMIPS_GENERIC || ARCH_BCM_63XX || COMPILE_TEST
 	help
 	  This enables support for the High Speed SPI controller present on
 	  newer Broadcom BCM63XX SoCs.
@@ -168,7 +169,7 @@ config SPI_BCM_QSPI
 	help
 	  Enables support for the Broadcom SPI flash and MSPI controller.
 	  Select this option for any one of BRCMSTB, iProc NSP and NS2 SoCs
-	  based platforms. This driver works for both SPI master for spi-nor
+	  based platforms. This driver works for both SPI master for SPI NOR
 	  flash device as well as MSPI device.
 
 config SPI_BITBANG
@@ -199,6 +200,17 @@ config SPI_CADENCE
 	help
 	  This selects the Cadence SPI controller master driver
 	  used by Xilinx Zynq and ZynqMP.
+
+config SPI_CADENCE_QUADSPI
+	tristate "Cadence Quad SPI controller"
+	depends on OF && (ARM || ARM64 || COMPILE_TEST)
+	help
+	  Enable support for the Cadence Quad SPI Flash controller.
+
+	  Cadence QSPI is a specialized controller for connecting an SPI
+	  Flash over 1/2/4-bit wide bus. Enable this option if you have a
+	  device with a Cadence QSPI controller and want to access the
+	  Flash as an MTD device.
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
@@ -299,11 +311,11 @@ config SPI_FSL_QUADSPI
 	  supports the high-level SPI memory interface.
 
 config SPI_HISI_SFC_V3XX
-	tristate "HiSilicon SPI-NOR Flash Controller for Hi16XX chipsets"
+	tristate "HiSilicon SPI NOR Flash Controller for Hi16XX chipsets"
 	depends on (ARM64 && ACPI) || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  This enables support for HiSilicon v3xx SPI-NOR flash controller
+	  This enables support for HiSilicon v3xx SPI NOR flash controller
 	  found in hi16xx chipsets.
 
 config SPI_NXP_FLEXSPI
@@ -465,9 +477,9 @@ config SPI_MTK_NOR
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
 	  This enables support for SPI NOR controller found on MediaTek
-	  ARM SoCs. This is a controller specifically for SPI-NOR flash.
+	  ARM SoCs. This is a controller specifically for SPI NOR flash.
 	  It can perform generic SPI transfers up to 6 bytes via generic
-	  SPI interface as well as several SPI-NOR specific instructions
+	  SPI interface as well as several SPI NOR specific instructions
 	  via SPI MEM interface.
 
 config SPI_NPCM_FIU
@@ -489,11 +501,11 @@ config SPI_NPCM_PSPI
 
 config SPI_LANTIQ_SSC
 	tristate "Lantiq SSC SPI controller"
-	depends on LANTIQ || COMPILE_TEST
+	depends on LANTIQ || X86 || COMPILE_TEST
 	help
 	  This driver supports the Lantiq SSC SPI controller in master
 	  mode. This controller is found on Intel (former Lantiq) SoCs like
-	  the Danube, Falcon, xRX200, xRX300.
+	  the Danube, Falcon, xRX200, xRX300, Lightning Mountain.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
@@ -604,6 +616,12 @@ config SPI_RB4XX
 	depends on SPI_MASTER && ATH79
 	help
 	  SPI controller driver for the Mikrotik RB4xx series boards.
+
+config SPI_RPCIF
+	tristate "Renesas RPC-IF SPI driver"
+	depends on RENESAS_RPCIF
+	help
+	  SPI driver for Renesas R-Car Gen3 RPC-IF.
 
 config SPI_RSPI
 	tristate "Renesas RSPI/QSPI controller"

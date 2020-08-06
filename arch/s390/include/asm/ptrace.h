@@ -184,5 +184,10 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 	return regs->gprs[15];
 }
 
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->gprs[2] = rc;
+}
+
 #endif /* __ASSEMBLY__ */
 #endif /* _S390_PTRACE_H */

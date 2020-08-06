@@ -1209,20 +1209,19 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 
 /*
  * Callback function provided to the Energy Model framework upon registration.
- * This computes the power estimated by @CPU at @kHz if it is the frequency
+ * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
  * frequency and @mW to the associated power. The power is estimated as
- * P = C * V^2 * f with C being the CPU's capacitance and V and f respectively
- * the voltage and frequency of the OPP.
+ * P = C * V^2 * f with C being the device's capacitance and V and f
+ * respectively the voltage and frequency of the OPP.
  *
- * Returns -ENODEV if the CPU device cannot be found, -EINVAL if the power
- * calculation failed because of missing parameters, 0 otherwise.
+ * Returns -EINVAL if the power calculation failed because of missing
+ * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
-					 int cpu)
+static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
+				     struct device *dev)
 {
-	struct device *cpu_dev;
 	struct dev_pm_opp *opp;
 	struct device_node *np;
 	unsigned long mV, Hz;
@@ -1230,11 +1229,7 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 	u64 tmp;
 	int ret;
 
-	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev)
-		return -ENODEV;
-
-	np = of_node_get(cpu_dev->of_node);
+	np = of_node_get(dev->of_node);
 	if (!np)
 		return -EINVAL;
 
@@ -1244,7 +1239,7 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 		return -EINVAL;
 
 	Hz = *kHz * 1000;
-	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &Hz);
+	opp = dev_pm_opp_find_freq_ceil(dev, &Hz);
 	if (IS_ERR(opp))
 		return -EINVAL;
 
@@ -1264,30 +1259,38 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 
 /**
  * dev_pm_opp_of_register_em() - Attempt to register an Energy Model
- * @cpus	: CPUs for which an Energy Model has to be registered
+ * @dev		: Device for which an Energy Model has to be registered
+ * @cpus	: CPUs for which an Energy Model has to be registered. For
+ *		other type of devices it should be set to NULL.
  *
  * This checks whether the "dynamic-power-coefficient" devicetree property has
  * been specified, and tries to register an Energy Model with it if it has.
+ * Having this property means the voltages are known for OPPs and the EM
+ * might be calculated.
  */
-void dev_pm_opp_of_register_em(struct cpumask *cpus)
+int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 {
-	struct em_data_callback em_cb = EM_DATA_CB(_get_cpu_power);
-	int ret, nr_opp, cpu = cpumask_first(cpus);
-	struct device *cpu_dev;
+	struct em_data_callback em_cb = EM_DATA_CB(_get_power);
 	struct device_node *np;
+	int ret, nr_opp;
 	u32 cap;
 
-	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev)
-		return;
+	if (IS_ERR_OR_NULL(dev)) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
-	if (nr_opp <= 0)
-		return;
+	nr_opp = dev_pm_opp_get_opp_count(dev);
+	if (nr_opp <= 0) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	np = of_node_get(cpu_dev->of_node);
-	if (!np)
-		return;
+	np = of_node_get(dev->of_node);
+	if (!np) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
 	/*
 	 * Register an EM only if the 'dynamic-power-coefficient' property is
@@ -1298,9 +1301,20 @@ void dev_pm_opp_of_register_em(struct cpumask *cpus)
 	 */
 	ret = of_property_read_u32(np, "dynamic-power-coefficient", &cap);
 	of_node_put(np);
-	if (ret || !cap)
-		return;
+	if (ret || !cap) {
+		dev_dbg(dev, "Couldn't find proper 'dynamic-power-coefficient' in DT\n");
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	em_register_perf_domain(cpus, nr_opp, &em_cb);
+	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus);
+	if (ret)
+		goto failed;
+
+	return 0;
+
+failed:
+	dev_dbg(dev, "Couldn't register Energy Model %d\n", ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_register_em);

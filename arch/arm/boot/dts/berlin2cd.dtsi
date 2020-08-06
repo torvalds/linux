@@ -71,7 +71,7 @@
 			status = "disabled";
 		};
 
-		l2: l2-cache-controller@ac0000 {
+		l2: cache-controller@ac0000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xac0000 0x1000>;
 			cache-unified;

@@ -95,7 +95,7 @@ static unsigned int calculate_16_bit_backlight_from_pwm(struct dce_panel_cntl *d
 	return (uint32_t)(current_backlight);
 }
 
-uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
+static uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 {
 	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 	uint32_t value;
@@ -155,7 +155,7 @@ uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	return current_backlight;
 }
 
-bool dce_is_panel_backlight_on(struct panel_cntl *panel_cntl)
+static bool dce_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 {
 	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 	uint32_t value;
@@ -165,7 +165,7 @@ bool dce_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 	return value;
 }
 
-bool dce_is_panel_powered_on(struct panel_cntl *panel_cntl)
+static bool dce_is_panel_powered_on(struct panel_cntl *panel_cntl)
 {
 	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
@@ -177,7 +177,7 @@ bool dce_is_panel_powered_on(struct panel_cntl *panel_cntl)
 	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
 }
 
-void dce_store_backlight_level(struct panel_cntl *panel_cntl)
+static void dce_store_backlight_level(struct panel_cntl *panel_cntl)
 {
 	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
 
@@ -192,7 +192,7 @@ void dce_store_backlight_level(struct panel_cntl *panel_cntl)
 		&panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 }
 
-void dce_driver_set_backlight(struct panel_cntl *panel_cntl,
+static void dce_driver_set_backlight(struct panel_cntl *panel_cntl,
 		uint32_t backlight_pwm_u16_16)
 {
 	uint32_t backlight_16bit;

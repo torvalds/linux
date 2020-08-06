@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Zhoaxin PMU; like Intel Architectural PerfMon-v2
+ * Zhaoxin PMU; like Intel Architectural PerfMon-v2
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

@@ -117,6 +117,9 @@ struct igc_ring {
 struct igc_adapter {
 	struct net_device *netdev;
 
+	struct ethtool_eee eee;
+	u16 eee_advert;
+
 	unsigned long state;
 	unsigned int flags;
 	unsigned int num_q_vectors;
@@ -207,8 +210,6 @@ struct igc_adapter {
 	struct sk_buff *ptp_tx_skb;
 	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
-	unsigned long last_rx_ptp_check;
-	unsigned long last_rx_timestamp;
 	unsigned int ptp_flags;
 	/* System time value lock */
 	spinlock_t tmreg_lock;
@@ -239,7 +240,6 @@ void igc_rings_dump(struct igc_adapter *adapter);
 void igc_regs_dump(struct igc_adapter *adapter);
 
 extern char igc_driver_name[];
-extern char igc_driver_version[];
 
 #define IGC_REGS_LEN			740
 
@@ -256,6 +256,7 @@ extern char igc_driver_version[];
 #define IGC_FLAG_MEDIA_RESET		BIT(10)
 #define IGC_FLAG_MAS_ENABLE		BIT(12)
 #define IGC_FLAG_HAS_MSIX		BIT(13)
+#define IGC_FLAG_EEE			BIT(14)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 #define IGC_FLAG_RX_LEGACY		BIT(16)
 #define IGC_FLAG_TSN_QBV_ENABLED	BIT(17)
@@ -546,7 +547,6 @@ void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);
 void igc_ptp_suspend(struct igc_adapter *adapter);
 void igc_ptp_stop(struct igc_adapter *adapter);
-void igc_ptp_rx_rgtstamp(struct igc_q_vector *q_vector, struct sk_buff *skb);
 void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
 			 struct sk_buff *skb);
 int igc_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);

@@ -480,21 +480,6 @@ static void qt2_process_status(struct usb_serial_port *port, unsigned char *ch)
 	}
 }
 
-/* not needed, kept to document functionality */
-static void qt2_process_xmit_empty(struct usb_serial_port *port,
-				   unsigned char *ch)
-{
-	int bytes_written;
-
-	bytes_written = (int)(*ch) + (int)(*(ch + 1) << 4);
-}
-
-/* not needed, kept to document functionality */
-static void qt2_process_flush(struct usb_serial_port *port, unsigned char *ch)
-{
-	return;
-}
-
 static void qt2_process_read_urb(struct urb *urb)
 {
 	struct usb_serial *serial;
@@ -540,7 +525,7 @@ static void qt2_process_read_urb(struct urb *urb)
 						 __func__);
 					break;
 				}
-				qt2_process_xmit_empty(port, ch + 3);
+				/* bytes_written = (ch[1] << 4) + ch[0]; */
 				i += 4;
 				escapeflag = true;
 				break;
@@ -569,7 +554,6 @@ static void qt2_process_read_urb(struct urb *urb)
 				break;
 			case QT2_REC_FLUSH:
 			case QT2_XMIT_FLUSH:
-				qt2_process_flush(port, ch + 2);
 				i += 2;
 				escapeflag = true;
 				break;

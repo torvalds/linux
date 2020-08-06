@@ -1127,14 +1127,6 @@ void __init setup_arch(char **cmdline_p)
 	free_mem_detect_info();
 	remove_oldmem();
 
-	/*
-	 * Make sure all chunks are MAX_ORDER aligned so we don't need the
-	 * extra checks that HOLES_IN_ZONE would require.
-	 *
-	 * Is this still required?
-	 */
-	memblock_trim_memory(1UL << (MAX_ORDER - 1 + PAGE_SHIFT));
-
 	if (is_prot_virt_host())
 		setup_uv();
 	setup_memory_end();

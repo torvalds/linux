@@ -3,6 +3,7 @@
  * Copyright (C) 2019 Lorenzo Bianconi <lorenzo@kernel.org>
  */
 
+#include "mt76.h"
 #include <linux/pci.h>
 
 void mt76_pci_disable_aspm(struct pci_dev *pdev)

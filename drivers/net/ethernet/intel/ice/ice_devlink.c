@@ -4,6 +4,7 @@
 #include "ice.h"
 #include "ice_lib.h"
 #include "ice_devlink.h"
+#include "ice_fw_update.h"
 
 static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 {
@@ -229,8 +230,61 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	return 0;
 }
 
+/**
+ * ice_devlink_flash_update - Update firmware stored in flash on the device
+ * @devlink: pointer to devlink associated with device to update
+ * @path: the path of the firmware file to use via request_firmware
+ * @component: name of the component to update, or NULL
+ * @extack: netlink extended ACK structure
+ *
+ * Perform a device flash update. The bulk of the update logic is contained
+ * within the ice_flash_pldm_image function.
+ *
+ * Returns: zero on success, or an error code on failure.
+ */
+static int
+ice_devlink_flash_update(struct devlink *devlink, const char *path,
+			 const char *component, struct netlink_ext_ack *extack)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = &pf->pdev->dev;
+	struct ice_hw *hw = &pf->hw;
+	const struct firmware *fw;
+	int err;
+
+	/* individual component update is not yet supported */
+	if (component)
+		return -EOPNOTSUPP;
+
+	if (!hw->dev_caps.common_cap.nvm_unified_update) {
+		NL_SET_ERR_MSG_MOD(extack, "Current firmware does not support unified update");
+		return -EOPNOTSUPP;
+	}
+
+	err = ice_check_for_pending_update(pf, component, extack);
+	if (err)
+		return err;
+
+	err = request_firmware(&fw, path, dev);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Unable to read file from disk");
+		return err;
+	}
+
+	devlink_flash_update_begin_notify(devlink);
+	devlink_flash_update_status_notify(devlink, "Preparing to flash",
+					   component, 0, 0);
+	err = ice_flash_pldm_image(pf, fw, extack);
+	devlink_flash_update_end_notify(devlink);
+
+	release_firmware(fw);
+
+	return err;
+}
+
 static const struct devlink_ops ice_devlink_ops = {
 	.info_get = ice_devlink_info_get,
+	.flash_update = ice_devlink_flash_update,
 };
 
 static void ice_devlink_free(void *devlink_ptr)
@@ -303,7 +357,7 @@ void ice_devlink_unregister(struct ice_pf *pf)
  *
  * Create and register a devlink_port for this PF. Note that although each
  * physical function is connected to a separate devlink instance, the port
- * will still be numbered according to the physical function id.
+ * will still be numbered according to the physical function ID.
  *
  * Return: zero on success or an error code on failure.
  */
@@ -312,6 +366,7 @@ int ice_devlink_create_port(struct ice_pf *pf)
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
 	struct device *dev = ice_pf_to_dev(pf);
+	struct devlink_port_attrs attrs = {};
 	int err;
 
 	if (!vsi) {
@@ -319,8 +374,9 @@ int ice_devlink_create_port(struct ice_pf *pf)
 		return -EIO;
 	}
 
-	devlink_port_attrs_set(&pf->devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
-			       pf->hw.pf_id, false, 0, NULL, 0);
+	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	attrs.phys.port_number = pf->hw.pf_id;
+	devlink_port_attrs_set(&pf->devlink_port, &attrs);
 	err = devlink_port_register(devlink, &pf->devlink_port, pf->hw.pf_id);
 	if (err) {
 		dev_err(dev, "devlink_port_register failed: %d\n", err);
@@ -397,10 +453,58 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	return 0;
 }
 
+/**
+ * ice_devlink_devcaps_snapshot - Capture snapshot of device capabilities
+ * @devlink: the devlink instance
+ * @extack: extended ACK response structure
+ * @data: on exit points to snapshot data buffer
+ *
+ * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
+ * the device-caps devlink region. It captures a snapshot of the device
+ * capabilities reported by firmware.
+ *
+ * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * error code on failure.
+ */
+static int
+ice_devlink_devcaps_snapshot(struct devlink *devlink,
+			     struct netlink_ext_ack *extack, u8 **data)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	void *devcaps;
+
+	devcaps = vzalloc(ICE_AQ_MAX_BUF_LEN);
+	if (!devcaps)
+		return -ENOMEM;
+
+	status = ice_aq_list_caps(hw, devcaps, ICE_AQ_MAX_BUF_LEN, NULL,
+				  ice_aqc_opc_list_dev_caps, NULL);
+	if (status) {
+		dev_dbg(dev, "ice_aq_list_caps: failed to read device capabilities, err %d aq_err %d\n",
+			status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read device capabilities");
+		vfree(devcaps);
+		return -EIO;
+	}
+
+	*data = (u8 *)devcaps;
+
+	return 0;
+}
+
 static const struct devlink_region_ops ice_nvm_region_ops = {
 	.name = "nvm-flash",
 	.destructor = vfree,
 	.snapshot = ice_devlink_nvm_snapshot,
+};
+
+static const struct devlink_region_ops ice_devcaps_region_ops = {
+	.name = "device-caps",
+	.destructor = vfree,
+	.snapshot = ice_devlink_devcaps_snapshot,
 };
 
 /**
@@ -424,6 +528,15 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 			PTR_ERR(pf->nvm_region));
 		pf->nvm_region = NULL;
 	}
+
+	pf->devcaps_region = devlink_region_create(devlink,
+						   &ice_devcaps_region_ops, 10,
+						   ICE_AQ_MAX_BUF_LEN);
+	if (IS_ERR(pf->devcaps_region)) {
+		dev_err(dev, "failed to create device-caps devlink region, err %ld\n",
+			PTR_ERR(pf->devcaps_region));
+		pf->devcaps_region = NULL;
+	}
 }
 
 /**
@@ -436,4 +549,6 @@ void ice_devlink_destroy_regions(struct ice_pf *pf)
 {
 	if (pf->nvm_region)
 		devlink_region_destroy(pf->nvm_region);
+	if (pf->devcaps_region)
+		devlink_region_destroy(pf->devcaps_region);
 }

@@ -239,7 +239,7 @@ void __blk_crypto_free_request(struct request *rq)
  * kernel crypto API. When the crypto API fallback is used for encryption,
  * blk-crypto may choose to split the bio into 2 - the first one that will
  * continue to be processed and the second one that will be resubmitted via
- * generic_make_request. A bounce bio will be allocated to encrypt the contents
+ * submit_bio_noacct. A bounce bio will be allocated to encrypt the contents
  * of the aforementioned "first one", and *bio_ptr will be updated to this
  * bounce bio.
  *

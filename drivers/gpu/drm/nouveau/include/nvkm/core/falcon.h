@@ -31,21 +31,21 @@ int gp102_sec2_flcn_enable(struct nvkm_falcon *);
 #define FLCN_ERR(f,fmt,a...) FLCN_PRINTK(error, (f), fmt, ##a)
 
 /**
- * struct nv_falcon_msg - header for all messages
+ * struct nvfw_falcon_msg - header for all messages
  *
  * @unit_id:	id of firmware process that sent the message
  * @size:	total size of message
  * @ctrl_flags:	control flags
  * @seq_id:	used to match a message from its corresponding command
  */
-struct nv_falcon_msg {
+struct nvfw_falcon_msg {
 	u8 unit_id;
 	u8 size;
 	u8 ctrl_flags;
 	u8 seq_id;
 };
 
-#define nv_falcon_cmd nv_falcon_msg
+#define nvfw_falcon_cmd nvfw_falcon_msg
 #define NV_FALCON_CMD_UNIT_ID_REWIND                                       0x00
 
 struct nvkm_falcon_qmgr;
@@ -53,7 +53,7 @@ int nvkm_falcon_qmgr_new(struct nvkm_falcon *, struct nvkm_falcon_qmgr **);
 void nvkm_falcon_qmgr_del(struct nvkm_falcon_qmgr **);
 
 typedef int
-(*nvkm_falcon_qmgr_callback)(void *priv, struct nv_falcon_msg *);
+(*nvkm_falcon_qmgr_callback)(void *priv, struct nvfw_falcon_msg *);
 
 struct nvkm_falcon_cmdq;
 int nvkm_falcon_cmdq_new(struct nvkm_falcon_qmgr *, const char *name,
@@ -62,7 +62,7 @@ void nvkm_falcon_cmdq_del(struct nvkm_falcon_cmdq **);
 void nvkm_falcon_cmdq_init(struct nvkm_falcon_cmdq *,
 			   u32 index, u32 offset, u32 size);
 void nvkm_falcon_cmdq_fini(struct nvkm_falcon_cmdq *);
-int nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *, struct nv_falcon_cmd *,
+int nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *, struct nvfw_falcon_cmd *,
 			  nvkm_falcon_qmgr_callback, void *priv,
 			  unsigned long timeout_jiffies);
 

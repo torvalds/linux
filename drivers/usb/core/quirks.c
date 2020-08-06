@@ -25,17 +25,23 @@ static unsigned int quirk_count;
 
 static char quirks_param[128];
 
-static int quirks_param_set(const char *val, const struct kernel_param *kp)
+static int quirks_param_set(const char *value, const struct kernel_param *kp)
 {
-	char *p, *field;
+	char *val, *p, *field;
 	u16 vid, pid;
 	u32 flags;
 	size_t i;
 	int err;
 
+	val = kstrdup(value, GFP_KERNEL);
+	if (!val)
+		return -ENOMEM;
+
 	err = param_set_copystring(val, kp);
-	if (err)
+	if (err) {
+		kfree(val);
 		return err;
+	}
 
 	mutex_lock(&quirk_mutex);
 
@@ -60,10 +66,11 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 	if (!quirk_list) {
 		quirk_count = 0;
 		mutex_unlock(&quirk_mutex);
+		kfree(val);
 		return -ENOMEM;
 	}
 
-	for (i = 0, p = (char *)val; p && *p;) {
+	for (i = 0, p = val; p && *p;) {
 		/* Each entry consists of VID:PID:flags */
 		field = strsep(&p, ":");
 		if (!field)
@@ -144,6 +151,7 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 
 unlock:
 	mutex_unlock(&quirk_mutex);
+	kfree(val);
 
 	return 0;
 }
@@ -360,7 +368,7 @@ static const struct usb_device_id usb_quirk_list[] = {
 
 	/* Sound Devices USBPre2 */
 	{ USB_DEVICE(0x0926, 0x0202), .driver_info =
-			USB_QUIRK_ENDPOINT_BLACKLIST },
+			USB_QUIRK_ENDPOINT_IGNORE },
 
 	/* Keytouch QWERTY Panel keyboard */
 	{ USB_DEVICE(0x0926, 0x3333), .driver_info =
@@ -494,24 +502,24 @@ static const struct usb_device_id usb_amd_resume_quirk_list[] = {
 };
 
 /*
- * Entries for blacklisted endpoints that should be ignored when parsing
- * configuration descriptors.
+ * Entries for endpoints that should be ignored when parsing configuration
+ * descriptors.
  *
- * Matched for devices with USB_QUIRK_ENDPOINT_BLACKLIST.
+ * Matched for devices with USB_QUIRK_ENDPOINT_IGNORE.
  */
-static const struct usb_device_id usb_endpoint_blacklist[] = {
+static const struct usb_device_id usb_endpoint_ignore[] = {
 	{ USB_DEVICE_INTERFACE_NUMBER(0x0926, 0x0202, 1), .driver_info = 0x85 },
 	{ }
 };
 
-bool usb_endpoint_is_blacklisted(struct usb_device *udev,
-		struct usb_host_interface *intf,
-		struct usb_endpoint_descriptor *epd)
+bool usb_endpoint_is_ignored(struct usb_device *udev,
+			     struct usb_host_interface *intf,
+			     struct usb_endpoint_descriptor *epd)
 {
 	const struct usb_device_id *id;
 	unsigned int address;
 
-	for (id = usb_endpoint_blacklist; id->match_flags; ++id) {
+	for (id = usb_endpoint_ignore; id->match_flags; ++id) {
 		if (!usb_match_device(udev, id))
 			continue;
 

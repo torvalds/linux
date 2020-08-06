@@ -330,10 +330,6 @@ int bnxt_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	case XDP_SETUP_PROG:
 		rc = bnxt_xdp_set(bp, xdp->prog);
 		break;
-	case XDP_QUERY_PROG:
-		xdp->prog_id = bp->xdp_prog ? bp->xdp_prog->aux->id : 0;
-		rc = 0;
-		break;
 	default:
 		rc = -EINVAL;
 		break;

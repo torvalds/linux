@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x1d, 0x1e, 0x1f, 0x2d, 0x2e, 0x2f
 
-    Datasheet: Publicly available at the TI website http://www.ti.com/
+    Datasheet: Publicly available at the TI website https://www.ti.com/
 
 Author: Guenter Roeck
 

@@ -404,6 +404,7 @@ int gf100_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 
 int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
 
+int gm200_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gm200_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 extern const struct nvkm_acr_lsf_func gm200_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gm200_gr_fecs_acr;

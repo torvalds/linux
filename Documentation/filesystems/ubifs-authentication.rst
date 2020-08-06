@@ -433,9 +433,9 @@ will then have to be provided beforehand in the normal way.
 References
 ==========
 
-[CRYPTSETUP2]        http://www.saout.de/pipermail/dm-crypt/2017-November/005745.html
+[CRYPTSETUP2]        https://www.saout.de/pipermail/dm-crypt/2017-November/005745.html
 
-[DMC-CBC-ATTACK]     http://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/
+[DMC-CBC-ATTACK]     https://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/
 
 [DM-INTEGRITY]       https://www.kernel.org/doc/Documentation/device-mapper/dm-integrity.rst
 

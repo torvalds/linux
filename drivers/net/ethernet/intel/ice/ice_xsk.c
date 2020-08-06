@@ -206,12 +206,14 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 	struct ice_aqc_add_tx_qgrp *qg_buf;
 	struct ice_ring *tx_ring, *rx_ring;
 	struct ice_q_vector *q_vector;
+	u16 size;
 	int err;
 
 	if (q_idx >= vsi->num_rxq || q_idx >= vsi->num_txq)
 		return -EINVAL;
 
-	qg_buf = kzalloc(sizeof(*qg_buf), GFP_KERNEL);
+	size = struct_size(qg_buf, txqs, 1);
+	qg_buf = kzalloc(size, GFP_KERNEL);
 	if (!qg_buf)
 		return -ENOMEM;
 
@@ -228,7 +230,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 	if (ice_is_xdp_ena_vsi(vsi)) {
 		struct ice_ring *xdp_ring = vsi->xdp_rings[q_idx];
 
-		memset(qg_buf, 0, sizeof(*qg_buf));
+		memset(qg_buf, 0, size);
 		qg_buf->num_txqs = 1;
 		err = ice_vsi_cfg_txq(vsi, xdp_ring, qg_buf);
 		if (err)
@@ -295,7 +297,6 @@ static void ice_xsk_remove_umem(struct ice_vsi *vsi, u16 qid)
 		vsi->num_xsk_umems = 0;
 	}
 }
-
 
 /**
  * ice_xsk_umem_disable - disable a UMEM region
@@ -592,7 +593,6 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		if (!size)
 			break;
 
-
 		rx_buf = &rx_ring->rx_buf[rx_ring->next_to_clean];
 		rx_buf->xdp->data_end = rx_buf->xdp->data + size;
 		xsk_buff_dma_sync_for_cpu(rx_buf->xdp);
@@ -704,8 +704,6 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 	if (tx_desc) {
 		ice_xdp_ring_update_tail(xdp_ring);
 		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
-		if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
-			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
 	}
 
 	return budget > 0 && work_done;
@@ -781,12 +779,8 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
 	if (xsk_frames)
 		xsk_umem_complete_tx(xdp_ring->xsk_umem, xsk_frames);
 
-	if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem)) {
-		if (xdp_ring->next_to_clean == xdp_ring->next_to_use)
-			xsk_set_tx_need_wakeup(xdp_ring->xsk_umem);
-		else
-			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
-	}
+	if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
+		xsk_set_tx_need_wakeup(xdp_ring->xsk_umem);
 
 	ice_update_tx_ring_stats(xdp_ring, total_packets, total_bytes);
 	xmit_done = ice_xmit_zc(xdp_ring, ICE_DFLT_IRQ_WORK);

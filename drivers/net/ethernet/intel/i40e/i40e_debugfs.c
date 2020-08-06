@@ -10,6 +10,12 @@
 
 static struct dentry *i40e_dbg_root;
 
+enum ring_type {
+	RING_TYPE_RX,
+	RING_TYPE_TX,
+	RING_TYPE_XDP
+};
+
 /**
  * i40e_dbg_find_vsi - searches for the vsi with the given seid
  * @pf: the PF structure to search for the vsi
@@ -319,6 +325,47 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 i, tx_ring->itr_setting,
 			 ITR_IS_DYNAMIC(tx_ring->itr_setting) ? "dynamic" : "fixed");
 	}
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		for (i = 0; i < vsi->num_queue_pairs; i++) {
+			struct i40e_ring *xdp_ring = READ_ONCE(vsi->xdp_rings[i]);
+
+			if (!xdp_ring)
+				continue;
+
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: state = %lu, queue_index = %d, reg_idx = %d\n",
+				 i, *xdp_ring->state,
+				 xdp_ring->queue_index,
+				 xdp_ring->reg_idx);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+				 i,
+				 xdp_ring->next_to_use,
+				 xdp_ring->next_to_clean,
+				 xdp_ring->ring_active);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: tx_stats: packets = %lld, bytes = %lld, restart_queue = %lld\n",
+				 i, xdp_ring->stats.packets,
+				 xdp_ring->stats.bytes,
+				 xdp_ring->tx_stats.restart_queue);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: tx_stats: tx_busy = %lld, tx_done_old = %lld\n",
+				 i,
+				 xdp_ring->tx_stats.tx_busy,
+				 xdp_ring->tx_stats.tx_done_old);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: size = %i\n",
+				 i, xdp_ring->size);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: DCB tc = %d\n",
+				 i, xdp_ring->dcb_tc);
+			dev_info(&pf->pdev->dev,
+				 "    xdp_rings[%i]: itr_setting = %d (%s)\n",
+				 i, xdp_ring->itr_setting,
+				 ITR_IS_DYNAMIC(xdp_ring->itr_setting) ?
+				 "dynamic" : "fixed");
+		}
+	}
 	rcu_read_unlock();
 	dev_info(&pf->pdev->dev,
 		 "    work_limit = %d\n",
@@ -489,11 +536,12 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
  * @ring_id: ring id entered by user
  * @desc_n: descriptor number entered by user
  * @pf: the i40e_pf created in command write
- * @is_rx_ring: true if rx, false if tx
+ * @type: enum describing whether ring is RX, TX or XDP
  **/
 static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
-			       struct i40e_pf *pf, bool is_rx_ring)
+			       struct i40e_pf *pf, enum ring_type type)
 {
+	bool is_rx_ring = type == RING_TYPE_RX;
 	struct i40e_tx_desc *txd;
 	union i40e_rx_desc *rxd;
 	struct i40e_ring *ring;
@@ -503,6 +551,10 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 	vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 	if (!vsi) {
 		dev_info(&pf->pdev->dev, "vsi %d not found\n", vsi_seid);
+		return;
+	}
+	if (type == RING_TYPE_XDP && !i40e_enabled_xdp_vsi(vsi)) {
+		dev_info(&pf->pdev->dev, "XDP not enabled on VSI %d\n", vsi_seid);
 		return;
 	}
 	if (ring_id >= vsi->num_queue_pairs || ring_id < 0) {
@@ -516,15 +568,32 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		return;
 	}
 
-	ring = kmemdup(is_rx_ring
-		       ? vsi->rx_rings[ring_id] : vsi->tx_rings[ring_id],
-		       sizeof(*ring), GFP_KERNEL);
+	switch (type) {
+	case RING_TYPE_RX:
+		ring = kmemdup(vsi->rx_rings[ring_id], sizeof(*ring), GFP_KERNEL);
+		break;
+	case RING_TYPE_TX:
+		ring = kmemdup(vsi->tx_rings[ring_id], sizeof(*ring), GFP_KERNEL);
+		break;
+	case RING_TYPE_XDP:
+		ring = kmemdup(vsi->xdp_rings[ring_id], sizeof(*ring), GFP_KERNEL);
+		break;
+	}
 	if (!ring)
 		return;
 
 	if (cnt == 2) {
-		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
-			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);
+		switch (type) {
+		case RING_TYPE_RX:
+			dev_info(&pf->pdev->dev, "VSI = %02i Rx ring = %02i\n", vsi_seid, ring_id);
+			break;
+		case RING_TYPE_TX:
+			dev_info(&pf->pdev->dev, "VSI = %02i Tx ring = %02i\n", vsi_seid, ring_id);
+			break;
+		case RING_TYPE_XDP:
+			dev_info(&pf->pdev->dev, "VSI = %02i XDP ring = %02i\n", vsi_seid, ring_id);
+			break;
+		}
 		for (i = 0; i < ring->count; i++) {
 			if (!is_rx_ring) {
 				txd = I40E_TX_DESC(ring, i);
@@ -562,7 +631,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 				 rxd->read.rsvd1, rxd->read.rsvd2);
 		}
 	} else {
-		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
+		dev_info(&pf->pdev->dev, "dump desc rx/tx/xdp <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
 
 out:
@@ -688,7 +757,6 @@ static void i40e_dbg_dump_vf_all(struct i40e_pf *pf)
 			i40e_dbg_dump_vf(pf, i);
 }
 
-#define I40E_MAX_DEBUG_OUT_BUFFER (4096*4)
 /**
  * i40e_dbg_command_write - write into command datum
  * @filp: the opened file
@@ -920,13 +988,19 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				cnt = sscanf(&cmd_buf[12], "%i %i %i",
 					     &vsi_seid, &ring_id, &desc_n);
 				i40e_dbg_dump_desc(cnt, vsi_seid, ring_id,
-						   desc_n, pf, true);
+						   desc_n, pf, RING_TYPE_RX);
 			} else if (strncmp(&cmd_buf[10], "tx", 2)
 					== 0) {
 				cnt = sscanf(&cmd_buf[12], "%i %i %i",
 					     &vsi_seid, &ring_id, &desc_n);
 				i40e_dbg_dump_desc(cnt, vsi_seid, ring_id,
-						   desc_n, pf, false);
+						   desc_n, pf, RING_TYPE_TX);
+			} else if (strncmp(&cmd_buf[10], "xdp", 3)
+					== 0) {
+				cnt = sscanf(&cmd_buf[13], "%i %i %i",
+					     &vsi_seid, &ring_id, &desc_n);
+				i40e_dbg_dump_desc(cnt, vsi_seid, ring_id,
+						   desc_n, pf, RING_TYPE_XDP);
 			} else if (strncmp(&cmd_buf[10], "aq", 2) == 0) {
 				i40e_dbg_dump_aq_desc(pf);
 			} else {
@@ -934,6 +1008,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 "dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
 				dev_info(&pf->pdev->dev,
 					 "dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
+				dev_info(&pf->pdev->dev,
+					 "dump desc xdp <vsi_seid> <ring_id> [<desc_n>]\n");
 				dev_info(&pf->pdev->dev, "dump desc aq\n");
 			}
 		} else if (strncmp(&cmd_buf[5], "reset stats", 11) == 0) {
@@ -1104,7 +1180,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			buff = NULL;
 		} else {
 			dev_info(&pf->pdev->dev,
-				 "dump desc tx <vsi_seid> <ring_id> [<desc_n>], dump desc rx <vsi_seid> <ring_id> [<desc_n>],\n");
+				 "dump desc tx <vsi_seid> <ring_id> [<desc_n>], dump desc rx <vsi_seid> <ring_id> [<desc_n>], dump desc xdp <vsi_seid> <ring_id> [<desc_n>],\n");
 			dev_info(&pf->pdev->dev, "dump switch\n");
 			dev_info(&pf->pdev->dev, "dump vsi [seid]\n");
 			dev_info(&pf->pdev->dev, "dump reset stats\n");
@@ -1520,6 +1596,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  dump vsi [seid]\n");
 		dev_info(&pf->pdev->dev, "  dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
+		dev_info(&pf->pdev->dev, "  dump desc xdp <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc aq\n");
 		dev_info(&pf->pdev->dev, "  dump reset stats\n");
 		dev_info(&pf->pdev->dev, "  dump debug fwdata <cluster_id> <table_id> <index>\n");

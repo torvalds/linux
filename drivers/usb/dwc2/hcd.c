@@ -3628,7 +3628,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 				"SetPortFeature - USB_PORT_FEAT_SUSPEND\n");
 			if (windex != hsotg->otg_port)
 				goto error;
-			if (hsotg->params.power_down == 2)
+			if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_HIBERNATION)
 				dwc2_enter_hibernation(hsotg, 1);
 			else
 				dwc2_port_suspend(hsotg, windex);
@@ -3646,7 +3646,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			break;
 
 		case USB_PORT_FEAT_RESET:
-			if (hsotg->params.power_down == 2 &&
+			if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_HIBERNATION &&
 			    hsotg->hibernated)
 				dwc2_exit_hibernation(hsotg, 0, 1, 1);
 			hprt0 = dwc2_read_hprt0(hsotg);

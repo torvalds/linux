@@ -61,8 +61,8 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	int err = 0;
 	size_t len = 0;
 
-	if (!ctx->used) {
-		err = af_alg_wait_for_data(sk, flags);
+	if (!ctx->init || (ctx->more && ctx->used < bs)) {
+		err = af_alg_wait_for_data(sk, flags, bs);
 		if (err)
 			return err;
 	}
@@ -188,11 +188,9 @@ static struct proto_ops algif_skcipher_ops = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	skcipher_sendmsg,
@@ -281,11 +279,9 @@ static struct proto_ops algif_skcipher_ops_nokey = {
 	.ioctl		=	sock_no_ioctl,
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
 	.mmap		=	sock_no_mmap,
 	.bind		=	sock_no_bind,
 	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	skcipher_sendmsg_nokey,

@@ -25,9 +25,9 @@
 将是Git如何特别适合内核开发过程。想要加快Git的开发人员可以在以下网站上找到
 更多信息：
 
-	http://git-scm.com/
+	https://git-scm.com/
 
-	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 在尝试使用它使补丁可供其他人使用之前，第一要务是阅读上述站点，对Git的工作
 方式有一个扎实的了解。使用Git的开发人员应该能够获得主线存储库的副本，探索
@@ -42,7 +42,7 @@
 如果您有一个可以访问Internet的系统，那么使用git守护进程设置这样的服务器相
 对简单。否则，免费的公共托管网站（例如github）开始出现在网络上。成熟的开发
 人员可以在kernel.org上获得一个帐户，但这些帐户并不容易找到；有关更多信息，
-请参阅 http://kernel.org/faq/
+请参阅 https://kernel.org/faq/
 
 正常的Git工作流程涉及到许多分支的使用。每一条开发线都可以分为单独的“主题
 分支”，并独立维护。Git的分支机构很便宜，没有理由不免费使用它们。而且，在

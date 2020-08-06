@@ -1686,12 +1686,20 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		btrfs_unlock_up_safe(path, 0);
 	}
 
-	min_reserved = fs_info->nodesize * (BTRFS_MAX_LEVEL - 1) * 2;
+	/*
+	 * In merge_reloc_root(), we modify the upper level pointer to swap the
+	 * tree blocks between reloc tree and subvolume tree.  Thus for tree
+	 * block COW, we COW at most from level 1 to root level for each tree.
+	 *
+	 * Thus the needed metadata size is at most root_level * nodesize,
+	 * and * 2 since we have two trees to COW.
+	 */
+	min_reserved = fs_info->nodesize * btrfs_root_level(root_item) * 2;
 	memset(&next_key, 0, sizeof(next_key));
 
 	while (1) {
 		ret = btrfs_block_rsv_refill(root, rc->block_rsv, min_reserved,
-					     BTRFS_RESERVE_FLUSH_ALL);
+					     BTRFS_RESERVE_FLUSH_LIMIT);
 		if (ret) {
 			err = ret;
 			goto out;
@@ -2571,58 +2579,50 @@ out_free_blocks:
 	return err;
 }
 
-static noinline_for_stack
-int prealloc_file_extent_cluster(struct inode *inode,
-				 struct file_extent_cluster *cluster)
+static noinline_for_stack int prealloc_file_extent_cluster(
+				struct btrfs_inode *inode,
+				struct file_extent_cluster *cluster)
 {
 	u64 alloc_hint = 0;
 	u64 start;
 	u64 end;
-	u64 offset = BTRFS_I(inode)->index_cnt;
+	u64 offset = inode->index_cnt;
 	u64 num_bytes;
-	int nr = 0;
+	int nr;
 	int ret = 0;
 	u64 prealloc_start = cluster->start - offset;
 	u64 prealloc_end = cluster->end - offset;
-	u64 cur_offset;
-	struct extent_changeset *data_reserved = NULL;
+	u64 cur_offset = prealloc_start;
 
 	BUG_ON(cluster->start != cluster->boundary[0]);
-	inode_lock(inode);
-
-	ret = btrfs_check_data_free_space(inode, &data_reserved, prealloc_start,
-					  prealloc_end + 1 - prealloc_start);
+	ret = btrfs_alloc_data_chunk_ondemand(inode,
+					      prealloc_end + 1 - prealloc_start);
 	if (ret)
-		goto out;
+		return ret;
 
-	cur_offset = prealloc_start;
-	while (nr < cluster->nr) {
+	inode_lock(&inode->vfs_inode);
+	for (nr = 0; nr < cluster->nr; nr++) {
 		start = cluster->boundary[nr] - offset;
 		if (nr + 1 < cluster->nr)
 			end = cluster->boundary[nr + 1] - 1 - offset;
 		else
 			end = cluster->end - offset;
 
-		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
+		lock_extent(&inode->io_tree, start, end);
 		num_bytes = end + 1 - start;
-		if (cur_offset < start)
-			btrfs_free_reserved_data_space(inode, data_reserved,
-					cur_offset, start - cur_offset);
-		ret = btrfs_prealloc_file_range(inode, 0, start,
+		ret = btrfs_prealloc_file_range(&inode->vfs_inode, 0, start,
 						num_bytes, num_bytes,
 						end + 1, &alloc_hint);
 		cur_offset = end + 1;
-		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
+		unlock_extent(&inode->io_tree, start, end);
 		if (ret)
 			break;
-		nr++;
 	}
+	inode_unlock(&inode->vfs_inode);
+
 	if (cur_offset < prealloc_end)
-		btrfs_free_reserved_data_space(inode, data_reserved,
-				cur_offset, prealloc_end + 1 - cur_offset);
-out:
-	inode_unlock(inode);
-	extent_changeset_free(data_reserved);
+		btrfs_free_reserved_data_space_noquota(inode->root->fs_info,
+					       prealloc_end + 1 - cur_offset);
 	return ret;
 }
 
@@ -2664,7 +2664,8 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
  */
 int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info)
 {
-	return atomic_read(&fs_info->balance_cancel_req);
+	return atomic_read(&fs_info->balance_cancel_req) ||
+		fatal_signal_pending(current);
 }
 ALLOW_ERROR_INJECTION(btrfs_should_cancel_balance, TRUE);
 
@@ -2690,7 +2691,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	if (!ra)
 		return -ENOMEM;
 
-	ret = prealloc_file_extent_cluster(inode, cluster);
+	ret = prealloc_file_extent_cluster(BTRFS_I(inode), cluster);
 	if (ret)
 		goto out;
 
@@ -2762,8 +2763,8 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			nr++;
 		}
 
-		ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
-						NULL);
+		ret = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start,
+						page_end, 0, NULL);
 		if (ret) {
 			unlock_page(page);
 			put_page(page);
@@ -3872,9 +3873,9 @@ out:
  * cloning checksum properly handles the nodatasum extents.
  * it also saves CPU time to re-calculate the checksum.
  */
-int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
+int btrfs_reloc_clone_csums(struct btrfs_inode *inode, u64 file_pos, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_ordered_extent *ordered;
 	int ret;
@@ -3885,7 +3886,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	ordered = btrfs_lookup_ordered_extent(inode, file_pos);
 	BUG_ON(ordered->file_offset != file_pos || ordered->num_bytes != len);
 
-	disk_bytenr = file_pos + BTRFS_I(inode)->index_cnt;
+	disk_bytenr = file_pos + inode->index_cnt;
 	ret = btrfs_lookup_csums_range(fs_info->csum_root, disk_bytenr,
 				       disk_bytenr + len - 1, &list, 0);
 	if (ret)

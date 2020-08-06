@@ -207,10 +207,10 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 	mod_len = mex->inputdatalength;
 
 	if (mod_len <= 128) {
-		struct type50_meb1_msg *meb1 = ap_msg->message;
+		struct type50_meb1_msg *meb1 = ap_msg->msg;
 
 		memset(meb1, 0, sizeof(*meb1));
-		ap_msg->length = sizeof(*meb1);
+		ap_msg->len = sizeof(*meb1);
 		meb1->header.msg_type_code = TYPE50_TYPE_CODE;
 		meb1->header.msg_len = sizeof(*meb1);
 		meb1->keyblock_type = TYPE50_MEB1_FMT;
@@ -218,10 +218,10 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		exp = meb1->exponent + sizeof(meb1->exponent) - mod_len;
 		inp = meb1->message + sizeof(meb1->message) - mod_len;
 	} else if (mod_len <= 256) {
-		struct type50_meb2_msg *meb2 = ap_msg->message;
+		struct type50_meb2_msg *meb2 = ap_msg->msg;
 
 		memset(meb2, 0, sizeof(*meb2));
-		ap_msg->length = sizeof(*meb2);
+		ap_msg->len = sizeof(*meb2);
 		meb2->header.msg_type_code = TYPE50_TYPE_CODE;
 		meb2->header.msg_len = sizeof(*meb2);
 		meb2->keyblock_type = TYPE50_MEB2_FMT;
@@ -229,10 +229,10 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		exp = meb2->exponent + sizeof(meb2->exponent) - mod_len;
 		inp = meb2->message + sizeof(meb2->message) - mod_len;
 	} else if (mod_len <= 512) {
-		struct type50_meb3_msg *meb3 = ap_msg->message;
+		struct type50_meb3_msg *meb3 = ap_msg->msg;
 
 		memset(meb3, 0, sizeof(*meb3));
-		ap_msg->length = sizeof(*meb3);
+		ap_msg->len = sizeof(*meb3);
 		meb3->header.msg_type_code = TYPE50_TYPE_CODE;
 		meb3->header.msg_len = sizeof(*meb3);
 		meb3->keyblock_type = TYPE50_MEB3_FMT;
@@ -275,10 +275,10 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 	 * 512 byte modulus (4k keys).
 	 */
 	if (mod_len <= 128) {		/* up to 1024 bit key size */
-		struct type50_crb1_msg *crb1 = ap_msg->message;
+		struct type50_crb1_msg *crb1 = ap_msg->msg;
 
 		memset(crb1, 0, sizeof(*crb1));
-		ap_msg->length = sizeof(*crb1);
+		ap_msg->len = sizeof(*crb1);
 		crb1->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb1->header.msg_len = sizeof(*crb1);
 		crb1->keyblock_type = TYPE50_CRB1_FMT;
@@ -289,10 +289,10 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 		u = crb1->u + sizeof(crb1->u) - short_len;
 		inp = crb1->message + sizeof(crb1->message) - mod_len;
 	} else if (mod_len <= 256) {	/* up to 2048 bit key size */
-		struct type50_crb2_msg *crb2 = ap_msg->message;
+		struct type50_crb2_msg *crb2 = ap_msg->msg;
 
 		memset(crb2, 0, sizeof(*crb2));
-		ap_msg->length = sizeof(*crb2);
+		ap_msg->len = sizeof(*crb2);
 		crb2->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb2->header.msg_len = sizeof(*crb2);
 		crb2->keyblock_type = TYPE50_CRB2_FMT;
@@ -304,10 +304,10 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 		inp = crb2->message + sizeof(crb2->message) - mod_len;
 	} else if ((mod_len <= 512) &&	/* up to 4096 bit key size */
 		   (zq->zcard->max_mod_size == CEX3A_MAX_MOD_SIZE)) {
-		struct type50_crb3_msg *crb3 = ap_msg->message;
+		struct type50_crb3_msg *crb3 = ap_msg->msg;
 
 		memset(crb3, 0, sizeof(*crb3));
-		ap_msg->length = sizeof(*crb3);
+		ap_msg->len = sizeof(*crb3);
 		crb3->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb3->header.msg_len = sizeof(*crb3);
 		crb3->keyblock_type = TYPE50_CRB3_FMT;
@@ -350,7 +350,7 @@ static int convert_type80(struct zcrypt_queue *zq,
 			  char __user *outputdata,
 			  unsigned int outputdatalength)
 {
-	struct type80_hdr *t80h = reply->message;
+	struct type80_hdr *t80h = reply->msg;
 	unsigned char *data;
 
 	if (t80h->len < sizeof(*t80h) + outputdatalength) {
@@ -370,7 +370,7 @@ static int convert_type80(struct zcrypt_queue *zq,
 		BUG_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
 	else
 		BUG_ON(t80h->len > CEX3A_MAX_RESPONSE_SIZE);
-	data = reply->message + t80h->len - outputdatalength;
+	data = reply->msg + t80h->len - outputdatalength;
 	if (copy_to_user(outputdata, data, outputdatalength))
 		return -EFAULT;
 	return 0;
@@ -382,7 +382,7 @@ static int convert_response(struct zcrypt_queue *zq,
 			    unsigned int outputdatalength)
 {
 	/* Response type byte is the second byte in the response. */
-	unsigned char rtype = ((unsigned char *) reply->message)[1];
+	unsigned char rtype = ((unsigned char *) reply->msg)[1];
 
 	switch (rtype) {
 	case TYPE82_RSP_CODE:
@@ -422,22 +422,20 @@ static void zcrypt_cex2a_receive(struct ap_queue *aq,
 		.reply_code = REP82_ERROR_MACHINE_FAILURE,
 	};
 	struct type80_hdr *t80h;
-	int length;
+	int len;
 
 	/* Copy the reply message to the request message buffer. */
 	if (!reply)
 		goto out;	/* ap_msg->rc indicates the error */
-	t80h = reply->message;
+	t80h = reply->msg;
 	if (t80h->type == TYPE80_RSP_CODE) {
 		if (aq->ap_dev.device_type == AP_DEVICE_TYPE_CEX2A)
-			length = min_t(int,
-				       CEX2A_MAX_RESPONSE_SIZE, t80h->len);
+			len = min_t(int, CEX2A_MAX_RESPONSE_SIZE, t80h->len);
 		else
-			length = min_t(int,
-				       CEX3A_MAX_RESPONSE_SIZE, t80h->len);
-		memcpy(msg->message, reply->message, length);
+			len = min_t(int, CEX3A_MAX_RESPONSE_SIZE, t80h->len);
+		memcpy(msg->msg, reply->msg, len);
 	} else
-		memcpy(msg->message, reply->message, sizeof(error_reply));
+		memcpy(msg->msg, reply->msg, sizeof(error_reply));
 out:
 	complete((struct completion *) msg->private);
 }
@@ -460,12 +458,10 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 
 	ap_init_message(&ap_msg);
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
-		ap_msg.message = kmalloc(MSGTYPE50_CRB2_MAX_MSG_SIZE,
-					 GFP_KERNEL);
+		ap_msg.msg = kmalloc(MSGTYPE50_CRB2_MAX_MSG_SIZE, GFP_KERNEL);
 	else
-		ap_msg.message = kmalloc(MSGTYPE50_CRB3_MAX_MSG_SIZE,
-					 GFP_KERNEL);
-	if (!ap_msg.message)
+		ap_msg.msg = kmalloc(MSGTYPE50_CRB3_MAX_MSG_SIZE, GFP_KERNEL);
+	if (!ap_msg.msg)
 		return -ENOMEM;
 	ap_msg.receive = zcrypt_cex2a_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -486,7 +482,7 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, &ap_msg);
 out_free:
-	kfree(ap_msg.message);
+	kfree(ap_msg.msg);
 	return rc;
 }
 
@@ -506,12 +502,10 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 
 	ap_init_message(&ap_msg);
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
-		ap_msg.message = kmalloc(MSGTYPE50_CRB2_MAX_MSG_SIZE,
-					 GFP_KERNEL);
+		ap_msg.msg = kmalloc(MSGTYPE50_CRB2_MAX_MSG_SIZE, GFP_KERNEL);
 	else
-		ap_msg.message = kmalloc(MSGTYPE50_CRB3_MAX_MSG_SIZE,
-					 GFP_KERNEL);
-	if (!ap_msg.message)
+		ap_msg.msg = kmalloc(MSGTYPE50_CRB3_MAX_MSG_SIZE, GFP_KERNEL);
+	if (!ap_msg.msg)
 		return -ENOMEM;
 	ap_msg.receive = zcrypt_cex2a_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -532,7 +526,7 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, &ap_msg);
 out_free:
-	kfree(ap_msg.message);
+	kfree(ap_msg.msg);
 	return rc;
 }
 

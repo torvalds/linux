@@ -1216,11 +1216,11 @@ EXPORT_SYMBOL_GPL(wm8350_register_regulator);
 /**
  * wm8350_register_led - Register a WM8350 LED output
  *
- * @param wm8350 The WM8350 device to configure.
- * @param lednum LED device index to create.
- * @param dcdc The DCDC to use for the LED.
- * @param isink The ISINK to use for the LED.
- * @param pdata Configuration for the LED.
+ * @wm8350: The WM8350 device to configure.
+ * @lednum: LED device index to create.
+ * @dcdc: The DCDC to use for the LED.
+ * @isink: The ISINK to use for the LED.
+ * @pdata: Configuration for the LED.
  *
  * The WM8350 supports the use of an ISINK together with a DCDC to
  * provide a power-efficient LED driver.  This function registers the

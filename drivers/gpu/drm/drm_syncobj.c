@@ -1188,6 +1188,7 @@ static void drm_syncobj_array_free(struct drm_syncobj **syncobjs,
 				   uint32_t count)
 {
 	uint32_t i;
+
 	for (i = 0; i < count; i++)
 		drm_syncobj_put(syncobjs[i]);
 	kfree(syncobjs);

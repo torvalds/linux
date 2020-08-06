@@ -146,7 +146,7 @@ config MACH_SX1
 	  Support for the Siemens SX1 phone. To boot the kernel,
 	  you'll need a SX1 compatible bootloader; check out
 	  http://forum.oslik.ru and
-	  http://www.handhelds.org/moin/moin.cgi/SiemensSX1
+	  https://www.handhelds.org/moin/moin.cgi/SiemensSX1
 	  for more information.
 	  Say Y here if you have such a phone, say NO otherwise.
 

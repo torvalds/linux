@@ -357,10 +357,10 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 
 	if (big_endian)
 		for (i = 0; i < d; i++)
-			hash[i] = be32_to_cpu(in[i]);
+			hash[i] = be32_to_cpup((__be32 *)in + i);
 	else
 		for (i = 0; i < d; i++)
-			hash[i] = le32_to_cpu(in[i]);
+			hash[i] = le32_to_cpup((__le32 *)in + i);
 }
 
 static int omap_sham_hw_init(struct omap_sham_dev *dd)
@@ -522,7 +522,7 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, size_t length,
 	int mlen;
 	struct sg_mapping_iter mi;
 
-	dev_dbg(dd->dev, "xmit_cpu: digcnt: %d, length: %d, final: %d\n",
+	dev_dbg(dd->dev, "xmit_cpu: digcnt: %zd, length: %zd, final: %d\n",
 						ctx->digcnt, length, final);
 
 	dd->pdata->write_ctrl(dd, length, final, 0);
@@ -588,7 +588,7 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, size_t length,
 	struct dma_slave_config cfg;
 	int ret;
 
-	dev_dbg(dd->dev, "xmit_dma: digcnt: %d, length: %d, final: %d\n",
+	dev_dbg(dd->dev, "xmit_dma: digcnt: %zd, length: %zd, final: %d\n",
 						ctx->digcnt, length, final);
 
 	if (!dma_map_sg(dd->dev, ctx->sg, ctx->sg_len, DMA_TO_DEVICE)) {
@@ -871,7 +871,7 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 		nbytes += req->nbytes - rctx->offset;
 
 	dev_dbg(rctx->dd->dev,
-		"%s: nbytes=%d, bs=%d, total=%d, offset=%d, bufcnt=%d\n",
+		"%s: nbytes=%d, bs=%d, total=%d, offset=%d, bufcnt=%zd\n",
 		__func__, nbytes, bs, rctx->total, rctx->offset,
 		rctx->bufcnt);
 
@@ -932,7 +932,7 @@ static int omap_sham_update_dma_stop(struct omap_sham_dev *dd)
 	return 0;
 }
 
-struct omap_sham_dev *omap_sham_find_dev(struct omap_sham_reqctx *ctx)
+static struct omap_sham_dev *omap_sham_find_dev(struct omap_sham_reqctx *ctx)
 {
 	struct omap_sham_dev *dd;
 
@@ -1023,7 +1023,7 @@ static int omap_sham_update_req(struct omap_sham_dev *dd)
 	bool final = (ctx->flags & BIT(FLAGS_FINUP)) &&
 			!(dd->flags & BIT(FLAGS_HUGE));
 
-	dev_dbg(dd->dev, "update_req: total: %u, digcnt: %d, final: %d",
+	dev_dbg(dd->dev, "update_req: total: %u, digcnt: %zd, final: %d",
 		ctx->total, ctx->digcnt, final);
 
 	if (ctx->total < get_block_size(ctx) ||
@@ -1036,7 +1036,7 @@ static int omap_sham_update_req(struct omap_sham_dev *dd)
 		err = omap_sham_xmit_dma(dd, ctx->total, final);
 
 	/* wait for dma completion before can take more data */
-	dev_dbg(dd->dev, "update: err: %d, digcnt: %d\n", err, ctx->digcnt);
+	dev_dbg(dd->dev, "update: err: %d, digcnt: %zd\n", err, ctx->digcnt);
 
 	return err;
 }
@@ -1097,7 +1097,7 @@ static int omap_sham_finish(struct ahash_request *req)
 			err = omap_sham_finish_hmac(req);
 	}
 
-	dev_dbg(dd->dev, "digcnt: %d, bufcnt: %d\n", ctx->digcnt, ctx->bufcnt);
+	dev_dbg(dd->dev, "digcnt: %zd, bufcnt: %zd\n", ctx->digcnt, ctx->bufcnt);
 
 	return err;
 }

@@ -506,8 +506,9 @@ struct fb_info {
 };
 
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
-	struct apertures_struct *a = kzalloc(sizeof(struct apertures_struct)
-			+ max_num * sizeof(struct aperture), GFP_KERNEL);
+	struct apertures_struct *a;
+
+	a = kzalloc(struct_size(a, ranges, max_num), GFP_KERNEL);
 	if (!a)
 		return NULL;
 	a->count = max_num;

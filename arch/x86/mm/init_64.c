@@ -209,17 +209,12 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
  * When memory was added make sure all the processes MM have
  * suitable PGD entries in the local PGD level page.
  */
-void sync_global_pgds(unsigned long start, unsigned long end)
+static void sync_global_pgds(unsigned long start, unsigned long end)
 {
 	if (pgtable_l5_enabled())
 		sync_global_pgds_l5(start, end);
 	else
 		sync_global_pgds_l4(start, end);
-}
-
-void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
-{
-	sync_global_pgds(start, end);
 }
 
 /*
@@ -1238,6 +1233,56 @@ static void __init register_page_bootmem_info(void)
 #endif
 }
 
+/*
+ * Pre-allocates page-table pages for the vmalloc area in the kernel page-table.
+ * Only the level which needs to be synchronized between all page-tables is
+ * allocated because the synchronization can be expensive.
+ */
+static void __init preallocate_vmalloc_pages(void)
+{
+	unsigned long addr;
+	const char *lvl;
+
+	for (addr = VMALLOC_START; addr <= VMALLOC_END; addr = ALIGN(addr + 1, PGDIR_SIZE)) {
+		pgd_t *pgd = pgd_offset_k(addr);
+		p4d_t *p4d;
+		pud_t *pud;
+
+		p4d = p4d_offset(pgd, addr);
+		if (p4d_none(*p4d)) {
+			/* Can only happen with 5-level paging */
+			p4d = p4d_alloc(&init_mm, pgd, addr);
+			if (!p4d) {
+				lvl = "p4d";
+				goto failed;
+			}
+		}
+
+		if (pgtable_l5_enabled())
+			continue;
+
+		pud = pud_offset(p4d, addr);
+		if (pud_none(*pud)) {
+			/* Ends up here only with 4-level paging */
+			pud = pud_alloc(&init_mm, p4d, addr);
+			if (!pud) {
+				lvl = "pud";
+				goto failed;
+			}
+		}
+	}
+
+	return;
+
+failed:
+
+	/*
+	 * The pages have to be there now or they will be missing in
+	 * process page-tables later.
+	 */
+	panic("Failed to pre-allocate %s pages for vmalloc area\n", lvl);
+}
+
 void __init mem_init(void)
 {
 	pci_iommu_alloc();
@@ -1260,6 +1305,8 @@ void __init mem_init(void)
 	/* Register memory areas for /proc/kcore */
 	if (get_gate_vma(&init_mm))
 		kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR, PAGE_SIZE, KCORE_USER);
+
+	preallocate_vmalloc_pages();
 
 	mem_init_print_info(NULL);
 }

@@ -10,29 +10,6 @@
 #include "spectrum_span.h"
 #include "reg.h"
 
-enum mlxsw_sp_mall_action_type {
-	MLXSW_SP_MALL_ACTION_TYPE_MIRROR,
-	MLXSW_SP_MALL_ACTION_TYPE_SAMPLE,
-};
-
-struct mlxsw_sp_mall_mirror_entry {
-	const struct net_device *to_dev;
-	int span_id;
-};
-
-struct mlxsw_sp_mall_entry {
-	struct list_head list;
-	unsigned long cookie;
-	unsigned int priority;
-	enum mlxsw_sp_mall_action_type type;
-	bool ingress;
-	union {
-		struct mlxsw_sp_mall_mirror_entry mirror;
-		struct mlxsw_sp_port_sample sample;
-	};
-	struct rcu_head rcu;
-};
-
 static struct mlxsw_sp_mall_entry *
 mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie)
 {
@@ -50,6 +27,7 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
 	struct mlxsw_sp_span_trigger_parms parms;
 	enum mlxsw_sp_span_trigger trigger;
 	int err;
@@ -59,8 +37,9 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -EINVAL;
 	}
 
-	err = mlxsw_sp_span_agent_get(mlxsw_sp, mall_entry->mirror.to_dev,
-				      &mall_entry->mirror.span_id);
+	agent_parms.to_dev = mall_entry->mirror.to_dev;
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &mall_entry->mirror.span_id,
+				      &agent_parms);
 	if (err)
 		return err;
 

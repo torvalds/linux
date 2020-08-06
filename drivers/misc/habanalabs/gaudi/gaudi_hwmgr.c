@@ -6,7 +6,7 @@
  */
 
 #include "gaudiP.h"
-#include "include/gaudi/gaudi_fw_if.h"
+#include "../include/gaudi/gaudi_fw_if.h"
 
 void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 {

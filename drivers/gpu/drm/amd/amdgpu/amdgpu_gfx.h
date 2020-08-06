@@ -134,6 +134,7 @@ struct gb_addr_config {
 	uint8_t num_banks;
 	uint8_t num_se;
 	uint8_t num_rb_per_se;
+	uint8_t num_pkrs;
 };
 
 struct amdgpu_gfx_config {
@@ -377,6 +378,7 @@ void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
+int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value);
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,

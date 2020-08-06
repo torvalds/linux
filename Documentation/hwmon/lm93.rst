@@ -133,7 +133,7 @@ Smart Tach Mode (from the datasheet)::
 	four signals are measured within 4 seconds.
 
 Smart tach mode is enabled by the driver by writing 1 or 2 (associating the
-the fan tachometer with a pwm) to the sysfs file fan<n>_smart_tach.  A zero
+fan tachometer with a pwm) to the sysfs file fan<n>_smart_tach.  A zero
 will disable the function for that fan.  Note that Smart tach mode cannot be
 enabled if the PWM output frequency is 22500 Hz (see below).
 

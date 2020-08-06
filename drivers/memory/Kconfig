@@ -5,6 +5,12 @@
 
 menuconfig MEMORY
 	bool "Memory Controller drivers"
+	help
+	  This option allows to enable specific memory controller drivers,
+	  useful mostly on embedded systems.  These could be controllers
+	  for DRAM (SDR, DDR), ROM, SRAM and others.  The drivers features
+	  vary from memory tuning and frequency scaling to enabling
+	  access to attached peripherals through memory bus.
 
 if MEMORY
 
@@ -173,6 +179,15 @@ config PL353_SMC
 	help
 	  This driver is for the ARM PL351/PL353 Static Memory
 	  Controller(SMC) module.
+
+config RENESAS_RPCIF
+	tristate "Renesas RPC-IF driver"
+	depends on ARCH_RENESAS
+	select REGMAP_MMIO
+	help
+	  This supports Renesas R-Car Gen3 RPC-IF which provides either SPI
+	  host or HyperFlash. You'll have to select individual components
+	  under the corresponding menu.
 
 source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"

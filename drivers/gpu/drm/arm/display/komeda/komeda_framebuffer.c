@@ -19,7 +19,7 @@ static void komeda_fb_destroy(struct drm_framebuffer *fb)
 	u32 i;
 
 	for (i = 0; i < fb->format->num_planes; i++)
-		drm_gem_object_put_unlocked(fb->obj[i]);
+		drm_gem_object_put(fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(kfb);
@@ -103,7 +103,7 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 	return 0;
 
 check_failed:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return -EINVAL;
 }
 
@@ -199,7 +199,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 
 err_cleanup:
 	for (i = 0; i < kfb->base.format->num_planes; i++)
-		drm_gem_object_put_unlocked(kfb->base.obj[i]);
+		drm_gem_object_put(kfb->base.obj[i]);
 
 	kfree(kfb);
 	return ERR_PTR(ret);

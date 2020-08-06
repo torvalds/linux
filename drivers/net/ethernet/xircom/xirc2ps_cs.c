@@ -1473,7 +1473,7 @@ do_reset(struct net_device *dev, int full)
     unsigned int ioaddr = dev->base_addr;
     unsigned value;
 
-    pr_debug("%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
+    pr_debug("%s: do_reset(%p,%d)\n", dev->name, dev, full);
 
     hardreset(dev);
     PutByte(XIRCREG_CR, SoftReset); /* set */

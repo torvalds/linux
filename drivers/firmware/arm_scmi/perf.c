@@ -5,15 +5,19 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications PERF - " fmt
+
 #include <linux/bits.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/scmi_protocol.h>
 #include <linux/sort.h>
 
 #include "common.h"
+#include "notify.h"
 
 enum scmi_performance_protocol_cmd {
 	PERF_DOMAIN_ATTRIBUTES = 0x3,
@@ -25,11 +29,6 @@ enum scmi_performance_protocol_cmd {
 	PERF_NOTIFY_LIMITS = 0x9,
 	PERF_NOTIFY_LEVEL = 0xa,
 	PERF_DESCRIBE_FASTCHANNEL = 0xb,
-};
-
-enum scmi_performance_protocol_notify {
-	PERFORMANCE_LIMITS_CHANGED = 0x0,
-	PERFORMANCE_LEVEL_CHANGED = 0x1,
 };
 
 struct scmi_opp {
@@ -84,6 +83,19 @@ struct scmi_perf_set_level {
 struct scmi_perf_notify_level_or_limits {
 	__le32 domain;
 	__le32 notify_enable;
+};
+
+struct scmi_perf_limits_notify_payld {
+	__le32 agent_id;
+	__le32 domain_id;
+	__le32 range_max;
+	__le32 range_min;
+};
+
+struct scmi_perf_level_notify_payld {
+	__le32 agent_id;
+	__le32 domain_id;
+	__le32 performance_level;
 };
 
 struct scmi_msg_resp_perf_describe_levels {
@@ -156,6 +168,11 @@ struct scmi_perf_info {
 	u64 stats_addr;
 	u32 stats_size;
 	struct perf_dom_info *dom_info;
+};
+
+static enum scmi_performance_protocol_cmd evt_2_cmd[] = {
+	PERF_NOTIFY_LIMITS,
+	PERF_NOTIFY_LEVEL,
 };
 
 static int scmi_perf_attributes_get(const struct scmi_handle *handle,
@@ -488,6 +505,29 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 	return scmi_perf_mb_level_get(handle, domain, level, poll);
 }
 
+static int scmi_perf_level_limits_notify(const struct scmi_handle *handle,
+					 u32 domain, int message_id,
+					 bool enable)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_perf_notify_level_or_limits *notify;
+
+	ret = scmi_xfer_get_init(handle, message_id, SCMI_PROTOCOL_PERF,
+				 sizeof(*notify), 0, &t);
+	if (ret)
+		return ret;
+
+	notify = t->tx.buf;
+	notify->domain = cpu_to_le32(domain);
+	notify->notify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
+
+	ret = scmi_do_xfer(handle, t);
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
 static bool scmi_perf_fc_size_is_valid(u32 msg, u32 size)
 {
 	if ((msg == PERF_LEVEL_GET || msg == PERF_LEVEL_SET) && size == 4)
@@ -697,6 +737,17 @@ static int scmi_dvfs_est_power_get(const struct scmi_handle *handle, u32 domain,
 	return ret;
 }
 
+static bool scmi_fast_switch_possible(const struct scmi_handle *handle,
+				      struct device *dev)
+{
+	struct perf_dom_info *dom;
+	struct scmi_perf_info *pi = handle->perf_priv;
+
+	dom = pi->dom_info + scmi_dev_domain_id(dev);
+
+	return dom->fc_info && dom->fc_info->level_set_addr;
+}
+
 static struct scmi_perf_ops perf_ops = {
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
@@ -708,6 +759,90 @@ static struct scmi_perf_ops perf_ops = {
 	.freq_set = scmi_dvfs_freq_set,
 	.freq_get = scmi_dvfs_freq_get,
 	.est_power_get = scmi_dvfs_est_power_get,
+	.fast_switch_possible = scmi_fast_switch_possible,
+};
+
+static int scmi_perf_set_notify_enabled(const struct scmi_handle *handle,
+					u8 evt_id, u32 src_id, bool enable)
+{
+	int ret, cmd_id;
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd))
+		return -EINVAL;
+
+	cmd_id = evt_2_cmd[evt_id];
+	ret = scmi_perf_level_limits_notify(handle, src_id, cmd_id, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
+			 evt_id, src_id, ret);
+
+	return ret;
+}
+
+static void *scmi_perf_fill_custom_report(const struct scmi_handle *handle,
+					  u8 evt_id, ktime_t timestamp,
+					  const void *payld, size_t payld_sz,
+					  void *report, u32 *src_id)
+{
+	void *rep = NULL;
+
+	switch (evt_id) {
+	case SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED:
+	{
+		const struct scmi_perf_limits_notify_payld *p = payld;
+		struct scmi_perf_limits_report *r = report;
+
+		if (sizeof(*p) != payld_sz)
+			break;
+
+		r->timestamp = timestamp;
+		r->agent_id = le32_to_cpu(p->agent_id);
+		r->domain_id = le32_to_cpu(p->domain_id);
+		r->range_max = le32_to_cpu(p->range_max);
+		r->range_min = le32_to_cpu(p->range_min);
+		*src_id = r->domain_id;
+		rep = r;
+		break;
+	}
+	case SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED:
+	{
+		const struct scmi_perf_level_notify_payld *p = payld;
+		struct scmi_perf_level_report *r = report;
+
+		if (sizeof(*p) != payld_sz)
+			break;
+
+		r->timestamp = timestamp;
+		r->agent_id = le32_to_cpu(p->agent_id);
+		r->domain_id = le32_to_cpu(p->domain_id);
+		r->performance_level = le32_to_cpu(p->performance_level);
+		*src_id = r->domain_id;
+		rep = r;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return rep;
+}
+
+static const struct scmi_event perf_events[] = {
+	{
+		.id = SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED,
+		.max_payld_sz = sizeof(struct scmi_perf_limits_notify_payld),
+		.max_report_sz = sizeof(struct scmi_perf_limits_report),
+	},
+	{
+		.id = SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED,
+		.max_payld_sz = sizeof(struct scmi_perf_level_notify_payld),
+		.max_report_sz = sizeof(struct scmi_perf_level_report),
+	},
+};
+
+static const struct scmi_event_ops perf_event_ops = {
+	.set_notify_enabled = scmi_perf_set_notify_enabled,
+	.fill_custom_report = scmi_perf_fill_custom_report,
 };
 
 static int scmi_perf_protocol_init(struct scmi_handle *handle)
@@ -741,6 +876,12 @@ static int scmi_perf_protocol_init(struct scmi_handle *handle)
 		if (dom->perf_fastchannels)
 			scmi_perf_domain_init_fc(handle, domain, &dom->fc_info);
 	}
+
+	scmi_register_protocol_events(handle,
+				      SCMI_PROTOCOL_PERF, SCMI_PROTO_QUEUE_SZ,
+				      &perf_event_ops, perf_events,
+				      ARRAY_SIZE(perf_events),
+				      pinfo->num_domains);
 
 	pinfo->version = version;
 	handle->perf_ops = &perf_ops;

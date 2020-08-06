@@ -257,6 +257,21 @@ static const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(400000, DR8, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, CR8, Full),
 	__DEFINE_SPECIAL_MODE_PARAMS(FEC_LLRS),
+	__DEFINE_LINK_MODE_PARAMS(100000, KR, Full),
+	__DEFINE_LINK_MODE_PARAMS(100000, SR, Full),
+	__DEFINE_LINK_MODE_PARAMS(100000, LR_ER_FR, Full),
+	__DEFINE_LINK_MODE_PARAMS(100000, DR, Full),
+	__DEFINE_LINK_MODE_PARAMS(100000, CR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, KR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, SR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, LR2_ER2_FR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, DR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, CR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, KR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, SR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, LR4_ER4_FR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, DR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, CR4, Full),
 };
 
 static const struct nla_policy
@@ -406,8 +421,7 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 
 	ret = __ethtool_get_link_ksettings(dev, &ksettings);
 	if (ret < 0) {
-		if (info)
-			GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
+		GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
 		goto out_ops;
 	}
 

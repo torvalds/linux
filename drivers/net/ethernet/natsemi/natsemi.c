@@ -3247,8 +3247,6 @@ static void natsemi_remove1(struct pci_dev *pdev)
 	free_netdev (dev);
 }
 
-#ifdef CONFIG_PM
-
 /*
  * The ns83815 chip doesn't have explicit RxStop bits.
  * Kicking the Rx or Tx process for a new packet reenables the Rx process
@@ -3275,9 +3273,9 @@ static void natsemi_remove1(struct pci_dev *pdev)
  * Interrupts must be disabled, otherwise hands_off can cause irq storms.
  */
 
-static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused natsemi_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
 
@@ -3326,11 +3324,10 @@ static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
 }
 
 
-static int natsemi_resume (struct pci_dev *pdev)
+static int __maybe_unused natsemi_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
-	int ret = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
@@ -3339,12 +3336,6 @@ static int natsemi_resume (struct pci_dev *pdev)
 		const int irq = np->pci_dev->irq;
 
 		BUG_ON(!np->hands_off);
-		ret = pci_enable_device(pdev);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"pci_enable_device() failed: %d\n", ret);
-			goto out;
-		}
 	/*	pci_power_on(pdev); */
 
 		napi_enable(&np->napi);
@@ -3364,20 +3355,17 @@ static int natsemi_resume (struct pci_dev *pdev)
 	netif_device_attach(dev);
 out:
 	rtnl_unlock();
-	return ret;
+	return 0;
 }
 
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(natsemi_pm_ops, natsemi_suspend, natsemi_resume);
 
 static struct pci_driver natsemi_driver = {
 	.name		= DRV_NAME,
 	.id_table	= natsemi_pci_tbl,
 	.probe		= natsemi_probe1,
 	.remove		= natsemi_remove1,
-#ifdef CONFIG_PM
-	.suspend	= natsemi_suspend,
-	.resume		= natsemi_resume,
-#endif
+	.driver.pm	= &natsemi_pm_ops,
 };
 
 static int __init natsemi_init_mod (void)

@@ -10,6 +10,8 @@
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
+#include "trace_common.h"
 
 struct bpf_map_def SEC("maps") dnat_map = {
 	.type = BPF_MAP_TYPE_HASH,
@@ -26,13 +28,14 @@ struct bpf_map_def SEC("maps") dnat_map = {
  * This example sits on a syscall, and the syscall ABI is relatively stable
  * of course, across platforms, and over time, the ABI may change.
  */
-SEC("kprobe/sys_connect")
+SEC("kprobe/" SYSCALL(sys_connect))
 int bpf_prog1(struct pt_regs *ctx)
 {
+	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1_CORE(ctx);
+	void *sockaddr_arg = (void *)PT_REGS_PARM2_CORE(real_regs);
+	int sockaddr_len = (int)PT_REGS_PARM3_CORE(real_regs);
 	struct sockaddr_in new_addr, orig_addr = {};
 	struct sockaddr_in *mapped_addr;
-	void *sockaddr_arg = (void *)PT_REGS_PARM2(ctx);
-	int sockaddr_len = (int)PT_REGS_PARM3(ctx);
 
 	if (sockaddr_len > sizeof(orig_addr))
 		return 0;

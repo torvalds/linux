@@ -139,6 +139,64 @@ enum cc_fec {
 	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
 };
 
+enum {
+	CXGB4_ETHTOOL_FLASH_FW = 1,
+	CXGB4_ETHTOOL_FLASH_PHY = 2,
+	CXGB4_ETHTOOL_FLASH_BOOT = 3,
+	CXGB4_ETHTOOL_FLASH_BOOTCFG = 4
+};
+
+struct cxgb4_bootcfg_data {
+	__le16 signature;
+	__u8 reserved[2];
+};
+
+struct cxgb4_pcir_data {
+	__le32 signature;	/* Signature. The string "PCIR" */
+	__le16 vendor_id;	/* Vendor Identification */
+	__le16 device_id;	/* Device Identification */
+	__u8 vital_product[2];	/* Pointer to Vital Product Data */
+	__u8 length[2];		/* PCIR Data Structure Length */
+	__u8 revision;		/* PCIR Data Structure Revision */
+	__u8 class_code[3];	/* Class Code */
+	__u8 image_length[2];	/* Image Length. Multiple of 512B */
+	__u8 code_revision[2];	/* Revision Level of Code/Data */
+	__u8 code_type;
+	__u8 indicator;
+	__u8 reserved[2];
+};
+
+/* BIOS boot headers */
+struct cxgb4_pci_exp_rom_header {
+	__le16 signature;	/* ROM Signature. Should be 0xaa55 */
+	__u8 reserved[22];	/* Reserved per processor Architecture data */
+	__le16 pcir_offset;	/* Offset to PCI Data Structure */
+};
+
+/* Legacy PCI Expansion ROM Header */
+struct legacy_pci_rom_hdr {
+	__u8 signature[2];	/* ROM Signature. Should be 0xaa55 */
+	__u8 size512;		/* Current Image Size in units of 512 bytes */
+	__u8 initentry_point[4];
+	__u8 cksum;		/* Checksum computed on the entire Image */
+	__u8 reserved[16];	/* Reserved */
+	__le16 pcir_offset;	/* Offset to PCI Data Struture */
+};
+
+#define CXGB4_HDR_CODE1 0x00
+#define CXGB4_HDR_CODE2 0x03
+#define CXGB4_HDR_INDI 0x80
+
+/* BOOT constants */
+enum {
+	BOOT_CFG_SIG = 0x4243,
+	BOOT_SIZE_INC = 512,
+	BOOT_SIGNATURE = 0xaa55,
+	BOOT_MIN_SIZE = sizeof(struct cxgb4_pci_exp_rom_header),
+	BOOT_MAX_SIZE = 1024 * BOOT_SIZE_INC,
+	PCIR_SIGNATURE = 0x52494350
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -474,6 +532,12 @@ static inline struct mbox_cmd *mbox_cmd_log_entry(struct mbox_cmd_log *log,
 		FW_HDR_FW_VER_BUILD_G(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
 
+struct cxgb4_ethtool_lb_test {
+	struct completion completion;
+	int result;
+	int loopback;
+};
+
 struct fw_info {
 	u8 chip;
 	char *fs_name;
@@ -490,6 +554,11 @@ struct trace_params {
 	unsigned char skip_len;
 	unsigned char invert;
 	unsigned char port;
+};
+
+struct cxgb4_fw_data {
+	__be32 signature;
+	__u8 reserved[4];
 };
 
 /* Firmware Port Capabilities types. */
@@ -616,6 +685,13 @@ struct port_info {
 	u8 rx_cchan;
 
 	bool tc_block_shared;
+
+	/* Mirror VI information */
+	u16 viid_mirror;
+	u16 nmirrorqsets;
+	u32 vi_mirror_count;
+	struct mutex vi_mirror_mutex; /* Sync access to Mirror VI info */
+	struct cxgb4_ethtool_lb_test ethtool_lb;
 };
 
 struct dentry;
@@ -641,6 +717,13 @@ enum {
 	ULP_CRYPTO_IPSEC_INLINE = 1 << 1,
 	ULP_CRYPTO_KTLS_INLINE  = 1 << 3,
 };
+
+#define CXGB4_MIRROR_RXQ_DEFAULT_DESC_NUM 1024
+#define CXGB4_MIRROR_RXQ_DEFAULT_DESC_SIZE 64
+#define CXGB4_MIRROR_RXQ_DEFAULT_INTR_USEC 5
+#define CXGB4_MIRROR_RXQ_DEFAULT_PKT_CNT 8
+
+#define CXGB4_MIRROR_FLQ_DEFAULT_DESC_NUM 72
 
 struct rx_sw_desc;
 
@@ -891,12 +974,15 @@ struct sge {
 	struct sge_eohw_txq *eohw_txq;
 	struct sge_ofld_rxq *eohw_rxq;
 
+	struct sge_eth_rxq *mirror_rxq[NCHAN];
+
 	u16 max_ethqsets;           /* # of available Ethernet queue sets */
 	u16 ethqsets;               /* # of active Ethernet queue sets */
 	u16 ethtxq_rover;           /* Tx queue to clean up next */
 	u16 ofldqsets;              /* # of active ofld queue sets */
 	u16 nqs_per_uld;	    /* # of Rx queues per ULD */
 	u16 eoqsets;                /* # of ETHOFLD queues */
+	u16 mirrorqsets;            /* # of Mirror queues */
 
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
@@ -1003,6 +1089,17 @@ struct mps_entries_ref {
 	refcount_t refcnt;
 };
 
+struct cxgb4_ethtool_filter_info {
+	u32 *loc_array; /* Array holding the actual TIDs set to filters */
+	unsigned long *bmap; /* Bitmap for managing filters in use */
+	u32 in_use; /* # of filters in use */
+};
+
+struct cxgb4_ethtool_filter {
+	u32 nentries; /* Adapter wide number of supported filters */
+	struct cxgb4_ethtool_filter_info *port; /* Per port entry */
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -1019,9 +1116,7 @@ struct adapter {
 
 	int msg_enable;
 	__be16 vxlan_port;
-	u8 vxlan_port_cnt;
 	__be16 geneve_port;
-	u8 geneve_port_cnt;
 
 	struct adapter_params params;
 	struct cxgb4_virt_res vres;
@@ -1128,6 +1223,9 @@ struct adapter {
 
 	/* TC MATCHALL classifier offload */
 	struct cxgb4_tc_matchall *tc_matchall;
+
+	/* Ethtool n-tuple */
+	struct cxgb4_ethtool_filter *ethtool_filters;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1340,6 +1438,8 @@ enum {
 	NAT_MODE_ALL		/* NAT on entire 4-tuple */
 };
 
+#define CXGB4_FILTER_TYPE_MAX 2
+
 /* Host shadow copy of ingress filter entry.  This is in host native format
  * and doesn't match the ordering or bit order, etc. of the hardware of the
  * firmware command.  The use of bit-field structure elements is purely to
@@ -1504,6 +1604,7 @@ void t4_free_sge_resources(struct adapter *adap);
 void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
 netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev);
+int cxgb4_selftest_lb_pkt(struct net_device *netdev);
 int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		     const struct pkt_gl *gl);
 int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
@@ -1736,8 +1837,7 @@ int t4_get_pfres(struct adapter *adapter);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
-int t4_load_phy_fw(struct adapter *adap,
-		   int win, spinlock_t *lock,
+int t4_load_phy_fw(struct adapter *adap, int win,
 		   int (*phy_fw_version)(const u8 *, size_t),
 		   const u8 *phy_fw_data, size_t phy_fw_size);
 int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver);
@@ -1781,6 +1881,8 @@ int t4_init_rss_mode(struct adapter *adap, int mbox);
 int t4_init_portinfo(struct port_info *pi, int mbox,
 		     int port, int pf, int vf, u8 mac[]);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
+int t4_init_port_mirror(struct port_info *pi, u8 mbox, u8 port, u8 pf, u8 vf,
+			u16 *mirror_viid);
 void t4_fatal_err(struct adapter *adapter);
 unsigned int t4_chip_rss_size(struct adapter *adapter);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
@@ -1890,8 +1992,8 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox,
 	       unsigned int pf, unsigned int vf,
 	       unsigned int viid);
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		int mtu, int promisc, int all_multi, int bcast, int vlanex,
-		bool sleep_ok);
+		  unsigned int viid_mirror, int mtu, int promisc, int all_multi,
+		  int bcast, int vlanex, bool sleep_ok);
 int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
 			 const u8 *addr, const u8 *mask, unsigned int idx,
 			 u8 lookup_type, u8 port_id, bool sleep_ok);
@@ -1988,6 +2090,10 @@ void t4_register_netevent_notifier(void);
 int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 	      unsigned int devid, unsigned int offset,
 	      unsigned int len, u8 *buf);
+int t4_load_boot(struct adapter *adap, u8 *boot_data,
+		 unsigned int boot_addr, unsigned int size);
+int t4_load_bootcfg(struct adapter *adap,
+		    const u8 *cfg_data, unsigned int size);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);
@@ -2061,6 +2167,8 @@ int cxgb_open(struct net_device *dev);
 int cxgb_close(struct net_device *dev);
 void cxgb4_enable_rx(struct adapter *adap, struct sge_rspq *q);
 void cxgb4_quiesce_rx(struct sge_rspq *q);
+int cxgb4_port_mirror_alloc(struct net_device *dev);
+void cxgb4_port_mirror_free(struct net_device *dev);
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 int cxgb4_set_ktls_feature(struct adapter *adap, bool enable);
 #endif

@@ -144,7 +144,7 @@ static void __exit amd_freq_sensitivity_exit(void)
 }
 module_exit(amd_freq_sensitivity_exit);
 
-static const struct x86_cpu_id amd_freq_sensitivity_ids[] = {
+static const struct x86_cpu_id __maybe_unused amd_freq_sensitivity_ids[] = {
 	X86_MATCH_FEATURE(X86_FEATURE_PROC_FEEDBACK, NULL),
 	{}
 };

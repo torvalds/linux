@@ -115,6 +115,7 @@ config X86
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
+	select GENERIC_ENTRY
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK	if SMP
@@ -161,7 +162,6 @@ config X86
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING		if X86_64
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -188,6 +188,7 @@ config X86
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
 	select HAVE_KPROBES
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_FUNCTION_ERROR_INJECTION
@@ -909,6 +910,7 @@ config DMI
 
 config GART_IOMMU
 	bool "Old AMD GART IOMMU support"
+	select DMA_OPS
 	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
@@ -1292,7 +1294,6 @@ config MICROCODE
 	bool "CPU microcode loading support"
 	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
-	select FW_LOADER
 	help
 	  If you say Y here, you will be able to update the microcode on
 	  Intel and AMD processors. The Intel support is for the IA32 family,
@@ -1314,7 +1315,6 @@ config MICROCODE_INTEL
 	bool "Intel microcode loading support"
 	depends on MICROCODE
 	default MICROCODE
-	select FW_LOADER
 	help
 	  This options enables microcode patch loading support for Intel
 	  processors.
@@ -1326,7 +1326,6 @@ config MICROCODE_INTEL
 config MICROCODE_AMD
 	bool "AMD microcode loading support"
 	depends on MICROCODE
-	select FW_LOADER
 	help
 	  If you select this option, microcode patch loading support for AMD
 	  processors will be enabled.

@@ -1,34 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qede NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
+
 #include <linux/crash_dump.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -169,9 +144,7 @@ static int qede_set_vf_mac(struct net_device *ndev, int vfidx, u8 *mac)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 
-	DP_VERBOSE(edev, QED_MSG_IOV,
-		   "Setting MAC %02x:%02x:%02x:%02x:%02x:%02x to VF [%d]\n",
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], vfidx);
+	DP_VERBOSE(edev, QED_MSG_IOV, "Setting MAC %pM to VF [%d]\n", mac, vfidx);
 
 	if (!is_valid_ether_addr(mac)) {
 		DP_VERBOSE(edev, QED_MSG_IOV, "MAC address isn't valid\n");
@@ -287,6 +260,8 @@ int __init qede_init(void)
 	int ret;
 
 	pr_info("qede_init: %s\n", version);
+
+	qede_forced_speed_maps_init();
 
 	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
@@ -662,79 +637,81 @@ qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 }
 
 static const struct net_device_ops qede_netdev_ops = {
-	.ndo_open = qede_open,
-	.ndo_stop = qede_close,
-	.ndo_start_xmit = qede_start_xmit,
-	.ndo_select_queue = qede_select_queue,
-	.ndo_set_rx_mode = qede_set_rx_mode,
-	.ndo_set_mac_address = qede_set_mac_addr,
-	.ndo_validate_addr = eth_validate_addr,
-	.ndo_change_mtu = qede_change_mtu,
-	.ndo_do_ioctl = qede_ioctl,
-	.ndo_tx_timeout = qede_tx_timeout,
+	.ndo_open		= qede_open,
+	.ndo_stop		= qede_close,
+	.ndo_start_xmit		= qede_start_xmit,
+	.ndo_select_queue	= qede_select_queue,
+	.ndo_set_rx_mode	= qede_set_rx_mode,
+	.ndo_set_mac_address	= qede_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= qede_change_mtu,
+	.ndo_do_ioctl		= qede_ioctl,
+	.ndo_tx_timeout		= qede_tx_timeout,
 #ifdef CONFIG_QED_SRIOV
-	.ndo_set_vf_mac = qede_set_vf_mac,
-	.ndo_set_vf_vlan = qede_set_vf_vlan,
-	.ndo_set_vf_trust = qede_set_vf_trust,
+	.ndo_set_vf_mac		= qede_set_vf_mac,
+	.ndo_set_vf_vlan	= qede_set_vf_vlan,
+	.ndo_set_vf_trust	= qede_set_vf_trust,
 #endif
-	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
-	.ndo_fix_features = qede_fix_features,
-	.ndo_set_features = qede_set_features,
-	.ndo_get_stats64 = qede_get_stats64,
+	.ndo_vlan_rx_add_vid	= qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qede_vlan_rx_kill_vid,
+	.ndo_fix_features	= qede_fix_features,
+	.ndo_set_features	= qede_set_features,
+	.ndo_get_stats64	= qede_get_stats64,
 #ifdef CONFIG_QED_SRIOV
-	.ndo_set_vf_link_state = qede_set_vf_link_state,
-	.ndo_set_vf_spoofchk = qede_set_vf_spoofchk,
-	.ndo_get_vf_config = qede_get_vf_config,
-	.ndo_set_vf_rate = qede_set_vf_rate,
+	.ndo_set_vf_link_state	= qede_set_vf_link_state,
+	.ndo_set_vf_spoofchk	= qede_set_vf_spoofchk,
+	.ndo_get_vf_config	= qede_get_vf_config,
+	.ndo_set_vf_rate	= qede_set_vf_rate,
 #endif
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
-	.ndo_features_check = qede_features_check,
-	.ndo_bpf = qede_xdp,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
+	.ndo_features_check	= qede_features_check,
+	.ndo_bpf		= qede_xdp,
 #ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer = qede_rx_flow_steer,
+	.ndo_rx_flow_steer	= qede_rx_flow_steer,
 #endif
-	.ndo_setup_tc = qede_setup_tc_offload,
+	.ndo_xdp_xmit		= qede_xdp_transmit,
+	.ndo_setup_tc		= qede_setup_tc_offload,
 };
 
 static const struct net_device_ops qede_netdev_vf_ops = {
-	.ndo_open = qede_open,
-	.ndo_stop = qede_close,
-	.ndo_start_xmit = qede_start_xmit,
-	.ndo_select_queue = qede_select_queue,
-	.ndo_set_rx_mode = qede_set_rx_mode,
-	.ndo_set_mac_address = qede_set_mac_addr,
-	.ndo_validate_addr = eth_validate_addr,
-	.ndo_change_mtu = qede_change_mtu,
-	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
-	.ndo_fix_features = qede_fix_features,
-	.ndo_set_features = qede_set_features,
-	.ndo_get_stats64 = qede_get_stats64,
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
-	.ndo_features_check = qede_features_check,
+	.ndo_open		= qede_open,
+	.ndo_stop		= qede_close,
+	.ndo_start_xmit		= qede_start_xmit,
+	.ndo_select_queue	= qede_select_queue,
+	.ndo_set_rx_mode	= qede_set_rx_mode,
+	.ndo_set_mac_address	= qede_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= qede_change_mtu,
+	.ndo_vlan_rx_add_vid	= qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qede_vlan_rx_kill_vid,
+	.ndo_fix_features	= qede_fix_features,
+	.ndo_set_features	= qede_set_features,
+	.ndo_get_stats64	= qede_get_stats64,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
+	.ndo_features_check	= qede_features_check,
 };
 
 static const struct net_device_ops qede_netdev_vf_xdp_ops = {
-	.ndo_open = qede_open,
-	.ndo_stop = qede_close,
-	.ndo_start_xmit = qede_start_xmit,
-	.ndo_select_queue = qede_select_queue,
-	.ndo_set_rx_mode = qede_set_rx_mode,
-	.ndo_set_mac_address = qede_set_mac_addr,
-	.ndo_validate_addr = eth_validate_addr,
-	.ndo_change_mtu = qede_change_mtu,
-	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
-	.ndo_fix_features = qede_fix_features,
-	.ndo_set_features = qede_set_features,
-	.ndo_get_stats64 = qede_get_stats64,
-	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
-	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
-	.ndo_features_check = qede_features_check,
-	.ndo_bpf = qede_xdp,
+	.ndo_open		= qede_open,
+	.ndo_stop		= qede_close,
+	.ndo_start_xmit		= qede_start_xmit,
+	.ndo_select_queue	= qede_select_queue,
+	.ndo_set_rx_mode	= qede_set_rx_mode,
+	.ndo_set_mac_address	= qede_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= qede_change_mtu,
+	.ndo_vlan_rx_add_vid	= qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qede_vlan_rx_kill_vid,
+	.ndo_fix_features	= qede_fix_features,
+	.ndo_set_features	= qede_set_features,
+	.ndo_get_stats64	= qede_get_stats64,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
+	.ndo_features_check	= qede_features_check,
+	.ndo_bpf		= qede_xdp,
+	.ndo_xdp_xmit		= qede_xdp_transmit,
 };
 
 /* -------------------------------------------------------------------------
@@ -847,6 +824,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 				NETIF_F_GSO_UDP_TUNNEL_CSUM);
 		ndev->hw_enc_features |= (NETIF_F_GSO_UDP_TUNNEL |
 					  NETIF_F_GSO_UDP_TUNNEL_CSUM);
+
+		qede_set_udp_tunnels(edev);
 	}
 
 	if (edev->dev_info.common.gre_enable) {
@@ -1463,6 +1442,11 @@ static void qede_set_tpa_param(struct qede_rx_queue *rxq)
 /* This function allocates all memory needed per Rx queue */
 static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
+	struct qed_chain_init_params params = {
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= RX_RING_SIZE,
+	};
+	struct qed_dev *cdev = edev->cdev;
 	int i, rc, size;
 
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
@@ -1498,24 +1482,20 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	}
 
 	/* Allocate FW Rx ring  */
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					    QED_CHAIN_MODE_NEXT_PTR,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    RX_RING_SIZE,
-					    sizeof(struct eth_rx_bd),
-					    &rxq->rx_bd_ring, NULL);
+	params.mode = QED_CHAIN_MODE_NEXT_PTR;
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME_PRODUCE;
+	params.elem_size = sizeof(struct eth_rx_bd);
+
+	rc = edev->ops->common->chain_alloc(cdev, &rxq->rx_bd_ring, &params);
 	if (rc)
 		goto err;
 
 	/* Allocate FW completion ring */
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME,
-					    QED_CHAIN_MODE_PBL,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    RX_RING_SIZE,
-					    sizeof(union eth_rx_cqe),
-					    &rxq->rx_comp_ring, NULL);
+	params.mode = QED_CHAIN_MODE_PBL;
+	params.intended_use = QED_CHAIN_USE_TO_CONSUME;
+	params.elem_size = sizeof(union eth_rx_cqe);
+
+	rc = edev->ops->common->chain_alloc(cdev, &rxq->rx_comp_ring, &params);
 	if (rc)
 		goto err;
 
@@ -1552,7 +1532,13 @@ static void qede_free_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 /* This function allocates all memory needed per Tx queue */
 static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
-	union eth_tx_bd_types *p_virt;
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= edev->q_num_tx_buffers,
+		.elem_size	= sizeof(union eth_tx_bd_types),
+	};
 	int size, rc;
 
 	txq->num_tx_buffers = edev->q_num_tx_buffers;
@@ -1570,13 +1556,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 			goto err;
 	}
 
-	rc = edev->ops->common->chain_alloc(edev->cdev,
-					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
-					    QED_CHAIN_MODE_PBL,
-					    QED_CHAIN_CNT_TYPE_U16,
-					    txq->num_tx_buffers,
-					    sizeof(*p_virt),
-					    &txq->tx_pbl, NULL);
+	rc = edev->ops->common->chain_alloc(edev->cdev, &txq->tx_pbl, &params);
 	if (rc)
 		goto err;
 
@@ -1732,6 +1712,7 @@ static void qede_init_fp(struct qede_dev *edev)
 {
 	int queue_id, rxq_index = 0, txq_index = 0;
 	struct qede_fastpath *fp;
+	bool init_xdp = false;
 
 	for_each_queue(queue_id) {
 		fp = &edev->fp_array[queue_id];
@@ -1743,6 +1724,9 @@ static void qede_init_fp(struct qede_dev *edev)
 			fp->xdp_tx->index = QEDE_TXQ_IDX_TO_XDP(edev,
 								rxq_index);
 			fp->xdp_tx->is_xdp = 1;
+
+			spin_lock_init(&fp->xdp_tx->xdp_tx_lock);
+			init_xdp = true;
 		}
 
 		if (fp->type & QEDE_FASTPATH_RX) {
@@ -1758,6 +1742,13 @@ static void qede_init_fp(struct qede_dev *edev)
 			/* Driver have no error path from here */
 			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
 						 fp->rxq->rxq_id) < 0);
+
+			if (xdp_rxq_info_reg_mem_model(&fp->rxq->xdp_rxq,
+						       MEM_TYPE_PAGE_ORDER0,
+						       NULL)) {
+				DP_NOTICE(edev,
+					  "Failed to register XDP memory model\n");
+			}
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
@@ -1782,6 +1773,11 @@ static void qede_init_fp(struct qede_dev *edev)
 
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",
 			 edev->ndev->name, queue_id);
+	}
+
+	if (init_xdp) {
+		edev->total_xdp_queues = QEDE_RSS_COUNT(edev);
+		DP_INFO(edev, "Total XDP queues: %u\n", edev->total_xdp_queues);
 	}
 }
 
@@ -2446,7 +2442,7 @@ static int qede_open(struct net_device *ndev)
 	if (rc)
 		return rc;
 
-	udp_tunnel_get_rx_info(ndev);
+	udp_tunnel_nic_reset_ntf(ndev);
 
 	edev->ops->common->update_drv_state(edev->cdev, true);
 
@@ -2548,7 +2544,7 @@ static void qede_recovery_handler(struct qede_dev *edev)
 			goto err;
 
 		qede_config_rx_mode(edev->ndev);
-		udp_tunnel_get_rx_info(edev->ndev);
+		udp_tunnel_nic_reset_ntf(edev->ndev);
 	}
 
 	edev->state = curr_state;
@@ -2678,8 +2674,8 @@ static void qede_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
 		data->feat_flags |= QED_TLV_LSO;
 
 	ether_addr_copy(data->mac[0], edev->ndev->dev_addr);
-	memset(data->mac[1], 0, ETH_ALEN);
-	memset(data->mac[2], 0, ETH_ALEN);
+	eth_zero_addr(data->mac[1]);
+	eth_zero_addr(data->mac[2]);
 	/* Copy the first two UC macs */
 	netif_addr_lock_bh(edev->ndev);
 	i = 1;

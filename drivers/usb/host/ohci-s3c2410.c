@@ -343,7 +343,7 @@ ohci_hcd_s3c2410_remove(struct platform_device *dev)
 	return 0;
 }
 
-/**
+/*
  * ohci_hcd_s3c2410_probe - initialize S3C2410-based HCDs
  * Context: !in_interrupt()
  *

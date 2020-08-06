@@ -878,7 +878,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.first_kfd_vmid = 8;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */

@@ -25,6 +25,7 @@ struct imx_usbmisc_data {
 	unsigned int ext_id:1; /* ID from exteranl event */
 	unsigned int ext_vbus:1; /* Vbus from exteranl event */
 	struct usb_phy *usb_phy;
+	enum usb_dr_mode available_role; /* runtime usb dr mode */
 };
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data);

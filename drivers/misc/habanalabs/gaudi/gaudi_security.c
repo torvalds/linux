@@ -6,7 +6,7 @@
  */
 
 #include "gaudiP.h"
-#include "include/gaudi/asic_reg/gaudi_regs.h"
+#include "../include/gaudi/asic_reg/gaudi_regs.h"
 
 #define GAUDI_NUMBER_OF_RR_REGS		24
 #define GAUDI_NUMBER_OF_LBW_RANGES	12
@@ -447,8 +447,7 @@ static u64 gaudi_rr_hbw_mask_high_ar_regs[GAUDI_NUMBER_OF_RR_REGS] = {
  * gaudi_set_block_as_protected - set the given block as protected
  *
  * @hdev: pointer to hl_device structure
- * @block: block base address
- *
+ * @base: block base address
  */
 static void gaudi_pb_set_block(struct hl_device *hdev, u64 base)
 {
