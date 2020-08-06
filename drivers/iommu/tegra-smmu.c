@@ -818,6 +818,7 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 {
 	const struct tegra_smmu_group_soc *soc;
 	struct tegra_smmu_group *group;
+	struct iommu_group *grp;
 
 	soc = tegra_smmu_find_group(smmu, swgroup);
 	if (!soc)
@@ -827,8 +828,9 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 
 	list_for_each_entry(group, &smmu->groups, list)
 		if (group->soc == soc) {
+			grp = iommu_group_ref_get(group->group);
 			mutex_unlock(&smmu->lock);
-			return group->group;
+			return grp;
 		}
 
 	group = devm_kzalloc(smmu->dev, sizeof(*group), GFP_KERNEL);
