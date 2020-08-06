@@ -330,6 +330,4 @@ void rkisp1_params_disable(struct rkisp1_params *params);
 int rkisp1_params_register(struct rkisp1_device *rkisp1);
 void rkisp1_params_unregister(struct rkisp1_device *rkisp1);
 
-void rkisp1_params_isr_handler(struct rkisp1_device *rkisp1, u32 isp_mis);
-
 #endif /* _RKISP1_COMMON_H */
