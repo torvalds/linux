@@ -867,7 +867,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		*outlen = MLX5_ST_SZ_BYTES(qp_2rst_out);
 		*in = kzalloc(*inlen, GFP_KERNEL);
 		*out = kzalloc(*outlen, GFP_KERNEL);
-		if (!in || !out)
+		if (!*in || !*out)
 			goto outerr;
 
 		MLX5_SET(qp_2rst_in, *in, opcode, cmd);
@@ -879,7 +879,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		*outlen = MLX5_ST_SZ_BYTES(rst2init_qp_out);
 		*in = kzalloc(*inlen, GFP_KERNEL);
 		*out = kzalloc(MLX5_ST_SZ_BYTES(rst2init_qp_out), GFP_KERNEL);
-		if (!in || !out)
+		if (!*in || !*out)
 			goto outerr;
 
 		MLX5_SET(rst2init_qp_in, *in, opcode, cmd);
@@ -896,7 +896,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		*outlen = MLX5_ST_SZ_BYTES(init2rtr_qp_out);
 		*in = kzalloc(*inlen, GFP_KERNEL);
 		*out = kzalloc(MLX5_ST_SZ_BYTES(init2rtr_qp_out), GFP_KERNEL);
-		if (!in || !out)
+		if (!*in || !*out)
 			goto outerr;
 
 		MLX5_SET(init2rtr_qp_in, *in, opcode, cmd);
@@ -914,7 +914,7 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		*outlen = MLX5_ST_SZ_BYTES(rtr2rts_qp_out);
 		*in = kzalloc(*inlen, GFP_KERNEL);
 		*out = kzalloc(MLX5_ST_SZ_BYTES(rtr2rts_qp_out), GFP_KERNEL);
-		if (!in || !out)
+		if (!*in || !*out)
 			goto outerr;
 
 		MLX5_SET(rtr2rts_qp_in, *in, opcode, cmd);
@@ -927,16 +927,15 @@ static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inl
 		MLX5_SET(qpc, qpc, rnr_retry, 7);
 		break;
 	default:
-		goto outerr;
+		goto outerr_nullify;
 	}
-	if (!*in || !*out)
-		goto outerr;
 
 	return;
 
 outerr:
 	kfree(*in);
 	kfree(*out);
+outerr_nullify:
 	*in = NULL;
 	*out = NULL;
 }
