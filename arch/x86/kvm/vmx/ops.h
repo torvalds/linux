@@ -146,7 +146,9 @@ do {									\
 			  : : op1 : "cc" : error, fault);		\
 	return;								\
 error:									\
+	instrumentation_begin();					\
 	insn##_error(error_args);					\
+	instrumentation_end();						\
 	return;								\
 fault:									\
 	kvm_spurious_fault();						\
@@ -161,7 +163,9 @@ do {									\
 			  : : op1, op2 : "cc" : error, fault);		\
 	return;								\
 error:									\
+	instrumentation_begin();					\
 	insn##_error(error_args);					\
+	instrumentation_end();						\
 	return;								\
 fault:									\
 	kvm_spurious_fault();						\

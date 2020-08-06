@@ -37,10 +37,11 @@ choice
 
 config KVM_MIPS_TE
 	bool "Trap & Emulate"
+	depends on CPU_MIPS32_R2
 	help
 	  Use trap and emulate to virtualize 32-bit guests in user mode. This
 	  does not require any special hardware Virtualization support beyond
-	  standard MIPS32/64 r2 or later, but it does require the guest kernel
+	  standard MIPS32 r2 or later, but it does require the guest kernel
 	  to be configured with CONFIG_KVM_GUEST=y so that it resides in the
 	  user address segment.
 
