@@ -28,6 +28,7 @@
 #include <linux/dma-fence-array.h>
 #include <linux/interval_tree_generic.h>
 #include <linux/idr.h>
+#include <linux/dma-buf.h>
 
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -35,6 +36,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_dma_buf.h"
 
 /**
  * DOC: GPUVM
@@ -1778,15 +1780,24 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		nodes = NULL;
 		resv = vm->root.base.bo->tbo.base.resv;
 	} else {
+		struct drm_gem_object *obj = &bo->tbo.base;
 		struct ttm_dma_tt *ttm;
 
+		resv = bo->tbo.base.resv;
+		if (obj->import_attach && bo_va->is_xgmi) {
+			struct dma_buf *dma_buf = obj->import_attach->dmabuf;
+			struct drm_gem_object *gobj = dma_buf->priv;
+			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
+
+			if (abo->tbo.mem.mem_type == TTM_PL_VRAM)
+				bo = gem_to_amdgpu_bo(gobj);
+		}
 		mem = &bo->tbo.mem;
 		nodes = mem->mm_node;
 		if (mem->mem_type == TTM_PL_TT) {
 			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
-		resv = bo->tbo.base.resv;
 	}
 
 	if (bo) {
@@ -2132,8 +2143,10 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 
-	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
-	    (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)) {
+	if (!bo)
+		return bo_va;
+
+	if (amdgpu_dmabuf_is_xgmi_accessible(adev, bo)) {
 		bo_va->is_xgmi = true;
 		/* Power up XGMI if it can be potentially used */
 		amdgpu_xgmi_set_pstate(adev, AMDGPU_XGMI_PSTATE_MAX_VEGA20);
