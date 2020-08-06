@@ -6,7 +6,7 @@ ifdef CONFIG_KCSAN
 ifdef CONFIG_CC_IS_CLANG
 cc-param = -mllvm -$(1)
 else
-cc-param = --param -$(1)
+cc-param = --param $(1)
 endif
 
 # Keep most options here optional, to allow enabling more compilers if absence

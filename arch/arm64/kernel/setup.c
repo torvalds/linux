@@ -400,11 +400,7 @@ static int __init topology_init(void)
 }
 subsys_initcall(topology_init);
 
-/*
- * Dump out kernel offset information on panic.
- */
-static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
-			      void *p)
+static void dump_kernel_offset(void)
 {
 	const unsigned long offset = kaslr_offset();
 
@@ -415,17 +411,25 @@ static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 	} else {
 		pr_emerg("Kernel Offset: disabled\n");
 	}
+}
+
+static int arm64_panic_block_dump(struct notifier_block *self,
+				  unsigned long v, void *p)
+{
+	dump_kernel_offset();
+	dump_cpu_features();
+	dump_mem_limit();
 	return 0;
 }
 
-static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+static struct notifier_block arm64_panic_block = {
+	.notifier_call = arm64_panic_block_dump
 };
 
-static int __init register_kernel_offset_dumper(void)
+static int __init register_arm64_panic_block(void)
 {
 	atomic_notifier_chain_register(&panic_notifier_list,
-				       &kernel_offset_notifier);
+				       &arm64_panic_block);
 	return 0;
 }
-__initcall(register_kernel_offset_dumper);
+device_initcall(register_arm64_panic_block);

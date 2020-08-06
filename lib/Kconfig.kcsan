@@ -4,7 +4,8 @@ config HAVE_ARCH_KCSAN
 	bool
 
 config HAVE_KCSAN_COMPILER
-	def_bool CC_IS_CLANG && $(cc-option,-fsanitize=thread -mllvm -tsan-distinguish-volatile=1)
+	def_bool (CC_IS_CLANG && $(cc-option,-fsanitize=thread -mllvm -tsan-distinguish-volatile=1)) || \
+		 (CC_IS_GCC && $(cc-option,-fsanitize=thread --param tsan-distinguish-volatile=1))
 	help
 	  For the list of compilers that support KCSAN, please see
 	  <file:Documentation/dev-tools/kcsan.rst>.
@@ -59,7 +60,28 @@ config KCSAN_SELFTEST
 	bool "Perform short selftests on boot"
 	default y
 	help
-	  Run KCSAN selftests on boot. On test failure, causes the kernel to panic.
+	  Run KCSAN selftests on boot. On test failure, causes the kernel to
+	  panic. Recommended to be enabled, ensuring critical functionality
+	  works as intended.
+
+config KCSAN_TEST
+	tristate "KCSAN test for integrated runtime behaviour"
+	depends on TRACEPOINTS && KUNIT
+	select TORTURE_TEST
+	help
+	  KCSAN test focusing on behaviour of the integrated runtime. Tests
+	  various race scenarios, and verifies the reports generated to
+	  console. Makes use of KUnit for test organization, and the Torture
+	  framework for test thread control.
+
+	  Each test case may run at least up to KCSAN_REPORT_ONCE_IN_MS
+	  milliseconds. Test run duration may be optimized by building the
+	  kernel and KCSAN test with KCSAN_REPORT_ONCE_IN_MS set to a lower
+	  than default value.
+
+	  Say Y here if you want the test to be built into the kernel and run
+	  during boot; say M if you want the test to build as a module; say N
+	  if you are unsure.
 
 config KCSAN_EARLY_ENABLE
 	bool "Early enable during boot"

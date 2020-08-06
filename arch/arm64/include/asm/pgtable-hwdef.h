@@ -29,7 +29,7 @@
  * Size mapped by an entry at level n ( 0 <= n <= 3)
  * We map (PAGE_SHIFT - 3) at all translation levels and PAGE_SHIFT bits
  * in the final page. The maximum number of translation levels supported by
- * the architecture is 4. Hence, starting at at level n, we have further
+ * the architecture is 4. Hence, starting at level n, we have further
  * ((4 - n) - 1) levels of translation excluding the offset within the page.
  * So, the total number of bits mapped by an entry at level n is :
  *
@@ -82,23 +82,23 @@
  * Contiguous page definitions.
  */
 #ifdef CONFIG_ARM64_64K_PAGES
-#define CONT_PTE_SHIFT		5
-#define CONT_PMD_SHIFT		5
+#define CONT_PTE_SHIFT		(5 + PAGE_SHIFT)
+#define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
 #elif defined(CONFIG_ARM64_16K_PAGES)
-#define CONT_PTE_SHIFT		7
-#define CONT_PMD_SHIFT		5
+#define CONT_PTE_SHIFT		(7 + PAGE_SHIFT)
+#define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
 #else
-#define CONT_PTE_SHIFT		4
-#define CONT_PMD_SHIFT		4
+#define CONT_PTE_SHIFT		(4 + PAGE_SHIFT)
+#define CONT_PMD_SHIFT		(4 + PMD_SHIFT)
 #endif
 
-#define CONT_PTES		(1 << CONT_PTE_SHIFT)
+#define CONT_PTES		(1 << (CONT_PTE_SHIFT - PAGE_SHIFT))
 #define CONT_PTE_SIZE		(CONT_PTES * PAGE_SIZE)
 #define CONT_PTE_MASK		(~(CONT_PTE_SIZE - 1))
-#define CONT_PMDS		(1 << CONT_PMD_SHIFT)
+#define CONT_PMDS		(1 << (CONT_PMD_SHIFT - PMD_SHIFT))
 #define CONT_PMD_SIZE		(CONT_PMDS * PMD_SIZE)
 #define CONT_PMD_MASK		(~(CONT_PMD_SIZE - 1))
-/* the the numerical offset of the PTE within a range of CONT_PTES */
+/* the numerical offset of the PTE within a range of CONT_PTES */
 #define CONT_RANGE_OFFSET(addr) (((addr)>>PAGE_SHIFT)&(CONT_PTES-1))
 
 /*
@@ -178,10 +178,12 @@
 #define PTE_S2_RDONLY		(_AT(pteval_t, 1) << 6)   /* HAP[2:1] */
 #define PTE_S2_RDWR		(_AT(pteval_t, 3) << 6)   /* HAP[2:1] */
 #define PTE_S2_XN		(_AT(pteval_t, 2) << 53)  /* XN[1:0] */
+#define PTE_S2_SW_RESVD		(_AT(pteval_t, 15) << 55) /* Reserved for SW */
 
 #define PMD_S2_RDONLY		(_AT(pmdval_t, 1) << 6)   /* HAP[2:1] */
 #define PMD_S2_RDWR		(_AT(pmdval_t, 3) << 6)   /* HAP[2:1] */
 #define PMD_S2_XN		(_AT(pmdval_t, 2) << 53)  /* XN[1:0] */
+#define PMD_S2_SW_RESVD		(_AT(pmdval_t, 15) << 55) /* Reserved for SW */
 
 #define PUD_S2_RDONLY		(_AT(pudval_t, 1) << 6)   /* HAP[2:1] */
 #define PUD_S2_RDWR		(_AT(pudval_t, 3) << 6)   /* HAP[2:1] */
@@ -216,6 +218,7 @@
 #define TCR_TxSZ(x)		(TCR_T0SZ(x) | TCR_T1SZ(x))
 #define TCR_TxSZ_WIDTH		6
 #define TCR_T0SZ_MASK		(((UL(1) << TCR_TxSZ_WIDTH) - 1) << TCR_T0SZ_OFFSET)
+#define TCR_T1SZ_MASK		(((UL(1) << TCR_TxSZ_WIDTH) - 1) << TCR_T1SZ_OFFSET)
 
 #define TCR_EPD0_SHIFT		7
 #define TCR_EPD0_MASK		(UL(1) << TCR_EPD0_SHIFT)

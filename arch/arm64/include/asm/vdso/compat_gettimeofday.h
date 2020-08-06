@@ -7,6 +7,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/barrier.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>
 
@@ -151,6 +152,18 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 
 	return ret;
 }
+
+#ifdef CONFIG_TIME_NS
+static __always_inline const struct vdso_data *__arch_get_timens_vdso_data(void)
+{
+	const struct vdso_data *ret;
+
+	/* See __arch_get_vdso_data(). */
+	asm volatile("mov %0, %1" : "=r"(ret) : "r"(_timens_data));
+
+	return ret;
+}
+#endif
 
 static inline bool vdso_clocksource_ok(const struct vdso_data *vd)
 {

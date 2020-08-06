@@ -67,7 +67,7 @@ bool arch_callee_saved_reg(unsigned char reg)
 	}
 }
 
-unsigned long arch_dest_rela_offset(int addend)
+unsigned long arch_dest_reloc_offset(int addend)
 {
 	return addend + 4;
 }

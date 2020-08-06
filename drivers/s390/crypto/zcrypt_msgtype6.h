@@ -127,7 +127,7 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 		char rule[8];
 		short int verb_length;
 		short int key_length;
-	} __packed * msg = ap_msg->message;
+	} __packed * msg = ap_msg->msg;
 	static struct type6_hdr static_type6_hdrX = {
 		.type		= 0x06,
 		.offset1	= 0x00000058,
@@ -154,7 +154,7 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 	memcpy(msg->rule, "RANDOM  ", 8);
 	msg->verb_length = 0x02;
 	msg->key_length = 0x02;
-	ap_msg->length = sizeof(*msg);
+	ap_msg->len = sizeof(*msg);
 	*domain = (unsigned short)msg->cprbx.domain;
 }
 

@@ -559,8 +559,7 @@ SYSCALL_DEFINE0(ni_syscall)
 }
 
 /**
- * idtentry_enter_cond_rcu - Handle state tracking on idtentry with conditional
- *			     RCU handling
+ * idtentry_enter - Handle state tracking on ordinary idtentries
  * @regs:	Pointer to pt_regs of interrupted context
  *
  * Invokes:
@@ -571,6 +570,9 @@ SYSCALL_DEFINE0(ni_syscall)
  *
  *  - The hardirq tracer to keep the state consistent as low level ASM
  *    entry disabled interrupts.
+ *
+ * As a precondition, this requires that the entry came from user mode,
+ * idle, or a kernel context in which RCU is watching.
  *
  * For kernel mode entries RCU handling is done conditional. If RCU is
  * watching then the only RCU requirement is to check whether the tick has
@@ -585,18 +587,21 @@ SYSCALL_DEFINE0(ni_syscall)
  * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
  * would not be possible.
  *
- * Returns: True if RCU has been adjusted on a kernel entry
- *	    False otherwise
+ * Returns: An opaque object that must be passed to idtentry_exit()
  *
- * The return value must be fed into the rcu_exit argument of
- * idtentry_exit_cond_rcu().
+ * The return value must be fed into the state argument of
+ * idtentry_exit().
  */
-bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
+noinstr idtentry_state_t idtentry_enter(struct pt_regs *regs)
 {
+	idtentry_state_t ret = {
+		.exit_rcu = false,
+	};
+
 	if (user_mode(regs)) {
 		check_user_regs(regs);
 		enter_from_user_mode();
-		return false;
+		return ret;
 	}
 
 	/*
@@ -634,7 +639,8 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 		trace_hardirqs_off_finish();
 		instrumentation_end();
 
-		return true;
+		ret.exit_rcu = true;
+		return ret;
 	}
 
 	/*
@@ -649,7 +655,7 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 	trace_hardirqs_off();
 	instrumentation_end();
 
-	return false;
+	return ret;
 }
 
 static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
@@ -667,10 +673,9 @@ static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
 }
 
 /**
- * idtentry_exit_cond_rcu - Handle return from exception with conditional RCU
- *			    handling
+ * idtentry_exit - Handle return from exception that used idtentry_enter()
  * @regs:	Pointer to pt_regs (exception entry regs)
- * @rcu_exit:	Invoke rcu_irq_exit() if true
+ * @state:	Return value from matching call to idtentry_enter()
  *
  * Depending on the return target (kernel/user) this runs the necessary
  * preemption and work checks if possible and reguired and returns to
@@ -679,10 +684,10 @@ static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
  * This is the last action before returning to the low level ASM code which
  * just needs to return to the appropriate context.
  *
- * Counterpart to idtentry_enter_cond_rcu(). The return value of the entry
- * function must be fed into the @rcu_exit argument.
+ * Counterpart to idtentry_enter(). The return value of the entry
+ * function must be fed into the @state argument.
  */
-void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
+noinstr void idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -695,7 +700,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 		 * carefully and needs the same ordering of lockdep/tracing
 		 * and RCU as the return to user mode path.
 		 */
-		if (rcu_exit) {
+		if (state.exit_rcu) {
 			instrumentation_begin();
 			/* Tell the tracer that IRET will enable interrupts */
 			trace_hardirqs_on_prepare();
@@ -714,7 +719,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 		 * IRQ flags state is correct already. Just tell RCU if it
 		 * was not watching on entry.
 		 */
-		if (rcu_exit)
+		if (state.exit_rcu)
 			rcu_irq_exit();
 	}
 }
@@ -726,7 +731,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
  * Invokes enter_from_user_mode() to establish the proper context for
  * NOHZ_FULL. Otherwise scheduling on exit would not be possible.
  */
-void noinstr idtentry_enter_user(struct pt_regs *regs)
+noinstr void idtentry_enter_user(struct pt_regs *regs)
 {
 	check_user_regs(regs);
 	enter_from_user_mode();
@@ -744,11 +749,45 @@ void noinstr idtentry_enter_user(struct pt_regs *regs)
  *
  * Counterpart to idtentry_enter_user().
  */
-void noinstr idtentry_exit_user(struct pt_regs *regs)
+noinstr void idtentry_exit_user(struct pt_regs *regs)
 {
 	lockdep_assert_irqs_disabled();
 
 	prepare_exit_to_usermode(regs);
+}
+
+noinstr bool idtentry_enter_nmi(struct pt_regs *regs)
+{
+	bool irq_state = lockdep_hardirqs_enabled();
+
+	__nmi_enter();
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	lockdep_hardirq_enter();
+	rcu_nmi_enter();
+
+	instrumentation_begin();
+	trace_hardirqs_off_finish();
+	ftrace_nmi_enter();
+	instrumentation_end();
+
+	return irq_state;
+}
+
+noinstr void idtentry_exit_nmi(struct pt_regs *regs, bool restore)
+{
+	instrumentation_begin();
+	ftrace_nmi_exit();
+	if (restore) {
+		trace_hardirqs_on_prepare();
+		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	}
+	instrumentation_end();
+
+	rcu_nmi_exit();
+	lockdep_hardirq_exit();
+	if (restore)
+		lockdep_hardirqs_on(CALLER_ADDR0);
+	__nmi_exit();
 }
 
 #ifdef CONFIG_XEN_PV
@@ -800,9 +839,10 @@ static void __xen_pv_evtchn_do_upcall(void)
 __visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
-	bool inhcall, rcu_exit;
+	bool inhcall;
+	idtentry_state_t state;
 
-	rcu_exit = idtentry_enter_cond_rcu(regs);
+	state = idtentry_enter(regs);
 	old_regs = set_irq_regs(regs);
 
 	instrumentation_begin();
@@ -812,13 +852,13 @@ __visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 
 	inhcall = get_and_clear_inhcall();
-	if (inhcall && !WARN_ON_ONCE(rcu_exit)) {
+	if (inhcall && !WARN_ON_ONCE(state.exit_rcu)) {
 		instrumentation_begin();
 		idtentry_exit_cond_resched(regs, true);
 		instrumentation_end();
 		restore_inhcall(inhcall);
 	} else {
-		idtentry_exit_cond_rcu(regs, rcu_exit);
+		idtentry_exit(regs, state);
 	}
 }
 #endif /* CONFIG_XEN_PV */

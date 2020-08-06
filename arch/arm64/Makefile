@@ -82,10 +82,17 @@ endif
 # compiler to generate them and consequently to break the single image contract
 # we pass it only to the assembler. This option is utilized only in case of non
 # integrated assemblers.
+ifneq ($(CONFIG_AS_HAS_ARMV8_4), y)
 branch-prot-flags-$(CONFIG_AS_HAS_PAC) += -Wa,-march=armv8.3-a
+endif
 endif
 
 KBUILD_CFLAGS += $(branch-prot-flags-y)
+
+ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
+# make sure to pass the newest target architecture to -march.
+KBUILD_CFLAGS	+= -Wa,-march=armv8.4-a
+endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
 KBUILD_CFLAGS	+= -ffixed-x18

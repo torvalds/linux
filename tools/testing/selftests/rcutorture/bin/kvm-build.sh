@@ -9,6 +9,12 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
+if test -f "$TORTURE_STOPFILE"
+then
+	echo "kvm-build.sh early exit due to run STOP request"
+	exit 1
+fi
+
 config_template=${1}
 if test -z "$config_template" -o ! -f "$config_template" -o ! -r "$config_template"
 then

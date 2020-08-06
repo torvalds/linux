@@ -26,7 +26,7 @@ int C_A_D = 1;
 struct pid *cad_pid;
 EXPORT_SYMBOL(cad_pid);
 
-#if defined(CONFIG_ARM) || defined(CONFIG_UNICORE32)
+#if defined(CONFIG_ARM)
 #define DEFAULT_REBOOT_MODE		= REBOOT_HARD
 #else
 #define DEFAULT_REBOOT_MODE
