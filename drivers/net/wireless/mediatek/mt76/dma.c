@@ -152,10 +152,8 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	struct mt76_sw_queue *sq = &dev->q_tx[qid];
 	struct mt76_queue *q = sq->q;
 	struct mt76_queue_entry entry;
-	unsigned int n_swq_queued[8] = {};
-	unsigned int n_queued = 0;
 	bool wake = false;
-	int i, last;
+	int last;
 
 	if (!q)
 		return;
@@ -165,13 +163,14 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	else
 		last = readl(&q->regs->dma_idx);
 
-	while ((q->queued > n_queued) && q->tail != last) {
+	while (q->queued > 0 && q->tail != last) {
+		int swq_qid = -1;
+
 		mt76_dma_tx_cleanup_idx(dev, q, q->tail, &entry);
 		if (entry.schedule)
-			n_swq_queued[entry.qid]++;
+			swq_qid = entry.qid;
 
 		q->tail = (q->tail + 1) % q->ndesc;
-		n_queued++;
 
 		if (entry.skb)
 			dev->drv->tx_complete_skb(dev, qid, &entry);
@@ -184,29 +183,21 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 
 		if (!flush && q->tail == last)
 			last = readl(&q->regs->dma_idx);
-	}
 
-	spin_lock_bh(&q->lock);
-
-	q->queued -= n_queued;
-	for (i = 0; i < 4; i++) {
-		if (!n_swq_queued[i])
-			continue;
-
-		dev->q_tx[i].swq_queued -= n_swq_queued[i];
-	}
-
-	/* ext PHY */
-	for (i = 0; i < 4; i++) {
-		if (!n_swq_queued[i])
-			continue;
-
-		dev->q_tx[__MT_TXQ_MAX + i].swq_queued -= n_swq_queued[4 + i];
+		spin_lock_bh(&q->lock);
+		if (swq_qid >= 4)
+			dev->q_tx[__MT_TXQ_MAX + swq_qid - 4].swq_queued--;
+		else if (swq_qid >= 0)
+			dev->q_tx[swq_qid].swq_queued--;
+		q->queued--;
+		spin_unlock_bh(&q->lock);
 	}
 
 	if (flush) {
+		spin_lock_bh(&q->lock);
 		mt76_dma_sync_idx(dev, q);
 		mt76_dma_kick_queue(dev, q);
+		spin_unlock_bh(&q->lock);
 	}
 
 	wake = wake && q->stopped &&
@@ -216,8 +207,6 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
-
-	spin_unlock_bh(&q->lock);
 
 	if (wake)
 		ieee80211_wake_queue(dev->hw, qid);
