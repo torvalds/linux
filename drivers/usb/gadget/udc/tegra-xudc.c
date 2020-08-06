@@ -3781,7 +3781,9 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 
 	err = devm_clk_bulk_get(&pdev->dev, xudc->soc->num_clks, xudc->clks);
 	if (err) {
-		dev_err(xudc->dev, "failed to request clocks: %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(xudc->dev, "failed to request clocks: %d\n", err);
+
 		return err;
 	}
 
@@ -3796,7 +3798,9 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	err = devm_regulator_bulk_get(&pdev->dev, xudc->soc->num_supplies,
 				      xudc->supplies);
 	if (err) {
-		dev_err(xudc->dev, "failed to request regulators: %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(xudc->dev, "failed to request regulators: %d\n", err);
+
 		return err;
 	}
 
