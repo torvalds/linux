@@ -15,8 +15,7 @@
 
 #include <asm/mach/map.h>
 
-#include <plat/cpu.h>
-#include <plat/pm-common.h>
+#include <linux/soc/samsung/s3c-pm.h>
 
 static struct pm_uart_save uart_save;
 
