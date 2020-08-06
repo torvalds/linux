@@ -5,11 +5,8 @@
  * S3C2410 SPI register definition
  */
 
-#ifndef __ASM_ARCH_REGS_SPI_H
-#define __ASM_ARCH_REGS_SPI_H
-
-#define S3C2410_SPI1		(0x20)
-#define S3C2412_SPI1		(0x100)
+#ifndef __SPI_S3C2410_H
+#define __SPI_S3C2410_H
 
 #define S3C2410_SPCON		(0x00)
 
@@ -41,4 +38,4 @@
 #define S3C2410_SPTDAT		(0x10)
 #define S3C2410_SPRDAT		(0x14)
 
-#endif /* __ASM_ARCH_REGS_SPI_H */
+#endif /* __SPI_S3C2410_H */
