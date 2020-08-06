@@ -402,15 +402,12 @@ static void rkisp1_goc_config(struct rkisp1_params *params,
 static void rkisp1_ctk_config(struct rkisp1_params *params,
 			      const struct rkisp1_cif_isp_ctk_config *arg)
 {
-	rkisp1_write(params->rkisp1, arg->coeff0, RKISP1_CIF_ISP_CT_COEFF_0);
-	rkisp1_write(params->rkisp1, arg->coeff1, RKISP1_CIF_ISP_CT_COEFF_1);
-	rkisp1_write(params->rkisp1, arg->coeff2, RKISP1_CIF_ISP_CT_COEFF_2);
-	rkisp1_write(params->rkisp1, arg->coeff3, RKISP1_CIF_ISP_CT_COEFF_3);
-	rkisp1_write(params->rkisp1, arg->coeff4, RKISP1_CIF_ISP_CT_COEFF_4);
-	rkisp1_write(params->rkisp1, arg->coeff5, RKISP1_CIF_ISP_CT_COEFF_5);
-	rkisp1_write(params->rkisp1, arg->coeff6, RKISP1_CIF_ISP_CT_COEFF_6);
-	rkisp1_write(params->rkisp1, arg->coeff7, RKISP1_CIF_ISP_CT_COEFF_7);
-	rkisp1_write(params->rkisp1, arg->coeff8, RKISP1_CIF_ISP_CT_COEFF_8);
+	unsigned int i, j, k = 0;
+
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++)
+			rkisp1_write(params->rkisp1, arg->coeff[i][j],
+				     RKISP1_CIF_ISP_CT_COEFF_0 + 4 * k++);
 	rkisp1_write(params->rkisp1, arg->ct_offset_r,
 		     RKISP1_CIF_ISP_CT_OFFSET_R);
 	rkisp1_write(params->rkisp1, arg->ct_offset_g,

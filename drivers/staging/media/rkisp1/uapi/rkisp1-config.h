@@ -417,19 +417,13 @@ struct rkisp1_cif_isp_bdm_config {
 /**
  * struct rkisp1_cif_isp_ctk_config - Configuration used by Cross Talk correction
  *
- * @coeff: color correction matrix
+ * @coeff: color correction matrix. Values are 11-bit signed fixed-point numbers with 4 bit integer
+ *		and 7 bit fractional part, ranging from -8 (0x400) to +7.992 (0x3FF). 0 is
+ *		represented by 0x000 and a coefficient value of 1 as 0x080.
  * @ct_offset_b: offset for the crosstalk correction matrix
  */
 struct rkisp1_cif_isp_ctk_config {
-	__u16 coeff0;
-	__u16 coeff1;
-	__u16 coeff2;
-	__u16 coeff3;
-	__u16 coeff4;
-	__u16 coeff5;
-	__u16 coeff6;
-	__u16 coeff7;
-	__u16 coeff8;
+	__u16 coeff[3][3];
 	__u16 ct_offset_r;
 	__u16 ct_offset_g;
 	__u16 ct_offset_b;
