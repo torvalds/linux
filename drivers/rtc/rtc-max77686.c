@@ -815,13 +815,15 @@ static int max77686_rtc_suspend(struct device *dev)
 	}
 
 	/*
-	 * Main IRQ (not virtual) must be disabled during suspend because if it
-	 * happens while suspended it will be handled before resuming I2C.
+	 * If the main IRQ (not virtual) is the parent IRQ, then it must be
+	 * disabled during suspend because if it happens while suspended it
+	 * will be handled before resuming I2C.
 	 *
 	 * Since Main IRQ is shared, all its users should disable it to be sure
 	 * it won't fire while one of them is still suspended.
 	 */
-	disable_irq(info->rtc_irq);
+	if (!info->drv_data->rtc_irq_from_platform)
+		disable_irq(info->rtc_irq);
 
 	return ret;
 }
@@ -830,7 +832,8 @@ static int max77686_rtc_resume(struct device *dev)
 {
 	struct max77686_rtc_info *info = dev_get_drvdata(dev);
 
-	enable_irq(info->rtc_irq);
+	if (!info->drv_data->rtc_irq_from_platform)
+		enable_irq(info->rtc_irq);
 
 	if (device_may_wakeup(dev)) {
 		struct max77686_rtc_info *info = dev_get_drvdata(dev);
