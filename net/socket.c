@@ -1804,8 +1804,7 @@ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 		ret = __sys_accept4_file(f.file, 0, upeer_sockaddr,
 						upeer_addrlen, flags,
 						rlimit(RLIMIT_NOFILE));
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
@@ -1868,8 +1867,7 @@ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 		ret = move_addr_to_kernel(uservaddr, addrlen, &address);
 		if (!ret)
 			ret = __sys_connect_file(f.file, &address, addrlen, 0);
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
