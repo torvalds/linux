@@ -1407,21 +1407,26 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
  * amdgpu_ttm_tt_set_userptr - Initialize userptr GTT ttm_tt for the current
  * task
  *
- * @ttm: The ttm_tt object to bind this userptr object to
+ * @bo: The ttm_buffer_object to bind this userptr to
  * @addr:  The address in the current tasks VM space to use
  * @flags: Requirements of userptr object.
  *
  * Called by amdgpu_gem_userptr_ioctl() to bind userptr pages
  * to current task
  */
-int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
-			      uint32_t flags)
+int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
+			      uint64_t addr, uint32_t flags)
 {
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	struct amdgpu_ttm_tt *gtt;
 
-	if (gtt == NULL)
-		return -EINVAL;
+	if (!bo->ttm) {
+		/* TODO: We want a separate TTM object type for userptrs */
+		bo->ttm = amdgpu_ttm_tt_create(bo, 0);
+		if (bo->ttm == NULL)
+			return -ENOMEM;
+	}
 
+	gtt = (void*)bo->ttm;
 	gtt->userptr = addr;
 	gtt->userflags = flags;
 

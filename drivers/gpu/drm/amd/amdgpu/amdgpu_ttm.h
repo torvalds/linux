@@ -132,8 +132,8 @@ static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 #endif
 
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
-int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
-				     uint32_t flags);
+int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
+			      uint64_t addr, uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
 struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
 bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
