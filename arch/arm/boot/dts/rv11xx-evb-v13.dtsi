@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv11xx-evb-v12.dtsi"
+
+&backlight {
+	pwms = <&pwm0 0 25000 0>;
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "disabled";
+};
+
+&u2phy0 {
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+};
