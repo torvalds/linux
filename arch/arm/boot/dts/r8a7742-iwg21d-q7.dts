@@ -131,6 +131,10 @@
 	};
 };
 
+&cmt0 {
+	status = "okay";
+};
+
 &hsusb {
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
