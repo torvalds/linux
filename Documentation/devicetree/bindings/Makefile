@@ -11,12 +11,11 @@ check_dtschema_version:
 	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -VC || \
 	{ echo "ERROR: dtschema minimum version is v$(DT_SCHEMA_MIN_VERSION)" >&2; false; }
 
-quiet_cmd_chk_binding = CHKDT   $(patsubst $(srctree)/%,%,$<)
-      cmd_chk_binding = $(DT_DOC_CHECKER) -u $(srctree)/$(src) $< ; \
-                        $(DT_EXTRACT_EX) $< > $@
+quiet_cmd_extract_ex = DTEX    $@
+      cmd_extract_ex = $(DT_EXTRACT_EX) $< > $@
 
 $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
-	$(call if_changed,chk_binding)
+	$(call if_changed,extract_ex)
 
 # Use full schemas when checking %.example.dts
 DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
@@ -24,6 +23,10 @@ DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
 find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' ! \
 		-name '*.example.dt.yaml' \)
+
+quiet_cmd_chk_bindings = CHKDT   $@
+      cmd_chk_bindings = $(find_cmd) | \
+                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)
 
 quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
@@ -33,6 +36,11 @@ quiet_cmd_mk_schema = SCHEMA  $@
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f
 
+define rule_chkdt
+	$(call cmd,chk_bindings)
+	$(call cmd,mk_schema)
+endef
+
 DT_DOCS = $(shell $(find_cmd) | sed -e 's|^$(srctree)/||')
 
 override DTC_FLAGS := \
@@ -41,7 +49,7 @@ override DTC_FLAGS := \
 	-Wno-interrupt_provider
 
 $(obj)/processed-schema-examples.json: $(DT_DOCS) check_dtschema_version FORCE
-	$(call if_changed,mk_schema)
+	$(call if_changed_rule,chkdt)
 
 ifeq ($(DT_SCHEMA_FILES),)
 
@@ -63,10 +71,10 @@ $(obj)/processed-schema.json: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
 
 endif
 
-extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
 extra-$(CHECK_DT_BINDING) += processed-schema-examples.json
 extra-$(CHECK_DTBS) += processed-schema.json
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
