@@ -70,8 +70,7 @@ static int s3c_pm_enter(suspend_state_t state)
 {
 	int ret;
 	/* ensure the debug is initialised (if enabled) */
-
-	s3c_pm_debug_init();
+	s3c_pm_debug_init_uart();
 
 	S3C_PMDBG("%s(%d)\n", __func__, state);
 
@@ -144,7 +143,7 @@ static int s3c_pm_enter(suspend_state_t state)
 		s3c_pm_restored_gpios();
 	}
 
-	s3c_pm_debug_init();
+	s3c_pm_debug_init_uart();
 
 	/* check what irq (if any) restored the system */
 

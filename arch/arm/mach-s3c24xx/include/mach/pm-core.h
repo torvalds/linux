@@ -15,6 +15,7 @@
 
 static inline void s3c_pm_debug_init_uart(void)
 {
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
 	unsigned long tmp = __raw_readl(S3C2410_CLKCON);
 
 	/* re-start uart clocks */
@@ -24,6 +25,7 @@ static inline void s3c_pm_debug_init_uart(void)
 
 	__raw_writel(tmp, S3C2410_CLKCON);
 	udelay(10);
+#endif
 }
 
 static inline void s3c_pm_arch_prepare_irqs(void)

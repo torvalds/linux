@@ -69,22 +69,12 @@ struct pm_uart_save {
  */
 extern void s3c_pm_dbg(const char *msg, ...);
 
-/**
- * s3c_pm_debug_init() - suspend/resume low level debug initialization.
- * @base: Virtual base of UART to use for suspend/resume debugging.
- *
- * This function needs to be called before S3C_PMDBG() can be used, to set up
- * UART port base address and configuration.
- */
-extern void s3c_pm_debug_init(void);
-
 #define S3C_PMDBG(fmt...) s3c_pm_dbg(fmt)
 
 extern void s3c_pm_save_uarts(void);
 extern void s3c_pm_restore_uarts(void);
 #else
 #define S3C_PMDBG(fmt...) pr_debug(fmt)
-#define s3c_pm_debug_init() do { } while (0)
 
 static inline void s3c_pm_save_uarts(void) { }
 static inline void s3c_pm_restore_uarts(void) { }

@@ -20,6 +20,7 @@
 
 static inline void s3c_pm_debug_init_uart(void)
 {
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
 	u32 tmp = __raw_readl(S3C_PCLK_GATE);
 
 	/* As a note, since the S3C64XX UARTs generally have multiple
@@ -35,6 +36,7 @@ static inline void s3c_pm_debug_init_uart(void)
 
 	__raw_writel(tmp, S3C_PCLK_GATE);
 	udelay(10);
+#endif
 }
 
 static inline void s3c_pm_arch_prepare_irqs(void)

@@ -99,8 +99,6 @@ static int s5pv210_suspend_enter(suspend_state_t state)
 	u32 eint_wakeup_mask = s5pv210_read_eint_wakeup_mask();
 	int ret;
 
-	s3c_pm_debug_init();
-
 	S3C_PMDBG("%s: suspending the system...\n", __func__);
 
 	S3C_PMDBG("%s: wakeup masks: %08x,%08x\n", __func__,
