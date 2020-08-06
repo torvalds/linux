@@ -2082,7 +2082,7 @@ static int vega20_get_metrics_table(struct pp_hwmgr *hwmgr,
 
 	if (bypass_cache ||
 	    !data->metrics_time ||
-	    time_after(jiffies, data->metrics_time + HZ / 2)) {
+	    time_after(jiffies, data->metrics_time + msecs_to_jiffies(1))) {
 		ret = smum_smc_table_manager(hwmgr,
 					     (uint8_t *)(&data->metrics_table),
 					     TABLE_SMU_METRICS,
