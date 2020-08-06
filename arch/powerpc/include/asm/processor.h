@@ -436,8 +436,6 @@ extern void power9_idle_type(unsigned long stop_psscr_val,
 			      unsigned long stop_psscr_mask);
 
 extern void flush_instruction_cache(void);
-extern void hard_reset_now(void);
-extern void poweroff_now(void);
 extern int fix_alignment(struct pt_regs *);
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 
