@@ -362,10 +362,15 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
 				  amdgpu_reset_method);
 
-	if (smu_baco_is_support(smu))
-		return AMD_RESET_METHOD_BACO;
-	else
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
 		return AMD_RESET_METHOD_MODE1;
+	default:
+		if (smu_baco_is_support(smu))
+			return AMD_RESET_METHOD_BACO;
+		else
+			return AMD_RESET_METHOD_MODE1;
+	}
 }
 
 static int nv_asic_reset(struct amdgpu_device *adev)
