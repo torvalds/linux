@@ -556,6 +556,7 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
 	struct edid *edid;
+	struct drm_display_info *info = &connector->display_info;
 	int ret = 0;
 
 	if (!hdmi->ddc)
@@ -568,6 +569,15 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
+	} else {
+		hdmi->hdmi_data.sink_is_hdmi = true;
+		hdmi->hdmi_data.sink_has_audio = true;
+		ret = rockchip_drm_add_modes_noedid(connector);
+		info->edid_hdmi_dc_modes = 0;
+		info->hdmi.y420_dc_modes = 0;
+		info->color_formats = 0;
+
+		dev_info(hdmi->dev, "failed to get edid\n");
 	}
 
 	return ret;
