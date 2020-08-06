@@ -147,7 +147,6 @@ config FSL_IFC
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"
-	default y
 	depends on MIPS || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	help

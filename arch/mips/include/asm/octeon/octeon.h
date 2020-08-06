@@ -198,7 +198,7 @@ union octeon_cvmemctl {
 		 * CvmMemCtl[DIDTTO] */
 		__BITFIELD_FIELD(uint64_t didtto2:1,
 		/* R/W If set, marked write-buffer entries time out
-		 * the same as as other entries; if clear, marked
+		 * the same as other entries; if clear, marked
 		 * write-buffer entries use the maximum timeout. */
 		__BITFIELD_FIELD(uint64_t dismarkwblongto:1,
 		/* R/W If set, a merged store does not clear the

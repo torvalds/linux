@@ -111,6 +111,12 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	move		t2, a1
 	beq		a0, t1, dtb_found
 
+#ifdef CONFIG_BUILTIN_DTB
+	PTR_LA	t2, __dtb_start
+	PTR_LA	t1, __dtb_end
+	bne		t1, t2, dtb_found
+#endif /* CONFIG_BUILTIN_DTB */
+
 	li		t2, 0
 dtb_found:
 #endif /* CONFIG_USE_OF */

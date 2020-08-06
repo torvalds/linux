@@ -129,7 +129,7 @@ static inline unsigned int kvm_vz_config5_guest_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config6_guest_wrmask(struct kvm_vcpu *vcpu)
 {
-	return MIPS_CONF6_LOONGSON_INTIMER | MIPS_CONF6_LOONGSON_EXTIMER;
+	return LOONGSON_CONF6_INTIMER | LOONGSON_CONF6_EXTIMER;
 }
 
 /*
@@ -189,7 +189,7 @@ static inline unsigned int kvm_vz_config5_user_wrmask(struct kvm_vcpu *vcpu)
 static inline unsigned int kvm_vz_config6_user_wrmask(struct kvm_vcpu *vcpu)
 {
 	return kvm_vz_config6_guest_wrmask(vcpu) |
-		MIPS_CONF6_LOONGSON_SFBEN | MIPS_CONF6_LOONGSON_FTLBDIS;
+		LOONGSON_CONF6_SFBEN | LOONGSON_CONF6_FTLBDIS;
 }
 
 static gpa_t kvm_vz_gva_to_gpa_cb(gva_t gva)

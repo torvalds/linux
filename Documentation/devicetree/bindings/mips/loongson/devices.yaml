@@ -17,11 +17,23 @@ properties:
   compatible:
     oneOf:
 
-      - description: Generic Loongson3 Quad Core + RS780E
+      - description: Classic Loongson64 Quad Core + LS7A
         items:
-          - const: loongson,loongson3-4core-rs780e
+          - const: loongson,loongson64c-4core-ls7a
 
-      - description: Generic Loongson3 Octa Core + RS780E
+      - description: Classic Loongson64 Quad Core + RS780E
         items:
-          - const: loongson,loongson3-8core-rs780e
+          - const: loongson,loongson64c-4core-rs780e
+
+      - description: Classic Loongson64 Octa Core + RS780E
+        items:
+          - const: loongson,loongson64c-8core-rs780e
+
+      - description: Generic Loongson64 Quad Core + LS7A
+        items:
+          - const: loongson,loongson64g-4core-ls7a
+
+      - description: Virtual Loongson64 Quad Core + VirtIO
+        items:
+          - const: loongson,loongson64v-4core-virtio
 ...

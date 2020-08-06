@@ -2,17 +2,17 @@
 
 /dts-v1/;
 
-#include "loongson3-package.dtsi"
+#include "loongson64c-package.dtsi"
 #include "rs780e-pch.dtsi"
 
 / {
-	compatible = "loongson,loongson3-8core-rs780e";
+	compatible = "loongson,loongson64c-4core-rs780e";
 };
 
 &package0 {
-	htpic: interrupt-controller@1efdfb000080 {
+	htpic: interrupt-controller@efdfb000080 {
 		compatible = "loongson,htpic-1.0";
-		reg = <0x1efd 0xfb000080 0x40>;
+		reg = <0xefd 0xfb000080 0x40>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 
