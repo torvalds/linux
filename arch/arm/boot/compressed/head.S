@@ -298,7 +298,7 @@ restart:	adr	r0, LC1
 
 #ifndef CONFIG_ZBOOT_ROM
 		/* malloc space is above the relocated stack (64k max) */
-		add	r10, sp, #0x10000
+		add	r10, sp, #MALLOC_SIZE
 #else
 		/*
 		 * With ZBOOT_ROM the bss/stack is non relocatable,
@@ -610,7 +610,7 @@ not_relocated:	mov	r0, #0
  */
 		mov	r0, r4
 		mov	r1, sp			@ malloc space above stack
-		add	r2, sp, #0x10000	@ 64k max
+		add	r2, sp, #MALLOC_SIZE	@ 64k max
 		mov	r3, r7
 		bl	decompress_kernel
 
