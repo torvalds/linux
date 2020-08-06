@@ -28,7 +28,6 @@
 #include <asm/mach/irq.h>
 
 #include <asm/setup.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

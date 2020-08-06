@@ -22,7 +22,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>

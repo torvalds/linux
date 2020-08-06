@@ -19,7 +19,6 @@
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>

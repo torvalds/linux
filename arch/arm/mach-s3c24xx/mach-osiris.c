@@ -41,7 +41,6 @@
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
 
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>

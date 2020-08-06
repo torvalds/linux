@@ -37,7 +37,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/dma.h>
 #include <mach/irqs.h>
 #include <mach/map.h>
 

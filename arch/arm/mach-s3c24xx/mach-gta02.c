@@ -58,7 +58,6 @@
 #include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include <mach/fb.h>
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-irq.h>
 #include <mach/gpio-samsung.h>

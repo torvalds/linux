@@ -14,7 +14,6 @@
 #include <linux/rfkill.h>
 
 #include <plat/gpio-cfg.h>
-#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
 

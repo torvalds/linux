@@ -19,8 +19,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 
