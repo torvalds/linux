@@ -134,18 +134,3 @@ _GLOBAL(save_fpu)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r6)
 	blr
-
-/*
- * These are used in the alignment trap handler when emulating
- * single-precision loads and stores.
- */
-
-_GLOBAL(cvt_fd)
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,0(r3)
-	stfs	0,0(r4)
-	blr
