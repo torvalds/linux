@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x34
+#define SMU11_DRIVER_IF_VERSION 0x35
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 5
 
@@ -127,7 +127,7 @@
 #define FEATURE_DF_CSTATE_BIT           45
 #define FEATURE_2_STEP_PSTATE_BIT       46
 #define FEATURE_SMNCLK_DPM_BIT          47
-#define FEATURE_SPARE_48_BIT            48
+#define FEATURE_PERLINK_GMIDOWN_BIT     48
 #define FEATURE_GFX_EDC_BIT             49
 #define FEATURE_SPARE_50_BIT            50
 #define FEATURE_SPARE_51_BIT            51
@@ -169,7 +169,7 @@ typedef enum {
 #define DPM_OVERRIDE_DISABLE_DFLL_PLL_SHUTDOWN       0x00000200
 #define DPM_OVERRIDE_DISABLE_MEMORY_TEMPERATURE_READ 0x00000400
 #define DPM_OVERRIDE_DISABLE_VOLT_LINK_VCN_DCEFCLK   0x00000800
-#define DPM_OVERRIDE_DISABLE_FAST_FCLK_TIMER         0x00001000
+#define DPM_OVERRIDE_ENABLE_FAST_FCLK_TIMER          0x00001000
 #define DPM_OVERRIDE_DISABLE_VCN_PG                  0x00002000
 #define DPM_OVERRIDE_DISABLE_FMAX_VMAX               0x00004000
 
