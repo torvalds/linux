@@ -3338,8 +3338,8 @@ static int alloc_desc(struct slgt_info *info)
 	unsigned int pbufs;
 
 	/* allocate memory to hold descriptor lists */
-	info->bufs = pci_zalloc_consistent(info->pdev, DESC_LIST_SIZE,
-					   &info->bufs_dma_addr);
+	info->bufs = dma_alloc_coherent(&info->pdev->dev, DESC_LIST_SIZE,
+					&info->bufs_dma_addr, GFP_KERNEL);
 	if (info->bufs == NULL)
 		return -ENOMEM;
 
@@ -3381,7 +3381,8 @@ static int alloc_desc(struct slgt_info *info)
 static void free_desc(struct slgt_info *info)
 {
 	if (info->bufs != NULL) {
-		pci_free_consistent(info->pdev, DESC_LIST_SIZE, info->bufs, info->bufs_dma_addr);
+		dma_free_coherent(&info->pdev->dev, DESC_LIST_SIZE,
+				  info->bufs, info->bufs_dma_addr);
 		info->bufs  = NULL;
 		info->rbufs = NULL;
 		info->tbufs = NULL;
@@ -3392,7 +3393,9 @@ static int alloc_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count)
 {
 	int i;
 	for (i=0; i < count; i++) {
-		if ((bufs[i].buf = pci_alloc_consistent(info->pdev, DMABUFSIZE, &bufs[i].buf_dma_addr)) == NULL)
+		bufs[i].buf = dma_alloc_coherent(&info->pdev->dev, DMABUFSIZE,
+						 &bufs[i].buf_dma_addr, GFP_KERNEL);
+		if (!bufs[i].buf)
 			return -ENOMEM;
 		bufs[i].pbuf  = cpu_to_le32((unsigned int)bufs[i].buf_dma_addr);
 	}
@@ -3405,7 +3408,8 @@ static void free_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count)
 	for (i=0; i < count; i++) {
 		if (bufs[i].buf == NULL)
 			continue;
-		pci_free_consistent(info->pdev, DMABUFSIZE, bufs[i].buf, bufs[i].buf_dma_addr);
+		dma_free_coherent(&info->pdev->dev, DMABUFSIZE, bufs[i].buf,
+				  bufs[i].buf_dma_addr);
 		bufs[i].buf = NULL;
 	}
 }
