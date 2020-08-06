@@ -123,6 +123,8 @@ struct seccomp_data {
 #  define __NR_seccomp 277
 # elif defined(__riscv)
 #  define __NR_seccomp 277
+# elif defined(__csky__)
+#  define __NR_seccomp 277
 # elif defined(__hppa__)
 #  define __NR_seccomp 338
 # elif defined(__powerpc__)
@@ -1682,6 +1684,14 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define ARCH_REGS	struct user_regs_struct
 # define SYSCALL_NUM	a7
 # define SYSCALL_RET	a0
+#elif defined(__csky__)
+# define ARCH_REGS	struct pt_regs
+#if defined(__CSKYABIV2__)
+# define SYSCALL_NUM	regs[3]
+#else
+# define SYSCALL_NUM	regs[9]
+#endif
+# define SYSCALL_RET	a0
 #elif defined(__hppa__)
 # define ARCH_REGS	struct user_regs_struct
 # define SYSCALL_NUM	gr[20]
@@ -1781,7 +1791,7 @@ void change_syscall(struct __test_metadata *_metadata,
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
 	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
-	defined(__xtensa__)
+	defined(__xtensa__) || defined(__csky__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}
