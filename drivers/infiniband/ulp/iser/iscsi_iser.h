@@ -300,18 +300,6 @@ struct ib_conn;
 struct iscsi_iser_task;
 
 /**
- * struct iser_comp - iSER completion context
- *
- * @cq:         completion queue
- * @active_qps: Number of active QPs attached
- *              to completion context
- */
-struct iser_comp {
-	struct ib_cq		*cq;
-	int                      active_qps;
-};
-
-/**
  * struct iser_device - iSER device handle
  *
  * @ib_device:     RDMA device
@@ -320,9 +308,6 @@ struct iser_comp {
  * @event_handler: IB events handle routine
  * @ig_list:	   entry in devices list
  * @refcount:      Reference counter, dominated by open iser connections
- * @comps_used:    Number of completion contexts used, Min between online
- *                 cpus and device max completion vectors
- * @comps:         Dinamically allocated array of completion handlers
  */
 struct iser_device {
 	struct ib_device             *ib_device;
@@ -330,8 +315,6 @@ struct iser_device {
 	struct ib_event_handler      event_handler;
 	struct list_head             ig_list;
 	int                          refcount;
-	int			     comps_used;
-	struct iser_comp	     *comps;
 };
 
 /**
@@ -353,6 +336,7 @@ struct iser_reg_resources {
  * @list:           entry in connection fastreg pool
  * @rsc:            data buffer registration resources
  * @sig_protected:  is region protected indicator
+ * @all_list:       first and last list members
  */
 struct iser_fr_desc {
 	struct list_head		  list;
@@ -367,6 +351,7 @@ struct iser_fr_desc {
  * @list:                list of fastreg descriptors
  * @lock:                protects fastreg pool
  * @size:                size of the pool
+ * @all_list:            first and last list members
  */
 struct iser_fr_pool {
 	struct list_head        list;
@@ -380,11 +365,12 @@ struct iser_fr_pool {
  *
  * @cma_id:              rdma_cm connection maneger handle
  * @qp:                  Connection Queue-pair
+ * @cq:                  Connection completion queue
+ * @cq_size:             The number of max outstanding completions
  * @post_recv_buf_count: post receive counter
  * @sig_count:           send work request signal count
  * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
- * @comp:                iser completion context
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
  * @reg_cqe:             completion handler
@@ -392,11 +378,12 @@ struct iser_fr_pool {
 struct ib_conn {
 	struct rdma_cm_id           *cma_id;
 	struct ib_qp	            *qp;
+	struct ib_cq		    *cq;
+	u32			    cq_size;
 	int                          post_recv_buf_count;
 	u8                           sig_count;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
-	struct iser_comp	    *comp;
 	struct iser_fr_pool          fr_pool;
 	bool			     pi_support;
 	struct ib_cqe		     reg_cqe;
