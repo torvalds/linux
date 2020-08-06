@@ -22,6 +22,8 @@ properties:
     const: 0x2a
   interrupts:
     maxItems: 1
+  reset-gpios:
+    maxItems: 1
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-inverted-x: true

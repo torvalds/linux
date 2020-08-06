@@ -8,7 +8,9 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -29,6 +31,9 @@
 #define EXC3000_MT2_EVENT		0x18
 
 #define EXC3000_TIMEOUT_MS		100
+
+#define EXC3000_RESET_MS		10
+#define EXC3000_READY_MS		100
 
 static const struct i2c_device_id exc3000_id[];
 
@@ -63,6 +68,7 @@ struct exc3000_data {
 	const struct eeti_dev_info *info;
 	struct input_dev *input;
 	struct touchscreen_properties prop;
+	struct gpio_desc *reset;
 	struct timer_list timer;
 	u8 buf[2 * EXC3000_LEN_FRAME];
 };
@@ -203,6 +209,17 @@ static int exc3000_probe(struct i2c_client *client)
 		data->info = &exc3000_info[eeti_dev_id];
 	}
 	timer_setup(&data->timer, exc3000_timer, 0);
+
+	data->reset = devm_gpiod_get_optional(&client->dev, "reset",
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(data->reset))
+		return PTR_ERR(data->reset);
+
+	if (data->reset) {
+		msleep(EXC3000_RESET_MS);
+		gpiod_set_value_cansleep(data->reset, 0);
+		msleep(EXC3000_READY_MS);
+	}
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
