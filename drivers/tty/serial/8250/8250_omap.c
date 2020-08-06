@@ -1209,17 +1209,21 @@ MODULE_DEVICE_TABLE(of, omap8250_dt_ids);
 
 static int omap8250_probe(struct platform_device *pdev)
 {
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct device_node *np = pdev->dev.of_node;
 	struct omap8250_priv *priv;
 	const struct omap8250_platdata *pdata;
 	struct uart_8250_port up;
-	int ret;
+	struct resource *regs;
 	void __iomem *membase;
+	int irq, ret;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "missing registers or irq\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "missing registers\n");
 		return -EINVAL;
 	}
 
@@ -1236,7 +1240,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.dev = &pdev->dev;
 	up.port.mapbase = regs->start;
 	up.port.membase = membase;
-	up.port.irq = irq->start;
+	up.port.irq = irq;
 	/*
 	 * It claims to be 16C750 compatible however it is a little different.
 	 * It has EFR and has no FCR7_64byte bit. The AFE (which it claims to

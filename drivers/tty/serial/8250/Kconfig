@@ -222,7 +222,7 @@ config SERIAL_8250_MANY_PORTS
 	  Say Y here if you have dumb serial boards other than the four
 	  standard COM 1/2/3/4 ports. This may happen if you have an AST
 	  FourPort, Accent Async, Boca (read the Boca mini-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>), or other custom
+	  from <https://www.tldp.org/docs.html#howto>), or other custom
 	  serial port hardware which acts similar to standard serial port
 	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
 	  say N here to save some memory. You can also say Y if you have an
@@ -266,7 +266,7 @@ config SERIAL_8250_BOCA
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
 	help
 	  Say Y here if you have a Boca serial board.  Please read the Boca
-	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
+	  mini-HOWTO, available from <https://www.tldp.org/docs.html#howto>
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.

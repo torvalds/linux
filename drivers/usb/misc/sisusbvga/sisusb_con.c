@@ -302,14 +302,15 @@ sisusbcon_deinit(struct vc_data *c)
 
 /* interface routine */
 static u8
-sisusbcon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 unused)
+sisusbcon_build_attr(struct vc_data *c, u8 color, enum vc_intensity intensity,
+			    bool blink, bool underline, bool reverse,
+			    bool unused)
 {
 	u8 attr = color;
 
 	if (underline)
 		attr = (attr & 0xf0) | c->vc_ulcolor;
-	else if (intensity == 0)
+	else if (intensity == VCI_HALF_BRIGHT)
 		attr = (attr & 0xf0) | c->vc_halfcolor;
 
 	if (reverse)
@@ -320,7 +321,7 @@ sisusbcon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 	if (blink)
 		attr ^= 0x80;
 
-	if (intensity == 2)
+	if (intensity == VCI_BOLD)
 		attr ^= 0x08;
 
 	return attr;
@@ -726,7 +727,7 @@ sisusbcon_cursor(struct vc_data *c, int mode)
 
 	baseline = c->vc_font.height - (c->vc_font.height < 10 ? 1 : 2);
 
-	switch (c->vc_cursor_type & 0x0f) {
+	switch (CUR_SIZE(c->vc_cursor_type)) {
 		case CUR_BLOCK:		from = 1;
 					to   = c->vc_font.height;
 					break;
