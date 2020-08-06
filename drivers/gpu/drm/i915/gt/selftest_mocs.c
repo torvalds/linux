@@ -157,7 +157,7 @@ static int read_mocs_table(struct i915_request *rq,
 {
 	u32 addr;
 
-	if (HAS_GLOBAL_MOCS_REGISTERS(rq->i915))
+	if (HAS_GLOBAL_MOCS_REGISTERS(rq->engine->i915))
 		addr = global_mocs_offset();
 	else
 		addr = mocs_offset(rq->engine);

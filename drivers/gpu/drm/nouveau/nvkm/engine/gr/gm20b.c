@@ -175,7 +175,8 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
 
 static const struct gf100_gr_fwif
 gm20b_gr_fwif[] = {
-	{ 0, gm20b_gr_load, &gm20b_gr, &gm20b_gr_fecs_acr },
+	{  0, gm20b_gr_load, &gm20b_gr, &gm20b_gr_fecs_acr },
+	{ -1, gm200_gr_nofw },
 	{}
 };
 

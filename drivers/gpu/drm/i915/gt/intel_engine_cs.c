@@ -370,7 +370,7 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 		 * instances.
 		 */
 		if ((INTEL_GEN(i915) >= 11 &&
-		     RUNTIME_INFO(i915)->vdbox_sfc_access & engine->mask) ||
+		     engine->gt->info.vdbox_sfc_access & engine->mask) ||
 		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
@@ -414,11 +414,11 @@ void intel_engines_release(struct intel_gt *gt)
 
 	/* Decouple the backend; but keep the layout for late GPU resets */
 	for_each_engine(engine, gt, id) {
-		intel_wakeref_wait_for_idle(&engine->wakeref);
-		GEM_BUG_ON(intel_engine_pm_is_awake(engine));
-
 		if (!engine->release)
 			continue;
+
+		intel_wakeref_wait_for_idle(&engine->wakeref);
+		GEM_BUG_ON(intel_engine_pm_is_awake(engine));
 
 		engine->release(engine);
 		engine->release = NULL;
@@ -450,6 +450,80 @@ void intel_engines_free(struct intel_gt *gt)
 	}
 }
 
+/*
+ * Determine which engines are fused off in our particular hardware.
+ * Note that we have a catch-22 situation where we need to be able to access
+ * the blitter forcewake domain to read the engine fuses, but at the same time
+ * we need to know which engines are available on the system to know which
+ * forcewake domains are present. We solve this by intializing the forcewake
+ * domains based on the full engine mask in the platform capabilities before
+ * calling this function and pruning the domains for fused-off engines
+ * afterwards.
+ */
+static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_gt_info *info = &gt->info;
+	struct intel_uncore *uncore = gt->uncore;
+	unsigned int logical_vdbox = 0;
+	unsigned int i;
+	u32 media_fuse;
+	u16 vdbox_mask;
+	u16 vebox_mask;
+
+	info->engine_mask = INTEL_INFO(i915)->platform_engine_mask;
+
+	if (INTEL_GEN(i915) < 11)
+		return info->engine_mask;
+
+	media_fuse = ~intel_uncore_read(uncore, GEN11_GT_VEBOX_VDBOX_DISABLE);
+
+	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+		      GEN11_GT_VEBOX_DISABLE_SHIFT;
+
+	for (i = 0; i < I915_MAX_VCS; i++) {
+		if (!HAS_ENGINE(gt, _VCS(i))) {
+			vdbox_mask &= ~BIT(i);
+			continue;
+		}
+
+		if (!(BIT(i) & vdbox_mask)) {
+			info->engine_mask &= ~BIT(_VCS(i));
+			drm_dbg(&i915->drm, "vcs%u fused off\n", i);
+			continue;
+		}
+
+		/*
+		 * In Gen11, only even numbered logical VDBOXes are
+		 * hooked up to an SFC (Scaler & Format Converter) unit.
+		 * In TGL each VDBOX has access to an SFC.
+		 */
+		if (INTEL_GEN(i915) >= 12 || logical_vdbox++ % 2 == 0)
+			gt->info.vdbox_sfc_access |= BIT(i);
+	}
+	drm_dbg(&i915->drm, "vdbox enable: %04x, instances: %04lx\n",
+		vdbox_mask, VDBOX_MASK(gt));
+	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(gt));
+
+	for (i = 0; i < I915_MAX_VECS; i++) {
+		if (!HAS_ENGINE(gt, _VECS(i))) {
+			vebox_mask &= ~BIT(i);
+			continue;
+		}
+
+		if (!(BIT(i) & vebox_mask)) {
+			info->engine_mask &= ~BIT(_VECS(i));
+			drm_dbg(&i915->drm, "vecs%u fused off\n", i);
+		}
+	}
+	drm_dbg(&i915->drm, "vebox enable: %04x, instances: %04lx\n",
+		vebox_mask, VEBOX_MASK(gt));
+	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
+
+	return info->engine_mask;
+}
+
 /**
  * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
  * @gt: pointer to struct intel_gt
@@ -459,8 +533,7 @@ void intel_engines_free(struct intel_gt *gt)
 int intel_engines_init_mmio(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_device_info *device_info = mkwrite_device_info(i915);
-	const unsigned int engine_mask = INTEL_INFO(i915)->engine_mask;
+	const unsigned int engine_mask = init_engine_mask(gt);
 	unsigned int mask = 0;
 	unsigned int i;
 	int err;
@@ -473,7 +546,7 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
-		if (!HAS_ENGINE(i915, i))
+		if (!HAS_ENGINE(gt, i))
 			continue;
 
 		err = intel_engine_setup(gt, i);
@@ -489,13 +562,15 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	 * engines.
 	 */
 	if (drm_WARN_ON(&i915->drm, mask != engine_mask))
-		device_info->engine_mask = mask;
+		gt->info.engine_mask = mask;
 
-	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
+	gt->info.num_engines = hweight32(mask);
 
 	intel_gt_check_and_clear_faults(gt);
 
 	intel_setup_engine_capabilities(gt);
+
+	intel_uncore_prune_engine_fw_domains(gt->uncore, gt);
 
 	return 0;
 
@@ -634,7 +709,7 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 
 	/* Use the whole device by default */
 	engine->sseu =
-		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
+		intel_sseu_from_device_info(&engine->gt->info.sseu);
 
 	intel_engine_init_workarounds(engine);
 	intel_engine_init_whitelist(engine);
@@ -661,7 +736,6 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 	if (!frame)
 		return -ENOMEM;
 
-	frame->rq.i915 = engine->i915;
 	frame->rq.engine = engine;
 	frame->rq.context = ce;
 	rcu_assign_pointer(frame->rq.timeline, ce->timeline);
@@ -1001,7 +1075,7 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	const struct sseu_dev_info *sseu = &engine->gt->info.sseu;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -1095,19 +1169,21 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
 
-	if (__tasklet_is_scheduled(t)) {
-		local_bh_disable();
-		if (tasklet_trylock(t)) {
-			/* Must wait for any GPU reset in progress. */
-			if (__tasklet_is_enabled(t))
-				t->func(t->data);
-			tasklet_unlock(t);
-		}
-		local_bh_enable();
-	}
+	if (!t->func)
+		return;
 
-	/* Otherwise flush the tasklet if it was running on another cpu */
-	tasklet_unlock_wait(t);
+	/* Synchronise and wait for the tasklet on another CPU */
+	tasklet_kill(t);
+
+	/* Having cancelled the tasklet, ensure that is run */
+	local_bh_disable();
+	if (tasklet_trylock(t)) {
+		/* Must wait for any GPU reset in progress. */
+		if (__tasklet_is_enabled(t))
+			t->func(t->data);
+		tasklet_unlock(t);
+	}
+	local_bh_enable();
 }
 
 /**
@@ -1194,8 +1270,7 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	}
 }
 
-static int print_sched_attr(struct drm_i915_private *i915,
-			    const struct i915_sched_attr *attr,
+static int print_sched_attr(const struct i915_sched_attr *attr,
 			    char *buf, int x, int len)
 {
 	if (attr->priority == I915_PRIORITY_INVALID)
@@ -1215,7 +1290,7 @@ static void print_request(struct drm_printer *m,
 	char buf[80] = "";
 	int x = 0;
 
-	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));
+	x = print_sched_attr(&rq->sched.attr, buf, x, sizeof(buf));
 
 	drm_printf(m, "%s %llx:%llx%s%s %s @ %dms: %s\n",
 		   prefix,
@@ -1423,9 +1498,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tActive[%d]:  ccid:%08x, ",
+					"\t\tActive[%d]:  ccid:%08x%s%s, ",
 					(int)(port - execlists->active),
-					rq->context->lrc.ccid);
+					rq->context->lrc.ccid,
+					intel_context_is_closed(rq->context) ? "!" : "",
+					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
@@ -1435,9 +1512,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tPending[%d]: ccid:%08x, ",
+					"\t\tPending[%d]: ccid:%08x%s%s, ",
 					(int)(port - execlists->pending),
-					rq->context->lrc.ccid);
+					rq->context->lrc.ccid,
+					intel_context_is_closed(rq->context) ? "!" : "",
+					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
@@ -1506,6 +1585,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
+	ktime_t dummy;
 
 	if (header) {
 		va_list ap;
@@ -1523,6 +1603,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		   yesno(!llist_empty(&engine->barrier_tasks)));
 	drm_printf(m, "\tLatency: %luus\n",
 		   ewma__engine_latency_read(&engine->latency));
+	if (intel_engine_supports_stats(engine))
+		drm_printf(m, "\tRuntime: %llums\n",
+			   ktime_to_ms(intel_engine_get_busy_time(engine,
+								  &dummy)));
+	drm_printf(m, "\tForcewake: %x domains, %d active\n",
+		   engine->fw_domain, atomic_read(&engine->fw_active));
 
 	rcu_read_lock();
 	rq = READ_ONCE(engine->heartbeat.systole);
@@ -1589,7 +1675,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	intel_engine_print_breadcrumbs(engine, m);
 }
 
-static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
+static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine,
+					    ktime_t *now)
 {
 	ktime_t total = engine->stats.total;
 
@@ -1597,9 +1684,9 @@ static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
 	 * If the engine is executing something at the moment
 	 * add it to the total.
 	 */
+	*now = ktime_get();
 	if (atomic_read(&engine->stats.active))
-		total = ktime_add(total,
-				  ktime_sub(ktime_get(), engine->stats.start));
+		total = ktime_add(total, ktime_sub(*now, engine->stats.start));
 
 	return total;
 }
@@ -1607,17 +1694,18 @@ static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
 /**
  * intel_engine_get_busy_time() - Return current accumulated engine busyness
  * @engine: engine to report on
+ * @now: monotonic timestamp of sampling
  *
  * Returns accumulated time @engine was busy since engine stats were enabled.
  */
-ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine)
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine, ktime_t *now)
 {
 	unsigned int seq;
 	ktime_t total;
 
 	do {
 		seq = read_seqbegin(&engine->stats.lock);
-		total = __intel_engine_get_busy_time(engine);
+		total = __intel_engine_get_busy_time(engine, now);
 	} while (read_seqretry(&engine->stats.lock, seq));
 
 	return total;

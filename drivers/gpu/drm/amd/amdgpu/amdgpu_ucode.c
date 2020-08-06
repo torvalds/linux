@@ -279,6 +279,30 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			DRM_DEBUG("kdb_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_2->kdb_size_bytes));
 		}
+		if (version_minor == 3) {
+			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
+				container_of(psp_hdr, struct psp_firmware_header_v1_1, v1_0);
+			const struct psp_firmware_header_v1_3 *psp_hdr_v1_3 =
+				container_of(psp_hdr_v1_1, struct psp_firmware_header_v1_3, v1_1);
+			DRM_DEBUG("toc_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_header_version));
+			DRM_DEBUG("toc_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_offset_bytes));
+			DRM_DEBUG("toc_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_size_bytes));
+			DRM_DEBUG("kdb_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_header_version));
+			DRM_DEBUG("kdb_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_offset_bytes));
+			DRM_DEBUG("kdb_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_size_bytes));
+			DRM_DEBUG("spl_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_header_version));
+			DRM_DEBUG("spl_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_offset_bytes));
+			DRM_DEBUG("spl_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_3->spl_size_bytes));
+		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
 			  version_major, version_minor);
@@ -365,11 +389,12 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
-
 	default:
 		DRM_ERROR("Unknown firmware load type\n");
 	}
@@ -448,6 +473,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	const struct gfx_firmware_header_v1_0 *cp_hdr = NULL;
 	const struct dmcu_firmware_header_v1_0 *dmcu_hdr = NULL;
 	const struct dmcub_firmware_header_v1_0 *dmcub_hdr = NULL;
+	const struct mes_firmware_header_v1_0 *mes_hdr = NULL;
 
 	if (NULL == ucode->fw)
 		return 0;
@@ -462,12 +488,15 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
 	dmcu_hdr = (const struct dmcu_firmware_header_v1_0 *)ucode->fw->data;
 	dmcub_hdr = (const struct dmcub_firmware_header_v1_0 *)ucode->fw->data;
+	mes_hdr = (const struct mes_firmware_header_v1_0 *)ucode->fw->data;
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP ||
 	    (ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC1 &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC2 &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC1_JT &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC2_JT &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MES &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MES_DATA &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM &&
@@ -526,6 +555,16 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
 		ucode->ucode_size = adev->gfx.rlc.save_restore_list_srm_size_bytes;
 		memcpy(ucode->kaddr, adev->gfx.rlc.save_restore_list_srm,
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MES) {
+		ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
+		memcpy(ucode->kaddr, (void *)((uint8_t *)adev->mes.fw->data +
+			      le32_to_cpu(mes_hdr->mes_ucode_offset_bytes)),
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MES_DATA) {
+		ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_data_size_bytes);
+		memcpy(ucode->kaddr, (void *)((uint8_t *)adev->mes.fw->data +
+			      le32_to_cpu(mes_hdr->mes_ucode_data_offset_bytes)),
 		       ucode->ucode_size);
 	}
 

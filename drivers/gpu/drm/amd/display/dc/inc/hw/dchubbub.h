@@ -31,6 +31,9 @@ enum dcc_control {
 	dcc_control__256_256_xxx,
 	dcc_control__128_128_xxx,
 	dcc_control__256_64_64,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	dcc_control__256_128_128,
+#endif
 };
 
 enum segment_order {
@@ -62,6 +65,9 @@ enum dcn_hubbub_page_table_depth {
 enum dcn_hubbub_page_table_block_size {
 	DCN_PAGE_TABLE_BLOCK_SIZE_4KB = 0,
 	DCN_PAGE_TABLE_BLOCK_SIZE_64KB = 4,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	DCN_PAGE_TABLE_BLOCK_SIZE_32KB = 3
+#endif
 };
 
 struct dcn_hubbub_phys_addr_config {

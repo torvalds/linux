@@ -53,7 +53,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
 			  struct lock_class_key *key)
 {
-	__mutex_init(&obj->mm.lock, "obj->mm.lock", key);
+	__mutex_init(&obj->mm.lock, ops->name ?: "obj->mm.lock", key);
 
 	spin_lock_init(&obj->vma.lock);
 	INIT_LIST_HEAD(&obj->vma.list);
@@ -61,6 +61,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->mm.link);
 
 	INIT_LIST_HEAD(&obj->lut_list);
+	spin_lock_init(&obj->lut_lock);
 
 	spin_lock_init(&obj->mmo.lock);
 	obj->mmo.offsets = RB_ROOT;
@@ -72,6 +73,10 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);
 	mutex_init(&obj->mm.get_page.lock);
+
+	if (IS_ENABLED(CONFIG_LOCKDEP) && i915_gem_object_is_shrinkable(obj))
+		i915_gem_shrinker_taints_mutex(to_i915(obj->base.dev),
+					       &obj->mm.lock);
 }
 
 /**
@@ -100,21 +105,29 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
+	struct i915_lut_handle bookmark = {};
 	struct i915_mmap_offset *mmo, *mn;
 	struct i915_lut_handle *lut, *ln;
 	LIST_HEAD(close);
 
-	i915_gem_object_lock(obj);
+	spin_lock(&obj->lut_lock);
 	list_for_each_entry_safe(lut, ln, &obj->lut_list, obj_link) {
 		struct i915_gem_context *ctx = lut->ctx;
 
-		if (ctx->file_priv != fpriv)
-			continue;
+		if (ctx && ctx->file_priv == fpriv) {
+			i915_gem_context_get(ctx);
+			list_move(&lut->obj_link, &close);
+		}
 
-		i915_gem_context_get(ctx);
-		list_move(&lut->obj_link, &close);
+		/* Break long locks, and carefully continue on from this spot */
+		if (&ln->obj_link != &obj->lut_list) {
+			list_add_tail(&bookmark.obj_link, &ln->obj_link);
+			if (cond_resched_lock(&obj->lut_lock))
+				list_safe_reset_next(&bookmark, ln, obj_link);
+			__list_del_entry(&bookmark.obj_link);
+		}
 	}
-	i915_gem_object_unlock(obj);
+	spin_unlock(&obj->lut_lock);
 
 	spin_lock(&obj->mmo.lock);
 	rbtree_postorder_for_each_entry_safe(mmo, mn, &obj->mmo.offsets, offset)
@@ -130,14 +143,14 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		 * vma, in the same fd namespace, by virtue of flink/open.
 		 */
 
-		mutex_lock(&ctx->mutex);
+		mutex_lock(&ctx->lut_mutex);
 		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
 		if (vma) {
 			GEM_BUG_ON(vma->obj != obj);
 			GEM_BUG_ON(!atomic_read(&vma->open_count));
 			i915_vma_close(vma);
 		}
-		mutex_unlock(&ctx->mutex);
+		mutex_unlock(&ctx->lut_mutex);
 
 		i915_gem_context_put(lut->ctx);
 		i915_lut_handle_free(lut);
@@ -158,14 +171,35 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 	atomic_dec(&i915->mm.free_count);
 }
 
+static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
+{
+	/* Skip serialisation and waking the device if known to be not used. */
+
+	if (obj->userfault_count)
+		i915_gem_object_release_mmap_gtt(obj);
+
+	if (!RB_EMPTY_ROOT(&obj->mmo.offsets)) {
+		struct i915_mmap_offset *mmo, *mn;
+
+		i915_gem_object_release_mmap_offset(obj);
+
+		rbtree_postorder_for_each_entry_safe(mmo, mn,
+						     &obj->mmo.offsets,
+						     offset) {
+			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
+					      &mmo->vma_node);
+			kfree(mmo);
+		}
+		obj->mmo.offsets = RB_ROOT;
+	}
+}
+
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
 	struct drm_i915_gem_object *obj, *on;
 
 	llist_for_each_entry_safe(obj, on, freed, freed) {
-		struct i915_mmap_offset *mmo, *mn;
-
 		trace_i915_gem_object_destroy(obj);
 
 		if (!list_empty(&obj->vma.list)) {
@@ -191,18 +225,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			spin_unlock(&obj->vma.lock);
 		}
 
-		i915_gem_object_release_mmap(obj);
+		__i915_gem_object_free_mmaps(obj);
 
-		rbtree_postorder_for_each_entry_safe(mmo, mn,
-						     &obj->mmo.offsets,
-						     offset) {
-			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
-					      &mmo->vma_node);
-			kfree(mmo);
-		}
-		obj->mmo.offsets = RB_ROOT;
-
-		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
 		atomic_set(&obj->mm.pages_pin_count, 0);

@@ -217,7 +217,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab16(dst, src, fb, clip);
+			drm_fb_swab(dst, src, fb, clip, !import_attach);
 		else
 			drm_fb_memcpy(dst, src, fb, clip);
 		break;
@@ -225,9 +225,8 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		drm_fb_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
 		break;
 	default:
-		dev_err_once(fb->dev->dev, "Format is not supported: %s\n",
-			     drm_get_format_name(fb->format->format,
-						 &format_name));
+		drm_err_once(fb->dev, "Format is not supported: %s\n",
+			     drm_get_format_name(fb->format->format, &format_name));
 		return -EINVAL;
 	}
 
@@ -268,7 +267,7 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool full;
 	void *tr;
 
-	if (!dbidev->enabled)
+	if (WARN_ON(!fb))
 		return;
 
 	if (!drm_dev_enter(fb->dev, &idx))
@@ -295,7 +294,7 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 				   width * height * 2);
 err_msg:
 	if (ret)
-		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+		drm_err_once(fb->dev, "Failed to update display %d\n", ret);
 
 	drm_dev_exit(idx);
 }
@@ -314,6 +313,9 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
 
+	if (!pipe->crtc.state->active)
+		return;
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		mipi_dbi_fb_dirty(state->fb, &rect);
 }
@@ -325,9 +327,8 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
  * @crtc_state: CRTC state
  * @plane_state: Plane state
  *
- * This function sets &mipi_dbi->enabled, flushes the whole framebuffer and
- * enables the backlight. Drivers can use this in their
- * &drm_simple_display_pipe_funcs->enable callback.
+ * Flushes the whole framebuffer and enables the backlight. Drivers can use this
+ * in their &drm_simple_display_pipe_funcs->enable callback.
  *
  * Note: Drivers which don't use mipi_dbi_pipe_update() because they have custom
  * framebuffer flushing, can't use this function since they both use the same
@@ -349,7 +350,6 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	dbidev->enabled = true;
 	mipi_dbi_fb_dirty(fb, &rect);
 	backlight_enable(dbidev->backlight);
 
@@ -390,12 +390,7 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
-	if (!dbidev->enabled)
-		return;
-
 	DRM_DEBUG_KMS("\n");
-
-	dbidev->enabled = false;
 
 	if (dbidev->backlight)
 		backlight_disable(dbidev->backlight);

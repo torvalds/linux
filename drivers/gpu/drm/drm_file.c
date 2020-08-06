@@ -253,8 +253,8 @@ void drm_file_free(struct drm_file *file)
 
 	dev = file->minor->dev;
 
-	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
-		  task_pid_nr(current),
+	DRM_DEBUG("comm=\"%s\", pid=%d, dev=0x%lx, open_count=%d\n",
+		  current->comm, task_pid_nr(current),
 		  (long)old_encode_dev(file->minor->kdev->devt),
 		  atomic_read(&dev->open_count));
 
@@ -342,10 +342,12 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 		return -EBUSY;	/* No exclusive opens */
 	if (!drm_cpu_valid())
 		return -EINVAL;
-	if (dev->switch_power_state != DRM_SWITCH_POWER_ON && dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON &&
+	    dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
+	DRM_DEBUG("comm=\"%s\", pid=%d, minor=%d\n", current->comm,
+		  task_pid_nr(current), minor->index);
 
 	priv = drm_file_alloc(minor);
 	if (IS_ERR(priv))
@@ -373,6 +375,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	 */
 	if (!dev->hose) {
 		struct pci_dev *pci_dev;
+
 		pci_dev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
 		if (pci_dev) {
 			dev->hose = pci_dev->sysdata;
@@ -756,6 +759,7 @@ void drm_event_cancel_free(struct drm_device *dev,
 			   struct drm_pending_event *p)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (p->file_priv) {
 		p->file_priv->event_space += p->event->length;

@@ -507,7 +507,7 @@ static struct drm_driver driver = {
 	.irq_uninstall = psb_irq_uninstall,
 	.irq_handler = psb_irq_handler,
 
-	.gem_free_object = psb_gem_free_object,
+	.gem_free_object_unlocked = psb_gem_free_object,
 	.gem_vm_ops = &psb_gem_vm_ops,
 
 	.dumb_create = psb_gem_dumb_create,

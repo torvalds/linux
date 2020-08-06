@@ -44,15 +44,7 @@
 #include <nvif/class.h>
 #include <nvif/cl0046.h>
 #include <nvif/event.h>
-
-static int
-nouveau_display_vblank_handler(struct nvif_notify *notify)
-{
-	struct nouveau_crtc *nv_crtc =
-		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_crtc_handle_vblank(&nv_crtc->base);
-	return NVIF_NOTIFY_KEEP;
-}
+#include <dispnv50/crc.h>
 
 int
 nouveau_display_vblank_enable(struct drm_crtc *crtc)
@@ -134,50 +126,6 @@ nouveau_display_scanoutpos(struct drm_crtc *crtc,
 {
 	return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
 					       stime, etime);
-}
-
-static void
-nouveau_display_vblank_fini(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		nvif_notify_fini(&nv_crtc->vblank);
-	}
-}
-
-static int
-nouveau_display_vblank_init(struct drm_device *dev)
-{
-	struct nouveau_display *disp = nouveau_display(dev);
-	struct drm_crtc *crtc;
-	int ret;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nvif_notify_init(&disp->disp.object,
-				       nouveau_display_vblank_handler, false,
-				       NV04_DISP_NTFY_VBLANK,
-				       &(struct nvif_notify_head_req_v0) {
-					.head = nv_crtc->index,
-				       },
-				       sizeof(struct nvif_notify_head_req_v0),
-				       sizeof(struct nvif_notify_head_rep_v0),
-				       &nv_crtc->vblank);
-		if (ret) {
-			nouveau_display_vblank_fini(dev);
-			return ret;
-		}
-	}
-
-	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
-	if (ret) {
-		nouveau_display_vblank_fini(dev);
-		return ret;
-	}
-
-	return 0;
 }
 
 static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
@@ -449,7 +397,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	if (ret == 0)
 		return fb;
 
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 	return ERR_PTR(ret);
 }
 
@@ -710,7 +658,8 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
-		ret = nvif_disp_ctor(&drm->client.device, 0, &disp->disp);
+		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0,
+				     &disp->disp);
 		if (ret == 0) {
 			nouveau_display_create_properties(dev);
 			if (disp->disp.object.oclass < NV50_DISP)
@@ -728,9 +677,12 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	if (dev->mode_config.num_crtc) {
-		ret = nouveau_display_vblank_init(dev);
+		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 		if (ret)
 			goto vblank_err;
+
+		if (disp->disp.object.oclass >= NV50_DISP)
+			nv50_crc_init(dev);
 	}
 
 	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
@@ -757,7 +709,6 @@ nouveau_display_destroy(struct drm_device *dev)
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&nouveau_drm(dev)->acpi_nb);
 #endif
-	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -831,7 +782,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 		return ret;
 
 	ret = drm_gem_handle_create(file_priv, &bo->bo.base, &args->handle);
-	drm_gem_object_put_unlocked(&bo->bo.base);
+	drm_gem_object_put(&bo->bo.base);
 	return ret;
 }
 
@@ -846,7 +797,7 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
 		*poffset = drm_vma_node_offset_addr(&bo->bo.base.vma_node);
-		drm_gem_object_put_unlocked(gem);
+		drm_gem_object_put(gem);
 		return 0;
 	}
 

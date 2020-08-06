@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Jyri Sarha <jsarha@ti.com>
  */
 
@@ -997,12 +997,12 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 
 	ieo = !!(tstate->bus_flags & DRM_BUS_FLAG_DE_LOW);
 
-	ipc = !!(tstate->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE);
+	ipc = !!(tstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE);
 
 	/* always use the 'rf' setting */
 	onoff = true;
 
-	rf = !!(tstate->bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE);
+	rf = !!(tstate->bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE);
 
 	/* always use aligned syncs */
 	align = true;

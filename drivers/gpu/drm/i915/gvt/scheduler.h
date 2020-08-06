@@ -124,8 +124,6 @@ struct intel_vgpu_shadow_bb {
 	struct i915_vma *vma;
 	void *va;
 	u32 *bb_start_cmd_va;
-	unsigned int clflush;
-	bool accessing;
 	unsigned long bb_offset;
 	bool ppgtt;
 };

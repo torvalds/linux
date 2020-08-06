@@ -87,7 +87,8 @@ MODULE_FIRMWARE("nvidia/gp106/gr/sw_method_init.bin");
 
 static const struct gf100_gr_fwif
 gp104_gr_fwif[] = {
-	{ 0, gm200_gr_load, &gp104_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{  0, gm200_gr_load, &gp104_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{ -1, gm200_gr_nofw },
 	{}
 };
 

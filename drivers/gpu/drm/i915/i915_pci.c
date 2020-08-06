@@ -168,7 +168,7 @@
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.engine_mask = BIT(RCS0), \
+	.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
@@ -188,7 +188,7 @@
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.engine_mask = BIT(RCS0), \
+	.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	.dma_mask_size = 32, \
@@ -217,6 +217,7 @@ static const struct intel_device_info i85x_info = {
 static const struct intel_device_info i865g_info = {
 	I845_FEATURES,
 	PLATFORM(INTEL_I865G),
+	.display.has_fbc = 1,
 };
 
 #define GEN3_FEATURES \
@@ -225,7 +226,7 @@ static const struct intel_device_info i865g_info = {
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.engine_mask = BIT(RCS0), \
+	.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 32, \
@@ -316,7 +317,7 @@ static const struct intel_device_info pnv_m_info = {
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.engine_mask = BIT(RCS0), \
+	.platform_engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	.dma_mask_size = 36, \
@@ -348,7 +349,7 @@ static const struct intel_device_info i965gm_info = {
 static const struct intel_device_info g45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_G45),
-	.engine_mask = BIT(RCS0) | BIT(VCS0),
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -358,7 +359,7 @@ static const struct intel_device_info gm45_info = {
 	.is_mobile = 1,
 	.display.has_fbc = 1,
 	.display.supports_tv = 1,
-	.engine_mask = BIT(RCS0) | BIT(VCS0),
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -367,7 +368,7 @@ static const struct intel_device_info gm45_info = {
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
-	.engine_mask = BIT(RCS0) | BIT(VCS0), \
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
@@ -397,7 +398,7 @@ static const struct intel_device_info ilk_m_info = {
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
@@ -448,7 +449,7 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
@@ -519,7 +520,7 @@ static const struct intel_device_info vlv_info = {
 	.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
@@ -530,12 +531,13 @@ static const struct intel_device_info vlv_info = {
 
 #define G75_FEATURES  \
 	GEN7_FEATURES, \
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP), \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_psr = 1, \
+	.display.has_psr_hw_tracking = 1, \
 	.display.has_dp_mst = 1, \
 	.has_rc6p = 0 /* RC6p removed-by HSW */, \
 	HSW_PIPE_OFFSETS, \
@@ -596,7 +598,7 @@ static const struct intel_device_info bdw_rsvd_info = {
 static const struct intel_device_info bdw_gt3_info = {
 	BDW_PLATFORM,
 	.gt = 3,
-	.engine_mask =
+	.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
@@ -607,7 +609,7 @@ static const struct intel_device_info chv_info = {
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
 	.display.has_hotplug = 1,
 	.is_lp = 1,
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
@@ -660,7 +662,7 @@ static const struct intel_device_info skl_gt2_info = {
 
 #define SKL_GT3_PLUS_PLATFORM \
 	SKL_PLATFORM, \
-	.engine_mask = \
+	.platform_engine_mask = \
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1)
 
 
@@ -679,7 +681,7 @@ static const struct intel_device_info skl_gt4_info = {
 	.is_lp = 1, \
 	.num_supported_dbuf_slices = 1, \
 	.display.has_hotplug = 1, \
-	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
+	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
@@ -690,6 +692,7 @@ static const struct intel_device_info skl_gt4_info = {
 	.display.has_fbc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_psr = 1, \
+	.display.has_psr_hw_tracking = 1, \
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \
 	.has_rc6 = 1, \
@@ -741,7 +744,7 @@ static const struct intel_device_info kbl_gt2_info = {
 static const struct intel_device_info kbl_gt3_info = {
 	KBL_PLATFORM,
 	.gt = 3,
-	.engine_mask =
+	.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
@@ -762,8 +765,22 @@ static const struct intel_device_info cfl_gt2_info = {
 static const struct intel_device_info cfl_gt3_info = {
 	CFL_PLATFORM,
 	.gt = 3,
-	.engine_mask =
+	.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
+};
+
+#define CML_PLATFORM \
+	GEN9_FEATURES, \
+	PLATFORM(INTEL_COMETLAKE)
+
+static const struct intel_device_info cml_gt1_info = {
+	CML_PLATFORM,
+	.gt = 1,
+};
+
+static const struct intel_device_info cml_gt2_info = {
+	CML_PLATFORM,
+	.gt = 2,
 };
 
 #define GEN10_FEATURES \
@@ -788,6 +805,7 @@ static const struct intel_device_info cnl_info = {
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
+	.abox_mask = BIT(0), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
@@ -816,7 +834,7 @@ static const struct intel_device_info cnl_info = {
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
-	.engine_mask =
+	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
@@ -824,13 +842,14 @@ static const struct intel_device_info ehl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
 	.require_force_probe = 1,
-	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
+	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.ppgtt_size = 36,
 };
 
 #define GEN12_FEATURES \
 	GEN11_FEATURES, \
 	GEN(12), \
+	.abox_mask = GENMASK(2, 1), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
@@ -859,13 +878,38 @@ static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
 	.display.has_modular_fia = 1,
-	.engine_mask =
+	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+};
+
+static const struct intel_device_info rkl_info = {
+	GEN12_FEATURES,
+	PLATFORM(INTEL_ROCKETLAKE),
+	.abox_mask = BIT(0),
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C),
+	.require_force_probe = 1,
+	.display.has_psr_hw_tracking = 0,
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0),
 };
 
 #define GEN12_DGFX_FEATURES \
 	GEN12_FEATURES, \
+	.memory_regions = REGION_SMEM | REGION_LMEM, \
+	.has_master_unit_irq = 1, \
 	.is_dgfx = 1
+
+static const struct intel_device_info dg1_info __maybe_unused = {
+	GEN12_DGFX_FEATURES,
+	PLATFORM(INTEL_DG1),
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+	.require_force_probe = 1,
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
+		BIT(VCS0) | BIT(VCS2),
+};
 
 #undef GEN
 #undef PLATFORM
@@ -933,14 +977,15 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WHL_U_GT2_IDS(&cfl_gt2_info),
 	INTEL_AML_CFL_GT2_IDS(&cfl_gt2_info),
 	INTEL_WHL_U_GT3_IDS(&cfl_gt3_info),
-	INTEL_CML_GT1_IDS(&cfl_gt1_info),
-	INTEL_CML_GT2_IDS(&cfl_gt2_info),
-	INTEL_CML_U_GT1_IDS(&cfl_gt1_info),
-	INTEL_CML_U_GT2_IDS(&cfl_gt2_info),
+	INTEL_CML_GT1_IDS(&cml_gt1_info),
+	INTEL_CML_GT2_IDS(&cml_gt2_info),
+	INTEL_CML_U_GT1_IDS(&cml_gt1_info),
+	INTEL_CML_U_GT2_IDS(&cml_gt2_info),
 	INTEL_CNL_IDS(&cnl_info),
 	INTEL_ICL_11_IDS(&icl_info),
 	INTEL_EHL_IDS(&ehl_info),
 	INTEL_TGL_12_IDS(&tgl_info),
+	INTEL_RKL_IDS(&rkl_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

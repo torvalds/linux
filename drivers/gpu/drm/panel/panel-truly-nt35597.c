@@ -534,7 +534,6 @@ static const struct drm_display_mode qcom_sdm845_mtp_2k_mode = {
 	.vsync_start = 2560 + 8,
 	.vsync_end = 2560 + 8 + 1,
 	.vtotal = 2560 + 8 + 1 + 7,
-	.vrefresh = 60,
 	.flags = 0,
 };
 

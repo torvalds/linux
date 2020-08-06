@@ -537,8 +537,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	 * porches and sync.
 	 */
 	/* (ps/s) / (pixels/s) = ps/pixels */
-	pclk = DIV_ROUND_UP_ULL(1000000000000,
-				(mode->vrefresh * mode->htotal * mode->vtotal));
+	pclk = DIV_ROUND_UP_ULL(1000000000000, mode->clock);
 	dev_dbg(d->dev, "picoseconds between two pixels: %llu\n",
 		pclk);
 
@@ -568,7 +567,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	bpl *= d->mdsi->lanes;
 	dev_dbg(d->dev,
 		"calculated bytes per line: %llu @ %d Hz with HS %lu Hz\n",
-		bpl, mode->vrefresh, d->mdsi->hs_rate);
+		bpl, drm_mode_vrefresh(mode), d->mdsi->hs_rate);
 
 	/*
 	 * 6 is header + checksum, header = 4 bytes, checksum = 2 bytes
@@ -644,7 +643,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 			dev_err(d->dev, "video block does not fit on line!\n");
 			dev_err(d->dev,
 				"calculated bytes per line: %llu @ %d Hz\n",
-				bpl, mode->vrefresh);
+				bpl, drm_mode_vrefresh(mode));
 			dev_err(d->dev,
 				"bytes per line (blkline_pck) %u bytes\n",
 				blkline_pck);

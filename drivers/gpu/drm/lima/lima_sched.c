@@ -151,7 +151,7 @@ void lima_sched_task_fini(struct lima_sched_task *task)
 
 	if (task->bos) {
 		for (i = 0; i < task->num_bos; i++)
-			drm_gem_object_put_unlocked(&task->bos[i]->base.base);
+			drm_gem_object_put(&task->bos[i]->base.base);
 		kfree(task->bos);
 	}
 
@@ -503,8 +503,9 @@ int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 
 	INIT_WORK(&pipe->recover_work, lima_sched_recover_work);
 
-	return drm_sched_init(&pipe->base, &lima_sched_ops, 1, 0,
-			      msecs_to_jiffies(timeout), name);
+	return drm_sched_init(&pipe->base, &lima_sched_ops, 1,
+			      lima_job_hang_limit, msecs_to_jiffies(timeout),
+			      name);
 }
 
 void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)

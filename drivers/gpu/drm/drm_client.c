@@ -237,7 +237,7 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 	drm_gem_vunmap(buffer->gem, buffer->vaddr);
 
 	if (buffer->gem)
-		drm_gem_object_put_unlocked(buffer->gem);
+		drm_gem_object_put(buffer->gem);
 
 	if (buffer->handle)
 		drm_mode_destroy_dumb(dev, buffer->handle, buffer->client->file);
@@ -436,6 +436,39 @@ void drm_client_framebuffer_delete(struct drm_client_buffer *buffer)
 	drm_client_buffer_delete(buffer);
 }
 EXPORT_SYMBOL(drm_client_framebuffer_delete);
+
+/**
+ * drm_client_framebuffer_flush - Manually flush client framebuffer
+ * @buffer: DRM client buffer (can be NULL)
+ * @rect: Damage rectangle (if NULL flushes all)
+ *
+ * This calls &drm_framebuffer_funcs->dirty (if present) to flush buffer changes
+ * for drivers that need it.
+ *
+ * Returns:
+ * Zero on success or negative error code on failure.
+ */
+int drm_client_framebuffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect)
+{
+	if (!buffer || !buffer->fb || !buffer->fb->funcs->dirty)
+		return 0;
+
+	if (rect) {
+		struct drm_clip_rect clip = {
+			.x1 = rect->x1,
+			.y1 = rect->y1,
+			.x2 = rect->x2,
+			.y2 = rect->y2,
+		};
+
+		return buffer->fb->funcs->dirty(buffer->fb, buffer->client->file,
+						0, 0, &clip, 1);
+	}
+
+	return buffer->fb->funcs->dirty(buffer->fb, buffer->client->file,
+					0, 0, NULL, 0);
+}
+EXPORT_SYMBOL(drm_client_framebuffer_flush);
 
 #ifdef CONFIG_DEBUG_FS
 static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
