@@ -864,9 +864,9 @@
 		rockchip,camera-module-name = "CMK-OT0836-PT2";
 		rockchip,camera-module-lens-name = "YT-2929";
 		port {
-		       cam_para_out1: endpoint {
-			      /* remote-endpoint = <&cif_para_in>;*/
-		       };
+			cam_para_out1: endpoint {
+				/* remote-endpoint = <&cif_para_in>; */
+			};
 		};
 	};
 
@@ -1131,6 +1131,14 @@
 
 &rkcif {
 	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "disabled";
+};
+
+&rkcif_dvp {
+	status = "okay";
 
 	port {
 		/* Parallel bus endpoint */
@@ -1142,17 +1150,19 @@
 			vsync-active = <0>;
 		};
 		*/
+	};
+};
 
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
 		/* MIPI CSI-2 endpoint */
 		cif_mipi_in: endpoint {
 			remote-endpoint = <&mipi_csi2_output>;
 			data-lanes = <1 2 3 4>;
 		};
 	};
-};
-
-&rkcif_mmu {
-	status = "disabled";
 };
 
 &rkisp {

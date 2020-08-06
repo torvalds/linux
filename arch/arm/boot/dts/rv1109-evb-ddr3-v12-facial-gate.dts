@@ -179,7 +179,7 @@
 	};
 };
 
-&rkcif {
+&rkcif_mipi_lvds {
 	status = "okay";
 	port {
 		cif_mipi_in: endpoint {
