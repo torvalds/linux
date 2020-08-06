@@ -24,13 +24,6 @@
 
 #include "amdgpu.h"
 
-struct amdgpu_gtt_mgr {
-	struct ttm_resource_manager manager;
-	struct drm_mm mm;
-	spinlock_t lock;
-	atomic64_t available;
-};
-
 static inline struct amdgpu_gtt_mgr *to_gtt_mgr(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct amdgpu_gtt_mgr, manager);
@@ -93,16 +86,11 @@ static const struct ttm_resource_manager_func amdgpu_gtt_mgr_func;
  */
 int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 {
-	struct ttm_resource_manager *man;
-	struct amdgpu_gtt_mgr *mgr;
+	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
 	uint64_t start, size;
 	int ret;
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
-	if (!mgr)
-		return -ENOMEM;
-
-	man = &mgr->manager;
 	man->use_tt = true;
 	man->func = &amdgpu_gtt_mgr_func;
 	man->available_caching = TTM_PL_MASK_CACHING;
@@ -142,8 +130,8 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
  */
 void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
 {
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
-	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
+	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
 	int ret;
 
 	ttm_resource_manager_set_used(man, false);
@@ -161,7 +149,6 @@ void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
 
 	ttm_resource_manager_cleanup(man);
 	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, NULL);
-	kfree(mgr);
 }
 
 /**
