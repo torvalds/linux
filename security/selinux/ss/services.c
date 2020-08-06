@@ -64,17 +64,7 @@
 #include "xfrm.h"
 #include "ebitmap.h"
 #include "audit.h"
-
-/* Policy capability names */
-const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX] = {
-	"network_peer_controls",
-	"open_perms",
-	"extended_socket_class",
-	"always_check_network",
-	"cgroup_seclabel",
-	"nnp_nosuid_transition",
-	"genfs_seclabel_symlinks"
-};
+#include "policycap_names.h"
 
 static struct selinux_ss selinux_ss;
 

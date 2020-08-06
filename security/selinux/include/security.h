@@ -16,6 +16,7 @@
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include "flask.h"
+#include "policycap.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
 #define SECSID_WILD			0xffffffff /* wildcard SID */
@@ -71,21 +72,6 @@
 struct netlbl_lsm_secattr;
 
 extern int selinux_enabled_boot;
-
-/* Policy capabilities */
-enum {
-	POLICYDB_CAPABILITY_NETPEER,
-	POLICYDB_CAPABILITY_OPENPERM,
-	POLICYDB_CAPABILITY_EXTSOCKCLASS,
-	POLICYDB_CAPABILITY_ALWAYSNETWORK,
-	POLICYDB_CAPABILITY_CGROUPSECLABEL,
-	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
-	POLICYDB_CAPABILITY_GENFS_SECLABEL_SYMLINKS,
-	__POLICYDB_CAPABILITY_MAX
-};
-#define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
-
-extern const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
 
 /*
  * type_datum properties
