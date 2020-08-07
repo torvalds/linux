@@ -1140,10 +1140,6 @@ const char * const vmstat_text[] = {
 	"nr_zone_write_pending",
 	"nr_mlock",
 	"nr_page_table_pages",
-	"nr_kernel_stack",
-#if IS_ENABLED(CONFIG_SHADOW_CALL_STACK)
-	"nr_shadow_call_stack",
-#endif
 	"nr_bounce",
 #if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
@@ -1194,6 +1190,10 @@ const char * const vmstat_text[] = {
 	"nr_kernel_misc_reclaimable",
 	"nr_foll_pin_acquired",
 	"nr_foll_pin_released",
+	"nr_kernel_stack",
+#if IS_ENABLED(CONFIG_SHADOW_CALL_STACK)
+	"nr_shadow_call_stack",
+#endif
 
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",

@@ -32,8 +32,6 @@ struct kmem_cache;
 enum memcg_stat_item {
 	MEMCG_SWAP = NR_VM_NODE_STAT_ITEMS,
 	MEMCG_SOCK,
-	/* XXX: why are these zone and not node counters? */
-	MEMCG_KERNEL_STACK_KB,
 	MEMCG_NR_STAT,
 };
 
@@ -729,7 +727,18 @@ void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
 void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
 			int val);
 void __mod_lruvec_slab_state(void *p, enum node_stat_item idx, int val);
+
 void mod_memcg_obj_state(void *p, int idx, int val);
+
+static inline void mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+					 int val)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__mod_lruvec_slab_state(p, idx, val);
+	local_irq_restore(flags);
+}
 
 static inline void mod_memcg_lruvec_state(struct lruvec *lruvec,
 					  enum node_stat_item idx, int val)
@@ -1149,6 +1158,14 @@ static inline void __mod_lruvec_slab_state(void *p, enum node_stat_item idx,
 	struct page *page = virt_to_head_page(p);
 
 	__mod_node_page_state(page_pgdat(page), idx, val);
+}
+
+static inline void mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+					 int val)
+{
+	struct page *page = virt_to_head_page(p);
+
+	mod_node_page_state(page_pgdat(page), idx, val);
 }
 
 static inline void mod_memcg_obj_state(void *p, int idx, int val)
