@@ -57,6 +57,8 @@ struct lock_list {
 	u16				distance;
 	/* bitmap of different dependencies from head to this */
 	u8				dep;
+	/* used by BFS to record whether "prev -> this" only has -(*R)-> */
+	u8				only_xr;
 
 	/*
 	 * The parent field is used to implement breadth-first search, and the
