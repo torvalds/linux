@@ -883,6 +883,11 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 	opcode = fc_frame_payload_op(fp);
 	if (opcode == ELS_LS_RJT) {
 		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
+		if (!rjt) {
+			QEDF_ERR(&qedf->dbg_ctx, "payload get failed");
+			goto out_free_frame;
+		}
+
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
 		    "Received LS_RJT for REC: er_reason=0x%x, "
 		    "er_explan=0x%x.\n", rjt->er_reason, rjt->er_explan);
