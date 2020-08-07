@@ -122,21 +122,6 @@ DEFINE_STATIC_KEY_FALSE(slub_debug_enabled);
 #endif
 #endif
 
-/*
- * Returns true if any of the specified slub_debug flags is enabled for the
- * cache. Use only for flags parsed by setup_slub_debug() as it also enables
- * the static key.
- */
-static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t flags)
-{
-	VM_WARN_ON_ONCE(!(flags & SLAB_DEBUG_FLAGS));
-#ifdef CONFIG_SLUB_DEBUG
-	if (static_branch_unlikely(&slub_debug_enabled))
-		return s->flags & flags;
-#endif
-	return false;
-}
-
 static inline bool kmem_cache_debug(struct kmem_cache *s)
 {
 	return kmem_cache_debug_flags(s, SLAB_DEBUG_FLAGS);
@@ -653,7 +638,7 @@ static void print_track(const char *s, struct track *t, unsigned long pr_time)
 #endif
 }
 
-static void print_tracking(struct kmem_cache *s, void *object)
+void print_tracking(struct kmem_cache *s, void *object)
 {
 	unsigned long pr_time = jiffies;
 	if (!(s->flags & SLAB_STORE_USER))
@@ -1524,10 +1509,6 @@ static bool freelist_corrupted(struct kmem_cache *s, struct page *page,
 			       void *freelist, void *nextfree)
 {
 	return false;
-}
-
-static void print_tracking(struct kmem_cache *s, void *object)
-{
 }
 #endif /* CONFIG_SLUB_DEBUG */
 
@@ -3174,23 +3155,6 @@ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr)
 	do_slab_free(cache, virt_to_head_page(x), x, NULL, 1, addr);
 }
 #endif
-
-static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
-{
-	struct kmem_cache *cachep;
-
-	if (!IS_ENABLED(CONFIG_SLAB_FREELIST_HARDENED) &&
-	    !memcg_kmem_enabled() &&
-	    !kmem_cache_debug_flags(s, SLAB_CONSISTENCY_CHECKS))
-		return s;
-
-	cachep = virt_to_cache(x);
-	if (WARN(cachep && !slab_equal_or_root(cachep, s),
-		  "%s: Wrong slab cache. %s but object is from %s\n",
-		  __func__, s->name, cachep->name))
-		print_tracking(cachep, x);
-	return cachep;
-}
 
 void kmem_cache_free(struct kmem_cache *s, void *x)
 {
