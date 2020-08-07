@@ -621,6 +621,32 @@ static int wm8974_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int wm8974_startup(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	u16 power1 = snd_soc_component_read32(component, WM8974_POWER1);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		power1 |= 0x10;
+		snd_soc_component_write(component, WM8974_POWER1, power1);
+	}
+
+	return 0;
+}
+
+static void wm8974_shutdown(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	u16 power1 = snd_soc_component_read32(component, WM8974_POWER1);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		power1 &= ~0x10;
+		snd_soc_component_write(component, WM8974_POWER1, power1);
+	}
+}
+
 #define WM8974_RATES (SNDRV_PCM_RATE_8000_48000)
 
 #define WM8974_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -633,6 +659,8 @@ static const struct snd_soc_dai_ops wm8974_ops = {
 	.set_clkdiv = wm8974_set_dai_clkdiv,
 	.set_pll = wm8974_set_dai_pll,
 	.set_sysclk = wm8974_set_dai_sysclk,
+	.startup = wm8974_startup,
+	.shutdown = wm8974_shutdown,
 };
 
 static struct snd_soc_dai_driver wm8974_dai = {
