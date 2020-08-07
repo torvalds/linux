@@ -1432,7 +1432,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	setTabOrder(configList, helpText);
 	configList->setFocus();
 
-	toolBar = new QToolBar("Tools", this);
+	QToolBar *toolBar = new QToolBar("Tools", this);
 	addToolBar(toolBar);
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
