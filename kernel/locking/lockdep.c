@@ -372,6 +372,21 @@ static struct hlist_head classhash_table[CLASSHASH_SIZE];
 static struct hlist_head chainhash_table[CHAINHASH_SIZE];
 
 /*
+ * the id of held_lock
+ */
+static inline u16 hlock_id(struct held_lock *hlock)
+{
+	BUILD_BUG_ON(MAX_LOCKDEP_KEYS_BITS + 2 > 16);
+
+	return (hlock->class_idx | (hlock->read << MAX_LOCKDEP_KEYS_BITS));
+}
+
+static inline unsigned int chain_hlock_class_idx(u16 hlock_id)
+{
+	return hlock_id & (MAX_LOCKDEP_KEYS - 1);
+}
+
+/*
  * The hash key of the lock dependency chains is a hash itself too:
  * it's a hash of all locks taken up to that lock, including that lock.
  * It's a 64-bit hash, because it's important for the keys to be
@@ -3202,7 +3217,10 @@ static inline void free_chain_hlocks(int base, int size)
 
 struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
 {
-	return lock_classes + chain_hlocks[chain->base + i];
+	u16 chain_hlock = chain_hlocks[chain->base + i];
+	unsigned int class_idx = chain_hlock_class_idx(chain_hlock);
+
+	return lock_classes + class_idx - 1;
 }
 
 /*
@@ -3228,12 +3246,12 @@ static inline int get_first_held_lock(struct task_struct *curr,
 /*
  * Returns the next chain_key iteration
  */
-static u64 print_chain_key_iteration(int class_idx, u64 chain_key)
+static u64 print_chain_key_iteration(u16 hlock_id, u64 chain_key)
 {
-	u64 new_chain_key = iterate_chain_key(chain_key, class_idx);
+	u64 new_chain_key = iterate_chain_key(chain_key, hlock_id);
 
-	printk(" class_idx:%d -> chain_key:%016Lx",
-		class_idx,
+	printk(" hlock_id:%d -> chain_key:%016Lx",
+		(unsigned int)hlock_id,
 		(unsigned long long)new_chain_key);
 	return new_chain_key;
 }
@@ -3250,12 +3268,12 @@ print_chain_keys_held_locks(struct task_struct *curr, struct held_lock *hlock_ne
 		hlock_next->irq_context);
 	for (; i < depth; i++) {
 		hlock = curr->held_locks + i;
-		chain_key = print_chain_key_iteration(hlock->class_idx, chain_key);
+		chain_key = print_chain_key_iteration(hlock_id(hlock), chain_key);
 
 		print_lock(hlock);
 	}
 
-	print_chain_key_iteration(hlock_next->class_idx, chain_key);
+	print_chain_key_iteration(hlock_id(hlock_next), chain_key);
 	print_lock(hlock_next);
 }
 
@@ -3263,14 +3281,14 @@ static void print_chain_keys_chain(struct lock_chain *chain)
 {
 	int i;
 	u64 chain_key = INITIAL_CHAIN_KEY;
-	int class_id;
+	u16 hlock_id;
 
 	printk("depth: %u\n", chain->depth);
 	for (i = 0; i < chain->depth; i++) {
-		class_id = chain_hlocks[chain->base + i];
-		chain_key = print_chain_key_iteration(class_id, chain_key);
+		hlock_id = chain_hlocks[chain->base + i];
+		chain_key = print_chain_key_iteration(hlock_id, chain_key);
 
-		print_lock_name(lock_classes + class_id);
+		print_lock_name(lock_classes + chain_hlock_class_idx(hlock_id) - 1);
 		printk("\n");
 	}
 }
@@ -3319,7 +3337,7 @@ static int check_no_collision(struct task_struct *curr,
 	}
 
 	for (j = 0; j < chain->depth - 1; j++, i++) {
-		id = curr->held_locks[i].class_idx;
+		id = hlock_id(&curr->held_locks[i]);
 
 		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id)) {
 			print_collision(curr, hlock, chain);
@@ -3368,7 +3386,6 @@ static inline int add_chain_cache(struct task_struct *curr,
 				  struct held_lock *hlock,
 				  u64 chain_key)
 {
-	struct lock_class *class = hlock_class(hlock);
 	struct hlist_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
 	int i, j;
@@ -3411,11 +3428,11 @@ static inline int add_chain_cache(struct task_struct *curr,
 
 	chain->base = j;
 	for (j = 0; j < chain->depth - 1; j++, i++) {
-		int lock_id = curr->held_locks[i].class_idx;
+		int lock_id = hlock_id(curr->held_locks + i);
 
 		chain_hlocks[chain->base + j] = lock_id;
 	}
-	chain_hlocks[chain->base + j] = class - lock_classes;
+	chain_hlocks[chain->base + j] = hlock_id(hlock);
 	hlist_add_head_rcu(&chain->entry, hash_head);
 	debug_atomic_inc(chain_lookup_misses);
 	inc_chains(chain->irq_context);
@@ -3602,7 +3619,7 @@ static void check_chain_key(struct task_struct *curr)
 		if (prev_hlock && (prev_hlock->irq_context !=
 							hlock->irq_context))
 			chain_key = INITIAL_CHAIN_KEY;
-		chain_key = iterate_chain_key(chain_key, hlock->class_idx);
+		chain_key = iterate_chain_key(chain_key, hlock_id(hlock));
 		prev_hlock = hlock;
 	}
 	if (chain_key != curr->curr_chain_key) {
@@ -4749,7 +4766,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		chain_key = INITIAL_CHAIN_KEY;
 		chain_head = 1;
 	}
-	chain_key = iterate_chain_key(chain_key, class_idx);
+	chain_key = iterate_chain_key(chain_key, hlock_id(hlock));
 
 	if (nest_lock && !__lock_is_held(nest_lock, -1)) {
 		print_lock_nested_lock_not_held(curr, hlock, ip);
@@ -5648,7 +5665,7 @@ static void remove_class_from_lock_chain(struct pending_free *pf,
 	int i;
 
 	for (i = chain->base; i < chain->base + chain->depth; i++) {
-		if (chain_hlocks[i] != class - lock_classes)
+		if (chain_hlock_class_idx(chain_hlocks[i]) != class - lock_classes)
 			continue;
 		/*
 		 * Each lock class occurs at most once in a lock chain so once
