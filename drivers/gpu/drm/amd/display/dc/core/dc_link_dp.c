@@ -1619,6 +1619,9 @@ bool perform_link_training_with_retries(
 
 	for (j = 0; j < attempts; ++j) {
 
+		DC_LOG_HW_LINK_TRAINING("%s: Beginning link training attempt %u of %d\n",
+			__func__, (unsigned int)j + 1, attempts);
+
 		dp_enable_link_phy(
 			link,
 			signal,
@@ -1646,6 +1649,9 @@ bool perform_link_training_with_retries(
 		 */
 		if (j == (attempts - 1))
 			break;
+
+		DC_LOG_WARNING("%s: Link training attempt %u of %d failed\n",
+			__func__, (unsigned int)j + 1, attempts);
 
 		dp_disable_link_phy(link, signal);
 
