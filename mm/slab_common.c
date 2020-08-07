@@ -1104,9 +1104,6 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
 	struct kmem_cache *c;
 	struct slabinfo sinfo;
 
-	if (!is_root_cache(s))
-		return;
-
 	c = memcg_cache(s);
 	if (c) {
 		memset(&sinfo, 0, sizeof(sinfo));
