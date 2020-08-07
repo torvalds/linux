@@ -86,8 +86,7 @@ static void __noreturn avr_reset_system(char *cmd)
 	avr_halt_system(AVR_PWRCTL_RESET);
 }
 
-static int avr_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int avr_probe(struct i2c_client *client)
 {
 	avr_i2c_client = client;
 	ppc_md.restart = avr_reset_system;
@@ -104,7 +103,7 @@ static struct i2c_driver avr_driver = {
 	.driver = {
 		.name = "akebono-avr",
 	},
-	.probe = avr_probe,
+	.probe_new = avr_probe,
 	.id_table = avr_id,
 };
 
