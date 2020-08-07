@@ -936,7 +936,7 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	}
 
 	/* BB special case reconnect tid and uid here? */
-	return map_smb_to_linux_error(mid->resp_buf, log_error);
+	return map_and_check_smb_error(mid, log_error);
 }
 
 struct mid_q_entry *

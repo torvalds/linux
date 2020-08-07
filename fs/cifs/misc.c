@@ -1164,8 +1164,7 @@ static inline void cifs_put_tcon_super(struct super_block *sb)
 }
 #endif
 
-int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
-			 size_t prefix_len)
+int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
 {
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
@@ -1179,8 +1178,8 @@ int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
 
 	kfree(cifs_sb->prepath);
 
-	if (*prefix && prefix_len) {
-		cifs_sb->prepath = kstrndup(prefix, prefix_len, GFP_ATOMIC);
+	if (prefix && *prefix) {
+		cifs_sb->prepath = kstrndup(prefix, strlen(prefix), GFP_ATOMIC);
 		if (!cifs_sb->prepath) {
 			rc = -ENOMEM;
 			goto out;

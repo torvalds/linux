@@ -881,6 +881,33 @@ map_smb_to_linux_error(char *buf, bool logErr)
 	return rc;
 }
 
+int
+map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
+{
+	int rc;
+	struct smb_hdr *smb = (struct smb_hdr *)mid->resp_buf;
+
+	rc = map_smb_to_linux_error((char *)smb, logErr);
+	if (rc == -EACCES && !(smb->Flags2 & SMBFLG2_ERR_STATUS)) {
+		/* possible ERRBaduid */
+		__u8 class = smb->Status.DosError.ErrorClass;
+		__u16 code = le16_to_cpu(smb->Status.DosError.Error);
+
+		/* switch can be used to handle different errors */
+		if (class == ERRSRV && code == ERRbaduid) {
+			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
+				code);
+			spin_lock(&GlobalMid_Lock);
+			if (mid->server->tcpStatus != CifsExiting)
+				mid->server->tcpStatus = CifsNeedReconnect;
+			spin_unlock(&GlobalMid_Lock);
+		}
+	}
+
+	return rc;
+}
+
+
 /*
  * calculate the size of the SMB message based on the fixed header
  * portion, the number of word parameters and the data portion of the message
