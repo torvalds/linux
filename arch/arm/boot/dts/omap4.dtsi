@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <dt-bindings/bus/ti-sysc.h>
@@ -26,6 +26,8 @@
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
+		rproc0 = &dsp;
+		rproc1 = &ipu;
 	};
 
 	cpus {
@@ -71,7 +73,7 @@
 		interrupt-parent = <&gic>;
 	};
 
-	L2: l2-cache-controller@48242000 {
+	L2: cache-controller@48242000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x48242000 0x1000>;
 		cache-unified;
@@ -104,10 +106,6 @@
 			compatible = "ti,omap4-mpu";
 			ti,hwmods = "mpu";
 			sram = <&ocmcram>;
-		};
-
-		dsp {
-			compatible = "ti,omap3-c64";
 		};
 
 		iva {
@@ -275,6 +273,29 @@
 			hw-caps-read-idle-ctrl;
 			hw-caps-ll-interface;
 			hw-caps-temp-alert;
+		};
+
+		dsp: dsp {
+			compatible = "ti,omap4-dsp";
+			ti,bootreg = <&scm_conf 0x304 0>;
+			iommus = <&mmu_dsp>;
+			resets = <&prm_tesla 0>;
+			clocks = <&tesla_clkctrl OMAP4_DSP_CLKCTRL 0>;
+			firmware-name = "omap4-dsp-fw.xe64T";
+			mboxes = <&mailbox &mbox_dsp>;
+			status = "disabled";
+		};
+
+		ipu: ipu@55020000 {
+			compatible = "ti,omap4-ipu";
+			reg = <0x55020000 0x10000>;
+			reg-names = "l2ram";
+			iommus = <&mmu_ipu>;
+			resets = <&prm_core 0>, <&prm_core 1>;
+			clocks = <&ducati_clkctrl OMAP4_IPU_CLKCTRL 0>;
+			firmware-name = "omap4-ipu-fw.xem3";
+			mboxes = <&mailbox &mbox_ipu>;
+			status = "disabled";
 		};
 
 		aes1_target: target-module@4b501000 {

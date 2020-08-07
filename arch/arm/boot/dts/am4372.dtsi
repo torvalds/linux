@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for AM4372 SoC
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -153,7 +153,7 @@
 		clocks = <&mpu_periphclk>;
 	};
 
-	l2-cache-controller@48242000 {
+	cache-controller@48242000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x48242000 0x1000>;
 		cache-unified;

@@ -90,6 +90,15 @@ static __always_inline void boot_init_stack_canary(void)
 #endif
 }
 
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
+{
+#ifdef CONFIG_X86_64
+	per_cpu(fixed_percpu_data.stack_canary, cpu) = idle->stack_canary;
+#else
+	per_cpu(stack_canary.canary, cpu) = idle->stack_canary;
+#endif
+}
+
 static inline void setup_stack_canary_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -117,6 +126,9 @@ static inline void load_stack_canary_segment(void)
 /* dummy boot_init_stack_canary() is defined in linux/stackprotector.h */
 
 static inline void setup_stack_canary_segment(int cpu)
+{ }
+
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
 { }
 
 static inline void load_stack_canary_segment(void)

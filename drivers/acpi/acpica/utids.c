@@ -263,8 +263,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	 * 3) Size of the actual CID strings
 	 */
 	cid_list_size = sizeof(struct acpi_pnp_device_id_list) +
-	    ((count - 1) * sizeof(struct acpi_pnp_device_id)) +
-	    string_area_size;
+	    (count * sizeof(struct acpi_pnp_device_id)) + string_area_size;
 
 	cid_list = ACPI_ALLOCATE_ZEROED(cid_list_size);
 	if (!cid_list) {

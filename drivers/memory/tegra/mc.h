@@ -34,6 +34,7 @@
 #define MC_EMEM_ARB_TIMING_W2W				0xbc
 #define MC_EMEM_ARB_TIMING_R2W				0xc0
 #define MC_EMEM_ARB_TIMING_W2R				0xc4
+#define MC_EMEM_ARB_MISC2				0xc8
 #define MC_EMEM_ARB_DA_TURNS				0xd0
 #define MC_EMEM_ARB_DA_COVERS				0xd4
 #define MC_EMEM_ARB_MISC0				0xd8

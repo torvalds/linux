@@ -215,16 +215,6 @@ static void __init lilly1131_usb_init(void)
 		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 }
 
-/* SPI */
-
-static const struct spi_imx_master spi0_pdata __initconst = {
-	.num_chipselect = 3,
-};
-
-static const struct spi_imx_master spi1_pdata __initconst = {
-	.num_chipselect = 3,
-};
-
 static struct mc13xxx_platform_data mc13783_pdata __initdata = {
 	.flags = MC13XXX_USE_RTC | MC13XXX_USE_TOUCHSCREEN,
 };
@@ -281,8 +271,8 @@ static void __init mx31lilly_board_init(void)
 	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_SS1__SS1, "SPI2_SS1");
 	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_SS2__SS2, "SPI2_SS2");
 
-	imx31_add_spi_imx0(&spi0_pdata);
-	imx31_add_spi_imx1(&spi1_pdata);
+	imx31_add_spi_imx0(NULL);
+	imx31_add_spi_imx1(NULL);
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 }

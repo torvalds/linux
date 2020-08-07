@@ -715,6 +715,7 @@
 	mmc-hs400-1_8v;
 	bus-width = <8>;
 	non-removable;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 

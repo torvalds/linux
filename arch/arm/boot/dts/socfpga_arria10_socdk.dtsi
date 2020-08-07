@@ -162,6 +162,11 @@
 		compatible = "ltc2977";
 		reg = <0x5c>;
 	};
+
+	temp@4c {
+		compatible = "maxim,max1619";
+		reg = <0x4c>;
+	};
 };
 
 &uart1 {

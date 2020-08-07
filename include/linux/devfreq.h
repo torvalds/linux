@@ -31,6 +31,13 @@
 #define	DEVFREQ_PRECHANGE		(0)
 #define DEVFREQ_POSTCHANGE		(1)
 
+/* DEVFREQ work timers */
+enum devfreq_timer {
+	DEVFREQ_TIMER_DEFERRABLE = 0,
+	DEVFREQ_TIMER_DELAYED,
+	DEVFREQ_TIMER_NUM,
+};
+
 struct devfreq;
 struct devfreq_governor;
 
@@ -70,6 +77,7 @@ struct devfreq_dev_status {
  * @initial_freq:	The operating frequency when devfreq_add_device() is
  *			called.
  * @polling_ms:		The polling interval in ms. 0 disables polling.
+ * @timer:		Timer type is either deferrable or delayed timer.
  * @target:		The device should set its operating frequency at
  *			freq or lowest-upper-than-freq value. If freq is
  *			higher than any operable frequency, set maximum.
@@ -96,6 +104,7 @@ struct devfreq_dev_status {
 struct devfreq_dev_profile {
 	unsigned long initial_freq;
 	unsigned int polling_ms;
+	enum devfreq_timer timer;
 
 	int (*target)(struct device *dev, unsigned long *freq, u32 flags);
 	int (*get_dev_status)(struct device *dev,

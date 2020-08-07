@@ -416,7 +416,7 @@
 			status = "disabled";
 		};
 
-		sdhi0: sd@e8228000 {
+		sdhi0: mmc@e8228000 {
 			compatible = "renesas,sdhi-r7s9210";
 			reg = <0xe8228000 0x8c0>;
 			interrupts = <GIC_SPI 322 IRQ_TYPE_LEVEL_HIGH>;
@@ -428,7 +428,7 @@
 			status = "disabled";
 		};
 
-		sdhi1: sd@e822a000 {
+		sdhi1: mmc@e822a000 {
 			compatible = "renesas,sdhi-r7s9210";
 			reg = <0xe822a000 0x8c0>;
 			interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>;

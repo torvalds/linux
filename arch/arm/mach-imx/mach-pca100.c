@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
@@ -188,11 +189,19 @@ static struct spi_board_info pca100_spi_board_info[] __initdata = {
 	},
 };
 
-static int pca100_spi_cs[] = {SPI1_SS0, SPI1_SS1};
-
-static const struct spi_imx_master pca100_spi0_data __initconst = {
-	.chipselect	= pca100_spi_cs,
-	.num_chipselect = ARRAY_SIZE(pca100_spi_cs),
+static struct gpiod_lookup_table pca100_spi0_gpiod_table = {
+	.dev_id = "imx27-cspi.0", /* Actual device name for spi0 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, port D is
+		 * bank 3 and thus named "imx21-gpio.3".
+		 * SPI1_SS0 is GPIO_PORTD + 28
+		 * SPI1_SS1 is GPIO_PORTD + 27
+		 */
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 28, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 27, "cs", 1, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void pca100_ac97_warm_reset(struct snd_ac97 *ac97)
@@ -362,7 +371,7 @@ static void __init pca100_init(void)
 	mxc_gpio_mode(GPIO_PORTD | 27 | GPIO_GPIO | GPIO_IN);
 	spi_register_board_info(pca100_spi_board_info,
 				ARRAY_SIZE(pca100_spi_board_info));
-	imx27_add_spi_imx0(&pca100_spi0_data);
+	imx27_add_spi_imx0(&pca100_spi0_gpiod_table);
 
 	imx27_add_imx_fb(&pca100_fb_data);
 

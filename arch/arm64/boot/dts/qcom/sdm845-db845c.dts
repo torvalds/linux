@@ -397,11 +397,6 @@
 	status = "okay";
 	vdda-supply = <&vreg_l26a_1p2>;
 
-#if 0
-	qcom,dual-dsi-mode;
-	qcom,master-dsi;
-#endif
-
 	ports {
 		port@1 {
 			endpoint {
@@ -416,29 +411,6 @@
 	status = "okay";
 	vdds-supply = <&vreg_l1a_0p875>;
 };
-
-#if 0
-&dsi1 {
-	status = "okay";
-	vdda-supply = <&vreg_l26a_1p2>;
-
-	qcom,dual-dsi-mode;
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&lt9611_b>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi1_phy {
-	status = "okay";
-	vdds-supply = <&vreg_l1a_0p875>;
-};
-#endif
 
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
@@ -564,6 +536,48 @@
 	};
 };
 
+&i2c10 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	lt9611_codec: hdmi-bridge@3b {
+		compatible = "lontium,lt9611";
+		reg = <0x3b>;
+		#sound-dai-cells = <1>;
+
+		interrupts-extended = <&tlmm 84 IRQ_TYPE_EDGE_FALLING>;
+
+		reset-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+
+		vdd-supply = <&lt9611_1v8>;
+		vcc-supply = <&lt9611_3v3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lt9611_irq_pin>, <&dsi_sw_sel>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lt9611_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lt9611_a: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+		};
+	};
+};
+
 &i2c11 {
 	/* On Low speed expansion */
 	label = "LS-I2C1";
@@ -573,6 +587,14 @@
 &i2c14 {
 	/* On Low speed expansion */
 	label = "LS-I2C0";
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
 	status = "okay";
 };
 
@@ -868,6 +890,21 @@
 			drive-strength = <16>;
 			bias-disable;
 		};
+	};
+
+	dsi_sw_sel: dsi-sw-sel {
+		pins = "gpio120";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	lt9611_irq_pin: lt9611-irq {
+		pins = "gpio84";
+		function = "gpio";
+		bias-disable;
 	};
 
 	pcie0_default_state: pcie0-default {

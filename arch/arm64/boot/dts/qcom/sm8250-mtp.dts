@@ -7,6 +7,10 @@
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8250.dtsi"
+#include "pm8150.dtsi"
+#include "pm8150b.dtsi"
+#include "pm8150l.dtsi"
+#include "pm8009.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SM8250 MTP";
@@ -49,6 +53,11 @@
 		regulator-always-on;
 		vin-supply = <&vph_pwr>;
 	};
+};
+
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/sm8250/adsp.mbn";
 };
 
 &apps_rsc {
@@ -133,13 +142,6 @@
 			regulator-name = "vreg_l10a_1p8";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l11a_0p75: ldo11 {
-			regulator-name = "vreg_l11a_0p75";
-			regulator-min-microvolt = <800000>;
-			regulator-max-microvolt = <800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -351,8 +353,22 @@
 	};
 };
 
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/sm8250/cdsp.mbn";
+};
+
 &qupv3_id_1 {
 	status = "okay";
+};
+
+&slpi {
+	status = "okay";
+	firmware-name = "qcom/sm8250/slpi.mbn";
+};
+
+&tlmm {
+	gpio-reserved-ranges = <28 4>, <40 4>;
 };
 
 &uart2 {

@@ -10,7 +10,7 @@
 };
 
 &aips0 {
-	L2: l2-cache@40006000 {
+	L2: cache-controller@40006000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x40006000 0x1000>;
 		cache-unified;

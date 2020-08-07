@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_voltage);
  */
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
-	if (IS_ERR_OR_NULL(opp) || !opp->available) {
+	if (IS_ERR_OR_NULL(opp)) {
 		pr_err("%s: Invalid parameters\n", __func__);
 		return 0;
 	}
@@ -2271,6 +2271,7 @@ adjust_put_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return r;
 }
+EXPORT_SYMBOL_GPL(dev_pm_opp_adjust_voltage);
 
 /**
  * dev_pm_opp_enable() - Enable a specific OPP

@@ -16,6 +16,7 @@
 #include <linux/kprobes.h>
 #include <linux/mmu_context.h>
 #include <linux/bsearch.h>
+#include <linux/sync_core.h>
 #include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
@@ -54,7 +55,7 @@ __setup("noreplace-smp", setup_noreplace_smp);
 #define DPRINTK(fmt, args...)						\
 do {									\
 	if (debug_alternative)						\
-		printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##args);	\
+		printk(KERN_DEBUG pr_fmt(fmt) "\n", ##args);		\
 } while (0)
 
 #define DUMP_BYTES(buf, len, fmt, args...)				\
@@ -65,7 +66,7 @@ do {									\
 		if (!(len))						\
 			break;						\
 									\
-		printk(KERN_DEBUG fmt, ##args);				\
+		printk(KERN_DEBUG pr_fmt(fmt), ##args);			\
 		for (j = 0; j < (len) - 1; j++)				\
 			printk(KERN_CONT "%02hhx ", buf[j]);		\
 		printk(KERN_CONT "%02hhx\n", buf[j]);			\

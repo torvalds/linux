@@ -4005,7 +4005,6 @@
 
 		target-module@80000 {			/* 0x48880000, ap 83 0e.1 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss1";
 			reg = <0x80000 0x4>,
 			      <0x80010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4055,7 +4054,6 @@
 
 		target-module@c0000 {			/* 0x488c0000, ap 79 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss2";
 			reg = <0xc0000 0x4>,
 			      <0xc0010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4106,7 +4104,6 @@
 
 		usb3_tm: target-module@100000 {		/* 0x48900000, ap 85 04.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss3";
 			reg = <0x100000 0x4>,
 			      <0x100010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4155,7 +4152,6 @@
 
 		usb4_tm: target-module@140000 {		/* 0x48940000, ap 75 3c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "usb_otg_ss4";
 			reg = <0x140000 0x4>,
 			      <0x140010 0x4>;
 			reg-names = "rev", "sysc";

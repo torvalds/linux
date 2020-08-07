@@ -2023,7 +2023,7 @@ static int init_header_complete(struct swsusp_info *info)
 	return 0;
 }
 
-static char *check_image_kernel(struct swsusp_info *info)
+static const char *check_image_kernel(struct swsusp_info *info)
 {
 	if (info->version_code != LINUX_VERSION_CODE)
 		return "kernel version";
@@ -2176,7 +2176,7 @@ static void mark_unsafe_pages(struct memory_bitmap *bm)
 
 static int check_header(struct swsusp_info *info)
 {
-	char *reason;
+	const char *reason;
 
 	reason = check_image_kernel(info);
 	if (!reason && info->num_physpages != get_num_physpages())

@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for J721E SoC Family MCU/WAKEUP Domain peripherals
  *
- * Copyright (C) 2016-2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2019 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu_wakeup {
@@ -46,6 +46,11 @@
 			reg = <0x4040 0x4>;
 			#phy-cells = <1>;
 		};
+	};
+
+	chipid@43000014 {
+		compatible = "ti,am654-chipid";
+		reg = <0x0 0x43000014 0x0 0x4>;
 	};
 
 	wkup_pmx0: pinmux@4301c000 {
