@@ -20,6 +20,11 @@
 #include <media/v4l2-event.h>
 
 #include "mipi-csi2.h"
+
+static int csi2_debug;
+module_param_named(debug_csi2, csi2_debug, int, 0644);
+MODULE_PARM_DESC(debug_csi2, "Debug level (0-1)");
+
 /*
  * there must be 5 pads: 1 input pad from sensor, and
  * the 4 virtual channel output pads
@@ -30,6 +35,9 @@
 #define CSI2_NUM_PADS			5
 #define CSI2_NUM_PADS_SINGLE_LINK	2
 #define MAX_CSI2_SENSORS		2
+
+#define RKCIF_DEFAULT_WIDTH	640
+#define RKCIF_DEFAULT_HEIGHT	480
 
 /*
  * The default maximum bit-rate per lane in Mbps, if the
@@ -86,6 +94,7 @@ struct csi2_dev {
 	struct mutex lock;
 
 	struct v4l2_mbus_framefmt format_mbus;
+	struct v4l2_rect crop;
 
 	int                     stream_count;
 	struct v4l2_subdev      *src_sd;
@@ -338,10 +347,13 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	/* set a default mbus format  */
 	csi2->format_mbus.code =  MEDIA_BUS_FMT_UYVY8_2X8;
 	csi2->format_mbus.field = V4L2_FIELD_NONE;
-	csi2->format_mbus.width = 1920;
-	csi2->format_mbus.height = 1080;
+	csi2->format_mbus.width = RKCIF_DEFAULT_WIDTH;
+	csi2->format_mbus.height = RKCIF_DEFAULT_HEIGHT;
+	csi2->crop.top = 0;
+	csi2->crop.left = 0;
+	csi2->crop.width = RKCIF_DEFAULT_WIDTH;
+	csi2->crop.height = RKCIF_DEFAULT_HEIGHT;
 
-	v4l2_err(&csi2->sd, "media entry init\n");
 	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
 
@@ -350,13 +362,103 @@ static int csi2_get_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
 			    struct v4l2_subdev_format *fmt)
 {
+	int ret;
+	struct csi2_dev *csi2 = sd_to_dev(sd);
 	struct v4l2_subdev *sensor = get_remote_sensor(sd);
 
 	/*
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
-	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	if (!ret)
+		csi2->format_mbus = fmt->format;
+
+	return ret;
+}
+
+static struct v4l2_rect *mipi_csi2_get_crop(struct csi2_dev *csi2,
+						 struct v4l2_subdev_pad_config *cfg,
+						 enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_crop(&csi2->sd, cfg, RK_CSI2_PAD_SINK);
+	else
+		return &csi2->crop;
+}
+
+static int csi2_get_selection(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_selection *sel)
+{
+	struct csi2_dev *csi2 = sd_to_dev(sd);
+	struct v4l2_subdev *sensor = get_remote_sensor(sd);
+	struct v4l2_subdev_format fmt;
+	int ret = 0;
+
+	if (!sel) {
+		v4l2_dbg(1, csi2_debug, &csi2->sd, "sel is null\n");
+		goto err;
+	}
+
+	if (sel->pad > RK_CSI2X_PAD_SOURCE3) {
+		v4l2_dbg(1, csi2_debug, &csi2->sd, "pad[%d] isn't matched\n", sel->pad);
+		goto err;
+	}
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+			ret = v4l2_subdev_call(sensor, pad, get_selection,
+					       cfg, sel);
+			if (ret) {
+				fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt);
+				if (!ret) {
+					csi2->format_mbus = fmt.format;
+					sel->r.top = 0;
+					sel->r.left = 0;
+					sel->r.width = csi2->format_mbus.width;
+					sel->r.height = csi2->format_mbus.height;
+					csi2->crop = sel->r;
+				} else {
+					sel->r = csi2->crop;
+				}
+			} else {
+				csi2->crop = sel->r;
+			}
+		} else {
+			sel->r = *v4l2_subdev_get_try_crop(&csi2->sd, cfg, sel->pad);
+		}
+		break;
+
+	case V4L2_SEL_TGT_CROP:
+		sel->r = *mipi_csi2_get_crop(csi2, cfg, sel->which);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+err:
+	return -EINVAL;
+}
+
+static int csi2_set_selection(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_selection *sel)
+{
+	struct csi2_dev *csi2 = sd_to_dev(sd);
+	struct v4l2_subdev *sensor = get_remote_sensor(sd);
+	int ret = 0;
+
+	ret = v4l2_subdev_call(sensor, pad, set_selection,
+			       cfg, sel);
+	if (!ret)
+		csi2->crop = sel->r;
+
+	return ret;
 }
 
 static int csi2_g_mbus_config(struct v4l2_subdev *sd,
@@ -420,6 +522,8 @@ static const struct v4l2_subdev_video_ops csi2_video_ops = {
 static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 	.get_fmt = csi2_get_set_fmt,
 	.set_fmt = csi2_get_set_fmt,
+	.get_selection = csi2_get_selection,
+	.set_selection = csi2_set_selection,
 };
 
 static const struct v4l2_subdev_ops csi2_subdev_ops = {

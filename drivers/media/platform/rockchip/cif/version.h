@@ -36,6 +36,7 @@
  *1. support crop function
  *2. fix compile error when config with module
  *3. support mipi yuv
+ *4. support selection ioctl for cropping
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

@@ -383,7 +383,7 @@ static const struct cif_input_fmt in_fmts[] = {
 	}
 };
 
-static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream)
+static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream, u16 *index)
 {
 	struct media_pad *local, *remote;
 	struct media_entity *sensor_me;
@@ -394,6 +394,9 @@ static struct v4l2_subdev *get_remote_sensor(struct rkcif_stream *stream)
 	remote = media_entity_remote_pad(local);
 	if (!remote)
 		return NULL;
+
+	if (index)
+		*index = remote->index;
 
 	sensor_me = remote->entity;
 
@@ -456,7 +459,7 @@ static int rkcif_update_sensor_info(struct rkcif_stream *stream)
 	struct v4l2_subdev *sensor_sd;
 	int ret = 0;
 
-	sensor_sd = get_remote_sensor(stream);
+	sensor_sd = get_remote_sensor(stream, NULL);
 	if (!sensor_sd)
 		return -ENODEV;
 
@@ -1296,13 +1299,13 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->crop_en = 1;
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
-			channel->crop_st_x = 3 * stream->crop.left;
+			channel->crop_st_x = 3 * stream->crop[CROP_SRC_ACT].left;
 		else
-			channel->crop_st_x = stream->crop.left;
+			channel->crop_st_x = stream->crop[CROP_SRC_ACT].left;
 
-		channel->crop_st_y = stream->crop.top;
-		channel->width = stream->crop.width;
-		channel->height = stream->crop.height;
+		channel->crop_st_y = stream->crop[CROP_SRC_ACT].top;
+		channel->width = stream->crop[CROP_SRC_ACT].width;
+		channel->height = stream->crop[CROP_SRC_ACT].height;
 	} else {
 		channel->width = stream->pixm.width;
 		channel->height = stream->pixm.height;
@@ -1563,7 +1566,7 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 	*num_planes = cif_fmt->mplanes;
 
 	if (stream->crop_enable)
-		height = stream->crop.height;
+		height = stream->crop[CROP_SRC_ACT].height;
 	else
 		height = pixm->height;
 
@@ -1906,6 +1909,46 @@ static u32 rkcif_cal_raw_vir_line_ratio(const struct cif_output_fmt *fmt)
 	return ratio;
 }
 
+static void rkcif_sync_crop_info(struct rkcif_stream *stream)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_subdev_selection input_sel;
+	int ret;
+
+	if (dev->terminal_sensor) {
+		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+
+		ret = v4l2_subdev_call(dev->terminal_sensor,
+				       pad, get_selection, NULL,
+				       &input_sel);
+		if (!ret) {
+			stream->crop[CROP_SRC_SENSOR] = input_sel.r;
+			stream->crop_enable = true;
+			stream->crop_mask |= CROP_SRC_SENSOR_MASK;
+		}
+	}
+
+	if ((stream->crop_mask & 0x3) == (CROP_SRC_USR_MASK | CROP_SRC_SENSOR_MASK)) {
+		if (stream->crop[CROP_SRC_USR].left + stream->crop[CROP_SRC_USR].width >
+		    stream->crop[CROP_SRC_SENSOR].width ||
+		    stream->crop[CROP_SRC_USR].top + stream->crop[CROP_SRC_USR].height >
+		    stream->crop[CROP_SRC_SENSOR].height)
+			stream->crop[CROP_SRC_USR] = stream->crop[CROP_SRC_SENSOR];
+	}
+
+	if (stream->crop_mask & CROP_SRC_USR_MASK) {
+		stream->crop[CROP_SRC_ACT] = stream->crop[CROP_SRC_USR];
+		if (stream->crop_mask & CROP_SRC_SENSOR_MASK) {
+			stream->crop[CROP_SRC_ACT].left = stream->crop[CROP_SRC_USR].left +
+							  stream->crop[CROP_SRC_SENSOR].left;
+			stream->crop[CROP_SRC_ACT].top = stream->crop[CROP_SRC_USR].top +
+							  stream->crop[CROP_SRC_SENSOR].top;
+		}
+	} else {
+		stream->crop[CROP_SRC_ACT] = stream->crop[CROP_SRC_SENSOR];
+	}
+}
+
 static int rkcif_stream_start(struct rkcif_stream *stream)
 {
 	u32 val, mbus_flags, href_pol, vsync_pol,
@@ -2011,6 +2054,10 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	return 0;
 }
 
+/**rkcif_sanity_check_fmt - check fmt for setting
+ * @stream - the stream for setting
+ * @s_crop - the crop information
+ */
 static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 				  const struct v4l2_rect *s_crop)
 {
@@ -2028,7 +2075,7 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	if (s_crop)
 		crop = (struct v4l2_rect *)s_crop;
 	else
-		crop = &stream->crop;
+		crop = &stream->crop[CROP_SRC_ACT];
 
 	if (crop->width + crop->left > input.width ||
 	    crop->height + crop->top > input.height) {
@@ -2065,9 +2112,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
-	struct v4l2_subdev_selection input_sel;
 	struct rkmodule_hdr_cfg hdr_cfg;
-	/* struct v4l2_subdev *sd; */
 	int ret;
 
 	mutex_lock(&dev->stream_lock);
@@ -2098,14 +2143,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		else
 			dev->hdr.mode = NO_HDR;
 
-		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
-		ret = v4l2_subdev_call(dev->terminal_sensor,
-				       pad, get_selection, NULL,
-				       &input_sel);
-		if (!ret) {
-			stream->crop = input_sel.r;
-			stream->crop_enable = true;
-		}
+		rkcif_sync_crop_info(stream);
 	}
 
 	ret = rkcif_sanity_check_fmt(stream, NULL);
@@ -2253,7 +2291,6 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_output_fmt *fmt;
 	struct v4l2_rect input_rect;
-	struct v4l2_subdev_selection input_sel;
 	unsigned int imagesize = 0, planes;
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
@@ -2292,18 +2329,7 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	pixm->field = V4L2_FIELD_NONE;
 	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
 
-	if (dev->terminal_sensor) {
-		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
-
-		ret = v4l2_subdev_call(dev->terminal_sensor,
-				       pad, get_selection, NULL,
-				       &input_sel);
-		if (!ret) {
-			stream->crop = input_sel.r;
-			stream->crop_enable = true;
-		}
-	}
-
+	rkcif_sync_crop_info(stream);
 	/* calculate plane size and image size */
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
 
@@ -2315,16 +2341,16 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 
 		if (i == 0) {
 			if (stream->crop_enable) {
-				width = stream->crop.width;
-				height = stream->crop.height;
+				width = stream->crop[CROP_SRC_ACT].width;
+				height = stream->crop[CROP_SRC_ACT].height;
 			} else {
 				width = pixm->width;
 				height = pixm->height;
 			}
 		} else {
 			if (stream->crop_enable) {
-				width = stream->crop.width / xsubs;
-				height = stream->crop.height / ysubs;
+				width = stream->crop[CROP_SRC_ACT].width / xsubs;
+				height = stream->crop[CROP_SRC_ACT].height / ysubs;
 			} else {
 				width = pixm->width / xsubs;
 				height = pixm->height / ysubs;
@@ -2374,6 +2400,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 {
 	struct rkcif_stream *stream = &dev->stream[id];
 	struct v4l2_pix_format_mplane pixm;
+	int i;
 
 	memset(stream, 0, sizeof(*stream));
 	memset(&pixm, 0, sizeof(pixm));
@@ -2391,11 +2418,15 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	pixm.height = RKCIF_DEFAULT_HEIGHT;
 	rkcif_set_fmt(stream, &pixm, false);
 
-	stream->crop.left = 0;
-	stream->crop.top = 0;
-	stream->crop.width = RKCIF_DEFAULT_WIDTH;
-	stream->crop.height = RKCIF_DEFAULT_HEIGHT;
+	for (i = 0; i < CROP_SRC_MAX; i++) {
+		stream->crop[i].left = 0;
+		stream->crop[i].top = 0;
+		stream->crop[i].width = RKCIF_DEFAULT_WIDTH;
+		stream->crop[i].height = RKCIF_DEFAULT_HEIGHT;
+	}
+
 	stream->crop_enable = false;
+	stream->crop_mask = 0x0;
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -2627,6 +2658,7 @@ static int rkcif_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
 	const struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect sensor_crop;
 	int ret;
 
 	v4l2_info(&dev->v4l2_dev, "S_CROP(%ux%u@%u:%u) type: %d\n",
@@ -2636,19 +2668,122 @@ static int rkcif_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	if (ret)
 		return ret;
 
-	stream->crop = *rect;
-	stream->crop_enable = true;
+	if (stream->crop_mask & CROP_SRC_SENSOR) {
+		sensor_crop = stream->crop[CROP_SRC_SENSOR];
+		if (sensor_crop.left + rect->left  + rect->width > sensor_crop.width ||
+		    sensor_crop.top + rect->top + rect->height > sensor_crop.height) {
+			v4l2_err(&dev->v4l2_dev, "crop size is bigger than sensor input:left:%d, top:%d, width:%d, height:%d\n",
+				 sensor_crop.left, sensor_crop.top, sensor_crop.width, sensor_crop.height);
+			return -EINVAL;
+		}
+	}
 
-	return 0;
+	stream->crop[CROP_SRC_USR] = *rect;
+	stream->crop_enable = true;
+	stream->crop_mask |= CROP_SRC_USR_MASK;
+	stream->crop[CROP_SRC_ACT] = stream->crop[CROP_SRC_USR];
+	if (stream->crop_mask & CROP_SRC_SENSOR) {
+		stream->crop[CROP_SRC_ACT].left = sensor_crop.left + stream->crop[CROP_SRC_USR].left;
+		stream->crop[CROP_SRC_ACT].top =  sensor_crop.top + stream->crop[CROP_SRC_USR].top;
+	}
+
+	return ret;
 }
 
 static int rkcif_g_crop(struct file *file, void *fh, struct v4l2_crop *a)
 {
 	struct rkcif_stream *stream = video_drvdata(file);
 
-	a->c = stream->crop;
+	a->c = stream->crop[CROP_SRC_ACT];
 
 	return 0;
+}
+
+static int rkcif_s_selection(struct file *file, void *fh,
+				  struct v4l2_selection *s)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_subdev *sensor_sd;
+	struct v4l2_subdev_selection sd_sel;
+	u16 pad = 0;
+	int ret = 0;
+
+	if (!s) {
+		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "sel is null\n");
+		goto err;
+	}
+
+	sensor_sd = get_remote_sensor(stream, &pad);
+
+	sd_sel.r = s->r;
+	sd_sel.pad = pad;
+	sd_sel.target = s->target;
+	sd_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+	ret = v4l2_subdev_call(sensor_sd, pad, set_selection, NULL, &sd_sel);
+	if (!ret) {
+		s->r = sd_sel.r;
+		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s: pad:%d, which:%d, target:%d\n",
+			 __func__, pad, sd_sel.which, sd_sel.target);
+	}
+
+	return ret;
+
+err:
+	return -EINVAL;
+}
+
+static int rkcif_g_selection(struct file *file, void *fh,
+				  struct v4l2_selection *s)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_subdev *sensor_sd;
+	struct v4l2_subdev_selection sd_sel;
+	u16 pad = 0;
+	int ret = 0;
+
+	if (!s) {
+		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "sel is null\n");
+		goto err;
+	}
+
+	if (s->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sensor_sd = get_remote_sensor(stream, &pad);
+
+		sd_sel.pad = pad;
+		sd_sel.target = s->target;
+		sd_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s(line:%d): sd:%s pad:%d, which:%d, target:%d\n",
+			 __func__, __LINE__, sensor_sd->name, pad, sd_sel.which, sd_sel.target);
+
+		ret = v4l2_subdev_call(sensor_sd, pad, get_selection, NULL, &sd_sel);
+		if (!ret) {
+			s->r = sd_sel.r;
+		} else {
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = stream->pixm.width;
+			s->r.height = stream->pixm.height;
+		}
+	}
+
+	if (s->target == V4L2_SEL_TGT_CROP) {
+		if (stream->crop_mask & (CROP_SRC_USR_MASK | CROP_SRC_SENSOR_MASK)) {
+			s->r = stream->crop[CROP_SRC_ACT];
+		} else {
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = stream->pixm.width;
+			s->r.height = stream->pixm.height;
+		}
+	}
+
+	return ret;
+err:
+	return -EINVAL;
 }
 
 static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
@@ -2669,6 +2804,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_querycap = rkcif_querycap,
 	.vidioc_s_crop = rkcif_s_crop,
 	.vidioc_g_crop = rkcif_g_crop,
+	.vidioc_s_selection = rkcif_s_selection,
+	.vidioc_g_selection = rkcif_g_selection,
 	.vidioc_enum_frameintervals = rkcif_enum_frameintervals,
 	.vidioc_enum_framesizes = rkcif_enum_framesizes,
 };
@@ -2829,13 +2966,103 @@ static int rkcif_lvds_sd_get_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_format *fmt)
 {
+	struct rkcif_lvds_subdev *subdev = container_of(sd, struct rkcif_lvds_subdev, sd);
 	struct v4l2_subdev *sensor = get_lvds_remote_sensor(sd);
+	int ret;
 
 	/*
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
-	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	if (!ret)
+		subdev->in_fmt = fmt->format;
+
+	return ret;
+}
+
+static struct v4l2_rect *rkcif_lvds_sd_get_crop(struct rkcif_lvds_subdev *subdev,
+						      struct v4l2_subdev_pad_config *cfg,
+						      enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_crop(&subdev->sd, cfg, RKCIF_LVDS_PAD_SINK);
+	else
+		return &subdev->crop;
+}
+
+static int rkcif_lvds_sd_set_selection(struct v4l2_subdev *sd,
+					       struct v4l2_subdev_pad_config *cfg,
+					       struct v4l2_subdev_selection *sel)
+{
+	struct rkcif_lvds_subdev *subdev = container_of(sd, struct rkcif_lvds_subdev, sd);
+	struct v4l2_subdev *sensor = get_lvds_remote_sensor(sd);
+	int ret = 0;
+
+	ret = v4l2_subdev_call(sensor, pad, set_selection,
+			       cfg, sel);
+	if (!ret)
+		subdev->crop = sel->r;
+
+	return ret;
+}
+
+static int rkcif_lvds_sd_get_selection(struct v4l2_subdev *sd,
+					       struct v4l2_subdev_pad_config *cfg,
+					       struct v4l2_subdev_selection *sel)
+{
+	struct rkcif_lvds_subdev *subdev = container_of(sd, struct rkcif_lvds_subdev, sd);
+	struct v4l2_subdev *sensor = get_lvds_remote_sensor(sd);
+	struct v4l2_subdev_format fmt;
+	int ret = 0;
+
+	if (!sel) {
+		v4l2_dbg(1, rkcif_debug, sd, "sel is null\n");
+		goto err;
+	}
+
+	if (sel->pad > RKCIF_LVDS_PAD_SRC_ID3) {
+		v4l2_dbg(1, rkcif_debug, sd, "pad[%d] isn't matched\n", sel->pad);
+		goto err;
+	}
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+			ret = v4l2_subdev_call(sensor, pad, get_selection,
+					       cfg, sel);
+			if (ret) {
+				fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt);
+				if (!ret) {
+					subdev->in_fmt = fmt.format;
+					sel->r.top = 0;
+					sel->r.left = 0;
+					sel->r.width = subdev->in_fmt.width;
+					sel->r.height = subdev->in_fmt.height;
+					subdev->crop = sel->r;
+				} else {
+					sel->r = subdev->crop;
+				}
+			} else {
+				subdev->crop = sel->r;
+			}
+		} else {
+			sel->r = *v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+		}
+		break;
+
+	case V4L2_SEL_TGT_CROP:
+		sel->r = *rkcif_lvds_sd_get_crop(subdev, cfg, sel->which);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+err:
+	return -EINVAL;
 }
 
 static int rkcif_lvds_g_mbus_config(struct v4l2_subdev *sd,
@@ -2883,6 +3110,8 @@ static const struct media_entity_operations rkcif_lvds_sd_media_ops = {
 static const struct v4l2_subdev_pad_ops rkcif_lvds_sd_pad_ops = {
 	.set_fmt = rkcif_lvds_sd_set_fmt,
 	.get_fmt = rkcif_lvds_sd_get_fmt,
+	.set_selection = rkcif_lvds_sd_set_selection,
+	.get_selection = rkcif_lvds_sd_get_selection,
 };
 
 static const struct v4l2_subdev_video_ops rkcif_lvds_sd_video_ops = {
@@ -2949,6 +3178,13 @@ int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID1].flags = MEDIA_PAD_FL_SOURCE;
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID2].flags = MEDIA_PAD_FL_SOURCE;
 	lvds_subdev->pads[RKCIF_LVDS_PAD_SRC_ID3].flags = MEDIA_PAD_FL_SOURCE;
+
+	lvds_subdev->in_fmt.width = RKCIF_DEFAULT_WIDTH;
+	lvds_subdev->in_fmt.height = RKCIF_DEFAULT_HEIGHT;
+	lvds_subdev->crop.left = 0;
+	lvds_subdev->crop.top = 0;
+	lvds_subdev->crop.width = RKCIF_DEFAULT_WIDTH;
+	lvds_subdev->crop.height = RKCIF_DEFAULT_HEIGHT;
 
 	ret = media_entity_pads_init(&sd->entity, RKCIF_LVDS_PAD_MAX,
 				     lvds_subdev->pads);

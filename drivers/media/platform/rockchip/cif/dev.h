@@ -70,6 +70,12 @@
 #define write_cif_reg_and(base, addr, val) \
 	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
+/*
+ * for distinguishing cropping from senosr or usr
+ */
+#define CROP_SRC_SENSOR_MASK		(0x1 << 0)
+#define CROP_SRC_USR_MASK		(0x1 << 1)
+
 enum rkcif_workmode {
 	RKCIF_WORKMODE_ONEFRAME = 0x00,
 	RKCIF_WORKMODE_PINGPONG = 0x01,
@@ -115,6 +121,16 @@ enum rkcif_lvds_pad {
 enum rkcif_lvds_state {
 	RKCIF_LVDS_STOP = 0,
 	RKCIF_LVDS_START,
+};
+
+/*
+ * for distinguishing cropping from senosr or usr
+ */
+enum rkcif_crop_src {
+	CROP_SRC_ACT	= 0x0,
+	CROP_SRC_SENSOR,
+	CROP_SRC_USR,
+	CROP_SRC_MAX
 };
 
 /*
@@ -268,7 +284,7 @@ struct rkcif_stream {
 	wait_queue_head_t		wq_stopped;
 	int				frame_idx;
 	int				frame_phase;
-
+	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
 	struct list_head		buf_head;
 	struct rkcif_dummy_buffer	dummy_buf;
@@ -282,7 +298,7 @@ struct rkcif_stream {
 	const struct cif_output_fmt	*cif_fmt_out;
 	const struct cif_input_fmt	*cif_fmt_in;
 	struct v4l2_pix_format_mplane	pixm;
-	struct v4l2_rect		crop;
+	struct v4l2_rect		crop[CROP_SRC_MAX];
 };
 
 struct rkcif_lvds_subdev {
@@ -291,6 +307,7 @@ struct rkcif_lvds_subdev {
 	struct v4l2_subdev *remote_sd;
 	struct media_pad pads[RKCIF_LVDS_PAD_MAX];
 	struct v4l2_mbus_framefmt in_fmt;
+	struct v4l2_rect crop;
 	const struct cif_output_fmt	*cif_fmt_out;
 	const struct cif_input_fmt	*cif_fmt_in;
 	enum rkcif_lvds_state state;
