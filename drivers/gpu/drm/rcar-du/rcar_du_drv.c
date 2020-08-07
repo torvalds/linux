@@ -216,8 +216,9 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.channels_mask = BIT(2) | BIT(1) | BIT(0),
 	.routes = {
 		/*
-		 * R8A7790 has one RGB output, two LVDS outputs and one
-		 * (currently unsupported) TCON output.
+		 * R8A7742 and R8A7790 each have one RGB output and two LVDS
+		 * outputs. Additionally R8A7790 supports one TCON output
+		 * (currently unsupported by the driver).
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
 			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
@@ -443,6 +444,7 @@ static const struct rcar_du_device_info rcar_du_r8a7799x_info = {
 };
 
 static const struct of_device_id rcar_du_of_table[] = {
+	{ .compatible = "renesas,du-r8a7742", .data = &rcar_du_r8a7790_info },
 	{ .compatible = "renesas,du-r8a7743", .data = &rzg1_du_r8a7743_info },
 	{ .compatible = "renesas,du-r8a7744", .data = &rzg1_du_r8a7743_info },
 	{ .compatible = "renesas,du-r8a7745", .data = &rzg1_du_r8a7745_info },
