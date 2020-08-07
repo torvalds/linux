@@ -29,11 +29,6 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 }
 
-static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long)pgd);
-}
-
 #if CONFIG_PGTABLE_LEVELS == 4
 static inline void
 p4d_populate(struct mm_struct *mm, p4d_t * p4d_entry, pud_t * pud)

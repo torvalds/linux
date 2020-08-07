@@ -196,11 +196,6 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	return pgd;
 }
 
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long) pgd);
-}
-
 void *uml_kmalloc(int size, int flags)
 {
 	return kmalloc(size, flags);

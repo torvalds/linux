@@ -11,6 +11,7 @@
 #include <asm/cache.h>
 
 #define __HAVE_ARCH_PMD_FREE
+#define __HAVE_ARCH_PGD_FREE
 #include <asm-generic/pgalloc.h>
 
 /* Allocate the top level pgd (page directory)
