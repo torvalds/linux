@@ -1821,7 +1821,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 				 long signr, size_t *total)
 {
 	unsigned int i;
-	unsigned int regset0_size = regset_size(t->task, &view->regsets[0]);
+	int regset0_size;
 
 	/*
 	 * NT_PRSTATUS is the one special case, because the regset data
@@ -1830,8 +1830,10 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	 * We assume that regset 0 is NT_PRSTATUS.
 	 */
 	fill_prstatus(&t->prstatus, t->task, signr);
-	(void) view->regsets[0].get(t->task, &view->regsets[0], 0, regset0_size,
-				    &t->prstatus.pr_reg, NULL);
+	regset0_size = regset_get(t->task, &view->regsets[0],
+		   sizeof(t->prstatus.pr_reg), &t->prstatus.pr_reg);
+	if (regset0_size < 0)
+		return 0;
 
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS,
 		  PRSTATUS_SIZE(t->prstatus, regset0_size), &t->prstatus);
@@ -1846,32 +1848,28 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	 */
 	for (i = 1; i < view->n; ++i) {
 		const struct user_regset *regset = &view->regsets[i];
+		int note_type = regset->core_note_type;
+		bool is_fpreg = note_type == NT_PRFPREG;
+		void *data;
+		int ret;
+
 		do_thread_regset_writeback(t->task, regset);
-		if (regset->core_note_type && regset->get &&
-		    (!regset->active || regset->active(t->task, regset) > 0)) {
-			int ret;
-			size_t size = regset_size(t->task, regset);
-			void *data = kzalloc(size, GFP_KERNEL);
-			if (unlikely(!data))
-				return 0;
-			ret = regset->get(t->task, regset,
-					  0, size, data, NULL);
-			if (unlikely(ret))
-				kfree(data);
-			else {
-				if (regset->core_note_type != NT_PRFPREG)
-					fill_note(&t->notes[i], "LINUX",
-						  regset->core_note_type,
-						  size, data);
-				else {
-					SET_PR_FPVALID(&t->prstatus,
-							1, regset0_size);
-					fill_note(&t->notes[i], "CORE",
-						  NT_PRFPREG, size, data);
-				}
-				*total += notesize(&t->notes[i]);
-			}
-		}
+		if (!note_type) // not for coredumps
+			continue;
+		if (regset->active && regset->active(t->task, regset) <= 0)
+			continue;
+
+		ret = regset_get_alloc(t->task, regset, ~0U, &data);
+		if (ret < 0)
+			continue;
+
+		if (is_fpreg)
+			SET_PR_FPVALID(&t->prstatus, 1, regset0_size);
+
+		fill_note(&t->notes[i], is_fpreg ? "CORE" : "LINUX",
+			  note_type, ret, data);
+
+		*total += notesize(&t->notes[i]);
 	}
 
 	return 1;
