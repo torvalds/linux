@@ -54,7 +54,7 @@ struct lock_list {
 	struct lock_class		*class;
 	struct lock_class		*links_to;
 	const struct lock_trace		*trace;
-	int				distance;
+	u16				distance;
 
 	/*
 	 * The parent field is used to implement breadth-first search, and the
