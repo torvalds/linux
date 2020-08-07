@@ -495,6 +495,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_SUBDEV_S_DV_TIMINGS:
 		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
 
+	case VIDIOC_G_INPUT:
+		return v4l2_subdev_call(sd, video, g_input_status, arg);
+
 	case VIDIOC_SUBDEV_G_STD:
 		return v4l2_subdev_call(sd, video, g_std, arg);
 
