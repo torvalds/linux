@@ -13554,6 +13554,7 @@ F:	arch/*/kernel/perf_event*.c
 F:	include/linux/perf_event.h
 F:	include/uapi/linux/perf_event.h
 F:	kernel/events/*
+F:	tools/lib/perf/
 F:	tools/perf/
 
 PERFORMANCE EVENTS SUBSYSTEM ARM64 PMU EVENTS
