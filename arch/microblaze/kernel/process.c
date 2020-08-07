@@ -54,8 +54,8 @@ void flush_thread(void)
 {
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct thread_info *ti = task_thread_info(p);
@@ -114,7 +114,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 *  which contains TLS area
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->r21 = childregs->r10;
+		childregs->r21 = tls;
 
 	return 0;
 }

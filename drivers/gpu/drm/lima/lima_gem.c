@@ -134,7 +134,7 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 
 out:
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return err;
 }
@@ -243,7 +243,7 @@ int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset)
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return 0;
 }
 
@@ -323,7 +323,7 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 		 */
 		err = lima_vm_bo_add(vm, bo, false);
 		if (err) {
-			drm_gem_object_put_unlocked(obj);
+			drm_gem_object_put(obj);
 			goto err_out0;
 		}
 
@@ -368,7 +368,7 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 				    submit->nr_bos, &ctx);
 
 	for (i = 0; i < submit->nr_bos; i++)
-		drm_gem_object_put_unlocked(&bos[i]->base.base);
+		drm_gem_object_put(&bos[i]->base.base);
 
 	if (out_sync) {
 		drm_syncobj_replace_fence(out_sync, fence);
@@ -389,7 +389,7 @@ err_out0:
 		if (!bos[i])
 			break;
 		lima_vm_bo_del(vm, bos[i]);
-		drm_gem_object_put_unlocked(&bos[i]->base.base);
+		drm_gem_object_put(&bos[i]->base.base);
 	}
 	if (out_sync)
 		drm_syncobj_put(out_sync);

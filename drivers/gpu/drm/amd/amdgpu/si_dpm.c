@@ -6953,6 +6953,24 @@ static int si_power_control_set_level(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void si_set_vce_clock(struct amdgpu_device *adev,
+			     struct amdgpu_ps *new_rps,
+			     struct amdgpu_ps *old_rps)
+{
+	if ((old_rps->evclk != new_rps->evclk) ||
+	    (old_rps->ecclk != new_rps->ecclk)) {
+		/* Turn the clocks on when encoding, off otherwise */
+		if (new_rps->evclk || new_rps->ecclk) {
+			/* Place holder for future VCE1.0 porting to amdgpu
+			vce_v1_0_enable_mgcg(adev, false, false);*/
+		} else {
+			/* Place holder for future VCE1.0 porting to amdgpu
+			vce_v1_0_enable_mgcg(adev, true, false);
+			amdgpu_asic_set_vce_clocks(adev, new_rps->evclk, new_rps->ecclk);*/
+		}
+	}
+}
+
 static int si_dpm_set_power_state(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -7029,6 +7047,7 @@ static int si_dpm_set_power_state(void *handle)
 		return ret;
 	}
 	ni_set_uvd_clock_after_set_eng_clock(adev, new_ps, old_ps);
+	si_set_vce_clock(adev, new_ps, old_ps);
 	if (eg_pi->pcie_performance_request)
 		si_notify_link_speed_change_after_state_change(adev, new_ps, old_ps);
 	ret = si_set_power_state_conditionally_enable_ulv(adev, new_ps);

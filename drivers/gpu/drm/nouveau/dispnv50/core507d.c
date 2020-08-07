@@ -23,25 +23,36 @@
 #include "head.h"
 
 #include <nvif/cl507d.h>
+#include <nvif/push507c.h>
 #include <nvif/timer.h>
+
+#include <nvhw/class/cl507d.h>
 
 #include "nouveau_bo.h"
 
-void
+int
 core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 5))) {
-		if (ntfy) {
-			evo_mthd(push, 0x0084, 1);
-			evo_data(push, 0x80000000 | NV50_DISP_CORE_NTFY);
-		}
-		evo_mthd(push, 0x0080, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_BASE] |
-			       interlock[NV50_DISP_INTERLOCK_OVLY]);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &core->chan);
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	if (ntfy) {
+		PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
+			  NVDEF(NV507D, SET_NOTIFIER_CONTROL, MODE, WRITE) |
+			  NVVAL(NV507D, SET_NOTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
+			  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, ENABLE));
 	}
+
+	PUSH_MTHD(push, NV507D, UPDATE, interlock[NV50_DISP_INTERLOCK_BASE] |
+					interlock[NV50_DISP_INTERLOCK_OVLY] |
+		  NVDEF(NV507D, UPDATE, NOT_DRIVER_FRIENDLY, FALSE) |
+		  NVDEF(NV507D, UPDATE, NOT_DRIVER_UNFRIENDLY, FALSE) |
+		  NVDEF(NV507D, UPDATE, INHIBIT_INTERRUPTS, FALSE));
+
+	return PUSH_KICK(push);
 }
 
 int
@@ -49,7 +60,7 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		if (nouveau_bo_rd32(bo, offset / 4))
+		if (NVBO_TD32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, ==, TRUE))
 			break;
 		usleep_range(1, 2);
 	);
@@ -59,32 +70,34 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 void
 core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	NVBO_WR32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0,
+			NVDEF(NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, FALSE));
 }
 
 int
 core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 {
-	u32 *push = evo_wait(&disp->core->chan, 2);
+	struct nvif_push *push = disp->core->chan.push;
+	int ret;
 
-	if (push) {
-		evo_mthd(push, 0x008c, 1);
-		evo_data(push, 0x0);
-		evo_kick(push, &disp->core->chan);
-	}
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
 
-	return 0;
+	PUSH_MTHD(push, NV507D, GET_CAPABILITIES, 0x00000000);
+	return PUSH_KICK(push);
 }
 
-void
+int
 core507d_init(struct nv50_core *core)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 2))) {
-		evo_mthd(push, 0x0088, 1);
-		evo_data(push, core->chan.sync.handle);
-		evo_kick(push, &core->chan);
-	}
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
+	return PUSH_KICK(push);
 }
 
 static const struct nv50_core_func
@@ -115,7 +128,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 
 	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
 			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->bo.offset, &core->chan);
+			       disp->sync->offset, &core->chan);
 	if (ret) {
 		NV_ERROR(drm, "core%04x allocation failed: %d\n", oclass, ret);
 		return ret;

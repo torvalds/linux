@@ -235,7 +235,7 @@ This toggle indicates whether unprivileged users are prevented
 from using ``dmesg(8)`` to view messages from the kernel's log
 buffer.
 When ``dmesg_restrict`` is set to 0 there are no restrictions.
-When ``dmesg_restrict`` is set set to 1, users must have
+When ``dmesg_restrict`` is set to 1, users must have
 ``CAP_SYSLOG`` to use ``dmesg(8)``.
 
 The kernel config option ``CONFIG_SECURITY_DMESG_RESTRICT`` sets the
@@ -335,8 +335,8 @@ Path for the hotplug policy agent.
 Default value is "``/sbin/hotplug``".
 
 
-hung_task_all_cpu_backtrace:
-================
+hung_task_all_cpu_backtrace
+===========================
 
 If this option is set, the kernel will send an NMI to all CPUs to dump
 their backtraces when a hung task is detected. This file shows up if
@@ -646,8 +646,8 @@ rate for each task.
 scanned for a given scan.
 
 
-oops_all_cpu_backtrace:
-================
+oops_all_cpu_backtrace
+======================
 
 If this option is set, the kernel will send an NMI to all CPUs to dump
 their backtraces when an oops event occurs. It should be used as a last
@@ -994,6 +994,38 @@ pty
 ===
 
 See Documentation/filesystems/devpts.rst.
+
+
+random
+======
+
+This is a directory, with the following entries:
+
+* ``boot_id``: a UUID generated the first time this is retrieved, and
+  unvarying after that;
+
+* ``entropy_avail``: the pool's entropy count, in bits;
+
+* ``poolsize``: the entropy pool size, in bits;
+
+* ``urandom_min_reseed_secs``: obsolete (used to determine the minimum
+  number of seconds between urandom pool reseeding).
+
+* ``uuid``: a UUID generated every time this is retrieved (this can
+  thus be used to generate UUIDs at will);
+
+* ``write_wakeup_threshold``: when the entropy count drops below this
+  (as a number of bits), processes waiting to write to ``/dev/random``
+  are woken up.
+
+If ``drivers/char/random.c`` is built with ``ADD_INTERRUPT_BENCH``
+defined, these additional entries are present:
+
+* ``add_interrupt_avg_cycles``: the average number of cycles between
+  interrupts used to feed the pool;
+
+* ``add_interrupt_avg_deviation``: the standard deviation seen on the
+  number of cycles between interrupts used to feed the pool.
 
 
 randomize_va_space

@@ -84,10 +84,6 @@ struct ksz_device {
 	unsigned long mib_read_interval;
 	u16 br_member;
 	u16 member;
-	u16 live_ports;
-	u16 on_ports;			/* ports enabled by DSA */
-	u16 rx_ports;
-	u16 tx_ports;
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u32 features;			/* chip specific features */
@@ -157,8 +153,8 @@ void ksz_init_mib_timer(struct ksz_device *dev);
 
 int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
 int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
-void ksz_adjust_link(struct dsa_switch *ds, int port,
-		     struct phy_device *phydev);
+void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+		       phy_interface_t interface);
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
 void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf);
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
@@ -177,7 +173,6 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_mdb *mdb);
 int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
-void ksz_disable_port(struct dsa_switch *ds, int port);
 
 /* Common register access functions */
 

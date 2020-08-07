@@ -4,6 +4,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_request.h"
 
 #include "intel_context.h"
@@ -31,7 +32,7 @@ static bool next_heartbeat(struct intel_engine_cs *engine)
 	delay = msecs_to_jiffies_timeout(delay);
 	if (delay >= HZ)
 		delay = round_jiffies_up_relative(delay);
-	mod_delayed_work(system_wq, &engine->heartbeat.work, delay);
+	mod_delayed_work(system_highpri_wq, &engine->heartbeat.work, delay);
 
 	return true;
 }
@@ -48,8 +49,10 @@ static void show_heartbeat(const struct i915_request *rq,
 	struct drm_printer p = drm_debug_printer("heartbeat");
 
 	intel_engine_dump(engine, &p,
-			  "%s heartbeat {prio:%d} not ticking\n",
+			  "%s heartbeat {seqno:%llx:%lld, prio:%d} not ticking\n",
 			  engine->name,
+			  rq->fence.context,
+			  rq->fence.seqno,
 			  rq->sched.attr.priority);
 }
 
@@ -62,6 +65,10 @@ static void heartbeat(struct work_struct *wrk)
 		container_of(wrk, typeof(*engine), heartbeat.work.work);
 	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
+	unsigned long serial;
+
+	/* Just in case everything has gone horribly wrong, give it a kick */
+	intel_engine_flush_submission(engine);
 
 	rq = engine->heartbeat.systole;
 	if (rq && i915_request_completed(rq)) {
@@ -76,8 +83,19 @@ static void heartbeat(struct work_struct *wrk)
 		goto out;
 
 	if (engine->heartbeat.systole) {
-		if (engine->schedule &&
-		    rq->sched.attr.priority < I915_PRIORITY_BARRIER) {
+		if (!i915_sw_fence_signaled(&rq->submit)) {
+			/*
+			 * Not yet submitted, system is stalled.
+			 *
+			 * This more often happens for ring submission,
+			 * where all contexts are funnelled into a common
+			 * ringbuffer. If one context is blocked on an
+			 * external fence, not only is it not submitted,
+			 * but all other contexts, including the kernel
+			 * context are stuck waiting for the signal.
+			 */
+		} else if (engine->schedule &&
+			   rq->sched.attr.priority < I915_PRIORITY_BARRIER) {
 			/*
 			 * Gradually raise the priority of the heartbeat to
 			 * give high priority work [which presumably desires
@@ -105,10 +123,19 @@ static void heartbeat(struct work_struct *wrk)
 		goto out;
 	}
 
-	if (engine->wakeref_serial == engine->serial)
+	serial = READ_ONCE(engine->serial);
+	if (engine->wakeref_serial == serial)
 		goto out;
 
-	mutex_lock(&ce->timeline->mutex);
+	if (!mutex_trylock(&ce->timeline->mutex)) {
+		/* Unable to lock the kernel timeline, is the engine stuck? */
+		if (xchg(&engine->heartbeat.blocked, serial) == serial)
+			intel_gt_handle_error(engine->gt, engine->mask,
+					      I915_ERROR_CAPTURE,
+					      "no heartbeat on %s",
+					      engine->name);
+		goto out;
+	}
 
 	intel_context_enter(ce);
 	rq = __i915_request_create(ce, GFP_NOWAIT | __GFP_NOWARN);
@@ -117,7 +144,7 @@ static void heartbeat(struct work_struct *wrk)
 		goto unlock;
 
 	idle_pulse(engine, rq);
-	if (i915_modparams.enable_hangcheck)
+	if (engine->i915->params.enable_hangcheck)
 		engine->heartbeat.systole = i915_request_get(rq);
 
 	__i915_request_commit(rq);

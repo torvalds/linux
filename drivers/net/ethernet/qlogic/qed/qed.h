@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_H
@@ -271,20 +245,6 @@ enum QED_FEATURE {
 	QED_MAX_FEATURES,
 };
 
-enum QED_PORT_MODE {
-	QED_PORT_MODE_DE_2X40G,
-	QED_PORT_MODE_DE_2X50G,
-	QED_PORT_MODE_DE_1X100G,
-	QED_PORT_MODE_DE_4X10G_F,
-	QED_PORT_MODE_DE_4X10G_E,
-	QED_PORT_MODE_DE_4X20G,
-	QED_PORT_MODE_DE_1X40G,
-	QED_PORT_MODE_DE_2X25G,
-	QED_PORT_MODE_DE_1X25G,
-	QED_PORT_MODE_DE_4X25G,
-	QED_PORT_MODE_DE_2X10G,
-};
-
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
 	QED_DEV_CAP_FCOE,
@@ -306,48 +266,49 @@ enum qed_db_rec_exec {
 
 struct qed_hw_info {
 	/* PCI personality */
-	enum qed_pci_personality personality;
-#define QED_IS_RDMA_PERSONALITY(dev)			    \
-	((dev)->hw_info.personality == QED_PCI_ETH_ROCE ||  \
-	 (dev)->hw_info.personality == QED_PCI_ETH_IWARP || \
+	enum qed_pci_personality	personality;
+#define QED_IS_RDMA_PERSONALITY(dev)					\
+	((dev)->hw_info.personality == QED_PCI_ETH_ROCE ||		\
+	 (dev)->hw_info.personality == QED_PCI_ETH_IWARP ||		\
 	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
-#define QED_IS_ROCE_PERSONALITY(dev)			   \
-	((dev)->hw_info.personality == QED_PCI_ETH_ROCE || \
+#define QED_IS_ROCE_PERSONALITY(dev)					\
+	((dev)->hw_info.personality == QED_PCI_ETH_ROCE ||		\
 	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
-#define QED_IS_IWARP_PERSONALITY(dev)			    \
-	((dev)->hw_info.personality == QED_PCI_ETH_IWARP || \
+#define QED_IS_IWARP_PERSONALITY(dev)					\
+	((dev)->hw_info.personality == QED_PCI_ETH_IWARP ||		\
 	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
-#define QED_IS_L2_PERSONALITY(dev)		      \
-	((dev)->hw_info.personality == QED_PCI_ETH || \
+#define QED_IS_L2_PERSONALITY(dev)					\
+	((dev)->hw_info.personality == QED_PCI_ETH ||			\
 	 QED_IS_RDMA_PERSONALITY(dev))
-#define QED_IS_FCOE_PERSONALITY(dev) \
+#define QED_IS_FCOE_PERSONALITY(dev)					\
 	((dev)->hw_info.personality == QED_PCI_FCOE)
-#define QED_IS_ISCSI_PERSONALITY(dev) \
+#define QED_IS_ISCSI_PERSONALITY(dev)					\
 	((dev)->hw_info.personality == QED_PCI_ISCSI)
 
 	/* Resource Allocation scheme results */
 	u32				resc_start[QED_MAX_RESC];
 	u32				resc_num[QED_MAX_RESC];
-	u32				feat_num[QED_MAX_FEATURES];
+#define RESC_START(_p_hwfn, resc)	((_p_hwfn)->hw_info.resc_start[resc])
+#define RESC_NUM(_p_hwfn, resc)		((_p_hwfn)->hw_info.resc_num[resc])
+#define RESC_END(_p_hwfn, resc)		(RESC_START(_p_hwfn, resc) +	\
+					 RESC_NUM(_p_hwfn, resc))
 
-#define RESC_START(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_start[resc])
-#define RESC_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_num[resc])
-#define RESC_END(_p_hwfn, resc) (RESC_START(_p_hwfn, resc) + \
-				 RESC_NUM(_p_hwfn, resc))
-#define FEAT_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.feat_num[resc])
+	u32				feat_num[QED_MAX_FEATURES];
+#define FEAT_NUM(_p_hwfn, resc)		((_p_hwfn)->hw_info.feat_num[resc])
 
 	/* Amount of traffic classes HW supports */
-	u8 num_hw_tc;
+	u8				num_hw_tc;
 
 	/* Amount of TCs which should be active according to DCBx or upper
 	 * layer driver configuration.
 	 */
-	u8 num_active_tc;
+	u8				num_active_tc;
+
 	u8				offload_tc;
 	bool				offload_tc_set;
 
 	bool				multi_tc_roce_en;
-#define IS_QED_MULTI_TC_ROCE(p_hwfn) (((p_hwfn)->hw_info.multi_tc_roce_en))
+#define IS_QED_MULTI_TC_ROCE(p_hwfn)	((p_hwfn)->hw_info.multi_tc_roce_en)
 
 	u32				concrete_fid;
 	u16				opaque_fid;
@@ -362,12 +323,11 @@ struct qed_hw_info {
 
 	struct qed_igu_info		*p_igu_info;
 
-	u32				port_mode;
 	u32				hw_mode;
-	unsigned long		device_capabilities;
+	unsigned long			device_capabilities;
 	u16				mtu;
 
-	enum qed_wol_support b_wol_support;
+	enum qed_wol_support		b_wol_support;
 };
 
 /* maximun size of read/write commands (HW limit) */
@@ -741,41 +701,42 @@ struct qed_dbg_feature {
 };
 
 struct qed_dev {
-	u32	dp_module;
-	u8	dp_level;
-	char	name[NAME_SIZE];
+	u32				dp_module;
+	u8				dp_level;
+	char				name[NAME_SIZE];
 
-	enum	qed_dev_type type;
-/* Translate type/revision combo into the proper conditions */
-#define QED_IS_BB(dev)  ((dev)->type == QED_DEV_TYPE_BB)
-#define QED_IS_BB_B0(dev)       (QED_IS_BB(dev) && \
-				 CHIP_REV_IS_B0(dev))
-#define QED_IS_AH(dev)  ((dev)->type == QED_DEV_TYPE_AH)
-#define QED_IS_K2(dev)  QED_IS_AH(dev)
+	enum qed_dev_type		type;
+	/* Translate type/revision combo into the proper conditions */
+#define QED_IS_BB(dev)			((dev)->type == QED_DEV_TYPE_BB)
+#define QED_IS_BB_B0(dev)		(QED_IS_BB(dev) && CHIP_REV_IS_B0(dev))
+#define QED_IS_AH(dev)			((dev)->type == QED_DEV_TYPE_AH)
+#define QED_IS_K2(dev)			QED_IS_AH(dev)
+#define QED_IS_E4(dev)			(QED_IS_BB(dev) || QED_IS_AH(dev))
+#define QED_IS_E5(dev)			((dev)->type == QED_DEV_TYPE_E5)
 
-	u16	vendor_id;
-	u16	device_id;
-#define QED_DEV_ID_MASK		0xff00
-#define QED_DEV_ID_MASK_BB	0x1600
-#define QED_DEV_ID_MASK_AH	0x8000
-#define QED_IS_E4(dev)  (QED_IS_BB(dev) || QED_IS_AH(dev))
+	u16				vendor_id;
 
-	u16	chip_num;
-#define CHIP_NUM_MASK                   0xffff
-#define CHIP_NUM_SHIFT                  16
+	u16				device_id;
+#define QED_DEV_ID_MASK			0xff00
+#define QED_DEV_ID_MASK_BB		0x1600
+#define QED_DEV_ID_MASK_AH		0x8000
 
-	u16	chip_rev;
-#define CHIP_REV_MASK                   0xf
-#define CHIP_REV_SHIFT                  12
-#define CHIP_REV_IS_B0(_cdev)   ((_cdev)->chip_rev == 1)
+	u16				chip_num;
+#define CHIP_NUM_MASK			0xffff
+#define CHIP_NUM_SHIFT			16
+
+	u16				chip_rev;
+#define CHIP_REV_MASK			0xf
+#define CHIP_REV_SHIFT			12
+#define CHIP_REV_IS_B0(_cdev)		((_cdev)->chip_rev == 1)
 
 	u16				chip_metal;
-#define CHIP_METAL_MASK                 0xff
-#define CHIP_METAL_SHIFT                4
+#define CHIP_METAL_MASK			0xff
+#define CHIP_METAL_SHIFT		4
 
 	u16				chip_bond_id;
-#define CHIP_BOND_ID_MASK               0xf
-#define CHIP_BOND_ID_SHIFT              0
+#define CHIP_BOND_ID_MASK		0xf
+#define CHIP_BOND_ID_SHIFT		0
 
 	u8				num_engines;
 	u8				num_ports;

@@ -192,6 +192,9 @@ FIONREAD
 	Works as in udp(7): returns in the ``int`` argument pointer the size of
 	the next pending datagram in bytes, or 0 when no datagram is pending.
 
+SIOCOUTQ
+	Returns the number of unsent data bytes in the socket send queue as ``int``
+	into the buffer specified by the argument pointer.
 
 Other tunables
 ==============

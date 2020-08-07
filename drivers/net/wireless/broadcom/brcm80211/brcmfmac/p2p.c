@@ -1700,7 +1700,7 @@ static s32 brcmf_p2p_pub_af_tx(struct brcmf_cfg80211_info *cfg,
 	return err;
 }
 
-static bool brcmf_p2p_check_dwell_overflow(s32 requested_dwell,
+static bool brcmf_p2p_check_dwell_overflow(u32 requested_dwell,
 					   unsigned long dwell_jiffies)
 {
 	if ((requested_dwell & CUSTOM_RETRY_MASK) &&
@@ -1738,8 +1738,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 	unsigned long dwell_jiffies = 0;
 	bool dwell_overflow = false;
 
-	s32 requested_dwell = af_params->dwell_time;
-
+	u32 requested_dwell = le32_to_cpu(af_params->dwell_time);
 	action_frame = &af_params->action_frame;
 	action_frame_len = le16_to_cpu(action_frame->len);
 

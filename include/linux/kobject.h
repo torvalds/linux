@@ -59,7 +59,6 @@ enum kobject_action {
 	KOBJ_OFFLINE,
 	KOBJ_BIND,
 	KOBJ_UNBIND,
-	KOBJ_MAX
 };
 
 struct kobject {

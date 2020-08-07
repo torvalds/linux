@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: QCOM SoC Temperature Sensor (TSENS)
 
 maintainers:
-  - Amit Kucheria <amit.kucheria@linaro.org>
+  - Amit Kucheria <amitk@kernel.org>
 
 description: |
   QCOM SoCs have TSENS IP to allow temperature measurement. There are currently

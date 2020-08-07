@@ -25,6 +25,9 @@ config RTW88_8822C
 config RTW88_8723D
 	tristate
 
+config RTW88_8821C
+	tristate
+
 config RTW88_8822BE
 	tristate "Realtek 8822BE PCI wireless network adapter"
 	depends on PCI
@@ -57,6 +60,17 @@ config RTW88_8723DE
 	  Select this option will enable support for 8723DE chipset
 
 	  802.11n PCIe wireless network adapter
+
+config RTW88_8821CE
+	tristate "Realtek 8821CE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8821C
+	help
+	  Select this option will enable support for 8821CE chipset
+
+	  802.11ac PCIe wireless network adapter
 
 config RTW88_DEBUG
 	bool "Realtek rtw88 debug support"

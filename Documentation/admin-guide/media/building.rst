@@ -90,7 +90,7 @@ built as modules.
        Those GPU-specific drivers are selected via the ``Graphics support``
        menu, under ``Device Drivers``.
 
-       When a GPU driver supports supports HDMI CEC, it will automatically
+       When a GPU driver supports HDMI CEC, it will automatically
        enable the CEC core support at the media subsystem.
 
 Media dependencies
@@ -244,7 +244,7 @@ functionality.
    If you have an hybrid card, you may need to enable both ``Analog TV``
    and ``Digital TV`` at the menu.
 
-When using this option, the defaults for the the media support core
+When using this option, the defaults for the media support core
 functionality are usually good enough to provide the basic functionality
 for the driver. Yet, you could manually enable some desired extra (optional)
 functionality using the settings under each of the following

@@ -2352,7 +2352,7 @@ static int __must_check ffs_do_os_descs(unsigned count,
 	return _len - len;
 }
 
-/**
+/*
  * Validate contents of the buffer from userspace related to OS descriptors.
  */
 static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
@@ -2726,7 +2726,7 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	switch (type) {
 	case FUNCTIONFS_RESUME:
 		rem_type2 = FUNCTIONFS_SUSPEND;
-		/* FALL THROUGH */
+		fallthrough;
 	case FUNCTIONFS_SUSPEND:
 	case FUNCTIONFS_SETUP:
 		rem_type1 = type;

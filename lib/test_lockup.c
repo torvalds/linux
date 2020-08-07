@@ -168,7 +168,7 @@ static int master_cpu;
 
 static void test_lock(bool master, bool verbose)
 {
-	u64 uninitialized_var(wait_start);
+	u64 wait_start;
 
 	if (measure_lock_wait)
 		wait_start = local_clock();

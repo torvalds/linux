@@ -102,9 +102,6 @@ static inline void *netpoll_poll_lock(struct napi_struct *napi)
 static inline void netpoll_poll_unlock(void *have)
 {
 }
-static inline void netpoll_netdev_init(struct net_device *dev)
-{
-}
 static inline bool netpoll_tx_running(struct net_device *dev)
 {
 	return false;

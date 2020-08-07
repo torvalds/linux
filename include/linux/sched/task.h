@@ -66,22 +66,9 @@ extern void fork_init(void);
 
 extern void release_task(struct task_struct * p);
 
-#ifdef CONFIG_HAVE_COPY_THREAD_TLS
-extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, unsigned long);
-#else
 extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *);
+		       struct task_struct *, unsigned long);
 
-/* Architectures that haven't opted into copy_thread_tls get the tls argument
- * via pt_regs, so ignore the tls argument passed via C. */
-static inline int copy_thread_tls(
-		unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
-{
-	return copy_thread(clone_flags, sp, arg, p);
-}
-#endif
 extern void flush_thread(void);
 
 #ifdef CONFIG_HAVE_EXIT_THREAD
@@ -97,8 +84,6 @@ extern void exit_files(struct task_struct *);
 extern void exit_itimers(struct signal_struct *);
 
 extern long _do_fork(struct kernel_clone_args *kargs);
-extern bool legacy_clone_args_valid(const struct kernel_clone_args *kargs);
-extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 struct mm_struct *copy_init_mm(void);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);

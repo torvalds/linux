@@ -33,8 +33,8 @@ This policy is a tree structure containing rules (policy_node) that
 have a name (string identifier) and a range of masters and channels
 associated with it, located in "stp-policy" subsystem directory in
 configfs. The topmost directory's name (the policy) is formatted as
-the STM device name to which this policy applies and and arbitrary
-string identifier separated by a stop. From the examle above, a rule
+the STM device name to which this policy applies and an arbitrary
+string identifier separated by a stop. From the example above, a rule
 may look like this::
 
 	$ ls /config/stp-policy/dummy_stm.my-policy/user

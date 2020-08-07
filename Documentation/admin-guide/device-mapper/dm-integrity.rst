@@ -45,7 +45,7 @@ To use the target for the first time:
    will format the device
 3. unload the dm-integrity target
 4. read the "provided_data_sectors" value from the superblock
-5. load the dm-integrity target with the the target size
+5. load the dm-integrity target with the target size
    "provided_data_sectors"
 6. if you want to use dm-integrity with dm-crypt, load the dm-crypt target
    with the size "provided_data_sectors"
@@ -99,7 +99,7 @@ interleave_sectors:number
 	the superblock is used.
 
 meta_device:device
-	Don't interleave the data and metadata on on device. Use a
+	Don't interleave the data and metadata on the device. Use a
 	separate device for metadata.
 
 buffer_sectors:number

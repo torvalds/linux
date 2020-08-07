@@ -480,7 +480,7 @@ void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 	if (!iwlwifi_mod_params.enable_ini)
 		return;
 
-	res = request_firmware(&fw, "iwl-debug-yoyo.bin", dev);
+	res = firmware_request_nowarn(&fw, "iwl-debug-yoyo.bin", dev);
 	if (res)
 		return;
 

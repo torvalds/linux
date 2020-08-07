@@ -571,7 +571,6 @@ static void iavf_get_drvinfo(struct net_device *netdev,
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, iavf_driver_name, 32);
-	strlcpy(drvinfo->version, iavf_driver_version, 32);
 	strlcpy(drvinfo->fw_version, "N/A", 4);
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
 	drvinfo->n_priv_flags = IAVF_PRIV_FLAGS_STR_LEN;

@@ -645,9 +645,9 @@ static int vop_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 		s->enable_afbc = false;
 	}
 
-	spin_unlock(&vop->reg_lock);
-
 	vop_cfg_done(vop);
+
+	spin_unlock(&vop->reg_lock);
 
 	/*
 	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
@@ -1007,6 +1007,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 			SRC_ALPHA_CAL_M0(ALPHA_NO_SATURATION) |
 			SRC_FACTOR_M0(ALPHA_ONE);
 		VOP_WIN_SET(vop, win, src_alpha_ctl, val);
+
+		VOP_WIN_SET(vop, win, alpha_pre_mul, ALPHA_SRC_PRE_MUL);
+		VOP_WIN_SET(vop, win, alpha_mode, ALPHA_PER_PIX);
+		VOP_WIN_SET(vop, win, alpha_en, 1);
 	} else {
 		VOP_WIN_SET(vop, win, src_alpha_ctl, SRC_ALPHA_EN(0));
 	}

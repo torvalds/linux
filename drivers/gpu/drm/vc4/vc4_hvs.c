@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
@@ -152,6 +153,296 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	}
 
 	return 0;
+}
+
+static void vc4_hvs_lut_load(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 i;
+
+	/* The LUT memory is laid out with each HVS channel in order,
+	 * each of which takes 256 writes for R, 256 for G, then 256
+	 * for B.
+	 */
+	HVS_WRITE(SCALER_GAMADDR,
+		  SCALER_GAMADDR_AUTOINC |
+		  (vc4_crtc->channel * 3 * crtc->gamma_size));
+
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_g[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
+}
+
+static void vc4_hvs_update_gamma_lut(struct drm_crtc *crtc)
+{
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
+	u32 length = drm_color_lut_size(crtc->state->gamma_lut);
+	u32 i;
+
+	for (i = 0; i < length; i++) {
+		vc4_crtc->lut_r[i] = drm_color_lut_extract(lut[i].red, 8);
+		vc4_crtc->lut_g[i] = drm_color_lut_extract(lut[i].green, 8);
+		vc4_crtc->lut_b[i] = drm_color_lut_extract(lut[i].blue, 8);
+	}
+
+	vc4_hvs_lut_load(crtc);
+}
+
+int vc4_hvs_atomic_check(struct drm_crtc *crtc,
+			 struct drm_crtc_state *state)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_plane *plane;
+	unsigned long flags;
+	const struct drm_plane_state *plane_state;
+	u32 dlist_count = 0;
+	int ret;
+
+	/* The pixelvalve can only feed one encoder (and encoders are
+	 * 1:1 with connectors.)
+	 */
+	if (hweight32(state->connector_mask) > 1)
+		return -EINVAL;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, state)
+		dlist_count += vc4_plane_dlist_size(plane_state);
+
+	dlist_count++; /* Account for SCALER_CTL0_END. */
+
+	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
+	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
+				 dlist_count);
+	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+
+	if (crtc->state->event) {
+		unsigned long flags;
+
+		crtc->state->event->pipe = drm_crtc_index(crtc);
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+
+		if (!vc4_state->feed_txp || vc4_state->txp_armed) {
+			vc4_crtc->event = crtc->state->event;
+			crtc->state->event = NULL;
+		}
+
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+	}
+}
+
+void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	bool oneshot = vc4_state->feed_txp;
+	u32 dispctrl;
+
+	vc4_hvs_update_dlist(crtc);
+
+	/* Turn on the scaler, which will wait for vstart to start
+	 * compositing.
+	 * When feeding the transposer, we should operate in oneshot
+	 * mode.
+	 */
+	dispctrl = SCALER_DISPCTRLX_ENABLE;
+	dispctrl |= VC4_SET_FIELD(mode->hdisplay,
+				  SCALER_DISPCTRLX_WIDTH) |
+		    VC4_SET_FIELD(mode->vdisplay,
+				  SCALER_DISPCTRLX_HEIGHT) |
+		    (oneshot ? SCALER_DISPCTRLX_ONESHOT : 0);
+
+	HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel), dispctrl);
+}
+
+void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
+			    struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 chan = vc4_crtc->channel;
+
+	if (HVS_READ(SCALER_DISPCTRLX(chan)) &
+	    SCALER_DISPCTRLX_ENABLE) {
+		HVS_WRITE(SCALER_DISPCTRLX(chan),
+			  SCALER_DISPCTRLX_RESET);
+
+		/* While the docs say that reset is self-clearing, it
+		 * seems it doesn't actually.
+		 */
+		HVS_WRITE(SCALER_DISPCTRLX(chan), 0);
+	}
+
+	/* Once we leave, the scaler should be disabled and its fifo empty. */
+
+	WARN_ON_ONCE(HVS_READ(SCALER_DISPCTRLX(chan)) & SCALER_DISPCTRLX_RESET);
+
+	WARN_ON_ONCE(VC4_GET_FIELD(HVS_READ(SCALER_DISPSTATX(chan)),
+				   SCALER_DISPSTATX_MODE) !=
+		     SCALER_DISPSTATX_MODE_DISABLED);
+
+	WARN_ON_ONCE((HVS_READ(SCALER_DISPSTATX(chan)) &
+		      (SCALER_DISPSTATX_FULL | SCALER_DISPSTATX_EMPTY)) !=
+		     SCALER_DISPSTATX_EMPTY);
+}
+
+void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
+			  struct drm_crtc_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	struct drm_plane *plane;
+	struct vc4_plane_state *vc4_plane_state;
+	bool debug_dump_regs = false;
+	bool enable_bg_fill = false;
+	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
+	u32 __iomem *dlist_next = dlist_start;
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
+	}
+
+	/* Copy all the active planes' dlist contents to the hardware dlist. */
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		/* Is this the first active plane? */
+		if (dlist_next == dlist_start) {
+			/* We need to enable background fill when a plane
+			 * could be alpha blending from the background, i.e.
+			 * where no other plane is underneath. It suffices to
+			 * consider the first active plane here since we set
+			 * needs_bg_fill such that either the first plane
+			 * already needs it or all planes on top blend from
+			 * the first or a lower plane.
+			 */
+			vc4_plane_state = to_vc4_plane_state(plane->state);
+			enable_bg_fill = vc4_plane_state->needs_bg_fill;
+		}
+
+		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
+	}
+
+	writel(SCALER_CTL0_END, dlist_next);
+	dlist_next++;
+
+	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
+
+	if (enable_bg_fill)
+		/* This sets a black background color fill, as is the case
+		 * with other DRM drivers.
+		 */
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+			  HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel)) |
+			  SCALER_DISPBKGND_FILL);
+
+	/* Only update DISPLIST if the CRTC was already running and is not
+	 * being disabled.
+	 * vc4_crtc_enable() takes care of updating the dlist just after
+	 * re-enabling VBLANK interrupts and before enabling the engine.
+	 * If the CRTC is being disabled, there's no point in updating this
+	 * information.
+	 */
+	if (crtc->state->active && old_state->active)
+		vc4_hvs_update_dlist(crtc);
+
+	if (crtc->state->color_mgmt_changed) {
+		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel));
+
+		if (crtc->state->gamma_lut) {
+			vc4_hvs_update_gamma_lut(crtc);
+			dispbkgndx |= SCALER_DISPBKGND_GAMMA;
+		} else {
+			/* Unsetting DISPBKGND_GAMMA skips the gamma lut step
+			 * in hardware, which is the same as a linear lut that
+			 * DRM expects us to use in absence of a user lut.
+			 */
+			dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
+		}
+		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel), dispbkgndx);
+	}
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
+	}
+}
+
+void vc4_hvs_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
+
+	if (vc4_crtc->data->hvs_channel == 2) {
+		u32 dispctrl;
+		u32 dsp3_mux;
+
+		/*
+		 * SCALER_DISPCTRL_DSP3 = X, where X < 2 means 'connect DSP3 to
+		 * FIFO X'.
+		 * SCALER_DISPCTRL_DSP3 = 3 means 'disable DSP 3'.
+		 *
+		 * DSP3 is connected to FIFO2 unless the transposer is
+		 * enabled. In this case, FIFO 2 is directly accessed by the
+		 * TXP IP, and we need to disable the FIFO2 -> pixelvalve1
+		 * route.
+		 */
+		if (vc4_state->feed_txp)
+			dsp3_mux = VC4_SET_FIELD(3, SCALER_DISPCTRL_DSP3_MUX);
+		else
+			dsp3_mux = VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
+
+		dispctrl = HVS_READ(SCALER_DISPCTRL) &
+			   ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+		HVS_WRITE(SCALER_DISPCTRL, dispctrl | dsp3_mux);
+	}
+
+	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+		  SCALER_DISPBKGND_AUTOHS |
+		  SCALER_DISPBKGND_GAMMA |
+		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
+
+	/* Reload the LUT, since the SRAMs would have been disabled if
+	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
+	 */
+	vc4_hvs_lut_load(crtc);
 }
 
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)

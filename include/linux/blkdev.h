@@ -306,11 +306,14 @@ enum blk_queue_state {
 
 /*
  * Zoned block device models (zoned limit).
+ *
+ * Note: This needs to be ordered from the least to the most severe
+ * restrictions for the inheritance in blk_stack_limits() to work.
  */
 enum blk_zoned_model {
-	BLK_ZONED_NONE,	/* Regular block device */
-	BLK_ZONED_HA,	/* Host-aware zoned block device */
-	BLK_ZONED_HM,	/* Host-managed zoned block device */
+	BLK_ZONED_NONE = 0,	/* Regular block device */
+	BLK_ZONED_HA,		/* Host-aware zoned block device */
+	BLK_ZONED_HM,		/* Host-managed zoned block device */
 };
 
 struct queue_limits {
@@ -513,6 +516,8 @@ struct request_queue {
 	unsigned int		nr_zones;
 	unsigned long		*conv_zones_bitmap;
 	unsigned long		*seq_zones_wlock;
+	unsigned int		max_open_zones;
+	unsigned int		max_active_zones;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 	/*
@@ -722,6 +727,28 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 		return true;
 	return !test_bit(blk_queue_zone_no(q, sector), q->conv_zones_bitmap);
 }
+
+static inline void blk_queue_max_open_zones(struct request_queue *q,
+		unsigned int max_open_zones)
+{
+	q->max_open_zones = max_open_zones;
+}
+
+static inline unsigned int queue_max_open_zones(const struct request_queue *q)
+{
+	return q->max_open_zones;
+}
+
+static inline void blk_queue_max_active_zones(struct request_queue *q,
+		unsigned int max_active_zones)
+{
+	q->max_active_zones = max_active_zones;
+}
+
+static inline unsigned int queue_max_active_zones(const struct request_queue *q)
+{
+	return q->max_active_zones;
+}
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
 {
@@ -734,6 +761,14 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 }
 static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 					     sector_t sector)
+{
+	return 0;
+}
+static inline unsigned int queue_max_open_zones(const struct request_queue *q)
+{
+	return 0;
+}
+static inline unsigned int queue_max_active_zones(const struct request_queue *q)
 {
 	return 0;
 }
@@ -1104,11 +1139,8 @@ extern void blk_set_default_limits(struct queue_limits *lim);
 extern void blk_set_stacking_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			    sector_t offset);
-extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
-			    sector_t offset);
 extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 			      sector_t offset);
-extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_segment_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_virt_boundary(struct request_queue *, unsigned long);
@@ -1517,6 +1549,24 @@ static inline sector_t bdev_zone_sectors(struct block_device *bdev)
 
 	if (q)
 		return blk_queue_zone_sectors(q);
+	return 0;
+}
+
+static inline unsigned int bdev_max_open_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return queue_max_open_zones(q);
+	return 0;
+}
+
+static inline unsigned int bdev_max_active_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return queue_max_active_zones(q);
 	return 0;
 }
 

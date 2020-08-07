@@ -351,7 +351,7 @@ the time of copy (on-demand vs. up-front).
 Multiple lower layers
 ---------------------
 
-Multiple lower layers can now be given using the the colon (":") as a
+Multiple lower layers can now be given using the colon (":") as a
 separator character between the directory names.  For example:
 
   mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged

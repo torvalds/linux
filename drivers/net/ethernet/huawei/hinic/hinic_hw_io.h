@@ -47,6 +47,15 @@ struct hinic_free_db_area {
 	struct semaphore        idx_lock;
 };
 
+struct hinic_nic_cfg {
+	/* lock for getting nic cfg */
+	struct mutex		cfg_mutex;
+	bool			pause_set;
+	u32			auto_neg;
+	u32			rx_pause;
+	u32			tx_pause;
+};
+
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
 	struct hinic_hwdev      *hwdev;
@@ -78,6 +87,7 @@ struct hinic_func_to_io {
 	u16			max_vfs;
 	struct vf_data_storage	*vf_infos;
 	u8			link_status;
+	struct hinic_nic_cfg	nic_cfg;
 };
 
 struct hinic_wq_page_size {

@@ -11,6 +11,7 @@ if VDPA
 config VDPA_SIM
 	tristate "vDPA device simulator"
 	depends on RUNTIME_TESTING_MENU && HAS_DMA
+	select DMA_OPS
 	select VHOST_RING
 	default n
 	help

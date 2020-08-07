@@ -621,7 +621,7 @@ static int tcf_block_setup(struct tcf_block *block,
 			   struct flow_block_offload *bo);
 
 static void tcf_block_offload_init(struct flow_block_offload *bo,
-				   struct net_device *dev,
+				   struct net_device *dev, struct Qdisc *sch,
 				   enum flow_block_command command,
 				   enum flow_block_binder_type binder_type,
 				   struct flow_block *flow_block,
@@ -633,6 +633,7 @@ static void tcf_block_offload_init(struct flow_block_offload *bo,
 	bo->block = flow_block;
 	bo->block_shared = shared;
 	bo->extack = extack;
+	bo->sch = sch;
 	INIT_LIST_HEAD(&bo->cb_list);
 }
 
@@ -643,10 +644,11 @@ static void tc_block_indr_cleanup(struct flow_block_cb *block_cb)
 {
 	struct tcf_block *block = block_cb->indr.data;
 	struct net_device *dev = block_cb->indr.dev;
+	struct Qdisc *sch = block_cb->indr.sch;
 	struct netlink_ext_ack extack = {};
 	struct flow_block_offload bo;
 
-	tcf_block_offload_init(&bo, dev, FLOW_BLOCK_UNBIND,
+	tcf_block_offload_init(&bo, dev, sch, FLOW_BLOCK_UNBIND,
 			       block_cb->indr.binder_type,
 			       &block->flow_block, tcf_block_shared(block),
 			       &extack);
@@ -665,14 +667,14 @@ static bool tcf_block_offload_in_use(struct tcf_block *block)
 }
 
 static int tcf_block_offload_cmd(struct tcf_block *block,
-				 struct net_device *dev,
+				 struct net_device *dev, struct Qdisc *sch,
 				 struct tcf_block_ext_info *ei,
 				 enum flow_block_command command,
 				 struct netlink_ext_ack *extack)
 {
 	struct flow_block_offload bo = {};
 
-	tcf_block_offload_init(&bo, dev, command, ei->binder_type,
+	tcf_block_offload_init(&bo, dev, sch, command, ei->binder_type,
 			       &block->flow_block, tcf_block_shared(block),
 			       extack);
 
@@ -689,7 +691,7 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 		return tcf_block_setup(block, &bo);
 	}
 
-	flow_indr_dev_setup_offload(dev, TC_SETUP_BLOCK, block, &bo,
+	flow_indr_dev_setup_offload(dev, sch, TC_SETUP_BLOCK, block, &bo,
 				    tc_block_indr_cleanup);
 	tcf_block_setup(block, &bo);
 
@@ -716,7 +718,7 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 		goto err_unlock;
 	}
 
-	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_BIND, extack);
+	err = tcf_block_offload_cmd(block, dev, q, ei, FLOW_BLOCK_BIND, extack);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_inc;
 	if (err)
@@ -743,7 +745,7 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	int err;
 
 	down_write(&block->cb_lock);
-	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_UNBIND, NULL);
+	err = tcf_block_offload_cmd(block, dev, q, ei, FLOW_BLOCK_UNBIND, NULL);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_dec;
 	up_write(&block->cb_lock);
@@ -1627,6 +1629,7 @@ int tcf_classify_ingress(struct sk_buff *skb,
 		if (WARN_ON_ONCE(!ext))
 			return TC_ACT_SHOT;
 		ext->chain = last_executed_chain;
+		ext->mru = qdisc_skb_cb(skb)->mru;
 	}
 
 	return ret;
@@ -3659,9 +3662,11 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			tcf_sample_get_group(entry, act);
 		} else if (is_tcf_police(act)) {
 			entry->id = FLOW_ACTION_POLICE;
-			entry->police.burst = tcf_police_tcfp_burst(act);
+			entry->police.burst = tcf_police_burst(act);
 			entry->police.rate_bytes_ps =
 				tcf_police_rate_bytes_ps(act);
+			entry->police.mtu = tcf_police_tcfp_mtu(act);
+			entry->police.index = act->tcfa_index;
 		} else if (is_tcf_ct(act)) {
 			entry->id = FLOW_ACTION_CT;
 			entry->ct.action = tcf_ct_action(act);
@@ -3744,6 +3749,119 @@ unsigned int tcf_exts_num_actions(struct tcf_exts *exts)
 	return num_acts;
 }
 EXPORT_SYMBOL(tcf_exts_num_actions);
+
+#ifdef CONFIG_NET_CLS_ACT
+static int tcf_qevent_parse_block_index(struct nlattr *block_index_attr,
+					u32 *p_block_index,
+					struct netlink_ext_ack *extack)
+{
+	*p_block_index = nla_get_u32(block_index_attr);
+	if (!*p_block_index) {
+		NL_SET_ERR_MSG(extack, "Block number may not be zero");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int tcf_qevent_init(struct tcf_qevent *qe, struct Qdisc *sch,
+		    enum flow_block_binder_type binder_type,
+		    struct nlattr *block_index_attr,
+		    struct netlink_ext_ack *extack)
+{
+	u32 block_index;
+	int err;
+
+	if (!block_index_attr)
+		return 0;
+
+	err = tcf_qevent_parse_block_index(block_index_attr, &block_index, extack);
+	if (err)
+		return err;
+
+	if (!block_index)
+		return 0;
+
+	qe->info.binder_type = binder_type;
+	qe->info.chain_head_change = tcf_chain_head_change_dflt;
+	qe->info.chain_head_change_priv = &qe->filter_chain;
+	qe->info.block_index = block_index;
+
+	return tcf_block_get_ext(&qe->block, sch, &qe->info, extack);
+}
+EXPORT_SYMBOL(tcf_qevent_init);
+
+void tcf_qevent_destroy(struct tcf_qevent *qe, struct Qdisc *sch)
+{
+	if (qe->info.block_index)
+		tcf_block_put_ext(qe->block, sch, &qe->info);
+}
+EXPORT_SYMBOL(tcf_qevent_destroy);
+
+int tcf_qevent_validate_change(struct tcf_qevent *qe, struct nlattr *block_index_attr,
+			       struct netlink_ext_ack *extack)
+{
+	u32 block_index;
+	int err;
+
+	if (!block_index_attr)
+		return 0;
+
+	err = tcf_qevent_parse_block_index(block_index_attr, &block_index, extack);
+	if (err)
+		return err;
+
+	/* Bounce newly-configured block or change in block. */
+	if (block_index != qe->info.block_index) {
+		NL_SET_ERR_MSG(extack, "Change of blocks is not supported");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tcf_qevent_validate_change);
+
+struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, struct sk_buff *skb,
+				  struct sk_buff **to_free, int *ret)
+{
+	struct tcf_result cl_res;
+	struct tcf_proto *fl;
+
+	if (!qe->info.block_index)
+		return skb;
+
+	fl = rcu_dereference_bh(qe->filter_chain);
+
+	switch (tcf_classify(skb, fl, &cl_res, false)) {
+	case TC_ACT_SHOT:
+		qdisc_qstats_drop(sch);
+		__qdisc_drop(skb, to_free);
+		*ret = __NET_XMIT_BYPASS;
+		return NULL;
+	case TC_ACT_STOLEN:
+	case TC_ACT_QUEUED:
+	case TC_ACT_TRAP:
+		__qdisc_drop(skb, to_free);
+		*ret = __NET_XMIT_STOLEN;
+		return NULL;
+	case TC_ACT_REDIRECT:
+		skb_do_redirect(skb);
+		*ret = __NET_XMIT_STOLEN;
+		return NULL;
+	}
+
+	return skb;
+}
+EXPORT_SYMBOL(tcf_qevent_handle);
+
+int tcf_qevent_dump(struct sk_buff *skb, int attr_name, struct tcf_qevent *qe)
+{
+	if (!qe->info.block_index)
+		return 0;
+	return nla_put_u32(skb, attr_name, qe->info.block_index);
+}
+EXPORT_SYMBOL(tcf_qevent_dump);
+#endif
 
 static __net_init int tcf_net_init(struct net *net)
 {

@@ -251,7 +251,7 @@ int vega12_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
+static int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
@@ -274,7 +274,7 @@ int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int vega12_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+static int vega12_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	/* If the fantable setup has failed we could have disabled
 	 * PHM_PlatformCaps_MicrocodeFanControl even after

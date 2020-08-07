@@ -93,7 +93,7 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	struct tomoyo_task *s = tomoyo_task(current);
 
 	/*
-	 * Execute permission is checked against pathname passed to do_execve()
+	 * Execute permission is checked against pathname passed to execve()
 	 * using current domain.
 	 */
 	if (!s->old_domain_info) {
@@ -307,7 +307,7 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
  */
 static int tomoyo_file_open(struct file *f)
 {
-	/* Don't check read permission here if called from do_execve(). */
+	/* Don't check read permission here if called from execve(). */
 	if (current->in_execve)
 		return 0;
 	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path,

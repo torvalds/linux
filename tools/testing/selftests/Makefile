@@ -6,6 +6,7 @@ TARGETS += breakpoints
 TARGETS += capabilities
 TARGETS += cgroup
 TARGETS += clone3
+TARGETS += core
 TARGETS += cpufreq
 TARGETS += cpu-hotplug
 TARGETS += drivers/dma-buf
@@ -55,6 +56,7 @@ TARGETS += splice
 TARGETS += static_keys
 TARGETS += sync
 TARGETS += sysctl
+TARGETS += tc-testing
 TARGETS += timens
 ifneq (1, $(quicktest))
 TARGETS += timers

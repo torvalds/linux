@@ -1025,7 +1025,6 @@ static void arasan_dt_read_clk_phase(struct device *dev,
 static void arasan_dt_parse_clk_phases(struct device *dev,
 				       struct sdhci_arasan_clk_data *clk_data)
 {
-	int *iclk_phase, *oclk_phase;
 	u32 mio_bank = 0;
 	int i;
 
@@ -1037,28 +1036,32 @@ static void arasan_dt_parse_clk_phases(struct device *dev,
 	clk_data->set_clk_delays = sdhci_arasan_set_clk_delays;
 
 	if (of_device_is_compatible(dev->of_node, "xlnx,zynqmp-8.9a")) {
-		iclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) ZYNQMP_ICLK_PHASE;
-		oclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) ZYNQMP_OCLK_PHASE;
+		u32 zynqmp_iclk_phase[MMC_TIMING_MMC_HS400 + 1] =
+			ZYNQMP_ICLK_PHASE;
+		u32 zynqmp_oclk_phase[MMC_TIMING_MMC_HS400 + 1] =
+			ZYNQMP_OCLK_PHASE;
 
 		of_property_read_u32(dev->of_node, "xlnx,mio-bank", &mio_bank);
 		if (mio_bank == 2) {
-			oclk_phase[MMC_TIMING_UHS_SDR104] = 90;
-			oclk_phase[MMC_TIMING_MMC_HS200] = 90;
+			zynqmp_oclk_phase[MMC_TIMING_UHS_SDR104] = 90;
+			zynqmp_oclk_phase[MMC_TIMING_MMC_HS200] = 90;
 		}
 
 		for (i = 0; i <= MMC_TIMING_MMC_HS400; i++) {
-			clk_data->clk_phase_in[i] = iclk_phase[i];
-			clk_data->clk_phase_out[i] = oclk_phase[i];
+			clk_data->clk_phase_in[i] = zynqmp_iclk_phase[i];
+			clk_data->clk_phase_out[i] = zynqmp_oclk_phase[i];
 		}
 	}
 
 	if (of_device_is_compatible(dev->of_node, "xlnx,versal-8.9a")) {
-		iclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) VERSAL_ICLK_PHASE;
-		oclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) VERSAL_OCLK_PHASE;
+		u32 versal_iclk_phase[MMC_TIMING_MMC_HS400 + 1] =
+			VERSAL_ICLK_PHASE;
+		u32 versal_oclk_phase[MMC_TIMING_MMC_HS400 + 1] =
+			VERSAL_OCLK_PHASE;
 
 		for (i = 0; i <= MMC_TIMING_MMC_HS400; i++) {
-			clk_data->clk_phase_in[i] = iclk_phase[i];
-			clk_data->clk_phase_out[i] = oclk_phase[i];
+			clk_data->clk_phase_in[i] = versal_iclk_phase[i];
+			clk_data->clk_phase_out[i] = versal_oclk_phase[i];
 		}
 	}
 
@@ -1299,6 +1302,8 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 	clk_data->sdcardclk_hw.init = &sdcardclk_init;
 	clk_data->sdcardclk =
 		devm_clk_register(dev, &clk_data->sdcardclk_hw);
+	if (IS_ERR(clk_data->sdcardclk))
+		return PTR_ERR(clk_data->sdcardclk);
 	clk_data->sdcardclk_hw.init = NULL;
 
 	ret = of_clk_add_provider(np, of_clk_src_simple_get,
@@ -1349,6 +1354,8 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
 	clk_data->sampleclk_hw.init = &sampleclk_init;
 	clk_data->sampleclk =
 		devm_clk_register(dev, &clk_data->sampleclk_hw);
+	if (IS_ERR(clk_data->sampleclk))
+		return PTR_ERR(clk_data->sampleclk);
 	clk_data->sampleclk_hw.init = NULL;
 
 	ret = of_clk_add_provider(np, of_clk_src_simple_get,
@@ -1388,7 +1395,8 @@ static void sdhci_arasan_unregister_sdclk(struct device *dev)
  * - For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
  *   Keem Bay does not support 64-bit access.
  *
- * @host		The sdhci_host
+ * @host:		The sdhci_host
+ * @value:		The value to write
  */
 static void sdhci_arasan_update_support64b(struct sdhci_host *host, u32 value)
 {

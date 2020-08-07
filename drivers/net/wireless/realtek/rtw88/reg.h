@@ -43,6 +43,8 @@
 #define BITS_EF_ADDR		(BIT_MASK_EF_ADDR << BIT_SHIFT_EF_ADDR)
 #define BITS_PLL		0xf0
 
+#define REG_AFE_XTAL_CTRL	0x24
+#define REG_AFE_PLL_CTRL	0x28
 #define REG_AFE_CTRL3		0x2c
 #define BIT_MASK_XTAL		0x00FFF000
 #define BIT_XTAL_GMP_BIT4	BIT(28)
@@ -59,6 +61,7 @@
 #define BIT_FSPI_EN		BIT(19)
 #define BIT_EN_SIC		BIT(12)
 #define BIT_BT_AOD_GPIO3	BIT(9)
+#define BIT_PO_BT_PTA_PINS	BIT(9)
 #define BIT_BT_PTA_EN		BIT(5)
 #define BIT_WLRFE_4_5_EN	BIT(2)
 
@@ -475,6 +478,8 @@
 
 #define REG_RFE_CTRL_E		0x0974
 #define REG_2ND_CCA_CTRL	0x0976
+
+#define REG_CCK0_FAREPORT	0xa2c
 
 #define REG_DIS_DPD		0x0a70
 #define DIS_DPD_MASK		GENMASK(9, 0)

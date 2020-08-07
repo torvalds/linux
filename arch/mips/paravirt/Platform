@@ -1,7 +1,0 @@
-#
-# Generic para-virtualized guest.
-#
-cflags-$(CONFIG_MIPS_PARAVIRT)		+=				\
-		-I$(srctree)/arch/mips/include/asm/mach-paravirt
-
-load-$(CONFIG_MIPS_PARAVIRT)	= 0xffffffff80010000

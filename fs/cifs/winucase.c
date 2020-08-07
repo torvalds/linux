@@ -9,7 +9,7 @@
  *
  * 3.1.5.3 Mapping UTF-16 Strings to Upper Case:
  *
- * http://msdn.microsoft.com/en-us/library/hh877830.aspx
+ * https://msdn.microsoft.com/en-us/library/hh877830.aspx
  * http://www.microsoft.com/en-us/download/details.aspx?displaylang=en&id=10921
  *
  * In particular, the table in "Windows 8 Upper Case Mapping Table.txt" was

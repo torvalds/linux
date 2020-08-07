@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -1472,6 +1446,25 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE)
 		qed_mcp_read_eee_config(p_hwfn, p_ptt, p_link);
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (status & LINK_STATUS_FEC_MODE_MASK) {
+		case LINK_STATUS_FEC_MODE_NONE:
+			p_link->fec_active = QED_FEC_MODE_NONE;
+			break;
+		case LINK_STATUS_FEC_MODE_FIRECODE_CL74:
+			p_link->fec_active = QED_FEC_MODE_FIRECODE;
+			break;
+		case LINK_STATUS_FEC_MODE_RS_CL91:
+			p_link->fec_active = QED_FEC_MODE_RS;
+			break;
+		default:
+			p_link->fec_active = QED_FEC_MODE_AUTO;
+		}
+	} else {
+		p_link->fec_active = QED_FEC_MODE_UNSUPPORTED;
+	}
+
 	qed_link_update(p_hwfn, p_ptt);
 out:
 	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
@@ -1482,8 +1475,9 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
 	struct qed_mcp_mb_params mb_params;
 	struct eth_phy_cfg phy_cfg;
+	u32 cmd, fec_bit = 0;
+	u32 val, ext_speed;
 	int rc = 0;
-	u32 cmd;
 
 	/* Set the shmem configuration according to params */
 	memset(&phy_cfg, 0, sizeof(phy_cfg));
@@ -1515,19 +1509,91 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 				   EEE_TX_TIMER_USEC_MASK;
 	}
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		if (params->fec & QED_FEC_MODE_NONE)
+			fec_bit |= FEC_FORCE_MODE_NONE;
+		else if (params->fec & QED_FEC_MODE_FIRECODE)
+			fec_bit |= FEC_FORCE_MODE_FIRECODE;
+		else if (params->fec & QED_FEC_MODE_RS)
+			fec_bit |= FEC_FORCE_MODE_RS;
+		else if (params->fec & QED_FEC_MODE_AUTO)
+			fec_bit |= FEC_FORCE_MODE_AUTO;
+
+		SET_MFW_FIELD(phy_cfg.fec_mode, FEC_FORCE_MODE, fec_bit);
+	}
+
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
+		ext_speed = 0;
+		if (params->ext_speed.autoneg)
+			ext_speed |= ETH_EXT_SPEED_AN;
+
+		val = params->ext_speed.forced_speed;
+		if (val & QED_EXT_SPEED_1G)
+			ext_speed |= ETH_EXT_SPEED_1G;
+		if (val & QED_EXT_SPEED_10G)
+			ext_speed |= ETH_EXT_SPEED_10G;
+		if (val & QED_EXT_SPEED_20G)
+			ext_speed |= ETH_EXT_SPEED_20G;
+		if (val & QED_EXT_SPEED_25G)
+			ext_speed |= ETH_EXT_SPEED_25G;
+		if (val & QED_EXT_SPEED_40G)
+			ext_speed |= ETH_EXT_SPEED_40G;
+		if (val & QED_EXT_SPEED_50G_R)
+			ext_speed |= ETH_EXT_SPEED_50G_BASE_R;
+		if (val & QED_EXT_SPEED_50G_R2)
+			ext_speed |= ETH_EXT_SPEED_50G_BASE_R2;
+		if (val & QED_EXT_SPEED_100G_R2)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_R2;
+		if (val & QED_EXT_SPEED_100G_R4)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_R4;
+		if (val & QED_EXT_SPEED_100G_P4)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_P4;
+
+		SET_MFW_FIELD(phy_cfg.extended_speed, ETH_EXT_SPEED,
+			      ext_speed);
+
+		ext_speed = 0;
+
+		val = params->ext_speed.advertised_speeds;
+		if (val & QED_EXT_SPEED_MASK_1G)
+			ext_speed |= ETH_EXT_ADV_SPEED_1G;
+		if (val & QED_EXT_SPEED_MASK_10G)
+			ext_speed |= ETH_EXT_ADV_SPEED_10G;
+		if (val & QED_EXT_SPEED_MASK_20G)
+			ext_speed |= ETH_EXT_ADV_SPEED_20G;
+		if (val & QED_EXT_SPEED_MASK_25G)
+			ext_speed |= ETH_EXT_ADV_SPEED_25G;
+		if (val & QED_EXT_SPEED_MASK_40G)
+			ext_speed |= ETH_EXT_ADV_SPEED_40G;
+		if (val & QED_EXT_SPEED_MASK_50G_R)
+			ext_speed |= ETH_EXT_ADV_SPEED_50G_BASE_R;
+		if (val & QED_EXT_SPEED_MASK_50G_R2)
+			ext_speed |= ETH_EXT_ADV_SPEED_50G_BASE_R2;
+		if (val & QED_EXT_SPEED_MASK_100G_R2)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_R2;
+		if (val & QED_EXT_SPEED_MASK_100G_R4)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_R4;
+		if (val & QED_EXT_SPEED_MASK_100G_P4)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_P4;
+
+		phy_cfg.extended_speed |= ext_speed;
+
+		SET_MFW_FIELD(phy_cfg.fec_mode, FEC_EXTENDED_MODE,
+			      params->ext_fec_mode);
+	}
+
 	p_hwfn->b_drv_link_init = b_up;
 
 	if (b_up) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, features 0x%08x\n",
-			   phy_cfg.speed,
-			   phy_cfg.pause,
-			   phy_cfg.adv_speed,
-			   phy_cfg.loopback_mode,
-			   phy_cfg.feature_config_flags);
+			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, Adv. Speed 0x%08x, Loopback 0x%08x, FEC 0x%08x, Ext. Speed 0x%08x\n",
+			   phy_cfg.speed, phy_cfg.pause, phy_cfg.adv_speed,
+			   phy_cfg.loopback_mode, phy_cfg.fec_mode,
+			   phy_cfg.extended_speed);
 	} else {
-		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Resetting link\n");
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK, "Resetting link\n");
 	}
 
 	memset(&mb_params, 0, sizeof(mb_params));
@@ -2219,6 +2285,11 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_LR:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G |
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		break;
 	case ETH_TRANSCEIVER_TYPE_40G_CR4:
 	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR:
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
@@ -2249,8 +2320,10 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
 		break;
 	case ETH_TRANSCEIVER_TYPE_10G_BASET:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
 	default:
 		DP_INFO(p_hwfn, "Unknown transceiver type 0x%x\n",
@@ -2445,11 +2518,10 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
-		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x wol %02x\n",
+		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %pM wwn port %llx node %llx ovlan %04x wol %02x\n",
 		info->pause_on_host, info->protocol,
 		info->bandwidth_min, info->bandwidth_max,
-		info->mac[0], info->mac[1], info->mac[2],
-		info->mac[3], info->mac[4], info->mac[5],
+		info->mac,
 		info->wwn_port, info->wwn_node,
 		info->ovlan, (u8)p_hwfn->hw_info.b_wol_support);
 
@@ -3824,7 +3896,12 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u32 mcp_resp, mcp_param, features;
 
 	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE |
-		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK;
+		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK |
+		   DRV_MB_PARAM_FEATURE_SUPPORT_PORT_FEC_CONTROL;
+
+	if (QED_IS_E5(p_hwfn->cdev))
+		features |=
+		    DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EXT_SPEED_FEC_CONTROL;
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);

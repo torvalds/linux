@@ -33,7 +33,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2a, 0x4c, 0x4d, 0x4e and 0x4f
 
-    Datasheet: http://www.ti.com/product/tmp441
+    Datasheet: https://www.ti.com/product/tmp441
 
   * Texas Instruments TMP442
 
@@ -41,7 +41,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c and 0x4d
 
-    Datasheet: http://www.ti.com/product/tmp442
+    Datasheet: https://www.ti.com/product/tmp442
 
 Authors:
 

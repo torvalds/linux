@@ -263,6 +263,7 @@ enum hl_device_status {
  *                         time the driver was loaded.
  * HL_INFO_TIME_SYNC     - Retrieve the device's time alongside the host's time
  *                         for synchronization.
+ * HL_INFO_CS_COUNTERS   - Retrieve command submission counters
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -274,6 +275,7 @@ enum hl_device_status {
 #define HL_INFO_CLK_RATE		8
 #define HL_INFO_RESET_COUNT		9
 #define HL_INFO_TIME_SYNC		10
+#define HL_INFO_CS_COUNTERS		11
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -336,6 +338,25 @@ struct hl_info_reset_count {
 struct hl_info_time_sync {
 	__u64 device_time;
 	__u64 host_time;
+};
+
+/**
+ * struct hl_info_cs_counters - command submission counters
+ * @out_of_mem_drop_cnt: dropped due to memory allocation issue
+ * @parsing_drop_cnt: dropped due to error in packet parsing
+ * @queue_full_drop_cnt: dropped due to queue full
+ * @device_in_reset_drop_cnt: dropped due to device in reset
+ */
+struct hl_cs_counters {
+	__u64 out_of_mem_drop_cnt;
+	__u64 parsing_drop_cnt;
+	__u64 queue_full_drop_cnt;
+	__u64 device_in_reset_drop_cnt;
+};
+
+struct hl_info_cs_counters {
+	struct hl_cs_counters cs_counters;
+	struct hl_cs_counters ctx_cs_counters;
 };
 
 struct hl_info_args {
@@ -530,13 +551,13 @@ union hl_wait_cs_args {
 	struct hl_wait_cs_out out;
 };
 
-/* Opcode to alloc device memory */
+/* Opcode to allocate device memory */
 #define HL_MEM_OP_ALLOC			0
 /* Opcode to free previously allocated device memory */
 #define HL_MEM_OP_FREE			1
-/* Opcode to map host memory */
+/* Opcode to map host and device memory */
 #define HL_MEM_OP_MAP			2
-/* Opcode to unmap previously mapped host memory */
+/* Opcode to unmap previously mapped host and device memory */
 #define HL_MEM_OP_UNMAP			3
 
 /* Memory flags */

@@ -133,7 +133,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	logbsize must be an integer multiple of the log
 	stripe unit configured at **mkfs(8)** time.
 
-	The default value for for version 1 logs is 32768, while the
+	The default value for version 1 logs is 32768, while the
 	default value for version 2 logs is MAX(32768, log_sunit).
 
   logdev=device and rtdev=device

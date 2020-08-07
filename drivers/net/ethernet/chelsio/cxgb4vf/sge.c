@@ -1154,7 +1154,7 @@ static inline void txq_advance(struct sge_txq *tq, unsigned int n)
  *
  *	Add a packet to an SGE Ethernet TX queue.  Runs with softirqs disabled.
  */
-int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u32 wr_mid;
 	u64 cntrl, *end;

@@ -12,6 +12,8 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
+#define HINIC_PCIE_LINK_DOWN					0xFFFFFFFF
+
 #define HINIC_DMA_ATTR_ST_SHIFT                                 0
 #define HINIC_DMA_ATTR_AT_SHIFT                                 8
 #define HINIC_DMA_ATTR_PH_SHIFT                                 10
@@ -249,13 +251,17 @@ struct hinic_hwif {
 
 static inline u32 hinic_hwif_read_reg(struct hinic_hwif *hwif, u32 reg)
 {
-	return be32_to_cpu(readl(hwif->cfg_regs_bar + reg));
+	u32 out = readl(hwif->cfg_regs_bar + reg);
+
+	return be32_to_cpu(*(__be32 *)&out);
 }
 
 static inline void hinic_hwif_write_reg(struct hinic_hwif *hwif, u32 reg,
 					u32 val)
 {
-	writel(cpu_to_be32(val), hwif->cfg_regs_bar + reg);
+	__be32 in = cpu_to_be32(val);
+
+	writel(*(u32 *)&in, hwif->cfg_regs_bar + reg);
 }
 
 int hinic_msix_attr_set(struct hinic_hwif *hwif, u16 msix_index,

@@ -163,16 +163,6 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 	return ret;
 }
 
-static u32 netvsc_xdp_query(struct netvsc_device *nvdev)
-{
-	struct bpf_prog *prog = netvsc_xdp_get(nvdev);
-
-	if (prog)
-		return prog->aux->id;
-
-	return 0;
-}
-
 int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
 	struct net_device_context *ndevctx = netdev_priv(dev);
@@ -182,12 +172,7 @@ int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	int ret;
 
 	if (!nvdev || nvdev->destroy) {
-		if (bpf->command == XDP_QUERY_PROG) {
-			bpf->prog_id = 0;
-			return 0; /* Query must always succeed */
-		} else {
-			return -ENODEV;
-		}
+		return -ENODEV;
 	}
 
 	switch (bpf->command) {
@@ -207,10 +192,6 @@ int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		}
 
 		return ret;
-
-	case XDP_QUERY_PROG:
-		bpf->prog_id = netvsc_xdp_query(nvdev);
-		return 0;
 
 	default:
 		return -EINVAL;

@@ -15,12 +15,14 @@ ath11k-y += core.o \
 	    dp_rx.o \
 	    debug.o \
 	    ce.o \
-	    peer.o
+	    peer.o \
+	    dbring.o
 
 ath11k-$(CONFIG_ATH11K_DEBUGFS) += debug_htt_stats.o debugfs_sta.o
 ath11k-$(CONFIG_NL80211_TESTMODE) += testmode.o
 ath11k-$(CONFIG_ATH11K_TRACING) += trace.o
 ath11k-$(CONFIG_THERMAL) += thermal.o
+ath11k-$(CONFIG_ATH11K_SPECTRAL) += spectral.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)

@@ -2,7 +2,7 @@
 /*
  * HDMI header definition for OMAP4 HDMI core IP
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef _HDMI4_CORE_H_

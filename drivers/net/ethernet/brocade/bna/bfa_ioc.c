@@ -1535,7 +1535,6 @@ static int
 bfa_flash_fifo_flush(void __iomem *pci_bar)
 {
 	u32 i;
-	u32 t;
 	union bfa_flash_dev_status_reg dev_status;
 
 	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
@@ -1545,7 +1544,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 
 	/* fifo counter in terms of words */
 	for (i = 0; i < dev_status.r.fifo_cnt; i++)
-		t = readl(pci_bar + FLI_RDDATA_REG);
+		readl(pci_bar + FLI_RDDATA_REG);
 
 	/* Check the device status. It may take some time. */
 	for (i = 0; i < BFA_FLASH_CHECK_MAX; i++) {

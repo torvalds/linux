@@ -35,20 +35,6 @@ static u32 map_mask_to_chr_mask(u32 mask)
 }
 
 /**
- * audit_file_mask - convert mask to permission string
- * @buffer: buffer to write string to (NOT NULL)
- * @mask: permission mask to convert
- */
-static void audit_file_mask(struct audit_buffer *ab, u32 mask)
-{
-	char str[10];
-
-	aa_perm_mask_to_str(str, sizeof(str), aa_file_perm_chrs,
-			    map_mask_to_chr_mask(mask));
-	audit_log_string(ab, str);
-}
-
-/**
  * file_audit_cb - call back for file specific audit fields
  * @ab: audit_buffer  (NOT NULL)
  * @va: audit struct to audit values of  (NOT NULL)
@@ -57,14 +43,17 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
 	kuid_t fsuid = current_fsuid();
+	char str[10];
 
 	if (aad(sa)->request & AA_AUDIT_FILE_MASK) {
-		audit_log_format(ab, " requested_mask=");
-		audit_file_mask(ab, aad(sa)->request);
+		aa_perm_mask_to_str(str, sizeof(str), aa_file_perm_chrs,
+				    map_mask_to_chr_mask(aad(sa)->request));
+		audit_log_format(ab, " requested_mask=\"%s\"", str);
 	}
 	if (aad(sa)->denied & AA_AUDIT_FILE_MASK) {
-		audit_log_format(ab, " denied_mask=");
-		audit_file_mask(ab, aad(sa)->denied);
+		aa_perm_mask_to_str(str, sizeof(str), aa_file_perm_chrs,
+				    map_mask_to_chr_mask(aad(sa)->denied));
+		audit_log_format(ab, " denied_mask=\"%s\"", str);
 	}
 	if (aad(sa)->request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " fsuid=%d",

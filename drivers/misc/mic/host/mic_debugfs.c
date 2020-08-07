@@ -101,7 +101,7 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 
 DEFINE_SHOW_ATTRIBUTE(mic_msi_irq_info);
 
-/**
+/*
  * mic_create_debug_dir - Initialize MIC debugfs entries.
  */
 void mic_create_debug_dir(struct mic_device *mdev)
@@ -124,7 +124,7 @@ void mic_create_debug_dir(struct mic_device *mdev)
 			    &mic_msi_irq_info_fops);
 }
 
-/**
+/*
  * mic_delete_debug_dir - Uninitialize MIC debugfs entries.
  */
 void mic_delete_debug_dir(struct mic_device *mdev)
@@ -132,7 +132,7 @@ void mic_delete_debug_dir(struct mic_device *mdev)
 	debugfs_remove_recursive(mdev->dbg_dir);
 }
 
-/**
+/*
  * mic_init_debugfs - Initialize global debugfs entry.
  */
 void __init mic_init_debugfs(void)
@@ -140,7 +140,7 @@ void __init mic_init_debugfs(void)
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
 }
 
-/**
+/*
  * mic_exit_debugfs - Uninitialize global debugfs entry
  */
 void mic_exit_debugfs(void)

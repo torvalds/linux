@@ -60,7 +60,7 @@ nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *func, struct nvkm_acr *acr,
 {
 	struct nvkm_acr_lsfw *lsfw;
 
-	if (!acr)
+	if (!acr || list_empty(&acr->hsfw))
 		return ERR_PTR(-ENOSYS);
 
 	lsfw = nvkm_acr_lsfw_get(acr, id);

@@ -124,8 +124,9 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
-	path->hops[1].initial_credits =
-		tb_initial_credits(path->hops[1].in_port->sw);
+	if (path->path_length > 1)
+		path->hops[1].initial_credits =
+			tb_initial_credits(path->hops[1].in_port->sw);
 }
 
 /**
@@ -422,7 +423,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 	u32 out_dp_cap, out_rate, out_lanes, in_dp_cap, in_rate, in_lanes, bw;
 	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
-	int ret;
+	int ret, max_bw;
 
 	/*
 	 * Copy DP_LOCAL_CAP register to DP_REMOTE_CAP register for
@@ -471,10 +472,15 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 	tb_port_dbg(out, "maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
 		    out_rate, out_lanes, bw);
 
-	if (tunnel->max_bw && bw > tunnel->max_bw) {
+	if (in->sw->config.depth < out->sw->config.depth)
+		max_bw = tunnel->max_down;
+	else
+		max_bw = tunnel->max_up;
+
+	if (max_bw && bw > max_bw) {
 		u32 new_rate, new_lanes, new_bw;
 
-		ret = tb_dp_reduce_bandwidth(tunnel->max_bw, in_rate, in_lanes,
+		ret = tb_dp_reduce_bandwidth(max_bw, in_rate, in_lanes,
 					     out_rate, out_lanes, &new_rate,
 					     &new_lanes);
 		if (ret) {
@@ -535,7 +541,8 @@ static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
 	return 0;
 }
 
-static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
+static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
+				    int *consumed_down)
 {
 	struct tb_port *in = tunnel->src_port;
 	const struct tb_switch *sw = in->sw;
@@ -543,7 +550,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
 	int ret;
 
 	if (tb_dp_is_usb4(sw)) {
-		int timeout = 10;
+		int timeout = 20;
 
 		/*
 		 * Wait for DPRX done. Normally it should be already set
@@ -579,10 +586,20 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
 		lanes = tb_dp_cap_get_lanes(val);
 	} else {
 		/* No bandwidth management for legacy devices  */
+		*consumed_up = 0;
+		*consumed_down = 0;
 		return 0;
 	}
 
-	return tb_dp_bandwidth(rate, lanes);
+	if (in->sw->config.depth < tunnel->dst_port->sw->config.depth) {
+		*consumed_up = 0;
+		*consumed_down = tb_dp_bandwidth(rate, lanes);
+	} else {
+		*consumed_up = tb_dp_bandwidth(rate, lanes);
+		*consumed_down = 0;
+	}
+
+	return 0;
 }
 
 static void tb_dp_init_aux_path(struct tb_path *path)
@@ -708,7 +725,10 @@ err_free:
  * @tb: Pointer to the domain structure
  * @in: DP in adapter port
  * @out: DP out adapter port
- * @max_bw: Maximum available bandwidth for the DP tunnel (%0 if not limited)
+ * @max_up: Maximum available upstream bandwidth for the DP tunnel (%0
+ *	    if not limited)
+ * @max_down: Maximum available downstream bandwidth for the DP tunnel
+ *	      (%0 if not limited)
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
  * Display Port traffic.
@@ -716,7 +736,8 @@ err_free:
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
-				     struct tb_port *out, int max_bw)
+				     struct tb_port *out, int max_up,
+				     int max_down)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path **paths;
@@ -734,7 +755,8 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 	tunnel->consumed_bandwidth = tb_dp_consumed_bandwidth;
 	tunnel->src_port = in;
 	tunnel->dst_port = out;
-	tunnel->max_bw = max_bw;
+	tunnel->max_up = max_up;
+	tunnel->max_down = max_down;
 
 	paths = tunnel->paths;
 
@@ -854,6 +876,33 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 	return tunnel;
 }
 
+static int tb_usb3_max_link_rate(struct tb_port *up, struct tb_port *down)
+{
+	int ret, up_max_rate, down_max_rate;
+
+	ret = usb4_usb3_port_max_link_rate(up);
+	if (ret < 0)
+		return ret;
+	up_max_rate = ret;
+
+	ret = usb4_usb3_port_max_link_rate(down);
+	if (ret < 0)
+		return ret;
+	down_max_rate = ret;
+
+	return min(up_max_rate, down_max_rate);
+}
+
+static int tb_usb3_init(struct tb_tunnel *tunnel)
+{
+	tb_tunnel_dbg(tunnel, "allocating initial bandwidth %d/%d Mb/s\n",
+		      tunnel->allocated_up, tunnel->allocated_down);
+
+	return usb4_usb3_port_allocate_bandwidth(tunnel->src_port,
+						 &tunnel->allocated_up,
+						 &tunnel->allocated_down);
+}
+
 static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 {
 	int res;
@@ -868,6 +917,86 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 	return 0;
 }
 
+static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
+		int *consumed_up, int *consumed_down)
+{
+	/*
+	 * PCIe tunneling affects the USB3 bandwidth so take that it
+	 * into account here.
+	 */
+	*consumed_up = tunnel->allocated_up * (3 + 1) / 3;
+	*consumed_down = tunnel->allocated_down * (3 + 1) / 3;
+	return 0;
+}
+
+static int tb_usb3_release_unused_bandwidth(struct tb_tunnel *tunnel)
+{
+	int ret;
+
+	ret = usb4_usb3_port_release_bandwidth(tunnel->src_port,
+					       &tunnel->allocated_up,
+					       &tunnel->allocated_down);
+	if (ret)
+		return ret;
+
+	tb_tunnel_dbg(tunnel, "decreased bandwidth allocation to %d/%d Mb/s\n",
+		      tunnel->allocated_up, tunnel->allocated_down);
+	return 0;
+}
+
+static void tb_usb3_reclaim_available_bandwidth(struct tb_tunnel *tunnel,
+						int *available_up,
+						int *available_down)
+{
+	int ret, max_rate, allocate_up, allocate_down;
+
+	ret = usb4_usb3_port_actual_link_rate(tunnel->src_port);
+	if (ret <= 0) {
+		tb_tunnel_warn(tunnel, "tunnel is not up\n");
+		return;
+	}
+	/*
+	 * 90% of the max rate can be allocated for isochronous
+	 * transfers.
+	 */
+	max_rate = ret * 90 / 100;
+
+	/* No need to reclaim if already at maximum */
+	if (tunnel->allocated_up >= max_rate &&
+	    tunnel->allocated_down >= max_rate)
+		return;
+
+	/* Don't go lower than what is already allocated */
+	allocate_up = min(max_rate, *available_up);
+	if (allocate_up < tunnel->allocated_up)
+		allocate_up = tunnel->allocated_up;
+
+	allocate_down = min(max_rate, *available_down);
+	if (allocate_down < tunnel->allocated_down)
+		allocate_down = tunnel->allocated_down;
+
+	/* If no changes no need to do more */
+	if (allocate_up == tunnel->allocated_up &&
+	    allocate_down == tunnel->allocated_down)
+		return;
+
+	ret = usb4_usb3_port_allocate_bandwidth(tunnel->src_port, &allocate_up,
+						&allocate_down);
+	if (ret) {
+		tb_tunnel_info(tunnel, "failed to allocate bandwidth\n");
+		return;
+	}
+
+	tunnel->allocated_up = allocate_up;
+	*available_up -= tunnel->allocated_up;
+
+	tunnel->allocated_down = allocate_down;
+	*available_down -= tunnel->allocated_down;
+
+	tb_tunnel_dbg(tunnel, "increased bandwidth allocation to %d/%d Mb/s\n",
+		      tunnel->allocated_up, tunnel->allocated_down);
+}
+
 static void tb_usb3_init_path(struct tb_path *path)
 {
 	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
@@ -879,8 +1008,9 @@ static void tb_usb3_init_path(struct tb_path *path)
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
-	path->hops[1].initial_credits =
-		tb_initial_credits(path->hops[1].in_port->sw);
+	if (path->path_length > 1)
+		path->hops[1].initial_credits =
+			tb_initial_credits(path->hops[1].in_port->sw);
 }
 
 /**
@@ -947,6 +1077,29 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
 		goto err_deactivate;
 	}
 
+	if (!tb_route(down->sw)) {
+		int ret;
+
+		/*
+		 * Read the initial bandwidth allocation for the first
+		 * hop tunnel.
+		 */
+		ret = usb4_usb3_port_allocated_bandwidth(down,
+			&tunnel->allocated_up, &tunnel->allocated_down);
+		if (ret)
+			goto err_deactivate;
+
+		tb_tunnel_dbg(tunnel, "currently allocated bandwidth %d/%d Mb/s\n",
+			      tunnel->allocated_up, tunnel->allocated_down);
+
+		tunnel->init = tb_usb3_init;
+		tunnel->consumed_bandwidth = tb_usb3_consumed_bandwidth;
+		tunnel->release_unused_bandwidth =
+			tb_usb3_release_unused_bandwidth;
+		tunnel->reclaim_available_bandwidth =
+			tb_usb3_reclaim_available_bandwidth;
+	}
+
 	tb_tunnel_dbg(tunnel, "discovered\n");
 	return tunnel;
 
@@ -963,6 +1116,10 @@ err_free:
  * @tb: Pointer to the domain structure
  * @up: USB3 upstream adapter port
  * @down: USB3 downstream adapter port
+ * @max_up: Maximum available upstream bandwidth for the USB3 tunnel (%0
+ *	    if not limited).
+ * @max_down: Maximum available downstream bandwidth for the USB3 tunnel
+ *	      (%0 if not limited).
  *
  * Allocate an USB3 tunnel. The ports must be of type @TB_TYPE_USB3_UP and
  * @TB_TYPE_USB3_DOWN.
@@ -970,10 +1127,32 @@ err_free:
  * Return: Returns a tb_tunnel on success or %NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
-				       struct tb_port *down)
+				       struct tb_port *down, int max_up,
+				       int max_down)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path *path;
+	int max_rate = 0;
+
+	/*
+	 * Check that we have enough bandwidth available for the new
+	 * USB3 tunnel.
+	 */
+	if (max_up > 0 || max_down > 0) {
+		max_rate = tb_usb3_max_link_rate(down, up);
+		if (max_rate < 0)
+			return NULL;
+
+		/* Only 90% can be allocated for USB3 isochronous transfers */
+		max_rate = max_rate * 90 / 100;
+		tb_port_dbg(up, "required bandwidth for USB3 tunnel %d Mb/s\n",
+			    max_rate);
+
+		if (max_rate > max_up || max_rate > max_down) {
+			tb_port_warn(up, "not enough bandwidth for USB3 tunnel\n");
+			return NULL;
+		}
+	}
 
 	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_USB3);
 	if (!tunnel)
@@ -982,6 +1161,8 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 	tunnel->activate = tb_usb3_activate;
 	tunnel->src_port = down;
 	tunnel->dst_port = up;
+	tunnel->max_up = max_up;
+	tunnel->max_down = max_down;
 
 	path = tb_path_alloc(tb, down, TB_USB3_HOPID, up, TB_USB3_HOPID, 0,
 			     "USB3 Down");
@@ -1000,6 +1181,18 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 	}
 	tb_usb3_init_path(path);
 	tunnel->paths[TB_USB3_PATH_UP] = path;
+
+	if (!tb_route(down->sw)) {
+		tunnel->allocated_up = max_rate;
+		tunnel->allocated_down = max_rate;
+
+		tunnel->init = tb_usb3_init;
+		tunnel->consumed_bandwidth = tb_usb3_consumed_bandwidth;
+		tunnel->release_unused_bandwidth =
+			tb_usb3_release_unused_bandwidth;
+		tunnel->reclaim_available_bandwidth =
+			tb_usb3_reclaim_available_bandwidth;
+	}
 
 	return tunnel;
 }
@@ -1133,22 +1326,23 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
 }
 
 /**
- * tb_tunnel_switch_on_path() - Does the tunnel go through switch
+ * tb_tunnel_port_on_path() - Does the tunnel go through port
  * @tunnel: Tunnel to check
- * @sw: Switch to check
+ * @port: Port to check
  *
- * Returns true if @tunnel goes through @sw (direction does not matter),
+ * Returns true if @tunnel goes through @port (direction does not matter),
  * false otherwise.
  */
-bool tb_tunnel_switch_on_path(const struct tb_tunnel *tunnel,
-			      const struct tb_switch *sw)
+bool tb_tunnel_port_on_path(const struct tb_tunnel *tunnel,
+			    const struct tb_port *port)
 {
 	int i;
 
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (!tunnel->paths[i])
 			continue;
-		if (tb_path_switch_on_path(tunnel->paths[i], sw))
+
+		if (tb_path_port_on_path(tunnel->paths[i], port))
 			return true;
 	}
 
@@ -1172,21 +1366,87 @@ static bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
 /**
  * tb_tunnel_consumed_bandwidth() - Return bandwidth consumed by the tunnel
  * @tunnel: Tunnel to check
+ * @consumed_up: Consumed bandwidth in Mb/s from @dst_port to @src_port.
+ *		 Can be %NULL.
+ * @consumed_down: Consumed bandwidth in Mb/s from @src_port to @dst_port.
+ *		   Can be %NULL.
  *
- * Returns bandwidth currently consumed by @tunnel and %0 if the @tunnel
- * is not active or does consume bandwidth.
+ * Stores the amount of isochronous bandwidth @tunnel consumes in
+ * @consumed_up and @consumed_down. In case of success returns %0,
+ * negative errno otherwise.
  */
-int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel)
+int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
+				 int *consumed_down)
+{
+	int up_bw = 0, down_bw = 0;
+
+	if (!tb_tunnel_is_active(tunnel))
+		goto out;
+
+	if (tunnel->consumed_bandwidth) {
+		int ret;
+
+		ret = tunnel->consumed_bandwidth(tunnel, &up_bw, &down_bw);
+		if (ret)
+			return ret;
+
+		tb_tunnel_dbg(tunnel, "consumed bandwidth %d/%d Mb/s\n", up_bw,
+			      down_bw);
+	}
+
+out:
+	if (consumed_up)
+		*consumed_up = up_bw;
+	if (consumed_down)
+		*consumed_down = down_bw;
+
+	return 0;
+}
+
+/**
+ * tb_tunnel_release_unused_bandwidth() - Release unused bandwidth
+ * @tunnel: Tunnel whose unused bandwidth to release
+ *
+ * If tunnel supports dynamic bandwidth management (USB3 tunnels at the
+ * moment) this function makes it to release all the unused bandwidth.
+ *
+ * Returns %0 in case of success and negative errno otherwise.
+ */
+int tb_tunnel_release_unused_bandwidth(struct tb_tunnel *tunnel)
 {
 	if (!tb_tunnel_is_active(tunnel))
 		return 0;
 
-	if (tunnel->consumed_bandwidth) {
-		int ret = tunnel->consumed_bandwidth(tunnel);
+	if (tunnel->release_unused_bandwidth) {
+		int ret;
 
-		tb_tunnel_dbg(tunnel, "consumed bandwidth %d Mb/s\n", ret);
-		return ret;
+		ret = tunnel->release_unused_bandwidth(tunnel);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
+}
+
+/**
+ * tb_tunnel_reclaim_available_bandwidth() - Reclaim available bandwidth
+ * @tunnel: Tunnel reclaiming available bandwidth
+ * @available_up: Available upstream bandwidth (in Mb/s)
+ * @available_down: Available downstream bandwidth (in Mb/s)
+ *
+ * Reclaims bandwidth from @available_up and @available_down and updates
+ * the variables accordingly (e.g decreases both according to what was
+ * reclaimed by the tunnel). If nothing was reclaimed the values are
+ * kept as is.
+ */
+void tb_tunnel_reclaim_available_bandwidth(struct tb_tunnel *tunnel,
+					   int *available_up,
+					   int *available_down)
+{
+	if (!tb_tunnel_is_active(tunnel))
+		return;
+
+	if (tunnel->reclaim_available_bandwidth)
+		tunnel->reclaim_available_bandwidth(tunnel, available_up,
+						    available_down);
 }

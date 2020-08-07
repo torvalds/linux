@@ -652,10 +652,24 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	if (!pages)
 		return -ENOMEM;
 
-	ret = get_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
+	ret = pin_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
 	if (ret < nr_pages) {
-		nr_pages = ret;
-		ret = -EINVAL;
+		if (ret < 0) {
+			/*
+			 *  Clamp the unsigned nr_pages to zero so that the
+			 *  error handling works. And leave ret at whatever
+			 *  -errno value was returned from GUP.
+			 */
+			nr_pages = 0;
+		} else {
+			nr_pages = ret;
+			/*
+			 * Use -EINVAL to represent a mildly desperate guess at
+			 * why we got fewer pages (maybe even zero pages) than
+			 * requested.
+			 */
+			ret = -EINVAL;
+		}
 		goto out_unmap;
 	}
 
@@ -698,9 +712,7 @@ out:
 	ret = count;
 
 out_unmap:
-	for (i = 0; i < nr_pages; i++)
-		put_page(pages[i]);
-
+	unpin_user_pages(pages, nr_pages);
 	kfree(pages);
 
 	return ret;

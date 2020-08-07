@@ -180,7 +180,7 @@ static inline int drm_rect_height(const struct drm_rect *r)
 }
 
 /**
- * drm_rect_visible - determine if the the rectangle is visible
+ * drm_rect_visible - determine if the rectangle is visible
  * @r: rectangle whose visibility is returned
  *
  * RETURNS:

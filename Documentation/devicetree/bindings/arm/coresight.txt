@@ -108,6 +108,13 @@ its hardware characteristcs.
 	* arm,cp14: must be present if the system accesses ETM/PTM management
 	  registers via co-processor 14.
 
+	* qcom,skip-power-up: boolean. Indicates that an implementation can
+	  skip powering up the trace unit. TRCPDCR.PU does not have to be set
+	  on Qualcomm Technologies Inc. systems since ETMs are in the same power
+	  domain as their CPU cores. This property is required to identify such
+	  systems with hardware errata where the CPU watchdog counter is stopped
+	  when TRCPDCR.PU is set.
+
 * Optional property for TMC:
 
 	* arm,buffer-size: size of contiguous buffer space for TMC ETR
@@ -120,6 +127,12 @@ its hardware characteristcs.
 * Optional property for CATU :
 	* interrupts : Exactly one SPI may be listed for reporting the address
 	  error
+
+* Optional property for configurable replicators:
+
+	* qcom,replicator-loses-context: boolean. Indicates that the replicator
+	  will lose register context when AMBA clock is removed which is observed
+	  in some replicator designs.
 
 Graph bindings for Coresight
 -------------------------------

@@ -1177,14 +1177,15 @@ static void mlxsw_devlink_trap_fini(struct devlink *devlink,
 
 static int mlxsw_devlink_trap_action_set(struct devlink *devlink,
 					 const struct devlink_trap *trap,
-					 enum devlink_trap_action action)
+					 enum devlink_trap_action action,
+					 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
 
 	if (!mlxsw_driver->trap_action_set)
 		return -EOPNOTSUPP;
-	return mlxsw_driver->trap_action_set(mlxsw_core, trap, action);
+	return mlxsw_driver->trap_action_set(mlxsw_core, trap, action, extack);
 }
 
 static int
@@ -1202,14 +1203,15 @@ mlxsw_devlink_trap_group_init(struct devlink *devlink,
 static int
 mlxsw_devlink_trap_group_set(struct devlink *devlink,
 			     const struct devlink_trap_group *group,
-			     const struct devlink_trap_policer *policer)
+			     const struct devlink_trap_policer *policer,
+			     struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
 
 	if (!mlxsw_driver->trap_group_set)
 		return -EOPNOTSUPP;
-	return mlxsw_driver->trap_group_set(mlxsw_core, group, policer);
+	return mlxsw_driver->trap_group_set(mlxsw_core, group, policer, extack);
 }
 
 static int
@@ -1525,7 +1527,8 @@ static bool __is_rx_listener_equal(const struct mlxsw_rx_listener *rxl_a,
 {
 	return (rxl_a->func == rxl_b->func &&
 		rxl_a->local_port == rxl_b->local_port &&
-		rxl_a->trap_id == rxl_b->trap_id);
+		rxl_a->trap_id == rxl_b->trap_id &&
+		rxl_a->mirror_reason == rxl_b->mirror_reason);
 }
 
 static struct mlxsw_rx_listener_item *
@@ -2045,7 +2048,8 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 		rxl = &rxl_item->rxl;
 		if ((rxl->local_port == MLXSW_PORT_DONT_CARE ||
 		     rxl->local_port == local_port) &&
-		    rxl->trap_id == rx_info->trap_id) {
+		    rxl->trap_id == rx_info->trap_id &&
+		    rxl->mirror_reason == rx_info->mirror_reason) {
 			if (rxl_item->enabled)
 				found = true;
 			break;
@@ -2125,6 +2129,7 @@ static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 				  enum devlink_port_flavour flavour,
 				  u32 port_number, bool split,
 				  u32 split_port_subnumber,
+				  bool splittable, u32 lanes,
 				  const unsigned char *switch_id,
 				  unsigned char switch_id_len)
 {
@@ -2132,12 +2137,19 @@ static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
 	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+	struct devlink_port_attrs attrs = {};
 	int err;
 
+	attrs.split = split;
+	attrs.lanes = lanes;
+	attrs.splittable = splittable;
+	attrs.flavour = flavour;
+	attrs.phys.port_number = port_number;
+	attrs.phys.split_subport_number = split_port_subnumber;
+	memcpy(attrs.switch_id.id, switch_id, switch_id_len);
+	attrs.switch_id.id_len = switch_id_len;
 	mlxsw_core_port->local_port = local_port;
-	devlink_port_attrs_set(devlink_port, flavour, port_number,
-			       split, split_port_subnumber,
-			       switch_id, switch_id_len);
+	devlink_port_attrs_set(devlink_port, &attrs);
 	err = devlink_port_register(devlink, devlink_port, local_port);
 	if (err)
 		memset(mlxsw_core_port, 0, sizeof(*mlxsw_core_port));
@@ -2157,12 +2169,14 @@ static void __mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port)
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 			 u32 port_number, bool split,
 			 u32 split_port_subnumber,
+			 bool splittable, u32 lanes,
 			 const unsigned char *switch_id,
 			 unsigned char switch_id_len)
 {
 	return __mlxsw_core_port_init(mlxsw_core, local_port,
 				      DEVLINK_PORT_FLAVOUR_PHYSICAL,
 				      port_number, split, split_port_subnumber,
+				      splittable, lanes,
 				      switch_id, switch_id_len);
 }
 EXPORT_SYMBOL(mlxsw_core_port_init);
@@ -2184,7 +2198,7 @@ int mlxsw_core_cpu_port_init(struct mlxsw_core *mlxsw_core,
 
 	err = __mlxsw_core_port_init(mlxsw_core, MLXSW_PORT_CPU_PORT,
 				     DEVLINK_PORT_FLAVOUR_CPU,
-				     0, false, 0,
+				     0, false, 0, false, 0,
 				     switch_id, switch_id_len);
 	if (err)
 		return err;

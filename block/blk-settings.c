@@ -456,17 +456,6 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 EXPORT_SYMBOL(blk_queue_io_opt);
 
 /**
- * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
- * @t:	the stacking driver (top)
- * @b:  the underlying device (bottom)
- **/
-void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
-{
-	blk_stack_limits(&t->limits, &b->limits, 0);
-}
-EXPORT_SYMBOL(blk_queue_stack_limits);
-
-/**
  * blk_stack_limits - adjust queue_limits for stacked devices
  * @t:	the stacking driver limits (top device)
  * @b:  the underlying queue limits (bottom, component device)
@@ -609,31 +598,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->chunk_sectors = min_not_zero(t->chunk_sectors,
 						b->chunk_sectors);
 
+	t->zoned = max(t->zoned, b->zoned);
 	return ret;
 }
 EXPORT_SYMBOL(blk_stack_limits);
-
-/**
- * bdev_stack_limits - adjust queue limits for stacked drivers
- * @t:	the stacking driver limits (top device)
- * @bdev:  the component block_device (bottom)
- * @start:  first data sector within component device
- *
- * Description:
- *    Merges queue limits for a top device and a block_device.  Returns
- *    0 if alignment didn't change.  Returns -1 if adding the bottom
- *    device caused misalignment.
- */
-int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
-		      sector_t start)
-{
-	struct request_queue *bq = bdev_get_queue(bdev);
-
-	start += get_start_sect(bdev);
-
-	return blk_stack_limits(t, &bq->limits, start);
-}
-EXPORT_SYMBOL(bdev_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers
@@ -650,7 +618,8 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 {
 	struct request_queue *t = disk->queue;
 
-	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
+	if (blk_stack_limits(&t->limits, &bdev_get_queue(bdev)->limits,
+			get_start_sect(bdev) + (offset >> 9)) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
 
 		disk_name(disk, 0, top);

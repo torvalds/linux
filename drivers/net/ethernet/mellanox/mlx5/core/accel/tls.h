@@ -43,9 +43,20 @@ int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
 			 u32 *p_key_id);
 void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id);
 
+static inline bool mlx5_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, tls_tx);
+}
+
+static inline bool mlx5_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, tls_rx);
+}
+
 static inline bool mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev)
 {
-	if (!MLX5_CAP_GEN(mdev, tls_tx))
+	if (!mlx5_accel_is_ktls_tx(mdev) &&
+	    !mlx5_accel_is_ktls_rx(mdev))
 		return false;
 
 	if (!MLX5_CAP_GEN(mdev, log_max_dek))
@@ -67,6 +78,12 @@ static inline bool mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
 	return false;
 }
 #else
+static inline bool mlx5_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
+{ return false; }
+
+static inline bool mlx5_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
+{ return false; }
+
 static inline int
 mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
 		     struct tls_crypto_info *crypto_info,

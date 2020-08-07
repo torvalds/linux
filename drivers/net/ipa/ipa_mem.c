@@ -41,6 +41,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
 
 /**
  * ipa_mem_setup() - Set up IPA AP and modem shared memory areas
+ * @ipa:	IPA pointer
  *
  * Set up the shared memory regions in IPA local memory.  This involves
  * zero-filling memory regions, and in the case of header memory, telling
@@ -52,7 +53,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
  * The AP informs the modem where its portions of memory are located
  * in a QMI exchange that occurs at modem startup.
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int ipa_mem_setup(struct ipa *ipa)
 {
@@ -137,8 +138,9 @@ static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 
 /**
  * ipa_mem_config() - Configure IPA shared memory
+ * @ipa:	IPA pointer
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int ipa_mem_config(struct ipa *ipa)
 {
@@ -238,6 +240,7 @@ void ipa_mem_deconfig(struct ipa *ipa)
 
 /**
  * ipa_mem_zero_modem() - Zero IPA-local memory regions owned by the modem
+ * @ipa:	IPA pointer
  *
  * Zero regions of IPA-local memory used by the modem.  These are configured
  * (and initially zeroed) by ipa_mem_setup(), but if the modem crashes and

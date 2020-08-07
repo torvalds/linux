@@ -3335,7 +3335,12 @@ static int selinux_inode_getsecurity(struct inode *inode, const char *name, void
 	char *context = NULL;
 	struct inode_security_struct *isec;
 
-	if (strcmp(name, XATTR_SELINUX_SUFFIX))
+	/*
+	 * If we're not initialized yet, then we can't validate contexts, so
+	 * just let vfs_getxattr fall back to using the on-disk xattr.
+	 */
+	if (!selinux_initialized(&selinux_state) ||
+	    strcmp(name, XATTR_SELINUX_SUFFIX))
 		return -EOPNOTSUPP;
 
 	/*

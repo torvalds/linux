@@ -140,6 +140,8 @@ static void check_audio_bandwidth_hdmi(
 	bool limit_freq_to_88_2_khz = false;
 	bool limit_freq_to_96_khz = false;
 	bool limit_freq_to_174_4_khz = false;
+	if (!crtc_info)
+		return;
 
 	/* For two channels supported return whatever sink support,unmodified*/
 	if (channel_count > 2) {
@@ -784,7 +786,7 @@ void dce_aud_wall_dto_setup(
 
 	struct azalia_clock_info clock_info = { 0 };
 
-	if (dc_is_hdmi_signal(signal)) {
+	if (dc_is_hdmi_tmds_signal(signal)) {
 		uint32_t src_sel;
 
 		/*DTO0 Programming goal:

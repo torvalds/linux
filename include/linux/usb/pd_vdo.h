@@ -249,7 +249,7 @@
  * SVDM Discover SVIDs request -> response
  *
  * Request is properly formatted VDM Header with discover SVIDs command.
- * Response is a set of SVIDs of all all supported SVIDs with all zero's to
+ * Response is a set of SVIDs of all supported SVIDs with all zero's to
  * mark the end of SVIDs.  If more than 12 SVIDs are supported command SHOULD be
  * repeated.
  */

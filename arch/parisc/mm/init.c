@@ -750,7 +750,7 @@ unsigned long alloc_sid(void)
 	free_space_ids--;
 
 	index = find_next_zero_bit(space_id, NR_SPACE_IDS, space_id_index);
-	space_id[index >> SHIFT_PER_LONG] |= (1L << (index & (BITS_PER_LONG - 1)));
+	space_id[BIT_WORD(index)] |= BIT_MASK(index);
 	space_id_index = index;
 
 	spin_unlock(&sid_lock);
@@ -761,16 +761,16 @@ unsigned long alloc_sid(void)
 void free_sid(unsigned long spaceid)
 {
 	unsigned long index = spaceid >> SPACEID_SHIFT;
-	unsigned long *dirty_space_offset;
+	unsigned long *dirty_space_offset, mask;
 
-	dirty_space_offset = dirty_space_id + (index >> SHIFT_PER_LONG);
-	index &= (BITS_PER_LONG - 1);
+	dirty_space_offset = &dirty_space_id[BIT_WORD(index)];
+	mask = BIT_MASK(index);
 
 	spin_lock(&sid_lock);
 
-	BUG_ON(*dirty_space_offset & (1L << index)); /* attempt to free space id twice */
+	BUG_ON(*dirty_space_offset & mask); /* attempt to free space id twice */
 
-	*dirty_space_offset |= (1L << index);
+	*dirty_space_offset |= mask;
 	dirty_space_ids++;
 
 	spin_unlock(&sid_lock);

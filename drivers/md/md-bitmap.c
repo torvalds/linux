@@ -1631,7 +1631,7 @@ void md_bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force)
 		s += blocks;
 	}
 	bitmap->last_end_sync = jiffies;
-	sysfs_notify(&bitmap->mddev->kobj, NULL, "sync_completed");
+	sysfs_notify_dirent_safe(bitmap->mddev->sysfs_completed);
 }
 EXPORT_SYMBOL(md_bitmap_cond_end_sync);
 

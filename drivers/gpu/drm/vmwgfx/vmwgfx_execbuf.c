@@ -3696,7 +3696,7 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 		bo = &reloc->vbo->base;
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
-			reloc->location->offset += bo->offset;
+			reloc->location->offset += bo->mem.start << PAGE_SHIFT;
 			reloc->location->gmrId = SVGA_GMR_FRAMEBUFFER;
 			break;
 		case VMW_PL_GMR:

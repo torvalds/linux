@@ -159,7 +159,7 @@ static inline bool vmci_handle_is_invalid(struct vmci_handle h)
  */
 #define VMCI_ANON_SRC_CONTEXT_ID   VMCI_INVALID_ID
 #define VMCI_ANON_SRC_RESOURCE_ID  VMCI_INVALID_ID
-static const struct vmci_handle VMCI_ANON_SRC_HANDLE = {
+static const struct vmci_handle __maybe_unused VMCI_ANON_SRC_HANDLE = {
 	.context = VMCI_ANON_SRC_CONTEXT_ID,
 	.resource = VMCI_ANON_SRC_RESOURCE_ID
 };

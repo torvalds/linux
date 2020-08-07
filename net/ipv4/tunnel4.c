@@ -110,6 +110,33 @@ drop:
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+static int tunnel4_rcv_cb(struct sk_buff *skb, u8 proto, int err)
+{
+	struct xfrm_tunnel __rcu *head;
+	struct xfrm_tunnel *handler;
+	int ret;
+
+	head = (proto == IPPROTO_IPIP) ? tunnel4_handlers : tunnel64_handlers;
+
+	for_each_tunnel_rcu(head, handler) {
+		if (handler->cb_handler) {
+			ret = handler->cb_handler(skb, err);
+			if (ret <= 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static const struct xfrm_input_afinfo tunnel4_input_afinfo = {
+	.family		=	AF_INET,
+	.is_ipip	=	true,
+	.callback	=	tunnel4_rcv_cb,
+};
+#endif
+
 #if IS_ENABLED(CONFIG_IPV6)
 static int tunnel64_rcv(struct sk_buff *skb)
 {
@@ -231,6 +258,18 @@ static int __init tunnel4_init(void)
 		goto err;
 	}
 #endif
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+	if (xfrm_input_register_afinfo(&tunnel4_input_afinfo)) {
+		inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
+#if IS_ENABLED(CONFIG_IPV6)
+		inet_del_protocol(&tunnel64_protocol, IPPROTO_IPV6);
+#endif
+#if IS_ENABLED(CONFIG_MPLS)
+		inet_del_protocol(&tunnelmpls4_protocol, IPPROTO_MPLS);
+#endif
+		goto err;
+	}
+#endif
 	return 0;
 
 err:
@@ -240,6 +279,10 @@ err:
 
 static void __exit tunnel4_fini(void)
 {
+#if IS_ENABLED(CONFIG_INET_XFRM_TUNNEL)
+	if (xfrm_input_unregister_afinfo(&tunnel4_input_afinfo))
+		pr_err("tunnel4 close: can't remove input afinfo\n");
+#endif
 #if IS_ENABLED(CONFIG_MPLS)
 	if (inet_del_protocol(&tunnelmpls4_protocol, IPPROTO_MPLS))
 		pr_err("tunnelmpls4 close: can't remove protocol\n");

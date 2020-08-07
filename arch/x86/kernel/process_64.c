@@ -151,6 +151,56 @@ enum which_selector {
 };
 
 /*
+ * Out of line to be protected from kprobes and tracing. If this would be
+ * traced or probed than any access to a per CPU variable happens with
+ * the wrong GS.
+ *
+ * It is not used on Xen paravirt. When paravirt support is needed, it
+ * needs to be renamed with native_ prefix.
+ */
+static noinstr unsigned long __rdgsbase_inactive(void)
+{
+	unsigned long gsbase;
+
+	lockdep_assert_irqs_disabled();
+
+	if (!static_cpu_has(X86_FEATURE_XENPV)) {
+		native_swapgs();
+		gsbase = rdgsbase();
+		native_swapgs();
+	} else {
+		instrumentation_begin();
+		rdmsrl(MSR_KERNEL_GS_BASE, gsbase);
+		instrumentation_end();
+	}
+
+	return gsbase;
+}
+
+/*
+ * Out of line to be protected from kprobes and tracing. If this would be
+ * traced or probed than any access to a per CPU variable happens with
+ * the wrong GS.
+ *
+ * It is not used on Xen paravirt. When paravirt support is needed, it
+ * needs to be renamed with native_ prefix.
+ */
+static noinstr void __wrgsbase_inactive(unsigned long gsbase)
+{
+	lockdep_assert_irqs_disabled();
+
+	if (!static_cpu_has(X86_FEATURE_XENPV)) {
+		native_swapgs();
+		wrgsbase(gsbase);
+		native_swapgs();
+	} else {
+		instrumentation_begin();
+		wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+		instrumentation_end();
+	}
+}
+
+/*
  * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
  * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
  * It's forcibly inlined because it'll generate better code and this function
@@ -199,22 +249,35 @@ static __always_inline void save_fsgs(struct task_struct *task)
 {
 	savesegment(fs, task->thread.fsindex);
 	savesegment(gs, task->thread.gsindex);
-	save_base_legacy(task, task->thread.fsindex, FS);
-	save_base_legacy(task, task->thread.gsindex, GS);
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		/*
+		 * If FSGSBASE is enabled, we can't make any useful guesses
+		 * about the base, and user code expects us to save the current
+		 * value.  Fortunately, reading the base directly is efficient.
+		 */
+		task->thread.fsbase = rdfsbase();
+		task->thread.gsbase = __rdgsbase_inactive();
+	} else {
+		save_base_legacy(task, task->thread.fsindex, FS);
+		save_base_legacy(task, task->thread.gsindex, GS);
+	}
 }
 
-#if IS_ENABLED(CONFIG_KVM)
 /*
  * While a process is running,current->thread.fsbase and current->thread.gsbase
- * may not match the corresponding CPU registers (see save_base_legacy()). KVM
- * wants an efficient way to save and restore FSBASE and GSBASE.
- * When FSGSBASE extensions are enabled, this will have to use RD{FS,GS}BASE.
+ * may not match the corresponding CPU registers (see save_base_legacy()).
  */
-void save_fsgs_for_kvm(void)
+void current_save_fsgs(void)
 {
+	unsigned long flags;
+
+	/* Interrupts need to be off for FSGSBASE */
+	local_irq_save(flags);
 	save_fsgs(current);
+	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(save_fsgs_for_kvm);
+#if IS_ENABLED(CONFIG_KVM)
+EXPORT_SYMBOL_GPL(current_save_fsgs);
 #endif
 
 static __always_inline void loadseg(enum which_selector which,
@@ -279,14 +342,26 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 static __always_inline void x86_fsgsbase_load(struct thread_struct *prev,
 					      struct thread_struct *next)
 {
-	load_seg_legacy(prev->fsindex, prev->fsbase,
-			next->fsindex, next->fsbase, FS);
-	load_seg_legacy(prev->gsindex, prev->gsbase,
-			next->gsindex, next->gsbase, GS);
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		/* Update the FS and GS selectors if they could have changed. */
+		if (unlikely(prev->fsindex || next->fsindex))
+			loadseg(FS, next->fsindex);
+		if (unlikely(prev->gsindex || next->gsindex))
+			loadseg(GS, next->gsindex);
+
+		/* Update the bases. */
+		wrfsbase(next->fsbase);
+		__wrgsbase_inactive(next->gsbase);
+	} else {
+		load_seg_legacy(prev->fsindex, prev->fsbase,
+				next->fsindex, next->fsbase, FS);
+		load_seg_legacy(prev->gsindex, prev->gsbase,
+				next->gsindex, next->gsbase, GS);
+	}
 }
 
-static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
-					    unsigned short selector)
+unsigned long x86_fsgsbase_read_task(struct task_struct *task,
+				     unsigned short selector)
 {
 	unsigned short idx = selector >> 3;
 	unsigned long base;
@@ -328,13 +403,44 @@ static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 	return base;
 }
 
+unsigned long x86_gsbase_read_cpu_inactive(void)
+{
+	unsigned long gsbase;
+
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		gsbase = __rdgsbase_inactive();
+		local_irq_restore(flags);
+	} else {
+		rdmsrl(MSR_KERNEL_GS_BASE, gsbase);
+	}
+
+	return gsbase;
+}
+
+void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
+{
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__wrgsbase_inactive(gsbase);
+		local_irq_restore(flags);
+	} else {
+		wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+	}
+}
+
 unsigned long x86_fsbase_read_task(struct task_struct *task)
 {
 	unsigned long fsbase;
 
 	if (task == current)
 		fsbase = x86_fsbase_read_cpu();
-	else if (task->thread.fsindex == 0)
+	else if (static_cpu_has(X86_FEATURE_FSGSBASE) ||
+		 (task->thread.fsindex == 0))
 		fsbase = task->thread.fsbase;
 	else
 		fsbase = x86_fsgsbase_read_task(task, task->thread.fsindex);
@@ -348,7 +454,8 @@ unsigned long x86_gsbase_read_task(struct task_struct *task)
 
 	if (task == current)
 		gsbase = x86_gsbase_read_cpu_inactive();
-	else if (task->thread.gsindex == 0)
+	else if (static_cpu_has(X86_FEATURE_FSGSBASE) ||
+		 (task->thread.gsindex == 0))
 		gsbase = task->thread.gsbase;
 	else
 		gsbase = x86_fsgsbase_read_task(task, task->thread.gsindex);

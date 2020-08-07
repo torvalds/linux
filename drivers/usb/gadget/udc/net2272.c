@@ -1688,7 +1688,7 @@ net2272_set_test_mode(struct net2272 *dev, int mode)
 	net2272_write(dev, USBTEST, mode);
 
 	/* load test packet */
-	if (mode == TEST_PACKET) {
+	if (mode == USB_TEST_PACKET) {
 		/* switch to 8 bit mode */
 		net2272_write(dev, LOCCTL, net2272_read(dev, LOCCTL) &
 				~(1 << DATA_WIDTH));
@@ -2370,6 +2370,8 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 
  err:
 	while (--i >= 0) {
+		if (i == 1)
+			continue;	/* BAR1 unused */
 		iounmap(mem_mapped_addr[i]);
 		release_mem_region(pci_resource_start(pdev, i),
 			pci_resource_len(pdev, i));

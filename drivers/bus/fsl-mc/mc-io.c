@@ -82,7 +82,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
 	if (flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
-		spin_lock_init(&mc_io->spinlock);
+		raw_spin_lock_init(&mc_io->spinlock);
 	else
 		mutex_init(&mc_io->mutex);
 

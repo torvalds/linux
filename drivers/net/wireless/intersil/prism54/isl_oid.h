@@ -143,7 +143,7 @@ enum dot11_priv_t {
  * together with a CSMA contention. Without this all frames are
  * sent with a CSMA contention.
  * Bibliography:
- * http://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
+ * https://www.hpl.hp.com/personal/Jean_Tourrilhes/Papers/Packet.Frame.Grouping.html
  */
 enum dot11_maxframeburst_t {
 	/* Values for DOT11_OID_MAXFRAMEBURST */

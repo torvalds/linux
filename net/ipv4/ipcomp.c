@@ -72,6 +72,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.flags = x->props.flags;
 	t->props.extra_flags = x->props.extra_flags;
 	memcpy(&t->mark, &x->mark, sizeof(t->mark));
+	t->if_id = x->if_id;
 
 	if (xfrm_init_state(t))
 		goto error;

@@ -304,7 +304,7 @@ static int __vma_bind(struct dma_fence_work *work)
 	struct i915_vma *vma = vw->vma;
 	int err;
 
-	err = vma->ops->bind_vma(vma, vw->cache_level, vw->flags);
+	err = vma->ops->bind_vma(vma->vm, vma, vw->cache_level, vw->flags);
 	if (err)
 		atomic_or(I915_VMA_ERROR, &vma->flags);
 
@@ -394,22 +394,20 @@ int i915_vma_bind(struct i915_vma *vma,
 
 	vma_flags = atomic_read(&vma->flags);
 	vma_flags &= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
-	if (flags & PIN_UPDATE)
-		bind_flags |= vma_flags;
-	else
-		bind_flags &= ~vma_flags;
+
+	bind_flags &= ~vma_flags;
 	if (bind_flags == 0)
 		return 0;
 
 	GEM_BUG_ON(!vma->pages);
 
 	trace_i915_vma_bind(vma, bind_flags);
-	if (work && (bind_flags & ~vma_flags) & vma->vm->bind_async_flags) {
+	if (work && bind_flags & vma->vm->bind_async_flags) {
 		struct dma_fence *prev;
 
 		work->vma = vma;
 		work->cache_level = cache_level;
-		work->flags = bind_flags | I915_VMA_ALLOC;
+		work->flags = bind_flags;
 
 		/*
 		 * Note we only want to chain up to the migration fence on
@@ -435,7 +433,7 @@ int i915_vma_bind(struct i915_vma *vma,
 			work->pinned = vma->obj;
 		}
 	} else {
-		ret = vma->ops->bind_vma(vma, cache_level, bind_flags);
+		ret = vma->ops->bind_vma(vma->vm, vma, cache_level, bind_flags);
 		if (ret)
 			return ret;
 	}
@@ -865,7 +863,6 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	BUILD_BUG_ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
 	BUILD_BUG_ON(PIN_USER != I915_VMA_LOCAL_BIND);
 
-	GEM_BUG_ON(flags & PIN_UPDATE);
 	GEM_BUG_ON(!(flags & (PIN_USER | PIN_GLOBAL)));
 
 	/* First try and grab the pin without rebinding the vma */
@@ -1087,7 +1084,8 @@ void i915_vma_release(struct kref *ref)
 
 		spin_lock(&obj->vma.lock);
 		list_del(&vma->obj_link);
-		rb_erase(&vma->obj_node, &obj->vma.tree);
+		if (!RB_EMPTY_NODE(&vma->obj_node))
+			rb_erase(&vma->obj_node, &obj->vma.tree);
 		spin_unlock(&obj->vma.lock);
 	}
 
@@ -1229,31 +1227,9 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	return 0;
 }
 
-int __i915_vma_unbind(struct i915_vma *vma)
+void __i915_vma_evict(struct i915_vma *vma)
 {
-	int ret;
-
-	lockdep_assert_held(&vma->vm->mutex);
-
-	if (i915_vma_is_pinned(vma)) {
-		vma_print_allocator(vma, "is pinned");
-		return -EAGAIN;
-	}
-
-	/*
-	 * After confirming that no one else is pinning this vma, wait for
-	 * any laggards who may have crept in during the wait (through
-	 * a residual pin skipping the vm->mutex) to complete.
-	 */
-	ret = i915_vma_sync(vma);
-	if (ret)
-		return ret;
-
-	if (!drm_mm_node_allocated(&vma->node))
-		return 0;
-
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
-	GEM_BUG_ON(i915_vma_is_active(vma));
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
 		/* Force a pagefault for domain tracking on next user access */
@@ -1285,13 +1261,40 @@ int __i915_vma_unbind(struct i915_vma *vma)
 
 	if (likely(atomic_read(&vma->vm->open))) {
 		trace_i915_vma_unbind(vma);
-		vma->ops->unbind_vma(vma);
+		vma->ops->unbind_vma(vma->vm, vma);
 	}
 	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR | I915_VMA_GGTT_WRITE),
 		   &vma->flags);
 
 	i915_vma_detach(vma);
 	vma_unbind_pages(vma);
+}
+
+int __i915_vma_unbind(struct i915_vma *vma)
+{
+	int ret;
+
+	lockdep_assert_held(&vma->vm->mutex);
+
+	if (!drm_mm_node_allocated(&vma->node))
+		return 0;
+
+	if (i915_vma_is_pinned(vma)) {
+		vma_print_allocator(vma, "is pinned");
+		return -EAGAIN;
+	}
+
+	/*
+	 * After confirming that no one else is pinning this vma, wait for
+	 * any laggards who may have crept in during the wait (through
+	 * a residual pin skipping the vm->mutex) to complete.
+	 */
+	ret = i915_vma_sync(vma);
+	if (ret)
+		return ret;
+
+	GEM_BUG_ON(i915_vma_is_active(vma));
+	__i915_vma_evict(vma);
 
 	drm_mm_remove_node(&vma->node); /* pairs with i915_vma_release() */
 	return 0;
@@ -1303,13 +1306,13 @@ int i915_vma_unbind(struct i915_vma *vma)
 	intel_wakeref_t wakeref = 0;
 	int err;
 
-	if (!drm_mm_node_allocated(&vma->node))
-		return 0;
-
 	/* Optimistic wait before taking the mutex */
 	err = i915_vma_sync(vma);
 	if (err)
-		goto out_rpm;
+		return err;
+
+	if (!drm_mm_node_allocated(&vma->node))
+		return 0;
 
 	if (i915_vma_is_pinned(vma)) {
 		vma_print_allocator(vma, "is pinned");

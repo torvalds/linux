@@ -392,7 +392,7 @@ Extended attributes are name:value pairs.
 ``set``
 	Called by the VFS to set the value of a particular extended
 	attribute.  When the new value is NULL, called to remove a
-	particular extended attribute.  This method is called by the the
+	particular extended attribute.  This method is called by the
 	setxattr(2) and removexattr(2) system calls.
 
 When none of the xattr handlers of a filesystem match the specified
@@ -652,7 +652,7 @@ at any point after PG_Dirty is clear.  Once it is known to be safe,
 PG_Writeback is cleared.
 
 Writeback makes use of a writeback_control structure to direct the
-operations.  This gives the the writepage and writepages operations some
+operations.  This gives the writepage and writepages operations some
 information about the nature of and reason for the writeback request,
 and the constraints under which it is being done.  It is also used to
 return information back to the caller about the result of a writepage or
@@ -766,9 +766,9 @@ cache in your filesystem.  The following members are defined:
 
 ``writepages``
 	called by the VM to write out pages associated with the
-	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
+	address_space object.  If wbc->sync_mode is WB_SYNC_ALL, then
 	the writeback_control will specify a range of pages that must be
-	written out.  If it is WBC_SYNC_NONE, then a nr_to_write is
+	written out.  If it is WB_SYNC_NONE, then a nr_to_write is
 	given and that many pages should be written if possible.  If no
 	->writepages is given, then mpage_writepages is used instead.
 	This will choose pages from the address space that are tagged as
@@ -1116,7 +1116,7 @@ otherwise noted.
 	before any bytes were remapped.  The remap_flags parameter
 	accepts REMAP_FILE_* flags.  If REMAP_FILE_DEDUP is set then the
 	implementation must only remap if the requested file ranges have
-	identical contents.  If REMAP_CAN_SHORTEN is set, the caller is
+	identical contents.  If REMAP_FILE_CAN_SHORTEN is set, the caller is
 	ok with the implementation shortening the request length to
 	satisfy alignment or EOF requirements (or any other reason).
 
@@ -1431,13 +1431,13 @@ Resources
  version.)
 
 Creating Linux virtual filesystems. 2002
-    <http://lwn.net/Articles/13325/>
+    <https://lwn.net/Articles/13325/>
 
 The Linux Virtual File-system Layer by Neil Brown. 1999
     <http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/vfs.html>
 
 A tour of the Linux VFS by Michael K. Johnson. 1996
-    <http://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
+    <https://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
 
 A small trail through the Linux kernel by Andries Brouwer. 2001
-    <http://www.win.tue.nl/~aeb/linux/vfs/trail.html>
+    <https://www.win.tue.nl/~aeb/linux/vfs/trail.html>

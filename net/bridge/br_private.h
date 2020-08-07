@@ -48,6 +48,8 @@ enum {
 /* Path to usermode spanning tree program */
 #define BR_STP_PROG	"/sbin/bridge-stp"
 
+#define BR_FDB_NOTIFY_SETTABLE_BITS (FDB_NOTIFY_BIT | FDB_NOTIFY_INACTIVE_BIT)
+
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
 typedef __u16 port_id;
@@ -184,6 +186,8 @@ enum {
 	BR_FDB_ADDED_BY_USER,
 	BR_FDB_ADDED_BY_EXT_LEARN,
 	BR_FDB_OFFLOADED,
+	BR_FDB_NOTIFY,
+	BR_FDB_NOTIFY_INACTIVE
 };
 
 struct net_bridge_fdb_key {
@@ -1196,6 +1200,12 @@ static inline void br_vlan_notify(const struct net_bridge *br,
 				  int cmd)
 {
 }
+
+static inline bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
+					   const struct net_bridge_vlan *range_end)
+{
+	return true;
+}
 #endif
 
 /* br_vlan_options.c */
@@ -1313,6 +1323,7 @@ int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
 int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb);
 bool br_mrp_enabled(struct net_bridge *br);
 void br_mrp_port_del(struct net_bridge *br, struct net_bridge_port *p);
+int br_mrp_fill_info(struct sk_buff *skb, struct net_bridge *br);
 #else
 static inline int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
 			       struct nlattr *attr, int cmd,
@@ -1335,6 +1346,12 @@ static inline void br_mrp_port_del(struct net_bridge *br,
 				   struct net_bridge_port *p)
 {
 }
+
+static inline int br_mrp_fill_info(struct sk_buff *skb, struct net_bridge *br)
+{
+	return 0;
+}
+
 #endif
 
 /* br_netlink.c */

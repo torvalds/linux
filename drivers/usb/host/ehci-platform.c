@@ -475,11 +475,13 @@ static const struct of_device_id vt8500_ehci_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, vt8500_ehci_ids);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id ehci_acpi_match[] = {
 	{ "PNP0D20", 0 }, /* EHCI controller without debug */
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ehci_acpi_match);
+#endif
 
 static const struct platform_device_id ehci_platform_table[] = {
 	{ "ehci-platform", 0 },

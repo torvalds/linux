@@ -610,7 +610,7 @@ void nf_ct_netns_put(struct net *net, uint8_t nfproto)
 	switch (nfproto) {
 	case NFPROTO_BRIDGE:
 		nf_ct_netns_do_put(net, NFPROTO_BRIDGE);
-		/* fall through */
+		fallthrough;
 	case NFPROTO_INET:
 		nf_ct_netns_do_put(net, NFPROTO_IPV4);
 		nf_ct_netns_do_put(net, NFPROTO_IPV6);

@@ -481,7 +481,6 @@ void free_task(struct task_struct *tsk)
 #endif
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
-	put_seccomp_filter(tsk);
 	arch_release_task_struct(tsk);
 	if (tsk->flags & PF_KTHREAD)
 		free_kthread_struct(tsk);
@@ -1482,7 +1481,7 @@ static int copy_files(unsigned long clone_flags, struct task_struct *tsk)
 		goto out;
 	}
 
-	newf = dup_fd(oldf, &error);
+	newf = dup_fd(oldf, NR_OPEN_MAX, &error);
 	if (!newf)
 		goto out;
 
@@ -1795,22 +1794,18 @@ static void pidfd_show_fdinfo(struct seq_file *m, struct file *f)
  */
 static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts)
 {
-	struct task_struct *task;
 	struct pid *pid = file->private_data;
 	__poll_t poll_flags = 0;
 
 	poll_wait(file, &pid->wait_pidfd, pts);
 
-	rcu_read_lock();
-	task = pid_task(pid, PIDTYPE_PID);
 	/*
 	 * Inform pollers only when the whole thread group exits.
 	 * If the thread group leader exits before all other threads in the
 	 * group, then poll(2) should block, similar to the wait(2) family.
 	 */
-	if (!task || (task->exit_state && thread_group_empty(task)))
+	if (thread_group_exited(pid))
 		poll_flags = EPOLLIN | EPOLLRDNORM;
-	rcu_read_unlock();
 
 	return poll_flags;
 }
@@ -2106,8 +2101,7 @@ static __latent_entropy struct task_struct *copy_process(
 	retval = copy_io(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_namespaces;
-	retval = copy_thread_tls(clone_flags, args->stack, args->stack_size, p,
-				 args->tls);
+	retval = copy_thread(clone_flags, args->stack, args->stack_size, p, args->tls);
 	if (retval)
 		goto bad_fork_cleanup_io;
 
@@ -2426,6 +2420,20 @@ long _do_fork(struct kernel_clone_args *args)
 	long nr;
 
 	/*
+	 * For legacy clone() calls, CLONE_PIDFD uses the parent_tid argument
+	 * to return the pidfd. Hence, CLONE_PIDFD and CLONE_PARENT_SETTID are
+	 * mutually exclusive. With clone3() CLONE_PIDFD has grown a separate
+	 * field in struct clone_args and it still doesn't make sense to have
+	 * them both point at the same memory location. Performing this check
+	 * here has the advantage that we don't need to have a separate helper
+	 * to check for legacy clone().
+	 */
+	if ((args->flags & CLONE_PIDFD) &&
+	    (args->flags & CLONE_PARENT_SETTID) &&
+	    (args->pidfd == args->parent_tid))
+		return -EINVAL;
+
+	/*
 	 * Determine whether and which event to report to ptracer.  When
 	 * called from kernel_thread or CLONE_UNTRACED is explicitly
 	 * requested, no event is reported; otherwise, report if the event
@@ -2483,42 +2491,6 @@ long _do_fork(struct kernel_clone_args *args)
 	put_pid(pid);
 	return nr;
 }
-
-bool legacy_clone_args_valid(const struct kernel_clone_args *kargs)
-{
-	/* clone(CLONE_PIDFD) uses parent_tidptr to return a pidfd */
-	if ((kargs->flags & CLONE_PIDFD) &&
-	    (kargs->flags & CLONE_PARENT_SETTID))
-		return false;
-
-	return true;
-}
-
-#ifndef CONFIG_HAVE_COPY_THREAD_TLS
-/* For compatibility with architectures that call do_fork directly rather than
- * using the syscall entry points below. */
-long do_fork(unsigned long clone_flags,
-	      unsigned long stack_start,
-	      unsigned long stack_size,
-	      int __user *parent_tidptr,
-	      int __user *child_tidptr)
-{
-	struct kernel_clone_args args = {
-		.flags		= (lower_32_bits(clone_flags) & ~CSIGNAL),
-		.pidfd		= parent_tidptr,
-		.child_tid	= child_tidptr,
-		.parent_tid	= parent_tidptr,
-		.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL),
-		.stack		= stack_start,
-		.stack_size	= stack_size,
-	};
-
-	if (!legacy_clone_args_valid(&args))
-		return -EINVAL;
-
-	return _do_fork(&args);
-}
-#endif
 
 /*
  * Create a kernel thread.
@@ -2598,23 +2570,11 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 		.tls		= tls,
 	};
 
-	if (!legacy_clone_args_valid(&args))
-		return -EINVAL;
-
 	return _do_fork(&args);
 }
 #endif
 
 #ifdef __ARCH_WANT_SYS_CLONE3
-
-/*
- * copy_thread implementations handle CLONE_SETTLS by reading the TLS value from
- * the registers containing the syscall arguments for clone. This doesn't work
- * with clone3 since the TLS value is passed in clone_args instead.
- */
-#ifndef CONFIG_HAVE_COPY_THREAD_TLS
-#error clone3 requires copy_thread_tls support in arch
-#endif
 
 noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 					      struct clone_args __user *uargs,
@@ -2912,14 +2872,15 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 /*
  * Unshare file descriptor table if it is being shared
  */
-static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp)
+int unshare_fd(unsigned long unshare_flags, unsigned int max_fds,
+	       struct files_struct **new_fdp)
 {
 	struct files_struct *fd = current->files;
 	int error = 0;
 
 	if ((unshare_flags & CLONE_FILES) &&
 	    (fd && atomic_read(&fd->count) > 1)) {
-		*new_fdp = dup_fd(fd, &error);
+		*new_fdp = dup_fd(fd, max_fds, &error);
 		if (!*new_fdp)
 			return error;
 	}
@@ -2930,7 +2891,7 @@ static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp
 /*
  * unshare allows a process to 'unshare' part of the process
  * context which was originally shared using clone.  copy_*
- * functions used by do_fork() cannot be used here directly
+ * functions used by _do_fork() cannot be used here directly
  * because they modify an inactive task_struct that is being
  * constructed. Here we are modifying the current, active,
  * task_struct.
@@ -2979,7 +2940,7 @@ int ksys_unshare(unsigned long unshare_flags)
 	err = unshare_fs(unshare_flags, &new_fs);
 	if (err)
 		goto bad_unshare_out;
-	err = unshare_fd(unshare_flags, &new_fd);
+	err = unshare_fd(unshare_flags, NR_OPEN_MAX, &new_fd);
 	if (err)
 		goto bad_unshare_cleanup_fs;
 	err = unshare_userns(unshare_flags, &new_cred);
@@ -3068,7 +3029,7 @@ int unshare_files(struct files_struct **displaced)
 	struct files_struct *copy = NULL;
 	int error;
 
-	error = unshare_fd(CLONE_FILES, &copy);
+	error = unshare_fd(CLONE_FILES, NR_OPEN_MAX, &copy);
 	if (error || !copy) {
 		*displaced = NULL;
 		return error;

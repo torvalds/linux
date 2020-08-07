@@ -544,7 +544,7 @@ static int bnxt_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 static int bnxt_dcbnl_ieee_getpfc(struct net_device *dev, struct ieee_pfc *pfc)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	__le64 *stats = (__le64 *)bp->hw_rx_port_stats;
+	__le64 *stats = bp->port_stats.hw_stats;
 	struct ieee_pfc *my_pfc = bp->ieee_pfc;
 	long rx_off, tx_off;
 	int i, rc;

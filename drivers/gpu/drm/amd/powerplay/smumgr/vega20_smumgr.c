@@ -522,11 +522,9 @@ static int vega20_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].version = 0x01;
 	priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size = sizeof(DpmActivityMonitorCoeffInt_t);
 
-	if (adev->psp.ras.ras) {
-		ret = smu_v11_0_i2c_eeprom_control_init(&adev->pm.smu_i2c);
-		if (ret)
-			goto err4;
-	}
+	ret = smu_v11_0_i2c_control_init(&adev->pm.smu_i2c);
+	if (ret)
+		goto err4;
 
 	return 0;
 
@@ -562,8 +560,7 @@ static int vega20_smu_fini(struct pp_hwmgr *hwmgr)
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (adev->psp.ras.ras)
-		smu_v11_0_i2c_eeprom_control_fini(&adev->pm.smu_i2c);
+	smu_v11_0_i2c_control_fini(&adev->pm.smu_i2c);
 
 	if (priv) {
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TABLE_PPTABLE].handle,

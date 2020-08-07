@@ -219,7 +219,7 @@ static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 __iomem **eromptr)
 static u32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 __iomem **eromptr,
 				  u32 type, u8 port)
 {
-	u32 addrl, addrh, sizeh = 0;
+	u32 addrl;
 	u32 size;
 
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
@@ -233,14 +233,12 @@ static u32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 __iomem **eromptr,
 
 	addrl = ent & SCAN_ADDR_ADDR;
 	if (ent & SCAN_ADDR_AG32)
-		addrh = bcma_erom_get_ent(bus, eromptr);
-	else
-		addrh = 0;
+		bcma_erom_get_ent(bus, eromptr);
 
 	if ((ent & SCAN_ADDR_SZ) == SCAN_ADDR_SZ_SZD) {
 		size = bcma_erom_get_ent(bus, eromptr);
 		if (size & SCAN_SIZE_SG32)
-			sizeh = bcma_erom_get_ent(bus, eromptr);
+			bcma_erom_get_ent(bus, eromptr);
 	}
 
 	return addrl;

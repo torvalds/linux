@@ -42,7 +42,6 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 #define PIN_OFFSET_BIAS		BIT_ULL(6)
 #define PIN_OFFSET_FIXED	BIT_ULL(7)
 
-#define PIN_UPDATE		BIT_ULL(9)
 #define PIN_GLOBAL		BIT_ULL(10) /* I915_VMA_GLOBAL_BIND */
 #define PIN_USER		BIT_ULL(11) /* I915_VMA_LOCAL_BIND */
 

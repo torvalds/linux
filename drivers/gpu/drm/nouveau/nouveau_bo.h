@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
-
+#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/drm_gem.h>
 
 struct nouveau_channel;
+struct nouveau_cli;
+struct nouveau_drm;
 struct nouveau_fence;
-struct nvkm_vma;
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -23,6 +24,9 @@ struct nouveau_bo {
 	struct list_head entry;
 	int pbbo_index;
 	bool validate_mapped;
+
+	/* GPU address space is independent of CPU word size */
+	uint64_t offset;
 
 	struct list_head vma_list;
 
@@ -132,4 +136,42 @@ nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
 	}
 	return ret;
 }
+
+int nv04_bo_move_init(struct nouveau_channel *, u32);
+int nv04_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nv50_bo_move_init(struct nouveau_channel *, u32);
+int nv50_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nv84_bo_move_exec(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nva3_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nvc0_bo_move_init(struct nouveau_channel *, u32);
+int nvc0_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nvc0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+int nve0_bo_move_init(struct nouveau_channel *, u32);
+int nve0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
+		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+
+#define NVBO_WR32_(b,o,dr,f) nouveau_bo_wr32((b), (o)/4 + (dr), (f))
+#define NVBO_RD32_(b,o,dr)   nouveau_bo_rd32((b), (o)/4 + (dr))
+#define NVBO_RD32(A...) DRF_RD(NVBO_RD32_,                  ##A)
+#define NVBO_RV32(A...) DRF_RV(NVBO_RD32_,                  ##A)
+#define NVBO_TV32(A...) DRF_TV(NVBO_RD32_,                  ##A)
+#define NVBO_TD32(A...) DRF_TD(NVBO_RD32_,                  ##A)
+#define NVBO_WR32(A...) DRF_WR(            NVBO_WR32_,      ##A)
+#define NVBO_WV32(A...) DRF_WV(            NVBO_WR32_,      ##A)
+#define NVBO_WD32(A...) DRF_WD(            NVBO_WR32_,      ##A)
+#define NVBO_MR32(A...) DRF_MR(NVBO_RD32_, NVBO_WR32_, u32, ##A)
+#define NVBO_MV32(A...) DRF_MV(NVBO_RD32_, NVBO_WR32_, u32, ##A)
+#define NVBO_MD32(A...) DRF_MD(NVBO_RD32_, NVBO_WR32_, u32, ##A)
 #endif

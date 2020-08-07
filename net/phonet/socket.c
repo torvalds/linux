@@ -439,12 +439,6 @@ const struct proto_ops phonet_dgram_ops = {
 	.ioctl		= pn_socket_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = sock_no_setsockopt,
-	.compat_getsockopt = sock_no_getsockopt,
-#endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,
@@ -466,10 +460,6 @@ const struct proto_ops phonet_stream_ops = {
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
-#endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,

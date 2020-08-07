@@ -314,7 +314,7 @@ out:
 
 /**
  *  tcp_delack_timer() - The TCP delayed ACK timeout handler
- *  @data:  Pointer to the current socket. (gets casted to struct sock *)
+ *  @t:  Pointer to the timer. (gets casted to struct sock *)
  *
  *  This function gets (indirectly) called when the kernel timer for a TCP packet
  *  of this socket expires. Calls tcp_delack_timer_handler() to do the actual work.

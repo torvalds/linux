@@ -846,6 +846,7 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
 	u32 out, io_conf, blink, in_pol, data_in, cause, edg_msk, lvl_msk;
+	const char *label;
 	int i;
 
 	regmap_read(mvchip->regs, GPIO_OUT_OFF + mvchip->offset, &out);
@@ -857,14 +858,9 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	edg_msk	= mvebu_gpio_read_edge_mask(mvchip);
 	lvl_msk	= mvebu_gpio_read_level_mask(mvchip);
 
-	for (i = 0; i < chip->ngpio; i++) {
-		const char *label;
+	for_each_requested_gpio(chip, i, label) {
 		u32 msk;
 		bool is_out;
-
-		label = gpiochip_is_requested(chip, i);
-		if (!label)
-			continue;
 
 		msk = BIT(i);
 		is_out = !(io_conf & msk);

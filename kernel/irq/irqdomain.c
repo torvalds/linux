@@ -142,7 +142,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	if (!domain)
 		return NULL;
 
-	if (fwnode && is_fwnode_irqchip(fwnode)) {
+	if (is_fwnode_irqchip(fwnode)) {
 		fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
 
 		switch (fwid->type) {

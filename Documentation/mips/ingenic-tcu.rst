@@ -5,7 +5,7 @@ Ingenic JZ47xx SoCs Timer/Counter Unit hardware
 ===============================================
 
 The Timer/Counter Unit (TCU) in Ingenic JZ47xx SoCs is a multi-function
-hardware block. It features up to to eight channels, that can be used as
+hardware block. It features up to eight channels, that can be used as
 counters, timers, or PWM.
 
 - JZ4725B, JZ4750, JZ4755 only have six TCU channels. The other SoCs all

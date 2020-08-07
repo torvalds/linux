@@ -1801,9 +1801,8 @@ typhoon_free_rx_rings(struct typhoon *tp)
 }
 
 static int
-typhoon_sleep(struct typhoon *tp, pci_power_t state, __le16 events)
+typhoon_sleep_early(struct typhoon *tp, __le16 events)
 {
-	struct pci_dev *pdev = tp->pdev;
 	void __iomem *ioaddr = tp->ioaddr;
 	struct cmd_desc xp_cmd;
 	int err;
@@ -1832,19 +1831,28 @@ typhoon_sleep(struct typhoon *tp, pci_power_t state, __le16 events)
 	 */
 	netif_carrier_off(tp->dev);
 
+	return 0;
+}
+
+static int
+typhoon_sleep(struct typhoon *tp, pci_power_t state, __le16 events)
+{
+	int err;
+
+	err = typhoon_sleep_early(tp, events);
+
+	if (err)
+		return err;
+
 	pci_enable_wake(tp->pdev, state, 1);
-	pci_disable_device(pdev);
-	return pci_set_power_state(pdev, state);
+	pci_disable_device(tp->pdev);
+	return pci_set_power_state(tp->pdev, state);
 }
 
 static int
 typhoon_wakeup(struct typhoon *tp, int wait_type)
 {
-	struct pci_dev *pdev = tp->pdev;
 	void __iomem *ioaddr = tp->ioaddr;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
 
 	/* Post 2.x.x versions of the Sleep Image require a reset before
 	 * we can download the Runtime Image. But let's not make users of
@@ -2049,6 +2057,9 @@ typhoon_open(struct net_device *dev)
 	if (err)
 		goto out;
 
+	pci_set_power_state(tp->pdev, PCI_D0);
+	pci_restore_state(tp->pdev);
+
 	err = typhoon_wakeup(tp, WaitSleep);
 	if (err < 0) {
 		netdev_err(dev, "unable to wakeup device\n");
@@ -2114,11 +2125,10 @@ typhoon_close(struct net_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int
-typhoon_resume(struct pci_dev *pdev)
+static int __maybe_unused
+typhoon_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct typhoon *tp = netdev_priv(dev);
 
 	/* If we're down, resume when we are upped.
@@ -2144,9 +2154,10 @@ reset:
 	return -EBUSY;
 }
 
-static int
-typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused
+typhoon_suspend(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
@@ -2190,18 +2201,19 @@ typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 		goto need_resume;
 	}
 
-	if (typhoon_sleep(tp, pci_choose_state(pdev, state), tp->wol_events) < 0) {
+	if (typhoon_sleep_early(tp, tp->wol_events) < 0) {
 		netdev_err(dev, "unable to put card to sleep\n");
 		goto need_resume;
 	}
 
+	device_wakeup_enable(dev_d);
+
 	return 0;
 
 need_resume:
-	typhoon_resume(pdev);
+	typhoon_resume(dev_d);
 	return -EBUSY;
 }
-#endif
 
 static int
 typhoon_test_mmio(struct pci_dev *pdev)
@@ -2533,15 +2545,14 @@ typhoon_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
+static SIMPLE_DEV_PM_OPS(typhoon_pm_ops, typhoon_suspend, typhoon_resume);
+
 static struct pci_driver typhoon_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= typhoon_pci_tbl,
 	.probe		= typhoon_init_one,
 	.remove		= typhoon_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= typhoon_suspend,
-	.resume		= typhoon_resume,
-#endif
+	.driver.pm	= &typhoon_pm_ops,
 };
 
 static int __init

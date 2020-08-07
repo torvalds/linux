@@ -265,11 +265,12 @@ static irqreturn_t enetc_msix(int irq, void *data)
 
 	/* disable interrupts */
 	enetc_wr_reg(v->rbier, 0);
+	enetc_wr_reg(v->ricr1, v->rx_ictt);
 
 	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i), 0);
 
-	napi_schedule_irqoff(&v->napi);
+	napi_schedule(&v->napi);
 
 	return IRQ_HANDLED;
 }
@@ -277,6 +278,34 @@ static irqreturn_t enetc_msix(int irq, void *data)
 static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget);
 static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			       struct napi_struct *napi, int work_limit);
+
+static void enetc_rx_dim_work(struct work_struct *w)
+{
+	struct dim *dim = container_of(w, struct dim, work);
+	struct dim_cq_moder moder =
+		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
+	struct enetc_int_vector	*v =
+		container_of(dim, struct enetc_int_vector, rx_dim);
+
+	v->rx_ictt = enetc_usecs_to_cycles(moder.usec);
+	dim->state = DIM_START_MEASURE;
+}
+
+static void enetc_rx_net_dim(struct enetc_int_vector *v)
+{
+	struct dim_sample dim_sample;
+
+	v->comp_cnt++;
+
+	if (!v->rx_napi_work)
+		return;
+
+	dim_update_sample(v->comp_cnt,
+			  v->rx_ring.stats.packets,
+			  v->rx_ring.stats.bytes,
+			  &dim_sample);
+	net_dim(&v->rx_dim, dim_sample);
+}
 
 static int enetc_poll(struct napi_struct *napi, int budget)
 {
@@ -293,11 +322,18 @@ static int enetc_poll(struct napi_struct *napi, int budget)
 	work_done = enetc_clean_rx_ring(&v->rx_ring, napi, budget);
 	if (work_done == budget)
 		complete = false;
+	if (work_done)
+		v->rx_napi_work = true;
 
 	if (!complete)
 		return budget;
 
 	napi_complete_done(napi, work_done);
+
+	if (likely(v->rx_dim_en))
+		enetc_rx_net_dim(v);
+
+	v->rx_napi_work = false;
 
 	/* enable interrupts */
 	enetc_wr_reg(v->rbier, ENETC_RBIER_RXTIE);
@@ -1064,8 +1100,8 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	struct enetc_si *si = priv->si;
 	int cpus = num_online_cpus();
 
-	priv->tx_bd_count = ENETC_BDR_DEFAULT_SIZE;
-	priv->rx_bd_count = ENETC_BDR_DEFAULT_SIZE;
+	priv->tx_bd_count = ENETC_TX_RING_DEFAULT_SIZE;
+	priv->rx_bd_count = ENETC_RX_RING_DEFAULT_SIZE;
 
 	/* Enable all available TX rings in order to configure as many
 	 * priorities as possible, when needed.
@@ -1074,6 +1110,8 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	priv->num_rx_rings = min_t(int, cpus, si->num_rx_rings);
 	priv->num_tx_rings = si->num_tx_rings;
 	priv->bdr_int_num = cpus;
+	priv->ic_mode = ENETC_IC_RX_ADAPTIVE | ENETC_IC_TX_MANUAL;
+	priv->tx_ictt = ENETC_TXIC_TIMETHR;
 
 	/* SI specific */
 	si->cbd_ring.bd_count = ENETC_CBDR_DEFAULT_SIZE;
@@ -1140,7 +1178,7 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	tx_ring->next_to_clean = enetc_txbdr_rd(hw, idx, ENETC_TBCIR);
 
 	/* enable Tx ints by setting pkt thr to 1 */
-	enetc_txbdr_wr(hw, idx, ENETC_TBICIR0, ENETC_TBICIR0_ICEN | 0x1);
+	enetc_txbdr_wr(hw, idx, ENETC_TBICR0, ENETC_TBICR0_ICEN | 0x1);
 
 	tbmr = ENETC_TBMR_EN;
 	if (tx_ring->ndev->features & NETIF_F_HW_VLAN_CTAG_TX)
@@ -1174,7 +1212,7 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 	enetc_rxbdr_wr(hw, idx, ENETC_RBPIR, 0);
 
 	/* enable Rx ints by setting pkt thr to 1 */
-	enetc_rxbdr_wr(hw, idx, ENETC_RBICIR0, ENETC_RBICIR0_ICEN | 0x1);
+	enetc_rxbdr_wr(hw, idx, ENETC_RBICR0, ENETC_RBICR0_ICEN | 0x1);
 
 	rbmr = ENETC_RBMR_EN;
 
@@ -1264,9 +1302,11 @@ static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
 			dev_err(priv->dev, "request_irq() failed!\n");
 			goto irq_err;
 		}
+		disable_irq(irq);
 
 		v->tbier_base = hw->reg + ENETC_BDR(TX, 0, ENETC_TBIER);
 		v->rbier = hw->reg + ENETC_BDR(RX, i, ENETC_RBIER);
+		v->ricr1 = hw->reg + ENETC_BDR(RX, i, ENETC_RBICR1);
 
 		enetc_wr(hw, ENETC_SIMSIRRV(i), entry);
 
@@ -1306,23 +1346,42 @@ static void enetc_free_irqs(struct enetc_ndev_priv *priv)
 	}
 }
 
-static void enetc_enable_interrupts(struct enetc_ndev_priv *priv)
+static void enetc_setup_interrupts(struct enetc_ndev_priv *priv)
 {
+	struct enetc_hw *hw = &priv->si->hw;
+	u32 icpt, ictt;
 	int i;
 
 	/* enable Tx & Rx event indication */
-	for (i = 0; i < priv->num_rx_rings; i++) {
-		enetc_rxbdr_wr(&priv->si->hw, i,
-			       ENETC_RBIER, ENETC_RBIER_RXTIE);
+	if (priv->ic_mode &
+	    (ENETC_IC_RX_MANUAL | ENETC_IC_RX_ADAPTIVE)) {
+		icpt = ENETC_RBICR0_SET_ICPT(ENETC_RXIC_PKTTHR);
+		/* init to non-0 minimum, will be adjusted later */
+		ictt = 0x1;
+	} else {
+		icpt = 0x1; /* enable Rx ints by setting pkt thr to 1 */
+		ictt = 0;
 	}
 
+	for (i = 0; i < priv->num_rx_rings; i++) {
+		enetc_rxbdr_wr(hw, i, ENETC_RBICR1, ictt);
+		enetc_rxbdr_wr(hw, i, ENETC_RBICR0, ENETC_RBICR0_ICEN | icpt);
+		enetc_rxbdr_wr(hw, i, ENETC_RBIER, ENETC_RBIER_RXTIE);
+	}
+
+	if (priv->ic_mode & ENETC_IC_TX_MANUAL)
+		icpt = ENETC_TBICR0_SET_ICPT(ENETC_TXIC_PKTTHR);
+	else
+		icpt = 0x1; /* enable Tx ints by setting pkt thr to 1 */
+
 	for (i = 0; i < priv->num_tx_rings; i++) {
-		enetc_txbdr_wr(&priv->si->hw, i,
-			       ENETC_TBIER, ENETC_TBIER_TXTIE);
+		enetc_txbdr_wr(hw, i, ENETC_TBICR1, priv->tx_ictt);
+		enetc_txbdr_wr(hw, i, ENETC_TBICR0, ENETC_TBICR0_ICEN | icpt);
+		enetc_txbdr_wr(hw, i, ENETC_TBIER, ENETC_TBIER_TXTIE);
 	}
 }
 
-static void enetc_disable_interrupts(struct enetc_ndev_priv *priv)
+static void enetc_clear_interrupts(struct enetc_ndev_priv *priv)
 {
 	int i;
 
@@ -1369,10 +1428,33 @@ static int enetc_phy_connect(struct net_device *ndev)
 	return 0;
 }
 
+void enetc_start(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	enetc_setup_interrupts(priv);
+
+	for (i = 0; i < priv->bdr_int_num; i++) {
+		int irq = pci_irq_vector(priv->si->pdev,
+					 ENETC_BDR_INT_BASE_IDX + i);
+
+		napi_enable(&priv->int_vector[i]->napi);
+		enable_irq(irq);
+	}
+
+	if (ndev->phydev)
+		phy_start(ndev->phydev);
+	else
+		netif_carrier_on(ndev);
+
+	netif_tx_start_all_queues(ndev);
+}
+
 int enetc_open(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int i, err;
+	int err;
 
 	err = enetc_setup_irqs(priv);
 	if (err)
@@ -1390,8 +1472,6 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_alloc_rx;
 
-	enetc_setup_bdrs(priv);
-
 	err = netif_set_real_num_tx_queues(ndev, priv->num_tx_rings);
 	if (err)
 		goto err_set_queues;
@@ -1400,17 +1480,8 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_set_queues;
 
-	for (i = 0; i < priv->bdr_int_num; i++)
-		napi_enable(&priv->int_vector[i]->napi);
-
-	enetc_enable_interrupts(priv);
-
-	if (ndev->phydev)
-		phy_start(ndev->phydev);
-	else
-		netif_carrier_on(ndev);
-
-	netif_tx_start_all_queues(ndev);
+	enetc_setup_bdrs(priv);
+	enetc_start(ndev);
 
 	return 0;
 
@@ -1427,28 +1498,39 @@ err_phy_connect:
 	return err;
 }
 
-int enetc_close(struct net_device *ndev)
+void enetc_stop(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int i;
 
 	netif_tx_stop_all_queues(ndev);
 
-	if (ndev->phydev) {
-		phy_stop(ndev->phydev);
-		phy_disconnect(ndev->phydev);
-	} else {
-		netif_carrier_off(ndev);
-	}
-
 	for (i = 0; i < priv->bdr_int_num; i++) {
+		int irq = pci_irq_vector(priv->si->pdev,
+					 ENETC_BDR_INT_BASE_IDX + i);
+
+		disable_irq(irq);
 		napi_synchronize(&priv->int_vector[i]->napi);
 		napi_disable(&priv->int_vector[i]->napi);
 	}
 
-	enetc_disable_interrupts(priv);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
+	else
+		netif_carrier_off(ndev);
+
+	enetc_clear_interrupts(priv);
+}
+
+int enetc_close(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+
+	enetc_stop(ndev);
 	enetc_clear_bdrs(priv);
 
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 	enetc_free_rxtx_rings(priv);
 	enetc_free_rx_resources(priv);
 	enetc_free_tx_resources(priv);
@@ -1713,7 +1795,7 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 {
 	struct pci_dev *pdev = priv->si->pdev;
-	int size, v_tx_rings;
+	int v_tx_rings;
 	int i, n, err, nvec;
 
 	nvec = ENETC_BDR_INT_BASE_IDX + priv->bdr_int_num;
@@ -1728,15 +1810,13 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 
 	/* # of tx rings per int vector */
 	v_tx_rings = priv->num_tx_rings / priv->bdr_int_num;
-	size = sizeof(struct enetc_int_vector) +
-	       sizeof(struct enetc_bdr) * v_tx_rings;
 
 	for (i = 0; i < priv->bdr_int_num; i++) {
 		struct enetc_int_vector *v;
 		struct enetc_bdr *bdr;
 		int j;
 
-		v = kzalloc(size, GFP_KERNEL);
+		v = kzalloc(struct_size(v, tx_ring, v_tx_rings), GFP_KERNEL);
 		if (!v) {
 			err = -ENOMEM;
 			goto fail;
@@ -1744,6 +1824,12 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 
 		priv->int_vector[i] = v;
 
+		/* init defaults for adaptive IC */
+		if (priv->ic_mode & ENETC_IC_RX_ADAPTIVE) {
+			v->rx_ictt = 0x1;
+			v->rx_dim_en = true;
+		}
+		INIT_WORK(&v->rx_dim.work, enetc_rx_dim_work);
 		netif_napi_add(priv->ndev, &v->napi, enetc_poll,
 			       NAPI_POLL_WEIGHT);
 		v->count_tx_rings = v_tx_rings;
@@ -1779,6 +1865,7 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 fail:
 	while (i--) {
 		netif_napi_del(&priv->int_vector[i]->napi);
+		cancel_work_sync(&priv->int_vector[i]->rx_dim.work);
 		kfree(priv->int_vector[i]);
 	}
 
@@ -1795,6 +1882,7 @@ void enetc_free_msix(struct enetc_ndev_priv *priv)
 		struct enetc_int_vector *v = priv->int_vector[i];
 
 		netif_napi_del(&v->napi);
+		cancel_work_sync(&v->rx_dim.work);
 	}
 
 	for (i = 0; i < priv->num_rx_rings; i++)

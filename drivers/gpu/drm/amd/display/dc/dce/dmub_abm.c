@@ -50,71 +50,7 @@
 
 #define DISABLE_ABM_IMMEDIATELY 255
 
-static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t panel_inst)
-{
-	union dmub_rb_cmd cmd;
-	struct dc_context *dc = abm->ctx;
-	uint32_t ramping_boundary = 0xFFFF;
 
-	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
-	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
-	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = panel_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
-	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
-
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->dmub_srv);
-
-	return true;
-}
-
-static void dmcub_set_backlight_level(
-	struct dce_abm *dce_abm,
-	uint32_t backlight_pwm_u16_16,
-	uint32_t frame_ramp,
-	uint32_t otg_inst,
-	uint32_t panel_inst)
-{
-	union dmub_rb_cmd cmd;
-	struct dc_context *dc = dce_abm->base.ctx;
-	unsigned int backlight_8_bit = 0;
-	uint32_t s2;
-
-	if (backlight_pwm_u16_16 & 0x10000)
-		// Check for max backlight condition
-		backlight_8_bit = 0xFF;
-	else
-		// Take MSB of fractional part since backlight is not max
-		backlight_8_bit = (backlight_pwm_u16_16 >> 8) & 0xFF;
-
-	dmub_abm_set_pipe(&dce_abm->base, otg_inst, panel_inst);
-
-	REG_UPDATE(BL1_PWM_USER_LEVEL, BL1_PWM_USER_LEVEL, backlight_pwm_u16_16);
-
-	if (otg_inst == 0)
-		frame_ramp = 0;
-
-	cmd.abm_set_backlight.header.type = DMUB_CMD__ABM;
-	cmd.abm_set_backlight.header.sub_type = DMUB_CMD__ABM_SET_BACKLIGHT;
-	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = frame_ramp;
-	cmd.abm_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_backlight_data);
-
-	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->dmub_srv);
-
-	// Update requested backlight level
-	s2 = REG_READ(BIOS_SCRATCH_2);
-
-	s2 &= ~ATOM_S2_CURRENT_BL_LEVEL_MASK;
-	backlight_8_bit &= (ATOM_S2_CURRENT_BL_LEVEL_MASK >>
-				ATOM_S2_CURRENT_BL_LEVEL_SHIFT);
-	s2 |= (backlight_8_bit << ATOM_S2_CURRENT_BL_LEVEL_SHIFT);
-
-	REG_WRITE(BIOS_SCRATCH_2, s2);
-}
 
 static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 {
@@ -211,31 +147,6 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 	return true;
 }
 
-static bool dmub_abm_immediate_disable(struct abm *abm, uint32_t panel_inst)
-{
-	dmub_abm_set_pipe(abm, DISABLE_ABM_IMMEDIATELY, panel_inst);
-
-	return true;
-}
-
-static bool dmub_abm_set_backlight_level_pwm(
-		struct abm *abm,
-		unsigned int backlight_pwm_u16_16,
-		unsigned int frame_ramp,
-		unsigned int otg_inst,
-		uint32_t panel_inst)
-{
-	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
-
-	dmcub_set_backlight_level(dce_abm,
-			backlight_pwm_u16_16,
-			frame_ramp,
-			otg_inst,
-			panel_inst);
-
-	return true;
-}
-
 static bool dmub_abm_init_config(struct abm *abm,
 	const char *src,
 	unsigned int bytes)
@@ -266,11 +177,8 @@ static bool dmub_abm_init_config(struct abm *abm,
 static const struct abm_funcs abm_funcs = {
 	.abm_init = dmub_abm_init,
 	.set_abm_level = dmub_abm_set_level,
-	.set_pipe = dmub_abm_set_pipe,
-	.set_backlight_level_pwm = dmub_abm_set_backlight_level_pwm,
 	.get_current_backlight = dmub_abm_get_current_backlight,
 	.get_target_backlight = dmub_abm_get_target_backlight,
-	.set_abm_immediate_disable = dmub_abm_immediate_disable,
 	.init_abm_config = dmub_abm_init_config,
 };
 

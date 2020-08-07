@@ -1159,6 +1159,11 @@ bool is_filter_exact_match(struct adapter *adap,
 	if (!is_hashfilter(adap))
 		return false;
 
+	if ((atomic_read(&adap->tids.hash_tids_in_use) +
+	     atomic_read(&adap->tids.tids_in_use)) >=
+	    (adap->tids.nhash + (adap->tids.stid_base - adap->tids.tid_base)))
+		return false;
+
 	 /* Keep tunnel VNI match disabled for hash-filters for now */
 	if (fs->mask.encap_vld)
 		return false;

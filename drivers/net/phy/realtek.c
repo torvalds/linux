@@ -638,6 +638,18 @@ static struct phy_driver realtek_drvs[] = {
 		.read_mmd	= rtl8125_read_mmd,
 		.write_mmd	= rtl8125_write_mmd,
 	}, {
+		PHY_ID_MATCH_EXACT(0x001cc840),
+		.name		= "RTL8125B 2.5Gbps internal",
+		.get_features	= rtl8125_get_features,
+		.config_aneg	= rtl8125_config_aneg,
+		.read_status	= rtl8125_read_status,
+		.suspend	= genphy_suspend,
+		.resume		= rtlgen_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl8125_read_mmd,
+		.write_mmd	= rtl8125_write_mmd,
+	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
 		.config_init	= &rtl8366rb_config_init,

@@ -17,6 +17,7 @@ libphy-y			+= $(mdio-bus-y)
 else
 obj-$(CONFIG_MDIO_DEVICE)	+= mdio-bus.o
 endif
+obj-$(CONFIG_MDIO_DEVRES)	+= mdio_devres.o
 libphy-$(CONFIG_SWPHY)		+= swphy.o
 libphy-$(CONFIG_LED_TRIGGER_PHY)	+= phy_led_triggers.o
 

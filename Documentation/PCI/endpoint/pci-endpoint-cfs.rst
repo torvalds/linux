@@ -24,7 +24,7 @@ Directory Structure
 
 The pci_ep configfs has two directories at its root: controllers and
 functions. Every EPC device present in the system will have an entry in
-the *controllers* directory and and every EPF driver present in the system
+the *controllers* directory and every EPF driver present in the system
 will have an entry in the *functions* directory.
 ::
 

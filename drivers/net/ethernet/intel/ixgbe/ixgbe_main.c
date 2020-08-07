@@ -28,6 +28,7 @@
 #include <linux/bpf_trace.h>
 #include <linux/atomic.h>
 #include <linux/numa.h>
+#include <generated/utsrelease.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <net/udp_tunnel.h>
 #include <net/pkt_cls.h>
@@ -56,8 +57,6 @@ char ixgbe_default_device_descr[] =
 static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
-#define DRV_VERSION "5.1.0-k"
-const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2016 Intel Corporation.";
 
@@ -165,7 +164,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) 10 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 static struct workqueue_struct *ixgbe_wq;
 
@@ -1397,7 +1395,7 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 					IXGBE_DCA_CTRL_DCA_MODE_CB2);
 			break;
 		}
-		/* fall through - DCA is disabled. */
+		fallthrough; /* DCA is disabled. */
 	case DCA_PROVIDER_REMOVE:
 		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 			dca_remove_requester(dev);
@@ -2231,10 +2229,10 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping packet */
+		fallthrough; /* handle aborts by dropping packet */
 	case XDP_DROP:
 		result = IXGBE_XDP_CONSUMED;
 		break;
@@ -3009,7 +3007,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 	case ixgbe_mac_82599EB:
 		mask |= IXGBE_EIMS_GPI_SDP1(hw);
 		mask |= IXGBE_EIMS_GPI_SDP2(hw);
-		/* fall through */
+		fallthrough;
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
@@ -3315,7 +3313,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 		ixgbe_check_sfp_event(adapter, eicr);
-		/* Fall through */
+		fallthrough;
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
@@ -4337,7 +4335,7 @@ static void ixgbe_setup_rdrxctl(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_x550em_a:
 		if (adapter->num_vfs)
 			rdrxctl |= IXGBE_RDRXCTL_PSP;
-		/* fall through */
+		fallthrough;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		/* Disable RSC for ACK packets */
@@ -4996,24 +4994,41 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 		napi_disable(&adapter->q_vector[q_idx]->napi);
 }
 
-static void ixgbe_clear_udp_tunnel_port(struct ixgbe_adapter *adapter, u32 mask)
+static int ixgbe_udp_tunnel_sync(struct net_device *dev, unsigned int table)
 {
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 vxlanctrl;
+	struct udp_tunnel_info ti;
 
-	if (!(adapter->flags & (IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE |
-				IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE)))
-		return;
+	udp_tunnel_nic_get_port(dev, table, 0, &ti);
+	if (ti.type == UDP_TUNNEL_TYPE_VXLAN)
+		adapter->vxlan_port = ti.port;
+	else
+		adapter->geneve_port = ti.port;
 
-	vxlanctrl = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) & ~mask;
-	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, vxlanctrl);
-
-	if (mask & IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK)
-		adapter->vxlan_port = 0;
-
-	if (mask & IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK)
-		adapter->geneve_port = 0;
+	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL,
+			ntohs(adapter->vxlan_port) |
+			ntohs(adapter->geneve_port) <<
+				IXGBE_VXLANCTRL_GENEVE_UDPPORT_SHIFT);
+	return 0;
 }
+
+static const struct udp_tunnel_nic_info ixgbe_udp_tunnels_x550 = {
+	.sync_table	= ixgbe_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_IPV4_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+	},
+};
+
+static const struct udp_tunnel_nic_info ixgbe_udp_tunnels_x550em_a = {
+	.sync_table	= ixgbe_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_IPV4_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+};
 
 #ifdef CONFIG_IXGBE_DCB
 /**
@@ -5503,9 +5518,13 @@ static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 		return ret;
 
 	speed = hw->phy.autoneg_advertised;
-	if ((!speed) && (hw->mac.ops.get_link_capabilities))
+	if (!speed && hw->mac.ops.get_link_capabilities) {
 		ret = hw->mac.ops.get_link_capabilities(hw, &speed,
 							&autoneg);
+		speed &= ~(IXGBE_LINK_SPEED_5GB_FULL |
+			   IXGBE_LINK_SPEED_2_5GB_FULL);
+	}
+
 	if (ret)
 		return ret;
 
@@ -5887,7 +5906,7 @@ dma_engine_disable:
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
 				(IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
 				 ~IXGBE_DMATXCTL_TE));
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -6330,7 +6349,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 		break;
 	case ixgbe_mac_x550em_a:
-		adapter->flags |= IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE;
 		switch (hw->device_id) {
 		case IXGBE_DEV_ID_X550EM_A_1G_T:
 		case IXGBE_DEV_ID_X550EM_A_1G_T_L:
@@ -6339,7 +6357,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 		default:
 			break;
 		}
-	/* fall through */
+		fallthrough;
 	case ixgbe_mac_X550EM_x:
 #ifdef CONFIG_IXGBE_DCB
 		adapter->flags &= ~IXGBE_FLAG_DCB_CAPABLE;
@@ -6350,14 +6368,13 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 		adapter->fcoe.up = 0;
 #endif /* IXGBE_DCB */
 #endif /* IXGBE_FCOE */
-	/* Fall Through */
+		fallthrough;
 	case ixgbe_mac_X550:
 		if (hw->mac.type == ixgbe_mac_X550)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 #ifdef CONFIG_IXGBE_DCA
 		adapter->flags &= ~IXGBE_FLAG_DCA_CAPABLE;
 #endif
-		adapter->flags |= IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE;
 		break;
 	default:
 		break;
@@ -6796,8 +6813,7 @@ int ixgbe_open(struct net_device *netdev)
 
 	ixgbe_up_complete(adapter);
 
-	ixgbe_clear_udp_tunnel_port(adapter, IXGBE_VXLANCTRL_ALL_UDPPORT_MASK);
-	udp_tunnel_get_rx_info(netdev);
+	udp_tunnel_nic_reset_ntf(netdev);
 
 	return 0;
 
@@ -6861,32 +6877,20 @@ int ixgbe_close(struct net_device *netdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ixgbe_resume(struct pci_dev *pdev)
+static int __maybe_unused ixgbe_resume(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
 	u32 err;
 
 	adapter->hw.hw_addr = adapter->io_addr;
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	/*
-	 * pci_restore_state clears dev->state_saved so call
-	 * pci_save_state to restore it.
-	 */
-	pci_save_state(pdev);
 
-	err = pci_enable_device_mem(pdev);
-	if (err) {
-		e_dev_err("Cannot enable PCI device from suspend\n");
-		return err;
-	}
 	smp_mb__before_atomic();
 	clear_bit(__IXGBE_DISABLED, &adapter->state);
 	pci_set_master(pdev);
 
-	pci_wake_from_d3(pdev, false);
+	device_wakeup_disable(dev_d);
 
 	ixgbe_reset(adapter);
 
@@ -6904,7 +6908,6 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	return err;
 }
-#endif /* CONFIG_PM */
 
 static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
@@ -6913,9 +6916,6 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 ctrl;
 	u32 wufc = adapter->wol;
-#ifdef CONFIG_PM
-	int retval = 0;
-#endif
 
 	rtnl_lock();
 	netif_device_detach(netdev);
@@ -6926,12 +6926,6 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	ixgbe_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
 
-#ifdef CONFIG_PM
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-
-#endif
 	if (hw->mac.ops.stop_link_on_d3)
 		hw->mac.ops.stop_link_on_d3(hw);
 
@@ -6986,26 +6980,18 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused ixgbe_suspend(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	int retval;
 	bool wake;
 
 	retval = __ixgbe_shutdown(pdev, &wake);
-	if (retval)
-		return retval;
 
-	if (wake) {
-		pci_prepare_to_sleep(pdev);
-	} else {
-		pci_wake_from_d3(pdev, false);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
+	device_set_wakeup_enable(dev_d, wake);
 
-	return 0;
+	return retval;
 }
-#endif /* CONFIG_PM */
 
 static void ixgbe_shutdown(struct pci_dev *pdev)
 {
@@ -7170,7 +7156,7 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->o2bspc += IXGBE_READ_REG(hw, IXGBE_O2BSPC);
 		hwstats->b2ospc += IXGBE_READ_REG(hw, IXGBE_B2OSPC);
 		hwstats->b2ogprc += IXGBE_READ_REG(hw, IXGBE_B2OGPRC);
-		/* fall through */
+		fallthrough;
 	case ixgbe_mac_82599EB:
 		for (i = 0; i < 16; i++)
 			adapter->hw_rx_no_dma_resources +=
@@ -7919,12 +7905,6 @@ static void ixgbe_service_task(struct work_struct *work)
 		ixgbe_service_event_complete(adapter);
 		return;
 	}
-	if (adapter->flags2 & IXGBE_FLAG2_UDP_TUN_REREG_NEEDED) {
-		rtnl_lock();
-		adapter->flags2 &= ~IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
-		udp_tunnel_get_rx_info(adapter->netdev);
-		rtnl_unlock();
-	}
 	ixgbe_reset_subtask(adapter);
 	ixgbe_phy_interrupt_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
@@ -8079,7 +8059,7 @@ csum_failed:
 	switch (skb->csum_offset) {
 	case offsetof(struct tcphdr, check):
 		type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_TCP;
-		/* fall through */
+		fallthrough;
 	case offsetof(struct udphdr, check):
 		break;
 	case offsetof(struct sctphdr, checksum):
@@ -8091,7 +8071,7 @@ csum_failed:
 			type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		skb_checksum_help(skb);
 		goto csum_failed;
@@ -8534,7 +8514,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		if (!sb_dev && (adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return netdev_pick_tx(dev, skb, sb_dev);
 	}
@@ -8868,7 +8848,7 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 	case SIOCGMIIPHY:
 		if (!adapter->hw.phy.ops.read_reg)
 			return -EOPNOTSUPP;
-		/* fall through */
+		fallthrough;
 	default:
 		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
 	}
@@ -9782,26 +9762,6 @@ static int ixgbe_set_features(struct net_device *netdev,
 
 	netdev->features = features;
 
-	if ((adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE)) {
-		if (features & NETIF_F_RXCSUM) {
-			adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
-		} else {
-			u32 port_mask = IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK;
-
-			ixgbe_clear_udp_tunnel_port(adapter, port_mask);
-		}
-	}
-
-	if ((adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE)) {
-		if (features & NETIF_F_RXCSUM) {
-			adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
-		} else {
-			u32 port_mask = IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK;
-
-			ixgbe_clear_udp_tunnel_port(adapter, port_mask);
-		}
-	}
-
 	if ((changed & NETIF_F_HW_L2FW_DOFFLOAD) && adapter->num_rx_pools > 1)
 		ixgbe_reset_l2fw_offload(adapter);
 	else if (need_reset)
@@ -9811,118 +9771,6 @@ static int ixgbe_set_features(struct net_device *netdev,
 		ixgbe_set_rx_mode(netdev);
 
 	return 1;
-}
-
-/**
- * ixgbe_add_udp_tunnel_port - Get notifications about adding UDP tunnel ports
- * @dev: The port's netdev
- * @ti: Tunnel endpoint information
- **/
-static void ixgbe_add_udp_tunnel_port(struct net_device *dev,
-				      struct udp_tunnel_info *ti)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	__be16 port = ti->port;
-	u32 port_shift = 0;
-	u32 reg;
-
-	if (ti->sa_family != AF_INET)
-		return;
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
-			return;
-
-		if (adapter->vxlan_port == port)
-			return;
-
-		if (adapter->vxlan_port) {
-			netdev_info(dev,
-				    "VXLAN port %d set, not adding port %d\n",
-				    ntohs(adapter->vxlan_port),
-				    ntohs(port));
-			return;
-		}
-
-		adapter->vxlan_port = port;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!(adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE))
-			return;
-
-		if (adapter->geneve_port == port)
-			return;
-
-		if (adapter->geneve_port) {
-			netdev_info(dev,
-				    "GENEVE port %d set, not adding port %d\n",
-				    ntohs(adapter->geneve_port),
-				    ntohs(port));
-			return;
-		}
-
-		port_shift = IXGBE_VXLANCTRL_GENEVE_UDPPORT_SHIFT;
-		adapter->geneve_port = port;
-		break;
-	default:
-		return;
-	}
-
-	reg = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) | ntohs(port) << port_shift;
-	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, reg);
-}
-
-/**
- * ixgbe_del_udp_tunnel_port - Get notifications about removing UDP tunnel ports
- * @dev: The port's netdev
- * @ti: Tunnel endpoint information
- **/
-static void ixgbe_del_udp_tunnel_port(struct net_device *dev,
-				      struct udp_tunnel_info *ti)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	u32 port_mask;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN &&
-	    ti->type != UDP_TUNNEL_TYPE_GENEVE)
-		return;
-
-	if (ti->sa_family != AF_INET)
-		return;
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
-			return;
-
-		if (adapter->vxlan_port != ti->port) {
-			netdev_info(dev, "VXLAN port %d not found\n",
-				    ntohs(ti->port));
-			return;
-		}
-
-		port_mask = IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!(adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE))
-			return;
-
-		if (adapter->geneve_port != ti->port) {
-			netdev_info(dev, "GENEVE port %d not found\n",
-				    ntohs(ti->port));
-			return;
-		}
-
-		port_mask = IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK;
-		break;
-	default:
-		return;
-	}
-
-	ixgbe_clear_udp_tunnel_port(adapter, port_mask);
-	adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
 }
 
 static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
@@ -10312,10 +10160,6 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return ixgbe_xdp_setup(dev, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = adapter->xdp_prog ?
-			adapter->xdp_prog->aux->id : 0;
-		return 0;
 	case XDP_SETUP_XSK_UMEM:
 		return ixgbe_xsk_umem_setup(adapter, xdp->xsk.umem,
 					    xdp->xsk.queue_id);
@@ -10414,8 +10258,8 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_bridge_getlink	= ixgbe_ndo_bridge_getlink,
 	.ndo_dfwd_add_station	= ixgbe_fwd_add,
 	.ndo_dfwd_del_station	= ixgbe_fwd_del,
-	.ndo_udp_tunnel_add	= ixgbe_add_udp_tunnel_port,
-	.ndo_udp_tunnel_del	= ixgbe_del_udp_tunnel_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= ixgbe_features_check,
 	.ndo_bpf		= ixgbe_xdp,
 	.ndo_xdp_xmit		= ixgbe_xdp_xmit,
@@ -10658,7 +10502,7 @@ bool ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 			/* only support first port */
 			if (hw->bus.func != 0)
 				break;
-			/* fall through */
+			fallthrough;
 		case IXGBE_SUBDEV_ID_82599_SP_560FLR:
 		case IXGBE_SUBDEV_ID_82599_SFP:
 		case IXGBE_SUBDEV_ID_82599_RNDC:
@@ -10859,6 +10703,18 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = ixgbe_sw_init(adapter, ii);
 	if (err)
 		goto err_sw_init;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+		netdev->udp_tunnel_nic_info = &ixgbe_udp_tunnels_x550;
+		break;
+	case ixgbe_mac_x550em_a:
+		netdev->udp_tunnel_nic_info = &ixgbe_udp_tunnels_x550em_a;
+		break;
+	default:
+		break;
+	}
 
 	/* Make sure the SWFW semaphore is in a valid state */
 	if (hw->mac.ops.init_swfw_sync)
@@ -11154,8 +11010,8 @@ skip_sriov:
 	 */
 	if (hw->mac.ops.set_fw_drv_ver)
 		hw->mac.ops.set_fw_drv_ver(hw, 0xFF, 0xFF, 0xFF, 0xFF,
-					   sizeof(ixgbe_driver_version) - 1,
-					   ixgbe_driver_version);
+					   sizeof(UTS_RELEASE) - 1,
+					   UTS_RELEASE);
 
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
@@ -11175,10 +11031,14 @@ skip_sriov:
 			IXGBE_LINK_SPEED_10GB_FULL | IXGBE_LINK_SPEED_1GB_FULL,
 			true);
 
-	ixgbe_mii_bus_init(hw);
+	err = ixgbe_mii_bus_init(hw);
+	if (err)
+		goto err_netdev;
 
 	return 0;
 
+err_netdev:
+	unregister_netdev(netdev);
 err_register:
 	ixgbe_release_hw_control(adapter);
 	ixgbe_clear_interrupt_scheme(adapter);
@@ -11489,16 +11349,15 @@ static const struct pci_error_handlers ixgbe_err_handler = {
 	.resume = ixgbe_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(ixgbe_pm_ops, ixgbe_suspend, ixgbe_resume);
+
 static struct pci_driver ixgbe_driver = {
-	.name     = ixgbe_driver_name,
-	.id_table = ixgbe_pci_tbl,
-	.probe    = ixgbe_probe,
-	.remove   = ixgbe_remove,
-#ifdef CONFIG_PM
-	.suspend  = ixgbe_suspend,
-	.resume   = ixgbe_resume,
-#endif
-	.shutdown = ixgbe_shutdown,
+	.name      = ixgbe_driver_name,
+	.id_table  = ixgbe_pci_tbl,
+	.probe     = ixgbe_probe,
+	.remove    = ixgbe_remove,
+	.driver.pm = &ixgbe_pm_ops,
+	.shutdown  = ixgbe_shutdown,
 	.sriov_configure = ixgbe_pci_sriov_configure,
 	.err_handler = &ixgbe_err_handler
 };
@@ -11512,7 +11371,7 @@ static struct pci_driver ixgbe_driver = {
 static int __init ixgbe_init_module(void)
 {
 	int ret;
-	pr_info("%s - version %s\n", ixgbe_driver_string, ixgbe_driver_version);
+	pr_info("%s\n", ixgbe_driver_string);
 	pr_info("%s\n", ixgbe_copyright);
 
 	ixgbe_wq = create_singlethread_workqueue(ixgbe_driver_name);

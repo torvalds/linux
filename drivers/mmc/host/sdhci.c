@@ -493,7 +493,7 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 {
 	unsigned long flags;
 	size_t blksize, len, chunk;
-	u32 uninitialized_var(scratch);
+	u32 scratch;
 	u8 *buf;
 
 	DBG("PIO reading\n");
@@ -4104,7 +4104,8 @@ int sdhci_setup_host(struct sdhci_host *host)
 	unsigned int ocr_avail;
 	unsigned int override_timeout_clk;
 	u32 max_clk;
-	int ret;
+	int ret = 0;
+	bool enable_vqmmc = false;
 
 	WARN_ON(host == NULL);
 	if (host == NULL)
@@ -4118,9 +4119,12 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 * the host can take the appropriate action if regulators are not
 	 * available.
 	 */
-	ret = mmc_regulator_get_supply(mmc);
-	if (ret)
-		return ret;
+	if (!mmc->supply.vqmmc) {
+		ret = mmc_regulator_get_supply(mmc);
+		if (ret)
+			return ret;
+		enable_vqmmc  = true;
+	}
 
 	DBG("Version:   0x%08x | Present:  0x%08x\n",
 	    sdhci_readw(host, SDHCI_HOST_VERSION),
@@ -4377,7 +4381,10 @@ int sdhci_setup_host(struct sdhci_host *host)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		ret = regulator_enable(mmc->supply.vqmmc);
+		if (enable_vqmmc) {
+			ret = regulator_enable(mmc->supply.vqmmc);
+			host->sdhci_core_to_disable_vqmmc = !ret;
+		}
 
 		/* If vqmmc provides no 1.8V signalling, then there's no UHS */
 		if (!regulator_is_supported_voltage(mmc->supply.vqmmc, 1700000,
@@ -4396,6 +4403,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 				mmc_hostname(mmc), ret);
 			mmc->supply.vqmmc = ERR_PTR(-EINVAL);
 		}
+
 	}
 
 	if (host->quirks2 & SDHCI_QUIRK2_NO_1_8_V) {
@@ -4626,7 +4634,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	return 0;
 
 unreg:
-	if (!IS_ERR(mmc->supply.vqmmc))
+	if (host->sdhci_core_to_disable_vqmmc)
 		regulator_disable(mmc->supply.vqmmc);
 undma:
 	if (host->align_buffer)
@@ -4644,7 +4652,7 @@ void sdhci_cleanup_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 
-	if (!IS_ERR(mmc->supply.vqmmc))
+	if (host->sdhci_core_to_disable_vqmmc)
 		regulator_disable(mmc->supply.vqmmc);
 
 	if (host->align_buffer)
@@ -4787,7 +4795,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 
 	destroy_workqueue(host->complete_wq);
 
-	if (!IS_ERR(mmc->supply.vqmmc))
+	if (host->sdhci_core_to_disable_vqmmc)
 		regulator_disable(mmc->supply.vqmmc);
 
 	if (host->align_buffer)

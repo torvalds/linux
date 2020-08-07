@@ -77,10 +77,9 @@ static struct ch_tc_flower_entry *ch_flower_lookup(struct adapter *adap,
 }
 
 static void cxgb4_process_flow_match(struct net_device *dev,
-				     struct flow_cls_offload *cls,
+				     struct flow_rule *rule,
 				     struct ch_filter_specification *fs)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	u16 addr_type = 0;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -88,6 +87,10 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 
 		flow_rule_match_control(rule, &match);
 		addr_type = match.key->addr_type;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -220,9 +223,8 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 }
 
 static int cxgb4_validate_flow_match(struct net_device *dev,
-				     struct flow_cls_offload *cls)
+				     struct flow_rule *rule)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 ethtype_mask = 0;
 	u16 ethtype_key = 0;
@@ -383,6 +385,7 @@ void cxgb4_process_flow_actions(struct net_device *in,
 		case FLOW_ACTION_DROP:
 			fs->action = FILTER_DROP;
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
 			struct net_device *out = act->dev;
 			struct port_info *pi = netdev_priv(out);
@@ -425,6 +428,11 @@ void cxgb4_process_flow_actions(struct net_device *in,
 
 			process_pedit_field(fs, val, mask, offset, htype);
 			}
+			break;
+		case FLOW_ACTION_QUEUE:
+			fs->action = FILTER_PASS;
+			fs->dirsteer = 1;
+			fs->iq = act->queue.index;
 			break;
 		default:
 			break;
@@ -535,7 +543,8 @@ static bool valid_pedit_action(struct net_device *dev,
 
 int cxgb4_validate_flow_actions(struct net_device *dev,
 				struct flow_action *actions,
-				struct netlink_ext_ack *extack)
+				struct netlink_ext_ack *extack,
+				u8 matchall_filter)
 {
 	struct flow_action_entry *act;
 	bool act_redir = false;
@@ -552,11 +561,19 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 		case FLOW_ACTION_DROP:
 			/* Do nothing */
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
 			struct adapter *adap = netdev2adap(dev);
 			struct net_device *n_dev, *target_dev;
-			unsigned int i;
 			bool found = false;
+			unsigned int i;
+
+			if (act->id == FLOW_ACTION_MIRRED &&
+			    !matchall_filter) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Egress mirror action is only supported for tc-matchall");
+				return -EOPNOTSUPP;
+			}
 
 			target_dev = act->dev;
 			for_each_port(adap, i) {
@@ -609,6 +626,9 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 				return -EOPNOTSUPP;
 			act_pedit = true;
 			}
+			break;
+		case FLOW_ACTION_QUEUE:
+			/* Do nothing. cxgb4_set_filter will validate */
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
@@ -683,33 +703,22 @@ out_unlock:
 	spin_unlock_bh(&t->ftid_lock);
 }
 
-int cxgb4_tc_flower_replace(struct net_device *dev,
-			    struct flow_cls_offload *cls)
+int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
+			    u32 tc_prio, struct netlink_ext_ack *extack,
+			    struct ch_filter_specification *fs, u32 *tid)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
-	struct netlink_ext_ack *extack = cls->common.extack;
 	struct adapter *adap = netdev2adap(dev);
-	struct ch_tc_flower_entry *ch_flower;
-	struct ch_filter_specification *fs;
 	struct filter_ctx ctx;
 	u8 inet_family;
 	int fidx, ret;
 
-	if (cxgb4_validate_flow_actions(dev, &rule->action, extack))
+	if (cxgb4_validate_flow_actions(dev, &rule->action, extack, 0))
 		return -EOPNOTSUPP;
 
-	if (cxgb4_validate_flow_match(dev, cls))
+	if (cxgb4_validate_flow_match(dev, rule))
 		return -EOPNOTSUPP;
 
-	ch_flower = allocate_flower_entry();
-	if (!ch_flower) {
-		netdev_err(dev, "%s: ch_flower alloc failed.\n", __func__);
-		return -ENOMEM;
-	}
-
-	fs = &ch_flower->fs;
-	fs->hitcnts = 1;
-	cxgb4_process_flow_match(dev, cls, fs);
+	cxgb4_process_flow_match(dev, rule, fs);
 	cxgb4_process_flow_actions(dev, &rule->action, fs);
 
 	fs->hash = is_filter_exact_match(adap, fs);
@@ -720,12 +729,11 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	 * existing rules.
 	 */
 	fidx = cxgb4_get_free_ftid(dev, inet_family, fs->hash,
-				   cls->common.prio);
+				   tc_prio);
 	if (fidx < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "No free LETCAM index available");
-		ret = -ENOMEM;
-		goto free_entry;
+		return -ENOMEM;
 	}
 
 	if (fidx < adap->tids.nhpftids) {
@@ -739,46 +747,93 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	if (fs->hash)
 		fidx = 0;
 
-	fs->tc_prio = cls->common.prio;
-	fs->tc_cookie = cls->cookie;
+	fs->tc_prio = tc_prio;
 
 	init_completion(&ctx.completion);
 	ret = __cxgb4_set_filter(dev, fidx, fs, &ctx);
 	if (ret) {
 		netdev_err(dev, "%s: filter creation err %d\n",
 			   __func__, ret);
-		goto free_entry;
+		return ret;
 	}
 
 	/* Wait for reply */
 	ret = wait_for_completion_timeout(&ctx.completion, 10 * HZ);
-	if (!ret) {
-		ret = -ETIMEDOUT;
-		goto free_entry;
+	if (!ret)
+		return -ETIMEDOUT;
+
+	/* Check if hw returned error for filter creation */
+	if (ctx.result)
+		return ctx.result;
+
+	*tid = ctx.tid;
+
+	if (fs->hash)
+		cxgb4_tc_flower_hash_prio_add(adap, tc_prio);
+
+	return 0;
+}
+
+int cxgb4_tc_flower_replace(struct net_device *dev,
+			    struct flow_cls_offload *cls)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct adapter *adap = netdev2adap(dev);
+	struct ch_tc_flower_entry *ch_flower;
+	struct ch_filter_specification *fs;
+	int ret;
+
+	ch_flower = allocate_flower_entry();
+	if (!ch_flower) {
+		netdev_err(dev, "%s: ch_flower alloc failed.\n", __func__);
+		return -ENOMEM;
 	}
 
-	ret = ctx.result;
-	/* Check if hw returned error for filter creation */
+	fs = &ch_flower->fs;
+	fs->hitcnts = 1;
+	fs->tc_cookie = cls->cookie;
+
+	ret = cxgb4_flow_rule_replace(dev, rule, cls->common.prio, extack, fs,
+				      &ch_flower->filter_id);
 	if (ret)
 		goto free_entry;
 
 	ch_flower->tc_flower_cookie = cls->cookie;
-	ch_flower->filter_id = ctx.tid;
 	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->node,
 				     adap->flower_ht_params);
 	if (ret)
 		goto del_filter;
 
-	if (fs->hash)
-		cxgb4_tc_flower_hash_prio_add(adap, cls->common.prio);
-
 	return 0;
 
 del_filter:
+	if (fs->hash)
+		cxgb4_tc_flower_hash_prio_del(adap, cls->common.prio);
+
 	cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 
 free_entry:
 	kfree(ch_flower);
+	return ret;
+}
+
+int cxgb4_flow_rule_destroy(struct net_device *dev, u32 tc_prio,
+			    struct ch_filter_specification *fs, int tid)
+{
+	struct adapter *adap = netdev2adap(dev);
+	u8 hash;
+	int ret;
+
+	hash = fs->hash;
+
+	ret = cxgb4_del_filter(dev, tid, fs);
+	if (ret)
+		return ret;
+
+	if (hash)
+		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
+
 	return ret;
 }
 
@@ -787,18 +842,14 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
-	u32 tc_prio;
-	bool hash;
 	int ret;
 
 	ch_flower = ch_flower_lookup(adap, cls->cookie);
 	if (!ch_flower)
 		return -ENOENT;
 
-	hash = ch_flower->fs.hash;
-	tc_prio = ch_flower->fs.tc_prio;
-
-	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
+	ret = cxgb4_flow_rule_destroy(dev, ch_flower->fs.tc_prio,
+				      &ch_flower->fs, ch_flower->filter_id);
 	if (ret)
 		goto err;
 
@@ -809,9 +860,6 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 		goto err;
 	}
 	kfree_rcu(ch_flower, rcu);
-
-	if (hash)
-		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
 
 err:
 	return ret;
@@ -892,7 +940,7 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 		if (ofld_stats->prev_packet_count != packets)
 			ofld_stats->last_used = jiffies;
 		flow_stats_update(&cls->stats, bytes - ofld_stats->byte_count,
-				  packets - ofld_stats->packet_count,
+				  packets - ofld_stats->packet_count, 0,
 				  ofld_stats->last_used,
 				  FLOW_ACTION_HW_STATS_IMMEDIATE);
 

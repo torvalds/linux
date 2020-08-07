@@ -1007,7 +1007,7 @@ static inline void iavf_rx_checksum(struct iavf_vsi *vsi,
 	case IAVF_RX_PTYPE_INNER_PROT_UDP:
 	case IAVF_RX_PTYPE_INNER_PROT_SCTP:
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		/* fall though */
+		fallthrough;
 	default:
 		break;
 	}

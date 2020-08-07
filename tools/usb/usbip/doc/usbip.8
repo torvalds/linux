@@ -83,7 +83,9 @@ List local USB devices.
 .SH EXAMPLES
 
     client:# usbip list --remote=server
-        - List exportable usb devices on the server.
+        - List devices exported by remote server.
+
+    client:# modprobe vhci-hcd
 
     client:# usbip attach --remote=server --busid=1-2
         - Connect the remote USB device.

@@ -21,6 +21,17 @@
 #include <linux/regulator/consumer.h>
 #include <dt-bindings/net/qca-ar803x.h>
 
+#define AT803X_SPECIFIC_FUNCTION_CONTROL	0x10
+#define AT803X_SFC_ASSERT_CRS			BIT(11)
+#define AT803X_SFC_FORCE_LINK			BIT(10)
+#define AT803X_SFC_MDI_CROSSOVER_MODE_M		GENMASK(6, 5)
+#define AT803X_SFC_AUTOMATIC_CROSSOVER		0x3
+#define AT803X_SFC_MANUAL_MDIX			0x1
+#define AT803X_SFC_MANUAL_MDI			0x0
+#define AT803X_SFC_SQE_TEST			BIT(2)
+#define AT803X_SFC_POLARITY_REVERSAL		BIT(1)
+#define AT803X_SFC_DISABLE_JABBER		BIT(0)
+
 #define AT803X_SPECIFIC_STATUS			0x11
 #define AT803X_SS_SPEED_MASK			(3 << 14)
 #define AT803X_SS_SPEED_1000			(2 << 14)
@@ -400,8 +411,8 @@ static int at803x_parse_dt(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
 	struct at803x_priv *priv = phydev->priv;
-	unsigned int sel, mask;
 	u32 freq, strength;
+	unsigned int sel;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
@@ -409,7 +420,6 @@ static int at803x_parse_dt(struct phy_device *phydev)
 
 	ret = of_property_read_u32(node, "qca,clk-out-frequency", &freq);
 	if (!ret) {
-		mask = AT803X_CLK_OUT_MASK;
 		switch (freq) {
 		case 25000000:
 			sel = AT803X_CLK_OUT_25MHZ_XTAL;
@@ -428,8 +438,8 @@ static int at803x_parse_dt(struct phy_device *phydev)
 			return -EINVAL;
 		}
 
-		priv->clk_25m_reg |= FIELD_PREP(mask, sel);
-		priv->clk_25m_mask |= mask;
+		priv->clk_25m_reg |= FIELD_PREP(AT803X_CLK_OUT_MASK, sel);
+		priv->clk_25m_mask |= AT803X_CLK_OUT_MASK;
 
 		/* Fixup for the AR8030/AR8035. This chip has another mask and
 		 * doesn't support the DSP reference. Eg. the lowest bit of the
@@ -704,6 +714,12 @@ static int at803x_read_status(struct phy_device *phydev)
 		return ss;
 
 	if (ss & AT803X_SS_SPEED_DUPLEX_RESOLVED) {
+		int sfc;
+
+		sfc = phy_read(phydev, AT803X_SPECIFIC_FUNCTION_CONTROL);
+		if (sfc < 0)
+			return sfc;
+
 		switch (ss & AT803X_SS_SPEED_MASK) {
 		case AT803X_SS_SPEED_10:
 			phydev->speed = SPEED_10;
@@ -719,16 +735,73 @@ static int at803x_read_status(struct phy_device *phydev)
 			phydev->duplex = DUPLEX_FULL;
 		else
 			phydev->duplex = DUPLEX_HALF;
+
 		if (ss & AT803X_SS_MDIX)
 			phydev->mdix = ETH_TP_MDI_X;
 		else
 			phydev->mdix = ETH_TP_MDI;
+
+		switch (FIELD_GET(AT803X_SFC_MDI_CROSSOVER_MODE_M, sfc)) {
+		case AT803X_SFC_MANUAL_MDI:
+			phydev->mdix_ctrl = ETH_TP_MDI;
+			break;
+		case AT803X_SFC_MANUAL_MDIX:
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+			break;
+		case AT803X_SFC_AUTOMATIC_CROSSOVER:
+			phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+			break;
+		}
 	}
 
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete)
 		phy_resolve_aneg_pause(phydev);
 
 	return 0;
+}
+
+static int at803x_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	u16 val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI:
+		val = AT803X_SFC_MANUAL_MDI;
+		break;
+	case ETH_TP_MDI_X:
+		val = AT803X_SFC_MANUAL_MDIX;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = AT803X_SFC_AUTOMATIC_CROSSOVER;
+		break;
+	default:
+		return 0;
+	}
+
+	return phy_modify_changed(phydev, AT803X_SPECIFIC_FUNCTION_CONTROL,
+			  AT803X_SFC_MDI_CROSSOVER_MODE_M,
+			  FIELD_PREP(AT803X_SFC_MDI_CROSSOVER_MODE_M, val));
+}
+
+static int at803x_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = at803x_config_mdix(phydev, phydev->mdix_ctrl);
+	if (ret < 0)
+		return ret;
+
+	/* Changes of the midx bits are disruptive to the normal operation;
+	 * therefore any changes to these registers must be followed by a
+	 * software reset to take effect.
+	 */
+	if (ret == 1) {
+		ret = genphy_soft_reset(phydev);
+		if (ret < 0)
+			return ret;
+	}
+
+	return genphy_config_aneg(phydev);
 }
 
 static int at803x_get_downshift(struct phy_device *phydev, u8 *d)
@@ -980,6 +1053,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags			= PHY_POLL_CABLE_TEST,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
+	.config_aneg		= at803x_config_aneg,
 	.config_init		= at803x_config_init,
 	.soft_reset		= genphy_soft_reset,
 	.set_wol		= at803x_set_wol,
@@ -1062,6 +1136,9 @@ static struct phy_driver at803x_driver[] = {
 	.config_intr		= &at803x_config_intr,
 	.cable_test_start	= at803x_cable_test_start,
 	.cable_test_get_status	= at803x_cable_test_get_status,
+	.read_status		= at803x_read_status,
+	.soft_reset		= genphy_soft_reset,
+	.config_aneg		= at803x_config_aneg,
 } };
 
 module_phy_driver(at803x_driver);

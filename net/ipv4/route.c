@@ -1050,6 +1050,11 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 	struct flowi4 fl4;
 
 	ip_rt_build_flow_key(&fl4, sk, skb);
+
+	/* Don't make lookup fail for bridged encapsulations */
+	if (skb && netif_is_any_bridge_port(skb->dev))
+		fl4.flowi4_oif = 0;
+
 	__ip_rt_update_pmtu(rt, &fl4, mtu);
 }
 

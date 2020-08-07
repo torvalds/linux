@@ -2236,7 +2236,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			    unsigned long nr_pages, int prot)
 {
 	struct dma_pte *first_pte = NULL, *pte = NULL;
-	phys_addr_t uninitialized_var(pteval);
+	phys_addr_t pteval;
 	unsigned long sg_res = 0;
 	unsigned int largepage_lvl = 0;
 	unsigned long lvl_pages = 0;

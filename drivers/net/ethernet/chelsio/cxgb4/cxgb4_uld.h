@@ -106,6 +106,8 @@ struct tid_info {
 	unsigned long *stid_bmap;
 	unsigned int nstids;
 	unsigned int stid_base;
+
+	unsigned int nhash;
 	unsigned int hash_base;
 
 	union aopen_entry *atid_tab;

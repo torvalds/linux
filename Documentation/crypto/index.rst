@@ -17,9 +17,14 @@ for cryptographic use cases, as well as programming examples.
    :maxdepth: 2
 
    intro
+   api-intro
    architecture
+
+   async-tx-api
+   asymmetric-keys
    devel-algos
    userspace-if
    crypto_engine
    api
    api-samples
+   descore-readme

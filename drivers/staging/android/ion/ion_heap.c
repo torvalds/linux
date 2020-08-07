@@ -237,8 +237,6 @@ size_t ion_heap_freelist_shrink(struct ion_heap *heap, size_t size)
 
 int ion_heap_init_deferred_free(struct ion_heap *heap)
 {
-	struct sched_param param = { .sched_priority = 0 };
-
 	INIT_LIST_HEAD(&heap->free_list);
 	init_waitqueue_head(&heap->waitqueue);
 	heap->task = kthread_run(ion_heap_deferred_free, heap,
@@ -248,7 +246,7 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 		       __func__);
 		return PTR_ERR_OR_ZERO(heap->task);
 	}
-	sched_setscheduler(heap->task, SCHED_IDLE, &param);
+	sched_set_normal(heap->task, 19);
 
 	return 0;
 }

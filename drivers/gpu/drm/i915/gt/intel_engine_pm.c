@@ -142,6 +142,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		return true;
 
 	GEM_BUG_ON(!intel_context_is_barrier(ce));
+	GEM_BUG_ON(ce->timeline->hwsp_ggtt != engine->status_page.vma);
 
 	/* Already inside the kernel context, safe to power down. */
 	if (engine->wakeref_serial == engine->serial)

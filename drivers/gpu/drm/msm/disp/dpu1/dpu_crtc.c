@@ -389,14 +389,14 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 	spin_unlock_irqrestore(&dpu_crtc->spin_lock, flags);
 
 	if (!fevent) {
-		DRM_ERROR("crtc%d event %d overflow\n", crtc->base.id, event);
+		DRM_ERROR_RATELIMITED("crtc%d event %d overflow\n", crtc->base.id, event);
 		return;
 	}
 
 	fevent->event = event;
 	fevent->crtc = crtc;
 	fevent->ts = ktime_get();
-	kthread_queue_work(&priv->event_thread[crtc_id].worker, &fevent->work);
+	kthread_queue_work(priv->event_thread[crtc_id].worker, &fevent->work);
 }
 
 void dpu_crtc_complete_commit(struct drm_crtc *crtc)

@@ -395,7 +395,7 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 	if (ret)
 		return ret;
 
-	return amdgpu_sync_fence(sync, vm->last_update, false);
+	return amdgpu_sync_fence(sync, vm->last_update);
 }
 
 static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
@@ -785,7 +785,7 @@ static int unmap_bo_from_gpuvm(struct amdgpu_device *adev,
 
 	amdgpu_vm_clear_freed(adev, vm, &bo_va->last_pt_update);
 
-	amdgpu_sync_fence(sync, bo_va->last_pt_update, false);
+	amdgpu_sync_fence(sync, bo_va->last_pt_update);
 
 	return 0;
 }
@@ -804,7 +804,7 @@ static int update_gpuvm_pte(struct amdgpu_device *adev,
 		return ret;
 	}
 
-	return amdgpu_sync_fence(sync, bo_va->last_pt_update, false);
+	return amdgpu_sync_fence(sync, bo_va->last_pt_update);
 }
 
 static int map_bo_to_gpuvm(struct amdgpu_device *adev,
@@ -1354,7 +1354,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	}
 
 	/* Free the BO*/
-	drm_gem_object_put_unlocked(&mem->bo->tbo.base);
+	drm_gem_object_put(&mem->bo->tbo.base);
 	mutex_destroy(&mem->lock);
 	kfree(mem);
 
@@ -2102,7 +2102,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 			pr_debug("Memory eviction: Validate BOs failed. Try again\n");
 			goto validate_map_fail;
 		}
-		ret = amdgpu_sync_fence(&sync_obj, bo->tbo.moving, false);
+		ret = amdgpu_sync_fence(&sync_obj, bo->tbo.moving);
 		if (ret) {
 			pr_debug("Memory eviction: Sync BO fence failed. Try again\n");
 			goto validate_map_fail;

@@ -805,7 +805,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 
 					if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
 						v->time_for_meta_pte_without_immediate_flip = dcn_bw_max3(
-								v->meta_pte_bytes_frame[k] / v->prefetch_bandwidth[k],
+								v->meta_pte_bytes_frame[k] / v->prefetch_bw[k],
 								v->extra_latency,
 								v->htotal[k] / v->pixel_clock[k] / 4.0);
 					} else {
@@ -814,7 +814,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 
 					if (v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes) {
 						v->time_for_meta_and_dpte_row_without_immediate_flip = dcn_bw_max3((
-								v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bandwidth[k],
+								v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bw[k],
 								v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip,
 								v->extra_latency);
 					} else {
@@ -827,7 +827,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->lines_for_meta_and_dpte_row_without_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_and_dpte_row_without_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
 					v->maximum_vstartup = v->maximum_vstartup - 1;
 
-					if (v->lines_for_meta_pte_without_immediate_flip[k] < 8.0 && v->lines_for_meta_and_dpte_row_without_immediate_flip[k] < 16.0)
+					if (v->lines_for_meta_pte_without_immediate_flip[k] < 32.0 && v->lines_for_meta_and_dpte_row_without_immediate_flip[k] < 16.0)
 						break;
 
 				} while(1);
