@@ -317,7 +317,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
 
-	addColumn(promptColIdx);
+	showColumn(promptColIdx);
 
 	reinit();
 }
@@ -335,21 +335,21 @@ bool ConfigList::menuSkip(struct menu *menu)
 
 void ConfigList::reinit(void)
 {
-	removeColumn(dataColIdx);
-	removeColumn(yesColIdx);
-	removeColumn(modColIdx);
-	removeColumn(noColIdx);
-	removeColumn(nameColIdx);
+	hideColumn(dataColIdx);
+	hideColumn(yesColIdx);
+	hideColumn(modColIdx);
+	hideColumn(noColIdx);
+	hideColumn(nameColIdx);
 
 	if (showName)
-		addColumn(nameColIdx);
+		showColumn(nameColIdx);
 	if (showRange) {
-		addColumn(noColIdx);
-		addColumn(modColIdx);
-		addColumn(yesColIdx);
+		showColumn(noColIdx);
+		showColumn(modColIdx);
+		showColumn(yesColIdx);
 	}
 	if (showData)
-		addColumn(dataColIdx);
+		showColumn(dataColIdx);
 
 	updateListAll();
 }

@@ -88,14 +88,6 @@ public:
 		updateList();
 		updateAll = false;
 	}
-	void addColumn(colIdx idx)
-	{
-		showColumn(idx);
-	}
-	void removeColumn(colIdx idx)
-	{
-		hideColumn(idx);
-	}
 	void setAllOpen(bool open);
 	void setParentMenu(void);
 
