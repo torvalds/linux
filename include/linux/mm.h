@@ -779,6 +779,11 @@ static inline void *kvcalloc(size_t n, size_t size, gfp_t flags)
 extern void kvfree(const void *addr);
 extern void kvfree_sensitive(const void *addr, size_t len);
 
+static inline int head_mapcount(struct page *head)
+{
+	return atomic_read(compound_mapcount_ptr(head)) + 1;
+}
+
 /*
  * Mapcount of compound page as a whole, does not include mapped sub-pages.
  *
@@ -788,7 +793,7 @@ static inline int compound_mapcount(struct page *page)
 {
 	VM_BUG_ON_PAGE(!PageCompound(page), page);
 	page = compound_head(page);
-	return atomic_read(compound_mapcount_ptr(page)) + 1;
+	return head_mapcount(page);
 }
 
 /*
@@ -901,11 +906,16 @@ static inline bool hpage_pincount_available(struct page *page)
 	return PageCompound(page) && compound_order(page) > 1;
 }
 
+static inline int head_pincount(struct page *head)
+{
+	return atomic_read(compound_pincount_ptr(head));
+}
+
 static inline int compound_pincount(struct page *page)
 {
 	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
 	page = compound_head(page);
-	return atomic_read(compound_pincount_ptr(page));
+	return head_pincount(page);
 }
 
 static inline void set_compound_order(struct page *page, unsigned int order)
