@@ -95,17 +95,17 @@ void __dump_page(struct page *page, const char *reason)
 	 */
 	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	pr_warn("page:%px refcount:%d mapcount:%d mapping:%p index:%#lx\n",
+	pr_warn("page:%p refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
 			page, page_ref_count(head), mapcount, mapping,
-			page_to_pgoff(page));
+			page_to_pgoff(page), page_to_pfn(page));
 	if (compound) {
 		if (hpage_pincount_available(page)) {
-			pr_warn("head:%px order:%u compound_mapcount:%d compound_pincount:%d\n",
+			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
 					head, compound_order(head),
 					compound_mapcount(head),
 					compound_pincount(head));
 		} else {
-			pr_warn("head:%px order:%u compound_mapcount:%d\n",
+			pr_warn("head:%p order:%u compound_mapcount:%d\n",
 					head, compound_order(head),
 					compound_mapcount(head));
 		}
