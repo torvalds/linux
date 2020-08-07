@@ -56,7 +56,11 @@ parse_symbol() {
 	if [[ "${cache[$module,$name]+isset}" == "isset" ]]; then
 		local base_addr=${cache[$module,$name]}
 	else
-		local base_addr=$(nm "$objfile" | grep -i ' t ' | awk "/ $name\$/ {print \$1}" | head -n1)
+		local base_addr=$(nm "$objfile" | awk '$3 == "'$name'" && ($2 == "t" || $2 == "T") {print $1; exit}')
+		if [[ $base_addr == "" ]] ; then
+			# address not found
+			return
+		fi
 		cache[$module,$name]="$base_addr"
 	fi
 	# Let's start doing the math to get the exact address into the
