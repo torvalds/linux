@@ -949,7 +949,6 @@ void __init initmem_init(void)
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 		setup_node_data(nid, start_pfn, end_pfn);
-		sparse_memory_present_with_active_regions(nid);
 	}
 
 	sparse_init();

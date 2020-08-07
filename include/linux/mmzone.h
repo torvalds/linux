@@ -839,18 +839,6 @@ static inline struct pglist_data *lruvec_pgdat(struct lruvec *lruvec)
 
 extern unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone_idx);
 
-#ifdef CONFIG_HAVE_MEMORY_PRESENT
-void memory_present(int nid, unsigned long start, unsigned long end);
-#else
-static inline void memory_present(int nid, unsigned long start, unsigned long end) {}
-#endif
-
-#if defined(CONFIG_SPARSEMEM)
-void memblocks_present(void);
-#else
-static inline void memblocks_present(void) {}
-#endif
-
 #ifdef CONFIG_HAVE_MEMORYLESS_NODES
 int local_memory_node(int node_id);
 #else
@@ -1406,8 +1394,6 @@ struct mminit_pfnnid_cache {
 #ifndef early_pfn_valid
 #define early_pfn_valid(pfn)	(1)
 #endif
-
-void memory_present(int nid, unsigned long start, unsigned long end);
 
 /*
  * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we

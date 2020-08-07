@@ -249,7 +249,7 @@ void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
 #endif
 
 /* Record a memory area against a node. */
-void __init memory_present(int nid, unsigned long start, unsigned long end)
+static void __init memory_present(int nid, unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
 
@@ -285,11 +285,11 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 }
 
 /*
- * Mark all memblocks as present using memory_present(). This is a
- * convenience function that is useful for a number of arches
- * to mark all of the systems memory as present during initialization.
+ * Mark all memblocks as present using memory_present().
+ * This is a convenience function that is useful to mark all of the systems
+ * memory as present during initialization.
  */
-void __init memblocks_present(void)
+static void __init memblocks_present(void)
 {
 	struct memblock_region *reg;
 
@@ -574,9 +574,13 @@ failed:
  */
 void __init sparse_init(void)
 {
-	unsigned long pnum_begin = first_present_section_nr();
-	int nid_begin = sparse_early_nid(__nr_to_section(pnum_begin));
-	unsigned long pnum_end, map_count = 1;
+	unsigned long pnum_end, pnum_begin, map_count = 1;
+	int nid_begin;
+
+	memblocks_present();
+
+	pnum_begin = first_present_section_nr();
+	nid_begin = sparse_early_nid(__nr_to_section(pnum_begin));
 
 	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
 	set_pageblock_order();

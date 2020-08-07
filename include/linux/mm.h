@@ -2382,9 +2382,6 @@ static inline unsigned long get_num_physpages(void)
  * for_each_valid_physical_page_range()
  * 	memblock_add_node(base, size, nid)
  * free_area_init(max_zone_pfns);
- *
- * sparse_memory_present_with_active_regions() calls memory_present() for
- * each range when SPARSEMEM is enabled.
  */
 void free_area_init(unsigned long *max_zone_pfn);
 unsigned long node_map_pfn_alignment(void);
@@ -2395,7 +2392,6 @@ extern unsigned long absent_pages_in_range(unsigned long start_pfn,
 extern void get_pfn_range_for_nid(unsigned int nid,
 			unsigned long *start_pfn, unsigned long *end_pfn);
 extern unsigned long find_min_pfn_with_active_regions(void);
-extern void sparse_memory_present_with_active_regions(int nid);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 static inline int early_pfn_to_nid(unsigned long pfn)
