@@ -20,7 +20,6 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/hardirq.h>
-#include <asm/pgalloc.h>
 
 DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);

@@ -17,7 +17,7 @@ void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req)
 {
 	if (vc_req) {
-		kzfree(vc_req->req_data);
+		kfree_sensitive(vc_req->req_data);
 		kfree(vc_req->sgs);
 	}
 }

@@ -72,7 +72,7 @@ static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
 {
 	if (ctx) {
 		aa_put_label(rcu_access_pointer(ctx->label));
-		kzfree(ctx);
+		kfree_sensitive(ctx);
 	}
 }
 

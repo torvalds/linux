@@ -41,6 +41,7 @@
 #include <linux/delayacct.h>
 #include <linux/psi.h>
 #include <linux/ramfs.h>
+#include <linux/page_idle.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -1648,6 +1649,9 @@ EXPORT_SYMBOL(find_lock_entry);
  * * %FGP_FOR_MMAP - The caller wants to do its own locking dance if the
  *   page is already in cache.  If the page was allocated, unlock it before
  *   returning so the caller can do the same dance.
+ * * %FGP_WRITE - The page will be written
+ * * %FGP_NOFS - __GFP_FS will get cleared in gfp mask
+ * * %FGP_NOWAIT - Don't get blocked by page lock
  *
  * If %FGP_LOCK or %FGP_CREAT are specified then the function may sleep even
  * if the %GFP flags specified for %FGP_CREAT are atomic.
@@ -1689,6 +1693,11 @@ repeat:
 
 	if (fgp_flags & FGP_ACCESSED)
 		mark_page_accessed(page);
+	else if (fgp_flags & FGP_WRITE) {
+		/* Clear idle flag for buffer write */
+		if (page_is_idle(page))
+			clear_page_idle(page);
+	}
 
 no_page:
 	if (!page && (fgp_flags & FGP_CREAT)) {

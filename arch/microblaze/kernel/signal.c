@@ -35,7 +35,6 @@
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgalloc.h>
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>

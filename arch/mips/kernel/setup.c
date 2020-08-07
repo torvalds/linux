@@ -371,14 +371,6 @@ static void __init bootmem_init(void)
 #endif
 	}
 
-
-	/*
-	 * In any case the added to the memblock memory regions
-	 * (highmem/lowmem, available/reserved, etc) are considered
-	 * as present, so inform sparsemem about them.
-	 */
-	memblocks_present();
-
 	/*
 	 * Reserve initrd memory if needed.
 	 */

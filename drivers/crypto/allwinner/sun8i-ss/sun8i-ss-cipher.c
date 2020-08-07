@@ -249,7 +249,7 @@ theend_iv:
 			if (rctx->op_dir & SS_DECRYPTION) {
 				memcpy(areq->iv, backup_iv, ivsize);
 				memzero_explicit(backup_iv, ivsize);
-				kzfree(backup_iv);
+				kfree_sensitive(backup_iv);
 			} else {
 				scatterwalk_map_and_copy(areq->iv, areq->dst, offset,
 							 ivsize, 0);

@@ -139,7 +139,7 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 			       CRYPTO_TFM_REQ_MASK);
 	err = crypto_ahash_setkey(ghash, (u8 *)&data->hash, sizeof(be128));
 out:
-	kzfree(data);
+	kfree_sensitive(data);
 	return err;
 }
 

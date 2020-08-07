@@ -26,7 +26,6 @@
 #include <asm/io.h>
 #include <asm/hardirq.h>
 #include <asm/delay.h>
-#include <asm/pgalloc.h>
 
 #define DECLARE_EXPORT(name) extern void name(void); EXPORT_SYMBOL(name)
 

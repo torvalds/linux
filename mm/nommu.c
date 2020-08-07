@@ -1078,7 +1078,6 @@ unsigned long do_mmap(struct file *file,
 			unsigned long len,
 			unsigned long prot,
 			unsigned long flags,
-			vm_flags_t vm_flags,
 			unsigned long pgoff,
 			unsigned long *populate,
 			struct list_head *uf)
@@ -1086,6 +1085,7 @@ unsigned long do_mmap(struct file *file,
 	struct vm_area_struct *vma;
 	struct vm_region *region;
 	struct rb_node *rb;
+	vm_flags_t vm_flags;
 	unsigned long capabilities, result;
 	int ret;
 
@@ -1104,7 +1104,7 @@ unsigned long do_mmap(struct file *file,
 
 	/* we've determined that we can make the mapping, now translate what we
 	 * now know into VMA flags */
-	vm_flags |= determine_vm_flags(file, prot, flags, capabilities);
+	vm_flags = determine_vm_flags(file, prot, flags, capabilities);
 
 	/* we're going to need to record the mapping */
 	region = kmem_cache_zalloc(vm_region_jar, GFP_KERNEL);
@@ -1763,7 +1763,7 @@ EXPORT_SYMBOL_GPL(access_process_vm);
  *
  * Check the shared mappings on an inode on behalf of a shrinking truncate to
  * make sure that that any outstanding VMAs aren't broken and then shrink the
- * vm_regions that extend that beyond so that do_mmap_pgoff() doesn't
+ * vm_regions that extend that beyond so that do_mmap() doesn't
  * automatically grant mappings that are too large.
  */
 int nommu_shrink_inode_mappings(struct inode *inode, size_t size,

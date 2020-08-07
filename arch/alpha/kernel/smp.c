@@ -36,7 +36,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 

@@ -22,7 +22,6 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include <asm/page-states.h>
-#include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/io.h>
 #include <asm/ptrace.h>

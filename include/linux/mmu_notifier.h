@@ -521,6 +521,16 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 	range->flags = flags;
 }
 
+static inline void mmu_notifier_range_init_migrate(
+			struct mmu_notifier_range *range, unsigned int flags,
+			struct vm_area_struct *vma, struct mm_struct *mm,
+			unsigned long start, unsigned long end, void *pgmap)
+{
+	mmu_notifier_range_init(range, MMU_NOTIFY_MIGRATE, flags, vma, mm,
+				start, end);
+	range->migrate_pgmap_owner = pgmap;
+}
+
 #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
 ({									\
 	int __young;							\
@@ -644,6 +654,9 @@ static inline void _mmu_notifier_range_init(struct mmu_notifier_range *range,
 }
 
 #define mmu_notifier_range_init(range,event,flags,vma,mm,start,end)  \
+	_mmu_notifier_range_init(range, start, end)
+#define mmu_notifier_range_init_migrate(range, flags, vma, mm, start, end, \
+					pgmap) \
 	_mmu_notifier_range_init(range, start, end)
 
 static inline bool

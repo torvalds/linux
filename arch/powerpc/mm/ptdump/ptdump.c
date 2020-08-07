@@ -21,7 +21,6 @@
 #include <asm/fixmap.h>
 #include <linux/const.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/hugetlb.h>
 
 #include <mm/mmu_decl.h>

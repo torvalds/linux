@@ -20,7 +20,7 @@ position p;
 (
 * kfree@p(&e->f)
 |
-* kzfree@p(&e->f)
+* kfree_sensitive@p(&e->f)
 )
 
 @script:python depends on org@

@@ -14,7 +14,6 @@
 #include <linux/signal.h>
 #include <linux/uaccess.h>
 
-#include <asm/pgalloc.h>
 #include <asm/ptrace.h>
 #include <asm/tlbflush.h>
 

@@ -689,11 +689,6 @@ void __init paging_init(void)
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 
-	/*
-	 * Mark all memblocks as present for sparsemem using
-	 * memory_present() and then initialize sparsemem.
-	 */
-	memblocks_present();
 	sparse_init();
 	parisc_bootmem_free();
 }

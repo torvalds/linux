@@ -33,7 +33,7 @@ static void seqiv_aead_encrypt_complete2(struct aead_request *req, int err)
 	memcpy(req->iv, subreq->iv, crypto_aead_ivsize(geniv));
 
 out:
-	kzfree(subreq->iv);
+	kfree_sensitive(subreq->iv);
 }
 
 static void seqiv_aead_encrypt_complete(struct crypto_async_request *base,

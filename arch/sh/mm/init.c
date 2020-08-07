@@ -27,6 +27,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/cache.h>
+#include <asm/pgalloc.h>
 #include <linux/sizes.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
@@ -240,12 +241,6 @@ static void __init do_init_bootmem(void)
 
 	plat_mem_setup();
 
-	for_each_memblock(memory, reg) {
-		int nid = memblock_get_region_node(reg);
-
-		memory_present(nid, memblock_region_memory_base_pfn(reg),
-			memblock_region_memory_end_pfn(reg));
-	}
 	sparse_init();
 }
 

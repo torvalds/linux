@@ -20,6 +20,7 @@
 #include <asm/mmu_context.h>
 #include <asm/mcf_pgalloc.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 #define KMAPAREA(x)	((x >= VMALLOC_START) && (x < KMAP_END))
 

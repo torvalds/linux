@@ -62,7 +62,6 @@
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
-#include <asm/pgalloc.h>
 #include <asm/proto.h>
 #else
 #include <asm/processor-flags.h>

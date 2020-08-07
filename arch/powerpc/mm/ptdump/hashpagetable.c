@@ -17,10 +17,10 @@
 #include <linux/seq_file.h>
 #include <linux/const.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/plpar_wrappers.h>
 #include <linux/memblock.h>
 #include <asm/firmware.h>
+#include <asm/pgalloc.h>
 
 struct pg_state {
 	struct seq_file *seq;

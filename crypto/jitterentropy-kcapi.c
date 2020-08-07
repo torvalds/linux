@@ -57,7 +57,7 @@ void *jent_zalloc(unsigned int len)
 
 void jent_zfree(void *ptr)
 {
-	kzfree(ptr);
+	kfree_sensitive(ptr);
 }
 
 int jent_fips_enabled(void)

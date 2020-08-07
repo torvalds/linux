@@ -430,11 +430,9 @@ void __init bootmem_init(void)
 #endif
 
 	/*
-	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
-	 * done after the fixed reservations.
+	 * sparse_init() tries to allocate memory from memblock, so must be
+	 * done after the fixed reservations
 	 */
-	memblocks_present();
-
 	sparse_init();
 	zone_sizes_init(min, max);
 

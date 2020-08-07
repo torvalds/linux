@@ -196,23 +196,6 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	return pgd;
 }
 
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long) pgd);
-}
-
-#ifdef CONFIG_3_LEVEL_PGTABLES
-pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	pmd_t *pmd = (pmd_t *) __get_free_page(GFP_KERNEL);
-
-	if (pmd)
-		memset(pmd, 0, PAGE_SIZE);
-
-	return pmd;
-}
-#endif
-
 void *uml_kmalloc(int size, int flags)
 {
 	return kmalloc(size, flags);

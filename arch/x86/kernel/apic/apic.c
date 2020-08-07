@@ -40,7 +40,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
-#include <asm/pgalloc.h>
 #include <linux/atomic.h>
 #include <asm/mpspec.h>
 #include <asm/i8259.h>

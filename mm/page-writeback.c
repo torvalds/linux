@@ -2076,13 +2076,11 @@ static int page_writeback_cpu_online(unsigned int cpu)
  * Called early on to tune the page writeback dirty limits.
  *
  * We used to scale dirty pages according to how total memory
- * related to pages that could be allocated for buffers (by
- * comparing nr_free_buffer_pages() to vm_total_pages.
+ * related to pages that could be allocated for buffers.
  *
  * However, that was when we used "dirty_ratio" to scale with
  * all memory, and we don't do that any more. "dirty_ratio"
- * is now applied to total non-HIGHPAGE memory (by subtracting
- * totalhigh_pages from vm_total_pages), and as such we can't
+ * is now applied to total non-HIGHPAGE memory, and as such we can't
  * get into the old insane situation any more where we had
  * large amounts of dirty pages compared to a small amount of
  * non-HIGHMEM memory.

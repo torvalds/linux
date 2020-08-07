@@ -69,7 +69,7 @@ static void atmel_ecdh_done(struct atmel_i2c_work_data *work_data, void *areq,
 
 	/* fall through */
 free_work_data:
-	kzfree(work_data);
+	kfree_sensitive(work_data);
 	kpp_request_complete(req, status);
 }
 

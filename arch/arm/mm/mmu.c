@@ -29,6 +29,7 @@
 #include <asm/traps.h>
 #include <asm/procinfo.h>
 #include <asm/memory.h>
+#include <asm/pgalloc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

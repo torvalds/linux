@@ -131,7 +131,7 @@ static void lib80211_tkip_deinit(void *priv)
 		crypto_free_shash(_priv->tx_tfm_michael);
 		crypto_free_shash(_priv->rx_tfm_michael);
 	}
-	kzfree(priv);
+	kfree_sensitive(priv);
 }
 
 static inline u16 RotR1(u16 val)

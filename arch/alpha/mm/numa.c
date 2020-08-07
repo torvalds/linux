@@ -17,7 +17,6 @@
 #include <linux/module.h>
 
 #include <asm/hwrpb.h>
-#include <asm/pgalloc.h>
 #include <asm/sections.h>
 
 pg_data_t node_data[MAX_NUMNODES];

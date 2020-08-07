@@ -32,6 +32,7 @@ TARGETS += lkdtm
 TARGETS += membarrier
 TARGETS += memfd
 TARGETS += memory-hotplug
+TARGETS += mincore
 TARGETS += mount
 TARGETS += mqueue
 TARGETS += net

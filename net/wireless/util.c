@@ -871,7 +871,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 		}
 	}
 
-	kzfree(wdev->connect_keys);
+	kfree_sensitive(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 }
 

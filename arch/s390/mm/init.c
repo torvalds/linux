@@ -115,7 +115,6 @@ void __init paging_init(void)
 	__load_psw_mask(psw.mask);
 	kasan_free_early_identity();
 
-	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	zone_dma_bits = 31;
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));

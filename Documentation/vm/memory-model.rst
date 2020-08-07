@@ -141,11 +141,8 @@ sections:
   `mem_section` objects and the number of rows is calculated to fit
   all the memory sections.
 
-The architecture setup code should call :c:func:`memory_present` for
-each active memory range or use :c:func:`memblocks_present` or
-:c:func:`sparse_memory_present_with_active_regions` wrappers to
-initialize the memory sections. Next, the actual memory maps should be
-set up using :c:func:`sparse_init`.
+The architecture setup code should call sparse_init() to
+initialize the memory sections and the memory maps.
 
 With SPARSEMEM there are two possible ways to convert a PFN to the
 corresponding `struct page` - a "classic sparse" and "sparse
@@ -178,7 +175,7 @@ for persistent memory devices in pre-allocated storage on those
 devices. This storage is represented with :c:type:`struct vmem_altmap`
 that is eventually passed to vmemmap_populate() through a long chain
 of function calls. The vmemmap_populate() implementation may use the
-`vmem_altmap` along with :c:func:`altmap_alloc_block_buf` helper to
+`vmem_altmap` along with :c:func:`vmemmap_alloc_block_buf` helper to
 allocate memory map on the persistent memory device.
 
 ZONE_DEVICE

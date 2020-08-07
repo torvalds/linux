@@ -2251,7 +2251,7 @@ static void gf_mulx(u8 *pad)
 
 static void aes_encrypt_deinit(void *ctx)
 {
-	kzfree(ctx);
+	kfree_sensitive(ctx);
 }
 
 
