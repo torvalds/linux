@@ -81,6 +81,14 @@ static u64 get_ext_regs_value(int idx)
 		return mfspr(SPRN_MMCR1);
 	case PERF_REG_POWERPC_MMCR2:
 		return mfspr(SPRN_MMCR2);
+#ifdef CONFIG_PPC64
+	case PERF_REG_POWERPC_MMCR3:
+		return mfspr(SPRN_MMCR3);
+	case PERF_REG_POWERPC_SIER2:
+		return mfspr(SPRN_SIER2);
+	case PERF_REG_POWERPC_SIER3:
+		return mfspr(SPRN_SIER3);
+#endif
 	default: return 0;
 	}
 }
@@ -89,7 +97,9 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
 	u64 perf_reg_extended_max = PERF_REG_POWERPC_MAX;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		perf_reg_extended_max = PERF_REG_MAX_ISA_31;
+	else if (cpu_has_feature(CPU_FTR_ARCH_300))
 		perf_reg_extended_max = PERF_REG_MAX_ISA_300;
 
 	if (idx == PERF_REG_POWERPC_SIER &&
