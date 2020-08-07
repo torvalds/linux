@@ -116,6 +116,11 @@ enum
     RGA2_FORMAT_YCrCb_420_SP_10B = 0x21,
     RGA2_FORMAT_YCbCr_422_SP_10B = 0x22,
     RGA2_FORMAT_YCrCb_422_SP_10B = 0x23,
+
+	RGA2_FORMAT_BPP_1            = 0x24,
+	RGA2_FORMAT_BPP_2            = 0x25,
+	RGA2_FORMAT_BPP_4            = 0x26,
+	RGA2_FORMAT_BPP_8            = 0x27
 };
 
 typedef struct mdp_img
@@ -548,6 +553,7 @@ struct rga2_req
 	struct dma_buf_attachment *attach_src0;
 	struct dma_buf_attachment *attach_src1;
 	struct dma_buf_attachment *attach_dst;
+	struct dma_buf_attachment *attach_els;
 };
 
 struct rga2_mmu_buf_t {

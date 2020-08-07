@@ -295,6 +295,14 @@ static const char *rga2_get_format_name(uint32_t format)
 		return "YCbCr422SP10B";
 	case RGA2_FORMAT_YCrCb_422_SP_10B:
 		return "YCrCb422SP10B";
+	case RGA2_FORMAT_BPP_1:
+		return "BPP1";
+	case RGA2_FORMAT_BPP_2:
+		return "BPP2";
+	case RGA2_FORMAT_BPP_4:
+		return "BPP4";
+	case RGA2_FORMAT_BPP_8:
+		return "BPP8";
 	default:
 		return "UNF";
 	}
@@ -1175,6 +1183,7 @@ static int rga2_get_dma_buf(struct rga2_req *req)
 	req->attach_src0 = NULL;
 	req->attach_dst = NULL;
 	req->attach_src1 = NULL;
+	req->attach_els = NULL;
 	mmu_flag = req->mmu_info.src0_mmu_flag;
 	ret = rga2_get_img_info(&req->src, mmu_flag, &req->sg_src0,
 				&req->attach_src0);
@@ -1199,8 +1208,24 @@ static int rga2_get_dma_buf(struct rga2_req *req)
 		goto err_src1;
 	}
 
+	mmu_flag = req->mmu_info.els_mmu_flag;
+	ret = rga2_get_img_info(&req->pat, mmu_flag, &req->sg_els,
+							&req->attach_els);
+	if (ret) {
+		pr_err("els:rga2_get_img_info fail\n");
+		goto err_els;
+	}
+
 	return ret;
 
+err_els:
+	if (req->sg_src1 && req->attach_src1) {
+		dma_buf_unmap_attachment(req->attach_src1,
+			req->sg_src1, DMA_BIDIRECTIONAL);
+		dma_buf = req->attach_src1->dmabuf;
+		dma_buf_detach(dma_buf, req->attach_src1);
+		dma_buf_put(dma_buf);
+	}
 err_src1:
 	if (req->sg_dst && req->attach_dst) {
 		dma_buf_unmap_attachment(req->attach_dst,

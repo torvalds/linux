@@ -696,7 +696,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
     uint32_t stride;
 
     uint8_t shift;
-    uint16_t sw, byte_num;
+    uint32_t sw, byte_num;
 
     shift = 3 - (req->palette_mode & 3);
     sw = req->src.vir_w*req->src.vir_h;
@@ -710,6 +710,14 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
 
     do {
         if (req->mmu_info.src0_mmu_flag) {
+            if (req->mmu_info.els_mmu_flag & 1) {
+                req->mmu_info.src0_mmu_flag = 0;
+                req->mmu_info.src1_mmu_flag = 0;
+            } else {
+                req->mmu_info.els_mmu_flag = req->mmu_info.src0_mmu_flag;
+                req->mmu_info.src0_mmu_flag = 0;
+            }
+
             SrcMemSize = rga2_mem_size_cal(req->src.yrgb_addr, stride, &SrcStart);
             if(SrcMemSize == 0) {
                 return -EINVAL;
@@ -748,8 +756,19 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
         mutex_unlock(&rga2_service.lock);
 
         if(SrcMemSize) {
-		ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
-					 SrcStart, SrcMemSize, 0);
+            if (req->sg_src0) {
+                ret = rga2_MapION(req->sg_src0,
+                &MMU_Base[0], SrcMemSize);
+            } else {
+                ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
+                SrcStart, SrcMemSize, 0);
+#if RGA2_DEBUGFS
+                if (RGA2_CHECK_MODE)
+                rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
+                req->src.vir_h, req->src.format,
+                1);
+#endif
+            }
             if (ret < 0) {
                 pr_err("rga2 map src0 memory failed\n");
                 status = ret;
@@ -757,19 +776,29 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
             }
 
             /* change the buf address in req struct */
-            req->mmu_info.src0_base_addr = (((unsigned long)MMU_Base_phys));
+            req->mmu_info.els_base_addr = (((unsigned long)MMU_Base_phys));
             req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
         }
 
         if(DstMemSize) {
-		ret = rga2_MapUserMemory(&pages[0], MMU_Base + SrcMemSize,
-					 DstStart, DstMemSize, 1);
+            if (req->sg_dst) {
+                ret = rga2_MapION(req->sg_dst,
+                MMU_Base + SrcMemSize, DstMemSize);
+            } else {
+                ret = rga2_MapUserMemory(&pages[0], MMU_Base + SrcMemSize,
+                DstStart, DstMemSize, 1);
+#if RGA2_DEBUGFS
+                if (RGA2_CHECK_MODE)
+                rga2_UserMemory_cheeck(&pages[0], req->dst.vir_w,
+                req->dst.vir_h, req->dst.format,
+                1);
+#endif
+            }
             if (ret < 0) {
                 pr_err("rga2 map dst memory failed\n");
                 status = ret;
                 break;
             }
-
             /* change the buf address in req struct */
             req->mmu_info.dst_base_addr  = ((unsigned long)(MMU_Base_phys + SrcMemSize));
             req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK));
@@ -859,24 +888,34 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
 
 static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct rga2_req *req)
 {
-    int SrcMemSize;
-    unsigned long SrcStart;
+    int LutMemSize;
+    unsigned long LutStart;
     struct page **pages = NULL;
     uint32_t AllSize;
     uint32_t *MMU_Base, *MMU_Base_phys;
     int ret, status;
 
     MMU_Base = NULL;
+    LutMemSize = 0;
+    LutStart = 0;
 
     do {
-        /* cal src buf mmu info */
-        SrcMemSize = rga2_mem_size_cal(req->pat.yrgb_addr, req->pat.vir_w * req->pat.vir_h, &SrcStart);
-        if(SrcMemSize == 0) {
-            return -EINVAL;
+        /* cal lut buf mmu info */
+        if (req->mmu_info.els_mmu_flag & 1) {
+            req->mmu_info.src0_mmu_flag = req->mmu_info.src0_mmu_flag == 1 ? 0 : req->mmu_info.src0_mmu_flag;
+            req->mmu_info.src1_mmu_flag = req->mmu_info.src1_mmu_flag == 1 ? 0 : req->mmu_info.src1_mmu_flag;
+            req->mmu_info.dst_mmu_flag = req->mmu_info.dst_mmu_flag == 1 ? 0 : req->mmu_info.dst_mmu_flag;
+
+            LutMemSize = rga2_buf_size_cal(req->pat.yrgb_addr, req->pat.uv_addr, req->pat.v_addr,
+                                            req->pat.format, req->pat.vir_w, req->pat.vir_h,
+                                            &LutStart);
+            if(LutMemSize == 0) {
+                return -EINVAL;
+            }
         }
 
-        SrcMemSize = (SrcMemSize + 15) & (~15);
-        AllSize = SrcMemSize;
+        LutMemSize = (LutMemSize + 15) & (~15);
+        AllSize = LutMemSize;
 
         if (rga2_mmu_buf_get_try(&rga2_mmu_buf, AllSize)) {
             pr_err("RGA2 Get MMU mem failed\n");
@@ -884,16 +923,25 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
             break;
         }
 
+        pages = rga2_mmu_buf.pages;
+        if (pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed\n");
+            return -EINVAL;
+        }
+
         mutex_lock(&rga2_service.lock);
         MMU_Base = rga2_mmu_buf.buf_virtual + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
         MMU_Base_phys = rga2_mmu_buf.buf + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
         mutex_unlock(&rga2_service.lock);
 
-        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-
-        if(SrcMemSize) {
-		ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
-					 SrcStart, SrcMemSize, 0);
+        if (LutMemSize) {
+            if (req->sg_els) {
+                ret = rga2_MapION(req->sg_els,
+                &MMU_Base[0], LutMemSize);
+            } else {
+                ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
+                LutStart, LutMemSize, 0);
+            }
             if (ret < 0) {
                 pr_err("rga2 map palette memory failed\n");
                 status = ret;
@@ -901,7 +949,8 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
             }
 
             /* change the buf address in req struct */
-            req->mmu_info.src0_base_addr = (((unsigned long)MMU_Base_phys));
+            req->mmu_info.els_base_addr = (((unsigned long)MMU_Base_phys));
+
             req->pat.yrgb_addr = (req->pat.yrgb_addr & (~PAGE_MASK));
         }
 

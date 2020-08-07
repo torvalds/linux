@@ -957,6 +957,11 @@ static void format_name_convert(uint32_t *df, uint32_t sf)
     RK_FORMAT_YCrCb_420_SP = 0xe,
     RK_FORMAT_YCrCb_420_P  = 0xf,
 
+    RK_FORMAT_BPP1         = 0x10,
+    RK_FORMAT_BPP2         = 0x11,
+    RK_FORMAT_BPP4         = 0x12,
+    RK_FORMAT_BPP8         = 0x13,
+
     RGA2_FORMAT_RGBA_8888    = 0x0,
     RGA2_FORMAT_RGBX_8888    = 0x1,
     RGA2_FORMAT_RGB_888      = 0x2,
@@ -996,6 +1001,11 @@ static void format_name_convert(uint32_t *df, uint32_t sf)
         case 0xd: *df = RGA2_FORMAT_YCrCb_422_P; break;
         case 0xe: *df = RGA2_FORMAT_YCrCb_420_SP; break;
         case 0xf: *df = RGA2_FORMAT_YCrCb_420_P; break;
+
+        case 0x10: *df = RGA2_FORMAT_BPP_1; break;
+        case 0x11: *df = RGA2_FORMAT_BPP_2; break;
+        case 0x12: *df = RGA2_FORMAT_BPP_4; break;
+        case 0x13: *df = RGA2_FORMAT_BPP_8; break;
 
 	case 0x18: *df = RGA2_FORMAT_YVYU_422; break;
 	case 0x19: *df = RGA2_FORMAT_YVYU_420; break;
