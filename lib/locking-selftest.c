@@ -400,6 +400,49 @@ static void rwsem_ABBA1(void)
  * read_lock(A)
  * spin_lock(B)
  *		spin_lock(B)
+ *		write_lock(A)
+ *
+ * This test case is aimed at poking whether the chain cache prevents us from
+ * detecting a read-lock/lock-write deadlock: if the chain cache doesn't differ
+ * read/write locks, the following case may happen
+ *
+ * 	{ read_lock(A)->lock(B) dependency exists }
+ *
+ * 	P0:
+ * 	lock(B);
+ * 	read_lock(A);
+ *
+ *	{ Not a deadlock, B -> A is added in the chain cache }
+ *
+ *	P1:
+ *	lock(B);
+ *	write_lock(A);
+ *
+ *	{ B->A found in chain cache, not reported as a deadlock }
+ *
+ */
+static void rlock_chaincache_ABBA1(void)
+{
+	RL(X1);
+	L(Y1);
+	U(Y1);
+	RU(X1);
+
+	L(Y1);
+	RL(X1);
+	RU(X1);
+	U(Y1);
+
+	L(Y1);
+	WL(X1);
+	WU(X1);
+	U(Y1); // should fail
+}
+
+/*
+ * read_lock(A)
+ * spin_lock(B)
+ *		spin_lock(B)
  *		read_lock(A)
  */
 static void rlock_ABBA2(void)
@@ -2061,6 +2104,10 @@ void locking_selftest(void)
 	dotest(rlock_ABBA3, FAILURE, LOCKTYPE_RWLOCK);
 	pr_cont("             |");
 	dotest(rwsem_ABBA3, FAILURE, LOCKTYPE_RWSEM);
+
+	print_testname("chain cached mixed R-L/L-W ABBA");
+	pr_cont("             |");
+	dotest(rlock_chaincache_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
 
 	printk("  --------------------------------------------------------------------------\n");
 
