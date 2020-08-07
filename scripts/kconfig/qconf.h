@@ -172,14 +172,6 @@ public:
 	{
 		return Parent::text(idx);
 	}
-	void setPixmap(colIdx idx, const QIcon &icon)
-	{
-		Parent::setIcon(idx, icon);
-	}
-	const QIcon pixmap(colIdx idx) const
-	{
-		return icon(idx);
-	}
 	// TODO: Implement paintCell
 
 	ConfigItem* nextItem;
