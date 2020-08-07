@@ -120,6 +120,8 @@ struct vadc_linear_graph {
  *	SMB1398 temperature.
  * SCALE_HW_CALIB_PM7_SMB_TEMP: Returns result in millidegrees for PMIC7
  *	SMB139x temperature.
+ * SCALE_HW_CALIB_PM7_CHG_TEMP: Returns result in millidegrees for PMIC7
+ *	charger temperature.
  */
 enum vadc_scale_fn_type {
 	SCALE_DEFAULT = 0,
@@ -140,6 +142,7 @@ enum vadc_scale_fn_type {
 	SCALE_HW_CALIB_BATT_THERM_400K,
 	SCALE_HW_CALIB_PM5_SMB1398_TEMP,
 	SCALE_HW_CALIB_PM7_SMB_TEMP,
+	SCALE_HW_CALIB_PM7_CHG_TEMP,
 	SCALE_HW_CALIB_INVALID,
 };
 
