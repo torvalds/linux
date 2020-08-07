@@ -402,7 +402,7 @@ void dynevent_arg_init(struct dynevent_arg *arg,
  * whitespace, all followed by a separator, if applicable.  After the
  * first arg string is successfully appended to the command string,
  * the optional @operator is appended, followed by the second arg and
- * and optional @separator.  If no separator was specified when
+ * optional @separator.  If no separator was specified when
  * initializing the arg, a space will be appended.
  */
 void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,

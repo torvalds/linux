@@ -2402,7 +2402,7 @@ struct ftrace_ops direct_ops = {
  *
  * If the record has the FTRACE_FL_REGS set, that means that it
  * wants to convert to a callback that saves all regs. If FTRACE_FL_REGS
- * is not not set, then it wants to convert to the normal callback.
+ * is not set, then it wants to convert to the normal callback.
  *
  * Returns the address of the trampoline to set to
  */

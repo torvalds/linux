@@ -9287,7 +9287,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	}
 
 	/*
-	 * We need to stop all tracing on all CPUS to read the
+	 * We need to stop all tracing on all CPUS to read
 	 * the next buffer. This is a bit expensive, but is
 	 * not done often. We fill all what we can read,
 	 * and then release the locks again.

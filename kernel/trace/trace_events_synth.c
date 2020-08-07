@@ -1211,7 +1211,7 @@ __synth_event_trace_start(struct trace_event_file *file,
 	 * ENABLED bit is set (which attaches the probe thus allowing
 	 * this code to be called, etc).  Because this is called
 	 * directly by the user, we don't have that but we still need
-	 * to honor not logging when disabled.  For the the iterated
+	 * to honor not logging when disabled.  For the iterated
 	 * trace case, we save the enabed state upon start and just
 	 * ignore the following data calls.
 	 */
