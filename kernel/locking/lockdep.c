@@ -1421,23 +1421,19 @@ static inline unsigned int  __cq_get_elem_count(struct circular_queue *cq)
 	return (cq->rear - cq->front) & CQ_MASK;
 }
 
-static inline void mark_lock_accessed(struct lock_list *lock,
-					struct lock_list *parent)
+static inline void mark_lock_accessed(struct lock_list *lock)
 {
-	unsigned long nr;
-
-	nr = lock - list_entries;
-	WARN_ON(nr >= ARRAY_SIZE(list_entries)); /* Out-of-bounds, input fail */
-	lock->parent = parent;
 	lock->class->dep_gen_id = lockdep_dependency_gen_id;
+}
+
+static inline void visit_lock_entry(struct lock_list *lock,
+				    struct lock_list *parent)
+{
+	lock->parent = parent;
 }
 
 static inline unsigned long lock_accessed(struct lock_list *lock)
 {
-	unsigned long nr;
-
-	nr = lock - list_entries;
-	WARN_ON(nr >= ARRAY_SIZE(list_entries)); /* Out-of-bounds, input fail */
 	return lock->class->dep_gen_id == lockdep_dependency_gen_id;
 }
 
@@ -1540,26 +1536,39 @@ static enum bfs_result __bfs(struct lock_list *source_entry,
 			goto exit;
 		}
 
+		/*
+		 * If we have visited all the dependencies from this @lock to
+		 * others (iow, if we have visited all lock_list entries in
+		 * @lock->class->locks_{after,before}) we skip, otherwise go
+		 * and visit all the dependencies in the list and mark this
+		 * list accessed.
+		 */
+		if (lock_accessed(lock))
+			continue;
+		else
+			mark_lock_accessed(lock);
+
 		head = get_dep_list(lock, offset);
 
-		list_for_each_entry_rcu(entry, head, entry) {
-			if (!lock_accessed(entry)) {
-				unsigned int cq_depth;
-				mark_lock_accessed(entry, lock);
-				if (match(entry, data)) {
-					*target_entry = entry;
-					ret = BFS_RMATCH;
-					goto exit;
-				}
+		DEBUG_LOCKS_WARN_ON(!irqs_disabled());
 
-				if (__cq_enqueue(cq, entry)) {
-					ret = BFS_EQUEUEFULL;
-					goto exit;
-				}
-				cq_depth = __cq_get_elem_count(cq);
-				if (max_bfs_queue_depth < cq_depth)
-					max_bfs_queue_depth = cq_depth;
+		list_for_each_entry_rcu(entry, head, entry) {
+			unsigned int cq_depth;
+
+			visit_lock_entry(entry, lock);
+			if (match(entry, data)) {
+				*target_entry = entry;
+				ret = BFS_RMATCH;
+				goto exit;
 			}
+
+			if (__cq_enqueue(cq, entry)) {
+				ret = BFS_EQUEUEFULL;
+				goto exit;
+			}
+			cq_depth = __cq_get_elem_count(cq);
+			if (max_bfs_queue_depth < cq_depth)
+				max_bfs_queue_depth = cq_depth;
 		}
 	}
 exit:
