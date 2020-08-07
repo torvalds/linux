@@ -2100,22 +2100,72 @@ check_redundant(struct held_lock *src, struct held_lock *target)
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 
+/*
+ * Forwards and backwards subgraph searching, for the purposes of
+ * proving that two subgraphs can be connected by a new dependency
+ * without creating any illegal irq-safe -> irq-unsafe lock dependency.
+ *
+ * A irq safe->unsafe deadlock happens with the following conditions:
+ *
+ * 1) We have a strong dependency path A -> ... -> B
+ *
+ * 2) and we have ENABLED_IRQ usage of B and USED_IN_IRQ usage of A, therefore
+ *    irq can create a new dependency B -> A (consider the case that a holder
+ *    of B gets interrupted by an irq whose handler will try to acquire A).
+ *
+ * 3) the dependency circle A -> ... -> B -> A we get from 1) and 2) is a
+ *    strong circle:
+ *
+ *      For the usage bits of B:
+ *        a) if A -> B is -(*N)->, then B -> A could be any type, so any
+ *           ENABLED_IRQ usage suffices.
+ *        b) if A -> B is -(*R)->, then B -> A must be -(E*)->, so only
+ *           ENABLED_IRQ_*_READ usage suffices.
+ *
+ *      For the usage bits of A:
+ *        c) if A -> B is -(E*)->, then B -> A could be any type, so any
+ *           USED_IN_IRQ usage suffices.
+ *        d) if A -> B is -(S*)->, then B -> A must be -(*N)->, so only
+ *           USED_IN_IRQ_*_READ usage suffices.
+ */
+
+/*
+ * There is a strong dependency path in the dependency graph: A -> B, and now
+ * we need to decide which usage bit of A should be accumulated to detect
+ * safe->unsafe bugs.
+ *
+ * Note that usage_accumulate() is used in backwards search, so ->only_xr
+ * stands for whether A -> B only has -(S*)-> (in this case ->only_xr is true).
+ *
+ * As above, if only_xr is false, which means A -> B has -(E*)-> dependency
+ * path, any usage of A should be considered. Otherwise, we should only
+ * consider _READ usage.
+ */
 static inline bool usage_accumulate(struct lock_list *entry, void *mask)
 {
-	*(unsigned long *)mask |= entry->class->usage_mask;
+	if (!entry->only_xr)
+		*(unsigned long *)mask |= entry->class->usage_mask;
+	else /* Mask out _READ usage bits */
+		*(unsigned long *)mask |= (entry->class->usage_mask & LOCKF_IRQ);
 
 	return false;
 }
 
 /*
- * Forwards and backwards subgraph searching, for the purposes of
- * proving that two subgraphs can be connected by a new dependency
- * without creating any illegal irq-safe -> irq-unsafe lock dependency.
+ * There is a strong dependency path in the dependency graph: A -> B, and now
+ * we need to decide which usage bit of B conflicts with the usage bits of A,
+ * i.e. which usage bit of B may introduce safe->unsafe deadlocks.
+ *
+ * As above, if only_xr is false, which means A -> B has -(*N)-> dependency
+ * path, any usage of B should be considered. Otherwise, we should only
+ * consider _READ usage.
  */
-
 static inline bool usage_match(struct lock_list *entry, void *mask)
 {
-	return !!(entry->class->usage_mask & *(unsigned long *)mask);
+	if (!entry->only_xr)
+		return !!(entry->class->usage_mask & *(unsigned long *)mask);
+	else /* Mask out _READ usage bits */
+		return !!((entry->class->usage_mask & LOCKF_IRQ) & *(unsigned long *)mask);
 }
 
 /*
@@ -2406,17 +2456,39 @@ static unsigned long invert_dir_mask(unsigned long mask)
 }
 
 /*
- * As above, we clear bitnr0 (LOCK_*_READ off) with bitmask ops. First, for all
- * bits with bitnr0 set (LOCK_*_READ), add those with bitnr0 cleared (LOCK_*).
- * And then mask out all bitnr0.
+ * Note that a LOCK_ENABLED_IRQ_*_READ usage and a LOCK_USED_IN_IRQ_*_READ
+ * usage may cause deadlock too, for example:
+ *
+ * P1				P2
+ * <irq disabled>
+ * write_lock(l1);		<irq enabled>
+ *				read_lock(l2);
+ * write_lock(l2);
+ * 				<in irq>
+ * 				read_lock(l1);
+ *
+ * , in above case, l1 will be marked as LOCK_USED_IN_IRQ_HARDIRQ_READ and l2
+ * will marked as LOCK_ENABLE_IRQ_HARDIRQ_READ, and this is a possible
+ * deadlock.
+ *
+ * In fact, all of the following cases may cause deadlocks:
+ *
+ * 	 LOCK_USED_IN_IRQ_* -> LOCK_ENABLED_IRQ_*
+ * 	 LOCK_USED_IN_IRQ_*_READ -> LOCK_ENABLED_IRQ_*
+ * 	 LOCK_USED_IN_IRQ_* -> LOCK_ENABLED_IRQ_*_READ
+ * 	 LOCK_USED_IN_IRQ_*_READ -> LOCK_ENABLED_IRQ_*_READ
+ *
+ * As a result, to calculate the "exclusive mask", first we invert the
+ * direction (USED_IN/ENABLED) of the original mask, and 1) for all bits with
+ * bitnr0 set (LOCK_*_READ), add those with bitnr0 cleared (LOCK_*). 2) for all
+ * bits with bitnr0 cleared (LOCK_*_READ), add those with bitnr0 set (LOCK_*).
  */
 static unsigned long exclusive_mask(unsigned long mask)
 {
 	unsigned long excl = invert_dir_mask(mask);
 
-	/* Strip read */
 	excl |= (excl & LOCKF_IRQ_READ) >> LOCK_USAGE_READ_MASK;
-	excl &= ~LOCKF_IRQ_READ;
+	excl |= (excl & LOCKF_IRQ) << LOCK_USAGE_READ_MASK;
 
 	return excl;
 }
@@ -2433,6 +2505,7 @@ static unsigned long original_mask(unsigned long mask)
 	unsigned long excl = invert_dir_mask(mask);
 
 	/* Include read in existing usages */
+	excl |= (excl & LOCKF_IRQ_READ) >> LOCK_USAGE_READ_MASK;
 	excl |= (excl & LOCKF_IRQ) << LOCK_USAGE_READ_MASK;
 
 	return excl;
@@ -2447,13 +2520,23 @@ static int find_exclusive_match(unsigned long mask,
 				enum lock_usage_bit *bitp,
 				enum lock_usage_bit *excl_bitp)
 {
-	int bit, excl;
+	int bit, excl, excl_read;
 
 	for_each_set_bit(bit, &mask, LOCK_USED) {
+		/*
+		 * exclusive_bit() strips the read bit, however,
+		 * LOCK_ENABLED_IRQ_*_READ may cause deadlocks too, so we need
+		 * to search excl | LOCK_USAGE_READ_MASK as well.
+		 */
 		excl = exclusive_bit(bit);
+		excl_read = excl | LOCK_USAGE_READ_MASK;
 		if (excl_mask & lock_flag(excl)) {
 			*bitp = bit;
 			*excl_bitp = excl;
+			return 0;
+		} else if (excl_mask & lock_flag(excl_read)) {
+			*bitp = bit;
+			*excl_bitp = excl_read;
 			return 0;
 		}
 	}
@@ -2480,8 +2563,7 @@ static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
 	 * Step 1: gather all hard/soft IRQs usages backward in an
 	 * accumulated usage mask.
 	 */
-	this.parent = NULL;
-	this.class = hlock_class(prev);
+	bfs_init_rootb(&this, prev);
 
 	ret = __bfs_backwards(&this, &usage_mask, usage_accumulate, NULL);
 	if (bfs_error(ret)) {
@@ -2499,8 +2581,7 @@ static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
 	 */
 	forward_mask = exclusive_mask(usage_mask);
 
-	that.parent = NULL;
-	that.class = hlock_class(next);
+	bfs_init_root(&that, next);
 
 	ret = find_usage_forwards(&that, forward_mask, &target_entry1);
 	if (bfs_error(ret)) {
@@ -3695,14 +3776,16 @@ print_irq_inversion_bug(struct task_struct *curr,
  */
 static int
 check_usage_forwards(struct task_struct *curr, struct held_lock *this,
-		     enum lock_usage_bit bit, const char *irqclass)
+		     enum lock_usage_bit bit)
 {
 	enum bfs_result ret;
 	struct lock_list root;
 	struct lock_list *target_entry;
+	enum lock_usage_bit read_bit = bit + LOCK_USAGE_READ_MASK;
+	unsigned usage_mask = lock_flag(bit) | lock_flag(read_bit);
 
 	bfs_init_root(&root, this);
-	ret = find_usage_forwards(&root, lock_flag(bit), &target_entry);
+	ret = find_usage_forwards(&root, usage_mask, &target_entry);
 	if (bfs_error(ret)) {
 		print_bfs_bug(ret);
 		return 0;
@@ -3710,8 +3793,15 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 	if (ret == BFS_RNOMATCH)
 		return 1;
 
-	print_irq_inversion_bug(curr, &root, target_entry,
-				this, 1, irqclass);
+	/* Check whether write or read usage is the match */
+	if (target_entry->class->usage_mask & lock_flag(bit)) {
+		print_irq_inversion_bug(curr, &root, target_entry,
+					this, 1, state_name(bit));
+	} else {
+		print_irq_inversion_bug(curr, &root, target_entry,
+					this, 1, state_name(read_bit));
+	}
+
 	return 0;
 }
 
@@ -3721,14 +3811,16 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
  */
 static int
 check_usage_backwards(struct task_struct *curr, struct held_lock *this,
-		      enum lock_usage_bit bit, const char *irqclass)
+		      enum lock_usage_bit bit)
 {
 	enum bfs_result ret;
 	struct lock_list root;
 	struct lock_list *target_entry;
+	enum lock_usage_bit read_bit = bit + LOCK_USAGE_READ_MASK;
+	unsigned usage_mask = lock_flag(bit) | lock_flag(read_bit);
 
 	bfs_init_rootb(&root, this);
-	ret = find_usage_backwards(&root, lock_flag(bit), &target_entry);
+	ret = find_usage_backwards(&root, usage_mask, &target_entry);
 	if (bfs_error(ret)) {
 		print_bfs_bug(ret);
 		return 0;
@@ -3736,8 +3828,15 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 	if (ret == BFS_RNOMATCH)
 		return 1;
 
-	print_irq_inversion_bug(curr, &root, target_entry,
-				this, 0, irqclass);
+	/* Check whether write or read usage is the match */
+	if (target_entry->class->usage_mask & lock_flag(bit)) {
+		print_irq_inversion_bug(curr, &root, target_entry,
+					this, 0, state_name(bit));
+	} else {
+		print_irq_inversion_bug(curr, &root, target_entry,
+					this, 0, state_name(read_bit));
+	}
+
 	return 0;
 }
 
@@ -3776,8 +3875,6 @@ static int SOFTIRQ_verbose(struct lock_class *class)
 	return 0;
 }
 
-#define STRICT_READ_CHECKS	1
-
 static int (*state_verbose_f[])(struct lock_class *class) = {
 #define LOCKDEP_STATE(__STATE) \
 	__STATE##_verbose,
@@ -3803,16 +3900,6 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	int dir = new_bit & LOCK_USAGE_DIR_MASK;
 
 	/*
-	 * mark USED_IN has to look forwards -- to ensure no dependency
-	 * has ENABLED state, which would allow recursion deadlocks.
-	 *
-	 * mark ENABLED has to look backwards -- to ensure no dependee
-	 * has USED_IN state, which, again, would allow  recursion deadlocks.
-	 */
-	check_usage_f usage = dir ?
-		check_usage_backwards : check_usage_forwards;
-
-	/*
 	 * Validate that this particular lock does not have conflicting
 	 * usage states.
 	 */
@@ -3820,23 +3907,30 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		return 0;
 
 	/*
+	 * Check for read in write conflicts
+	 */
+	if (!read && !valid_state(curr, this, new_bit,
+				  excl_bit + LOCK_USAGE_READ_MASK))
+		return 0;
+
+
+	/*
 	 * Validate that the lock dependencies don't have conflicting usage
 	 * states.
 	 */
-	if ((!read || STRICT_READ_CHECKS) &&
-			!usage(curr, this, excl_bit, state_name(new_bit & ~LOCK_USAGE_READ_MASK)))
-		return 0;
-
-	/*
-	 * Check for read in write conflicts
-	 */
-	if (!read) {
-		if (!valid_state(curr, this, new_bit, excl_bit + LOCK_USAGE_READ_MASK))
+	if (dir) {
+		/*
+		 * mark ENABLED has to look backwards -- to ensure no dependee
+		 * has USED_IN state, which, again, would allow  recursion deadlocks.
+		 */
+		if (!check_usage_backwards(curr, this, excl_bit))
 			return 0;
-
-		if (STRICT_READ_CHECKS &&
-			!usage(curr, this, excl_bit + LOCK_USAGE_READ_MASK,
-				state_name(new_bit + LOCK_USAGE_READ_MASK)))
+	} else {
+		/*
+		 * mark USED_IN has to look forwards -- to ensure no dependency
+		 * has ENABLED state, which would allow recursion deadlocks.
+		 */
+		if (!check_usage_forwards(curr, this, excl_bit))
 			return 0;
 	}
 
