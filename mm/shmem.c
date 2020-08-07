@@ -4245,7 +4245,7 @@ EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
 
 /**
  * shmem_zero_setup - setup a shared anonymous mapping
- * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
+ * @vma: the vma to be mmapped is prepared by do_mmap
  */
 int shmem_zero_setup(struct vm_area_struct *vma)
 {

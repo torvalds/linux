@@ -1030,7 +1030,7 @@ static inline int is_mergeable_anon_vma(struct anon_vma *anon_vma1,
  * anon_vmas, nor if same anon_vma is assigned but offsets incompatible.
  *
  * We don't check here for the merged mmap wrapping around the end of pagecache
- * indices (16TB on ia32) because do_mmap_pgoff() does not permit mmap's which
+ * indices (16TB on ia32) because do_mmap() does not permit mmap's which
  * wrap, nor mmaps which cover the final page at index -1UL.
  */
 static int
@@ -1365,11 +1365,11 @@ static inline bool file_mmap_ok(struct file *file, struct inode *inode,
  */
 unsigned long do_mmap(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
-			unsigned long flags, vm_flags_t vm_flags,
-			unsigned long pgoff, unsigned long *populate,
-			struct list_head *uf)
+			unsigned long flags, unsigned long pgoff,
+			unsigned long *populate, struct list_head *uf)
 {
 	struct mm_struct *mm = current->mm;
+	vm_flags_t vm_flags;
 	int pkey = 0;
 
 	*populate = 0;
@@ -1431,7 +1431,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	 * to. we assume access permissions have been handled by the open
 	 * of the memory object, so we don't do any here.
 	 */
-	vm_flags |= calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
+	vm_flags = calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 
 	if (flags & MAP_LOCKED)
@@ -2230,7 +2230,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 		/*
 		 * mmap_region() will call shmem_zero_setup() to create a file,
 		 * so use shmem's get_unmapped_area in case it can be huge.
-		 * do_mmap_pgoff() will clear pgoff, so match alignment.
+		 * do_mmap() will clear pgoff, so match alignment.
 		 */
 		pgoff = 0;
 		get_area = shmem_get_unmapped_area;
@@ -3003,7 +3003,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	}
 
 	file = get_file(vma->vm_file);
-	ret = do_mmap_pgoff(vma->vm_file, start, size,
+	ret = do_mmap(vma->vm_file, start, size,
 			prot, flags, pgoff, &populate, NULL);
 	fput(file);
 out:
@@ -3223,7 +3223,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * By setting it to reflect the virtual start address of the
 	 * vma, merges and splits can happen in a seamless way, just
 	 * using the existing file pgoff checks and manipulations.
-	 * Similarly in do_mmap_pgoff and in do_brk.
+	 * Similarly in do_mmap and in do_brk.
 	 */
 	if (vma_is_anonymous(vma)) {
 		BUG_ON(vma->anon_vma);
