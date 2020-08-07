@@ -39,6 +39,7 @@
 #define MASK_CECRST                           0x0400
 #define MASK_CTXRST                           0x0200
 #define MASK_HDMIRST                          0x0100
+#define MASK_I2SDIS                           0x0080
 #define MASK_SLEEP                            0x0001
 
 #define CONFCTL                               0x0004
