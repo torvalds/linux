@@ -346,9 +346,10 @@ static const struct file_operations sel_policyvers_ops = {
 };
 
 /* declaration for sel_write_load */
-static int sel_make_bools(struct selinux_fs_info *fsi);
-static int sel_make_classes(struct selinux_fs_info *fsi);
-static int sel_make_policycap(struct selinux_fs_info *fsi);
+static int sel_make_bools(struct selinux_fs_info *fsi,
+			struct selinux_policy *newpolicy);
+static int sel_make_classes(struct selinux_fs_info *fsi,
+			struct selinux_policy *newpolicy);
 
 /* declaration for sel_make_class_dirs */
 static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
@@ -508,25 +509,20 @@ static const struct file_operations sel_policy_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-static int sel_make_policy_nodes(struct selinux_fs_info *fsi)
+static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
+				struct selinux_policy *newpolicy)
 {
 	int ret;
 
-	ret = sel_make_bools(fsi);
+	ret = sel_make_bools(fsi, newpolicy);
 	if (ret) {
 		pr_err("SELinux: failed to load policy booleans\n");
 		return ret;
 	}
 
-	ret = sel_make_classes(fsi);
+	ret = sel_make_classes(fsi, newpolicy);
 	if (ret) {
 		pr_err("SELinux: failed to load policy classes\n");
-		return ret;
-	}
-
-	ret = sel_make_policycap(fsi);
-	if (ret) {
-		pr_err("SELinux: failed to load policy capabilities\n");
 		return ret;
 	}
 
@@ -538,6 +534,7 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 {
 	struct selinux_fs_info *fsi = file_inode(file)->i_sb->s_fs_info;
+	struct selinux_policy *newpolicy;
 	ssize_t length;
 	void *data = NULL;
 
@@ -563,15 +560,19 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	if (copy_from_user(data, buf, count) != 0)
 		goto out;
 
-	length = security_load_policy(fsi->state, data, count);
+	length = security_load_policy(fsi->state, data, count, &newpolicy);
 	if (length) {
 		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
 	}
 
-	length = sel_make_policy_nodes(fsi);
-	if (length)
+	length = sel_make_policy_nodes(fsi, newpolicy);
+	if (length) {
+		selinux_policy_cancel(fsi->state, newpolicy);
 		goto out1;
+	}
+
+	selinux_policy_commit(fsi->state, newpolicy);
 
 	length = count;
 
@@ -1333,7 +1334,8 @@ static void sel_remove_entries(struct dentry *de)
 
 #define BOOL_DIR_NAME "booleans"
 
-static int sel_make_bools(struct selinux_fs_info *fsi)
+static int sel_make_bools(struct selinux_fs_info *fsi,
+			struct selinux_policy *newpolicy)
 {
 	int ret;
 	ssize_t len;
@@ -1362,7 +1364,7 @@ static int sel_make_bools(struct selinux_fs_info *fsi)
 	if (!page)
 		goto out;
 
-	ret = security_get_bools(fsi->state, &num, &names, &values);
+	ret = security_get_bools(newpolicy, &num, &names, &values);
 	if (ret)
 		goto out;
 
@@ -1388,7 +1390,7 @@ static int sel_make_bools(struct selinux_fs_info *fsi)
 		}
 
 		isec = selinux_inode(inode);
-		ret = security_genfs_sid(fsi->state, "selinuxfs", page,
+		ret = selinux_policy_genfs_sid(newpolicy, "selinuxfs", page,
 					 SECCLASS_FILE, &sid);
 		if (ret) {
 			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
@@ -1791,14 +1793,14 @@ static const struct file_operations sel_policycap_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-static int sel_make_perm_files(char *objclass, int classvalue,
-				struct dentry *dir)
+static int sel_make_perm_files(struct selinux_policy *newpolicy,
+			char *objclass, int classvalue,
+			struct dentry *dir)
 {
-	struct selinux_fs_info *fsi = dir->d_sb->s_fs_info;
 	int i, rc, nperms;
 	char **perms;
 
-	rc = security_get_permissions(fsi->state, objclass, &perms, &nperms);
+	rc = security_get_permissions(newpolicy, objclass, &perms, &nperms);
 	if (rc)
 		return rc;
 
@@ -1831,8 +1833,9 @@ out:
 	return rc;
 }
 
-static int sel_make_class_dir_entries(char *classname, int index,
-					struct dentry *dir)
+static int sel_make_class_dir_entries(struct selinux_policy *newpolicy,
+				char *classname, int index,
+				struct dentry *dir)
 {
 	struct super_block *sb = dir->d_sb;
 	struct selinux_fs_info *fsi = sb->s_fs_info;
@@ -1858,12 +1861,13 @@ static int sel_make_class_dir_entries(char *classname, int index,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	rc = sel_make_perm_files(classname, index, dentry);
+	rc = sel_make_perm_files(newpolicy, classname, index, dentry);
 
 	return rc;
 }
 
-static int sel_make_classes(struct selinux_fs_info *fsi)
+static int sel_make_classes(struct selinux_fs_info *fsi,
+			struct selinux_policy *newpolicy)
 {
 
 	int rc, nclasses, i;
@@ -1872,7 +1876,7 @@ static int sel_make_classes(struct selinux_fs_info *fsi)
 	/* delete any existing entries */
 	sel_remove_entries(fsi->class_dir);
 
-	rc = security_get_classes(fsi->state, &classes, &nclasses);
+	rc = security_get_classes(newpolicy, &classes, &nclasses);
 	if (rc)
 		return rc;
 
@@ -1890,7 +1894,7 @@ static int sel_make_classes(struct selinux_fs_info *fsi)
 		}
 
 		/* i+1 since class values are 1-indexed */
-		rc = sel_make_class_dir_entries(classes[i], i + 1,
+		rc = sel_make_class_dir_entries(newpolicy, classes[i], i + 1,
 				class_name_dir);
 		if (rc)
 			goto out;
@@ -1908,8 +1912,6 @@ static int sel_make_policycap(struct selinux_fs_info *fsi)
 	unsigned int iter;
 	struct dentry *dentry = NULL;
 	struct inode *inode = NULL;
-
-	sel_remove_entries(fsi->policycap_dir);
 
 	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
 		if (iter < ARRAY_SIZE(selinux_policycap_names))
@@ -2075,9 +2077,12 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto err;
 	}
 
-	ret = sel_make_policy_nodes(fsi);
-	if (ret)
+	ret = sel_make_policycap(fsi);
+	if (ret) {
+		pr_err("SELinux: failed to load policy capabilities\n");
 		goto err;
+	}
+
 	return 0;
 err:
 	pr_err("SELinux: %s:  failed while creating inodes\n",
