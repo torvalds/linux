@@ -250,15 +250,14 @@ int saa7164_buffer_cfg_port(struct saa7164_port *port)
 	list_for_each_safe(c, n, &port->dmaqueue.list) {
 		buf = list_entry(c, struct saa7164_buffer, list);
 
-		if (buf->flags != SAA7164_BUFFER_FREE)
-			BUG();
+		BUG_ON(buf->flags != SAA7164_BUFFER_FREE);
 
 		/* Place the buffer in the h/w queue */
 		saa7164_buffer_activate(buf, i);
 
 		/* Don't exceed the device maximum # bufs */
-		if (i++ > port->hwcfg.buffercount)
-			BUG();
+		BUG_ON(i > port->hwcfg.buffercount);
+		i++;
 
 	}
 	mutex_unlock(&port->dmaqueue_lock);
@@ -302,4 +301,3 @@ void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf)
 
 	kfree(buf);
 }
-
