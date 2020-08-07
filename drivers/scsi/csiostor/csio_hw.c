@@ -306,7 +306,7 @@ csio_hw_get_vpd_params(struct csio_hw *hw, struct csio_vpd *p)
 	uint8_t *vpd, csum;
 	const struct t4_vpd_hdr *v;
 	/* To get around compilation warning from strstrip */
-	char *s;
+	char __always_unused *s;
 
 	if (csio_is_valid_vpd(hw))
 		return 0;

@@ -5352,8 +5352,10 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 {
 	struct scsi_device *sdev;
 	struct scsi_cmnd *cmd;
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	struct sym_tcb *tp;
 	struct sym_lcb *lp;
+#endif
 	int resid;
 	int i;
 
@@ -5370,11 +5372,13 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 			cp->host_status, cp->ssss_status, cp->host_flags);
 	}
 
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
 	 *  Get target and lun pointers.
 	 */
 	tp = &np->target[cp->target];
 	lp = sym_lp(tp, sdev->lun);
+#endif
 
 	/*
 	 *  Check for extended errors.
@@ -5481,8 +5485,10 @@ finish:
  */
 void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 {
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	struct sym_tcb *tp;
 	struct sym_lcb *lp;
+#endif
 	struct scsi_cmnd *cmd;
 	int resid;
 
@@ -5498,11 +5504,13 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 	 */
 	cmd = cp->cmd;
 
+#ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
 	 *  Get target and lun pointers.
 	 */
 	tp = &np->target[cp->target];
 	lp = sym_lp(tp, cp->lun);
+#endif
 
 	/*
 	 *  If all data have been transferred, given than no

@@ -13,7 +13,8 @@
 static void snd_gf1_interrupt_midi_in(struct snd_gus_card * gus)
 {
 	int count;
-	unsigned char stat, data, byte;
+	unsigned char stat, byte;
+	__always_unused unsigned char data;
 	unsigned long flags;
 
 	count = 10;

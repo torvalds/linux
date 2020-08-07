@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/rculist.h>
+#include <linux/random.h>
 
 #include "rtrs-clt.h"
 #include "rtrs-log.h"
@@ -23,6 +24,12 @@
  * leads to "false positives" failed reconnect attempts
  */
 #define RTRS_RECONNECT_BACKOFF 1000
+/*
+ * Wait for additional random time between 0 and 8 seconds
+ * before starting to reconnect to avoid clients reconnecting
+ * all at once in case of a major network outage
+ */
+#define RTRS_RECONNECT_SEED 8
 
 MODULE_DESCRIPTION("RDMA Transport Client");
 MODULE_LICENSE("GPL");
@@ -306,7 +313,8 @@ static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 		 */
 		delay_ms = clt->reconnect_delay_sec * 1000;
 		queue_delayed_work(rtrs_wq, &sess->reconnect_dwork,
-				   msecs_to_jiffies(delay_ms));
+				   msecs_to_jiffies(delay_ms +
+						    prandom_u32() % RTRS_RECONNECT_SEED));
 	} else {
 		/*
 		 * Error can happen just on establishing new connection,
@@ -2503,7 +2511,9 @@ reconnect_again:
 		sess->stats->reconnects.fail_cnt++;
 		delay_ms = clt->reconnect_delay_sec * 1000;
 		queue_delayed_work(rtrs_wq, &sess->reconnect_dwork,
-				   msecs_to_jiffies(delay_ms));
+				   msecs_to_jiffies(delay_ms +
+						    prandom_u32() %
+						    RTRS_RECONNECT_SEED));
 	}
 }
 
@@ -2972,7 +2982,7 @@ static int __init rtrs_client_init(void)
 		pr_err("Failed to create rtrs-client dev class\n");
 		return PTR_ERR(rtrs_clt_dev_class);
 	}
-	rtrs_wq = alloc_workqueue("rtrs_client_wq", WQ_MEM_RECLAIM, 0);
+	rtrs_wq = alloc_workqueue("rtrs_client_wq", 0, 0);
 	if (!rtrs_wq) {
 		class_destroy(rtrs_clt_dev_class);
 		return -ENOMEM;

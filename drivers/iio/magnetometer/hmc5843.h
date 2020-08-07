@@ -52,9 +52,9 @@ int hmc5843_common_suspend(struct device *dev);
 int hmc5843_common_resume(struct device *dev);
 
 #ifdef CONFIG_PM_SLEEP
-static SIMPLE_DEV_PM_OPS(hmc5843_pm_ops,
-		hmc5843_common_suspend,
-		hmc5843_common_resume);
+static __maybe_unused SIMPLE_DEV_PM_OPS(hmc5843_pm_ops,
+					hmc5843_common_suspend,
+					hmc5843_common_resume);
 #define HMC5843_PM_OPS (&hmc5843_pm_ops)
 #else
 #define HMC5843_PM_OPS NULL

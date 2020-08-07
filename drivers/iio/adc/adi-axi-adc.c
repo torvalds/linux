@@ -435,7 +435,6 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->info = &adi_axi_adc_info;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = "adi-axi-adc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = conv->chip_info->num_channels;

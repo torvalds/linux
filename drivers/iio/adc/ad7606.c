@@ -499,7 +499,6 @@ static int ad7606_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	iio_triggered_buffer_postenable(indio_dev);
 	gpiod_set_value(st->gpio_convst, 1);
 
 	return 0;
@@ -511,7 +510,7 @@ static int ad7606_buffer_predisable(struct iio_dev *indio_dev)
 
 	gpiod_set_value(st->gpio_convst, 0);
 
-	return iio_triggered_buffer_predisable(indio_dev);
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops ad7606_buffer_ops = {
@@ -614,7 +613,6 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = dev;
 	if (st->gpio_os) {
 		if (st->gpio_range)
 			indio_dev->info = &ad7606_info_os_and_range;

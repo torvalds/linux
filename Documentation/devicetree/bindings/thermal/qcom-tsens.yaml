@@ -23,6 +23,7 @@ properties:
         items:
           - enum:
               - qcom,msm8916-tsens
+              - qcom,msm8939-tsens
               - qcom,msm8974-tsens
           - const: qcom,tsens-v0_1
 

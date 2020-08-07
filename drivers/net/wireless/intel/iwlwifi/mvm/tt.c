@@ -733,7 +733,7 @@ static  struct thermal_zone_device_ops tzone_ops = {
 
 static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 {
-	int i;
+	int i, ret;
 	char name[16];
 	static atomic_t counter = ATOMIC_INIT(0);
 
@@ -756,6 +756,13 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 			       "Failed to register to thermal zone (err = %ld)\n",
 			       PTR_ERR(mvm->tz_device.tzone));
 		mvm->tz_device.tzone = NULL;
+		return;
+	}
+
+	ret = thermal_zone_device_enable(mvm->tz_device.tzone);
+	if (ret) {
+		IWL_DEBUG_TEMP(mvm, "Failed to enable thermal zone\n");
+		thermal_zone_device_unregister(mvm->tz_device.tzone);
 		return;
 	}
 

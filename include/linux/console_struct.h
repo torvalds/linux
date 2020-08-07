@@ -21,6 +21,43 @@ struct uni_pagedir;
 struct uni_screen;
 
 #define NPAR 16
+#define VC_TABSTOPS_COUNT	256U
+
+enum vc_intensity {
+	VCI_HALF_BRIGHT,
+	VCI_NORMAL,
+	VCI_BOLD,
+	VCI_MASK = 0x3,
+};
+
+/**
+ * struct vc_state -- state of a VC
+ * @x: cursor's x-position
+ * @y: cursor's y-position
+ * @color: foreground & background colors
+ * @Gx_charset: what's G0/G1 slot set to (like GRAF_MAP, LAT1_MAP)
+ * @charset: what character set to use (0=G0 or 1=G1)
+ * @intensity: see enum vc_intensity for values
+ * @reverse: reversed foreground/background colors
+ *
+ * These members are defined separately from struct vc_data as we save &
+ * restore them at times.
+ */
+struct vc_state {
+	unsigned int	x, y;
+
+	unsigned char	color;
+
+	unsigned char	Gx_charset[2];
+	unsigned int	charset		: 1;
+
+	/* attribute flags */
+	enum vc_intensity intensity;
+	bool		italic;
+	bool		underline;
+	bool		blink;
+	bool		reverse;
+};
 
 /*
  * Example: vc_data of a console that was scrolled 3 lines down.
@@ -57,6 +94,8 @@ struct uni_screen;
 struct vc_data {
 	struct tty_port port;			/* Upper level data */
 
+	struct vc_state state, saved_state;
+
 	unsigned short	vc_num;			/* Console number */
 	unsigned int	vc_cols;		/* [#] Console size */
 	unsigned int	vc_rows;
@@ -73,8 +112,6 @@ struct vc_data {
 	/* attributes for all characters on screen */
 	unsigned char	vc_attr;		/* Current attributes */
 	unsigned char	vc_def_color;		/* Default colors */
-	unsigned char	vc_color;		/* Foreground & background */
-	unsigned char	vc_s_color;		/* Saved foreground & background */
 	unsigned char	vc_ulcolor;		/* Color for underline mode */
 	unsigned char   vc_itcolor;
 	unsigned char	vc_halfcolor;		/* Color for half intensity mode */
@@ -82,8 +119,6 @@ struct vc_data {
 	unsigned int	vc_cursor_type;
 	unsigned short	vc_complement_mask;	/* [#] Xor mask for mouse pointer */
 	unsigned short	vc_s_complement_mask;	/* Saved mouse pointer mask */
-	unsigned int	vc_x, vc_y;		/* Cursor position */
-	unsigned int	vc_saved_x, vc_saved_y;
 	unsigned long	vc_pos;			/* Cursor address */
 	/* fonts */	
 	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
@@ -98,8 +133,6 @@ struct vc_data {
 	int		vt_newvt;
 	wait_queue_head_t paste_wait;
 	/* mode flags */
-	unsigned int	vc_charset	: 1;	/* Character set G0 / G1 */
-	unsigned int	vc_s_charset	: 1;	/* Saved character set */
 	unsigned int	vc_disp_ctrl	: 1;	/* Display chars < 32? */
 	unsigned int	vc_toggle_meta	: 1;	/* Toggle high bit? */
 	unsigned int	vc_decscnm	: 1;	/* Screen Mode */
@@ -107,17 +140,6 @@ struct vc_data {
 	unsigned int	vc_decawm	: 1;	/* Autowrap Mode */
 	unsigned int	vc_deccm	: 1;	/* Cursor Visible */
 	unsigned int	vc_decim	: 1;	/* Insert Mode */
-	/* attribute flags */
-	unsigned int	vc_intensity	: 2;	/* 0=half-bright, 1=normal, 2=bold */
-	unsigned int    vc_italic:1;
-	unsigned int	vc_underline	: 1;
-	unsigned int	vc_blink	: 1;
-	unsigned int	vc_reverse	: 1;
-	unsigned int	vc_s_intensity	: 2;	/* saved rendition */
-	unsigned int    vc_s_italic:1;
-	unsigned int	vc_s_underline	: 1;
-	unsigned int	vc_s_blink	: 1;
-	unsigned int	vc_s_reverse	: 1;
 	/* misc */
 	unsigned int	vc_priv		: 3;
 	unsigned int	vc_need_wrap	: 1;
@@ -126,13 +148,9 @@ struct vc_data {
 	unsigned char	vc_utf		: 1;	/* Unicode UTF-8 encoding */
 	unsigned char	vc_utf_count;
 		 int	vc_utf_char;
-	unsigned int	vc_tab_stop[8];		/* Tab stops. 256 columns. */
+	DECLARE_BITMAP(vc_tab_stop, VC_TABSTOPS_COUNT);	/* Tab stops. 256 columns. */
 	unsigned char   vc_palette[16*3];       /* Colour palette for VGA+ */
 	unsigned short * vc_translate;
-	unsigned char 	vc_G0_charset;
-	unsigned char 	vc_G1_charset;
-	unsigned char 	vc_saved_G0;
-	unsigned char 	vc_saved_G1;
 	unsigned int    vc_resize_user;         /* resize request from user */
 	unsigned int	vc_bell_pitch;		/* Console bell pitch */
 	unsigned int	vc_bell_duration;	/* Console bell duration */
@@ -149,24 +167,29 @@ struct vc {
 	struct work_struct SAK_work;
 
 	/* might add  scrmem, kbd  at some time,
-	   to have everything in one place - the disadvantage
-	   would be that vc_cons etc can no longer be static */
+	   to have everything in one place */
 };
 
 extern struct vc vc_cons [MAX_NR_CONSOLES];
 extern void vc_SAK(struct work_struct *work);
 
-#define CUR_DEF		0
-#define CUR_NONE	1
-#define CUR_UNDERLINE	2
-#define CUR_LOWER_THIRD	3
-#define CUR_LOWER_HALF	4
-#define CUR_TWO_THIRDS	5
-#define CUR_BLOCK	6
-#define CUR_HWMASK	0x0f
-#define CUR_SWMASK	0xfff0
-
-#define CUR_DEFAULT CUR_UNDERLINE
+#define CUR_MAKE(size, change, set)	((size) | ((change) << 8) |	\
+		((set) << 16))
+#define CUR_SIZE(c)		 ((c) & 0x00000f)
+# define CUR_DEF			       0
+# define CUR_NONE			       1
+# define CUR_UNDERLINE			       2
+# define CUR_LOWER_THIRD		       3
+# define CUR_LOWER_HALF			       4
+# define CUR_TWO_THIRDS			       5
+# define CUR_BLOCK			       6
+#define CUR_SW				0x000010
+#define CUR_ALWAYS_BG			0x000020
+#define CUR_INVERT_FG_BG		0x000040
+#define CUR_FG				0x000700
+#define CUR_BG				0x007000
+#define CUR_CHANGE(c)		 ((c) & 0x00ff00)
+#define CUR_SET(c)		(((c) & 0xff0000) >> 8)
 
 bool con_is_visible(const struct vc_data *vc);
 

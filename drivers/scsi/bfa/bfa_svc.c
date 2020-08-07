@@ -2718,7 +2718,7 @@ bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_DPORTDISABLE:
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
-		/**
+		/*
 		 * Ignore event for a port that is ddport
 		 */
 		break;
@@ -3839,7 +3839,7 @@ bfa_fcport_get_topology(struct bfa_s *bfa)
 	return fcport->topology;
 }
 
-/**
+/*
  * Get config topology.
  */
 enum bfa_port_topology

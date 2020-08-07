@@ -178,7 +178,6 @@ static int acpi_als_add(struct acpi_device *device)
 	mutex_init(&als->lock);
 
 	indio_dev->name = ACPI_ALS_DEVICE_NAME;
-	indio_dev->dev.parent = &device->dev;
 	indio_dev->info = &acpi_als_info;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = acpi_als_channels;

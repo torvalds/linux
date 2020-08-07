@@ -231,7 +231,7 @@ static int i2c_bus_write(struct hfi1_devdata *dd, struct hfi1_i2c_bus *i2c,
 		break;
 	case 2:
 		offset_bytes[1] = (offset >> 8) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 1:
 		num_msgs = 2;
 		offset_bytes[0] = offset & 0xff;
@@ -279,7 +279,7 @@ static int i2c_bus_read(struct hfi1_devdata *dd, struct hfi1_i2c_bus *bus,
 		break;
 	case 2:
 		offset_bytes[1] = (offset >> 8) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 1:
 		num_msgs = 2;
 		offset_bytes[0] = offset & 0xff;

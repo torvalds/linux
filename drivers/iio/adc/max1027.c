@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
 
@@ -79,7 +80,6 @@ static const struct spi_device_id max1027_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, max1027_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id max1027_adc_dt_ids[] = {
 	{ .compatible = "maxim,max1027" },
 	{ .compatible = "maxim,max1029" },
@@ -90,7 +90,6 @@ static const struct of_device_id max1027_adc_dt_ids[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, max1027_adc_dt_ids);
-#endif
 
 #define MAX1027_V_CHAN(index, depth)					\
 	{								\
@@ -440,8 +439,6 @@ static int max1027_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &max1027_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->info->channels;
@@ -520,7 +517,7 @@ static int max1027_probe(struct spi_device *spi)
 static struct spi_driver max1027_driver = {
 	.driver = {
 		.name	= "max1027",
-		.of_match_table = of_match_ptr(max1027_adc_dt_ids),
+		.of_match_table = max1027_adc_dt_ids,
 	},
 	.probe		= max1027_probe,
 	.id_table	= max1027_id,

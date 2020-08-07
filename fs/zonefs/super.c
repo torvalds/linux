@@ -786,8 +786,11 @@ static ssize_t zonefs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_pos >= ZONEFS_I(inode)->i_max_size)
 		return -EFBIG;
 
-	if (iocb->ki_flags & IOCB_DIRECT)
-		return zonefs_file_dio_write(iocb, from);
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		ssize_t ret = zonefs_file_dio_write(iocb, from);
+		if (ret != -ENOTBLK)
+			return ret;
+	}
 
 	return zonefs_file_buffered_write(iocb, from);
 }

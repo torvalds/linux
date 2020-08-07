@@ -9,7 +9,7 @@
   by /SOCTHERM/tsensor.
 - clock-names: Input clock name, should be 'thermal_clk'.
 - clocks: phandles for clock specified in "clock-names" property.
-- #thermal-sensor-cells: Should be 1. See ./thermal.txt for a description.
+- #thermal-sensor-cells: Should be 1. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description.
 
 Example :
 

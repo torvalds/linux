@@ -111,7 +111,7 @@ Thermal:
 --------
 
 For common binding part and usage, refer to
-Documentation/devicetree/bindings/thermal/thermal.txt
+Documentation/devicetree/bindings/thermal/thermal*.yaml
 
 The thermal IP can probe the temperature all around the processor. It
 may feature several channels, each of them wired to one sensor.

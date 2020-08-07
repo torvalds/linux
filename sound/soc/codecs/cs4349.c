@@ -131,7 +131,7 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs4349_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4349_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int reg;
@@ -236,7 +236,8 @@ static const struct snd_soc_dapm_route cs4349_routes[] = {
 static const struct snd_soc_dai_ops cs4349_dai_ops = {
 	.hw_params	= cs4349_pcm_hw_params,
 	.set_fmt	= cs4349_set_dai_fmt,
-	.digital_mute	= cs4349_digital_mute,
+	.mute_stream	= cs4349_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4349_dai = {

@@ -585,7 +585,7 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
  * sd_zbc_check_capacity - Check the device capacity
  * @sdkp: Target disk
  * @buf: command buffer
- * @zblock: zone size in number of blocks
+ * @zblocks: zone size in number of blocks
  *
  * Get the device zone size and check that the device capacity as reported
  * by READ CAPACITY matches the max_lba value (plus one) of the report zones
@@ -742,7 +742,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 
 	max_append = min_t(u32, logical_to_sectors(sdkp->device, zone_blocks),
 			   q->limits.max_segments << (PAGE_SHIFT - 9));
-	max_append = min_t(u32, max_append, queue_max_hw_sectors(q));
 
 	blk_queue_max_zone_append_sectors(q, max_append);
 

@@ -108,8 +108,6 @@ static int ssp_accel_probe(struct platform_device *pdev)
 	spd->type = SSP_ACCELEROMETER_SENSOR;
 
 	indio_dev->name = ssp_accel_device_name;
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &ssp_accel_iio_info;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE;
 	indio_dev->channels = ssp_acc_channels;

@@ -464,7 +464,6 @@ static int ccs811_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ccs811_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

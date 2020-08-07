@@ -57,7 +57,6 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	int release_count;
 	int piggyback = 0;
 
-	WARN(read_len < 4, "corrupted read");
 	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16),
 	     "%s: request exceed WFx capability", __func__);
 
@@ -76,20 +75,17 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	hif = (struct hif_msg *)skb->data;
 	WARN(hif->encrypted & 0x1, "unsupported encryption type");
 	if (hif->encrypted == 0x2) {
-		if (wfx_sl_decode(wdev, (void *)hif)) {
-			dev_kfree_skb(skb);
-			// If frame was a confirmation, expect trouble in next
-			// exchange. However, it is harmless to fail to decode
-			// an indication frame, so try to continue. Anyway,
-			// piggyback is probably correct.
-			return piggyback;
-		}
-		computed_len =
-			round_up(le16_to_cpu(hif->len) - sizeof(hif->len), 16) +
-			sizeof(struct hif_sl_msg) +
-			sizeof(struct hif_sl_tag);
+		if (WARN(read_len < sizeof(struct hif_sl_msg), "corrupted read"))
+			goto err;
+		computed_len = le16_to_cpu(((struct hif_sl_msg *)hif)->len);
+		computed_len = round_up(computed_len - sizeof(u16), 16);
+		computed_len += sizeof(struct hif_sl_msg);
+		computed_len += sizeof(struct hif_sl_tag);
 	} else {
-		computed_len = round_up(le16_to_cpu(hif->len), 2);
+		if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+			goto err;
+		computed_len = le16_to_cpu(hif->len);
+		computed_len = round_up(computed_len, 2);
 	}
 	if (computed_len != read_len) {
 		dev_err(wdev->dev, "inconsistent message length: %zu != %zu\n",
@@ -97,6 +93,16 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 		print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       hif, read_len, true);
 		goto err;
+	}
+	if (hif->encrypted == 0x2) {
+		if (wfx_sl_decode(wdev, (struct hif_sl_msg *)hif)) {
+			dev_kfree_skb(skb);
+			// If frame was a confirmation, expect trouble in next
+			// exchange. However, it is harmless to fail to decode
+			// an indication frame, so try to continue. Anyway,
+			// piggyback is probably correct.
+			return piggyback;
+		}
 	}
 
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {

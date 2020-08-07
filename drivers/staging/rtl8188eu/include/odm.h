@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 
-
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
@@ -40,7 +39,6 @@
 /* 3============================================================ */
 #define		DPK_DELTA_MAPPING_NUM	13
 #define		index_mapping_HP_NUM	15
-
 
 /*  */
 /* 3 PSD Handler */
@@ -244,7 +242,7 @@ struct odm_rate_adapt {
 
 #define AVG_THERMAL_NUM		8
 #define IQK_Matrix_REG_NUM	8
-#define IQK_Matrix_Settings_NUM	1+24+21
+#define IQK_Matrix_Settings_NUM	(1 + 24 + 21)
 
 #define	DM_Type_ByFWi		0
 #define	DM_Type_ByDriver	1
@@ -913,7 +911,6 @@ enum dm_dig_op {
 
 #define		DM_SCAN_RSSI_TH		0x14 /* scan return issue for LC */
 
-
 #define		DM_false_ALARM_THRESH_LOW	400
 #define		DM_false_ALARM_THRESH_HIGH	1000
 
@@ -990,7 +987,6 @@ enum dm_dig_op {
 /* 3=========================================================== */
 /* 3 BB Power Save */
 /* 3=========================================================== */
-
 
 enum dm_1r_cca {
 	CCA_1R = 0,

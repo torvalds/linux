@@ -68,7 +68,7 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 
-	list_move(&act->list, &act->adapter->erp_ready_head);
+	list_move(&act->list, &adapter->erp_ready_head);
 	zfcp_dbf_rec_run("erardy1", act);
 	wake_up(&adapter->erp_ready_wq);
 	zfcp_dbf_rec_run("erardy2", act);

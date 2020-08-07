@@ -108,7 +108,6 @@ int st_sensors_spi_configure(struct iio_dev *indio_dev,
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi->modalias;
 
 	sdata->dev = &spi->dev;

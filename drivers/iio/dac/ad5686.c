@@ -461,7 +461,6 @@ int ad5686_probe(struct device *dev,
 	for (i = 0; i < st->chip_info->num_channels; i++)
 		st->pwr_down_mode |= (0x01 << (i * 2));
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5686_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

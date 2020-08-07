@@ -860,7 +860,7 @@ static const struct snd_soc_dapm_route isabelle_intercon[] = {
 	{ "LINEOUT2", NULL, "LINEOUT2 Driver" },
 };
 
-static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC1_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -868,7 +868,7 @@ static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC2_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -876,7 +876,7 @@ static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int isabelle_line_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_line_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC3_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -1014,19 +1014,22 @@ static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 static const struct snd_soc_dai_ops isabelle_hs_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_hs_mute,
+	.mute_stream	= isabelle_hs_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_hf_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_hf_mute,
+	.mute_stream	= isabelle_hf_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_line_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_line_mute,
+	.mute_stream	= isabelle_line_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_ul_dai_ops = {

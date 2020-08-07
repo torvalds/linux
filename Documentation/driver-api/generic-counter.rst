@@ -262,7 +262,7 @@ the system.
 Counter Counts may be allocated via counter_count structures, and
 respective Counter Signal associations (Synapses) made via
 counter_synapse structures. Associated counter_synapse structures are
-stored as an array and set to the the synapses array member of the
+stored as an array and set to the synapses array member of the
 respective counter_count structure. These counter_count structures are
 set to the counts array member of an allocated counter_device structure
 before the Counter is registered to the system.

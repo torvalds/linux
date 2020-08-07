@@ -218,7 +218,6 @@ static int rn5t618_adc_probe(struct platform_device *pdev)
 	init_completion(&adc->conv_completion);
 
 	iio_dev->name = dev_name(&pdev->dev);
-	iio_dev->dev.parent = &pdev->dev;
 	iio_dev->info = &rn5t618_adc_iio_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = rn5t618_adc_iio_channels;

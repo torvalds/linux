@@ -1208,8 +1208,6 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	priv->param = match_data->param;
 
 	indio_dev->name = match_data->name;
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &meson_sar_adc_iio_info;
 

@@ -485,24 +485,19 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		shift = 0;
 		value = 0;
 		while (*esc && cgoffset < 8) {
-			shift ^= 4;
-			if (*esc >= '0' && *esc <= '9') {
-				value |= (*esc - '0') << shift;
-			} else if (*esc >= 'A' && *esc <= 'F') {
-				value |= (*esc - 'A' + 10) << shift;
-			} else if (*esc >= 'a' && *esc <= 'f') {
-				value |= (*esc - 'a' + 10) << shift;
-			} else {
-				esc++;
-				continue;
-			}
+			int half;
 
+			shift ^= 4;
+
+			half = hex_to_bin(*esc++);
+			if (half < 0)
+				continue;
+
+			value |= half << shift;
 			if (shift == 0) {
 				cgbytes[cgoffset++] = value;
 				value = 0;
 			}
-
-			esc++;
 		}
 
 		lcd->ops->write_cmd(lcd, LCD_CMD_SET_CGRAM_ADDR | (cgaddr * 8));

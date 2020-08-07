@@ -24,6 +24,9 @@
 #define  V3_NO_ADAT_OPT_OUT_IFACE_A	0x00040000
 #define  V3_NO_ADAT_OPT_OUT_IFACE_B	0x00400000
 
+#define V3_MSG_FLAG_CLK_CHANGED		0x00000002
+#define V3_CLK_WAIT_MSEC		4000
+
 int snd_motu_protocol_v3_get_clock_rate(struct snd_motu *motu,
 					unsigned int *rate)
 {
@@ -79,9 +82,16 @@ int snd_motu_protocol_v3_set_clock_rate(struct snd_motu *motu,
 		return err;
 
 	if (need_to_wait) {
-		/* Cost expensive. */
-		if (msleep_interruptible(4000) > 0)
-			return -EINTR;
+		int result;
+
+		motu->msg = 0;
+		result = wait_event_interruptible_timeout(motu->hwdep_wait,
+					motu->msg & V3_MSG_FLAG_CLK_CHANGED,
+					msecs_to_jiffies(V3_CLK_WAIT_MSEC));
+		if (result < 0)
+			return result;
+		if (result == 0)
+			return -ETIMEDOUT;
 	}
 
 	return 0;
