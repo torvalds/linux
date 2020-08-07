@@ -1249,6 +1249,60 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft_rlock)
 #include "locking-selftest-wlock.h"
 GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft_wlock)
 
+#undef E1
+#undef E2
+#undef E3
+/*
+ * read-lock / write-lock recursion that is unsafe.
+ *
+ * A is a ENABLED_*_READ lock
+ * B is a USED_IN_*_READ lock
+ *
+ * read_lock(A);
+ *			write_lock(B);
+ * <interrupt>
+ * read_lock(B);
+ * 			write_lock(A); // if this one is read_lock(), no deadlock
+ */
+
+#define E1()				\
+					\
+	IRQ_DISABLE();			\
+	WL(B);				\
+	LOCK(A);			\
+	UNLOCK(A);			\
+	WU(B);				\
+	IRQ_ENABLE();
+
+#define E2()				\
+					\
+	RL(A);				\
+	RU(A);				\
+
+#define E3()				\
+					\
+	IRQ_ENTER();			\
+	RL(B);				\
+	RU(B);				\
+	IRQ_EXIT();
+
+/*
+ * Generate 24 testcases:
+ */
+#include "locking-selftest-hardirq.h"
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_hard_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_hard_wlock)
+
+#include "locking-selftest-softirq.h"
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_wlock)
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define I_SPINLOCK(x)	lockdep_reset_lock(&lock_##x.dep_map)
 # define I_RWLOCK(x)	lockdep_reset_lock(&rwlock_##x.dep_map)
@@ -2413,6 +2467,7 @@ void locking_selftest(void)
 
 	DO_TESTCASE_6x2x2RW("irq read-recursion", irq_read_recursion);
 	DO_TESTCASE_6x2x2RW("irq read-recursion #2", irq_read_recursion2);
+	DO_TESTCASE_6x2x2RW("irq read-recursion #3", irq_read_recursion3);
 
 	ww_tests();
 
