@@ -101,20 +101,26 @@ with "-" as options::
 
 	slub_debug=FZ;-,zs_handle,zspage
 
-In case you forgot to enable debugging on the kernel command line: It is
-possible to enable debugging manually when the kernel is up. Look at the
-contents of::
+The state of each debug option for a slab can be found in the respective files
+under::
 
 	/sys/kernel/slab/<slab name>/
 
-Look at the writable files. Writing 1 to them will enable the
-corresponding debug option. All options can be set on a slab that does
-not contain objects. If the slab already contains objects then sanity checks
-and tracing may only be enabled. The other options may cause the realignment
-of objects.
+If the file contains 1, the option is enabled, 0 means disabled. The debug
+options from the ``slub_debug`` parameter translate to the following files::
 
-Careful with tracing: It may spew out lots of information and never stop if
-used on the wrong slab.
+	F	sanity_checks
+	Z	red_zone
+	P	poison
+	U	store_user
+	T	trace
+	A	failslab
+
+The sanity_checks, trace and failslab files are writable, so writing 1 or 0
+will enable or disable the option at runtime. The writes to trace and failslab
+may return -EINVAL if the cache is subject to slab merging. Careful with
+tracing: It may spew out lots of information and never stop if used on the
+wrong slab.
 
 Slab merging
 ============
