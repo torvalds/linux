@@ -35,8 +35,8 @@ config MACB
 config MACB_USE_HWSTAMP
 	bool "Use IEEE 1588 hwstamp"
 	depends on MACB
+	depends on PTP_1588_CLOCK
 	default y
-	imply PTP_1588_CLOCK
 	---help---
 	  Enable IEEE 1588 Precision Time Protocol (PTP) support for MACB.
 

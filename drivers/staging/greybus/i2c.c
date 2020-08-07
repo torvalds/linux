@@ -215,20 +215,6 @@ static int gb_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	return gb_i2c_transfer_operation(gb_i2c_dev, msgs, msg_count);
 }
 
-#if 0
-/* Later */
-static int gb_i2c_smbus_xfer(struct i2c_adapter *adap,
-			     u16 addr, unsigned short flags, char read_write,
-			     u8 command, int size, union i2c_smbus_data *data)
-{
-	struct gb_i2c_device *gb_i2c_dev;
-
-	gb_i2c_dev = i2c_get_adapdata(adap);
-
-	return 0;
-}
-#endif
-
 static u32 gb_i2c_functionality(struct i2c_adapter *adap)
 {
 	struct gb_i2c_device *gb_i2c_dev = i2c_get_adapdata(adap);
@@ -238,7 +224,6 @@ static u32 gb_i2c_functionality(struct i2c_adapter *adap)
 
 static const struct i2c_algorithm gb_i2c_algorithm = {
 	.master_xfer	= gb_i2c_master_xfer,
-	/* .smbus_xfer	= gb_i2c_smbus_xfer, */
 	.functionality	= gb_i2c_functionality,
 };
 
@@ -281,7 +266,6 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &gb_i2c_algorithm;
-	/* adapter->algo_data = what? */
 
 	adapter->dev.parent = &gbphy_dev->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");

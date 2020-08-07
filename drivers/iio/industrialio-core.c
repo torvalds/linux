@@ -189,7 +189,12 @@ ssize_t iio_read_const_attr(struct device *dev,
 }
 EXPORT_SYMBOL(iio_read_const_attr);
 
-static int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
+/**
+ * iio_device_set_clock() - Set current timestamping clock for the device
+ * @indio_dev: IIO device structure containing the device
+ * @clock_id: timestamping clock posix identifier to set.
+ */
+int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 {
 	int ret;
 	const struct iio_event_interface *ev_int = indio_dev->event_interface;
@@ -207,6 +212,7 @@ static int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 
 	return 0;
 }
+EXPORT_SYMBOL(iio_device_set_clock);
 
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
@@ -301,10 +307,13 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
 	struct iio_dev *indio_dev = file->private_data;
-	char buf[20];
 	unsigned val = 0;
-	ssize_t len;
 	int ret;
+
+	if (*ppos > 0)
+		return simple_read_from_buffer(userbuf, count, ppos,
+					       indio_dev->read_buf,
+					       indio_dev->read_buf_len);
 
 	ret = indio_dev->info->debugfs_reg_access(indio_dev,
 						  indio_dev->cached_reg_addr,
@@ -314,9 +323,13 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 		return ret;
 	}
 
-	len = snprintf(buf, sizeof(buf), "0x%X\n", val);
+	indio_dev->read_buf_len = snprintf(indio_dev->read_buf,
+					   sizeof(indio_dev->read_buf),
+					   "0x%X\n", val);
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+	return simple_read_from_buffer(userbuf, count, ppos,
+				       indio_dev->read_buf,
+				       indio_dev->read_buf_len);
 }
 
 static ssize_t iio_debugfs_write_reg(struct file *file,
@@ -769,17 +782,18 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
 }
 
 /**
- * iio_str_to_fixpoint() - Parse a fixed-point number from a string
+ * __iio_str_to_fixpoint() - Parse a fixed-point number from a string
  * @str: The string to parse
  * @fract_mult: Multiplier for the first decimal place, should be a power of 10
  * @integer: The integer part of the number
  * @fract: The fractional part of the number
+ * @scale_db: True if this should parse as dB
  *
  * Returns 0 on success, or a negative error code if the string could not be
  * parsed.
  */
-int iio_str_to_fixpoint(const char *str, int fract_mult,
-	int *integer, int *fract)
+static int __iio_str_to_fixpoint(const char *str, int fract_mult,
+				 int *integer, int *fract, bool scale_db)
 {
 	int i = 0, f = 0;
 	bool integer_part = true, negative = false;
@@ -810,6 +824,14 @@ int iio_str_to_fixpoint(const char *str, int fract_mult,
 				break;
 			else
 				return -EINVAL;
+		} else if (!strncmp(str, " dB", sizeof(" dB") - 1) && scale_db) {
+			/* Ignore the dB suffix */
+			str += sizeof(" dB") - 1;
+			continue;
+		} else if (!strncmp(str, "dB", sizeof("dB") - 1) && scale_db) {
+			/* Ignore the dB suffix */
+			str += sizeof("dB") - 1;
+			continue;
 		} else if (*str == '.' && integer_part) {
 			integer_part = false;
 		} else {
@@ -830,6 +852,22 @@ int iio_str_to_fixpoint(const char *str, int fract_mult,
 
 	return 0;
 }
+
+/**
+ * iio_str_to_fixpoint() - Parse a fixed-point number from a string
+ * @str: The string to parse
+ * @fract_mult: Multiplier for the first decimal place, should be a power of 10
+ * @integer: The integer part of the number
+ * @fract: The fractional part of the number
+ *
+ * Returns 0 on success, or a negative error code if the string could not be
+ * parsed.
+ */
+int iio_str_to_fixpoint(const char *str, int fract_mult,
+			int *integer, int *fract)
+{
+	return __iio_str_to_fixpoint(str, fract_mult, integer, fract, false);
+}
 EXPORT_SYMBOL_GPL(iio_str_to_fixpoint);
 
 static ssize_t iio_write_channel_info(struct device *dev,
@@ -842,6 +880,7 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	int ret, fract_mult = 100000;
 	int integer, fract = 0;
 	bool is_char = false;
+	bool scale_db = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -853,6 +892,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_INT:
 			fract_mult = 0;
 			break;
+		case IIO_VAL_INT_PLUS_MICRO_DB:
+			scale_db = true;
+			/* fall through */
 		case IIO_VAL_INT_PLUS_MICRO:
 			fract_mult = 100000;
 			break;
@@ -873,7 +915,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 			return -EINVAL;
 		integer = ch;
 	} else {
-		ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
+		ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
+					    scale_db);
 		if (ret)
 			return ret;
 	}

@@ -184,23 +184,9 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
 extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
-extern int xdr_buf_read_mic(struct xdr_buf *, struct xdr_netobj *, unsigned int);
+extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
 extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
-
-/*
- * Helper structure for copying from an sk_buff.
- */
-struct xdr_skb_reader {
-	struct sk_buff	*skb;
-	unsigned int	offset;
-	size_t		count;
-	__wsum		csum;
-};
-
-typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to, size_t len);
-
-extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
 
 extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
 extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);
@@ -298,6 +284,59 @@ xdr_align_size(size_t n)
 	const size_t mask = sizeof(__u32) - 1;
 
 	return (n + mask) & ~mask;
+}
+
+/**
+ * xdr_pad_size - Calculate size of an object's pad
+ * @n: Size of an object being XDR encoded (in bytes)
+ *
+ * This implementation avoids the need for conditional
+ * branches or modulo division.
+ *
+ * Return value:
+ *   Size (in bytes) of the needed XDR pad
+ */
+static inline size_t xdr_pad_size(size_t n)
+{
+	return xdr_align_size(n) - n;
+}
+
+/**
+ * xdr_stream_encode_item_present - Encode a "present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t xdr_stream_encode_item_present(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_one;
+	return len;
+}
+
+/**
+ * xdr_stream_encode_item_absent - Encode a "not present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline int xdr_stream_encode_item_absent(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_zero;
+	return len;
 }
 
 /**

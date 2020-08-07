@@ -38,7 +38,7 @@ extern int pm_runtime_force_resume(struct device *dev);
 extern int __pm_runtime_idle(struct device *dev, int rpmflags);
 extern int __pm_runtime_suspend(struct device *dev, int rpmflags);
 extern int __pm_runtime_resume(struct device *dev, int rpmflags);
-extern int pm_runtime_get_if_in_use(struct device *dev);
+extern int pm_runtime_get_if_active(struct device *dev, bool ign_usage_count);
 extern int pm_schedule_suspend(struct device *dev, unsigned int delay);
 extern int __pm_runtime_set_status(struct device *dev, unsigned int status);
 extern int pm_runtime_barrier(struct device *dev);
@@ -59,6 +59,11 @@ extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
 extern void pm_runtime_new_link(struct device *dev);
 extern void pm_runtime_drop_link(struct device *dev);
+
+static inline int pm_runtime_get_if_in_use(struct device *dev)
+{
+	return pm_runtime_get_if_active(dev, false);
+}
 
 static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
 {
@@ -140,6 +145,11 @@ static inline int pm_schedule_suspend(struct device *dev, unsigned int delay)
 	return -ENOSYS;
 }
 static inline int pm_runtime_get_if_in_use(struct device *dev)
+{
+	return -EINVAL;
+}
+static inline int pm_runtime_get_if_active(struct device *dev,
+					   bool ign_usage_count)
 {
 	return -EINVAL;
 }

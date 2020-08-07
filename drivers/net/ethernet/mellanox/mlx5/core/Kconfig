@@ -7,10 +7,10 @@ config MLX5_CORE
 	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
 	depends on PCI
 	select NET_DEVLINK
-	imply PTP_1588_CLOCK
-	imply VXLAN
-	imply MLXFW
-	imply PCI_HYPERV_INTERFACE
+	depends on VXLAN || !VXLAN
+	depends on MLXFW || !MLXFW
+	depends on PTP_1588_CLOCK || !PTP_1588_CLOCK
+	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
 	default n
 	---help---
 	  Core driver for low level functionality of the ConnectX-4 and
@@ -77,6 +77,16 @@ config MLX5_ESWITCH
 	  enabled VFs and PF in two available modes:
 	        Legacy SRIOV mode (L2 mac vlan steering based).
 	        Switchdev mode (eswitch offloads).
+
+config MLX5_TC_CT
+	bool "MLX5 TC connection tracking offload support"
+	depends on MLX5_ESWITCH && NF_FLOW_TABLE && NET_ACT_CT && NET_TC_SKB_EXT
+	default y
+	help
+	  Say Y here if you want to support offloading connection tracking rules
+	  via tc ct action.
+
+	  If unsure, set to Y
 
 config MLX5_CORE_EN_DCB
 	bool "Data Center Bridging (DCB) Support"

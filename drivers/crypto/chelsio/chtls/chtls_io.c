@@ -682,7 +682,7 @@ int chtls_push_frames(struct chtls_sock *csk, int comp)
 				make_tx_data_wr(sk, skb, immdlen, len,
 						credits_needed, completion);
 			tp->snd_nxt += len;
-			tp->lsndtime = tcp_time_stamp(tp);
+			tp->lsndtime = tcp_jiffies32;
 			if (completion)
 				ULP_SKB_CB(skb)->flags &= ~ULPCB_FLAG_NEED_HDR;
 		} else {
@@ -902,14 +902,6 @@ static int chtls_skb_copy_to_page_nocache(struct sock *sk,
 	return 0;
 }
 
-/* Read TLS header to find content type and data length */
-static int tls_header_read(struct tls_hdr *thdr, struct iov_iter *from)
-{
-	if (copy_from_iter(thdr, sizeof(*thdr), from) != sizeof(*thdr))
-		return -EFAULT;
-	return (__force int)cpu_to_be16(thdr->length);
-}
-
 static int csk_mem_free(struct chtls_dev *cdev, struct sock *sk)
 {
 	return (cdev->max_host_sndbuf - sk->sk_wmem_queued);
@@ -981,6 +973,37 @@ do_interrupted:
 	goto do_rm_wq;
 }
 
+static int chtls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
+			       unsigned char *record_type)
+{
+	struct cmsghdr *cmsg;
+	int rc = -EINVAL;
+
+	for_each_cmsghdr(cmsg, msg) {
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+		if (cmsg->cmsg_level != SOL_TLS)
+			continue;
+
+		switch (cmsg->cmsg_type) {
+		case TLS_SET_RECORD_TYPE:
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(*record_type)))
+				return -EINVAL;
+
+			if (msg->msg_flags & MSG_MORE)
+				return -EINVAL;
+
+			*record_type = *(unsigned char *)CMSG_DATA(cmsg);
+			rc = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return rc;
+}
+
 int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
@@ -1022,15 +1045,21 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			goto wait_for_sndbuf;
 
 		if (is_tls_tx(csk) && !csk->tlshws.txleft) {
-			struct tls_hdr hdr;
+			unsigned char record_type = TLS_RECORD_TYPE_DATA;
 
-			recordsz = tls_header_read(&hdr, &msg->msg_iter);
-			size -= TLS_HEADER_LENGTH;
-			copied += TLS_HEADER_LENGTH;
+			if (unlikely(msg->msg_controllen)) {
+				err = chtls_proccess_cmsg(sk, msg,
+							  &record_type);
+				if (err)
+					goto out_err;
+			}
+
+			recordsz = size;
 			csk->tlshws.txleft = recordsz;
-			csk->tlshws.type = hdr.type;
+			csk->tlshws.type = record_type;
+
 			if (skb)
-				ULP_SKB_CB(skb)->ulp.tls.type = hdr.type;
+				ULP_SKB_CB(skb)->ulp.tls.type = record_type;
 		}
 
 		if (!skb || (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND) ||
@@ -1081,10 +1110,10 @@ new_buf:
 				pg_size = page_size(page);
 			if (off < pg_size &&
 			    skb_can_coalesce(skb, i, page, off)) {
-				merge = 1;
+				merge = true;
 				goto copy;
 			}
-			merge = 0;
+			merge = false;
 			if (i == (is_tls_tx(csk) ? (MAX_SKB_FRAGS - 1) :
 			    MAX_SKB_FRAGS))
 				goto new_buf;
@@ -1399,6 +1428,8 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 	struct chtls_hws *hws = &csk->tlshws;
+	struct net_device *dev = csk->egress_dev;
+	struct adapter *adap = netdev2adap(dev);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned long avail;
 	int buffers_freed;
@@ -1521,6 +1552,22 @@ found_ok_skb:
 				}
 			}
 		}
+		/* Set record type if not already done. For a non-data record,
+		 * do not proceed if record type could not be copied.
+		 */
+		if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_TLS_HDR) {
+			struct tls_hdr *thdr = (struct tls_hdr *)skb->data;
+			int cerr = 0;
+
+			cerr = put_cmsg(msg, SOL_TLS, TLS_GET_RECORD_TYPE,
+					sizeof(thdr->type), &thdr->type);
+
+			if (cerr && thdr->type != TLS_RECORD_TYPE_DATA)
+				return -EIO;
+			/*  don't send tls header, skip copy */
+			goto skip_copy;
+		}
+
 		if (skb_copy_datagram_msg(skb, offset, msg, avail)) {
 			if (!copied) {
 				copied = -EFAULT;
@@ -1540,6 +1587,7 @@ skip_copy:
 				tp->copied_seq += skb->len;
 				hws->rcvpld = skb->hdr_len;
 			} else {
+				atomic_inc(&adap->chcr_stats.tls_pdu_rx);
 				tp->copied_seq += hws->rcvpld;
 			}
 			chtls_free_skb(sk, skb);

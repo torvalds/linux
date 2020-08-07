@@ -182,7 +182,6 @@ static bool boot_ec_is_ecdt = false;
 static struct workqueue_struct *ec_wq;
 static struct workqueue_struct *ec_query_wq;
 
-static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
 static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
@@ -690,21 +689,9 @@ static void advance_transaction(struct acpi_ec *ec)
 			wakeup = true;
 		}
 		goto out;
-	} else {
-		if (EC_FLAGS_QUERY_HANDSHAKE &&
-		    !(status & ACPI_EC_FLAG_SCI) &&
-		    (t->command == ACPI_EC_COMMAND_QUERY)) {
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
-			t->rdata[t->ri++] = 0x00;
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
-			ec_dbg_evt("Command(%s) completed by software",
-				   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-			wakeup = true;
-		} else if ((status & ACPI_EC_FLAG_IBF) == 0) {
-			acpi_ec_write_cmd(ec, t->command);
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
-		} else
-			goto err;
+	} else if (!(status & ACPI_EC_FLAG_IBF)) {
+		acpi_ec_write_cmd(ec, t->command);
+		ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
 		goto out;
 	}
 err:
@@ -1427,57 +1414,45 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
-static void install_gpe_event_handler(struct acpi_ec *ec)
+static bool install_gpe_event_handler(struct acpi_ec *ec)
 {
-	acpi_status status =
-		acpi_install_gpe_raw_handler(NULL, ec->gpe,
-					     ACPI_GPE_EDGE_TRIGGERED,
-					     &acpi_ec_gpe_handler,
-					     ec);
-	if (ACPI_SUCCESS(status)) {
-		/* This is not fatal as we can poll EC events */
-		set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
-		acpi_ec_leave_noirq(ec);
-		if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
-		    ec->reference_count >= 1)
-			acpi_ec_enable_gpe(ec, true);
-	}
+	acpi_status status;
+
+	status = acpi_install_gpe_raw_handler(NULL, ec->gpe,
+					      ACPI_GPE_EDGE_TRIGGERED,
+					      &acpi_ec_gpe_handler, ec);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	if (test_bit(EC_FLAGS_STARTED, &ec->flags) && ec->reference_count >= 1)
+		acpi_ec_enable_gpe(ec, true);
+
+	return true;
 }
 
-/* ACPI reduced hardware platforms use a GpioInt specified in _CRS. */
-static int install_gpio_irq_event_handler(struct acpi_ec *ec,
-					  struct acpi_device *device)
+static bool install_gpio_irq_event_handler(struct acpi_ec *ec)
 {
-	int irq = acpi_dev_gpio_irq_get(device, 0);
-	int ret;
-
-	if (irq < 0)
-		return irq;
-
-	ret = request_irq(irq, acpi_ec_irq_handler, IRQF_SHARED,
-			  "ACPI EC", ec);
-
-	/*
-	 * Unlike the GPE case, we treat errors here as fatal, we'll only
-	 * implement GPIO polling if we find a case that needs it.
-	 */
-	if (ret < 0)
-		return ret;
-
-	ec->irq = irq;
-	set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
-	acpi_ec_leave_noirq(ec);
-
-	return 0;
+	return request_irq(ec->irq, acpi_ec_irq_handler, IRQF_SHARED,
+			   "ACPI EC", ec) >= 0;
 }
 
-/*
- * Note: This function returns an error code only when the address space
- *       handler is not installed, which means "not able to handle
- *       transactions".
+/**
+ * ec_install_handlers - Install service callbacks and register query methods.
+ * @ec: Target EC.
+ * @device: ACPI device object corresponding to @ec.
+ *
+ * Install a handler for the EC address space type unless it has been installed
+ * already.  If @device is not NULL, also look for EC query methods in the
+ * namespace and register them, and install an event (either GPE or GPIO IRQ)
+ * handler for the EC, if possible.
+ *
+ * Return:
+ * -ENODEV if the address space handler cannot be installed, which means
+ *  "unable to handle transactions",
+ * -EPROBE_DEFER if GPIO IRQ acquisition needs to be deferred,
+ * or 0 (success) otherwise.
  */
-static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device,
-			       bool handle_events)
+static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device)
 {
 	acpi_status status;
 
@@ -1490,25 +1465,27 @@ static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device,
 							    &acpi_ec_space_handler,
 							    NULL, ec);
 		if (ACPI_FAILURE(status)) {
-			if (status == AE_NOT_FOUND) {
-				/*
-				 * Maybe OS fails in evaluating the _REG
-				 * object. The AE_NOT_FOUND error will be
-				 * ignored and OS * continue to initialize
-				 * EC.
-				 */
-				pr_err("Fail in evaluating the _REG object"
-					" of EC device. Broken bios is suspected.\n");
-			} else {
-				acpi_ec_stop(ec, false);
-				return -ENODEV;
-			}
+			acpi_ec_stop(ec, false);
+			return -ENODEV;
 		}
 		set_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags);
 	}
 
-	if (!handle_events)
+	if (!device)
 		return 0;
+
+	if (ec->gpe < 0) {
+		/* ACPI reduced hardware platforms use a GpioInt from _CRS. */
+		int irq = acpi_dev_gpio_irq_get(device, 0);
+		/*
+		 * Bail out right away for deferred probing or complete the
+		 * initialization regardless of any other errors.
+		 */
+		if (irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		else if (irq >= 0)
+			ec->irq = irq;
+	}
 
 	if (!test_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags)) {
 		/* Find and register all query methods */
@@ -1518,16 +1495,21 @@ static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device,
 		set_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags);
 	}
 	if (!test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags)) {
-		if (ec->gpe >= 0) {
-			install_gpe_event_handler(ec);
-		} else if (device) {
-			int ret = install_gpio_irq_event_handler(ec, device);
+		bool ready = false;
 
-			if (ret)
-				return ret;
-		} else { /* No GPE and no GpioInt? */
-			return -ENODEV;
+		if (ec->gpe >= 0)
+			ready = install_gpe_event_handler(ec);
+		else if (ec->irq >= 0)
+			ready = install_gpio_irq_event_handler(ec);
+
+		if (ready) {
+			set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
+			acpi_ec_leave_noirq(ec);
 		}
+		/*
+		 * Failures to install an event handler are not fatal, because
+		 * the EC can be polled for events.
+		 */
 	}
 	/* EC is fully operational, allow queries */
 	acpi_ec_enable_event(ec);
@@ -1574,61 +1556,46 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 	}
 }
 
-static int acpi_ec_setup(struct acpi_ec *ec, struct acpi_device *device,
-			 bool handle_events)
+static int acpi_ec_setup(struct acpi_ec *ec, struct acpi_device *device)
 {
 	int ret;
 
-	ret = ec_install_handlers(ec, device, handle_events);
+	ret = ec_install_handlers(ec, device);
 	if (ret)
 		return ret;
 
 	/* First EC capable of handling transactions */
-	if (!first_ec) {
+	if (!first_ec)
 		first_ec = ec;
-		acpi_handle_info(first_ec->handle, "Used as first EC\n");
+
+	pr_info("EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n", ec->command_addr,
+		ec->data_addr);
+
+	if (test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags)) {
+		if (ec->gpe >= 0)
+			pr_info("GPE=0x%x\n", ec->gpe);
+		else
+			pr_info("IRQ=%d\n", ec->irq);
 	}
 
-	acpi_handle_info(ec->handle,
-			 "GPE=0x%x, IRQ=%d, EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n",
-			 ec->gpe, ec->irq, ec->command_addr, ec->data_addr);
 	return ret;
-}
-
-static bool acpi_ec_ecdt_get_handle(acpi_handle *phandle)
-{
-	struct acpi_table_ecdt *ecdt_ptr;
-	acpi_status status;
-	acpi_handle handle;
-
-	status = acpi_get_table(ACPI_SIG_ECDT, 1,
-				(struct acpi_table_header **)&ecdt_ptr);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	status = acpi_get_handle(NULL, ecdt_ptr->id, &handle);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	*phandle = handle;
-	return true;
 }
 
 static int acpi_ec_add(struct acpi_device *device)
 {
-	struct acpi_ec *ec = NULL;
-	bool dep_update = true;
-	acpi_status status;
+	struct acpi_ec *ec;
 	int ret;
 
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
-	if (!strcmp(acpi_device_hid(device), ACPI_ECDT_HID)) {
-		boot_ec_is_ecdt = true;
+	if (boot_ec && (boot_ec->handle == device->handle ||
+	    !strcmp(acpi_device_hid(device), ACPI_ECDT_HID))) {
+		/* Fast path: this device corresponds to the boot EC. */
 		ec = boot_ec;
-		dep_update = false;
 	} else {
+		acpi_status status;
+
 		ec = acpi_ec_alloc();
 		if (!ec)
 			return -ENOMEM;
@@ -1636,12 +1603,11 @@ static int acpi_ec_add(struct acpi_device *device)
 		status = ec_parse_device(device->handle, 0, ec, NULL);
 		if (status != AE_CTRL_TERMINATE) {
 			ret = -EINVAL;
-			goto err_alloc;
+			goto err;
 		}
 
 		if (boot_ec && ec->command_addr == boot_ec->command_addr &&
 		    ec->data_addr == boot_ec->data_addr) {
-			boot_ec_is_ecdt = false;
 			/*
 			 * Trust PNP0C09 namespace location rather than
 			 * ECDT ID. But trust ECDT GPE rather than _GPE
@@ -1655,14 +1621,17 @@ static int acpi_ec_add(struct acpi_device *device)
 		}
 	}
 
-	ret = acpi_ec_setup(ec, device, true);
+	ret = acpi_ec_setup(ec, device);
 	if (ret)
-		goto err_query;
+		goto err;
 
 	if (ec == boot_ec)
 		acpi_handle_info(boot_ec->handle,
-				 "Boot %s EC used to handle transactions and events\n",
+				 "Boot %s EC initialization complete\n",
 				 boot_ec_is_ecdt ? "ECDT" : "DSDT");
+
+	acpi_handle_info(ec->handle,
+			 "EC: Used to handle transactions and events\n");
 
 	device->driver_data = ec;
 
@@ -1671,19 +1640,16 @@ static int acpi_ec_add(struct acpi_device *device)
 	ret = !!request_region(ec->command_addr, 1, "EC cmd");
 	WARN(!ret, "Could not request EC cmd io port 0x%lx", ec->command_addr);
 
-	if (dep_update) {
-		/* Reprobe devices depending on the EC */
-		acpi_walk_dep_device_list(ec->handle);
-	}
+	/* Reprobe devices depending on the EC */
+	acpi_walk_dep_device_list(ec->handle);
+
 	acpi_handle_debug(ec->handle, "enumerated.\n");
 	return 0;
 
-err_query:
-	if (ec != boot_ec)
-		acpi_ec_remove_query_handlers(ec, true, 0);
-err_alloc:
+err:
 	if (ec != boot_ec)
 		acpi_ec_free(ec);
+
 	return ret;
 }
 
@@ -1775,7 +1741,7 @@ void __init acpi_ec_dsdt_probe(void)
 	 * At this point, the GPE is not fully initialized, so do not to
 	 * handle the events.
 	 */
-	ret = acpi_ec_setup(ec, NULL, false);
+	ret = acpi_ec_setup(ec, NULL);
 	if (ret) {
 		acpi_ec_free(ec);
 		return;
@@ -1788,52 +1754,43 @@ void __init acpi_ec_dsdt_probe(void)
 }
 
 /*
- * If the DSDT EC is not functioning, we still need to prepare a fully
- * functioning ECDT EC first in order to handle the events.
- * https://bugzilla.kernel.org/show_bug.cgi?id=115021
+ * acpi_ec_ecdt_start - Finalize the boot ECDT EC initialization.
+ *
+ * First, look for an ACPI handle for the boot ECDT EC if acpi_ec_add() has not
+ * found a matching object in the namespace.
+ *
+ * Next, in case the DSDT EC is not functioning, it is still necessary to
+ * provide a functional ECDT EC to handle events, so add an extra device object
+ * to represent it (see https://bugzilla.kernel.org/show_bug.cgi?id=115021).
+ *
+ * This is useful on platforms with valid ECDT and invalid DSDT EC settings,
+ * like ASUS X550ZE (see https://bugzilla.kernel.org/show_bug.cgi?id=196847).
  */
-static int __init acpi_ec_ecdt_start(void)
+static void __init acpi_ec_ecdt_start(void)
 {
+	struct acpi_table_ecdt *ecdt_ptr;
 	acpi_handle handle;
+	acpi_status status;
 
-	if (!boot_ec)
-		return -ENODEV;
-	/* In case acpi_ec_ecdt_start() is called after acpi_ec_add() */
-	if (!boot_ec_is_ecdt)
-		return -ENODEV;
+	/* Bail out if a matching EC has been found in the namespace. */
+	if (!boot_ec || boot_ec->handle != ACPI_ROOT_OBJECT)
+		return;
 
-	/*
-	 * At this point, the namespace and the GPE is initialized, so
-	 * start to find the namespace objects and handle the events.
-	 *
-	 * Note: ec->handle can be valid if this function is called after
-	 * acpi_ec_add(), hence the fast path.
-	 */
-	if (boot_ec->handle == ACPI_ROOT_OBJECT) {
-		if (!acpi_ec_ecdt_get_handle(&handle))
-			return -ENODEV;
-		boot_ec->handle = handle;
-	}
+	/* Look up the object pointed to from the ECDT in the namespace. */
+	status = acpi_get_table(ACPI_SIG_ECDT, 1,
+				(struct acpi_table_header **)&ecdt_ptr);
+	if (ACPI_FAILURE(status))
+		return;
 
-	/* Register to ACPI bus with PM ops attached */
-	return acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
+	status = acpi_get_handle(NULL, ecdt_ptr->id, &handle);
+	if (ACPI_FAILURE(status))
+		return;
+
+	boot_ec->handle = handle;
+
+	/* Add a special ACPI device object to represent the boot EC. */
+	acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
 }
-
-#if 0
-/*
- * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
- * set, for which case, we complete the QR_EC without issuing it to the
- * firmware.
- * https://bugzilla.kernel.org/show_bug.cgi?id=82611
- * https://bugzilla.kernel.org/show_bug.cgi?id=97381
- */
-static int ec_flag_query_handshake(const struct dmi_system_id *id)
-{
-	pr_debug("Detected the EC firmware requiring QR_EC issued when SCI_EVT set\n");
-	EC_FLAGS_QUERY_HANDSHAKE = 1;
-	return 0;
-}
-#endif
 
 /*
  * On some hardware it is necessary to clear events accumulated by the EC during
@@ -1962,7 +1919,7 @@ void __init acpi_ec_ecdt_probe(void)
 	 * At this point, the namespace is not initialized, so do not find
 	 * the namespace objects, or handle the events.
 	 */
-	ret = acpi_ec_setup(ec, NULL, false);
+	ret = acpi_ec_setup(ec, NULL);
 	if (ret) {
 		acpi_ec_free(ec);
 		return;
@@ -2042,13 +1999,30 @@ bool acpi_ec_dispatch_gpe(void)
 	u32 ret;
 
 	if (!first_ec)
+		return acpi_any_gpe_status_set(U32_MAX);
+
+	/*
+	 * Report wakeup if the status bit is set for any enabled GPE other
+	 * than the EC one.
+	 */
+	if (acpi_any_gpe_status_set(first_ec->gpe))
+		return true;
+
+	if (ec_no_wakeup)
 		return false;
 
+	/*
+	 * Dispatch the EC GPE in-band, but do not report wakeup in any case
+	 * to allow the caller to process events properly after that.
+	 */
 	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
 	if (ret == ACPI_INTERRUPT_HANDLED) {
 		pm_pr_dbg("EC GPE dispatched\n");
-		return true;
+
+		/* Flush the event and query workqueues. */
+		acpi_ec_flush_work();
 	}
+
 	return false;
 }
 #endif /* CONFIG_PM_SLEEP */
@@ -2160,14 +2134,13 @@ static const struct dmi_system_id acpi_ec_no_wakeup[] = {
 	{ },
 };
 
-int __init acpi_ec_init(void)
+void __init acpi_ec_init(void)
 {
 	int result;
-	int ecdt_fail, dsdt_fail;
 
 	result = acpi_ec_init_workqueues();
 	if (result)
-		return result;
+		return;
 
 	/*
 	 * Disable EC wakeup on following systems to prevent periodic
@@ -2178,16 +2151,10 @@ int __init acpi_ec_init(void)
 		pr_debug("Disabling EC wakeup on suspend-to-idle\n");
 	}
 
-	/* Drivers must be started after acpi_ec_query_init() */
-	dsdt_fail = acpi_bus_register_driver(&acpi_ec_driver);
-	/*
-	 * Register ECDT to ACPI bus only when PNP0C09 probe fails. This is
-	 * useful for platforms (confirmed on ASUS X550ZE) with valid ECDT
-	 * settings but invalid DSDT settings.
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=196847
-	 */
-	ecdt_fail = acpi_ec_ecdt_start();
-	return ecdt_fail && dsdt_fail ? -ENODEV : 0;
+	/* Driver must be registered after acpi_ec_init_workqueues(). */
+	acpi_bus_register_driver(&acpi_ec_driver);
+
+	acpi_ec_ecdt_start();
 }
 
 /* EC driver currently not unloadable */

@@ -91,7 +91,7 @@ struct mkhi_rule_id {
 struct mkhi_fwcaps {
 	struct mkhi_rule_id id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct mkhi_fw_ver_block {
@@ -119,7 +119,7 @@ struct mkhi_msg_hdr {
 
 struct mkhi_msg {
 	struct mkhi_msg_hdr hdr;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define MKHI_OSVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \

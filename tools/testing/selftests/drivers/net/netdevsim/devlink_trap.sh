@@ -16,6 +16,8 @@ ALL_TESTS="
 	trap_group_action_test
 	bad_trap_group_test
 	trap_group_stats_test
+	trap_policer_test
+	trap_policer_bind_test
 	port_del_test
 	dev_del_test
 "
@@ -23,6 +25,7 @@ NETDEVSIM_PATH=/sys/bus/netdevsim/
 DEV_ADDR=1337
 DEV=netdevsim${DEV_ADDR}
 DEVLINK_DEV=netdevsim/${DEV}
+DEBUGFS_DIR=/sys/kernel/debug/netdevsim/$DEV/
 SLEEP_TIME=1
 NETDEV=""
 NUM_NETIFS=0
@@ -103,6 +106,11 @@ trap_metadata_test()
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_metadata_test $trap_name "input_port"
 		check_err $? "Input port not reported as metadata of trap $trap_name"
+		if [ $trap_name == "ingress_flow_action_drop" ] ||
+		   [ $trap_name == "egress_flow_action_drop" ]; then
+			devlink_trap_metadata_test $trap_name "flow_action_cookie"
+			check_err $? "Flow action cookie not reported as metadata of trap $trap_name"
+		fi
 	done
 
 	log_test "Trap metadata"
@@ -249,6 +257,123 @@ trap_group_stats_test()
 	done
 
 	log_test "Trap group statistics"
+}
+
+trap_policer_test()
+{
+	local packets_t0
+	local packets_t1
+
+	RET=0
+
+	if [ $(devlink_trap_policers_num_get) -eq 0 ]; then
+		check_err 1 "Failed to dump policers"
+	fi
+
+	devlink trap policer set $DEVLINK_DEV policer 1337 &> /dev/null
+	check_fail $? "Did not get an error for setting a non-existing policer"
+	devlink trap policer show $DEVLINK_DEV policer 1337 &> /dev/null
+	check_fail $? "Did not get an error for getting a non-existing policer"
+
+	devlink trap policer set $DEVLINK_DEV policer 1 rate 2000 burst 16
+	check_err $? "Failed to set valid parameters for a valid policer"
+	if [ $(devlink_trap_policer_rate_get 1) -ne 2000 ]; then
+		check_err 1 "Policer rate was not changed"
+	fi
+	if [ $(devlink_trap_policer_burst_get 1) -ne 16 ]; then
+		check_err 1 "Policer burst size was not changed"
+	fi
+
+	devlink trap policer set $DEVLINK_DEV policer 1 rate 0 &> /dev/null
+	check_fail $? "Policer rate was changed to rate lower than limit"
+	devlink trap policer set $DEVLINK_DEV policer 1 rate 9000 &> /dev/null
+	check_fail $? "Policer rate was changed to rate higher than limit"
+	devlink trap policer set $DEVLINK_DEV policer 1 burst 2 &> /dev/null
+	check_fail $? "Policer burst size was changed to burst size lower than limit"
+	devlink trap policer set $DEVLINK_DEV policer 1 rate 65537 &> /dev/null
+	check_fail $? "Policer burst size was changed to burst size higher than limit"
+	echo "y" > $DEBUGFS_DIR/fail_trap_policer_set
+	devlink trap policer set $DEVLINK_DEV policer 1 rate 3000 &> /dev/null
+	check_fail $? "Managed to set policer rate when should not"
+	echo "n" > $DEBUGFS_DIR/fail_trap_policer_set
+	if [ $(devlink_trap_policer_rate_get 1) -ne 2000 ]; then
+		check_err 1 "Policer rate was changed to an invalid value"
+	fi
+	if [ $(devlink_trap_policer_burst_get 1) -ne 16 ]; then
+		check_err 1 "Policer burst size was changed to an invalid value"
+	fi
+
+	packets_t0=$(devlink_trap_policer_rx_dropped_get 1)
+	sleep .5
+	packets_t1=$(devlink_trap_policer_rx_dropped_get 1)
+	if [ ! $packets_t1 -gt $packets_t0 ]; then
+		check_err 1 "Policer drop counter was not incremented"
+	fi
+
+	echo "y"> $DEBUGFS_DIR/fail_trap_policer_counter_get
+	devlink -s trap policer show $DEVLINK_DEV policer 1 &> /dev/null
+	check_fail $? "Managed to read policer drop counter when should not"
+	echo "n"> $DEBUGFS_DIR/fail_trap_policer_counter_get
+	devlink -s trap policer show $DEVLINK_DEV policer 1 &> /dev/null
+	check_err $? "Did not manage to read policer drop counter when should"
+
+	log_test "Trap policer"
+}
+
+trap_group_check_policer()
+{
+	local group_name=$1; shift
+
+	devlink -j -p trap group show $DEVLINK_DEV group $group_name \
+		| jq -e '.[][][]["policer"]' &> /dev/null
+}
+
+trap_policer_bind_test()
+{
+	RET=0
+
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
+	check_err $? "Failed to bind a valid policer"
+	if [ $(devlink_trap_group_policer_get "l2_drops") -ne 1 ]; then
+		check_err 1 "Bound policer was not changed"
+	fi
+
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 1337 \
+		&> /dev/null
+	check_fail $? "Did not get an error for binding a non-existing policer"
+	if [ $(devlink_trap_group_policer_get "l2_drops") -ne 1 ]; then
+		check_err 1 "Bound policer was changed when should not"
+	fi
+
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 0
+	check_err $? "Failed to unbind a policer when using ID 0"
+	trap_group_check_policer "l2_drops"
+	check_fail $? "Trap group has a policer after unbinding with ID 0"
+
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
+	check_err $? "Failed to bind a valid policer"
+
+	devlink trap group set $DEVLINK_DEV group l2_drops nopolicer
+	check_err $? "Failed to unbind a policer when using 'nopolicer' keyword"
+	trap_group_check_policer "l2_drops"
+	check_fail $? "Trap group has a policer after unbinding with 'nopolicer' keyword"
+
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
+	check_err $? "Failed to bind a valid policer"
+
+	echo "y"> $DEBUGFS_DIR/fail_trap_group_set
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 2 \
+		&> /dev/null
+	check_fail $? "Managed to bind a policer when should not"
+	echo "n"> $DEBUGFS_DIR/fail_trap_group_set
+	devlink trap group set $DEVLINK_DEV group l2_drops policer 2
+	check_err $? "Did not manage to bind a policer when should"
+
+	devlink trap group set $DEVLINK_DEV group l2_drops action drop \
+		policer 1337 &> /dev/null
+	check_fail $? "Did not get an error for partially modified trap group"
+
+	log_test "Trap policer binding"
 }
 
 port_del_test()

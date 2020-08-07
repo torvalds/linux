@@ -372,8 +372,6 @@
 		      "ram", "sat";
 	resets = <&ccu RST_BUS_DE_BE>, <&ccu RST_BUS_SAT>;
 	reset-names = "be", "sat";
-	assigned-clocks = <&ccu CLK_DE_BE>;
-	assigned-clock-rates = <300000000>;
 };
 
 &ccu {

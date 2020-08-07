@@ -48,7 +48,7 @@ struct videomode;
  * @MODE_HSYNC: hsync out of range
  * @MODE_VSYNC: vsync out of range
  * @MODE_H_ILLEGAL: mode has illegal horizontal timings
- * @MODE_V_ILLEGAL: mode has illegal horizontal timings
+ * @MODE_V_ILLEGAL: mode has illegal vertical timings
  * @MODE_BAD_WIDTH: requires an unsupported linepitch
  * @MODE_NOMODE: no mode with a matching name
  * @MODE_NO_INTERLACE: interlaced mode not supported
@@ -371,19 +371,12 @@ struct drm_display_mode {
 	int crtc_vtotal;
 
 	/**
-	 * @private:
+	 * @private_flags:
 	 *
-	 * Pointer for driver private data. This can only be used for mode
+	 * Driver private flags. private_flags can only be used for mode
 	 * objects passed to drivers in modeset operations. It shouldn't be used
 	 * by atomic drivers since they can store any additional data by
 	 * subclassing state structures.
-	 */
-	int *private;
-
-	/**
-	 * @private_flags:
-	 *
-	 * Similar to @private, but just an integer.
 	 */
 	int private_flags;
 

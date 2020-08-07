@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "cgroup_util.h"
+#include "../clone3/clone3_selftests.h"
 
 static ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
@@ -331,11 +332,111 @@ int cg_run(const char *cgroup,
 	}
 }
 
+pid_t clone_into_cgroup(int cgroup_fd)
+{
+#ifdef CLONE_ARGS_SIZE_VER2
+	pid_t pid;
+
+	struct clone_args args = {
+		.flags = CLONE_INTO_CGROUP,
+		.exit_signal = SIGCHLD,
+		.cgroup = cgroup_fd,
+	};
+
+	pid = sys_clone3(&args, sizeof(struct clone_args));
+	/*
+	 * Verify that this is a genuine test failure:
+	 * ENOSYS -> clone3() not available
+	 * E2BIG  -> CLONE_INTO_CGROUP not available
+	 */
+	if (pid < 0 && (errno == ENOSYS || errno == E2BIG))
+		goto pretend_enosys;
+
+	return pid;
+
+pretend_enosys:
+#endif
+	errno = ENOSYS;
+	return -ENOSYS;
+}
+
+int clone_reap(pid_t pid, int options)
+{
+	int ret;
+	siginfo_t info = {
+		.si_signo = 0,
+	};
+
+again:
+	ret = waitid(P_PID, pid, &info, options | __WALL | __WNOTHREAD);
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto again;
+		return -1;
+	}
+
+	if (options & WEXITED) {
+		if (WIFEXITED(info.si_status))
+			return WEXITSTATUS(info.si_status);
+	}
+
+	if (options & WSTOPPED) {
+		if (WIFSTOPPED(info.si_status))
+			return WSTOPSIG(info.si_status);
+	}
+
+	if (options & WCONTINUED) {
+		if (WIFCONTINUED(info.si_status))
+			return 0;
+	}
+
+	return -1;
+}
+
+int dirfd_open_opath(const char *dir)
+{
+	return open(dir, O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW | O_PATH);
+}
+
+#define close_prot_errno(fd)                                                   \
+	if (fd >= 0) {                                                         \
+		int _e_ = errno;                                               \
+		close(fd);                                                     \
+		errno = _e_;                                                   \
+	}
+
+static int clone_into_cgroup_run_nowait(const char *cgroup,
+					int (*fn)(const char *cgroup, void *arg),
+					void *arg)
+{
+	int cgroup_fd;
+	pid_t pid;
+
+	cgroup_fd =  dirfd_open_opath(cgroup);
+	if (cgroup_fd < 0)
+		return -1;
+
+	pid = clone_into_cgroup(cgroup_fd);
+	close_prot_errno(cgroup_fd);
+	if (pid == 0)
+		exit(fn(cgroup, arg));
+
+	return pid;
+}
+
 int cg_run_nowait(const char *cgroup,
 		  int (*fn)(const char *cgroup, void *arg),
 		  void *arg)
 {
 	int pid;
+
+	pid = clone_into_cgroup_run_nowait(cgroup, fn, arg);
+	if (pid > 0)
+		return pid;
+
+	/* Genuine test failure. */
+	if (pid < 0 && errno != ENOSYS)
+		return -1;
 
 	pid = fork();
 	if (pid == 0) {
@@ -449,4 +550,29 @@ int proc_read_strstr(int pid, bool thread, const char *item, const char *needle)
 		return -1;
 
 	return strstr(buf, needle) ? 0 : -1;
+}
+
+int clone_into_cgroup_run_wait(const char *cgroup)
+{
+	int cgroup_fd;
+	pid_t pid;
+
+	cgroup_fd =  dirfd_open_opath(cgroup);
+	if (cgroup_fd < 0)
+		return -1;
+
+	pid = clone_into_cgroup(cgroup_fd);
+	close_prot_errno(cgroup_fd);
+	if (pid < 0)
+		return -1;
+
+	if (pid == 0)
+		exit(EXIT_SUCCESS);
+
+	/*
+	 * We don't care whether this fails. We only care whether the initial
+	 * clone succeeded.
+	 */
+	(void)clone_reap(pid, WEXITED);
+	return 0;
 }

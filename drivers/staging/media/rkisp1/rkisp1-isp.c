@@ -28,9 +28,9 @@
 #define RKISP1_DIR_SINK_SRC (RKISP1_DIR_SINK | RKISP1_DIR_SRC)
 
 /*
- * NOTE: MIPI controller and input MUX are also configured in this file,
- * because ISP Subdev is not only describe ISP submodule(input size,format,
- * output size, format), but also a virtual route device.
+ * NOTE: MIPI controller and input MUX are also configured in this file.
+ * This is because ISP Subdev describes not only ISP submodule (input size,
+ * format, output size, format), but also a virtual route device.
  */
 
 /*
@@ -504,7 +504,7 @@ static int rkisp1_config_cif(struct rkisp1_device *rkisp1)
 	return 0;
 }
 
-static int rkisp1_isp_stop(struct rkisp1_device *rkisp1)
+static void rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 {
 	u32 val;
 
@@ -540,8 +540,6 @@ static int rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 		     RKISP1_CIF_IRCL_MIPI_SW_RST | RKISP1_CIF_IRCL_ISP_SW_RST,
 		     RKISP1_CIF_IRCL);
 	rkisp1_write(rkisp1, 0x0, RKISP1_CIF_IRCL);
-
-	return 0;
 }
 
 static void rkisp1_config_clk(struct rkisp1_device *rkisp1)
@@ -555,7 +553,7 @@ static void rkisp1_config_clk(struct rkisp1_device *rkisp1)
 	rkisp1_write(rkisp1, val, RKISP1_CIF_ICCL);
 }
 
-static int rkisp1_isp_start(struct rkisp1_device *rkisp1)
+static void rkisp1_isp_start(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_sensor_async *sensor = rkisp1->active_sensor;
 	u32 val;
@@ -580,8 +578,6 @@ static int rkisp1_isp_start(struct rkisp1_device *rkisp1)
 	 * the MIPI interface and before starting the sensor output.
 	 */
 	usleep_range(1000, 1200);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------------
@@ -683,7 +679,7 @@ static void rkisp1_isp_set_src_fmt(struct rkisp1_isp *isp,
 
 	src_fmt->code = format->code;
 	mbus_info = rkisp1_isp_mbus_info_get(src_fmt->code);
-	if (!mbus_info) {
+	if (!mbus_info || !(mbus_info->direction & RKISP1_DIR_SRC)) {
 		src_fmt->code = RKISP1_DEF_SRC_PAD_FMT;
 		mbus_info = rkisp1_isp_mbus_info_get(src_fmt->code);
 	}
@@ -767,7 +763,7 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 					  which);
 	sink_fmt->code = format->code;
 	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
-	if (!mbus_info) {
+	if (!mbus_info || !(mbus_info->direction & RKISP1_DIR_SINK)) {
 		sink_fmt->code = RKISP1_DEF_SINK_PAD_FMT;
 		mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 	}
@@ -795,7 +791,9 @@ static int rkisp1_isp_get_fmt(struct v4l2_subdev *sd,
 {
 	struct rkisp1_isp *isp = container_of(sd, struct rkisp1_isp, sd);
 
+	mutex_lock(&isp->ops_lock);
 	fmt->format = *rkisp1_isp_get_pad_fmt(isp, cfg, fmt->pad, fmt->which);
+	mutex_unlock(&isp->ops_lock);
 	return 0;
 }
 
@@ -805,6 +803,7 @@ static int rkisp1_isp_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rkisp1_isp *isp = container_of(sd, struct rkisp1_isp, sd);
 
+	mutex_lock(&isp->ops_lock);
 	if (fmt->pad == RKISP1_ISP_PAD_SINK_VIDEO)
 		rkisp1_isp_set_sink_fmt(isp, cfg, &fmt->format, fmt->which);
 	else if (fmt->pad == RKISP1_ISP_PAD_SOURCE_VIDEO)
@@ -813,6 +812,7 @@ static int rkisp1_isp_set_fmt(struct v4l2_subdev *sd,
 		fmt->format = *rkisp1_isp_get_pad_fmt(isp, cfg, fmt->pad,
 						      fmt->which);
 
+	mutex_unlock(&isp->ops_lock);
 	return 0;
 }
 
@@ -821,11 +821,13 @@ static int rkisp1_isp_get_selection(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_selection *sel)
 {
 	struct rkisp1_isp *isp = container_of(sd, struct rkisp1_isp, sd);
+	int ret = 0;
 
 	if (sel->pad != RKISP1_ISP_PAD_SOURCE_VIDEO &&
 	    sel->pad != RKISP1_ISP_PAD_SINK_VIDEO)
 		return -EINVAL;
 
+	mutex_lock(&isp->ops_lock);
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->pad == RKISP1_ISP_PAD_SINK_VIDEO) {
@@ -848,10 +850,10 @@ static int rkisp1_isp_get_selection(struct v4l2_subdev *sd,
 						  sel->which);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	return 0;
+	mutex_unlock(&isp->ops_lock);
+	return ret;
 }
 
 static int rkisp1_isp_set_selection(struct v4l2_subdev *sd,
@@ -861,21 +863,23 @@ static int rkisp1_isp_set_selection(struct v4l2_subdev *sd,
 	struct rkisp1_device *rkisp1 =
 		container_of(sd->v4l2_dev, struct rkisp1_device, v4l2_dev);
 	struct rkisp1_isp *isp = container_of(sd, struct rkisp1_isp, sd);
+	int ret = 0;
 
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
 	dev_dbg(rkisp1->dev, "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__,
 		sel->pad, sel->r.left, sel->r.top, sel->r.width, sel->r.height);
-
+	mutex_lock(&isp->ops_lock);
 	if (sel->pad == RKISP1_ISP_PAD_SINK_VIDEO)
 		rkisp1_isp_set_sink_crop(isp, cfg, &sel->r, sel->which);
 	else if (sel->pad == RKISP1_ISP_PAD_SOURCE_VIDEO)
 		rkisp1_isp_set_src_crop(isp, cfg, &sel->r, sel->which);
 	else
-		return -EINVAL;
+		ret = -EINVAL;
 
-	return 0;
+	mutex_unlock(&isp->ops_lock);
+	return ret;
 }
 
 static int rkisp1_subdev_link_validate(struct media_link *link)
@@ -936,13 +940,12 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rkisp1_device *rkisp1 =
 		container_of(sd->v4l2_dev, struct rkisp1_device, v4l2_dev);
+	struct rkisp1_isp *isp = &rkisp1->isp;
 	struct v4l2_subdev *sensor_sd;
 	int ret = 0;
 
 	if (!enable) {
-		ret = rkisp1_isp_stop(rkisp1);
-		if (ret)
-			return ret;
+		rkisp1_isp_stop(rkisp1);
 		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
 		return 0;
 	}
@@ -953,22 +956,23 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 	rkisp1->active_sensor = container_of(sensor_sd->asd,
 					     struct rkisp1_sensor_async, asd);
 
-	atomic_set(&rkisp1->isp.frame_sequence, -1);
-	ret = rkisp1_config_cif(rkisp1);
-	if (ret)
-		return ret;
-
 	if (rkisp1->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)
 		return -EINVAL;
 
+	atomic_set(&rkisp1->isp.frame_sequence, -1);
+	mutex_lock(&isp->ops_lock);
+	ret = rkisp1_config_cif(rkisp1);
+	if (ret)
+		goto mutex_unlock;
+
 	ret = rkisp1_mipi_csi2_start(&rkisp1->isp, rkisp1->active_sensor);
 	if (ret)
-		return ret;
+		goto mutex_unlock;
 
-	ret = rkisp1_isp_start(rkisp1);
-	if (ret)
-		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
+	rkisp1_isp_start(rkisp1);
 
+mutex_unlock:
+	mutex_unlock(&isp->ops_lock);
 	return ret;
 }
 
@@ -1028,6 +1032,7 @@ int rkisp1_isp_register(struct rkisp1_device *rkisp1,
 	isp->sink_fmt = rkisp1_isp_mbus_info_get(RKISP1_DEF_SINK_PAD_FMT);
 	isp->src_fmt = rkisp1_isp_mbus_info_get(RKISP1_DEF_SRC_PAD_FMT);
 
+	mutex_init(&isp->ops_lock);
 	ret = media_entity_pads_init(&sd->entity, RKISP1_ISP_PAD_MAX, pads);
 	if (ret)
 		return ret;

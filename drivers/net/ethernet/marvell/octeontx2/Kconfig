@@ -33,3 +33,9 @@ config OCTEONTX2_PF
 	depends on PCI
 	help
 	  This driver supports Marvell's OcteonTX2 NIC physical function.
+
+config OCTEONTX2_VF
+	tristate "Marvell OcteonTX2 NIC Virtual Function driver"
+	depends on OCTEONTX2_PF
+	help
+	  This driver supports Marvell's OcteonTX2 NIC virtual function.

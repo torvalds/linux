@@ -272,7 +272,7 @@ static inline bool drm_mm_node_allocated(const struct drm_mm_node *node)
  */
 static inline bool drm_mm_initialized(const struct drm_mm *mm)
 {
-	return mm->hole_stack.next;
+	return READ_ONCE(mm->hole_stack.next);
 }
 
 /**

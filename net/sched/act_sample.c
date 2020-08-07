@@ -267,14 +267,12 @@ tcf_sample_get_group(const struct tc_action *a,
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *group;
 
-	spin_lock_bh(&s->tcf_lock);
 	group = rcu_dereference_protected(s->psample_group,
 					  lockdep_is_held(&s->tcf_lock));
 	if (group) {
 		psample_group_take(group);
 		*destructor = tcf_psample_group_put;
 	}
-	spin_unlock_bh(&s->tcf_lock);
 
 	return group;
 }

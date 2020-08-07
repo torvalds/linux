@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/rtc.h>
@@ -264,6 +263,12 @@ static const struct regmap_config snvs_rtc_config = {
 	.reg_stride = 4,
 };
 
+static void snvs_rtc_action(void *data)
+{
+	if (data)
+		clk_disable_unprepare(data);
+}
+
 static int snvs_rtc_probe(struct platform_device *pdev)
 {
 	struct snvs_rtc_data *data;
@@ -314,6 +319,10 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = devm_add_action_or_reset(&pdev->dev, snvs_rtc_action, data->clk);
+	if (ret)
+		return ret;
+
 	platform_set_drvdata(pdev, data);
 
 	/* Initialize glitch detect */
@@ -326,7 +335,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	ret = snvs_rtc_enable(data, true);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable rtc %d\n", ret);
-		goto error_rtc_device_register;
+		return ret;
 	}
 
 	device_init_wakeup(&pdev->dev, true);
@@ -339,24 +348,13 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq %d: %d\n",
 			data->irq, ret);
-		goto error_rtc_device_register;
+		return ret;
 	}
 
 	data->rtc->ops = &snvs_rtc_ops;
 	data->rtc->range_max = U32_MAX;
-	ret = rtc_register_device(data->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register rtc: %d\n", ret);
-		goto error_rtc_device_register;
-	}
 
-	return 0;
-
-error_rtc_device_register:
-	if (data->clk)
-		clk_disable_unprepare(data->clk);
-
-	return ret;
+	return rtc_register_device(data->rtc);
 }
 
 static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)

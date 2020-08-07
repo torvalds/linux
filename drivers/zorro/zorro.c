@@ -41,7 +41,7 @@ struct zorro_dev *zorro_autocon;
 
 struct zorro_bus {
 	struct device dev;
-	struct zorro_dev devices[0];
+	struct zorro_dev devices[];
 };
 
 

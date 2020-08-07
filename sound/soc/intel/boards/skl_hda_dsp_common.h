@@ -49,6 +49,10 @@ static inline int skl_hda_hdmi_build_controls(struct snd_soc_card *card)
 	struct snd_soc_component *component;
 	struct skl_hda_hdmi_pcm *pcm;
 
+	/* HDMI disabled, do not create controls */
+	if (list_empty(&ctx->hdmi_pcm_list))
+		return 0;
+
 	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct skl_hda_hdmi_pcm,
 			       head);
 	component = pcm->codec_dai->component;

@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/part_stat.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"

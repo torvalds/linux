@@ -14,6 +14,10 @@
 #include <linux/virtio_byteorder.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
+#if IS_REACHABLE(CONFIG_VHOST_IOTLB)
+#include <linux/dma-direction.h>
+#include <linux/vhost_iotlb.h>
+#endif
 #include <asm/barrier.h>
 
 /* virtio_ring with information needed for host access. */
@@ -38,6 +42,9 @@ struct vringh {
 
 	/* The vring (note: it may contain user pointers!) */
 	struct vring vring;
+
+	/* IOTLB for this vring */
+	struct vhost_iotlb *iotlb;
 
 	/* The function to call to notify the guest about added buffers */
 	void (*notify)(struct vringh *);
@@ -248,4 +255,39 @@ static inline __virtio64 cpu_to_vringh64(const struct vringh *vrh, u64 val)
 {
 	return __cpu_to_virtio64(vringh_is_little_endian(vrh), val);
 }
+
+#if IS_REACHABLE(CONFIG_VHOST_IOTLB)
+
+void vringh_set_iotlb(struct vringh *vrh, struct vhost_iotlb *iotlb);
+
+int vringh_init_iotlb(struct vringh *vrh, u64 features,
+		      unsigned int num, bool weak_barriers,
+		      struct vring_desc *desc,
+		      struct vring_avail *avail,
+		      struct vring_used *used);
+
+int vringh_getdesc_iotlb(struct vringh *vrh,
+			 struct vringh_kiov *riov,
+			 struct vringh_kiov *wiov,
+			 u16 *head,
+			 gfp_t gfp);
+
+ssize_t vringh_iov_pull_iotlb(struct vringh *vrh,
+			      struct vringh_kiov *riov,
+			      void *dst, size_t len);
+ssize_t vringh_iov_push_iotlb(struct vringh *vrh,
+			      struct vringh_kiov *wiov,
+			      const void *src, size_t len);
+
+void vringh_abandon_iotlb(struct vringh *vrh, unsigned int num);
+
+int vringh_complete_iotlb(struct vringh *vrh, u16 head, u32 len);
+
+bool vringh_notify_enable_iotlb(struct vringh *vrh);
+void vringh_notify_disable_iotlb(struct vringh *vrh);
+
+int vringh_need_notify_iotlb(struct vringh *vrh);
+
+#endif /* CONFIG_VHOST_IOTLB */
+
 #endif /* _LINUX_VRINGH_H */

@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
 	maxsize = kvm_check_cap(KVM_CAP_S390_MEM_OP);
 	if (!maxsize) {
-		fprintf(stderr, "CAP_S390_MEM_OP not supported -> skip test\n");
+		print_skip("CAP_S390_MEM_OP not supported");
 		exit(KSFT_SKIP);
 	}
 	if (maxsize > sizeof(mem1))

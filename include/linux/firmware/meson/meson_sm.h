@@ -12,6 +12,8 @@ enum {
 	SM_EFUSE_WRITE,
 	SM_EFUSE_USER_MAX,
 	SM_GET_CHIP_ID,
+	SM_A1_PWRC_SET,
+	SM_A1_PWRC_GET,
 };
 
 struct meson_sm_firmware;

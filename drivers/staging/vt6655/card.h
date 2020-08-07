@@ -63,6 +63,6 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type);
 bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 		    u64 qwBSSTimestamp);
 bool CARDbSetBeaconPeriod(struct vnt_private *priv,
-			   unsigned short wBeaconInterval);
+			  unsigned short wBeaconInterval);
 
 #endif /* __CARD_H__ */

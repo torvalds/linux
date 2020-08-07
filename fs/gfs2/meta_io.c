@@ -251,7 +251,8 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	struct buffer_head *bh, *bhs[2];
 	int num = 0;
 
-	if (unlikely(gfs2_withdrawn(sdp))) {
+	if (unlikely(gfs2_withdrawn(sdp)) &&
+	    (!sdp->sd_jdesc || gl != sdp->sd_jinode_gl)) {
 		*bhp = NULL;
 		return -EIO;
 	}

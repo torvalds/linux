@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -97,11 +97,10 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 	if (WARN(!(caps & ENG_CAP_PRESENT), "%s() called for DMA Engine at %p which isn't present in hardware!\n", __func__, eng))
 		return -ENXIO;
 
-	if (caps & ENG_CAP_DIRECTION) {
+	if (caps & ENG_CAP_DIRECTION)
 		eng->dir = DMA_FROM_DEVICE;
-	} else {
+	else
 		eng->dir = DMA_TO_DEVICE;
-	}
 
 	eng->desc_pool_cnt = desc_cnt;
 	eng->desc_pool = dma_pool_create("KPC DMA Descriptors", &eng->pldev->dev, sizeof(struct kpc_dma_descriptor), DMA_DESC_ALIGNMENT, 4096);
@@ -236,7 +235,7 @@ int  count_descriptors_available(struct kpc_dma_device *eng)
 	struct kpc_dma_descriptor *cur = eng->desc_next;
 
 	while (cur != eng->desc_completed) {
-		BUG_ON(cur == NULL);
+		BUG_ON(!cur);
 		count++;
 		cur = cur->Next;
 	}

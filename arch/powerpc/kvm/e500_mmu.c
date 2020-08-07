@@ -533,10 +533,6 @@ gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int index,
 	return get_tlb_raddr(gtlbe) | (eaddr & pgmask);
 }
 
-void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu)
-{
-}
-
 /*****************************************/
 
 static void free_gtlb(struct kvmppc_vcpu_e500 *vcpu_e500)

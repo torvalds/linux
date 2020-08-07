@@ -54,7 +54,7 @@ config ATH5K_TRACER
 
 config ATH5K_AHB
 	bool "Atheros 5xxx AHB bus support"
-	depends on ATH25
+	depends on ATH25 && ATH5K
 	---help---
 	  This adds support for WiSoC type chipsets of the 5xxx Atheros
 	  family.

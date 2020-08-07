@@ -11,6 +11,66 @@
 #include <linux/regmap.h>
 #include <net/dsa.h>
 
+/* Port Group IDs (PGID) are masks of destination ports.
+ *
+ * For L2 forwarding, the switch performs 3 lookups in the PGID table for each
+ * frame, and forwards the frame to the ports that are present in the logical
+ * AND of all 3 PGIDs.
+ *
+ * These PGID lookups are:
+ * - In one of PGID[0-63]: for the destination masks. There are 2 paths by
+ *   which the switch selects a destination PGID:
+ *     - The {DMAC, VID} is present in the MAC table. In that case, the
+ *       destination PGID is given by the DEST_IDX field of the MAC table entry
+ *       that matched.
+ *     - The {DMAC, VID} is not present in the MAC table (it is unknown). The
+ *       frame is disseminated as being either unicast, multicast or broadcast,
+ *       and according to that, the destination PGID is chosen as being the
+ *       value contained by ANA_FLOODING_FLD_UNICAST,
+ *       ANA_FLOODING_FLD_MULTICAST or ANA_FLOODING_FLD_BROADCAST.
+ *   The destination PGID can be an unicast set: the first PGIDs, 0 to
+ *   ocelot->num_phys_ports - 1, or a multicast set: the PGIDs from
+ *   ocelot->num_phys_ports to 63. By convention, a unicast PGID corresponds to
+ *   a physical port and has a single bit set in the destination ports mask:
+ *   that corresponding to the port number itself. In contrast, a multicast
+ *   PGID will have potentially more than one single bit set in the destination
+ *   ports mask.
+ * - In one of PGID[64-79]: for the aggregation mask. The switch classifier
+ *   dissects each frame and generates a 4-bit Link Aggregation Code which is
+ *   used for this second PGID table lookup. The goal of link aggregation is to
+ *   hash multiple flows within the same LAG on to different destination ports.
+ *   The first lookup will result in a PGID with all the LAG members present in
+ *   the destination ports mask, and the second lookup, by Link Aggregation
+ *   Code, will ensure that each flow gets forwarded only to a single port out
+ *   of that mask (there are no duplicates).
+ * - In one of PGID[80-90]: for the source mask. The third time, the PGID table
+ *   is indexed with the ingress port (plus 80). These PGIDs answer the
+ *   question "is port i allowed to forward traffic to port j?" If yes, then
+ *   BIT(j) of PGID 80+i will be found set. The third PGID lookup can be used
+ *   to enforce the L2 forwarding matrix imposed by e.g. a Linux bridge.
+ */
+
+/* Reserve some destination PGIDs at the end of the range:
+ * PGID_CPU: used for whitelisting certain MAC addresses, such as the addresses
+ *           of the switch port net devices, towards the CPU port module.
+ * PGID_UC: the flooding destinations for unknown unicast traffic.
+ * PGID_MC: the flooding destinations for broadcast and non-IP multicast
+ *          traffic.
+ * PGID_MCIPV4: the flooding destinations for IPv4 multicast traffic.
+ * PGID_MCIPV6: the flooding destinations for IPv6 multicast traffic.
+ */
+#define PGID_CPU			59
+#define PGID_UC				60
+#define PGID_MC				61
+#define PGID_MCIPV4			62
+#define PGID_MCIPV6			63
+
+/* Aggregation PGIDs, one per Link Aggregation Code */
+#define PGID_AGGR			64
+
+/* Source PGIDs, one per physical port */
+#define PGID_SRC			80
+
 #define IFH_INJ_BYPASS			BIT(31)
 #define IFH_INJ_POP_CNT_DISABLE		(3 << 28)
 
@@ -402,14 +462,21 @@ enum ocelot_tag_prefix {
 struct ocelot;
 
 struct ocelot_ops {
-	void (*pcs_init)(struct ocelot *ocelot, int port);
 	int (*reset)(struct ocelot *ocelot);
+};
+
+struct ocelot_acl_block {
+	struct list_head rules;
+	int count;
+	int pol_lpr;
 };
 
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
 	void __iomem			*regs;
+
+	bool				vlan_aware;
 
 	/* Ingress default VLAN (pvid) */
 	u16				pvid;
@@ -435,6 +502,7 @@ struct ocelot {
 	unsigned int			num_stats;
 
 	int				shared_queue_sz;
+	int				num_mact_rows;
 
 	struct net_device		*hw_bridge_dev;
 	u16				bridge_mask;
@@ -447,13 +515,26 @@ struct ocelot {
 	/* Keep track of the vlan port masks */
 	u32				vlan_mask[VLAN_N_VID];
 
+	/* In tables like ANA:PORT and the ANA:PGID:PGID mask,
+	 * the CPU is located after the physical ports (at the
+	 * num_phys_ports index).
+	 */
 	u8				num_phys_ports;
-	u8				num_cpu_ports;
-	u8				cpu;
+
+	int				npi;
+
+	enum ocelot_tag_prefix		inj_prefix;
+	enum ocelot_tag_prefix		xtr_prefix;
 
 	u32				*lags;
 
 	struct list_head		multicast;
+
+	struct ocelot_acl_block		acl_block;
+
+	const struct vcap_field		*vcap_is2_keys;
+	const struct vcap_field		*vcap_is2_actions;
+	const struct vcap_props		*vcap;
 
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;
@@ -469,8 +550,11 @@ struct ocelot {
 	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
+};
 
-	void (*port_pcs_init)(struct ocelot_port *port);
+struct ocelot_policer {
+	u32 rate; /* kilobit per second */
+	u32 burst; /* bytes */
 };
 
 #define ocelot_read_ix(ocelot, reg, gi, ri) __ocelot_read_ix(ocelot, reg, reg##_GSZ * (gi) + reg##_RSZ * (ri))
@@ -500,9 +584,9 @@ void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask, u32 reg,
 int ocelot_regfields_init(struct ocelot *ocelot,
 			  const struct reg_field *const regfields);
 struct regmap *ocelot_regmap_init(struct ocelot *ocelot, struct resource *res);
-void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
-			 enum ocelot_tag_prefix injection,
-			 enum ocelot_tag_prefix extraction);
+void ocelot_configure_cpu(struct ocelot *ocelot, int npi,
+			  enum ocelot_tag_prefix injection,
+			  enum ocelot_tag_prefix extraction);
 int ocelot_init(struct ocelot *ocelot);
 void ocelot_deinit(struct ocelot *ocelot);
 void ocelot_init_port(struct ocelot *ocelot, int port);
@@ -529,7 +613,7 @@ int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 		    dsa_fdb_dump_cb_t *cb, void *data);
 int ocelot_fdb_add(struct ocelot *ocelot, int port,
-		   const unsigned char *addr, u16 vid, bool vlan_aware);
+		   const unsigned char *addr, u16 vid);
 int ocelot_fdb_del(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
@@ -541,5 +625,16 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
 int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 				 struct sk_buff *skb);
 void ocelot_get_txtstamp(struct ocelot *ocelot);
+void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu);
+int ocelot_get_max_mtu(struct ocelot *ocelot, int port);
+int ocelot_port_policer_add(struct ocelot *ocelot, int port,
+			    struct ocelot_policer *pol);
+int ocelot_port_policer_del(struct ocelot *ocelot, int port);
+int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress);
+int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress);
+int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
+			    struct flow_cls_offload *f, bool ingress);
 
 #endif

@@ -27,6 +27,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/mmu_context.h>
 #include <linux/rbtree.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -341,8 +342,8 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 	vma = find_vma_intersection(mm, vaddr, vaddr + 1);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
-		*pfn = ((vaddr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-		if (is_invalid_reserved_pfn(*pfn))
+		if (!follow_pfn(vma, vaddr, pfn) &&
+		    is_invalid_reserved_pfn(*pfn))
 			ret = 0;
 	}
 done:
@@ -554,7 +555,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 			continue;
 		}
 
-		remote_vaddr = dma->vaddr + iova - dma->iova;
+		remote_vaddr = dma->vaddr + (iova - dma->iova);
 		ret = vfio_pin_page_external(dma, remote_vaddr, &phys_pfn[i],
 					     do_accounting);
 		if (ret)
@@ -1786,7 +1787,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	if (resv_msi) {
 		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
-		if (ret)
+		if (ret && ret != -ENODEV)
 			goto out_detach;
 	}
 
@@ -2305,6 +2306,80 @@ static int vfio_iommu_type1_unregister_notifier(void *iommu_data,
 	return blocking_notifier_chain_unregister(&iommu->notifier, nb);
 }
 
+static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
+					 dma_addr_t user_iova, void *data,
+					 size_t count, bool write,
+					 size_t *copied)
+{
+	struct mm_struct *mm;
+	unsigned long vaddr;
+	struct vfio_dma *dma;
+	bool kthread = current->mm == NULL;
+	size_t offset;
+
+	*copied = 0;
+
+	dma = vfio_find_dma(iommu, user_iova, 1);
+	if (!dma)
+		return -EINVAL;
+
+	if ((write && !(dma->prot & IOMMU_WRITE)) ||
+			!(dma->prot & IOMMU_READ))
+		return -EPERM;
+
+	mm = get_task_mm(dma->task);
+
+	if (!mm)
+		return -EPERM;
+
+	if (kthread)
+		use_mm(mm);
+	else if (current->mm != mm)
+		goto out;
+
+	offset = user_iova - dma->iova;
+
+	if (count > dma->size - offset)
+		count = dma->size - offset;
+
+	vaddr = dma->vaddr + offset;
+
+	if (write)
+		*copied = copy_to_user((void __user *)vaddr, data,
+					 count) ? 0 : count;
+	else
+		*copied = copy_from_user(data, (void __user *)vaddr,
+					   count) ? 0 : count;
+	if (kthread)
+		unuse_mm(mm);
+out:
+	mmput(mm);
+	return *copied ? 0 : -EFAULT;
+}
+
+static int vfio_iommu_type1_dma_rw(void *iommu_data, dma_addr_t user_iova,
+				   void *data, size_t count, bool write)
+{
+	struct vfio_iommu *iommu = iommu_data;
+	int ret = 0;
+	size_t done;
+
+	mutex_lock(&iommu->lock);
+	while (count > 0) {
+		ret = vfio_iommu_type1_dma_rw_chunk(iommu, user_iova, data,
+						    count, write, &done);
+		if (ret)
+			break;
+
+		count -= done;
+		data += done;
+		user_iova += done;
+	}
+
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
 static const struct vfio_iommu_driver_ops vfio_iommu_driver_ops_type1 = {
 	.name			= "vfio-iommu-type1",
 	.owner			= THIS_MODULE,
@@ -2317,6 +2392,7 @@ static const struct vfio_iommu_driver_ops vfio_iommu_driver_ops_type1 = {
 	.unpin_pages		= vfio_iommu_type1_unpin_pages,
 	.register_notifier	= vfio_iommu_type1_register_notifier,
 	.unregister_notifier	= vfio_iommu_type1_unregister_notifier,
+	.dma_rw			= vfio_iommu_type1_dma_rw,
 };
 
 static int __init vfio_iommu_type1_init(void)

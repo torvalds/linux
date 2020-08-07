@@ -308,29 +308,35 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 		ovl_set_flag(OVL_UPPERDATA, inode);
 
 	dentry = d_find_any_alias(inode);
-	if (!dentry) {
-		dentry = d_alloc_anon(inode->i_sb);
-		if (!dentry)
-			goto nomem;
-		oe = ovl_alloc_entry(lower ? 1 : 0);
-		if (!oe)
-			goto nomem;
+	if (dentry)
+		goto out_iput;
 
-		if (lower) {
-			oe->lowerstack->dentry = dget(lower);
-			oe->lowerstack->layer = lowerpath->layer;
-		}
-		dentry->d_fsdata = oe;
-		if (upper_alias)
-			ovl_dentry_set_upper_alias(dentry);
+	dentry = d_alloc_anon(inode->i_sb);
+	if (unlikely(!dentry))
+		goto nomem;
+	oe = ovl_alloc_entry(lower ? 1 : 0);
+	if (!oe)
+		goto nomem;
+
+	if (lower) {
+		oe->lowerstack->dentry = dget(lower);
+		oe->lowerstack->layer = lowerpath->layer;
 	}
+	dentry->d_fsdata = oe;
+	if (upper_alias)
+		ovl_dentry_set_upper_alias(dentry);
+
+	ovl_dentry_update_reval(dentry, upper,
+			DCACHE_OP_REVALIDATE | DCACHE_OP_WEAK_REVALIDATE);
 
 	return d_instantiate_anon(dentry, inode);
 
 nomem:
-	iput(inode);
 	dput(dentry);
-	return ERR_PTR(-ENOMEM);
+	dentry = ERR_PTR(-ENOMEM);
+out_iput:
+	iput(inode);
+	return dentry;
 }
 
 /* Get the upper or lower dentry in stach whose on layer @idx */
@@ -775,6 +781,9 @@ static struct ovl_fh *ovl_fid_to_fh(struct fid *fid, int buflen, int fh_type)
 		return (struct ovl_fh *)fid;
 
 	if (fh_type != OVL_FILEID_V0)
+		return ERR_PTR(-EINVAL);
+
+	if (buflen <= OVL_FH_WIRE_OFFSET)
 		return ERR_PTR(-EINVAL);
 
 	fh = kzalloc(buflen, GFP_KERNEL);

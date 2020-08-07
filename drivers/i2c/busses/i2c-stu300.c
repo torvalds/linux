@@ -132,7 +132,7 @@ enum stu300_error {
 #define NUM_ADDR_RESEND_ATTEMPTS 12
 
 /* I2C clock speed, in Hz 0-400kHz*/
-static unsigned int scl_frequency = 100000;
+static unsigned int scl_frequency = I2C_MAX_STANDARD_MODE_FREQ;
 module_param(scl_frequency, uint,  0644);
 
 /**
@@ -497,7 +497,7 @@ static int stu300_set_clk(struct stu300_dev *dev, unsigned long clkrate)
 	dev_dbg(&dev->pdev->dev, "Clock rate %lu Hz, I2C bus speed %d Hz "
 		"virtbase %p\n", clkrate, dev->speed, dev->virtbase);
 
-	if (dev->speed > 100000)
+	if (dev->speed > I2C_MAX_STANDARD_MODE_FREQ)
 		/* Fast Mode I2C */
 		val = ((clkrate/dev->speed) - 9)/3 + 1;
 	else
@@ -518,7 +518,7 @@ static int stu300_set_clk(struct stu300_dev *dev, unsigned long clkrate)
 		return -EINVAL;
 	}
 
-	if (dev->speed > 100000) {
+	if (dev->speed > I2C_MAX_STANDARD_MODE_FREQ) {
 		/* CC6..CC0 */
 		stu300_wr8((val & I2C_CCR_CC_MASK) | I2C_CCR_FMSM,
 			   dev->virtbase + I2C_CCR);

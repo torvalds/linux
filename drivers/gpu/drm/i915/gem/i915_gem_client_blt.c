@@ -217,7 +217,7 @@ static void clear_pages_worker(struct work_struct *work)
 					   0);
 out_request:
 	if (unlikely(err)) {
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 		err = 0;
 	}
 

@@ -31,7 +31,7 @@ menuconfig IP_SCTP
 	  homing at either or both ends of an association."
 
 	  To compile this protocol support as a module, choose M here: the
-	  module will be called sctp. Debug messages are handeled by the
+	  module will be called sctp. Debug messages are handled by the
 	  kernel's dynamic debugging framework.
 
 	  If in doubt, say N.

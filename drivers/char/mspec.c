@@ -75,7 +75,7 @@ struct vma_data {
 	enum mspec_page_type type; /* Type of pages allocated. */
 	unsigned long vm_start;	/* Original (unsplit) base. */
 	unsigned long vm_end;	/* Original (unsplit) end. */
-	unsigned long maddr[0];	/* Array of MSPEC addresses. */
+	unsigned long maddr[];	/* Array of MSPEC addresses. */
 };
 
 /*

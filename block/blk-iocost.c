@@ -46,9 +46,6 @@
  * If needed, tools/cgroup/iocost_coef_gen.py can be used to generate
  * device-specific coefficients.
  *
- * If needed, tools/cgroup/iocost_coef_gen.py can be used to generate
- * device-specific coefficients.
- *
  * 2. Control Strategy
  *
  * The device virtual time (vtime) is used as the primary control metric.
@@ -469,7 +466,7 @@ struct ioc_gq {
 	 */
 	atomic64_t			vtime;
 	atomic64_t			done_vtime;
-	atomic64_t			abs_vdebt;
+	u64				abs_vdebt;
 	u64				last_vtime;
 
 	/*
@@ -1145,7 +1142,7 @@ static void iocg_kick_waitq(struct ioc_gq *iocg, struct ioc_now *now)
 	struct iocg_wake_ctx ctx = { .iocg = iocg };
 	u64 margin_ns = (u64)(ioc->period_us *
 			      WAITQ_TIMER_MARGIN_PCT / 100) * NSEC_PER_USEC;
-	u64 abs_vdebt, vdebt, vshortage, expires, oexpires;
+	u64 vdebt, vshortage, expires, oexpires;
 	s64 vbudget;
 	u32 hw_inuse;
 
@@ -1155,18 +1152,15 @@ static void iocg_kick_waitq(struct ioc_gq *iocg, struct ioc_now *now)
 	vbudget = now->vnow - atomic64_read(&iocg->vtime);
 
 	/* pay off debt */
-	abs_vdebt = atomic64_read(&iocg->abs_vdebt);
-	vdebt = abs_cost_to_cost(abs_vdebt, hw_inuse);
+	vdebt = abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
 	if (vdebt && vbudget > 0) {
 		u64 delta = min_t(u64, vbudget, vdebt);
 		u64 abs_delta = min(cost_to_abs_cost(delta, hw_inuse),
-				    abs_vdebt);
+				    iocg->abs_vdebt);
 
 		atomic64_add(delta, &iocg->vtime);
 		atomic64_add(delta, &iocg->done_vtime);
-		atomic64_sub(abs_delta, &iocg->abs_vdebt);
-		if (WARN_ON_ONCE(atomic64_read(&iocg->abs_vdebt) < 0))
-			atomic64_set(&iocg->abs_vdebt, 0);
+		iocg->abs_vdebt -= abs_delta;
 	}
 
 	/*
@@ -1222,12 +1216,18 @@ static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 	u64 expires, oexpires;
 	u32 hw_inuse;
 
+	lockdep_assert_held(&iocg->waitq.lock);
+
 	/* debt-adjust vtime */
 	current_hweight(iocg, NULL, &hw_inuse);
-	vtime += abs_cost_to_cost(atomic64_read(&iocg->abs_vdebt), hw_inuse);
+	vtime += abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
 
-	/* clear or maintain depending on the overage */
-	if (time_before_eq64(vtime, now->vnow)) {
+	/*
+	 * Clear or maintain depending on the overage. Non-zero vdebt is what
+	 * guarantees that @iocg is online and future iocg_kick_delay() will
+	 * clear use_delay. Don't leave it on when there's no vdebt.
+	 */
+	if (!iocg->abs_vdebt || time_before_eq64(vtime, now->vnow)) {
 		blkcg_clear_delay(blkg);
 		return false;
 	}
@@ -1261,9 +1261,12 @@ static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
 {
 	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, delay_timer);
 	struct ioc_now now;
+	unsigned long flags;
 
+	spin_lock_irqsave(&iocg->waitq.lock, flags);
 	ioc_now(iocg->ioc, &now);
 	iocg_kick_delay(iocg, &now, 0);
+	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -1371,14 +1374,13 @@ static void ioc_timer_fn(struct timer_list *timer)
 	 * should have woken up in the last period and expire idle iocgs.
 	 */
 	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
-		if (!waitqueue_active(&iocg->waitq) &&
-		    !atomic64_read(&iocg->abs_vdebt) && !iocg_is_idle(iocg))
+		if (!waitqueue_active(&iocg->waitq) && iocg->abs_vdebt &&
+		    !iocg_is_idle(iocg))
 			continue;
 
 		spin_lock(&iocg->waitq.lock);
 
-		if (waitqueue_active(&iocg->waitq) ||
-		    atomic64_read(&iocg->abs_vdebt)) {
+		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt) {
 			/* might be oversleeping vtime / hweight changes, kick */
 			iocg_kick_waitq(iocg, &now);
 			iocg_kick_delay(iocg, &now, 0);
@@ -1594,7 +1596,7 @@ skip_surplus_transfers:
 				      vrate_min, vrate_max);
 		}
 
-		trace_iocost_ioc_vrate_adj(ioc, vrate, &missed_ppm, rq_wait_pct,
+		trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
 					   nr_lagging, nr_shortages,
 					   nr_surpluses);
 
@@ -1603,7 +1605,7 @@ skip_surplus_transfers:
 			ioc->period_us * vrate * INUSE_MARGIN_PCT, 100);
 	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
 		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
-					   &missed_ppm, rq_wait_pct, nr_lagging,
+					   missed_ppm, rq_wait_pct, nr_lagging,
 					   nr_shortages, nr_surpluses);
 	}
 
@@ -1721,28 +1723,49 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 * tests are racy but the races aren't systemic - we only miss once
 	 * in a while which is fine.
 	 */
-	if (!waitqueue_active(&iocg->waitq) &&
-	    !atomic64_read(&iocg->abs_vdebt) &&
+	if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
 	    time_before_eq64(vtime + cost, now.vnow)) {
 		iocg_commit_bio(iocg, bio, cost);
 		return;
 	}
 
 	/*
-	 * We're over budget.  If @bio has to be issued regardless,
-	 * remember the abs_cost instead of advancing vtime.
-	 * iocg_kick_waitq() will pay off the debt before waking more IOs.
+	 * We activated above but w/o any synchronization. Deactivation is
+	 * synchronized with waitq.lock and we won't get deactivated as long
+	 * as we're waiting or has debt, so we're good if we're activated
+	 * here. In the unlikely case that we aren't, just issue the IO.
+	 */
+	spin_lock_irq(&iocg->waitq.lock);
+
+	if (unlikely(list_empty(&iocg->active_list))) {
+		spin_unlock_irq(&iocg->waitq.lock);
+		iocg_commit_bio(iocg, bio, cost);
+		return;
+	}
+
+	/*
+	 * We're over budget. If @bio has to be issued regardless, remember
+	 * the abs_cost instead of advancing vtime. iocg_kick_waitq() will pay
+	 * off the debt before waking more IOs.
+	 *
 	 * This way, the debt is continuously paid off each period with the
-	 * actual budget available to the cgroup.  If we just wound vtime,
-	 * we would incorrectly use the current hw_inuse for the entire
-	 * amount which, for example, can lead to the cgroup staying
-	 * blocked for a long time even with substantially raised hw_inuse.
+	 * actual budget available to the cgroup. If we just wound vtime, we
+	 * would incorrectly use the current hw_inuse for the entire amount
+	 * which, for example, can lead to the cgroup staying blocked for a
+	 * long time even with substantially raised hw_inuse.
+	 *
+	 * An iocg with vdebt should stay online so that the timer can keep
+	 * deducting its vdebt and [de]activate use_delay mechanism
+	 * accordingly. We don't want to race against the timer trying to
+	 * clear them and leave @iocg inactive w/ dangling use_delay heavily
+	 * penalizing the cgroup and its descendants.
 	 */
 	if (bio_issue_as_root_blkg(bio) || fatal_signal_pending(current)) {
-		atomic64_add(abs_cost, &iocg->abs_vdebt);
+		iocg->abs_vdebt += abs_cost;
 		if (iocg_kick_delay(iocg, &now, cost))
 			blkcg_schedule_throttle(rqos->q,
 					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
+		spin_unlock_irq(&iocg->waitq.lock);
 		return;
 	}
 
@@ -1759,20 +1782,6 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 * All waiters are on iocg->waitq and the wait states are
 	 * synchronized using waitq.lock.
 	 */
-	spin_lock_irq(&iocg->waitq.lock);
-
-	/*
-	 * We activated above but w/o any synchronization.  Deactivation is
-	 * synchronized with waitq.lock and we won't get deactivated as
-	 * long as we're waiting, so we're good if we're activated here.
-	 * In the unlikely case that we are deactivated, just issue the IO.
-	 */
-	if (unlikely(list_empty(&iocg->active_list))) {
-		spin_unlock_irq(&iocg->waitq.lock);
-		iocg_commit_bio(iocg, bio, cost);
-		return;
-	}
-
 	init_waitqueue_func_entry(&wait.wait, iocg_wake_fn);
 	wait.wait.private = current;
 	wait.bio = bio;
@@ -1804,6 +1813,7 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 	struct ioc_now now;
 	u32 hw_inuse;
 	u64 abs_cost, cost;
+	unsigned long flags;
 
 	/* bypass if disabled or for root cgroup */
 	if (!ioc->enabled || !iocg->level)
@@ -1823,15 +1833,28 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 		iocg->cursor = bio_end;
 
 	/*
-	 * Charge if there's enough vtime budget and the existing request
-	 * has cost assigned.  Otherwise, account it as debt.  See debt
-	 * handling in ioc_rqos_throttle() for details.
+	 * Charge if there's enough vtime budget and the existing request has
+	 * cost assigned.
 	 */
 	if (rq->bio && rq->bio->bi_iocost_cost &&
-	    time_before_eq64(atomic64_read(&iocg->vtime) + cost, now.vnow))
+	    time_before_eq64(atomic64_read(&iocg->vtime) + cost, now.vnow)) {
 		iocg_commit_bio(iocg, bio, cost);
-	else
-		atomic64_add(abs_cost, &iocg->abs_vdebt);
+		return;
+	}
+
+	/*
+	 * Otherwise, account it as debt if @iocg is online, which it should
+	 * be for the vast majority of cases. See debt handling in
+	 * ioc_rqos_throttle() for details.
+	 */
+	spin_lock_irqsave(&iocg->waitq.lock, flags);
+	if (likely(!list_empty(&iocg->active_list))) {
+		iocg->abs_vdebt += abs_cost;
+		iocg_kick_delay(iocg, &now, cost);
+	} else {
+		iocg_commit_bio(iocg, bio, cost);
+	}
+	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
 }
 
 static void ioc_rqos_done_bio(struct rq_qos *rqos, struct bio *bio)
@@ -2001,7 +2024,6 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	iocg->ioc = ioc;
 	atomic64_set(&iocg->vtime, now.vnow);
 	atomic64_set(&iocg->done_vtime, now.vnow);
-	atomic64_set(&iocg->abs_vdebt, 0);
 	atomic64_set(&iocg->active_period, atomic64_read(&ioc->cur_period));
 	INIT_LIST_HEAD(&iocg->active_list);
 	iocg->hweight_active = HWEIGHT_WHOLE;

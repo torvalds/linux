@@ -59,9 +59,7 @@
 
 #include "opa_vnic_internal.h"
 
-#define DRV_VERSION "1.0"
 char opa_vnic_driver_name[] = "opa_vnic";
-const char opa_vnic_driver_version[] = DRV_VERSION;
 
 /*
  * The trap service level is kept in bits 3 to 7 in the trap_sl_rsvd
@@ -1040,9 +1038,6 @@ static void opa_vnic_vema_rem_one(struct ib_device *device,
 static int __init opa_vnic_init(void)
 {
 	int rc;
-
-	pr_info("OPA Virtual Network Driver - v%s\n",
-		opa_vnic_driver_version);
 
 	rc = ib_register_client(&opa_vnic_client);
 	if (rc)

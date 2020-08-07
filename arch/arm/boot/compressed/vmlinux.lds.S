@@ -36,14 +36,13 @@ SECTIONS
     *(.start)
     *(.text)
     *(.text.*)
-    *(.fixup)
     *(.gnu.warning)
     *(.glue_7t)
     *(.glue_7)
   }
   .table : ALIGN(4) {
     _table_start = .;
-    LONG(ZIMAGE_MAGIC(2))
+    LONG(ZIMAGE_MAGIC(4))
     LONG(ZIMAGE_MAGIC(0x5a534c4b))
     LONG(ZIMAGE_MAGIC(__piggy_size_addr - _start))
     LONG(ZIMAGE_MAGIC(_kernel_bss_size))

@@ -65,10 +65,10 @@ struct config_field_entry {
 	void *data;
 };
 
-#define INTERRUPT_TYPE_NONE (1<<0)
-#define INTERRUPT_TYPE_INTX (1<<1)
-#define INTERRUPT_TYPE_MSI  (1<<2)
-#define INTERRUPT_TYPE_MSIX (1<<3)
+#define INTERRUPT_TYPE_NONE (0)
+#define INTERRUPT_TYPE_INTX (1<<0)
+#define INTERRUPT_TYPE_MSI  (1<<1)
+#define INTERRUPT_TYPE_MSIX (1<<2)
 
 extern bool xen_pcibk_permissive;
 

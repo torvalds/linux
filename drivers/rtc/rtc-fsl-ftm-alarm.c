@@ -20,6 +20,7 @@
 #include <linux/fsl/ftm.h>
 #include <linux/rtc.h>
 #include <linux/time.h>
+#include <linux/acpi.h>
 
 #define FTM_SC_CLK(c)		((c) << FTM_SC_CLK_MASK_SHIFT)
 
@@ -151,6 +152,8 @@ static irqreturn_t ftm_rtc_alarm_interrupt(int irq, void *dev)
 {
 	struct ftm_rtc *rtc = dev;
 
+	rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
+
 	ftm_irq_acknowledge(rtc);
 	ftm_irq_disable(rtc);
 	ftm_clean_alarm(rtc);
@@ -242,7 +245,6 @@ static const struct rtc_class_ops ftm_rtc_ops = {
 
 static int ftm_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	int irq;
 	int ret;
 	struct ftm_rtc *rtc;
@@ -265,10 +267,10 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc->base);
 	}
 
-	irq = irq_of_parse_and_map(np, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "unable to get IRQ from DT, %d\n", irq);
-		return -EINVAL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "can't get irq number\n");
+		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, ftm_rtc_alarm_interrupt,
@@ -278,7 +280,9 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rtc->big_endian = of_property_read_bool(np, "big-endian");
+	rtc->big_endian =
+		device_property_read_bool(&pdev->dev, "big-endian");
+
 	rtc->alarm_freq = (u32)FIXED_FREQ_CLK / (u32)MAX_FREQ_DIV;
 	rtc->rtc_dev->ops = &ftm_rtc_ops;
 
@@ -305,11 +309,18 @@ static const struct of_device_id ftm_rtc_match[] = {
 	{ },
 };
 
+static const struct acpi_device_id ftm_imx_acpi_ids[] = {
+	{"NXP0011",},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, ftm_imx_acpi_ids);
+
 static struct platform_driver ftm_rtc_driver = {
 	.probe		= ftm_rtc_probe,
 	.driver		= {
 		.name	= "ftm-alarm",
 		.of_match_table = ftm_rtc_match,
+		.acpi_match_table = ACPI_PTR(ftm_imx_acpi_ids),
 	},
 };
 

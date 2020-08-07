@@ -79,7 +79,7 @@ struct intel_shadow_wa_ctx {
 
 struct intel_vgpu_workload {
 	struct intel_vgpu *vgpu;
-	int ring_id;
+	const struct intel_engine_cs *engine;
 	struct i915_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
@@ -129,8 +129,8 @@ struct intel_vgpu_shadow_bb {
 	bool ppgtt;
 };
 
-#define workload_q_head(vgpu, ring_id) \
-	(&(vgpu->submission.workload_q_head[ring_id]))
+#define workload_q_head(vgpu, e) \
+	(&(vgpu)->submission.workload_q_head[(e)->id])
 
 void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload);
 
@@ -155,7 +155,8 @@ extern const struct intel_vgpu_submission_ops
 intel_vgpu_execlist_submission_ops;
 
 struct intel_vgpu_workload *
-intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
+intel_vgpu_create_workload(struct intel_vgpu *vgpu,
+			   const struct intel_engine_cs *engine,
 			   struct execlist_ctx_descriptor_format *desc);
 
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);

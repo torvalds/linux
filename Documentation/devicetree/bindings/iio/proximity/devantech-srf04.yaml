@@ -51,10 +51,30 @@ properties:
       the time between two interrupts is measured in the driver.
     maxItems: 1
 
+  power-gpios:
+    description:
+      Definition of the GPIO for power management of connected peripheral
+      (output).
+      This GPIO can be used by the external hardware for power management.
+      When the device gets suspended it's switched off and when it resumes
+      it's switched on again. After some period of inactivity the driver
+      get suspended automatically (autosuspend feature).
+    maxItems: 1
+
+  startup-time-ms:
+    description:
+      This is the startup time the device needs after a resume to be up and
+      running.
+    minimum: 0
+    maximum: 1000
+    default: 100
+
 required:
   - compatible
   - trig-gpios
   - echo-gpios
+
+additionalProperties: false
 
 examples:
   - |

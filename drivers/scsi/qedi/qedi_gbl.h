@@ -73,5 +73,6 @@ void qedi_remove_sysfs_ctx_attr(struct qedi_ctx *qedi);
 void qedi_clearsq(struct qedi_ctx *qedi,
 		  struct qedi_conn *qedi_conn,
 		  struct iscsi_task *task);
+void qedi_clear_session_ctx(struct iscsi_cls_session *cls_sess);
 
 #endif

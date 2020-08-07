@@ -60,8 +60,6 @@
 */
 
 #define DRV_NAME	"3c509"
-#define DRV_VERSION	"1.20"
-#define DRV_RELDATE	"04Feb2008"
 
 /* A few values that may be tweaked. */
 
@@ -87,12 +85,11 @@
 #include <linux/device.h>
 #include <linux/eisa.h>
 #include <linux/bitops.h>
+#include <linux/vermagic.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-
-static char version[] = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
 
 #ifdef EL3_DEBUG
 static int el3_debug = EL3_DEBUG;
@@ -547,8 +544,6 @@ static int el3_common_init(struct net_device *dev)
 	       dev->name, dev->base_addr, if_names[(dev->if_port & 0x03)],
 	       dev->dev_addr, dev->irq);
 
-	if (el3_debug > 0)
-		pr_info("%s", version);
 	return 0;
 
 }
@@ -1143,7 +1138,6 @@ el3_netdev_set_ecmd(struct net_device *dev,
 static void el3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static int el3_get_link_ksettings(struct net_device *dev,

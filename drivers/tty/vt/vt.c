@@ -81,6 +81,7 @@
 #include <linux/errno.h>
 #include <linux/kd.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/major.h>
 #include <linux/mm.h>
 #include <linux/console.h>
@@ -350,7 +351,7 @@ static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 	/* allocate everything in one go */
 	memsize = cols * rows * sizeof(char32_t);
 	memsize += rows * sizeof(char32_t *);
-	p = kmalloc(memsize, GFP_KERNEL);
+	p = vmalloc(memsize);
 	if (!p)
 		return NULL;
 
@@ -364,9 +365,14 @@ static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 	return uniscr;
 }
 
+static void vc_uniscr_free(struct uni_screen *uniscr)
+{
+	vfree(uniscr);
+}
+
 static void vc_uniscr_set(struct vc_data *vc, struct uni_screen *new_uniscr)
 {
-	kfree(vc->vc_uni_screen);
+	vc_uniscr_free(vc->vc_uni_screen);
 	vc->vc_uni_screen = new_uniscr;
 }
 
@@ -890,8 +896,9 @@ static void hide_softcursor(struct vc_data *vc)
 
 static void hide_cursor(struct vc_data *vc)
 {
-	if (vc == sel_cons)
+	if (vc_is_sel(vc))
 		clear_selection();
+
 	vc->vc_sw->con_cursor(vc, CM_ERASE);
 	hide_softcursor(vc);
 }
@@ -901,7 +908,7 @@ static void set_cursor(struct vc_data *vc)
 	if (!con_is_fg(vc) || console_blanked || vc->vc_mode == KD_GRAPHICS)
 		return;
 	if (vc->vc_deccm) {
-		if (vc == sel_cons)
+		if (vc_is_sel(vc))
 			clear_selection();
 		add_softcursor(vc);
 		if ((vc->vc_cursor_type & 0x0f) != 1)
@@ -1074,6 +1081,17 @@ static void visual_deinit(struct vc_data *vc)
 	module_put(vc->vc_sw->owner);
 }
 
+static void vc_port_destruct(struct tty_port *port)
+{
+	struct vc_data *vc = container_of(port, struct vc_data, port);
+
+	kfree(vc);
+}
+
+static const struct tty_port_operations vc_port_ops = {
+	.destruct = vc_port_destruct,
+};
+
 int vc_allocate(unsigned int currcons)	/* return 0 on success */
 {
 	struct vt_notifier_param param;
@@ -1099,6 +1117,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 
 	vc_cons[currcons].d = vc;
 	tty_port_init(&vc->port);
+	vc->port.ops = &vc_port_ops;
 	INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 
 	visual_init(vc, currcons, 1);
@@ -1193,7 +1212,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
 		return 0;
 
-	if (new_screen_size > (4 << 20))
+	if (new_screen_size > KMALLOC_MAX_SIZE)
 		return -EINVAL;
 	newscreen = kzalloc(new_screen_size, GFP_USER);
 	if (!newscreen)
@@ -1207,7 +1226,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 		}
 	}
 
-	if (vc == sel_cons)
+	if (vc_is_sel(vc))
 		clear_selection();
 
 	old_rows = vc->vc_rows;
@@ -1216,7 +1235,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	err = resize_screen(vc, new_cols, new_rows, user);
 	if (err) {
 		kfree(newscreen);
-		kfree(new_uniscr);
+		vc_uniscr_free(new_uniscr);
 		return err;
 	}
 
@@ -1901,67 +1920,65 @@ static void set_mode(struct vc_data *vc, int on_off)
 /* console_lock is held */
 static void setterm_command(struct vc_data *vc)
 {
-	switch(vc->vc_par[0]) {
-		case 1:	/* set color for underline mode */
-			if (vc->vc_can_do_color &&
-					vc->vc_par[1] < 16) {
-				vc->vc_ulcolor = color_table[vc->vc_par[1]];
-				if (vc->vc_underline)
-					update_attr(vc);
-			}
-			break;
-		case 2:	/* set color for half intensity mode */
-			if (vc->vc_can_do_color &&
-					vc->vc_par[1] < 16) {
-				vc->vc_halfcolor = color_table[vc->vc_par[1]];
-				if (vc->vc_intensity == 0)
-					update_attr(vc);
-			}
-			break;
-		case 8:	/* store colors as defaults */
-			vc->vc_def_color = vc->vc_attr;
-			if (vc->vc_hi_font_mask == 0x100)
-				vc->vc_def_color >>= 1;
-			default_attr(vc);
-			update_attr(vc);
-			break;
-		case 9:	/* set blanking interval */
-			blankinterval = ((vc->vc_par[1] < 60) ? vc->vc_par[1] : 60) * 60;
-			poke_blanked_console();
-			break;
-		case 10: /* set bell frequency in Hz */
-			if (vc->vc_npar >= 1)
-				vc->vc_bell_pitch = vc->vc_par[1];
-			else
-				vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
-			break;
-		case 11: /* set bell duration in msec */
-			if (vc->vc_npar >= 1)
-				vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
-					msecs_to_jiffies(vc->vc_par[1]) : 0;
-			else
-				vc->vc_bell_duration = DEFAULT_BELL_DURATION;
-			break;
-		case 12: /* bring specified console to the front */
-			if (vc->vc_par[1] >= 1 && vc_cons_allocated(vc->vc_par[1] - 1))
-				set_console(vc->vc_par[1] - 1);
-			break;
-		case 13: /* unblank the screen */
-			poke_blanked_console();
-			break;
-		case 14: /* set vesa powerdown interval */
-			vesa_off_interval = ((vc->vc_par[1] < 60) ? vc->vc_par[1] : 60) * 60 * HZ;
-			break;
-		case 15: /* activate the previous console */
-			set_console(last_console);
-			break;
-		case 16: /* set cursor blink duration in msec */
-			if (vc->vc_npar >= 1 && vc->vc_par[1] >= 50 &&
-					vc->vc_par[1] <= USHRT_MAX)
-				vc->vc_cur_blink_ms = vc->vc_par[1];
-			else
-				vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
-			break;
+	switch (vc->vc_par[0]) {
+	case 1:	/* set color for underline mode */
+		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
+			vc->vc_ulcolor = color_table[vc->vc_par[1]];
+			if (vc->vc_underline)
+				update_attr(vc);
+		}
+		break;
+	case 2:	/* set color for half intensity mode */
+		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
+			vc->vc_halfcolor = color_table[vc->vc_par[1]];
+			if (vc->vc_intensity == 0)
+				update_attr(vc);
+		}
+		break;
+	case 8:	/* store colors as defaults */
+		vc->vc_def_color = vc->vc_attr;
+		if (vc->vc_hi_font_mask == 0x100)
+			vc->vc_def_color >>= 1;
+		default_attr(vc);
+		update_attr(vc);
+		break;
+	case 9:	/* set blanking interval */
+		blankinterval = min(vc->vc_par[1], 60U) * 60;
+		poke_blanked_console();
+		break;
+	case 10: /* set bell frequency in Hz */
+		if (vc->vc_npar >= 1)
+			vc->vc_bell_pitch = vc->vc_par[1];
+		else
+			vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
+		break;
+	case 11: /* set bell duration in msec */
+		if (vc->vc_npar >= 1)
+			vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
+				msecs_to_jiffies(vc->vc_par[1]) : 0;
+		else
+			vc->vc_bell_duration = DEFAULT_BELL_DURATION;
+		break;
+	case 12: /* bring specified console to the front */
+		if (vc->vc_par[1] >= 1 && vc_cons_allocated(vc->vc_par[1] - 1))
+			set_console(vc->vc_par[1] - 1);
+		break;
+	case 13: /* unblank the screen */
+		poke_blanked_console();
+		break;
+	case 14: /* set vesa powerdown interval */
+		vesa_off_interval = min(vc->vc_par[1], 60U) * 60 * HZ;
+		break;
+	case 15: /* activate the previous console */
+		set_console(last_console);
+		break;
+	case 16: /* set cursor blink duration in msec */
+		if (vc->vc_npar >= 1 && vc->vc_par[1] >= 50 &&
+				vc->vc_par[1] <= USHRT_MAX)
+			vc->vc_cur_blink_ms = vc->vc_par[1];
+		else
+			vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
+		break;
 	}
 }
 
@@ -2575,8 +2592,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	if (in_interrupt())
 		return count;
-
-	might_sleep();
 
 	console_lock();
 	vc = tty->driver_data;
@@ -3253,6 +3268,7 @@ static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	tty->driver_data = vc;
 	vc->port.tty = tty;
+	tty_port_get(&vc->port);
 
 	if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 		tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
@@ -3286,6 +3302,13 @@ static void con_shutdown(struct tty_struct *tty)
 	console_lock();
 	vc->port.tty = NULL;
 	console_unlock();
+}
+
+static void con_cleanup(struct tty_struct *tty)
+{
+	struct vc_data *vc = tty->driver_data;
+
+	tty_port_put(&vc->port);
 }
 
 static int default_color           = 7; /* white */
@@ -3413,7 +3436,8 @@ static const struct tty_operations con_ops = {
 	.throttle = con_throttle,
 	.unthrottle = con_unthrottle,
 	.resize = vt_resize,
-	.shutdown = con_shutdown
+	.shutdown = con_shutdown,
+	.cleanup = con_cleanup,
 };
 
 static struct cdev vc0_cdev;

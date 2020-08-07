@@ -37,7 +37,7 @@
 #define PP_ASSERT_WITH_CODE(cond, msg, code)	\
 	do {					\
 		if (!(cond)) {			\
-			pr_warn("%s\n", msg);	\
+			pr_warn_ratelimited("%s\n", msg);	\
 			code;			\
 		}				\
 	} while (0)
@@ -45,7 +45,7 @@
 #define PP_ASSERT(cond, msg)	\
 	do {					\
 		if (!(cond)) {			\
-			pr_warn("%s\n", msg);	\
+			pr_warn_ratelimited("%s\n", msg);	\
 		}				\
 	} while (0)
 

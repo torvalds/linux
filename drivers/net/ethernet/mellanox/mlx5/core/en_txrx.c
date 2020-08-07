@@ -31,6 +31,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/indirect_call_wrapper.h>
 #include "en.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
@@ -100,7 +101,10 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
 	mlx5e_xsk_update_tx_wakeup(xsksq);
 
-	xsk_rx_alloc_err = xskrq->post_wqes(xskrq);
+	xsk_rx_alloc_err = INDIRECT_CALL_2(xskrq->post_wqes,
+					   mlx5e_post_rx_mpwqes,
+					   mlx5e_post_rx_wqes,
+					   xskrq);
 	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
 
 	return busy_xsk;
@@ -143,9 +147,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
 
-	busy |= rq->post_wqes(rq);
+	busy |= INDIRECT_CALL_2(rq->post_wqes,
+				mlx5e_post_rx_mpwqes,
+				mlx5e_post_rx_wqes,
+				rq);
 	if (xsk_open) {
-		mlx5e_poll_ico_cq(&c->xskicosq.cq);
+		if (mlx5e_poll_ico_cq(&c->xskicosq.cq))
+			/* Don't clear the flag if nothing was polled to prevent
+			 * queueing more WQEs and overflowing XSKICOSQ.
+			 */
+			clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->xskicosq.state);
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
 		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
 	}

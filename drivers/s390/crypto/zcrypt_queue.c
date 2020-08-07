@@ -42,7 +42,7 @@ static ssize_t online_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", zq->online);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", zq->online);
 }
 
 static ssize_t online_store(struct device *dev,
@@ -78,7 +78,7 @@ static ssize_t load_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
+	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
 }
 
 static DEVICE_ATTR_RO(load);

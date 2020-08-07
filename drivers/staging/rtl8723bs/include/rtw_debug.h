@@ -131,13 +131,13 @@
 	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
-#define RT_TRACE(_Comp, _Level, Fmt) do{}while (0)
-#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do{}while (0)
+#define RT_TRACE(_Comp, _Level, Fmt) do {} while (0)
+#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do {} while (0)
 
 #define DBG_871X(x, ...) do {} while (0)
 #define MSG_8192C(x, ...) do {} while (0)
-#define DBG_8192C(x,...) do {} while (0)
-#define DBG_871X_LEVEL(x,...) do {} while (0)
+#define DBG_8192C(x, ...) do {} while (0)
+#define DBG_871X_LEVEL(x, ...) do {} while (0)
 
 #undef _dbgdump
 
@@ -161,8 +161,8 @@
 				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
 			else \
 				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 /* without driver-defined prefix */
 #undef _DBG_871X_LEVEL
@@ -173,8 +173,8 @@
 				_dbgdump("ERROR " fmt, ##arg);\
 			else \
 				_dbgdump(fmt, ##arg);\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 #define RTW_DBGDUMP NULL /* 'stream' for _dbgdump */
 
@@ -203,17 +203,17 @@
 	#undef DBG_871X
 	#define DBG_871X(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 
 	#undef MSG_8192C
 	#define MSG_8192C(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 
 	#undef DBG_8192C
 	#define DBG_8192C(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	}while (0)
+	} while (0)
 #endif /* defined(_dbgdump) */
 #endif /* DEBUG */
 
@@ -227,8 +227,8 @@
 		if ((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
 			_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
 			_dbgdump Fmt;\
-		}\
-	}while (0)
+		} \
+	} while (0)
 
 #endif /* defined(_dbgdump) && defined(_MODULE_DEFINE_) */
 
@@ -242,7 +242,7 @@
 			u8 *ptr = (u8 *)_HexData;				\
 			_dbgdump("%s", DRIVER_PREFIX);						\
 			_dbgdump(_TitleString);						\
-			for (__i = 0; __i<(int)_HexDataLen; __i++)				\
+			for (__i = 0; __i < (int)_HexDataLen; __i++)				\
 			{								\
 				_dbgdump("%02X%s", ptr[__i], (((__i + 1) % 4) == 0)?"  ":" ");	\
 				if (((__i + 1) % 16) == 0)	_dbgdump("\n");			\

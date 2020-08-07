@@ -22,6 +22,7 @@ int dev_dax_kmem_probe(struct device *dev)
 	resource_size_t kmem_size;
 	resource_size_t kmem_end;
 	struct resource *new_res;
+	const char *new_res_name;
 	int numa_node;
 	int rc;
 
@@ -48,11 +49,16 @@ int dev_dax_kmem_probe(struct device *dev)
 	kmem_size &= ~(memory_block_size_bytes() - 1);
 	kmem_end = kmem_start + kmem_size;
 
-	/* Region is permanently reserved.  Hot-remove not yet implemented. */
-	new_res = request_mem_region(kmem_start, kmem_size, dev_name(dev));
+	new_res_name = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!new_res_name)
+		return -ENOMEM;
+
+	/* Region is permanently reserved if hotremove fails. */
+	new_res = request_mem_region(kmem_start, kmem_size, new_res_name);
 	if (!new_res) {
 		dev_warn(dev, "could not reserve region [%pa-%pa]\n",
 			 &kmem_start, &kmem_end);
+		kfree(new_res_name);
 		return -EBUSY;
 	}
 
@@ -63,12 +69,12 @@ int dev_dax_kmem_probe(struct device *dev)
 	 * unknown to us that will break add_memory() below.
 	 */
 	new_res->flags = IORESOURCE_SYSTEM_RAM;
-	new_res->name = dev_name(dev);
 
 	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
 	if (rc) {
 		release_resource(new_res);
 		kfree(new_res);
+		kfree(new_res_name);
 		return rc;
 	}
 	dev_dax->dax_kmem_res = new_res;
@@ -83,6 +89,7 @@ static int dev_dax_kmem_remove(struct device *dev)
 	struct resource *res = dev_dax->dax_kmem_res;
 	resource_size_t kmem_start = res->start;
 	resource_size_t kmem_size = resource_size(res);
+	const char *res_name = res->name;
 	int rc;
 
 	/*
@@ -102,6 +109,7 @@ static int dev_dax_kmem_remove(struct device *dev)
 	/* Release and free dax resources */
 	release_resource(res);
 	kfree(res);
+	kfree(res_name);
 	dev_dax->dax_kmem_res = NULL;
 
 	return 0;

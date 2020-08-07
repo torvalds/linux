@@ -18,6 +18,8 @@ KVM
    nested-vmx
    ppc-pv
    s390-diag
+   s390-pv
+   s390-pv-boot
    timekeeping
    vcpu-requests
 
@@ -26,3 +28,5 @@ KVM
    arm/index
 
    devices/index
+
+   running-nested-guests

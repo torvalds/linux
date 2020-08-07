@@ -41,16 +41,15 @@ extern struct cpuinfo_csky cpu_data[];
 #define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
 
 struct thread_struct {
-	unsigned long  ksp;       /* kernel stack pointer */
-	unsigned long  sr;        /* saved status register */
+	unsigned long  sp;        /* kernel stack pointer */
+	unsigned long  trap_no;   /* saved status register */
 
 	/* FPU regs */
 	struct user_fp __aligned(16) user_fp;
 };
 
 #define INIT_THREAD  { \
-	.ksp = sizeof(init_stack) + (unsigned long) &init_stack, \
-	.sr = DEFAULT_PSR_VALUE, \
+	.sp = sizeof(init_stack) + (unsigned long) &init_stack, \
 }
 
 /*

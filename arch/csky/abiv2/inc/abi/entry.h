@@ -13,6 +13,8 @@
 #define LSAVE_A1	28
 #define LSAVE_A2	32
 #define LSAVE_A3	36
+#define LSAVE_A4	40
+#define LSAVE_A5	44
 
 #define KSPTOUSP
 #define USPTOKSP
@@ -63,7 +65,6 @@
 .endm
 
 .macro	RESTORE_ALL
-	psrclr  ie
 	ldw	tls, (sp, 0)
 	ldw	lr, (sp, 4)
 	ldw	a0, (sp, 8)
@@ -98,6 +99,66 @@
 	mfcr	sp, ss0
 1:
 	rte
+.endm
+
+.macro SAVE_REGS_FTRACE
+	subi    sp, 152
+	stw	tls, (sp, 0)
+	stw	lr, (sp, 4)
+
+	mfcr	lr, psr
+	stw	lr, (sp, 12)
+
+	addi    lr, sp, 152
+	stw	lr, (sp, 16)
+
+	stw     a0, (sp, 20)
+	stw     a0, (sp, 24)
+	stw     a1, (sp, 28)
+	stw     a2, (sp, 32)
+	stw     a3, (sp, 36)
+
+	addi	sp, 40
+	stm	r4-r13, (sp)
+
+	addi    sp, 40
+	stm     r16-r30, (sp)
+#ifdef CONFIG_CPU_HAS_HILO
+	mfhi	lr
+	stw	lr, (sp, 60)
+	mflo	lr
+	stw	lr, (sp, 64)
+	mfcr	lr, cr14
+	stw	lr, (sp, 68)
+#endif
+	subi	sp, 80
+.endm
+
+.macro	RESTORE_REGS_FTRACE
+	ldw	tls, (sp, 0)
+	ldw	a0, (sp, 16)
+	mtcr	a0, ss0
+
+#ifdef CONFIG_CPU_HAS_HILO
+	ldw	a0, (sp, 140)
+	mthi	a0
+	ldw	a0, (sp, 144)
+	mtlo	a0
+	ldw	a0, (sp, 148)
+	mtcr	a0, cr14
+#endif
+
+	ldw     a0, (sp, 24)
+	ldw     a1, (sp, 28)
+	ldw     a2, (sp, 32)
+	ldw     a3, (sp, 36)
+
+	addi	sp, 40
+	ldm	r4-r13, (sp)
+	addi    sp, 40
+	ldm     r16-r30, (sp)
+	addi    sp, 72
+	mfcr	sp, ss0
 .endm
 
 .macro SAVE_SWITCH_STACK
@@ -225,16 +286,13 @@
 	 */
 	mfcr	r6, cr<30, 15> /* Get MSA0 */
 2:
-	lsri	r6, 28
-	lsli	r6, 28
+	lsri	r6, 29
+	lsli	r6, 29
 	addi	r6, 0x1ce
 	mtcr	r6, cr<30, 15> /* Set MSA0 */
 
-	lsri	r6, 28
-	addi	r6, 2
-	lsli	r6, 28
-	addi	r6, 0x1ce
-	mtcr	r6, cr<31, 15> /* Set MSA1 */
+	movi    r6, 0
+	mtcr	r6, cr<31, 15> /* Clr MSA1 */
 
 	/* enable MMU */
 	mfcr    r6, cr18
@@ -243,10 +301,5 @@
 
 	jmpi	3f /* jump to va */
 3:
-.endm
-
-.macro ANDI_R3 rx, imm
-	lsri	\rx, 3
-	andi	\rx, (\imm >> 3)
 .endm
 #endif /* __ASM_CSKY_ENTRY_H */

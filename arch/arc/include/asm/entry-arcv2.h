@@ -4,6 +4,7 @@
 #define __ASM_ARC_ENTRY_ARCV2_H
 
 #include <asm/asm-offsets.h>
+#include <asm/dsp-impl.h>
 #include <asm/irqflags-arcv2.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
@@ -165,6 +166,8 @@
 	ST2	r58, r59, PT_r58
 #endif
 
+	/* clobbers r10, r11 registers pair */
+	DSP_SAVE_REGFILE_IRQ
 .endm
 
 /*------------------------------------------------------------------------*/
@@ -188,6 +191,9 @@
 #ifdef CONFIG_ARC_CURR_IN_REG
 	ld	r25, [sp, PT_user_r25]
 #endif
+
+	/* clobbers r10, r11 registers pair */
+	DSP_RESTORE_REGFILE_IRQ
 
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	LD2	r58, r59, PT_r58
@@ -227,6 +233,8 @@
 
 #ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
 	__RESTORE_REGFILE_HARD
+
+	; SP points to PC/STAT32: hw restores them despite NO_AUTOSAVE
 	add	sp, sp, SZ_PT_REGS - 8
 #else
 	add	sp, sp, PT_r0

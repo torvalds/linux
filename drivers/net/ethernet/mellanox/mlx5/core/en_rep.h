@@ -55,6 +55,7 @@ struct mlx5e_neigh_update_table {
 	unsigned long           min_interval; /* jiffies */
 };
 
+struct mlx5_tc_ct_priv;
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -81,12 +82,20 @@ struct mlx5_rep_uplink_priv {
 	struct mutex                unready_flows_lock;
 	struct list_head            unready_flows;
 	struct work_struct          reoffload_flows_work;
+
+	/* maps tun_info to a unique id*/
+	struct mapping_ctx *tunnel_mapping;
+	/* maps tun_enc_opts to a unique id*/
+	struct mapping_ctx *tunnel_enc_opts_mapping;
+
+	struct mlx5_tc_ct_priv *ct_priv;
 };
 
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
 	struct mlx5e_neigh_update_table neigh_update;
 	struct net_device      *netdev;
+	struct mlx5_flow_table *root_ft;
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
@@ -191,6 +200,8 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
+				   struct mlx5_cqe64 *cqe);
 
 int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 				 struct mlx5e_encap_entry *e);
@@ -199,7 +210,13 @@ void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 
-bool mlx5e_eswitch_rep(struct net_device *netdev);
+bool mlx5e_eswitch_vf_rep(struct net_device *netdev);
+bool mlx5e_eswitch_uplink_rep(struct net_device *netdev);
+static inline bool mlx5e_eswitch_rep(struct net_device *netdev)
+{
+	return mlx5e_eswitch_vf_rep(netdev) ||
+	       mlx5e_eswitch_uplink_rep(netdev);
+}
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv) { return false; }

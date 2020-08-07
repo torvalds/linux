@@ -148,7 +148,8 @@ static int ingenic_battery_probe(struct platform_device *pdev)
 
 	bat->battery = devm_power_supply_register(dev, desc, &psy_cfg);
 	if (IS_ERR(bat->battery)) {
-		dev_err(dev, "Unable to register battery\n");
+		if (PTR_ERR(bat->battery) != -EPROBE_DEFER)
+			dev_err(dev, "Unable to register battery\n");
 		return PTR_ERR(bat->battery);
 	}
 

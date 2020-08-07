@@ -44,14 +44,14 @@
 #define BTC_ANT_WIFI_AT_CPL_MAIN	0
 #define BTC_ANT_WIFI_AT_CPL_AUX		1
 
-typedef enum _BTC_POWERSAVE_TYPE{
+typedef enum _BTC_POWERSAVE_TYPE {
 	BTC_PS_WIFI_NATIVE	= 0,	/*  wifi original power save behavior */
 	BTC_PS_LPS_ON		= 1,
 	BTC_PS_LPS_OFF		= 2,
 	BTC_PS_MAX
 } BTC_POWERSAVE_TYPE, *PBTC_POWERSAVE_TYPE;
 
-typedef enum _BTC_BT_REG_TYPE{
+typedef enum _BTC_BT_REG_TYPE {
 	BTC_BT_REG_RF		= 0,
 	BTC_BT_REG_MODEM	= 1,
 	BTC_BT_REG_BLUEWIZE	= 2,
@@ -60,7 +60,7 @@ typedef enum _BTC_BT_REG_TYPE{
 	BTC_BT_REG_MAX
 } BTC_BT_REG_TYPE, *PBTC_BT_REG_TYPE;
 
-typedef enum _BTC_CHIP_INTERFACE{
+typedef enum _BTC_CHIP_INTERFACE {
 	BTC_INTF_UNKNOWN	= 0,
 	BTC_INTF_PCI		= 1,
 	BTC_INTF_USB		= 2,
