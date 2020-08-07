@@ -185,10 +185,6 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 		goto out_free;
 	}
 
-	if (rrq_req->event != QEDF_IOREQ_EV_ELS_TMO &&
-	    rrq_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
-		cancel_delayed_work_sync(&orig_io_req->timeout_work);
-
 	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "rrq_compl: orig io = %p,"
 		   " orig xid = 0x%x, rrq_xid = 0x%x, refcount=%d\n",
