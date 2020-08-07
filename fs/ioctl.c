@@ -736,7 +736,7 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 	return -ENOIOCTLCMD;
 }
 
-int ksys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {
 	struct fd f = fdget(fd);
 	int error;
@@ -755,11 +755,6 @@ int ksys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 out:
 	fdput(f);
 	return error;
-}
-
-SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
-{
-	return ksys_ioctl(fd, cmd, arg);
 }
 
 #ifdef CONFIG_COMPAT

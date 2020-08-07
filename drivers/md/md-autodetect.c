@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/kernel.h>
+#include <linux/blkdev.h>
+#include <linux/init.h>
+#include <linux/mount.h>
+#include <linux/major.h>
 #include <linux/delay.h>
+#include <linux/init_syscalls.h>
+#include <linux/raid/detect.h>
 #include <linux/raid/md_u.h>
 #include <linux/raid/md_p.h>
-
-#include "do_mounts.h"
+#include "md.h"
 
 /*
  * When md (and any require personalities) are compiled into the kernel
@@ -21,7 +27,7 @@ static int __initdata raid_noautodetect=1;
 #endif
 static int __initdata raid_autopart;
 
-static struct {
+static struct md_setup_args {
 	int minor;
 	int partitioned;
 	int level;
@@ -114,132 +120,118 @@ static int __init md_setup(char *str)
 	return 1;
 }
 
-static void __init md_setup_drive(void)
+static void __init md_setup_drive(struct md_setup_args *args)
 {
-	int minor, i, ent, partitioned;
-	dev_t dev;
-	dev_t devices[MD_SB_DISKS+1];
+	char *devname = args->device_names;
+	dev_t devices[MD_SB_DISKS + 1], mdev;
+	struct mdu_array_info_s ainfo = { };
+	struct block_device *bdev;
+	struct mddev *mddev;
+	int err = 0, i;
+	char name[16];
 
-	for (ent = 0; ent < md_setup_ents ; ent++) {
-		int fd;
-		int err = 0;
-		char *devname;
-		mdu_disk_info_t dinfo;
-		char name[16];
-
-		minor = md_setup_args[ent].minor;
-		partitioned = md_setup_args[ent].partitioned;
-		devname = md_setup_args[ent].device_names;
-
-		sprintf(name, "/dev/md%s%d", partitioned?"_d":"", minor);
-		if (partitioned)
-			dev = MKDEV(mdp_major, minor << MdpMinorShift);
-		else
-			dev = MKDEV(MD_MAJOR, minor);
-		create_dev(name, dev);
-		for (i = 0; i < MD_SB_DISKS && devname != NULL; i++) {
-			char *p;
-			char comp_name[64];
-			u32 rdev;
-
-			p = strchr(devname, ',');
-			if (p)
-				*p++ = 0;
-
-			dev = name_to_dev_t(devname);
-			if (strncmp(devname, "/dev/", 5) == 0)
-				devname += 5;
-			snprintf(comp_name, 63, "/dev/%s", devname);
-			rdev = bstat(comp_name);
-			if (rdev)
-				dev = new_decode_dev(rdev);
-			if (!dev) {
-				printk(KERN_WARNING "md: Unknown device name: %s\n", devname);
-				break;
-			}
-
-			devices[i] = dev;
-
-			devname = p;
-		}
-		devices[i] = 0;
-
-		if (!i)
-			continue;
-
-		printk(KERN_INFO "md: Loading md%s%d: %s\n",
-			partitioned ? "_d" : "", minor,
-			md_setup_args[ent].device_names);
-
-		fd = ksys_open(name, 0, 0);
-		if (fd < 0) {
-			printk(KERN_ERR "md: open failed - cannot start "
-					"array %s\n", name);
-			continue;
-		}
-		if (ksys_ioctl(fd, SET_ARRAY_INFO, 0) == -EBUSY) {
-			printk(KERN_WARNING
-			       "md: Ignoring md=%d, already autodetected. (Use raid=noautodetect)\n",
-			       minor);
-			ksys_close(fd);
-			continue;
-		}
-
-		if (md_setup_args[ent].level != LEVEL_NONE) {
-			/* non-persistent */
-			mdu_array_info_t ainfo;
-			ainfo.level = md_setup_args[ent].level;
-			ainfo.size = 0;
-			ainfo.nr_disks =0;
-			ainfo.raid_disks =0;
-			while (devices[ainfo.raid_disks])
-				ainfo.raid_disks++;
-			ainfo.md_minor =minor;
-			ainfo.not_persistent = 1;
-
-			ainfo.state = (1 << MD_SB_CLEAN);
-			ainfo.layout = 0;
-			ainfo.chunk_size = md_setup_args[ent].chunk;
-			err = ksys_ioctl(fd, SET_ARRAY_INFO, (long)&ainfo);
-			for (i = 0; !err && i <= MD_SB_DISKS; i++) {
-				dev = devices[i];
-				if (!dev)
-					break;
-				dinfo.number = i;
-				dinfo.raid_disk = i;
-				dinfo.state = (1<<MD_DISK_ACTIVE)|(1<<MD_DISK_SYNC);
-				dinfo.major = MAJOR(dev);
-				dinfo.minor = MINOR(dev);
-				err = ksys_ioctl(fd, ADD_NEW_DISK,
-						 (long)&dinfo);
-			}
-		} else {
-			/* persistent */
-			for (i = 0; i <= MD_SB_DISKS; i++) {
-				dev = devices[i];
-				if (!dev)
-					break;
-				dinfo.major = MAJOR(dev);
-				dinfo.minor = MINOR(dev);
-				ksys_ioctl(fd, ADD_NEW_DISK, (long)&dinfo);
-			}
-		}
-		if (!err)
-			err = ksys_ioctl(fd, RUN_ARRAY, 0);
-		if (err)
-			printk(KERN_WARNING "md: starting md%d failed\n", minor);
-		else {
-			/* reread the partition table.
-			 * I (neilb) and not sure why this is needed, but I cannot
-			 * boot a kernel with devfs compiled in from partitioned md
-			 * array without it
-			 */
-			ksys_close(fd);
-			fd = ksys_open(name, 0, 0);
-			ksys_ioctl(fd, BLKRRPART, 0);
-		}
-		ksys_close(fd);
+	if (args->partitioned) {
+		mdev = MKDEV(mdp_major, args->minor << MdpMinorShift);
+		sprintf(name, "md_d%d", args->minor);
+	} else {
+		mdev = MKDEV(MD_MAJOR, args->minor);
+		sprintf(name, "md%d", args->minor);
 	}
+
+	for (i = 0; i < MD_SB_DISKS && devname != NULL; i++) {
+		struct kstat stat;
+		char *p;
+		char comp_name[64];
+		dev_t dev;
+
+		p = strchr(devname, ',');
+		if (p)
+			*p++ = 0;
+
+		dev = name_to_dev_t(devname);
+		if (strncmp(devname, "/dev/", 5) == 0)
+			devname += 5;
+		snprintf(comp_name, 63, "/dev/%s", devname);
+		if (init_stat(comp_name, &stat, 0) == 0 && S_ISBLK(stat.mode))
+			dev = new_decode_dev(stat.rdev);
+		if (!dev) {
+			pr_warn("md: Unknown device name: %s\n", devname);
+			break;
+		}
+
+		devices[i] = dev;
+		devname = p;
+	}
+	devices[i] = 0;
+
+	if (!i)
+		return;
+
+	pr_info("md: Loading %s: %s\n", name, args->device_names);
+
+	bdev = blkdev_get_by_dev(mdev, FMODE_READ, NULL);
+	if (IS_ERR(bdev)) {
+		pr_err("md: open failed - cannot start array %s\n", name);
+		return;
+	}
+
+	err = -EIO;
+	if (WARN(bdev->bd_disk->fops != &md_fops,
+			"Opening block device %x resulted in non-md device\n",
+			mdev))
+		goto out_blkdev_put;
+
+	mddev = bdev->bd_disk->private_data;
+
+	err = mddev_lock(mddev);
+	if (err) {
+		pr_err("md: failed to lock array %s\n", name);
+		goto out_blkdev_put;
+	}
+
+	if (!list_empty(&mddev->disks) || mddev->raid_disks) {
+		pr_warn("md: Ignoring %s, already autodetected. (Use raid=noautodetect)\n",
+		       name);
+		goto out_unlock;
+	}
+
+	if (args->level != LEVEL_NONE) {
+		/* non-persistent */
+		ainfo.level = args->level;
+		ainfo.md_minor = args->minor;
+		ainfo.not_persistent = 1;
+		ainfo.state = (1 << MD_SB_CLEAN);
+		ainfo.chunk_size = args->chunk;
+		while (devices[ainfo.raid_disks])
+			ainfo.raid_disks++;
+	}
+
+	err = md_set_array_info(mddev, &ainfo);
+
+	for (i = 0; i <= MD_SB_DISKS && devices[i]; i++) {
+		struct mdu_disk_info_s dinfo = {
+			.major	= MAJOR(devices[i]),
+			.minor	= MINOR(devices[i]),
+		};
+
+		if (args->level != LEVEL_NONE) {
+			dinfo.number = i;
+			dinfo.raid_disk = i;
+			dinfo.state =
+				(1 << MD_DISK_ACTIVE) | (1 << MD_DISK_SYNC);
+		}
+
+		md_add_new_disk(mddev, &dinfo);
+	}
+
+	if (!err)
+		err = do_md_run(mddev);
+	if (err)
+		pr_warn("md: starting %s failed\n", name);
+out_unlock:
+	mddev_unlock(mddev);
+out_blkdev_put:
+	blkdev_put(bdev, FMODE_READ);
 }
 
 static int __init raid_setup(char *str)
@@ -274,8 +266,6 @@ __setup("md=", md_setup);
 
 static void __init autodetect_raid(void)
 {
-	int fd;
-
 	/*
 	 * Since we don't want to detect and use half a raid array, we need to
 	 * wait for the known devices to complete their probing
@@ -284,21 +274,18 @@ static void __init autodetect_raid(void)
 	printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
 
 	wait_for_device_probe();
-
-	fd = ksys_open("/dev/md0", 0, 0);
-	if (fd >= 0) {
-		ksys_ioctl(fd, RAID_AUTORUN, raid_autopart);
-		ksys_close(fd);
-	}
+	md_autostart_arrays(raid_autopart);
 }
 
 void __init md_run_setup(void)
 {
-	create_dev("/dev/md0", MKDEV(MD_MAJOR, 0));
+	int ent;
 
 	if (raid_noautodetect)
 		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=autodetect will force)\n");
 	else
 		autodetect_raid();
-	md_setup_drive();
+
+	for (ent = 0; ent < md_setup_ents; ent++)
+		md_setup_drive(&md_setup_args[ent]);
 }
