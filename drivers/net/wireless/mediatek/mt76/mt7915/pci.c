@@ -149,6 +149,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 		    (mt7915_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
 	/* master switch of PCIe tnterrupt enable */
 	mt7915_l1_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 

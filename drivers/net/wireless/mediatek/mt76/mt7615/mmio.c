@@ -227,6 +227,8 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 	bus_ops->rmw = mt7615_rmw;
 	dev->mt76.bus = bus_ops;
 
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
 	ret = devm_request_irq(mdev->dev, irq, mt7615_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
