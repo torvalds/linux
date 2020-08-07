@@ -145,11 +145,19 @@
 	status = "okay";
 };
 
+&rkisp_vir0 {
+	status = "okay";
+};
+
 &rkisp_mmu {
 	status = "disabled";
 };
 
 &rkispp {
+	status = "okay";
+};
+
+&rkispp_vir0 {
 	status = "okay";
 };
 

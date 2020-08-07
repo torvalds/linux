@@ -111,7 +111,7 @@
 	status = "disabled";
 };
 
-&rkisp {
+&rkisp_vir0 {
 	ports {
 		port@0 {
 			isp_in: endpoint@0 {

@@ -1807,6 +1807,72 @@
 		status = "disabled";
 	};
 
+	rkisp_vir0: rkisp-vir0 {
+		compatible = "rockchip,rv1126-rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_out: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&ispp0_in>;
+				};
+			};
+		};
+	};
+
+	rkisp_vir1: rkisp-vir1 {
+		compatible = "rockchip,rv1126-rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp1_out: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&ispp1_in>;
+				};
+			};
+		};
+	};
+
+	rkisp_vir2: rkisp-vir2 {
+		compatible = "rockchip,rv1126-rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp2_out: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&ispp2_in>;
+				};
+			};
+		};
+	};
+
 	rkispp: rkispp@ffb60000 {
 		compatible = "rockchip,rv1126-rkispp";
 		reg = <0xffb60000 0x20000>;
@@ -1838,6 +1904,54 @@
 		#iommu-cells = <0>;
 		rockchip,disable-mmu-reset;
 		status = "disabled";
+	};
+
+	rkispp_vir0: rkispp-vir0 {
+		compatible = "rockchip,rv1126-rkispp-vir";
+		rockchip,hw = <&rkispp>;
+		status = "disabled";
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ispp0_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_out>;
+			};
+		};
+	};
+
+	rkispp_vir1: rkispp-vir1 {
+		compatible = "rockchip,rv1126-rkispp-vir";
+		rockchip,hw = <&rkispp>;
+		status = "disabled";
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ispp1_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp1_out>;
+			};
+		};
+	};
+
+	rkispp_vir2: rkispp-vir2 {
+		compatible = "rockchip,rv1126-rkispp-vir";
+		rockchip,hw = <&rkispp>;
+		status = "disabled";
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ispp2_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp2_out>;
+			};
+		};
 	};
 
 	rkvdec: rkvdec@ffb80000 {

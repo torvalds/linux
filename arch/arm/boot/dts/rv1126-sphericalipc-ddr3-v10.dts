@@ -429,13 +429,10 @@
 	vccio7-supply = <&vcc_1v8>;
 };
 
-&rkisp {
+&rkisp_vir0 {
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			#address-cells = <1>;
@@ -446,40 +443,7 @@
 				remote-endpoint = <&csidphy0_out>;
 			};
 		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			isp_out: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&ispp_in>;
-			};
-		};
 	};
-};
-
-&rkisp_mmu {
-	status = "disabled";
-};
-
-&rkispp {
-	status = "okay";
-
-	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		ispp_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&isp_out>;
-		};
-	};
-};
-
-&rkispp_mmu {
-	status = "okay";
 };
 
 &saradc {
