@@ -186,6 +186,11 @@ enum v4l2_colorfx {
  */
 #define V4L2_CID_USER_MAX217X_BASE		(V4L2_CID_USER_BASE + 0x1090)
 
+/* The base for the tc35874x driver controls.
+ * We reserve 16 controls for this driver.
+ */
+#define V4L2_CID_USER_TC35874X_BASE		(V4L2_CID_USER_BASE + 0x10a0)
+
 /* The base for the imx driver controls.
  * We reserve 16 controls for this driver. */
 #define V4L2_CID_USER_IMX_BASE			(V4L2_CID_USER_BASE + 0x10b0)
