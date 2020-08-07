@@ -20,7 +20,6 @@ if THERMAL
 config THERMAL_NETLINK
 	bool "Thermal netlink management"
 	depends on NET
-	default y
 	help
 	  The thermal framework has a netlink interface to do thermal
 	  zones discovery, temperature readings and events such as
