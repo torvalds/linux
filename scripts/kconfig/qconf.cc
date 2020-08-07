@@ -1516,33 +1516,32 @@ ConfigMainWindow::ConfigMainWindow(void)
 	toolBar->addAction(splitViewAction);
 	toolBar->addAction(fullViewAction);
 
-	// create config menu
-	QMenu* config = menuBar()->addMenu("&File");
-	config->addAction(loadAction);
-	config->addAction(saveAction);
-	config->addAction(saveAsAction);
-	config->addSeparator();
-	config->addAction(quitAction);
+	// create file menu
+	QMenu *menu = menuBar()->addMenu("&File");
+	menu->addAction(loadAction);
+	menu->addAction(saveAction);
+	menu->addAction(saveAsAction);
+	menu->addSeparator();
+	menu->addAction(quitAction);
 
 	// create edit menu
-	QMenu* editMenu = menuBar()->addMenu("&Edit");
-	editMenu->addAction(searchAction);
+	menu = menuBar()->addMenu("&Edit");
+	menu->addAction(searchAction);
 
 	// create options menu
-	QMenu* optionMenu = menuBar()->addMenu("&Option");
-	optionMenu->addAction(showNameAction);
-
-	optionMenu->addAction(showRangeAction);
-	optionMenu->addAction(showDataAction);
-	optionMenu->addSeparator();
-	optionMenu->addActions(optGroup->actions());
-	optionMenu->addSeparator();
-	optionMenu->addAction(showDebugAction);
+	menu = menuBar()->addMenu("&Option");
+	menu->addAction(showNameAction);
+	menu->addAction(showRangeAction);
+	menu->addAction(showDataAction);
+	menu->addSeparator();
+	menu->addActions(optGroup->actions());
+	menu->addSeparator();
+	menu->addAction(showDebugAction);
 
 	// create help menu
-	QMenu* helpMenu = menuBar()->addMenu("&Help");
-	helpMenu->addAction(showIntroAction);
-	helpMenu->addAction(showAboutAction);
+	menu = menuBar()->addMenu("&Help");
+	menu->addAction(showIntroAction);
+	menu->addAction(showAboutAction);
 
 	connect (helpText, SIGNAL (anchorClicked (const QUrl &)),
 		 helpText, SLOT (clicked (const QUrl &)) );
