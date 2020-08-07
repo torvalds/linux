@@ -250,8 +250,14 @@ test_tcp_forwarding_ip()
 
 	sleep 3
 
-	kill $lpid
-	kill $cpid
+	if ps -p $lpid > /dev/null;then
+		kill $lpid
+	fi
+
+	if ps -p $cpid > /dev/null;then
+		kill $cpid
+	fi
+
 	wait
 
 	check_transfer "$ns1in" "$ns2out" "ns1 -> ns2"
