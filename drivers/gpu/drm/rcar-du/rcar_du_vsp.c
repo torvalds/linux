@@ -279,7 +279,7 @@ static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,
 
 	if (plane->state->visible)
 		rcar_du_vsp_plane_setup(rplane);
-	else
+	else if (old_state->crtc)
 		vsp1_du_atomic_update(rplane->vsp->vsp, crtc->vsp_pipe,
 				      rplane->index, NULL);
 }
