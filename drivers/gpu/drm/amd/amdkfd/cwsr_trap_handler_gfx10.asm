@@ -407,7 +407,6 @@ L_SAVE_HWREG:
 
 	// Not used on Sienna_Cichlid but keep layout same for debugger.
 	write_hwreg_to_mem(s_save_xnack_mask, s_save_buf_rsrc0, s_save_mem_offset)
-	s_add_u32	s_save_mem_offset, s_save_mem_offset, 4
 
 	s_getreg_b32	s_save_m0, hwreg(HW_REG_MODE)
 	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
@@ -913,7 +912,6 @@ L_RESTORE_HWREG:
 	read_hwreg_from_mem(s_restore_status, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_trapsts, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_xnack_mask, s_restore_buf_rsrc0, s_restore_mem_offset)
-	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, 4
 	read_hwreg_from_mem(s_restore_mode, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_flat_scratch, s_restore_buf_rsrc0, s_restore_mem_offset)
 	s_waitcnt	lgkmcnt(0)
