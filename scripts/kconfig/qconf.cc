@@ -31,11 +31,6 @@ static ConfigSettings *configSettings;
 
 QAction *ConfigMainWindow::saveAction;
 
-static inline QString qgettext(const char* str)
-{
-	return QString::fromLocal8Bit(str);
-}
-
 ConfigSettings::ConfigSettings()
 	: QSettings("kernel.org", "qconf")
 {
@@ -109,7 +104,7 @@ void ConfigItem::updateMenu(void)
 
 	sym = menu->sym;
 	prop = menu->prompt;
-	prompt = qgettext(menu_get_prompt(menu));
+	prompt = menu_get_prompt(menu);
 
 	if (prop) switch (prop->type) {
 	case P_MENU:
@@ -135,7 +130,7 @@ void ConfigItem::updateMenu(void)
 	if (!sym)
 		goto set_prompt;
 
-	setText(nameColIdx, QString::fromLocal8Bit(sym->name));
+	setText(nameColIdx, sym->name);
 
 	type = sym_get_type(sym);
 	switch (type) {
@@ -265,7 +260,7 @@ void ConfigLineEdit::show(ConfigItem* i)
 {
 	item = i;
 	if (sym_get_string_value(item->menu->sym))
-		setText(QString::fromLocal8Bit(sym_get_string_value(item->menu->sym)));
+		setText(sym_get_string_value(item->menu->sym));
 	else
 		setText(QString());
 	Parent::show();
