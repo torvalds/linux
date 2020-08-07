@@ -406,10 +406,11 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 
 				/* ... but we still receive.
 				 * Close our write side, ev. give some time
-				 * for address notification
+				 * for address notification and/or checking
+				 * the current status
 				 */
-				if (cfg_join)
-					usleep(400000);
+				if (cfg_wait)
+					usleep(cfg_wait);
 				shutdown(peerfd, SHUT_WR);
 			} else {
 				if (errno == EINTR)
@@ -427,7 +428,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 	}
 
 	/* leave some time for late join/announce */
-	if (cfg_wait)
+	if (cfg_join)
 		usleep(cfg_wait);
 
 	close(peerfd);
