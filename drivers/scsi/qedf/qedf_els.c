@@ -147,6 +147,15 @@ void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
 		   " cmd_type = %d.\n", els_req->xid, els_req->cmd_type);
 
+	if ((els_req->event == QEDF_IOREQ_EV_ELS_FLUSH)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_SUCCESS)
+		|| (els_req->event == QEDF_IOREQ_EV_CLEANUP_FAILED)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"ELS completion xid=0x%x after flush event=0x%x",
+			els_req->xid, els_req->event);
+		return;
+	}
+
 	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
 
 	/* Kill the ELS timer */
