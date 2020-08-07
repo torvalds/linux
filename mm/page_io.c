@@ -441,7 +441,7 @@ int swap_readpage(struct page *page, bool synchronous)
 			break;
 
 		if (!blk_poll(disk->queue, qc, true))
-			io_schedule();
+			blk_io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
 	bio_put(bio);
