@@ -249,6 +249,18 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 
 	return old;
 }
+
+#ifdef CONFIG_PPC_16K_PAGES
+#define __HAVE_ARCH_PTEP_GET
+static inline pte_t ptep_get(pte_t *ptep)
+{
+	pte_basic_t val = READ_ONCE(ptep->pte);
+	pte_t pte = {val, val, val, val};
+
+	return pte;
+}
+#endif /* CONFIG_PPC_16K_PAGES */
+
 #else
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
 				     unsigned long clr, unsigned long set, int huge)
@@ -283,16 +295,6 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 {
 	return __pte(pte_update(mm, addr, ptep, ~0, 0, 0));
 }
-
-#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
-#define __HAVE_ARCH_PTEP_GET
-static inline pte_t ptep_get(pte_t *ptep)
-{
-	pte_t pte = {READ_ONCE(ptep->pte), 0, 0, 0};
-
-	return pte;
-}
-#endif
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,

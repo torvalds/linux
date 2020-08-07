@@ -222,9 +222,14 @@ static inline void set_trap(struct pt_regs *regs, unsigned long val)
 	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
 }
 
+static inline bool trap_is_scv(struct pt_regs *regs)
+{
+	return (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x3000);
+}
+
 static inline bool trap_is_syscall(struct pt_regs *regs)
 {
-	return TRAP(regs) == 0xc00;
+	return (trap_is_scv(regs) || TRAP(regs) == 0xc00);
 }
 
 static inline bool trap_norestart(struct pt_regs *regs)
@@ -238,7 +243,7 @@ static inline void set_trap_norestart(struct pt_regs *regs)
 }
 
 #define arch_has_single_step()	(1)
-#ifndef CONFIG_BOOK3S_601
+#ifndef CONFIG_PPC_BOOK3S_601
 #define arch_has_block_step()	(true)
 #else
 #define arch_has_block_step()	(false)

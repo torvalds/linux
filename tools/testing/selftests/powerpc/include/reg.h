@@ -57,6 +57,12 @@
 #define SPRN_PPR       896	/* Program Priority Register */
 #define SPRN_AMR       13	/* Authority Mask Register - problem state */
 
+#define set_amr(v)	asm volatile("isync;" \
+				     "mtspr " __stringify(SPRN_AMR) ",%0;" \
+				     "isync" : \
+				    : "r" ((unsigned long)(v)) \
+				    : "memory")
+
 /* TEXASR register bits */
 #define TEXASR_FC	0xFE00000000000000
 #define TEXASR_FP	0x0100000000000000

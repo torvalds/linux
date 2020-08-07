@@ -132,14 +132,10 @@ static ssize_t store_hibernate(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	cpumask_var_t offline_mask;
 	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	if (!alloc_cpumask_var(&offline_mask, GFP_KERNEL))
-		return -ENOMEM;
 
 	stream_id = simple_strtoul(buf, NULL, 16);
 
@@ -149,33 +145,14 @@ static ssize_t store_hibernate(struct device *dev,
 			ssleep(1);
 	} while (rc == -EAGAIN);
 
-	if (!rc) {
-		/* All present CPUs must be online */
-		cpumask_andnot(offline_mask, cpu_present_mask,
-				cpu_online_mask);
-		rc = rtas_online_cpus_mask(offline_mask);
-		if (rc) {
-			pr_err("%s: Could not bring present CPUs online.\n",
-					__func__);
-			goto out;
-		}
-
-		stop_topology_update();
+	if (!rc)
 		rc = pm_suspend(PM_SUSPEND_MEM);
-		start_topology_update();
-
-		/* Take down CPUs not online prior to suspend */
-		if (!rtas_offline_cpus_mask(offline_mask))
-			pr_warn("%s: Could not restore CPUs to offline "
-					"state.\n", __func__);
-	}
 
 	stream_id = 0;
 
 	if (!rc)
 		rc = count;
-out:
-	free_cpumask_var(offline_mask);
+
 	return rc;
 }
 

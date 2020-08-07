@@ -86,6 +86,7 @@ enum MCE_TlbErrorType {
 enum MCE_UserErrorType {
 	MCE_USER_ERROR_INDETERMINATE = 0,
 	MCE_USER_ERROR_TLBIE = 1,
+	MCE_USER_ERROR_SCV = 2,
 };
 
 enum MCE_RaErrorType {
@@ -220,6 +221,8 @@ extern void machine_check_print_event_info(struct machine_check_event *evt,
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr);
 extern void mce_common_process_ue(struct pt_regs *regs,
 				  struct mce_error_info *mce_err);
+int mce_register_notifier(struct notifier_block *nb);
+int mce_unregister_notifier(struct notifier_block *nb);
 #ifdef CONFIG_PPC_BOOK3S_64
 void flush_and_reload_slb(void);
 #endif /* CONFIG_PPC_BOOK3S_64 */

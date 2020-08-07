@@ -10,6 +10,7 @@
  */
 
 #include <asm/asm-compat.h>
+#include <asm/crashdump-ppc64.h>
 
 	.machine ppc64
 	.balign 256
@@ -43,13 +44,38 @@ master:
 	mr	%r17,%r3	/* save cpu id to r17 */
 	mr	%r15,%r4	/* save physical address in reg15 */
 
+	/* Work out where we're running */
+	bcl	20, 31, 0f
+0:	mflr	%r18
+
+	/*
+	 * Copy BACKUP_SRC_SIZE bytes from BACKUP_SRC_START to
+	 * backup_start 8 bytes at a time.
+	 *
+	 * Use r3 = dest, r4 = src, r5 = size, r6 = count
+	 */
+	ld	%r3, (backup_start - 0b)(%r18)
+	cmpdi	%cr0, %r3, 0
+	beq	.Lskip_copy	/* skip if there is no backup region */
+	lis	%r5, BACKUP_SRC_SIZE@h
+	ori	%r5, %r5, BACKUP_SRC_SIZE@l
+	cmpdi	%cr0, %r5, 0
+	beq	.Lskip_copy	/* skip if copy size is zero */
+	lis	%r4, BACKUP_SRC_START@h
+	ori	%r4, %r4, BACKUP_SRC_START@l
+	li	%r6, 0
+.Lcopy_loop:
+	ldx	%r0, %r6, %r4
+	stdx	%r0, %r6, %r3
+	addi	%r6, %r6, 8
+	cmpld	%cr0, %r6, %r5
+	blt	.Lcopy_loop
+
+.Lskip_copy:
 	or	%r3,%r3,%r3	/* ok now to high priority, lets boot */
 	lis	%r6,0x1
 	mtctr	%r6		/* delay a bit for slaves to catch up */
 	bdnz	.		/* before we overwrite 0-100 again */
-
-	bl	0f		/* Work out where we're running */
-0:	mflr	%r18
 
 	/* load device-tree address */
 	ld	%r3, (dt_offset - 0b)(%r18)
@@ -61,6 +87,10 @@ master:
 	li	%r4,28
 	STWX_BE	%r17,%r3,%r4	/* Store my cpu as __be32 at byte 28 */
 1:
+	/* Load opal base and entry values in r8 & r9 respectively */
+	ld	%r8,(opal_base - 0b)(%r18)
+	ld	%r9,(opal_entry - 0b)(%r18)
+
 	/* load the kernel address */
 	ld	%r4,(kernel - 0b)(%r18)
 
@@ -89,7 +119,6 @@ master:
 
 	rfid			/* update MSR and start kernel */
 
-
 	.balign 8
 	.globl kernel
 kernel:
@@ -102,6 +131,23 @@ dt_offset:
 	.8byte  0x0
 	.size dt_offset, . - dt_offset
 
+	.balign 8
+	.globl backup_start
+backup_start:
+	.8byte  0x0
+	.size backup_start, . - backup_start
+
+	.balign 8
+	.globl opal_base
+opal_base:
+	.8byte  0x0
+	.size opal_base, . - opal_base
+
+	.balign 8
+	.globl opal_entry
+opal_entry:
+	.8byte  0x0
+	.size opal_entry, . - opal_entry
 
 	.data
 	.balign 8

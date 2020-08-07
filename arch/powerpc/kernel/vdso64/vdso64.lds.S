@@ -30,7 +30,7 @@ SECTIONS
 	. = ALIGN(16);
 	.text		: {
 		*(.text .stub .text.* .gnu.linkonce.t.* __ftr_alt_*)
-		*(.sfpr .glink)
+		*(.sfpr)
 	}						:text
 	PROVIDE(__etext = .);
 	PROVIDE(_etext = .);
@@ -111,6 +111,7 @@ SECTIONS
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
+		*(.glink .iplt .plt .rela*)
 	}
 }
 

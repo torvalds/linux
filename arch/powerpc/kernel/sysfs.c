@@ -622,8 +622,10 @@ SYSFS_PMCSETUP(pmc7, SPRN_PMC7);
 SYSFS_PMCSETUP(pmc8, SPRN_PMC8);
 
 SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
+SYSFS_PMCSETUP(mmcr3, SPRN_MMCR3);
 
 static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
+static DEVICE_ATTR(mmcr3, 0600, show_mmcr3, store_mmcr3);
 #endif /* HAS_PPC_PMC56 */
 
 
@@ -886,6 +888,9 @@ static int register_cpu_online(unsigned int cpu)
 #ifdef	CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_create_file(s, &dev_attr_mmcra);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		device_create_file(s, &dev_attr_mmcr3);
 #endif /* CONFIG_PMU_SYSFS */
 
 	if (cpu_has_feature(CPU_FTR_PURR)) {
@@ -980,6 +985,9 @@ static int unregister_cpu_online(unsigned int cpu)
 #ifdef CONFIG_PMU_SYSFS
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		device_remove_file(s, &dev_attr_mmcra);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		device_remove_file(s, &dev_attr_mmcr3);
 #endif /* CONFIG_PMU_SYSFS */
 
 	if (cpu_has_feature(CPU_FTR_PURR)) {

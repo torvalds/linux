@@ -45,7 +45,6 @@ CONFIG_IRQ_ALL_CPUS=y
 CONFIG_NUMA=y
 CONFIG_PPC_64K_PAGES=y
 CONFIG_SCHED_SMT=y
-CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="console=tty0 console=hvc0 ipr.fast_reboot=1 quiet"
 # CONFIG_SECCOMP is not set
 # CONFIG_PPC_MEM_KEYS is not set

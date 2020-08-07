@@ -26,7 +26,7 @@
 #define FUNC(name)		name
 #define GET_SHADOW_VCPU(reg)	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(r2)
 
-#endif /* CONFIG_PPC_BOOK3S_XX */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #define VCPU_LOAD_NVGPRS(vcpu) \
 	PPC_LL	r14, VCPU_GPR(R14)(vcpu); \

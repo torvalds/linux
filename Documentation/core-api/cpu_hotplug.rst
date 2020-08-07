@@ -50,13 +50,6 @@ Command Line Switches
 
   This option is limited to the X86 and S390 architecture.
 
-``cede_offline={"off","on"}``
-  Use this option to disable/enable putting offlined processors to an extended
-  ``H_CEDE`` state on supported pseries platforms. If nothing is specified,
-  ``cede_offline`` is set to "on".
-
-  This option is limited to the PowerPC architecture.
-
 ``cpu0_hotplug``
   Allow to shutdown CPU0.
 

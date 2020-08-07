@@ -73,8 +73,8 @@ ftrace_modify_code(unsigned long ip, struct ppc_inst old, struct ppc_inst new)
 
 	/* Make sure it is what we expect it to be */
 	if (!ppc_inst_equal(replaced, old)) {
-		pr_err("%p: replaced (%#x) != old (%#x)",
-		(void *)ip, ppc_inst_val(replaced), ppc_inst_val(old));
+		pr_err("%p: replaced (%s) != old (%s)",
+		(void *)ip, ppc_inst_as_str(replaced), ppc_inst_as_str(old));
 		return -EINVAL;
 	}
 
@@ -137,7 +137,7 @@ __ftrace_make_nop(struct module *mod,
 
 	/* Make sure that that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %x\n", ppc_inst_val(op));
+		pr_err("Not expected bl: opcode is %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 
@@ -172,8 +172,8 @@ __ftrace_make_nop(struct module *mod,
 	/* We expect either a mflr r0, or a std r0, LRSAVE(r1) */
 	if (!ppc_inst_equal(op, ppc_inst(PPC_INST_MFLR)) &&
 	    !ppc_inst_equal(op, ppc_inst(PPC_INST_STD_LR))) {
-		pr_err("Unexpected instruction %08x around bl _mcount\n",
-		       ppc_inst_val(op));
+		pr_err("Unexpected instruction %s around bl _mcount\n",
+		       ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 #else
@@ -203,7 +203,7 @@ __ftrace_make_nop(struct module *mod,
 	}
 
 	if (!ppc_inst_equal(op,  ppc_inst(PPC_INST_LD_TOC))) {
-		pr_err("Expected %08x found %08x\n", PPC_INST_LD_TOC, ppc_inst_val(op));
+		pr_err("Expected %08x found %s\n", PPC_INST_LD_TOC, ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 #endif /* CONFIG_MPROFILE_KERNEL */
@@ -231,7 +231,7 @@ __ftrace_make_nop(struct module *mod,
 
 	/* Make sure that that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %x\n", ppc_inst_val(op));
+		pr_err("Not expected bl: opcode is %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 
@@ -406,7 +406,7 @@ static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
 
 	/* Make sure that that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %x\n", ppc_inst_val(op));
+		pr_err("Not expected bl: opcode is %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 
@@ -533,8 +533,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EFAULT;
 
 	if (!expected_nop_sequence(ip, op[0], op[1])) {
-		pr_err("Unexpected call sequence at %p: %x %x\n",
-		ip, ppc_inst_val(op[0]), ppc_inst_val(op[1]));
+		pr_err("Unexpected call sequence at %p: %s %s\n",
+		ip, ppc_inst_as_str(op[0]), ppc_inst_as_str(op[1]));
 		return -EINVAL;
 	}
 
@@ -597,7 +597,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	/* It should be pointing to a nop */
 	if (!ppc_inst_equal(op,  ppc_inst(PPC_INST_NOP))) {
-		pr_err("Expected NOP but have %x\n", ppc_inst_val(op));
+		pr_err("Expected NOP but have %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 
@@ -654,7 +654,7 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	if (!ppc_inst_equal(op, ppc_inst(PPC_INST_NOP))) {
-		pr_err("Unexpected call sequence at %p: %x\n", ip, ppc_inst_val(op));
+		pr_err("Unexpected call sequence at %p: %s\n", ip, ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 
@@ -733,7 +733,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 	/* Make sure that that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %x\n", ppc_inst_val(op));
+		pr_err("Not expected bl: opcode is %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
 

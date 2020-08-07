@@ -122,7 +122,7 @@
 			};
 		};
 
-		PCIE0: pciex@10100000000 {		// 4xGBIF1
+		PCIE0: pcie@10100000000 {		// 4xGBIF1
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -160,7 +160,7 @@
 				0x0 0x0 0x0 0x4 &MPIC 49 0x2 /* int D */>;
 		};
 
-		PCIE1: pciex@30100000000 {		// 4xGBIF0
+		PCIE1: pcie@30100000000 {		// 4xGBIF0
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -197,7 +197,7 @@
 				0x0 0x0 0x0 0x4 &MPIC 41 0x2 /* int D */>;
 		};
 
-		PCIE2: pciex@38100000000 {		// 2xGBIF0
+		PCIE2: pcie@38100000000 {		// 2xGBIF0
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;

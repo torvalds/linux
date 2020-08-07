@@ -1288,11 +1288,30 @@ static int trace_imc_prepare_sample(struct trace_imc_data *mem,
 	header->size = sizeof(*header) + event->header_size;
 	header->misc = 0;
 
-	if (is_kernel_addr(data->ip))
-		header->misc |= PERF_RECORD_MISC_KERNEL;
-	else
-		header->misc |= PERF_RECORD_MISC_USER;
-
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		switch (IMC_TRACE_RECORD_VAL_HVPR(mem->val)) {
+		case 0:/* when MSR HV and PR not set in the trace-record */
+			header->misc |= PERF_RECORD_MISC_GUEST_KERNEL;
+			break;
+		case 1: /* MSR HV is 0 and PR is 1 */
+			header->misc |= PERF_RECORD_MISC_GUEST_USER;
+			break;
+		case 2: /* MSR HV is 1 and PR is 0 */
+			header->misc |= PERF_RECORD_MISC_HYPERVISOR;
+			break;
+		case 3: /* MSR HV is 1 and PR is 1 */
+			header->misc |= PERF_RECORD_MISC_USER;
+			break;
+		default:
+			pr_info("IMC: Unable to set the flag based on MSR bits\n");
+			break;
+		}
+	} else {
+		if (is_kernel_addr(data->ip))
+			header->misc |= PERF_RECORD_MISC_KERNEL;
+		else
+			header->misc |= PERF_RECORD_MISC_USER;
+	}
 	perf_event_header__init_id(header, data, event);
 
 	return 0;

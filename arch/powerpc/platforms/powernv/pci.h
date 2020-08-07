@@ -87,7 +87,14 @@ struct pnv_ioda_pe {
 	bool			tce_bypass_enabled;
 	uint64_t		tce_bypass_base;
 
-	/* MSIs. MVE index is identical for for 32 and 64 bit MSI
+	/*
+	 * Used to track whether we've done DMA setup for this PE or not. We
+	 * want to defer allocating TCE tables, etc until we've added a
+	 * non-bridge device to the PE.
+	 */
+	bool			dma_setup_done;
+
+	/* MSIs. MVE index is identical for 32 and 64 bit MSI
 	 * and -1 if not supported. (It's actually identical to the
 	 * PE number)
 	 */
@@ -147,6 +154,7 @@ struct pnv_phb {
 		unsigned long		m64_size;
 		unsigned long		m64_segsize;
 		unsigned long		m64_base;
+#define MAX_M64_BARS 64
 		unsigned long		m64_bar_alloc;
 
 		/* IO ports */
@@ -186,6 +194,89 @@ struct pnv_phb {
 	unsigned int		diag_data_size;
 	u8			*diag_data;
 };
+
+
+/* IODA PE management */
+
+static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
+{
+	/*
+	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * allocation code sometimes decides to put a 64-bit prefetchable
+	 * BAR in the 32-bit window, so we have to compare the addresses.
+	 *
+	 * For simplicity we only test resource start.
+	 */
+	return (r->start >= phb->ioda.m64_base &&
+		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
+}
+
+static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
+{
+	unsigned long flags = (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
+
+	return (resource_flags & flags) == flags;
+}
+
+int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+
+void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe);
+void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe);
+
+struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb, int count);
+void pnv_ioda_free_pe(struct pnv_ioda_pe *pe);
+
+#ifdef CONFIG_PCI_IOV
+/*
+ * For SR-IOV we want to put each VF's MMIO resource in to a separate PE.
+ * This requires a bit of acrobatics with the MMIO -> PE configuration
+ * and this structure is used to keep track of it all.
+ */
+struct pnv_iov_data {
+	/* number of VFs enabled */
+	u16     num_vfs;
+
+	/* pointer to the array of VF PEs. num_vfs long*/
+	struct pnv_ioda_pe *vf_pe_arr;
+
+	/* Did we map the VF BAR with single-PE IODA BARs? */
+	bool    m64_single_mode[PCI_SRIOV_NUM_BARS];
+
+	/*
+	 * True if we're using any segmented windows. In that case we need
+	 * shift the start of the IOV resource the segment corresponding to
+	 * the allocated PE.
+	 */
+	bool    need_shift;
+
+	/*
+	 * Bit mask used to track which m64 windows are used to map the
+	 * SR-IOV BARs for this device.
+	 */
+	DECLARE_BITMAP(used_m64_bar_mask, MAX_M64_BARS);
+
+	/*
+	 * If we map the SR-IOV BARs with a segmented window then
+	 * parts of that window will be "claimed" by other PEs.
+	 *
+	 * "holes" here is used to reserve the leading portion
+	 * of the window that is used by other (non VF) PEs.
+	 */
+	struct resource holes[PCI_SRIOV_NUM_BARS];
+};
+
+static inline struct pnv_iov_data *pnv_iov_get(struct pci_dev *pdev)
+{
+	return pdev->dev.archdata.iov_data;
+}
+
+void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev);
+resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev, int resno);
+
+int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs);
+int pnv_pcibios_sriov_disable(struct pci_dev *pdev);
+#endif /* CONFIG_PCI_IOV */
 
 extern struct pci_ops pnv_pci_ops;
 
@@ -259,5 +350,15 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 		u64 dma_offset, unsigned int page_shift);
 
 extern unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb);
+
+static inline struct pnv_phb *pci_bus_to_pnvhb(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	if (hose)
+		return hose->private_data;
+
+	return NULL;
+}
 
 #endif /* __POWERNV_PCI_H */
