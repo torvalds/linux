@@ -13,6 +13,7 @@
  */
 
 struct xfs_trans;
+struct xfs_buf;
 
 /*
  * This check is done typically without holding the inode lock;
@@ -38,14 +39,14 @@ struct xfs_trans;
 
 static inline uint
 xfs_quota_chkd_flag(
-	uint		dqtype)
+	xfs_dqtype_t		type)
 {
-	switch (dqtype) {
-	case XFS_DQ_USER:
+	switch (type) {
+	case XFS_DQTYPE_USER:
 		return XFS_UQUOTA_CHKD;
-	case XFS_DQ_GROUP:
+	case XFS_DQTYPE_GROUP:
 		return XFS_GQUOTA_CHKD;
-	case XFS_DQ_PROJ:
+	case XFS_DQTYPE_PROJ:
 		return XFS_PQUOTA_CHKD;
 	default:
 		return 0;
@@ -107,6 +108,8 @@ extern void xfs_qm_mount_quotas(struct xfs_mount *);
 extern void xfs_qm_unmount(struct xfs_mount *);
 extern void xfs_qm_unmount_quotas(struct xfs_mount *);
 
+void		xfs_dquot_done(struct xfs_buf *);
+
 #else
 static inline int
 xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
@@ -148,6 +151,12 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 #define xfs_qm_mount_quotas(mp)
 #define xfs_qm_unmount(mp)
 #define xfs_qm_unmount_quotas(mp)
+
+static inline void xfs_dquot_done(struct xfs_buf *bp)
+{
+	return;
+}
+
 #endif /* CONFIG_XFS_QUOTA */
 
 #define xfs_trans_unreserve_quota_nblks(tp, ip, nblks, ninos, flags) \

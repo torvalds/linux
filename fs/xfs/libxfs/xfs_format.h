@@ -1149,16 +1149,26 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 #define XFS_DQUOT_MAGIC		0x4451		/* 'DQ' */
 #define XFS_DQUOT_VERSION	(uint8_t)0x01	/* latest version number */
 
+#define XFS_DQTYPE_USER		0x01		/* user dquot record */
+#define XFS_DQTYPE_PROJ		0x02		/* project dquot record */
+#define XFS_DQTYPE_GROUP	0x04		/* group dquot record */
+
+/* bitmask to determine if this is a user/group/project dquot */
+#define XFS_DQTYPE_REC_MASK	(XFS_DQTYPE_USER | \
+				 XFS_DQTYPE_PROJ | \
+				 XFS_DQTYPE_GROUP)
+
+#define XFS_DQTYPE_ANY		(XFS_DQTYPE_REC_MASK)
+
 /*
- * This is the main portion of the on-disk representation of quota
- * information for a user. This is the q_core of the struct xfs_dquot that
- * is kept in kernel memory. We pad this with some more expansion room
- * to construct the on disk structure.
+ * This is the main portion of the on-disk representation of quota information
+ * for a user.  We pad this with some more expansion room to construct the on
+ * disk structure.
  */
 struct xfs_disk_dquot {
 	__be16		d_magic;	/* dquot magic = XFS_DQUOT_MAGIC */
 	__u8		d_version;	/* dquot version */
-	__u8		d_flags;	/* XFS_DQ_USER/PROJ/GROUP */
+	__u8		d_type;		/* XFS_DQTYPE_USER/PROJ/GROUP */
 	__be32		d_id;		/* user,project,group id */
 	__be64		d_blk_hardlimit;/* absolute limit on disk blks */
 	__be64		d_blk_softlimit;/* preferred limit on disk blks */
@@ -1197,6 +1207,22 @@ typedef struct xfs_dqblk {
 } xfs_dqblk_t;
 
 #define XFS_DQUOT_CRC_OFF	offsetof(struct xfs_dqblk, dd_crc)
+
+/*
+ * This defines the unit of allocation of dquots.
+ *
+ * Currently, it is just one file system block, and a 4K blk contains 30
+ * (136 * 30 = 4080) dquots. It's probably not worth trying to make
+ * this more dynamic.
+ *
+ * However, if this number is changed, we have to make sure that we don't
+ * implicitly assume that we do allocations in chunks of a single filesystem
+ * block in the dquot/xqm code.
+ *
+ * This is part of the ondisk format because the structure size is not a power
+ * of two, which leaves slack at the end of the disk block.
+ */
+#define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
 
 /*
  * Remote symlink format and access functions.

@@ -376,7 +376,7 @@ out_owner_change:
 	xfs_dinode_calc_crc(log->l_mp, dip);
 
 	ASSERT(bp->b_mount == mp);
-	bp->b_iodone = xlog_recover_iodone;
+	bp->b_flags |= _XBF_LOGRECOVERY;
 	xfs_buf_delwri_queue(bp, buffer_list);
 
 out_release:

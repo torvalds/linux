@@ -287,9 +287,8 @@ xlog_recover_iodone(
 	if (bp->b_log_item)
 		xfs_buf_item_relse(bp);
 	ASSERT(bp->b_log_item == NULL);
-
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp);
+	bp->b_flags &= ~_XBF_LOGRECOVERY;
+	xfs_buf_ioend_finish(bp);
 }
 
 /*

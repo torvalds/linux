@@ -37,8 +37,7 @@ xlog_cil_ticket_alloc(
 {
 	struct xlog_ticket *tic;
 
-	tic = xlog_ticket_alloc(log, 0, 1, XFS_TRANSACTION, 0,
-				KM_NOFS);
+	tic = xlog_ticket_alloc(log, 0, 1, XFS_TRANSACTION, 0);
 
 	/*
 	 * set the current reservation to zero so we know to steal the basic

@@ -1075,13 +1075,18 @@ xfs_merge_ioc_xflags(
 		xflags |= FS_XFLAG_NODUMP;
 	else
 		xflags &= ~FS_XFLAG_NODUMP;
+	if (flags & FS_DAX_FL)
+		xflags |= FS_XFLAG_DAX;
+	else
+		xflags &= ~FS_XFLAG_DAX;
 
 	return xflags;
 }
 
 STATIC unsigned int
 xfs_di2lxflags(
-	uint16_t	di_flags)
+	uint16_t	di_flags,
+	uint64_t	di_flags2)
 {
 	unsigned int	flags = 0;
 
@@ -1095,6 +1100,9 @@ xfs_di2lxflags(
 		flags |= FS_NOATIME_FL;
 	if (di_flags & XFS_DIFLAG_NODUMP)
 		flags |= FS_NODUMP_FL;
+	if (di_flags2 & XFS_DIFLAG2_DAX) {
+		flags |= FS_DAX_FL;
+	}
 	return flags;
 }
 
@@ -1565,7 +1573,7 @@ xfs_ioc_getxflags(
 {
 	unsigned int		flags;
 
-	flags = xfs_di2lxflags(ip->i_d.di_flags);
+	flags = xfs_di2lxflags(ip->i_d.di_flags, ip->i_d.di_flags2);
 	if (copy_to_user(arg, &flags, sizeof(flags)))
 		return -EFAULT;
 	return 0;
@@ -1588,7 +1596,7 @@ xfs_ioc_setxflags(
 
 	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
 		      FS_NOATIME_FL | FS_NODUMP_FL | \
-		      FS_SYNC_FL))
+		      FS_SYNC_FL | FS_DAX_FL))
 		return -EOPNOTSUPP;
 
 	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, xfs_ip2xflags(ip));

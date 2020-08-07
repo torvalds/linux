@@ -37,15 +37,13 @@ xfs_refcountbt_set_root(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
-	struct xfs_perag	*pag = xfs_perag_get(cur->bc_mp, seqno);
+	struct xfs_perag	*pag = agbp->b_pag;
 
 	ASSERT(ptr->s != 0);
 
 	agf->agf_refcount_root = ptr->s;
 	be32_add_cpu(&agf->agf_refcount_level, inc);
 	pag->pagf_refcount_level += inc;
-	xfs_perag_put(pag);
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp,
 			XFS_AGF_REFCOUNT_ROOT | XFS_AGF_REFCOUNT_LEVEL);
@@ -325,7 +323,7 @@ xfs_refcountbt_init_common(
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agno < mp->m_sb.sb_agcount);
 
-	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
+	cur = kmem_cache_zalloc(xfs_btree_cur_zone, GFP_NOFS | __GFP_NOFAIL);
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = XFS_BTNUM_REFC;
