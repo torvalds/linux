@@ -1838,10 +1838,37 @@ static inline bool class_equal(struct lock_list *entry, void *data)
 	return entry->class == data;
 }
 
+/*
+ * We are about to add B -> A into the dependency graph, and in __bfs() a
+ * strong dependency path A -> .. -> B is found: hlock_class equals
+ * entry->class.
+ *
+ * We will have a deadlock case (conflict) if A -> .. -> B -> A is a strong
+ * dependency cycle, that means:
+ *
+ * Either
+ *
+ *     a) B -> A is -(E*)->
+ *
+ * or
+ *
+ *     b) A -> .. -> B is -(*N)-> (i.e. A -> .. -(*N)-> B)
+ *
+ * as then we don't have -(*R)-> -(S*)-> in the cycle.
+ */
+static inline bool hlock_conflict(struct lock_list *entry, void *data)
+{
+	struct held_lock *hlock = (struct held_lock *)data;
+
+	return hlock_class(hlock) == entry->class && /* Found A -> .. -> B */
+	       (hlock->read == 0 || /* B -> A is -(E*)-> */
+		!entry->only_xr); /* A -> .. -> B is -(*N)-> */
+}
+
 static noinline void print_circular_bug(struct lock_list *this,
-					struct lock_list *target,
-					struct held_lock *check_src,
-					struct held_lock *check_tgt)
+				struct lock_list *target,
+				struct held_lock *check_src,
+				struct held_lock *check_tgt)
 {
 	struct task_struct *curr = current;
 	struct lock_list *parent;
@@ -1950,13 +1977,13 @@ unsigned long lockdep_count_backward_deps(struct lock_class *class)
  * <target> or not.
  */
 static noinline enum bfs_result
-check_path(struct lock_class *target, struct lock_list *src_entry,
+check_path(struct held_lock *target, struct lock_list *src_entry,
+	   bool (*match)(struct lock_list *entry, void *data),
 	   struct lock_list **target_entry)
 {
 	enum bfs_result ret;
 
-	ret = __bfs_forwards(src_entry, (void *)target, class_equal,
-			     target_entry);
+	ret = __bfs_forwards(src_entry, target, match, target_entry);
 
 	if (unlikely(bfs_error(ret)))
 		print_bfs_bug(ret);
@@ -1983,7 +2010,7 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 
 	debug_atomic_inc(nr_cyclic_checks);
 
-	ret = check_path(hlock_class(target), &src_entry, &target_entry);
+	ret = check_path(target, &src_entry, hlock_conflict, &target_entry);
 
 	if (unlikely(ret == BFS_RMATCH)) {
 		if (!*trace) {
@@ -2021,7 +2048,7 @@ check_redundant(struct held_lock *src, struct held_lock *target)
 
 	debug_atomic_inc(nr_redundant_checks);
 
-	ret = check_path(hlock_class(target), &src_entry, &target_entry);
+	ret = check_path(target, &src_entry, class_equal, &target_entry);
 
 	if (ret == BFS_RMATCH)
 		debug_atomic_inc(nr_redundant);
