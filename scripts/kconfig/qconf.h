@@ -98,10 +98,6 @@ public:
 
 	bool updateAll;
 
-	QPixmap symbolYesPix, symbolModPix, symbolNoPix;
-	QPixmap choiceYesPix, choiceNoPix;
-	QPixmap menuPix, menuBackPix;
-
 	bool showName, showRange, showData;
 	enum listMode mode;
 	enum optionMode optMode;
@@ -162,6 +158,10 @@ public:
 	struct menu *menu;
 	bool visible;
 	bool goParent;
+
+	static QIcon symbolYesIcon, symbolModIcon, symbolNoIcon;
+	static QIcon choiceYesIcon, choiceNoIcon;
+	static QIcon menuIcon, menubackIcon;
 };
 
 class ConfigLineEdit : public QLineEdit {
