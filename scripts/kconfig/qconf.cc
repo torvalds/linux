@@ -1297,7 +1297,8 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	QVBoxLayout* layout1 = new QVBoxLayout(this);
 	layout1->setContentsMargins(11, 11, 11, 11);
 	layout1->setSpacing(6);
-	QHBoxLayout* layout2 = new QHBoxLayout(0);
+
+	QHBoxLayout* layout2 = new QHBoxLayout();
 	layout2->setContentsMargins(0, 0, 0, 0);
 	layout2->setSpacing(6);
 	layout2->addWidget(new QLabel("Find:", this));
