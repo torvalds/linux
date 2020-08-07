@@ -95,27 +95,21 @@ void __dump_page(struct page *page, const char *reason)
 	 */
 	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	if (compound)
+	pr_warn("page:%px refcount:%d mapcount:%d mapping:%p index:%#lx\n",
+			page, page_ref_count(head), mapcount, mapping,
+			page_to_pgoff(page));
+	if (compound) {
 		if (hpage_pincount_available(page)) {
-			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
-				"index:%#lx head:%px order:%u "
-				"compound_mapcount:%d compound_pincount:%d\n",
-				page, page_ref_count(head), mapcount,
-				mapping, page_to_pgoff(page), head,
-				compound_order(head), compound_mapcount(page),
-				compound_pincount(page));
+			pr_warn("head:%px order:%u compound_mapcount:%d compound_pincount:%d\n",
+					head, compound_order(head),
+					compound_mapcount(head),
+					compound_pincount(head));
 		} else {
-			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
-				"index:%#lx head:%px order:%u "
-				"compound_mapcount:%d\n",
-				page, page_ref_count(head), mapcount,
-				mapping, page_to_pgoff(page), head,
-				compound_order(head), compound_mapcount(page));
+			pr_warn("head:%px order:%u compound_mapcount:%d\n",
+					head, compound_order(head),
+					compound_mapcount(head));
 		}
-	else
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%p index:%#lx\n",
-			page, page_ref_count(page), mapcount,
-			mapping, page_to_pgoff(page));
+	}
 	if (PageKsm(page))
 		type = "ksm ";
 	else if (PageAnon(page))
