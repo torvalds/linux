@@ -29,9 +29,10 @@ mt7915_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7915_dev *dev = dev_instance;
-	u32 intr;
+	u32 intr, mask;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	intr &= dev->mt76.mmio.irqmask;
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
@@ -39,27 +40,23 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
-	intr &= dev->mt76.mmio.irqmask;
+	mask = intr & MT_INT_RX_DONE_ALL;
+	if (intr & MT_INT_TX_DONE_ALL)
+		mask |= MT_INT_TX_DONE_ALL;
 
-	if (intr & MT_INT_TX_DONE_ALL) {
-		mt7915_irq_disable(dev, MT_INT_TX_DONE_ALL);
+	mt7915_irq_disable(dev, mask);
+
+	if (intr & MT_INT_TX_DONE_ALL)
 		napi_schedule(&dev->mt76.tx_napi);
-	}
 
-	if (intr & MT_INT_RX_DONE_DATA) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_DATA);
+	if (intr & MT_INT_RX_DONE_DATA)
 		napi_schedule(&dev->mt76.napi[0]);
-	}
 
-	if (intr & MT_INT_RX_DONE_WM) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_WM);
+	if (intr & MT_INT_RX_DONE_WM)
 		napi_schedule(&dev->mt76.napi[1]);
-	}
 
-	if (intr & MT_INT_RX_DONE_WA) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_WA);
+	if (intr & MT_INT_RX_DONE_WA)
 		napi_schedule(&dev->mt76.napi[2]);
-	}
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
