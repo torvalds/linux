@@ -117,13 +117,11 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7615_tx_cleanup(dev);
 
-	if (napi_complete_done(napi, 0))
-		mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
-
-	mt7615_tx_cleanup(dev);
-
 	mt7615_pm_power_save_sched(dev);
 	tasklet_schedule(&dev->mt76.tx_tasklet);
+
+	if (napi_complete_done(napi, 0))
+		mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
 	return 0;
 }
