@@ -21,8 +21,6 @@ typedef struct user_i387_struct elf_fpregset_t;
 
 #ifdef __i386__
 
-typedef struct user_fxsr_struct elf_fpxregset_t;
-
 #define R_386_NONE	0
 #define R_386_32	1
 #define R_386_PC32	2
