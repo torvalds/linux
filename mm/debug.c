@@ -143,7 +143,7 @@ void __dump_page(struct page *page, const char *reason)
 		}
 
 		if (!dentry_first) {
-			pr_warn("aops:%ps\n", a_ops);
+			pr_warn("aops:%ps ino:%lx\n", a_ops, host->i_ino);
 			goto out_mapping;
 		}
 
@@ -157,8 +157,8 @@ void __dump_page(struct page *page, const char *reason)
 			 * crash, but it's unlikely that we reach here with a
 			 * corrupted struct page
 			 */
-			pr_warn("aops:%ps dentry name:\"%pd\"\n", a_ops,
-					&dentry);
+			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
+					a_ops, host->i_ino, &dentry);
 		}
 	}
 out_mapping:
