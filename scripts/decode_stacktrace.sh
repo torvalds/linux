@@ -12,8 +12,39 @@ fi
 vmlinux=$1
 basepath=${2-auto}
 modpath=$3
+release=""
+
 declare -A cache
 declare -A modcache
+
+find_module() {
+	if [[ "$modpath" != "" ]] ; then
+		for fn in $(find "$modpath" -name "${module//_/[-_]}.ko*") ; do
+			if readelf -WS "$fn" | grep -qwF .debug_line ; then
+				echo $fn
+				return
+			fi
+		done
+		return 1
+	fi
+
+	modpath=$(dirname "$vmlinux")
+	find_module && return
+
+	if [[ $release == "" ]] ; then
+		release=$(gdb -ex 'print init_uts_ns.name.release' -ex 'quit' -quiet -batch "$vmlinux" | sed -n 's/\$1 = "\(.*\)".*/\1/p')
+	fi
+
+	for dn in {/usr/lib/debug,}/lib/modules/$release ; do
+		if [ -e "$dn" ] ; then
+			modpath="$dn"
+			find_module && return
+		fi
+	done
+
+	modpath=""
+	return 1
+}
 
 parse_symbol() {
 	# The structure of symbol at this point is:
@@ -27,12 +58,11 @@ parse_symbol() {
 	elif [[ "${modcache[$module]+isset}" == "isset" ]]; then
 		local objfile=${modcache[$module]}
 	else
-		if [[ $modpath == "" ]]; then
+		local objfile=$(find_module)
+		if [[ $objfile == "" ]] ; then
 			echo "WARNING! Modules path isn't set, but is needed to parse this symbol" >&2
 			return
 		fi
-		local objfile=$(find "$modpath" -name "${module//_/[-_]}.ko*" -print -quit)
-		[[ $objfile == "" ]] && return
 		modcache[$module]=$objfile
 	fi
 
