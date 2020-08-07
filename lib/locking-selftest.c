@@ -1035,6 +1035,133 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_inversion_soft_wlock)
 #undef E3
 
 /*
+ * write-read / write-read / write-read deadlock even if read is recursive
+ */
+
+#define E1()				\
+					\
+	WL(X1);				\
+	RL(Y1);				\
+	RU(Y1);				\
+	WU(X1);
+
+#define E2()				\
+					\
+	WL(Y1);				\
+	RL(Z1);				\
+	RU(Z1);				\
+	WU(Y1);
+
+#define E3()				\
+					\
+	WL(Z1);				\
+	RL(X1);				\
+	RU(X1);				\
+	WU(Z1);
+
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(W1R2_W2R3_W3R1)
+
+#undef E1
+#undef E2
+#undef E3
+
+/*
+ * write-write / read-read / write-read deadlock even if read is recursive
+ */
+
+#define E1()				\
+					\
+	WL(X1);				\
+	WL(Y1);				\
+	WU(Y1);				\
+	WU(X1);
+
+#define E2()				\
+					\
+	RL(Y1);				\
+	RL(Z1);				\
+	RU(Z1);				\
+	RU(Y1);
+
+#define E3()				\
+					\
+	WL(Z1);				\
+	RL(X1);				\
+	RU(X1);				\
+	WU(Z1);
+
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(W1W2_R2R3_W3R1)
+
+#undef E1
+#undef E2
+#undef E3
+
+/*
+ * write-write / read-read / read-write is not deadlock when read is recursive
+ */
+
+#define E1()				\
+					\
+	WL(X1);				\
+	WL(Y1);				\
+	WU(Y1);				\
+	WU(X1);
+
+#define E2()				\
+					\
+	RL(Y1);				\
+	RL(Z1);				\
+	RU(Z1);				\
+	RU(Y1);
+
+#define E3()				\
+					\
+	RL(Z1);				\
+	WL(X1);				\
+	WU(X1);				\
+	RU(Z1);
+
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(W1R2_R2R3_W3W1)
+
+#undef E1
+#undef E2
+#undef E3
+
+/*
+ * write-read / read-read / write-write is not deadlock when read is recursive
+ */
+
+#define E1()				\
+					\
+	WL(X1);				\
+	RL(Y1);				\
+	RU(Y1);				\
+	WU(X1);
+
+#define E2()				\
+					\
+	RL(Y1);				\
+	RL(Z1);				\
+	RU(Z1);				\
+	RU(Y1);
+
+#define E3()				\
+					\
+	WL(Z1);				\
+	WL(X1);				\
+	WU(X1);				\
+	WU(Z1);
+
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(W1W2_R2R3_R3W1)
+
+#undef E1
+#undef E2
+#undef E3
+/*
  * read-lock / write-lock recursion that is actually safe.
  */
 
@@ -1259,6 +1386,19 @@ static inline void print_testname(const char *testname)
 	dotest(name##_##nr, FAILURE, LOCKTYPE_RWLOCK);		\
 	pr_cont("\n");
 
+#define DO_TESTCASE_1RR(desc, name, nr)				\
+	print_testname(desc"/"#nr);				\
+	pr_cont("             |");				\
+	dotest(name##_##nr, SUCCESS, LOCKTYPE_RWLOCK);		\
+	pr_cont("\n");
+
+#define DO_TESTCASE_1RRB(desc, name, nr)			\
+	print_testname(desc"/"#nr);				\
+	pr_cont("             |");				\
+	dotest(name##_##nr, FAILURE, LOCKTYPE_RWLOCK);		\
+	pr_cont("\n");
+
+
 #define DO_TESTCASE_3(desc, name, nr)				\
 	print_testname(desc"/"#nr);				\
 	dotest(name##_spin_##nr, FAILURE, LOCKTYPE_SPIN);	\
@@ -1367,6 +1507,22 @@ static inline void print_testname(const char *testname)
 	DO_TESTCASE_2IB(desc, name, 231);			\
 	DO_TESTCASE_2IB(desc, name, 312);			\
 	DO_TESTCASE_2IB(desc, name, 321);
+
+#define DO_TESTCASE_6x1RR(desc, name)				\
+	DO_TESTCASE_1RR(desc, name, 123);			\
+	DO_TESTCASE_1RR(desc, name, 132);			\
+	DO_TESTCASE_1RR(desc, name, 213);			\
+	DO_TESTCASE_1RR(desc, name, 231);			\
+	DO_TESTCASE_1RR(desc, name, 312);			\
+	DO_TESTCASE_1RR(desc, name, 321);
+
+#define DO_TESTCASE_6x1RRB(desc, name)				\
+	DO_TESTCASE_1RRB(desc, name, 123);			\
+	DO_TESTCASE_1RRB(desc, name, 132);			\
+	DO_TESTCASE_1RRB(desc, name, 213);			\
+	DO_TESTCASE_1RRB(desc, name, 231);			\
+	DO_TESTCASE_1RRB(desc, name, 312);			\
+	DO_TESTCASE_1RRB(desc, name, 321);
 
 #define DO_TESTCASE_6x6(desc, name)				\
 	DO_TESTCASE_6I(desc, name, 123);			\
@@ -2143,6 +2299,11 @@ void locking_selftest(void)
 	print_testname("chain cached mixed R-L/L-W ABBA");
 	pr_cont("             |");
 	dotest(rlock_chaincache_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
+
+	DO_TESTCASE_6x1RRB("rlock W1R2/W2R3/W3R1", W1R2_W2R3_W3R1);
+	DO_TESTCASE_6x1RRB("rlock W1W2/R2R3/W3R1", W1W2_R2R3_W3R1);
+	DO_TESTCASE_6x1RR("rlock W1W2/R2R3/R3W1", W1W2_R2R3_R3W1);
+	DO_TESTCASE_6x1RR("rlock W1R2/R2R3/W3W1", W1R2_R2R3_W3W1);
 
 	printk("  --------------------------------------------------------------------------\n");
 
