@@ -4968,6 +4968,20 @@ static bool lockdep_nmi(void)
 }
 
 /*
+ * read_lock() is recursive if:
+ * 1. We force lockdep think this way in selftests or
+ * 2. The implementation is not queued read/write lock or
+ * 3. The locker is at an in_interrupt() context.
+ */
+bool read_lock_is_recursive(void)
+{
+	return force_read_lock_recursive ||
+	       !IS_ENABLED(CONFIG_QUEUED_RWLOCKS) ||
+	       in_interrupt();
+}
+EXPORT_SYMBOL_GPL(read_lock_is_recursive);
+
+/*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
  */
