@@ -263,9 +263,10 @@ EXPORT_SYMBOL_GPL(mt76x02_rx_poll_complete);
 irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 {
 	struct mt76x02_dev *dev = dev_instance;
-	u32 intr;
+	u32 intr, mask;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	intr &= dev->mt76.mmio.irqmask;
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
@@ -273,17 +274,17 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
-	intr &= dev->mt76.mmio.irqmask;
+	mask = intr & (MT_INT_RX_DONE_ALL | MT_INT_GPTIMER);
+	if (intr & (MT_INT_TX_DONE_ALL | MT_INT_TX_STAT))
+		mask |= MT_INT_TX_DONE_ALL;
 
-	if (intr & MT_INT_RX_DONE(0)) {
-		mt76x02_irq_disable(dev, MT_INT_RX_DONE(0));
+	mt76x02_irq_disable(dev, mask);
+
+	if (intr & MT_INT_RX_DONE(0))
 		napi_schedule(&dev->mt76.napi[0]);
-	}
 
-	if (intr & MT_INT_RX_DONE(1)) {
-		mt76x02_irq_disable(dev, MT_INT_RX_DONE(1));
+	if (intr & MT_INT_RX_DONE(1))
 		napi_schedule(&dev->mt76.napi[1]);
-	}
 
 	if (intr & MT_INT_PRE_TBTT)
 		tasklet_schedule(&dev->mt76.pre_tbtt_tasklet);
@@ -299,15 +300,11 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	if (intr & MT_INT_TX_STAT)
 		mt76x02_mac_poll_tx_status(dev, true);
 
-	if (intr & (MT_INT_TX_STAT | MT_INT_TX_DONE_ALL)) {
-		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
+	if (intr & (MT_INT_TX_STAT | MT_INT_TX_DONE_ALL))
 		napi_schedule(&dev->mt76.tx_napi);
-	}
 
-	if (intr & MT_INT_GPTIMER) {
-		mt76x02_irq_disable(dev, MT_INT_GPTIMER);
+	if (intr & MT_INT_GPTIMER)
 		tasklet_schedule(&dev->dfs_pd.dfs_tasklet);
-	}
 
 	return IRQ_HANDLED;
 }
