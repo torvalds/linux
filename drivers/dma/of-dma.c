@@ -46,7 +46,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 /**
  * of_dma_router_xlate - translation function for router devices
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data (router information)
+ * @ofdma:	pointer to DMA controller data (router information)
  *
  * The function creates new dma_spec to be passed to the router driver's
  * of_dma_route_allocate() function to prepare a dma_spec which will be used
@@ -92,7 +92,7 @@ static struct dma_chan *of_dma_router_xlate(struct of_phandle_args *dma_spec,
  * @np:			device node of DMA controller
  * @of_dma_xlate:	translation function which converts a phandle
  *			arguments list into a dma_chan structure
- * @data		pointer to controller specific data to be used by
+ * @data:		pointer to controller specific data to be used by
  *			translation function
  *
  * Returns 0 on success or appropriate errno value on error.
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(of_dma_request_slave_channel);
 /**
  * of_dma_simple_xlate - Simple DMA engine translation function
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data
+ * @ofdma:	pointer to DMA controller data
  *
  * A simple translation function for devices that use a 32-bit value for the
  * filter_param when calling the DMA engine dma_request_channel() function.
@@ -323,7 +323,7 @@ EXPORT_SYMBOL_GPL(of_dma_simple_xlate);
 /**
  * of_dma_xlate_by_chan_id - Translate dt property to DMA channel by channel id
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data
+ * @ofdma:	pointer to DMA controller data
  *
  * This function can be used as the of xlate callback for DMA driver which wants
  * to match the channel based on the channel id. When using this xlate function

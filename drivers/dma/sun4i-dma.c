@@ -307,7 +307,7 @@ static void set_pchan_interrupt(struct sun4i_dma_dev *priv,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-/**
+/*
  * Execute pending operations on a vchan
  *
  * When given a vchan, this function will try to acquire a suitable
@@ -419,7 +419,7 @@ static int sanitize_config(struct dma_slave_config *sconfig,
 	return 0;
 }
 
-/**
+/*
  * Generate a promise, to be used in a normal DMA contract.
  *
  * A NDMA promise contains all the information required to program the
@@ -486,7 +486,7 @@ fail:
 	return NULL;
 }
 
-/**
+/*
  * Generate a promise, to be used in a dedicated DMA contract.
  *
  * A DDMA promise contains all the information required to program the
@@ -543,7 +543,7 @@ fail:
 	return NULL;
 }
 
-/**
+/*
  * Generate a contract
  *
  * Contracts function as DMA descriptors. As our hardware does not support
@@ -565,7 +565,7 @@ static struct sun4i_dma_contract *generate_dma_contract(void)
 	return contract;
 }
 
-/**
+/*
  * Get next promise on a cyclic transfer
  *
  * Cyclic contracts contain a series of promises which are executed on a
@@ -589,7 +589,7 @@ get_next_cyclic_promise(struct sun4i_dma_contract *contract)
 	return promise;
 }
 
-/**
+/*
  * Free a contract and all its associated promises
  */
 static void sun4i_dma_free_contract(struct virt_dma_desc *vd)

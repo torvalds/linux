@@ -118,12 +118,11 @@ static int idxd_config_bus_probe(struct device *dev)
 		if (!try_module_get(THIS_MODULE))
 			return -ENXIO;
 
-		spin_lock_irqsave(&idxd->dev_lock, flags);
-
 		/* Perform IDXD configuration and enabling */
+		spin_lock_irqsave(&idxd->dev_lock, flags);
 		rc = idxd_device_config(idxd);
+		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		if (rc < 0) {
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			module_put(THIS_MODULE);
 			dev_warn(dev, "Device config failed: %d\n", rc);
 			return rc;
@@ -132,18 +131,15 @@ static int idxd_config_bus_probe(struct device *dev)
 		/* start device */
 		rc = idxd_device_enable(idxd);
 		if (rc < 0) {
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			module_put(THIS_MODULE);
 			dev_warn(dev, "Device enable failed: %d\n", rc);
 			return rc;
 		}
 
-		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		dev_info(dev, "Device %s enabled\n", dev_name(dev));
 
 		rc = idxd_register_dma_device(idxd);
 		if (rc < 0) {
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			module_put(THIS_MODULE);
 			dev_dbg(dev, "Failed to register dmaengine device\n");
 			return rc;
@@ -188,8 +184,8 @@ static int idxd_config_bus_probe(struct device *dev)
 
 		spin_lock_irqsave(&idxd->dev_lock, flags);
 		rc = idxd_device_config(idxd);
+		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		if (rc < 0) {
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			mutex_unlock(&wq->wq_lock);
 			dev_warn(dev, "Writing WQ %d config failed: %d\n",
 				 wq->id, rc);
@@ -198,13 +194,11 @@ static int idxd_config_bus_probe(struct device *dev)
 
 		rc = idxd_wq_enable(wq);
 		if (rc < 0) {
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			mutex_unlock(&wq->wq_lock);
 			dev_warn(dev, "WQ %d enabling failed: %d\n",
 				 wq->id, rc);
 			return rc;
 		}
-		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 
 		rc = idxd_wq_map_portal(wq);
 		if (rc < 0) {
@@ -212,7 +206,6 @@ static int idxd_config_bus_probe(struct device *dev)
 			rc = idxd_wq_disable(wq);
 			if (rc < 0)
 				dev_warn(dev, "IDXD wq disable failed\n");
-			spin_unlock_irqrestore(&idxd->dev_lock, flags);
 			mutex_unlock(&wq->wq_lock);
 			return rc;
 		}
@@ -248,7 +241,6 @@ static void disable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
-	unsigned long flags;
 	int rc;
 
 	mutex_lock(&wq->wq_lock);
@@ -269,9 +261,8 @@ static void disable_wq(struct idxd_wq *wq)
 
 	idxd_wq_unmap_portal(wq);
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	idxd_wq_drain(wq);
 	rc = idxd_wq_disable(wq);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 
 	idxd_wq_free_resources(wq);
 	wq->client_count = 0;
@@ -287,7 +278,6 @@ static void disable_wq(struct idxd_wq *wq)
 static int idxd_config_bus_remove(struct device *dev)
 {
 	int rc;
-	unsigned long flags;
 
 	dev_dbg(dev, "%s called for %s\n", __func__, dev_name(dev));
 
@@ -313,14 +303,14 @@ static int idxd_config_bus_remove(struct device *dev)
 		}
 
 		idxd_unregister_dma_device(idxd);
-		spin_lock_irqsave(&idxd->dev_lock, flags);
 		rc = idxd_device_disable(idxd);
 		for (i = 0; i < idxd->max_wqs; i++) {
 			struct idxd_wq *wq = &idxd->wqs[i];
 
+			mutex_lock(&wq->wq_lock);
 			idxd_wq_disable_cleanup(wq);
+			mutex_unlock(&wq->wq_lock);
 		}
-		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		module_put(THIS_MODULE);
 		if (rc < 0)
 			dev_warn(dev, "Device disable failed\n");

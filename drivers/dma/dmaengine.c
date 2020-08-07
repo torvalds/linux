@@ -592,12 +592,24 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	caps->src_addr_widths = device->src_addr_widths;
 	caps->dst_addr_widths = device->dst_addr_widths;
 	caps->directions = device->directions;
+	caps->min_burst = device->min_burst;
 	caps->max_burst = device->max_burst;
+	caps->max_sg_burst = device->max_sg_burst;
 	caps->residue_granularity = device->residue_granularity;
 	caps->descriptor_reuse = device->descriptor_reuse;
 	caps->cmd_pause = !!device->device_pause;
 	caps->cmd_resume = !!device->device_resume;
 	caps->cmd_terminate = !!device->device_terminate_all;
+
+	/*
+	 * DMA engine device might be configured with non-uniformly
+	 * distributed slave capabilities per device channels. In this
+	 * case the corresponding driver may provide the device_caps
+	 * callback to override the generic capabilities with
+	 * channel-specific ones.
+	 */
+	if (device->device_caps)
+		device->device_caps(chan, caps);
 
 	return 0;
 }
