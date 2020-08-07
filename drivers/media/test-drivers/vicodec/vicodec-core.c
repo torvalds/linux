@@ -1671,8 +1671,8 @@ static void vicodec_stop_streaming(struct vb2_queue *q)
 		ctx->comp_size = 0;
 		ctx->header_size = 0;
 		ctx->comp_magic_cnt = 0;
-		ctx->comp_has_frame = 0;
-		ctx->comp_has_next_frame = 0;
+		ctx->comp_has_frame = false;
+		ctx->comp_has_next_frame = false;
 	}
 }
 
