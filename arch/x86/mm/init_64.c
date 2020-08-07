@@ -1253,28 +1253,23 @@ static void __init preallocate_vmalloc_pages(void)
 		p4d_t *p4d;
 		pud_t *pud;
 
-		p4d = p4d_offset(pgd, addr);
-		if (p4d_none(*p4d)) {
-			/* Can only happen with 5-level paging */
-			p4d = p4d_alloc(&init_mm, pgd, addr);
-			if (!p4d) {
-				lvl = "p4d";
-				goto failed;
-			}
-		}
+		lvl = "p4d";
+		p4d = p4d_alloc(&init_mm, pgd, addr);
+		if (!p4d)
+			goto failed;
 
+		/*
+		 * With 5-level paging the P4D level is not folded. So the PGDs
+		 * are now populated and there is no need to walk down to the
+		 * PUD level.
+		 */
 		if (pgtable_l5_enabled())
 			continue;
 
-		pud = pud_offset(p4d, addr);
-		if (pud_none(*pud)) {
-			/* Ends up here only with 4-level paging */
-			pud = pud_alloc(&init_mm, p4d, addr);
-			if (!pud) {
-				lvl = "pud";
-				goto failed;
-			}
-		}
+		lvl = "pud";
+		pud = pud_alloc(&init_mm, p4d, addr);
+		if (!pud)
+			goto failed;
 	}
 
 	return;
