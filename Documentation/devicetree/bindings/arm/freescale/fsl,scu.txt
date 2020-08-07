@@ -176,7 +176,7 @@ Required properties:
 				  "fsl,imx8qxp-sc-thermal"
 				followed by "fsl,imx-sc-thermal";
 
-- #thermal-sensor-cells:	See Documentation/devicetree/bindings/thermal/thermal.txt
+- #thermal-sensor-cells:	See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml
 				for a description.
 
 Example (imx8qxp):

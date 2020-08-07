@@ -153,6 +153,12 @@ static int dove_thermal_probe(struct platform_device *pdev)
 		return PTR_ERR(thermal);
 	}
 
+	ret = thermal_zone_device_enable(thermal);
+	if (ret) {
+		thermal_zone_device_unregister(thermal);
+		return ret;
+	}
+
 	platform_set_drvdata(pdev, thermal);
 
 	return 0;
