@@ -21,29 +21,18 @@ ns2out=""
 
 log_netns=$(sysctl -n net.netfilter.nf_log_all_netns)
 
-nft --version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
-	exit $ksft_skip
-fi
+checktool (){
+	$1 > /dev/null 2>&1
+	if [ $? -ne 0 ];then
+		echo "SKIP: Could not $2"
+		exit $ksft_skip
+	fi
+}
 
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
-
-which nc > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nc (netcat)"
-	exit $ksft_skip
-fi
-
-ip netns add nsr1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace"
-	exit $ksft_skip
-fi
+checktool "nft --version" "run test without nft tool"
+checktool "ip -Version" "run test without ip tool"
+checktool "which nc" "run test without nc (netcat)"
+checktool "ip netns add nsr1" "create net namespace"
 
 ip netns add ns1
 ip netns add ns2
