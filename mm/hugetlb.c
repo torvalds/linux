@@ -31,6 +31,7 @@
 #include <linux/cma.h>
 
 #include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
 #include <linux/io.h>

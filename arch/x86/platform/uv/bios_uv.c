@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <asm/efi.h>
 #include <linux/io.h>
+#include <asm/pgalloc.h>
 #include <asm/uv/bios.h>
 #include <asm/uv/uv_hub.h>
 

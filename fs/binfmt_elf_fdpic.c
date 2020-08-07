@@ -38,7 +38,6 @@
 
 #include <linux/uaccess.h>
 #include <asm/param.h>
-#include <asm/pgalloc.h>
 
 typedef char *elf_caddr_t;
 

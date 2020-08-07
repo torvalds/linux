@@ -58,7 +58,6 @@
 #include <linux/sysctl.h>
 
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
 #include <asm/xen/hypervisor.h>

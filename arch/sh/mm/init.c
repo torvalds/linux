@@ -27,6 +27,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/cache.h>
+#include <asm/pgalloc.h>
 #include <linux/sizes.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD];

@@ -25,7 +25,6 @@
 #include <linux/miscdevice.h>
 #include <linux/moduleparam.h>
 
-#include <asm/pgalloc.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 

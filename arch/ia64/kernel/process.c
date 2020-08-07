@@ -40,7 +40,6 @@
 #include <asm/elf.h>
 #include <asm/irq.h>
 #include <asm/kexec.h>
-#include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
 #include <asm/switch_to.h>
