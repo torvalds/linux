@@ -247,7 +247,7 @@ Querying Capabilities
 Initialization
 ==============
 
-1. Set the coded format on ``OUTPUT`` via :c:func:`VIDIOC_S_FMT`
+1. Set the coded format on ``OUTPUT`` via :c:func:`VIDIOC_S_FMT`.
 
    * **Required fields:**
 
@@ -803,7 +803,7 @@ it may be affected as per normal decoder operation.
    * The decoder will drop all the pending ``OUTPUT`` buffers and they must be
      treated as returned to the client (following standard semantics).
 
-2. Restart the ``OUTPUT`` queue via :c:func:`VIDIOC_STREAMON`
+2. Restart the ``OUTPUT`` queue via :c:func:`VIDIOC_STREAMON`.
 
    * **Required fields:**
 
@@ -906,7 +906,9 @@ reflected by corresponding queries):
 
 * visible resolution (selection rectangles),
 
-* the minimum number of buffers needed for decoding.
+* the minimum number of buffers needed for decoding,
+
+* bit-depth of the bitstream has been changed.
 
 Whenever that happens, the decoder must proceed as follows:
 
@@ -1059,7 +1061,7 @@ sequence was started.
    ``V4L2_DEC_CMD_STOP`` again while the drain sequence is in progress and they
    will fail with -EBUSY error code if attempted.
 
-   Although mandatory, the availability of decoder commands may be queried
+   Although not mandatory, the availability of decoder commands may be queried
    using :c:func:`VIDIOC_TRY_DECODER_CMD`.
 
 End of Stream

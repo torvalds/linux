@@ -169,6 +169,14 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
 			     "\t\t    0 == vmalloc\n"
 			     "\t\t    1 == dma-contig");
 
+static unsigned int cache_hints[VIVID_MAX_DEVS] = {
+	[0 ... (VIVID_MAX_DEVS - 1)] = 0
+};
+module_param_array(cache_hints, uint, NULL, 0444);
+MODULE_PARM_DESC(cache_hints, " user-space cache hints, default is 0.\n"
+			     "\t\t    0 == forbid\n"
+			     "\t\t    1 == allow");
+
 static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
 
 const struct v4l2_rect vivid_min_rect = {
@@ -819,6 +827,7 @@ static int vivid_create_queue(struct vivid_dev *dev,
 	q->lock = &dev->mutex;
 	q->dev = dev->v4l2_dev.dev;
 	q->supports_requests = true;
+	q->allow_cache_hints = (cache_hints[dev->inst] == 1);
 
 	return vb2_queue_init(q);
 }
@@ -1117,7 +1126,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
 	tpg_init(&dev->tpg, 640, 360);
-	if (tpg_alloc(&dev->tpg, MAX_ZOOM * MAX_WIDTH))
+	if (tpg_alloc(&dev->tpg, array_size(MAX_WIDTH, MAX_ZOOM)))
 		goto free_dev;
 	dev->scaled_line = vzalloc(array_size(MAX_WIDTH, MAX_ZOOM));
 	if (!dev->scaled_line)
@@ -1127,7 +1136,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		goto free_dev;
 
 	/* load the edid */
-	dev->edid = vmalloc(256 * 128);
+	dev->edid = vmalloc(array_size(256, 128));
 	if (!dev->edid)
 		goto free_dev;
 

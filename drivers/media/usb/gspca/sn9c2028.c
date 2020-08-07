@@ -215,7 +215,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	int status = -1;
+	int status;
 
 	sn9c2028_read1(gspca_dev);
 	sn9c2028_read1(gspca_dev);

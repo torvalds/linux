@@ -44,6 +44,11 @@ Single-planar format structure
 	inside the stream, when fed to a stateful mem2mem decoder, the fields
 	may be zero to rely on the decoder to detect the right values. For more
 	details see :ref:`decoder` and format descriptions.
+
+	For compressed formats on the CAPTURE side of a stateful mem2mem
+	encoder, the fields must be zero, since the coded size is expected to
+	be calculated internally by the encoder itself, based on the OUTPUT
+	side. For more details see :ref:`encoder` and format descriptions.
     * - __u32
       - ``pixelformat``
       - The pixel format or type of compression, set by the application.

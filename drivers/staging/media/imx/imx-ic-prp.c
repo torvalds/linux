@@ -26,8 +26,8 @@
 /*
  * Min/Max supported width and heights.
  */
-#define MIN_W       176
-#define MIN_H       144
+#define MIN_W        32
+#define MIN_H        32
 #define MAX_W      4096
 #define MAX_H      4096
 #define W_ALIGN    4 /* multiple of 16 pixels */

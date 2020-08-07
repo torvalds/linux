@@ -772,6 +772,6 @@ static struct i2c_driver ov9640_i2c_driver = {
 
 module_i2c_driver(ov9640_i2c_driver);
 
-MODULE_DESCRIPTION("SoC Camera driver for OmniVision OV96xx");
+MODULE_DESCRIPTION("OmniVision OV96xx CMOS Image Sensor driver");
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");
 MODULE_LICENSE("GPL v2");

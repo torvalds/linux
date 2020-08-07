@@ -34,19 +34,17 @@
  */
 #define DRA72_CAL_PRE_ES2_LDO_DISABLE BIT(0)
 
-#define CAL_NUM_CSI2_PORTS		2
-
 /* CAL register offsets */
 
 #define CAL_HL_REVISION			0x0000
 #define CAL_HL_HWINFO			0x0004
 #define CAL_HL_SYSCONFIG		0x0010
 #define CAL_HL_IRQ_EOI			0x001c
-#define CAL_HL_IRQSTATUS_RAW(m)		(0x20U + ((m-1) * 0x10U))
-#define CAL_HL_IRQSTATUS(m)		(0x24U + ((m-1) * 0x10U))
-#define CAL_HL_IRQENABLE_SET(m)		(0x28U + ((m-1) * 0x10U))
-#define CAL_HL_IRQENABLE_CLR(m)		(0x2cU + ((m-1) * 0x10U))
-#define CAL_PIX_PROC(m)			(0xc0U + ((m-1) * 0x4U))
+#define CAL_HL_IRQSTATUS_RAW(m)		(0x20U + (m) * 0x10U)
+#define CAL_HL_IRQSTATUS(m)		(0x24U + (m) * 0x10U)
+#define CAL_HL_IRQENABLE_SET(m)		(0x28U + (m) * 0x10U)
+#define CAL_HL_IRQENABLE_CLR(m)		(0x2cU + (m) * 0x10U)
+#define CAL_PIX_PROC(m)			(0xc0U + (m) * 0x4U)
 #define CAL_CTRL			0x100
 #define CAL_CTRL1			0x104
 #define CAL_LINE_NUMBER_EVT		0x108
@@ -62,34 +60,34 @@
 #define CAL_RD_DMA_INIT_ADDR		0x154
 #define CAL_RD_DMA_INIT_OFST		0x168
 #define CAL_RD_DMA_CTRL2		0x16c
-#define CAL_WR_DMA_CTRL(m)		(0x200U + ((m-1) * 0x10U))
-#define CAL_WR_DMA_ADDR(m)		(0x204U + ((m-1) * 0x10U))
-#define CAL_WR_DMA_OFST(m)		(0x208U + ((m-1) * 0x10U))
-#define CAL_WR_DMA_XSIZE(m)		(0x20cU + ((m-1) * 0x10U))
-#define CAL_CSI2_PPI_CTRL(m)		(0x300U + ((m-1) * 0x80U))
-#define CAL_CSI2_COMPLEXIO_CFG(m)	(0x304U + ((m-1) * 0x80U))
-#define CAL_CSI2_COMPLEXIO_IRQSTATUS(m)	(0x308U + ((m-1) * 0x80U))
-#define CAL_CSI2_SHORT_PACKET(m)	(0x30cU + ((m-1) * 0x80U))
-#define CAL_CSI2_COMPLEXIO_IRQENABLE(m)	(0x310U + ((m-1) * 0x80U))
-#define CAL_CSI2_TIMING(m)		(0x314U + ((m-1) * 0x80U))
-#define CAL_CSI2_VC_IRQENABLE(m)	(0x318U + ((m-1) * 0x80U))
-#define CAL_CSI2_VC_IRQSTATUS(m)	(0x328U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX0(m)		(0x330U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX1(m)		(0x334U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX2(m)		(0x338U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX3(m)		(0x33cU + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX4(m)		(0x340U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX5(m)		(0x344U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX6(m)		(0x348U + ((m-1) * 0x80U))
-#define CAL_CSI2_CTX7(m)		(0x34cU + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS0(m)		(0x350U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS1(m)		(0x354U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS2(m)		(0x358U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS3(m)		(0x35cU + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS4(m)		(0x360U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS5(m)		(0x364U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS6(m)		(0x368U + ((m-1) * 0x80U))
-#define CAL_CSI2_STATUS7(m)		(0x36cU + ((m-1) * 0x80U))
+#define CAL_WR_DMA_CTRL(m)		(0x200U + (m) * 0x10U)
+#define CAL_WR_DMA_ADDR(m)		(0x204U + (m) * 0x10U)
+#define CAL_WR_DMA_OFST(m)		(0x208U + (m) * 0x10U)
+#define CAL_WR_DMA_XSIZE(m)		(0x20cU + (m) * 0x10U)
+#define CAL_CSI2_PPI_CTRL(m)		(0x300U + (m) * 0x80U)
+#define CAL_CSI2_COMPLEXIO_CFG(m)	(0x304U + (m) * 0x80U)
+#define CAL_CSI2_COMPLEXIO_IRQSTATUS(m)	(0x308U + (m) * 0x80U)
+#define CAL_CSI2_SHORT_PACKET(m)	(0x30cU + (m) * 0x80U)
+#define CAL_CSI2_COMPLEXIO_IRQENABLE(m)	(0x310U + (m) * 0x80U)
+#define CAL_CSI2_TIMING(m)		(0x314U + (m) * 0x80U)
+#define CAL_CSI2_VC_IRQENABLE(m)	(0x318U + (m) * 0x80U)
+#define CAL_CSI2_VC_IRQSTATUS(m)	(0x328U + (m) * 0x80U)
+#define CAL_CSI2_CTX0(m)		(0x330U + (m) * 0x80U)
+#define CAL_CSI2_CTX1(m)		(0x334U + (m) * 0x80U)
+#define CAL_CSI2_CTX2(m)		(0x338U + (m) * 0x80U)
+#define CAL_CSI2_CTX3(m)		(0x33cU + (m) * 0x80U)
+#define CAL_CSI2_CTX4(m)		(0x340U + (m) * 0x80U)
+#define CAL_CSI2_CTX5(m)		(0x344U + (m) * 0x80U)
+#define CAL_CSI2_CTX6(m)		(0x348U + (m) * 0x80U)
+#define CAL_CSI2_CTX7(m)		(0x34cU + (m) * 0x80U)
+#define CAL_CSI2_STATUS0(m)		(0x350U + (m) * 0x80U)
+#define CAL_CSI2_STATUS1(m)		(0x354U + (m) * 0x80U)
+#define CAL_CSI2_STATUS2(m)		(0x358U + (m) * 0x80U)
+#define CAL_CSI2_STATUS3(m)		(0x35cU + (m) * 0x80U)
+#define CAL_CSI2_STATUS4(m)		(0x360U + (m) * 0x80U)
+#define CAL_CSI2_STATUS5(m)		(0x364U + (m) * 0x80U)
+#define CAL_CSI2_STATUS6(m)		(0x368U + (m) * 0x80U)
+#define CAL_CSI2_STATUS7(m)		(0x36cU + (m) * 0x80U)
 
 /* CAL CSI2 PHY register offsets */
 #define CAL_CSI2_PHY_REG0		0x000
@@ -141,12 +139,12 @@
 #define CAL_HL_IRQ_EOI_LINE_NUMBER_READ0		0
 #define CAL_HL_IRQ_EOI_LINE_NUMBER_EOI0			0
 
-#define CAL_HL_IRQ_MASK(m)			BIT((m) - 1)
+#define CAL_HL_IRQ_MASK(m)			BIT(m)
 
 #define CAL_HL_IRQ_OCPO_ERR_MASK		BIT(6)
 
-#define CAL_HL_IRQ_CIO_MASK(i)			BIT(16 + ((i) - 1) * 8)
-#define CAL_HL_IRQ_VC_MASK(i)			BIT(17 + ((i) - 1) * 8)
+#define CAL_HL_IRQ_CIO_MASK(i)			BIT(16 + (i) * 8)
+#define CAL_HL_IRQ_VC_MASK(i)			BIT(17 + (i) * 8)
 
 #define CAL_PIX_PROC_EN_MASK			BIT(0)
 #define CAL_PIX_PROC_EXTRACT_MASK		GENMASK(4, 1)

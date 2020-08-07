@@ -803,7 +803,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  * @flags:	the requested new link flags
  *
  * The only configurable property is the %MEDIA_LNK_FL_ENABLED link flag
- * flag to enable/disable a link. Links marked with the
+ * to enable/disable a link. Links marked with the
  * %MEDIA_LNK_FL_IMMUTABLE link flag can not be enabled or disabled.
  *
  * When a link is enabled or disabled, the media framework calls the

@@ -133,7 +133,7 @@ struct isc_ctrls {
 
 	/* one for each component : GR, R, GB, B */
 	u32 gain[HIST_BAYER];
-	u32 offset[HIST_BAYER];
+	s32 offset[HIST_BAYER];
 
 	u32 hist_entry[HIST_ENTRIES];
 	u32 hist_count[HIST_BAYER];
