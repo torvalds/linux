@@ -6,6 +6,7 @@
 #ifndef _CEPH_CRYPTO_H
 #define _CEPH_CRYPTO_H
 
+#include <crypto/sha2.h>
 #include <linux/fscrypt.h>
 
 struct ceph_fs_client;
@@ -67,6 +68,8 @@ int ceph_fscrypt_prepare_context(struct inode *dir, struct inode *inode,
 				 struct ceph_acl_sec_ctx *as);
 void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 				struct ceph_acl_sec_ctx *as);
+int ceph_encode_encrypted_fname(const struct inode *parent,
+				struct dentry *dentry, char *buf);
 
 #else /* CONFIG_FS_ENCRYPTION */
 
@@ -90,6 +93,12 @@ static inline int ceph_fscrypt_prepare_context(struct inode *dir,
 static inline void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 						struct ceph_acl_sec_ctx *as_ctx)
 {
+}
+
+static inline int ceph_encode_encrypted_fname(const struct inode *parent,
+					      struct dentry *dentry, char *buf)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_FS_ENCRYPTION */
 
