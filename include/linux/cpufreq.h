@@ -127,7 +127,7 @@ struct cpufreq_policy {
 
 	 /* Cached frequency lookup from cpufreq_driver_resolve_freq. */
 	unsigned int cached_target_freq;
-	int cached_resolved_idx;
+	unsigned int cached_resolved_idx;
 
 	/* Synchronization for frequency transitions */
 	bool			transition_ongoing; /* Tracks transition status */

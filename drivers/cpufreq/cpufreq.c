@@ -541,7 +541,7 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 	policy->cached_target_freq = target_freq;
 
 	if (cpufreq_driver->target_index) {
-		int idx;
+		unsigned int idx;
 
 		idx = cpufreq_frequency_table_target(policy, target_freq,
 						     CPUFREQ_RELATION_L);
