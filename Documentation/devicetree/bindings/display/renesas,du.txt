@@ -3,6 +3,7 @@
 Required Properties:
 
   - compatible: must be one of the following.
+    - "renesas,du-r8a7742" for R8A7742 (RZ/G1H) compatible DU
     - "renesas,du-r8a7743" for R8A7743 (RZ/G1M) compatible DU
     - "renesas,du-r8a7744" for R8A7744 (RZ/G1N) compatible DU
     - "renesas,du-r8a7745" for R8A7745 (RZ/G1E) compatible DU
@@ -68,6 +69,7 @@ corresponding to each DU output.
 
                         Port0          Port1          Port2          Port3
 -----------------------------------------------------------------------------
+ R8A7742 (RZ/G1H)       DPAD 0         LVDS 0         LVDS 1         -
  R8A7743 (RZ/G1M)       DPAD 0         LVDS 0         -              -
  R8A7744 (RZ/G1N)       DPAD 0         LVDS 0         -              -
  R8A7745 (RZ/G1E)       DPAD 0         DPAD 1         -              -
