@@ -1740,10 +1740,6 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 
 }
 
-/*
- * regular allocator, for general purposes allocation
- */
-
 static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b,
 					int finish_group)
