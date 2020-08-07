@@ -53,6 +53,10 @@ config QCOM_LLCC
 	  SDM845. This provides interfaces to clients that use the LLCC.
 	  Say yes here to enable LLCC slice driver.
 
+config QCOM_KRYO_L2_ACCESSORS
+	bool
+	depends on ARCH_QCOM && ARM64 || COMPILE_TEST
+
 config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM

@@ -31,6 +31,29 @@ Required properties:
 		- 5p49v5933 and
 		- 5p49v5935: (optional) property not present or "clkin".
 
+For all output ports, a corresponding, optional child node named OUT1,
+OUT2, etc. can represent a each output, and the node can be used to
+specify the following:
+
+- itd,mode: can be one of the following:
+                 - VC5_LVPECL
+                 - VC5_CMOS
+                 - VC5_HCSL33
+                 - VC5_LVDS
+                 - VC5_CMOS2
+                 - VC5_CMOSD
+                 - VC5_HCSL25
+
+- idt,voltage-microvolts:  can be one of the following
+                 - 1800000
+                 - 2500000
+                 - 3300000
+-  idt,slew-percent: Percent of normal, can be one of
+                 - 80
+                 - 85
+                 - 90
+                 - 100
+
 ==Mapping between clock specifier and physical pins==
 
 When referencing the provided clock in the DT using phandle and
@@ -81,6 +104,16 @@ i2c-master-node {
 		/* Connect XIN input to 25MHz reference */
 		clocks = <&ref25m>;
 		clock-names = "xin";
+
+		OUT1 {
+			itd,mode = <VC5_CMOS>;
+			idt,voltage-microvolts = <1800000>;
+			idt,slew-percent = <80>;
+		};
+		OUT2 {
+			...
+		};
+		...
 	};
 };
 
