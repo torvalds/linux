@@ -1249,7 +1249,7 @@ void __init kmem_cache_init(void)
 				  nr_node_ids * sizeof(struct kmem_cache_node *),
 				  SLAB_HWCACHE_ALIGN, 0, 0);
 	list_add(&kmem_cache->list, &slab_caches);
-	memcg_link_cache(kmem_cache, NULL);
+	memcg_link_cache(kmem_cache);
 	slab_state = PARTIAL;
 
 	/*
@@ -2252,17 +2252,6 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
 	}
 	return (ret ? 1 : 0);
 }
-
-#ifdef CONFIG_MEMCG
-void __kmemcg_cache_deactivate(struct kmem_cache *cachep)
-{
-	__kmem_cache_shrink(cachep);
-}
-
-void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s)
-{
-}
-#endif
 
 int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
@@ -3872,7 +3861,8 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 		return ret;
 
 	lockdep_assert_held(&slab_mutex);
-	for_each_memcg_cache(c, cachep) {
+	c = memcg_cache(cachep);
+	if (c) {
 		/* return value determined by the root cache only */
 		__do_tune_cpucache(c, limit, batchcount, shared, gfp);
 	}
