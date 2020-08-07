@@ -5,6 +5,7 @@
 #include <linux/preempt.h>
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
+#include <asm/special_insns.h>
 
 #ifdef CONFIG_X86_32
 static inline void iret_to_self(void)
@@ -54,14 +55,23 @@ static inline void iret_to_self(void)
 static inline void sync_core(void)
 {
 	/*
-	 * There are quite a few ways to do this.  IRET-to-self is nice
-	 * because it works on every CPU, at any CPL (so it's compatible
-	 * with paravirtualization), and it never exits to a hypervisor.
-	 * The only down sides are that it's a bit slow (it seems to be
-	 * a bit more than 2x slower than the fastest options) and that
-	 * it unmasks NMIs.  The "push %cs" is needed because, in
-	 * paravirtual environments, __KERNEL_CS may not be a valid CS
-	 * value when we do IRET directly.
+	 * The SERIALIZE instruction is the most straightforward way to
+	 * do this but it not universally available.
+	 */
+	if (static_cpu_has(X86_FEATURE_SERIALIZE)) {
+		serialize();
+		return;
+	}
+
+	/*
+	 * For all other processors, there are quite a few ways to do this.
+	 * IRET-to-self is nice because it works on every CPU, at any CPL
+	 * (so it's compatible with paravirtualization), and it never exits
+	 * to a hypervisor. The only down sides are that it's a bit slow
+	 * (it seems to be a bit more than 2x slower than the fastest
+	 * options) and that it unmasks NMIs.  The "push %cs" is needed
+	 * because, in paravirtual environments, __KERNEL_CS may not be a
+	 * valid CS value when we do IRET directly.
 	 *
 	 * In case NMI unmasking or performance ever becomes a problem,
 	 * the next best option appears to be MOV-to-CR2 and an
