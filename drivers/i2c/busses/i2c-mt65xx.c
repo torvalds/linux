@@ -253,14 +253,13 @@ struct mtk_i2c {
 
 /**
  * struct i2c_spec_values:
- * min_low_ns: min LOW period of the SCL clock
- * min_su_sta_ns: min set-up time for a repeated START condition
- * max_hd_dat_ns: max data hold time
- * min_su_dat_ns: min data set-up time
+ * @min_low_ns: min LOW period of the SCL clock
+ * @min_su_sta_ns: min set-up time for a repeated START condition
+ * @max_hd_dat_ns: max data hold time
+ * @min_su_dat_ns: min data set-up time
  */
 struct i2c_spec_values {
 	unsigned int min_low_ns;
-	unsigned int min_high_ns;
 	unsigned int min_su_sta_ns;
 	unsigned int max_hd_dat_ns;
 	unsigned int min_su_dat_ns;
