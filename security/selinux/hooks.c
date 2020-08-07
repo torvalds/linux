@@ -1978,7 +1978,7 @@ static inline u32 file_to_av(struct file *file)
 }
 
 /*
- * Convert a file to an access vector and include the correct open
+ * Convert a file to an access vector and include the correct
  * open permission.
  */
 static inline u32 open_file_to_av(struct file *file)
@@ -4447,7 +4447,7 @@ static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
  *
  * If @skb_sid is valid then the user:role:type information from @sk_sid is
  * combined with the MLS information from @skb_sid in order to create
- * @conn_sid.  If @skb_sid is not valid then then @conn_sid is simply a copy
+ * @conn_sid.  If @skb_sid is not valid then @conn_sid is simply a copy
  * of @sk_sid.  Returns zero on success, negative values on failure.
  *
  */
@@ -5317,7 +5317,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 
 			/* As selinux_sctp_bind_connect() is called by the
 			 * SCTP protocol layer, the socket is already locked,
-			 * therefore selinux_netlbl_socket_connect_locked() is
+			 * therefore selinux_netlbl_socket_connect_locked()
 			 * is called here. The situations handled are:
 			 * sctp_connectx(3), sctp_sendmsg(3), sendmsg(2),
 			 * whenever a new IP address is added or when a new
