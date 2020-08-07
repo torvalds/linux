@@ -143,6 +143,7 @@ void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *els_req)
 {
 	struct fcoe_cqe_midpath_info *mp_info;
+	struct qedf_rport *fcport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
 		   " cmd_type = %d.\n", els_req->xid, els_req->cmd_type);
@@ -153,6 +154,19 @@ void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
 			"ELS completion xid=0x%x after flush event=0x%x",
 			els_req->xid, els_req->event);
+		return;
+	}
+
+	fcport = els_req->fcport;
+
+	/* When flush is active,
+	 * let the cmds be completed from the cleanup context
+	 */
+	if (test_bit(QEDF_RPORT_IN_TARGET_RESET, &fcport->flags) ||
+		test_bit(QEDF_RPORT_IN_LUN_RESET, &fcport->flags)) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			"Dropping ELS completion xid=0x%x as fcport is flushing",
+			els_req->xid);
 		return;
 	}
 

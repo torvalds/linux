@@ -1562,6 +1562,8 @@ static void qedf_flush_els_req(struct qedf_ctx *qedf,
 	 */
 	els_req->event = QEDF_IOREQ_EV_ELS_FLUSH;
 
+	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	/* Cancel the timer */
 	cancel_delayed_work_sync(&els_req->timeout_work);
 
