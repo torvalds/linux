@@ -854,8 +854,8 @@ static int anfc_exec_op(struct nand_chip *chip,
 	return nand_op_parser_exec_op(chip, &anfc_op_parser, op, check_only);
 }
 
-static int anfc_setup_data_interface(struct nand_chip *chip, int target,
-				     const struct nand_data_interface *conf)
+static int anfc_setup_interface(struct nand_chip *chip, int target,
+				const struct nand_interface_config *conf)
 {
 	struct anand *anand = to_anand(chip);
 	struct arasan_nfc *nfc = to_anfc(chip->controller);
@@ -1083,7 +1083,7 @@ static void anfc_detach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops anfc_ops = {
 	.exec_op = anfc_exec_op,
-	.setup_data_interface = anfc_setup_data_interface,
+	.setup_interface = anfc_setup_interface,
 	.attach_chip = anfc_attach_chip,
 	.detach_chip = anfc_detach_chip,
 };
