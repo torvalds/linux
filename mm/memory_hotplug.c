@@ -844,8 +844,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages,
 	kswapd_run(nid);
 	kcompactd_run(nid);
 
-	vm_total_pages = nr_free_pagecache_pages();
-
 	writeback_set_ratelimit();
 
 	memory_notify(MEM_ONLINE, &arg);
@@ -1595,7 +1593,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
 		kcompactd_stop(node);
 	}
 
-	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
 
 	memory_notify(MEM_OFFLINE, &arg);
