@@ -74,6 +74,8 @@ public slots:
 	void changeValue(ConfigItem* item);
 	void updateSelection(void);
 	void saveSettings(void);
+	void setOptionMode(QAction *action);
+
 signals:
 	void menuChanged(struct menu *menu);
 	void menuSelected(struct menu *menu);
@@ -105,6 +107,8 @@ public:
 	QPalette disabledColorGroup;
 	QPalette inactivedColorGroup;
 	QMenu* headerPopup;
+
+	static QAction *showNormalAction, *showAllAction, *showPromptAction;
 };
 
 class ConfigItem : public QTreeWidgetItem {
@@ -196,7 +200,6 @@ public slots:
 	void setShowName(bool);
 	void setShowRange(bool);
 	void setShowData(bool);
-	void setOptionMode(QAction *);
 signals:
 	void showNameChanged(bool);
 	void showRangeChanged(bool);
@@ -207,10 +210,6 @@ public:
 
 	static ConfigView* viewList;
 	ConfigView* nextView;
-
-	static QAction *showNormalAction;
-	static QAction *showAllAction;
-	static QAction *showPromptAction;
 };
 
 class ConfigInfoView : public QTextBrowser {

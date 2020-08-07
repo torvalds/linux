@@ -358,6 +358,18 @@ void ConfigList::reinit(void)
 	updateListAll();
 }
 
+void ConfigList::setOptionMode(QAction *action)
+{
+	if (action == showNormalAction)
+		optMode = normalOpt;
+	else if (action == showAllAction)
+		optMode = allOpt;
+	else
+		optMode = promptOpt;
+
+	updateListAll();
+}
+
 void ConfigList::saveSettings(void)
 {
 	if (!objectName().isEmpty()) {
@@ -901,9 +913,9 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 }
 
 ConfigView*ConfigView::viewList;
-QAction *ConfigView::showNormalAction;
-QAction *ConfigView::showAllAction;
-QAction *ConfigView::showPromptAction;
+QAction *ConfigList::showNormalAction;
+QAction *ConfigList::showAllAction;
+QAction *ConfigList::showPromptAction;
 
 ConfigView::ConfigView(QWidget* parent, const char *name)
 	: Parent(parent)
@@ -932,18 +944,6 @@ ConfigView::~ConfigView(void)
 			break;
 		}
 	}
-}
-
-void ConfigView::setOptionMode(QAction *act)
-{
-	if (act == showNormalAction)
-		list->optMode = normalOpt;
-	else if (act == showAllAction)
-		list->optMode = allOpt;
-	else
-		list->optMode = promptOpt;
-
-	list->updateListAll();
 }
 
 void ConfigView::setShowName(bool b)
@@ -1488,17 +1488,17 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(true);
-	connect(optGroup, SIGNAL(triggered(QAction*)), configView,
+	connect(optGroup, SIGNAL(triggered(QAction*)), configList,
 		SLOT(setOptionMode(QAction *)));
-	connect(optGroup, SIGNAL(triggered(QAction *)), menuView,
+	connect(optGroup, SIGNAL(triggered(QAction *)), menuList,
 		SLOT(setOptionMode(QAction *)));
 
-	configView->showNormalAction = new QAction("Show Normal Options", optGroup);
-	configView->showAllAction = new QAction("Show All Options", optGroup);
-	configView->showPromptAction = new QAction("Show Prompt Options", optGroup);
-	configView->showNormalAction->setCheckable(true);
-	configView->showAllAction->setCheckable(true);
-	configView->showPromptAction->setCheckable(true);
+	ConfigList::showNormalAction = new QAction("Show Normal Options", optGroup);
+	ConfigList::showNormalAction->setCheckable(true);
+	ConfigList::showAllAction = new QAction("Show All Options", optGroup);
+	ConfigList::showAllAction->setCheckable(true);
+	ConfigList::showPromptAction = new QAction("Show Prompt Options", optGroup);
+	ConfigList::showPromptAction->setCheckable(true);
 
 	QAction *showDebugAction = new QAction("Show Debug Info", this);
 	  showDebugAction->setCheckable(true);
