@@ -13,14 +13,109 @@
 	bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
 	};
 
+	ext_cam_clk: external-camera-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <27000000>;
+		clock-output-names = "CLK_CAMERA_27MHZ";
+		#clock-cells = <0>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	/delete-node/ tc358749x@0f;
+
+	tc35874x: tc35874x@0f {
+		status = "disabled";
+		reg = <0x0f>;
+		compatible = "toshiba,tc358749";
+		clocks = <&ext_cam_clk>;
+		clock-names = "refclk";
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
+		/* interrupt-parent = <&gpio2>; */
+		/* interrupts = <12 IRQ_TYPE_LEVEL_HIGH>; */
+		pinctrl-names = "default";
+		pinctrl-0 = <&tc35874x_gpios>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TC358749XBG";
+		rockchip,camera-module-lens-name = "NC";
+
+		port {
+			hdmiin_out0: endpoint {
+				remote-endpoint = <&hdmi_to_mipi_in>;
+				data-lanes = <1 2 3 4>;
+				clock-noncontinuous;
+				link-frequencies =
+					/bits/ 64 <297000000>;
+			};
+		};
+	};
 };
 
 &mipi_dphy_rx0 {
 	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+
+			hdmi_to_mipi_in: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&hdmiin_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
 };
 
 &mipi_dphy_tx1rx1 {
 	status = "disabled";
+};
+
+&pinctrl {
+	hdmiin {
+		tc35874x_gpios: tc35874x_gpios {
+			rockchip,pins =
+				/* PWREN_3.3 */
+				<2 5 RK_FUNC_GPIO &pcfg_output_high>,
+				/* PWREN_1.2 */
+				<2 6 RK_FUNC_GPIO &pcfg_output_high>,
+				/* HDMIIN_RST */
+				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* HDMIIN_STBY */
+				<2 8 RK_FUNC_GPIO &pcfg_output_high>,
+				/* MIPI_RST */
+				<2 9 RK_FUNC_GPIO &pcfg_output_high>,
+				/* CSI_CTL */
+				<2 10 RK_FUNC_GPIO &pcfg_output_low>,
+				/* HDMIIN_INT */
+				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &rkisp1_0 {
