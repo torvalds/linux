@@ -2416,7 +2416,7 @@ void console_unlock(void)
 	 *
 	 * console_trylock() is not able to detect the preemptive
 	 * context reliably. Therefore the value must be stored before
-	 * and cleared after the the "again" goto label.
+	 * and cleared after the "again" goto label.
 	 */
 	do_cond_resched = console_may_schedule;
 again:
@@ -3332,7 +3332,7 @@ EXPORT_SYMBOL_GPL(kmsg_dump_get_line);
  * @len: length of line placed into buffer
  *
  * Start at the end of the kmsg buffer and fill the provided buffer
- * with as many of the the *youngest* kmsg records that fit into it.
+ * with as many of the *youngest* kmsg records that fit into it.
  * If the buffer is large enough, all available kmsg records will be
  * copied with a single call.
  *
