@@ -598,7 +598,7 @@ static const struct of_device_id imx_mu_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_mu_dt_ids);
 
-static int imx_mu_suspend_noirq(struct device *dev)
+static int __maybe_unused imx_mu_suspend_noirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 
@@ -608,7 +608,7 @@ static int imx_mu_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int imx_mu_resume_noirq(struct device *dev)
+static int __maybe_unused imx_mu_resume_noirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 
@@ -626,7 +626,7 @@ static int imx_mu_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static int imx_mu_runtime_suspend(struct device *dev)
+static int __maybe_unused imx_mu_runtime_suspend(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 
@@ -635,7 +635,7 @@ static int imx_mu_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_mu_runtime_resume(struct device *dev)
+static int __maybe_unused imx_mu_runtime_resume(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 	int ret;
