@@ -703,8 +703,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
 
-	if (port->type != SAA7164_MPEG_VBI)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_VBI);
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
@@ -756,8 +755,7 @@ void saa7164_vbi_unregister(struct saa7164_port *port)
 
 	dprintk(DBGLVL_VBI, "%s(port=%d)\n", __func__, port->nr);
 
-	if (port->type != SAA7164_MPEG_VBI)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_VBI);
 
 	if (port->v4l_device) {
 		if (port->v4l_device->minor != -1)
