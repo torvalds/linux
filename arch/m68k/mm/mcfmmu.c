@@ -39,7 +39,6 @@ void __init paging_init(void)
 	unsigned long address, size;
 	unsigned long next_pgtable, bootmem_end;
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-	enum zone_type zone;
 	int i;
 
 	empty_zero_page = (void *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
@@ -214,11 +213,6 @@ void __init cf_mmu_context_init(void)
 
 /*
  * Steal a context from a task that has one at the moment.
- * This is only used on 8xx and 4xx and we presently assume that
- * they don't do SMP.  If they do then thicfpgalloc.hs will have to check
- * whether the MM we steal is in use.
- * We also assume that this is only used on systems that don't
- * use an MMU hash table - this is true for 8xx and 4xx.
  * This isn't an LRU system, it just frees up each context in
  * turn (sort-of pseudo-random replacement :).  This would be the
  * place to implement an LRU scheme if anyone was motivated to do it.
