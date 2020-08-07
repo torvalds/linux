@@ -175,7 +175,6 @@ void unmap_kernel_range_noflush(unsigned long start, unsigned long size)
 	pgtbl_mod_mask mask = 0;
 
 	BUG_ON(addr >= end);
-	start = addr;
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
