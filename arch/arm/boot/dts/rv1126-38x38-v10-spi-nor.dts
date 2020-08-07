@@ -105,6 +105,19 @@
 		rockchip,camera-module-facing = "front";
 	};
 
+	i2s0_sound: i2s0-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,i2s0-sound";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&wm8974>;
+		};
+	};
 };
 
 &csi_dphy0 {
@@ -186,6 +199,34 @@
 		   };
 	};
 
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c4m1_xfer>;
+
+	wm8974: wm8974@1a {
+		compatible = "wlf,wm8974";
+		reg = <0x1a>;
+		clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		assigned-clocks = <&cru MCLK_I2S0_TX_OUT2IO>;
+		assigned-clock-parents = <&cru MCLK_I2S0_TX>;
+		pinctrl-0 = <&i2s0m0_mclk>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2s0_8ch {
+	status = "okay";
+	rockchip,clk-trcm = <1>;
+	#sound-dai-cells = <0>;
+	pinctrl-0 = <&i2s0m0_sclk_tx
+		     &i2s0m0_lrck_tx
+		     &i2s0m0_sdi0
+		     &i2s0m0_sdo0>;
 };
 
 &isp_reserved {
