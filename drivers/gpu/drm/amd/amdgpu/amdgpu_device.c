@@ -3923,6 +3923,34 @@ error:
 }
 
 /**
+ * amdgpu_device_has_job_running - check if there is any job in mirror list
+ *
+ * @adev: amdgpu device pointer
+ *
+ * check if there is any job in mirror list
+ */
+bool amdgpu_device_has_job_running(struct amdgpu_device *adev)
+{
+	int i;
+	struct drm_sched_job *job;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring || !ring->sched.thread)
+			continue;
+
+		spin_lock(&ring->sched.job_list_lock);
+		job = list_first_entry_or_null(&ring->sched.ring_mirror_list,
+				struct drm_sched_job, node);
+		spin_unlock(&ring->sched.job_list_lock);
+		if (job)
+			return true;
+	}
+	return false;
+}
+
+/**
  * amdgpu_device_should_recover_gpu - check if we should try GPU recovery
  *
  * @adev: amdgpu device pointer
