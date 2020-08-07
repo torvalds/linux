@@ -41,6 +41,11 @@ slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
 	Enable options only for select slabs (no spaces
 	after a comma)
 
+Multiple blocks of options for all slabs or selected slabs can be given, with
+blocks of options delimited by ';'. The last of "all slabs" blocks is applied
+to all slabs except those that match one of the "select slabs" block. Options
+of the first "select slabs" blocks that matches the slab's name are applied.
+
 Possible debug options are::
 
 	F		Sanity checks on (enables SLAB_DEBUG_CONSISTENCY_CHECKS
@@ -82,6 +87,19 @@ in low memory situations or if there's high fragmentation of memory.  To
 switch off debugging for such caches by default, use::
 
 	slub_debug=O
+
+You can apply different options to different list of slab names, using blocks
+of options. This will enable red zoning for dentry and user tracking for
+kmalloc. All other slabs will not get any debugging enabled::
+
+	slub_debug=Z,dentry;U,kmalloc-*
+
+You can also enable options (e.g. sanity checks and poisoning) for all caches
+except some that are deemed too performance critical and don't need to be
+debugged by specifying global debug options followed by a list of slab names
+with "-" as options::
+
+	slub_debug=FZ;-,zs_handle,zspage
 
 In case you forgot to enable debugging on the kernel command line: It is
 possible to enable debugging manually when the kernel is up. Look at the

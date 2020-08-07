@@ -4689,7 +4689,7 @@
 			fragmentation.  Defaults to 1 for systems with
 			more than 32MB of RAM, 0 otherwise.
 
-	slub_debug[=options[,slabs]]	[MM, SLUB]
+	slub_debug[=options[,slabs][;[options[,slabs]]...]	[MM, SLUB]
 			Enabling slub_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling
 			slub_debug can create guard zones around objects and

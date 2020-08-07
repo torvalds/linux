@@ -499,7 +499,7 @@ static slab_flags_t slub_debug = DEBUG_DEFAULT_FLAGS;
 static slab_flags_t slub_debug;
 #endif
 
-static char *slub_debug_slabs;
+static char *slub_debug_string;
 static int disable_higher_order_debug;
 
 /*
@@ -1262,8 +1262,102 @@ out:
 	return ret;
 }
 
+/*
+ * Parse a block of slub_debug options. Blocks are delimited by ';'
+ *
+ * @str:    start of block
+ * @flags:  returns parsed flags, or DEBUG_DEFAULT_FLAGS if none specified
+ * @slabs:  return start of list of slabs, or NULL when there's no list
+ * @init:   assume this is initial parsing and not per-kmem-create parsing
+ *
+ * returns the start of next block if there's any, or NULL
+ */
+static char *
+parse_slub_debug_flags(char *str, slab_flags_t *flags, char **slabs, bool init)
+{
+	bool higher_order_disable = false;
+
+	/* Skip any completely empty blocks */
+	while (*str && *str == ';')
+		str++;
+
+	if (*str == ',') {
+		/*
+		 * No options but restriction on slabs. This means full
+		 * debugging for slabs matching a pattern.
+		 */
+		*flags = DEBUG_DEFAULT_FLAGS;
+		goto check_slabs;
+	}
+	*flags = 0;
+
+	/* Determine which debug features should be switched on */
+	for (; *str && *str != ',' && *str != ';'; str++) {
+		switch (tolower(*str)) {
+		case '-':
+			*flags = 0;
+			break;
+		case 'f':
+			*flags |= SLAB_CONSISTENCY_CHECKS;
+			break;
+		case 'z':
+			*flags |= SLAB_RED_ZONE;
+			break;
+		case 'p':
+			*flags |= SLAB_POISON;
+			break;
+		case 'u':
+			*flags |= SLAB_STORE_USER;
+			break;
+		case 't':
+			*flags |= SLAB_TRACE;
+			break;
+		case 'a':
+			*flags |= SLAB_FAILSLAB;
+			break;
+		case 'o':
+			/*
+			 * Avoid enabling debugging on caches if its minimum
+			 * order would increase as a result.
+			 */
+			higher_order_disable = true;
+			break;
+		default:
+			if (init)
+				pr_err("slub_debug option '%c' unknown. skipped\n", *str);
+		}
+	}
+check_slabs:
+	if (*str == ',')
+		*slabs = ++str;
+	else
+		*slabs = NULL;
+
+	/* Skip over the slab list */
+	while (*str && *str != ';')
+		str++;
+
+	/* Skip any completely empty blocks */
+	while (*str && *str == ';')
+		str++;
+
+	if (init && higher_order_disable)
+		disable_higher_order_debug = 1;
+
+	if (*str)
+		return str;
+	else
+		return NULL;
+}
+
 static int __init setup_slub_debug(char *str)
 {
+	slab_flags_t flags;
+	char *saved_str;
+	char *slab_list;
+	bool global_slub_debug_changed = false;
+	bool slab_list_specified = false;
+
 	slub_debug = DEBUG_DEFAULT_FLAGS;
 	if (*str++ != '=' || !*str)
 		/*
@@ -1271,59 +1365,29 @@ static int __init setup_slub_debug(char *str)
 		 */
 		goto out;
 
-	if (*str == ',')
-		/*
-		 * No options but restriction on slabs. This means full
-		 * debugging for slabs matching a pattern.
-		 */
-		goto check_slabs;
+	saved_str = str;
+	while (str) {
+		str = parse_slub_debug_flags(str, &flags, &slab_list, true);
 
-	slub_debug = 0;
-	if (*str == '-')
-		/*
-		 * Switch off all debugging measures.
-		 */
-		goto out;
-
-	/*
-	 * Determine which debug features should be switched on
-	 */
-	for (; *str && *str != ','; str++) {
-		switch (tolower(*str)) {
-		case 'f':
-			slub_debug |= SLAB_CONSISTENCY_CHECKS;
-			break;
-		case 'z':
-			slub_debug |= SLAB_RED_ZONE;
-			break;
-		case 'p':
-			slub_debug |= SLAB_POISON;
-			break;
-		case 'u':
-			slub_debug |= SLAB_STORE_USER;
-			break;
-		case 't':
-			slub_debug |= SLAB_TRACE;
-			break;
-		case 'a':
-			slub_debug |= SLAB_FAILSLAB;
-			break;
-		case 'o':
-			/*
-			 * Avoid enabling debugging on caches if its minimum
-			 * order would increase as a result.
-			 */
-			disable_higher_order_debug = 1;
-			break;
-		default:
-			pr_err("slub_debug option '%c' unknown. skipped\n",
-			       *str);
+		if (!slab_list) {
+			slub_debug = flags;
+			global_slub_debug_changed = true;
+		} else {
+			slab_list_specified = true;
 		}
 	}
 
-check_slabs:
-	if (*str == ',')
-		slub_debug_slabs = str + 1;
+	/*
+	 * For backwards compatibility, a single list of flags with list of
+	 * slabs means debugging is only enabled for those slabs, so the global
+	 * slub_debug should be 0. We can extended that to multiple lists as
+	 * long as there is no option specifying flags without a slab list.
+	 */
+	if (slab_list_specified) {
+		if (!global_slub_debug_changed)
+			slub_debug = 0;
+		slub_debug_string = saved_str;
+	}
 out:
 	if ((static_branch_unlikely(&init_on_alloc) ||
 	     static_branch_unlikely(&init_on_free)) &&
@@ -1352,36 +1416,47 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 {
 	char *iter;
 	size_t len;
+	char *next_block;
+	slab_flags_t block_flags;
 
 	/* If slub_debug = 0, it folds into the if conditional. */
-	if (!slub_debug_slabs)
+	if (!slub_debug_string)
 		return flags | slub_debug;
 
 	len = strlen(name);
-	iter = slub_debug_slabs;
-	while (*iter) {
-		char *end, *glob;
-		size_t cmplen;
+	next_block = slub_debug_string;
+	/* Go through all blocks of debug options, see if any matches our slab's name */
+	while (next_block) {
+		next_block = parse_slub_debug_flags(next_block, &block_flags, &iter, false);
+		if (!iter)
+			continue;
+		/* Found a block that has a slab list, search it */
+		while (*iter) {
+			char *end, *glob;
+			size_t cmplen;
 
-		end = strchrnul(iter, ',');
+			end = strchrnul(iter, ',');
+			if (next_block && next_block < end)
+				end = next_block - 1;
 
-		glob = strnchr(iter, end - iter, '*');
-		if (glob)
-			cmplen = glob - iter;
-		else
-			cmplen = max_t(size_t, len, (end - iter));
+			glob = strnchr(iter, end - iter, '*');
+			if (glob)
+				cmplen = glob - iter;
+			else
+				cmplen = max_t(size_t, len, (end - iter));
 
-		if (!strncmp(name, iter, cmplen)) {
-			flags |= slub_debug;
-			break;
+			if (!strncmp(name, iter, cmplen)) {
+				flags |= block_flags;
+				return flags;
+			}
+
+			if (!*end || *end == ';')
+				break;
+			iter = end + 1;
 		}
-
-		if (!*end)
-			break;
-		iter = end + 1;
 	}
 
-	return flags;
+	return slub_debug;
 }
 #else /* !CONFIG_SLUB_DEBUG */
 static inline void setup_object_debug(struct kmem_cache *s,
