@@ -569,13 +569,13 @@ static int qti_flash_led_symmetry_config(struct flash_switch_data *snode)
 		}
 	}
 
-	if (symmetric_leds > 0 && total_curr_ma > 0) {
-		per_led_curr_ma = total_curr_ma / symmetric_leds;
-	} else {
-		pr_err("Incorrect configuration, symmetric_leds: %d total_curr_ma: %d\n",
+	if (!symmetric_leds || !total_curr_ma) {
+		pr_debug("Incorrect configuration, symmetric_leds: %d total_curr_ma: %d\n",
 			symmetric_leds, total_curr_ma);
-		return -EINVAL;
+		return 0;
 	}
+
+	per_led_curr_ma = total_curr_ma / symmetric_leds;
 
 	if (per_led_curr_ma == 0) {
 		pr_warn("per_led_curr_ma cannot be 0\n");
