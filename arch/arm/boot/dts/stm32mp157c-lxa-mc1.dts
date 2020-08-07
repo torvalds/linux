@@ -121,8 +121,6 @@
 			reset-gpios = <&gpiog 0 GPIO_ACTIVE_LOW>; /* ETH_RST# */
 			interrupt-parent = <&gpioa>;
 			interrupts = <6 IRQ_TYPE_EDGE_FALLING>; /* ETH_MDINT# */
-			rxc-skew-ps = <1860>;
-			txc-skew-ps = <1860>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <300>;
 			micrel,force-master;
