@@ -56,27 +56,25 @@ struct page;
 
 unsigned long get_pfnblock_flags_mask(struct page *page,
 				unsigned long pfn,
-				unsigned long end_bitidx,
 				unsigned long mask);
 
 void set_pfnblock_flags_mask(struct page *page,
 				unsigned long flags,
 				unsigned long pfn,
-				unsigned long end_bitidx,
 				unsigned long mask);
 
 /* Declarations for getting and setting flags. See mm/page_alloc.c */
 #ifdef CONFIG_COMPACTION
 #define get_pageblock_skip(page) \
 	get_pfnblock_flags_mask(page, page_to_pfn(page),	\
-			PB_migrate_skip, (1 << (PB_migrate_skip)))
+			(1 << (PB_migrate_skip)))
 #define clear_pageblock_skip(page) \
 	set_pfnblock_flags_mask(page, 0, page_to_pfn(page),	\
-			PB_migrate_skip, (1 << PB_migrate_skip))
+			(1 << PB_migrate_skip))
 #define set_pageblock_skip(page) \
 	set_pfnblock_flags_mask(page, (1 << PB_migrate_skip),	\
 			page_to_pfn(page),			\
-			PB_migrate_skip, (1 << PB_migrate_skip))
+			(1 << PB_migrate_skip))
 #else
 static inline bool get_pageblock_skip(struct page *page)
 {
