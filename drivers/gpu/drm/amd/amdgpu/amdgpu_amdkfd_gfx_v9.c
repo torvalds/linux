@@ -677,7 +677,7 @@ uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
 	return 0;
 }
 
-static void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
+void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
 			uint32_t vmid, uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -688,7 +688,7 @@ static void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
 		return;
 	}
 
-	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+	adev->mmhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 
 	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }
