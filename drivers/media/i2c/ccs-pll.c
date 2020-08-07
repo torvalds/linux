@@ -294,11 +294,11 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	 * Find absolute limits for the factor of vt divider.
 	 */
 	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
-	min_vt_div = DIV_ROUND_UP(op_pll_bk->pix_clk_div
-				  * op_pll_bk->sys_clk_div * pll->scale_n
-				  * pll->vt_lanes * l,
-				  pll->op_lanes * vt_op_binning_div
-				  * pll->scale_m);
+	min_vt_div = DIV_ROUND_UP(pll->bits_per_pixel * op_pll_bk->sys_clk_div
+				  * pll->scale_n * pll->vt_lanes,
+				  (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+				   pll->csi2.lanes : 1)
+				  * vt_op_binning_div * pll->scale_m);
 
 	/* Find smallest and biggest allowed vt divisor. */
 	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);
@@ -420,6 +420,18 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		pll->op_lanes = 1;
 		pll->vt_lanes = 1;
 	}
+
+	/*
+	 * Make sure op_pix_clk_div will be integer --- unless flexible
+	 * op_pix_clk_div is supported
+	 */
+	if (!(pll->flags & CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV) &&
+	    (pll->bits_per_pixel * pll->op_lanes) % (pll->csi2.lanes * l)) {
+		dev_dbg(dev, "op_pix_clk_div not an integer (bpp %u, op lanes %u, lanes %u, l %u)\n",
+			pll->bits_per_pixel, pll->op_lanes, pll->csi2.lanes, l);
+		return -EINVAL;
+	}
+
 	dev_dbg(dev, "vt_lanes: %u\n", pll->vt_lanes);
 	dev_dbg(dev, "op_lanes: %u\n", pll->op_lanes);
 
@@ -449,9 +461,9 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	}
 
 	pll->pixel_rate_csi =
-		op_pll_bk->pix_clk_freq_hz
+		op_pll_bk->sys_clk_freq_hz
 		* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-		   pll->csi2.lanes : 1) / l;
+		   pll->csi2.lanes : 1) / pll->bits_per_pixel / l;
 
 	/* Figure out limits for OP pre-pll divider based on extclk */
 	dev_dbg(dev, "min / max op_pre_pll_clk_div: %u / %u\n",
