@@ -2201,6 +2201,108 @@ static void ww_tests(void)
 	pr_cont("\n");
 }
 
+
+/*
+ * <in hardirq handler>
+ * read_lock(&A);
+ *			<hardirq disable>
+ *			spin_lock(&B);
+ * spin_lock(&B);
+ *			read_lock(&A);
+ *
+ * is a deadlock.
+ */
+static void queued_read_lock_hardirq_RE_Er(void)
+{
+	HARDIRQ_ENTER();
+	read_lock(&rwlock_A);
+	LOCK(B);
+	UNLOCK(B);
+	read_unlock(&rwlock_A);
+	HARDIRQ_EXIT();
+
+	HARDIRQ_DISABLE();
+	LOCK(B);
+	read_lock(&rwlock_A);
+	read_unlock(&rwlock_A);
+	UNLOCK(B);
+	HARDIRQ_ENABLE();
+}
+
+/*
+ * <in hardirq handler>
+ * spin_lock(&B);
+ *			<hardirq disable>
+ *			read_lock(&A);
+ * read_lock(&A);
+ *			spin_lock(&B);
+ *
+ * is not a deadlock.
+ */
+static void queued_read_lock_hardirq_ER_rE(void)
+{
+	HARDIRQ_ENTER();
+	LOCK(B);
+	read_lock(&rwlock_A);
+	read_unlock(&rwlock_A);
+	UNLOCK(B);
+	HARDIRQ_EXIT();
+
+	HARDIRQ_DISABLE();
+	read_lock(&rwlock_A);
+	LOCK(B);
+	UNLOCK(B);
+	read_unlock(&rwlock_A);
+	HARDIRQ_ENABLE();
+}
+
+/*
+ * <hardirq disable>
+ * spin_lock(&B);
+ *			read_lock(&A);
+ *			<in hardirq handler>
+ *			spin_lock(&B);
+ * read_lock(&A);
+ *
+ * is a deadlock. Because the two read_lock()s are both non-recursive readers.
+ */
+static void queued_read_lock_hardirq_inversion(void)
+{
+
+	HARDIRQ_ENTER();
+	LOCK(B);
+	UNLOCK(B);
+	HARDIRQ_EXIT();
+
+	HARDIRQ_DISABLE();
+	LOCK(B);
+	read_lock(&rwlock_A);
+	read_unlock(&rwlock_A);
+	UNLOCK(B);
+	HARDIRQ_ENABLE();
+
+	read_lock(&rwlock_A);
+	read_unlock(&rwlock_A);
+}
+
+static void queued_read_lock_tests(void)
+{
+	printk("  --------------------------------------------------------------------------\n");
+	printk("  | queued read lock tests |\n");
+	printk("  ---------------------------\n");
+	print_testname("hardirq read-lock/lock-read");
+	dotest(queued_read_lock_hardirq_RE_Er, FAILURE, LOCKTYPE_RWLOCK);
+	pr_cont("\n");
+
+	print_testname("hardirq lock-read/read-lock");
+	dotest(queued_read_lock_hardirq_ER_rE, SUCCESS, LOCKTYPE_RWLOCK);
+	pr_cont("\n");
+
+	print_testname("hardirq inversion");
+	dotest(queued_read_lock_hardirq_inversion, FAILURE, LOCKTYPE_RWLOCK);
+	pr_cont("\n");
+}
+
 void locking_selftest(void)
 {
 	/*
@@ -2318,6 +2420,8 @@ void locking_selftest(void)
 	/*
 	 * queued_read_lock() specific test cases can be put here
 	 */
+	if (IS_ENABLED(CONFIG_QUEUED_RWLOCKS))
+		queued_read_lock_tests();
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");
