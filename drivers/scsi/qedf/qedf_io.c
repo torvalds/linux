@@ -85,13 +85,13 @@ static void qedf_cmd_timeout(struct work_struct *work)
 		 */
 		QEDF_ERR(&(qedf->dbg_ctx), "ELS timeout, xid=0x%x.\n",
 			  io_req->xid);
+		qedf_initiate_cleanup(io_req, true);
 		io_req->event = QEDF_IOREQ_EV_ELS_TMO;
 		/* Call callback function to complete command */
 		if (io_req->cb_func && io_req->cb_arg) {
 			io_req->cb_func(io_req->cb_arg);
 			io_req->cb_arg = NULL;
 		}
-		qedf_initiate_cleanup(io_req, true);
 		kref_put(&io_req->refcount, qedf_release_cmd);
 		break;
 	case QEDF_SEQ_CLEANUP:
