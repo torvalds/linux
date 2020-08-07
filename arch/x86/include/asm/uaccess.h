@@ -310,6 +310,55 @@ do {									\
 	}								\
 } while (0)
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#ifdef CONFIG_X86_32
+#define __get_user_asm_u64(x, ptr, label) do {				\
+	unsigned int __gu_low, __gu_high;				\
+	const unsigned int __user *__gu_ptr;				\
+	__gu_ptr = (const void __user *)(ptr);				\
+	__get_user_asm(__gu_low, ptr, "l", "=r", label);		\
+	__get_user_asm(__gu_high, ptr+1, "l", "=r", label);		\
+	(x) = ((unsigned long long)__gu_high << 32) | __gu_low;		\
+} while (0)
+#else
+#define __get_user_asm_u64(x, ptr, label)				\
+	__get_user_asm(x, ptr, "q", "=r", label)
+#endif
+
+#define __get_user_size(x, ptr, size, label)				\
+do {									\
+	__chk_user_ptr(ptr);						\
+	switch (size) {							\
+	unsigned char x_u8__;						\
+	case 1:								\
+		__get_user_asm(x_u8__, ptr, "b", "=q", label);		\
+		(x) = x_u8__;						\
+		break;							\
+	case 2:								\
+		__get_user_asm(x, ptr, "w", "=r", label);		\
+		break;							\
+	case 4:								\
+		__get_user_asm(x, ptr, "l", "=r", label);		\
+		break;							\
+	case 8:								\
+		__get_user_asm_u64(x, ptr, label);			\
+		break;							\
+	default:							\
+		(x) = __get_user_bad();					\
+	}								\
+} while (0)
+
+#define __get_user_asm(x, addr, itype, ltype, label)			\
+	asm_volatile_goto("\n"						\
+		     "1:	mov"itype" %[umem],%[output]\n"		\
+		     _ASM_EXTABLE_UA(1b, %l2)				\
+		     : [output] ltype(x)				\
+		     : [umem] "m" (__m(addr))				\
+		     : : label)
+
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
 #ifdef CONFIG_X86_32
 #define __get_user_asm_u64(x, ptr, retval)				\
 ({									\
@@ -377,6 +426,8 @@ do {									\
 		       [output] ltype(x)				\
 		     : [umem] "m" (__m(addr)),				\
 		       [efault] "i" (-EFAULT), "0" (err))
+
+#endif // CONFIG_CC_ASM_GOTO_OUTPUT
 
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
@@ -452,6 +503,14 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 #define unsafe_put_user(x, ptr, label)	\
 	__put_user_size((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), label)
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+#define unsafe_get_user(x, ptr, err_label)					\
+do {										\
+	__inttype(*(ptr)) __gu_val;						\
+	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), err_label);		\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
+} while (0)
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define unsafe_get_user(x, ptr, err_label)					\
 do {										\
 	int __gu_err;								\
@@ -460,6 +519,7 @@ do {										\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	if (unlikely(__gu_err)) goto err_label;					\
 } while (0)
+#endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 /*
  * We want the unsafe accessors to always be inlined and use
@@ -486,6 +546,11 @@ do {									\
 
 #define HAVE_GET_KERNEL_NOFAULT
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\
+			sizeof(type), err_label)
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
 	int __kr_err;							\
@@ -495,6 +560,7 @@ do {									\
 	if (unlikely(__kr_err))						\
 		goto err_label;						\
 } while (0)
+#endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 #define __put_kernel_nofault(dst, src, type, err_label)			\
 	__put_user_size(*((type *)(src)), (__force type __user *)(dst),	\
