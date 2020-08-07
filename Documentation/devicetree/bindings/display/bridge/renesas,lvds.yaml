@@ -16,6 +16,7 @@ description: |
 properties:
   compatible:
     enum:
+      - renesas,r8a7742-lvds # for RZ/G1H compatible LVDS encoders
       - renesas,r8a7743-lvds # for RZ/G1M compatible LVDS encoders
       - renesas,r8a7744-lvds # for RZ/G1N compatible LVDS encoders
       - renesas,r8a774a1-lvds # for RZ/G2M compatible LVDS encoders
