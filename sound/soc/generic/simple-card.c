@@ -108,12 +108,12 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 		if (ret < 0)
 			return ret;
 
-		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
+		ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP)
 			goto err;
 
-		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
+		ret = snd_soc_dai_set_sysclk(cpu_dai, substream->stream, mclk,
 					     SND_SOC_CLOCK_OUT);
 		if (ret && ret != -ENOTSUPP)
 			goto err;
