@@ -1621,7 +1621,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 		page = __alloc_pages_node(node, flags, order);
 
 	if (page)
-		charge_slab_page(page, flags, order, s);
+		charge_slab_page(page, order, s);
 
 	return page;
 }
