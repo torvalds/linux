@@ -251,20 +251,12 @@ int __meminit vmemmap_populate_basepages(unsigned long start, unsigned long end,
 struct page * __meminit __populate_section_memmap(unsigned long pfn,
 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap)
 {
-	unsigned long start;
-	unsigned long end;
+	unsigned long start = (unsigned long) pfn_to_page(pfn);
+	unsigned long end = start + nr_pages * sizeof(struct page);
 
-	/*
-	 * The minimum granularity of memmap extensions is
-	 * PAGES_PER_SUBSECTION as allocations are tracked in the
-	 * 'subsection_map' bitmap of the section.
-	 */
-	end = ALIGN(pfn + nr_pages, PAGES_PER_SUBSECTION);
-	pfn &= PAGE_SUBSECTION_MASK;
-	nr_pages = end - pfn;
-
-	start = (unsigned long) pfn_to_page(pfn);
-	end = start + nr_pages * sizeof(struct page);
+	if (WARN_ON_ONCE(!IS_ALIGNED(pfn, PAGES_PER_SUBSECTION) ||
+		!IS_ALIGNED(nr_pages, PAGES_PER_SUBSECTION)))
+		return NULL;
 
 	if (vmemmap_populate(start, end, nid, altmap))
 		return NULL;
