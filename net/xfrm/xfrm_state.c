@@ -2271,7 +2271,7 @@ int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval, int optlen)
 	struct xfrm_mgr *km;
 	struct xfrm_policy *pol = NULL;
 
-	if (in_compat_syscall())
+	if (!IS_ENABLED(CONFIG_ANDROID) && in_compat_syscall())
 		return -EOPNOTSUPP;
 
 	if (sockptr_is_null(optval) && !optlen) {
