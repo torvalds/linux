@@ -574,30 +574,34 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 	struct rk_crypto_tmp *algt = rk_ahash_get_algt(__crypto_ahash_cast(tfm));
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct rk_crypto_info *info = algt->dev;
 
 	CRYPTO_TRACE();
 
+	if (!info->request_crypto)
+		return -EFAULT;
+
+	info->request_crypto(info, alg_name);
+	info->start = rk_ahash_start;
+	info->update = rk_ahash_crypto_rx;
+	info->complete = rk_ahash_crypto_complete;
+	info->irq_handle = rk_crypto_irq_handle;
+
 	memset(ctx, 0x00, sizeof(*ctx));
 
-	ctx->dev = algt->dev;
-	ctx->dev->start = rk_ahash_start;
-	ctx->dev->update = rk_ahash_crypto_rx;
-	ctx->dev->complete = rk_ahash_crypto_complete;
-	ctx->dev->irq_handle = rk_crypto_irq_handle;
+	ctx->dev = info;
 
 	/* for fallback */
 	ctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
 					       CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
-		dev_err(ctx->dev->dev, "Could not load fallback driver.\n");
+		dev_err(info->dev, "Could not load fallback driver.\n");
 		return PTR_ERR(ctx->fallback_tfm);
 	}
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct rk_ahash_rctx) +
 				 crypto_ahash_reqsize(ctx->fallback_tfm));
-
-	ctx->dev->enable_clk(ctx->dev);
 
 	return 0;
 }
@@ -611,10 +615,10 @@ static void rk_cra_hash_exit(struct crypto_tfm *tfm)
 	/* clear HASH_CTL */
 	CRYPTO_WRITE(ctx->dev, CRYPTO_HASH_CTL, CRYPTO_WRITE_MASK_ALL | 0);
 
-	ctx->dev->disable_clk(ctx->dev);
-
 	if (ctx->fallback_tfm)
 		crypto_free_ahash(ctx->fallback_tfm);
+
+	ctx->dev->release_crypto(ctx->dev, crypto_tfm_alg_name(tfm));
 }
 
 struct rk_crypto_tmp rk_v2_ahash_md5 = RK_HASH_ALGO_INIT(MD5, md5);

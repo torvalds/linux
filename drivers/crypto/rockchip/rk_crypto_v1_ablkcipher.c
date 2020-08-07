@@ -361,17 +361,23 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_alg *alg = tfm->__crt_alg;
 	struct rk_crypto_tmp *algt;
+	struct rk_crypto_info *info;
 
 	algt = container_of(alg, struct rk_crypto_tmp, alg.crypto);
+	info = algt->dev;
 
-	ctx->dev = algt->dev;
-	ctx->dev->align_size = crypto_tfm_alg_alignmask(tfm) + 1;
-	ctx->dev->start = rk_ablk_start;
-	ctx->dev->update = rk_ablk_rx;
-	ctx->dev->complete = rk_crypto_complete;
-	ctx->dev->irq_handle = rk_crypto_irq_handle;
+	if (!info->request_crypto)
+		return -EFAULT;
 
-	ctx->dev->enable_clk(ctx->dev);
+	info->request_crypto(info, crypto_tfm_alg_name(tfm));
+
+	info->align_size = crypto_tfm_alg_alignmask(tfm) + 1;
+	info->start = rk_ablk_start;
+	info->update = rk_ablk_rx;
+	info->complete = rk_crypto_complete;
+	info->irq_handle = rk_crypto_irq_handle;
+
+	ctx->dev = info;
 
 	return 0;
 }
@@ -380,7 +386,7 @@ static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
 {
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->dev->disable_clk(ctx->dev);
+	ctx->dev->release_crypto(ctx->dev, crypto_tfm_alg_name(tfm));
 }
 
 int rk_hw_crypto_v1_init(struct device *dev, void *hw_info)

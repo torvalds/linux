@@ -53,39 +53,25 @@
 	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),\
 }
 
-static int crypto_clk_enable_cnt;
-
 static int rk_crypto_enable_clk(struct rk_crypto_info *dev)
 {
 	int ret;
 
 	dev_dbg(dev->dev, "clk_bulk_prepare_enable.\n");
 
-	if (crypto_clk_enable_cnt <= 0) {
-		ret = clk_bulk_prepare_enable(dev->soc_data->clks_num,
-					      &dev->clk_bulks[0]);
-		if (ret < 0) {
-			dev_err(dev->dev, "failed to enable clks %d\n", ret);
-			return ret;
-		}
+	ret = clk_bulk_prepare_enable(dev->soc_data->clks_num,
+				      &dev->clk_bulks[0]);
+	if (ret < 0)
+		dev_err(dev->dev, "failed to enable clks %d\n", ret);
 
-		crypto_clk_enable_cnt = 1;
-	} else {
-		crypto_clk_enable_cnt++;
-	}
-	return 0;
+	return ret;
 }
 
 static void rk_crypto_disable_clk(struct rk_crypto_info *dev)
 {
 	dev_dbg(dev->dev, "clk_bulk_disable_unprepare.\n");
 
-	crypto_clk_enable_cnt--;
-
-	if (crypto_clk_enable_cnt <= 0) {
-		crypto_clk_enable_cnt = 0;
-		clk_bulk_disable_unprepare(dev->soc_data->clks_num, &dev->clk_bulks[0]);
-	}
+	clk_bulk_disable_unprepare(dev->soc_data->clks_num, &dev->clk_bulks[0]);
 }
 
 static int check_alignment(struct scatterlist *sg_src,
@@ -362,6 +348,24 @@ static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
 	}
 }
 
+static void rk_crypto_request(struct rk_crypto_info *dev, const char *name)
+{
+	CRYPTO_TRACE("Crypto is requested by %s\n", name);
+
+	mutex_lock(&dev->mutex);
+
+	rk_crypto_enable_clk(dev);
+}
+
+static void rk_crypto_release(struct rk_crypto_info *dev, const char *name)
+{
+	CRYPTO_TRACE("Crypto is released by %s\n", name);
+
+	rk_crypto_disable_clk(dev);
+
+	mutex_unlock(&dev->mutex);
+}
+
 static void rk_crypto_action(void *data)
 {
 	struct rk_crypto_info *crypto_info = data;
@@ -607,8 +611,10 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		     rk_crypto_done_task_cb, (unsigned long)crypto_info);
 	crypto_init_queue(&crypto_info->queue, 50);
 
-	crypto_info->enable_clk = rk_crypto_enable_clk;
-	crypto_info->disable_clk = rk_crypto_disable_clk;
+	mutex_init(&crypto_info->mutex);
+
+	crypto_info->request_crypto = rk_crypto_request;
+	crypto_info->release_crypto = rk_crypto_release;
 	crypto_info->load_data = rk_load_data;
 	crypto_info->unload_data = rk_unload_data;
 	crypto_info->enqueue = rk_crypto_enqueue;
@@ -624,6 +630,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_alg:
+	mutex_destroy(&crypto_info->mutex);
 	tasklet_kill(&crypto_info->queue_task);
 	tasklet_kill(&crypto_info->done_task);
 err_crypto:
@@ -642,6 +649,8 @@ static int rk_crypto_remove(struct platform_device *pdev)
 		free_page((unsigned long)crypto_info->addr_vir);
 
 	crypto_info->soc_data->hw_deinit(&pdev->dev, crypto_info->hw_info);
+
+	mutex_destroy(&crypto_info->mutex);
 
 	return 0;
 }

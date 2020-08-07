@@ -515,15 +515,22 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 	struct rk_crypto_tmp *algt = rk_cipher_get_algt(__crypto_ablkcipher_cast(tfm));
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	const char *alg_name = crypto_tfm_alg_name(tfm);
+	struct rk_crypto_info *info = algt->dev;
 
 	CRYPTO_TRACE();
 
-	ctx->dev = algt->dev;
-	ctx->dev->align_size = crypto_tfm_alg_blocksize(tfm);
-	ctx->dev->start = rk_ablk_start;
-	ctx->dev->update = rk_ablk_rx;
-	ctx->dev->complete = rk_crypto_complete;
-	ctx->dev->irq_handle = rk_crypto_irq_handle;
+	if (!info->request_crypto)
+		return -EFAULT;
+
+	info->request_crypto(info, alg_name);
+
+	info->align_size = crypto_tfm_alg_blocksize(tfm);
+	info->start = rk_ablk_start;
+	info->update = rk_ablk_rx;
+	info->complete = rk_crypto_complete;
+	info->irq_handle = rk_crypto_irq_handle;
+
+	ctx->dev = info;
 
 	if (algt->alg.crypto.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
 		CRYPTO_MSG("alloc fallback tfm, name = %s", alg_name);
@@ -531,13 +538,11 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 							  CRYPTO_ALG_ASYNC |
 							  CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(ctx->fallback_tfm)) {
-			dev_err(ctx->dev->dev, "Could not load fallback driver %s : %ld.\n",
+			dev_err(info->dev, "Could not load fallback driver %s : %ld.\n",
 				alg_name, PTR_ERR(ctx->fallback_tfm));
 			return PTR_ERR(ctx->fallback_tfm);
 		}
 	}
-
-	ctx->dev->enable_clk(ctx->dev);
 
 	return 0;
 }
@@ -551,12 +556,12 @@ static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
 	/* clear BC_CTL */
 	CRYPTO_WRITE(ctx->dev, CRYPTO_BC_CTL, 0 | CRYPTO_WRITE_MASK_ALL);
 
-	ctx->dev->disable_clk(ctx->dev);
-
 	if (ctx->fallback_tfm) {
 		CRYPTO_MSG("free fallback tfm");
 		crypto_free_skcipher(ctx->fallback_tfm);
 	}
+
+	ctx->dev->release_crypto(ctx->dev, crypto_tfm_alg_name(tfm));
 }
 
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info)

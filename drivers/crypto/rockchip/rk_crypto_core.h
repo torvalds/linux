@@ -53,6 +53,7 @@ struct rk_crypto_info {
 	void				*hw_info;
 	/* device lock */
 	spinlock_t			lock;
+	struct mutex			mutex;
 
 	/* the public variable */
 	struct scatterlist		*sg_src;
@@ -72,11 +73,11 @@ struct rk_crypto_info {
 	dma_addr_t			addr_in;
 	dma_addr_t			addr_out;
 	bool				busy;
+	void (*request_crypto)(struct rk_crypto_info *dev, const char *name);
+	void (*release_crypto)(struct rk_crypto_info *dev, const char *name);
 	int (*start)(struct rk_crypto_info *dev);
 	int (*update)(struct rk_crypto_info *dev);
 	void (*complete)(struct crypto_async_request *base, int err);
-	int (*enable_clk)(struct rk_crypto_info *dev);
-	void (*disable_clk)(struct rk_crypto_info *dev);
 	int (*irq_handle)(int irq, void *dev_id);
 	int (*load_data)(struct rk_crypto_info *dev,
 			 struct scatterlist *sg_src,
