@@ -365,9 +365,16 @@ static inline struct kmem_cache *memcg_slab_pre_alloc_hook(struct kmem_cache *s,
 	if (memcg_kmem_bypass())
 		return s;
 
-	cachep = memcg_kmem_get_cache(s);
-	if (is_root_cache(cachep))
+	cachep = READ_ONCE(s->memcg_params.memcg_cache);
+	if (unlikely(!cachep)) {
+		/*
+		 * If memcg cache does not exist yet, we schedule it's
+		 * asynchronous creation and let the current allocation
+		 * go through with the root cache.
+		 */
+		queue_work(system_wq, &s->memcg_params.work);
 		return s;
+	}
 
 	objcg = get_obj_cgroup_from_current();
 	if (!objcg)

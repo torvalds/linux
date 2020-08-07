@@ -570,7 +570,7 @@ void memcg_create_kmem_cache(struct kmem_cache *root_cache)
 	}
 
 	/*
-	 * Since readers won't lock (see memcg_kmem_get_cache()), we need a
+	 * Since readers won't lock (see memcg_slab_pre_alloc_hook()), we need a
 	 * barrier here to ensure nobody will see the kmem_cache partially
 	 * initialized.
 	 */
