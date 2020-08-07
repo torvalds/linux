@@ -76,6 +76,7 @@ struct ccs_pll_branch_bk {
  * @scale_m: Downscaling factor, M component, [16, max] (input)
  * @scale_n: Downscaling factor, N component, typically 16 (input)
  * @bits_per_pixel: Bits per pixel on the output data bus (input)
+ * @op_bits_per_lane: Number of bits per OP lane (input)
  * @flags: CCS_PLL_FLAG_* (input)
  * @link_freq: Chosen link frequency (input)
  * @ext_clk_freq_hz: External clock frequency, i.e. the sensor's input clock
@@ -100,6 +101,7 @@ struct ccs_pll {
 	uint8_t scale_m;
 	uint8_t scale_n;
 	uint8_t bits_per_pixel;
+	uint8_t op_bits_per_lane;
 	uint16_t flags;
 	uint32_t link_freq;
 	uint32_t ext_clk_freq_hz;

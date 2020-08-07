@@ -162,7 +162,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		    const struct ccs_pll_branch_limits_bk *op_lim_bk,
 		    struct ccs_pll *pll, struct ccs_pll_branch_fr *op_pll_fr,
 		    struct ccs_pll_branch_bk *op_pll_bk, uint32_t mul,
-		    uint32_t div)
+		    uint32_t div, uint32_t l)
 {
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
@@ -252,10 +252,15 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	op_pll_fr->pll_op_clk_freq_hz = op_pll_fr->pll_ip_clk_freq_hz
 		* op_pll_fr->pll_multiplier;
 
-	op_pll_bk->pix_clk_div = pll->bits_per_pixel
-		* pll->op_lanes / pll->csi2.lanes;
+	if (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL)
+		op_pll_bk->pix_clk_div = pll->bits_per_pixel
+			* pll->op_lanes / pll->csi2.lanes / l;
+	else
+		op_pll_bk->pix_clk_div = pll->bits_per_pixel / l;
+
 	op_pll_bk->pix_clk_freq_hz =
 		op_pll_bk->sys_clk_freq_hz / op_pll_bk->pix_clk_div;
+
 	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
 
 	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
@@ -291,7 +296,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
 	min_vt_div = DIV_ROUND_UP(op_pll_bk->pix_clk_div
 				  * op_pll_bk->sys_clk_div * pll->scale_n
-				  * pll->vt_lanes,
+				  * pll->vt_lanes * l,
 				  pll->op_lanes * vt_op_binning_div
 				  * pll->scale_m);
 
@@ -406,6 +411,8 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	uint16_t min_op_pre_pll_clk_div;
 	uint16_t max_op_pre_pll_clk_div;
 	uint32_t mul, div;
+	uint32_t l = (!pll->op_bits_per_lane ||
+		      pll->op_bits_per_lane >= pll->bits_per_pixel) ? 1 : 2;
 	uint32_t i;
 	int rval = -EINVAL;
 
@@ -444,7 +451,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	pll->pixel_rate_csi =
 		op_pll_bk->pix_clk_freq_hz
 		* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-		   pll->csi2.lanes : 1);
+		   pll->csi2.lanes : 1) / l;
 
 	/* Figure out limits for OP pre-pll divider based on extclk */
 	dev_dbg(dev, "min / max op_pre_pll_clk_div: %u / %u\n",
@@ -482,7 +489,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		     (pll->flags & CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER) ? 1 :
 		     2 - (op_pll_fr->pre_pll_clk_div & 1)) {
 		rval = __ccs_pll_calculate(dev, lim, op_lim_fr, op_lim_bk, pll,
-					   op_pll_fr, op_pll_bk, mul, div);
+					   op_pll_fr, op_pll_bk, mul, div, l);
 		if (rval)
 			continue;
 
