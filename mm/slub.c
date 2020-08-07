@@ -1621,7 +1621,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 		page = __alloc_pages_node(node, flags, order);
 
 	if (page)
-		charge_slab_page(page, order, s);
+		account_slab_page(page, order, s);
 
 	return page;
 }
@@ -1844,7 +1844,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	page->mapping = NULL;
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	uncharge_slab_page(page, order, s);
+	unaccount_slab_page(page, order, s);
 	__free_pages(page, order);
 }
 
