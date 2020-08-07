@@ -1620,7 +1620,7 @@ static inline void bfs_init_rootb(struct lock_list *lock,
  */
 static enum bfs_result __bfs(struct lock_list *source_entry,
 			     void *data,
-			     int (*match)(struct lock_list *entry, void *data),
+			     bool (*match)(struct lock_list *entry, void *data),
 			     struct lock_list **target_entry,
 			     int offset)
 {
@@ -1711,7 +1711,7 @@ exit:
 static inline enum bfs_result
 __bfs_forwards(struct lock_list *src_entry,
 	       void *data,
-	       int (*match)(struct lock_list *entry, void *data),
+	       bool (*match)(struct lock_list *entry, void *data),
 	       struct lock_list **target_entry)
 {
 	return __bfs(src_entry, data, match, target_entry,
@@ -1722,7 +1722,7 @@ __bfs_forwards(struct lock_list *src_entry,
 static inline enum bfs_result
 __bfs_backwards(struct lock_list *src_entry,
 		void *data,
-		int (*match)(struct lock_list *entry, void *data),
+		bool (*match)(struct lock_list *entry, void *data),
 		struct lock_list **target_entry)
 {
 	return __bfs(src_entry, data, match, target_entry,
@@ -1833,7 +1833,7 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth,
 	print_circular_bug_entry(entry, depth);
 }
 
-static inline int class_equal(struct lock_list *entry, void *data)
+static inline bool class_equal(struct lock_list *entry, void *data)
 {
 	return entry->class == data;
 }
@@ -1888,10 +1888,10 @@ static noinline void print_bfs_bug(int ret)
 	WARN(1, "lockdep bfs error:%d\n", ret);
 }
 
-static int noop_count(struct lock_list *entry, void *data)
+static bool noop_count(struct lock_list *entry, void *data)
 {
 	(*(unsigned long *)data)++;
-	return 0;
+	return false;
 }
 
 static unsigned long __lockdep_count_forward_deps(struct lock_list *this)
@@ -2032,11 +2032,11 @@ check_redundant(struct held_lock *src, struct held_lock *target)
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 
-static inline int usage_accumulate(struct lock_list *entry, void *mask)
+static inline bool usage_accumulate(struct lock_list *entry, void *mask)
 {
 	*(unsigned long *)mask |= entry->class->usage_mask;
 
-	return 0;
+	return false;
 }
 
 /*
@@ -2045,9 +2045,9 @@ static inline int usage_accumulate(struct lock_list *entry, void *mask)
  * without creating any illegal irq-safe -> irq-unsafe lock dependency.
  */
 
-static inline int usage_match(struct lock_list *entry, void *mask)
+static inline bool usage_match(struct lock_list *entry, void *mask)
 {
-	return entry->class->usage_mask & *(unsigned long *)mask;
+	return !!(entry->class->usage_mask & *(unsigned long *)mask);
 }
 
 /*
