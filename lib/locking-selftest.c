@@ -1053,20 +1053,28 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_inversion_soft_wlock)
 #define E3()				\
 					\
 	IRQ_ENTER();			\
-	RL(A);				\
+	LOCK(A);			\
 	L(B);				\
 	U(B);				\
-	RU(A);				\
+	UNLOCK(A);			\
 	IRQ_EXIT();
 
 /*
- * Generate 12 testcases:
+ * Generate 24 testcases:
  */
 #include "locking-selftest-hardirq.h"
-GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_hard)
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_hard_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_hard_wlock)
 
 #include "locking-selftest-softirq.h"
-GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft_wlock)
 
 #undef E1
 #undef E2
@@ -1080,8 +1088,8 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 					\
 	IRQ_DISABLE();			\
 	L(B);				\
-	WL(A);				\
-	WU(A);				\
+	LOCK(A);			\
+	UNLOCK(A);			\
 	U(B);				\
 	IRQ_ENABLE();
 
@@ -1098,13 +1106,21 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 	IRQ_EXIT();
 
 /*
- * Generate 12 testcases:
+ * Generate 24 testcases:
  */
 #include "locking-selftest-hardirq.h"
-// GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_hard)
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_hard_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_hard_wlock)
 
 #include "locking-selftest-softirq.h"
-// GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft)
+#include "locking-selftest-rlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft_rlock)
+
+#include "locking-selftest-wlock.h"
+GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft_wlock)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define I_SPINLOCK(x)	lockdep_reset_lock(&lock_##x.dep_map)
@@ -1256,6 +1272,25 @@ static inline void print_testname(const char *testname)
 	dotest(name##_wlock_##nr, FAILURE, LOCKTYPE_RWLOCK);	\
 	dotest(name##_rlock_##nr, SUCCESS, LOCKTYPE_RWLOCK);	\
 	pr_cont("\n");
+
+#define DO_TESTCASE_2RW(desc, name, nr)				\
+	print_testname(desc"/"#nr);				\
+	pr_cont("      |");					\
+	dotest(name##_wlock_##nr, FAILURE, LOCKTYPE_RWLOCK);	\
+	dotest(name##_rlock_##nr, SUCCESS, LOCKTYPE_RWLOCK);	\
+	pr_cont("\n");
+
+#define DO_TESTCASE_2x2RW(desc, name, nr)			\
+	DO_TESTCASE_2RW("hard-"desc, name##_hard, nr)		\
+	DO_TESTCASE_2RW("soft-"desc, name##_soft, nr)		\
+
+#define DO_TESTCASE_6x2x2RW(desc, name)				\
+	DO_TESTCASE_2x2RW(desc, name, 123);			\
+	DO_TESTCASE_2x2RW(desc, name, 132);			\
+	DO_TESTCASE_2x2RW(desc, name, 213);			\
+	DO_TESTCASE_2x2RW(desc, name, 231);			\
+	DO_TESTCASE_2x2RW(desc, name, 312);			\
+	DO_TESTCASE_2x2RW(desc, name, 321);
 
 #define DO_TESTCASE_6(desc, name)				\
 	print_testname(desc);					\
@@ -2121,8 +2156,8 @@ void locking_selftest(void)
 	DO_TESTCASE_6x6("safe-A + unsafe-B #2", irqsafe4);
 	DO_TESTCASE_6x6RW("irq lock-inversion", irq_inversion);
 
-	DO_TESTCASE_6x2("irq read-recursion", irq_read_recursion);
-//	DO_TESTCASE_6x2B("irq read-recursion #2", irq_read_recursion2);
+	DO_TESTCASE_6x2x2RW("irq read-recursion", irq_read_recursion);
+	DO_TESTCASE_6x2x2RW("irq read-recursion #2", irq_read_recursion2);
 
 	ww_tests();
 
