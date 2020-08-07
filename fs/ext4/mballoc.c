@@ -2112,13 +2112,11 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 
 	BUG_ON(cr < 0 || cr >= 4);
 
-	free = grp->bb_free;
-	if (free == 0)
-		return false;
-	if (cr <= 2 && free < ac->ac_g_ex.fe_len)
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		return false;
 
-	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
+	free = grp->bb_free;
+	if (free == 0)
 		return false;
 
 	fragments = grp->bb_fragments;
@@ -2135,8 +2133,10 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 		    ((group % flex_size) == 0))
 			return false;
 
-		if ((ac->ac_2order > ac->ac_sb->s_blocksize_bits+1) ||
-		    (free / fragments) >= ac->ac_g_ex.fe_len)
+		if (free < ac->ac_g_ex.fe_len)
+			return false;
+
+		if (ac->ac_2order > ac->ac_sb->s_blocksize_bits+1)
 			return true;
 
 		if (grp->bb_largest_free_order < ac->ac_2order)
