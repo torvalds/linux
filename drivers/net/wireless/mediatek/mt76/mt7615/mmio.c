@@ -106,25 +106,24 @@ static void mt7615_irq_tasklet(unsigned long data)
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	intr &= dev->mt76.mmio.irqmask;
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
-	intr &= dev->mt76.mmio.irqmask;
 
-	if (intr & MT_INT_TX_DONE_ALL) {
+	mask |= intr & MT_INT_RX_DONE_ALL;
+	if (intr & MT_INT_TX_DONE_ALL)
 		mask |= MT_INT_TX_DONE_ALL;
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
+
+	if (intr & MT_INT_TX_DONE_ALL)
 		napi_schedule(&dev->mt76.tx_napi);
-	}
 
-	if (intr & MT_INT_RX_DONE(0)) {
-		mask |= MT_INT_RX_DONE(0);
+	if (intr & MT_INT_RX_DONE(0))
 		napi_schedule(&dev->mt76.napi[0]);
-	}
 
-	if (intr & MT_INT_RX_DONE(1)) {
-		mask |= MT_INT_RX_DONE(1);
+	if (intr & MT_INT_RX_DONE(1))
 		napi_schedule(&dev->mt76.napi[1]);
-	}
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
@@ -135,8 +134,6 @@ static void mt7615_irq_tasklet(unsigned long data)
 			wake_up(&dev->reset_wait);
 		}
 	}
-
-	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 static u32 __mt7615_reg_addr(struct mt7615_dev *dev, u32 addr)
