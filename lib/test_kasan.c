@@ -766,15 +766,15 @@ static noinline void __init kmalloc_double_kzfree(void)
 	char *ptr;
 	size_t size = 16;
 
-	pr_info("double-free (kzfree)\n");
+	pr_info("double-free (kfree_sensitive)\n");
 	ptr = kmalloc(size, GFP_KERNEL);
 	if (!ptr) {
 		pr_err("Allocation failed\n");
 		return;
 	}
 
-	kzfree(ptr);
-	kzfree(ptr);
+	kfree_sensitive(ptr);
+	kfree_sensitive(ptr);
 }
 
 #ifdef CONFIG_KASAN_VMALLOC

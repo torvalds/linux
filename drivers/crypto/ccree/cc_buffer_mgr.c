@@ -488,7 +488,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	if (areq_ctx->gen_ctx.iv_dma_addr) {
 		dma_unmap_single(dev, areq_ctx->gen_ctx.iv_dma_addr,
 				 hw_iv_size, DMA_BIDIRECTIONAL);
-		kzfree(areq_ctx->gen_ctx.iv);
+		kfree_sensitive(areq_ctx->gen_ctx.iv);
 	}
 
 	/* Release pool */
@@ -559,7 +559,7 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 	if (dma_mapping_error(dev, areq_ctx->gen_ctx.iv_dma_addr)) {
 		dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
 			hw_iv_size, req->iv);
-		kzfree(areq_ctx->gen_ctx.iv);
+		kfree_sensitive(areq_ctx->gen_ctx.iv);
 		areq_ctx->gen_ctx.iv = NULL;
 		rc = -ENOMEM;
 		goto chain_iv_exit;

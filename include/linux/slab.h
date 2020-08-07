@@ -186,9 +186,11 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
  */
 void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
-void kzfree(const void *);
+void kfree_sensitive(const void *);
 size_t __ksize(const void *);
 size_t ksize(const void *);
+
+#define kzfree(x)	kfree_sensitive(x)	/* For backward compatibility */
 
 #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
 void __check_heap_object(const void *ptr, unsigned long n, struct page *page,

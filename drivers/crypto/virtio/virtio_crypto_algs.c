@@ -167,7 +167,7 @@ static int virtio_crypto_alg_skcipher_init_session(
 				num_in, vcrypto, GFP_ATOMIC);
 	if (err < 0) {
 		spin_unlock(&vcrypto->ctrl_lock);
-		kzfree(cipher_key);
+		kfree_sensitive(cipher_key);
 		return err;
 	}
 	virtqueue_kick(vcrypto->ctrl_vq);
@@ -184,7 +184,7 @@ static int virtio_crypto_alg_skcipher_init_session(
 		spin_unlock(&vcrypto->ctrl_lock);
 		pr_err("virtio_crypto: Create session failed status: %u\n",
 			le32_to_cpu(vcrypto->input.status));
-		kzfree(cipher_key);
+		kfree_sensitive(cipher_key);
 		return -EINVAL;
 	}
 
@@ -197,7 +197,7 @@ static int virtio_crypto_alg_skcipher_init_session(
 
 	spin_unlock(&vcrypto->ctrl_lock);
 
-	kzfree(cipher_key);
+	kfree_sensitive(cipher_key);
 	return 0;
 }
 
@@ -472,9 +472,9 @@ __virtio_crypto_skcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	return 0;
 
 free_iv:
-	kzfree(iv);
+	kfree_sensitive(iv);
 free:
-	kzfree(req_data);
+	kfree_sensitive(req_data);
 	kfree(sgs);
 	return err;
 }
@@ -583,7 +583,7 @@ static void virtio_crypto_skcipher_finalize_req(
 		scatterwalk_map_and_copy(req->iv, req->dst,
 					 req->cryptlen - AES_BLOCK_SIZE,
 					 AES_BLOCK_SIZE, 0);
-	kzfree(vc_sym_req->iv);
+	kfree_sensitive(vc_sym_req->iv);
 	virtcrypto_clear_request(&vc_sym_req->base);
 
 	crypto_finalize_skcipher_request(vc_sym_req->base.dataq->engine,

@@ -448,7 +448,7 @@ static int cc_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *authkey,
 		if (dma_mapping_error(dev, key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 				key, keylen);
-			kzfree(key);
+			kfree_sensitive(key);
 			return -ENOMEM;
 		}
 		if (keylen > blocksize) {
@@ -533,7 +533,7 @@ static int cc_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *authkey,
 	if (key_dma_addr)
 		dma_unmap_single(dev, key_dma_addr, keylen, DMA_TO_DEVICE);
 
-	kzfree(key);
+	kfree_sensitive(key);
 
 	return rc;
 }

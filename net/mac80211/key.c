@@ -732,7 +732,7 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 		ieee80211_aes_gcm_key_free(key->u.gcmp.tfm);
 		break;
 	}
-	kzfree(key);
+	kfree_sensitive(key);
 }
 
 static void __ieee80211_key_destroy(struct ieee80211_key *key,

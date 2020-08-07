@@ -249,7 +249,7 @@ static void prng_tdes_deinstantiate(void)
 {
 	pr_debug("The prng module stopped "
 		 "after running in triple DES mode\n");
-	kzfree(prng_data);
+	kfree_sensitive(prng_data);
 }
 
 
@@ -442,7 +442,7 @@ outfree:
 static void prng_sha512_deinstantiate(void)
 {
 	pr_debug("The prng module stopped after running in SHA-512 mode\n");
-	kzfree(prng_data);
+	kfree_sensitive(prng_data);
 }
 
 

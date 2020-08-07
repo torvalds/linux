@@ -252,8 +252,8 @@ static int meson_cipher(struct skcipher_request *areq)
 		}
 	}
 theend:
-	kzfree(bkeyiv);
-	kzfree(backup_iv);
+	kfree_sensitive(bkeyiv);
+	kfree_sensitive(backup_iv);
 
 	return err;
 }
