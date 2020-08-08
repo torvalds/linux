@@ -338,8 +338,8 @@ static void bpf_iter_link_release(struct bpf_link *link)
 	struct bpf_iter_link *iter_link =
 		container_of(link, struct bpf_iter_link, link);
 
-	if (iter_link->aux.map)
-		bpf_map_put_with_uref(iter_link->aux.map);
+	if (iter_link->tinfo->reg_info->detach_target)
+		iter_link->tinfo->reg_info->detach_target(&iter_link->aux);
 }
 
 static void bpf_iter_link_dealloc(struct bpf_link *link)
@@ -390,14 +390,34 @@ bool bpf_link_is_iter(struct bpf_link *link)
 
 int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
+	union bpf_iter_link_info __user *ulinfo;
 	struct bpf_link_primer link_primer;
 	struct bpf_iter_target_info *tinfo;
-	struct bpf_iter_aux_info aux = {};
+	union bpf_iter_link_info linfo;
 	struct bpf_iter_link *link;
-	u32 prog_btf_id, target_fd;
+	u32 prog_btf_id, linfo_len;
 	bool existed = false;
-	struct bpf_map *map;
 	int err;
+
+	if (attr->link_create.target_fd || attr->link_create.flags)
+		return -EINVAL;
+
+	memset(&linfo, 0, sizeof(union bpf_iter_link_info));
+
+	ulinfo = u64_to_user_ptr(attr->link_create.iter_info);
+	linfo_len = attr->link_create.iter_info_len;
+	if (!ulinfo ^ !linfo_len)
+		return -EINVAL;
+
+	if (ulinfo) {
+		err = bpf_check_uarg_tail_zero(ulinfo, sizeof(linfo),
+					       linfo_len);
+		if (err)
+			return err;
+		linfo_len = min_t(u32, linfo_len, sizeof(linfo));
+		if (copy_from_user(&linfo, ulinfo, linfo_len))
+			return -EFAULT;
+	}
 
 	prog_btf_id = prog->aux->attach_btf_id;
 	mutex_lock(&targets_mutex);
@@ -410,13 +430,6 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	mutex_unlock(&targets_mutex);
 	if (!existed)
 		return -ENOENT;
-
-	/* Make sure user supplied flags are target expected. */
-	target_fd = attr->link_create.target_fd;
-	if (attr->link_create.flags != tinfo->reg_info->req_linfo)
-		return -EINVAL;
-	if (!attr->link_create.flags && target_fd)
-		return -EINVAL;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
 	if (!link)
@@ -431,28 +444,15 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		return err;
 	}
 
-	if (tinfo->reg_info->req_linfo == BPF_ITER_LINK_MAP_FD) {
-		map = bpf_map_get_with_uref(target_fd);
-		if (IS_ERR(map)) {
-			err = PTR_ERR(map);
-			goto cleanup_link;
-		}
-
-		aux.map = map;
-		err = tinfo->reg_info->check_target(prog, &aux);
+	if (tinfo->reg_info->attach_target) {
+		err = tinfo->reg_info->attach_target(prog, &linfo, &link->aux);
 		if (err) {
-			bpf_map_put_with_uref(map);
-			goto cleanup_link;
+			bpf_link_cleanup(&link_primer);
+			return err;
 		}
-
-		link->aux.map = map;
 	}
 
 	return bpf_link_settle(&link_primer);
-
-cleanup_link:
-	bpf_link_cleanup(&link_primer);
-	return err;
 }
 
 static void init_seq_meta(struct bpf_iter_priv_data *priv_data,

@@ -566,6 +566,7 @@ static int sets_patch(struct object *obj)
 
 		next = rb_next(next);
 	}
+	return 0;
 }
 
 static int symbols_patch(struct object *obj)

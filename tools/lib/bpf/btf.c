@@ -564,8 +564,8 @@ done:
 
 struct btf *btf__parse_raw(const char *path)
 {
+	struct btf *btf = NULL;
 	void *data = NULL;
-	struct btf *btf;
 	FILE *f = NULL;
 	__u16 magic;
 	int err = 0;
