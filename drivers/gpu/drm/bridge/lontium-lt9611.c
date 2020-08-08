@@ -876,7 +876,9 @@ err_unregister_dsi0:
 }
 
 static enum drm_mode_status
-lt9611_bridge_mode_valid(struct drm_bridge *bridge, const struct drm_display_mode *mode)
+lt9611_bridge_mode_valid(struct drm_bridge *bridge,
+			 const struct drm_display_info *info,
+			 const struct drm_display_mode *mode)
 {
 	struct lt9611_mode *lt9611_mode = lt9611_find_mode(mode);
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
@@ -919,9 +921,8 @@ static void lt9611_bridge_mode_set(struct drm_bridge *bridge,
 	struct hdmi_avi_infoframe avi_frame;
 	int ret;
 
-	dev_dbg(lt9611->dev, "bridge mode_set: hdisplay=%d, vdisplay=%d, vrefresh=%d, clock=%d\n",
-		adj_mode->hdisplay, adj_mode->vdisplay,
-		adj_mode->vrefresh, adj_mode->clock);
+	dev_dbg(lt9611->dev, "bridge mode_set: hdisplay=%d, vdisplay=%d, clock=%d\n",
+		adj_mode->hdisplay, adj_mode->vdisplay, adj_mode->clock);
 
 	lt9611_bridge_pre_enable(bridge);
 
