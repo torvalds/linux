@@ -789,7 +789,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	if (ss->opdshdr.sh_type != SHT_PROGBITS)
 		ss->opdsec = NULL;
 
-	if (dso->kernel == DSO_TYPE_USER)
+	if (dso->kernel == DSO_SPACE__USER)
 		ss->adjust_symbols = true;
 	else
 		ss->adjust_symbols = elf__needs_adjust_symbols(ehdr);

@@ -1265,7 +1265,7 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->has_build_id = 0;
 		dso->has_srcline = 1;
 		dso->a2l_fails = 1;
-		dso->kernel = DSO_TYPE_USER;
+		dso->kernel = DSO_SPACE__USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		dso->comp = COMP_ID__NONE;
 		RB_CLEAR_NODE(&dso->rb_node);
