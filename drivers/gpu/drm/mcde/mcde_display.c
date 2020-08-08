@@ -333,7 +333,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 				   enum mcde_extsrc src,
 				   enum mcde_channel ch,
 				   const struct drm_display_mode *mode,
-				   u32 format)
+				   u32 format, int cpp)
 {
 	u32 val;
 	u32 conf1;
@@ -342,6 +342,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 	u32 ljinc;
 	u32 cr;
 	u32 comp;
+	u32 pixel_fetcher_watermark;
 
 	switch (ovl) {
 	case MCDE_OVERLAY_0:
@@ -426,8 +427,33 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 			format);
 		break;
 	}
-	/* The default watermark level for overlay 0 is 48 */
-	val |= 48 << MCDE_OVLXCONF2_PIXELFETCHERWATERMARKLEVEL_SHIFT;
+
+	/*
+	 * Pixel fetch watermark level is max 0x1FFF pixels.
+	 * Two basic rules should be followed:
+	 * 1. The value should be at least 256 bits.
+	 * 2. The sum of all active overlays pixelfetch watermark level
+	 *    multiplied with bits per pixel, should be lower than the
+	 *    size of input_fifo_size in bits.
+	 * 3. The value should be a multiple of a line (256 bits).
+	 */
+	switch (cpp) {
+	case 2:
+		pixel_fetcher_watermark = 128;
+		break;
+	case 3:
+		pixel_fetcher_watermark = 96;
+		break;
+	case 4:
+		pixel_fetcher_watermark = 48;
+		break;
+	default:
+		pixel_fetcher_watermark = 48;
+		break;
+	}
+	dev_dbg(mcde->dev, "pixel fetcher watermark level %d pixels\n",
+		pixel_fetcher_watermark);
+	val |= pixel_fetcher_watermark << MCDE_OVLXCONF2_PIXELFETCHERWATERMARKLEVEL_SHIFT;
 	writel(val, mcde->regs + conf2);
 
 	/* Number of bytes to fetch per line */
@@ -932,7 +958,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	 * channel 0
 	 */
 	mcde_configure_overlay(mcde, MCDE_OVERLAY_0, MCDE_EXTSRC_0,
-			       MCDE_CHANNEL_0, mode, format);
+			       MCDE_CHANNEL_0, mode, format, cpp);
 
 	/*
 	 * Configure pixel-per-line and line-per-frame for channel 0 and then
