@@ -633,7 +633,7 @@ static int __davinci_mcasp_set_clkdiv(struct davinci_mcasp *mcasp, int div_id,
 		 * right channels), so it has to be divided by number
 		 * of tdm-slots (for I2S - divided by 2).
 		 * Instead of storing this ratio, we calculate a new
-		 * tdm_slot width by dividing the the ratio by the
+		 * tdm_slot width by dividing the ratio by the
 		 * number of configured tdm slots.
 		 */
 		mcasp->slot_width = div / mcasp->tdm_slots;

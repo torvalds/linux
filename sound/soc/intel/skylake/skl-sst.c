@@ -354,7 +354,7 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 	/*
 	 * if bytes_left > 0 then wait for BDL complete interrupt and
 	 * copy the next chunk till bytes_left is 0. if bytes_left is
-	 * is zero, then wait for load module IPC reply
+	 * zero, then wait for load module IPC reply
 	 */
 	while (bytes_left > 0) {
 		curr_pos = size - bytes_left;
