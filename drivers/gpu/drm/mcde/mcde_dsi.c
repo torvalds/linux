@@ -43,6 +43,7 @@ struct mcde_dsi {
 	struct drm_bridge *bridge_out;
 	struct mipi_dsi_host dsi_host;
 	struct mipi_dsi_device *mdsi;
+	const struct drm_display_mode *mode;
 	struct clk *hs_clk;
 	struct clk *lp_clk;
 	unsigned long hs_freq;
@@ -885,7 +886,25 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		dev_info(d->dev, "DSI HS clock rate %lu Hz\n",
 			 d->hs_freq);
 
+	/* Assert RESET through the PRCMU, active low */
+	/* FIXME: which DSI block? */
+	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN, 0);
+
+	usleep_range(100, 200);
+
+	/* De-assert RESET again */
+	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN);
+
+	/* Start up the hardware */
+	mcde_dsi_start(d);
+
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		/* Set up the video mode from the DRM mode */
+		mcde_dsi_setup_video_mode(d, d->mode);
+
 		/* Put IF1 into video mode */
 		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
 		val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
@@ -926,13 +945,12 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		return;
 	}
 
+	d->mode = mode;
+
 	dev_info(d->dev, "set DSI master to %dx%d %u Hz %s mode\n",
 		 mode->hdisplay, mode->vdisplay, mode->clock * 1000,
 		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
 		);
-
-	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
-		mcde_dsi_setup_video_mode(d, mode);
 }
 
 static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
@@ -981,9 +999,6 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	u32 val;
 
-	/* Disable all error interrupts */
-	writel(0, d->regs + DSI_VID_MODE_STS_CTL);
-
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		/* Stop video mode */
 		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
@@ -994,8 +1009,20 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 		/* Stop command mode */
 		mcde_dsi_wait_for_command_mode_stop(d);
 	}
+}
 
-	/* Stop clocks */
+static void mcde_dsi_bridge_post_disable(struct drm_bridge *bridge)
+{
+	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
+
+	/*
+	 * Stop clocks and terminate any DSI traffic here so the panel can
+	 * send commands to shut down the display using DSI direct write until
+	 * this point.
+	 */
+
+	/* Disable all error interrupts */
+	writel(0, d->regs + DSI_VID_MODE_STS_CTL);
 	clk_disable_unprepare(d->hs_clk);
 	clk_disable_unprepare(d->lp_clk);
 }
@@ -1028,6 +1055,7 @@ static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
 	.disable = mcde_dsi_bridge_disable,
 	.enable = mcde_dsi_bridge_enable,
 	.pre_enable = mcde_dsi_bridge_pre_enable,
+	.post_disable = mcde_dsi_bridge_post_disable,
 };
 
 static int mcde_dsi_bind(struct device *dev, struct device *master,
@@ -1062,21 +1090,6 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "unable to get LP clock\n");
 		return PTR_ERR(d->lp_clk);
 	}
-
-	/* Assert RESET through the PRCMU, active low */
-	/* FIXME: which DSI block? */
-	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN, 0);
-
-	usleep_range(100, 200);
-
-	/* De-assert RESET again */
-	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN);
-
-	/* Start up the hardware */
-	mcde_dsi_start(d);
 
 	/* Look for a panel as a child to this node */
 	for_each_available_child_of_node(dev->of_node, child) {

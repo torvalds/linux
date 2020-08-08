@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -879,6 +880,14 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	u32 formatter_frame;
 	u32 pkt_div;
 	u32 val;
+	int ret;
+
+	/* This powers up the entire MCDE block and the DSI hardware */
+	ret = regulator_enable(mcde->epod);
+	if (ret) {
+		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
+		return;
+	}
 
 	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
 		 mode->hdisplay, mode->vdisplay,
@@ -888,6 +897,26 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		dev_err(drm->dev, "no DSI master attached!\n");
 		return;
 	}
+
+	/* Set up the main control, watermark level at 7 */
+	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
+	/* 24 bits DPI: connect LSB Ch B to D[0:7] */
+	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
+	/* TV out: connect LSB Ch B to D[8:15] */
+	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
+	/* Don't care about this muxing */
+	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
+	/* 24 bits DPI: connect MID Ch B to D[24:31] */
+	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
+	/* 5: 24 bits DPI: connect MSB Ch B to D[32:39] */
+	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
+	/* Syncmux bits zero: DPI channel A and B on output pins A and B resp */
+	writel(val, mcde->regs + MCDE_CONF0);
+
+	/* Clear any pending interrupts */
+	mcde_display_disable_irqs(mcde);
+	writel(0, mcde->regs + MCDE_IMSCERR);
+	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
 
 	dev_info(drm->dev, "output in %s mode, format %dbpp\n",
 		 (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ?
@@ -1005,6 +1034,11 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		dev_dbg(mcde->dev, "started MCDE video FIFO flow\n");
 	}
 
+	/* Enable automatic clock gating */
+	val = readl(mcde->regs + MCDE_CR);
+	val |= MCDE_CR_MCDEEN | MCDE_CR_AUTOCLKG_EN;
+	writel(val, mcde->regs + MCDE_CR);
+
 	dev_info(drm->dev, "MCDE display is enabled\n");
 }
 
@@ -1014,6 +1048,7 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 	struct drm_device *drm = crtc->dev;
 	struct mcde *mcde = to_mcde(drm);
 	struct drm_pending_vblank_event *event;
+	int ret;
 
 	drm_crtc_vblank_off(crtc);
 
@@ -1028,6 +1063,12 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irq(&crtc->dev->event_lock);
 	}
+
+	ret = regulator_disable(mcde->epod);
+	if (ret)
+		dev_err(drm->dev, "can't disable EPOD regulator\n");
+	/* Make sure we are powered down (before we may power up again) */
+	usleep_range(50000, 70000);
 
 	dev_info(drm->dev, "MCDE display is disabled\n");
 }
