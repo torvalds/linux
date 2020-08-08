@@ -29,7 +29,9 @@
 #include <linux/kvm_host.h>
 
 #include "interrupt.h"
+#ifdef CONFIG_CPU_LOONGSON64
 #include "loongson_regs.h"
+#endif
 
 #include "trace.h"
 
