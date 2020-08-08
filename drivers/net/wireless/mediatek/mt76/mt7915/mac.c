@@ -571,7 +571,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	bool ext_phy = info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY;
 	u8 fc_type, fc_stype, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	__le16 fc = hdr->frame_control;
-	u16 tx_count = 4, seqno = 0;
+	u16 tx_count = 15, seqno = 0;
 	u32 val;
 
 	if (vif) {
