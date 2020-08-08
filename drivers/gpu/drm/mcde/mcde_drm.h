@@ -97,6 +97,8 @@ static inline bool mcde_flow_is_video(struct mcde *mcde)
 
 bool mcde_dsi_irq(struct mipi_dsi_device *mdsi);
 void mcde_dsi_te_request(struct mipi_dsi_device *mdsi);
+void mcde_dsi_enable(struct drm_bridge *bridge);
+void mcde_dsi_disable(struct drm_bridge *bridge);
 extern struct platform_driver mcde_dsi_driver;
 
 void mcde_display_irq(struct mcde *mcde);

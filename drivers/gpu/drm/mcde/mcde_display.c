@@ -999,6 +999,16 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	mcde_configure_fifo(mcde, MCDE_FIFO_A, MCDE_DSI_FORMATTER_0,
 			    fifo_wtrmrk);
 
+	/*
+	 * This brings up the DSI bridge which is tightly connected
+	 * to the MCDE DSI formatter.
+	 *
+	 * FIXME: if we want to use another formatter, such as DPI,
+	 * we need to be more elaborate here and select the appropriate
+	 * bridge.
+	 */
+	mcde_dsi_enable(mcde->bridge);
+
 	/* Configure the DSI formatter 0 for the DSI panel output */
 	mcde_configure_dsi_formatter(mcde, MCDE_DSI_FORMATTER_0,
 				     formatter_frame, pkt_size);
@@ -1025,16 +1035,20 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 
 	drm_crtc_vblank_on(crtc);
 
-	if (mcde_flow_is_video(mcde)) {
-		/*
-		 * Keep FIFO permanently enabled in video mode,
-		 * otherwise MCDE will stop feeding data to the panel.
-		 */
+	/*
+	 * If we're using oneshot mode we don't start the flow
+	 * until each time the display is given an update, and
+	 * then we disable it immediately after. For all other
+	 * modes (command or video) we start the FIFO flow
+	 * right here. This is necessary for the hardware to
+	 * behave right.
+	 */
+	if (mcde->flow_mode != MCDE_COMMAND_ONESHOT_FLOW) {
 		mcde_enable_fifo(mcde, MCDE_FIFO_A);
 		dev_dbg(mcde->dev, "started MCDE video FIFO flow\n");
 	}
 
-	/* Enable automatic clock gating */
+	/* Enable MCDE with automatic clock gating */
 	val = readl(mcde->regs + MCDE_CR);
 	val |= MCDE_CR_MCDEEN | MCDE_CR_AUTOCLKG_EN;
 	writel(val, mcde->regs + MCDE_CR);
@@ -1054,6 +1068,9 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 
 	/* Disable FIFO A flow */
 	mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
+
+	/* This disables the DSI bridge */
+	mcde_dsi_disable(mcde->bridge);
 
 	event = crtc->state->event;
 	if (event) {
@@ -1164,8 +1181,11 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	if (fb) {
 		mcde_set_extsrc(mcde, drm_fb_cma_get_gem_addr(fb, pstate, 0));
 		dev_info_once(mcde->dev, "first update of display contents\n");
-		/* The flow is already active in video mode */
-		if (!mcde_flow_is_video(mcde) && mcde->flow_active == 0)
+		/*
+		 * Usually the flow is already active, unless we are in
+		 * oneshot mode, then we need to kick the flow right here.
+		 */
+		if (mcde->flow_active == 0)
 			mcde_start_flow(mcde);
 	} else {
 		/*

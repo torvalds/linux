@@ -826,23 +826,11 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	dev_info(d->dev, "DSI link enabled\n");
 }
 
-
-static void mcde_dsi_bridge_enable(struct drm_bridge *bridge)
-{
-	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
-	u32 val;
-
-	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		/* Enable video mode */
-		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
-		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	}
-
-	dev_info(d->dev, "enable DSI master\n");
-};
-
-static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
+/*
+ * Notice that this is called from inside the display controller
+ * and not from the bridge callbacks.
+ */
+void mcde_dsi_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	unsigned long hs_freq, lp_freq;
@@ -920,6 +908,11 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
 		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
 		writel(val, d->regs + DSI_VID_MODE_STS_CTL);
+
+		/* Enable video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
 	} else {
 		/* Command mode, clear IF1 ID */
 		val = readl(d->regs + DSI_CMD_MODE_CTL);
@@ -932,6 +925,8 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 		writel(val, d->regs + DSI_CMD_MODE_CTL);
 	}
+
+	dev_info(d->dev, "enabled MCDE DSI master\n");
 }
 
 static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -994,7 +989,11 @@ static void mcde_dsi_wait_for_video_mode_stop(struct mcde_dsi *d)
 	}
 }
 
-static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
+/*
+ * Notice that this is called from inside the display controller
+ * and not from the bridge callbacks.
+ */
+void mcde_dsi_disable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	u32 val;
@@ -1009,11 +1008,6 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 		/* Stop command mode */
 		mcde_dsi_wait_for_command_mode_stop(d);
 	}
-}
-
-static void mcde_dsi_bridge_post_disable(struct drm_bridge *bridge)
-{
-	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 
 	/*
 	 * Stop clocks and terminate any DSI traffic here so the panel can
@@ -1052,10 +1046,6 @@ static int mcde_dsi_bridge_attach(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
 	.attach = mcde_dsi_bridge_attach,
 	.mode_set = mcde_dsi_bridge_mode_set,
-	.disable = mcde_dsi_bridge_disable,
-	.enable = mcde_dsi_bridge_enable,
-	.pre_enable = mcde_dsi_bridge_pre_enable,
-	.post_disable = mcde_dsi_bridge_post_disable,
 };
 
 static int mcde_dsi_bind(struct device *dev, struct device *master,
