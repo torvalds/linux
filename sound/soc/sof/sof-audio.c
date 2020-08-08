@@ -29,7 +29,7 @@ bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
 				continue;
 
 			/*
-			 * substream->runtime being not NULL indicates that
+			 * substream->runtime being not NULL indicates
 			 * that the stream is open. No need to check the
 			 * stream state.
 			 */
