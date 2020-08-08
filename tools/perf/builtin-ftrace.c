@@ -465,6 +465,71 @@ static int set_tracing_thresh(struct perf_ftrace *ftrace)
 	return 0;
 }
 
+static int set_tracing_options(struct perf_ftrace *ftrace)
+{
+	if (set_tracing_pid(ftrace) < 0) {
+		pr_err("failed to set ftrace pid\n");
+		return -1;
+	}
+
+	if (set_tracing_cpu(ftrace) < 0) {
+		pr_err("failed to set tracing cpumask\n");
+		return -1;
+	}
+
+	if (set_tracing_func_stack_trace(ftrace) < 0) {
+		pr_err("failed to set tracing option func_stack_trace\n");
+		return -1;
+	}
+
+	if (set_tracing_func_irqinfo(ftrace) < 0) {
+		pr_err("failed to set tracing option irq-info\n");
+		return -1;
+	}
+
+	if (set_tracing_filters(ftrace) < 0) {
+		pr_err("failed to set tracing filters\n");
+		return -1;
+	}
+
+	if (set_tracing_depth(ftrace) < 0) {
+		pr_err("failed to set graph depth\n");
+		return -1;
+	}
+
+	if (set_tracing_percpu_buffer_size(ftrace) < 0) {
+		pr_err("failed to set tracing per-cpu buffer size\n");
+		return -1;
+	}
+
+	if (set_tracing_trace_inherit(ftrace) < 0) {
+		pr_err("failed to set tracing option function-fork\n");
+		return -1;
+	}
+
+	if (set_tracing_sleep_time(ftrace) < 0) {
+		pr_err("failed to set tracing option sleep-time\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_irqs(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-irqs\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_verbose(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-proc/funcgraph-abstime\n");
+		return -1;
+	}
+
+	if (set_tracing_thresh(ftrace) < 0) {
+		pr_err("failed to set tracing thresh\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 {
 	char *trace_file;
@@ -509,65 +574,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		goto out;
 	}
 
-	if (set_tracing_pid(ftrace) < 0) {
-		pr_err("failed to set ftrace pid\n");
+	if (set_tracing_options(ftrace) < 0)
 		goto out_reset;
-	}
-
-	if (set_tracing_cpu(ftrace) < 0) {
-		pr_err("failed to set tracing cpumask\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_func_stack_trace(ftrace) < 0) {
-		pr_err("failed to set tracing option func_stack_trace\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_func_irqinfo(ftrace) < 0) {
-		pr_err("failed to set tracing option irq-info\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_filters(ftrace) < 0) {
-		pr_err("failed to set tracing filters\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_depth(ftrace) < 0) {
-		pr_err("failed to set graph depth\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_percpu_buffer_size(ftrace) < 0) {
-		pr_err("failed to set tracing per-cpu buffer size\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_trace_inherit(ftrace) < 0) {
-		pr_err("failed to set tracing option function-fork\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_sleep_time(ftrace) < 0) {
-		pr_err("failed to set tracing option sleep-time\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_funcgraph_irqs(ftrace) < 0) {
-		pr_err("failed to set tracing option funcgraph-irqs\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_funcgraph_verbose(ftrace) < 0) {
-		pr_err("failed to set tracing option funcgraph-proc/funcgraph-abstime\n");
-		goto out_reset;
-	}
-
-	if (set_tracing_thresh(ftrace) < 0) {
-		pr_err("failed to set tracing thresh\n");
-		goto out_reset;
-	}
 
 	if (write_tracing_file("current_tracer", ftrace->tracer) < 0) {
 		pr_err("failed to set current_tracer to %s\n", ftrace->tracer);
