@@ -117,6 +117,19 @@ xpass grep -q "bar" $OUTFILE
 xpass grep -q "baz" $OUTFILE
 xpass grep -q "qux" $OUTFILE
 
+echo "Override same-key values"
+cat > $TEMPCONF << EOF
+key = bar, baz
+key := qux
+EOF
+echo > $INITRD
+
+xpass $BOOTCONF -a $TEMPCONF $INITRD
+$BOOTCONF $INITRD > $OUTFILE
+xfail grep -q "bar" $OUTFILE
+xfail grep -q "baz" $OUTFILE
+xpass grep -q "qux" $OUTFILE
+
 echo "Double/single quotes test"
 echo "key = '\"string\"';" > $TEMPCONF
 $BOOTCONF -a $TEMPCONF $INITRD
