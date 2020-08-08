@@ -2090,9 +2090,8 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 			if (!kmod_path__parse_name(&m, filename) && m.kmod)
 				dso__set_module_info(dso, &m, machine);
-			else
-				dso->kernel = dso_space;
 
+			dso->kernel = dso_space;
 			free(m.name);
 		}
 

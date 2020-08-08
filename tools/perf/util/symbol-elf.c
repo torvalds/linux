@@ -872,7 +872,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		 * kallsyms and identity maps.  Overwrite it to
 		 * map to the kernel dso.
 		 */
-		if (*remap_kernel && dso->kernel) {
+		if (*remap_kernel && dso->kernel && !kmodule) {
 			*remap_kernel = false;
 			map->start = shdr->sh_addr + ref_reloc(kmap);
 			map->end = map->start + shdr->sh_size;
@@ -1068,7 +1068,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * Initial kernel and module mappings do not map to the dso.
 	 * Flag the fixups.
 	 */
-	if (dso->kernel || kmodule) {
+	if (dso->kernel) {
 		remap_kernel = true;
 		adjust_kernel_syms = dso->adjust_symbols;
 	}
@@ -1130,7 +1130,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		    (sym.st_value & 1))
 			--sym.st_value;
 
-		if (dso->kernel || kmodule) {
+		if (dso->kernel) {
 			if (dso__process_kernel_symbol(dso, map, &sym, &shdr, kmaps, kmap, &curr_dso, &curr_map,
 						       section_name, adjust_kernel_syms, kmodule, &remap_kernel))
 				goto out_elf_end;
