@@ -101,6 +101,7 @@
 		compatible = "rockchip,ircut";
 		ircut-open-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		ircut-close-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		led-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
