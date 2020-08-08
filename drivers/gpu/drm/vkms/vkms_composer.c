@@ -233,6 +233,22 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	return 0;
 }
 
+static void vkms_set_composer(struct vkms_output *out, bool enabled)
+{
+	bool old_enabled;
+
+	if (enabled)
+		drm_crtc_vblank_get(&out->crtc);
+
+	spin_lock_irq(&out->lock);
+	old_enabled = out->composer_enabled;
+	out->composer_enabled = enabled;
+	spin_unlock_irq(&out->lock);
+
+	if (old_enabled)
+		drm_crtc_vblank_put(&out->crtc);
+}
+
 int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	struct vkms_output *out = drm_crtc_to_vkms_output(crtc);
@@ -241,9 +257,7 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 	ret = vkms_crc_parse_source(src_name, &enabled);
 
-	spin_lock_irq(&out->lock);
-	out->composer_enabled = enabled;
-	spin_unlock_irq(&out->lock);
+	vkms_set_composer(out, enabled);
 
 	return ret;
 }
