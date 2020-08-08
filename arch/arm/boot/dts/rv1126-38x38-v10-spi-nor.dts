@@ -190,7 +190,7 @@
 		   rockchip,camera-module-index = <1>;
 		   rockchip,camera-module-facing = "front";
 		   rockchip,camera-module-name = "YT10092";
-		   rockchip,camera-module-lens-name = "IR0147";
+		   rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
 		   ir-cut = <&cam_ircut0>;
 		   port {
 				   ucam_out0: endpoint {
