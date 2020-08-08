@@ -456,7 +456,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->num_of_events = GAUDI_EVENT_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
-	prop->max_power_default = MAX_POWER_DEFAULT;
+	prop->max_power_default = MAX_POWER_DEFAULT_PCI;
 
 	prop->cb_pool_cb_cnt = GAUDI_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GAUDI_CB_POOL_CB_SIZE;
@@ -6054,6 +6054,15 @@ static int gaudi_armcp_info_get(struct hl_device *hdev)
 	if (!strlen(prop->armcp_info.card_name))
 		strncpy(prop->armcp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 				CARD_NAME_MAX_LEN);
+
+	hdev->card_type = le32_to_cpu(hdev->asic_prop.armcp_info.card_type);
+
+	if (hdev->card_type == armcp_card_type_pci)
+		prop->max_power_default = MAX_POWER_DEFAULT_PCI;
+	else if (hdev->card_type == armcp_card_type_pmc)
+		prop->max_power_default = MAX_POWER_DEFAULT_PMC;
+
+	hdev->max_power = prop->max_power_default;
 
 	return 0;
 }

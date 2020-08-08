@@ -1069,7 +1069,7 @@ again:
 			goto out_err;
 		}
 
-		hl_set_max_power(hdev, hdev->max_power);
+		hl_set_max_power(hdev);
 	} else {
 		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
 		if (rc) {
@@ -1317,6 +1317,11 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		rc = 0;
 		goto out_disabled;
 	}
+
+	/* Need to call this again because the max power might change,
+	 * depending on card type for certain ASICs
+	 */
+	hl_set_max_power(hdev);
 
 	/*
 	 * hl_hwmon_init() must be called after device_late_init(), because only
