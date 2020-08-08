@@ -165,15 +165,14 @@ mt7615_reset_test_set(void *data, u64 val)
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	mt7615_mutex_acquire(dev);
-
 	skb = alloc_skb(1, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_put(skb, 1);
-	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
 
+	mt7615_mutex_acquire(dev);
+	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
 	mt7615_mutex_release(dev);
 
 	return 0;
