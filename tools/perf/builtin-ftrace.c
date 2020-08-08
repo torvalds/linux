@@ -455,6 +455,23 @@ static void delete_filter_func(struct list_head *head)
 	}
 }
 
+static void select_tracer(struct perf_ftrace *ftrace)
+{
+	bool graph = !list_empty(&ftrace->graph_funcs) ||
+		     !list_empty(&ftrace->nograph_funcs);
+	bool func = !list_empty(&ftrace->filters) ||
+		    !list_empty(&ftrace->notrace);
+
+	/* The function_graph has priority over function tracer. */
+	if (graph)
+		ftrace->tracer = "function_graph";
+	else if (func)
+		ftrace->tracer = "function";
+	/* Otherwise, the default tracer is used. */
+
+	pr_debug("%s tracer is used\n", ftrace->tracer);
+}
+
 int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
@@ -479,11 +496,13 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_STRING('C', "cpu", &ftrace.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
-		     "trace given functions only", parse_filter_func),
+		     "trace given functions using function tracer",
+		     parse_filter_func),
 	OPT_CALLBACK('N', "notrace-funcs", &ftrace.notrace, "func",
 		     "do not trace given functions", parse_filter_func),
 	OPT_CALLBACK('G', "graph-funcs", &ftrace.graph_funcs, "func",
-		     "Set graph filter on given functions", parse_filter_func),
+		     "trace given functions using function_graph tracer",
+		     parse_filter_func),
 	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
 		     "Set nograph filter on given functions", parse_filter_func),
 	OPT_INTEGER('D', "graph-depth", &ftrace.graph_depth,
@@ -504,6 +523,8 @@ int cmd_ftrace(int argc, const char **argv)
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target__none(&ftrace.target))
 		ftrace.target.system_wide = true;
+
+	select_tracer(&ftrace);
 
 	ret = target__validate(&ftrace.target);
 	if (ret) {
