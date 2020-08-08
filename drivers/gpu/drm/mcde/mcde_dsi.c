@@ -812,10 +812,11 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	/* Command mode, clear IF1 ID */
 	val = readl(d->regs + DSI_CMD_MODE_CTL);
 	/*
-	 * If we enable low-power mode here, with
-	 * val |= DSI_CMD_MODE_CTL_IF1_LP_EN
+	 * If we enable low-power mode here,
 	 * then display updates become really slow.
 	 */
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_LPM)
+		val |= DSI_CMD_MODE_CTL_IF1_LP_EN;
 	val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 	writel(val, d->regs + DSI_CMD_MODE_CTL);
 
@@ -904,10 +905,11 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		/* Command mode, clear IF1 ID */
 		val = readl(d->regs + DSI_CMD_MODE_CTL);
 		/*
-		 * If we enable low-power mode here with
-		 * val |= DSI_CMD_MODE_CTL_IF1_LP_EN
+		 * If we enable low-power mode here
 		 * the display updates become really slow.
 		 */
+		if (d->mdsi->mode_flags & MIPI_DSI_MODE_LPM)
+			val |= DSI_CMD_MODE_CTL_IF1_LP_EN;
 		val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 		writel(val, d->regs + DSI_CMD_MODE_CTL);
 	}
