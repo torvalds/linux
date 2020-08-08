@@ -39,6 +39,10 @@ OPTIONS
 --pid=::
 	Trace on existing process id (comma separated list).
 
+-D::
+--delay::
+	Time (ms) to wait before starting tracing after program start.
+
 -a::
 --all-cpus::
 	Force system-wide collection.  Scripts run without a <command>
