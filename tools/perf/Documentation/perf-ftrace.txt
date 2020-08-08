@@ -98,16 +98,13 @@ OPTIONS
 	specify multiple functions. It will be passed to 'set_graph_notrace'
 	in tracefs.
 
--D::
---graph-depth=::
-	Set max depth for function graph tracer to follow
-
 --graph-opts::
 	List of options allowed to set:
 	  nosleep-time - Measure on-CPU time only for function_graph tracer.
 	  noirqs       - Ignore functions that happen inside interrupt.
 	  verbose      - Show process names, PIDs, timestamps, etc.
 	  thresh=<n>   - Setup trace duration threshold in microseconds.
+	  depth=<n>    - Set max depth for function graph tracer to follow.
 
 SEE ALSO
 --------
