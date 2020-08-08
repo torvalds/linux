@@ -524,7 +524,7 @@ struct ieee80211_sta_rx_stats {
  * @status_stats.retry_failed: # of frames that failed after retry
  * @status_stats.retry_count: # of retries attempted
  * @status_stats.lost_packets: # of lost packets
- * @status_stats.last_tdls_pkt_time: timestamp of last TDLS packet
+ * @status_stats.last_pkt_time: timestamp of last ACKed packet
  * @status_stats.msdu_retries: # of MSDU retries
  * @status_stats.msdu_failed: # of failed MSDUs
  * @status_stats.last_ack: last ack timestamp (jiffies)
@@ -597,7 +597,7 @@ struct sta_info {
 		unsigned long filtered;
 		unsigned long retry_failed, retry_count;
 		unsigned int lost_packets;
-		unsigned long last_tdls_pkt_time;
+		unsigned long last_pkt_time;
 		u64 msdu_retries[IEEE80211_NUM_TIDS + 1];
 		u64 msdu_failed[IEEE80211_NUM_TIDS + 1];
 		unsigned long last_ack;
