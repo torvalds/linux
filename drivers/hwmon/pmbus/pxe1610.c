@@ -78,8 +78,7 @@ static struct pmbus_driver_info pxe1610_info = {
 	.identify = pxe1610_identify,
 };
 
-static int pxe1610_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int pxe1610_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 	u8 buf[I2C_SMBUS_BLOCK_MAX];
@@ -115,7 +114,7 @@ static int pxe1610_probe(struct i2c_client *client,
 	if (!info)
 		return -ENOMEM;
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id pxe1610_id[] = {
@@ -131,7 +130,7 @@ static struct i2c_driver pxe1610_driver = {
 	.driver = {
 			.name = "pxe1610",
 			},
-	.probe = pxe1610_probe,
+	.probe_new = pxe1610_probe,
 	.remove = pmbus_do_remove,
 	.id_table = pxe1610_id,
 };

@@ -37,6 +37,8 @@ struct max20730_data {
 
 #define MAX20730_MFR_DEVSET1	0xd2
 
+static const struct i2c_device_id max20730_id[];
+
 /*
  * Convert discreet value to direct data format. Strictly speaking, all passed
  * values are constants, so we could do that calculation manually. On the
@@ -295,8 +297,7 @@ static const struct pmbus_driver_info max20730_info[] = {
 	},
 };
 
-static int max20730_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max20730_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	u8 buf[I2C_SMBUS_BLOCK_MAX + 1];
@@ -356,7 +357,7 @@ static int max20730_probe(struct i2c_client *client,
 	if (client->dev.of_node)
 		chip_id = (enum chips)of_device_get_match_data(dev);
 	else
-		chip_id = id->driver_data;
+		chip_id = i2c_match_id(max20730_id, client)->driver_data;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -370,7 +371,7 @@ static int max20730_probe(struct i2c_client *client,
 		return ret;
 	data->mfr_devset1 = ret;
 
-	return pmbus_do_probe(client, id, &data->info);
+	return pmbus_do_probe(client, &data->info);
 }
 
 static const struct i2c_device_id max20730_id[] = {
@@ -398,7 +399,7 @@ static struct i2c_driver max20730_driver = {
 		.name = "max20730",
 		.of_match_table = max20730_of_match,
 	},
-	.probe = max20730_probe,
+	.probe_new = max20730_probe,
 	.remove = pmbus_do_remove,
 	.id_table = max20730_id,
 };

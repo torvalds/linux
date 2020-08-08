@@ -91,6 +91,8 @@ struct ibm_cffps {
 	struct led_classdev led;
 };
 
+static const struct i2c_device_id ibm_cffps_id[];
+
 #define to_psu(x, y) container_of((x), struct ibm_cffps, debugfs_entries[(y)])
 
 static ssize_t ibm_cffps_read_input_history(struct ibm_cffps *psu,
@@ -473,8 +475,7 @@ static struct pmbus_platform_data ibm_cffps_pdata = {
 	.flags = PMBUS_SKIP_STATUS_CHECK,
 };
 
-static int ibm_cffps_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int ibm_cffps_probe(struct i2c_client *client)
 {
 	int i, rc;
 	enum versions vs = cffps_unknown;
@@ -482,11 +483,15 @@ static int ibm_cffps_probe(struct i2c_client *client,
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
 	const void *md = of_device_get_match_data(&client->dev);
+	const struct i2c_device_id *id;
 
-	if (md)
+	if (md) {
 		vs = (enum versions)md;
-	else if (id)
-		vs = (enum versions)id->driver_data;
+	} else {
+		id = i2c_match_id(ibm_cffps_id, client);
+		if (id)
+			vs = (enum versions)id->driver_data;
+	}
 
 	if (vs == cffps_unknown) {
 		u16 ccin_revision = 0;
@@ -519,7 +524,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 	}
 
 	client->dev.platform_data = &ibm_cffps_pdata;
-	rc = pmbus_do_probe(client, id, &ibm_cffps_info[vs]);
+	rc = pmbus_do_probe(client, &ibm_cffps_info[vs]);
 	if (rc)
 		return rc;
 
@@ -611,7 +616,7 @@ static struct i2c_driver ibm_cffps_driver = {
 		.name = "ibm-cffps",
 		.of_match_table = ibm_cffps_of_match,
 	},
-	.probe = ibm_cffps_probe,
+	.probe_new = ibm_cffps_probe,
 	.remove = pmbus_do_remove,
 	.id_table = ibm_cffps_id,
 };

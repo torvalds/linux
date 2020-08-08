@@ -143,10 +143,9 @@ Emerson DS1200 power modules might look as follows::
 		   | PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12,
   };
 
-  static int ds1200_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+  static int ds1200_probe(struct i2c_client *client)
   {
-	return pmbus_do_probe(client, id, &ds1200_info);
+	return pmbus_do_probe(client, &ds1200_info);
   }
 
   static int ds1200_remove(struct i2c_client *client)
@@ -166,7 +165,7 @@ Emerson DS1200 power modules might look as follows::
 	.driver = {
 		   .name = "ds1200",
 		   },
-	.probe = ds1200_probe,
+	.probe_new = ds1200_probe,
 	.remove = ds1200_remove,
 	.id_table = ds1200_id,
   };

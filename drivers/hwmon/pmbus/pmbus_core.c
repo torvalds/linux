@@ -2521,8 +2521,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 }
 #endif	/* IS_ENABLED(CONFIG_DEBUG_FS) */
 
-int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		   struct pmbus_driver_info *info)
+int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 {
 	struct device *dev = &client->dev;
 	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
