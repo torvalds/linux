@@ -76,6 +76,10 @@ OPTIONS
 	specify multiple functions (or glob patterns).  It will be
 	passed to 'set_ftrace_notrace' in tracefs.
 
+--func-opts::
+	List of options allowed to set:
+	  call-graph - Display kernel stack trace for function tracer.
+
 -G::
 --graph-funcs=::
 	Select function_graph tracer and set graph filter on the given
