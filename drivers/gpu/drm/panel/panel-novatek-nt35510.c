@@ -376,6 +376,10 @@ struct nt35510 {
 };
 
 /* Manufacturer command has strictly this byte sequence */
+static const u8 nt35510_mauc_mtp_read_param[] = { 0xAA, 0x55, 0x25, 0x01 };
+static const u8 nt35510_mauc_mtp_read_setting[] = { 0x01, 0x02, 0x00, 0x20,
+						    0x33, 0x13, 0x00, 0x40,
+						    0x00, 0x00, 0x23, 0x02 };
 static const u8 nt35510_mauc_select_page_0[] = { 0x55, 0xAA, 0x52, 0x08, 0x00 };
 static const u8 nt35510_mauc_select_page_1[] = { 0x55, 0xAA, 0x52, 0x08, 0x01 };
 static const u8 nt35510_vgh_on[] = { 0x01 };
@@ -697,6 +701,18 @@ static int nt35510_power_on(struct nt35510 *nt)
 		 */
 		usleep_range(120000, 140000);
 	}
+
+	ret = nt35510_send_long(nt, dsi, MCS_CMD_MTP_READ_PARAM,
+				ARRAY_SIZE(nt35510_mauc_mtp_read_param),
+				nt35510_mauc_mtp_read_param);
+	if (ret)
+		return ret;
+
+	ret = nt35510_send_long(nt, dsi, MCS_CMD_MTP_READ_SETTING,
+				ARRAY_SIZE(nt35510_mauc_mtp_read_setting),
+				nt35510_mauc_mtp_read_setting);
+	if (ret)
+		return ret;
 
 	ret = nt35510_read_id(nt);
 	if (ret)
