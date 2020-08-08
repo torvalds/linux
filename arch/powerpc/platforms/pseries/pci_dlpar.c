@@ -34,7 +34,7 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 	pci_devs_phb_init_dynamic(phb);
 
 	/* Create EEH devices for the PHB */
-	eeh_dev_phb_init_dynamic(phb);
+	eeh_phb_pe_create(phb);
 
 	if (dn->child)
 		pseries_eeh_init_edev_recursive(PCI_DN(dn));

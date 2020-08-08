@@ -39,8 +39,7 @@
 
 static int gpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	struct pt_regs *regs = task_pt_regs(target);
 	struct user_pt_regs newregs = {
@@ -63,8 +62,7 @@ static int gpr_get(struct task_struct *target,
 	       regs->areg,
 	       (WSBITS - regs->windowbase) * 16);
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &newregs, 0, -1);
+	return membuf_write(&to, &newregs, sizeof(newregs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -121,8 +119,7 @@ static int gpr_set(struct task_struct *target,
 
 static int tie_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	int ret;
 	struct pt_regs *regs = task_pt_regs(target);
@@ -147,8 +144,7 @@ static int tie_get(struct task_struct *target,
 	newregs->cp6 = ti->xtregs_cp.cp6;
 	newregs->cp7 = ti->xtregs_cp.cp7;
 #endif
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  newregs, 0, -1);
+	ret = membuf_write(&to, newregs, sizeof(*newregs));
 	kfree(newregs);
 	return ret;
 }
@@ -203,7 +199,7 @@ static const struct user_regset xtensa_regsets[] = {
 		.n = sizeof(struct user_pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = gpr_get,
+		.regset_get = gpr_get,
 		.set = gpr_set,
 	},
 	[REGSET_TIE] = {
@@ -211,7 +207,7 @@ static const struct user_regset xtensa_regsets[] = {
 		.n = sizeof(elf_xtregs_t) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = tie_get,
+		.regset_get = tie_get,
 		.set = tie_set,
 	},
 };

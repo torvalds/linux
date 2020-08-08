@@ -90,4 +90,6 @@ struct cmdq_pkt {
 	void			*cl;
 };
 
+u8 cmdq_get_shift_pa(struct mbox_chan *chan);
+
 #endif /* __MTK_CMDQ_MAILBOX_H__ */

@@ -177,7 +177,7 @@ static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	keyp += NHPOLY1305_KEY_SIZE;
 	WARN_ON(keyp != &data->derived_keys[ARRAY_SIZE(data->derived_keys)]);
 out:
-	kzfree(data);
+	kfree_sensitive(data);
 	return err;
 }
 

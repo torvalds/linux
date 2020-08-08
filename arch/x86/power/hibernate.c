@@ -98,7 +98,7 @@ static int get_e820_md5(struct e820_table *table, void *buf)
 	if (crypto_shash_digest(desc, (u8 *)table, size, buf))
 		ret = -EINVAL;
 
-	kzfree(desc);
+	kfree_sensitive(desc);
 
 free_tfm:
 	crypto_free_shash(tfm);

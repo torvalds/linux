@@ -47,7 +47,6 @@
 #include <asm/assembly.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
-#include <asm/pgalloc.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
 

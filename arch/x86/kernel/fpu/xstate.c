@@ -1014,32 +1014,20 @@ static inline bool xfeatures_mxcsr_quirk(u64 xfeatures)
 	return true;
 }
 
-static void fill_gap(unsigned to, void **kbuf, unsigned *pos, unsigned *count)
+static void fill_gap(struct membuf *to, unsigned *last, unsigned offset)
 {
-	if (*pos < to) {
-		unsigned size = to - *pos;
-
-		if (size > *count)
-			size = *count;
-		memcpy(*kbuf, (void *)&init_fpstate.xsave + *pos, size);
-		*kbuf += size;
-		*pos += size;
-		*count -= size;
-	}
+	if (*last >= offset)
+		return;
+	membuf_write(to, (void *)&init_fpstate.xsave + *last, offset - *last);
+	*last = offset;
 }
 
-static void copy_part(unsigned offset, unsigned size, void *from,
-			void **kbuf, unsigned *pos, unsigned *count)
+static void copy_part(struct membuf *to, unsigned *last, unsigned offset,
+		      unsigned size, void *from)
 {
-	fill_gap(offset, kbuf, pos, count);
-	if (size > *count)
-		size = *count;
-	if (size) {
-		memcpy(*kbuf, from, size);
-		*kbuf += size;
-		*pos += size;
-		*count -= size;
-	}
+	fill_gap(to, last, offset);
+	membuf_write(to, from, size);
+	*last = offset + size;
 }
 
 /*
@@ -1049,18 +1037,13 @@ static void copy_part(unsigned offset, unsigned size, void *from,
  * It supports partial copy but pos always starts from zero. This is called
  * from xstateregs_get() and there we check the CPU has XSAVES.
  */
-int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int offset_start, unsigned int size_total)
+void copy_xstate_to_kernel(struct membuf to, struct xregs_state *xsave)
 {
 	struct xstate_header header;
 	const unsigned off_mxcsr = offsetof(struct fxregs_state, mxcsr);
-	unsigned count = size_total;
+	unsigned size = to.left;
+	unsigned last = 0;
 	int i;
-
-	/*
-	 * Currently copy_regset_to_user() starts from pos 0:
-	 */
-	if (unlikely(offset_start != 0))
-		return -EFAULT;
 
 	/*
 	 * The destination is a ptrace buffer; we put in only user xstates:
@@ -1070,27 +1053,26 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int of
 	header.xfeatures &= xfeatures_mask_user();
 
 	if (header.xfeatures & XFEATURE_MASK_FP)
-		copy_part(0, off_mxcsr,
-			  &xsave->i387, &kbuf, &offset_start, &count);
+		copy_part(&to, &last, 0, off_mxcsr, &xsave->i387);
 	if (header.xfeatures & (XFEATURE_MASK_SSE | XFEATURE_MASK_YMM))
-		copy_part(off_mxcsr, MXCSR_AND_FLAGS_SIZE,
-			  &xsave->i387.mxcsr, &kbuf, &offset_start, &count);
+		copy_part(&to, &last, off_mxcsr,
+			  MXCSR_AND_FLAGS_SIZE, &xsave->i387.mxcsr);
 	if (header.xfeatures & XFEATURE_MASK_FP)
-		copy_part(offsetof(struct fxregs_state, st_space), 128,
-			  &xsave->i387.st_space, &kbuf, &offset_start, &count);
+		copy_part(&to, &last, offsetof(struct fxregs_state, st_space),
+			  128, &xsave->i387.st_space);
 	if (header.xfeatures & XFEATURE_MASK_SSE)
-		copy_part(xstate_offsets[XFEATURE_SSE], 256,
-			  &xsave->i387.xmm_space, &kbuf, &offset_start, &count);
+		copy_part(&to, &last, xstate_offsets[XFEATURE_SSE],
+			  256, &xsave->i387.xmm_space);
 	/*
 	 * Fill xsave->i387.sw_reserved value for ptrace frame:
 	 */
-	copy_part(offsetof(struct fxregs_state, sw_reserved), 48,
-		  xstate_fx_sw_bytes, &kbuf, &offset_start, &count);
+	copy_part(&to, &last, offsetof(struct fxregs_state, sw_reserved),
+		  48, xstate_fx_sw_bytes);
 	/*
 	 * Copy xregs_state->header:
 	 */
-	copy_part(offsetof(struct xregs_state, header), sizeof(header),
-		  &header, &kbuf, &offset_start, &count);
+	copy_part(&to, &last, offsetof(struct xregs_state, header),
+		  sizeof(header), &header);
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
 		/*
@@ -1099,104 +1081,12 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int of
 		if ((header.xfeatures >> i) & 1) {
 			void *src = __raw_xsave_addr(xsave, i);
 
-			copy_part(xstate_offsets[i], xstate_sizes[i],
-				  src, &kbuf, &offset_start, &count);
+			copy_part(&to, &last, xstate_offsets[i],
+				  xstate_sizes[i], src);
 		}
 
 	}
-	fill_gap(size_total, &kbuf, &offset_start, &count);
-
-	return 0;
-}
-
-static inline int
-__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int offset, unsigned int size, unsigned int size_total)
-{
-	if (!size)
-		return 0;
-
-	if (offset < size_total) {
-		unsigned int copy = min(size, size_total - offset);
-
-		if (__copy_to_user(ubuf + offset, data, copy))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-/*
- * Convert from kernel XSAVES compacted format to standard format and copy
- * to a user-space buffer. It supports partial copy but pos always starts from
- * zero. This is called from xstateregs_get() and there we check the CPU
- * has XSAVES.
- */
-int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int offset_start, unsigned int size_total)
-{
-	unsigned int offset, size;
-	int ret, i;
-	struct xstate_header header;
-
-	/*
-	 * Currently copy_regset_to_user() starts from pos 0:
-	 */
-	if (unlikely(offset_start != 0))
-		return -EFAULT;
-
-	/*
-	 * The destination is a ptrace buffer; we put in only user xstates:
-	 */
-	memset(&header, 0, sizeof(header));
-	header.xfeatures = xsave->header.xfeatures;
-	header.xfeatures &= xfeatures_mask_user();
-
-	/*
-	 * Copy xregs_state->header:
-	 */
-	offset = offsetof(struct xregs_state, header);
-	size = sizeof(header);
-
-	ret = __copy_xstate_to_user(ubuf, &header, offset, size, size_total);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < XFEATURE_MAX; i++) {
-		/*
-		 * Copy only in-use xstates:
-		 */
-		if ((header.xfeatures >> i) & 1) {
-			void *src = __raw_xsave_addr(xsave, i);
-
-			offset = xstate_offsets[i];
-			size = xstate_sizes[i];
-
-			/* The next component has to fit fully into the output buffer: */
-			if (offset + size > size_total)
-				break;
-
-			ret = __copy_xstate_to_user(ubuf, src, offset, size, size_total);
-			if (ret)
-				return ret;
-		}
-
-	}
-
-	if (xfeatures_mxcsr_quirk(header.xfeatures)) {
-		offset = offsetof(struct fxregs_state, mxcsr);
-		size = MXCSR_AND_FLAGS_SIZE;
-		__copy_xstate_to_user(ubuf, &xsave->i387.mxcsr, offset, size, size_total);
-	}
-
-	/*
-	 * Fill xsave->i387.sw_reserved value for ptrace frame:
-	 */
-	offset = offsetof(struct fxregs_state, sw_reserved);
-	size = sizeof(xstate_fx_sw_bytes);
-
-	ret = __copy_xstate_to_user(ubuf, xstate_fx_sw_bytes, offset, size, size_total);
-	if (ret)
-		return ret;
-
-	return 0;
+	fill_gap(&to, &last, size);
 }
 
 /*

@@ -214,6 +214,7 @@ struct xilinx_dpdma_tx_desc {
  * @lock: lock to access struct xilinx_dpdma_chan
  * @desc_pool: descriptor allocation pool
  * @err_task: error IRQ bottom half handler
+ * @desc: References to descriptors being processed
  * @desc.pending: Descriptor schedule to the hardware, pending execution
  * @desc.active: Descriptor being executed by the hardware
  * @xdev: DPDMA device
@@ -295,6 +296,7 @@ static inline void dpdma_set(void __iomem *base, u32 offset, u32 set)
 
 /**
  * xilinx_dpdma_sw_desc_set_dma_addrs - Set DMA addresses in the descriptor
+ * @xdev: DPDMA device
  * @sw_desc: The software descriptor in which to set DMA addresses
  * @prev: The previous descriptor
  * @dma_addr: array of dma addresses
@@ -1070,7 +1072,7 @@ static int xilinx_dpdma_config(struct dma_chan *dchan,
 	 * Abuse the slave_id to indicate that the channel is part of a video
 	 * group.
 	 */
-	if (chan->id >= ZYNQMP_DPDMA_VIDEO0 && chan->id <= ZYNQMP_DPDMA_VIDEO2)
+	if (chan->id <= ZYNQMP_DPDMA_VIDEO2)
 		chan->video_group = config->slave_id != 0;
 
 	spin_unlock_irqrestore(&chan->lock, flags);

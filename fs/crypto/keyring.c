@@ -51,7 +51,7 @@ static void free_master_key(struct fscrypt_master_key *mk)
 	}
 
 	key_put(mk->mk_users);
-	kzfree(mk);
+	kfree_sensitive(mk);
 }
 
 static inline bool valid_key_spec(const struct fscrypt_key_specifier *spec)
@@ -547,7 +547,7 @@ static int fscrypt_provisioning_key_preparse(struct key_preparsed_payload *prep)
 static void fscrypt_provisioning_key_free_preparse(
 					struct key_preparsed_payload *prep)
 {
-	kzfree(prep->payload.data[0]);
+	kfree_sensitive(prep->payload.data[0]);
 }
 
 static void fscrypt_provisioning_key_describe(const struct key *key,
@@ -564,7 +564,7 @@ static void fscrypt_provisioning_key_describe(const struct key *key,
 
 static void fscrypt_provisioning_key_destroy(struct key *key)
 {
-	kzfree(key->payload.data[0]);
+	kfree_sensitive(key->payload.data[0]);
 }
 
 static struct key_type key_type_fscrypt_provisioning = {

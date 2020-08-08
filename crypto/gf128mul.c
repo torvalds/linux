@@ -304,8 +304,8 @@ void gf128mul_free_64k(struct gf128mul_64k *t)
 	int i;
 
 	for (i = 0; i < 16; i++)
-		kzfree(t->t[i]);
-	kzfree(t);
+		kfree_sensitive(t->t[i]);
+	kfree_sensitive(t);
 }
 EXPORT_SYMBOL(gf128mul_free_64k);
 

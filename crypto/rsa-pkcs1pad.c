@@ -199,7 +199,7 @@ static int pkcs1pad_encrypt_sign_complete(struct akcipher_request *req, int err)
 	sg_copy_from_buffer(req->dst,
 			    sg_nents_for_len(req->dst, ctx->key_size),
 			    out_buf, ctx->key_size);
-	kzfree(out_buf);
+	kfree_sensitive(out_buf);
 
 out:
 	req->dst_len = ctx->key_size;
@@ -322,7 +322,7 @@ static int pkcs1pad_decrypt_complete(struct akcipher_request *req, int err)
 				out_buf + pos, req->dst_len);
 
 done:
-	kzfree(req_ctx->out_buf);
+	kfree_sensitive(req_ctx->out_buf);
 
 	return err;
 }
@@ -500,7 +500,7 @@ static int pkcs1pad_verify_complete(struct akcipher_request *req, int err)
 		   req->dst_len) != 0)
 		err = -EKEYREJECTED;
 done:
-	kzfree(req_ctx->out_buf);
+	kfree_sensitive(req_ctx->out_buf);
 
 	return err;
 }

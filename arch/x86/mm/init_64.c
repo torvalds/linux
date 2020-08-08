@@ -817,7 +817,6 @@ void __init initmem_init(void)
 
 void __init paging_init(void)
 {
-	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 
 	/*
@@ -1253,28 +1252,23 @@ static void __init preallocate_vmalloc_pages(void)
 		p4d_t *p4d;
 		pud_t *pud;
 
-		p4d = p4d_offset(pgd, addr);
-		if (p4d_none(*p4d)) {
-			/* Can only happen with 5-level paging */
-			p4d = p4d_alloc(&init_mm, pgd, addr);
-			if (!p4d) {
-				lvl = "p4d";
-				goto failed;
-			}
-		}
+		lvl = "p4d";
+		p4d = p4d_alloc(&init_mm, pgd, addr);
+		if (!p4d)
+			goto failed;
 
+		/*
+		 * With 5-level paging the P4D level is not folded. So the PGDs
+		 * are now populated and there is no need to walk down to the
+		 * PUD level.
+		 */
 		if (pgtable_l5_enabled())
 			continue;
 
-		pud = pud_offset(p4d, addr);
-		if (pud_none(*pud)) {
-			/* Ends up here only with 4-level paging */
-			pud = pud_alloc(&init_mm, p4d, addr);
-			if (!pud) {
-				lvl = "pud";
-				goto failed;
-			}
-		}
+		lvl = "pud";
+		pud = pud_alloc(&init_mm, p4d, addr);
+		if (!pud)
+			goto failed;
 	}
 
 	return;
@@ -1515,10 +1509,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 		if (pmd_none(*pmd)) {
 			void *p;
 
-			if (altmap)
-				p = altmap_alloc_block_buf(PMD_SIZE, altmap);
-			else
-				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
+			p = vmemmap_alloc_block_buf(PMD_SIZE, node, altmap);
 			if (p) {
 				pte_t entry;
 
@@ -1545,7 +1536,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 			continue;
 		}
-		if (vmemmap_populate_basepages(addr, next, node))
+		if (vmemmap_populate_basepages(addr, next, node, NULL))
 			return -ENOMEM;
 	}
 	return 0;
@@ -1557,7 +1548,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	int err;
 
 	if (end - start < PAGES_PER_SECTION * sizeof(struct page))
-		err = vmemmap_populate_basepages(start, end, node);
+		err = vmemmap_populate_basepages(start, end, node, NULL);
 	else if (boot_cpu_has(X86_FEATURE_PSE))
 		err = vmemmap_populate_hugepages(start, end, node, altmap);
 	else if (altmap) {
@@ -1565,7 +1556,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 				__func__);
 		err = -ENOMEM;
 	} else
-		err = vmemmap_populate_basepages(start, end, node);
+		err = vmemmap_populate_basepages(start, end, node, NULL);
 	if (!err)
 		sync_global_pgds(start, end - 1);
 	return err;

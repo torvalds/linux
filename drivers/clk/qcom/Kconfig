@@ -37,6 +37,15 @@ config QCOM_CLK_APCS_MSM8916
 	  Say Y if you want to support CPU frequency scaling on devices
 	  such as msm8916.
 
+config QCOM_CLK_APCC_MSM8996
+	tristate "MSM8996 CPU Clock Controller"
+	select QCOM_KRYO_L2_ACCESSORS
+	depends on ARM64
+	help
+	  Support for the CPU clock controller on msm8996 devices.
+	  Say Y if you want to support CPU clock scaling using CPUfreq
+	  drivers for dyanmic power management.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on MFD_QCOM_RPM
@@ -88,6 +97,25 @@ config APQ_MMCC_8084
 	  Support for the multimedia clock controller on apq8084 devices.
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
+
+config IPQ_APSS_PLL
+	tristate "IPQ APSS PLL"
+	help
+	  Support for APSS PLL on ipq devices. The APSS PLL is the main
+	  clock that feeds the CPUs on ipq based devices.
+	  Say Y if you want to support CPU frequency scaling on ipq based
+	  devices.
+
+config IPQ_APSS_6018
+	tristate "IPQ APSS Clock Controller"
+	select IPQ_APSS_PLL
+	depends on QCOM_APCS_IPC || COMPILE_TEST
+	help
+	  Support for APSS clock controller on IPQ platforms. The
+	  APSS clock controller manages the Mux and enable block that feeds the
+	  CPUs.
+	  Say Y if you want to support CPU frequency scaling on
+	  ipq based devices.
 
 config IPQ_GCC_4019
 	tristate "IPQ4019 Global Clock Controller"

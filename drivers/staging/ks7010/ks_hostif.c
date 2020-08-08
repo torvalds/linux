@@ -245,7 +245,7 @@ michael_mic(u8 *key, u8 *data, unsigned int len, u8 priority, u8 *result)
 	ret = crypto_shash_finup(desc, data + 12, len - 12, result);
 
 err_free_desc:
-	kzfree(desc);
+	kfree_sensitive(desc);
 
 err_free_tfm:
 	crypto_free_shash(tfm);
