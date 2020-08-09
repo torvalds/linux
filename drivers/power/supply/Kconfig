@@ -164,7 +164,7 @@ config BATTERY_DS2782
 
 config BATTERY_LEGO_EV3
 	tristate "LEGO MINDSTORMS EV3 battery"
-	depends on OF && IIO && GPIOLIB
+	depends on OF && IIO && GPIOLIB && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
 	help
 	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
 
