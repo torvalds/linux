@@ -411,6 +411,30 @@ int hl_fw_armcp_pci_counters_get(struct hl_device *hdev,
 	return rc;
 }
 
+int hl_fw_armcp_total_energy_get(struct hl_device *hdev,
+			u64 *total_energy)
+{
+	struct armcp_packet pkt = {};
+	long result;
+	int rc;
+
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_TOTAL_ENERGY_GET <<
+			ARMCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to handle ArmCP total energy pkt, error %d\n",
+				rc);
+		return rc;
+	}
+
+	*total_energy = result;
+
+	return rc;
+}
+
 static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 {
 	u32 err_val;

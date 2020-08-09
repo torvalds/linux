@@ -267,6 +267,7 @@ enum hl_device_status {
  * HL_INFO_PCI_COUNTERS  - Retrieve PCI counters
  * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
+ * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -282,6 +283,7 @@ enum hl_device_status {
 #define HL_INFO_PCI_COUNTERS		12
 #define HL_INFO_CLK_THROTTLE_REASON	13
 #define HL_INFO_SYNC_MANAGER		14
+#define HL_INFO_TOTAL_ENERGY		15
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -373,6 +375,14 @@ struct hl_info_pci_counters {
  */
 struct hl_info_clk_throttle {
 	__u32 clk_throttling_reason;
+};
+
+/**
+ * struct hl_info_energy - device energy information
+ * @total_energy_consumption: total device energy consumption
+ */
+struct hl_info_energy {
+	__u64 total_energy_consumption;
 };
 
 /**

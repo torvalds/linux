@@ -357,6 +357,27 @@ static int sync_manager_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 			sizeof(sm_info))) ? -EFAULT : 0;
 }
 
+static int total_energy_consumption_info(struct hl_fpriv *hpriv,
+			struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_energy total_energy = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_armcp_total_energy_get(hdev,
+			&total_energy.total_energy_consumption);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &total_energy,
+		min((size_t) max_size, sizeof(total_energy))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -428,6 +449,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_SYNC_MANAGER:
 		return sync_manager_info(hpriv, args);
+
+	case HL_INFO_TOTAL_ENERGY:
+		return total_energy_consumption_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

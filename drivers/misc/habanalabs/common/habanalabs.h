@@ -1852,6 +1852,8 @@ int hl_fw_armcp_info_get(struct hl_device *hdev);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
 int hl_fw_armcp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
+int hl_fw_armcp_total_energy_get(struct hl_device *hdev,
+			u64 *total_energy);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
 			u32 boot_err0_reg, bool skip_bmc,

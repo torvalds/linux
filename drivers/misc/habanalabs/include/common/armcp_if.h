@@ -245,6 +245,7 @@ enum armcp_packet_id {
 	ARMCP_PACKET_CURRENT_SET,		/* sysfs */
 	ARMCP_PACKET_PCIE_THROUGHPUT_GET,	/* internal */
 	ARMCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
+	ARMCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
 };
 
 #define ARMCP_PACKET_FENCE_VAL	0xFE8CE7A5
