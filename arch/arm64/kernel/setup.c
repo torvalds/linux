@@ -275,7 +275,6 @@ static int __init reserve_memblock_reserved_regions(void)
 arch_initcall(reserve_memblock_reserved_regions);
 
 u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
-EXPORT_SYMBOL_GPL(__cpu_logical_map);
 
 void __init __no_sanitize_address setup_arch(char **cmdline_p)
 {
