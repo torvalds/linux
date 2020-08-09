@@ -152,6 +152,8 @@ static int ucsi_run_command(struct ucsi *ucsi, u64 command,
 	u8 length;
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&ucsi->ppm_lock));
+
 	ret = ucsi_exec_command(ucsi, command);
 	if (ret < 0)
 		return ret;
@@ -502,7 +504,7 @@ static void ucsi_get_pdos(struct ucsi_connector *con, int is_partner)
 	command |= UCSI_GET_PDOS_PARTNER_PDO(is_partner);
 	command |= UCSI_GET_PDOS_NUM_PDOS(UCSI_MAX_PDOS - 1);
 	command |= UCSI_GET_PDOS_SRC_PDOS;
-	ret = ucsi_run_command(ucsi, command, con->src_pdos,
+	ret = ucsi_send_command(ucsi, command, con->src_pdos,
 			       sizeof(con->src_pdos));
 	if (ret < 0) {
 		dev_err(ucsi->dev, "UCSI_GET_PDOS failed (%d)\n", ret);
@@ -681,7 +683,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 		 */
 		command = UCSI_GET_CAM_SUPPORTED;
 		command |= UCSI_CONNECTOR_NUMBER(con->num);
-		ucsi_run_command(con->ucsi, command, NULL, 0);
+		ucsi_send_command(con->ucsi, command, NULL, 0);
 	}
 
 	if (con->status.change & UCSI_CONSTAT_PARTNER_CHANGE)
