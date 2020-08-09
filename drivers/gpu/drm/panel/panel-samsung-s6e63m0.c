@@ -25,11 +25,20 @@
 #define MCS_ELVSS_ON                0xb1
 #define MCS_MIECTL1                0xc0
 #define MCS_BCMODE                              0xc1
+#define MCS_READ_ID1		0xda
+#define MCS_READ_ID2		0xdb
+#define MCS_READ_ID3		0xdc
+#define MCS_LEVEL_2_KEY		0xf0
+#define MCS_MTP_KEY		0xf1
 #define MCS_DISCTL   0xf2
 #define MCS_SRCCTL           0xf6
 #define MCS_IFCTL                       0xf7
 #define MCS_PANELCTL         0xF8
 #define MCS_PGAMMACTL                   0xfa
+
+#define S6E63M0_LCD_ID_VALUE_M2		0xA4
+#define S6E63M0_LCD_ID_VALUE_SM2	0xB4
+#define S6E63M0_LCD_ID_VALUE_SM2_1	0xB6
 
 #define NUM_GAMMA_LEVELS             11
 #define GAMMA_TABLE_COUNT           23
@@ -90,6 +99,7 @@ struct s6e63m0 {
 	int (*dcs_write)(struct device *dev, const u8 *data, size_t len);
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
+	u8 lcd_type;
 
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
@@ -156,6 +166,47 @@ static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 		static const u8 d[] = { seq }; \
 		s6e63m0_dcs_write(ctx, d, ARRAY_SIZE(d)); \
 	})
+
+static int s6e63m0_check_lcd_type(struct s6e63m0 *ctx)
+{
+	u8 id1, id2, id3;
+	int ret;
+
+	s6e63m0_dcs_read(ctx, MCS_READ_ID1, &id1);
+	s6e63m0_dcs_read(ctx, MCS_READ_ID2, &id2);
+	s6e63m0_dcs_read(ctx, MCS_READ_ID3, &id3);
+
+	ret = s6e63m0_clear_error(ctx);
+	if (ret) {
+		DRM_DEV_ERROR(ctx->dev, "error checking LCD type (%d)\n",
+			      ret);
+		ctx->lcd_type = 0x00;
+		return ret;
+	}
+
+	DRM_DEV_INFO(ctx->dev, "MTP ID: %02x %02x %02x\n", id1, id2, id3);
+
+	/* We attempt to detect what panel is mounted on the controller */
+	switch (id2) {
+	case S6E63M0_LCD_ID_VALUE_M2:
+		DRM_DEV_INFO(ctx->dev,
+			     "detected LCD panel AMS397GE MIPI M2\n");
+		break;
+	case S6E63M0_LCD_ID_VALUE_SM2:
+	case S6E63M0_LCD_ID_VALUE_SM2_1:
+		DRM_DEV_INFO(ctx->dev,
+			     "detected LCD panel AMS397GE MIPI SM2\n");
+		break;
+	default:
+		DRM_DEV_INFO(ctx->dev,
+			     "unknown LCD panel type %02x\n", id2);
+		break;
+	}
+
+	ctx->lcd_type = id2;
+
+	return 0;
+}
 
 static void s6e63m0_init(struct s6e63m0 *ctx)
 {
@@ -307,6 +358,15 @@ static int s6e63m0_prepare(struct drm_panel *panel)
 		return 0;
 
 	ret = s6e63m0_power_on(ctx);
+	if (ret < 0)
+		return ret;
+
+	/* Magic to unlock level 2 control of the display */
+	s6e63m0_dcs_write_seq_static(ctx, MCS_LEVEL_2_KEY, 0x5a, 0x5a);
+	/* Magic to unlock MTP reading */
+	s6e63m0_dcs_write_seq_static(ctx, MCS_MTP_KEY, 0x5a, 0x5a);
+
+	ret = s6e63m0_check_lcd_type(ctx);
 	if (ret < 0)
 		return ret;
 
