@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,adc108s102.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments ADC108S102 and ADC128S102
+
+maintainers:
+  - Bogdan Pricop <bogdan.pricop@emutex.com>
+
+description: |
+  Family of 8 channel, 10/12 bit, SPI, single ended ADCs.
+
+properties:
+  compatible:
+    const:
+      ti,adc108s102
+
+  reg: true
+  vref-supply: true
+  spi-max-frequency: true
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells= <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,adc108s102";
+            reg = <0>;
+            vref-supply = <&vdd_supply>;
+            spi-max-frequency = <1000000>;
+            #io-channel-cells = <1>;
+        };
+    };
+...
