@@ -327,8 +327,8 @@ static int fsmc_calc_timings(struct fsmc_nand_data *host,
 	return 0;
 }
 
-static int fsmc_setup_data_interface(struct nand_chip *nand, int csline,
-				     const struct nand_data_interface *conf)
+static int fsmc_setup_interface(struct nand_chip *nand, int csline,
+				const struct nand_interface_config *conf)
 {
 	struct fsmc_nand_data *host = nand_to_fsmc(nand);
 	struct fsmc_nand_timings tims;
@@ -951,7 +951,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 static const struct nand_controller_ops fsmc_nand_controller_ops = {
 	.attach_chip = fsmc_nand_attach_chip,
 	.exec_op = fsmc_exec_op,
-	.setup_data_interface = fsmc_setup_data_interface,
+	.setup_interface = fsmc_setup_interface,
 };
 
 /**
