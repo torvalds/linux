@@ -3733,7 +3733,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	xudc = devm_kzalloc(&pdev->dev, sizeof(*xudc), GFP_ATOMIC);
+	xudc = devm_kzalloc(&pdev->dev, sizeof(*xudc), GFP_KERNEL);
 	if (!xudc)
 		return -ENOMEM;
 
