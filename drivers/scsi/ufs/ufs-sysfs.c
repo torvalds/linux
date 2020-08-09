@@ -16,6 +16,7 @@ static const char *ufschd_uic_link_state_to_string(
 	case UIC_LINK_OFF_STATE:	return "OFF";
 	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
 	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
+	case UIC_LINK_BROKEN_STATE:	return "BROKEN";
 	default:			return "UNKNOWN";
 	}
 }
