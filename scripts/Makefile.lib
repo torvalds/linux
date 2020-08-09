@@ -68,6 +68,17 @@ real-obj-m := $(foreach m, $(obj-m), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y))
 
 always-y += $(always-m)
 
+# hostprogs-always-y += foo
+# ... is a shorthand for
+# hostprogs += foo
+# always-y  += foo
+hostprogs += $(hostprogs-always-y) $(hostprogs-always-m)
+always-y += $(hostprogs-always-y) $(hostprogs-always-m)
+
+# userprogs-always-y is likewise.
+userprogs += $(userprogs-always-y) $(userprogs-always-m)
+always-y += $(userprogs-always-y) $(userprogs-always-m)
+
 # DTB
 # If CONFIG_OF_ALL_DTBS is enabled, all DT blobs are built
 extra-y				+= $(dtb-y)
@@ -111,12 +122,14 @@ basename_flags = -DKBUILD_BASENAME=$(call name-fix,$(basetarget))
 modname_flags  = -DKBUILD_MODNAME=$(call name-fix,$(modname))
 modfile_flags  = -DKBUILD_MODFILE=$(call stringify,$(modfile))
 
-orig_c_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
-                 $(ccflags-y) $(CFLAGS_$(target-stem).o)
-_c_flags       = $(filter-out $(CFLAGS_REMOVE_$(target-stem).o), $(orig_c_flags))
-orig_a_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS) \
-                 $(asflags-y) $(AFLAGS_$(target-stem).o)
-_a_flags       = $(filter-out $(AFLAGS_REMOVE_$(target-stem).o), $(orig_a_flags))
+_c_flags       = $(filter-out $(CFLAGS_REMOVE_$(target-stem).o), \
+                     $(filter-out $(ccflags-remove-y), \
+                         $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) $(ccflags-y)) \
+                     $(CFLAGS_$(target-stem).o))
+_a_flags       = $(filter-out $(AFLAGS_REMOVE_$(target-stem).o), \
+                     $(filter-out $(asflags-remove-y), \
+                         $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS) $(asflags-y)) \
+                     $(AFLAGS_$(target-stem).o))
 _cpp_flags     = $(KBUILD_CPPFLAGS) $(cppflags-y) $(CPPFLAGS_$(target-stem).lds)
 
 #
@@ -303,8 +316,7 @@ $(obj)/%.dtb.S: $(obj)/%.dtb FORCE
 	$(call if_changed,dt_S_dtb)
 
 quiet_cmd_dtc = DTC     $@
-cmd_dtc = mkdir -p $(dir ${dtc-tmp}) ; \
-	$(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
+cmd_dtc = $(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
 	$(DTC) -O $(patsubst .%,%,$(suffix $@)) -o $@ -b 0 \
 		$(addprefix -i,$(dir $<) $(DTC_INCLUDE)) $(DTC_FLAGS) \
 		-d $(depfile).dtc.tmp $(dtc-tmp) ; \

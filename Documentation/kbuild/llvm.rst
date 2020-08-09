@@ -76,7 +76,7 @@ Getting Help
 Getting LLVM
 -------------
 
-- http://releases.llvm.org/download.html
+- https://releases.llvm.org/download.html
 - https://github.com/llvm/llvm-project
 - https://llvm.org/docs/GettingStarted.html
 - https://llvm.org/docs/CMake.html

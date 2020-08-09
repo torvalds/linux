@@ -30,6 +30,10 @@
 # Error out on error
 set -e
 
+LD="$1"
+KBUILD_LDFLAGS="$2"
+LDFLAGS_vmlinux="$3"
+
 # Nice output in kbuild format
 # Will be supressed by "make -s"
 info()
