@@ -864,6 +864,16 @@ config REGULATOR_QCOM_USB_VBUS
 	  Say M here if you want to include support for enabling the VBUS output
 	  as a module. The module will be named "qcom_usb_vbus_regulator".
 
+config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
+	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports ATTINY regulator on the Raspberry Pi 7-inch
+	  touchscreen unit. The regulator is used to enable power to the
+	  TC358762, display and to control backlight.
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
