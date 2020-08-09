@@ -5030,19 +5030,19 @@ static void regulator_remove_coupling(struct regulator_dev *rdev)
 
 static int regulator_init_coupling(struct regulator_dev *rdev)
 {
+	struct regulator_dev **coupled;
 	int err, n_phandles;
-	size_t alloc_size;
 
 	if (!IS_ENABLED(CONFIG_OF))
 		n_phandles = 0;
 	else
 		n_phandles = of_get_n_coupled(rdev);
 
-	alloc_size = sizeof(*rdev) * (n_phandles + 1);
-
-	rdev->coupling_desc.coupled_rdevs = kzalloc(alloc_size, GFP_KERNEL);
-	if (!rdev->coupling_desc.coupled_rdevs)
+	coupled = kcalloc(n_phandles + 1, sizeof(*coupled), GFP_KERNEL);
+	if (!coupled)
 		return -ENOMEM;
+
+	rdev->coupling_desc.coupled_rdevs = coupled;
 
 	/*
 	 * Every regulator should always have coupling descriptor filled with
