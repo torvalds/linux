@@ -86,6 +86,7 @@ static u8 const s6e63m0_gamma_22[NUM_GAMMA_LEVELS][GAMMA_TABLE_COUNT] = {
 
 struct s6e63m0 {
 	struct device *dev;
+	int (*dcs_read)(struct device *dev, const u8 cmd, u8 *val);
 	int (*dcs_write)(struct device *dev, const u8 *data, size_t len);
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
@@ -132,6 +133,14 @@ static int s6e63m0_clear_error(struct s6e63m0 *ctx)
 
 	ctx->error = 0;
 	return ret;
+}
+
+static void s6e63m0_dcs_read(struct s6e63m0 *ctx, const u8 cmd, u8 *data)
+{
+	if (ctx->error < 0)
+		return;
+
+	ctx->error = ctx->dcs_read(ctx->dev, cmd, data);
 }
 
 static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
@@ -400,6 +409,7 @@ static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
 }
 
 int s6e63m0_probe(struct device *dev,
+		  int (*dcs_read)(struct device *dev, const u8 cmd, u8 *val),
 		  int (*dcs_write)(struct device *dev, const u8 *data, size_t len),
 		  bool dsi_mode)
 {
@@ -410,6 +420,7 @@ int s6e63m0_probe(struct device *dev,
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->dcs_read = dcs_read;
 	ctx->dcs_write = dcs_write;
 	dev_set_drvdata(dev, ctx);
 

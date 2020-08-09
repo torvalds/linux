@@ -11,6 +11,17 @@
 
 #define DATA_MASK	0x100
 
+static int s6e63m0_spi_dcs_read(struct device *dev, const u8 cmd, u8 *data)
+{
+	/*
+	 * FIXME: implement reading DCS commands over SPI so we can
+	 * properly identify which physical panel is connected.
+	 */
+	*data = 0;
+
+	return 0;
+}
+
 static int s6e63m0_spi_write_word(struct device *dev, u16 data)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -60,7 +71,8 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 		DRM_DEV_ERROR(dev, "spi setup failed.\n");
 		return ret;
 	}
-	return s6e63m0_probe(dev, s6e63m0_spi_dcs_write, false);
+	return s6e63m0_probe(dev, s6e63m0_spi_dcs_read, s6e63m0_spi_dcs_write,
+			     false);
 }
 
 static int s6e63m0_spi_remove(struct spi_device *spi)

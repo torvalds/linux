@@ -4,6 +4,7 @@
 #define _PANEL_SAMSUNG_S6E63M0_H
 
 int s6e63m0_probe(struct device *dev,
+		  int (*dcs_read)(struct device *dev, const u8 cmd, u8 *val),
 		  int (*dcs_write)(struct device *dev, const u8 *data,
 				   size_t len),
 		  bool dsi_mode);
