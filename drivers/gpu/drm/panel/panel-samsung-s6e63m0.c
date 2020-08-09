@@ -16,9 +16,10 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
-#include <linux/spi/spi.h>
 
 #include <video/mipi_display.h>
+
+#include "panel-samsung-s6e63m0.h"
 
 /* Manufacturer Command Set */
 #define MCS_ELVSS_ON                0xb1
@@ -32,8 +33,6 @@
 
 #define NUM_GAMMA_LEVELS             11
 #define GAMMA_TABLE_COUNT           23
-
-#define DATA_MASK                                       0x100
 
 #define MAX_BRIGHTNESS              (NUM_GAMMA_LEVELS - 1)
 
@@ -87,6 +86,7 @@ static u8 const s6e63m0_gamma_22[NUM_GAMMA_LEVELS][GAMMA_TABLE_COUNT] = {
 
 struct s6e63m0 {
 	struct device *dev;
+	int (*dcs_write)(struct device *dev, const u8 *data, size_t len);
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
 
@@ -134,42 +134,12 @@ static int s6e63m0_clear_error(struct s6e63m0 *ctx)
 	return ret;
 }
 
-static int s6e63m0_spi_write_word(struct s6e63m0 *ctx, u16 data)
-{
-	struct spi_device *spi = to_spi_device(ctx->dev);
-	struct spi_transfer xfer = {
-		.len	= 2,
-		.tx_buf = &data,
-	};
-	struct spi_message msg;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-
-	return spi_sync(spi, &msg);
-}
-
 static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 {
-	int ret = 0;
-
 	if (ctx->error < 0 || len == 0)
 		return;
 
-	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
-	ret = s6e63m0_spi_write_word(ctx, *data);
-
-	while (!ret && --len) {
-		++data;
-		ret = s6e63m0_spi_write_word(ctx, *data | DATA_MASK);
-	}
-
-	if (ret) {
-		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, (int)len, data);
-		ctx->error = ret;
-	}
-
-	usleep_range(300, 310);
+	ctx->error = ctx->dcs_write(ctx->dev, data, len);
 }
 
 #define s6e63m0_dcs_write_seq_static(ctx, seq ...) \
@@ -429,9 +399,9 @@ static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
 	return ret;
 }
 
-static int s6e63m0_probe(struct spi_device *spi)
+int s6e63m0_probe(struct device *dev,
+		  int (*dcs_write)(struct device *dev, const u8 *data, size_t len))
 {
-	struct device *dev = &spi->dev;
 	struct s6e63m0 *ctx;
 	int ret;
 
@@ -439,7 +409,8 @@ static int s6e63m0_probe(struct spi_device *spi)
 	if (!ctx)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, ctx);
+	ctx->dcs_write = dcs_write;
+	dev_set_drvdata(dev, ctx);
 
 	ctx->dev = dev;
 	ctx->enabled = false;
@@ -460,14 +431,6 @@ static int s6e63m0_probe(struct spi_device *spi)
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
-	spi->bits_per_word = 9;
-	spi->mode = SPI_MODE_3;
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(dev, "spi setup failed.\n");
-		return ret;
-	}
-
 	drm_panel_init(&ctx->panel, dev, &s6e63m0_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
@@ -479,32 +442,14 @@ static int s6e63m0_probe(struct spi_device *spi)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(s6e63m0_probe);
 
-static int s6e63m0_remove(struct spi_device *spi)
+int s6e63m0_remove(struct device *dev)
 {
-	struct s6e63m0 *ctx = spi_get_drvdata(spi);
+	struct s6e63m0 *ctx = dev_get_drvdata(dev);
 
 	drm_panel_remove(&ctx->panel);
 
 	return 0;
 }
-
-static const struct of_device_id s6e63m0_of_match[] = {
-	{ .compatible = "samsung,s6e63m0" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, s6e63m0_of_match);
-
-static struct spi_driver s6e63m0_driver = {
-	.probe			= s6e63m0_probe,
-	.remove			= s6e63m0_remove,
-	.driver			= {
-		.name		= "panel-samsung-s6e63m0",
-		.of_match_table = s6e63m0_of_match,
-	},
-};
-module_spi_driver(s6e63m0_driver);
-
-MODULE_AUTHOR("Paweł Chmiel <pawel.mikolaj.chmiel@gmail.com>");
-MODULE_DESCRIPTION("s6e63m0 LCD Driver");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_GPL(s6e63m0_remove);
