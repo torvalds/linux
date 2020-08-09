@@ -330,7 +330,7 @@ static int __init mod_init(void)
 	int err = -ENODEV;
 	int i;
 	struct pci_dev *dev = NULL;
-	void __iomem *mem = mem;
+	void __iomem *mem;
 	u8 hw_status;
 	struct intel_rng_hw *intel_rng_hw;
 
