@@ -249,15 +249,6 @@ static int mt6323_led_set_blink(struct led_classdev *cdev,
 	int ret;
 
 	/*
-	 * Units are in ms, if over the hardware able
-	 * to support, fallback into software blink
-	 */
-	period = *delay_on + *delay_off;
-
-	if (period > MT6323_MAX_PERIOD)
-		return -EINVAL;
-
-	/*
 	 * LED subsystem requires a default user
 	 * friendly blink pattern for the LED so using
 	 * 1Hz duty cycle 50% here if without specific
@@ -267,6 +258,15 @@ static int mt6323_led_set_blink(struct led_classdev *cdev,
 		*delay_on = 500;
 		*delay_off = 500;
 	}
+
+	/*
+	 * Units are in ms, if over the hardware able
+	 * to support, fallback into software blink
+	 */
+	period = *delay_on + *delay_off;
+
+	if (period > MT6323_MAX_PERIOD)
+		return -EINVAL;
 
 	/*
 	 * Calculate duty_hw based on the percentage of period during
