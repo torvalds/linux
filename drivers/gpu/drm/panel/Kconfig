@@ -341,6 +341,14 @@ config DRM_PANEL_SAMSUNG_S6E63M0_SPI
 	  Say Y here if you want to be able to access the Samsung
 	  S6E63M0 panel using SPI.
 
+config DRM_PANEL_SAMSUNG_S6E63M0_DSI
+	tristate "Samsung S6E63M0 RGB DSI interface"
+	depends on DRM_MIPI_DSI
+	depends on DRM_PANEL_SAMSUNG_S6E63M0
+	help
+	  Say Y here if you want to be able to access the Samsung
+	  S6E63M0 panel using DSI.
+
 config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
 	tristate "Samsung AMS452EF01 panel with S6E88A0 DSI video mode controller"
 	depends on OF

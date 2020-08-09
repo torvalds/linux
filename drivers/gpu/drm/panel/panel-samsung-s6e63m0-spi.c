@@ -60,7 +60,7 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 		DRM_DEV_ERROR(dev, "spi setup failed.\n");
 		return ret;
 	}
-	return s6e63m0_probe(dev, s6e63m0_spi_dcs_write);
+	return s6e63m0_probe(dev, s6e63m0_spi_dcs_write, false);
 }
 
 static int s6e63m0_spi_remove(struct spi_device *spi)

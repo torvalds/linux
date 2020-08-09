@@ -400,7 +400,8 @@ static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
 }
 
 int s6e63m0_probe(struct device *dev,
-		  int (*dcs_write)(struct device *dev, const u8 *data, size_t len))
+		  int (*dcs_write)(struct device *dev, const u8 *data, size_t len),
+		  bool dsi_mode)
 {
 	struct s6e63m0 *ctx;
 	int ret;
@@ -432,6 +433,7 @@ int s6e63m0_probe(struct device *dev,
 	}
 
 	drm_panel_init(&ctx->panel, dev, &s6e63m0_drm_funcs,
+		       dsi_mode ? DRM_MODE_CONNECTOR_DSI :
 		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = s6e63m0_backlight_register(ctx);
