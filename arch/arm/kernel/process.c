@@ -281,21 +281,6 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs)
 	return 1;
 }
 
-/*
- * fill in the fpe structure for a core dump...
- */
-int dump_fpu (struct pt_regs *regs, struct user_fp *fp)
-{
-	struct thread_info *thread = current_thread_info();
-	int used_math = thread->used_cp[1] | thread->used_cp[2];
-
-	if (used_math)
-		memcpy(fp, &thread->fpstate.soft, sizeof (*fp));
-
-	return used_math != 0;
-}
-EXPORT_SYMBOL(dump_fpu);
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct stackframe frame;

@@ -93,24 +93,6 @@ void release_thread(struct task_struct *dead_task)
 	/* do nothing */
 }
 
-/* Fill in the fpu structure for a core dump.. */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-	int fpvalid = 0;
-
-#if defined(CONFIG_SH_FPU)
-	struct task_struct *tsk = current;
-
-	fpvalid = !!tsk_used_math(tsk);
-	if (fpvalid)
-		fpvalid = !fpregs_get(tsk, NULL,
-				      (struct membuf){fpu, sizeof(*fpu)});
-#endif
-
-	return fpvalid;
-}
-EXPORT_SYMBOL(dump_fpu);
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
