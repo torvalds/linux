@@ -1,0 +1,17 @@
+* Texas Instruments' TLC4541
+
+Required properties:
+ - compatible: Should be one of
+	* "ti,tlc4541"
+	* "ti,tlc3541"
+	- reg: SPI chip select number for the device
+ - vref-supply: The regulator supply for ADC reference voltage
+ - spi-max-frequency: Max SPI frequency to use (<= 200000)
+
+Example:
+adc@0 {
+	compatible = "ti,tlc4541";
+	reg = <0>;
+	vref-supply = <&vdd_supply>;
+	spi-max-frequency = <200000>;
+};
