@@ -1245,6 +1245,11 @@ int find_and_online_cpu_nid(int cpu)
 	return new_nid;
 }
 
+int cpu_to_coregroup_id(int cpu)
+{
+	return cpu_to_core_id(cpu);
+}
+
 static int topology_update_init(void)
 {
 	topology_inited = 1;
