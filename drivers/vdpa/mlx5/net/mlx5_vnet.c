@@ -137,6 +137,7 @@ struct mlx5_vdpa_net {
 	struct mlx5_fc *rx_counter;
 	struct mlx5_flow_handle *rx_rule;
 	bool setup;
+	u16 mtu;
 };
 
 static void free_resources(struct mlx5_vdpa_net *ndev);
@@ -1506,6 +1507,13 @@ static void teardown_virtqueues(struct mlx5_vdpa_net *ndev)
 	}
 }
 
+/* TODO: cross-endian support */
+static inline bool mlx5_vdpa_is_little_endian(struct mlx5_vdpa_dev *mvdev)
+{
+	return virtio_legacy_is_little_endian() ||
+		(mvdev->actual_features & (1ULL << VIRTIO_F_VERSION_1));
+}
+
 static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
@@ -1519,6 +1527,8 @@ static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 		return err;
 
 	ndev->mvdev.actual_features = features & ndev->mvdev.mlx_features;
+	ndev->config.mtu = __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev),
+					     ndev->mtu);
 	return err;
 }
 
@@ -1925,7 +1935,7 @@ void *mlx5_vdpa_add_dev(struct mlx5_core_dev *mdev)
 	init_mvqs(ndev);
 	mutex_init(&ndev->reslock);
 	config = &ndev->config;
-	err = mlx5_query_nic_vport_mtu(mdev, &config->mtu);
+	err = mlx5_query_nic_vport_mtu(mdev, &ndev->mtu);
 	if (err)
 		goto err_mtu;
 
