@@ -195,10 +195,55 @@ int load_xbc_from_initrd(int fd, char **buf)
 	return size;
 }
 
+static void show_xbc_error(const char *data, const char *msg, int pos)
+{
+	int lin = 1, col, i;
+
+	if (pos < 0) {
+		pr_err("Error: %s.\n", msg);
+		return;
+	}
+
+	/* Note that pos starts from 0 but lin and col should start from 1. */
+	col = pos + 1;
+	for (i = 0; i < pos; i++) {
+		if (data[i] == '\n') {
+			lin++;
+			col = pos - i;
+		}
+	}
+	pr_err("Parse Error: %s at %d:%d\n", msg, lin, col);
+
+}
+
+static int init_xbc_with_error(char *buf, int len)
+{
+	char *copy = strdup(buf);
+	const char *msg;
+	int ret, pos;
+
+	if (!copy)
+		return -ENOMEM;
+
+	ret = xbc_init(buf, &msg, &pos);
+	if (ret < 0)
+		show_xbc_error(copy, msg, pos);
+	free(copy);
+
+	return ret;
+}
+
 int show_xbc(const char *path)
 {
 	int ret, fd;
 	char *buf = NULL;
+	struct stat st;
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		pr_err("Failed to stat %s: %d\n", path, -errno);
+		return -errno;
+	}
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
@@ -207,14 +252,24 @@ int show_xbc(const char *path)
 	}
 
 	ret = load_xbc_from_initrd(fd, &buf);
+	close(fd);
 	if (ret < 0) {
 		pr_err("Failed to load a boot config from initrd: %d\n", ret);
 		goto out;
 	}
+	/* Assume a bootconfig file if it is enough small */
+	if (ret == 0 && st.st_size <= XBC_DATA_MAX) {
+		ret = load_xbc_file(path, &buf);
+		if (ret < 0) {
+			pr_err("Failed to load a boot config: %d\n", ret);
+			goto out;
+		}
+		if (init_xbc_with_error(buf, ret) < 0)
+			goto out;
+	}
 	xbc_show_compact_tree();
 	ret = 0;
 out:
-	close(fd);
 	free(buf);
 
 	return ret;
@@ -249,27 +304,6 @@ int delete_xbc(const char *path)
 	free(buf);
 
 	return ret;
-}
-
-static void show_xbc_error(const char *data, const char *msg, int pos)
-{
-	int lin = 1, col, i;
-
-	if (pos < 0) {
-		pr_err("Error: %s.\n", msg);
-		return;
-	}
-
-	/* Note that pos starts from 0 but lin and col should start from 1. */
-	col = pos + 1;
-	for (i = 0; i < pos; i++) {
-		if (data[i] == '\n') {
-			lin++;
-			col = pos - i;
-		}
-	}
-	pr_err("Parse Error: %s at %d:%d\n", msg, lin, col);
-
 }
 
 int apply_xbc(const char *path, const char *xbc_path)
@@ -352,11 +386,12 @@ out:
 int usage(void)
 {
 	printf("Usage: bootconfig [OPTIONS] <INITRD>\n"
+		"Or     bootconfig <CONFIG>\n"
 		" Apply, delete or show boot config to initrd.\n"
 		" Options:\n"
 		"		-a <config>: Apply boot config to initrd\n"
 		"		-d : Delete boot config file from initrd\n\n"
-		" If no option is given, show current applied boot config.\n");
+		" If no option is given, show the bootconfig in the given file.\n");
 	return -1;
 }
 
