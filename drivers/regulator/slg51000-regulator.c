@@ -386,10 +386,8 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 	for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 		if (!(evt[i][R2] & SLG51000_IRQ_ILIM_FLAG_MASK) &&
 		    (evt[i][R0] & SLG51000_EVT_ILIM_FLAG_MASK)) {
-			regulator_lock(chip->rdev[i]);
 			regulator_notifier_call_chain(chip->rdev[i],
 					    REGULATOR_EVENT_OVER_CURRENT, NULL);
-			regulator_unlock(chip->rdev[i]);
 
 			if (evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK)
 				dev_warn(chip->dev,
@@ -403,10 +401,8 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 		for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 			if (!(evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK) &&
 			    (evt[i][R1] & SLG51000_STA_VOUT_OK_FLAG_MASK)) {
-				regulator_lock(chip->rdev[i]);
 				regulator_notifier_call_chain(chip->rdev[i],
 					       REGULATOR_EVENT_OVER_TEMP, NULL);
-				regulator_unlock(chip->rdev[i]);
 			}
 		}
 		handled = IRQ_HANDLED;
