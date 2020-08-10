@@ -7,6 +7,13 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
+ * V0.0X01.0X04 update a new version
+ *	1.update the new get regulator method
+ *	2.correct initialization sequence
+ *	3.fix the level setting of reset gpio
+ *	4.support raw12bit linear/hdr mode
+ *	5.implement RKMODULE_SET/GET_HDR_CFG
+ * V0.0X01.0X05 group hold launch immediately when set hdr ae.
  */
 
 #include <linux/clk.h>
@@ -35,7 +42,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -8088,7 +8095,7 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ret |= ov2718_write_reg(ov2718->client,
 					OV2718_REG_GROUP_CTL,
 					OV2718_REG_VALUE_08BIT,
-					0x10);
+					0x40);
 
 		/* single start */
 		ret |= ov2718_write_reg(ov2718->client,
