@@ -326,6 +326,7 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
+	struct kvmppc_xics *xics_device;
 	struct kvmppc_xive *xive;    /* Current XIVE device in use */
 	struct {
 		struct kvmppc_xive *native;

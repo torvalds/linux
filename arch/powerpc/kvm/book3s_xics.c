@@ -1334,47 +1334,97 @@ static int xics_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	return -ENXIO;
 }
 
-static void kvmppc_xics_free(struct kvm_device *dev)
+/*
+ * Called when device fd is closed. kvm->lock is held.
+ */
+static void kvmppc_xics_release(struct kvm_device *dev)
 {
 	struct kvmppc_xics *xics = dev->private;
 	int i;
 	struct kvm *kvm = xics->kvm;
+	struct kvm_vcpu *vcpu;
+
+	pr_devel("Releasing xics device\n");
+
+	/*
+	 * Since this is the device release function, we know that
+	 * userspace does not have any open fd referring to the
+	 * device.  Therefore there can not be any of the device
+	 * attribute set/get functions being executed concurrently,
+	 * and similarly, the connect_vcpu and set/clr_mapped
+	 * functions also cannot be being executed.
+	 */
 
 	debugfs_remove(xics->dentry);
+
+	/*
+	 * We should clean up the vCPU interrupt presenters first.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		/*
+		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
+		 * (i.e. kvmppc_xics_[gs]et_icp) can be done concurrently.
+		 * Holding the vcpu->mutex also means that execution is
+		 * excluded for the vcpu until the ICP was freed. When the vcpu
+		 * can execute again, vcpu->arch.icp and vcpu->arch.irq_type
+		 * have been cleared and the vcpu will not be going into the
+		 * XICS code anymore.
+		 */
+		mutex_lock(&vcpu->mutex);
+		kvmppc_xics_free_icp(vcpu);
+		mutex_unlock(&vcpu->mutex);
+	}
 
 	if (kvm)
 		kvm->arch.xics = NULL;
 
-	for (i = 0; i <= xics->max_icsid; i++)
+	for (i = 0; i <= xics->max_icsid; i++) {
 		kfree(xics->ics[i]);
-	kfree(xics);
+		xics->ics[i] = NULL;
+	}
+	/*
+	 * A reference of the kvmppc_xics pointer is now kept under
+	 * the xics_device pointer of the machine for reuse. It is
+	 * freed when the VM is destroyed for now until we fix all the
+	 * execution paths.
+	 */
 	kfree(dev);
+}
+
+static struct kvmppc_xics *kvmppc_xics_get_device(struct kvm *kvm)
+{
+	struct kvmppc_xics **kvm_xics_device = &kvm->arch.xics_device;
+	struct kvmppc_xics *xics = *kvm_xics_device;
+
+	if (!xics) {
+		xics = kzalloc(sizeof(*xics), GFP_KERNEL);
+		*kvm_xics_device = xics;
+	} else {
+		memset(xics, 0, sizeof(*xics));
+	}
+
+	return xics;
 }
 
 static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xics *xics;
 	struct kvm *kvm = dev->kvm;
-	int ret = 0;
 
-	xics = kzalloc(sizeof(*xics), GFP_KERNEL);
+	pr_devel("Creating xics for partition\n");
+
+	/* Already there ? */
+	if (kvm->arch.xics)
+		return -EEXIST;
+
+	xics = kvmppc_xics_get_device(kvm);
 	if (!xics)
 		return -ENOMEM;
 
 	dev->private = xics;
 	xics->dev = dev;
 	xics->kvm = kvm;
-
-	/* Already there ? */
-	if (kvm->arch.xics)
-		ret = -EEXIST;
-	else
-		kvm->arch.xics = xics;
-
-	if (ret) {
-		kfree(xics);
-		return ret;
-	}
+	kvm->arch.xics = xics;
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
@@ -1399,7 +1449,7 @@ struct kvm_device_ops kvm_xics_ops = {
 	.name = "kvm-xics",
 	.create = kvmppc_xics_create,
 	.init = kvmppc_xics_init,
-	.destroy = kvmppc_xics_free,
+	.release = kvmppc_xics_release,
 	.set_attr = xics_set_attr,
 	.get_attr = xics_get_attr,
 	.has_attr = xics_has_attr,
@@ -1415,7 +1465,7 @@ int kvmppc_xics_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
 		return -EPERM;
 	if (xics->kvm != vcpu->kvm)
 		return -EPERM;
-	if (vcpu->arch.irq_type)
+	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
 
 	r = kvmppc_xics_create_icp(vcpu, xcpu);
