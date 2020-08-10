@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
@@ -1254,26 +1255,6 @@ static ssize_t fimc_md_sysfs_store(struct device *dev,
 static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
 		   fimc_md_sysfs_show, fimc_md_sysfs_store);
 
-static int fimc_md_get_pinctrl(struct fimc_md *fmd)
-{
-	struct device *dev = &fmd->pdev->dev;
-	struct fimc_pinctrl *pctl = &fmd->pinctl;
-
-	pctl->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR(pctl->pinctrl))
-		return PTR_ERR(pctl->pinctrl);
-
-	pctl->state_default = pinctrl_lookup_state(pctl->pinctrl,
-					PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(pctl->state_default))
-		return PTR_ERR(pctl->state_default);
-
-	/* PINCTRL_STATE_IDLE is optional */
-	pctl->state_idle = pinctrl_lookup_state(pctl->pinctrl,
-					PINCTRL_STATE_IDLE);
-	return 0;
-}
-
 static int cam_clk_prepare(struct clk_hw *hw)
 {
 	struct cam_clk *camclk = to_cam_clk(hw);
@@ -1429,6 +1410,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
+	struct pinctrl *pinctrl;
 	struct fimc_md *fmd;
 	int ret;
 
@@ -1465,8 +1447,9 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_v4l2dev;
 
-	ret = fimc_md_get_pinctrl(fmd);
-	if (ret < 0) {
+	pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
 		if (ret != EPROBE_DEFER)
 			dev_err(dev, "Failed to get pinctrl: %d\n", ret);
 		goto err_clk;
