@@ -12770,6 +12770,9 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 
 	}
 
+	if (!mode_changed)
+		intel_psr2_sel_fetch_update(state, crtc);
+
 	return 0;
 }
 
@@ -15146,6 +15149,8 @@ static void commit_pipe_config(struct intel_atomic_state *state,
 
 		if (new_crtc_state->update_pipe)
 			intel_pipe_fastset(old_crtc_state, new_crtc_state);
+
+		intel_psr2_program_trans_man_trk_ctl(new_crtc_state);
 	}
 
 	if (dev_priv->display.atomic_update_watermarks)

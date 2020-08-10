@@ -417,6 +417,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 			su_blocks = su_blocks >> PSR2_SU_STATUS_SHIFT(frame);
 			seq_printf(m, "%d\t%d\n", frame, su_blocks);
 		}
+
+		seq_printf(m, "PSR2 selective fetch: %s\n",
+			   enableddisabled(psr->psr2_sel_fetch_enabled));
 	}
 
 unlock:
