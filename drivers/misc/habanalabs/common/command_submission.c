@@ -155,6 +155,18 @@ static void cs_put(struct hl_cs *cs)
 	kref_put(&cs->refcount, cs_do_release);
 }
 
+static void cs_job_do_release(struct kref *ref)
+{
+	struct hl_cs_job *job = container_of(ref, struct hl_cs_job, refcount);
+
+	kfree(job);
+}
+
+static void cs_job_put(struct hl_cs_job *job)
+{
+	kref_put(&job->refcount, cs_job_do_release);
+}
+
 static bool is_cb_patched(struct hl_device *hdev, struct hl_cs_job *job)
 {
 	/*
@@ -227,7 +239,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	return rc;
 }
 
-static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
+static void complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 {
 	struct hl_cs *cs = job->cs;
 
@@ -276,7 +288,7 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 			job->queue_type == QUEUE_TYPE_HW)
 		cs_put(cs);
 
-	kfree(job);
+	cs_job_put(job);
 }
 
 static void cs_do_release(struct kref *ref)
@@ -290,13 +302,13 @@ static void cs_do_release(struct kref *ref)
 	/*
 	 * Although if we reached here it means that all external jobs have
 	 * finished, because each one of them took refcnt to CS, we still
-	 * need to go over the internal jobs and free them. Otherwise, we
+	 * need to go over the internal jobs and complete them. Otherwise, we
 	 * will have leaked memory and what's worse, the CS object (and
 	 * potentially the CTX object) could be released, while the JOB
 	 * still holds a pointer to them (but no reference).
 	 */
 	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
-		free_job(hdev, job);
+		complete_job(hdev, job);
 
 	if (!cs->submitted) {
 		/* In case the wait for signal CS was submitted, the put occurs
@@ -507,7 +519,7 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 	struct hl_cs_job *job, *tmp;
 
 	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
-		free_job(hdev, job);
+		complete_job(hdev, job);
 }
 
 void hl_cs_rollback_all(struct hl_device *hdev)
@@ -539,7 +551,7 @@ static void job_wq_completion(struct work_struct *work)
 	struct hl_device *hdev = cs->ctx->hdev;
 
 	/* job is no longer needed */
-	free_job(hdev, job);
+	complete_job(hdev, job);
 }
 
 static int validate_queue_index(struct hl_device *hdev,
@@ -647,6 +659,7 @@ struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 	if (!job)
 		return NULL;
 
+	kref_init(&job->refcount);
 	job->queue_type = queue_type;
 	job->is_kernel_allocated_cb = is_kernel_allocated_cb;
 

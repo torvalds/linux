@@ -1142,6 +1142,7 @@ struct hl_cs {
  * @userptr_list: linked-list of userptr mappings that belong to this job and
  *			wait for completion.
  * @debugfs_list: node in debugfs list of command submission jobs.
+ * @refcount: reference counter for usage of the CS job.
  * @queue_type: the type of the H/W queue this job is submitted to.
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
@@ -1165,6 +1166,7 @@ struct hl_cs_job {
 	struct work_struct	finish_work;
 	struct list_head	userptr_list;
 	struct list_head	debugfs_list;
+	struct kref		refcount;
 	enum hl_queue_type	queue_type;
 	u32			id;
 	u32			hw_queue_id;

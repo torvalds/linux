@@ -168,18 +168,19 @@ static int command_submission_jobs_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " JOB ID   CS ID    CTX ASID   H/W Queue\n");
-			seq_puts(s, "---------------------------------------\n");
+			seq_puts(s, " JOB ID   CS ID    CTX ASID   JOB RefCnt   H/W Queue\n");
+			seq_puts(s, "----------------------------------------------------\n");
 		}
 		if (job->cs)
 			seq_printf(s,
-				"    %02d       %llu         %d         %d\n",
+				"   %02d      %llu        %d          %d           %d\n",
 				job->id, job->cs->sequence, job->cs->ctx->asid,
-				job->hw_queue_id);
+				kref_read(&job->refcount), job->hw_queue_id);
 		else
 			seq_printf(s,
-				"    %02d       0         %d         %d\n",
-				job->id, HL_KERNEL_ASID_ID, job->hw_queue_id);
+				"   %02d      0        %d          %d           %d\n",
+				job->id, HL_KERNEL_ASID_ID,
+				kref_read(&job->refcount), job->hw_queue_id);
 	}
 
 	spin_unlock(&dev_entry->cs_job_spinlock);
