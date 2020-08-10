@@ -106,6 +106,8 @@ struct atmel_pin {
  * @irq_domain: irq domain for the gpio controller.
  * @irqs: table containing the hw irq number of the bank. The index of the
  *     table is the bank id.
+ * @pm_wakeup_sources: bitmap of wakeup sources (lines)
+ * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
  * @node: node of the Atmel PIO controller.
  */

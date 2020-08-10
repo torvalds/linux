@@ -17,13 +17,13 @@ static int __ida_init(struct kunit_resource *res, void *context)
 	struct ida *ida = context;
 
 	ida_init(ida);
-	res->allocation = ida;
+	res->data = ida;
 	return 0;
 }
 
 static void __ida_destroy(struct kunit_resource *res)
 {
-	struct ida *ida = res->allocation;
+	struct ida *ida = res->data;
 
 	ida_destroy(ida);
 }

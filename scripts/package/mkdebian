@@ -175,7 +175,7 @@ Section: kernel
 Priority: optional
 Maintainer: $maintainer
 Build-Depends: bc, rsync, kmod, cpio, bison, flex | flex:native $extra_build_depends
-Homepage: http://www.kernel.org/
+Homepage: https://www.kernel.org/
 
 Package: $packagename
 Architecture: $debarch

@@ -1250,15 +1250,34 @@ DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 DEFINE_SVCXDRBUF_EVENT(recvfrom);
 DEFINE_SVCXDRBUF_EVENT(sendto);
 
+/*
+ * from include/linux/sunrpc/svc.h
+ */
+#define SVC_RQST_FLAG_LIST						\
+	svc_rqst_flag(SECURE)						\
+	svc_rqst_flag(LOCAL)						\
+	svc_rqst_flag(USEDEFERRAL)					\
+	svc_rqst_flag(DROPME)						\
+	svc_rqst_flag(SPLICE_OK)					\
+	svc_rqst_flag(VICTIM)						\
+	svc_rqst_flag(BUSY)						\
+	svc_rqst_flag(DATA)						\
+	svc_rqst_flag_end(AUTHERR)
+
+#undef svc_rqst_flag
+#undef svc_rqst_flag_end
+#define svc_rqst_flag(x)	TRACE_DEFINE_ENUM(RQ_##x);
+#define svc_rqst_flag_end(x)	TRACE_DEFINE_ENUM(RQ_##x);
+
+SVC_RQST_FLAG_LIST
+
+#undef svc_rqst_flag
+#undef svc_rqst_flag_end
+#define svc_rqst_flag(x)	{ BIT(RQ_##x), #x },
+#define svc_rqst_flag_end(x)	{ BIT(RQ_##x), #x }
+
 #define show_rqstp_flags(flags)						\
-	__print_flags(flags, "|",					\
-		{ (1UL << RQ_SECURE),		"RQ_SECURE"},		\
-		{ (1UL << RQ_LOCAL),		"RQ_LOCAL"},		\
-		{ (1UL << RQ_USEDEFERRAL),	"RQ_USEDEFERRAL"},	\
-		{ (1UL << RQ_DROPME),		"RQ_DROPME"},		\
-		{ (1UL << RQ_SPLICE_OK),	"RQ_SPLICE_OK"},	\
-		{ (1UL << RQ_VICTIM),		"RQ_VICTIM"},		\
-		{ (1UL << RQ_BUSY),		"RQ_BUSY"})
+		__print_flags(flags, "|", SVC_RQST_FLAG_LIST)
 
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int len),

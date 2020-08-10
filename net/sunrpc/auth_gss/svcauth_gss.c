@@ -332,7 +332,7 @@ static struct rsi *rsi_update(struct cache_detail *cd, struct rsi *new, struct r
 
 struct gss_svc_seq_data {
 	/* highest seq number seen so far: */
-	int			sd_max;
+	u32			sd_max;
 	/* for i such that sd_max-GSS_SEQ_WIN < i <= sd_max, the i-th bit of
 	 * sd_win is nonzero iff sequence number i has been seen already: */
 	unsigned long		sd_win[GSS_SEQ_WIN/BITS_PER_LONG];
@@ -613,16 +613,29 @@ gss_svc_searchbyctx(struct cache_detail *cd, struct xdr_netobj *handle)
 	return found;
 }
 
-/* Implements sequence number algorithm as specified in RFC 2203. */
-static int
-gss_check_seq_num(struct rsc *rsci, int seq_num)
+/**
+ * gss_check_seq_num - GSS sequence number window check
+ * @rqstp: RPC Call to use when reporting errors
+ * @rsci: cached GSS context state (updated on return)
+ * @seq_num: sequence number to check
+ *
+ * Implements sequence number algorithm as specified in
+ * RFC 2203, Section 5.3.3.1. "Context Management".
+ *
+ * Return values:
+ *   %true: @rqstp's GSS sequence number is inside the window
+ *   %false: @rqstp's GSS sequence number is outside the window
+ */
+static bool gss_check_seq_num(const struct svc_rqst *rqstp, struct rsc *rsci,
+			      u32 seq_num)
 {
 	struct gss_svc_seq_data *sd = &rsci->seqdata;
+	bool result = false;
 
 	spin_lock(&sd->sd_lock);
 	if (seq_num > sd->sd_max) {
 		if (seq_num >= sd->sd_max + GSS_SEQ_WIN) {
-			memset(sd->sd_win,0,sizeof(sd->sd_win));
+			memset(sd->sd_win, 0, sizeof(sd->sd_win));
 			sd->sd_max = seq_num;
 		} else while (sd->sd_max < seq_num) {
 			sd->sd_max++;
@@ -631,17 +644,25 @@ gss_check_seq_num(struct rsc *rsci, int seq_num)
 		__set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win);
 		goto ok;
 	} else if (seq_num <= sd->sd_max - GSS_SEQ_WIN) {
-		goto drop;
+		goto toolow;
 	}
-	/* sd_max - GSS_SEQ_WIN < seq_num <= sd_max */
 	if (__test_and_set_bit(seq_num % GSS_SEQ_WIN, sd->sd_win))
-		goto drop;
+		goto alreadyseen;
+
 ok:
+	result = true;
+out:
 	spin_unlock(&sd->sd_lock);
-	return 1;
-drop:
-	spin_unlock(&sd->sd_lock);
-	return 0;
+	return result;
+
+toolow:
+	trace_rpcgss_svc_seqno_low(rqstp, seq_num,
+				   sd->sd_max - GSS_SEQ_WIN,
+				   sd->sd_max);
+	goto out;
+alreadyseen:
+	trace_rpcgss_svc_seqno_seen(rqstp, seq_num);
+	goto out;
 }
 
 static inline u32 round_up_to_quad(u32 i)
@@ -721,14 +742,12 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 	}
 
 	if (gc->gc_seq > MAXSEQ) {
-		trace_rpcgss_svc_large_seqno(rqstp->rq_xid, gc->gc_seq);
+		trace_rpcgss_svc_seqno_large(rqstp, gc->gc_seq);
 		*authp = rpcsec_gsserr_ctxproblem;
 		return SVC_DENIED;
 	}
-	if (!gss_check_seq_num(rsci, gc->gc_seq)) {
-		trace_rpcgss_svc_old_seqno(rqstp->rq_xid, gc->gc_seq);
+	if (!gss_check_seq_num(rqstp, rsci, gc->gc_seq))
 		return SVC_DROP;
-	}
 	return SVC_OK;
 }
 
@@ -866,10 +885,12 @@ read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
 static int
 unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 {
+	u32 integ_len, rseqno, maj_stat;
 	int stat = -EINVAL;
-	u32 integ_len, maj_stat;
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
+
+	mic.data = NULL;
 
 	/* NFS READ normally uses splice to send data in-place. However
 	 * the data in cache can change after the reply's MIC is computed
@@ -885,34 +906,44 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
-		return stat;
+		goto unwrap_failed;
 	if (integ_len > buf->len)
-		return stat;
-	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len)) {
-		WARN_ON_ONCE(1);
-		return stat;
-	}
+		goto unwrap_failed;
+	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
+		goto unwrap_failed;
+
 	/* copy out mic... */
 	if (read_u32_from_xdr_buf(buf, integ_len, &mic.len))
-		return stat;
+		goto unwrap_failed;
 	if (mic.len > RPC_MAX_AUTH_SIZE)
-		return stat;
+		goto unwrap_failed;
 	mic.data = kmalloc(mic.len, GFP_KERNEL);
 	if (!mic.data)
-		return stat;
+		goto unwrap_failed;
 	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
-		goto out;
+		goto unwrap_failed;
 	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
 	if (maj_stat != GSS_S_COMPLETE)
-		goto out;
-	if (svc_getnl(&buf->head[0]) != seq)
-		goto out;
+		goto bad_mic;
+	rseqno = svc_getnl(&buf->head[0]);
+	if (rseqno != seq)
+		goto bad_seqno;
 	/* trim off the mic and padding at the end before returning */
 	xdr_buf_trim(buf, round_up_to_quad(mic.len) + 4);
 	stat = 0;
 out:
 	kfree(mic.data);
 	return stat;
+
+unwrap_failed:
+	trace_rpcgss_svc_unwrap_failed(rqstp);
+	goto out;
+bad_seqno:
+	trace_rpcgss_svc_seqno_bad(rqstp, seq, rseqno);
+	goto out;
+bad_mic:
+	trace_rpcgss_svc_mic(rqstp, maj_stat);
+	goto out;
 }
 
 static inline int
@@ -937,6 +968,7 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 {
 	u32 priv_len, maj_stat;
 	int pad, remaining_len, offset;
+	u32 rseqno;
 
 	clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
@@ -951,14 +983,13 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 	 * not yet read from the head, so these two values are different: */
 	remaining_len = total_buf_len(buf);
 	if (priv_len > remaining_len)
-		return -EINVAL;
+		goto unwrap_failed;
 	pad = remaining_len - priv_len;
 	buf->len -= pad;
 	fix_priv_head(buf, pad);
 
 	maj_stat = gss_unwrap(ctx, 0, priv_len, buf);
 	pad = priv_len - buf->len;
-	buf->len -= pad;
 	/* The upper layers assume the buffer is aligned on 4-byte boundaries.
 	 * In the krb5p case, at least, the data ends up offset, so we need to
 	 * move it around. */
@@ -972,11 +1003,22 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 		fix_priv_head(buf, pad);
 	}
 	if (maj_stat != GSS_S_COMPLETE)
-		return -EINVAL;
+		goto bad_unwrap;
 out_seq:
-	if (svc_getnl(&buf->head[0]) != seq)
-		return -EINVAL;
+	rseqno = svc_getnl(&buf->head[0]);
+	if (rseqno != seq)
+		goto bad_seqno;
 	return 0;
+
+unwrap_failed:
+	trace_rpcgss_svc_unwrap_failed(rqstp);
+	return -EINVAL;
+bad_seqno:
+	trace_rpcgss_svc_seqno_bad(rqstp, seq, rseqno);
+	return -EINVAL;
+bad_unwrap:
+	trace_rpcgss_svc_unwrap(rqstp, maj_stat);
+	return -EINVAL;
 }
 
 struct gss_svc_data {
@@ -1314,8 +1356,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	trace_rpcgss_svc_accept_upcall(rqstp->rq_xid, ud.major_status,
-				       ud.minor_status);
+	trace_rpcgss_svc_accept_upcall(rqstp, ud.major_status, ud.minor_status);
 
 	switch (ud.major_status) {
 	case GSS_S_CONTINUE_NEEDED:
@@ -1490,8 +1531,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	int		ret;
 	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
-	trace_rpcgss_svc_accept(rqstp->rq_xid, argv->iov_len);
-
 	*authp = rpc_autherr_badcred;
 	if (!svcdata)
 		svcdata = kmalloc(sizeof(*svcdata), GFP_KERNEL);
@@ -1608,6 +1647,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 					GSS_C_QOP_DEFAULT,
 					gc->gc_svc);
 		ret = SVC_OK;
+		trace_rpcgss_svc_authenticate(rqstp, gc);
 		goto out;
 	}
 garbage_args:

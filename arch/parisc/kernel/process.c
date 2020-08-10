@@ -152,25 +152,6 @@ void release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Fill in the FPU structure for a core dump.
- */
-
-int dump_fpu (struct pt_regs * regs, elf_fpregset_t *r)
-{
-	if (regs == NULL)
-		return 0;
-
-	memcpy(r, regs->fr, sizeof *r);
-	return 1;
-}
-
-int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
-{
-	memcpy(r, tsk->thread.regs.fr, sizeof(*r));
-	return 1;
-}
-
-/*
  * Idle thread support
  *
  * Detect when running on QEMU with SeaBIOS PDC Firmware and let

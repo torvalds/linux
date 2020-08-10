@@ -65,7 +65,7 @@ static int gpio_banks;
 #define DEBOUNCE_VAL_SHIFT	17
 #define DEBOUNCE_VAL	(0x3fff << DEBOUNCE_VAL_SHIFT)
 
-/**
+/*
  * These defines will translated the dt binding settings to our internal
  * settings. They are not necessarily the same value as the register setting.
  * The actual drive strength current of low, medium and high must be looked up
@@ -161,6 +161,10 @@ struct at91_pin_group {
  * @set_pulldown: enable/disable pulldown
  * @get_schmitt_trig: get schmitt trigger status
  * @disable_schmitt_trig: disable schmitt trigger
+ * @get_drivestrength: get driver strength
+ * @set_drivestrength: set driver strength
+ * @get_slewrate: get slew rate
+ * @set_slewrate: set slew rate
  * @irq_type: return irq type
  */
 struct at91_pinctrl_mux_ops {
