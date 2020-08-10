@@ -749,14 +749,6 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int val = 0;
 	unsigned int mclk_rate, bclk_rate, div_bclk, div_lrck;
 
-	if (i2s_tdm->mclk_calibrate)
-		rockchip_i2s_tdm_calibrate_mclk(i2s_tdm, substream,
-						params_rate(params));
-
-	ret = rockchip_i2s_tdm_set_mclk(i2s_tdm, substream, &mclk);
-	if (ret)
-		return ret;
-
 	if (i2s_tdm->clk_trcm) {
 		spin_lock(&i2s_tdm->lock);
 		if (atomic_read(&i2s_tdm->refcount))
@@ -764,6 +756,14 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (i2s_tdm->is_master_mode) {
+		if (i2s_tdm->mclk_calibrate)
+			rockchip_i2s_tdm_calibrate_mclk(i2s_tdm, substream,
+							params_rate(params));
+
+		ret = rockchip_i2s_tdm_set_mclk(i2s_tdm, substream, &mclk);
+		if (ret)
+			goto err;
+
 		mclk_rate = clk_get_rate(mclk);
 		bclk_rate = i2s_tdm->bclk_fs * params_rate(params);
 		if (!bclk_rate) {
