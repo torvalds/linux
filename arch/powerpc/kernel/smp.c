@@ -861,6 +861,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 					GFP_KERNEL, cpu_to_node(cpu));
 		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
 					GFP_KERNEL, cpu_to_node(cpu));
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 		/*
 		 * numa_node_id() works after this.
 		 */
@@ -869,6 +870,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			set_cpu_numa_mem(cpu,
 				local_memory_node(numa_cpu_lookup_table[cpu]));
 		}
+#endif
 	}
 
 	/* Init the cpumasks so the boot CPU is related to itself */
