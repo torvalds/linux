@@ -1049,6 +1049,81 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 	return ret;
 }
 
+/* function: Trigger virtual HPD redetection on connector
+ *
+ * This function will perform link rediscovery, link disable
+ * and enable, and dm connector state update.
+ *
+ * Retrigger HPD on an existing connector by echoing 1 into
+ * its respectful "trigger_hotplug" debugfs entry:
+ *
+ *	echo 1 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
+ *
+ */
+static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
+							size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
+	enum dc_connection_type new_connection_type = dc_connection_none;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (!aconnector || !aconnector->dc_link)
+		return -EINVAL;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+						(long *)param, buf,
+						max_param_num,
+						&param_nums))
+		return -EINVAL;
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param[0] == 1) {
+		mutex_lock(&aconnector->hpd_lock);
+
+		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type) &&
+			new_connection_type != dc_connection_none)
+			goto unlock;
+
+		if (!dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD))
+			goto unlock;
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
+
+unlock:
+		mutex_unlock(&aconnector->hpd_lock);
+	}
+
+	kfree(wr_buf);
+	return size;
+}
+
 /* function: read DSC status on the connector
  *
  * The read function: dp_dsc_clock_en_read
@@ -1964,6 +2039,12 @@ static const struct file_operations dp_dsc_chunk_size_debugfs_fops = {
 static const struct file_operations dp_dsc_slice_bpg_offset_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_dsc_slice_bpg_offset_read,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_trigger_hotplug_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_trigger_hotplug,
 	.llseek = default_llseek
 };
 
