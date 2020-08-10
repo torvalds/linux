@@ -14,18 +14,19 @@
 #include <linux/kernel.h>
 #include <linux/bootconfig.h>
 
-static int xbc_show_value(struct xbc_node *node)
+static int xbc_show_value(struct xbc_node *node, bool semicolon)
 {
-	const char *val;
+	const char *val, *eol;
 	char q;
 	int i = 0;
 
+	eol = semicolon ? ";\n" : "\n";
 	xbc_array_for_each_value(node, val) {
 		if (strchr(val, '"'))
 			q = '\'';
 		else
 			q = '"';
-		printf("%c%s%c%s", q, val, q, node->next ? ", " : ";\n");
+		printf("%c%s%c%s", q, val, q, node->next ? ", " : eol);
 		i++;
 	}
 	return i;
@@ -53,7 +54,7 @@ static void xbc_show_compact_tree(void)
 			continue;
 		} else if (cnode && xbc_node_is_value(cnode)) {
 			printf("%s = ", xbc_node_get_data(node));
-			xbc_show_value(cnode);
+			xbc_show_value(cnode, true);
 		} else {
 			printf("%s;\n", xbc_node_get_data(node));
 		}
@@ -74,6 +75,26 @@ static void xbc_show_compact_tree(void)
 			printf("}\n");
 		}
 		node = xbc_node_get_next(node);
+	}
+}
+
+static void xbc_show_list(void)
+{
+	char key[XBC_KEYLEN_MAX];
+	struct xbc_node *leaf;
+	const char *val;
+	int ret = 0;
+
+	xbc_for_each_key_value(leaf, val) {
+		ret = xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX);
+		if (ret < 0)
+			break;
+		printf("%s = ", key);
+		if (!val || val[0] == '\0') {
+			printf("\"\"\n");
+			continue;
+		}
+		xbc_show_value(xbc_node_get_child(leaf), false);
 	}
 }
 
@@ -233,7 +254,7 @@ static int init_xbc_with_error(char *buf, int len)
 	return ret;
 }
 
-int show_xbc(const char *path)
+int show_xbc(const char *path, bool list)
 {
 	int ret, fd;
 	char *buf = NULL;
@@ -267,7 +288,10 @@ int show_xbc(const char *path)
 		if (init_xbc_with_error(buf, ret) < 0)
 			goto out;
 	}
-	xbc_show_compact_tree();
+	if (list)
+		xbc_show_list();
+	else
+		xbc_show_compact_tree();
 	ret = 0;
 out:
 	free(buf);
@@ -390,7 +414,8 @@ int usage(void)
 		" Apply, delete or show boot config to initrd.\n"
 		" Options:\n"
 		"		-a <config>: Apply boot config to initrd\n"
-		"		-d : Delete boot config file from initrd\n\n"
+		"		-d : Delete boot config file from initrd\n"
+		"		-l : list boot config in initrd or file\n\n"
 		" If no option is given, show the bootconfig in the given file.\n");
 	return -1;
 }
@@ -399,10 +424,10 @@ int main(int argc, char **argv)
 {
 	char *path = NULL;
 	char *apply = NULL;
-	bool delete = false;
+	bool delete = false, list = false;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "hda:")) != -1) {
+	while ((opt = getopt(argc, argv, "hda:l")) != -1) {
 		switch (opt) {
 		case 'd':
 			delete = true;
@@ -410,14 +435,17 @@ int main(int argc, char **argv)
 		case 'a':
 			apply = optarg;
 			break;
+		case 'l':
+			list = true;
+			break;
 		case 'h':
 		default:
 			return usage();
 		}
 	}
 
-	if (apply && delete) {
-		pr_err("Error: You can not specify both -a and -d at once.\n");
+	if ((apply && delete) || (delete && list) || (apply && list)) {
+		pr_err("Error: You can give one of -a, -d or -l at once.\n");
 		return usage();
 	}
 
@@ -433,5 +461,5 @@ int main(int argc, char **argv)
 	else if (delete)
 		return delete_xbc(path);
 
-	return show_xbc(path);
+	return show_xbc(path, list);
 }
