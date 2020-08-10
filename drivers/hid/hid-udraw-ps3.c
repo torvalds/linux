@@ -16,7 +16,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * Protocol information from:
- * http://brandonw.net/udraw/
+ * https://brandonw.net/udraw/
  * and the source code of:
  * https://vvvv.org/contribution/udraw-hid
  */

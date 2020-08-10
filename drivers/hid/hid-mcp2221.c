@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020, Rishi Gupta <gupt21@gmail.com>
  *
- * Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/20005565B.pdf
+ * Datasheet: https://ww1.microchip.com/downloads/en/DeviceDoc/20005565B.pdf
  */
 
 #include <linux/module.h>
