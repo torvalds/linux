@@ -1108,10 +1108,16 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-static void io_req_clean_work(struct io_kiocb *req)
+/*
+ * Returns true if we need to defer file table putting. This can only happen
+ * from the error path with REQ_F_COMP_LOCKED set.
+ */
+static bool io_req_clean_work(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_WORK_INITIALIZED))
-		return;
+		return false;
+
+	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
 	if (req->work.mm) {
 		mmdrop(req->work.mm);
@@ -1124,6 +1130,9 @@ static void io_req_clean_work(struct io_kiocb *req)
 	if (req->work.fs) {
 		struct fs_struct *fs = req->work.fs;
 
+		if (req->flags & REQ_F_COMP_LOCKED)
+			return true;
+
 		spin_lock(&req->work.fs->lock);
 		if (--fs->users)
 			fs = NULL;
@@ -1132,7 +1141,8 @@ static void io_req_clean_work(struct io_kiocb *req)
 			free_fs_struct(fs);
 		req->work.fs = NULL;
 	}
-	req->flags &= ~REQ_F_WORK_INITIALIZED;
+
+	return false;
 }
 
 static void io_prep_async_work(struct io_kiocb *req)
@@ -1544,7 +1554,7 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 		fput(file);
 }
 
-static void io_dismantle_req(struct io_kiocb *req)
+static bool io_dismantle_req(struct io_kiocb *req)
 {
 	io_clean_op(req);
 
@@ -1552,7 +1562,6 @@ static void io_dismantle_req(struct io_kiocb *req)
 		kfree(req->io);
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
-	io_req_clean_work(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -1564,20 +1573,53 @@ static void io_dismantle_req(struct io_kiocb *req)
 			wake_up(&ctx->inflight_wait);
 		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	}
+
+	return io_req_clean_work(req);
 }
 
-static void __io_free_req(struct io_kiocb *req)
+static void __io_free_req_finish(struct io_kiocb *req)
 {
-	struct io_ring_ctx *ctx;
+	struct io_ring_ctx *ctx = req->ctx;
 
-	io_dismantle_req(req);
 	__io_put_req_task(req);
-	ctx = req->ctx;
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
 	else
 		clear_bit_unlock(0, (unsigned long *) &ctx->fallback_req);
 	percpu_ref_put(&ctx->refs);
+}
+
+static void io_req_task_file_table_put(struct callback_head *cb)
+{
+	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+	struct fs_struct *fs = req->work.fs;
+
+	spin_lock(&req->work.fs->lock);
+	if (--fs->users)
+		fs = NULL;
+	spin_unlock(&req->work.fs->lock);
+	if (fs)
+		free_fs_struct(fs);
+	req->work.fs = NULL;
+	__io_free_req_finish(req);
+}
+
+static void __io_free_req(struct io_kiocb *req)
+{
+	if (!io_dismantle_req(req)) {
+		__io_free_req_finish(req);
+	} else {
+		int ret;
+
+		init_task_work(&req->task_work, io_req_task_file_table_put);
+		ret = task_work_add(req->task, &req->task_work, TWA_RESUME);
+		if (unlikely(ret)) {
+			struct task_struct *tsk;
+
+			tsk = io_wq_get_task(req->ctx->io_wq);
+			task_work_add(tsk, &req->task_work, 0);
+		}
+	}
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
@@ -1868,7 +1910,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 		req->flags &= ~REQ_F_TASK_PINNED;
 	}
 
-	io_dismantle_req(req);
+	WARN_ON_ONCE(io_dismantle_req(req));
 	rb->reqs[rb->to_free++] = req;
 	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
 		__io_req_free_batch_flush(req->ctx, rb);
