@@ -2465,8 +2465,7 @@ cleanup:
  * ext4_generic_delete_entry deletes a directory entry by merging it
  * with the previous entry
  */
-int ext4_generic_delete_entry(handle_t *handle,
-			      struct inode *dir,
+int ext4_generic_delete_entry(struct inode *dir,
 			      struct ext4_dir_entry_2 *de_del,
 			      struct buffer_head *bh,
 			      void *entry_buf,
@@ -2527,8 +2526,7 @@ static int ext4_delete_entry(handle_t *handle,
 	if (unlikely(err))
 		goto out;
 
-	err = ext4_generic_delete_entry(handle, dir, de_del,
-					bh, bh->b_data,
+	err = ext4_generic_delete_entry(dir, de_del, bh, bh->b_data,
 					dir->i_sb->s_blocksize, csum_size);
 	if (err)
 		goto out;
