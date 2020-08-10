@@ -19,6 +19,7 @@ if NET_VENDOR_SOLARFLARE
 config SFC
 	tristate "Solarflare SFC9000/SFC9100/EF100-family support"
 	depends on PCI
+	depends on X86_64 || ARM64
 	select MDIO
 	select CRC32
 	imply PTP_1588_CLOCK
