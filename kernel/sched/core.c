@@ -3251,6 +3251,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	 * Make sure we do not leak PI boosting priority to the child.
 	 */
 	p->prio = current->normal_prio;
+	trace_android_rvh_prepare_prio_fork(p);
 
 	uclamp_fork(p);
 
@@ -3283,6 +3284,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 		p->sched_class = &fair_sched_class;
 
 	init_entity_runnable_average(&p->se);
+	trace_android_rvh_finish_prio_fork(p);
 
 	/*
 	 * The child is not yet in the pid-hash so no cgroup attach races,
@@ -4851,6 +4853,7 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	struct rq_flags rf;
 	struct rq *rq;
 
+	trace_android_rvh_rtmutex_prepare_setprio(p, pi_task);
 	/* XXX used to be waiter->prio, not waiter->task->prio */
 	prio = __rt_effective_prio(pi_task, p->normal_prio);
 
@@ -4982,6 +4985,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	 */
 	rq = task_rq_lock(p, &rf);
 	update_rq_clock(rq);
+	trace_android_rvh_set_user_nice(p, &nice);
 
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
@@ -5204,6 +5208,8 @@ static void __setscheduler(struct rq *rq, struct task_struct *p,
 		p->sched_class = &rt_sched_class;
 	else
 		p->sched_class = &fair_sched_class;
+
+	trace_android_rvh_setscheduler(p);
 }
 
 /*

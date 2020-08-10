@@ -45,6 +45,26 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_lowest_rq,
 	TP_PROTO(struct task_struct *p, struct cpumask *local_cpu_mask,
 			int *lowest_cpu),
 	TP_ARGS(p, local_cpu_mask, lowest_cpu), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_prepare_prio_fork,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_finish_prio_fork,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_rtmutex_prepare_setprio,
+	TP_PROTO(struct task_struct *p, struct task_struct *pi_task),
+	TP_ARGS(p, pi_task), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice,
+	TP_PROTO(struct task_struct *p, long *nice),
+	TP_ARGS(p, nice), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_setscheduler,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -54,6 +74,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_lowest_rq,
 #define trace_android_rvh_dequeue_task(rq, p)
 #define trace_android_rvh_can_migrate_task(p, dst_cpu, can_migrate)
 #define trace_android_rvh_find_lowest_rq(p, local_cpu_mask, lowest_cpu)
+#define trace_android_rvh_prepare_prio_fork(p)
+#define trace_android_rvh_finish_prio_fork(p)
+#define trace_android_rvh_rtmutex_prepare_setprio(p, pi_task)
+#define trace_android_rvh_set_user_nice(p, nice)
+#define trace_android_rvh_setscheduler(p)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
