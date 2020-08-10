@@ -639,7 +639,7 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	vmw_thp_fini(dev_priv);
 #else
-	ttm_bo_man_fini(&dev_priv->bdev, TTM_PL_VRAM);
+	ttm_range_man_fini(&dev_priv->bdev, TTM_PL_VRAM);
 #endif
 }
 
