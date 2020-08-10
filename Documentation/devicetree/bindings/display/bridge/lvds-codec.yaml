@@ -79,6 +79,9 @@ properties:
       The GPIO used to control the power down line of this device.
     maxItems: 1
 
+  power-supply:
+    maxItems: 1
+
 required:
   - compatible
   - ports
