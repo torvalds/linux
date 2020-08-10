@@ -319,7 +319,7 @@ const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 	if (cstr.len + sizeof(*sd) - 1 > max_size)
 		return ERR_PTR(-EUCLEAN);
 
-	err = fscrypt_fname_alloc_buffer(inode, cstr.len, &pstr);
+	err = fscrypt_fname_alloc_buffer(cstr.len, &pstr);
 	if (err)
 		return ERR_PTR(err);
 
