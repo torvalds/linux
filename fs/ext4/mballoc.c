@@ -2558,7 +2558,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	for (i = 0; i <= 13; i++)
 		seq_printf(seq, " %-5u", i <= blocksize_bits + 1 ?
 				sg.info.bb_counters[i] : 0);
-	seq_printf(seq, " ]\n");
+	seq_puts(seq, " ]\n");
 
 	return 0;
 }
