@@ -3683,6 +3683,20 @@ int has_config_tdp(unsigned int family, unsigned int model)
 }
 
 static void
+remove_underbar(char *s)
+{
+	char *to = s;
+
+	while (*s) {
+		if (*s != '_')
+			*to++ = *s;
+		s++;
+	}
+
+	*to = 0;
+}
+
+static void
 dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
 {
 	if (!do_nhm_platform_info)
@@ -3763,6 +3777,8 @@ dump_sysfs_cstate_config(void)
 			sp = strchrnul(name_buf, '\n');
 		*sp = '\0';
 		fclose(input);
+
+		remove_underbar(name_buf);
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/desc",
 			base_cpu, state);
@@ -5830,6 +5846,8 @@ void probe_sysfs(void)
 		*sp = '%';
 		*(sp + 1) = '\0';
 
+		remove_underbar(name_buf);
+
 		fclose(input);
 
 		sprintf(path, "cpuidle/state%d/time", state);
@@ -5856,6 +5874,8 @@ void probe_sysfs(void)
 			sp = strchrnul(name_buf, '\n');
 		*sp = '\0';
 		fclose(input);
+
+		remove_underbar(name_buf);
 
 		sprintf(path, "cpuidle/state%d/usage", state);
 
