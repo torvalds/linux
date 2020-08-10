@@ -16,6 +16,12 @@ void prandom_bytes(void *buf, size_t nbytes);
 void prandom_seed(u32 seed);
 void prandom_reseed_late(void);
 
+DECLARE_PER_CPU(unsigned long, net_rand_noise);
+
+#define PRANDOM_ADD_NOISE(a, b, c, d) \
+	prandom_u32_add_noise((unsigned long)(a), (unsigned long)(b), \
+			      (unsigned long)(c), (unsigned long)(d))
+
 #if BITS_PER_LONG == 64
 /*
  * The core SipHash round function.  Each line can be executed in
@@ -49,6 +55,18 @@ void prandom_reseed_late(void);
 #else
 #error Unsupported BITS_PER_LONG
 #endif
+
+static inline void prandom_u32_add_noise(unsigned long a, unsigned long b,
+					 unsigned long c, unsigned long d)
+{
+	/*
+	 * This is not used cryptographically; it's just
+	 * a convenient 4-word hash function. (3 xor, 2 add, 2 rol)
+	 */
+	a ^= raw_cpu_read(net_rand_noise);
+	PRND_SIPROUND(a, b, c, d);
+	raw_cpu_write(net_rand_noise, d);
+}
 
 struct rnd_state {
 	__u32 s1, s2, s3, s4;
@@ -99,6 +117,7 @@ static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 	state->s2 = __seed(i,   8U);
 	state->s3 = __seed(i,  16U);
 	state->s4 = __seed(i, 128U);
+	PRANDOM_ADD_NOISE(state, i, 0, 0);
 }
 
 /* Pseudo random number generator from numerical recipes. */
