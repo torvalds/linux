@@ -553,13 +553,21 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_FAST_WAKE(7);
 	}
 
-	if (dev_priv->psr.psr2_sel_fetch_enabled)
+	if (dev_priv->psr.psr2_sel_fetch_enabled) {
+		/* WA 1408330847 */
+		if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+		    IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0))
+			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
+				     DIS_RAM_BYPASS_PSR2_MAN_TRACK);
+
 		intel_de_write(dev_priv,
 			       PSR2_MAN_TRK_CTL(dev_priv->psr.transcoder),
 			       PSR2_MAN_TRK_CTL_ENABLE);
-	else if (HAS_PSR2_SEL_FETCH(dev_priv))
+	} else if (HAS_PSR2_SEL_FETCH(dev_priv)) {
 		intel_de_write(dev_priv,
 			       PSR2_MAN_TRK_CTL(dev_priv->psr.transcoder), 0);
+	}
 
 	/*
 	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
@@ -1098,6 +1106,13 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	if (intel_de_wait_for_clear(dev_priv, psr_status,
 				    psr_status_mask, 2000))
 		drm_err(&dev_priv->drm, "Timed out waiting PSR idle state\n");
+
+	/* WA 1408330847 */
+	if (dev_priv->psr.psr2_sel_fetch_enabled &&
+	    (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
