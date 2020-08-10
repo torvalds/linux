@@ -1160,14 +1160,13 @@ static void close_fs_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct btrfs_device *device, *tmp;
 
+	lockdep_assert_held(&uuid_mutex);
+
 	if (--fs_devices->opened > 0)
 		return;
 
-	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry_safe(device, tmp, &fs_devices->devices, dev_list) {
+	list_for_each_entry_safe(device, tmp, &fs_devices->devices, dev_list)
 		btrfs_close_one_device(device);
-	}
-	mutex_unlock(&fs_devices->device_list_mutex);
 
 	WARN_ON(fs_devices->open_devices);
 	WARN_ON(fs_devices->rw_devices);
@@ -1185,13 +1184,13 @@ void btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 	close_fs_devices(fs_devices);
 	if (!fs_devices->opened)
 		list_splice_init(&fs_devices->seed_list, &list);
-	mutex_unlock(&uuid_mutex);
 
 	list_for_each_entry_safe(fs_devices, tmp, &list, seed_list) {
 		close_fs_devices(fs_devices);
 		list_del(&fs_devices->seed_list);
 		free_fs_devices(fs_devices);
 	}
+	mutex_unlock(&uuid_mutex);
 }
 
 static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
