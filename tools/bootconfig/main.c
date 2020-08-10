@@ -99,7 +99,7 @@ static void xbc_show_list(void)
 }
 
 /* Simple real checksum */
-int checksum(unsigned char *buf, int len)
+static int checksum(unsigned char *buf, int len)
 {
 	int i, sum = 0;
 
@@ -111,7 +111,7 @@ int checksum(unsigned char *buf, int len)
 
 #define PAGE_SIZE	4096
 
-int load_xbc_fd(int fd, char **buf, int size)
+static int load_xbc_fd(int fd, char **buf, int size)
 {
 	int ret;
 
@@ -128,7 +128,7 @@ int load_xbc_fd(int fd, char **buf, int size)
 }
 
 /* Return the read size or -errno */
-int load_xbc_file(const char *path, char **buf)
+static int load_xbc_file(const char *path, char **buf)
 {
 	struct stat stat;
 	int fd, ret;
@@ -147,7 +147,7 @@ int load_xbc_file(const char *path, char **buf)
 	return ret;
 }
 
-int load_xbc_from_initrd(int fd, char **buf)
+static int load_xbc_from_initrd(int fd, char **buf)
 {
 	struct stat stat;
 	int ret;
@@ -254,7 +254,7 @@ static int init_xbc_with_error(char *buf, int len)
 	return ret;
 }
 
-int show_xbc(const char *path, bool list)
+static int show_xbc(const char *path, bool list)
 {
 	int ret, fd;
 	char *buf = NULL;
@@ -299,7 +299,7 @@ out:
 	return ret;
 }
 
-int delete_xbc(const char *path)
+static int delete_xbc(const char *path)
 {
 	struct stat stat;
 	int ret = 0, fd, size;
@@ -330,7 +330,7 @@ int delete_xbc(const char *path)
 	return ret;
 }
 
-int apply_xbc(const char *path, const char *xbc_path)
+static int apply_xbc(const char *path, const char *xbc_path)
 {
 	u32 size, csum;
 	char *buf, *data;
@@ -407,7 +407,7 @@ out:
 	return ret;
 }
 
-int usage(void)
+static int usage(void)
 {
 	printf("Usage: bootconfig [OPTIONS] <INITRD>\n"
 		"Or     bootconfig <CONFIG>\n"
