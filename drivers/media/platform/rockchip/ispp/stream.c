@@ -1171,7 +1171,12 @@ static int limit_check_scl(struct rkispp_stream *stream,
 		return ret;
 
 	if (stream->id == STREAM_S0) {
-		max_width = 3264;
+		u32 fmt = stream->out_cap_fmt.wr_fmt;
+
+		if (*h == sdev->out_fmt.height || (fmt & FMT_YUV422))
+			max_width = 3264;
+		else
+			max_width = 2080;
 		min_ratio = 1;
 	}
 
