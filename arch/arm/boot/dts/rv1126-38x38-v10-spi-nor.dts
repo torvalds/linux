@@ -18,6 +18,16 @@
 	/delete-node/ vdd-npu;
 	/delete-node/ vdd-vepu;
 
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwmi_ir {
+			label = "PWM-IR";
+			pwms = <&pwm3 0 25000 0>;
+			max-brightness = <255>;
+		};
+	};
+
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -101,7 +111,6 @@
 		compatible = "rockchip,ircut";
 		ircut-open-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
 		ircut-close-gpios  = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-		led-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
@@ -265,6 +274,12 @@
 	vccio5-supply = <&vcc3v3_sys>;
 	vccio6-supply = <&vcc3v3_sys>;
 	vccio7-supply = <&vcc3v3_sys>;
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3m0_pins_pull_down>;
 };
 
 &rkisp {
