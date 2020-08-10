@@ -456,8 +456,10 @@ static int qti_flash_led_disable(struct flash_node_data *fnode)
 	struct qti_flash_led *led = fnode->led;
 	int rc;
 
-	if (!fnode->configured)
-		return -EINVAL;
+	if (!fnode->configured) {
+		pr_debug("%s is not configured\n", fnode->fdev.led_cdev.name);
+		return 0;
+	}
 
 	spin_lock(&led->lock);
 	if ((fnode->strobe_sel == HW_STROBE) &&
