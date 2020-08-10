@@ -266,12 +266,6 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
 	kcsan_nestable_atomic_end();
 }
 
-static inline void __write_seqcount_begin_nested(seqcount_t *s, int subclass)
-{
-	raw_write_seqcount_begin(s);
-	seqcount_acquire(&s->dep_map, subclass, 0, _RET_IP_);
-}
-
 /**
  * write_seqcount_begin_nested() - start a seqcount_t write section with
  *                                 custom lockdep nesting level
@@ -282,19 +276,8 @@ static inline void __write_seqcount_begin_nested(seqcount_t *s, int subclass)
  */
 static inline void write_seqcount_begin_nested(seqcount_t *s, int subclass)
 {
-	lockdep_assert_preemption_disabled();
-	__write_seqcount_begin_nested(s, subclass);
-}
-
-/*
- * A write_seqcount_begin() variant w/o lockdep non-preemptibility checks.
- *
- * Use for internal seqlock.h code where it's known that preemption is
- * already disabled. For example, seqlock_t write side functions.
- */
-static inline void __write_seqcount_begin(seqcount_t *s)
-{
-	__write_seqcount_begin_nested(s, 0);
+	raw_write_seqcount_begin(s);
+	seqcount_acquire(&s->dep_map, subclass, 0, _RET_IP_);
 }
 
 /**
@@ -592,7 +575,7 @@ static inline unsigned read_seqretry(const seqlock_t *sl, unsigned start)
 static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
-	__write_seqcount_begin(&sl->seqcount);
+	write_seqcount_begin(&sl->seqcount);
 }
 
 /**
@@ -618,7 +601,7 @@ static inline void write_sequnlock(seqlock_t *sl)
 static inline void write_seqlock_bh(seqlock_t *sl)
 {
 	spin_lock_bh(&sl->lock);
-	__write_seqcount_begin(&sl->seqcount);
+	write_seqcount_begin(&sl->seqcount);
 }
 
 /**
@@ -645,7 +628,7 @@ static inline void write_sequnlock_bh(seqlock_t *sl)
 static inline void write_seqlock_irq(seqlock_t *sl)
 {
 	spin_lock_irq(&sl->lock);
-	__write_seqcount_begin(&sl->seqcount);
+	write_seqcount_begin(&sl->seqcount);
 }
 
 /**
@@ -666,7 +649,7 @@ static inline unsigned long __write_seqlock_irqsave(seqlock_t *sl)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sl->lock, flags);
-	__write_seqcount_begin(&sl->seqcount);
+	write_seqcount_begin(&sl->seqcount);
 	return flags;
 }
 
