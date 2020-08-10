@@ -3,8 +3,9 @@
 
 usage() {
 	echo "Ftrace boottime trace test tool"
-	echo "Usage: $0 [--apply] [--debug] BOOTCONFIG-FILE"
+	echo "Usage: $0 [--apply|--init] [--debug] BOOTCONFIG-FILE"
 	echo "    --apply: Test actual apply to tracefs (need sudo)"
+	echo "    --init:  Initialize ftrace before applying (imply --apply)"
 	exit 1
 }
 
@@ -13,12 +14,16 @@ usage() {
 BCONF=
 DEBUG=
 APPLY=
+INIT=
 while [ x"$1" != x ]; do
 	case "$1" in
 	"--debug")
 		DEBUG=$1;;
 	"--apply")
 		APPLY=$1;;
+	"--init")
+		APPLY=$1
+		INIT=$1;;
 	*)
 		[ ! -f $1 ] && usage
 		BCONF=$1;;
@@ -55,6 +60,11 @@ if [ -z "$TRACEFS" ]; then
 		echo "Error: ftrace is not enabled on this kernel." 1>&2
 		exit 1
 	fi
+fi
+
+if [ x"$INIT" != x ]; then
+	. `dirname $0`/ftrace.sh
+	(cd $TRACEFS; initialize_ftrace)
 fi
 
 . `dirname $0`/xbc.sh
