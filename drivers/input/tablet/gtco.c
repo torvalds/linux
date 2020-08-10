@@ -676,8 +676,8 @@ static void gtco_urb_callback(struct urb *urbinfo)
 
 			/* Mask out the Y tilt value used for pressure */
 			device->buffer[7] = (u8)((device->buffer[7]) & 0x7F);
+			fallthrough;
 
-			/* Fall thru */
 		case 4:
 			/* Tilt */
 			input_report_abs(inputdev, ABS_TILT_X,
@@ -685,8 +685,8 @@ static void gtco_urb_callback(struct urb *urbinfo)
 
 			input_report_abs(inputdev, ABS_TILT_Y,
 					 sign_extend32(device->buffer[7], 6));
+			fallthrough;
 
-			/* Fall thru */
 		case 2:
 		case 3:
 			/* Convert buttons, only 5 bits possible */
@@ -695,8 +695,8 @@ static void gtco_urb_callback(struct urb *urbinfo)
 			/* We don't apply any meaning to the bitmask,
 			   just report */
 			input_event(inputdev, EV_MSC, MSC_SERIAL, val);
+			fallthrough;
 
-			/*  Fall thru */
 		case 1:
 			/* All reports have X and Y coords in the same place */
 			val = get_unaligned_le16(&device->buffer[1]);

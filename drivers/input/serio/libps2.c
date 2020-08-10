@@ -418,7 +418,7 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 			ps2dev->nak = 0;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		/*
 		 * Do not signal errors if we get unexpected reply while
