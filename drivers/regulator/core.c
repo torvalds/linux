@@ -4725,14 +4725,11 @@ EXPORT_SYMBOL_GPL(regulator_bulk_free);
  * @data: callback-specific data.
  *
  * Called by regulator drivers to notify clients a regulator event has
- * occurred. We also notify regulator clients downstream.
- * Note lock must be held by caller.
+ * occurred.
  */
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
-	lockdep_assert_held_once(&rdev->mutex.base);
-
 	_notifier_call_chain(rdev, event, data);
 	return NOTIFY_DONE;
 
