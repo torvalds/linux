@@ -677,7 +677,7 @@ void f2fs_decompress_pages(struct bio *bio, struct page *page, bool verity)
 	if (bio->bi_status || PageError(page))
 		dic->failed = true;
 
-	if (refcount_dec_not_one(&dic->ref))
+	if (atomic_dec_return(&dic->pending_pages))
 		return;
 
 	trace_f2fs_decompress_pages_start(dic->inode, dic->cluster_idx,
@@ -746,7 +746,7 @@ destroy_decompress_ctx:
 		cops->destroy_decompress_ctx(dic);
 out_free_dic:
 	if (verity)
-		refcount_set(&dic->ref, dic->nr_cpages);
+		atomic_set(&dic->pending_pages, dic->nr_cpages);
 	if (!verity)
 		f2fs_decompress_end_io(dic->rpages, dic->cluster_size,
 								ret, false);
@@ -1161,7 +1161,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 
 	cic->magic = F2FS_COMPRESSED_PAGE_MAGIC;
 	cic->inode = inode;
-	refcount_set(&cic->ref, cc->nr_cpages);
+	atomic_set(&cic->pending_pages, cc->nr_cpages);
 	cic->rpages = f2fs_kzalloc(sbi, sizeof(struct page *) <<
 			cc->log_cluster_size, GFP_NOFS);
 	if (!cic->rpages)
@@ -1296,7 +1296,7 @@ void f2fs_compress_write_end_io(struct bio *bio, struct page *page)
 
 	dec_page_count(sbi, F2FS_WB_DATA);
 
-	if (refcount_dec_not_one(&cic->ref))
+	if (atomic_dec_return(&cic->pending_pages))
 		return;
 
 	for (i = 0; i < cic->nr_rpages; i++) {
@@ -1438,7 +1438,7 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 
 	dic->magic = F2FS_COMPRESSED_PAGE_MAGIC;
 	dic->inode = cc->inode;
-	refcount_set(&dic->ref, cc->nr_cpages);
+	atomic_set(&dic->pending_pages, cc->nr_cpages);
 	dic->cluster_idx = cc->cluster_idx;
 	dic->cluster_size = cc->cluster_size;
 	dic->log_cluster_size = cc->log_cluster_size;

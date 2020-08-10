@@ -202,7 +202,7 @@ static void f2fs_verify_bio(struct bio *bio)
 		dic = (struct decompress_io_ctx *)page_private(page);
 
 		if (dic) {
-			if (refcount_dec_not_one(&dic->ref))
+			if (atomic_dec_return(&dic->pending_pages))
 				continue;
 			f2fs_verify_pages(dic->rpages,
 						dic->cluster_size);
@@ -2272,8 +2272,8 @@ submit_and_realloc:
 			if (IS_ERR(bio)) {
 				ret = PTR_ERR(bio);
 				dic->failed = true;
-				if (refcount_sub_and_test(dic->nr_cpages - i,
-							&dic->ref)) {
+				if (!atomic_sub_return(dic->nr_cpages - i,
+							&dic->pending_pages)) {
 					f2fs_decompress_end_io(dic->rpages,
 							cc->cluster_size, true,
 							false);
