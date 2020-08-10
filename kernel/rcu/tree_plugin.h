@@ -430,12 +430,6 @@ static bool rcu_preempt_has_tasks(struct rcu_node *rnp)
 	return !list_empty(&rnp->blkd_tasks);
 }
 
-// Add delay to rcu_read_unlock() for strict grace periods.
-static int rcu_unlock_delay;
-#ifdef CONFIG_RCU_STRICT_GRACE_PERIOD
-module_param(rcu_unlock_delay, int, 0444);
-#endif
-
 /*
  * Report deferred quiescent states.  The deferral time can
  * be quite short, for example, in the case of the call from
@@ -783,6 +777,24 @@ dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 }
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
+
+/*
+ * If strict grace periods are enabled, and if the calling
+ * __rcu_read_unlock() marks the beginning of a quiescent state, immediately
+ * report that quiescent state and, if requested, spin for a bit.
+ */
+void rcu_read_unlock_strict(void)
+{
+	struct rcu_data *rdp;
+
+	if (!IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD) ||
+	   irqs_disabled() || preempt_count() || !rcu_state.gp_kthread)
+		return;
+	rdp = this_cpu_ptr(&rcu_data);
+	rcu_report_qs_rdp(rdp->cpu, rdp);
+	udelay(rcu_unlock_delay);
+}
+EXPORT_SYMBOL_GPL(rcu_read_unlock_strict);
 
 /*
  * Tell them what RCU they are running.
