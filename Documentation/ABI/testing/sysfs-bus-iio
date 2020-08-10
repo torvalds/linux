@@ -40,6 +40,7 @@ Description:
 		buffered samples and events for device X.
 
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_sampling_frequency
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/sampling_frequency
 What:		/sys/bus/iio/devices/triggerX/sampling_frequency
 KernelVersion:	2.6.35
@@ -55,6 +56,7 @@ Description:
 		then it is to be found in the base device directory.
 
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_sampling_frequency_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_sampling_frequency_available
 What:		/sys/.../iio:deviceX/buffer/sampling_frequency_available
 What:		/sys/bus/iio/devices/triggerX/sampling_frequency_available
@@ -374,6 +376,9 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_z_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -484,6 +489,7 @@ Description:
 		are listed in this attribute.
 
 What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_hardwaregain
@@ -493,6 +499,13 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Hardware applied gain factor. If shared across all channels,
 		<type>_hardwaregain is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hardwaregain_available
+KernelVersion:	5.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available hardware applied gain factors. Shared across all
+		channels.
 
 What:		/sys/.../in_accel_filter_low_pass_3db_frequency
 What:		/sys/.../in_magn_filter_low_pass_3db_frequency
@@ -1333,6 +1346,7 @@ Description:
 		standardised CIE Erythemal Action Spectrum. UV index values range
 		from 0 (low) to >=11 (extreme).
 
+What:		/sys/.../iio:deviceX/in_intensity_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_red_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_green_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_blue_integration_time
@@ -1342,7 +1356,8 @@ KernelVersion:	3.12
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to get/set the integration time in
-		seconds.
+		seconds. If shared across all channels of a given type,
+		<type>_integration_time is used.
 
 What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_integration_time
 KernelVersion:	4.0
@@ -1742,3 +1757,12 @@ KernelVersion:	5.5
 Contact:	linux-iio@vger.kernel.org
 Description:
 		One of the following thermocouple types: B, E, J, K, N, R, S, T.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_z_raw
+KernelVersion:	5.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Unscaled light intensity according to CIE 1931/DIN 5033 color space.
+		Units after application of scale are nano nanowatts per square meter.
