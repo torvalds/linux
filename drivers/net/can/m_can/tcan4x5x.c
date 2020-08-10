@@ -527,9 +527,9 @@ static int tcan4x5x_can_remove(struct spi_device *spi)
 {
 	struct tcan4x5x_priv *priv = spi_get_drvdata(spi);
 
-	tcan4x5x_power_enable(priv->power, 0);
-
 	m_can_class_unregister(priv->mcan_dev);
+
+	tcan4x5x_power_enable(priv->power, 0);
 
 	return 0;
 }
