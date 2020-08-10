@@ -3,7 +3,7 @@
 # Input remotectl driver configuration
 #
 menuconfig ROCKCHIP_REMOTECTL
-	bool "rockchip remotectl"
+	tristate "rockchip remotectl"
 	default n
 	help
 	  Say Y here, will suport rk remotectl.
@@ -13,7 +13,7 @@ menuconfig ROCKCHIP_REMOTECTL
 if ROCKCHIP_REMOTECTL
 
 config ROCKCHIP_REMOTECTL_PWM
-	bool "rockchip remoctrl pwm capture"
+	tristate "rockchip remoctrl pwm capture"
 	default n
 
 endif
