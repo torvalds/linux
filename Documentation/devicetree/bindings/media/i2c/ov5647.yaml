@@ -46,6 +46,11 @@ properties:
             description: |-
               phandle to the video receiver input port.
 
+          clock-noncontinuous:
+            type: boolean
+            description: |-
+              Set to true to allow MIPI CSI-2 non-continuous clock operations.
+
         additionalProperties: false
 
     additionalProperties: false
