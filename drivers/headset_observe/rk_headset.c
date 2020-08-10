@@ -450,3 +450,6 @@ failed:
 	dev_err(&pdev->dev, "failed to headset probe ret=%d\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rk_headset_probe);
+
+MODULE_LICENSE("GPL");

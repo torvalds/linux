@@ -471,6 +471,7 @@ failed:
 	dev_err(&pdev->dev, "failed headset adc probe ret=%d\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rk_headset_adc_probe);
 
 int rk_headset_adc_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -479,6 +480,7 @@ int rk_headset_adc_suspend(struct platform_device *pdev, pm_message_t state)
 //	del_timer(&headset_info->hook_timer);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rk_headset_adc_suspend);
 
 int rk_headset_adc_resume(struct platform_device *pdev)
 {
@@ -488,3 +490,6 @@ int rk_headset_adc_resume(struct platform_device *pdev)
 //		mod_timer(&headset_info->hook_timer, jiffies + msecs_to_jiffies(1500));
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rk_headset_adc_resume);
+
+MODULE_LICENSE("GPL");
