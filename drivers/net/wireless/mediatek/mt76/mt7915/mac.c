@@ -680,6 +680,8 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 
 	val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
 	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
+	if (wcid->amsdu)
+		val |= MT_TXD7_HW_AMSDU;
 	txwi[7] = cpu_to_le32(val);
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count);

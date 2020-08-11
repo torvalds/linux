@@ -304,11 +304,14 @@ mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
-	ieee80211_hw_set(hw, TX_AMSDU);
 
-	/* TODO: avoid linearization for SDIO */
-	if (!mt76_is_sdio(dev))
-		ieee80211_hw_set(hw, TX_FRAG_LIST);
+	if (!(dev->drv->drv_flags & MT_DRV_AMSDU_OFFLOAD)) {
+		ieee80211_hw_set(hw, TX_AMSDU);
+
+		/* TODO: avoid linearization for SDIO */
+		if (!mt76_is_sdio(dev))
+			ieee80211_hw_set(hw, TX_FRAG_LIST);
+	}
 
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, AP_LINK_PS);
