@@ -987,9 +987,19 @@ static int usdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
 {
 	u32 reg;
+	u8 sw_rst;
+	int ret;
 
 	/* FIXME: delay a bit for card to be ready for next tuning due to errors */
 	mdelay(1);
+
+	/* IC suggest to reset USDHC before every tuning command */
+	esdhc_clrset_le(host, 0xff, SDHCI_RESET_ALL, SDHCI_SOFTWARE_RESET);
+	ret = readb_poll_timeout(host->ioaddr + SDHCI_SOFTWARE_RESET, sw_rst,
+				!(sw_rst & SDHCI_RESET_ALL), 10, 100);
+	if (ret == -ETIMEDOUT)
+		dev_warn(mmc_dev(host->mmc),
+		"warning! RESET_ALL never complete before sending tuning command\n");
 
 	reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
 	reg |= ESDHC_MIX_CTRL_EXE_TUNE | ESDHC_MIX_CTRL_SMPCLK_SEL |
