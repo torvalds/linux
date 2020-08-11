@@ -453,6 +453,10 @@ struct cgroup {
 	/* If there is block congestion on this cgroup. */
 	atomic_t congestion_count;
 
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
 };
