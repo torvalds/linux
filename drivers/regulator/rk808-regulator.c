@@ -786,9 +786,10 @@ static int rk8xx_enabled_wmsk_regmap(struct regulator_dev *rdev)
 	if (val & rdev->desc->enable_val)
 		return 0;
 
-	return regmap_write(rdev->regmap,
-			    rdev->desc->enable_reg,
-			    rdev->desc->enable_mask);
+	return regmap_update_bits(rdev->regmap,
+				  rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  rdev->desc->enable_mask);
 }
 
 static int rk8xx_disabled_wmsk_regmap(struct regulator_dev *rdev)
@@ -801,9 +802,10 @@ static int rk8xx_disabled_wmsk_regmap(struct regulator_dev *rdev)
 		return ret;
 
 	if (val & rdev->desc->enable_val)
-		return regmap_write(rdev->regmap,
-				    rdev->desc->enable_reg,
-				    rdev->desc->disable_val);
+		return regmap_update_bits(rdev->regmap,
+					  rdev->desc->enable_reg,
+					  rdev->desc->enable_mask,
+					  rdev->desc->disable_val);
 
 	return 0;
 }
