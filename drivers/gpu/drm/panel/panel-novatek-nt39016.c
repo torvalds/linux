@@ -124,7 +124,7 @@ static int nt39016_prepare(struct drm_panel *drm_panel)
 
 	err = regulator_enable(panel->supply);
 	if (err) {
-		dev_err(panel->dev, "Failed to enable power supply: %d", err);
+		dev_err(panel->dev, "Failed to enable power supply: %d\n", err);
 		return err;
 	}
 
@@ -143,7 +143,7 @@ static int nt39016_prepare(struct drm_panel *drm_panel)
 	err = regmap_multi_reg_write(panel->map, nt39016_panel_regs,
 				     ARRAY_SIZE(nt39016_panel_regs));
 	if (err) {
-		dev_err(panel->dev, "Failed to init registers: %d", err);
+		dev_err(panel->dev, "Failed to init registers: %d\n", err);
 		goto err_disable_regulator;
 	}
 
@@ -173,7 +173,7 @@ static int nt39016_enable(struct drm_panel *drm_panel)
 	ret = regmap_write(panel->map, NT39016_REG_SYSTEM,
 			   NT39016_SYSTEM_RESET_N | NT39016_SYSTEM_STANDBY);
 	if (ret) {
-		dev_err(panel->dev, "Unable to enable panel: %d", ret);
+		dev_err(panel->dev, "Unable to enable panel: %d\n", ret);
 		return ret;
 	}
 
@@ -193,7 +193,7 @@ static int nt39016_disable(struct drm_panel *drm_panel)
 	err = regmap_write(panel->map, NT39016_REG_SYSTEM,
 			   NT39016_SYSTEM_RESET_N);
 	if (err) {
-		dev_err(panel->dev, "Unable to disable panel: %d", err);
+		dev_err(panel->dev, "Unable to disable panel: %d\n", err);
 		return err;
 	}
 
@@ -261,13 +261,13 @@ static int nt39016_probe(struct spi_device *spi)
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply)) {
-		dev_err(dev, "Failed to get power supply");
+		dev_err(dev, "Failed to get power supply\n");
 		return PTR_ERR(panel->supply);
 	}
 
 	panel->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(panel->reset_gpio)) {
-		dev_err(dev, "Failed to get reset GPIO");
+		dev_err(dev, "Failed to get reset GPIO\n");
 		return PTR_ERR(panel->reset_gpio);
 	}
 
@@ -275,20 +275,20 @@ static int nt39016_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_3 | SPI_3WIRE;
 	err = spi_setup(spi);
 	if (err) {
-		dev_err(dev, "Failed to setup SPI");
+		dev_err(dev, "Failed to setup SPI\n");
 		return err;
 	}
 
 	panel->map = devm_regmap_init_spi(spi, &nt39016_regmap_config);
 	if (IS_ERR(panel->map)) {
-		dev_err(dev, "Failed to init regmap");
+		dev_err(dev, "Failed to init regmap\n");
 		return PTR_ERR(panel->map);
 	}
 
 	err = drm_panel_of_backlight(&panel->drm_panel);
 	if (err) {
 		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get backlight handle");
+			dev_err(dev, "Failed to get backlight handle\n");
 		return err;
 	}
 
