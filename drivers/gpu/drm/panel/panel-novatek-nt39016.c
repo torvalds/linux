@@ -6,7 +6,6 @@
  * Copyright (C) 2019, Paul Cercueil <paul@crapouillou.net>
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
@@ -63,8 +62,6 @@ struct nt39016 {
 	const struct nt39016_panel_info *panel_info;
 
 	struct gpio_desc *reset_gpio;
-
-	struct backlight_device *backlight;
 };
 
 static inline struct nt39016 *to_nt39016(struct drm_panel *panel)
@@ -180,22 +177,18 @@ static int nt39016_enable(struct drm_panel *drm_panel)
 		return ret;
 	}
 
-	if (panel->backlight) {
+	if (drm_panel->backlight) {
 		/* Wait for the picture to be ready before enabling backlight */
 		msleep(150);
-
-		ret = backlight_enable(panel->backlight);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int nt39016_disable(struct drm_panel *drm_panel)
 {
 	struct nt39016 *panel = to_nt39016(drm_panel);
 	int err;
-
-	backlight_disable(panel->backlight);
 
 	err = regmap_write(panel->map, NT39016_REG_SYSTEM,
 			   NT39016_SYSTEM_RESET_N);
@@ -292,9 +285,8 @@ static int nt39016_probe(struct spi_device *spi)
 		return PTR_ERR(panel->map);
 	}
 
-	panel->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(panel->backlight)) {
-		err = PTR_ERR(panel->backlight);
+	err = drm_panel_of_backlight(&panel->drm_panel);
+	if (err) {
 		if (err != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get backlight handle");
 		return err;
