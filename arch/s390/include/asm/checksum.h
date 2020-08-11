@@ -73,25 +73,17 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 32-bit checksum
  */
-static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len, __u8 proto,
-                   __wsum sum)
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+					__u8 proto, __wsum sum)
 {
-	__u32 csum = (__force __u32)sum;
+	__u64 csum = (__force __u64)sum;
 
 	csum += (__force __u32)saddr;
-	if (csum < (__force __u32)saddr)
-		csum++;
-
 	csum += (__force __u32)daddr;
-	if (csum < (__force __u32)daddr)
-		csum++;
-
-	csum += len + proto;
-	if (csum < len + proto)
-		csum++;
-
-	return (__force __wsum)csum;
+	csum += len;
+	csum += proto;
+	csum += (csum >> 32) | (csum << 32);
+	return (__force __wsum)(csum >> 32);
 }
 
 /*
