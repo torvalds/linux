@@ -1753,9 +1753,8 @@ static enum da7219_mic_amp_in_sel
 	}
 }
 
-static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_component *component)
+static struct da7219_pdata *da7219_fw_to_pdata(struct device *dev)
 {
-	struct device *dev = component->dev;
 	struct da7219_pdata *pdata;
 	const char *of_str;
 	u32 of_val32;
@@ -2291,10 +2290,6 @@ static int da7219_probe(struct snd_soc_component *component)
 	}
 
 	/* Handle DT/ACPI/Platform data */
-	da7219->pdata = dev_get_platdata(component->dev);
-	if (!da7219->pdata)
-		da7219->pdata = da7219_fw_to_pdata(component);
-
 	da7219_handle_pdata(component);
 
 	/* Check if MCLK provided */
@@ -2571,11 +2566,12 @@ static const struct regmap_config da7219_regmap_config = {
 static int da7219_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct device *dev = &i2c->dev;
 	struct da7219_priv *da7219;
 	unsigned int system_active, system_status;
 	int i, ret;
 
-	da7219 = devm_kzalloc(&i2c->dev, sizeof(struct da7219_priv),
+	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
 			      GFP_KERNEL);
 	if (!da7219)
 		return -ENOMEM;
@@ -2585,7 +2581,7 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 	da7219->regmap = devm_regmap_init_i2c(i2c, &da7219_regmap_config);
 	if (IS_ERR(da7219->regmap)) {
 		ret = PTR_ERR(da7219->regmap);
-		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
+		dev_err(dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
 
@@ -2620,12 +2616,20 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 
 	regcache_cache_bypass(da7219->regmap, false);
 
-	ret = devm_snd_soc_register_component(&i2c->dev,
-				     &soc_component_dev_da7219,
-				     &da7219_dai, 1);
+	/* Retrieve DT/ACPI/Platform data */
+	da7219->pdata = dev_get_platdata(dev);
+	if (!da7219->pdata)
+		da7219->pdata = da7219_fw_to_pdata(dev);
+
+	/* AAD */
+	ret = da7219_aad_probe(i2c);
+	if (ret)
+		return ret;
+
+	ret = devm_snd_soc_register_component(dev, &soc_component_dev_da7219,
+					      &da7219_dai, 1);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to register da7219 component: %d\n",
-			ret);
+		dev_err(dev, "Failed to register da7219 component: %d\n", ret);
 	}
 	return ret;
 }
