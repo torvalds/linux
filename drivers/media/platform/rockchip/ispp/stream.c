@@ -1366,6 +1366,13 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 		if (!ret)
 			v4l2_warn(&dev->v4l2_dev,
 				  "stream:%d stop timeout\n", stream->id);
+	} else {
+		/* scl stream close dma write */
+		if (stream->ops->stop)
+			stream->ops->stop(stream);
+		else if (stream->ops->is_stopped)
+			/* mb stream close dma write immediately */
+			stream->ops->is_stopped(stream);
 	}
 	stream->is_upd = false;
 	stream->streaming = false;
