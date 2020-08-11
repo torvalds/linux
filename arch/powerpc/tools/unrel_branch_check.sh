@@ -27,21 +27,31 @@ awk '$2 == "<__end_interrupts>:" { print $1 }'
 
 BRANCHES=$(
 $objdump -R -D --no-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
-grep -e "^c[0-9a-f]*:\s*b" |
-sed -e '/\<__start_initialization_multiplatform>/d' \
-	-e '/b.\?.\?ctr/d' \
-	-e '/b.\?.\?lr/d' \
-	-e 's/\bbt.\?\s*[[:digit:]][[:digit:]]*,/beq/' \
-	-e 's/\bbf.\?\s*[[:digit:]][[:digit:]]*,/bne/' \
-	-e 's/\s0x/ /' \
-	-e 's/://' |
-awk '{ print $1 ":" $2 ":0x" $3 ":" $4 " "}'
+sed -E -n '
+# match lines that start with a kernel address
+/^c[0-9a-f]*:\s*b/ {
+	# drop a target that we do not care about
+	/\<__start_initialization_multiplatform>/d
+	# drop branches via ctr or lr
+	/\<b.?.?(ct|l)r/d
+	# cope with some differences between Clang and GNU objdumps
+	s/\<bt.?\s*[[:digit:]]+,/beq/
+	s/\<bf.?\s*[[:digit:]]+,/bne/
+	# tidy up
+	s/\s0x/ /
+	s/://
+	# format for the loop below
+	s/^(\S+)\s+(\S+)\s+(\S+)\s*(\S*).*$/\1:\2:0x\3:\4/
+	# strip out condition registers
+	s/:0xcr[0-7],/:0x/
+	p
+}'
 )
 
 for tuple in $BRANCHES; do
 	from=$(echo "$tuple" | cut -d':' -f1)
 	branch=$(echo "$tuple" | cut -d':' -f2)
-	to=$(echo "$tuple" | cut -d':' -f3 | sed 's/cr[0-7],//')
+	to=$(echo "$tuple" | cut -d':' -f3)
 	sym=$(echo "$tuple" | cut -d':' -f4)
 
 	if (( to > end_intr )); then
