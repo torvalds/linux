@@ -908,7 +908,10 @@ static int exynos5_dmc_get_status(struct device *dev,
 	int ret;
 
 	if (dmc->in_irq_mode) {
+		mutex_lock(&dmc->lock);
 		stat->current_frequency = dmc->curr_rate;
+		mutex_unlock(&dmc->lock);
+
 		stat->busy_time = dmc->load;
 		stat->total_time = dmc->total;
 	} else {
