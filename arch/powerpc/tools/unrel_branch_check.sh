@@ -1,16 +1,9 @@
 #!/bin/bash
-# Copyright © 2016 IBM Corporation
+# SPDX-License-Identifier: GPL-2.0+
+# Copyright © 2016,2020 IBM Corporation
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version
-# 2 of the License, or (at your option) any later version.
-#
-# This script checks the relocations of a vmlinux for "suspicious"
-# branches from unrelocated code (head_64.S code).
-
-# Turn this on if you want more debug output:
-# set -x
+# This script checks the unrelocated code of a vmlinux for "suspicious"
+# branches to relocated code (head_64.S code).
 
 # Have Kbuild supply the path to objdump so we handle cross compilation.
 objdump="$1"
