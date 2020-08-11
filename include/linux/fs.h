@@ -2650,7 +2650,7 @@ static inline void filemap_set_wb_err(struct address_space *mapping, int err)
 }
 
 /**
- * filemap_check_wb_error - has an error occurred since the mark was sampled?
+ * filemap_check_wb_err - has an error occurred since the mark was sampled?
  * @mapping: mapping to check for writeback errors
  * @since: previously-sampled errseq_t
  *
