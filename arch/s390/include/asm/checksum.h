@@ -66,7 +66,18 @@ static inline __sum16 csum_fold(__wsum sum)
  */
 static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	return csum_fold(csum_partial(iph, ihl*4, 0));
+	__u64 csum = 0;
+	__u32 *ptr = (u32 *)iph;
+
+	csum += *ptr++;
+	csum += *ptr++;
+	csum += *ptr++;
+	csum += *ptr++;
+	ihl -= 4;
+	while (ihl--)
+		csum += *ptr++;
+	csum += (csum >> 32) | (csum << 32);
+	return csum_fold((__force __wsum)(csum >> 32));
 }
 
 /*
