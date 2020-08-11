@@ -182,16 +182,16 @@ static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 	 * sysfs files are created
 	 */
 	dev_set_uevent_suppress(&srv->dev, true);
-	err = device_register(&srv->dev);
+	err = device_add(&srv->dev);
 	if (err) {
-		pr_err("device_register(): %d\n", err);
+		pr_err("device_add(): %d\n", err);
 		goto put;
 	}
 	srv->kobj_paths = kobject_create_and_add("paths", &srv->dev.kobj);
 	if (!srv->kobj_paths) {
 		err = -ENOMEM;
 		pr_err("kobject_create_and_add(): %d\n", err);
-		device_unregister(&srv->dev);
+		device_del(&srv->dev);
 		goto unlock;
 	}
 	dev_set_uevent_suppress(&srv->dev, false);
@@ -216,7 +216,7 @@ rtrs_srv_destroy_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 		kobject_del(srv->kobj_paths);
 		kobject_put(srv->kobj_paths);
 		mutex_unlock(&srv->paths_mutex);
-		device_unregister(&srv->dev);
+		device_del(&srv->dev);
 	} else {
 		mutex_unlock(&srv->paths_mutex);
 	}
