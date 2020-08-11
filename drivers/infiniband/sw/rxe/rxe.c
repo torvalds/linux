@@ -277,6 +277,12 @@ static int rxe_newlink(const char *ibdev_name, struct net_device *ndev)
 	struct rxe_dev *exists;
 	int err = 0;
 
+	if (is_vlan_dev(ndev)) {
+		pr_err("rxe creation allowed on top of a real device only\n");
+		err = -EPERM;
+		goto err;
+	}
+
 	exists = rxe_get_dev_from_net(ndev);
 	if (exists) {
 		ib_device_put(&exists->ib_dev);
