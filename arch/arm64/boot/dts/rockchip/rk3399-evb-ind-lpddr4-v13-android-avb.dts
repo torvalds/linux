@@ -1,0 +1,425 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3399-evb-ind.dtsi"
+#include "rk3399-android.dtsi"
+
+/ {
+	model = "Rockchip RK3399 EVB IND LPDDR4 Board edp (Android)";
+	compatible = "rockchip,android", "rockchip,rk3399-evb-ind-v13-lpddr4-android", "rockchip,rk3399";
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
+	};
+
+	iram: sram@ff8d0000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xff8d0000 0x0 0x20000>;
+	};
+
+	hub_reset: hub_reset {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 18 GPIO_ACTIVE_HIGH>;
+		regulator-name = "hub_reset";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc_lcd: vcc-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd";
+		startup-delay-us = <20000>;
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	panel: panel {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc_lcd>;
+		reset-gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <20>;
+		reset-delay-ms = <20>;
+		enable-delay-ms = <20>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <200000000>;
+				hactive = <1536>;
+				vactive = <2048>;
+				hfront-porch = <12>;
+				hsync-len = <16>;
+				hback-porch = <48>;
+				vfront-porch = <8>;
+				vsync-len = <4>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			panel_in: endpoint {
+				remote-endpoint = <&edp_out>;
+			};
+		};
+	};
+
+	test-power {
+		status = "okay";
+	};
+};
+
+&backlight {
+	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+};
+
+&dmac_bus {
+	iram = <&iram>;
+	rockchip,force-iram;
+};
+
+&dp_sound {
+	status = "disabled";
+};
+
+&edp {
+	status = "okay";
+	force-hpd;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&edp_in_vopl {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "okay";
+
+	sgm3784: sgm3784@30 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "sgmicro,gsm3784";
+		reg = <0x30>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		//enable-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+		//strobe-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+		sgm3784_led0: led@0 {
+			reg = <0x0>;
+			led-max-microamp = <299200>;
+			flash-max-microamp = <1122000>;
+			flash-max-timeout-us = <1600000>;
+		};
+
+		sgm3784_led1: led@1 {
+			reg = <0x1>;
+			led-max-microamp = <299200>;
+			flash-max-microamp = <1122000>;
+			flash-max-timeout-us = <1600000>;
+		};
+	};
+
+	vm149c: vm149c@0c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	gc2145: gc2145@3c{
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		power-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_fcam>;
+			};
+		};
+	};
+
+	ov13850: ov13850@10 {
+		compatible = "ovti,ov13850";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		reset-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-CT0116";
+		rockchip,camera-module-lens-name = "Largan-50013A1";
+		lens-focus = <&vm149c>;
+		flash-leds = <&sgm3784_led0 &sgm3784_led1>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				//remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	ov4689: ov4689@36 {
+		compatible = "ovti,ov4689";
+		status = "disabled";
+		reg = <0x36>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		reset-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "JSD3425-C1";
+		rockchip,camera-module-lens-name = "JSD3425-C1";
+		port {
+			ucam_out1: endpoint {
+				//remote-endpoint = <&mipi_in_ucam0>;
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
+&mipi_dphy_tx1rx1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_tx1rx1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp1_mipi_in>;
+			};
+		};
+	};
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
+&route_edp {
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vopl_out_hdmi>;
+};
+
+&i2s1 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&rk809_sound {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
+&rkisp1_0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
+		};
+	};
+};
+
+&rkisp1_1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&cif_clkout &isp_dvp_d0d7>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_tx1rx1_out>;
+		};
+		dvp_in_fcam: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&gc2145_out>;
+		};
+	};
+};
+
+
+&vcca_0v9 {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+	regulator-name = "vcca_0v9";
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <900000>;
+	};
+};
+
+&vcc0v9_soc {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+
+	regulator-name = "vcc0v9_soc";
+	regulator-state-mem {
+		regulator-off-in-suspend;
+	};
+};
+
+/*
+ * if enable dp_sound, should disable spdif_sound and spdif_out
+ */
+&spdif_out {
+	status = "disabled";
+};
+
+&spdif_sound {
+	status = "disabled";
+};
+
+&i2s0 {
+	#sound-dai-cells = <0>;
+	status = "disabled";
+};
+
+&tc358749x_sound {
+	status = "disabled";
+};
+
+&pinctrl {
+	lcd-panel {
+		lcd_panel_reset: lcd-panel-reset {
+			rockchip,pins = <1 23 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
