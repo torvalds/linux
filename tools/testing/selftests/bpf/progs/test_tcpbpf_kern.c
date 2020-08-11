@@ -82,6 +82,27 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		:: [skops] "r"(skops)
 		: "r9", "r8");
 
+	asm volatile (
+		"r1 = %[skops];\n"
+		"r1 = *(u64 *)(r1 +184);\n"
+		"if r1 == 0 goto +1;\n"
+		"r1 = *(u32 *)(r1 +4);\n"
+		:: [skops] "r"(skops):"r1");
+
+	asm volatile (
+		"r9 = %[skops];\n"
+		"r9 = *(u64 *)(r9 +184);\n"
+		"if r9 == 0 goto +1;\n"
+		"r9 = *(u32 *)(r9 +4);\n"
+		:: [skops] "r"(skops):"r9");
+
+	asm volatile (
+		"r1 = %[skops];\n"
+		"r2 = *(u64 *)(r1 +184);\n"
+		"if r2 == 0 goto +1;\n"
+		"r2 = *(u32 *)(r2 +4);\n"
+		:: [skops] "r"(skops):"r1", "r2");
+
 	op = (int) skops->op;
 
 	update_event_map(op);
