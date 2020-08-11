@@ -77,7 +77,7 @@ config SECURITY_APPARMOR_KUNIT_TEST
 	  This builds the AppArmor KUnit tests.
 
 	  KUnit tests run during boot and output the results to the debug log
-	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
 	  running KUnit test harness and are not for inclusion into a
 	  production build.
 
