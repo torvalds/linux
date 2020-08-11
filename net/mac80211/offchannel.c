@@ -916,7 +916,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (beacon)
 			for (i = 0; i < params->n_csa_offsets; i++)
 				data[params->csa_offsets[i]] =
-					beacon->csa_current_counter;
+					beacon->cntdwn_current_counter;
 
 		rcu_read_unlock();
 	}
