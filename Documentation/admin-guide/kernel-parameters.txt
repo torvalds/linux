@@ -4269,6 +4269,18 @@
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
 
+	rcutorture.irqreader= [KNL]
+			Run RCU readers from irq handlers, or, more
+			accurately, from a timer handler.  Not all RCU
+			flavors take kindly to this sort of thing.
+
+	rcutorture.leakpointer= [KNL]
+			Leak an RCU-protected pointer out of the reader.
+			This can of course result in splats, and is
+			intended to test the ability of things like
+			CONFIG_RCU_STRICT_GRACE_PERIOD=y to detect
+			such leaks.
+
 	rcutorture.n_barrier_cbs= [KNL]
 			Set callbacks/threads for rcu_barrier() testing.
 

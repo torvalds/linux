@@ -87,6 +87,7 @@ torture_param(bool, gp_normal, false,
 	     "Use normal (non-expedited) GP wait primitives");
 torture_param(bool, gp_sync, false, "Use synchronous GP wait primitives");
 torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
+torture_param(int, leakpointer, 0, "Leak pointer dereferences from readers");
 torture_param(int, n_barrier_cbs, 0,
 	     "# of callbacks/kthreads for barrier testing");
 torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
@@ -1401,6 +1402,9 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	preempt_enable();
 	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate & RCUTORTURE_RDR_MASK);
+	// This next splat is expected behavior if leakpointer, especially
+	// for CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels.
+	WARN_ON_ONCE(leakpointer && READ_ONCE(p->rtort_pipe_count) > 1);
 
 	/* If error or close call, record the sequence of reader protections. */
 	if ((pipe_count > 1 || completed > 1) && !xchg(&err_segs_recorded, 1)) {
