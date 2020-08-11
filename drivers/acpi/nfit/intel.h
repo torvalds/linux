@@ -111,4 +111,65 @@ struct nd_intel_master_secure_erase {
 	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
 	u32 status;
 } __packed;
+
+#define ND_INTEL_FWA_IDLE 0
+#define ND_INTEL_FWA_ARMED 1
+#define ND_INTEL_FWA_BUSY 2
+
+#define ND_INTEL_DIMM_FWA_NONE 0
+#define ND_INTEL_DIMM_FWA_NOTSTAGED 1
+#define ND_INTEL_DIMM_FWA_SUCCESS 2
+#define ND_INTEL_DIMM_FWA_NEEDRESET 3
+#define ND_INTEL_DIMM_FWA_MEDIAFAILED 4
+#define ND_INTEL_DIMM_FWA_ABORT 5
+#define ND_INTEL_DIMM_FWA_NOTSUPP 6
+#define ND_INTEL_DIMM_FWA_ERROR 7
+
+struct nd_intel_fw_activate_dimminfo {
+	u32 status;
+	u16 result;
+	u8 state;
+	u8 reserved[7];
+} __packed;
+
+#define ND_INTEL_DIMM_FWA_ARM 1
+#define ND_INTEL_DIMM_FWA_DISARM 0
+
+struct nd_intel_fw_activate_arm {
+	u8 activate_arm;
+	u32 status;
+} __packed;
+
+/* Root device command payloads */
+#define ND_INTEL_BUS_FWA_CAP_FWQUIESCE (1 << 0)
+#define ND_INTEL_BUS_FWA_CAP_OSQUIESCE (1 << 1)
+#define ND_INTEL_BUS_FWA_CAP_RESET     (1 << 2)
+
+struct nd_intel_bus_fw_activate_businfo {
+	u32 status;
+	u16 reserved;
+	u8 state;
+	u8 capability;
+	u64 activate_tmo;
+	u64 cpu_quiesce_tmo;
+	u64 io_quiesce_tmo;
+	u64 max_quiesce_tmo;
+} __packed;
+
+#define ND_INTEL_BUS_FWA_STATUS_NOARM  (6 | 1 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_BUSY   (6 | 2 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_NOFW   (6 | 3 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_TMO    (6 | 4 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_NOIDLE (6 | 5 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_ABORT  (6 | 6 << 16)
+
+#define ND_INTEL_BUS_FWA_IODEV_FORCE_IDLE (0)
+#define ND_INTEL_BUS_FWA_IODEV_OS_IDLE (1)
+struct nd_intel_bus_fw_activate {
+	u8 iodev_state;
+	u32 status;
+} __packed;
+
+extern const struct nvdimm_fw_ops *intel_fw_ops;
+extern const struct nvdimm_bus_fw_ops *intel_bus_fw_ops;
 #endif
