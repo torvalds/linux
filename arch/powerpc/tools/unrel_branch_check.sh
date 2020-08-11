@@ -17,37 +17,34 @@ objdump="$1"
 vmlinux="$2"
 
 #__end_interrupts should be located within the first 64K
+kstart=0xc000000000000000
+printf -v kend '0x%x' $(( kstart + 0x10000 ))
 
 end_intr=0x$(
-$objdump -R "$vmlinux" -d --start-address=0xc000000000000000           \
-		 --stop-address=0xc000000000010000 |
-grep '\<__end_interrupts>:' |
-awk '{print $1}'
+$objdump -R -d --start-address="$kstart" --stop-address="$kend" "$vmlinux" |
+awk '$2 == "<__end_interrupts>:" { print $1 }'
 )
 
 BRANCHES=$(
-$objdump -R "$vmlinux" -D --start-address=0xc000000000000000           \
-		--stop-address="$end_intr" |
+$objdump -R -D --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
 grep -e "^c[0-9a-f]*:[[:space:]]*\([0-9a-f][0-9a-f][[:space:]]\)\{4\}[[:space:]]*b" |
-grep -v '\<__start_initialization_multiplatform>' |
-grep -v -e 'b.\?.\?ctr' |
-grep -v -e 'b.\?.\?lr' |
-sed -e 's/\bbt.\?[[:space:]]*[[:digit:]][[:digit:]]*,/beq/' \
+sed -e '/\<__start_initialization_multiplatform>/d' \
+	-e '/b.\?.\?ctr/d' \
+	-e '/b.\?.\?lr/d' \
+	-e 's/\bbt.\?[[:space:]]*[[:digit:]][[:digit:]]*,/beq/' \
 	-e 's/\bbf.\?[[:space:]]*[[:digit:]][[:digit:]]*,/bne/' \
 	-e 's/[[:space:]]0x/ /' \
 	-e 's/://' |
 awk '{ print $1 ":" $6 ":0x" $7 ":" $8 " "}'
 )
 
-for tuple in $BRANCHES
-do
+for tuple in $BRANCHES; do
 	from=$(echo "$tuple" | cut -d':' -f1)
 	branch=$(echo "$tuple" | cut -d':' -f2)
 	to=$(echo "$tuple" | cut -d':' -f3 | sed 's/cr[0-7],//')
 	sym=$(echo "$tuple" | cut -d':' -f4)
 
-	if (( to > end_intr ))
-	then
+	if (( to > end_intr )); then
 		if [ -z "$bad_branches" ]; then
 			echo "WARNING: Unrelocated relative branches"
 			bad_branches="yes"
