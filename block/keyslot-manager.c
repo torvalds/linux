@@ -484,7 +484,8 @@ void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
 			min(parent->max_dun_bytes_supported,
 			    child->max_dun_bytes_supported);
 		parent->features &= child->features;
-		for (i = 0; i < ARRAY_SIZE(child->crypto_modes_supported); i++) {
+		for (i = 0; i < ARRAY_SIZE(child->crypto_modes_supported);
+		     i++) {
 			parent->crypto_modes_supported[i] &=
 				child->crypto_modes_supported[i];
 		}
