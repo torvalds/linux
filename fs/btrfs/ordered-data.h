@@ -56,6 +56,12 @@ enum {
 	BTRFS_ORDERED_TRUNCATED,
 	/* Regular IO for COW */
 	BTRFS_ORDERED_REGULAR,
+	/* Used during fsync to track already logged extents */
+	BTRFS_ORDERED_LOGGED,
+	/* We have already logged all the csums of the ordered extent */
+	BTRFS_ORDERED_LOGGED_CSUM,
+	/* We wait for this extent to complete in the current transaction */
+	BTRFS_ORDERED_PENDING,
 };
 
 struct btrfs_ordered_extent {
@@ -103,6 +109,9 @@ struct btrfs_ordered_extent {
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
+
+	/* used for fast fsyncs */
+	struct list_head log_list;
 
 	/* used to wait for the BTRFS_ORDERED_COMPLETE bit */
 	wait_queue_head_t wait;
@@ -174,6 +183,8 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 		struct btrfs_inode *inode,
 		u64 file_offset,
 		u64 len);
+void btrfs_get_ordered_extents_for_logging(struct btrfs_inode *inode,
+					   struct list_head *list);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 			   u8 *sum, int len);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,

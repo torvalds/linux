@@ -2114,20 +2114,24 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_log_ctx ctx;
 	int ret = 0, err;
+	u64 len;
+	bool full_sync;
 
 	trace_btrfs_sync_file(file, datasync);
 
 	btrfs_init_log_ctx(&ctx, inode);
 
 	/*
-	 * Set the range to full if the NO_HOLES feature is not enabled.
-	 * This is to avoid missing file extent items representing holes after
-	 * replaying the log.
+	 * Always set the range to a full range, otherwise we can get into
+	 * several problems, from missing file extent items to represent holes
+	 * when not using the NO_HOLES feature, to log tree corruption due to
+	 * races between hole detection during logging and completion of ordered
+	 * extents outside the range, to missing checksums due to ordered extents
+	 * for which we flushed only a subset of their pages.
 	 */
-	if (!btrfs_fs_incompat(fs_info, NO_HOLES)) {
-		start = 0;
-		end = LLONG_MAX;
-	}
+	start = 0;
+	end = LLONG_MAX;
+	len = (u64)LLONG_MAX + 1;
 
 	/*
 	 * We write the dirty pages in the range and wait until they complete
@@ -2151,19 +2155,12 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	atomic_inc(&root->log_batch);
 
 	/*
-	 * If the inode needs a full sync, make sure we use a full range to
-	 * avoid log tree corruption, due to hole detection racing with ordered
-	 * extent completion for adjacent ranges and races between logging and
-	 * completion of ordered extents for adjancent ranges - both races
-	 * could lead to file extent items in the log with overlapping ranges.
-	 * Do this while holding the inode lock, to avoid races with other
-	 * tasks.
+	 * Always check for the full sync flag while holding the inode's lock,
+	 * to avoid races with other tasks. The flag must be either set all the
+	 * time during logging or always off all the time while logging.
 	 */
-	if (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-		     &BTRFS_I(inode)->runtime_flags)) {
-		start = 0;
-		end = LLONG_MAX;
-	}
+	full_sync = test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			     &BTRFS_I(inode)->runtime_flags);
 
 	/*
 	 * Before we acquired the inode's lock, someone may have dirtied more
@@ -2194,20 +2191,42 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * We have to do this here to avoid the priority inversion of waiting on
 	 * IO of a lower priority task while holding a transaction open.
 	 *
-	 * Also, the range length can be represented by u64, we have to do the
-	 * typecasts to avoid signed overflow if it's [0, LLONG_MAX].
+	 * For a full fsync we wait for the ordered extents to complete while
+	 * for a fast fsync we wait just for writeback to complete, and then
+	 * attach the ordered extents to the transaction so that a transaction
+	 * commit waits for their completion, to avoid data loss if we fsync,
+	 * the current transaction commits before the ordered extents complete
+	 * and a power failure happens right after that.
 	 */
-	ret = btrfs_wait_ordered_range(inode, start, (u64)end - (u64)start + 1);
-	if (ret) {
-		up_write(&BTRFS_I(inode)->dio_sem);
-		inode_unlock(inode);
-		goto out;
+	if (full_sync) {
+		ret = btrfs_wait_ordered_range(inode, start, len);
+	} else {
+		/*
+		 * Get our ordered extents as soon as possible to avoid doing
+		 * checksum lookups in the csum tree, and use instead the
+		 * checksums attached to the ordered extents.
+		 */
+		btrfs_get_ordered_extents_for_logging(BTRFS_I(inode),
+						      &ctx.ordered_extents);
+		ret = filemap_fdatawait_range(inode->i_mapping, start, end);
 	}
+
+	if (ret)
+		goto out_release_extents;
+
 	atomic_inc(&root->log_batch);
 
+	/*
+	 * If we are doing a fast fsync we can not bail out if the inode's
+	 * last_trans is <= then the last committed transaction, because we only
+	 * update the last_trans of the inode during ordered extent completion,
+	 * and for a fast fsync we don't wait for that, we only wait for the
+	 * writeback to complete.
+	 */
 	smp_mb();
 	if (btrfs_inode_in_log(BTRFS_I(inode), fs_info->generation) ||
-	    BTRFS_I(inode)->last_trans <= fs_info->last_trans_committed) {
+	    (BTRFS_I(inode)->last_trans <= fs_info->last_trans_committed &&
+	     (full_sync || list_empty(&ctx.ordered_extents)))) {
 		/*
 		 * We've had everything committed since the last time we were
 		 * modified so clear this flag in case it was set for whatever
@@ -2223,9 +2242,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * checked called fsync.
 		 */
 		ret = filemap_check_wb_err(inode->i_mapping, file->f_wb_err);
-		up_write(&BTRFS_I(inode)->dio_sem);
-		inode_unlock(inode);
-		goto out;
+		goto out_release_extents;
 	}
 
 	/*
@@ -2242,12 +2259,11 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		up_write(&BTRFS_I(inode)->dio_sem);
-		inode_unlock(inode);
-		goto out;
+		goto out_release_extents;
 	}
 
-	ret = btrfs_log_dentry_safe(trans, dentry, start, end, &ctx);
+	ret = btrfs_log_dentry_safe(trans, dentry, &ctx);
+	btrfs_release_log_ctx_extents(&ctx);
 	if (ret < 0) {
 		/* Fallthrough and commit/free transaction. */
 		ret = 1;
@@ -2274,6 +2290,13 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 				goto out;
 			}
 		}
+		if (!full_sync) {
+			ret = btrfs_wait_ordered_range(inode, start, len);
+			if (ret) {
+				btrfs_end_transaction(trans);
+				goto out;
+			}
+		}
 		ret = btrfs_commit_transaction(trans);
 	} else {
 		ret = btrfs_end_transaction(trans);
@@ -2284,6 +2307,12 @@ out:
 	if (!ret)
 		ret = err;
 	return ret > 0 ? -EIO : ret;
+
+out_release_extents:
+	btrfs_release_log_ctx_extents(&ctx);
+	up_write(&BTRFS_I(inode)->dio_sem);
+	inode_unlock(inode);
+	goto out;
 }
 
 static const struct vm_operations_struct btrfs_file_vm_ops = {

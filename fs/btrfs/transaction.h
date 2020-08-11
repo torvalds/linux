@@ -85,6 +85,13 @@ struct btrfs_transaction {
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	struct btrfs_fs_info *fs_info;
+
+	/*
+	 * Number of ordered extents the transaction must wait for before
+	 * committing. These are ordered extents started by a fast fsync.
+	 */
+	atomic_t pending_ordered;
+	wait_queue_head_t pending_wait;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)

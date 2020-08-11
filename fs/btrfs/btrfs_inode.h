@@ -25,6 +25,11 @@ enum {
 	BTRFS_INODE_DUMMY,
 	BTRFS_INODE_IN_DEFRAG,
 	BTRFS_INODE_HAS_ASYNC_EXTENT,
+	 /*
+	  * Always set under the VFS' inode lock, otherwise it can cause races
+	  * during fsync (we start as a fast fsync and then end up in a full
+	  * fsync racing with ordered extent completion).
+	  */
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
 	BTRFS_INODE_IN_DELALLOC_LIST,
