@@ -379,7 +379,7 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	struct smu_context *smu = &adev->smu;
 
 	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
-		dev_info(adev->dev, "GPU BACO reset\n");
+		dev_info(adev->dev, "BACO reset\n");
 
 		ret = smu_baco_enter(smu);
 		if (ret)
@@ -387,8 +387,10 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 		ret = smu_baco_exit(smu);
 		if (ret)
 			return ret;
-	} else
+	} else {
+		dev_info(adev->dev, "MODE1 reset\n");
 		ret = nv_asic_mode1_reset(adev);
+	}
 
 	return ret;
 }

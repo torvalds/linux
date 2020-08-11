@@ -752,8 +752,10 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	int r;
 
 	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		dev_info(adev->dev, "BACO reset\n");
 		r = amdgpu_dpm_baco_reset(adev);
 	} else {
+		dev_info(adev->dev, "PCI CONFIG reset\n");
 		r = vi_asic_pci_config_reset(adev);
 	}
 

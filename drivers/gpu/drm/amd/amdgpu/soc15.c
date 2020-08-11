@@ -580,10 +580,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (soc15_asic_reset_method(adev)) {
 		case AMD_RESET_METHOD_BACO:
+			dev_info(adev->dev, "BACO reset\n");
 			return soc15_asic_baco_reset(adev);
 		case AMD_RESET_METHOD_MODE2:
+			dev_info(adev->dev, "MODE2 reset\n");
 			return amdgpu_dpm_mode2_reset(adev);
 		default:
+			dev_info(adev->dev, "MODE1 reset\n");
 			return soc15_asic_mode1_reset(adev);
 	}
 }
