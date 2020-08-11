@@ -215,9 +215,7 @@ static int join_running_log_trans(struct btrfs_root *root)
  */
 void btrfs_pin_log_trans(struct btrfs_root *root)
 {
-	mutex_lock(&root->log_mutex);
 	atomic_inc(&root->log_writers);
-	mutex_unlock(&root->log_mutex);
 }
 
 /*
