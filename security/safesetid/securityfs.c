@@ -261,7 +261,7 @@ static ssize_t safesetid_gid_file_write(struct file *file,
 }
 
 static ssize_t safesetid_file_read(struct file *file, char __user *buf,
-				   size_t len, loff_t *ppos, struct mutex *policy_update_lock, struct setid_ruleset* ruleset)
+				   size_t len, loff_t *ppos, struct mutex *policy_update_lock, struct __rcu setid_ruleset* ruleset)
 {
 	ssize_t res = 0;
 	struct setid_ruleset *pol;

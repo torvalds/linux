@@ -116,7 +116,7 @@ static int safesetid_security_capable(const struct cred *cred,
 		* If no policy applies to this task, allow the use of CAP_SETUID for
 		* other purposes.
 		*/
-		if (setid_policy_lookup((kid_t)cred->uid, INVALID_ID, UID) == SIDPOL_DEFAULT)
+		if (setid_policy_lookup((kid_t){.uid = cred->uid}, INVALID_ID, UID) == SIDPOL_DEFAULT)
 			return 0;
 		/*
 		 * Reject use of CAP_SETUID for functionality other than calling
@@ -131,7 +131,7 @@ static int safesetid_security_capable(const struct cred *cred,
 		* If no policy applies to this task, allow the use of CAP_SETGID for
 		* other purposes.
 		*/
-		if (setid_policy_lookup((kid_t)cred->gid, INVALID_ID, GID) == SIDPOL_DEFAULT)
+		if (setid_policy_lookup((kid_t){.gid = cred->gid}, INVALID_ID, GID) == SIDPOL_DEFAULT)
 			return 0;
 		/*
 		 * Reject use of CAP_SETUID for functionality other than calling
@@ -174,7 +174,7 @@ static bool id_permitted_for_cred(const struct cred *old, kid_t new_id, enum set
 	 * RUID.
 	 */
 	permitted =
-	    setid_policy_lookup((kid_t)old->uid, new_id, new_type) != SIDPOL_CONSTRAINED;
+	    setid_policy_lookup((kid_t){.uid = old->uid}, new_id, new_type) != SIDPOL_CONSTRAINED;
 
 	if (!permitted) {
 		if (new_type == UID) {
@@ -202,13 +202,13 @@ static int safesetid_task_fix_setuid(struct cred *new,
 {
 
 	/* Do nothing if there are no setuid restrictions for our old RUID. */
-	if (setid_policy_lookup((kid_t)old->uid, INVALID_ID, UID) == SIDPOL_DEFAULT)
+	if (setid_policy_lookup((kid_t){.uid = old->uid}, INVALID_ID, UID) == SIDPOL_DEFAULT)
 		return 0;
 
-	if (id_permitted_for_cred(old, (kid_t)new->uid, UID) &&
-	    id_permitted_for_cred(old, (kid_t)new->euid, UID) &&
-	    id_permitted_for_cred(old, (kid_t)new->suid, UID) &&
-	    id_permitted_for_cred(old, (kid_t)new->fsuid, UID))
+	if (id_permitted_for_cred(old, (kid_t){.uid = new->uid}, UID) &&
+	    id_permitted_for_cred(old, (kid_t){.uid = new->euid}, UID) &&
+	    id_permitted_for_cred(old, (kid_t){.uid = new->suid}, UID) &&
+	    id_permitted_for_cred(old, (kid_t){.uid = new->fsuid}, UID))
 		return 0;
 
 	/*
@@ -226,13 +226,13 @@ static int safesetid_task_fix_setgid(struct cred *new,
 {
 
 	/* Do nothing if there are no setgid restrictions for our old RGID. */
-	if (setid_policy_lookup((kid_t)old->gid, INVALID_ID, GID) == SIDPOL_DEFAULT)
+	if (setid_policy_lookup((kid_t){.gid = old->gid}, INVALID_ID, GID) == SIDPOL_DEFAULT)
 		return 0;
 
-	if (id_permitted_for_cred(old, (kid_t)new->gid, GID) &&
-	    id_permitted_for_cred(old, (kid_t)new->egid, GID) &&
-	    id_permitted_for_cred(old, (kid_t)new->sgid, GID) &&
-	    id_permitted_for_cred(old, (kid_t)new->fsgid, GID))
+	if (id_permitted_for_cred(old, (kid_t){.gid = new->gid}, GID) &&
+	    id_permitted_for_cred(old, (kid_t){.gid = new->egid}, GID) &&
+	    id_permitted_for_cred(old, (kid_t){.gid = new->sgid}, GID) &&
+	    id_permitted_for_cred(old, (kid_t){.gid = new->fsgid}, GID))
 		return 0;
 
 	/*
