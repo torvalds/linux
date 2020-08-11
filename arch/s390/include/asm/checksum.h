@@ -13,6 +13,7 @@
 #define _S390_CHECKSUM_H
 
 #include <linux/uaccess.h>
+#include <linux/in6.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -115,6 +116,25 @@ static inline __sum16 ip_compute_csum(const void *buff, int len)
 	return csum_fold(csum_partial(buff, len, 0));
 }
 
+#define _HAVE_ARCH_IPV6_CSUM
+static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+				      const struct in6_addr *daddr,
+				      __u32 len, __u8 proto, __wsum csum)
+{
+	__u64 sum = (__force __u64)csum;
+
+	sum += (__force __u32)saddr->s6_addr32[0];
+	sum += (__force __u32)saddr->s6_addr32[1];
+	sum += (__force __u32)saddr->s6_addr32[2];
+	sum += (__force __u32)saddr->s6_addr32[3];
+	sum += (__force __u32)daddr->s6_addr32[0];
+	sum += (__force __u32)daddr->s6_addr32[1];
+	sum += (__force __u32)daddr->s6_addr32[2];
+	sum += (__force __u32)daddr->s6_addr32[3];
+	sum += len;
+	sum += proto;
+	sum += (sum >> 32) | (sum << 32);
+	return csum_fold((__force __wsum)(sum >> 32));
+}
+
 #endif /* _S390_CHECKSUM_H */
-
-
