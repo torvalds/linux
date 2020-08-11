@@ -193,7 +193,6 @@ struct sbs_info {
 	struct power_supply		*power_supply;
 	bool				is_present;
 	struct gpio_desc		*gpio_detect;
-	bool				enable_detection;
 	bool				charger_broadcasts;
 	int				last_state;
 	int				poll_time;
@@ -961,9 +960,6 @@ static int sbs_get_property(struct power_supply *psy,
 		return -EINVAL;
 	}
 
-	if (!chip->enable_detection)
-		goto done;
-
 	if (!chip->gpio_detect &&
 		chip->is_present != (ret >= 0)) {
 		sbs_update_presence(chip, (ret >= 0));
@@ -1092,7 +1088,6 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip->flags = (u32)(uintptr_t)device_get_match_data(&client->dev);
 	chip->client = client;
-	chip->enable_detection = false;
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = chip;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -1162,6 +1157,8 @@ skip_gpio:
 		}
 	}
 
+	INIT_DELAYED_WORK(&chip->work, sbs_delayed_work);
+
 	chip->power_supply = devm_power_supply_register(&client->dev, sbs_desc,
 						   &psy_cfg);
 	if (IS_ERR(chip->power_supply)) {
@@ -1173,10 +1170,6 @@ skip_gpio:
 
 	dev_info(&client->dev,
 		"%s: battery gas gauge device registered\n", client->name);
-
-	INIT_DELAYED_WORK(&chip->work, sbs_delayed_work);
-
-	chip->enable_detection = true;
 
 	return 0;
 
