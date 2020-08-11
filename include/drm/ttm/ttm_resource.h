@@ -162,7 +162,6 @@ struct ttm_resource_manager {
  * @addr:		mapped virtual address
  * @base:		bus base address
  * @is_iomem:		is this io memory ?
- * @size:		size in byte
  * @offset:		offset from the base address
  * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
  * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
@@ -172,7 +171,6 @@ struct ttm_resource_manager {
 struct ttm_bus_placement {
 	void		*addr;
 	phys_addr_t	base;
-	unsigned long	size;
 	unsigned long	offset;
 	bool		is_iomem;
 	bool		io_reserved_vm;

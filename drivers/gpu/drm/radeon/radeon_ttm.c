@@ -362,6 +362,7 @@ memcpy:
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
 {
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
+	size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
@@ -380,7 +381,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
-		if ((mem->bus.offset + mem->bus.size) > rdev->mc.visible_vram_size)
+		if ((mem->bus.offset + bus_size) > rdev->mc.visible_vram_size)
 			return -EINVAL;
 		mem->bus.base = rdev->mc.aper_base;
 		mem->bus.is_iomem = true;
@@ -392,11 +393,11 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		if (mem->placement & TTM_PL_FLAG_WC)
 			mem->bus.addr =
 				ioremap_wc(mem->bus.base + mem->bus.offset,
-					   mem->bus.size);
+					   bus_size);
 		else
 			mem->bus.addr =
 				ioremap(mem->bus.base + mem->bus.offset,
-						mem->bus.size);
+					bus_size);
 		if (!mem->bus.addr)
 			return -ENOMEM;
 

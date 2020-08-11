@@ -140,7 +140,6 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 
 	mem->bus.addr = NULL;
 	mem->bus.offset = 0;
-	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 	mem->bus.base = 0;
 	mem->bus.is_iomem = false;
 retry:
@@ -214,12 +213,14 @@ static int ttm_resource_ioremap(struct ttm_bo_device *bdev,
 	if (mem->bus.addr) {
 		addr = mem->bus.addr;
 	} else {
+		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
+
 		if (mem->placement & TTM_PL_FLAG_WC)
 			addr = ioremap_wc(mem->bus.base + mem->bus.offset,
-					  mem->bus.size);
+					  bus_size);
 		else
 			addr = ioremap(mem->bus.base + mem->bus.offset,
-				       mem->bus.size);
+				       bus_size);
 		if (!addr) {
 			(void) ttm_mem_io_lock(man, false);
 			ttm_mem_io_free(bdev, mem);
