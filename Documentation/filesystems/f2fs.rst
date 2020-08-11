@@ -258,6 +258,8 @@ compress_extension=%s	 Support adding specified extension, so that f2fs can enab
 			 on compression extension list and enable compression on
 			 these file by default rather than to enable it via ioctl.
 			 For other files, we can still enable compression via ioctl.
+			 Note that, there is one reserved special extension '*', it
+			 can be set to enable compression for all files.
 inlinecrypt		 When possible, encrypt/decrypt the contents of encrypted
 			 files using the blk-crypto framework rather than
 			 filesystem-layer encryption. This allows the use of
@@ -743,8 +745,8 @@ Compression implementation
 
 - In order to eliminate write amplification during overwrite, F2FS only
   support compression on write-once file, data can be compressed only when
-  all logical blocks in file are valid and cluster compress ratio is lower
-  than specified threshold.
+  all logical blocks in cluster contain valid data and compress ratio of
+  cluster data is lower than specified threshold.
 
 - To enable compression on regular inode, there are three ways:
 

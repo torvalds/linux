@@ -1241,7 +1241,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	case SERIO_8042_XL:
 		atkbd->translated = true;
-		/* Fall through */
+		fallthrough;
 
 	case SERIO_8042:
 		if (serio->write)

@@ -6,6 +6,7 @@
 #define _ASM_X86_TSC_H
 
 #include <asm/processor.h>
+#include <asm/cpufeature.h>
 
 /*
  * Standard way to access the cycle counter.

@@ -20,7 +20,7 @@ config HID
 	  removed from the HID bus by the transport-layer drivers, such as
 	  usbhid (USB_HID) and hidp (BT_HIDP).
 
-	  For docs and specs, see http://www.usb.org/developers/hidpage/
+	  For docs and specs, see https://www.usb.org/developers/hidpage/
 
 	  If unsure, say Y.
 

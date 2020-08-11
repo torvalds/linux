@@ -7,16 +7,9 @@
 #include <string.h>
 #include <linux/stringify.h>
 #include "header.h"
+#include "utils_header.h"
 #include "metricgroup.h"
 #include <api/fs/fs.h>
-
-#define mfspr(rn)       ({unsigned long rval; \
-			 asm volatile("mfspr %0," __stringify(rn) \
-				      : "=r" (rval)); rval; })
-
-#define SPRN_PVR        0x11F	/* Processor Version Register */
-#define PVR_VER(pvr)    (((pvr) >>  16) & 0xFFFF) /* Version field */
-#define PVR_REV(pvr)    (((pvr) >>   0) & 0xFFFF) /* Revison field */
 
 int
 get_cpuid(char *buffer, size_t sz)

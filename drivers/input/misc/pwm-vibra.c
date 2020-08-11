@@ -190,7 +190,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 
 	default:
 		dev_err(&pdev->dev, "Failed to request direction pwm: %d", err);
-		/* Fall through */
+		fallthrough;
 
 	case -EPROBE_DEFER:
 		return err;

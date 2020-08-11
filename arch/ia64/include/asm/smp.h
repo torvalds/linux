@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 #include <linux/irqreturn.h>
 
-#include <asm/io.h>
 #include <asm/param.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
@@ -44,11 +43,6 @@ ia64_get_lid (void)
 
 #ifdef CONFIG_SMP
 
-#define XTP_OFFSET		0x1e0008
-
-#define SMP_IRQ_REDIRECTION	(1 << 0)
-#define SMP_IPI_REDIRECTION	(1 << 1)
-
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 extern struct smp_boot_data {
@@ -62,7 +56,6 @@ extern cpumask_t cpu_core_map[NR_CPUS];
 DECLARE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
 extern int smp_num_siblings;
 extern void __iomem *ipi_base_addr;
-extern unsigned char smp_int_redirect;
 
 extern volatile int ia64_cpu_to_sapicid[];
 #define cpu_physical_id(i)	ia64_cpu_to_sapicid[i]
@@ -82,34 +75,6 @@ cpu_logical_id (int cpuid)
 		if (cpu_physical_id(i) == cpuid)
 			break;
 	return i;
-}
-
-/*
- * XTP control functions:
- *	min_xtp   : route all interrupts to this CPU
- *	normal_xtp: nominal XTP value
- *	max_xtp   : never deliver interrupts to this CPU.
- */
-
-static inline void
-min_xtp (void)
-{
-	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
-		writeb(0x00, ipi_base_addr + XTP_OFFSET); /* XTP to min */
-}
-
-static inline void
-normal_xtp (void)
-{
-	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
-		writeb(0x08, ipi_base_addr + XTP_OFFSET); /* XTP normal */
-}
-
-static inline void
-max_xtp (void)
-{
-	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
-		writeb(0x0f, ipi_base_addr + XTP_OFFSET); /* Set XTP to max */
 }
 
 /* Upping and downing of CPUs */

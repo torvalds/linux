@@ -26,6 +26,8 @@
 
 #define ETP_CALIBRATE_MAX_LEN	3
 
+#define ETP_FEATURE_REPORT_MK	BIT(0)
+
 /* IAP Firmware handling */
 #define ETP_PRODUCT_ID_FORMAT_STRING	"%d.0"
 #define ETP_FW_NAME		"elan_i2c_" ETP_PRODUCT_ID_FORMAT_STRING ".bin"
@@ -33,6 +35,8 @@
 #define ETP_FW_IAP_PAGE_ERR	(1 << 5)
 #define ETP_FW_IAP_INTF_ERR	(1 << 4)
 #define ETP_FW_PAGE_SIZE	64
+#define ETP_FW_PAGE_SIZE_128	128
+#define ETP_FW_PAGE_SIZE_512	512
 #define ETP_FW_SIGNATURE_SIZE	6
 
 struct i2c_client;
@@ -55,8 +59,9 @@ struct elan_transport_ops {
 	int (*get_baseline_data)(struct i2c_client *client,
 				 bool max_baseliune, u8 *value);
 
-	int (*get_version)(struct i2c_client *client, bool iap, u8 *version);
-	int (*get_sm_version)(struct i2c_client *client,
+	int (*get_version)(struct i2c_client *client, u8 pattern, bool iap,
+			   u8 *version);
+	int (*get_sm_version)(struct i2c_client *client, u8 pattern,
 			      u16 *ic_type, u8 *version, u8 *clickpad);
 	int (*get_checksum)(struct i2c_client *client, bool iap, u16 *csum);
 	int (*get_product_id)(struct i2c_client *client, u16 *id);
@@ -72,13 +77,18 @@ struct elan_transport_ops {
 	int (*iap_get_mode)(struct i2c_client *client, enum tp_mode *mode);
 	int (*iap_reset)(struct i2c_client *client);
 
-	int (*prepare_fw_update)(struct i2c_client *client);
-	int (*write_fw_block)(struct i2c_client *client,
+	int (*prepare_fw_update)(struct i2c_client *client, u16 ic_type,
+				 u8 iap_version);
+	int (*write_fw_block)(struct i2c_client *client, u16 fw_page_size,
 			      const u8 *page, u16 checksum, int idx);
 	int (*finish_fw_update)(struct i2c_client *client,
 				struct completion *reset_done);
 
-	int (*get_report)(struct i2c_client *client, u8 *report);
+	int (*get_report_features)(struct i2c_client *client, u8 pattern,
+				   unsigned int *features,
+				   unsigned int *report_len);
+	int (*get_report)(struct i2c_client *client, u8 *report,
+			  unsigned int report_len);
 	int (*get_pressure_adjustment)(struct i2c_client *client,
 				       int *adjustment);
 	int (*get_pattern)(struct i2c_client *client, u8 *pattern);

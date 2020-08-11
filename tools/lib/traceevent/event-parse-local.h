@@ -13,6 +13,7 @@ struct func_map;
 struct func_list;
 struct event_handler;
 struct func_resolver;
+struct tep_plugins_dir;
 
 struct tep_handle {
 	int ref_count;
@@ -47,7 +48,6 @@ struct tep_handle {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
-
 	struct tep_event **events;
 	int nr_events;
 	struct tep_event **sort_events;
@@ -81,10 +81,30 @@ struct tep_handle {
 
 	/* cache */
 	struct tep_event *last_event;
+
+	struct tep_plugins_dir *plugins_dir;
+};
+
+enum tep_print_parse_type {
+	PRINT_FMT_STRING,
+	PRINT_FMT_ARG_DIGIT,
+	PRINT_FMT_ARG_POINTER,
+	PRINT_FMT_ARG_STRING,
+};
+
+struct tep_print_parse {
+	struct tep_print_parse	*next;
+
+	char				*format;
+	int				ls;
+	enum tep_print_parse_type	type;
+	struct tep_print_arg		*arg;
+	struct tep_print_arg		*len_as_arg;
 };
 
 void tep_free_event(struct tep_event *event);
 void tep_free_format_field(struct tep_format_field *field);
+void tep_free_plugin_paths(struct tep_handle *tep);
 
 unsigned short tep_data2host2(struct tep_handle *tep, unsigned short data);
 unsigned int tep_data2host4(struct tep_handle *tep, unsigned int data);

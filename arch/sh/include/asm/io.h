@@ -17,6 +17,7 @@
 #include <asm/cache.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
+#include <asm/page.h>
 #include <linux/pgtable.h>
 #include <asm-generic/iomap.h>
 
