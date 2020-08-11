@@ -15,6 +15,7 @@
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/processor.h>
 
 #define MV_NAME_SIZE 32
 
