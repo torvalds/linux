@@ -185,14 +185,14 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				err = perf_evlist__parse_sample(evlist, event, &sample);
 				if (err < 0) {
 					if (verbose > 0)
-						perf_event__fprintf(event, stderr);
+						perf_event__fprintf(event, NULL, stderr);
 					pr_debug("Couldn't parse sample\n");
 					goto out_delete_evlist;
 				}
 
 				if (verbose > 0) {
 					pr_info("%" PRIu64" %d ", sample.time, sample.cpu);
-					perf_event__fprintf(event, stderr);
+					perf_event__fprintf(event, NULL, stderr);
 				}
 
 				if (prev_time > sample.time) {

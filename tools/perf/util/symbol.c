@@ -666,6 +666,8 @@ static bool symbol__is_idle(const char *name)
 		"poll_idle",
 		"ppc64_runlatch_off",
 		"pseries_dedicated_idle_sleep",
+		"psw_idle",
+		"psw_idle_exit",
 		NULL
 	};
 	int i;
@@ -1563,6 +1565,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 
 	case DSO_BINARY_TYPE__BPF_PROG_INFO:
 	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 	default:
 		return false;

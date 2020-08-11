@@ -1,21 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright (C) 2009 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,7 +140,23 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(EXIT_WRITE_DR5,	0x035)		\
 	_ER(EXIT_WRITE_DR6,	0x036)		\
 	_ER(EXIT_WRITE_DR7,	0x037)		\
-	_ER(EXIT_EXCP_BASE,     0x040)		\
+	_ER(EXIT_EXCP_DE,	0x040)		\
+	_ER(EXIT_EXCP_DB,	0x041)		\
+	_ER(EXIT_EXCP_BP,	0x043)		\
+	_ER(EXIT_EXCP_OF,	0x044)		\
+	_ER(EXIT_EXCP_BR,	0x045)		\
+	_ER(EXIT_EXCP_UD,	0x046)		\
+	_ER(EXIT_EXCP_NM,	0x047)		\
+	_ER(EXIT_EXCP_DF,	0x048)		\
+	_ER(EXIT_EXCP_TS,	0x04a)		\
+	_ER(EXIT_EXCP_NP,	0x04b)		\
+	_ER(EXIT_EXCP_SS,	0x04c)		\
+	_ER(EXIT_EXCP_GP,	0x04d)		\
+	_ER(EXIT_EXCP_PF,	0x04e)		\
+	_ER(EXIT_EXCP_MF,	0x050)		\
+	_ER(EXIT_EXCP_AC,	0x051)		\
+	_ER(EXIT_EXCP_MC,	0x052)		\
+	_ER(EXIT_EXCP_XF,	0x053)		\
 	_ER(EXIT_INTR,		0x060)		\
 	_ER(EXIT_NMI,		0x061)		\
 	_ER(EXIT_SMI,		0x062)		\
@@ -201,7 +202,10 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(EXIT_MONITOR,	0x08a)		\
 	_ER(EXIT_MWAIT,		0x08b)		\
 	_ER(EXIT_MWAIT_COND,	0x08c)		\
-	_ER(EXIT_NPF,		0x400)		\
+	_ER(EXIT_XSETBV,	0x08d)		\
+	_ER(EXIT_NPF, 		0x400)		\
+	_ER(EXIT_AVIC_INCOMPLETE_IPI,		0x401)	\
+	_ER(EXIT_AVIC_UNACCELERATED_ACCESS,	0x402)	\
 	_ER(EXIT_ERR,		-1)
 
 #define _ER(reason, val)	{ #reason, val },
@@ -241,7 +245,7 @@ static const char *find_exit_reason(unsigned isa, int val)
 		}
 	if (!strings)
 		return "UNKNOWN-ISA";
-	for (i = 0; strings[i].val >= 0; i++)
+	for (i = 0; strings[i].str; i++)
 		if (strings[i].val == val)
 			break;
 

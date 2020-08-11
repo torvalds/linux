@@ -267,6 +267,11 @@ bool __map__is_bpf_prog(const struct map *map)
 	return name && (strstr(name, "bpf_prog_") == name);
 }
 
+bool __map__is_ool(const struct map *map)
+{
+	return map->dso && map->dso->binary_type == DSO_BINARY_TYPE__OOL;
+}
+
 bool map__has_symbols(const struct map *map)
 {
 	return dso__has_symbols(map->dso);

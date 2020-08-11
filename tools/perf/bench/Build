@@ -1,5 +1,6 @@
 perf-y += sched-messaging.o
 perf-y += sched-pipe.o
+perf-y += syscall.o
 perf-y += mem-functions.o
 perf-y += futex-hash.o
 perf-y += futex-wake.o
@@ -10,6 +11,7 @@ perf-y += epoll-wait.o
 perf-y += epoll-ctl.o
 perf-y += synthesize.o
 perf-y += kallsyms-parse.o
+perf-y += find-bit-bench.o
 
 perf-$(CONFIG_X86_64) += mem-memcpy-x86-64-lib.o
 perf-$(CONFIG_X86_64) += mem-memcpy-x86-64-asm.o

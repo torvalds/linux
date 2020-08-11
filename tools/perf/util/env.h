@@ -77,7 +77,6 @@ struct perf_env {
 	struct numa_node	*numa_nodes;
 	struct memory_node	*memory_nodes;
 	unsigned long long	 memory_bsize;
-	u64                     clockid_res_ns;
 
 	/*
 	 * bpf_info_lock protects bpf rbtrees. This is needed because the
@@ -100,6 +99,19 @@ struct perf_env {
 	/* For fast cpu to numa node lookup via perf_env__numa_node */
 	int			*numa_map;
 	int			 nr_numa_map;
+
+	/* For real clock time reference. */
+	struct {
+		u64	tod_ns;
+		u64	clockid_ns;
+		u64     clockid_res_ns;
+		int	clockid;
+		/*
+		 * enabled is valid for report mode, and is true if above
+		 * values are set, it's set in process_clock_data
+		 */
+		bool	enabled;
+	} clock;
 };
 
 enum perf_compress_type {

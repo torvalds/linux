@@ -767,8 +767,8 @@ int parse_events_load_bpf_obj(struct parse_events_state *parse_state,
 
 	return 0;
 errout:
-	parse_state->error->help = strdup("(add -v to see detail)");
-	parse_state->error->str = strdup(errbuf);
+	parse_events__handle_error(parse_state->error, 0,
+				strdup(errbuf), strdup("(add -v to see detail)"));
 	return err;
 }
 
@@ -784,36 +784,38 @@ parse_events_config_bpf(struct parse_events_state *parse_state,
 		return 0;
 
 	list_for_each_entry(term, head_config, list) {
-		char errbuf[BUFSIZ];
 		int err;
 
 		if (term->type_term != PARSE_EVENTS__TERM_TYPE_USER) {
-			snprintf(errbuf, sizeof(errbuf),
-				 "Invalid config term for BPF object");
-			errbuf[BUFSIZ - 1] = '\0';
-
-			parse_state->error->idx = term->err_term;
-			parse_state->error->str = strdup(errbuf);
+			parse_events__handle_error(parse_state->error, term->err_term,
+						strdup("Invalid config term for BPF object"),
+						NULL);
 			return -EINVAL;
 		}
 
 		err = bpf__config_obj(obj, term, parse_state->evlist, &error_pos);
 		if (err) {
+			char errbuf[BUFSIZ];
+			int idx;
+
 			bpf__strerror_config_obj(obj, term, parse_state->evlist,
 						 &error_pos, err, errbuf,
 						 sizeof(errbuf));
-			parse_state->error->help = strdup(
+
+			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
+				idx = term->err_val;
+			else
+				idx = term->err_term + error_pos;
+
+			parse_events__handle_error(parse_state->error, idx,
+						strdup(errbuf),
+						strdup(
 "Hint:\tValid config terms:\n"
 "     \tmap:[<arraymap>].value<indices>=[value]\n"
 "     \tmap:[<eventmap>].event<indices>=[event]\n"
 "\n"
 "     \twhere <indices> is something like [0,3...5] or [all]\n"
-"     \t(add -v to see detail)");
-			parse_state->error->str = strdup(errbuf);
-			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
-				parse_state->error->idx = term->err_val;
-			else
-				parse_state->error->idx = term->err_term + error_pos;
+"     \t(add -v to see detail)"));
 			return err;
 		}
 	}
@@ -877,8 +879,8 @@ int parse_events_load_bpf(struct parse_events_state *parse_state,
 						   -err, errbuf,
 						   sizeof(errbuf));
 
-		parse_state->error->help = strdup("(add -v to see detail)");
-		parse_state->error->str = strdup(errbuf);
+		parse_events__handle_error(parse_state->error, 0,
+					strdup(errbuf), strdup("(add -v to see detail)"));
 		return err;
 	}
 
@@ -1450,7 +1452,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		fprintf(stderr, "' that may result in non-fatal errors\n");
 	}
 
-	pmu = perf_pmu__find(name);
+	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
 	if (!pmu) {
 		char *err_str;
 
@@ -1483,7 +1485,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		}
 	}
 
-	if (perf_pmu__check_alias(pmu, head_config, &info))
+	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, head_config, &info))
 		return -EINVAL;
 
 	if (verbose > 1) {
@@ -1516,7 +1518,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (pmu->default_config && get_config_chgs(pmu, head_config, &config_terms))
 		return -ENOMEM;
 
-	if (perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
+	if (!parse_state->fake_pmu && perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
 		struct evsel_config_term *pos, *tmp;
 
 		list_for_each_entry_safe(pos, tmp, &config_terms, list) {
@@ -2017,6 +2019,32 @@ err:
 	perf_pmu__parse_cleanup();
 }
 
+/*
+ * This function injects special term in
+ * perf_pmu_events_list so the test code
+ * can check on this functionality.
+ */
+int perf_pmu__test_parse_init(void)
+{
+	struct perf_pmu_event_symbol *list;
+
+	list = malloc(sizeof(*list) * 1);
+	if (!list)
+		return -ENOMEM;
+
+	list->type   = PMU_EVENT_SYMBOL;
+	list->symbol = strdup("read");
+
+	if (!list->symbol) {
+		free(list);
+		return -ENOMEM;
+	}
+
+	perf_pmu_events_list = list;
+	perf_pmu_events_list_num = 1;
+	return 0;
+}
+
 enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name)
 {
@@ -2078,6 +2106,8 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	int ret;
 
 	ret = parse_events__scanner(str, &parse_state);
+	perf_pmu__parse_cleanup();
+
 	if (!ret) {
 		list_splice(parse_state.terms, terms);
 		zfree(&parse_state.terms);
@@ -2088,15 +2118,16 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct evlist *evlist, const char *str,
-		 struct parse_events_error *err)
+int __parse_events(struct evlist *evlist, const char *str,
+		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
 {
 	struct parse_events_state parse_state = {
-		.list   = LIST_HEAD_INIT(parse_state.list),
-		.idx    = evlist->core.nr_entries,
-		.error  = err,
-		.evlist = evlist,
-		.stoken = PE_START_EVENTS,
+		.list	  = LIST_HEAD_INIT(parse_state.list),
+		.idx	  = evlist->core.nr_entries,
+		.error	  = err,
+		.evlist	  = evlist,
+		.stoken	  = PE_START_EVENTS,
+		.fake_pmu = fake_pmu,
 	};
 	int ret;
 
