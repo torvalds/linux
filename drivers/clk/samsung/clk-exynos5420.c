@@ -712,8 +712,8 @@ static const struct samsung_mux_clock exynos5x_mux_clks[] __initconst = {
 			SRC_TOP12, 8, 1),
 	MUX(0, "mout_sw_aclk266_g2d", mout_sw_aclk266_g2d_p,
 			SRC_TOP12, 12, 1),
-	MUX_F(0, "mout_sw_aclk_g3d", mout_sw_aclk_g3d_p, SRC_TOP12, 16, 1,
-	      CLK_SET_RATE_PARENT, 0),
+	MUX_F(CLK_MOUT_SW_ACLK_G3D, "mout_sw_aclk_g3d", mout_sw_aclk_g3d_p,
+			SRC_TOP12, 16, 1, CLK_SET_RATE_PARENT, 0),
 	MUX(0, "mout_sw_aclk300_jpeg", mout_sw_aclk300_jpeg_p,
 			SRC_TOP12, 20, 1),
 	MUX(CLK_MOUT_SW_ACLK300, "mout_sw_aclk300_disp1",
@@ -1560,6 +1560,7 @@ static void __init exynos5x_clk_init(struct device_node *np,
 		enum exynos5x_soc soc)
 {
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 
 	if (np) {
 		reg_base = of_iomap(np, 0);
@@ -1649,17 +1650,18 @@ static void __init exynos5x_clk_init(struct device_node *np,
 				     exynos5x_subcmus);
 	}
 
+	hws = ctx->clk_data.hws;
 	/*
 	 * Keep top part of G3D clock path enabled permanently to ensure
 	 * that the internal busses get their clock regardless of the
 	 * main G3D clock enablement status.
 	 */
-	clk_prepare_enable(__clk_lookup("mout_sw_aclk_g3d"));
+	clk_prepare_enable(hws[CLK_MOUT_SW_ACLK_G3D]->clk);
 	/*
 	 * Keep top BPLL mux enabled permanently to ensure that DRAM operates
 	 * properly.
 	 */
-	clk_prepare_enable(__clk_lookup("mout_bpll"));
+	clk_prepare_enable(hws[CLK_MOUT_BPLL]->clk);
 
 	samsung_clk_of_add_provider(np, ctx);
 }
