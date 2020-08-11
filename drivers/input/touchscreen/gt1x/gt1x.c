@@ -30,6 +30,7 @@ static const char *input_dev_phys = "input/ts";
 static const struct dev_pm_ops gt1x_ts_pm_ops;
 #endif
 #ifdef GTP_CONFIG_OF
+bool gt1x_gt5688;
 int gt1x_rst_gpio;
 int gt1x_int_gpio;
 #endif
@@ -301,6 +302,7 @@ static struct regulator *vdd_ana;
 static int gt1x_parse_dt(struct device *dev)
 {
 	struct device_node *np;
+	const char *tp_type;
 #ifdef CONFIG_PM
 	struct device_node *root;
 	const char *machine_compatible;
@@ -310,6 +312,14 @@ static int gt1x_parse_dt(struct device *dev)
 		return -ENODEV;
 
 	np = dev->of_node;
+
+	if (!of_property_read_string(np, "goodix,ic_type", &tp_type)) {
+		GTP_INFO("GTP ic_type: %s", tp_type);
+
+		if (strstr(tp_type, "gt5688"))
+			gt1x_gt5688 = true;
+	}
+
 	gt1x_int_gpio = of_get_named_gpio(np, "goodix,irq-gpio", 0);
 	gt1x_rst_gpio = of_get_named_gpio(np, "goodix,rst-gpio", 0);
 

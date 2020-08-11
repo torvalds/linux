@@ -1,0 +1,35 @@
+Goodix GT1x series touch controller
+
+Required properties:
+
+ - compatible			: Should be "goodix,gt1x", compatible with the
+				  of_match_table defined in driver.
+ - reg				: I2C slave address of the device.
+
+ - goodix,irq-gpio		: Interrupt gpio which is to provide interrupts to
+				  host, same as "interrupts" node.
+ - goodix,rst-gpio:		: Reset gpio to control the reset of chip.
+
+Optional properties:
+
+ - power-supply			: Power supply needed to power up the device, when use
+				  external regulator, do not add this property.
+ - goodix,ic_type		: Specify touch IC type.
+
+Example:
+
+        i2c@00000000 {
+                /* ... */
+
+                gt9xx@14 {
+                        compatible = "goodix,gt1x";
+                        reg = <0x14>;
+                        status = "okay";
+
+                        goodix,rst-gpio = <&msm_gpio 12 0x0>;
+                        goodix,irq-gpio = <&msm_gpio 13 0x2800>;
+                        goodix,ic_type	= "gt5688";
+                };
+
+                /* ... */
+        };

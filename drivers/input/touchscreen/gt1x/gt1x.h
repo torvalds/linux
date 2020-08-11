@@ -37,6 +37,7 @@
 
 /* Customize your I/O ports & I/O operations */
 #ifdef GTP_CONFIG_OF
+extern bool gt1x_gt5688;
 extern int gt1x_rst_gpio;
 extern int gt1x_int_gpio;
 extern struct regulator *gt1x_supply;

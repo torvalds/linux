@@ -20,6 +20,7 @@
 /*#include "gt1x_tpd_custom.h"*/
 #include "gt1x.h"
 #include "gt1x_generic.h"
+#include "gt1x_cfg.h"
 #if GTP_PROXIMITY && defined(PLATFORM_MTK)
 #include <linux/hwmsensor.h>
 #include <linux/hwmsen_dev.h>
@@ -584,6 +585,11 @@ s32 gt1x_init_panel(void)
 		CFG_GROUP_LEN(cfg_grp4),
 		CFG_GROUP_LEN(cfg_grp5)
 	};
+
+	if (gt1x_gt5688) {
+		cfgs[0] = gtp_dat_5688;
+		cfg_lens[0] = CFG_GROUP_LEN(gtp_dat_5688);
+	}
 
 	GTP_DEBUG("Config groups length:%d,%d,%d,%d,%d,%d", cfg_lens[0], cfg_lens[1], cfg_lens[2], cfg_lens[3], cfg_lens[4], cfg_lens[5]);
 
