@@ -2076,10 +2076,10 @@ enum nl80211_commands {
  *	operation).
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
- * @NL80211_ATTR_CSA_C_OFF_BEACON: An array of offsets (u16) to the channel
- *	switch counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
- * @NL80211_ATTR_CSA_C_OFF_PRESP: An array of offsets (u16) to the channel
- *	switch counters in the probe response (%NL80211_ATTR_PROBE_RESP).
+ * @NL80211_ATTR_CNTDWN_OFFS_BEACON: An array of offsets (u16) to the channel
+ *	switch or color change counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CNTDWN_OFFS_PRESP: An array of offsets (u16) to the channel
+ *	switch or color change counters in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
  *	As specified in the &enum nl80211_rxmgmt_flags.
@@ -2815,8 +2815,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_CH_SWITCH_COUNT,
 	NL80211_ATTR_CH_SWITCH_BLOCK_TX,
 	NL80211_ATTR_CSA_IES,
-	NL80211_ATTR_CSA_C_OFF_BEACON,
-	NL80211_ATTR_CSA_C_OFF_PRESP,
+	NL80211_ATTR_CNTDWN_OFFS_BEACON,
+	NL80211_ATTR_CNTDWN_OFFS_PRESP,
 
 	NL80211_ATTR_RXMGMT_FLAGS,
 
@@ -3003,6 +3003,8 @@ enum nl80211_attrs {
 #define	NL80211_ATTR_MESH_PARAMS NL80211_ATTR_MESH_CONFIG
 #define NL80211_ATTR_IFACE_SOCKET_OWNER NL80211_ATTR_SOCKET_OWNER
 #define NL80211_ATTR_SAE_DATA NL80211_ATTR_AUTH_DATA
+#define NL80211_ATTR_CSA_C_OFF_BEACON NL80211_ATTR_CNTDWN_OFFS_BEACON
+#define NL80211_ATTR_CSA_C_OFF_PRESP NL80211_ATTR_CNTDWN_OFFS_PRESP
 
 /*
  * Allow user space programs to use #ifdef on new attributes by defining them

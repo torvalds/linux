@@ -578,8 +578,8 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CH_SWITCH_COUNT] = { .type = NLA_U32 },
 	[NL80211_ATTR_CH_SWITCH_BLOCK_TX] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CSA_IES] = { .type = NLA_NESTED },
-	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_BINARY },
-	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_BINARY },
+	[NL80211_ATTR_CNTDWN_OFFS_BEACON] = { .type = NLA_BINARY },
+	[NL80211_ATTR_CNTDWN_OFFS_PRESP] = { .type = NLA_BINARY },
 	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = NLA_POLICY_MIN_LEN(2),
 	/*
 	 * The value of the Length field of the Supported Operating
@@ -8891,10 +8891,10 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	if (!csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON])
+	if (!csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON])
 		return -EINVAL;
 
-	len = nla_len(csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON]);
+	len = nla_len(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON]);
 	if (!len || (len % sizeof(u16)))
 		return -EINVAL;
 
@@ -8905,7 +8905,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	params.counter_offsets_beacon =
-		nla_data(csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON]);
+		nla_data(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON]);
 
 	/* sanity checks - counters should fit and be the same */
 	for (i = 0; i < params.n_counter_offsets_beacon; i++) {
@@ -8918,8 +8918,8 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	if (csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]) {
-		len = nla_len(csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]);
+	if (csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]) {
+		len = nla_len(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]);
 		if (!len || (len % sizeof(u16)))
 			return -EINVAL;
 
@@ -8930,7 +8930,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		params.counter_offsets_presp =
-			nla_data(csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]);
+			nla_data(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]);
 
 		/* sanity checks - counters should fit and be the same */
 		for (i = 0; i < params.n_counter_offsets_presp; i++) {
