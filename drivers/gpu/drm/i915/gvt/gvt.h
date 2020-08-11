@@ -253,8 +253,6 @@ struct intel_gvt_mmio {
 /* This reg has been accessed by a VM */
 #define F_ACCESSED	(1 << 4)
 /* This reg has been accessed through GPU commands */
-#define F_CMD_ACCESSED	(1 << 5)
-/* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
 /* This reg is in GVT's mmio save-restor list and in hardware
  * logical context image
@@ -617,18 +615,6 @@ static inline bool intel_gvt_mmio_is_unalign(
 			struct intel_gvt *gvt, unsigned int offset)
 {
 	return gvt->mmio.mmio_attribute[offset >> 2] & F_UNALIGN;
-}
-
-/**
- * intel_gvt_mmio_set_cmd_accessed - mark a MMIO has been accessed by command
- * @gvt: a GVT device
- * @offset: register offset
- *
- */
-static inline void intel_gvt_mmio_set_cmd_accessed(
-			struct intel_gvt *gvt, unsigned int offset)
-{
-	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESSED;
 }
 
 /**

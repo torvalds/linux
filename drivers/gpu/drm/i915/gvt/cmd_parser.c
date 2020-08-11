@@ -992,8 +992,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		}
 	}
 
-	/* TODO: Update the global mask if this MMIO is a masked-MMIO */
-	intel_gvt_mmio_set_cmd_accessed(gvt, offset);
 	return 0;
 }
 
