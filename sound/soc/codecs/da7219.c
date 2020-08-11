@@ -1846,19 +1846,19 @@ static const char *da7219_supply_names[DA7219_NUM_SUPPLIES] = {
 	[DA7219_SUPPLY_VDDIO] = "VDDIO",
 };
 
-static int da7219_handle_supplies(struct snd_soc_component *component)
+static int da7219_handle_supplies(struct snd_soc_component *component,
+				  u8 *io_voltage_lvl)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	struct regulator *vddio;
-	u8 io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
 	int i, ret;
 
 	/* Get required supplies */
 	for (i = 0; i < DA7219_NUM_SUPPLIES; ++i)
 		da7219->supplies[i].supply = da7219_supply_names[i];
 
-	ret = devm_regulator_bulk_get(component->dev, DA7219_NUM_SUPPLIES,
-				      da7219->supplies);
+	ret = regulator_bulk_get(component->dev, DA7219_NUM_SUPPLIES,
+				 da7219->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to get supplies");
 		return ret;
@@ -1870,20 +1870,17 @@ static int da7219_handle_supplies(struct snd_soc_component *component)
 	if (ret < 1200000)
 		dev_warn(component->dev, "Invalid VDDIO voltage\n");
 	else if (ret < 2800000)
-		io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_1_2V_2_8V;
+		*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_1_2V_2_8V;
+	else
+		*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
 
 	/* Enable main supplies */
 	ret = regulator_bulk_enable(DA7219_NUM_SUPPLIES, da7219->supplies);
 	if (ret) {
 		dev_err(component->dev, "Failed to enable supplies");
+		regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
 		return ret;
 	}
-
-	/* Ensure device in active mode */
-	snd_soc_component_write(component, DA7219_SYSTEM_ACTIVE, DA7219_SYSTEM_ACTIVE_MASK);
-
-	/* Update IO voltage level range */
-	snd_soc_component_write(component, DA7219_IO_CTRL, io_voltage_lvl);
 
 	return 0;
 }
@@ -2250,178 +2247,6 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 	}
 }
 
-static struct reg_sequence da7219_rev_aa_patch[] = {
-	{ DA7219_REFERENCES, 0x08 },
-};
-
-static int da7219_probe(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	unsigned int rev;
-	int ret;
-
-	da7219->component = component;
-	mutex_init(&da7219->ctrl_lock);
-	mutex_init(&da7219->pll_lock);
-
-	/* Regulator configuration */
-	ret = da7219_handle_supplies(component);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(da7219->regmap, DA7219_CHIP_REVISION, &rev);
-	if (ret) {
-		dev_err(component->dev, "Failed to read chip revision: %d\n", ret);
-		goto err_disable_reg;
-	}
-
-	switch (rev & DA7219_CHIP_MINOR_MASK) {
-	case 0:
-		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
-					    ARRAY_SIZE(da7219_rev_aa_patch));
-		if (ret) {
-			dev_err(component->dev, "Failed to register AA patch: %d\n",
-				ret);
-			goto err_disable_reg;
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* Handle DT/ACPI/Platform data */
-	da7219_handle_pdata(component);
-
-	/* Check if MCLK provided */
-	da7219->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(da7219->mclk)) {
-		if (PTR_ERR(da7219->mclk) != -ENOENT) {
-			ret = PTR_ERR(da7219->mclk);
-			goto err_disable_reg;
-		} else {
-			da7219->mclk = NULL;
-		}
-	}
-
-	/* Register CCF DAI clock control */
-	ret = da7219_register_dai_clks(component);
-	if (ret)
-		return ret;
-
-	/* Default PC counter to free-running */
-	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
-			    DA7219_PC_FREERUN_MASK);
-
-	/* Default gain ramping */
-	snd_soc_component_update_bits(component, DA7219_MIXIN_L_CTRL,
-			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK,
-			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_ADC_L_CTRL, DA7219_ADC_L_RAMP_EN_MASK,
-			    DA7219_ADC_L_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_DAC_L_CTRL, DA7219_DAC_L_RAMP_EN_MASK,
-			    DA7219_DAC_L_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_DAC_R_CTRL, DA7219_DAC_R_RAMP_EN_MASK,
-			    DA7219_DAC_R_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
-			    DA7219_HP_L_AMP_RAMP_EN_MASK,
-			    DA7219_HP_L_AMP_RAMP_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
-			    DA7219_HP_R_AMP_RAMP_EN_MASK,
-			    DA7219_HP_R_AMP_RAMP_EN_MASK);
-
-	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
-	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
-			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
-			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
-	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
-			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
-			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
-
-	/* Default infinite tone gen, start/stop by Kcontrol */
-	snd_soc_component_write(component, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
-
-	/* Initialise AAD block */
-	ret = da7219_aad_init(component);
-	if (ret)
-		goto err_disable_reg;
-
-	return 0;
-
-err_disable_reg:
-	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
-
-	return ret;
-}
-
-static void da7219_remove(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-#ifdef CONFIG_COMMON_CLK
-	int i;
-#endif
-
-	da7219_aad_exit(component);
-
-#ifdef CONFIG_COMMON_CLK
-	for (i = DA7219_DAI_NUM_CLKS - 1; i >= 0; --i) {
-		if (da7219->dai_clks_lookup[i])
-			clkdev_drop(da7219->dai_clks_lookup[i]);
-	}
-#endif
-
-	/* Supplies */
-	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
-}
-
-#ifdef CONFIG_PM
-static int da7219_suspend(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-
-	/* Suspend AAD if we're not a wake-up source */
-	if (!da7219->wakeup_source)
-		da7219_aad_suspend(component);
-
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int da7219_resume(struct snd_soc_component *component)
-{
-	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
-
-	/* Resume AAD if previously suspended */
-	if (!da7219->wakeup_source)
-		da7219_aad_resume(component);
-
-	return 0;
-}
-#else
-#define da7219_suspend NULL
-#define da7219_resume NULL
-#endif
-
-static const struct snd_soc_component_driver soc_component_dev_da7219 = {
-	.probe			= da7219_probe,
-	.remove			= da7219_remove,
-	.suspend		= da7219_suspend,
-	.resume			= da7219_resume,
-	.set_bias_level		= da7219_set_bias_level,
-	.controls		= da7219_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
-	.dapm_widgets		= da7219_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
-	.dapm_routes		= da7219_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
-	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
-};
-
 
 /*
  * Regmap configs
@@ -2558,32 +2383,25 @@ static const struct regmap_config da7219_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static struct reg_sequence da7219_rev_aa_patch[] = {
+	{ DA7219_REFERENCES, 0x08 },
+};
 
-/*
- * I2C layer
- */
-
-static int da7219_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7219_probe(struct snd_soc_component *component)
 {
-	struct device *dev = &i2c->dev;
-	struct da7219_priv *da7219;
-	unsigned int system_active, system_status;
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	unsigned int system_active, system_status, rev;
+	u8 io_voltage_lvl;
 	int i, ret;
 
-	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
-			      GFP_KERNEL);
-	if (!da7219)
-		return -ENOMEM;
+	da7219->component = component;
+	mutex_init(&da7219->ctrl_lock);
+	mutex_init(&da7219->pll_lock);
 
-	i2c_set_clientdata(i2c, da7219);
-
-	da7219->regmap = devm_regmap_init_i2c(i2c, &da7219_regmap_config);
-	if (IS_ERR(da7219->regmap)) {
-		ret = PTR_ERR(da7219->regmap);
-		dev_err(dev, "regmap_init() failed: %d\n", ret);
+	/* Regulator configuration */
+	ret = da7219_handle_supplies(component, &io_voltage_lvl);
+	if (ret)
 		return ret;
-	}
 
 	regcache_cache_bypass(da7219->regmap, true);
 
@@ -2613,8 +2431,195 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 			  DA7219_CIF_REG_SOFT_RESET_MASK);
 	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
 			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
+			  DA7219_SYSTEM_ACTIVE_MASK, 1);
 
 	regcache_cache_bypass(da7219->regmap, false);
+	regmap_reinit_cache(da7219->regmap, &da7219_regmap_config);
+
+	/* Update IO voltage level range based on supply level */
+	snd_soc_component_write(component, DA7219_IO_CTRL, io_voltage_lvl);
+
+	ret = regmap_read(da7219->regmap, DA7219_CHIP_REVISION, &rev);
+	if (ret) {
+		dev_err(component->dev, "Failed to read chip revision: %d\n", ret);
+		goto err_disable_reg;
+	}
+
+	switch (rev & DA7219_CHIP_MINOR_MASK) {
+	case 0:
+		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
+					    ARRAY_SIZE(da7219_rev_aa_patch));
+		if (ret) {
+			dev_err(component->dev, "Failed to register AA patch: %d\n",
+				ret);
+			goto err_disable_reg;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Handle DT/ACPI/Platform data */
+	da7219_handle_pdata(component);
+
+	/* Check if MCLK provided */
+	da7219->mclk = devm_clk_get(component->dev, "mclk");
+	if (IS_ERR(da7219->mclk)) {
+		if (PTR_ERR(da7219->mclk) != -ENOENT) {
+			ret = PTR_ERR(da7219->mclk);
+			goto err_disable_reg;
+		} else {
+			da7219->mclk = NULL;
+		}
+	}
+
+	/* Register CCF DAI clock control */
+	ret = da7219_register_dai_clks(component);
+	if (ret)
+		return ret;
+
+	/* Default PC counter to free-running */
+	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
+			    DA7219_PC_FREERUN_MASK);
+
+	/* Default gain ramping */
+	snd_soc_component_update_bits(component, DA7219_MIXIN_L_CTRL,
+			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK,
+			    DA7219_MIXIN_L_AMP_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_ADC_L_CTRL, DA7219_ADC_L_RAMP_EN_MASK,
+			    DA7219_ADC_L_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_DAC_L_CTRL, DA7219_DAC_L_RAMP_EN_MASK,
+			    DA7219_DAC_L_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_DAC_R_CTRL, DA7219_DAC_R_RAMP_EN_MASK,
+			    DA7219_DAC_R_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_RAMP_EN_MASK,
+			    DA7219_HP_L_AMP_RAMP_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_RAMP_EN_MASK,
+			    DA7219_HP_R_AMP_RAMP_EN_MASK);
+
+	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
+	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
+	snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
+
+	/* Default infinite tone gen, start/stop by Kcontrol */
+	snd_soc_component_write(component, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
+
+	/* Initialise AAD block */
+	ret = da7219_aad_init(component);
+	if (ret)
+		goto err_disable_reg;
+
+	return 0;
+
+err_disable_reg:
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+	regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
+
+	return ret;
+}
+
+static void da7219_remove(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+#ifdef CONFIG_COMMON_CLK
+	int i;
+#endif
+
+	da7219_aad_exit(component);
+
+#ifdef CONFIG_COMMON_CLK
+	for (i = DA7219_DAI_NUM_CLKS - 1; i >= 0; --i) {
+		if (da7219->dai_clks_lookup[i])
+			clkdev_drop(da7219->dai_clks_lookup[i]);
+	}
+#endif
+
+	/* Supplies */
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+	regulator_bulk_free(DA7219_NUM_SUPPLIES, da7219->supplies);
+}
+
+#ifdef CONFIG_PM
+static int da7219_suspend(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	/* Suspend AAD if we're not a wake-up source */
+	if (!da7219->wakeup_source)
+		da7219_aad_suspend(component);
+
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+
+	return 0;
+}
+
+static int da7219_resume(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+
+	/* Resume AAD if previously suspended */
+	if (!da7219->wakeup_source)
+		da7219_aad_resume(component);
+
+	return 0;
+}
+#else
+#define da7219_suspend NULL
+#define da7219_resume NULL
+#endif
+
+static const struct snd_soc_component_driver soc_component_dev_da7219 = {
+	.probe			= da7219_probe,
+	.remove			= da7219_remove,
+	.suspend		= da7219_suspend,
+	.resume			= da7219_resume,
+	.set_bias_level		= da7219_set_bias_level,
+	.controls		= da7219_snd_controls,
+	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
+	.dapm_widgets		= da7219_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
+	.dapm_routes		= da7219_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+
+
+/*
+ * I2C layer
+ */
+
+static int da7219_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct device *dev = &i2c->dev;
+	struct da7219_priv *da7219;
+	int ret;
+
+	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
+			      GFP_KERNEL);
+	if (!da7219)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, da7219);
+
+	da7219->regmap = devm_regmap_init_i2c(i2c, &da7219_regmap_config);
+	if (IS_ERR(da7219->regmap)) {
+		ret = PTR_ERR(da7219->regmap);
+		dev_err(dev, "regmap_init() failed: %d\n", ret);
+		return ret;
+	}
 
 	/* Retrieve DT/ACPI/Platform data */
 	da7219->pdata = dev_get_platdata(dev);
