@@ -16,6 +16,7 @@ struct btrfs_log_ctx {
 	int log_ret;
 	int log_transid;
 	bool log_new_dentries;
+	bool logging_new_name;
 	struct inode *inode;
 	struct list_head list;
 };
@@ -26,6 +27,7 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 	ctx->log_ret = 0;
 	ctx->log_transid = 0;
 	ctx->log_new_dentries = false;
+	ctx->logging_new_name = false;
 	ctx->inode = inode;
 	INIT_LIST_HEAD(&ctx->list);
 }
@@ -67,16 +69,8 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     int for_rename);
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir);
-/* Return values for btrfs_log_new_name() */
-enum {
-	BTRFS_DONT_NEED_TRANS_COMMIT,
-	BTRFS_NEED_TRANS_COMMIT,
-	BTRFS_DONT_NEED_LOG_SYNC,
-	BTRFS_NEED_LOG_SYNC,
-};
-int btrfs_log_new_name(struct btrfs_trans_handle *trans,
+void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent,
-			bool sync_log, struct btrfs_log_ctx *ctx);
+			struct dentry *parent);
 
 #endif

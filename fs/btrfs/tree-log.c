@@ -176,7 +176,7 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
-	if (ctx) {
+	if (ctx && !ctx->logging_new_name) {
 		int index = root->log_transid % 2;
 		list_add_tail(&ctx->list, &root->log_ctxs[index]);
 		ctx->log_transid = root->log_transid;
@@ -5337,19 +5337,34 @@ log_extents:
 	}
 
 	/*
-	 * Don't update last_log_commit if we logged that an inode exists after
-	 * it was loaded to memory (full_sync bit set).
-	 * This is to prevent data loss when we do a write to the inode, then
-	 * the inode gets evicted after all delalloc was flushed, then we log
-	 * it exists (due to a rename for example) and then fsync it. This last
-	 * fsync would do nothing (not logging the extents previously written).
+	 * If we are logging that an ancestor inode exists as part of logging a
+	 * new name from a link or rename operation, don't mark the inode as
+	 * logged - otherwise if an explicit fsync is made against an ancestor,
+	 * the fsync considers the inode in the log and doesn't sync the log,
+	 * resulting in the ancestor missing after a power failure unless the
+	 * log was synced as part of an fsync against any other unrelated inode.
+	 * So keep it simple for this case and just don't flag the ancestors as
+	 * logged.
 	 */
-	spin_lock(&inode->lock);
-	inode->logged_trans = trans->transid;
-	if (inode_only != LOG_INODE_EXISTS ||
-	    !test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags))
-		inode->last_log_commit = inode->last_sub_trans;
-	spin_unlock(&inode->lock);
+	if (!ctx ||
+	    !(S_ISDIR(inode->vfs_inode.i_mode) && ctx->logging_new_name &&
+	      &inode->vfs_inode != ctx->inode)) {
+		spin_lock(&inode->lock);
+		inode->logged_trans = trans->transid;
+		/*
+		 * Don't update last_log_commit if we logged that an inode exists
+		 * after it was loaded to memory (full_sync bit set).
+		 * This is to prevent data loss when we do a write to the inode,
+		 * then the inode gets evicted after all delalloc was flushed,
+		 * then we log it exists (due to a rename for example) and then
+		 * fsync it. This last fsync would do nothing (not logging the
+		 * extents previously written).
+		 */
+		if (inode_only != LOG_INODE_EXISTS ||
+		    !test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags))
+			inode->last_log_commit = inode->last_sub_trans;
+		spin_unlock(&inode->lock);
+	}
 out_unlock:
 	mutex_unlock(&inode->log_mutex);
 
@@ -6369,26 +6384,13 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 /*
  * Call this after adding a new name for a file and it will properly
  * update the log to reflect the new name.
- *
- * @ctx can not be NULL when @sync_log is false, and should be NULL when it's
- * true (because it's not used).
- *
- * Return value depends on whether @sync_log is true or false.
- * When true: returns BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
- *            committed by the caller, and BTRFS_DONT_NEED_TRANS_COMMIT
- *            otherwise.
- * When false: returns BTRFS_DONT_NEED_LOG_SYNC if the caller does not need to
- *             sync the log, BTRFS_NEED_LOG_SYNC if it needs to sync the log,
- *             or BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
- *             committed (without attempting to sync the log).
  */
-int btrfs_log_new_name(struct btrfs_trans_handle *trans,
+void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent,
-			bool sync_log, struct btrfs_log_ctx *ctx)
+			struct dentry *parent)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	int ret;
+	struct btrfs_log_ctx ctx;
 
 	/*
 	 * this will force the logging code to walk the dentry chain
@@ -6403,34 +6405,18 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 */
 	if (inode->logged_trans <= fs_info->last_trans_committed &&
 	    (!old_dir || old_dir->logged_trans <= fs_info->last_trans_committed))
-		return sync_log ? BTRFS_DONT_NEED_TRANS_COMMIT :
-			BTRFS_DONT_NEED_LOG_SYNC;
+		return;
 
-	if (sync_log) {
-		struct btrfs_log_ctx ctx2;
-
-		btrfs_init_log_ctx(&ctx2, &inode->vfs_inode);
-		ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
-					     LOG_INODE_EXISTS, &ctx2);
-		if (ret == BTRFS_NO_LOG_SYNC)
-			return BTRFS_DONT_NEED_TRANS_COMMIT;
-		else if (ret)
-			return BTRFS_NEED_TRANS_COMMIT;
-
-		ret = btrfs_sync_log(trans, inode->root, &ctx2);
-		if (ret)
-			return BTRFS_NEED_TRANS_COMMIT;
-		return BTRFS_DONT_NEED_TRANS_COMMIT;
-	}
-
-	ASSERT(ctx);
-	ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
-				     LOG_INODE_EXISTS, ctx);
-	if (ret == BTRFS_NO_LOG_SYNC)
-		return BTRFS_DONT_NEED_LOG_SYNC;
-	else if (ret)
-		return BTRFS_NEED_TRANS_COMMIT;
-
-	return BTRFS_NEED_LOG_SYNC;
+	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
+	ctx.logging_new_name = true;
+	/*
+	 * We don't care about the return value. If we fail to log the new name
+	 * then we know the next attempt to sync the log will fallback to a full
+	 * transaction commit (due to a call to btrfs_set_log_full_commit()), so
+	 * we don't need to worry about getting a log committed that has an
+	 * inconsistent state after a rename operation.
+	 */
+	btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
+			       LOG_INODE_EXISTS, &ctx);
 }
 
