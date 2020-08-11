@@ -2117,14 +2117,26 @@ static const struct clk_ops da7219_dai_clk_ops[DA7219_DAI_NUM_CLKS] = {
 static int da7219_register_dai_clks(struct snd_soc_component *component)
 {
 	struct device *dev = component->dev;
+	struct device_node *np = dev->of_node;
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	struct da7219_pdata *pdata = da7219->pdata;
 	const char *parent_name;
+	struct clk_hw_onecell_data *clk_data;
 	int i, ret;
+
+	/* For DT platforms allocate onecell data for clock registration */
+	if (np) {
+		clk_data = kzalloc(struct_size(clk_data, hws, DA7219_DAI_NUM_CLKS),
+				   GFP_KERNEL);
+		if (!clk_data)
+			return -ENOMEM;
+
+		clk_data->num = DA7219_DAI_NUM_CLKS;
+		da7219->clk_hw_data = clk_data;
+	}
 
 	for (i = 0; i < DA7219_DAI_NUM_CLKS; ++i) {
 		struct clk_init_data init = {};
-		struct clk *dai_clk;
 		struct clk_lookup *dai_clk_lookup;
 		struct clk_hw *dai_clk_hw = &da7219->dai_clks_hw[i];
 
@@ -2160,22 +2172,20 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 		init.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_GATE;
 		dai_clk_hw->init = &init;
 
-		dai_clk = devm_clk_register(dev, dai_clk_hw);
-		if (IS_ERR(dai_clk)) {
-			dev_warn(dev, "Failed to register %s: %ld\n",
-				 init.name, PTR_ERR(dai_clk));
-			ret = PTR_ERR(dai_clk);
+		ret = clk_hw_register(dev, dai_clk_hw);
+		if (ret) {
+			dev_warn(dev, "Failed to register %s: %d\n", init.name,
+				 ret);
 			goto err;
 		}
-		da7219->dai_clks[i] = dai_clk;
+		da7219->dai_clks[i] = dai_clk_hw->clk;
 
-		/* If we're using DT, then register as provider accordingly */
-		if (dev->of_node) {
-			devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
-						    dai_clk_hw);
+		/* For DT setup onecell data, otherwise create lookup */
+		if (np) {
+			da7219->clk_hw_data->hws[i] = dai_clk_hw;
 		} else {
-			dai_clk_lookup = clkdev_create(dai_clk, init.name,
-						       "%s", dev_name(dev));
+			dai_clk_lookup = clkdev_hw_create(dai_clk_hw, init.name,
+							  "%s", dev_name(dev));
 			if (!dai_clk_lookup) {
 				ret = -ENOMEM;
 				goto err;
@@ -2185,21 +2195,58 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 		}
 	}
 
+	/* If we're using DT, then register as provider accordingly */
+	if (np) {
+		ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+					     da7219->clk_hw_data);
+		if (ret) {
+			dev_err(dev, "Failed to register clock provider\n");
+			goto err;
+		}
+	}
+
 	return 0;
 
 err:
 	do {
 		if (da7219->dai_clks_lookup[i])
 			clkdev_drop(da7219->dai_clks_lookup[i]);
+
+		clk_hw_unregister(&da7219->dai_clks_hw[i]);
 	} while (i-- > 0);
 
+	if (np)
+		kfree(da7219->clk_hw_data);
+
 	return ret;
+}
+
+static void da7219_free_dai_clks(struct snd_soc_component *component)
+{
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct device_node *np = component->dev->of_node;
+	int i;
+
+	if (np)
+		of_clk_del_provider(np);
+
+	for (i = DA7219_DAI_NUM_CLKS - 1; i >= 0; --i) {
+		if (da7219->dai_clks_lookup[i])
+			clkdev_drop(da7219->dai_clks_lookup[i]);
+
+		clk_hw_unregister(&da7219->dai_clks_hw[i]);
+	}
+
+	if (np)
+		kfree(da7219->clk_hw_data);
 }
 #else
 static inline int da7219_register_dai_clks(struct snd_soc_component *component)
 {
 	return 0;
 }
+
+static void da7219_free_dai_clks(struct snd_soc_component *component) {}
 #endif /* CONFIG_COMMON_CLK */
 
 static void da7219_handle_pdata(struct snd_soc_component *component)
@@ -2464,7 +2511,7 @@ static int da7219_probe(struct snd_soc_component *component)
 	da7219_handle_pdata(component);
 
 	/* Check if MCLK provided */
-	da7219->mclk = devm_clk_get(component->dev, "mclk");
+	da7219->mclk = clk_get(component->dev, "mclk");
 	if (IS_ERR(da7219->mclk)) {
 		if (PTR_ERR(da7219->mclk) != -ENOENT) {
 			ret = PTR_ERR(da7219->mclk);
@@ -2477,7 +2524,7 @@ static int da7219_probe(struct snd_soc_component *component)
 	/* Register CCF DAI clock control */
 	ret = da7219_register_dai_clks(component);
 	if (ret)
-		return ret;
+		goto err_put_clk;
 
 	/* Default PC counter to free-running */
 	snd_soc_component_update_bits(component, DA7219_PC_COUNT, DA7219_PC_FREERUN_MASK,
@@ -2514,9 +2561,15 @@ static int da7219_probe(struct snd_soc_component *component)
 	/* Initialise AAD block */
 	ret = da7219_aad_init(component);
 	if (ret)
-		goto err_disable_reg;
+		goto err_free_dai_clks;
 
 	return 0;
+
+err_free_dai_clks:
+	da7219_free_dai_clks(component);
+
+err_put_clk:
+	clk_put(da7219->mclk);
 
 err_disable_reg:
 	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
@@ -2528,18 +2581,11 @@ err_disable_reg:
 static void da7219_remove(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-#ifdef CONFIG_COMMON_CLK
-	int i;
-#endif
 
 	da7219_aad_exit(component);
 
-#ifdef CONFIG_COMMON_CLK
-	for (i = DA7219_DAI_NUM_CLKS - 1; i >= 0; --i) {
-		if (da7219->dai_clks_lookup[i])
-			clkdev_drop(da7219->dai_clks_lookup[i]);
-	}
-#endif
+	da7219_free_dai_clks(component);
+	clk_put(da7219->mclk);
 
 	/* Supplies */
 	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
