@@ -362,7 +362,7 @@ static int qti_flash_led_strobe(struct qti_flash_led *led,
 		if (led->trigger_lmh) {
 			rc = qti_flash_lmh_mitigation_config(led, true);
 			if (rc < 0)
-				return rc;
+				goto error;
 
 			/* Wait for LMH mitigation to take effect */
 			udelay(500);
@@ -386,7 +386,7 @@ static int qti_flash_led_strobe(struct qti_flash_led *led,
 		if (led->trigger_lmh) {
 			rc = qti_flash_lmh_mitigation_config(led, false);
 			if (rc < 0)
-				return rc;
+				goto error;
 
 			led->trigger_lmh = false;
 		}
