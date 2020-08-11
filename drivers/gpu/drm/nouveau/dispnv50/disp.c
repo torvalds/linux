@@ -220,6 +220,10 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 	return 0;
 }
 
+MODULE_PARM_DESC(kms_vram_pushbuf, "Place EVO/NVD push buffers in VRAM (default: auto)");
+static int nv50_dmac_vram_pushbuf = -1;
+module_param_named(kms_vram_pushbuf, nv50_dmac_vram_pushbuf, int, 0400);
+
 int
 nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		 const s32 *oclass, u8 head, void *data, u32 size, s64 syncbuf,
@@ -241,7 +245,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	 *
 	 * This appears to match NVIDIA's behaviour on Pascal.
 	 */
-	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
+	if ((nv50_dmac_vram_pushbuf > 0) ||
+	    (nv50_dmac_vram_pushbuf < 0 && device->info.family == NV_DEVICE_INFO_V0_PASCAL))
 		type |= NVIF_MEM_VRAM;
 
 	ret = nvif_mem_ctor_map(&cli->mmu, "kmsChanPush", type, 0x1000,
