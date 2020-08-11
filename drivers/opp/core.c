@@ -907,7 +907,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 		ret = _set_opp_bw(opp_table, NULL, dev, true);
 		if (ret)
-			return ret;
+			goto put_opp_table;
 
 		if (opp_table->regulator_enabled) {
 			regulator_disable(opp_table->regulators[0]);
