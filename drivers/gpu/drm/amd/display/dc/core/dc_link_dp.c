@@ -49,14 +49,14 @@ static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b);
 
-static uint32_t get_training_aux_rd_interval(
+static uint32_t get_eq_training_aux_rd_interval(
 	struct dc_link *link,
-	uint32_t default_wait_in_micro_secs)
+	const struct dc_link_settings *link_settings)
 {
 	union training_aux_rd_interval training_rd_interval;
+	uint32_t wait_in_micro_secs = 400;
 
 	memset(&training_rd_interval, 0, sizeof(training_rd_interval));
-
 	/* overwrite the delay if rev > 1.1*/
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
 		/* DP 1.2 or later - retrieve delay through
@@ -68,10 +68,10 @@ static uint32_t get_training_aux_rd_interval(
 			sizeof(training_rd_interval));
 
 		if (training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL)
-			default_wait_in_micro_secs = training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL * 4000;
+			wait_in_micro_secs = training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL * 4000;
 	}
 
-	return default_wait_in_micro_secs;
+	return wait_in_micro_secs;
 }
 
 static void wait_for_training_aux_rd_interval(
@@ -1251,12 +1251,12 @@ static void initialize_training_settings(
 	if (overrides->cr_pattern_time != NULL)
 		lt_settings->cr_pattern_time = *overrides->cr_pattern_time;
 	else
-		lt_settings->cr_pattern_time = get_training_aux_rd_interval(link, 100);
+		lt_settings->cr_pattern_time = 100;
 
 	if (overrides->eq_pattern_time != NULL)
 		lt_settings->eq_pattern_time = *overrides->eq_pattern_time;
 	else
-		lt_settings->eq_pattern_time = get_training_aux_rd_interval(link, 400);
+		lt_settings->eq_pattern_time = get_eq_training_aux_rd_interval(link, link_setting);
 
 	if (overrides->pattern_for_cr != NULL)
 		lt_settings->pattern_for_cr = *overrides->pattern_for_cr;
