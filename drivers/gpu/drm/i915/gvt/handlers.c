@@ -1892,7 +1892,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
-	MMIO_RING_DFH(RING_IMR, D_ALL, F_CMD_ACCESS, NULL,
+	MMIO_RING_DFH(RING_IMR, D_ALL, 0, NULL,
 		intel_vgpu_reg_imr_handler);
 
 	MMIO_DFH(SDEIMR, D_ALL, 0, NULL, intel_vgpu_reg_imr_handler);
@@ -1900,7 +1900,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(SDEIIR, D_ALL, 0, NULL, intel_vgpu_reg_iir_handler);
 	MMIO_D(SDEISR, D_ALL);
 
-	MMIO_RING_DFH(RING_HWSTAM, D_ALL, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_HWSTAM, D_ALL, 0, NULL, NULL);
+
 
 	MMIO_DH(GEN8_GAMW_ECO_DEV_RW_IA, D_BDW_PLUS, NULL,
 		gamw_echo_dev_rw_ia_write);
@@ -1927,11 +1928,11 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_GM_RDR(_MMIO(0x12198), D_ALL, NULL, NULL);
 	MMIO_D(GEN7_CXT_SIZE, D_ALL);
 
-	MMIO_RING_DFH(RING_TAIL, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_HEAD, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_CTL, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_ACTHD, D_ALL, F_CMD_ACCESS, mmio_read_from_hw, NULL);
-	MMIO_RING_GM_RDR(RING_START, D_ALL, NULL, NULL);
+	MMIO_RING_DFH(RING_TAIL, D_ALL, 0, NULL, NULL);
+	MMIO_RING_DFH(RING_HEAD, D_ALL, 0, NULL, NULL);
+	MMIO_RING_DFH(RING_CTL, D_ALL, 0, NULL, NULL);
+	MMIO_RING_DFH(RING_ACTHD, D_ALL, 0, mmio_read_from_hw, NULL);
+	MMIO_RING_GM(RING_START, D_ALL, NULL, NULL);
 
 	/* RING MODE */
 #define RING_REG(base) _MMIO((base) + 0x29c)
@@ -2686,7 +2687,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0x4094), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 
 	MMIO_DFH(ARB_MODE, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_GM_RDR(RING_BBADDR, D_ALL, NULL, NULL);
+	MMIO_RING_GM(RING_BBADDR, D_ALL, NULL, NULL);
 	MMIO_DFH(_MMIO(0x2220), D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x12220), D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x22220), D_ALL, F_CMD_ACCESS, NULL, NULL);
@@ -2771,7 +2772,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN8_MASTER_IRQ, D_BDW_PLUS, NULL,
 		intel_vgpu_reg_master_irq_handler);
 
-	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS,
+	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, 0,
 		mmio_read_from_hw, NULL);
 
 #define RING_REG(base) _MMIO((base) + 0xd0)
@@ -2785,7 +2786,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 #undef RING_REG
 
 #define RING_REG(base) _MMIO((base) + 0x234)
-	MMIO_RING_F(RING_REG, 8, F_RO | F_CMD_ACCESS, 0, ~0, D_BDW_PLUS,
+	MMIO_RING_F(RING_REG, 8, F_RO, 0, ~0, D_BDW_PLUS,
 		NULL, NULL);
 #undef RING_REG
 
@@ -2820,7 +2821,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_F(RING_REG, 32, F_CMD_ACCESS, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
-	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, hws_pga_write);
+	MMIO_RING_GM(RING_HWS_PGA, D_BDW_PLUS, NULL, hws_pga_write);
 
 	MMIO_DFH(HDC_CHICKEN0, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
@@ -3357,7 +3358,10 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 	gvt->mmio.mmio_attribute = NULL;
 }
 
-/* Special MMIO blocks. */
+/* Special MMIO blocks. registers in MMIO block ranges should not be command
+ * accessible (should have no F_CMD_ACCESS flag).
+ * otherwise, need to update cmd_reg_handler in cmd_parser.c
+ */
 static struct gvt_mmio_block mmio_blocks[] = {
 	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
 	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
