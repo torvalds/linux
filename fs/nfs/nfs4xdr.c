@@ -5256,7 +5256,7 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	 * The XDR encode routine has set things up so that
 	 * the link text will be copied directly into the
 	 * buffer.  We just have to do overflow-checking,
-	 * and and null-terminate the text (the VFS expects
+	 * and null-terminate the text (the VFS expects
 	 * null-termination).
 	 */
 	xdr_terminate_string(rcvbuf, len);
