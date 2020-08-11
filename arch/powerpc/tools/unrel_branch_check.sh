@@ -26,16 +26,16 @@ awk '$2 == "<__end_interrupts>:" { print $1 }'
 )
 
 BRANCHES=$(
-$objdump -R -D --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
-grep -e "^c[0-9a-f]*:[[:space:]]*\([0-9a-f][0-9a-f][[:space:]]\)\{4\}[[:space:]]*b" |
+$objdump -R -D --no-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
+grep -e "^c[0-9a-f]*:\s*b" |
 sed -e '/\<__start_initialization_multiplatform>/d' \
 	-e '/b.\?.\?ctr/d' \
 	-e '/b.\?.\?lr/d' \
-	-e 's/\bbt.\?[[:space:]]*[[:digit:]][[:digit:]]*,/beq/' \
-	-e 's/\bbf.\?[[:space:]]*[[:digit:]][[:digit:]]*,/bne/' \
-	-e 's/[[:space:]]0x/ /' \
+	-e 's/\bbt.\?\s*[[:digit:]][[:digit:]]*,/beq/' \
+	-e 's/\bbf.\?\s*[[:digit:]][[:digit:]]*,/bne/' \
+	-e 's/\s0x/ /' \
 	-e 's/://' |
-awk '{ print $1 ":" $6 ":0x" $7 ":" $8 " "}'
+awk '{ print $1 ":" $2 ":0x" $3 ":" $4 " "}'
 )
 
 for tuple in $BRANCHES; do
