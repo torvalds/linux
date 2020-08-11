@@ -3400,15 +3400,15 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 
 static const struct drm_display_mode sharp_ls020b1dd01d_modes[] = {
 	{ /* 60 Hz */
-		.clock = 4200,
+		.clock = 3000,
 		.hdisplay = 240,
-		.hsync_start = 240 + 66,
-		.hsync_end = 240 + 66 + 1,
-		.htotal = 240 + 66 + 1 + 1,
+		.hsync_start = 240 + 8,
+		.hsync_end = 240 + 8 + 1,
+		.htotal = 240 + 8 + 1 + 1,
 		.vdisplay = 160,
-		.vsync_start = 160 + 52,
-		.vsync_end = 160 + 52 + 10,
-		.vtotal = 160 + 52 + 10 + 6,
+		.vsync_start = 160 + 24,
+		.vsync_end = 160 + 24 + 10,
+		.vtotal = 160 + 24 + 10 + 6,
 		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
 };
