@@ -133,6 +133,7 @@ struct rapl_pmus {
 enum rapl_unit_quirk {
 	RAPL_UNIT_QUIRK_NONE,
 	RAPL_UNIT_QUIRK_INTEL_HSW,
+	RAPL_UNIT_QUIRK_INTEL_SPR,
 };
 
 struct rapl_model {
@@ -627,6 +628,14 @@ static int rapl_check_hw_unit(struct rapl_model *rm)
 	case RAPL_UNIT_QUIRK_INTEL_HSW:
 		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 		break;
+	/*
+	 * SPR shares the same DRAM domain energy unit as HSW, plus it
+	 * also has a fixed energy unit for Psys domain.
+	 */
+	case RAPL_UNIT_QUIRK_INTEL_SPR:
+		rapl_hw_unit[PERF_RAPL_RAM] = 16;
+		rapl_hw_unit[PERF_RAPL_PSYS] = 0;
+		break;
 	default:
 		break;
 	}
@@ -757,6 +766,16 @@ static struct rapl_model model_skl = {
 	.rapl_msrs      = intel_rapl_msrs,
 };
 
+static struct rapl_model model_spr = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM) |
+			  BIT(PERF_RAPL_PSYS),
+	.unit_quirk	= RAPL_UNIT_QUIRK_INTEL_SPR,
+	.msr_power_unit = MSR_RAPL_POWER_UNIT,
+	.rapl_msrs      = intel_rapl_msrs,
+};
+
 static struct rapl_model model_amd_fam17h = {
 	.events		= BIT(PERF_RAPL_PKG),
 	.msr_power_unit = MSR_AMD_RAPL_POWER_UNIT,
@@ -793,6 +812,7 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&model_hsx),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&model_spr),
 	X86_MATCH_VENDOR_FAM(AMD,	0x17,		&model_amd_fam17h),
 	X86_MATCH_VENDOR_FAM(HYGON,	0x18,		&model_amd_fam17h),
 	{},
