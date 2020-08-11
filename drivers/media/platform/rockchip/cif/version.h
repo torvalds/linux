@@ -37,6 +37,9 @@
  *2. fix compile error when config with module
  *3. support mipi yuv
  *4. support selection ioctl for cropping
+ *5. support cif compact mode(lvds & mipi) can be set from user space
+ *v0.1.6
+ *1. add cif self-defined ioctrl cmd:V4L2_CID_CIF_DATA_COMPACT
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

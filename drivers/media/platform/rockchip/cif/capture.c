@@ -76,6 +76,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.fmt_val = YUV_OUTPUT_422 | UV_STORAGE_ORDER_UVUV,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_YUV422,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV61,
 		.fmt_val = YUV_OUTPUT_422 | UV_STORAGE_ORDER_VUVU,
@@ -83,6 +84,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_YUV422,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV12,
 		.fmt_val = YUV_OUTPUT_420 | UV_STORAGE_ORDER_UVUV,
@@ -90,6 +92,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_YUV420SP,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV21,
 		.fmt_val = YUV_OUTPUT_420 | UV_STORAGE_ORDER_VUVU,
@@ -97,46 +100,54 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_YUV420SP,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YVYU,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_VYUY,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_YUV,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB24,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 24 },
 		.csi_fmt_val = CSI_WRDDR_TYPE_RGB888,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_BGR666,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 18 },
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB8,
 		.cplanes = 1,
@@ -144,6 +155,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 8 },
 		.raw_bpp = 8,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG8,
 		.cplanes = 1,
@@ -151,6 +163,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 8 },
 		.raw_bpp = 8,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG8,
 		.cplanes = 1,
@@ -158,6 +171,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 8 },
 		.raw_bpp = 8,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.cplanes = 1,
@@ -165,6 +179,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 8 },
 		.raw_bpp = 8,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.cplanes = 1,
@@ -172,6 +187,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 10,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG10,
 		.cplanes = 1,
@@ -179,6 +195,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 10,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG10,
 		.cplanes = 1,
@@ -186,6 +203,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 10,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR10,
 		.cplanes = 1,
@@ -193,6 +211,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 10,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB12,
 		.cplanes = 1,
@@ -200,6 +219,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 12,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG12,
 		.cplanes = 1,
@@ -207,6 +227,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 12,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG12,
 		.cplanes = 1,
@@ -214,6 +235,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 12,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR12,
 		.cplanes = 1,
@@ -221,17 +243,20 @@ static const struct cif_output_fmt out_fmts[] = {
 		.bpp = { 16 },
 		.raw_bpp = 12,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR16,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 16,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y16,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}
 
 	/* TODO: We can support NV12M/NV21M/NV16M/NV61M too */
@@ -1324,18 +1349,11 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	 * needs aligned with :ALIGN(bits_per_pixel * width / 8, 8), if enable 16bit mode
 	 * needs aligned with :ALIGN(bits_per_pixel * width * 2, 8)
 	 */
-	if (dev->hdr.mode == NO_HDR &&
-	    dev->chip_id != CHIP_RV1126_CIF &&
-	    dev->chip_id != CHIP_RV1126_CIF_LITE) {
-		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
-		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
-			channel->virtual_width = ALIGN(channel->width * 2, 8);
-		else
-			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
+	if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact) {
+		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
 	} else {
-		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10 ||
-		    channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
-			channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 8);
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW)
+			channel->virtual_width = ALIGN(channel->width * 2, 8);
 		else
 			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
 	}
@@ -1444,18 +1462,20 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		      channel->cmd_mode_en << 4 | channel->crop_en << 5 |
 		      channel->id << 8 | channel->data_type << 10;
 
-		if (dev->chip_id == CHIP_RV1126_CIF ||
-		    dev->chip_id == CHIP_RV1126_CIF_LITE)
+		if (stream->is_compact)
 			val |= CSI_ENABLE_MIPI_COMPACT;
+		else
+			val &= ~CSI_ENABLE_MIPI_COMPACT;
 	} else if (mbus_type  == V4L2_MBUS_CCP2) {
 		rkcif_csi_set_lvds_sav_eav(stream, channel);
 		val = LVDS_ENABLE_CAPTURE | LVDS_MODE(channel->lvds_cfg.mode) |
 		      LVDS_MAIN_LANE(0) | LVDS_FID(0) |
 		      LVDS_LANES_ENABLED(dev->active_sensor->lanes);
 
-		if (dev->chip_id == CHIP_RV1126_CIF ||
-		    dev->chip_id == CHIP_RV1126_CIF_LITE)
+		if (stream->is_compact)
 			val |= LVDS_COMPACT;
+		else
+			val &= ~LVDS_COMPACT;
 	}
 
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
@@ -2357,12 +2377,14 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 			}
 		}
 
-		if (dev->hdr.mode == NO_HDR) {
+		/* compact mode need bytesperline 4bytes align,
+		 * align 8 to bring into correspondence with virtual width
+		 */
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact) {
+			bpl = ALIGN(width * fmt->raw_bpp / 8, 8);
+		} else {
 			bpp = rkcif_align_bits_per_pixel(fmt, i);
 			bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
-		} else {
-			/* compact mode need bytesperline 4byte align */
-			bpl = ALIGN(width * fmt->raw_bpp / 8, 4);
 		}
 		size = bpl * height;
 		imagesize += size;
@@ -2427,6 +2449,10 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 
 	stream->crop_enable = false;
 	stream->crop_mask = 0x0;
+	if (dev->chip_id >= CHIP_RV1126_CIF)
+		stream->is_compact = true;
+	else
+		stream->is_compact = false;
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -2786,6 +2812,51 @@ err:
 	return -EINVAL;
 }
 
+static int rkcif_g_ctrl(struct file *file, void *fh,
+			   struct v4l2_control *ctrl)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+
+	switch (ctrl->id) {
+	case V4L2_CID_CIF_DATA_COMPACT:
+		if (stream->is_compact)
+			ctrl->value = CSI_MEM_COMPACT;
+		else
+			ctrl->value = CSI_MEM_BYTE_LE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rkcif_s_ctrl(struct file *file, void *fh,
+			   struct v4l2_control *ctrl)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+
+	if (stream->state == RKCIF_STATE_STREAMING) {
+		v4l2_err(&dev->v4l2_dev, "set failed, the stream is streaming\n");
+		return -EBUSY;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_CIF_DATA_COMPACT:
+		if (ctrl->value == CSI_LVDS_MEM_COMPACT)
+			stream->is_compact = true;
+		else
+			stream->is_compact = false;
+	break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
@@ -2808,6 +2879,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_g_selection = rkcif_g_selection,
 	.vidioc_enum_frameintervals = rkcif_enum_frameintervals,
 	.vidioc_enum_framesizes = rkcif_enum_framesizes,
+	.vidioc_g_ctrl = rkcif_g_ctrl,
+	.vidioc_s_ctrl = rkcif_s_ctrl,
 };
 
 static void rkcif_unregister_stream_vdev(struct rkcif_stream *stream)

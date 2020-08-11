@@ -93,6 +93,7 @@ enum rkcif_state {
 	RKCIF_STATE_STREAMING
 };
 
+/* when add new chip id, add it in tail for increase */
 enum rkcif_chip_id {
 	CHIP_PX30_CIF,
 	CHIP_RK1808_CIF,
@@ -181,6 +182,11 @@ struct rkcif_sensor_info {
 	int lanes;
 };
 
+enum cif_fmt_type {
+	CIF_FMT_TYPE_YUV = 0,
+	CIF_FMT_TYPE_RAW,
+};
+
 /*
  * struct cif_output_fmt - The output format
  *
@@ -191,6 +197,7 @@ struct rkcif_sensor_info {
  * @cplanes: number of colour planes
  * @mplanes: number of planes for format
  * @raw_bpp: bits per pixel for raw format
+ * @fmt_type: image format, raw or yuv
  */
 struct cif_output_fmt {
 	u8 bpp[VIDEO_MAX_PLANES];
@@ -200,11 +207,7 @@ struct cif_output_fmt {
 	u8 cplanes;
 	u8 mplanes;
 	u8 raw_bpp;
-};
-
-enum cif_fmt_type {
-	CIF_FMT_TYPE_YUV = 0,
-	CIF_FMT_TYPE_RAW,
+	enum cif_fmt_type fmt_type;
 };
 
 /*
@@ -213,6 +216,7 @@ enum cif_fmt_type {
  * @mbus_code: mbus format
  * @dvp_fmt_val: the fmt val corresponding to CIF_FOR register
  * @csi_fmt_val: the fmt val corresponding to CIF_CSI_ID_CTRL
+ * @fmt_type: image format, raw or yuv
  * @field: the field type of the input from sensor
  */
 struct cif_input_fmt {
@@ -281,6 +285,7 @@ struct rkcif_stream {
 	enum rkcif_state		state;
 	bool				stopping;
 	bool				crop_enable;
+	bool				is_compact;
 	wait_queue_head_t		wq_stopped;
 	int				frame_idx;
 	int				frame_phase;
@@ -364,7 +369,6 @@ struct rkcif_device {
 
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;
-	struct v4l2_ctrl_handler	ctrl_handler;
 	struct v4l2_async_notifier	notifier;
 
 	struct rkcif_sensor_info	sensors[RKCIF_MAX_SENSOR];

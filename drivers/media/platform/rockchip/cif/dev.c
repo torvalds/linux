@@ -1292,8 +1292,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	v4l2_dev = &cif_dev->v4l2_dev;
 	v4l2_dev->mdev = &cif_dev->media_dev;
 	strlcpy(v4l2_dev->name, name, sizeof(v4l2_dev->name));
-	v4l2_ctrl_handler_init(&cif_dev->ctrl_handler, 8);
-	v4l2_dev->ctrl_handler = &cif_dev->ctrl_handler;
 
 	ret = v4l2_device_register(cif_dev->dev, &cif_dev->v4l2_dev);
 	if (ret < 0)
