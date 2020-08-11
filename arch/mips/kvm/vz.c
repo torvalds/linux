@@ -1144,7 +1144,6 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 #ifdef CONFIG_CPU_LOONGSON64
 static enum emulation_result kvm_vz_gpsi_lwc2(union mips_instruction inst,
 					      u32 *opc, u32 cause,
-					      struct kvm_run *run,
 					      struct kvm_vcpu *vcpu)
 {
 	unsigned int rs, rd;
@@ -1242,7 +1241,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 #endif
 #ifdef CONFIG_CPU_LOONGSON64
 	case lwc2_op:
-		er = kvm_vz_gpsi_lwc2(inst, opc, cause, run, vcpu);
+		er = kvm_vz_gpsi_lwc2(inst, opc, cause, vcpu);
 		break;
 #endif
 	case spec3_op:
