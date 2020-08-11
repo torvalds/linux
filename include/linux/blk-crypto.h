@@ -28,7 +28,7 @@ enum blk_crypto_mode_num {
  *	filesystem block size or the disk sector size.
  * @dun_bytes: the maximum number of bytes of DUN used when using this key
  * @is_hw_wrapped: @raw points to a wrapped key to be used by an inline
- * 	encryption hardware that accepts wrapped keys.
+ *	encryption hardware that accepts wrapped keys.
  */
 struct blk_crypto_config {
 	enum blk_crypto_mode_num crypto_mode;
