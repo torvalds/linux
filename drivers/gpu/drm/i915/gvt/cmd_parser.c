@@ -976,7 +976,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	 * inhibit context will restore with correct values
 	 */
 	if (IS_GEN(s->engine->i915, 9) &&
-	    intel_gvt_mmio_is_in_ctx(gvt, offset) &&
+	    intel_gvt_mmio_is_sr_in_ctx(gvt, offset) &&
 	    !strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
 			s->workload->ring_context_gpa + 12, &ctx_sr_ctl, 4);
