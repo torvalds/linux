@@ -130,11 +130,16 @@ struct rapl_pmus {
 	struct rapl_pmu		*pmus[];
 };
 
+enum rapl_unit_quirk {
+	RAPL_UNIT_QUIRK_NONE,
+	RAPL_UNIT_QUIRK_INTEL_HSW,
+};
+
 struct rapl_model {
 	struct perf_msr *rapl_msrs;
 	unsigned long	events;
 	unsigned int	msr_power_unit;
-	bool		apply_quirk;
+	enum rapl_unit_quirk	unit_quirk;
 };
 
  /* 1/2^hw_unit Joule */
@@ -612,14 +617,20 @@ static int rapl_check_hw_unit(struct rapl_model *rm)
 	for (i = 0; i < NR_RAPL_DOMAINS; i++)
 		rapl_hw_unit[i] = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;
 
+	switch (rm->unit_quirk) {
 	/*
 	 * DRAM domain on HSW server and KNL has fixed energy unit which can be
 	 * different than the unit from power unit MSR. See
 	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
 	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
 	 */
-	if (rm->apply_quirk)
+	case RAPL_UNIT_QUIRK_INTEL_HSW:
 		rapl_hw_unit[PERF_RAPL_RAM] = 16;
+		break;
+	default:
+		break;
+	}
+
 
 	/*
 	 * Calculate the timer rate:
@@ -698,7 +709,6 @@ static struct rapl_model model_snb = {
 	.events		= BIT(PERF_RAPL_PP0) |
 			  BIT(PERF_RAPL_PKG) |
 			  BIT(PERF_RAPL_PP1),
-	.apply_quirk	= false,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
@@ -707,7 +717,6 @@ static struct rapl_model model_snbep = {
 	.events		= BIT(PERF_RAPL_PP0) |
 			  BIT(PERF_RAPL_PKG) |
 			  BIT(PERF_RAPL_RAM),
-	.apply_quirk	= false,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
@@ -717,7 +726,6 @@ static struct rapl_model model_hsw = {
 			  BIT(PERF_RAPL_PKG) |
 			  BIT(PERF_RAPL_RAM) |
 			  BIT(PERF_RAPL_PP1),
-	.apply_quirk	= false,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
@@ -726,7 +734,7 @@ static struct rapl_model model_hsx = {
 	.events		= BIT(PERF_RAPL_PP0) |
 			  BIT(PERF_RAPL_PKG) |
 			  BIT(PERF_RAPL_RAM),
-	.apply_quirk	= true,
+	.unit_quirk	= RAPL_UNIT_QUIRK_INTEL_HSW,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
@@ -734,7 +742,7 @@ static struct rapl_model model_hsx = {
 static struct rapl_model model_knl = {
 	.events		= BIT(PERF_RAPL_PKG) |
 			  BIT(PERF_RAPL_RAM),
-	.apply_quirk	= true,
+	.unit_quirk	= RAPL_UNIT_QUIRK_INTEL_HSW,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
@@ -745,14 +753,12 @@ static struct rapl_model model_skl = {
 			  BIT(PERF_RAPL_RAM) |
 			  BIT(PERF_RAPL_PP1) |
 			  BIT(PERF_RAPL_PSYS),
-	.apply_quirk	= false,
 	.msr_power_unit = MSR_RAPL_POWER_UNIT,
 	.rapl_msrs      = intel_rapl_msrs,
 };
 
 static struct rapl_model model_amd_fam17h = {
 	.events		= BIT(PERF_RAPL_PKG),
-	.apply_quirk	= false,
 	.msr_power_unit = MSR_AMD_RAPL_POWER_UNIT,
 	.rapl_msrs      = amd_rapl_msrs,
 };
