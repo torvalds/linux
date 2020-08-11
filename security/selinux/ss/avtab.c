@@ -301,7 +301,6 @@ void avtab_destroy(struct avtab *h)
 
 void avtab_init(struct avtab *h)
 {
-	kvfree(h->htable);
 	h->htable = NULL;
 	h->nel = 0;
 }
@@ -338,6 +337,54 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	pr_debug("SELinux: %d avtab hash slots, %d rules.\n",
 	       h->nslot, nrules);
 	return 0;
+}
+
+int avtab_duplicate(struct avtab *new, struct avtab *orig)
+{
+	int i;
+	struct avtab_node *node, *tmp, *tail;
+
+	memset(new, 0, sizeof(*new));
+
+	new->htable = kvcalloc(orig->nslot, sizeof(void *), GFP_KERNEL);
+	if (!new->htable)
+		return -ENOMEM;
+	new->nslot = orig->nslot;
+	new->mask = orig->mask;
+
+	for (i = 0; i < orig->nslot; i++) {
+		tail = NULL;
+		for (node = orig->htable[i]; node; node = node->next) {
+			tmp = kmem_cache_zalloc(avtab_node_cachep, GFP_KERNEL);
+			if (!tmp)
+				goto error;
+			tmp->key = node->key;
+			if (tmp->key.specified & AVTAB_XPERMS) {
+				tmp->datum.u.xperms =
+					kmem_cache_zalloc(avtab_xperms_cachep,
+							GFP_KERNEL);
+				if (!tmp->datum.u.xperms) {
+					kmem_cache_free(avtab_node_cachep, tmp);
+					goto error;
+				}
+				tmp->datum.u.xperms = node->datum.u.xperms;
+			} else
+				tmp->datum.u.data = node->datum.u.data;
+
+			if (tail)
+				tail->next = tmp;
+			else
+				new->htable[i] = tmp;
+
+			tail = tmp;
+			new->nel++;
+		}
+	}
+
+	return 0;
+error:
+	avtab_destroy(new);
+	return -ENOMEM;
 }
 
 void avtab_hash_eval(struct avtab *h, char *tag)
