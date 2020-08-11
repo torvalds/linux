@@ -23,7 +23,6 @@
 #include "lkc.h"
 #include "qconf.h"
 
-#include "qconf.moc"
 #include "images.h"
 
 
@@ -308,10 +307,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
 
-	if (mode == symbolMode)
-		setHeaderLabels(QStringList() << "Item" << "Name" << "N" << "M" << "Y" << "Value");
-	else
-		setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
+	setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
 
 	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
@@ -392,11 +388,6 @@ void ConfigList::updateSelection(void)
 	struct menu *menu;
 	enum prop_type type;
 
-	if (mode == symbolMode)
-		setHeaderLabels(QStringList() << "Item" << "Name" << "N" << "M" << "Y" << "Value");
-	else
-		setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
-
 	if (selectedItems().count() == 0)
 		return;
 
@@ -437,14 +428,13 @@ void ConfigList::updateList(ConfigItem* item)
 	if (rootEntry != &rootmenu && (mode == singleMode ||
 	    (mode == symbolMode && rootEntry->parent != &rootmenu))) {
 		item = (ConfigItem *)topLevelItem(0);
-		if (!item && mode != symbolMode) {
+		if (!item)
 			item = new ConfigItem(this, 0, true);
-			last = item;
-		}
+		last = item;
 	}
 	if ((mode == singleMode || (mode == symbolMode && !(rootEntry->flags & MENU_ROOT))) &&
 	    rootEntry->sym && rootEntry->prompt) {
-		item = last ? last->nextSibling() : firstChild();
+		item = last ? last->nextSibling() : nullptr;
 		if (!item)
 			item = new ConfigItem(this, last, rootEntry, true);
 		else
@@ -1239,7 +1229,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 
 	if (count < 1) {
 		qInfo() << "Clicked link is empty";
-		delete data;
+		delete[] data;
 		return;
 	}
 
@@ -1252,7 +1242,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 	result = sym_re_search(data);
 	if (!result) {
 		qInfo() << "Clicked symbol is invalid:" << data;
-		delete data;
+		delete[] data;
 		return;
 	}
 
@@ -1735,7 +1725,6 @@ void ConfigMainWindow::listFocusChanged(void)
 
 void ConfigMainWindow::goBack(void)
 {
-qInfo() << __FUNCTION__;
 	if (configList->rootEntry == &rootmenu)
 		return;
 

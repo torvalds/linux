@@ -45,18 +45,10 @@ static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
 static atomic_t lgr_cnt = ATOMIC_INIT(0); /* number of existing link groups */
 static DECLARE_WAIT_QUEUE_HEAD(lgrs_deleted);
 
-struct smc_ib_up_work {
-	struct work_struct	work;
-	struct smc_link_group	*lgr;
-	struct smc_ib_device	*smcibdev;
-	u8			ibport;
-};
-
 static void smc_buf_free(struct smc_link_group *lgr, bool is_rmb,
 			 struct smc_buf_desc *buf_desc);
 static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft);
 
-static void smc_link_up_work(struct work_struct *work);
 static void smc_link_down_work(struct work_struct *work);
 
 /* return head of link group list and its lock for a given link group */
@@ -326,7 +318,6 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 
 	get_device(&ini->ib_dev->ibdev->dev);
 	atomic_inc(&ini->ib_dev->lnk_cnt);
-	lnk->state = SMC_LNK_ACTIVATING;
 	lnk->link_id = smcr_next_link_id(lgr);
 	lnk->lgr = lgr;
 	lnk->link_idx = link_idx;
@@ -362,6 +353,7 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	rc = smc_wr_create_link(lnk);
 	if (rc)
 		goto destroy_qp;
+	lnk->state = SMC_LNK_ACTIVATING;
 	return 0;
 
 destroy_qp:
@@ -452,7 +444,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	}
 	smc->conn.lgr = lgr;
 	spin_lock_bh(lgr_lock);
-	list_add(&lgr->list, lgr_list);
+	list_add_tail(&lgr->list, lgr_list);
 	spin_unlock_bh(lgr_lock);
 	return 0;
 
@@ -550,8 +542,7 @@ struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 	smc_wr_wakeup_tx_wait(from_lnk);
 
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (lgr->lnk[i].state != SMC_LNK_ACTIVE ||
-		    i == from_lnk->link_idx)
+		if (!smc_link_active(&lgr->lnk[i]) || i == from_lnk->link_idx)
 			continue;
 		if (is_dev_err && from_lnk->smcibdev == lgr->lnk[i].smcibdev &&
 		    from_lnk->ibport == lgr->lnk[i].ibport) {
@@ -1106,67 +1097,23 @@ static void smc_conn_abort_work(struct work_struct *work)
 	sock_put(&smc->sk); /* sock_hold done by schedulers of abort_work */
 }
 
-/* link is up - establish alternate link if applicable */
-static void smcr_link_up(struct smc_link_group *lgr,
-			 struct smc_ib_device *smcibdev, u8 ibport)
-{
-	struct smc_link *link = NULL;
-
-	if (list_empty(&lgr->list) ||
-	    lgr->type == SMC_LGR_SYMMETRIC ||
-	    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
-		return;
-
-	if (lgr->role == SMC_SERV) {
-		/* trigger local add link processing */
-		link = smc_llc_usable_link(lgr);
-		if (!link)
-			return;
-		smc_llc_srv_add_link_local(link);
-	} else {
-		/* invite server to start add link processing */
-		u8 gid[SMC_GID_SIZE];
-
-		if (smc_ib_determine_gid(smcibdev, ibport, lgr->vlan_id, gid,
-					 NULL))
-			return;
-		if (lgr->llc_flow_lcl.type != SMC_LLC_FLOW_NONE) {
-			/* some other llc task is ongoing */
-			wait_event_timeout(lgr->llc_flow_waiter,
-				(list_empty(&lgr->list) ||
-				 lgr->llc_flow_lcl.type == SMC_LLC_FLOW_NONE),
-				SMC_LLC_WAIT_TIME);
-		}
-		/* lgr or device no longer active? */
-		if (!list_empty(&lgr->list) &&
-		    smc_ib_port_active(smcibdev, ibport))
-			link = smc_llc_usable_link(lgr);
-		if (link)
-			smc_llc_send_add_link(link, smcibdev->mac[ibport - 1],
-					      gid, NULL, SMC_LLC_REQ);
-		wake_up(&lgr->llc_flow_waiter);	/* wake up next waiter */
-	}
-}
-
 void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct smc_ib_up_work *ib_work;
 	struct smc_link_group *lgr, *n;
 
 	list_for_each_entry_safe(lgr, n, &smc_lgr_list.list, list) {
+		struct smc_link *link;
+
 		if (strncmp(smcibdev->pnetid[ibport - 1], lgr->pnet_id,
 			    SMC_MAX_PNETID_LEN) ||
 		    lgr->type == SMC_LGR_SYMMETRIC ||
 		    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
 			continue;
-		ib_work = kmalloc(sizeof(*ib_work), GFP_KERNEL);
-		if (!ib_work)
-			continue;
-		INIT_WORK(&ib_work->work, smc_link_up_work);
-		ib_work->lgr = lgr;
-		ib_work->smcibdev = smcibdev;
-		ib_work->ibport = ibport;
-		schedule_work(&ib_work->work);
+
+		/* trigger local add link processing */
+		link = smc_llc_usable_link(lgr);
+		if (link)
+			smc_llc_add_link_local(link);
 	}
 }
 
@@ -1204,10 +1151,12 @@ static void smcr_link_down(struct smc_link *lnk)
 				SMC_LLC_WAIT_TIME);
 			mutex_lock(&lgr->llc_conf_mutex);
 		}
-		if (!list_empty(&lgr->list))
+		if (!list_empty(&lgr->list)) {
 			smc_llc_send_delete_link(to_lnk, del_link_id,
 						 SMC_LLC_REQ, true,
 						 SMC_LLC_DEL_LOST_PATH);
+			smcr_link_clear(lnk, true);
+		}
 		wake_up(&lgr->llc_flow_waiter);	/* wake up next waiter */
 	}
 }
@@ -1245,20 +1194,6 @@ void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport)
 				smcr_link_down_cond_sched(lnk);
 		}
 	}
-}
-
-static void smc_link_up_work(struct work_struct *work)
-{
-	struct smc_ib_up_work *ib_work = container_of(work,
-						      struct smc_ib_up_work,
-						      work);
-	struct smc_link_group *lgr = ib_work->lgr;
-
-	if (list_empty(&lgr->list))
-		goto out;
-	smcr_link_up(lgr, ib_work->smcibdev, ib_work->ibport);
-out:
-	kfree(ib_work);
 }
 
 static void smc_link_down_work(struct work_struct *work)
@@ -1333,7 +1268,7 @@ static bool smcr_lgr_match(struct smc_link_group *lgr,
 		return false;
 
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (lgr->lnk[i].state != SMC_LNK_ACTIVE)
+		if (!smc_link_active(&lgr->lnk[i]))
 			continue;
 		if ((lgr->role == SMC_SERV || lgr->lnk[i].peer_qpn == clcqpn) &&
 		    !memcmp(lgr->lnk[i].peer_gid, &lcl->gid, SMC_GID_SIZE) &&
@@ -1376,7 +1311,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    lgr->vlan_id == ini->vlan_id &&
-		    (role == SMC_CLNT ||
+		    (role == SMC_CLNT || ini->is_smcd ||
 		     lgr->conns_num < SMC_RMBS_PER_LGR_MAX)) {
 			/* link group found */
 			ini->cln_first_contact = SMC_REUSE_CONTACT;
@@ -1781,14 +1716,14 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn)
 {
-	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_usable(conn->lnk))
+	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_active(conn->lnk))
 		return;
 	smc_ib_sync_sg_for_cpu(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
 
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn)
 {
-	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_usable(conn->lnk))
+	if (!conn->lgr || conn->lgr->is_smcd || !smc_link_active(conn->lnk))
 		return;
 	smc_ib_sync_sg_for_device(conn->lnk, conn->sndbuf_desc, DMA_TO_DEVICE);
 }
@@ -1800,7 +1735,7 @@ void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (!smc_link_usable(&conn->lgr->lnk[i]))
+		if (!smc_link_active(&conn->lgr->lnk[i]))
 			continue;
 		smc_ib_sync_sg_for_cpu(&conn->lgr->lnk[i], conn->rmb_desc,
 				       DMA_FROM_DEVICE);
@@ -1814,7 +1749,7 @@ void smc_rmb_sync_sg_for_device(struct smc_connection *conn)
 	if (!conn->lgr || conn->lgr->is_smcd)
 		return;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (!smc_link_usable(&conn->lgr->lnk[i]))
+		if (!smc_link_active(&conn->lgr->lnk[i]))
 			continue;
 		smc_ib_sync_sg_for_device(&conn->lgr->lnk[i], conn->rmb_desc,
 					  DMA_FROM_DEVICE);
@@ -1837,8 +1772,12 @@ int smc_buf_create(struct smc_sock *smc, bool is_smcd)
 		return rc;
 	/* create rmb */
 	rc = __smc_buf_create(smc, is_smcd, true);
-	if (rc)
+	if (rc) {
+		mutex_lock(&smc->conn.lgr->sndbufs_lock);
+		list_del(&smc->conn.sndbuf_desc->list);
+		mutex_unlock(&smc->conn.lgr->sndbufs_lock);
 		smc_buf_free(smc->conn.lgr, false, smc->conn.sndbuf_desc);
+	}
 	return rc;
 }
 

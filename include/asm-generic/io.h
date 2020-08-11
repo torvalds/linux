@@ -456,7 +456,7 @@ static inline void writesq(volatile void __iomem *addr, const void *buffer,
 
 #if !defined(inb) && !defined(_inb)
 #define _inb _inb
-static inline u16 _inb(unsigned long addr)
+static inline u8 _inb(unsigned long addr)
 {
 	u8 val;
 
@@ -482,7 +482,7 @@ static inline u16 _inw(unsigned long addr)
 
 #if !defined(inl) && !defined(_inl)
 #define _inl _inl
-static inline u16 _inl(unsigned long addr)
+static inline u32 _inl(unsigned long addr)
 {
 	u32 val;
 

@@ -39,7 +39,7 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 {
 	struct mbox_request req;
 	struct mbox_reply reply;
-	loff_t pos;
+	loff_t pos = 0;
 	ssize_t n;
 	int ret = -EFAULT;
 

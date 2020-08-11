@@ -641,11 +641,11 @@ static int vm_cmdline_set(const char *device,
 			&vm_cmdline_id, &consumed);
 
 	/*
-	 * sscanf() must processes at least 2 chunks; also there
+	 * sscanf() must process at least 2 chunks; also there
 	 * must be no extra characters after the last chunk, so
 	 * str[consumed] must be '\0'
 	 */
-	if (processed < 2 || str[consumed])
+	if (processed < 2 || str[consumed] || irq == 0)
 		return -EINVAL;
 
 	resources[0].flags = IORESOURCE_MEM;

@@ -4230,11 +4230,12 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 	    test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
 		goto out_free;
 
+	memset(info, 0, sizeof(*info));
+
 	if (unlikely(!multicast && skb->sk &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS))
-		ieee80211_store_ack_skb(local, skb, &info->flags, NULL);
-
-	memset(info, 0, sizeof(*info));
+		info->ack_frame_id = ieee80211_store_ack_skb(local, skb,
+							     &info->flags, NULL);
 
 	if (unlikely(sdata->control_port_protocol == ehdr->h_proto)) {
 		if (sdata->control_port_no_encrypt)

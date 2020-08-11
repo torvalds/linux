@@ -649,9 +649,6 @@ void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 {
 	struct ib_uverbs_file *ufile = attrs->ufile;
 
-	/* alloc_commit consumes the uobj kref */
-	uobj->uapi_object->type_class->alloc_commit(uobj);
-
 	/* kref is held so long as the uobj is on the uobj list. */
 	uverbs_uobject_get(uobj);
 	spin_lock_irq(&ufile->uobjects_lock);
@@ -660,6 +657,9 @@ void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 
 	/* matches atomic_set(-1) in alloc_uobj */
 	atomic_set(&uobj->usecnt, 0);
+
+	/* alloc_commit consumes the uobj kref */
+	uobj->uapi_object->type_class->alloc_commit(uobj);
 
 	/* Matches the down_read in rdma_alloc_begin_uobject */
 	up_read(&ufile->hw_destroy_rwsem);

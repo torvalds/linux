@@ -866,6 +866,18 @@ struct drm_mode_config {
 	bool prefer_shadow_fbdev;
 
 	/**
+	 * @fbdev_use_iomem:
+	 *
+	 * Set to true if framebuffer reside in iomem.
+	 * When set to true memcpy_toio() is used when copying the framebuffer in
+	 * drm_fb_helper.drm_fb_helper_dirty_blit_real().
+	 *
+	 * FIXME: This should be replaced with a per-mapping is_iomem
+	 * flag (like ttm does), and then used everywhere in fbdev code.
+	 */
+	bool fbdev_use_iomem;
+
+	/**
 	 * @quirk_addfb_prefer_xbgr_30bpp:
 	 *
 	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should

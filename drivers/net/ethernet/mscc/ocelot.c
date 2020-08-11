@@ -748,14 +748,11 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 
 		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
 
-		/* Next ts */
-		ocelot_write(ocelot, SYS_PTP_NXT_PTP_NXT, SYS_PTP_NXT);
+		/* Get the h/w timestamp */
+		ocelot_get_hwtimestamp(ocelot, &ts);
 
 		if (unlikely(!skb_match))
 			continue;
-
-		/* Get the h/w timestamp */
-		ocelot_get_hwtimestamp(ocelot, &ts);
 
 		/* Set the timestamp into the skb */
 		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
@@ -763,6 +760,9 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		skb_tstamp_tx(skb_match, &shhwtstamps);
 
 		dev_kfree_skb_any(skb_match);
+
+		/* Next ts */
+		ocelot_write(ocelot, SYS_PTP_NXT_PTP_NXT, SYS_PTP_NXT);
 	}
 }
 EXPORT_SYMBOL(ocelot_get_txtstamp);

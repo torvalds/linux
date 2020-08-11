@@ -1592,11 +1592,12 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
-	/* When device is resetting, firmware is unable to handle
-	 * mailbox. Just record the vlan id, and remove it after
+	/* When device is resetting or reset failed, firmware is unable to
+	 * handle mailbox. Just record the vlan id, and remove it after
 	 * reset finished.
 	 */
-	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state) && is_kill) {
+	if ((test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state) ||
+	     test_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state)) && is_kill) {
 		set_bit(vlan_id, hdev->vlan_del_fail_bmap);
 		return -EBUSY;
 	}
@@ -3439,23 +3440,36 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 {
 	struct hnae3_handle *nic = &hdev->nic;
 	struct hclge_vf_to_pf_msg send_msg;
+	int ret;
 
 	rtnl_lock();
-	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
-	rtnl_unlock();
+
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state) ||
+	    test_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state)) {
+		dev_warn(&hdev->pdev->dev,
+			 "is resetting when updating port based vlan info\n");
+		rtnl_unlock();
+		return;
+	}
+
+	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret) {
+		rtnl_unlock();
+		return;
+	}
 
 	/* send msg to PF and wait update port based vlan info */
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
 			       HCLGE_MBX_PORT_BASE_VLAN_CFG);
 	memcpy(send_msg.data, port_base_vlan_info, data_size);
-	hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
+	ret = hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
+	if (!ret) {
+		if (state == HNAE3_PORT_BASE_VLAN_DISABLE)
+			nic->port_base_vlan_state = state;
+		else
+			nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
+	}
 
-	if (state == HNAE3_PORT_BASE_VLAN_DISABLE)
-		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_DISABLE;
-	else
-		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
-
-	rtnl_lock();
 	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
 	rtnl_unlock();
 }
