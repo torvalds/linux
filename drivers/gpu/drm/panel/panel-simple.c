@@ -3398,22 +3398,24 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 	},
 };
 
-static const struct display_timing sharp_ls020b1dd01d_timing = {
-	.pixelclock = { 2000000, 4200000, 5000000 },
-	.hactive = { 240, 240, 240 },
-	.hfront_porch = { 66, 66, 66 },
-	.hback_porch = { 1, 1, 1 },
-	.hsync_len = { 1, 1, 1 },
-	.vactive = { 160, 160, 160 },
-	.vfront_porch = { 52, 52, 52 },
-	.vback_porch = { 6, 6, 6 },
-	.vsync_len = { 10, 10, 10 },
-	.flags = DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_LOW,
+static const struct drm_display_mode sharp_ls020b1dd01d_modes[] = {
+	{ /* 60 Hz */
+		.clock = 4200,
+		.hdisplay = 240,
+		.hsync_start = 240 + 66,
+		.hsync_end = 240 + 66 + 1,
+		.htotal = 240 + 66 + 1 + 1,
+		.vdisplay = 160,
+		.vsync_start = 160 + 52,
+		.vsync_end = 160 + 52 + 10,
+		.vtotal = 160 + 52 + 10 + 6,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
+	},
 };
 
 static const struct panel_desc sharp_ls020b1dd01d = {
-	.timings = &sharp_ls020b1dd01d_timing,
-	.num_timings = 1,
+	.modes = sharp_ls020b1dd01d_modes,
+	.num_modes = ARRAY_SIZE(sharp_ls020b1dd01d_modes),
 	.bpc = 6,
 	.size = {
 		.width = 42,
