@@ -227,7 +227,7 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 	}
 
 	/* Point to the specified address */
-	rc = hl_pci_iatu_write(hdev, offset + 0x14,
+	rc |= hl_pci_iatu_write(hdev, offset + 0x14,
 			lower_32_bits(pci_region->addr));
 	rc |= hl_pci_iatu_write(hdev, offset + 0x18,
 			upper_32_bits(pci_region->addr));
