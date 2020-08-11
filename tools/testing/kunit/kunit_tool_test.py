@@ -11,11 +11,13 @@ from unittest import mock
 
 import tempfile, shutil # Handling test_tmpdir
 
+import json
 import os
 
 import kunit_config
 import kunit_parser
 import kunit_kernel
+import kunit_json
 import kunit
 
 test_tmpdir = ''
@@ -229,6 +231,37 @@ class KUnitParserTest(unittest.TestCase):
 		with open(pound_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines())
 		self.assertEqual('kunit-resource-test', result.suites[0].name)
+
+class KUnitJsonTest(unittest.TestCase):
+
+	def _json_for(self, log_file):
+		with(open(get_absolute_path(log_file))) as file:
+			test_result = kunit_parser.parse_run_tests(file)
+			json_obj = kunit_json.get_json_result(
+				test_result=test_result,
+				def_config='kunit_defconfig',
+				build_dir=None,
+				json_path='stdout')
+		return json.loads(json_obj)
+
+	def test_failed_test_json(self):
+		result = self._json_for(
+			'test_data/test_is_test_passed-failure.log')
+		self.assertEqual(
+			{'name': 'example_simple_test', 'status': 'FAIL'},
+			result["sub_groups"][1]["test_cases"][0])
+
+	def test_crashed_test_json(self):
+		result = self._json_for(
+			'test_data/test_is_test_passed-crash.log')
+		self.assertEqual(
+			{'name': 'example_simple_test', 'status': 'ERROR'},
+			result["sub_groups"][1]["test_cases"][0])
+
+	def test_no_tests_json(self):
+		result = self._json_for(
+			'test_data/test_is_test_passed-no_tests_run.log')
+		self.assertEqual(0, len(result['sub_groups']))
 
 class StrContains(str):
 	def __eq__(self, other):
