@@ -1258,6 +1258,8 @@ static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
 
 	INIT_WORK(&tegra->id_work, tegra_xhci_id_work);
 	tegra->id_nb.notifier_call = tegra_xhci_id_notify;
+	tegra->otg_usb2_port = -EINVAL;
+	tegra->otg_usb3_port = -EINVAL;
 
 	for (i = 0; i < tegra->num_usb_phys; i++) {
 		struct phy *phy = tegra_xusb_get_phy(tegra, "usb2", i);
