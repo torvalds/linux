@@ -154,7 +154,8 @@ void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_enc_key, raw_key, ci->ci_mode->keysize,
+	return fscrypt_prepare_key(&ci->ci_enc_key, raw_key,
+				   ci->ci_mode->keysize,
 				   false /*is_hw_wrapped*/, ci);
 }
 
