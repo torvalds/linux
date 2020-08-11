@@ -62,23 +62,10 @@ struct crypto_shash_spawn {
 int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
 int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
-int crypto_ahash_walk_first(struct ahash_request *req,
-			   struct crypto_hash_walk *walk);
-
-static inline int crypto_ahash_walk_done(struct crypto_hash_walk *walk,
-					 int err)
-{
-	return crypto_hash_walk_done(walk, err);
-}
 
 static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
 {
 	return !(walk->entrylen | walk->total);
-}
-
-static inline int crypto_ahash_walk_last(struct crypto_hash_walk *walk)
-{
-	return crypto_hash_walk_last(walk);
 }
 
 int crypto_register_ahash(struct ahash_alg *alg);
