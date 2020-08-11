@@ -25,7 +25,6 @@ $objdump -R -d --start-address="$kstart" --stop-address="$kend" "$vmlinux" |
 awk '$2 == "<__end_interrupts>:" { print $1 }'
 )
 
-BRANCHES=$(
 $objdump -R -D --no-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
 sed -E -n '
 # match lines that start with a kernel address
@@ -45,24 +44,19 @@ sed -E -n '
 	# strip out condition registers
 	s/:0xcr[0-7],/:0x/
 	p
-}'
-)
+}' | {
 
-for tuple in $BRANCHES; do
-	from=$(echo "$tuple" | cut -d':' -f1)
-	branch=$(echo "$tuple" | cut -d':' -f2)
-	to=$(echo "$tuple" | cut -d':' -f3)
-	sym=$(echo "$tuple" | cut -d':' -f4)
-
+all_good=true
+while IFS=: read -r from branch to sym; do
 	if (( to > end_intr )); then
-		if [ -z "$bad_branches" ]; then
-			echo "WARNING: Unrelocated relative branches"
-			bad_branches="yes"
+		if $all_good; then
+			printf '%s\n' 'WARNING: Unrelocated relative branches'
+			all_good=false
 		fi
-		echo "$from $branch-> $to $sym"
+		printf '%s %s-> %s %s\n' "$from" "$branch" "$to" "$sym"
 	fi
 done
 
-if [ -z "$bad_branches" ]; then
-	exit 0
-fi
+$all_good
+
+}
