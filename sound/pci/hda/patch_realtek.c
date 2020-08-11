@@ -4125,7 +4125,7 @@ static int micmute_led_set(struct led_classdev *led_cdev,
 	struct alc_spec *spec = codec->spec;
 
 	alc_update_gpio_led(codec, spec->gpio_mic_led_mask,
-			    spec->micmute_led_polarity, !!brightness);
+			    spec->micmute_led_polarity, !brightness);
 	return 0;
 }
 
@@ -4161,8 +4161,6 @@ static void alc285_fixup_hp_gpio_led(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-
-	spec->micmute_led_polarity = 1;
 
 	alc_fixup_hp_gpio_led(codec, action, 0x04, 0x01);
 }
@@ -4414,7 +4412,6 @@ static void alc233_fixup_lenovo_line2_mic_hotkey(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
-	spec->micmute_led_polarity = 1;
 	alc_fixup_hp_gpio_led(codec, action, 0, 0x04);
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->init_amp = ALC_INIT_DEFAULT;
