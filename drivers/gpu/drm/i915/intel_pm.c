@@ -7217,12 +7217,12 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 	gen9_init_clock_gating(dev_priv);
 
 	/* WaDisableSDEUnitClockGating:kbl */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
 		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableGamClockGating:kbl */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 

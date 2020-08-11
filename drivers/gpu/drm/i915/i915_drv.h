@@ -1523,14 +1523,34 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_BXT_REVID(dev_priv, since, until) \
 	(IS_BROXTON(dev_priv) && IS_REVID(dev_priv, since, until))
 
-#define KBL_REVID_A0		0x0
-#define KBL_REVID_B0		0x1
-#define KBL_REVID_C0		0x2
-#define KBL_REVID_D0		0x3
-#define KBL_REVID_E0		0x4
+enum {
+	KBL_REVID_A0,
+	KBL_REVID_B0,
+	KBL_REVID_B1,
+	KBL_REVID_C0,
+	KBL_REVID_D0,
+	KBL_REVID_D1,
+	KBL_REVID_E0,
+	KBL_REVID_F0,
+	KBL_REVID_G0,
+};
 
-#define IS_KBL_REVID(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && IS_REVID(dev_priv, since, until))
+struct i915_rev_steppings {
+	u8 gt_stepping;
+	u8 disp_stepping;
+};
+
+/* Defined in intel_workarounds.c */
+extern const struct i915_rev_steppings kbl_revids[];
+
+#define IS_KBL_GT_REVID(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && \
+	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping >= since && \
+	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping <= until)
+#define IS_KBL_DISP_REVID(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && \
+	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping >= since && \
+	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping <= until)
 
 #define GLK_REVID_A0		0x0
 #define GLK_REVID_A1		0x1

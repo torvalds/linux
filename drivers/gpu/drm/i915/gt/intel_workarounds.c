@@ -52,6 +52,24 @@
  * - Public functions to init or apply the given workaround type.
  */
 
+/*
+ * KBL revision ID ordering is bizarre; higher revision ID's map to lower
+ * steppings in some cases.  So rather than test against the revision ID
+ * directly, let's map that into our own range of increasing ID's that we
+ * can test against in a regular manner.
+ */
+
+const struct i915_rev_steppings kbl_revids[] = {
+	[0] = { .gt_stepping = KBL_REVID_A0, .disp_stepping = KBL_REVID_A0 },
+	[1] = { .gt_stepping = KBL_REVID_B0, .disp_stepping = KBL_REVID_B0 },
+	[2] = { .gt_stepping = KBL_REVID_C0, .disp_stepping = KBL_REVID_B0 },
+	[3] = { .gt_stepping = KBL_REVID_D0, .disp_stepping = KBL_REVID_B0 },
+	[4] = { .gt_stepping = KBL_REVID_F0, .disp_stepping = KBL_REVID_C0 },
+	[5] = { .gt_stepping = KBL_REVID_C0, .disp_stepping = KBL_REVID_B1 },
+	[6] = { .gt_stepping = KBL_REVID_D1, .disp_stepping = KBL_REVID_B1 },
+	[7] = { .gt_stepping = KBL_REVID_G0, .disp_stepping = KBL_REVID_C0 },
+};
+
 static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
 {
 	wal->name = name;
@@ -470,7 +488,7 @@ static void kbl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	gen9_ctx_workarounds_init(engine, wal);
 
 	/* WaToEnableHwFixForPushConstHWBug:kbl */
-	if (IS_KBL_REVID(i915, KBL_REVID_C0, REVID_FOREVER))
+	if (IS_KBL_GT_REVID(i915, KBL_REVID_C0, REVID_FOREVER))
 		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
@@ -1008,7 +1026,7 @@ kbl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaDisableDynamicCreditSharing:kbl */
-	if (IS_KBL_REVID(i915, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_REVID(i915, 0, KBL_REVID_B0))
 		wa_write_or(wal,
 			    GAMT_CHKN_BIT_REG,
 			    GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
@@ -1923,7 +1941,7 @@ xcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	/* WaKBLVECSSemaphoreWaitPoll:kbl */
-	if (IS_KBL_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
+	if (IS_KBL_GT_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
 		wa_write(wal,
 			 RING_SEMA_WAIT_POLL(engine->mmio_base),
 			 1);
