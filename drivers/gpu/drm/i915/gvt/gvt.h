@@ -594,15 +594,30 @@ static inline void intel_gvt_mmio_set_accessed(
 }
 
 /**
- * intel_gvt_mmio_is_cmd_accessed - mark a MMIO could be accessed by command
+ * intel_gvt_mmio_is_cmd_accessible - if a MMIO could be accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if an MMIO is able to be accessed by GPU commands
+ */
+static inline bool intel_gvt_mmio_is_cmd_accessible(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+}
+
+/**
+ * intel_gvt_mmio_set_cmd_accessible -
+ *				mark a MMIO could be accessible by command
  * @gvt: a GVT device
  * @offset: register offset
  *
  */
-static inline bool intel_gvt_mmio_is_cmd_access(
+static inline void intel_gvt_mmio_set_cmd_accessible(
 			struct intel_gvt *gvt, unsigned int offset)
 {
-	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESS;
 }
 
 /**
