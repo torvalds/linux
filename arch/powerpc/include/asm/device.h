@@ -29,9 +29,6 @@ struct dev_archdata {
 	struct iommu_table	*iommu_table_base;
 #endif
 
-#ifdef CONFIG_IOMMU_API
-	void			*iommu_domain;
-#endif
 #ifdef CONFIG_PPC64
 	struct pci_dn		*pci_data;
 #endif
