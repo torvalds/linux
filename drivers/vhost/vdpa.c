@@ -27,36 +27,10 @@
 #include "vhost.h"
 
 enum {
-	VHOST_VDPA_FEATURES =
-		(1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
-		(1ULL << VIRTIO_F_ANY_LAYOUT) |
-		(1ULL << VIRTIO_F_VERSION_1) |
-		(1ULL << VIRTIO_F_IOMMU_PLATFORM) |
-		(1ULL << VIRTIO_F_RING_PACKED) |
-		(1ULL << VIRTIO_F_ORDER_PLATFORM) |
-		(1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
-		(1ULL << VIRTIO_RING_F_EVENT_IDX),
-
-	VHOST_VDPA_NET_FEATURES = VHOST_VDPA_FEATURES |
-		(1ULL << VIRTIO_NET_F_CSUM) |
-		(1ULL << VIRTIO_NET_F_GUEST_CSUM) |
-		(1ULL << VIRTIO_NET_F_MTU) |
-		(1ULL << VIRTIO_NET_F_MAC) |
-		(1ULL << VIRTIO_NET_F_GUEST_TSO4) |
-		(1ULL << VIRTIO_NET_F_GUEST_TSO6) |
-		(1ULL << VIRTIO_NET_F_GUEST_ECN) |
-		(1ULL << VIRTIO_NET_F_GUEST_UFO) |
-		(1ULL << VIRTIO_NET_F_HOST_TSO4) |
-		(1ULL << VIRTIO_NET_F_HOST_TSO6) |
-		(1ULL << VIRTIO_NET_F_HOST_ECN) |
-		(1ULL << VIRTIO_NET_F_HOST_UFO) |
-		(1ULL << VIRTIO_NET_F_MRG_RXBUF) |
-		(1ULL << VIRTIO_NET_F_STATUS) |
-		(1ULL << VIRTIO_NET_F_SPEED_DUPLEX),
+	VHOST_VDPA_BACKEND_FEATURES =
+	(1ULL << VHOST_BACKEND_F_IOTLB_MSG_V2) |
+	(1ULL << VHOST_BACKEND_F_IOTLB_BATCH),
 };
-
-/* Currently, only network backend w/o multiqueue is supported. */
-#define VHOST_VDPA_VQ_MAX	2
 
 #define VHOST_VDPA_DEV_MAX (1U << MINORBITS)
 
@@ -73,15 +47,12 @@ struct vhost_vdpa {
 	int virtio_id;
 	int minor;
 	struct eventfd_ctx *config_ctx;
+	int in_batch;
 };
 
 static DEFINE_IDA(vhost_vdpa_ida);
 
 static dev_t vhost_vdpa_major;
-
-static const u64 vhost_vdpa_features[] = {
-	[VIRTIO_ID_NET] = VHOST_VDPA_NET_FEATURES,
-};
 
 static void handle_vq_kick(struct vhost_work *work)
 {
@@ -96,7 +67,7 @@ static void handle_vq_kick(struct vhost_work *work)
 static irqreturn_t vhost_vdpa_virtqueue_cb(void *private)
 {
 	struct vhost_virtqueue *vq = private;
-	struct eventfd_ctx *call_ctx = vq->call_ctx;
+	struct eventfd_ctx *call_ctx = vq->call_ctx.ctx;
 
 	if (call_ctx)
 		eventfd_signal(call_ctx, 1);
@@ -115,12 +86,45 @@ static irqreturn_t vhost_vdpa_config_cb(void *private)
 	return IRQ_HANDLED;
 }
 
+static void vhost_vdpa_setup_vq_irq(struct vhost_vdpa *v, u16 qid)
+{
+	struct vhost_virtqueue *vq = &v->vqs[qid];
+	const struct vdpa_config_ops *ops = v->vdpa->config;
+	struct vdpa_device *vdpa = v->vdpa;
+	int ret, irq;
+
+	if (!ops->get_vq_irq)
+		return;
+
+	irq = ops->get_vq_irq(vdpa, qid);
+	spin_lock(&vq->call_ctx.ctx_lock);
+	irq_bypass_unregister_producer(&vq->call_ctx.producer);
+	if (!vq->call_ctx.ctx || irq < 0) {
+		spin_unlock(&vq->call_ctx.ctx_lock);
+		return;
+	}
+
+	vq->call_ctx.producer.token = vq->call_ctx.ctx;
+	vq->call_ctx.producer.irq = irq;
+	ret = irq_bypass_register_producer(&vq->call_ctx.producer);
+	spin_unlock(&vq->call_ctx.ctx_lock);
+}
+
+static void vhost_vdpa_unsetup_vq_irq(struct vhost_vdpa *v, u16 qid)
+{
+	struct vhost_virtqueue *vq = &v->vqs[qid];
+
+	spin_lock(&vq->call_ctx.ctx_lock);
+	irq_bypass_unregister_producer(&vq->call_ctx.producer);
+	spin_unlock(&vq->call_ctx.ctx_lock);
+}
+
 static void vhost_vdpa_reset(struct vhost_vdpa *v)
 {
 	struct vdpa_device *vdpa = v->vdpa;
-	const struct vdpa_config_ops *ops = vdpa->config;
 
-	ops->set_status(vdpa, 0);
+	vdpa_reset(vdpa);
+	v->in_batch = 0;
 }
 
 static long vhost_vdpa_get_device_id(struct vhost_vdpa *v, u8 __user *argp)
@@ -155,10 +159,14 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 {
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
-	u8 status;
+	u8 status, status_old;
+	int nvqs = v->nvqs;
+	u16 i;
 
 	if (copy_from_user(&status, statusp, sizeof(status)))
 		return -EFAULT;
+
+	status_old = ops->get_status(vdpa);
 
 	/*
 	 * Userspace shouldn't remove status bits unless reset the
@@ -168,6 +176,14 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 		return -EINVAL;
 
 	ops->set_status(vdpa, status);
+
+	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) && !(status_old & VIRTIO_CONFIG_S_DRIVER_OK))
+		for (i = 0; i < nvqs; i++)
+			vhost_vdpa_setup_vq_irq(v, i);
+
+	if ((status_old & VIRTIO_CONFIG_S_DRIVER_OK) && !(status & VIRTIO_CONFIG_S_DRIVER_OK))
+		for (i = 0; i < nvqs; i++)
+			vhost_vdpa_unsetup_vq_irq(v, i);
 
 	return 0;
 }
@@ -196,7 +212,6 @@ static long vhost_vdpa_get_config(struct vhost_vdpa *v,
 				  struct vhost_vdpa_config __user *c)
 {
 	struct vdpa_device *vdpa = v->vdpa;
-	const struct vdpa_config_ops *ops = vdpa->config;
 	struct vhost_vdpa_config config;
 	unsigned long size = offsetof(struct vhost_vdpa_config, buf);
 	u8 *buf;
@@ -209,7 +224,7 @@ static long vhost_vdpa_get_config(struct vhost_vdpa *v,
 	if (!buf)
 		return -ENOMEM;
 
-	ops->get_config(vdpa, config.off, buf, config.len);
+	vdpa_get_config(vdpa, config.off, buf, config.len);
 
 	if (copy_to_user(c->buf, buf, config.len)) {
 		kvfree(buf);
@@ -255,7 +270,6 @@ static long vhost_vdpa_get_features(struct vhost_vdpa *v, u64 __user *featurep)
 	u64 features;
 
 	features = ops->get_features(vdpa);
-	features &= vhost_vdpa_features[v->virtio_id];
 
 	if (copy_to_user(featurep, &features, sizeof(features)))
 		return -EFAULT;
@@ -279,10 +293,7 @@ static long vhost_vdpa_set_features(struct vhost_vdpa *v, u64 __user *featurep)
 	if (copy_from_user(&features, featurep, sizeof(features)))
 		return -EFAULT;
 
-	if (features & ~vhost_vdpa_features[v->virtio_id])
-		return -EINVAL;
-
-	if (ops->set_features(vdpa, features))
+	if (vdpa_set_features(vdpa, features))
 		return -EINVAL;
 
 	return 0;
@@ -332,14 +343,18 @@ static long vhost_vdpa_set_config_call(struct vhost_vdpa *v, u32 __user *argp)
 
 	return 0;
 }
+
 static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 				   void __user *argp)
 {
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
+	struct vdpa_vq_state vq_state;
 	struct vdpa_callback cb;
 	struct vhost_virtqueue *vq;
 	struct vhost_vring_state s;
+	u64 __user *featurep = argp;
+	u64 features;
 	u32 idx;
 	long r;
 
@@ -353,15 +368,32 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 	idx = array_index_nospec(idx, v->nvqs);
 	vq = &v->vqs[idx];
 
-	if (cmd == VHOST_VDPA_SET_VRING_ENABLE) {
+	switch (cmd) {
+	case VHOST_VDPA_SET_VRING_ENABLE:
 		if (copy_from_user(&s, argp, sizeof(s)))
 			return -EFAULT;
 		ops->set_vq_ready(vdpa, idx, s.num);
 		return 0;
-	}
+	case VHOST_GET_VRING_BASE:
+		r = ops->get_vq_state(v->vdpa, idx, &vq_state);
+		if (r)
+			return r;
 
-	if (cmd == VHOST_GET_VRING_BASE)
-		vq->last_avail_idx = ops->get_vq_state(v->vdpa, idx);
+		vq->last_avail_idx = vq_state.avail_index;
+		break;
+	case VHOST_GET_BACKEND_FEATURES:
+		features = VHOST_VDPA_BACKEND_FEATURES;
+		if (copy_to_user(featurep, &features, sizeof(features)))
+			return -EFAULT;
+		return 0;
+	case VHOST_SET_BACKEND_FEATURES:
+		if (copy_from_user(&features, featurep, sizeof(features)))
+			return -EFAULT;
+		if (features & ~VHOST_VDPA_BACKEND_FEATURES)
+			return -EOPNOTSUPP;
+		vhost_set_backend_features(&v->vdev, features);
+		return 0;
+	}
 
 	r = vhost_vring_ioctl(&v->vdev, cmd, argp);
 	if (r)
@@ -377,12 +409,13 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		break;
 
 	case VHOST_SET_VRING_BASE:
-		if (ops->set_vq_state(vdpa, idx, vq->last_avail_idx))
+		vq_state.avail_index = vq->last_avail_idx;
+		if (ops->set_vq_state(vdpa, idx, &vq_state))
 			r = -EINVAL;
 		break;
 
 	case VHOST_SET_VRING_CALL:
-		if (vq->call_ctx) {
+		if (vq->call_ctx.ctx) {
 			cb.callback = vhost_vdpa_virtqueue_cb;
 			cb.private = vq;
 		} else {
@@ -390,6 +423,7 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 			cb.private = NULL;
 		}
 		ops->set_vq_cb(vdpa, idx, &cb);
+		vhost_vdpa_setup_vq_irq(v, idx);
 		break;
 
 	case VHOST_SET_VRING_NUM:
@@ -519,13 +553,15 @@ static int vhost_vdpa_map(struct vhost_vdpa *v,
 	if (r)
 		return r;
 
-	if (ops->dma_map)
+	if (ops->dma_map) {
 		r = ops->dma_map(vdpa, iova, size, pa, perm);
-	else if (ops->set_map)
-		r = ops->set_map(vdpa, dev->iotlb);
-	else
+	} else if (ops->set_map) {
+		if (!v->in_batch)
+			r = ops->set_map(vdpa, dev->iotlb);
+	} else {
 		r = iommu_map(v->domain, iova, pa, size,
 			      perm_to_iommu_flags(perm));
+	}
 
 	return r;
 }
@@ -538,12 +574,14 @@ static void vhost_vdpa_unmap(struct vhost_vdpa *v, u64 iova, u64 size)
 
 	vhost_vdpa_iotlb_unmap(v, iova, iova + size - 1);
 
-	if (ops->dma_map)
+	if (ops->dma_map) {
 		ops->dma_unmap(vdpa, iova, size);
-	else if (ops->set_map)
-		ops->set_map(vdpa, dev->iotlb);
-	else
+	} else if (ops->set_map) {
+		if (!v->in_batch)
+			ops->set_map(vdpa, dev->iotlb);
+	} else {
 		iommu_unmap(v->domain, iova, size);
+	}
 }
 
 static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
@@ -636,6 +674,8 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 					struct vhost_iotlb_msg *msg)
 {
 	struct vhost_vdpa *v = container_of(dev, struct vhost_vdpa, vdev);
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
 	int r = 0;
 
 	r = vhost_dev_check_owner(dev);
@@ -648,6 +688,14 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 		break;
 	case VHOST_IOTLB_INVALIDATE:
 		vhost_vdpa_unmap(v, msg->iova, msg->size);
+		break;
+	case VHOST_IOTLB_BATCH_BEGIN:
+		v->in_batch = true;
+		break;
+	case VHOST_IOTLB_BATCH_END:
+		if (v->in_batch && ops->set_map)
+			ops->set_map(vdpa, dev->iotlb);
+		v->in_batch = false;
 		break;
 	default:
 		r = -EINVAL;
@@ -765,6 +813,18 @@ err:
 	return r;
 }
 
+static void vhost_vdpa_clean_irq(struct vhost_vdpa *v)
+{
+	struct vhost_virtqueue *vq;
+	int i;
+
+	for (i = 0; i < v->nvqs; i++) {
+		vq = &v->vqs[i];
+		if (vq->call_ctx.producer.irq)
+			irq_bypass_unregister_producer(&vq->call_ctx.producer);
+	}
+}
+
 static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 {
 	struct vhost_vdpa *v = filep->private_data;
@@ -777,6 +837,7 @@ static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 	vhost_vdpa_iotlb_free(v);
 	vhost_vdpa_free_domain(v);
 	vhost_vdpa_config_put(v);
+	vhost_vdpa_clean_irq(v);
 	vhost_dev_cleanup(&v->vdev);
 	kfree(v->vdev.vqs);
 	mutex_unlock(&d->mutex);
@@ -872,7 +933,7 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 {
 	const struct vdpa_config_ops *ops = vdpa->config;
 	struct vhost_vdpa *v;
-	int minor, nvqs = VHOST_VDPA_VQ_MAX;
+	int minor;
 	int r;
 
 	/* Currently, we only accept the network devices. */
@@ -893,14 +954,14 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	atomic_set(&v->opened, 0);
 	v->minor = minor;
 	v->vdpa = vdpa;
-	v->nvqs = nvqs;
+	v->nvqs = vdpa->nvqs;
 	v->virtio_id = ops->get_device_id(vdpa);
 
 	device_initialize(&v->dev);
 	v->dev.release = vhost_vdpa_release_dev;
 	v->dev.parent = &vdpa->dev;
 	v->dev.devt = MKDEV(MAJOR(vhost_vdpa_major), minor);
-	v->vqs = kmalloc_array(nvqs, sizeof(struct vhost_virtqueue),
+	v->vqs = kmalloc_array(v->nvqs, sizeof(struct vhost_virtqueue),
 			       GFP_KERNEL);
 	if (!v->vqs) {
 		r = -ENOMEM;
