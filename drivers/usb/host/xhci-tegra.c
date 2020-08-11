@@ -1136,7 +1136,7 @@ static struct phy *tegra_xusb_get_phy(struct tegra_xusb *tegra, char *name,
 	unsigned int i, phy_count = 0;
 
 	for (i = 0; i < tegra->soc->num_types; i++) {
-		if (!strncmp(tegra->soc->phy_types[i].name, "usb2",
+		if (!strncmp(tegra->soc->phy_types[i].name, name,
 							    strlen(name)))
 			return tegra->phys[phy_count+port];
 
