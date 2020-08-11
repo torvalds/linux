@@ -363,12 +363,6 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 {
 	struct radeon_device *rdev = radeon_get_rdev(bdev);
 
-	mem->bus.addr = NULL;
-	mem->bus.offset = 0;
-	mem->bus.size = mem->num_pages << PAGE_SHIFT;
-	mem->bus.base = 0;
-	mem->bus.is_iomem = false;
-
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* system memory */

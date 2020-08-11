@@ -715,12 +715,6 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resourc
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
 
-	mem->bus.addr = NULL;
-	mem->bus.is_iomem = false;
-	mem->bus.offset = 0;
-	mem->bus.size = mem->num_pages << PAGE_SHIFT;
-	mem->bus.base = 0;
-
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 	case VMW_PL_GMR:

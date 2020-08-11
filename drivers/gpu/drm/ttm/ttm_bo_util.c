@@ -138,6 +138,11 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 	if (!bdev->driver->io_mem_reserve)
 		return 0;
 
+	mem->bus.addr = NULL;
+	mem->bus.offset = 0;
+	mem->bus.size = mem->num_pages << PAGE_SHIFT;
+	mem->bus.base = 0;
+	mem->bus.is_iomem = false;
 retry:
 	ret = bdev->driver->io_mem_reserve(bdev, mem);
 	if (ret == -ENOSPC) {

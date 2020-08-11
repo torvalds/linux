@@ -1025,12 +1025,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	reg->bus.addr = NULL;
-	reg->bus.offset = 0;
-	reg->bus.size = reg->num_pages << PAGE_SHIFT;
-	reg->bus.base = 0;
-	reg->bus.is_iomem = false;
-
 	switch (reg->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
