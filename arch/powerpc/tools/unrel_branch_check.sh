@@ -14,9 +14,12 @@ kstart=0xc000000000000000
 printf -v kend '0x%x' $(( kstart + 0x10000 ))
 
 end_intr=0x$(
-$objdump -R -d --start-address="$kstart" --stop-address="$kend" "$vmlinux" |
+$objdump -R -d --start-address="$kstart" --stop-address="$kend" "$vmlinux" 2>/dev/null |
 awk '$2 == "<__end_interrupts>:" { print $1 }'
 )
+if [ "$end_intr" = "0x" ]; then
+	exit 0
+fi
 
 $objdump -R -D --no-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
 sed -E -n '
