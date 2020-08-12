@@ -611,6 +611,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	if (IS_ERR(pdata->vsel_gpio)) {
 		ret = PTR_ERR(pdata->vsel_gpio);
 		dev_err(dev, "failed to get vesl gpio (%d)\n", ret);
+		pdata->vsel_gpio = NULL;
 	}
 
 	return pdata;
