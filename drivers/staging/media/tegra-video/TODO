@@ -1,5 +1,4 @@
 TODO list
-* Add Tegra CSI MIPI pads calibration.
 * Add MIPI clock Settle time computation based on the data rate.
 * Add support for Ganged mode.
 * Add RAW10 packed video format support to Tegra210 video formats.

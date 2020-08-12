@@ -240,7 +240,7 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
 	struct tegra_vi_channel *chan = v4l2_get_subdev_hostdata(subdev);
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
 	struct tegra_csi *csi = csi_chan->csi;
-	int ret;
+	int ret, err;
 
 	ret = pm_runtime_get_sync(csi->dev);
 	if (ret < 0) {
@@ -249,12 +249,46 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
 		return ret;
 	}
 
+	if (csi_chan->mipi) {
+		ret = tegra_mipi_enable(csi_chan->mipi);
+		if (ret < 0) {
+			dev_err(csi->dev,
+				"failed to enable MIPI pads: %d\n", ret);
+			goto rpm_put;
+		}
+
+		/*
+		 * CSI MIPI pads PULLUP, PULLDN and TERM impedances need to
+		 * be calibrated after power on.
+		 * So, trigger the calibration start here and results will
+		 * be latched and applied to the pads when link is in LP11
+		 * state during start of sensor streaming.
+		 */
+		ret = tegra_mipi_start_calibration(csi_chan->mipi);
+		if (ret < 0) {
+			dev_err(csi->dev,
+				"failed to start MIPI calibration: %d\n", ret);
+			goto disable_mipi;
+		}
+	}
+
 	csi_chan->pg_mode = chan->pg_mode;
 	ret = csi->ops->csi_start_streaming(csi_chan);
 	if (ret < 0)
-		goto rpm_put;
+		goto finish_calibration;
 
 	return 0;
+
+finish_calibration:
+	if (csi_chan->mipi)
+		tegra_mipi_finish_calibration(csi_chan->mipi);
+disable_mipi:
+	if (csi_chan->mipi) {
+		err = tegra_mipi_disable(csi_chan->mipi);
+		if (err < 0)
+			dev_err(csi->dev,
+				"failed to disable MIPI pads: %d\n", err);
+	}
 
 rpm_put:
 	pm_runtime_put(csi->dev);
@@ -265,8 +299,16 @@ static int tegra_csi_disable_stream(struct v4l2_subdev *subdev)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
 	struct tegra_csi *csi = csi_chan->csi;
+	int err;
 
 	csi->ops->csi_stop_streaming(csi_chan);
+
+	if (csi_chan->mipi) {
+		err = tegra_mipi_disable(csi_chan->mipi);
+		if (err < 0)
+			dev_err(csi->dev,
+				"failed to disable MIPI pads: %d\n", err);
+	}
 
 	pm_runtime_put(csi->dev);
 
@@ -313,6 +355,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 				   unsigned int num_pads)
 {
 	struct tegra_csi_channel *chan;
+	int ret = 0;
 
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
@@ -331,7 +374,16 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 		chan->pads[0].flags = MEDIA_PAD_FL_SOURCE;
 	}
 
-	return 0;
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return 0;
+
+	chan->mipi = tegra_mipi_request(csi->dev, node);
+	if (IS_ERR(chan->mipi)) {
+		ret = PTR_ERR(chan->mipi);
+		dev_err(csi->dev, "failed to get mipi device: %d\n", ret);
+	}
+
+	return ret;
 }
 
 static int tegra_csi_tpg_channels_alloc(struct tegra_csi *csi)
@@ -503,6 +555,9 @@ static void tegra_csi_channels_cleanup(struct tegra_csi *csi)
 	struct tegra_csi_channel *chan, *tmp;
 
 	list_for_each_entry_safe(chan, tmp, &csi->csi_chans, list) {
+		if (chan->mipi)
+			tegra_mipi_free(chan->mipi);
+
 		subdev = &chan->subdev;
 		if (subdev->dev) {
 			if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
