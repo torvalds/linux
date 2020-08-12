@@ -1078,6 +1078,7 @@ config WQ_WATCHDOG
 
 config TEST_LOCKUP
 	tristate "Test module to generate lockups"
+	depends on m
 	help
 	  This builds the "test_lockup" module that helps to make sure
 	  that watchdogs and lockup detectors are working properly.
