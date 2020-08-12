@@ -2965,14 +2965,14 @@ static struct nvme_cel *nvme_find_cel(struct nvme_ctrl *ctrl, u8 csi)
 {
 	struct nvme_cel *cel, *ret = NULL;
 
-	spin_lock(&ctrl->lock);
+	spin_lock_irq(&ctrl->lock);
 	list_for_each_entry(cel, &ctrl->cels, entry) {
 		if (cel->csi == csi) {
 			ret = cel;
 			break;
 		}
 	}
-	spin_unlock(&ctrl->lock);
+	spin_unlock_irq(&ctrl->lock);
 
 	return ret;
 }
@@ -2999,9 +2999,9 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 
 	cel->csi = csi;
 
-	spin_lock(&ctrl->lock);
+	spin_lock_irq(&ctrl->lock);
 	list_add_tail(&cel->entry, &ctrl->cels);
-	spin_unlock(&ctrl->lock);
+	spin_unlock_irq(&ctrl->lock);
 out:
 	*log = &cel->log;
 	return 0;
