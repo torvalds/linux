@@ -286,7 +286,7 @@ static int device_early_init(struct hl_device *hdev)
 	}
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
-		snprintf(workq_name, 32, "hl-free-jobs-%u", i);
+		snprintf(workq_name, 32, "hl-free-jobs-%u", (u32) i);
 		hdev->cq_wq[i] = create_singlethread_workqueue(workq_name);
 		if (hdev->cq_wq[i] == NULL) {
 			dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
