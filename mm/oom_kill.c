@@ -861,6 +861,8 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 
 	p = find_lock_task_mm(victim);
 	if (!p) {
+		pr_info("%s: OOM victim %d (%s) is already exiting. Skip killing the task\n",
+			message, task_pid_nr(victim), victim->comm);
 		put_task_struct(victim);
 		return;
 	} else if (victim != p) {
