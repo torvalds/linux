@@ -316,7 +316,7 @@
 		isp_reserved: isp {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x6800000>;
+			size = <0x10000000>;
 		};
 
 		ramoops: ramoops@8000000 {
@@ -1608,7 +1608,8 @@
 		assigned-clocks = <&cru DCLK_CIF>;
 		assigned-clock-rates = <300000000>;
 		power-domains = <&power RV1126_PD_VI>;
-		iommus = <&rkcif_mmu>;
+		// iommus = <&rkcif_mmu>;
+		memory-region = <&isp_reserved>;
 		status = "disabled";
 	};
 
@@ -1618,7 +1619,7 @@
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif_mmu";
 		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RV1126_PD_VI>;
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -1651,7 +1652,7 @@
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif_lite_mmu";
 		clocks = <&cru ACLK_CIFLITE>, <&cru HCLK_CIFLITE>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RV1126_PD_VI>;
 		#iommu-cells = <0>;
 		status = "disabled";
