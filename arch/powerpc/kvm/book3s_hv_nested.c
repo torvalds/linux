@@ -233,20 +233,21 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 
 	/* copy parameters in */
 	hv_ptr = kvmppc_get_gpr(vcpu, 4);
+	regs_ptr = kvmppc_get_gpr(vcpu, 5);
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	err = kvm_vcpu_read_guest(vcpu, hv_ptr, &l2_hv,
-				  sizeof(struct hv_guest_state));
+				  sizeof(struct hv_guest_state)) ||
+		kvm_vcpu_read_guest(vcpu, regs_ptr, &l2_regs,
+				    sizeof(struct pt_regs));
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (err)
 		return H_PARAMETER;
+
 	if (kvmppc_need_byteswap(vcpu))
 		byteswap_hv_regs(&l2_hv);
 	if (l2_hv.version != HV_GUEST_STATE_VERSION)
 		return H_P2;
 
-	regs_ptr = kvmppc_get_gpr(vcpu, 5);
-	err = kvm_vcpu_read_guest(vcpu, regs_ptr, &l2_regs,
-				  sizeof(struct pt_regs));
-	if (err)
-		return H_PARAMETER;
 	if (kvmppc_need_byteswap(vcpu))
 		byteswap_pt_regs(&l2_regs);
 	if (l2_hv.vcpu_token >= NR_CPUS)
@@ -323,12 +324,12 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 		byteswap_hv_regs(&l2_hv);
 		byteswap_pt_regs(&l2_regs);
 	}
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	err = kvm_vcpu_write_guest(vcpu, hv_ptr, &l2_hv,
-				   sizeof(struct hv_guest_state));
-	if (err)
-		return H_AUTHORITY;
-	err = kvm_vcpu_write_guest(vcpu, regs_ptr, &l2_regs,
+				   sizeof(struct hv_guest_state)) ||
+		kvm_vcpu_write_guest(vcpu, regs_ptr, &l2_regs,
 				   sizeof(struct pt_regs));
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (err)
 		return H_AUTHORITY;
 
@@ -508,12 +509,16 @@ long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu)
 			goto not_found;
 
 		/* Write what was loaded into our buffer back to the L1 guest */
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		rc = kvm_vcpu_write_guest(vcpu, gp_to, buf, n);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		if (rc)
 			goto not_found;
 	} else {
 		/* Load the data to be stored from the L1 guest into our buf */
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		rc = kvm_vcpu_read_guest(vcpu, gp_from, buf, n);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		if (rc)
 			goto not_found;
 
@@ -548,9 +553,12 @@ static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp)
 
 	ret = -EFAULT;
 	ptbl_addr = (kvm->arch.l1_ptcr & PRTB_MASK) + (gp->l1_lpid << 4);
-	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 8)))
+	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 8))) {
+		int srcu_idx = srcu_read_lock(&kvm->srcu);
 		ret = kvm_read_guest(kvm, ptbl_addr,
 				     &ptbl_entry, sizeof(ptbl_entry));
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
+	}
 	if (ret) {
 		gp->l1_gr_to_hr = 0;
 		gp->process_table = 0;
