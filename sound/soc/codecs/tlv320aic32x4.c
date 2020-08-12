@@ -665,7 +665,8 @@ static int aic32x4_set_processing_blocks(struct snd_soc_component *component,
 }
 
 static int aic32x4_setup_clocks(struct snd_soc_component *component,
-				unsigned int sample_rate)
+			unsigned int sample_rate, unsigned int channel,
+			unsigned int bit_depth)
 {
 	u8 aosr;
 	u16 dosr;
@@ -753,7 +754,8 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 							dosr);
 
 						clk_set_rate(clocks[5].clk,
-							sample_rate * 32);
+							sample_rate * channel *
+							bit_depth);
 						return 0;
 					}
 				}
@@ -775,9 +777,11 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	u8 iface1_reg = 0;
 	u8 dacsetup_reg = 0;
 
-	aic32x4_setup_clocks(component, params_rate(params));
+	aic32x4_setup_clocks(component, params_rate(params),
+			     params_channels(params),
+			     params_physical_width(params));
 
-	switch (params_width(params)) {
+	switch (params_physical_width(params)) {
 	case 16:
 		iface1_reg |= (AIC32X4_WORD_LEN_16BITS <<
 				   AIC32X4_IFACE1_DATALEN_SHIFT);
@@ -862,7 +866,8 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 
 #define AIC32X4_RATES	SNDRV_PCM_RATE_8000_192000
 #define AIC32X4_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE \
-			 | SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
+			 | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_3LE \
+			 | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
