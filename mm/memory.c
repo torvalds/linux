@@ -4400,20 +4400,23 @@ static inline void mm_account_fault(struct pt_regs *regs,
 	 */
 	major = (ret & VM_FAULT_MAJOR) || (flags & FAULT_FLAG_TRIED);
 
+	if (major)
+		current->maj_flt++;
+	else
+		current->min_flt++;
+
 	/*
-	 * If the fault is done for GUP, regs will be NULL, and we will skip
-	 * the fault accounting.
+	 * If the fault is done for GUP, regs will be NULL.  We only do the
+	 * accounting for the per thread fault counters who triggered the
+	 * fault, and we skip the perf event updates.
 	 */
 	if (!regs)
 		return;
 
-	if (major) {
-		current->maj_flt++;
+	if (major)
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
-	} else {
-		current->min_flt++;
+	else
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs, address);
-	}
 }
 
 /*
