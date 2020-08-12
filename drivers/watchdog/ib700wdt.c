@@ -214,7 +214,7 @@ static long ibwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ibwdt_set_heartbeat(new_margin))
 			return -EINVAL;
 		ibwdt_ping();
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
