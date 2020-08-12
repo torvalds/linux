@@ -1423,6 +1423,44 @@ struct hl_device_idle_busy_ts {
 	ktime_t				busy_to_idle_ts;
 };
 
+
+/**
+ * struct hl_mmu_priv - used for holding per-device mmu internal information.
+ * @mmu_pgt_pool: pool of page tables used by MMU for allocating hops.
+ * @mmu_shadow_hop0: shadow array of hop0 tables.
+ */
+struct hl_mmu_priv {
+	struct gen_pool *mmu_pgt_pool;
+	void *mmu_shadow_hop0;
+};
+
+/**
+ * struct hl_mmu_funcs - Device related MMU functions.
+ * @init: initialize the MMU module.
+ * @fini: release the MMU module.
+ * @ctx_init: Initialize a context for using the MMU module.
+ * @ctx_fini: disable a ctx from using the mmu module.
+ * @map: maps a virtual address to physical address for a context.
+ * @unmap: unmap a virtual address of a context.
+ * @flush: flush all writes from all cores to reach device MMU.
+ * @swap_out: marks all mapping of the given context as swapped out.
+ * @swap_in: marks all mapping of the given context as swapped in.
+ */
+struct hl_mmu_funcs {
+	int (*init)(struct hl_device *hdev);
+	void (*fini)(struct hl_device *hdev);
+	int (*ctx_init)(struct hl_ctx *ctx);
+	void (*ctx_fini)(struct hl_ctx *ctx);
+	int (*map)(struct hl_ctx *ctx,
+			u64 virt_addr, u64 phys_addr, u32 page_size,
+			bool is_dram_addr);
+	int (*unmap)(struct hl_ctx *ctx,
+			u64 virt_addr, bool is_dram_addr);
+	void (*flush)(struct hl_ctx *ctx);
+	void (*swap_out)(struct hl_ctx *ctx);
+	void (*swap_in)(struct hl_ctx *ctx);
+};
+
 /**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
@@ -1459,10 +1497,8 @@ struct hl_device_idle_busy_ts {
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
- * @mmu_pgt_pool: pool of available MMU hops.
  * @vm: virtual memory manager for MMU.
  * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context.
- * @mmu_shadow_hop0: shadow mapping of the MMU hop 0 zone.
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
@@ -1480,6 +1516,8 @@ struct hl_device_idle_busy_ts {
  * @idle_busy_ts_arr: array to hold time stamps of transitions from idle to busy
  *                    and vice-versa
  * @aggregated_cs_counters: aggregated cs counters among all contexts
+ * @mmu_priv: device-specific MMU data.
+ * @mmu_func: device-related MMU functions.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -1564,10 +1602,8 @@ struct hl_device {
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
-	struct gen_pool			*mmu_pgt_pool;
 	struct hl_vm			vm;
 	struct mutex			mmu_cache_lock;
-	void				*mmu_shadow_hop0;
 	struct device			*hwmon_dev;
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
@@ -1590,6 +1626,9 @@ struct hl_device {
 	struct hl_device_idle_busy_ts	*idle_busy_ts_arr;
 
 	struct hl_cs_counters		aggregated_cs_counters;
+
+	struct hl_mmu_priv		mmu_priv;
+	struct hl_mmu_funcs		mmu_func;
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -1842,6 +1881,8 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		bool flush_pte);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
+int hl_mmu_if_set_funcs(struct hl_device *hdev);
+void hl_mmu_v1_set_funcs(struct hl_device *hdev);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst);

@@ -321,6 +321,10 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_chip_info;
 	}
 
+	rc = hl_mmu_if_set_funcs(hdev);
+	if (rc)
+		goto free_idle_busy_ts_arr;
+
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
 	mutex_init(&hdev->send_cpu_message_lock);
@@ -334,6 +338,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	return 0;
 
+free_idle_busy_ts_arr:
+	kfree(hdev->idle_busy_ts_arr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
 free_eq_wq:

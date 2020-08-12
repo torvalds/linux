@@ -29,7 +29,7 @@ static void _free_hop(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	gen_pool_free(hdev->mmu_pgt_pool, pgt_info->phys_addr,
+	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, pgt_info->phys_addr,
 			hdev->asic_prop.mmu_hop_table_size);
 	hash_del(&pgt_info->node);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
@@ -54,7 +54,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	if (!pgt_info)
 		return ULLONG_MAX;
 
-	phys_addr = (u64) gen_pool_alloc(hdev->mmu_pgt_pool,
+	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.mmu_pgt_pool,
 					prop->mmu_hop_table_size);
 	if (!phys_addr) {
 		dev_err(hdev->dev, "failed to allocate page\n");
@@ -75,7 +75,8 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	return shadow_addr;
 
 shadow_err:
-	gen_pool_free(hdev->mmu_pgt_pool, phys_addr, prop->mmu_hop_table_size);
+	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, phys_addr,
+			prop->mmu_hop_table_size);
 pool_add_err:
 	kfree(pgt_info);
 
@@ -90,11 +91,11 @@ static inline u64 get_phys_hop0_addr(struct hl_ctx *ctx)
 
 static inline u64 get_hop0_addr(struct hl_ctx *ctx)
 {
-	return (u64) (uintptr_t) ctx->hdev->mmu_shadow_hop0 +
+	return (u64) (uintptr_t) ctx->hdev->mmu_priv.mmu_shadow_hop0 +
 			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
 }
 
-static inline void flush(struct hl_ctx *ctx)
+static void flush(struct hl_ctx *ctx)
 {
 	/* flush all writes from all cores to reach PCI */
 	mb();
@@ -254,15 +255,6 @@ static inline u64 get_phys_addr(struct hl_ctx *ctx, u64 shadow_addr)
 	return phys_hop_addr + pte_offset;
 }
 
-static bool is_dram_va(struct hl_device *hdev, u64 virt_addr)
-{
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-
-	return hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-					prop->dmmu.start_addr,
-					prop->dmmu.end_addr);
-}
-
 static int dram_default_mapping_init(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -413,7 +405,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 }
 
 /**
- * hl_mmu_init() - initialize the MMU module.
+ * hl_mmu_v1_init() - initialize the MMU module.
  * @hdev: habanalabs device structure.
  *
  * This function does the following:
@@ -422,23 +414,20 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
  *
  * Return: 0 for success, non-zero for failure.
  */
-int hl_mmu_init(struct hl_device *hdev)
+static int hl_mmu_v1_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
-	if (!hdev->mmu_enable)
-		return 0;
-
-	hdev->mmu_pgt_pool =
+	hdev->mmu_priv.mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
-	if (!hdev->mmu_pgt_pool) {
+	if (!hdev->mmu_priv.mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
 		return -ENOMEM;
 	}
 
-	rc = gen_pool_add(hdev->mmu_pgt_pool, prop->mmu_pgt_addr +
+	rc = gen_pool_add(hdev->mmu_priv.mmu_pgt_pool, prop->mmu_pgt_addr +
 			prop->mmu_hop0_tables_total_size,
 			prop->mmu_pgt_size - prop->mmu_hop0_tables_total_size,
 			-1);
@@ -447,10 +436,10 @@ int hl_mmu_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
-	hdev->mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
-					prop->mmu_hop_table_size,
-					GFP_KERNEL | __GFP_ZERO);
-	if (ZERO_OR_NULL_PTR(hdev->mmu_shadow_hop0)) {
+	hdev->mmu_priv.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
+						prop->mmu_hop_table_size,
+						GFP_KERNEL | __GFP_ZERO);
+	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;
 	}
@@ -460,7 +449,7 @@ int hl_mmu_init(struct hl_device *hdev)
 	return 0;
 
 err_pool_add:
-	gen_pool_destroy(hdev->mmu_pgt_pool);
+	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
 
 	return rc;
 }
@@ -475,15 +464,12 @@ err_pool_add:
  *
  * All contexts should be freed before calling this function.
  */
-void hl_mmu_fini(struct hl_device *hdev)
+static void hl_mmu_v1_fini(struct hl_device *hdev)
 {
-	if (!hdev->mmu_enable)
-		return;
-
 	/* MMU H/W fini was already done in device hw_fini() */
 
-	kvfree(hdev->mmu_shadow_hop0);
-	gen_pool_destroy(hdev->mmu_pgt_pool);
+	kvfree(hdev->mmu_priv.mmu_shadow_hop0);
+	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
 }
 
 /**
@@ -494,13 +480,8 @@ void hl_mmu_fini(struct hl_device *hdev)
  * page tables hops related to this context.
  * Return: 0 on success, non-zero otherwise.
  */
-int hl_mmu_ctx_init(struct hl_ctx *ctx)
+static int hl_mmu_v1_ctx_init(struct hl_ctx *ctx)
 {
-	struct hl_device *hdev = ctx->hdev;
-
-	if (!hdev->mmu_enable)
-		return 0;
-
 	mutex_init(&ctx->mmu_lock);
 	hash_init(ctx->mmu_shadow_hash);
 
@@ -517,15 +498,12 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
  * - Free the mutex
  * - Free DRAM default page mapping hops
  */
-void hl_mmu_ctx_fini(struct hl_ctx *ctx)
+static void hl_mmu_v1_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct pgt_info *pgt_info;
 	struct hlist_node *tmp;
 	int i;
-
-	if (!hdev->mmu_enable)
-		return;
 
 	dram_default_mapping_fini(ctx);
 
@@ -543,7 +521,8 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 	mutex_destroy(&ctx->mmu_lock);
 }
 
-static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
+static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
+				u64 virt_addr, bool is_dram_addr)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -676,82 +655,7 @@ not_mapped:
 	return -EINVAL;
 }
 
-/*
- * hl_mmu_unmap - unmaps a virtual addr
- *
- * @ctx: pointer to the context structure
- * @virt_addr: virt addr to map from
- * @page_size: size of the page to unmap
- * @flush_pte: whether to do a PCI flush
- *
- * This function does the following:
- * - Check that the virt addr is mapped
- * - Unmap the virt addr and frees pgts if possible
- * - Returns 0 on success, -EINVAL if the given addr is not mapped
- *
- * Because this function changes the page tables in the device and because it
- * changes the MMU hash, it must be protected by a lock.
- * However, because it maps only a single page, the lock should be implemented
- * in a higher level in order to protect the entire mapping of the memory area
- *
- * For optimization reasons PCI flush may be requested once after unmapping of
- * large area.
- */
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
-		bool flush_pte)
-{
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct hl_mmu_properties *mmu_prop;
-	u64 real_virt_addr;
-	u32 real_page_size, npages;
-	int i, rc = 0;
-	bool is_dram_addr;
-
-	if (!hdev->mmu_enable)
-		return 0;
-
-	is_dram_addr = is_dram_va(hdev, virt_addr);
-
-	if (is_dram_addr)
-		mmu_prop = &prop->dmmu;
-	else if ((page_size % prop->pmmu_huge.page_size) == 0)
-		mmu_prop = &prop->pmmu_huge;
-	else
-		mmu_prop = &prop->pmmu;
-
-	/*
-	 * The H/W handles mapping of specific page sizes. Hence if the page
-	 * size is bigger, we break it to sub-pages and unmap them separately.
-	 */
-	if ((page_size % mmu_prop->page_size) == 0) {
-		real_page_size = mmu_prop->page_size;
-	} else {
-		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
-			page_size, mmu_prop->page_size >> 10);
-
-		return -EFAULT;
-	}
-
-	npages = page_size / real_page_size;
-	real_virt_addr = virt_addr;
-
-	for (i = 0 ; i < npages ; i++) {
-		rc = _hl_mmu_unmap(ctx, real_virt_addr, is_dram_addr);
-		if (rc)
-			break;
-
-		real_virt_addr += real_page_size;
-	}
-
-	if (flush_pte)
-		flush(ctx);
-
-	return rc;
-}
-
-static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+static int _hl_mmu_v1_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 			u32 page_size, bool is_dram_addr)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -917,121 +821,43 @@ err:
 }
 
 /*
- * hl_mmu_map - maps a virtual addr to physical addr
- *
- * @ctx: pointer to the context structure
- * @virt_addr: virt addr to map from
- * @phys_addr: phys addr to map to
- * @page_size: physical page size
- * @flush_pte: whether to do a PCI flush
- *
- * This function does the following:
- * - Check that the virt addr is not mapped
- * - Allocate pgts as necessary in order to map the virt addr to the phys
- * - Returns 0 on success, -EINVAL if addr is already mapped, or -ENOMEM.
- *
- * Because this function changes the page tables in the device and because it
- * changes the MMU hash, it must be protected by a lock.
- * However, because it maps only a single page, the lock should be implemented
- * in a higher level in order to protect the entire mapping of the memory area
- *
- * For optimization reasons PCI flush may be requested once after mapping of
- * large area.
- */
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
-		bool flush_pte)
-{
-	struct hl_device *hdev = ctx->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct hl_mmu_properties *mmu_prop;
-	u64 real_virt_addr, real_phys_addr;
-	u32 real_page_size, npages;
-	int i, rc, mapped_cnt = 0;
-	bool is_dram_addr;
-
-	if (!hdev->mmu_enable)
-		return 0;
-
-	is_dram_addr = is_dram_va(hdev, virt_addr);
-
-	if (is_dram_addr)
-		mmu_prop = &prop->dmmu;
-	else if ((page_size % prop->pmmu_huge.page_size) == 0)
-		mmu_prop = &prop->pmmu_huge;
-	else
-		mmu_prop = &prop->pmmu;
-
-	/*
-	 * The H/W handles mapping of specific page sizes. Hence if the page
-	 * size is bigger, we break it to sub-pages and map them separately.
-	 */
-	if ((page_size % mmu_prop->page_size) == 0) {
-		real_page_size = mmu_prop->page_size;
-	} else {
-		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
-			page_size, mmu_prop->page_size >> 10);
-
-		return -EFAULT;
-	}
-
-	WARN_ONCE((phys_addr & (real_page_size - 1)),
-		"Mapping 0x%llx with page size of 0x%x is erroneous! Address must be divisible by page size",
-		phys_addr, real_page_size);
-
-	npages = page_size / real_page_size;
-	real_virt_addr = virt_addr;
-	real_phys_addr = phys_addr;
-
-	for (i = 0 ; i < npages ; i++) {
-		rc = _hl_mmu_map(ctx, real_virt_addr, real_phys_addr,
-				real_page_size, is_dram_addr);
-		if (rc)
-			goto err;
-
-		real_virt_addr += real_page_size;
-		real_phys_addr += real_page_size;
-		mapped_cnt++;
-	}
-
-	if (flush_pte)
-		flush(ctx);
-
-	return 0;
-
-err:
-	real_virt_addr = virt_addr;
-	for (i = 0 ; i < mapped_cnt ; i++) {
-		if (_hl_mmu_unmap(ctx, real_virt_addr, is_dram_addr))
-			dev_warn_ratelimited(hdev->dev,
-				"failed to unmap va: 0x%llx\n", real_virt_addr);
-
-		real_virt_addr += real_page_size;
-	}
-
-	flush(ctx);
-
-	return rc;
-}
-
-/*
- * hl_mmu_swap_out - marks all mapping of the given ctx as swapped out
+ * hl_mmu_v1_swap_out - marks all mapping of the given ctx as swapped out
  *
  * @ctx: pointer to the context structure
  *
  */
-void hl_mmu_swap_out(struct hl_ctx *ctx)
+static void hl_mmu_v1_swap_out(struct hl_ctx *ctx)
 {
 
 }
 
 /*
- * hl_mmu_swap_in - marks all mapping of the given ctx as swapped in
+ * hl_mmu_v1_swap_in - marks all mapping of the given ctx as swapped in
  *
  * @ctx: pointer to the context structure
  *
  */
-void hl_mmu_swap_in(struct hl_ctx *ctx)
+static void hl_mmu_v1_swap_in(struct hl_ctx *ctx)
 {
 
+}
+
+/*
+ * hl_mmu_v1_prepare - prepare mmu  for working with mmu v1
+ *
+ * @hdev: pointer to the device structure
+ */
+void hl_mmu_v1_set_funcs(struct hl_device *hdev)
+{
+	struct hl_mmu_funcs *mmu = &hdev->mmu_func;
+
+	mmu->init = hl_mmu_v1_init;
+	mmu->fini = hl_mmu_v1_fini;
+	mmu->ctx_init = hl_mmu_v1_ctx_init;
+	mmu->ctx_fini = hl_mmu_v1_ctx_fini;
+	mmu->map = _hl_mmu_v1_map;
+	mmu->unmap = _hl_mmu_v1_unmap;
+	mmu->flush = flush;
+	mmu->swap_out = hl_mmu_v1_swap_out;
+	mmu->swap_in = hl_mmu_v1_swap_in;
 }
