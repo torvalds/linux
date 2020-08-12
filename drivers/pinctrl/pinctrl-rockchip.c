@@ -3570,6 +3570,9 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return rc;
 			break;
 		case PIN_CONFIG_OUTPUT:
+			if (!bank->valid)
+				return -ENOTSUPP;
+
 			rockchip_gpio_set(&bank->gpio_chip,
 					  pin - bank->pin_base, arg);
 			rc = _rockchip_pmx_gpio_set_direction(&bank->gpio_chip,
@@ -3643,6 +3646,9 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = 1;
 		break;
 	case PIN_CONFIG_OUTPUT:
+		if (!bank->valid)
+			return -ENOTSUPP;
+
 		rc = rockchip_get_mux(bank, pin - bank->pin_base);
 		if (rc != RK_FUNC_GPIO)
 			return -EINVAL;
