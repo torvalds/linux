@@ -106,7 +106,7 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 
 	err = pwmchip_add(&ab8500->chip);
 	if (err < 0)
-		return err;
+		return dev_err_probe(&pdev->dev, err, "Failed to add pwm chip\n");
 
 	dev_dbg(&pdev->dev, "pwm probe successful\n");
 	platform_set_drvdata(pdev, ab8500);
