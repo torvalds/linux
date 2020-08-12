@@ -102,7 +102,7 @@ static struct net_device *chtls_find_netdev(struct chtls_dev *cdev,
 	case PF_INET:
 		if (likely(!inet_sk(sk)->inet_rcv_saddr))
 			return ndev;
-		ndev = ip_dev_find(&init_net, inet_sk(sk)->inet_rcv_saddr);
+		ndev = __ip_dev_find(&init_net, inet_sk(sk)->inet_rcv_saddr, false);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:

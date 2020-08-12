@@ -633,7 +633,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		mmu = msm_iommu_new(iommu_dev, config->platform.iommu);
 
 		aspace = msm_gem_address_space_create(mmu, "mdp5",
-			0x1000, 0xffffffff);
+			0x1000, 0x100000000 - 0x1000);
 
 		if (IS_ERR(aspace)) {
 			if (!IS_ERR(mmu))

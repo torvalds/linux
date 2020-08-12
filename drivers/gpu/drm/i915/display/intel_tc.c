@@ -360,12 +360,12 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	}
 
 	if (!icl_tc_phy_set_safe_mode(dig_port, false) &&
-	    !WARN_ON(dig_port->tc_legacy_port))
+	    !drm_WARN_ON(&i915->drm, dig_port->tc_legacy_port))
 		goto out_set_tbt_alt_mode;
 
 	max_lanes = intel_tc_port_fia_max_lane_count(dig_port);
 	if (dig_port->tc_legacy_port) {
-		WARN_ON(max_lanes != 4);
+		drm_WARN_ON(&i915->drm, max_lanes != 4);
 		dig_port->tc_mode = TC_PORT_LEGACY;
 
 		return;
@@ -445,18 +445,20 @@ static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 static enum tc_port_mode
 intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 live_status_mask = tc_port_live_status_mask(dig_port);
 	bool in_safe_mode = icl_tc_phy_is_in_safe_mode(dig_port);
 	enum tc_port_mode mode;
 
-	if (in_safe_mode || WARN_ON(!icl_tc_phy_status_complete(dig_port)))
+	if (in_safe_mode ||
+	    drm_WARN_ON(&i915->drm, !icl_tc_phy_status_complete(dig_port)))
 		return TC_PORT_TBT_ALT;
 
 	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
 	if (live_status_mask) {
 		enum tc_port_mode live_mode = fls(live_status_mask) - 1;
 
-		if (!WARN_ON(live_mode == TC_PORT_TBT_ALT))
+		if (!drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT))
 			mode = live_mode;
 	}
 
@@ -505,7 +507,9 @@ static void
 intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
 				 int refcount)
 {
-	WARN_ON(dig_port->tc_link_refcount);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount);
 	dig_port->tc_link_refcount = refcount;
 }
 

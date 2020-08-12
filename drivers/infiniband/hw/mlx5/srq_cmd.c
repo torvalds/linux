@@ -83,11 +83,11 @@ struct mlx5_core_srq *mlx5_cmd_get_srq(struct mlx5_ib_dev *dev, u32 srqn)
 	struct mlx5_srq_table *table = &dev->srq_table;
 	struct mlx5_core_srq *srq;
 
-	xa_lock(&table->array);
+	xa_lock_irq(&table->array);
 	srq = xa_load(&table->array, srqn);
 	if (srq)
 		refcount_inc(&srq->common.refcount);
-	xa_unlock(&table->array);
+	xa_unlock_irq(&table->array);
 
 	return srq;
 }

@@ -149,3 +149,4 @@ module_exit(nft_osf_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Fernando Fernandez <ffmancera@riseup.net>");
 MODULE_ALIAS_NFT_EXPR("osf");
+MODULE_DESCRIPTION("nftables passive OS fingerprint support");

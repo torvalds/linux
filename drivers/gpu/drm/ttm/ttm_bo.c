@@ -643,7 +643,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		ttm_bo_wait(bo, false, false);
 
 		ttm_bo_cleanup_memtype_use(bo);
-		return 0;
+		return ttm_tt_create(bo, false);
 	}
 
 	evict_mem = bo->mem;
@@ -844,8 +844,10 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	if (!fence)
 		return 0;
 
-	if (no_wait_gpu)
+	if (no_wait_gpu) {
+		dma_fence_put(fence);
 		return -EBUSY;
+	}
 
 	dma_resv_add_shared_fence(bo->base.resv, fence);
 
@@ -1152,8 +1154,13 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	/*
 	 * Remove the backing store if no placement is given.
 	 */
-	if (!placement->num_placement && !placement->num_busy_placement)
-		return ttm_bo_pipeline_gutting(bo);
+	if (!placement->num_placement && !placement->num_busy_placement) {
+		ret = ttm_bo_pipeline_gutting(bo);
+		if (ret)
+			return ret;
+
+		return ttm_tt_create(bo, false);
+	}
 
 	/*
 	 * Check whether we need to move buffer.
@@ -1169,6 +1176,14 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 		 */
 		ttm_flag_masked(&bo->mem.placement, new_flags,
 				~TTM_PL_MASK_MEMTYPE);
+	}
+	/*
+	 * We might need to add a TTM.
+	 */
+	if (bo->mem.mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
+		ret = ttm_tt_create(bo, true);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -1673,7 +1688,7 @@ out:
 }
 EXPORT_SYMBOL(ttm_bo_swapout);
 
-void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
+void ttm_bo_swapout_all(void)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,

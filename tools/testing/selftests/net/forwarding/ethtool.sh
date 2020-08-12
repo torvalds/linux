@@ -252,8 +252,6 @@ check_highest_speed_is_chosen()
 	fi
 
 	local -a speeds_arr=($(common_speeds_get $h1 $h2 0 1))
-	# Remove the first speed, h1 does not advertise this speed.
-	unset speeds_arr[0]
 
 	max_speed=${speeds_arr[0]}
 	for current in ${speeds_arr[@]}; do

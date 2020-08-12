@@ -4109,7 +4109,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 * CR0_GUEST_HOST_MASK is already set in the original vmcs01
 	 * (KVM doesn't change it);
 	 */
-	vcpu->arch.cr0_guest_owned_bits = X86_CR0_TS;
+	vcpu->arch.cr0_guest_owned_bits = KVM_POSSIBLE_CR0_GUEST_BITS;
 	vmx_set_cr0(vcpu, vmcs12->host_cr0);
 
 	/* Same as above - no reason to call set_cr4_guest_host_mask().  */
@@ -4259,7 +4259,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	 */
 	vmx_set_efer(vcpu, nested_vmx_get_vmcs01_guest_efer(vmx));
 
-	vcpu->arch.cr0_guest_owned_bits = X86_CR0_TS;
+	vcpu->arch.cr0_guest_owned_bits = KVM_POSSIBLE_CR0_GUEST_BITS;
 	vmx_set_cr0(vcpu, vmcs_readl(CR0_READ_SHADOW));
 
 	vcpu->arch.cr4_guest_owned_bits = ~vmcs_readl(CR4_GUEST_HOST_MASK);
@@ -6079,6 +6079,9 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	    ~(KVM_STATE_NESTED_SMM_GUEST_MODE | KVM_STATE_NESTED_SMM_VMXON))
 		return -EINVAL;
 
+	if (kvm_state->hdr.vmx.flags & ~KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE)
+		return -EINVAL;
+
 	/*
 	 * SMM temporarily disables VMX, so we cannot be in guest mode,
 	 * nor can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
@@ -6108,9 +6111,16 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (ret)
 		return ret;
 
-	/* Empty 'VMXON' state is permitted */
-	if (kvm_state->size < sizeof(*kvm_state) + sizeof(*vmcs12))
-		return 0;
+	/* Empty 'VMXON' state is permitted if no VMCS loaded */
+	if (kvm_state->size < sizeof(*kvm_state) + sizeof(*vmcs12)) {
+		/* See vmx_has_valid_vmcs12.  */
+		if ((kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE) ||
+		    (kvm_state->flags & KVM_STATE_NESTED_EVMCS) ||
+		    (kvm_state->hdr.vmx.vmcs12_pa != -1ull))
+			return -EINVAL;
+		else
+			return 0;
+	}
 
 	if (kvm_state->hdr.vmx.vmcs12_pa != -1ull) {
 		if (kvm_state->hdr.vmx.vmcs12_pa == kvm_state->hdr.vmx.vmxon_pa ||
@@ -6176,6 +6186,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 			goto error_guest_mode;
 	}
 
+	vmx->nested.has_preemption_timer_deadline = false;
 	if (kvm_state->hdr.vmx.flags & KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE) {
 		vmx->nested.has_preemption_timer_deadline = true;
 		vmx->nested.preemption_timer_deadline =

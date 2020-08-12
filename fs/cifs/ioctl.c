@@ -169,6 +169,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
+	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb;
 	__u64	ExtAttrBits = 0;
 	__u64   caps;
@@ -307,13 +308,19 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				break;
 			}
 			cifs_sb = CIFS_SB(inode->i_sb);
-			tcon = tlink_tcon(cifs_sb_tlink(cifs_sb));
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
 			if (tcon && tcon->ses->server->ops->notify) {
 				rc = tcon->ses->server->ops->notify(xid,
 						filep, (void __user *)arg);
 				cifs_dbg(FYI, "ioctl notify rc %d\n", rc);
 			} else
 				rc = -EOPNOTSUPP;
+			cifs_put_tlink(tlink);
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

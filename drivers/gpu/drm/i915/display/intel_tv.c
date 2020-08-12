@@ -1158,7 +1158,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 
 	/* pixel counter doesn't work on i965gm TV output */
 	if (IS_I965GM(dev_priv))
-		adjusted_mode->private_flags |=
+		pipe_config->mode_flags |=
 			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 }
 
@@ -1328,7 +1328,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 	/* pixel counter doesn't work on i965gm TV output */
 	if (IS_I965GM(dev_priv))
-		adjusted_mode->private_flags |=
+		pipe_config->mode_flags |=
 			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	return 0;

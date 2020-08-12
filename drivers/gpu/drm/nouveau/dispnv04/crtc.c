@@ -44,6 +44,8 @@
 #include <subdev/bios/pll.h>
 #include <subdev/clk.h>
 
+#include <nvif/push006c.h>
+
 #include <nvif/event.h>
 #include <nvif/cl0046.h>
 
@@ -759,7 +761,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
-	nvif_notify_fini(&nv_crtc->vblank);
+	nvif_notify_dtor(&nv_crtc->vblank);
 	kfree(nv_crtc);
 }
 
@@ -1105,6 +1107,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_drm *drm = chan->drm;
 	struct drm_device *dev = drm->dev;
+	struct nvif_push *push = chan->chan.push;
 	unsigned long flags;
 	int ret;
 
@@ -1119,13 +1122,12 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 2);
+	ret = PUSH_WAIT(push, 2);
 	if (ret)
 		goto fail;
 
-	BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	OUT_RING  (chan, 0x00000000);
-	FIRE_RING (chan);
+	PUSH_NVSQ(push, NV_SW, NV_SW_PAGE_FLIP, 0x00000000);
+	PUSH_KICK(push);
 
 	ret = nouveau_fence_new(chan, false, pfence);
 	if (ret)
@@ -1155,6 +1157,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_cli *cli;
 	struct nouveau_fence *fence;
 	struct nv04_display *dispnv04 = nv04_display(dev);
+	struct nvif_push *push;
 	int head = nouveau_crtc(crtc)->index;
 	int ret;
 
@@ -1162,6 +1165,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!chan)
 		return -ENODEV;
 	cli = (void *)chan->user.client;
+	push = chan->chan.push;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -1203,18 +1207,14 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (swap_interval) {
-		ret = RING_SPACE(chan, 8);
+		ret = PUSH_WAIT(push, 8);
 		if (ret)
 			goto fail_unreserve;
 
-		BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
-		OUT_RING  (chan, head);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
-		OUT_RING  (chan, 0);
+		PUSH_NVSQ(push, NV05F, 0x012c, 0);
+		PUSH_NVSQ(push, NV05F, 0x0134, head);
+		PUSH_NVSQ(push, NV05F, 0x0100, 0);
+		PUSH_NVSQ(push, NV05F, 0x0130, 0);
 	}
 
 	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
@@ -1351,7 +1351,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 
 	nv04_cursor_init(nv_crtc);
 
-	ret = nvif_notify_init(&disp->disp.object, nv04_crtc_vblank_handler,
+	ret = nvif_notify_ctor(&disp->disp.object, "kmsVbl", nv04_crtc_vblank_handler,
 			       false, NV04_DISP_NTFY_VBLANK,
 			       &(struct nvif_notify_head_req_v0) {
 				    .head = nv_crtc->index,

@@ -1721,3 +1721,4 @@ module_exit(exit_net_drop_monitor);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Neil Horman <nhorman@tuxdriver.com>");
 MODULE_ALIAS_GENL_FAMILY("NET_DM");
+MODULE_DESCRIPTION("Monitoring code for network dropped packet alerts");

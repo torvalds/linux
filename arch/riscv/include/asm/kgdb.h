@@ -19,7 +19,6 @@
 
 #ifndef	__ASSEMBLY__
 
-extern int kgdb_has_hit_break(unsigned long addr);
 extern unsigned long kgdb_compiled_break;
 
 static inline void arch_kgdb_breakpoint(void)
@@ -106,7 +105,9 @@ static inline void arch_kgdb_breakpoint(void)
 #define DBG_REG_BADADDR_OFF 34
 #define DBG_REG_CAUSE_OFF 35
 
-#include <asm/gdb_xml.h>
+extern const char riscv_gdb_stub_feature[64];
+
+#define kgdb_arch_gdb_stub_feature riscv_gdb_stub_feature
 
 #endif
 #endif

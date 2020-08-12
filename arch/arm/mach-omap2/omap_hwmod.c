@@ -3435,7 +3435,7 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 		regs = ioremap(data->module_pa,
 			       data->module_size);
 		if (!regs)
-			return -ENOMEM;
+			goto out_free_sysc;
 	}
 
 	/*
@@ -3445,13 +3445,13 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	if (oh->class->name && strcmp(oh->class->name, data->name)) {
 		class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
 		if (!class)
-			return -ENOMEM;
+			goto out_unmap;
 	}
 
 	if (list_empty(&oh->slave_ports)) {
 		oi = kcalloc(1, sizeof(*oi), GFP_KERNEL);
 		if (!oi)
-			return -ENOMEM;
+			goto out_free_class;
 
 		/*
 		 * Note that we assume interconnect interface clocks will be
@@ -3478,6 +3478,14 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
+
+out_free_class:
+	kfree(class);
+out_unmap:
+	iounmap(regs);
+out_free_sysc:
+	kfree(sysc);
+	return -ENOMEM;
 }
 
 static const struct omap_hwmod_reset omap24xx_reset_quirks[] = {
@@ -3489,7 +3497,7 @@ static const struct omap_hwmod_reset dra7_reset_quirks[] = {
 };
 
 static const struct omap_hwmod_reset omap_reset_quirks[] = {
-	{ .match = "dss", .len = 3, .reset = omap_dss_reset, },
+	{ .match = "dss_core", .len = 8, .reset = omap_dss_reset, },
 	{ .match = "hdq1w", .len = 5, .reset = omap_hdq1w_reset, },
 	{ .match = "i2c", .len = 3, .reset = omap_i2c_reset, },
 	{ .match = "wd_timer", .len = 8, .reset = omap2_wd_timer_reset, },

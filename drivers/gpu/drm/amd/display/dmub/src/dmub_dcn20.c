@@ -215,11 +215,22 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 	/* TODO: Move this to CW4. */
 	dmub_dcn20_translate_addr(&cw4->offset, fb_base, fb_offset, &offset);
 
-	REG_WRITE(DMCUB_REGION4_OFFSET, offset.u.low_part);
-	REG_WRITE(DMCUB_REGION4_OFFSET_HIGH, offset.u.high_part);
-	REG_SET_2(DMCUB_REGION4_TOP_ADDRESS, 0, DMCUB_REGION4_TOP_ADDRESS,
-		  cw4->region.top - cw4->region.base - 1, DMCUB_REGION4_ENABLE,
-		  1);
+	/* New firmware can support CW4. */
+	if (dmub->fw_version > DMUB_FW_VERSION(1, 0, 10)) {
+		REG_WRITE(DMCUB_REGION3_CW4_OFFSET, offset.u.low_part);
+		REG_WRITE(DMCUB_REGION3_CW4_OFFSET_HIGH, offset.u.high_part);
+		REG_WRITE(DMCUB_REGION3_CW4_BASE_ADDRESS, cw4->region.base);
+		REG_SET_2(DMCUB_REGION3_CW4_TOP_ADDRESS, 0,
+			  DMCUB_REGION3_CW4_TOP_ADDRESS, cw4->region.top,
+			  DMCUB_REGION3_CW4_ENABLE, 1);
+	} else {
+		REG_WRITE(DMCUB_REGION4_OFFSET, offset.u.low_part);
+		REG_WRITE(DMCUB_REGION4_OFFSET_HIGH, offset.u.high_part);
+		REG_SET_2(DMCUB_REGION4_TOP_ADDRESS, 0,
+			  DMCUB_REGION4_TOP_ADDRESS,
+			  cw4->region.top - cw4->region.base - 1,
+			  DMCUB_REGION4_ENABLE, 1);
+	}
 
 	dmub_dcn20_translate_addr(&cw5->offset, fb_base, fb_offset, &offset);
 
@@ -243,9 +254,12 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1)
 {
-	/* TODO: Use CW4 instead of region 4. */
+	/* New firmware can support CW4 for the inbox. */
+	if (dmub->fw_version > DMUB_FW_VERSION(1, 0, 10))
+		REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, inbox1->base);
+	else
+		REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, 0x80000000);
 
-	REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, 0x80000000);
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
 }
 
@@ -261,7 +275,11 @@ void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset)
 
 bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub)
 {
-	return REG_READ(DMCUB_REGION3_CW2_BASE_ADDRESS) != 0;
+	uint32_t is_hw_init;
+
+	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_hw_init);
+
+	return is_hw_init != 0;
 }
 
 bool dmub_dcn20_is_supported(struct dmub_srv *dmub)

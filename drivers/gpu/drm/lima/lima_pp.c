@@ -271,6 +271,8 @@ void lima_pp_fini(struct lima_ip *ip)
 
 int lima_pp_bcast_resume(struct lima_ip *ip)
 {
+	/* PP has been reset by individual PP resume */
+	ip->data.async_reset = false;
 	return 0;
 }
 

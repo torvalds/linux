@@ -347,7 +347,8 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 	 * All future channel/memory allocations will make use of this
 	 * VMM instead of the standard one.
 	 */
-	ret = nvif_vmm_init(&cli->mmu, cli->vmm.vmm.object.oclass, true,
+	ret = nvif_vmm_ctor(&cli->mmu, "svmVmm",
+			    cli->vmm.vmm.object.oclass, true,
 			    args->unmanaged_addr, args->unmanaged_size,
 			    &(struct gp100_vmm_v0) {
 				.fault_replay = true,
@@ -562,6 +563,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 		.end = notifier->notifier.interval_tree.last + 1,
 		.pfn_flags_mask = HMM_PFN_REQ_FAULT | HMM_PFN_REQ_WRITE,
 		.hmm_pfns = hmm_pfns,
+		.dev_private_owner = drm->dev,
 	};
 	struct mm_struct *mm = notifier->notifier.mm;
 	int ret;
@@ -903,8 +905,8 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 
 	nouveau_svm_fault_buffer_fini(svm, id);
 
-	nvif_notify_fini(&buffer->notify);
-	nvif_object_fini(&buffer->object);
+	nvif_notify_dtor(&buffer->notify);
+	nvif_object_dtor(&buffer->object);
 }
 
 static int
@@ -918,8 +920,8 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 
 	buffer->id = id;
 
-	ret = nvif_object_init(device, 0, oclass, &args, sizeof(args),
-			       &buffer->object);
+	ret = nvif_object_ctor(device, "svmFaultBuffer", 0, oclass, &args,
+			       sizeof(args), &buffer->object);
 	if (ret < 0) {
 		SVM_ERR(svm, "Fault buffer allocation failed: %d", ret);
 		return ret;
@@ -930,8 +932,8 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	buffer->getaddr = args.get;
 	buffer->putaddr = args.put;
 
-	ret = nvif_notify_init(&buffer->object, nouveau_svm_fault, true,
-			       NVB069_V0_NTFY_FAULT, NULL, 0, 0,
+	ret = nvif_notify_ctor(&buffer->object, "svmFault", nouveau_svm_fault,
+			       true, NVB069_V0_NTFY_FAULT, NULL, 0, 0,
 			       &buffer->notify);
 	if (ret)
 		return ret;

@@ -106,9 +106,9 @@ nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 		}
 	}
 
-	asyh->dither.enable = mode;
-	asyh->dither.bits = mode >> 1;
-	asyh->dither.mode = mode >> 3;
+	asyh->dither.enable = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, ENABLE);
+	asyh->dither.bits = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, BITS);
+	asyh->dither.mode = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, MODE);
 	asyh->set.dither = true;
 }
 
@@ -489,7 +489,7 @@ nv50_head_destroy(struct drm_crtc *crtc)
 {
 	struct nv50_head *head = nv50_head(crtc);
 
-	nvif_notify_fini(&head->base.vblank);
+	nvif_notify_dtor(&head->base.vblank);
 	nv50_lut_fini(&head->olut);
 	drm_crtc_cleanup(crtc);
 	kfree(head);
@@ -598,7 +598,7 @@ nv50_head_create(struct drm_device *dev, int index)
 		}
 	}
 
-	ret = nvif_notify_init(&disp->disp->object, nv50_head_vblank_handler,
+	ret = nvif_notify_ctor(&disp->disp->object, "kmsVbl", nv50_head_vblank_handler,
 			       false, NV04_DISP_NTFY_VBLANK,
 			       &(struct nvif_notify_head_req_v0) {
 				    .head = nv_crtc->index,

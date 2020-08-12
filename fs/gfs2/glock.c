@@ -1899,7 +1899,10 @@ bool gfs2_delete_work_queued(const struct gfs2_glock *gl)
 
 static void flush_delete_work(struct gfs2_glock *gl)
 {
-	flush_delayed_work(&gl->gl_delete);
+	if (cancel_delayed_work(&gl->gl_delete)) {
+		queue_delayed_work(gfs2_delete_workqueue,
+				   &gl->gl_delete, 0);
+	}
 	gfs2_glock_queue_work(gl, 0);
 }
 

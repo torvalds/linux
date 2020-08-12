@@ -797,7 +797,7 @@ static struct mlx5_flow_table *find_closest_ft_recursive(struct fs_node  *root,
 	return ft;
 }
 
-/* If reverse if false then return the first flow table in next priority of
+/* If reverse is false then return the first flow table in next priority of
  * prio in the tree, else return the last flow table in the previous priority
  * of prio in the tree.
  */
@@ -829,34 +829,16 @@ static struct mlx5_flow_table *find_prev_chained_ft(struct fs_prio *prio)
 	return find_closest_ft(prio, true);
 }
 
-static struct fs_prio *find_fwd_ns_prio(struct mlx5_flow_root_namespace *root,
-					struct mlx5_flow_namespace *ns)
-{
-	struct mlx5_flow_namespace *root_ns = &root->ns;
-	struct fs_prio *iter_prio;
-	struct fs_prio *prio;
-
-	fs_get_obj(prio, ns->node.parent);
-	list_for_each_entry(iter_prio, &root_ns->node.children, node.list) {
-		if (iter_prio == prio &&
-		    !list_is_last(&prio->node.children, &iter_prio->node.list))
-			return list_next_entry(iter_prio, node.list);
-	}
-	return NULL;
-}
-
 static struct mlx5_flow_table *find_next_fwd_ft(struct mlx5_flow_table *ft,
 						struct mlx5_flow_act *flow_act)
 {
-	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	struct fs_prio *prio;
+	bool next_ns;
 
-	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS)
-		prio = find_fwd_ns_prio(root, ft->ns);
-	else
-		fs_get_obj(prio, ft->node.parent);
+	next_ns = flow_act->action & MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS;
+	fs_get_obj(prio, next_ns ? ft->ns->node.parent : ft->node.parent);
 
-	return (prio) ? find_next_chained_ft(prio) : NULL;
+	return find_next_chained_ft(prio);
 }
 
 static int connect_fts_in_prio(struct mlx5_core_dev *dev,

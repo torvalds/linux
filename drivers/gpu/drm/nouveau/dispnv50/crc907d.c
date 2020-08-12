@@ -6,6 +6,10 @@
 #include "disp.h"
 #include "head.h"
 
+#include <nvif/push507c.h>
+
+#include <nvhw/class/cl907d.h>
+
 #define CRC907D_MAX_ENTRIES 255
 
 struct crc907d_notifier {
@@ -18,68 +22,67 @@ struct crc907d_notifier {
 	} entries[CRC907D_MAX_ENTRIES];
 } __packed;
 
-static void
+static int
 crc907d_set_src(struct nv50_head *head, int or,
 		enum nv50_crc_source_type source,
 		struct nv50_crc_notifier_ctx *ctx, u32 wndw)
 {
-	struct drm_crtc *crtc = &head->base.base;
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	const u32 hoff = head->base.index * 0x300;
-	u32 *push;
-	u32 crc_args = 0xfff00000;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	u32 crc_args = NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, CORE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, TIMESTAMP_MODE, FALSE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, SECONDARY_OUTPUT, NONE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
+	int ret;
 
 	switch (source) {
 	case NV50_CRC_SOURCE_TYPE_SOR:
-		crc_args |= (0x00000f0f + or * 16) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, SOR(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_PIOR:
-		crc_args |= (0x000000ff + or * 256) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, PIOR(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_DAC:
-		crc_args |= (0x00000ff0 + or) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, DAC(or));
 		break;
 	case NV50_CRC_SOURCE_TYPE_RG:
-		crc_args |= (0x00000ff8 + drm_crtc_index(crtc)) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, RG(i));
 		break;
 	case NV50_CRC_SOURCE_TYPE_SF:
-		crc_args |= (0x00000f8f + drm_crtc_index(crtc) * 16) << 8;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, SF(i));
 		break;
 	case NV50_CRC_SOURCE_NONE:
-		crc_args |= 0x000fff00;
+		crc_args |= NVDEF(NV907D, HEAD_SET_CRC_CONTROL, PRIMARY_OUTPUT, NONE);
 		break;
 	}
 
-	push = evo_wait(core, 4);
-	if (!push)
-		return;
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
 
 	if (source) {
-		evo_mthd(push, 0x0438 + hoff, 1);
-		evo_data(push, ctx->ntfy.handle);
-		evo_mthd(push, 0x0430 + hoff, 1);
-		evo_data(push, crc_args);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.handle);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CRC_CONTROL(i), crc_args);
 	} else {
-		evo_mthd(push, 0x0430 + hoff, 1);
-		evo_data(push, crc_args);
-		evo_mthd(push, 0x0438 + hoff, 1);
-		evo_data(push, 0);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CRC_CONTROL(i), crc_args);
+		PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CRC(i), 0);
 	}
-	evo_kick(push, core);
+
+	return 0;
 }
 
-static void crc907d_set_ctx(struct nv50_head *head,
-			    struct nv50_crc_notifier_ctx *ctx)
+static int
+crc907d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push = evo_wait(core, 2);
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
 
-	if (!push)
-		return;
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
 
-	evo_mthd(push, 0x0438 + (head->base.index * 0x300), 1);
-	evo_data(push, ctx ? ctx->ntfy.handle : 0);
-	evo_kick(push, core);
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx ? ctx->ntfy.handle : 0);
+	return 0;
 }
 
 static u32 crc907d_get_entry(struct nv50_head *head,

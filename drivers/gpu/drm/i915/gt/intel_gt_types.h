@@ -109,6 +109,17 @@ struct intel_gt {
 	struct intel_gt_buffer_pool buffer_pool;
 
 	struct i915_vma *scratch;
+
+	struct intel_gt_info {
+		intel_engine_mask_t engine_mask;
+		u8 num_engines;
+
+		/* Media engine access to SFC per instance */
+		u8 vdbox_sfc_access;
+
+		/* Slice/subslice/EU info */
+		struct sseu_dev_info sseu;
+	} info;
 };
 
 enum intel_gt_scratch_field {

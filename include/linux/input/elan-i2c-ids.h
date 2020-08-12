@@ -67,8 +67,15 @@ static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN062B", 0 },
 	{ "ELAN062C", 0 },
 	{ "ELAN062D", 0 },
+	{ "ELAN062E", 0 }, /* Lenovo V340 Whiskey Lake U */
+	{ "ELAN062F", 0 }, /* Lenovo V340 Comet Lake U */
 	{ "ELAN0631", 0 },
 	{ "ELAN0632", 0 },
+	{ "ELAN0633", 0 }, /* Lenovo S145 */
+	{ "ELAN0634", 0 }, /* Lenovo V340 Ice lake */
+	{ "ELAN0635", 0 }, /* Lenovo V1415-IIL */
+	{ "ELAN0636", 0 }, /* Lenovo V1415-Dali */
+	{ "ELAN0637", 0 }, /* Lenovo V1415-IGLR */
 	{ "ELAN1000", 0 },
 	{ }
 };

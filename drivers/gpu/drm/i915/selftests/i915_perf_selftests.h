@@ -11,7 +11,7 @@
  * a module parameter. It must be unique and legal for a C identifier.
  *
  * The function should be of type int function(void). It may be conditionally
- * compiled using #if IS_ENABLED(DRM_I915_SELFTEST).
+ * compiled using #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST).
  *
  * Tests are executed in order by igt/i915_selftest
  */

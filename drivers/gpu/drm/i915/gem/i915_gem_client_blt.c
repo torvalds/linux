@@ -32,16 +32,17 @@ static void vma_clear_pages(struct i915_vma *vma)
 	vma->pages = NULL;
 }
 
-static int vma_bind(struct i915_vma *vma,
+static int vma_bind(struct i915_address_space *vm,
+		    struct i915_vma *vma,
 		    enum i915_cache_level cache_level,
 		    u32 flags)
 {
-	return vma->vm->vma_ops.bind_vma(vma, cache_level, flags);
+	return vm->vma_ops.bind_vma(vm, vma, cache_level, flags);
 }
 
-static void vma_unbind(struct i915_vma *vma)
+static void vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 {
-	vma->vm->vma_ops.unbind_vma(vma);
+	vm->vma_ops.unbind_vma(vm, vma);
 }
 
 static const struct i915_vma_ops proxy_vma_ops = {

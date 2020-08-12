@@ -91,9 +91,9 @@ static int activate(struct fb_info *fb_info, struct fb_var_screeninfo *var)
 
 	var->activate |= FB_ACTIVATE_FORCE;
 	console_lock();
-	fb_info->flags |= FBINFO_MISC_USEREVENT;
 	err = fb_set_var(fb_info, var);
-	fb_info->flags &= ~FBINFO_MISC_USEREVENT;
+	if (!err)
+		fbcon_update_vcs(fb_info, var->activate & FB_ACTIVATE_ALL);
 	console_unlock();
 	if (err)
 		return err;

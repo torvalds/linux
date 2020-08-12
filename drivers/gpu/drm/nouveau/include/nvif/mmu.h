@@ -31,8 +31,9 @@ struct nvif_mmu {
 	u8 *kind;
 };
 
-int nvif_mmu_init(struct nvif_object *, s32 oclass, struct nvif_mmu *);
-void nvif_mmu_fini(struct nvif_mmu *);
+int nvif_mmu_ctor(struct nvif_object *, const char *name, s32 oclass,
+		  struct nvif_mmu *);
+void nvif_mmu_dtor(struct nvif_mmu *);
 
 static inline bool
 nvif_mmu_kind_valid(struct nvif_mmu *mmu, u8 kind)

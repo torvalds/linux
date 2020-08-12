@@ -56,6 +56,7 @@ struct hw_sequencer_funcs {
 
 	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);
+	void (*power_down_on_boot)(struct dc *dc);
 	void (*enable_accelerated_mode)(struct dc *dc,
 			struct dc_state *context);
 	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,
@@ -115,6 +116,11 @@ struct hw_sequencer_funcs {
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
 			int num_pipes,
 			const struct dc_static_screen_params *events);
+#ifndef TRIM_FSFT
+	bool (*optimize_timing_for_fsft)(struct dc *dc,
+			struct dc_crtc_timing *timing,
+			unsigned int max_input_rate_in_khz);
+#endif
 
 	/* Stream Related */
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
@@ -203,6 +209,12 @@ struct hw_sequencer_funcs {
 
 	void (*set_abm_immediate_disable)(struct pipe_ctx *pipe_ctx);
 
+	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* Idle Optimization Related */
+	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
+#endif
 
 };
 

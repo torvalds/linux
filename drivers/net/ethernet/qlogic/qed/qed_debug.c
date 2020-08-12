@@ -5568,7 +5568,8 @@ static const char * const s_status_str[] = {
 
 	/* DBG_STATUS_INVALID_FILTER_TRIGGER_DWORDS */
 	"The filter/trigger constraint dword offsets are not enabled for recording",
-
+	/* DBG_STATUS_NO_MATCHING_FRAMING_MODE */
+	"No matching framing mode",
 
 	/* DBG_STATUS_VFC_READ_ERROR */
 	"Error reading from VFC",
@@ -7505,6 +7506,12 @@ static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->cdev->print_dbg_data)
 		qed_dbg_print_feature(text_buf, text_size_bytes);
 
+	/* Just return the original binary buffer if requested */
+	if (p_hwfn->cdev->dbg_bin_dump) {
+		vfree(text_buf);
+		return DBG_STATUS_OK;
+	}
+
 	/* Free the old dump_buf and point the dump_buf to the newly allocagted
 	 * and formatted text buffer.
 	 */
@@ -7732,7 +7739,9 @@ int qed_dbg_mcp_trace_size(struct qed_dev *cdev)
 #define REGDUMP_HEADER_SIZE_SHIFT		0
 #define REGDUMP_HEADER_SIZE_MASK		0xffffff
 #define REGDUMP_HEADER_FEATURE_SHIFT		24
-#define REGDUMP_HEADER_FEATURE_MASK		0x3f
+#define REGDUMP_HEADER_FEATURE_MASK		0x1f
+#define REGDUMP_HEADER_BIN_DUMP_SHIFT		29
+#define REGDUMP_HEADER_BIN_DUMP_MASK		0x1
 #define REGDUMP_HEADER_OMIT_ENGINE_SHIFT	30
 #define REGDUMP_HEADER_OMIT_ENGINE_MASK		0x1
 #define REGDUMP_HEADER_ENGINE_SHIFT		31
@@ -7770,6 +7779,7 @@ static u32 qed_calc_regdump_header(struct qed_dev *cdev,
 			  feature, feature_size);
 
 	SET_FIELD(res, REGDUMP_HEADER_FEATURE, feature);
+	SET_FIELD(res, REGDUMP_HEADER_BIN_DUMP, 1);
 	SET_FIELD(res, REGDUMP_HEADER_OMIT_ENGINE, omit_engine);
 	SET_FIELD(res, REGDUMP_HEADER_ENGINE, engine);
 
@@ -7793,6 +7803,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		omit_engine = 1;
 
 	mutex_lock(&qed_dbg_lock);
+	cdev->dbg_bin_dump = true;
 
 	org_engine = qed_get_debug_engine(cdev);
 	for (cur_engine = 0; cur_engine < cdev->num_hwfns; cur_engine++) {
@@ -7930,6 +7941,10 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		DP_ERR(cdev, "qed_dbg_mcp_trace failed. rc = %d\n", rc);
 	}
 
+	/* Re-populate nvm attribute info */
+	qed_mcp_nvm_info_free(p_hwfn);
+	qed_mcp_nvm_info_populate(p_hwfn);
+
 	/* nvm cfg1 */
 	rc = qed_dbg_nvm_image(cdev,
 			       (u8 *)buffer + offset +
@@ -7992,6 +8007,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		       QED_NVM_IMAGE_MDUMP, "QED_NVM_IMAGE_MDUMP", rc);
 	}
 
+	cdev->dbg_bin_dump = false;
 	mutex_unlock(&qed_dbg_lock);
 
 	return 0;

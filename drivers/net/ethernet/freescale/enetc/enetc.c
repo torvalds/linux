@@ -266,7 +266,7 @@ static irqreturn_t enetc_msix(int irq, void *data)
 	/* disable interrupts */
 	enetc_wr_reg(v->rbier, 0);
 
-	for_each_set_bit(i, &v->tx_rings_map, v->count_tx_rings)
+	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i), 0);
 
 	napi_schedule_irqoff(&v->napi);
@@ -302,7 +302,7 @@ static int enetc_poll(struct napi_struct *napi, int budget)
 	/* enable interrupts */
 	enetc_wr_reg(v->rbier, ENETC_RBIER_RXTIE);
 
-	for_each_set_bit(i, &v->tx_rings_map, v->count_tx_rings)
+	for_each_set_bit(i, &v->tx_rings_map, ENETC_MAX_NUM_TXQS)
 		enetc_wr_reg(v->tbier_base + ENETC_BDR_OFF(i),
 			     ENETC_TBIER_TXTIE);
 
@@ -1595,6 +1595,24 @@ static int enetc_set_psfp(struct net_device *ndev, int en)
 	return 0;
 }
 
+static void enetc_enable_rxvlan(struct net_device *ndev, bool en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	for (i = 0; i < priv->num_rx_rings; i++)
+		enetc_bdr_enable_rxvlan(&priv->si->hw, i, en);
+}
+
+static void enetc_enable_txvlan(struct net_device *ndev, bool en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		enetc_bdr_enable_txvlan(&priv->si->hw, i, en);
+}
+
 int enetc_set_features(struct net_device *ndev,
 		       netdev_features_t features)
 {
@@ -1603,6 +1621,14 @@ int enetc_set_features(struct net_device *ndev,
 
 	if (changed & NETIF_F_RXHASH)
 		enetc_set_rss(ndev, !!(features & NETIF_F_RXHASH));
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+		enetc_enable_rxvlan(ndev,
+				    !!(features & NETIF_F_HW_VLAN_CTAG_RX));
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_TX)
+		enetc_enable_txvlan(ndev,
+				    !!(features & NETIF_F_HW_VLAN_CTAG_TX));
 
 	if (changed & NETIF_F_HW_TC)
 		err = enetc_set_psfp(ndev, !!(features & NETIF_F_HW_TC));

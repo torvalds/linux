@@ -25,8 +25,6 @@
 #define TPAUSE_C01_STATE		1
 #define TPAUSE_C02_STATE		0
 
-u32 get_umwait_control_msr(void);
-
 static inline void __monitor(const void *eax, unsigned long ecx,
 			     unsigned long edx)
 {

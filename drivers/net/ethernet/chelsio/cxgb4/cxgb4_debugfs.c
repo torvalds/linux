@@ -2379,7 +2379,6 @@ static const struct file_operations rss_vf_config_debugfs_fops = {
 };
 
 #ifdef CONFIG_CHELSIO_T4_DCB
-extern char *dcb_ver_array[];
 
 /* Data Center Briging information for each port.
  */
