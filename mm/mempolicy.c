@@ -129,7 +129,7 @@ static struct mempolicy preferred_node_policy[MAX_NUMNODES];
 
 /**
  * numa_map_to_online_node - Find closest online node
- * @nid: Node id to start the search
+ * @node: Node id to start the search
  *
  * Lookup the next closest node by distance if @nid is not online.
  */
