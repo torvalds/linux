@@ -30,6 +30,7 @@ Hardware Monitoring Kernel Drivers
    adm1026
    adm1031
    adm1177
+   adm1266
    adm1275
    adm9240
    ads7828
