@@ -3932,6 +3932,15 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 	for (i = 0; i < file_num; i++)
 		TESTEQUAL(validate_verity(mount_dir, &test.files[i]), 0);
 
+	close(cmd_fd);
+	cmd_fd = -1;
+	TESTEQUAL(umount(mount_dir), 0);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
+		  0);
+
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_verity(mount_dir, &test.files[i]), 0);
+
 	result = TEST_SUCCESS;
 out:
 	free(line);
