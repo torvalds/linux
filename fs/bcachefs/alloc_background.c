@@ -350,6 +350,8 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 		bch2_btree_iter_set_pos(iter, POS(i, first_bucket));
 
 		while (1) {
+			bch2_trans_cond_resched(&trans);
+
 			ret = bch2_alloc_write_key(&trans, iter, flags);
 			if (ret < 0 || ret == ALLOC_END)
 				break;
