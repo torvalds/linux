@@ -189,7 +189,7 @@ examples:
                #address-cells = <1>;
                #size-cells = <0>;
                reg = <0x2>;
-               color = <LED_COLOR_ID_MULTI>;
+               color = <LED_COLOR_ID_RGB>;
                function = LED_FUNCTION_STANDBY;
                linux,default-trigger = "heartbeat";
 
