@@ -1090,6 +1090,11 @@ again:
 			goto err;
 		}
 
+		/*
+		 * The copygc thread is now global, which means it's no longer
+		 * freeing up space on specific disks, which means that
+		 * allocations for specific disks may hang arbitrarily long:
+		 */
 		wp = bch2_alloc_sectors_start(c,
 			op->target,
 			op->opts.erasure_code,
@@ -1099,7 +1104,8 @@ again:
 			op->nr_replicas_required,
 			op->alloc_reserve,
 			op->flags,
-			(op->flags & BCH_WRITE_ALLOC_NOWAIT) ? NULL : cl);
+			(op->flags & (BCH_WRITE_ALLOC_NOWAIT|
+				      BCH_WRITE_ONLY_SPECIFIED_DEVS)) ? NULL : cl);
 		EBUG_ON(!wp);
 
 		if (unlikely(IS_ERR(wp))) {
