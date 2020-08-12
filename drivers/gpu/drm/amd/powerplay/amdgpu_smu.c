@@ -2652,3 +2652,20 @@ ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu,
 
 	return size;
 }
+
+int smu_enable_mgpu_fan_boost(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs->enable_mgpu_fan_boost)
+		ret = smu->ppt_funcs->enable_mgpu_fan_boost(smu);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}

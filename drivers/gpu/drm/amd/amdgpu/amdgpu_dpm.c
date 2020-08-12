@@ -1222,9 +1222,12 @@ int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev)
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs =
 			adev->powerplay.pp_funcs;
+	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (pp_funcs && pp_funcs->enable_mgpu_fan_boost)
+	if (is_support_sw_smu(adev))
+		ret = smu_enable_mgpu_fan_boost(smu);
+	else if (pp_funcs && pp_funcs->enable_mgpu_fan_boost)
 		ret = pp_funcs->enable_mgpu_fan_boost(pp_handle);
 
 	return ret;
