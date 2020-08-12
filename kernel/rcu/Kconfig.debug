@@ -23,7 +23,7 @@ config TORTURE_TEST
 	tristate
 	default n
 
-config RCU_PERF_TEST
+config RCU_SCALE_TEST
 	tristate "performance tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
