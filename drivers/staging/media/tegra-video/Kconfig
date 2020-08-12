@@ -5,6 +5,7 @@ config VIDEO_TEGRA
 	depends on VIDEO_V4L2
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 

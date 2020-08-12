@@ -9,9 +9,12 @@
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+
+#include <media/v4l2-fwnode.h>
 
 #include "csi.h"
 #include "video.h"
@@ -304,29 +307,113 @@ static const struct v4l2_subdev_ops tegra_csi_ops = {
 	.pad    = &tegra_csi_pad_ops,
 };
 
-static int tegra_csi_tpg_channels_alloc(struct tegra_csi *csi)
+static int tegra_csi_channel_alloc(struct tegra_csi *csi,
+				   struct device_node *node,
+				   unsigned int port_num, unsigned int lanes,
+				   unsigned int num_pads)
 {
-	struct device_node *node = csi->dev->of_node;
-	unsigned int port_num;
 	struct tegra_csi_channel *chan;
-	unsigned int tpg_channels = csi->soc->csi_max_channels;
 
-	/* allocate CSI channel for each CSI x2 ports */
-	for (port_num = 0; port_num < tpg_channels; port_num++) {
-		chan = kzalloc(sizeof(*chan), GFP_KERNEL);
-		if (!chan)
-			return -ENOMEM;
+	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	if (!chan)
+		return -ENOMEM;
 
-		list_add_tail(&chan->list, &csi->csi_chans);
-		chan->csi = csi;
-		chan->csi_port_num = port_num;
-		chan->numlanes = 2;
-		chan->of_node = node;
-		chan->numpads = 1;
+	list_add_tail(&chan->list, &csi->csi_chans);
+	chan->csi = csi;
+	chan->csi_port_num = port_num;
+	chan->numlanes = lanes;
+	chan->of_node = node;
+	chan->numpads = num_pads;
+	if (num_pads & 0x2) {
+		chan->pads[0].flags = MEDIA_PAD_FL_SINK;
+		chan->pads[1].flags = MEDIA_PAD_FL_SOURCE;
+	} else {
 		chan->pads[0].flags = MEDIA_PAD_FL_SOURCE;
 	}
 
 	return 0;
+}
+
+static int tegra_csi_tpg_channels_alloc(struct tegra_csi *csi)
+{
+	struct device_node *node = csi->dev->of_node;
+	unsigned int port_num;
+	unsigned int tpg_channels = csi->soc->csi_max_channels;
+	int ret;
+
+	/* allocate CSI channel for each CSI x2 ports */
+	for (port_num = 0; port_num < tpg_channels; port_num++) {
+		ret = tegra_csi_channel_alloc(csi, node, port_num, 2, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int tegra_csi_channels_alloc(struct tegra_csi *csi)
+{
+	struct device_node *node = csi->dev->of_node;
+	struct v4l2_fwnode_endpoint v4l2_ep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY
+	};
+	struct fwnode_handle *fwh;
+	struct device_node *channel;
+	struct device_node *ep;
+	unsigned int lanes, portno, num_pads;
+	int ret;
+
+	for_each_child_of_node(node, channel) {
+		if (!of_node_name_eq(channel, "channel"))
+			continue;
+
+		ret = of_property_read_u32(channel, "reg", &portno);
+		if (ret < 0)
+			continue;
+
+		if (portno >= csi->soc->csi_max_channels) {
+			dev_err(csi->dev, "invalid port num %d for %pOF\n",
+				portno, channel);
+			ret = -EINVAL;
+			goto err_node_put;
+		}
+
+		ep = of_graph_get_endpoint_by_regs(channel, 0, 0);
+		if (!ep)
+			continue;
+
+		fwh = of_fwnode_handle(ep);
+		ret = v4l2_fwnode_endpoint_parse(fwh, &v4l2_ep);
+		of_node_put(ep);
+		if (ret) {
+			dev_err(csi->dev,
+				"failed to parse v4l2 endpoint for %pOF: %d\n",
+				channel, ret);
+			goto err_node_put;
+		}
+
+		lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
+		if (!lanes || ((lanes & (lanes - 1)) != 0)) {
+			dev_err(csi->dev, "invalid data-lanes %d for %pOF\n",
+				lanes, channel);
+			ret = -EINVAL;
+			goto err_node_put;
+		}
+
+		num_pads = of_graph_get_endpoint_count(channel);
+		if (num_pads == TEGRA_CSI_PADS_NUM) {
+			ret = tegra_csi_channel_alloc(csi, channel, portno,
+						      lanes, num_pads);
+			if (ret < 0)
+				goto err_node_put;
+		}
+	}
+
+	return 0;
+
+err_node_put:
+	of_node_put(channel);
+	return ret;
 }
 
 static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
@@ -369,6 +456,15 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 		return ret;
 	}
 
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
+		ret = v4l2_async_register_subdev(subdev);
+		if (ret < 0) {
+			dev_err(csi->dev,
+				"failed to register subdev: %d\n", ret);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -408,8 +504,12 @@ static void tegra_csi_channels_cleanup(struct tegra_csi *csi)
 
 	list_for_each_entry_safe(chan, tmp, &csi->csi_chans, list) {
 		subdev = &chan->subdev;
-		if (subdev->dev)
+		if (subdev->dev) {
+			if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+				v4l2_async_unregister_subdev(subdev);
 			media_entity_cleanup(&subdev->entity);
+		}
+
 		list_del(&chan->list);
 		kfree(chan);
 	}
@@ -446,13 +546,14 @@ static int tegra_csi_init(struct host1x_client *client)
 
 	INIT_LIST_HEAD(&csi->csi_chans);
 
-	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
 		ret = tegra_csi_tpg_channels_alloc(csi);
-		if (ret < 0) {
-			dev_err(csi->dev,
-				"failed to allocate tpg channels: %d\n", ret);
-			goto cleanup;
-		}
+	else
+		ret = tegra_csi_channels_alloc(csi);
+	if (ret < 0) {
+		dev_err(csi->dev,
+			"failed to allocate channels: %d\n", ret);
+		goto cleanup;
 	}
 
 	ret = tegra_csi_channels_init(csi);

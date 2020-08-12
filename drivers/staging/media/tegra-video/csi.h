@@ -7,6 +7,7 @@
 #define __TEGRA_CSI_H__
 
 #include <media/media-entity.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-subdev.h>
 
 /*
