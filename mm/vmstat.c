@@ -1101,7 +1101,7 @@ static int __fragmentation_index(unsigned int order, struct contig_page_info *in
  * It is defined as the percentage of pages found in blocks of size
  * less than 1 << order. It returns values in range [0, 100].
  */
-int extfrag_for_order(struct zone *zone, unsigned int order)
+unsigned int extfrag_for_order(struct zone *zone, unsigned int order)
 {
 	struct contig_page_info info;
 

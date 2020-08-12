@@ -53,7 +53,7 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
 /*
  * Fragmentation score check interval for proactive compaction purposes.
  */
-static const int HPAGE_FRAG_CHECK_INTERVAL_MSEC = 500;
+static const unsigned int HPAGE_FRAG_CHECK_INTERVAL_MSEC = 500;
 
 /*
  * Page order with-respect-to which proactive compaction
@@ -1890,7 +1890,7 @@ static bool kswapd_is_running(pg_data_t *pgdat)
  * ZONE_DMA32. For smaller zones, the score value remains close to zero,
  * and thus never exceeds the high threshold for proactive compaction.
  */
-static int fragmentation_score_zone(struct zone *zone)
+static unsigned int fragmentation_score_zone(struct zone *zone)
 {
 	unsigned long score;
 
@@ -1906,9 +1906,9 @@ static int fragmentation_score_zone(struct zone *zone)
  * the node's score falls below the low threshold, or one of the back-off
  * conditions is met.
  */
-static int fragmentation_score_node(pg_data_t *pgdat)
+static unsigned int fragmentation_score_node(pg_data_t *pgdat)
 {
-	unsigned long score = 0;
+	unsigned int score = 0;
 	int zoneid;
 
 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
@@ -1921,17 +1921,17 @@ static int fragmentation_score_node(pg_data_t *pgdat)
 	return score;
 }
 
-static int fragmentation_score_wmark(pg_data_t *pgdat, bool low)
+static unsigned int fragmentation_score_wmark(pg_data_t *pgdat, bool low)
 {
-	int wmark_low;
+	unsigned int wmark_low;
 
 	/*
 	 * Cap the low watermak to avoid excessive compaction
 	 * activity in case a user sets the proactivess tunable
 	 * close to 100 (maximum).
 	 */
-	wmark_low = max(100 - sysctl_compaction_proactiveness, 5);
-	return low ? wmark_low : min(wmark_low + 10, 100);
+	wmark_low = max(100U - sysctl_compaction_proactiveness, 5U);
+	return low ? wmark_low : min(wmark_low + 10, 100U);
 }
 
 static bool should_proactive_compact_node(pg_data_t *pgdat)
@@ -2615,7 +2615,7 @@ int sysctl_compact_memory;
  * aggressively the kernel should compact memory in the
  * background. It takes values in the range [0, 100].
  */
-int __read_mostly sysctl_compaction_proactiveness = 20;
+unsigned int __read_mostly sysctl_compaction_proactiveness = 20;
 
 /*
  * This is the entry point for compacting all nodes via

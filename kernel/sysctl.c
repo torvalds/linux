@@ -2854,7 +2854,7 @@ static struct ctl_table vm_table[] = {
 	{
 		.procname	= "compaction_proactiveness",
 		.data		= &sysctl_compaction_proactiveness,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(sysctl_compaction_proactiveness),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
