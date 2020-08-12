@@ -365,6 +365,17 @@ config SECTION_MISMATCH_WARN_ONLY
 
 	  If unsure, say Y.
 
+config DEBUG_FORCE_FUNCTION_ALIGN_32B
+	bool "Force all function address 32B aligned" if EXPERT
+	help
+	  There are cases that a commit from one domain changes the function
+	  address alignment of other domains, and cause magic performance
+	  bump (regression or improvement). Enable this option will help to
+	  verify if the bump is caused by function alignment changes, while
+	  it will slightly increase the kernel size and affect icache usage.
+
+	  It is mainly for debug and performance tuning use.
+
 #
 # Select this config option from the architecture Kconfig, if it
 # is preferred to always offer frame pointers as a config
