@@ -26,6 +26,7 @@
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 
 #ifdef CONFIG_PM_DEVFREQ
 #include "../../../devfreq/governor.h"
@@ -182,6 +183,7 @@ struct rkvenc_dev {
 	unsigned long core_last_rate_hz;
 	struct ipa_power_model_data *model_data;
 	struct thermal_cooling_device *devfreq_cooling;
+	struct monitor_dev_info *mdev_info;
 #endif
 };
 
@@ -764,6 +766,12 @@ static struct devfreq_cooling_power venc_cooling_power_data = {
 	.get_static_power = rkvenc_get_static_power,
 };
 
+static struct monitor_dev_profile enc_mdevp = {
+	.type = MONITOR_TPYE_DEV,
+	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+};
+
 static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -835,6 +843,14 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 						  enc->devfreq, venc_dcp);
 	if (IS_ERR_OR_NULL(enc->devfreq_cooling))
 		dev_err(mpp->dev, "failed to register cooling device\n");
+
+	enc_mdevp.data = enc->devfreq;
+	enc->mdev_info = rockchip_system_monitor_register(mpp->dev, &enc_mdevp);
+	if (IS_ERR(enc->mdev_info)) {
+		dev_dbg(mpp->dev, "without system monitor\n");
+		enc->mdev_info = NULL;
+	}
+
 out:
 
 	return 0;
@@ -851,6 +867,8 @@ static int rkvenc_devfreq_remove(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
+	if (enc->mdev_info)
+		rockchip_system_monitor_unregister(enc->mdev_info);
 	if (enc->devfreq) {
 		devfreq_unregister_opp_notifier(mpp->dev, enc->devfreq);
 		dev_pm_opp_of_remove_table(mpp->dev);
