@@ -91,11 +91,14 @@ void __cpuidle default_idle_call(void)
 	if (current_clr_polling_and_test()) {
 		local_irq_enable();
 	} else {
+
+		trace_cpu_idle(1, smp_processor_id());
 		stop_critical_timings();
 		rcu_idle_enter();
 		arch_cpu_idle();
 		rcu_idle_exit();
 		start_critical_timings();
+		trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 	}
 }
 
