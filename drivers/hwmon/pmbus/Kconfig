@@ -28,6 +28,7 @@ config SENSORS_PMBUS
 
 config SENSORS_ADM1266
 	tristate "Analog Devices ADM1266 Sequencer"
+	select CRC8
 	help
 	  If you say yes here you get hardware monitoring support for Analog
 	  Devices ADM1266 Cascadable Super Sequencer.
