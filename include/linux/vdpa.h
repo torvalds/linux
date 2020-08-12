@@ -28,17 +28,28 @@ struct vdpa_notification_area {
 };
 
 /**
+ * vDPA vq_state definition
+ * @avail_index: available index
+ */
+struct vdpa_vq_state {
+	u16	avail_index;
+};
+
+/**
  * vDPA device - representation of a vDPA device
  * @dev: underlying device
  * @dma_dev: the actual device that is performing DMA
  * @config: the configuration ops for this device.
  * @index: device index
+ * @features_valid: were features initialized? for legacy guests
  */
 struct vdpa_device {
 	struct device dev;
 	struct device *dma_dev;
 	const struct vdpa_config_ops *config;
 	unsigned int index;
+	bool features_valid;
+	int nvqs;
 };
 
 /**
@@ -77,16 +88,22 @@ struct vdpa_device {
  * @set_vq_state:		Set the state for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				@state: virtqueue state (last_avail_idx)
+ *				@state: pointer to set virtqueue state (last_avail_idx)
  *				Returns integer: success (0) or error (< 0)
  * @get_vq_state:		Get the state for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				Returns virtqueue state (last_avail_idx)
+ *				@state: pointer to returned state (last_avail_idx)
  * @get_vq_notification: 	Get the notification area for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns the notifcation area
+ * @get_vq_irq:			Get the irq number of a virtqueue (optional,
+ *				but must implemented if require vq irq offloading)
+ *				@vdev: vdpa device
+ *				@idx: virtqueue index
+ *				Returns int: irq number of a virtqueue,
+ *				negative number if no irq assigned.
  * @get_vq_align:		Get the virtqueue align requirement
  *				for the device
  *				@vdev: vdpa device
@@ -174,10 +191,14 @@ struct vdpa_config_ops {
 			  struct vdpa_callback *cb);
 	void (*set_vq_ready)(struct vdpa_device *vdev, u16 idx, bool ready);
 	bool (*get_vq_ready)(struct vdpa_device *vdev, u16 idx);
-	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx, u64 state);
-	u64 (*get_vq_state)(struct vdpa_device *vdev, u16 idx);
+	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx,
+			    const struct vdpa_vq_state *state);
+	int (*get_vq_state)(struct vdpa_device *vdev, u16 idx,
+			    struct vdpa_vq_state *state);
 	struct vdpa_notification_area
 	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
+	/* vq irq is not expected to be changed once DRIVER_OK is set */
+	int (*get_vq_irq)(struct vdpa_device *vdv, u16 idx);
 
 	/* Device ops */
 	u32 (*get_vq_align)(struct vdpa_device *vdev);
@@ -208,11 +229,12 @@ struct vdpa_config_ops {
 
 struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 					const struct vdpa_config_ops *config,
+					int nvqs,
 					size_t size);
 
-#define vdpa_alloc_device(dev_struct, member, parent, config)   \
+#define vdpa_alloc_device(dev_struct, member, parent, config, nvqs)   \
 			  container_of(__vdpa_alloc_device( \
-				       parent, config, \
+				       parent, config, nvqs, \
 				       sizeof(dev_struct) + \
 				       BUILD_BUG_ON_ZERO(offsetof( \
 				       dev_struct, member))), \
@@ -266,4 +288,36 @@ static inline struct device *vdpa_get_dma_dev(struct vdpa_device *vdev)
 {
 	return vdev->dma_dev;
 }
+
+static inline void vdpa_reset(struct vdpa_device *vdev)
+{
+        const struct vdpa_config_ops *ops = vdev->config;
+
+	vdev->features_valid = false;
+        ops->set_status(vdev, 0);
+}
+
+static inline int vdpa_set_features(struct vdpa_device *vdev, u64 features)
+{
+        const struct vdpa_config_ops *ops = vdev->config;
+
+	vdev->features_valid = true;
+        return ops->set_features(vdev, features);
+}
+
+
+static inline void vdpa_get_config(struct vdpa_device *vdev, unsigned offset,
+				   void *buf, unsigned int len)
+{
+        const struct vdpa_config_ops *ops = vdev->config;
+
+	/*
+	 * Config accesses aren't supposed to trigger before features are set.
+	 * If it does happen we assume a legacy guest.
+	 */
+	if (!vdev->features_valid)
+		vdpa_set_features(vdev, 0);
+	ops->get_config(vdev, offset, buf, len);
+}
+
 #endif /* _LINUX_VDPA_H */

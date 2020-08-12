@@ -1530,21 +1530,21 @@ static void virtio_mem_refresh_config(struct virtio_mem *vm)
 	uint64_t new_plugged_size, usable_region_size, end_addr;
 
 	/* the plugged_size is just a reflection of what _we_ did previously */
-	virtio_cread(vm->vdev, struct virtio_mem_config, plugged_size,
-		     &new_plugged_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, plugged_size,
+			&new_plugged_size);
 	if (WARN_ON_ONCE(new_plugged_size != vm->plugged_size))
 		vm->plugged_size = new_plugged_size;
 
 	/* calculate the last usable memory block id */
-	virtio_cread(vm->vdev, struct virtio_mem_config,
-		     usable_region_size, &usable_region_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config,
+			usable_region_size, &usable_region_size);
 	end_addr = vm->addr + usable_region_size;
 	end_addr = min(end_addr, phys_limit);
 	vm->last_usable_mb_id = virtio_mem_phys_to_mb_id(end_addr) - 1;
 
 	/* see if there is a request to change the size */
-	virtio_cread(vm->vdev, struct virtio_mem_config, requested_size,
-		     &vm->requested_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, requested_size,
+			&vm->requested_size);
 
 	dev_info(&vm->vdev->dev, "plugged size: 0x%llx", vm->plugged_size);
 	dev_info(&vm->vdev->dev, "requested size: 0x%llx", vm->requested_size);
@@ -1677,16 +1677,16 @@ static int virtio_mem_init(struct virtio_mem *vm)
 	}
 
 	/* Fetch all properties that can't change. */
-	virtio_cread(vm->vdev, struct virtio_mem_config, plugged_size,
-		     &vm->plugged_size);
-	virtio_cread(vm->vdev, struct virtio_mem_config, block_size,
-		     &vm->device_block_size);
-	virtio_cread(vm->vdev, struct virtio_mem_config, node_id,
-		     &node_id);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, plugged_size,
+			&vm->plugged_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, block_size,
+			&vm->device_block_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, node_id,
+			&node_id);
 	vm->nid = virtio_mem_translate_node_id(vm, node_id);
-	virtio_cread(vm->vdev, struct virtio_mem_config, addr, &vm->addr);
-	virtio_cread(vm->vdev, struct virtio_mem_config, region_size,
-		     &vm->region_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, addr, &vm->addr);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, region_size,
+			&vm->region_size);
 
 	/*
 	 * We always hotplug memory in memory block granularity. This way,

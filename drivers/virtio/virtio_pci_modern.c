@@ -481,6 +481,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
  * @dev: the pci device
  * @cfg_type: the VIRTIO_PCI_CAP_* value we seek
  * @ioresource_types: IORESOURCE_MEM and/or IORESOURCE_IO.
+ * @bars: the bitmask of BARs
  *
  * Returns offset of the capability, or 0.
  */

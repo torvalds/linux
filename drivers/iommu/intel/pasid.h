@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * intel-pasid.h - PASID idr, table and entry header
+ * pasid.h - PASID idr, table and entry header
  *
  * Copyright (C) 2018 Intel Corporation
  *
