@@ -3971,8 +3971,6 @@ static int gaudi_patch_dma_packet(struct hl_device *hdev,
 			}
 		}
 
-		new_dma_pkt->ctl = user_dma_pkt->ctl;
-
 		ctl = le32_to_cpu(user_dma_pkt->ctl);
 		if (likely(dma_desc_cnt))
 			ctl &= ~GAUDI_PKT_CTL_EB_MASK;
