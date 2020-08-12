@@ -35,6 +35,7 @@
 #include "dmub/dmub_srv.h"
 #include "resource.h"
 #include "dsc.h"
+#include "dc_link_dp.h"
 
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
@@ -1150,7 +1151,7 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 	return result;
 }
 
-static ssize_t dp_dsc_bytes_per_pixel_read(struct file *f, char __user *buf,
+static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
 	char *rd_buf = NULL;
@@ -1186,7 +1187,7 @@ static ssize_t dp_dsc_bytes_per_pixel_read(struct file *f, char __user *buf,
 
 	snprintf(rd_buf_ptr, str_len,
 		"%d\n",
-		dsc_state.dsc_bytes_per_pixel);
+		dsc_state.dsc_bits_per_pixel);
 	rd_buf_ptr += str_len;
 
 	while (size) {
@@ -1460,9 +1461,9 @@ static const struct file_operations dp_dsc_slice_height_debugfs_fops = {
 	.llseek = default_llseek
 };
 
-static const struct file_operations dp_dsc_bytes_per_pixel_debugfs_fops = {
+static const struct file_operations dp_dsc_bits_per_pixel_debugfs_fops = {
 	.owner = THIS_MODULE,
-	.read = dp_dsc_bytes_per_pixel_read,
+	.read = dp_dsc_bits_per_pixel_read,
 	.llseek = default_llseek
 };
 
@@ -1552,7 +1553,7 @@ static const struct {
 		{"dsc_clock_en", &dp_dsc_clock_en_debugfs_fops},
 		{"dsc_slice_width", &dp_dsc_slice_width_debugfs_fops},
 		{"dsc_slice_height", &dp_dsc_slice_height_debugfs_fops},
-		{"dsc_bytes_per_pixel", &dp_dsc_bytes_per_pixel_debugfs_fops},
+		{"dsc_bits_per_pixel", &dp_dsc_bits_per_pixel_debugfs_fops},
 		{"dsc_pic_width", &dp_dsc_pic_width_debugfs_fops},
 		{"dsc_pic_height", &dp_dsc_pic_height_debugfs_fops},
 		{"dsc_chunk_size", &dp_dsc_chunk_size_debugfs_fops},

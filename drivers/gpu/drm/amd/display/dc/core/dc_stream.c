@@ -246,20 +246,18 @@ struct dc_stream_status *dc_stream_get_status(
 
 #ifndef TRIM_FSFT
 /**
- * dc_optimize_timing() - dc to optimize timing
+ * dc_optimize_timing_for_fsft() - dc to optimize timing
  */
-bool dc_optimize_timing(
-	struct dc_crtc_timing *timing,
+bool dc_optimize_timing_for_fsft(
+	struct dc_stream_state *pStream,
 	unsigned int max_input_rate_in_khz)
 {
-	//optimization is expected to assing a value to these:
-	//timing->pix_clk_100hz
-	//timing->v_front_porch
-	//timing->v_total
-	//timing->fast_transport_output_rate_100hz;
-	timing->fast_transport_output_rate_100hz = timing->pix_clk_100hz;
+	struct dc  *dc;
 
-	return true;
+	dc = pStream->ctx->dc;
+
+	return (dc->hwss.optimize_timing_for_fsft &&
+		dc->hwss.optimize_timing_for_fsft(dc, &pStream->timing, max_input_rate_in_khz));
 }
 #endif
 
