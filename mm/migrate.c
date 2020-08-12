@@ -2667,7 +2667,7 @@ restore:
 
 /**
  * migrate_vma_setup() - prepare to migrate a range of memory
- * @args: contains the vma, start, and and pfns arrays for the migration
+ * @args: contains the vma, start, and pfns arrays for the migration
  *
  * Returns: negative errno on failures, 0 when 0 or more pages were migrated
  * without an error.
