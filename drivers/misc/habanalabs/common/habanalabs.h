@@ -401,11 +401,11 @@ struct hl_cb_mgr {
  * @lock: spinlock to protect mmap/cs flows.
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
+ * @id: the CB's ID.
  * @kernel_address: Holds the CB's kernel virtual address.
  * @bus_address: Holds the CB's DMA address.
  * @mmap_size: Holds the CB's size that was mmaped.
  * @size: holds the CB's size.
- * @id: the CB's ID.
  * @cs_cnt: holds number of CS that this CB participates in.
  * @ctx_id: holds the ID of the owner's context.
  * @mmap: true if the CB is currently mmaped to user.
@@ -418,11 +418,11 @@ struct hl_cb {
 	spinlock_t		lock;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
+	u64			id;
 	u64			kernel_address;
 	dma_addr_t		bus_address;
 	u32			mmap_size;
 	u32			size;
-	u32			id;
 	u32			cs_cnt;
 	u32			ctx_id;
 	u8			mmap;

@@ -174,7 +174,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 		goto release_cb;
 	}
 
-	cb->id = rc;
+	cb->id = (u64) rc;
 
 	kref_init(&cb->refcount);
 	spin_lock_init(&cb->lock);
