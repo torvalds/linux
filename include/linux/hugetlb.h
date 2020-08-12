@@ -703,6 +703,16 @@ static inline gfp_t htlb_alloc_mask(struct hstate *h)
 		return GFP_HIGHUSER;
 }
 
+static inline gfp_t htlb_modify_alloc_mask(struct hstate *h, gfp_t gfp_mask)
+{
+	gfp_t modified_mask = htlb_alloc_mask(h);
+
+	/* Some callers might want to enforce node */
+	modified_mask |= (gfp_mask & __GFP_THISNODE);
+
+	return modified_mask;
+}
+
 static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 					   struct mm_struct *mm, pte_t *pte)
 {
@@ -886,6 +896,11 @@ static inline bool hugepage_movable_supported(struct hstate *h)
 }
 
 static inline gfp_t htlb_alloc_mask(struct hstate *h)
+{
+	return 0;
+}
+
+static inline gfp_t htlb_modify_alloc_mask(struct hstate *h, gfp_t gfp_mask)
 {
 	return 0;
 }
