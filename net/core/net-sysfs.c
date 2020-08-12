@@ -757,11 +757,13 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 		return err;
 	}
 
-	hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
-	cpumask_and(mask, mask, housekeeping_cpumask(hk_flags));
-	if (cpumask_empty(mask)) {
-		free_cpumask_var(mask);
-		return -EINVAL;
+	if (!cpumask_empty(mask)) {
+		hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
+		cpumask_and(mask, mask, housekeeping_cpumask(hk_flags));
+		if (cpumask_empty(mask)) {
+			free_cpumask_var(mask);
+			return -EINVAL;
+		}
 	}
 
 	map = kzalloc(max_t(unsigned int,
