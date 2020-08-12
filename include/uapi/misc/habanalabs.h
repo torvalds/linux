@@ -319,6 +319,12 @@ struct hl_info_hw_idle {
 	 * Bits definition is according to `enum <chip>_enging_id'.
 	 */
 	__u32 busy_engines_mask;
+
+	/*
+	 * Extended Bitmask of busy engines.
+	 * Bits definition is according to `enum <chip>_enging_id'.
+	 */
+	__u64 busy_engines_mask_ext;
 };
 
 struct hl_info_device_status {

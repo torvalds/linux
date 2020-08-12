@@ -5148,7 +5148,7 @@ static void goya_disable_clock_gating(struct hl_device *hdev)
 	/* clock gating not supported in Goya */
 }
 
-static bool goya_is_device_idle(struct hl_device *hdev, u32 *mask,
+static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask,
 				struct seq_file *s)
 {
 	const char *fmt = "%-5d%-9s%#-14x%#-16x%#x\n";

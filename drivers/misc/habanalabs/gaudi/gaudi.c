@@ -6083,7 +6083,7 @@ static int gaudi_armcp_info_get(struct hl_device *hdev)
 	return 0;
 }
 
-static bool gaudi_is_device_idle(struct hl_device *hdev, u32 *mask,
+static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask,
 					struct seq_file *s)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
