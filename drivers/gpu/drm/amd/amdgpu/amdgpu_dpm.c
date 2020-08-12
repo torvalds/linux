@@ -1216,3 +1216,16 @@ int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en)
 
 	return 0;
 }
+
+int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs =
+			adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (pp_funcs && pp_funcs->enable_mgpu_fan_boost)
+		ret = pp_funcs->enable_mgpu_fan_boost(pp_handle);
+
+	return ret;
+}

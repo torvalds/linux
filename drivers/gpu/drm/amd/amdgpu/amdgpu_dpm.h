@@ -357,10 +357,6 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
 			(adev)->powerplay.pp_handle, type, parameter, size))
 
-#define amdgpu_dpm_enable_mgpu_fan_boost(adev) \
-		((adev)->powerplay.pp_funcs->enable_mgpu_fan_boost(\
-			(adev)->powerplay.pp_handle))
-
 #define amdgpu_dpm_get_ppfeature_status(adev, buf) \
 		((adev)->powerplay.pp_funcs->get_ppfeature_status(\
 			(adev)->powerplay.pp_handle, (buf)))
@@ -547,5 +543,7 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 			     uint32_t cstate);
 
 int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en);
+
+int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev);
 
 #endif
