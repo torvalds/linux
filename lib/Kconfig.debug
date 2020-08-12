@@ -2215,7 +2215,7 @@ config LIST_KUNIT_TEST
 	  and associated macros.
 
 	  KUnit tests run during boot and output the results to the debug log
-	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
 	  running the KUnit test harness, and not intended for inclusion into a
 	  production build.
 
