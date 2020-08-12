@@ -4859,7 +4859,7 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 			goto out;
 		}
 
-		p = xdr_encode_opaque(p, sp, slen);
+		xdr_encode_opaque(p, sp, slen);
 
 		xdrleft -= xdrlen;
 		count++;
