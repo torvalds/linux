@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 
 #define ADM1266_PDIO_CONFIG	0xD4
+#define ADM1266_READ_STATE	0xD9
 #define ADM1266_GPIO_CONFIG	0xE1
 #define ADM1266_PDIO_STATUS	0xE9
 #define ADM1266_GPIO_STATUS	0xEA
@@ -43,6 +44,7 @@ struct adm1266_data {
 	struct gpio_chip gc;
 	const char *gpio_names[ADM1266_GPIO_NR + ADM1266_PDIO_NR];
 	struct i2c_client *client;
+	struct dentry *debugfs_dir;
 	struct mutex buf_mutex;
 	u8 write_buf[ADM1266_PMBUS_BLOCK_MAX + 1] ____cacheline_aligned;
 	u8 read_buf[ADM1266_PMBUS_BLOCK_MAX + 1] ____cacheline_aligned;
@@ -292,6 +294,37 @@ static int adm1266_config_gpio(struct adm1266_data *data)
 	return ret;
 }
 
+static int adm1266_state_read(struct seq_file *s, void *pdata)
+{
+	struct device *dev = s->private;
+	struct i2c_client *client = to_i2c_client(dev);
+	int ret;
+
+	ret = i2c_smbus_read_word_data(client, ADM1266_READ_STATE);
+	if (ret < 0)
+		return ret;
+
+	seq_printf(s, "%d\n", ret);
+
+	return 0;
+}
+
+static void adm1266_init_debugfs(struct adm1266_data *data)
+{
+	struct dentry *root;
+
+	root = pmbus_get_debugfs_dir(data->client);
+	if (!root)
+		return;
+
+	data->debugfs_dir = debugfs_create_dir(data->client->name, root);
+	if (!data->debugfs_dir)
+		return;
+
+	debugfs_create_devm_seqfile(&data->client->dev, "sequencer_state", data->debugfs_dir,
+				    adm1266_state_read);
+}
+
 static int adm1266_probe(struct i2c_client *client)
 {
 	struct adm1266_data *data;
@@ -315,7 +348,13 @@ static int adm1266_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	return pmbus_do_probe(client, &data->info);
+	ret = pmbus_do_probe(client, &data->info);
+	if (ret)
+		return ret;
+
+	adm1266_init_debugfs(data);
+
+	return 0;
 }
 
 static const struct of_device_id adm1266_of_match[] = {
