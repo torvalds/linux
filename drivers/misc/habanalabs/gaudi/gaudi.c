@@ -682,10 +682,10 @@ static int _gaudi_init_tpc_mem(struct hl_device *hdev,
 
 	init_tpc_mem_pkt->tsize = cpu_to_le32(tpc_kernel_size);
 
-	ctl = ((PACKET_LIN_DMA << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_LIN_DMA_CTL_LIN_SHIFT) |
-			(1 << GAUDI_PKT_CTL_RB_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT));
+	ctl = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_LIN_DMA);
+	ctl |= FIELD_PREP(GAUDI_PKT_LIN_DMA_CTL_LIN_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_CTL_RB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
 
 	init_tpc_mem_pkt->ctl = cpu_to_le32(ctl);
 
@@ -2328,7 +2328,8 @@ static void gaudi_init_tpc_qmans(struct hl_device *hdev)
 
 		tpc_offset += mmTPC1_QM_GLBL_CFG0 - mmTPC0_QM_GLBL_CFG0;
 
-		gaudi->hw_cap_initialized |= 1 << (HW_CAP_TPC_SHIFT + tpc_id);
+		gaudi->hw_cap_initialized |=
+				FIELD_PREP(HW_CAP_TPC_MASK, 1 << tpc_id);
 	}
 }
 
@@ -2907,13 +2908,13 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 					(CFG_RST_H_DMA_MASK |
 					CFG_RST_H_MME_MASK |
 					CFG_RST_H_SM_MASK |
-					CFG_RST_H_TPC_MASK));
+					CFG_RST_H_TPC_7_MASK));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_L, CFG_RST_L_TPC_MASK);
 
 	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_H,
 					(CFG_RST_H_HBM_MASK |
-					CFG_RST_H_TPC_MASK |
+					CFG_RST_H_TPC_7_MASK |
 					CFG_RST_H_NIC_MASK |
 					CFG_RST_H_SM_MASK |
 					CFG_RST_H_DMA_MASK |
@@ -3466,9 +3467,10 @@ static int gaudi_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 		goto free_fence_ptr;
 	}
 
-	tmp = (PACKET_MSG_PROT << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_CTL_EB_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT);
+	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_EB_MASK, 1);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
+
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(fence_val);
 	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
@@ -4285,11 +4287,11 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
 	cq_pkt = (struct packet_msg_prot *) (uintptr_t)
 		(kernel_address + len - (sizeof(struct packet_msg_prot) * 2));
 
-	tmp = (PACKET_MSG_PROT << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT);
+	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
 
 	if (eb)
-		tmp |= (1 << GAUDI_PKT_CTL_EB_SHIFT);
+		tmp |= FIELD_PREP(GAUDI_PKT_CTL_EB_MASK, 1);
 
 	cq_pkt->ctl = cpu_to_le32(tmp);
 	cq_pkt->value = cpu_to_le32(cq_val);
@@ -4297,8 +4299,8 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
 
 	cq_pkt++;
 
-	tmp = (PACKET_MSG_PROT << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT);
+	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
 	cq_pkt->ctl = cpu_to_le32(tmp);
 	cq_pkt->value = cpu_to_le32(1);
 
@@ -4330,11 +4332,12 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));
 	cb_size = sizeof(*lin_dma_pkt);
 
-	ctl = ((PACKET_LIN_DMA << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
-			(1 << GAUDI_PKT_LIN_DMA_CTL_LIN_SHIFT) |
-			(1 << GAUDI_PKT_CTL_RB_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT));
+	ctl = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_LIN_DMA);
+	ctl |= FIELD_PREP(GAUDI_PKT_LIN_DMA_CTL_MEMSET_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_LIN_DMA_CTL_LIN_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_CTL_RB_MASK, 1);
+
 	lin_dma_pkt->ctl = cpu_to_le32(ctl);
 	lin_dma_pkt->src_addr = cpu_to_le64(val);
 	lin_dma_pkt->dst_addr |= cpu_to_le64(addr);
@@ -4940,9 +4943,10 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 	fence_pkt = (struct packet_msg_prot *) (uintptr_t) (cb->kernel_address +
 			job->job_cb_size - sizeof(struct packet_msg_prot));
 
-	tmp = (PACKET_MSG_PROT << GAUDI_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GAUDI_PKT_CTL_EB_SHIFT) |
-			(1 << GAUDI_PKT_CTL_MB_SHIFT);
+	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_EB_MASK, 1);
+	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
+
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(GAUDI_QMAN0_FENCE_VAL);
 	fence_pkt->addr = cpu_to_le64(fence_dma_addr);

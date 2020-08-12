@@ -8,6 +8,7 @@
 #include "habanalabs.h"
 
 #include <linux/slab.h>
+#include <linux/bitfield.h>
 
 /*
  * hl_queue_add_ptr - add to pi or ci and checks if it wraps around
@@ -288,10 +289,10 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	ptr = cb->bus_address;
 
 	cq_pkt.data = cpu_to_le32(
-				((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
-					& CQ_ENTRY_SHADOW_INDEX_MASK) |
-				(1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT) |
-				(1 << CQ_ENTRY_READY_SHIFT));
+			((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
+				& CQ_ENTRY_SHADOW_INDEX_MASK) |
+			FIELD_PREP(CQ_ENTRY_SHADOW_INDEX_VALID_MASK, 1) |
+			FIELD_PREP(CQ_ENTRY_READY_MASK, 1));
 
 	/*
 	 * No need to protect pi_offset because scheduling to the
