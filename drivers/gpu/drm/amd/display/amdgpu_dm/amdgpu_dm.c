@@ -228,17 +228,14 @@ static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 		return 0;
 	else {
 		struct amdgpu_crtc *acrtc = adev->mode_info.crtcs[crtc];
-		struct dm_crtc_state *acrtc_state = to_dm_crtc_state(
-				acrtc->base.state);
 
-
-		if (acrtc_state->stream == NULL) {
+		if (acrtc->dm_irq_params.stream == NULL) {
 			DRM_ERROR("dc_stream_state is NULL for crtc '%d'!\n",
 				  crtc);
 			return 0;
 		}
 
-		return dc_stream_get_vblank_counter(acrtc_state->stream);
+		return dc_stream_get_vblank_counter(acrtc->dm_irq_params.stream);
 	}
 }
 
@@ -251,10 +248,8 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 		return -EINVAL;
 	else {
 		struct amdgpu_crtc *acrtc = adev->mode_info.crtcs[crtc];
-		struct dm_crtc_state *acrtc_state = to_dm_crtc_state(
-						acrtc->base.state);
 
-		if (acrtc_state->stream ==  NULL) {
+		if (acrtc->dm_irq_params.stream ==  NULL) {
 			DRM_ERROR("dc_stream_state is NULL for crtc '%d'!\n",
 				  crtc);
 			return 0;
@@ -264,7 +259,7 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 		 * TODO rework base driver to use values directly.
 		 * for now parse it back into reg-format
 		 */
-		dc_stream_get_scanoutpos(acrtc_state->stream,
+		dc_stream_get_scanoutpos(acrtc->dm_irq_params.stream,
 					 &v_blank_start,
 					 &v_blank_end,
 					 &h_position,
@@ -323,6 +318,14 @@ get_crtc_by_otg_inst(struct amdgpu_device *adev,
 	return NULL;
 }
 
+static inline bool amdgpu_dm_vrr_active_irq(struct amdgpu_crtc *acrtc)
+{
+	return acrtc->dm_irq_params.freesync_config.state ==
+		       VRR_STATE_ACTIVE_VARIABLE ||
+	       acrtc->dm_irq_params.freesync_config.state ==
+		       VRR_STATE_ACTIVE_FIXED;
+}
+
 static inline bool amdgpu_dm_vrr_active(struct dm_crtc_state *dm_state)
 {
 	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
@@ -343,7 +346,6 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	struct amdgpu_device *adev = irq_params->adev;
 	unsigned long flags;
 	struct drm_pending_vblank_event *e;
-	struct dm_crtc_state *acrtc_state;
 	uint32_t vpos, hpos, v_blank_start, v_blank_end;
 	bool vrr_active;
 
@@ -375,12 +377,11 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	if (!e)
 		WARN_ON(1);
 
-	acrtc_state = to_dm_crtc_state(amdgpu_crtc->base.state);
-	vrr_active = amdgpu_dm_vrr_active(acrtc_state);
+	vrr_active = amdgpu_dm_vrr_active_irq(amdgpu_crtc);
 
 	/* Fixed refresh rate, or VRR scanout position outside front-porch? */
 	if (!vrr_active ||
-	    !dc_stream_get_scanoutpos(acrtc_state->stream, &v_blank_start,
+	    !dc_stream_get_scanoutpos(amdgpu_crtc->dm_irq_params.stream, &v_blank_start,
 				      &v_blank_end, &hpos, &vpos) ||
 	    (vpos < v_blank_start)) {
 		/* Update to correct count and vblank timestamp if racing with
@@ -441,17 +442,17 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
 	struct amdgpu_crtc *acrtc;
-	struct dm_crtc_state *acrtc_state;
 	unsigned long flags;
+	int vrr_active;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VUPDATE);
 
 	if (acrtc) {
-		acrtc_state = to_dm_crtc_state(acrtc->base.state);
+		vrr_active = amdgpu_dm_vrr_active_irq(acrtc);
 
 		DRM_DEBUG_VBL("crtc:%d, vupdate-vrr:%d\n",
 			      acrtc->crtc_id,
-			      amdgpu_dm_vrr_active(acrtc_state));
+			      vrr_active);
 
 		/* Core vblank handling is done here after end of front-porch in
 		 * vrr mode, as vblank timestamping will give valid results
@@ -459,22 +460,22 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 		 * page-flip completion events that have been queued to us
 		 * if a pageflip happened inside front-porch.
 		 */
-		if (amdgpu_dm_vrr_active(acrtc_state)) {
+		if (vrr_active) {
 			drm_crtc_handle_vblank(&acrtc->base);
 
 			/* BTR processing for pre-DCE12 ASICs */
-			if (acrtc_state->stream &&
+			if (acrtc->dm_irq_params.stream &&
 			    adev->family < AMDGPU_FAMILY_AI) {
 				spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 				mod_freesync_handle_v_update(
 				    adev->dm.freesync_module,
-				    acrtc_state->stream,
-				    &acrtc_state->vrr_params);
+				    acrtc->dm_irq_params.stream,
+				    &acrtc->dm_irq_params.vrr_params);
 
 				dc_stream_adjust_vmin_vmax(
 				    adev->dm.dc,
-				    acrtc_state->stream,
-				    &acrtc_state->vrr_params.adjust);
+				    acrtc->dm_irq_params.stream,
+				    &acrtc->dm_irq_params.vrr_params.adjust);
 				spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 			}
 		}
@@ -493,18 +494,17 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
 	struct amdgpu_crtc *acrtc;
-	struct dm_crtc_state *acrtc_state;
 	unsigned long flags;
+	int vrr_active;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 	if (!acrtc)
 		return;
 
-	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+	vrr_active = amdgpu_dm_vrr_active_irq(acrtc);
 
 	DRM_DEBUG_VBL("crtc:%d, vupdate-vrr:%d, planes:%d\n", acrtc->crtc_id,
-			 amdgpu_dm_vrr_active(acrtc_state),
-			 acrtc_state->active_planes);
+		      vrr_active, acrtc->dm_irq_params.active_planes);
 
 	/**
 	 * Core vblank handling at start of front-porch is only possible
@@ -512,7 +512,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	 * valid results while done in front-porch. Otherwise defer it
 	 * to dm_vupdate_high_irq after end of front-porch.
 	 */
-	if (!amdgpu_dm_vrr_active(acrtc_state))
+	if (!vrr_active)
 		drm_crtc_handle_vblank(&acrtc->base);
 
 	/**
@@ -527,14 +527,16 @@ static void dm_crtc_high_irq(void *interrupt_params)
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 
-	if (acrtc_state->stream && acrtc_state->vrr_params.supported &&
-	    acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE) {
+	if (acrtc->dm_irq_params.stream &&
+	    acrtc->dm_irq_params.vrr_params.supported &&
+	    acrtc->dm_irq_params.freesync_config.state ==
+		    VRR_STATE_ACTIVE_VARIABLE) {
 		mod_freesync_handle_v_update(adev->dm.freesync_module,
-					     acrtc_state->stream,
-					     &acrtc_state->vrr_params);
+					     acrtc->dm_irq_params.stream,
+					     &acrtc->dm_irq_params.vrr_params);
 
-		dc_stream_adjust_vmin_vmax(adev->dm.dc, acrtc_state->stream,
-					   &acrtc_state->vrr_params.adjust);
+		dc_stream_adjust_vmin_vmax(adev->dm.dc, acrtc->dm_irq_params.stream,
+					   &acrtc->dm_irq_params.vrr_params.adjust);
 	}
 
 	/*
@@ -549,7 +551,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	 */
 	if (adev->family >= AMDGPU_FAMILY_RV &&
 	    acrtc->pflip_status == AMDGPU_FLIP_SUBMITTED &&
-	    acrtc_state->active_planes == 0) {
+	    acrtc->dm_irq_params.active_planes == 0) {
 		if (acrtc->event) {
 			drm_crtc_send_vblank_event(&acrtc->base, acrtc->event);
 			acrtc->event = NULL;
@@ -4809,7 +4811,6 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	}
 
 	state->active_planes = cur->active_planes;
-	state->vrr_params = cur->vrr_params;
 	state->vrr_infopacket = cur->vrr_infopacket;
 	state->abm_level = cur->abm_level;
 	state->vrr_supported = cur->vrr_supported;
@@ -6862,6 +6863,7 @@ static void update_freesync_state_on_stream(
 	struct mod_vrr_params vrr_params;
 	struct dc_info_packet vrr_infopacket = {0};
 	struct amdgpu_device *adev = dm->adev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_crtc_state->base.crtc);
 	unsigned long flags;
 
 	if (!new_stream)
@@ -6876,7 +6878,7 @@ static void update_freesync_state_on_stream(
 		return;
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
-	vrr_params = new_crtc_state->vrr_params;
+        vrr_params = acrtc->dm_irq_params.vrr_params;
 
 	if (surface) {
 		mod_freesync_handle_preflip(
@@ -6907,7 +6909,7 @@ static void update_freesync_state_on_stream(
 		&vrr_infopacket);
 
 	new_crtc_state->freesync_timing_changed |=
-		(memcmp(&new_crtc_state->vrr_params.adjust,
+		(memcmp(&acrtc->dm_irq_params.vrr_params.adjust,
 			&vrr_params.adjust,
 			sizeof(vrr_params.adjust)) != 0);
 
@@ -6916,10 +6918,10 @@ static void update_freesync_state_on_stream(
 			&vrr_infopacket,
 			sizeof(vrr_infopacket)) != 0);
 
-	new_crtc_state->vrr_params = vrr_params;
+	acrtc->dm_irq_params.vrr_params = vrr_params;
 	new_crtc_state->vrr_infopacket = vrr_infopacket;
 
-	new_stream->adjust = new_crtc_state->vrr_params.adjust;
+	new_stream->adjust = acrtc->dm_irq_params.vrr_params.adjust;
 	new_stream->vrr_infopacket = vrr_infopacket;
 
 	if (new_crtc_state->freesync_vrr_info_changed)
@@ -6931,7 +6933,7 @@ static void update_freesync_state_on_stream(
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
 
-static void pre_update_freesync_state_on_stream(
+static void update_stream_irq_parameters(
 	struct amdgpu_display_manager *dm,
 	struct dm_crtc_state *new_crtc_state)
 {
@@ -6939,6 +6941,7 @@ static void pre_update_freesync_state_on_stream(
 	struct mod_vrr_params vrr_params;
 	struct mod_freesync_config config = new_crtc_state->freesync_config;
 	struct amdgpu_device *adev = dm->adev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_crtc_state->base.crtc);
 	unsigned long flags;
 
 	if (!new_stream)
@@ -6952,7 +6955,7 @@ static void pre_update_freesync_state_on_stream(
 		return;
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
-	vrr_params = new_crtc_state->vrr_params;
+	vrr_params = acrtc->dm_irq_params.vrr_params;
 
 	if (new_crtc_state->vrr_supported &&
 	    config.min_refresh_in_uhz &&
@@ -6969,11 +6972,14 @@ static void pre_update_freesync_state_on_stream(
 				      &config, &vrr_params);
 
 	new_crtc_state->freesync_timing_changed |=
-		(memcmp(&new_crtc_state->vrr_params.adjust,
-			&vrr_params.adjust,
-			sizeof(vrr_params.adjust)) != 0);
+		(memcmp(&acrtc->dm_irq_params.vrr_params.adjust,
+			&vrr_params.adjust, sizeof(vrr_params.adjust)) != 0);
 
-	new_crtc_state->vrr_params = vrr_params;
+	new_crtc_state->freesync_config = config;
+	/* Copy state for access from DM IRQ handler */
+	acrtc->dm_irq_params.freesync_config = config;
+	acrtc->dm_irq_params.active_planes = new_crtc_state->active_planes;
+	acrtc->dm_irq_params.vrr_params = vrr_params;
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
 
@@ -7281,7 +7287,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			spin_lock_irqsave(&pcrtc->dev->event_lock, flags);
 			dc_stream_adjust_vmin_vmax(
 				dm->dc, acrtc_state->stream,
-				&acrtc_state->vrr_params.adjust);
+				&acrtc_attach->dm_irq_params.vrr_params.adjust);
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 		mutex_lock(&dm->dc_lock);
@@ -7433,6 +7439,7 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct dm_crtc_state *dm_old_crtc_state;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	int i;
 
@@ -7454,10 +7461,14 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
+		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+
 		if (old_crtc_state->active &&
 		    (!new_crtc_state->active ||
-		     drm_atomic_crtc_needs_modeset(new_crtc_state)))
+		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
 			manage_dm_interrupts(adev, acrtc, false);
+			dc_stream_release(dm_old_crtc_state->stream);
+		}
 	}
 	/*
 	 * Add check here for SoC's that support hardware cursor plane, to
@@ -7603,7 +7614,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			if (!status)
 				status = dc_stream_get_status_from_state(dc_state,
 									 dm_new_crtc_state->stream);
-
 			if (!status)
 				DC_ERR("got no status for stream %p on acrtc%p\n", dm_new_crtc_state->stream, acrtc);
 			else
@@ -7729,8 +7739,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-		/* Update freesync active state. */
-		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
+		/* For freesync config update on crtc state and params for irq */
+		update_stream_irq_parameters(dm, dm_new_crtc_state);
 
 		/* Handle vrr on->off / off->on transitions */
 		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
@@ -7746,10 +7756,15 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+
 		if (new_crtc_state->active &&
 		    (!old_crtc_state->active ||
 		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
+			dc_stream_retain(dm_new_crtc_state->stream);
+			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
 			manage_dm_interrupts(adev, acrtc, true);
+
 #ifdef CONFIG_DEBUG_FS
 			/**
 			 * Frontend may have changed so reapply the CRC capture
@@ -7993,8 +8008,6 @@ static void reset_freesync_config_for_crtc(
 {
 	new_crtc_state->vrr_supported = false;
 
-	memset(&new_crtc_state->vrr_params, 0,
-	       sizeof(new_crtc_state->vrr_params));
 	memset(&new_crtc_state->vrr_infopacket, 0,
 	       sizeof(new_crtc_state->vrr_infopacket));
 }

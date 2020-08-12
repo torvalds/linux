@@ -28,6 +28,10 @@
 
 struct dm_irq_params {
 	u32 last_flip_vblank;
+	struct mod_vrr_params vrr_params;
+	struct dc_stream_state *stream;
+	int active_planes;
+	struct mod_freesync_config freesync_config;
 };
 
 #endif /* __AMDGPU_DM_IRQ_PARAMS_H__ */
