@@ -1676,6 +1676,9 @@ This file can be used to check the current score used by the oom-killer for
 any given <pid>. Use it together with /proc/<pid>/oom_score_adj to tune which
 process should be killed in an out-of-memory situation.
 
+Please note that the exported value includes oom_score_adj so it is
+effectively in range [0,2000].
+
 
 3.3  /proc/<pid>/io - Display the IO accounting fields
 -------------------------------------------------------
