@@ -565,6 +565,7 @@ static int tegra_channel_setup_ctrl_handler(struct tegra_vi_channel *chan)
 {
 	int ret;
 
+#if IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)
 	/* add test pattern control handler to v4l2 device */
 	v4l2_ctrl_new_std_menu_items(&chan->ctrl_handler, &vi_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
@@ -576,6 +577,7 @@ static int tegra_channel_setup_ctrl_handler(struct tegra_vi_channel *chan)
 		v4l2_ctrl_handler_free(&chan->ctrl_handler);
 		return chan->ctrl_handler.error;
 	}
+#endif
 
 	/* setup the controls */
 	ret = v4l2_ctrl_handler_setup(&chan->ctrl_handler);
@@ -914,10 +916,13 @@ static int tegra_vi_init(struct host1x_client *client)
 
 	INIT_LIST_HEAD(&vi->vi_chans);
 
-	ret = tegra_vi_tpg_channels_alloc(vi);
-	if (ret < 0) {
-		dev_err(vi->dev, "failed to allocate tpg channels: %d\n", ret);
-		goto free_chans;
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
+		ret = tegra_vi_tpg_channels_alloc(vi);
+		if (ret < 0) {
+			dev_err(vi->dev,
+				"failed to allocate tpg channels: %d\n", ret);
+			goto free_chans;
+		}
 	}
 
 	ret = tegra_vi_channels_init(vi);

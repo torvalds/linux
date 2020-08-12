@@ -62,6 +62,9 @@ static int csi_enum_bus_code(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_mbus_code_enum *code)
 {
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
+
 	if (code->index >= ARRAY_SIZE(tegra_csi_tpg_fmts))
 		return -EINVAL;
 
@@ -75,6 +78,9 @@ static int csi_get_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
+
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
 
 	fmt->format = csi_chan->format;
 
@@ -121,6 +127,9 @@ static int csi_enum_framesizes(struct v4l2_subdev *subdev,
 {
 	unsigned int i;
 
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
+
 	if (fse->index >= ARRAY_SIZE(tegra_csi_tpg_sizes))
 		return -EINVAL;
 
@@ -148,6 +157,9 @@ static int csi_enum_frameintervals(struct v4l2_subdev *subdev,
 	const struct tpg_framerate *frmrate = csi->soc->tpg_frmrate_table;
 	int index;
 
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
+
 	/* one framerate per format and resolution */
 	if (fie->index > 0)
 		return -EINVAL;
@@ -171,6 +183,9 @@ static int csi_set_format(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *format = &fmt->format;
 	const struct v4l2_frmsize_discrete *sizes;
 	unsigned int i;
+
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
 
 	sizes = v4l2_find_nearest_size(tegra_csi_tpg_sizes,
 				       ARRAY_SIZE(tegra_csi_tpg_sizes),
@@ -207,6 +222,9 @@ static int tegra_csi_g_frame_interval(struct v4l2_subdev *subdev,
 				      struct v4l2_subdev_frame_interval *vfi)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
+
+	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		return -ENOIOCTLCMD;
 
 	vfi->interval.numerator = 1;
 	vfi->interval.denominator = csi_chan->framerate;
@@ -311,8 +329,12 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 	subdev = &chan->subdev;
 	v4l2_subdev_init(subdev, &tegra_csi_ops);
 	subdev->dev = csi->dev;
-	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s-%d", "tpg",
-		 chan->csi_port_num);
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
+		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s-%d", "tpg",
+			 chan->csi_port_num);
+	else
+		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s",
+			 kbasename(chan->of_node->full_name));
 
 	v4l2_set_subdevdata(subdev, chan);
 	subdev->fwnode = of_fwnode_handle(chan->of_node);
@@ -405,11 +427,13 @@ static int tegra_csi_init(struct host1x_client *client)
 
 	INIT_LIST_HEAD(&csi->csi_chans);
 
-	ret = tegra_csi_tpg_channels_alloc(csi);
-	if (ret < 0) {
-		dev_err(csi->dev,
-			"failed to allocate tpg channels: %d\n", ret);
-		goto cleanup;
+	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
+		ret = tegra_csi_tpg_channels_alloc(csi);
+		if (ret < 0) {
+			dev_err(csi->dev,
+				"failed to allocate tpg channels: %d\n", ret);
+			goto cleanup;
+		}
 	}
 
 	ret = tegra_csi_channels_init(csi);

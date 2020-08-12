@@ -10,3 +10,9 @@ config VIDEO_TEGRA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tegra-video.
+
+config VIDEO_TEGRA_TPG
+	bool "NVIDIA Tegra VI driver TPG mode"
+	depends on VIDEO_TEGRA
+	help
+	  Say yes here to enable Tegra internal TPG mode

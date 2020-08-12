@@ -631,7 +631,11 @@ const struct tegra_vi_soc tegra210_vi_soc = {
 	.ops = &tegra210_vi_ops,
 	.hw_revision = 3,
 	.vi_max_channels = 6,
+#if IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)
 	.vi_max_clk_hz = 499200000,
+#else
+	.vi_max_clk_hz = 998400000,
+#endif
 };
 
 /* Tegra210 CSI PHY registers accessors */
@@ -957,7 +961,9 @@ static const char * const tegra210_csi_cil_clks[] = {
 	"cilab",
 	"cilcd",
 	"cile",
+#if IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)
 	"csi_tpg",
+#endif
 };
 
 /* Tegra210 CSI operations */
