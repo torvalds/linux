@@ -489,7 +489,7 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	int ret = 0;
-	bool use_baco = (amdgpu_in_reset(adev) &&
+	bool use_baco = (adev->in_gpu_reset &&
 			 (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
 		(adev->in_runpm && amdgpu_asic_supports_baco(adev));
 

@@ -101,14 +101,14 @@ static int amdgpu_debugfs_autodump_open(struct inode *inode, struct file *file)
 
 	file->private_data = adev;
 
-	down_read(&adev->reset_sem);
+	mutex_lock(&adev->lock_reset);
 	if (adev->autodump.dumping.done) {
 		reinit_completion(&adev->autodump.dumping);
 		ret = 0;
 	} else {
 		ret = -EBUSY;
 	}
-	up_read(&adev->reset_sem);
+	mutex_unlock(&adev->lock_reset);
 
 	return ret;
 }
@@ -127,7 +127,7 @@ static unsigned int amdgpu_debugfs_autodump_poll(struct file *file, struct poll_
 
 	poll_wait(file, &adev->autodump.gpu_hang, poll_table);
 
-	if (amdgpu_in_reset(adev))
+	if (adev->in_gpu_reset)
 		return POLLIN | POLLRDNORM | POLLWRNORM;
 
 	return 0;
@@ -1242,7 +1242,7 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 	}
 
 	/* Avoid accidently unparking the sched thread during GPU reset */
-	down_read(&adev->reset_sem);
+	mutex_lock(&adev->lock_reset);
 
 	/* hold on the scheduler */
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
@@ -1269,7 +1269,7 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 		kthread_unpark(ring->sched.thread);
 	}
 
-	up_read(&adev->reset_sem);
+	mutex_unlock(&adev->lock_reset);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1459,7 +1459,7 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 		return -ENOMEM;
 
 	/* Avoid accidently unparking the sched thread during GPU reset */
-	down_read(&adev->reset_sem);
+	mutex_lock(&adev->lock_reset);
 
 	/* stop the scheduler */
 	kthread_park(ring->sched.thread);
@@ -1500,7 +1500,7 @@ failure:
 	/* restart the scheduler */
 	kthread_unpark(ring->sched.thread);
 
-	up_read(&adev->reset_sem);
+	mutex_unlock(&adev->lock_reset);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 

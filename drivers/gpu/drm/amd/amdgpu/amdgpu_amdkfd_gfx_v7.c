@@ -423,7 +423,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	unsigned long flags, end_jiffies;
 	int retry;
 
-	if (amdgpu_in_reset(adev))
+	if (adev->in_gpu_reset)
 		return -EIO;
 
 	acquire_queue(kgd, pipe_id, queue_id);

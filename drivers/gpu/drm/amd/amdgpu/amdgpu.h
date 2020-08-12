@@ -949,9 +949,9 @@ struct amdgpu_device {
 	bool                            in_suspend;
 	bool				in_hibernate;
 
-	atomic_t                        in_gpu_reset;
+	bool                            in_gpu_reset;
 	enum pp_mp1_state               mp1_state;
-	struct rw_semaphore	reset_sem;
+	struct mutex  lock_reset;
 	struct amdgpu_doorbell_index doorbell_index;
 
 	struct mutex			notifier_lock;
@@ -1264,11 +1264,6 @@ static struct device_attribute pmu_attr_##_name = __ATTR_RO(_name)
 static inline bool amdgpu_is_tmz(struct amdgpu_device *adev)
 {
        return adev->gmc.tmz_enabled;
-}
-
-static inline bool amdgpu_in_reset(struct amdgpu_device *adev)
-{
-	return atomic_read(&adev->in_gpu_reset) ? true : false;
 }
 
 #endif

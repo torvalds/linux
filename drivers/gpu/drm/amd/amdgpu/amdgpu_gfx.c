@@ -719,7 +719,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	 *
 	 * also don't wait anymore for IRQ context
 	 * */
-	if (r < 1 && (amdgpu_in_reset(adev) || in_interrupt()))
+	if (r < 1 && (adev->in_gpu_reset || in_interrupt()))
 		goto failed_kiq_read;
 
 	might_sleep();
@@ -777,7 +777,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	 *
 	 * also don't wait anymore for IRQ context
 	 * */
-	if (r < 1 && (amdgpu_in_reset(adev) || in_interrupt()))
+	if (r < 1 && (adev->in_gpu_reset || in_interrupt()))
 		goto failed_kiq_write;
 
 	might_sleep();
@@ -796,5 +796,5 @@ failed_undo:
 	amdgpu_ring_undo(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
-	dev_warn(adev->dev, "failed to write reg:%x\n", reg);
+	pr_err("failed to write reg:%x\n", reg);
 }

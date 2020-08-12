@@ -635,7 +635,7 @@ static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	int vmid;
 	unsigned int tmp;
 
-	if (amdgpu_in_reset(adev))
+	if (adev->in_gpu_reset)
 		return -EIO;
 
 	for (vmid = 1; vmid < 16; vmid++) {

@@ -238,16 +238,20 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 	int timeout = AI_MAILBOX_POLL_FLR_TIMEDOUT;
+	int locked;
 
 	/* block amdgpu_gpu_recover till msg FLR COMPLETE received,
 	 * otherwise the mailbox msg will be ruined/reseted by
 	 * the VF FLR.
 	 *
-	 * we can unlock the reset_sem to allow "amdgpu_job_timedout"
+	 * we can unlock the lock_reset to allow "amdgpu_job_timedout"
 	 * to run gpu_recover() after FLR_NOTIFICATION_CMPL received
 	 * which means host side had finished this VF's FLR.
 	 */
-	down_read(&adev->reset_sem);
+	locked = mutex_trylock(&adev->lock_reset);
+	if (locked)
+		adev->in_gpu_reset = true;
+
 	do {
 		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
 			goto flr_done;
@@ -257,7 +261,10 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	} while (timeout > 1);
 
 flr_done:
-	up_read(&adev->reset_sem);
+	if (locked) {
+		adev->in_gpu_reset = false;
+		mutex_unlock(&adev->lock_reset);
+	}
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)

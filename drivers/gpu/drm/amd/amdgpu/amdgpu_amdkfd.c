@@ -244,14 +244,11 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	if (cp_mqd_gfx9)
 		bp.flags |= AMDGPU_GEM_CREATE_CP_MQD_GFX9;
 
-	if (!down_read_trylock(&adev->reset_sem))
-		return -EIO;
-
 	r = amdgpu_bo_create(adev, &bp, &bo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate BO for amdkfd (%d)\n", r);
-		goto err;
+		return r;
 	}
 
 	/* map the buffer */
@@ -286,7 +283,6 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 
 	amdgpu_bo_unreserve(bo);
 
-	up_read(&adev->reset_sem);
 	return 0;
 
 allocate_mem_kmap_bo_failed:
@@ -295,25 +291,19 @@ allocate_mem_pin_bo_failed:
 	amdgpu_bo_unreserve(bo);
 allocate_mem_reserve_bo_failed:
 	amdgpu_bo_unref(&bo);
-err:
-	up_read(&adev->reset_sem);
+
 	return r;
 }
 
 void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = (struct amdgpu_bo *) mem_obj;
-
-	down_read(&adev->reset_sem);
 
 	amdgpu_bo_reserve(bo, true);
 	amdgpu_bo_kunmap(bo);
 	amdgpu_bo_unpin(bo);
 	amdgpu_bo_unreserve(bo);
 	amdgpu_bo_unref(&(bo));
-
-	up_read(&adev->reset_sem);
 }
 
 int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
@@ -345,14 +335,9 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 
 void amdgpu_amdkfd_free_gws(struct kgd_dev *kgd, void *mem_obj)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = (struct amdgpu_bo *)mem_obj;
 
-	down_read(&adev->reset_sem);
-
 	amdgpu_bo_unref(&bo);
-
-	up_read(&adev->reset_sem);
 }
 
 uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
@@ -626,14 +611,7 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
 	job->vmid = vmid;
 
-	if (!down_read_trylock(&adev->reset_sem)) {
-		ret = -EIO;
-		goto err_ib_sched;
-	}
-
 	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
-
-	up_read(&adev->reset_sem);
 
 	if (ret) {
 		DRM_ERROR("amdgpu: failed to schedule IB.\n");
@@ -670,9 +648,6 @@ int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	if (!down_read_trylock(&adev->reset_sem))
-		return -EIO;
-
 	if (adev->family == AMDGPU_FAMILY_AI) {
 		int i;
 
@@ -682,8 +657,6 @@ int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid)
 		amdgpu_gmc_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB_0, 0);
 	}
 
-	up_read(&adev->reset_sem);
-
 	return 0;
 }
 
@@ -692,18 +665,11 @@ int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	const uint32_t flush_type = 0;
 	bool all_hub = false;
-	int ret = -EIO;
 
 	if (adev->family == AMDGPU_FAMILY_AI)
 		all_hub = true;
 
-	if (down_read_trylock(&adev->reset_sem)) {
-		ret = amdgpu_gmc_flush_gpu_tlb_pasid(adev,
-					pasid, flush_type, all_hub);
-		up_read(&adev->reset_sem);
-	}
-
-	return ret;
+	return amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, flush_type, all_hub);
 }
 
 bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)
