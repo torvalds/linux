@@ -425,7 +425,7 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 	if (ret) {
 		bool unlocked = false;
 
-		ret = fixup_user_fault(NULL, mm, vaddr,
+		ret = fixup_user_fault(mm, vaddr,
 				       FAULT_FLAG_REMOTE |
 				       (write_fault ?  FAULT_FLAG_WRITE : 0),
 				       &unlocked);
@@ -453,7 +453,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 		flags |= FOLL_WRITE;
 
 	mmap_read_lock(mm);
-	ret = pin_user_pages_remote(NULL, mm, vaddr, 1, flags | FOLL_LONGTERM,
+	ret = pin_user_pages_remote(mm, vaddr, 1, flags | FOLL_LONGTERM,
 				    page, NULL, NULL);
 	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);

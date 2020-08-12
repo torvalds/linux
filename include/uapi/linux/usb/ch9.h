@@ -1229,7 +1229,7 @@ struct usb_set_sel_req {
  * As per USB compliance update, a device that is actively drawing
  * more than 100mA from USB must report itself as bus-powered in
  * the GetStatus(DEVICE) call.
- * http://compliance.usb.org/index.asp?UpdateFile=Electrical&Format=Standard#34
+ * https://compliance.usb.org/index.asp?UpdateFile=Electrical&Format=Standard#34
  */
 #define USB_SELF_POWER_VBUS_MAX_DRAW		100
 

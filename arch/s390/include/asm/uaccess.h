@@ -32,7 +32,7 @@
 #define USER_DS_SACF	(3)
 
 #define get_fs()        (current->thread.mm_segment)
-#define segment_eq(a,b) (((a) & 2) == ((b) & 2))
+#define uaccess_kernel() ((get_fs() & 2) == KERNEL_DS)
 
 void set_fs(mm_segment_t fs);
 

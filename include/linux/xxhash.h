@@ -34,7 +34,7 @@
  * ("BSD").
  *
  * You can contact the author at:
- * - xxHash homepage: http://cyan4973.github.io/xxHash/
+ * - xxHash homepage: https://cyan4973.github.io/xxHash/
  * - xxHash source repository: https://github.com/Cyan4973/xxHash
  */
 

@@ -71,6 +71,8 @@
 #include <linux/dax.h>
 #include <linux/oom.h>
 #include <linux/numa.h>
+#include <linux/perf_event.h>
+#include <linux/ptrace.h>
 
 #include <trace/events/kmem.h>
 
@@ -1800,7 +1802,7 @@ out_unlock:
  * @pfn: source kernel pfn
  * @pgprot: pgprot flags for the inserted page
  *
- * This is exactly like vmf_insert_pfn(), except that it allows drivers to
+ * This is exactly like vmf_insert_pfn(), except that it allows drivers
  * to override pgprot on a per-page basis.
  *
  * This only makes sense for IO mappings, and it makes no sense for
@@ -1936,7 +1938,7 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
  * @pfn: source kernel pfn
  * @pgprot: pgprot flags for the inserted page
  *
- * This is exactly like vmf_insert_mixed(), except that it allows drivers to
+ * This is exactly like vmf_insert_mixed(), except that it allows drivers
  * to override pgprot on a per-page basis.
  *
  * Typically this function should be used by drivers to set caching- and
@@ -2715,7 +2717,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		 */
 		ptep_clear_flush_notify(vma, vmf->address, vmf->pte);
 		page_add_new_anon_rmap(new_page, vma, vmf->address, false);
-		lru_cache_add_active_or_unevictable(new_page, vma);
+		lru_cache_add_inactive_or_unevictable(new_page, vma);
 		/*
 		 * We call the notify macro here because, when using secondary
 		 * mmu page tables (such as kvm shadow page tables), we want the
@@ -3098,6 +3100,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	int locked;
 	int exclusive = 0;
 	vm_fault_t ret = 0;
+	void *shadow = NULL;
 
 	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
 		goto out;
@@ -3149,13 +3152,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 					goto out_page;
 				}
 
-				/*
-				 * XXX: Move to lru_cache_add() when it
-				 * supports new vs putback
-				 */
-				spin_lock_irq(&page_pgdat(page)->lru_lock);
-				lru_note_cost_page(page);
-				spin_unlock_irq(&page_pgdat(page)->lru_lock);
+				shadow = get_shadow_from_swap_cache(entry);
+				if (shadow)
+					workingset_refault(page, shadow);
 
 				lru_cache_add(page);
 				swap_readpage(page, true);
@@ -3266,10 +3265,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	/* ksm created a completely new copy */
 	if (unlikely(page != swapcache && swapcache)) {
 		page_add_new_anon_rmap(page, vma, vmf->address, false);
-		lru_cache_add_active_or_unevictable(page, vma);
+		lru_cache_add_inactive_or_unevictable(page, vma);
 	} else {
 		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
-		activate_page(page);
 	}
 
 	swap_free(entry);
@@ -3414,7 +3412,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 
 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
 	page_add_new_anon_rmap(page, vma, vmf->address, false);
-	lru_cache_add_active_or_unevictable(page, vma);
+	lru_cache_add_inactive_or_unevictable(page, vma);
 setpte:
 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
 
@@ -3672,7 +3670,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct page *page)
 	if (write && !(vma->vm_flags & VM_SHARED)) {
 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
 		page_add_new_anon_rmap(page, vma, vmf->address, false);
-		lru_cache_add_active_or_unevictable(page, vma);
+		lru_cache_add_inactive_or_unevictable(page, vma);
 	} else {
 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
 		page_add_file_rmap(page, false);
@@ -4360,6 +4358,67 @@ retry_pud:
 	return handle_pte_fault(&vmf);
 }
 
+/**
+ * mm_account_fault - Do page fault accountings
+ *
+ * @regs: the pt_regs struct pointer.  When set to NULL, will skip accounting
+ *        of perf event counters, but we'll still do the per-task accounting to
+ *        the task who triggered this page fault.
+ * @address: the faulted address.
+ * @flags: the fault flags.
+ * @ret: the fault retcode.
+ *
+ * This will take care of most of the page fault accountings.  Meanwhile, it
+ * will also include the PERF_COUNT_SW_PAGE_FAULTS_[MAJ|MIN] perf counter
+ * updates.  However note that the handling of PERF_COUNT_SW_PAGE_FAULTS should
+ * still be in per-arch page fault handlers at the entry of page fault.
+ */
+static inline void mm_account_fault(struct pt_regs *regs,
+				    unsigned long address, unsigned int flags,
+				    vm_fault_t ret)
+{
+	bool major;
+
+	/*
+	 * We don't do accounting for some specific faults:
+	 *
+	 * - Unsuccessful faults (e.g. when the address wasn't valid).  That
+	 *   includes arch_vma_access_permitted() failing before reaching here.
+	 *   So this is not a "this many hardware page faults" counter.  We
+	 *   should use the hw profiling for that.
+	 *
+	 * - Incomplete faults (VM_FAULT_RETRY).  They will only be counted
+	 *   once they're completed.
+	 */
+	if (ret & (VM_FAULT_ERROR | VM_FAULT_RETRY))
+		return;
+
+	/*
+	 * We define the fault as a major fault when the final successful fault
+	 * is VM_FAULT_MAJOR, or if it retried (which implies that we couldn't
+	 * handle it immediately previously).
+	 */
+	major = (ret & VM_FAULT_MAJOR) || (flags & FAULT_FLAG_TRIED);
+
+	if (major)
+		current->maj_flt++;
+	else
+		current->min_flt++;
+
+	/*
+	 * If the fault is done for GUP, regs will be NULL.  We only do the
+	 * accounting for the per thread fault counters who triggered the
+	 * fault, and we skip the perf event updates.
+	 */
+	if (!regs)
+		return;
+
+	if (major)
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
+	else
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs, address);
+}
+
 /*
  * By the time we get here, we already hold the mm semaphore
  *
@@ -4367,7 +4426,7 @@ retry_pud:
  * return value.  See filemap_fault() and __lock_page_or_retry().
  */
 vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-		unsigned int flags)
+			   unsigned int flags, struct pt_regs *regs)
 {
 	vm_fault_t ret;
 
@@ -4407,6 +4466,8 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 		if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
 			mem_cgroup_oom_synchronize(false);
 	}
+
+	mm_account_fault(regs, address, flags, ret);
 
 	return ret;
 }
@@ -4681,7 +4742,7 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 		void *maddr;
 		struct page *page = NULL;
 
-		ret = get_user_pages_remote(tsk, mm, addr, 1,
+		ret = get_user_pages_remote(mm, addr, 1,
 				gup_flags, &page, &vma, NULL);
 		if (ret <= 0) {
 #ifndef CONFIG_HAVE_IOREMAP_PROT

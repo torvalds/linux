@@ -469,7 +469,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 					locked = 1;
 				}
 				ret = pin_user_pages_remote
-					(work->task, mm,
+					(mm,
 					 obj->userptr.ptr + pinned * PAGE_SIZE,
 					 npages - pinned,
 					 flags,
