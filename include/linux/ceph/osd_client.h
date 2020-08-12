@@ -404,7 +404,7 @@ void ceph_osdc_clear_abort_err(struct ceph_osd_client *osdc);
 	&__oreq->r_ops[__whch].typ.fld;					\
 })
 
-extern void osd_req_op_init(struct ceph_osd_request *osd_req,
+struct ceph_osd_req_op *osd_req_op_init(struct ceph_osd_request *osd_req,
 			    unsigned int which, u16 opcode, u32 flags);
 
 extern void osd_req_op_raw_data_in_pages(struct ceph_osd_request *,

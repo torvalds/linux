@@ -4,7 +4,7 @@
 
 /*
  * Robert Jenkin's hash function.
- * http://burtleburtle.net/bob/hash/evahash.html
+ * https://burtleburtle.net/bob/hash/evahash.html
  * This is in the public domain.
  */
 #define mix(a, b, c)						\

@@ -13,7 +13,7 @@ config CEPH_LIB
 	  common functionality to both the Ceph filesystem and
 	  to the rados block device (rbd).
 
-	  More information at http://ceph.newdream.net/.
+	  More information at https://ceph.io/.
 
 	  If unsure, say N.
 
