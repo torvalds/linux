@@ -158,7 +158,7 @@ extern long __put_user_bad(void);
  */
 #define __put_user_asm(x, addr, err, op)			\
 	__asm__ __volatile__(					\
-		"1:	" op " %1,0(%2)	# put_user\n"		\
+		"1:	" op "%X2 %1,%2	# put_user\n"		\
 		"2:\n"						\
 		".section .fixup,\"ax\"\n"			\
 		"3:	li %0,%3\n"				\
@@ -166,7 +166,7 @@ extern long __put_user_bad(void);
 		".previous\n"					\
 		EX_TABLE(1b, 3b)				\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
+		: "r" (x), "m" (*addr), "i" (-EFAULT), "0" (err))
 
 #ifdef __powerpc64__
 #define __put_user_asm2(x, ptr, retval)				\
@@ -174,8 +174,8 @@ extern long __put_user_bad(void);
 #else /* __powerpc64__ */
 #define __put_user_asm2(x, addr, err)				\
 	__asm__ __volatile__(					\
-		"1:	stw %1,0(%2)\n"				\
-		"2:	stw %1+1,4(%2)\n"			\
+		"1:	stw%X2 %1,%2\n"			\
+		"2:	stw%X2 %L1,%L2\n"			\
 		"3:\n"						\
 		".section .fixup,\"ax\"\n"			\
 		"4:	li %0,%3\n"				\
@@ -184,7 +184,7 @@ extern long __put_user_bad(void);
 		EX_TABLE(1b, 4b)				\
 		EX_TABLE(2b, 4b)				\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
+		: "r" (x), "m" (*addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
 
 #define __put_user_size_allowed(x, ptr, size, retval)		\
@@ -316,7 +316,7 @@ extern long __get_user_bad(void);
 
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
-		"1:	"op" %1,0(%2)	# get_user\n"	\
+		"1:	"op"%X2 %1, %2	# get_user\n"	\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %0,%3\n"			\
@@ -325,7 +325,7 @@ extern long __get_user_bad(void);
 		".previous\n"				\
 		EX_TABLE(1b, 3b)			\
 		: "=r" (err), "=r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err))
+		: "m" (*addr), "i" (-EFAULT), "0" (err))
 
 #ifdef __powerpc64__
 #define __get_user_asm2(x, addr, err)			\
@@ -333,8 +333,8 @@ extern long __get_user_bad(void);
 #else /* __powerpc64__ */
 #define __get_user_asm2(x, addr, err)			\
 	__asm__ __volatile__(				\
-		"1:	lwz %1,0(%2)\n"			\
-		"2:	lwz %1+1,4(%2)\n"		\
+		"1:	lwz%X2 %1, %2\n"			\
+		"2:	lwz%X2 %L1, %L2\n"		\
 		"3:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"4:	li %0,%3\n"			\
@@ -345,7 +345,7 @@ extern long __get_user_bad(void);
 		EX_TABLE(1b, 4b)			\
 		EX_TABLE(2b, 4b)			\
 		: "=r" (err), "=&r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err))
+		: "m" (*addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
 
 #define __get_user_size_allowed(x, ptr, size, retval)		\
@@ -355,10 +355,10 @@ do {								\
 	if (size > sizeof(x))					\
 		(x) = __get_user_bad();				\
 	switch (size) {						\
-	case 1: __get_user_asm(x, ptr, retval, "lbz"); break;	\
-	case 2: __get_user_asm(x, ptr, retval, "lhz"); break;	\
-	case 4: __get_user_asm(x, ptr, retval, "lwz"); break;	\
-	case 8: __get_user_asm2(x, ptr, retval);  break;	\
+	case 1: __get_user_asm(x, (u8 __user *)ptr, retval, "lbz"); break;	\
+	case 2: __get_user_asm(x, (u16 __user *)ptr, retval, "lhz"); break;	\
+	case 4: __get_user_asm(x, (u32 __user *)ptr, retval, "lwz"); break;	\
+	case 8: __get_user_asm2(x, (u64 __user *)ptr, retval);  break;	\
 	default: (x) = __get_user_bad();			\
 	}							\
 } while (0)
