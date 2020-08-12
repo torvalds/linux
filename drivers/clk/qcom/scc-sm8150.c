@@ -563,9 +563,27 @@ static const struct qcom_cc_desc scc_sm8150_desc = {
 static const struct of_device_id scc_sm8150_match_table[] = {
 	{ .compatible = "qcom,sm8150-scc" },
 	{ .compatible = "qcom,sa8155-scc" },
+	{ .compatible = "qcom,sc8180x-scc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, scc_sm8150_match_table);
+
+static int scc_sm8150_fixup(struct platform_device *pdev, struct regmap *regmap)
+{
+	const char *compat = NULL;
+	int compatlen = 0;
+
+	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
+	if (!compat || (compatlen <= 0))
+		return -EINVAL;
+
+	if (!strcmp(compat, "qcom,sc8180x-scc")) {
+		vdd_scc_cx.num_levels = VDD_MM_NUM;
+		vdd_scc_cx.cur_level = VDD_MM_NUM;
+	}
+
+	return 0;
+}
 
 static int scc_sm8150_probe(struct platform_device *pdev)
 {
@@ -577,6 +595,8 @@ static int scc_sm8150_probe(struct platform_device *pdev)
 		pr_err("Failed to map the scc registers\n");
 		return PTR_ERR(regmap);
 	}
+
+	scc_sm8150_fixup(pdev, regmap);
 
 	ret = qcom_cc_register_rcg_dfs(regmap, scc_dfs_clocks,
 			ARRAY_SIZE(scc_dfs_clocks));
