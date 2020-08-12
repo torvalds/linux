@@ -3715,6 +3715,18 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	int acat;
 	int kcat;
 
+	/*
+	 * Netlabel found it in the cache.
+	 */
+	if ((sap->flags & NETLBL_SECATTR_CACHE) != 0)
+		return (struct smack_known *)sap->cache->data;
+
+	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
+		/*
+		 * Looks like a fallback, which gives us a secid.
+		 */
+		return smack_from_secid(sap->attr.secid);
+
 	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
 		 * Looks like a CIPSO packet.
@@ -3762,11 +3774,6 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 			return &smack_known_web;
 		return &smack_known_star;
 	}
-	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
-		/*
-		 * Looks like a fallback, which gives us a secid.
-		 */
-		return smack_from_secid(sap->attr.secid);
 	/*
 	 * Without guidance regarding the smack value
 	 * for the packet fall back on the network
@@ -3845,6 +3852,9 @@ static struct smack_known *smack_from_skb(struct sk_buff *skb)
  * @family: address family
  * @skb: packet
  *
+ * Find the Smack label in the IP options. If it hasn't been
+ * added to the netlabel cache, add it here.
+ *
  * Returns smack_known of the IP options or NULL if that won't work.
  */
 static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
@@ -3853,13 +3863,18 @@ static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = NULL;
 	struct smack_known *skp = NULL;
+	int rc = 0;
 
 	netlbl_secattr_init(&secattr);
 
 	if (sk)
 		ssp = sk->sk_security;
-	if (netlbl_skbuff_getattr(skb, family, &secattr) == 0)
+
+	if (netlbl_skbuff_getattr(skb, family, &secattr) == 0) {
 		skp = smack_from_secattr(&secattr, ssp);
+		if (secattr.flags & NETLBL_SECATTR_CACHEABLE)
+			rc = netlbl_cache_add(skb, family, &skp->smk_netlabel);
+	}
 
 	netlbl_secattr_destroy(&secattr);
 
