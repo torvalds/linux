@@ -1632,10 +1632,10 @@ static int kernel_get_mempolicy(int __user *policy,
 	int pval;
 	nodemask_t nodes;
 
-	addr = untagged_addr(addr);
-
 	if (nmask != NULL && maxnode < nr_node_ids)
 		return -EINVAL;
+
+	addr = untagged_addr(addr);
 
 	err = do_get_mempolicy(&pval, &nodes, addr, flags);
 
