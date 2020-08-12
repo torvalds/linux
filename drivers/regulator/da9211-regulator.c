@@ -51,10 +51,24 @@ static const struct regmap_range_cfg da9211_regmap_range[] = {
 	},
 };
 
+static bool da9211_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA9211_REG_STATUS_A:
+	case DA9211_REG_STATUS_B:
+	case DA9211_REG_EVENT_A:
+	case DA9211_REG_EVENT_B:
+		return true;
+	}
+	return false;
+}
+
 static const struct regmap_config da9211_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 5 * 128,
+	.volatile_reg = da9211_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 	.ranges = da9211_regmap_range,
 	.num_ranges = ARRAY_SIZE(da9211_regmap_range),
 };
