@@ -686,8 +686,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			rc = -ENOMEM;
 			if (is_kernel_allocated_cb)
 				goto release_cb;
-			else
-				goto free_cs_object;
+
+			goto free_cs_object;
 		}
 
 		job->id = i + 1;
