@@ -2623,18 +2623,17 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		level = btrfs_super_root_level(sb);
 		tree_root->node = read_tree_block(fs_info, btrfs_super_root(sb),
 						  generation, level, NULL);
-		if (IS_ERR(tree_root->node) ||
-		    !extent_buffer_uptodate(tree_root->node)) {
+		if (IS_ERR(tree_root->node)) {
 			handle_error = true;
+			ret = PTR_ERR(tree_root->node);
+			tree_root->node = NULL;
+			btrfs_warn(fs_info, "couldn't read tree root");
+			continue;
 
-			if (IS_ERR(tree_root->node)) {
-				ret = PTR_ERR(tree_root->node);
-				tree_root->node = NULL;
-			} else if (!extent_buffer_uptodate(tree_root->node)) {
-				ret = -EUCLEAN;
-			}
-
-			btrfs_warn(fs_info, "failed to read tree root");
+		} else if (!extent_buffer_uptodate(tree_root->node)) {
+			handle_error = true;
+			ret = -EIO;
+			btrfs_warn(fs_info, "error while reading tree root");
 			continue;
 		}
 
