@@ -138,6 +138,7 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE,	PPSMC_MSG_DALEnableDummyPstateChange,	0),
 	MSG_MAP(GetVoltageByDpm,		PPSMC_MSG_GetVoltageByDpm,		0),
 	MSG_MAP(GetVoltageByDpmOverdrive,	PPSMC_MSG_GetVoltageByDpmOverdrive,	0),
+	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,	0),
 };
 
 static struct cmn2asic_mapping navi10_clk_map[SMU_CLK_COUNT] = {
@@ -2557,6 +2558,26 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_0);
 }
 
+static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t param = 0;
+
+	/* Navi12 does not support this */
+	if (adev->asic_type == CHIP_NAVI12)
+		return 0;
+
+	/* Workaround for WS SKU */
+	if (adev->pdev->device == 0x7312 &&
+	    adev->pdev->revision == 0)
+		param = 0xD188;
+
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_SetMGpuFanBoostLimitRpm,
+					       param,
+					       NULL);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
@@ -2638,6 +2659,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = navi10_get_gpu_metrics,
+	.enable_mgpu_fan_boost = navi10_enable_mgpu_fan_boost,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

@@ -123,7 +123,9 @@
 #define PPSMC_MSG_DALDisableDummyPstateChange    0x49
 #define PPSMC_MSG_DALEnableDummyPstateChange     0x4A
 
-#define PPSMC_Message_Count                      0x4B
+#define PPSMC_MSG_SetMGpuFanBoostLimitRpm        0x4C
+
+#define PPSMC_Message_Count                      0x4D
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;
