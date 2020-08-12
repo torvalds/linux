@@ -2645,8 +2645,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 			goto error_sysfs;
 		}
 
-		btrfs_sysfs_update_sprout_fsid(fs_devices,
-				fs_info->fs_devices->fsid);
+		/*
+		 * fs_devices now represents the newly sprouted filesystem and
+		 * its fsid has been changed by btrfs_prepare_sprout
+		 */
+		btrfs_sysfs_update_sprout_fsid(fs_devices);
 	}
 
 	ret = btrfs_commit_transaction(trans);

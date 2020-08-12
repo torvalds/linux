@@ -1328,8 +1328,8 @@ void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action)
 			&disk_to_dev(bdev->bd_disk)->kobj);
 }
 
-void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
-				    const u8 *fsid)
+void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices)
+
 {
 	char fsid_buf[BTRFS_UUID_UNPARSED_SIZE];
 
@@ -1337,7 +1337,7 @@ void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
 	 * Sprouting changes fsid of the mounted filesystem, rename the fsid
 	 * directory
 	 */
-	snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU", fsid);
+	snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU", fs_devices->fsid);
 	if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
 		btrfs_warn(fs_devices->fs_info,
 				"sysfs: failed to create fsid for sprout");

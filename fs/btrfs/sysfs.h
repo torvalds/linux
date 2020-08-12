@@ -20,8 +20,7 @@ int btrfs_sysfs_remove_devices_dir(struct btrfs_fs_devices *fs_devices,
                 struct btrfs_device *one_device);
 int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs);
 void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs);
-void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
-				    const u8 *fsid);
+void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices);
 void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
 		u64 bit, enum btrfs_feature_set set);
 void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action);
