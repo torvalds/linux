@@ -388,13 +388,12 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 
-	r = 0;
 	id = args->in.ctx_id;
-	priority = amdgpu_to_sched_priority(args->in.priority);
+	r = amdgpu_to_sched_priority(args->in.priority, &priority);
 
 	/* For backwards compatibility reasons, we need to accept
 	 * ioctls with garbage in the priority field */
-	if (priority == DRM_SCHED_PRIORITY_INVALID)
+	if (r == -EINVAL)
 		priority = DRM_SCHED_PRIORITY_NORMAL;
 
 	switch (args->in.op) {
