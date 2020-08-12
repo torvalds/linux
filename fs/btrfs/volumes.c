@@ -2391,10 +2391,6 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	list_for_each_entry(device, &seed_devices->devices, dev_list)
 		device->fs_devices = seed_devices;
 
-	mutex_lock(&fs_info->chunk_mutex);
-	list_splice_init(&fs_devices->alloc_list, &seed_devices->alloc_list);
-	mutex_unlock(&fs_info->chunk_mutex);
-
 	fs_devices->seeding = false;
 	fs_devices->num_devices = 0;
 	fs_devices->open_devices = 0;
