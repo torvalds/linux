@@ -23,8 +23,10 @@
 #include "owl-gate.h"
 #include "owl-mux.h"
 #include "owl-pll.h"
+#include "owl-reset.h"
 
 #include <dt-bindings/clock/actions,s500-cmu.h>
+#include <dt-bindings/reset/actions,s500-reset.h>
 
 #define CMU_COREPLL			(0x0000)
 #define CMU_DEVPLL			(0x0004)
@@ -175,6 +177,8 @@ static OWL_MUX(dev_clk, "dev_clk", dev_clk_mux_p, CMU_DEVPLL, 12, 1, CLK_SET_RAT
 static OWL_MUX(ahbprediv_clk, "ahbprediv_clk", ahbprediv_clk_mux_p, CMU_BUSCLK1, 8, 3, CLK_SET_RATE_PARENT);
 
 /* gate clocks */
+static OWL_GATE(gpio_clk, "gpio_clk", "apb_clk", CMU_DEVCLKEN0, 18, 0, 0);
+static OWL_GATE(dmac_clk, "dmac_clk", "h_clk", CMU_DEVCLKEN0, 1, 0, 0);
 static OWL_GATE(spi0_clk, "spi0_clk", "ahb_clk", CMU_DEVCLKEN1, 10, 0, CLK_IGNORE_UNUSED);
 static OWL_GATE(spi1_clk, "spi1_clk", "ahb_clk", CMU_DEVCLKEN1, 11, 0, CLK_IGNORE_UNUSED);
 static OWL_GATE(spi2_clk, "spi2_clk", "ahb_clk", CMU_DEVCLKEN1, 12, 0, CLK_IGNORE_UNUSED);
@@ -183,7 +187,8 @@ static OWL_GATE(timer_clk, "timer_clk", "hosc", CMU_DEVCLKEN1, 27, 0, 0);
 static OWL_GATE(hdmi_clk, "hdmi_clk", "hosc", CMU_DEVCLKEN1, 3, 0, 0);
 
 /* divider clocks */
-static OWL_DIVIDER(h_clk, "h_clk", "ahbprevdiv_clk", CMU_BUSCLK1, 12, 2, NULL, 0, 0);
+static OWL_DIVIDER(h_clk, "h_clk", "ahbprediv_clk", CMU_BUSCLK1, 12, 2, NULL, 0, 0);
+static OWL_DIVIDER(apb_clk, "apb_clk", "ahb_clk", CMU_BUSCLK1, 14, 2, NULL, 0, 0);
 static OWL_DIVIDER(rmii_ref_clk, "rmii_ref_clk", "ethernet_pll_clk", CMU_ETHERNETPLL, 1, 1, rmii_ref_div_table, 0, 0);
 
 /* factor clocks */
@@ -428,6 +433,9 @@ static struct owl_clk_common *s500_clks[] = {
 	&spdif_clk.common,
 	&nand_clk.common,
 	&ecc_clk.common,
+	&apb_clk.common,
+	&dmac_clk.common,
+	&gpio_clk.common,
 };
 
 static struct clk_hw_onecell_data s500_hw_clks = {
@@ -484,8 +492,68 @@ static struct clk_hw_onecell_data s500_hw_clks = {
 		[CLK_SPDIF]		= &spdif_clk.common.hw,
 		[CLK_NAND]		= &nand_clk.common.hw,
 		[CLK_ECC]		= &ecc_clk.common.hw,
+		[CLK_APB]		= &apb_clk.common.hw,
+		[CLK_DMAC]		= &dmac_clk.common.hw,
+		[CLK_GPIO]		= &gpio_clk.common.hw,
 	},
 	.num = CLK_NR_CLKS,
+};
+
+static const struct owl_reset_map s500_resets[] = {
+	[RESET_DMAC]	= { CMU_DEVRST0, BIT(0) },
+	[RESET_NORIF]	= { CMU_DEVRST0, BIT(1) },
+	[RESET_DDR]	= { CMU_DEVRST0, BIT(2) },
+	[RESET_NANDC]	= { CMU_DEVRST0, BIT(3) },
+	[RESET_SD0]	= { CMU_DEVRST0, BIT(4) },
+	[RESET_SD1]	= { CMU_DEVRST0, BIT(5) },
+	[RESET_PCM1]	= { CMU_DEVRST0, BIT(6) },
+	[RESET_DE]	= { CMU_DEVRST0, BIT(7) },
+	[RESET_LCD]	= { CMU_DEVRST0, BIT(8) },
+	[RESET_SD2]	= { CMU_DEVRST0, BIT(9) },
+	[RESET_DSI]	= { CMU_DEVRST0, BIT(10) },
+	[RESET_CSI]	= { CMU_DEVRST0, BIT(11) },
+	[RESET_BISP]	= { CMU_DEVRST0, BIT(12) },
+	[RESET_KEY]	= { CMU_DEVRST0, BIT(14) },
+	[RESET_GPIO]	= { CMU_DEVRST0, BIT(15) },
+	[RESET_AUDIO]	= { CMU_DEVRST0, BIT(17) },
+	[RESET_PCM0]	= { CMU_DEVRST0, BIT(18) },
+	[RESET_VDE]	= { CMU_DEVRST0, BIT(19) },
+	[RESET_VCE]	= { CMU_DEVRST0, BIT(20) },
+	[RESET_GPU3D]	= { CMU_DEVRST0, BIT(22) },
+	[RESET_NIC301]	= { CMU_DEVRST0, BIT(23) },
+	[RESET_LENS]	= { CMU_DEVRST0, BIT(26) },
+	[RESET_PERIPHRESET] = { CMU_DEVRST0, BIT(27) },
+	[RESET_USB2_0]	= { CMU_DEVRST1, BIT(0) },
+	[RESET_TVOUT]	= { CMU_DEVRST1, BIT(1) },
+	[RESET_HDMI]	= { CMU_DEVRST1, BIT(2) },
+	[RESET_HDCP2TX]	= { CMU_DEVRST1, BIT(3) },
+	[RESET_UART6]	= { CMU_DEVRST1, BIT(4) },
+	[RESET_UART0]	= { CMU_DEVRST1, BIT(5) },
+	[RESET_UART1]	= { CMU_DEVRST1, BIT(6) },
+	[RESET_UART2]	= { CMU_DEVRST1, BIT(7) },
+	[RESET_SPI0]	= { CMU_DEVRST1, BIT(8) },
+	[RESET_SPI1]	= { CMU_DEVRST1, BIT(9) },
+	[RESET_SPI2]	= { CMU_DEVRST1, BIT(10) },
+	[RESET_SPI3]	= { CMU_DEVRST1, BIT(11) },
+	[RESET_I2C0]	= { CMU_DEVRST1, BIT(12) },
+	[RESET_I2C1]	= { CMU_DEVRST1, BIT(13) },
+	[RESET_USB3]	= { CMU_DEVRST1, BIT(14) },
+	[RESET_UART3]	= { CMU_DEVRST1, BIT(15) },
+	[RESET_UART4]	= { CMU_DEVRST1, BIT(16) },
+	[RESET_UART5]	= { CMU_DEVRST1, BIT(17) },
+	[RESET_I2C2]	= { CMU_DEVRST1, BIT(18) },
+	[RESET_I2C3]	= { CMU_DEVRST1, BIT(19) },
+	[RESET_ETHERNET] = { CMU_DEVRST1, BIT(20) },
+	[RESET_CHIPID]	= { CMU_DEVRST1, BIT(21) },
+	[RESET_USB2_1]	= { CMU_DEVRST1, BIT(22) },
+	[RESET_WD0RESET] = { CMU_DEVRST1, BIT(24) },
+	[RESET_WD1RESET] = { CMU_DEVRST1, BIT(25) },
+	[RESET_WD2RESET] = { CMU_DEVRST1, BIT(26) },
+	[RESET_WD3RESET] = { CMU_DEVRST1, BIT(27) },
+	[RESET_DBG0RESET] = { CMU_DEVRST1, BIT(28) },
+	[RESET_DBG1RESET] = { CMU_DEVRST1, BIT(29) },
+	[RESET_DBG2RESET] = { CMU_DEVRST1, BIT(30) },
+	[RESET_DBG3RESET] = { CMU_DEVRST1, BIT(31) },
 };
 
 static struct owl_clk_desc s500_clk_desc = {
@@ -493,14 +561,33 @@ static struct owl_clk_desc s500_clk_desc = {
 	.num_clks   = ARRAY_SIZE(s500_clks),
 
 	.hw_clks    = &s500_hw_clks,
+
+	.resets     = s500_resets,
+	.num_resets = ARRAY_SIZE(s500_resets),
 };
 
 static int s500_clk_probe(struct platform_device *pdev)
 {
 	struct owl_clk_desc *desc;
+	struct owl_reset *reset;
+	int ret;
 
 	desc = &s500_clk_desc;
 	owl_clk_regmap_init(pdev, desc);
+
+	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
+	if (!reset)
+		return -ENOMEM;
+
+	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.ops = &owl_reset_ops;
+	reset->rcdev.nr_resets = desc->num_resets;
+	reset->reset_map = desc->resets;
+	reset->regmap = desc->regmap;
+
+	ret = devm_reset_controller_register(&pdev->dev, &reset->rcdev);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register reset controller\n");
 
 	return owl_clk_probe(&pdev->dev, desc->hw_clks);
 }

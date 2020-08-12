@@ -119,7 +119,7 @@ lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 	mux->hw.init = &init;
 
 	hw = &mux->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -247,7 +247,7 @@ lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 	div->hw.init = &init;
 
 	hw = &div->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -361,7 +361,7 @@ lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 	gate->hw.init = &init;
 
 	hw = &gate->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -420,18 +420,14 @@ lgm_clk_ddiv_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
 	unsigned int div0, div1, exdiv;
-	unsigned long flags;
 	u64 prate;
 
-	spin_lock_irqsave(&ddiv->lock, flags);
 	div0 = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 			       ddiv->shift0, ddiv->width0) + 1;
 	div1 = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 			       ddiv->shift1, ddiv->width1) + 1;
 	exdiv = lgm_get_clk_val(ddiv->membase, ddiv->reg,
 				ddiv->shift2, ddiv->width2);
-	spin_unlock_irqrestore(&ddiv->lock, flags);
-
 	prate = (u64)parent_rate;
 	do_div(prate, div0);
 	do_div(prate, div1);
@@ -548,24 +544,21 @@ lgm_clk_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
 		div = div * 2;
 		div = DIV_ROUND_CLOSEST_ULL((u64)div, 5);
 	}
+	spin_unlock_irqrestore(&ddiv->lock, flags);
 
-	if (div <= 0) {
-		spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (div <= 0)
 		return *prate;
-	}
 
-	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2) != 0) {
-		if (lgm_clk_get_ddiv_val(div + 1, &ddiv1, &ddiv2) != 0) {
-			spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2) != 0)
+		if (lgm_clk_get_ddiv_val(div + 1, &ddiv1, &ddiv2) != 0)
 			return -EINVAL;
-		}
-	}
 
 	rate64 = *prate;
 	do_div(rate64, ddiv1);
 	do_div(rate64, ddiv2);
 
 	/* if predivide bit is enabled, modify rounded rate by factor of 2.5 */
+	spin_lock_irqsave(&ddiv->lock, flags);
 	if (lgm_get_clk_val(ddiv->membase, ddiv->reg, ddiv->shift2, 1)) {
 		rate64 = rate64 * 2;
 		rate64 = DIV_ROUND_CLOSEST_ULL(rate64, 5);
@@ -588,19 +581,18 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 			  unsigned int nr_clk)
 {
 	struct device *dev = ctx->dev;
-	struct clk_init_data init = {};
-	struct lgm_clk_ddiv *ddiv;
 	struct clk_hw *hw;
 	unsigned int idx;
 	int ret;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
-		ddiv = NULL;
+		struct clk_init_data init = {};
+		struct lgm_clk_ddiv *ddiv;
+
 		ddiv = devm_kzalloc(dev, sizeof(*ddiv), GFP_KERNEL);
 		if (!ddiv)
 			return -ENOMEM;
 
-		memset(&init, 0, sizeof(init));
 		init.name = list->name;
 		init.ops = &lgm_clk_ddiv_ops;
 		init.flags = list->flags;
@@ -624,7 +616,7 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 		ddiv->hw.init = &init;
 
 		hw = &ddiv->hw;
-		ret = clk_hw_register(dev, hw);
+		ret = devm_clk_hw_register(dev, hw);
 		if (ret) {
 			dev_err(dev, "register clk: %s failed!\n", list->name);
 			return ret;
