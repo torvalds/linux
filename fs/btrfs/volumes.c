@@ -2357,10 +2357,20 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	if (!fs_devices->seeding)
 		return -EINVAL;
 
+	/*
+	 * Private copy of the seed devices, anchored at
+	 * fs_info->fs_devices->seed_list
+	 */
 	seed_devices = alloc_fs_devices(NULL, NULL);
 	if (IS_ERR(seed_devices))
 		return PTR_ERR(seed_devices);
 
+	/*
+	 * It's necessary to retain a copy of the original seed fs_devices in
+	 * fs_uuids so that filesystems which have been seeded can successfully
+	 * reference the seed device from open_seed_devices. This also supports
+	 * multiple fs seed.
+	 */
 	old_devices = clone_fs_devices(fs_devices);
 	if (IS_ERR(old_devices)) {
 		kfree(seed_devices);
@@ -6720,6 +6730,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	lockdep_assert_held(&uuid_mutex);
 	ASSERT(fsid);
 
+	/* This will match only for multi-device seed fs */
 	list_for_each_entry(fs_devices, &fs_info->fs_devices->seed_list, seed_list)
 		if (!memcmp(fs_devices->fsid, fsid, BTRFS_FSID_SIZE))
 			return fs_devices;
@@ -6739,6 +6750,10 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 		return fs_devices;
 	}
 
+	/*
+	 * Upon first call for a seed fs fsid, just create a private copy of the
+	 * respective fs_devices and anchor it at fs_info->fs_devices->seed_list
+	 */
 	fs_devices = clone_fs_devices(fs_devices);
 	if (IS_ERR(fs_devices))
 		return fs_devices;
