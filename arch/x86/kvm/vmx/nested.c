@@ -3471,11 +3471,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (evmptrld_status == EVMPTRLD_ERROR) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
-	} else if (evmptrld_status == EVMPTRLD_VMFAIL) {
+	} else if (CC(evmptrld_status == EVMPTRLD_VMFAIL)) {
 		return nested_vmx_failInvalid(vcpu);
 	}
 
-	if (!vmx->nested.hv_evmcs && vmx->nested.current_vmptr == -1ull)
+	if (CC(!vmx->nested.hv_evmcs && vmx->nested.current_vmptr == -1ull))
 		return nested_vmx_failInvalid(vcpu);
 
 	vmcs12 = get_vmcs12(vcpu);
@@ -3486,7 +3486,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * rather than RFLAGS.ZF, and no error number is stored to the
 	 * VM-instruction error field.
 	 */
-	if (vmcs12->hdr.shadow_vmcs)
+	if (CC(vmcs12->hdr.shadow_vmcs))
 		return nested_vmx_failInvalid(vcpu);
 
 	if (vmx->nested.hv_evmcs) {
@@ -3507,10 +3507,10 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * for misconfigurations which will anyway be caught by the processor
 	 * when using the merged vmcs02.
 	 */
-	if (interrupt_shadow & KVM_X86_SHADOW_INT_MOV_SS)
+	if (CC(interrupt_shadow & KVM_X86_SHADOW_INT_MOV_SS))
 		return nested_vmx_fail(vcpu, VMXERR_ENTRY_EVENTS_BLOCKED_BY_MOV_SS);
 
-	if (vmcs12->launch_state == launch)
+	if (CC(vmcs12->launch_state == launch))
 		return nested_vmx_fail(vcpu,
 			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS
 			       : VMXERR_VMRESUME_NONLAUNCHED_VMCS);
