@@ -1232,3 +1232,18 @@ int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev)
 
 	return ret;
 }
+
+int amdgpu_dpm_set_clockgating_by_smu(struct amdgpu_device *adev,
+				      uint32_t msg_id)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs =
+			adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (pp_funcs && pp_funcs->set_clockgating_by_smu)
+		ret = pp_funcs->set_clockgating_by_smu(pp_handle,
+						       msg_id);
+
+	return ret;
+}
