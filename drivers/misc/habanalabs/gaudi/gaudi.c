@@ -6304,6 +6304,15 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		1000,
 		kernel_timeout);
 
+	if (rc) {
+		dev_err(hdev->dev,
+			"Timeout while waiting for TPC%d vector pipe\n",
+			tpc_id);
+		hdev->asic_funcs->set_clock_gating(hdev);
+		mutex_unlock(&gaudi->clk_gate_mutex);
+		return -EIO;
+	}
+
 	rc = hl_poll_timeout(
 		hdev,
 		mmTPC0_CFG_WQ_INFLIGHT_CNTR + offset,
