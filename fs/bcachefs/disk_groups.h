@@ -71,7 +71,10 @@ static inline struct bch_devs_mask target_rw_devs(struct bch_fs *c,
 bool bch2_dev_in_target(struct bch_fs *, unsigned, unsigned);
 
 int bch2_disk_path_find(struct bch_sb_handle *, const char *);
+
+/* Exported for userspace bcachefs-tools: */
 int bch2_disk_path_find_or_create(struct bch_sb_handle *, const char *);
+
 void bch2_disk_path_to_text(struct printbuf *, struct bch_sb_handle *,
 			    unsigned);
 

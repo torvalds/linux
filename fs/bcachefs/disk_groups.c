@@ -387,6 +387,7 @@ int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 {
 	struct bch_member *mi;
 	int v = -1;
+	int ret = 0;
 
 	mutex_lock(&c->sb_lock);
 
@@ -399,14 +400,18 @@ int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 		return v;
 	}
 
+	ret = bch2_sb_disk_groups_to_cpu(c);
+	if (ret)
+		goto unlock;
 write_sb:
 	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
 	SET_BCH_MEMBER_GROUP(mi, v + 1);
 
 	bch2_write_super(c);
+unlock:
 	mutex_unlock(&c->sb_lock);
 
-	return 0;
+	return ret;
 }
 
 int bch2_opt_target_parse(struct bch_fs *c, const char *buf, u64 *v)
