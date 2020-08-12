@@ -44,13 +44,6 @@
 #define COPYGC_BUCKETS_PER_ITER(ca)					\
 	((ca)->free[RESERVE_MOVINGGC].size / 2)
 
-static inline int sectors_used_cmp(copygc_heap *heap,
-				   struct copygc_heap_entry l,
-				   struct copygc_heap_entry r)
-{
-	return cmp_int(l.sectors, r.sectors);
-}
-
 static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 {
 	const struct copygc_heap_entry *l = _l;
@@ -123,6 +116,13 @@ static bool have_copygc_reserve(struct bch_dev *ca)
 	return ret;
 }
 
+static inline int fragmentation_cmp(copygc_heap *heap,
+				   struct copygc_heap_entry l,
+				   struct copygc_heap_entry r)
+{
+	return cmp_int(l.fragmentation, r.fragmentation);
+}
+
 static int bch2_copygc(struct bch_fs *c)
 {
 	copygc_heap *h = &c->copygc_heap;
@@ -180,10 +180,12 @@ static int bch2_copygc(struct bch_fs *c)
 			e = (struct copygc_heap_entry) {
 				.dev		= dev_idx,
 				.gen		= m.gen,
+				.fragmentation	= bucket_sectors_used(m) * (1U << 15)
+					/ ca->mi.bucket_size,
 				.sectors	= bucket_sectors_used(m),
 				.offset		= bucket_to_sector(ca, b),
 			};
-			heap_add_or_replace(h, e, -sectors_used_cmp, NULL);
+			heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
 		}
 		up_read(&ca->bucket_lock);
 	}
@@ -197,7 +199,7 @@ static int bch2_copygc(struct bch_fs *c)
 		sectors_to_move += i->sectors;
 
 	while (sectors_to_move > sectors_reserved) {
-		BUG_ON(!heap_pop(h, e, -sectors_used_cmp, NULL));
+		BUG_ON(!heap_pop(h, e, -fragmentation_cmp, NULL));
 		sectors_to_move -= e.sectors;
 	}
 
