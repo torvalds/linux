@@ -111,6 +111,10 @@
 		opp-shared;
 		rockchip,reboot-freq = <816000>;
 
+		rockchip,temp-freq-table = <
+			100000	1296000
+		>;
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <725000 725000 1000000>;
@@ -2118,6 +2122,11 @@
 	rkvenc_opp_table: rkvenc-opp-table {
 		compatible = "operating-points-v2";
 
+		rockchip,temp-freq-table = <
+			80000	500000
+			100000	396000
+		>;
+
 		/* The source clock is CLK_VENC_CORE */
 		opp-297000000 {
 			opp-hz = /bits/ 64 <297000000>;
@@ -2308,6 +2317,12 @@
 		rockchip,bin-scaling-sel = <
 			0	23
 			1	37
+		>;
+
+		rockchip,temp-freq-table = <
+			80000	600000
+			90000	396000
+			100000	300000
 		>;
 
 		opp-200000000 {
