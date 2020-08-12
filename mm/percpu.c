@@ -1610,6 +1610,11 @@ static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
 
 	if (chunk) {
 		chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT] = objcg;
+
+		rcu_read_lock();
+		mod_memcg_state(obj_cgroup_memcg(objcg), MEMCG_PERCPU_B,
+				size * num_possible_cpus());
+		rcu_read_unlock();
 	} else {
 		obj_cgroup_uncharge(objcg, size * num_possible_cpus());
 		obj_cgroup_put(objcg);
@@ -1627,6 +1632,11 @@ static void pcpu_memcg_free_hook(struct pcpu_chunk *chunk, int off, size_t size)
 	chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT] = NULL;
 
 	obj_cgroup_uncharge(objcg, size * num_possible_cpus());
+
+	rcu_read_lock();
+	mod_memcg_state(obj_cgroup_memcg(objcg), MEMCG_PERCPU_B,
+			-(size * num_possible_cpus()));
+	rcu_read_unlock();
 
 	obj_cgroup_put(objcg);
 }

@@ -781,7 +781,7 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
 	if (mem_cgroup_disabled())
 		return;
 
-	if (vmstat_item_in_bytes(idx))
+	if (memcg_stat_item_in_bytes(idx))
 		threshold <<= PAGE_SHIFT;
 
 	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
@@ -1488,6 +1488,8 @@ static char *memory_stat_format(struct mem_cgroup *memcg)
 	seq_buf_printf(&s, "slab %llu\n",
 		       (u64)(memcg_page_state(memcg, NR_SLAB_RECLAIMABLE_B) +
 			     memcg_page_state(memcg, NR_SLAB_UNRECLAIMABLE_B)));
+	seq_buf_printf(&s, "percpu %llu\n",
+		       (u64)memcg_page_state(memcg, MEMCG_PERCPU_B));
 	seq_buf_printf(&s, "sock %llu\n",
 		       (u64)memcg_page_state(memcg, MEMCG_SOCK) *
 		       PAGE_SIZE);

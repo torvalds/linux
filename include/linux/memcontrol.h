@@ -32,6 +32,7 @@ struct kmem_cache;
 enum memcg_stat_item {
 	MEMCG_SWAP = NR_VM_NODE_STAT_ITEMS,
 	MEMCG_SOCK,
+	MEMCG_PERCPU_B,
 	MEMCG_NR_STAT,
 };
 
@@ -338,6 +339,13 @@ struct mem_cgroup {
 #define MEMCG_CHARGE_BATCH 32U
 
 extern struct mem_cgroup *root_mem_cgroup;
+
+static __always_inline bool memcg_stat_item_in_bytes(int idx)
+{
+	if (idx == MEMCG_PERCPU_B)
+		return true;
+	return vmstat_item_in_bytes(idx);
+}
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 {
