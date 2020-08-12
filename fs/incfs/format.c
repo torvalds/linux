@@ -324,9 +324,6 @@ static int write_new_status_to_backing_file(struct backing_file_context *bfc,
 		.is_hash_blocks_written = cpu_to_le32(hash_blocks_written),
 	};
 
-	if (!bfc)
-		return -EFAULT;
-
 	LOCK_REQUIRED(bfc->bc_mutex);
 	rollback_pos = incfs_get_end_offset(bfc->bc_file);
 	result = append_md_to_backing_file(bfc, &is.is_header);
@@ -344,6 +341,9 @@ int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 	struct incfs_status is;
 	int result;
 
+	if (!bfc)
+		return -EFAULT;
+
 	if (status_offset == 0)
 		return write_new_status_to_backing_file(bfc,
 				data_blocks_written, hash_blocks_written);
@@ -359,6 +359,46 @@ int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 		return -EIO;
 
 	return 0;
+}
+
+int incfs_write_verity_signature_to_backing_file(
+		struct backing_file_context *bfc, struct mem_range signature,
+		loff_t *offset)
+{
+	struct incfs_file_verity_signature vs = {};
+	int result;
+	loff_t pos;
+
+	/* No verity signature section is equivalent to an empty section */
+	if (signature.data == NULL || signature.len == 0)
+		return 0;
+
+	pos = incfs_get_end_offset(bfc->bc_file);
+
+	vs = (struct incfs_file_verity_signature) {
+		.vs_header = (struct incfs_md_header) {
+			.h_md_entry_type = INCFS_MD_VERITY_SIGNATURE,
+			.h_record_size = cpu_to_le16(sizeof(vs)),
+			.h_next_md_offset = cpu_to_le64(0),
+		},
+		.vs_size = cpu_to_le32(signature.len),
+		.vs_offset = cpu_to_le64(pos),
+	};
+
+	result = write_to_bf(bfc, signature.data, signature.len, pos);
+	if (result)
+		goto err;
+
+	result = append_md_to_backing_file(bfc, &vs.vs_header);
+	if (result)
+		goto err;
+
+	*offset = pos;
+err:
+	if (result)
+		/* Error, rollback file changes */
+		truncate_backing_file(bfc, pos);
+	return result;
 }
 
 /*
@@ -659,6 +699,11 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 		if (handler->handle_status)
 			res = handler->handle_status(
 				&handler->md_buffer.status, handler);
+		break;
+	case INCFS_MD_VERITY_SIGNATURE:
+		if (handler->handle_verity_signature)
+			res = handler->handle_verity_signature(
+				&handler->md_buffer.verity_signature, handler);
 		break;
 	default:
 		res = -ENOTSUPP;

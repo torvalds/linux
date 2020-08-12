@@ -49,6 +49,7 @@
 #include "verity.h"
 
 #include "data_mgmt.h"
+#include "format.h"
 #include "integrity.h"
 #include "vfs.h"
 
@@ -67,12 +68,59 @@ static int incfs_get_root_hash(struct file *filp, u8 *root_hash)
 	return 0;
 }
 
-static int incfs_end_enable_verity(struct file *filp)
+static int incfs_end_enable_verity(struct file *filp, u8 *sig, size_t sig_size)
 {
 	struct inode *inode = file_inode(filp);
+	struct mem_range signature = {
+		.data = sig,
+		.len = sig_size,
+	};
+	struct data_file *df = get_incfs_data_file(filp);
+	struct backing_file_context *bfc;
+	int error;
+	struct incfs_df_verity_signature *vs;
+	loff_t offset;
 
+	if (!df || !df->df_backing_file_context)
+		return -EFSCORRUPTED;
+
+	vs = kzalloc(sizeof(*vs), GFP_NOFS);
+	if (!vs)
+		return -ENOMEM;
+
+	bfc = df->df_backing_file_context;
+	error = mutex_lock_interruptible(&bfc->bc_mutex);
+	if (error)
+		goto out;
+
+	error = incfs_write_verity_signature_to_backing_file(bfc, signature,
+							     &offset);
+	mutex_unlock(&bfc->bc_mutex);
+	if (error)
+		goto out;
+
+	/*
+	 * Set verity xattr so we can set S_VERITY without opening backing file
+	 */
+	error = vfs_setxattr(bfc->bc_file->f_path.dentry,
+			     INCFS_XATTR_VERITY_NAME, NULL, 0, XATTR_CREATE);
+	if (error) {
+		pr_warn("incfs: error setting verity xattr: %d\n", error);
+		goto out;
+	}
+
+	*vs = (struct incfs_df_verity_signature) {
+		.size = signature.len,
+		.offset = offset,
+	};
+
+	df->df_verity_signature = vs;
+	vs = NULL;
 	inode_set_flags(inode, S_VERITY, S_VERITY);
-	return 0;
+
+out:
+	kfree(vs);
+	return error;
 }
 
 static int incfs_compute_file_digest(struct incfs_hash_alg *alg,
@@ -246,6 +294,11 @@ static int incfs_enable_verity(struct file *filp,
 	if (err)
 		return err;
 
+	if (IS_VERITY(inode)) {
+		err = -EEXIST;
+		goto out;
+	}
+
 	/* Get the signature if the user provided one */
 	if (arg->sig_size) {
 		signature = memdup_user(u64_to_user_ptr(arg->sig_ptr),
@@ -265,7 +318,7 @@ static int incfs_enable_verity(struct file *filp,
 		goto out;
 	}
 
-	err = incfs_end_enable_verity(filp);
+	err = incfs_end_enable_verity(filp, signature, arg->sig_size);
 	if (err)
 		goto out;
 
@@ -315,4 +368,95 @@ int incfs_ioctl_enable_verity(struct file *filp, const void __user *uarg)
 		return -EINVAL;
 
 	return incfs_enable_verity(filp, &arg);
+}
+
+static u8 *incfs_get_verity_signature(struct file *filp, size_t *sig_size)
+{
+	struct data_file *df = get_incfs_data_file(filp);
+	struct incfs_df_verity_signature *vs;
+	u8 *signature;
+	int res;
+
+	if (!df || !df->df_backing_file_context)
+		return ERR_PTR(-EFSCORRUPTED);
+
+	vs = df->df_verity_signature;
+	if (!vs) {
+		*sig_size = 0;
+		return NULL;
+	}
+
+	signature = kzalloc(vs->size, GFP_KERNEL);
+	if (!signature)
+		return ERR_PTR(-ENOMEM);
+
+	res = incfs_kread(df->df_backing_file_context,
+			  signature, vs->size, vs->offset);
+
+	if (res < 0)
+		goto err_out;
+
+	if (res != vs->size) {
+		res = -EINVAL;
+		goto err_out;
+	}
+
+	*sig_size = vs->size;
+	return signature;
+
+err_out:
+	kfree(signature);
+	return ERR_PTR(res);
+}
+
+/* Ensure data_file->df_verity_file_digest is populated */
+static int ensure_verity_info(struct inode *inode, struct file *filp)
+{
+	struct mem_range verity_file_digest;
+	u8 *signature = NULL;
+	size_t sig_size;
+	int err = 0;
+
+	/* See if this file's verity file digest is already cached */
+	verity_file_digest = incfs_get_verity_digest(inode);
+	if (verity_file_digest.data)
+		return 0;
+
+	signature = incfs_get_verity_signature(filp, &sig_size);
+	if (IS_ERR(signature))
+		return PTR_ERR(signature);
+
+	verity_file_digest = incfs_calc_verity_digest(inode, filp, signature,
+						     sig_size,
+						     FS_VERITY_HASH_ALG_SHA256);
+	if (IS_ERR(verity_file_digest.data)) {
+		err = PTR_ERR(verity_file_digest.data);
+		goto out;
+	}
+
+	incfs_set_verity_digest(inode, verity_file_digest);
+
+out:
+	kfree(signature);
+	return err;
+}
+
+/**
+ * incfs_fsverity_file_open() - prepare to open a file that may be
+ * verity-enabled
+ * @inode: the inode being opened
+ * @filp: the struct file being set up
+ *
+ * When opening a verity file, set up data_file->df_verity_file_digest if not
+ * already done. Note that incfs does not allow opening for writing, so there is
+ * no need for that check.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+int incfs_fsverity_file_open(struct inode *inode, struct file *filp)
+{
+	if (IS_VERITY(inode))
+		return ensure_verity_info(inode, filp);
+
+	return 0;
 }
