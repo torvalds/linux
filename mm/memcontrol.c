@@ -2422,7 +2422,7 @@ static void high_work_func(struct work_struct *work)
  *
  * - MEMCG_DELAY_PRECISION_SHIFT: Extra precision bits while translating the
  *   overage ratio to a delay.
- * - MEMCG_DELAY_SCALING_SHIFT: The number of bits to scale down down the
+ * - MEMCG_DELAY_SCALING_SHIFT: The number of bits to scale down the
  *   proposed penalty in order to reduce to a reasonable number of jiffies, and
  *   to produce a reasonable delay curve.
  *
