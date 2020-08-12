@@ -1738,8 +1738,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	stdu->base.is_implicit = false;
 
 	/* Initialize primary plane */
-	vmw_du_plane_reset(primary);
-
 	ret = drm_universal_plane_init(dev, primary,
 				       0, &vmw_stdu_plane_funcs,
 				       vmw_primary_plane_formats,
@@ -1754,8 +1752,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_plane_enable_fb_damage_clips(primary);
 
 	/* Initialize cursor plane */
-	vmw_du_plane_reset(cursor);
-
 	ret = drm_universal_plane_init(dev, cursor,
 			0, &vmw_stdu_cursor_funcs,
 			vmw_cursor_plane_formats,
@@ -1768,8 +1764,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	drm_plane_helper_add(cursor, &vmw_stdu_cursor_plane_helper_funcs);
-
-	vmw_du_connector_reset(connector);
 
 	ret = drm_connector_init(dev, connector, &vmw_stdu_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
@@ -1798,7 +1792,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
-	vmw_du_crtc_reset(crtc);
 	ret = drm_crtc_init_with_planes(dev, crtc, &stdu->base.primary,
 					&stdu->base.cursor,
 					&vmw_stdu_crtc_funcs, NULL);
@@ -1893,6 +1886,8 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 			return ret;
 		}
 	}
+
+	drm_mode_config_reset(dev);
 
 	DRM_INFO("Screen Target Display device initialized\n");
 

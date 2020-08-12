@@ -3037,7 +3037,7 @@ static int vmw_cmd_dx_bind_streamoutput(struct vmw_private *dev_priv,
 	res = vmw_dx_streamoutput_lookup(vmw_context_res_man(ctx_node->ctx),
 					 cmd->body.soid);
 	if (IS_ERR(res)) {
-		DRM_ERROR("Cound not find streamoutput to bind.\n");
+		DRM_ERROR("Could not find streamoutput to bind.\n");
 		return PTR_ERR(res);
 	}
 
