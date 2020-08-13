@@ -807,7 +807,7 @@ xfs_qm_dqget_checks(
 }
 
 /*
- * Given the file system, id, and type (UDQUOT/GDQUOT), return a a locked
+ * Given the file system, id, and type (UDQUOT/GDQUOT), return a locked
  * dquot, doing an allocation (if requested) as needed.
  */
 int
