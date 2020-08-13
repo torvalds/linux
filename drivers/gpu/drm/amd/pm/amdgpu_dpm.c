@@ -1115,8 +1115,6 @@ int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
 	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	dev_info(adev->dev, "GPU BACO reset\n");
-
 	if (is_support_sw_smu(adev)) {
 		ret = smu_baco_enter(smu);
 		if (ret)
