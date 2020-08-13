@@ -20,6 +20,7 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <trace/hooks/topology.h>
 
 __weak bool arch_freq_counters_available(struct cpumask *cpus)
 {
@@ -42,6 +43,8 @@ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 		return;
 
 	scale = (cur_freq << SCHED_CAPACITY_SHIFT) / max_freq;
+
+	trace_android_vh_arch_set_freq_scale(cur_freq, max_freq, &scale);
 
 	for_each_cpu(i, cpus)
 		per_cpu(freq_scale, i) = scale;
