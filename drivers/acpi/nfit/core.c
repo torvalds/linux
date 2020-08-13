@@ -1389,7 +1389,7 @@ static bool ars_supported(struct nvdimm_bus *nvdimm_bus)
 
 static umode_t nfit_visible(struct kobject *kobj, struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 
 	if (a == &dev_attr_scrub.attr)
@@ -1679,7 +1679,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
