@@ -2876,7 +2876,7 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 				struct skl_module_cfg *mconfig)
 {
 	struct snd_soc_tplg_vendor_array *array;
-	int num_blocks, block_size = 0, block_type, off = 0;
+	int num_blocks, block_size, block_type, off = 0;
 	char *data;
 	int ret;
 
