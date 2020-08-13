@@ -385,7 +385,7 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 	if (ret_val)
 		return ret_val;
 	substream->runtime->hw.info = SNDRV_PCM_INFO_BLOCK_TRANSFER;
-	return ret_val;
+	return 0;
 }
 
 static int sst_enable_ssp(struct snd_pcm_substream *substream,
