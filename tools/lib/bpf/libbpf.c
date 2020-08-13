@@ -5195,7 +5195,8 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 static int bpf_object__collect_map_relos(struct bpf_object *obj,
 					 GElf_Shdr *shdr, Elf_Data *data)
 {
-	int i, j, nrels, new_sz, ptr_sz = sizeof(void *);
+	const int bpf_ptr_sz = 8, host_ptr_sz = sizeof(void *);
+	int i, j, nrels, new_sz;
 	const struct btf_var_secinfo *vi = NULL;
 	const struct btf_type *sec, *var, *def;
 	const struct btf_member *member;
@@ -5244,7 +5245,7 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 
 			vi = btf_var_secinfos(sec) + map->btf_var_idx;
 			if (vi->offset <= rel.r_offset &&
-			    rel.r_offset + sizeof(void *) <= vi->offset + vi->size)
+			    rel.r_offset + bpf_ptr_sz <= vi->offset + vi->size)
 				break;
 		}
 		if (j == obj->nr_maps) {
@@ -5280,17 +5281,20 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 			return -EINVAL;
 
 		moff = rel.r_offset - vi->offset - moff;
-		if (moff % ptr_sz)
+		/* here we use BPF pointer size, which is always 64 bit, as we
+		 * are parsing ELF that was built for BPF target
+		 */
+		if (moff % bpf_ptr_sz)
 			return -EINVAL;
-		moff /= ptr_sz;
+		moff /= bpf_ptr_sz;
 		if (moff >= map->init_slots_sz) {
 			new_sz = moff + 1;
-			tmp = realloc(map->init_slots, new_sz * ptr_sz);
+			tmp = realloc(map->init_slots, new_sz * host_ptr_sz);
 			if (!tmp)
 				return -ENOMEM;
 			map->init_slots = tmp;
 			memset(map->init_slots + map->init_slots_sz, 0,
-			       (new_sz - map->init_slots_sz) * ptr_sz);
+			       (new_sz - map->init_slots_sz) * host_ptr_sz);
 			map->init_slots_sz = new_sz;
 		}
 		map->init_slots[moff] = targ_map;
