@@ -61,6 +61,7 @@ struct btf_dump {
 	const struct btf_ext *btf_ext;
 	btf_dump_printf_fn_t printf_fn;
 	struct btf_dump_opts opts;
+	int ptr_sz;
 	bool strip_mods;
 
 	/* per-type auxiliary state */
@@ -139,6 +140,7 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 	d->btf_ext = btf_ext;
 	d->printf_fn = printf_fn;
 	d->opts.ctx = opts ? opts->ctx : NULL;
+	d->ptr_sz = btf__pointer_size(btf) ? : sizeof(void *);
 
 	d->type_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
 	if (IS_ERR(d->type_names)) {
@@ -804,7 +806,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 				      int align, int lvl)
 {
 	int off_diff = m_off - cur_off;
-	int ptr_bits = sizeof(void *) * 8;
+	int ptr_bits = d->ptr_sz * 8;
 
 	if (off_diff <= 0)
 		/* no gap */
