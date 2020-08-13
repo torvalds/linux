@@ -19,18 +19,19 @@ $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 	$(call if_changed,chk_binding)
 
 # Use full schemas when checking %.example.dts
-DT_TMP_SCHEMA := $(obj)/processed-schema-examples.yaml
+DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
 
 find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' ! \
 		-name '*.example.dt.yaml' \)
 
 quiet_cmd_mk_schema = SCHEMA  $@
-      cmd_mk_schema = rm -f $@ ; \
+      cmd_mk_schema = f=$$(mktemp) ; \
                       $(if $(DT_MK_SCHEMA_FLAGS), \
                            echo $(real-prereqs), \
-                           $(find_cmd)) | \
-                      xargs $(DT_MK_SCHEMA) $(DT_MK_SCHEMA_FLAGS) >> $@
+                           $(find_cmd)) > $$f ; \
+                      $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
+		      rm -f $$f
 
 DT_DOCS = $(shell $(find_cmd) | sed -e 's|^$(srctree)/||')
 
@@ -39,33 +40,33 @@ override DTC_FLAGS := \
 	-Wno-graph_child_address \
 	-Wno-interrupt_provider
 
-$(obj)/processed-schema-examples.yaml: $(DT_DOCS) check_dtschema_version FORCE
+$(obj)/processed-schema-examples.json: $(DT_DOCS) check_dtschema_version FORCE
 	$(call if_changed,mk_schema)
 
 ifeq ($(DT_SCHEMA_FILES),)
 
 # Unless DT_SCHEMA_FILES is specified, use the full schema for dtbs_check too.
-# Just copy processed-schema-examples.yaml
+# Just copy processed-schema-examples.json
 
-$(obj)/processed-schema.yaml: $(obj)/processed-schema-examples.yaml FORCE
+$(obj)/processed-schema.json: $(obj)/processed-schema-examples.json FORCE
 	$(call if_changed,copy)
 
 DT_SCHEMA_FILES = $(DT_DOCS)
 
 else
 
-# If DT_SCHEMA_FILES is specified, use it for processed-schema.yaml
+# If DT_SCHEMA_FILES is specified, use it for processed-schema.json
 
-$(obj)/processed-schema.yaml: DT_MK_SCHEMA_FLAGS := -u
-$(obj)/processed-schema.yaml: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
+$(obj)/processed-schema.json: DT_MK_SCHEMA_FLAGS := -u
+$(obj)/processed-schema.json: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
 	$(call if_changed,mk_schema)
 
 endif
 
 extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
 extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
-extra-$(CHECK_DT_BINDING) += processed-schema-examples.yaml
-extra-$(CHECK_DTBS) += processed-schema.yaml
+extra-$(CHECK_DT_BINDING) += processed-schema-examples.json
+extra-$(CHECK_DTBS) += processed-schema.json
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
