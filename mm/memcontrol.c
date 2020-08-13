@@ -5137,9 +5137,6 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
 	if (!pn)
 		return 1;
 
-	/* We charge the parent cgroup, never the current task */
-	WARN_ON_ONCE(!current->active_memcg);
-
 	pn->lruvec_stat_local = alloc_percpu_gfp(struct lruvec_stat,
 						 GFP_KERNEL_ACCOUNT);
 	if (!pn->lruvec_stat_local) {
@@ -5221,9 +5218,6 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 		error = memcg->id.id;
 		goto fail;
 	}
-
-	/* We charge the parent cgroup, never the current task */
-	WARN_ON_ONCE(!current->active_memcg);
 
 	memcg->vmstats_local = alloc_percpu_gfp(struct memcg_vmstats_percpu,
 						GFP_KERNEL_ACCOUNT);
