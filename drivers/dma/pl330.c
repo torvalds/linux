@@ -255,7 +255,7 @@ enum pl330_byteswap {
 static unsigned cmd_line;
 #define PL330_DBGCMD_DUMP(off, x...)	do { \
 						printk("%x:", cmd_line); \
-						printk(x); \
+						printk(KERN_CONT x); \
 						cmd_line += off; \
 					} while (0)
 #define PL330_DBGMC_START(addr)		(cmd_line = addr)
