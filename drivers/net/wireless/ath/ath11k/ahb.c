@@ -25,6 +25,10 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, ath11k_ahb_of_match);
 
+static const struct ath11k_bus_params ath11k_ahb_bus_params = {
+	.mhi_support = false,
+};
+
 /* Target firmware's Copy Engine configuration. */
 static const struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -855,7 +859,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB);
+	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB, &ath11k_ahb_bus_params);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;

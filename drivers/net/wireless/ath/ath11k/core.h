@@ -580,6 +580,10 @@ struct ath11k_board_data {
 	size_t len;
 };
 
+struct ath11k_bus_params {
+	bool mhi_support;
+};
+
 /* IPQ8074 HW channel counters frequency value in hertz */
 #define IPQ8074_CC_FREQ_HERTZ 320000
 
@@ -668,7 +672,10 @@ struct ath11k_base {
 	u32 ext_service_bitmap[WMI_SERVICE_EXT_BM_SIZE];
 	bool pdevs_macaddr_valid;
 	int bd_api;
+
 	struct ath11k_hw_params hw_params;
+	struct ath11k_bus_params bus_params;
+
 	const struct firmware *cal_file;
 
 	/* Below regd's are protected by ab->data_lock */
@@ -845,7 +852,8 @@ int ath11k_core_pre_init(struct ath11k_base *ab);
 int ath11k_core_init(struct ath11k_base *ath11k);
 void ath11k_core_deinit(struct ath11k_base *ath11k);
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus);
+				      enum ath11k_bus bus,
+				      const struct ath11k_bus_params *bus_params);
 void ath11k_core_free(struct ath11k_base *ath11k);
 int ath11k_core_fetch_bdf(struct ath11k_base *ath11k,
 			  struct ath11k_board_data *bd);

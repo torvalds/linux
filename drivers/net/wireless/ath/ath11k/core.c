@@ -756,12 +756,14 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
 
-int ath11k_core_init(struct ath11k_base *ab)
+static int ath11k_core_get_rproc(struct ath11k_base *ab)
 {
 	struct device *dev = ab->dev;
 	struct rproc *prproc;
 	phandle rproc_phandle;
-	int ret;
+
+	if (ab->bus_params.mhi_support)
+		return 0;
 
 	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
 		ath11k_err(ab, "failed to get q6_rproc handle\n");
@@ -774,6 +776,25 @@ int ath11k_core_init(struct ath11k_base *ab)
 		return -EINVAL;
 	}
 	ab->tgt_rproc = prproc;
+
+	return 0;
+}
+
+int ath11k_core_init(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_core_get_rproc(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to get rproc: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_init_hw_params(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to get hw params %d\n", ret);
+		return ret;
+	}
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {
@@ -807,7 +828,8 @@ void ath11k_core_free(struct ath11k_base *ab)
 EXPORT_SYMBOL(ath11k_core_free);
 
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus)
+				      enum ath11k_bus bus,
+				      const struct ath11k_bus_params *bus_params)
 {
 	struct ath11k_base *ab;
 
@@ -830,6 +852,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	ab->dev = dev;
+	ab->bus_params = *bus_params;
 
 	return ab;
 

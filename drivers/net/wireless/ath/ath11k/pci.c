@@ -27,6 +27,10 @@ static const struct pci_device_id ath11k_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ath11k_pci_id_table);
 
+static const struct ath11k_bus_params ath11k_pci_bus_params = {
+	.mhi_support = true,
+};
+
 static const struct ath11k_msi_config msi_config = {
 	.total_vectors = 32,
 	.total_users = 4,
@@ -594,7 +598,8 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		return -ENOTSUPP;
 	}
 
-	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
+	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
+			       &ath11k_pci_bus_params);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
