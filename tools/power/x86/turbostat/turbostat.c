@@ -5186,9 +5186,12 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
 	if (has_c8910_msrs(family, model)) {
-		BIC_PRESENT(BIC_Pkgpc8);
-		BIC_PRESENT(BIC_Pkgpc9);
-		BIC_PRESENT(BIC_Pkgpc10);
+		if (pkg_cstate_limit >= PCL__8)
+			BIC_PRESENT(BIC_Pkgpc8);
+		if (pkg_cstate_limit >= PCL__9)
+			BIC_PRESENT(BIC_Pkgpc9);
+		if (pkg_cstate_limit >= PCL_10)
+			BIC_PRESENT(BIC_Pkgpc10);
 	}
 	do_irtl_hsw = has_c8910_msrs(family, model);
 	if (has_skl_msrs(family, model)) {
