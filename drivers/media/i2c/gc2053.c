@@ -135,6 +135,7 @@ struct gc2053 {
 	struct v4l2_ctrl    *v_flip;
 	struct mutex        mutex;
 	bool            streaming;
+	bool			power_on;
 	const struct gc2053_mode *cur_mode;
 	unsigned int        lane_num;
 	unsigned int        cfg_num;
@@ -874,9 +875,14 @@ static long gc2053_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc2053 *gc2053 = to_gc2053(sd);
 	long ret = 0;
+	struct rkmodule_hdr_cfg *hdr_cfg;
 
 	switch (cmd) {
 	case RKMODULE_GET_HDR_CFG:
+		hdr_cfg = (struct rkmodule_hdr_cfg *)arg;
+		hdr_cfg->esp.mode = HDR_NORMAL_VC;
+		hdr_cfg->hdr_mode = gc2053->cur_mode->hdr_mode;
+		break;
 	case RKMODULE_SET_HDR_CFG:
 	case RKMODULE_SET_CONVERSION_GAIN:
 		break;
@@ -1189,7 +1195,39 @@ static const struct v4l2_subdev_internal_ops gc2053_internal_ops = {
 };
 #endif
 
+static int gc2053_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct gc2053 *gc2053 = to_gc2053(sd);
+	struct i2c_client *client = gc2053->client;
+	int ret = 0;
+
+	mutex_lock(&gc2053->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (gc2053->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		gc2053->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		gc2053->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&gc2053->mutex);
+
+	return ret;
+}
+
 static const struct v4l2_subdev_core_ops gc2053_core_ops = {
+	.s_power = gc2053_s_power,
 	.ioctl = gc2053_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = gc2053_compat_ioctl32,
