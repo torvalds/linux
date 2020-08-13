@@ -2434,6 +2434,8 @@ static int bpf_object__init_btf(struct bpf_object *obj,
 				BTF_ELF_SEC, err);
 			goto out;
 		}
+		/* enforce 8-byte pointers for BPF-targeted BTFs */
+		btf__set_pointer_size(obj->btf, 8);
 		err = 0;
 	}
 	if (btf_ext_data) {
@@ -2542,6 +2544,8 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		if (IS_ERR(kern_btf))
 			return PTR_ERR(kern_btf);
 
+		/* enforce 8-byte pointers for BPF-targeted BTFs */
+		btf__set_pointer_size(obj->btf, 8);
 		bpf_object__sanitize_btf(obj, kern_btf);
 	}
 
