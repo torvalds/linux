@@ -2,6 +2,7 @@
 
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/power/summit,smb347-charger.h>
 #include <dt-bindings/thermal/thermal.h>
 
 #include "tegra30.dtsi"
@@ -922,9 +923,24 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		battery@55 {
+		fuel-gauge@55 {
 			compatible = "ti,bq27541";
 			reg = <0x55>;
+			power-supplies = <&power_supply>;
+			monitored-battery = <&battery_cell>;
+		};
+
+		power_supply: charger@6a {
+			compatible = "summit,smb347";
+			reg = <0x6a>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(V, 1) IRQ_TYPE_EDGE_BOTH>;
+
+			summit,enable-charge-control = <SMB3XX_CHG_ENABLE_PIN_ACTIVE_LOW>;
+			summit,enable-usb-charging;
+
+			monitored-battery = <&battery_cell>;
 		};
 	};
 
@@ -1017,6 +1033,12 @@
 		brightness-levels = <1 255>;
 		num-interpolated-steps = <254>;
 		default-brightness-level = <15>;
+	};
+
+	battery_cell: battery-cell {
+		compatible = "simple-battery";
+		constant-charge-current-max-microamp = <1800000>;
+		operating-range-celsius = <0 45>;
 	};
 
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
