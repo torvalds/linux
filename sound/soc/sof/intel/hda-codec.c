@@ -178,6 +178,11 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	}
 
 	return ret;
+
+error:
+	snd_hdac_ext_bus_device_exit(hdev);
+	return -ENOENT;
+
 #else
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
