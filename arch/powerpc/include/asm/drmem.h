@@ -12,6 +12,8 @@
 #ifndef _ASM_POWERPC_LMB_H
 #define _ASM_POWERPC_LMB_H
 
+#include <linux/sched.h>
+
 struct drmem_lmb {
 	u64     base_addr;
 	u32     drc_index;
@@ -27,8 +29,22 @@ struct drmem_lmb_info {
 
 extern struct drmem_lmb_info *drmem_info;
 
+static inline struct drmem_lmb *drmem_lmb_next(struct drmem_lmb *lmb,
+					       const struct drmem_lmb *start)
+{
+	/*
+	 * DLPAR code paths can take several milliseconds per element
+	 * when interacting with firmware. Ensure that we don't
+	 * unfairly monopolize the CPU.
+	 */
+	if (((++lmb - start) % 16) == 0)
+		cond_resched();
+
+	return lmb;
+}
+
 #define for_each_drmem_lmb_in_range(lmb, start, end)		\
-	for ((lmb) = (start); (lmb) < (end); (lmb)++)
+	for ((lmb) = (start); (lmb) < (end); lmb = drmem_lmb_next(lmb, start))
 
 #define for_each_drmem_lmb(lmb)					\
 	for_each_drmem_lmb_in_range((lmb),			\
