@@ -4,7 +4,6 @@ ath11k-y += core.o \
 	    hal.o \
 	    hal_tx.o \
 	    hal_rx.o \
-	    ahb.o \
 	    wmi.o \
 	    mac.o \
 	    reg.o \
@@ -24,6 +23,12 @@ ath11k-$(CONFIG_NL80211_TESTMODE) += testmode.o
 ath11k-$(CONFIG_ATH11K_TRACING) += trace.o
 ath11k-$(CONFIG_THERMAL) += thermal.o
 ath11k-$(CONFIG_ATH11K_SPECTRAL) += spectral.o
+
+obj-$(CONFIG_ATH11K_AHB) += ath11k_ahb.o
+ath11k_ahb-y += ahb.o
+
+obj-$(CONFIG_ATH11K_PCI) += ath11k_pci.o
+ath11k_pci-y += pci.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)

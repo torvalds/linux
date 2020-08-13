@@ -952,5 +952,5 @@ static void ath11k_ahb_exit(void)
 }
 module_exit(ath11k_ahb_exit);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax wireless chip");
+MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN AHB devices");
 MODULE_LICENSE("Dual BSD/GPL");
