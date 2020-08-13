@@ -21,6 +21,9 @@ config ATH11K_AHB
 config ATH11K_PCI
 	tristate "Atheros ath11k PCI support"
 	depends on ATH11K && PCI
+	select MHI_BUS
+	select QRTR
+	select QRTR_MHI
 	help
 	  This module adds support for PCIE bus
 

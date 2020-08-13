@@ -9,6 +9,8 @@
 
 #include "pci.h"
 #include "core.h"
+#include "hif.h"
+#include "mhi.h"
 #include "debug.h"
 
 #define ATH11K_PCI_BAR_NUM		0
@@ -33,6 +35,40 @@ static const struct ath11k_msi_config msi_config = {
 		{ .name = "DP", .num_vectors = 18, .base_vector = 14 },
 	},
 };
+
+int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	return pci_irq_vector(pci_dev, vector);
+}
+
+int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_name,
+				       int *num_vectors, u32 *user_base_data,
+				       u32 *base_vector)
+{
+	struct ath11k_base *ab = ab_pci->ab;
+	int idx;
+
+	for (idx = 0; idx < msi_config.total_users; idx++) {
+		if (strcmp(user_name, msi_config.users[idx].name) == 0) {
+			*num_vectors = msi_config.users[idx].num_vectors;
+			*user_base_data = msi_config.users[idx].base_vector
+				+ ab_pci->msi_ep_base_data;
+			*base_vector = msi_config.users[idx].base_vector;
+
+			ath11k_dbg(ab, ATH11K_DBG_PCI, "Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
+				   user_name, *num_vectors, *user_base_data,
+				   *base_vector);
+
+			return 0;
+		}
+	}
+
+	ath11k_err(ab, "Failed to find MSI assignment for %s!\n", user_name);
+
+	return -EINVAL;
+}
 
 static int ath11k_pci_enable_msi(struct ath11k_pci *ab_pci)
 {
@@ -161,6 +197,32 @@ static void ath11k_pci_free_region(struct ath11k_pci *ab_pci)
 		pci_disable_device(pci_dev);
 }
 
+static int ath11k_pci_power_up(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+	int ret;
+
+	ret = ath11k_mhi_start(ab_pci);
+	if (ret) {
+		ath11k_err(ab, "failed to start mhi: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ath11k_pci_power_down(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	ath11k_mhi_stop(ab_pci);
+}
+
+static __maybe_unused const struct ath11k_hif_ops ath11k_pci_hif_ops = {
+	.power_down = ath11k_pci_power_down,
+	.power_up = ath11k_pci_power_up,
+};
+
 static int ath11k_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_dev)
 {
@@ -212,6 +274,12 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_pci_disable_msi;
 
+	ret = ath11k_mhi_register(ab_pci);
+	if (ret) {
+		ath11k_err(ab, "failed to register mhi: %d\n", ret);
+		goto err_pci_disable_msi;
+	}
+
 	return 0;
 
 err_pci_disable_msi:
@@ -232,9 +300,17 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
+	ath11k_mhi_unregister(ab_pci);
 	ath11k_pci_disable_msi(ab_pci);
 	ath11k_pci_free_region(ab_pci);
 	ath11k_core_free(ab);
+}
+
+static void ath11k_pci_shutdown(struct pci_dev *pdev)
+{
+	struct ath11k_base *ab = pci_get_drvdata(pdev);
+
+	ath11k_pci_power_down(ab);
 }
 
 static struct pci_driver ath11k_pci_driver = {
@@ -242,6 +318,7 @@ static struct pci_driver ath11k_pci_driver = {
 	.id_table = ath11k_pci_id_table,
 	.probe = ath11k_pci_probe,
 	.remove = ath11k_pci_remove,
+	.shutdown = ath11k_pci_shutdown,
 };
 
 static int ath11k_pci_init(void)

@@ -2,6 +2,10 @@
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  */
+#ifndef _ATH11K_PCI_H
+#define _ATH11K_PCI_H
+
+#include <linux/mhi.h>
 
 #include "core.h"
 
@@ -21,10 +25,20 @@ struct ath11k_pci {
 	struct pci_dev *pdev;
 	struct ath11k_base *ab;
 	u16 dev_id;
+	char amss_path[100];
 	u32 msi_ep_base_data;
+	struct mhi_controller *mhi_ctrl;
+	unsigned long mhi_state;
 };
 
 static inline struct ath11k_pci *ath11k_pci_priv(struct ath11k_base *ab)
 {
 	return (struct ath11k_pci *)ab->drv_priv;
 }
+
+int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ar_pci, char *user_name,
+				       int *num_vectors, u32 *user_base_data,
+				       u32 *base_vector);
+int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector);
+
+#endif
