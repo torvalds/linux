@@ -27,6 +27,7 @@
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
@@ -2092,9 +2093,6 @@ static void hdmi_config_hdr_infoframe(struct dw_hdmi *hdmi)
 	hdmi_modb(hdmi, HDMI_FC_PACKET_DRM_TX_EN,
 		  HDMI_FC_PACKET_DRM_TX_EN_MASK, HDMI_FC_PACKET_TX_EN);
 
-	if (conn_state->hdr_metadata_changed)
-		conn_state->hdr_metadata_changed = false;
-
 	DRM_DEBUG("%s eotf %d end\n", __func__,
 		  hdr_metadata->hdmi_metadata_type1.eotf);
 }
@@ -2794,9 +2792,6 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		msleep(50);
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->hdmi_data.update = false;
-	} else if (connector->state->hdr_metadata_changed &&
-		   hdmi->sink_is_hdmi) {
-		hdmi_config_hdr_infoframe(hdmi);
 	}
 }
 
@@ -2844,6 +2839,45 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 						     property, val);
 }
 
+static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
+			       const struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+
+static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
+					  struct drm_atomic_state *state)
+{
+	struct drm_connector_state *old_state =
+		drm_atomic_get_old_connector_state(state, connector);
+	struct drm_connector_state *new_state =
+		drm_atomic_get_new_connector_state(state, connector);
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_crtc_state *crtc_state;
+
+	if (!crtc)
+		return 0;
+
+	if (!hdr_metadata_equal(old_state, new_state)) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static void dw_hdmi_connector_force(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
@@ -2882,6 +2916,7 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
 	.best_encoder = drm_atomic_helper_best_encoder,
+	.atomic_check = dw_hdmi_connector_atomic_check,
 	.atomic_begin = dw_hdmi_connector_atomic_begin,
 	.atomic_flush = dw_hdmi_connector_atomic_flush,
 };
