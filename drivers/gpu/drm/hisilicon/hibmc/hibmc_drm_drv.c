@@ -11,6 +11,7 @@
  *	Jianhua Li <lijianhua@huawei.com>
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include <drm/drm_atomic_helper.h>
