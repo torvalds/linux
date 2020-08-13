@@ -247,20 +247,20 @@ static int is_node_present(int node)
  */
 static bool node_has_cpus(int node)
 {
-	struct bitmask *cpu = numa_allocate_cpumask();
+	struct bitmask *cpumask = numa_allocate_cpumask();
 	bool ret = false; /* fall back to nocpus */
-	unsigned int i;
+	int cpu;
 
-	BUG_ON(!cpu);
-	if (!numa_node_to_cpus(node, cpu)) {
-		for (i = 0; i < cpu->size; i++) {
-			if (numa_bitmask_isbitset(cpu, i)) {
+	BUG_ON(!cpumask);
+	if (!numa_node_to_cpus(node, cpumask)) {
+		for (cpu = 0; cpu < (int)cpumask->size; cpu++) {
+			if (numa_bitmask_isbitset(cpumask, cpu)) {
 				ret = true;
 				break;
 			}
 		}
 	}
-	numa_free_cpumask(cpu);
+	numa_free_cpumask(cpumask);
 
 	return ret;
 }
@@ -293,13 +293,9 @@ static cpu_set_t bind_to_cpu(int target_cpu)
 
 static cpu_set_t bind_to_node(int target_node)
 {
-	int cpus_per_node = g->p.nr_cpus / nr_numa_nodes();
 	cpu_set_t orig_mask, mask;
 	int cpu;
 	int ret;
-
-	BUG_ON(cpus_per_node * nr_numa_nodes() != g->p.nr_cpus);
-	BUG_ON(!cpus_per_node);
 
 	ret = sched_getaffinity(0, sizeof(orig_mask), &orig_mask);
 	BUG_ON(ret);
@@ -310,13 +306,16 @@ static cpu_set_t bind_to_node(int target_node)
 		for (cpu = 0; cpu < g->p.nr_cpus; cpu++)
 			CPU_SET(cpu, &mask);
 	} else {
-		int cpu_start = (target_node + 0) * cpus_per_node;
-		int cpu_stop  = (target_node + 1) * cpus_per_node;
+		struct bitmask *cpumask = numa_allocate_cpumask();
 
-		BUG_ON(cpu_stop > g->p.nr_cpus);
-
-		for (cpu = cpu_start; cpu < cpu_stop; cpu++)
-			CPU_SET(cpu, &mask);
+		BUG_ON(!cpumask);
+		if (!numa_node_to_cpus(target_node, cpumask)) {
+			for (cpu = 0; cpu < (int)cpumask->size; cpu++) {
+				if (numa_bitmask_isbitset(cpumask, cpu))
+					CPU_SET(cpu, &mask);
+			}
+		}
+		numa_free_cpumask(cpumask);
 	}
 
 	ret = sched_setaffinity(0, sizeof(mask), &mask);
