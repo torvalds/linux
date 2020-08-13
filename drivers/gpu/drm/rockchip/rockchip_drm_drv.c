@@ -1188,6 +1188,7 @@ static int rockchip_drm_fault_handler(struct iommu_domain *iommu,
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_crtc *crtc;
 
+	DRM_ERROR("iommu fault handler flags: 0x%x\n", flags);
 	drm_for_each_crtc(crtc, drm_dev) {
 		int pipe = drm_crtc_index(crtc);
 

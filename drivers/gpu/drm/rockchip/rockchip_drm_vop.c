@@ -2388,10 +2388,10 @@ static void vop_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	if (!crtc_state->active)
 		return;
 
-	for (i = 0; i < dump_len; i += 4) {
-		if (i % 16 == 0)
-			DEBUG_PRINT("\n0x%08x: ", i);
-		DEBUG_PRINT("%08x ", vop_readl(vop, i));
+	for (i = 0; i < dump_len; i += 16) {
+		DEBUG_PRINT("0x%08x: %08x %08x %08x %08x\n", i,
+			    vop_readl(vop, i), vop_readl(vop, i + 4),
+			    vop_readl(vop, i + 8), vop_readl(vop, i + 12));
 	}
 }
 
