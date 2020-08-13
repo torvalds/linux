@@ -98,7 +98,8 @@ FEATURE_TESTS_EXTRA :=                  \
          llvm-version                   \
          clang                          \
          libbpf                         \
-         libpfm4
+         libpfm4                        \
+         libdebuginfod
 
 FEATURE_TESTS ?= $(FEATURE_TESTS_BASIC)
 

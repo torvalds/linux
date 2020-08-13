@@ -124,6 +124,8 @@ include ../scripts/utilities.mak
 #
 # Define LIBPFM4 to enable libpfm4 events extension.
 #
+# Define NO_LIBDEBUGINFOD if you do not want support debuginfod
+#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
