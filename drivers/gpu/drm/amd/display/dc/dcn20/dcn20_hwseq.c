@@ -1251,6 +1251,11 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 		return;
 	}
 
+	/* Detect plane change */
+	if (old_pipe->plane_state != new_pipe->plane_state) {
+		new_pipe->update_flags.bits.plane_changed = true;
+	}
+
 	/* Detect top pipe only changes */
 	if (!new_pipe->top_pipe && !new_pipe->prev_odm_pipe) {
 		/* Detect odm changes */
@@ -1392,6 +1397,7 @@ static void dcn20_update_dchubp_dpp(
 			&pipe_ctx->ttu_regs);
 
 	if (pipe_ctx->update_flags.bits.enable ||
+			pipe_ctx->update_flags.bits.plane_changed ||
 			plane_state->update_flags.bits.bpp_change ||
 			plane_state->update_flags.bits.input_csc_change ||
 			plane_state->update_flags.bits.color_space_change ||
@@ -1414,6 +1420,7 @@ static void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.mpcc
+			|| pipe_ctx->update_flags.bits.plane_changed
 			|| plane_state->update_flags.bits.global_alpha_change
 			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
 		// MPCC inst is equal to pipe index in practice
@@ -1515,6 +1522,7 @@ static void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.enable ||
+			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->update_flags.bits.opp_changed ||
 			plane_state->update_flags.bits.pixel_format_change ||
 			plane_state->update_flags.bits.horizontal_mirror_change ||
@@ -1539,7 +1547,9 @@ static void dcn20_update_dchubp_dpp(
 		hubp->power_gated = false;
 	}
 
-	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
+	if (pipe_ctx->update_flags.bits.enable ||
+		pipe_ctx->update_flags.bits.plane_changed ||
+		plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
 
 

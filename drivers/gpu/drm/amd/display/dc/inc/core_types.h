@@ -300,6 +300,7 @@ union pipe_update_flags {
 		uint32_t gamut_remap : 1;
 		uint32_t scaler : 1;
 		uint32_t viewport : 1;
+		uint32_t plane_changed : 1;
 	} bits;
 	uint32_t raw;
 };
