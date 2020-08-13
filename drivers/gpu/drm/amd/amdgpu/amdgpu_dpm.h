@@ -548,4 +548,18 @@ int amdgpu_dpm_set_clockgating_by_smu(struct amdgpu_device *adev,
 int amdgpu_dpm_smu_i2c_bus_access(struct amdgpu_device *adev,
 				  bool acquire);
 
+void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
+
+int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size);
+
+void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
+
+void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
+void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
+void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
+void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
+void amdgpu_pm_print_power_states(struct amdgpu_device *adev);
+int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version);
+
 #endif
