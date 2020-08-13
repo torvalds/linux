@@ -354,6 +354,14 @@ static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
 					mmu_specs->hop4_shift);
 }
 
+static inline u64 get_hop5_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
+{
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop5_mask,
+					mmu_specs->hop5_shift);
+}
+
 static inline u64 get_next_hop_addr(u64 curr_pte)
 {
 	if (curr_pte & PAGE_PRESENT_MASK)
@@ -377,6 +385,7 @@ static int mmu_show(struct seq_file *s, void *data)
 		hop2_addr = 0, hop2_pte_addr = 0, hop2_pte = 0,
 		hop3_addr = 0, hop3_pte_addr = 0, hop3_pte = 0,
 		hop4_addr = 0, hop4_pte_addr = 0, hop4_pte = 0,
+		hop5_addr = 0, hop5_pte_addr = 0, hop5_pte = 0,
 		virt_addr = dev_entry->mmu_addr;
 
 	if (!hdev->mmu_enable)
@@ -428,20 +437,49 @@ static int mmu_show(struct seq_file *s, void *data)
 	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
 	hop3_pte = hdev->asic_funcs->read_pte(hdev, hop3_pte_addr);
 
-	if (!(hop3_pte & LAST_MASK)) {
+	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
+		if (!(hop3_pte & LAST_MASK)) {
+			hop4_addr = get_next_hop_addr(hop3_pte);
+
+			if (hop4_addr == ULLONG_MAX)
+				goto not_mapped;
+
+			hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
+							hop4_addr, virt_addr);
+			hop4_pte = hdev->asic_funcs->read_pte(hdev,
+								hop4_pte_addr);
+			if (!(hop4_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		} else {
+			if (!(hop3_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		}
+	} else {
 		hop4_addr = get_next_hop_addr(hop3_pte);
 
 		if (hop4_addr == ULLONG_MAX)
 			goto not_mapped;
 
-		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop4_addr,
-							virt_addr);
-		hop4_pte = hdev->asic_funcs->read_pte(hdev, hop4_pte_addr);
-		if (!(hop4_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
-	} else {
-		if (!(hop3_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
+		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
+						hop4_addr, virt_addr);
+		hop4_pte = hdev->asic_funcs->read_pte(hdev,
+							hop4_pte_addr);
+		if (!(hop4_pte & LAST_MASK)) {
+			hop5_addr = get_next_hop_addr(hop4_pte);
+
+			if (hop5_addr == ULLONG_MAX)
+				goto not_mapped;
+
+			hop5_pte_addr = get_hop5_pte_addr(ctx, mmu_prop,
+							hop5_addr, virt_addr);
+			hop5_pte = hdev->asic_funcs->read_pte(hdev,
+								hop5_pte_addr);
+			if (!(hop5_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		} else {
+			if (!(hop4_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		}
 	}
 
 	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
@@ -463,10 +501,22 @@ static int mmu_show(struct seq_file *s, void *data)
 	seq_printf(s, "hop3_pte_addr: 0x%llx\n", hop3_pte_addr);
 	seq_printf(s, "hop3_pte: 0x%llx\n", hop3_pte);
 
-	if (!(hop3_pte & LAST_MASK)) {
+	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
+		if (!(hop3_pte & LAST_MASK)) {
+			seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
+			seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
+			seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
+		}
+	} else {
 		seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
 		seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
 		seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
+
+		if (!(hop4_pte & LAST_MASK)) {
+			seq_printf(s, "hop5_addr: 0x%llx\n", hop5_addr);
+			seq_printf(s, "hop5_pte_addr: 0x%llx\n", hop5_pte_addr);
+			seq_printf(s, "hop5_pte: 0x%llx\n", hop5_pte);
+		}
 	}
 
 	goto out;
