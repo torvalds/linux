@@ -1180,6 +1180,119 @@ static bool smb347_readable_reg(struct device *dev, unsigned int reg)
 	return smb347_volatile_reg(dev, reg);
 }
 
+static void smb347_dt_parse_pdata(struct device_node *np,
+				  struct smb347_charger_platform_data *pdata)
+{
+	pdata->soft_temp_limit_compensation =
+					SMB347_SOFT_TEMP_COMPENSATE_DEFAULT;
+	/*
+	 * These properties come from the battery info, still we need to
+	 * pre-initialize the values. See smb347_get_battery_info() below.
+	 */
+	pdata->soft_cold_temp_limit = SMB347_TEMP_USE_DEFAULT;
+	pdata->hard_cold_temp_limit = SMB347_TEMP_USE_DEFAULT;
+	pdata->soft_hot_temp_limit  = SMB347_TEMP_USE_DEFAULT;
+	pdata->hard_hot_temp_limit  = SMB347_TEMP_USE_DEFAULT;
+
+	/* Charging constraints */
+	of_property_read_u32(np, "summit,fast-voltage-threshold-microvolt",
+			     &pdata->pre_to_fast_voltage);
+	of_property_read_u32(np, "summit,mains-current-limit-microamp",
+			     &pdata->mains_current_limit);
+	of_property_read_u32(np, "summit,usb-current-limit-microamp",
+			     &pdata->usb_hc_current_limit);
+
+	/* For thermometer monitoring */
+	of_property_read_u32(np, "summit,chip-temperature-threshold-celsius",
+			     &pdata->chip_temp_threshold);
+	of_property_read_u32(np, "summit,soft-compensation-method",
+			     &pdata->soft_temp_limit_compensation);
+	of_property_read_u32(np, "summit,charge-current-compensation-microamp",
+			     &pdata->charge_current_compensation);
+
+	/* Supported charging mode */
+	pdata->use_mains =
+		of_property_read_bool(np, "summit,enable-mains-charging");
+	pdata->use_usb =
+		of_property_read_bool(np, "summit,enable-usb-charging");
+	pdata->use_usb_otg =
+		of_property_read_bool(np, "summit,enable-otg-charging");
+
+	/* Select charging control */
+	of_property_read_u32(np, "summit,enable-charge-control",
+			     &pdata->enable_control);
+
+	/* Interrupt support is optional */
+	if (!of_find_property(np, "interrupts", NULL))
+		pdata->irq_gpio = -1;
+}
+
+static int smb347_get_battery_info(struct smb347_charger *smb)
+{
+	struct smb347_charger_platform_data *pdata = (void *)smb->pdata;
+	struct power_supply_battery_info info = {};
+	struct power_supply *supply;
+	int err;
+
+	if (smb->mains)
+		supply = smb->mains;
+	else
+		supply = smb->usb;
+
+	err = power_supply_get_battery_info(supply, &info);
+	if (err == -ENXIO || err == -ENODEV)
+		return 0;
+	if (err)
+		return err;
+
+	if (info.constant_charge_current_max_ua != -EINVAL)
+		pdata->max_charge_current = info.constant_charge_current_max_ua;
+
+	if (info.constant_charge_voltage_max_uv != -EINVAL)
+		pdata->max_charge_voltage = info.constant_charge_voltage_max_uv;
+
+	if (info.precharge_current_ua != -EINVAL)
+		pdata->pre_charge_current = info.precharge_current_ua;
+
+	if (info.charge_term_current_ua != -EINVAL)
+		pdata->termination_current = info.charge_term_current_ua;
+
+	if (info.temp_alert_min != INT_MIN)
+		pdata->soft_cold_temp_limit = info.temp_alert_min;
+
+	if (info.temp_alert_max != INT_MAX)
+		pdata->soft_hot_temp_limit = info.temp_alert_max;
+
+	if (info.temp_min != INT_MIN)
+		pdata->hard_cold_temp_limit = info.temp_min;
+
+	if (info.temp_max != INT_MAX)
+		pdata->hard_hot_temp_limit = info.temp_max;
+
+	/* Suspend when battery temperature is outside hard limits */
+	if (pdata->hard_cold_temp_limit != SMB347_TEMP_USE_DEFAULT ||
+	    pdata->hard_hot_temp_limit != SMB347_TEMP_USE_DEFAULT)
+		pdata->suspend_on_hard_temp_limit = true;
+
+	return 0;
+}
+
+static struct smb347_charger_platform_data
+			*smb347_get_platdata(struct device *dev)
+{
+	struct smb347_charger_platform_data *pdata;
+
+	if (dev->of_node) {
+		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+		if (pdata)
+			smb347_dt_parse_pdata(dev->of_node, pdata);
+	} else {
+		pdata = dev_get_platdata(dev);
+	}
+
+	return pdata;
+}
+
 static const struct regmap_config smb347_regmap = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
@@ -1216,40 +1329,35 @@ static int smb347_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	static char *battery[] = { "smb347-battery" };
-	const struct smb347_charger_platform_data *pdata;
 	struct power_supply_config mains_usb_cfg = {}, battery_cfg = {};
 	struct device *dev = &client->dev;
 	struct smb347_charger *smb;
 	int ret;
 
-	pdata = dev->platform_data;
-	if (!pdata)
-		return -EINVAL;
-
-	if (!pdata->use_mains && !pdata->use_usb)
-		return -EINVAL;
-
 	smb = devm_kzalloc(dev, sizeof(*smb), GFP_KERNEL);
 	if (!smb)
 		return -ENOMEM;
+
+	smb->pdata = smb347_get_platdata(dev);
+	if (!smb->pdata)
+		return -ENODEV;
+
+	if (!smb->pdata->use_mains && !smb->pdata->use_usb)
+		return -EINVAL;
 
 	i2c_set_clientdata(client, smb);
 
 	mutex_init(&smb->lock);
 	smb->dev = &client->dev;
-	smb->pdata = pdata;
 
 	smb->regmap = devm_regmap_init_i2c(client, &smb347_regmap);
 	if (IS_ERR(smb->regmap))
 		return PTR_ERR(smb->regmap);
 
-	ret = smb347_hw_init(smb);
-	if (ret < 0)
-		return ret;
-
 	mains_usb_cfg.supplied_to = battery;
 	mains_usb_cfg.num_supplicants = ARRAY_SIZE(battery);
 	mains_usb_cfg.drv_data = smb;
+	mains_usb_cfg.of_node = dev->of_node;
 	if (smb->pdata->use_mains) {
 		smb->mains = devm_power_supply_register(dev, &smb347_mains_desc,
 							&mains_usb_cfg);
@@ -1270,11 +1378,19 @@ static int smb347_probe(struct i2c_client *client,
 	if (IS_ERR(smb->battery))
 		return PTR_ERR(smb->battery);
 
+	ret = smb347_get_battery_info(smb);
+	if (ret)
+		return ret;
+
+	ret = smb347_hw_init(smb);
+	if (ret < 0)
+		return ret;
+
 	/*
 	 * Interrupt pin is optional. If it is connected, we setup the
 	 * interrupt support here.
 	 */
-	if (pdata->irq_gpio >= 0) {
+	if (smb->pdata->irq_gpio >= 0) {
 		ret = smb347_irq_init(smb, client);
 		if (ret < 0) {
 			dev_warn(dev, "failed to initialize IRQ: %d\n", ret);
@@ -1302,9 +1418,16 @@ static const struct i2c_device_id smb347_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, smb347_id);
 
+static const struct of_device_id smb3xx_of_match[] = {
+	{ .compatible = "summit,smb347" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, smb3xx_of_match);
+
 static struct i2c_driver smb347_driver = {
 	.driver = {
 		.name = "smb347",
+		.of_match_table = smb3xx_of_match,
 	},
 	.probe        = smb347_probe,
 	.remove       = smb347_remove,
