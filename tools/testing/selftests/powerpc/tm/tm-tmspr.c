@@ -33,7 +33,7 @@
 #include "utils.h"
 #include "tm.h"
 
-int	num_loops	= 10000;
+int	num_loops	= 1000000;
 int	passed = 1;
 
 void tfiar_tfhar(void *in)
