@@ -370,7 +370,6 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	kfree(ctx->fw_in_mem);
 	ctx->fw_in_mem = NULL;
 	sst_memcpy_free_resources(ctx);
-	ctx = NULL;
 }
 EXPORT_SYMBOL_GPL(sst_context_cleanup);
 
