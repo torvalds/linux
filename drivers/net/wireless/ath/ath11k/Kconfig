@@ -4,7 +4,6 @@ config ATH11K
 	depends on MAC80211 && HAS_DMA
 	depends on REMOTEPROC
 	depends on CRYPTO_MICHAEL_MIC
-	depends on ARCH_QCOM || COMPILE_TEST
 	select ATH_COMMON
 	select QCOM_QMI_HELPERS
 	help
