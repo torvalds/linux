@@ -147,11 +147,11 @@ enum opp_table_access {
  * @clk: Device's clock handle
  * @regulators: Supply regulators
  * @regulator_count: Number of power supply regulators. Its value can be -1
- * @regulator_enabled: Set to true if regulators were previously enabled.
  * (uninitialized), 0 (no opp-microvolt property) or > 0 (has opp-microvolt
  * property).
  * @paths: Interconnect path handles
  * @path_count: Number of interconnect paths
+ * @enabled: Set to true if the device's resources are enabled/configured.
  * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_opp: Platform specific set_opp callback
@@ -195,9 +195,9 @@ struct opp_table {
 	struct clk *clk;
 	struct regulator **regulators;
 	int regulator_count;
-	bool regulator_enabled;
 	struct icc_path **paths;
 	unsigned int path_count;
+	bool enabled;
 	bool genpd_performance_state;
 	bool is_genpd;
 
