@@ -2511,7 +2511,7 @@ void trace_buffered_event_enable(void)
 
 		preempt_disable();
 		if (cpu == smp_processor_id() &&
-		    this_cpu_read(trace_buffered_event) !=
+		    __this_cpu_read(trace_buffered_event) !=
 		    per_cpu(trace_buffered_event, cpu))
 			WARN_ON_ONCE(1);
 		preempt_enable();
