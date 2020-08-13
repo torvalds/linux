@@ -619,6 +619,7 @@ void ath11k_ce_cleanup_pipes(struct ath11k_base *ab)
 		/* NOTE: Should we also clean up tx buffer in all pipes? */
 	}
 }
+EXPORT_SYMBOL(ath11k_ce_cleanup_pipes);
 
 void ath11k_ce_rx_post_buf(struct ath11k_base *ab)
 {
@@ -780,6 +781,7 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath11k_ce_alloc_pipes);
 
 /* For Big Endian Host, Copy Engine byte_swap is enabled
  * When Copy Engine does byte_swap, need to byte swap again for the
