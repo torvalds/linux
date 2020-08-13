@@ -9,6 +9,8 @@
 
 #include <linux/types.h>
 
+#define RKMODULE_API_VERSION		KERNEL_VERSION(0, 1, 0x1)
+
 #define RKMODULE_NAME_LEN		32
 #define RKMODULE_LSCDATA_LEN		441
 

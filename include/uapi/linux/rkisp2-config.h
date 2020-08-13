@@ -10,6 +10,8 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
+#define RKISP_API_VERSION		KERNEL_VERSION(0, 1, 0x2)
+
 #define RKISP_CMD_TRIGGER_READ_BACK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
 
