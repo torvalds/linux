@@ -248,16 +248,21 @@ static int is_node_present(int node)
 static bool node_has_cpus(int node)
 {
 	struct bitmask *cpu = numa_allocate_cpumask();
+	bool ret = false; /* fall back to nocpus */
 	unsigned int i;
 
-	if (cpu && !numa_node_to_cpus(node, cpu)) {
+	BUG_ON(!cpu);
+	if (!numa_node_to_cpus(node, cpu)) {
 		for (i = 0; i < cpu->size; i++) {
-			if (numa_bitmask_isbitset(cpu, i))
-				return true;
+			if (numa_bitmask_isbitset(cpu, i)) {
+				ret = true;
+				break;
+			}
 		}
 	}
+	numa_free_cpumask(cpu);
 
-	return false; /* lets fall back to nocpus safely */
+	return ret;
 }
 
 static cpu_set_t bind_to_cpu(int target_cpu)
