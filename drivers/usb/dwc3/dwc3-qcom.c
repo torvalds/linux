@@ -444,7 +444,9 @@ static int dwc3_qcom_setup_irq(struct platform_device *pdev)
 {
 	struct dwc3_qcom *qcom = platform_get_drvdata(pdev);
 	const struct dwc3_acpi_pdata *pdata = qcom->acpi_pdata;
-	int irq, ret;
+	int irq;
+	int ret;
+
 	irq = dwc3_qcom_get_irq(pdev, "hs_phy_irq",
 				pdata ? pdata->hs_phy_irq_index : -1);
 	if (irq > 0) {
@@ -563,7 +565,7 @@ static const struct property_entry dwc3_qcom_acpi_properties[] = {
 
 static int dwc3_qcom_acpi_register_core(struct platform_device *pdev)
 {
-	struct dwc3_qcom 	*qcom = platform_get_drvdata(pdev);
+	struct dwc3_qcom	*qcom = platform_get_drvdata(pdev);
 	struct device		*dev = &pdev->dev;
 	struct resource		*res, *child_res = NULL;
 	int			irq;
@@ -623,7 +625,7 @@ out:
 
 static int dwc3_qcom_of_register_core(struct platform_device *pdev)
 {
-	struct dwc3_qcom 	*qcom = platform_get_drvdata(pdev);
+	struct dwc3_qcom	*qcom = platform_get_drvdata(pdev);
 	struct device_node	*np = pdev->dev.of_node, *dwc3_np;
 	struct device		*dev = &pdev->dev;
 	int			ret;
