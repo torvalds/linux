@@ -423,7 +423,7 @@ static int intel_sst_suspend(struct device *dev)
 {
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 	struct sst_fw_save *fw_save;
-	int i, ret = 0;
+	int i, ret;
 
 	/* check first if we are already in SW reset */
 	if (ctx->sst_state == SST_RESET)
