@@ -157,7 +157,8 @@ int xen_drm_front_mode_set(struct xen_drm_front_drm_pipeline *pipeline,
 
 int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 			      u64 dbuf_cookie, u32 width, u32 height,
-			      u32 bpp, u64 size, struct page **pages)
+			      u32 bpp, u64 size, u32 offset,
+			      struct page **pages)
 {
 	struct xen_drm_front_evtchnl *evtchnl;
 	struct xen_drm_front_dbuf *dbuf;
@@ -194,6 +195,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	req->op.dbuf_create.gref_directory =
 			xen_front_pgdir_shbuf_get_dir_start(&dbuf->shbuf);
 	req->op.dbuf_create.buffer_sz = size;
+	req->op.dbuf_create.data_ofs = offset;
 	req->op.dbuf_create.dbuf_cookie = dbuf_cookie;
 	req->op.dbuf_create.width = width;
 	req->op.dbuf_create.height = height;
@@ -408,7 +410,7 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 	ret = xen_drm_front_dbuf_create(drm_info->front_info,
 					xen_drm_front_dbuf_to_cookie(obj),
 					args->width, args->height, args->bpp,
-					args->size,
+					args->size, 0,
 					xen_drm_front_gem_get_pages(obj));
 	if (ret)
 		goto fail_backend;
