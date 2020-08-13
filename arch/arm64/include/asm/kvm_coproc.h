@@ -19,14 +19,6 @@ struct kvm_sys_reg_table {
 	size_t num;
 };
 
-struct kvm_sys_reg_target_table {
-	struct kvm_sys_reg_table table64;
-	struct kvm_sys_reg_table table32;
-};
-
-void kvm_register_target_sys_reg_table(unsigned int target,
-				       struct kvm_sys_reg_target_table *table);
-
 int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu);
 int kvm_handle_cp14_32(struct kvm_vcpu *vcpu);
 int kvm_handle_cp14_64(struct kvm_vcpu *vcpu);

@@ -1496,7 +1496,7 @@ ARM SMC WATCHDOG DRIVER
 M:	Julius Werner <jwerner@chromium.org>
 R:	Evan Benn <evanbenn@chromium.org>
 S:	Maintained
-F:	devicetree/bindings/watchdog/arm-smc-wdt.yaml
+F:	Documentation/devicetree/bindings/watchdog/arm-smc-wdt.yaml
 F:	drivers/watchdog/arm_smc_wdt.c
 
 ARM SMMU DRIVERS
@@ -1540,6 +1540,7 @@ F:	drivers/mmc/host/owl-mmc.c
 F:	drivers/pinctrl/actions/*
 F:	drivers/soc/actions/
 F:	include/dt-bindings/power/owl-*
+F:	include/dt-bindings/reset/actions,*
 F:	include/linux/soc/actions/
 N:	owl
 
@@ -8409,8 +8410,9 @@ W:	https://github.com/o2genum/ideapad-slidebar
 F:	drivers/input/misc/ideapad_slidebar.c
 
 IDT VersaClock 5 CLOCK DRIVER
-M:	Marek Vasut <marek.vasut@gmail.com>
+M:	Luca Ceresoli <luca@lucaceresoli.net>
 S:	Maintained
+F:	Documentation/devicetree/bindings/clock/idt,versaclock5.yaml
 F:	drivers/clk/clk-versaclock5.c
 
 IEEE 802.15.4 SUBSYSTEM

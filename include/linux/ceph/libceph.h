@@ -282,6 +282,7 @@ extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
 extern struct kmem_cache *ceph_dir_file_cachep;
 extern struct kmem_cache *ceph_mds_request_cachep;
+extern mempool_t *ceph_wb_pagevec_pool;
 
 /* ceph_common.c */
 extern bool libceph_compatible(void *data);

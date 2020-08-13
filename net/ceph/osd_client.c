@@ -525,7 +525,7 @@ EXPORT_SYMBOL(ceph_osdc_put_request);
 
 static void request_init(struct ceph_osd_request *req)
 {
-	/* req only, each op is zeroed in _osd_req_op_init() */
+	/* req only, each op is zeroed in osd_req_op_init() */
 	memset(req, 0, sizeof(*req));
 
 	kref_init(&req->r_kref);
@@ -746,8 +746,8 @@ EXPORT_SYMBOL(ceph_osdc_alloc_messages);
  * other information associated with them.  It also serves as a
  * common init routine for all the other init functions, below.
  */
-static struct ceph_osd_req_op *
-_osd_req_op_init(struct ceph_osd_request *osd_req, unsigned int which,
+struct ceph_osd_req_op *
+osd_req_op_init(struct ceph_osd_request *osd_req, unsigned int which,
 		 u16 opcode, u32 flags)
 {
 	struct ceph_osd_req_op *op;
@@ -762,12 +762,6 @@ _osd_req_op_init(struct ceph_osd_request *osd_req, unsigned int which,
 
 	return op;
 }
-
-void osd_req_op_init(struct ceph_osd_request *osd_req,
-		     unsigned int which, u16 opcode, u32 flags)
-{
-	(void)_osd_req_op_init(osd_req, which, opcode, flags);
-}
 EXPORT_SYMBOL(osd_req_op_init);
 
 void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
@@ -775,8 +769,8 @@ void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
 				u64 offset, u64 length,
 				u64 truncate_size, u32 truncate_seq)
 {
-	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
-						      opcode, 0);
+	struct ceph_osd_req_op *op = osd_req_op_init(osd_req, which,
+						     opcode, 0);
 	size_t payload_len = 0;
 
 	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
@@ -822,7 +816,7 @@ void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
 	BUG_ON(which + 1 >= osd_req->r_num_ops);
 
 	prev_op = &osd_req->r_ops[which];
-	op = _osd_req_op_init(osd_req, which + 1, prev_op->op, prev_op->flags);
+	op = osd_req_op_init(osd_req, which + 1, prev_op->op, prev_op->flags);
 	/* dup previous one */
 	op->indata_len = prev_op->indata_len;
 	op->outdata_len = prev_op->outdata_len;
@@ -845,7 +839,7 @@ int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	size_t size;
 	int ret;
 
-	op = _osd_req_op_init(osd_req, which, CEPH_OSD_OP_CALL, 0);
+	op = osd_req_op_init(osd_req, which, CEPH_OSD_OP_CALL, 0);
 
 	pagelist = ceph_pagelist_alloc(GFP_NOFS);
 	if (!pagelist)
@@ -883,8 +877,8 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 			  u16 opcode, const char *name, const void *value,
 			  size_t size, u8 cmp_op, u8 cmp_mode)
 {
-	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
-						      opcode, 0);
+	struct ceph_osd_req_op *op = osd_req_op_init(osd_req, which,
+						     opcode, 0);
 	struct ceph_pagelist *pagelist;
 	size_t payload_len;
 	int ret;
@@ -928,7 +922,7 @@ static void osd_req_op_watch_init(struct ceph_osd_request *req, int which,
 {
 	struct ceph_osd_req_op *op;
 
-	op = _osd_req_op_init(req, which, CEPH_OSD_OP_WATCH, 0);
+	op = osd_req_op_init(req, which, CEPH_OSD_OP_WATCH, 0);
 	op->watch.cookie = cookie;
 	op->watch.op = watch_opcode;
 	op->watch.gen = 0;
@@ -943,10 +937,9 @@ void osd_req_op_alloc_hint_init(struct ceph_osd_request *osd_req,
 				u64 expected_write_size,
 				u32 flags)
 {
-	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
-						      CEPH_OSD_OP_SETALLOCHINT,
-						      0);
+	struct ceph_osd_req_op *op;
 
+	op = osd_req_op_init(osd_req, which, CEPH_OSD_OP_SETALLOCHINT, 0);
 	op->alloc_hint.expected_object_size = expected_object_size;
 	op->alloc_hint.expected_write_size = expected_write_size;
 	op->alloc_hint.flags = flags;
@@ -3076,9 +3069,7 @@ static void send_linger(struct ceph_osd_linger_request *lreq)
 		cancel_linger_request(req);
 
 	request_reinit(req);
-	ceph_oid_copy(&req->r_base_oid, &lreq->t.base_oid);
-	ceph_oloc_copy(&req->r_base_oloc, &lreq->t.base_oloc);
-	req->r_flags = lreq->t.flags;
+	target_copy(&req->r_t, &lreq->t);
 	req->r_mtime = lreq->mtime;
 
 	mutex_lock(&lreq->lock);
@@ -4801,7 +4792,7 @@ static int osd_req_op_notify_ack_init(struct ceph_osd_request *req, int which,
 	struct ceph_pagelist *pl;
 	int ret;
 
-	op = _osd_req_op_init(req, which, CEPH_OSD_OP_NOTIFY_ACK, 0);
+	op = osd_req_op_init(req, which, CEPH_OSD_OP_NOTIFY_ACK, 0);
 
 	pl = ceph_pagelist_alloc(GFP_NOIO);
 	if (!pl)
@@ -4870,7 +4861,7 @@ static int osd_req_op_notify_init(struct ceph_osd_request *req, int which,
 	struct ceph_pagelist *pl;
 	int ret;
 
-	op = _osd_req_op_init(req, which, CEPH_OSD_OP_NOTIFY, 0);
+	op = osd_req_op_init(req, which, CEPH_OSD_OP_NOTIFY, 0);
 	op->notify.cookie = cookie;
 
 	pl = ceph_pagelist_alloc(GFP_NOIO);
@@ -5334,8 +5325,8 @@ static int osd_req_op_copy_from_init(struct ceph_osd_request *req,
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	op = _osd_req_op_init(req, 0, CEPH_OSD_OP_COPY_FROM2,
-			      dst_fadvise_flags);
+	op = osd_req_op_init(req, 0, CEPH_OSD_OP_COPY_FROM2,
+			     dst_fadvise_flags);
 	op->copy_from.snapid = src_snapid;
 	op->copy_from.src_version = src_version;
 	op->copy_from.flags = copy_from_flags;

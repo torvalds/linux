@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x33
+#define SMU11_DRIVER_IF_VERSION 0x34
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 5
 
@@ -968,9 +968,15 @@ typedef struct {
 
 typedef struct {
   uint32_t CurrClock[PPCLK_COUNT];
-  uint16_t AverageGfxclkFrequency;
-  uint16_t AverageFclkFrequency;
-  uint16_t AverageUclkFrequency  ;
+
+  uint16_t AverageGfxclkFrequencyPreDs;
+  uint16_t AverageGfxclkFrequencyPostDs;
+  uint16_t AverageFclkFrequencyPreDs;
+  uint16_t AverageFclkFrequencyPostDs;
+  uint16_t AverageUclkFrequencyPreDs  ;
+  uint16_t AverageUclkFrequencyPostDs  ;
+
+  
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;
   uint8_t  CurrSocVoltageOffset  ;
@@ -988,6 +994,7 @@ typedef struct {
   uint16_t TemperatureLiquid0    ;
   uint16_t TemperatureLiquid1    ;  
   uint16_t TemperaturePlx        ;
+  uint16_t Padding16             ;
   uint32_t ThrottlerStatus       ; 
  
   uint8_t  LinkDpmLevel;
@@ -1006,8 +1013,10 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;  
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;  
-  uint16_t VcnActivityPercentage ; //place holder, David N. to provide full sequence
-  uint16_t padding16_2;
+  uint16_t VcnActivityPercentage  ; //place holder, David N. to provide full sequence
+  uint8_t  PcieRate               ;
+  uint8_t  PcieWidth              ;
+
 } SmuMetrics_t;
 
 typedef struct {

@@ -829,10 +829,13 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
 #ifndef TRIM_FSFT
+		// always populate with pixel rate.
 		build_vrr_infopacket_v3(
 				stream->signal, vrr,
 				stream->timing.flags.FAST_TRANSPORT,
-				stream->timing.fast_transport_output_rate_100hz,
+				(stream->timing.flags.FAST_TRANSPORT) ?
+						stream->timing.fast_transport_output_rate_100hz :
+						stream->timing.pix_clk_100hz,
 				app_tf, infopacket);
 #else
 		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);

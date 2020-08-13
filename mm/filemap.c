@@ -2885,7 +2885,7 @@ filler:
 	 * Case a, the page will be up to date when the page is unlocked.
 	 *    There is no need to serialise on the page lock here as the page
 	 *    is pinned so the lock gives no additional protection. Even if the
-	 *    the page is truncated, the data is still valid if PageUptodate as
+	 *    page is truncated, the data is still valid if PageUptodate as
 	 *    it's a race vs truncate race.
 	 * Case b, the page will not be up to date
 	 * Case c, the page may be truncated but in itself, the data may still

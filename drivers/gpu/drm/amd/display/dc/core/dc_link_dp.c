@@ -1133,6 +1133,44 @@ static inline enum link_training_result perform_link_training_int(
 	return status;
 }
 
+static enum link_training_result check_link_loss_status(
+	struct dc_link *link,
+	const struct link_training_settings *link_training_setting)
+{
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	union lane_status lane_status;
+	uint8_t dpcd_buf[6] = {0};
+	uint32_t lane;
+
+	core_link_read_dpcd(
+			link,
+			DP_SINK_COUNT,
+			(uint8_t *)(dpcd_buf),
+			sizeof(dpcd_buf));
+
+	/*parse lane status*/
+	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+		/*
+		 * check lanes status
+		 */
+		lane_status.raw = get_nibble_at_index(&dpcd_buf[2], lane);
+
+		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
+			!lane_status.bits.CR_DONE_0 ||
+			!lane_status.bits.SYMBOL_LOCKED_0) {
+			/* if one of the channel equalization, clock
+			 * recovery or symbol lock is dropped
+			 * consider it as (link has been
+			 * dropped) dp sink status has changed
+			 */
+			status = LINK_TRAINING_LINK_LOSS;
+			break;
+		}
+	}
+
+	return status;
+}
+
 static void initialize_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
@@ -1372,6 +1410,9 @@ static void print_status_message(
 	case LINK_TRAINING_LQA_FAIL:
 		lt_result = "LQA failed";
 		break;
+	case LINK_TRAINING_LINK_LOSS:
+		lt_result = "Link loss";
+		break;
 	default:
 		break;
 	}
@@ -1529,6 +1570,14 @@ enum link_training_result dc_link_dp_perform_link_training(
 		status = perform_link_training_int(link,
 				&lt_settings,
 				status);
+	}
+
+	/* delay 5ms after Main Link output idle pattern and then check
+	 * DPCD 0202h.
+	 */
+	if (link->connector_signal != SIGNAL_TYPE_EDP && status == LINK_TRAINING_SUCCESS) {
+		msleep(5);
+		status = check_link_loss_status(link, &lt_settings);
 	}
 
 	/* 6. print status message*/
@@ -4290,22 +4339,6 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
-	uint8_t dspc = 0;
-	enum dc_status ret;
-
-	ret = core_link_read_dpcd(link, DP_DOWN_STREAM_PORT_COUNT, &dspc,
-				  sizeof(dspc));
-
-	if (ret != DC_OK) {
-		DC_LOG_ERROR("Error in DP aux read transaction,"
-			     " not writing source specific data\n");
-		return;
-	}
-
-	/* Return if OUI unsupported */
-	if (!(dspc & DP_OUI_SUPPORT))
-		return;
-
 	if (!link->dc->vendor_signature.is_valid) {
 		struct dpcd_amd_signature amd_signature;
 		amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;

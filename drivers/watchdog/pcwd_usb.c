@@ -452,7 +452,7 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 
 		usb_pcwd_keepalive(usb_pcwd_device);
 	}
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
@@ -585,9 +585,8 @@ static struct notifier_block usb_pcwd_notifier = {
 static inline void usb_pcwd_delete(struct usb_pcwd_private *usb_pcwd)
 {
 	usb_free_urb(usb_pcwd->intr_urb);
-	if (usb_pcwd->intr_buffer != NULL)
-		usb_free_coherent(usb_pcwd->udev, usb_pcwd->intr_size,
-				  usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
+	usb_free_coherent(usb_pcwd->udev, usb_pcwd->intr_size,
+			  usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
 	kfree(usb_pcwd);
 }
 

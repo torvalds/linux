@@ -281,7 +281,8 @@ config RTC_DRV_DS1374
 
 config RTC_DRV_DS1374_WDT
 	bool "Dallas/Maxim DS1374 watchdog timer"
-	depends on RTC_DRV_DS1374
+	depends on RTC_DRV_DS1374 && WATCHDOG
+	select WATCHDOG_CORE
 	help
 	  If you say Y here you will get support for the
 	  watchdog timer in the Dallas Semiconductor DS1374

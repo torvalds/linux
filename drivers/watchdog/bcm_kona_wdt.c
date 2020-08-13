@@ -279,7 +279,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
-		return -ENODEV;
+		return PTR_ERR(wdt->base);
 
 	wdt->resolution = SECWDOG_DEFAULT_RESOLUTION;
 	ret = bcm_kona_wdt_set_resolution_reg(wdt);
