@@ -10,6 +10,9 @@
  *     0x3260 should be set 0x01 in normal mode,
  *     should be 0x00 in hdr mode.
  *  2. rhs1 should be 4n+1 when set hdr ae.
+ * V0.0X01.0X02
+ *  1. shr0 should be greater than (rsh1 + 9).
+ *  2. rhs1 should be ceil to 4n + 1.
  */
 
 #define DEBUG
@@ -32,7 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -973,7 +976,7 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	struct i2c_client *client = imx415->client;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
-	u32 shr1, shr0, rhs1, rhs1_max, rhs1_min;
+	int shr1, shr0, rhs1, rhs1_max, rhs1_min;
 	static int rhs1_old = IMX415_RHS1_DEFAULT;
 	int ret = 0;
 	u32 fsc;
@@ -1013,31 +1016,35 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 		IMX415_REG_VALUE_08BIT, IMX415_FETCH_GAIN_L(s_a_gain));
 
 	/* Restrictions
-	 *     FSC = 2 * VMAX
+	 *   FSC = 2 * VMAX and FSC should be 4n;
 	 *   exp_l = FSC - SHR0 + Toffset;
-	 *    SHR0 = FSC - exp_l + Toffset
-	 *   SHR0 <= (FSC -8)
+	 *   exp_l should be even value;
 	 *
-	 *   exp_s = RHS1 - SHR1 + Toffset
-	 *    RHS1 < BRL * 2
-	 *    RHS1 <= SHR0 - 9
-	 *    RHS1 >= SHR1 + 8
-	 *    SHR1 >= 9
+	 *   SHR0 = FSC - exp_l + Toffset;
+	 *   SHR0 <= (FSC -8);
+	 *   SHR0 >= RHS1 + 9;
+	 *   SHR0 should be 2n;
 	 *
-	 *    RHS1(n+1) >= RHS1(n) + BRL * 2 -FSC + 2
+	 *   exp_s = RHS1 - SHR1 + Toffset;
+	 *   exp_s should be even value;
 	 *
-	 *    RHS1 and SHR1 shall be odd value
+	 *   RHS1 < BRL * 2;
+	 *   RHS1 <= SHR0 - 9;
+	 *   RHS1 >= SHR1 + 8;
+	 *   SHR1 >= 9;
+	 *   RHS1(n+1) >= RHS1(n) + BRL * 2 -FSC + 2;
+	 *
+	 *   SHR1 should be 2n+1 and RHS1 should be 4n+1;
 	 */
 
 	/* The HDR mode vts is double by default to workaround T-line */
 	fsc = imx415->cur_vts;
-
-	shr0 = clamp(fsc - l_exp_time, 9u, fsc - 8u);
+	shr0 = fsc - l_exp_time;
 
 	rhs1_max = min((RHS1_MAX / 4 * 4 + 1), ((shr0 - 9u) / 4 * 4 + 1));
 	rhs1_min = max(SHR1_MIN + 8u, rhs1_old + 2 * BRL - fsc + 2);
 	rhs1_min = (rhs1_min + 3) / 4 * 4 + 1;
-	rhs1 = (SHR1_MIN + s_exp_time) / 4 * 4 + 1;/* shall be 4n + 1 */
+	rhs1 = (SHR1_MIN + s_exp_time + 3) / 4 * 4 + 1;/* shall be 4n + 1 */
 	rhs1 = clamp(rhs1, rhs1_min, rhs1_max);
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d\n",
@@ -1052,6 +1059,11 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	} else {
 		shr1 = rhs1 - s_exp_time;
 	}
+
+	if (shr0 < rhs1 + 9)
+		shr0 = rhs1 + 9;
+	else if (shr0 > fsc - 8)
+		shr0 = fsc - 8;
 
 	dev_dbg(&client->dev,
 		"fsc=%d,RHS1_MAX=%d,SHR1_MIN=%d,rhs1_max=%d\n",
