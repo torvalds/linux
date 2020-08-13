@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2020 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -20,25 +20,20 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-subdir-ccflags-y += \
-		-I$(FULL_AMD_PATH)/powerplay/inc/  \
-		-I$(FULL_AMD_PATH)/include/asic_reg  \
-		-I$(FULL_AMD_PATH)/include  \
-		-I$(FULL_AMD_PATH)/powerplay/smumgr\
-		-I$(FULL_AMD_PATH)/powerplay/hwmgr
-
-AMD_PP_PATH = ../powerplay
+AMD_PP_PATH = ../pm/powerplay
 
 PP_LIBS = smumgr hwmgr
 
-AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/powerplay/,$(PP_LIBS)))
+AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/pm/powerplay/,$(PP_LIBS)))
 
 include $(AMD_POWERPLAY)
 
-POWER_MGR = amd_powerplay.o amdgpu_smu.o smu_v11_0.o \
-	    smu_v12_0.o arcturus_ppt.o navi10_ppt.o \
-	    renoir_ppt.o sienna_cichlid_ppt.o smu_cmn.o
+POWER_MGR-y = amd_powerplay.o
 
-AMD_PP_POWER = $(addprefix $(AMD_PP_PATH)/,$(POWER_MGR))
+POWER_MGR-$(CONFIG_DRM_AMDGPU_CIK)+= kv_dpm.o kv_smc.o
+
+POWER_MGR-$(CONFIG_DRM_AMDGPU_SI)+= si_dpm.o si_smc.o
+
+AMD_PP_POWER = $(addprefix $(AMD_PP_PATH)/,$(POWER_MGR-y))
 
 AMD_POWERPLAY_FILES += $(AMD_PP_POWER)
