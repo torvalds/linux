@@ -130,7 +130,7 @@ static void block_list_remove(struct sst_dsp *dsp,
 			err = block->ops->disable(block);
 			if (err < 0)
 				dev_err(dsp->dev,
-					"error: cant disable block %d:%d\n",
+					"error: can't disable block %d:%d\n",
 					block->type, block->index);
 		}
 	}
@@ -158,7 +158,7 @@ static int block_list_prepare(struct sst_dsp *dsp,
 			ret = block->ops->enable(block);
 			if (ret < 0) {
 				dev_err(dsp->dev,
-					"error: cant disable block %d:%d\n",
+					"error: can't disable block %d:%d\n",
 					block->type, block->index);
 				goto err;
 			}

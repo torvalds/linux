@@ -1507,7 +1507,7 @@ static int sst_hsw_dx_state_dump(struct sst_hsw *hsw)
 
 	ret = sst_dsp_dma_get_channel(sst, 0);
 	if (ret < 0) {
-		dev_err(hsw->dev, "error: cant allocate dma channel %d\n", ret);
+		dev_err(hsw->dev, "error: can't allocate dma channel %d\n", ret);
 		return ret;
 	}
 
@@ -1587,7 +1587,7 @@ int sst_hsw_dsp_load(struct sst_hsw *hsw)
 
 	ret = sst_dsp_dma_get_channel(dsp, 0);
 	if (ret < 0) {
-		dev_err(hsw->dev, "error: cant allocate dma channel %d\n", ret);
+		dev_err(hsw->dev, "error: can't allocate dma channel %d\n", ret);
 		return ret;
 	}
 
@@ -1616,7 +1616,7 @@ static int sst_hsw_dsp_restore(struct sst_hsw *hsw)
 
 	ret = sst_dsp_dma_get_channel(dsp, 0);
 	if (ret < 0) {
-		dev_err(hsw->dev, "error: cant allocate dma channel %d\n", ret);
+		dev_err(hsw->dev, "error: can't allocate dma channel %d\n", ret);
 		return ret;
 	}
 
