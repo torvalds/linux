@@ -194,12 +194,14 @@ efi_status_t efi_parse_options(char const *cmdline)
 	if (!cmdline)
 		return EFI_SUCCESS;
 
-	len = strlen(cmdline) + 1;
+	len = strnlen(cmdline, COMMAND_LINE_SIZE - 1) + 1;
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, len, (void **)&buf);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	str = skip_spaces(memcpy(buf, cmdline, len));
+	memcpy(buf, cmdline, len - 1);
+	buf[len - 1] = '\0';
+	str = skip_spaces(buf);
 
 	while (*str) {
 		char *param, *val;
