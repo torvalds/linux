@@ -3,7 +3,7 @@ DT_DOC_CHECKER ?= dt-doc-validate
 DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
 
-DT_SCHEMA_MIN_VERSION = 2020.5
+DT_SCHEMA_MIN_VERSION = 2020.8.1
 
 PHONY += check_dtschema_version
 check_dtschema_version:
