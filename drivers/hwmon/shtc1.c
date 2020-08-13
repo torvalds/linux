@@ -185,15 +185,16 @@ static void shtc1_select_command(struct shtc1_data *data)
 	}
 }
 
-static int shtc1_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static const struct i2c_device_id shtc1_id[];
+
+static int shtc1_probe(struct i2c_client *client)
 {
 	int ret;
 	u16 id_reg;
 	char id_reg_buf[2];
 	struct shtc1_data *data;
 	struct device *hwmon_dev;
-	enum shtcx_chips chip = id->driver_data;
+	enum shtcx_chips chip = i2c_match_id(shtc1_id, client)->driver_data;
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
 
@@ -259,7 +260,7 @@ MODULE_DEVICE_TABLE(i2c, shtc1_id);
 
 static struct i2c_driver shtc1_i2c_driver = {
 	.driver.name  = "shtc1",
-	.probe        = shtc1_probe,
+	.probe_new    = shtc1_probe,
 	.id_table     = shtc1_id,
 };
 

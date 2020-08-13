@@ -704,8 +704,7 @@ static void adm9240_init_client(struct i2c_client *client)
 	}
 }
 
-static int adm9240_probe(struct i2c_client *new_client,
-			 const struct i2c_device_id *id)
+static int adm9240_probe(struct i2c_client *new_client)
 {
 	struct device *dev = &new_client->dev;
 	struct device *hwmon_dev;
@@ -741,7 +740,7 @@ static struct i2c_driver adm9240_driver = {
 	.driver = {
 		.name	= "adm9240",
 	},
-	.probe		= adm9240_probe,
+	.probe_new	= adm9240_probe,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
 	.address_list	= normal_i2c,

@@ -762,8 +762,7 @@ static struct attribute *stts751_attrs[] = {
 };
 ATTRIBUTE_GROUPS(stts751);
 
-static int stts751_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int stts751_probe(struct i2c_client *client)
 {
 	struct stts751_priv *priv;
 	int ret;
@@ -822,7 +821,7 @@ static struct i2c_driver stts751_driver = {
 		.name	= DEVNAME,
 		.of_match_table = of_match_ptr(stts751_of_match),
 	},
-	.probe		= stts751_probe,
+	.probe_new	= stts751_probe,
 	.id_table	= stts751_id,
 	.detect		= stts751_detect,
 	.alert		= stts751_alert,
