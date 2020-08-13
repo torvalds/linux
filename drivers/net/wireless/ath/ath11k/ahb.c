@@ -868,6 +868,10 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ab->mem_len = resource_size(mem_res);
 	platform_set_drvdata(pdev, ab);
 
+	ret = ath11k_core_pre_init(ab);
+	if (ret)
+		goto err_core_free;
+
 	ret = ath11k_hal_srng_init(ab);
 	if (ret)
 		goto err_core_free;

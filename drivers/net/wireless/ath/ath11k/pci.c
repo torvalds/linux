@@ -208,7 +208,14 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		goto err_pci_free_region;
 	}
 
+	ret = ath11k_core_pre_init(ab);
+	if (ret)
+		goto err_pci_disable_msi;
+
 	return 0;
+
+err_pci_disable_msi:
+	ath11k_pci_disable_msi(ab_pci);
 
 err_pci_free_region:
 	ath11k_pci_free_region(ab_pci);
