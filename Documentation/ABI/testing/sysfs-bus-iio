@@ -49,9 +49,9 @@ Description:
 		resulting sampling frequency.  In many devices this
 		parameter has an effect on input filters etc. rather than
 		simply controlling when the input is sampled.  As this
-		effects data ready triggers, hardware buffers and the sysfs
+		affects data ready triggers, hardware buffers and the sysfs
 		direct access interfaces, it may be found in any of the
-		relevant directories.  If it effects all of the above
+		relevant directories.  If it affects all of the above
 		then it is to be found in the base device directory.
 
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency_available
@@ -1013,7 +1013,7 @@ What:		/sys/.../events/in_activity_running_thresh_falling_en
 KernelVersion:	3.19
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Enables or disables activitity events. Depending on direction
+		Enables or disables activity events. Depending on direction
 		an event is generated when sensor ENTERS or LEAVES a given state.
 
 What:		/sys/.../events/in_activity_still_thresh_rising_value
