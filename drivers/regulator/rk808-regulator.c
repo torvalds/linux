@@ -776,16 +776,6 @@ static unsigned int rk8xx_get_mode(struct regulator_dev *rdev)
 
 static int rk8xx_enabled_wmsk_regmap(struct regulator_dev *rdev)
 {
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	if (val & rdev->desc->enable_val)
-		return 0;
-
 	return regmap_update_bits(rdev->regmap,
 				  rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
@@ -794,20 +784,10 @@ static int rk8xx_enabled_wmsk_regmap(struct regulator_dev *rdev)
 
 static int rk8xx_disabled_wmsk_regmap(struct regulator_dev *rdev)
 {
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	if (val & rdev->desc->enable_val)
-		return regmap_update_bits(rdev->regmap,
-					  rdev->desc->enable_reg,
-					  rdev->desc->enable_mask,
-					  rdev->desc->disable_val);
-
-	return 0;
+	return regmap_update_bits(rdev->regmap,
+				  rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  rdev->desc->disable_val);
 }
 
 static int rk8xx_is_enabled_wmsk_regmap(struct regulator_dev *rdev)
