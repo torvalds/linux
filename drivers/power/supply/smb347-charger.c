@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/power/smb347-charger.h>
 #include <linux/regmap.h>
@@ -122,7 +121,6 @@
 
 /**
  * struct smb347_charger - smb347 charger instance
- * @lock: protects concurrent access to online variables
  * @dev: pointer to device
  * @regmap: pointer to driver regmap
  * @mains: power_supply instance for AC/DC power
@@ -134,7 +132,6 @@
  * @pdata: pointer to platform data
  */
 struct smb347_charger {
-	struct mutex		lock;
 	struct device		*dev;
 	struct regmap		*regmap;
 	struct power_supply	*mains;
@@ -243,11 +240,9 @@ static int smb347_update_ps_status(struct smb347_charger *smb)
 	if (smb->pdata->use_usb)
 		usb = !(val & IRQSTAT_E_USBIN_UV_STAT);
 
-	mutex_lock(&smb->lock);
 	ret = smb->mains_online != dc || smb->usb_online != usb;
 	smb->mains_online = dc;
 	smb->usb_online = usb;
-	mutex_unlock(&smb->lock);
 
 	return ret;
 }
@@ -263,13 +258,7 @@ static int smb347_update_ps_status(struct smb347_charger *smb)
  */
 static bool smb347_is_ps_online(struct smb347_charger *smb)
 {
-	bool ret;
-
-	mutex_lock(&smb->lock);
-	ret = smb->usb_online || smb->mains_online;
-	mutex_unlock(&smb->lock);
-
-	return ret;
+	return smb->usb_online || smb->mains_online;
 }
 
 /**
@@ -303,14 +292,13 @@ static int smb347_charging_set(struct smb347_charger *smb, bool enable)
 		return 0;
 	}
 
-	mutex_lock(&smb->lock);
 	if (smb->charging_enabled != enable) {
 		ret = regmap_update_bits(smb->regmap, CMD_A, CMD_A_CHG_ENABLED,
 					 enable ? CMD_A_CHG_ENABLED : 0);
 		if (!ret)
 			smb->charging_enabled = enable;
 	}
-	mutex_unlock(&smb->lock);
+
 	return ret;
 }
 
@@ -995,9 +983,9 @@ static int smb347_get_charging_status(struct smb347_charger *smb,
 	return status;
 }
 
-static int smb347_get_property(struct power_supply *psy,
-			       enum power_supply_property prop,
-			       union power_supply_propval *val)
+static int smb347_get_property_locked(struct power_supply *psy,
+				      enum power_supply_property prop,
+				      union power_supply_propval *val)
 {
 	struct smb347_charger *smb = power_supply_get_drvdata(psy);
 	int ret;
@@ -1062,6 +1050,21 @@ static int smb347_get_property(struct power_supply *psy,
 	}
 
 	return 0;
+}
+
+static int smb347_get_property(struct power_supply *psy,
+			       enum power_supply_property prop,
+			       union power_supply_propval *val)
+{
+	struct smb347_charger *smb = power_supply_get_drvdata(psy);
+	struct i2c_client *client = to_i2c_client(smb->dev);
+	int ret;
+
+	disable_irq(client->irq);
+	ret = smb347_get_property_locked(psy, prop, val);
+	enable_irq(client->irq);
+
+	return ret;
 }
 
 static enum power_supply_property smb347_properties[] = {
@@ -1273,7 +1276,6 @@ static int smb347_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, smb);
 
-	mutex_init(&smb->lock);
 	smb->dev = &client->dev;
 	smb->id = id->driver_data;
 
