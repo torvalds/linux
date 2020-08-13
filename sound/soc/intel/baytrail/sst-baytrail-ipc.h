@@ -26,8 +26,7 @@ extern struct sst_ops sst_byt_ops;
 
 /* stream API */
 struct sst_byt_stream *sst_byt_stream_new(struct sst_byt *byt, int id,
-	uint32_t (*get_write_position)(struct sst_byt_stream *stream,
-				       void *data),
+	uint32_t (*notify_position)(struct sst_byt_stream *stream, void *data),
 	void *data);
 
 /* stream configuration */
