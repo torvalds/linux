@@ -632,12 +632,12 @@ config CHARGER_BQ25890
 	  Say Y to enable support for the TI BQ25890 battery charger.
 
 config CHARGER_SMB347
-	tristate "Summit Microelectronics SMB347 Battery Charger"
+	tristate "Summit Microelectronics SMB3XX Battery Charger"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say Y to include support for Summit Microelectronics SMB347
-	  Battery Charger.
+	  Say Y to include support for Summit Microelectronics SMB345,
+	  SMB347 or SMB358 Battery Charger.
 
 config CHARGER_TPS65090
 	tristate "TPS65090 battery charger driver"
