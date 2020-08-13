@@ -116,11 +116,11 @@ static struct clk_bulk_data meson_a1_clocks[] = {
 	{ .id = "xtal_usb_ctrl" },
 };
 
-static const char *meson_gxm_phy_names[] = {
+static const char * const meson_gxm_phy_names[] = {
 	"usb2-phy0", "usb2-phy1", "usb2-phy2",
 };
 
-static const char *meson_g12a_phy_names[] = {
+static const char * const meson_g12a_phy_names[] = {
 	"usb2-phy0", "usb2-phy1", "usb3-phy0",
 };
 
@@ -132,7 +132,7 @@ static const char *meson_g12a_phy_names[] = {
  * correctly when only the "usb2-phy1" phy is specified on-par with the
  * DT bindings.
  */
-static const char *meson_a1_phy_names[] = {
+static const char * const meson_a1_phy_names[] = {
 	"usb2-phy0", "usb2-phy1"
 };
 
@@ -143,7 +143,7 @@ struct dwc3_meson_g12a_drvdata {
 	bool otg_phy_host_port_disable;
 	struct clk_bulk_data *clks;
 	int num_clks;
-	const char **phy_names;
+	const char * const *phy_names;
 	int num_phys;
 	int (*setup_regmaps)(struct dwc3_meson_g12a *priv, void __iomem *base);
 	int (*usb2_init_phy)(struct dwc3_meson_g12a *priv, int i,
@@ -520,11 +520,7 @@ static int dwc3_meson_g12a_role_set(struct usb_role_switch *sw,
 		return 0;
 
 	if (priv->drvdata->otg_phy_host_port_disable)
-		dev_warn_once(priv->dev, "Manual OTG switch is broken on this "\
-					 "SoC, when manual switching from "\
-					 "Host to device, DWC3 controller "\
-					 "will need to be resetted in order "\
-					 "to recover usage of the Host port");
+		dev_warn_once(priv->dev, "Broken manual OTG switch\n");
 
 	return dwc3_meson_g12a_otg_mode_set(priv, mode);
 }
@@ -903,8 +899,8 @@ static int __maybe_unused dwc3_meson_g12a_resume(struct device *dev)
 			return ret;
 	}
 
-       if (priv->vbus && priv->otg_phy_mode == PHY_MODE_USB_HOST) {
-               ret = regulator_enable(priv->vbus);
+	if (priv->vbus && priv->otg_phy_mode == PHY_MODE_USB_HOST) {
+		ret = regulator_enable(priv->vbus);
 		if (ret)
 			return ret;
 	}
