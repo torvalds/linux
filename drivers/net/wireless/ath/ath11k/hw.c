@@ -32,3 +32,7 @@ const struct ath11k_hw_ops ipq8074_ops = {
 const struct ath11k_hw_ops ipq6018_ops = {
 	.get_hw_mac_from_pdev_id = ath11k_hw_ipq6018_mac_from_pdev_id,
 };
+
+const struct ath11k_hw_ops qca6390_ops = {
+	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
+};
