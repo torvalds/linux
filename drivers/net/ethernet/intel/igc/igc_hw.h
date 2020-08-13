@@ -244,6 +244,8 @@ struct igc_hw_stats {
 	u64 prc511;
 	u64 prc1023;
 	u64 prc1522;
+	u64 tlpic;
+	u64 rlpic;
 	u64 gprc;
 	u64 bprc;
 	u64 mprc;

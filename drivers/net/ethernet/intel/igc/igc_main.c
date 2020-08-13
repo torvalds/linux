@@ -3683,6 +3683,8 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.prc511 += rd32(IGC_PRC511);
 	adapter->stats.prc1023 += rd32(IGC_PRC1023);
 	adapter->stats.prc1522 += rd32(IGC_PRC1522);
+	adapter->stats.tlpic += rd32(IGC_TLPIC);
+	adapter->stats.rlpic += rd32(IGC_RLPIC);
 
 	mpc = rd32(IGC_MPC);
 	adapter->stats.mpc += mpc;
