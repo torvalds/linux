@@ -626,10 +626,7 @@ static int dwc3_meson_gxl_setup_regmaps(struct dwc3_meson_g12a *priv,
 	/* GXL controls the PHY mode in the PHY registers unlike G12A */
 	priv->usb_glue_regmap = devm_regmap_init_mmio(priv->dev, base,
 					&phy_meson_g12a_usb_glue_regmap_conf);
-	if (IS_ERR(priv->usb_glue_regmap))
-		return PTR_ERR(priv->usb_glue_regmap);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->usb_glue_regmap);
 }
 
 static int dwc3_meson_g12a_setup_regmaps(struct dwc3_meson_g12a *priv,
