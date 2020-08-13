@@ -625,13 +625,13 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 	int i = 0;
 	int tot_work_done = 0;
 
-	while (ath11k_tx_ring_mask[grp_id] >> i) {
-		if (ath11k_tx_ring_mask[grp_id] & BIT(i))
+	while (ab->hw_params.ring_mask->tx[grp_id] >> i) {
+		if (ab->hw_params.ring_mask->tx[grp_id] & BIT(i))
 			ath11k_dp_tx_completion_handler(ab, i);
 		i++;
 	}
 
-	if (ath11k_rx_err_ring_mask[grp_id]) {
+	if (ab->hw_params.ring_mask->rx_err[grp_id]) {
 		work_done = ath11k_dp_process_rx_err(ab, napi, budget);
 		budget -= work_done;
 		tot_work_done += work_done;
@@ -639,7 +639,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 			goto done;
 	}
 
-	if (ath11k_rx_wbm_rel_ring_mask[grp_id]) {
+	if (ab->hw_params.ring_mask->rx_wbm_rel[grp_id]) {
 		work_done = ath11k_dp_rx_process_wbm_err(ab,
 							 napi,
 							 budget);
@@ -650,8 +650,8 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 			goto done;
 	}
 
-	if (ath11k_rx_ring_mask[grp_id]) {
-		i =  fls(ath11k_rx_ring_mask[grp_id]) - 1;
+	if (ab->hw_params.ring_mask->rx[grp_id]) {
+		i =  fls(ab->hw_params.ring_mask->rx[grp_id]) - 1;
 		work_done = ath11k_dp_process_rx(ab, i, napi,
 						 budget);
 		budget -= work_done;
@@ -660,9 +660,9 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 			goto done;
 	}
 
-	if (rx_mon_status_ring_mask[grp_id]) {
+	if (ab->hw_params.ring_mask->rx_mon_status[grp_id]) {
 		for (i = 0; i <  ab->num_radios; i++) {
-			if (rx_mon_status_ring_mask[grp_id] & BIT(i)) {
+			if (ab->hw_params.ring_mask->rx_mon_status[grp_id] & BIT(i)) {
 				work_done =
 				ath11k_dp_rx_process_mon_rings(ab,
 							       i, napi,
@@ -675,11 +675,11 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 		}
 	}
 
-	if (ath11k_reo_status_ring_mask[grp_id])
+	if (ab->hw_params.ring_mask->reo_status[grp_id])
 		ath11k_dp_process_reo_status(ab);
 
 	for (i = 0; i < ab->num_radios; i++) {
-		if (ath11k_rxdma2host_ring_mask[grp_id] & BIT(i)) {
+		if (ab->hw_params.ring_mask->rxdma2host[grp_id] & BIT(i)) {
 			work_done = ath11k_dp_process_rxdma_err(ab, i, budget);
 			budget -= work_done;
 			tot_work_done += work_done;
@@ -688,7 +688,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 		if (budget <= 0)
 			goto done;
 
-		if (ath11k_host2rxdma_ring_mask[grp_id] & BIT(i)) {
+		if (ab->hw_params.ring_mask->host2rxdma[grp_id] & BIT(i)) {
 			struct ath11k_pdev_dp *dp = &ab->pdevs[i].ar->dp;
 			struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 

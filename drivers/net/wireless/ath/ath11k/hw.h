@@ -99,6 +99,19 @@ enum ath11k_bus {
 	ATH11K_BUS_PCI,
 };
 
+#define ATH11K_EXT_IRQ_GRP_NUM_MAX 11
+
+struct ath11k_hw_ring_mask {
+	u8 tx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_mon_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_err[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_wbm_rel[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 reo_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rxdma2host[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
+};
+
 struct ath11k_hw_ops {
 	u8 (*get_hw_mac_from_pdev_id)(int pdev_id);
 };
@@ -116,11 +129,15 @@ struct ath11k_hw_params {
 	} fw;
 
 	const struct ath11k_hw_ops *hw_ops;
+
+	const struct ath11k_hw_ring_mask *ring_mask;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
 extern const struct ath11k_hw_ops ipq6018_ops;
 extern const struct ath11k_hw_ops qca6390_ops;
+
+extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 
 static inline
 int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,
