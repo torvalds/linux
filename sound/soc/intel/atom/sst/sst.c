@@ -49,7 +49,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 	union ipc_header_mrfld header;
 	union sst_imr_reg_mrfld imr;
 	struct ipc_post *msg = NULL;
-	unsigned int size = 0;
+	unsigned int size;
 	struct intel_sst_drv *drv = (struct intel_sst_drv *) context;
 	irqreturn_t retval = IRQ_HANDLED;
 
