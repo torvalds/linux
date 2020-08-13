@@ -1247,3 +1247,18 @@ int amdgpu_dpm_set_clockgating_by_smu(struct amdgpu_device *adev,
 
 	return ret;
 }
+
+int amdgpu_dpm_smu_i2c_bus_access(struct amdgpu_device *adev,
+				  bool acquire)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs =
+			adev->powerplay.pp_funcs;
+	int ret = -EOPNOTSUPP;
+
+	if (pp_funcs && pp_funcs->smu_i2c_bus_access)
+		ret = pp_funcs->smu_i2c_bus_access(pp_handle,
+						   acquire);
+
+	return ret;
+}

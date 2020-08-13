@@ -545,4 +545,7 @@ int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev);
 int amdgpu_dpm_set_clockgating_by_smu(struct amdgpu_device *adev,
 				      uint32_t msg_id);
 
+int amdgpu_dpm_smu_i2c_bus_access(struct amdgpu_device *adev,
+				  bool acquire);
+
 #endif
