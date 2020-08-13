@@ -34,7 +34,7 @@ Description:
 		Describes the main type of the supply.
 
 		Access: Read
-		Valid values: "Battery", "UPS", "Mains", "USB"
+		Valid values: "Battery", "UPS", "Mains", "USB", "Wireless"
 
 ===== Battery Properties =====
 
