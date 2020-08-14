@@ -181,4 +181,6 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab);
 void ath11k_ce_free_pipes(struct ath11k_base *ab);
 int ath11k_ce_get_attr_flags(int ce_id);
 void ath11k_ce_poll_send_completed(struct ath11k_base *ab, u8 pipe_id);
+int ath11k_ce_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
+				  u8 *ul_pipe, u8 *dl_pipe);
 #endif

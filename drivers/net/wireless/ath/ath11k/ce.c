@@ -524,6 +524,7 @@ void ath11k_ce_poll_send_completed(struct ath11k_base *ab, u8 pipe_id)
 	if ((pipe->attr_flags & CE_ATTR_DIS_INTR) && pipe->send_cb)
 		pipe->send_cb(pipe);
 }
+EXPORT_SYMBOL(ath11k_ce_per_engine_service);
 
 int ath11k_ce_send(struct ath11k_base *ab, struct sk_buff *skb, u8 pipe_id,
 		   u16 transfer_id)
@@ -673,6 +674,7 @@ void ath11k_ce_rx_post_buf(struct ath11k_base *ab)
 		}
 	}
 }
+EXPORT_SYMBOL(ath11k_ce_rx_post_buf);
 
 void ath11k_ce_rx_replenish_retry(struct timer_list *t)
 {
