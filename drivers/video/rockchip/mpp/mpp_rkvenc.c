@@ -109,7 +109,6 @@
 
 #define RKVENC_GET_WIDTH(x)			(((x & 0x1ff) + 1) << 3)
 #define RKVENC_GET_HEIGHT(x)			((((x >> 16) & 0x1ff) + 1) << 3)
-#define RKVENC_DEFAULT_MAX_LOAD			(1920 * 1088)
 
 #define to_rkvenc_task(ctx)		\
 		container_of(ctx, struct rkvenc_task, mpp_task)
@@ -900,8 +899,6 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	of_property_read_u32(mpp->dev->of_node,
 			     "rockchip,default-max-load",
 			     &enc->default_max_load);
-	if (!enc->default_max_load)
-		enc->default_max_load = RKVENC_DEFAULT_MAX_LOAD;
 	/* Set default rates */
 	mpp_set_clk_info_rate_hz(&enc->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 	mpp_set_clk_info_rate_hz(&enc->core_clk_info, CLK_MODE_DEFAULT, 600 * MHZ);
@@ -999,6 +996,10 @@ static int rkvenc_get_freq(struct mpp_dev *mpp,
 	struct mpp_task *loop = NULL, *n;
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
+
+	/* if not set max load, consider not have advanced mode */
+	if (!enc->default_max_load)
+		return 0;
 
 	task_cnt = 1;
 	workload = task->pixels;

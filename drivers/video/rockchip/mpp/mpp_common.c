@@ -1824,6 +1824,8 @@ unsigned long mpp_get_clk_info_rate_hz(struct mpp_clk_info *clk_info,
 	case CLK_MODE_ADVANCED: {
 		if (clk_info->advanced_rate_hz)
 			clk_rate_hz = clk_info->advanced_rate_hz;
+		else if (clk_info->normal_rate_hz)
+			clk_rate_hz = clk_info->normal_rate_hz;
 		else
 			clk_rate_hz = clk_info->default_rate_hz;
 	} break;
