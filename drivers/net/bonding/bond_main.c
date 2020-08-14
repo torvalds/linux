@@ -322,6 +322,7 @@ netdev_tx_t bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 /**
  * bond_vlan_rx_add_vid - Propagates adding an id to slaves
  * @bond_dev: bonding net device that got called
+ * @proto: network protocol ID
  * @vid: vlan id being added
  */
 static int bond_vlan_rx_add_vid(struct net_device *bond_dev,
@@ -355,6 +356,7 @@ unwind:
 /**
  * bond_vlan_rx_kill_vid - Propagates deleting an id to slaves
  * @bond_dev: bonding net device that got called
+ * @proto: network protocol ID
  * @vid: vlan id being removed
  */
 static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
@@ -948,7 +950,7 @@ static bool bond_should_notify_peers(struct bonding *bond)
 /**
  * change_active_interface - change the active slave into the specified one
  * @bond: our bonding struct
- * @new: the new slave to make the active one
+ * @new_active: the new slave to make the active one
  *
  * Set the new slave to the bond's settings and unset them on the old
  * curr_active_slave.
