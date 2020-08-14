@@ -290,7 +290,7 @@ static int exfat_check_max_dentries(struct inode *inode)
 {
 	if (EXFAT_B_TO_DEN(i_size_read(inode)) >= MAX_EXFAT_DENTRIES) {
 		/*
-		 * exFAT spec allows a dir to grow upto 8388608(256MB)
+		 * exFAT spec allows a dir to grow up to 8388608(256MB)
 		 * dentries
 		 */
 		return -ENOSPC;

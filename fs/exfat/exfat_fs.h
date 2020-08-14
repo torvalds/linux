@@ -128,7 +128,7 @@ enum {
 
 struct exfat_dentry_namebuf {
 	char *lfn;
-	int lfnbuf_len; /* usally MAX_UNINAME_BUF_SIZE */
+	int lfnbuf_len; /* usually MAX_UNINAME_BUF_SIZE */
 };
 
 /* unicode name structure */
