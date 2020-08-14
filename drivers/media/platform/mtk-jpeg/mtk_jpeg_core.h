@@ -17,8 +17,8 @@
 
 #define MTK_JPEG_COMP_MAX		3
 
-#define MTK_JPEG_FMT_FLAG_DEC_OUTPUT	BIT(0)
-#define MTK_JPEG_FMT_FLAG_DEC_CAPTURE	BIT(1)
+#define MTK_JPEG_FMT_FLAG_OUTPUT	BIT(0)
+#define MTK_JPEG_FMT_FLAG_CAPTURE	BIT(1)
 
 #define MTK_JPEG_MIN_WIDTH	32U
 #define MTK_JPEG_MIN_HEIGHT	32U
@@ -50,8 +50,8 @@ enum mtk_jpeg_ctx_state {
  * @v4l2_dev:		v4l2 device for mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
  * @alloc_ctx:		videobuf2 memory allocator's context
- * @dec_vdev:		video device node for decoder mem2mem mode
- * @dec_reg_base:	JPEG registers mapping
+ * @vdev:		video device node for jpeg mem2mem mode
+ * @reg_base:		JPEG registers mapping
  * @clks:		clock names
  * @num_clks:		numbers of clock
  * @larb:		SMI device
@@ -65,8 +65,8 @@ struct mtk_jpeg_dev {
 	struct v4l2_device	v4l2_dev;
 	struct v4l2_m2m_dev	*m2m_dev;
 	void			*alloc_ctx;
-	struct video_device	*dec_vdev;
-	void __iomem		*dec_reg_base;
+	struct video_device	*vdev;
+	void __iomem		*reg_base;
 	struct clk_bulk_data *clks;
 	int num_clks;
 	struct device		*larb;
