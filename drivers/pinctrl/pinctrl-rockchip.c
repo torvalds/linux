@@ -3414,9 +3414,9 @@ static int rockchip_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 			break;
 	}
 
-	if (ret) {
+	if (ret && cnt) {
 		/* revert the already done pin settings */
-		for (cnt--; cnt >= 0; cnt--)
+		for (cnt--; cnt >= 0 && !data[cnt].func; cnt--)
 			rockchip_set_mux(bank, pins[cnt] - bank->pin_base, 0);
 
 		return ret;
@@ -3480,8 +3480,12 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 					      unsigned offset, bool input)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
+	struct rockchip_pin_bank *bank = &info->ctrl->pin_banks[offset / 32];
 	struct gpio_chip *chip;
 	int pin;
+
+	if (!bank || !bank->valid)
+		return 0;
 
 	chip = range->gc;
 	pin = offset - chip->base;
@@ -3922,6 +3926,8 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	for (bank = 0; bank < info->ctrl->nr_banks; ++bank) {
 		pin_bank = &info->ctrl->pin_banks[bank];
+		if (!pin_bank->valid)
+			continue;
 		pin_bank->grange.name = pin_bank->name;
 		pin_bank->grange.id = bank;
 		pin_bank->grange.pin_base = pin_bank->pin_base;
