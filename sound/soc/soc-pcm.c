@@ -919,15 +919,6 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		goto out;
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_params) {
-		ret = rtd->dai_link->ops->hw_params(substream, params);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "ASoC: machine hw_params"
-				" failed: %d\n", ret);
-			goto out;
-		}
-	}
-
 	ret = snd_soc_link_hw_params(substream, params);
 	if (ret < 0)
 		goto out;
