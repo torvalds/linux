@@ -320,10 +320,10 @@ static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
 					   pix_mp->pixelformat, fmt_type);
 	q_data->pix_mp.width = pix_mp->width;
 	q_data->pix_mp.height = pix_mp->height;
-	q_data->pix_mp.colorspace = pix_mp->colorspace;
-	q_data->pix_mp.ycbcr_enc = pix_mp->ycbcr_enc;
-	q_data->pix_mp.xfer_func = pix_mp->xfer_func;
-	q_data->pix_mp.quantization = pix_mp->quantization;
+	q_data->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
+	q_data->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
+	q_data->pix_mp.xfer_func = V4L2_XFER_FUNC_SRGB;
+	q_data->pix_mp.quantization = V4L2_QUANTIZATION_FULL_RANGE;
 
 	v4l2_dbg(1, debug, &jpeg->v4l2_dev, "(%d) s_fmt:%c%c%c%c wxh:%ux%u\n",
 		 f->type,
@@ -846,10 +846,10 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 	struct mtk_jpeg_q_data *q = &ctx->out_q;
 	int i;
 
-	q->pix_mp.colorspace = V4L2_COLORSPACE_JPEG,
-	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	q->pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
-	q->pix_mp.xfer_func = V4L2_XFER_FUNC_DEFAULT;
+	q->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
+	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
+	q->pix_mp.quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	q->pix_mp.xfer_func = V4L2_XFER_FUNC_SRGB;
 
 	q->fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
 				      V4L2_PIX_FMT_JPEG,
@@ -863,10 +863,10 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 	q->fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
 				      V4L2_PIX_FMT_YUV420M,
 				      MTK_JPEG_FMT_FLAG_DEC_CAPTURE);
-	q->pix_mp.colorspace = V4L2_COLORSPACE_JPEG,
-	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	q->pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
-	q->pix_mp.xfer_func = V4L2_XFER_FUNC_DEFAULT;
+	q->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
+	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
+	q->pix_mp.quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	q->pix_mp.xfer_func = V4L2_XFER_FUNC_SRGB;
 	q->pix_mp.width = MTK_JPEG_MIN_WIDTH;
 	q->pix_mp.height = MTK_JPEG_MIN_HEIGHT;
 
