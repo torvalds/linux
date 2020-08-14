@@ -1671,15 +1671,15 @@ bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 
 }
 
 /*
- * Search a range in the state tree for a given mask.  If 'filled' == 1, this
- * returns 1 only if every extent in the tree has the bits set.  Otherwise, 1
- * is returned if any bit in the range is found set.
+ * Check if the whole range [@start,@end) contains the single @bit set.
  */
-int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, int filled, struct extent_state *cached)
+bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+		    struct extent_state *cached)
 {
 	struct extent_state *state = NULL;
-	int bitset = 0;
+	bool bitset = true;
+
+	ASSERT(is_power_of_2(bit));
 
 	spin_lock(&tree->lock);
 	if (cached && extent_state_in_tree(cached) && cached->start <= start &&
@@ -1688,35 +1688,35 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	else
 		state = tree_search(tree, start);
 	while (state && start <= end) {
-		if (filled && state->start > start) {
-			bitset = 0;
+		if (state->start > start) {
+			bitset = false;
 			break;
 		}
 
 		if (state->start > end)
 			break;
 
-		if (state->state & bits) {
-			bitset = 1;
-			if (!filled)
-				break;
-		} else if (filled) {
-			bitset = 0;
+		if ((state->state & bit) == 0) {
+			bitset = false;
 			break;
 		}
 
 		if (state->end == (u64)-1)
 			break;
 
+		/*
+		 * Last entry (if state->end is (u64)-1 and overflow happens),
+		 * or next entry starts after the range.
+		 */
 		start = state->end + 1;
-		if (start > end)
+		if (start > end || start == 0)
 			break;
 		state = next_state(state);
 	}
 
 	/* We ran out of states and were still inside of our range. */
-	if (filled && !state)
-		bitset = 0;
+	if (!state)
+		bitset = false;
 	spin_unlock(&tree->lock);
 	return bitset;
 }

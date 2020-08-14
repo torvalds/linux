@@ -131,8 +131,8 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
-int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, int filled, struct extent_state *cached_state);
+bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+		    struct extent_state *cached_state);
 bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);

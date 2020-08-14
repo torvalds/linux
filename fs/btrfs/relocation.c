@@ -2631,7 +2631,7 @@ static int tree_block_processed(u64 bytenr, struct reloc_control *rc)
 	u32 blocksize = rc->extent_root->fs_info->nodesize;
 
 	if (test_range_bit(&rc->processed_blocks, bytenr,
-			   bytenr + blocksize - 1, EXTENT_DIRTY, 1, NULL))
+			   bytenr + blocksize - 1, EXTENT_DIRTY, NULL))
 		return 1;
 	return 0;
 }
