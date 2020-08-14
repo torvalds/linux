@@ -23,6 +23,7 @@
  * @ifidx: interface index related to this event.
  * @ifaddr: ethernet address for interface.
  * @emsg: common parameters of the firmware event message.
+ * @datalen: length of the data array
  * @data: event specific data part of the firmware event.
  */
 struct brcmf_fweh_queue_item {
@@ -35,7 +36,7 @@ struct brcmf_fweh_queue_item {
 	u8 data[];
 };
 
-/**
+/*
  * struct brcmf_fweh_event_name - code, name mapping entry.
  */
 struct brcmf_fweh_event_name {
@@ -118,8 +119,8 @@ static int brcmf_fweh_call_event_handler(struct brcmf_pub *drvr,
  * brcmf_fweh_handle_if_event() - handle IF event.
  *
  * @drvr: driver information object.
- * @item: queue entry.
- * @ifpp: interface object (may change upon ADD action).
+ * @emsg: event message object.
+ * @data: event object.
  */
 static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 				       struct brcmf_event_msg *emsg,
@@ -380,6 +381,7 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
  *
  * @drvr: driver information object.
  * @event_packet: event packet to process.
+ * @packet_len: length of the packet
  *
  * If the packet buffer contains a firmware event message it will
  * dispatch the event to a registered handler (using worker).
