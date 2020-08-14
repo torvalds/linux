@@ -8368,19 +8368,32 @@ static void ath10k_mac_get_rate_flags_ht(struct ath10k *ar, u32 rate, u8 nss, u8
 					 u8 *flags, u8 *bw)
 {
 	struct ath10k_index_ht_data_rate_type *mcs_rate;
+	u8 index;
+	size_t len_nss1 = ARRAY_SIZE(supported_ht_mcs_rate_nss1);
+	size_t len_nss2 = ARRAY_SIZE(supported_ht_mcs_rate_nss2);
+
+	if (mcs >= (len_nss1 + len_nss2)) {
+		ath10k_warn(ar, "not supported mcs %d in current rate table", mcs);
+		return;
+	}
 
 	mcs_rate = (struct ath10k_index_ht_data_rate_type *)
 		   ((nss == 1) ? &supported_ht_mcs_rate_nss1 :
 		   &supported_ht_mcs_rate_nss2);
 
-	if (rate == mcs_rate[mcs].supported_rate[0]) {
+	if (mcs >= len_nss1)
+		index = mcs - len_nss1;
+	else
+		index = mcs;
+
+	if (rate == mcs_rate[index].supported_rate[0]) {
 		*bw = RATE_INFO_BW_20;
-	} else if (rate == mcs_rate[mcs].supported_rate[1]) {
+	} else if (rate == mcs_rate[index].supported_rate[1]) {
 		*bw |= RATE_INFO_BW_40;
-	} else if (rate == mcs_rate[mcs].supported_rate[2]) {
+	} else if (rate == mcs_rate[index].supported_rate[2]) {
 		*bw |= RATE_INFO_BW_20;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (rate == mcs_rate[mcs].supported_rate[3]) {
+	} else if (rate == mcs_rate[index].supported_rate[3]) {
 		*bw |= RATE_INFO_BW_40;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
 	} else {
@@ -8440,6 +8453,9 @@ static void ath10k_mac_parse_bitrate(struct ath10k *ar, u32 rate_code,
 	u8 nss = WMI_TLV_GET_HW_RC_NSS_V1(rate_code) + 1;
 	u8 mcs = WMI_TLV_GET_HW_RC_RATE_V1(rate_code);
 	u8 flags = 0, bw = 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac parse rate code 0x%x bitrate %d kbps\n",
+		   rate_code, bitrate_kbps);
 
 	if (preamble == WMI_RATE_PREAMBLE_HT)
 		mode = ATH10K_PHY_MODE_HT;
