@@ -1783,6 +1783,26 @@ static int nvme_handle_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	return ret;
 }
 
+static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
+		void __user *argp)
+{
+	switch (cmd) {
+	case NVME_IOCTL_ID:
+		force_successful_syscall_return();
+		return ns->head->ns_id;
+	case NVME_IOCTL_IO_CMD:
+		return nvme_user_cmd(ns->ctrl, ns, argp);
+	case NVME_IOCTL_SUBMIT_IO:
+		return nvme_submit_io(ns, argp);
+	case NVME_IOCTL_IO64_CMD:
+		return nvme_user_cmd64(ns->ctrl, ns, argp);
+	default:
+		if (!ns->ndev)
+			return -ENOTTY;
+		return nvme_nvm_ioctl(ns, cmd, argp);
+	}
+}
+
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
@@ -1803,27 +1823,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 	if (is_ctrl_ioctl(cmd))
 		return nvme_handle_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
 
-	switch (cmd) {
-	case NVME_IOCTL_ID:
-		force_successful_syscall_return();
-		ret = ns->head->ns_id;
-		break;
-	case NVME_IOCTL_IO_CMD:
-		ret = nvme_user_cmd(ns->ctrl, ns, argp);
-		break;
-	case NVME_IOCTL_SUBMIT_IO:
-		ret = nvme_submit_io(ns, argp);
-		break;
-	case NVME_IOCTL_IO64_CMD:
-		ret = nvme_user_cmd64(ns->ctrl, ns, argp);
-		break;
-	default:
-		if (ns->ndev)
-			ret = nvme_nvm_ioctl(ns, cmd, argp);
-		else
-			ret = -ENOTTY;
-	}
-
+	ret = nvme_ns_ioctl(ns, cmd, argp);
 	nvme_put_ns_from_disk(head, srcu_idx);
 	return ret;
 }
