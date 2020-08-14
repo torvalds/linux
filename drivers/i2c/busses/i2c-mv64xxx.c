@@ -251,7 +251,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 				MV64XXX_I2C_STATE_WAITING_FOR_ADDR_2_ACK;
 			break;
 		}
-		/* FALLTHRU */
+		fallthrough;
 	case MV64XXX_I2C_STATUS_MAST_WR_ADDR_2_ACK: /* 0xd0 */
 	case MV64XXX_I2C_STATUS_MAST_WR_ACK: /* 0x28 */
 		if ((drv_data->bytes_left == 0)
@@ -282,14 +282,14 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 				MV64XXX_I2C_STATE_WAITING_FOR_ADDR_2_ACK;
 			break;
 		}
-		/* FALLTHRU */
+		fallthrough;
 	case MV64XXX_I2C_STATUS_MAST_RD_ADDR_2_ACK: /* 0xe0 */
 		if (drv_data->bytes_left == 0) {
 			drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
 			drv_data->state = MV64XXX_I2C_STATE_IDLE;
 			break;
 		}
-		/* FALLTHRU */
+		fallthrough;
 	case MV64XXX_I2C_STATUS_MAST_RD_DATA_ACK: /* 0x50 */
 		if (status != MV64XXX_I2C_STATUS_MAST_RD_DATA_ACK)
 			drv_data->action = MV64XXX_I2C_ACTION_CONTINUE;
@@ -417,8 +417,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 			"mv64xxx_i2c_do_action: Invalid action: %d\n",
 			drv_data->action);
 		drv_data->rc = -EIO;
-
-		/* FALLTHRU */
+		fallthrough;
 	case MV64XXX_I2C_ACTION_SEND_STOP:
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,

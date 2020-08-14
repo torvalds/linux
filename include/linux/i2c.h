@@ -231,7 +231,6 @@ enum i2c_alert_protocol {
  * @detect: Callback for device detection
  * @address_list: The I2C addresses to probe (for detect)
  * @clients: List of detected clients we created (for i2c-core use only)
- * @disable_i2c_core_irq_mapping: Tell the i2c-core to not do irq-mapping
  *
  * The driver.owner field should be set to the module owner of this driver.
  * The driver.name field should be set to the name of this driver.
@@ -290,8 +289,6 @@ struct i2c_driver {
 	int (*detect)(struct i2c_client *client, struct i2c_board_info *info);
 	const unsigned short *address_list;
 	struct list_head clients;
-
-	bool disable_i2c_core_irq_mapping;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 
@@ -609,6 +606,14 @@ struct i2c_timings {
  *	may configure padmux here for SDA/SCL line or something else they want.
  * @scl_gpiod: gpiod of the SCL line. Only required for GPIO recovery.
  * @sda_gpiod: gpiod of the SDA line. Only required for GPIO recovery.
+ * @pinctrl: pinctrl used by GPIO recovery to change the state of the I2C pins.
+ *      Optional.
+ * @pins_default: default pinctrl state of SCL/SDA lines, when they are assigned
+ *      to the I2C bus. Optional. Populated internally for GPIO recovery, if
+ *      state with the name PINCTRL_STATE_DEFAULT is found and pinctrl is valid.
+ * @pins_gpio: recovery pinctrl state of SCL/SDA lines, when they are used as
+ *      GPIOs. Optional. Populated internally for GPIO recovery, if this state
+ *      is called "gpio" or "recovery" and pinctrl is valid.
  */
 struct i2c_bus_recovery_info {
 	int (*recover_bus)(struct i2c_adapter *adap);
@@ -625,6 +630,9 @@ struct i2c_bus_recovery_info {
 	/* gpio recovery */
 	struct gpio_desc *scl_gpiod;
 	struct gpio_desc *sda_gpiod;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_gpio;
 };
 
 int i2c_recover_bus(struct i2c_adapter *adap);
