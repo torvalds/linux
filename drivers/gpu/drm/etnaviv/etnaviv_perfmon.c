@@ -46,6 +46,14 @@ static u32 perf_reg_read(struct etnaviv_gpu *gpu,
 	return gpu_read(gpu, domain->profile_read);
 }
 
+static inline void pipe_select(struct etnaviv_gpu *gpu, u32 clock, unsigned pipe)
+{
+	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
+	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(pipe);
+
+	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+}
+
 static u32 pipe_perf_reg_read(struct etnaviv_gpu *gpu,
 	const struct etnaviv_pm_domain *domain,
 	const struct etnaviv_pm_signal *signal)
@@ -55,16 +63,12 @@ static u32 pipe_perf_reg_read(struct etnaviv_gpu *gpu,
 	unsigned i;
 
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
-		clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-		clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(i);
-		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+		pipe_select(gpu, clock, i);
 		value += perf_reg_read(gpu, domain, signal);
 	}
 
 	/* switch back to pixel pipe 0 to prevent GPU hang */
-	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(0);
-	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+	pipe_select(gpu, clock, 0);
 
 	return value;
 }
@@ -78,16 +82,12 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	unsigned i;
 
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
-		clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-		clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(i);
-		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+		pipe_select(gpu, clock, i);
 		value += gpu_read(gpu, signal->data);
 	}
 
 	/* switch back to pixel pipe 0 to prevent GPU hang */
-	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(0);
-	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+	pipe_select(gpu, clock, 0);
 
 	return value;
 }
