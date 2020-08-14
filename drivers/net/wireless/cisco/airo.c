@@ -5659,8 +5659,9 @@ static int __init airo_init_module( void )
 	for (i = 0; i < 4 && io[i] && irq[i]; i++) {
 		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
 			"io=0x%x", irq[i], io[i] );
-		if (init_airo_card( irq[i], io[i], 0, NULL ))
+		if (init_airo_card( irq[i], io[i], 0, NULL )) {
 			/* do nothing */ ;
+		}
 	}
 
 #ifdef CONFIG_PCI
