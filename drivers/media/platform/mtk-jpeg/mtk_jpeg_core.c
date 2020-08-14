@@ -844,7 +844,6 @@ dec_end:
 static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 {
 	struct mtk_jpeg_q_data *q = &ctx->out_q;
-	int i;
 
 	q->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
 	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
@@ -856,8 +855,7 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 				      MTK_JPEG_FMT_FLAG_DEC_OUTPUT);
 	q->pix_mp.width = MTK_JPEG_MIN_WIDTH;
 	q->pix_mp.height = MTK_JPEG_MIN_HEIGHT;
-	q->pix_mp.plane_fmt[0].bytesperline = 0;
-	q->pix_mp.plane_fmt[0].sizeimage = MTK_JPEG_DEFAULT_SIZEIMAGE;
+	mtk_jpeg_try_fmt_mplane(&q->pix_mp, q->fmt);
 
 	q = &ctx->cap_q;
 	q->fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
@@ -870,13 +868,7 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 	q->pix_mp.width = MTK_JPEG_MIN_WIDTH;
 	q->pix_mp.height = MTK_JPEG_MIN_HEIGHT;
 
-	for (i = 0; i < q->fmt->colplanes; i++) {
-		u32 stride = q->pix_mp.width * q->fmt->h_sample[i] / 4;
-		u32 h = q->pix_mp.height * q->fmt->v_sample[i] / 4;
-
-		q->pix_mp.plane_fmt[i].bytesperline = stride;
-		q->pix_mp.plane_fmt[i].sizeimage = stride * h;
-	}
+	mtk_jpeg_try_fmt_mplane(&q->pix_mp, q->fmt);
 }
 
 static int mtk_jpeg_open(struct file *file)
