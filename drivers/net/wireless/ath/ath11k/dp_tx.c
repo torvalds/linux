@@ -720,7 +720,7 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 	cmd->ring_base_addr_hi = (u64)params.ring_base_paddr >>
 				 HAL_ADDR_MSB_REG_SHIFT;
 
-	ret = ath11k_hal_srng_get_entrysize(ring_type);
+	ret = ath11k_hal_srng_get_entrysize(ab, ring_type);
 	if (ret < 0)
 		goto err_free;
 

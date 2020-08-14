@@ -8,7 +8,7 @@
 #include "hal_desc.h"
 #include "hif.h"
 
-static const struct hal_srng_config hw_srng_config[] = {
+static const struct hal_srng_config hw_srng_config_template[] = {
 	/* TODO: max_rings can populated by querying HW capabilities */
 	{ /* REO_DST */
 		.start_ring_id = HAL_SRNG_RING_ID_REO2SW1,
@@ -16,14 +16,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 		.entry_size = sizeof(struct hal_reo_dest_ring) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_DST,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_HP,
-		},
-		.reg_size = {
-			HAL_REO2_RING_BASE_LSB - HAL_REO1_RING_BASE_LSB,
-			HAL_REO2_RING_HP - HAL_REO1_RING_HP,
-		},
 		.max_size = HAL_REO_REO2SW1_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* REO_EXCEPTION */
@@ -36,10 +28,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 		.entry_size = sizeof(struct hal_reo_dest_ring) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_DST,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_TCL_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_TCL_RING_HP,
-		},
 		.max_size = HAL_REO_REO2TCL_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* REO_REINJECT */
@@ -48,10 +36,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 		.entry_size = sizeof(struct hal_reo_entrance_ring) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_SRC,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_SW2REO_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_SW2REO_RING_HP,
-		},
 		.max_size = HAL_REO_SW2REO_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* REO_CMD */
@@ -61,10 +45,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 			sizeof(struct hal_reo_get_queue_stats)) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_SRC,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_CMD_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_CMD_HP,
-		},
 		.max_size = HAL_REO_CMD_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* REO_STATUS */
@@ -74,11 +54,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 			sizeof(struct hal_reo_get_queue_stats_status)) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_DST,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_REO_REG +
-				HAL_REO_STATUS_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_STATUS_HP,
-		},
 		.max_size = HAL_REO_STATUS_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* TCL_DATA */
@@ -88,14 +63,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 			     sizeof(struct hal_tcl_data_cmd)) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_SRC,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL1_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL1_RING_HP,
-		},
-		.reg_size = {
-			HAL_TCL2_RING_BASE_LSB - HAL_TCL1_RING_BASE_LSB,
-			HAL_TCL2_RING_HP - HAL_TCL1_RING_HP,
-		},
 		.max_size = HAL_SW2TCL1_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* TCL_CMD */
@@ -105,10 +72,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 			     sizeof(struct hal_tcl_gse_cmd)) >> 2,
 		.lmac_ring =  false,
 		.ring_dir = HAL_SRNG_DIR_SRC,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_RING_HP,
-		},
 		.max_size = HAL_SW2TCL1_CMD_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* TCL_STATUS */
@@ -118,11 +81,6 @@ static const struct hal_srng_config hw_srng_config[] = {
 			     sizeof(struct hal_tcl_status_ring)) >> 2,
 		.lmac_ring = false,
 		.ring_dir = HAL_SRNG_DIR_DST,
-		.reg_start = {
-			HAL_SEQ_WCSS_UMAC_TCL_REG +
-				HAL_TCL_STATUS_RING_BASE_LSB,
-			HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_STATUS_RING_HP,
-		},
 		.max_size = HAL_TCL_STATUS_RING_BASE_MSB_RING_SIZE,
 	},
 	{ /* CE_SRC */
@@ -344,7 +302,7 @@ static void ath11k_hal_free_cont_wrp(struct ath11k_base *ab)
 static void ath11k_hal_ce_dst_setup(struct ath11k_base *ab,
 				    struct hal_srng *srng, int ring_num)
 {
-	const struct hal_srng_config *srng_config = &hw_srng_config[HAL_CE_DST];
+	struct hal_srng_config *srng_config = &ab->hal.srng_config[HAL_CE_DST];
 	u32 addr;
 	u32 val;
 
@@ -550,7 +508,7 @@ static int ath11k_hal_srng_get_ring_id(struct ath11k_base *ab,
 				       enum hal_ring_type type,
 				       int ring_num, int mac_id)
 {
-	const struct hal_srng_config *srng_config = &hw_srng_config[type];
+	struct hal_srng_config *srng_config = &ab->hal.srng_config[type];
 	int ring_id;
 
 	if (ring_num >= srng_config->max_rings) {
@@ -568,26 +526,26 @@ static int ath11k_hal_srng_get_ring_id(struct ath11k_base *ab,
 	return ring_id;
 }
 
-int ath11k_hal_srng_get_entrysize(u32 ring_type)
+int ath11k_hal_srng_get_entrysize(struct ath11k_base *ab, u32 ring_type)
 {
-	const struct hal_srng_config *srng_config;
+	struct hal_srng_config *srng_config;
 
 	if (WARN_ON(ring_type >= HAL_MAX_RING_TYPES))
 		return -EINVAL;
 
-	srng_config = &hw_srng_config[ring_type];
+	srng_config = &ab->hal.srng_config[ring_type];
 
 	return (srng_config->entry_size << 2);
 }
 
-int ath11k_hal_srng_get_max_entries(u32 ring_type)
+int ath11k_hal_srng_get_max_entries(struct ath11k_base *ab, u32 ring_type)
 {
-	const struct hal_srng_config *srng_config;
+	struct hal_srng_config *srng_config;
 
 	if (WARN_ON(ring_type >= HAL_MAX_RING_TYPES))
 		return -EINVAL;
 
-	srng_config = &hw_srng_config[ring_type];
+	srng_config = &ab->hal.srng_config[ring_type];
 
 	return (srng_config->max_size / srng_config->entry_size);
 }
@@ -1003,7 +961,7 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 			  struct hal_srng_params *params)
 {
 	struct ath11k_hal *hal = &ab->hal;
-	const struct hal_srng_config *srng_config = &hw_srng_config[type];
+	struct hal_srng_config *srng_config = &ab->hal.srng_config[type];
 	struct hal_srng *srng;
 	int ring_id;
 	u32 lmac_idx;
@@ -1102,6 +1060,56 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 	return ring_id;
 }
 
+static int ath11k_hal_srng_create_config(struct ath11k_base *ab)
+{
+	struct ath11k_hal *hal = &ab->hal;
+	struct hal_srng_config *s;
+
+	hal->srng_config = kmemdup(hw_srng_config_template,
+				   sizeof(hw_srng_config_template),
+				   GFP_KERNEL);
+	if (!hal->srng_config)
+		return -ENOMEM;
+
+	s = &hal->srng_config[HAL_REO_DST];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_HP;
+	s->reg_size[0] = HAL_REO2_RING_BASE_LSB - HAL_REO1_RING_BASE_LSB;
+	s->reg_size[1] = HAL_REO2_RING_HP - HAL_REO1_RING_HP;
+
+	s = &hal->srng_config[HAL_REO_EXCEPTION];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_TCL_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_TCL_RING_HP;
+
+	s = &hal->srng_config[HAL_REO_REINJECT];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_SW2REO_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_SW2REO_RING_HP;
+
+	s = &hal->srng_config[HAL_REO_CMD];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_CMD_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_CMD_HP;
+
+	s = &hal->srng_config[HAL_REO_STATUS];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_STATUS_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO_STATUS_HP;
+
+	s = &hal->srng_config[HAL_TCL_DATA];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL1_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL1_RING_HP;
+	s->reg_size[0] = HAL_TCL2_RING_BASE_LSB - HAL_TCL1_RING_BASE_LSB;
+	s->reg_size[1] = HAL_TCL2_RING_HP - HAL_TCL1_RING_HP;
+
+	s = &hal->srng_config[HAL_TCL_CMD];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_RING_HP;
+
+	s = &hal->srng_config[HAL_TCL_STATUS];
+	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_STATUS_RING_BASE_LSB;
+	s->reg_start[1] = HAL_SEQ_WCSS_UMAC_TCL_REG + HAL_TCL_STATUS_RING_HP;
+
+	return 0;
+}
+
 int ath11k_hal_srng_init(struct ath11k_base *ab)
 {
 	struct ath11k_hal *hal = &ab->hal;
@@ -1109,7 +1117,9 @@ int ath11k_hal_srng_init(struct ath11k_base *ab)
 
 	memset(hal, 0, sizeof(*hal));
 
-	hal->srng_config = hw_srng_config;
+	ret = ath11k_hal_srng_create_config(ab);
+	if (ret)
+		goto err_hal;
 
 	ret = ath11k_hal_alloc_cont_rdp(ab);
 	if (ret)
@@ -1131,8 +1141,11 @@ EXPORT_SYMBOL(ath11k_hal_srng_init);
 
 void ath11k_hal_srng_deinit(struct ath11k_base *ab)
 {
+	struct ath11k_hal *hal = &ab->hal;
+
 	ath11k_hal_free_cont_rdp(ab);
 	ath11k_hal_free_cont_wrp(ab);
+	kfree(hal->srng_config);
 }
 EXPORT_SYMBOL(ath11k_hal_srng_deinit);
 

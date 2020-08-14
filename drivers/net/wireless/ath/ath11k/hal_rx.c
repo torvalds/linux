@@ -786,7 +786,7 @@ void ath11k_hal_reo_init_cmd_ring(struct ath11k_base *ab,
 
 	memset(&params, 0, sizeof(params));
 
-	entry_size = ath11k_hal_srng_get_entrysize(HAL_REO_CMD);
+	entry_size = ath11k_hal_srng_get_entrysize(ab, HAL_REO_CMD);
 	ath11k_hal_srng_get_params(ab, srng, &params);
 	entry = (u8 *)params.ring_base_vaddr;
 

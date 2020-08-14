@@ -112,8 +112,8 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 			 int mac_id, int num_entries)
 {
 	struct hal_srng_params params = { 0 };
-	int entry_sz = ath11k_hal_srng_get_entrysize(type);
-	int max_entries = ath11k_hal_srng_get_max_entries(type);
+	int entry_sz = ath11k_hal_srng_get_entrysize(ab, type);
+	int max_entries = ath11k_hal_srng_get_max_entries(ab, type);
 	int ret;
 
 	if (max_entries < 0 || entry_sz < 0)
@@ -368,7 +368,7 @@ static int ath11k_dp_scatter_idle_link_desc_setup(struct ath11k_base *ab,
 	u32 end_offset;
 
 	n_entries_per_buf = HAL_WBM_IDLE_SCATTER_BUF_SIZE /
-			    ath11k_hal_srng_get_entrysize(HAL_WBM_IDLE_LINK);
+		ath11k_hal_srng_get_entrysize(ab, HAL_WBM_IDLE_LINK);
 	num_scatter_buf = DIV_ROUND_UP(size, HAL_WBM_IDLE_SCATTER_BUF_SIZE);
 
 	if (num_scatter_buf > DP_IDLE_SCATTER_BUFS_MAX)
@@ -566,7 +566,7 @@ int ath11k_dp_link_desc_setup(struct ath11k_base *ab,
 		return ret;
 
 	/* Setup link desc idle list for HW internal usage */
-	entry_sz = ath11k_hal_srng_get_entrysize(ring_type);
+	entry_sz = ath11k_hal_srng_get_entrysize(ab, ring_type);
 	tot_mem_sz = entry_sz * n_link_desc;
 
 	/* Setup scatter desc list when the total memory requirement is more */

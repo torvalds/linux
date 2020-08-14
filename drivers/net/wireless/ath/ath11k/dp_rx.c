@@ -416,7 +416,7 @@ static int ath11k_dp_rxdma_ring_buf_setup(struct ath11k *ar,
 	int num_entries;
 
 	num_entries = rx_ring->refill_buf_ring.size /
-		      ath11k_hal_srng_get_entrysize(ringtype);
+		ath11k_hal_srng_get_entrysize(ar->ab, ringtype);
 
 	rx_ring->bufs_max = num_entries;
 	ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id, rx_ring, num_entries,
@@ -4834,7 +4834,7 @@ int ath11k_dp_rx_pdev_mon_attach(struct ath11k *ar)
 
 	dp_srng = &dp->rxdma_mon_desc_ring;
 	n_link_desc = dp_srng->size /
-		ath11k_hal_srng_get_entrysize(HAL_RXDMA_MONITOR_DESC);
+		ath11k_hal_srng_get_entrysize(ar->ab, HAL_RXDMA_MONITOR_DESC);
 	mon_desc_srng =
 		&ar->ab->hal.srng_list[dp->rxdma_mon_desc_ring.ring_id];
 
