@@ -581,6 +581,7 @@ static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
 	cfg->tgt_ce = target_ce_config_wlan;
 	cfg->svc_to_ce_map_len = ARRAY_SIZE(target_service_to_ce_map_wlan);
 	cfg->svc_to_ce_map = target_service_to_ce_map_wlan;
+	ab->qmi.service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ8074;
 }
 
 static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)

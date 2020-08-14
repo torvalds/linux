@@ -18,6 +18,8 @@
 #define ATH11K_QMI_WLFW_SERVICE_ID_V01		0x45
 #define ATH11K_QMI_WLFW_SERVICE_VERS_V01	0x01
 #define ATH11K_QMI_WLFW_SERVICE_INS_ID_V01	0x02
+#define ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCA6390	0x01
+#define ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ8074	0x02
 #define ATH11K_QMI_WLANFW_MAX_TIMESTAMP_LEN_V01	32
 #define ATH11K_QMI_RESP_LEN_MAX			8192
 #define ATH11K_QMI_WLANFW_MAX_NUM_MEM_SEG_V01	32
@@ -122,6 +124,7 @@ struct ath11k_qmi {
 	u8 cal_done;
 	struct target_info target;
 	struct m3_mem_region m3_mem;
+	unsigned int service_ins_id;
 };
 
 #define QMI_WLANFW_HOST_CAP_REQ_MSG_V01_MAX_LEN		189

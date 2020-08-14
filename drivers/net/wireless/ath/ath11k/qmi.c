@@ -2610,7 +2610,7 @@ int ath11k_qmi_init_service(struct ath11k_base *ab)
 
 	ret = qmi_add_lookup(&ab->qmi.handle, ATH11K_QMI_WLFW_SERVICE_ID_V01,
 			     ATH11K_QMI_WLFW_SERVICE_VERS_V01,
-			     ATH11K_QMI_WLFW_SERVICE_INS_ID_V01);
+			     ab->qmi.service_ins_id);
 	if (ret < 0) {
 		ath11k_warn(ab, "failed to add qmi lookup\n");
 		return ret;
