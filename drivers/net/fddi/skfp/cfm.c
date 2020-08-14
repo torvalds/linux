@@ -36,10 +36,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)cfm.c	2.18 98/10/06 (C) SK " ;
-#endif
-
 /*
  * FSM Macros
  */
