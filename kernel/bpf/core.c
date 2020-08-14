@@ -1966,7 +1966,7 @@ void bpf_prog_array_delete_safe(struct bpf_prog_array *array,
  * @index: the index of the program to replace
  *
  * Skips over dummy programs, by not counting them, when calculating
- * the the position of the program to replace.
+ * the position of the program to replace.
  *
  * Return:
  * * 0		- Success

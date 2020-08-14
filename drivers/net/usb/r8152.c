@@ -1504,7 +1504,7 @@ static int determine_ethernet_addr(struct r8152 *tp, struct sockaddr *sa)
 
 	sa->sa_family = dev->type;
 
-	ret = eth_platform_get_mac_address(&dev->dev, sa->sa_data);
+	ret = eth_platform_get_mac_address(&tp->udev->dev, sa->sa_data);
 	if (ret < 0) {
 		if (tp->version == RTL_VER_01) {
 			ret = pla_ocp_read(tp, PLA_IDR, 8, sa->sa_data);

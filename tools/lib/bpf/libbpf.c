@@ -8306,10 +8306,8 @@ bpf_program__attach_iter(struct bpf_program *prog,
 	if (!OPTS_VALID(opts, bpf_iter_attach_opts))
 		return ERR_PTR(-EINVAL);
 
-	if (OPTS_HAS(opts, map_fd)) {
-		target_fd = opts->map_fd;
-		link_create_opts.flags = BPF_ITER_LINK_MAP_FD;
-	}
+	link_create_opts.iter_info = OPTS_GET(opts, link_info, (void *)0);
+	link_create_opts.iter_info_len = OPTS_GET(opts, link_info_len, 0);
 
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {

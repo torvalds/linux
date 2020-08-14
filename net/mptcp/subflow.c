@@ -423,12 +423,12 @@ static void mptcp_sock_destruct(struct sock *sk)
 	 * also remove the mptcp socket, via
 	 * sock_put(ctx->conn).
 	 *
-	 * Problem is that the mptcp socket will not be in
-	 * SYN_RECV state and doesn't have SOCK_DEAD flag.
+	 * Problem is that the mptcp socket will be in
+	 * ESTABLISHED state and will not have the SOCK_DEAD flag.
 	 * Both result in warnings from inet_sock_destruct.
 	 */
 
-	if (sk->sk_state == TCP_SYN_RECV) {
+	if (sk->sk_state == TCP_ESTABLISHED) {
 		sk->sk_state = TCP_CLOSE;
 		WARN_ON_ONCE(sk->sk_socket);
 		sock_orphan(sk);
