@@ -529,16 +529,15 @@ static int video_querycap(struct file *file, void *fh,
 	return 0;
 }
 
-static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+/*
+ *  Returns the index in the video->formats[] array of the element which
+ *  has the "ndx"th unique value of pixelformat field.
+ *  If not found (no more unique pixelformat's) returns -EINVAL.
+ */
+static int video_get_unique_pixelformat_by_index(struct camss_video *video,
+						 int ndx)
 {
-	struct camss_video *video = video_drvdata(file);
 	int i, j, k;
-
-	if (f->type != video->type)
-		return -EINVAL;
-
-	if (f->index >= video->nformats)
-		return -EINVAL;
 
 	/* find index "i" of "k"th unique pixelformat in formats array */
 	k = -1;
@@ -552,11 +551,53 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		if (j == i)
 			k++;
 
-		if (k == f->index)
-			break;
+		if (k == ndx)
+			return i;
 	}
 
-	if (k < f->index)
+	return -EINVAL;
+}
+
+/*
+ *  Returns the index in the video->formats[] array of the element which
+ *  has code equal to mcode.
+ *  If not found returns -EINVAL.
+ */
+static int video_get_pixelformat_by_mbus_code(struct camss_video *video,
+					      u32 mcode)
+{
+	int i;
+
+	for (i = 0; i < video->nformats; i++) {
+		if (video->formats[i].code == mcode)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+{
+	struct camss_video *video = video_drvdata(file);
+	int i;
+
+	if (f->type != video->type)
+		return -EINVAL;
+
+	if (f->index >= video->nformats)
+		return -EINVAL;
+
+	if (f->mbus_code) {
+		/* Each entry in formats[] table has unique mbus_code */
+		if (f->index > 0)
+			return -EINVAL;
+
+		i = video_get_pixelformat_by_mbus_code(video, f->mbus_code);
+	} else {
+		i = video_get_unique_pixelformat_by_index(video, f->index);
+	}
+
+	if (i < 0)
 		return -EINVAL;
 
 	f->pixelformat = video->formats[i].pixelformat;
@@ -911,8 +952,8 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	}
 
 	vdev->fops = &msm_vid_fops;
-	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING |
-							V4L2_CAP_READWRITE;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING
+			  | V4L2_CAP_READWRITE | V4L2_CAP_IO_MC;
 	vdev->ioctl_ops = &msm_vid_ioctl_ops;
 	vdev->release = msm_video_release;
 	vdev->v4l2_dev = v4l2_dev;
