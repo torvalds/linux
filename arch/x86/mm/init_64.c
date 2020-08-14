@@ -1252,14 +1252,19 @@ static void __init preallocate_vmalloc_pages(void)
 		if (!p4d)
 			goto failed;
 
-		/*
-		 * With 5-level paging the P4D level is not folded. So the PGDs
-		 * are now populated and there is no need to walk down to the
-		 * PUD level.
-		 */
 		if (pgtable_l5_enabled())
 			continue;
 
+		/*
+		 * The goal here is to allocate all possibly required
+		 * hardware page tables pointed to by the top hardware
+		 * level.
+		 *
+		 * On 4-level systems, the P4D layer is folded away and
+		 * the above code does no preallocation.  Below, go down
+		 * to the pud _software_ level to ensure the second
+		 * hardware level is allocated on 4-level systems too.
+		 */
 		lvl = "pud";
 		pud = pud_alloc(&init_mm, p4d, addr);
 		if (!pud)
