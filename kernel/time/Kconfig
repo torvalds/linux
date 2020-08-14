@@ -52,6 +52,15 @@ config GENERIC_CLOCKEVENTS_MIN_ADJUST
 config GENERIC_CMOS_UPDATE
 	bool
 
+# Select to handle posix CPU timers from task_work
+# and not from the timer interrupt context
+config HAVE_POSIX_CPU_TIMERS_TASK_WORK
+	bool
+
+config POSIX_CPU_TIMERS_TASK_WORK
+	bool
+	default y if POSIX_TIMERS && HAVE_POSIX_CPU_TIMERS_TASK_WORK
+
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 
