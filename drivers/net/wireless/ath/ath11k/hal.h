@@ -458,6 +458,8 @@ struct hal_srng_params {
 	u32 flags;
 	u32 max_buffer_len;
 	u32 low_threshold;
+	dma_addr_t msi_addr;
+	u32 msi_data;
 
 	/* Add more params as needed */
 };

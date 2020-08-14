@@ -339,6 +339,18 @@ int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)
 	return pci_irq_vector(pci_dev, vector);
 }
 
+static void ath11k_pci_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
+				       u32 *msi_addr_hi)
+{
+	struct pci_dev *pci_dev = to_pci_dev(ab->dev);
+
+	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_LO,
+			      msi_addr_lo);
+
+	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
+			      msi_addr_hi);
+}
+
 int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_name,
 				       int *num_vectors, u32 *user_base_data,
 				       u32 *base_vector)
@@ -364,6 +376,17 @@ int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_nam
 	ath11k_err(ab, "Failed to find MSI assignment for %s!\n", user_name);
 
 	return -EINVAL;
+}
+
+static int ath11k_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
+					  int *num_vectors, u32 *user_base_data,
+					  u32 *base_vector)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	return ath11k_pci_get_user_msi_assignment(ab_pci, user_name,
+						  num_vectors, user_base_data,
+						  base_vector);
 }
 
 static void ath11k_pci_free_irq(struct ath11k_base *ab)
@@ -634,6 +657,8 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.write32 = ath11k_pci_write32,
 	.power_down = ath11k_pci_power_down,
 	.power_up = ath11k_pci_power_up,
+	.get_msi_address =  ath11k_pci_get_msi_address,
+	.get_user_msi_vector = ath11k_get_user_msi_assignment,
 };
 
 static int ath11k_pci_probe(struct pci_dev *pdev,

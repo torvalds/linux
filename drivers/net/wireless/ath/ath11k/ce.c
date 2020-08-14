@@ -5,6 +5,7 @@
 
 #include "dp_rx.h"
 #include "debug.h"
+#include "hif.h"
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -352,6 +353,31 @@ static void ath11k_ce_send_done_cb(struct ath11k_ce_pipe *pipe)
 	}
 }
 
+static void ath11k_ce_srng_msi_ring_params_setup(struct ath11k_base *ab, u32 ce_id,
+						 struct hal_srng_params *ring_params)
+{
+	u32 msi_data_start;
+	u32 msi_data_count;
+	u32 msi_irq_start;
+	u32 addr_lo;
+	u32 addr_hi;
+	int ret;
+
+	ret = ath11k_get_user_msi_vector(ab, "CE",
+					 &msi_data_count, &msi_data_start,
+					 &msi_irq_start);
+
+	if (ret)
+		return;
+
+	ath11k_get_msi_address(ab, &addr_lo, &addr_hi);
+
+	ring_params->msi_addr = addr_lo;
+	ring_params->msi_addr |= (dma_addr_t)(((uint64_t)addr_hi) << 32);
+	ring_params->msi_data = (ce_id % msi_data_count) + msi_data_start;
+	ring_params->flags |= HAL_SRNG_FLAGS_MSI_INTR;
+}
+
 static int ath11k_ce_init_ring(struct ath11k_base *ab,
 			       struct ath11k_ce_ring *ce_ring,
 			       int ce_id, enum hal_ring_type type)
@@ -395,6 +421,10 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 			    ret, ce_id);
 		return ret;
 	}
+
+	if (!(CE_ATTR_DIS_INTR & host_ce_config_wlan[ce_id].flags))
+		ath11k_ce_srng_msi_ring_params_setup(ab, ce_id, &params);
+
 	ce_ring->hal_ring_id = ret;
 
 	return 0;
