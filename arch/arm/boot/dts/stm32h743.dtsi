@@ -329,6 +329,16 @@
 			status = "disabled";
 		};
 
+		ltdc: display-controller@50001000 {
+			compatible = "st,stm32-ltdc";
+			reg = <0x50001000 0x200>;
+			interrupts = <88>, <89>;
+			resets = <&rcc STM32H7_APB3_RESET(LTDC)>;
+			clocks = <&rcc LTDC_CK>;
+			clock-names = "lcd";
+			status = "disabled";
+		};
+
 		mdma1: dma-controller@52000000 {
 			compatible = "st,stm32h7-mdma";
 			reg = <0x52000000 0x1000>;
