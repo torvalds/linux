@@ -2477,21 +2477,21 @@ static const struct qmi_msg_handler ath11k_qmi_msg_handlers[] = {
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_REQUEST_MEM_IND_V01,
 		.ei = qmi_wlanfw_request_mem_ind_msg_v01_ei,
-		.decoded_size = sizeof(qmi_wlanfw_request_mem_ind_msg_v01_ei),
+		.decoded_size = sizeof(struct qmi_wlanfw_request_mem_ind_msg_v01),
 		.fn = ath11k_qmi_msg_mem_request_cb,
 	},
 	{
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_FW_MEM_READY_IND_V01,
 		.ei = qmi_wlanfw_mem_ready_ind_msg_v01_ei,
-		.decoded_size = sizeof(qmi_wlanfw_mem_ready_ind_msg_v01_ei),
+		.decoded_size = sizeof(struct qmi_wlanfw_fw_mem_ready_ind_msg_v01),
 		.fn = ath11k_qmi_msg_mem_ready_cb,
 	},
 	{
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_FW_READY_IND_V01,
 		.ei = qmi_wlanfw_fw_ready_ind_msg_v01_ei,
-		.decoded_size = sizeof(qmi_wlanfw_fw_ready_ind_msg_v01_ei),
+		.decoded_size = sizeof(struct qmi_wlanfw_fw_ready_ind_msg_v01),
 		.fn = ath11k_qmi_msg_fw_ready_cb,
 	},
 	{
@@ -2499,7 +2499,7 @@ static const struct qmi_msg_handler ath11k_qmi_msg_handlers[] = {
 		.msg_id = QMI_WLFW_COLD_BOOT_CAL_DONE_IND_V01,
 		.ei = qmi_wlanfw_cold_boot_cal_done_ind_msg_v01_ei,
 		.decoded_size =
-			sizeof(qmi_wlanfw_cold_boot_cal_done_ind_msg_v01_ei),
+			sizeof(struct qmi_wlanfw_fw_cold_cal_done_ind_msg_v01),
 		.fn = ath11k_qmi_msg_cold_boot_cal_done_cb,
 	},
 };

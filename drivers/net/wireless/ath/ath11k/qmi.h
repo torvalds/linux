@@ -267,6 +267,14 @@ struct qmi_wlanfw_fw_mem_ready_ind_msg_v01 {
 	char placeholder;
 };
 
+struct qmi_wlanfw_fw_ready_ind_msg_v01 {
+	char placeholder;
+};
+
+struct qmi_wlanfw_fw_cold_cal_done_ind_msg_v01 {
+	char placeholder;
+};
+
 #define QMI_WLANFW_CAP_REQ_MSG_V01_MAX_LEN	0
 #define QMI_WLANFW_CAP_RESP_MSG_V01_MAX_LEN	207
 #define QMI_WLANFW_CAP_REQ_V01			0x0024
