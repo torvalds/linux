@@ -2998,7 +2998,7 @@ static void ipw_remove_current_network(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->ieee->lock, flags);
 }
 
-/**
+/*
  * Check that card is still alive.
  * Reads debug register from domain0.
  * If card is present, pre-defined value should
@@ -3113,7 +3113,7 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	mdelay(1);
 
 	/* write ucode */
-	/**
+	/*
 	 * @bug
 	 * Do NOT set indirect address register once and then
 	 * store data to indirect data register in the loop.
@@ -3666,7 +3666,7 @@ static int ipw_load(struct ipw_priv *priv)
 	return rc;
 }
 
-/**
+/*
  * DMA services
  *
  * Theory of operation
@@ -3689,11 +3689,11 @@ static int ipw_load(struct ipw_priv *priv)
  * we only utilize the first data transmit queue (queue1).
  */
 
-/**
+/*
  * Driver allocates buffers of this size for Rx
  */
 
-/**
+/*
  * ipw_rx_queue_space - Return number of free slots available in queue.
  */
 static int ipw_rx_queue_space(const struct ipw_rx_queue *q)
@@ -3724,7 +3724,7 @@ static inline int ipw_queue_inc_wrap(int index, int n_bd)
 	return (++index == n_bd) ? 0 : index;
 }
 
-/**
+/*
  * Initialize common DMA queue structure
  *
  * @param q                queue to init
@@ -3788,7 +3788,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	return 0;
 }
 
-/**
+/*
  * Free one TFD, those at index [txq->q.last_used].
  * Do NOT advance any indexes
  *
@@ -3811,7 +3811,7 @@ static void ipw_queue_tx_free_tfd(struct ipw_priv *priv,
 	if (le32_to_cpu(bd->u.data.num_chunks) > NUM_TFD_CHUNKS) {
 		IPW_ERROR("Too many chunks: %i\n",
 			  le32_to_cpu(bd->u.data.num_chunks));
-		/** @todo issue fatal error, it is quite serious situation */
+		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
 
@@ -3828,7 +3828,7 @@ static void ipw_queue_tx_free_tfd(struct ipw_priv *priv,
 	}
 }
 
-/**
+/*
  * Deallocate DMA queue.
  *
  * Empty queue by removing and destroying all BD's.
@@ -3860,7 +3860,7 @@ static void ipw_queue_tx_free(struct ipw_priv *priv, struct clx2_tx_queue *txq)
 	memset(txq, 0, sizeof(*txq));
 }
 
-/**
+/*
  * Destroy all DMA queues and structures
  *
  * @param priv
@@ -4465,7 +4465,7 @@ static void handle_scan_event(struct ipw_priv *priv)
 	}
 }
 
-/**
+/*
  * Handle host notification packet.
  * Called from interrupt routine
  */
@@ -4925,7 +4925,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 	}
 }
 
-/**
+/*
  * Destroys all DMA structures and initialise them again
  *
  * @param priv
@@ -4934,7 +4934,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 static int ipw_queue_reset(struct ipw_priv *priv)
 {
 	int rc = 0;
-	/** @todo customize queue sizes */
+	/* @todo customize queue sizes */
 	int nTx = 64, nTxCmd = 8;
 	ipw_tx_queue_free(priv);
 	/* Tx CMD queue */
@@ -4990,7 +4990,7 @@ static int ipw_queue_reset(struct ipw_priv *priv)
 	return rc;
 }
 
-/**
+/*
  * Reclaim Tx queue entries no more used by NIC.
  *
  * When FW advances 'R' index, all entries between old and
@@ -8445,7 +8445,7 @@ static void ipw_rx(struct ipw_priv *priv)
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-/**
+/*
  * ipw_sw_reset
  * @option: options to control different reset behaviour
  * 	    0 = reset everything except the 'disable' module_param
