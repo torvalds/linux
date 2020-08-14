@@ -3,6 +3,7 @@
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Ming Hsiu Tsai <minghsiu.tsai@mediatek.com>
  *         Rick Chang <rick.chang@mediatek.com>
+ *         Xia Jiang <xia.jiang@mediatek.com>
  */
 
 #include <linux/clk.h>
@@ -23,9 +24,58 @@
 #include <media/videobuf2-dma-contig.h>
 #include <soc/mediatek/smi.h>
 
+#include "mtk_jpeg_enc_hw.h"
 #include "mtk_jpeg_dec_hw.h"
 #include "mtk_jpeg_core.h"
 #include "mtk_jpeg_dec_parse.h"
+
+static struct mtk_jpeg_fmt mtk_jpeg_enc_formats[] = {
+	{
+		.fourcc		= V4L2_PIX_FMT_JPEG,
+		.colplanes	= 1,
+		.flags		= MTK_JPEG_FMT_FLAG_CAPTURE,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_NV12M,
+		.hw_format	= JPEG_ENC_YUV_FORMAT_NV12,
+		.h_sample	= {4, 4},
+		.v_sample	= {4, 2},
+		.colplanes	= 2,
+		.h_align	= 4,
+		.v_align	= 4,
+		.flags		= MTK_JPEG_FMT_FLAG_OUTPUT,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_NV21M,
+		.hw_format	= JEPG_ENC_YUV_FORMAT_NV21,
+		.h_sample	= {4, 4},
+		.v_sample	= {4, 2},
+		.colplanes	= 2,
+		.h_align	= 4,
+		.v_align	= 4,
+		.flags		= MTK_JPEG_FMT_FLAG_OUTPUT,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_YUYV,
+		.hw_format	= JPEG_ENC_YUV_FORMAT_YUYV,
+		.h_sample	= {8},
+		.v_sample	= {4},
+		.colplanes	= 1,
+		.h_align	= 5,
+		.v_align	= 3,
+		.flags		= MTK_JPEG_FMT_FLAG_OUTPUT,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_YVYU,
+		.hw_format	= JPEG_ENC_YUV_FORMAT_YVYU,
+		.h_sample	= {8},
+		.v_sample	= {4},
+		.colplanes	= 1,
+		.h_align	= 5,
+		.v_align	= 3,
+		.flags		= MTK_JPEG_FMT_FLAG_OUTPUT,
+	},
+};
 
 static struct mtk_jpeg_fmt mtk_jpeg_dec_formats[] = {
 	{
@@ -53,6 +103,7 @@ static struct mtk_jpeg_fmt mtk_jpeg_dec_formats[] = {
 	},
 };
 
+#define MTK_JPEG_ENC_NUM_FORMATS ARRAY_SIZE(mtk_jpeg_enc_formats)
 #define MTK_JPEG_DEC_NUM_FORMATS ARRAY_SIZE(mtk_jpeg_dec_formats)
 
 struct mtk_jpeg_src_buf {
@@ -63,6 +114,11 @@ struct mtk_jpeg_src_buf {
 
 static int debug;
 module_param(debug, int, 0644);
+
+static inline struct mtk_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
+{
+	return container_of(ctrl->handler, struct mtk_jpeg_ctx, ctrl_hdl);
+}
 
 static inline struct mtk_jpeg_ctx *mtk_jpeg_fh_to_ctx(struct v4l2_fh *fh)
 {
@@ -84,6 +140,53 @@ static int mtk_jpeg_querycap(struct file *file, void *priv,
 	strscpy(cap->card, jpeg->variant->dev_name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(jpeg->dev));
+
+	return 0;
+}
+
+static int vidioc_jpeg_enc_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct mtk_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
+
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_RESTART_INTERVAL:
+		ctx->restart_interval = ctrl->val;
+		break;
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ctx->enc_quality = ctrl->val;
+		break;
+	case V4L2_CID_JPEG_ACTIVE_MARKER:
+		ctx->enable_exif = ctrl->val & V4L2_JPEG_ACTIVE_MARKER_APP1;
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops mtk_jpeg_enc_ctrl_ops = {
+	.s_ctrl = vidioc_jpeg_enc_s_ctrl,
+};
+
+static int mtk_jpeg_enc_ctrls_setup(struct mtk_jpeg_ctx *ctx)
+{
+	const struct v4l2_ctrl_ops *ops = &mtk_jpeg_enc_ctrl_ops;
+	struct v4l2_ctrl_handler *handler = &ctx->ctrl_hdl;
+
+	v4l2_ctrl_handler_init(handler, 3);
+
+	v4l2_ctrl_new_std(handler, ops, V4L2_CID_JPEG_RESTART_INTERVAL, 0, 100,
+			  1, 0);
+	v4l2_ctrl_new_std(handler, ops, V4L2_CID_JPEG_COMPRESSION_QUALITY, 48,
+			  100, 1, 90);
+	v4l2_ctrl_new_std(handler, ops, V4L2_CID_JPEG_ACTIVE_MARKER, 0,
+			  V4L2_JPEG_ACTIVE_MARKER_APP1, 0, 0);
+
+	if (handler->error) {
+		v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
+		return handler->error;
+	}
+
+	v4l2_ctrl_handler_setup(&ctx->ctrl_hdl);
 
 	return 0;
 }
@@ -331,6 +434,8 @@ static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
 					   pix_mp->pixelformat, fmt_type);
 	q_data->pix_mp.width = pix_mp->width;
 	q_data->pix_mp.height = pix_mp->height;
+	q_data->enc_crop_rect.width = pix_mp->width;
+	q_data->enc_crop_rect.height = pix_mp->height;
 	q_data->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
 	q_data->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
 	q_data->pix_mp.xfer_func = V4L2_XFER_FUNC_SRGB;
@@ -407,6 +512,31 @@ static int mtk_jpeg_subscribe_event(struct v4l2_fh *fh,
 	return v4l2_ctrl_subscribe_event(fh, sub);
 }
 
+static int mtk_jpeg_enc_g_selection(struct file *file, void *priv,
+				    struct v4l2_selection *s)
+{
+	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(priv);
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+		s->r = ctx->out_q.enc_crop_rect;
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.width = ctx->out_q.pix_mp.width;
+		s->r.height = ctx->out_q.pix_mp.height;
+		s->r.left = 0;
+		s->r.top = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int mtk_jpeg_dec_g_selection(struct file *file, void *priv,
 				    struct v4l2_selection *s)
 {
@@ -435,6 +565,56 @@ static int mtk_jpeg_dec_g_selection(struct file *file, void *priv,
 	}
 	return 0;
 }
+
+static int mtk_jpeg_enc_s_selection(struct file *file, void *priv,
+				    struct v4l2_selection *s)
+{
+	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(priv);
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = min(s->r.width, ctx->out_q.pix_mp.width);
+		s->r.height = min(s->r.height, ctx->out_q.pix_mp.height);
+		ctx->out_q.enc_crop_rect = s->r;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ioctl_ops mtk_jpeg_enc_ioctl_ops = {
+	.vidioc_querycap                = mtk_jpeg_querycap,
+	.vidioc_enum_fmt_vid_cap	= mtk_jpeg_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	= mtk_jpeg_enum_fmt_vid_out,
+	.vidioc_try_fmt_vid_cap_mplane	= mtk_jpeg_try_fmt_vid_cap_mplane,
+	.vidioc_try_fmt_vid_out_mplane	= mtk_jpeg_try_fmt_vid_out_mplane,
+	.vidioc_g_fmt_vid_cap_mplane    = mtk_jpeg_g_fmt_vid_mplane,
+	.vidioc_g_fmt_vid_out_mplane    = mtk_jpeg_g_fmt_vid_mplane,
+	.vidioc_s_fmt_vid_cap_mplane    = mtk_jpeg_s_fmt_vid_cap_mplane,
+	.vidioc_s_fmt_vid_out_mplane    = mtk_jpeg_s_fmt_vid_out_mplane,
+	.vidioc_qbuf                    = v4l2_m2m_ioctl_qbuf,
+	.vidioc_subscribe_event         = mtk_jpeg_subscribe_event,
+	.vidioc_g_selection		= mtk_jpeg_enc_g_selection,
+	.vidioc_s_selection		= mtk_jpeg_enc_s_selection,
+
+	.vidioc_create_bufs		= v4l2_m2m_ioctl_create_bufs,
+	.vidioc_prepare_buf		= v4l2_m2m_ioctl_prepare_buf,
+	.vidioc_reqbufs                 = v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf                = v4l2_m2m_ioctl_querybuf,
+	.vidioc_dqbuf                   = v4l2_m2m_ioctl_dqbuf,
+	.vidioc_expbuf                  = v4l2_m2m_ioctl_expbuf,
+	.vidioc_streamon                = v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff               = v4l2_m2m_ioctl_streamoff,
+
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
+};
 
 static const struct v4l2_ioctl_ops mtk_jpeg_dec_ioctl_ops = {
 	.vidioc_querycap                = mtk_jpeg_querycap,
@@ -501,15 +681,22 @@ static int mtk_jpeg_buf_prepare(struct vb2_buffer *vb)
 {
 	struct mtk_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct mtk_jpeg_q_data *q_data = NULL;
+	struct v4l2_plane_pix_format plane_fmt = {};
 	int i;
 
 	q_data = mtk_jpeg_get_q_data(ctx, vb->vb2_queue->type);
 	if (!q_data)
 		return -EINVAL;
 
-	for (i = 0; i < q_data->fmt->colplanes; i++)
-		vb2_set_plane_payload(vb, i,
-				      q_data->pix_mp.plane_fmt[i].sizeimage);
+	for (i = 0; i < q_data->fmt->colplanes; i++) {
+		plane_fmt = q_data->pix_mp.plane_fmt[i];
+		if (ctx->enable_exif &&
+		    q_data->fmt->fourcc == V4L2_PIX_FMT_JPEG)
+			vb2_set_plane_payload(vb, i, plane_fmt.sizeimage +
+					      MTK_JPEG_MAX_EXIF_SIZE);
+		else
+			vb2_set_plane_payload(vb, i,  plane_fmt.sizeimage);
+	}
 
 	return 0;
 }
@@ -572,6 +759,17 @@ static void mtk_jpeg_set_queue_data(struct mtk_jpeg_ctx *ctx,
 		 param->dec_w, param->dec_h);
 }
 
+static void mtk_jpeg_enc_buf_queue(struct vb2_buffer *vb)
+{
+	struct mtk_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct mtk_jpeg_dev *jpeg = ctx->jpeg;
+
+	v4l2_dbg(2, debug, &jpeg->v4l2_dev, "(%d) buf_q id=%d, vb=%p\n",
+		 vb->vb2_queue->type, vb->index, vb);
+
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, to_vb2_v4l2_buffer(vb));
+}
+
 static void mtk_jpeg_dec_buf_queue(struct vb2_buffer *vb)
 {
 	struct mtk_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
@@ -620,6 +818,15 @@ static struct vb2_v4l2_buffer *mtk_jpeg_buf_remove(struct mtk_jpeg_ctx *ctx,
 		return v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 }
 
+static void mtk_jpeg_enc_stop_streaming(struct vb2_queue *q)
+{
+	struct mtk_jpeg_ctx *ctx = vb2_get_drv_priv(q);
+	struct vb2_v4l2_buffer *vb;
+
+	while ((vb = mtk_jpeg_buf_remove(ctx, q->type)))
+		v4l2_m2m_buf_done(vb, VB2_BUF_STATE_ERROR);
+}
+
 static void mtk_jpeg_dec_stop_streaming(struct vb2_queue *q)
 {
 	struct mtk_jpeg_ctx *ctx = vb2_get_drv_priv(q);
@@ -653,6 +860,15 @@ static const struct vb2_ops mtk_jpeg_dec_qops = {
 	.wait_prepare       = vb2_ops_wait_prepare,
 	.wait_finish        = vb2_ops_wait_finish,
 	.stop_streaming     = mtk_jpeg_dec_stop_streaming,
+};
+
+static const struct vb2_ops mtk_jpeg_enc_qops = {
+	.queue_setup        = mtk_jpeg_queue_setup,
+	.buf_prepare        = mtk_jpeg_buf_prepare,
+	.buf_queue          = mtk_jpeg_enc_buf_queue,
+	.wait_prepare       = vb2_ops_wait_prepare,
+	.wait_finish        = vb2_ops_wait_finish,
+	.stop_streaming     = mtk_jpeg_enc_stop_streaming,
 };
 
 static void mtk_jpeg_set_dec_src(struct mtk_jpeg_ctx *ctx,
@@ -690,6 +906,48 @@ static int mtk_jpeg_set_dec_dst(struct mtk_jpeg_ctx *ctx,
 	}
 
 	return 0;
+}
+
+static void mtk_jpeg_enc_device_run(void *priv)
+{
+	struct mtk_jpeg_ctx *ctx = priv;
+	struct mtk_jpeg_dev *jpeg = ctx->jpeg;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+	enum vb2_buffer_state buf_state = VB2_BUF_STATE_ERROR;
+	unsigned long flags;
+	int ret;
+
+	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+
+	ret = pm_runtime_get_sync(jpeg->dev);
+	if (ret < 0)
+		goto enc_end;
+
+	schedule_delayed_work(&jpeg->job_timeout_work,
+			      msecs_to_jiffies(MTK_JPEG_HW_TIMEOUT_MSEC));
+
+	spin_lock_irqsave(&jpeg->hw_lock, flags);
+
+	/*
+	 * Resetting the hardware every frame is to ensure that all the
+	 * registers are cleared. This is a hardware requirement.
+	 */
+	mtk_jpeg_enc_reset(jpeg->reg_base);
+
+	mtk_jpeg_set_enc_src(ctx, jpeg->reg_base, &src_buf->vb2_buf);
+	mtk_jpeg_set_enc_dst(ctx, jpeg->reg_base, &dst_buf->vb2_buf);
+	mtk_jpeg_set_enc_params(ctx, jpeg->reg_base);
+	mtk_jpeg_enc_start(jpeg->reg_base);
+	spin_unlock_irqrestore(&jpeg->hw_lock, flags);
+	return;
+
+enc_end:
+	v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+	v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+	v4l2_m2m_buf_done(src_buf, buf_state);
+	v4l2_m2m_buf_done(dst_buf, buf_state);
+	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 }
 
 static void mtk_jpeg_dec_device_run(void *priv)
@@ -749,6 +1007,10 @@ static int mtk_jpeg_dec_job_ready(void *priv)
 
 	return (ctx->state == MTK_JPEG_RUNNING) ? 1 : 0;
 }
+
+static const struct v4l2_m2m_ops mtk_jpeg_enc_m2m_ops = {
+	.device_run = mtk_jpeg_enc_device_run,
+};
 
 static const struct v4l2_m2m_ops mtk_jpeg_dec_m2m_ops = {
 	.device_run = mtk_jpeg_dec_device_run,
@@ -810,6 +1072,54 @@ static void mtk_jpeg_clk_off(struct mtk_jpeg_dev *jpeg)
 	mtk_smi_larb_put(jpeg->larb);
 }
 
+static irqreturn_t mtk_jpeg_enc_done(struct mtk_jpeg_dev *jpeg)
+{
+	struct mtk_jpeg_ctx *ctx;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+	enum vb2_buffer_state buf_state = VB2_BUF_STATE_ERROR;
+	u32 result_size;
+
+	ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
+	if (!ctx) {
+		v4l2_err(&jpeg->v4l2_dev, "Context is NULL\n");
+		return IRQ_HANDLED;
+	}
+
+	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+
+	result_size = mtk_jpeg_enc_get_file_size(jpeg->reg_base);
+	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, result_size);
+
+	buf_state = VB2_BUF_STATE_DONE;
+
+	v4l2_m2m_buf_done(src_buf, buf_state);
+	v4l2_m2m_buf_done(dst_buf, buf_state);
+	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
+	pm_runtime_put(ctx->jpeg->dev);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t mtk_jpeg_enc_irq(int irq, void *priv)
+{
+	struct mtk_jpeg_dev *jpeg = priv;
+	u32 irq_status;
+	irqreturn_t ret = IRQ_NONE;
+
+	cancel_delayed_work(&jpeg->job_timeout_work);
+
+	irq_status = readl(jpeg->reg_base + JPEG_ENC_INT_STS) &
+		     JPEG_ENC_INT_STATUS_MASK_ALLIRQ;
+	if (irq_status)
+		writel(0, jpeg->reg_base + JPEG_ENC_INT_STS);
+
+	if (!(irq_status & JPEG_ENC_INT_STATUS_DONE))
+		return ret;
+
+	ret = mtk_jpeg_enc_done(jpeg);
+	return ret;
+}
+
 static irqreturn_t mtk_jpeg_dec_irq(int irq, void *priv)
 {
 	struct mtk_jpeg_dev *jpeg = priv;
@@ -862,6 +1172,7 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 	struct mtk_jpeg_q_data *q = &ctx->out_q;
 	struct mtk_jpeg_dev *jpeg = ctx->jpeg;
 
+	ctx->fh.ctrl_handler = &ctx->ctrl_hdl;
 	q->pix_mp.colorspace = V4L2_COLORSPACE_SRGB;
 	q->pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_601;
 	q->pix_mp.quantization = V4L2_QUANTIZATION_FULL_RANGE;
@@ -918,6 +1229,15 @@ static int mtk_jpeg_open(struct file *file)
 		goto error;
 	}
 
+	if (jpeg->variant->cap_q_default_fourcc == V4L2_PIX_FMT_JPEG) {
+		ret = mtk_jpeg_enc_ctrls_setup(ctx);
+		if (ret) {
+			v4l2_err(&jpeg->v4l2_dev, "Failed to setup jpeg enc controls\n");
+			goto error;
+		}
+	} else {
+		v4l2_ctrl_handler_init(&ctx->ctrl_hdl, 0);
+	}
 	mtk_jpeg_set_default_params(ctx);
 	mutex_unlock(&jpeg->lock);
 	return 0;
@@ -938,6 +1258,7 @@ static int mtk_jpeg_release(struct file *file)
 
 	mutex_lock(&jpeg->lock);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
+	v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
@@ -957,6 +1278,10 @@ static const struct v4l2_file_operations mtk_jpeg_fops = {
 static struct clk_bulk_data mt8173_jpeg_dec_clocks[] = {
 	{ .id = "jpgdec-smi" },
 	{ .id = "jpgdec" },
+};
+
+static struct clk_bulk_data mtk_jpeg_clocks[] = {
+	{ .id = "jpgenc" },
 };
 
 static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
@@ -1190,6 +1515,21 @@ static const struct mtk_jpeg_variant mt8173_jpeg_drvdata = {
 	.cap_q_default_fourcc = V4L2_PIX_FMT_YUV420M,
 };
 
+static const struct mtk_jpeg_variant mtk_jpeg_drvdata = {
+	.clks = mtk_jpeg_clocks,
+	.num_clks = ARRAY_SIZE(mtk_jpeg_clocks),
+	.formats = mtk_jpeg_enc_formats,
+	.num_formats = MTK_JPEG_ENC_NUM_FORMATS,
+	.qops = &mtk_jpeg_enc_qops,
+	.irq_handler = mtk_jpeg_enc_irq,
+	.hw_reset = mtk_jpeg_enc_reset,
+	.m2m_ops = &mtk_jpeg_enc_m2m_ops,
+	.dev_name = "mtk-jpeg-enc",
+	.ioctl_ops = &mtk_jpeg_enc_ioctl_ops,
+	.out_q_default_fourcc = V4L2_PIX_FMT_YUYV,
+	.cap_q_default_fourcc = V4L2_PIX_FMT_JPEG,
+};
+
 static const struct of_device_id mtk_jpeg_match[] = {
 	{
 		.compatible = "mediatek,mt8173-jpgdec",
@@ -1198,6 +1538,10 @@ static const struct of_device_id mtk_jpeg_match[] = {
 	{
 		.compatible = "mediatek,mt2701-jpgdec",
 		.data = &mt8173_jpeg_drvdata,
+	},
+	{
+		.compatible = "mediatek,mtk-jpgenc",
+		.data = &mtk_jpeg_drvdata,
 	},
 	{},
 };

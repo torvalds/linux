@@ -3,6 +3,7 @@
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Ming Hsiu Tsai <minghsiu.tsai@mediatek.com>
  *         Rick Chang <rick.chang@mediatek.com>
+ *         Xia Jiang <xia.jiang@mediatek.com>
  */
 
 #ifndef _MTK_JPEG_CORE_H
@@ -28,6 +29,8 @@
 #define MTK_JPEG_DEFAULT_SIZEIMAGE	(1 * 1024 * 1024)
 
 #define MTK_JPEG_HW_TIMEOUT_MSEC 1000
+
+#define MTK_JPEG_MAX_EXIF_SIZE	(64 * 1024)
 
 /**
  * enum mtk_jpeg_ctx_state - states of the context state machine
@@ -104,6 +107,7 @@ struct mtk_jpeg_dev {
 /**
  * struct jpeg_fmt - driver's internal color format data
  * @fourcc:	the fourcc code, 0 if not applicable
+ * @hw_format:	hardware format value
  * @h_sample:	horizontal sample count of plane in 4 * 4 pixel image
  * @v_sample:	vertical sample count of plane in 4 * 4 pixel image
  * @colplanes:	number of color planes (1 for packed formats)
@@ -113,6 +117,7 @@ struct mtk_jpeg_dev {
  */
 struct mtk_jpeg_fmt {
 	u32	fourcc;
+	u32	hw_format;
 	int	h_sample[VIDEO_MAX_PLANES];
 	int	v_sample[VIDEO_MAX_PLANES];
 	int	colplanes;
@@ -125,10 +130,12 @@ struct mtk_jpeg_fmt {
  * mtk_jpeg_q_data - parameters of one queue
  * @fmt:	  driver-specific format of this queue
  * @pix_mp:	  multiplanar format
+ * @enc_crop_rect:	jpeg encoder crop information
  */
 struct mtk_jpeg_q_data {
 	struct mtk_jpeg_fmt	*fmt;
 	struct v4l2_pix_format_mplane pix_mp;
+	struct v4l2_rect enc_crop_rect;
 };
 
 /**
@@ -138,6 +145,10 @@ struct mtk_jpeg_q_data {
  * @cap_q:		destination (capture) queue queue information
  * @fh:			V4L2 file handle
  * @state:		state of the context
+ * @enable_exif:	enable exif mode of jpeg encoder
+ * @enc_quality:	jpeg encoder quality
+ * @restart_interval:	jpeg encoder restart interval
+ * @ctrl_hdl:		controls handler
  */
 struct mtk_jpeg_ctx {
 	struct mtk_jpeg_dev		*jpeg;
@@ -145,6 +156,10 @@ struct mtk_jpeg_ctx {
 	struct mtk_jpeg_q_data		cap_q;
 	struct v4l2_fh			fh;
 	enum mtk_jpeg_ctx_state		state;
+	bool enable_exif;
+	u8 enc_quality;
+	u8 restart_interval;
+	struct v4l2_ctrl_handler ctrl_hdl;
 };
 
 #endif /* _MTK_JPEG_CORE_H */
