@@ -908,6 +908,10 @@ static int add_jump_destinations(struct objtool_file *file)
 		}
 
 		insn->jump_dest = find_insn(file, dest_sec, dest_off);
+
+		if (!insn->jump_dest && dest_sec->len == dest_off)
+			insn->jump_dest = find_last_insn(file, dest_sec);
+
 		if (!insn->jump_dest) {
 
 			/*
