@@ -96,18 +96,11 @@ struct mtk_jpeg_fmt {
 /**
  * mtk_jpeg_q_data - parameters of one queue
  * @fmt:	  driver-specific format of this queue
- * @w:		  image width
- * @h:		  image height
- * @bytesperline: distance in bytes between the leftmost pixels in two adjacent
- *                lines
- * @sizeimage:	  image buffer size in bytes
+ * @pix_mp:	  multiplanar format
  */
 struct mtk_jpeg_q_data {
 	struct mtk_jpeg_fmt	*fmt;
-	u32			w;
-	u32			h;
-	u32			bytesperline[VIDEO_MAX_PLANES];
-	u32			sizeimage[VIDEO_MAX_PLANES];
+	struct v4l2_pix_format_mplane pix_mp;
 };
 
 /**
@@ -117,10 +110,6 @@ struct mtk_jpeg_q_data {
  * @cap_q:		destination (capture) queue queue information
  * @fh:			V4L2 file handle
  * @state:		state of the context
- * @colorspace: enum v4l2_colorspace; supplemental to pixelformat
- * @ycbcr_enc: enum v4l2_ycbcr_encoding, Y'CbCr encoding
- * @quantization: enum v4l2_quantization, colorspace quantization
- * @xfer_func: enum v4l2_xfer_func, colorspace transfer function
  */
 struct mtk_jpeg_ctx {
 	struct mtk_jpeg_dev		*jpeg;
@@ -128,11 +117,6 @@ struct mtk_jpeg_ctx {
 	struct mtk_jpeg_q_data		cap_q;
 	struct v4l2_fh			fh;
 	enum mtk_jpeg_ctx_state		state;
-
-	enum v4l2_colorspace colorspace;
-	enum v4l2_ycbcr_encoding ycbcr_enc;
-	enum v4l2_quantization quantization;
-	enum v4l2_xfer_func xfer_func;
 };
 
 #endif /* _MTK_JPEG_CORE_H */
