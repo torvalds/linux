@@ -41,7 +41,10 @@
 #define XWAY_STP_4HZ		BIT(23)
 #define XWAY_STP_8HZ		BIT(24)
 #define XWAY_STP_10HZ		(BIT(24) | BIT(23))
-#define XWAY_STP_SPEED_MASK	(0xf << 23)
+#define XWAY_STP_SPEED_MASK	(BIT(23) | BIT(24) | BIT(25) | BIT(26) | BIT(27))
+
+#define XWAY_STP_FPIS_VALUE	BIT(21)
+#define XWAY_STP_FPIS_MASK	(BIT(20) | BIT(21))
 
 /* clock source for automatic update */
 #define XWAY_STP_UPD_FPI	BIT(31)
@@ -54,7 +57,9 @@
 /* 2 groups of 3 bits can be driven by the phys */
 #define XWAY_STP_PHY_MASK	0x7
 #define XWAY_STP_PHY1_SHIFT	27
-#define XWAY_STP_PHY2_SHIFT	15
+#define XWAY_STP_PHY2_SHIFT	3
+#define XWAY_STP_PHY3_SHIFT	6
+#define XWAY_STP_PHY4_SHIFT	15
 
 /* STP has 3 groups of 8 bits */
 #define XWAY_STP_GROUP0		BIT(0)
@@ -80,6 +85,8 @@ struct xway_stp {
 	u8 dsl;		/* the 2 LSBs can be driven by the dsl core */
 	u8 phy1;	/* 3 bits can be driven by phy1 */
 	u8 phy2;	/* 3 bits can be driven by phy2 */
+	u8 phy3;	/* 3 bits can be driven by phy3 */
+	u8 phy4;	/* 3 bits can be driven by phy4 */
 	u8 reserved;	/* mask out the hw driven bits in gpio_request */
 };
 
@@ -114,7 +121,8 @@ static void xway_stp_set(struct gpio_chip *gc, unsigned gpio, int val)
 	else
 		chip->shadow &= ~BIT(gpio);
 	xway_stp_w32(chip->virt, chip->shadow, XWAY_STP_CPU0);
-	xway_stp_w32_mask(chip->virt, 0, XWAY_STP_CON_SWU, XWAY_STP_CON0);
+	if (!chip->reserved)
+		xway_stp_w32_mask(chip->virt, 0, XWAY_STP_CON_SWU, XWAY_STP_CON0);
 }
 
 /**
@@ -188,16 +196,37 @@ static void xway_stp_hw_init(struct xway_stp *chip)
 			chip->phy2 << XWAY_STP_PHY2_SHIFT,
 			XWAY_STP_CON1);
 
+	if (of_machine_is_compatible("lantiq,grx390")
+	    || of_machine_is_compatible("lantiq,ar10")) {
+		xway_stp_w32_mask(chip->virt,
+				XWAY_STP_PHY_MASK << XWAY_STP_PHY3_SHIFT,
+				chip->phy3 << XWAY_STP_PHY3_SHIFT,
+				XWAY_STP_CON1);
+	}
+
+	if (of_machine_is_compatible("lantiq,grx390")) {
+		xway_stp_w32_mask(chip->virt,
+				XWAY_STP_PHY_MASK << XWAY_STP_PHY4_SHIFT,
+				chip->phy4 << XWAY_STP_PHY4_SHIFT,
+				XWAY_STP_CON1);
+	}
+
 	/* mask out the hw driven bits in gpio_request */
-	chip->reserved = (chip->phy2 << 5) | (chip->phy1 << 2) | chip->dsl;
+	chip->reserved = (chip->phy4 << 11) | (chip->phy3 << 8) | (chip->phy2 << 5)
+		| (chip->phy1 << 2) | chip->dsl;
 
 	/*
 	 * if we have pins that are driven by hw, we need to tell the stp what
 	 * clock to use as a timer.
 	 */
-	if (chip->reserved)
+	if (chip->reserved) {
 		xway_stp_w32_mask(chip->virt, XWAY_STP_UPD_MASK,
 			XWAY_STP_UPD_FPI, XWAY_STP_CON1);
+		xway_stp_w32_mask(chip->virt, XWAY_STP_SPEED_MASK,
+			XWAY_STP_10HZ, XWAY_STP_CON1);
+		xway_stp_w32_mask(chip->virt, XWAY_STP_FPIS_MASK,
+			XWAY_STP_FPIS_VALUE, XWAY_STP_CON1);
+	}
 }
 
 static int xway_stp_probe(struct platform_device *pdev)
@@ -242,11 +271,24 @@ static int xway_stp_probe(struct platform_device *pdev)
 	/* find out which gpios are controlled by the phys */
 	if (of_machine_is_compatible("lantiq,ar9") ||
 			of_machine_is_compatible("lantiq,gr9") ||
-			of_machine_is_compatible("lantiq,vr9")) {
+			of_machine_is_compatible("lantiq,vr9") ||
+			of_machine_is_compatible("lantiq,ar10") ||
+			of_machine_is_compatible("lantiq,grx390")) {
 		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy1", &phy))
 			chip->phy1 = phy & XWAY_STP_PHY_MASK;
 		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy2", &phy))
 			chip->phy2 = phy & XWAY_STP_PHY_MASK;
+	}
+
+	if (of_machine_is_compatible("lantiq,ar10") ||
+			of_machine_is_compatible("lantiq,grx390")) {
+		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy3", &phy))
+			chip->phy3 = phy & XWAY_STP_PHY_MASK;
+	}
+
+	if (of_machine_is_compatible("lantiq,grx390")) {
+		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy4", &phy))
+			chip->phy4 = phy & XWAY_STP_PHY_MASK;
 	}
 
 	/* check which edge trigger we should use, default to a falling edge */
