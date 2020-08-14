@@ -1154,7 +1154,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	jpeg->dec_vdev->device_caps = V4L2_CAP_STREAMING |
 				      V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	ret = video_register_device(jpeg->dec_vdev, VFL_TYPE_VIDEO, 3);
+	ret = video_register_device(jpeg->dec_vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&jpeg->v4l2_dev, "Failed to register video device\n");
 		goto err_dec_vdev_register;
