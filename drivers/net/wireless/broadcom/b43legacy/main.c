@@ -1340,8 +1340,9 @@ static void b43legacy_interrupt_tasklet(unsigned long data)
 		handle_irq_beacon(dev);
 	if (reason & B43legacy_IRQ_PMQ)
 		handle_irq_pmq(dev);
-	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK)
+	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK) {
 		;/*TODO*/
+	}
 	if (reason & B43legacy_IRQ_NOISESAMPLE_OK)
 		handle_irq_noise(dev);
 
