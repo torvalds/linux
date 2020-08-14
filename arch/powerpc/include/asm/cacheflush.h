@@ -98,7 +98,15 @@ static inline void invalidate_dcache_range(unsigned long start,
 	mb();	/* sync */
 }
 
+#ifdef CONFIG_4xx
+static inline void flush_instruction_cache(void)
+{
+	iccci((void *)KERNELBASE);
+	isync();
+}
+#else
 void flush_instruction_cache(void);
+#endif
 
 #include <asm-generic/cacheflush.h>
 
