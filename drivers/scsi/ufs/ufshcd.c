@@ -4258,10 +4258,8 @@ int ufshcd_make_hba_operational(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"Host controller not ready to process requests");
 		err = -EIO;
-		goto out;
 	}
 
-out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ufshcd_make_hba_operational);
@@ -5544,10 +5542,8 @@ static bool ufshcd_quirk_dl_nac_errors(struct ufs_hba *hba)
 			hba->saved_err &= ~UIC_ERROR;
 		/* clear NAC error */
 		hba->saved_uic_err &= ~UFSHCD_UIC_DL_NAC_RECEIVED_ERROR;
-		if (!hba->saved_uic_err) {
+		if (!hba->saved_uic_err)
 			err_handling = false;
-			goto out;
-		}
 	}
 out:
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -7714,12 +7710,10 @@ static int ufshcd_config_vreg(struct device *dev,
 		if (vreg->min_uV && vreg->max_uV) {
 			min_uV = on ? vreg->min_uV : 0;
 			ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
-			if (ret) {
+			if (ret)
 				dev_err(dev,
 					"%s: %s set voltage failed, err=%d\n",
 					__func__, name, ret);
-				goto out;
-			}
 		}
 	}
 out:
@@ -7782,8 +7776,6 @@ static int ufshcd_setup_vreg(struct ufs_hba *hba, bool on)
 		goto out;
 
 	ret = ufshcd_toggle_vreg(dev, info->vccq2, on);
-	if (ret)
-		goto out;
 
 out:
 	if (ret) {
@@ -7829,10 +7821,8 @@ static int ufshcd_init_vreg(struct ufs_hba *hba)
 		goto out;
 
 	ret = ufshcd_get_vreg(dev, info->vccq);
-	if (ret)
-		goto out;
-
-	ret = ufshcd_get_vreg(dev, info->vccq2);
+	if (!ret)
+		ret = ufshcd_get_vreg(dev, info->vccq2);
 out:
 	return ret;
 }
@@ -7976,12 +7966,7 @@ static int ufshcd_variant_hba_init(struct ufs_hba *hba)
 
 	err = ufshcd_vops_setup_regulators(hba, true);
 	if (err)
-		goto out_exit;
-
-	goto out;
-
-out_exit:
-	ufshcd_vops_exit(hba);
+		ufshcd_vops_exit(hba);
 out:
 	if (err)
 		dev_err(hba->dev, "%s: variant %s init failed err %d\n",
