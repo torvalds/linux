@@ -725,8 +725,10 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		if (!psize)
 			return -EINVAL;
 
-		if (!sk_wmem_schedule(sk, psize + dfrag->overhead))
+		if (!sk_wmem_schedule(sk, psize + dfrag->overhead)) {
+			iov_iter_revert(&msg->msg_iter, psize);
 			return -ENOMEM;
+		}
 	} else {
 		offset = dfrag->offset;
 		psize = min_t(size_t, dfrag->data_len, avail_size);
@@ -737,8 +739,10 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	 */
 	ret = do_tcp_sendpages(ssk, page, offset, psize,
 			       msg->msg_flags | MSG_SENDPAGE_NOTLAST | MSG_DONTWAIT);
-	if (ret <= 0)
+	if (ret <= 0) {
+		iov_iter_revert(&msg->msg_iter, psize);
 		return ret;
+	}
 
 	frag_truesize += ret;
 	if (!retransmission) {
