@@ -93,6 +93,10 @@
 	status = "disabled";
 };
 
+&otp {
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		/omit-if-no-ref/
