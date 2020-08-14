@@ -101,6 +101,7 @@ static const unsigned int ack_rates_high[] =
 /**
  * ath5k_hw_get_frame_duration() - Get tx time of a frame
  * @ah: The &struct ath5k_hw
+ * @band: One of enum nl80211_band
  * @len: Frame's length in bytes
  * @rate: The @struct ieee80211_rate
  * @shortpre: Indicate short preample
@@ -945,7 +946,6 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
  * ath5k_hw_pcu_init() - Initialize PCU
  * @ah: The &struct ath5k_hw
  * @op_mode: One of enum nl80211_iftype
- * @mode: One of enum ath5k_driver_mode
  *
  * This function is used to initialize PCU by setting current
  * operation mode and various other settings.
