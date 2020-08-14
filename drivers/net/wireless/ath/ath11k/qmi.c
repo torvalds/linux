@@ -1680,7 +1680,48 @@ out:
 	return ret;
 }
 
+static void ath11k_qmi_free_target_mem_chunk(struct ath11k_base *ab)
+{
+	int i;
+
+	if (ab->bus_params.fixed_mem_region)
+		return;
+
+	for (i = 0; i < ab->qmi.mem_seg_count; i++) {
+		if (!ab->qmi.target_mem[i].vaddr)
+			continue;
+
+		dma_free_coherent(ab->dev,
+				  ab->qmi.target_mem[i].size,
+				  ab->qmi.target_mem[i].vaddr,
+				  ab->qmi.target_mem[i].paddr);
+		ab->qmi.target_mem[i].vaddr = NULL;
+	}
+}
+
 static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
+{
+	int i;
+	struct target_mem_chunk *chunk;
+
+	for (i = 0; i < ab->qmi.mem_seg_count; i++) {
+		chunk = &ab->qmi.target_mem[i];
+		chunk->vaddr = dma_alloc_coherent(ab->dev,
+						  chunk->size,
+						  &chunk->paddr,
+						  GFP_KERNEL);
+		if (!chunk->vaddr) {
+			ath11k_err(ab, "failed to alloc memory, size: 0x%x, type: %u\n",
+				   chunk->size,
+				   chunk->type);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 {
 	int i, idx;
 
@@ -1688,7 +1729,7 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 		switch (ab->qmi.target_mem[i].type) {
 		case BDF_MEM_REGION_TYPE:
 			ab->qmi.target_mem[idx].paddr = ab->hw_params.bdf_addr;
-			ab->qmi.target_mem[idx].vaddr = ab->hw_params.bdf_addr;
+			ab->qmi.target_mem[idx].vaddr = NULL;
 			ab->qmi.target_mem[idx].size = ab->qmi.target_mem[i].size;
 			ab->qmi.target_mem[idx].type = ab->qmi.target_mem[i].type;
 			idx++;
@@ -1700,7 +1741,7 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 			}
 			/* TODO ath11k does not support cold boot calibration */
 			ab->qmi.target_mem[idx].paddr = 0;
-			ab->qmi.target_mem[idx].vaddr = 0;
+			ab->qmi.target_mem[idx].vaddr = NULL;
 			ab->qmi.target_mem[idx].size = ab->qmi.target_mem[i].size;
 			ab->qmi.target_mem[idx].type = ab->qmi.target_mem[i].type;
 			idx++;
@@ -1842,7 +1883,7 @@ out:
 	return ret;
 }
 
-static int ath11k_qmi_load_bdf(struct ath11k_base *ab)
+static int ath11k_qmi_load_bdf_fixed_addr(struct ath11k_base *ab)
 {
 	struct qmi_wlanfw_bdf_download_req_msg_v01 *req;
 	struct qmi_wlanfw_bdf_download_resp_msg_v01 resp;
@@ -1909,6 +1950,92 @@ static int ath11k_qmi_load_bdf(struct ath11k_base *ab)
 
 out_qmi_bdf:
 	iounmap(bdf_addr);
+out:
+	kfree(req);
+	return ret;
+}
+
+static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
+{
+	struct qmi_wlanfw_bdf_download_req_msg_v01 *req;
+	struct qmi_wlanfw_bdf_download_resp_msg_v01 resp;
+	struct ath11k_board_data bd;
+	unsigned int remaining;
+	struct qmi_txn txn = {};
+	int ret;
+	const u8 *temp;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+	memset(&resp, 0, sizeof(resp));
+
+	memset(&bd, 0, sizeof(bd));
+	ret = ath11k_core_fetch_bdf(ab, &bd);
+	if (ret) {
+		ath11k_warn(ab, "qmi failed to load bdf:\n");
+		goto out;
+	}
+
+	temp = bd.data;
+	remaining = bd.len;
+
+	while (remaining) {
+		req->valid = 1;
+		req->file_id_valid = 1;
+		req->file_id = ab->qmi.target.board_id;
+		req->total_size_valid = 1;
+		req->total_size = bd.len;
+		req->seg_id_valid = 1;
+		req->data_valid = 1;
+		req->data_len = ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE;
+		req->bdf_type = ATH11K_QMI_BDF_TYPE_BIN;
+		req->bdf_type_valid = 1;
+		req->end_valid = 1;
+		req->end = 0;
+
+		if (remaining > QMI_WLANFW_MAX_DATA_SIZE_V01) {
+			req->data_len = QMI_WLANFW_MAX_DATA_SIZE_V01;
+		} else {
+			req->data_len = remaining;
+			req->end = 1;
+		}
+
+		memcpy(req->data, temp, req->data_len);
+
+		ret = qmi_txn_init(&ab->qmi.handle, &txn,
+				   qmi_wlanfw_bdf_download_resp_msg_v01_ei,
+				   &resp);
+		if (ret < 0)
+			goto out_qmi_bdf;
+
+		ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
+				       QMI_WLANFW_BDF_DOWNLOAD_REQ_V01,
+				       QMI_WLANFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_LEN,
+				       qmi_wlanfw_bdf_download_req_msg_v01_ei, req);
+		if (ret < 0) {
+			qmi_txn_cancel(&txn);
+			goto out_qmi_bdf;
+		}
+
+		ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH11K_QMI_WLANFW_TIMEOUT_MS));
+		if (ret < 0)
+			goto out_qmi_bdf;
+
+		if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+			ath11k_warn(ab, "qmi BDF download failed, result: %d, err: %d\n",
+				    resp.resp.result, resp.resp.error);
+			ret = resp.resp.result;
+			goto out_qmi_bdf;
+		}
+		remaining -= req->data_len;
+		temp += req->data_len;
+		req->seg_id++;
+	}
+
+out_qmi_bdf:
+	ath11k_core_free_bdf(ab, &bd);
+
 out:
 	kfree(req);
 	return ret;
@@ -2242,7 +2369,10 @@ static void ath11k_qmi_event_load_bdf(struct ath11k_qmi *qmi)
 		return;
 	}
 
-	ret = ath11k_qmi_load_bdf(ab);
+	if (ab->bus_params.fixed_bdf_addr)
+		ret = ath11k_qmi_load_bdf_fixed_addr(ab);
+	else
+		ret = ath11k_qmi_load_bdf_qmi(ab);
 	if (ret < 0) {
 		ath11k_warn(ab, "qmi failed to load board data file:%d\n", ret);
 		return;
@@ -2281,7 +2411,10 @@ static void ath11k_qmi_msg_mem_request_cb(struct qmi_handle *qmi_hdl,
 			   msg->mem_seg[i].type, msg->mem_seg[i].size);
 	}
 
-	ret = ath11k_qmi_alloc_target_mem_chunk(ab);
+	if (ab->bus_params.fixed_mem_region)
+		ret = ath11k_qmi_assign_target_mem_chunk(ab);
+	else
+		ret = ath11k_qmi_alloc_target_mem_chunk(ab);
 	if (ret < 0) {
 		ath11k_warn(ab, "qmi failed to alloc target memory:%d\n", ret);
 		return;
@@ -2492,5 +2625,6 @@ void ath11k_qmi_deinit_service(struct ath11k_base *ab)
 	cancel_work_sync(&ab->qmi.event_work);
 	destroy_workqueue(ab->qmi.event_wq);
 	ath11k_qmi_m3_free(ab);
+	ath11k_qmi_free_target_mem_chunk(ab);
 }
 

@@ -28,6 +28,8 @@ MODULE_DEVICE_TABLE(of, ath11k_ahb_of_match);
 static const struct ath11k_bus_params ath11k_ahb_bus_params = {
 	.mhi_support = false,
 	.m3_fw_support = false,
+	.fixed_bdf_addr = true,
+	.fixed_mem_region = true,
 };
 
 /* Target firmware's Copy Engine configuration. */

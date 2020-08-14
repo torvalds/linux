@@ -40,6 +40,11 @@ enum ath11k_qmi_file_type {
 	ATH11K_QMI_MAX_FILE_TYPE,
 };
 
+enum ath11k_qmi_bdf_type {
+	ATH11K_QMI_BDF_TYPE_BIN			= 0,
+	ATH11K_QMI_BDF_TYPE_ELF			= 1,
+};
+
 enum ath11k_qmi_event_type {
 	ATH11K_QMI_EVENT_SERVER_ARRIVE,
 	ATH11K_QMI_EVENT_SERVER_EXIT,
@@ -83,7 +88,7 @@ struct target_mem_chunk {
 	u32 size;
 	u32 type;
 	dma_addr_t paddr;
-	u32 vaddr;
+	u32 *vaddr;
 };
 
 struct target_info {
