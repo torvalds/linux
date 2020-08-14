@@ -1819,7 +1819,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	default:
 		if (ns->ndev)
-			ret = nvme_nvm_ioctl(ns, cmd, arg);
+			ret = nvme_nvm_ioctl(ns, cmd, argp);
 		else
 			ret = -ENOTTY;
 	}

@@ -799,7 +799,7 @@ static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 extern const struct attribute_group nvme_nvm_attr_group;
-int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, void __user *argp);
 #else
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 				    int node)
@@ -809,7 +809,7 @@ static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 
 static inline void nvme_nvm_unregister(struct nvme_ns *ns) {};
 static inline int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd,
-							unsigned long arg)
+		void __user *argp)
 {
 	return -ENOTTY;
 }
