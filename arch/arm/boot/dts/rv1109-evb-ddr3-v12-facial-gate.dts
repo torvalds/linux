@@ -120,6 +120,11 @@
 	};
 };
 
+/* isp cma buffer don't fiddle with it, dual camera(1920 * 1080) need 92M buffer */
+&isp_reserved {
+	size = <0x5c00000>;
+};
+
 &mipi_csi2 {
 	status = "okay";
 	ports {
