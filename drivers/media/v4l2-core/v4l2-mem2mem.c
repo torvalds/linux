@@ -43,6 +43,10 @@ module_param(debug, bool, 0644);
 #define TRANS_ABORT		(1 << 2)
 
 
+/* The job queue is not running new jobs */
+#define QUEUE_PAUSED		(1 << 0)
+
+
 /* Offset base for buffers on the destination queue - used to distinguish
  * between source and destination buffers when mmapping - they receive the same
  * offsets but for different queues */
@@ -84,6 +88,7 @@ static const char * const m2m_entity_name[] = {
  * @job_queue:		instances queued to run
  * @job_spinlock:	protects job_queue
  * @job_work:		worker to run queued jobs.
+ * @job_queue_flags:	flags of the queue status, %QUEUE_PAUSED.
  * @m2m_ops:		driver callbacks
  */
 struct v4l2_m2m_dev {
@@ -101,6 +106,7 @@ struct v4l2_m2m_dev {
 	struct list_head	job_queue;
 	spinlock_t		job_spinlock;
 	struct work_struct	job_work;
+	unsigned long		job_queue_flags;
 
 	const struct v4l2_m2m_ops *m2m_ops;
 };
@@ -260,6 +266,12 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	if (list_empty(&m2m_dev->job_queue)) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 		dprintk("No job pending\n");
+		return;
+	}
+
+	if (m2m_dev->job_queue_flags & QUEUE_PAUSED) {
+		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+		dprintk("Running new jobs is paused\n");
 		return;
 	}
 
@@ -504,6 +516,7 @@ void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
 
 	if (WARN_ON(!src_buf || !dst_buf))
 		goto unlock;
+	v4l2_m2m_buf_done(src_buf, state);
 	dst_buf->is_held = src_buf->flags & V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
 	if (!dst_buf->is_held) {
 		v4l2_m2m_dst_buf_remove(m2m_ctx);
@@ -527,6 +540,34 @@ unlock:
 		v4l2_m2m_schedule_next_job(m2m_dev, m2m_ctx);
 }
 EXPORT_SYMBOL(v4l2_m2m_buf_done_and_job_finish);
+
+void v4l2_m2m_suspend(struct v4l2_m2m_dev *m2m_dev)
+{
+	unsigned long flags;
+	struct v4l2_m2m_ctx *curr_ctx;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	m2m_dev->job_queue_flags |= QUEUE_PAUSED;
+	curr_ctx = m2m_dev->curr_ctx;
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	if (curr_ctx)
+		wait_event(curr_ctx->finished,
+			   !(curr_ctx->job_flags & TRANS_RUNNING));
+}
+EXPORT_SYMBOL(v4l2_m2m_suspend);
+
+void v4l2_m2m_resume(struct v4l2_m2m_dev *m2m_dev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	m2m_dev->job_queue_flags &= ~QUEUE_PAUSED;
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	v4l2_m2m_try_run(m2m_dev);
+}
+EXPORT_SYMBOL(v4l2_m2m_resume);
 
 int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs)
