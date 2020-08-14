@@ -128,6 +128,9 @@ struct rockchip_hdmi {
 	struct drm_property *outputmode_capacity;
 	struct drm_property *colorimetry_property;
 	struct drm_property *quant_range;
+	struct drm_property *hdr_panel_metadata_property;
+
+	struct drm_property_blob *hdr_panel_blob_ptr;
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
@@ -878,6 +881,22 @@ dw_hdmi_rockchip_get_quant_range(void *data)
 	return hdmi->hdmi_quant_range;
 }
 
+static struct drm_property *
+dw_hdmi_rockchip_get_hdr_property(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->hdr_panel_metadata_property;
+}
+
+static struct drm_property_blob *
+dw_hdmi_rockchip_get_hdr_blob(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->hdr_panel_blob_ptr;
+}
+
 static bool
 dw_hdmi_rockchip_get_color_changed(void *data)
 {
@@ -1028,6 +1047,16 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
+
+	prop = drm_property_create(connector->dev,
+				   DRM_MODE_PROP_BLOB |
+				   DRM_MODE_PROP_IMMUTABLE,
+				   "HDR_PANEL_METADATA", 0);
+	if (prop) {
+		hdmi->hdr_panel_metadata_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
 	if (version >= 0x211a)
 		drm_object_attach_property(&connector->base, prop, 0);
@@ -1074,6 +1103,12 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev,
 				     hdmi->colorimetry_property);
 		hdmi->colordepth_capacity = NULL;
+	}
+
+	if (hdmi->hdr_panel_metadata_property) {
+		drm_property_destroy(connector->dev,
+				     hdmi->hdr_panel_metadata_property);
+		hdmi->hdr_panel_metadata_property = NULL;
 	}
 }
 
@@ -1403,6 +1438,7 @@ static const struct dw_hdmi_plat_data rk3568_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3568_chip_data,
 	.ycbcr_420_allowed = true,
+	.use_drm_infoframe = true,
 };
 
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
@@ -1470,6 +1506,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_enc_out_encoding;
 	plat_data->get_quant_range =
 		dw_hdmi_rockchip_get_quant_range;
+	plat_data->get_hdr_property =
+		dw_hdmi_rockchip_get_hdr_property;
+	plat_data->get_hdr_blob =
+		dw_hdmi_rockchip_get_hdr_blob;
 	plat_data->get_color_changed =
 		dw_hdmi_rockchip_get_color_changed;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
