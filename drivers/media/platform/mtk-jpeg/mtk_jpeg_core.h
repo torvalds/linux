@@ -42,6 +42,36 @@ enum mtk_jpeg_ctx_state {
 };
 
 /**
+ * mtk_jpeg_variant - mtk jpeg driver variant
+ * @clks:			clock names
+ * @num_clks:			numbers of clock
+ * @format:			jpeg driver's internal color format
+ * @num_format:			number of format
+ * @qops:			the callback of jpeg vb2_ops
+ * @irq_handler:		jpeg irq handler callback
+ * @hw_reset:			jpeg hardware reset callback
+ * @m2m_ops:			the callback of jpeg v4l2_m2m_ops
+ * @dev_name:			jpeg device name
+ * @ioctl_ops:			the callback of jpeg v4l2_ioctl_ops
+ * @out_q_default_fourcc:	output queue default fourcc
+ * @cap_q_default_fourcc:	capture queue default fourcc
+ */
+struct mtk_jpeg_variant {
+	struct clk_bulk_data *clks;
+	int num_clks;
+	struct mtk_jpeg_fmt *formats;
+	int num_formats;
+	const struct vb2_ops *qops;
+	irqreturn_t (*irq_handler)(int irq, void *priv);
+	void (*hw_reset)(void __iomem *base);
+	const struct v4l2_m2m_ops *m2m_ops;
+	const char *dev_name;
+	const struct v4l2_ioctl_ops *ioctl_ops;
+	u32 out_q_default_fourcc;
+	u32 cap_q_default_fourcc;
+};
+
+/**
  * struct mt_jpeg - JPEG IP abstraction
  * @lock:		the mutex protecting this structure
  * @hw_lock:		spinlock protecting the hw device resource
@@ -52,10 +82,9 @@ enum mtk_jpeg_ctx_state {
  * @alloc_ctx:		videobuf2 memory allocator's context
  * @vdev:		video device node for jpeg mem2mem mode
  * @reg_base:		JPEG registers mapping
- * @clks:		clock names
- * @num_clks:		numbers of clock
  * @larb:		SMI device
  * @job_timeout_work:	IRQ timeout structure
+ * @variant:		driver variant to be used
  */
 struct mtk_jpeg_dev {
 	struct mutex		lock;
@@ -67,10 +96,9 @@ struct mtk_jpeg_dev {
 	void			*alloc_ctx;
 	struct video_device	*vdev;
 	void __iomem		*reg_base;
-	struct clk_bulk_data *clks;
-	int num_clks;
 	struct device		*larb;
 	struct delayed_work job_timeout_work;
+	const struct mtk_jpeg_variant *variant;
 };
 
 /**
