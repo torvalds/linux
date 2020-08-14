@@ -2566,7 +2566,6 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_conn_complete *ev = (void *) skb->data;
-	struct inquiry_entry *ie;
 	struct hci_conn *conn;
 
 	BT_DBG("%s", hdev->name);
@@ -2575,13 +2574,19 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
 	if (!conn) {
-		/* Connection may not exist if auto-connected. Check the inquiry
-		 * cache to see if we've already discovered this bdaddr before.
-		 * If found and link is an ACL type, create a connection class
+		/* Connection may not exist if auto-connected. Check the bredr
+		 * allowlist to see if this device is allowed to auto connect.
+		 * If link is an ACL type, create a connection class
 		 * automatically.
+		 *
+		 * Auto-connect will only occur if the event filter is
+		 * programmed with a given address. Right now, event filter is
+		 * only used during suspend.
 		 */
-		ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
-		if (ie && ev->link_type == ACL_LINK) {
+		if (ev->link_type == ACL_LINK &&
+		    hci_bdaddr_list_lookup_with_flags(&hdev->whitelist,
+						      &ev->bdaddr,
+						      BDADDR_BREDR)) {
 			conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr,
 					    HCI_ROLE_SLAVE);
 			if (!conn) {
