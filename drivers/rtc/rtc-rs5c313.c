@@ -366,8 +366,13 @@ static const struct rtc_class_ops rs5c313_rtc_ops = {
 
 static int rs5c313_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = devm_rtc_device_register(&pdev->dev, "rs5c313",
-				&rs5c313_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rs5c313_init_port();
+	rs5c313_check_xstp_bit();
+
+	rtc = devm_rtc_device_register(&pdev->dev, "rs5c313", &rs5c313_rtc_ops,
+				       THIS_MODULE);
 
 	return PTR_ERR_OR_ZERO(rtc);
 }
@@ -381,16 +386,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 
 static int __init rs5c313_rtc_init(void)
 {
-	int err;
-
-	err = platform_driver_register(&rs5c313_rtc_platform_driver);
-	if (err)
-		return err;
-
-	rs5c313_init_port();
-	rs5c313_check_xstp_bit();
-
-	return 0;
+	return platform_driver_register(&rs5c313_rtc_platform_driver);
 }
 
 static void __exit rs5c313_rtc_exit(void)
