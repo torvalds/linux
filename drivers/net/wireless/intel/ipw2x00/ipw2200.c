@@ -1950,7 +1950,6 @@ static void ipw_irq_tasklet(unsigned long data)
 	struct ipw_priv *priv = (struct ipw_priv *)data;
 	u32 inta, inta_mask, handled = 0;
 	unsigned long flags;
-	int rc = 0;
 
 	spin_lock_irqsave(&priv->irq_lock, flags);
 
@@ -1980,7 +1979,7 @@ static void ipw_irq_tasklet(unsigned long data)
 
 	if (inta & IPW_INTA_BIT_TX_CMD_QUEUE) {
 		IPW_DEBUG_HC("Command completed.\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq_cmd, -1);
+		ipw_queue_tx_reclaim(priv, &priv->txq_cmd, -1);
 		priv->status &= ~STATUS_HCMD_ACTIVE;
 		wake_up_interruptible(&priv->wait_command_queue);
 		handled |= IPW_INTA_BIT_TX_CMD_QUEUE;
@@ -1988,25 +1987,25 @@ static void ipw_irq_tasklet(unsigned long data)
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_1) {
 		IPW_DEBUG_TX("TX_QUEUE_1\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[0], 0);
+		ipw_queue_tx_reclaim(priv, &priv->txq[0], 0);
 		handled |= IPW_INTA_BIT_TX_QUEUE_1;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_2) {
 		IPW_DEBUG_TX("TX_QUEUE_2\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[1], 1);
+		ipw_queue_tx_reclaim(priv, &priv->txq[1], 1);
 		handled |= IPW_INTA_BIT_TX_QUEUE_2;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_3) {
 		IPW_DEBUG_TX("TX_QUEUE_3\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[2], 2);
+		ipw_queue_tx_reclaim(priv, &priv->txq[2], 2);
 		handled |= IPW_INTA_BIT_TX_QUEUE_3;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_4) {
 		IPW_DEBUG_TX("TX_QUEUE_4\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[3], 3);
+		ipw_queue_tx_reclaim(priv, &priv->txq[3], 3);
 		handled |= IPW_INTA_BIT_TX_QUEUE_4;
 	}
 
@@ -8248,12 +8247,12 @@ static void ipw_rx(struct ipw_priv *priv)
 	struct ipw_rx_mem_buffer *rxb;
 	struct ipw_rx_packet *pkt;
 	struct libipw_hdr_4addr *header;
-	u32 r, w, i;
+	u32 r, i;
 	u8 network_packet;
 	u8 fill_rx = 0;
 
 	r = ipw_read32(priv, IPW_RX_READ_INDEX);
-	w = ipw_read32(priv, IPW_RX_WRITE_INDEX);
+	ipw_read32(priv, IPW_RX_WRITE_INDEX);
 	i = priv->rxq->read;
 
 	if (ipw_rx_queue_space (priv->rxq) > (RX_QUEUE_SIZE / 2))
