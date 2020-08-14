@@ -1207,24 +1207,22 @@ static __maybe_unused int mtk_jpeg_pm_resume(struct device *dev)
 
 static __maybe_unused int mtk_jpeg_suspend(struct device *dev)
 {
-	int ret;
+	struct mtk_jpeg_dev *jpeg = dev_get_drvdata(dev);
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	ret = mtk_jpeg_pm_suspend(dev);
-	return ret;
+	v4l2_m2m_suspend(jpeg->m2m_dev);
+	return pm_runtime_force_suspend(dev);
 }
 
 static __maybe_unused int mtk_jpeg_resume(struct device *dev)
 {
+	struct mtk_jpeg_dev *jpeg = dev_get_drvdata(dev);
 	int ret;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
 
-	ret = mtk_jpeg_pm_resume(dev);
-
+	v4l2_m2m_resume(jpeg->m2m_dev);
 	return ret;
 }
 
