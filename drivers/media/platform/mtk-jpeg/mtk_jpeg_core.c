@@ -151,44 +151,17 @@ static struct mtk_jpeg_fmt *mtk_jpeg_find_format(struct mtk_jpeg_ctx *ctx,
 	return NULL;
 }
 
-static void mtk_jpeg_adjust_fmt_mplane(struct mtk_jpeg_ctx *ctx,
-				       struct v4l2_format *f)
+static int mtk_jpeg_try_fmt_mplane(struct v4l2_pix_format_mplane *pix_mp,
+				   struct mtk_jpeg_fmt *fmt)
 {
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct mtk_jpeg_q_data *q_data;
-	int i;
-
-	q_data = mtk_jpeg_get_q_data(ctx, f->type);
-
-	pix_mp->width = q_data->w;
-	pix_mp->height = q_data->h;
-	pix_mp->pixelformat = q_data->fmt->fourcc;
-	pix_mp->num_planes = q_data->fmt->colplanes;
-
-	for (i = 0; i < pix_mp->num_planes; i++) {
-		pix_mp->plane_fmt[i].bytesperline = q_data->bytesperline[i];
-		pix_mp->plane_fmt[i].sizeimage = q_data->sizeimage[i];
-	}
-}
-
-static int mtk_jpeg_try_fmt_mplane(struct v4l2_format *f,
-				   struct mtk_jpeg_fmt *fmt,
-				   struct mtk_jpeg_ctx *ctx, int q_type)
-{
-	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	int i;
 
 	pix_mp->field = V4L2_FIELD_NONE;
 
-	if (ctx->state != MTK_JPEG_INIT) {
-		mtk_jpeg_adjust_fmt_mplane(ctx, f);
-		return 0;
-	}
-
 	pix_mp->num_planes = fmt->colplanes;
 	pix_mp->pixelformat = fmt->fourcc;
 
-	if (q_type == MTK_JPEG_FMT_TYPE_OUTPUT) {
+	if (fmt->fourcc == V4L2_PIX_FMT_JPEG) {
 		struct v4l2_plane_pix_format *pfmt = &pix_mp->plane_fmt[0];
 
 		pix_mp->height = clamp(pix_mp->height, MTK_JPEG_MIN_HEIGHT,
@@ -204,7 +177,7 @@ static int mtk_jpeg_try_fmt_mplane(struct v4l2_format *f,
 		return 0;
 	}
 
-	/* type is MTK_JPEG_FMT_TYPE_CAPTURE */
+	/* other fourcc */
 	pix_mp->height = clamp(round_up(pix_mp->height, fmt->v_align),
 			       MTK_JPEG_MIN_HEIGHT, MTK_JPEG_MAX_HEIGHT);
 	pix_mp->width = clamp(round_up(pix_mp->width, fmt->h_align),
@@ -288,7 +261,12 @@ static int mtk_jpeg_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 		 (fmt->fourcc >> 16 & 0xff),
 		 (fmt->fourcc >> 24 & 0xff));
 
-	return mtk_jpeg_try_fmt_mplane(f, fmt, ctx, MTK_JPEG_FMT_TYPE_CAPTURE);
+	if (ctx->state != MTK_JPEG_INIT) {
+		mtk_jpeg_g_fmt_vid_mplane(file, priv, f);
+		return 0;
+	}
+
+	return mtk_jpeg_try_fmt_mplane(&f->fmt.pix_mp, fmt);
 }
 
 static int mtk_jpeg_try_fmt_vid_out_mplane(struct file *file, void *priv,
@@ -309,7 +287,12 @@ static int mtk_jpeg_try_fmt_vid_out_mplane(struct file *file, void *priv,
 		 (fmt->fourcc >> 16 & 0xff),
 		 (fmt->fourcc >> 24 & 0xff));
 
-	return mtk_jpeg_try_fmt_mplane(f, fmt, ctx, MTK_JPEG_FMT_TYPE_OUTPUT);
+	if (ctx->state != MTK_JPEG_INIT) {
+		mtk_jpeg_g_fmt_vid_mplane(file, priv, f);
+		return 0;
+	}
+
+	return mtk_jpeg_try_fmt_mplane(&f->fmt.pix_mp, fmt);
 }
 
 static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
