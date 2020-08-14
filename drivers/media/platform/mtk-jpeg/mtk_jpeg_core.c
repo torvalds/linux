@@ -783,14 +783,15 @@ static void mtk_jpeg_clk_on(struct mtk_jpeg_dev *jpeg)
 	ret = mtk_smi_larb_get(jpeg->larb);
 	if (ret)
 		dev_err(jpeg->dev, "mtk_smi_larb_get larbvdec fail %d\n", ret);
-	clk_prepare_enable(jpeg->clk_jdec_smi);
-	clk_prepare_enable(jpeg->clk_jdec);
+
+	ret = clk_bulk_prepare_enable(jpeg->num_clks, jpeg->clks);
+	if (ret)
+		dev_err(jpeg->dev, "Failed to open jpeg clk: %d\n", ret);
 }
 
 static void mtk_jpeg_clk_off(struct mtk_jpeg_dev *jpeg)
 {
-	clk_disable_unprepare(jpeg->clk_jdec);
-	clk_disable_unprepare(jpeg->clk_jdec_smi);
+	clk_bulk_disable_unprepare(jpeg->num_clks, jpeg->clks);
 	mtk_smi_larb_put(jpeg->larb);
 }
 
@@ -935,10 +936,16 @@ static const struct v4l2_file_operations mtk_jpeg_fops = {
 	.mmap           = v4l2_m2m_fop_mmap,
 };
 
+static struct clk_bulk_data mt8173_jpeg_dec_clocks[] = {
+	{ .id = "jpgdec-smi" },
+	{ .id = "jpgdec" },
+};
+
 static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 {
 	struct device_node *node;
 	struct platform_device *pdev;
+	int ret;
 
 	node = of_parse_phandle(jpeg->dev->of_node, "mediatek,larb", 0);
 	if (!node)
@@ -952,12 +959,15 @@ static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 
 	jpeg->larb = &pdev->dev;
 
-	jpeg->clk_jdec = devm_clk_get(jpeg->dev, "jpgdec");
-	if (IS_ERR(jpeg->clk_jdec))
-		return PTR_ERR(jpeg->clk_jdec);
+	jpeg->clks = mt8173_jpeg_dec_clocks;
+	jpeg->num_clks = ARRAY_SIZE(mt8173_jpeg_dec_clocks);
+	ret = devm_clk_bulk_get(jpeg->dev, jpeg->num_clks, jpeg->clks);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get jpeg clock:%d\n", ret);
+		return ret;
+	}
 
-	jpeg->clk_jdec_smi = devm_clk_get(jpeg->dev, "jpgdec-smi");
-	return PTR_ERR_OR_ZERO(jpeg->clk_jdec_smi);
+	return 0;
 }
 
 static void mtk_jpeg_job_timeout_work(struct work_struct *work)

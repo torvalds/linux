@@ -52,8 +52,8 @@ enum mtk_jpeg_ctx_state {
  * @alloc_ctx:		videobuf2 memory allocator's context
  * @dec_vdev:		video device node for decoder mem2mem mode
  * @dec_reg_base:	JPEG registers mapping
- * @clk_jdec:		JPEG hw working clock
- * @clk_jdec_smi:	JPEG SMI bus clock
+ * @clks:		clock names
+ * @num_clks:		numbers of clock
  * @larb:		SMI device
  * @job_timeout_work:	IRQ timeout structure
  */
@@ -67,8 +67,8 @@ struct mtk_jpeg_dev {
 	void			*alloc_ctx;
 	struct video_device	*dec_vdev;
 	void __iomem		*dec_reg_base;
-	struct clk		*clk_jdec;
-	struct clk		*clk_jdec_smi;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	struct device		*larb;
 	struct delayed_work job_timeout_work;
 };
