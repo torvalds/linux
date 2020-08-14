@@ -69,6 +69,29 @@ static u32 pipe_perf_reg_read(struct etnaviv_gpu *gpu,
 	return value;
 }
 
+static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
+	const struct etnaviv_pm_domain *domain,
+	const struct etnaviv_pm_signal *signal)
+{
+	u32 clock = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
+	u32 value = 0;
+	unsigned i;
+
+	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
+		clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
+		clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(i);
+		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+		value += gpu_read(gpu, signal->data);
+	}
+
+	/* switch back to pixel pipe 0 to prevent GPU hang */
+	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
+	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(0);
+	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+
+	return value;
+}
+
 static u32 hi_total_cycle_read(struct etnaviv_gpu *gpu,
 	const struct etnaviv_pm_domain *domain,
 	const struct etnaviv_pm_signal *signal)
@@ -102,8 +125,18 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.name = "HI",
 		.profile_read = VIVS_MC_PROFILE_HI_READ,
 		.profile_config = VIVS_MC_PROFILE_CONFIG2,
-		.nr_signals = 5,
+		.nr_signals = 7,
 		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"TOTAL_READ_BYTES8",
+				VIVS_HI_PROFILE_READ_BYTES8,
+				&pipe_reg_read,
+			},
+			{
+				"TOTAL_WRITE_BYTES8",
+				VIVS_HI_PROFILE_WRITE_BYTES8,
+				&pipe_reg_read,
+			},
 			{
 				"TOTAL_CYCLES",
 				0,
