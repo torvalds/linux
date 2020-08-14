@@ -604,7 +604,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		memcpy(table_data, table->cpu_addr, table_size);
 	}
 
-	return ret;
+	return 0;
 }
 
 int smu_cmn_write_watermarks_table(struct smu_context *smu)
