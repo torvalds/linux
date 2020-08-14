@@ -18,6 +18,12 @@
 
 #define ATH11K_PCI_IRQ_CE0_OFFSET		3
 
+#define WINDOW_ENABLE_BIT		0x40000000
+#define WINDOW_REG_ADDRESS		0x310c
+#define WINDOW_VALUE_MASK		GENMASK(24, 19)
+#define WINDOW_START			0x80000
+#define WINDOW_RANGE_MASK		GENMASK(18, 0)
+
 #define QCA6390_DEVICE_ID		0x1101
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
@@ -279,6 +285,52 @@ static const char *irq_name[ATH11K_IRQ_NUM_MAX] = {
 	"wbm2host-tx-completions-ring1",
 	"tcl2host-status-ring",
 };
+
+static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offset)
+{
+	struct ath11k_base *ab = ab_pci->ab;
+
+	u32 window = FIELD_GET(WINDOW_VALUE_MASK, offset);
+
+	lockdep_assert_held(&ab_pci->window_lock);
+
+	if (window != ab_pci->register_window) {
+		iowrite32(WINDOW_ENABLE_BIT | window,
+			  ab->mem + WINDOW_REG_ADDRESS);
+		ab_pci->register_window = window;
+	}
+}
+
+static void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	if (offset < WINDOW_START) {
+		iowrite32(value, ab->mem  + offset);
+	} else {
+		spin_lock_bh(&ab_pci->window_lock);
+		ath11k_pci_select_window(ab_pci, offset);
+		iowrite32(value, ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
+		spin_unlock_bh(&ab_pci->window_lock);
+	}
+}
+
+static u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
+{
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+	u32 val;
+
+	if (offset < WINDOW_START) {
+		val = ioread32(ab->mem + offset);
+	} else {
+		spin_lock_bh(&ab_pci->window_lock);
+		ath11k_pci_select_window(ab_pci, offset);
+		val = ioread32(ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
+		spin_unlock_bh(&ab_pci->window_lock);
+	}
+
+	return val;
+}
 
 int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)
 {
@@ -578,6 +630,8 @@ static int ath11k_pci_start(struct ath11k_base *ab)
 static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.start = ath11k_pci_start,
 	.stop = ath11k_pci_stop,
+	.read32 = ath11k_pci_read32,
+	.write32 = ath11k_pci_write32,
 	.power_down = ath11k_pci_power_down,
 	.power_up = ath11k_pci_power_up,
 };
@@ -618,6 +672,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	ab_pci->pdev = pdev;
 	ab->hif.ops = &ath11k_pci_hif_ops;
 	pci_set_drvdata(pdev, ab);
+	spin_lock_init(&ab_pci->window_lock);
 
 	ret = ath11k_pci_claim(ab_pci, pdev);
 	if (ret) {

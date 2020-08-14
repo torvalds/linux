@@ -29,6 +29,10 @@ struct ath11k_pci {
 	u32 msi_ep_base_data;
 	struct mhi_controller *mhi_ctrl;
 	unsigned long mhi_state;
+	u32 register_window;
+
+	/* protects register_window above */
+	spinlock_t window_lock;
 };
 
 static inline struct ath11k_pci *ath11k_pci_priv(struct ath11k_base *ab)
