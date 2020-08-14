@@ -97,8 +97,7 @@ patternProperties:
             input signal is multiplied. For example, <1 3> indicates the signal is scaled
             down to 1/3 of its value before ADC measurement.
             If property is not found default value depending on chip will be used.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         oneOf:
           - items:
               - const: 1
