@@ -131,20 +131,17 @@ static struct mtk_jpeg_q_data *mtk_jpeg_get_q_data(struct mtk_jpeg_ctx *ctx,
 	return &ctx->cap_q;
 }
 
-static struct mtk_jpeg_fmt *mtk_jpeg_find_format(struct mtk_jpeg_ctx *ctx,
-						 u32 pixelformat,
-						 unsigned int fmt_type)
+static struct mtk_jpeg_fmt *
+mtk_jpeg_find_format(struct mtk_jpeg_fmt *mtk_jpeg_formats, int num_formats,
+		     u32 pixelformat, unsigned int fmt_type)
 {
-	unsigned int k, fmt_flag;
+	unsigned int k;
+	struct mtk_jpeg_fmt *fmt;
 
-	fmt_flag = (fmt_type == MTK_JPEG_FMT_TYPE_OUTPUT) ?
-		   MTK_JPEG_FMT_FLAG_DEC_OUTPUT :
-		   MTK_JPEG_FMT_FLAG_DEC_CAPTURE;
+	for (k = 0; k < num_formats; k++) {
+		fmt = &mtk_jpeg_formats[k];
 
-	for (k = 0; k < MTK_JPEG_NUM_FORMATS; k++) {
-		struct mtk_jpeg_fmt *fmt = &mtk_jpeg_formats[k];
-
-		if (fmt->fourcc == pixelformat && fmt->flags & fmt_flag)
+		if (fmt->fourcc == pixelformat && fmt->flags & fmt_type)
 			return fmt;
 	}
 
@@ -249,8 +246,9 @@ static int mtk_jpeg_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(priv);
 	struct mtk_jpeg_fmt *fmt;
 
-	fmt = mtk_jpeg_find_format(ctx, f->fmt.pix_mp.pixelformat,
-				   MTK_JPEG_FMT_TYPE_CAPTURE);
+	fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
+				   f->fmt.pix_mp.pixelformat,
+				   MTK_JPEG_FMT_FLAG_DEC_CAPTURE);
 	if (!fmt)
 		fmt = ctx->cap_q.fmt;
 
@@ -275,8 +273,9 @@ static int mtk_jpeg_try_fmt_vid_out_mplane(struct file *file, void *priv,
 	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(priv);
 	struct mtk_jpeg_fmt *fmt;
 
-	fmt = mtk_jpeg_find_format(ctx, f->fmt.pix_mp.pixelformat,
-				   MTK_JPEG_FMT_TYPE_OUTPUT);
+	fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
+				   f->fmt.pix_mp.pixelformat,
+				   MTK_JPEG_FMT_FLAG_DEC_OUTPUT);
 	if (!fmt)
 		fmt = ctx->out_q.fmt;
 
@@ -296,13 +295,12 @@ static int mtk_jpeg_try_fmt_vid_out_mplane(struct file *file, void *priv,
 }
 
 static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
-				 struct v4l2_format *f)
+				 struct v4l2_format *f, unsigned int fmt_type)
 {
 	struct vb2_queue *vq;
 	struct mtk_jpeg_q_data *q_data = NULL;
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	struct mtk_jpeg_dev *jpeg = ctx->jpeg;
-	unsigned int f_type;
 	int i;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
@@ -316,10 +314,10 @@ static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
 		return -EBUSY;
 	}
 
-	f_type = V4L2_TYPE_IS_OUTPUT(f->type) ?
-			 MTK_JPEG_FMT_TYPE_OUTPUT : MTK_JPEG_FMT_TYPE_CAPTURE;
 
-	q_data->fmt = mtk_jpeg_find_format(ctx, pix_mp->pixelformat, f_type);
+	q_data->fmt = mtk_jpeg_find_format(mtk_jpeg_formats,
+					   MTK_JPEG_NUM_FORMATS,
+					   pix_mp->pixelformat, fmt_type);
 	q_data->w = pix_mp->width;
 	q_data->h = pix_mp->height;
 	ctx->colorspace = pix_mp->colorspace;
@@ -356,7 +354,8 @@ static int mtk_jpeg_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	return mtk_jpeg_s_fmt_mplane(mtk_jpeg_fh_to_ctx(priv), f);
+	return mtk_jpeg_s_fmt_mplane(mtk_jpeg_fh_to_ctx(priv), f,
+				     MTK_JPEG_FMT_FLAG_DEC_OUTPUT);
 }
 
 static int mtk_jpeg_s_fmt_vid_cap_mplane(struct file *file, void *priv,
@@ -368,7 +367,8 @@ static int mtk_jpeg_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	return mtk_jpeg_s_fmt_mplane(mtk_jpeg_fh_to_ctx(priv), f);
+	return mtk_jpeg_s_fmt_mplane(mtk_jpeg_fh_to_ctx(priv), f,
+				     MTK_JPEG_FMT_FLAG_DEC_CAPTURE);
 }
 
 static void mtk_jpeg_queue_src_chg_event(struct mtk_jpeg_ctx *ctx)
@@ -512,8 +512,9 @@ static bool mtk_jpeg_check_resolution_change(struct mtk_jpeg_ctx *ctx,
 	}
 
 	q_data = &ctx->cap_q;
-	if (q_data->fmt != mtk_jpeg_find_format(ctx, param->dst_fourcc,
-						MTK_JPEG_FMT_TYPE_CAPTURE)) {
+	if (q_data->fmt != mtk_jpeg_find_format(mtk_jpeg_formats,
+			MTK_JPEG_NUM_FORMATS, param->dst_fourcc,
+			MTK_JPEG_FMT_FLAG_DEC_CAPTURE)) {
 		v4l2_dbg(1, debug, &jpeg->v4l2_dev, "format change\n");
 		return true;
 	}
@@ -534,9 +535,10 @@ static void mtk_jpeg_set_queue_data(struct mtk_jpeg_ctx *ctx,
 	q_data = &ctx->cap_q;
 	q_data->w = param->dec_w;
 	q_data->h = param->dec_h;
-	q_data->fmt = mtk_jpeg_find_format(ctx,
+	q_data->fmt = mtk_jpeg_find_format(mtk_jpeg_formats,
+					   MTK_JPEG_NUM_FORMATS,
 					   param->dst_fourcc,
-					   MTK_JPEG_FMT_TYPE_CAPTURE);
+					   MTK_JPEG_FMT_FLAG_DEC_CAPTURE);
 
 	for (i = 0; i < q_data->fmt->colplanes; i++) {
 		q_data->bytesperline[i] = param->mem_stride[i];
@@ -844,16 +846,18 @@ static void mtk_jpeg_set_default_params(struct mtk_jpeg_ctx *ctx)
 	ctx->quantization = V4L2_QUANTIZATION_DEFAULT;
 	ctx->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 
-	q->fmt = mtk_jpeg_find_format(ctx, V4L2_PIX_FMT_JPEG,
-					      MTK_JPEG_FMT_TYPE_OUTPUT);
+	q->fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
+				      V4L2_PIX_FMT_JPEG,
+				      MTK_JPEG_FMT_FLAG_DEC_OUTPUT);
 	q->w = MTK_JPEG_MIN_WIDTH;
 	q->h = MTK_JPEG_MIN_HEIGHT;
 	q->bytesperline[0] = 0;
 	q->sizeimage[0] = MTK_JPEG_DEFAULT_SIZEIMAGE;
 
 	q = &ctx->cap_q;
-	q->fmt = mtk_jpeg_find_format(ctx, V4L2_PIX_FMT_YUV420M,
-					      MTK_JPEG_FMT_TYPE_CAPTURE);
+	q->fmt = mtk_jpeg_find_format(mtk_jpeg_formats, MTK_JPEG_NUM_FORMATS,
+				      V4L2_PIX_FMT_YUV420M,
+				      MTK_JPEG_FMT_FLAG_DEC_CAPTURE);
 	q->w = MTK_JPEG_MIN_WIDTH;
 	q->h = MTK_JPEG_MIN_HEIGHT;
 
