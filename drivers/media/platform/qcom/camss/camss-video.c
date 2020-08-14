@@ -18,6 +18,12 @@
 #include "camss-video.h"
 #include "camss.h"
 
+#define CAMSS_FRAME_MIN_WIDTH		1
+#define CAMSS_FRAME_MAX_WIDTH		8191
+#define CAMSS_FRAME_MIN_HEIGHT		1
+#define CAMSS_FRAME_MAX_HEIGHT_RDI	8191
+#define CAMSS_FRAME_MAX_HEIGHT_PIX	4096
+
 struct fract {
 	u8 numerator;
 	u8 denominator;
@@ -605,6 +611,36 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 	return 0;
 }
 
+static int video_enum_framesizes(struct file *file, void *fh,
+				 struct v4l2_frmsizeenum *fsize)
+{
+	struct camss_video *video = video_drvdata(file);
+	int i;
+
+	if (fsize->index)
+		return -EINVAL;
+
+	/* Only accept pixel format present in the formats[] table */
+	for (i = 0; i < video->nformats; i++) {
+		if (video->formats[i].pixelformat == fsize->pixel_format)
+			break;
+	}
+
+	if (i == video->nformats)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = CAMSS_FRAME_MIN_WIDTH;
+	fsize->stepwise.max_width = CAMSS_FRAME_MAX_WIDTH;
+	fsize->stepwise.min_height = CAMSS_FRAME_MIN_HEIGHT;
+	fsize->stepwise.max_height = (video->line_based) ?
+		CAMSS_FRAME_MAX_HEIGHT_PIX : CAMSS_FRAME_MAX_HEIGHT_RDI;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
+
+	return 0;
+}
+
 static int video_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct camss_video *video = video_drvdata(file);
@@ -745,6 +781,7 @@ static int video_s_input(struct file *file, void *fh, unsigned int input)
 static const struct v4l2_ioctl_ops msm_vid_ioctl_ops = {
 	.vidioc_querycap		= video_querycap,
 	.vidioc_enum_fmt_vid_cap	= video_enum_fmt,
+	.vidioc_enum_framesizes		= video_enum_framesizes,
 	.vidioc_g_fmt_vid_cap_mplane	= video_g_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= video_s_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= video_try_fmt,
