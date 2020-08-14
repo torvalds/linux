@@ -104,34 +104,17 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	lcd0: display@0 {
-		compatible = "panel-dpi";
-		label = "28";
-		status = "okay";
-		/* default-on; */
+	lcd0: display {
+		/* This isn't the exact LCD, but the timings meet spec */
+		compatible = "logicpd,type28";
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_enable_pin>;
-		enable-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;	/* gpio155, lcd INI */
+		backlight = <&bl>;
+		enable-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
 		port {
 			lcd_in: endpoint {
 				remote-endpoint = <&dpi_out>;
 			};
-		};
-
-		panel-timing {
-			clock-frequency = <9000000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <3>;
-			hback-porch = <2>;
-			hsync-len = <42>;
-			vback-porch = <3>;
-			vfront-porch = <2>;
-			vsync-len = <11>;
-			hsync-active = <1>;
-			vsync-active = <1>;
-			de-active = <1>;
-			pixelclk-active = <0>;
 		};
 	};
 
