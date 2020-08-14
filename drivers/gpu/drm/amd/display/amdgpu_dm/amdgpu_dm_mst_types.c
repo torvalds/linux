@@ -453,7 +453,7 @@ struct dsc_mst_fairness_params {
 	struct dc_dsc_bw_range bw_range;
 	bool compression_possible;
 	struct drm_dp_mst_port *port;
-	bool clock_overwrite;
+	enum dsc_clock_force_state clock_force_enable;
 	uint32_t slice_width_overwrite;
 	uint32_t slice_height_overwrite;
 	uint32_t bpp_overwrite;
@@ -638,7 +638,7 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 	for (i = 0; i < count; i++) {
 		if (vars[i].dsc_enabled
 				&& vars[i].bpp_x16 == params[i].bw_range.max_target_bpp_x16
-				&& !params[i].clock_overwrite) {
+				&& !params[i].clock_force_enable == DSC_CLK_FORCE_DEFAULT) {
 			kbps_increase[i] = params[i].bw_range.stream_kbps - params[i].bw_range.max_kbps;
 			tried[i] = false;
 			remaining_to_try += 1;
@@ -718,8 +718,8 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].sink = stream->sink;
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 		params[count].port = aconnector->port;
-		params[count].clock_overwrite = aconnector->dsc_settings.dsc_clock_en;
-		if (params[count].clock_overwrite)
+		params[count].clock_force_enable = aconnector->dsc_settings.dsc_force_enable;
+		if (params[count].clock_force_enable == DSC_CLK_FORCE_ENABLE)
 			debugfs_overwrite = true;
 		params[count].slice_width_overwrite = aconnector->dsc_settings.dsc_slice_width;
 		params[count].slice_height_overwrite = aconnector->dsc_settings.dsc_slice_height;
@@ -756,7 +756,7 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 
 	/* Try max compression */
 	for (i = 0; i < count; i++) {
-		if (params[i].compression_possible) {
+		if (params[i].compression_possible && params[i].clock_force_enable != DSC_CLK_FORCE_DISABLE) {
 			vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.min_kbps);
 			vars[i].dsc_enabled = true;
 			vars[i].bpp_x16 = params[i].bw_range.min_target_bpp_x16;

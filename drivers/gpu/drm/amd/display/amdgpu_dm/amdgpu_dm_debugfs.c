@@ -111,7 +111,6 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 
 	if (*param_nums > max_param_num)
 		*param_nums = max_param_num;
-;
 
 	wr_buf_ptr = wr_buf; /* reset buf pointer */
 	wr_buf_count = 0; /* number of char already checked */
@@ -1200,8 +1199,13 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
  *
  * The write function: dp_dsc_clock_en_write
  * enables to force DSC on the connector.
- * User can write to either force enable DSC
+ * User can write to either force enable or force disable DSC
  * on the next modeset or set it to driver default
+ *
+ * Accepted inputs:
+ * 0 - default DSC enablement policy
+ * 1 - force enable DSC on the connector
+ * 2 - force disable DSC on the connector (might cause fail in atomic_check)
  *
  * Writing DSC settings is done with the following command:
  * - To force enable DSC (you need to specify
@@ -1262,7 +1266,12 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_clock_en = param[0];
+	if (param[0] == 1)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_ENABLE;
+	else if (param[0] == 2)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DISABLE;
+	else
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DEFAULT;
 
 done:
 	kfree(wr_buf);

@@ -4685,9 +4685,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 							     dc_link_get_link_cap(aconnector->dc_link));
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dsc_caps.is_dsc_supported) {
+		if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported) {
 			/* Set DSC policy according to dsc_clock_en */
-			dc_dsc_policy_set_enable_dsc_when_not_needed(aconnector->dsc_settings.dsc_clock_en);
+			dc_dsc_policy_set_enable_dsc_when_not_needed(
+				aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE);
 
 			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
 						  &dsc_caps,
@@ -4697,7 +4698,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 						  &stream->timing.dsc_cfg))
 				stream->timing.flags.DSC = 1;
 			/* Overwrite the stream flag if DSC is enabled through debugfs */
-			if (aconnector->dsc_settings.dsc_clock_en)
+			if (aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE)
 				stream->timing.flags.DSC = 1;
 
 			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_slice_width)
