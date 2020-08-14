@@ -582,6 +582,7 @@ struct ath11k_board_data {
 
 struct ath11k_bus_params {
 	bool mhi_support;
+	bool m3_fw_support;
 };
 
 /* IPQ8074 HW channel counters frequency value in hertz */

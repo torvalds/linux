@@ -1516,11 +1516,17 @@ static int ath11k_qmi_host_cap_send(struct ath11k_base *ab)
 	req.bdf_support_valid = 1;
 	req.bdf_support = 1;
 
-	req.m3_support_valid = 0;
-	req.m3_support = 0;
-
-	req.m3_cache_support_valid = 0;
-	req.m3_cache_support = 0;
+	if (ab->bus_params.m3_fw_support) {
+		req.m3_support_valid = 1;
+		req.m3_support = 1;
+		req.m3_cache_support_valid = 1;
+		req.m3_cache_support = 1;
+	} else {
+		req.m3_support_valid = 0;
+		req.m3_support = 0;
+		req.m3_cache_support_valid = 0;
+		req.m3_cache_support = 0;
+	}
 
 	req.cal_done_valid = 1;
 	req.cal_done = ab->qmi.cal_done;
@@ -1908,8 +1914,57 @@ out:
 	return ret;
 }
 
+static int ath11k_qmi_m3_load(struct ath11k_base *ab)
+{
+	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
+	const struct firmware *fw;
+	char path[100];
+	int ret;
+
+	if (m3_mem->vaddr || m3_mem->size)
+		return 0;
+
+	fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
+	if (IS_ERR(fw)) {
+		ret = PTR_ERR(fw);
+		ath11k_core_create_firmware_path(ab, ATH11K_M3_FILE,
+						 path, sizeof(path));
+		ath11k_err(ab, "failed to load %s: %d\n", path, ret);
+		return ret;
+	}
+
+	m3_mem->vaddr = dma_alloc_coherent(ab->dev,
+					   fw->size, &m3_mem->paddr,
+					   GFP_KERNEL);
+	if (!m3_mem->vaddr) {
+		ath11k_err(ab, "failed to allocate memory for M3 with size %zu\n",
+			   fw->size);
+		release_firmware(fw);
+		return -ENOMEM;
+	}
+
+	memcpy(m3_mem->vaddr, fw->data, fw->size);
+	m3_mem->size = fw->size;
+	release_firmware(fw);
+
+	return 0;
+}
+
+static void ath11k_qmi_m3_free(struct ath11k_base *ab)
+{
+	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
+
+	if (!ab->bus_params.m3_fw_support || !m3_mem->vaddr)
+		return;
+
+	dma_free_coherent(ab->dev, m3_mem->size,
+			  m3_mem->vaddr, m3_mem->paddr);
+	m3_mem->vaddr = NULL;
+}
+
 static int ath11k_qmi_wlanfw_m3_info_send(struct ath11k_base *ab)
 {
+	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
 	struct qmi_wlanfw_m3_info_req_msg_v01 req;
 	struct qmi_wlanfw_m3_info_resp_msg_v01 resp;
 	struct qmi_txn txn = {};
@@ -1917,8 +1972,20 @@ static int ath11k_qmi_wlanfw_m3_info_send(struct ath11k_base *ab)
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
-	req.addr = 0;
-	req.size = 0;
+
+	if (ab->bus_params.m3_fw_support) {
+		ret = ath11k_qmi_m3_load(ab);
+		if (ret) {
+			ath11k_err(ab, "failed to load m3 firmware: %d", ret);
+			return ret;
+		}
+
+		req.addr = m3_mem->paddr;
+		req.size = m3_mem->size;
+	} else {
+		req.addr = 0;
+		req.size = 0;
+	}
 
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_m3_info_resp_msg_v01_ei, &resp);
@@ -2424,5 +2491,6 @@ void ath11k_qmi_deinit_service(struct ath11k_base *ab)
 	qmi_handle_release(&ab->qmi.handle);
 	cancel_work_sync(&ab->qmi.event_work);
 	destroy_workqueue(ab->qmi.event_wq);
+	ath11k_qmi_m3_free(ab);
 }
 

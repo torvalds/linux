@@ -29,6 +29,7 @@ MODULE_DEVICE_TABLE(pci, ath11k_pci_id_table);
 
 static const struct ath11k_bus_params ath11k_pci_bus_params = {
 	.mhi_support = true,
+	.m3_fw_support = true,
 };
 
 static const struct ath11k_msi_config msi_config = {
