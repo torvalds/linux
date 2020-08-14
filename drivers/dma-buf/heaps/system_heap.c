@@ -32,10 +32,10 @@ static void system_heap_free(struct heap_helper_buffer *buffer)
 	kfree(buffer);
 }
 
-static int system_heap_allocate(struct dma_heap *heap,
-				unsigned long len,
-				unsigned long fd_flags,
-				unsigned long heap_flags)
+static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
+					    unsigned long len,
+					    unsigned long fd_flags,
+					    unsigned long heap_flags)
 {
 	struct heap_helper_buffer *helper_buffer;
 	struct dma_buf *dmabuf;
@@ -44,7 +44,7 @@ static int system_heap_allocate(struct dma_heap *heap,
 
 	helper_buffer = kzalloc(sizeof(*helper_buffer), GFP_KERNEL);
 	if (!helper_buffer)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	init_heap_helper_buffer(helper_buffer, system_heap_free);
 	helper_buffer->heap = heap;
@@ -81,14 +81,7 @@ static int system_heap_allocate(struct dma_heap *heap,
 
 	helper_buffer->dmabuf = dmabuf;
 
-	ret = dma_buf_fd(dmabuf, fd_flags);
-	if (ret < 0) {
-		dma_buf_put(dmabuf);
-		/* just return, as put will call release and that will free */
-		return ret;
-	}
-
-	return ret;
+	return dmabuf;
 
 err1:
 	while (pg > 0)
@@ -97,7 +90,7 @@ err1:
 err0:
 	kfree(helper_buffer);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static const struct dma_heap_ops system_heap_ops = {
