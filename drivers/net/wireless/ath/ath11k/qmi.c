@@ -1640,18 +1640,29 @@ static int ath11k_qmi_respond_fw_mem_request(struct ath11k_base *ab)
 
 	memset(&resp, 0, sizeof(resp));
 
-	req->mem_seg_len = ab->qmi.mem_seg_count;
+	/* For QCA6390 by default FW requests a block of ~4M contiguous
+	 * DMA memory, it's hard to allocate from OS. So host returns
+	 * failure to FW and FW will then request mulitple blocks of small
+	 * chunk size memory.
+	 */
+	if (!ab->bus_params.fixed_mem_region && ab->qmi.mem_seg_count <= 2) {
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi delays mem_request %d\n",
+			   ab->qmi.mem_seg_count);
+		memset(req, 0, sizeof(*req));
+	} else {
+		req->mem_seg_len = ab->qmi.mem_seg_count;
+
+		for (i = 0; i < req->mem_seg_len ; i++) {
+			req->mem_seg[i].addr = ab->qmi.target_mem[i].paddr;
+			req->mem_seg[i].size = ab->qmi.target_mem[i].size;
+			req->mem_seg[i].type = ab->qmi.target_mem[i].type;
+		}
+	}
 
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_respond_mem_resp_msg_v01_ei, &resp);
 	if (ret < 0)
 		goto out;
-
-	for (i = 0; i < req->mem_seg_len ; i++) {
-		req->mem_seg[i].addr = ab->qmi.target_mem[i].paddr;
-		req->mem_seg[i].size = ab->qmi.target_mem[i].size;
-		req->mem_seg[i].type = ab->qmi.target_mem[i].type;
-	}
 
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_RESPOND_MEM_REQ_V01,
@@ -2411,13 +2422,20 @@ static void ath11k_qmi_msg_mem_request_cb(struct qmi_handle *qmi_hdl,
 			   msg->mem_seg[i].type, msg->mem_seg[i].size);
 	}
 
-	if (ab->bus_params.fixed_mem_region)
+	if (ab->bus_params.fixed_mem_region) {
 		ret = ath11k_qmi_assign_target_mem_chunk(ab);
-	else
+		if (ret) {
+			ath11k_warn(ab, "qmi failed to assign target memory: %d\n",
+				    ret);
+			return;
+		}
+	} else if (msg->mem_seg_len > 2) {
 		ret = ath11k_qmi_alloc_target_mem_chunk(ab);
-	if (ret < 0) {
-		ath11k_warn(ab, "qmi failed to alloc target memory:%d\n", ret);
-		return;
+		if (ret) {
+			ath11k_warn(ab, "qmi failed to alloc target memory: %d\n",
+				    ret);
+			return;
+		}
 	}
 
 	ath11k_qmi_driver_event_post(qmi, ATH11K_QMI_EVENT_REQUEST_MEM, NULL);
