@@ -29,6 +29,32 @@
 #define LPASS_CPU_I2S_SD0_1_2_MASK	GENMASK(2, 0)
 #define LPASS_CPU_I2S_SD0_1_2_3_MASK	GENMASK(3, 0)
 
+static int lpass_cpu_init_i2sctl_bitfields(struct device *dev,
+			struct lpaif_i2sctl *i2sctl, struct regmap *map)
+{
+	struct lpass_data *drvdata = dev_get_drvdata(dev);
+	struct lpass_variant *v = drvdata->variant;
+
+	i2sctl->loopback = devm_regmap_field_alloc(dev, map, v->loopback);
+	i2sctl->spken = devm_regmap_field_alloc(dev, map, v->spken);
+	i2sctl->spkmode = devm_regmap_field_alloc(dev, map, v->spkmode);
+	i2sctl->spkmono = devm_regmap_field_alloc(dev, map, v->spkmono);
+	i2sctl->micen = devm_regmap_field_alloc(dev, map, v->micen);
+	i2sctl->micmode = devm_regmap_field_alloc(dev, map, v->micmode);
+	i2sctl->micmono = devm_regmap_field_alloc(dev, map, v->micmono);
+	i2sctl->wssrc = devm_regmap_field_alloc(dev, map, v->wssrc);
+	i2sctl->bitwidth = devm_regmap_field_alloc(dev, map, v->bitwidth);
+
+	if (IS_ERR(i2sctl->loopback) || IS_ERR(i2sctl->spken) ||
+	    IS_ERR(i2sctl->spkmode) || IS_ERR(i2sctl->spkmono) ||
+	    IS_ERR(i2sctl->micen) || IS_ERR(i2sctl->micmode) ||
+	    IS_ERR(i2sctl->micmono) || IS_ERR(i2sctl->wssrc) ||
+	    IS_ERR(i2sctl->bitwidth))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int lpass_cpu_daiops_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		unsigned int freq, int dir)
 {
@@ -79,6 +105,8 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
+	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
+	unsigned int id = dai->driver->id;
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
@@ -92,28 +120,45 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		return bitwidth;
 	}
 
-	regval = LPAIF_I2SCTL_LOOPBACK_DISABLE |
-			LPAIF_I2SCTL_WSSRC_INTERNAL;
+	ret = regmap_fields_write(i2sctl->loopback, id,
+				 LPAIF_I2SCTL_LOOPBACK_DISABLE);
+	if (ret) {
+		dev_err(dai->dev, "error updating loopback field: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_fields_write(i2sctl->wssrc, id,
+				 LPAIF_I2SCTL_WSSRC_INTERNAL);
+	if (ret) {
+		dev_err(dai->dev, "error updating wssrc field: %d\n", ret);
+		return ret;
+	}
 
 	switch (bitwidth) {
 	case 16:
-		regval |= LPAIF_I2SCTL_BITWIDTH_16;
+		regval = LPAIF_I2SCTL_BITWIDTH_16;
 		break;
 	case 24:
-		regval |= LPAIF_I2SCTL_BITWIDTH_24;
+		regval = LPAIF_I2SCTL_BITWIDTH_24;
 		break;
 	case 32:
-		regval |= LPAIF_I2SCTL_BITWIDTH_32;
+		regval = LPAIF_I2SCTL_BITWIDTH_32;
 		break;
 	default:
 		dev_err(dai->dev, "invalid bitwidth given: %d\n", bitwidth);
 		return -EINVAL;
 	}
 
+	ret = regmap_fields_write(i2sctl->bitwidth, id, regval);
+	if (ret) {
+		dev_err(dai->dev, "error updating bitwidth field: %d\n", ret);
+		return ret;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		mode = drvdata->mi2s_playback_sd_mode[dai->driver->id];
+		mode = drvdata->mi2s_playback_sd_mode[id];
 	else
-		mode = drvdata->mi2s_capture_sd_mode[dai->driver->id];
+		mode = drvdata->mi2s_capture_sd_mode[id];
 
 	if (!mode) {
 		dev_err(dai->dev, "no line is assigned\n");
@@ -175,30 +220,42 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regval |= LPAIF_I2SCTL_SPKMODE(mode);
-
+		ret = regmap_fields_write(i2sctl->spkmode, id,
+					 LPAIF_I2SCTL_SPKMODE(mode));
+		if (ret) {
+			dev_err(dai->dev, "error writing to i2sctl spkr mode: %d\n",
+				ret);
+			return ret;
+		}
 		if (channels >= 2)
-			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+			ret = regmap_fields_write(i2sctl->spkmono, id,
+						 LPAIF_I2SCTL_SPKMONO_STEREO);
 		else
-			regval |= LPAIF_I2SCTL_SPKMONO_MONO;
+			ret = regmap_fields_write(i2sctl->spkmono, id,
+						 LPAIF_I2SCTL_SPKMONO_MONO);
 	} else {
-		regval |= LPAIF_I2SCTL_MICMODE(mode);
-
+		ret = regmap_fields_write(i2sctl->micmode, id,
+					 LPAIF_I2SCTL_MICMODE(mode));
+		if (ret) {
+			dev_err(dai->dev, "error writing to i2sctl mic mode: %d\n",
+				ret);
+			return ret;
+		}
 		if (channels >= 2)
-			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+			ret = regmap_fields_write(i2sctl->micmono, id,
+						 LPAIF_I2SCTL_MICMONO_STEREO);
 		else
-			regval |= LPAIF_I2SCTL_MICMONO_MONO;
+			ret = regmap_fields_write(i2sctl->micmono, id,
+						 LPAIF_I2SCTL_MICMONO_MONO);
 	}
 
-	ret = regmap_write(drvdata->lpaif_map,
-			   LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
-			   regval);
 	if (ret) {
-		dev_err(dai->dev, "error writing to i2sctl reg: %d\n", ret);
+		dev_err(dai->dev, "error writing to i2sctl channels mode: %d\n",
+			ret);
 		return ret;
 	}
 
-	ret = clk_set_rate(drvdata->mi2s_bit_clk[dai->driver->id],
+	ret = clk_set_rate(drvdata->mi2s_bit_clk[id],
 			   rate * bitwidth * 2);
 	if (ret) {
 		dev_err(dai->dev, "error setting mi2s bitclk to %u: %d\n",
@@ -228,22 +285,20 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
+	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
+	unsigned int id = dai->driver->id;
 	int ret;
-	unsigned int val, mask;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		val = LPAIF_I2SCTL_SPKEN_ENABLE;
-		mask = LPAIF_I2SCTL_SPKEN_MASK;
-	} else  {
-		val = LPAIF_I2SCTL_MICEN_ENABLE;
-		mask = LPAIF_I2SCTL_MICEN_MASK;
+		ret = regmap_fields_write(i2sctl->spken, id,
+					 LPAIF_I2SCTL_SPKEN_ENABLE);
+	} else {
+		ret = regmap_fields_write(i2sctl->micen, id,
+					 LPAIF_I2SCTL_MICEN_ENABLE);
 	}
 
-	ret = regmap_update_bits(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
-			mask, val);
 	if (ret)
-		dev_err(dai->dev, "error writing to i2sctl reg: %d\n", ret);
+		dev_err(dai->dev, "error writing to i2sctl enable: %d\n", ret);
 
 	return ret;
 }
@@ -252,25 +307,21 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
+	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
+	unsigned int id = dai->driver->id;
 	int ret = -EINVAL;
-	unsigned int val, mask;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			val = LPAIF_I2SCTL_SPKEN_ENABLE;
-			mask = LPAIF_I2SCTL_SPKEN_MASK;
+			ret = regmap_fields_write(i2sctl->spken, id,
+						 LPAIF_I2SCTL_SPKEN_ENABLE);
 		} else  {
-			val = LPAIF_I2SCTL_MICEN_ENABLE;
-			mask = LPAIF_I2SCTL_MICEN_MASK;
+			ret = regmap_fields_write(i2sctl->micen, id,
+						 LPAIF_I2SCTL_MICEN_ENABLE);
 		}
-
-		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_I2SCTL_REG(drvdata->variant,
-						dai->driver->id),
-				mask, val);
 		if (ret)
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
@@ -279,17 +330,12 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			val = LPAIF_I2SCTL_SPKEN_DISABLE;
-			mask = LPAIF_I2SCTL_SPKEN_MASK;
+			ret = regmap_fields_write(i2sctl->spken, id,
+						 LPAIF_I2SCTL_SPKEN_DISABLE);
 		} else  {
-			val = LPAIF_I2SCTL_MICEN_DISABLE;
-			mask = LPAIF_I2SCTL_MICEN_MASK;
+			ret = regmap_fields_write(i2sctl->micen, id,
+						 LPAIF_I2SCTL_MICEN_DISABLE);
 		}
-
-		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_I2SCTL_REG(drvdata->variant,
-						dai->driver->id),
-				mask, val);
 		if (ret)
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
@@ -597,6 +643,18 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 				PTR_ERR(drvdata->mi2s_bit_clk[dai_id]));
 			return PTR_ERR(drvdata->mi2s_bit_clk[dai_id]);
 		}
+	}
+
+	/* Allocation for i2sctl regmap fields */
+	drvdata->i2sctl = devm_kzalloc(&pdev->dev, sizeof(struct lpaif_i2sctl),
+					GFP_KERNEL);
+
+	/* Initialize bitfields for dai I2SCTL register */
+	ret = lpass_cpu_init_i2sctl_bitfields(dev, drvdata->i2sctl,
+						drvdata->lpaif_map);
+	if (ret) {
+		dev_err(dev, "error init i2sctl field: %d\n", ret);
+		return ret;
 	}
 
 	ret = devm_snd_soc_register_component(dev,

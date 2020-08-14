@@ -17,6 +17,28 @@
 #define LPASS_MAX_MI2S_PORTS			(8)
 #define LPASS_MAX_DMA_CHANNELS			(8)
 
+struct lpaif_i2sctl {
+	struct regmap_field *loopback;
+	struct regmap_field *spken;
+	struct regmap_field *spkmode;
+	struct regmap_field *spkmono;
+	struct regmap_field *micen;
+	struct regmap_field *micmode;
+	struct regmap_field *micmono;
+	struct regmap_field *wssrc;
+	struct regmap_field *bitwidth;
+};
+
+
+struct lpaif_dmactl {
+	struct regmap_field *bursten;
+	struct regmap_field *wpscnt;
+	struct regmap_field *intf;
+	struct regmap_field *fifowm;
+	struct regmap_field *enable;
+	struct regmap_field *dyncclk;
+};
+
 /* Both the CPU DAI and platform drivers will access this data */
 struct lpass_data {
 
@@ -55,6 +77,10 @@ struct lpass_data {
 	struct clk_bulk_data *clks;
 	int num_clks;
 
+	/* Regmap fields of I2SCTL & DMACTL registers bitfields */
+	struct lpaif_i2sctl *i2sctl;
+	struct lpaif_dmactl *rd_dmactl;
+	struct lpaif_dmactl *wr_dmactl;
 };
 
 /* Vairant data per each SOC */
@@ -71,6 +97,33 @@ struct lpass_variant {
 	u32	wrdma_reg_base;
 	u32	wrdma_reg_stride;
 	u32	wrdma_channels;
+
+	/* I2SCTL Register fields */
+	struct reg_field loopback;
+	struct reg_field spken;
+	struct reg_field spkmode;
+	struct reg_field spkmono;
+	struct reg_field micen;
+	struct reg_field micmode;
+	struct reg_field micmono;
+	struct reg_field wssrc;
+	struct reg_field bitwidth;
+
+	/* RD_DMA Register fields */
+	struct reg_field rdma_bursten;
+	struct reg_field rdma_wpscnt;
+	struct reg_field rdma_intf;
+	struct reg_field rdma_fifowm;
+	struct reg_field rdma_enable;
+	struct reg_field rdma_dyncclk;
+
+	/* WR_DMA Register fields */
+	struct reg_field wrdma_bursten;
+	struct reg_field wrdma_wpscnt;
+	struct reg_field wrdma_intf;
+	struct reg_field wrdma_fifowm;
+	struct reg_field wrdma_enable;
+	struct reg_field wrdma_dyncclk;
 
 	/**
 	 * on SOCs like APQ8016 the channel control bits start
