@@ -1757,30 +1757,17 @@ static bool is_ctrl_ioctl(unsigned int cmd)
 	return false;
 }
 
-static int nvme_handle_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
-				  void __user *argp,
-				  struct nvme_ns_head *head,
-				  int srcu_idx)
+static int nvme_ctrl_ioctl(struct nvme_ctrl *ctrl, unsigned int cmd,
+		void __user *argp)
 {
-	struct nvme_ctrl *ctrl = ns->ctrl;
-	int ret;
-
-	nvme_get_ctrl(ns->ctrl);
-	nvme_put_ns_from_disk(head, srcu_idx);
-
 	switch (cmd) {
 	case NVME_IOCTL_ADMIN_CMD:
-		ret = nvme_user_cmd(ctrl, NULL, argp);
-		break;
+		return nvme_user_cmd(ctrl, NULL, argp);
 	case NVME_IOCTL_ADMIN64_CMD:
-		ret = nvme_user_cmd64(ctrl, NULL, argp);
-		break;
+		return nvme_user_cmd64(ctrl, NULL, argp);
 	default:
-		ret = sed_ioctl(ctrl->opal_dev, cmd, argp);
-		break;
+		return sed_ioctl(ctrl->opal_dev, cmd, argp);
 	}
-	nvme_put_ctrl(ctrl);
-	return ret;
 }
 
 #ifdef COMPAT_FOR_U64_ALIGNMENT
@@ -1832,26 +1819,12 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
-	struct nvme_ns_head *head = NULL;
+	struct nvme_ns *ns = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
-	struct nvme_ns *ns;
-	int srcu_idx, ret;
 
-	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		return -EWOULDBLOCK;
-
-	/*
-	 * Handle ioctls that apply to the controller instead of the namespace
-	 * seperately and drop the ns SRCU reference early.  This avoids a
-	 * deadlock when deleting namespaces using the passthrough interface.
-	 */
 	if (is_ctrl_ioctl(cmd))
-		return nvme_handle_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
-
-	ret = nvme_ns_ioctl(ns, cmd, argp);
-	nvme_put_ns_from_disk(head, srcu_idx);
-	return ret;
+		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp);
+	return nvme_ns_ioctl(ns, cmd, argp);
 }
 
 static int nvme_open(struct block_device *bdev, fmode_t mode)
@@ -2363,12 +2336,50 @@ static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
 	nvme_put_ns_head(disk->private_data);
 }
 
+static int nvme_ns_head_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
+		void __user *argp, struct nvme_ns_head *head, int srcu_idx)
+{
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	int ret;
+
+	nvme_get_ctrl(ns->ctrl);
+	nvme_put_ns_from_disk(head, srcu_idx);
+	ret = nvme_ctrl_ioctl(ns->ctrl, cmd, argp);
+	nvme_put_ctrl(ctrl);
+	return ret;
+}
+
+static int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg)
+{
+	struct nvme_ns_head *head = NULL;
+	void __user *argp = (void __user *)arg;
+	struct nvme_ns *ns;
+	int srcu_idx, ret;
+
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		return -EWOULDBLOCK;
+
+	/*
+	 * Handle ioctls that apply to the controller instead of the namespace
+	 * seperately and drop the ns SRCU reference early.  This avoids a
+	 * deadlock when deleting namespaces using the passthrough interface.
+	 */
+	if (is_ctrl_ioctl(cmd))
+		return nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
+
+	ret = nvme_ns_ioctl(ns, cmd, argp);
+	nvme_put_ns_from_disk(head, srcu_idx);
+	return ret;
+}
+
 const struct block_device_operations nvme_ns_head_ops = {
 	.owner		= THIS_MODULE,
 	.submit_bio	= nvme_ns_head_submit_bio,
 	.open		= nvme_ns_head_open,
 	.release	= nvme_ns_head_release,
-	.ioctl		= nvme_ioctl,
+	.ioctl		= nvme_ns_head_ioctl,
 	.getgeo		= nvme_getgeo,
 	.report_zones	= nvme_report_zones,
 	.pr_ops		= &nvme_pr_ops,
