@@ -694,6 +694,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 	if (!found) {
 		ret = -EINVAL;
+		connector->status = connector_status_disconnected;
 		goto error_conn;
 	}
 
