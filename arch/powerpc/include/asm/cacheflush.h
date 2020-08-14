@@ -98,6 +98,8 @@ static inline void invalidate_dcache_range(unsigned long start,
 	mb();	/* sync */
 }
 
+void flush_instruction_cache(void);
+
 #include <asm-generic/cacheflush.h>
 
 #endif /* _ASM_POWERPC_CACHEFLUSH_H */

@@ -435,7 +435,6 @@ extern void power7_idle_type(unsigned long type);
 extern void power9_idle_type(unsigned long stop_psscr_val,
 			      unsigned long stop_psscr_mask);
 
-extern void flush_instruction_cache(void);
 extern int fix_alignment(struct pt_regs *);
 
 #ifdef CONFIG_PPC64
