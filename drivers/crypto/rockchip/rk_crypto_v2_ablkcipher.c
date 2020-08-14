@@ -389,8 +389,6 @@ static void crypto_dma_start(struct rk_crypto_info *dev)
 	hw_info->desc->dma_ctrl = 0x00000201;
 	hw_info->desc->user_define = 0x7;
 
-	dma_sync_single_for_device(dev->dev, hw_info->desc_dma,
-				   sizeof(*hw_info->desc), DMA_TO_DEVICE);
 	CRYPTO_WRITE(dev, CRYPTO_DMA_LLI_ADDR, hw_info->desc_dma);
 	CRYPTO_WRITE(dev, CRYPTO_DMA_CTL, 0x00010001);/* start */
 }
