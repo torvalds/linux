@@ -26,15 +26,6 @@
 
 #include "hwmgr.h"
 
-#define MEM_TYPE_GDDR5  0x50
-#define MEM_TYPE_GDDR4  0x40
-#define MEM_TYPE_GDDR3  0x30
-#define MEM_TYPE_DDR2   0x20
-#define MEM_TYPE_GDDR1  0x10
-#define MEM_TYPE_DDR3   0xb0
-#define MEM_TYPE_MASK   0xF0
-
-
 /* As returned from PowerConnectorDetectionTable. */
 #define PP_ATOM_POWER_BUDGET_DISABLE_OVERDRIVE  0x80
 #define PP_ATOM_POWER_BUDGET_SHOW_WARNING       0x40
