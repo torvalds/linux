@@ -634,6 +634,23 @@ static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf,
 	return 0;
 }
 
+static void sd_zbc_print_zones(struct scsi_disk *sdkp)
+{
+	if (!sd_is_zoned(sdkp) || !sdkp->capacity)
+		return;
+
+	if (sdkp->capacity & (sdkp->zone_blocks - 1))
+		sd_printk(KERN_NOTICE, sdkp,
+			  "%u zones of %u logical blocks + 1 runt zone\n",
+			  sdkp->nr_zones - 1,
+			  sdkp->zone_blocks);
+	else
+		sd_printk(KERN_NOTICE, sdkp,
+			  "%u zones of %u logical blocks\n",
+			  sdkp->nr_zones,
+			  sdkp->zone_blocks);
+}
+
 static void sd_zbc_revalidate_zones_cb(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
@@ -641,12 +658,17 @@ static void sd_zbc_revalidate_zones_cb(struct gendisk *disk)
 	swap(sdkp->zones_wp_offset, sdkp->rev_wp_offset);
 }
 
-static int sd_zbc_revalidate_zones(struct scsi_disk *sdkp,
-				   u32 zone_blocks,
-				   unsigned int nr_zones)
+int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 {
 	struct gendisk *disk = sdkp->disk;
+	struct request_queue *q = disk->queue;
+	u32 zone_blocks = sdkp->rev_zone_blocks;
+	unsigned int nr_zones = sdkp->rev_nr_zones;
+	u32 max_append;
 	int ret = 0;
+
+	if (!sd_is_zoned(sdkp))
+		return 0;
 
 	/*
 	 * Make sure revalidate zones are serialized to ensure exclusive
@@ -654,23 +676,13 @@ static int sd_zbc_revalidate_zones(struct scsi_disk *sdkp,
 	 */
 	mutex_lock(&sdkp->rev_mutex);
 
-	/*
-	 * Revalidate the disk zones to update the device request queue zone
-	 * bitmaps and the zone write pointer offset array. Do this only once
-	 * the device capacity is set on the second revalidate execution for
-	 * disk scan or if something changed when executing a normal revalidate.
-	 */
-	if (sdkp->first_scan) {
-		sdkp->zone_blocks = zone_blocks;
-		sdkp->nr_zones = nr_zones;
-		goto unlock;
-	}
-
 	if (sdkp->zone_blocks == zone_blocks &&
 	    sdkp->nr_zones == nr_zones &&
 	    disk->queue->nr_zones == nr_zones)
 		goto unlock;
 
+	sdkp->zone_blocks = zone_blocks;
+	sdkp->nr_zones = nr_zones;
 	sdkp->rev_wp_offset = kvcalloc(nr_zones, sizeof(u32), GFP_NOIO);
 	if (!sdkp->rev_wp_offset) {
 		ret = -ENOMEM;
@@ -681,6 +693,21 @@ static int sd_zbc_revalidate_zones(struct scsi_disk *sdkp,
 
 	kvfree(sdkp->rev_wp_offset);
 	sdkp->rev_wp_offset = NULL;
+
+	if (ret) {
+		sdkp->zone_blocks = 0;
+		sdkp->nr_zones = 0;
+		sdkp->capacity = 0;
+		goto unlock;
+	}
+
+	max_append = min_t(u32, logical_to_sectors(sdkp->device, zone_blocks),
+			   q->limits.max_segments << (PAGE_SHIFT - 9));
+	max_append = min_t(u32, max_append, queue_max_hw_sectors(q));
+
+	blk_queue_max_zone_append_sectors(q, max_append);
+
+	sd_zbc_print_zones(sdkp);
 
 unlock:
 	mutex_unlock(&sdkp->rev_mutex);
@@ -694,7 +721,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	struct request_queue *q = disk->queue;
 	unsigned int nr_zones;
 	u32 zone_blocks = 0;
-	u32 max_append;
 	int ret;
 
 	if (!sd_is_zoned(sdkp))
@@ -728,22 +754,8 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	sdkp->device->use_16_for_rw = 1;
 	sdkp->device->use_10_for_rw = 0;
 
-	ret = sd_zbc_revalidate_zones(sdkp, zone_blocks, nr_zones);
-	if (ret)
-		goto err;
-
-	/*
-	 * On the first scan 'chunk_sectors' isn't setup yet, so calling
-	 * blk_queue_max_zone_append_sectors() will result in a WARN(). Defer
-	 * this setting to the second scan.
-	 */
-	if (sdkp->first_scan)
-		return 0;
-
-	max_append = min_t(u32, logical_to_sectors(sdkp->device, zone_blocks),
-			   q->limits.max_segments << (PAGE_SHIFT - 9));
-
-	blk_queue_max_zone_append_sectors(q, max_append);
+	sdkp->rev_nr_zones = nr_zones;
+	sdkp->rev_zone_blocks = zone_blocks;
 
 	return 0;
 
@@ -751,23 +763,6 @@ err:
 	sdkp->capacity = 0;
 
 	return ret;
-}
-
-void sd_zbc_print_zones(struct scsi_disk *sdkp)
-{
-	if (!sd_is_zoned(sdkp) || !sdkp->capacity)
-		return;
-
-	if (sdkp->capacity & (sdkp->zone_blocks - 1))
-		sd_printk(KERN_NOTICE, sdkp,
-			  "%u zones of %u logical blocks + 1 runt zone\n",
-			  sdkp->nr_zones - 1,
-			  sdkp->zone_blocks);
-	else
-		sd_printk(KERN_NOTICE, sdkp,
-			  "%u zones of %u logical blocks\n",
-			  sdkp->nr_zones,
-			  sdkp->zone_blocks);
 }
 
 int sd_zbc_init_disk(struct scsi_disk *sdkp)
