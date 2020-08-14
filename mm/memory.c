@@ -2411,8 +2411,6 @@ static inline bool cow_user_page(struct page *dst, struct page *src,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = vmf->address;
 
-	debug_dma_assert_idle(src);
-
 	if (likely(src)) {
 		copy_user_highpage(dst, src, addr, vma);
 		return true;

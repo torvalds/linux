@@ -448,9 +448,6 @@ void debug_dma_dump_mappings(struct device *dev)
  * dma_active_cacheline entry to track per event.  dma_map_sg(), on the
  * other hand, consumes a single dma_debug_entry, but inserts 'nents'
  * entries into the tree.
- *
- * At any time debug_dma_assert_idle() can be called to trigger a
- * warning if any cachelines in the given page are in the active set.
  */
 static RADIX_TREE(dma_active_cacheline, GFP_NOWAIT);
 static DEFINE_SPINLOCK(radix_lock);
@@ -497,10 +494,7 @@ static void active_cacheline_inc_overlap(phys_addr_t cln)
 	overlap = active_cacheline_set_overlap(cln, ++overlap);
 
 	/* If we overflowed the overlap counter then we're potentially
-	 * leaking dma-mappings.  Otherwise, if maps and unmaps are
-	 * balanced then this overflow may cause false negatives in
-	 * debug_dma_assert_idle() as the cacheline may be marked idle
-	 * prematurely.
+	 * leaking dma-mappings.
 	 */
 	WARN_ONCE(overlap > ACTIVE_CACHELINE_MAX_OVERLAP,
 		  pr_fmt("exceeded %d overlapping mappings of cacheline %pa\n"),
@@ -553,44 +547,6 @@ static void active_cacheline_remove(struct dma_debug_entry *entry)
 	if (active_cacheline_dec_overlap(cln) < 0)
 		radix_tree_delete(&dma_active_cacheline, cln);
 	spin_unlock_irqrestore(&radix_lock, flags);
-}
-
-/**
- * debug_dma_assert_idle() - assert that a page is not undergoing dma
- * @page: page to lookup in the dma_active_cacheline tree
- *
- * Place a call to this routine in cases where the cpu touching the page
- * before the dma completes (page is dma_unmapped) will lead to data
- * corruption.
- */
-void debug_dma_assert_idle(struct page *page)
-{
-	struct dma_debug_entry *entry;
-	unsigned long pfn;
-	phys_addr_t cln;
-
-	if (dma_debug_disabled())
-		return;
-
-	if (!page)
-		return;
-
-	pfn = page_to_pfn(page);
-	cln = (phys_addr_t) pfn << CACHELINE_PER_PAGE_SHIFT;
-
-	rcu_read_lock();
-	if (!radix_tree_gang_lookup(&dma_active_cacheline, (void **) &entry,
-				    cln, 1) || entry->pfn != pfn)
-		entry = NULL;
-	rcu_read_unlock();
-
-	if (!entry)
-		return;
-
-	cln = to_cacheline_number(entry);
-	err_printk(entry->dev, entry,
-		   "cpu touching an active dma mapped cacheline [cln=%pa]\n",
-		   &cln);
 }
 
 /*
