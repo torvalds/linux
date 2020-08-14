@@ -384,18 +384,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 	.probe	= rs5c313_rtc_probe,
 };
 
-static int __init rs5c313_rtc_init(void)
-{
-	return platform_driver_register(&rs5c313_rtc_platform_driver);
-}
-
-static void __exit rs5c313_rtc_exit(void)
-{
-	platform_driver_unregister(&rs5c313_rtc_platform_driver);
-}
-
-module_init(rs5c313_rtc_init);
-module_exit(rs5c313_rtc_exit);
+module_platform_driver(rs5c313_rtc_platform_driver);
 
 MODULE_AUTHOR("kogiidena , Nobuhiro Iwamatsu <iwamatsu@nigauri.org>");
 MODULE_DESCRIPTION("Ricoh RS5C313 RTC device driver");
