@@ -45,9 +45,6 @@ static void exfat_put_super(struct super_block *sb)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
 	mutex_lock(&sbi->s_lock);
-	if (test_and_clear_bit(EXFAT_SB_DIRTY, &sbi->s_state))
-		sync_blockdev(sb->s_bdev);
-	exfat_set_vol_flags(sb, VOL_CLEAN);
 	exfat_free_bitmap(sbi);
 	brelse(sbi->boot_bh);
 	mutex_unlock(&sbi->s_lock);
@@ -60,13 +57,14 @@ static int exfat_sync_fs(struct super_block *sb, int wait)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	int err = 0;
 
+	if (!wait)
+		return 0;
+
 	/* If there are some dirty buffers in the bdev inode */
 	mutex_lock(&sbi->s_lock);
-	if (test_and_clear_bit(EXFAT_SB_DIRTY, &sbi->s_state)) {
-		sync_blockdev(sb->s_bdev);
-		if (exfat_set_vol_flags(sb, VOL_CLEAN))
-			err = -EIO;
-	}
+	sync_blockdev(sb->s_bdev);
+	if (exfat_clear_volume_dirty(sb))
+		err = -EIO;
 	mutex_unlock(&sbi->s_lock);
 	return err;
 }
@@ -98,17 +96,20 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
+static int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flags)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct boot_sector *p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
 	bool sync;
 
+	/* retain persistent-flags */
+	new_flags |= sbi->vol_flags_persistent;
+
 	/* flags are not changed */
-	if (sbi->vol_flag == new_flag)
+	if (sbi->vol_flags == new_flags)
 		return 0;
 
-	sbi->vol_flag = new_flag;
+	sbi->vol_flags = new_flags;
 
 	/* skip updating volume dirty flag,
 	 * if this volume has been mounted with read-only
@@ -116,9 +117,9 @@ int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 	if (sb_rdonly(sb))
 		return 0;
 
-	p_boot->vol_flags = cpu_to_le16(new_flag);
+	p_boot->vol_flags = cpu_to_le16(new_flags);
 
-	if (new_flag == VOL_DIRTY && !buffer_dirty(sbi->boot_bh))
+	if ((new_flags & VOLUME_DIRTY) && !buffer_dirty(sbi->boot_bh))
 		sync = true;
 	else
 		sync = false;
@@ -129,6 +130,20 @@ int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 	if (sync)
 		sync_dirty_buffer(sbi->boot_bh);
 	return 0;
+}
+
+int exfat_set_volume_dirty(struct super_block *sb)
+{
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	return exfat_set_vol_flags(sb, sbi->vol_flags | VOLUME_DIRTY);
+}
+
+int exfat_clear_volume_dirty(struct super_block *sb)
+{
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	return exfat_set_vol_flags(sb, sbi->vol_flags & ~VOLUME_DIRTY);
 }
 
 static int exfat_show_options(struct seq_file *m, struct dentry *root)
@@ -459,7 +474,8 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	sbi->dentries_per_clu = 1 <<
 		(sbi->cluster_size_bits - DENTRY_SIZE_BITS);
 
-	sbi->vol_flag = le16_to_cpu(p_boot->vol_flags);
+	sbi->vol_flags = le16_to_cpu(p_boot->vol_flags);
+	sbi->vol_flags_persistent = sbi->vol_flags & (VOLUME_DIRTY | MEDIA_FAILURE);
 	sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
 	sbi->used_clusters = EXFAT_CLUSTERS_UNTRACKED;
 
@@ -474,9 +490,9 @@ static int exfat_read_boot_sector(struct super_block *sb)
 		exfat_err(sb, "bogus data start sector");
 		return -EINVAL;
 	}
-	if (sbi->vol_flag & VOL_DIRTY)
+	if (sbi->vol_flags & VOLUME_DIRTY)
 		exfat_warn(sb, "Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
-	if (sbi->vol_flag & ERR_MEDIUM)
+	if (sbi->vol_flags & MEDIA_FAILURE)
 		exfat_warn(sb, "Medium has reported failures. Some data may be lost.");
 
 	/* exFAT file size is limited by a disk volume size */

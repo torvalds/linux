@@ -412,7 +412,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 
 	new->flags = flags;
 
-	new->q.info = devm_kzalloc(dev, sizeof(*new->q.info) * num_descs,
+	new->q.info = devm_kcalloc(dev, num_descs, sizeof(*new->q.info),
 				   GFP_KERNEL);
 	if (!new->q.info) {
 		netdev_err(lif->netdev, "Cannot allocate queue info\n");
@@ -462,7 +462,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		new->intr.index = IONIC_INTR_INDEX_NOT_ASSIGNED;
 	}
 
-	new->cq.info = devm_kzalloc(dev, sizeof(*new->cq.info) * num_descs,
+	new->cq.info = devm_kcalloc(dev, num_descs, sizeof(*new->cq.info),
 				    GFP_KERNEL);
 	if (!new->cq.info) {
 		netdev_err(lif->netdev, "Cannot allocate completion queue info\n");

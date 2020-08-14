@@ -2,7 +2,7 @@
 /*
  *   S/390 debug facility
  *
- *    Copyright IBM Corp. 1999, 2000
+ *    Copyright IBM Corp. 1999, 2020
  */
 #ifndef DEBUG_H
 #define DEBUG_H
@@ -26,19 +26,14 @@
 #define DEBUG_DATA(entry) (char *)(entry + 1) /* data is stored behind */
 					      /* the entry information */
 
-#define __DEBUG_FEATURE_VERSION	   2  /* version of debug feature */
+#define __DEBUG_FEATURE_VERSION	   3  /* version of debug feature */
 
 struct __debug_entry {
-	union {
-		struct {
-			unsigned long clock	: 52;
-			unsigned long exception	:  1;
-			unsigned long level	:  3;
-			unsigned long cpuid	:  8;
-		} fields;
-		unsigned long stck;
-	} id;
+	unsigned long clock	: 60;
+	unsigned long exception	:  1;
+	unsigned long level	:  3;
 	void *caller;
+	unsigned short cpu;
 } __packed;
 
 typedef struct __debug_entry debug_entry_t;

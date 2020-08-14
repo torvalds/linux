@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/admin-guide/index.rst`
+:Original: :doc:`../../../admin-guide/index`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
 
 
