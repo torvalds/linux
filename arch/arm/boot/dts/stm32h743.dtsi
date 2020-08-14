@@ -110,6 +110,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40003800 0x400>;
 			interrupts = <36>;
+			resets = <&rcc STM32H7_APB1L_RESET(SPI2)>;
 			clocks = <&rcc SPI2_CK>;
 			status = "disabled";
 
@@ -121,6 +122,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40003c00 0x400>;
 			interrupts = <51>;
+			resets = <&rcc STM32H7_APB1L_RESET(SPI3)>;
 			clocks = <&rcc SPI3_CK>;
 			status = "disabled";
 		};
@@ -207,6 +209,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40013000 0x400>;
 			interrupts = <35>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI1)>;
 			clocks = <&rcc SPI1_CK>;
 			status = "disabled";
 		};
@@ -217,6 +220,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40013400 0x400>;
 			interrupts = <84>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI4)>;
 			clocks = <&rcc SPI4_CK>;
 			status = "disabled";
 		};
@@ -227,6 +231,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x40015000 0x400>;
 			interrupts = <85>;
+			resets = <&rcc STM32H7_APB2_RESET(SPI5)>;
 			clocks = <&rcc SPI5_CK>;
 			status = "disabled";
 		};
@@ -382,6 +387,7 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x58001400 0x400>;
 			interrupts = <86>;
+			resets = <&rcc STM32H7_APB4_RESET(SPI6)>;
 			clocks = <&rcc SPI6_CK>;
 			status = "disabled";
 		};
