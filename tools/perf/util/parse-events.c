@@ -37,6 +37,7 @@
 #include "util/evsel_config.h"
 #include "util/event.h"
 #include "util/pfm.h"
+#include "perf.h"
 
 #define MAX_NAME_LEN 100
 
@@ -1794,6 +1795,8 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 		if (*str == 'u') {
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
+			if (!exclude_GH && !perf_guest)
+				eG = 1;
 			eu = 0;
 		} else if (*str == 'k') {
 			if (!exclude)
