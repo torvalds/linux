@@ -733,8 +733,6 @@ static int parse_nodes_opt(const struct option *opt __maybe_unused,
 		return -1;
 
 	return parse_node_list(arg);
-
-	return 0;
 }
 
 #define BIT(x) (1ul << x)
