@@ -9,6 +9,9 @@
 #include <linux/of.h>
 #include <linux/firmware.h>
 
+#define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
+#define HOST_CSTATE_BIT			0x04
+
 static struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -1530,6 +1533,20 @@ static int ath11k_qmi_host_cap_send(struct ath11k_base *ab)
 
 	req.cal_done_valid = 1;
 	req.cal_done = ab->qmi.cal_done;
+
+	if (ab->hw_params.internal_sleep_clock) {
+		req.nm_modem_valid = 1;
+
+		/* Notify firmware that this is non-qualcomm platform. */
+		req.nm_modem |= HOST_CSTATE_BIT;
+
+		/* Notify firmware about the sleep clock selection,
+		 * nm_modem_bit[1] is used for this purpose. Host driver on
+		 * non-qualcomm platforms should select internal sleep
+		 * clock.
+		 */
+		req.nm_modem |= SLEEP_CLOCK_SELECT_INTERNAL_BIT;
+	}
 
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_host_cap_resp_msg_v01_ei, &resp);
