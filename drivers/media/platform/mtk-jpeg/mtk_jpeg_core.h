@@ -32,6 +32,12 @@
 
 #define MTK_JPEG_HW_TIMEOUT_MSEC 1000
 
+/**
+ * enum mtk_jpeg_ctx_state - states of the context state machine
+ * @MTK_JPEG_INIT:		current state is initialized
+ * @MTK_JPEG_RUNNING:		current state is running
+ * @MTK_JPEG_SOURCE_CHANGE:	current state is source resolution change
+ */
 enum mtk_jpeg_ctx_state {
 	MTK_JPEG_INIT = 0,
 	MTK_JPEG_RUNNING,
@@ -113,9 +119,7 @@ struct mtk_jpeg_q_data {
  * @out_q:		source (output) queue information
  * @cap_q:		destination (capture) queue queue information
  * @fh:			V4L2 file handle
- * @dec_param		parameters for HW decoding
  * @state:		state of the context
- * @header_valid:	set if header has been parsed and valid
  * @colorspace: enum v4l2_colorspace; supplemental to pixelformat
  * @ycbcr_enc: enum v4l2_ycbcr_encoding, Y'CbCr encoding
  * @quantization: enum v4l2_quantization, colorspace quantization
