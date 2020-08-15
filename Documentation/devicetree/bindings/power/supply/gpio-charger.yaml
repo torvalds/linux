@@ -44,9 +44,9 @@ required:
 
 anyOf:
   - required:
-    - gpios
+      - gpios
   - required:
-    - charge-status-gpios
+      - charge-status-gpios
 
 additionalProperties: false
 

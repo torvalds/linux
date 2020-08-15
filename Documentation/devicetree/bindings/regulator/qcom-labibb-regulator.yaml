@@ -29,7 +29,7 @@ properties:
           Short-circuit interrupt for lab.
 
     required:
-    - interrupts
+      - interrupts
 
   ibb:
     type: object
@@ -42,7 +42,7 @@ properties:
           Short-circuit interrupt for lab.
 
     required:
-    - interrupts
+      - interrupts
 
 required:
   - compatible

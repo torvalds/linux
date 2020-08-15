@@ -11,23 +11,21 @@ maintainers:
 
 properties:
   compatible:
-      const: maxim,max98390
+    const: maxim,max98390
 
   reg:
     maxItems: 1
     description: I2C address of the device.
 
   maxim,temperature_calib:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description: The calculated temperature data was measured while doing the calibration.
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 65535
 
   maxim,r0_calib:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
     description: This is r0 calibration data which was measured in factory mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 8388607
 

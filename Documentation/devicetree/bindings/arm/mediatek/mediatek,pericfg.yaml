@@ -17,22 +17,22 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - mediatek,mt2701-pericfg
-          - mediatek,mt2712-pericfg
-          - mediatek,mt6765-pericfg
-          - mediatek,mt7622-pericfg
-          - mediatek,mt7629-pericfg
-          - mediatek,mt8135-pericfg
-          - mediatek,mt8173-pericfg
-          - mediatek,mt8183-pericfg
-          - mediatek,mt8516-pericfg
-        - const: syscon
+          - enum:
+              - mediatek,mt2701-pericfg
+              - mediatek,mt2712-pericfg
+              - mediatek,mt6765-pericfg
+              - mediatek,mt7622-pericfg
+              - mediatek,mt7629-pericfg
+              - mediatek,mt8135-pericfg
+              - mediatek,mt8173-pericfg
+              - mediatek,mt8183-pericfg
+              - mediatek,mt8516-pericfg
+          - const: syscon
       - items:
-        # Special case for mt7623 for backward compatibility
-        - const: mediatek,mt7623-pericfg
-        - const: mediatek,mt2701-pericfg
-        - const: syscon
+          # Special case for mt7623 for backward compatibility
+          - const: mediatek,mt7623-pericfg
+          - const: mediatek,mt2701-pericfg
+          - const: syscon
 
   reg:
     maxItems: 1

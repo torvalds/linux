@@ -90,8 +90,8 @@ properties:
             description: Values of resistors for divider on raw ADC input
             maxItems: 2
             items:
-             minimum: 1000
-             maximum: 1000000
+              minimum: 1000
+              maximum: 1000000
 
           gw,voltage-offset-microvolt:
             description: |

@@ -17,17 +17,17 @@ properties:
   compatible:
     items:
       - enum:
-        - adi,adv7180
-        - adi,adv7180cp
-        - adi,adv7180st
-        - adi,adv7182
-        - adi,adv7280
-        - adi,adv7280-m
-        - adi,adv7281
-        - adi,adv7281-m
-        - adi,adv7281-ma
-        - adi,adv7282
-        - adi,adv7282-m
+          - adi,adv7180
+          - adi,adv7180cp
+          - adi,adv7180st
+          - adi,adv7182
+          - adi,adv7280
+          - adi,adv7280-m
+          - adi,adv7281
+          - adi,adv7281-m
+          - adi,adv7281-ma
+          - adi,adv7282
+          - adi,adv7282-m
 
   reg:
     maxItems: 1
@@ -58,17 +58,16 @@ allOf:
   - if:
       properties:
         compatible:
-          items:
-            - enum:
-              - adi,adv7180
-              - adi,adv7182
-              - adi,adv7280
-              - adi,adv7280-m
-              - adi,adv7281
-              - adi,adv7281-m
-              - adi,adv7281-ma
-              - adi,adv7282
-              - adi,adv7282-m
+          enum:
+            - adi,adv7180
+            - adi,adv7182
+            - adi,adv7280
+            - adi,adv7280-m
+            - adi,adv7281
+            - adi,adv7281-m
+            - adi,adv7281-ma
+            - adi,adv7282
+            - adi,adv7282-m
     then:
       required:
         - port

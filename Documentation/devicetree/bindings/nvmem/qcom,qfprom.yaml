@@ -46,8 +46,8 @@ properties:
     const: 1
 
 required:
-   - compatible
-   - reg
+  - compatible
+  - reg
 
 examples:
   - |

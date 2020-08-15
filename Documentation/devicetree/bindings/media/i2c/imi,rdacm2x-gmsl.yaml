@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/media/i2c/imi,rdacm2x-gmsl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:  IMI D&D RDACM20 and RDACM21 Automotive Camera Platforms
+title: IMI D&D RDACM20 and RDACM21 Automotive Camera Platforms
 
 maintainers:
   - Jacopo Mondi <jacopo+renesas@jmondi.org>

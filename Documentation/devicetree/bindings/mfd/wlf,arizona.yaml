@@ -73,13 +73,13 @@ allOf:
       required:
         - DBVDD3-supply
   - if:
-     properties:
-       compatible:
-         contains:
-           enum:
-             - cirrus,cs47l24
-             - wlf,wm1831
-             - wlf,wm8997
+      properties:
+        compatible:
+          contains:
+            enum:
+              - cirrus,cs47l24
+              - wlf,wm1831
+              - wlf,wm8997
     then:
       properties:
         SPKVDD-supply:
@@ -183,12 +183,12 @@ properties:
       clock supplied on MCLK2, recommended to be an always on 32k clock.
     oneOf:
       - items:
-        - const: mclk1
+          - const: mclk1
       - items:
-        - const: mclk2
+          - const: mclk2
       - items:
-        - const: mclk1
-        - const: mclk2
+          - const: mclk1
+          - const: mclk2
 
   reset-gpios:
     maxItems: 1
