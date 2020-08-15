@@ -1140,12 +1140,12 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1)
 		isp_ris = rkisp1_read(rkisp1, RKISP1_CIF_ISP_RIS);
 		if (isp_ris & RKISP1_STATS_MEAS_MASK)
 			rkisp1_stats_isr(&rkisp1->stats, isp_ris);
+		/*
+		 * Then update changed configs. Some of them involve
+		 * lot of register writes. Do those only one per frame.
+		 * Do the updates in the order of the processing flow.
+		 */
+		rkisp1_params_isr(rkisp1);
 	}
 
-	/*
-	 * Then update changed configs. Some of them involve
-	 * lot of register writes. Do those only one per frame.
-	 * Do the updates in the order of the processing flow.
-	 */
-	rkisp1_params_isr(rkisp1, status);
 }

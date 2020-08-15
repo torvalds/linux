@@ -1185,12 +1185,13 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	}
 }
 
-void rkisp1_params_isr(struct rkisp1_device *rkisp1, u32 isp_mis)
+void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 {
 	unsigned int frame_sequence = atomic_read(&rkisp1->isp.frame_sequence);
 	struct rkisp1_params *params = &rkisp1->params;
 	struct rkisp1_params_cfg *new_params;
 	struct rkisp1_buffer *cur_buf = NULL;
+	u32 isp_ctrl;
 
 	spin_lock(&params->config_lock);
 	if (!params->is_streaming) {
@@ -1209,24 +1210,20 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1, u32 isp_mis)
 
 	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr);
 
-	if (isp_mis & RKISP1_CIF_ISP_FRAME) {
-		u32 isp_ctrl;
+	rkisp1_isp_isr_other_config(params, new_params);
+	rkisp1_isp_isr_meas_config(params, new_params);
 
-		rkisp1_isp_isr_other_config(params, new_params);
-		rkisp1_isp_isr_meas_config(params, new_params);
+	/* update shadow register immediately */
+	isp_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_CTRL);
+	isp_ctrl |= RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD;
+	rkisp1_write(params->rkisp1, isp_ctrl, RKISP1_CIF_ISP_CTRL);
 
-		/* update shadow register immediately */
-		isp_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_CTRL);
-		isp_ctrl |= RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD;
-		rkisp1_write(params->rkisp1, isp_ctrl, RKISP1_CIF_ISP_CTRL);
+	spin_lock(&params->config_lock);
+	list_del(&cur_buf->queue);
+	spin_unlock(&params->config_lock);
 
-		spin_lock(&params->config_lock);
-		list_del(&cur_buf->queue);
-		spin_unlock(&params->config_lock);
-
-		cur_buf->vb.sequence = frame_sequence;
-		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-	}
+	cur_buf->vb.sequence = frame_sequence;
+	vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 static const struct rkisp1_cif_isp_awb_meas_config rkisp1_awb_params_default_config = {

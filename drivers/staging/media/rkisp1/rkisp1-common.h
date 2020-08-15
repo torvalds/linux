@@ -460,7 +460,7 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1);
 void rkisp1_mipi_isr(struct rkisp1_device *rkisp1);
 void rkisp1_capture_isr(struct rkisp1_device *rkisp1);
 void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris);
-void rkisp1_params_isr(struct rkisp1_device *rkisp1, u32 isp_mis);
+void rkisp1_params_isr(struct rkisp1_device *rkisp1);
 
 /* register/unregisters functions of the entities */
 int rkisp1_capture_devs_register(struct rkisp1_device *rkisp1);
