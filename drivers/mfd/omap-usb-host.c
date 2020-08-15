@@ -2,7 +2,7 @@
 /**
  * omap-usb-host.c - The USBHS core driver for OMAP EHCI & OHCI
  *
- * Copyright (C) 2011-2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2011-2013 Texas Instruments Incorporated - https://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
  * Author: Roger Quadros <rogerq@ti.com>
  */
@@ -120,7 +120,7 @@ static inline u32 usbhs_read(void __iomem *base, u32 reg)
 
 /*-------------------------------------------------------------------------*/
 
-/**
+/*
  * Map 'enum usbhs_omap_port_mode' found in <linux/platform_data/usb-omap.h>
  * to the device tree binding portN-mode found in
  * 'Documentation/devicetree/bindings/mfd/omap-usb-host.txt'
@@ -526,6 +526,8 @@ static const struct of_device_id usbhs_child_match_table[] = {
  * usbhs_omap_probe - initialize TI-based HCDs
  *
  * Allocates basic resources for this USB host controller.
+ *
+ * @pdev: Pointer to this device's platform device structure
  */
 static int usbhs_omap_probe(struct platform_device *pdev)
 {

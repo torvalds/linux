@@ -1193,18 +1193,6 @@ config MFD_SKY81452
 	  This driver can also be built as a module.  If so, the module
 	  will be called sky81452.
 
-config MFD_SMSC
-	bool "SMSC ECE1099 series chips"
-	depends on I2C=y
-	select MFD_CORE
-	select REGMAP_I2C
-	help
-	  If you say yes here you get support for the
-	  ece1099 chips from SMSC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called smsc.
-
 config MFD_SC27XX_PMIC
 	tristate "Spreadtrum SC27xx PMICs"
 	depends on ARCH_SPRD || COMPILE_TEST
@@ -2052,6 +2040,27 @@ config MFD_WCD934X
 	  Support for the Qualcomm WCD9340/WCD9341 Codec.
 	  This driver provides common support WCD934x audio codec and its
 	  associated Pin Controller, Soundwire Controller and Audio codec.
+
+config MFD_KHADAS_MCU
+	tristate "Support for Khadas System control Microcontroller"
+	depends on I2C
+	depends on ARCH_MESON || ARCH_ROCKCHIP || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the Khadas System control Microcontroller interface
+	  present on their VIM and Edge boards.
+
+	  This Microcontroller is present on the Khadas VIM1, VIM2, VIM3 and
+	  Edge boards.
+
+	  It provides multiple boot control features like password check,
+	  power-on options, power-off control and system FAN control on recent
+	  boards.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
