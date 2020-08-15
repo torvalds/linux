@@ -886,7 +886,7 @@ err_with_crypto_register:
 err_with_qm_start:
 	hisi_qm_del_from_list(qm, &hpre_devices);
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 
 err_with_err_init:
 	hisi_qm_dev_err_uninit(qm);
@@ -918,7 +918,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	}
 
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
 }

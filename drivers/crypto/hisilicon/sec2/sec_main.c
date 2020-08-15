@@ -901,7 +901,7 @@ err_crypto_unregister:
 err_remove_from_list:
 	hisi_qm_del_from_list(qm, &sec_devices);
 	sec_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 
 err_probe_uninit:
 	sec_probe_uninit(qm);
@@ -926,7 +926,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 	sec_debugfs_exit(qm);
 
-	(void)hisi_qm_stop(qm);
+	(void)hisi_qm_stop(qm, QM_NORMAL);
 
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);

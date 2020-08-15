@@ -355,7 +355,7 @@ static inline void hisi_qm_del_from_list(struct hisi_qm *qm,
 int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
-int hisi_qm_stop(struct hisi_qm *qm);
+int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r);
 struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type);
 int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
 int hisi_qm_stop_qp(struct hisi_qp *qp);

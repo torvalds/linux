@@ -2643,18 +2643,20 @@ static void qm_clear_queues(struct hisi_qm *qm)
 /**
  * hisi_qm_stop() - Stop a qm.
  * @qm: The qm which will be stopped.
+ * @r: The reason to stop qm.
  *
  * This function stops qm and its qps, then qm can not accept request.
  * Related resources are not released at this state, we can use hisi_qm_start
  * to let qm start again.
  */
-int hisi_qm_stop(struct hisi_qm *qm)
+int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 {
 	struct device *dev = &qm->pdev->dev;
 	int ret = 0;
 
 	down_write(&qm->qps_lock);
 
+	qm->status.stop_reason = r;
 	if (!qm_avail_state(qm, QM_STOP)) {
 		ret = -EPERM;
 		goto err_unlock;
@@ -3300,10 +3302,10 @@ static int qm_set_msi(struct hisi_qm *qm, bool set)
 	return 0;
 }
 
-static int qm_vf_reset_prepare(struct hisi_qm *qm)
+static int qm_vf_reset_prepare(struct hisi_qm *qm,
+			       enum qm_stop_reason stop_reason)
 {
 	struct hisi_qm_list *qm_list = qm->qm_list;
-	int stop_reason = qm->status.stop_reason;
 	struct pci_dev *pdev = qm->pdev;
 	struct pci_dev *virtfn;
 	struct hisi_qm *vf_qm;
@@ -3316,8 +3318,7 @@ static int qm_vf_reset_prepare(struct hisi_qm *qm)
 			continue;
 
 		if (pci_physfn(virtfn) == pdev) {
-			vf_qm->status.stop_reason = stop_reason;
-			ret = hisi_qm_stop(vf_qm);
+			ret = hisi_qm_stop(vf_qm, stop_reason);
 			if (ret)
 				goto stop_fail;
 		}
@@ -3356,15 +3357,14 @@ static int qm_controller_reset_prepare(struct hisi_qm *qm)
 	}
 
 	if (qm->vfs_num) {
-		ret = qm_vf_reset_prepare(qm);
+		ret = qm_vf_reset_prepare(qm, QM_SOFT_RESET);
 		if (ret) {
 			pci_err(pdev, "Fails to stop VFs!\n");
 			return ret;
 		}
 	}
 
-	qm->status.stop_reason = QM_SOFT_RESET;
-	ret = hisi_qm_stop(qm);
+	ret = hisi_qm_stop(qm, QM_SOFT_RESET);
 	if (ret) {
 		pci_err(pdev, "Fails to stop QM!\n");
 		return ret;
@@ -3705,7 +3705,7 @@ void hisi_qm_reset_prepare(struct pci_dev *pdev)
 	}
 
 	if (qm->vfs_num) {
-		ret = qm_vf_reset_prepare(qm);
+		ret = qm_vf_reset_prepare(qm, QM_FLR);
 		if (ret) {
 			pci_err(pdev, "Failed to prepare reset, ret = %d.\n",
 				ret);
@@ -3713,7 +3713,7 @@ void hisi_qm_reset_prepare(struct pci_dev *pdev)
 		}
 	}
 
-	ret = hisi_qm_stop(qm);
+	ret = hisi_qm_stop(qm, QM_FLR);
 	if (ret) {
 		pci_err(pdev, "Failed to stop QM, ret = %d.\n", ret);
 		return;

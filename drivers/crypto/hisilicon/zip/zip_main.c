@@ -828,7 +828,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_remove_from_list:
 	hisi_qm_del_from_list(qm, &zip_devices);
 	hisi_zip_debugfs_exit(hisi_zip);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 err_qm_uninit:
 	hisi_qm_uninit(qm);
 
@@ -844,7 +844,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 		hisi_qm_sriov_disable(pdev);
 
 	hisi_zip_debugfs_exit(hisi_zip);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
