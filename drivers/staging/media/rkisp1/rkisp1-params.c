@@ -1202,10 +1202,11 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	if (!list_empty(&params->params))
 		cur_buf = list_first_entry(&params->params,
 					   struct rkisp1_buffer, queue);
-	spin_unlock(&params->config_lock);
 
-	if (!cur_buf)
+	if (!cur_buf) {
+		spin_unlock(&params->config_lock);
 		return;
+	}
 
 	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr);
 
@@ -1215,12 +1216,11 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	/* update shadow register immediately */
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_CTRL, RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD);
 
-	spin_lock(&params->config_lock);
 	list_del(&cur_buf->queue);
-	spin_unlock(&params->config_lock);
 
 	cur_buf->vb.sequence = frame_sequence;
 	vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	spin_unlock(&params->config_lock);
 }
 
 static const struct rkisp1_cif_isp_awb_meas_config rkisp1_awb_params_default_config = {
