@@ -94,7 +94,6 @@
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
-static struct hisi_qm_list zip_devices;
 
 struct hisi_zip_hw_error {
 	u32 int_msk;
@@ -104,6 +103,11 @@ struct hisi_zip_hw_error {
 struct zip_dfx_item {
 	const char *name;
 	u32 offset;
+};
+
+static struct hisi_qm_list zip_devices = {
+	.register_to_crypto	= hisi_zip_register_to_crypto,
+	.unregister_from_crypto	= hisi_zip_unregister_from_crypto,
 };
 
 static struct zip_dfx_item zip_dfx_files[] = {
@@ -803,32 +807,42 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = hisi_qm_start(qm);
 	if (ret)
-		goto err_qm_uninit;
+		goto err_dev_err_uninit;
 
 	ret = hisi_zip_debugfs_init(hisi_zip);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
 
-	hisi_qm_add_to_list(qm, &zip_devices);
+	ret = hisi_qm_alg_register(qm, &zip_devices);
+	if (ret < 0) {
+		pci_err(pdev, "Failed to register driver to crypto.\n");
+		goto err_qm_stop;
+	}
 
 	if (qm->uacce) {
 		ret = uacce_register(qm->uacce);
 		if (ret)
-			goto err_qm_uninit;
+			goto err_qm_alg_unregister;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num > 0) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_remove_from_list;
+			goto err_qm_alg_unregister;
 	}
 
 	return 0;
 
-err_remove_from_list:
-	hisi_qm_del_from_list(qm, &zip_devices);
+err_qm_alg_unregister:
+	hisi_qm_alg_unregister(qm, &zip_devices);
+
+err_qm_stop:
 	hisi_zip_debugfs_exit(hisi_zip);
 	hisi_qm_stop(qm, QM_NORMAL);
+
+err_dev_err_uninit:
+	hisi_qm_dev_err_uninit(qm);
+
 err_qm_uninit:
 	hisi_qm_uninit(qm);
 
@@ -841,15 +855,15 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	struct hisi_qm *qm = &hisi_zip->qm;
 
 	hisi_qm_wait_task_finish(qm, &zip_devices);
+	hisi_qm_alg_unregister(qm, &zip_devices);
+
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		hisi_qm_sriov_disable(pdev, qm->is_frozen);
 
 	hisi_zip_debugfs_exit(hisi_zip);
 	hisi_qm_stop(qm, QM_NORMAL);
-
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
-	hisi_qm_del_from_list(qm, &zip_devices);
 }
 
 static const struct pci_error_handlers hisi_zip_err_handler = {
@@ -896,16 +910,8 @@ static int __init hisi_zip_init(void)
 		goto err_pci;
 	}
 
-	ret = hisi_zip_register_to_crypto();
-	if (ret < 0) {
-		pr_err("Failed to register driver to crypto.\n");
-		goto err_crypto;
-	}
-
 	return 0;
 
-err_crypto:
-	pci_unregister_driver(&hisi_zip_pci_driver);
 err_pci:
 	hisi_zip_unregister_debugfs();
 
@@ -914,7 +920,6 @@ err_pci:
 
 static void __exit hisi_zip_exit(void)
 {
-	hisi_zip_unregister_from_crypto();
 	pci_unregister_driver(&hisi_zip_pci_driver);
 	hisi_zip_unregister_debugfs();
 }

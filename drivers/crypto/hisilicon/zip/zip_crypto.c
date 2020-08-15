@@ -611,7 +611,7 @@ static struct acomp_alg hisi_zip_acomp_gzip = {
 
 int hisi_zip_register_to_crypto(void)
 {
-	int ret = 0;
+	int ret;
 
 	ret = crypto_register_acomp(&hisi_zip_acomp_zlib);
 	if (ret) {

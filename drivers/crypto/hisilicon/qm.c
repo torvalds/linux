@@ -3952,6 +3952,58 @@ static void hisi_qm_controller_reset(struct work_struct *rst_work)
 }
 
 /**
+ * hisi_qm_alg_register() - Register alg to crypto and add qm to qm_list.
+ * @qm: The qm needs add.
+ * @qm_list: The qm list.
+ *
+ * This function adds qm to qm list, and will register algorithm to
+ * crypto when the qm list is empty.
+ */
+int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
+{
+	int flag = 0;
+	int ret = 0;
+
+	mutex_lock(&qm_list->lock);
+	if (list_empty(&qm_list->list))
+		flag = 1;
+	list_add_tail(&qm->list, &qm_list->list);
+	mutex_unlock(&qm_list->lock);
+
+	if (flag) {
+		ret = qm_list->register_to_crypto();
+		if (ret) {
+			mutex_lock(&qm_list->lock);
+			list_del(&qm->list);
+			mutex_unlock(&qm_list->lock);
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_alg_register);
+
+/**
+ * hisi_qm_alg_unregister() - Unregister alg from crypto and delete qm from
+ * qm list.
+ * @qm: The qm needs delete.
+ * @qm_list: The qm list.
+ *
+ * This function deletes qm from qm list, and will unregister algorithm
+ * from crypto when the qm list is empty.
+ */
+void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
+{
+	mutex_lock(&qm_list->lock);
+	list_del(&qm->list);
+	mutex_unlock(&qm_list->lock);
+
+	if (list_empty(&qm_list->list))
+		qm_list->unregister_from_crypto();
+}
+EXPORT_SYMBOL_GPL(hisi_qm_alg_unregister);
+
+/**
  * hisi_qm_init() - Initialize configures about qm.
  * @qm: The qm needing init.
  *

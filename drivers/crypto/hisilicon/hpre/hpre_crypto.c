@@ -98,9 +98,6 @@ struct hpre_asym_request {
 	struct timespec64 req_time;
 };
 
-static DEFINE_MUTEX(hpre_alg_lock);
-static unsigned int hpre_active_devs;
-
 static int hpre_alloc_req_id(struct hpre_ctx *ctx)
 {
 	unsigned long flags;
@@ -1160,36 +1157,25 @@ static struct kpp_alg dh = {
 
 int hpre_algs_register(void)
 {
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&hpre_alg_lock);
-	if (++hpre_active_devs == 1) {
-		rsa.base.cra_flags = 0;
-		ret = crypto_register_akcipher(&rsa);
-		if (ret)
-			goto unlock;
+	rsa.base.cra_flags = 0;
+	ret = crypto_register_akcipher(&rsa);
+	if (ret)
+		return ret;
 #ifdef CONFIG_CRYPTO_DH
-		ret = crypto_register_kpp(&dh);
-		if (ret) {
-			crypto_unregister_akcipher(&rsa);
-			goto unlock;
-		}
+	ret = crypto_register_kpp(&dh);
+	if (ret)
+		crypto_unregister_akcipher(&rsa);
 #endif
-	}
 
-unlock:
-	mutex_unlock(&hpre_alg_lock);
 	return ret;
 }
 
 void hpre_algs_unregister(void)
 {
-	mutex_lock(&hpre_alg_lock);
-	if (--hpre_active_devs == 0) {
-		crypto_unregister_akcipher(&rsa);
+	crypto_unregister_akcipher(&rsa);
 #ifdef CONFIG_CRYPTO_DH
-		crypto_unregister_kpp(&dh);
+	crypto_unregister_kpp(&dh);
 #endif
-	}
-	mutex_unlock(&hpre_alg_lock);
 }

@@ -99,7 +99,11 @@ struct sec_dfx_item {
 
 static const char sec_name[] = "hisi_sec2";
 static struct dentry *sec_debugfs_root;
-static struct hisi_qm_list sec_devices;
+
+static struct hisi_qm_list sec_devices = {
+	.register_to_crypto	= sec_register_to_crypto,
+	.unregister_from_crypto	= sec_unregister_from_crypto,
+};
 
 static const struct sec_hw_error sec_hw_errors[] = {
 	{.int_msk = BIT(0), .msg = "sec_axi_rresp_err_rint"},
@@ -879,27 +883,24 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		pci_warn(pdev, "Failed to init debugfs!\n");
 
-	hisi_qm_add_to_list(qm, &sec_devices);
-
-	ret = sec_register_to_crypto();
+	ret = hisi_qm_alg_register(qm, &sec_devices);
 	if (ret < 0) {
 		pr_err("Failed to register driver to crypto.\n");
-		goto err_remove_from_list;
+		goto err_qm_stop;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_crypto_unregister;
+			goto err_alg_unregister;
 	}
 
 	return 0;
 
-err_crypto_unregister:
-	sec_unregister_from_crypto();
+err_alg_unregister:
+	hisi_qm_alg_unregister(qm, &sec_devices);
 
-err_remove_from_list:
-	hisi_qm_del_from_list(qm, &sec_devices);
+err_qm_stop:
 	sec_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
 
@@ -918,10 +919,7 @@ static void sec_remove(struct pci_dev *pdev)
 	struct hisi_qm *qm = &sec->qm;
 
 	hisi_qm_wait_task_finish(qm, &sec_devices);
-	sec_unregister_from_crypto();
-
-	hisi_qm_del_from_list(qm, &sec_devices);
-
+	hisi_qm_alg_unregister(qm, &sec_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		hisi_qm_sriov_disable(pdev, qm->is_frozen);
 

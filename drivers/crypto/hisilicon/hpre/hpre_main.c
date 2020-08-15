@@ -90,7 +90,6 @@
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
 
-static struct hisi_qm_list hpre_devices;
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -104,6 +103,11 @@ MODULE_DEVICE_TABLE(pci, hpre_dev_ids);
 struct hpre_hw_error {
 	u32 int_msk;
 	const char *msg;
+};
+
+static struct hisi_qm_list hpre_devices = {
+	.register_to_crypto	= hpre_algs_register,
+	.unregister_from_crypto	= hpre_algs_unregister,
 };
 
 static const char * const hpre_debug_file_name[] = {
@@ -864,9 +868,7 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
-	hisi_qm_add_to_list(qm, &hpre_devices);
-
-	ret = hpre_algs_register();
+	ret = hisi_qm_alg_register(qm, &hpre_devices);
 	if (ret < 0) {
 		pci_err(pdev, "fail to register algs to crypto!\n");
 		goto err_with_qm_start;
@@ -875,16 +877,15 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_with_crypto_register;
+			goto err_with_alg_register;
 	}
 
 	return 0;
 
-err_with_crypto_register:
-	hpre_algs_unregister();
+err_with_alg_register:
+	hisi_qm_alg_unregister(qm, &hpre_devices);
 
 err_with_qm_start:
-	hisi_qm_del_from_list(qm, &hpre_devices);
 	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
 
@@ -904,8 +905,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	int ret;
 
 	hisi_qm_wait_task_finish(qm, &hpre_devices);
-	hpre_algs_unregister();
-	hisi_qm_del_from_list(qm, &hpre_devices);
+	hisi_qm_alg_unregister(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num) {
 		ret = hisi_qm_sriov_disable(pdev, qm->is_frozen);
 		if (ret) {
