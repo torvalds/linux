@@ -703,7 +703,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 
 		dso__set_module_info(dso, m, machine);
 		dso__set_long_name(dso, strdup(filename), true);
-		dso->kernel = DSO_TYPE_KERNEL;
+		dso->kernel = DSO_SPACE__KERNEL;
 	}
 
 	dso__get(dso);
@@ -753,7 +753,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		struct dso *dso = dso__new(event->ksymbol.name);
 
 		if (dso) {
-			dso->kernel = DSO_TYPE_KERNEL;
+			dso->kernel = DSO_SPACE__KERNEL;
 			map = map__new2(0, dso);
 		}
 
@@ -971,14 +971,14 @@ static struct dso *machine__get_kernel(struct machine *machine)
 			vmlinux_name = symbol_conf.vmlinux_name;
 
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
-						 "[kernel]", DSO_TYPE_KERNEL);
+						 "[kernel]", DSO_SPACE__KERNEL);
 	} else {
 		if (symbol_conf.default_guest_vmlinux_name)
 			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
 
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[guest.kernel]",
-						 DSO_TYPE_GUEST_KERNEL);
+						 DSO_SPACE__KERNEL_GUEST);
 	}
 
 	if (kernel != NULL && (!kernel->has_build_id))
@@ -1606,7 +1606,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
 	struct map *map;
-	enum dso_kernel_type kernel_type;
+	enum dso_space_type dso_space;
 	bool is_kernel_mmap;
 
 	/* If we have maps from kcore then we do not need or want any others */
@@ -1614,9 +1614,9 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		return 0;
 
 	if (machine__is_host(machine))
-		kernel_type = DSO_TYPE_KERNEL;
+		dso_space = DSO_SPACE__KERNEL;
 	else
-		kernel_type = DSO_TYPE_GUEST_KERNEL;
+		dso_space = DSO_SPACE__KERNEL_GUEST;
 
 	is_kernel_mmap = memcmp(event->mmap.filename,
 				machine->mmap_name,
@@ -1676,7 +1676,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (kernel == NULL)
 			goto out_problem;
 
-		kernel->kernel = kernel_type;
+		kernel->kernel = dso_space;
 		if (__machine__create_kernel_maps(machine, kernel) < 0) {
 			dso__put(kernel);
 			goto out_problem;
