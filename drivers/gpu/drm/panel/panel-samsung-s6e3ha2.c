@@ -18,7 +18,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define S6E3HA2_MIN_BRIGHTNESS		0
 #define S6E3HA2_MAX_BRIGHTNESS		100
@@ -651,7 +650,7 @@ static int s6e3ha2_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, ctx->desc->mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
