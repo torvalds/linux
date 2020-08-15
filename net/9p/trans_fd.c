@@ -950,7 +950,7 @@ static int p9_bind_privport(struct socket *sock)
 
 	memset(&cl, 0, sizeof(cl));
 	cl.sin_family = AF_INET;
-	cl.sin_addr.s_addr = INADDR_ANY;
+	cl.sin_addr.s_addr = htonl(INADDR_ANY);
 	for (port = p9_ipport_resv_max; port >= p9_ipport_resv_min; port--) {
 		cl.sin_port = htons((ushort)port);
 		err = kernel_bind(sock, (struct sockaddr *)&cl, sizeof(cl));
