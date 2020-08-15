@@ -61,7 +61,7 @@ static inline bool pfn_is_match(struct page *page, unsigned long pfn)
 		return page_pfn == pfn;
 
 	/* THP can be referenced by any subpage */
-	return pfn >= page_pfn && pfn - page_pfn < hpage_nr_pages(page);
+	return pfn >= page_pfn && pfn - page_pfn < thp_nr_pages(page);
 }
 
 /**

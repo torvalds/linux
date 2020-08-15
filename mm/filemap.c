@@ -198,7 +198,7 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 	if (PageHuge(page))
 		return;
 
-	nr = hpage_nr_pages(page);
+	nr = thp_nr_pages(page);
 
 	__mod_lruvec_page_state(page, NR_FILE_PAGES, -nr);
 	if (PageSwapBacked(page)) {

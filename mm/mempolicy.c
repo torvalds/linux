@@ -1049,7 +1049,7 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 			list_add_tail(&head->lru, pagelist);
 			mod_node_page_state(page_pgdat(head),
 				NR_ISOLATED_ANON + page_is_file_lru(head),
-				hpage_nr_pages(head));
+				thp_nr_pages(head));
 		} else if (flags & MPOL_MF_STRICT) {
 			/*
 			 * Non-movable page may reach here.  And, there may be
