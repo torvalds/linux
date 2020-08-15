@@ -11706,7 +11706,7 @@ SYSCALL_DEFINE5(perf_event_open,
 			goto err_task;
 
 		/*
-		 * Reuse ptrace permission checks for now.
+		 * Preserve ptrace permission check for backwards compatibility.
 		 *
 		 * We must hold exec_update_mutex across this and any potential
 		 * perf_install_in_context() call for this new event to
@@ -11714,7 +11714,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * perf_event_exit_task() that could imply).
 		 */
 		err = -EACCES;
-		if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS))
+		if (!perfmon_capable() && !ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS))
 			goto err_cred;
 	}
 
