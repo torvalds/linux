@@ -44,25 +44,25 @@ void test_varlen(void)
 	CHECK_VAL(bss->payload1_len2, size2);
 	CHECK_VAL(bss->total1, size1 + size2);
 	CHECK(memcmp(bss->payload1, exp_str, size1 + size2), "content_check",
-	      "doesn't match!");
+	      "doesn't match!\n");
 
 	CHECK_VAL(data->payload2_len1, size1);
 	CHECK_VAL(data->payload2_len2, size2);
 	CHECK_VAL(data->total2, size1 + size2);
 	CHECK(memcmp(data->payload2, exp_str, size1 + size2), "content_check",
-	      "doesn't match!");
+	      "doesn't match!\n");
 
 	CHECK_VAL(data->payload3_len1, size1);
 	CHECK_VAL(data->payload3_len2, size2);
 	CHECK_VAL(data->total3, size1 + size2);
 	CHECK(memcmp(data->payload3, exp_str, size1 + size2), "content_check",
-	      "doesn't match!");
+	      "doesn't match!\n");
 
 	CHECK_VAL(data->payload4_len1, size1);
 	CHECK_VAL(data->payload4_len2, size2);
 	CHECK_VAL(data->total4, size1 + size2);
 	CHECK(memcmp(data->payload4, exp_str, size1 + size2), "content_check",
-	      "doesn't match!");
+	      "doesn't match!\n");
 cleanup:
 	test_varlen__destroy(skel);
 }
