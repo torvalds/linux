@@ -1216,7 +1216,8 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
  * Callback for the switcheroo driver.  Suspends or resumes the
  * the asics before or after it is powered up using ACPI methods.
  */
-static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
+static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
+					enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	int r;
@@ -2978,8 +2979,6 @@ static const struct attribute *amdgpu_dev_attributes[] = {
  * amdgpu_device_init - initialize the driver
  *
  * @adev: amdgpu_device pointer
- * @ddev: drm dev pointer
- * @pdev: pci dev pointer
  * @flags: driver flags
  *
  * Initializes the driver info and hw (all asics).
@@ -2987,18 +2986,15 @@ static const struct attribute *amdgpu_dev_attributes[] = {
  * Called at driver startup.
  */
 int amdgpu_device_init(struct amdgpu_device *adev,
-		       struct drm_device *ddev,
-		       struct pci_dev *pdev,
 		       uint32_t flags)
 {
+	struct drm_device *ddev = adev_to_drm(adev);
+	struct pci_dev *pdev = adev->pdev;
 	int r, i;
 	bool boco = false;
 	u32 max_MBps;
 
 	adev->shutdown = false;
-	adev->dev = &pdev->dev;
-	adev->ddev = ddev;
-	adev->pdev = pdev;
 	adev->flags = flags;
 
 	if (amdgpu_force_asic_type >= 0 && amdgpu_force_asic_type < CHIP_LAST)
@@ -3453,9 +3449,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	struct drm_connector_list_iter iter;
 	int r;
 
-	if (dev == NULL || dev->dev_private == NULL) {
+	if (!dev)
 		return -ENODEV;
-	}
 
 	adev = drm_to_adev(dev);
 
