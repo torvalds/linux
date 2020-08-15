@@ -65,6 +65,7 @@
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc3v3_sys>;
+		enable-active-high;
 	};
 
 	vdd_arm: vdd-arm {
