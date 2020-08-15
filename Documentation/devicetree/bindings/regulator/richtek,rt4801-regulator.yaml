@@ -49,9 +49,6 @@ required:
   - compatible
   - reg
 
-additionalProperties:
-  - enable-gpios
-
 examples:
   - |
     i2c {
