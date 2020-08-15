@@ -793,7 +793,6 @@ __used __visible void *trampoline_handler(struct pt_regs *regs)
 	/* fixup registers */
 	regs->cs = __KERNEL_CS;
 #ifdef CONFIG_X86_32
-	regs->cs |= get_kernel_rpl();
 	regs->gs = 0;
 #endif
 	/* We use pt_regs->sp for return address holder. */

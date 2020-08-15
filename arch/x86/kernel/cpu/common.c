@@ -1413,15 +1413,7 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	 * ESPFIX issue, we can change this.
 	 */
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_PARAVIRT_XXL
-	do {
-		extern void native_iret(void);
-		if (pv_ops.cpu.iret == native_iret)
-			set_cpu_bug(c, X86_BUG_ESPFIX);
-	} while (0);
-# else
 	set_cpu_bug(c, X86_BUG_ESPFIX);
-# endif
 #endif
 }
 

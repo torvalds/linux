@@ -1014,8 +1014,6 @@ void __init xen_setup_vcpu_info_placement(void)
 }
 
 static const struct pv_info xen_info __initconst = {
-	.shared_kernel_pmd = 0,
-
 	.extra_user_64bit_cs = FLAT_USER_CS64,
 	.name = "Xen",
 };
@@ -1313,10 +1311,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base,
 				   xen_start_info->nr_pages);
 	xen_reserve_special_pages();
-
-	/* keep using Xen gdt for now; no urgent need to change it */
-
-	pv_info.kernel_rpl = 0;
 
 	/*
 	 * We used to do this in xen_arch_setup, but that is too late
