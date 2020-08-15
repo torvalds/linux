@@ -160,7 +160,7 @@
 146	i386	writev			sys_writev			compat_sys_writev
 147	i386	getsid			sys_getsid
 148	i386	fdatasync		sys_fdatasync
-149	i386	_sysctl			sys_sysctl			compat_sys_sysctl
+149	i386	_sysctl			sys_ni_syscall
 150	i386	mlock			sys_mlock
 151	i386	munlock			sys_munlock
 152	i386	mlockall		sys_mlockall
