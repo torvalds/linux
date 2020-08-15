@@ -21,7 +21,7 @@ static struct dentry *hl_debug_root;
 static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, long *val)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -29,8 +29,8 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_RD <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_I2C_RD <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
@@ -47,7 +47,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, u32 val)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -55,8 +55,8 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_WR <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_I2C_WR <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
@@ -73,7 +73,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -81,8 +81,8 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_LED_SET <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_LED_SET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.led_index = cpu_to_le32(led);
 	pkt.value = cpu_to_le64(state);
 

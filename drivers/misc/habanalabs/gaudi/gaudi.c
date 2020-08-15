@@ -359,7 +359,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 				u32 tpc_id);
 static int gaudi_mmu_clear_pgt_range(struct hl_device *hdev);
-static int gaudi_armcp_info_get(struct hl_device *hdev);
+static int gaudi_cpucp_info_get(struct hl_device *hdev);
 static void gaudi_disable_clock_gating(struct hl_device *hdev);
 static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid);
 
@@ -465,7 +465,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
 
-	strncpy(prop->armcp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
+	strncpy(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 					CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GAUDI_MAX_PENDING_CS;
@@ -786,13 +786,13 @@ static int gaudi_late_init(struct hl_device *hdev)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	int rc;
 
-	rc = gaudi->armcp_info_get(hdev);
+	rc = gaudi->cpucp_info_get(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to get armcp info\n");
+		dev_err(hdev->dev, "Failed to get cpucp info\n");
 		return rc;
 	}
 
-	rc = hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
+	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_ENABLE_PCI_ACCESS);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
 		return rc;
@@ -817,7 +817,7 @@ static int gaudi_late_init(struct hl_device *hdev)
 	return 0;
 
 disable_pci_access:
-	hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
+	hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS);
 
 	return rc;
 }
@@ -987,7 +987,7 @@ static int gaudi_sw_init(struct hl_device *hdev)
 		}
 	}
 
-	gaudi->armcp_info_get = gaudi_armcp_info_get;
+	gaudi->cpucp_info_get = gaudi_cpucp_info_get;
 
 	gaudi->max_freq_value = GAUDI_MAX_CLK_FREQ;
 
@@ -3078,7 +3078,7 @@ static int gaudi_suspend(struct hl_device *hdev)
 {
 	int rc;
 
-	rc = hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
+	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS);
 	if (rc)
 		dev_err(hdev->dev, "Failed to disable PCI access from CPU\n");
 
@@ -6053,7 +6053,7 @@ static int gaudi_send_heartbeat(struct hl_device *hdev)
 	return hl_fw_send_heartbeat(hdev);
 }
 
-static int gaudi_armcp_info_get(struct hl_device *hdev)
+static int gaudi_cpucp_info_get(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -6062,19 +6062,19 @@ static int gaudi_armcp_info_get(struct hl_device *hdev)
 	if (!(gaudi->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	rc = hl_fw_armcp_info_get(hdev);
+	rc = hl_fw_cpucp_info_get(hdev);
 	if (rc)
 		return rc;
 
-	if (!strlen(prop->armcp_info.card_name))
-		strncpy(prop->armcp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
+	if (!strlen(prop->cpucp_info.card_name))
+		strncpy(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 				CARD_NAME_MAX_LEN);
 
-	hdev->card_type = le32_to_cpu(hdev->asic_prop.armcp_info.card_type);
+	hdev->card_type = le32_to_cpu(hdev->asic_prop.cpucp_info.card_type);
 
-	if (hdev->card_type == armcp_card_type_pci)
+	if (hdev->card_type == cpucp_card_type_pci)
 		prop->max_power_default = MAX_POWER_DEFAULT_PCI;
-	else if (hdev->card_type == armcp_card_type_pmc)
+	else if (hdev->card_type == cpucp_card_type_pmc)
 		prop->max_power_default = MAX_POWER_DEFAULT_PMC;
 
 	hdev->max_power = prop->max_power_default;

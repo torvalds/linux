@@ -65,14 +65,14 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		hw_ip.dram_enabled = 1;
 	hw_ip.num_of_events = prop->num_of_events;
 
-	memcpy(hw_ip.armcp_version, prop->armcp_info.armcp_version,
+	memcpy(hw_ip.cpucp_version, prop->cpucp_info.cpucp_version,
 		min(VERSION_MAX_LEN, HL_INFO_VERSION_MAX_LEN));
 
-	memcpy(hw_ip.card_name, prop->armcp_info.card_name,
+	memcpy(hw_ip.card_name, prop->cpucp_info.card_name,
 		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
 
-	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
-	hw_ip.module_id = le32_to_cpu(prop->armcp_info.card_location);
+	hw_ip.cpld_version = le32_to_cpu(prop->cpucp_info.cpld_version);
+	hw_ip.module_id = le32_to_cpu(prop->cpucp_info.card_location);
 
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
@@ -288,7 +288,7 @@ static int pci_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	rc = hl_fw_armcp_pci_counters_get(hdev, &pci_counters);
+	rc = hl_fw_cpucp_pci_counters_get(hdev, &pci_counters);
 	if (rc)
 		return rc;
 
@@ -369,7 +369,7 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	rc = hl_fw_armcp_total_energy_get(hdev,
+	rc = hl_fw_cpucp_total_energy_get(hdev,
 			&total_energy.total_energy_consumption);
 	if (rc)
 		return rc;

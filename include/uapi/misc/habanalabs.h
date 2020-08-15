@@ -297,7 +297,7 @@ struct hl_info_hw_ip_info {
 	__u32 device_id; /* PCI Device ID */
 	__u32 module_id; /* For mezzanine cards in servers (From OCP spec.) */
 	__u32 reserved[2];
-	__u32 armcp_cpld_version;
+	__u32 cpld_version;
 	__u32 psoc_pci_pll_nr;
 	__u32 psoc_pci_pll_nf;
 	__u32 psoc_pci_pll_od;
@@ -305,7 +305,7 @@ struct hl_info_hw_ip_info {
 	__u8 tpc_enabled_mask;
 	__u8 dram_enabled;
 	__u8 pad[2];
-	__u8 armcp_version[HL_INFO_VERSION_MAX_LEN];
+	__u8 cpucp_version[HL_INFO_VERSION_MAX_LEN];
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 };
 

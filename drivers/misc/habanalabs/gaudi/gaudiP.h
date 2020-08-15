@@ -216,7 +216,7 @@ struct gaudi_internal_qman_info {
 
 /**
  * struct gaudi_device - ASIC specific manage structure.
- * @armcp_info_get: get information on device from ArmCP
+ * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
  * @clk_gate_mutex: protects code areas that require clock gating to be disabled
  *                  temporarily
@@ -239,7 +239,7 @@ struct gaudi_internal_qman_info {
  *                    8-bit value so use u8.
  */
 struct gaudi_device {
-	int (*armcp_info_get)(struct hl_device *hdev);
+	int (*cpucp_info_get)(struct hl_device *hdev);
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t			hw_queues_lock;

@@ -871,7 +871,7 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 			 * so this message won't be sent
 			 */
 			if (hl_fw_send_pci_access_msg(hdev,
-					ARMCP_PACKET_DISABLE_PCI_ACCESS))
+					CPUCP_PACKET_DISABLE_PCI_ACCESS))
 				dev_warn(hdev->dev,
 					"Failed to disable PCI access by F/W\n");
 		}

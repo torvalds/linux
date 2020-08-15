@@ -8,7 +8,7 @@
 #ifndef HABANALABSP_H_
 #define HABANALABSP_H_
 
-#include "../include/common/armcp_if.h"
+#include "../include/common/cpucp_if.h"
 #include "../include/common/qman_if.h"
 #include <uapi/misc/habanalabs.h>
 
@@ -34,8 +34,8 @@
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
-#define HL_ARMCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
-#define HL_ARMCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_CPUCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_CPUCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
 
 #define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
 
@@ -250,7 +250,7 @@ struct hl_mmu_properties {
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
- * @armcp_info: received various information from ArmCP regarding the H/W, e.g.
+ * @cpucp_info: received various information from CPU-CP regarding the H/W, e.g.
  *		available sensors.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
@@ -301,7 +301,7 @@ struct hl_mmu_properties {
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
-	struct armcp_info		armcp_info;
+	struct cpucp_info		cpucp_info;
 	char				uboot_ver[VERSION_MAX_LEN];
 	char				preboot_ver[VERSION_MAX_LEN];
 	struct hl_mmu_properties	dmmu;
@@ -1588,7 +1588,7 @@ struct hl_device {
 	u64				clock_gating_mask;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
-	enum armcp_card_types		card_type;
+	enum cpucp_card_types		card_type;
 	int				cs_active_cnt;
 	u32				major;
 	u32				high_pll;
@@ -1776,7 +1776,7 @@ int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
 uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms);
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
-		struct armcp_sensor *sensors_arr);
+		struct cpucp_sensor *sensors_arr);
 
 int hl_sysfs_init(struct hl_device *hdev);
 void hl_sysfs_fini(struct hl_device *hdev);
@@ -1848,11 +1848,11 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 int hl_fw_send_heartbeat(struct hl_device *hdev);
-int hl_fw_armcp_info_get(struct hl_device *hdev);
+int hl_fw_cpucp_info_get(struct hl_device *hdev);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
-int hl_fw_armcp_pci_counters_get(struct hl_device *hdev,
+int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
-int hl_fw_armcp_total_energy_get(struct hl_device *hdev,
+int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,
 			u64 *total_energy);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,

@@ -449,7 +449,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
 
-	strncpy(prop->armcp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+	strncpy(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
 		CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
@@ -727,9 +727,9 @@ int goya_late_init(struct hl_device *hdev)
 	if (rc)
 		return rc;
 
-	rc = goya_armcp_info_get(hdev);
+	rc = goya_cpucp_info_get(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to get armcp info %d\n", rc);
+		dev_err(hdev->dev, "Failed to get cpucp info %d\n", rc);
 		return rc;
 	}
 
@@ -739,7 +739,7 @@ int goya_late_init(struct hl_device *hdev)
 	 */
 	WREG32(mmMMU_LOG2_DDR_SIZE, ilog2(prop->dram_size));
 
-	rc = hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
+	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_ENABLE_PCI_ACCESS);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to enable PCI access from CPU %d\n", rc);
@@ -2648,7 +2648,7 @@ int goya_suspend(struct hl_device *hdev)
 {
 	int rc;
 
-	rc = hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
+	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS);
 	if (rc)
 		dev_err(hdev->dev, "Failed to disable PCI access from CPU\n");
 
@@ -4500,14 +4500,14 @@ static void goya_print_irq_info(struct hl_device *hdev, u16 event_type,
 static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 		size_t irq_arr_size)
 {
-	struct armcp_unmask_irq_arr_packet *pkt;
+	struct cpucp_unmask_irq_arr_packet *pkt;
 	size_t total_pkt_size;
 	long result;
 	int rc;
 	int irq_num_entries, irq_arr_index;
 	__le32 *goya_irq_arr;
 
-	total_pkt_size = sizeof(struct armcp_unmask_irq_arr_packet) +
+	total_pkt_size = sizeof(struct cpucp_unmask_irq_arr_packet) +
 			irq_arr_size;
 
 	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
@@ -4534,8 +4534,8 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 		goya_irq_arr[irq_arr_index] =
 				cpu_to_le32(irq_arr[irq_arr_index]);
 
-	pkt->armcp_pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
-						ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt->cpucp_pkt.ctl = cpu_to_le32(CPUCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) pkt,
 						total_pkt_size,	0, &result);
@@ -4560,14 +4560,14 @@ static int goya_soft_reset_late_init(struct hl_device *hdev)
 
 static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	long result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_UNMASK_RAZWI_IRQ <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.value = cpu_to_le64(event_type);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -5103,7 +5103,7 @@ int goya_send_heartbeat(struct hl_device *hdev)
 	return hl_fw_send_heartbeat(hdev);
 }
 
-int goya_armcp_info_get(struct hl_device *hdev)
+int goya_cpucp_info_get(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -5113,11 +5113,11 @@ int goya_armcp_info_get(struct hl_device *hdev)
 	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	rc = hl_fw_armcp_info_get(hdev);
+	rc = hl_fw_cpucp_info_get(hdev);
 	if (rc)
 		return rc;
 
-	dram_size = le64_to_cpu(prop->armcp_info.dram_size);
+	dram_size = le64_to_cpu(prop->cpucp_info.dram_size);
 	if (dram_size) {
 		if ((!is_power_of_2(dram_size)) ||
 				(dram_size < DRAM_PHYS_DEFAULT_SIZE)) {
@@ -5131,8 +5131,8 @@ int goya_armcp_info_get(struct hl_device *hdev)
 		prop->dram_end_address = prop->dram_base_address + dram_size;
 	}
 
-	if (!strlen(prop->armcp_info.card_name))
-		strncpy(prop->armcp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+	if (!strlen(prop->cpucp_info.card_name))
+		strncpy(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
 				CARD_NAME_MAX_LEN);
 
 	return 0;
