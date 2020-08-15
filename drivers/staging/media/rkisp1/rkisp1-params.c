@@ -1191,7 +1191,6 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	struct rkisp1_params *params = &rkisp1->params;
 	struct rkisp1_params_cfg *new_params;
 	struct rkisp1_buffer *cur_buf = NULL;
-	u32 isp_ctrl;
 
 	spin_lock(&params->config_lock);
 	if (!params->is_streaming) {
@@ -1214,9 +1213,7 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	rkisp1_isp_isr_meas_config(params, new_params);
 
 	/* update shadow register immediately */
-	isp_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_CTRL);
-	isp_ctrl |= RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD;
-	rkisp1_write(params->rkisp1, isp_ctrl, RKISP1_CIF_ISP_CTRL);
+	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_CTRL, RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD);
 
 	spin_lock(&params->config_lock);
 	list_del(&cur_buf->queue);
