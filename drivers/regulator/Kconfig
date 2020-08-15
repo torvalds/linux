@@ -894,6 +894,13 @@ config REGULATOR_RN5T618
 config REGULATOR_ROHM
 	tristate
 
+config REGULATOR_RT4801
+	tristate "Richtek RT4801 Regulators"
+	depends on I2C
+	help
+	  This adds support for voltage regulators in Richtek RT4801 Display Bias IC.
+	  The device supports two regulators (DSVP/DSVN).
+
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
 	depends on MFD_RT5033
