@@ -917,12 +917,13 @@ static void sec_remove(struct pci_dev *pdev)
 	struct sec_dev *sec = pci_get_drvdata(pdev);
 	struct hisi_qm *qm = &sec->qm;
 
+	hisi_qm_wait_task_finish(qm, &sec_devices);
 	sec_unregister_from_crypto();
 
 	hisi_qm_del_from_list(qm, &sec_devices);
 
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev);
+		hisi_qm_sriov_disable(pdev, qm->is_frozen);
 
 	sec_debugfs_exit(qm);
 

@@ -180,6 +180,8 @@
 #define QM_DBG_TMP_BUF_LEN		22
 #define QM_PCI_COMMAND_INVALID		~0
 
+#define WAIT_PERIOD			20
+#define REMOVE_WAIT_DELAY		10
 #define QM_SQE_ADDR_MASK		GENMASK(7, 0)
 #define QM_EQ_DEPTH			(1024 * 2)
 
@@ -2225,6 +2227,82 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 }
 
 /**
+ * qm_frozen() - Try to froze QM to cut continuous queue request. If
+ * there is user on the QM, return failure without doing anything.
+ * @qm: The qm needed to be fronzen.
+ *
+ * This function frozes QM, then we can do SRIOV disabling.
+ */
+static int qm_frozen(struct hisi_qm *qm)
+{
+	down_write(&qm->qps_lock);
+
+	if (qm->is_frozen) {
+		up_write(&qm->qps_lock);
+		return 0;
+	}
+
+	if (!qm->qp_in_used) {
+		qm->qp_in_used = qm->qp_num;
+		qm->is_frozen = true;
+		up_write(&qm->qps_lock);
+		return 0;
+	}
+
+	up_write(&qm->qps_lock);
+
+	return -EBUSY;
+}
+
+static int qm_try_frozen_vfs(struct pci_dev *pdev,
+			     struct hisi_qm_list *qm_list)
+{
+	struct hisi_qm *qm, *vf_qm;
+	struct pci_dev *dev;
+	int ret = 0;
+
+	if (!qm_list || !pdev)
+		return -EINVAL;
+
+	/* Try to frozen all the VFs as disable SRIOV */
+	mutex_lock(&qm_list->lock);
+	list_for_each_entry(qm, &qm_list->list, list) {
+		dev = qm->pdev;
+		if (dev == pdev)
+			continue;
+		if (pci_physfn(dev) == pdev) {
+			vf_qm = pci_get_drvdata(dev);
+			ret = qm_frozen(vf_qm);
+			if (ret)
+				goto frozen_fail;
+		}
+	}
+
+frozen_fail:
+	mutex_unlock(&qm_list->lock);
+
+	return ret;
+}
+
+/**
+ * hisi_qm_wait_task_finish() - Wait until the task is finished
+ * when removing the driver.
+ * @qm: The qm needed to wait for the task to finish.
+ * @qm_list: The list of all available devices.
+ */
+void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
+{
+	while (qm_frozen(qm) ||
+	       ((qm->fun_type == QM_HW_PF) &&
+	       qm_try_frozen_vfs(qm->pdev, qm_list))) {
+		msleep(WAIT_PERIOD);
+	}
+
+	udelay(REMOVE_WAIT_DELAY);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_wait_task_finish);
+
+/**
  * hisi_qm_get_free_qp_num() - Get free number of qp in qm.
  * @qm: The qm which want to get free qp.
  *
@@ -2348,6 +2426,7 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	mutex_init(&qm->mailbox_lock);
 	init_rwsem(&qm->qps_lock);
 	qm->qp_in_used = 0;
+	qm->is_frozen = false;
 }
 
 /**
@@ -3093,11 +3172,12 @@ EXPORT_SYMBOL_GPL(hisi_qm_sriov_enable);
 
 /**
  * hisi_qm_sriov_disable - disable virtual functions
- * @pdev: the PCI device
+ * @pdev: the PCI device.
+ * @is_frozen: true when all the VFs are frozen.
  *
- * Return failure if there are VFs assigned already.
+ * Return failure if there are VFs assigned already or VF is in used.
  */
-int hisi_qm_sriov_disable(struct pci_dev *pdev)
+int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 {
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 
@@ -3106,7 +3186,12 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev)
 		return -EPERM;
 	}
 
-	/* remove in hpre_pci_driver will be called to free VF resources */
+	/* While VF is in used, SRIOV cannot be disabled. */
+	if (!is_frozen && qm_try_frozen_vfs(pdev, qm->qm_list)) {
+		pci_err(pdev, "Task is using its VF!\n");
+		return -EBUSY;
+	}
+
 	pci_disable_sriov(pdev);
 	return qm_clear_vft_config(qm);
 }
@@ -3122,7 +3207,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_sriov_disable);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	if (num_vfs == 0)
-		return hisi_qm_sriov_disable(pdev);
+		return hisi_qm_sriov_disable(pdev, 0);
 	else
 		return hisi_qm_sriov_enable(pdev, num_vfs);
 }
