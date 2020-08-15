@@ -4676,6 +4676,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	    (orig_bcast != is_multicast_ether_addr_64bits(eth->h_dest))) {
 		__skb_push(skb, ETH_HLEN);
 		skb->protocol = eth_type_trans(skb, skb->dev);
+		__skb_pull(skb, ETH_HLEN);
 	}
 
 	switch (act) {
