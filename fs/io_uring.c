@@ -3186,6 +3186,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		ret = 0;
 		goto out_free;
 	} else if (ret == -EAGAIN) {
+		if (!force_nonblock)
+			goto done;
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
 		if (ret)
 			goto out_free;
@@ -3195,7 +3197,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	}
 
 	/* read it all, or we did blocking attempt. no retry. */
-	if (!iov_iter_count(iter) || !force_nonblock)
+	if (!iov_iter_count(iter) || !force_nonblock ||
+	    (req->file->f_flags & O_NONBLOCK))
 		goto done;
 
 	io_size -= ret;
