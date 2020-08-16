@@ -4063,7 +4063,7 @@ static int __devlink_snapshot_id_insert(struct devlink *devlink, u32 id)
 {
 	lockdep_assert_held(&devlink->lock);
 
-	if (WARN_ON(xa_load(&devlink->snapshot_ids, id)))
+	if (xa_load(&devlink->snapshot_ids, id))
 		return -EEXIST;
 
 	return xa_err(xa_store(&devlink->snapshot_ids, id, xa_mk_value(0),
