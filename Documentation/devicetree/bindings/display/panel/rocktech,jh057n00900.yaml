@@ -8,6 +8,7 @@ title: Rocktech JH057N00900 5.5" 720x1440 TFT LCD panel
 
 maintainers:
   - Ondrej Jirman <megi@xff.cz>
+  - Guido Gŭnther <agx@sigxcpu.org>
 
 description:
   Rocktech JH057N00900 is a 720x1440 TFT LCD panel
