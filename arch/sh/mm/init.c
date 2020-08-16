@@ -29,6 +29,7 @@
 #include <asm/cache.h>
 #include <asm/pgalloc.h>
 #include <linux/sizes.h>
+#include "ioremap.h"
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 

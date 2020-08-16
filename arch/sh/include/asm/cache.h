@@ -8,7 +8,6 @@
  */
 #ifndef __ASM_SH_CACHE_H
 #define __ASM_SH_CACHE_H
-#ifdef __KERNEL__
 
 #include <linux/init.h>
 #include <cpu/cache.h>
@@ -44,5 +43,4 @@ struct cache_info {
 	unsigned long flags;
 };
 #endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHE_H */

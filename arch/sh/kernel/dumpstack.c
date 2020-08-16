@@ -16,8 +16,8 @@
 #include <asm/unwinder.h>
 #include <asm/stacktrace.h>
 
-void dump_mem(const char *str, const char *loglvl,
-	      unsigned long bottom, unsigned long top)
+void dump_mem(const char *str, const char *loglvl, unsigned long bottom,
+	      unsigned long top)
 {
 	unsigned long p;
 	int i;
@@ -31,23 +31,23 @@ void dump_mem(const char *str, const char *loglvl,
 			unsigned int val;
 
 			if (p < bottom || p >= top)
-				printk("%s         ", loglvl);
+				pr_cont("         ");
 			else {
 				if (__get_user(val, (unsigned int __user *)p)) {
-					printk("%s\n", loglvl);
+					pr_cont("\n");
 					return;
 				}
-				printk("%s%08x ", loglvl, val);
+				pr_cont("%08x ", val);
 			}
 		}
-		printk("%s\n", loglvl);
+		pr_cont("\n");
 	}
 }
 
-void printk_address(unsigned long address, int reliable, const char *loglvl)
+void printk_address(unsigned long address, int reliable)
 {
-	printk("%s [<%p>] %s%pS\n", loglvl, (void *) address,
-			reliable ? "" : "? ", (void *) address);
+	pr_cont(" [<%px>] %s%pS\n", (void *) address,
+		reliable ? "" : "? ", (void *) address);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -107,22 +107,16 @@ stack_reader_dump(struct task_struct *task, struct pt_regs *regs,
 	}
 }
 
-static int print_trace_stack(void *data, char *name)
-{
-	printk("%s <%s> ", (char *)data, name);
-	return 0;
-}
-
 /*
  * Print one address/symbol entries per line.
  */
 static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
-	printk_address(addr, reliable, (char *)data);
+	printk("%s", (char *)data);
+	printk_address(addr, reliable);
 }
 
 static const struct stacktrace_ops print_trace_ops = {
-	.stack = print_trace_stack,
 	.address = print_trace_address,
 };
 
@@ -136,7 +130,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 
 	unwind_stack(tsk, regs, sp, &print_trace_ops, (void *)loglvl);
 
-	printk("%s\n", loglvl);
+	pr_cont("\n");
 
 	if (!tsk)
 		tsk = current;
