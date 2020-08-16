@@ -189,7 +189,7 @@ static const struct fsl_dspi_devtype_data devtype_data[] = {
 		.fifo_size		= 4,
 	},
 	[MCF5441X] = {
-		.trans_mode		= DSPI_EOQ_MODE,
+		.trans_mode		= DSPI_DMA_MODE,
 		.max_clock_factor	= 8,
 		.fifo_size		= 16,
 	},
