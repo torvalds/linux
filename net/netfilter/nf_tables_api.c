@@ -2018,8 +2018,10 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	if (nla[NFTA_CHAIN_NAME]) {
 		chain->name = nla_strdup(nla[NFTA_CHAIN_NAME], GFP_KERNEL);
 	} else {
-		if (!(flags & NFT_CHAIN_BINDING))
-			return -EINVAL;
+		if (!(flags & NFT_CHAIN_BINDING)) {
+			err = -EINVAL;
+			goto err1;
+		}
 
 		snprintf(name, sizeof(name), "__chain%llu", ++chain_id);
 		chain->name = kstrdup(name, GFP_KERNEL);
