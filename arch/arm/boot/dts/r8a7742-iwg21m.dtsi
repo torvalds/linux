@@ -35,13 +35,6 @@
 	clock-frequency = <20000000>;
 };
 
-&pfc {
-	mmc1_pins: mmc1 {
-		groups = "mmc1_data4", "mmc1_ctrl";
-		function = "mmc1";
-	};
-};
-
 &mmcif1 {
 	pinctrl-0 = <&mmc1_pins>;
 	pinctrl-names = "default";
@@ -50,4 +43,11 @@
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
+};
+
+&pfc {
+	mmc1_pins: mmc1 {
+		groups = "mmc1_data4", "mmc1_ctrl";
+		function = "mmc1";
+	};
 };
