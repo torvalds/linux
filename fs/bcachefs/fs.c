@@ -1262,8 +1262,8 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks	= usage.capacity >> shift;
 	buf->f_bfree	= (usage.capacity - usage.used) >> shift;
 	buf->f_bavail	= buf->f_bfree;
-	buf->f_files	= usage.nr_inodes;
-	buf->f_ffree	= U64_MAX;
+	buf->f_files	= 0;
+	buf->f_ffree	= 0;
 
 	fsid = le64_to_cpup((void *) c->sb.user_uuid.b) ^
 	       le64_to_cpup((void *) c->sb.user_uuid.b + sizeof(u64));
