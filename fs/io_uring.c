@@ -550,15 +550,6 @@ struct io_async_rw {
 	struct wait_page_queue		wpq;
 };
 
-struct io_async_ctx {
-	union {
-		struct io_async_rw	rw;
-		struct io_async_msghdr	msg;
-		struct io_async_connect	connect;
-		struct io_timeout_data	timeout;
-	};
-};
-
 enum {
 	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
 	REQ_F_IO_DRAIN_BIT	= IOSQE_IO_DRAIN_BIT,
@@ -662,7 +653,8 @@ struct io_kiocb {
 		struct io_completion	compl;
 	};
 
-	struct io_async_ctx		*io;
+	/* opcode allocated if it needs to store data for async defer */
+	void				*async_data;
 	u8				opcode;
 	/* polled IO has completed */
 	u8				iopoll_completed;
@@ -730,8 +722,6 @@ struct io_submit_state {
 };
 
 struct io_op_def {
-	/* needs req->io allocated for deferral/async */
-	unsigned		async_ctx : 1;
 	/* needs current->mm setup, does mm access */
 	unsigned		needs_mm : 1;
 	/* needs req->file assigned */
@@ -753,27 +743,34 @@ struct io_op_def {
 	unsigned		pollout : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
+	/* needs rlimit(RLIMIT_FSIZE) assigned */
 	unsigned		needs_fsize : 1;
+	/* must always have async data allocated */
+	unsigned		needs_async_data : 1;
+	/* size of async data needed, if any */
+	unsigned short		async_size;
 };
 
 static const struct io_op_def io_op_defs[] __read_mostly = {
 	[IORING_OP_NOP] = {},
 	[IORING_OP_READV] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITEV] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -782,6 +779,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -789,6 +787,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -799,25 +798,28 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.needs_file		= 1,
 	},
 	[IORING_OP_SENDMSG] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.needs_fs		= 1,
 		.pollout		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_async_msghdr),
 	},
 	[IORING_OP_RECVMSG] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.needs_fs		= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_async_msghdr),
 	},
 	[IORING_OP_TIMEOUT] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_timeout_data),
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {},
 	[IORING_OP_ACCEPT] = {
@@ -829,15 +831,17 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 	},
 	[IORING_OP_ASYNC_CANCEL] = {},
 	[IORING_OP_LINK_TIMEOUT] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_timeout_data),
 	},
 	[IORING_OP_CONNECT] = {
-		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.needs_async_data	= 1,
+		.async_size		= sizeof(struct io_async_connect),
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
@@ -867,6 +871,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_WRITE] = {
 		.needs_mm		= 1,
@@ -874,6 +879,7 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
+		.async_size		= sizeof(struct io_async_rw),
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
@@ -1233,9 +1239,10 @@ static void io_queue_async_work(struct io_kiocb *req)
 
 static void io_kill_timeout(struct io_kiocb *req)
 {
+	struct io_timeout_data *io = req->async_data;
 	int ret;
 
-	ret = hrtimer_try_to_cancel(&req->io->timeout.timer);
+	ret = hrtimer_try_to_cancel(&io->timer);
 	if (ret != -1) {
 		atomic_set(&req->ctx->cq_timeouts,
 			atomic_read(&req->ctx->cq_timeouts) + 1);
@@ -1623,8 +1630,8 @@ static bool io_dismantle_req(struct io_kiocb *req)
 {
 	io_clean_op(req);
 
-	if (req->io)
-		kfree(req->io);
+	if (req->async_data)
+		kfree(req->async_data);
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 
@@ -1683,10 +1690,11 @@ static void __io_free_req(struct io_kiocb *req)
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
 {
+	struct io_timeout_data *io = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
-	ret = hrtimer_try_to_cancel(&req->io->timeout.timer);
+	ret = hrtimer_try_to_cancel(&io->timer);
 	if (ret != -1) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(ctx);
@@ -2368,7 +2376,7 @@ static bool io_resubmit_prep(struct io_kiocb *req, int error)
 		goto end_req;
 	}
 
-	if (!req->io) {
+	if (!req->async_data) {
 		ret = io_import_iovec(rw, req, &iovec, &iter, false);
 		if (ret < 0)
 			goto end_req;
@@ -2649,13 +2657,14 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 		       struct io_comp_state *cs)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
+	struct io_async_rw *io = req->async_data;
 
 	/* add previously done IO, if any */
-	if (req->io && req->io->rw.bytes_done > 0) {
+	if (io && io->bytes_done > 0) {
 		if (ret < 0)
-			ret = req->io->rw.bytes_done;
+			ret = io->bytes_done;
 		else
-			ret += req->io->rw.bytes_done;
+			ret += io->bytes_done;
 	}
 
 	if (req->flags & REQ_F_CUR_POS)
@@ -2929,10 +2938,12 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 			       struct iovec **iovec, struct iov_iter *iter,
 			       bool needs_lock)
 {
-	if (!req->io)
+	struct io_async_rw *iorw = req->async_data;
+
+	if (!iorw)
 		return __io_import_iovec(rw, req, iovec, iter, needs_lock);
 	*iovec = NULL;
-	return iov_iter_count(&req->io->rw.iter);
+	return iov_iter_count(&iorw->iter);
 }
 
 static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
@@ -3001,7 +3012,7 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 			  const struct iovec *fast_iov, struct iov_iter *iter)
 {
-	struct io_async_rw *rw = &req->io->rw;
+	struct io_async_rw *rw = req->async_data;
 
 	memcpy(&rw->iter, iter, sizeof(*iter));
 	rw->free_iovec = iovec;
@@ -3025,28 +3036,29 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	}
 }
 
-static inline int __io_alloc_async_ctx(struct io_kiocb *req)
+static inline int __io_alloc_async_data(struct io_kiocb *req)
 {
-	req->io = kmalloc(sizeof(*req->io), GFP_KERNEL);
-	return req->io == NULL;
+	WARN_ON_ONCE(!io_op_defs[req->opcode].async_size);
+	req->async_data = kmalloc(io_op_defs[req->opcode].async_size, GFP_KERNEL);
+	return req->async_data == NULL;
 }
 
-static int io_alloc_async_ctx(struct io_kiocb *req)
+static int io_alloc_async_data(struct io_kiocb *req)
 {
-	if (!io_op_defs[req->opcode].async_ctx)
+	if (!io_op_defs[req->opcode].needs_async_data)
 		return 0;
 
-	return  __io_alloc_async_ctx(req);
+	return  __io_alloc_async_data(req);
 }
 
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     const struct iovec *fast_iov,
 			     struct iov_iter *iter, bool force)
 {
-	if (!force && !io_op_defs[req->opcode].async_ctx)
+	if (!force && !io_op_defs[req->opcode].needs_async_data)
 		return 0;
-	if (!req->io) {
-		if (__io_alloc_async_ctx(req))
+	if (!req->async_data) {
+		if (__io_alloc_async_data(req))
 			return -ENOMEM;
 
 		io_req_map_rw(req, iovec, fast_iov, iter);
@@ -3057,7 +3069,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 				   bool force_nonblock)
 {
-	struct io_async_rw *iorw = &req->io->rw;
+	struct io_async_rw *iorw = req->async_data;
 	struct iovec *iov = iorw->fast_iov;
 	ssize_t ret;
 
@@ -3085,7 +3097,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		return -EBADF;
 
 	/* either don't need iovec imported or already have it */
-	if (!req->io || req->flags & REQ_F_NEED_CLEANUP)
+	if (!req->async_data || req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 	return io_rw_prep_async(req, READ, force_nonblock);
 }
@@ -3148,7 +3160,8 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
  */
 static bool io_rw_should_retry(struct io_kiocb *req)
 {
-	struct wait_page_queue *wait = &req->io->rw.wpq;
+	struct io_async_rw *rw = req->async_data;
+	struct wait_page_queue *wait = &rw->wpq;
 	struct kiocb *kiocb = &req->rw.kiocb;
 
 	/* never retry for NOWAIT, we just complete with -EAGAIN */
@@ -3192,12 +3205,13 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	struct iov_iter __iter, *iter = &__iter;
+	struct io_async_rw *rw = req->async_data;
 	ssize_t io_size, ret, ret2;
 	size_t iov_count;
 	bool no_async;
 
-	if (req->io)
-		iter = &req->io->rw.iter;
+	if (rw)
+		iter = &rw->iter;
 
 	ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
@@ -3257,12 +3271,13 @@ copy_iov:
 	}
 	if (no_async)
 		return -EAGAIN;
+	rw = req->async_data;
 	/* it's copied and will be cleaned with ->io */
 	iovec = NULL;
 	/* now use our persistent iterator, if we aren't already */
-	iter = &req->io->rw.iter;
+	iter = &rw->iter;
 retry:
-	req->io->rw.bytes_done += ret;
+	rw->bytes_done += ret;
 	/* if we can retry, do so with the callbacks armed */
 	if (!io_rw_should_retry(req)) {
 		kiocb->ki_flags &= ~IOCB_WAITQ;
@@ -3306,7 +3321,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		return -EBADF;
 
 	/* either don't need iovec imported or already have it */
-	if (!req->io || req->flags & REQ_F_NEED_CLEANUP)
+	if (!req->async_data || req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 	return io_rw_prep_async(req, WRITE, force_nonblock);
 }
@@ -3317,11 +3332,12 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	struct iov_iter __iter, *iter = &__iter;
+	struct io_async_rw *rw = req->async_data;
 	size_t iov_count;
 	ssize_t ret, ret2, io_size;
 
-	if (req->io)
-		iter = &req->io->rw.iter;
+	if (rw)
+		iter = &rw->iter;
 
 	ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
@@ -4098,15 +4114,18 @@ static int io_sync_file_range(struct io_kiocb *req, bool force_nonblock)
 static int io_setup_async_msg(struct io_kiocb *req,
 			      struct io_async_msghdr *kmsg)
 {
-	if (req->io)
+	struct io_async_msghdr *async_msg = req->async_data;
+
+	if (async_msg)
 		return -EAGAIN;
-	if (io_alloc_async_ctx(req)) {
+	if (io_alloc_async_data(req)) {
 		if (kmsg->iov != kmsg->fast_iov)
 			kfree(kmsg->iov);
 		return -ENOMEM;
 	}
+	async_msg = req->async_data;
 	req->flags |= REQ_F_NEED_CLEANUP;
-	memcpy(&req->io->msg, kmsg, sizeof(*kmsg));
+	memcpy(async_msg, kmsg, sizeof(*kmsg));
 	return -EAGAIN;
 }
 
@@ -4121,8 +4140,8 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 
 static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_async_msghdr *async_msg = req->async_data;
 	struct io_sr_msg *sr = &req->sr_msg;
-	struct io_async_ctx *io = req->io;
 	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
@@ -4137,13 +4156,13 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
 
-	if (!io || req->opcode == IORING_OP_SEND)
+	if (!async_msg || !io_op_defs[req->opcode].needs_async_data)
 		return 0;
 	/* iovec is already imported */
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 
-	ret = io_sendmsg_copy_hdr(req, &io->msg);
+	ret = io_sendmsg_copy_hdr(req, async_msg);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	return ret;
@@ -4161,9 +4180,9 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(!sock))
 		return ret;
 
-	if (req->io) {
-		kmsg = &req->io->msg;
-		kmsg->msg.msg_name = &req->io->msg.addr;
+	if (req->async_data) {
+		kmsg = req->async_data;
+		kmsg->msg.msg_name = &kmsg->addr;
 		/* if iov is set, it's allocated already */
 		if (!kmsg->iov)
 			kmsg->iov = kmsg->fast_iov;
@@ -4350,8 +4369,8 @@ static inline unsigned int io_put_recv_kbuf(struct io_kiocb *req)
 static int io_recvmsg_prep(struct io_kiocb *req,
 			   const struct io_uring_sqe *sqe)
 {
+	struct io_async_msghdr *async_msg = req->async_data;
 	struct io_sr_msg *sr = &req->sr_msg;
-	struct io_async_ctx *io = req->io;
 	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
@@ -4367,13 +4386,13 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
 
-	if (!io || req->opcode == IORING_OP_RECV)
+	if (!async_msg || !io_op_defs[req->opcode].needs_async_data)
 		return 0;
 	/* iovec is already imported */
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 
-	ret = io_recvmsg_copy_hdr(req, &io->msg);
+	ret = io_recvmsg_copy_hdr(req, async_msg);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	return ret;
@@ -4392,9 +4411,9 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(!sock))
 		return ret;
 
-	if (req->io) {
-		kmsg = &req->io->msg;
-		kmsg->msg.msg_name = &req->io->msg.addr;
+	if (req->async_data) {
+		kmsg = req->async_data;
+		kmsg->msg.msg_name = &kmsg->addr;
 		/* if iov is set, it's allocated already */
 		if (!kmsg->iov)
 			kmsg->iov = kmsg->fast_iov;
@@ -4536,7 +4555,7 @@ static int io_accept(struct io_kiocb *req, bool force_nonblock,
 static int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_connect *conn = &req->connect;
-	struct io_async_ctx *io = req->io;
+	struct io_async_connect *io = req->async_data;
 
 	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
 		return -EINVAL;
@@ -4550,22 +4569,22 @@ static int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return 0;
 
 	return move_addr_to_kernel(conn->addr, conn->addr_len,
-					&io->connect.address);
+					&io->address);
 }
 
 static int io_connect(struct io_kiocb *req, bool force_nonblock,
 		      struct io_comp_state *cs)
 {
-	struct io_async_ctx __io, *io;
+	struct io_async_connect __io, *io;
 	unsigned file_flags;
 	int ret;
 
-	if (req->io) {
-		io = req->io;
+	if (req->async_data) {
+		io = req->async_data;
 	} else {
 		ret = move_addr_to_kernel(req->connect.addr,
 						req->connect.addr_len,
-						&__io.connect.address);
+						&__io.address);
 		if (ret)
 			goto out;
 		io = &__io;
@@ -4573,16 +4592,17 @@ static int io_connect(struct io_kiocb *req, bool force_nonblock,
 
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 
-	ret = __sys_connect_file(req->file, &io->connect.address,
+	ret = __sys_connect_file(req->file, &io->address,
 					req->connect.addr_len, file_flags);
 	if ((ret == -EAGAIN || ret == -EINPROGRESS) && force_nonblock) {
-		if (req->io)
+		if (req->async_data)
 			return -EAGAIN;
-		if (io_alloc_async_ctx(req)) {
+		if (io_alloc_async_data(req)) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		memcpy(&req->io->connect, &__io.connect, sizeof(__io.connect));
+		io = req->async_data;
+		memcpy(req->async_data, &__io, sizeof(__io));
 		return -EAGAIN;
 	}
 	if (ret == -ERESTARTSYS)
@@ -4724,9 +4744,9 @@ static bool io_poll_rewait(struct io_kiocb *req, struct io_poll_iocb *poll)
 
 static struct io_poll_iocb *io_poll_get_double(struct io_kiocb *req)
 {
-	/* pure poll stashes this in ->io, poll driven retry elsewhere */
+	/* pure poll stashes this in ->async_data, poll driven retry elsewhere */
 	if (req->opcode == IORING_OP_POLL_ADD)
-		return (struct io_poll_iocb *) req->io;
+		return req->async_data;
 	return req->apoll->double_poll;
 }
 
@@ -5169,7 +5189,7 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 {
 	struct io_poll_table *pt = container_of(p, struct io_poll_table, pt);
 
-	__io_queue_proc(&pt->req->poll, pt, head, (struct io_poll_iocb **) &pt->req->io);
+	__io_queue_proc(&pt->req->poll, pt, head, (struct io_poll_iocb **) &pt->req->async_data);
 }
 
 static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -5250,11 +5270,12 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 
 static int __io_timeout_cancel(struct io_kiocb *req)
 {
+	struct io_timeout_data *io = req->async_data;
 	int ret;
 
 	list_del_init(&req->timeout.list);
 
-	ret = hrtimer_try_to_cancel(&req->io->timeout.timer);
+	ret = hrtimer_try_to_cancel(&io->timer);
 	if (ret == -1)
 		return -EALREADY;
 
@@ -5341,10 +5362,10 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	req->timeout.off = off;
 
-	if (!req->io && io_alloc_async_ctx(req))
+	if (!req->async_data && io_alloc_async_data(req))
 		return -ENOMEM;
 
-	data = &req->io->timeout;
+	data = req->async_data;
 	data->req = req;
 
 	if (get_timespec64(&data->ts, u64_to_user_ptr(sqe->addr)))
@@ -5362,7 +5383,7 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 static int io_timeout(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_timeout_data *data = &req->io->timeout;
+	struct io_timeout_data *data = req->async_data;
 	struct list_head *entry;
 	u32 tail, off = req->timeout.off;
 
@@ -5533,7 +5554,7 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	if (!sqe)
 		return 0;
 
-	if (io_alloc_async_ctx(req))
+	if (io_alloc_async_data(req))
 		return -EAGAIN;
 	ret = io_prep_work_files(req);
 	if (unlikely(ret))
@@ -5672,7 +5693,7 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list))
 		return 0;
 
-	if (!req->io) {
+	if (!req->async_data) {
 		ret = io_req_defer_prep(req, sqe);
 		if (ret)
 			return ret;
@@ -5716,8 +5737,6 @@ static void io_req_drop_files(struct io_kiocb *req)
 
 static void __io_clean_op(struct io_kiocb *req)
 {
-	struct io_async_ctx *io = req->io;
-
 	if (req->flags & REQ_F_BUFFER_SELECTED) {
 		switch (req->opcode) {
 		case IORING_OP_READV:
@@ -5740,15 +5759,19 @@ static void __io_clean_op(struct io_kiocb *req)
 		case IORING_OP_READ:
 		case IORING_OP_WRITEV:
 		case IORING_OP_WRITE_FIXED:
-		case IORING_OP_WRITE:
-			if (io->rw.free_iovec)
-				kfree(io->rw.free_iovec);
+		case IORING_OP_WRITE: {
+			struct io_async_rw *io = req->async_data;
+			if (io->free_iovec)
+				kfree(io->free_iovec);
 			break;
+			}
 		case IORING_OP_RECVMSG:
-		case IORING_OP_SENDMSG:
-			if (io->msg.iov != io->msg.fast_iov)
-				kfree(io->msg.iov);
+		case IORING_OP_SENDMSG: {
+			struct io_async_msghdr *io = req->async_data;
+			if (io->iov != io->fast_iov)
+				kfree(io->iov);
 			break;
+			}
 		case IORING_OP_SPLICE:
 		case IORING_OP_TEE:
 			io_put_file(req, req->splice.file_in,
@@ -6180,7 +6203,7 @@ static void __io_queue_linked_timeout(struct io_kiocb *req)
 	 * we got a chance to setup the timer
 	 */
 	if (!list_empty(&req->link_list)) {
-		struct io_timeout_data *data = &req->io->timeout;
+		struct io_timeout_data *data = req->async_data;
 
 		data->timer.function = io_link_timeout_fn;
 		hrtimer_start(&data->timer, timespec64_to_ktime(data->ts),
@@ -6304,7 +6327,7 @@ fail_req:
 			io_req_complete(req, ret);
 		}
 	} else if (req->flags & REQ_F_FORCE_ASYNC) {
-		if (!req->io) {
+		if (!req->async_data) {
 			ret = io_req_defer_prep(req, sqe);
 			if (unlikely(ret))
 				goto fail_req;
@@ -6509,7 +6532,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	req->opcode = READ_ONCE(sqe->opcode);
 	req->user_data = READ_ONCE(sqe->user_data);
-	req->io = NULL;
+	req->async_data = NULL;
 	req->file = NULL;
 	req->ctx = ctx;
 	req->flags = 0;
