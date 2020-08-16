@@ -561,7 +561,7 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG
 config DM_VERITY_AVB
 	tristate "Support AVB specific verity error behavior"
 	depends on DM_VERITY
-	---help---
+	help
 	  Enables Android Verified Boot platform-specific error
 	  behavior. In particular, it will modify the vbmeta partition
 	  specified on the kernel command-line when non-transient error
@@ -653,7 +653,7 @@ config DM_BOW
 	tristate "Backup block device"
 	depends on BLK_DEV_DM
 	select DM_BUFIO
-	---help---
+	help
 	  This device-mapper target takes a device and keeps a log of all
 	  changes using free blocks identified by issuing a trim command.
 	  This can then be restored by running a command line utility,

@@ -58,7 +58,7 @@ config GNSS_CMDLINE_SERIAL
 	tristate "Command line test driver for GNSS"
 	depends on SERIAL_DEV_BUS
 	select GNSS_SERIAL
-	---help---
+	help
 	  Say Y here if you want to test the GNSS subsystem but do not have a
 	  way to communicate a binding through firmware such as DT or ACPI.
 	  The correct serdev device and protocol type must be specified on
