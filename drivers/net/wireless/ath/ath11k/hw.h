@@ -116,12 +116,6 @@ struct ath11k_hw_ring_mask {
 	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 };
 
-struct ath11k_hw_ops {
-	u8 (*get_hw_mac_from_pdev_id)(int pdev_id);
-	void (*wmi_init_config)(struct ath11k_base *ab,
-				struct target_resource_config *config);
-};
-
 struct ath11k_hw_params {
 	const char *name;
 	u16 hw_rev;
@@ -153,6 +147,16 @@ struct ath11k_hw_params {
 	bool needs_band_to_mac;
 
 	bool rxdma1_enable;
+	int num_rxmda_per_pdev;
+	bool rx_mac_buf_ring;
+};
+
+struct ath11k_hw_ops {
+	u8 (*get_hw_mac_from_pdev_id)(int pdev_id);
+	void (*wmi_init_config)(struct ath11k_base *ab,
+				struct target_resource_config *config);
+	int (*mac_id_to_pdev_id)(struct ath11k_hw_params *hw, int mac_id);
+	int (*mac_id_to_srng_id)(struct ath11k_hw_params *hw, int mac_id);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
@@ -168,6 +172,24 @@ int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,
 {
 	if (hw->hw_ops->get_hw_mac_from_pdev_id)
 		return hw->hw_ops->get_hw_mac_from_pdev_id(pdev_idx);
+
+	return 0;
+}
+
+static inline int ath11k_hw_mac_id_to_pdev_id(struct ath11k_hw_params *hw,
+					      int mac_id)
+{
+	if (hw->hw_ops->mac_id_to_pdev_id)
+		return hw->hw_ops->mac_id_to_pdev_id(hw, mac_id);
+
+	return 0;
+}
+
+static inline int ath11k_hw_mac_id_to_srng_id(struct ath11k_hw_params *hw,
+					      int mac_id)
+{
+	if (hw->hw_ops->mac_id_to_srng_id)
+		return hw->hw_ops->mac_id_to_srng_id(hw, mac_id);
 
 	return 0;
 }

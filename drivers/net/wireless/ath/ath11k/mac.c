@@ -4054,6 +4054,8 @@ void ath11k_mac_drain_tx(struct ath11k *ar)
 static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 {
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct ath11k_base *ab = ar->ab;
+	int i, ret = 0;
 	u32 ring_id;
 
 	if (enable) {
@@ -4061,11 +4063,16 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 		tlv_filter.rx_filter = ath11k_debug_rx_filter(ar);
 	}
 
-	ring_id = ar->dp.rx_mon_status_refill_ring.refill_buf_ring.ring_id;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+						       ar->dp.mac_id + i,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       DP_RX_BUFFER_SIZE,
+						       &tlv_filter);
+	}
 
-	return ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
-						HAL_RXDMA_MONITOR_STATUS,
-						DP_RX_BUFFER_SIZE, &tlv_filter);
+	return ret;
 }
 
 static int ath11k_mac_op_start(struct ieee80211_hw *hw)

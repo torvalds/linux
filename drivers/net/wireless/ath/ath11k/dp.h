@@ -8,6 +8,8 @@
 
 #include "hal_rx.h"
 
+#define MAX_RXDMA_PER_PDEV     2
+
 struct ath11k_base;
 struct ath11k_peer;
 struct ath11k_dp;
@@ -142,12 +144,13 @@ struct ath11k_pdev_dp {
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
-	struct dp_srng rxdma_err_dst_ring;
+	struct dp_srng rx_mac_buf_ring[MAX_RXDMA_PER_PDEV];
+	struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_srng rxdma_mon_dst_ring;
 	struct dp_srng rxdma_mon_desc_ring;
 
 	struct dp_rxdma_ring rxdma_mon_buf_ring;
-	struct dp_rxdma_ring rx_mon_status_refill_ring;
+	struct dp_rxdma_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
 	struct ieee80211_rx_status rx_status;
 	struct ath11k_mon_data mon_data;
 };

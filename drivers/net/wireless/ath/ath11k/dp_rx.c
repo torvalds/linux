@@ -381,7 +381,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	if (!ar->ab->hw_params.rxdma1_enable)
 		return 0;
 
-	rx_ring = &dp->rx_mon_status_refill_ring;
+	rx_ring = &dp->rx_mon_status_refill_ring[0];
 
 	spin_lock_bh(&rx_ring->idr_lock);
 	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
@@ -403,15 +403,20 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 static int ath11k_dp_rxdma_pdev_buf_free(struct ath11k *ar)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
+	struct ath11k_base *ab = ar->ab;
 	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
+	int i;
 
 	ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
 
 	rx_ring = &dp->rxdma_mon_buf_ring;
 	ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
 
-	rx_ring = &dp->rx_mon_status_refill_ring;
-	ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		rx_ring = &dp->rx_mon_status_refill_ring[i];
+		ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
+	}
+
 	return 0;
 }
 
@@ -434,7 +439,9 @@ static int ath11k_dp_rxdma_ring_buf_setup(struct ath11k *ar,
 static int ath11k_dp_rxdma_pdev_buf_setup(struct ath11k *ar)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
+	struct ath11k_base *ab = ar->ab;
 	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
+	int i;
 
 	ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_BUF);
 
@@ -443,8 +450,10 @@ static int ath11k_dp_rxdma_pdev_buf_setup(struct ath11k *ar)
 		ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_BUF);
 	}
 
-	rx_ring = &dp->rx_mon_status_refill_ring;
-	ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_STATUS);
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		rx_ring = &dp->rx_mon_status_refill_ring[i];
+		ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_STATUS);
+	}
 
 	return 0;
 }
@@ -452,11 +461,21 @@ static int ath11k_dp_rxdma_pdev_buf_setup(struct ath11k *ar)
 static void ath11k_dp_rx_pdev_srng_free(struct ath11k *ar)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
+	struct ath11k_base *ab = ar->ab;
+	int i;
 
-	ath11k_dp_srng_cleanup(ar->ab, &dp->rx_refill_buf_ring.refill_buf_ring);
-	ath11k_dp_srng_cleanup(ar->ab, &dp->rxdma_err_dst_ring);
-	ath11k_dp_srng_cleanup(ar->ab, &dp->rx_mon_status_refill_ring.refill_buf_ring);
-	ath11k_dp_srng_cleanup(ar->ab, &dp->rxdma_mon_buf_ring.refill_buf_ring);
+	ath11k_dp_srng_cleanup(ab, &dp->rx_refill_buf_ring.refill_buf_ring);
+
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		if (ab->hw_params.rx_mac_buf_ring)
+			ath11k_dp_srng_cleanup(ab, &dp->rx_mac_buf_ring[i]);
+
+		ath11k_dp_srng_cleanup(ab, &dp->rxdma_err_dst_ring[i]);
+		ath11k_dp_srng_cleanup(ab,
+				       &dp->rx_mon_status_refill_ring[i].refill_buf_ring);
+	}
+
+	ath11k_dp_srng_cleanup(ab, &dp->rxdma_mon_buf_ring.refill_buf_ring);
 }
 
 void ath11k_dp_pdev_reo_cleanup(struct ath11k_base *ab)
@@ -495,7 +514,9 @@ err_reo_cleanup:
 static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
+	struct ath11k_base *ab = ar->ab;
 	struct dp_srng *srng = NULL;
+	int i;
 	int ret;
 
 	ret = ath11k_dp_srng_setup(ar->ab,
@@ -507,23 +528,41 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 		return ret;
 	}
 
-	ret = ath11k_dp_srng_setup(ar->ab, &dp->rxdma_err_dst_ring,
-				   HAL_RXDMA_DST, 0, dp->mac_id,
-				   DP_RXDMA_ERR_DST_RING_SIZE);
-	if (ret) {
-		ath11k_warn(ar->ab, "failed to setup rxdma_err_dst_ring\n");
-		return ret;
+	if (ar->ab->hw_params.rx_mac_buf_ring) {
+		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+			ret = ath11k_dp_srng_setup(ar->ab,
+						   &dp->rx_mac_buf_ring[i],
+						   HAL_RXDMA_BUF, 1,
+						   dp->mac_id + i, 1024);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to setup rx_mac_buf_ring %d\n",
+					    i);
+				return ret;
+			}
+		}
 	}
 
-	srng = &dp->rx_mon_status_refill_ring.refill_buf_ring;
-	ret = ath11k_dp_srng_setup(ar->ab,
-				   srng,
-				   HAL_RXDMA_MONITOR_STATUS, 0, dp->mac_id,
-				   DP_RXDMA_MON_STATUS_RING_SIZE);
-	if (ret) {
-		ath11k_warn(ar->ab,
-			    "failed to setup rx_mon_status_refill_ring\n");
-		return ret;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ret = ath11k_dp_srng_setup(ar->ab, &dp->rxdma_err_dst_ring[i],
+					   HAL_RXDMA_DST, 0, dp->mac_id + i,
+					   DP_RXDMA_ERR_DST_RING_SIZE);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to setup rxdma_err_dst_ring %d\n", i);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		srng = &dp->rx_mon_status_refill_ring[i].refill_buf_ring;
+		ret = ath11k_dp_srng_setup(ar->ab,
+					   srng,
+					   HAL_RXDMA_MONITOR_STATUS, 0, dp->mac_id + i,
+					   DP_RXDMA_MON_STATUS_RING_SIZE);
+		if (ret) {
+			ath11k_warn(ar->ab,
+				    "failed to setup rx_mon_status_refill_ring %d\n", i);
+			return ret;
+		}
 	}
 
 	/* if rxdma1_enable is false, then it doesn't need
@@ -2738,19 +2777,24 @@ fail_desc_get:
 static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 					     int *budget, struct sk_buff_head *skb_list)
 {
-	struct ath11k *ar = ab->pdevs[mac_id].ar;
-	struct ath11k_pdev_dp *dp = &ar->dp;
-	struct dp_rxdma_ring *rx_ring = &dp->rx_mon_status_refill_ring;
+	struct ath11k *ar;
+	struct ath11k_pdev_dp *dp;
+	struct dp_rxdma_ring *rx_ring;
 	struct hal_srng *srng;
 	void *rx_mon_status_desc;
 	struct sk_buff *skb;
 	struct ath11k_skb_rxcb *rxcb;
 	struct hal_tlv_hdr *tlv;
 	u32 cookie;
-	int buf_id;
+	int buf_id, srng_id;
 	dma_addr_t paddr;
 	u8 rbm;
 	int num_buffs_reaped = 0;
+
+	ar = ab->pdevs[ath11k_hw_mac_id_to_pdev_id(&ab->hw_params, mac_id)].ar;
+	dp = &ar->dp;
+	srng_id = ath11k_hw_mac_id_to_srng_id(&ab->hw_params, mac_id);
+	rx_ring = &dp->rx_mon_status_refill_ring[srng_id];
 
 	srng = &ab->hal.srng_list[rx_ring->refill_buf_ring.ring_id];
 
@@ -2832,7 +2876,7 @@ move_next:
 int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 				    struct napi_struct *napi, int budget)
 {
-	struct ath11k *ar = ab->pdevs[mac_id].ar;
+	struct ath11k *ar = ath11k_ab_to_ar(ab, mac_id);
 	enum hal_rx_mon_status hal_status;
 	struct sk_buff *skb;
 	struct sk_buff_head skb_list;
@@ -3942,9 +3986,9 @@ done:
 
 int ath11k_dp_process_rxdma_err(struct ath11k_base *ab, int mac_id, int budget)
 {
-	struct ath11k *ar = ab->pdevs[mac_id].ar;
-	struct dp_srng *err_ring = &ar->dp.rxdma_err_dst_ring;
-	struct dp_rxdma_ring *rx_ring = &ar->dp.rx_refill_buf_ring;
+	struct ath11k *ar;
+	struct dp_srng *err_ring;
+	struct dp_rxdma_ring *rx_ring;
 	struct dp_link_desc_bank *link_desc_banks = ab->dp.link_desc_banks;
 	struct hal_srng *srng;
 	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
@@ -3962,6 +4006,11 @@ int ath11k_dp_process_rxdma_err(struct ath11k_base *ab, int mac_id, int budget)
 	int num_msdus;
 	int i;
 	int buf_id;
+
+	ar = ab->pdevs[ath11k_hw_mac_id_to_pdev_id(&ab->hw_params, mac_id)].ar;
+	err_ring = &ar->dp.rxdma_err_dst_ring[ath11k_hw_mac_id_to_srng_id(&ab->hw_params,
+									  mac_id)];
+	rx_ring = &ar->dp.rx_refill_buf_ring;
 
 	srng = &ab->hal.srng_list[err_ring->ring_id];
 
@@ -4116,6 +4165,7 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 	struct ath11k *ar = ab->pdevs[mac_id].ar;
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	u32 ring_id;
+	int i;
 	int ret;
 
 	ret = ath11k_dp_rx_pdev_srng_alloc(ar);
@@ -4138,12 +4188,28 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 		return ret;
 	}
 
-	ring_id = dp->rxdma_err_dst_ring.ring_id;
-	ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id, mac_id, HAL_RXDMA_DST);
-	if (ret) {
-		ath11k_warn(ab, "failed to configure rxdma_err_dest_ring %d\n",
-			    ret);
-		return ret;
+	if (ab->hw_params.rx_mac_buf_ring) {
+		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+			ring_id = dp->rx_mac_buf_ring[i].ring_id;
+			ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id,
+							  mac_id + i, HAL_RXDMA_BUF);
+			if (ret) {
+				ath11k_warn(ab, "failed to configure rx_mac_buf_ring%d %d\n",
+					    i, ret);
+				return ret;
+			}
+		}
+	}
+
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = dp->rxdma_err_dst_ring[i].ring_id;
+		ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id,
+						  mac_id + i, HAL_RXDMA_DST);
+		if (ret) {
+			ath11k_warn(ab, "failed to configure rxdma_err_dest_ring%d %d\n",
+				    i, ret);
+			return ret;
+		}
 	}
 
 	if (!ab->hw_params.rxdma1_enable)
@@ -4175,14 +4241,16 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 	}
 
 config_refill_ring:
-	ring_id = dp->rx_mon_status_refill_ring.refill_buf_ring.ring_id;
-	ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id, mac_id,
-					  HAL_RXDMA_MONITOR_STATUS);
-	if (ret) {
-		ath11k_warn(ab,
-			    "failed to configure mon_status_refill_ring %d\n",
-			    ret);
-		return ret;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id, mac_id + i,
+						  HAL_RXDMA_MONITOR_STATUS);
+		if (ret) {
+			ath11k_warn(ab,
+				    "failed to configure mon_status_refill_ring%d %d\n",
+				    i, ret);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -4802,7 +4870,7 @@ static void ath11k_dp_rx_mon_status_process_tlv(struct ath11k *ar,
 static int ath11k_dp_mon_process_rx(struct ath11k_base *ab, int mac_id,
 				    struct napi_struct *napi, int budget)
 {
-	struct ath11k *ar = ab->pdevs[mac_id].ar;
+	struct ath11k *ar = ath11k_ab_to_ar(ab, mac_id);
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
 	int num_buffs_reaped = 0;
@@ -4818,7 +4886,7 @@ static int ath11k_dp_mon_process_rx(struct ath11k_base *ab, int mac_id,
 int ath11k_dp_rx_process_mon_rings(struct ath11k_base *ab, int mac_id,
 				   struct napi_struct *napi, int budget)
 {
-	struct ath11k *ar = ab->pdevs[mac_id].ar;
+	struct ath11k *ar = ath11k_ab_to_ar(ab, mac_id);
 	int ret = 0;
 
 	if (test_bit(ATH11K_FLAG_MONITOR_ENABLED, &ar->monitor_flags))
