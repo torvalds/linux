@@ -1976,8 +1976,8 @@ static int __maybe_unused cio2_suspend(struct device *dev)
 static int __maybe_unused cio2_resume(struct device *dev)
 {
 	struct cio2_device *cio2 = dev_get_drvdata(dev);
-	int r = 0;
 	struct cio2_queue *q = cio2->cur_queue;
+	int r;
 
 	dev_dbg(dev, "cio2 resume\n");
 	if (!cio2->streaming)
@@ -2004,7 +2004,7 @@ static const struct dev_pm_ops cio2_pm_ops = {
 
 static const struct pci_device_id cio2_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, CIO2_PCI_ID) },
-	{ 0 }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cio2_pci_id_table);
