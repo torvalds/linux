@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/mantix,mlaf057we51-x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mantix MLAF057WE51-X 5.7" 720x1440 TFT LCD panel
+
+maintainers:
+  - Guido Günther <agx@sigxcpu.org>
+
+description:
+  Mantix MLAF057WE51 X is a 720x1440 TFT LCD panel connected using
+  a MIPI-DSI video interface.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - mantix,mlaf057we51-x
+
+  port: true
+  reg:
+    maxItems: 1
+    description: DSI virtual channel
+
+  avdd-supply:
+    description: Positive analog power supply
+
+  avee-supply:
+    description: Negative analog power supply
+
+  vddi-supply:
+    description: 1.8V I/O voltage supply
+
+  reset-gpios: true
+
+  backlight: true
+
+required:
+  - compatible
+  - reg
+  - avdd-supply
+  - avee-supply
+  - vddi-supply
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        panel@0 {
+            compatible = "mantix,mlaf057we51-x";
+            reg = <0>;
+            avdd-supply = <&reg_avdd>;
+            avee-supply = <&reg_avee>;
+            vddi-supply = <&reg_1v8_p>;
+            reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+            backlight = <&backlight>;
+        };
+    };
+
+...
