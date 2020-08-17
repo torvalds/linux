@@ -10,6 +10,7 @@
 
 #include <asm/cache.h>
 
+#define __HAVE_ARCH_PMD_ALLOC_ONE
 #define __HAVE_ARCH_PMD_FREE
 #define __HAVE_ARCH_PGD_FREE
 #include <asm-generic/pgalloc.h>
@@ -65,6 +66,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
 	set_pud(pud, __pud((PxD_FLAG_PRESENT | PxD_FLAG_VALID) +
 			(__u32)(__pa((unsigned long)pmd) >> PxD_VALUE_SHIFT)));
+}
+
+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	return (pmd_t *)__get_free_pages(GFP_PGTABLE_KERNEL, PMD_ORDER);
 }
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
