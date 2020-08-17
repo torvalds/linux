@@ -252,9 +252,13 @@
  * DOC: SAE authentication offload
  *
  * By setting @NL80211_EXT_FEATURE_SAE_OFFLOAD flag drivers can indicate they
- * support offloading SAE authentication for WPA3-Personal networks. In
- * %NL80211_CMD_CONNECT the password for SAE should be specified using
- * %NL80211_ATTR_SAE_PASSWORD.
+ * support offloading SAE authentication for WPA3-Personal networks in station
+ * mode. Similarly @NL80211_EXT_FEATURE_SAE_OFFLOAD_AP flag can be set by
+ * drivers indicating the offload support in AP mode.
+ *
+ * The password for SAE should be specified using %NL80211_ATTR_SAE_PASSWORD in
+ * %NL80211_CMD_CONNECT and %NL80211_CMD_START_AP for station and AP mode
+ * respectively.
  */
 
 /**
@@ -5845,6 +5849,9 @@ enum nl80211_feature_flags {
  *	handshake with PSK in AP mode (PSK is passed as part of the start AP
  *	command).
  *
+ * @NL80211_EXT_FEATURE_SAE_OFFLOAD_AP: Device wants to do SAE authentication
+ *	in AP mode (SAE password is passed as part of the start AP command).
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5902,6 +5909,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS,
 	NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION,
 	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_AP_PSK,
+	NL80211_EXT_FEATURE_SAE_OFFLOAD_AP,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

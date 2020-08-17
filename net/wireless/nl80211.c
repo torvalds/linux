@@ -4960,8 +4960,9 @@ static bool nl80211_valid_auth_type(struct cfg80211_registered_device *rdev,
 			return false;
 		return true;
 	case NL80211_CMD_START_AP:
-		/* SAE not supported yet */
-		if (auth_type == NL80211_AUTHTYPE_SAE)
+		if (!wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_SAE_OFFLOAD_AP) &&
+		    auth_type == NL80211_AUTHTYPE_SAE)
 			return false;
 		/* FILS not supported yet */
 		if (auth_type == NL80211_AUTHTYPE_FILS_SK ||
@@ -9552,7 +9553,9 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 
 	if (info->attrs[NL80211_ATTR_SAE_PASSWORD]) {
 		if (!wiphy_ext_feature_isset(&rdev->wiphy,
-					     NL80211_EXT_FEATURE_SAE_OFFLOAD))
+					     NL80211_EXT_FEATURE_SAE_OFFLOAD) &&
+		    !wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_SAE_OFFLOAD_AP))
 			return -EINVAL;
 		settings->sae_pwd =
 			nla_data(info->attrs[NL80211_ATTR_SAE_PASSWORD]);
