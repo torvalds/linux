@@ -133,10 +133,12 @@ enum brcmf_profile_fwsup {
  *
  * @BRCMF_PROFILE_FWAUTH_NONE: no firmware authenticator
  * @BRCMF_PROFILE_FWAUTH_PSK: authenticator for WPA/WPA2-PSK
+ * @BRCMF_PROFILE_FWAUTH_SAE: authenticator for SAE
  */
 enum brcmf_profile_fwauth {
 	BRCMF_PROFILE_FWAUTH_NONE,
-	BRCMF_PROFILE_FWAUTH_PSK
+	BRCMF_PROFILE_FWAUTH_PSK,
+	BRCMF_PROFILE_FWAUTH_SAE
 };
 
 /**
