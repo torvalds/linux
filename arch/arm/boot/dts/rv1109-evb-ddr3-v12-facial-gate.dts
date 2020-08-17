@@ -22,6 +22,20 @@
 			max-brightness = <255>;
 		};
 	};
+
+	vcc1v2_dvdd: vcc1v2-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v2_dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+	};
+
+	vcc2v8_avdd: vcc2v8-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc2v8_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+	};
 };
 
 &csi_dphy0 {
@@ -100,12 +114,13 @@
 		power-domains = <&power RV1126_PD_VI>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&mipicsi_clk0>;
+		power-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
 		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 
-		avdd-supply = <&vcc_avdd>;
+		avdd-supply = <&vcc2v8_avdd>;
 		dovdd-supply = <&vcc_dovdd>;
-		dvdd-supply = <&vcc_dvdd>;
+		dvdd-supply = <&vcc1v2_dvdd>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "front";
