@@ -1012,6 +1012,16 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
+
+	contextMenu = createStandardContextMenu();
+	QAction *action = new QAction("Show Debug Info", contextMenu);
+
+	action->setCheckable(true);
+	connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
+	connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setChecked(bool)));
+	action->setChecked(showDebug());
+	contextMenu->addSeparator();
+	contextMenu->addAction(action);
 }
 
 void ConfigInfoView::saveSettings(void)
@@ -1268,23 +1278,10 @@ void ConfigInfoView::clicked(const QUrl &url)
 	delete data;
 }
 
-QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
+void ConfigInfoView::contextMenuEvent(QContextMenuEvent *event)
 {
-	QMenu* popup = Parent::createStandardContextMenu(pos);
-	QAction* action = new QAction("Show Debug Info", popup);
-
-	action->setCheckable(true);
-	connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
-	connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setChecked(bool)));
-	action->setChecked(showDebug());
-	popup->addSeparator();
-	popup->addAction(action);
-	return popup;
-}
-
-void ConfigInfoView::contextMenuEvent(QContextMenuEvent *e)
-{
-	Parent::contextMenuEvent(e);
+	contextMenu->popup(event->globalPos());
+	event->accept();
 }
 
 ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
