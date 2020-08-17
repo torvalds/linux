@@ -2309,7 +2309,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	struct ext4_buddy e4b;
-	unsigned int lost;
+	int lost;
 
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
@@ -2464,8 +2464,8 @@ repeat:
 			 * The only thing we can do is just take first
 			 * found block(s)
 			 */
-			lost = (unsigned int)atomic_inc_return(&sbi->s_mb_lost_chunks);
-			mb_debug(sb, "lost chunk, group: %u, start: %d, len: %d, lost: %u\n",
+			lost = atomic_inc_return(&sbi->s_mb_lost_chunks);
+			mb_debug(sb, "lost chunk, group: %u, start: %d, len: %d, lost: %d\n",
 				 ac->ac_b_ex.fe_group, ac->ac_b_ex.fe_start,
 				 ac->ac_b_ex.fe_len, lost);
 
@@ -4706,20 +4706,19 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 			pa->pa_free -= ac->ac_b_ex.fe_len;
 			pa->pa_len -= ac->ac_b_ex.fe_len;
 			spin_unlock(&pa->pa_lock);
-		}
-	}
-	if (pa) {
-		/*
-		 * We want to add the pa to the right bucket.
-		 * Remove it from the list and while adding
-		 * make sure the list to which we are adding
-		 * doesn't grow big.
-		 */
-		if ((pa->pa_type == MB_GROUP_PA) && likely(pa->pa_free)) {
-			spin_lock(pa->pa_obj_lock);
-			list_del_rcu(&pa->pa_inode_list);
-			spin_unlock(pa->pa_obj_lock);
-			ext4_mb_add_n_trim(ac);
+
+			/*
+			 * We want to add the pa to the right bucket.
+			 * Remove it from the list and while adding
+			 * make sure the list to which we are adding
+			 * doesn't grow big.
+			 */
+			if (likely(pa->pa_free)) {
+				spin_lock(pa->pa_obj_lock);
+				list_del_rcu(&pa->pa_inode_list);
+				spin_unlock(pa->pa_obj_lock);
+				ext4_mb_add_n_trim(ac);
+			}
 		}
 		ext4_mb_put_pa(ac, ac->ac_sb, pa);
 	}
