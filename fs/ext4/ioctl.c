@@ -202,7 +202,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	reset_inode_seed(inode);
 	reset_inode_seed(inode_bl);
 
-	ext4_discard_preallocations(inode);
+	ext4_discard_preallocations(inode, 0);
 
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err < 0) {

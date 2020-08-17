@@ -482,6 +482,9 @@ Files in /sys/fs/ext4/<devname>:
         multiple of this tuning parameter if the stripe size is not set in the
         ext4 superblock
 
+  mb_max_inode_prealloc
+        The maximum length of per-inode ext4_prealloc_space list.
+
   mb_max_to_scan
         The maximum number of extents the multiblock allocator will search to
         find the best extent.
