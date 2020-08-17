@@ -273,7 +273,8 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 	}
 
-	dev->wanted_features = ethnl_bitmap_to_features(req_wanted);
+	dev->wanted_features &= ~dev->hw_features;
+	dev->wanted_features |= ethnl_bitmap_to_features(req_wanted) & dev->hw_features;
 	__netdev_update_features(dev);
 	ethnl_features_to_bitmap(new_active, dev->features);
 	mod = !bitmap_equal(old_active, new_active, NETDEV_FEATURE_COUNT);
