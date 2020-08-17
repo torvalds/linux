@@ -24,6 +24,7 @@
 #include <asm/pci_dma.h>
 
 #include "pci_bus.h"
+#include "pci_iov.h"
 
 static LIST_HEAD(zbus_list);
 static DEFINE_SPINLOCK(zbus_list_lock);
@@ -126,69 +127,6 @@ static struct zpci_bus *zpci_bus_alloc(int pchid)
 	return zbus;
 }
 
-#ifdef CONFIG_PCI_IOV
-static int zpci_bus_link_virtfn(struct pci_dev *pdev,
-		struct pci_dev *virtfn, int vfid)
-{
-	int rc;
-
-	rc = pci_iov_sysfs_link(pdev, virtfn, vfid);
-	if (rc)
-		return rc;
-
-	virtfn->is_virtfn = 1;
-	virtfn->multifunction = 0;
-	virtfn->physfn = pci_dev_get(pdev);
-
-	return 0;
-}
-
-static int zpci_bus_setup_virtfn(struct zpci_bus *zbus,
-		struct pci_dev *virtfn, int vfn)
-{
-	int i, cand_devfn;
-	struct zpci_dev *zdev;
-	struct pci_dev *pdev;
-	int vfid = vfn - 1; /* Linux' vfid's start at 0 vfn at 1*/
-	int rc = 0;
-
-	if (!zbus->multifunction)
-		return 0;
-
-	/* If the parent PF for the given VF is also configured in the
-	 * instance, it must be on the same zbus.
-	 * We can then identify the parent PF by checking what
-	 * devfn the VF would have if it belonged to that PF using the PF's
-	 * stride and offset. Only if this candidate devfn matches the
-	 * actual devfn will we link both functions.
-	 */
-	for (i = 0; i < ZPCI_FUNCTIONS_PER_BUS; i++) {
-		zdev = zbus->function[i];
-		if (zdev && zdev->is_physfn) {
-			pdev = pci_get_slot(zbus->bus, zdev->devfn);
-			if (!pdev)
-				continue;
-			cand_devfn = pci_iov_virtfn_devfn(pdev, vfid);
-			if (cand_devfn == virtfn->devfn) {
-				rc = zpci_bus_link_virtfn(pdev, virtfn, vfid);
-				/* balance pci_get_slot() */
-				pci_dev_put(pdev);
-				break;
-			}
-			/* balance pci_get_slot() */
-			pci_dev_put(pdev);
-		}
-	}
-	return rc;
-}
-#else
-static inline int zpci_bus_setup_virtfn(struct zpci_bus *zbus,
-		struct pci_dev *virtfn, int vfn)
-{
-	return 0;
-}
-#endif
-
 void pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
@@ -198,7 +136,7 @@ void pcibios_bus_add_device(struct pci_dev *pdev)
 	 * perform PF/VF linking.
 	 */
 	if (zdev->vfn)
-		zpci_bus_setup_virtfn(zdev->zbus, pdev, zdev->vfn);
+		zpci_iov_setup_virtfn(zdev->zbus, pdev, zdev->vfn);
 
 }
 
