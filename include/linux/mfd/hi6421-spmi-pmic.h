@@ -17,49 +17,36 @@
 #define HISI_ECO_MODE_ENABLE		(1)
 #define HISI_ECO_MODE_DISABLE		(0)
 
-typedef int (*pmic_ocp_callback)(char *);
-int hisi_pmic_special_ocp_register(char *power_name, pmic_ocp_callback handler);
-
-struct irq_mask_info {
+struct hi6421_spmi_irq_mask_info {
 	int start_addr;
 	int array;
 };
 
-struct irq_info {
+struct hi6421_spmi_irq_info {
 	int start_addr;
 	int array;
 };
 
-struct bit_info {
-	int addr;
-	int bit;
+struct hi6421_spmi_pmic {
+	struct resource				*res;
+	struct device				*dev;
+	void __iomem				*regs;
+	spinlock_t				lock;
+	struct irq_domain			*domain;
+	int					irq;
+	int					gpio;
+	unsigned int				*irqs;
+	int					irqnum;
+	int					irqarray;
+	struct hi6421_spmi_irq_mask_info 	irq_mask_addr;
+	struct hi6421_spmi_irq_info		irq_addr;
 };
 
-struct write_lock {
-	int addr;
-	int val;
-};
+u32 hi6421_spmi_pmic_read(struct hi6421_spmi_pmic *pmic, int reg);
+void hi6421_spmi_pmic_write(struct hi6421_spmi_pmic *pmic, int reg, u32 val);
+void hi6421_spmi_pmic_rmw(struct hi6421_spmi_pmic *pmic, int reg, u32 mask, u32 bits);
 
-struct hisi_pmic {
-	struct resource		*res;
-	struct device		*dev;
-	void __iomem		*regs;
-	spinlock_t		lock;
-	struct irq_domain	*domain;
-	int			irq;
-	int			gpio;
-	unsigned int		*irqs;
-	int			irqnum;
-	int			irqarray;
-	struct irq_mask_info 	irq_mask_addr;
-	struct irq_info		irq_addr;
-};
-
-u32 hisi_pmic_read(struct hisi_pmic *pmic, int reg);
-void hisi_pmic_write(struct hisi_pmic *pmic, int reg, u32 val);
-void hisi_pmic_rmw(struct hisi_pmic *pmic, int reg, u32 mask, u32 bits);
-
-enum pmic_irq_list {
+enum hi6421_spmi_pmic_irq_list {
 	OTMP = 0,
 	VBUS_CONNECT,
 	VBUS_DISCONNECT,
