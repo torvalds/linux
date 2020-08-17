@@ -338,7 +338,6 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 	struct regulator_config config = { };
 	struct regulation_constraints *constraint;
 	const char *supplyname = NULL;
-	unsigned int temp_modes;
 	int ret = 0;
 
 	initdata = of_get_regulator_init_data(dev, np, NULL);
@@ -346,25 +345,6 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 		dev_err(dev, "failed to get regulator data\n");
 		return -EINVAL;
 	}
-
-	/* hisi regulator supports two modes */
-	constraint = &initdata->constraints;
-
-	ret = of_property_read_u32_array(np, "valid-modes-mask",
-					 &constraint->valid_modes_mask, 1);
-	if (ret) {
-		dev_err(dev, "no valid modes mask\n");
-		ret = -ENODEV;
-		return ret;
-	}
-	ret = of_property_read_u32_array(np, "valid-idle-mask",
-					 &temp_modes, 1);
-	if (ret) {
-		dev_err(dev, "no valid idle mask\n");
-		ret = -ENODEV;
-		return ret;
-	}
-	constraint->valid_ops_mask |= temp_modes;
 
 	sreg = kzalloc(sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
@@ -387,6 +367,15 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 	if (ret)
 		goto hisi_probe_end;
 
+	/* hisi regulator supports two modes */
+	constraint = &initdata->constraints;
+
+	constraint->valid_modes_mask = REGULATOR_MODE_NORMAL;
+	if (sreg->eco_mode_mask) {
+		constraint->valid_modes_mask |= REGULATOR_MODE_IDLE;
+		constraint->valid_ops_mask |= REGULATOR_CHANGE_MODE;
+	}
+
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = sreg;
@@ -401,8 +390,7 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 		goto hisi_probe_end;
 	}
 
-	dev_dbg(dev, "%s:valid_modes_mask: 0x%x, valid_ops_mask: 0x%x\n",
-		 rdesc->name,
+	dev_dbg(dev, "valid_modes_mask: 0x%x, valid_ops_mask: 0x%x\n",
 		 constraint->valid_modes_mask, constraint->valid_ops_mask);
 
 	dev_set_drvdata(dev, rdev);
