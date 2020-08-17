@@ -1873,7 +1873,7 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 	return ret;
 }
 
-static int read_block_group_item(struct btrfs_block_group *cache,
+static void read_block_group_item(struct btrfs_block_group *cache,
 				 struct btrfs_path *path,
 				 const struct btrfs_key *key)
 {
@@ -1887,8 +1887,6 @@ static int read_block_group_item(struct btrfs_block_group *cache,
 			   sizeof(bgi));
 	cache->used = btrfs_stack_block_group_used(&bgi);
 	cache->flags = btrfs_stack_block_group_flags(&bgi);
-
-	return 0;
 }
 
 static int read_one_block_group(struct btrfs_fs_info *info,
@@ -1907,9 +1905,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	if (!cache)
 		return -ENOMEM;
 
-	ret = read_block_group_item(cache, path, key);
-	if (ret < 0)
-		goto error;
+	read_block_group_item(cache, path, key);
 
 	set_free_space_tree_thresholds(cache);
 
