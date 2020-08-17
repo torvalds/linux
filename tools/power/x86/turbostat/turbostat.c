@@ -4162,13 +4162,8 @@ double get_tdp_intel(unsigned int model)
 
 double get_tdp_amd(unsigned int family)
 {
-	switch (family) {
-	case 0x17:
-	case 0x18:
-	default:
-		/* This is the max stock TDP of HEDT/Server Fam17h chips */
-		return 250.0;
-	}
+	/* This is the max stock TDP of HEDT/Server Fam17h+ chips */
+	return 280.0;
 }
 
 /*
@@ -4358,27 +4353,20 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
 
 	if (max_extended_level >= 0x80000007) {
 		__cpuid(0x80000007, eax, ebx, ecx, edx);
-		/* RAPL (Fam 17h) */
+		/* RAPL (Fam 17h+) */
 		has_rapl = edx & (1 << 14);
 	}
 
-	if (!has_rapl)
+	if (!has_rapl || family < 0x17)
 		return;
 
-	switch (family) {
-	case 0x17: /* Zen, Zen+ */
-	case 0x18: /* Hygon Dhyana */
-		do_rapl = RAPL_AMD_F17H | RAPL_PER_CORE_ENERGY;
-		if (rapl_joules) {
-			BIC_PRESENT(BIC_Pkg_J);
-			BIC_PRESENT(BIC_Cor_J);
-		} else {
-			BIC_PRESENT(BIC_PkgWatt);
-			BIC_PRESENT(BIC_CorWatt);
-		}
-		break;
-	default:
-		return;
+	do_rapl = RAPL_AMD_F17H | RAPL_PER_CORE_ENERGY;
+	if (rapl_joules) {
+		BIC_PRESENT(BIC_Pkg_J);
+		BIC_PRESENT(BIC_Cor_J);
+	} else {
+		BIC_PRESENT(BIC_PkgWatt);
+		BIC_PRESENT(BIC_CorWatt);
 	}
 
 	if (get_msr(base_cpu, MSR_RAPL_PWR_UNIT, &msr))
