@@ -193,6 +193,7 @@ struct dw_hdmi_plat_data {
 	unsigned long (*get_enc_in_encoding)(void *data);
 	unsigned long (*get_enc_out_encoding)(void *data);
 	unsigned long (*get_quant_range)(void *data);
+	bool (*get_color_changed)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

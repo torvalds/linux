@@ -2840,6 +2840,19 @@ dw_hdmi_connector_best_encoder(struct drm_connector *connector)
 	return hdmi->bridge.encoder;
 }
 
+static bool dw_hdmi_color_changed(struct drm_connector *connector)
+{
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					    connector);
+	void *data = hdmi->plat_data->phy_data;
+	bool ret = false;
+
+	if (hdmi->plat_data->get_color_changed)
+		ret = hdmi->plat_data->get_color_changed(data);
+
+	return ret;
+}
+
 static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 			       const struct drm_connector_state *new_state)
 {
@@ -2864,11 +2877,54 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		drm_atomic_get_new_connector_state(state, connector);
 	struct drm_crtc *crtc = new_state->crtc;
 	struct drm_crtc_state *crtc_state;
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					    connector);
+	struct drm_display_mode *mode = NULL;
+	void *data = hdmi->plat_data->phy_data;
+	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
+	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
+	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
 
 	if (!crtc)
 		return 0;
 
-	if (!hdr_metadata_equal(old_state, new_state)) {
+	/*
+	 * If HDMI is enabled in uboot, it's need to record
+	 * drm_display_mode and set phy status to enabled.
+	 */
+	if (!vmode->mpixelclock) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (hdmi->plat_data->get_enc_in_encoding)
+			hdmi->hdmi_data.enc_in_encoding =
+				hdmi->plat_data->get_enc_in_encoding(data);
+		if (hdmi->plat_data->get_enc_out_encoding)
+			hdmi->hdmi_data.enc_out_encoding =
+				hdmi->plat_data->get_enc_out_encoding(data);
+		if (hdmi->plat_data->get_input_bus_format)
+			hdmi->hdmi_data.enc_in_bus_format =
+				hdmi->plat_data->get_input_bus_format(data);
+		if (hdmi->plat_data->get_output_bus_format)
+			hdmi->hdmi_data.enc_out_bus_format =
+				hdmi->plat_data->get_output_bus_format(data);
+
+		mode = &crtc_state->mode;
+		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+		vmode->mpixelclock = mode->crtc_clock * 1000;
+		vmode->previous_pixelclock = mode->clock;
+		vmode->previous_tmdsclock = mode->clock;
+		vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi,
+						       vmode->mpixelclock);
+		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
+			vmode->mtmdsclock /= 2;
+
+		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
+		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
+			dw_hdmi_setup(hdmi, hdmi->curr_conn,
+				      &hdmi->previous_mode);
+	}
+
+	if (!hdr_metadata_equal(old_state, new_state) ||
+	    dw_hdmi_color_changed(connector)) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
