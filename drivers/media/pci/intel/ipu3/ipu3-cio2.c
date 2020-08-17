@@ -1708,24 +1708,6 @@ static void cio2_queues_exit(struct cio2_device *cio2)
 
 /**************** PCI interface ****************/
 
-static int cio2_pci_config_setup(struct pci_dev *dev)
-{
-	u16 pci_command;
-	int r = pci_enable_msi(dev);
-
-	if (r) {
-		dev_err(&dev->dev, "failed to enable MSI (%d)\n", r);
-		return r;
-	}
-
-	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
-	pci_command |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-		PCI_COMMAND_INTX_DISABLE;
-	pci_write_config_word(dev, PCI_COMMAND, pci_command);
-
-	return 0;
-}
-
 static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
@@ -1771,9 +1753,11 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 		return -ENODEV;
 	}
 
-	r = cio2_pci_config_setup(pci_dev);
-	if (r)
-		return -ENODEV;
+	r = pci_enable_msi(pci_dev);
+	if (r) {
+		dev_err(&pci_dev->dev, "failed to enable MSI (%d)\n", r);
+		return r;
+	}
 
 	r = cio2_fbpt_init_dummy(cio2);
 	if (r)
