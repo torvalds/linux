@@ -49,7 +49,6 @@
 /*#define HISI_NR_IRQ			25*/
 #define HISI_MASK_FIELD		0xFF
 #define HISI_BITS			8
-#define PMIC_FPGA_FLAG          1
 
 /*define the first group interrupt register number*/
 #define HISI_PMIC_FIRST_GROUP_INT_NUM        2
@@ -144,24 +143,6 @@ static irqreturn_t hisi_irq_handler(int irq, void *data)
 		}
 	}
 
-	/*Handle the second group irq if analysis the second group irq from dtsi*/
-	if (pmic->g_extinterrupt_flag == 1) {
-		for (i = 0; i < pmic->irqarray1; i++) {
-			pending = hisi_pmic_read(pmic, (i + pmic->irq_addr1.start_addr));
-			pending &= HISI_MASK_FIELD;
-			if (pending != 0)
-				pr_debug("pending[%d]=0x%lx\n\r", i, pending);
-
-			hisi_pmic_write(pmic, (i + pmic->irq_addr1.start_addr), pending);
-
-			if (!pending)
-				continue;
-
-			for_each_set_bit(offset, &pending, HISI_BITS)
-				generic_handle_irq(pmic->irqs[offset + (i + HISI_PMIC_FIRST_GROUP_INT_NUM) * HISI_BITS]);
-		}
-	}
-
 	return IRQ_HANDLED;
 }
 
@@ -172,19 +153,8 @@ static void hisi_irq_mask(struct irq_data *d)
 	unsigned long flags;
 
 	offset = (irqd_to_hwirq(d) >> 3);
-	if (pmic->g_extinterrupt_flag == 1) {
-		if (offset < HISI_PMIC_FIRST_GROUP_INT_NUM) {
-			offset += pmic->irq_mask_addr.start_addr;
-		} else {
-			/*
-			 * Change addr when irq num larger than 16 because
-			 * interrupt addr is nonsequence
-			 */
-			offset = offset + (pmic->irq_mask_addr1.start_addr) - HISI_PMIC_FIRST_GROUP_INT_NUM;
-		}
-	} else {
-		offset += pmic->irq_mask_addr.start_addr;
-	}
+	offset += pmic->irq_mask_addr.start_addr;
+
 	spin_lock_irqsave(&pmic->lock, flags);
 	data = hisi_pmic_read(pmic, offset);
 	data |= (1 << (irqd_to_hwirq(d) & 0x07));
@@ -199,14 +169,8 @@ static void hisi_irq_unmask(struct irq_data *d)
 	unsigned long flags;
 
 	offset = (irqd_to_hwirq(d) >> 3);
-	if (pmic->g_extinterrupt_flag == 1) {
-		if (offset < HISI_PMIC_FIRST_GROUP_INT_NUM)
-			offset += pmic->irq_mask_addr.start_addr;
-		else
-			offset = offset + (pmic->irq_mask_addr1.start_addr) - HISI_PMIC_FIRST_GROUP_INT_NUM;
-	} else {
-		offset += pmic->irq_mask_addr.start_addr;
-	}
+	offset += pmic->irq_mask_addr.start_addr;
+
 	spin_lock_irqsave(&pmic->lock, flags);
 	data = hisi_pmic_read(pmic, offset);
 	data &= ~(1 << (irqd_to_hwirq(d) & 0x07));
@@ -280,69 +244,6 @@ static int get_pmic_device_tree_data(struct device_node *np, struct hisi_pmic *p
 		return ret;
 	}
 
-	/*pmic lock*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-lock",
-					 (int *)&pmic->normal_lock, 2);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-lock property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/*pmic debug lock*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-debug-lock",
-					 (int *)&pmic->debug_lock, 2);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-debug-lock property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	return ret;
-}
-
-static int get_pmic_device_tree_data1(struct device_node *np, struct hisi_pmic *pmic)
-{
-	int ret = 0;
-
-	/*get pmic irq num*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-irq-num1",
-					 &pmic->irqnum1, 1);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-irq-num1 property set\n");
-		ret = -ENODEV;
-		pmic->irqnum1 = 0;
-		return ret;
-	}
-
-	/*get pmic irq array number*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-irq-array1",
-					 &pmic->irqarray1, 1);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-irq-array1 property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/*SOC_PMIC_IRQ_MASK_0_ADDR*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-irq-mask-addr1",
-					 (int *)&pmic->irq_mask_addr1, 2);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-irq-mask-addr1 property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/*SOC_PMIC_IRQ0_ADDR*/
-	ret = of_property_read_u32_array(np, "hisilicon,hisi-pmic-irq-addr1",
-					 (int *)&pmic->irq_addr1, 2);
-	if (ret) {
-		pr_err("no hisilicon,hisi-pmic-irq-addr1 property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	pmic->g_extinterrupt_flag = 1;
 	return ret;
 }
 
@@ -362,26 +263,6 @@ static void hisi_pmic_irq_prc(struct hisi_pmic *pmic)
 	}
 }
 
-static void hisi_pmic_irq1_prc(struct hisi_pmic *pmic)
-{
-	int i;
-	unsigned int pending1;
-
-	if (pmic->g_extinterrupt_flag == 1) {
-		for (i = 0 ; i < pmic->irq_mask_addr1.array; i++)
-			hisi_pmic_write(pmic, pmic->irq_mask_addr1.start_addr + i, HISI_MASK_STATE);
-
-		for (i = 0 ; i < pmic->irq_addr1.array; i++) {
-			pending1 = hisi_pmic_read(pmic, pmic->irq_addr1.start_addr + i);
-
-			pr_debug("PMU IRQ address1 value:irq[0x%x] = 0x%x\n",
-				 pmic->irq_addr1.start_addr + i, pending1);
-
-			hisi_pmic_write(pmic, pmic->irq_addr1.start_addr + i, HISI_MASK_STATE);
-		}
-	}
-}
-
 static int hisi_pmic_probe(struct spmi_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -390,7 +271,6 @@ static int hisi_pmic_probe(struct spmi_device *pdev)
 	enum of_gpio_flags flags;
 	int ret = 0;
 	int i;
-	unsigned int fpga_flag = 0;
 	unsigned int virq;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
@@ -404,22 +284,10 @@ static int hisi_pmic_probe(struct spmi_device *pdev)
 		return ret;
 	}
 
-	/*get pmic dts the second group irq*/
-	ret = get_pmic_device_tree_data1(np, pmic);
-	if (ret)
-		dev_err(&pdev->dev, "the platform don't support ext-interrupt.\n");
-
 	/* TODO: get and enable clk request */
 	spin_lock_init(&pmic->lock);
 
 	pmic->dev = dev;
-	ret = of_property_read_u32_array(np, "hisilicon,pmic_fpga_flag",
-					 &fpga_flag, 1);
-	if (ret)
-		pr_err("no hisilicon,pmic_fpga_flag property set\n");
-
-	if (fpga_flag == PMIC_FPGA_FLAG)
-		goto after_irq_register;
 
 	pmic->gpio = of_get_gpio_flags(np, 0, &flags);
 	if (pmic->gpio < 0)
@@ -438,10 +306,6 @@ static int hisi_pmic_probe(struct spmi_device *pdev)
 
 	/* mask && clear IRQ status */
 	hisi_pmic_irq_prc(pmic);
-	/*clear && mask the new adding irq*/
-	hisi_pmic_irq1_prc(pmic);
-
-	pmic->irqnum += pmic->irqnum1;
 
 	pmic->irqs = devm_kzalloc(dev, pmic->irqnum * sizeof(int), GFP_KERNEL);
 	if (!pmic->irqs)
@@ -491,7 +355,6 @@ static int hisi_pmic_probe(struct spmi_device *pdev)
 		return ret;
 	}
 
-after_irq_register:
 	return 0;
 
 request_theaded_irq:

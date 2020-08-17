@@ -48,19 +48,11 @@ struct hisi_pmic {
 	struct irq_domain	*domain;
 	int			irq;
 	int			gpio;
-	unsigned int	*irqs;
+	unsigned int		*irqs;
 	int			irqnum;
 	int			irqarray;
-	struct irq_mask_info irq_mask_addr;
-	struct irq_info irq_addr;
-	int			irqnum1;
-	int			irqarray1;
-	struct irq_mask_info irq_mask_addr1;
-	struct irq_info irq_addr1;
-	struct write_lock normal_lock;
-	struct write_lock debug_lock;
-
-	unsigned int g_extinterrupt_flag;
+	struct irq_mask_info 	irq_mask_addr;
+	struct irq_info		irq_addr;
 };
 
 u32 hisi_pmic_read(struct hisi_pmic *pmic, int reg);
