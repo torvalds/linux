@@ -164,7 +164,7 @@ static int tegra210_i2s_init(struct snd_soc_dapm_widget *w,
 	return tegra210_i2s_sw_reset(compnt, is_playback);
 }
 
-static int tegra210_i2s_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra210_i2s_runtime_suspend(struct device *dev)
 {
 	struct tegra210_i2s *i2s = dev_get_drvdata(dev);
 
@@ -176,7 +176,7 @@ static int tegra210_i2s_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra210_i2s_runtime_resume(struct device *dev)
+static int __maybe_unused tegra210_i2s_runtime_resume(struct device *dev)
 {
 	struct tegra210_i2s *i2s = dev_get_drvdata(dev);
 	int err;
