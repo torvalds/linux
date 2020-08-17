@@ -21,7 +21,6 @@
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/sched.h> /* for linux/wait.h */
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
@@ -217,13 +216,6 @@ struct batadv_hard_iface {
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	/** @bat_v: per hard-interface B.A.T.M.A.N. V data */
 	struct batadv_hard_iface_bat_v bat_v;
-#endif
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/**
-	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
-	 */
-	struct dentry *debug_dir;
 #endif
 
 	/**
@@ -1303,13 +1295,6 @@ struct batadv_priv_nc {
 	/** @work: work queue callback item for cleanup */
 	struct delayed_work work;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/**
-	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
-	 */
-	struct dentry *debug_dir;
-#endif
-
 	/**
 	 * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
 	 */
@@ -1660,11 +1645,6 @@ struct batadv_priv {
 
 	/** @batman_queue_left: number of remaining OGM packet slots */
 	atomic_t batman_queue_left;
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/** @debug_dir: dentry for debugfs batman-adv subdirectory */
-	struct dentry *debug_dir;
-#endif
 
 	/** @forw_bat_list: list of aggregated OGMs that will be forwarded */
 	struct hlist_head forw_bat_list;
@@ -2225,11 +2205,6 @@ struct batadv_algo_neigh_ops {
 				     struct batadv_neigh_node *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/** @print: print the single hop neighbor list (optional) */
-	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
-#endif
-
 	/** @dump: dump neighbors to a netlink socket (optional) */
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
 		     struct batadv_priv *priv,
@@ -2240,12 +2215,6 @@ struct batadv_algo_neigh_ops {
  * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
  */
 struct batadv_algo_orig_ops {
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/** @print: print the originator table (optional) */
-	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
-		      struct batadv_hard_iface *hard_iface);
-#endif
-
 	/** @dump: dump originators to a netlink socket (optional) */
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
 		     struct batadv_priv *priv,
@@ -2279,11 +2248,6 @@ struct batadv_algo_gw_ops {
 	bool (*is_eligible)(struct batadv_priv *bat_priv,
 			    struct batadv_orig_node *curr_gw_orig,
 			    struct batadv_orig_node *orig_node);
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/** @print: print the gateway table (optional) */
-	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
-#endif
 
 	/** @dump: dump gateways to a netlink socket (optional) */
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,

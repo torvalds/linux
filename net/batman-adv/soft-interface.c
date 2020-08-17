@@ -43,7 +43,6 @@
 
 #include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
-#include "debugfs.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
@@ -823,18 +822,12 @@ static int batadv_softif_init_late(struct net_device *dev)
 			goto free_bat_counters;
 	}
 
-	ret = batadv_debugfs_add_meshif(dev);
+	ret = batadv_mesh_init(dev);
 	if (ret < 0)
 		goto free_bat_counters;
 
-	ret = batadv_mesh_init(dev);
-	if (ret < 0)
-		goto unreg_debugfs;
-
 	return 0;
 
-unreg_debugfs:
-	batadv_debugfs_del_meshif(dev);
 free_bat_counters:
 	free_percpu(bat_priv->bat_counters);
 	bat_priv->bat_counters = NULL;
@@ -1011,7 +1004,6 @@ static const struct ethtool_ops batadv_ethtool_ops = {
  */
 static void batadv_softif_free(struct net_device *dev)
 {
-	batadv_debugfs_del_meshif(dev);
 	batadv_mesh_free(dev);
 
 	/* some scheduled RCU callbacks need the bat_priv struct to accomplish
