@@ -18,13 +18,12 @@
 #define SD_WAKE_AFFINE		0x0010	/* Wake task to waking CPU */
 #define SD_ASYM_CPUCAPACITY	0x0020  /* Domain members have different CPU capacities */
 #define SD_SHARE_CPUCAPACITY	0x0040	/* Domain members share CPU capacity */
-#define SD_SHARE_POWERDOMAIN	0x0080	/* Domain members share power domain */
-#define SD_SHARE_PKG_RESOURCES	0x0100	/* Domain members share CPU pkg resources */
-#define SD_SERIALIZE		0x0200	/* Only a single load balancing instance */
-#define SD_ASYM_PACKING		0x0400  /* Place busy groups earlier in the domain */
-#define SD_PREFER_SIBLING	0x0800	/* Prefer to place tasks in a sibling domain */
-#define SD_OVERLAP		0x1000	/* sched_domains of this level overlap */
-#define SD_NUMA			0x2000	/* cross-node balancing */
+#define SD_SHARE_PKG_RESOURCES	0x0080	/* Domain members share CPU pkg resources */
+#define SD_SERIALIZE		0x0100	/* Only a single load balancing instance */
+#define SD_ASYM_PACKING		0x0200  /* Place busy groups earlier in the domain */
+#define SD_PREFER_SIBLING	0x0400	/* Prefer to place tasks in a sibling domain */
+#define SD_OVERLAP		0x0800	/* sched_domains of this level overlap */
+#define SD_NUMA			0x1000	/* cross-node balancing */
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
