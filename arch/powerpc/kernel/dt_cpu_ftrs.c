@@ -64,10 +64,6 @@ struct dt_cpu_feature {
  * Set up the base CPU
  */
 
-extern long __machine_check_early_realmode_p8(struct pt_regs *regs);
-extern long __machine_check_early_realmode_p9(struct pt_regs *regs);
-extern long __machine_check_early_realmode_p10(struct pt_regs *regs);
-
 static int hv_mode;
 
 static struct {
