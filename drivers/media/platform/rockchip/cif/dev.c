@@ -48,6 +48,69 @@ MODULE_PARM_DESC(version, "version number");
 static DEFINE_MUTEX(rkcif_dev_mutex);
 static LIST_HEAD(rkcif_device_list);
 
+/* show the compact mode of each stream in stream index order,
+ * 1 for compact, 0 for 16bit
+ */
+static ssize_t rkcif_show_compact_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+		       cif_dev->stream[0].is_compact ? 1 : 0,
+		       cif_dev->stream[1].is_compact ? 1 : 0,
+		       cif_dev->stream[2].is_compact ? 1 : 0,
+		       cif_dev->stream[3].is_compact ? 1 : 0);
+	return ret;
+}
+
+static ssize_t rkcif_store_compact_mode(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int i, index;
+	char val[4];
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (buf[i] == ' ') {
+				continue;
+			} else if (buf[i] == '\0') {
+				break;
+			} else {
+				val[index] = buf[i];
+				index++;
+				if (index == 4)
+					break;
+			}
+		}
+
+		for (i = 0; i < index; i++) {
+			if (val[i] - '0' == 0)
+				cif_dev->stream[i].is_compact = false;
+			else
+				cif_dev->stream[i].is_compact = true;
+		}
+	}
+
+	return len;
+}
+static DEVICE_ATTR(compact_test, S_IWUSR | S_IRUSR,
+		   rkcif_show_compact_mode, rkcif_store_compact_mode);
+
+static struct attribute *dev_attrs[] = {
+	&dev_attr_compact_test.attr,
+	NULL,
+};
+
+static struct attribute_group dev_attr_grp = {
+	.attrs = dev_attrs,
+};
+
 void rkcif_write_register(struct rkcif_device *dev,
 			  enum cif_reg_index index, u32 val)
 {
@@ -1173,6 +1236,9 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
+
+	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
+		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
