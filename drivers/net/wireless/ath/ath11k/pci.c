@@ -301,7 +301,7 @@ static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offse
 	}
 }
 
-static void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
+void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
@@ -315,7 +315,7 @@ static void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 	}
 }
 
-static u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
+u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	u32 val;
@@ -330,6 +330,77 @@ static u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 	}
 
 	return val;
+}
+
+static void ath11k_pci_soc_global_reset(struct ath11k_base *ab)
+{
+	u32 val, delay;
+
+	val = ath11k_pci_read32(ab, PCIE_SOC_GLOBAL_RESET);
+
+	val |= PCIE_SOC_GLOBAL_RESET_V;
+
+	ath11k_pci_write32(ab, PCIE_SOC_GLOBAL_RESET, val);
+
+	/* TODO: exact time to sleep is uncertain */
+	delay = 10;
+	mdelay(delay);
+
+	/* Need to toggle V bit back otherwise stuck in reset status */
+	val &= ~PCIE_SOC_GLOBAL_RESET_V;
+
+	ath11k_pci_write32(ab, PCIE_SOC_GLOBAL_RESET, val);
+
+	mdelay(delay);
+
+	val = ath11k_pci_read32(ab, PCIE_SOC_GLOBAL_RESET);
+	if (val == 0xffffffff)
+		ath11k_warn(ab, "link down error during global reset\n");
+}
+
+static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
+{
+	u32 val;
+
+	/* read cookie */
+	val = ath11k_pci_read32(ab, PCIE_Q6_COOKIE_ADDR);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "cookie:0x%x\n", val);
+
+	val = ath11k_pci_read32(ab, WLAON_WARM_SW_ENTRY);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+
+	/* TODO: exact time to sleep is uncertain */
+	mdelay(10);
+
+	/* write 0 to WLAON_WARM_SW_ENTRY to prevent Q6 from
+	 * continuing warm path and entering dead loop.
+	 */
+	ath11k_pci_write32(ab, WLAON_WARM_SW_ENTRY, 0);
+	mdelay(10);
+
+	val = ath11k_pci_read32(ab, WLAON_WARM_SW_ENTRY);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+
+	/* A read clear register. clear the register to prevent
+	 * Q6 from entering wrong code path.
+	 */
+	val = ath11k_pci_read32(ab, WLAON_SOC_RESET_CAUSE_REG);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause:%d\n", val);
+}
+
+static void ath11k_pci_force_wake(struct ath11k_base *ab)
+{
+	ath11k_pci_write32(ab, PCIE_SOC_WAKE_PCIE_LOCAL_REG, 1);
+	mdelay(5);
+}
+
+static void ath11k_pci_sw_reset(struct ath11k_base *ab)
+{
+	ath11k_pci_soc_global_reset(ab);
+	ath11k_mhi_clear_vector(ab);
+	ath11k_pci_soc_global_reset(ab);
+	ath11k_mhi_set_mhictrl_reset(ab);
+	ath11k_pci_clear_dbg_registers(ab);
 }
 
 int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)
@@ -834,6 +905,8 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	int ret;
 
+	ath11k_pci_sw_reset(ab_pci->ab);
+
 	ret = ath11k_mhi_start(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to start mhi: %d\n", ret);
@@ -848,6 +921,8 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	ath11k_mhi_stop(ab_pci);
+	ath11k_pci_force_wake(ab_pci->ab);
+	ath11k_pci_sw_reset(ab_pci->ab);
 }
 
 static void ath11k_pci_kill_tasklets(struct ath11k_base *ab)

@@ -107,6 +107,51 @@ static struct mhi_controller_config ath11k_mhi_config = {
 	.event_cfg = ath11k_mhi_events,
 };
 
+void ath11k_mhi_set_mhictrl_reset(struct ath11k_base *ab)
+{
+	u32 val;
+
+	val = ath11k_pci_read32(ab, MHISTATUS);
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "MHISTATUS 0x%x\n", val);
+
+	/* Observed on QCA6390 that after SOC_GLOBAL_RESET, MHISTATUS
+	 * has SYSERR bit set and thus need to set MHICTRL_RESET
+	 * to clear SYSERR.
+	 */
+	ath11k_pci_write32(ab, MHICTRL, MHICTRL_RESET_MASK);
+
+	mdelay(10);
+}
+
+static void ath11k_mhi_reset_txvecdb(struct ath11k_base *ab)
+{
+	ath11k_pci_write32(ab, PCIE_TXVECDB, 0);
+}
+
+static void ath11k_mhi_reset_txvecstatus(struct ath11k_base *ab)
+{
+	ath11k_pci_write32(ab, PCIE_TXVECSTATUS, 0);
+}
+
+static void ath11k_mhi_reset_rxvecdb(struct ath11k_base *ab)
+{
+	ath11k_pci_write32(ab, PCIE_RXVECDB, 0);
+}
+
+static void ath11k_mhi_reset_rxvecstatus(struct ath11k_base *ab)
+{
+	ath11k_pci_write32(ab, PCIE_RXVECSTATUS, 0);
+}
+
+void ath11k_mhi_clear_vector(struct ath11k_base *ab)
+{
+	ath11k_mhi_reset_txvecdb(ab);
+	ath11k_mhi_reset_txvecstatus(ab);
+	ath11k_mhi_reset_rxvecdb(ab);
+	ath11k_mhi_reset_rxvecstatus(ab);
+}
+
 static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 {
 	struct ath11k_base *ab = ab_pci->ab;
@@ -416,7 +461,6 @@ out:
 
 void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
 {
-	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_RESUME);
 	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_POWER_OFF);
 	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_DEINIT);
 }
