@@ -124,10 +124,8 @@ unsigned long notrace msr_check_and_set(unsigned long bits)
 
 	newmsr = oldmsr | bits;
 
-#ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX) && (bits & MSR_FP))
 		newmsr |= MSR_VSX;
-#endif
 
 	if (oldmsr != newmsr)
 		mtmsr_isync(newmsr);
@@ -144,10 +142,8 @@ void notrace __msr_check_and_clear(unsigned long bits)
 
 	newmsr = oldmsr & ~bits;
 
-#ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX) && (bits & MSR_FP))
 		newmsr &= ~MSR_VSX;
-#endif
 
 	if (oldmsr != newmsr)
 		mtmsr_isync(newmsr);
@@ -162,10 +158,8 @@ static void __giveup_fpu(struct task_struct *tsk)
 	save_fpu(tsk);
 	msr = tsk->thread.regs->msr;
 	msr &= ~(MSR_FP|MSR_FE0|MSR_FE1);
-#ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-#endif
 	tsk->thread.regs->msr = msr;
 }
 
@@ -245,10 +239,8 @@ static void __giveup_altivec(struct task_struct *tsk)
 	save_altivec(tsk);
 	msr = tsk->thread.regs->msr;
 	msr &= ~MSR_VEC;
-#ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
-#endif
 	tsk->thread.regs->msr = msr;
 }
 
@@ -421,10 +413,8 @@ static int __init init_msr_all_available(void)
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		msr_all_available |= MSR_VEC;
 #endif
-#ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr_all_available |= MSR_VSX;
-#endif
 #ifdef CONFIG_SPE
 	if (cpu_has_feature(CPU_FTR_SPE))
 		msr_all_available |= MSR_SPE;
@@ -509,19 +499,18 @@ static bool should_restore_altivec(void) { return false; }
 static void do_restore_altivec(void) { }
 #endif /* CONFIG_ALTIVEC */
 
-#ifdef CONFIG_VSX
 static bool should_restore_vsx(void)
 {
 	if (cpu_has_feature(CPU_FTR_VSX))
 		return true;
 	return false;
 }
+#ifdef CONFIG_VSX
 static void do_restore_vsx(void)
 {
 	current->thread.used_vsr = 1;
 }
 #else
-static bool should_restore_vsx(void) { return false; }
 static void do_restore_vsx(void) { }
 #endif /* CONFIG_VSX */
 
