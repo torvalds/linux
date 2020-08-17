@@ -1780,10 +1780,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #ifdef CONFIG_PPC64
 	unsigned long load_addr = regs->gpr[2];	/* saved by ELF_PLAT_INIT */
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (!radix_enabled())
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !radix_enabled())
 		preload_new_slb_context(start, sp);
-#endif
 #endif
 
 	/*
