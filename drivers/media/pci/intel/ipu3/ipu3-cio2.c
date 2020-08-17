@@ -127,7 +127,7 @@ static int cio2_fbpt_init_dummy(struct cio2_device *cio2)
 	 * List of Pointers(LOP) contains 1024x32b pointers to 4KB page each
 	 * Initialize each entry to dummy_page bus base address.
 	 */
-	for (i = 0; i < CIO2_PAGE_SIZE / sizeof(*cio2->dummy_lop); i++)
+	for (i = 0; i < CIO2_LOP_ENTRIES; i++)
 		cio2->dummy_lop[i] = cio2->dummy_page_bus_addr >> PAGE_SHIFT;
 
 	return 0;
@@ -160,8 +160,7 @@ static void cio2_fbpt_entry_init_dummy(struct cio2_device *cio2,
 	unsigned int i;
 
 	entry[0].first_entry.first_page_offset = 0;
-	entry[1].second_entry.num_of_pages =
-		CIO2_PAGE_SIZE / sizeof(u32) * CIO2_MAX_LOPS;
+	entry[1].second_entry.num_of_pages = CIO2_LOP_ENTRIES * CIO2_MAX_LOPS;
 	entry[1].second_entry.last_page_available_bytes = CIO2_PAGE_SIZE - 1;
 
 	for (i = 0; i < CIO2_MAX_LOPS; i++)
@@ -201,7 +200,7 @@ static void cio2_fbpt_entry_init_buf(struct cio2_device *cio2,
 	i = 0;
 	while (remaining > 0) {
 		entry->lop_page_addr = b->lop_bus_addr[i] >> PAGE_SHIFT;
-		remaining -= CIO2_PAGE_SIZE / sizeof(u32) * CIO2_PAGE_SIZE;
+		remaining -= CIO2_LOP_ENTRIES * CIO2_PAGE_SIZE;
 		entry++;
 		i++;
 	}
@@ -841,10 +840,8 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	struct device *dev = &cio2->pci_dev->dev;
 	struct cio2_buffer *b =
 		container_of(vb, struct cio2_buffer, vbb.vb2_buf);
-	static const unsigned int entries_per_page =
-		CIO2_PAGE_SIZE / sizeof(u32);
 	unsigned int pages = DIV_ROUND_UP(vb->planes[0].length, CIO2_PAGE_SIZE);
-	unsigned int lops = DIV_ROUND_UP(pages + 1, entries_per_page);
+	unsigned int lops = DIV_ROUND_UP(pages + 1, CIO2_LOP_ENTRIES);
 	struct sg_table *sg;
 	struct sg_dma_page_iter sg_iter;
 	unsigned int i, j;
@@ -878,7 +875,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 			break;
 		b->lop[i][j] = sg_page_iter_dma_address(&sg_iter) >> PAGE_SHIFT;
 		j++;
-		if (j == entries_per_page) {
+		if (j == CIO2_LOP_ENTRIES) {
 			i++;
 			j = 0;
 		}
