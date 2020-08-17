@@ -25,8 +25,8 @@ struct xfs_inode_log_item {
 	 *
 	 * We need atomic changes between inode dirtying, inode flushing and
 	 * inode completion, but these all hold different combinations of
-	 * ILOCK and iflock and hence we need some other method of serialising
-	 * updates to the flush state.
+	 * ILOCK and IFLUSHING and hence we need some other method of
+	 * serialising updates to the flush state.
 	 */
 	spinlock_t		ili_lock;	   /* flush state lock */
 	unsigned int		ili_last_fields;   /* fields when flushed */

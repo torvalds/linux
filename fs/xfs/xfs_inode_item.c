@@ -491,8 +491,7 @@ xfs_inode_item_push(
 	    (ip->i_flags & XFS_ISTALE))
 		return XFS_ITEM_PINNED;
 
-	/* If the inode is already flush locked, we're already flushing. */
-	if (xfs_isiflocked(ip))
+	if (xfs_iflags_test(ip, XFS_IFLUSHING))
 		return XFS_ITEM_FLUSHING;
 
 	if (!xfs_buf_trylock(bp))
@@ -703,7 +702,7 @@ xfs_iflush_finish(
 		iip->ili_last_fields = 0;
 		iip->ili_flush_lsn = 0;
 		spin_unlock(&iip->ili_lock);
-		xfs_ifunlock(iip->ili_inode);
+		xfs_iflags_clear(iip->ili_inode, XFS_IFLUSHING);
 		if (drop_buffer)
 			xfs_buf_rele(bp);
 	}
@@ -711,8 +710,8 @@ xfs_iflush_finish(
 
 /*
  * Inode buffer IO completion routine.  It is responsible for removing inodes
- * attached to the buffer from the AIL if they have not been re-logged, as well
- * as completing the flush and unlocking the inode.
+ * attached to the buffer from the AIL if they have not been re-logged and
+ * completing the inode flush.
  */
 void
 xfs_iflush_done(
@@ -755,10 +754,10 @@ xfs_iflush_done(
 }
 
 /*
- * This is the inode flushing abort routine.  It is called from xfs_iflush when
+ * This is the inode flushing abort routine.  It is called when
  * the filesystem is shutting down to clean up the inode state.  It is
  * responsible for removing the inode item from the AIL if it has not been
- * re-logged, and unlocking the inode's flush lock.
+ * re-logged and clearing the inode's flush state.
  */
 void
 xfs_iflush_abort(
@@ -790,7 +789,7 @@ xfs_iflush_abort(
 		list_del_init(&iip->ili_item.li_bio_list);
 		spin_unlock(&iip->ili_lock);
 	}
-	xfs_ifunlock(ip);
+	xfs_iflags_clear(ip, XFS_IFLUSHING);
 	if (bp)
 		xfs_buf_rele(bp);
 }

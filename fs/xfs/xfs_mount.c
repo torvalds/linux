@@ -1059,11 +1059,12 @@ xfs_unmountfs(
 	 * We can potentially deadlock here if we have an inode cluster
 	 * that has been freed has its buffer still pinned in memory because
 	 * the transaction is still sitting in a iclog. The stale inodes
-	 * on that buffer will have their flush locks held until the
-	 * transaction hits the disk and the callbacks run. the inode
-	 * flush takes the flush lock unconditionally and with nothing to
-	 * push out the iclog we will never get that unlocked. hence we
-	 * need to force the log first.
+	 * on that buffer will be pinned to the buffer until the
+	 * transaction hits the disk and the callbacks run. Pushing the AIL will
+	 * skip the stale inodes and may never see the pinned buffer, so
+	 * nothing will push out the iclog and unpin the buffer. Hence we
+	 * need to force the log here to ensure all items are flushed into the
+	 * AIL before we go any further.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
