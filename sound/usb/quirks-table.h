@@ -35,6 +35,14 @@
 	.bInterfaceClass = USB_CLASS_AUDIO, \
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 
+/* Another standard entry matching with vid/pid and the audio class */
+#define USB_AUDIO_CLASS(vend, prod) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_CLASS, \
+	.idVendor = vend, \
+	.idProduct = prod, \
+	.bInterfaceClass = USB_CLASS_AUDIO
+
 /* FTDI devices */
 {
 	USB_DEVICE(0x0403, 0xb8d8),
@@ -68,34 +76,14 @@
 	}
 },
 
-{
-	/* E-Mu 0202 USB */
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor = 0x041e,
-	.idProduct = 0x3f02,
-	.bInterfaceClass = USB_CLASS_AUDIO,
-},
-{
-	/* E-Mu 0404 USB */
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor = 0x041e,
-	.idProduct = 0x3f04,
-	.bInterfaceClass = USB_CLASS_AUDIO,
-},
-{
-	/* E-Mu Tracker Pre */
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor = 0x041e,
-	.idProduct = 0x3f0a,
-	.bInterfaceClass = USB_CLASS_AUDIO,
-},
-{
-	/* E-Mu 0204 USB */
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor = 0x041e,
-	.idProduct = 0x3f19,
-	.bInterfaceClass = USB_CLASS_AUDIO,
-},
+/* E-Mu 0202 USB */
+{ USB_AUDIO_CLASS(0x041e, 0x3f02) },
+/* E-Mu 0404 USB */
+{ USB_AUDIO_CLASS(0x041e, 0x3f04) },
+/* E-Mu Tracker Pre */
+{ USB_AUDIO_CLASS(0x041e, 0x3f0a) },
+/* E-Mu 0204 USB */
+{ USB_AUDIO_CLASS(0x041e, 0x3f19) },
 
 /*
  * HP Wireless Audio
@@ -2751,10 +2739,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 
 /* KeithMcMillen Stringport */
-{
-	USB_DEVICE(0x1f38, 0x0001),
-	.bInterfaceClass = USB_CLASS_AUDIO,
-},
+{ USB_AUDIO_CLASS(0x1f38, 0x0001) },
 
 /* Miditech devices */
 {
@@ -2977,10 +2962,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 },
 {
 	/* Tascam US122 MKII - playback-only support */
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor = 0x0644,
-	.idProduct = 0x8021,
-	.bInterfaceClass = USB_CLASS_AUDIO,
+	USB_AUDIO_CLASS(0x0644, 0x8021),
 	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
 		.vendor_name = "TASCAM",
 		.product_name = "US122 MKII",
@@ -3612,3 +3594,4 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 
 #undef USB_DEVICE_VENDOR_SPEC
 #undef USB_AUDIO_DEVICE
+#undef USB_AUDIO_CLASS
