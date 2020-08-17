@@ -2813,7 +2813,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
 	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
 		if (uid_valid(uid) || gid_valid(gid)) {
-			rc = id_mode_to_cifs_acl(inode, full_path, NO_CHANGE_64,
+			mode = NO_CHANGE_64;
+			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 							uid, gid);
 			if (rc) {
 				cifs_dbg(FYI, "%s: Setting id failed with error: %d\n",
@@ -2834,13 +2835,20 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		rc = 0;
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
 		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
-			rc = id_mode_to_cifs_acl(inode, full_path, mode,
+			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 						INVALID_UID, INVALID_GID);
 			if (rc) {
 				cifs_dbg(FYI, "%s: Setting ACL failed with error: %d\n",
 					 __func__, rc);
 				goto cifs_setattr_exit;
 			}
+
+			/*
+			 * In case of CIFS_MOUNT_CIFS_ACL, we cannot support all modes.
+			 * Pick up the actual mode bits that were set.
+			 */
+			if (mode != attrs->ia_mode)
+				attrs->ia_mode = mode;
 		} else
 		if (((mode & S_IWUGO) == 0) &&
 		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
