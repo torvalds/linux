@@ -718,7 +718,7 @@ void ath11k_ce_cleanup_pipes(struct ath11k_base *ab)
 	struct ath11k_ce_pipe *pipe;
 	int pipe_num;
 
-	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
+	for (pipe_num = 0; pipe_num < ab->hw_params.ce_count; pipe_num++) {
 		pipe = &ab->ce.ce_pipe[pipe_num];
 		ath11k_ce_rx_pipe_cleanup(pipe);
 
@@ -736,7 +736,7 @@ void ath11k_ce_rx_post_buf(struct ath11k_base *ab)
 	int i;
 	int ret;
 
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
 		ret = ath11k_ce_rx_post_pipe(pipe);
 		if (ret) {
@@ -767,7 +767,7 @@ int ath11k_ce_init_pipes(struct ath11k_base *ab)
 	int i;
 	int ret;
 
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
 
 		if (pipe->src_ring) {
@@ -825,7 +825,7 @@ void ath11k_ce_free_pipes(struct ath11k_base *ab)
 	int desc_sz;
 	int i;
 
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
 
 		if (pipe->src_ring) {
@@ -874,7 +874,7 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab)
 
 	spin_lock_init(&ab->ce.ce_lock);
 
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		attr = &ab->hw_params.host_ce_config[i];
 		pipe = &ab->ce.ce_pipe[i];
 		pipe->pipe_num = i;
@@ -914,7 +914,7 @@ void ath11k_ce_byte_swap(void *mem, u32 len)
 
 int ath11k_ce_get_attr_flags(struct ath11k_base *ab, int ce_id)
 {
-	if (ce_id >= CE_COUNT)
+	if (ce_id >= ab->hw_params.ce_count)
 		return -EINVAL;
 
 	return ab->hw_params.host_ce_config[ce_id].flags;

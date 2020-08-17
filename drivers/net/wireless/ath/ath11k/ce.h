@@ -6,7 +6,6 @@
 #ifndef ATH11K_CE_H
 #define ATH11K_CE_H
 
-#define CE_COUNT (ab->hw_params.ce_count)
 #define CE_COUNT_MAX 12
 
 /* Byte swap data words */
