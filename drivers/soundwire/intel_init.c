@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_intel.h>
 #include "cadence_master.h"
 #include "intel.h"
@@ -68,8 +69,10 @@ static int sdw_intel_cleanup(struct sdw_intel_ctx *ctx)
 		if (!(link_mask & BIT(i)))
 			continue;
 
-		if (link->pdev)
+		if (link->pdev) {
+			pm_runtime_disable(&link->pdev->dev);
 			platform_device_unregister(link->pdev);
+		}
 	}
 
 	return 0;
