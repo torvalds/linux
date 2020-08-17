@@ -55,6 +55,12 @@ xfs_trans_log_dquot(
 {
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
+	/* Upgrade the dquot to bigtime format if possible. */
+	if (dqp->q_id != 0 &&
+	    xfs_sb_version_hasbigtime(&tp->t_mountp->m_sb) &&
+	    !(dqp->q_type & XFS_DQTYPE_BIGTIME))
+		dqp->q_type |= XFS_DQTYPE_BIGTIME;
+
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	set_bit(XFS_LI_DIRTY, &dqp->q_logitem.qli_item.li_flags);
 }

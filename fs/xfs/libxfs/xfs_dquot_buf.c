@@ -69,6 +69,13 @@ xfs_dquot_verify(
 	    ddq_type != XFS_DQTYPE_GROUP)
 		return __this_address;
 
+	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) &&
+	    !xfs_sb_version_hasbigtime(&mp->m_sb))
+		return __this_address;
+
+	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) && !ddq->d_id)
+		return __this_address;
+
 	if (id != -1 && id != be32_to_cpu(ddq->d_id))
 		return __this_address;
 
@@ -295,7 +302,12 @@ xfs_dquot_from_disk_ts(
 	struct xfs_disk_dquot	*ddq,
 	__be32			dtimer)
 {
-	return be32_to_cpu(dtimer);
+	uint32_t		t = be32_to_cpu(dtimer);
+
+	if (t != 0 && (ddq->d_type & XFS_DQTYPE_BIGTIME))
+		return xfs_dq_bigtime_to_unix(t);
+
+	return t;
 }
 
 /* Convert an incore timer value into an on-disk timer value. */
@@ -304,5 +316,10 @@ xfs_dquot_to_disk_ts(
 	struct xfs_dquot	*dqp,
 	time64_t		timer)
 {
-	return cpu_to_be32(timer);
+	uint32_t		t = timer;
+
+	if (timer != 0 && (dqp->q_type & XFS_DQTYPE_BIGTIME))
+		t = xfs_dq_unix_to_bigtime(timer);
+
+	return cpu_to_be32(t);
 }
