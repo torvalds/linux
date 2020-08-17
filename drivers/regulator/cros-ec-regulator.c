@@ -170,6 +170,9 @@ static int cros_ec_regulator_init_info(struct device *dev,
 	data->voltages_mV =
 		devm_kmemdup(dev, resp.voltages_mv,
 			     sizeof(u16) * data->num_voltages, GFP_KERNEL);
+	if (!data->voltages_mV)
+		return -ENOMEM;
+
 	data->desc.n_voltages = data->num_voltages;
 
 	/* Make sure the returned name is always a valid string */
