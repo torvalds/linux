@@ -25,6 +25,7 @@
 #define MCS_ELVSS_ON                0xb1
 #define MCS_MIECTL1                0xc0
 #define MCS_BCMODE                              0xc1
+#define MCS_ERROR_CHECK		0xd5
 #define MCS_READ_ID1		0xda
 #define MCS_READ_ID2		0xdb
 #define MCS_READ_ID3		0xdc
@@ -279,8 +280,6 @@ static void s6e63m0_init(struct s6e63m0 *ctx)
 
 	s6e63m0_dcs_write_seq_static(ctx, MCS_ELVSS_ON,
 				     0x0b);
-
-	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
 }
 
 static int s6e63m0_power_on(struct s6e63m0 *ctx)
@@ -293,6 +292,9 @@ static int s6e63m0_power_on(struct s6e63m0 *ctx)
 
 	msleep(25);
 
+	/* Be sure to send a reset pulse */
+	gpiod_set_value(ctx->reset_gpio, 1);
+	msleep(5);
 	gpiod_set_value(ctx->reset_gpio, 0);
 	msleep(120);
 
@@ -322,8 +324,10 @@ static int s6e63m0_disable(struct drm_panel *panel)
 
 	backlight_disable(ctx->bl_dev);
 
+	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_OFF);
+	msleep(10);
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
-	msleep(200);
+	msleep(120);
 
 	ctx->enabled = false;
 
@@ -389,7 +393,15 @@ static int s6e63m0_enable(struct drm_panel *panel)
 	if (ctx->enabled)
 		return 0;
 
+	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
+	msleep(120);
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_ON);
+	msleep(10);
+
+	s6e63m0_dcs_write_seq_static(ctx, MCS_ERROR_CHECK,
+				     0xE7, 0x14, 0x60, 0x17, 0x0A, 0x49, 0xC3,
+				     0x8F, 0x19, 0x64, 0x91, 0x84, 0x76, 0x20,
+				     0x0F, 0x00);
 
 	backlight_enable(ctx->bl_dev);
 
