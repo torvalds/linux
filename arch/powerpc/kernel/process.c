@@ -1502,12 +1502,13 @@ void show_regs(struct pt_regs * regs)
 	trap = TRAP(regs);
 	if (!trap_is_syscall(regs) && cpu_has_feature(CPU_FTR_CFAR))
 		pr_cont("CFAR: "REG" ", regs->orig_gpr3);
-	if (trap == 0x200 || trap == 0x300 || trap == 0x600)
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-		pr_cont("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
-#else
-		pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
-#endif
+	if (trap == 0x200 || trap == 0x300 || trap == 0x600) {
+		if (IS_ENABLED(CONFIG_4xx) || IS_ENABLED(CONFIG_BOOKE))
+			pr_cont("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
+		else
+			pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
+	}
+
 #ifdef CONFIG_PPC64
 	pr_cont("IRQMASK: %lx ", regs->softe);
 #endif
