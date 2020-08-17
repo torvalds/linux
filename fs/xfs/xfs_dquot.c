@@ -110,6 +110,14 @@ xfs_dquot_set_timeout(
 					  qi->qi_expiry_max);
 }
 
+/* Set the length of the default grace period. */
+time64_t
+xfs_dquot_set_grace_period(
+	time64_t		grace)
+{
+	return clamp_t(time64_t, grace, XFS_DQ_GRACE_MIN, XFS_DQ_GRACE_MAX);
+}
+
 /*
  * Determine if this quota counter is over either limit and set the quota
  * timers as appropriate.
