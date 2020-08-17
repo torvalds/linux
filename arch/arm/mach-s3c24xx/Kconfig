@@ -123,11 +123,6 @@ config S3C24XX_PLL
 	  This also means that the PLL tables for the selected CPU(s) will
 	  be built which may increase the size of the kernel image.
 
-config S3C_SETUP_CAMIF
-	bool
-	help
-	  Compile in common setup code for S3C CAMIF devices
-
 # cpu frequency items common between s3c2410 and s3c2440/s3c2442
 
 config S3C2410_IOTIMING
@@ -468,7 +463,6 @@ config MACH_MINI2440
 	select NEW_LEDS
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
-	select S3C_SETUP_CAMIF
 	help
 	  Say Y here to select support for the MINI2440. Is a 10cm x 10cm board
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.
