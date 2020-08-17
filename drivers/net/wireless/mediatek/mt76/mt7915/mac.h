@@ -176,6 +176,7 @@ enum tx_mcu_port_q_idx {
 #define MT_TXD1_HDR_PAD			GENMASK(19, 18)
 #define MT_TXD1_HDR_FORMAT		GENMASK(17, 16)
 #define MT_TXD1_HDR_INFO		GENMASK(15, 11)
+#define MT_TXD1_ETH_802_3		BIT(15)
 #define MT_TXD1_VTA			BIT(10)
 #define MT_TXD1_WLAN_IDX		GENMASK(9, 0)
 

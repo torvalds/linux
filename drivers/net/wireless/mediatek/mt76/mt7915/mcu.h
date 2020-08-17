@@ -551,6 +551,15 @@ struct wtbl_vht {
 	u8 rsv[4];
 } __packed;
 
+struct wtbl_hdr_trans {
+	__le16 tag;
+	__le16 len;
+	u8 to_ds;
+	u8 from_ds;
+	u8 no_rx_trans;
+	u8 _rsv;
+};
+
 enum {
 	MT_BA_TYPE_INVALID,
 	MT_BA_TYPE_ORIGINATOR,
@@ -972,6 +981,7 @@ enum {
 					 sizeof(struct wtbl_rx) +	\
 					 sizeof(struct wtbl_ht) +	\
 					 sizeof(struct wtbl_vht) +	\
+					 sizeof(struct wtbl_hdr_trans) +\
 					 sizeof(struct wtbl_ba) +	\
 					 sizeof(struct wtbl_smps))
 
