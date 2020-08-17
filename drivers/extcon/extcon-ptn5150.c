@@ -218,8 +218,7 @@ static int ptn5150_init_dev_type(struct ptn5150_info *info)
 	return 0;
 }
 
-static int ptn5150_i2c_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
+static int ptn5150_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct device_node *np = i2c->dev.of_node;
@@ -334,7 +333,7 @@ static struct i2c_driver ptn5150_i2c_driver = {
 		.name	= "ptn5150",
 		.of_match_table = ptn5150_dt_match,
 	},
-	.probe	= ptn5150_i2c_probe,
+	.probe_new	= ptn5150_i2c_probe,
 	.id_table = ptn5150_i2c_id,
 };
 module_i2c_driver(ptn5150_i2c_driver);
