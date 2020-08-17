@@ -46,19 +46,19 @@ struct ath11k_base;
 /* SW2TCL(x) R0 ring configuration address */
 #define HAL_TCL1_RING_CMN_CTRL_REG		0x00000014
 #define HAL_TCL1_RING_DSCP_TID_MAP		0x0000002c
-#define HAL_TCL1_RING_BASE_LSB			0x00000510
-#define HAL_TCL1_RING_BASE_MSB			0x00000514
-#define HAL_TCL1_RING_ID			0x00000518
-#define HAL_TCL1_RING_MISC			0x00000520
-#define HAL_TCL1_RING_TP_ADDR_LSB		0x0000052c
-#define HAL_TCL1_RING_TP_ADDR_MSB		0x00000530
-#define HAL_TCL1_RING_CONSUMER_INT_SETUP_IX0	0x00000540
-#define HAL_TCL1_RING_CONSUMER_INT_SETUP_IX1	0x00000544
-#define HAL_TCL1_RING_MSI1_BASE_LSB		0x00000558
-#define HAL_TCL1_RING_MSI1_BASE_MSB		0x0000055c
-#define HAL_TCL1_RING_MSI1_DATA			0x00000560
-#define HAL_TCL2_RING_BASE_LSB			0x00000568
-#define HAL_TCL_RING_BASE_LSB			0x00000618
+#define HAL_TCL1_RING_BASE_LSB			ab->hw_params.regs->hal_tcl1_ring_base_lsb
+#define HAL_TCL1_RING_BASE_MSB			ab->hw_params.regs->hal_tcl1_ring_base_msb
+#define HAL_TCL1_RING_ID			ab->hw_params.regs->hal_tcl1_ring_id
+#define HAL_TCL1_RING_MISC			ab->hw_params.regs->hal_tcl1_ring_misc
+#define HAL_TCL1_RING_TP_ADDR_LSB		ab->hw_params.regs->hal_tcl1_ring_tp_addr_lsb
+#define HAL_TCL1_RING_TP_ADDR_MSB		ab->hw_params.regs->hal_tcl1_ring_tp_addr_msb
+#define HAL_TCL1_RING_CONSUMER_INT_SETUP_IX0	ab->hw_params.regs->hal_tcl1_ring_consumer_int_setup_ix0
+#define HAL_TCL1_RING_CONSUMER_INT_SETUP_IX1	ab->hw_params.regs->hal_tcl1_ring_consumer_int_setup_ix1
+#define HAL_TCL1_RING_MSI1_BASE_LSB		ab->hw_params.regs->hal_tcl1_ring_msi1_base_lsb
+#define HAL_TCL1_RING_MSI1_BASE_MSB		ab->hw_params.regs->hal_tcl1_ring_msi1_base_msb
+#define HAL_TCL1_RING_MSI1_DATA			ab->hw_params.regs->hal_tcl1_ring_msi1_data
+#define HAL_TCL2_RING_BASE_LSB			ab->hw_params.regs->hal_tcl2_ring_base_lsb
+#define HAL_TCL_RING_BASE_LSB			ab->hw_params.regs->hal_tcl_ring_base_lsb
 
 #define HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET \
 		(HAL_TCL1_RING_MSI1_BASE_LSB - HAL_TCL1_RING_BASE_LSB)
@@ -91,7 +91,7 @@ struct ath11k_base;
 		(HAL_TCL1_RING_TP - HAL_TCL1_RING_HP)
 
 /* TCL STATUS ring address */
-#define HAL_TCL_STATUS_RING_BASE_LSB		0x00000720
+#define HAL_TCL_STATUS_RING_BASE_LSB   ab->hw_params.regs->hal_tcl_status_ring_base_lsb
 #define HAL_TCL_STATUS_RING_HP			0x00002030
 
 /* REO2SW(x) R0 ring configuration address */
@@ -100,21 +100,21 @@ struct ath11k_base;
 #define HAL_REO1_DEST_RING_CTRL_IX_1		0x00000008
 #define HAL_REO1_DEST_RING_CTRL_IX_2		0x0000000c
 #define HAL_REO1_DEST_RING_CTRL_IX_3		0x00000010
-#define HAL_REO1_RING_BASE_LSB			0x0000029c
-#define HAL_REO1_RING_BASE_MSB			0x000002a0
-#define HAL_REO1_RING_ID			0x000002a4
-#define HAL_REO1_RING_MISC			0x000002ac
-#define HAL_REO1_RING_HP_ADDR_LSB		0x000002b0
-#define HAL_REO1_RING_HP_ADDR_MSB		0x000002b4
-#define HAL_REO1_RING_PRODUCER_INT_SETUP	0x000002c0
-#define HAL_REO1_RING_MSI1_BASE_LSB		0x000002e4
-#define HAL_REO1_RING_MSI1_BASE_MSB		0x000002e8
-#define HAL_REO1_RING_MSI1_DATA			0x000002ec
-#define HAL_REO2_RING_BASE_LSB			0x000002f4
-#define HAL_REO1_AGING_THRESH_IX_0		0x00000564
-#define HAL_REO1_AGING_THRESH_IX_1		0x00000568
-#define HAL_REO1_AGING_THRESH_IX_2		0x0000056c
-#define HAL_REO1_AGING_THRESH_IX_3		0x00000570
+ #define HAL_REO1_RING_BASE_LSB			ab->hw_params.regs->hal_reo1_ring_base_lsb
+#define HAL_REO1_RING_BASE_MSB			ab->hw_params.regs->hal_reo1_ring_base_msb
+#define HAL_REO1_RING_ID			ab->hw_params.regs->hal_reo1_ring_id
+#define HAL_REO1_RING_MISC			ab->hw_params.regs->hal_reo1_ring_misc
+#define HAL_REO1_RING_HP_ADDR_LSB		ab->hw_params.regs->hal_reo1_ring_hp_addr_lsb
+#define HAL_REO1_RING_HP_ADDR_MSB		ab->hw_params.regs->hal_reo1_ring_hp_addr_msb
+#define HAL_REO1_RING_PRODUCER_INT_SETUP	ab->hw_params.regs->hal_reo1_ring_producer_int_setup
+#define HAL_REO1_RING_MSI1_BASE_LSB		ab->hw_params.regs->hal_reo1_ring_msi1_base_lsb
+#define HAL_REO1_RING_MSI1_BASE_MSB		ab->hw_params.regs->hal_reo1_ring_msi1_base_msb
+#define HAL_REO1_RING_MSI1_DATA			ab->hw_params.regs->hal_reo1_ring_msi1_data
+#define HAL_REO2_RING_BASE_LSB			ab->hw_params.regs->hal_reo2_ring_base_lsb
+#define HAL_REO1_AGING_THRESH_IX_0		ab->hw_params.regs->hal_reo1_aging_thresh_ix_0
+#define HAL_REO1_AGING_THRESH_IX_1		ab->hw_params.regs->hal_reo1_aging_thresh_ix_1
+#define HAL_REO1_AGING_THRESH_IX_2		ab->hw_params.regs->hal_reo1_aging_thresh_ix_2
+#define HAL_REO1_AGING_THRESH_IX_3		ab->hw_params.regs->hal_reo1_aging_thresh_ix_3
 
 #define HAL_REO1_RING_MSI1_BASE_LSB_OFFSET \
 		(HAL_REO1_RING_MSI1_BASE_LSB - HAL_REO1_RING_BASE_LSB)
@@ -134,17 +134,17 @@ struct ath11k_base;
 #define HAL_REO1_RING_MISC_OFFSET (HAL_REO1_RING_MISC - HAL_REO1_RING_BASE_LSB)
 
 /* REO2SW(x) R2 ring pointers (head/tail) address */
-#define HAL_REO1_RING_HP			0x00003038
-#define HAL_REO1_RING_TP			0x0000303c
-#define HAL_REO2_RING_HP			0x00003040
+#define HAL_REO1_RING_HP			ab->hw_params.regs->hal_reo1_ring_hp
+#define HAL_REO1_RING_TP			ab->hw_params.regs->hal_reo1_ring_tp
+#define HAL_REO2_RING_HP			ab->hw_params.regs->hal_reo2_ring_hp
 
 #define HAL_REO1_RING_TP_OFFSET	(HAL_REO1_RING_TP - HAL_REO1_RING_HP)
 
 /* REO2TCL R0 ring configuration address */
-#define HAL_REO_TCL_RING_BASE_LSB		0x000003fc
+#define HAL_REO_TCL_RING_BASE_LSB		ab->hw_params.regs->hal_reo_tcl_ring_base_lsb
 
 /* REO2TCL R2 ring pointer (head/tail) address */
-#define HAL_REO_TCL_RING_HP			0x00003058
+#define HAL_REO_TCL_RING_HP			ab->hw_params.regs->hal_reo_tcl_ring_hp
 
 /* REO CMD R0 address */
 #define HAL_REO_CMD_RING_BASE_LSB		0x00000194
@@ -168,8 +168,8 @@ struct ath11k_base;
 #define HAL_CE_DST_STATUS_RING_HP		0x00000408
 
 /* REO status address */
-#define HAL_REO_STATUS_RING_BASE_LSB		0x00000504
-#define HAL_REO_STATUS_HP			0x00003070
+#define HAL_REO_STATUS_RING_BASE_LSB		ab->hw_params.regs->hal_reo_status_ring_base_lsb
+#define HAL_REO_STATUS_HP			ab->hw_params.regs->hal_reo_status_hp
 
 /* WBM Idle R0 address */
 #define HAL_WBM_IDLE_LINK_RING_BASE_LSB		0x00000860

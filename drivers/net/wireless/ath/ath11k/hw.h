@@ -135,6 +135,8 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_ring_mask *ring_mask;
 
 	bool internal_sleep_clock;
+
+	const struct ath11k_hw_regs *regs;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
@@ -169,5 +171,52 @@ enum ath11k_bd_ie_type {
 	ATH11K_BD_IE_BOARD = 0,
 	ATH11K_BD_IE_BOARD_EXT = 1,
 };
+
+struct ath11k_hw_regs {
+	u32 hal_tcl1_ring_base_lsb;
+	u32 hal_tcl1_ring_base_msb;
+	u32 hal_tcl1_ring_id;
+	u32 hal_tcl1_ring_misc;
+	u32 hal_tcl1_ring_tp_addr_lsb;
+	u32 hal_tcl1_ring_tp_addr_msb;
+	u32 hal_tcl1_ring_consumer_int_setup_ix0;
+	u32 hal_tcl1_ring_consumer_int_setup_ix1;
+	u32 hal_tcl1_ring_msi1_base_lsb;
+	u32 hal_tcl1_ring_msi1_base_msb;
+	u32 hal_tcl1_ring_msi1_data;
+	u32 hal_tcl2_ring_base_lsb;
+	u32 hal_tcl_ring_base_lsb;
+
+	u32 hal_tcl_status_ring_base_lsb;
+
+	u32 hal_reo1_ring_base_lsb;
+	u32 hal_reo1_ring_base_msb;
+	u32 hal_reo1_ring_id;
+	u32 hal_reo1_ring_misc;
+	u32 hal_reo1_ring_hp_addr_lsb;
+	u32 hal_reo1_ring_hp_addr_msb;
+	u32 hal_reo1_ring_producer_int_setup;
+	u32 hal_reo1_ring_msi1_base_lsb;
+	u32 hal_reo1_ring_msi1_base_msb;
+	u32 hal_reo1_ring_msi1_data;
+	u32 hal_reo2_ring_base_lsb;
+	u32 hal_reo1_aging_thresh_ix_0;
+	u32 hal_reo1_aging_thresh_ix_1;
+	u32 hal_reo1_aging_thresh_ix_2;
+	u32 hal_reo1_aging_thresh_ix_3;
+
+	u32 hal_reo1_ring_hp;
+	u32 hal_reo1_ring_tp;
+	u32 hal_reo2_ring_hp;
+
+	u32 hal_reo_tcl_ring_base_lsb;
+	u32 hal_reo_tcl_ring_hp;
+
+	u32 hal_reo_status_ring_base_lsb;
+	u32 hal_reo_status_hp;
+};
+
+extern const struct ath11k_hw_regs ipq8074_regs;
+extern const struct ath11k_hw_regs qca6390_regs;
 
 #endif

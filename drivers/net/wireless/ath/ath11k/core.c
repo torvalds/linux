@@ -32,6 +32,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hw_ops = &ipq8074_ops,
 		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
 		.internal_sleep_clock = false,
+		.regs = &ipq8074_regs,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -46,6 +47,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hw_ops = &qca6390_ops,
 		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
 		.internal_sleep_clock = true,
+		.regs = &qca6390_regs,
 	},
 };
 
