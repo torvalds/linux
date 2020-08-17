@@ -1945,9 +1945,9 @@ static void notify_wx_assoc_event(struct ipw_priv *priv)
 	wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
 }
 
-static void ipw_irq_tasklet(unsigned long data)
+static void ipw_irq_tasklet(struct tasklet_struct *t)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)data;
+	struct ipw_priv *priv = from_tasklet(priv, t, irq_tasklet);
 	u32 inta, inta_mask, handled = 0;
 	unsigned long flags;
 
@@ -10672,8 +10672,7 @@ static void ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_WORK(&priv->qos_activate, ipw_bg_qos_activate);
 #endif				/* CONFIG_IPW2200_QOS */
 
-	tasklet_init(&priv->irq_tasklet,
-		     ipw_irq_tasklet, (unsigned long)priv);
+	tasklet_setup(&priv->irq_tasklet, ipw_irq_tasklet);
 }
 
 static void shim__set_security(struct net_device *dev,
