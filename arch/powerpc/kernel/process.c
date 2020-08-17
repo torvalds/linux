@@ -831,9 +831,8 @@ static void switch_hw_breakpoint(struct task_struct *new)
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	mtspr(SPRN_DAC1, dabr);
-#ifdef CONFIG_PPC_47x
-	isync();
-#endif
+	if (IS_ENABLED(CONFIG_PPC_47x))
+		isync();
 	return 0;
 }
 #elif defined(CONFIG_PPC_BOOK3S)
