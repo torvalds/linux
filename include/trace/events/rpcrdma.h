@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/tracepoint.h>
+#include <rdma/ib_cm.h>
 #include <trace/events/rdma.h>
 
 /**
