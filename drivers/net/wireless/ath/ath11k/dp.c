@@ -731,7 +731,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 	struct napi_struct *napi = &irq_grp->napi;
 	int grp_id = irq_grp->grp_id;
 	int work_done = 0;
-	int i = 0;
+	int i = 0, j;
 	int tot_work_done = 0;
 
 	while (ab->hw_params.ring_mask->tx[grp_id] >> i) {
@@ -770,17 +770,23 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 	}
 
 	if (ab->hw_params.ring_mask->rx_mon_status[grp_id]) {
-		for (i = 0; i <  ab->num_radios; i++) {
-			if (ab->hw_params.ring_mask->rx_mon_status[grp_id] & BIT(i)) {
-				work_done =
-				ath11k_dp_rx_process_mon_rings(ab,
-							       i, napi,
-							       budget);
-				budget -= work_done;
-				tot_work_done += work_done;
+		for (i = 0; i < ab->num_radios; i++) {
+			for (j = 0; j < ab->hw_params.num_rxmda_per_pdev; j++) {
+				int id = i * ab->hw_params.num_rxmda_per_pdev + j;
+
+				if (ab->hw_params.ring_mask->rx_mon_status[grp_id] &
+					BIT(id)) {
+					work_done =
+					ath11k_dp_rx_process_mon_rings(ab,
+								       id,
+								       napi, budget);
+					budget -= work_done;
+					tot_work_done += work_done;
+
+					if (budget <= 0)
+						goto done;
+				}
 			}
-			if (budget <= 0)
-				goto done;
 		}
 	}
 
@@ -788,22 +794,27 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 		ath11k_dp_process_reo_status(ab);
 
 	for (i = 0; i < ab->num_radios; i++) {
-		if (ab->hw_params.ring_mask->rxdma2host[grp_id] & BIT(i)) {
-			work_done = ath11k_dp_process_rxdma_err(ab, i, budget);
-			budget -= work_done;
-			tot_work_done += work_done;
-		}
+		for (j = 0; j < ab->hw_params.num_rxmda_per_pdev; j++) {
+			int id = i * ab->hw_params.num_rxmda_per_pdev + j;
 
-		if (budget <= 0)
-			goto done;
+			if (ab->hw_params.ring_mask->rxdma2host[grp_id] & BIT(id)) {
+				work_done = ath11k_dp_process_rxdma_err(ab, id, budget);
+				budget -= work_done;
+				tot_work_done += work_done;
+			}
 
-		if (ab->hw_params.ring_mask->host2rxdma[grp_id] & BIT(i)) {
-			struct ath11k_pdev_dp *dp = &ab->pdevs[i].ar->dp;
-			struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
+			if (budget <= 0)
+				goto done;
 
-			ath11k_dp_rxbufs_replenish(ab, i, rx_ring, 0,
-						   HAL_RX_BUF_RBM_SW3_BM,
-						   GFP_ATOMIC);
+			if (ab->hw_params.ring_mask->host2rxdma[grp_id] & BIT(id)) {
+				struct ath11k *ar = ath11k_ab_to_ar(ab, id);
+				struct ath11k_pdev_dp *dp = &ar->dp;
+				struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
+
+				ath11k_dp_rxbufs_replenish(ab, id, rx_ring, 0,
+							   HAL_RX_BUF_RBM_SW3_BM,
+							   GFP_ATOMIC);
+			}
 		}
 	}
 	/* TODO: Implement handler for other interrupts */
