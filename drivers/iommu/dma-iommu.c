@@ -471,7 +471,7 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 	WARN_ON(unmapped != size);
 
 	if (!cookie->fq_domain)
-		iommu_tlb_sync(domain, &iotlb_gather);
+		iommu_iotlb_sync(domain, &iotlb_gather);
 	iommu_dma_free_iova(cookie, dma_addr, size);
 }
 

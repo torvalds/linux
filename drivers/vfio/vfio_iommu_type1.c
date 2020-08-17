@@ -774,7 +774,7 @@ static long vfio_sync_unpin(struct vfio_dma *dma, struct vfio_domain *domain,
 	long unlocked = 0;
 	struct vfio_regions *entry, *next;
 
-	iommu_tlb_sync(domain->domain, iotlb_gather);
+	iommu_iotlb_sync(domain->domain, iotlb_gather);
 
 	list_for_each_entry_safe(entry, next, regions, list) {
 		unlocked += vfio_unpin_pages_remote(dma,

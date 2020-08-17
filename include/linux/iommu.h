@@ -514,13 +514,13 @@ extern void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr)
 extern int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 			      unsigned long iova, int flags);
 
-static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
+static inline void iommu_flush_iotlb_all(struct iommu_domain *domain)
 {
 	if (domain->ops->flush_iotlb_all)
 		domain->ops->flush_iotlb_all(domain);
 }
 
-static inline void iommu_tlb_sync(struct iommu_domain *domain,
+static inline void iommu_iotlb_sync(struct iommu_domain *domain,
 				  struct iommu_iotlb_gather *iotlb_gather)
 {
 	if (domain->ops->iotlb_sync)
@@ -543,7 +543,7 @@ static inline void iommu_iotlb_gather_add_page(struct iommu_domain *domain,
 	if (gather->pgsize != size ||
 	    end < gather->start || start > gather->end) {
 		if (gather->pgsize)
-			iommu_tlb_sync(domain, gather);
+			iommu_iotlb_sync(domain, gather);
 		gather->pgsize = size;
 	}
 
@@ -725,11 +725,11 @@ static inline size_t iommu_map_sg_atomic(struct iommu_domain *domain,
 	return 0;
 }
 
-static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
+static inline void iommu_flush_iotlb_all(struct iommu_domain *domain)
 {
 }
 
-static inline void iommu_tlb_sync(struct iommu_domain *domain,
+static inline void iommu_iotlb_sync(struct iommu_domain *domain,
 				  struct iommu_iotlb_gather *iotlb_gather)
 {
 }
