@@ -112,6 +112,7 @@ struct rockchip_hdmi {
 	unsigned long bus_format;
 	unsigned long output_bus_format;
 	unsigned long enc_out_encoding;
+	int color_changed;
 
 	struct drm_property *color_depth_property;
 	struct drm_property *hdmi_output_property;
@@ -824,6 +825,19 @@ dw_hdmi_rockchip_get_hdr_blob(void *data)
 	return hdmi->hdr_panel_blob_ptr;
 }
 
+static bool
+dw_hdmi_rockchip_get_color_changed(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	bool ret = false;
+
+	if (hdmi->color_changed)
+		ret = true;
+	hdmi->color_changed = 0;
+
+	return ret;
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -1022,9 +1036,13 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 	struct drm_mode_config *config = &connector->dev->mode_config;
 
 	if (property == hdmi->color_depth_property) {
+		if (val != hdmi->colordepth)
+			hdmi->color_changed++;
 		hdmi->colordepth = val;
 		return 0;
 	} else if (property == hdmi->hdmi_output_property) {
+		if (val != hdmi->hdmi_output)
+			hdmi->color_changed++;
 		hdmi->hdmi_output = val;
 		return 0;
 	} else if (property == hdmi->quant_range) {
@@ -1344,6 +1362,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_hdr_property;
 	plat_data->get_hdr_blob =
 		dw_hdmi_rockchip_get_hdr_blob;
+	plat_data->get_color_changed =
+		dw_hdmi_rockchip_get_color_changed;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	encoder = &hdmi->encoder;

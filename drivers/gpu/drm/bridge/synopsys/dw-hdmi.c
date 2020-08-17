@@ -2711,119 +2711,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static void
-dw_hdmi_connector_atomic_begin(struct drm_connector *connector,
-			       struct drm_connector_state *conn_state)
-{
-	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
-					    connector);
-	void *data = hdmi->plat_data->phy_data;
-	unsigned int enc_in_bus_format;
-	unsigned int enc_out_bus_format;
-	unsigned int enc_in_encoding;
-	unsigned int enc_out_encoding;
-
-	if (!conn_state->crtc)
-		return;
-
-	if (!hdmi->hdmi_data.video_mode.mpixelclock)
-		return;
-
-	if (hdmi->plat_data->get_enc_in_encoding)
-		enc_in_encoding = hdmi->plat_data->get_enc_in_encoding(data);
-	else
-		enc_in_encoding = hdmi->hdmi_data.enc_in_encoding;
-	if (hdmi->plat_data->get_enc_out_encoding)
-		enc_out_encoding = hdmi->plat_data->get_enc_out_encoding(data);
-	else
-		enc_out_encoding = hdmi->hdmi_data.enc_out_encoding;
-	if (hdmi->plat_data->get_input_bus_format)
-		enc_in_bus_format =
-			hdmi->plat_data->get_input_bus_format(data);
-	else
-		enc_in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
-	if (hdmi->plat_data->get_output_bus_format)
-		enc_out_bus_format =
-			hdmi->plat_data->get_output_bus_format(data);
-	else
-		enc_out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
-
-	if (enc_in_encoding != hdmi->hdmi_data.enc_in_encoding ||
-	    enc_out_encoding != hdmi->hdmi_data.enc_out_encoding ||
-	    enc_in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
-	    enc_out_bus_format != hdmi->hdmi_data.enc_out_bus_format) {
-		hdmi->hdmi_data.update = true;
-		hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
-		/* XXX: Add delay to make av mute work on sink*/
-		msleep(50);
-	} else {
-		hdmi->hdmi_data.update = false;
-	}
-}
-
-static void
-dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
-			       struct drm_connector_state *conn_state)
-{
-	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
-					     connector);
-	struct drm_display_mode *mode = NULL;
-	void *data = hdmi->plat_data->phy_data;
-	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
-	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
-	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
-
-	if (!conn_state->crtc)
-		return;
-
-	DRM_DEBUG("%s\n", __func__);
-
-	/*
-	 * If HDMI is enabled in uboot, it's need to record
-	 * drm_display_mode and set phy status to enabled.
-	 */
-	if (!vmode->mpixelclock) {
-		if (hdmi->plat_data->get_enc_in_encoding)
-			hdmi->hdmi_data.enc_in_encoding =
-				hdmi->plat_data->get_enc_in_encoding(data);
-		if (hdmi->plat_data->get_enc_out_encoding)
-			hdmi->hdmi_data.enc_out_encoding =
-				hdmi->plat_data->get_enc_out_encoding(data);
-		if (hdmi->plat_data->get_input_bus_format)
-			hdmi->hdmi_data.enc_in_bus_format =
-				hdmi->plat_data->get_input_bus_format(data);
-		if (hdmi->plat_data->get_output_bus_format)
-			hdmi->hdmi_data.enc_out_bus_format =
-				hdmi->plat_data->get_output_bus_format(data);
-
-		mode = &conn_state->crtc->mode;
-		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
-		vmode->mpixelclock = mode->crtc_clock * 1000;
-		vmode->previous_pixelclock = mode->clock;
-		vmode->previous_tmdsclock = mode->clock;
-		vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi,
-						       vmode->mpixelclock);
-		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
-			vmode->mtmdsclock /= 2;
-		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
-		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
-			hdmi->hdmi_data.update = true;
-		else
-			return;
-	}
-
-	if (hdmi->hdmi_data.update) {
-		dw_hdmi_setup(hdmi, &hdmi->previous_mode);
-		/*
-		 * Before clear AVMUTE, delay is needed to
-		 * prevent display flash.
-		 */
-		msleep(50);
-		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
-		hdmi->hdmi_data.update = false;
-	}
-}
-
 static int
 dw_hdmi_atomic_connector_set_property(struct drm_connector *connector,
 				      struct drm_connector_state *state,
@@ -2868,6 +2755,19 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 						     property, val);
 }
 
+static bool dw_hdmi_color_changed(struct drm_connector *connector)
+{
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					    connector);
+	void *data = hdmi->plat_data->phy_data;
+	bool ret = false;
+
+	if (hdmi->plat_data->get_color_changed)
+		ret = hdmi->plat_data->get_color_changed(data);
+
+	return ret;
+}
+
 static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 			       const struct drm_connector_state *new_state)
 {
@@ -2896,7 +2796,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (!crtc)
 		return 0;
 
-	if (!hdr_metadata_equal(old_state, new_state)) {
+	if (!hdr_metadata_equal(old_state, new_state) ||
+	    dw_hdmi_color_changed(connector)) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
@@ -2946,8 +2847,6 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 	.get_modes = dw_hdmi_connector_get_modes,
 	.best_encoder = drm_atomic_helper_best_encoder,
 	.atomic_check = dw_hdmi_connector_atomic_check,
-	.atomic_begin = dw_hdmi_connector_atomic_begin,
-	.atomic_flush = dw_hdmi_connector_atomic_flush,
 };
 
 static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)

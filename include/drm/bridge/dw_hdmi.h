@@ -178,6 +178,7 @@ struct dw_hdmi_plat_data {
 	unsigned long (*get_quant_range)(void *data);
 	struct drm_property *(*get_hdr_property)(void *data);
 	struct drm_property_blob *(*get_hdr_blob)(void *data);
+	bool (*get_color_changed)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
