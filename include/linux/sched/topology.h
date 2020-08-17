@@ -12,18 +12,29 @@
 #ifdef CONFIG_SMP
 
 /* Generate SD flag indexes */
-#define SD_FLAG(name) __##name,
+#define SD_FLAG(name, mflags) __##name,
 enum {
 	#include <linux/sched/sd_flags.h>
 	__SD_FLAG_CNT,
 };
 #undef SD_FLAG
 /* Generate SD flag bits */
-#define SD_FLAG(name) name = 1 << __##name,
+#define SD_FLAG(name, mflags) name = 1 << __##name,
 enum {
 	#include <linux/sched/sd_flags.h>
 };
 #undef SD_FLAG
+
+#ifdef CONFIG_SCHED_DEBUG
+#define SD_FLAG(_name, mflags) [__##_name] = { .meta_flags = mflags, .name = #_name },
+static const struct {
+	unsigned int meta_flags;
+	char *name;
+} sd_flag_debug[] = {
+#include <linux/sched/sd_flags.h>
+};
+#undef SD_FLAG
+#endif
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
