@@ -409,10 +409,8 @@ static int __init init_msr_all_available(void)
 #ifdef CONFIG_PPC_FPU
 	msr_all_available |= MSR_FP;
 #endif
-#ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		msr_all_available |= MSR_VEC;
-#endif
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr_all_available |= MSR_VSX;
 #ifdef CONFIG_SPE
@@ -446,10 +444,8 @@ void giveup_all(struct task_struct *tsk)
 	if (usermsr & MSR_FP)
 		__giveup_fpu(tsk);
 #endif
-#ifdef CONFIG_ALTIVEC
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
-#endif
 #ifdef CONFIG_SPE
 	if (usermsr & MSR_SPE)
 		__giveup_spe(tsk);
