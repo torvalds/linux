@@ -14,6 +14,7 @@
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pfn.h>
@@ -507,8 +508,10 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 
 static void cio2_hw_exit(struct cio2_device *cio2, struct cio2_queue *q)
 {
-	void __iomem *base = cio2->base;
-	unsigned int i, maxloops = 1000;
+	void __iomem *const base = cio2->base;
+	unsigned int i;
+	u32 value;
+	int ret;
 
 	/* Disable CSI receiver and MIPI backend devices */
 	writel(0, q->csi_rx_base + CIO2_REG_IRQCTRL_MASK);
@@ -518,13 +521,10 @@ static void cio2_hw_exit(struct cio2_device *cio2, struct cio2_queue *q)
 
 	/* Halt DMA */
 	writel(0, base + CIO2_REG_CDMAC0(CIO2_DMA_CHAN));
-	do {
-		if (readl(base + CIO2_REG_CDMAC0(CIO2_DMA_CHAN)) &
-		    CIO2_CDMAC0_DMA_HALTED)
-			break;
-		usleep_range(1000, 2000);
-	} while (--maxloops);
-	if (!maxloops)
+	ret = readl_poll_timeout(base + CIO2_REG_CDMAC0(CIO2_DMA_CHAN),
+				 value, value & CIO2_CDMAC0_DMA_HALTED,
+				 4000, 2000000);
+	if (ret)
 		dev_err(&cio2->pci_dev->dev,
 			"DMA %i can not be halted\n", CIO2_DMA_CHAN);
 
