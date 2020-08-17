@@ -611,9 +611,9 @@ static void ath11k_ahb_free_irq(struct ath11k_base *ab)
 	ath11k_ahb_free_ext_irq(ab);
 }
 
-static void ath11k_ahb_ce_tasklet(unsigned long data)
+static void ath11k_ahb_ce_tasklet(struct tasklet_struct *t)
 {
-	struct ath11k_ce_pipe *ce_pipe = (struct ath11k_ce_pipe *)data;
+	struct ath11k_ce_pipe *ce_pipe = from_tasklet(ce_pipe, t, intr_tq);
 
 	ath11k_ce_per_engine_service(ce_pipe->ab, ce_pipe->pipe_num);
 
@@ -764,8 +764,7 @@ static int ath11k_ahb_config_irq(struct ath11k_base *ab)
 
 		irq_idx = ATH11K_IRQ_CE0_OFFSET + i;
 
-		tasklet_init(&ce_pipe->intr_tq, ath11k_ahb_ce_tasklet,
-			     (unsigned long)ce_pipe);
+		tasklet_setup(&ce_pipe->intr_tq, ath11k_ahb_ce_tasklet);
 		irq = platform_get_irq_byname(ab->pdev, irq_name[irq_idx]);
 		ret = request_irq(irq, ath11k_ahb_ce_interrupt_handler,
 				  IRQF_TRIGGER_RISING, irq_name[irq_idx],
