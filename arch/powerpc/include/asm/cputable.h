@@ -170,6 +170,7 @@ static inline void cpu_feature_keys_init(void) { }
 #else	/* CONFIG_PPC32 */
 /* Define these to 0 for the sake of tests in common code */
 #define CPU_FTR_PPC_LE			(0)
+#define CPU_FTR_SPE			(0)
 #endif
 
 /*

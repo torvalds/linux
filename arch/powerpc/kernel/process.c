@@ -413,10 +413,8 @@ static int __init init_msr_all_available(void)
 		msr_all_available |= MSR_VEC;
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr_all_available |= MSR_VSX;
-#ifdef CONFIG_SPE
 	if (cpu_has_feature(CPU_FTR_SPE))
 		msr_all_available |= MSR_SPE;
-#endif
 
 	return 0;
 }
@@ -446,10 +444,8 @@ void giveup_all(struct task_struct *tsk)
 #endif
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
-#ifdef CONFIG_SPE
 	if (usermsr & MSR_SPE)
 		__giveup_spe(tsk);
-#endif
 
 	msr_check_and_clear(msr_all_available);
 }
@@ -1899,7 +1895,6 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 	 * fpexc_mode.  fpexc_mode is also used for setting FP exception
 	 * mode (asyn, precise, disabled) for 'Classic' FP. */
 	if (val & PR_FP_EXC_SW_ENABLE) {
-#ifdef CONFIG_SPE
 		if (cpu_has_feature(CPU_FTR_SPE)) {
 			/*
 			 * When the sticky exception bits are set
@@ -1913,16 +1908,15 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 			 * anyway to restore the prctl settings from
 			 * the saved environment.
 			 */
+#ifdef CONFIG_SPE
 			tsk->thread.spefscr_last = mfspr(SPRN_SPEFSCR);
 			tsk->thread.fpexc_mode = val &
 				(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
+#endif
 			return 0;
 		} else {
 			return -EINVAL;
 		}
-#else
-		return -EINVAL;
-#endif
 	}
 
 	/* on a CONFIG_SPE this does not hurt us.  The bits that
@@ -1943,8 +1937,7 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 {
 	unsigned int val;
 
-	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
-#ifdef CONFIG_SPE
+	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE) {
 		if (cpu_has_feature(CPU_FTR_SPE)) {
 			/*
 			 * When the sticky exception bits are set
@@ -1958,15 +1951,15 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 			 * anyway to restore the prctl settings from
 			 * the saved environment.
 			 */
+#ifdef CONFIG_SPE
 			tsk->thread.spefscr_last = mfspr(SPRN_SPEFSCR);
 			val = tsk->thread.fpexc_mode;
+#endif
 		} else
 			return -EINVAL;
-#else
-		return -EINVAL;
-#endif
-	else
+	} else {
 		val = __unpack_fe01(tsk->thread.fpexc_mode);
+	}
 	return put_user(val, (unsigned int __user *) adr);
 }
 
