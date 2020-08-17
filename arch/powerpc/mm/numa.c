@@ -900,10 +900,19 @@ static void __init find_possible_nodes(void)
 	if (!rtas)
 		return;
 
-	if (of_property_read_u32_index(rtas,
-				"ibm,max-associativity-domains",
+	if (of_property_read_u32_index(rtas, "ibm,current-associativity-domains",
+				min_common_depth, &numnodes)) {
+		/*
+		 * ibm,current-associativity-domains is a fairly recent
+		 * property. If it doesn't exist, then fallback on
+		 * ibm,max-associativity-domains. Current denotes what the
+		 * platform can support compared to max which denotes what the
+		 * Hypervisor can support.
+		 */
+		if (of_property_read_u32_index(rtas, "ibm,max-associativity-domains",
 				min_common_depth, &numnodes))
-		goto out;
+			goto out;
+	}
 
 	for (i = 0; i < numnodes; i++) {
 		if (!node_possible(i))
