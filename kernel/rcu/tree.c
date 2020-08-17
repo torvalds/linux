@@ -1077,11 +1077,6 @@ static void rcu_disable_urgency_upon_qs(struct rcu_data *rdp)
 	}
 }
 
-noinstr bool __rcu_is_watching(void)
-{
-	return !rcu_dynticks_curr_cpu_in_eqs();
-}
-
 /**
  * rcu_is_watching - see if RCU thinks that the current CPU is not idle
  *
