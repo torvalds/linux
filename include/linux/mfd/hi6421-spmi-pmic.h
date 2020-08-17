@@ -63,34 +63,9 @@ struct hisi_pmic {
 	unsigned int g_extinterrupt_flag;
 };
 
-/* 0:disable; 1:enable */
-unsigned int get_uv_mntn_status(void);
-void clear_uv_mntn_resered_reg_bit(void);
-void set_uv_mntn_resered_reg_bit(void);
-
-/* Register Access Helpers */
 u32 hisi_pmic_read(struct hisi_pmic *pmic, int reg);
 void hisi_pmic_write(struct hisi_pmic *pmic, int reg, u32 val);
 void hisi_pmic_rmw(struct hisi_pmic *pmic, int reg, u32 mask, u32 bits);
-unsigned int hisi_pmic_reg_read(int addr);
-void hisi_pmic_reg_write(int addr, int val);
-void hisi_pmic_reg_write_lock(int addr, int val);
-int hisi_pmic_array_read(int addr, char *buff, unsigned int len);
-int hisi_pmic_array_write(int addr, char *buff, unsigned int len);
-extern int hisi_get_pmic_irq_byname(unsigned int pmic_irq_list);
-extern int hisi_pmic_get_vbus_status(void);
-static inline u32 hisi_pmic_read(struct hisi_pmic *pmic, int reg) { return 0; }
-static inline void hisi_pmic_write(struct hisi_pmic *pmic, int reg, u32 val) {}
-static inline void hisi_pmic_rmw(struct hisi_pmic *pmic, int reg, u32 mask, u32 bits) {}
-static inline unsigned int hisi_pmic_reg_read(int addr) { return 0; }
-static inline void hisi_pmic_reg_write(int addr, int val) {}
-static inline void hisi_pmic_reg_write_lock(int addr, int val) {}
-static inline int hisi_pmic_array_read(int addr, char *buff, unsigned int len) { return 0; }
-static inline int hisi_pmic_array_write(int addr, char *buff, unsigned int len) { return 0; }
-static inline int hisi_get_pmic_irq_byname(unsigned int pmic_irq_list) { return -1; }
-static inline int hisi_pmic_get_vbus_status(void) { return 1; }
-static inline u32 hisi_pmic_read_sub_pmu(u8 sid ,int reg) { return 0; }
-static inline void hisi_pmic_write_sub_pmu(u8 sid ,int reg, u32 val) {}
 
 enum pmic_irq_list {
 	OTMP = 0,
@@ -110,4 +85,3 @@ enum pmic_irq_list {
 	PMIC_IRQ_LIST_MAX,
 };
 #endif		/* __HISI_PMIC_H */
-
