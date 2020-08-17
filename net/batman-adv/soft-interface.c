@@ -881,7 +881,7 @@ static int batadv_softif_slave_del(struct net_device *dev,
 	if (!hard_iface || hard_iface->soft_iface != dev)
 		goto out;
 
-	batadv_hardif_disable_interface(hard_iface, BATADV_IF_CLEANUP_KEEP);
+	batadv_hardif_disable_interface(hard_iface);
 	ret = 0;
 
 out:
@@ -1139,8 +1139,7 @@ static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
 
 	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->soft_iface == soft_iface)
-			batadv_hardif_disable_interface(hard_iface,
-							BATADV_IF_CLEANUP_KEEP);
+			batadv_hardif_disable_interface(hard_iface);
 	}
 
 	/* destroy the "untagged" VLAN */
