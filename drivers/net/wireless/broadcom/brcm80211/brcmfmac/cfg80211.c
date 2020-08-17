@@ -4679,6 +4679,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
+	struct cfg80211_crypto_settings *crypto = &settings->crypto;
 	const struct brcmf_tlv *ssid_ie;
 	const struct brcmf_tlv *country_ie;
 	struct brcmf_ssid_le ssid_le;
@@ -4818,6 +4820,17 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 		}
 
+		if (crypto->psk) {
+			brcmf_dbg(INFO, "using PSK offload\n");
+			profile->use_fwauth |= BIT(BRCMF_PROFILE_FWAUTH_PSK);
+			err = brcmf_set_pmk(ifp, crypto->psk,
+					    BRCMF_WSEC_MAX_PSK_LEN);
+			if (err < 0)
+				goto exit;
+		}
+		if (profile->use_fwauth == 0)
+			profile->use_fwauth = BIT(BRCMF_PROFILE_FWAUTH_NONE);
+
 		err = brcmf_parse_configure_security(ifp, settings,
 						     NL80211_IFTYPE_AP);
 		if (err < 0) {
@@ -4904,6 +4917,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	s32 err;
 	struct brcmf_fil_bss_enable_le bss_enable;
 	struct brcmf_join_params join_params;
@@ -4914,6 +4928,12 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		/* Due to most likely deauths outstanding we sleep */
 		/* first to make sure they get processed by fw. */
 		msleep(400);
+
+		if (profile->use_fwauth != BIT(BRCMF_PROFILE_FWAUTH_NONE)) {
+			if (profile->use_fwauth & BIT(BRCMF_PROFILE_FWAUTH_PSK))
+				brcmf_set_pmk(ifp, NULL, 0);
+			profile->use_fwauth = BIT(BRCMF_PROFILE_FWAUTH_NONE);
+		}
 
 		if (ifp->vif->mbss) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_DOWN, 1);
@@ -7063,6 +7083,9 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 			wiphy_ext_feature_set(wiphy,
 					      NL80211_EXT_FEATURE_SAE_OFFLOAD);
 	}
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_FWAUTH))
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_4WAY_HANDSHAKE_AP_PSK);
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
