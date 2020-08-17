@@ -199,8 +199,8 @@ static int ptn5150_init_dev_type(struct ptn5150_info *info)
 	version_id = ((reg_data & PTN5150_REG_DEVICE_ID_VERSION_MASK) >>
 				PTN5150_REG_DEVICE_ID_VERSION_SHIFT);
 
-	dev_info(info->dev, "Device type: version: 0x%x, vendor: 0x%x\n",
-			    version_id, vendor_id);
+	dev_dbg(info->dev, "Device type: version: 0x%x, vendor: 0x%x\n",
+		version_id, vendor_id);
 
 	/* Clear any existing interrupts */
 	ret = regmap_read(info->regmap, PTN5150_REG_INT_STATUS, &reg_data);
