@@ -303,26 +303,23 @@ static int mmpcam_platform_remove(struct platform_device *pdev)
 /*
  * Suspend/resume support.
  */
-#ifdef CONFIG_PM
 
-static int mmpcam_suspend(struct platform_device *pdev, pm_message_t state)
+static int mmpcam_suspend(struct device *dev)
 {
-	struct mmp_camera *cam = platform_get_drvdata(pdev);
+	struct mmp_camera *cam = dev_get_drvdata(dev);
 
-	if (state.event != PM_EVENT_SUSPEND)
-		return 0;
 	mccic_suspend(&cam->mcam);
 	return 0;
 }
 
-static int mmpcam_resume(struct platform_device *pdev)
+static int mmpcam_resume(struct device *dev)
 {
-	struct mmp_camera *cam = platform_get_drvdata(pdev);
+	struct mmp_camera *cam = dev_get_drvdata(dev);
 
 	return mccic_resume(&cam->mcam);
 }
 
-#endif
+static SIMPLE_DEV_PM_OPS(mmpcam_pm_ops, mmpcam_suspend, mmpcam_resume);
 
 static const struct of_device_id mmpcam_of_match[] = {
 	{ .compatible = "marvell,mmp2-ccic", },
@@ -333,13 +330,10 @@ MODULE_DEVICE_TABLE(of, mmpcam_of_match);
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,
 	.remove		= mmpcam_platform_remove,
-#ifdef CONFIG_PM
-	.suspend	= mmpcam_suspend,
-	.resume		= mmpcam_resume,
-#endif
 	.driver = {
 		.name	= "mmp-camera",
 		.of_match_table = of_match_ptr(mmpcam_of_match),
+		.pm = &mmpcam_pm_ops,
 	}
 };
 
