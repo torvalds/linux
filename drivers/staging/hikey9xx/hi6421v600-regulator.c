@@ -59,9 +59,11 @@ static int hisi_regulator_is_enabled(struct regulator_dev *rdev)
 	struct hisi_pmic *pmic = sreg->pmic;
 
 	reg_val = hisi_pmic_read(pmic, rdev->desc->enable_reg);
-	pr_debug("<[%s]: enable_reg=0x%x,enable_state=%d>\n",
+
+	dev_dbg(&rdev->dev,
+		"%s: enable_reg=0x%x, val= 0x%x, enable_state=%d\n",
 		 __func__, rdev->desc->enable_reg,
-		(reg_val & rdev->desc->enable_mask));
+		reg_val, (reg_val & rdev->desc->enable_mask));
 
 	return ((reg_val & rdev->desc->enable_mask) != 0);
 }
@@ -74,7 +76,8 @@ static int hisi_regulator_enable(struct regulator_dev *rdev)
 	/* keep a distance of off_on_delay from last time disabled */
 	usleep_range(rdev->desc->off_on_delay, rdev->desc->off_on_delay + 1000);
 
-	pr_debug("<[%s]: off_on_delay=%dus>\n", __func__, rdev->desc->off_on_delay);
+	dev_dbg(&rdev->dev, "%s: off_on_delay=%d us\n",
+		__func__, rdev->desc->off_on_delay);
 
 	/* cannot enable more than one regulator at one time */
 	mutex_lock(&enable_mutex);
@@ -85,7 +88,7 @@ static int hisi_regulator_enable(struct regulator_dev *rdev)
 	hisi_pmic_rmw(pmic, rdev->desc->enable_reg,
 		      rdev->desc->enable_mask,
 				rdev->desc->enable_mask);
-	pr_debug("<[%s]: enable_reg=0x%x,enable_mask=0x%x>\n",
+	dev_dbg(&rdev->dev, "%s: enable_reg=0x%x, enable_mask=0x%x\n",
 		 __func__, rdev->desc->enable_reg,
 		 rdev->desc->enable_mask);
 
@@ -111,16 +114,20 @@ static int hisi_regulator_get_voltage(struct regulator_dev *rdev)
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 	struct hisi_pmic *pmic = sreg->pmic;
 	u32 reg_val, selector;
+	int vol;
 
 	/* get voltage selector */
 	reg_val = hisi_pmic_read(pmic, rdev->desc->vsel_reg);
-	pr_debug("<[%s]: vsel_reg=0x%x>\n",
-		 __func__, rdev->desc->vsel_reg);
-
 	selector = (reg_val & rdev->desc->vsel_mask) >>
 				(ffs(rdev->desc->vsel_mask) - 1);
 
-	return rdev->desc->ops->list_voltage(rdev, selector);
+	vol = rdev->desc->ops->list_voltage(rdev, selector);
+
+	dev_dbg(&rdev->dev,
+		"%s: vsel_reg=0x%x, val=0x%x, entry=0x%x, voltage=%d mV\n",
+		 __func__, rdev->desc->vsel_reg, reg_val, selector, vol/ 1000);
+
+	return vol;
 }
 
 static int hisi_regulator_set_voltage(struct regulator_dev *rdev,
@@ -129,10 +136,14 @@ static int hisi_regulator_set_voltage(struct regulator_dev *rdev,
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 	struct hisi_pmic *pmic = sreg->pmic;
 	u32 vsel;
-	int ret = 0;
+	int uV, ret = 0;
 
 	for (vsel = 0; vsel < rdev->desc->n_voltages; vsel++) {
-		int uV = rdev->desc->volt_table[vsel];
+		uV = rdev->desc->volt_table[vsel];
+		dev_dbg(&rdev->dev,
+			"%s: min %d, max %d, value[%u] = %d\n",
+			__func__, min_uV, max_uV, vsel, uV);
+
 		/* Break at the first in-range value */
 		if (min_uV <= uV && uV <= max_uV)
 			break;
@@ -146,13 +157,14 @@ static int hisi_regulator_set_voltage(struct regulator_dev *rdev,
 	/* set voltage selector */
 	hisi_pmic_rmw(pmic, rdev->desc->vsel_reg,
 		      rdev->desc->vsel_mask,
-		vsel << (ffs(rdev->desc->vsel_mask) - 1));
+		      vsel << (ffs(rdev->desc->vsel_mask) - 1));
 
-	pr_debug("<[%s]: vsel_reg=0x%x, vsel_mask=0x%x, value=0x%x>\n",
+	dev_dbg(&rdev->dev,
+		"%s: vsel_reg=0x%x, vsel_mask=0x%x, value=0x%x, voltage=%d mV\n",
 		 __func__,
 		 rdev->desc->vsel_reg,
 		 rdev->desc->vsel_mask,
-		 vsel << (ffs(rdev->desc->vsel_mask) - 1));
+		 vsel << (ffs(rdev->desc->vsel_mask) - 1), uV / 1000);
 
 	return ret;
 }
@@ -162,17 +174,21 @@ static unsigned int hisi_regulator_get_mode(struct regulator_dev *rdev)
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 	struct hisi_pmic *pmic = sreg->pmic;
 	u32 reg_val;
+	unsigned int mode;
 
 	reg_val = hisi_pmic_read(pmic, rdev->desc->enable_reg);
-	pr_debug("<[%s]: reg_val=%d, enable_reg=0x%x, eco_mode_mask=0x%x>\n",
-		 __func__, reg_val,
-		rdev->desc->enable_reg,
-		sreg->eco_mode_mask);
 
 	if (reg_val & sreg->eco_mode_mask)
-		return REGULATOR_MODE_IDLE;
+		mode = REGULATOR_MODE_IDLE;
 	else
-		return REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_NORMAL;
+
+	dev_dbg(&rdev->dev,
+		"%s: enable_reg=0x%x, eco_mode_mask=0x%x, reg_val=0x%x, %s mode\n",
+		 __func__, rdev->desc->enable_reg, sreg->eco_mode_mask, reg_val,
+		 mode == REGULATOR_MODE_IDLE ? "idle" : "normal");
+
+	return mode;
 }
 
 static int hisi_regulator_set_mode(struct regulator_dev *rdev,
@@ -198,7 +214,8 @@ static int hisi_regulator_set_mode(struct regulator_dev *rdev,
 		      sreg->eco_mode_mask,
 		eco_mode << (ffs(sreg->eco_mode_mask) - 1));
 
-	pr_debug("<[%s]: enable_reg=0x%x, eco_mode_mask=0x%x, value=0x%x>\n",
+	dev_dbg(&rdev->dev,
+		"%s: enable_reg=0x%x, eco_mode_mask=0x%x, value=0x%x\n",
 		 __func__,
 		rdev->desc->enable_reg,
 		sreg->eco_mode_mask,
@@ -212,10 +229,13 @@ static unsigned int hisi_regulator_get_optimum_mode(struct regulator_dev *rdev,
 {
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 
-	if (load_uA || ((unsigned int)load_uA > sreg->eco_uA))
+	if (load_uA || ((unsigned int)load_uA > sreg->eco_uA)) {
+		dev_dbg(&rdev->dev, "%s: normal mode", __func__);
 		return REGULATOR_MODE_NORMAL;
-	else
+	} else {
+		dev_dbg(&rdev->dev, "%s: idle mode", __func__);
 		return REGULATOR_MODE_IDLE;
+	}
 }
 
 static int hisi_dt_parse(struct platform_device *pdev,
@@ -333,7 +353,7 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 
 	initdata = of_get_regulator_init_data(dev, np, NULL);
 	if (!initdata) {
-		pr_err("get regulator init data error !\n");
+		dev_err(dev, "failed to get regulator data\n");
 		return -EINVAL;
 	}
 
@@ -343,14 +363,14 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 	ret = of_property_read_u32_array(np, "hisilicon,valid-modes-mask",
 					 &constraint->valid_modes_mask, 1);
 	if (ret) {
-		pr_err("no hisilicon,valid-modes-mask property set\n");
+		dev_err(dev, "no valid modes mask\n");
 		ret = -ENODEV;
 		return ret;
 	}
 	ret = of_property_read_u32_array(np, "hisilicon,valid-idle-mask",
 					 &temp_modes, 1);
 	if (ret) {
-		pr_err("no hisilicon,valid-modes-mask property set\n");
+		dev_err(dev, "no valid idle mask\n");
 		ret = -ENODEV;
 		return ret;
 	}
@@ -374,10 +394,8 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 
 	/* parse device tree data for regulator specific */
 	ret = hisi_dt_parse(pdev, sreg, rdesc);
-	if (ret) {
-		dev_err(dev, "device tree parameter parse error!\n");
+	if (ret)
 		goto hisi_probe_end;
-	}
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
@@ -393,7 +411,7 @@ static int hisi_regulator_probe_ldo(struct platform_device *pdev,
 		goto hisi_probe_end;
 	}
 
-	pr_debug("[%s]:valid_modes_mask[0x%x], valid_ops_mask[0x%x]\n",
+	dev_dbg(dev, "%s:valid_modes_mask: 0x%x, valid_ops_mask: 0x%x\n",
 		 rdesc->name,
 		 constraint->valid_modes_mask, constraint->valid_ops_mask);
 
