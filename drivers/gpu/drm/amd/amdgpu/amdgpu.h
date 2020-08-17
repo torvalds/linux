@@ -986,6 +986,7 @@ struct amdgpu_device {
 
 	atomic_t			throttling_logging_enabled;
 	struct ratelimit_state		throttling_logging_rs;
+	uint32_t			ras_features;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
