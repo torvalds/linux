@@ -2391,6 +2391,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = arcturus_get_gpu_metrics,
+	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)
