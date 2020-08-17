@@ -270,6 +270,7 @@ static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
 					kfd_sdma_activity_worker);
 
 		sdma_activity_work_handler.pdd = pdd;
+		sdma_activity_work_handler.sdma_activity_counter = 0;
 
 		schedule_work(&sdma_activity_work_handler.sdma_activity_work);
 
