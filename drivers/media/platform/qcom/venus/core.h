@@ -146,7 +146,6 @@ struct venus_caps {
  * @enc_codecs:	encoders supported by this core
  * @dec_codecs:	decoders supported by this core
  * @max_sessions_supported:	holds the maximum number of sessions
- * @core_caps:	core capabilities
  * @priv:	a private filed for HFI operations
  * @ops:		the core HFI operations
  * @work:	a delayed work for handling system fatal error
@@ -192,11 +191,6 @@ struct venus_core {
 	unsigned long enc_codecs;
 	unsigned long dec_codecs;
 	unsigned int max_sessions_supported;
-#define ENC_ROTATION_CAPABILITY		0x1
-#define ENC_SCALING_CAPABILITY		0x2
-#define ENC_DEINTERLACE_CAPABILITY	0x4
-#define DEC_MULTI_STREAM_CAPABILITY	0x8
-	unsigned int core_caps;
 	void *priv;
 	const struct hfi_ops *ops;
 	struct delayed_work work;

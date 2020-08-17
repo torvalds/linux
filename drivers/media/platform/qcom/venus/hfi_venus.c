@@ -1602,9 +1602,6 @@ int venus_hfi_create(struct venus_core *core)
 	hdev->suspended = true;
 	core->priv = hdev;
 	core->ops = &venus_hfi_ops;
-	core->core_caps = ENC_ROTATION_CAPABILITY | ENC_SCALING_CAPABILITY |
-			  ENC_DEINTERLACE_CAPABILITY |
-			  DEC_MULTI_STREAM_CAPABILITY;
 
 	ret = venus_interface_queues_init(hdev);
 	if (ret)
