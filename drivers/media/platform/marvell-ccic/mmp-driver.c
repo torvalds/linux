@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/pm.h>
@@ -274,6 +275,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 out:
 	fwnode_handle_put(mcam->asd.match.fwnode);
@@ -288,6 +290,7 @@ static int mmpcam_remove(struct mmp_camera *cam)
 	struct mcam_camera *mcam = &cam->mcam;
 
 	mccic_shutdown(mcam);
+	pm_runtime_force_suspend(mcam->dev);
 	return 0;
 }
 
@@ -304,11 +307,40 @@ static int mmpcam_platform_remove(struct platform_device *pdev)
  * Suspend/resume support.
  */
 
+static int mmpcam_runtime_resume(struct device *dev)
+{
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+	struct mcam_camera *mcam = &cam->mcam;
+	unsigned int i;
+
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_prepare_enable(mcam->clk[i]);
+	}
+
+	return 0;
+}
+
+static int mmpcam_runtime_suspend(struct device *dev)
+{
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+	struct mcam_camera *mcam = &cam->mcam;
+	int i;
+
+	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_disable_unprepare(mcam->clk[i]);
+	}
+
+	return 0;
+}
+
 static int mmpcam_suspend(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 
-	mccic_suspend(&cam->mcam);
+	if (!pm_runtime_suspended(dev))
+		mccic_suspend(&cam->mcam);
 	return 0;
 }
 
@@ -316,10 +348,15 @@ static int mmpcam_resume(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 
-	return mccic_resume(&cam->mcam);
+	if (!pm_runtime_suspended(dev))
+		return mccic_resume(&cam->mcam);
+	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mmpcam_pm_ops, mmpcam_suspend, mmpcam_resume);
+static const struct dev_pm_ops mmpcam_pm_ops = {
+	SET_RUNTIME_PM_OPS(mmpcam_runtime_suspend, mmpcam_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(mmpcam_suspend, mmpcam_resume)
+};
 
 static const struct of_device_id mmpcam_of_match[] = {
 	{ .compatible = "marvell,mmp2-ccic", },

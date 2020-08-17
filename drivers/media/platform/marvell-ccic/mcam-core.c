@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/videodev2.h>
+#include <linux/pm_runtime.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -895,30 +896,6 @@ static void mcam_ctlr_power_down(struct mcam_camera *cam)
 
 /* ---------------------------------------------------------------------- */
 /*
- * Controller clocks.
- */
-static void mcam_clk_enable(struct mcam_camera *mcam)
-{
-	unsigned int i;
-
-	for (i = 0; i < NR_MCAM_CLK; i++) {
-		if (!IS_ERR(mcam->clk[i]))
-			clk_prepare_enable(mcam->clk[i]);
-	}
-}
-
-static void mcam_clk_disable(struct mcam_camera *mcam)
-{
-	int i;
-
-	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
-		if (!IS_ERR(mcam->clk[i]))
-			clk_disable_unprepare(mcam->clk[i]);
-	}
-}
-
-/* ---------------------------------------------------------------------- */
-/*
  * Master sensor clock.
  */
 static int mclk_prepare(struct clk_hw *hw)
@@ -1633,7 +1610,7 @@ static int mcam_v4l_open(struct file *filp)
 		ret = sensor_call(cam, core, s_power, 1);
 		if (ret)
 			goto out;
-		mcam_clk_enable(cam);
+		pm_runtime_get_sync(cam->dev);
 		__mcam_cam_reset(cam);
 		mcam_set_config_needed(cam, 1);
 	}
@@ -1656,7 +1633,7 @@ static int mcam_v4l_release(struct file *filp)
 	if (last_open) {
 		mcam_disable_mipi(cam);
 		sensor_call(cam, core, s_power, 0);
-		mcam_clk_disable(cam);
+		pm_runtime_put(cam->dev);
 		if (cam->buffer_mode == B_vmalloc && alloc_bufs_at_read)
 			mcam_free_dma_bufs(cam);
 	}
@@ -1977,7 +1954,6 @@ void mccic_suspend(struct mcam_camera *cam)
 
 		mcam_ctlr_stop_dma(cam);
 		sensor_call(cam, core, s_power, 0);
-		mcam_clk_disable(cam);
 		cam->state = cstate;
 	}
 	mutex_unlock(&cam->s_mutex);
@@ -1990,7 +1966,6 @@ int mccic_resume(struct mcam_camera *cam)
 
 	mutex_lock(&cam->s_mutex);
 	if (!list_empty(&cam->vdev.fh_list)) {
-		mcam_clk_enable(cam);
 		ret = sensor_call(cam, core, s_power, 1);
 		if (ret) {
 			mutex_unlock(&cam->s_mutex);
