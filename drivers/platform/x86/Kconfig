@@ -1327,13 +1327,6 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
-config INTEL_MFLD_THERMAL
-       tristate "Thermal driver for Intel Medfield platform"
-       depends on MFD_INTEL_MSIC && THERMAL
-       help
-         Say Y here to enable thermal driver support for the  Intel Medfield
-         platform.
-
 config INTEL_MID_POWER_BUTTON
 	tristate "power button driver for Intel MID platforms"
 	depends on INTEL_SCU && INPUT
