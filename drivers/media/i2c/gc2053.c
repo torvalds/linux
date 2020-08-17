@@ -118,6 +118,7 @@ struct gc2053 {
 	struct clk      *xvclk;
 	struct gpio_desc    *reset_gpio;
 	struct gpio_desc    *pwdn_gpio;
+	struct gpio_desc    *power_gpio;
 	struct regulator_bulk_data supplies[GC2053_NUM_SUPPLIES];
 
 	struct pinctrl      	*pinctrl;
@@ -726,17 +727,20 @@ static int __gc2053_power_on(struct gc2053 *gc2053)
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
-
-	if (!IS_ERR(gc2053->reset_gpio))
+	if (!IS_ERR(gc2053->power_gpio)) {
+		gpiod_set_value_cansleep(gc2053->power_gpio, 1);
+		usleep_range(100, 200);
+	}
+	if (!IS_ERR(gc2053->reset_gpio)) {
 		gpiod_set_value_cansleep(gc2053->reset_gpio, 1);
-
-	usleep_range(1000, 2000);
+		usleep_range(100, 200);
+	}
 	if (!IS_ERR(gc2053->pwdn_gpio))
 		gpiod_set_value_cansleep(gc2053->pwdn_gpio, 0);
 
 	if (!IS_ERR(gc2053->reset_gpio))
 		gpiod_set_value_cansleep(gc2053->reset_gpio, 0);
-
+	usleep_range(3000, 6000);
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = gc2053_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
@@ -765,6 +769,8 @@ static void __gc2053_power_off(struct gc2053 *gc2053)
 		if (ret < 0)
 			dev_dbg(dev, "could not set pins\n");
 	}
+	if (!IS_ERR(gc2053->power_gpio))
+		gpiod_set_value_cansleep(gc2053->power_gpio, 0);
 	regulator_bulk_disable(GC2053_NUM_SUPPLIES, gc2053->supplies);
 }
 
@@ -1326,6 +1332,10 @@ static int gc2053_probe(struct i2c_client *client,
 	gc2053->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(gc2053->pwdn_gpio))
 		dev_info(dev, "Failed to get pwdn-gpios, maybe no used\n");
+
+	gc2053->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(gc2053->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios\n");
 
 	ret = gc2053_configure_regulators(gc2053);
 	if (ret) {
