@@ -36,15 +36,17 @@ struct hi6421_spmi_pmic {
 	int					irq;
 	int					gpio;
 	unsigned int				*irqs;
+
 	int					irqnum;
 	int					irqarray;
-	struct hi6421_spmi_irq_mask_info	irq_mask_addr;
-	struct hi6421_spmi_irq_info		irq_addr;
+	int					irq_mask_addr;
+	int					irq_addr;
 };
 
-u32 hi6421_spmi_pmic_read(struct hi6421_spmi_pmic *pmic, int reg);
-void hi6421_spmi_pmic_write(struct hi6421_spmi_pmic *pmic, int reg, u32 val);
-void hi6421_spmi_pmic_rmw(struct hi6421_spmi_pmic *pmic, int reg, u32 mask, u32 bits);
+int hi6421_spmi_pmic_read(struct hi6421_spmi_pmic *pmic, int reg);
+int hi6421_spmi_pmic_write(struct hi6421_spmi_pmic *pmic, int reg, u32 val);
+int hi6421_spmi_pmic_rmw(struct hi6421_spmi_pmic *pmic, int reg,
+			 u32 mask, u32 bits);
 
 enum hi6421_spmi_pmic_irq_list {
 	OTMP = 0,
