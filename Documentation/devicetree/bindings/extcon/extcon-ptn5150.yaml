@@ -32,13 +32,13 @@ properties:
 
   vbus-gpios:
     description:
-      GPIO pin (output) used to control VBUS.
+      GPIO pin (output) used to control VBUS. If skipped, no such control
+      takes place.
 
 required:
   - compatible
   - interrupts
   - reg
-  - vbus-gpios
 
 additionalProperties: false
 
