@@ -597,6 +597,7 @@ struct pptable_funcs {
 	ssize_t (*get_gpu_metrics)(struct smu_context *smu, void **table);
 	int (*enable_mgpu_fan_boost)(struct smu_context *smu);
 	int (*gfx_ulv_control)(struct smu_context *smu, bool enablement);
+	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
 };
 
 typedef enum {
