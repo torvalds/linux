@@ -616,6 +616,27 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
+static int renoir_get_vddc(struct smu_context *smu, uint32_t *value,
+			   unsigned int index)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (index >= 2)
+		return -EINVAL;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.Voltage[index];
+
+	return 0;
+}
+
 /**
  * This interface get dpm clock table for dc
  */
@@ -950,6 +971,14 @@ static int renoir_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		ret = renoir_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
 		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		ret = renoir_get_vddc(smu, (uint32_t *)data, 0);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDNB:
+		ret = renoir_get_vddc(smu, (uint32_t *)data, 1);
 		*size = 4;
 		break;
 	default:
