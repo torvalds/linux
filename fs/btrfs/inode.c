@@ -3055,7 +3055,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 		if (ret == -ENOENT && root == fs_info->tree_root) {
 			struct btrfs_root *dead_root;
-			struct btrfs_fs_info *fs_info = root->fs_info;
 			int is_dead_root = 0;
 
 			/*
