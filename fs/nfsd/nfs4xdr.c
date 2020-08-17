@@ -4828,7 +4828,7 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 		slen = strlen(sp);
 
 		/*
-		 * Check if this a user. attribute, skip it if not.
+		 * Check if this is a "user." attribute, skip it if not.
 		 */
 		if (strncmp(sp, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
 			goto contloop;
