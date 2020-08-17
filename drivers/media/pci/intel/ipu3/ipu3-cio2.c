@@ -847,7 +847,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	unsigned int lops = DIV_ROUND_UP(pages + 1, entries_per_page);
 	struct sg_table *sg;
 	struct sg_dma_page_iter sg_iter;
-	int i, j;
+	unsigned int i, j;
 
 	if (lops <= 0 || lops > CIO2_MAX_LOPS) {
 		dev_err(dev, "%s: bad buffer size (%i)\n", __func__,
@@ -887,7 +887,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	b->lop[i][j] = cio2->dummy_page_bus_addr >> PAGE_SHIFT;
 	return 0;
 fail:
-	for (i--; i >= 0; i--)
+	while (i--)
 		dma_free_coherent(dev, CIO2_PAGE_SIZE,
 				  b->lop[i], b->lop_bus_addr[i]);
 	return -ENOMEM;
