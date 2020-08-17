@@ -7,8 +7,6 @@
 #include "debug.h"
 #include "hif.h"
 
-#define host_ce_config_wlan ab->hw_params.host_ce_config
-
 const struct ce_attr ath11k_host_ce_config_ipq8074[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
@@ -471,19 +469,19 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 
 	switch (type) {
 	case HAL_CE_SRC:
-		if (!(CE_ATTR_DIS_INTR & host_ce_config_wlan[ce_id].flags))
+		if (!(CE_ATTR_DIS_INTR & ab->hw_params.host_ce_config[ce_id].flags))
 			params.intr_batch_cntr_thres_entries = 1;
 		break;
 	case HAL_CE_DST:
-		params.max_buffer_len = host_ce_config_wlan[ce_id].src_sz_max;
-		if (!(host_ce_config_wlan[ce_id].flags & CE_ATTR_DIS_INTR)) {
+		params.max_buffer_len = ab->hw_params.host_ce_config[ce_id].src_sz_max;
+		if (!(ab->hw_params.host_ce_config[ce_id].flags & CE_ATTR_DIS_INTR)) {
 			params.intr_timer_thres_us = 1024;
 			params.flags |= HAL_SRNG_FLAGS_LOW_THRESH_INTR_EN;
 			params.low_threshold = ce_ring->nentries - 3;
 		}
 		break;
 	case HAL_CE_DST_STATUS:
-		if (!(host_ce_config_wlan[ce_id].flags & CE_ATTR_DIS_INTR)) {
+		if (!(ab->hw_params.host_ce_config[ce_id].flags & CE_ATTR_DIS_INTR)) {
 			params.intr_batch_cntr_thres_entries = 1;
 			params.intr_timer_thres_us = 0x1000;
 		}
@@ -502,7 +500,7 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 		return ret;
 	}
 
-	if (!(CE_ATTR_DIS_INTR & host_ce_config_wlan[ce_id].flags))
+	if (!(CE_ATTR_DIS_INTR & ab->hw_params.host_ce_config[ce_id].flags))
 		ath11k_ce_srng_msi_ring_params_setup(ab, ce_id, &params);
 
 	ce_ring->hal_ring_id = ret;
@@ -550,7 +548,7 @@ ath11k_ce_alloc_ring(struct ath11k_base *ab, int nentries, int desc_sz)
 static int ath11k_ce_alloc_pipe(struct ath11k_base *ab, int ce_id)
 {
 	struct ath11k_ce_pipe *pipe = &ab->ce.ce_pipe[ce_id];
-	const struct ce_attr *attr = &host_ce_config_wlan[ce_id];
+	const struct ce_attr *attr = &ab->hw_params.host_ce_config[ce_id];
 	struct ath11k_ce_ring *ring;
 	int nentries;
 	int desc_sz;
@@ -877,7 +875,7 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab)
 	spin_lock_init(&ab->ce.ce_lock);
 
 	for (i = 0; i < CE_COUNT; i++) {
-		attr = &host_ce_config_wlan[i];
+		attr = &ab->hw_params.host_ce_config[i];
 		pipe = &ab->ce.ce_pipe[i];
 		pipe->pipe_num = i;
 		pipe->ab = ab;
@@ -919,6 +917,6 @@ int ath11k_ce_get_attr_flags(struct ath11k_base *ab, int ce_id)
 	if (ce_id >= CE_COUNT)
 		return -EINVAL;
 
-	return host_ce_config_wlan[ce_id].flags;
+	return ab->hw_params.host_ce_config[ce_id].flags;
 }
 EXPORT_SYMBOL(ath11k_ce_get_attr_flags);
