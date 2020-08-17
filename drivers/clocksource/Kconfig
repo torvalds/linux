@@ -653,9 +653,8 @@ config ATCPIT100_TIMER
 	  This option enables support for the Andestech ATCPIT100 timers.
 
 config RISCV_TIMER
-	bool "Timer for the RISC-V platform"
+	bool "Timer for the RISC-V platform" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && RISCV
-	default y
 	select TIMER_PROBE
 	select TIMER_OF
 	help

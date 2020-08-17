@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/irq_work.h>
 
-#include <asm/clint.h>
 #include <asm/sbi.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
