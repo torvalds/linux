@@ -19,8 +19,13 @@ properties:
     const: nxp,ptn5150
 
   int-gpios:
+    deprecated: true
     description:
       GPIO pin (input) connected to the PTN5150's INTB pin.
+      Use "interrupts" instead.
+
+  interrupts:
+    maxItems: 1
 
   reg:
     maxItems: 1
@@ -31,7 +36,7 @@ properties:
 
 required:
   - compatible
-  - int-gpios
+  - interrupts
   - reg
   - vbus-gpios
 
@@ -40,6 +45,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -47,7 +53,8 @@ examples:
         ptn5150@1d {
             compatible = "nxp,ptn5150";
             reg = <0x1d>;
-            int-gpios = <&msmgpio 78 GPIO_ACTIVE_HIGH>;
+            interrupt-parent = <&msmgpio>;
+            interrupts = <78 IRQ_TYPE_LEVEL_HIGH>;
             vbus-gpios = <&msmgpio 148 GPIO_ACTIVE_HIGH>;
         };
     };
