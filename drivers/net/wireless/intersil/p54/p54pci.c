@@ -278,10 +278,10 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	}
 }
 
-static void p54p_tasklet(unsigned long dev_id)
+static void p54p_tasklet(struct tasklet_struct *t)
 {
-	struct ieee80211_hw *dev = (struct ieee80211_hw *)dev_id;
-	struct p54p_priv *priv = dev->priv;
+	struct p54p_priv *priv = from_tasklet(priv, t, tasklet);
+	struct ieee80211_hw *dev = pci_get_drvdata(priv->pdev);
 	struct p54p_ring_control *ring_control = priv->ring_control;
 
 	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
@@ -620,7 +620,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	priv->common.tx = p54p_tx;
 
 	spin_lock_init(&priv->lock);
-	tasklet_init(&priv->tasklet, p54p_tasklet, (unsigned long)dev);
+	tasklet_setup(&priv->tasklet, p54p_tasklet);
 
 	err = request_firmware_nowait(THIS_MODULE, 1, "isl3886pci",
 				      &priv->pdev->dev, GFP_KERNEL,

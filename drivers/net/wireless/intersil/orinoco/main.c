@@ -1062,9 +1062,9 @@ static void orinoco_rx(struct net_device *dev,
 	stats->rx_dropped++;
 }
 
-static void orinoco_rx_isr_tasklet(unsigned long data)
+static void orinoco_rx_isr_tasklet(struct tasklet_struct *t)
 {
-	struct orinoco_private *priv = (struct orinoco_private *) data;
+	struct orinoco_private *priv = from_tasklet(priv, t, rx_tasklet);
 	struct net_device *dev = priv->ndev;
 	struct orinoco_rx_data *rx_data, *temp;
 	struct hermes_rx_descriptor *desc;
@@ -2198,8 +2198,7 @@ struct orinoco_private
 	INIT_WORK(&priv->wevent_work, orinoco_send_wevents);
 
 	INIT_LIST_HEAD(&priv->rx_list);
-	tasklet_init(&priv->rx_tasklet, orinoco_rx_isr_tasklet,
-		     (unsigned long) priv);
+	tasklet_setup(&priv->rx_tasklet, orinoco_rx_isr_tasklet);
 
 	spin_lock_init(&priv->scan_lock);
 	INIT_LIST_HEAD(&priv->scan_list);
