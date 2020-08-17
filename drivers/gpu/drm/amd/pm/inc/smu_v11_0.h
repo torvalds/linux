@@ -277,5 +277,8 @@ void smu_v11_0_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics);
 int smu_v11_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
 
+int smu_v11_0_deep_sleep_control(struct smu_context *smu,
+				 bool enablement);
+
 #endif
 #endif
