@@ -1302,7 +1302,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 }
 
 /**
- * amdgpu_bo_move_notify - notification about a BO being released
+ * amdgpu_bo_release_notify - notification about a BO being released
  * @bo: pointer to a buffer object
  *
  * Wipes VRAM buffers whose contents should not be leaked before the
