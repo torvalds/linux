@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2017 Intel Corporation
+ * Copyright (C) 2017,2020 Intel Corporation
  *
  * Based partially on Intel IPU4 driver written by
  *  Sakari Ailus <sakari.ailus@linux.intel.com>
@@ -9,7 +9,6 @@
  *  Jouni Ukkonen <jouni.ukkonen@intel.com>
  *  Antti Laakso <antti.laakso@intel.com>
  * et al.
- *
  */
 
 #include <linux/delay.h>
@@ -292,7 +291,7 @@ static int cio2_csi2_calc_timing(struct cio2_device *cio2, struct cio2_queue *q,
 				 struct cio2_csi2_timing *timing)
 {
 	struct device *dev = &cio2->pci_dev->dev;
-	struct v4l2_querymenu qm = {.id = V4L2_CID_LINK_FREQ, };
+	struct v4l2_querymenu qm = { .id = V4L2_CID_LINK_FREQ };
 	struct v4l2_ctrl *link_freq;
 	s64 freq;
 	int r;
@@ -864,7 +863,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 		b->offset = sg->sgl->offset;
 
 	i = j = 0;
-	for_each_sg_dma_page (sg->sgl, &sg_iter, sg->nents, 0) {
+	for_each_sg_dma_page(sg->sgl, &sg_iter, sg->nents, 0) {
 		if (!pages--)
 			break;
 		b->lop[i][j] = PFN_DOWN(sg_page_iter_dma_address(&sg_iter));
