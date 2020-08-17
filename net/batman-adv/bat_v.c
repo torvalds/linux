@@ -13,7 +13,6 @@
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/minmax.h>
@@ -686,13 +685,6 @@ static ssize_t batadv_v_store_sel_class(struct batadv_priv *bat_priv,
 	return count;
 }
 
-static ssize_t batadv_v_show_sel_class(struct batadv_priv *bat_priv, char *buff)
-{
-	u32 class = atomic_read(&bat_priv->gw.sel_class);
-
-	return sprintf(buff, "%u.%u MBit\n", class / 10, class % 10);
-}
-
 /**
  * batadv_v_gw_throughput_get() - retrieve the GW-bandwidth for a given GW
  * @gw_node: the GW to retrieve the metric for
@@ -1061,7 +1053,6 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.gw = {
 		.init_sel_class = batadv_v_init_sel_class,
 		.store_sel_class = batadv_v_store_sel_class,
-		.show_sel_class = batadv_v_show_sel_class,
 		.get_best_gw_node = batadv_v_gw_get_best_gw_node,
 		.is_eligible = batadv_v_gw_is_eligible,
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS

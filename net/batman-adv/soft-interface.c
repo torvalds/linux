@@ -30,7 +30,6 @@
 #include <linux/random.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
@@ -52,7 +51,6 @@
 #include "network-coding.h"
 #include "originator.h"
 #include "send.h"
-#include "sysfs.h"
 #include "translation-table.h"
 
 /**
@@ -575,7 +573,6 @@ struct batadv_softif_vlan *batadv_softif_vlan_get(struct batadv_priv *bat_priv,
 int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 {
 	struct batadv_softif_vlan *vlan;
-	int err;
 
 	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
 
@@ -601,19 +598,6 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 	kref_get(&vlan->refcount);
 	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
 	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
-
-	/* batadv_sysfs_add_vlan cannot be in the spinlock section due to the
-	 * sleeping behavior of the sysfs functions and the fs_reclaim lock
-	 */
-	err = batadv_sysfs_add_vlan(bat_priv->soft_iface, vlan);
-	if (err) {
-		/* ref for the function */
-		batadv_softif_vlan_put(vlan);
-
-		/* ref for the list */
-		batadv_softif_vlan_put(vlan);
-		return err;
-	}
 
 	/* add a new TT local entry. This one will be marked with the NOPURGE
 	 * flag
@@ -642,7 +626,6 @@ static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
 	batadv_tt_local_remove(bat_priv, bat_priv->soft_iface->dev_addr,
 			       vlan->vid, "vlan interface destroyed", false);
 
-	batadv_sysfs_del_vlan(bat_priv, vlan);
 	batadv_softif_vlan_put(vlan);
 }
 
@@ -662,7 +645,6 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_softif_vlan *vlan;
-	int ret;
 
 	/* only 802.1Q vlans are supported.
 	 * batman-adv does not know how to handle other types
@@ -681,17 +663,6 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
 	if (!vlan)
 		return batadv_softif_create_vlan(bat_priv, vid);
-
-	/* recreate the sysfs object if it was already destroyed (and it should
-	 * be since we received a kill_vid() for this vlan
-	 */
-	if (!vlan->kobj) {
-		ret = batadv_sysfs_add_vlan(bat_priv->soft_iface, vlan);
-		if (ret) {
-			batadv_softif_vlan_put(vlan);
-			return ret;
-		}
-	}
 
 	/* add a new TT local entry. This one will be marked with the NOPURGE
 	 * flag. This must be added again, even if the vlan object already
@@ -1162,28 +1133,6 @@ struct net_device *batadv_softif_create(struct net *net, const char *name)
 }
 
 /**
- * batadv_softif_destroy_sysfs() - deletion of batadv_soft_interface via sysfs
- * @soft_iface: the to-be-removed batman-adv interface
- */
-void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
-{
-	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
-	struct batadv_softif_vlan *vlan;
-
-	ASSERT_RTNL();
-
-	/* destroy the "untagged" VLAN */
-	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
-	if (vlan) {
-		batadv_softif_destroy_vlan(bat_priv, vlan);
-		batadv_softif_vlan_put(vlan);
-	}
-
-	batadv_sysfs_del_meshif(soft_iface);
-	unregister_netdevice(soft_iface);
-}
-
-/**
  * batadv_softif_destroy_netlink() - deletion of batadv_soft_interface via
  *  netlink
  * @soft_iface: the to-be-removed batman-adv interface
@@ -1209,7 +1158,6 @@ static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
 		batadv_softif_vlan_put(vlan);
 	}
 
-	batadv_sysfs_del_meshif(soft_iface);
 	unregister_netdevice_queue(soft_iface, head);
 }
 

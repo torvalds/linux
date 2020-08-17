@@ -187,9 +187,6 @@ struct batadv_hard_iface {
 	/** @net_dev: pointer to the net_device */
 	struct net_device *net_dev;
 
-	/** @hardif_obj: kobject of the per interface sysfs "mesh" directory */
-	struct kobject *hardif_obj;
-
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
 
@@ -1512,9 +1509,6 @@ struct batadv_softif_vlan {
 	/** @vid: VLAN identifier */
 	unsigned short vid;
 
-	/** @kobj: kobject for sysfs vlan subdirectory */
-	struct kobject *kobj;
-
 	/** @ap_isolation: AP isolation state */
 	atomic_t ap_isolation;		/* boolean */
 
@@ -1666,9 +1660,6 @@ struct batadv_priv {
 
 	/** @batman_queue_left: number of remaining OGM packet slots */
 	atomic_t batman_queue_left;
-
-	/** @mesh_obj: kobject for sysfs mesh subdirectory */
-	struct kobject *mesh_obj;
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @debug_dir: dentry for debugfs batman-adv subdirectory */
@@ -2274,10 +2265,6 @@ struct batadv_algo_gw_ops {
 	 */
 	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
 				   size_t count);
-
-	/** @show_sel_class: prints the current GW selection class (optional) */
-	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);
-
 	/**
 	 * @get_best_gw_node: select the best GW from the list of available
 	 *  nodes (optional)
@@ -2454,23 +2441,6 @@ enum batadv_tvlv_handler_flags {
 	 *  BATADV_TVLV_HANDLER_OGM_CIFNOTFND flag was set
 	 */
 	BATADV_TVLV_HANDLER_OGM_CALLED = BIT(2),
-};
-
-/**
- * struct batadv_store_mesh_work - Work queue item to detach add/del interface
- *  from sysfs locks
- */
-struct batadv_store_mesh_work {
-	/**
-	 * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
-	 */
-	struct net_device *net_dev;
-
-	/** @soft_iface_name: name of soft-interface to modify */
-	char soft_iface_name[IFNAMSIZ];
-
-	/** @work: work queue item */
-	struct work_struct work;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

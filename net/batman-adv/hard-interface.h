@@ -42,12 +42,6 @@ enum batadv_hard_if_state {
 
 	/** @BATADV_IF_TO_BE_ACTIVATED: interface is getting activated */
 	BATADV_IF_TO_BE_ACTIVATED,
-
-	/**
-	 * @BATADV_IF_I_WANT_YOU: interface is queued up (using sysfs) for being
-	 * added as slave interface of a batman-adv soft interface
-	 */
-	BATADV_IF_I_WANT_YOU,
 };
 
 /**

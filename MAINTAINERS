@@ -3120,8 +3120,6 @@ Q:	https://patchwork.open-mesh.org/project/batman/list/
 B:	https://www.open-mesh.org/projects/batman-adv/issues
 C:	irc://chat.freenode.net/batman
 T:	git https://git.open-mesh.org/linux-merge.git
-F:	Documentation/ABI/obsolete/sysfs-class-net-batman-adv
-F:	Documentation/ABI/obsolete/sysfs-class-net-mesh
 F:	Documentation/networking/batman-adv.rst
 F:	include/uapi/linux/batadv_packet.h
 F:	include/uapi/linux/batman_adv.h

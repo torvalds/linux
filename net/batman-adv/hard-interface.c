@@ -39,7 +39,6 @@
 #include "originator.h"
 #include "send.h"
 #include "soft-interface.h"
-#include "sysfs.h"
 #include "translation-table.h"
 
 /**
@@ -889,12 +888,8 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 	batadv_hardif_recalc_extra_skbroom(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */
-	if (batadv_hardif_cnt(hard_iface->soft_iface) <= 1) {
+	if (batadv_hardif_cnt(hard_iface->soft_iface) <= 1)
 		batadv_gw_check_client_stop(bat_priv);
-
-		if (autodel == BATADV_IF_CLEANUP_AUTO)
-			batadv_softif_destroy_sysfs(hard_iface->soft_iface);
-	}
 
 	hard_iface->soft_iface = NULL;
 	batadv_hardif_put(hard_iface);
@@ -908,7 +903,6 @@ static struct batadv_hard_iface *
 batadv_hardif_add_interface(struct net_device *net_dev)
 {
 	struct batadv_hard_iface *hard_iface;
-	int ret;
 
 	ASSERT_RTNL();
 
@@ -920,10 +914,6 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface = kzalloc(sizeof(*hard_iface), GFP_ATOMIC);
 	if (!hard_iface)
 		goto release_dev;
-
-	ret = batadv_sysfs_add_hardif(&hard_iface->hardif_obj, net_dev);
-	if (ret)
-		goto free_if;
 
 	hard_iface->net_dev = net_dev;
 	hard_iface->soft_iface = NULL;
@@ -954,8 +944,6 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	return hard_iface;
 
-free_if:
-	kfree(hard_iface);
 release_dev:
 	dev_put(net_dev);
 out:
@@ -976,7 +964,6 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
 	batadv_debugfs_del_hardif(hard_iface);
-	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	batadv_hardif_put(hard_iface);
 }
 
@@ -994,7 +981,6 @@ static int batadv_hard_if_event_softif(unsigned long event,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		batadv_sysfs_add_meshif(net_dev);
 		bat_priv = netdev_priv(net_dev);
 		batadv_softif_create_vlan(bat_priv, BATADV_NO_FLAGS);
 		break;
