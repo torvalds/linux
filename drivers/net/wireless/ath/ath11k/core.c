@@ -40,6 +40,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.rxdma1_enable = true,
 		.num_rxmda_per_pdev = 1,
 		.rx_mac_buf_ring = false,
+		.vdev_start_delay = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -62,6 +63,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.rxdma1_enable = false,
 		.num_rxmda_per_pdev = 2,
 		.rx_mac_buf_ring = true,
+		.vdev_start_delay = true,
 	},
 };
 

@@ -217,6 +217,7 @@ struct ath11k_vif {
 	int txpower;
 	bool rsnie_present;
 	bool wpaie_present;
+	struct ieee80211_chanctx_conf chanctx;
 };
 
 struct ath11k_vif_iter {
