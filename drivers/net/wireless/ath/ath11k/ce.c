@@ -467,6 +467,9 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 	params.ring_base_vaddr = ce_ring->base_addr_owner_space;
 	params.num_entries = ce_ring->nentries;
 
+	if (!(CE_ATTR_DIS_INTR & ab->hw_params.host_ce_config[ce_id].flags))
+		ath11k_ce_srng_msi_ring_params_setup(ab, ce_id, &params);
+
 	switch (type) {
 	case HAL_CE_SRC:
 		if (!(CE_ATTR_DIS_INTR & ab->hw_params.host_ce_config[ce_id].flags))
@@ -499,9 +502,6 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 			    ret, ce_id);
 		return ret;
 	}
-
-	if (!(CE_ATTR_DIS_INTR & ab->hw_params.host_ce_config[ce_id].flags))
-		ath11k_ce_srng_msi_ring_params_setup(ab, ce_id, &params);
 
 	ce_ring->hal_ring_id = ret;
 
