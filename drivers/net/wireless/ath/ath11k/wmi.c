@@ -5463,7 +5463,12 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 	pdev_idx = reg_info->phy_id;
 
 	if (pdev_idx >= ab->num_radios) {
-		if (ab->hw_params.single_pdev_only)
+		/* Process the event for phy0 only if single_pdev_only
+		 * is true. If pdev_idx is valid but not 0, discard the
+		 * event. Otherwise, it goes to fallback.
+		 */
+		if (ab->hw_params.single_pdev_only &&
+		    pdev_idx < ab->hw_params.num_rxmda_per_pdev)
 			goto mem_free;
 		else
 			goto fallback;
