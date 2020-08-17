@@ -229,6 +229,8 @@ void enable_kernel_fp(void)
 	}
 }
 EXPORT_SYMBOL(enable_kernel_fp);
+#else
+static inline void __giveup_fpu(struct task_struct *tsk) { }
 #endif /* CONFIG_PPC_FPU */
 
 #ifdef CONFIG_ALTIVEC
@@ -406,9 +408,8 @@ static unsigned long msr_all_available;
 
 static int __init init_msr_all_available(void)
 {
-#ifdef CONFIG_PPC_FPU
-	msr_all_available |= MSR_FP;
-#endif
+	if (IS_ENABLED(CONFIG_PPC_FPU))
+		msr_all_available |= MSR_FP;
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		msr_all_available |= MSR_VEC;
 	if (cpu_has_feature(CPU_FTR_VSX))
@@ -438,10 +439,8 @@ void giveup_all(struct task_struct *tsk)
 
 	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
 
-#ifdef CONFIG_PPC_FPU
 	if (usermsr & MSR_FP)
 		__giveup_fpu(tsk);
-#endif
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
 	if (usermsr & MSR_SPE)
