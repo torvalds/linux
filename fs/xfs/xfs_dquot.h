@@ -237,4 +237,6 @@ typedef int (*xfs_qm_dqiterate_fn)(struct xfs_dquot *dq,
 int xfs_qm_dqiterate(struct xfs_mount *mp, xfs_dqtype_t type,
 		xfs_qm_dqiterate_fn iter_fn, void *priv);
 
+time64_t xfs_dquot_set_timeout(struct xfs_mount *mp, time64_t timeout);
+
 #endif /* __XFS_DQUOT_H__ */

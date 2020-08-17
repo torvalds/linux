@@ -661,6 +661,8 @@ xfs_qm_init_quotainfo(
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
 	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(qinf->qi_dqchunklen);
+	qinf->qi_expiry_min = XFS_DQ_LEGACY_EXPIRY_MIN;
+	qinf->qi_expiry_max = XFS_DQ_LEGACY_EXPIRY_MAX;
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 
