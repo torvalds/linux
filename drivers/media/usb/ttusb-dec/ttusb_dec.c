@@ -769,9 +769,9 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 	}
 }
 
-static void ttusb_dec_process_urb_frame_list(unsigned long data)
+static void ttusb_dec_process_urb_frame_list(struct tasklet_struct *t)
 {
-	struct ttusb_dec *dec = (struct ttusb_dec *)data;
+	struct ttusb_dec *dec = from_tasklet(dec, t, urb_tasklet);
 	struct list_head *item;
 	struct urb_frame *frame;
 	unsigned long flags;
@@ -1209,8 +1209,7 @@ static void ttusb_dec_init_tasklet(struct ttusb_dec *dec)
 {
 	spin_lock_init(&dec->urb_frame_list_lock);
 	INIT_LIST_HEAD(&dec->urb_frame_list);
-	tasklet_init(&dec->urb_tasklet, ttusb_dec_process_urb_frame_list,
-		     (unsigned long)dec);
+	tasklet_setup(&dec->urb_tasklet, ttusb_dec_process_urb_frame_list);
 }
 
 static int ttusb_init_rc( struct ttusb_dec *dec)
