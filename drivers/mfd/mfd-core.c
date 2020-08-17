@@ -370,8 +370,6 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
 
-	kfree(cell);
-
 	platform_device_unregister(pdev);
 	return 0;
 }
