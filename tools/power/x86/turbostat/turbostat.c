@@ -2286,6 +2286,7 @@ int has_turbo_ratio_group_limits(int family, int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
+	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
 	}
 	return 0;
@@ -3534,6 +3535,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
 	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
+	case INTEL_FAM6_ATOM_TREMONT_D: /* JVL */
 		pkg_cstate_limits = glm_pkg_cstate_limits;
 		break;
 	default:
@@ -3612,6 +3614,17 @@ int is_ehl(unsigned int family, unsigned int model)
 
 	switch (model) {
 	case INTEL_FAM6_ATOM_TREMONT:
+		return 1;
+	}
+	return 0;
+}
+int is_jvl(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
 	}
 	return 0;
@@ -4227,6 +4240,14 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 			BIC_PRESENT(BIC_GFXWatt);
 		}
 		break;
+	case INTEL_FAM6_ATOM_TREMONT_D:	/* JVL */
+		do_rapl = RAPL_PKG | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
+		BIC_PRESENT(BIC_PKG__);
+		if (rapl_joules)
+			BIC_PRESENT(BIC_Pkg_J);
+		else
+			BIC_PRESENT(BIC_PkgWatt);
+		break;
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_GFX | RAPL_PKG_POWER_INFO;
@@ -4629,6 +4650,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
 	case INTEL_FAM6_ATOM_TREMONT:		/* EHL */
+	case INTEL_FAM6_ATOM_TREMONT_D:		/* JVL */
 		return 1;
 	}
 	return 0;
@@ -4958,9 +4980,6 @@ unsigned int intel_model_duplicates(unsigned int model)
 	case INTEL_FAM6_ALDERLAKE:
 		return INTEL_FAM6_CANNONLAKE_L;
 
-	case INTEL_FAM6_ATOM_TREMONT_D:
-		return INTEL_FAM6_ATOM_GOLDMONT_D;
-
 	case INTEL_FAM6_ATOM_TREMONT_L:
 		return INTEL_FAM6_ATOM_TREMONT;
 
@@ -5213,6 +5232,14 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		BIC_PRESENT(BIC_Mod_c6);
 		use_c1_residency_msr = 1;
+	}
+	if (is_jvl(family, model)) {
+		BIC_NOT_PRESENT(BIC_CPU_c3);
+		BIC_NOT_PRESENT(BIC_CPU_c7);
+		BIC_NOT_PRESENT(BIC_Pkgpc2);
+		BIC_NOT_PRESENT(BIC_Pkgpc3);
+		BIC_NOT_PRESENT(BIC_Pkgpc6);
+		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
 	if (is_dnv(family, model)) {
 		BIC_PRESENT(BIC_CPU_c1);
