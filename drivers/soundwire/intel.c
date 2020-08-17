@@ -1434,6 +1434,12 @@ static int intel_suspend(struct device *dev)
 		return 0;
 	}
 
+	if (pm_runtime_suspended(dev)) {
+		dev_dbg(dev, "%s: pm_runtime status: suspended\n", __func__);
+
+		return 0;
+	}
+
 	ret = sdw_cdns_enable_interrupt(cdns, false);
 	if (ret < 0) {
 		dev_err(dev, "cannot disable interrupts on suspend\n");
@@ -1492,6 +1498,16 @@ static int intel_resume(struct device *dev)
 		dev_dbg(dev, "SoundWire master %d is disabled, ignoring\n",
 			bus->link_id);
 		return 0;
+	}
+
+	if (pm_runtime_suspended(dev)) {
+		dev_dbg(dev, "%s: pm_runtime status was suspended, forcing active\n", __func__);
+
+		/* follow required sequence from runtime_pm.rst */
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_enable(dev);
 	}
 
 	ret = intel_init(sdw);
