@@ -540,7 +540,7 @@ static void cio2_buffer_done(struct cio2_device *cio2, unsigned int dma_chan)
 {
 	struct device *dev = &cio2->pci_dev->dev;
 	struct cio2_queue *q = cio2->cur_queue;
-	int buffers_found = 0;
+	struct cio2_fbpt_entry *entry;
 	u64 ns = ktime_get_ns();
 
 	if (dma_chan >= CIO2_QUEUES) {
@@ -548,14 +548,17 @@ static void cio2_buffer_done(struct cio2_device *cio2, unsigned int dma_chan)
 		return;
 	}
 
+	entry = &q->fbpt[q->bufs_first * CIO2_MAX_LOPS];
+	if (entry->first_entry.ctrl & CIO2_FBPT_CTRL_VALID) {
+		dev_warn(&cio2->pci_dev->dev,
+			 "no ready buffers found on DMA channel %u\n",
+			 dma_chan);
+		return;
+	}
+
 	/* Find out which buffer(s) are ready */
 	do {
-		struct cio2_fbpt_entry *const entry =
-			&q->fbpt[q->bufs_first * CIO2_MAX_LOPS];
 		struct cio2_buffer *b;
-
-		if (entry->first_entry.ctrl & CIO2_FBPT_CTRL_VALID)
-			break;
 
 		b = q->bufs[q->bufs_first];
 		if (b) {
@@ -578,13 +581,8 @@ static void cio2_buffer_done(struct cio2_device *cio2, unsigned int dma_chan)
 		atomic_inc(&q->frame_sequence);
 		cio2_fbpt_entry_init_dummy(cio2, entry);
 		q->bufs_first = (q->bufs_first + 1) % CIO2_MAX_BUFFERS;
-		buffers_found++;
-	} while (1);
-
-	if (buffers_found == 0)
-		dev_warn(&cio2->pci_dev->dev,
-			 "no ready buffers found on DMA channel %u\n",
-			 dma_chan);
+		entry = &q->fbpt[q->bufs_first * CIO2_MAX_LOPS];
+	} while (!(entry->first_entry.ctrl & CIO2_FBPT_CTRL_VALID));
 }
 
 static void cio2_queue_event_sof(struct cio2_device *cio2, struct cio2_queue *q)
