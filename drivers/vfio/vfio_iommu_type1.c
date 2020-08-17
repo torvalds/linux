@@ -1193,13 +1193,16 @@ static int vfio_bus_type(struct device *dev, void *data)
 static int vfio_iommu_replay(struct vfio_iommu *iommu,
 			     struct vfio_domain *domain)
 {
-	struct vfio_domain *d;
+	struct vfio_domain *d = NULL;
 	struct rb_node *n;
 	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	int ret;
 
 	/* Arbitrarily pick the first domain in the list for lookups */
-	d = list_first_entry(&iommu->domain_list, struct vfio_domain, next);
+	if (!list_empty(&iommu->domain_list))
+		d = list_first_entry(&iommu->domain_list,
+				     struct vfio_domain, next);
+
 	n = rb_first(&iommu->dma_list);
 
 	for (; n; n = rb_next(n)) {
@@ -1216,6 +1219,11 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 			if (dma->iommu_mapped) {
 				phys_addr_t p;
 				dma_addr_t i;
+
+				if (WARN_ON(!d)) { /* mapped w/o a domain?! */
+					ret = -EINVAL;
+					goto unwind;
+				}
 
 				phys = iommu_iova_to_phys(d->domain, iova);
 
@@ -1246,7 +1254,7 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 				if (npage <= 0) {
 					WARN_ON(!npage);
 					ret = (int)npage;
-					return ret;
+					goto unwind;
 				}
 
 				phys = pfn << PAGE_SHIFT;
@@ -1255,14 +1263,67 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 
 			ret = iommu_map(domain->domain, iova, phys,
 					size, dma->prot | domain->prot);
-			if (ret)
-				return ret;
+			if (ret) {
+				if (!dma->iommu_mapped)
+					vfio_unpin_pages_remote(dma, iova,
+							phys >> PAGE_SHIFT,
+							size >> PAGE_SHIFT,
+							true);
+				goto unwind;
+			}
 
 			iova += size;
 		}
+	}
+
+	/* All dmas are now mapped, defer to second tree walk for unwind */
+	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+
 		dma->iommu_mapped = true;
 	}
+
 	return 0;
+
+unwind:
+	for (; n; n = rb_prev(n)) {
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		dma_addr_t iova;
+
+		if (dma->iommu_mapped) {
+			iommu_unmap(domain->domain, dma->iova, dma->size);
+			continue;
+		}
+
+		iova = dma->iova;
+		while (iova < dma->iova + dma->size) {
+			phys_addr_t phys, p;
+			size_t size;
+			dma_addr_t i;
+
+			phys = iommu_iova_to_phys(domain->domain, iova);
+			if (!phys) {
+				iova += PAGE_SIZE;
+				continue;
+			}
+
+			size = PAGE_SIZE;
+			p = phys + size;
+			i = iova + size;
+			while (i < dma->iova + dma->size &&
+			       p == iommu_iova_to_phys(domain->domain, i)) {
+				size += PAGE_SIZE;
+				p += PAGE_SIZE;
+				i += PAGE_SIZE;
+			}
+
+			iommu_unmap(domain->domain, iova, size);
+			vfio_unpin_pages_remote(dma, iova, phys >> PAGE_SHIFT,
+						size >> PAGE_SHIFT, true);
+		}
+	}
+
+	return ret;
 }
 
 /*
