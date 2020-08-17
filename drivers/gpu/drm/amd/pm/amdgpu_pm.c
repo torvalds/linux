@@ -3312,10 +3312,15 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	if (((adev->flags & AMD_IS_APU) ||
 	     adev->family == AMDGPU_FAMILY_SI) &&	/* not implemented yet */
-	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr))
+		return 0;
+
+	if (((adev->family == AMDGPU_FAMILY_SI) ||
+	     ((adev->flags & AMD_IS_APU) &&
+	      (adev->asic_type < CHIP_RENOIR))) &&	/* not implemented yet */
+	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
 		return 0;
 
 	if (!is_support_sw_smu(adev)) {
