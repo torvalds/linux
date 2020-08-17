@@ -1160,7 +1160,7 @@ void ath11k_hal_dump_srng_stats(struct ath11k_base *ab)
 	for (i = 0; i < CE_COUNT; i++) {
 		ce_pipe = &ab->ce.ce_pipe[i];
 
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 
 		ath11k_err(ab, "CE_id %d pipe_num %d %ums before\n",

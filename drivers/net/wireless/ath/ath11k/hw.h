@@ -137,6 +137,8 @@ struct ath11k_hw_params {
 	bool internal_sleep_clock;
 
 	const struct ath11k_hw_regs *regs;
+	const struct ce_attr *host_ce_config;
+	u32 ce_count;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;

@@ -9,6 +9,7 @@
 
 #include "hw.h"
 #include "core.h"
+#include "ce.h"
 
 /* Map from pdev index to hw mac index */
 static u8 ath11k_hw_ipq8074_mac_from_pdev_id(int pdev_idx)
