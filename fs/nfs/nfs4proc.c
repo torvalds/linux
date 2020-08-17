@@ -7498,7 +7498,8 @@ static int nfs4_xattr_set_nfs4_user(const struct xattr_handler *handler,
 
 static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
 				    struct dentry *unused, struct inode *inode,
-				    const char *key, void *buf, size_t buflen)
+				    const char *key, void *buf, size_t buflen,
+				    int flags)
 {
 	struct nfs_access_entry cache;
 	ssize_t ret;
