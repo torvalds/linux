@@ -52,9 +52,10 @@
 		};
 
 		vga_memory: region@bf000000 {
-                        no-map;
-                        reg = <0xbf000000 0x01000000>;  /* 16M */
-                };
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
+		};
 	};
 
 	gpio-keys {
@@ -1120,4 +1121,9 @@
 		label = "pnor";
 		spi-max-frequency = <100000000>;
 	};
+};
+
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
 };
