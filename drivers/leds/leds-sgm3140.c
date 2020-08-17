@@ -316,5 +316,5 @@ static struct platform_driver sgm3140_driver = {
 module_platform_driver(sgm3140_driver);
 
 MODULE_AUTHOR("Luca Weiss <luca@z3ntu.xyz>");
-MODULE_DESCRIPTION("SG Micro SGM3140 charge pump led driver");
+MODULE_DESCRIPTION("SG Micro SGM3140 charge pump LED driver");
 MODULE_LICENSE("GPL v2");
