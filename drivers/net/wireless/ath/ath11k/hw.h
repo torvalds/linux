@@ -139,6 +139,8 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_regs *regs;
 	const struct ce_attr *host_ce_config;
 	u32 ce_count;
+
+	bool single_pdev_only;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;

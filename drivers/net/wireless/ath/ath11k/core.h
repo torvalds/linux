@@ -545,6 +545,7 @@ struct ath11k {
 };
 
 struct ath11k_band_cap {
+	u32 phy_id;
 	u32 max_bw_supported;
 	u32 ht_cap_info;
 	u32 he_cap_info[2];

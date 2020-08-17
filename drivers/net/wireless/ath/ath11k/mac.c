@@ -521,6 +521,11 @@ struct ath11k *ath11k_mac_get_ar_by_pdev_id(struct ath11k_base *ab, u32 pdev_id)
 	int i;
 	struct ath11k_pdev *pdev;
 
+	if (ab->hw_params.single_pdev_only) {
+		pdev = rcu_dereference(ab->pdevs_active[0]);
+		return pdev ? pdev->ar : NULL;
+	}
+
 	if (WARN_ON(pdev_id > ab->num_radios))
 		return NULL;
 
@@ -5821,12 +5826,29 @@ static void ath11k_mac_update_ch_list(struct ath11k *ar,
 	}
 }
 
+static u32 ath11k_get_phy_id(struct ath11k *ar, u32 band)
+{
+	struct ath11k_pdev *pdev = ar->pdev;
+	struct ath11k_pdev_cap *pdev_cap = &pdev->cap;
+
+	if (band == WMI_HOST_WLAN_2G_CAP)
+		return pdev_cap->band[NL80211_BAND_2GHZ].phy_id;
+
+	if (band == WMI_HOST_WLAN_5G_CAP)
+		return pdev_cap->band[NL80211_BAND_5GHZ].phy_id;
+
+	ath11k_warn(ar->ab, "unsupported phy cap:%d\n", band);
+
+	return 0;
+}
+
 static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 					   u32 supported_bands)
 {
 	struct ieee80211_supported_band *band;
 	struct ath11k_hal_reg_capabilities_ext *reg_cap;
 	void *channels;
+	u32 phy_id;
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath11k_2ghz_channels) +
 		      ARRAY_SIZE(ath11k_5ghz_channels) +
@@ -5849,6 +5871,11 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 		band->n_bitrates = ath11k_g_rates_size;
 		band->bitrates = ath11k_g_rates;
 		ar->hw->wiphy->bands[NL80211_BAND_2GHZ] = band;
+
+		if (ar->ab->hw_params.single_pdev_only) {
+			phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_2G_CAP);
+			reg_cap = &ar->ab->hal_reg_cap[phy_id];
+		}
 		ath11k_mac_update_ch_list(ar, band,
 					  reg_cap->low_2ghz_chan,
 					  reg_cap->high_2ghz_chan);
@@ -5893,6 +5920,12 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 			band->n_bitrates = ath11k_a_rates_size;
 			band->bitrates = ath11k_a_rates;
 			ar->hw->wiphy->bands[NL80211_BAND_5GHZ] = band;
+
+			if (ar->ab->hw_params.single_pdev_only) {
+				phy_id = ath11k_get_phy_id(ar, WMI_HOST_WLAN_5G_CAP);
+				reg_cap = &ar->ab->hal_reg_cap[phy_id];
+			}
+
 			ath11k_mac_update_ch_list(ar, band,
 						  reg_cap->low_5ghz_chan,
 						  reg_cap->high_5ghz_chan);
