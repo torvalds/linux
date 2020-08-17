@@ -439,9 +439,9 @@ static void mcam_ctlr_dma_vmalloc(struct mcam_camera *cam)
 /*
  * Copy data out to user space in the vmalloc case
  */
-static void mcam_frame_tasklet(unsigned long data)
+static void mcam_frame_tasklet(struct tasklet_struct *t)
 {
-	struct mcam_camera *cam = (struct mcam_camera *) data;
+	struct mcam_camera *cam = from_tasklet(cam, t, s_tasklet);
 	int i;
 	unsigned long flags;
 	struct mcam_vb_buffer *buf;
@@ -1300,8 +1300,7 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 		break;
 	case B_vmalloc:
 #ifdef MCAM_MODE_VMALLOC
-		tasklet_init(&cam->s_tasklet, mcam_frame_tasklet,
-				(unsigned long) cam);
+		tasklet_setup(&cam->s_tasklet, mcam_frame_tasklet);
 		vq->ops = &mcam_vb2_ops;
 		vq->mem_ops = &vb2_vmalloc_memops;
 		cam->dma_setup = mcam_ctlr_dma_vmalloc;
