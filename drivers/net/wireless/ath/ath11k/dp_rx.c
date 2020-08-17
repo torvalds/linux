@@ -375,6 +375,12 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	idr_destroy(&rx_ring->bufs_idr);
 	spin_unlock_bh(&rx_ring->idr_lock);
 
+	/* if rxdma1_enable is false, mon_status_refill_ring
+	 * isn't setup, so don't clean.
+	 */
+	if (!ar->ab->hw_params.rxdma1_enable)
+		return 0;
+
 	rx_ring = &dp->rx_mon_status_refill_ring;
 
 	spin_lock_bh(&rx_ring->idr_lock);
@@ -390,6 +396,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 
 	idr_destroy(&rx_ring->bufs_idr);
 	spin_unlock_bh(&rx_ring->idr_lock);
+
 	return 0;
 }
 
@@ -431,8 +438,10 @@ static int ath11k_dp_rxdma_pdev_buf_setup(struct ath11k *ar)
 
 	ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_BUF);
 
-	rx_ring = &dp->rxdma_mon_buf_ring;
-	ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_BUF);
+	if (ar->ab->hw_params.rxdma1_enable) {
+		rx_ring = &dp->rxdma_mon_buf_ring;
+		ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_BUF);
+	}
 
 	rx_ring = &dp->rx_mon_status_refill_ring;
 	ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_STATUS);
@@ -516,6 +525,14 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 			    "failed to setup rx_mon_status_refill_ring\n");
 		return ret;
 	}
+
+	/* if rxdma1_enable is false, then it doesn't need
+	 * to setup rxdam_mon_buf_ring, rxdma_mon_dst_ring
+	 * and rxdma_mon_desc_ring.
+	 */
+	if (!ar->ab->hw_params.rxdma1_enable)
+		return 0;
+
 	ret = ath11k_dp_srng_setup(ar->ab,
 				   &dp->rxdma_mon_buf_ring.refill_buf_ring,
 				   HAL_RXDMA_MONITOR_BUF, 0, dp->mac_id,
@@ -4129,6 +4146,9 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 		return ret;
 	}
 
+	if (!ab->hw_params.rxdma1_enable)
+		goto config_refill_ring;
+
 	ring_id = dp->rxdma_mon_buf_ring.refill_buf_ring.ring_id;
 	ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id,
 					  mac_id, HAL_RXDMA_MONITOR_BUF);
@@ -4153,6 +4173,8 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 			    ret);
 		return ret;
 	}
+
+config_refill_ring:
 	ring_id = dp->rx_mon_status_refill_ring.refill_buf_ring.ring_id;
 	ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id, mac_id,
 					  HAL_RXDMA_MONITOR_STATUS);
@@ -4162,6 +4184,7 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 			    ret);
 		return ret;
 	}
+
 	return 0;
 }
 
@@ -4834,6 +4857,12 @@ int ath11k_dp_rx_pdev_mon_attach(struct ath11k *ar)
 		return ret;
 	}
 
+	/* if rxdma1_enable is false, no need to setup
+	 * rxdma_mon_desc_ring.
+	 */
+	if (!ar->ab->hw_params.rxdma1_enable)
+		return 0;
+
 	dp_srng = &dp->rxdma_mon_desc_ring;
 	n_link_desc = dp_srng->size /
 		ath11k_hal_srng_get_entrysize(ar->ab, HAL_RXDMA_MONITOR_DESC);
@@ -4850,6 +4879,7 @@ int ath11k_dp_rx_pdev_mon_attach(struct ath11k *ar)
 	pmon->mon_last_linkdesc_paddr = 0;
 	pmon->mon_last_buf_cookie = DP_RX_DESC_COOKIE_MAX + 1;
 	spin_lock_init(&pmon->mon_lock);
+
 	return 0;
 }
 

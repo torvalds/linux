@@ -151,6 +151,8 @@ struct ath11k_hw_params {
 	 * firmware creates the mapping.
 	 */
 	bool needs_band_to_mac;
+
+	bool rxdma1_enable;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;

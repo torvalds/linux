@@ -37,6 +37,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_count = 12,
 		.single_pdev_only = false,
 		.needs_band_to_mac = true,
+		.rxdma1_enable = true,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -56,6 +57,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_count = 9,
 		.single_pdev_only = true,
 		.needs_band_to_mac = false,
+		.rxdma1_enable = false,
 	},
 };
 
