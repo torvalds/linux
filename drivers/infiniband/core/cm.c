@@ -1563,6 +1563,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	cm_id_priv->local_qpn = cpu_to_be32(IBA_GET(CM_REQ_LOCAL_QPN, req_msg));
 	cm_id_priv->rq_psn = cpu_to_be32(IBA_GET(CM_REQ_STARTING_PSN, req_msg));
 
+	trace_icm_send_req(&cm_id_priv->id);
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	ret = ib_post_send_mad(cm_id_priv->msg, NULL);
 	if (ret) {
@@ -1610,6 +1611,9 @@ static int cm_issue_rej(struct cm_port *port,
 		IBA_SET_MEM(CM_REJ_ARI, rej_msg, ari, ari_length);
 	}
 
+	trace_icm_issue_rej(
+		IBA_GET(CM_REJ_LOCAL_COMM_ID, rcv_msg),
+		IBA_GET(CM_REJ_REMOTE_COMM_ID, rcv_msg));
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		cm_free_msg(msg);
@@ -1961,6 +1965,7 @@ static void cm_dup_req_handler(struct cm_work *work,
 	}
 	spin_unlock_irq(&cm_id_priv->lock);
 
+	trace_icm_send_dup_req(&cm_id_priv->id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		goto free;
@@ -2287,6 +2292,7 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_REP_SENT;
 
+	trace_icm_send_rep(cm_id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -2358,6 +2364,7 @@ int ib_send_cm_rtu(struct ib_cm_id *cm_id,
 	cm_format_rtu((struct cm_rtu_msg *) msg->mad, cm_id_priv,
 		      private_data, private_data_len);
 
+	trace_icm_send_rtu(cm_id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -2439,6 +2446,7 @@ static void cm_dup_rep_handler(struct cm_work *work)
 		goto unlock;
 	spin_unlock_irq(&cm_id_priv->lock);
 
+	trace_icm_send_dup_rep(&cm_id_priv->id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		goto free;
@@ -2660,6 +2668,7 @@ static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
 	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_DREQ_SENT;
 
+	trace_icm_send_dreq(&cm_id_priv->id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_enter_timewait(cm_id_priv);
@@ -2730,6 +2739,7 @@ static int cm_send_drep_locked(struct cm_id_private *cm_id_priv,
 	cm_format_drep((struct cm_drep_msg *) msg->mad, cm_id_priv,
 		       private_data, private_data_len);
 
+	trace_icm_send_drep(&cm_id_priv->id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_free_msg(msg);
@@ -2779,6 +2789,9 @@ static int cm_issue_drep(struct cm_port *port,
 	IBA_SET(CM_DREP_LOCAL_COMM_ID, drep_msg,
 		IBA_GET(CM_DREQ_REMOTE_COMM_ID, dreq_msg));
 
+	trace_icm_issue_drep(
+		IBA_GET(CM_DREQ_LOCAL_COMM_ID, dreq_msg),
+		IBA_GET(CM_DREQ_REMOTE_COMM_ID, dreq_msg));
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		cm_free_msg(msg);
@@ -2936,6 +2949,7 @@ static int cm_send_rej_locked(struct cm_id_private *cm_id_priv,
 		return -EINVAL;
 	}
 
+	trace_icm_send_rej(&cm_id_priv->id, reason);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_free_msg(msg);
@@ -3114,6 +3128,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
 			      msg_response, service_timeout,
 			      private_data, private_data_len);
+		trace_icm_send_mra(cm_id);
 		ret = ib_post_send_mad(msg, NULL);
 		if (ret)
 			goto error2;
@@ -3484,10 +3499,12 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 	msg->context[1] = (void *) (unsigned long) IB_CM_SIDR_REQ_SENT;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	if (cm_id->state == IB_CM_IDLE)
+	if (cm_id->state == IB_CM_IDLE) {
+		trace_icm_send_sidr_req(&cm_id_priv->id);
 		ret = ib_post_send_mad(msg, NULL);
-	else
+	} else {
 		ret = -EINVAL;
+	}
 
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -3649,6 +3666,7 @@ static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
 
 	cm_format_sidr_rep((struct cm_sidr_rep_msg *) msg->mad, cm_id_priv,
 			   param);
+	trace_icm_send_sidr_rep(&cm_id_priv->id);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_free_msg(msg);

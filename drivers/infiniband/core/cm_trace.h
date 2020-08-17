@@ -80,6 +80,59 @@ IB_CM_LAP_STATE_LIST
 #define show_ib_cm_lap_state(x) \
 		__print_symbolic(x, IB_CM_LAP_STATE_LIST)
 
+/*
+ * enum ib_cm_rej_reason, from include/rdma/ib_cm.h
+ */
+#define IB_CM_REJ_REASON_LIST					\
+	ib_cm_rej_reason(REJ_NO_QP)				\
+	ib_cm_rej_reason(REJ_NO_EEC)				\
+	ib_cm_rej_reason(REJ_NO_RESOURCES)			\
+	ib_cm_rej_reason(REJ_TIMEOUT)				\
+	ib_cm_rej_reason(REJ_UNSUPPORTED)			\
+	ib_cm_rej_reason(REJ_INVALID_COMM_ID)			\
+	ib_cm_rej_reason(REJ_INVALID_COMM_INSTANCE)		\
+	ib_cm_rej_reason(REJ_INVALID_SERVICE_ID)		\
+	ib_cm_rej_reason(REJ_INVALID_TRANSPORT_TYPE)		\
+	ib_cm_rej_reason(REJ_STALE_CONN)			\
+	ib_cm_rej_reason(REJ_RDC_NOT_EXIST)			\
+	ib_cm_rej_reason(REJ_INVALID_GID)			\
+	ib_cm_rej_reason(REJ_INVALID_LID)			\
+	ib_cm_rej_reason(REJ_INVALID_SL)			\
+	ib_cm_rej_reason(REJ_INVALID_TRAFFIC_CLASS)		\
+	ib_cm_rej_reason(REJ_INVALID_HOP_LIMIT)			\
+	ib_cm_rej_reason(REJ_INVALID_PACKET_RATE)		\
+	ib_cm_rej_reason(REJ_INVALID_ALT_GID)			\
+	ib_cm_rej_reason(REJ_INVALID_ALT_LID)			\
+	ib_cm_rej_reason(REJ_INVALID_ALT_SL)			\
+	ib_cm_rej_reason(REJ_INVALID_ALT_TRAFFIC_CLASS)		\
+	ib_cm_rej_reason(REJ_INVALID_ALT_HOP_LIMIT)		\
+	ib_cm_rej_reason(REJ_INVALID_ALT_PACKET_RATE)		\
+	ib_cm_rej_reason(REJ_PORT_CM_REDIRECT)			\
+	ib_cm_rej_reason(REJ_PORT_REDIRECT)			\
+	ib_cm_rej_reason(REJ_INVALID_MTU)			\
+	ib_cm_rej_reason(REJ_INSUFFICIENT_RESP_RESOURCES)	\
+	ib_cm_rej_reason(REJ_CONSUMER_DEFINED)			\
+	ib_cm_rej_reason(REJ_INVALID_RNR_RETRY)			\
+	ib_cm_rej_reason(REJ_DUPLICATE_LOCAL_COMM_ID)		\
+	ib_cm_rej_reason(REJ_INVALID_CLASS_VERSION)		\
+	ib_cm_rej_reason(REJ_INVALID_FLOW_LABEL)		\
+	ib_cm_rej_reason(REJ_INVALID_ALT_FLOW_LABEL)		\
+	ib_cm_rej_reason_end(REJ_VENDOR_OPTION_NOT_SUPPORTED)
+
+#undef  ib_cm_rej_reason
+#undef  ib_cm_rej_reason_end
+#define ib_cm_rej_reason(x)	TRACE_DEFINE_ENUM(IB_CM_##x);
+#define ib_cm_rej_reason_end(x)	TRACE_DEFINE_ENUM(IB_CM_##x);
+
+IB_CM_REJ_REASON_LIST
+
+#undef  ib_cm_rej_reason
+#undef  ib_cm_rej_reason_end
+#define ib_cm_rej_reason(x)	{ IB_CM_##x, #x },
+#define ib_cm_rej_reason_end(x)	{ IB_CM_##x, #x }
+
+#define show_ib_cm_rej_reason(x) \
+		__print_symbolic(x, IB_CM_REJ_REASON_LIST)
 
 DECLARE_EVENT_CLASS(icm_id_class,
 	TP_PROTO(
@@ -108,6 +161,56 @@ DECLARE_EVENT_CLASS(icm_id_class,
 		__entry->local_id, __entry->remote_id,
 		show_ib_cm_state(__entry->state),
 		show_ib_cm_lap_state(__entry->lap_state)
+	)
+);
+
+#define DEFINE_CM_SEND_EVENT(name)					\
+		DEFINE_EVENT(icm_id_class,				\
+				icm_send_##name,				\
+				TP_PROTO(				\
+					const struct ib_cm_id *cm_id	\
+				),					\
+				TP_ARGS(cm_id))
+
+DEFINE_CM_SEND_EVENT(req);
+DEFINE_CM_SEND_EVENT(rep);
+DEFINE_CM_SEND_EVENT(dup_req);
+DEFINE_CM_SEND_EVENT(dup_rep);
+DEFINE_CM_SEND_EVENT(rtu);
+DEFINE_CM_SEND_EVENT(mra);
+DEFINE_CM_SEND_EVENT(sidr_req);
+DEFINE_CM_SEND_EVENT(sidr_rep);
+DEFINE_CM_SEND_EVENT(dreq);
+DEFINE_CM_SEND_EVENT(drep);
+
+TRACE_EVENT(icm_send_rej,
+	TP_PROTO(
+		const struct ib_cm_id *cm_id,
+		enum ib_cm_rej_reason reason
+	),
+
+	TP_ARGS(cm_id, reason),
+
+	TP_STRUCT__entry(
+		__field(const void *, cm_id)
+		__field(u32, local_id)
+		__field(u32, remote_id)
+		__field(unsigned long, state)
+		__field(unsigned long, reason)
+	),
+
+	TP_fast_assign(
+		__entry->cm_id = cm_id;
+		__entry->local_id = be32_to_cpu(cm_id->local_id);
+		__entry->remote_id = be32_to_cpu(cm_id->remote_id);
+		__entry->state = cm_id->state;
+		__entry->reason = reason;
+	),
+
+	TP_printk("local_id=%u remote_id=%u state=%s reason=%s",
+		__entry->local_id, __entry->remote_id,
+		show_ib_cm_state(__entry->state),
+		show_ib_cm_rej_reason(__entry->reason)
 	)
 );
 
@@ -172,6 +275,8 @@ DECLARE_EVENT_CLASS(icm_local_class,
 				),					\
 				TP_ARGS(local_id, remote_id))
 
+DEFINE_CM_LOCAL_EVENT(issue_rej);
+DEFINE_CM_LOCAL_EVENT(issue_drep);
 DEFINE_CM_LOCAL_EVENT(staleconn_err);
 DEFINE_CM_LOCAL_EVENT(no_priv_err);
 
