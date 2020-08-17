@@ -59,7 +59,7 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 	pci_write_config_dword(nhi->pdev, VS_CAP_22, vs_cap);
 
 	if (power) {
-		unsigned int retries = 10;
+		unsigned int retries = 350;
 		u32 val;
 
 		/* Wait until the firmware tells it is up and running */
@@ -67,7 +67,7 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 			pci_read_config_dword(nhi->pdev, VS_CAP_9, &val);
 			if (val & VS_CAP_9_FW_READY)
 				return 0;
-			msleep(250);
+			usleep_range(3000, 3100);
 		} while (--retries);
 
 		return -ETIMEDOUT;
