@@ -13480,6 +13480,8 @@ M:	Kishon Vijay Abraham I <kishon@ti.com>
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
+F:	Documentation/PCI/endpoint/*
+F:	Documentation/misc-devices/pci-endpoint-test.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kishon/pci-endpoint.git
 F:	drivers/misc/pci_endpoint_test.c
 F:	drivers/pci/endpoint/
