@@ -1150,9 +1150,9 @@ static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 	clk_disable_unprepare(pcdev->clk);
 }
 
-static void pxa_camera_eof(unsigned long arg)
+static void pxa_camera_eof(struct tasklet_struct *t)
 {
-	struct pxa_camera_dev *pcdev = (struct pxa_camera_dev *)arg;
+	struct pxa_camera_dev *pcdev = from_tasklet(pcdev, t, task_eof);
 	unsigned long cifr;
 	struct pxa_buffer *buf;
 
@@ -2391,7 +2391,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_free_dma;
 	}
 
-	tasklet_init(&pcdev->task_eof, pxa_camera_eof, (unsigned long)pcdev);
+	tasklet_setup(&pcdev->task_eof, pxa_camera_eof);
 
 	pxa_camera_activate(pcdev);
 
