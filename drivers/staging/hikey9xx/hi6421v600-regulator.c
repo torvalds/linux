@@ -15,29 +15,28 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
-#include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mfd/hi6421-spmi-pmic.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/mfd/hi6421-spmi-pmic.h>
-#include <linux/delay.h>
-#include <linux/time.h>
-#include <linux/version.h>
 #include <linux/seq_file.h>
-#include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/spmi.h>
+#include <linux/time.h>
+#include <linux/uaccess.h>
+#include <linux/version.h>
 
 #define rdev_dbg(rdev, fmt, arg...)	\
 		 pr_debug("%s: %s: " fmt, (rdev)->desc->name, __func__, ##arg)
@@ -50,15 +49,16 @@ struct hi6421v600_regulator {
 
 static DEFINE_MUTEX(enable_mutex);
 
-/* helper function to ensure when it returns it is at least 'delay_us'
+/*
+ * helper function to ensure when it returns it is at least 'delay_us'
  * microseconds after 'since'.
  */
 
 static int hi6421_spmi_regulator_is_enabled(struct regulator_dev *rdev)
 {
-	u32 reg_val;
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 	struct hi6421_spmi_pmic *pmic = sreg->pmic;
+	u32 reg_val;
 
 	reg_val = hi6421_spmi_pmic_read(pmic, rdev->desc->enable_reg);
 
@@ -136,7 +136,6 @@ static int hi6421_spmi_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 	u32 reg_val;
 
-	/* unlikely to happen. sanity test done by regulator core */
 	if (unlikely(selector >= rdev->desc->n_voltages))
 		return -EINVAL;
 
@@ -158,8 +157,8 @@ static unsigned int hi6421_spmi_regulator_get_mode(struct regulator_dev *rdev)
 {
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 	struct hi6421_spmi_pmic *pmic = sreg->pmic;
-	u32 reg_val;
 	unsigned int mode;
+	u32 reg_val;
 
 	reg_val = hi6421_spmi_pmic_read(pmic, rdev->desc->enable_reg);
 
@@ -211,13 +210,10 @@ hi6421_spmi_regulator_get_optimum_mode(struct regulator_dev *rdev,
 {
 	struct hi6421v600_regulator *sreg = rdev_get_drvdata(rdev);
 
-	if (load_uA || ((unsigned int)load_uA > sreg->eco_uA)) {
-		rdev_dbg(rdev, "normal mode");
+	if (load_uA || ((unsigned int)load_uA > sreg->eco_uA))
 		return REGULATOR_MODE_NORMAL;
-	} else {
-		rdev_dbg(rdev, "idle mode");
-		return REGULATOR_MODE_IDLE;
-	}
+
+	return REGULATOR_MODE_IDLE;
 }
 
 static int hi6421_spmi_dt_parse(struct platform_device *pdev,
@@ -231,7 +227,7 @@ static int hi6421_spmi_dt_parse(struct platform_device *pdev,
 
 	ret = of_property_read_u32(np, "reg", &rdesc->enable_reg);
 	if (ret) {
-		dev_err(dev, "missing reg property\nn");
+		dev_err(dev, "missing reg property\n");
 		return ret;
 	}
 
@@ -256,8 +252,7 @@ static int hi6421_spmi_dt_parse(struct platform_device *pdev,
 		sreg->eco_mode_mask = 0;
 		sreg->eco_uA = 0;
 	} else {
-		ret = of_property_read_u32(np, "eco-microamp",
-					   &sreg->eco_uA);
+		ret = of_property_read_u32(np, "eco-microamp", &sreg->eco_uA);
 		if (ret) {
 			dev_err(dev, "missing eco-microamp property\n");
 			return ret;
@@ -308,13 +303,13 @@ static int hi6421_spmi_dt_parse(struct platform_device *pdev,
 	 */
 	rdesc->vsel_mask = (1 << (fls(rdesc->n_voltages) - 1)) - 1;
 
-	dev_dbg(dev, "voltage selector settings: reg: 0x%x, mask: 0x%x",
+	dev_dbg(dev, "voltage selector settings: reg: 0x%x, mask: 0x%x\n",
 		rdesc->vsel_reg, rdesc->vsel_mask);
 
 	return 0;
 }
 
-static struct regulator_ops hi6421_spmi_ldo_rops = {
+static const struct regulator_ops hi6421_spmi_ldo_rops = {
 	.is_enabled = hi6421_spmi_regulator_is_enabled,
 	.enable = hi6421_spmi_regulator_enable,
 	.disable = hi6421_spmi_regulator_disable,
@@ -327,23 +322,19 @@ static struct regulator_ops hi6421_spmi_ldo_rops = {
 	.get_optimum_mode = hi6421_spmi_regulator_get_optimum_mode,
 };
 
-/*
- * Used only for parsing the DT properties
- */
-
 static int hi6421_spmi_regulator_probe_ldo(struct platform_device *pdev,
 					   struct device_node *np,
 					   struct hi6421_spmi_pmic *pmic)
 {
+	struct regulation_constraints *constraint;
+	struct regulator_init_data *initdata;
+	struct regulator_config config = { };
+	struct hi6421v600_regulator *sreg;
 	struct device *dev = &pdev->dev;
 	struct regulator_desc *rdesc;
 	struct regulator_dev *rdev;
-	struct hi6421v600_regulator *sreg = NULL;
-	struct regulator_init_data *initdata;
-	struct regulator_config config = { };
-	struct regulation_constraints *constraint;
-	const char *supplyname = NULL;
-	int ret = 0;
+	const char *supplyname;
+	int ret;
 
 	initdata = of_get_regulator_init_data(dev, np, NULL);
 	if (!initdata) {
@@ -351,7 +342,7 @@ static int hi6421_spmi_regulator_probe_ldo(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	sreg = kzalloc(sizeof(*sreg), GFP_KERNEL);
+	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
 		return -ENOMEM;
 
@@ -370,7 +361,7 @@ static int hi6421_spmi_regulator_probe_ldo(struct platform_device *pdev,
 	/* parse device tree data for regulator specific */
 	ret = hi6421_spmi_dt_parse(pdev, sreg, rdesc);
 	if (ret)
-		goto probe_end;
+		return ret;
 
 	/* hisi regulator supports two modes */
 	constraint = &initdata->constraints;
@@ -391,18 +382,15 @@ static int hi6421_spmi_regulator_probe_ldo(struct platform_device *pdev,
 	if (IS_ERR(rdev)) {
 		dev_err(dev, "failed to register %s\n",
 			rdesc->name);
-		ret = PTR_ERR(rdev);
-		goto probe_end;
+		return PTR_ERR(rdev);
 	}
 
 	rdev_dbg(rdev, "valid_modes_mask: 0x%x, valid_ops_mask: 0x%x\n",
 		 constraint->valid_modes_mask, constraint->valid_ops_mask);
 
 	dev_set_drvdata(dev, rdev);
-probe_end:
-	if (ret)
-		kfree(sreg);
-	return ret;
+
+	return 0;
 }
 
 static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
@@ -414,7 +402,6 @@ static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
 	struct hi6421_spmi_pmic *pmic;
 	int ret;
 
-	dev_dbg(&pdev->dev, "probing hi6421v600 regulator\n");
 	/*
 	 * This driver is meant to be called by hi6421-spmi-core,
 	 * which should first set drvdata. If this doesn't happen, hit
@@ -463,7 +450,6 @@ static int hi6421_spmi_regulator_remove(struct platform_device *pdev)
 
 	regulator_unregister(rdev);
 
-	/* TODO: should i worry about that? devm_kzalloc */
 	if (rdev->desc->volt_table)
 		devm_kfree(&pdev->dev, (unsigned int *)rdev->desc->volt_table);
 
