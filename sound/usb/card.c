@@ -333,6 +333,106 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 }
 
 /*
+ * Profile name preset table
+ */
+struct usb_audio_device_name {
+	u32 id;
+	const char *vendor_name;
+	const char *product_name;
+	const char *profile_name;	/* override card->longname */
+};
+
+#define PROFILE_NAME(vid, pid, vendor, product, profile)	 \
+	{ .id = USB_ID(vid, pid), .vendor_name = (vendor),	 \
+	  .product_name = (product), .profile_name = (profile) }
+#define DEVICE_NAME(vid, pid, vendor, product) \
+	PROFILE_NAME(vid, pid, vendor, product, NULL)
+
+/* vendor/product and profile name presets, sorted in device id order */
+static const struct usb_audio_device_name usb_audio_names[] = {
+	/* HP Thunderbolt Dock Audio Headset */
+	PROFILE_NAME(0x03f0, 0x0269, "HP", "Thunderbolt Dock Audio Headset",
+		     "HP-Thunderbolt-Dock-Audio-Headset"),
+	/* HP Thunderbolt Dock Audio Module */
+	PROFILE_NAME(0x03f0, 0x0567, "HP", "Thunderbolt Dock Audio Module",
+		     "HP-Thunderbolt-Dock-Audio-Module"),
+
+	/* Two entries for Gigabyte TRX40 Aorus Master:
+	 * TRX40 Aorus Master has two USB-audio devices, one for the front
+	 * headphone with ESS SABRE9218 DAC chip, while another for the rest
+	 * I/O (the rear panel and the front mic) with Realtek ALC1220-VB.
+	 * Here we provide two distinct names for making UCM profiles easier.
+	 */
+	PROFILE_NAME(0x0414, 0xa000, "Gigabyte", "Aorus Master Front Headphone",
+		     "Gigabyte-Aorus-Master-Front-Headphone"),
+	PROFILE_NAME(0x0414, 0xa001, "Gigabyte", "Aorus Master Main Audio",
+		     "Gigabyte-Aorus-Master-Main-Audio"),
+
+	/* Gigabyte TRX40 Aorus Pro WiFi */
+	PROFILE_NAME(0x0414, 0xa002,
+		     "Realtek", "ALC1220-VB-DT", "Realtek-ALC1220-VB-Desktop"),
+
+	/* Creative/E-Mu devices */
+	DEVICE_NAME(0x041e, 0x3010, "Creative Labs", "Sound Blaster MP3+"),
+	/* Creative/Toshiba Multimedia Center SB-0500 */
+	DEVICE_NAME(0x041e, 0x3048, "Toshiba", "SB-0500"),
+
+	DEVICE_NAME(0x046d, 0x0990, "Logitech, Inc.", "QuickCam Pro 9000"),
+
+	/* Dell WD15 Dock */
+	PROFILE_NAME(0x0bda, 0x4014, "Dell", "WD15 Dock", "Dell-WD15-Dock"),
+	/* Dell WD19 Dock */
+	PROFILE_NAME(0x0bda, 0x402e, "Dell", "WD19 Dock", "Dell-WD15-Dock"),
+
+	DEVICE_NAME(0x0ccd, 0x0028, "TerraTec", "Aureon5.1MkII"),
+
+	/*
+	 * The original product_name is "USB Sound Device", however this name
+	 * is also used by the CM106 based cards, so make it unique.
+	 */
+	DEVICE_NAME(0x0d8c, 0x0102, NULL, "ICUSBAUDIO7D"),
+	DEVICE_NAME(0x0d8c, 0x0103, NULL, "Audio Advantage MicroII"),
+
+	/* MSI TRX40 Creator */
+	PROFILE_NAME(0x0db0, 0x0d64,
+		     "Realtek", "ALC1220-VB-DT", "Realtek-ALC1220-VB-Desktop"),
+	/* MSI TRX40 */
+	PROFILE_NAME(0x0db0, 0x543d,
+		     "Realtek", "ALC1220-VB-DT", "Realtek-ALC1220-VB-Desktop"),
+
+	/* Stanton/N2IT Final Scratch v1 device ('Scratchamp') */
+	DEVICE_NAME(0x103d, 0x0100, "Stanton", "ScratchAmp"),
+	DEVICE_NAME(0x103d, 0x0101, "Stanton", "ScratchAmp"),
+
+	/* aka. Serato Scratch Live DJ Box */
+	DEVICE_NAME(0x13e5, 0x0001, "Rane", "SL-1"),
+
+	/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
+	PROFILE_NAME(0x17aa, 0x1046, "Lenovo", "ThinkStation P620 Rear",
+		     "Lenovo-ThinkStation-P620-Rear"),
+	/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
+	PROFILE_NAME(0x17aa, 0x104d, "Lenovo", "ThinkStation P620 Main",
+		     "Lenovo-ThinkStation-P620-Main"),
+
+	/* Asrock TRX40 Creator */
+	PROFILE_NAME(0x26ce, 0x0a01,
+		     "Realtek", "ALC1220-VB-DT", "Realtek-ALC1220-VB-Desktop"),
+
+	{ } /* terminator */
+};
+
+static const struct usb_audio_device_name *
+lookup_device_name(u32 id)
+{
+	static const struct usb_audio_device_name *p;
+
+	for (p = usb_audio_names; p->id; p++)
+		if (p->id == id)
+			return p;
+	return NULL;
+}
+
+/*
  * free the chip instance
  *
  * here we have to do not much, since pcm and controls are already freed
@@ -357,10 +457,16 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 				     const struct snd_usb_audio_quirk *quirk)
 {
 	struct snd_card *card = chip->card;
+	const struct usb_audio_device_name *preset;
+	const char *s = NULL;
 
-	if (quirk && quirk->product_name && *quirk->product_name) {
-		strlcpy(card->shortname, quirk->product_name,
-			sizeof(card->shortname));
+	preset = lookup_device_name(chip->usb_id);
+	if (preset && preset->product_name)
+		s = preset->product_name;
+	else if (quirk && quirk->product_name)
+		s = quirk->product_name;
+	if (s && *s) {
+		strlcpy(card->shortname, s, sizeof(card->shortname));
 		return;
 	}
 
@@ -382,17 +488,26 @@ static void usb_audio_make_longname(struct usb_device *dev,
 				    const struct snd_usb_audio_quirk *quirk)
 {
 	struct snd_card *card = chip->card;
+	const struct usb_audio_device_name *preset;
+	const char *s = NULL;
 	int len;
 
+	preset = lookup_device_name(chip->usb_id);
+
 	/* shortcut - if any pre-defined string is given, use it */
-	if (quirk && quirk->profile_name && *quirk->profile_name) {
-		strlcpy(card->longname, quirk->profile_name,
-			sizeof(card->longname));
+	if (preset && preset->profile_name)
+		s = preset->profile_name;
+	if (s && *s) {
+		strlcpy(card->longname, s, sizeof(card->longname));
 		return;
 	}
 
-	if (quirk && quirk->vendor_name && *quirk->vendor_name) {
-		len = strlcpy(card->longname, quirk->vendor_name, sizeof(card->longname));
+	if (preset && preset->vendor_name)
+		s = preset->vendor_name;
+	else if (quirk && quirk->vendor_name)
+		s = quirk->vendor_name;
+	if (s && *s) {
+		len = strlcpy(card->longname, s, sizeof(card->longname));
 	} else {
 		/* retrieve the vendor and device strings as longname */
 		if (dev->descriptor.iManufacturer)

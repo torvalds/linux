@@ -25,33 +25,6 @@
 	.idProduct = prod, \
 	.bInterfaceClass = USB_CLASS_VENDOR_SPEC
 
-#define QUIRK_RENAME_DEVICE(_vendor, _device)				\
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) { \
-		.vendor_name = _vendor,					\
-		.product_name = _device,				\
-		.ifnum = QUIRK_NO_INTERFACE				\
-	}
-
-#define QUIRK_DEVICE_PROFILE(_vendor, _device, _profile)		\
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) { \
-		.vendor_name = _vendor,					\
-		.product_name = _device,				\
-		.profile_name = _profile,				\
-		.ifnum = QUIRK_NO_INTERFACE				\
-	}
-
-/* HP Thunderbolt Dock Audio Headset */
-{
-	USB_DEVICE(0x03f0, 0x0269),
-	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Headset",
-			     "HP-Thunderbolt-Dock-Audio-Headset"),
-},
-/* HP Thunderbolt Dock Audio Module */
-{
-	USB_DEVICE(0x03f0, 0x0567),
-	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Module",
-			     "HP-Thunderbolt-Dock-Audio-Module"),
-},
 /* FTDI devices */
 {
 	USB_DEVICE(0x0403, 0xb8d8),
@@ -85,16 +58,6 @@
 	}
 },
 
-/* Creative/E-Mu devices */
-{
-	USB_DEVICE(0x041e, 0x3010),
-	QUIRK_RENAME_DEVICE("Creative Labs", "Sound Blaster MP3+")
-},
-/* Creative/Toshiba Multimedia Center SB-0500 */
-{
-	USB_DEVICE(0x041e, 0x3048),
-	QUIRK_RENAME_DEVICE("Toshiba", "SB-0500")
-},
 {
 	/* E-Mu 0202 USB */
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
@@ -226,7 +189,6 @@
 	.idProduct = 0x0990,
 	.bInterfaceClass = USB_CLASS_AUDIO,
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
-	QUIRK_RENAME_DEVICE("Logitech, Inc.", "QuickCam Pro 9000")
 },
 
 /*
@@ -2610,10 +2572,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	USB_DEVICE(0x0ccd, 0x0028),
-	QUIRK_RENAME_DEVICE("TerraTec", "Aureon5.1MkII")
-},
-{
 	USB_DEVICE(0x0ccd, 0x0035),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Miditech",
@@ -2621,16 +2579,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.ifnum = 0,
 		.type = QUIRK_MIDI_CME
 	}
-},
-
-/* Stanton/N2IT Final Scratch v1 device ('Scratchamp') */
-{
-	USB_DEVICE(0x103d, 0x0100),
-	QUIRK_RENAME_DEVICE("Stanton", "ScratchAmp")
-},
-{
-	USB_DEVICE(0x103d, 0x0101),
-	QUIRK_RENAME_DEVICE("Stanton", "ScratchAmp")
 },
 
 /* Novation EMS devices */
@@ -2815,26 +2763,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			}
 		}
 	}
-},
-
-/* */
-{
-	/* aka. Serato Scratch Live DJ Box */
-	USB_DEVICE(0x13e5, 0x0001),
-	QUIRK_RENAME_DEVICE("Rane", "SL-1")
-},
-
-/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
-{
-	USB_DEVICE(0x17aa, 0x1046),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
-			     "Lenovo-ThinkStation-P620-Rear"),
-},
-/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
-{
-	USB_DEVICE(0x17aa, 0x104d),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
-			     "Lenovo-ThinkStation-P620-Main"),
 },
 
 /* Native Instruments MK2 series */
@@ -3295,19 +3223,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
-/*
- * The original product_name is "USB Sound Device", however this name
- * is also used by the CM106 based cards, so make it unique.
- */
-{
-	USB_DEVICE(0x0d8c, 0x0102),
-	QUIRK_RENAME_DEVICE(NULL, "ICUSBAUDIO7D")
-},
-{
-	USB_DEVICE(0x0d8c, 0x0103),
-	QUIRK_RENAME_DEVICE(NULL, "Audio Advantage MicroII")
-},
-
 /* disabled due to regression for other devices;
  * see https://bugzilla.kernel.org/show_bug.cgi?id=199905
  */
@@ -3408,18 +3323,10 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		}
 	}
 },
-/* Dell WD15 Dock */
-{
-	USB_DEVICE(0x0bda, 0x4014),
-	QUIRK_DEVICE_PROFILE("Dell", "WD15 Dock", "Dell-WD15-Dock")
-},
 /* Dell WD19 Dock */
 {
 	USB_DEVICE(0x0bda, 0x402e),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Dell",
-		.product_name = "WD19 Dock",
-		.profile_name = "Dell-WD15-Dock",
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_SETUP_FMT_AFTER_RESUME
 	}
@@ -3645,33 +3552,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 	}
 },
 
-#define ALC1220_VB_DESKTOP(vend, prod) { \
-	USB_DEVICE(vend, prod),	\
-	QUIRK_DEVICE_PROFILE("Realtek", "ALC1220-VB-DT", \
-			     "Realtek-ALC1220-VB-Desktop") \
-}
-ALC1220_VB_DESKTOP(0x0414, 0xa002), /* Gigabyte TRX40 Aorus Pro WiFi */
-ALC1220_VB_DESKTOP(0x0db0, 0x0d64), /* MSI TRX40 Creator */
-ALC1220_VB_DESKTOP(0x0db0, 0x543d), /* MSI TRX40 */
-ALC1220_VB_DESKTOP(0x26ce, 0x0a01), /* Asrock TRX40 Creator */
-#undef ALC1220_VB_DESKTOP
-
-/* Two entries for Gigabyte TRX40 Aorus Master:
- * TRX40 Aorus Master has two USB-audio devices, one for the front headphone
- * with ESS SABRE9218 DAC chip, while another for the rest I/O (the rear
- * panel and the front mic) with Realtek ALC1220-VB.
- * Here we provide two distinct names for making UCM profiles easier.
- */
-{
-	USB_DEVICE(0x0414, 0xa000),
-	QUIRK_DEVICE_PROFILE("Gigabyte", "Aorus Master Front Headphone",
-			     "Gigabyte-Aorus-Master-Front-Headphone")
-},
-{
-	USB_DEVICE(0x0414, 0xa001),
-	QUIRK_DEVICE_PROFILE("Gigabyte", "Aorus Master Main Audio",
-			     "Gigabyte-Aorus-Master-Main-Audio")
-},
 {
 	/*
 	 * Pioneer DJ DJM-900NXS2
