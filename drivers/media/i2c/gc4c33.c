@@ -11,6 +11,7 @@
  * V0.0X01.0X05 fix gain reg, add otp and dpc.
  * V0.0X01.0X06 add set dpc cfg.
  * V0.0X01.0X07 support enum sensor fmt
+ * V0.0X01.0X08 support mirror and flip
  */
 
 #include <linux/clk.h>
@@ -32,7 +33,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -78,6 +79,10 @@
 #define GC4C33_REG_DPCC_SINGLE		0x00a1
 #define GC4C33_REG_DPCC_DOUBLE		0x00a2
 
+#define GC4C33_FLIP_MIRROR_REG		0x0101
+#define GC4C33_MIRROR_BIT_MASK		BIT(0)
+#define GC4C33_FLIP_BIT_MASK		BIT(1)
+
 #define REG_NULL			0xFFFF
 
 #define GC4C33_REG_VALUE_08BIT		1
@@ -115,6 +120,7 @@ struct regval {
 };
 
 struct gc4c33_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -146,15 +152,19 @@ struct gc4c33 {
 	struct v4l2_ctrl	*digi_gain;
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
 	const struct gc4c33_mode *cur_mode;
+	u32			cfg_num;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	u8			flip;
 };
 
 #define to_gc4c33(sd) container_of(sd, struct gc4c33, subdev)
@@ -457,8 +467,8 @@ static const struct regval gc4c33_linear10bit_2560x1440_regs[] = {
 	{0x034d, 0x00},
 	{0x034e, 0x05},
 	{0x034f, 0xa0},
-	{0x0354, 0x01},
-	{0x0352, 0x08},
+	{0x0354, 0x03},
+	{0x0352, 0x02},
 	{0x0295, 0xff},
 	{0x0296, 0xff},
 	{0x02f0, 0x22},
@@ -1083,6 +1093,7 @@ static const struct gc4c33_mode supported_modes[] = {
 		.hts_def = 0x0AA0,
 		.vts_def = 0x05DC,
 		.reg_list = gc4c33_linear10bit_2560x1440_regs,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}, {
@@ -1096,6 +1107,7 @@ static const struct gc4c33_mode supported_modes[] = {
 		.hts_def = 0x0E2B,
 		.vts_def = 0x0465,
 		.reg_list = gc4c33_linear10bit_1920x1080_regs,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}, {
@@ -1109,6 +1121,7 @@ static const struct gc4c33_mode supported_modes[] = {
 		.hts_def = 0x0855,
 		.vts_def = 0x02EE,
 		.reg_list = gc4c33_linear10bit_1280x720_regs,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -1211,7 +1224,7 @@ static int gc4c33_get_reso_dist(const struct gc4c33_mode *mode,
 }
 
 static const struct gc4c33_mode *
-gc4c33_find_best_fit(struct v4l2_subdev_format *fmt)
+gc4c33_find_best_fit(struct gc4c33 *gc4c33, struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
@@ -1219,7 +1232,7 @@ gc4c33_find_best_fit(struct v4l2_subdev_format *fmt)
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+	for (i = 0; i < gc4c33->cfg_num; i++) {
 		dist = gc4c33_get_reso_dist(&supported_modes[i], framefmt);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
@@ -1240,8 +1253,8 @@ static int gc4c33_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&gc4c33->mutex);
 
-	mode = gc4c33_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	mode = gc4c33_find_best_fit(gc4c33, fmt);
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -1286,7 +1299,7 @@ static int gc4c33_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 		/* format info: width/height/data type/virctual channel */
 		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
@@ -1303,9 +1316,11 @@ static int gc4c33_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct gc4c33 *gc4c33 = to_gc4c33(sd);
+
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	code->code = gc4c33->cur_mode->bus_fmt;
 
 	return 0;
 }
@@ -1314,10 +1329,12 @@ static int gc4c33_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= ARRAY_SIZE(supported_modes))
+	struct gc4c33 *gc4c33 = to_gc4c33(sd);
+
+	if (fse->index >= gc4c33->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
+	if (fse->code != supported_modes[0].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;
@@ -1543,7 +1560,7 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr = (struct rkmodule_hdr_cfg *)arg;
 		w = gc4c33->cur_mode->width;
 		h = gc4c33->cur_mode->height;
-		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		for (i = 0; i < gc4c33->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
 			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
@@ -1551,7 +1568,7 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				break;
 			}
 		}
-		if (i == ARRAY_SIZE(supported_modes)) {
+		if (i == gc4c33->cfg_num) {
 			dev_err(&gc4c33->client->dev,
 				"not find hdr mode:%d %dx%d config\n",
 				hdr->hdr_mode, w, h);
@@ -2024,7 +2041,7 @@ static int gc4c33_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&gc4c33->mutex);
@@ -2038,10 +2055,12 @@ static int gc4c33_enum_frame_interval(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_interval_enum *fie)
 {
-	if (fie->index >= ARRAY_SIZE(supported_modes))
+	struct gc4c33 *gc4c33 = to_gc4c33(sd);
+
+	if (fie->index >= gc4c33->cfg_num)
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -2095,6 +2114,7 @@ static int gc4c33_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = gc4c33->client;
 	s64 max;
 	int ret = 0;
+	u32 val = 0;
 
 	/*Propagate change of current control to all related controls*/
 	switch (ctrl->id) {
@@ -2138,6 +2158,30 @@ static int gc4c33_set_ctrl(struct v4l2_ctrl *ctrl)
 					(ctrl->val + gc4c33->cur_mode->height)
 					& 0xff);
 		break;
+	case V4L2_CID_HFLIP:
+		ret = gc4c33_read_reg(gc4c33->client, GC4C33_FLIP_MIRROR_REG,
+				      GC4C33_REG_VALUE_08BIT, &val);
+		if (ctrl->val)
+			val |= GC4C33_MIRROR_BIT_MASK;
+		else
+			val &= ~GC4C33_MIRROR_BIT_MASK;
+		ret |= gc4c33_write_reg(gc4c33->client, GC4C33_FLIP_MIRROR_REG,
+					GC4C33_REG_VALUE_08BIT, val);
+		if (ret == 0)
+			gc4c33->flip = val;
+		break;
+	case V4L2_CID_VFLIP:
+		ret = gc4c33_read_reg(gc4c33->client, GC4C33_FLIP_MIRROR_REG,
+				      GC4C33_REG_VALUE_08BIT, &val);
+		if (ctrl->val)
+			val |= GC4C33_FLIP_BIT_MASK;
+		else
+			val &= ~GC4C33_FLIP_BIT_MASK;
+		ret |= gc4c33_write_reg(gc4c33->client, GC4C33_FLIP_MIRROR_REG,
+					GC4C33_REG_VALUE_08BIT, val);
+		if (ret == 0)
+			gc4c33->flip = val;
+		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = gc4c33_enable_test_pattern(gc4c33, ctrl->val);
 		break;
@@ -2167,7 +2211,7 @@ static int gc4c33_initialize_controls(struct gc4c33 *gc4c33)
 
 	handler = &gc4c33->ctrl_handler;
 	mode = gc4c33->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
 	handler->lock = &gc4c33->mutex;
@@ -2213,6 +2257,12 @@ static int gc4c33_initialize_controls(struct gc4c33 *gc4c33)
 				V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(gc4c33_test_pattern_menu) - 1,
 				0, 0, gc4c33_test_pattern_menu);
+	gc4c33->h_flip = v4l2_ctrl_new_std(handler, &gc4c33_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	gc4c33->v_flip = v4l2_ctrl_new_std(handler, &gc4c33_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	gc4c33->flip = 0;
 
 	if (handler->error) {
 		ret = handler->error;
@@ -2300,13 +2350,14 @@ static int gc4c33_probe(struct i2c_client *client,
 	}
 
 	gc4c33->client = client;
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+	gc4c33->cfg_num = ARRAY_SIZE(supported_modes);
+	for (i = 0; i < gc4c33->cfg_num; i++) {
 		if (hdr_mode == supported_modes[i].hdr_mode) {
 			gc4c33->cur_mode = &supported_modes[i];
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(supported_modes))
+	if (i == gc4c33->cfg_num)
 		gc4c33->cur_mode = &supported_modes[0];
 
 	gc4c33->xvclk = devm_clk_get(dev, "xvclk");
