@@ -5,6 +5,7 @@
 // Based on extcon-sm5502.c driver
 // Copyright (c) 2018-2019 by Vijai Kumar K
 // Author: Vijai Kumar K <vijaikumar.kanagarajan@gmail.com>
+// Copyright (c) 2020 Krzysztof Kozlowski <krzk@kernel.org>
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -83,25 +84,55 @@ static const struct regmap_config ptn5150_regmap_config = {
 	.max_register	= PTN5150_REG_END,
 };
 
+static void ptn5150_check_state(struct ptn5150_info *info)
+{
+	unsigned int port_status, reg_data, vbus;
+	int ret;
+
+	ret = regmap_read(info->regmap, PTN5150_REG_CC_STATUS, &reg_data);
+	if (ret) {
+		dev_err(info->dev, "failed to read CC STATUS %d\n", ret);
+		return;
+	}
+
+	port_status = ((reg_data &
+			PTN5150_REG_CC_PORT_ATTACHMENT_MASK) >>
+			PTN5150_REG_CC_PORT_ATTACHMENT_SHIFT);
+
+	switch (port_status) {
+	case PTN5150_DFP_ATTACHED:
+		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
+		gpiod_set_value_cansleep(info->vbus_gpiod, 0);
+		extcon_set_state_sync(info->edev, EXTCON_USB, true);
+		break;
+	case PTN5150_UFP_ATTACHED:
+		extcon_set_state_sync(info->edev, EXTCON_USB, false);
+		vbus = ((reg_data & PTN5150_REG_CC_VBUS_DETECTION_MASK) >>
+			PTN5150_REG_CC_VBUS_DETECTION_SHIFT);
+		if (vbus)
+			gpiod_set_value_cansleep(info->vbus_gpiod, 0);
+		else
+			gpiod_set_value_cansleep(info->vbus_gpiod, 1);
+
+		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
+		break;
+	default:
+		dev_err(info->dev, "Unknown Port status : %x\n", port_status);
+		break;
+	}
+}
+
 static void ptn5150_irq_work(struct work_struct *work)
 {
 	struct ptn5150_info *info = container_of(work,
 			struct ptn5150_info, irq_work);
 	int ret = 0;
-	unsigned int reg_data;
 	unsigned int int_status;
 
 	if (!info->edev)
 		return;
 
 	mutex_lock(&info->mutex);
-
-	ret = regmap_read(info->regmap, PTN5150_REG_CC_STATUS, &reg_data);
-	if (ret) {
-		dev_err(info->dev, "failed to read CC STATUS %d\n", ret);
-		mutex_unlock(&info->mutex);
-		return;
-	}
 
 	/* Clear interrupt. Read would clear the register */
 	ret = regmap_read(info->regmap, PTN5150_REG_INT_STATUS, &int_status);
@@ -116,41 +147,7 @@ static void ptn5150_irq_work(struct work_struct *work)
 
 		cable_attach = int_status & PTN5150_REG_INT_CABLE_ATTACH_MASK;
 		if (cable_attach) {
-			unsigned int port_status;
-			unsigned int vbus;
-
-			port_status = ((reg_data &
-					PTN5150_REG_CC_PORT_ATTACHMENT_MASK) >>
-					PTN5150_REG_CC_PORT_ATTACHMENT_SHIFT);
-
-			switch (port_status) {
-			case PTN5150_DFP_ATTACHED:
-				extcon_set_state_sync(info->edev,
-						EXTCON_USB_HOST, false);
-				gpiod_set_value_cansleep(info->vbus_gpiod, 0);
-				extcon_set_state_sync(info->edev, EXTCON_USB,
-						true);
-				break;
-			case PTN5150_UFP_ATTACHED:
-				extcon_set_state_sync(info->edev, EXTCON_USB,
-						false);
-				vbus = ((reg_data &
-					PTN5150_REG_CC_VBUS_DETECTION_MASK) >>
-					PTN5150_REG_CC_VBUS_DETECTION_SHIFT);
-				if (vbus)
-					gpiod_set_value_cansleep(info->vbus_gpiod, 0);
-				else
-					gpiod_set_value_cansleep(info->vbus_gpiod, 1);
-
-				extcon_set_state_sync(info->edev,
-						EXTCON_USB_HOST, true);
-				break;
-			default:
-				dev_err(info->dev,
-					"Unknown Port status : %x\n",
-					port_status);
-				break;
-			}
+			ptn5150_check_state(info);
 		} else {
 			extcon_set_state_sync(info->edev,
 					EXTCON_USB_HOST, false);
@@ -302,6 +299,14 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		return -EINVAL;
 
+	/*
+	 * Update current extcon state if for example OTG connection was there
+	 * before the probe
+	 */
+	mutex_lock(&info->mutex);
+	ptn5150_check_state(info);
+	mutex_unlock(&info->mutex);
+
 	return 0;
 }
 
@@ -334,4 +339,5 @@ subsys_initcall(ptn5150_i2c_init);
 
 MODULE_DESCRIPTION("NXP PTN5150 CC logic Extcon driver");
 MODULE_AUTHOR("Vijai Kumar K <vijaikumar.kanagarajan@gmail.com>");
+MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_LICENSE("GPL v2");
