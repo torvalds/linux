@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Header file for device driver Hi6421 PMIC
  *
@@ -5,19 +6,6 @@
  * Copyright (C) 2011 Hisilicon.
  *
  * Guodong Xu <guodong.xu@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef	__HISI_PMIC_H
@@ -25,12 +13,12 @@
 
 #include <linux/irqdomain.h>
 
-#define HISI_REGS_ENA_PROTECT_TIME	(0) 	/* in microseconds */
+#define HISI_REGS_ENA_PROTECT_TIME	(0)	/* in microseconds */
 #define HISI_ECO_MODE_ENABLE		(1)
 #define HISI_ECO_MODE_DISABLE		(0)
 
 typedef int (*pmic_ocp_callback)(char *);
-extern int hisi_pmic_special_ocp_register(char *power_name, pmic_ocp_callback handler);
+int hisi_pmic_special_ocp_register(char *power_name, pmic_ocp_callback handler);
 
 struct irq_mask_info {
 	int start_addr;
@@ -71,6 +59,8 @@ struct hisi_pmic {
 	struct irq_info irq_addr1;
 	struct write_lock normal_lock;
 	struct write_lock debug_lock;
+
+	unsigned int g_extinterrupt_flag;
 };
 
 /* 0:disable; 1:enable */
