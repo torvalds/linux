@@ -178,10 +178,11 @@ again:
 		f = fcheck_files(curr_files, curr_fd);
 		if (!f)
 			continue;
+		if (!get_file_rcu(f))
+			continue;
 
 		/* set info->fd */
 		info->fd = curr_fd;
-		get_file(f);
 		rcu_read_unlock();
 		return f;
 	}
