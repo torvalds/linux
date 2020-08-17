@@ -175,7 +175,7 @@ static const unsigned int intra4x4_lambda3[] = {
 static v4l2_std_id tw5864_get_v4l2_std(enum tw5864_vid_std std);
 static enum tw5864_vid_std tw5864_from_v4l2_std(v4l2_std_id v4l2_std);
 
-static void tw5864_handle_frame_task(unsigned long data);
+static void tw5864_handle_frame_task(struct tasklet_struct *t);
 static void tw5864_handle_frame(struct tw5864_h264_frame *frame);
 static void tw5864_frame_interval_set(struct tw5864_input *input);
 
@@ -1057,8 +1057,7 @@ int tw5864_video_init(struct tw5864_dev *dev, int *video_nr)
 	dev->irqmask |= TW5864_INTR_VLC_DONE | TW5864_INTR_TIMER;
 	tw5864_irqmask_apply(dev);
 
-	tasklet_init(&dev->tasklet, tw5864_handle_frame_task,
-		     (unsigned long)dev);
+	tasklet_setup(&dev->tasklet, tw5864_handle_frame_task);
 
 	for (i = 0; i < TW5864_INPUTS; i++) {
 		dev->inputs[i].root = dev;
@@ -1311,9 +1310,9 @@ static int tw5864_is_motion_triggered(struct tw5864_h264_frame *frame)
 	return detected;
 }
 
-static void tw5864_handle_frame_task(unsigned long data)
+static void tw5864_handle_frame_task(struct tasklet_struct *t)
 {
-	struct tw5864_dev *dev = (struct tw5864_dev *)data;
+	struct tw5864_dev *dev = from_tasklet(dev, t, tasklet);
 	unsigned long flags;
 	int batch_size = H264_BUF_CNT;
 
