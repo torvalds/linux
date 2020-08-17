@@ -142,7 +142,7 @@ only NUL-terminated strings. The safe replacement is strscpy().
 (Users of strscpy() still needing NUL-padding should instead
 use strscpy_pad().)
 
-If a caller is using non-NUL-terminated strings, strncpy()() can
+If a caller is using non-NUL-terminated strings, strncpy() can
 still be used, but destinations should be marked with the `__nonstring
 <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
 attribute to avoid future compiler warnings.
