@@ -6,6 +6,8 @@
 #ifndef ATH11K_HW_H
 #define ATH11K_HW_H
 
+#include "wmi.h"
+
 /* Target configuration defines */
 
 /* Num VDEVS per radio */
@@ -116,6 +118,8 @@ struct ath11k_hw_ring_mask {
 
 struct ath11k_hw_ops {
 	u8 (*get_hw_mac_from_pdev_id)(int pdev_id);
+	void (*wmi_init_config)(struct ath11k_base *ab,
+				struct target_resource_config *config);
 };
 
 struct ath11k_hw_params {
