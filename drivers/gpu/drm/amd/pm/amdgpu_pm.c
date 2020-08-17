@@ -3311,8 +3311,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	}
 
 	if (((adev->flags & AMD_IS_APU) ||
-	     adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_SI) &&	/* not implemented yet */
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
