@@ -2669,22 +2669,22 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Correct xfer_size at write (start failure)",
+		.name = "Proper xfer_size at write (start failure)",
 		.run = mmc_test_xfersize_write,
 	},
 
 	{
-		.name = "Correct xfer_size at read (start failure)",
+		.name = "Proper xfer_size at read (start failure)",
 		.run = mmc_test_xfersize_read,
 	},
 
 	{
-		.name = "Correct xfer_size at write (midway failure)",
+		.name = "Proper xfer_size at write (midway failure)",
 		.run = mmc_test_multi_xfersize_write,
 	},
 
 	{
-		.name = "Correct xfer_size at read (midway failure)",
+		.name = "Proper xfer_size at read (midway failure)",
 		.run = mmc_test_multi_xfersize_read,
 	},
 
