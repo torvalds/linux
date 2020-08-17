@@ -392,7 +392,6 @@ struct cio2_device {
 					 sizeof(struct cio2_fbpt_entry))
 
 #define CIO2_FBPT_SUBENTRY_UNIT		4
-#define CIO2_PAGE_SIZE			4096
 
 /* cio2 fbpt first_entry ctrl status */
 #define CIO2_FBPT_CTRL_VALID		BIT(0)
