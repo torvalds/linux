@@ -124,6 +124,8 @@ include ../scripts/utilities.mak
 #
 # Define LIBPFM4 to enable libpfm4 events extension.
 #
+# Define NO_LIBDEBUGINFOD if you do not want support debuginfod
+#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -418,6 +420,7 @@ export INSTALL SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
+beauty_linux_dir := $(srctree)/tools/perf/trace/beauty/include/linux/
 linux_uapi_dir := $(srctree)/tools/include/uapi/linux
 asm_generic_uapi_dir := $(srctree)/tools/include/uapi/asm-generic
 arch_asm_uapi_dir := $(srctree)/tools/arch/$(SRCARCH)/include/uapi/asm/
@@ -500,6 +503,12 @@ socket_ipproto_tbl := $(srctree)/tools/perf/trace/beauty/socket_ipproto.sh
 
 $(socket_ipproto_array): $(linux_uapi_dir)/in.h $(socket_ipproto_tbl)
 	$(Q)$(SHELL) '$(socket_ipproto_tbl)' $(linux_uapi_dir) > $@
+
+socket_arrays := $(beauty_outdir)/socket_arrays.c
+socket_tbl := $(srctree)/tools/perf/trace/beauty/socket.sh
+
+$(socket_arrays): $(beauty_linux_dir)/socket.h $(socket_tbl)
+	$(Q)$(SHELL) '$(socket_tbl)' $(beauty_linux_dir) > $@
 
 vhost_virtio_ioctl_array := $(beauty_ioctl_outdir)/vhost_virtio_ioctl_array.c
 vhost_virtio_hdr_dir := $(srctree)/tools/include/uapi/linux
@@ -697,6 +706,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(kcmp_type_array) \
 	$(kvm_ioctl_array) \
 	$(socket_ipproto_array) \
+	$(socket_arrays) \
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
 	$(mmap_flags_array) \
@@ -1006,6 +1016,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(kvm_ioctl_array) \
 		$(OUTPUT)$(kcmp_type_array) \
 		$(OUTPUT)$(socket_ipproto_array) \
+		$(OUTPUT)$(socket_arrays) \
 		$(OUTPUT)$(vhost_virtio_ioctl_array) \
 		$(OUTPUT)$(perf_ioctl_array) \
 		$(OUTPUT)$(prctl_option_array) \

@@ -103,7 +103,8 @@ int clock_getres32_fallback(clockid_t _clkid, struct old_timespec32 *_ts)
 	return ret;
 }
 
-static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
+static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
+						 const struct vdso_data *vd)
 {
 	u64 res;
 

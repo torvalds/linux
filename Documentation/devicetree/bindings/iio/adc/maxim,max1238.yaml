@@ -10,7 +10,7 @@ maintainers:
   - Jonathan Cameron <jic23@kernel.org>
 
 description: |
-   Family of simple ADCs with i2c inteface and internal references.
+  Family of simple ADCs with i2c inteface and internal references.
 
 properties:
   compatible:

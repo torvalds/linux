@@ -17,6 +17,7 @@
 #include "nfs4session.h"
 #include "internal.h"
 #include "delegation.h"
+#include "nfs4trace.h"
 
 #define NFSDBG_FACILITY NFSDBG_PROC
 static int nfs42_do_offload_cancel_async(struct file *dst, nfs4_stateid *std);
@@ -714,7 +715,7 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 
 	switch (task->tk_status) {
 	case 0:
-		break;
+		return;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
 		pnfs_destroy_layout(NFS_I(inode));
@@ -760,6 +761,8 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case -EOPNOTSUPP:
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
+
+	trace_nfs4_layoutstats(inode, &data->args.stateid, task->tk_status);
 }
 
 static void
@@ -882,7 +885,7 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 
 	switch (task->tk_status) {
 	case 0:
-		break;
+		return;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
 		pnfs_destroy_layout(NFS_I(inode));
@@ -926,6 +929,9 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 	case -EOPNOTSUPP:
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTERROR;
 	}
+
+	trace_nfs4_layouterror(inode, &data->args.errors[0].stateid,
+			       task->tk_status);
 }
 
 static void
@@ -1086,5 +1092,253 @@ int nfs42_proc_clone(struct file *src_f, struct file *dst_f,
 	nfs_put_lock_context(dst_lock);
 out_put_src_lock:
 	nfs_put_lock_context(src_lock);
+	return err;
+}
+
+#define NFS4XATTR_MAXPAGES DIV_ROUND_UP(XATTR_SIZE_MAX, PAGE_SIZE)
+
+static int _nfs42_proc_removexattr(struct inode *inode, const char *name)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs42_removexattrargs args = {
+		.fh = NFS_FH(inode),
+		.xattr_name = name,
+	};
+	struct nfs42_removexattrres res;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVEXATTR],
+		.rpc_argp = &args,
+		.rpc_resp = &res,
+	};
+	int ret;
+	unsigned long timestamp = jiffies;
+
+	ret = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
+	    &res.seq_res, 1);
+	if (!ret)
+		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
+
+	return ret;
+}
+
+static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
+				const void *buf, size_t buflen, int flags)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct page *pages[NFS4XATTR_MAXPAGES];
+	struct nfs42_setxattrargs arg = {
+		.fh		= NFS_FH(inode),
+		.xattr_pages	= pages,
+		.xattr_len	= buflen,
+		.xattr_name	= name,
+		.xattr_flags	= flags,
+	};
+	struct nfs42_setxattrres res;
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_SETXATTR],
+		.rpc_argp	= &arg,
+		.rpc_resp	= &res,
+	};
+	int ret, np;
+	unsigned long timestamp = jiffies;
+
+	if (buflen > server->sxasize)
+		return -ERANGE;
+
+	if (buflen > 0) {
+		np = nfs4_buf_to_pages_noslab(buf, buflen, arg.xattr_pages);
+		if (np < 0)
+			return np;
+	} else
+		np = 0;
+
+	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
+	    &res.seq_res, 1);
+
+	for (; np > 0; np--)
+		put_page(pages[np - 1]);
+
+	if (!ret)
+		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
+
+	return ret;
+}
+
+static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
+				void *buf, size_t buflen)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct page *pages[NFS4XATTR_MAXPAGES] = {};
+	struct nfs42_getxattrargs arg = {
+		.fh		= NFS_FH(inode),
+		.xattr_pages	= pages,
+		.xattr_len	= buflen,
+		.xattr_name	= name,
+	};
+	struct nfs42_getxattrres res;
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_GETXATTR],
+		.rpc_argp	= &arg,
+		.rpc_resp	= &res,
+	};
+	int ret, np;
+
+	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
+	    &res.seq_res, 0);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Normally, the caching is done one layer up, but for successful
+	 * RPCS, always cache the result here, even if the caller was
+	 * just querying the length, or if the reply was too big for
+	 * the caller. This avoids a second RPC in the case of the
+	 * common query-alloc-retrieve cycle for xattrs.
+	 *
+	 * Note that xattr_len is always capped to XATTR_SIZE_MAX.
+	 */
+
+	nfs4_xattr_cache_add(inode, name, NULL, pages, res.xattr_len);
+
+	if (buflen) {
+		if (res.xattr_len > buflen)
+			return -ERANGE;
+		_copy_from_pages(buf, pages, 0, res.xattr_len);
+	}
+
+	np = DIV_ROUND_UP(res.xattr_len, PAGE_SIZE);
+	while (--np >= 0)
+		__free_page(pages[np]);
+
+	return res.xattr_len;
+}
+
+static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
+				 size_t buflen, u64 *cookiep, bool *eofp)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct page **pages;
+	struct nfs42_listxattrsargs arg = {
+		.fh		= NFS_FH(inode),
+		.cookie		= *cookiep,
+	};
+	struct nfs42_listxattrsres res = {
+		.eof = false,
+		.xattr_buf = buf,
+		.xattr_len = buflen,
+	};
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_LISTXATTRS],
+		.rpc_argp	= &arg,
+		.rpc_resp	= &res,
+	};
+	u32 xdrlen;
+	int ret, np;
+
+
+	res.scratch = alloc_page(GFP_KERNEL);
+	if (!res.scratch)
+		return -ENOMEM;
+
+	xdrlen = nfs42_listxattr_xdrsize(buflen);
+	if (xdrlen > server->lxasize)
+		xdrlen = server->lxasize;
+	np = xdrlen / PAGE_SIZE + 1;
+
+	pages = kcalloc(np, sizeof(struct page *), GFP_KERNEL);
+	if (pages == NULL) {
+		__free_page(res.scratch);
+		return -ENOMEM;
+	}
+
+	arg.xattr_pages = pages;
+	arg.count = xdrlen;
+
+	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
+	    &res.seq_res, 0);
+
+	if (ret >= 0) {
+		ret = res.copied;
+		*cookiep = res.cookie;
+		*eofp = res.eof;
+	}
+
+	while (--np >= 0) {
+		if (pages[np])
+			__free_page(pages[np]);
+	}
+
+	__free_page(res.scratch);
+	kfree(pages);
+
+	return ret;
+
+}
+
+ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
+			      void *buf, size_t buflen)
+{
+	struct nfs4_exception exception = { };
+	ssize_t err;
+
+	do {
+		err = _nfs42_proc_getxattr(inode, name, buf, buflen);
+		if (err >= 0)
+			break;
+		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+				&exception);
+	} while (exception.retry);
+
+	return err;
+}
+
+int nfs42_proc_setxattr(struct inode *inode, const char *name,
+			      const void *buf, size_t buflen, int flags)
+{
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs42_proc_setxattr(inode, name, buf, buflen, flags);
+		if (!err)
+			break;
+		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+				&exception);
+	} while (exception.retry);
+
+	return err;
+}
+
+ssize_t nfs42_proc_listxattrs(struct inode *inode, void *buf,
+			      size_t buflen, u64 *cookiep, bool *eofp)
+{
+	struct nfs4_exception exception = { };
+	ssize_t err;
+
+	do {
+		err = _nfs42_proc_listxattrs(inode, buf, buflen,
+		    cookiep, eofp);
+		if (err >= 0)
+			break;
+		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+				&exception);
+	} while (exception.retry);
+
+	return err;
+}
+
+int nfs42_proc_removexattr(struct inode *inode, const char *name)
+{
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs42_proc_removexattr(inode, name);
+		if (!err)
+			break;
+		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+				&exception);
+	} while (exception.retry);
+
 	return err;
 }

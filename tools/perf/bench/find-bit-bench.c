@@ -17,9 +17,9 @@ static unsigned int inner_iterations = 100000;
 
 static const struct option options[] = {
 	OPT_UINTEGER('i', "outer-iterations", &outer_iterations,
-		"Number of outerer iterations used"),
+		"Number of outer iterations used"),
 	OPT_UINTEGER('j', "inner-iterations", &inner_iterations,
-		"Number of outerer iterations used"),
+		"Number of inner iterations used"),
 	OPT_END()
 };
 

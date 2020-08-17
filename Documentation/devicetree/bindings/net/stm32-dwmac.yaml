@@ -48,11 +48,11 @@ properties:
     minItems: 3
     maxItems: 5
     items:
-        - description: GMAC main clock
-        - description: MAC TX clock
-        - description: MAC RX clock
-        - description: For MPU family, used for power mode
-        - description: For MPU family, used for PHY without quartz
+      - description: GMAC main clock
+      - description: MAC TX clock
+      - description: MAC RX clock
+      - description: For MPU family, used for power mode
+      - description: For MPU family, used for PHY without quartz
 
   clock-names:
     minItems: 3
@@ -89,7 +89,7 @@ required:
   - st,syscon
 
 examples:
- - |
+  - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>

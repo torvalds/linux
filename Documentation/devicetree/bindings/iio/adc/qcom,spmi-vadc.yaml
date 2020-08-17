@@ -24,11 +24,11 @@ properties:
           - const: qcom,spmi-adc-rev2
 
       - items:
-        - enum:
-          - qcom,spmi-vadc
-          - qcom,spmi-adc5
-          - qcom,spmi-adc-rev2
-          - qcom,spmi-adc7
+          - enum:
+              - qcom,spmi-vadc
+              - qcom,spmi-adc5
+              - qcom,spmi-adc-rev2
+              - qcom,spmi-adc7
 
   reg:
     description: VADC base address in the SPMI PMIC register map
@@ -97,16 +97,14 @@ patternProperties:
             input signal is multiplied. For example, <1 3> indicates the signal is scaled
             down to 1/3 of its value before ADC measurement.
             If property is not found default value depending on chip will be used.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         oneOf:
           - items:
-            - const: 1
-            - enum: [ 1, 3, 4, 6, 20, 8, 10 ]
-
+              - const: 1
+              - enum: [ 1, 3, 4, 6, 20, 8, 10 ]
           - items:
-            - const: 10
-            - const: 81
+              - const: 10
+              - const: 81
 
       qcom,ratiometric:
         description: |

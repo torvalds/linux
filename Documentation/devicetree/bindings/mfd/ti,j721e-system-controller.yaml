@@ -24,12 +24,11 @@ maintainers:
 
 properties:
   compatible:
-    anyOf:
-      - items:
-        - enum:
-           - ti,j721e-system-controller
-        - const: syscon
-        - const: simple-mfd
+    items:
+      - enum:
+          - ti,j721e-system-controller
+      - const: syscon
+      - const: simple-mfd
 
   "#address-cells":
     const: 1

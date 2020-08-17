@@ -31,8 +31,8 @@ properties:
     oneOf:
       - const: vdpu
       - items:
-        - const: vepu
-        - const: vdpu
+          - const: vepu
+          - const: vdpu
 
   clocks:
     maxItems: 2

@@ -95,10 +95,10 @@ allOf:
       # Devices without builtin crystal
       properties:
         clock-names:
-            minItems: 1
-            maxItems: 2
-            items:
-              enum: [ xin, clkin ]
+          minItems: 1
+          maxItems: 2
+          items:
+            enum: [ xin, clkin ]
         clocks:
           minItems: 1
           maxItems: 2

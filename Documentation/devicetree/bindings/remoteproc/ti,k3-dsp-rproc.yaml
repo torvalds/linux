@@ -118,16 +118,16 @@ else:
           - const: l1dram
 
 required:
- - compatible
- - reg
- - reg-names
- - ti,sci
- - ti,sci-dev-id
- - ti,sci-proc-ids
- - resets
- - firmware-name
- - mboxes
- - memory-region
+  - compatible
+  - reg
+  - reg-names
+  - ti,sci
+  - ti,sci-dev-id
+  - ti,sci-proc-ids
+  - resets
+  - firmware-name
+  - mboxes
+  - memory-region
 
 unevaluatedProperties: false
 

@@ -44,6 +44,9 @@ static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 	case RN5T618_INTMON:
 	case RN5T618_RTC_CTRL1 ... RN5T618_RTC_CTRL2:
 	case RN5T618_RTC_SECONDS ... RN5T618_RTC_YEAR:
+	case RN5T618_CHGSTATE:
+	case RN5T618_CHGCTRL_IRR ... RN5T618_CHGERR_MONI:
+	case RN5T618_CONTROL ... RN5T618_CC_AVEREG0:
 		return true;
 	default:
 		return false;
@@ -77,7 +80,7 @@ static const struct regmap_irq_chip rc5t619_irq_chip = {
 	.mask_invert = true,
 };
 
-static struct rn5t618 *rn5t618_pm_power_off;
+static struct i2c_client *rn5t618_pm_power_off;
 static struct notifier_block rn5t618_restart_handler;
 
 static int rn5t618_irq_init(struct rn5t618 *rn5t618)
@@ -110,13 +113,38 @@ static int rn5t618_irq_init(struct rn5t618 *rn5t618)
 
 static void rn5t618_trigger_poweroff_sequence(bool repower)
 {
+	int ret;
+
 	/* disable automatic repower-on */
-	regmap_update_bits(rn5t618_pm_power_off->regmap, RN5T618_REPCNT,
-			   RN5T618_REPCNT_REPWRON,
-			   repower ? RN5T618_REPCNT_REPWRON : 0);
+	ret = i2c_smbus_read_byte_data(rn5t618_pm_power_off, RN5T618_REPCNT);
+	if (ret < 0)
+		goto err;
+
+	ret &= ~RN5T618_REPCNT_REPWRON;
+	if (repower)
+		ret |= RN5T618_REPCNT_REPWRON;
+
+	ret = i2c_smbus_write_byte_data(rn5t618_pm_power_off,
+					RN5T618_REPCNT, (u8)ret);
+	if (ret < 0)
+		goto err;
+
 	/* start power-off sequence */
-	regmap_update_bits(rn5t618_pm_power_off->regmap, RN5T618_SLPCNT,
-			   RN5T618_SLPCNT_SWPWROFF, RN5T618_SLPCNT_SWPWROFF);
+	ret = i2c_smbus_read_byte_data(rn5t618_pm_power_off, RN5T618_SLPCNT);
+	if (ret < 0)
+		goto err;
+
+	ret |= RN5T618_SLPCNT_SWPWROFF;
+
+	ret = i2c_smbus_write_byte_data(rn5t618_pm_power_off,
+					RN5T618_SLPCNT, (u8)ret);
+	if (ret < 0)
+		goto err;
+
+	return;
+
+err:
+	dev_alert(&rn5t618_pm_power_off->dev, "Failed to shutdown (err = %d)\n", ret);
 }
 
 static void rn5t618_power_off(void)
@@ -189,7 +217,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	rn5t618_pm_power_off = priv;
+	rn5t618_pm_power_off = i2c;
 	if (of_device_is_system_power_controller(i2c->dev.of_node)) {
 		if (!pm_power_off)
 			pm_power_off = rn5t618_power_off;
@@ -211,9 +239,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 
 static int rn5t618_i2c_remove(struct i2c_client *i2c)
 {
-	struct rn5t618 *priv = i2c_get_clientdata(i2c);
-
-	if (priv == rn5t618_pm_power_off) {
+	if (i2c == rn5t618_pm_power_off) {
 		rn5t618_pm_power_off = NULL;
 		pm_power_off = NULL;
 	}

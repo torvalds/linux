@@ -133,6 +133,8 @@ struct seccomp_data {
 #  define __NR_seccomp 348
 # elif defined(__xtensa__)
 #  define __NR_seccomp 337
+# elif defined(__sh__)
+#  define __NR_seccomp 372
 # else
 #  warning "seccomp syscall number unknown for this architecture"
 #  define __NR_seccomp 0xffff
@@ -1719,6 +1721,10 @@ TEST_F(TRACE_poke, getpid_runs_normally)
  * a2 of the current window which is not fixed.
  */
 #define SYSCALL_RET(reg) a[(reg).windowbase * 4 + 2]
+#elif defined(__sh__)
+# define ARCH_REGS	struct pt_regs
+# define SYSCALL_NUM	gpr[3]
+# define SYSCALL_RET	gpr[0]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
@@ -1791,7 +1797,7 @@ void change_syscall(struct __test_metadata *_metadata,
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
 	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
-	defined(__xtensa__) || defined(__csky__)
+	defined(__xtensa__) || defined(__csky__) || defined(__sh__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}

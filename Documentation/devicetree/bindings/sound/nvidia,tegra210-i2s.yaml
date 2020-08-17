@@ -67,8 +67,7 @@ properties:
 
   sound-name-prefix:
     pattern: "^I2S[1-9]$"
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
     description:
       Used as prefix for sink/source names of the component. Must be a
       unique string among multiple instances of the same component.
