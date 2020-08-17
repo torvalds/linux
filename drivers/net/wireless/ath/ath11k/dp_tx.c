@@ -110,7 +110,12 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
-	ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+	/* For some chip, it can only use tcl0 to tx */
+	if (ar->ab->hw_params.tcl_0_only)
+		ti.ring_id = 0;
+	else
+		ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+
 	ring_map |= BIT(ti.ring_id);
 
 	tx_ring = &dp->tx_ring[ti.ring_id];
@@ -221,7 +226,8 @@ tcl_ring_sel:
 		 * checking this ring earlier for each pkt tx.
 		 * Restart ring selection if some rings are not checked yet.
 		 */
-		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1)) {
+		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1) &&
+		    !ar->ab->hw_params.tcl_0_only) {
 			tcl_ring_retry = true;
 			ring_selector++;
 		}
