@@ -3396,13 +3396,13 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	init_param.hw_mode_id = wmi_sc->preferred_hw_mode;
 	init_param.mem_chunks = wmi_sc->mem_chunks;
 
-	if (wmi_sc->preferred_hw_mode == WMI_HOST_HW_MODE_SINGLE ||
-	    ab->hw_params.single_pdev_only)
+	if (wmi_sc->preferred_hw_mode == WMI_HOST_HW_MODE_SINGLE)
 		init_param.hw_mode_id = WMI_HOST_HW_MODE_MAX;
 
-	init_param.num_band_to_mac = ab->num_radios;
-
-	ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
+	if (ab->hw_params.needs_band_to_mac) {
+		init_param.num_band_to_mac = ab->num_radios;
+		ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
+	}
 
 	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
 }

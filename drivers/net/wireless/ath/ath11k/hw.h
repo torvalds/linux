@@ -145,6 +145,12 @@ struct ath11k_hw_params {
 	u32 ce_count;
 
 	bool single_pdev_only;
+
+	/* For example on QCA6390 struct
+	 * wmi_init_cmd_param::band_to_mac_config needs to be false as the
+	 * firmware creates the mapping.
+	 */
+	bool needs_band_to_mac;
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
