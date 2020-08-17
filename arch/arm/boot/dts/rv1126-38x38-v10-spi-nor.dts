@@ -77,6 +77,7 @@
 		regulator-init-microvolt = <825000>;
 		regulator-always-on;
 		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
 		pwm-supply = <&vcc3v3_sys>;
 		status = "okay";
 	};
@@ -94,6 +95,7 @@
 		regulator-init-microvolt = <825000>;
 		regulator-always-on;
 		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
 		pwm-supply = <&vcc3v3_sys>;
 		status = "okay";
 	};
