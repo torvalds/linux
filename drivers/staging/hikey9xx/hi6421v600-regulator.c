@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device driver for regulators in Hisi IC
  *
@@ -52,7 +53,7 @@ struct hisi_regulator {
 	u32 off_on_delay;
 	u32 eco_uA;
 	struct regulator_desc rdesc;
-	int (*dt_parse)(struct hisi_regulator *, struct spmi_device *);
+	int (*dt_parse)(struct hisi_regulator *reg, struct spmi_device *spmi);
 };
 
 static DEFINE_MUTEX(enable_mutex);
@@ -77,8 +78,9 @@ static int hisi_regulator_is_enabled(struct regulator_dev *dev)
 	struct hisi_pmic *pmic = rdev_to_pmic(dev);
 
 	reg_val = hisi_pmic_read(pmic, sreg->register_info.ctrl_reg);
-	pr_debug("<[%s]: ctrl_reg=0x%x,enable_state=%d>\n", __func__, sreg->register_info.ctrl_reg,\
-			(reg_val & sreg->register_info.enable_mask));
+	pr_debug("<[%s]: ctrl_reg=0x%x,enable_state=%d>\n",
+		 __func__, sreg->register_info.ctrl_reg,
+		(reg_val & sreg->register_info.enable_mask));
 
 	return ((reg_val & sreg->register_info.enable_mask) != 0);
 }
@@ -98,14 +100,13 @@ static int hisi_regulator_enable(struct regulator_dev *dev)
 	usleep_range(HISI_REGS_ENA_PROTECT_TIME,
 		     HISI_REGS_ENA_PROTECT_TIME + 1000);
 
-
-
 	/* set enable register */
 	hisi_pmic_rmw(pmic, sreg->register_info.ctrl_reg,
-				sreg->register_info.enable_mask,
+		      sreg->register_info.enable_mask,
 				sreg->register_info.enable_mask);
-	pr_debug("<[%s]: ctrl_reg=0x%x,enable_mask=0x%x>\n", __func__, sreg->register_info.ctrl_reg,\
-			sreg->register_info.enable_mask);
+	pr_debug("<[%s]: ctrl_reg=0x%x,enable_mask=0x%x>\n",
+		 __func__, sreg->register_info.ctrl_reg,
+		 sreg->register_info.enable_mask);
 
 	mutex_unlock(&enable_mutex);
 
@@ -119,7 +120,7 @@ static int hisi_regulator_disable(struct regulator_dev *dev)
 
 	/* set enable register to 0 */
 	hisi_pmic_rmw(pmic, sreg->register_info.ctrl_reg,
-				sreg->register_info.enable_mask, 0);
+		      sreg->register_info.enable_mask, 0);
 
 	return 0;
 }
@@ -132,7 +133,8 @@ static int hisi_regulator_get_voltage(struct regulator_dev *dev)
 
 	/* get voltage selector */
 	reg_val = hisi_pmic_read(pmic, sreg->register_info.vset_reg);
-	pr_debug("<[%s]: vset_reg=0x%x>\n", __func__, sreg->register_info.vset_reg);
+	pr_debug("<[%s]: vset_reg=0x%x>\n",
+		 __func__, sreg->register_info.vset_reg);
 
 	selector = (reg_val & sreg->register_info.vset_mask) >>
 				(ffs(sreg->register_info.vset_mask) - 1);
@@ -141,7 +143,7 @@ static int hisi_regulator_get_voltage(struct regulator_dev *dev)
 }
 
 static int hisi_regulator_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV, unsigned *selector)
+				      int min_uV, int max_uV, unsigned int *selector)
 {
 	struct hisi_regulator *sreg = rdev_get_drvdata(dev);
 	struct hisi_pmic *pmic = rdev_to_pmic(dev);
@@ -162,14 +164,14 @@ static int hisi_regulator_set_voltage(struct regulator_dev *dev,
 	*selector = vsel;
 	/* set voltage selector */
 	hisi_pmic_rmw(pmic, sreg->register_info.vset_reg,
-		sreg->register_info.vset_mask,
+		      sreg->register_info.vset_mask,
 		vsel << (ffs(sreg->register_info.vset_mask) - 1));
 
-	pr_debug("<[%s]: vset_reg=0x%x, vset_mask=0x%x, value=0x%x>\n", __func__,\
-			sreg->register_info.vset_reg,\
-			sreg->register_info.vset_mask,\
-			vsel << (ffs(sreg->register_info.vset_mask) - 1)\
-			);
+	pr_debug("<[%s]: vset_reg=0x%x, vset_mask=0x%x, value=0x%x>\n",
+		 __func__,
+		 sreg->register_info.vset_reg,
+		 sreg->register_info.vset_mask,
+		 vsel << (ffs(sreg->register_info.vset_mask) - 1));
 
 	return ret;
 }
@@ -181,10 +183,10 @@ static unsigned int hisi_regulator_get_mode(struct regulator_dev *dev)
 	u32 reg_val;
 
 	reg_val = hisi_pmic_read(pmic, sreg->register_info.ctrl_reg);
-	pr_debug("<[%s]: reg_val=%d, ctrl_reg=0x%x, eco_mode_mask=0x%x>\n", __func__, reg_val,\
-			sreg->register_info.ctrl_reg,\
-			sreg->register_info.eco_mode_mask\
-		   );
+	pr_debug("<[%s]: reg_val=%d, ctrl_reg=0x%x, eco_mode_mask=0x%x>\n",
+		 __func__, reg_val,
+		sreg->register_info.ctrl_reg,
+		sreg->register_info.eco_mode_mask);
 
 	if (reg_val & sreg->register_info.eco_mode_mask)
 		return REGULATOR_MODE_IDLE;
@@ -193,7 +195,7 @@ static unsigned int hisi_regulator_get_mode(struct regulator_dev *dev)
 }
 
 static int hisi_regulator_set_mode(struct regulator_dev *dev,
-						unsigned int mode)
+				   unsigned int mode)
 {
 	struct hisi_regulator *sreg = rdev_get_drvdata(dev);
 	struct hisi_pmic *pmic = rdev_to_pmic(dev);
@@ -212,31 +214,31 @@ static int hisi_regulator_set_mode(struct regulator_dev *dev,
 
 	/* set mode */
 	hisi_pmic_rmw(pmic, sreg->register_info.ctrl_reg,
-		sreg->register_info.eco_mode_mask,
+		      sreg->register_info.eco_mode_mask,
 		eco_mode << (ffs(sreg->register_info.eco_mode_mask) - 1));
 
-	pr_debug("<[%s]: ctrl_reg=0x%x, eco_mode_mask=0x%x, value=0x%x>\n", __func__,\
-			sreg->register_info.ctrl_reg,\
-			sreg->register_info.eco_mode_mask,\
-			eco_mode << (ffs(sreg->register_info.eco_mode_mask) - 1)\
-		   );
+	pr_debug("<[%s]: ctrl_reg=0x%x, eco_mode_mask=0x%x, value=0x%x>\n",
+		 __func__,
+		sreg->register_info.ctrl_reg,
+		sreg->register_info.eco_mode_mask,
+		eco_mode << (ffs(sreg->register_info.eco_mode_mask) - 1));
 	return 0;
 }
 
-
-unsigned int hisi_regulator_get_optimum_mode(struct regulator_dev *dev,
-			int input_uV, int output_uV, int load_uA)
+static unsigned int hisi_regulator_get_optimum_mode(struct regulator_dev *dev,
+						    int input_uV, int output_uV,
+						    int load_uA)
 {
 	struct hisi_regulator *sreg = rdev_get_drvdata(dev);
 
-	if ((load_uA == 0) || ((unsigned int)load_uA > sreg->eco_uA))
+	if (load_uA || ((unsigned int)load_uA > sreg->eco_uA))
 		return REGULATOR_MODE_NORMAL;
 	else
 		return REGULATOR_MODE_IDLE;
 }
 
 static int hisi_dt_parse_common(struct hisi_regulator *sreg,
-					struct spmi_device *pdev)
+				struct spmi_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -246,7 +248,7 @@ static int hisi_dt_parse_common(struct hisi_regulator *sreg,
 
 	/* parse .register_info.ctrl_reg */
 	ret = of_property_read_u32_array(np, "hisilicon,hisi-ctrl",
-						register_info, 3);
+					 register_info, 3);
 	if (ret) {
 		dev_err(dev, "no hisilicon,hisi-ctrl property set\n");
 		goto dt_parse_common_end;
@@ -257,7 +259,7 @@ static int hisi_dt_parse_common(struct hisi_regulator *sreg,
 
 	/* parse .register_info.vset_reg */
 	ret = of_property_read_u32_array(np, "hisilicon,hisi-vset",
-						register_info, 2);
+					 register_info, 2);
 	if (ret) {
 		dev_err(dev, "no hisilicon,hisi-vset property set\n");
 		goto dt_parse_common_end;
@@ -267,7 +269,7 @@ static int hisi_dt_parse_common(struct hisi_regulator *sreg,
 
 	/* parse .off-on-delay */
 	ret = of_property_read_u32(np, "hisilicon,hisi-off-on-delay-us",
-						&sreg->off_on_delay);
+				   &sreg->off_on_delay);
 	if (ret) {
 		dev_err(dev, "no hisilicon,hisi-off-on-delay-us property set\n");
 		goto dt_parse_common_end;
@@ -294,7 +296,7 @@ dt_parse_common_end:
 }
 
 static int hisi_dt_parse_ldo(struct hisi_regulator *sreg,
-				struct spmi_device *pdev)
+			     struct spmi_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -312,7 +314,7 @@ static int hisi_dt_parse_ldo(struct hisi_regulator *sreg,
 
 	/* alloc space for .volt_table */
 	v_table = devm_kzalloc(dev, sizeof(unsigned int) * rdesc->n_voltages,
-								GFP_KERNEL);
+			       GFP_KERNEL);
 	if (unlikely(!v_table)) {
 		ret = -ENOMEM;
 		dev_err(dev, "no memory for .volt_table\n");
@@ -320,7 +322,7 @@ static int hisi_dt_parse_ldo(struct hisi_regulator *sreg,
 	}
 
 	ret = of_property_read_u32_array(np, "hisilicon,hisi-vset-table",
-						v_table, rdesc->n_voltages);
+					 v_table, rdesc->n_voltages);
 	if (ret) {
 		dev_err(dev, "no hisilicon,hisi-vset-table property set\n");
 		goto dt_parse_ldo_end1;
@@ -362,7 +364,7 @@ static const struct hisi_regulator hisi_regulator_ldo = {
 	.dt_parse = hisi_dt_parse_ldo,
 };
 
-static struct of_device_id of_hisi_regulator_match_tbl[] = {
+static const struct of_device_id of_hisi_regulator_match_tbl[] = {
 	{
 		.compatible = "hisilicon-hisi-ldo",
 		.data = &hisi_regulator_ldo,
@@ -388,14 +390,14 @@ static int hisi_regulator_probe(struct spmi_device *pdev)
 	int ret = 0;
 	/* to check which type of regulator this is */
 	match = of_match_device(of_hisi_regulator_match_tbl, &pdev->dev);
-	if (NULL == match) {
+	if (!match) {
 		pr_err("get hisi regulator fail!\n\r");
 		return -EINVAL;
 	}
 
 	template = match->data;
 	initdata = of_get_regulator_init_data(dev, np, NULL);
-	if (NULL == initdata) {
+	if (!initdata) {
 		pr_err("get regulator init data error !\n");
 		return -EINVAL;
 	}
@@ -404,14 +406,14 @@ static int hisi_regulator_probe(struct spmi_device *pdev)
 	constraint = &initdata->constraints;
 
 	ret = of_property_read_u32_array(np, "hisilicon,valid-modes-mask",
-						&(constraint->valid_modes_mask), 1);
+					 &constraint->valid_modes_mask, 1);
 	if (ret) {
 		pr_err("no hisilicon,valid-modes-mask property set\n");
 		ret = -ENODEV;
 		return ret;
 	}
 	ret = of_property_read_u32_array(np, "hisilicon,valid-idle-mask",
-						&temp_modes, 1);
+					 &temp_modes, 1);
 	if (ret) {
 		pr_err("no hisilicon,valid-modes-mask property set\n");
 		ret = -ENODEV;
@@ -420,18 +422,16 @@ static int hisi_regulator_probe(struct spmi_device *pdev)
 	constraint->valid_ops_mask |= temp_modes;
 
 	sreg = kmemdup(template, sizeof(*sreg), GFP_KERNEL);
-	if (!sreg) {
-		pr_err("template kememdup is fail. \n");
+	if (!sreg)
 		return -ENOMEM;
-	}
+
 	sreg->name = initdata->constraints.name;
 	rdesc = &sreg->rdesc;
 	rdesc->name = sreg->name;
 	rdesc->min_uV = initdata->constraints.min_uV;
 	supplyname = of_get_property(np, "hisilicon,supply_name", NULL);
-	if (supplyname != NULL) {
+	if (supplyname)
 		initdata->supply_regulator = supplyname;
-	}
 
 	/* to parse device tree data for regulator specific */
 	ret = sreg->dt_parse(sreg, pdev);
@@ -454,8 +454,9 @@ static int hisi_regulator_probe(struct spmi_device *pdev)
 		goto hisi_probe_end;
 	}
 
-	pr_debug("[%s]:valid_modes_mask[0x%x], valid_ops_mask[0x%x]\n", rdesc->name,\
-			constraint->valid_modes_mask, constraint->valid_ops_mask);
+	pr_debug("[%s]:valid_modes_mask[0x%x], valid_ops_mask[0x%x]\n",
+		 rdesc->name,
+		 constraint->valid_modes_mask, constraint->valid_ops_mask);
 
 	dev_set_drvdata(dev, rdev);
 hisi_probe_end:
@@ -477,11 +478,12 @@ static void hisi_regulator_remove(struct spmi_device *pdev)
 
 	kfree(sreg);
 }
+
 static int hisi_regulator_suspend(struct device *dev, pm_message_t state)
 {
 	struct hisi_regulator *hisi_regulator = dev_get_drvdata(dev);
 
-	if (NULL == hisi_regulator) {
+	if (!hisi_regulator) {
 		pr_err("%s:regulator is NULL\n", __func__);
 		return -ENOMEM;
 	}
@@ -490,13 +492,13 @@ static int hisi_regulator_suspend(struct device *dev, pm_message_t state)
 	pr_info("%s:-\n", __func__);
 
 	return 0;
-}/*lint !e715 */
+}
 
 static int hisi_regulator_resume(struct device *dev)
 {
 	struct hisi_regulator *hisi_regulator = dev_get_drvdata(dev);
 
-	if (NULL == hisi_regulator) {
+	if (!hisi_regulator) {
 		pr_err("%s:regulator is NULL\n", __func__);
 		return -ENOMEM;
 	}
