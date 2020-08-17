@@ -176,6 +176,9 @@ struct xfs_ino_geometry {
 	unsigned int	ialloc_align;
 
 	unsigned int	agino_log;	/* #bits for agino in inum */
+
+	/* precomputed value for di_flags2 */
+	uint64_t	new_diflags2;
 };
 
 #endif /* __XFS_SHARED_H__ */

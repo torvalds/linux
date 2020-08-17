@@ -1484,8 +1484,13 @@ xfs_fc_fill_super(
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_max_links = XFS_MAXLINK;
 	sb->s_time_gran = 1;
-	sb->s_time_min = XFS_LEGACY_TIME_MIN;
-	sb->s_time_max = XFS_LEGACY_TIME_MAX;
+	if (xfs_sb_version_hasbigtime(&mp->m_sb)) {
+		sb->s_time_min = xfs_bigtime_to_unix(XFS_BIGTIME_TIME_MIN);
+		sb->s_time_max = xfs_bigtime_to_unix(XFS_BIGTIME_TIME_MAX);
+	} else {
+		sb->s_time_min = XFS_LEGACY_TIME_MIN;
+		sb->s_time_max = XFS_LEGACY_TIME_MAX;
+	}
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	set_posix_acl_flag(sb);
@@ -1493,6 +1498,10 @@ xfs_fc_fill_super(
 	/* version 5 superblocks support inode version counters. */
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
 		sb->s_flags |= SB_I_VERSION;
+
+	if (xfs_sb_version_hasbigtime(&mp->m_sb))
+		xfs_warn(mp,
+ "EXPERIMENTAL big timestamp feature in use. Use at your own risk!");
 
 	if (mp->m_flags & XFS_MOUNT_DAX_ALWAYS) {
 		bool rtdev_is_dax = false, datadev_is_dax;

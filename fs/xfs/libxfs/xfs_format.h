@@ -467,6 +467,7 @@ xfs_sb_has_ro_compat_feature(
 #define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)	/* filetype in dirent */
 #define XFS_SB_FEAT_INCOMPAT_SPINODES	(1 << 1)	/* sparse inode chunks */
 #define XFS_SB_FEAT_INCOMPAT_META_UUID	(1 << 2)	/* metadata UUID */
+#define XFS_SB_FEAT_INCOMPAT_BIGTIME	(1 << 3)	/* large timestamps */
 #define XFS_SB_FEAT_INCOMPAT_ALL \
 		(XFS_SB_FEAT_INCOMPAT_FTYPE|	\
 		 XFS_SB_FEAT_INCOMPAT_SPINODES|	\
@@ -563,6 +564,12 @@ static inline bool xfs_sb_version_hasreflink(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 &&
 		(sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_REFLINK);
+}
+
+static inline bool xfs_sb_version_hasbigtime(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 &&
+		(sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_BIGTIME);
 }
 
 /*
@@ -858,6 +865,13 @@ struct xfs_agfl {
  * Therefore, the ondisk min and max defined here can be used directly to
  * constrain the incore timestamps on a Unix system.  Note that we actually
  * encode a __be64 value on disk.
+ *
+ * When the bigtime feature is enabled, ondisk inode timestamps become an
+ * unsigned 64-bit nanoseconds counter.  This means that the bigtime inode
+ * timestamp epoch is the start of the classic timestamp range, which is
+ * Dec 31 20:45:52 UTC 1901.  Because the epochs are not the same, callers
+ * /must/ use the bigtime conversion functions when encoding and decoding raw
+ * timestamps.
  */
 typedef __be64 xfs_timestamp_t;
 
@@ -878,6 +892,50 @@ struct xfs_legacy_timestamp {
  * corresponds exactly with the incore timestamp Jan 19 03:14:07 UTC 2038.
  */
 #define XFS_LEGACY_TIME_MAX	((int64_t)S32_MAX)
+
+/*
+ * Smallest possible ondisk seconds value with bigtime timestamps.  This
+ * corresponds (after conversion to a Unix timestamp) with the traditional
+ * minimum timestamp of Dec 13 20:45:52 UTC 1901.
+ */
+#define XFS_BIGTIME_TIME_MIN	((int64_t)0)
+
+/*
+ * Largest supported ondisk seconds value with bigtime timestamps.  This
+ * corresponds (after conversion to a Unix timestamp) with an incore timestamp
+ * of Jul  2 20:20:24 UTC 2486.
+ *
+ * We round down the ondisk limit so that the bigtime quota and inode max
+ * timestamps will be the same.
+ */
+#define XFS_BIGTIME_TIME_MAX	((int64_t)((-1ULL / NSEC_PER_SEC) & ~0x3ULL))
+
+/*
+ * Bigtime epoch is set exactly to the minimum time value that a traditional
+ * 32-bit timestamp can represent when using the Unix epoch as a reference.
+ * Hence the Unix epoch is at a fixed offset into the supported bigtime
+ * timestamp range.
+ *
+ * The bigtime epoch also matches the minimum value an on-disk 32-bit XFS
+ * timestamp can represent so we will not lose any fidelity in converting
+ * to/from unix and bigtime timestamps.
+ *
+ * The following conversion factor converts a seconds counter from the Unix
+ * epoch to the bigtime epoch.
+ */
+#define XFS_BIGTIME_EPOCH_OFFSET	(-(int64_t)S32_MIN)
+
+/* Convert a timestamp from the Unix epoch to the bigtime epoch. */
+static inline uint64_t xfs_unix_to_bigtime(time64_t unix_seconds)
+{
+	return (uint64_t)unix_seconds + XFS_BIGTIME_EPOCH_OFFSET;
+}
+
+/* Convert a timestamp from the bigtime epoch to the Unix epoch. */
+static inline time64_t xfs_bigtime_to_unix(uint64_t ondisk_seconds)
+{
+	return (time64_t)ondisk_seconds - XFS_BIGTIME_EPOCH_OFFSET;
+}
 
 /*
  * On-disk inode structure.
@@ -1104,12 +1162,22 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 #define XFS_DIFLAG2_DAX_BIT	0	/* use DAX for this inode */
 #define XFS_DIFLAG2_REFLINK_BIT	1	/* file's blocks may be shared */
 #define XFS_DIFLAG2_COWEXTSIZE_BIT   2  /* copy on write extent size hint */
+#define XFS_DIFLAG2_BIGTIME_BIT	3	/* big timestamps */
+
 #define XFS_DIFLAG2_DAX		(1 << XFS_DIFLAG2_DAX_BIT)
 #define XFS_DIFLAG2_REFLINK     (1 << XFS_DIFLAG2_REFLINK_BIT)
 #define XFS_DIFLAG2_COWEXTSIZE  (1 << XFS_DIFLAG2_COWEXTSIZE_BIT)
+#define XFS_DIFLAG2_BIGTIME	(1 << XFS_DIFLAG2_BIGTIME_BIT)
 
 #define XFS_DIFLAG2_ANY \
-	(XFS_DIFLAG2_DAX | XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE)
+	(XFS_DIFLAG2_DAX | XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE | \
+	 XFS_DIFLAG2_BIGTIME)
+
+static inline bool xfs_dinode_has_bigtime(const struct xfs_dinode *dip)
+{
+	return dip->di_version >= 3 &&
+	       (dip->di_flags2 & cpu_to_be64(XFS_DIFLAG2_BIGTIME));
+}
 
 /*
  * Inode number format:
