@@ -238,8 +238,14 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c,
 	info->i2c = i2c;
 	info->vbus_gpiod = devm_gpiod_get(&i2c->dev, "vbus", GPIOD_OUT_LOW);
 	if (IS_ERR(info->vbus_gpiod)) {
-		dev_err(dev, "failed to get VBUS GPIO\n");
-		return PTR_ERR(info->vbus_gpiod);
+		ret = PTR_ERR(info->vbus_gpiod);
+		if (ret == -ENOENT) {
+			dev_info(dev, "No VBUS GPIO, ignoring VBUS control\n");
+			info->vbus_gpiod = NULL;
+		} else {
+			dev_err(dev, "failed to get VBUS GPIO\n");
+			return ret;
+		}
 	}
 
 	mutex_init(&info->mutex);
