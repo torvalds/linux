@@ -47,9 +47,9 @@ ARCH		?= $(SUBARCH)
 khdr:
 ifndef KSFT_KHDR_INSTALL_DONE
 ifeq (1,$(DEFAULT_INSTALL_HDR_PATH))
-	make --no-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
+	$(MAKE) --no-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
 else
-	make --no-builtin-rules INSTALL_HDR_PATH=$$OUTPUT/usr \
+	$(MAKE) --no-builtin-rules INSTALL_HDR_PATH=$$OUTPUT/usr \
 		ARCH=$(ARCH) -C $(top_srcdir) headers_install
 endif
 endif
