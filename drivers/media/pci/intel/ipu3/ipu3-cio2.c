@@ -1712,7 +1712,6 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
 	struct cio2_device *cio2;
-	void __iomem *const *iomap;
 	int r;
 
 	cio2 = devm_kzalloc(&pci_dev->dev, sizeof(*cio2), GFP_KERNEL);
@@ -1735,13 +1734,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 		return -ENODEV;
 	}
 
-	iomap = pcim_iomap_table(pci_dev);
-	if (!iomap) {
-		dev_err(&pci_dev->dev, "failed to iomap table\n");
-		return -ENODEV;
-	}
-
-	cio2->base = iomap[CIO2_PCI_BAR];
+	cio2->base = pcim_iomap_table(pci_dev)[CIO2_PCI_BAR];
 
 	pci_set_drvdata(pci_dev, cio2);
 
