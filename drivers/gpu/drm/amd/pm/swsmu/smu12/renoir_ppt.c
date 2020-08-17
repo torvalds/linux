@@ -637,6 +637,23 @@ static int renoir_get_vddc(struct smu_context *smu, uint32_t *value,
 	return 0;
 }
 
+static int renoir_get_power(struct smu_context *smu, uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.CurrentSocketPower << 8;
+
+	return 0;
+}
+
 /**
  * This interface get dpm clock table for dc
  */
@@ -979,6 +996,10 @@ static int renoir_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_VDDNB:
 		ret = renoir_get_vddc(smu, (uint32_t *)data, 1);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		ret = renoir_get_power(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
