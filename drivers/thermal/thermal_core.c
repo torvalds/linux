@@ -1516,7 +1516,7 @@ EXPORT_SYMBOL_GPL(thermal_zone_device_register);
  */
 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 {
-	int i;
+	int i, tz_id;
 	const struct thermal_zone_params *tzp;
 	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *pos = NULL;
@@ -1525,6 +1525,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 		return;
 
 	tzp = tz->tzp;
+	tz_id = tz->id;
 
 	mutex_lock(&thermal_list_lock);
 	list_for_each_entry(pos, &thermal_tz_list, node)
@@ -1567,7 +1568,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	mutex_destroy(&tz->lock);
 	device_unregister(&tz->device);
 
-	thermal_notify_tz_delete(tz->id);
+	thermal_notify_tz_delete(tz_id);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_unregister);
 
