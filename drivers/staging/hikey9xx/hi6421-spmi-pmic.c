@@ -53,10 +53,6 @@
 #define HISI_PMIC_FIRST_GROUP_INT_NUM        2
 
 static struct bit_info g_pmic_vbus = {0};
-#ifndef BIT
-#define BIT(x)		(0x1U << (x))
-#endif
-
 static struct hisi_pmic *g_pmic;
 static unsigned int g_extinterrupt_flag  = 0;
 static struct of_device_id of_hisi_pmic_match_tbl[] = {
@@ -121,65 +117,6 @@ void hisi_pmic_write(struct hisi_pmic *pmic, int reg, u32 val)
 }
 EXPORT_SYMBOL(hisi_pmic_write);
 
-#ifdef CONFIG_HISI_DIEID
-u32 hisi_pmic_read_sub_pmu(u8 sid, int reg)
-{
-	u32 ret;
-	u8 read_value = 0;
-	struct spmi_device *pdev;
-
-	if(strstr(saved_command_line, "androidboot.swtype=factory"))
-	{
-		if (NULL == g_pmic) {
-			pr_err(" g_pmic  is NULL\n");
-			return -1;/*lint !e570 */
-		}
-
-		pdev = to_spmi_device(g_pmic->dev);
-		if (NULL == pdev) {
-			pr_err("%s:pdev get failed!\n", __func__);
-			return -1;/*lint !e570 */
-		}
-
-		ret = spmi_ext_register_readl(pdev->ctrl, sid, reg, (unsigned char*)&read_value, 1);/*lint !e734 !e732 */
-		if (ret) {
-			pr_err("%s:spmi_ext_register_readl failed!\n", __func__);
-			return ret;
-		}
-		return (u32)read_value;
-	}
-	return  0;
-}
-EXPORT_SYMBOL(hisi_pmic_read_sub_pmu);
-
-void hisi_pmic_write_sub_pmu(u8 sid, int reg, u32 val)
-{
-	u32 ret;
-	struct spmi_device *pdev;
-	if(strstr(saved_command_line, "androidboot.swtype=factory"))
-	{
-		if (NULL == g_pmic) {
-			pr_err(" g_pmic  is NULL\n");
-			return;
-		}
-
-		pdev = to_spmi_device(g_pmic->dev);
-		if (NULL == pdev) {
-			pr_err("%s:pdev get failed!\n", __func__);
-			return;
-		}
-
-		ret = spmi_ext_register_writel(pdev->ctrl, sid, reg, (unsigned char*)&val, 1);/*lint !e734 !e732 */
-		if (ret) {
-			pr_err("%s:spmi_ext_register_writel failed!\n", __func__);
-			return ;
-		}
-	}
-
-	return ;
-}
-EXPORT_SYMBOL(hisi_pmic_write_sub_pmu);
-#endif
 
 void hisi_pmic_rmw(struct hisi_pmic *pmic, int reg,
 		     u32 mask, u32 bits)
