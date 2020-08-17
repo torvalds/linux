@@ -14,9 +14,11 @@
 		rockchip,low-temp = <0>;
 		rockchip,low-temp-min-volt = <900000>;
 
-		nvmem-cells = <&cpul_leakage>, <&specification_serial_number>;
+		nvmem-cells = <&cpul_leakage>, <&specification_serial_number>,
+			      <&customer_demand>;
 		nvmem-cell-names = "cpu_leakage",
-				   "specification_serial_number";
+				   "specification_serial_number",
+				   "customer_demand";
 		clocks = <&cru PLL_APLLL>;
 		rockchip,avs-scale = <20>;
 		rockchip,bin-scaling-sel = <
@@ -105,9 +107,11 @@
 		rockchip,low-temp = <0>;
 		rockchip,low-temp-min-volt = <900000>;
 
-		nvmem-cells = <&cpub_leakage>, <&specification_serial_number>;
+		nvmem-cells = <&cpub_leakage>, <&specification_serial_number>,
+			      <&customer_demand>;
 		nvmem-cell-names = "cpu_leakage",
-				   "specification_serial_number";
+				   "specification_serial_number",
+				   "customer_demand";
 		clocks = <&cru PLL_APLLB>;
 		rockchip,avs-scale = <8>;
 		rockchip,bin-scaling-sel = <

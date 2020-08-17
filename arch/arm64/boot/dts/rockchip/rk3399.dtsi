@@ -1485,6 +1485,10 @@
 		wafer_info: wafer-info@1c {
 			reg = <0x1c 0x1>;
 		};
+		customer_demand: customer-demand@22 {
+			reg = <0x22 0x1>;
+			bits = <4 4>;
+		};
 	};
 
 	pmucru: pmu-clock-controller@ff750000 {
