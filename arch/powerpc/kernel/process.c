@@ -1525,14 +1525,14 @@ void show_regs(struct pt_regs * regs)
 			break;
 	}
 	pr_cont("\n");
-#ifdef CONFIG_KALLSYMS
 	/*
 	 * Lookup NIP late so we have the best change of getting the
 	 * above info out without failing
 	 */
-	printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
-	printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
-#endif
+	if (IS_ENABLED(CONFIG_KALLSYMS)) {
+		printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
+		printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
+	}
 	show_stack(current, (unsigned long *) regs->gpr[1], KERN_DEFAULT);
 	if (!user_mode(regs))
 		show_instructions(regs);
