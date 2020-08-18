@@ -256,12 +256,12 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct inode *inode = file_inode(file);
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
-	long pos, read;
-	int attr, uni_mode, row, col, maxcol;
-	unsigned short *org = NULL;
+	u16 *org;
+	unsigned int read, row, col, maxcol;
 	ssize_t ret;
 	char *con_buf;
-	bool viewed;
+	loff_t pos;
+	bool viewed, attr, uni_mode;
 
 	con_buf = (char *) __get_free_page(GFP_KERNEL);
 	if (!con_buf)
@@ -295,9 +295,8 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	ret = 0;
 	while (count) {
 		char *con_buf0, *con_buf_start;
-		long this_round, size;
-		ssize_t orig_count;
-		long p = pos;
+		unsigned int this_round, orig_count, p = pos;
+		int size;
 
 		/* Check whether we are above size each round,
 		 * as copy_to_user at the end of this loop
@@ -362,7 +361,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			}
 		} else {
 			if (p < HEADER_SIZE) {
-				size_t tmp_count;
+				unsigned int tmp_count;
 
 				/* clamp header values if they don't fit */
 				con_buf0[0] = min(vc->vc_rows, 0xFFu);
