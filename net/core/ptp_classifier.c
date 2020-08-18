@@ -107,6 +107,36 @@ unsigned int ptp_classify_raw(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(ptp_classify_raw);
 
+struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type)
+{
+	u8 *ptr = skb_mac_header(skb);
+
+	if (type & PTP_CLASS_VLAN)
+		ptr += VLAN_HLEN;
+
+	switch (type & PTP_CLASS_PMASK) {
+	case PTP_CLASS_IPV4:
+		ptr += IPV4_HLEN(ptr) + UDP_HLEN;
+		break;
+	case PTP_CLASS_IPV6:
+		ptr += IP6_HLEN + UDP_HLEN;
+		break;
+	case PTP_CLASS_L2:
+		break;
+	default:
+		return NULL;
+	}
+
+	ptr += ETH_HLEN;
+
+	/* Ensure that the entire header is present in this packet. */
+	if (ptr + sizeof(struct ptp_header) > skb->data + skb->len)
+		return NULL;
+
+	return (struct ptp_header *)ptr;
+}
+EXPORT_SYMBOL_GPL(ptp_parse_header);
+
 void __init ptp_classifier_init(void)
 {
 	static struct sock_filter ptp_filter[] __initdata = {

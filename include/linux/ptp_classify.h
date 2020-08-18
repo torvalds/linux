@@ -44,6 +44,30 @@
 #define OFF_IHL		14
 #define IPV4_HLEN(data) (((struct iphdr *)(data + OFF_IHL))->ihl << 2)
 
+struct clock_identity {
+	u8 id[8];
+} __packed;
+
+struct port_identity {
+	struct clock_identity	clock_identity;
+	__be16			port_number;
+} __packed;
+
+struct ptp_header {
+	u8			tsmt;  /* transportSpecific | messageType */
+	u8			ver;   /* reserved          | versionPTP  */
+	__be16			message_length;
+	u8			domain_number;
+	u8			reserved1;
+	u8			flag_field[2];
+	__be64			correction;
+	__be32			reserved2;
+	struct port_identity	source_port_identity;
+	__be16			sequence_id;
+	u8			control;
+	u8			log_message_interval;
+} __packed;
+
 #if defined(CONFIG_NET_PTP_CLASSIFY)
 /**
  * ptp_classify_raw - classify a PTP packet
@@ -57,6 +81,21 @@
  */
 unsigned int ptp_classify_raw(const struct sk_buff *skb);
 
+/**
+ * ptp_parse_header - Get pointer to the PTP v2 header
+ * @skb: packet buffer
+ * @type: type of the packet (see ptp_classify_raw())
+ *
+ * This function takes care of the VLAN, UDP, IPv4 and IPv6 headers. The length
+ * is checked.
+ *
+ * Note, internally skb_mac_header() is used. Make sure that the @skb is
+ * initialized accordingly.
+ *
+ * Return: Pointer to the ptp v2 header or NULL if not found
+ */
+struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type);
+
 void __init ptp_classifier_init(void);
 #else
 static inline void ptp_classifier_init(void)
@@ -65,6 +104,11 @@ static inline void ptp_classifier_init(void)
 static inline unsigned int ptp_classify_raw(struct sk_buff *skb)
 {
 	return PTP_CLASS_NONE;
+}
+static inline struct ptp_header *ptp_parse_header(struct sk_buff *skb,
+						  unsigned int type)
+{
+	return NULL;
 }
 #endif
 #endif /* _PTP_CLASSIFY_H_ */
