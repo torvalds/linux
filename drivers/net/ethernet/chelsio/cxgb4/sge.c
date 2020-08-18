@@ -2561,11 +2561,14 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	lb->loopback = 1;
 
 	q = &adap->sge.ethtxq[pi->first_qset];
+	__netif_tx_lock(q->txq, smp_processor_id());
 
 	reclaim_completed_tx(adap, &q->q, -1, true);
 	credits = txq_avail(&q->q) - ndesc;
-	if (unlikely(credits < 0))
+	if (unlikely(credits < 0)) {
+		__netif_tx_unlock(q->txq);
 		return -ENOMEM;
+	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
 	memset(wr, 0, sizeof(struct tx_desc));
@@ -2598,6 +2601,7 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	init_completion(&lb->completion);
 	txq_advance(&q->q, ndesc);
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
+	__netif_tx_unlock(q->txq);
 
 	/* wait for the pkt to return */
 	ret = wait_for_completion_timeout(&lb->completion, 10 * HZ);
