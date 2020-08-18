@@ -601,6 +601,26 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 	return events_reported;
 }
 
+static int __destroy_id(struct ucma_context *ctx)
+{
+	mutex_lock(&ctx->file->mut);
+	ctx->destroying = 1;
+	mutex_unlock(&ctx->file->mut);
+
+	flush_workqueue(ctx->file->close_wq);
+	/* At this point it's guaranteed that there is no inflight closing task */
+	xa_lock(&ctx_table);
+	if (!ctx->closing) {
+		xa_unlock(&ctx_table);
+		ucma_put_ctx(ctx);
+		wait_for_completion(&ctx->comp);
+		rdma_destroy_id(ctx->cm_id);
+	} else {
+		xa_unlock(&ctx_table);
+	}
+	return ucma_free_ctx(ctx);
+}
+
 static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 			       int in_len, int out_len)
 {
@@ -624,24 +644,7 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	mutex_lock(&ctx->file->mut);
-	ctx->destroying = 1;
-	mutex_unlock(&ctx->file->mut);
-
-	flush_workqueue(ctx->file->close_wq);
-	/* At this point it's guaranteed that there is no inflight
-	 * closing task */
-	xa_lock(&ctx_table);
-	if (!ctx->closing) {
-		xa_unlock(&ctx_table);
-		ucma_put_ctx(ctx);
-		wait_for_completion(&ctx->comp);
-		rdma_destroy_id(ctx->cm_id);
-	} else {
-		xa_unlock(&ctx_table);
-	}
-
-	resp.events_reported = ucma_free_ctx(ctx);
+	resp.events_reported = __destroy_id(ctx);
 	if (copy_to_user(u64_to_user_ptr(cmd.response),
 			 &resp, sizeof(resp)))
 		ret = -EFAULT;
@@ -1830,30 +1833,7 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	 */
 	list_for_each_entry_safe(ctx, tmp, &file->ctx_list, list) {
 		xa_erase(&ctx_table, ctx->id);
-
-		mutex_lock(&file->mut);
-		ctx->destroying = 1;
-		mutex_unlock(&file->mut);
-
-		flush_workqueue(file->close_wq);
-		/* At that step once ctx was marked as destroying and workqueue
-		 * was flushed we are safe from any inflights handlers that
-		 * might put other closing task.
-		 */
-		xa_lock(&ctx_table);
-		if (!ctx->closing) {
-			xa_unlock(&ctx_table);
-			ucma_put_ctx(ctx);
-			wait_for_completion(&ctx->comp);
-			/* rdma_destroy_id ensures that no event handlers are
-			 * inflight for that id before releasing it.
-			 */
-			rdma_destroy_id(ctx->cm_id);
-		} else {
-			xa_unlock(&ctx_table);
-		}
-
-		ucma_free_ctx(ctx);
+		__destroy_id(ctx);
 	}
 	destroy_workqueue(file->close_wq);
 	kfree(file);
