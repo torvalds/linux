@@ -161,8 +161,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 			BUID_LO(phb->buid), option);
 
 	/* If fundamental-reset not supported, try hot-reset */
-	if (option == EEH_RESET_FUNDAMENTAL &&
-	    ret == -8) {
+	if (option == EEH_RESET_FUNDAMENTAL && ret == -8) {
 		option = EEH_RESET_HOT;
 		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 				config_addr, BUID_HI(phb->buid),
@@ -170,8 +169,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 	}
 
 	/* We need reset hold or settlement delay */
-	if (option == EEH_RESET_FUNDAMENTAL ||
-	    option == EEH_RESET_HOT)
+	if (option == EEH_RESET_FUNDAMENTAL || option == EEH_RESET_HOT)
 		msleep(EEH_PE_RST_HOLD_TIME);
 	else
 		msleep(EEH_PE_RST_SETTLE_TIME);
@@ -621,8 +619,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 		/* Not support */
 		return 0;
 	default:
-		pr_err("%s: Invalid option %d\n",
-			__func__, option);
+		pr_err("%s: Invalid option %d\n", __func__, option);
 		return -EINVAL;
 	}
 
@@ -954,8 +951,7 @@ static int pseries_notify_resume(struct eeh_dev *edev)
 	if (!edev)
 		return -EEXIST;
 
-	if (rtas_token("ibm,open-sriov-allow-unfreeze")
-	    == RTAS_UNKNOWN_SERVICE)
+	if (rtas_token("ibm,open-sriov-allow-unfreeze") == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
