@@ -429,14 +429,16 @@ static void mei_io_list_flush_cl(struct list_head *head,
  *
  * @head: An instance of our list structure
  * @cl: host client
+ * @fp: file pointer (matching cb file object), may be NULL
  */
 static void mei_io_tx_list_free_cl(struct list_head *head,
-				   const struct mei_cl *cl)
+				   const struct mei_cl *cl,
+				   const struct file *fp)
 {
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, head, list) {
-		if (cl == cb->cl)
+		if (cl == cb->cl && (!fp || fp == cb->fp))
 			mei_tx_cb_dequeue(cb);
 	}
 }
@@ -574,13 +576,14 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	dev = cl->dev;
 
 	cl_dbg(dev, cl, "remove list entry belonging to cl\n");
-	mei_io_tx_list_free_cl(&cl->dev->write_list, cl);
-	mei_io_tx_list_free_cl(&cl->dev->write_waiting_list, cl);
-	mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
-	mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
-	/* free pending cb only in final flush */
-	if (!fp)
+	mei_io_tx_list_free_cl(&cl->dev->write_list, cl, fp);
+	mei_io_tx_list_free_cl(&cl->dev->write_waiting_list, cl, fp);
+	/* free pending and control cb only in final flush */
+	if (!fp) {
+		mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
+		mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
 		mei_cl_free_pending(cl);
+	}
 	spin_lock(&cl->rd_completed_lock);
 	mei_io_list_free_fp(&cl->rd_completed, fp);
 	spin_unlock(&cl->rd_completed_lock);
@@ -798,8 +801,8 @@ static void mei_cl_set_disconnected(struct mei_cl *cl)
 		return;
 
 	cl->state = MEI_FILE_DISCONNECTED;
-	mei_io_tx_list_free_cl(&dev->write_list, cl);
-	mei_io_tx_list_free_cl(&dev->write_waiting_list, cl);
+	mei_io_tx_list_free_cl(&dev->write_list, cl, NULL);
+	mei_io_tx_list_free_cl(&dev->write_waiting_list, cl, NULL);
 	mei_io_list_flush_cl(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush_cl(&dev->ctrl_wr_list, cl);
 	mei_cl_wake_all(cl);
