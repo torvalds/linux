@@ -127,7 +127,7 @@ struct v4l2_sliced_vbi_format
     :stub-columns: 0
     :widths:       3 3 2 2 2
 
-    * - __u32
+    * - __u16
       - ``service_set``
       - :cspan:`2`
 
