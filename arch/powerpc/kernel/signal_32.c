@@ -835,12 +835,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	return 0;
 
 badframe:
-	if (show_unhandled_signals)
-		printk_ratelimited(KERN_INFO
-				   "%s[%d]: bad frame in handle_rt_signal32: "
-				   "%p nip %08lx lr %08lx\n",
-				   tsk->comm, tsk->pid,
-				   addr, regs->nip, regs->link);
+	signal_fault(tsk, regs, "handle_rt_signal32", addr);
 
 	return 1;
 }
@@ -1092,12 +1087,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	return 0;
 
  bad:
-	if (show_unhandled_signals)
-		printk_ratelimited(KERN_INFO
-				   "%s[%d]: bad frame in sys_rt_sigreturn: "
-				   "%p nip %08lx lr %08lx\n",
-				   current->comm, current->pid,
-				   rt_sf, regs->nip, regs->link);
+	signal_fault(current, regs, "sys_rt_sigreturn", rt_sf);
 
 	force_sig(SIGSEGV);
 	return 0;
@@ -1181,12 +1171,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(ctx, regs, 1)) {
-		if (show_unhandled_signals)
-			printk_ratelimited(KERN_INFO "%s[%d]: bad frame in "
-					   "sys_debug_setcontext: %p nip %08lx "
-					   "lr %08lx\n",
-					   current->comm, current->pid,
-					   ctx, regs->nip, regs->link);
+		signal_fault(current, regs, "sys_debug_setcontext", ctx);
 
 		force_sig(SIGSEGV);
 		goto out;
@@ -1287,12 +1272,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	return 0;
 
 badframe:
-	if (show_unhandled_signals)
-		printk_ratelimited(KERN_INFO
-				   "%s[%d]: bad frame in handle_signal32: "
-				   "%p nip %08lx lr %08lx\n",
-				   tsk->comm, tsk->pid,
-				   frame, regs->nip, regs->link);
+	signal_fault(tsk, regs, "handle_signal32", frame);
 
 	return 1;
 }
@@ -1363,12 +1343,7 @@ SYSCALL_DEFINE0(sigreturn)
 	return 0;
 
 badframe:
-	if (show_unhandled_signals)
-		printk_ratelimited(KERN_INFO
-				   "%s[%d]: bad frame in sys_sigreturn: "
-				   "%p nip %08lx lr %08lx\n",
-				   current->comm, current->pid,
-				   addr, regs->nip, regs->link);
+	signal_fault(current, regs, "sys_sigreturn", addr);
 
 	force_sig(SIGSEGV);
 	return 0;

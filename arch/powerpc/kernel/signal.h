@@ -93,4 +93,7 @@ static inline int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 
 #endif /* !defined(CONFIG_PPC64) */
 
+void signal_fault(struct task_struct *tsk, struct pt_regs *regs,
+		  const char *where, void __user *ptr);
+
 #endif  /* _POWERPC_ARCH_SIGNAL_H */

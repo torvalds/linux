@@ -66,11 +66,6 @@ struct rt_sigframe {
 	char abigap[USER_REDZONE_SIZE];
 } __attribute__ ((aligned (16)));
 
-static const char fmt32[] = KERN_INFO \
-	"%s[%d]: bad frame in %s: %08lx nip %08lx lr %08lx\n";
-static const char fmt64[] = KERN_INFO \
-	"%s[%d]: bad frame in %s: %016lx nip %016lx lr %016lx\n";
-
 /*
  * This computes a quad word aligned pointer inside the vmx_reserve array
  * element. For historical reasons sigcontext might not be quad word aligned,
@@ -801,10 +796,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	return 0;
 
 badframe:
-	if (show_unhandled_signals)
-		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
-				   current->comm, current->pid, "rt_sigreturn",
-				   (long)uc, regs->nip, regs->link);
+	signal_fault(current, regs, "rt_sigreturn", uc);
 
 	force_sig(SIGSEGV);
 	return 0;
@@ -911,10 +903,7 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	return 0;
 
 badframe:
-	if (show_unhandled_signals)
-		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
-				   tsk->comm, tsk->pid, "setup_rt_frame",
-				   (long)frame, regs->nip, regs->link);
+	signal_fault(current, regs, "handle_rt_signal64", frame);
 
 	return 1;
 }

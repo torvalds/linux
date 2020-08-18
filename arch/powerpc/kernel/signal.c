@@ -351,3 +351,14 @@ static unsigned long get_tm_stackpointer(struct task_struct *tsk)
 #endif
 	return ret;
 }
+
+static const char fm32[] = KERN_INFO "%s[%d]: bad frame in %s: %p nip %08lx lr %08lx\n";
+static const char fm64[] = KERN_INFO "%s[%d]: bad frame in %s: %p nip %016lx lr %016lx\n";
+
+void signal_fault(struct task_struct *tsk, struct pt_regs *regs,
+		  const char *where, void __user *ptr)
+{
+	if (show_unhandled_signals)
+		printk_ratelimited(regs->msr & MSR_64BIT ? fm64 : fm32, tsk->comm,
+				   task_pid_nr(tsk), where, ptr, regs->nip, regs->link);
+}
