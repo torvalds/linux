@@ -446,7 +446,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	sysfs_show_32bit_prop(buffer, offs, "cpu_cores_count",
 			      dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, offs, "simd_count",
-			      dev->node_props.simd_count);
+			      dev->gpu ? dev->node_props.simd_count : 0);
 	sysfs_show_32bit_prop(buffer, offs, "mem_banks_count",
 			      dev->node_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, offs, "caches_count",
@@ -1139,7 +1139,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 		/* Discrete GPUs need their own topology device list
 		 * entries. Don't assign them to CPU/APU nodes.
 		 */
-		if (!gpu->device_info->needs_iommu_device &&
+		if (!gpu->use_iommu_v2 &&
 		    dev->node_props.cpu_cores_count)
 			continue;
 
@@ -1388,7 +1388,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	* Overwrite ATS capability according to needs_iommu_device to fix
 	* potential missing corresponding bit in CRAT of BIOS.
 	*/
-	if (dev->gpu->device_info->needs_iommu_device)
+	if (dev->gpu->use_iommu_v2)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	else
 		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
@@ -1513,6 +1513,29 @@ int kfd_numa_node_to_apic_id(int numa_node_id)
 		return kfd_cpumask_to_apic_id(cpu_online_mask);
 	}
 	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
+}
+
+void kfd_double_confirm_iommu_support(struct kfd_dev *gpu)
+{
+	struct kfd_topology_device *dev;
+
+	gpu->use_iommu_v2 = false;
+
+	if (!gpu->device_info->needs_iommu_device)
+		return;
+
+	down_read(&topology_lock);
+
+	/* Only use IOMMUv2 if there is an APU topology node with no GPU
+	 * assigned yet. This GPU will be assigned to it.
+	 */
+	list_for_each_entry(dev, &topology_device_list, list)
+		if (dev->node_props.cpu_cores_count &&
+		    dev->node_props.simd_count &&
+		    !dev->gpu)
+			gpu->use_iommu_v2 = true;
+
+	up_read(&topology_lock);
 }
 
 #if defined(CONFIG_DEBUG_FS)

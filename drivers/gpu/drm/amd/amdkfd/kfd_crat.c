@@ -742,6 +742,22 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	return 0;
 }
 
+static bool kfd_ignore_crat(void)
+{
+	bool ret;
+
+	if (ignore_crat)
+		return true;
+
+#ifndef KFD_SUPPORT_IOMMU_V2
+	ret = true;
+#else
+	ret = false;
+#endif
+
+	return ret;
+}
+
 /*
  * kfd_create_crat_image_acpi - Allocates memory for CRAT image and
  * copies CRAT from ACPI (if available).
@@ -776,7 +792,7 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -EINVAL;
 	}
 
-	if (ignore_crat) {
+	if (kfd_ignore_crat()) {
 		pr_info("CRAT table disabled by module option\n");
 		return -ENODATA;
 	}
