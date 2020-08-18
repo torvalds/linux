@@ -454,6 +454,33 @@ unlock_out:
 	return ret;
 }
 
+static u16 *vcs_write_buf_noattr(struct vc_data *vc, const char *con_buf,
+		unsigned int pos, unsigned int count, bool viewed, u16 **org0)
+{
+	u16 *org;
+	unsigned int col, maxcol = vc->vc_cols;
+
+	*org0 = org = screen_pos(vc, pos, viewed);
+	col = pos % maxcol;
+	pos += maxcol - col;
+
+	while (count > 0) {
+		unsigned char c = *con_buf++;
+
+		count--;
+		vcs_scr_writew(vc,
+			       (vcs_scr_readw(vc, org) & 0xff00) | c, org);
+		org++;
+		if (++col == maxcol) {
+			org = screen_pos(vc, pos, viewed);
+			col = 0;
+			pos += maxcol;
+		}
+	}
+
+	return org;
+}
+
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
@@ -544,29 +571,15 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		 * under the lock using the local kernel buffer.
 		 */
 
-		con_buf0 = con_buf;
-		orig_count = this_round;
-		maxcol = vc->vc_cols;
-		p = pos;
 		if (!attr) {
-			org0 = org = screen_pos(vc, p, viewed);
-			col = p % maxcol;
-			p += maxcol - col;
-
-			while (this_round > 0) {
-				unsigned char c = *con_buf0++;
-
-				this_round--;
-				vcs_scr_writew(vc,
-					       (vcs_scr_readw(vc, org) & 0xff00) | c, org);
-				org++;
-				if (++col == maxcol) {
-					org = screen_pos(vc, p, viewed);
-					col = 0;
-					p += maxcol;
-				}
-			}
+			org = vcs_write_buf_noattr(vc, con_buf, pos, this_round,
+					viewed, &org0);
 		} else {
+			con_buf0 = con_buf;
+			orig_count = this_round;
+			maxcol = vc->vc_cols;
+			p = pos;
+
 			if (p < HEADER_SIZE) {
 				char header[HEADER_SIZE];
 
