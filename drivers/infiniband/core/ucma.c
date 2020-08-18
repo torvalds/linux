@@ -88,7 +88,7 @@ struct ucma_context {
 	struct completion	comp;
 	refcount_t		ref;
 	int			events_reported;
-	int			backlog;
+	atomic_t		backlog;
 
 	struct ucma_file	*file;
 	struct rdma_cm_id	*cm_id;
@@ -348,12 +348,11 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	uevent->resp.ece.attr_mod = event->ece.attr_mod;
 
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
-		if (!ctx->backlog) {
+		if (!atomic_add_unless(&ctx->backlog, -1, 0)) {
 			ret = -ENOMEM;
 			kfree(uevent);
 			goto out;
 		}
-		ctx->backlog--;
 	} else if (!ctx->uid || ctx->cm_id != cm_id) {
 		/*
 		 * We ignore events for new connections until userspace has set
@@ -432,7 +431,7 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	}
 
 	if (ctx) {
-		uevent->ctx->backlog++;
+		atomic_inc(&uevent->ctx->backlog);
 		uevent->cm_id->context = ctx;
 		ucma_finish_ctx(ctx);
 	}
@@ -1136,10 +1135,12 @@ static ssize_t ucma_listen(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ctx->backlog = cmd.backlog > 0 && cmd.backlog < max_backlog ?
-		       cmd.backlog : max_backlog;
+	if (cmd.backlog <= 0 || cmd.backlog > max_backlog)
+		cmd.backlog = max_backlog;
+	atomic_set(&ctx->backlog, cmd.backlog);
+
 	mutex_lock(&ctx->mutex);
-	ret = rdma_listen(ctx->cm_id, ctx->backlog);
+	ret = rdma_listen(ctx->cm_id, cmd.backlog);
 	mutex_unlock(&ctx->mutex);
 	ucma_put_ctx(ctx);
 	return ret;
