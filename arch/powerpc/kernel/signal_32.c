@@ -229,13 +229,30 @@ struct rt_sigframe {
  * We only save the altivec/spe registers if the process has used
  * altivec/spe instructions at some point.
  */
+static void prepare_save_user_regs(int ctx_has_vsx_region)
+{
+	/* Make sure floating point registers are stored in regs */
+	flush_fp_to_thread(current);
+#ifdef CONFIG_ALTIVEC
+	if (current->thread.used_vr)
+		flush_altivec_to_thread(current);
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		current->thread.vrsave = mfspr(SPRN_VRSAVE);
+#endif
+#ifdef CONFIG_VSX
+	if (current->thread.used_vsr && ctx_has_vsx_region)
+		flush_vsx_to_thread(current);
+#endif
+#ifdef CONFIG_SPE
+	if (current->thread.used_spe)
+		flush_spe_to_thread(current);
+#endif
+}
+
 static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 			  struct mcontext __user *tm_frame, int ctx_has_vsx_region)
 {
 	unsigned long msr = regs->msr;
-
-	/* Make sure floating point registers are stored in regs */
-	flush_fp_to_thread(current);
 
 	/* save general registers */
 	if (save_general_regs(regs, frame))
@@ -244,7 +261,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 #ifdef CONFIG_ALTIVEC
 	/* save altivec registers */
 	if (current->thread.used_vr) {
-		flush_altivec_to_thread(current);
 		if (__copy_to_user(&frame->mc_vregs, &current->thread.vr_state,
 				   ELF_NVRREG * sizeof(vector128)))
 			return 1;
@@ -260,8 +276,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	 * most significant bits of that same vector. --BenH
 	 * Note that the current VRSAVE value is in the SPR at this point.
 	 */
-	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		current->thread.vrsave = mfspr(SPRN_VRSAVE);
 	if (__put_user(current->thread.vrsave, (u32 __user *)&frame->mc_vregs[32]))
 		return 1;
 #endif /* CONFIG_ALTIVEC */
@@ -281,7 +295,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	 * contains valid data
 	 */
 	if (current->thread.used_vsr && ctx_has_vsx_region) {
-		flush_vsx_to_thread(current);
 		if (copy_vsx_to_user(&frame->mc_vsregs, current))
 			return 1;
 		msr |= MSR_VSX;
@@ -290,7 +303,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 #ifdef CONFIG_SPE
 	/* save spe registers */
 	if (current->thread.used_spe) {
-		flush_spe_to_thread(current);
 		if (__copy_to_user(&frame->mc_vregs, current->thread.evr,
 				   ELF_NEVRREG * sizeof(u32)))
 			return 1;
@@ -326,11 +338,23 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
  *
  * See save_user_regs() and signal_64.c:setup_tm_sigcontexts().
  */
-static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
-			     struct mcontext __user *tm_frame, unsigned long msr)
+static void prepare_save_tm_user_regs(void)
 {
 	WARN_ON(tm_suspend_disabled);
 
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		current->thread.ckvrsave = mfspr(SPRN_VRSAVE);
+#endif
+#ifdef CONFIG_SPE
+	if (current->thread.used_spe)
+		flush_spe_to_thread(current);
+#endif
+}
+
+static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
+			     struct mcontext __user *tm_frame, unsigned long msr)
+{
 	/* Save both sets of general registers */
 	if (save_general_regs(&current->thread.ckpt_regs, frame)
 	    || save_general_regs(regs, tm_frame))
@@ -374,8 +398,6 @@ static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame
 	 * significant bits of a vector, we "cheat" and stuff VRSAVE in the
 	 * most significant bits of that same vector. --BenH
 	 */
-	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		current->thread.ckvrsave = mfspr(SPRN_VRSAVE);
 	if (__put_user(current->thread.ckvrsave,
 		       (u32 __user *)&frame->mc_vregs[32]))
 		return 1;
@@ -427,7 +449,6 @@ static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame
 	 * simply the same as in save_user_regs().
 	 */
 	if (current->thread.used_spe) {
-		flush_spe_to_thread(current);
 		if (__copy_to_user(&frame->mc_vregs, current->thread.evr,
 				   ELF_NEVRREG * sizeof(u32)))
 			return 1;
@@ -447,6 +468,8 @@ static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame
 	return 0;
 }
 #else
+static void prepare_save_tm_user_regs(void) { }
+
 static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 			     struct mcontext __user *tm_frame, unsigned long msr)
 {
@@ -790,9 +813,11 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
 	if (MSR_TM_ACTIVE(msr)) {
+		prepare_save_tm_user_regs();
 		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
 	} else {
+		prepare_save_user_regs(1);
 		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
@@ -881,9 +906,11 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
 	if (MSR_TM_ACTIVE(msr)) {
+		prepare_save_tm_user_regs();
 		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
 	} else {
+		prepare_save_user_regs(1);
 		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
@@ -1038,6 +1065,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		 */
 		mctx = (struct mcontext __user *)
 			((unsigned long) &old_ctx->uc_mcontext & ~0xfUL);
+		prepare_save_user_regs(ctx_has_vsx_region);
 		if (save_user_regs(regs, mctx, NULL, ctx_has_vsx_region))
 			return -EFAULT;
 		if (!user_write_access_begin(old_ctx, ctx_size))
