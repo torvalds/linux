@@ -8913,10 +8913,6 @@ static int dev_xdp_attach(struct net_device *dev, struct netlink_ext_ack *extack
 		NL_SET_ERR_MSG(extack, "Active program does not match expected");
 		return -EEXIST;
 	}
-	if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && cur_prog) {
-		NL_SET_ERR_MSG(extack, "XDP program already attached");
-		return -EBUSY;
-	}
 
 	/* put effective new program into new_prog */
 	if (link)
@@ -8927,6 +8923,10 @@ static int dev_xdp_attach(struct net_device *dev, struct netlink_ext_ack *extack
 		enum bpf_xdp_mode other_mode = mode == XDP_MODE_SKB
 					       ? XDP_MODE_DRV : XDP_MODE_SKB;
 
+		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && cur_prog) {
+			NL_SET_ERR_MSG(extack, "XDP program already attached");
+			return -EBUSY;
+		}
 		if (!offload && dev_xdp_prog(dev, other_mode)) {
 			NL_SET_ERR_MSG(extack, "Native and generic XDP can't be active at the same time");
 			return -EEXIST;
