@@ -96,7 +96,6 @@ struct ucma_context {
 	u64			uid;
 
 	struct list_head	list;
-	struct list_head	mc_list;
 	/* mark that device is in process of destroying the internal HW
 	 * resources, protected by the ctx_table lock
 	 */
@@ -113,7 +112,6 @@ struct ucma_multicast {
 
 	u64			uid;
 	u8			join_state;
-	struct list_head	list;
 	struct sockaddr_storage	addr;
 };
 
@@ -217,7 +215,6 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 	INIT_WORK(&ctx->close_work, ucma_close_id);
 	refcount_set(&ctx->ref, 1);
 	init_completion(&ctx->comp);
-	INIT_LIST_HEAD(&ctx->mc_list);
 	/* So list_del() will work if we don't do ucma_finish_ctx() */
 	INIT_LIST_HEAD(&ctx->list);
 	ctx->file = file;
@@ -235,26 +232,6 @@ static void ucma_finish_ctx(struct ucma_context *ctx)
 	lockdep_assert_held(&ctx->file->mut);
 	list_add_tail(&ctx->list, &ctx->file->ctx_list);
 	xa_store(&ctx_table, ctx->id, ctx, GFP_KERNEL);
-}
-
-static struct ucma_multicast* ucma_alloc_multicast(struct ucma_context *ctx)
-{
-	struct ucma_multicast *mc;
-
-	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
-	if (!mc)
-		return NULL;
-
-	mc->ctx = ctx;
-	if (xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b, GFP_KERNEL))
-		goto error;
-
-	list_add_tail(&mc->list, &ctx->mc_list);
-	return mc;
-
-error:
-	kfree(mc);
-	return NULL;
 }
 
 static void ucma_copy_conn_event(struct rdma_ucm_conn_param *dst,
@@ -551,21 +528,26 @@ err1:
 
 static void ucma_cleanup_multicast(struct ucma_context *ctx)
 {
-	struct ucma_multicast *mc, *tmp;
+	struct ucma_multicast *mc;
+	unsigned long index;
 
-	mutex_lock(&ctx->file->mut);
-	list_for_each_entry_safe(mc, tmp, &ctx->mc_list, list) {
-		list_del(&mc->list);
-		xa_erase(&multicast_table, mc->id);
+	xa_for_each(&multicast_table, index, mc) {
+		if (mc->ctx != ctx)
+			continue;
+		/*
+		 * At this point mc->ctx->ref is 0 so the mc cannot leave the
+		 * lock on the reader and this is enough serialization
+		 */
+		xa_erase(&multicast_table, index);
 		kfree(mc);
 	}
-	mutex_unlock(&ctx->file->mut);
 }
 
 static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 {
 	struct ucma_event *uevent, *tmp;
 
+	mutex_lock(&mc->ctx->file->mut);
 	list_for_each_entry_safe(uevent, tmp, &mc->ctx->file->event_list, list) {
 		if (uevent->mc != mc)
 			continue;
@@ -573,6 +555,7 @@ static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 		list_del(&uevent->list);
 		kfree(uevent);
 	}
+	mutex_unlock(&mc->ctx->file->mut);
 }
 
 /*
@@ -1501,15 +1484,23 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	mutex_lock(&file->mut);
-	mc = ucma_alloc_multicast(ctx);
+	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
 	if (!mc) {
 		ret = -ENOMEM;
 		goto err1;
 	}
+
+	mc->ctx = ctx;
 	mc->join_state = join_state;
 	mc->uid = cmd->uid;
 	memcpy(&mc->addr, addr, cmd->addr_size);
+
+	if (xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b,
+		     GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
 	mutex_lock(&ctx->mutex);
 	ret = rdma_join_multicast(ctx->cm_id, (struct sockaddr *)&mc->addr,
 				  join_state, mc);
@@ -1526,7 +1517,6 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 
 	xa_store(&multicast_table, mc->id, mc, 0);
 
-	mutex_unlock(&file->mut);
 	ucma_put_ctx(ctx);
 	return 0;
 
@@ -1535,10 +1525,8 @@ err3:
 	ucma_cleanup_mc_events(mc);
 err2:
 	xa_erase(&multicast_table, mc->id);
-	list_del(&mc->list);
 	kfree(mc);
 err1:
-	mutex_unlock(&file->mut);
 	ucma_put_ctx(ctx);
 	return ret;
 }
@@ -1617,10 +1605,7 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 	rdma_leave_multicast(mc->ctx->cm_id, (struct sockaddr *) &mc->addr);
 	mutex_unlock(&mc->ctx->mutex);
 
-	mutex_lock(&mc->ctx->file->mut);
 	ucma_cleanup_mc_events(mc);
-	list_del(&mc->list);
-	mutex_unlock(&mc->ctx->file->mut);
 
 	ucma_put_ctx(mc->ctx);
 	resp.events_reported = mc->events_reported;
