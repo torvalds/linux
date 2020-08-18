@@ -751,9 +751,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		       struct task_struct *tsk)
 {
-	struct rt_sigframe __user *rt_sf;
-	struct mcontext __user *frame;
-	struct mcontext __user *tm_frame = NULL;
+	struct rt_sigframe __user *frame;
+	struct mcontext __user *mctx;
+	struct mcontext __user *tm_mctx = NULL;
 	unsigned long newsp = 0;
 	int sigret;
 	unsigned long tramp;
@@ -765,46 +765,45 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
-	rt_sf = get_sigframe(ksig, tsk, sizeof(*rt_sf), 1);
-	if (!access_ok(rt_sf, sizeof(*rt_sf)))
+	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	/* Put the siginfo & fill in most of the ucontext */
-	if (copy_siginfo_to_user(&rt_sf->info, &ksig->info)
-	    || __put_user(0, &rt_sf->uc.uc_flags)
-	    || __save_altstack(&rt_sf->uc.uc_stack, regs->gpr[1])
-	    || __put_user(to_user_ptr(&rt_sf->uc.uc_mcontext),
-		    &rt_sf->uc.uc_regs)
-	    || put_sigset_t(&rt_sf->uc.uc_sigmask, oldset))
+	if (copy_siginfo_to_user(&frame->info, &ksig->info) ||
+	    __put_user(0, &frame->uc.uc_flags) ||
+	    __save_altstack(&frame->uc.uc_stack, regs->gpr[1]) ||
+	    __put_user(to_user_ptr(&frame->uc.uc_mcontext), &frame->uc.uc_regs) ||
+	    put_sigset_t(&frame->uc.uc_sigmask, oldset))
 		goto badframe;
 
 	/* Save user registers on the stack */
-	frame = &rt_sf->uc.uc_mcontext;
+	mctx = &frame->uc.uc_mcontext;
 	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
 		sigret = 0;
 		tramp = tsk->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
 		sigret = __NR_rt_sigreturn;
-		tramp = (unsigned long) frame->tramp;
+		tramp = (unsigned long)mctx->tramp;
 	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	tm_frame = &rt_sf->uc_transact.uc_mcontext;
+	tm_mctx = &frame->uc_transact.uc_mcontext;
 	if (MSR_TM_ACTIVE(msr)) {
-		if (__put_user((unsigned long)&rt_sf->uc_transact,
-			       &rt_sf->uc.uc_link) ||
-		    __put_user((unsigned long)tm_frame,
-			       &rt_sf->uc_transact.uc_regs))
+		if (__put_user((unsigned long)&frame->uc_transact,
+			       &frame->uc.uc_link) ||
+		    __put_user((unsigned long)tm_mctx,
+			       &frame->uc_transact.uc_regs))
 			goto badframe;
-		if (save_tm_user_regs(regs, frame, tm_frame, sigret, msr))
+		if (save_tm_user_regs(regs, mctx, tm_mctx, sigret, msr))
 			goto badframe;
 	}
 	else
 #endif
 	{
-		if (__put_user(0, &rt_sf->uc.uc_link))
+		if (__put_user(0, &frame->uc.uc_link))
 			goto badframe;
-		if (save_user_regs(regs, frame, tm_frame, sigret, 1))
+		if (save_user_regs(regs, mctx, tm_mctx, sigret, 1))
 			goto badframe;
 	}
 	regs->link = tramp;
@@ -814,16 +813,16 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 #endif
 
 	/* create a stack frame for the caller of the handler */
-	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
+	newsp = ((unsigned long)frame) - (__SIGNAL_FRAMESIZE + 16);
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 
 	/* Fill registers for signal handler */
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = ksig->sig;
-	regs->gpr[4] = (unsigned long) &rt_sf->info;
-	regs->gpr[5] = (unsigned long) &rt_sf->uc;
-	regs->gpr[6] = (unsigned long) rt_sf;
+	regs->gpr[4] = (unsigned long)&frame->info;
+	regs->gpr[5] = (unsigned long)&frame->uc;
+	regs->gpr[6] = (unsigned long)frame;
 	regs->nip = (unsigned long) ksig->ka.sa.sa_handler;
 	/* enter the signal handler in native-endian mode */
 	regs->msr &= ~MSR_LE;
@@ -831,7 +830,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	return 0;
 
 badframe:
-	signal_fault(tsk, regs, "handle_rt_signal32", rt_sf);
+	signal_fault(tsk, regs, "handle_rt_signal32", frame);
 
 	return 1;
 }
