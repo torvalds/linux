@@ -80,7 +80,6 @@ struct ucma_file {
 	struct list_head	ctx_list;
 	struct list_head	event_list;
 	wait_queue_head_t	poll_wait;
-	struct workqueue_struct	*close_wq;
 };
 
 struct ucma_context {
@@ -96,10 +95,6 @@ struct ucma_context {
 	u64			uid;
 
 	struct list_head	list;
-	/* mark that device is in process of destroying the internal HW
-	 * resources, protected by the ctx_table lock
-	 */
-	int			closing;
 	/* sync between removal event and id destroy, protected by file mut */
 	int			destroying;
 	struct work_struct	close_work;
@@ -148,12 +143,9 @@ static struct ucma_context *ucma_get_ctx(struct ucma_file *file, int id)
 
 	xa_lock(&ctx_table);
 	ctx = _ucma_find_context(id, file);
-	if (!IS_ERR(ctx)) {
-		if (ctx->closing)
-			ctx = ERR_PTR(-EIO);
-		else if (!refcount_inc_not_zero(&ctx->ref))
+	if (!IS_ERR(ctx))
+		if (!refcount_inc_not_zero(&ctx->ref))
 			ctx = ERR_PTR(-ENXIO);
-	}
 	xa_unlock(&ctx_table);
 	return ctx;
 }
@@ -193,6 +185,14 @@ static void ucma_close_id(struct work_struct *work)
 	wait_for_completion(&ctx->comp);
 	/* No new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
+
+	/*
+	 * At this point ctx->ref is zero so the only place the ctx can be is in
+	 * a uevent or in __destroy_id(). Since the former doesn't touch
+	 * ctx->cm_id and the latter sync cancels this, there is no races with
+	 * this store.
+	 */
+	ctx->cm_id = NULL;
 }
 
 static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
@@ -356,12 +356,8 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 		wake_up_interruptible(&ctx->file->poll_wait);
 	}
 
-	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL && !ctx->destroying) {
-		xa_lock(&ctx_table);
-		ctx->closing = 1;
-		xa_unlock(&ctx_table);
-		queue_work(ctx->file->close_wq, &ctx->close_work);
-	}
+	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL && !ctx->destroying)
+		queue_work(system_unbound_wq, &ctx->close_work);
 	return 0;
 }
 
@@ -577,17 +573,10 @@ static int __destroy_id(struct ucma_context *ctx)
 		ucma_put_ctx(ctx);
 	}
 
-	flush_workqueue(ctx->file->close_wq);
+	cancel_work_sync(&ctx->close_work);
 	/* At this point it's guaranteed that there is no inflight closing task */
-	xa_lock(&ctx_table);
-	if (!ctx->closing) {
-		xa_unlock(&ctx_table);
-		ucma_put_ctx(ctx);
-		wait_for_completion(&ctx->comp);
-		rdma_destroy_id(ctx->cm_id);
-	} else {
-		xa_unlock(&ctx_table);
-	}
+	if (ctx->cm_id)
+		ucma_close_id(&ctx->close_work);
 	return ucma_free_ctx(ctx);
 }
 
@@ -1788,13 +1777,6 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
-	file->close_wq = alloc_ordered_workqueue("ucma_close_id",
-						 WQ_MEM_RECLAIM);
-	if (!file->close_wq) {
-		kfree(file);
-		return -ENOMEM;
-	}
-
 	INIT_LIST_HEAD(&file->event_list);
 	INIT_LIST_HEAD(&file->ctx_list);
 	init_waitqueue_head(&file->poll_wait);
@@ -1825,7 +1807,6 @@ static int ucma_close(struct inode *inode, struct file *filp)
 		xa_erase(&ctx_table, ctx->id);
 		__destroy_id(ctx);
 	}
-	destroy_workqueue(file->close_wq);
 	kfree(file);
 	return 0;
 }
