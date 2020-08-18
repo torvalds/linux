@@ -3667,14 +3667,12 @@ static unsigned int get_tx_affinity_rr(struct mlx5_ib_dev *dev,
 		MLX5_MAX_PORTS + 1;
 }
 
-static bool qp_supports_affinity(struct ib_qp *qp)
+static bool qp_supports_affinity(struct mlx5_ib_qp *qp)
 {
-	if ((qp->qp_type == IB_QPT_RC) ||
-	    (qp->qp_type == IB_QPT_UD) ||
-	    (qp->qp_type == IB_QPT_UC) ||
-	    (qp->qp_type == IB_QPT_RAW_PACKET) ||
-	    (qp->qp_type == IB_QPT_XRC_INI) ||
-	    (qp->qp_type == IB_QPT_XRC_TGT))
+	if ((qp->type == IB_QPT_RC) || (qp->type == IB_QPT_UD) ||
+	    (qp->type == IB_QPT_UC) || (qp->type == IB_QPT_RAW_PACKET) ||
+	    (qp->type == IB_QPT_XRC_INI) || (qp->type == IB_QPT_XRC_TGT) ||
+	    (qp->type == MLX5_IB_QPT_DCI))
 		return true;
 	return false;
 }
@@ -3692,7 +3690,7 @@ static unsigned int get_tx_affinity(struct ib_qp *qp,
 	unsigned int tx_affinity;
 
 	if (!(mlx5_ib_lag_should_assign_affinity(dev) &&
-	      qp_supports_affinity(qp)))
+	      qp_supports_affinity(mqp)))
 		return 0;
 
 	if (mqp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)
