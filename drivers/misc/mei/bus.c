@@ -810,6 +810,16 @@ static ssize_t fixed_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(fixed);
 
+static ssize_t vtag_show(struct device *dev, struct device_attribute *a,
+			 char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	bool vt = mei_me_cl_vt(cldev->me_cl);
+
+	return sprintf(buf, "%d", vt);
+}
+static DEVICE_ATTR_RO(vtag);
+
 static ssize_t max_len_show(struct device *dev, struct device_attribute *a,
 			    char *buf)
 {
@@ -827,6 +837,7 @@ static struct attribute *mei_cldev_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_max_conn.attr,
 	&dev_attr_fixed.attr,
+	&dev_attr_vtag.attr,
 	&dev_attr_max_len.attr,
 	NULL,
 };

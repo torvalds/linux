@@ -314,13 +314,26 @@ struct hbm_host_enum_response {
 	u8 valid_addresses[32];
 } __packed;
 
+/**
+ * struct mei_client_properties - mei client properties
+ *
+ * @protocol_name: guid of the client
+ * @protocol_version: client protocol version
+ * @max_number_of_connections: number of possible connections.
+ * @fixed_address: fixed me address (0 if the client is dynamic)
+ * @single_recv_buf: 1 if all connections share a single receive buffer.
+ * @vt_supported: the client support vtag
+ * @reserved: reserved
+ * @max_msg_length: MTU of the client
+ */
 struct mei_client_properties {
 	uuid_le protocol_name;
 	u8 protocol_version;
 	u8 max_number_of_connections;
 	u8 fixed_address;
 	u8 single_recv_buf:1;
-	u8 reserved:7;
+	u8 vt_supported:1;
+	u8 reserved:6;
 	u32 max_msg_length;
 } __packed;
 

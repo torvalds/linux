@@ -94,6 +94,18 @@ static inline u8 mei_me_cl_fixed(const struct mei_me_client *me_cl)
 }
 
 /**
+ * mei_me_cl_vt - return me client vtag supported status
+ *
+ * @me_cl: me client
+ *
+ * Return: true if me client supports vt tagging
+ */
+static inline bool mei_me_cl_vt(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.vt_supported == 1;
+}
+
+/**
  * mei_me_cl_max_len - return me client max msg length
  *
  * @me_cl: me client

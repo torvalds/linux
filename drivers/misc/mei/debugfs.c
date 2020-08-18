@@ -27,7 +27,7 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 
 	down_read(&dev->me_clients_rwsem);
 
-	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|\n");
+	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|vt|\n");
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
@@ -37,14 +37,15 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 		if (!mei_me_cl_get(me_cl))
 			continue;
 
-		seq_printf(m, "%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|\n",
+		seq_printf(m, "%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|%2d|\n",
 			   i++, me_cl->client_id,
 			   me_cl->props.fixed_address,
 			   &me_cl->props.protocol_name,
 			   me_cl->props.max_number_of_connections,
 			   me_cl->props.max_msg_length,
 			   me_cl->props.single_recv_buf,
-			   kref_read(&me_cl->refcnt));
+			   kref_read(&me_cl->refcnt),
+			   me_cl->props.vt_supported);
 		mei_me_cl_put(me_cl);
 	}
 
