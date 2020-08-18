@@ -447,6 +447,12 @@ static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame
 
 	return 0;
 }
+#else
+static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
+			     struct mcontext __user *tm_frame, unsigned long msr)
+{
+	return 0;
+}
 #endif
 
 /*
@@ -732,10 +738,8 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long newsp = 0;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/* Save the thread's msr before get_tm_stackpointer() changes it */
 	unsigned long msr = regs->msr;
-#endif
 
 	/* Set up Signal Frame */
 	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
@@ -786,14 +790,10 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	if (tramp == (unsigned long)mctx->mc_pad)
 		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(msr)) {
 		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
-	}
-	else
-#endif
-	{
+	} else {
 		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
@@ -842,10 +842,8 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long newsp = 0;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/* Save the thread's msr before get_tm_stackpointer() changes it */
 	unsigned long msr = regs->msr;
-#endif
 
 	/* Set up Signal Frame */
 	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
@@ -883,14 +881,10 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	if (tramp == (unsigned long)mctx->mc_pad)
 		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(msr)) {
 		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
-	}
-	else
-#endif
-	{
+	} else {
 		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
