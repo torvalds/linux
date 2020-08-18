@@ -161,44 +161,65 @@ static int apq8016_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
 static int apq8016_lpass_init(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
+	struct lpass_variant *variant = drvdata->variant;
 	struct device *dev = &pdev->dev;
-	int ret;
+	int ret, i;
 
-	drvdata->pcnoc_mport_clk = devm_clk_get(dev, "pcnoc-mport-clk");
-	if (IS_ERR(drvdata->pcnoc_mport_clk)) {
-		dev_err(dev, "error getting pcnoc-mport-clk: %ld\n",
-			PTR_ERR(drvdata->pcnoc_mport_clk));
-		return PTR_ERR(drvdata->pcnoc_mport_clk);
-	}
 
-	ret = clk_prepare_enable(drvdata->pcnoc_mport_clk);
+	drvdata->clks = devm_kcalloc(dev, variant->num_clks,
+				     sizeof(*drvdata->clks), GFP_KERNEL);
+	drvdata->num_clks = variant->num_clks;
+
+	for (i = 0; i < drvdata->num_clks; i++)
+		drvdata->clks[i].id = variant->clk_name[i];
+
+	ret = devm_clk_bulk_get(dev, drvdata->num_clks, drvdata->clks);
 	if (ret) {
-		dev_err(dev, "Error enabling pcnoc-mport-clk: %d\n", ret);
+		dev_err(dev, "Failed to get clocks %d\n", ret);
 		return ret;
 	}
 
-	drvdata->pcnoc_sway_clk = devm_clk_get(dev, "pcnoc-sway-clk");
-	if (IS_ERR(drvdata->pcnoc_sway_clk)) {
-		dev_err(dev, "error getting pcnoc-sway-clk: %ld\n",
-			PTR_ERR(drvdata->pcnoc_sway_clk));
-		return PTR_ERR(drvdata->pcnoc_sway_clk);
+	ret = clk_bulk_prepare_enable(drvdata->num_clks, drvdata->clks);
+	if (ret) {
+		dev_err(dev, "apq8016 clk_enable failed\n");
+		return ret;
 	}
 
-	ret = clk_prepare_enable(drvdata->pcnoc_sway_clk);
+	drvdata->ahbix_clk = devm_clk_get(dev, "ahbix-clk");
+	if (IS_ERR(drvdata->ahbix_clk)) {
+		dev_err(dev, "error getting ahbix-clk: %ld\n",
+				PTR_ERR(drvdata->ahbix_clk));
+		ret = PTR_ERR(drvdata->ahbix_clk);
+		goto err_ahbix_clk;
+	}
+
+	ret = clk_set_rate(drvdata->ahbix_clk, LPASS_AHBIX_CLOCK_FREQUENCY);
 	if (ret) {
-		dev_err(dev, "Error enabling pcnoc_sway_clk: %d\n", ret);
-		return ret;
+		dev_err(dev, "error setting rate on ahbix_clk: %d\n", ret);
+		goto err_ahbix_clk;
+	}
+	dev_dbg(dev, "set ahbix_clk rate to %lu\n",
+			clk_get_rate(drvdata->ahbix_clk));
+
+	ret = clk_prepare_enable(drvdata->ahbix_clk);
+	if (ret) {
+		dev_err(dev, "error enabling ahbix_clk: %d\n", ret);
+		goto err_ahbix_clk;
 	}
 
 	return 0;
+
+err_ahbix_clk:
+	clk_bulk_disable_unprepare(drvdata->num_clks, drvdata->clks);
+	return ret;
 }
 
 static int apq8016_lpass_exit(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(drvdata->pcnoc_mport_clk);
-	clk_disable_unprepare(drvdata->pcnoc_sway_clk);
+	clk_bulk_disable_unprepare(drvdata->num_clks, drvdata->clks);
+	clk_disable_unprepare(drvdata->ahbix_clk);
 
 	return 0;
 }
@@ -219,6 +240,35 @@ static struct lpass_variant apq8016_data = {
 	.wrdma_reg_stride	= 0x1000,
 	.wrdma_channel_start	= 5,
 	.wrdma_channels		= 2,
+	.loopback		= REG_FIELD_ID(0x1000, 15, 15, 4, 0x1000),
+	.spken			= REG_FIELD_ID(0x1000, 14, 14, 4, 0x1000),
+	.spkmode		= REG_FIELD_ID(0x1000, 10, 13, 4, 0x1000),
+	.spkmono		= REG_FIELD_ID(0x1000, 9, 9, 4, 0x1000),
+	.micen			= REG_FIELD_ID(0x1000, 8, 8, 4, 0x1000),
+	.micmode		= REG_FIELD_ID(0x1000, 4, 7, 4, 0x1000),
+	.micmono		= REG_FIELD_ID(0x1000, 3, 3, 4, 0x1000),
+	.wssrc			= REG_FIELD_ID(0x1000, 2, 2, 4, 0x1000),
+	.bitwidth		= REG_FIELD_ID(0x1000, 0, 0, 4, 0x1000),
+
+	.rdma_dyncclk		= REG_FIELD_ID(0x8400, 12, 12, 2, 0x1000),
+	.rdma_bursten		= REG_FIELD_ID(0x8400, 11, 11, 2, 0x1000),
+	.rdma_wpscnt		= REG_FIELD_ID(0x8400, 8, 10, 2, 0x1000),
+	.rdma_intf		= REG_FIELD_ID(0x8400, 4, 7, 2, 0x1000),
+	.rdma_fifowm		= REG_FIELD_ID(0x8400, 1, 3, 2, 0x1000),
+	.rdma_enable		= REG_FIELD_ID(0x8400, 0, 0, 2, 0x1000),
+
+	.wrdma_dyncclk		= REG_FIELD_ID(0xB000, 12, 12, 2, 0x1000),
+	.wrdma_bursten		= REG_FIELD_ID(0xB000, 11, 11, 2, 0x1000),
+	.wrdma_wpscnt		= REG_FIELD_ID(0xB000, 8, 10, 2, 0x1000),
+	.wrdma_intf		= REG_FIELD_ID(0xB000, 4, 7, 2, 0x1000),
+	.wrdma_fifowm		= REG_FIELD_ID(0xB000, 1, 3, 2, 0x1000),
+	.wrdma_enable		= REG_FIELD_ID(0xB000, 0, 0, 2, 0x1000),
+
+	.clk_name		= (const char*[]) {
+				   "pcnoc-mport-clk",
+				   "pcnoc-sway-clk",
+				  },
+	.num_clks		= 2,
 	.dai_driver		= apq8016_lpass_cpu_dai_driver,
 	.num_dai		= ARRAY_SIZE(apq8016_lpass_cpu_dai_driver),
 	.dai_osr_clk_names	= (const char *[]) {
