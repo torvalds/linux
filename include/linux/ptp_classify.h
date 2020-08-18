@@ -36,7 +36,6 @@
 
 #define OFF_PTP_SOURCE_UUID	22 /* PTPv1 only */
 #define OFF_PTP_SEQUENCE_ID	30
-#define OFF_PTP_CONTROL		32 /* PTPv1 only */
 
 /* Below defines should actually be removed at some point in time. */
 #define IP6_HLEN	40
