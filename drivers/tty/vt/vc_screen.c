@@ -177,12 +177,14 @@ vcs_poll_data_get(struct file *file)
 	return poll;
 }
 
-/*
- * Returns VC for inode.
+/**
+ * vcs_vc -- return VC for @inode
+ * @inode: inode for which to return a VC
+ * @viewed: returns whether this console is currently foreground (viewed)
+ *
  * Must be called with console_lock.
  */
-static struct vc_data*
-vcs_vc(struct inode *inode, int *viewed)
+static struct vc_data *vcs_vc(struct inode *inode, bool *viewed)
 {
 	unsigned int currcons = console(inode);
 
@@ -191,11 +193,11 @@ vcs_vc(struct inode *inode, int *viewed)
 	if (currcons == 0) {
 		currcons = fg_console;
 		if (viewed)
-			*viewed = 1;
+			*viewed = true;
 	} else {
 		currcons--;
 		if (viewed)
-			*viewed = 0;
+			*viewed = false;
 	}
 	return vc_cons[currcons].d;
 }
@@ -247,10 +249,11 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
 	long pos, read;
-	int attr, uni_mode, row, col, maxcol, viewed;
+	int attr, uni_mode, row, col, maxcol;
 	unsigned short *org = NULL;
 	ssize_t ret;
 	char *con_buf;
+	bool viewed;
 
 	con_buf = (char *) __get_free_page(GFP_KERNEL);
 	if (!con_buf)
@@ -451,10 +454,11 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	long pos;
 	long attr, size, written;
 	char *con_buf0;
-	int col, maxcol, viewed;
+	int col, maxcol;
 	u16 *org0 = NULL, *org = NULL;
 	size_t ret;
 	char *con_buf;
+	bool viewed;
 
 	if (use_unicode(inode))
 		return -EOPNOTSUPP;
