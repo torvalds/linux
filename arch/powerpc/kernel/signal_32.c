@@ -840,35 +840,35 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_mctx = &frame->mctx_transact;
 #endif
-	if (!access_ok(frame, sizeof(*frame)))
+	if (!user_write_access_begin(frame, sizeof(*frame)))
 		goto badframe;
 	sc = (struct sigcontext __user *) &frame->sctx;
 
 #if _NSIG != 64
 #error "Please adjust handle_signal()"
 #endif
-	if (__put_user(to_user_ptr(ksig->ka.sa.sa_handler), &sc->handler)
-	    || __put_user(oldset->sig[0], &sc->oldmask)
+	unsafe_put_user(to_user_ptr(ksig->ka.sa.sa_handler), &sc->handler, failed);
+	unsafe_put_user(oldset->sig[0], &sc->oldmask, failed);
 #ifdef CONFIG_PPC64
-	    || __put_user((oldset->sig[0] >> 32), &sc->_unused[3])
+	unsafe_put_user((oldset->sig[0] >> 32), &sc->_unused[3], failed);
 #else
-	    || __put_user(oldset->sig[1], &sc->_unused[3])
+	unsafe_put_user(oldset->sig[1], &sc->_unused[3], failed);
 #endif
-	    || __put_user(to_user_ptr(mctx), &sc->regs)
-	    || __put_user(ksig->sig, &sc->signal))
-		goto badframe;
+	unsafe_put_user(to_user_ptr(mctx), &sc->regs, failed);
+	unsafe_put_user(ksig->sig, &sc->signal, failed);
 
 	if (vdso32_sigtramp && tsk->mm->context.vdso_base) {
 		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
 		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		if (__put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0]))
-			goto badframe;
-		if (__put_user(PPC_INST_SC, &mctx->mc_pad[1]))
-			goto badframe;
-		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
+		unsafe_put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0], failed);
+		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
 	}
+	user_write_access_end();
+
+	if (tramp == (unsigned long)mctx->mc_pad)
+		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(msr)) {
@@ -900,6 +900,9 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
 	return 0;
+
+failed:
+	user_write_access_end();
 
 badframe:
 	signal_fault(tsk, regs, "handle_signal32", frame);
