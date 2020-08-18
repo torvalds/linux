@@ -459,14 +459,13 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
 	struct vc_data *vc;
-	long pos;
-	long attr, size, written;
-	char *con_buf0;
-	int col, maxcol;
+	char *con_buf0, *con_buf;
 	u16 *org0 = NULL, *org = NULL;
-	size_t ret;
-	char *con_buf;
-	bool viewed;
+	unsigned int written, col, maxcol;
+	int size;
+	ssize_t ret;
+	loff_t pos;
+	bool viewed, attr;
 
 	if (use_unicode(inode))
 		return -EOPNOTSUPP;
@@ -500,9 +499,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		count = size - pos;
 	written = 0;
 	while (count) {
-		long this_round = count;
-		size_t orig_count;
-		long p;
+		unsigned int orig_count, p, this_round = count;
 
 		if (this_round > CON_BUF_SIZE)
 			this_round = CON_BUF_SIZE;
