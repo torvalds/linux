@@ -630,8 +630,8 @@ static int ceph_finish_async_create(struct inode *dir, struct dentry *dentry,
 	} else {
 		struct dentry *dn;
 
-		dout("%s d_adding new inode 0x%llx to 0x%lx/%s\n", __func__,
-			vino.ino, dir->i_ino, dentry->d_name.name);
+		dout("%s d_adding new inode 0x%llx to 0x%llx/%s\n", __func__,
+			vino.ino, ceph_ino(dir), dentry->d_name.name);
 		ceph_dir_clear_ordered(dir);
 		ceph_init_inode_acls(inode, as_ctx);
 		if (inode->i_state & I_NEW) {
