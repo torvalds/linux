@@ -87,6 +87,8 @@ examples:
     serial@8006c000 {
         compatible = "fsl,imx23-auart";
         reg = <0x8006c000 0x2000>;
-        interrupts = <24 25 23>;
+        interrupts = <24>;
         clocks = <&clks 32>;
+        dmas = <&dma_apbx 6>, <&dma_apbx 7>;
+        dma-names = "rx", "tx";
     };
