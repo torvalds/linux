@@ -602,9 +602,17 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 
 static int __destroy_id(struct ucma_context *ctx)
 {
-	mutex_lock(&ctx->file->mut);
-	ctx->destroying = 1;
-	mutex_unlock(&ctx->file->mut);
+	/*
+	 * If the refcount is already 0 then ucma_close_id() has already
+	 * destroyed the cm_id, otherwise holding the refcount keeps cm_id
+	 * valid. Prevent queue_work() from being called.
+	 */
+	if (refcount_inc_not_zero(&ctx->ref)) {
+		rdma_lock_handler(ctx->cm_id);
+		ctx->destroying = 1;
+		rdma_unlock_handler(ctx->cm_id);
+		ucma_put_ctx(ctx);
+	}
 
 	flush_workqueue(ctx->file->close_wq);
 	/* At this point it's guaranteed that there is no inflight closing task */
