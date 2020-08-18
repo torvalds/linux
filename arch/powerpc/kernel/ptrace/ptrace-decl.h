@@ -164,6 +164,10 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data);
 
 extern const struct user_regset_view user_ppc_native_view;
 
+/* ptrace-fpu */
+int ptrace_get_fpr(struct task_struct *child, int index, unsigned long *data);
+int ptrace_put_fpr(struct task_struct *child, int index, unsigned long data);
+
 /* ptrace-(no)adv */
 void ppc_gethwdinfo(struct ppc_debug_info *dbginfo);
 int ptrace_get_debugreg(struct task_struct *child, unsigned long addr,
