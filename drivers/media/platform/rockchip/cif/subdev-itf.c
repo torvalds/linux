@@ -94,8 +94,8 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
 
-	if (cif_dev->terminal_sensor) {
-		sensor_sd = cif_dev->terminal_sensor;
+	if (cif_dev->terminal_sensor.sd) {
+		sensor_sd = cif_dev->terminal_sensor.sd;
 		return v4l2_subdev_call(sensor_sd, core, ioctl, cmd, arg);
 	}
 
@@ -110,8 +110,8 @@ static long sditf_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
 
-	if (cif_dev->terminal_sensor) {
-		sensor_sd = cif_dev->terminal_sensor;
+	if (cif_dev->terminal_sensor.sd) {
+		sensor_sd = cif_dev->terminal_sensor.sd;
 		return v4l2_subdev_call(sensor_sd, core, compat_ioctl32, cmd, arg);
 	}
 

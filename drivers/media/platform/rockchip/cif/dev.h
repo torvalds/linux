@@ -159,11 +159,15 @@ extern int rkcif_debug;
 
 /*
  * struct rkcif_sensor_info - Sensor infomations
+ * @sd: v4l2 subdev of sensor
  * @mbus: media bus configuration
+ * @fi: v4l2 subdev frame interval
+ * @lanes: lane num of sensor
  */
 struct rkcif_sensor_info {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
+	struct v4l2_subdev_frame_interval fi;
 	int lanes;
 };
 
@@ -350,7 +354,7 @@ struct rkcif_device {
 	struct rkcif_sensor_info	sensors[RKCIF_MAX_SENSOR];
 	u32				num_sensors;
 	struct rkcif_sensor_info	*active_sensor;
-	struct v4l2_subdev		*terminal_sensor;
+	struct rkcif_sensor_info	terminal_sensor;
 
 	struct rkcif_stream		stream[RKCIF_MULTI_STREAMS_NUM];
 	struct rkcif_pipeline		pipe;
