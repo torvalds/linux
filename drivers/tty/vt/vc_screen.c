@@ -53,7 +53,7 @@
 #undef attr
 #undef org
 #undef addr
-#define HEADER_SIZE	4
+#define HEADER_SIZE	4u
 
 #define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 
@@ -361,8 +361,6 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			}
 		} else {
 			if (p < HEADER_SIZE) {
-				unsigned int tmp_count;
-
 				/* clamp header values if they don't fit */
 				con_buf0[0] = min(vc->vc_rows, 0xFFu);
 				con_buf0[1] = min(vc->vc_cols, 0xFFu);
@@ -375,12 +373,8 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 					orig_count = this_round - p;
 				}
 
-				tmp_count = HEADER_SIZE;
-				if (tmp_count > this_round)
-					tmp_count = this_round;
-
 				/* Advance state pointers and move on. */
-				this_round -= tmp_count;
+				this_round -= min(HEADER_SIZE, this_round);
 				p = HEADER_SIZE;
 				con_buf0 = con_buf + HEADER_SIZE;
 				/* If this_round >= 0, then p is even... */
