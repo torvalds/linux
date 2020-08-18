@@ -4769,17 +4769,17 @@ unsigned short *screen_pos(const struct vc_data *vc, int w_offset, int viewed)
 }
 EXPORT_SYMBOL_GPL(screen_pos);
 
-void getconsxy(const struct vc_data *vc, unsigned char *p)
+void getconsxy(const struct vc_data *vc, unsigned char xy[static 2])
 {
 	/* clamp values if they don't fit */
-	p[0] = min(vc->state.x, 0xFFu);
-	p[1] = min(vc->state.y, 0xFFu);
+	xy[0] = min(vc->state.x, 0xFFu);
+	xy[1] = min(vc->state.y, 0xFFu);
 }
 
-void putconsxy(struct vc_data *vc, unsigned char *p)
+void putconsxy(struct vc_data *vc, unsigned char xy[static const 2])
 {
 	hide_cursor(vc);
-	gotoxy(vc, p[0], p[1]);
+	gotoxy(vc, xy[0], xy[1]);
 	set_cursor(vc);
 }
 
