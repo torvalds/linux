@@ -18,16 +18,6 @@
 	/delete-node/ vdd-npu;
 	/delete-node/ vdd-vepu;
 
-	pwmleds {
-		compatible = "pwm-leds";
-
-		pwmi_ir {
-			label = "PWM-IR";
-			pwms = <&pwm3 0 25000 0>;
-			max-brightness = <255>;
-		};
-	};
-
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -114,6 +104,18 @@
 		compatible = "rockchip,ircut";
 		ircut-open-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		ircut-close-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+	};
+
+	flash_ir: flash-ir {
+		status = "okay";
+		compatible = "led,rgb13h";
+		label = "pwm-flash";
+		led-max-microamp = <20000>;
+		flash-max-microamp = <20000>;
+		flash-max-timeout-us = <1000000>;
+		pwms=<&pwm3 0 25000 0>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
@@ -216,6 +218,7 @@
 		   rockchip,camera-module-name = "YT10092";
 		   rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
 		   ir-cut = <&cam_ircut0>;
+		   flash-leds = <&flash_ir>;
 		   port {
 				   ucam_out0: endpoint {
 						   remote-endpoint = <&mipi_in_ucam0>;
