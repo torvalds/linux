@@ -9,6 +9,10 @@ Required properties:
 - mps,fb-voltage-divider: An array of two integers containing the resistor
   values R1 and R2 of the feedback voltage divider in kilo ohms.
 
+Optional properties:
+- mps,switch-frequency: The valid switch frequency in Hertz. Available values
+  are: 500000, 750000, 1000000, 1250000, 1500000
+
 Any property defined as part of the core regulator binding, defined in
 ./regulator.txt, can also be used.
 
