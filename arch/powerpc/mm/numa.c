@@ -933,6 +933,16 @@ void __init mem_topology_setup(void)
 {
 	int cpu;
 
+	/*
+	 * Linux/mm assumes node 0 to be online at boot. However this is not
+	 * true on PowerPC, where node 0 is similar to any other node, it
+	 * could be cpuless, memoryless node. So force node 0 to be offline
+	 * for now. This will prevent cpuless, memoryless node 0 showing up
+	 * unnecessarily as online. If a node has cpus or memory that need
+	 * to be online, then node will anyway be marked online.
+	 */
+	node_set_offline(0);
+
 	if (parse_numa_properties())
 		setup_nonnuma();
 
