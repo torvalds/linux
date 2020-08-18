@@ -76,6 +76,12 @@
 #define HBM_MINOR_VERSION_DR               1
 #define HBM_MAJOR_VERSION_DR               2
 
+/*
+ * MEI version with capabilities message support
+ */
+#define HBM_MINOR_VERSION_CAP              2
+#define HBM_MAJOR_VERSION_CAP              2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
@@ -120,6 +126,9 @@
 
 #define MEI_HBM_DMA_SETUP_REQ_CMD           0x12
 #define MEI_HBM_DMA_SETUP_RES_CMD           0x92
+
+#define MEI_HBM_CAPABILITIES_REQ_CMD        0x13
+#define MEI_HBM_CAPABILITIES_RES_CMD        0x93
 
 /*
  * MEI Stop Reason
@@ -531,6 +540,28 @@ struct hbm_dma_ring_ctrl {
 	u32 reserved3;
 	u32 dbuf_rd_idx;
 	u32 reserved4;
+} __packed;
+
+/**
+ * struct hbm_capability_request - capability request from host to fw
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_requested: bitmask of capabilities requested by host
+ */
+struct hbm_capability_request {
+	u8 hbm_cmd;
+	u8 capability_requested[3];
+} __packed;
+
+/**
+ * struct hbm_capability_response - capability response from fw to host
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_granted: bitmask of capabilities granted by FW
+ */
+struct hbm_capability_response {
+	u8 hbm_cmd;
+	u8 capability_granted[3];
 } __packed;
 
 #endif
