@@ -110,6 +110,7 @@ struct static_call_key {
 
 extern void __static_call_update(struct static_call_key *key, void *tramp, void *func);
 extern int static_call_mod_init(struct module *mod);
+extern int static_call_text_reserved(void *start, void *end);
 
 #define DEFINE_STATIC_CALL(name, _func)					\
 	DECLARE_STATIC_CALL(name, _func);				\
@@ -153,6 +154,11 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 	cpus_read_unlock();
 }
 
+static inline int static_call_text_reserved(void *start, void *end)
+{
+	return 0;
+}
+
 #define EXPORT_STATIC_CALL(name)					\
 	EXPORT_SYMBOL(STATIC_CALL_KEY(name));				\
 	EXPORT_SYMBOL(STATIC_CALL_TRAMP(name))
@@ -180,6 +186,11 @@ static inline
 void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 {
 	WRITE_ONCE(key->func, func);
+}
+
+static inline int static_call_text_reserved(void *start, void *end)
+{
+	return 0;
 }
 
 #define EXPORT_STATIC_CALL(name)	EXPORT_SYMBOL(STATIC_CALL_KEY(name))
