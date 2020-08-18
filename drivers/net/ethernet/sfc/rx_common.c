@@ -849,6 +849,7 @@ void efx_remove_filters(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		cancel_delayed_work_sync(&channel->filter_work);
 		kfree(channel->rps_flow_id);
+		channel->rps_flow_id = NULL;
 	}
 #endif
 	down_write(&efx->filter_sem);
