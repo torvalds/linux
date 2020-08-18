@@ -50,11 +50,7 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#undef attr
-#undef org
-#undef addr
 #define HEADER_SIZE	4u
-
 #define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 
 /*
