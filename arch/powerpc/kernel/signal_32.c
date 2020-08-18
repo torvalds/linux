@@ -764,8 +764,11 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 #endif
 
 	/* Set up Signal Frame */
-	/* Put a Real Time Context onto stack */
 	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
+	mctx = &frame->uc.uc_mcontext;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	tm_mctx = &frame->uc_transact.uc_mcontext;
+#endif
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
@@ -778,7 +781,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		goto badframe;
 
 	/* Save user registers on the stack */
-	mctx = &frame->uc.uc_mcontext;
 	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
 		sigret = 0;
 		tramp = tsk->mm->context.vdso_base + vdso32_rt_sigtramp;
@@ -788,7 +790,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	tm_mctx = &frame->uc_transact.uc_mcontext;
 	if (MSR_TM_ACTIVE(msr)) {
 		if (__put_user((unsigned long)&frame->uc_transact,
 			       &frame->uc.uc_link) ||
@@ -843,6 +844,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 {
 	struct sigcontext __user *sc;
 	struct sigframe __user *frame;
+	struct mcontext __user *mctx;
 	struct mcontext __user *tm_mctx = NULL;
 	unsigned long newsp = 0;
 	int sigret;
@@ -855,6 +857,10 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	/* Set up Signal Frame */
 	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
+	mctx = &frame->mctx;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	tm_mctx = &frame->mctx_transact;
+#endif
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	sc = (struct sigcontext __user *) &frame->sctx;
@@ -869,7 +875,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 #else
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
 #endif
-	    || __put_user(to_user_ptr(&frame->mctx), &sc->regs)
+	    || __put_user(to_user_ptr(mctx), &sc->regs)
 	    || __put_user(ksig->sig, &sc->signal))
 		goto badframe;
 
@@ -878,20 +884,18 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
 		sigret = __NR_sigreturn;
-		tramp = (unsigned long) frame->mctx.tramp;
+		tramp = (unsigned long)mctx->tramp;
 	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	tm_mctx = &frame->mctx_transact;
 	if (MSR_TM_ACTIVE(msr)) {
-		if (save_tm_user_regs(regs, &frame->mctx, &frame->mctx_transact,
-				      sigret, msr))
+		if (save_tm_user_regs(regs, mctx, tm_mctx, sigret, msr))
 			goto badframe;
 	}
 	else
 #endif
 	{
-		if (save_user_regs(regs, &frame->mctx, tm_mctx, sigret, 1))
+		if (save_user_regs(regs, mctx, tm_mctx, sigret, 1))
 			goto badframe;
 	}
 
@@ -909,7 +913,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = ksig->sig;
 	regs->gpr[4] = (unsigned long) sc;
-	regs->nip = (unsigned long) (unsigned long)ksig->ka.sa.sa_handler;
+	regs->nip = (unsigned long)ksig->ka.sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
 	return 0;
