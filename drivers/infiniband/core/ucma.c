@@ -153,8 +153,8 @@ static struct ucma_context *ucma_get_ctx(struct ucma_file *file, int id)
 	if (!IS_ERR(ctx)) {
 		if (ctx->closing)
 			ctx = ERR_PTR(-EIO);
-		else
-			refcount_inc(&ctx->ref);
+		else if (!refcount_inc_not_zero(&ctx->ref))
+			ctx = ERR_PTR(-ENXIO);
 	}
 	xa_unlock(&ctx_table);
 	return ctx;
