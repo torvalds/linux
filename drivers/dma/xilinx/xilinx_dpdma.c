@@ -346,7 +346,7 @@ static int xilinx_dpdma_debugfs_desc_done_irq_write(char *args)
 }
 
 /* Match xilinx_dpdma_testcases vs dpdma_debugfs_reqs[] entry */
-struct xilinx_dpdma_debugfs_request dpdma_debugfs_reqs[] = {
+static struct xilinx_dpdma_debugfs_request dpdma_debugfs_reqs[] = {
 	{
 		.name = "DESCRIPTOR_DONE_INTR",
 		.tc = DPDMA_TC_INTR_DONE,
