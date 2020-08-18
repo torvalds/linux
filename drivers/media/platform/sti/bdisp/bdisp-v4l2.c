@@ -1360,11 +1360,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	}
 
 	/* Debug */
-	ret = bdisp_debugfs_create(bdisp);
-	if (ret) {
-		dev_err(dev, "failed to create debugfs\n");
-		goto err_v4l2;
-	}
+	bdisp_debugfs_create(bdisp);
 
 	/* Power management */
 	pm_runtime_enable(dev);
@@ -1401,7 +1397,6 @@ err_pm:
 	pm_runtime_put(dev);
 err_dbg:
 	bdisp_debugfs_remove(bdisp);
-err_v4l2:
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:
 	if (!IS_ERR(bdisp->clock))
