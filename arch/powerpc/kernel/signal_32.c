@@ -199,9 +199,6 @@ struct sigframe {
 	int			abigap[56];
 };
 
-/* We use the mc_pad field for the signal return trampoline. */
-#define tramp	mc_pad
-
 /*
  *  When we have rt signals to deliver, we set up on the
  *  user stack, going down from the original stack pointer:
@@ -236,8 +233,7 @@ struct rt_sigframe {
  * altivec/spe instructions at some point.
  */
 static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
-			  struct mcontext __user *tm_frame, int sigret,
-			  int ctx_has_vsx_region)
+			  struct mcontext __user *tm_frame, int ctx_has_vsx_region)
 {
 	unsigned long msr = regs->msr;
 
@@ -320,15 +316,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	if (tm_frame && __put_user(0, &tm_frame->mc_gregs[PT_MSR]))
 		return 1;
 
-	if (sigret) {
-		/* Set up the sigreturn trampoline: li 0,sigret; sc */
-		if (__put_user(PPC_INST_ADDI + sigret, &frame->tramp[0])
-		    || __put_user(PPC_INST_SC, &frame->tramp[1]))
-			return 1;
-		flush_icache_range((unsigned long) &frame->tramp[0],
-				   (unsigned long) &frame->tramp[2]);
-	}
-
 	return 0;
 }
 
@@ -342,10 +329,8 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
  *
  * See save_user_regs() and signal_64.c:setup_tm_sigcontexts().
  */
-static int save_tm_user_regs(struct pt_regs *regs,
-			     struct mcontext __user *frame,
-			     struct mcontext __user *tm_frame, int sigret,
-			     unsigned long msr)
+static int save_tm_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
+			     struct mcontext __user *tm_frame, unsigned long msr)
 {
 	WARN_ON(tm_suspend_disabled);
 
@@ -461,14 +446,6 @@ static int save_tm_user_regs(struct pt_regs *regs,
 
 	if (__put_user(msr, &frame->mc_gregs[PT_MSR]))
 		return 1;
-	if (sigret) {
-		/* Set up the sigreturn trampoline: li 0,sigret; sc */
-		if (__put_user(PPC_INST_ADDI + sigret, &frame->tramp[0])
-		    || __put_user(PPC_INST_SC, &frame->tramp[1]))
-			return 1;
-		flush_icache_range((unsigned long) &frame->tramp[0],
-				   (unsigned long) &frame->tramp[2]);
-	}
 
 	return 0;
 }
@@ -755,7 +732,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	struct mcontext __user *mctx;
 	struct mcontext __user *tm_mctx = NULL;
 	unsigned long newsp = 0;
-	int sigret;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -782,11 +758,15 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	/* Save user registers on the stack */
 	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
-		sigret = 0;
 		tramp = tsk->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
-		sigret = __NR_rt_sigreturn;
-		tramp = (unsigned long)mctx->tramp;
+		tramp = (unsigned long)mctx->mc_pad;
+		/* Set up the sigreturn trampoline: li r0,sigret; sc */
+		if (__put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0]))
+			goto badframe;
+		if (__put_user(PPC_INST_SC, &mctx->mc_pad[1]))
+			goto badframe;
+		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -796,7 +776,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		    __put_user((unsigned long)tm_mctx,
 			       &frame->uc_transact.uc_regs))
 			goto badframe;
-		if (save_tm_user_regs(regs, mctx, tm_mctx, sigret, msr))
+		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
 	}
 	else
@@ -804,7 +784,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	{
 		if (__put_user(0, &frame->uc.uc_link))
 			goto badframe;
-		if (save_user_regs(regs, mctx, tm_mctx, sigret, 1))
+		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
 	regs->link = tramp;
@@ -847,7 +827,6 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	struct mcontext __user *mctx;
 	struct mcontext __user *tm_mctx = NULL;
 	unsigned long newsp = 0;
-	int sigret;
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -880,22 +859,26 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		goto badframe;
 
 	if (vdso32_sigtramp && tsk->mm->context.vdso_base) {
-		sigret = 0;
 		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
-		sigret = __NR_sigreturn;
-		tramp = (unsigned long)mctx->tramp;
+		tramp = (unsigned long)mctx->mc_pad;
+		/* Set up the sigreturn trampoline: li r0,sigret; sc */
+		if (__put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0]))
+			goto badframe;
+		if (__put_user(PPC_INST_SC, &mctx->mc_pad[1]))
+			goto badframe;
+		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(msr)) {
-		if (save_tm_user_regs(regs, mctx, tm_mctx, sigret, msr))
+		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
 	}
 	else
 #endif
 	{
-		if (save_user_regs(regs, mctx, tm_mctx, sigret, 1))
+		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
 
@@ -1047,7 +1030,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		mctx = (struct mcontext __user *)
 			((unsigned long) &old_ctx->uc_mcontext & ~0xfUL);
 		if (!access_ok(old_ctx, ctx_size)
-		    || save_user_regs(regs, mctx, NULL, 0, ctx_has_vsx_region)
+		    || save_user_regs(regs, mctx, NULL, ctx_has_vsx_region)
 		    || put_sigset_t(&old_ctx->uc_sigmask, &current->blocked)
 		    || __put_user(to_user_ptr(mctx), &old_ctx->uc_regs))
 			return -EFAULT;
