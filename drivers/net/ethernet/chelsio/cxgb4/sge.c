@@ -2553,8 +2553,8 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 
 	pkt_len = ETH_HLEN + sizeof(CXGB4_SELFTEST_LB_STR);
 
-	flits = DIV_ROUND_UP(pkt_len + sizeof(struct cpl_tx_pkt) +
-			     sizeof(*wr), sizeof(__be64));
+	flits = DIV_ROUND_UP(pkt_len + sizeof(*cpl) + sizeof(*wr),
+			     sizeof(__be64));
 	ndesc = flits_to_desc(flits);
 
 	lb = &pi->ethtool_lb;
