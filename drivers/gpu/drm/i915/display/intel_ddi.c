@@ -1821,6 +1821,8 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 
 	ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
+	drm_WARN_ON(crtc->base.dev, ctl & TRANS_DDI_HDCP_SIGNALLING);
+
 	ctl &= ~TRANS_DDI_FUNC_ENABLE;
 
 	if (IS_GEN_RANGE(dev_priv, 8, 10))
