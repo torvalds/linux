@@ -9,7 +9,6 @@
 #include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
-#include <linux/bitfield.h>
 
 #define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 10)
 

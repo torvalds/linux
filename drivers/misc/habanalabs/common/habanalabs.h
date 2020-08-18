@@ -18,6 +18,7 @@
 #include <linux/dma-direction.h>
 #include <linux/scatterlist.h>
 #include <linux/hashtable.h>
+#include <linux/bitfield.h>
 
 #define HL_NAME				"habanalabs"
 

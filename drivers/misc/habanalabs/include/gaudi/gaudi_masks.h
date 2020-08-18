@@ -9,7 +9,6 @@
 #define GAUDI_MASKS_H_
 
 #include "asic_reg/gaudi_regs.h"
-#include <linux/bitfield.h>
 
 /* Useful masks for bits in various registers */
 #define PCI_DMA_QMAN_ENABLE		(\

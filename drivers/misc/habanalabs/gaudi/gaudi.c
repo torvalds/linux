@@ -21,7 +21,6 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iommu.h>
 #include <linux/seq_file.h>
-#include <linux/bitfield.h>
 
 /*
  * Gaudi security scheme:
