@@ -2524,7 +2524,7 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
 	int err;
 
 	/* CO-RE relocations need kernel BTF */
-	if (obj->btf_ext && obj->btf_ext->field_reloc_info.len)
+	if (obj->btf_ext && obj->btf_ext->core_relo_info.len)
 		need_vmlinux_btf = true;
 
 	bpf_object__for_each_program(prog, obj) {
@@ -4074,6 +4074,10 @@ struct bpf_core_spec {
 	const struct btf *btf;
 	/* high-level spec: named fields and array indices only */
 	struct bpf_core_accessor spec[BPF_CORE_SPEC_MAX_LEN];
+	/* original unresolved (no skip_mods_or_typedefs) root type ID */
+	__u32 root_type_id;
+	/* CO-RE relocation kind */
+	enum bpf_core_relo_kind relo_kind;
 	/* high-level spec length */
 	int len;
 	/* raw, low-level spec: 1-to-1 with accessor spec string */
@@ -4104,8 +4108,36 @@ static bool is_flex_arr(const struct btf *btf,
 	return acc->idx == btf_vlen(t) - 1;
 }
 
+static const char *core_relo_kind_str(enum bpf_core_relo_kind kind)
+{
+	switch (kind) {
+	case BPF_FIELD_BYTE_OFFSET: return "byte_off";
+	case BPF_FIELD_BYTE_SIZE: return "byte_sz";
+	case BPF_FIELD_EXISTS: return "field_exists";
+	case BPF_FIELD_SIGNED: return "signed";
+	case BPF_FIELD_LSHIFT_U64: return "lshift_u64";
+	case BPF_FIELD_RSHIFT_U64: return "rshift_u64";
+	default: return "unknown";
+	}
+}
+
+static bool core_relo_is_field_based(enum bpf_core_relo_kind kind)
+{
+	switch (kind) {
+	case BPF_FIELD_BYTE_OFFSET:
+	case BPF_FIELD_BYTE_SIZE:
+	case BPF_FIELD_EXISTS:
+	case BPF_FIELD_SIGNED:
+	case BPF_FIELD_LSHIFT_U64:
+	case BPF_FIELD_RSHIFT_U64:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
- * Turn bpf_field_reloc into a low- and high-level spec representation,
+ * Turn bpf_core_relo into a low- and high-level spec representation,
  * validating correctness along the way, as well as calculating resulting
  * field bit offset, specified by accessor string. Low-level spec captures
  * every single level of nestedness, including traversing anonymous
@@ -4135,9 +4167,10 @@ static bool is_flex_arr(const struct btf *btf,
  *   - array element #3 access (corresponds to '3' in low-level spec).
  *
  */
-static int bpf_core_spec_parse(const struct btf *btf,
+static int bpf_core_parse_spec(const struct btf *btf,
 			       __u32 type_id,
 			       const char *spec_str,
+			       enum bpf_core_relo_kind relo_kind,
 			       struct bpf_core_spec *spec)
 {
 	int access_idx, parsed_len, i;
@@ -4152,6 +4185,8 @@ static int bpf_core_spec_parse(const struct btf *btf,
 
 	memset(spec, 0, sizeof(*spec));
 	spec->btf = btf;
+	spec->root_type_id = type_id;
+	spec->relo_kind = relo_kind;
 
 	/* parse spec_str="0:1:2:3:4" into array raw_spec=[0, 1, 2, 3, 4] */
 	while (*spec_str) {
@@ -4177,6 +4212,9 @@ static int bpf_core_spec_parse(const struct btf *btf,
 	spec->spec[0].type_id = id;
 	spec->spec[0].idx = access_idx;
 	spec->len++;
+
+	if (!core_relo_is_field_based(relo_kind))
+		return -EINVAL;
 
 	sz = btf__resolve_size(btf, id);
 	if (sz < 0)
@@ -4285,17 +4323,17 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 					   const struct btf *targ_btf)
 {
 	size_t local_essent_len, targ_essent_len;
-	const char *local_name, *targ_name;
-	const struct btf_type *t;
+	const char *local_name, *targ_name, *targ_kind;
+	const struct btf_type *t, *local_t;
 	struct ids_vec *cand_ids;
 	__u32 *new_ids;
 	int i, err, n;
 
-	t = btf__type_by_id(local_btf, local_type_id);
-	if (!t)
+	local_t = btf__type_by_id(local_btf, local_type_id);
+	if (!local_t)
 		return ERR_PTR(-EINVAL);
 
-	local_name = btf__name_by_offset(local_btf, t->name_off);
+	local_name = btf__name_by_offset(local_btf, local_t->name_off);
 	if (str_is_empty(local_name))
 		return ERR_PTR(-EINVAL);
 	local_essent_len = bpf_core_essential_name_len(local_name);
@@ -4310,6 +4348,7 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 		targ_name = btf__name_by_offset(targ_btf, t->name_off);
 		if (str_is_empty(targ_name))
 			continue;
+		targ_kind = btf_kind_str(t);
 
 		t = skip_mods_and_typedefs(targ_btf, i, NULL);
 		if (!btf_is_composite(t) && !btf_is_array(t))
@@ -4320,8 +4359,9 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 			continue;
 
 		if (strncmp(local_name, targ_name, local_essent_len) == 0) {
-			pr_debug("[%d] %s: found candidate [%d] %s\n",
-				 local_type_id, local_name, i, targ_name);
+			pr_debug("CO-RE relocating [%d] %s %s: found target candidate [%d] %s %s\n",
+				 local_type_id, btf_kind_str(local_t),
+				 local_name, i, targ_kind, targ_name);
 			new_ids = reallocarray(cand_ids->data,
 					       cand_ids->len + 1,
 					       sizeof(*cand_ids->data));
@@ -4510,6 +4550,8 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 
 	memset(targ_spec, 0, sizeof(*targ_spec));
 	targ_spec->btf = targ_btf;
+	targ_spec->root_type_id = targ_id;
+	targ_spec->relo_kind = local_spec->relo_kind;
 
 	local_acc = &local_spec->spec[0];
 	targ_acc = &targ_spec->spec[0];
@@ -4570,7 +4612,7 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 }
 
 static int bpf_core_calc_field_relo(const struct bpf_program *prog,
-				    const struct bpf_field_reloc *relo,
+				    const struct bpf_core_relo *relo,
 				    const struct bpf_core_spec *spec,
 				    __u32 *val, bool *validate)
 {
@@ -4691,7 +4733,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
  * 2. rX += <imm> (arithmetic operations with immediate operand);
  */
 static int bpf_core_reloc_insn(struct bpf_program *prog,
-			       const struct bpf_field_reloc *relo,
+			       const struct bpf_core_relo *relo,
 			       int relo_idx,
 			       const struct bpf_core_spec *local_spec,
 			       const struct bpf_core_spec *targ_spec)
@@ -4795,25 +4837,30 @@ static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 	__u32 type_id;
 	int i;
 
-	type_id = spec->spec[0].type_id;
+	type_id = spec->root_type_id;
 	t = btf__type_by_id(spec->btf, type_id);
 	s = btf__name_by_offset(spec->btf, t->name_off);
-	libbpf_print(level, "[%u] %s + ", type_id, s);
 
-	for (i = 0; i < spec->raw_len; i++)
-		libbpf_print(level, "%d%s", spec->raw_spec[i],
-			     i == spec->raw_len - 1 ? " => " : ":");
+	libbpf_print(level, "[%u] %s %s", type_id, btf_kind_str(t), str_is_empty(s) ? "<anon>" : s);
 
-	libbpf_print(level, "%u.%u @ &x",
-		     spec->bit_offset / 8, spec->bit_offset % 8);
+	if (core_relo_is_field_based(spec->relo_kind)) {
+		for (i = 0; i < spec->len; i++) {
+			if (spec->spec[i].name)
+				libbpf_print(level, ".%s", spec->spec[i].name);
+			else if (i > 0 || spec->spec[i].idx > 0)
+				libbpf_print(level, "[%u]", spec->spec[i].idx);
+		}
 
-	for (i = 0; i < spec->len; i++) {
-		if (spec->spec[i].name)
-			libbpf_print(level, ".%s", spec->spec[i].name);
+		libbpf_print(level, " (");
+		for (i = 0; i < spec->raw_len; i++)
+			libbpf_print(level, "%s%d", i == 0 ? "" : ":", spec->raw_spec[i]);
+
+		if (spec->bit_offset % 8)
+			libbpf_print(level, " @ offset %u.%u)",
+				     spec->bit_offset / 8, spec->bit_offset % 8);
 		else
-			libbpf_print(level, "[%u]", spec->spec[i].idx);
+			libbpf_print(level, " @ offset %u)", spec->bit_offset / 8);
 	}
-
 }
 
 static size_t bpf_core_hash_fn(const void *key, void *ctx)
@@ -4877,12 +4924,12 @@ static void *u32_as_hash_key(__u32 x)
  *    CPU-wise compared to prebuilding a map from all local type names to
  *    a list of candidate type names. It's also sped up by caching resolved
  *    list of matching candidates per each local "root" type ID, that has at
- *    least one bpf_field_reloc associated with it. This list is shared
+ *    least one bpf_core_relo associated with it. This list is shared
  *    between multiple relocations for the same type ID and is updated as some
  *    of the candidates are pruned due to structural incompatibility.
  */
 static int bpf_core_reloc_field(struct bpf_program *prog,
-				 const struct bpf_field_reloc *relo,
+				 const struct bpf_core_relo *relo,
 				 int relo_idx,
 				 const struct btf *local_btf,
 				 const struct btf *targ_btf,
@@ -4891,8 +4938,8 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	const char *prog_name = bpf_program__title(prog, false);
 	struct bpf_core_spec local_spec, cand_spec, targ_spec;
 	const void *type_key = u32_as_hash_key(relo->type_id);
-	const struct btf_type *local_type, *cand_type;
-	const char *local_name, *cand_name;
+	const struct btf_type *local_type;
+	const char *local_name;
 	struct ids_vec *cand_ids;
 	__u32 local_id, cand_id;
 	const char *spec_str;
@@ -4911,24 +4958,24 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	if (str_is_empty(spec_str))
 		return -EINVAL;
 
-	err = bpf_core_spec_parse(local_btf, local_id, spec_str, &local_spec);
+	err = bpf_core_parse_spec(local_btf, local_id, spec_str, relo->kind, &local_spec);
 	if (err) {
-		pr_warn("prog '%s': relo #%d: parsing [%d] %s + %s failed: %d\n",
-			prog_name, relo_idx, local_id, local_name, spec_str,
-			err);
+		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
+			prog_name, relo_idx, local_id, btf_kind_str(local_type),
+			local_name, spec_str, err);
 		return -EINVAL;
 	}
 
-	pr_debug("prog '%s': relo #%d: kind %d, spec is ", prog_name, relo_idx,
-		 relo->kind);
+	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog_name,
+		 relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
 	if (!hashmap__find(cand_cache, type_key, (void **)&cand_ids)) {
 		cand_ids = bpf_core_find_cands(local_btf, local_id, targ_btf);
 		if (IS_ERR(cand_ids)) {
-			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s: %ld",
-				prog_name, relo_idx, local_id, local_name,
+			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s %s: %ld",
+				prog_name, relo_idx, local_id, btf_kind_str(local_type), local_name,
 				PTR_ERR(cand_ids));
 			return PTR_ERR(cand_ids);
 		}
@@ -4941,20 +4988,20 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 
 	for (i = 0, j = 0; i < cand_ids->len; i++) {
 		cand_id = cand_ids->data[i];
-		cand_type = btf__type_by_id(targ_btf, cand_id);
-		cand_name = btf__name_by_offset(targ_btf, cand_type->name_off);
-
-		err = bpf_core_spec_match(&local_spec, targ_btf,
-					  cand_id, &cand_spec);
-		pr_debug("prog '%s': relo #%d: matching candidate #%d %s against spec ",
-			 prog_name, relo_idx, i, cand_name);
-		bpf_core_dump_spec(LIBBPF_DEBUG, &cand_spec);
-		libbpf_print(LIBBPF_DEBUG, ": %d\n", err);
+		err = bpf_core_spec_match(&local_spec, targ_btf, cand_id, &cand_spec);
 		if (err < 0) {
-			pr_warn("prog '%s': relo #%d: matching error: %d\n",
-				prog_name, relo_idx, err);
+			pr_warn("prog '%s': relo #%d: error matching candidate #%d ",
+				prog_name, relo_idx, i);
+			bpf_core_dump_spec(LIBBPF_WARN, &cand_spec);
+			libbpf_print(LIBBPF_WARN, ": %d\n", err);
 			return err;
 		}
+
+		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog_name,
+			 relo_idx, err == 0 ? "non-matching" : "matching", i);
+		bpf_core_dump_spec(LIBBPF_DEBUG, &cand_spec);
+		libbpf_print(LIBBPF_DEBUG, "\n");
+
 		if (err == 0)
 			continue;
 
@@ -4996,8 +5043,8 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	 * to a specific instruction number in its log.
 	 */
 	if (j == 0)
-		pr_debug("prog '%s': relo #%d: no matching targets found for [%d] %s + %s\n",
-			 prog_name, relo_idx, local_id, local_name, spec_str);
+		pr_debug("prog '%s': relo #%d: no matching targets found\n",
+			 prog_name, relo_idx);
 
 	/* bpf_core_reloc_insn should know how to handle missing targ_spec */
 	err = bpf_core_reloc_insn(prog, relo, relo_idx, &local_spec,
@@ -5012,10 +5059,10 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 }
 
 static int
-bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
+bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 {
 	const struct btf_ext_info_sec *sec;
-	const struct bpf_field_reloc *rec;
+	const struct bpf_core_relo *rec;
 	const struct btf_ext_info *seg;
 	struct hashmap_entry *entry;
 	struct hashmap *cand_cache = NULL;
@@ -5023,6 +5070,9 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 	struct btf *targ_btf;
 	const char *sec_name;
 	int i, err = 0;
+
+	if (obj->btf_ext->core_relo_info.len == 0)
+		return 0;
 
 	if (targ_btf_path)
 		targ_btf = btf__parse_elf(targ_btf_path, NULL);
@@ -5039,7 +5089,7 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 		goto out;
 	}
 
-	seg = &obj->btf_ext->field_reloc_info;
+	seg = &obj->btf_ext->core_relo_info;
 	for_each_btf_ext_sec(seg, sec) {
 		sec_name = btf__name_by_offset(obj->btf, sec->sec_name_off);
 		if (str_is_empty(sec_name)) {
@@ -5084,17 +5134,6 @@ out:
 		}
 		hashmap__free(cand_cache);
 	}
-	return err;
-}
-
-static int
-bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
-{
-	int err = 0;
-
-	if (obj->btf_ext->field_reloc_info.len)
-		err = bpf_core_reloc_fields(obj, targ_btf_path);
-
 	return err;
 }
 
