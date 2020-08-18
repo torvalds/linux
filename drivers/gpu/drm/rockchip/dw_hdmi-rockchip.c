@@ -570,12 +570,12 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		else if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
 		else if (conn_state->connector->ycbcr_420_allowed &&
-			 drm_mode_is_420(info, mode))
+			 drm_mode_is_420(info, mode) && pixclock >= 594000)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 		break;
 	case DRM_HDMI_OUTPUT_YCBCR_LQ:
 		if (conn_state->connector->ycbcr_420_allowed &&
-		    drm_mode_is_420(info, mode))
+		    drm_mode_is_420(info, mode) && pixclock >= 594000)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 		else if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
@@ -584,7 +584,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		break;
 	case DRM_HDMI_OUTPUT_YCBCR420:
 		if (conn_state->connector->ycbcr_420_allowed &&
-		    drm_mode_is_420(info, mode))
+		    drm_mode_is_420(info, mode) && pixclock >= 594000)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 		break;
 	case DRM_HDMI_OUTPUT_YCBCR422:
