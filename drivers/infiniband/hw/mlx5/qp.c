@@ -2409,6 +2409,9 @@ static int create_dct(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	u32 uidx = params->uidx;
 	void *dctc;
 
+	if (mlx5_lag_is_active(dev->mdev) && !MLX5_CAP_GEN(dev->mdev, lag_dct))
+		return -EOPNOTSUPP;
+
 	qp->dct.in = kzalloc(MLX5_ST_SZ_BYTES(create_dct_in), GFP_KERNEL);
 	if (!qp->dct.in)
 		return -ENOMEM;
@@ -4183,7 +4186,11 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			MLX5_SET(dctc, dctc, rae, 1);
 		}
 		MLX5_SET(dctc, dctc, pkey_index, attr->pkey_index);
-		MLX5_SET(dctc, dctc, port, attr->port_num);
+		if (mlx5_lag_is_active(dev->mdev))
+			MLX5_SET(dctc, dctc, port,
+				 get_tx_affinity_rr(dev, udata));
+		else
+			MLX5_SET(dctc, dctc, port, attr->port_num);
 
 		set_id = mlx5_ib_get_counters_id(dev, attr->port_num - 1);
 		MLX5_SET(dctc, dctc, counter_set_id, set_id);
