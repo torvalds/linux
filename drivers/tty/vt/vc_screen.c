@@ -481,14 +481,93 @@ static u16 *vcs_write_buf_noattr(struct vc_data *vc, const char *con_buf,
 	return org;
 }
 
+static u16 *vcs_write_buf(struct vc_data *vc, const char *con_buf,
+		unsigned int pos, unsigned int count, bool viewed, u16 **org0)
+{
+	u16 *org;
+	unsigned int col, maxcol = vc->vc_cols;
+	unsigned char c;
+
+	/* header */
+	if (pos < HEADER_SIZE) {
+		char header[HEADER_SIZE];
+
+		getconsxy(vc, header + 2);
+		while (pos < HEADER_SIZE && count > 0) {
+			count--;
+			header[pos++] = *con_buf++;
+		}
+		if (!viewed)
+			putconsxy(vc, header + 2);
+	}
+
+	if (!count)
+		return NULL;
+
+	pos -= HEADER_SIZE;
+	col = (pos/2) % maxcol;
+
+	*org0 = org = screen_pos(vc, pos/2, viewed);
+
+	/* odd pos -- the first single character */
+	if (pos & 1) {
+		count--;
+		c = *con_buf++;
+#ifdef __BIG_ENDIAN
+		vcs_scr_writew(vc, c |
+		     (vcs_scr_readw(vc, org) & 0xff00), org);
+#else
+		vcs_scr_writew(vc, (c << 8) |
+		     (vcs_scr_readw(vc, org) & 0xff), org);
+#endif
+		org++;
+		pos++;
+		if (++col == maxcol) {
+			org = screen_pos(vc, pos/2, viewed);
+			col = 0;
+		}
+	}
+
+	pos /= 2;
+	pos += maxcol - col;
+
+	/* even pos -- handle attr+character pairs */
+	while (count > 1) {
+		unsigned short w;
+
+		w = get_unaligned(((unsigned short *)con_buf));
+		vcs_scr_writew(vc, w, org++);
+		con_buf += 2;
+		count -= 2;
+		if (++col == maxcol) {
+			org = screen_pos(vc, pos, viewed);
+			col = 0;
+			pos += maxcol;
+		}
+	}
+
+	if (!count)
+		return org;
+
+	/* odd pos -- the remaining character */
+	c = *con_buf++;
+#ifdef __BIG_ENDIAN
+	vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff) | (c << 8), org);
+#else
+	vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff00) | c, org);
+#endif
+
+	return org;
+}
+
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
 	struct vc_data *vc;
-	char *con_buf0, *con_buf;
-	u16 *org0 = NULL, *org = NULL;
-	unsigned int written, col, maxcol;
+	char *con_buf;
+	u16 *org0, *org;
+	unsigned int written;
 	int size;
 	ssize_t ret;
 	loff_t pos;
@@ -526,7 +605,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		count = size - pos;
 	written = 0;
 	while (count) {
-		unsigned int orig_count, p, this_round = count;
+		unsigned int this_round = count;
 
 		if (this_round > CON_BUF_SIZE)
 			this_round = CON_BUF_SIZE;
@@ -571,81 +650,18 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		 * under the lock using the local kernel buffer.
 		 */
 
-		if (!attr) {
+		if (attr)
+			org = vcs_write_buf(vc, con_buf, pos, this_round,
+					viewed, &org0);
+		else
 			org = vcs_write_buf_noattr(vc, con_buf, pos, this_round,
 					viewed, &org0);
-		} else {
-			con_buf0 = con_buf;
-			orig_count = this_round;
-			maxcol = vc->vc_cols;
-			p = pos;
 
-			if (p < HEADER_SIZE) {
-				char header[HEADER_SIZE];
-
-				getconsxy(vc, header + 2);
-				while (p < HEADER_SIZE && this_round > 0) {
-					this_round--;
-					header[p++] = *con_buf0++;
-				}
-				if (!viewed)
-					putconsxy(vc, header + 2);
-			}
-			p -= HEADER_SIZE;
-			col = (p/2) % maxcol;
-			if (this_round > 0) {
-				org0 = org = screen_pos(vc, p/2, viewed);
-				if ((p & 1) && this_round > 0) {
-					char c;
-
-					this_round--;
-					c = *con_buf0++;
-#ifdef __BIG_ENDIAN
-					vcs_scr_writew(vc, c |
-					     (vcs_scr_readw(vc, org) & 0xff00), org);
-#else
-					vcs_scr_writew(vc, (c << 8) |
-					     (vcs_scr_readw(vc, org) & 0xff), org);
-#endif
-					org++;
-					p++;
-					if (++col == maxcol) {
-						org = screen_pos(vc, p/2, viewed);
-						col = 0;
-					}
-				}
-				p /= 2;
-				p += maxcol - col;
-			}
-			while (this_round > 1) {
-				unsigned short w;
-
-				w = get_unaligned(((unsigned short *)con_buf0));
-				vcs_scr_writew(vc, w, org++);
-				con_buf0 += 2;
-				this_round -= 2;
-				if (++col == maxcol) {
-					org = screen_pos(vc, p, viewed);
-					col = 0;
-					p += maxcol;
-				}
-			}
-			if (this_round > 0) {
-				unsigned char c;
-
-				c = *con_buf0++;
-#ifdef __BIG_ENDIAN
-				vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff) | (c << 8), org);
-#else
-				vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff00) | c, org);
-#endif
-			}
-		}
-		count -= orig_count;
-		written += orig_count;
-		buf += orig_count;
-		pos += orig_count;
-		if (org0)
+		count -= this_round;
+		written += this_round;
+		buf += this_round;
+		pos += this_round;
+		if (org)
 			update_region(vc, (unsigned long)(org0), org - org0);
 	}
 	*ppos += written;
