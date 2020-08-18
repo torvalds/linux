@@ -3008,8 +3008,7 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	if (spa->flags & ACPI_NFIT_PROXIMITY_VALID) {
 		ndr_desc->numa_node = acpi_map_pxm_to_online_node(
 						spa->proximity_domain);
-		ndr_desc->target_node = acpi_map_pxm_to_node(
-				spa->proximity_domain);
+		ndr_desc->target_node = pxm_to_node(spa->proximity_domain);
 	} else {
 		ndr_desc->numa_node = NUMA_NO_NODE;
 		ndr_desc->target_node = NUMA_NO_NODE;
