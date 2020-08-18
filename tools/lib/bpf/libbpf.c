@@ -170,6 +170,8 @@ enum kern_feature_id {
 	FEAT_PROG_NAME,
 	/* v5.2: kernel support for global data sections. */
 	FEAT_GLOBAL_DATA,
+	/* BTF support */
+	FEAT_BTF,
 	/* BTF_KIND_FUNC and BTF_KIND_FUNC_PROTO support */
 	FEAT_BTF_FUNC,
 	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
@@ -2533,6 +2535,15 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 	if (!obj->btf)
 		return 0;
 
+	if (!kernel_supports(FEAT_BTF)) {
+		if (kernel_needs_btf(obj)) {
+			err = -EOPNOTSUPP;
+			goto report;
+		}
+		pr_debug("Kernel doesn't support BTF, skipping uploading it.\n");
+		return 0;
+	}
+
 	sanitize = btf_needs_sanitization(obj);
 	if (sanitize) {
 		const void *raw_data;
@@ -2558,6 +2569,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		}
 		btf__free(kern_btf);
 	}
+report:
 	if (err) {
 		btf_mandatory = kernel_needs_btf(obj);
 		pr_warn("Error loading .BTF into kernel: %d. %s\n", err,
@@ -3502,6 +3514,18 @@ static int probe_kern_global_data(void)
 	return probe_fd(ret);
 }
 
+static int probe_kern_btf(void)
+{
+	static const char strs[] = "\0int";
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(1, BTF_INT_SIGNED, 0, 32, 4),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
 static int probe_kern_btf_func(void)
 {
 	static const char strs[] = "\0int\0x\0a";
@@ -3632,6 +3656,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_GLOBAL_DATA] = {
 		"global variables", probe_kern_global_data,
+	},
+	[FEAT_BTF] = {
+		"minimal BTF", probe_kern_btf,
 	},
 	[FEAT_BTF_FUNC] = {
 		"BTF functions", probe_kern_btf_func,
