@@ -2481,7 +2481,7 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 static bool rt5682_clk_check(struct rt5682_priv *rt5682)
 {
 	if (!rt5682->master[RT5682_AIF1]) {
-		dev_err(rt5682->component->dev, "sysclk/dai not set correctly\n");
+		dev_dbg(rt5682->component->dev, "sysclk/dai not set correctly\n");
 		return false;
 	}
 	return true;
@@ -2559,7 +2559,7 @@ static unsigned long rt5682_wclk_recalc_rate(struct clk_hw *hw,
 		container_of(hw, struct rt5682_priv,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 
 	if (!rt5682_clk_check(rt5682))
 		return 0;
@@ -2583,7 +2583,7 @@ static long rt5682_wclk_round_rate(struct clk_hw *hw, unsigned long rate,
 		container_of(hw, struct rt5682_priv,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 
 	if (!rt5682_clk_check(rt5682))
 		return -EINVAL;
@@ -2608,7 +2608,7 @@ static int rt5682_wclk_set_rate(struct clk_hw *hw, unsigned long rate,
 			     dai_clks_hw[RT5682_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
 	struct clk *parent_clk;
-	const char * const clk_name = __clk_get_name(hw->clk);
+	const char * const clk_name = clk_hw_get_name(hw);
 	int pre_div;
 	unsigned int clk_pll2_out;
 
@@ -2766,39 +2766,34 @@ static int rt5682_register_dai_clks(struct snd_soc_component *component)
 	struct device *dev = component->dev;
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 	struct rt5682_platform_data *pdata = &rt5682->pdata;
-	struct clk_init_data init;
-	struct clk *dai_clk;
-	struct clk_lookup *dai_clk_lookup;
 	struct clk_hw *dai_clk_hw;
-	const char *parent_name;
 	int i, ret;
 
 	for (i = 0; i < RT5682_DAI_NUM_CLKS; ++i) {
+		struct clk_init_data init = { };
+
 		dai_clk_hw = &rt5682->dai_clks_hw[i];
 
 		switch (i) {
 		case RT5682_DAI_WCLK_IDX:
 			/* Make MCLK the parent of WCLK */
 			if (rt5682->mclk) {
-				parent_name = __clk_get_name(rt5682->mclk);
-				init.parent_names = &parent_name;
+				init.parent_data = &(struct clk_parent_data){
+					.fw_name = "mclk",
+				};
 				init.num_parents = 1;
-			} else {
-				init.parent_names = NULL;
-				init.num_parents = 0;
 			}
 			break;
 		case RT5682_DAI_BCLK_IDX:
 			/* Make WCLK the parent of BCLK */
-			parent_name = __clk_get_name(
-				rt5682->dai_clks[RT5682_DAI_WCLK_IDX]);
-			init.parent_names = &parent_name;
+			init.parent_hws = &(const struct clk_hw *){
+				&rt5682->dai_clks_hw[RT5682_DAI_WCLK_IDX]
+			};
 			init.num_parents = 1;
 			break;
 		default:
 			dev_err(dev, "Invalid clock index\n");
-			ret = -EINVAL;
-			goto err;
+			return -EINVAL;
 		}
 
 		init.name = pdata->dai_clk_names[i];
@@ -2806,39 +2801,26 @@ static int rt5682_register_dai_clks(struct snd_soc_component *component)
 		init.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_GATE;
 		dai_clk_hw->init = &init;
 
-		dai_clk = devm_clk_register(dev, dai_clk_hw);
-		if (IS_ERR(dai_clk)) {
-			dev_warn(dev, "Failed to register %s: %ld\n",
-				 init.name, PTR_ERR(dai_clk));
-			ret = PTR_ERR(dai_clk);
-			goto err;
+		ret = devm_clk_hw_register(dev, dai_clk_hw);
+		if (ret) {
+			dev_warn(dev, "Failed to register %s: %d\n",
+				 init.name, ret);
+			return ret;
 		}
-		rt5682->dai_clks[i] = dai_clk;
 
 		if (dev->of_node) {
 			devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
 						    dai_clk_hw);
 		} else {
-			dai_clk_lookup = clkdev_create(dai_clk, init.name,
-						       "%s", dev_name(dev));
-			if (!dai_clk_lookup) {
-				ret = -ENOMEM;
-				goto err;
-			} else {
-				rt5682->dai_clks_lookup[i] = dai_clk_lookup;
-			}
+			ret = devm_clk_hw_register_clkdev(dev, dai_clk_hw,
+							  init.name,
+							  dev_name(dev));
+			if (ret)
+				return ret;
 		}
 	}
 
 	return 0;
-
-err:
-	do {
-		if (rt5682->dai_clks_lookup[i])
-			clkdev_drop(rt5682->dai_clks_lookup[i]);
-	} while (i-- > 0);
-
-	return ret;
 }
 #endif /* CONFIG_COMMON_CLK */
 
@@ -2894,15 +2876,6 @@ static int rt5682_probe(struct snd_soc_component *component)
 static void rt5682_remove(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-
-#ifdef CONFIG_COMMON_CLK
-	int i;
-
-	for (i = RT5682_DAI_NUM_CLKS - 1; i >= 0; --i) {
-		if (rt5682->dai_clks_lookup[i])
-			clkdev_drop(rt5682->dai_clks_lookup[i]);
-	}
-#endif
 
 	rt5682_reset(rt5682);
 }
