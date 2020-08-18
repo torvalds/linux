@@ -144,10 +144,13 @@ int show_unhandled_signals = 1;
 /*
  * Allocate space for the signal frame
  */
-void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
-			   size_t frame_size, int is_32)
+static unsigned long get_tm_stackpointer(struct task_struct *tsk);
+
+void __user *get_sigframe(struct ksignal *ksig, struct task_struct *tsk,
+			  size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
+	unsigned long sp = get_tm_stackpointer(tsk);
 
         /* Default to using normal stack */
 	if (is_32)
@@ -300,7 +303,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	user_enter();
 }
 
-unsigned long get_tm_stackpointer(struct task_struct *tsk)
+static unsigned long get_tm_stackpointer(struct task_struct *tsk)
 {
 	/* When in an active transaction that takes a signal, we need to be
 	 * careful with the stack.  It's possible that the stack has moved back
