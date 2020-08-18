@@ -17,16 +17,6 @@
 #define HISI_ECO_MODE_ENABLE		(1)
 #define HISI_ECO_MODE_DISABLE		(0)
 
-struct hi6421_spmi_irq_mask_info {
-	int start_addr;
-	int array;
-};
-
-struct hi6421_spmi_irq_info {
-	int start_addr;
-	int array;
-};
-
 struct hi6421_spmi_pmic {
 	struct resource				*res;
 	struct device				*dev;
@@ -36,11 +26,6 @@ struct hi6421_spmi_pmic {
 	int					irq;
 	int					gpio;
 	unsigned int				*irqs;
-
-	int					irqnum;
-	int					irqarray;
-	int					irq_mask_addr;
-	int					irq_addr;
 };
 
 int hi6421_spmi_pmic_read(struct hi6421_spmi_pmic *pmic, int reg);

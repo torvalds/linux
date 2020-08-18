@@ -38,6 +38,12 @@
 /* 8-bit register offset in PMIC */
 #define HISI_MASK_STATE			0xff
 
+#define HISI_IRQ_ARRAY			2
+#define HISI_IRQ_NUM			(HISI_IRQ_ARRAY * 8)
+
+#define SOC_PMIC_IRQ_MASK_0_ADDR	0x0202
+#define SOC_PMIC_IRQ0_ADDR		0x0212
+
 #define HISI_IRQ_KEY_NUM		0
 #define HISI_IRQ_KEY_VALUE		0xc0
 #define HISI_IRQ_KEY_DOWN		7
@@ -121,13 +127,13 @@ static irqreturn_t hi6421_spmi_irq_handler(int irq, void *data)
 	unsigned long pending;
 	int i, offset;
 
-	for (i = 0; i < pmic->irqarray; i++) {
-		pending = hi6421_spmi_pmic_read(pmic, (i + pmic->irq_addr));
+	for (i = 0; i < HISI_IRQ_ARRAY; i++) {
+		pending = hi6421_spmi_pmic_read(pmic, (i + SOC_PMIC_IRQ0_ADDR));
 		pending &= HISI_MASK_FIELD;
 		if (pending != 0)
 			pr_debug("pending[%d]=0x%lx\n\r", i, pending);
 
-		hi6421_spmi_pmic_write(pmic, (i + pmic->irq_addr), pending);
+		hi6421_spmi_pmic_write(pmic, (i + SOC_PMIC_IRQ0_ADDR), pending);
 
 		/* solve powerkey order */
 		if ((i == HISI_IRQ_KEY_NUM) &&
@@ -153,7 +159,7 @@ static void hi6421_spmi_irq_mask(struct irq_data *d)
 	unsigned long flags;
 
 	offset = (irqd_to_hwirq(d) >> 3);
-	offset += pmic->irq_mask_addr;
+	offset += SOC_PMIC_IRQ_MASK_0_ADDR;
 
 	spin_lock_irqsave(&pmic->lock, flags);
 	data = hi6421_spmi_pmic_read(pmic, offset);
@@ -169,7 +175,7 @@ static void hi6421_spmi_irq_unmask(struct irq_data *d)
 	unsigned long flags;
 
 	offset = (irqd_to_hwirq(d) >> 3);
-	offset += pmic->irq_mask_addr;
+	offset += SOC_PMIC_IRQ_MASK_0_ADDR;
 
 	spin_lock_irqsave(&pmic->lock, flags);
 	data = hi6421_spmi_pmic_read(pmic, offset);
@@ -204,60 +210,20 @@ static const struct irq_domain_ops hi6421_spmi_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static int get_pmic_device_tree_data(struct device_node *np,
-				     struct hi6421_spmi_pmic *pmic)
-{
-	int ret = 0;
-
-	/* IRQ number */
-	ret = of_property_read_u32(np, "irq-num", &pmic->irqnum);
-	if (ret) {
-		pr_err("no irq-num property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/* Size of IRQ array */
-	ret = of_property_read_u32(np, "irq-array", &pmic->irqarray);
-	if (ret) {
-		pr_err("no irq-array property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/* SOC_PMIC_IRQ_MASK_0_ADDR */
-	ret = of_property_read_u32(np, "irq-mask-addr", &pmic->irq_mask_addr);
-	if (ret) {
-		pr_err("no irq-mask-addr property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	/* SOC_PMIC_IRQ0_ADDR */
-	ret = of_property_read_u32(np, "irq-addr", &pmic->irq_addr);
-	if (ret) {
-		pr_err("no irq-addr property set\n");
-		ret = -ENODEV;
-		return ret;
-	}
-
-	return ret;
-}
-
 static void hi6421_spmi_pmic_irq_prc(struct hi6421_spmi_pmic *pmic)
 {
 	int i, pending;
 
-	for (i = 0 ; i < pmic->irqarray; i++)
-		hi6421_spmi_pmic_write(pmic, pmic->irq_mask_addr + i,
+	for (i = 0 ; i < HISI_IRQ_ARRAY; i++)
+		hi6421_spmi_pmic_write(pmic, SOC_PMIC_IRQ_MASK_0_ADDR + i,
 				       HISI_MASK_STATE);
 
-	for (i = 0 ; i < pmic->irqarray; i++) {
-		pending = hi6421_spmi_pmic_read(pmic, pmic->irq_addr + i);
+	for (i = 0 ; i < HISI_IRQ_ARRAY; i++) {
+		pending = hi6421_spmi_pmic_read(pmic, SOC_PMIC_IRQ0_ADDR + i);
 
 		pr_debug("PMU IRQ address value:irq[0x%x] = 0x%x\n",
-			 pmic->irq_addr + i, pending);
-		hi6421_spmi_pmic_write(pmic, pmic->irq_addr + i,
+			 SOC_PMIC_IRQ0_ADDR + i, pending);
+		hi6421_spmi_pmic_write(pmic, SOC_PMIC_IRQ0_ADDR + i,
 				       HISI_MASK_STATE);
 	}
 }
@@ -273,12 +239,6 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
-
-	ret = get_pmic_device_tree_data(np, pmic);
-	if (ret) {
-		dev_err(dev, "Error reading hisi pmic dts\n");
-		return ret;
-	}
 
 	spin_lock_init(&pmic->lock);
 
@@ -301,11 +261,11 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 
 	hi6421_spmi_pmic_irq_prc(pmic);
 
-	pmic->irqs = devm_kzalloc(dev, pmic->irqnum * sizeof(int), GFP_KERNEL);
+	pmic->irqs = devm_kzalloc(dev, HISI_IRQ_NUM * sizeof(int), GFP_KERNEL);
 	if (!pmic->irqs)
 		goto irq_malloc;
 
-	pmic->domain = irq_domain_add_simple(np, pmic->irqnum, 0,
+	pmic->domain = irq_domain_add_simple(np, HISI_IRQ_NUM, 0,
 					     &hi6421_spmi_domain_ops, pmic);
 	if (!pmic->domain) {
 		dev_err(dev, "failed irq domain add simple!\n");
@@ -313,7 +273,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 		goto irq_malloc;
 	}
 
-	for (i = 0; i < pmic->irqnum; i++) {
+	for (i = 0; i < HISI_IRQ_NUM; i++) {
 		virq = irq_create_mapping(pmic->domain, i);
 		if (!virq) {
 			dev_err(dev, "Failed mapping hwirq\n");
