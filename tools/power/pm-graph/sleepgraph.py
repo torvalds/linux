@@ -171,7 +171,7 @@ class SystemValues:
 	tracefuncs = {
 		'sys_sync': {},
 		'ksys_sync': {},
-		'__pm_notifier_call_chain': {},
+		'pm_notifier_call_chain_robust': {},
 		'pm_prepare_console': {},
 		'pm_notifier_call_chain': {},
 		'freeze_processes': {},
