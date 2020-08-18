@@ -1414,6 +1414,7 @@ static int smu_enable_umd_pstate(void *handle,
 							       AMD_CG_STATE_UNGATE);
 			smu_gfx_ulv_control(smu, false);
 			smu_deep_sleep_control(smu, false);
+			amdgpu_asic_update_umd_stable_pstate(smu->adev, true);
 		}
 	} else {
 		/* exit umd pstate, restore level, enable gfx cg*/
@@ -1421,6 +1422,7 @@ static int smu_enable_umd_pstate(void *handle,
 			if (*level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
 				*level = smu_dpm_ctx->saved_dpm_level;
 			smu_dpm_ctx->enable_umd_pstate = false;
+			amdgpu_asic_update_umd_stable_pstate(smu->adev, false);
 			smu_deep_sleep_control(smu, true);
 			smu_gfx_ulv_control(smu, true);
 			amdgpu_device_ip_set_clockgating_state(smu->adev,
