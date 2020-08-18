@@ -3025,13 +3025,14 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 	case TCP_V4_FLOW:
 	case TCP_V6_FLOW:
 		match->key.basic.ip_proto = IPPROTO_TCP;
+		match->mask.basic.ip_proto = 0xff;
 		break;
 	case UDP_V4_FLOW:
 	case UDP_V6_FLOW:
 		match->key.basic.ip_proto = IPPROTO_UDP;
+		match->mask.basic.ip_proto = 0xff;
 		break;
 	}
-	match->mask.basic.ip_proto = 0xff;
 
 	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_BASIC);
 	match->dissector.offset[FLOW_DISSECTOR_KEY_BASIC] =
