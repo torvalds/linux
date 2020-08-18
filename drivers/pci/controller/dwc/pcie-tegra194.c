@@ -699,23 +699,16 @@ static void init_host_aspm(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL, val);
 }
 
-static int init_debugfs(struct tegra_pcie_dw *pcie)
+static void init_debugfs(struct tegra_pcie_dw *pcie)
 {
-	struct dentry *d;
-
-	d = debugfs_create_devm_seqfile(pcie->dev, "aspm_state_cnt",
-					pcie->debugfs, aspm_state_cnt);
-	if (IS_ERR_OR_NULL(d))
-		dev_err(pcie->dev,
-			"Failed to create debugfs file \"aspm_state_cnt\"\n");
-
-	return 0;
+	debugfs_create_devm_seqfile(pcie->dev, "aspm_state_cnt", pcie->debugfs,
+				    aspm_state_cnt);
 }
 #else
 static inline void disable_aspm_l12(struct tegra_pcie_dw *pcie) { return; }
 static inline void disable_aspm_l11(struct tegra_pcie_dw *pcie) { return; }
 static inline void init_host_aspm(struct tegra_pcie_dw *pcie) { return; }
-static inline int init_debugfs(struct tegra_pcie_dw *pcie) { return 0; }
+static inline void init_debugfs(struct tegra_pcie_dw *pcie) { return; }
 #endif
 
 static void tegra_pcie_enable_system_interrupts(struct pcie_port *pp)
@@ -1641,10 +1634,7 @@ static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 	}
 
 	pcie->debugfs = debugfs_create_dir(name, NULL);
-	if (!pcie->debugfs)
-		dev_err(dev, "Failed to create debugfs\n");
-	else
-		init_debugfs(pcie);
+	init_debugfs(pcie);
 
 	return ret;
 
