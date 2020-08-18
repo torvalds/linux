@@ -32,7 +32,7 @@ choice
 config PPC_BOOK3S_6xx
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_BOOK3S_32
-	select PPC_FPU
+	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
@@ -222,9 +222,16 @@ config PPC_FPU_REGS
 	bool
 
 config PPC_FPU
-	bool
+	bool "Support for Floating Point Unit (FPU)" if PPC_MPC832x
 	default y if PPC64
 	select PPC_FPU_REGS
+	help
+	  This must be enabled to support the Floating Point Unit
+	  Most 6xx have an FPU but e300c2 core (mpc832x) don't have
+	  an FPU, so when building an embedded kernel for that target
+	  you can disable FPU support.
+
+	  If unsure say Y.
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"

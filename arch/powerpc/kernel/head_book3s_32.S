@@ -394,6 +394,7 @@ Alignment:
 	. = 0x800
 	DO_KVM  0x800
 FPUnavailable:
+#ifdef CONFIG_PPC_FPU
 BEGIN_FTR_SECTION
 /*
  * Certain Freescale cores don't have a FPU and treat fp instructions
@@ -407,6 +408,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	b	fast_exception_return
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
+#else
+	b 	ProgramCheck
+#endif
 
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
