@@ -323,7 +323,7 @@ static void hi6421_spmi_pmic_remove(struct spmi_device *pdev)
 }
 
 static const struct of_device_id pmic_spmi_id_table[] = {
-	{ .compatible = "hisilicon,hi6421-spmi-pmic" },
+	{ .compatible = "hisilicon,hi6421-spmi" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pmic_spmi_id_table);
