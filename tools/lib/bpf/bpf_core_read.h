@@ -24,27 +24,29 @@ enum bpf_field_info_kind {
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
-	bpf_probe_read((void *)dst,					      \
-		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
-		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+	bpf_probe_read_kernel(						      \
+			(void *)dst,				      \
+			__CORE_RELO(src, fld, BYTE_SIZE),		      \
+			(const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
 #else
 /* semantics of LSHIFT_64 assumes loading values into low-ordered bytes, so
  * for big-endian we need to adjust destination pointer accordingly, based on
  * field byte size
  */
 #define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
-	bpf_probe_read((void *)dst + (8 - __CORE_RELO(src, fld, BYTE_SIZE)),  \
-		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
-		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+	bpf_probe_read_kernel(						      \
+			(void *)dst + (8 - __CORE_RELO(src, fld, BYTE_SIZE)), \
+			__CORE_RELO(src, fld, BYTE_SIZE),		      \
+			(const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
 #endif
 
 /*
  * Extract bitfield, identified by s->field, and return its value as u64.
  * All this is done in relocatable manner, so bitfield changes such as
  * signedness, bit size, offset changes, this will be handled automatically.
- * This version of macro is using bpf_probe_read() to read underlying integer
- * storage. Macro functions as an expression and its return type is
- * bpf_probe_read()'s return value: 0, on success, <0 on error.
+ * This version of macro is using bpf_probe_read_kernel() to read underlying
+ * integer storage. Macro functions as an expression and its return type is
+ * bpf_probe_read_kernel()'s return value: 0, on success, <0 on error.
  */
 #define BPF_CORE_READ_BITFIELD_PROBED(s, field) ({			      \
 	unsigned long long val = 0;					      \
@@ -99,8 +101,8 @@ enum bpf_field_info_kind {
 	__builtin_preserve_field_info(field, BPF_FIELD_BYTE_SIZE)
 
 /*
- * bpf_core_read() abstracts away bpf_probe_read() call and captures offset
- * relocation for source address using __builtin_preserve_access_index()
+ * bpf_core_read() abstracts away bpf_probe_read_kernel() call and captures
+ * offset relocation for source address using __builtin_preserve_access_index()
  * built-in, provided by Clang.
  *
  * __builtin_preserve_access_index() takes as an argument an expression of
@@ -115,8 +117,8 @@ enum bpf_field_info_kind {
  * (local) BTF, used to record relocation.
  */
 #define bpf_core_read(dst, sz, src)					    \
-	bpf_probe_read(dst, sz,						    \
-		       (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel(dst, sz,					    \
+			      (const void *)__builtin_preserve_access_index(src))
 
 /*
  * bpf_core_read_str() is a thin wrapper around bpf_probe_read_str()
@@ -124,8 +126,8 @@ enum bpf_field_info_kind {
  * argument.
  */
 #define bpf_core_read_str(dst, sz, src)					    \
-	bpf_probe_read_str(dst, sz,					    \
-			   (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel_str(dst, sz,				    \
+				  (const void *)__builtin_preserve_access_index(src))
 
 #define ___concat(a, b) a ## b
 #define ___apply(fn, n) ___concat(fn, n)
@@ -239,15 +241,17 @@ enum bpf_field_info_kind {
  *	int x = BPF_CORE_READ(s, a.b.c, d.e, f, g);
  *
  * BPF_CORE_READ will decompose above statement into 4 bpf_core_read (BPF
- * CO-RE relocatable bpf_probe_read() wrapper) calls, logically equivalent to:
+ * CO-RE relocatable bpf_probe_read_kernel() wrapper) calls, logically
+ * equivalent to:
  * 1. const void *__t = s->a.b.c;
  * 2. __t = __t->d.e;
  * 3. __t = __t->f;
  * 4. return __t->g;
  *
  * Equivalence is logical, because there is a heavy type casting/preservation
- * involved, as well as all the reads are happening through bpf_probe_read()
- * calls using __builtin_preserve_access_index() to emit CO-RE relocations.
+ * involved, as well as all the reads are happening through
+ * bpf_probe_read_kernel() calls using __builtin_preserve_access_index() to
+ * emit CO-RE relocations.
  *
  * N.B. Only up to 9 "field accessors" are supported, which should be more
  * than enough for any practical purpose.
