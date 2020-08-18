@@ -19,6 +19,7 @@
 #define _UAPI_LINUX_ICMP_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 #define ICMP_ECHOREPLY		0	/* Echo Reply			*/
 #define ICMP_DEST_UNREACH	3	/* Destination Unreachable	*/
@@ -95,5 +96,26 @@ struct icmp_filter {
 	__u32		data;
 };
 
+/* RFC 4884 extension struct: one per message */
+struct icmp_ext_hdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8		reserved1:4,
+			version:4;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u8		version:4,
+			reserved1:4;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+	__u8		reserved2;
+	__sum16		checksum;
+};
+
+/* RFC 4884 extension object header: one for each object */
+struct icmp_extobj_hdr {
+	__be16		length;
+	__u8		class_num;
+	__u8		class_type;
+};
 
 #endif /* _UAPI_LINUX_ICMP_H */

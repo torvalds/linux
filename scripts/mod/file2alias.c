@@ -1258,15 +1258,19 @@ static int do_hda_entry(const char *filename, void *symval, char *alias)
 	return 1;
 }
 
-/* Looks like: sdw:mNpN */
+/* Looks like: sdw:mNpNvNcN */
 static int do_sdw_entry(const char *filename, void *symval, char *alias)
 {
 	DEF_FIELD(symval, sdw_device_id, mfg_id);
 	DEF_FIELD(symval, sdw_device_id, part_id);
+	DEF_FIELD(symval, sdw_device_id, sdw_version);
+	DEF_FIELD(symval, sdw_device_id, class_id);
 
 	strcpy(alias, "sdw:");
 	ADD(alias, "m", mfg_id != 0, mfg_id);
 	ADD(alias, "p", part_id != 0, part_id);
+	ADD(alias, "v", sdw_version != 0, sdw_version);
+	ADD(alias, "c", class_id != 0, class_id);
 
 	add_wildcard(alias);
 	return 1;

@@ -259,7 +259,6 @@ static int adjd_s311_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &adjd_s311_info;
 	indio_dev->name = ADJD_S311_DRV_NAME;
 	indio_dev->channels = adjd_s311_channels;

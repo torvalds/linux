@@ -61,6 +61,8 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_DISQSELSEQ(txdesc, pkt_info->dis_qselseq);
 	SET_TX_DESC_EN_HWSEQ(txdesc, pkt_info->en_hwseq);
 	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
+	SET_TX_DESC_NAVUSEHDR(txdesc, pkt_info->nav_use_hdr);
+	SET_TX_DESC_BT_NULL(txdesc, pkt_info->bt_null);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -227,17 +229,58 @@ void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb, int src)
 	spin_unlock_irqrestore(&tx_report->q_lock, flags);
 }
 
+static void rtw_tx_pkt_info_update_rate(struct rtw_dev *rtwdev,
+					struct rtw_tx_pkt_info *pkt_info,
+					struct sk_buff *skb)
+{
+	if (rtwdev->hal.current_band_type == RTW_BAND_2G) {
+		pkt_info->rate_id = RTW_RATEID_B_20M;
+		pkt_info->rate = DESC_RATE1M;
+	} else {
+		pkt_info->rate_id = RTW_RATEID_G;
+		pkt_info->rate = DESC_RATE6M;
+	}
+	pkt_info->use_rate = true;
+	pkt_info->dis_rate_fallback = true;
+}
+
+static void rtw_tx_pkt_info_update_sec(struct rtw_dev *rtwdev,
+				       struct rtw_tx_pkt_info *pkt_info,
+				       struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	u8 sec_type = 0;
+
+	if (info && info->control.hw_key) {
+		struct ieee80211_key_conf *key = info->control.hw_key;
+
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
+			sec_type = 0x01;
+			break;
+		case WLAN_CIPHER_SUITE_CCMP:
+			sec_type = 0x03;
+			break;
+		default:
+			break;
+		}
+	}
+
+	pkt_info->sec_type = sec_type;
+}
+
 static void rtw_tx_mgmt_pkt_info_update(struct rtw_dev *rtwdev,
 					struct rtw_tx_pkt_info *pkt_info,
 					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
-	pkt_info->use_rate = true;
-	pkt_info->rate_id = 6;
-	pkt_info->dis_rate_fallback = true;
+	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb);
 	pkt_info->dis_qselseq = true;
 	pkt_info->en_hwseq = true;
 	pkt_info->hw_ssn_sel = 0;
+	/* TODO: need to change hw port and hw ssn sel for multiple vifs */
 }
 
 static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
@@ -312,7 +355,6 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 	struct rtw_sta_info *si;
 	struct ieee80211_vif *vif = NULL;
 	__le16 fc = hdr->frame_control;
-	u8 sec_type = 0;
 	bool bmc;
 
 	if (sta) {
@@ -325,23 +367,6 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 	else if (ieee80211_is_data(fc))
 		rtw_tx_data_pkt_info_update(rtwdev, pkt_info, sta, skb);
 
-	if (info->control.hw_key) {
-		struct ieee80211_key_conf *key = info->control.hw_key;
-
-		switch (key->cipher) {
-		case WLAN_CIPHER_SUITE_WEP40:
-		case WLAN_CIPHER_SUITE_WEP104:
-		case WLAN_CIPHER_SUITE_TKIP:
-			sec_type = 0x01;
-			break;
-		case WLAN_CIPHER_SUITE_CCMP:
-			sec_type = 0x03;
-			break;
-		default:
-			break;
-		}
-	}
-
 	bmc = is_broadcast_ether_addr(hdr->addr1) ||
 	      is_multicast_ether_addr(hdr->addr1);
 
@@ -349,7 +374,7 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 		rtw_tx_report_enable(rtwdev, pkt_info);
 
 	pkt_info->bmc = bmc;
-	pkt_info->sec_type = sec_type;
+	rtw_tx_pkt_info_update_sec(rtwdev, pkt_info, skb);
 	pkt_info->tx_pkt_size = skb->len;
 	pkt_info->offset = chip->tx_pkt_desc_sz;
 	pkt_info->qsel = skb->priority;
@@ -359,24 +384,42 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 	rtw_tx_stats(rtwdev, vif, skb);
 }
 
-void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
-				   struct rtw_tx_pkt_info *pkt_info,
-				   struct sk_buff *skb)
+void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
+				      struct rtw_tx_pkt_info *pkt_info,
+				      struct sk_buff *skb,
+				      enum rtw_rsvd_packet_type type)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	bool bmc;
 
+	/* A beacon or dummy reserved page packet indicates that it is the first
+	 * reserved page, and the qsel of it will be set in each hci.
+	 */
+	if (type != RSVD_BEACON && type != RSVD_DUMMY)
+		pkt_info->qsel = TX_DESC_QSEL_MGMT;
+
+	rtw_tx_pkt_info_update_rate(rtwdev, pkt_info, skb);
+
 	bmc = is_broadcast_ether_addr(hdr->addr1) ||
 	      is_multicast_ether_addr(hdr->addr1);
-	pkt_info->use_rate = true;
-	pkt_info->rate_id = 6;
-	pkt_info->dis_rate_fallback = true;
 	pkt_info->bmc = bmc;
 	pkt_info->tx_pkt_size = skb->len;
 	pkt_info->offset = chip->tx_pkt_desc_sz;
-	pkt_info->qsel = TX_DESC_QSEL_MGMT;
 	pkt_info->ls = true;
+	if (type == RSVD_PS_POLL) {
+		pkt_info->nav_use_hdr = true;
+	} else {
+		pkt_info->dis_qselseq = true;
+		pkt_info->en_hwseq = true;
+		pkt_info->hw_ssn_sel = 0;
+	}
+	if (type == RSVD_QOS_NULL)
+		pkt_info->bt_null = true;
+
+	rtw_tx_pkt_info_update_sec(rtwdev, pkt_info, skb);
+
+	/* TODO: need to change hw port and hw ssn sel for multiple vifs */
 }
 
 struct sk_buff *
@@ -399,8 +442,7 @@ rtw_tx_write_data_rsvd_page_get(struct rtw_dev *rtwdev,
 
 	skb_reserve(skb, tx_pkt_desc_sz);
 	skb_put_data(skb, buf, size);
-	pkt_info->tx_pkt_size = size;
-	pkt_info->offset = tx_pkt_desc_sz;
+	rtw_tx_rsvd_page_pkt_info_update(rtwdev, pkt_info, skb, RSVD_BEACON);
 
 	return skb;
 }

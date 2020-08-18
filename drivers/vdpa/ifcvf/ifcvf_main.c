@@ -50,8 +50,10 @@ static void ifcvf_free_irq(struct ifcvf_adapter *adapter, int queues)
 	int i;
 
 
-	for (i = 0; i < queues; i++)
+	for (i = 0; i < queues; i++) {
 		devm_free_irq(&pdev->dev, vf->vring[i].irq, &vf->vring[i]);
+		vf->vring[i].irq = -EINVAL;
+	}
 
 	ifcvf_free_irq_vectors(pdev);
 }
@@ -235,19 +237,21 @@ static u16 ifcvf_vdpa_get_vq_num_max(struct vdpa_device *vdpa_dev)
 	return IFCVF_QUEUE_MAX;
 }
 
-static u64 ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid)
+static int ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
+				   struct vdpa_vq_state *state)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return ifcvf_get_vq_state(vf, qid);
+	state->avail_index = ifcvf_get_vq_state(vf, qid);
+	return 0;
 }
 
 static int ifcvf_vdpa_set_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
-				   u64 num)
+				   const struct vdpa_vq_state *state)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return ifcvf_set_vq_state(vf, qid, num);
+	return ifcvf_set_vq_state(vf, qid, state->avail_index);
 }
 
 static void ifcvf_vdpa_set_vq_cb(struct vdpa_device *vdpa_dev, u16 qid,
@@ -352,6 +356,14 @@ static void ifcvf_vdpa_set_config_cb(struct vdpa_device *vdpa_dev,
 	vf->config_cb.private = cb->private;
 }
 
+static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
+				 u16 qid)
+{
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return vf->vring[qid].irq;
+}
+
 /*
  * IFCVF currently does't have on-chip IOMMU, so not
  * implemented set_map()/dma_map()/dma_unmap()
@@ -369,6 +381,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_vq_ready	= ifcvf_vdpa_get_vq_ready,
 	.set_vq_num	= ifcvf_vdpa_set_vq_num,
 	.set_vq_address	= ifcvf_vdpa_set_vq_address,
+	.get_vq_irq	= ifcvf_vdpa_get_vq_irq,
 	.kick_vq	= ifcvf_vdpa_kick_vq,
 	.get_generation	= ifcvf_vdpa_get_generation,
 	.get_device_id	= ifcvf_vdpa_get_device_id,
@@ -384,7 +397,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct device *dev = &pdev->dev;
 	struct ifcvf_adapter *adapter;
 	struct ifcvf_hw *vf;
-	int ret;
+	int ret, i;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -420,7 +433,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
-				    dev, &ifc_vdpa_ops);
+				    dev, &ifc_vdpa_ops,
+				    IFCVF_MAX_QUEUE_PAIRS * 2);
 	if (adapter == NULL) {
 		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
 		return -ENOMEM;
@@ -440,6 +454,9 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		IFCVF_ERR(pdev, "Failed to init IFCVF hw\n");
 		goto err;
 	}
+
+	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++)
+		vf->vring[i].irq = -EINVAL;
 
 	ret = vdpa_register_device(&adapter->vdpa);
 	if (ret) {

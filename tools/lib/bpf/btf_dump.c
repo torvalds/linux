@@ -60,6 +60,7 @@ struct btf_dump {
 	const struct btf_ext *btf_ext;
 	btf_dump_printf_fn_t printf_fn;
 	struct btf_dump_opts opts;
+	bool strip_mods;
 
 	/* per-type auxiliary state */
 	struct btf_dump_type_aux_state *type_states;
@@ -182,7 +183,7 @@ void btf_dump__free(struct btf_dump *d)
 {
 	int i, cnt;
 
-	if (!d)
+	if (IS_ERR_OR_NULL(d))
 		return;
 
 	free(d->type_states);
@@ -1032,7 +1033,9 @@ int btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
 
 	fname = OPTS_GET(opts, field_name, "");
 	lvl = OPTS_GET(opts, indent_level, 0);
+	d->strip_mods = OPTS_GET(opts, strip_mods, false);
 	btf_dump_emit_type_decl(d, id, fname, lvl);
+	d->strip_mods = false;
 	return 0;
 }
 
@@ -1045,6 +1048,10 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 
 	stack_start = d->decl_stack_cnt;
 	for (;;) {
+		t = btf__type_by_id(d->btf, id);
+		if (d->strip_mods && btf_is_mod(t))
+			goto skip_mod;
+
 		err = btf_dump_push_decl_stack_id(d, id);
 		if (err < 0) {
 			/*
@@ -1056,12 +1063,11 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
-
+skip_mod:
 		/* VOID */
 		if (id == 0)
 			break;
 
-		t = btf__type_by_id(d->btf, id);
 		switch (btf_kind(t)) {
 		case BTF_KIND_PTR:
 		case BTF_KIND_VOLATILE:

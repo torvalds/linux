@@ -177,7 +177,7 @@ static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	keyp += NHPOLY1305_KEY_SIZE;
 	WARN_ON(keyp != &data->derived_keys[ARRAY_SIZE(data->derived_keys)]);
 out:
-	kzfree(data);
+	kfree_sensitive(data);
 	return err;
 }
 
@@ -490,7 +490,6 @@ static bool adiantum_supported_algorithms(struct skcipher_alg *streamcipher_alg,
 
 static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
-	struct crypto_attr_type *algt;
 	u32 mask;
 	const char *nhpoly1305_name;
 	struct skcipher_instance *inst;
@@ -500,14 +499,9 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct shash_alg *hash_alg;
 	int err;
 
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
-		return -EINVAL;
-
-	mask = crypto_requires_sync(algt->type, algt->mask);
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SKCIPHER, &mask);
+	if (err)
+		return err;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
 	if (!inst)
@@ -565,8 +559,6 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 		     hash_alg->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
 
-	inst->alg.base.cra_flags = streamcipher_alg->base.cra_flags &
-				   CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_blocksize = BLOCKCIPHER_BLOCK_SIZE;
 	inst->alg.base.cra_ctxsize = sizeof(struct adiantum_tfm_ctx);
 	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask |

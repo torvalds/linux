@@ -2432,7 +2432,7 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 	struct sk_buff *skb;
 	int ret = 0;
 
-	len = sizeof(*flowc) + sizeof(struct fw_flowc_mnemval) * nparams;
+	len = struct_size(flowc, mnemval, nparams);
 	len16 = DIV_ROUND_UP(len, 16);
 
 	entry = cxgb4_lookup_eotid(&adap->tids, eotid);
@@ -2535,6 +2535,80 @@ static void ctrlq_check_stop(struct sge_ctrl_txq *q, struct fw_wr_hdr *wr)
 		q->q.stops++;
 		q->full = 1;
 	}
+}
+
+#define CXGB4_SELFTEST_LB_STR "CHELSIO_SELFTEST"
+
+int cxgb4_selftest_lb_pkt(struct net_device *netdev)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+	struct cxgb4_ethtool_lb_test *lb;
+	int ret, i = 0, pkt_len, credits;
+	struct fw_eth_tx_pkt_wr *wr;
+	struct cpl_tx_pkt_core *cpl;
+	u32 ctrl0, ndesc, flits;
+	struct sge_eth_txq *q;
+	u8 *sgl;
+
+	pkt_len = ETH_HLEN + sizeof(CXGB4_SELFTEST_LB_STR);
+
+	flits = DIV_ROUND_UP(pkt_len + sizeof(struct cpl_tx_pkt) +
+			     sizeof(*wr), sizeof(__be64));
+	ndesc = flits_to_desc(flits);
+
+	lb = &pi->ethtool_lb;
+	lb->loopback = 1;
+
+	q = &adap->sge.ethtxq[pi->first_qset];
+
+	reclaim_completed_tx(adap, &q->q, -1, true);
+	credits = txq_avail(&q->q) - ndesc;
+	if (unlikely(credits < 0))
+		return -ENOMEM;
+
+	wr = (void *)&q->q.desc[q->q.pidx];
+	memset(wr, 0, sizeof(struct tx_desc));
+
+	wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
+			       FW_WR_IMMDLEN_V(pkt_len +
+			       sizeof(*cpl)));
+	wr->equiq_to_len16 = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2)));
+	wr->r3 = cpu_to_be64(0);
+
+	cpl = (void *)(wr + 1);
+	sgl = (u8 *)(cpl + 1);
+
+	ctrl0 = TXPKT_OPCODE_V(CPL_TX_PKT_XT) | TXPKT_PF_V(adap->pf) |
+		TXPKT_INTF_V(pi->tx_chan + 4);
+
+	cpl->ctrl0 = htonl(ctrl0);
+	cpl->pack = htons(0);
+	cpl->len = htons(pkt_len);
+	cpl->ctrl1 = cpu_to_be64(TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F);
+
+	eth_broadcast_addr(sgl);
+	i += ETH_ALEN;
+	ether_addr_copy(&sgl[i], netdev->dev_addr);
+	i += ETH_ALEN;
+
+	snprintf(&sgl[i], sizeof(CXGB4_SELFTEST_LB_STR), "%s",
+		 CXGB4_SELFTEST_LB_STR);
+
+	init_completion(&lb->completion);
+	txq_advance(&q->q, ndesc);
+	cxgb4_ring_tx_db(adap, &q->q, ndesc);
+
+	/* wait for the pkt to return */
+	ret = wait_for_completion_timeout(&lb->completion, 10 * HZ);
+	if (!ret)
+		ret = -ETIMEDOUT;
+	else
+		ret = lb->result;
+
+	lb->loopback = 0;
+
+	return ret;
 }
 
 /**
@@ -3414,6 +3488,31 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	t4_sge_eth_txq_egress_update(adapter, txq, -1);
 }
 
+static int cxgb4_validate_lb_pkt(struct port_info *pi, const struct pkt_gl *si)
+{
+	struct adapter *adap = pi->adapter;
+	struct cxgb4_ethtool_lb_test *lb;
+	struct sge *s = &adap->sge;
+	struct net_device *netdev;
+	u8 *data;
+	int i;
+
+	netdev = adap->port[pi->port_id];
+	lb = &pi->ethtool_lb;
+	data = si->va + s->pktshift;
+
+	i = ETH_ALEN;
+	if (!ether_addr_equal(data + i, netdev->dev_addr))
+		return -1;
+
+	i += ETH_ALEN;
+	if (strcmp(&data[i], CXGB4_SELFTEST_LB_STR))
+		lb->result = -EIO;
+
+	complete(&lb->completion);
+	return 0;
+}
+
 /**
  *	t4_ethrx_handler - process an ingress ethernet packet
  *	@q: the response queue that received the packet
@@ -3437,6 +3536,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct port_info *pi;
 	int ret = 0;
 
+	pi = netdev_priv(q->netdev);
 	/* If we're looking at TX Queue CIDX Update, handle that separately
 	 * and return.
 	 */
@@ -3464,6 +3564,12 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (err_vec)
 		rxq->stats.bad_rx_pkts++;
 
+	if (unlikely(pi->ethtool_lb.loopback && pkt->iff >= NCHAN)) {
+		ret = cxgb4_validate_lb_pkt(pi, si);
+		if (!ret)
+			return 0;
+	}
+
 	if (((pkt->l2info & htonl(RXF_TCP_F)) ||
 	     tnl_hdr_len) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
@@ -3477,7 +3583,6 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		rxq->stats.rx_drops++;
 		return 0;
 	}
-	pi = netdev_priv(q->netdev);
 
 	/* Handle PTP Event Rx packet */
 	if (unlikely(pi->ptp_enable)) {

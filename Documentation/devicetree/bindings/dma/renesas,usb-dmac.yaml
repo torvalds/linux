@@ -16,6 +16,7 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r8a7742-usb-dmac  # RZ/G1H
           - renesas,r8a7743-usb-dmac  # RZ/G1M
           - renesas,r8a7744-usb-dmac  # RZ/G1N
           - renesas,r8a7745-usb-dmac  # RZ/G1E
@@ -23,6 +24,7 @@ properties:
           - renesas,r8a774a1-usb-dmac # RZ/G2M
           - renesas,r8a774b1-usb-dmac # RZ/G2N
           - renesas,r8a774c0-usb-dmac # RZ/G2E
+          - renesas,r8a774e1-usb-dmac # RZ/G2H
           - renesas,r8a7790-usb-dmac  # R-Car H2
           - renesas,r8a7791-usb-dmac  # R-Car M2-W
           - renesas,r8a7793-usb-dmac  # R-Car M2-N

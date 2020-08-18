@@ -1723,7 +1723,7 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Unknown TDLS configuration\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	le16_unaligned_add_cpu(&cmd->size, len);
@@ -1849,7 +1849,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS operation\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	le16_unaligned_add_cpu(&cmd->size, config_len);

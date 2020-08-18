@@ -1976,24 +1976,12 @@ static void adm8211_remove(struct pci_dev *pdev)
 }
 
 
-#ifdef CONFIG_PM
-static int adm8211_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return 0;
-}
-
-static int adm8211_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	return 0;
-}
-#endif /* CONFIG_PM */
-
+#define adm8211_suspend NULL
+#define adm8211_resume NULL
 
 MODULE_DEVICE_TABLE(pci, adm8211_pci_id_table);
+
+static SIMPLE_DEV_PM_OPS(adm8211_pm_ops, adm8211_suspend, adm8211_resume);
 
 /* TODO: implement enable_wake */
 static struct pci_driver adm8211_driver = {
@@ -2001,10 +1989,7 @@ static struct pci_driver adm8211_driver = {
 	.id_table	= adm8211_pci_id_table,
 	.probe		= adm8211_probe,
 	.remove		= adm8211_remove,
-#ifdef CONFIG_PM
-	.suspend	= adm8211_suspend,
-	.resume		= adm8211_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &adm8211_pm_ops,
 };
 
 module_pci_driver(adm8211_driver);

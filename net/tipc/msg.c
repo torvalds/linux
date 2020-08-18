@@ -202,7 +202,7 @@ err:
 
 /**
  * tipc_msg_append(): Append data to tail of an existing buffer queue
- * @hdr: header to be used
+ * @_hdr: header to be used
  * @m: the data to be appended
  * @mss: max allowable size of buffer
  * @dlen: size of data to be appended

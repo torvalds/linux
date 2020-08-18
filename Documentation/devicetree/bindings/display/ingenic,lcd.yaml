@@ -58,11 +58,11 @@ properties:
       - port@0
 
 required:
-    - compatible
-    - reg
-    - interrupts
-    - clocks
-    - clock-names
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
 
 if:
   properties:

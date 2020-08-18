@@ -56,6 +56,19 @@ static const struct snd_soc_acpi_adr_device rt1308_1_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device mx8373_1_adr[] = {
+	{
+		.adr = 0x000123019F837300,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+	},
+	{
+		.adr = 0x000127019F837300,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+	}
+};
+
 static const struct snd_soc_acpi_adr_device rt5682_0_adr[] = {
 	{
 		.adr = 0x000021025D568200,
@@ -92,6 +105,11 @@ static const struct snd_soc_acpi_link_adr tgl_chromebook_base[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt5682_0_adr),
 		.adr_d = rt5682_0_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(mx8373_1_adr),
+		.adr_d = mx8373_1_adr,
 	},
 	{}
 };
@@ -138,6 +156,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
+	},
+	{
+		.link_mask = 0x3, /* rt5682 on link0 & 2xmax98373 on link 1 */
+		.links = tgl_chromebook_base,
+		.drv_name = "sof_sdw",
+		.sof_fw_filename = "sof-tgl.ri",
+		.sof_tplg_filename = "sof-tgl-sdw-max98373-rt5682.tplg",
 	},
 	{
 		.link_mask = 0x1, /* this will only enable rt5682 for now */

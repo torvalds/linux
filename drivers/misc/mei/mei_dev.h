@@ -445,6 +445,8 @@ struct mei_fw_version {
  * @device_list : mei client bus list
  * @cl_bus_lock : client bus list lock
  *
+ * @kind        : kind of mei device
+ *
  * @dbgfs_dir   : debugfs mei root directory
  *
  * @ops:        : hw specific operations
@@ -527,6 +529,8 @@ struct mei_device {
 	/* List of bus devices */
 	struct list_head device_list;
 	struct mutex cl_bus_lock;
+
+	const char *kind;
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;

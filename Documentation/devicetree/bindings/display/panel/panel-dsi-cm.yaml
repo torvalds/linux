@@ -27,10 +27,10 @@ properties:
   compatible:
     items:
       - enum:
-        - motorola,droid4-panel        # Panel from Motorola Droid4 phone
-        - nokia,himalaya               # Panel from Nokia N950 phone
-        - tpo,taal                     # Panel from OMAP4 SDP board
-      - const: panel-dsi-cm            # Generic DSI command mode panel compatible fallback
+          - motorola,droid4-panel        # Panel from Motorola Droid4 phone
+          - nokia,himalaya               # Panel from Nokia N950 phone
+          - tpo,taal                     # Panel from OMAP4 SDP board
+      - const: panel-dsi-cm              # Generic DSI command mode panel compatible fallback
 
   reg:
     maxItems: 1

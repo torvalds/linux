@@ -619,12 +619,13 @@ static void otx2_sq_append_tso(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 			       struct sk_buff *skb, u16 qidx)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(pfvf->netdev, qidx);
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	int tcp_data, seg_len, pkt_len, offset;
+	int hdr_len, tcp_data, seg_len, pkt_len, offset;
 	struct nix_sqe_hdr_s *sqe_hdr;
 	int first_sqe = sq->head;
 	struct sg_list list;
 	struct tso_t tso;
+
+	hdr_len = tso_start(skb, &tso);
 
 	/* Map SKB's fragments to DMA.
 	 * It's done here to avoid mapping for every TSO segment's packet.
@@ -636,7 +637,6 @@ static void otx2_sq_append_tso(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 
 	netdev_tx_sent_queue(txq, skb->len);
 
-	tso_start(skb, &tso);
 	tcp_data = skb->len - hdr_len;
 	while (tcp_data > 0) {
 		char *hdr;

@@ -4,7 +4,6 @@
 
 #include <linux/kasan.h>
 #include <linux/memblock.h>
-#include <asm/pgalloc.h>
 #include <mm/mmu_decl.h>
 
 int __init kasan_init_region(void *start, size_t size)

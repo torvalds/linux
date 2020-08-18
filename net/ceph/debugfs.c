@@ -223,6 +223,9 @@ static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
 		if (op->op == CEPH_OSD_OP_WATCH)
 			seq_printf(s, "-%s",
 				   ceph_osd_watch_op_name(op->watch.op));
+		else if (op->op == CEPH_OSD_OP_CALL)
+			seq_printf(s, "-%s/%s", op->cls.class_name,
+				   op->cls.method_name);
 	}
 
 	seq_putc(s, '\n');

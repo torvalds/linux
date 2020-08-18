@@ -111,8 +111,6 @@
 # define noinline
 #endif
 
-#define uninitialized_var(x) x = *(&(x))
-
 #include <linux/types.h>
 
 /*
@@ -200,5 +198,9 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #ifndef __fallthrough
 # define __fallthrough
 #endif
+
+/* Indirect macros required for expanded argument pasting, eg. __LINE__. */
+#define ___PASTE(a, b) a##b
+#define __PASTE(a, b) ___PASTE(a, b)
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

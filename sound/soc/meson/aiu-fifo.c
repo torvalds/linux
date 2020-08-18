@@ -37,8 +37,7 @@ snd_pcm_uframes_t aiu_fifo_pointer(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int addr;
 
-	snd_soc_component_read(component, fifo->mem_offset + AIU_MEM_RD,
-			       &addr);
+	addr = snd_soc_component_read(component, fifo->mem_offset + AIU_MEM_RD);
 
 	return bytes_to_frames(runtime, addr - (unsigned int)runtime->dma_addr);
 }

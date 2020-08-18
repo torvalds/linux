@@ -814,7 +814,6 @@ static int veml6030_probe(struct i2c_client *client,
 	data->client = client;
 	data->regmap = regmap;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = "veml6030";
 	indio_dev->channels = veml6030_channels;
 	indio_dev->num_channels = ARRAY_SIZE(veml6030_channels);

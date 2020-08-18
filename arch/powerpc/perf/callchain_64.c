@@ -23,7 +23,7 @@
  * interrupt context, so if the access faults, we read the page tables
  * to find which page (if any) is mapped and access it directly.
  */
-int read_user_stack_slow(void __user *ptr, void *buf, int nb)
+int read_user_stack_slow(const void __user *ptr, void *buf, int nb)
 {
 
 	unsigned long addr = (unsigned long) ptr;
@@ -44,16 +44,9 @@ int read_user_stack_slow(void __user *ptr, void *buf, int nb)
 	return -EFAULT;
 }
 
-static int read_user_stack_64(unsigned long __user *ptr, unsigned long *ret)
+static int read_user_stack_64(const unsigned long __user *ptr, unsigned long *ret)
 {
-	if ((unsigned long)ptr > TASK_SIZE - sizeof(unsigned long) ||
-	    ((unsigned long)ptr & 7))
-		return -EFAULT;
-
-	if (!copy_from_user_nofault(ret, ptr, sizeof(*ret)))
-		return 0;
-
-	return read_user_stack_slow(ptr, ret, 8);
+	return __read_user_stack(ptr, ret, sizeof(*ret));
 }
 
 /*

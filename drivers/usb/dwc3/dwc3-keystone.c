@@ -2,7 +2,7 @@
 /**
  * dwc3-keystone.c - Keystone Specific Glue layer
  *
- * Copyright (C) 2010-2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010-2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: WingMan Kwok <w-kwok2@ti.com>
  */

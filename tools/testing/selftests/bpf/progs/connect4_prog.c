@@ -104,6 +104,30 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 	return 0;
 }
 
+static __inline int set_keepalive(struct bpf_sock_addr *ctx)
+{
+	int zero = 0, one = 1;
+
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one)))
+		return 1;
+	if (ctx->type == SOCK_STREAM) {
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_KEEPIDLE, &one, sizeof(one)))
+			return 1;
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_KEEPINTVL, &one, sizeof(one)))
+			return 1;
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_KEEPCNT, &one, sizeof(one)))
+			return 1;
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_SYNCNT, &one, sizeof(one)))
+			return 1;
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_USER_TIMEOUT, &one, sizeof(one)))
+			return 1;
+	}
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_KEEPALIVE, &zero, sizeof(zero)))
+		return 1;
+
+	return 0;
+}
+
 SEC("cgroup/connect4")
 int connect_v4_prog(struct bpf_sock_addr *ctx)
 {
@@ -119,6 +143,9 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 
 	/* Bind to device and unbind it. */
 	if (bind_to_device(ctx))
+		return 0;
+
+	if (set_keepalive(ctx))
 		return 0;
 
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)

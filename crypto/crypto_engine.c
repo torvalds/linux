@@ -482,7 +482,6 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 						       int (*cbk_do_batch)(struct crypto_engine *engine),
 						       bool rt, int qlen)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct crypto_engine *engine;
 
 	if (!dev)
@@ -520,7 +519,7 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 
 	if (engine->rt) {
 		dev_info(dev, "will run requests pump with realtime priority\n");
-		sched_setscheduler(engine->kworker->task, SCHED_FIFO, &param);
+		sched_set_fifo(engine->kworker->task);
 	}
 
 	return engine;

@@ -37,9 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
-/* hip08 is a pci device, it includes two version according pci version id */
-#define PCI_REVISION_ID_HIP08_A			0x20
-#define PCI_REVISION_ID_HIP08_B			0x21
+/* hip08 is a pci device */
+#define PCI_REVISION_ID_HIP08			0x21
 
 #define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
 
@@ -348,20 +347,22 @@ struct hns_roce_buf_attr {
 	bool mtt_only; /* only alloc buffer-required MTT memory */
 };
 
+struct hns_roce_hem_cfg {
+	dma_addr_t	root_ba; /* root BA table's address */
+	bool		is_direct; /* addressing without BA table */
+	unsigned int	ba_pg_shift; /* BA table page shift */
+	unsigned int	buf_pg_shift; /* buffer page shift */
+	unsigned int	buf_pg_count;  /* buffer page count */
+	struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
+	int		region_count;
+};
+
 /* memory translate region */
 struct hns_roce_mtr {
 	struct hns_roce_hem_list hem_list; /* multi-hop addressing resource */
 	struct ib_umem		*umem; /* user space buffer */
 	struct hns_roce_buf	*kmem; /* kernel space buffer */
-	struct {
-		dma_addr_t	root_ba; /* root BA table's address */
-		bool		is_direct; /* addressing without BA table */
-		unsigned int	ba_pg_shift; /* BA table page shift */
-		unsigned int	buf_pg_shift; /* buffer page shift */
-		int		buf_pg_count;  /* buffer page count */
-		struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
-		unsigned int	region_count;
-	} hem_cfg; /* config for hardware addressing */
+	struct hns_roce_hem_cfg  hem_cfg; /* config for hardware addressing */
 };
 
 struct hns_roce_mw {
@@ -1192,7 +1193,7 @@ int hns_roce_rereg_user_mr(struct ib_mr *mr, int flags, u64 start, u64 length,
 			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
 			   struct ib_udata *udata);
 struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				u32 max_num_sg, struct ib_udata *udata);
+				u32 max_num_sg);
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset);
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
@@ -1267,6 +1268,6 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
 
-int hns_roce_fill_res_entry(struct sk_buff *msg,
-			    struct rdma_restrack_entry *res);
+int hns_roce_fill_res_cq_entry(struct sk_buff *msg,
+			       struct ib_cq *ib_cq);
 #endif /* _HNS_ROCE_DEVICE_H */

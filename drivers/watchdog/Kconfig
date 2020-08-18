@@ -1027,7 +1027,7 @@ config ADVANTECH_WDT
 	  If you are configuring a Linux kernel for the Advantech single-board
 	  computer, say `Y' here to support its built-in watchdog timer
 	  feature. More information can be found at
-	  <http://www.advantech.com.tw/products/>
+	  <https://www.advantech.com.tw/products/>
 
 config ALIM1535_WDT
 	tristate "ALi M1535 PMU Watchdog Timer"

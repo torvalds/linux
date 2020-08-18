@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/qcom,spmi-vadc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm's SPMI PMIC ADC
+
+maintainers:
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description: |
+  SPMI PMIC voltage ADC (VADC) provides interface to clients to read
+  voltage. The VADC is a 15-bit sigma-delta ADC.
+  SPMI PMIC5/PMIC7 voltage ADC (ADC) provides interface to clients to read
+  voltage. The VADC is a 16-bit sigma-delta ADC.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: qcom,pms405-adc
+          - const: qcom,spmi-adc-rev2
+
+      - items:
+          - enum:
+              - qcom,spmi-vadc
+              - qcom,spmi-adc5
+              - qcom,spmi-adc-rev2
+              - qcom,spmi-adc7
+
+  reg:
+    description: VADC base address in the SPMI PMIC register map
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  '#io-channel-cells':
+    const: 1
+
+  interrupts:
+    maxItems: 1
+    description:
+      End of conversion interrupt.
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - '#io-channel-cells'
+
+patternProperties:
+  "^.*@[0-9a-f]+$":
+    type: object
+    description: |
+      Represents the external channels which are connected to the ADC.
+      For compatible property "qcom,spmi-vadc" following channels, also known as
+      reference point channels, are used for result calibration and their channel
+      configuration nodes should be defined:
+      VADC_REF_625MV and/or VADC_SPARE1(based on PMIC version) VADC_REF_1250MV,
+      VADC_GND_REF and VADC_VDD_VADC.
+
+    properties:
+      reg:
+        description: |
+          ADC channel number.
+          See include/dt-bindings/iio/qcom,spmi-vadc.h
+          For PMIC7 ADC, the channel numbers are specified separately per PMIC
+          in the PMIC-specific files in include/dt-bindings/iio/.
+
+      label:
+        $ref: /schemas/types.yaml#/definitions/string
+        description: |
+            ADC input of the platform as seen in the schematics.
+            For thermistor inputs connected to generic AMUX or GPIO inputs
+            these can vary across platform for the same pins. Hence select
+            the platform schematics name for this channel.
+
+      qcom,decimation:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+            This parameter is used to decrease ADC sampling rate.
+            Quicker measurements can be made by reducing decimation ratio.
+
+      qcom,pre-scaling:
+        description: |
+            Used for scaling the channel input signal before the signal is
+            fed to VADC. The configuration for this node is to know the
+            pre-determined ratio and use it for post scaling. It is a pair of
+            integers, denoting the numerator and denominator of the fraction by which
+            input signal is multiplied. For example, <1 3> indicates the signal is scaled
+            down to 1/3 of its value before ADC measurement.
+            If property is not found default value depending on chip will be used.
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        oneOf:
+          - items:
+              - const: 1
+              - enum: [ 1, 3, 4, 6, 20, 8, 10 ]
+          - items:
+              - const: 10
+              - const: 81
+
+      qcom,ratiometric:
+        description: |
+            Channel calibration type.
+            - For compatible property "qcom,spmi-vadc", if this property is
+              specified VADC will use the VDD reference (1.8V) and GND for
+              channel calibration. If property is not found, channel will be
+              calibrated with 0.625V and 1.25V reference channels, also
+              known as absolute calibration.
+            - For compatible property "qcom,spmi-adc5", "qcom,spmi-adc7" and
+              "qcom,spmi-adc-rev2", if this property is specified VADC will use
+              the VDD reference (1.875V) and GND for channel calibration. If
+              property is not found, channel will be calibrated with 0V and 1.25V
+              reference channels, also known as absolute calibration.
+        type: boolean
+
+      qcom,hw-settle-time:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+            Time between AMUX getting configured and the ADC starting
+            conversion. The 'hw_settle_time' is an index used from valid values
+            and programmed in hardware to achieve the hardware settling delay.
+
+      qcom,avg-samples:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+            Number of samples to be used for measurement.
+            Averaging provides the option to obtain a single measurement
+            from the ADC that is an average of multiple samples. The value
+            selected is 2^(value).
+
+    required:
+      - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,spmi-vadc
+
+    then:
+      patternProperties:
+        "^.*@[0-9a-f]+$":
+          properties:
+            qcom,decimation:
+              enum: [ 512, 1024, 2048, 4096 ]
+              default: 512
+
+            qcom,hw-settle-time:
+              enum: [ 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1, 2,
+                      4, 6, 8, 10 ]
+              default: 0
+
+            qcom,avg-samples:
+              enum: [ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 ]
+              default: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,spmi-adc-rev2
+
+    then:
+      patternProperties:
+        "^.*@[0-9a-f]+$":
+          properties:
+            qcom,decimation:
+              enum: [ 256, 512, 1024 ]
+              default: 1024
+
+            qcom,hw-settle-time:
+              enum: [ 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1, 2,
+                      4, 6, 8, 10 ]
+              default: 0
+
+            qcom,avg-samples:
+              enum: [ 1, 2, 4, 8, 16 ]
+              default: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,spmi-adc5
+
+    then:
+      patternProperties:
+        "^.*@[0-9a-f]+$":
+          properties:
+            qcom,decimation:
+              enum: [ 250, 420, 840 ]
+              default: 840
+
+            qcom,hw-settle-time:
+              enum: [ 15, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1, 2,
+                      4, 6, 8, 10, 16, 32, 64, 128 ]
+              default: 15
+
+            qcom,avg-samples:
+              enum: [ 1, 2, 4, 8, 16 ]
+              default: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,spmi-adc7
+
+    then:
+      patternProperties:
+        "^.*@[0-9a-f]+$":
+          properties:
+            qcom,decimation:
+              enum: [ 85, 340, 1360 ]
+              default: 1360
+
+            qcom,hw-settle-time:
+              enum: [ 15, 100, 200, 300, 400, 500, 600, 700, 1000, 2000, 4000,
+                      8000, 16000, 32000, 64000, 128000 ]
+              default: 15
+
+            qcom,avg-samples:
+              enum: [ 1, 2, 4, 8, 16 ]
+              default: 1
+
+examples:
+  - |
+    spmi_bus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      /* VADC node */
+      pmic_vadc: adc@3100 {
+        compatible = "qcom,spmi-vadc";
+        reg = <0x3100>;
+        interrupts = <0x0 0x31 0x0 0x1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        #io-channel-cells = <1>;
+        io-channel-ranges;
+
+        /* Channel node */
+        adc-chan@39 {
+          reg = <0x39>;
+          qcom,decimation = <512>;
+          qcom,ratiometric;
+          qcom,hw-settle-time = <200>;
+          qcom,avg-samples = <1>;
+          qcom,pre-scaling = <1 3>;
+        };
+
+        adc-chan@9 {
+          reg = <0x9>;
+        };
+
+        adc-chan@a {
+          reg = <0xa>;
+        };
+
+        adc-chan@e {
+          reg = <0xe>;
+        };
+
+        adc-chan@f {
+          reg = <0xf>;
+        };
+      };
+    };

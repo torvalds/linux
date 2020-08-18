@@ -394,7 +394,6 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	}
 
 	indio_dev->name = spi_get_device_id(spi_dev)->name;
-	indio_dev->dev.parent = &spi_dev->dev;
 	indio_dev->info = &ad7816_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

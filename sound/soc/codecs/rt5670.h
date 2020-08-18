@@ -9,8 +9,6 @@
 #ifndef __RT5670_H__
 #define __RT5670_H__
 
-#include <sound/rt5670.h>
-
 /* Info */
 #define RT5670_RESET				0x00
 #define RT5670_VENDOR_ID			0xfd
@@ -1988,10 +1986,22 @@ int rt5670_sel_asrc_clk_src(struct snd_soc_component *component,
 
 struct rt5670_priv {
 	struct snd_soc_component *component;
-	struct rt5670_platform_data pdata;
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
 	struct snd_soc_jack_gpio hp_gpio;
+
+	int jd_mode;
+	bool in2_diff;
+	bool gpio1_is_irq;
+	bool gpio1_is_ext_spk_en;
+
+	bool dmic_en;
+	unsigned int dmic1_data_pin;
+	/* 0 = GPIO6; 1 = IN2P; 3 = GPIO7*/
+	unsigned int dmic2_data_pin;
+	/* 0 = GPIO8; 1 = IN3N; */
+	unsigned int dmic3_data_pin;
+	/* 0 = GPIO9; 1 = GPIO10; 2 = GPIO5*/
 
 	int sysclk;
 	int sysclk_src;

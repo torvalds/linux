@@ -386,7 +386,7 @@ static inline void udc_clear_mask_UDCCR(struct pxa_udc *udc, int mask)
 
 /**
  * ep_write_UDCCSR - set bits in UDCCSR
- * @udc: udc device
+ * @ep: udc endpoint
  * @mask: bits to set in UDCCR
  *
  * Sets bits in UDCCSR (UDCCSR0 and UDCCSR*).
@@ -472,7 +472,7 @@ static int epout_has_pkt(struct pxa_ep *ep)
 
 /**
  * set_ep0state - Set ep0 automata state
- * @dev: udc device
+ * @udc: udc device
  * @state: state
  */
 static void set_ep0state(struct pxa_udc *udc, int state)
@@ -498,7 +498,6 @@ static void ep0_idle(struct pxa_udc *dev)
 /**
  * inc_ep_stats_reqs - Update ep stats counts
  * @ep: physical endpoint
- * @req: usb request
  * @is_in: ep direction (USB_DIR_IN or 0)
  *
  */
@@ -1473,7 +1472,6 @@ static void udc_disable(struct pxa_udc *udc);
  * Context: any
  *
  * The UDC should be enabled if :
-
  *  - the pullup resistor is connected
  *  - and a gadget driver is bound
  *  - and vbus is sensed (or no vbus sense is available)
@@ -1688,7 +1686,7 @@ static void udc_init_data(struct pxa_udc *dev)
 
 /**
  * udc_enable - Enables the udc device
- * @dev: udc device
+ * @udc: udc device
  *
  * Enables the udc device : enables clocks, udc interrupts, control endpoint
  * interrupts, sets usb as UDC client and setups endpoints.
@@ -1732,8 +1730,8 @@ static void udc_enable(struct pxa_udc *udc)
 
 /**
  * pxa27x_start - Register gadget driver
+ * @g: gadget
  * @driver: gadget driver
- * @bind: bind function
  *
  * When a driver is successfully registered, it will receive control requests
  * including set_configuration(), which enables non-control requests.  Then
@@ -1775,7 +1773,6 @@ fail:
 /**
  * stop_activity - Stops udc endpoints
  * @udc: udc device
- * @driver: gadget driver
  *
  * Disables all udc endpoints (even control endpoint), report disconnect to
  * the gadget user.
@@ -1792,7 +1789,7 @@ static void stop_activity(struct pxa_udc *udc)
 
 /**
  * pxa27x_udc_stop - Unregister the gadget driver
- * @driver: gadget driver
+ * @g: gadget
  *
  * Returns 0 if no error, -ENODEV, -EINVAL otherwise
  */
@@ -2349,7 +2346,7 @@ MODULE_DEVICE_TABLE(of, udc_pxa_dt_ids);
 
 /**
  * pxa_udc_probe - probes the udc device
- * @_dev: platform device
+ * @pdev: platform device
  *
  * Perform basic init : allocates udc clock, creates sysfs files, requests
  * irq.

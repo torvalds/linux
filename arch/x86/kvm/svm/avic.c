@@ -665,7 +665,7 @@ void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	} else {
 		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
 	}
-	mark_dirty(vmcb, VMCB_AVIC);
+	vmcb_mark_dirty(vmcb, VMCB_AVIC);
 
 	svm_set_pi_irte_mode(vcpu, activated);
 }

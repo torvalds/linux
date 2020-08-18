@@ -46,7 +46,7 @@ static pci_ers_result_t merge_result(enum pci_ers_result orig,
 }
 
 static int report_error_detected(struct pci_dev *dev,
-				 enum pci_channel_state state,
+				 pci_channel_state_t state,
 				 enum pci_ers_result *result)
 {
 	pci_ers_result_t vote;
@@ -147,7 +147,7 @@ out:
 }
 
 pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
-			enum pci_channel_state state,
+			pci_channel_state_t state,
 			pci_ers_result_t (*reset_link)(struct pci_dev *pdev))
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_CAN_RECOVER;
@@ -197,7 +197,8 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	pci_dbg(dev, "broadcast resume message\n");
 	pci_walk_bus(bus, report_resume, &status);
 
-	pci_aer_clear_device_status(dev);
+	if (pcie_aer_is_native(dev))
+		pcie_clear_device_status(dev);
 	pci_aer_clear_nonfatal_status(dev);
 	pci_info(dev, "device recovery successful\n");
 	return status;

@@ -41,6 +41,8 @@
 #include "lib/port_tun.h"
 
 #ifdef CONFIG_MLX5_ESWITCH
+extern const struct mlx5e_rx_handlers mlx5e_rx_handlers_rep;
+
 struct mlx5e_neigh_update_table {
 	struct rhashtable       neigh_ht;
 	/* Save the neigh hash entries in a list in addition to the hash table
@@ -222,10 +224,6 @@ int mlx5e_rep_bond_update(struct mlx5e_priv *priv, bool cleanup);
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
 int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
-
-void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
-void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
-				   struct mlx5_cqe64 *cqe);
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 

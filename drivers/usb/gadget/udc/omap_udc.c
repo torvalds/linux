@@ -2831,7 +2831,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 				type = "integrated";
 				break;
 			}
-			/* FALL THROUGH */
+			fallthrough;
 		case 3:
 		case 11:
 		case 16:
@@ -2848,7 +2848,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 		case 14:			/* transceiverless */
 			if (cpu_is_omap1710())
 				goto bad_on_1710;
-			/* FALL THROUGH */
+			fallthrough;
 		case 13:
 		case 15:
 			type = "no";

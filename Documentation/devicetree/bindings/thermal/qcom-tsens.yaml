@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: QCOM SoC Temperature Sensor (TSENS)
 
 maintainers:
-  - Amit Kucheria <amit.kucheria@linaro.org>
+  - Amit Kucheria <amitk@kernel.org>
 
 description: |
   QCOM SoCs have TSENS IP to allow temperature measurement. There are currently
@@ -23,6 +23,7 @@ properties:
         items:
           - enum:
               - qcom,msm8916-tsens
+              - qcom,msm8939-tsens
               - qcom,msm8974-tsens
           - const: qcom,tsens-v0_1
 
@@ -40,6 +41,8 @@ properties:
               - qcom,msm8998-tsens
               - qcom,sc7180-tsens
               - qcom,sdm845-tsens
+              - qcom,sm8150-tsens
+              - qcom,sm8250-tsens
           - const: qcom,tsens-v2
 
   reg:

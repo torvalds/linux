@@ -815,7 +815,7 @@
  *	structure. Note that the security field was not added directly to the
  *	socket structure, but rather, the socket security information is stored
  *	in the associated inode.  Typically, the inode alloc_security hook will
- *	allocate and and attach security information to
+ *	allocate and attach security information to
  *	SOCK_INODE(sock)->i_security.  This hook may be used to update the
  *	SOCK_INODE(sock)->i_security field with additional information that
  *	wasn't available when the inode was allocated.

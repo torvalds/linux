@@ -203,7 +203,7 @@ static void rcu_release(struct rcu_head *rcu)
 	/* The final zeroing takes care of clearing any remaining handshake key
 	 * material and other potentially sensitive information.
 	 */
-	kzfree(peer);
+	kfree_sensitive(peer);
 }
 
 static void kref_release(struct kref *refcount)

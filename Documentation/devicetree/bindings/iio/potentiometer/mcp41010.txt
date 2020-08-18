@@ -1,7 +1,7 @@
 * Microchip MCP41010/41050/41100/42010/42050/42100 Digital Potentiometer
 
 Datasheet publicly available at:
-http://ww1.microchip.com/downloads/en/devicedoc/11195c.pdf
+https://ww1.microchip.com/downloads/en/devicedoc/11195c.pdf
 
 The node for this driver must be a child node of a SPI controller, hence
 all mandatory properties described in

@@ -149,7 +149,6 @@ static int __init orangefs_init(void)
 		pr_info("%s: module version %s loaded\n",
 			__func__,
 			ORANGEFS_VERSION);
-		ret = 0;
 		goto out;
 	}
 

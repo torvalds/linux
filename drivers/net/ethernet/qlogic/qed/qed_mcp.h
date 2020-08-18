@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_MCP_H
@@ -42,15 +16,38 @@
 #include "qed_dev_api.h"
 
 struct qed_mcp_link_speed_params {
-	bool    autoneg;
-	u32     advertised_speeds;      /* bitmask of DRV_SPEED_CAPABILITY */
-	u32     forced_speed;	   /* In Mb/s */
+	bool					autoneg;
+
+	u32					advertised_speeds;
+#define QED_EXT_SPEED_MASK_RES			0x1
+#define QED_EXT_SPEED_MASK_1G			0x2
+#define QED_EXT_SPEED_MASK_10G			0x4
+#define QED_EXT_SPEED_MASK_20G			0x8
+#define QED_EXT_SPEED_MASK_25G			0x10
+#define QED_EXT_SPEED_MASK_40G			0x20
+#define QED_EXT_SPEED_MASK_50G_R		0x40
+#define QED_EXT_SPEED_MASK_50G_R2		0x80
+#define QED_EXT_SPEED_MASK_100G_R2		0x100
+#define QED_EXT_SPEED_MASK_100G_R4		0x200
+#define QED_EXT_SPEED_MASK_100G_P4		0x400
+
+	u32					forced_speed;	   /* In Mb/s */
+#define QED_EXT_SPEED_1G			0x1
+#define QED_EXT_SPEED_10G			0x2
+#define QED_EXT_SPEED_20G			0x4
+#define QED_EXT_SPEED_25G			0x8
+#define QED_EXT_SPEED_40G			0x10
+#define QED_EXT_SPEED_50G_R			0x20
+#define QED_EXT_SPEED_50G_R2			0x40
+#define QED_EXT_SPEED_100G_R2			0x80
+#define QED_EXT_SPEED_100G_R4			0x100
+#define QED_EXT_SPEED_100G_P4			0x200
 };
 
 struct qed_mcp_link_pause_params {
-	bool    autoneg;
-	bool    forced_rx;
-	bool    forced_tx;
+	bool					autoneg;
+	bool					forced_rx;
+	bool					forced_tx;
 };
 
 enum qed_mcp_eee_mode {
@@ -60,61 +57,72 @@ enum qed_mcp_eee_mode {
 };
 
 struct qed_mcp_link_params {
-	struct qed_mcp_link_speed_params speed;
-	struct qed_mcp_link_pause_params pause;
-	u32 loopback_mode;
-	struct qed_link_eee_params eee;
+	struct qed_mcp_link_speed_params	speed;
+	struct qed_mcp_link_pause_params	pause;
+	u32					loopback_mode;
+	struct qed_link_eee_params		eee;
+	u32					fec;
+
+	struct qed_mcp_link_speed_params	ext_speed;
+	u32					ext_fec_mode;
 };
 
 struct qed_mcp_link_capabilities {
-	u32 speed_capabilities;
-	bool default_speed_autoneg;
-	enum qed_mcp_eee_mode default_eee;
-	u32 eee_lpi_timer;
-	u8 eee_speed_caps;
+	u32					speed_capabilities;
+	bool					default_speed_autoneg;
+	u32					fec_default;
+	enum qed_mcp_eee_mode			default_eee;
+	u32					eee_lpi_timer;
+	u8					eee_speed_caps;
+
+	u32					default_ext_speed_caps;
+	u32					default_ext_autoneg;
+	u32					default_ext_speed;
+	u32					default_ext_fec;
 };
 
 struct qed_mcp_link_state {
-	bool    link_up;
-
-	u32	min_pf_rate;
+	bool					link_up;
+	u32					min_pf_rate;
 
 	/* Actual link speed in Mb/s */
-	u32	line_speed;
+	u32					line_speed;
 
 	/* PF max speed in Mb/s, deduced from line_speed
 	 * according to PF max bandwidth configuration.
 	 */
-	u32     speed;
-	bool    full_duplex;
+	u32					speed;
 
-	bool    an;
-	bool    an_complete;
-	bool    parallel_detection;
-	bool    pfc_enabled;
+	bool					full_duplex;
+	bool					an;
+	bool					an_complete;
+	bool					parallel_detection;
+	bool					pfc_enabled;
 
-#define QED_LINK_PARTNER_SPEED_1G_HD    BIT(0)
-#define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
-#define QED_LINK_PARTNER_SPEED_10G      BIT(2)
-#define QED_LINK_PARTNER_SPEED_20G      BIT(3)
-#define QED_LINK_PARTNER_SPEED_25G      BIT(4)
-#define QED_LINK_PARTNER_SPEED_40G      BIT(5)
-#define QED_LINK_PARTNER_SPEED_50G      BIT(6)
-#define QED_LINK_PARTNER_SPEED_100G     BIT(7)
-	u32     partner_adv_speed;
+	u32					partner_adv_speed;
+#define QED_LINK_PARTNER_SPEED_1G_HD		BIT(0)
+#define QED_LINK_PARTNER_SPEED_1G_FD		BIT(1)
+#define QED_LINK_PARTNER_SPEED_10G		BIT(2)
+#define QED_LINK_PARTNER_SPEED_20G		BIT(3)
+#define QED_LINK_PARTNER_SPEED_25G		BIT(4)
+#define QED_LINK_PARTNER_SPEED_40G		BIT(5)
+#define QED_LINK_PARTNER_SPEED_50G		BIT(6)
+#define QED_LINK_PARTNER_SPEED_100G		BIT(7)
 
-	bool    partner_tx_flow_ctrl_en;
-	bool    partner_rx_flow_ctrl_en;
+	bool					partner_tx_flow_ctrl_en;
+	bool					partner_rx_flow_ctrl_en;
 
-#define QED_LINK_PARTNER_SYMMETRIC_PAUSE (1)
-#define QED_LINK_PARTNER_ASYMMETRIC_PAUSE (2)
-#define QED_LINK_PARTNER_BOTH_PAUSE (3)
-	u8      partner_adv_pause;
+	u8					partner_adv_pause;
+#define QED_LINK_PARTNER_SYMMETRIC_PAUSE	0x1
+#define QED_LINK_PARTNER_ASYMMETRIC_PAUSE	0x2
+#define QED_LINK_PARTNER_BOTH_PAUSE		0x3
 
-	bool    sfp_tx_fault;
-	bool    eee_active;
-	u8      eee_adv_caps;
-	u8      eee_lp_adv_caps;
+	bool					sfp_tx_fault;
+	bool					eee_active;
+	u8					eee_adv_caps;
+	u8					eee_lp_adv_caps;
+
+	u32					fec_active;
 };
 
 struct qed_mcp_function_info {
@@ -772,6 +780,20 @@ struct qed_drv_tlv_hdr {
 #define QED_DRV_TLV_FLAGS_CHANGED 0x01
 	u8 tlv_flags;
 };
+
+/**
+ * qed_mcp_is_ext_speed_supported() - Check if management firmware supports
+ *                                    extended speeds.
+ * @p_hwfn: HW device data.
+ *
+ * Return: true if supported, false otherwise.
+ */
+static inline bool
+qed_mcp_is_ext_speed_supported(const struct qed_hwfn *p_hwfn)
+{
+	return !!(p_hwfn->mcp_info->capabilities &
+		  FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL);
+}
 
 /**
  * @brief Initialize the interface with the MCP

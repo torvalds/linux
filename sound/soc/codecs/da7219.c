@@ -313,13 +313,13 @@ static void da7219_alc_calib(struct snd_soc_component *component)
 	u8 mic_ctrl, mixin_ctrl, adc_ctrl, calib_ctrl;
 
 	/* Save current state of mic control register */
-	mic_ctrl = snd_soc_component_read32(component, DA7219_MIC_1_CTRL);
+	mic_ctrl = snd_soc_component_read(component, DA7219_MIC_1_CTRL);
 
 	/* Save current state of input mixer control register */
-	mixin_ctrl = snd_soc_component_read32(component, DA7219_MIXIN_L_CTRL);
+	mixin_ctrl = snd_soc_component_read(component, DA7219_MIXIN_L_CTRL);
 
 	/* Save current state of input ADC control register */
-	adc_ctrl = snd_soc_component_read32(component, DA7219_ADC_L_CTRL);
+	adc_ctrl = snd_soc_component_read(component, DA7219_ADC_L_CTRL);
 
 	/* Enable then Mute MIC PGAs */
 	snd_soc_component_update_bits(component, DA7219_MIC_1_CTRL, DA7219_MIC_1_AMP_EN_MASK,
@@ -344,7 +344,7 @@ static void da7219_alc_calib(struct snd_soc_component *component)
 			    DA7219_ALC_AUTO_CALIB_EN_MASK,
 			    DA7219_ALC_AUTO_CALIB_EN_MASK);
 	do {
-		calib_ctrl = snd_soc_component_read32(component, DA7219_ALC_CTRL1);
+		calib_ctrl = snd_soc_component_read(component, DA7219_ALC_CTRL1);
 	} while (calib_ctrl & DA7219_ALC_AUTO_CALIB_EN_MASK);
 
 	/* If auto calibration fails, disable DC offset, hybrid ALC */
@@ -822,13 +822,13 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				    DA7219_PC_FREERUN_MASK, 0);
 
 		/* Slave mode, if SRM not enabled no need for status checks */
-		pll_ctrl = snd_soc_component_read32(component, DA7219_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7219_PLL_CTRL);
 		if ((pll_ctrl & DA7219_PLL_MODE_MASK) != DA7219_PLL_MODE_SRM)
 			return 0;
 
 		/* Check SRM has locked */
 		do {
-			pll_status = snd_soc_component_read32(component, DA7219_PLL_SRM_STS);
+			pll_status = snd_soc_component_read(component, DA7219_PLL_SRM_STS);
 			if (pll_status & DA7219_PLL_SRM_STS_SRM_LOCK) {
 				srm_lock = true;
 			} else {
@@ -928,7 +928,7 @@ static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		/* Ensure nominal gain ramping for DAPM sequence */
 		da7219->gain_ramp_ctrl =
-			snd_soc_component_read32(component, DA7219_GAIN_RAMP_CTRL);
+			snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
 		snd_soc_component_write(component, DA7219_GAIN_RAMP_CTRL,
 			      DA7219_GAIN_RAMP_RATE_NOMINAL);
 		break;
@@ -1708,11 +1708,13 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id da7219_acpi_match[] = {
 	{ .id = "DLGS7219", },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
+#endif
 
 static enum da7219_micbias_voltage
 	da7219_fw_micbias_lvl(struct device *dev, u32 val)
@@ -1930,7 +1932,7 @@ static int da7219_wclk_is_prepared(struct clk_hw *hw)
 	if (!da7219->master)
 		return -EINVAL;
 
-	clk_reg = snd_soc_component_read32(component, DA7219_DAI_CLK_MODE);
+	clk_reg = snd_soc_component_read(component, DA7219_DAI_CLK_MODE);
 
 	return !!(clk_reg & DA7219_DAI_CLK_EN_MASK);
 }
@@ -1942,7 +1944,7 @@ static unsigned long da7219_wclk_recalc_rate(struct clk_hw *hw,
 		container_of(hw, struct da7219_priv,
 			     dai_clks_hw[DA7219_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = da7219->component;
-	u8 fs = snd_soc_component_read32(component, DA7219_SR);
+	u8 fs = snd_soc_component_read(component, DA7219_SR);
 
 	switch (fs & DA7219_SR_MASK) {
 	case DA7219_SR_8000:
@@ -2027,7 +2029,7 @@ static unsigned long da7219_bclk_recalc_rate(struct clk_hw *hw,
 		container_of(hw, struct da7219_priv,
 			     dai_clks_hw[DA7219_DAI_BCLK_IDX]);
 	struct snd_soc_component *component = da7219->component;
-	u8 bclks_per_wclk = snd_soc_component_read32(component,
+	u8 bclks_per_wclk = snd_soc_component_read(component,
 						     DA7219_DAI_CLK_MODE);
 
 	switch (bclks_per_wclk & DA7219_DAI_BCLKS_PER_WCLK_MASK) {

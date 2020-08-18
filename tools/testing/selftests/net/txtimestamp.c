@@ -64,6 +64,7 @@ static int cfg_payload_len = 10;
 static int cfg_poll_timeout = 100;
 static int cfg_delay_snd;
 static int cfg_delay_ack;
+static int cfg_delay_tolerance_usec = 500;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
 static bool cfg_busy_poll;
@@ -152,11 +153,12 @@ static void validate_key(int tskey, int tstype)
 
 static void validate_timestamp(struct timespec *cur, int min_delay)
 {
-	int max_delay = min_delay + 500 /* processing time upper bound */;
 	int64_t cur64, start64;
+	int max_delay;
 
 	cur64 = timespec_to_us64(cur);
 	start64 = timespec_to_us64(&ts_usr);
+	max_delay = min_delay + cfg_delay_tolerance_usec;
 
 	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
 		fprintf(stderr, "ERROR: %lu us expected between %d and %d\n",
@@ -683,6 +685,7 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
 			"  -S N: usec to sleep before reading error queue\n"
+			"  -t N: tolerance (usec) for timestamp validation\n"
 			"  -u:   use udp\n"
 			"  -v:   validate SND delay (usec)\n"
 			"  -V:   validate ACK delay (usec)\n"
@@ -697,7 +700,7 @@ static void parse_opt(int argc, char **argv)
 	int c;
 
 	while ((c = getopt(argc, argv,
-				"46bc:CeEFhIl:LnNp:PrRS:uv:V:x")) != -1) {
+				"46bc:CeEFhIl:LnNp:PrRS:t:uv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -759,6 +762,9 @@ static void parse_opt(int argc, char **argv)
 			break;
 		case 'S':
 			cfg_sleep_usec = strtoul(optarg, NULL, 10);
+			break;
+		case 't':
+			cfg_delay_tolerance_usec = strtoul(optarg, NULL, 10);
 			break;
 		case 'u':
 			proto_count++;

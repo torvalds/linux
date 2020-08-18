@@ -181,6 +181,12 @@ struct dsa_completion_record {
 	uint32_t		bytes_completed;
 	uint64_t		fault_addr;
 	union {
+		/* common record */
+		struct {
+			uint32_t	invalid_flags:24;
+			uint32_t	rsvd2:8;
+		};
+
 		uint16_t	delta_rec_size;
 		uint16_t	crc_val;
 

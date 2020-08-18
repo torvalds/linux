@@ -1,5 +1,4 @@
 * Fix pad format size for statistics and parameters entities.
-* Use threaded interrupt for rkisp1_stats_isr(), remove work queue.
 * Fix checkpatch errors.
 * Review and comment every lock
 * Handle quantization

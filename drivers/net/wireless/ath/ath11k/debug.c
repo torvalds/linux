@@ -12,6 +12,43 @@
 #include "debug_htt_stats.h"
 #include "peer.h"
 
+static const char *htt_bp_umac_ring[HTT_SW_UMAC_RING_IDX_MAX] = {
+	"REO2SW1_RING",
+	"REO2SW2_RING",
+	"REO2SW3_RING",
+	"REO2SW4_RING",
+	"WBM2REO_LINK_RING",
+	"REO2TCL_RING",
+	"REO2FW_RING",
+	"RELEASE_RING",
+	"PPE_RELEASE_RING",
+	"TCL2TQM_RING",
+	"TQM_RELEASE_RING",
+	"REO_RELEASE_RING",
+	"WBM2SW0_RELEASE_RING",
+	"WBM2SW1_RELEASE_RING",
+	"WBM2SW2_RELEASE_RING",
+	"WBM2SW3_RELEASE_RING",
+	"REO_CMD_RING",
+	"REO_STATUS_RING",
+};
+
+static const char *htt_bp_lmac_ring[HTT_SW_LMAC_RING_IDX_MAX] = {
+	"FW2RXDMA_BUF_RING",
+	"FW2RXDMA_STATUS_RING",
+	"FW2RXDMA_LINK_RING",
+	"SW2RXDMA_BUF_RING",
+	"WBM2RXDMA_LINK_RING",
+	"RXDMA2FW_RING",
+	"RXDMA2SW_RING",
+	"RXDMA2RELEASE_RING",
+	"RXDMA2REO_RING",
+	"MONITOR_STATUS_RING",
+	"MONITOR_BUF_RING",
+	"MONITOR_DESC_RING",
+	"MONITOR_DEST_RING",
+};
+
 void ath11k_info(struct ath11k_base *ab, const char *fmt, ...)
 {
 	struct va_format vaf = {
@@ -739,12 +776,78 @@ static const struct file_operations fops_extd_rx_stats = {
 	.open = simple_open,
 };
 
-static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
+static int ath11k_fill_bp_stats(struct ath11k_base *ab,
+				struct ath11k_bp_stats *bp_stats,
+				char *buf, int len, int size)
+{
+	lockdep_assert_held(&ab->base_lock);
+
+	len += scnprintf(buf + len, size - len, "count: %u\n",
+			 bp_stats->count);
+	len += scnprintf(buf + len, size - len, "hp: %u\n",
+			 bp_stats->hp);
+	len += scnprintf(buf + len, size - len, "tp: %u\n",
+			 bp_stats->tp);
+	len += scnprintf(buf + len, size - len, "seen before: %ums\n\n",
+			 jiffies_to_msecs(jiffies - bp_stats->jiffies));
+	return len;
+}
+
+static ssize_t ath11k_debug_dump_soc_ring_bp_stats(struct ath11k_base *ab,
+						   char *buf, int size)
+{
+	struct ath11k_bp_stats *bp_stats;
+	bool stats_rxd = false;
+	u8 i, pdev_idx;
+	int len = 0;
+
+	len += scnprintf(buf + len, size - len, "\nBackpressure Stats\n");
+	len += scnprintf(buf + len, size - len, "==================\n");
+
+	spin_lock_bh(&ab->base_lock);
+	for (i = 0; i < HTT_SW_UMAC_RING_IDX_MAX; i++) {
+		bp_stats = &ab->soc_stats.bp_stats.umac_ring_bp_stats[i];
+
+		if (!bp_stats->count)
+			continue;
+
+		len += scnprintf(buf + len, size - len, "Ring: %s\n",
+				 htt_bp_umac_ring[i]);
+		len = ath11k_fill_bp_stats(ab, bp_stats, buf, len, size);
+		stats_rxd = true;
+	}
+
+	for (i = 0; i < HTT_SW_LMAC_RING_IDX_MAX; i++) {
+		for (pdev_idx = 0; pdev_idx < MAX_RADIOS; pdev_idx++) {
+			bp_stats =
+				&ab->soc_stats.bp_stats.lmac_ring_bp_stats[i][pdev_idx];
+
+			if (!bp_stats->count)
+				continue;
+
+			len += scnprintf(buf + len, size - len, "Ring: %s\n",
+					 htt_bp_lmac_ring[i]);
+			len += scnprintf(buf + len, size - len, "pdev: %d\n",
+					 pdev_idx);
+			len = ath11k_fill_bp_stats(ab, bp_stats, buf, len, size);
+			stats_rxd = true;
+		}
+	}
+	spin_unlock_bh(&ab->base_lock);
+
+	if (!stats_rxd)
+		len += scnprintf(buf + len, size - len,
+				 "No Ring Backpressure stats received\n\n");
+
+	return len;
+}
+
+static ssize_t ath11k_debug_dump_soc_dp_stats(struct file *file,
 					      char __user *user_buf,
 					      size_t count, loff_t *ppos)
 {
 	struct ath11k_base *ab = file->private_data;
-	struct ath11k_soc_dp_rx_stats *soc_stats = &ab->soc_stats;
+	struct ath11k_soc_dp_stats *soc_stats = &ab->soc_stats;
 	int len = 0, i, retval;
 	const int size = 4096;
 	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
@@ -788,6 +891,19 @@ static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
 			 soc_stats->hal_reo_error[2],
 			 soc_stats->hal_reo_error[3]);
 
+	len += scnprintf(buf + len, size - len, "\nSOC TX STATS:\n");
+	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
+				 i, soc_stats->tx_err.desc_na[i]);
+
+	len += scnprintf(buf + len, size - len,
+			 "\nMisc Transmit Failures: %d\n",
+			 atomic_read(&soc_stats->tx_err.misc_fail));
+
+	len += ath11k_debug_dump_soc_ring_bp_stats(ab, buf + len, size - len);
+
 	if (len > size)
 		len = size;
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -796,8 +912,8 @@ static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
 	return retval;
 }
 
-static const struct file_operations fops_soc_rx_stats = {
-	.read = ath11k_debug_dump_soc_rx_stats,
+static const struct file_operations fops_soc_dp_stats = {
+	.read = ath11k_debug_dump_soc_dp_stats,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -819,8 +935,8 @@ int ath11k_debug_pdev_create(struct ath11k_base *ab)
 	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
 			    &fops_simulate_fw_crash);
 
-	debugfs_create_file("soc_rx_stats", 0600, ab->debugfs_soc, ab,
-			    &fops_soc_rx_stats);
+	debugfs_create_file("soc_dp_stats", 0600, ab->debugfs_soc, ab,
+			    &fops_soc_dp_stats);
 
 	return 0;
 }

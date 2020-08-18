@@ -2178,17 +2178,6 @@ config FB_BROADSHEET
 	  and could also have been called by other names when coupled with
 	  a bridge adapter.
 
-config FB_PUV3_UNIGFX
-	tristate "PKUnity v3 Unigfx framebuffer support"
-	depends on FB && UNICORE32 && ARCH_PUV3
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	help
-	  Choose this option if you want to use the Unigfx device as a
-	  framebuffer device. Without the support of PCI & AGP.
-
 config FB_HYPERV
 	tristate "Microsoft Hyper-V Synthetic Video support"
 	depends on FB && HYPERV

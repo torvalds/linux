@@ -252,7 +252,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = aspeed_adc_iio_channels;

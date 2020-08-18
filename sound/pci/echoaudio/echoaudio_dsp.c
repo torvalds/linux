@@ -898,7 +898,7 @@ static int pause_transport(struct echoaudio *chip, u32 channel_mask)
 		return 0;
 	}
 
-	dev_warn(chip->card->dev, "pause_transport: No pipes to stop!\n");
+	dev_dbg(chip->card->dev, "pause_transport: No pipes to stop!\n");
 	return 0;
 }
 
@@ -924,7 +924,7 @@ static int stop_transport(struct echoaudio *chip, u32 channel_mask)
 		return 0;
 	}
 
-	dev_warn(chip->card->dev, "stop_transport: No pipes to stop!\n");
+	dev_dbg(chip->card->dev, "stop_transport: No pipes to stop!\n");
 	return 0;
 }
 

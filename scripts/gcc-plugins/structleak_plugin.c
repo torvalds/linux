@@ -11,7 +11,7 @@
  * otherwise leak kernel stack to userland if they aren't properly initialized
  * by later code
  *
- * Homepage: http://pax.grsecurity.net/
+ * Homepage: https://pax.grsecurity.net/
  *
  * Options:
  * -fplugin-arg-structleak_plugin-disable

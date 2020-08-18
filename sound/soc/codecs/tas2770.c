@@ -3,7 +3,7 @@
 // ALSA SoC Texas Instruments TAS2770 20-W Digital Input Mono Class-D
 // Audio Amplifier with Speaker I/V Sense
 //
-// Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
 //	Author: Tracy Yi <tracy-yi@ti.com>
 //	Frank Shi <shifu0704@thundersoft.com>
 
@@ -189,7 +189,7 @@ static const struct snd_soc_dapm_route tas2770_audio_map[] = {
 	{"VSENSE", "Switch", "VMON"},
 };
 
-static int tas2770_mute(struct snd_soc_dai *dai, int mute)
+static int tas2770_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -530,10 +530,11 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static struct snd_soc_dai_ops tas2770_dai_ops = {
-	.digital_mute = tas2770_mute,
+	.mute_stream = tas2770_mute,
 	.hw_params  = tas2770_hw_params,
 	.set_fmt    = tas2770_set_fmt,
 	.set_tdm_slot = tas2770_set_dai_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 #define TAS2770_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -758,8 +759,7 @@ static int tas2770_i2c_probe(struct i2c_client *client,
 		}
 	}
 
-	tas2770->reset_gpio = devm_gpiod_get_optional(tas2770->dev,
-							  "reset-gpio",
+	tas2770->reset_gpio = devm_gpiod_get_optional(tas2770->dev, "reset",
 						      GPIOD_OUT_HIGH);
 	if (IS_ERR(tas2770->reset_gpio)) {
 		if (PTR_ERR(tas2770->reset_gpio) == -EPROBE_DEFER) {

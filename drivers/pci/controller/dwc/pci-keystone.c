@@ -3,7 +3,7 @@
  * PCIe host controller driver for Texas Instruments Keystone SoCs
  *
  * Copyright (C) 2013-2014 Texas Instruments., Ltd.
- *		http://www.ti.com
+ *		https://www.ti.com
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
  * Implementation based on pci-exynos.c and pcie-designware.c
@@ -440,7 +440,7 @@ static int ks_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	reg = CFG_BUS(bus->number) | CFG_DEVICE(PCI_SLOT(devfn)) |
 		CFG_FUNC(PCI_FUNC(devfn));
-	if (bus->parent->number != pp->root_bus_nr)
+	if (!pci_is_root_bus(bus->parent))
 		reg |= CFG_TYPE1;
 	ks_pcie_app_writel(ks_pcie, CFG_SETUP, reg);
 
@@ -457,7 +457,7 @@ static int ks_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	reg = CFG_BUS(bus->number) | CFG_DEVICE(PCI_SLOT(devfn)) |
 		CFG_FUNC(PCI_FUNC(devfn));
-	if (bus->parent->number != pp->root_bus_nr)
+	if (!pci_is_root_bus(bus->parent))
 		reg |= CFG_TYPE1;
 	ks_pcie_app_writel(ks_pcie, CFG_SETUP, reg);
 
@@ -1250,10 +1250,8 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	pci->version = version;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "missing IRQ resource: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = request_irq(irq, ks_pcie_err_irq_handler, IRQF_SHARED,
 			  "ks-pcie-error-irq", ks_pcie);
@@ -1323,8 +1321,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	}
 
 	if (pci->version >= 0x480A) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
-		atu_base = devm_ioremap_resource(dev, res);
+		atu_base = devm_platform_ioremap_resource_byname(pdev, "atu");
 		if (IS_ERR(atu_base)) {
 			ret = PTR_ERR(atu_base);
 			goto err_get_sync;

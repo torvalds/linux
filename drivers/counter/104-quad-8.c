@@ -1554,7 +1554,6 @@ static int quad8_probe(struct device *dev, unsigned int id)
 	indio_dev->num_channels = ARRAY_SIZE(quad8_channels);
 	indio_dev->channels = quad8_channels;
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 
 	/* Initialize Counter device and driver data */
 	quad8iio = iio_priv(indio_dev);

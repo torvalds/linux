@@ -35,8 +35,10 @@ properties:
     description: label associated with this uart
 
   st,hw-flow-ctrl:
-    description: enable hardware flow control
+    description: enable hardware flow control (deprecated)
     $ref: /schemas/types.yaml#/definitions/flag
+
+  uart-has-rtscts: true
 
   dmas:
     minItems: 1

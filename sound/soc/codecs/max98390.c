@@ -678,7 +678,7 @@ static const struct snd_kcontrol_new max98390_dai_controls =
 
 static const struct snd_soc_dapm_widget max98390_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
-		MAX98390_R203A_AMP_EN, 0, 0, max98390_dac_event,
+		SND_SOC_NOPM, 0, 0, max98390_dac_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
 		&max98390_dai_controls),
@@ -790,7 +790,7 @@ static int max98390_dsm_init(struct snd_soc_component *component)
 	param_start_addr = (dsm_param[0] & 0xff) | (dsm_param[1] & 0xff) << 8;
 	param_size = (dsm_param[2] & 0xff) | (dsm_param[3] & 0xff) << 8;
 	if (param_size > MAX98390_DSM_PARAM_MAX_SIZE ||
-		param_start_addr < DSM_STBASS_HPF_B0_BYTE0 ||
+		param_start_addr < MAX98390_IRQ_CTRL ||
 		fw->size < param_size + MAX98390_DSM_PAYLOAD_OFFSET) {
 		dev_err(component->dev,
 			"param fw is invalid.\n");
@@ -842,6 +842,20 @@ static int max98390_dsm_calibrate(struct snd_soc_component *component)
 	return 0;
 }
 
+static void max98390_init_regs(struct snd_soc_component *component)
+{
+	struct max98390_priv *max98390 =
+		snd_soc_component_get_drvdata(component);
+
+	regmap_write(max98390->regmap, MAX98390_CLK_MON, 0x6f);
+	regmap_write(max98390->regmap, MAX98390_DAT_MON, 0x00);
+	regmap_write(max98390->regmap, MAX98390_PWR_GATE_CTL, 0x00);
+	regmap_write(max98390->regmap, MAX98390_PCM_RX_EN_A, 0x03);
+	regmap_write(max98390->regmap, MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0e);
+	regmap_write(max98390->regmap, MAX98390_BOOST_BYPASS1, 0x46);
+	regmap_write(max98390->regmap, MAX98390_FET_SCALING3, 0x03);
+}
+
 static int max98390_probe(struct snd_soc_component *component)
 {
 	struct max98390_priv *max98390 =
@@ -850,21 +864,13 @@ static int max98390_probe(struct snd_soc_component *component)
 	regmap_write(max98390->regmap, MAX98390_SOFTWARE_RESET, 0x01);
 	/* Sleep reset settle time */
 	msleep(20);
+
+	/* Amp init setting */
+	max98390_init_regs(component);
 	/* Update dsm bin param */
 	max98390_dsm_init(component);
 
-	/* Amp Setting */
-	regmap_write(max98390->regmap, MAX98390_CLK_MON, 0x6f);
-	regmap_write(max98390->regmap, MAX98390_PCM_RX_EN_A, 0x03);
-	regmap_write(max98390->regmap, MAX98390_PWR_GATE_CTL, 0x2d);
-	regmap_write(max98390->regmap, MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0e);
-	regmap_write(max98390->regmap, MAX98390_BOOST_BYPASS1, 0x46);
-	regmap_write(max98390->regmap, MAX98390_FET_SCALING3, 0x03);
-
 	/* Dsm Setting */
-	regmap_write(max98390->regmap, DSM_VOL_CTRL, 0x94);
-	regmap_write(max98390->regmap, DSMIG_EN, 0x19);
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x80);
 	if (max98390->ref_rdc_value) {
 		regmap_write(max98390->regmap, DSM_TPROT_RECIP_RDC_ROOM_BYTE0,
 			max98390->ref_rdc_value & 0x000000ff);
@@ -937,14 +943,6 @@ static const struct regmap_config max98390_regmap = {
 	.volatile_reg	  = max98390_volatile_reg,
 	.cache_type       = REGCACHE_RBTREE,
 };
-
-#ifdef CONFIG_OF
-static const struct of_device_id max98390_dt_ids[] = {
-	{ .compatible = "maxim,max98390", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, max98390_dt_ids);
-#endif
 
 static int max98390_i2c_probe(struct i2c_client *i2c,
 		const struct i2c_device_id *id)

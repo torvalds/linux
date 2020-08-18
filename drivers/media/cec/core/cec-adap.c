@@ -1306,7 +1306,6 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 
 	las->log_addr[idx] = log_addr;
 	las->log_addr_mask |= 1 << log_addr;
-	adap->phys_addrs[log_addr] = adap->phys_addr;
 	return 1;
 }
 
@@ -1324,7 +1323,6 @@ static void cec_adap_unconfigure(struct cec_adapter *adap)
 	adap->log_addrs.log_addr_mask = 0;
 	adap->is_configuring = false;
 	adap->is_configured = false;
-	memset(adap->phys_addrs, 0xff, sizeof(adap->phys_addrs));
 	cec_flush(adap);
 	wake_up_interruptible(&adap->kthread_waitq);
 	cec_post_state_event(adap);
@@ -1974,8 +1972,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	case CEC_MSG_REPORT_PHYSICAL_ADDR: {
 		u16 pa = (msg->msg[2] << 8) | msg->msg[3];
 
-		if (!from_unregistered)
-			adap->phys_addrs[init_laddr] = pa;
 		dprintk(1, "reported physical address %x.%x.%x.%x for logical address %d\n",
 			cec_phys_addr_exp(pa), init_laddr);
 		break;

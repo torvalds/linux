@@ -33,4 +33,4 @@ tas2552: tas2552@41 {
 };
 
 For more product information please see the link below:
-http://www.ti.com/product/TAS2552
+https://www.ti.com/product/TAS2552

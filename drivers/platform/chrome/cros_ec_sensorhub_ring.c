@@ -419,9 +419,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 			 * Disable filtering since we might add more jitter
 			 * if b is in a random point in time.
 			 */
-			new_timestamp = fifo_timestamp -
-					fifo_info->timestamp  * 1000 +
-					in->timestamp * 1000;
+			new_timestamp = c - b * 1000 + a * 1000;
 			/*
 			 * The timestamp can be stale if we had to use the fifo
 			 * info timestamp.
@@ -675,29 +673,22 @@ done_with_this_batch:
  * cros_ec_sensor_ring_spread_add_legacy: Calculate proper timestamps then
  * add to ringbuffer (legacy).
  *
- * Note: This assumes we're running old firmware, where every sample's timestamp
- * is after the sample. Run if tight_timestamps == false.
- *
- * If there is a sample with a proper timestamp
+ * Note: This assumes we're running old firmware, where timestamp
+ * is inserted after its sample(s)e. There can be several samples between
+ * timestamps, so several samples can have the same timestamp.
  *
  *                        timestamp | count
  *                        -----------------
- * older_unprocess_out --> TS1      | 1
- *                         TS1      | 2
- *                out -->  TS1      | 3
- *           next_out -->  TS2      |
+ *          1st sample --> TS1      | 1
+ *                         TS2      | 2
+ *                         TS2      | 3
+ *                         TS3      | 4
+ *           last_out -->
  *
- * We spread time for the samples [older_unprocess_out .. out]
- * between TS1 and TS2: [TS1+1/4, TS1+2/4, TS1+3/4, TS2].
  *
- * If we reach the end of the samples, we compare with the
- * current timestamp:
+ * We spread time for the samples using perod p = (current - TS1)/4.
+ * between TS1 and TS2: [TS1+p/4, TS1+2p/4, TS1+3p/4, current_timestamp].
  *
- * older_unprocess_out --> TS1      | 1
- *                         TS1      | 2
- *                 out --> TS1      | 3
- *
- * We know have [TS1+1/3, TS1+2/3, current timestamp]
  */
 static void
 cros_ec_sensor_ring_spread_add_legacy(struct cros_ec_sensorhub *sensorhub,
@@ -710,58 +701,37 @@ cros_ec_sensor_ring_spread_add_legacy(struct cros_ec_sensorhub *sensorhub,
 	int i;
 
 	for_each_set_bit(i, &sensor_mask, sensorhub->sensor_num) {
-		s64 older_timestamp;
 		s64 timestamp;
-		struct cros_ec_sensors_ring_sample *older_unprocess_out =
-			sensorhub->ring;
-		struct cros_ec_sensors_ring_sample *next_out;
-		int count = 1;
+		int count = 0;
+		s64 time_period;
 
-		for (out = sensorhub->ring; out < last_out; out = next_out) {
-			s64 time_period;
-
-			next_out = out + 1;
+		for (out = sensorhub->ring; out < last_out; out++) {
 			if (out->sensor_id != i)
 				continue;
 
 			/* Timestamp to start with */
-			older_timestamp = out->timestamp;
-
-			/* Find next sample. */
-			while (next_out < last_out && next_out->sensor_id != i)
-				next_out++;
-
-			if (next_out >= last_out) {
-				timestamp = current_timestamp;
-			} else {
-				timestamp = next_out->timestamp;
-				if (timestamp == older_timestamp) {
-					count++;
-					continue;
-				}
-			}
-
-			/*
-			 * The next sample has a new timestamp, spread the
-			 * unprocessed samples.
-			 */
-			if (next_out < last_out)
-				count++;
-			time_period = div_s64(timestamp - older_timestamp,
-					      count);
-
-			for (; older_unprocess_out <= out;
-					older_unprocess_out++) {
-				if (older_unprocess_out->sensor_id != i)
-					continue;
-				older_timestamp += time_period;
-				older_unprocess_out->timestamp =
-					older_timestamp;
-			}
+			timestamp = out->timestamp;
+			out++;
 			count = 1;
-			/* The next_out sample has a valid timestamp, skip. */
-			next_out++;
-			older_unprocess_out = next_out;
+			break;
+		}
+		for (; out < last_out; out++) {
+			/* Find last sample. */
+			if (out->sensor_id != i)
+				continue;
+			count++;
+		}
+		if (count == 0)
+			continue;
+
+		/* Spread uniformly between the first and last samples. */
+		time_period = div_s64(current_timestamp - timestamp, count);
+
+		for (out = sensorhub->ring; out < last_out; out++) {
+			if (out->sensor_id != i)
+				continue;
+			timestamp += time_period;
+			out->timestamp = timestamp;
 		}
 	}
 

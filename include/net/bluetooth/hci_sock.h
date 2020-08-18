@@ -31,8 +31,8 @@
 #define HCI_TIME_STAMP	3
 
 /* CMSG flags */
-#define HCI_CMSG_DIR	0x0001
-#define HCI_CMSG_TSTAMP	0x0002
+#define HCI_CMSG_DIR	0x01
+#define HCI_CMSG_TSTAMP	0x02
 
 struct sockaddr_hci {
 	sa_family_t    hci_family;

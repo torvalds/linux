@@ -912,7 +912,7 @@ int __init early_dbgp_init(char *s)
 
 static void early_dbgp_write(struct console *con, const char *str, u32 n)
 {
-	int chunk, ret;
+	int chunk;
 	char buf[DBGP_MAX_PACKET];
 	int use_cr = 0;
 	u32 cmd, ctrl;
@@ -951,8 +951,8 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 			buf[chunk] = *str;
 		}
 		if (chunk > 0) {
-			ret = dbgp_bulk_write(USB_DEBUG_DEVNUM,
-				      dbgp_endpoint_out, buf, chunk);
+			dbgp_bulk_write(USB_DEBUG_DEVNUM,
+					dbgp_endpoint_out, buf, chunk);
 		}
 	}
 	if (unlikely(reset_run)) {

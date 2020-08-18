@@ -69,7 +69,11 @@ struct xdp_sock {
 	spinlock_t tx_completion_lock;
 	/* Protects generic receive. */
 	spinlock_t rx_lock;
+
+	/* Statistics */
 	u64 rx_dropped;
+	u64 rx_queue_full;
+
 	struct list_head map_list;
 	/* Protects map_list */
 	spinlock_t map_list_lock;

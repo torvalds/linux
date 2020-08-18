@@ -285,8 +285,9 @@ config INTEL_IDMA64
 config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
 	depends on PCI && X86_64
+	depends on PCI_MSI
+	depends on SBITMAP
 	select DMA_ENGINE
-	select SBITMAP
 	help
 	  Enable support for the Intel(R) data accelerators present
 	  in Intel Xeon CPU.

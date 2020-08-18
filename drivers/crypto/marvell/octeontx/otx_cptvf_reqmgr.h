@@ -92,10 +92,10 @@ union otx_cpt_ctrl_info {
 union otx_cpt_iq_cmd_word0 {
 	u64 u64;
 	struct {
-		u16 opcode;
-		u16 param1;
-		u16 param2;
-		u16 dlen;
+		__be16 opcode;
+		__be16 param1;
+		__be16 param2;
+		__be16 dlen;
 	} s;
 };
 
@@ -123,16 +123,16 @@ struct otx_cpt_sglist_component {
 	union {
 		u64 len;
 		struct {
-			u16 len0;
-			u16 len1;
-			u16 len2;
-			u16 len3;
+			__be16 len0;
+			__be16 len1;
+			__be16 len2;
+			__be16 len3;
 		} s;
 	} u;
-	u64 ptr0;
-	u64 ptr1;
-	u64 ptr2;
-	u64 ptr3;
+	__be64 ptr0;
+	__be64 ptr1;
+	__be64 ptr2;
+	__be64 ptr3;
 };
 
 struct otx_cpt_pending_entry {
@@ -215,7 +215,7 @@ static inline void do_request_cleanup(struct pci_dev *pdev,
 						 DMA_BIDIRECTIONAL);
 		}
 	}
-	kzfree(info);
+	kfree_sensitive(info);
 }
 
 struct otx_cptvf_wqe;

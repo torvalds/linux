@@ -189,6 +189,7 @@ static struct xdp_buff_xsk *__xp_alloc(struct xsk_buff_pool *pool)
 
 	for (;;) {
 		if (!xskq_cons_peek_addr_unchecked(pool->fq, &addr)) {
+			pool->fq->queue_empty_descs++;
 			xp_release(xskb);
 			return NULL;
 		}

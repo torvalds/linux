@@ -13,4 +13,4 @@ ccflags-$(CONFIG_VIDEO_TI_VPE_DEBUG) += -DDEBUG
 
 obj-$(CONFIG_VIDEO_TI_CAL) += ti-cal.o
 
-ti-cal-y := cal.o
+ti-cal-y := cal.o cal-camerarx.o cal-video.o

@@ -304,7 +304,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ssicr |= CR_SWS_MASTER | CR_SCK_MASTER;
 		break;
 	default:
-		pr_debug("ssi: invalid master/slave configuration\n");
+		pr_debug("ssi: invalid master/secondary configuration\n");
 		return -EINVAL;
 	}
 

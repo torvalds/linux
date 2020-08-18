@@ -198,6 +198,15 @@ static const struct regulator_ops rpm_bob_ops = {
 	.set_voltage = rpm_reg_set_voltage,
 };
 
+static const struct regulator_ops rpm_mp5496_ops = {
+	.enable = rpm_reg_enable,
+	.disable = rpm_reg_disable,
+	.is_enabled = rpm_reg_is_enabled,
+	.list_voltage = regulator_list_voltage_linear_range,
+
+	.set_voltage = rpm_reg_set_voltage,
+};
+
 static const struct regulator_desc pma8084_hfsmps = {
 	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000,  0,  95, 12500),
@@ -474,15 +483,6 @@ static const struct regulator_desc pmi8994_bby = {
 	.ops = &rpm_bob_ops,
 };
 
-static const struct regulator_desc pmi8994_boost = {
-	.linear_ranges = (struct linear_range[]) {
-		REGULATOR_LINEAR_RANGE(4000000, 0, 30, 50000),
-	},
-	.n_linear_ranges = 1,
-	.n_voltages = 31,
-	.ops = &rpm_smps_ldo_ops,
-};
-
 static const struct regulator_desc pm8998_ftsmps = {
 	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(320000, 0, 258, 4000),
@@ -595,12 +595,36 @@ static const struct regulator_desc pms405_pldo600 = {
 	.ops = &rpm_smps_ldo_ops,
 };
 
+static const struct regulator_desc mp5496_smpa2 = {
+	.linear_ranges = (struct linear_range[]) {
+		REGULATOR_LINEAR_RANGE(725000, 0, 27, 12500),
+	},
+	.n_linear_ranges = 1,
+	.n_voltages = 28,
+	.ops = &rpm_mp5496_ops,
+};
+
+static const struct regulator_desc mp5496_ldoa2 = {
+	.linear_ranges = (struct linear_range[]) {
+		REGULATOR_LINEAR_RANGE(1800000, 0, 60, 25000),
+	},
+	.n_linear_ranges = 1,
+	.n_voltages = 61,
+	.ops = &rpm_mp5496_ops,
+};
+
 struct rpm_regulator_data {
 	const char *name;
 	u32 type;
 	u32 id;
 	const struct regulator_desc *desc;
 	const char *supply;
+};
+
+static const struct rpm_regulator_data rpm_mp5496_regulators[] = {
+	{ "s2", QCOM_SMD_RPM_SMPA, 2, &mp5496_smpa2, "s2" },
+	{ "l2", QCOM_SMD_RPM_LDOA, 2, &mp5496_ldoa2, "l2" },
+	{}
 };
 
 static const struct rpm_regulator_data rpm_pm8841_regulators[] = {
@@ -901,6 +925,7 @@ static const struct rpm_regulator_data rpm_pms405_regulators[] = {
 };
 
 static const struct of_device_id rpm_of_match[] = {
+	{ .compatible = "qcom,rpm-mp5496-regulators", .data = &rpm_mp5496_regulators },
 	{ .compatible = "qcom,rpm-pm8841-regulators", .data = &rpm_pm8841_regulators },
 	{ .compatible = "qcom,rpm-pm8916-regulators", .data = &rpm_pm8916_regulators },
 	{ .compatible = "qcom,rpm-pm8941-regulators", .data = &rpm_pm8941_regulators },

@@ -515,7 +515,7 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 	dev_dbg(component->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
 
 	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
+	img = kmemdup(&fw->data[0], fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
 		ret = -ENOMEM;
 		goto abort2;
@@ -526,8 +526,6 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 		ret = -ENOMEM;
 		goto abort1;
 	}
-
-	memcpy(img, &fw->data[0], fw->size);
 
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));

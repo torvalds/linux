@@ -2,7 +2,7 @@
 /*
  * tas5720.h - ALSA SoC Texas Instruments TAS5720 Mono Audio Amplifier
  *
- * Copyright (C)2015-2016 Texas Instruments Incorporated -  http://www.ti.com
+ * Copyright (C)2015-2016 Texas Instruments Incorporated -  https://www.ti.com
  *
  * Author: Andreas Dannenberg <dannenberg@ti.com>
  */

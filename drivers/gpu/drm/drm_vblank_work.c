@@ -248,9 +248,6 @@ EXPORT_SYMBOL(drm_vblank_work_init);
 
 int drm_vblank_worker_init(struct drm_vblank_crtc *vblank)
 {
-	struct sched_param param = {
-		.sched_priority = MAX_RT_PRIO - 1,
-	};
 	struct kthread_worker *worker;
 
 	INIT_LIST_HEAD(&vblank->pending_work);
@@ -263,5 +260,6 @@ int drm_vblank_worker_init(struct drm_vblank_crtc *vblank)
 
 	vblank->worker = worker;
 
-	return sched_setscheduler(vblank->worker->task, SCHED_FIFO, &param);
+	sched_set_fifo(worker->task);
+	return 0;
 }

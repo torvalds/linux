@@ -21,13 +21,13 @@
 
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
 
-enum count_cache_flush_type {
-	COUNT_CACHE_FLUSH_NONE	= 0x1,
-	COUNT_CACHE_FLUSH_SW	= 0x2,
-	COUNT_CACHE_FLUSH_HW	= 0x4,
+enum branch_cache_flush_type {
+	BRANCH_CACHE_FLUSH_NONE	= 0x1,
+	BRANCH_CACHE_FLUSH_SW	= 0x2,
+	BRANCH_CACHE_FLUSH_HW	= 0x4,
 };
-static enum count_cache_flush_type count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
-static bool link_stack_flush_enabled;
+static enum branch_cache_flush_type count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
+static enum branch_cache_flush_type link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
 
 bool barrier_nospec_enabled;
 static bool no_nospec;
@@ -219,22 +219,23 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		if (ccd)
 			seq_buf_printf(&s, "Indirect branch cache disabled");
 
-		if (link_stack_flush_enabled)
-			seq_buf_printf(&s, ", Software link stack flush");
-
-	} else if (count_cache_flush_type != COUNT_CACHE_FLUSH_NONE) {
+	} else if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
 		seq_buf_printf(&s, "Mitigation: Software count cache flush");
 
-		if (count_cache_flush_type == COUNT_CACHE_FLUSH_HW)
+		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW)
 			seq_buf_printf(&s, " (hardware accelerated)");
-
-		if (link_stack_flush_enabled)
-			seq_buf_printf(&s, ", Software link stack flush");
 
 	} else if (btb_flush_enabled) {
 		seq_buf_printf(&s, "Mitigation: Branch predictor state flush");
 	} else {
 		seq_buf_printf(&s, "Vulnerable");
+	}
+
+	if (bcs || ccd || count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
+		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_NONE)
+			seq_buf_printf(&s, ", Software link stack flush");
+		if (link_stack_flush_type == BRANCH_CACHE_FLUSH_HW)
+			seq_buf_printf(&s, " (hardware accelerated)");
 	}
 
 	seq_buf_printf(&s, "\n");
@@ -427,61 +428,79 @@ static __init int stf_barrier_debugfs_init(void)
 device_initcall(stf_barrier_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
-static void no_count_cache_flush(void)
+static void update_branch_cache_flush(void)
 {
-	count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
-	pr_info("count-cache-flush: software flush disabled.\n");
-}
-
-static void toggle_count_cache_flush(bool enable)
-{
-	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE) &&
-	    !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK))
-		enable = false;
-
-	if (!enable) {
-		patch_instruction_site(&patch__call_flush_count_cache,
-				       ppc_inst(PPC_INST_NOP));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
 		patch_instruction_site(&patch__call_kvm_flush_link_stack,
 				       ppc_inst(PPC_INST_NOP));
-#endif
-		pr_info("link-stack-flush: software flush disabled.\n");
-		link_stack_flush_enabled = false;
-		no_count_cache_flush();
-		return;
+	} else {
+		// Could use HW flush, but that could also flush count cache
+		patch_branch_site(&patch__call_kvm_flush_link_stack,
+				  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
 	}
-
-	// This enables the branch from _switch to flush_count_cache
-	patch_branch_site(&patch__call_flush_count_cache,
-			  (u64)&flush_count_cache, BRANCH_SET_LINK);
-
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	// This enables the branch from guest_exit_cont to kvm_flush_link_stack
-	patch_branch_site(&patch__call_kvm_flush_link_stack,
-			  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
 #endif
 
-	pr_info("link-stack-flush: software flush enabled.\n");
-	link_stack_flush_enabled = true;
+	// This controls the branch from _switch to flush_branch_caches
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
+	    link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+		patch_instruction_site(&patch__call_flush_branch_caches,
+				       ppc_inst(PPC_INST_NOP));
+	} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW &&
+		   link_stack_flush_type == BRANCH_CACHE_FLUSH_HW) {
+		patch_instruction_site(&patch__call_flush_branch_caches,
+				       ppc_inst(PPC_INST_BCCTR_FLUSH));
+	} else {
+		patch_branch_site(&patch__call_flush_branch_caches,
+				  (u64)&flush_branch_caches, BRANCH_SET_LINK);
 
-	// If we just need to flush the link stack, patch an early return
-	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
-		patch_instruction_site(&patch__flush_link_stack_return,
-				       ppc_inst(PPC_INST_BLR));
-		no_count_cache_flush();
-		return;
+		// If we just need to flush the link stack, early return
+		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+			patch_instruction_site(&patch__flush_link_stack_return,
+					       ppc_inst(PPC_INST_BLR));
+
+		// If we have flush instruction, early return
+		} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW) {
+			patch_instruction_site(&patch__flush_count_cache_return,
+					       ppc_inst(PPC_INST_BLR));
+		}
+	}
+}
+
+static void toggle_branch_cache_flush(bool enable)
+{
+	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
+		if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE)
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
+
+		pr_info("count-cache-flush: flush disabled.\n");
+	} else {
+		if (security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_HW;
+			pr_info("count-cache-flush: hardware flush enabled.\n");
+		} else {
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_SW;
+			pr_info("count-cache-flush: software flush enabled.\n");
+		}
 	}
 
-	if (!security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
-		count_cache_flush_type = COUNT_CACHE_FLUSH_SW;
-		pr_info("count-cache-flush: full software flush sequence enabled.\n");
-		return;
+	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK)) {
+		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_NONE)
+			link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
+
+		pr_info("link-stack-flush: flush disabled.\n");
+	} else {
+		if (security_ftr_enabled(SEC_FTR_BCCTR_LINK_FLUSH_ASSIST)) {
+			link_stack_flush_type = BRANCH_CACHE_FLUSH_HW;
+			pr_info("link-stack-flush: hardware flush enabled.\n");
+		} else {
+			link_stack_flush_type = BRANCH_CACHE_FLUSH_SW;
+			pr_info("link-stack-flush: software flush enabled.\n");
+		}
 	}
 
-	patch_instruction_site(&patch__flush_count_cache_return, ppc_inst(PPC_INST_BLR));
-	count_cache_flush_type = COUNT_CACHE_FLUSH_HW;
-	pr_info("count-cache-flush: hardware assisted flush sequence enabled\n");
+	update_branch_cache_flush();
 }
 
 void setup_count_cache_flush(void)
@@ -505,7 +524,7 @@ void setup_count_cache_flush(void)
 	    security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE))
 		security_ftr_set(SEC_FTR_FLUSH_LINK_STACK);
 
-	toggle_count_cache_flush(enable);
+	toggle_branch_cache_flush(enable);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -520,14 +539,14 @@ static int count_cache_flush_set(void *data, u64 val)
 	else
 		return -EINVAL;
 
-	toggle_count_cache_flush(enable);
+	toggle_branch_cache_flush(enable);
 
 	return 0;
 }
 
 static int count_cache_flush_get(void *data, u64 *val)
 {
-	if (count_cache_flush_type == COUNT_CACHE_FLUSH_NONE)
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE)
 		*val = 0;
 	else
 		*val = 1;

@@ -10,6 +10,7 @@ Required properties:
     * "ti,bq25895"
     * "ti,bq25896"
 - reg: integer, i2c address of the device.
+- interrupts: interrupt line;
 - ti,battery-regulation-voltage: integer, maximum charging voltage (in uV);
 - ti,charge-current: integer, maximum charging current (in uA);
 - ti,termination-current: integer, charge will be terminated when current in
@@ -36,17 +37,20 @@ Optional properties:
 Example:
 
 bq25890 {
-        compatible = "ti,bq25890";
-        reg = <0x6a>;
+	compatible = "ti,bq25890";
+	reg = <0x6a>;
 
-        ti,battery-regulation-voltage = <4200000>;
-        ti,charge-current = <1000000>;
-        ti,termination-current = <50000>;
-        ti,precharge-current = <128000>;
-        ti,minimum-sys-voltage = <3600000>;
-        ti,boost-voltage = <5000000>;
-        ti,boost-max-current = <1000000>;
+	interrupt-parent = <&gpio1>;
+	interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 
-        ti,use-ilim-pin;
-        ti,thermal-regulation-threshold = <120>;
+	ti,battery-regulation-voltage = <4200000>;
+	ti,charge-current = <1000000>;
+	ti,termination-current = <50000>;
+	ti,precharge-current = <128000>;
+	ti,minimum-sys-voltage = <3600000>;
+	ti,boost-voltage = <5000000>;
+	ti,boost-max-current = <1000000>;
+
+	ti,use-ilim-pin;
+	ti,thermal-regulation-threshold = <120>;
 };

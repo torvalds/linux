@@ -5,7 +5,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 
-#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
+#include <asm-generic/pgalloc.h>
 
 /*      
  * Allocate and free page tables. The xxx_kernel() versions are
@@ -33,24 +33,5 @@ pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 }
 
 extern pgd_t *pgd_alloc(struct mm_struct *mm);
-
-static inline void
-pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long)pgd);
-}
-
-static inline pmd_t *
-pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	pmd_t *ret = (pmd_t *)__get_free_page(GFP_PGTABLE_USER);
-	return ret;
-}
-
-static inline void
-pmd_free(struct mm_struct *mm, pmd_t *pmd)
-{
-	free_page((unsigned long)pmd);
-}
 
 #endif /* _ALPHA_PGALLOC_H */

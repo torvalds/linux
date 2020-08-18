@@ -1,7 +1,9 @@
 Atmel AT91SAM9260 Real Time Timer
 
 Required properties:
-- compatible: should be: "atmel,at91sam9260-rtt"
+- compatible: should be one of the following:
+	- "atmel,at91sam9260-rtt"
+	- "microchip,sam9x60-rtt", "atmel,at91sam9260-rtt"
 - reg: should encode the memory region of the RTT controller
 - interrupts: rtt alarm/event interrupt
 - clocks: should contain the 32 KHz slow clk that will drive the RTT block.

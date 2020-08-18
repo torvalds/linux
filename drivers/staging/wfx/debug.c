@@ -334,6 +334,28 @@ static const struct file_operations wfx_send_hif_msg_fops = {
 	.read = wfx_send_hif_msg_read,
 };
 
+static int wfx_ps_timeout_set(void *data, u64 val)
+{
+	struct wfx_dev *wdev = (struct wfx_dev *)data;
+	struct wfx_vif *wvif;
+
+	wdev->force_ps_timeout = val;
+	wvif = NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+		wfx_update_pm(wvif);
+	return 0;
+}
+
+static int wfx_ps_timeout_get(void *data, u64 *val)
+{
+	struct wfx_dev *wdev = (struct wfx_dev *)data;
+
+	*val = wdev->force_ps_timeout;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(wfx_ps_timeout_fops, wfx_ps_timeout_get, wfx_ps_timeout_set, "%lld\n");
+
 int wfx_debug_init(struct wfx_dev *wdev)
 {
 	struct dentry *d;
@@ -348,6 +370,7 @@ int wfx_debug_init(struct wfx_dev *wdev)
 			    &wfx_burn_slk_key_fops);
 	debugfs_create_file("send_hif_msg", 0600, d, wdev,
 			    &wfx_send_hif_msg_fops);
+	debugfs_create_file("ps_timeout", 0600, d, wdev, &wfx_ps_timeout_fops);
 
 	return 0;
 }

@@ -25,6 +25,7 @@
 #include <net/protocol.h>
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
+#include <net/ip6_checksum.h>
 #include <net/arp.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
@@ -183,6 +184,250 @@ int iptunnel_handle_offloads(struct sk_buff *skb,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
+
+/**
+ * iptunnel_pmtud_build_icmp() - Build ICMP error message for PMTUD
+ * @skb:	Original packet with L2 header
+ * @mtu:	MTU value for ICMP error
+ *
+ * Return: length on success, negative error code if message couldn't be built.
+ */
+static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
+{
+	const struct iphdr *iph = ip_hdr(skb);
+	struct icmphdr *icmph;
+	struct iphdr *niph;
+	struct ethhdr eh;
+	int len, err;
+
+	if (!pskb_may_pull(skb, ETH_HLEN + sizeof(struct iphdr)))
+		return -EINVAL;
+
+	skb_copy_bits(skb, skb_mac_offset(skb), &eh, ETH_HLEN);
+	pskb_pull(skb, ETH_HLEN);
+	skb_reset_network_header(skb);
+
+	err = pskb_trim(skb, 576 - sizeof(*niph) - sizeof(*icmph));
+	if (err)
+		return err;
+
+	len = skb->len + sizeof(*icmph);
+	err = skb_cow(skb, sizeof(*niph) + sizeof(*icmph) + ETH_HLEN);
+	if (err)
+		return err;
+
+	icmph = skb_push(skb, sizeof(*icmph));
+	*icmph = (struct icmphdr) {
+		.type			= ICMP_DEST_UNREACH,
+		.code			= ICMP_FRAG_NEEDED,
+		.checksum		= 0,
+		.un.frag.__unused	= 0,
+		.un.frag.mtu		= ntohs(mtu),
+	};
+	icmph->checksum = ip_compute_csum(icmph, len);
+	skb_reset_transport_header(skb);
+
+	niph = skb_push(skb, sizeof(*niph));
+	*niph = (struct iphdr) {
+		.ihl			= sizeof(*niph) / 4u,
+		.version 		= 4,
+		.tos 			= 0,
+		.tot_len		= htons(len + sizeof(*niph)),
+		.id			= 0,
+		.frag_off		= htons(IP_DF),
+		.ttl			= iph->ttl,
+		.protocol		= IPPROTO_ICMP,
+		.saddr			= iph->daddr,
+		.daddr			= iph->saddr,
+	};
+	ip_send_check(niph);
+	skb_reset_network_header(skb);
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	skb_reset_mac_header(skb);
+
+	return skb->len;
+}
+
+/**
+ * iptunnel_pmtud_check_icmp() - Trigger ICMP reply if needed and allowed
+ * @skb:	Buffer being sent by encapsulation, L2 headers expected
+ * @mtu:	Network MTU for path
+ *
+ * Return: 0 for no ICMP reply, length if built, negative value on error.
+ */
+static int iptunnel_pmtud_check_icmp(struct sk_buff *skb, int mtu)
+{
+	const struct icmphdr *icmph = icmp_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
+
+	if (mtu <= 576 || iph->frag_off != htons(IP_DF))
+		return 0;
+
+	if (ipv4_is_lbcast(iph->daddr)  || ipv4_is_multicast(iph->daddr) ||
+	    ipv4_is_zeronet(iph->saddr) || ipv4_is_loopback(iph->saddr)  ||
+	    ipv4_is_lbcast(iph->saddr)  || ipv4_is_multicast(iph->saddr))
+		return 0;
+
+	if (iph->protocol == IPPROTO_ICMP && icmp_is_err(icmph->type))
+		return 0;
+
+	return iptunnel_pmtud_build_icmp(skb, mtu);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+/**
+ * iptunnel_pmtud_build_icmpv6() - Build ICMPv6 error message for PMTUD
+ * @skb:	Original packet with L2 header
+ * @mtu:	MTU value for ICMPv6 error
+ *
+ * Return: length on success, negative error code if message couldn't be built.
+ */
+static int iptunnel_pmtud_build_icmpv6(struct sk_buff *skb, int mtu)
+{
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	struct icmp6hdr *icmp6h;
+	struct ipv6hdr *nip6h;
+	struct ethhdr eh;
+	int len, err;
+	__wsum csum;
+
+	if (!pskb_may_pull(skb, ETH_HLEN + sizeof(struct ipv6hdr)))
+		return -EINVAL;
+
+	skb_copy_bits(skb, skb_mac_offset(skb), &eh, ETH_HLEN);
+	pskb_pull(skb, ETH_HLEN);
+	skb_reset_network_header(skb);
+
+	err = pskb_trim(skb, IPV6_MIN_MTU - sizeof(*nip6h) - sizeof(*icmp6h));
+	if (err)
+		return err;
+
+	len = skb->len + sizeof(*icmp6h);
+	err = skb_cow(skb, sizeof(*nip6h) + sizeof(*icmp6h) + ETH_HLEN);
+	if (err)
+		return err;
+
+	icmp6h = skb_push(skb, sizeof(*icmp6h));
+	*icmp6h = (struct icmp6hdr) {
+		.icmp6_type		= ICMPV6_PKT_TOOBIG,
+		.icmp6_code		= 0,
+		.icmp6_cksum		= 0,
+		.icmp6_mtu		= htonl(mtu),
+	};
+	skb_reset_transport_header(skb);
+
+	nip6h = skb_push(skb, sizeof(*nip6h));
+	*nip6h = (struct ipv6hdr) {
+		.priority		= 0,
+		.version		= 6,
+		.flow_lbl		= { 0 },
+		.payload_len		= htons(len),
+		.nexthdr		= IPPROTO_ICMPV6,
+		.hop_limit		= ip6h->hop_limit,
+		.saddr			= ip6h->daddr,
+		.daddr			= ip6h->saddr,
+	};
+	skb_reset_network_header(skb);
+
+	csum = csum_partial(icmp6h, len, 0);
+	icmp6h->icmp6_cksum = csum_ipv6_magic(&nip6h->saddr, &nip6h->daddr, len,
+					      IPPROTO_ICMPV6, csum);
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	skb_reset_mac_header(skb);
+
+	return skb->len;
+}
+
+/**
+ * iptunnel_pmtud_check_icmpv6() - Trigger ICMPv6 reply if needed and allowed
+ * @skb:	Buffer being sent by encapsulation, L2 headers expected
+ * @mtu:	Network MTU for path
+ *
+ * Return: 0 for no ICMPv6 reply, length if built, negative value on error.
+ */
+static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
+{
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	int stype = ipv6_addr_type(&ip6h->saddr);
+	u8 proto = ip6h->nexthdr;
+	__be16 frag_off;
+	int offset;
+
+	if (mtu <= IPV6_MIN_MTU)
+		return 0;
+
+	if (stype == IPV6_ADDR_ANY || stype == IPV6_ADDR_MULTICAST ||
+	    stype == IPV6_ADDR_LOOPBACK)
+		return 0;
+
+	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &proto,
+				  &frag_off);
+	if (offset < 0 || (frag_off & htons(~0x7)))
+		return 0;
+
+	if (proto == IPPROTO_ICMPV6) {
+		struct icmp6hdr *icmp6h;
+
+		if (!pskb_may_pull(skb, skb_network_header(skb) +
+					offset + 1 - skb->data))
+			return 0;
+
+		icmp6h = (struct icmp6hdr *)(skb_network_header(skb) + offset);
+		if (icmpv6_is_err(icmp6h->icmp6_type) ||
+		    icmp6h->icmp6_type == NDISC_REDIRECT)
+			return 0;
+	}
+
+	return iptunnel_pmtud_build_icmpv6(skb, mtu);
+}
+#endif /* IS_ENABLED(CONFIG_IPV6) */
+
+/**
+ * skb_tunnel_check_pmtu() - Check, update PMTU and trigger ICMP reply as needed
+ * @skb:	Buffer being sent by encapsulation, L2 headers expected
+ * @encap_dst:	Destination for tunnel encapsulation (outer IP)
+ * @headroom:	Encapsulation header size, bytes
+ * @reply:	Build matching ICMP or ICMPv6 message as a result
+ *
+ * L2 tunnel implementations that can carry IP and can be directly bridged
+ * (currently UDP tunnels) can't always rely on IP forwarding paths to handle
+ * PMTU discovery. In the bridged case, ICMP or ICMPv6 messages need to be built
+ * based on payload and sent back by the encapsulation itself.
+ *
+ * For routable interfaces, we just need to update the PMTU for the destination.
+ *
+ * Return: 0 if ICMP error not needed, length if built, negative value on error
+ */
+int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
+			  int headroom, bool reply)
+{
+	u32 mtu = dst_mtu(encap_dst) - headroom;
+
+	if ((skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu)) ||
+	    (!skb_is_gso(skb) && (skb->len - skb_mac_header_len(skb)) <= mtu))
+		return 0;
+
+	skb_dst_update_pmtu_no_confirm(skb, mtu);
+
+	if (!reply || skb->pkt_type == PACKET_HOST)
+		return 0;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		return iptunnel_pmtud_check_icmp(skb, mtu);
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (skb->protocol == htons(ETH_P_IPV6))
+		return iptunnel_pmtud_check_icmpv6(skb, mtu);
+#endif
+	return 0;
+}
+EXPORT_SYMBOL(skb_tunnel_check_pmtu);
 
 /* Often modified stats are per cpu, other are shared (netdev->stats) */
 void ip_tunnel_get_stats64(struct net_device *dev,

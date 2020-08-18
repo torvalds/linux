@@ -9,9 +9,9 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX20751.pdf
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20751.pdf
 
-    Application note: http://pdfserv.maximintegrated.com/en/an/AN5941.pdf
+    Application note: https://pdfserv.maximintegrated.com/en/an/AN5941.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
 

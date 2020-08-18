@@ -1432,6 +1432,7 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 
 static struct notifier_block pnd2_mce_dec = {
 	.notifier_call	= pnd2_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 #ifdef CONFIG_EDAC_DEBUG

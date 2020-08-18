@@ -156,7 +156,7 @@ static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 	struct hlist_node *tmp;
 	int i;
 
-	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
+	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hnode) {
 		hash_del(&mac->hnode);
 		kfree(mac);
 	}
@@ -285,7 +285,6 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_clear_ipacmd_list(card);
 		qeth_drain_output_queues(card);
-		cancel_delayed_work_sync(&card->buffer_reclaim_work);
 		card->state = CARD_STATE_DOWN;
 	}
 
@@ -438,7 +437,7 @@ static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
 	u32 mac_hash = get_unaligned((u32 *)(&ha->addr[2]));
 	struct qeth_mac *mac;
 
-	hash_for_each_possible(card->mac_htable, mac, hnode, mac_hash) {
+	hash_for_each_possible(card->rx_mode_addrs, mac, hnode, mac_hash) {
 		if (ether_addr_equal_64bits(ha->addr, mac->mac_addr)) {
 			mac->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 			return;
@@ -452,7 +451,7 @@ static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
 	ether_addr_copy(mac->mac_addr, ha->addr);
 	mac->disp_flag = QETH_DISP_ADDR_ADD;
 
-	hash_add(card->mac_htable, &mac->hnode, mac_hash);
+	hash_add(card->rx_mode_addrs, &mac->hnode, mac_hash);
 }
 
 static void qeth_l2_rx_mode_work(struct work_struct *work)
@@ -475,7 +474,7 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 		qeth_l2_add_mac(card, ha);
 	netif_addr_unlock_bh(dev);
 
-	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
+	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hnode) {
 		switch (mac->disp_flag) {
 		case QETH_DISP_ADDR_DELETE:
 			qeth_l2_remove_mac(card, mac->mac_addr);
@@ -601,7 +600,6 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 			return rc;
 	}
 
-	hash_init(card->mac_htable);
 	INIT_WORK(&card->rx_mode_work, qeth_l2_rx_mode_work);
 	return 0;
 }
@@ -1142,6 +1140,10 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 	int extrasize;
 
 	QETH_CARD_TEXT(card, 2, "brstchng");
+	if (qports->num_entries == 0) {
+		QETH_CARD_TEXT(card, 2, "BPempty");
+		return;
+	}
 	if (qports->entry_length != sizeof(struct qeth_sbp_port_entry)) {
 		QETH_CARD_TEXT_(card, 2, "BPsz%04x", qports->entry_length);
 		return;

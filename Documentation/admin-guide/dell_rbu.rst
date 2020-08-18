@@ -26,7 +26,7 @@ Please go to  http://support.dell.com register and you can find info on
 OpenManage and Dell Update packages (DUP).
 
 Libsmbios can also be used to update BIOS on Dell systems go to
-http://linux.dell.com/libsmbios/ for details.
+https://linux.dell.com/libsmbios/ for details.
 
 Dell_RBU driver supports BIOS update using the monolithic image and packetized
 image methods. In case of monolithic the driver allocates a contiguous chunk

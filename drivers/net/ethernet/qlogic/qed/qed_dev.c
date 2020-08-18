@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -3994,8 +3968,9 @@ unlock_and_exit:
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
+	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities, fld;
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
+	struct qed_mcp_link_speed_params *ext_speed;
 	struct qed_mcp_link_capabilities *p_caps;
 	struct qed_mcp_link_params *link;
 
@@ -4020,37 +3995,21 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
 		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_2X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X50G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_1X100G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X10G_F:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X10G_E:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X20G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X40G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X10G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X10G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
-		break;
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X25G:
-		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X25G;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_2X50G_R1:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_4X50G_R1:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_1X100G_R2:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_2X100G_R2:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_1X100G_R4:
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);
@@ -4068,8 +4027,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	link_temp &= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_MASK;
 	link->speed.advertised_speeds = link_temp;
 
-	link_temp = link->speed.advertised_speeds;
-	p_hwfn->mcp_info->link_capabilities.speed_capabilities = link_temp;
+	p_caps->speed_capabilities = link->speed.advertised_speeds;
 
 	link_temp = qed_rd(p_hwfn, p_ptt,
 			   port_cfg_addr +
@@ -4104,18 +4062,39 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
 	}
 
-	p_hwfn->mcp_info->link_capabilities.default_speed_autoneg =
-		link->speed.autoneg;
+	p_caps->default_speed_autoneg = link->speed.autoneg;
 
-	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
-	link_temp >>= NVM_CFG1_PORT_DRV_FLOW_CONTROL_OFFSET;
-	link->pause.autoneg = !!(link_temp &
-				 NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
-	link->pause.forced_rx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
-	link->pause.forced_tx = !!(link_temp &
-				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
+	fld = GET_MFW_FIELD(link_temp, NVM_CFG1_PORT_DRV_FLOW_CONTROL);
+	link->pause.autoneg = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
+	link->pause.forced_rx = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
+	link->pause.forced_tx = !!(fld & NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
 	link->loopback_mode = 0;
+
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (GET_MFW_FIELD(link_temp,
+				      NVM_CFG1_PORT_FEC_FORCE_MODE)) {
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_NONE:
+			p_caps->fec_default |= QED_FEC_MODE_NONE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_FIRECODE:
+			p_caps->fec_default |= QED_FEC_MODE_FIRECODE;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_RS:
+			p_caps->fec_default |= QED_FEC_MODE_RS;
+			break;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_AUTO:
+			p_caps->fec_default |= QED_FEC_MODE_AUTO;
+			break;
+		default:
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "unknown FEC mode in 0x%08x\n", link_temp);
+		}
+	} else {
+		p_caps->fec_default = QED_FEC_MODE_UNSUPPORTED;
+	}
+
+	link->fec = p_caps->fec_default;
 
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
 		link_temp = qed_rd(p_hwfn, p_ptt, port_cfg_addr +
@@ -4148,14 +4127,97 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_caps->default_eee = QED_MCP_EEE_UNSUPPORTED;
 	}
 
-	DP_VERBOSE(p_hwfn,
-		   NETIF_MSG_LINK,
-		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x EEE: %02x [%08x usec]\n",
-		   link->speed.forced_speed,
-		   link->speed.advertised_speeds,
-		   link->speed.autoneg,
-		   link->pause.autoneg,
-		   p_caps->default_eee, p_caps->eee_lpi_timer);
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
+		ext_speed = &link->ext_speed;
+
+		link_temp = qed_rd(p_hwfn, p_ptt,
+				   port_cfg_addr +
+				   offsetof(struct nvm_cfg1_port,
+					    extended_speed));
+
+		fld = GET_MFW_FIELD(link_temp, NVM_CFG1_PORT_EXTENDED_SPEED);
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_AN)
+			ext_speed->autoneg = true;
+
+		ext_speed->forced_speed = 0;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_1G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_1G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_10G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_10G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_20G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_20G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_25G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_25G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_40G)
+			ext_speed->forced_speed |= QED_EXT_SPEED_40G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_50G_R)
+			ext_speed->forced_speed |= QED_EXT_SPEED_50G_R;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_50G_R2)
+			ext_speed->forced_speed |= QED_EXT_SPEED_50G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_R2)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_R4)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_R4;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_EXTND_SPD_100G_P4)
+			ext_speed->forced_speed |= QED_EXT_SPEED_100G_P4;
+
+		fld = GET_MFW_FIELD(link_temp,
+				    NVM_CFG1_PORT_EXTENDED_SPEED_CAP);
+
+		ext_speed->advertised_speeds = 0;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_RESERVED)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_RES;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_1G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_1G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_10G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_10G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_20G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_20G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_25G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_25G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_40G)
+			ext_speed->advertised_speeds |= QED_EXT_SPEED_MASK_40G;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_50G_R)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_50G_R;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_50G_R2)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_50G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_R2)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_R2;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_R4)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_R4;
+		if (fld & NVM_CFG1_PORT_EXTENDED_SPEED_CAP_EXTND_SPD_100G_P4)
+			ext_speed->advertised_speeds |=
+				QED_EXT_SPEED_MASK_100G_P4;
+
+		link_temp = qed_rd(p_hwfn, p_ptt,
+				   port_cfg_addr +
+				   offsetof(struct nvm_cfg1_port,
+					    extended_fec_mode));
+		link->ext_fec_mode = link_temp;
+
+		p_caps->default_ext_speed_caps = ext_speed->advertised_speeds;
+		p_caps->default_ext_speed = ext_speed->forced_speed;
+		p_caps->default_ext_autoneg = ext_speed->autoneg;
+		p_caps->default_ext_fec = link->ext_fec_mode;
+
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Read default extended link config: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, FEC: 0x%02x\n",
+			   ext_speed->forced_speed,
+			   ext_speed->advertised_speeds, ext_speed->autoneg,
+			   p_caps->default_ext_fec);
+	}
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x, EEE: 0x%02x [0x%08x usec], FEC: 0x%02x\n",
+		   link->speed.forced_speed, link->speed.advertised_speeds,
+		   link->speed.autoneg, link->pause.autoneg,
+		   p_caps->default_eee, p_caps->eee_lpi_timer,
+		   p_caps->fec_default);
 
 	if (IS_LEAD_HWFN(p_hwfn)) {
 		struct qed_dev *cdev = p_hwfn->cdev;
@@ -4652,279 +4714,6 @@ void qed_hw_remove(struct qed_dev *cdev)
 	qed_iov_free_hw_info(cdev);
 
 	qed_mcp_nvm_info_free(p_hwfn);
-}
-
-static void qed_chain_free_next_ptr(struct qed_dev *cdev,
-				    struct qed_chain *p_chain)
-{
-	void *p_virt = p_chain->p_virt_addr, *p_virt_next = NULL;
-	dma_addr_t p_phys = p_chain->p_phys_addr, p_phys_next = 0;
-	struct qed_chain_next *p_next;
-	u32 size, i;
-
-	if (!p_virt)
-		return;
-
-	size = p_chain->elem_size * p_chain->usable_per_page;
-
-	for (i = 0; i < p_chain->page_cnt; i++) {
-		if (!p_virt)
-			break;
-
-		p_next = (struct qed_chain_next *)((u8 *)p_virt + size);
-		p_virt_next = p_next->next_virt;
-		p_phys_next = HILO_DMA_REGPAIR(p_next->next_phys);
-
-		dma_free_coherent(&cdev->pdev->dev,
-				  QED_CHAIN_PAGE_SIZE, p_virt, p_phys);
-
-		p_virt = p_virt_next;
-		p_phys = p_phys_next;
-	}
-}
-
-static void qed_chain_free_single(struct qed_dev *cdev,
-				  struct qed_chain *p_chain)
-{
-	if (!p_chain->p_virt_addr)
-		return;
-
-	dma_free_coherent(&cdev->pdev->dev,
-			  QED_CHAIN_PAGE_SIZE,
-			  p_chain->p_virt_addr, p_chain->p_phys_addr);
-}
-
-static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
-{
-	struct addr_tbl_entry *pp_addr_tbl = p_chain->pbl.pp_addr_tbl;
-	u32 page_cnt = p_chain->page_cnt, i, pbl_size;
-
-	if (!pp_addr_tbl)
-		return;
-
-	for (i = 0; i < page_cnt; i++) {
-		if (!pp_addr_tbl[i].virt_addr || !pp_addr_tbl[i].dma_map)
-			break;
-
-		dma_free_coherent(&cdev->pdev->dev,
-				  QED_CHAIN_PAGE_SIZE,
-				  pp_addr_tbl[i].virt_addr,
-				  pp_addr_tbl[i].dma_map);
-	}
-
-	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-
-	if (!p_chain->b_external_pbl)
-		dma_free_coherent(&cdev->pdev->dev,
-				  pbl_size,
-				  p_chain->pbl_sp.p_virt_table,
-				  p_chain->pbl_sp.p_phys_table);
-
-	vfree(p_chain->pbl.pp_addr_tbl);
-	p_chain->pbl.pp_addr_tbl = NULL;
-}
-
-void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain)
-{
-	switch (p_chain->mode) {
-	case QED_CHAIN_MODE_NEXT_PTR:
-		qed_chain_free_next_ptr(cdev, p_chain);
-		break;
-	case QED_CHAIN_MODE_SINGLE:
-		qed_chain_free_single(cdev, p_chain);
-		break;
-	case QED_CHAIN_MODE_PBL:
-		qed_chain_free_pbl(cdev, p_chain);
-		break;
-	}
-}
-
-static int
-qed_chain_alloc_sanity_check(struct qed_dev *cdev,
-			     enum qed_chain_cnt_type cnt_type,
-			     size_t elem_size, u32 page_cnt)
-{
-	u64 chain_size = ELEMS_PER_PAGE(elem_size) * page_cnt;
-
-	/* The actual chain size can be larger than the maximal possible value
-	 * after rounding up the requested elements number to pages, and after
-	 * taking into acount the unusuable elements (next-ptr elements).
-	 * The size of a "u16" chain can be (U16_MAX + 1) since the chain
-	 * size/capacity fields are of a u32 type.
-	 */
-	if ((cnt_type == QED_CHAIN_CNT_TYPE_U16 &&
-	     chain_size > ((u32)U16_MAX + 1)) ||
-	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 && chain_size > U32_MAX)) {
-		DP_NOTICE(cdev,
-			  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
-			  chain_size);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int
-qed_chain_alloc_next_ptr(struct qed_dev *cdev, struct qed_chain *p_chain)
-{
-	void *p_virt = NULL, *p_virt_prev = NULL;
-	dma_addr_t p_phys = 0;
-	u32 i;
-
-	for (i = 0; i < p_chain->page_cnt; i++) {
-		p_virt = dma_alloc_coherent(&cdev->pdev->dev,
-					    QED_CHAIN_PAGE_SIZE,
-					    &p_phys, GFP_KERNEL);
-		if (!p_virt)
-			return -ENOMEM;
-
-		if (i == 0) {
-			qed_chain_init_mem(p_chain, p_virt, p_phys);
-			qed_chain_reset(p_chain);
-		} else {
-			qed_chain_init_next_ptr_elem(p_chain, p_virt_prev,
-						     p_virt, p_phys);
-		}
-
-		p_virt_prev = p_virt;
-	}
-	/* Last page's next element should point to the beginning of the
-	 * chain.
-	 */
-	qed_chain_init_next_ptr_elem(p_chain, p_virt_prev,
-				     p_chain->p_virt_addr,
-				     p_chain->p_phys_addr);
-
-	return 0;
-}
-
-static int
-qed_chain_alloc_single(struct qed_dev *cdev, struct qed_chain *p_chain)
-{
-	dma_addr_t p_phys = 0;
-	void *p_virt = NULL;
-
-	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
-				    QED_CHAIN_PAGE_SIZE, &p_phys, GFP_KERNEL);
-	if (!p_virt)
-		return -ENOMEM;
-
-	qed_chain_init_mem(p_chain, p_virt, p_phys);
-	qed_chain_reset(p_chain);
-
-	return 0;
-}
-
-static int
-qed_chain_alloc_pbl(struct qed_dev *cdev,
-		    struct qed_chain *p_chain,
-		    struct qed_chain_ext_pbl *ext_pbl)
-{
-	u32 page_cnt = p_chain->page_cnt, size, i;
-	dma_addr_t p_phys = 0, p_pbl_phys = 0;
-	struct addr_tbl_entry *pp_addr_tbl;
-	u8 *p_pbl_virt = NULL;
-	void *p_virt = NULL;
-
-	size = page_cnt * sizeof(*pp_addr_tbl);
-	pp_addr_tbl =  vzalloc(size);
-	if (!pp_addr_tbl)
-		return -ENOMEM;
-
-	/* The allocation of the PBL table is done with its full size, since it
-	 * is expected to be successive.
-	 * qed_chain_init_pbl_mem() is called even in a case of an allocation
-	 * failure, since tbl was previously allocated, and it
-	 * should be saved to allow its freeing during the error flow.
-	 */
-	size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-
-	if (!ext_pbl) {
-		p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
-						size, &p_pbl_phys, GFP_KERNEL);
-	} else {
-		p_pbl_virt = ext_pbl->p_pbl_virt;
-		p_pbl_phys = ext_pbl->p_pbl_phys;
-		p_chain->b_external_pbl = true;
-	}
-
-	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys, pp_addr_tbl);
-	if (!p_pbl_virt)
-		return -ENOMEM;
-
-	for (i = 0; i < page_cnt; i++) {
-		p_virt = dma_alloc_coherent(&cdev->pdev->dev,
-					    QED_CHAIN_PAGE_SIZE,
-					    &p_phys, GFP_KERNEL);
-		if (!p_virt)
-			return -ENOMEM;
-
-		if (i == 0) {
-			qed_chain_init_mem(p_chain, p_virt, p_phys);
-			qed_chain_reset(p_chain);
-		}
-
-		/* Fill the PBL table with the physical address of the page */
-		*(dma_addr_t *)p_pbl_virt = p_phys;
-		/* Keep the virtual address of the page */
-		p_chain->pbl.pp_addr_tbl[i].virt_addr = p_virt;
-		p_chain->pbl.pp_addr_tbl[i].dma_map = p_phys;
-
-		p_pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
-	}
-
-	return 0;
-}
-
-int qed_chain_alloc(struct qed_dev *cdev,
-		    enum qed_chain_use_mode intended_use,
-		    enum qed_chain_mode mode,
-		    enum qed_chain_cnt_type cnt_type,
-		    u32 num_elems,
-		    size_t elem_size,
-		    struct qed_chain *p_chain,
-		    struct qed_chain_ext_pbl *ext_pbl)
-{
-	u32 page_cnt;
-	int rc = 0;
-
-	if (mode == QED_CHAIN_MODE_SINGLE)
-		page_cnt = 1;
-	else
-		page_cnt = QED_CHAIN_PAGE_CNT(num_elems, elem_size, mode);
-
-	rc = qed_chain_alloc_sanity_check(cdev, cnt_type, elem_size, page_cnt);
-	if (rc) {
-		DP_NOTICE(cdev,
-			  "Cannot allocate a chain with the given arguments:\n");
-		DP_NOTICE(cdev,
-			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
-			  intended_use, mode, cnt_type, num_elems, elem_size);
-		return rc;
-	}
-
-	qed_chain_init_params(p_chain, page_cnt, (u8) elem_size, intended_use,
-			      mode, cnt_type);
-
-	switch (mode) {
-	case QED_CHAIN_MODE_NEXT_PTR:
-		rc = qed_chain_alloc_next_ptr(cdev, p_chain);
-		break;
-	case QED_CHAIN_MODE_SINGLE:
-		rc = qed_chain_alloc_single(cdev, p_chain);
-		break;
-	case QED_CHAIN_MODE_PBL:
-		rc = qed_chain_alloc_pbl(cdev, p_chain, ext_pbl);
-		break;
-	}
-	if (rc)
-		goto nomem;
-
-	return 0;
-
-nomem:
-	qed_chain_free(cdev, p_chain);
-	return rc;
 }
 
 int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)

@@ -11,7 +11,7 @@ config MTD_CFI
 	  AMD and other flash manufactures that provides a universal method
 	  for probing the capabilities of flash devices. If you wish to
 	  support any device that is CFI-compliant, you need to enable this
-	  option. Visit <http://www.amd.com/products/nvd/overview/cfi.html>
+	  option. Visit <https://www.amd.com/products/nvd/overview/cfi.html>
 	  for more information on CFI.
 
 config MTD_JEDECPROBE

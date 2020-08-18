@@ -8,8 +8,7 @@
 #define __HAL_VERSION_DEF_H__
 
 /*  HAL_IC_TYPE_E */
-typedef enum tag_HAL_IC_Type_Definition
-{
+typedef enum tag_HAL_IC_Type_Definition {
 	CHIP_8192S	=	0,
 	CHIP_8188C	=	1,
 	CHIP_8192C	=	2,
@@ -23,16 +22,14 @@ typedef enum tag_HAL_IC_Type_Definition
 } HAL_IC_TYPE_E;
 
 /* HAL_CHIP_TYPE_E */
-typedef enum tag_HAL_CHIP_Type_Definition
-{
+typedef enum tag_HAL_CHIP_Type_Definition {
 	TEST_CHIP		=	0,
 	NORMAL_CHIP	=	1,
 	FPGA			=	2,
 } HAL_CHIP_TYPE_E;
 
 /* HAL_CUT_VERSION_E */
-typedef enum tag_HAL_Cut_Version_Definition
-{
+typedef enum tag_HAL_Cut_Version_Definition {
 	A_CUT_VERSION		=	0,
 	B_CUT_VERSION		=	1,
 	C_CUT_VERSION		=	2,
@@ -47,15 +44,13 @@ typedef enum tag_HAL_Cut_Version_Definition
 } HAL_CUT_VERSION_E;
 
 /*  HAL_Manufacturer */
-typedef enum tag_HAL_Manufacturer_Version_Definition
-{
+typedef enum tag_HAL_Manufacturer_Version_Definition {
 	CHIP_VENDOR_TSMC	=	0,
 	CHIP_VENDOR_UMC		=	1,
 	CHIP_VENDOR_SMIC	=	2,
 } HAL_VENDOR_E;
 
-typedef enum tag_HAL_RF_Type_Definition
-{
+typedef enum tag_HAL_RF_Type_Definition {
 	RF_TYPE_1T1R	=	0,
 	RF_TYPE_1T2R	=	1,
 	RF_TYPE_2T2R	=	2,
@@ -66,8 +61,7 @@ typedef enum tag_HAL_RF_Type_Definition
 	RF_TYPE_4T4R	=	7,
 } HAL_RF_TYPE_E;
 
-typedef	struct tag_HAL_VERSION
-{
+typedef	struct tag_HAL_VERSION {
 	HAL_IC_TYPE_E		ICType;
 	HAL_CHIP_TYPE_E		ChipType;
 	HAL_CUT_VERSION_E	CUTVersion;

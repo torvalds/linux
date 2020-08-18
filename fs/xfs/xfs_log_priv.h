@@ -464,9 +464,7 @@ xlog_ticket_alloc(
 	int		unit_bytes,
 	int		count,
 	char		client,
-	bool		permanent,
-	xfs_km_flags_t	alloc_flags);
-
+	bool		permanent);
 
 static inline void
 xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)

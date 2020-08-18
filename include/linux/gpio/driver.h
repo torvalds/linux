@@ -474,6 +474,22 @@ struct gpio_chip {
 extern const char *gpiochip_is_requested(struct gpio_chip *gc,
 			unsigned int offset);
 
+/**
+ * for_each_requested_gpio_in_range - iterates over requested GPIOs in a given range
+ * @chip:	the chip to query
+ * @i:		loop variable
+ * @base:	first GPIO in the range
+ * @size:	amount of GPIOs to check starting from @base
+ * @label:	label of current GPIO
+ */
+#define for_each_requested_gpio_in_range(chip, i, base, size, label)			\
+	for (i = 0; i < size; i++)							\
+		if ((label = gpiochip_is_requested(chip, base + i)) == NULL) {} else
+
+/* Iterates over all requested GPIO of the given @chip */
+#define for_each_requested_gpio(chip, i, label)						\
+	for_each_requested_gpio_in_range(chip, i, 0, chip->ngpio, label)
+
 /* add/remove chips */
 extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 				      struct lock_class_key *lock_key,
@@ -481,25 +497,25 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 /**
  * gpiochip_add_data() - register a gpio_chip
- * @chip: the chip to register, with chip->base initialized
+ * @gc: the chip to register, with gc->base initialized
  * @data: driver-private data associated with this chip
  *
  * Context: potentially before irqs will work
  *
  * When gpiochip_add_data() is called very early during boot, so that GPIOs
- * can be freely used, the chip->parent device must be registered before
+ * can be freely used, the gc->parent device must be registered before
  * the gpio framework's arch_initcall().  Otherwise sysfs initialization
  * for GPIOs will fail rudely.
  *
  * gpiochip_add_data() must only be called after gpiolib initialization,
  * ie after core_initcall().
  *
- * If chip->base is negative, this requests dynamic assignment of
+ * If gc->base is negative, this requests dynamic assignment of
  * a range of valid GPIOs.
  *
  * Returns:
  * A negative errno if the chip can't be registered, such as because the
- * chip->base is invalid or already associated with a different chip.
+ * gc->base is invalid or already associated with a different chip.
  * Otherwise it returns zero as a success code.
  */
 #ifdef CONFIG_LOCKDEP
@@ -509,8 +525,16 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		gpiochip_add_data_with_key(gc, data, &lock_key, \
 					   &request_key);	  \
 	})
+#define devm_gpiochip_add_data(dev, gc, data) ({ \
+		static struct lock_class_key lock_key;	\
+		static struct lock_class_key request_key;	  \
+		devm_gpiochip_add_data_with_key(dev, gc, data, &lock_key, \
+					   &request_key);	  \
+	})
 #else
 #define gpiochip_add_data(gc, data) gpiochip_add_data_with_key(gc, data, NULL, NULL)
+#define devm_gpiochip_add_data(dev, gc, data) \
+	devm_gpiochip_add_data_with_key(dev, gc, data, NULL, NULL)
 #endif /* CONFIG_LOCKDEP */
 
 static inline int gpiochip_add(struct gpio_chip *gc)
@@ -518,8 +542,9 @@ static inline int gpiochip_add(struct gpio_chip *gc)
 	return gpiochip_add_data(gc, NULL);
 }
 extern void gpiochip_remove(struct gpio_chip *gc);
-extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *gc,
-				  void *data);
+extern int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, void *data,
+					   struct lock_class_key *lock_key,
+					   struct lock_class_key *request_key);
 
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *gc, void *data));

@@ -477,7 +477,7 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			       unsigned int size, unsigned int fb_cpp)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_mm_node *uninitialized_var(compressed_llb);
+	struct drm_mm_node *compressed_llb;
 	int ret;
 
 	drm_WARN_ON(&dev_priv->drm,

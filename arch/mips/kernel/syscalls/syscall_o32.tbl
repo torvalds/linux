@@ -164,7 +164,7 @@
 150	o32	unused150			sys_ni_syscall
 151	o32	getsid				sys_getsid
 152	o32	fdatasync			sys_fdatasync
-153	o32	_sysctl				sys_sysctl			compat_sys_sysctl
+153	o32	_sysctl				sys_ni_syscall
 154	o32	mlock				sys_mlock
 155	o32	munlock				sys_munlock
 156	o32	mlockall			sys_mlockall
@@ -184,7 +184,7 @@
 170	o32	connect				sys_connect
 171	o32	getpeername			sys_getpeername
 172	o32	getsockname			sys_getsockname
-173	o32	getsockopt			sys_getsockopt			compat_sys_getsockopt
+173	o32	getsockopt			sys_getsockopt			sys_getsockopt
 174	o32	listen				sys_listen
 175	o32	recv				sys_recv			compat_sys_recv
 176	o32	recvfrom			sys_recvfrom			compat_sys_recvfrom
@@ -192,7 +192,7 @@
 178	o32	send				sys_send
 179	o32	sendmsg				sys_sendmsg			compat_sys_sendmsg
 180	o32	sendto				sys_sendto
-181	o32	setsockopt			sys_setsockopt			compat_sys_setsockopt
+181	o32	setsockopt			sys_setsockopt			sys_setsockopt
 182	o32	shutdown			sys_shutdown
 183	o32	socket				sys_socket
 184	o32	socketpair			sys_socketpair
@@ -423,6 +423,7 @@
 433	o32	fspick				sys_fspick
 434	o32	pidfd_open			sys_pidfd_open
 435	o32	clone3				__sys_clone3
+436	o32	close_range			sys_close_range
 437	o32	openat2				sys_openat2
 438	o32	pidfd_getfd			sys_pidfd_getfd
 439	o32	faccessat2			sys_faccessat2

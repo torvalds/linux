@@ -288,6 +288,7 @@ config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	tristate
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
+	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 
@@ -298,14 +299,14 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
 if SND_SOC_INTEL_APL
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
-	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
+	tristate "Broxton with DA7219 and MAX98357A/MAX98390 in I2S Mode"
 	depends on I2C && ACPI && GPIOLIB
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI
 	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
 	help
 	   This adds support for ASoC machine driver for Broxton-P platforms
-	   with DA7219 + MAX98357A I2S audio codec.
+	   with DA7219 + MAX98357A/MAX98390 I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
@@ -389,7 +390,7 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98927
-	select SND_SOC_MAX98373
+	select SND_SOC_MAX98373_I2C
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	help
@@ -466,7 +467,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
 		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
 		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
-	select SND_SOC_MAX98373
+	select SND_SOC_MAX98373_I2C
 	select SND_SOC_RT1015
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_DMIC
@@ -530,7 +531,7 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
 	select SND_SOC_DA7219
-	select SND_SOC_MAX98373
+	select SND_SOC_MAX98373_I2C
 	select SND_SOC_DMIC
 	help
 	  This adds support for ASoC machine driver for SOF platforms
@@ -564,6 +565,8 @@ config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	depends on SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES || COMPILE_TEST
 	depends on SOUNDWIRE
 	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98373_SDW
 	select SND_SOC_RT700_SDW
 	select SND_SOC_RT711_SDW
 	select SND_SOC_RT1308_SDW
@@ -573,7 +576,7 @@ config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	select SND_SOC_DMIC
         help
 	  Add support for Intel SoundWire-based platforms connected to
-	  RT700, RT711, RT1308 and RT715
+	  MAX98373, RT700, RT711, RT1308 and RT715
 	  If unsure select "N".
 
 endif

@@ -27,7 +27,7 @@
 #define VCPU_R15	__VCPU_REGS_R15 * WORD_SIZE
 #endif
 
-	.text
+.section .noinstr.text, "ax"
 
 /**
  * vmx_vmenter - VM-Enter the current loaded VMCS
@@ -233,6 +233,9 @@ SYM_FUNC_START(__vmx_vcpu_run)
 2:	mov $1, %eax
 	jmp 1b
 SYM_FUNC_END(__vmx_vcpu_run)
+
+
+.section .text, "ax"
 
 /**
  * vmread_error_trampoline - Trampoline from inline asm to vmread_error()

@@ -38,7 +38,7 @@ serverSocket = None
 # create passive socket
 serverSocket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 
-try: serverSocket.bind(('localhost', 0))
+try: serverSocket.bind(('::1', 0))
 except socket.error as msg:
     print('bind fails: ' + str(msg))
 

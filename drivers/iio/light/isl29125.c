@@ -216,36 +216,20 @@ static const struct iio_info isl29125_info = {
 static int isl29125_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct isl29125_data *data = iio_priv(indio_dev);
-	int err;
-
-	err = iio_triggered_buffer_postenable(indio_dev);
-	if (err)
-		return err;
 
 	data->conf1 |= ISL29125_MODE_RGB;
-	err = i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,
+	return i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,
 		data->conf1);
-	if (err) {
-		iio_triggered_buffer_predisable(indio_dev);
-		return err;
-	}
-
-	return 0;
 }
 
 static int isl29125_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct isl29125_data *data = iio_priv(indio_dev);
-	int ret;
 
 	data->conf1 &= ~ISL29125_MODE_MASK;
 	data->conf1 |= ISL29125_MODE_PD;
-	ret = i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,
+	return i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,
 		data->conf1);
-
-	iio_triggered_buffer_predisable(indio_dev);
-
-	return ret;
 }
 
 static const struct iio_buffer_setup_ops isl29125_buffer_setup_ops = {
@@ -268,7 +252,6 @@ static int isl29125_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &isl29125_info;
 	indio_dev->name = ISL29125_DRV_NAME;
 	indio_dev->channels = isl29125_channels;

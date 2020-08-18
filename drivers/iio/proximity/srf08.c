@@ -7,9 +7,9 @@
  * Copyright (c) 2016, 2017 Andreas Klinger <ak@it-klinger.de>
  *
  * For details about the device see:
- * http://www.robot-electronics.co.uk/htm/srf08tech.html
- * http://www.robot-electronics.co.uk/htm/srf10tech.htm
- * http://www.robot-electronics.co.uk/htm/srf02tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf08tech.html
+ * https://www.robot-electronics.co.uk/htm/srf10tech.htm
+ * https://www.robot-electronics.co.uk/htm/srf02tech.htm
  */
 
 #include <linux/err.h>
@@ -483,7 +483,6 @@ static int srf08_probe(struct i2c_client *client,
 	}
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = srf08_channels;
 	indio_dev->num_channels = ARRAY_SIZE(srf08_channels);

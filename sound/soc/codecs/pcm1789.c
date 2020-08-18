@@ -60,7 +60,7 @@ static int pcm1789_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int pcm1789_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int pcm1789_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct pcm1789_private *priv = snd_soc_component_get_drvdata(component);
@@ -167,8 +167,9 @@ static int pcm1789_trigger(struct snd_pcm_substream *substream, int cmd,
 static const struct snd_soc_dai_ops pcm1789_dai_ops = {
 	.set_fmt	= pcm1789_set_dai_fmt,
 	.hw_params	= pcm1789_hw_params,
-	.digital_mute	= pcm1789_digital_mute,
+	.mute_stream	= pcm1789_mute,
 	.trigger	= pcm1789_trigger,
+	.no_capture_mute = 1,
 };
 
 static const DECLARE_TLV_DB_SCALE(pcm1789_dac_tlv, -12000, 50, 1);

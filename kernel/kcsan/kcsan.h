@@ -9,6 +9,7 @@
 #define _KERNEL_KCSAN_KCSAN_H
 
 #include <linux/kcsan.h>
+#include <linux/sched.h>
 
 /* The number of adjacent watchpoints to check. */
 #define KCSAN_CHECK_ADJACENT 1
@@ -21,6 +22,12 @@ extern unsigned int kcsan_udelay_interrupt;
  * Globally enable and disable KCSAN.
  */
 extern bool kcsan_enabled;
+
+/*
+ * Save/restore IRQ flags state trace dirtied by KCSAN.
+ */
+void kcsan_save_irqtrace(struct task_struct *task);
+void kcsan_restore_irqtrace(struct task_struct *task);
 
 /*
  * Initialize debugfs file.

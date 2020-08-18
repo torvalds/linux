@@ -104,7 +104,6 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg wqcfg;
-	atomic_t dq_count;	/* dedicated queue flow control */
 	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
@@ -112,10 +111,8 @@ struct idxd_wq {
 	dma_addr_t compls_addr;
 	int compls_size;
 	struct idxd_desc **descs;
-	struct sbitmap sbmap;
+	struct sbitmap_queue sbq;
 	struct dma_chan dma_chan;
-	struct percpu_rw_semaphore submit_lock;
-	wait_queue_head_t submit_waitq;
 	char name[WQ_NAME_SIZE + 1];
 };
 
@@ -145,6 +142,7 @@ enum idxd_device_state {
 
 enum idxd_device_flag {
 	IDXD_FLAG_CONFIGURABLE = 0,
+	IDXD_FLAG_CMD_RUNNING,
 };
 
 struct idxd_device {
@@ -161,6 +159,7 @@ struct idxd_device {
 	void __iomem *reg_base;
 
 	spinlock_t dev_lock;	/* spinlock for device */
+	struct completion *cmd_done;
 	struct idxd_group *groups;
 	struct idxd_wq *wqs;
 	struct idxd_engine *engines;
@@ -183,12 +182,14 @@ struct idxd_device {
 	int nr_tokens;		/* non-reserved tokens */
 
 	union sw_err_reg sw_err;
-
+	wait_queue_head_t cmd_waitq;
 	struct msix_entry *msix_entries;
 	int num_wq_irqs;
 	struct idxd_irq_entry *irq_entries;
 
 	struct dma_device dma_dev;
+	struct workqueue_struct *wq;
+	struct work_struct work;
 };
 
 /* IDXD software descriptor */
@@ -201,6 +202,7 @@ struct idxd_desc {
 	struct llist_node llnode;
 	struct list_head list;
 	int id;
+	int cpu;
 	struct idxd_wq *wq;
 };
 
@@ -271,14 +273,14 @@ irqreturn_t idxd_wq_thread(int irq, void *data);
 void idxd_mask_error_interrupts(struct idxd_device *idxd);
 void idxd_unmask_error_interrupts(struct idxd_device *idxd);
 void idxd_mask_msix_vectors(struct idxd_device *idxd);
-int idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
-int idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
+void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
+void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
 
 /* device control */
+void idxd_device_init_reset(struct idxd_device *idxd);
 int idxd_device_enable(struct idxd_device *idxd);
 int idxd_device_disable(struct idxd_device *idxd);
-int idxd_device_reset(struct idxd_device *idxd);
-int __idxd_device_reset(struct idxd_device *idxd);
+void idxd_device_reset(struct idxd_device *idxd);
 void idxd_device_cleanup(struct idxd_device *idxd);
 int idxd_device_config(struct idxd_device *idxd);
 void idxd_device_wqs_clear_state(struct idxd_device *idxd);
@@ -288,6 +290,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq);
 void idxd_wq_free_resources(struct idxd_wq *wq);
 int idxd_wq_enable(struct idxd_wq *wq);
 int idxd_wq_disable(struct idxd_wq *wq);
+void idxd_wq_drain(struct idxd_wq *wq);
 int idxd_wq_map_portal(struct idxd_wq *wq);
 void idxd_wq_unmap_portal(struct idxd_wq *wq);
 void idxd_wq_disable_cleanup(struct idxd_wq *wq);
