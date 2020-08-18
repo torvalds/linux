@@ -8594,7 +8594,7 @@ struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
 	struct perf_buffer_params p = {};
 	struct perf_event_attr attr = { 0, };
 
-	attr.config = PERF_COUNT_SW_BPF_OUTPUT,
+	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.sample_type = PERF_SAMPLE_RAW;
 	attr.sample_period = 1;
