@@ -416,6 +416,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
 static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 {
 	char *hw_desc;
+	dma_addr_t dma_desc;
 	int idx;
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *slot = NULL;
@@ -444,9 +445,8 @@ static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 		INIT_LIST_HEAD(&slot->tx_list);
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
-		hw_desc = (char *) iop_chan->device->dma_desc_pool;
-		slot->async_tx.phys =
-			(dma_addr_t) &hw_desc[idx * IOP_ADMA_SLOT_SIZE];
+		dma_desc = iop_chan->device->dma_desc_pool;
+		slot->async_tx.phys = dma_desc + idx * IOP_ADMA_SLOT_SIZE;
 		slot->idx = idx;
 
 		spin_lock_bh(&iop_chan->lock);
@@ -1296,9 +1296,8 @@ static int iop_adma_probe(struct platform_device *pdev)
 		goto err_free_adev;
 	}
 
-	dev_dbg(&pdev->dev, "%s: allocated descriptor pool virt %p phys %p\n",
-		__func__, adev->dma_desc_pool_virt,
-		(void *) adev->dma_desc_pool);
+	dev_dbg(&pdev->dev, "%s: allocated descriptor pool virt %p phys %pad\n",
+		__func__, adev->dma_desc_pool_virt, &adev->dma_desc_pool);
 
 	adev->id = plat_data->hw_id;
 
