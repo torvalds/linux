@@ -76,10 +76,9 @@ module_param(debug, int, 0600);
 
 /**
  *	struct gsm_mux_net	-	network interface
- *	@struct gsm_dlci* dlci
  *
  *	Created when net interface is initialized.
- **/
+ */
 struct gsm_mux_net {
 	struct kref ref;
 	struct gsm_dlci *dlci;
@@ -399,7 +398,7 @@ static inline u8 gsm_fcs_add_block(u8 fcs, u8 *c, int len)
 /**
  *	gsm_read_ea		-	read a byte into an EA
  *	@val: variable holding value
- *	c: byte going into the EA
+ *	@c: byte going into the EA
  *
  *	Processes one byte of an EA. Updates the passed variable
  *	and returns 1 if the EA is now completely read
@@ -513,8 +512,8 @@ static void gsm_print_packet(const char *hdr, int addr, int cr,
 
 /**
  *	gsm_stuff_packet	-	bytestuff a packet
- *	@ibuf: input
- *	@obuf: output
+ *	@input: input buffer
+ *	@output: output buffer
  *	@len: length of input
  *
  *	Expand a buffer by bytestuffing it. The worst case size change
@@ -1304,7 +1303,7 @@ static void gsm_control_transmit(struct gsm_mux *gsm, struct gsm_control *ctrl)
 
 /**
  *	gsm_control_retransmit	-	retransmit a control frame
- *	@data: pointer to our gsm object
+ *	@t: timer contained in our gsm object
  *
  *	Called off the T2 timer expiry in order to retransmit control frames
  *	that have been lost in the system somewhere. The control_lock protects
@@ -1341,7 +1340,7 @@ static void gsm_control_retransmit(struct timer_list *t)
  *	@gsm: the GSM channel
  *	@command: command  to send including CR bit
  *	@data: bytes of data (must be kmalloced)
- *	@len: length of the block to send
+ *	@clen: length of the block to send
  *
  *	Queue and dispatch a control command. Only one command can be
  *	active at a time. In theory more can be outstanding but the matching
@@ -1453,7 +1452,7 @@ static void gsm_dlci_open(struct gsm_dlci *dlci)
 
 /**
  *	gsm_dlci_t1		-	T1 timer expiry
- *	@dlci: DLCI that opened
+ *	@t: timer contained in the DLCI that opened
  *
  *	The T1 timer handles retransmits of control frames (essentially of
  *	SABM and DISC). We resend the command until the retry count runs out
@@ -1549,7 +1548,7 @@ static void gsm_dlci_begin_close(struct gsm_dlci *dlci)
  *	gsm_dlci_data		-	data arrived
  *	@dlci: channel
  *	@data: block of bytes received
- *	@len: length of received block
+ *	@clen: length of received block
  *
  *	A UI or UIH frame has arrived which contains data for a channel
  *	other than the control channel. If the relevant virtual tty is
@@ -1671,7 +1670,7 @@ static struct gsm_dlci *gsm_dlci_alloc(struct gsm_mux *gsm, int addr)
 
 /**
  *	gsm_dlci_free		-	free DLCI
- *	@dlci: DLCI to free
+ *	@port: tty port for DLCI to free
  *
  *	Free up a DLCI.
  *
@@ -2149,7 +2148,7 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 
 /**
  *	gsm_free_mux		-	free up a mux
- *	@mux: mux to free
+ *	@gsm: mux to free
  *
  *	Dispose of allocated resources for a dead mux
  */
@@ -2162,7 +2161,7 @@ static void gsm_free_mux(struct gsm_mux *gsm)
 
 /**
  *	gsm_free_muxr		-	free up a mux
- *	@mux: mux to free
+ *	@ref: kreference to the mux to free
  *
  *	Dispose of allocated resources for a dead mux
  */
