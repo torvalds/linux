@@ -1695,7 +1695,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 			goto out_runtime_pm_put;
 
 		if (ret < 0)
-			dev_err(&pdev->dev, "dma setup error %d, use pio\n",
+			dev_dbg(&pdev->dev, "dma setup error %d, use pio\n",
 				ret);
 	}
 
