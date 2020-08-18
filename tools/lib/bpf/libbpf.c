@@ -4616,13 +4616,24 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 				    const struct bpf_core_spec *spec,
 				    __u32 *val, bool *validate)
 {
-	const struct bpf_core_accessor *acc = &spec->spec[spec->len - 1];
-	const struct btf_type *t = btf__type_by_id(spec->btf, acc->type_id);
+	const struct bpf_core_accessor *acc;
+	const struct btf_type *t;
 	__u32 byte_off, byte_sz, bit_off, bit_sz;
 	const struct btf_member *m;
 	const struct btf_type *mt;
 	bool bitfield;
 	__s64 sz;
+
+	if (relo->kind == BPF_FIELD_EXISTS) {
+		*val = spec ? 1 : 0;
+		return 0;
+	}
+
+	if (!spec)
+		return -EUCLEAN; /* request instruction poisoning */
+
+	acc = &spec->spec[spec->len - 1];
+	t = btf__type_by_id(spec->btf, acc->type_id);
 
 	/* a[n] accessor needs special handling */
 	if (!acc->name) {
@@ -4709,21 +4720,88 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 		break;
 	case BPF_FIELD_EXISTS:
 	default:
-		pr_warn("prog '%s': unknown relo %d at insn #%d\n",
-			bpf_program__title(prog, false),
-			relo->kind, relo->insn_off / 8);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
+}
+
+struct bpf_core_relo_res
+{
+	/* expected value in the instruction, unless validate == false */
+	__u32 orig_val;
+	/* new value that needs to be patched up to */
+	__u32 new_val;
+	/* relocation unsuccessful, poison instruction, but don't fail load */
+	bool poison;
+	/* some relocations can't be validated against orig_val */
+	bool validate;
+};
+
+/* Calculate original and target relocation values, given local and target
+ * specs and relocation kind. These values are calculated for each candidate.
+ * If there are multiple candidates, resulting values should all be consistent
+ * with each other. Otherwise, libbpf will refuse to proceed due to ambiguity.
+ * If instruction has to be poisoned, *poison will be set to true.
+ */
+static int bpf_core_calc_relo(const struct bpf_program *prog,
+			      const struct bpf_core_relo *relo,
+			      int relo_idx,
+			      const struct bpf_core_spec *local_spec,
+			      const struct bpf_core_spec *targ_spec,
+			      struct bpf_core_relo_res *res)
+{
+	int err = -EOPNOTSUPP;
+
+	res->orig_val = 0;
+	res->new_val = 0;
+	res->poison = false;
+	res->validate = true;
+
+	if (core_relo_is_field_based(relo->kind)) {
+		err = bpf_core_calc_field_relo(prog, relo, local_spec, &res->orig_val, &res->validate);
+		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec, &res->new_val, NULL);
+	}
+
+	if (err == -EUCLEAN) {
+		/* EUCLEAN is used to signal instruction poisoning request */
+		res->poison = true;
+		err = 0;
+	} else if (err == -EOPNOTSUPP) {
+		/* EOPNOTSUPP means unknown/unsupported relocation */
+		pr_warn("prog '%s': relo #%d: unrecognized CO-RE relocation %s (%d) at insn #%d\n",
+			bpf_program__title(prog, false), relo_idx,
+			core_relo_kind_str(relo->kind), relo->kind, relo->insn_off / 8);
+	}
+
+	return err;
+}
+
+/*
+ * Turn instruction for which CO_RE relocation failed into invalid one with
+ * distinct signature.
+ */
+static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
+				 int insn_idx, struct bpf_insn *insn)
+{
+	pr_debug("prog '%s': relo #%d: substituting insn #%d w/ invalid insn\n",
+		 bpf_program__title(prog, false), relo_idx, insn_idx);
+	insn->code = BPF_JMP | BPF_CALL;
+	insn->dst_reg = 0;
+	insn->src_reg = 0;
+	insn->off = 0;
+	/* if this instruction is reachable (not a dead code),
+	 * verifier will complain with the following message:
+	 * invalid func unknown#195896080
+	 */
+	insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
 }
 
 /*
  * Patch relocatable BPF instruction.
  *
  * Patched value is determined by relocation kind and target specification.
- * For field existence relocation target spec will be NULL if field is not
- * found.
+ * For existence relocations target spec will be NULL if field/type is not found.
  * Expected insn->imm value is determined using relocation kind and local
  * spec, and is checked before patching instruction. If actual insn->imm value
  * is wrong, bail out with error.
@@ -4732,16 +4810,14 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
  * 1. rX = <imm> (assignment with immediate operand);
  * 2. rX += <imm> (arithmetic operations with immediate operand);
  */
-static int bpf_core_reloc_insn(struct bpf_program *prog,
+static int bpf_core_patch_insn(struct bpf_program *prog,
 			       const struct bpf_core_relo *relo,
 			       int relo_idx,
-			       const struct bpf_core_spec *local_spec,
-			       const struct bpf_core_spec *targ_spec)
+			       const struct bpf_core_relo_res *res)
 {
 	__u32 orig_val, new_val;
 	struct bpf_insn *insn;
-	bool validate = true;
-	int insn_idx, err;
+	int insn_idx;
 	__u8 class;
 
 	if (relo->insn_off % sizeof(struct bpf_insn))
@@ -4750,39 +4826,20 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
 
-	if (relo->kind == BPF_FIELD_EXISTS) {
-		orig_val = 1; /* can't generate EXISTS relo w/o local field */
-		new_val = targ_spec ? 1 : 0;
-	} else if (!targ_spec) {
-		pr_debug("prog '%s': relo #%d: substituting insn #%d w/ invalid insn\n",
-			 bpf_program__title(prog, false), relo_idx, insn_idx);
-		insn->code = BPF_JMP | BPF_CALL;
-		insn->dst_reg = 0;
-		insn->src_reg = 0;
-		insn->off = 0;
-		/* if this instruction is reachable (not a dead code),
-		 * verifier will complain with the following message:
-		 * invalid func unknown#195896080
-		 */
-		insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
+	if (res->poison) {
+		bpf_core_poison_insn(prog, relo_idx, insn_idx, insn);
 		return 0;
-	} else {
-		err = bpf_core_calc_field_relo(prog, relo, local_spec,
-					       &orig_val, &validate);
-		if (err)
-			return err;
-		err = bpf_core_calc_field_relo(prog, relo, targ_spec,
-					       &new_val, NULL);
-		if (err)
-			return err;
 	}
+
+	orig_val = res->orig_val;
+	new_val = res->new_val;
 
 	switch (class) {
 	case BPF_ALU:
 	case BPF_ALU64:
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
-		if (validate && insn->imm != orig_val) {
+		if (res->validate && insn->imm != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
 				bpf_program__title(prog, false), relo_idx,
 				insn_idx, insn->imm, orig_val, new_val);
@@ -4797,7 +4854,7 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 	case BPF_LDX:
 	case BPF_ST:
 	case BPF_STX:
-		if (validate && insn->off != orig_val) {
+		if (res->validate && insn->off != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LD/LDX/ST/STX) value: got %u, exp %u -> %u\n",
 				bpf_program__title(prog, false), relo_idx,
 				insn_idx, insn->off, orig_val, new_val);
@@ -4938,6 +4995,7 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	const char *prog_name = bpf_program__title(prog, false);
 	struct bpf_core_spec local_spec, cand_spec, targ_spec;
 	const void *type_key = u32_as_hash_key(relo->type_id);
+	struct bpf_core_relo_res cand_res, targ_res;
 	const struct btf_type *local_type;
 	const char *local_name;
 	struct ids_vec *cand_ids;
@@ -5005,15 +5063,30 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 		if (err == 0)
 			continue;
 
+		err = bpf_core_calc_relo(prog, relo, relo_idx, &local_spec, &cand_spec, &cand_res);
+		if (err)
+			return err;
+
 		if (j == 0) {
+			targ_res = cand_res;
 			targ_spec = cand_spec;
 		} else if (cand_spec.bit_offset != targ_spec.bit_offset) {
-			/* if there are many candidates, they should all
-			 * resolve to the same bit offset
+			/* if there are many field relo candidates, they
+			 * should all resolve to the same bit offset
 			 */
-			pr_warn("prog '%s': relo #%d: offset ambiguity: %u != %u\n",
+			pr_warn("prog '%s': relo #%d: field offset ambiguity: %u != %u\n",
 				prog_name, relo_idx, cand_spec.bit_offset,
 				targ_spec.bit_offset);
+			return -EINVAL;
+		} else if (cand_res.poison != targ_res.poison || cand_res.new_val != targ_res.new_val) {
+			/* all candidates should result in the same relocation
+			 * decision and value, otherwise it's dangerous to
+			 * proceed due to ambiguity
+			 */
+			pr_warn("prog '%s': relo #%d: relocation decision ambiguity: %s %u != %s %u\n",
+				prog_name, relo_idx,
+				cand_res.poison ? "failure" : "success", cand_res.new_val,
+				targ_res.poison ? "failure" : "success", targ_res.new_val);
 			return -EINVAL;
 		}
 
@@ -5042,13 +5115,18 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	 * verifier. If it was an error, then verifier will complain and point
 	 * to a specific instruction number in its log.
 	 */
-	if (j == 0)
+	if (j == 0) {
 		pr_debug("prog '%s': relo #%d: no matching targets found\n",
 			 prog_name, relo_idx);
 
-	/* bpf_core_reloc_insn should know how to handle missing targ_spec */
-	err = bpf_core_reloc_insn(prog, relo, relo_idx, &local_spec,
-				  j ? &targ_spec : NULL);
+		/* calculate single target relo result explicitly */
+		err = bpf_core_calc_relo(prog, relo, relo_idx, &local_spec, NULL, &targ_res);
+		if (err)
+			return err;
+	}
+
+	/* bpf_core_patch_insn() should know how to handle missing targ_spec */
+	err = bpf_core_patch_insn(prog, relo, relo_idx, &targ_res);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: failed to patch insn at offset %d: %d\n",
 			prog_name, relo_idx, relo->insn_off, err);
