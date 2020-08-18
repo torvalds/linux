@@ -739,7 +739,7 @@ static int rkisp_config_path(struct rkisp_device *dev)
 		ret = rkisp_config_dvp(dev);
 		dpcl |= CIF_VI_DPCL_IF_SEL_PARALLEL;
 	} else if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2) ||
-		   dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
+		   dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
 		dpcl |= CIF_VI_DPCL_IF_SEL_MIPI;
 	} else if (dev->isp_inp == INP_DMARX_ISP) {
 		dpcl |= CIF_VI_DPCL_DMA_SW_ISP;
@@ -1624,6 +1624,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	dev = sd_to_isp_dev(sd);
 	if (!dev)
 		return -ENODEV;
+
 	if (!strcmp(remote->entity->name, DMA_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_DMARX];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
@@ -1637,7 +1638,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		}
 	} else if (!strcmp(remote->entity->name, CSI_DEV_NAME)) {
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp & ~(INP_CSI | rawrd))
+			if (dev->isp_inp & ~(INP_CSI | INP_CIF | rawrd))
 				goto err;
 			dev->isp_inp |= INP_CSI;
 		} else {
@@ -1648,7 +1649,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX0_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp & ~(INP_CSI | rawrd))
+			if (dev->isp_inp & ~(INP_CSI | INP_CIF | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD0;
 		} else {
@@ -1657,7 +1658,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX1_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp & ~(INP_CSI | rawrd))
+			if (dev->isp_inp & ~(INP_CSI | INP_CIF | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD1;
 		} else {
@@ -1666,7 +1667,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX2_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp & ~(INP_CSI | rawrd))
+			if (dev->isp_inp & ~(INP_CSI | INP_CIF | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD2;
 		} else {

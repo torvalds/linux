@@ -219,7 +219,7 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 	if (ret < 0)
 		return ret;
 
-	if (dev->isp_inp & (INP_CSI | INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2))
+	if (dev->isp_inp & (INP_CSI | INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF))
 		rkisp_csi_config_patch(dev);
 	return 0;
 }
@@ -302,6 +302,10 @@ static int rkisp_create_links(struct rkisp_device *dev)
 		/* sensor link -> isp */
 		if (type == MEDIA_ENT_F_CAM_SENSOR) {
 			dev->isp_inp = INP_DVP;
+			ret = media_create_pad_link(&sensor->sd->entity, pad,
+				&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
+		} else if (type == MEDIA_ENT_F_PROC_VIDEO_COMPOSER) {
+			dev->isp_inp = INP_CIF;
 			ret = media_create_pad_link(&sensor->sd->entity, pad,
 				&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
 		} else {

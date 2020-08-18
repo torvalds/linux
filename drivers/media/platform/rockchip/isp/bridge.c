@@ -490,7 +490,8 @@ static int bridge_start_stream(struct v4l2_subdev *sd)
 
 	if (dev->ispdev->isp_inp & INP_CSI ||
 	    dev->ispdev->isp_inp & INP_DVP ||
-	    dev->ispdev->isp_inp & INP_LVDS) {
+	    dev->ispdev->isp_inp & INP_LVDS ||
+	    dev->ispdev->isp_inp & INP_CIF) {
 		/* Always update sensor info in case media topology changed */
 		ret = rkisp_update_sensor_info(dev->ispdev);
 		if (ret < 0) {

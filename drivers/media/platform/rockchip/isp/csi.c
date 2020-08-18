@@ -14,7 +14,7 @@
 #include "regs.h"
 
 static void get_remote_mipi_sensor(struct rkisp_device *dev,
-				  struct v4l2_subdev **sensor_sd)
+				  struct v4l2_subdev **sensor_sd, u32 function)
 {
 	struct media_graph graph;
 	struct media_entity *entity = &dev->isp_sdev.sd.entity;
@@ -32,7 +32,7 @@ static void get_remote_mipi_sensor(struct rkisp_device *dev,
 
 	media_graph_walk_start(&graph, entity);
 	while ((entity = media_graph_walk_next(&graph))) {
-		if (entity->function == MEDIA_ENT_F_CAM_SENSOR)
+		if (entity->function == function)
 			break;
 	}
 	mutex_unlock(&mdev->graph_mutex);
@@ -206,7 +206,7 @@ static int csi_config(struct rkisp_csi_device *csi)
 	emd_vc = 0xFF;
 	emd_dt = 0;
 	dev->hdr.sensor = NULL;
-	get_remote_mipi_sensor(dev, &mipi_sensor);
+	get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_CAM_SENSOR);
 	if (mipi_sensor) {
 		ctrl = v4l2_ctrl_find(mipi_sensor->ctrl_handler,
 				      CIFISP_CID_EMB_VC);
@@ -399,25 +399,51 @@ static int csi_config(struct rkisp_csi_device *csi)
 int rkisp_csi_config_patch(struct rkisp_device *dev)
 {
 	int val = 0, ret = 0;
+	struct v4l2_subdev *mipi_sensor;
 
 	if (dev->isp_inp & INP_CSI) {
 		dev->hw_dev->mipi_dev_id = dev->dev_id;
 		ret = csi_config(&dev->csi_dev);
 	} else {
-		switch (dev->isp_inp & 0x7) {
-		case INP_RAWRD2 | INP_RAWRD0:
-			dev->hdr.op_mode = HDR_RDBK_FRAME2;
-			val = SW_HDRMGE_EN |
-				SW_HDRMGE_MODE_FRAMEX2;
-			break;
-		case INP_RAWRD2 | INP_RAWRD1 | INP_RAWRD0:
-			dev->hdr.op_mode = HDR_RDBK_FRAME3;
-			val = SW_HDRMGE_EN |
-				SW_HDRMGE_MODE_FRAMEX3;
-			break;
-		default: //INP_RAWRD2
-			dev->hdr.op_mode = HDR_RDBK_FRAME1;
+		if (dev->isp_inp & INP_CIF) {
+			struct rkmodule_hdr_cfg hdr_cfg;
+
+			get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
+			dev->hdr.op_mode = HDR_NORMAL;
+			dev->hdr.esp_mode = HDR_NORMAL_VC;
+			if (mipi_sensor) {
+				ret = v4l2_subdev_call(mipi_sensor,
+						       core, ioctl,
+						       RKMODULE_GET_HDR_CFG,
+						       &hdr_cfg);
+				if (!ret) {
+					dev->hdr.op_mode = hdr_cfg.hdr_mode;
+					dev->hdr.esp_mode = hdr_cfg.esp.mode;
+				}
+			}
+
+			/* normal read back mode */
+			if (dev->hdr.op_mode == HDR_NORMAL &&
+			    (dev->isp_inp & INP_RAWRD2 || !dev->hw_dev->is_single))
+				dev->hdr.op_mode = HDR_RDBK_FRAME1;
+		} else {
+			switch (dev->isp_inp & 0x7) {
+			case INP_RAWRD2 | INP_RAWRD0:
+				dev->hdr.op_mode = HDR_RDBK_FRAME2;
+				break;
+			case INP_RAWRD2 | INP_RAWRD1 | INP_RAWRD0:
+				dev->hdr.op_mode = HDR_RDBK_FRAME3;
+				break;
+			default: //INP_RAWRD2
+				dev->hdr.op_mode = HDR_RDBK_FRAME1;
+			}
 		}
+
+		if (dev->hdr.op_mode == HDR_RDBK_FRAME2)
+			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
+		else if (dev->hdr.op_mode == HDR_RDBK_FRAME3)
+			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX3;
+
 		if (!dev->hw_dev->is_mi_update)
 			rkisp_write(dev, CSI2RX_CTRL0,
 				    SW_IBUF_OP_MODE(dev->hdr.op_mode), true);

@@ -1812,7 +1812,8 @@ int hdr_update_dmatx_buf(struct rkisp_device *dev)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	    (dev->isp_inp & INP_CIF))
 		return 0;
 
 	dmatx = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
@@ -1877,7 +1878,8 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 	if (atomic_inc_return(&dev->hdr.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	    (dev->isp_inp & INP_CIF))
 		return 0;
 
 	rkisp_create_hdr_buf(dev);
@@ -1910,7 +1912,8 @@ void hdr_stop_dmatx(struct rkisp_device *dev)
 	if (atomic_dec_return(&dev->hdr.refcnt) ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	    (dev->isp_inp & INP_CIF))
 		return;
 
 	if (dev->hdr.op_mode == HDR_FRAMEX2_DDR ||
