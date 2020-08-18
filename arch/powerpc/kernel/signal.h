@@ -34,7 +34,7 @@ unsigned long copy_fpr_to_user(void __user *to, struct task_struct *task);
 unsigned long copy_ckfpr_to_user(void __user *to, struct task_struct *task);
 unsigned long copy_fpr_from_user(struct task_struct *task, void __user *from);
 unsigned long copy_ckfpr_from_user(struct task_struct *task, void __user *from);
-#else
+#elif defined(CONFIG_PPC_FPU_REGS)
 static inline unsigned long
 copy_fpr_to_user(void __user *to, struct task_struct *task)
 {
@@ -63,6 +63,18 @@ copy_ckfpr_from_user(struct task_struct *task, void __user *from)
 				ELF_NFPREG * sizeof(double));
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+#else
+static inline unsigned long
+copy_fpr_to_user(void __user *to, struct task_struct *task)
+{
+	return 0;
+}
+
+static inline unsigned long
+copy_fpr_from_user(struct task_struct *task, void __user *from)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PPC64

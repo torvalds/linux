@@ -218,9 +218,13 @@ config PPC_E500MC
 	  such as e5500/e6500), and must be disabled for running on
 	  e500v1 or e500v2.
 
+config PPC_FPU_REGS
+	bool
+
 config PPC_FPU
 	bool
 	default y if PPC64
+	select PPC_FPU_REGS
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"

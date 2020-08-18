@@ -1190,7 +1190,9 @@ static void parse_fpe(struct pt_regs *regs)
 
 	flush_fp_to_thread(current);
 
+#ifdef CONFIG_PPC_FPU_REGS
 	code = __parse_fpscr(current->thread.fp_state.fpscr);
+#endif
 
 	_exception(SIGFPE, regs, code, regs->nip);
 }

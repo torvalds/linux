@@ -814,7 +814,9 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	}
 	regs->link = tramp;
 
+#ifdef CONFIG_PPC_FPU_REGS
 	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
+#endif
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
@@ -1271,7 +1273,9 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	regs->link = tramp;
 
+#ifdef CONFIG_PPC_FPU_REGS
 	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
+#endif
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
