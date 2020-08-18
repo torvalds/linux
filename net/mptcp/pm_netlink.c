@@ -384,8 +384,8 @@ mptcp_pm_addr_policy[MPTCP_PM_ADDR_ATTR_MAX + 1] = {
 	[MPTCP_PM_ADDR_ATTR_FAMILY]	= { .type	= NLA_U16,	},
 	[MPTCP_PM_ADDR_ATTR_ID]		= { .type	= NLA_U8,	},
 	[MPTCP_PM_ADDR_ATTR_ADDR4]	= { .type	= NLA_U32,	},
-	[MPTCP_PM_ADDR_ATTR_ADDR6]	= { .type	= NLA_EXACT_LEN,
-					    .len   = sizeof(struct in6_addr), },
+	[MPTCP_PM_ADDR_ATTR_ADDR6]	=
+		NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
 	[MPTCP_PM_ADDR_ATTR_PORT]	= { .type	= NLA_U16	},
 	[MPTCP_PM_ADDR_ATTR_FLAGS]	= { .type	= NLA_U32	},
 	[MPTCP_PM_ADDR_ATTR_IF_IDX]     = { .type	= NLA_S32	},

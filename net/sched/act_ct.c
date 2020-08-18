@@ -1039,7 +1039,7 @@ drop:
 
 static const struct nla_policy ct_policy[TCA_CT_MAX + 1] = {
 	[TCA_CT_ACTION] = { .type = NLA_U16 },
-	[TCA_CT_PARMS] = { .type = NLA_EXACT_LEN, .len = sizeof(struct tc_ct) },
+	[TCA_CT_PARMS] = NLA_POLICY_EXACT_LEN(sizeof(struct tc_ct)),
 	[TCA_CT_ZONE] = { .type = NLA_U16 },
 	[TCA_CT_MARK] = { .type = NLA_U32 },
 	[TCA_CT_MARK_MASK] = { .type = NLA_U32 },
@@ -1049,10 +1049,8 @@ static const struct nla_policy ct_policy[TCA_CT_MAX + 1] = {
 				 .len = 128 / BITS_PER_BYTE },
 	[TCA_CT_NAT_IPV4_MIN] = { .type = NLA_U32 },
 	[TCA_CT_NAT_IPV4_MAX] = { .type = NLA_U32 },
-	[TCA_CT_NAT_IPV6_MIN] = { .type = NLA_EXACT_LEN,
-				  .len = sizeof(struct in6_addr) },
-	[TCA_CT_NAT_IPV6_MAX] = { .type = NLA_EXACT_LEN,
-				   .len = sizeof(struct in6_addr) },
+	[TCA_CT_NAT_IPV6_MIN] = NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
+	[TCA_CT_NAT_IPV6_MAX] = NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
 	[TCA_CT_NAT_PORT_MIN] = { .type = NLA_U16 },
 	[TCA_CT_NAT_PORT_MAX] = { .type = NLA_U16 },
 };
