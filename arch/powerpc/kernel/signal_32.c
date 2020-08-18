@@ -58,8 +58,6 @@
 #define mcontext	mcontext32
 #define ucontext	ucontext32
 
-#define __save_altstack __compat_save_altstack
-
 /*
  * Userspace code may pass a ucontext which doesn't include VSX added
  * at the end.  We need to check for this case.
@@ -745,16 +743,28 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_mctx = &frame->uc_transact.uc_mcontext;
 #endif
-	if (!access_ok(frame, sizeof(*frame)))
+	if (!user_write_access_begin(frame, sizeof(*frame)))
 		goto badframe;
 
 	/* Put the siginfo & fill in most of the ucontext */
-	if (copy_siginfo_to_user(&frame->info, &ksig->info) ||
-	    __put_user(0, &frame->uc.uc_flags) ||
-	    __save_altstack(&frame->uc.uc_stack, regs->gpr[1]) ||
-	    __put_user(to_user_ptr(&frame->uc.uc_mcontext), &frame->uc.uc_regs) ||
-	    put_sigset_t(&frame->uc.uc_sigmask, oldset))
-		goto badframe;
+	unsafe_put_user(0, &frame->uc.uc_flags, failed);
+#ifdef CONFIG_PPC64
+	unsafe_compat_save_altstack(&frame->uc.uc_stack, regs->gpr[1], failed);
+#else
+	unsafe_save_altstack(&frame->uc.uc_stack, regs->gpr[1], failed);
+#endif
+	unsafe_put_user(to_user_ptr(&frame->uc.uc_mcontext), &frame->uc.uc_regs, failed);
+
+	if (MSR_TM_ACTIVE(msr)) {
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+		unsafe_put_user((unsigned long)&frame->uc_transact,
+				&frame->uc.uc_link, failed);
+		unsafe_put_user((unsigned long)tm_mctx,
+				&frame->uc_transact.uc_regs, failed);
+#endif
+	} else {
+		unsafe_put_user(0, &frame->uc.uc_link, failed);
+	}
 
 	/* Save user registers on the stack */
 	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
@@ -762,28 +772,28 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
 		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		if (__put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0]))
-			goto badframe;
-		if (__put_user(PPC_INST_SC, &mctx->mc_pad[1]))
-			goto badframe;
-		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
+		unsafe_put_user(PPC_INST_ADDI + __NR_rt_sigreturn, &mctx->mc_pad[0],
+				failed);
+		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
 	}
+	user_write_access_end();
+
+	if (put_sigset_t(&frame->uc.uc_sigmask, oldset))
+		goto badframe;
+	if (copy_siginfo_to_user(&frame->info, &ksig->info))
+		goto badframe;
+
+	if (tramp == (unsigned long)mctx->mc_pad)
+		flush_icache_range(tramp, tramp + 2 * sizeof(unsigned long));
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(msr)) {
-		if (__put_user((unsigned long)&frame->uc_transact,
-			       &frame->uc.uc_link) ||
-		    __put_user((unsigned long)tm_mctx,
-			       &frame->uc_transact.uc_regs))
-			goto badframe;
 		if (save_tm_user_regs(regs, mctx, tm_mctx, msr))
 			goto badframe;
 	}
 	else
 #endif
 	{
-		if (__put_user(0, &frame->uc.uc_link))
-			goto badframe;
 		if (save_user_regs(regs, mctx, tm_mctx, 1))
 			goto badframe;
 	}
@@ -809,6 +819,9 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	regs->msr &= ~MSR_LE;
 	regs->msr |= (MSR_KERNEL & MSR_LE);
 	return 0;
+
+failed:
+	user_write_access_end();
 
 badframe:
 	signal_fault(tsk, regs, "handle_rt_signal32", frame);
