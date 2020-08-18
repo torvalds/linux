@@ -4279,6 +4279,21 @@ static void gfx_v10_0_select_me_pipe_q(struct amdgpu_device *adev,
        nv_grbm_select(adev, me, pipe, q, vm);
  }
 
+static void gfx_v10_0_update_perfmon_mgcg(struct amdgpu_device *adev,
+					  bool enable)
+{
+	uint32_t data, def;
+
+	data = def = RREG32_SOC15(GC, 0, mmRLC_PERFMON_CLK_CNTL);
+
+	if (enable)
+		data |= RLC_PERFMON_CLK_CNTL__PERFMON_CLOCK_STATE_MASK;
+	else
+		data &= ~RLC_PERFMON_CLK_CNTL__PERFMON_CLOCK_STATE_MASK;
+
+	if (data != def)
+		WREG32_SOC15(GC, 0, mmRLC_PERFMON_CLK_CNTL, data);
+}
 
 static const struct amdgpu_gfx_funcs gfx_v10_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v10_0_get_gpu_clock_counter,
@@ -4288,6 +4303,7 @@ static const struct amdgpu_gfx_funcs gfx_v10_0_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v10_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v10_0_select_me_pipe_q,
 	.init_spm_golden = &gfx_v10_0_init_spm_golden_registers,
+	.update_perfmon_mgcg = &gfx_v10_0_update_perfmon_mgcg,
 };
 
 static void gfx_v10_0_gpu_early_init(struct amdgpu_device *adev)
