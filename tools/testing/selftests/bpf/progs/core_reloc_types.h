@@ -809,3 +809,28 @@ struct core_reloc_size___diff_sz {
 	void *ptr_field;
 	enum { OTHER_VALUE = 0xFFFFFFFFFFFFFFFF } enum_field;
 };
+
+/* Error case of two candidates with the fields (int_field) at the same
+ * offset, but with differing final relocation values: size 4 vs size 1
+ */
+struct core_reloc_size___err_ambiguous1 {
+	/* int at offset 0 */
+	int int_field;
+
+	struct { int x; } struct_field;
+	union { int x; } union_field;
+	int arr_field[4];
+	void *ptr_field;
+	enum { VALUE___1 = 123 } enum_field;
+};
+
+struct core_reloc_size___err_ambiguous2 {
+	/* char at offset 0 */
+	char int_field;
+
+	struct { int x; } struct_field;
+	union { int x; } union_field;
+	int arr_field[4];
+	void *ptr_field;
+	enum { VALUE___2 = 123 } enum_field;
+};

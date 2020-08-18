@@ -452,6 +452,7 @@ static struct core_reloc_test_case test_cases[] = {
 	/* size relocation checks */
 	SIZE_CASE(size),
 	SIZE_CASE(size___diff_sz),
+	SIZE_ERR_CASE(size___err_ambiguous),
 };
 
 struct data {
