@@ -274,12 +274,13 @@ static inline enum nvme_disposition nvme_decide_disposition(struct request *req)
 		return COMPLETE;
 
 	if (req->cmd_flags & REQ_NVME_MPATH) {
-		if (nvme_is_path_error(nvme_req(req)->status))
+		if (nvme_is_path_error(nvme_req(req)->status) ||
+		    blk_queue_dying(req->q))
 			return FAILOVER;
+	} else {
+		if (blk_queue_dying(req->q))
+			return COMPLETE;
 	}
-
-	if (blk_queue_dying(req->q))
-		return COMPLETE;
 
 	return RETRY;
 }
