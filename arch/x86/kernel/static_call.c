@@ -11,7 +11,7 @@ enum insn_type {
 	RET = 3,  /* tramp / site cond-tail-call */
 };
 
-static void __static_call_transform(void *insn, enum insn_type type, void *func)
+static void __ref __static_call_transform(void *insn, enum insn_type type, void *func)
 {
 	int size = CALL_INSN_SIZE;
 	const void *code;
@@ -37,6 +37,9 @@ static void __static_call_transform(void *insn, enum insn_type type, void *func)
 
 	if (memcmp(insn, code, size) == 0)
 		return;
+
+	if (unlikely(system_state == SYSTEM_BOOTING))
+		return text_poke_early(insn, code, size);
 
 	text_poke_bp(insn, code, size, NULL);
 }

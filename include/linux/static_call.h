@@ -136,6 +136,8 @@ extern void arch_static_call_transform(void *site, void *tramp, void *func, bool
 
 #ifdef CONFIG_HAVE_STATIC_CALL_INLINE
 
+extern void __init static_call_init(void);
+
 struct static_call_mod {
 	struct static_call_mod *next;
 	struct module *mod; /* for vmlinux, mod == NULL */
@@ -144,7 +146,12 @@ struct static_call_mod {
 
 struct static_call_key {
 	void *func;
-	struct static_call_mod *mods;
+	union {
+		/* bit 0: 0 = mods, 1 = sites */
+		unsigned long type;
+		struct static_call_mod *mods;
+		struct static_call_site *sites;
+	};
 };
 
 extern void __static_call_update(struct static_call_key *key, void *tramp, void *func);
@@ -155,7 +162,7 @@ extern int static_call_text_reserved(void *start, void *end);
 	DECLARE_STATIC_CALL(name, _func);				\
 	struct static_call_key STATIC_CALL_KEY(name) = {		\
 		.func = _func,						\
-		.mods = NULL,						\
+		.type = 1,						\
 	};								\
 	ARCH_DEFINE_STATIC_CALL_TRAMP(name, _func)
 
@@ -179,6 +186,8 @@ extern int static_call_text_reserved(void *start, void *end);
 	EXPORT_SYMBOL_GPL(STATIC_CALL_TRAMP(name))
 
 #elif defined(CONFIG_HAVE_STATIC_CALL)
+
+static inline void static_call_init(void) { }
 
 struct static_call_key {
 	void *func;
@@ -224,6 +233,8 @@ static inline int static_call_text_reserved(void *start, void *end)
 	EXPORT_SYMBOL_GPL(STATIC_CALL_TRAMP(name))
 
 #else /* Generic implementation */
+
+static inline void static_call_init(void) { }
 
 struct static_call_key {
 	void *func;
