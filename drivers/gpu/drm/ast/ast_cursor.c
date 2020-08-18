@@ -253,7 +253,8 @@ void ast_cursor_show(struct ast_private *ast, int x, int y,
 		     unsigned int offset_x, unsigned int offset_y)
 {
 	u8 x_offset, y_offset;
-	u8 __iomem *dst, __iomem *sig;
+	u8 __iomem *dst;
+	u8 __iomem *sig;
 	u8 jreg;
 
 	dst = ast->cursor.vaddr[ast->cursor.next_index];
