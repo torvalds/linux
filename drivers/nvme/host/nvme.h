@@ -537,16 +537,8 @@ static inline bool nvme_is_ana_error(u16 status)
 
 static inline bool nvme_is_path_error(u16 status)
 {
-	switch (status & 0x7ff) {
-	case NVME_SC_HOST_PATH_ERROR:
-	case NVME_SC_HOST_ABORTED_CMD:
-	case NVME_SC_ANA_TRANSITION:
-	case NVME_SC_ANA_INACCESSIBLE:
-	case NVME_SC_ANA_PERSISTENT_LOSS:
-		return true;
-	default:
-		return false;
-	}
+	/* check for a status code type of 'path related status' */
+	return (status & 0x700) == 0x300;
 }
 
 /*
