@@ -507,15 +507,19 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
  *
  * Return: cb on success, NULL if cb is not found
  */
-struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
+struct mei_cl_cb *mei_cl_read_cb(struct mei_cl *cl, const struct file *fp)
 {
 	struct mei_cl_cb *cb;
+	struct mei_cl_cb *ret_cb = NULL;
 
+	spin_lock(&cl->rd_completed_lock);
 	list_for_each_entry(cb, &cl->rd_completed, list)
-		if (!fp || fp == cb->fp)
-			return cb;
-
-	return NULL;
+		if (!fp || fp == cb->fp) {
+			ret_cb = cb;
+			break;
+		}
+	spin_unlock(&cl->rd_completed_lock);
+	return ret_cb;
 }
 
 /**
@@ -541,7 +545,9 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
 	mei_io_list_free_fp(&cl->rd_pending, fp);
+	spin_lock(&cl->rd_completed_lock);
 	mei_io_list_free_fp(&cl->rd_completed, fp);
+	spin_unlock(&cl->rd_completed_lock);
 
 	return 0;
 }
@@ -559,6 +565,7 @@ static void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
 	init_waitqueue_head(&cl->ev_wait);
+	spin_lock_init(&cl->rd_completed_lock);
 	INIT_LIST_HEAD(&cl->rd_completed);
 	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
@@ -1231,6 +1238,34 @@ static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
 }
 
 /**
+ * mei_cl_add_rd_completed - add read completed callback to list with lock
+ *
+ * @cl: host client
+ * @cb: callback block
+ *
+ */
+void mei_cl_add_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	spin_lock(&cl->rd_completed_lock);
+	list_add_tail(&cb->list, &cl->rd_completed);
+	spin_unlock(&cl->rd_completed_lock);
+}
+
+/**
+ * mei_cl_del_rd_completed - free read completed callback with lock
+ *
+ * @cl: host client
+ * @cb: callback block
+ *
+ */
+void mei_cl_del_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	spin_lock(&cl->rd_completed_lock);
+	mei_io_cb_free(cb);
+	spin_unlock(&cl->rd_completed_lock);
+}
+
+/**
  *  mei_cl_notify_fop2req - convert fop to proper request
  *
  * @fop: client notification start response command
@@ -1897,7 +1932,7 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 		break;
 
 	case MEI_FOP_READ:
-		list_add_tail(&cb->list, &cl->rd_completed);
+		mei_cl_add_rd_completed(cl, cb);
 		if (!mei_cl_is_fixed_address(cl) &&
 		    !WARN_ON(!cl->rx_flow_ctrl_creds))
 			cl->rx_flow_ctrl_creds--;

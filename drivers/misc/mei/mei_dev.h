@@ -217,6 +217,7 @@ struct mei_cl_cb {
  * @tx_cb_queued: number of tx callbacks in queue
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
+ * @rd_completed_lock: protects rd_completed queue
  * @rd_completed: completed read
  *
  * @cldev: device on the mei client bus
@@ -242,6 +243,7 @@ struct mei_cl {
 	u8 tx_cb_queued;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
+	spinlock_t rd_completed_lock; /* protects rd_completed queue */
 	struct list_head rd_completed;
 
 	struct mei_cl_device *cldev;

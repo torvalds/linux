@@ -152,7 +152,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 		if (timeout) {
 			rets = wait_event_interruptible_timeout
 					(cl->rx_wait,
-					(!list_empty(&cl->rd_completed)) ||
+					mei_cl_read_cb(cl, NULL) ||
 					(!mei_cl_is_connected(cl)),
 					msecs_to_jiffies(timeout));
 			if (rets == 0)
@@ -165,7 +165,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 		} else {
 			if (wait_event_interruptible
 					(cl->rx_wait,
-					(!list_empty(&cl->rd_completed)) ||
+					mei_cl_read_cb(cl, NULL) ||
 					(!mei_cl_is_connected(cl)))) {
 				if (signal_pending(current))
 					return -EINTR;
@@ -198,7 +198,7 @@ copy:
 	rets = r_length;
 
 free:
-	mei_io_cb_free(cb);
+	mei_cl_del_rd_completed(cl, cb);
 out:
 	mutex_unlock(&bus->device_lock);
 

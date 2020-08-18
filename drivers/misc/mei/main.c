@@ -178,7 +178,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	mutex_unlock(&dev->device_lock);
 	if (wait_event_interruptible(cl->rx_wait,
-				     !list_empty(&cl->rd_completed) ||
+				     mei_cl_read_cb(cl, file) ||
 				     !mei_cl_is_connected(cl))) {
 		if (signal_pending(current))
 			return -EINTR;
@@ -229,7 +229,7 @@ copy_buffer:
 		goto out;
 
 free:
-	mei_io_cb_free(cb);
+	mei_cl_del_rd_completed(cl, cb);
 	*offset = 0;
 
 out:
@@ -572,7 +572,7 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		poll_wait(file, &cl->rx_wait, wait);
 
-		if (!list_empty(&cl->rd_completed))
+		if (mei_cl_read_cb(cl, file))
 			mask |= EPOLLIN | EPOLLRDNORM;
 		else
 			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
