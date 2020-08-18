@@ -478,7 +478,7 @@ int ath11k_htc_wait_target(struct ath11k_htc *htc)
 	if (!time_left) {
 		ath11k_warn(ab, "failed to receive control response completion, polling..\n");
 
-		for (i = 0; i < CE_COUNT; i++)
+		for (i = 0; i < ab->hw_params.ce_count; i++)
 			ath11k_ce_per_engine_service(htc->ab, i);
 
 		time_left =
@@ -748,7 +748,7 @@ int ath11k_htc_init(struct ath11k_base *ab)
 		htc->wmi_ep_count = 3;
 		break;
 	default:
-		htc->wmi_ep_count = 3;
+		htc->wmi_ep_count = ab->hw_params.max_radios;
 		break;
 	}
 

@@ -25,6 +25,13 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, ath11k_ahb_of_match);
 
+static const struct ath11k_bus_params ath11k_ahb_bus_params = {
+	.mhi_support = false,
+	.m3_fw_support = false,
+	.fixed_bdf_addr = true,
+	.fixed_mem_region = true,
+};
+
 /* Target firmware's Copy Engine configuration. */
 static const struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -321,78 +328,6 @@ static const char *irq_name[ATH11K_IRQ_NUM_MAX] = {
 	"tcl2host-status-ring",
 };
 
-#define ATH11K_TX_RING_MASK_0 0x1
-#define ATH11K_TX_RING_MASK_1 0x2
-#define ATH11K_TX_RING_MASK_2 0x4
-
-#define ATH11K_RX_RING_MASK_0 0x1
-#define ATH11K_RX_RING_MASK_1 0x2
-#define ATH11K_RX_RING_MASK_2 0x4
-#define ATH11K_RX_RING_MASK_3 0x8
-
-#define ATH11K_RX_ERR_RING_MASK_0 0x1
-
-#define ATH11K_RX_WBM_REL_RING_MASK_0 0x1
-
-#define ATH11K_REO_STATUS_RING_MASK_0 0x1
-
-#define ATH11K_RXDMA2HOST_RING_MASK_0 0x1
-#define ATH11K_RXDMA2HOST_RING_MASK_1 0x2
-#define ATH11K_RXDMA2HOST_RING_MASK_2 0x4
-
-#define ATH11K_HOST2RXDMA_RING_MASK_0 0x1
-#define ATH11K_HOST2RXDMA_RING_MASK_1 0x2
-#define ATH11K_HOST2RXDMA_RING_MASK_2 0x4
-
-#define ATH11K_RX_MON_STATUS_RING_MASK_0 0x1
-#define ATH11K_RX_MON_STATUS_RING_MASK_1 0x2
-#define ATH11K_RX_MON_STATUS_RING_MASK_2 0x4
-
-const u8 ath11k_tx_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_TX_RING_MASK_0,
-	ATH11K_TX_RING_MASK_1,
-	ATH11K_TX_RING_MASK_2,
-};
-
-const u8 rx_mon_status_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	0, 0, 0, 0,
-	ATH11K_RX_MON_STATUS_RING_MASK_0,
-	ATH11K_RX_MON_STATUS_RING_MASK_1,
-	ATH11K_RX_MON_STATUS_RING_MASK_2,
-};
-
-const u8 ath11k_rx_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	0, 0, 0, 0, 0, 0, 0,
-	ATH11K_RX_RING_MASK_0,
-	ATH11K_RX_RING_MASK_1,
-	ATH11K_RX_RING_MASK_2,
-	ATH11K_RX_RING_MASK_3,
-};
-
-const u8 ath11k_rx_err_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_RX_ERR_RING_MASK_0,
-};
-
-const u8 ath11k_rx_wbm_rel_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_RX_WBM_REL_RING_MASK_0,
-};
-
-const u8 ath11k_reo_status_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_REO_STATUS_RING_MASK_0,
-};
-
-const u8 ath11k_rxdma2host_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_RXDMA2HOST_RING_MASK_0,
-	ATH11K_RXDMA2HOST_RING_MASK_1,
-	ATH11K_RXDMA2HOST_RING_MASK_2,
-};
-
-const u8 ath11k_host2rxdma_ring_mask[ATH11K_EXT_IRQ_GRP_NUM_MAX] = {
-	ATH11K_HOST2RXDMA_RING_MASK_0,
-	ATH11K_HOST2RXDMA_RING_MASK_1,
-	ATH11K_HOST2RXDMA_RING_MASK_2,
-};
-
 /* enum ext_irq_num - irq numbers that can be used by external modules
  * like datapath
  */
@@ -449,10 +384,10 @@ static void ath11k_ahb_kill_tasklets(struct ath11k_base *ab)
 {
 	int i;
 
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		struct ath11k_ce_pipe *ce_pipe = &ab->ce.ce_pipe[i];
 
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 
 		tasklet_kill(&ce_pipe->intr_tq);
@@ -540,8 +475,8 @@ static void ath11k_ahb_sync_ce_irqs(struct ath11k_base *ab)
 	int i;
 	int irq_idx;
 
-	for (i = 0; i < CE_COUNT; i++) {
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 
 		irq_idx = ATH11K_IRQ_CE0_OFFSET + i;
@@ -568,8 +503,8 @@ static void ath11k_ahb_ce_irqs_enable(struct ath11k_base *ab)
 {
 	int i;
 
-	for (i = 0; i < CE_COUNT; i++) {
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 		ath11k_ahb_ce_irq_enable(ab, i);
 	}
@@ -579,8 +514,8 @@ static void ath11k_ahb_ce_irqs_disable(struct ath11k_base *ab)
 {
 	int i;
 
-	for (i = 0; i < CE_COUNT; i++) {
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 		ath11k_ahb_ce_irq_disable(ab, i);
 	}
@@ -646,6 +581,7 @@ static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
 	cfg->tgt_ce = target_ce_config_wlan;
 	cfg->svc_to_ce_map_len = ARRAY_SIZE(target_service_to_ce_map_wlan);
 	cfg->svc_to_ce_map = target_service_to_ce_map_wlan;
+	ab->qmi.service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ8074;
 }
 
 static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)
@@ -665,8 +601,8 @@ static void ath11k_ahb_free_irq(struct ath11k_base *ab)
 	int irq_idx;
 	int i;
 
-	for (i = 0; i < CE_COUNT; i++) {
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 		irq_idx = ATH11K_IRQ_CE0_OFFSET + i;
 		free_irq(ab->irq_num[irq_idx], &ab->ce.ce_pipe[i]);
@@ -734,6 +670,7 @@ static irqreturn_t ath11k_ahb_ext_interrupt_handler(int irq, void *arg)
 
 static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 {
+	struct ath11k_hw_params *hw = &ab->hw_params;
 	int i, j;
 	int irq;
 	int ret;
@@ -749,45 +686,45 @@ static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
 			       ath11k_ahb_ext_grp_napi_poll, NAPI_POLL_WEIGHT);
 
 		for (j = 0; j < ATH11K_EXT_IRQ_NUM_MAX; j++) {
-			if (ath11k_tx_ring_mask[i] & BIT(j)) {
+			if (ab->hw_params.ring_mask->tx[i] & BIT(j)) {
 				irq_grp->irqs[num_irq++] =
 					wbm2host_tx_completions_ring1 - j;
 			}
 
-			if (ath11k_rx_ring_mask[i] & BIT(j)) {
+			if (ab->hw_params.ring_mask->rx[i] & BIT(j)) {
 				irq_grp->irqs[num_irq++] =
 					reo2host_destination_ring1 - j;
 			}
 
-			if (ath11k_rx_err_ring_mask[i] & BIT(j))
+			if (ab->hw_params.ring_mask->rx_err[i] & BIT(j))
 				irq_grp->irqs[num_irq++] = reo2host_exception;
 
-			if (ath11k_rx_wbm_rel_ring_mask[i] & BIT(j))
+			if (ab->hw_params.ring_mask->rx_wbm_rel[i] & BIT(j))
 				irq_grp->irqs[num_irq++] = wbm2host_rx_release;
 
-			if (ath11k_reo_status_ring_mask[i] & BIT(j))
+			if (ab->hw_params.ring_mask->reo_status[i] & BIT(j))
 				irq_grp->irqs[num_irq++] = reo2host_status;
 
-			if (j < MAX_RADIOS) {
-				if (ath11k_rxdma2host_ring_mask[i] & BIT(j)) {
+			if (j < ab->hw_params.max_radios) {
+				if (ab->hw_params.ring_mask->rxdma2host[i] & BIT(j)) {
 					irq_grp->irqs[num_irq++] =
-						rxdma2host_destination_ring_mac1
-						- ath11k_core_get_hw_mac_id(ab, j);
+						rxdma2host_destination_ring_mac1 -
+						ath11k_hw_get_mac_from_pdev_id(hw, j);
 				}
 
-				if (ath11k_host2rxdma_ring_mask[i] & BIT(j)) {
+				if (ab->hw_params.ring_mask->host2rxdma[i] & BIT(j)) {
 					irq_grp->irqs[num_irq++] =
-						host2rxdma_host_buf_ring_mac1
-						- ath11k_core_get_hw_mac_id(ab, j);
+						host2rxdma_host_buf_ring_mac1 -
+						ath11k_hw_get_mac_from_pdev_id(hw, j);
 				}
 
-				if (rx_mon_status_ring_mask[i] & BIT(j)) {
+				if (ab->hw_params.ring_mask->rx_mon_status[i] & BIT(j)) {
 					irq_grp->irqs[num_irq++] =
 						ppdu_end_interrupts_mac1 -
-						ath11k_core_get_hw_mac_id(ab, j);
+						ath11k_hw_get_mac_from_pdev_id(hw, j);
 					irq_grp->irqs[num_irq++] =
 						rxdma2host_monitor_status_ring_mac1 -
-						ath11k_core_get_hw_mac_id(ab, j);
+						ath11k_hw_get_mac_from_pdev_id(hw, j);
 				}
 			}
 		}
@@ -819,10 +756,10 @@ static int ath11k_ahb_config_irq(struct ath11k_base *ab)
 	int ret;
 
 	/* Configure CE irqs */
-	for (i = 0; i < CE_COUNT; i++) {
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		struct ath11k_ce_pipe *ce_pipe = &ab->ce.ce_pipe[i];
 
-		if (ath11k_ce_get_attr_flags(i) & CE_ATTR_DIS_INTR)
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 
 		irq_idx = ATH11K_IRQ_CE0_OFFSET + i;
@@ -926,7 +863,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB);
+	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB, &ath11k_ahb_bus_params);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
@@ -938,6 +875,10 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ab->mem = mem;
 	ab->mem_len = resource_size(mem_res);
 	platform_set_drvdata(pdev, ab);
+
+	ret = ath11k_core_pre_init(ab);
+	if (ret)
+		goto err_core_free;
 
 	ret = ath11k_hal_srng_init(ab);
 	if (ret)
@@ -951,15 +892,15 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 
 	ath11k_ahb_init_qmi_ce_config(ab);
 
-	ret = ath11k_ahb_config_irq(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to configure irq: %d\n", ret);
-		goto err_ce_free;
-	}
-
 	ret = ath11k_core_init(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to init core: %d\n", ret);
+		goto err_ce_free;
+	}
+
+	ret = ath11k_ahb_config_irq(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to configure irq: %d\n", ret);
 		goto err_ce_free;
 	}
 
@@ -1023,5 +964,5 @@ static void ath11k_ahb_exit(void)
 }
 module_exit(ath11k_ahb_exit);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax wireless chip");
+MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN AHB devices");
 MODULE_LICENSE("Dual BSD/GPL");

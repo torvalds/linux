@@ -189,7 +189,7 @@ void ath9k_wmi_event_tasklet(unsigned long data);
 void ath9k_fatal_work(struct work_struct *work);
 void ath9k_wmi_event_drain(struct ath9k_htc_priv *priv);
 void ath9k_stop_wmi(struct ath9k_htc_priv *priv);
-void ath9k_destoy_wmi(struct ath9k_htc_priv *priv);
+void ath9k_destroy_wmi(struct ath9k_htc_priv *priv);
 
 #define WMI_CMD(_wmi_cmd)						\
 	do {								\

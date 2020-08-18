@@ -389,7 +389,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 		if (!ik->valid || ik->key_type != WAPI_CRYPT)
 			break;
 		/* for WAPI, we need to set the delayed group key, continue: */
-		/* fall through */
+		fallthrough;
 	case WPA_PSK_AUTH:
 	case WPA2_PSK_AUTH:
 	case (WPA_PSK_AUTH | WPA2_PSK_AUTH):
@@ -429,6 +429,9 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 	struct station_info *sinfo;
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n", mac_addr, aid);
+
+	if (aid < 1 || aid > AP_MAX_NUM_STA)
+		return;
 
 	if (assoc_req_len > sizeof(struct ieee80211_hdr_3addr)) {
 		struct ieee80211_mgmt *mgmt =

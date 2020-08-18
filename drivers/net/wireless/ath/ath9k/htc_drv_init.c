@@ -973,7 +973,7 @@ err_init:
 	ath9k_stop_wmi(priv);
 	hif_dev = (struct hif_device_usb *)htc_handle->hif_dev;
 	ath9k_hif_usb_dealloc_urbs(hif_dev);
-	ath9k_destoy_wmi(priv);
+	ath9k_destroy_wmi(priv);
 err_free:
 	ieee80211_free_hw(hw);
 	return ret;

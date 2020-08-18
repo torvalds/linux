@@ -2468,17 +2468,17 @@ ath10k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 			idx_limit = -1;
 
 		switch (idx_limit) {
-		case 0: /* fall through */
-		case 1: /* fall through */
-		case 2: /* fall through */
-		case 3: /* fall through */
-		case 4: /* fall through */
-		case 5: /* fall through */
-		case 6: /* fall through */
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
 		default:
 			/* see ath10k_mac_can_set_bitrate_mask() */
 			WARN_ON(1);
-			/* fall through */
+			fallthrough;
 		case -1:
 			mcs = IEEE80211_VHT_MCS_NOT_SUPPORTED;
 			break;
@@ -4238,7 +4238,7 @@ void __ath10k_scan_finish(struct ath10k *ar)
 		} else if (ar->scan.roc_notify) {
 			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		/* fall through */
+		fallthrough;
 	case ATH10K_SCAN_STARTING:
 		ar->scan.state = ATH10K_SCAN_IDLE;
 		ar->scan_channel = NULL;
@@ -7278,7 +7278,7 @@ ath10k_mac_update_bss_chan_survey(struct ath10k *ar,
 				  struct ieee80211_channel *channel)
 {
 	int ret;
-	enum wmi_bss_survey_req_type type = WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR;
+	enum wmi_bss_survey_req_type type = WMI_BSS_SURVEY_REQ_TYPE_READ;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -8363,19 +8363,32 @@ static void ath10k_mac_get_rate_flags_ht(struct ath10k *ar, u32 rate, u8 nss, u8
 					 u8 *flags, u8 *bw)
 {
 	struct ath10k_index_ht_data_rate_type *mcs_rate;
+	u8 index;
+	size_t len_nss1 = ARRAY_SIZE(supported_ht_mcs_rate_nss1);
+	size_t len_nss2 = ARRAY_SIZE(supported_ht_mcs_rate_nss2);
+
+	if (mcs >= (len_nss1 + len_nss2)) {
+		ath10k_warn(ar, "not supported mcs %d in current rate table", mcs);
+		return;
+	}
 
 	mcs_rate = (struct ath10k_index_ht_data_rate_type *)
 		   ((nss == 1) ? &supported_ht_mcs_rate_nss1 :
 		   &supported_ht_mcs_rate_nss2);
 
-	if (rate == mcs_rate[mcs].supported_rate[0]) {
+	if (mcs >= len_nss1)
+		index = mcs - len_nss1;
+	else
+		index = mcs;
+
+	if (rate == mcs_rate[index].supported_rate[0]) {
 		*bw = RATE_INFO_BW_20;
-	} else if (rate == mcs_rate[mcs].supported_rate[1]) {
+	} else if (rate == mcs_rate[index].supported_rate[1]) {
 		*bw |= RATE_INFO_BW_40;
-	} else if (rate == mcs_rate[mcs].supported_rate[2]) {
+	} else if (rate == mcs_rate[index].supported_rate[2]) {
 		*bw |= RATE_INFO_BW_20;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (rate == mcs_rate[mcs].supported_rate[3]) {
+	} else if (rate == mcs_rate[index].supported_rate[3]) {
 		*bw |= RATE_INFO_BW_40;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
 	} else {
@@ -8435,6 +8448,9 @@ static void ath10k_mac_parse_bitrate(struct ath10k *ar, u32 rate_code,
 	u8 nss = WMI_TLV_GET_HW_RC_NSS_V1(rate_code) + 1;
 	u8 mcs = WMI_TLV_GET_HW_RC_RATE_V1(rate_code);
 	u8 flags = 0, bw = 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac parse rate code 0x%x bitrate %d kbps\n",
+		   rate_code, bitrate_kbps);
 
 	if (preamble == WMI_RATE_PREAMBLE_HT)
 		mode = ATH10K_PHY_MODE_HT;
@@ -8528,25 +8544,25 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
-	if (!arsta->txrate.legacy && !arsta->txrate.nss)
-		return;
-
-	if (arsta->txrate.legacy) {
-		sinfo->txrate.legacy = arsta->txrate.legacy;
-	} else {
-		sinfo->txrate.mcs = arsta->txrate.mcs;
-		sinfo->txrate.nss = arsta->txrate.nss;
-		sinfo->txrate.bw = arsta->txrate.bw;
+	if (arsta->txrate.legacy || arsta->txrate.nss) {
+		if (arsta->txrate.legacy) {
+			sinfo->txrate.legacy = arsta->txrate.legacy;
+		} else {
+			sinfo->txrate.mcs = arsta->txrate.mcs;
+			sinfo->txrate.nss = arsta->txrate.nss;
+			sinfo->txrate.bw = arsta->txrate.bw;
+		}
+		sinfo->txrate.flags = arsta->txrate.flags;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 	}
-	sinfo->txrate.flags = arsta->txrate.flags;
-	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 
 	if (ar->htt.disable_tx_comp) {
-		sinfo->tx_retries = arsta->tx_retries;
-		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 		sinfo->tx_failed = arsta->tx_failed;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 	}
+
+	sinfo->tx_retries = arsta->tx_retries;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 
 	ath10k_mac_sta_get_peer_stats_info(ar, sta, sinfo);
 }

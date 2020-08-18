@@ -334,6 +334,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = true,
 		.tx_stats_over_pktlog = false,
+		.supports_peer_stats_info = true,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -2320,7 +2321,7 @@ static void ath10k_core_restart(struct work_struct *work)
 		break;
 	case ATH10K_STATE_RESTARTED:
 		ar->state = ATH10K_STATE_WEDGED;
-		/* fall through */
+		fallthrough;
 	case ATH10K_STATE_WEDGED:
 		ath10k_warn(ar, "device is wedged, will not restart\n");
 		break;
@@ -2613,6 +2614,13 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
 		      ar->running_fw->fw_file.fw_features)) {
 		ath10k_bmi_start(ar);
+
+		/* Enable hardware clock to speed up firmware download */
+		if (ar->hw_params.hw_ops->enable_pll_clk) {
+			status = ar->hw_params.hw_ops->enable_pll_clk(ar);
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot enable pll ret %d\n",
+				   status);
+		}
 
 		if (ath10k_init_configure_target(ar)) {
 			status = -EINVAL;
