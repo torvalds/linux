@@ -1937,9 +1937,6 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		buf->blob.size = size;
 		buf->dentry = debugfs_create_blob(name, 0644, parent,
 						  &buf->blob);
-		if (!buf->dentry)
-			dev_warn(dev->dev,
-				 "failed to create debugfs entry %s\n", name);
 	}
 
 	return 0;
@@ -3211,8 +3208,6 @@ static int coda_probe(struct platform_device *pdev)
 	ida_init(&dev->ida);
 
 	dev->debugfs_root = debugfs_create_dir("coda", NULL);
-	if (!dev->debugfs_root)
-		dev_warn(&pdev->dev, "failed to create debugfs root\n");
 
 	/* allocate auxiliary per-device buffers for the BIT processor */
 	if (dev->devtype->product == CODA_DX6) {
