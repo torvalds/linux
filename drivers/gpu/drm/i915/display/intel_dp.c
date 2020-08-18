@@ -6616,6 +6616,7 @@ int intel_dp_hdcp_read_v_prime_part(struct intel_digital_port *dig_port,
 
 static
 int intel_dp_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
+				    enum transcoder cpu_transcoder,
 				    bool enable)
 {
 	/* Not used for single stream DisplayPort setups */

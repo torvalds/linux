@@ -314,6 +314,7 @@ struct intel_hdcp_shim {
 
 	/* Enables HDCP signalling on the port */
 	int (*toggle_signalling)(struct intel_digital_port *dig_port,
+				 enum transcoder cpu_transcoder,
 				 bool enable);
 
 	/* Ensures the link is still protected */

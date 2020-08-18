@@ -1477,7 +1477,8 @@ int intel_hdmi_hdcp_read_v_prime_part(struct intel_digital_port *dig_port,
 	return ret;
 }
 
-static int kbl_repositioning_enc_en_signal(struct intel_connector *connector)
+static int kbl_repositioning_enc_en_signal(struct intel_connector *connector,
+					   enum transcoder cpu_transcoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
@@ -1494,13 +1495,15 @@ static int kbl_repositioning_enc_en_signal(struct intel_connector *connector)
 		usleep_range(25, 50);
 	}
 
-	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, false);
+	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, cpu_transcoder,
+					       false);
 	if (ret) {
 		drm_err(&dev_priv->drm,
 			"Disable HDCP signalling failed (%d)\n", ret);
 		return ret;
 	}
-	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, true);
+	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, cpu_transcoder,
+					       true);
 	if (ret) {
 		drm_err(&dev_priv->drm,
 			"Enable HDCP signalling failed (%d)\n", ret);
@@ -1512,6 +1515,7 @@ static int kbl_repositioning_enc_en_signal(struct intel_connector *connector)
 
 static
 int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
+				      enum transcoder cpu_transcoder,
 				      bool enable)
 {
 	struct intel_hdmi *hdmi = &dig_port->hdmi;
@@ -1522,7 +1526,8 @@ int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
 	if (!enable)
 		usleep_range(6, 60); /* Bspec says >= 6us */
 
-	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, enable);
+	ret = intel_ddi_toggle_hdcp_signalling(&dig_port->base, cpu_transcoder,
+					       enable);
 	if (ret) {
 		drm_err(&dev_priv->drm, "%s HDCP signalling failed (%d)\n",
 			enable ? "Enable" : "Disable", ret);
@@ -1534,7 +1539,8 @@ int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
 	 * opportunity and enc_en signalling in KABYLAKE.
 	 */
 	if (IS_KABYLAKE(dev_priv) && enable)
-		return kbl_repositioning_enc_en_signal(connector);
+		return kbl_repositioning_enc_en_signal(connector,
+						       cpu_transcoder);
 
 	return 0;
 }

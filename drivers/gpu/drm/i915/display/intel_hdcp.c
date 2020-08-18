@@ -704,7 +704,7 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 		intel_de_write(dev_priv, HDCP_REP_CTL,
 			       intel_hdcp_get_repeater_ctl(dev_priv, cpu_transcoder, port));
 
-	ret = shim->toggle_signalling(dig_port, true);
+	ret = shim->toggle_signalling(dig_port, cpu_transcoder, true);
 	if (ret)
 		return ret;
 
@@ -807,7 +807,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 	intel_de_write(dev_priv, HDCP_REP_CTL,
 		       intel_de_read(dev_priv, HDCP_REP_CTL) & ~repeater_ctl);
 
-	ret = hdcp->shim->toggle_signalling(dig_port, false);
+	ret = hdcp->shim->toggle_signalling(dig_port, cpu_transcoder, false);
 	if (ret) {
 		drm_err(&dev_priv->drm, "Failed to disable HDCP signalling\n");
 		return ret;
@@ -1591,7 +1591,8 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 		    intel_de_read(dev_priv, HDCP2_STATUS(dev_priv, cpu_transcoder, port)) &
 		    LINK_ENCRYPTION_STATUS);
 	if (hdcp->shim->toggle_signalling) {
-		ret = hdcp->shim->toggle_signalling(dig_port, true);
+		ret = hdcp->shim->toggle_signalling(dig_port, cpu_transcoder,
+						    true);
 		if (ret) {
 			drm_err(&dev_priv->drm,
 				"Failed to enable HDCP signalling. %d\n",
@@ -1641,7 +1642,8 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 		drm_dbg_kms(&dev_priv->drm, "Disable Encryption Timedout");
 
 	if (hdcp->shim->toggle_signalling) {
-		ret = hdcp->shim->toggle_signalling(dig_port, false);
+		ret = hdcp->shim->toggle_signalling(dig_port, cpu_transcoder,
+						    false);
 		if (ret) {
 			drm_err(&dev_priv->drm,
 				"Failed to disable HDCP signalling. %d\n",
@@ -2027,11 +2029,10 @@ int intel_hdcp_enable(struct intel_connector *connector,
 	drm_WARN_ON(&dev_priv->drm,
 		    hdcp->value == DRM_MODE_CONTENT_PROTECTION_ENABLED);
 	hdcp->content_type = content_type;
+	hdcp->cpu_transcoder = cpu_transcoder;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
-		hdcp->cpu_transcoder = cpu_transcoder;
+	if (INTEL_GEN(dev_priv) >= 12)
 		hdcp->port_data.fw_tc = intel_get_mei_fw_tc(cpu_transcoder);
-	}
 
 	/*
 	 * Considering that HDCP2.2 is more secure than HDCP1.4, If the setup
