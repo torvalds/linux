@@ -180,6 +180,8 @@ enum kern_feature_id {
 	FEAT_ARRAY_MMAP,
 	/* kernel support for expected_attach_type in BPF_PROG_LOAD */
 	FEAT_EXP_ATTACH_TYPE,
+	/* bpf_probe_read_{kernel,user}[_str] helpers */
+	FEAT_PROBE_READ_KERN,
 	__FEAT_CNT,
 };
 
@@ -3591,6 +3593,27 @@ static int probe_kern_exp_attach_type(void)
 	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
 }
 
+static int probe_kern_probe_read_kernel(void)
+{
+	struct bpf_load_program_attr attr;
+	struct bpf_insn insns[] = {
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),	/* r1 = r10 (fp) */
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),	/* r1 += -8 */
+		BPF_MOV64_IMM(BPF_REG_2, 8),		/* r2 = 8 */
+		BPF_MOV64_IMM(BPF_REG_3, 0),		/* r3 = 0 */
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_probe_read_kernel),
+		BPF_EXIT_INSN(),
+	};
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_KPROBE;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+
+	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
+}
+
 enum kern_feature_result {
 	FEAT_UNKNOWN = 0,
 	FEAT_SUPPORTED = 1,
@@ -3626,6 +3649,9 @@ static struct kern_feature_desc {
 		"BPF_PROG_LOAD expected_attach_type attribute",
 		probe_kern_exp_attach_type,
 	},
+	[FEAT_PROBE_READ_KERN] = {
+		"bpf_probe_read_kernel() helper", probe_kern_probe_read_kernel,
+	}
 };
 
 static bool kernel_supports(enum kern_feature_id feat_id)
@@ -5335,6 +5361,53 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 	return 0;
 }
 
+static bool insn_is_helper_call(struct bpf_insn *insn, enum bpf_func_id *func_id)
+{
+	__u8 class = BPF_CLASS(insn->code);
+
+	if ((class == BPF_JMP || class == BPF_JMP32) &&
+	    BPF_OP(insn->code) == BPF_CALL &&
+	    BPF_SRC(insn->code) == BPF_K &&
+	    insn->src_reg == 0 && insn->dst_reg == 0) {
+		    if (func_id)
+			    *func_id = insn->imm;
+		    return true;
+	}
+	return false;
+}
+
+static int bpf_object__sanitize_prog(struct bpf_object* obj, struct bpf_program *prog)
+{
+	struct bpf_insn *insn = prog->insns;
+	enum bpf_func_id func_id;
+	int i;
+
+	for (i = 0; i < prog->insns_cnt; i++, insn++) {
+		if (!insn_is_helper_call(insn, &func_id))
+			continue;
+
+		/* on kernels that don't yet support
+		 * bpf_probe_read_{kernel,user}[_str] helpers, fall back
+		 * to bpf_probe_read() which works well for old kernels
+		 */
+		switch (func_id) {
+		case BPF_FUNC_probe_read_kernel:
+		case BPF_FUNC_probe_read_user:
+			if (!kernel_supports(FEAT_PROBE_READ_KERN))
+				insn->imm = BPF_FUNC_probe_read;
+			break;
+		case BPF_FUNC_probe_read_kernel_str:
+		case BPF_FUNC_probe_read_user_str:
+			if (!kernel_supports(FEAT_PROBE_READ_KERN))
+				insn->imm = BPF_FUNC_probe_read_str;
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+
 static int
 load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	     char *license, __u32 kern_version, int *pfd)
@@ -5548,6 +5621,13 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	struct bpf_program *prog;
 	size_t i;
 	int err;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		prog = &obj->programs[i];
+		err = bpf_object__sanitize_prog(obj, prog);
+		if (err)
+			return err;
+	}
 
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
