@@ -222,11 +222,8 @@ struct gsm_mux {
 	u8 received_fcs;
 	u8 *txframe;			/* TX framing buffer */
 
-	/* Methods for the receiver side */
+	/* Method for the receiver side */
 	void (*receive)(struct gsm_mux *gsm, u8 ch);
-	void (*error)(struct gsm_mux *gsm, u8 ch, u8 flag);
-	/* And transmit side */
-	int (*output)(struct gsm_mux *mux, u8 *data, int len);
 
 	/* Link Layer */
 	unsigned int mru;
@@ -365,6 +362,8 @@ static const u8 gsm_fcs8[256] = {
 
 #define INIT_FCS	0xFF
 #define GOOD_FCS	0xCF
+
+static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len);
 
 /**
  *	gsm_fcs_add	-	update FCS
@@ -587,7 +586,7 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 		WARN_ON(1);
 		return;
 	}
-	gsm->output(gsm, cbuf, len);
+	gsmld_output(gsm, cbuf, len);
 	gsm_print_packet("-->", addr, cr, control, NULL, 0);
 }
 
@@ -687,7 +686,7 @@ static void gsm_data_kick(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 			print_hex_dump_bytes("gsm_data_kick: ",
 					     DUMP_PREFIX_OFFSET,
 					     gsm->txframe, len);
-		if (gsm->output(gsm, gsm->txframe, len) < 0)
+		if (gsmld_output(gsm, gsm->txframe, len) < 0)
 			break;
 		/* FIXME: Can eliminate one SOF in many more cases */
 		gsm->tx_bytes -= msg->len;
@@ -2128,7 +2127,6 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 		gsm->receive = gsm0_receive;
 	else
 		gsm->receive = gsm1_receive;
-	gsm->error = gsm_error;
 
 	spin_lock(&gsm_mux_lock);
 	for (i = 0; i < MAX_MUX; i++) {
@@ -2378,7 +2376,6 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	int ret, i;
 
 	gsm->tty = tty_kref_get(tty);
-	gsm->output = gsmld_output;
 	ret =  gsm_activate_mux(gsm);
 	if (ret != 0)
 		tty_kref_put(gsm->tty);
@@ -2438,7 +2435,7 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		case TTY_BREAK:
 		case TTY_PARITY:
 		case TTY_FRAME:
-			gsm->error(gsm, *dp, flags);
+			gsm_error(gsm, *dp, flags);
 			break;
 		default:
 			WARN_ONCE(1, "%s: unknown flag %d\n",
