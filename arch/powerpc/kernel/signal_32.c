@@ -764,8 +764,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long msr = regs->msr;
 #endif
 
-	BUG_ON(tsk != current);
-
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
 	rt_sf = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*rt_sf), 1);
@@ -1226,8 +1224,6 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	/* Save the thread's msr before get_tm_stackpointer() changes it */
 	unsigned long msr = regs->msr;
 #endif
-
-	BUG_ON(tsk != current);
 
 	/* Set up Signal Frame */
 	frame = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*frame), 1);

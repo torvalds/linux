@@ -822,8 +822,6 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	unsigned long msr = regs->msr;
 #endif
 
-	BUG_ON(tsk != current);
-
 	frame = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*frame), 0);
 	if (unlikely(frame == NULL))
 		goto badframe;
