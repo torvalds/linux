@@ -180,25 +180,19 @@ static s32 mlx90632_pwr_continuous(struct regmap *regmap)
  */
 static int mlx90632_perform_measurement(struct mlx90632_data *data)
 {
-	int ret, tries = 100;
 	unsigned int reg_status;
+	int ret;
 
 	ret = regmap_update_bits(data->regmap, MLX90632_REG_STATUS,
 				 MLX90632_STAT_DATA_RDY, 0);
 	if (ret < 0)
 		return ret;
 
-	while (tries-- > 0) {
-		ret = regmap_read(data->regmap, MLX90632_REG_STATUS,
-				  &reg_status);
-		if (ret < 0)
-			return ret;
-		if (reg_status & MLX90632_STAT_DATA_RDY)
-			break;
-		usleep_range(10000, 11000);
-	}
+	ret = regmap_read_poll_timeout(data->regmap, MLX90632_REG_STATUS, reg_status,
+				       !(reg_status & MLX90632_STAT_DATA_RDY), 10000,
+				       100 * 10000);
 
-	if (tries < 0) {
+	if (ret < 0) {
 		dev_err(&data->client->dev, "data not ready");
 		return -ETIMEDOUT;
 	}
