@@ -5,6 +5,7 @@ config SPMI_HISI3670
 	tristate "Hisilicon 3670 SPMI Controller"
 	select IRQ_DOMAIN_HIERARCHY
 	depends on HAS_IOMEM
+	depends on SPMI
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in SPMI PMIC Arbiter interface on Hisilicon 3670
@@ -14,6 +15,7 @@ config SPMI_HISI3670
 config MFD_HI6421_SPMI
 	tristate "HiSilicon Hi6421v600 SPMI PMU/Codec IC"
 	depends on OF
+	depends on SPMI
 	select MFD_CORE
 	help
 	  Add support for HiSilicon Hi6421v600 SPMI PMIC. Hi6421 includes
@@ -28,7 +30,7 @@ config MFD_HI6421_SPMI
 # to be placed at drivers/regulator
 config REGULATOR_HI6421V600
 	tristate "HiSilicon Hi6421v600 PMIC voltage regulator support"
-	depends on MFD_HI6421_PMIC && OF
+	depends on MFD_HI6421_SPMI && OF
 	help
 	  This driver provides support for the voltage regulators on
 	  HiSilicon Hi6421v600 PMU / Codec IC.
