@@ -355,6 +355,27 @@ static inline void mei_tx_cb_dequeue(struct mei_cl_cb *cb)
 }
 
 /**
+ * mei_cl_set_read_by_fp - set pending_read flag to vtag struct for given fp
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * @cl: mei client
+ * @fp: pointer to file structure
+ */
+static void mei_cl_set_read_by_fp(const struct mei_cl *cl,
+				  const struct file *fp)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list) {
+		if (cl_vtag->fp == fp) {
+			cl_vtag->pending_read = true;
+			return;
+		}
+	}
+}
+
+/**
  * mei_io_cb_init - allocate and initialize io callback
  *
  * @cl: mei client
@@ -433,6 +454,19 @@ static void mei_io_list_free_fp(struct list_head *head, const struct file *fp)
 	list_for_each_entry_safe(cb, next, head, list)
 		if (!fp || fp == cb->fp)
 			mei_io_cb_free(cb);
+}
+
+/**
+ * mei_cl_free_pending - free pending cb
+ *
+ * @cl: host client
+ */
+static void mei_cl_free_pending(struct mei_cl *cl)
+{
+	struct mei_cl_cb *cb;
+
+	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
+	mei_io_cb_free(cb);
 }
 
 /**
@@ -544,7 +578,9 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	mei_io_tx_list_free_cl(&cl->dev->write_waiting_list, cl);
 	mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
-	mei_io_list_free_fp(&cl->rd_pending, fp);
+	/* free pending cb only in final flush */
+	if (!fp)
+		mei_cl_free_pending(cl);
 	spin_lock(&cl->rd_completed_lock);
 	mei_io_list_free_fp(&cl->rd_completed, fp);
 	spin_unlock(&cl->rd_completed_lock);
@@ -565,6 +601,7 @@ static void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
 	init_waitqueue_head(&cl->ev_wait);
+	INIT_LIST_HEAD(&cl->vtag_map);
 	spin_lock_init(&cl->rd_completed_lock);
 	INIT_LIST_HEAD(&cl->rd_completed);
 	INIT_LIST_HEAD(&cl->rd_pending);
@@ -1238,7 +1275,116 @@ static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
 }
 
 /**
+ * mei_cl_vtag_alloc - allocate and fill the vtag structure
+ *
+ * @fp: pointer to file structure
+ * @vtag: vm tag
+ *
+ * Return:
+ * * Pointer to allocated struct - on success
+ * * ERR_PTR(-ENOMEM) on memory allocation failure
+ */
+struct mei_cl_vtag *mei_cl_vtag_alloc(struct file *fp, u8 vtag)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	cl_vtag = kzalloc(sizeof(*cl_vtag), GFP_KERNEL);
+	if (!cl_vtag)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&cl_vtag->list);
+	cl_vtag->vtag = vtag;
+	cl_vtag->fp = fp;
+
+	return cl_vtag;
+}
+
+/**
+ * mei_cl_fp_by_vtag - obtain the file pointer by vtag
+ *
+ * @cl: host client
+ * @vtag: vm tag
+ *
+ * Return:
+ * * A file pointer - on success
+ * * ERR_PTR(-ENOENT) if vtag is not found in the client vtag list
+ */
+const struct file *mei_cl_fp_by_vtag(const struct mei_cl *cl, u8 vtag)
+{
+	struct mei_cl_vtag *vtag_l;
+
+	list_for_each_entry(vtag_l, &cl->vtag_map, list)
+		if (vtag_l->vtag == vtag)
+			return vtag_l->fp;
+
+	return ERR_PTR(-ENOENT);
+}
+
+/**
+ * mei_cl_reset_read_by_vtag - reset pending_read flag by given vtag
+ *
+ * @cl: host client
+ * @vtag: vm tag
+ */
+static void mei_cl_reset_read_by_vtag(const struct mei_cl *cl, u8 vtag)
+{
+	struct mei_cl_vtag *vtag_l;
+
+	list_for_each_entry(vtag_l, &cl->vtag_map, list) {
+		if (vtag_l->vtag == vtag) {
+			vtag_l->pending_read = false;
+			break;
+		}
+	}
+}
+
+/**
+ * mei_cl_read_vtag_add_fc - add flow control for next pending reader
+ *                           in the vtag list
+ *
+ * @cl: host client
+ */
+static void mei_cl_read_vtag_add_fc(struct mei_cl *cl)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list) {
+		if (cl_vtag->pending_read) {
+			if (mei_cl_enqueue_ctrl_wr_cb(cl,
+						      mei_cl_mtu(cl),
+						      MEI_FOP_READ,
+						      cl_vtag->fp))
+				cl->rx_flow_ctrl_creds++;
+			break;
+		}
+	}
+}
+
+/**
+ * mei_cl_vt_support_check - check if client support vtags
+ *
+ * @cl: host client
+ *
+ * Return:
+ * * 0 - supported, or not connected at all
+ * * -EOPNOTSUPP - vtags are not supported by client
+ */
+int mei_cl_vt_support_check(const struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+
+	if (!dev->hbm_f_vt_supported)
+		return -EOPNOTSUPP;
+
+	if (!cl->me_cl)
+		return 0;
+
+	return cl->me_cl->props.vt_supported ? 0 : -EOPNOTSUPP;
+}
+
+/**
  * mei_cl_add_rd_completed - add read completed callback to list with lock
+ *                           and vtag check
  *
  * @cl: host client
  * @cb: callback block
@@ -1246,6 +1392,20 @@ static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
  */
 void mei_cl_add_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
+	const struct file *fp;
+
+	if (!mei_cl_vt_support_check(cl)) {
+		fp = mei_cl_fp_by_vtag(cl, cb->vtag);
+		if (IS_ERR(fp)) {
+			/* client already disconnected, discarding */
+			mei_io_cb_free(cb);
+			return;
+		}
+		cb->fp = fp;
+		mei_cl_reset_read_by_vtag(cl, cb->vtag);
+		mei_cl_read_vtag_add_fc(cl);
+	}
+
 	spin_lock(&cl->rd_completed_lock);
 	list_add_tail(&cb->list, &cl->rd_completed);
 	spin_unlock(&cl->rd_completed_lock);
@@ -1520,12 +1680,16 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return 0;
 
 	/* HW currently supports only one pending read */
-	if (cl->rx_flow_ctrl_creds)
+	if (cl->rx_flow_ctrl_creds) {
+		mei_cl_set_read_by_fp(cl, fp);
 		return -EBUSY;
+	}
 
 	cb = mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
+
+	mei_cl_set_read_by_fp(cl, fp);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {

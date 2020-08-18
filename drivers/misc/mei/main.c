@@ -81,6 +81,27 @@ err_unlock:
 }
 
 /**
+ * mei_cl_vtag_remove_by_fp - remove vtag that corresponds to fp from list
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ *
+ */
+static void mei_cl_vtag_remove_by_fp(const struct mei_cl *cl,
+				     const struct file *fp)
+{
+	struct mei_cl_vtag *vtag_l, *next;
+
+	list_for_each_entry_safe(vtag_l, next, &cl->vtag_map, list) {
+		if (vtag_l->fp == fp) {
+			list_del(&vtag_l->list);
+			kfree(vtag_l);
+			return;
+		}
+	}
+}
+
+/**
  * mei_release - the release function
  *
  * @inode: pointer to inode structure
@@ -101,16 +122,34 @@ static int mei_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->device_lock);
 
-	rets = mei_cl_disconnect(cl);
+	mei_cl_vtag_remove_by_fp(cl, file);
 
-	mei_cl_flush_queues(cl, file);
+	if (!list_empty(&cl->vtag_map)) {
+		cl_dbg(dev, cl, "not the last vtag\n");
+		mei_cl_flush_queues(cl, file);
+		rets = 0;
+		goto out;
+	}
+
+	rets = mei_cl_disconnect(cl);
+	/*
+	 * Check again: This is necessary since disconnect releases the lock
+	 * and another client can connect in the meantime.
+	 */
+	if (!list_empty(&cl->vtag_map)) {
+		cl_dbg(dev, cl, "not the last vtag after disconnect\n");
+		mei_cl_flush_queues(cl, file);
+		goto out;
+	}
+
+	mei_cl_flush_queues(cl, NULL);
 	cl_dbg(dev, cl, "removing\n");
 
 	mei_cl_unlink(cl);
-
-	file->private_data = NULL;
-
 	kfree(cl);
+
+out:
+	file->private_data = NULL;
 
 	mutex_unlock(&dev->device_lock);
 	return rets;
@@ -237,6 +276,28 @@ out:
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
+
+/**
+ * mei_cl_vtag_by_fp - obtain the vtag by file pointer
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ *
+ * Return: vtag value on success, otherwise 0
+ */
+static u8 mei_cl_vtag_by_fp(const struct mei_cl *cl, const struct file *fp)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	if (!fp)
+		return 0;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list)
+		if (cl_vtag->fp == fp)
+			return cl_vtag->vtag;
+	return 0;
+}
+
 /**
  * mei_write - the write function.
  *
@@ -314,6 +375,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		rets = -ENOMEM;
 		goto out;
 	}
+	cb->vtag = mei_cl_vtag_by_fp(cl, file);
 
 	rets = copy_from_user(cb->buf.data, ubuf, length);
 	if (rets) {

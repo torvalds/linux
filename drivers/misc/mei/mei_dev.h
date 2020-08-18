@@ -194,6 +194,21 @@ struct mei_cl_cb {
 };
 
 /**
+ * struct mei_cl_vtag - file pointer to vtag mapping structure
+ *
+ * @list: link in map queue
+ * @fp: file pointer
+ * @vtag: corresponding vtag
+ * @pending_read: the read is pending on this file
+ */
+struct mei_cl_vtag {
+	struct list_head list;
+	const struct file *fp;
+	u8 vtag;
+	u8 pending_read:1;
+};
+
+/**
  * struct mei_cl - me client host representation
  *    carried in file->private_data
  *
@@ -209,6 +224,7 @@ struct mei_cl_cb {
  * @me_cl: fw client connected
  * @fp: file associated with client
  * @host_client_id: host id
+ * @vtag_map: vtag map
  * @tx_flow_ctrl_creds: transmit flow credentials
  * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
@@ -235,6 +251,7 @@ struct mei_cl {
 	struct mei_me_client *me_cl;
 	const struct file *fp;
 	u8 host_client_id;
+	struct list_head vtag_map;
 	u8 tx_flow_ctrl_creds;
 	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
