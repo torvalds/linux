@@ -2877,6 +2877,14 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 	if (data & 0x30)
 		return 1;
 
+	if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF_VMEXIT) &&
+	    (data & KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT))
+		return 1;
+
+	if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF_INT) &&
+	    (data & KVM_ASYNC_PF_DELIVERY_AS_INT))
+		return 1;
+
 	if (!lapic_in_kernel(vcpu))
 		return data ? 1 : 0;
 
@@ -2954,10 +2962,12 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 	 * Doing a TLB flush here, on the guest's behalf, can avoid
 	 * expensive IPIs.
 	 */
-	trace_kvm_pv_tlb_flush(vcpu->vcpu_id,
-		st->preempted & KVM_VCPU_FLUSH_TLB);
-	if (xchg(&st->preempted, 0) & KVM_VCPU_FLUSH_TLB)
-		kvm_vcpu_flush_tlb_guest(vcpu);
+	if (guest_pv_has(vcpu, KVM_FEATURE_PV_TLB_FLUSH)) {
+		trace_kvm_pv_tlb_flush(vcpu->vcpu_id,
+				       st->preempted & KVM_VCPU_FLUSH_TLB);
+		if (xchg(&st->preempted, 0) & KVM_VCPU_FLUSH_TLB)
+			kvm_vcpu_flush_tlb_guest(vcpu);
+	}
 
 	vcpu->arch.st.preempted = 0;
 
@@ -3118,30 +3128,54 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.smi_count = data;
 		break;
 	case MSR_KVM_WALL_CLOCK_NEW:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE2))
+			return 1;
+
+		kvm_write_wall_clock(vcpu->kvm, data);
+		break;
 	case MSR_KVM_WALL_CLOCK:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE))
+			return 1;
+
 		kvm_write_wall_clock(vcpu->kvm, data);
 		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE2))
+			return 1;
+
 		kvm_write_system_time(vcpu, data, false, msr_info->host_initiated);
 		break;
 	case MSR_KVM_SYSTEM_TIME:
-		kvm_write_system_time(vcpu, data, true, msr_info->host_initiated);
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE))
+			return 1;
+
+		kvm_write_system_time(vcpu, data, true,  msr_info->host_initiated);
 		break;
 	case MSR_KVM_ASYNC_PF_EN:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF))
+			return 1;
+
 		if (kvm_pv_enable_async_pf(vcpu, data))
 			return 1;
 		break;
 	case MSR_KVM_ASYNC_PF_INT:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF_INT))
+			return 1;
+
 		if (kvm_pv_enable_async_pf_int(vcpu, data))
 			return 1;
 		break;
 	case MSR_KVM_ASYNC_PF_ACK:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF))
+			return 1;
 		if (data & 0x1) {
 			vcpu->arch.apf.pageready_pending = false;
 			kvm_check_async_pf_completion(vcpu);
 		}
 		break;
 	case MSR_KVM_STEAL_TIME:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_STEAL_TIME))
+			return 1;
 
 		if (unlikely(!sched_info_on()))
 			return 1;
@@ -3158,11 +3192,17 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		break;
 	case MSR_KVM_PV_EOI_EN:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_EOI))
+			return 1;
+
 		if (kvm_lapic_enable_pv_eoi(vcpu, data, sizeof(u8)))
 			return 1;
 		break;
 
 	case MSR_KVM_POLL_CONTROL:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_POLL_CONTROL))
+			return 1;
+
 		/* only enable bit supported */
 		if (data & (-1ULL << 1))
 			return 1;
@@ -3658,6 +3698,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_LAST_CPU:
 	case KVM_CAP_X86_USER_SPACE_MSR:
 	case KVM_CAP_X86_MSR_FILTER:
+	case KVM_CAP_ENFORCE_PV_FEATURE_CPUID:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -4527,6 +4568,11 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 			return -ENOTTY;
 
 		return kvm_x86_ops.enable_direct_tlbflush(vcpu);
+
+	case KVM_CAP_ENFORCE_PV_FEATURE_CPUID:
+		vcpu->arch.pv_cpuid.enforce = cap->args[0];
+
+		return 0;
 
 	default:
 		return -EINVAL;
@@ -8000,11 +8046,16 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
+	ret = -KVM_ENOSYS;
+
 	switch (nr) {
 	case KVM_HC_VAPIC_POLL_IRQ:
 		ret = 0;
 		break;
 	case KVM_HC_KICK_CPU:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_UNHALT))
+			break;
+
 		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
 		kvm_sched_yield(vcpu->kvm, a1);
 		ret = 0;
@@ -8015,9 +8066,15 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		break;
 #endif
 	case KVM_HC_SEND_IPI:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_SEND_IPI))
+			break;
+
 		ret = kvm_pv_send_ipi(vcpu->kvm, a0, a1, a2, a3, op_64_bit);
 		break;
 	case KVM_HC_SCHED_YIELD:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_SCHED_YIELD))
+			break;
+
 		kvm_sched_yield(vcpu->kvm, a0);
 		ret = 0;
 		break;

@@ -6380,3 +6380,14 @@ ranges that KVM should reject access to.
 In combination with KVM_CAP_X86_USER_SPACE_MSR, this allows user space to
 trap and emulate MSRs that are outside of the scope of KVM as well as
 limit the attack surface on KVM's MSR emulation code.
+
+
+8.26 KVM_CAP_ENFORCE_PV_CPUID
+-----------------------------
+
+Architectures: x86
+
+When enabled, KVM will disable paravirtual features provided to the
+guest according to the bits in the KVM_CPUID_FEATURES CPUID leaf
+(0x40000001). Otherwise, a guest may use the paravirtual features
+regardless of what has actually been exposed through the CPUID leaf.

@@ -789,6 +789,21 @@ struct kvm_vcpu_arch {
 
 	/* AMD MSRC001_0015 Hardware Configuration */
 	u64 msr_hwcr;
+
+	/* pv related cpuid info */
+	struct {
+		/*
+		 * value of the eax register in the KVM_CPUID_FEATURES CPUID
+		 * leaf.
+		 */
+		u32 features;
+
+		/*
+		 * indicates whether pv emulation should be disabled if features
+		 * are not present in the guest's cpuid
+		 */
+		bool enforce;
+	} pv_cpuid;
 };
 
 struct kvm_lpage_info {

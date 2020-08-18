@@ -107,6 +107,13 @@ void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
 		(best->eax & (1 << KVM_FEATURE_PV_UNHALT)))
 		best->eax &= ~(1 << KVM_FEATURE_PV_UNHALT);
 
+	/*
+	 * save the feature bitmap to avoid cpuid lookup for every PV
+	 * operation
+	 */
+	if (best)
+		vcpu->arch.pv_cpuid.features = best->eax;
+
 	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT)) {
 		best = kvm_find_cpuid_entry(vcpu, 0x1, 0);
 		if (best)
