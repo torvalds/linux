@@ -324,7 +324,8 @@ static int spmi_del_controller(struct platform_device *pdev)
 }
 
 static const struct of_device_id spmi_controller_match_table[] = {
-	{	.compatible = "hisilicon,spmi-controller",
+	{
+		.compatible = "hisilicon,kirin970-spmi-controller",
 	},
 	{}
 };
