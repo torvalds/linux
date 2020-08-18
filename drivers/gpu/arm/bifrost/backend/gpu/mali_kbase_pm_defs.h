@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -301,9 +301,17 @@ union kbase_pm_policy_data {
  * @l2_always_on: If true, disable powering down of l2 cache.
  * @shaders_state: The current state of the shader state machine.
  * @shaders_avail: This is updated by the state machine when it is in a state
- *                 where it can handle changes to the core availability. This
- *                 is internal to the shader state machine and should *not* be
- *                 modified elsewhere.
+ *                 where it can write to the SHADER_PWRON or PWROFF registers
+ *                 to have the same set of available cores as specified by
+ *                 @shaders_desired_mask. So it would eventually have the same
+ *                 value as @shaders_desired_mask and would precisely indicate
+ *                 the cores that are currently available. This is internal to
+ *                 shader state machine and should *not* be modified elsewhere.
+ * @shaders_desired_mask: This is updated by the state machine when it is in
+ *                        a state where it can handle changes to the core
+ *                        availability (either by DVFS or sysfs). This is
+ *                        internal to the shader state machine and should
+ *                        *not* be modified elsewhere.
  * @shaders_desired: True if the PM active count or power policy requires the
  *                   shader cores to be on. This is used as an input to the
  *                   shader power state machine.  The current state of the
@@ -401,6 +409,7 @@ struct kbase_pm_backend_data {
 	enum kbase_l2_core_state l2_state;
 	enum kbase_shader_core_state shaders_state;
 	u64 shaders_avail;
+	u64 shaders_desired_mask;
 	bool l2_desired;
 	bool l2_always_on;
 	bool shaders_desired;

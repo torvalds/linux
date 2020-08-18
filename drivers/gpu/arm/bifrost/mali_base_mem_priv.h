@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -47,7 +47,7 @@
  *	- offset is ignored.
  */
 struct basep_syncset {
-	base_mem_handle mem_handle;
+	struct base_mem_handle mem_handle;
 	u64 user_addr;
 	u64 size;
 	u8 type;

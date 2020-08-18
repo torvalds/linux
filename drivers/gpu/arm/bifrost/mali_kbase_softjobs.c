@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,7 +33,8 @@
 #include <mali_base_kernel.h>
 #include <mali_kbase_hwaccess_time.h>
 #include <mali_kbase_mem_linux.h>
-#include <mali_kbase_tracepoints.h>
+#include <tl/mali_kbase_tracepoints.h>
+#include <mali_linux_trace.h>
 #include <linux/version.h>
 #include <linux/ktime.h>
 #include <linux/pfn.h>
@@ -133,7 +134,7 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 {
 	struct kbase_vmap_struct map;
 	void *user_result;
-	struct timespec ts;
+	struct timespec64 ts;
 	struct base_dump_cpu_gpu_counters data;
 	u64 system_time;
 	u64 cycle_counter;
@@ -719,47 +720,35 @@ out_cleanup:
 	return ret;
 }
 
-void kbase_mem_copy_from_extres_page(struct kbase_context *kctx,
-		void *extres_page, struct page **pages, unsigned int nr_pages,
-		unsigned int *target_page_nr, size_t offset, size_t *to_copy)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+static void *dma_buf_kmap_page(struct kbase_mem_phy_alloc *gpu_alloc,
+	unsigned long page_num, struct page **page)
 {
-	void *target_page = kmap(pages[*target_page_nr]);
-	size_t chunk = PAGE_SIZE-offset;
+	struct sg_table *sgt = gpu_alloc->imported.umm.sgt;
+	struct sg_page_iter sg_iter;
+	unsigned long page_index = 0;
 
-	lockdep_assert_held(&kctx->reg_lock);
+	if (WARN_ON(gpu_alloc->type != KBASE_MEM_TYPE_IMPORTED_UMM))
+		return NULL;
 
-	if (!target_page) {
-		*target_page_nr += 1;
-		dev_warn(kctx->kbdev->dev, "kmap failed in debug_copy job.");
-		return;
+	if (!sgt)
+		return NULL;
+
+	if (WARN_ON(page_num >= gpu_alloc->nents))
+		return NULL;
+
+	for_each_sg_page(sgt->sgl, &sg_iter, sgt->nents, 0) {
+		if (page_index == page_num) {
+			*page = sg_page_iter_page(&sg_iter);
+
+			return kmap(*page);
+		}
+		page_index++;
 	}
 
-	chunk = min(chunk, *to_copy);
-
-	memcpy(target_page + offset, extres_page, chunk);
-	*to_copy -= chunk;
-
-	kunmap(pages[*target_page_nr]);
-
-	*target_page_nr += 1;
-	if (*target_page_nr >= nr_pages)
-		return;
-
-	target_page = kmap(pages[*target_page_nr]);
-	if (!target_page) {
-		*target_page_nr += 1;
-		dev_warn(kctx->kbdev->dev, "kmap failed in debug_copy job.");
-		return;
-	}
-
-	KBASE_DEBUG_ASSERT(target_page);
-
-	chunk = min(offset, *to_copy);
-	memcpy(target_page, extres_page + PAGE_SIZE-offset, chunk);
-	*to_copy -= chunk;
-
-	kunmap(pages[*target_page_nr]);
+	return NULL;
 }
+#endif
 
 int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 		struct kbase_debug_copy_buffer *buf_data)
@@ -785,22 +774,21 @@ int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 	switch (gpu_alloc->type) {
 	case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
 	{
-		for (i = 0; i < buf_data->nr_extres_pages; i++) {
+		for (i = 0; i < buf_data->nr_extres_pages &&
+				target_page_nr < buf_data->nr_pages; i++) {
 			struct page *pg = buf_data->extres_pages[i];
 			void *extres_page = kmap(pg);
 
-			if (extres_page)
-				kbase_mem_copy_from_extres_page(kctx,
-						extres_page, pages,
+			if (extres_page) {
+				ret = kbase_mem_copy_to_pinned_user_pages(
+						pages, extres_page, &to_copy,
 						buf_data->nr_pages,
-						&target_page_nr,
-						offset, &to_copy);
-
-			kunmap(pg);
-			if (target_page_nr >= buf_data->nr_pages)
-				break;
+						&target_page_nr, offset);
+				kunmap(pg);
+				if (ret)
+					goto out_unlock;
+			}
 		}
-		break;
 	}
 	break;
 	case KBASE_MEM_TYPE_IMPORTED_UMM: {
@@ -820,20 +808,28 @@ int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 		if (ret)
 			goto out_unlock;
 
-		for (i = 0; i < dma_to_copy/PAGE_SIZE; i++) {
-
+		for (i = 0; i < dma_to_copy/PAGE_SIZE &&
+				target_page_nr < buf_data->nr_pages; i++) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+			struct page *pg;
+			void *extres_page = dma_buf_kmap_page(gpu_alloc, i, &pg);
+#else
 			void *extres_page = dma_buf_kmap(dma_buf, i);
-
-			if (extres_page)
-				kbase_mem_copy_from_extres_page(kctx,
-						extres_page, pages,
+#endif
+			if (extres_page) {
+				ret = kbase_mem_copy_to_pinned_user_pages(
+						pages, extres_page, &to_copy,
 						buf_data->nr_pages,
-						&target_page_nr,
-						offset, &to_copy);
+						&target_page_nr, offset);
 
-			dma_buf_kunmap(dma_buf, i, extres_page);
-			if (target_page_nr >= buf_data->nr_pages)
-				break;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+				kunmap(pg);
+#else
+				dma_buf_kunmap(dma_buf, i, extres_page);
+#endif
+				if (ret)
+					goto out_unlock;
+			}
 		}
 		dma_buf_end_cpu_access(dma_buf,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && !defined(CONFIG_CHROMEOS)
@@ -848,7 +844,6 @@ int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 out_unlock:
 	kbase_gpu_vm_unlock(kctx);
 	return ret;
-
 }
 
 static int kbase_debug_copy(struct kbase_jd_atom *katom)
@@ -874,6 +869,7 @@ static int kbase_debug_copy(struct kbase_jd_atom *katom)
 int kbasep_jit_alloc_validate(struct kbase_context *kctx,
 					struct base_jit_alloc_info *info)
 {
+	int j;
 	/* If the ID is zero, then fail the job */
 	if (info->id == 0)
 		return -EINVAL;
@@ -886,46 +882,88 @@ int kbasep_jit_alloc_validate(struct kbase_context *kctx,
 	if ((info->gpu_alloc_addr & KBASEP_JIT_ALLOC_GPU_ADDR_ALIGNMENT) != 0)
 		return -EINVAL;
 
-	if (kctx->jit_version == 1) {
-		/* Old JIT didn't have usage_id, max_allocations, bin_id
-		 * or padding, so force them to zero
-		 */
-		info->usage_id = 0;
-		info->max_allocations = 0;
-		info->bin_id = 0;
-		info->flags = 0;
-		memset(info->padding, 0, sizeof(info->padding));
-	} else {
-		int j;
+	/* Interface version 2 (introduced with kernel driver version 11.5)
+	 * onward has padding and a flags member to validate.
+	 *
+	 * Note: To support earlier versions the extra bytes will have been set
+	 * to 0 by the caller.
+	 */
 
-		/* Check padding is all zeroed */
-		for (j = 0; j < sizeof(info->padding); j++) {
-			if (info->padding[j] != 0) {
-				return -EINVAL;
-			}
-		}
-
-		/* No bit other than TILER_ALIGN_TOP shall be set */
-		if (info->flags & ~BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP) {
+	/* Check padding is all zeroed */
+	for (j = 0; j < sizeof(info->padding); j++) {
+		if (info->padding[j] != 0)
 			return -EINVAL;
-		}
 	}
+
+	/* Only valid flags shall be set */
+	if (info->flags & ~(BASE_JIT_ALLOC_VALID_FLAGS))
+		return -EINVAL;
+
+#if !MALI_JIT_PRESSURE_LIMIT
+	/* If just-in-time memory allocation pressure limit feature is disabled,
+	 * heap_info_gpu_addr must be zeroed-out
+	 */
+	if (info->heap_info_gpu_addr)
+		return -EINVAL;
+#endif
+
+	/* If BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE is set, heap_info_gpu_addr
+	 * cannot be 0
+	 */
+	if ((info->flags & BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE) &&
+			!info->heap_info_gpu_addr)
+		return -EINVAL;
 
 	return 0;
 }
 
+
+#if (KERNEL_VERSION(3, 18, 63) > LINUX_VERSION_CODE)
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER) + sizeof(((TYPE *)0)->MEMBER))
+#endif
+
+/*
+ * Sizes of user data to copy for each just-in-time memory interface version
+ *
+ * In interface version 2 onwards this is the same as the struct size, allowing
+ * copying of arrays of structures from userspace.
+ *
+ * In interface version 1 the structure size was variable, and hence arrays of
+ * structures cannot be supported easily, and were not a feature present in
+ * version 1 anyway.
+ */
+static const size_t jit_info_copy_size_for_jit_version[] = {
+	/* in jit_version 1, the structure did not have any end padding, hence
+	 * it could be a different size on 32 and 64-bit clients. We therefore
+	 * do not copy past the last member
+	 */
+	[1] = offsetofend(struct base_jit_alloc_info_10_2, id),
+	[2] = sizeof(struct base_jit_alloc_info_11_5),
+	[3] = sizeof(struct base_jit_alloc_info)
+};
+
 static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 {
-	__user void *data = (__user void *)(uintptr_t) katom->jc;
+	__user u8 *data = (__user u8 *)(uintptr_t) katom->jc;
 	struct base_jit_alloc_info *info;
 	struct kbase_context *kctx = katom->kctx;
 	struct kbase_device *kbdev = kctx->kbdev;
 	u32 count;
 	int ret;
 	u32 i;
+	size_t jit_info_user_copy_size;
 
-	/* For backwards compatibility */
-	if (katom->nr_extres == 0)
+	WARN_ON(kctx->jit_version >=
+		ARRAY_SIZE(jit_info_copy_size_for_jit_version));
+	jit_info_user_copy_size =
+			jit_info_copy_size_for_jit_version[kctx->jit_version];
+	WARN_ON(jit_info_user_copy_size > sizeof(*info));
+
+	/* For backwards compatibility, and to prevent reading more than 1 jit
+	 * info struct on jit version 1
+	 */
+	if (katom->nr_extres == 0 || kctx->jit_version == 1)
 		katom->nr_extres = 1;
 	count = katom->nr_extres;
 
@@ -942,13 +980,21 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	if (copy_from_user(info, data, sizeof(*info)*count) != 0) {
-		ret = -EINVAL;
-		goto free_info;
-	}
+
 	katom->softjob_data = info;
 
-	for (i = 0; i < count; i++, info++) {
+	for (i = 0; i < count; i++, info++, data += jit_info_user_copy_size) {
+		if (copy_from_user(info, data, jit_info_user_copy_size) != 0) {
+			ret = -EINVAL;
+			goto free_info;
+		}
+		/* Clear any remaining bytes when user struct is smaller than
+		 * kernel struct. For jit version 1, this also clears the
+		 * padding bytes
+		 */
+		memset(((u8 *)info) + jit_info_user_copy_size, 0,
+				sizeof(*info) - jit_info_user_copy_size);
+
 		ret = kbasep_jit_alloc_validate(kctx, info);
 		if (ret)
 			goto free_info;
@@ -961,7 +1007,7 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 	katom->jit_blocked = false;
 
 	lockdep_assert_held(&kctx->jctx.lock);
-	list_add_tail(&katom->jit_node, &kctx->jit_atoms_head);
+	list_add_tail(&katom->jit_node, &kctx->jctx.jit_atoms_head);
 
 	/*
 	 * Note:
@@ -998,7 +1044,7 @@ static void kbase_jit_add_to_pending_alloc_list(struct kbase_jd_atom *katom)
 	struct list_head *target_list_head = NULL;
 	struct kbase_jd_atom *entry;
 
-	list_for_each_entry(entry, &kctx->jit_pending_alloc, queue) {
+	list_for_each_entry(entry, &kctx->jctx.jit_pending_alloc, queue) {
 		if (katom->age < entry->age) {
 			target_list_head = &entry->queue;
 			break;
@@ -1006,7 +1052,7 @@ static void kbase_jit_add_to_pending_alloc_list(struct kbase_jd_atom *katom)
 	}
 
 	if (target_list_head == NULL)
-		target_list_head = &kctx->jit_pending_alloc;
+		target_list_head = &kctx->jctx.jit_pending_alloc;
 
 	list_add_tail(&katom->queue, target_list_head);
 }
@@ -1021,6 +1067,10 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 	u64 *ptr, new_addr;
 	u32 count = katom->nr_extres;
 	u32 i;
+	bool ignore_pressure_limit = false;
+
+	trace_sysgraph(SGR_SUBMIT, kctx->id,
+			kbase_jd_atom_id(kctx, katom));
 
 	if (katom->jit_blocked) {
 		list_del(&katom->queue);
@@ -1041,6 +1091,15 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 		}
 	}
 
+#if MALI_JIT_PRESSURE_LIMIT
+	/**
+	 * If this is the only JIT_ALLOC atom in-flight then allow it to exceed
+	 * the defined pressure limit.
+	 */
+	if (kctx->jit_current_allocations == 0)
+		ignore_pressure_limit = true;
+#endif /* MALI_JIT_PRESSURE_LIMIT */
+
 	for (i = 0, info = katom->softjob_data; i < count; i++, info++) {
 		if (kctx->jit_alloc[info->id]) {
 			/* The JIT ID is duplicated in this atom. Roll back
@@ -1052,7 +1111,7 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 			for (j = 0; j < i; j++, info++) {
 				kbase_jit_free(kctx, kctx->jit_alloc[info->id]);
 				kctx->jit_alloc[info->id] =
-						(struct kbase_va_region *) -1;
+						KBASE_RESERVED_REG_JIT_ALLOC;
 			}
 
 			katom->event_code = BASE_JD_EVENT_MEM_GROWTH_FAILED;
@@ -1060,17 +1119,14 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 		}
 
 		/* Create a JIT allocation */
-		reg = kbase_jit_allocate(kctx, info);
+		reg = kbase_jit_allocate(kctx, info, ignore_pressure_limit);
 		if (!reg) {
 			struct kbase_jd_atom *jit_atom;
 			bool can_block = false;
 
 			lockdep_assert_held(&kctx->jctx.lock);
 
-			jit_atom = list_first_entry(&kctx->jit_atoms_head,
-					struct kbase_jd_atom, jit_node);
-
-			list_for_each_entry(jit_atom, &kctx->jit_atoms_head, jit_node) {
+			list_for_each_entry(jit_atom, &kctx->jctx.jit_atoms_head, jit_node) {
 				if (jit_atom == katom)
 					break;
 
@@ -1097,7 +1153,7 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 				 */
 				for (; i < count; i++, info++) {
 					kctx->jit_alloc[info->id] =
-						(struct kbase_va_region *) -1;
+						KBASE_RESERVED_REG_JIT_ALLOC;
 				}
 
 				katom->event_code = BASE_JD_EVENT_MEM_GROWTH_FAILED;
@@ -1164,6 +1220,9 @@ static int kbase_jit_allocate_process(struct kbase_jd_atom *katom)
 			entry_mmu_flags, info->id, info->commit_pages,
 			info->extent, info->va_pages);
 		kbase_vunmap(kctx, &mapping);
+
+		kbase_trace_jit_report_gpu_mem(kctx, reg,
+				KBASE_JIT_REPORT_ON_ALLOC_OR_FREE);
 	}
 
 	katom->event_code = BASE_JD_EVENT_DONE;
@@ -1238,7 +1297,7 @@ static int kbase_jit_free_prepare(struct kbase_jd_atom *katom)
 	for (i = 0; i < count; i++)
 		KBASE_TLSTREAM_TL_ATTRIB_ATOM_JITFREEINFO(kbdev, katom, ids[i]);
 
-	list_add_tail(&katom->jit_node, &kctx->jit_atoms_head);
+	list_add_tail(&katom->jit_node, &kctx->jctx.jit_atoms_head);
 
 	return 0;
 
@@ -1272,7 +1331,7 @@ static void kbase_jit_free_process(struct kbase_jd_atom *katom)
 	}
 }
 
-static void kbasep_jit_free_finish_worker(struct work_struct *work)
+static void kbasep_jit_finish_worker(struct work_struct *work)
 {
 	struct kbase_jd_atom *katom = container_of(work, struct kbase_jd_atom,
 			work);
@@ -1288,11 +1347,29 @@ static void kbasep_jit_free_finish_worker(struct work_struct *work)
 		kbase_js_sched_all(kctx->kbdev);
 }
 
+void kbase_jit_retry_pending_alloc(struct kbase_context *kctx)
+{
+	LIST_HEAD(jit_pending_alloc_list);
+	struct list_head *i, *tmp;
+
+	list_splice_tail_init(&kctx->jctx.jit_pending_alloc,
+		&jit_pending_alloc_list);
+
+	list_for_each_safe(i, tmp, &jit_pending_alloc_list) {
+		struct kbase_jd_atom *pending_atom = list_entry(i,
+				struct kbase_jd_atom, queue);
+		if (kbase_jit_allocate_process(pending_atom) == 0) {
+			/* Atom has completed */
+			INIT_WORK(&pending_atom->work,
+					kbasep_jit_finish_worker);
+			queue_work(kctx->jctx.job_done_wq, &pending_atom->work);
+		}
+	}
+}
+
 static void kbase_jit_free_finish(struct kbase_jd_atom *katom)
 {
-	struct list_head *i, *tmp;
 	struct kbase_context *kctx = katom->kctx;
-	LIST_HEAD(jit_pending_alloc_list);
 	u8 *ids;
 	size_t j;
 
@@ -1303,7 +1380,7 @@ static void kbase_jit_free_finish(struct kbase_jd_atom *katom)
 		return;
 	}
 
-	/* Remove this atom from the kctx->jit_atoms_head list */
+	/* Remove this atom from the jit_atoms_head list */
 	list_del(&katom->jit_node);
 
 	for (j = 0; j != katom->nr_extres; ++j) {
@@ -1313,7 +1390,8 @@ static void kbase_jit_free_finish(struct kbase_jd_atom *katom)
 			 * still succeed this soft job but don't try and free
 			 * the allocation.
 			 */
-			if (kctx->jit_alloc[ids[j]] != (struct kbase_va_region *) -1) {
+			if (kctx->jit_alloc[ids[j]] !=
+					KBASE_RESERVED_REG_JIT_ALLOC) {
 				KBASE_TLSTREAM_TL_JIT_USEDPAGES(kctx->kbdev,
 					kctx->jit_alloc[ids[j]]->
 					gpu_alloc->nents, ids[j]);
@@ -1325,18 +1403,7 @@ static void kbase_jit_free_finish(struct kbase_jd_atom *katom)
 	/* Free the list of ids */
 	kfree(ids);
 
-	list_splice_tail_init(&kctx->jit_pending_alloc, &jit_pending_alloc_list);
-
-	list_for_each_safe(i, tmp, &jit_pending_alloc_list) {
-		struct kbase_jd_atom *pending_atom = list_entry(i,
-				struct kbase_jd_atom, queue);
-		if (kbase_jit_allocate_process(pending_atom) == 0) {
-			/* Atom has completed */
-			INIT_WORK(&pending_atom->work,
-					kbasep_jit_free_finish_worker);
-			queue_work(kctx->jctx.job_done_wq, &pending_atom->work);
-		}
-	}
+	kbase_jit_retry_pending_alloc(kctx);
 }
 
 static int kbase_ext_res_prepare(struct kbase_jd_atom *katom)
@@ -1471,6 +1538,9 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 	struct kbase_device *kbdev = kctx->kbdev;
 
 	KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_START(kbdev, katom);
+
+	trace_sysgraph(SGR_SUBMIT, kctx->id,
+			kbase_jd_atom_id(kctx, katom));
 
 	switch (katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) {
 	case BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME:
@@ -1634,6 +1704,9 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 
 void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 {
+	trace_sysgraph(SGR_COMPLETE, katom->kctx->id,
+			kbase_jd_atom_id(katom->kctx, katom));
+
 	switch (katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) {
 	case BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME:
 		/* Nothing to do */

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -205,6 +205,7 @@ void kbase_sync_fence_info_get(struct dma_fence *fence,
  * return: Pointer to string describing @status.
  */
 const char *kbase_sync_status_string(int status);
+
 
 /*
  * Internal worker used to continue processing of atom.

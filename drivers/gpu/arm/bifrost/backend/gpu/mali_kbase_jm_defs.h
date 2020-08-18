@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -62,9 +62,6 @@ struct slot_rb {
 /**
  * struct kbase_backend_data - GPU backend specific data for HW access layer
  * @slot_rb:			Slot ringbuffers
- * @rmu_workaround_flag:	When PRLAM-8987 is present, this flag determines
- *				whether slots 0/1 or slot 2 are currently being
- *				pulled from
  * @scheduling_timer:		The timer tick used for rescheduling jobs
  * @timer_running:		Is the timer running? The runpool_mutex must be
  *				held whilst modifying this.
@@ -82,8 +79,6 @@ struct slot_rb {
  */
 struct kbase_backend_data {
 	struct slot_rb slot_rb[BASE_JM_MAX_NR_SLOTS];
-
-	bool rmu_workaround_flag;
 
 	struct hrtimer scheduling_timer;
 

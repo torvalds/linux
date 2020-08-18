@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #ifdef CONFIG_MALI_BIFROST_NO_MALI
 #include "backend/gpu/mali_kbase_model_dummy.h"
 #endif
+
 
 /**
  * struct kbase_hwcnt_backend_gpu_info - Information used to create an instance
@@ -72,11 +73,8 @@ struct kbase_hwcnt_backend_gpu {
 static u64 kbasep_hwcnt_backend_gpu_timestamp_ns(
 	struct kbase_hwcnt_backend *backend)
 {
-	struct timespec ts;
-
 	(void)backend;
-	getrawmonotonic(&ts);
-	return (u64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+	return ktime_get_raw_ns();
 }
 
 /* GPU backend implementation of kbase_hwcnt_backend_dump_enable_nolock_fn */
@@ -324,6 +322,7 @@ static int kbasep_hwcnt_backend_gpu_create(
 	const struct kbase_hwcnt_backend_gpu_info *info,
 	struct kbase_hwcnt_backend_gpu **out_backend)
 {
+
 	int errcode;
 	struct kbase_device *kbdev;
 	struct kbase_hwcnt_backend_gpu *backend = NULL;

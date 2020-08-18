@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -22,16 +22,10 @@
 BACKEND += \
 	backend/gpu/mali_kbase_cache_policy_backend.c \
 	backend/gpu/mali_kbase_device_hw.c \
-	backend/gpu/mali_kbase_gpu.c \
 	backend/gpu/mali_kbase_gpuprops_backend.c \
-	backend/gpu/mali_kbase_debug_job_fault_backend.c \
 	backend/gpu/mali_kbase_irq_linux.c \
 	backend/gpu/mali_kbase_instr_backend.c \
-	backend/gpu/mali_kbase_jm_as.c \
-	backend/gpu/mali_kbase_jm_hw.c \
-	backend/gpu/mali_kbase_jm_rb.c \
 	backend/gpu/mali_kbase_js_backend.c \
-	backend/gpu/mali_kbase_mmu_hw_direct.c \
 	backend/gpu/mali_kbase_pm_backend.c \
 	backend/gpu/mali_kbase_pm_driver.c \
 	backend/gpu/mali_kbase_pm_metrics.c \
@@ -41,6 +35,16 @@ BACKEND += \
 	backend/gpu/mali_kbase_pm_policy.c \
 	backend/gpu/mali_kbase_time.c \
 	backend/gpu/mali_kbase_l2_mmu_config.c
+
+ifeq ($(MALI_USE_CSF),1)
+# empty
+else
+	BACKEND += \
+		backend/gpu/mali_kbase_jm_as.c \
+		backend/gpu/mali_kbase_debug_job_fault_backend.c \
+		backend/gpu/mali_kbase_jm_hw.c \
+		backend/gpu/mali_kbase_jm_rb.c
+endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 BACKEND += \

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -56,25 +56,29 @@
  */
 #include "mali_kbase_defs.h"
 
-#include "mali_kbase_context.h"
+#include "debug/mali_kbase_debug_ktrace.h"
+#include "context/mali_kbase_context.h"
 #include "mali_kbase_strings.h"
 #include "mali_kbase_mem_lowlevel.h"
-#include "mali_kbase_js.h"
 #include "mali_kbase_utility.h"
 #include "mali_kbase_mem.h"
+#include "mmu/mali_kbase_mmu.h"
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
+#include "mali_kbase_gpuprops.h"
+#include "mali_kbase_ioctl.h"
 #include "mali_kbase_debug_job_fault.h"
 #include "mali_kbase_jd_debugfs.h"
-#include "mali_kbase_gpuprops.h"
 #include "mali_kbase_jm.h"
-#include "mali_kbase_ioctl.h"
+#include "mali_kbase_js.h"
 
 #include "ipa/mali_kbase_ipa.h"
 
 #ifdef CONFIG_GPU_TRACEPOINTS
 #include <trace/events/gpu.h>
 #endif
+
+#include "mali_linux_trace.h"
 
 
 #ifndef u64_to_user_ptr
@@ -97,16 +101,8 @@ struct kbase_device *kbase_device_alloc(void);
 * been setup before calling kbase_device_init
 */
 
-/*
-* API to acquire device list semaphore and return pointer
-* to the device list head
-*/
-const struct list_head *kbase_dev_list_get(void);
-/* API to release the device list semaphore */
-void kbase_dev_list_put(const struct list_head *dev_list);
-
-int kbase_device_init(struct kbase_device * const kbdev);
-void kbase_device_term(struct kbase_device *kbdev);
+int kbase_device_misc_init(struct kbase_device *kbdev);
+void kbase_device_misc_term(struct kbase_device *kbdev);
 void kbase_device_free(struct kbase_device *kbdev);
 int kbase_device_has_feature(struct kbase_device *kbdev, u32 feature);
 
@@ -156,6 +152,60 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *kctx,
 		const unsigned long addr, const unsigned long len,
 		const unsigned long pgoff, const unsigned long flags);
 
+
+int assign_irqs(struct kbase_device *kbdev);
+
+int kbase_sysfs_init(struct kbase_device *kbdev);
+void kbase_sysfs_term(struct kbase_device *kbdev);
+
+
+int kbase_protected_mode_init(struct kbase_device *kbdev);
+void kbase_protected_mode_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_device_pm_init() - Performs power management initialization and
+ * Verifies device tree configurations.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 if successful, otherwise a standard Linux error code
+ */
+int kbase_device_pm_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_device_pm_term() - Performs power management deinitialization and
+ * Free resources.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Clean up all the resources
+ */
+void kbase_device_pm_term(struct kbase_device *kbdev);
+
+
+int power_control_init(struct kbase_device *kbdev);
+void power_control_term(struct kbase_device *kbdev);
+
+#ifdef CONFIG_DEBUG_FS
+void kbase_device_debugfs_term(struct kbase_device *kbdev);
+int kbase_device_debugfs_init(struct kbase_device *kbdev);
+#else /* CONFIG_DEBUG_FS */
+static inline int kbase_device_debugfs_init(struct kbase_device *kbdev)
+{
+	return 0;
+}
+
+static inline void kbase_device_debugfs_term(struct kbase_device *kbdev) { }
+#endif /* CONFIG_DEBUG_FS */
+
+int registers_map(struct kbase_device *kbdev);
+void registers_unmap(struct kbase_device *kbdev);
+
+int kbase_device_coherency_init(struct kbase_device *kbdev);
+
+#ifdef CONFIG_MALI_BUSLOG
+int buslog_init(struct kbase_device *kbdev);
+void buslog_term(struct kbase_device *kbdev);
+#endif
+
 int kbase_jd_init(struct kbase_context *kctx);
 void kbase_jd_exit(struct kbase_context *kctx);
 
@@ -200,9 +250,6 @@ void kbase_jd_zap_context(struct kbase_context *kctx);
 bool jd_done_nolock(struct kbase_jd_atom *katom,
 		struct list_head *completed_jobs_ctx);
 void kbase_jd_free_external_resources(struct kbase_jd_atom *katom);
-bool jd_submit_atom(struct kbase_context *kctx,
-			 const struct base_jd_atom_v2 *user_atom,
-			 struct kbase_jd_atom *katom);
 void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom);
 
 /**
@@ -232,6 +279,22 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done);
 void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 				struct kbase_jd_atom *katom);
 
+/**
+ * kbase_job_slot_softstop_start_rp() - Soft-stop the atom at the start
+ *                                      of a renderpass.
+ * @kctx: Pointer to a kernel base context.
+ * @reg:  Reference of a growable GPU memory region in the same context.
+ *        Takes ownership of the reference if successful.
+ *
+ * Used to switch to incremental rendering if we have nearly run out of
+ * virtual address space in a growable memory region and the atom currently
+ * executing on a job slot is the tiler job chain at the start of a renderpass.
+ *
+ * Return 0 if successful, otherwise a negative error code.
+ */
+int kbase_job_slot_softstop_start_rp(struct kbase_context *kctx,
+		struct kbase_va_region *reg);
+
 void kbase_job_slot_softstop(struct kbase_device *kbdev, int js,
 		struct kbase_jd_atom *target_katom);
 void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
@@ -242,6 +305,7 @@ void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
 		base_jd_core_req core_reqs, struct kbase_jd_atom *target_katom);
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom);
+
 
 void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *event);
 int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *uevent);
@@ -262,6 +326,16 @@ void kbase_event_wakeup(struct kbase_context *kctx);
  */
 int kbasep_jit_alloc_validate(struct kbase_context *kctx,
 					struct base_jit_alloc_info *info);
+
+/**
+ * kbase_jit_retry_pending_alloc() - Retry blocked just-in-time memory
+ *                                   allocations.
+ *
+ * @kctx:	Pointer to the kbase context within which the just-in-time
+ *		memory allocations are to be retried.
+ */
+void kbase_jit_retry_pending_alloc(struct kbase_context *kctx);
+
 /**
  * kbase_free_user_buffer() - Free memory allocated for struct
  *		@kbase_debug_copy_buffer.
@@ -288,23 +362,6 @@ static inline void kbase_free_user_buffer(
 	}
 }
 
-/**
- * kbase_mem_copy_from_extres_page() - Copy pages from external resources.
- *
- * @kctx:		kbase context within which the copying is to take place.
- * @extres_pages:	Pointer to the pages which correspond to the external
- *			resources from which the copying will take place.
- * @pages:		Pointer to the pages to which the content is to be
- *			copied from the provided external resources.
- * @nr_pages:		Number of pages to copy.
- * @target_page_nr:	Number of target pages which will be used for copying.
- * @offset:		Offset into the target pages from which the copying
- *			is to be performed.
- * @to_copy:		Size of the chunk to be copied, in bytes.
- */
-void kbase_mem_copy_from_extres_page(struct kbase_context *kctx,
-		void *extres_page, struct page **pages, unsigned int nr_pages,
-		unsigned int *target_page_nr, size_t offset, size_t *to_copy);
 /**
  * kbase_mem_copy_from_extres() - Copy from external resources.
  *
@@ -333,18 +390,6 @@ void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
 
 void kbasep_as_do_poke(struct work_struct *work);
 
-/** Returns the name associated with a Mali exception code
- *
- * This function is called from the interrupt handler when a GPU fault occurs.
- * It reports the details of the fault using KBASE_DEBUG_PRINT_WARN.
- *
- * @param[in] kbdev     The kbase device that the GPU fault occurred from.
- * @param[in] exception_code  exception code
- * @return name associated with the exception code
- */
-const char *kbase_exception_name(struct kbase_device *kbdev,
-		u32 exception_code);
-
 /**
  * Check whether a system suspend is in progress, or has already been suspended
  *
@@ -359,6 +404,24 @@ static inline bool kbase_pm_is_suspending(struct kbase_device *kbdev)
 {
 	return kbdev->pm.suspending;
 }
+
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+/*
+ * Check whether a gpu lost is in progress
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Indicates whether a gpu lost has been received and jobs are no longer
+ * being scheduled
+ *
+ * Return: false if gpu is lost
+ * Return: != false otherwise
+ */
+static inline bool kbase_pm_is_gpu_lost(struct kbase_device *kbdev)
+{
+	return kbdev->pm.gpu_lost;
+}
+#endif
 
 /**
  * kbase_pm_is_active - Determine whether the GPU is active
@@ -446,6 +509,8 @@ static inline struct kbase_jd_atom *kbase_jd_atom_from_id(
  * and during context creation.
  *
  * @param kbdev The kbase device
+ *
+ * Return: 0 on success and non-zero value on failure.
  */
 void kbase_disjoint_init(struct kbase_device *kbdev);
 
@@ -507,181 +572,6 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
 	#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
 #endif
 
-#if KBASE_TRACE_ENABLE
-void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
-
-#ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE
-/** Add trace values about a job-slot
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_JOBSLOT, 0, jobslot, 0)
-
-/** Add trace values about a job-slot, with info
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_JOBSLOT, 0, jobslot, info_val)
-
-/** Add trace values about a ctx refcount
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_REFCOUNT, refcount, 0, 0)
-/** Add trace values about a ctx refcount, and info
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_REFCOUNT, refcount, 0, info_val)
-
-/** Add trace values (no slot or refcount)
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD(kbdev, code, ctx, katom, gpu_addr, info_val)     \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			0, 0, 0, info_val)
-
-/** Clear the trace */
-#define KBASE_TRACE_CLEAR(kbdev) \
-	kbasep_trace_clear(kbdev)
-
-/** Dump the slot trace */
-#define KBASE_TRACE_DUMP(kbdev) \
-	kbasep_trace_dump(kbdev)
-
-/** PRIVATE - do not use directly. Use KBASE_TRACE_ADD() instead */
-void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, void *ctx, struct kbase_jd_atom *katom, u64 gpu_addr, u8 flags, int refcount, int jobslot, unsigned long info_val);
-/** PRIVATE - do not use directly. Use KBASE_TRACE_CLEAR() instead */
-void kbasep_trace_clear(struct kbase_device *kbdev);
-#else /* #ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE */
-/* Dispatch kbase trace events as system trace events */
-#include <mali_linux_kbase_trace.h>
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
-	trace_mali_##code(jobslot, 0)
-
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val)\
-	trace_mali_##code(jobslot, info_val)
-
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount)\
-	trace_mali_##code(refcount, 0)
-
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val)\
-	trace_mali_##code(refcount, info_val)
-
-#define KBASE_TRACE_ADD(kbdev, code, ctx, katom, gpu_addr, info_val)\
-	trace_mali_##code(gpu_addr, info_val)
-
-#define KBASE_TRACE_CLEAR(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#define KBASE_TRACE_DUMP(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#endif /* #ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE */
-#else
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(jobslot);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(jobslot);\
-		CSTD_UNUSED(info_val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(refcount);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(info_val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD(kbdev, code, subcode, ctx, katom, val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(subcode);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_CLEAR(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#define KBASE_TRACE_DUMP(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#endif /* KBASE_TRACE_ENABLE */
-/** PRIVATE - do not use directly. Use KBASE_TRACE_DUMP() instead */
-void kbasep_trace_dump(struct kbase_device *kbdev);
-
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI)
 
 /* kbase_io_history_init - initialize data struct for register access history
@@ -730,6 +620,5 @@ int kbase_io_history_resize(struct kbase_io_history *h, u16 new_size);
 #define kbase_io_history_resize CSTD_NOP
 
 #endif /* CONFIG_DEBUG_FS */
-
 
 #endif

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
  */
 
 #include <mali_kbase.h>
-#include <mali_midg_regmap.h>
+#include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
@@ -102,6 +102,8 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 		 * when there are contexts active */
 		KBASE_DEBUG_ASSERT(pm->active_count == 0);
 
+		pm->backend.poweron_required = false;
+
 		/* Request power off */
 		if (pm->backend.gpu_powered) {
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
@@ -157,8 +159,7 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 		shaders_desired = kbdev->pm.backend.pm_current_policy->shaders_needed(kbdev);
 
 	if (kbdev->pm.backend.shaders_desired != shaders_desired) {
-		KBASE_TRACE_ADD(kbdev, PM_CORES_CHANGE_DESIRED, NULL, NULL, 0u,
-				(u32)kbdev->pm.backend.shaders_desired);
+		KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_DESIRED, NULL, kbdev->pm.backend.shaders_desired);
 
 		kbdev->pm.backend.shaders_desired = shaders_desired;
 		kbase_pm_update_state(kbdev);
@@ -199,22 +200,20 @@ KBASE_EXPORT_TEST_API(kbase_pm_get_policy);
 void kbase_pm_set_policy(struct kbase_device *kbdev,
 				const struct kbase_pm_policy *new_policy)
 {
-	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 	const struct kbase_pm_policy *old_policy;
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	KBASE_DEBUG_ASSERT(new_policy != NULL);
 
-	KBASE_TRACE_ADD(kbdev, PM_SET_POLICY, NULL, NULL, 0u, new_policy->id);
+	KBASE_KTRACE_ADD(kbdev, PM_SET_POLICY, NULL, new_policy->id);
 
 	/* During a policy change we pretend the GPU is active */
 	/* A suspend won't happen here, because we're in a syscall from a
 	 * userspace thread */
 	kbase_pm_context_active(kbdev);
 
-	mutex_lock(&js_devdata->runpool_mutex);
-	mutex_lock(&kbdev->pm.lock);
+	kbase_pm_lock(kbdev);
 
 	/* Remove the policy to prevent IRQ handlers from working on it */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
@@ -222,13 +221,11 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
 	kbdev->pm.backend.pm_current_policy = NULL;
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	KBASE_TRACE_ADD(kbdev, PM_CURRENT_POLICY_TERM, NULL, NULL, 0u,
-								old_policy->id);
+	KBASE_KTRACE_ADD(kbdev, PM_CURRENT_POLICY_TERM, NULL, old_policy->id);
 	if (old_policy->term)
 		old_policy->term(kbdev);
 
-	KBASE_TRACE_ADD(kbdev, PM_CURRENT_POLICY_INIT, NULL, NULL, 0u,
-								new_policy->id);
+	KBASE_KTRACE_ADD(kbdev, PM_CURRENT_POLICY_INIT, NULL, new_policy->id);
 	if (new_policy->init)
 		new_policy->init(kbdev);
 
@@ -242,8 +239,7 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
 	kbase_pm_update_active(kbdev);
 	kbase_pm_update_cores_state(kbdev);
 
-	mutex_unlock(&kbdev->pm.lock);
-	mutex_unlock(&js_devdata->runpool_mutex);
+	kbase_pm_unlock(kbdev);
 
 	/* Now the policy change is finished, we release our fake context active
 	 * reference */

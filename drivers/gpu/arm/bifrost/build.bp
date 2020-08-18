@@ -1,13 +1,16 @@
 /*
- * Copyright:
- * ----------------------------------------------------------------------------
- * This confidential and proprietary software may be used only as authorized
- * by a licensing agreement from ARM Limited.
- *      (C) COPYRIGHT 2017-2019 ARM Limited, ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorized copies and
- * copies may only be made to the extent permitted by a licensing agreement
- * from ARM Limited.
- * ----------------------------------------------------------------------------
+ *
+ * (C) COPYRIGHT 2017-2020 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * A copy of the licence is included with the program, and can also be obtained
+ * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA.
+ *
  */
 
 /* Kernel-side tests may include mali_kbase's headers. Therefore any config
@@ -34,9 +37,6 @@ bob_defaults {
     buslog: {
         kbuild_options: ["CONFIG_MALI_BUSLOG=y"],
     },
-    cinstr_job_dump: {
-        kbuild_options: ["CONFIG_MALI_JOB_DUMP=y"],
-    },
     cinstr_vector_dump: {
         kbuild_options: ["CONFIG_MALI_VECTOR_DUMP=y"],
     },
@@ -45,6 +45,9 @@ bob_defaults {
     },
     mali_gator_support: {
         kbuild_options: ["CONFIG_MALI_BIFROST_GATOR_SUPPORT=y"],
+    },
+    mali_midgard_enable_trace: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_ENABLE_TRACE=y"],
     },
     mali_system_trace: {
         kbuild_options: ["CONFIG_MALI_BIFROST_SYSTEM_TRACE=y"],
@@ -60,6 +63,12 @@ bob_defaults {
     },
     mali_dma_buf_legacy_compat: {
         kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
+    },
+    mali_arbiter_support: {
+        kbuild_options: ["CONFIG_MALI_ARBITER_SUPPORT=y"],
+    },
+    mali_gem5_build: {
+       kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
     },
     kbuild_options: [
         "MALI_UNIT_TEST={{.unit_test_code}}",
@@ -79,6 +88,8 @@ bob_kernel_module {
         "backend/gpu/*.c",
         "backend/gpu/*.h",
         "backend/gpu/Kbuild",
+        "context/*.c",
+        "context/*.h",
         "ipa/*.c",
         "ipa/*.h",
         "ipa/Kbuild",
@@ -87,6 +98,16 @@ bob_kernel_module {
         "platform/*/*.h",
         "platform/*/Kbuild",
         "thirdparty/*.c",
+        "debug/*.c",
+        "debug/*.h",
+        "device/*.c",
+        "device/*.h",
+        "gpu/*.c",
+        "gpu/*.h",
+        "tl/*.c",
+        "tl/*.h",
+        "mmu/*.c",
+        "mmu/*.h",
     ],
     kbuild_options: [
         "CONFIG_MALI_KUTF=n",
@@ -111,6 +132,9 @@ bob_kernel_module {
     cinstr_secondary_hwc: {
         kbuild_options: ["CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY=y"],
     },
+    cinstr_secondary_hwc_via_debug_fs: {
+        kbuild_options: ["CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS=y"],
+    },
     mali_2mb_alloc: {
         kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
     },
@@ -120,11 +144,39 @@ bob_kernel_module {
     mali_hw_errata_1485982_use_clock_alternative: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
     },
+    gpu_has_job_manager: {
+        srcs: [
+            "context/backend/*_jm.c",
+            "debug/backend/*_jm.c",
+            "debug/backend/*_jm.h",
+            "device/backend/*_jm.c",
+            "gpu/backend/*_jm.c",
+            "gpu/backend/*_jm.h",
+            "jm/*.h",
+            "tl/backend/*_jm.c",
+            "mmu/backend/*_jm.c",
+        ],
+    },
     gpu_has_csf: {
         srcs: [
+            "context/backend/*_csf.c",
             "csf/*.c",
             "csf/*.h",
             "csf/Kbuild",
+            "debug/backend/*_csf.c",
+            "debug/backend/*_csf.h",
+            "device/backend/*_csf.c",
+            "gpu/backend/*_csf.c",
+            "gpu/backend/*_csf.h",
+            "tl/backend/*_csf.c",
+            "mmu/backend/*_csf.c",
+        ],
+    },
+    mali_arbiter_support: {
+        srcs: [
+            "arbiter/*.c",
+            "arbiter/*.h",
+            "arbiter/Kbuild",
         ],
     },
     defaults: ["mali_kbase_shared_config_defaults"],

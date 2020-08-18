@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015,2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015,2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -70,6 +70,8 @@ static int mmu_reg_snapshot[] = {
 static int as_reg_snapshot[] = {
 	AS_TRANSTAB_LO,
 	AS_TRANSTAB_HI,
+	AS_TRANSCFG_LO,
+	AS_TRANSCFG_HI,
 	AS_MEMATTR_LO,
 	AS_MEMATTR_HI,
 	AS_FAULTSTATUS,

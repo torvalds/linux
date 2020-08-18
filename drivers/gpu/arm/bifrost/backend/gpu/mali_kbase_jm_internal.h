@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016, 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,6 +34,7 @@
 #include <linux/atomic.h>
 
 #include <backend/gpu/mali_kbase_jm_rb.h>
+#include <backend/gpu/mali_kbase_device_internal.h>
 
 /**
  * kbase_job_submit_nolock() - Submit a job to a certain job-slot
@@ -69,6 +70,13 @@ static inline char *kbasep_make_job_slot_string(int js, char *js_string,
 	return js_string;
 }
 #endif
+
+static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
+						struct kbase_context *kctx)
+{
+	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT));
+}
+
 
 /**
  * kbase_job_hw_submit() - Submit a job to the GPU

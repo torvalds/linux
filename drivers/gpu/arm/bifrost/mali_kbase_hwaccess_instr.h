@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015, 2017-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2017-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -138,5 +138,14 @@ int kbase_instr_backend_init(struct kbase_device *kbdev);
  * This function should be called during driver termination.
  */
 void kbase_instr_backend_term(struct kbase_device *kbdev);
+
+#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
+/**
+ * kbase_instr_backend_debugfs_init() - Add a debugfs entry for the
+ *                                      hardware counter set.
+ * @kbdev: kbase device
+ */
+void kbase_instr_backend_debugfs_init(struct kbase_device *kbdev);
+#endif
 
 #endif /* _KBASE_HWACCESS_INSTR_H_ */

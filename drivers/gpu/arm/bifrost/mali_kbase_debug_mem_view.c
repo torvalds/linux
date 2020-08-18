@@ -233,6 +233,12 @@ static int debug_mem_open(struct inode *i, struct file *file)
 		goto out;
 	}
 
+	ret = debug_mem_zone_open(&kctx->reg_rbtree_exec, mem_data);
+	if (0 != ret) {
+		kbase_gpu_vm_unlock(kctx);
+		goto out;
+	}
+
 	kbase_gpu_vm_unlock(kctx);
 
 	((struct seq_file *)file->private_data)->private = mem_data;

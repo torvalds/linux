@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014, 2017-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2017-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -634,6 +634,17 @@ static void kutf_remove_test_variant(struct kutf_test_fixture *test_fix)
 	kfree(test_fix);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+/* Adapting to the upstream debugfs_create_x32() change */
+static int ktufp_u32_get(void *data, u64 *val)
+{
+	*val = *(u32 *)data;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(kutfp_fops_x32_ro, ktufp_u32_get, NULL, "0x%08llx\n");
+#endif
+
 void kutf_add_test_with_filters_and_data(
 		struct kutf_suite *suite,
 		unsigned int id,
@@ -668,8 +679,13 @@ void kutf_add_test_with_filters_and_data(
 	}
 
 	test_func->filters = filters;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+	tmp = debugfs_create_file_unsafe("filters", S_IROTH, test_func->dir,
+					 &test_func->filters, &kutfp_fops_x32_ro);
+#else
 	tmp = debugfs_create_x32("filters", S_IROTH, test_func->dir,
 				 &test_func->filters);
+#endif
 	if (!tmp) {
 		pr_err("Failed to create debugfs file \"filters\" when adding test %s\n", name);
 		goto fail_file;

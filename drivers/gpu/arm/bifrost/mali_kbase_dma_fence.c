@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017,2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -113,6 +113,8 @@ kbase_dma_fence_unlock_reservations(struct kbase_dma_fence_resv_info *info,
 		ww_mutex_unlock(&info->resv_objs[r]->lock);
 	ww_acquire_fini(ctx);
 }
+
+
 
 /**
  * kbase_dma_fence_queue_work() - Queue work to handle @katom

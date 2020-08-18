@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2013-2019 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -19,13 +19,14 @@
 #
 #
 
-* ARM Mali Midgard devices
+* ARM Mali Midgard / Bifrost devices
 
 
 Required properties:
 
 - compatible : Should be mali<chip>, replacing digits with x from the back,
-until malit<Major>xx, ending with arm,mali-midgard, the latter not optional.
+until malit<Major>xx, and it must end with one of: "arm,malit6xx" or
+"arm,mali-midgard" or "arm,mali-bifrost"
 - reg : Physical base address of the device and length of the register area.
 - interrupts : Contains the three IRQ lines required by T-6xx devices
 - interrupt-names : Contains the names of IRQ resources in the order they were
@@ -107,13 +108,22 @@ for details.
 	      model is not found in the registered models list. If no model is specified here,
 	      a gpu-id based model is picked if available, otherwise the default model is used.
 	- mali-simple-power-model: Default model used on mali
-- protected-mode-switcher : Phandle to device implemented protected mode switching functionality.
-Refer to Documentation/devicetree/bindings/arm/smc-protected-mode-switcher.txt for one implementation.
 -  idvs-group-size : Override the IDVS group size value. Tasks are sent to
 		     cores in groups of N + 1, so i.e. 0xF means 16 tasks.
 		     Valid values are between 0 to 0x3F (including).
 -  l2-size : Override L2 cache size on GPU that supports it
 -  l2-hash : Override L2 hash function on GPU that supports it
+-  arbiter_if : Phandle to the arbif platform device, used to provide KBASE with an interface
+		to the Arbiter. This is required when using arbitration; setting to a non-NULL
+		value will enable arbitration.
+		If arbitration is in use, then there should be no external GPU control.
+		When arbiter_if is in use then the following must not be:
+		- power_model                         (no IPA allowed with arbitration)
+		- #cooling-cells
+		- operating-points-v2                 (no dvfs in kbase with arbitration)
+		- system-coherency with a value of 1  (no full coherency with arbitration)
+
+
 
 Example for a Mali GPU with 1 clock and no regulators:
 

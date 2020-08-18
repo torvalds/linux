@@ -29,7 +29,7 @@
 #ifndef _KBASE_HWACCESS_PM_H_
 #define _KBASE_HWACCESS_PM_H_
 
-#include <mali_midg_regmap.h>
+#include <gpu/mali_kbase_gpu_regmap.h>
 #include <linux/atomic.h>
 
 #include <mali_kbase_pm_defs.h>
@@ -207,5 +207,23 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
  */
 int kbase_pm_list_policies(struct kbase_device *kbdev,
 	const struct kbase_pm_policy * const **list);
+
+/**
+ * kbase_protected_most_enable - Enable protected mode
+ *
+ * @kbdev: Address of the instance of a GPU platform device.
+ *
+ * Return: Zero on success or an error code
+ */
+int kbase_pm_protected_mode_enable(struct kbase_device *kbdev);
+
+/**
+ * kbase_protected_mode_disable - Disable protected mode
+ *
+ * @kbdev: Address of the instance of a GPU platform device.
+ *
+ * Return: Zero on success or an error code
+ */
+int kbase_pm_protected_mode_disable(struct kbase_device *kbdev);
 
 #endif /* _KBASE_HWACCESS_PM_H_ */

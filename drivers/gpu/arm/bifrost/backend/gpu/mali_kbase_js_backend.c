@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -301,8 +301,7 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 			HR_TIMER_DELAY_NSEC(js_devdata->scheduling_period_ns),
 							HRTIMER_MODE_REL);
 
-		KBASE_TRACE_ADD(kbdev, JS_POLICY_TIMER_START, NULL, NULL, 0u,
-									0u);
+		KBASE_KTRACE_ADD_JM(kbdev, JS_POLICY_TIMER_START, NULL, NULL, 0u, 0u);
 	}
 }
 
@@ -313,7 +312,6 @@ int kbase_backend_timer_init(struct kbase_device *kbdev)
 	hrtimer_init(&backend->scheduling_timer, CLOCK_MONOTONIC,
 							HRTIMER_MODE_REL);
 	backend->scheduling_timer.function = timer_callback;
-
 	backend->timer_running = false;
 
 	return 0;

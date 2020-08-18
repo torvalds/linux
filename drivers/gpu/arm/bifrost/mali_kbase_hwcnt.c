@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -683,21 +683,14 @@ bool kbase_hwcnt_context_disable_atomic(struct kbase_hwcnt_context *hctx)
 
 	if (!WARN_ON(hctx->disable_count == SIZE_MAX)) {
 		/*
-		 * If disable count is non-zero or no counters are enabled, we
-		 * can just bump the disable count.
+		 * If disable count is non-zero, we can just bump the disable
+		 * count.
 		 *
 		 * Otherwise, we can't disable in an atomic context.
 		 */
 		if (hctx->disable_count != 0) {
 			hctx->disable_count++;
 			atomic_disabled = true;
-		} else {
-			WARN_ON(!hctx->accum_inited);
-			if (!hctx->accum.enable_map_any_enabled) {
-				hctx->disable_count++;
-				hctx->accum.state = ACCUM_STATE_DISABLED;
-				atomic_disabled = true;
-			}
 		}
 	}
 

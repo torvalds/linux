@@ -24,6 +24,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_as_fault_debugfs.h>
+#include <device/mali_kbase_device.h>
 
 #ifdef CONFIG_DEBUG_FS
 #ifdef CONFIG_MALI_BIFROST_DEBUG
@@ -36,7 +37,7 @@ static int kbase_as_fault_read(struct seq_file *sfile, void *data)
 	const struct list_head *kbdev_list;
 	struct kbase_device *kbdev = NULL;
 
-	kbdev_list = kbase_dev_list_get();
+	kbdev_list = kbase_device_get_list();
 
 	list_for_each(entry, kbdev_list) {
 		kbdev = list_entry(entry, struct kbase_device, entry);
@@ -53,7 +54,7 @@ static int kbase_as_fault_read(struct seq_file *sfile, void *data)
 
 	}
 
-	kbase_dev_list_put(kbdev_list);
+	kbase_device_put_list(kbdev_list);
 
 	return 0;
 }

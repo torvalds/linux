@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,6 +30,7 @@
 #ifdef MALI_BIFROST_NO_MALI
 #include <backend/gpu/mali_kbase_model_dummy.h>
 #endif
+#include <mali_kbase_dummy_job_wa.h>
 
 int kbase_pm_ca_init(struct kbase_device *kbdev)
 {
@@ -61,6 +62,11 @@ void kbase_devfreq_set_core_mask(struct kbase_device *kbdev, u64 core_mask)
 	if (!(core_mask & kbdev->pm.debug_core_mask_all)) {
 		dev_err(kbdev->dev, "OPP core mask 0x%llX does not intersect with debug mask 0x%llX\n",
 				core_mask, kbdev->pm.debug_core_mask_all);
+		goto unlock;
+	}
+
+	if (kbase_dummy_job_wa_enabled(kbdev)) {
+		dev_err(kbdev->dev, "Dynamic core scaling not supported as dummy job WA is enabled");
 		goto unlock;
 	}
 

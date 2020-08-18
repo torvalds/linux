@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,10 +27,11 @@
  */
 
 #include <mali_kbase.h>
-#include <mali_midg_regmap.h>
+#include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_hwaccess_instr.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include <backend/gpu/mali_kbase_instr_internal.h>
+
 
 int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					struct kbase_context *kctx,
@@ -70,7 +71,11 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 
 	/* Configure */
 	prfcnt_config = kctx->as_nr << PRFCNT_CONFIG_AS_SHIFT;
+#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
+	if (kbdev->hwcnt.backend.use_secondary_override)
+#else
 	if (enable->use_secondary)
+#endif
 		prfcnt_config |= 1 << PRFCNT_CONFIG_SETSELECT_SHIFT;
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
@@ -80,16 +85,17 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					enable->dump_buffer & 0xFFFFFFFF);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_HI),
 					enable->dump_buffer >> 32);
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_JM_EN),
 					enable->jm_bm);
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_SHADER_EN),
 					enable->shader_bm);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_MMU_L2_EN),
 					enable->mmu_l2_bm);
-	/* Due to PRLAM-8186 we need to disable the Tiler before we enable the
-	 * HW counter dump. */
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
-			enable->tiler_bm);
+					enable->tiler_bm);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_MANUAL);
@@ -198,6 +204,7 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 	 */
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DUMPING;
 
+
 	/* Reconfigure the dump address */
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_LO),
 					kbdev->hwcnt.addr & 0xFFFFFFFF);
@@ -205,8 +212,9 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 					kbdev->hwcnt.addr >> 32);
 
 	/* Start dumping */
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL, NULL,
-					kbdev->hwcnt.addr, 0);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL,
+			kbdev->hwcnt.addr);
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_PRFCNT_SAMPLE);
 
@@ -216,6 +224,8 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 
  unlock:
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+
+
 	return err;
 }
 KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_request_dump);
@@ -276,6 +286,7 @@ void kbasep_cache_clean_worker(struct work_struct *data)
 
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 }
+
 
 void kbase_instr_hwcnt_sample_done(struct kbase_device *kbdev)
 {
@@ -348,7 +359,7 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 		goto out;
 
 	/* Clear the counters */
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, NULL, 0u, 0);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 						GPU_COMMAND_PRFCNT_CLEAR);
 
@@ -369,7 +380,13 @@ int kbase_instr_backend_init(struct kbase_device *kbdev)
 	init_waitqueue_head(&kbdev->hwcnt.backend.wait);
 	INIT_WORK(&kbdev->hwcnt.backend.cache_clean_work,
 						kbasep_cache_clean_worker);
+
+
 	kbdev->hwcnt.backend.triggered = 0;
+
+#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
+	kbdev->hwcnt.backend.use_secondary_override = false;
+#endif
 
 	kbdev->hwcnt.backend.cache_clean_wq =
 			alloc_workqueue("Mali cache cleaning workqueue", 0, 1);
@@ -383,3 +400,12 @@ void kbase_instr_backend_term(struct kbase_device *kbdev)
 {
 	destroy_workqueue(kbdev->hwcnt.backend.cache_clean_wq);
 }
+
+#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
+void kbase_instr_backend_debugfs_init(struct kbase_device *kbdev)
+{
+	debugfs_create_bool("hwcnt_use_secondary", S_IRUGO | S_IWUSR,
+		kbdev->mali_debugfs_directory,
+		&kbdev->hwcnt.backend.use_secondary_override);
+}
+#endif

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,7 +23,23 @@
 #include <mali_kbase.h>
 #include <mali_kbase_config_defaults.h>
 
+#include <mali_kbase_defs.h>
 #include "mali_kbase_ctx_sched.h"
+#include "tl/mali_kbase_tracepoints.h"
+
+/* Helper for ktrace */
+#if KBASE_KTRACE_ENABLE
+static int kbase_ktrace_get_ctx_refcnt(struct kbase_context *kctx)
+{
+	return atomic_read(&kctx->refcount);
+}
+#else /* KBASE_KTRACE_ENABLE  */
+static int kbase_ktrace_get_ctx_refcnt(struct kbase_context *kctx)
+{
+	CSTD_UNUSED(kctx);
+	return 0;
+}
+#endif /* KBASE_KTRACE_ENABLE  */
 
 int kbase_ctx_sched_init(struct kbase_device *kbdev)
 {
@@ -106,11 +122,15 @@ int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx)
 				if (prev_kctx) {
 					WARN_ON(atomic_read(&prev_kctx->refcount) != 0);
 					kbase_mmu_disable(prev_kctx);
+					KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(
+						kbdev, prev_kctx->id);
 					prev_kctx->as_nr = KBASEP_AS_NR_INVALID;
 				}
 
 				kctx->as_nr = free_as;
 				kbdev->as_to_kctx[free_as] = kctx;
+				KBASE_TLSTREAM_TL_KBASE_CTX_ASSIGN_AS(
+					kbdev, kctx->id, free_as);
 				kbase_mmu_update(kbdev, &kctx->mmu,
 					kctx->as_nr);
 			}
@@ -142,11 +162,23 @@ void kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx)
 void kbase_ctx_sched_release_ctx(struct kbase_context *kctx)
 {
 	struct kbase_device *const kbdev = kctx->kbdev;
+	int new_ref_count;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	if (atomic_dec_return(&kctx->refcount) == 0)
+	new_ref_count = atomic_dec_return(&kctx->refcount);
+	if (new_ref_count == 0) {
 		kbdev->as_free |= (1u << kctx->as_nr);
+		if (kbase_ctx_flag(kctx, KCTX_AS_DISABLED_ON_FAULT)) {
+			KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(
+				kbdev, kctx->id);
+			kbdev->as_to_kctx[kctx->as_nr] = NULL;
+			kctx->as_nr = KBASEP_AS_NR_INVALID;
+			kbase_ctx_flag_clear(kctx, KCTX_AS_DISABLED_ON_FAULT);
+		}
+	}
+
+	KBASE_KTRACE_ADD(kbdev, SCHED_RELEASE_CTX, kctx, new_ref_count);
 }
 
 void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx)
@@ -162,6 +194,7 @@ void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx)
 		if (kbdev->pm.backend.gpu_powered)
 			kbase_mmu_disable(kctx);
 
+		KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(kbdev, kctx->id);
 		kbdev->as_to_kctx[kctx->as_nr] = NULL;
 		kctx->as_nr = KBASEP_AS_NR_INVALID;
 	}
@@ -186,15 +219,126 @@ void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)
 
 				kbase_mmu_update(kbdev, &kctx->mmu,
 					kctx->as_nr);
+				kbase_ctx_flag_clear(kctx,
+					KCTX_AS_DISABLED_ON_FAULT);
 			} else {
 				/* This context might have been assigned an
 				 * AS before, clear it.
 				 */
-				kbdev->as_to_kctx[kctx->as_nr] = NULL;
-				kctx->as_nr = KBASEP_AS_NR_INVALID;
+				if (kctx->as_nr != KBASEP_AS_NR_INVALID) {
+					KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(
+						kbdev, kctx->id);
+					kbdev->as_to_kctx[kctx->as_nr] = NULL;
+					kctx->as_nr = KBASEP_AS_NR_INVALID;
+				}
 			}
 		} else {
 			kbase_mmu_disable_as(kbdev, i);
 		}
 	}
+}
+
+struct kbase_context *kbase_ctx_sched_as_to_ctx_refcount(
+		struct kbase_device *kbdev, size_t as_nr)
+{
+	unsigned long flags;
+	struct kbase_context *found_kctx = NULL;
+
+	if (WARN_ON(kbdev == NULL))
+		return NULL;
+
+	if (WARN_ON(as_nr >= BASE_MAX_NR_AS))
+		return NULL;
+
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+	found_kctx = kbdev->as_to_kctx[as_nr];
+
+	if (found_kctx != NULL)
+		kbase_ctx_sched_retain_ctx_refcount(found_kctx);
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	return found_kctx;
+}
+
+struct kbase_context *kbase_ctx_sched_as_to_ctx(struct kbase_device *kbdev,
+		size_t as_nr)
+{
+	struct kbase_context *found_kctx;
+
+	if (WARN_ON(kbdev == NULL))
+		return NULL;
+
+	if (WARN_ON(as_nr >= BASE_MAX_NR_AS))
+		return NULL;
+
+	found_kctx = kbdev->as_to_kctx[as_nr];
+
+	if (WARN_ON(!found_kctx))
+		return NULL;
+
+	if (WARN_ON(atomic_read(&found_kctx->refcount) <= 0))
+		return NULL;
+
+	return found_kctx;
+}
+
+bool kbase_ctx_sched_inc_refcount_nolock(struct kbase_context *kctx)
+{
+	bool result = false;
+	int as_nr;
+
+	if (WARN_ON(kctx == NULL))
+		return result;
+
+	lockdep_assert_held(&kctx->kbdev->hwaccess_lock);
+
+	as_nr = kctx->as_nr;
+	if (atomic_read(&kctx->refcount) > 0) {
+		KBASE_DEBUG_ASSERT(as_nr >= 0);
+
+		kbase_ctx_sched_retain_ctx_refcount(kctx);
+		KBASE_KTRACE_ADD(kctx->kbdev, SCHED_RETAIN_CTX_NOLOCK, kctx,
+				kbase_ktrace_get_ctx_refcnt(kctx));
+		result = true;
+	}
+
+	return result;
+}
+
+bool kbase_ctx_sched_inc_refcount(struct kbase_context *kctx)
+{
+	unsigned long flags;
+	bool result = false;
+
+	if (WARN_ON(kctx == NULL))
+		return result;
+
+	if (WARN_ON(kctx->kbdev == NULL))
+		return result;
+
+	mutex_lock(&kctx->kbdev->mmu_hw_mutex);
+	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, flags);
+	result = kbase_ctx_sched_inc_refcount_nolock(kctx);
+	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kctx->kbdev->mmu_hw_mutex);
+
+	return result;
+}
+
+void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!kctx))
+		return;
+
+	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, flags);
+
+	if (!WARN_ON(kctx->as_nr == KBASEP_AS_NR_INVALID) &&
+			!WARN_ON(atomic_read(&kctx->refcount) <= 0))
+		kbase_ctx_sched_release_ctx(kctx);
+
+	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
 }

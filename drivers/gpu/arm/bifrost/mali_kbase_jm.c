@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,6 +45,9 @@ static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
 	int i;
 
 	kctx = kbdev->hwaccess.active_kctx[js];
+	dev_dbg(kbdev->dev,
+		"Trying to run the next %d jobs in kctx %p (s:%d)\n",
+		nr_jobs_to_submit, (void *)kctx, js);
 
 	if (!kctx)
 		return true;
@@ -58,7 +61,8 @@ static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
 		kbase_backend_run_atom(kbdev, katom);
 	}
 
-	return false; /* Slot ringbuffer should now be full */
+	dev_dbg(kbdev->dev, "Slot ringbuffer should now be full (s:%d)\n", js);
+	return false;
 }
 
 u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask)
@@ -66,6 +70,7 @@ u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask)
 	u32 ret_mask = 0;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+	dev_dbg(kbdev->dev, "JM kick slot mask 0x%x\n", js_mask);
 
 	while (js_mask) {
 		int js = ffs(js_mask) - 1;
@@ -77,6 +82,7 @@ u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask)
 		js_mask &= ~(1 << js);
 	}
 
+	dev_dbg(kbdev->dev, "Can still submit to mask 0x%x\n", ret_mask);
 	return ret_mask;
 }
 
@@ -111,8 +117,11 @@ void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
-		if (kbdev->hwaccess.active_kctx[js] == kctx)
+		if (kbdev->hwaccess.active_kctx[js] == kctx) {
+			dev_dbg(kbdev->dev, "Marking kctx %p as inactive (s:%d)\n",
+					(void *)kctx, js);
 			kbdev->hwaccess.active_kctx[js] = NULL;
+		}
 	}
 }
 
@@ -120,6 +129,9 @@ struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	dev_dbg(kbdev->dev, "Atom %p is returning with event code 0x%x\n",
+		(void *)katom, katom->event_code);
 
 	if (katom->event_code != BASE_JD_EVENT_STOPPED &&
 			katom->event_code != BASE_JD_EVENT_REMOVED_FROM_NEXT) {
@@ -137,4 +149,3 @@ struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
 
 	return kbase_js_complete_atom(katom, end_timestamp);
 }
-

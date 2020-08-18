@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,7 +28,7 @@
 
 #include <mali_base_hwconfig_features.h>
 #include <mali_base_hwconfig_issues.h>
-#include <mali_midg_regmap.h>
+#include "gpu/mali_kbase_gpu_regmap.h"
 #include "mali_kbase.h"
 #include "mali_kbase_hw.h"
 
@@ -68,9 +68,6 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	case GPU_ID2_PRODUCT_TBEX:
 		features = base_hw_features_tBEx;
 		break;
-	case GPU_ID2_PRODUCT_TULX:
-		features = base_hw_features_tULx;
-		break;
 	case GPU_ID2_PRODUCT_TDUX:
 		features = base_hw_features_tDUx;
 		break;
@@ -78,11 +75,19 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	case GPU_ID2_PRODUCT_LODX:
 		features = base_hw_features_tODx;
 		break;
-	case GPU_ID2_PRODUCT_TIDX:
-		features = base_hw_features_tIDx;
+	case GPU_ID2_PRODUCT_TGRX:
+		features = base_hw_features_tGRx;
 		break;
 	case GPU_ID2_PRODUCT_TVAX:
 		features = base_hw_features_tVAx;
+		break;
+	case GPU_ID2_PRODUCT_TTUX:
+		/* Fallthrough */
+	case GPU_ID2_PRODUCT_LTUX:
+		features = base_hw_features_tTUx;
+		break;
+	case GPU_ID2_PRODUCT_TE2X:
+		features = base_hw_features_tE2x;
 		break;
 	default:
 		features = base_hw_features_generic;
@@ -92,11 +97,11 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 	for (; *features != BASE_HW_FEATURE_END; features++)
 		set_bit(*features, &kbdev->hw_features_mask[0]);
 
-#if defined(CONFIG_MALI_JOB_DUMP) || defined(CONFIG_MALI_VECTOR_DUMP)
+#if defined(CONFIG_MALI_VECTOR_DUMP)
 	/* When dumping is enabled, need to disable flush reduction optimization
 	 * for GPUs on which it is safe to have only cache clean operation at
 	 * the end of job chain.
-	 * This is required to make job dumping work. There is some discrepancy
+	 * This is required to make vector dump work. There is some discrepancy
 	 * in the implementation of flush reduction optimization due to
 	 * unclear or ambiguous ARCH spec.
 	 */
@@ -177,6 +182,7 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tTRx_r0p0},
 		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tTRx_r0p1},
 		  {GPU_ID2_VERSION_MAKE(0, 1, 1), base_hw_issues_tTRx_r0p1},
+		  {GPU_ID2_VERSION_MAKE(0, 2, 0), base_hw_issues_tTRx_r0p2},
 		  {U32_MAX, NULL} } },
 
 		{GPU_ID2_PRODUCT_TNAX,
@@ -189,17 +195,15 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 		  {U32_MAX, NULL} } },
 
 		{GPU_ID2_PRODUCT_LBEX,
-		 {{GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tBEx_r1p0},
+		 {{GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_lBEx_r1p0},
+		  {GPU_ID2_VERSION_MAKE(1, 1, 0), base_hw_issues_lBEx_r1p1},
 		  {U32_MAX, NULL} } },
 
 		{GPU_ID2_PRODUCT_TBEX,
 		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBEx_r0p0},
 		  {GPU_ID2_VERSION_MAKE(0, 0, 3), base_hw_issues_tBEx_r0p0},
+		  {GPU_ID2_VERSION_MAKE(0, 1, 0), base_hw_issues_tBEx_r0p1},
 		  {GPU_ID2_VERSION_MAKE(1, 0, 0), base_hw_issues_tBEx_r1p0},
-		  {U32_MAX, NULL} } },
-
-		{GPU_ID2_PRODUCT_TULX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tULx_r0p0},
 		  {U32_MAX, NULL} } },
 
 		{GPU_ID2_PRODUCT_TDUX,
@@ -214,12 +218,24 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tODx_r0p0},
 		  {U32_MAX, NULL} } },
 
-		{GPU_ID2_PRODUCT_TIDX,
-		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tIDx_r0p0},
+		{GPU_ID2_PRODUCT_TGRX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGRx_r0p0},
 		  {U32_MAX, NULL} } },
 
 		{GPU_ID2_PRODUCT_TVAX,
 		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tVAx_r0p0},
+		  {U32_MAX, NULL} } },
+
+		{GPU_ID2_PRODUCT_TTUX,
+		 {{GPU_ID2_VERSION_MAKE(2, 0, 0), base_hw_issues_tTUx_r0p0},
+		  {U32_MAX, NULL} } },
+
+		{GPU_ID2_PRODUCT_LTUX,
+		 {{GPU_ID2_VERSION_MAKE(3, 0, 0), base_hw_issues_tTUx_r0p0},
+		  {U32_MAX, NULL} } },
+
+		{GPU_ID2_PRODUCT_TE2X,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tE2x_r0p0},
 		  {U32_MAX, NULL} } },
 	};
 
@@ -358,9 +374,6 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		case GPU_ID2_PRODUCT_TBEX:
 			issues = base_hw_issues_model_tBEx;
 			break;
-		case GPU_ID2_PRODUCT_TULX:
-			issues = base_hw_issues_model_tULx;
-			break;
 		case GPU_ID2_PRODUCT_TDUX:
 			issues = base_hw_issues_model_tDUx;
 			break;
@@ -368,11 +381,18 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 		case GPU_ID2_PRODUCT_LODX:
 			issues = base_hw_issues_model_tODx;
 			break;
-		case GPU_ID2_PRODUCT_TIDX:
-			issues = base_hw_issues_model_tIDx;
+		case GPU_ID2_PRODUCT_TGRX:
+			issues = base_hw_issues_model_tGRx;
 			break;
 		case GPU_ID2_PRODUCT_TVAX:
 			issues = base_hw_issues_model_tVAx;
+			break;
+		case GPU_ID2_PRODUCT_TTUX:
+		case GPU_ID2_PRODUCT_LTUX:
+			issues = base_hw_issues_model_tTUx;
+			break;
+		case GPU_ID2_PRODUCT_TE2X:
+			issues = base_hw_issues_model_tE2x;
 			break;
 		default:
 			dev_err(kbdev->dev,

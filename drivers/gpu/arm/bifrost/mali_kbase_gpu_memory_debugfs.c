@@ -21,6 +21,7 @@
  */
 
 #include <mali_kbase.h>
+#include <device/mali_kbase_device.h>
 
 #ifdef CONFIG_DEBUG_FS
 /** Show callback for the @c gpu_memory debugfs file.
@@ -40,7 +41,7 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 	struct list_head *entry;
 	const struct list_head *kbdev_list;
 
-	kbdev_list = kbase_dev_list_get();
+	kbdev_list = kbase_device_get_list();
 	list_for_each(entry, kbdev_list) {
 		struct kbase_device *kbdev = NULL;
 		struct kbase_context *kctx;
@@ -61,7 +62,7 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 		}
 		mutex_unlock(&kbdev->kctx_list_lock);
 	}
-	kbase_dev_list_put(kbdev_list);
+	kbase_device_put_list(kbdev_list);
 	return 0;
 }
 

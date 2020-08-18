@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -131,5 +131,79 @@ void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx);
  * held whilst calling this function.
  */
 void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev);
+
+/**
+ * kbase_ctx_sched_as_to_ctx_refcount - Lookup a context based on its current
+ * address space and ensure that is stays scheduled in
+ * @kbdev: The device for which the returned context must belong
+ * @as_nr: address space assigned to the context of interest
+ *
+ * The context is refcounted as being busy to prevent it from scheduling
+ * out. It must be released with kbase_ctx_sched_release_ctx() when it is no
+ * longer required to stay scheduled in.
+ *
+ * This function can safely be called from IRQ context.
+ *
+ * The following locking conditions are made on the caller:
+ * * it must not hold the kbase_device::hwaccess_lock, because it will be used
+ *   internally.
+ *
+ * Return: a valid struct kbase_context on success, which has been refcounted
+ * as being busy or return NULL on failure, indicating that no context was found
+ * in as_nr.
+ */
+struct kbase_context *kbase_ctx_sched_as_to_ctx_refcount(
+		struct kbase_device *kbdev, size_t as_nr);
+
+/**
+ * kbase_ctx_sched_as_to_ctx - Lookup a context based on its current address
+ * space
+ * @kbdev: The device for which the returned context must belong
+ * @as_nr: address space assigned to the context of interest
+ *
+ * Return: a valid struct kbase_context on success or NULL on failure,
+ * indicating that no context was found in as_nr.
+ */
+struct kbase_context *kbase_ctx_sched_as_to_ctx(struct kbase_device *kbdev,
+		size_t as_nr);
+
+/**
+ * kbase_ctx_sched_inc_refcount_nolock - Refcount a context as being busy,
+ * preventing it from being scheduled out.
+ * @kctx: Context to be refcounted
+ *
+ * The following locks must be held by the caller:
+ * * kbase_device::mmu_hw_mutex
+ * * kbase_device::hwaccess_lock
+ *
+ * Return: true if refcount succeeded, and the context will not be scheduled
+ * out, false if the refcount failed (because the context is being/has been
+ * scheduled out).
+ */
+bool kbase_ctx_sched_inc_refcount_nolock(struct kbase_context *kctx);
+
+/**
+ * kbase_ctx_sched_inc_refcount - Refcount a context as being busy, preventing
+ * it from being scheduled out.
+ * @kctx: Context to be refcounted
+ *
+ * The following locking conditions are made on the caller:
+ * * it must not hold kbase_device::mmu_hw_mutex and
+ *   kbase_device::hwaccess_lock, because they will be used internally.
+ *
+ * Return: true if refcount succeeded, and the context will not be scheduled
+ * out, false if the refcount failed (because the context is being/has been
+ * scheduled out).
+ */
+bool kbase_ctx_sched_inc_refcount(struct kbase_context *kctx);
+
+/**
+ * kbase_ctx_sched_release_ctx_lock - Release a reference count of a context
+ * @kctx: Context for which refcount should be decreased
+ *
+ * Effectivelly, this is a wrapper for kbase_ctx_sched_release_ctx, but
+ * kbase_device::hwaccess_lock is required NOT to be locked.
+ */
+void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx);
 
 #endif /* _KBASE_CTX_SCHED_H_ */

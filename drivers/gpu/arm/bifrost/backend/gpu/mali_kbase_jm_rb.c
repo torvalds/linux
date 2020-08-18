@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,12 +26,12 @@
  */
 
 #include <mali_kbase.h>
+#include <gpu/mali_kbase_gpu_fault.h>
 #include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_jm.h>
 #include <mali_kbase_js.h>
-#include <mali_kbase_tracepoints.h>
+#include <tl/mali_kbase_tracepoints.h>
 #include <mali_kbase_hwcnt_context.h>
-#include <mali_kbase_10969_workaround.h>
 #include <mali_kbase_reset_gpu.h>
 #include <backend/gpu/mali_kbase_cache_policy_backend.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
@@ -297,9 +297,6 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 				[katom->slot_nr]);
 
 	case KBASE_ATOM_GPU_RB_READY:
-		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
-	case KBASE_ATOM_GPU_RB_WAITING_AFFINITY:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 	case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
@@ -617,11 +614,15 @@ static int kbase_jm_enter_protected_mode(struct kbase_device *kbdev,
 					return -EAGAIN;
 			}
 
-			if (kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_L2) ||
-				kbase_pm_get_trans_cores(kbdev, KBASE_PM_CORE_L2)) {
+			if (kbase_pm_get_ready_cores(kbdev,
+						KBASE_PM_CORE_L2) ||
+				kbase_pm_get_trans_cores(kbdev,
+						KBASE_PM_CORE_L2) ||
+				kbase_is_gpu_lost(kbdev)) {
 				/*
-				 * The L2 is still powered, wait for all the users to
-				 * finish with it before doing the actual reset.
+				 * The L2 is still powered, wait for all
+				 * the users to finish with it before doing
+				 * the actual reset.
 				 */
 				return -EAGAIN;
 			}
@@ -809,7 +810,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+	if (kbase_reset_gpu_is_active(kbdev) || kbase_is_gpu_lost(kbdev))
+#else
 	if (kbase_reset_gpu_is_active(kbdev))
+#endif
 		return;
 
 	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++) {
@@ -834,8 +839,7 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 				break;
 
 			case KBASE_ATOM_GPU_RB_WAITING_BLOCKED:
-				if (katom[idx]->atom_flags &
-						KBASE_KATOM_FLAG_X_DEP_BLOCKED)
+				if (kbase_js_atom_blocked_on_x_dep(katom[idx]))
 					break;
 
 				katom[idx]->gpu_rb_state =
@@ -931,12 +935,6 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 					break;
 
 				katom[idx]->gpu_rb_state =
-					KBASE_ATOM_GPU_RB_WAITING_AFFINITY;
-
-				/* ***TRANSITION TO HIGHER STATE*** */
-				/* fallthrough */
-			case KBASE_ATOM_GPU_RB_WAITING_AFFINITY:
-				katom[idx]->gpu_rb_state =
 					KBASE_ATOM_GPU_RB_READY;
 
 				/* ***TRANSITION TO HIGHER STATE*** */
@@ -967,11 +965,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 						other_slots_busy(kbdev, js))
 					break;
 
-				if ((kbdev->serialize_jobs &
-						KBASE_SERIALIZE_RESET) &&
-						kbase_reset_gpu_is_active(kbdev))
+#ifdef CONFIG_MALI_GEM5_BUILD
+				if (!kbasep_jm_is_js_free(kbdev, js,
+						katom[idx]->kctx))
 					break;
-
+#endif
 				/* Check if this job needs the cycle counter
 				 * enabled before submission */
 				if (katom[idx]->core_req & BASE_JD_REQ_PERMON)
@@ -1015,6 +1013,8 @@ void kbase_backend_run_atom(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom)
 {
 	lockdep_assert_held(&kbdev->hwaccess_lock);
+	dev_dbg(kbdev->dev, "Backend running atom %p\n", (void *)katom);
+
 	kbase_gpu_enqueue_atom(kbdev, katom);
 	kbase_backend_slot_update(kbdev);
 }
@@ -1073,6 +1073,10 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 	struct kbase_jd_atom *katom = kbase_gpu_inspect(kbdev, js, 0);
 	struct kbase_context *kctx = katom->kctx;
 
+	dev_dbg(kbdev->dev,
+		"Atom %p completed on hw with code 0x%x and job_tail 0x%llx (s:%d)\n",
+		(void *)katom, completion_code, job_tail, js);
+
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	/*
@@ -1125,12 +1129,11 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		if (!kbase_ctx_flag(katom->kctx, KCTX_DYING))
 			dev_warn(kbdev->dev, "error detected from slot %d, job status 0x%08x (%s)",
 					js, completion_code,
-					kbase_exception_name
-					(kbdev,
+					kbase_gpu_exception_name(
 					completion_code));
 
-#if KBASE_TRACE_DUMP_ON_JOB_SLOT_ERROR != 0
-		KBASE_TRACE_DUMP(kbdev);
+#if KBASE_KTRACE_DUMP_ON_JOB_SLOT_ERROR != 0
+		KBASE_KTRACE_DUMP(kbdev);
 #endif
 		kbasep_js_clear_submit_allowed(js_devdata, katom->kctx);
 
@@ -1184,23 +1187,22 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		}
 	}
 
-	KBASE_TRACE_ADD_SLOT_INFO(kbdev, JM_JOB_DONE, kctx, katom, katom->jc,
-					js, completion_code);
+	KBASE_KTRACE_ADD_JM_SLOT_INFO(kbdev, JM_JOB_DONE, kctx, katom, katom->jc, js, completion_code);
 
 	if (job_tail != 0 && job_tail != katom->jc) {
-		bool was_updated = (job_tail != katom->jc);
+		/* Some of the job has been executed */
+		dev_dbg(kbdev->dev,
+			"Update job chain address of atom %p to resume from 0x%llx\n",
+			(void *)katom, job_tail);
 
-		/* Some of the job has been executed, so we update the job chain
-		 * address to where we should resume from */
 		katom->jc = job_tail;
-		if (was_updated)
-			KBASE_TRACE_ADD_SLOT(kbdev, JM_UPDATE_HEAD, katom->kctx,
-						katom, job_tail, js);
+		KBASE_KTRACE_ADD_JM_SLOT(kbdev, JM_UPDATE_HEAD, katom->kctx,
+					katom, job_tail, js);
 	}
 
 	/* Only update the event code for jobs that weren't cancelled */
 	if (katom->event_code != BASE_JD_EVENT_JOB_CANCELLED)
-		katom->event_code = (base_jd_event_code)completion_code;
+		katom->event_code = (enum base_jd_event_code)completion_code;
 
 	/* Complete the job, and start new ones
 	 *
@@ -1250,8 +1252,9 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		katom = kbase_jm_complete(kbdev, katom, end_timestamp);
 
 	if (katom) {
-		/* Cross-slot dependency has now become runnable. Try to submit
-		 * it. */
+		dev_dbg(kbdev->dev,
+			"Cross-slot dependency %p has become runnable.\n",
+			(void *)katom);
 
 		/* Check if there are lower priority jobs to soft stop */
 		kbase_job_slot_ctx_priority_check_locked(kctx, katom);

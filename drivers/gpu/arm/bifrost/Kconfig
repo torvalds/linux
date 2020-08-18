@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -49,6 +49,7 @@ config MALI_BIFROST_DVFS
 config MALI_BIFROST_ENABLE_TRACE
 	bool "Enable kbase tracing"
 	depends on MALI_BIFROST
+	default y if MALI_BIFROST_DEBUG
 	default n
 	help
 	  Enables tracing in kbase.  Trace log available through
@@ -82,6 +83,17 @@ config MALI_PLATFORM_NAME
 	  Enter the name of the desired platform configuration directory to
 	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
+
+config MALI_ARBITER_SUPPORT
+	bool "Enable arbiter support for Mali"
+	depends on MALI_BIFROST
+	default n
+	help
+	  Enable support for the arbiter interface in the driver.
+	  This allows an external arbiter to manage driver access
+	  to GPU hardware in a virtualized environment
+
+	  If unsure, say N.
 
 # MALI_BIFROST_EXPERT configuration options
 
@@ -155,6 +167,7 @@ config MALI_BIFROST_ERROR_INJECT
 config MALI_BIFROST_SYSTEM_TRACE
 	bool "Enable system event tracing support"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
+	default y if MALI_BIFROST_DEBUG
 	default n
 	help
 	  Choose this option to enable system trace events for each
@@ -209,12 +222,16 @@ config MALI_DMA_BUF_MAP_ON_DEMAND
 config MALI_DMA_BUF_LEGACY_COMPAT
 	bool "Enable legacy compatibility cache flush on dma-buf map"
 	depends on MALI_BIFROST && !MALI_DMA_BUF_MAP_ON_DEMAND
-	default y
+	default n
 	help
 	  This option enables compatibility with legacy dma-buf mapping
 	  behavior, then the dma-buf is mapped on import, by adding cache
 	  maintenance where MALI_DMA_BUF_MAP_ON_DEMAND would do the mapping,
 	  including a cache flush.
+
+	  This option might work-around issues related to missing cache
+	  flushes in other drivers. This only has an effect for clients using
+	  UK 11.18 or older. For later UK versions it is not possible.
 
 config MALI_HW_ERRATA_1485982_NOT_AFFECTED
 	bool "Disable workaround for BASE_HW_ISSUE_GPU2017_1336"
@@ -239,6 +256,14 @@ config MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 	  tree using the property, opp-mali-errata-1485982. Otherwise the
 	  slowest clock will be selected.
 
+config MALI_GEM5_BUILD
+	bool "Enable build of Mali kernel driver for GEM5"
+	depends on MALI_BIFROST
+	default n
+	help
+	  This option is to do a Mali GEM5 build.
+	  If unsure, say N.
+
 # Instrumentation options.
 
 config MALI_JOB_DUMP
@@ -261,6 +286,21 @@ config MALI_BIFROST_PRFCNT_SET_SECONDARY
 	  become unavailable. Enabling this option will prevent power management
 	  from working optimally and may cause instrumentation tools to return
 	  bogus results.
+
+	  If unsure, say N.
+
+config MALI_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
+	bool "Use secondary set of performance counters"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && !MALI_BIFROST_PRFCNT_SET_SECONDARY && DEBUG_FS
+	default n
+	help
+	  Select this option to make the secondary set of performance counters
+	  available at runtime via debugfs. Kernel features that depend on an
+	  access to the primary set of counters may become unavailable.
+
+	  This feature is unsupported and unstable, and may break at any time.
+	  Enabling this option will prevent power management from working
+	  optimally and may cause instrumentation tools to return bogus results.
 
 	  If unsure, say N.
 

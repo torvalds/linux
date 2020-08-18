@@ -85,8 +85,8 @@ static int regs_history_show(struct seq_file *sfile, void *data)
 			&h->buf[(h->count - iters + i) % h->size];
 		char const access = (io->addr & 1) ? 'w' : 'r';
 
-		seq_printf(sfile, "%6i: %c: reg 0x%p val %08x\n", i, access,
-				(void *)(io->addr & ~0x1), io->value);
+		seq_printf(sfile, "%6i: %c: reg 0x%016lx val %08x\n", i, access,
+				(unsigned long)(io->addr & ~0x1), io->value);
 	}
 
 	spin_unlock_irqrestore(&h->lock, flags);

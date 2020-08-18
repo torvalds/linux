@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -30,3 +30,9 @@ config BUILD_CSF_TESTS
 	bool
 	default y if UNIT_TEST_KERNEL_MODULES && GPU_HAS_CSF
 	default n
+
+config BUILD_ARBIF_TESTS
+	bool
+	default y if UNIT_TEST_KERNEL_MODULES && MALI_ARBITER_SUPPORT
+	default n
+

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,6 +31,7 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_jm_rb.h>
 #include <backend/gpu/mali_kbase_pm_defs.h>
+#include <mali_linux_trace.h>
 
 /* When VSync is being hit aim for utilisation between 70-90% */
 #define KBASE_PM_VSYNC_MIN_UTILISATION          70
@@ -284,8 +285,11 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 						active_cl_ctx[device_nr] = 1;
 			} else {
 				kbdev->pm.backend.metrics.active_gl_ctx[js] = 1;
+				trace_sysgraph(SGR_ACTIVE, 0, js);
 			}
 			kbdev->pm.backend.metrics.gpu_active = true;
+		} else {
+			trace_sysgraph(SGR_INACTIVE, 0, js);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,27 +32,6 @@
 
 /* Include mandatory definitions per platform */
 #include <mali_kbase_config_platform.h>
-
-/**
-* Boolean indicating whether the driver is configured to be secure at
-* a potential loss of performance.
-*
-* This currently affects only r0p0-15dev0 HW and earlier.
-*
-* On r0p0-15dev0 HW and earlier, there are tradeoffs between security and
-* performance:
-*
-* - When this is set to true, the driver remains fully secure,
-* but potentially loses performance compared with setting this to
-* false.
-* - When set to false, the driver is open to certain security
-* attacks.
-*
-* From r0p0-00rel0 and onwards, there is no security loss by setting
-* this to false, and no performance loss by setting it to
-* true.
-*/
-#define DEFAULT_SECURE_BUT_LOSS_OF_PERFORMANCE false
 
 enum {
 	/**
@@ -210,6 +189,25 @@ enum {
  * overridden by defining GPU_FREQ_KHZ_MAX in the platform file.
  */
 #define DEFAULT_GPU_FREQ_KHZ_MAX (5000)
+
+/**
+ * Default timeout for task execution on an endpoint
+ *
+ * Number of GPU clock cycles before the driver terminates a task that is
+ * making no forward progress on an endpoint (e.g. shader core).
+ * Value chosen is equivalent to the time after which a job is hard stopped
+ * which is 5 seconds (assuming the GPU is usually clocked at ~500 MHZ).
+ */
+#define DEFAULT_PROGRESS_TIMEOUT ((u64)5 * 500 * 1024 * 1024)
+
+/**
+ * Default threshold at which to switch to incremental rendering
+ *
+ * Fraction of the maximum size of an allocation that grows on GPU page fault
+ * that can be used up before the driver switches to incremental rendering,
+ * in 256ths. 0 means disable incremental rendering.
+ */
+#define DEFAULT_IR_THRESHOLD (192)
 
 #endif /* _KBASE_CONFIG_DEFAULTS_H_ */
 

@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,9 +20,12 @@
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r21p0-01rel0"
+MALI_RELEASE_NAME ?= "r25p1-01bet0"
 
 # Paths required for build
+
+# make $(src) as absolute path if it isn't already, by prefixing $(srctree)
+src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
 KBASE_PATH = $(src)
 KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
 UMP_PATH = $(src)/../../../base
@@ -34,6 +37,14 @@ MALI_UNIT_TEST ?= 0
 MALI_KERNEL_TEST_API ?= 0
 MALI_COVERAGE ?= 0
 CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
+# Experimental features (corresponding -D definition should be appended to
+# DEFINES below, e.g. for MALI_EXPERIMENTAL_FEATURE,
+# -DMALI_EXPERIMENTAL_FEATURE=$(MALI_EXPERIMENTAL_FEATURE) should be appended)
+#
+# Experimental features must default to disabled, e.g.:
+# MALI_EXPERIMENTAL_FEATURE ?= 0
+MALI_JIT_PRESSURE_LIMIT ?= 0
+MALI_INCREMENTAL_RENDERING ?= 0
 
 # Set up our defines, which will be passed to gcc
 DEFINES = \
@@ -42,7 +53,9 @@ DEFINES = \
 	-DMALI_KERNEL_TEST_API=$(MALI_KERNEL_TEST_API) \
 	-DMALI_UNIT_TEST=$(MALI_UNIT_TEST) \
 	-DMALI_COVERAGE=$(MALI_COVERAGE) \
-	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\"
+	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\" \
+	-DMALI_JIT_PRESSURE_LIMIT=$(MALI_JIT_PRESSURE_LIMIT) \
+	-DMALI_INCREMENTAL_RENDERING=$(MALI_INCREMENTAL_RENDERING)
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
@@ -61,21 +74,16 @@ ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH)
 subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
 
 SRC := \
-	mali_kbase_device.c \
+	context/mali_kbase_context.c \
+	debug/mali_kbase_debug_ktrace.c \
+	device/mali_kbase_device.c \
 	mali_kbase_cache_policy.c \
 	mali_kbase_mem.c \
 	mali_kbase_mem_pool_group.c \
-	mali_kbase_mmu.c \
 	mali_kbase_native_mgm.c \
 	mali_kbase_ctx_sched.c \
-	mali_kbase_jd.c \
-	mali_kbase_jd_debugfs.c \
 	mali_kbase_jm.c \
 	mali_kbase_gpuprops.c \
-	mali_kbase_js.c \
-	mali_kbase_js_ctx_attr.c \
-	mali_kbase_event.c \
-	mali_kbase_context.c \
 	mali_kbase_pm.c \
 	mali_kbase_config.c \
 	mali_kbase_vinstr.c \
@@ -86,38 +94,63 @@ SRC := \
 	mali_kbase_hwcnt_types.c \
 	mali_kbase_hwcnt_virtualizer.c \
 	mali_kbase_softjobs.c \
-	mali_kbase_10969_workaround.c \
 	mali_kbase_hw.c \
 	mali_kbase_debug.c \
 	mali_kbase_gpu_memory_debugfs.c \
 	mali_kbase_mem_linux.c \
 	mali_kbase_core_linux.c \
 	mali_kbase_mem_profile_debugfs.c \
-	mali_kbase_mmu_mode_lpae.c \
-	mali_kbase_mmu_mode_aarch64.c \
+	mmu/mali_kbase_mmu.c \
+	mmu/mali_kbase_mmu_hw_direct.c \
+	mmu/mali_kbase_mmu_mode_lpae.c \
+	mmu/mali_kbase_mmu_mode_aarch64.c \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_debug_mem_view.c \
-	mali_kbase_debug_job_fault.c \
 	mali_kbase_smc.c \
 	mali_kbase_mem_pool.c \
 	mali_kbase_mem_pool_debugfs.c \
 	mali_kbase_debugfs_helper.c \
-	mali_kbase_timeline.c \
-	mali_kbase_timeline_io.c \
-	mali_kbase_tlstream.c \
-	mali_kbase_tracepoints.c \
 	mali_kbase_strings.c \
 	mali_kbase_as_fault_debugfs.c \
 	mali_kbase_regs_history_debugfs.c \
-	thirdparty/mali_kbase_mmap.c
+	thirdparty/mali_kbase_mmap.c \
+	tl/mali_kbase_timeline.c \
+	tl/mali_kbase_timeline_io.c \
+	tl/mali_kbase_tlstream.c \
+	tl/mali_kbase_tracepoints.c \
+	gpu/mali_kbase_gpu.c
 
+ifeq ($(MALI_USE_CSF),1)
+	SRC += \
+		debug/backend/mali_kbase_debug_ktrace_csf.c \
+		device/backend/mali_kbase_device_csf.c \
+		gpu/backend/mali_kbase_gpu_fault_csf.c \
+		tl/backend/mali_kbase_timeline_csf.c \
+		mmu/backend/mali_kbase_mmu_csf.c \
+		context/backend/mali_kbase_context_csf.c
+else
+	SRC += \
+		mali_kbase_dummy_job_wa.c \
+		mali_kbase_debug_job_fault.c \
+		mali_kbase_event.c \
+		mali_kbase_jd.c \
+		mali_kbase_jd_debugfs.c \
+		mali_kbase_js.c \
+		mali_kbase_js_ctx_attr.c \
+		debug/backend/mali_kbase_debug_ktrace_jm.c \
+		device/backend/mali_kbase_device_jm.c \
+		gpu/backend/mali_kbase_gpu_fault_jm.c \
+		tl/backend/mali_kbase_timeline_jm.c \
+		mmu/backend/mali_kbase_mmu_jm.c \
+		context/backend/mali_kbase_context_jm.c
+endif
 
 ifeq ($(CONFIG_MALI_CINSTR_GWT),y)
 	SRC += mali_kbase_gwt.c
 endif
 
 ifeq ($(MALI_UNIT_TEST),1)
-	SRC += mali_kbase_timeline_test.c
+	SRC += tl/mali_kbase_timeline_test.c
 endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
@@ -125,7 +158,8 @@ ifeq ($(MALI_CUSTOMER_RELEASE),0)
 endif
 
 
-ccflags-y += -I$(KBASE_PATH)
+ccflags-y += -I$(KBASE_PATH) -I$(KBASE_PATH)/debug \
+	-I$(KBASE_PATH)/debug/backend
 
 # Tell the Linux build system from which .o file to create the kernel module
 obj-$(CONFIG_MALI_BIFROST) += bifrost_kbase.o
@@ -147,6 +181,14 @@ endif
 
 ifeq ($(MALI_USE_CSF),1)
 	include $(src)/csf/Kbuild
+else
+# empty
+endif
+
+ifeq ($(CONFIG_MALI_ARBITER_SUPPORT),y)
+	include $(src)/arbiter/Kbuild
+else
+# empty
 endif
 
 bifrost_kbase-$(CONFIG_MALI_BIFROST_DMA_FENCE) += \

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -682,4 +682,29 @@ extern bool corestack_driver_control;
  * Return: true if l2 need to power on
  */
 bool kbase_pm_is_l2_desired(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_lock - Lock all necessary mutexes to perform PM actions
+ *
+ * @kbdev: Device pointer
+ *
+ * This function locks correct mutexes independent of GPU architecture.
+ */
+static inline void kbase_pm_lock(struct kbase_device *kbdev)
+{
+	mutex_lock(&kbdev->js_data.runpool_mutex);
+	mutex_lock(&kbdev->pm.lock);
+}
+
+/**
+ * kbase_pm_unlock - Unlock mutexes locked by kbase_pm_lock
+ *
+ * @kbdev: Device pointer
+ */
+static inline void kbase_pm_unlock(struct kbase_device *kbdev)
+{
+	mutex_unlock(&kbdev->pm.lock);
+	mutex_unlock(&kbdev->js_data.runpool_mutex);
+}
+
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */
