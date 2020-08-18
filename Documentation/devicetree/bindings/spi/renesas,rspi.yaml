@@ -25,6 +25,7 @@ properties:
 
       - items:
           - enum:
+              - renesas,qspi-r8a7742   # RZ/G1H
               - renesas,qspi-r8a7743   # RZ/G1M
               - renesas,qspi-r8a7744   # RZ/G1N
               - renesas,qspi-r8a7745   # RZ/G1E
