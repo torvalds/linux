@@ -444,6 +444,14 @@ static int ahash_def_finup(struct ahash_request *req)
 	return ahash_def_finup_finish1(req, err);
 }
 
+static void crypto_ahash_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
+	struct ahash_alg *alg = crypto_ahash_alg(hash);
+
+	alg->exit_tfm(hash);
+}
+
 static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
@@ -467,7 +475,10 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 		ahash_set_needkey(hash);
 	}
 
-	return 0;
+	if (alg->exit_tfm)
+		tfm->exit = crypto_ahash_exit_tfm;
+
+	return alg->init_tfm ? alg->init_tfm(hash) : 0;
 }
 
 static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
