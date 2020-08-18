@@ -344,7 +344,7 @@ void sst_fw_unload(struct sst_fw *sst_fw);
 /* Create/Free firmware modules */
 struct sst_module *sst_module_new(struct sst_fw *sst_fw,
 	struct sst_module_template *template, void *private);
-void sst_module_free(struct sst_module *module);
+void sst_module_free(struct sst_module *sst_module);
 struct sst_module *sst_module_get_from_id(struct sst_dsp *dsp, u32 id);
 int sst_module_alloc_blocks(struct sst_module *module);
 int sst_module_free_blocks(struct sst_module *module);

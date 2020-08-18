@@ -398,8 +398,7 @@ int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
 
 	dev_dbg(sst_drv_ctx->dev, "sst_load_fw\n");
 
-	if (sst_drv_ctx->sst_state !=  SST_RESET ||
-			sst_drv_ctx->sst_state == SST_SHUTDOWN)
+	if (sst_drv_ctx->sst_state !=  SST_RESET)
 		return -EAGAIN;
 
 	if (!sst_drv_ctx->fw_in_mem) {
