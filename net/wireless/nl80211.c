@@ -654,10 +654,8 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_RECEIVE_MULTICAST] = { .type = NLA_FLAG },
 	[NL80211_ATTR_WIPHY_FREQ_OFFSET] = NLA_POLICY_RANGE(NLA_U32, 0, 999),
 	[NL80211_ATTR_SCAN_FREQ_KHZ] = { .type = NLA_NESTED },
-	[NL80211_ATTR_HE_6GHZ_CAPABILITY] = {
-		.type = NLA_EXACT_LEN,
-		.len = sizeof(struct ieee80211_he_6ghz_capa),
-	},
+	[NL80211_ATTR_HE_6GHZ_CAPABILITY] =
+		NLA_POLICY_EXACT_LEN(sizeof(struct ieee80211_he_6ghz_capa)),
 };
 
 /* policy for the key attributes */
@@ -703,7 +701,7 @@ nl80211_wowlan_tcp_policy[NUM_NL80211_WOWLAN_TCP] = {
 	[NL80211_WOWLAN_TCP_DST_MAC] = NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN),
 	[NL80211_WOWLAN_TCP_SRC_PORT] = { .type = NLA_U16 },
 	[NL80211_WOWLAN_TCP_DST_PORT] = { .type = NLA_U16 },
-	[NL80211_WOWLAN_TCP_DATA_PAYLOAD] = { .type = NLA_MIN_LEN, .len = 1 },
+	[NL80211_WOWLAN_TCP_DATA_PAYLOAD] = NLA_POLICY_MIN_LEN(1),
 	[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ] = {
 		.len = sizeof(struct nl80211_wowlan_tcp_data_seq)
 	},
@@ -711,8 +709,8 @@ nl80211_wowlan_tcp_policy[NUM_NL80211_WOWLAN_TCP] = {
 		.len = sizeof(struct nl80211_wowlan_tcp_data_token)
 	},
 	[NL80211_WOWLAN_TCP_DATA_INTERVAL] = { .type = NLA_U32 },
-	[NL80211_WOWLAN_TCP_WAKE_PAYLOAD] = { .type = NLA_MIN_LEN, .len = 1 },
-	[NL80211_WOWLAN_TCP_WAKE_MASK] = { .type = NLA_MIN_LEN, .len = 1 },
+	[NL80211_WOWLAN_TCP_WAKE_PAYLOAD] = NLA_POLICY_MIN_LEN(1),
+	[NL80211_WOWLAN_TCP_WAKE_MASK] = NLA_POLICY_MIN_LEN(1),
 };
 #endif /* CONFIG_PM */
 
