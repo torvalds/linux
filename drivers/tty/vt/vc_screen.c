@@ -249,6 +249,33 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	return fixed_size_llseek(file, offset, orig, size);
 }
 
+static int vcs_read_buf_uni(struct vc_data *vc, char *con_buf,
+		unsigned int pos, unsigned int count, bool viewed)
+{
+	unsigned int nr, row, col, maxcol = vc->vc_cols;
+	int ret;
+
+	ret = vc_uniscr_check(vc);
+	if (ret)
+		return ret;
+
+	pos /= 4;
+	row = pos / maxcol;
+	col = pos % maxcol;
+	nr = maxcol - col;
+	do {
+		if (nr > count / 4)
+			nr = count / 4;
+		vc_uniscr_copy_line(vc, con_buf, viewed, row, col, nr);
+		con_buf += nr * 4;
+		count -= nr * 4;
+		row++;
+		col = 0;
+		nr = maxcol;
+	} while (count);
+
+	return 0;
+}
 
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
@@ -257,7 +284,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
 	u16 *org;
-	unsigned int read, row, col, maxcol;
+	unsigned int read, col, maxcol;
 	ssize_t ret;
 	char *con_buf;
 	loff_t pos;
@@ -327,26 +354,10 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		orig_count = this_round;
 		maxcol = vc->vc_cols;
 		if (uni_mode) {
-			unsigned int nr;
-
-			ret = vc_uniscr_check(vc);
+			ret = vcs_read_buf_uni(vc, con_buf, pos, this_round,
+					viewed);
 			if (ret)
 				break;
-			p /= 4;
-			row = p / vc->vc_cols;
-			col = p % maxcol;
-			nr = maxcol - col;
-			do {
-				if (nr > this_round/4)
-					nr = this_round/4;
-				vc_uniscr_copy_line(vc, con_buf0, viewed,
-						    row, col, nr);
-				con_buf0 += nr * 4;
-				this_round -= nr * 4;
-				row++;
-				col = 0;
-				nr = maxcol;
-			} while (this_round);
 		} else if (!attr) {
 			org = screen_pos(vc, p, viewed);
 			col = p % maxcol;
