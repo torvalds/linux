@@ -1260,7 +1260,7 @@ static int lpuart_config_rs485(struct uart_port *port,
 		modem |= UARTMODEM_TXRTSE;
 
 		/*
-		 * RTS needs to be logic HIGH either during transer _or_ after
+		 * RTS needs to be logic HIGH either during transfer _or_ after
 		 * transfer, other variants are not supported by the hardware.
 		 */
 
@@ -1311,7 +1311,7 @@ static int lpuart32_config_rs485(struct uart_port *port,
 		modem |= UARTMODEM_TXRTSE;
 
 		/*
-		 * RTS needs to be logic HIGH either during transer _or_ after
+		 * RTS needs to be logic HIGH either during transfer _or_ after
 		 * transfer, other variants are not supported by the hardware.
 		 */
 
