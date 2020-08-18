@@ -165,22 +165,25 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
-struct bpf_capabilities {
+enum kern_feature_id {
 	/* v4.14: kernel support for program & map names. */
-	__u32 name:1;
+	FEAT_PROG_NAME,
 	/* v5.2: kernel support for global data sections. */
-	__u32 global_data:1;
+	FEAT_GLOBAL_DATA,
 	/* BTF_KIND_FUNC and BTF_KIND_FUNC_PROTO support */
-	__u32 btf_func:1;
+	FEAT_BTF_FUNC,
 	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
-	__u32 btf_datasec:1;
-	/* BPF_F_MMAPABLE is supported for arrays */
-	__u32 array_mmap:1;
+	FEAT_BTF_DATASEC,
 	/* BTF_FUNC_GLOBAL is supported */
-	__u32 btf_func_global:1;
+	FEAT_BTF_GLOBAL_FUNC,
+	/* BPF_F_MMAPABLE is supported for arrays */
+	FEAT_ARRAY_MMAP,
 	/* kernel support for expected_attach_type in BPF_PROG_LOAD */
-	__u32 exp_attach_type:1;
+	FEAT_EXP_ATTACH_TYPE,
+	__FEAT_CNT,
 };
+
+static bool kernel_supports(enum kern_feature_id feat_id);
 
 enum reloc_type {
 	RELO_LD64,
@@ -252,8 +255,6 @@ struct bpf_program {
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
-
-	struct bpf_capabilities *caps;
 
 	void *line_info;
 	__u32 line_info_rec_size;
@@ -436,8 +437,6 @@ struct bpf_object {
 	void *priv;
 	bpf_object_clear_priv_t clear_priv;
 
-	struct bpf_capabilities caps;
-
 	char path[];
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
@@ -561,7 +560,6 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	if (err)
 		return err;
 
-	prog.caps = &obj->caps;
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
 
@@ -2340,18 +2338,18 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 
 static bool btf_needs_sanitization(struct bpf_object *obj)
 {
-	bool has_func_global = obj->caps.btf_func_global;
-	bool has_datasec = obj->caps.btf_datasec;
-	bool has_func = obj->caps.btf_func;
+	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
+	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 
 	return !has_func || !has_datasec || !has_func_global;
 }
 
 static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 {
-	bool has_func_global = obj->caps.btf_func_global;
-	bool has_datasec = obj->caps.btf_datasec;
-	bool has_func = obj->caps.btf_func;
+	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
+	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 	struct btf_type *t;
 	int i, j, vlen;
 
@@ -3433,8 +3431,7 @@ bpf_object__probe_loading(struct bpf_object *obj)
 	return 0;
 }
 
-static int
-bpf_object__probe_name(struct bpf_object *obj)
+static int probe_kern_prog_name(void)
 {
 	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
@@ -3453,15 +3450,14 @@ bpf_object__probe_name(struct bpf_object *obj)
 	attr.name = "test";
 	ret = bpf_load_program_xattr(&attr, NULL, 0);
 	if (ret >= 0) {
-		obj->caps.name = 1;
 		close(ret);
+		return 1;
 	}
 
 	return 0;
 }
 
-static int
-bpf_object__probe_global_data(struct bpf_object *obj)
+static int probe_kern_global_data(void)
 {
 	struct bpf_load_program_attr prg_attr;
 	struct bpf_create_map_attr map_attr;
@@ -3498,16 +3494,16 @@ bpf_object__probe_global_data(struct bpf_object *obj)
 	prg_attr.license = "GPL";
 
 	ret = bpf_load_program_xattr(&prg_attr, NULL, 0);
+	close(map);
 	if (ret >= 0) {
-		obj->caps.global_data = 1;
 		close(ret);
+		return 1;
 	}
 
-	close(map);
 	return 0;
 }
 
-static int bpf_object__probe_btf_func(struct bpf_object *obj)
+static int probe_kern_btf_func(void)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* void x(int a) {} */
@@ -3525,7 +3521,6 @@ static int bpf_object__probe_btf_func(struct bpf_object *obj)
 	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
 				      strs, sizeof(strs));
 	if (btf_fd >= 0) {
-		obj->caps.btf_func = 1;
 		close(btf_fd);
 		return 1;
 	}
@@ -3533,7 +3528,7 @@ static int bpf_object__probe_btf_func(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__probe_btf_func_global(struct bpf_object *obj)
+static int probe_kern_btf_func_global(void)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* static void x(int a) {} */
@@ -3551,7 +3546,6 @@ static int bpf_object__probe_btf_func_global(struct bpf_object *obj)
 	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
 				      strs, sizeof(strs));
 	if (btf_fd >= 0) {
-		obj->caps.btf_func_global = 1;
 		close(btf_fd);
 		return 1;
 	}
@@ -3559,7 +3553,7 @@ static int bpf_object__probe_btf_func_global(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
+static int probe_kern_btf_datasec(void)
 {
 	static const char strs[] = "\0x\0.data";
 	/* static int a; */
@@ -3578,7 +3572,6 @@ static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
 	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
 				      strs, sizeof(strs));
 	if (btf_fd >= 0) {
-		obj->caps.btf_datasec = 1;
 		close(btf_fd);
 		return 1;
 	}
@@ -3586,7 +3579,7 @@ static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__probe_array_mmap(struct bpf_object *obj)
+static int probe_kern_array_mmap(void)
 {
 	struct bpf_create_map_attr attr = {
 		.map_type = BPF_MAP_TYPE_ARRAY,
@@ -3599,16 +3592,13 @@ static int bpf_object__probe_array_mmap(struct bpf_object *obj)
 
 	fd = bpf_create_map_xattr(&attr);
 	if (fd >= 0) {
-		obj->caps.array_mmap = 1;
 		close(fd);
 		return 1;
 	}
-
 	return 0;
 }
 
-static int
-bpf_object__probe_exp_attach_type(struct bpf_object *obj)
+static int probe_kern_exp_attach_type(void)
 {
 	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
@@ -3631,34 +3621,67 @@ bpf_object__probe_exp_attach_type(struct bpf_object *obj)
 
 	fd = bpf_load_program_xattr(&attr, NULL, 0);
 	if (fd >= 0) {
-		obj->caps.exp_attach_type = 1;
 		close(fd);
 		return 1;
 	}
 	return 0;
 }
 
-static int
-bpf_object__probe_caps(struct bpf_object *obj)
-{
-	int (*probe_fn[])(struct bpf_object *obj) = {
-		bpf_object__probe_name,
-		bpf_object__probe_global_data,
-		bpf_object__probe_btf_func,
-		bpf_object__probe_btf_func_global,
-		bpf_object__probe_btf_datasec,
-		bpf_object__probe_array_mmap,
-		bpf_object__probe_exp_attach_type,
-	};
-	int i, ret;
+enum kern_feature_result {
+	FEAT_UNKNOWN = 0,
+	FEAT_SUPPORTED = 1,
+	FEAT_MISSING = 2,
+};
 
-	for (i = 0; i < ARRAY_SIZE(probe_fn); i++) {
-		ret = probe_fn[i](obj);
-		if (ret < 0)
-			pr_debug("Probe #%d failed with %d.\n", i, ret);
+typedef int (*feature_probe_fn)(void);
+
+static struct kern_feature_desc {
+	const char *desc;
+	feature_probe_fn probe;
+	enum kern_feature_result res;
+} feature_probes[__FEAT_CNT] = {
+	[FEAT_PROG_NAME] = {
+		"BPF program name", probe_kern_prog_name,
+	},
+	[FEAT_GLOBAL_DATA] = {
+		"global variables", probe_kern_global_data,
+	},
+	[FEAT_BTF_FUNC] = {
+		"BTF functions", probe_kern_btf_func,
+	},
+	[FEAT_BTF_GLOBAL_FUNC] = {
+		"BTF global function", probe_kern_btf_func_global,
+	},
+	[FEAT_BTF_DATASEC] = {
+		"BTF data section and variable", probe_kern_btf_datasec,
+	},
+	[FEAT_ARRAY_MMAP] = {
+		"ARRAY map mmap()", probe_kern_array_mmap,
+	},
+	[FEAT_EXP_ATTACH_TYPE] = {
+		"BPF_PROG_LOAD expected_attach_type attribute",
+		probe_kern_exp_attach_type,
+	},
+};
+
+static bool kernel_supports(enum kern_feature_id feat_id)
+{
+	struct kern_feature_desc *feat = &feature_probes[feat_id];
+	int ret;
+
+	if (READ_ONCE(feat->res) == FEAT_UNKNOWN) {
+		ret = feat->probe();
+		if (ret > 0) {
+			WRITE_ONCE(feat->res, FEAT_SUPPORTED);
+		} else if (ret == 0) {
+			WRITE_ONCE(feat->res, FEAT_MISSING);
+		} else {
+			pr_warn("Detection of kernel %s support failed: %d\n", feat->desc, ret);
+			WRITE_ONCE(feat->res, FEAT_MISSING);
+		}
 	}
 
-	return 0;
+	return READ_ONCE(feat->res) == FEAT_SUPPORTED;
 }
 
 static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
@@ -3760,7 +3783,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 
 	memset(&create_attr, 0, sizeof(create_attr));
 
-	if (obj->caps.name)
+	if (kernel_supports(FEAT_PROG_NAME))
 		create_attr.name = map->name;
 	create_attr.map_ifindex = map->map_ifindex;
 	create_attr.map_type = def->type;
@@ -5364,12 +5387,12 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = prog->type;
 	/* old kernels might not support specifying expected_attach_type */
-	if (!prog->caps->exp_attach_type && prog->sec_def &&
+	if (!kernel_supports(FEAT_EXP_ATTACH_TYPE) && prog->sec_def &&
 	    prog->sec_def->is_exp_attach_type_optional)
 		load_attr.expected_attach_type = 0;
 	else
 		load_attr.expected_attach_type = prog->expected_attach_type;
-	if (prog->caps->name)
+	if (kernel_supports(FEAT_PROG_NAME))
 		load_attr.name = prog->name;
 	load_attr.insns = insns;
 	load_attr.insns_cnt = insns_cnt;
@@ -5387,7 +5410,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	}
 	/* specify func_info/line_info only if kernel supports them */
 	btf_fd = bpf_object__btf_fd(prog->obj);
-	if (btf_fd >= 0 && prog->obj->caps.btf_func) {
+	if (btf_fd >= 0 && kernel_supports(FEAT_BTF_FUNC)) {
 		load_attr.prog_btf_fd = btf_fd;
 		load_attr.func_info = prog->func_info;
 		load_attr.func_info_rec_size = prog->func_info_rec_size;
@@ -5750,11 +5773,11 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	bpf_object__for_each_map(m, obj) {
 		if (!bpf_map__is_internal(m))
 			continue;
-		if (!obj->caps.global_data) {
+		if (!kernel_supports(FEAT_GLOBAL_DATA)) {
 			pr_warn("kernel doesn't support global data\n");
 			return -ENOTSUP;
 		}
-		if (!obj->caps.array_mmap)
+		if (!kernel_supports(FEAT_ARRAY_MMAP))
 			m->def.map_flags ^= BPF_F_MMAPABLE;
 	}
 
@@ -5904,7 +5927,6 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	err = bpf_object__probe_loading(obj);
-	err = err ? : bpf_object__probe_caps(obj);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
