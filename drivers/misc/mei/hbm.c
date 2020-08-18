@@ -342,6 +342,8 @@ static int mei_hbm_capabilities_req(struct mei_device *dev)
 
 	memset(&req, 0, sizeof(req));
 	req.hbm_cmd = MEI_HBM_CAPABILITIES_REQ_CMD;
+	if (dev->hbm_f_vt_supported)
+		req.capability_requested[0] = HBM_CAP_VT;
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
@@ -1074,6 +1076,14 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	     dev->version.minor_version >= HBM_MINOR_VERSION_DR))
 		dev->hbm_f_dr_supported = 1;
 
+	/* VTag Support */
+	dev->hbm_f_vt_supported = 0;
+	if (dev->version.major_version > HBM_MAJOR_VERSION_VT ||
+	    (dev->version.major_version == HBM_MAJOR_VERSION_VT &&
+	     dev->version.minor_version >= HBM_MINOR_VERSION_VT))
+		dev->hbm_f_vt_supported = 1;
+
+	/* Capability message Support */
 	dev->hbm_f_cap_supported = 0;
 	if (dev->version.major_version > HBM_MAJOR_VERSION_CAP ||
 	    (dev->version.major_version == HBM_MAJOR_VERSION_CAP &&
@@ -1112,6 +1122,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	struct hbm_host_enum_response *enum_res;
 	struct hbm_dma_setup_response *dma_setup_res;
 	struct hbm_add_client_request *add_cl_req;
+	struct hbm_capability_response *capability_res;
 	int ret;
 
 	struct mei_hbm_cl_cmd *cl_cmd;
@@ -1213,6 +1224,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
+
+		capability_res = (struct hbm_capability_response *)mei_msg;
+		if (!(capability_res->capability_granted[0] & HBM_CAP_VT))
+			dev->hbm_f_vt_supported = 0;
 
 		if (dev->hbm_f_dr_supported) {
 			if (mei_dmam_ring_alloc(dev))

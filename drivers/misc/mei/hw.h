@@ -77,6 +77,12 @@
 #define HBM_MAJOR_VERSION_DR               2
 
 /*
+ * MEI version with vm tag support
+ */
+#define HBM_MINOR_VERSION_VT               2
+#define HBM_MAJOR_VERSION_VT               2
+
+/*
  * MEI version with capabilities message support
  */
 #define HBM_MINOR_VERSION_CAP              2
@@ -541,6 +547,9 @@ struct hbm_dma_ring_ctrl {
 	u32 dbuf_rd_idx;
 	u32 reserved4;
 } __packed;
+
+/* virtual tag supported */
+#define HBM_CAP_VT BIT(0)
 
 /**
  * struct hbm_capability_request - capability request from host to fw

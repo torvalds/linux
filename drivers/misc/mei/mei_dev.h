@@ -426,6 +426,7 @@ struct mei_fw_version {
  * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
  * @hbm_f_os_supported  : hbm feature support OS ver message
  * @hbm_f_dr_supported  : hbm feature dma ring supported
+ * @hbm_f_vt_supported  : hbm feature vtag supported
  * @hbm_f_cap_supported : hbm feature capabilities message supported
  *
  * @fw_ver : FW versions
@@ -511,6 +512,7 @@ struct mei_device {
 	unsigned int hbm_f_ie_supported:1;
 	unsigned int hbm_f_os_supported:1;
 	unsigned int hbm_f_dr_supported:1;
+	unsigned int hbm_f_vt_supported:1;
 	unsigned int hbm_f_cap_supported:1;
 
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
