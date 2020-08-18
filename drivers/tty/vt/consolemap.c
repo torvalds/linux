@@ -708,7 +708,7 @@ EXPORT_SYMBOL(con_set_default_unimap);
 /**
  *	con_copy_unimap		-	copy unimap between two vts
  *	@dst_vc: target
- *	@src_vt: source
+ *	@src_vc: source
  *
  *	The caller must hold the console lock when invoking this method
  */
