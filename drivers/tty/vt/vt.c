@@ -283,7 +283,8 @@ static inline bool con_should_update(const struct vc_data *vc)
 	return con_is_visible(vc) && !console_blanked;
 }
 
-static inline unsigned short *screenpos(struct vc_data *vc, int offset, int viewed)
+static inline unsigned short *screenpos(const struct vc_data *vc, int offset,
+		int viewed)
 {
 	unsigned short *p;
 	
@@ -543,7 +544,7 @@ int vc_uniscr_check(struct vc_data *vc)
  * This must be preceded by a successful call to vc_uniscr_check() once
  * the console lock has been taken.
  */
-void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
+void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, int viewed,
 			 unsigned int row, unsigned int col, unsigned int nr)
 {
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
@@ -4740,7 +4741,7 @@ int con_font_op(struct vc_data *vc, struct console_font_op *op)
  */
 
 /* used by selection */
-u16 screen_glyph(struct vc_data *vc, int offset)
+u16 screen_glyph(const struct vc_data *vc, int offset)
 {
 	u16 w = scr_readw(screenpos(vc, offset, 1));
 	u16 c = w & 0xff;
@@ -4751,7 +4752,7 @@ u16 screen_glyph(struct vc_data *vc, int offset)
 }
 EXPORT_SYMBOL_GPL(screen_glyph);
 
-u32 screen_glyph_unicode(struct vc_data *vc, int n)
+u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 {
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
@@ -4762,13 +4763,13 @@ u32 screen_glyph_unicode(struct vc_data *vc, int n)
 EXPORT_SYMBOL_GPL(screen_glyph_unicode);
 
 /* used by vcs - note the word offset */
-unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed)
+unsigned short *screen_pos(const struct vc_data *vc, int w_offset, int viewed)
 {
 	return screenpos(vc, 2 * w_offset, viewed);
 }
 EXPORT_SYMBOL_GPL(screen_pos);
 
-void getconsxy(struct vc_data *vc, unsigned char *p)
+void getconsxy(const struct vc_data *vc, unsigned char *p)
 {
 	/* clamp values if they don't fit */
 	p[0] = min(vc->state.x, 0xFFu);
@@ -4782,7 +4783,7 @@ void putconsxy(struct vc_data *vc, unsigned char *p)
 	set_cursor(vc);
 }
 
-u16 vcs_scr_readw(struct vc_data *vc, const u16 *org)
+u16 vcs_scr_readw(const struct vc_data *vc, const u16 *org)
 {
 	if ((unsigned long)org == vc->vc_pos && softcursor_original != -1)
 		return softcursor_original;

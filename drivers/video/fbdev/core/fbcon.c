@@ -2765,7 +2765,7 @@ static void fbcon_set_palette(struct vc_data *vc, const unsigned char *table)
 	fb_set_cmap(&palette_cmap, info);
 }
 
-static u16 *fbcon_screen_pos(struct vc_data *vc, int offset)
+static u16 *fbcon_screen_pos(const struct vc_data *vc, int offset)
 {
 	unsigned long p;
 	int line;

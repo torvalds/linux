@@ -236,7 +236,7 @@ static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
     return 1;
 }
 
-static u16 *sticon_screen_pos(struct vc_data *conp, int offset)
+static u16 *sticon_screen_pos(const struct vc_data *conp, int offset)
 {
     int line;
     unsigned long p;
