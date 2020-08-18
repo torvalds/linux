@@ -742,6 +742,29 @@ static void nv_pre_asic_init(struct amdgpu_device *adev)
 {
 }
 
+static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
+				       bool enter)
+{
+	if (enter)
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
+	else
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
+
+	if (adev->gfx.funcs->update_perfmon_mgcg)
+		adev->gfx.funcs->update_perfmon_mgcg(adev, !enter);
+
+	/*
+	 * The ASPM function is not fully enabled and verified on
+	 * Navi yet. Temporarily skip this until ASPM enabled.
+	 */
+#if 0
+	if (adev->nbio.funcs->enable_aspm)
+		adev->nbio.funcs->enable_aspm(adev, !enter);
+#endif
+
+	return 0;
+}
+
 static const struct amdgpu_asic_funcs nv_asic_funcs =
 {
 	.read_disabled_bios = &nv_read_disabled_bios,
@@ -762,6 +785,7 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.get_pcie_replay_count = &nv_get_pcie_replay_count,
 	.supports_baco = &nv_asic_supports_baco,
 	.pre_asic_init = &nv_pre_asic_init,
+	.update_umd_stable_pstate = &nv_update_umd_stable_pstate,
 };
 
 static int nv_common_early_init(void *handle)
