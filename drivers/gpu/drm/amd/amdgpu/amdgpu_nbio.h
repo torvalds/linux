@@ -87,6 +87,8 @@ struct amdgpu_nbio_funcs {
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
 	int (*ras_late_init)(struct amdgpu_device *adev);
+	void (*enable_aspm)(struct amdgpu_device *adev,
+			    bool enable);
 };
 
 struct amdgpu_nbio {
