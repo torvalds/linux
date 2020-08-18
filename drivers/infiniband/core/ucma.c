@@ -283,7 +283,6 @@ static void ucma_set_event_context(struct ucma_context *ctx,
 	}
 }
 
-/* Called with file->mut locked for the relevant context. */
 static void ucma_removal_event_handler(struct rdma_cm_id *cm_id)
 {
 	struct ucma_context *ctx = cm_id->context;
@@ -307,6 +306,7 @@ static void ucma_removal_event_handler(struct rdma_cm_id *cm_id)
 		return;
 	}
 
+	mutex_lock(&ctx->file->mut);
 	list_for_each_entry(con_req_eve, &ctx->file->event_list, list) {
 		if (con_req_eve->cm_id == cm_id &&
 		    con_req_eve->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST) {
@@ -317,6 +317,7 @@ static void ucma_removal_event_handler(struct rdma_cm_id *cm_id)
 			break;
 		}
 	}
+	mutex_unlock(&ctx->file->mut);
 	if (!event_found)
 		pr_err("ucma_removal_event_handler: warning: connect request event wasn't found\n");
 }
@@ -326,13 +327,11 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 {
 	struct ucma_event *uevent;
 	struct ucma_context *ctx = cm_id->context;
-	int ret = 0;
 
 	uevent = kzalloc(sizeof(*uevent), GFP_KERNEL);
 	if (!uevent)
 		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST;
 
-	mutex_lock(&ctx->file->mut);
 	uevent->cm_id = cm_id;
 	ucma_set_event_context(ctx, event, uevent);
 	uevent->resp.event = event->event;
@@ -349,9 +348,8 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!atomic_add_unless(&ctx->backlog, -1, 0)) {
-			ret = -ENOMEM;
 			kfree(uevent);
-			goto out;
+			return -ENOMEM;
 		}
 	} else if (!ctx->uid || ctx->cm_id != cm_id) {
 		/*
@@ -366,16 +364,16 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 			ucma_removal_event_handler(cm_id);
 
 		kfree(uevent);
-		goto out;
+		return 0;
 	}
 
+	mutex_lock(&ctx->file->mut);
 	list_add_tail(&uevent->list, &ctx->file->event_list);
+	mutex_unlock(&ctx->file->mut);
 	wake_up_interruptible(&ctx->file->poll_wait);
 	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
 		ucma_removal_event_handler(cm_id);
-out:
-	mutex_unlock(&ctx->file->mut);
-	return ret;
+	return 0;
 }
 
 static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
