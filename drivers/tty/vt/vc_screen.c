@@ -481,6 +481,19 @@ static u16 *vcs_write_buf_noattr(struct vc_data *vc, const char *con_buf,
 	return org;
 }
 
+/*
+ * Compilers (gcc 10) are unable to optimize the swap in cpu_to_le16. So do it
+ * the poor man way.
+ */
+static inline u16 vc_compile_le16(u8 hi, u8 lo)
+{
+#ifdef __BIG_ENDIAN
+	return (lo << 8u) | hi;
+#else
+	return (hi << 8u) | lo;
+#endif
+}
+
 static u16 *vcs_write_buf(struct vc_data *vc, const char *con_buf,
 		unsigned int pos, unsigned int count, bool viewed, u16 **org0)
 {
@@ -513,13 +526,8 @@ static u16 *vcs_write_buf(struct vc_data *vc, const char *con_buf,
 	if (pos & 1) {
 		count--;
 		c = *con_buf++;
-#ifdef __BIG_ENDIAN
-		vcs_scr_writew(vc, c |
-		     (vcs_scr_readw(vc, org) & 0xff00), org);
-#else
-		vcs_scr_writew(vc, (c << 8) |
-		     (vcs_scr_readw(vc, org) & 0xff), org);
-#endif
+		vcs_scr_writew(vc, vc_compile_le16(c, vcs_scr_readw(vc, org)),
+				org);
 		org++;
 		pos++;
 		if (++col == maxcol) {
@@ -551,11 +559,8 @@ static u16 *vcs_write_buf(struct vc_data *vc, const char *con_buf,
 
 	/* odd pos -- the remaining character */
 	c = *con_buf++;
-#ifdef __BIG_ENDIAN
-	vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff) | (c << 8), org);
-#else
-	vcs_scr_writew(vc, (vcs_scr_readw(vc, org) & 0xff00) | c, org);
-#endif
+	vcs_scr_writew(vc, vc_compile_le16(vcs_scr_readw(vc, org) >> 8, c),
+				org);
 
 	return org;
 }
