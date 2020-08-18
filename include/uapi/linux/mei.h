@@ -66,4 +66,53 @@ struct mei_connect_client_data {
  */
 #define IOCTL_MEI_NOTIFY_GET _IOR('H', 0x03, __u32)
 
+/**
+ * struct mei_connect_client_vtag - mei client information struct with vtag
+ *
+ * @in_client_uuid: UUID of client to connect
+ * @vtag: virtual tag
+ * @reserved: reserved for future use
+ */
+struct mei_connect_client_vtag {
+	uuid_le in_client_uuid;
+	__u8 vtag;
+	__u8 reserved[3];
+};
+
+/**
+ * struct mei_connect_client_data_vtag - IOCTL connect data union
+ *
+ * @connect: input connect data
+ * @out_client_properties: output client data
+ */
+struct mei_connect_client_data_vtag {
+	union {
+		struct mei_connect_client_vtag connect;
+		struct mei_client out_client_properties;
+	};
+};
+
+/**
+ * DOC:
+ * This IOCTL is used to associate the current file descriptor with a
+ * FW Client (given by UUID), and virtual tag (vtag).
+ * The IOCTL opens a communication channel between a host client and
+ * a FW client on a tagged channel. From this point on, every read
+ * and write will communicate with the associated FW client with
+ * on the tagged channel.
+ * Upone close() the communication is terminated.
+ *
+ * The IOCTL argument is a struct with a union that contains
+ * the input parameter and the output parameter for this IOCTL.
+ *
+ * The input parameter is UUID of the FW Client, a vtag [0,255]
+ * The output parameter is the properties of the FW client
+ * (FW protocool version and max message size).
+ *
+ * Clients that do not support tagged connection
+ * will respond with -EOPNOTSUPP.
+ */
+#define IOCTL_MEI_CONNECT_CLIENT_VTAG \
+	_IOWR('H', 0x04, struct mei_connect_client_data_vtag)
+
 #endif /* _LINUX_MEI_H  */
