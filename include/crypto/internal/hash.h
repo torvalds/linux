@@ -164,6 +164,12 @@ static inline struct ahash_instance *ahash_instance(
 	return container_of(inst, struct ahash_instance, s.base);
 }
 
+static inline struct ahash_instance *ahash_alg_instance(
+	struct crypto_ahash *ahash)
+{
+	return ahash_instance(crypto_tfm_alg_instance(&ahash->base));
+}
+
 static inline void *ahash_instance_ctx(struct ahash_instance *inst)
 {
 	return crypto_instance_ctx(ahash_crypto_instance(inst));
