@@ -1698,12 +1698,10 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 	resp.max_tx_batch = dev->dev_attr.max_tx_batch;
 	resp.min_sq_wr = dev->dev_attr.min_sq_depth;
 
-	if (udata && udata->outlen) {
-		err = ib_copy_to_udata(udata, &resp,
-				       min(sizeof(resp), udata->outlen));
-		if (err)
-			goto err_dealloc_uar;
-	}
+	err = ib_copy_to_udata(udata, &resp,
+			       min(sizeof(resp), udata->outlen));
+	if (err)
+		goto err_dealloc_uar;
 
 	return 0;
 
