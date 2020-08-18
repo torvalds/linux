@@ -523,7 +523,13 @@ static inline u32 nvme_bytes_to_numd(size_t len)
 	return (len >> 2) - 1;
 }
 
-static inline bool nvme_end_request(struct request *req, __le16 status,
+/*
+ * Fill in the status and result information from the CQE, and then figure out
+ * if blk-mq will need to use IPI magic to complete the request, and if yes do
+ * so.  If not let the caller complete the request without an indirect function
+ * call.
+ */
+static inline bool nvme_try_complete_req(struct request *req, __le16 status,
 		union nvme_result result)
 {
 	struct nvme_request *rq = nvme_req(req);

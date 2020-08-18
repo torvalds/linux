@@ -1189,7 +1189,7 @@ static void nvme_rdma_end_request(struct nvme_rdma_request *req)
 
 	if (!refcount_dec_and_test(&req->ref))
 		return;
-	if (!nvme_end_request(rq, req->status, req->result))
+	if (!nvme_try_complete_req(rq, req->status, req->result))
 		nvme_rdma_complete_rq(rq);
 }
 

@@ -2035,7 +2035,7 @@ done:
 	}
 
 	__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
-	if (!nvme_end_request(rq, status, result))
+	if (!nvme_try_complete_req(rq, status, result))
 		nvme_fc_complete_rq(rq);
 
 check_error:
