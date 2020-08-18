@@ -1600,14 +1600,9 @@ static noinline void shadow_remove(struct xarray *xa)
 	xa_lock(xa);
 	while ((node = list_first_entry_or_null(&shadow_nodes,
 					struct xa_node, private_list))) {
-		XA_STATE(xas, node->array, 0);
 		XA_BUG_ON(xa, node->array != xa);
 		list_del_init(&node->private_list);
-		xas.xa_node = xa_parent_locked(node->array, node);
-		xas.xa_offset = node->offset;
-		xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
-		xas_set_update(&xas, test_update_node);
-		xas_store(&xas, NULL);
+		xa_delete_node(node, test_update_node);
 	}
 	xa_unlock(xa);
 }
