@@ -277,6 +277,26 @@ static int vcs_read_buf_uni(struct vc_data *vc, char *con_buf,
 	return 0;
 }
 
+static void vcs_read_buf_noattr(const struct vc_data *vc, char *con_buf,
+		unsigned int pos, unsigned int count, bool viewed)
+{
+	u16 *org;
+	unsigned int col, maxcol = vc->vc_cols;
+
+	org = screen_pos(vc, pos, viewed);
+	col = pos % maxcol;
+	pos += maxcol - col;
+
+	while (count-- > 0) {
+		*con_buf++ = (vcs_scr_readw(vc, org++) & 0xff);
+		if (++col == maxcol) {
+			org = screen_pos(vc, pos, viewed);
+			col = 0;
+			pos += maxcol;
+		}
+	}
+}
+
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
@@ -359,17 +379,8 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			if (ret)
 				break;
 		} else if (!attr) {
-			org = screen_pos(vc, p, viewed);
-			col = p % maxcol;
-			p += maxcol - col;
-			while (this_round-- > 0) {
-				*con_buf0++ = (vcs_scr_readw(vc, org++) & 0xff);
-				if (++col == maxcol) {
-					org = screen_pos(vc, p, viewed);
-					col = 0;
-					p += maxcol;
-				}
-			}
+			vcs_read_buf_noattr(vc, con_buf, pos, this_round,
+					viewed);
 		} else {
 			if (p < HEADER_SIZE) {
 				/* clamp header values if they don't fit */
