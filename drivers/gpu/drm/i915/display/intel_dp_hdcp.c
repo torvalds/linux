@@ -631,7 +631,8 @@ int intel_dp_init_hdcp(struct intel_digital_port *dig_port,
 		return 0;
 
 	if (!intel_dp_is_edp(intel_dp))
-		return intel_hdcp_init(intel_connector, &intel_dp_hdcp_shim);
+		return intel_hdcp_init(intel_connector, port,
+				       &intel_dp_hdcp_shim);
 
 	return 0;
 }

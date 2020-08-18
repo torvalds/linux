@@ -1945,6 +1945,7 @@ static enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
 }
 
 static int initialize_hdcp_port_data(struct intel_connector *connector,
+				     enum port port,
 				     const struct intel_hdcp_shim *shim)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1952,8 +1953,7 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 	struct hdcp_port_data *data = &hdcp->port_data;
 
 	if (INTEL_GEN(dev_priv) < 12)
-		data->fw_ddi =
-			intel_get_mei_fw_ddi_index(intel_attached_encoder(connector)->port);
+		data->fw_ddi = intel_get_mei_fw_ddi_index(port);
 	else
 		/*
 		 * As per ME FW API expectation, for GEN 12+, fw_ddi is filled
@@ -2023,14 +2023,14 @@ void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void intel_hdcp2_init(struct intel_connector *connector,
+static void intel_hdcp2_init(struct intel_connector *connector, enum port port,
 			     const struct intel_hdcp_shim *shim)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	int ret;
 
-	ret = initialize_hdcp_port_data(connector, shim);
+	ret = initialize_hdcp_port_data(connector, port, shim);
 	if (ret) {
 		drm_dbg_kms(&i915->drm, "Mei hdcp data init failed\n");
 		return;
@@ -2040,6 +2040,7 @@ static void intel_hdcp2_init(struct intel_connector *connector,
 }
 
 int intel_hdcp_init(struct intel_connector *connector,
+		    enum port port,
 		    const struct intel_hdcp_shim *shim)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -2050,7 +2051,7 @@ int intel_hdcp_init(struct intel_connector *connector,
 		return -EINVAL;
 
 	if (is_hdcp2_supported(dev_priv))
-		intel_hdcp2_init(connector, shim);
+		intel_hdcp2_init(connector, port, shim);
 
 	ret =
 	drm_connector_attach_content_protection_property(&connector->base,
