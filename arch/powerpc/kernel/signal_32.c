@@ -754,7 +754,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	struct rt_sigframe __user *rt_sf;
 	struct mcontext __user *frame;
 	struct mcontext __user *tm_frame = NULL;
-	void __user *addr;
 	unsigned long newsp = 0;
 	int sigret;
 	unsigned long tramp;
@@ -767,7 +766,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
 	rt_sf = get_sigframe(ksig, tsk, sizeof(*rt_sf), 1);
-	addr = rt_sf;
 	if (!access_ok(rt_sf, sizeof(*rt_sf)))
 		goto badframe;
 
@@ -782,7 +780,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
-	addr = frame;
 	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
 		sigret = 0;
 		tramp = tsk->mm->context.vdso_base + vdso32_rt_sigtramp;
@@ -818,7 +815,6 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
-	addr = (void __user *)regs->gpr[1];
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 
@@ -835,7 +831,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	return 0;
 
 badframe:
-	signal_fault(tsk, regs, "handle_rt_signal32", addr);
+	signal_fault(tsk, regs, "handle_rt_signal32", rt_sf);
 
 	return 1;
 }
