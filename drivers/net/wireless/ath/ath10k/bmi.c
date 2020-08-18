@@ -16,6 +16,7 @@ void ath10k_bmi_start(struct ath10k *ar)
 
 	ar->bmi.done_sent = false;
 }
+EXPORT_SYMBOL(ath10k_bmi_start);
 
 int ath10k_bmi_done(struct ath10k *ar)
 {
@@ -189,6 +190,7 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_bmi_read_memory);
 
 int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val)
 {
