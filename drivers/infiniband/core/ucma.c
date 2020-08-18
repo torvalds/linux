@@ -1824,12 +1824,17 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	struct ucma_file *file = filp->private_data;
 	struct ucma_context *ctx, *tmp;
 
-	mutex_lock(&file->mut);
+	/*
+	 * ctx_list can only be mutated under the write(), which is no longer
+	 * possible, so no locking needed.
+	 */
 	list_for_each_entry_safe(ctx, tmp, &file->ctx_list, list) {
+		xa_erase(&ctx_table, ctx->id);
+
+		mutex_lock(&file->mut);
 		ctx->destroying = 1;
 		mutex_unlock(&file->mut);
 
-		xa_erase(&ctx_table, ctx->id);
 		flush_workqueue(file->close_wq);
 		/* At that step once ctx was marked as destroying and workqueue
 		 * was flushed we are safe from any inflights handlers that
@@ -1849,9 +1854,7 @@ static int ucma_close(struct inode *inode, struct file *filp)
 		}
 
 		ucma_free_ctx(ctx);
-		mutex_lock(&file->mut);
 	}
-	mutex_unlock(&file->mut);
 	destroy_workqueue(file->close_wq);
 	kfree(file);
 	return 0;
