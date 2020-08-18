@@ -197,9 +197,94 @@ enum mei_cl_connect_status {
 /*
  * Client Disconnect Status
  */
-enum  mei_cl_disconnect_status {
+enum mei_cl_disconnect_status {
 	MEI_CL_DISCONN_SUCCESS = MEI_HBMS_SUCCESS
 };
+
+/**
+ * enum mei_ext_hdr_type - extended header type used in
+ *    extended header TLV
+ *
+ * @MEI_EXT_HDR_NONE: sentinel
+ * @MEI_EXT_HDR_VTAG: vtag header
+ */
+enum mei_ext_hdr_type {
+	MEI_EXT_HDR_NONE = 0,
+	MEI_EXT_HDR_VTAG = 1,
+};
+
+/**
+ * struct mei_ext_hdr - extend header descriptor (TLV)
+ * @type: enum mei_ext_hdr_type
+ * @length: length excluding descriptor
+ * @ext_payload: payload of the specific extended header
+ * @hdr: place holder for actual header
+ */
+struct mei_ext_hdr {
+	u8 type;
+	u8 length;
+	u8 ext_payload[2];
+	u8 hdr[0];
+};
+
+/**
+ * struct mei_ext_meta_hdr - extend header meta data
+ * @count: number of headers
+ * @size: total size of the extended header list excluding meta header
+ * @reserved: reserved
+ * @hdrs: extended headers TLV list
+ */
+struct mei_ext_meta_hdr {
+	u8 count;
+	u8 size;
+	u8 reserved[2];
+	struct mei_ext_hdr hdrs[0];
+};
+
+/*
+ * Extended header iterator functions
+ */
+/**
+ * mei_ext_hdr - extended header iterator begin
+ *
+ * @meta: meta header of the extended header list
+ *
+ * Return:
+ *     The first extended header
+ */
+static inline struct mei_ext_hdr *mei_ext_begin(struct mei_ext_meta_hdr *meta)
+{
+	return meta->hdrs;
+}
+
+/**
+ * mei_ext_last - check if the ext is the last one in the TLV list
+ *
+ * @meta: meta header of the extended header list
+ * @ext: a meta header on the list
+ *
+ * Return: true if ext is the last header on the list
+ */
+static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
+				struct mei_ext_hdr *ext)
+{
+	return (u8 *)ext >= (u8 *)meta + sizeof(*meta) + (meta->size * 4);
+}
+
+/**
+ *mei_ext_next - following extended header on the TLV list
+ *
+ * @ext: current extend header
+ *
+ * Context: The function does not check for the overflows,
+ *          one should call mei_ext_last before.
+ *
+ * Return: The following extend header after @ext
+ */
+static inline struct mei_ext_hdr *mei_ext_next(struct mei_ext_hdr *ext)
+{
+	return (struct mei_ext_hdr *)(ext->hdr + (ext->length * 4));
+}
 
 /**
  * struct mei_msg_hdr - MEI BUS Interface Section
@@ -208,6 +293,7 @@ enum  mei_cl_disconnect_status {
  * @host_addr: host address
  * @length: message length
  * @reserved: reserved
+ * @extended: message has extended header
  * @dma_ring: message is on dma ring
  * @internal: message is internal
  * @msg_complete: last packet of the message
@@ -217,7 +303,8 @@ struct mei_msg_hdr {
 	u32 me_addr:8;
 	u32 host_addr:8;
 	u32 length:9;
-	u32 reserved:4;
+	u32 reserved:3;
+	u32 extended:1;
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
@@ -226,8 +313,6 @@ struct mei_msg_hdr {
 
 /* The length is up to 9 bits */
 #define MEI_MSG_MAX_LEN_MASK GENMASK(9, 0)
-
-#define MEI_MSG_HDR_MAX 2
 
 struct mei_bus_message {
 	u8 hbm_cmd;

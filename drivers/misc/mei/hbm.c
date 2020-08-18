@@ -125,19 +125,15 @@ void mei_hbm_reset(struct mei_device *dev)
 /**
  * mei_hbm_hdr - construct hbm header
  *
- * @hdr: hbm header
+ * @mei_hdr: hbm header
  * @length: payload length
  */
 
-static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
+static inline void mei_hbm_hdr(struct mei_msg_hdr *mei_hdr, size_t length)
 {
-	hdr->host_addr = 0;
-	hdr->me_addr = 0;
-	hdr->length = length;
-	hdr->msg_complete = 1;
-	hdr->dma_ring = 0;
-	hdr->reserved = 0;
-	hdr->internal = 0;
+	memset(mei_hdr, 0, sizeof(*mei_hdr));
+	mei_hdr->length = length;
+	mei_hdr->msg_complete = 1;
 }
 
 /**

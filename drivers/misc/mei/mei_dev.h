@@ -174,6 +174,7 @@ struct mei_cl;
  * @fop_type: file operation type
  * @buf: buffer for data associated with the callback
  * @buf_idx: last read index
+ * @vtag: virtual tag
  * @fp: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
@@ -185,6 +186,7 @@ struct mei_cl_cb {
 	enum mei_cb_file_ops fop_type;
 	struct mei_msg_data buf;
 	size_t buf_idx;
+	u8 vtag;
 	const struct file *fp;
 	int status;
 	u32 internal:1;
@@ -413,6 +415,7 @@ struct mei_fw_version {
  *
  * @rd_msg_buf  : control messages buffer
  * @rd_msg_hdr  : read message header storage
+ * @rd_msg_hdr_count : how many dwords were already read from header
  *
  * @hbuf_is_ready : query if the host host/write buffer is ready
  * @dr_dscr: DMA ring descriptors: TX, RX, and CTRL
@@ -496,7 +499,8 @@ struct mei_device {
 #endif /* CONFIG_PM */
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];
-	u32 rd_msg_hdr[MEI_MSG_HDR_MAX];
+	u32 rd_msg_hdr[MEI_RD_MSG_BUF_SIZE];
+	int rd_msg_hdr_count;
 
 	/* write buffer */
 	bool hbuf_is_ready;
@@ -750,10 +754,11 @@ static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
 int mei_register(struct mei_device *dev, struct device *parent);
 void mei_deregister(struct mei_device *dev);
 
-#define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d dma=%1d internal=%1d comp=%1d"
+#define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d dma=%1d ext=%1d internal=%1d comp=%1d"
 #define MEI_HDR_PRM(hdr)                  \
 	(hdr)->host_addr, (hdr)->me_addr, \
-	(hdr)->length, (hdr)->dma_ring, (hdr)->internal, (hdr)->msg_complete
+	(hdr)->length, (hdr)->dma_ring, (hdr)->extended, \
+	(hdr)->internal, (hdr)->msg_complete
 
 ssize_t mei_fw_status2str(struct mei_fw_status *fw_sts, char *buf, size_t len);
 /**
