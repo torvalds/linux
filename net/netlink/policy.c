@@ -251,12 +251,6 @@ send_attribute:
 				pt->bitfield32_valid))
 			goto nla_put_failure;
 		break;
-	case NLA_EXACT_LEN:
-		type = NL_ATTR_TYPE_BINARY;
-		if (nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MIN_LENGTH, pt->len) ||
-		    nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MAX_LENGTH, pt->len))
-			goto nla_put_failure;
-		break;
 	case NLA_STRING:
 	case NLA_NUL_STRING:
 	case NLA_BINARY:
@@ -266,14 +260,26 @@ send_attribute:
 			type = NL_ATTR_TYPE_NUL_STRING;
 		else
 			type = NL_ATTR_TYPE_BINARY;
-		if (pt->len && nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MAX_LENGTH,
-					   pt->len))
+
+		if (pt->validation_type != NLA_VALIDATE_NONE) {
+			struct netlink_range_validation range;
+
+			nla_get_range_unsigned(pt, &range);
+
+			if (range.min &&
+			    nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MIN_LENGTH,
+					range.min))
+				goto nla_put_failure;
+
+			if (range.max < U16_MAX &&
+			    nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MAX_LENGTH,
+					range.max))
+				goto nla_put_failure;
+		} else if (pt->len &&
+			   nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MAX_LENGTH,
+				       pt->len)) {
 			goto nla_put_failure;
-		break;
-	case NLA_MIN_LEN:
-		type = NL_ATTR_TYPE_BINARY;
-		if (nla_put_u32(skb, NL_POLICY_TYPE_ATTR_MIN_LENGTH, pt->len))
-			goto nla_put_failure;
+		}
 		break;
 	case NLA_FLAG:
 		type = NL_ATTR_TYPE_FLAG;
