@@ -82,11 +82,6 @@
  * Functions for flipping sigsets (thanks to brain dead generic
  * implementation that makes things simple for little endian only)
  */
-static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
-{
-	return put_compat_sigset(uset, set, sizeof(*uset));
-}
-
 #define unsafe_put_sigset_t	unsafe_put_compat_sigset
 
 static inline int get_sigset_t(sigset_t *set,
@@ -137,11 +132,6 @@ static inline int restore_general_regs(struct pt_regs *regs,
 #else /* CONFIG_PPC64 */
 
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
-
-static inline int put_sigset_t(sigset_t __user *uset, sigset_t *set)
-{
-	return copy_to_user(uset, set, sizeof(*uset));
-}
 
 #define unsafe_put_sigset_t(uset, set, label) do {			\
 	sigset_t __user *__us = uset	;				\
@@ -1048,11 +1038,13 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		 */
 		mctx = (struct mcontext __user *)
 			((unsigned long) &old_ctx->uc_mcontext & ~0xfUL);
-		if (!access_ok(old_ctx, ctx_size)
-		    || save_user_regs(regs, mctx, NULL, ctx_has_vsx_region)
-		    || put_sigset_t(&old_ctx->uc_sigmask, &current->blocked)
-		    || __put_user(to_user_ptr(mctx), &old_ctx->uc_regs))
+		if (save_user_regs(regs, mctx, NULL, ctx_has_vsx_region))
 			return -EFAULT;
+		if (!user_write_access_begin(old_ctx, ctx_size))
+			return -EFAULT;
+		unsafe_put_sigset_t(&old_ctx->uc_sigmask, &current->blocked, failed);
+		unsafe_put_user(to_user_ptr(mctx), &old_ctx->uc_regs, failed);
+		user_write_access_end();
 	}
 	if (new_ctx == NULL)
 		return 0;
@@ -1076,6 +1068,10 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
+
+failed:
+	user_write_access_end();
+	return -EFAULT;
 }
 
 #ifdef CONFIG_PPC64
