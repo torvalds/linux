@@ -516,7 +516,7 @@ static int create_static_call_sections(struct objtool_file *file)
 		}
 		memset(reloc, 0, sizeof(*reloc));
 		reloc->sym = key_sym;
-		reloc->addend = 0;
+		reloc->addend = is_sibling_call(insn) ? STATIC_CALL_SITE_TAIL : 0;
 		reloc->type = R_X86_64_PC32;
 		reloc->offset = idx * sizeof(struct static_call_site) + 4;
 		reloc->sec = reloc_sec;
@@ -747,6 +747,10 @@ static int add_jump_destinations(struct objtool_file *file)
 		} else {
 			/* external sibling call */
 			insn->call_dest = reloc->sym;
+			if (insn->call_dest->static_call_tramp) {
+				list_add_tail(&insn->static_call_node,
+					      &file->static_call_list);
+			}
 			continue;
 		}
 
@@ -798,6 +802,10 @@ static int add_jump_destinations(struct objtool_file *file)
 
 				/* internal sibling call */
 				insn->call_dest = insn->jump_dest->func;
+				if (insn->call_dest->static_call_tramp) {
+					list_add_tail(&insn->static_call_node,
+						      &file->static_call_list);
+				}
 			}
 		}
 	}
@@ -1684,6 +1692,10 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
+	ret = read_static_call_tramps(file);
+	if (ret)
+		return ret;
+
 	ret = add_jump_destinations(file);
 	if (ret)
 		return ret;
@@ -1713,10 +1725,6 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	ret = read_instr_hints(file);
-	if (ret)
-		return ret;
-
-	ret = read_static_call_tramps(file);
 	if (ret)
 		return ret;
 

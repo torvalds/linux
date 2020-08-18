@@ -41,15 +41,30 @@ static void __static_call_transform(void *insn, enum insn_type type, void *func)
 	text_poke_bp(insn, code, size, NULL);
 }
 
-void arch_static_call_transform(void *site, void *tramp, void *func)
+static inline enum insn_type __sc_insn(bool null, bool tail)
+{
+	/*
+	 * Encode the following table without branches:
+	 *
+	 *	tail	null	insn
+	 *	-----+-------+------
+	 *	  0  |   0   |  CALL
+	 *	  0  |   1   |  NOP
+	 *	  1  |   0   |  JMP
+	 *	  1  |   1   |  RET
+	 */
+	return 2*tail + null;
+}
+
+void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 {
 	mutex_lock(&text_mutex);
 
 	if (tramp)
-		__static_call_transform(tramp, func ? JMP : RET, func);
+		__static_call_transform(tramp, __sc_insn(!func, true), func);
 
 	if (IS_ENABLED(CONFIG_HAVE_STATIC_CALL_INLINE) && site)
-		__static_call_transform(site, func ? CALL : NOP, func);
+		__static_call_transform(site, __sc_insn(!func, tail), func);
 
 	mutex_unlock(&text_mutex);
 }
