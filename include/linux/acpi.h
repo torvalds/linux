@@ -430,13 +430,12 @@ int acpi_get_node(acpi_handle handle);
  * ACPI device drivers, which are called after the NUMA initialization has
  * completed in the kernel, can call this interface to obtain their device
  * NUMA topology from ACPI tables.  Such drivers do not have to deal with
- * offline nodes.  A node may be offline when a device proximity ID is
- * unique, SRAT memory entry does not exist, or NUMA is disabled, ex.
- * "numa=off" on x86.
+ * offline nodes.  A node may be offline when SRAT memory entry does not exist,
+ * or NUMA is disabled, ex. "numa=off" on x86.
  */
 static inline int acpi_map_pxm_to_online_node(int pxm)
 {
-	int node = acpi_map_pxm_to_node(pxm);
+	int node = pxm_to_node(pxm);
 
 	return numa_map_to_online_node(node);
 }
