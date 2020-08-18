@@ -2819,21 +2819,14 @@ static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 	return __io_iov_buffer_select(req, iov, needs_lock);
 }
 
-static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
-			       struct iovec **iovec, struct iov_iter *iter,
-			       bool needs_lock)
+static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
+				 struct iovec **iovec, struct iov_iter *iter,
+				 bool needs_lock)
 {
 	void __user *buf = u64_to_user_ptr(req->rw.addr);
 	size_t sqe_len = req->rw.len;
 	ssize_t ret;
 	u8 opcode;
-
-	if (req->io) {
-		struct io_async_rw *iorw = &req->io->rw;
-
-		*iovec = NULL;
-		return iov_iter_count(&iorw->iter);
-	}
 
 	opcode = req->opcode;
 	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
@@ -2877,6 +2870,16 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 #endif
 
 	return import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter);
+}
+
+static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
+			       struct iovec **iovec, struct iov_iter *iter,
+			       bool needs_lock)
+{
+	if (!req->io)
+		return __io_import_iovec(rw, req, iovec, iter, needs_lock);
+	*iovec = NULL;
+	return iov_iter_count(&req->io->rw.iter);
 }
 
 /*
@@ -3001,11 +3004,8 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 	ssize_t ret;
 
 	iorw->iter.iov = iorw->fast_iov;
-	/* reset ->io around the iovec import, we don't want to use it */
-	req->io = NULL;
-	ret = io_import_iovec(rw, req, (struct iovec **) &iorw->iter.iov,
+	ret = __io_import_iovec(rw, req, (struct iovec **) &iorw->iter.iov,
 				&iorw->iter, !force_nonblock);
-	req->io = container_of(iorw, struct io_async_ctx, rw);
 	if (unlikely(ret < 0))
 		return ret;
 
