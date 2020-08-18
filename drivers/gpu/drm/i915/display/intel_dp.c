@@ -8342,6 +8342,8 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder = &dig_port->base;
 	encoder = &intel_encoder->base;
 
+	mutex_init(&dig_port->hdcp_mutex);
+
 	if (drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
 			     &intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS,
 			     "DP %c", port_name(port)))
