@@ -663,6 +663,7 @@ static bool symbol__is_idle(const char *name)
 		"exit_idle",
 		"mwait_idle",
 		"mwait_idle_with_hints",
+		"mwait_idle_with_hints.constprop.0",
 		"poll_idle",
 		"ppc64_runlatch_off",
 		"pseries_dedicated_idle_sleep",
