@@ -96,6 +96,31 @@ unsigned int ptp_classify_raw(const struct sk_buff *skb);
  */
 struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type);
 
+/**
+ * ptp_get_msgtype - Extract ptp message type from given header
+ * @hdr: ptp header
+ * @type: type of the packet (see ptp_classify_raw())
+ *
+ * This function returns the message type for a given ptp header. It takes care
+ * of the different ptp header versions (v1 or v2).
+ *
+ * Return: The message type
+ */
+static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
+				 unsigned int type)
+{
+	u8 msgtype;
+
+	if (unlikely(type & PTP_CLASS_V1)) {
+		/* msg type is located at the control field for ptp v1 */
+		msgtype = hdr->control;
+	} else {
+		msgtype = hdr->tsmt & 0x0f;
+	}
+
+	return msgtype;
+}
+
 void __init ptp_classifier_init(void);
 #else
 static inline void ptp_classifier_init(void)
