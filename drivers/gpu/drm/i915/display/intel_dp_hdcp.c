@@ -224,7 +224,8 @@ int intel_dp_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
 }
 
 static
-bool intel_dp_hdcp_check_link(struct intel_digital_port *dig_port)
+bool intel_dp_hdcp_check_link(struct intel_digital_port *dig_port,
+			      struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	ssize_t ret;
