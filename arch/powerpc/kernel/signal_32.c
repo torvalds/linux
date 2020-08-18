@@ -836,6 +836,91 @@ badframe:
 	return 1;
 }
 
+/*
+ * OK, we're invoking a handler
+ */
+int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
+		struct task_struct *tsk)
+{
+	struct sigcontext __user *sc;
+	struct sigframe __user *frame;
+	struct mcontext __user *tm_mctx = NULL;
+	unsigned long newsp = 0;
+	int sigret;
+	unsigned long tramp;
+	struct pt_regs *regs = tsk->thread.regs;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* Save the thread's msr before get_tm_stackpointer() changes it */
+	unsigned long msr = regs->msr;
+#endif
+
+	/* Set up Signal Frame */
+	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
+	if (!access_ok(frame, sizeof(*frame)))
+		goto badframe;
+	sc = (struct sigcontext __user *) &frame->sctx;
+
+#if _NSIG != 64
+#error "Please adjust handle_signal()"
+#endif
+	if (__put_user(to_user_ptr(ksig->ka.sa.sa_handler), &sc->handler)
+	    || __put_user(oldset->sig[0], &sc->oldmask)
+#ifdef CONFIG_PPC64
+	    || __put_user((oldset->sig[0] >> 32), &sc->_unused[3])
+#else
+	    || __put_user(oldset->sig[1], &sc->_unused[3])
+#endif
+	    || __put_user(to_user_ptr(&frame->mctx), &sc->regs)
+	    || __put_user(ksig->sig, &sc->signal))
+		goto badframe;
+
+	if (vdso32_sigtramp && tsk->mm->context.vdso_base) {
+		sigret = 0;
+		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
+	} else {
+		sigret = __NR_sigreturn;
+		tramp = (unsigned long) frame->mctx.tramp;
+	}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	tm_mctx = &frame->mctx_transact;
+	if (MSR_TM_ACTIVE(msr)) {
+		if (save_tm_user_regs(regs, &frame->mctx, &frame->mctx_transact,
+				      sigret, msr))
+			goto badframe;
+	}
+	else
+#endif
+	{
+		if (save_user_regs(regs, &frame->mctx, tm_mctx, sigret, 1))
+			goto badframe;
+	}
+
+	regs->link = tramp;
+
+#ifdef CONFIG_PPC_FPU_REGS
+	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
+#endif
+
+	/* create a stack frame for the caller of the handler */
+	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
+	if (put_user(regs->gpr[1], (u32 __user *)newsp))
+		goto badframe;
+
+	regs->gpr[1] = newsp;
+	regs->gpr[3] = ksig->sig;
+	regs->gpr[4] = (unsigned long) sc;
+	regs->nip = (unsigned long) (unsigned long)ksig->ka.sa.sa_handler;
+	/* enter the signal handler in big-endian mode */
+	regs->msr &= ~MSR_LE;
+	return 0;
+
+badframe:
+	signal_fault(tsk, regs, "handle_signal32", frame);
+
+	return 1;
+}
+
 static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int sig)
 {
 	sigset_t set;
@@ -1187,91 +1272,6 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	return 0;
 }
 #endif
-
-/*
- * OK, we're invoking a handler
- */
-int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
-		struct task_struct *tsk)
-{
-	struct sigcontext __user *sc;
-	struct sigframe __user *frame;
-	struct mcontext __user *tm_mctx = NULL;
-	unsigned long newsp = 0;
-	int sigret;
-	unsigned long tramp;
-	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Save the thread's msr before get_tm_stackpointer() changes it */
-	unsigned long msr = regs->msr;
-#endif
-
-	/* Set up Signal Frame */
-	frame = get_sigframe(ksig, tsk, sizeof(*frame), 1);
-	if (!access_ok(frame, sizeof(*frame)))
-		goto badframe;
-	sc = (struct sigcontext __user *) &frame->sctx;
-
-#if _NSIG != 64
-#error "Please adjust handle_signal()"
-#endif
-	if (__put_user(to_user_ptr(ksig->ka.sa.sa_handler), &sc->handler)
-	    || __put_user(oldset->sig[0], &sc->oldmask)
-#ifdef CONFIG_PPC64
-	    || __put_user((oldset->sig[0] >> 32), &sc->_unused[3])
-#else
-	    || __put_user(oldset->sig[1], &sc->_unused[3])
-#endif
-	    || __put_user(to_user_ptr(&frame->mctx), &sc->regs)
-	    || __put_user(ksig->sig, &sc->signal))
-		goto badframe;
-
-	if (vdso32_sigtramp && tsk->mm->context.vdso_base) {
-		sigret = 0;
-		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
-	} else {
-		sigret = __NR_sigreturn;
-		tramp = (unsigned long) frame->mctx.tramp;
-	}
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	tm_mctx = &frame->mctx_transact;
-	if (MSR_TM_ACTIVE(msr)) {
-		if (save_tm_user_regs(regs, &frame->mctx, &frame->mctx_transact,
-				      sigret, msr))
-			goto badframe;
-	}
-	else
-#endif
-	{
-		if (save_user_regs(regs, &frame->mctx, tm_mctx, sigret, 1))
-			goto badframe;
-	}
-
-	regs->link = tramp;
-
-#ifdef CONFIG_PPC_FPU_REGS
-	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
-#endif
-
-	/* create a stack frame for the caller of the handler */
-	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
-	if (put_user(regs->gpr[1], (u32 __user *)newsp))
-		goto badframe;
-
-	regs->gpr[1] = newsp;
-	regs->gpr[3] = ksig->sig;
-	regs->gpr[4] = (unsigned long) sc;
-	regs->nip = (unsigned long) (unsigned long)ksig->ka.sa.sa_handler;
-	/* enter the signal handler in big-endian mode */
-	regs->msr &= ~MSR_LE;
-	return 0;
-
-badframe:
-	signal_fault(tsk, regs, "handle_signal32", frame);
-
-	return 1;
-}
 
 /*
  * Do a signal return; undo the signal stack.
