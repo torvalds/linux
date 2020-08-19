@@ -60,6 +60,7 @@ struct thread_struct {
 #define INIT_THREAD  { \
 	.flags = SPARC_FLAG_KTHREAD, \
 	.current_ds = KERNEL_DS, \
+	.kregs = (struct pt_regs *)(init_stack+THREAD_SIZE)-1 \
 }
 
 /* Do necessary setup to start up a newly executed thread. */

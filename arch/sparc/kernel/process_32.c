@@ -218,14 +218,7 @@ void flush_thread(void)
 	}
 
 	/* This task is no longer a kernel thread. */
-	if (current->thread.flags & SPARC_FLAG_KTHREAD) {
-		current->thread.flags &= ~SPARC_FLAG_KTHREAD;
-
-		/* We must fixup kregs as well. */
-		/* XXX This was not fixed for ti for a while, worked. Unused? */
-		current->thread.kregs = (struct pt_regs *)
-		    (task_stack_page(current) + (THREAD_SIZE - TRACEREG_SZ));
-	}
+	current->thread.flags &= ~SPARC_FLAG_KTHREAD;
 }
 
 static inline struct sparc_stackf __user *
