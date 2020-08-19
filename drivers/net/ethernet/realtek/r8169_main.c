@@ -617,7 +617,6 @@ struct rtl8169_private {
 		struct work_struct work;
 	} wk;
 
-	unsigned irq_enabled:1;
 	unsigned supports_gmii:1;
 	unsigned aspm_manageable:1;
 	dma_addr_t counters_phys_addr;
@@ -1280,12 +1279,10 @@ static void rtl_irq_disable(struct rtl8169_private *tp)
 		RTL_W32(tp, IntrMask_8125, 0);
 	else
 		RTL_W16(tp, IntrMask, 0);
-	tp->irq_enabled = 0;
 }
 
 static void rtl_irq_enable(struct rtl8169_private *tp)
 {
-	tp->irq_enabled = 1;
 	if (rtl_is_8125(tp))
 		RTL_W32(tp, IntrMask_8125, tp->irq_mask);
 	else
@@ -4541,8 +4538,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	struct rtl8169_private *tp = dev_instance;
 	u32 status = rtl_get_events(tp);
 
-	if (!tp->irq_enabled || (status & 0xffff) == 0xffff ||
-	    !(status & tp->irq_mask))
+	if ((status & 0xffff) == 0xffff || !(status & tp->irq_mask))
 		return IRQ_NONE;
 
 	if (unlikely(status & SYSErr)) {
