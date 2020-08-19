@@ -1710,8 +1710,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 		goto out_runtime_pm_put;
 	}
 
-	dev_info(&pdev->dev, "probed\n");
-
 	pm_runtime_mark_last_busy(spi_imx->dev);
 	pm_runtime_put_autosuspend(spi_imx->dev);
 
