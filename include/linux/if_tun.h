@@ -28,8 +28,8 @@ struct tun_xdp_hdr {
 struct socket *tun_get_socket(struct file *);
 struct ptr_ring *tun_get_tx_ring(struct file *file);
 bool tun_is_xdp_frame(void *ptr);
-void *tun_xdp_to_ptr(void *ptr);
-void *tun_ptr_to_xdp(void *ptr);
+void *tun_xdp_to_ptr(struct xdp_frame *xdp);
+struct xdp_frame *tun_ptr_to_xdp(void *ptr);
 void tun_ptr_free(void *ptr);
 #else
 #include <linux/err.h>
@@ -48,11 +48,11 @@ static inline bool tun_is_xdp_frame(void *ptr)
 {
 	return false;
 }
-static inline void *tun_xdp_to_ptr(void *ptr)
+static inline void *tun_xdp_to_ptr(struct xdp_frame *xdp)
 {
 	return NULL;
 }
-static inline void *tun_ptr_to_xdp(void *ptr)
+static inline struct xdp_frame *tun_ptr_to_xdp(void *ptr)
 {
 	return NULL;
 }

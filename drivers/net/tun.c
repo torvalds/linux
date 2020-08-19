@@ -225,13 +225,13 @@ bool tun_is_xdp_frame(void *ptr)
 }
 EXPORT_SYMBOL(tun_is_xdp_frame);
 
-void *tun_xdp_to_ptr(void *ptr)
+void *tun_xdp_to_ptr(struct xdp_frame *xdp)
 {
-	return (void *)((unsigned long)ptr | TUN_XDP_FLAG);
+	return (void *)((unsigned long)xdp | TUN_XDP_FLAG);
 }
 EXPORT_SYMBOL(tun_xdp_to_ptr);
 
-void *tun_ptr_to_xdp(void *ptr)
+struct xdp_frame *tun_ptr_to_xdp(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~TUN_XDP_FLAG);
 }
