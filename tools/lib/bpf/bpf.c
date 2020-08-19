@@ -32,9 +32,6 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 
-/* make sure libbpf doesn't use kernel-only integer typedefs */
-#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
-
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
  * required to be defined explicitly.
