@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Google, Inc.
  */
 
+#include <linux/module.h>
 #include <linux/virtio_dma_buf.h>
 
 /**
@@ -83,3 +84,5 @@ int virtio_dma_buf_get_uuid(struct dma_buf *dma_buf,
 	return ops->get_uuid(dma_buf, uuid);
 }
 EXPORT_SYMBOL(virtio_dma_buf_get_uuid);
+
+MODULE_LICENSE("GPL");
