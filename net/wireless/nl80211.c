@@ -574,14 +574,20 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_BINARY },
 	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_BINARY },
 	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = NLA_POLICY_MIN_LEN(2),
-	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] = { .type = NLA_BINARY },
+	/*
+	 * The value of the Length field of the Supported Operating
+	 * Classes element is between 2 and 253.
+	 */
+	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] =
+		NLA_POLICY_RANGE(NLA_BINARY, 2, 253),
 	[NL80211_ATTR_HANDLE_DFS] = { .type = NLA_FLAG },
 	[NL80211_ATTR_OPMODE_NOTIF] = { .type = NLA_U8 },
 	[NL80211_ATTR_VENDOR_ID] = { .type = NLA_U32 },
 	[NL80211_ATTR_VENDOR_SUBCMD] = { .type = NLA_U32 },
 	[NL80211_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
-	[NL80211_ATTR_QOS_MAP] = { .type = NLA_BINARY,
-				   .len = IEEE80211_QOS_MAP_LEN_MAX },
+	[NL80211_ATTR_QOS_MAP] = NLA_POLICY_RANGE(NLA_BINARY,
+						  IEEE80211_QOS_MAP_LEN_MIN,
+						  IEEE80211_QOS_MAP_LEN_MAX),
 	[NL80211_ATTR_MAC_HINT] = NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN),
 	[NL80211_ATTR_WIPHY_FREQ_HINT] = { .type = NLA_U32 },
 	[NL80211_ATTR_TDLS_PEER_CAPABILITY] = { .type = NLA_U32 },
@@ -636,9 +642,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_TXQ_LIMIT] = { .type = NLA_U32 },
 	[NL80211_ATTR_TXQ_MEMORY_LIMIT] = { .type = NLA_U32 },
 	[NL80211_ATTR_TXQ_QUANTUM] = { .type = NLA_U32 },
-	[NL80211_ATTR_HE_CAPABILITY] = { .type = NLA_BINARY,
-					 .len = NL80211_HE_MAX_CAPABILITY_LEN },
-
+	[NL80211_ATTR_HE_CAPABILITY] =
+		NLA_POLICY_RANGE(NLA_BINARY,
+				 NL80211_HE_MIN_CAPABILITY_LEN,
+				 NL80211_HE_MAX_CAPABILITY_LEN),
 	[NL80211_ATTR_FTM_RESPONDER] =
 		NLA_POLICY_NESTED(nl80211_ftm_responder_policy),
 	[NL80211_ATTR_TIMEOUT] = NLA_POLICY_MIN(NLA_U32, 1),
@@ -5852,13 +5859,6 @@ static int nl80211_parse_sta_channel_info(struct genl_info *info,
 		 nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
 		params->supported_oper_classes_len =
 		  nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
-		/*
-		 * The value of the Length field of the Supported Operating
-		 * Classes element is between 2 and 253.
-		 */
-		if (params->supported_oper_classes_len < 2 ||
-		    params->supported_oper_classes_len > 253)
-			return -EINVAL;
 	}
 	return 0;
 }
@@ -5881,9 +5881,6 @@ static int nl80211_set_station_tdls(struct genl_info *info,
 			nla_data(info->attrs[NL80211_ATTR_HE_CAPABILITY]);
 		params->he_capa_len =
 			nla_len(info->attrs[NL80211_ATTR_HE_CAPABILITY]);
-
-		if (params->he_capa_len < NL80211_HE_MIN_CAPABILITY_LEN)
-			return -EINVAL;
 	}
 
 	err = nl80211_parse_sta_channel_info(info, params);
@@ -6142,10 +6139,6 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			nla_data(info->attrs[NL80211_ATTR_HE_CAPABILITY]);
 		params.he_capa_len =
 			nla_len(info->attrs[NL80211_ATTR_HE_CAPABILITY]);
-
-		/* max len is validated in nla policy */
-		if (params.he_capa_len < NL80211_HE_MIN_CAPABILITY_LEN)
-			return -EINVAL;
 	}
 
 	if (info->attrs[NL80211_ATTR_HE_6GHZ_CAPABILITY])
@@ -13545,8 +13538,7 @@ static int nl80211_set_qos_map(struct sk_buff *skb,
 		pos = nla_data(info->attrs[NL80211_ATTR_QOS_MAP]);
 		len = nla_len(info->attrs[NL80211_ATTR_QOS_MAP]);
 
-		if (len % 2 || len < IEEE80211_QOS_MAP_LEN_MIN ||
-		    len > IEEE80211_QOS_MAP_LEN_MAX)
+		if (len % 2)
 			return -EINVAL;
 
 		qos_map = kzalloc(sizeof(struct cfg80211_qos_map), GFP_KERNEL);
