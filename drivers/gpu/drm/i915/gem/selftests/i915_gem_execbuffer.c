@@ -135,6 +135,7 @@ static int igt_gpu_reloc(void *arg)
 			goto err_pm;
 		}
 		eb.reloc_pool = NULL;
+		eb.reloc_context = NULL;
 
 		i915_gem_ww_ctx_init(&eb.ww, false);
 retry:
@@ -153,6 +154,8 @@ retry:
 
 		if (eb.reloc_pool)
 			intel_gt_buffer_pool_put(eb.reloc_pool);
+		if (eb.reloc_context)
+			intel_context_put(eb.reloc_context);
 
 		intel_context_put(eb.context);
 err_pm:
