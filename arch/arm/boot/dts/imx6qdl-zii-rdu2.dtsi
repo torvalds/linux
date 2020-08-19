@@ -316,7 +316,7 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	flash@0 {

@@ -187,7 +187,7 @@
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	tsc2046@0 {

@@ -18,8 +18,8 @@
 };
 
 &cspi1 {
-	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
-		   <&gpio4 27 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>,
+		   <&gpio4 27 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
