@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pm_wakeup.h>
-#include <linux/notifier.h>
 
 #include "ipa_version.h"
 #include "gsi.h"
