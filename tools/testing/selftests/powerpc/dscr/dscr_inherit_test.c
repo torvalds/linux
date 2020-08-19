@@ -22,6 +22,8 @@ int dscr_inherit(void)
 	unsigned long i, dscr = 0;
 	pid_t pid;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	srand(getpid());
 	set_dscr(dscr);
 

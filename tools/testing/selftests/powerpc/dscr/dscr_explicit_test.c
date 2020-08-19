@@ -21,6 +21,8 @@ int dscr_explicit(void)
 {
 	unsigned long i, dscr = 0;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	srand(getpid());
 	set_dscr(dscr);
 
