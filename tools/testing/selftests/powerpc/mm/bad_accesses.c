@@ -139,5 +139,6 @@ static int test(void)
 
 int main(void)
 {
+	test_harness_set_timeout(300);
 	return test_harness(test, "bad_accesses");
 }
