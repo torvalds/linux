@@ -406,7 +406,7 @@ static unsigned int soc_component_read_no_lock(
 		ret = -EIO;
 
 	if (ret < 0)
-		soc_component_ret(component, ret);
+		return soc_component_ret(component, ret);
 
 	return val;
 }

@@ -40,7 +40,7 @@ static const struct reg_default tegra210_dmic_reg_defaults[] = {
 	{ TEGRA210_DMIC_LP_BIQUAD_1_COEF_4, 0x0 },
 };
 
-static int tegra210_dmic_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra210_dmic_runtime_suspend(struct device *dev)
 {
 	struct tegra210_dmic *dmic = dev_get_drvdata(dev);
 
@@ -52,7 +52,7 @@ static int tegra210_dmic_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra210_dmic_runtime_resume(struct device *dev)
+static int __maybe_unused tegra210_dmic_runtime_resume(struct device *dev)
 {
 	struct tegra210_dmic *dmic = dev_get_drvdata(dev);
 	int err;
