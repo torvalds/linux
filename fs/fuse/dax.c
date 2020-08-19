@@ -28,6 +28,9 @@ struct fuse_dax_mapping {
 	/* For interval tree in file/inode */
 	struct interval_tree_node itn;
 
+	/* Will connect in fc->busy_ranges to keep track busy memory */
+	struct list_head busy_list;
+
 	/** Position in DAX window */
 	u64 window_offset;
 
@@ -54,6 +57,10 @@ struct fuse_conn_dax {
 
 	/* Lock protecting accessess to  members of this structure */
 	spinlock_t lock;
+
+	/* List of memory ranges which are busy */
+	unsigned long nr_busy_ranges;
+	struct list_head busy_ranges;
 
 	/* DAX Window Free Ranges */
 	long nr_free_ranges;
@@ -83,6 +90,15 @@ static struct fuse_dax_mapping *alloc_dax_mapping(struct fuse_conn_dax *fcd)
 	}
 	spin_unlock(&fcd->lock);
 	return dmap;
+}
+
+/* This assumes fcd->lock is held */
+static void __dmap_remove_busy_list(struct fuse_conn_dax *fcd,
+				    struct fuse_dax_mapping *dmap)
+{
+	list_del_init(&dmap->busy_list);
+	WARN_ON(fcd->nr_busy_ranges == 0);
+	fcd->nr_busy_ranges--;
 }
 
 /* This assumes fcd->lock is held */
@@ -139,6 +155,10 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 		/* Protected by fi->dax->sem */
 		interval_tree_insert(&dmap->itn, &fi->dax->tree);
 		fi->dax->nr++;
+		spin_lock(&fcd->lock);
+		list_add_tail(&dmap->busy_list, &fcd->busy_ranges);
+		fcd->nr_busy_ranges++;
+		spin_unlock(&fcd->lock);
 	}
 	return 0;
 }
@@ -207,6 +227,7 @@ static void dmap_reinit_add_to_free_pool(struct fuse_conn_dax *fcd,
 	pr_debug("fuse: freeing memory range start_idx=0x%lx end_idx=0x%lx window_offset=0x%llx length=0x%llx\n",
 		 dmap->itn.start, dmap->itn.last, dmap->window_offset,
 		 dmap->length);
+	__dmap_remove_busy_list(fcd, dmap);
 	dmap->itn.start = dmap->itn.last = 0;
 	__dmap_add_to_free_pool(fcd, dmap);
 }
@@ -700,6 +721,8 @@ static void fuse_free_dax_mem_ranges(struct list_head *mem_list)
 	/* Free All allocated elements */
 	list_for_each_entry_safe(range, temp, mem_list, list) {
 		list_del(&range->list);
+		if (!list_empty(&range->busy_list))
+			list_del(&range->busy_list);
 		kfree(range);
 	}
 }
@@ -723,6 +746,7 @@ static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 	unsigned long i;
 
 	INIT_LIST_HEAD(&fcd->free_ranges);
+	INIT_LIST_HEAD(&fcd->busy_ranges);
 	id = dax_read_lock();
 	nr_pages = dax_direct_access(fcd->dev, 0, PHYS_PFN(dax_size), &kaddr,
 				     &pfn);
@@ -748,6 +772,7 @@ static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 		 */
 		range->window_offset = i * FUSE_DAX_SZ;
 		range->length = FUSE_DAX_SZ;
+		INIT_LIST_HEAD(&range->busy_list);
 		list_add_tail(&range->list, &fcd->free_ranges);
 	}
 
