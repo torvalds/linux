@@ -127,7 +127,7 @@ static unsigned int amdgpu_debugfs_autodump_poll(struct file *file, struct poll_
 
 	poll_wait(file, &adev->autodump.gpu_hang, poll_table);
 
-	if (adev->in_gpu_reset)
+	if (amdgpu_in_reset(adev))
 		return POLLIN | POLLRDNORM | POLLWRNORM;
 
 	return 0;
