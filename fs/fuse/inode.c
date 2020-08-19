@@ -573,19 +573,20 @@ static int fuse_show_options(struct seq_file *m, struct dentry *root)
 	struct super_block *sb = root->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	if (fc->no_mount_options)
-		return 0;
-
-	seq_printf(m, ",user_id=%u", from_kuid_munged(fc->user_ns, fc->user_id));
-	seq_printf(m, ",group_id=%u", from_kgid_munged(fc->user_ns, fc->group_id));
-	if (fc->default_permissions)
-		seq_puts(m, ",default_permissions");
-	if (fc->allow_other)
-		seq_puts(m, ",allow_other");
-	if (fc->max_read != ~0)
-		seq_printf(m, ",max_read=%u", fc->max_read);
-	if (sb->s_bdev && sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
-		seq_printf(m, ",blksize=%lu", sb->s_blocksize);
+	if (fc->legacy_opts_show) {
+		seq_printf(m, ",user_id=%u",
+			   from_kuid_munged(fc->user_ns, fc->user_id));
+		seq_printf(m, ",group_id=%u",
+			   from_kgid_munged(fc->user_ns, fc->group_id));
+		if (fc->default_permissions)
+			seq_puts(m, ",default_permissions");
+		if (fc->allow_other)
+			seq_puts(m, ",allow_other");
+		if (fc->max_read != ~0)
+			seq_printf(m, ",max_read=%u", fc->max_read);
+		if (sb->s_bdev && sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
+			seq_printf(m, ",blksize=%lu", sb->s_blocksize);
+	}
 	return 0;
 }
 
@@ -1196,11 +1197,11 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->allow_other = ctx->allow_other;
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
+	fc->legacy_opts_show = ctx->legacy_opts_show;
 	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
 	fc->destroy = ctx->destroy;
 	fc->no_control = ctx->no_control;
 	fc->no_force_umount = ctx->no_force_umount;
-	fc->no_mount_options = ctx->no_mount_options;
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode);
@@ -1325,6 +1326,7 @@ static int fuse_init_fs_context(struct fs_context *fc)
 
 	ctx->max_read = ~0;
 	ctx->blksize = FUSE_DEFAULT_BLKSIZE;
+	ctx->legacy_opts_show = true;
 
 #ifdef CONFIG_BLOCK
 	if (fc->fs_type == &fuseblk_fs_type) {
