@@ -1160,6 +1160,7 @@ static int __init topology_init(void)
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
+#ifdef CONFIG_HOTPLUG_CPU
 		/*
 		 * For now, we just see if the system supports making
 		 * the RTAS calls for CPU hotplug.  But, there may be a
@@ -1167,8 +1168,9 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (ppc_md.cpu_die)
+		if (smp_ops->cpu_offline_self)
 			c->hotpluggable = 1;
+#endif
 
 		if (cpu_online(cpu) || c->hotpluggable) {
 			register_cpu(c, cpu);

@@ -50,6 +50,9 @@ struct smp_ops_t {
 	int   (*cpu_disable)(void);
 	void  (*cpu_die)(unsigned int nr);
 	int   (*cpu_bootable)(unsigned int nr);
+#ifdef CONFIG_HOTPLUG_CPU
+	void  (*cpu_offline_self)(void);
+#endif
 };
 
 extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);

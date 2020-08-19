@@ -1499,8 +1499,8 @@ void arch_cpu_idle_dead(void)
 	 */
 	this_cpu_disable_ftrace();
 
-	if (ppc_md.cpu_die)
-		ppc_md.cpu_die();
+	if (smp_ops->cpu_offline_self)
+		smp_ops->cpu_offline_self();
 
 	/* If we return, we re-enter start_secondary */
 	start_secondary_resume();
