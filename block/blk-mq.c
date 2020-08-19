@@ -2296,20 +2296,21 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	}
 }
 
-void blk_mq_free_rq_map(struct blk_mq_tags *tags)
+void blk_mq_free_rq_map(struct blk_mq_tags *tags, unsigned int flags)
 {
 	kfree(tags->rqs);
 	tags->rqs = NULL;
 	kfree(tags->static_rqs);
 	tags->static_rqs = NULL;
 
-	blk_mq_free_tags(tags);
+	blk_mq_free_tags(tags, flags);
 }
 
 struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 					unsigned int hctx_idx,
 					unsigned int nr_tags,
-					unsigned int reserved_tags)
+					unsigned int reserved_tags,
+					unsigned int flags)
 {
 	struct blk_mq_tags *tags;
 	int node;
@@ -2318,8 +2319,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
-	tags = blk_mq_init_tags(nr_tags, reserved_tags, node,
-				BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags));
+	tags = blk_mq_init_tags(nr_tags, reserved_tags, node, flags);
 	if (!tags)
 		return NULL;
 
@@ -2327,7 +2327,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
 				 node);
 	if (!tags->rqs) {
-		blk_mq_free_tags(tags);
+		blk_mq_free_tags(tags, flags);
 		return NULL;
 	}
 
@@ -2336,7 +2336,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 					node);
 	if (!tags->static_rqs) {
 		kfree(tags->rqs);
-		blk_mq_free_tags(tags);
+		blk_mq_free_tags(tags, flags);
 		return NULL;
 	}
 
@@ -2745,10 +2745,11 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 static bool __blk_mq_alloc_map_and_request(struct blk_mq_tag_set *set,
 					int hctx_idx)
 {
+	unsigned int flags = set->flags;
 	int ret = 0;
 
 	set->tags[hctx_idx] = blk_mq_alloc_rq_map(set, hctx_idx,
-					set->queue_depth, set->reserved_tags);
+					set->queue_depth, set->reserved_tags, flags);
 	if (!set->tags[hctx_idx])
 		return false;
 
@@ -2757,7 +2758,7 @@ static bool __blk_mq_alloc_map_and_request(struct blk_mq_tag_set *set,
 	if (!ret)
 		return true;
 
-	blk_mq_free_rq_map(set->tags[hctx_idx]);
+	blk_mq_free_rq_map(set->tags[hctx_idx], flags);
 	set->tags[hctx_idx] = NULL;
 	return false;
 }
@@ -2765,9 +2766,11 @@ static bool __blk_mq_alloc_map_and_request(struct blk_mq_tag_set *set,
 static void blk_mq_free_map_and_requests(struct blk_mq_tag_set *set,
 					 unsigned int hctx_idx)
 {
+	unsigned int flags = set->flags;
+
 	if (set->tags && set->tags[hctx_idx]) {
 		blk_mq_free_rqs(set, set->tags[hctx_idx], hctx_idx);
-		blk_mq_free_rq_map(set->tags[hctx_idx]);
+		blk_mq_free_rq_map(set->tags[hctx_idx], flags);
 		set->tags[hctx_idx] = NULL;
 	}
 }

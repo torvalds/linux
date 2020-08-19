@@ -449,8 +449,9 @@ free_bitmap_tags:
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 				     unsigned int reserved_tags,
-				     int node, int alloc_policy)
+				     int node, unsigned int flags)
 {
+	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(flags);
 	struct blk_mq_tags *tags;
 
 	if (total_tags > BLK_MQ_TAG_MAX) {
@@ -472,7 +473,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	return tags;
 }
 
-void blk_mq_free_tags(struct blk_mq_tags *tags)
+void blk_mq_free_tags(struct blk_mq_tags *tags, unsigned int flags)
 {
 	sbitmap_queue_free(&tags->bitmap_tags);
 	sbitmap_queue_free(&tags->breserved_tags);
@@ -494,6 +495,7 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 	 */
 	if (tdepth > tags->nr_tags) {
 		struct blk_mq_tag_set *set = hctx->queue->tag_set;
+		unsigned int flags = set->flags;
 		struct blk_mq_tags *new;
 		bool ret;
 
@@ -508,17 +510,17 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 			return -EINVAL;
 
 		new = blk_mq_alloc_rq_map(set, hctx->queue_num, tdepth,
-				tags->nr_reserved_tags);
+				tags->nr_reserved_tags, flags);
 		if (!new)
 			return -ENOMEM;
 		ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
 		if (ret) {
-			blk_mq_free_rq_map(new);
+			blk_mq_free_rq_map(new, flags);
 			return -ENOMEM;
 		}
 
 		blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
-		blk_mq_free_rq_map(*tagsptr);
+		blk_mq_free_rq_map(*tagsptr, flags);
 		*tagsptr = new;
 	} else {
 		/*
