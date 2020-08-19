@@ -413,18 +413,6 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 	return 0;
 }
 
-static void sock_warn_obsolete_bsdism(const char *name)
-{
-	static int warned;
-	static char warncomm[TASK_COMM_LEN];
-	if (strcmp(warncomm, current->comm) && warned < 5) {
-		strcpy(warncomm,  current->comm);
-		pr_warn("process `%s' is using obsolete %s SO_BSDCOMPAT\n",
-			warncomm, name);
-		warned++;
-	}
-}
-
 static bool sock_needs_netstamp(const struct sock *sk)
 {
 	switch (sk->sk_family) {
@@ -984,7 +972,6 @@ set_sndbuf:
 		break;
 
 	case SO_BSDCOMPAT:
-		sock_warn_obsolete_bsdism("setsockopt");
 		break;
 
 	case SO_PASSCRED:
@@ -1387,7 +1374,6 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_BSDCOMPAT:
-		sock_warn_obsolete_bsdism("getsockopt");
 		break;
 
 	case SO_TIMESTAMP_OLD:
