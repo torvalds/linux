@@ -913,8 +913,6 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 		if (err)
 			return err;
 
-		vif = p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
-
 		/* override .run_escan() callback. */
 		cfg->escan_info.run = brcmf_p2p_run_escan;
 	}
@@ -1546,7 +1544,6 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_p2p_action_frame *p2p_af;
 	s32 err = 0;
-	s32 timeout = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -1582,8 +1579,7 @@ static s32 brcmf_p2p_tx_action_frame(struct brcmf_p2p_info *p2p,
 		  (p2p->wait_for_offchan_complete) ?
 		   "off-channel" : "on-channel");
 
-	timeout = wait_for_completion_timeout(&p2p->send_af_done,
-					      P2P_AF_MAX_WAIT_TIME);
+	wait_for_completion_timeout(&p2p->send_af_done, P2P_AF_MAX_WAIT_TIME);
 
 	if (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status)) {
 		brcmf_dbg(TRACE, "TX action frame operation is success\n");
