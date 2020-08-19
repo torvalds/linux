@@ -23,4 +23,16 @@ config CRYPTO_DEV_CHELSIO_TLS
 	  To compile this driver as a module, choose M here: the module
 	  will be called chtls.
 
+config CHELSIO_IPSEC_INLINE
+       tristate "Chelsio IPSec XFRM Tx crypto offload"
+       depends on CHELSIO_T4
+       depends on XFRM_OFFLOAD
+       depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
+       help
+        Support Chelsio Inline IPsec with Chelsio crypto accelerator.
+        Enable inline IPsec support for Tx.
+
+        To compile this driver as a module, choose M here: the module
+        will be called ch_ipsec.
+
 endif # CHELSIO_INLINE_CRYPTO

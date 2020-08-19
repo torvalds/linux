@@ -109,37 +109,6 @@ struct uld_ctx {
 	struct chcr_dev dev;
 };
 
-struct chcr_ipsec_req {
-	struct ulp_txpkt ulptx;
-	struct ulptx_idata sc_imm;
-	struct cpl_tx_sec_pdu sec_cpl;
-	struct _key_ctx key_ctx;
-};
-
-struct chcr_ipsec_wr {
-	struct fw_ulptx_wr wreq;
-	struct chcr_ipsec_req req;
-};
-
-#define ESN_IV_INSERT_OFFSET 12
-struct chcr_ipsec_aadiv {
-	__be32 spi;
-	u8 seq_no[8];
-	u8 iv[8];
-};
-
-struct ipsec_sa_entry {
-	int hmac_ctrl;
-	u16 esn;
-	u16 resv;
-	unsigned int enckey_len;
-	unsigned int kctx_len;
-	unsigned int authsize;
-	__be32 key_ctx_hdr;
-	char salt[MAX_SALT];
-	char key[2 * AES_MAX_KEY_SIZE];
-};
-
 /*
  *      sgl_len - calculates the size of an SGL of the given capacity
  *      @n: the number of SGL entries

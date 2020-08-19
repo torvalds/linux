@@ -6,4 +6,3 @@ chcr-objs :=  chcr_core.o chcr_algo.o
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 chcr-objs += chcr_ktls.o
 #endif
-chcr-$(CONFIG_CHELSIO_IPSEC_INLINE) += chcr_ipsec.o
