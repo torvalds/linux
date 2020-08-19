@@ -1034,3 +1034,44 @@ struct core_reloc_type_based___fn_wrong_args {
 	func_proto_typedef___fn_wrong_arg_cnt1 f6;
 	func_proto_typedef___fn_wrong_arg_cnt2 f7;
 };
+
+/*
+ * TYPE ID MAPPING (LOCAL AND TARGET)
+ */
+struct core_reloc_type_id_output {
+	int local_anon_struct;
+	int local_anon_union;
+	int local_anon_enum;
+	int local_anon_func_proto_ptr;
+	int local_anon_void_ptr;
+	int local_anon_arr;
+
+	int local_struct;
+	int local_union;
+	int local_enum;
+	int local_int;
+	int local_struct_typedef;
+	int local_func_proto_typedef;
+	int local_arr_typedef;
+
+	int targ_struct;
+	int targ_union;
+	int targ_enum;
+	int targ_int;
+	int targ_struct_typedef;
+	int targ_func_proto_typedef;
+	int targ_arr_typedef;
+};
+
+struct core_reloc_type_id {
+	struct a_struct f1;
+	union a_union f2;
+	enum an_enum f3;
+	named_struct_typedef f4;
+	func_proto_typedef f5;
+	arr_typedef f6;
+};
+
+struct core_reloc_type_id___missing_targets {
+	/* nothing */
+};

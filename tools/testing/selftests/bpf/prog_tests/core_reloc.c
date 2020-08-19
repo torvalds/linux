@@ -3,6 +3,9 @@
 #include "progs/core_reloc_types.h"
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <bpf/btf.h>
+
+static int duration = 0;
 
 #define STRUCT_TO_CHAR_PTR(struct_name) (const char *)&(struct struct_name)
 
@@ -269,6 +272,27 @@
 	.fails = true,							\
 }
 
+#define TYPE_ID_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_type_id.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"			\
+
+#define TYPE_ID_CASE(name, setup_fn) {					\
+	TYPE_ID_CASE_COMMON(name),					\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_type_id_output) {},	\
+	.output_len = sizeof(struct core_reloc_type_id_output),		\
+	.setup = setup_fn,						\
+}
+
+#define TYPE_ID_ERR_CASE(name) {					\
+	TYPE_ID_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
+struct core_reloc_test_case;
+
+typedef int (*setup_test_fn)(struct core_reloc_test_case *test);
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -280,7 +304,135 @@ struct core_reloc_test_case {
 	bool fails;
 	bool relaxed_core_relocs;
 	bool direct_raw_tp;
+	setup_test_fn setup;
 };
+
+static int find_btf_type(const struct btf *btf, const char *name, __u32 kind)
+{
+	int id;
+
+	id = btf__find_by_name_kind(btf, name, kind);
+	if (CHECK(id <= 0, "find_type_id", "failed to find '%s', kind %d: %d\n", name, kind, id))
+		return -1;
+
+	return id;
+}
+
+static int setup_type_id_case_local(struct core_reloc_test_case *test)
+{
+	struct core_reloc_type_id_output *exp = (void *)test->output;
+	struct btf *local_btf = btf__parse(test->bpf_obj_file, NULL);
+	struct btf *targ_btf = btf__parse(test->btf_src_file, NULL);
+	const struct btf_type *t;
+	const char *name;
+	int i;
+
+	if (CHECK(IS_ERR(local_btf), "local_btf", "failed: %ld\n", PTR_ERR(local_btf)) ||
+	    CHECK(IS_ERR(targ_btf), "targ_btf", "failed: %ld\n", PTR_ERR(targ_btf))) {
+		btf__free(local_btf);
+		btf__free(targ_btf);
+		return -EINVAL;
+	}
+
+	exp->local_anon_struct = -1;
+	exp->local_anon_union = -1;
+	exp->local_anon_enum = -1;
+	exp->local_anon_func_proto_ptr = -1;
+	exp->local_anon_void_ptr = -1;
+	exp->local_anon_arr = -1;
+
+	for (i = 1; i <= btf__get_nr_types(local_btf); i++)
+	{
+		t = btf__type_by_id(local_btf, i);
+		/* we are interested only in anonymous types */
+		if (t->name_off)
+			continue;
+
+		if (btf_is_struct(t) && btf_vlen(t) &&
+		    (name = btf__name_by_offset(local_btf, btf_members(t)[0].name_off)) &&
+		    strcmp(name, "marker_field") == 0) {
+			exp->local_anon_struct = i;
+		} else if (btf_is_union(t) && btf_vlen(t) &&
+			 (name = btf__name_by_offset(local_btf, btf_members(t)[0].name_off)) &&
+			 strcmp(name, "marker_field") == 0) {
+			exp->local_anon_union = i;
+		} else if (btf_is_enum(t) && btf_vlen(t) &&
+			 (name = btf__name_by_offset(local_btf, btf_enum(t)[0].name_off)) &&
+			 strcmp(name, "MARKER_ENUM_VAL") == 0) {
+			exp->local_anon_enum = i;
+		} else if (btf_is_ptr(t) && (t = btf__type_by_id(local_btf, t->type))) {
+			if (btf_is_func_proto(t) && (t = btf__type_by_id(local_btf, t->type)) &&
+			    btf_is_int(t) && (name = btf__name_by_offset(local_btf, t->name_off)) &&
+			    strcmp(name, "_Bool") == 0) {
+				/* ptr -> func_proto -> _Bool */
+				exp->local_anon_func_proto_ptr = i;
+			} else if (btf_is_void(t)) {
+				/* ptr -> void */
+				exp->local_anon_void_ptr = i;
+			}
+		} else if (btf_is_array(t) && (t = btf__type_by_id(local_btf, btf_array(t)->type)) &&
+			   btf_is_int(t) && (name = btf__name_by_offset(local_btf, t->name_off)) &&
+			   strcmp(name, "_Bool") == 0) {
+			/* _Bool[] */
+			exp->local_anon_arr = i;
+		}
+	}
+
+	exp->local_struct = find_btf_type(local_btf, "a_struct", BTF_KIND_STRUCT);
+	exp->local_union = find_btf_type(local_btf, "a_union", BTF_KIND_UNION);
+	exp->local_enum = find_btf_type(local_btf, "an_enum", BTF_KIND_ENUM);
+	exp->local_int = find_btf_type(local_btf, "int", BTF_KIND_INT);
+	exp->local_struct_typedef = find_btf_type(local_btf, "named_struct_typedef", BTF_KIND_TYPEDEF);
+	exp->local_func_proto_typedef = find_btf_type(local_btf, "func_proto_typedef", BTF_KIND_TYPEDEF);
+	exp->local_arr_typedef = find_btf_type(local_btf, "arr_typedef", BTF_KIND_TYPEDEF);
+
+	btf__free(local_btf);
+	btf__free(targ_btf);
+	return 0;
+}
+
+static int setup_type_id_case_success(struct core_reloc_test_case *test) {
+	struct core_reloc_type_id_output *exp = (void *)test->output;
+	struct btf *targ_btf = btf__parse(test->btf_src_file, NULL);
+	int err;
+
+	err = setup_type_id_case_local(test);
+	if (err)
+		return err;
+
+	targ_btf = btf__parse(test->btf_src_file, NULL);
+
+	exp->targ_struct = find_btf_type(targ_btf, "a_struct", BTF_KIND_STRUCT);
+	exp->targ_union = find_btf_type(targ_btf, "a_union", BTF_KIND_UNION);
+	exp->targ_enum = find_btf_type(targ_btf, "an_enum", BTF_KIND_ENUM);
+	exp->targ_int = find_btf_type(targ_btf, "int", BTF_KIND_INT);
+	exp->targ_struct_typedef = find_btf_type(targ_btf, "named_struct_typedef", BTF_KIND_TYPEDEF);
+	exp->targ_func_proto_typedef = find_btf_type(targ_btf, "func_proto_typedef", BTF_KIND_TYPEDEF);
+	exp->targ_arr_typedef = find_btf_type(targ_btf, "arr_typedef", BTF_KIND_TYPEDEF);
+
+	btf__free(targ_btf);
+	return 0;
+}
+
+static int setup_type_id_case_failure(struct core_reloc_test_case *test)
+{
+	struct core_reloc_type_id_output *exp = (void *)test->output;
+	int err;
+
+	err = setup_type_id_case_local(test);
+	if (err)
+		return err;
+
+	exp->targ_struct = 0;
+	exp->targ_union = 0;
+	exp->targ_enum = 0;
+	exp->targ_int = 0;
+	exp->targ_struct_typedef = 0;
+	exp->targ_func_proto_typedef = 0;
+	exp->targ_arr_typedef = 0;
+
+	return 0;
+}
 
 static struct core_reloc_test_case test_cases[] = {
 	/* validate we can find kernel image and use its BTF for relocs */
@@ -530,6 +682,10 @@ static struct core_reloc_test_case test_cases[] = {
 		.struct_exists = 1,
 		.struct_sz = sizeof(struct a_struct),
 	}),
+
+	/* BTF_TYPE_ID_LOCAL/BTF_TYPE_ID_TARGET tests */
+	TYPE_ID_CASE(type_id, setup_type_id_case_success),
+	TYPE_ID_CASE(type_id___missing_targets, setup_type_id_case_failure),
 };
 
 struct data {
@@ -551,7 +707,7 @@ void test_core_reloc(void)
 	struct bpf_object_load_attr load_attr = {};
 	struct core_reloc_test_case *test_case;
 	const char *tp_name, *probe_name;
-	int err, duration = 0, i, equal;
+	int err, i, equal;
 	struct bpf_link *link = NULL;
 	struct bpf_map *data_map;
 	struct bpf_program *prog;
@@ -567,11 +723,13 @@ void test_core_reloc(void)
 		if (!test__start_subtest(test_case->case_name))
 			continue;
 
-		DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
-			.relaxed_core_relocs = test_case->relaxed_core_relocs,
-		);
+		if (test_case->setup) {
+			err = test_case->setup(test_case);
+			if (CHECK(err, "test_setup", "test #%d setup failed: %d\n", i, err))
+				continue;
+		}
 
-		obj = bpf_object__open_file(test_case->bpf_obj_file, &opts);
+		obj = bpf_object__open_file(test_case->bpf_obj_file, NULL);
 		if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
 			  test_case->bpf_obj_file, PTR_ERR(obj)))
 			continue;

@@ -48,20 +48,6 @@ typedef int (*func_proto_typedef)(long);
 
 typedef char arr_typedef[20];
 
-struct core_reloc_type_based {
-	struct a_struct f1;
-	union a_union f2;
-	enum an_enum f3;
-	named_struct_typedef f4;
-	anon_struct_typedef f5;
-	struct_ptr_typedef f6;
-	int_typedef f7;
-	enum_typedef f8;
-	void_ptr_typedef f9;
-	func_proto_typedef f10;
-	arr_typedef f11;
-};
-
 struct core_reloc_type_based_output {
 	bool struct_exists;
 	bool union_exists;
