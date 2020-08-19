@@ -7960,7 +7960,13 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 			 ACCT_LOCKED);
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
-	queue_work(system_wq, &ctx->exit_work);
+	/*
+	 * Use system_unbound_wq to avoid spawning tons of event kworkers
+	 * if we're exiting a ton of rings at the same time. It just adds
+	 * noise and overhead, there's no discernable change in runtime
+	 * over using system_wq.
+	 */
+	queue_work(system_unbound_wq, &ctx->exit_work);
 }
 
 static int io_uring_release(struct inode *inode, struct file *file)
