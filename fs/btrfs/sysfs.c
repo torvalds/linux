@@ -1630,12 +1630,16 @@ void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_fs_devices *fs_devs;
 	struct kobject *fsid_kobj;
-	u64 features;
-	int ret;
+	u64 __maybe_unused features;
+	int __maybe_unused ret;
 
 	if (!fs_info)
 		return;
 
+	/*
+	 * See 14e46e04958df74 and e410e34fad913dd, feature bit updates are not
+	 * safe when called from some contexts (eg. balance)
+	 */
 	features = get_features(fs_info, set);
 	ASSERT(bit & supported_feature_masks[set]);
 
