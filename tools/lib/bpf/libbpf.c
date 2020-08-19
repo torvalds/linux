@@ -1943,7 +1943,7 @@ static bool get_map_field_int(const char *map_name, const struct btf *btf,
 static int build_map_pin_path(struct bpf_map *map, const char *path)
 {
 	char buf[PATH_MAX];
-	int err, len;
+	int len;
 
 	if (!path)
 		path = "/sys/fs/bpf";
@@ -1954,11 +1954,7 @@ static int build_map_pin_path(struct bpf_map *map, const char *path)
 	else if (len >= PATH_MAX)
 		return -ENAMETOOLONG;
 
-	err = bpf_map__set_pin_path(map, buf);
-	if (err)
-		return err;
-
-	return 0;
+	return bpf_map__set_pin_path(map, buf);
 }
 
 
