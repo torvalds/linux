@@ -242,6 +242,8 @@ enum bpf_core_relo_kind {
 	BPF_TYPE_ID_TARGET = 7,		/* type ID in target kernel */
 	BPF_TYPE_EXISTS = 8,		/* type existence in target kernel */
 	BPF_TYPE_SIZE = 9,		/* type size in bytes */
+	BPF_ENUMVAL_EXISTS = 10,	/* enum value existence in target kernel */
+	BPF_ENUMVAL_VALUE = 11,		/* enum value integer value */
 };
 
 /* The minimum bpf_core_relo checked by the loader

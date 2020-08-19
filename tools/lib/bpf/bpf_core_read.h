@@ -31,6 +31,12 @@ enum bpf_type_info_kind {
 	BPF_TYPE_SIZE = 1,		/* type size in target kernel */
 };
 
+/* second argument to __builtin_preserve_enum_value() built-in */
+enum bpf_enum_value_kind {
+	BPF_ENUMVAL_EXISTS = 0,		/* enum value existence in kernel */
+	BPF_ENUMVAL_VALUE = 1,		/* enum value value relocation */
+};
+
 #define __CORE_RELO(src, field, info)					      \
 	__builtin_preserve_field_info((src)->field, BPF_FIELD_##info)
 
@@ -149,6 +155,28 @@ enum bpf_type_info_kind {
  */
 #define bpf_core_type_size(type)					    \
 	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_SIZE)
+
+/*
+ * Convenience macro to check that provided enumerator value is defined in
+ * a target kernel.
+ * Returns:
+ *    1, if specified enum type and its enumerator value are present in target
+ *    kernel's BTF;
+ *    0, if no matching enum and/or enum value within that enum is found.
+ */
+#define bpf_core_enum_value_exists(enum_type, enum_value)		    \
+	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_EXISTS)
+
+/*
+ * Convenience macro to get the integer value of an enumerator value in
+ * a target kernel.
+ * Returns:
+ *    64-bit value, if specified enum type and its enumerator value are
+ *    present in target kernel's BTF;
+ *    0, if no matching enum and/or enum value within that enum is found.
+ */
+#define bpf_core_enum_value(enum_type, enum_value)			    \
+	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_VALUE)
 
 /*
  * bpf_core_read() abstracts away bpf_probe_read_kernel() call and captures
