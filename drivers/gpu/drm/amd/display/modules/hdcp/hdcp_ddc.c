@@ -645,3 +645,22 @@ enum mod_hdcp_status mod_hdcp_write_content_type(struct mod_hdcp *hdcp)
 		status = MOD_HDCP_STATUS_INVALID_OPERATION;
 	return status;
 }
+
+enum mod_hdcp_status mod_hdcp_clear_cp_irq_status(struct mod_hdcp *hdcp)
+{
+	uint8_t clear_cp_irq_bit = 2;
+	uint32_t size = 1;
+
+	if (is_dp_hdcp(hdcp)) {
+		if (hdcp->connection.link.dp.rev >= 0x14)
+			return hdcp->config.ddc.funcs.write_dpcd(hdcp->config.ddc.handle,
+					DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0, &clear_cp_irq_bit, size)
+					? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_DDC_FAILURE;
+		else
+			return hdcp->config.ddc.funcs.write_dpcd(hdcp->config.ddc.handle,
+					DP_DEVICE_SERVICE_IRQ_VECTOR, &clear_cp_irq_bit, size)
+					? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_DDC_FAILURE;
+	}
+
+	return MOD_HDCP_STATUS_INVALID_OPERATION;
+}
