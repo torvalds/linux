@@ -150,12 +150,6 @@ static void pr_perm_msg(int err)
 	___err; })
 #endif
 
-#ifdef HAVE_LIBELF_MMAP_SUPPORT
-# define LIBBPF_ELF_C_READ_MMAP ELF_C_READ_MMAP
-#else
-# define LIBBPF_ELF_C_READ_MMAP ELF_C_READ
-#endif
-
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
@@ -1064,6 +1058,11 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	obj->efile.obj_buf_sz = 0;
 }
 
+/* if libelf is old and doesn't support mmap(), fall back to read() */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
 static int bpf_object__elf_init(struct bpf_object *obj)
 {
 	int err = 0;
@@ -1092,8 +1091,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 			return err;
 		}
 
-		obj->efile.elf = elf_begin(obj->efile.fd,
-					   LIBBPF_ELF_C_READ_MMAP, NULL);
+		obj->efile.elf = elf_begin(obj->efile.fd, ELF_C_READ_MMAP, NULL);
 	}
 
 	if (!obj->efile.elf) {

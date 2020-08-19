@@ -28,7 +28,7 @@ struct option;
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
  */
-#ifdef HAVE_LIBELF_MMAP_SUPPORT
+#ifdef ELF_C_READ_MMAP
 # define PERF_ELF_C_READ_MMAP ELF_C_READ_MMAP
 #else
 # define PERF_ELF_C_READ_MMAP ELF_C_READ
