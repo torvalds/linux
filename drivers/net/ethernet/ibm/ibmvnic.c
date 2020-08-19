@@ -104,8 +104,7 @@ static int send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
-static int ibmvnic_init(struct ibmvnic_adapter *);
-static int ibmvnic_reset_init(struct ibmvnic_adapter *);
+static int ibmvnic_reset_init(struct ibmvnic_adapter *, bool reset);
 static void release_crq_queue(struct ibmvnic_adapter *);
 static int __ibmvnic_set_mac(struct net_device *, u8 *);
 static int init_crq_queue(struct ibmvnic_adapter *adapter);
@@ -1856,7 +1855,7 @@ static int do_change_param_reset(struct ibmvnic_adapter *adapter,
 		return rc;
 	}
 
-	rc = ibmvnic_reset_init(adapter);
+	rc = ibmvnic_reset_init(adapter, true);
 	if (rc)
 		return IBMVNIC_INIT_FAILED;
 
@@ -1974,7 +1973,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			goto out;
 		}
 
-		rc = ibmvnic_reset_init(adapter);
+		rc = ibmvnic_reset_init(adapter, true);
 		if (rc) {
 			rc = IBMVNIC_INIT_FAILED;
 			goto out;
@@ -2081,7 +2080,7 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 		return rc;
 	}
 
-	rc = ibmvnic_init(adapter);
+	rc = ibmvnic_reset_init(adapter, false);
 	if (rc)
 		return rc;
 
@@ -4987,7 +4986,7 @@ map_failed:
 	return retrc;
 }
 
-static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
+static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter, bool reset)
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long timeout = msecs_to_jiffies(30000);
@@ -4996,10 +4995,12 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
 
 	adapter->from_passive_init = false;
 
-	old_num_rx_queues = adapter->req_rx_queues;
-	old_num_tx_queues = adapter->req_tx_queues;
+	if (reset) {
+		old_num_rx_queues = adapter->req_rx_queues;
+		old_num_tx_queues = adapter->req_tx_queues;
+		reinit_completion(&adapter->init_done);
+	}
 
-	reinit_completion(&adapter->init_done);
 	adapter->init_done_rc = 0;
 	rc = ibmvnic_send_crq_init(adapter);
 	if (rc) {
@@ -5017,7 +5018,8 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
 		return adapter->init_done_rc;
 	}
 
-	if (test_bit(0, &adapter->resetting) && !adapter->wait_for_reset &&
+	if (reset &&
+	    test_bit(0, &adapter->resetting) && !adapter->wait_for_reset &&
 	    adapter->reset_reason != VNIC_RESET_MOBILITY) {
 		if (adapter->req_rx_queues != old_num_rx_queues ||
 		    adapter->req_tx_queues != old_num_tx_queues) {
@@ -5030,47 +5032,6 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
 		rc = init_sub_crqs(adapter);
 	}
 
-	if (rc) {
-		dev_err(dev, "Initialization of sub crqs failed\n");
-		release_crq_queue(adapter);
-		return rc;
-	}
-
-	rc = init_sub_crq_irqs(adapter);
-	if (rc) {
-		dev_err(dev, "Failed to initialize sub crq irqs\n");
-		release_crq_queue(adapter);
-	}
-
-	return rc;
-}
-
-static int ibmvnic_init(struct ibmvnic_adapter *adapter)
-{
-	struct device *dev = &adapter->vdev->dev;
-	unsigned long timeout = msecs_to_jiffies(30000);
-	int rc;
-
-	adapter->from_passive_init = false;
-
-	adapter->init_done_rc = 0;
-	rc = ibmvnic_send_crq_init(adapter);
-	if (rc) {
-		dev_err(dev, "Send crq init failed with error %d\n", rc);
-		return rc;
-	}
-
-	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
-		dev_err(dev, "Initialization sequence timed out\n");
-		return -1;
-	}
-
-	if (adapter->init_done_rc) {
-		release_crq_queue(adapter);
-		return adapter->init_done_rc;
-	}
-
-	rc = init_sub_crqs(adapter);
 	if (rc) {
 		dev_err(dev, "Initialization of sub crqs failed\n");
 		release_crq_queue(adapter);
@@ -5148,7 +5109,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 			goto ibmvnic_init_fail;
 		}
 
-		rc = ibmvnic_init(adapter);
+		rc = ibmvnic_reset_init(adapter, false);
 		if (rc && rc != EAGAIN)
 			goto ibmvnic_init_fail;
 	} while (rc == EAGAIN);
