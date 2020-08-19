@@ -9,6 +9,14 @@
 #ifndef __LIBBPF_LIBBPF_INTERNAL_H
 #define __LIBBPF_LIBBPF_INTERNAL_H
 
+#include <stdlib.h>
+
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
+/* prevent accidental re-addition of reallocarray() */
+#pragma GCC poison reallocarray
+
 #include "libbpf.h"
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
@@ -23,6 +31,12 @@
 #define BTF_PARAM_ENC(name, type) (name), (type)
 #define BTF_VAR_SECINFO_ENC(type, offset, size) (type), (offset), (size)
 
+#ifndef likely
+#define likely(x) __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 #ifndef min
 # define min(x, y) ((x) < (y) ? (x) : (y))
 #endif
@@ -62,6 +76,24 @@ do {				\
 #define pr_warn(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
+
+/*
+ * Re-implement glibc's reallocarray() for libbpf internal-only use.
+ * reallocarray(), unfortunately, is not available in all versions of glibc,
+ * so requires extra feature detection and using reallocarray() stub from
+ * <tools/libc_compat.h> and COMPAT_NEED_REALLOCARRAY. All this complicates
+ * build of libbpf unnecessarily and is just a maintenance burden. Instead,
+ * it's trivial to implement libbpf-specific internal version and use it
+ * throughout libbpf.
+ */
+static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
+{
+	size_t total;
+
+	if (unlikely(__builtin_mul_overflow(nmemb, size, &total)))
+		return NULL;
+	return realloc(ptr, total);
+}
 
 static inline bool libbpf_validate_opts(const char *opts,
 					size_t opts_sz, size_t user_sz,
@@ -104,18 +136,6 @@ int bpf_object__section_size(const struct bpf_object *obj, const char *name,
 			     __u32 *size);
 int bpf_object__variable_offset(const struct bpf_object *obj, const char *name,
 				__u32 *off);
-
-struct nlattr;
-typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
-int libbpf_netlink_open(unsigned int *nl_pid);
-int libbpf_nl_get_link(int sock, unsigned int nl_pid,
-		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
-int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie);
-int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
-int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
 
 struct btf_ext_info {
 	/*

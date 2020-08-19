@@ -44,7 +44,6 @@
 #include <sys/vfs.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>
-#include <tools/libc_compat.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <zlib.h>
@@ -55,9 +54,6 @@
 #include "str_error.h"
 #include "libbpf_internal.h"
 #include "hashmap.h"
-
-/* make sure libbpf doesn't use kernel-only integer typedefs */
-#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -152,12 +148,6 @@ static void pr_perm_msg(int err)
 		___err = close((fd));	\
 	fd = -1;			\
 	___err; })
-#endif
-
-#ifdef HAVE_LIBELF_MMAP_SUPPORT
-# define LIBBPF_ELF_C_READ_MMAP ELF_C_READ_MMAP
-#else
-# define LIBBPF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
 static inline __u64 ptr_to_u64(const void *ptr)
@@ -567,7 +557,7 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
 
-	progs = reallocarray(progs, nr_progs + 1, sizeof(progs[0]));
+	progs = libbpf_reallocarray(progs, nr_progs + 1, sizeof(progs[0]));
 	if (!progs) {
 		/*
 		 * In this case the original obj->programs
@@ -1068,6 +1058,11 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	obj->efile.obj_buf_sz = 0;
 }
 
+/* if libelf is old and doesn't support mmap(), fall back to read() */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
 static int bpf_object__elf_init(struct bpf_object *obj)
 {
 	int err = 0;
@@ -1096,8 +1091,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 			return err;
 		}
 
-		obj->efile.elf = elf_begin(obj->efile.fd,
-					   LIBBPF_ELF_C_READ_MMAP, NULL);
+		obj->efile.elf = elf_begin(obj->efile.fd, ELF_C_READ_MMAP, NULL);
 	}
 
 	if (!obj->efile.elf) {
@@ -1292,7 +1286,7 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 		return &obj->maps[obj->nr_maps++];
 
 	new_cap = max((size_t)4, obj->maps_cap * 3 / 2);
-	new_maps = realloc(obj->maps, new_cap * sizeof(*obj->maps));
+	new_maps = libbpf_reallocarray(obj->maps, new_cap, sizeof(*obj->maps));
 	if (!new_maps) {
 		pr_warn("alloc maps for object failed\n");
 		return ERR_PTR(-ENOMEM);
@@ -2721,8 +2715,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				continue;
 			}
 
-			sects = reallocarray(sects, nr_sects + 1,
-					     sizeof(*obj->efile.reloc_sects));
+			sects = libbpf_reallocarray(sects, nr_sects + 1,
+						    sizeof(*obj->efile.reloc_sects));
 			if (!sects) {
 				pr_warn("reloc_sects realloc failed\n");
 				return -ENOMEM;
@@ -2925,7 +2919,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 			continue;
 
 		ext = obj->externs;
-		ext = reallocarray(ext, obj->nr_extern + 1, sizeof(*ext));
+		ext = libbpf_reallocarray(ext, obj->nr_extern + 1, sizeof(*ext));
 		if (!ext)
 			return -ENOMEM;
 		obj->externs = ext;
@@ -4362,9 +4356,9 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 			pr_debug("CO-RE relocating [%d] %s %s: found target candidate [%d] %s %s\n",
 				 local_type_id, btf_kind_str(local_t),
 				 local_name, i, targ_kind, targ_name);
-			new_ids = reallocarray(cand_ids->data,
-					       cand_ids->len + 1,
-					       sizeof(*cand_ids->data));
+			new_ids = libbpf_reallocarray(cand_ids->data,
+						      cand_ids->len + 1,
+						      sizeof(*cand_ids->data));
 			if (!new_ids) {
 				err = -ENOMEM;
 				goto err_out;
@@ -5231,7 +5225,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		new_cnt = prog->insns_cnt + text->insns_cnt;
-		new_insn = reallocarray(prog->insns, new_cnt, sizeof(*insn));
+		new_insn = libbpf_reallocarray(prog->insns, new_cnt, sizeof(*insn));
 		if (!new_insn) {
 			pr_warn("oom in prog realloc\n");
 			return -ENOMEM;
@@ -5473,7 +5467,7 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 		moff /= bpf_ptr_sz;
 		if (moff >= map->init_slots_sz) {
 			new_sz = moff + 1;
-			tmp = realloc(map->init_slots, new_sz * host_ptr_sz);
+			tmp = libbpf_reallocarray(map->init_slots, new_sz, host_ptr_sz);
 			if (!tmp)
 				return -ENOMEM;
 			map->init_slots = tmp;
