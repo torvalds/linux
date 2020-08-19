@@ -83,7 +83,7 @@ static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
 static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
 			    void *args)
 {
-	struct die_args *die = (struct die_args *)args;
+	struct die_args *die = args;
 	struct pt_regs *regs = die->regs;
 
 	/* Don't notify Hyper-V if the die event is other than oops */
