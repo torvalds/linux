@@ -893,24 +893,15 @@ out_file:
 	return err;
 }
 
-static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
+static int rpcs_query_batch(struct drm_i915_gem_object *rpcs, struct i915_vma *vma)
 {
-	struct drm_i915_gem_object *obj;
 	u32 *cmd;
-	int err;
 
-	if (INTEL_GEN(vma->vm->i915) < 8)
-		return ERR_PTR(-EINVAL);
+	GEM_BUG_ON(INTEL_GEN(vma->vm->i915) < 8);
 
-	obj = i915_gem_object_create_internal(vma->vm->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(cmd)) {
-		err = PTR_ERR(cmd);
-		goto err;
-	}
+	cmd = i915_gem_object_pin_map(rpcs, I915_MAP_WB);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
 
 	*cmd++ = MI_STORE_REGISTER_MEM_GEN8;
 	*cmd++ = i915_mmio_reg_offset(GEN8_R_PWR_CLK_STATE);
@@ -918,26 +909,12 @@ static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
 	*cmd++ = upper_32_bits(vma->node.start);
 	*cmd = MI_BATCH_BUFFER_END;
 
-	__i915_gem_object_flush_map(obj, 0, 64);
-	i915_gem_object_unpin_map(obj);
+	__i915_gem_object_flush_map(rpcs, 0, 64);
+	i915_gem_object_unpin_map(rpcs);
 
 	intel_gt_chipset_flush(vma->vm->gt);
 
-	vma = i915_vma_instance(obj, vma->vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		goto err;
-
-	return vma;
-
-err:
-	i915_gem_object_put(obj);
-	return ERR_PTR(err);
+	return 0;
 }
 
 static int
@@ -945,32 +922,52 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 		struct intel_context *ce,
 		struct i915_request **rq_out)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_request *rq;
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *batch;
 	struct i915_vma *vma;
+	struct drm_i915_gem_object *rpcs;
 	int err;
 
 	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
+
+	if (INTEL_GEN(i915) < 8)
+		return -EINVAL;
 
 	vma = i915_vma_instance(obj, ce->vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	i915_gem_object_lock(obj, NULL);
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	i915_gem_object_unlock(obj);
-	if (err)
-		return err;
+	rpcs = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(rpcs))
+		return PTR_ERR(rpcs);
 
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		return err;
-
-	batch = rpcs_query_batch(vma);
+	batch = i915_vma_instance(rpcs, ce->vm, NULL);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
-		goto err_vma;
+		goto err_put;
 	}
+
+	i915_gem_ww_ctx_init(&ww, false);
+retry:
+	err = i915_gem_object_lock(obj, &ww);
+	if (!err)
+		err = i915_gem_object_lock(rpcs, &ww);
+	if (!err)
+		err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (!err)
+		err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_USER);
+	if (err)
+		goto err_put;
+
+	err = i915_vma_pin_ww(batch, &ww, 0, 0, PIN_USER);
+	if (err)
+		goto err_vma;
+
+	err = rpcs_query_batch(rpcs, vma);
+	if (err)
+		goto err_batch;
 
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
@@ -978,19 +975,15 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 		goto err_batch;
 	}
 
-	i915_vma_lock(batch);
 	err = i915_request_await_object(rq, batch->obj, false);
 	if (err == 0)
 		err = i915_vma_move_to_active(batch, rq, 0);
-	i915_vma_unlock(batch);
 	if (err)
 		goto skip_request;
 
-	i915_vma_lock(vma);
 	err = i915_request_await_object(rq, vma->obj, true);
 	if (err == 0)
 		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
 	if (err)
 		goto skip_request;
 
@@ -1006,23 +999,24 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	if (err)
 		goto skip_request;
 
-	i915_vma_unpin_and_release(&batch, 0);
-	i915_vma_unpin(vma);
-
 	*rq_out = i915_request_get(rq);
 
-	i915_request_add(rq);
-
-	return 0;
-
 skip_request:
-	i915_request_set_error_once(rq, err);
+	if (err)
+		i915_request_set_error_once(rq, err);
 	i915_request_add(rq);
 err_batch:
-	i915_vma_unpin_and_release(&batch, 0);
+	i915_vma_unpin(batch);
 err_vma:
 	i915_vma_unpin(vma);
-
+err_put:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	i915_gem_object_put(rpcs);
 	return err;
 }
 
