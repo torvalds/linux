@@ -53,13 +53,13 @@ static int __igt_gpu_reloc(struct i915_execbuffer *eb,
 	}
 
 	/* Skip to the end of the cmd page */
-	i = PAGE_SIZE / sizeof(u32) - RELOC_TAIL - 1;
+	i = PAGE_SIZE / sizeof(u32) - 1;
 	i -= eb->reloc_cache.rq_size;
 	memset32(eb->reloc_cache.rq_cmd + eb->reloc_cache.rq_size,
 		 MI_NOOP, i);
 	eb->reloc_cache.rq_size += i;
 
-	/* Force batch chaining */
+	/* Force next batch */
 	if (!__reloc_entry_gpu(eb, vma,
 			       offsets[2] * sizeof(u32),
 			       2)) {
@@ -69,9 +69,7 @@ static int __igt_gpu_reloc(struct i915_execbuffer *eb,
 
 	GEM_BUG_ON(!eb->reloc_cache.rq);
 	rq = i915_request_get(eb->reloc_cache.rq);
-	err = reloc_gpu_flush(&eb->reloc_cache);
-	if (err)
-		goto put_rq;
+	reloc_gpu_flush(&eb->reloc_cache);
 	GEM_BUG_ON(eb->reloc_cache.rq);
 
 	err = i915_gem_object_wait(obj, I915_WAIT_INTERRUPTIBLE, HZ / 2);
