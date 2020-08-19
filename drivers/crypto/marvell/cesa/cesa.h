@@ -2,12 +2,10 @@
 #ifndef __MARVELL_CESA_H__
 #define __MARVELL_CESA_H__
 
-#include <crypto/algapi.h>
-#include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 
-#include <linux/crypto.h>
+#include <linux/dma-direction.h>
 #include <linux/dmapool.h>
 
 #define CESA_ENGINE_OFF(i)			(((i) * 0x2000))

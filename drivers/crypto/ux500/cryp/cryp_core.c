@@ -11,7 +11,8 @@
 
 #include <linux/clk.h>
 #include <linux/completion.h>
-#include <linux/crypto.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -27,7 +28,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/ctr.h>
 #include <crypto/internal/des.h>
 #include <crypto/internal/skcipher.h>
