@@ -5679,7 +5679,6 @@ static void ufshcd_err_handler(struct work_struct *work)
 		if (hba->ufshcd_state != UFSHCD_STATE_ERROR)
 			hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
-		ufshcd_scsi_unblock_requests(hba);
 		return;
 	}
 	ufshcd_set_eh_in_progress(hba);
