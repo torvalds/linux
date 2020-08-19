@@ -485,6 +485,8 @@ struct request_queue {
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;
 
+	atomic_t		nr_active_requests_shared_sbitmap;
+
 	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
 	DECLARE_BITMAP		(blkcg_pols, BLKCG_MAX_POLS);

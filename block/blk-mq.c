@@ -519,7 +519,7 @@ void blk_mq_free_request(struct request *rq)
 
 	ctx->rq_completed[rq_is_sync(rq)]++;
 	if (rq->rq_flags & RQF_MQ_INFLIGHT)
-		atomic_dec(&hctx->nr_active);
+		__blk_mq_dec_active_requests(hctx);
 
 	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
 		laptop_io_completion(q->backing_dev_info);
@@ -1127,7 +1127,7 @@ static bool blk_mq_get_driver_tag(struct request *rq)
 	if ((hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED) &&
 			!(rq->rq_flags & RQF_MQ_INFLIGHT)) {
 		rq->rq_flags |= RQF_MQ_INFLIGHT;
-		atomic_inc(&hctx->nr_active);
+		__blk_mq_inc_active_requests(hctx);
 	}
 	hctx->tags->rqs[rq->tag] = rq;
 	return true;
