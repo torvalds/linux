@@ -221,22 +221,34 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	bool is_wb_truncate = (file->f_flags & O_TRUNC) &&
 			  fc->atomic_o_trunc &&
 			  fc->writeback_cache;
+	bool dax_truncate = (file->f_flags & O_TRUNC) &&
+			  fc->atomic_o_trunc && FUSE_IS_DAX(inode);
 
 	err = generic_file_open(inode, file);
 	if (err)
 		return err;
 
-	if (is_wb_truncate) {
+	if (is_wb_truncate || dax_truncate) {
 		inode_lock(inode);
 		fuse_set_nowrite(inode);
 	}
 
-	err = fuse_do_open(fc, get_node_id(inode), file, isdir);
+	if (dax_truncate) {
+		down_write(&get_fuse_inode(inode)->i_mmap_sem);
+		err = fuse_dax_break_layouts(inode, 0, 0);
+		if (err)
+			goto out;
+	}
 
+	err = fuse_do_open(fc, get_node_id(inode), file, isdir);
 	if (!err)
 		fuse_finish_open(inode, file);
 
-	if (is_wb_truncate) {
+out:
+	if (dax_truncate)
+		up_write(&get_fuse_inode(inode)->i_mmap_sem);
+
+	if (is_wb_truncate | dax_truncate) {
 		fuse_release_nowrite(inode);
 		inode_unlock(inode);
 	}
@@ -3221,6 +3233,8 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	bool lock_inode = !(mode & FALLOC_FL_KEEP_SIZE) ||
 			   (mode & FALLOC_FL_PUNCH_HOLE);
 
+	bool block_faults = FUSE_IS_DAX(inode) && lock_inode;
+
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
 
@@ -3229,6 +3243,13 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 
 	if (lock_inode) {
 		inode_lock(inode);
+		if (block_faults) {
+			down_write(&fi->i_mmap_sem);
+			err = fuse_dax_break_layouts(inode, 0, 0);
+			if (err)
+				goto out;
+		}
+
 		if (mode & FALLOC_FL_PUNCH_HOLE) {
 			loff_t endbyte = offset + length - 1;
 
@@ -3277,6 +3298,9 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 out:
 	if (!(mode & FALLOC_FL_KEEP_SIZE))
 		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
+
+	if (block_faults)
+		up_write(&fi->i_mmap_sem);
 
 	if (lock_inode)
 		inode_unlock(inode);

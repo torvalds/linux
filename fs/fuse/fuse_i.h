@@ -149,6 +149,13 @@ struct fuse_inode {
 	/** Lock to protect write related fields */
 	spinlock_t lock;
 
+	/**
+	 * Can't take inode lock in fault path (leads to circular dependency).
+	 * Introduce another semaphore which can be taken in fault path and
+	 * then other filesystem paths can take this to block faults.
+	 */
+	struct rw_semaphore i_mmap_sem;
+
 #ifdef CONFIG_FUSE_DAX
 	/*
 	 * Dax specific inode data
@@ -1116,6 +1123,7 @@ void fuse_free_conn(struct fuse_conn *fc);
 ssize_t fuse_dax_read_iter(struct kiocb *iocb, struct iov_iter *to);
 ssize_t fuse_dax_write_iter(struct kiocb *iocb, struct iov_iter *from);
 int fuse_dax_mmap(struct file *file, struct vm_area_struct *vma);
+int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start, u64 dmap_end);
 int fuse_dax_conn_alloc(struct fuse_conn *fc, struct dax_device *dax_dev);
 void fuse_dax_conn_free(struct fuse_conn *fc);
 bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi);

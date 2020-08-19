@@ -495,6 +495,47 @@ static const struct iomap_ops fuse_iomap_ops = {
 	.iomap_end = fuse_iomap_end,
 };
 
+static void fuse_wait_dax_page(struct inode *inode)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	up_write(&fi->i_mmap_sem);
+	schedule();
+	down_write(&fi->i_mmap_sem);
+}
+
+/* Should be called with fi->i_mmap_sem lock held exclusively */
+static int __fuse_dax_break_layouts(struct inode *inode, bool *retry,
+				    loff_t start, loff_t end)
+{
+	struct page *page;
+
+	page = dax_layout_busy_page_range(inode->i_mapping, start, end);
+	if (!page)
+		return 0;
+
+	*retry = true;
+	return ___wait_var_event(&page->_refcount,
+			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
+			0, 0, fuse_wait_dax_page(inode));
+}
+
+/* dmap_end == 0 leads to unmapping of whole file */
+int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start,
+				  u64 dmap_end)
+{
+	bool	retry;
+	int	ret;
+
+	do {
+		retry = false;
+		ret = __fuse_dax_break_layouts(inode, &retry, dmap_start,
+					       dmap_end);
+	} while (ret == 0 && retry);
+
+	return ret;
+}
+
 ssize_t fuse_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
@@ -596,10 +637,18 @@ static vm_fault_t __fuse_dax_fault(struct vm_fault *vmf,
 	if (write)
 		sb_start_pagefault(sb);
 
+	/*
+	 * We need to serialize against not only truncate but also against
+	 * fuse dax memory range reclaim. While a range is being reclaimed,
+	 * we do not want any read/write/mmap to make progress and try
+	 * to populate page cache or access memory we are trying to free.
+	 */
+	down_read(&get_fuse_inode(inode)->i_mmap_sem);
 	ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL, &fuse_iomap_ops);
 
 	if (ret & VM_FAULT_NEEDDSYNC)
 		ret = dax_finish_sync_fault(vmf, pe_size, pfn);
+	up_read(&get_fuse_inode(inode)->i_mmap_sem);
 
 	if (write)
 		sb_end_pagefault(sb);
