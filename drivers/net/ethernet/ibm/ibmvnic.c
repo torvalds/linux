@@ -306,6 +306,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 			      struct ibmvnic_rx_pool *pool)
 {
 	int count = pool->size - atomic_read(&pool->available);
+	u64 handle = adapter->rx_scrq[pool->index]->handle;
 	struct device *dev = &adapter->vdev->dev;
 	int buffers_added = 0;
 	unsigned long lpar_rc;
@@ -314,17 +315,12 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	unsigned int offset;
 	dma_addr_t dma_addr;
 	unsigned char *dst;
-	u64 *handle_array;
 	int shift = 0;
 	int index;
 	int i;
 
 	if (!pool->active)
 		return;
-
-	handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
-				      be32_to_cpu(adapter->login_rsp_buf->
-				      off_rxadd_subcrqs));
 
 	for (i = 0; i < count; ++i) {
 		skb = alloc_skb(pool->buff_size, GFP_ATOMIC);
@@ -369,8 +365,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 #endif
 		sub_crq.rx_add.len = cpu_to_be32(pool->buff_size << shift);
 
-		lpar_rc = send_subcrq(adapter, handle_array[pool->index],
-				      &sub_crq);
+		lpar_rc = send_subcrq(adapter, handle, &sub_crq);
 		if (lpar_rc != H_SUCCESS)
 			goto failure;
 
@@ -1524,9 +1519,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int offset;
 	int num_entries = 1;
 	unsigned char *dst;
-	u64 *handle_array;
 	int index = 0;
 	u8 proto = 0;
+	u64 handle;
 	netdev_tx_t ret = NETDEV_TX_OK;
 
 	if (test_bit(0, &adapter->resetting)) {
@@ -1553,8 +1548,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_scrq = adapter->tx_scrq[queue_num];
 	txq = netdev_get_tx_queue(netdev, skb_get_queue_mapping(skb));
-	handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
-		be32_to_cpu(adapter->login_rsp_buf->off_txsubm_subcrqs));
+	handle = tx_scrq->handle;
 
 	index = tx_pool->free_map[tx_pool->consumer_index];
 
@@ -1666,14 +1660,14 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			ret = NETDEV_TX_OK;
 			goto tx_err_out;
 		}
-		lpar_rc = send_subcrq_indirect(adapter, handle_array[queue_num],
+		lpar_rc = send_subcrq_indirect(adapter, handle,
 					       (u64)tx_buff->indir_dma,
 					       (u64)num_entries);
 		dma_unmap_single(dev, tx_buff->indir_dma,
 				 sizeof(tx_buff->indir_arr), DMA_TO_DEVICE);
 	} else {
 		tx_buff->num_entries = num_entries;
-		lpar_rc = send_subcrq(adapter, handle_array[queue_num],
+		lpar_rc = send_subcrq(adapter, handle,
 				      &tx_crq);
 	}
 	if (lpar_rc != H_SUCCESS) {
@@ -4292,6 +4286,10 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	struct net_device *netdev = adapter->netdev;
 	struct ibmvnic_login_rsp_buffer *login_rsp = adapter->login_rsp_buf;
 	struct ibmvnic_login_buffer *login = adapter->login_buf;
+	u64 *tx_handle_array;
+	u64 *rx_handle_array;
+	int num_tx_pools;
+	int num_rx_pools;
 	int i;
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
@@ -4326,6 +4324,22 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 		ibmvnic_remove(adapter->vdev);
 		return -EIO;
 	}
+
+	num_tx_pools = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	num_rx_pools = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+
+	tx_handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+				  be32_to_cpu(adapter->login_rsp_buf->off_txsubm_subcrqs));
+	rx_handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+				  be32_to_cpu(adapter->login_rsp_buf->off_rxadd_subcrqs));
+
+	for (i = 0; i < num_tx_pools; i++)
+		adapter->tx_scrq[i]->handle = tx_handle_array[i];
+
+	for (i = 0; i < num_rx_pools; i++)
+		adapter->rx_scrq[i]->handle = rx_handle_array[i];
+
+	release_login_rsp_buffer(adapter);
 	release_login_buffer(adapter);
 	complete(&adapter->init_done);
 

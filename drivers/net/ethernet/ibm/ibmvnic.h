@@ -875,6 +875,7 @@ struct ibmvnic_sub_crq_queue {
 	struct ibmvnic_adapter *adapter;
 	atomic_t used;
 	char name[32];
+	u64 handle;
 };
 
 struct ibmvnic_long_term_buff {
