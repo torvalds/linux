@@ -3089,7 +3089,7 @@ static struct i915_vma *create_global(struct intel_gt *gt, size_t sz)
 		return vma;
 	}
 
-	err = i915_ggtt_pin(vma, 0, 0);
+	err = i915_ggtt_pin(vma, NULL, 0, 0);
 	if (err) {
 		i915_vma_put(vma);
 		return ERR_PTR(err);

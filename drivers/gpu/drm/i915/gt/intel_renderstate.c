@@ -184,7 +184,7 @@ int intel_renderstate_init(struct intel_renderstate *so,
 
 	i915_gem_ww_ctx_init(&so->ww, true);
 retry:
-	err = intel_context_pin(ce);
+	err = intel_context_pin_ww(ce, &so->ww);
 	if (err)
 		goto err_fini;
 

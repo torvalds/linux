@@ -93,12 +93,12 @@ static void intel_context_active_release(struct intel_context *ce)
 	i915_active_release(&ce->active);
 }
 
-static int __context_pin_state(struct i915_vma *vma)
+static int __context_pin_state(struct i915_vma *vma, struct i915_gem_ww_ctx *ww)
 {
 	unsigned int bias = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
 	int err;
 
-	err = i915_ggtt_pin(vma, 0, bias | PIN_HIGH);
+	err = i915_ggtt_pin(vma, ww, 0, bias | PIN_HIGH);
 	if (err)
 		return err;
 
@@ -127,11 +127,12 @@ static void __context_unpin_state(struct i915_vma *vma)
 	__i915_vma_unpin(vma);
 }
 
-static int __ring_active(struct intel_ring *ring)
+static int __ring_active(struct intel_ring *ring,
+			 struct i915_gem_ww_ctx *ww)
 {
 	int err;
 
-	err = intel_ring_pin(ring);
+	err = intel_ring_pin(ring, ww);
 	if (err)
 		return err;
 
@@ -152,24 +153,25 @@ static void __ring_retire(struct intel_ring *ring)
 	intel_ring_unpin(ring);
 }
 
-static int intel_context_pre_pin(struct intel_context *ce)
+static int intel_context_pre_pin(struct intel_context *ce,
+				 struct i915_gem_ww_ctx *ww)
 {
 	int err;
 
 	CE_TRACE(ce, "active\n");
 
-	err = __ring_active(ce->ring);
+	err = __ring_active(ce->ring, ww);
 	if (err)
 		return err;
 
-	err = intel_timeline_pin(ce->timeline);
+	err = intel_timeline_pin(ce->timeline, ww);
 	if (err)
 		goto err_ring;
 
 	if (!ce->state)
 		return 0;
 
-	err = __context_pin_state(ce->state);
+	err = __context_pin_state(ce->state, ww);
 	if (err)
 		goto err_timeline;
 
@@ -192,7 +194,8 @@ static void intel_context_post_unpin(struct intel_context *ce)
 	__ring_retire(ce->ring);
 }
 
-int __intel_context_do_pin(struct intel_context *ce)
+int __intel_context_do_pin_ww(struct intel_context *ce,
+			      struct i915_gem_ww_ctx *ww)
 {
 	bool handoff = false;
 	void *vaddr;
@@ -209,7 +212,14 @@ int __intel_context_do_pin(struct intel_context *ce)
 	 * refcount for __intel_context_active(), which prevent a lock
 	 * inversion of ce->pin_mutex vs dma_resv_lock().
 	 */
-	err = intel_context_pre_pin(ce);
+
+	err = i915_gem_object_lock(ce->timeline->hwsp_ggtt->obj, ww);
+	if (!err && ce->ring->vma->obj)
+		err = i915_gem_object_lock(ce->ring->vma->obj, ww);
+	if (!err && ce->state)
+		err = i915_gem_object_lock(ce->state->obj, ww);
+	if (!err)
+		err = intel_context_pre_pin(ce, ww);
 	if (err)
 		return err;
 
@@ -217,7 +227,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 	if (err)
 		goto err_ctx_unpin;
 
-	err = ce->ops->pre_pin(ce, &vaddr);
+	err = ce->ops->pre_pin(ce, ww, &vaddr);
 	if (err)
 		goto err_release;
 
@@ -264,6 +274,23 @@ err_ctx_unpin:
 	return err;
 }
 
+int __intel_context_do_pin(struct intel_context *ce)
+{
+	struct i915_gem_ww_ctx ww;
+	int err;
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = __intel_context_do_pin_ww(ce, &ww);
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	return err;
+}
+
 void intel_context_unpin(struct intel_context *ce)
 {
 	if (!atomic_dec_and_test(&ce->pin_count))
@@ -301,18 +328,14 @@ static void __intel_context_retire(struct i915_active *active)
 static int __intel_context_active(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
-	int err;
 
 	intel_context_get(ce);
 
 	/* everything should already be activated by intel_context_pre_pin() */
-	err = __ring_active(ce->ring);
-	if (GEM_WARN_ON(err))
-		goto err_put;
+	GEM_WARN_ON(!i915_active_acquire_if_busy(&ce->ring->vma->active));
+	__intel_ring_pin(ce->ring);
 
-	err = intel_timeline_pin(ce->timeline);
-	if (GEM_WARN_ON(err))
-		goto err_ring;
+	__intel_timeline_pin(ce->timeline);
 
 	if (ce->state) {
 		GEM_WARN_ON(!i915_active_acquire_if_busy(&ce->state->active));
@@ -321,12 +344,6 @@ static int __intel_context_active(struct i915_active *active)
 	}
 
 	return 0;
-
-err_ring:
-	__ring_retire(ce->ring);
-err_put:
-	intel_context_put(ce);
-	return err;
 }
 
 void

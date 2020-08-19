@@ -1154,7 +1154,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 
 		i915_gem_ww_ctx_init(&ww, true);
 retry:
-		err = intel_context_pin(ce);
+		err = intel_context_pin_ww(ce, &ww);
 		if (err)
 			goto err;
 
@@ -1247,7 +1247,7 @@ static int pin_ppgtt_update(struct intel_context *ce, struct i915_gem_ww_ctx *ww
 
 	if (!HAS_LOGICAL_RING_CONTEXTS(vm->i915))
 		/* ppGTT is not part of the legacy context image */
-		return gen6_ppgtt_pin(i915_vm_to_ppgtt(vm));
+		return gen6_ppgtt_pin(i915_vm_to_ppgtt(vm), ww);
 
 	return 0;
 }

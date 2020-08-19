@@ -477,14 +477,16 @@ static void ring_context_destroy(struct kref *ref)
 	intel_context_free(ce);
 }
 
-static int __context_pin_ppgtt(struct intel_context *ce)
+static int ring_context_pre_pin(struct intel_context *ce,
+				struct i915_gem_ww_ctx *ww,
+				void **unused)
 {
 	struct i915_address_space *vm;
 	int err = 0;
 
 	vm = vm_alias(ce->vm);
 	if (vm)
-		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)));
+		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)), ww);
 
 	return err;
 }
@@ -589,11 +591,6 @@ static int ring_context_alloc(struct intel_context *ce)
 	}
 
 	return 0;
-}
-
-static int ring_context_pre_pin(struct intel_context *ce, void **unused)
-{
-	return __context_pin_ppgtt(ce);
 }
 
 static int ring_context_pin(struct intel_context *ce, void *unused)
@@ -1272,7 +1269,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 	}
 	GEM_BUG_ON(timeline->has_initial_breadcrumb);
 
-	err = intel_timeline_pin(timeline);
+	err = intel_timeline_pin(timeline, NULL);
 	if (err)
 		goto err_timeline;
 
@@ -1282,7 +1279,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		goto err_timeline_unpin;
 	}
 
-	err = intel_ring_pin(ring);
+	err = intel_ring_pin(ring, NULL);
 	if (err)
 		goto err_ring;
 
