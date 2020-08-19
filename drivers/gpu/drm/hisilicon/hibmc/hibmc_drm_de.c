@@ -71,12 +71,12 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	if (src_w != state->crtc_w || src_h != state->crtc_h) {
-		DRM_DEBUG_ATOMIC("scale not support\n");
+		drm_dbg_atomic(plane->dev, "scale not support\n");
 		return -EINVAL;
 	}
 
 	if (state->crtc_x < 0 || state->crtc_y < 0) {
-		DRM_DEBUG_ATOMIC("crtc_x/y of drm_plane state is invalid\n");
+		drm_dbg_atomic(plane->dev, "crtc_x/y of drm_plane state is invalid\n");
 		return -EINVAL;
 	}
 
@@ -87,12 +87,12 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 	    crtc_state->adjusted_mode.hdisplay ||
 	    state->crtc_y + state->crtc_h >
 	    crtc_state->adjusted_mode.vdisplay) {
-		DRM_DEBUG_ATOMIC("visible portion of plane is invalid\n");
+		drm_dbg_atomic(plane->dev, "visible portion of plane is invalid\n");
 		return -EINVAL;
 	}
 
 	if (state->fb->pitches[0] % 128 != 0) {
-		DRM_DEBUG_ATOMIC("wrong stride with 128-byte aligned\n");
+		drm_dbg_atomic(plane->dev, "wrong stride with 128-byte aligned\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -515,7 +515,7 @@ int hibmc_de_init(struct hibmc_drm_private *priv)
 				       NULL);
 
 	if (ret) {
-		DRM_ERROR("failed to init plane: %d\n", ret);
+		drm_err(dev, "failed to init plane: %d\n", ret);
 		return ret;
 	}
 
@@ -524,13 +524,13 @@ int hibmc_de_init(struct hibmc_drm_private *priv)
 	ret = drm_crtc_init_with_planes(dev, crtc, plane,
 					NULL, &hibmc_crtc_funcs, NULL);
 	if (ret) {
-		DRM_ERROR("failed to init crtc: %d\n", ret);
+		drm_err(dev, "failed to init crtc: %d\n", ret);
 		return ret;
 	}
 
 	ret = drm_mode_crtc_set_gamma_size(crtc, 256);
 	if (ret) {
-		DRM_ERROR("failed to set gamma size: %d\n", ret);
+		drm_err(dev, "failed to set gamma size: %d\n", ret);
 		return ret;
 	}
 	drm_crtc_helper_add(crtc, &hibmc_crtc_helper_funcs);
