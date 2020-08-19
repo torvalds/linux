@@ -2224,7 +2224,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len,
 		return -ENOMEM;
 
 	newpolicy->sidtab = kzalloc(sizeof(*newpolicy->sidtab), GFP_KERNEL);
-	if (!newpolicy)
+	if (!newpolicy->sidtab)
 		goto err;
 
 	rc = policydb_read(&newpolicy->policydb, fp);
