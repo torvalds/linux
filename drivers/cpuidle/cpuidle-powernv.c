@@ -141,7 +141,7 @@ static int stop_loop(struct cpuidle_device *dev,
 		     struct cpuidle_driver *drv,
 		     int index)
 {
-	power9_idle_type(stop_psscr_table[index].val,
+	arch300_idle_type(stop_psscr_table[index].val,
 			 stop_psscr_table[index].mask);
 	return index;
 }

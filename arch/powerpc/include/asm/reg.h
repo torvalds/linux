@@ -1353,6 +1353,7 @@
 #define PVR_POWER8NVL	0x004C
 #define PVR_POWER8	0x004D
 #define PVR_POWER9	0x004E
+#define PVR_POWER10	0x0080
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 
