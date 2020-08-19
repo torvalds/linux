@@ -5622,6 +5622,36 @@ unlock_exit:
 	return ret;
 }
 
+static bool report_eb_range(const struct extent_buffer *eb, unsigned long start,
+			    unsigned long len)
+{
+	btrfs_warn(eb->fs_info,
+		"access to eb bytenr %llu len %lu out of range start %lu len %lu",
+		eb->start, eb->len, start, len);
+	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+
+	return true;
+}
+
+/*
+ * Check if the [start, start + len) range is valid before reading/writing
+ * the eb.
+ * NOTE: @start and @len are offset inside the eb, not logical address.
+ *
+ * Caller should not touch the dst/src memory if this function returns error.
+ */
+static inline int check_eb_range(const struct extent_buffer *eb,
+				 unsigned long start, unsigned long len)
+{
+	unsigned long offset;
+
+	/* start, start + len should not go beyond eb->len nor overflow */
+	if (unlikely(check_add_overflow(start, len, &offset) || offset > eb->len))
+		return report_eb_range(eb, start, len);
+
+	return false;
+}
+
 void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 			unsigned long start, unsigned long len)
 {
@@ -5632,12 +5662,8 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	char *dst = (char *)dstv;
 	unsigned long i = start >> PAGE_SHIFT;
 
-	if (start + len > eb->len) {
-		WARN(1, KERN_ERR "btrfs bad mapping eb start %llu len %lu, wanted %lu %lu\n",
-		     eb->start, eb->len, start, len);
-		memset(dst, 0, len);
+	if (check_eb_range(eb, start, len))
 		return;
-	}
 
 	offset = offset_in_page(start);
 
@@ -5702,8 +5728,8 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 	unsigned long i = start >> PAGE_SHIFT;
 	int ret = 0;
 
-	WARN_ON(start > eb->len);
-	WARN_ON(start + len > eb->start + eb->len);
+	if (check_eb_range(eb, start, len))
+		return -EINVAL;
 
 	offset = offset_in_page(start);
 
@@ -5756,8 +5782,8 @@ void write_extent_buffer(const struct extent_buffer *eb, const void *srcv,
 	char *src = (char *)srcv;
 	unsigned long i = start >> PAGE_SHIFT;
 
-	WARN_ON(start > eb->len);
-	WARN_ON(start + len > eb->start + eb->len);
+	if (check_eb_range(eb, start, len))
+		return;
 
 	offset = offset_in_page(start);
 
@@ -5785,8 +5811,8 @@ void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 	char *kaddr;
 	unsigned long i = start >> PAGE_SHIFT;
 
-	WARN_ON(start > eb->len);
-	WARN_ON(start + len > eb->start + eb->len);
+	if (check_eb_range(eb, start, len))
+		return;
 
 	offset = offset_in_page(start);
 
@@ -5829,6 +5855,10 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 	struct page *page;
 	char *kaddr;
 	unsigned long i = dst_offset >> PAGE_SHIFT;
+
+	if (check_eb_range(dst, dst_offset, len) ||
+	    check_eb_range(src, src_offset, len))
+		return;
 
 	WARN_ON(src->len != dst_len);
 
@@ -6019,25 +6049,15 @@ void memcpy_extent_buffer(const struct extent_buffer *dst,
 			  unsigned long dst_offset, unsigned long src_offset,
 			  unsigned long len)
 {
-	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
 	size_t dst_off_in_page;
 	size_t src_off_in_page;
 	unsigned long dst_i;
 	unsigned long src_i;
 
-	if (src_offset + len > dst->len) {
-		btrfs_err(fs_info,
-			"memmove bogus src_offset %lu move len %lu dst len %lu",
-			 src_offset, len, dst->len);
-		BUG();
-	}
-	if (dst_offset + len > dst->len) {
-		btrfs_err(fs_info,
-			"memmove bogus dst_offset %lu move len %lu dst len %lu",
-			 dst_offset, len, dst->len);
-		BUG();
-	}
+	if (check_eb_range(dst, dst_offset, len) ||
+	    check_eb_range(dst, src_offset, len))
+		return;
 
 	while (len > 0) {
 		dst_off_in_page = offset_in_page(dst_offset);
@@ -6064,7 +6084,6 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 			   unsigned long dst_offset, unsigned long src_offset,
 			   unsigned long len)
 {
-	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
 	size_t dst_off_in_page;
 	size_t src_off_in_page;
@@ -6073,18 +6092,9 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 	unsigned long dst_i;
 	unsigned long src_i;
 
-	if (src_offset + len > dst->len) {
-		btrfs_err(fs_info,
-			  "memmove bogus src_offset %lu move len %lu len %lu",
-			  src_offset, len, dst->len);
-		BUG();
-	}
-	if (dst_offset + len > dst->len) {
-		btrfs_err(fs_info,
-			  "memmove bogus dst_offset %lu move len %lu len %lu",
-			  dst_offset, len, dst->len);
-		BUG();
-	}
+	if (check_eb_range(dst, dst_offset, len) ||
+	    check_eb_range(dst, src_offset, len))
+		return;
 	if (dst_offset < src_offset) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
 		return;
