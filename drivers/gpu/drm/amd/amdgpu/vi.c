@@ -1068,6 +1068,10 @@ static bool vi_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static void vi_pre_asic_init(struct amdgpu_device *adev)
+{
+}
+
 static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
@@ -1088,6 +1092,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.need_reset_on_init = &vi_need_reset_on_init,
 	.get_pcie_replay_count = &vi_get_pcie_replay_count,
 	.supports_baco = &vi_asic_supports_baco,
+	.pre_asic_init = &vi_pre_asic_init,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \
