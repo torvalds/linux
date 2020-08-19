@@ -5,6 +5,8 @@
 
 #define PREFIX_STR "[drm_dp_mst_helper]"
 
+#include <linux/random.h>
+
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_print.h>
 
@@ -235,6 +237,21 @@ int igt_dp_mst_sideband_msg_req_decode(void *unused)
 	DO_TEST();
 	in.u.i2c_write.num_bytes = ARRAY_SIZE(data);
 	in.u.i2c_write.bytes = data;
+	DO_TEST();
+
+	in.req_type = DP_QUERY_STREAM_ENC_STATUS;
+	in.u.enc_status.stream_id = 1;
+	DO_TEST();
+	get_random_bytes(in.u.enc_status.client_id,
+			 sizeof(in.u.enc_status.client_id));
+	DO_TEST();
+	in.u.enc_status.stream_event = 3;
+	DO_TEST();
+	in.u.enc_status.valid_stream_event = 0;
+	DO_TEST();
+	in.u.enc_status.stream_behavior = 3;
+	DO_TEST();
+	in.u.enc_status.valid_stream_behavior = 1;
 	DO_TEST();
 
 #undef DO_TEST
