@@ -850,13 +850,14 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 						   GFP_KERNEL);
 	if (!card->txbd_ring_vbase) {
 		mwifiex_dbg(adapter, ERROR,
-			    "allocate consistent memory (%d bytes) failed!\n",
+			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->txbd_ring_size);
 		return -ENOMEM;
 	}
+
 	mwifiex_dbg(adapter, DATA,
-		    "info: txbd_ring - base: %p, pbase: %#x:%x, len: %x\n",
-		    card->txbd_ring_vbase, (unsigned int)card->txbd_ring_pbase,
+		    "info: txbd_ring - base: %p, pbase: %#x:%x, len: %#x\n",
+		    card->txbd_ring_vbase, (u32)card->txbd_ring_pbase,
 		    (u32)((u64)card->txbd_ring_pbase >> 32),
 		    card->txbd_ring_size);
 
@@ -915,7 +916,7 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 						   GFP_KERNEL);
 	if (!card->rxbd_ring_vbase) {
 		mwifiex_dbg(adapter, ERROR,
-			    "allocate consistent memory (%d bytes) failed!\n",
+			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->rxbd_ring_size);
 		return -ENOMEM;
 	}
@@ -973,14 +974,14 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 
 	mwifiex_dbg(adapter, INFO,
 		    "info: evtbd_ring: Allocating %d bytes\n",
-		card->evtbd_ring_size);
+		    card->evtbd_ring_size);
 	card->evtbd_ring_vbase = dma_alloc_coherent(&card->dev->dev,
 						    card->evtbd_ring_size,
 						    &card->evtbd_ring_pbase,
 						    GFP_KERNEL);
 	if (!card->evtbd_ring_vbase) {
 		mwifiex_dbg(adapter, ERROR,
-			    "allocate consistent memory (%d bytes) failed!\n",
+			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->evtbd_ring_size);
 		return -ENOMEM;
 	}
@@ -1086,7 +1087,7 @@ static int mwifiex_pcie_alloc_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 						      GFP_KERNEL);
 	if (!card->sleep_cookie_vbase) {
 		mwifiex_dbg(adapter, ERROR,
-			    "pci_alloc_consistent failed!\n");
+			    "dma_alloc_coherent failed!\n");
 		return -ENOMEM;
 	}
 	/* Init val of Sleep Cookie */
@@ -2928,15 +2929,9 @@ static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 
 	pci_set_master(pdev);
 
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		pr_err("set_dma_mask(32) failed: %d\n", ret);
-		goto err_set_dma_mask;
-	}
-
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret) {
-		pr_err("set_consistent_dma_mask(64) failed\n");
+		pr_err("dma_set_mask(32) failed: %d\n", ret);
 		goto err_set_dma_mask;
 	}
 
