@@ -251,6 +251,6 @@ COMPAT_SYSCALL_DEFINE5(ia32_clone, unsigned long, clone_flags,
 		.tls		= tls_val,
 	};
 
-	return _do_fork(&args);
+	return kernel_clone(&args);
 }
 #endif /* CONFIG_IA32_EMULATION */
