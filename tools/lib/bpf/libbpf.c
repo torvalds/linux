@@ -4111,6 +4111,12 @@ static const char *core_relo_kind_str(enum bpf_core_relo_kind kind)
 	case BPF_FIELD_SIGNED: return "signed";
 	case BPF_FIELD_LSHIFT_U64: return "lshift_u64";
 	case BPF_FIELD_RSHIFT_U64: return "rshift_u64";
+	case BPF_TYPE_ID_LOCAL: return "local_type_id";
+	case BPF_TYPE_ID_TARGET: return "target_type_id";
+	case BPF_TYPE_EXISTS: return "type_exists";
+	case BPF_TYPE_SIZE: return "type_size";
+	case BPF_ENUMVAL_EXISTS: return "enumval_exists";
+	case BPF_ENUMVAL_VALUE: return "enumval_value";
 	default: return "unknown";
 	}
 }
@@ -4124,6 +4130,30 @@ static bool core_relo_is_field_based(enum bpf_core_relo_kind kind)
 	case BPF_FIELD_SIGNED:
 	case BPF_FIELD_LSHIFT_U64:
 	case BPF_FIELD_RSHIFT_U64:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool core_relo_is_type_based(enum bpf_core_relo_kind kind)
+{
+	switch (kind) {
+	case BPF_TYPE_ID_LOCAL:
+	case BPF_TYPE_ID_TARGET:
+	case BPF_TYPE_EXISTS:
+	case BPF_TYPE_SIZE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
+{
+	switch (kind) {
+	case BPF_ENUMVAL_EXISTS:
+	case BPF_ENUMVAL_VALUE:
 		return true;
 	default:
 		return false;
@@ -4160,6 +4190,12 @@ static bool core_relo_is_field_based(enum bpf_core_relo_kind kind)
  *   - field 'a' access (corresponds to '2' in low-level spec);
  *   - array element #3 access (corresponds to '3' in low-level spec).
  *
+ * Type-based relocations (TYPE_EXISTS/TYPE_SIZE,
+ * TYPE_ID_LOCAL/TYPE_ID_TARGET) don't capture any field information. Their
+ * spec and raw_spec are kept empty.
+ *
+ * Enum value-based relocations (ENUMVAL_EXISTS/ENUMVAL_VALUE) use access
+ * string to specify enumerator's value index that need to be relocated.
  */
 static int bpf_core_parse_spec(const struct btf *btf,
 			       __u32 type_id,
@@ -4182,6 +4218,13 @@ static int bpf_core_parse_spec(const struct btf *btf,
 	spec->root_type_id = type_id;
 	spec->relo_kind = relo_kind;
 
+	/* type-based relocations don't have a field access string */
+	if (core_relo_is_type_based(relo_kind)) {
+		if (strcmp(spec_str, "0"))
+			return -EINVAL;
+		return 0;
+	}
+
 	/* parse spec_str="0:1:2:3:4" into array raw_spec=[0, 1, 2, 3, 4] */
 	while (*spec_str) {
 		if (*spec_str == ':')
@@ -4197,15 +4240,24 @@ static int bpf_core_parse_spec(const struct btf *btf,
 	if (spec->raw_len == 0)
 		return -EINVAL;
 
-	/* first spec value is always reloc type array index */
 	t = skip_mods_and_typedefs(btf, type_id, &id);
 	if (!t)
 		return -EINVAL;
 
 	access_idx = spec->raw_spec[0];
-	spec->spec[0].type_id = id;
-	spec->spec[0].idx = access_idx;
+	acc = &spec->spec[0];
+	acc->type_id = id;
+	acc->idx = access_idx;
 	spec->len++;
+
+	if (core_relo_is_enumval_based(relo_kind)) {
+		if (!btf_is_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
+			return -EINVAL;
+
+		/* record enumerator name in a first accessor */
+		acc->name = btf__name_by_offset(btf, btf_enum(t)[access_idx].name_off);
+		return 0;
+	}
 
 	if (!core_relo_is_field_based(relo_kind))
 		return -EINVAL;
@@ -4317,7 +4369,7 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 					   const struct btf *targ_btf)
 {
 	size_t local_essent_len, targ_essent_len;
-	const char *local_name, *targ_name, *targ_kind;
+	const char *local_name, *targ_name;
 	const struct btf_type *t, *local_t;
 	struct ids_vec *cand_ids;
 	__u32 *new_ids;
@@ -4339,13 +4391,11 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 	n = btf__get_nr_types(targ_btf);
 	for (i = 1; i <= n; i++) {
 		t = btf__type_by_id(targ_btf, i);
+		if (btf_kind(t) != btf_kind(local_t))
+			continue;
+
 		targ_name = btf__name_by_offset(targ_btf, t->name_off);
 		if (str_is_empty(targ_name))
-			continue;
-		targ_kind = btf_kind_str(t);
-
-		t = skip_mods_and_typedefs(targ_btf, i, NULL);
-		if (!btf_is_composite(t) && !btf_is_array(t))
 			continue;
 
 		targ_essent_len = bpf_core_essential_name_len(targ_name);
@@ -4355,7 +4405,7 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 		if (strncmp(local_name, targ_name, local_essent_len) == 0) {
 			pr_debug("CO-RE relocating [%d] %s %s: found target candidate [%d] %s %s\n",
 				 local_type_id, btf_kind_str(local_t),
-				 local_name, i, targ_kind, targ_name);
+				 local_name, i, btf_kind_str(t), targ_name);
 			new_ids = libbpf_reallocarray(cand_ids->data,
 						      cand_ids->len + 1,
 						      sizeof(*cand_ids->data));
@@ -4373,8 +4423,9 @@ err_out:
 	return ERR_PTR(err);
 }
 
-/* Check two types for compatibility, skipping const/volatile/restrict and
- * typedefs, to ensure we are relocating compatible entities:
+/* Check two types for compatibility for the purpose of field access
+ * relocation. const/volatile/restrict and typedefs are skipped to ensure we
+ * are relocating semantically compatible entities:
  *   - any two STRUCTs/UNIONs are compatible and can be mixed;
  *   - any two FWDs are compatible, if their names match (modulo flavor suffix);
  *   - any two PTRs are always compatible;
@@ -4529,6 +4580,100 @@ static int bpf_core_match_member(const struct btf *local_btf,
 	return 0;
 }
 
+/* Check local and target types for compatibility. This check is used for
+ * type-based CO-RE relocations and follow slightly different rules than
+ * field-based relocations. This function assumes that root types were already
+ * checked for name match. Beyond that initial root-level name check, names
+ * are completely ignored. Compatibility rules are as follows:
+ *   - any two STRUCTs/UNIONs/FWDs/ENUMs/INTs are considered compatible, but
+ *     kind should match for local and target types (i.e., STRUCT is not
+ *     compatible with UNION);
+ *   - for ENUMs, the size is ignored;
+ *   - for INT, size and signedness are ignored;
+ *   - for ARRAY, dimensionality is ignored, element types are checked for
+ *     compatibility recursively;
+ *   - CONST/VOLATILE/RESTRICT modifiers are ignored;
+ *   - TYPEDEFs/PTRs are compatible if types they pointing to are compatible;
+ *   - FUNC_PROTOs are compatible if they have compatible signature: same
+ *     number of input args and compatible return and argument types.
+ * These rules are not set in stone and probably will be adjusted as we get
+ * more experience with using BPF CO-RE relocations.
+ */
+static int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+				     const struct btf *targ_btf, __u32 targ_id)
+{
+	const struct btf_type *local_type, *targ_type;
+	int depth = 32; /* max recursion depth */
+
+	/* caller made sure that names match (ignoring flavor suffix) */
+	local_type = btf__type_by_id(local_btf, local_id);
+	targ_type = btf__type_by_id(local_btf, local_id);
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+recur:
+	depth--;
+	if (depth < 0)
+		return -EINVAL;
+
+	local_type = skip_mods_and_typedefs(local_btf, local_id, &local_id);
+	targ_type = skip_mods_and_typedefs(targ_btf, targ_id, &targ_id);
+	if (!local_type || !targ_type)
+		return -EINVAL;
+
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+	switch (btf_kind(local_type)) {
+	case BTF_KIND_UNKN:
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+	case BTF_KIND_ENUM:
+	case BTF_KIND_FWD:
+		return 1;
+	case BTF_KIND_INT:
+		/* just reject deprecated bitfield-like integers; all other
+		 * integers are by default compatible between each other
+		 */
+		return btf_int_offset(local_type) == 0 && btf_int_offset(targ_type) == 0;
+	case BTF_KIND_PTR:
+		local_id = local_type->type;
+		targ_id = targ_type->type;
+		goto recur;
+	case BTF_KIND_ARRAY:
+		local_id = btf_array(local_type)->type;
+		targ_id = btf_array(targ_type)->type;
+		goto recur;
+	case BTF_KIND_FUNC_PROTO: {
+		struct btf_param *local_p = btf_params(local_type);
+		struct btf_param *targ_p = btf_params(targ_type);
+		__u16 local_vlen = btf_vlen(local_type);
+		__u16 targ_vlen = btf_vlen(targ_type);
+		int i, err;
+
+		if (local_vlen != targ_vlen)
+			return 0;
+
+		for (i = 0; i < local_vlen; i++, local_p++, targ_p++) {
+			skip_mods_and_typedefs(local_btf, local_p->type, &local_id);
+			skip_mods_and_typedefs(targ_btf, targ_p->type, &targ_id);
+			err = bpf_core_types_are_compat(local_btf, local_id, targ_btf, targ_id);
+			if (err <= 0)
+				return err;
+		}
+
+		/* tail recurse for return type check */
+		skip_mods_and_typedefs(local_btf, local_type->type, &local_id);
+		skip_mods_and_typedefs(targ_btf, targ_type->type, &targ_id);
+		goto recur;
+	}
+	default:
+		pr_warn("unexpected kind %s relocated, local [%d], target [%d]\n",
+			btf_kind_str(local_type), local_id, targ_id);
+		return 0;
+	}
+}
+
 /*
  * Try to match local spec to a target type and, if successful, produce full
  * target spec (high-level, low-level + bit offset).
@@ -4547,8 +4692,47 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 	targ_spec->root_type_id = targ_id;
 	targ_spec->relo_kind = local_spec->relo_kind;
 
+	if (core_relo_is_type_based(local_spec->relo_kind)) {
+		return bpf_core_types_are_compat(local_spec->btf,
+						 local_spec->root_type_id,
+						 targ_btf, targ_id);
+	}
+
 	local_acc = &local_spec->spec[0];
 	targ_acc = &targ_spec->spec[0];
+
+	if (core_relo_is_enumval_based(local_spec->relo_kind)) {
+		size_t local_essent_len, targ_essent_len;
+		const struct btf_enum *e;
+		const char *targ_name;
+
+		/* has to resolve to an enum */
+		targ_type = skip_mods_and_typedefs(targ_spec->btf, targ_id, &targ_id);
+		if (!btf_is_enum(targ_type))
+			return 0;
+
+		local_essent_len = bpf_core_essential_name_len(local_acc->name);
+
+		for (i = 0, e = btf_enum(targ_type); i < btf_vlen(targ_type); i++, e++) {
+			targ_name = btf__name_by_offset(targ_spec->btf, e->name_off);
+			targ_essent_len = bpf_core_essential_name_len(targ_name);
+			if (targ_essent_len != local_essent_len)
+				continue;
+			if (strncmp(local_acc->name, targ_name, local_essent_len) == 0) {
+				targ_acc->type_id = targ_id;
+				targ_acc->idx = i;
+				targ_acc->name = targ_name;
+				targ_spec->len++;
+				targ_spec->raw_spec[targ_spec->raw_len] = targ_acc->idx;
+				targ_spec->raw_len++;
+				return 1;
+			}
+		}
+		return 0;
+	}
+
+	if (!core_relo_is_field_based(local_spec->relo_kind))
+		return -EINVAL;
 
 	for (i = 0; i < local_spec->len; i++, local_acc++, targ_acc++) {
 		targ_type = skip_mods_and_typedefs(targ_spec->btf, targ_id,
@@ -4720,6 +4904,65 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	return 0;
 }
 
+static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
+				   const struct bpf_core_spec *spec,
+				   __u32 *val)
+{
+	__s64 sz;
+
+	/* type-based relos return zero when target type is not found */
+	if (!spec) {
+		*val = 0;
+		return 0;
+	}
+
+	switch (relo->kind) {
+	case BPF_TYPE_ID_TARGET:
+		*val = spec->root_type_id;
+		break;
+	case BPF_TYPE_EXISTS:
+		*val = 1;
+		break;
+	case BPF_TYPE_SIZE:
+		sz = btf__resolve_size(spec->btf, spec->root_type_id);
+		if (sz < 0)
+			return -EINVAL;
+		*val = sz;
+		break;
+	case BPF_TYPE_ID_LOCAL:
+	/* BPF_TYPE_ID_LOCAL is handled specially and shouldn't get here */
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
+				      const struct bpf_core_spec *spec,
+				      __u32 *val)
+{
+	const struct btf_type *t;
+	const struct btf_enum *e;
+
+	switch (relo->kind) {
+	case BPF_ENUMVAL_EXISTS:
+		*val = spec ? 1 : 0;
+		break;
+	case BPF_ENUMVAL_VALUE:
+		if (!spec)
+			return -EUCLEAN; /* request instruction poisoning */
+		t = btf__type_by_id(spec->btf, spec->spec[0].type_id);
+		e = btf_enum(t) + spec->spec[0].idx;
+		*val = e->val;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 struct bpf_core_relo_res
 {
 	/* expected value in the instruction, unless validate == false */
@@ -4755,6 +4998,12 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 	if (core_relo_is_field_based(relo->kind)) {
 		err = bpf_core_calc_field_relo(prog, relo, local_spec, &res->orig_val, &res->validate);
 		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec, &res->new_val, NULL);
+	} else if (core_relo_is_type_based(relo->kind)) {
+		err = bpf_core_calc_type_relo(relo, local_spec, &res->orig_val);
+		err = err ?: bpf_core_calc_type_relo(relo, targ_spec, &res->new_val);
+	} else if (core_relo_is_enumval_based(relo->kind)) {
+		err = bpf_core_calc_enumval_relo(relo, local_spec, &res->orig_val);
+		err = err ?: bpf_core_calc_enumval_relo(relo, targ_spec, &res->new_val);
 	}
 
 	if (err == -EUCLEAN) {
@@ -4791,6 +5040,11 @@ static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
 	insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
 }
 
+static bool is_ldimm64(struct bpf_insn *insn)
+{
+	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
+}
+
 /*
  * Patch relocatable BPF instruction.
  *
@@ -4803,6 +5057,7 @@ static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
  * Currently three kinds of BPF instructions are supported:
  * 1. rX = <imm> (assignment with immediate operand);
  * 2. rX += <imm> (arithmetic operations with immediate operand);
+ * 3. rX = <imm64> (load with 64-bit immediate value).
  */
 static int bpf_core_patch_insn(struct bpf_program *prog,
 			       const struct bpf_core_relo *relo,
@@ -4821,6 +5076,11 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	class = BPF_CLASS(insn->code);
 
 	if (res->poison) {
+		/* poison second part of ldimm64 to avoid confusing error from
+		 * verifier about "unknown opcode 00"
+		 */
+		if (is_ldimm64(insn))
+			bpf_core_poison_insn(prog, relo_idx, insn_idx + 1, insn + 1);
 		bpf_core_poison_insn(prog, relo_idx, insn_idx, insn);
 		return 0;
 	}
@@ -4849,7 +5109,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	case BPF_ST:
 	case BPF_STX:
 		if (res->validate && insn->off != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LD/LDX/ST/STX) value: got %u, exp %u -> %u\n",
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %u, exp %u -> %u\n",
 				bpf_program__title(prog, false), relo_idx,
 				insn_idx, insn->off, orig_val, new_val);
 			return -EINVAL;
@@ -4866,8 +5126,36 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 			 bpf_program__title(prog, false), relo_idx, insn_idx,
 			 orig_val, new_val);
 		break;
+	case BPF_LD: {
+		__u64 imm;
+
+		if (!is_ldimm64(insn) ||
+		    insn[0].src_reg != 0 || insn[0].off != 0 ||
+		    insn_idx + 1 >= prog->insns_cnt ||
+		    insn[1].code != 0 || insn[1].dst_reg != 0 ||
+		    insn[1].src_reg != 0 || insn[1].off != 0) {
+			pr_warn("prog '%s': relo #%d: insn #%d (LDIMM64) has unexpected form\n",
+				bpf_program__title(prog, false), relo_idx, insn_idx);
+			return -EINVAL;
+		}
+
+		imm = insn[0].imm + ((__u64)insn[1].imm << 32);
+		if (res->validate && imm != orig_val) {
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDIMM64) value: got %llu, exp %u -> %u\n",
+				bpf_program__title(prog, false), relo_idx,
+				insn_idx, imm, orig_val, new_val);
+			return -EINVAL;
+		}
+
+		insn[0].imm = new_val;
+		insn[1].imm = 0; /* currently only 32-bit values are supported */
+		pr_debug("prog '%s': relo #%d: patched insn #%d (LDIMM64) imm64 %llu -> %u\n",
+			 bpf_program__title(prog, false), relo_idx, insn_idx,
+			 imm, new_val);
+		break;
+	}
 	default:
-		pr_warn("prog '%s': relo #%d: trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
+		pr_warn("prog '%s': relo #%d: trying to relocate unrecognized insn #%d, code:0x%x, src:0x%x, dst:0x%x, off:0x%x, imm:0x%x\n",
 			bpf_program__title(prog, false), relo_idx,
 			insn_idx, insn->code, insn->src_reg, insn->dst_reg,
 			insn->off, insn->imm);
@@ -4884,6 +5172,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
+	const struct btf_enum *e;
 	const char *s;
 	__u32 type_id;
 	int i;
@@ -4893,6 +5182,18 @@ static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 	s = btf__name_by_offset(spec->btf, t->name_off);
 
 	libbpf_print(level, "[%u] %s %s", type_id, btf_kind_str(t), str_is_empty(s) ? "<anon>" : s);
+
+	if (core_relo_is_type_based(spec->relo_kind))
+		return;
+
+	if (core_relo_is_enumval_based(spec->relo_kind)) {
+		t = skip_mods_and_typedefs(spec->btf, type_id, NULL);
+		e = btf_enum(t) + spec->raw_spec[0];
+		s = btf__name_by_offset(spec->btf, e->name_off);
+
+		libbpf_print(level, "::%s = %u", s, e->val);
+		return;
+	}
 
 	if (core_relo_is_field_based(spec->relo_kind)) {
 		for (i = 0; i < spec->len; i++) {
@@ -4911,6 +5212,7 @@ static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 				     spec->bit_offset / 8, spec->bit_offset % 8);
 		else
 			libbpf_print(level, " @ offset %u)", spec->bit_offset / 8);
+		return;
 	}
 }
 
@@ -4979,12 +5281,12 @@ static void *u32_as_hash_key(__u32 x)
  *    between multiple relocations for the same type ID and is updated as some
  *    of the candidates are pruned due to structural incompatibility.
  */
-static int bpf_core_reloc_field(struct bpf_program *prog,
-				 const struct bpf_core_relo *relo,
-				 int relo_idx,
-				 const struct btf *local_btf,
-				 const struct btf *targ_btf,
-				 struct hashmap *cand_cache)
+static int bpf_core_apply_relo(struct bpf_program *prog,
+			       const struct bpf_core_relo *relo,
+			       int relo_idx,
+			       const struct btf *local_btf,
+			       const struct btf *targ_btf,
+			       struct hashmap *cand_cache)
 {
 	const char *prog_name = bpf_program__title(prog, false);
 	struct bpf_core_spec local_spec, cand_spec, targ_spec;
@@ -5003,7 +5305,7 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 		return -EINVAL;
 
 	local_name = btf__name_by_offset(local_btf, local_type->name_off);
-	if (str_is_empty(local_name))
+	if (!local_name)
 		return -EINVAL;
 
 	spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
@@ -5014,7 +5316,8 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	if (err) {
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
 			prog_name, relo_idx, local_id, btf_kind_str(local_type),
-			local_name, spec_str, err);
+			str_is_empty(local_name) ? "<anon>" : local_name,
+			spec_str, err);
 		return -EINVAL;
 	}
 
@@ -5023,12 +5326,28 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
+	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
+	if (relo->kind == BPF_TYPE_ID_LOCAL) {
+		targ_res.validate = true;
+		targ_res.poison = false;
+		targ_res.orig_val = local_spec.root_type_id;
+		targ_res.new_val = local_spec.root_type_id;
+		goto patch_insn;
+	}
+
+	/* libbpf doesn't support candidate search for anonymous types */
+	if (str_is_empty(spec_str)) {
+		pr_warn("prog '%s': relo #%d: <%s> (%d) relocation doesn't support anonymous types\n",
+			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
+		return -EOPNOTSUPP;
+	}
+
 	if (!hashmap__find(cand_cache, type_key, (void **)&cand_ids)) {
 		cand_ids = bpf_core_find_cands(local_btf, local_id, targ_btf);
 		if (IS_ERR(cand_ids)) {
 			pr_warn("prog '%s': relo #%d: target candidate search failed for [%d] %s %s: %ld",
-				prog_name, relo_idx, local_id, btf_kind_str(local_type), local_name,
-				PTR_ERR(cand_ids));
+				prog_name, relo_idx, local_id, btf_kind_str(local_type),
+				local_name, PTR_ERR(cand_ids));
 			return PTR_ERR(cand_ids);
 		}
 		err = hashmap__set(cand_cache, type_key, cand_ids, NULL, NULL);
@@ -5084,7 +5403,7 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 			return -EINVAL;
 		}
 
-		cand_ids->data[j++] = cand_spec.spec[0].type_id;
+		cand_ids->data[j++] = cand_spec.root_type_id;
 	}
 
 	/*
@@ -5103,7 +5422,7 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	 * as well as expected case, depending whether instruction w/
 	 * relocation is guarded in some way that makes it unreachable (dead
 	 * code) if relocation can't be resolved. This is handled in
-	 * bpf_core_reloc_insn() uniformly by replacing that instruction with
+	 * bpf_core_patch_insn() uniformly by replacing that instruction with
 	 * BPF helper call insn (using invalid helper ID). If that instruction
 	 * is indeed unreachable, then it will be ignored and eliminated by
 	 * verifier. If it was an error, then verifier will complain and point
@@ -5119,6 +5438,7 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 			return err;
 	}
 
+patch_insn:
 	/* bpf_core_patch_insn() should know how to handle missing targ_spec */
 	err = bpf_core_patch_insn(prog, relo, relo_idx, &targ_res);
 	if (err) {
@@ -5186,8 +5506,8 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 			 sec_name, sec->num_info);
 
 		for_each_btf_ext_rec(seg, sec, i, rec) {
-			err = bpf_core_reloc_field(prog, rec, i, obj->btf,
-						   targ_btf, cand_cache);
+			err = bpf_core_apply_relo(prog, rec, i, obj->btf,
+						  targ_btf, cand_cache);
 			if (err) {
 				pr_warn("prog '%s': relo #%d: failed to relocate: %d\n",
 					sec_name, i, err);
