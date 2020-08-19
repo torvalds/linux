@@ -165,22 +165,29 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
-struct bpf_capabilities {
+enum kern_feature_id {
 	/* v4.14: kernel support for program & map names. */
-	__u32 name:1;
+	FEAT_PROG_NAME,
 	/* v5.2: kernel support for global data sections. */
-	__u32 global_data:1;
+	FEAT_GLOBAL_DATA,
+	/* BTF support */
+	FEAT_BTF,
 	/* BTF_KIND_FUNC and BTF_KIND_FUNC_PROTO support */
-	__u32 btf_func:1;
+	FEAT_BTF_FUNC,
 	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
-	__u32 btf_datasec:1;
-	/* BPF_F_MMAPABLE is supported for arrays */
-	__u32 array_mmap:1;
+	FEAT_BTF_DATASEC,
 	/* BTF_FUNC_GLOBAL is supported */
-	__u32 btf_func_global:1;
+	FEAT_BTF_GLOBAL_FUNC,
+	/* BPF_F_MMAPABLE is supported for arrays */
+	FEAT_ARRAY_MMAP,
 	/* kernel support for expected_attach_type in BPF_PROG_LOAD */
-	__u32 exp_attach_type:1;
+	FEAT_EXP_ATTACH_TYPE,
+	/* bpf_probe_read_{kernel,user}[_str] helpers */
+	FEAT_PROBE_READ_KERN,
+	__FEAT_CNT,
 };
+
+static bool kernel_supports(enum kern_feature_id feat_id);
 
 enum reloc_type {
 	RELO_LD64,
@@ -252,8 +259,6 @@ struct bpf_program {
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
-
-	struct bpf_capabilities *caps;
 
 	void *line_info;
 	__u32 line_info_rec_size;
@@ -436,8 +441,6 @@ struct bpf_object {
 	void *priv;
 	bpf_object_clear_priv_t clear_priv;
 
-	struct bpf_capabilities caps;
-
 	char path[];
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
@@ -561,7 +564,6 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	if (err)
 		return err;
 
-	prog.caps = &obj->caps;
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
 
@@ -2340,18 +2342,18 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 
 static bool btf_needs_sanitization(struct bpf_object *obj)
 {
-	bool has_func_global = obj->caps.btf_func_global;
-	bool has_datasec = obj->caps.btf_datasec;
-	bool has_func = obj->caps.btf_func;
+	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
+	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 
 	return !has_func || !has_datasec || !has_func_global;
 }
 
 static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 {
-	bool has_func_global = obj->caps.btf_func_global;
-	bool has_datasec = obj->caps.btf_datasec;
-	bool has_func = obj->caps.btf_func;
+	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
+	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 	struct btf_type *t;
 	int i, j, vlen;
 
@@ -2533,6 +2535,15 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 	if (!obj->btf)
 		return 0;
 
+	if (!kernel_supports(FEAT_BTF)) {
+		if (kernel_needs_btf(obj)) {
+			err = -EOPNOTSUPP;
+			goto report;
+		}
+		pr_debug("Kernel doesn't support BTF, skipping uploading it.\n");
+		return 0;
+	}
+
 	sanitize = btf_needs_sanitization(obj);
 	if (sanitize) {
 		const void *raw_data;
@@ -2558,6 +2569,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		}
 		btf__free(kern_btf);
 	}
+report:
 	if (err) {
 		btf_mandatory = kernel_needs_btf(obj);
 		pr_warn("Error loading .BTF into kernel: %d. %s\n", err,
@@ -3433,8 +3445,14 @@ bpf_object__probe_loading(struct bpf_object *obj)
 	return 0;
 }
 
-static int
-bpf_object__probe_name(struct bpf_object *obj)
+static int probe_fd(int fd)
+{
+	if (fd >= 0)
+		close(fd);
+	return fd >= 0;
+}
+
+static int probe_kern_prog_name(void)
 {
 	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
@@ -3452,16 +3470,10 @@ bpf_object__probe_name(struct bpf_object *obj)
 	attr.license = "GPL";
 	attr.name = "test";
 	ret = bpf_load_program_xattr(&attr, NULL, 0);
-	if (ret >= 0) {
-		obj->caps.name = 1;
-		close(ret);
-	}
-
-	return 0;
+	return probe_fd(ret);
 }
 
-static int
-bpf_object__probe_global_data(struct bpf_object *obj)
+static int probe_kern_global_data(void)
 {
 	struct bpf_load_program_attr prg_attr;
 	struct bpf_create_map_attr map_attr;
@@ -3498,16 +3510,23 @@ bpf_object__probe_global_data(struct bpf_object *obj)
 	prg_attr.license = "GPL";
 
 	ret = bpf_load_program_xattr(&prg_attr, NULL, 0);
-	if (ret >= 0) {
-		obj->caps.global_data = 1;
-		close(ret);
-	}
-
 	close(map);
-	return 0;
+	return probe_fd(ret);
 }
 
-static int bpf_object__probe_btf_func(struct bpf_object *obj)
+static int probe_kern_btf(void)
+{
+	static const char strs[] = "\0int";
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(1, BTF_INT_SIGNED, 0, 32, 4),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
+static int probe_kern_btf_func(void)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* void x(int a) {} */
@@ -3520,20 +3539,12 @@ static int bpf_object__probe_btf_func(struct bpf_object *obj)
 		/* FUNC x */                                    /* [3] */
 		BTF_TYPE_ENC(5, BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0), 2),
 	};
-	int btf_fd;
 
-	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
-				      strs, sizeof(strs));
-	if (btf_fd >= 0) {
-		obj->caps.btf_func = 1;
-		close(btf_fd);
-		return 1;
-	}
-
-	return 0;
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
 }
 
-static int bpf_object__probe_btf_func_global(struct bpf_object *obj)
+static int probe_kern_btf_func_global(void)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* static void x(int a) {} */
@@ -3546,20 +3557,12 @@ static int bpf_object__probe_btf_func_global(struct bpf_object *obj)
 		/* FUNC x BTF_FUNC_GLOBAL */                    /* [3] */
 		BTF_TYPE_ENC(5, BTF_INFO_ENC(BTF_KIND_FUNC, 0, BTF_FUNC_GLOBAL), 2),
 	};
-	int btf_fd;
 
-	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
-				      strs, sizeof(strs));
-	if (btf_fd >= 0) {
-		obj->caps.btf_func_global = 1;
-		close(btf_fd);
-		return 1;
-	}
-
-	return 0;
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
 }
 
-static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
+static int probe_kern_btf_datasec(void)
 {
 	static const char strs[] = "\0x\0.data";
 	/* static int a; */
@@ -3573,20 +3576,12 @@ static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
 		BTF_TYPE_ENC(3, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
 		BTF_VAR_SECINFO_ENC(2, 0, 4),
 	};
-	int btf_fd;
 
-	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types),
-				      strs, sizeof(strs));
-	if (btf_fd >= 0) {
-		obj->caps.btf_datasec = 1;
-		close(btf_fd);
-		return 1;
-	}
-
-	return 0;
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
 }
 
-static int bpf_object__probe_array_mmap(struct bpf_object *obj)
+static int probe_kern_array_mmap(void)
 {
 	struct bpf_create_map_attr attr = {
 		.map_type = BPF_MAP_TYPE_ARRAY,
@@ -3595,27 +3590,17 @@ static int bpf_object__probe_array_mmap(struct bpf_object *obj)
 		.value_size = sizeof(int),
 		.max_entries = 1,
 	};
-	int fd;
 
-	fd = bpf_create_map_xattr(&attr);
-	if (fd >= 0) {
-		obj->caps.array_mmap = 1;
-		close(fd);
-		return 1;
-	}
-
-	return 0;
+	return probe_fd(bpf_create_map_xattr(&attr));
 }
 
-static int
-bpf_object__probe_exp_attach_type(struct bpf_object *obj)
+static int probe_kern_exp_attach_type(void)
 {
 	struct bpf_load_program_attr attr;
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	int fd;
 
 	memset(&attr, 0, sizeof(attr));
 	/* use any valid combination of program type and (optional)
@@ -3629,36 +3614,91 @@ bpf_object__probe_exp_attach_type(struct bpf_object *obj)
 	attr.insns_cnt = ARRAY_SIZE(insns);
 	attr.license = "GPL";
 
-	fd = bpf_load_program_xattr(&attr, NULL, 0);
-	if (fd >= 0) {
-		obj->caps.exp_attach_type = 1;
-		close(fd);
-		return 1;
-	}
-	return 0;
+	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
 }
 
-static int
-bpf_object__probe_caps(struct bpf_object *obj)
+static int probe_kern_probe_read_kernel(void)
 {
-	int (*probe_fn[])(struct bpf_object *obj) = {
-		bpf_object__probe_name,
-		bpf_object__probe_global_data,
-		bpf_object__probe_btf_func,
-		bpf_object__probe_btf_func_global,
-		bpf_object__probe_btf_datasec,
-		bpf_object__probe_array_mmap,
-		bpf_object__probe_exp_attach_type,
+	struct bpf_load_program_attr attr;
+	struct bpf_insn insns[] = {
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),	/* r1 = r10 (fp) */
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),	/* r1 += -8 */
+		BPF_MOV64_IMM(BPF_REG_2, 8),		/* r2 = 8 */
+		BPF_MOV64_IMM(BPF_REG_3, 0),		/* r3 = 0 */
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_probe_read_kernel),
+		BPF_EXIT_INSN(),
 	};
-	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(probe_fn); i++) {
-		ret = probe_fn[i](obj);
-		if (ret < 0)
-			pr_debug("Probe #%d failed with %d.\n", i, ret);
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_KPROBE;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+
+	return probe_fd(bpf_load_program_xattr(&attr, NULL, 0));
+}
+
+enum kern_feature_result {
+	FEAT_UNKNOWN = 0,
+	FEAT_SUPPORTED = 1,
+	FEAT_MISSING = 2,
+};
+
+typedef int (*feature_probe_fn)(void);
+
+static struct kern_feature_desc {
+	const char *desc;
+	feature_probe_fn probe;
+	enum kern_feature_result res;
+} feature_probes[__FEAT_CNT] = {
+	[FEAT_PROG_NAME] = {
+		"BPF program name", probe_kern_prog_name,
+	},
+	[FEAT_GLOBAL_DATA] = {
+		"global variables", probe_kern_global_data,
+	},
+	[FEAT_BTF] = {
+		"minimal BTF", probe_kern_btf,
+	},
+	[FEAT_BTF_FUNC] = {
+		"BTF functions", probe_kern_btf_func,
+	},
+	[FEAT_BTF_GLOBAL_FUNC] = {
+		"BTF global function", probe_kern_btf_func_global,
+	},
+	[FEAT_BTF_DATASEC] = {
+		"BTF data section and variable", probe_kern_btf_datasec,
+	},
+	[FEAT_ARRAY_MMAP] = {
+		"ARRAY map mmap()", probe_kern_array_mmap,
+	},
+	[FEAT_EXP_ATTACH_TYPE] = {
+		"BPF_PROG_LOAD expected_attach_type attribute",
+		probe_kern_exp_attach_type,
+	},
+	[FEAT_PROBE_READ_KERN] = {
+		"bpf_probe_read_kernel() helper", probe_kern_probe_read_kernel,
+	}
+};
+
+static bool kernel_supports(enum kern_feature_id feat_id)
+{
+	struct kern_feature_desc *feat = &feature_probes[feat_id];
+	int ret;
+
+	if (READ_ONCE(feat->res) == FEAT_UNKNOWN) {
+		ret = feat->probe();
+		if (ret > 0) {
+			WRITE_ONCE(feat->res, FEAT_SUPPORTED);
+		} else if (ret == 0) {
+			WRITE_ONCE(feat->res, FEAT_MISSING);
+		} else {
+			pr_warn("Detection of kernel %s support failed: %d\n", feat->desc, ret);
+			WRITE_ONCE(feat->res, FEAT_MISSING);
+		}
 	}
 
-	return 0;
+	return READ_ONCE(feat->res) == FEAT_SUPPORTED;
 }
 
 static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
@@ -3760,7 +3800,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 
 	memset(&create_attr, 0, sizeof(create_attr));
 
-	if (obj->caps.name)
+	if (kernel_supports(FEAT_PROG_NAME))
 		create_attr.name = map->name;
 	create_attr.map_ifindex = map->map_ifindex;
 	create_attr.map_type = def->type;
@@ -5348,6 +5388,53 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 	return 0;
 }
 
+static bool insn_is_helper_call(struct bpf_insn *insn, enum bpf_func_id *func_id)
+{
+	__u8 class = BPF_CLASS(insn->code);
+
+	if ((class == BPF_JMP || class == BPF_JMP32) &&
+	    BPF_OP(insn->code) == BPF_CALL &&
+	    BPF_SRC(insn->code) == BPF_K &&
+	    insn->src_reg == 0 && insn->dst_reg == 0) {
+		    if (func_id)
+			    *func_id = insn->imm;
+		    return true;
+	}
+	return false;
+}
+
+static int bpf_object__sanitize_prog(struct bpf_object* obj, struct bpf_program *prog)
+{
+	struct bpf_insn *insn = prog->insns;
+	enum bpf_func_id func_id;
+	int i;
+
+	for (i = 0; i < prog->insns_cnt; i++, insn++) {
+		if (!insn_is_helper_call(insn, &func_id))
+			continue;
+
+		/* on kernels that don't yet support
+		 * bpf_probe_read_{kernel,user}[_str] helpers, fall back
+		 * to bpf_probe_read() which works well for old kernels
+		 */
+		switch (func_id) {
+		case BPF_FUNC_probe_read_kernel:
+		case BPF_FUNC_probe_read_user:
+			if (!kernel_supports(FEAT_PROBE_READ_KERN))
+				insn->imm = BPF_FUNC_probe_read;
+			break;
+		case BPF_FUNC_probe_read_kernel_str:
+		case BPF_FUNC_probe_read_user_str:
+			if (!kernel_supports(FEAT_PROBE_READ_KERN))
+				insn->imm = BPF_FUNC_probe_read_str;
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+
 static int
 load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	     char *license, __u32 kern_version, int *pfd)
@@ -5364,12 +5451,12 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = prog->type;
 	/* old kernels might not support specifying expected_attach_type */
-	if (!prog->caps->exp_attach_type && prog->sec_def &&
+	if (!kernel_supports(FEAT_EXP_ATTACH_TYPE) && prog->sec_def &&
 	    prog->sec_def->is_exp_attach_type_optional)
 		load_attr.expected_attach_type = 0;
 	else
 		load_attr.expected_attach_type = prog->expected_attach_type;
-	if (prog->caps->name)
+	if (kernel_supports(FEAT_PROG_NAME))
 		load_attr.name = prog->name;
 	load_attr.insns = insns;
 	load_attr.insns_cnt = insns_cnt;
@@ -5387,7 +5474,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	}
 	/* specify func_info/line_info only if kernel supports them */
 	btf_fd = bpf_object__btf_fd(prog->obj);
-	if (btf_fd >= 0 && prog->obj->caps.btf_func) {
+	if (btf_fd >= 0 && kernel_supports(FEAT_BTF_FUNC)) {
 		load_attr.prog_btf_fd = btf_fd;
 		load_attr.func_info = prog->func_info;
 		load_attr.func_info_rec_size = prog->func_info_rec_size;
@@ -5561,6 +5648,13 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	struct bpf_program *prog;
 	size_t i;
 	int err;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		prog = &obj->programs[i];
+		err = bpf_object__sanitize_prog(obj, prog);
+		if (err)
+			return err;
+	}
 
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
@@ -5750,11 +5844,11 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	bpf_object__for_each_map(m, obj) {
 		if (!bpf_map__is_internal(m))
 			continue;
-		if (!obj->caps.global_data) {
+		if (!kernel_supports(FEAT_GLOBAL_DATA)) {
 			pr_warn("kernel doesn't support global data\n");
 			return -ENOTSUP;
 		}
-		if (!obj->caps.array_mmap)
+		if (!kernel_supports(FEAT_ARRAY_MMAP))
 			m->def.map_flags ^= BPF_F_MMAPABLE;
 	}
 
@@ -5904,7 +5998,6 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	err = bpf_object__probe_loading(obj);
-	err = err ? : bpf_object__probe_caps(obj);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
