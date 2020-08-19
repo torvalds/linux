@@ -1097,7 +1097,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 						       DP_RX_BUFFER_SIZE, &tlv_filter);
 
 		if (ret) {
-			ath11k_warn(ab, "failed to set rx filter for moniter status ring\n");
+			ath11k_warn(ab, "failed to set rx filter for monitor status ring\n");
 			goto out;
 		}
 	}
