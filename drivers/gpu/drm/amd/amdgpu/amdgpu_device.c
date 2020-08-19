@@ -4078,6 +4078,11 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 
 	amdgpu_debugfs_wait_dump(adev);
 
+	if (amdgpu_sriov_vf(adev)) {
+		/* stop the data exchange thread */
+		amdgpu_virt_fini_data_exchange(adev);
+	}
+
 	/* block all schedulers and reset given job's ring */
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
