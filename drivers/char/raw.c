@@ -63,6 +63,11 @@ static int raw_open(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
+	pr_warn_ratelimited(
+		"process %s (pid %d) is using the deprecated raw device\n"
+		"support will be removed in Linux 5.14.\n",
+		current->comm, current->pid);
+
 	mutex_lock(&raw_mutex);
 
 	/*
