@@ -289,6 +289,23 @@ static int duration = 0;
 	.fails = true,							\
 }
 
+#define ENUMVAL_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_enumval.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"			\
+
+#define ENUMVAL_CASE(name, ...) {					\
+	ENUMVAL_CASE_COMMON(name),					\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_enumval_output)		\
+			__VA_ARGS__,					\
+	.output_len = sizeof(struct core_reloc_enumval_output),		\
+}
+
+#define ENUMVAL_ERR_CASE(name) {					\
+	ENUMVAL_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case;
 
 typedef int (*setup_test_fn)(struct core_reloc_test_case *test);
@@ -686,6 +703,45 @@ static struct core_reloc_test_case test_cases[] = {
 	/* BTF_TYPE_ID_LOCAL/BTF_TYPE_ID_TARGET tests */
 	TYPE_ID_CASE(type_id, setup_type_id_case_success),
 	TYPE_ID_CASE(type_id___missing_targets, setup_type_id_case_failure),
+
+	/* Enumerator value existence and value relocations */
+	ENUMVAL_CASE(enumval, {
+		.named_val1_exists = true,
+		.named_val2_exists = true,
+		.named_val3_exists = true,
+		.anon_val1_exists = true,
+		.anon_val2_exists = true,
+		.anon_val3_exists = true,
+		.named_val1 = 1,
+		.named_val2 = 2,
+		.anon_val1 = 0x10,
+		.anon_val2 = 0x20,
+	}),
+	ENUMVAL_CASE(enumval___diff, {
+		.named_val1_exists = true,
+		.named_val2_exists = true,
+		.named_val3_exists = true,
+		.anon_val1_exists = true,
+		.anon_val2_exists = true,
+		.anon_val3_exists = true,
+		.named_val1 = 101,
+		.named_val2 = 202,
+		.anon_val1 = 0x11,
+		.anon_val2 = 0x22,
+	}),
+	ENUMVAL_CASE(enumval___val3_missing, {
+		.named_val1_exists = true,
+		.named_val2_exists = true,
+		.named_val3_exists = false,
+		.anon_val1_exists = true,
+		.anon_val2_exists = true,
+		.anon_val3_exists = false,
+		.named_val1 = 111,
+		.named_val2 = 222,
+		.anon_val1 = 0x111,
+		.anon_val2 = 0x222,
+	}),
+	ENUMVAL_ERR_CASE(enumval___err_missing),
 };
 
 struct data {

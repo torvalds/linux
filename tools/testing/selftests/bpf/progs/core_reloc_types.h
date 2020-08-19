@@ -1075,3 +1075,87 @@ struct core_reloc_type_id {
 struct core_reloc_type_id___missing_targets {
 	/* nothing */
 };
+
+/*
+ * ENUMERATOR VALUE EXISTENCE AND VALUE RELOCATION
+ */
+struct core_reloc_enumval_output {
+	bool named_val1_exists;
+	bool named_val2_exists;
+	bool named_val3_exists;
+	bool anon_val1_exists;
+	bool anon_val2_exists;
+	bool anon_val3_exists;
+
+	int named_val1;
+	int named_val2;
+	int anon_val1;
+	int anon_val2;
+};
+
+enum named_enum {
+	NAMED_ENUM_VAL1 = 1,
+	NAMED_ENUM_VAL2 = 2,
+	NAMED_ENUM_VAL3 = 3,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1 = 0x10,
+	ANON_ENUM_VAL2 = 0x20,
+	ANON_ENUM_VAL3 = 0x30,
+} anon_enum;
+
+struct core_reloc_enumval {
+	enum named_enum f1;
+	anon_enum f2;
+};
+
+/* differing enumerator values */
+enum named_enum___diff {
+	NAMED_ENUM_VAL1___diff = 101,
+	NAMED_ENUM_VAL2___diff = 202,
+	NAMED_ENUM_VAL3___diff = 303,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___diff = 0x11,
+	ANON_ENUM_VAL2___diff = 0x22,
+	ANON_ENUM_VAL3___diff = 0x33,
+} anon_enum___diff;
+
+struct core_reloc_enumval___diff {
+	enum named_enum___diff f1;
+	anon_enum___diff f2;
+};
+
+/* missing (optional) third enum value */
+enum named_enum___val3_missing {
+	NAMED_ENUM_VAL1___val3_missing = 111,
+	NAMED_ENUM_VAL2___val3_missing = 222,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___val3_missing = 0x111,
+	ANON_ENUM_VAL2___val3_missing = 0x222,
+} anon_enum___val3_missing;
+
+struct core_reloc_enumval___val3_missing {
+	enum named_enum___val3_missing f1;
+	anon_enum___val3_missing f2;
+};
+
+/* missing (mandatory) second enum value, should fail */
+enum named_enum___err_missing {
+	NAMED_ENUM_VAL1___err_missing = 1,
+	NAMED_ENUM_VAL3___err_missing = 3,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___err_missing = 0x111,
+	ANON_ENUM_VAL3___err_missing = 0x222,
+} anon_enum___err_missing;
+
+struct core_reloc_enumval___err_missing {
+	enum named_enum___err_missing f1;
+	anon_enum___err_missing f2;
+};
