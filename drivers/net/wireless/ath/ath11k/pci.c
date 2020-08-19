@@ -648,9 +648,12 @@ static int ath11k_pci_ext_irq_config(struct ath11k_base *ab)
 	int i, j, ret, num_vectors = 0;
 	u32 user_base_data = 0, base_vector = 0;
 
-	ath11k_pci_get_user_msi_assignment(ath11k_pci_priv(ab), "DP",
-					   &num_vectors, &user_base_data,
-					   &base_vector);
+	ret = ath11k_pci_get_user_msi_assignment(ath11k_pci_priv(ab), "DP",
+						 &num_vectors,
+						 &user_base_data,
+						 &base_vector);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
