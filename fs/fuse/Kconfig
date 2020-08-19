@@ -42,6 +42,7 @@ config VIRTIO_FS
 config FUSE_DAX
 	bool "Virtio Filesystem Direct Host Memory Access support"
 	default y
+	select INTERVAL_TREE
 	depends on VIRTIO_FS
 	depends on FS_DAX
 	depends on DAX_DRIVER

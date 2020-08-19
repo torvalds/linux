@@ -1539,9 +1539,13 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
+	struct inode *inode = file_inode(file);
 
-	if (is_bad_inode(file_inode(file)))
+	if (is_bad_inode(inode))
 		return -EIO;
+
+	if (FUSE_IS_DAX(inode))
+		return fuse_dax_read_iter(iocb, to);
 
 	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_read_iter(iocb, to);
@@ -1553,9 +1557,13 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
+	struct inode *inode = file_inode(file);
 
-	if (is_bad_inode(file_inode(file)))
+	if (is_bad_inode(inode))
 		return -EIO;
+
+	if (FUSE_IS_DAX(inode))
+		return fuse_dax_write_iter(iocb, from);
 
 	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_write_iter(iocb, from);
@@ -3440,4 +3448,7 @@ void fuse_init_file_inode(struct inode *inode)
 	fi->writectr = 0;
 	init_waitqueue_head(&fi->page_waitq);
 	fi->writepages = RB_ROOT;
+
+	if (IS_ENABLED(CONFIG_FUSE_DAX))
+		fuse_dax_inode_init(inode);
 }
