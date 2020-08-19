@@ -182,7 +182,7 @@ struct gc5025 {
 /*
  * Xclk 24Mhz
  */
-static const struct regval gc5025_global_regs[] = {
+static const struct regval gc5025_2592x1944_regs[] = {
 	{REG_NULL, 0x00},
 };
 
@@ -191,7 +191,7 @@ static const struct regval gc5025_global_regs[] = {
  * max_framerate 30fps
  * mipi_datarate per lane 656Mbps
  */
-static const struct regval gc5025_1600x1200_regs[] = {
+static const struct regval gc5025_global_regs[] = {
 	{0xfe, 0x00},
 	{0xfe, 0x00},
 	{0xfe, 0x00},
@@ -340,7 +340,7 @@ static const struct gc5025_mode supported_modes[] = {
 		.exp_def = 0x07C0,
 		.hts_def = 0x12C0,
 		.vts_def = 0x07D0,
-		.reg_list = gc5025_1600x1200_regs,
+		.reg_list = gc5025_2592x1944_regs,
 	},
 };
 
