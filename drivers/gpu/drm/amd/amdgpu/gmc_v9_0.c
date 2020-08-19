@@ -1075,6 +1075,20 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	return amdgpu_gart_table_vram_alloc(adev);
 }
 
+/**
+ * gmc_v9_0_save_registers - saves regs
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * This saves potential register values that should be
+ * restored upon resume
+ */
+static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
+{
+	if (adev->asic_type == CHIP_RAVEN)
+		adev->gmc.sdpif_register = RREG32_SOC15(DCE, 0, mmDCHUBBUB_SDPIF_MMIO_CNTRL_0);
+}
+
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
@@ -1229,6 +1243,8 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	amdgpu_vm_manager_init(adev);
 
+	gmc_v9_0_save_registers(adev);
+
 	return 0;
 }
 
@@ -1282,7 +1298,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
  *
  * This restores register values, saved at suspend.
  */
-static void gmc_v9_0_restore_registers(struct amdgpu_device *adev)
+void gmc_v9_0_restore_registers(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_RAVEN)
 		WREG32_SOC15(DCE, 0, mmDCHUBBUB_SDPIF_MMIO_CNTRL_0, adev->gmc.sdpif_register);
@@ -1387,20 +1403,6 @@ static int gmc_v9_0_hw_init(void *handle)
 }
 
 /**
- * gmc_v9_0_save_registers - saves regs
- *
- * @adev: amdgpu_device pointer
- *
- * This saves potential register values that should be
- * restored upon resume
- */
-static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
-{
-	if (adev->asic_type == CHIP_RAVEN)
-		adev->gmc.sdpif_register = RREG32_SOC15(DCE, 0, mmDCHUBBUB_SDPIF_MMIO_CNTRL_0);
-}
-
-/**
  * gmc_v9_0_gart_disable - gart disable
  *
  * @adev: amdgpu_device pointer
@@ -1440,8 +1442,6 @@ static int gmc_v9_0_suspend(void *handle)
 	if (r)
 		return r;
 
-	gmc_v9_0_save_registers(adev);
-
 	return 0;
 }
 
@@ -1450,7 +1450,6 @@ static int gmc_v9_0_resume(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v9_0_restore_registers(adev);
 	r = gmc_v9_0_hw_init(adev);
 	if (r)
 		return r;
