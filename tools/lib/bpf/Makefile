@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 # Most of this file is copied from tools/lib/traceevent/Makefile
 
+RM ?= rm
+srctree = $(abs_srctree)
+
 LIBBPF_VERSION := $(shell \
 	grep -oE '^LIBBPF_([0-9.]+)' libbpf.map | \
 	sort -rV | head -n1 | cut -d'_' -f2)
@@ -188,7 +191,7 @@ $(OUTPUT)libbpf.so.$(LIBBPF_VERSION): $(BPF_IN_SHARED)
 	@ln -sf $(@F) $(OUTPUT)libbpf.so.$(LIBBPF_MAJOR_VERSION)
 
 $(OUTPUT)libbpf.a: $(BPF_IN_STATIC)
-	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
+	$(QUIET_LINK)$(RM) -f $@; $(AR) rcs $@ $^
 
 $(OUTPUT)libbpf.pc:
 	$(QUIET_GEN)sed -e "s|@PREFIX@|$(prefix)|" \
@@ -291,7 +294,7 @@ cscope:
 	cscope -b -q -I $(srctree)/include -f cscope.out
 
 tags:
-	rm -f TAGS tags
+	$(RM) -f TAGS tags
 	ls *.c *.h | xargs $(TAGS_PROG) -a
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
