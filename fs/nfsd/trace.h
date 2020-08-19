@@ -12,6 +12,22 @@
 #include "export.h"
 #include "nfsfh.h"
 
+#define show_nfsd_may_flags(x)						\
+	__print_flags(x, "|",						\
+		{ NFSD_MAY_EXEC,		"EXEC" },		\
+		{ NFSD_MAY_WRITE,		"WRITE" },		\
+		{ NFSD_MAY_READ,		"READ" },		\
+		{ NFSD_MAY_SATTR,		"SATTR" },		\
+		{ NFSD_MAY_TRUNC,		"TRUNC" },		\
+		{ NFSD_MAY_LOCK,		"LOCK" },		\
+		{ NFSD_MAY_OWNER_OVERRIDE,	"OWNER_OVERRIDE" },	\
+		{ NFSD_MAY_LOCAL_ACCESS,	"LOCAL_ACCESS" },	\
+		{ NFSD_MAY_BYPASS_GSS_ON_ROOT,	"BYPASS_GSS_ON_ROOT" },	\
+		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" },	\
+		{ NFSD_MAY_BYPASS_GSS,		"BYPASS_GSS" },		\
+		{ NFSD_MAY_READ_IF_EXEC,	"READ_IF_EXEC" },	\
+		{ NFSD_MAY_64BIT_COOKIE,	"64BIT_COOKIE" })
+
 TRACE_EVENT(nfsd_compound,
 	TP_PROTO(const struct svc_rqst *rqst,
 		 u32 args_opcnt),
@@ -421,6 +437,9 @@ TRACE_EVENT(nfsd_clid_inuse_err,
 		__entry->cl_boot, __entry->cl_id)
 )
 
+/*
+ * from fs/nfsd/filecache.h
+ */
 TRACE_DEFINE_ENUM(NFSD_FILE_HASHED);
 TRACE_DEFINE_ENUM(NFSD_FILE_PENDING);
 TRACE_DEFINE_ENUM(NFSD_FILE_BREAK_READ);
@@ -434,13 +453,6 @@ TRACE_DEFINE_ENUM(NFSD_FILE_REFERENCED);
 		{ 1 << NFSD_FILE_BREAK_READ,	"BREAK_READ" },		\
 		{ 1 << NFSD_FILE_BREAK_WRITE,	"BREAK_WRITE" },	\
 		{ 1 << NFSD_FILE_REFERENCED,	"REFERENCED"})
-
-/* FIXME: This should probably be fleshed out in the future. */
-#define show_nf_may(val)						\
-	__print_flags(val, "|",						\
-		{ NFSD_MAY_READ,		"READ" },		\
-		{ NFSD_MAY_WRITE,		"WRITE" },		\
-		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" })
 
 DECLARE_EVENT_CLASS(nfsd_file_class,
 	TP_PROTO(struct nfsd_file *nf),
@@ -466,7 +478,7 @@ DECLARE_EVENT_CLASS(nfsd_file_class,
 		__entry->nf_inode,
 		__entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
-		show_nf_may(__entry->nf_may),
+		show_nfsd_may_flags(__entry->nf_may),
 		__entry->nf_file)
 )
 
@@ -492,10 +504,10 @@ TRACE_EVENT(nfsd_file_acquire,
 		__field(u32, xid)
 		__field(unsigned int, hash)
 		__field(void *, inode)
-		__field(unsigned int, may_flags)
+		__field(unsigned long, may_flags)
 		__field(int, nf_ref)
 		__field(unsigned long, nf_flags)
-		__field(unsigned char, nf_may)
+		__field(unsigned long, nf_may)
 		__field(struct file *, nf_file)
 		__field(u32, status)
 	),
@@ -514,10 +526,10 @@ TRACE_EVENT(nfsd_file_acquire,
 
 	TP_printk("xid=0x%x hash=0x%x inode=0x%p may_flags=%s ref=%d nf_flags=%s nf_may=%s nf_file=0x%p status=%u",
 			__entry->xid, __entry->hash, __entry->inode,
-			show_nf_may(__entry->may_flags), __entry->nf_ref,
-			show_nf_flags(__entry->nf_flags),
-			show_nf_may(__entry->nf_may), __entry->nf_file,
-			__entry->status)
+			show_nfsd_may_flags(__entry->may_flags),
+			__entry->nf_ref, show_nf_flags(__entry->nf_flags),
+			show_nfsd_may_flags(__entry->nf_may),
+			__entry->nf_file, __entry->status)
 );
 
 DECLARE_EVENT_CLASS(nfsd_file_search_class,
