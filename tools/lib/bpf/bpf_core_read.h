@@ -19,6 +19,18 @@ enum bpf_field_info_kind {
 	BPF_FIELD_RSHIFT_U64 = 5,
 };
 
+/* second argument to __builtin_btf_type_id() built-in */
+enum bpf_type_id_kind {
+	BPF_TYPE_ID_LOCAL = 0,		/* BTF type ID in local program */
+	BPF_TYPE_ID_TARGET = 1,		/* BTF type ID in target kernel */
+};
+
+/* second argument to __builtin_preserve_type_info() built-in */
+enum bpf_type_info_kind {
+	BPF_TYPE_EXISTS = 0,		/* type existence in target kernel */
+	BPF_TYPE_SIZE = 1,		/* type size in target kernel */
+};
+
 #define __CORE_RELO(src, field, info)					      \
 	__builtin_preserve_field_info((src)->field, BPF_FIELD_##info)
 
@@ -94,11 +106,49 @@ enum bpf_field_info_kind {
 	__builtin_preserve_field_info(field, BPF_FIELD_EXISTS)
 
 /*
- * Convenience macro to get byte size of a field. Works for integers,
+ * Convenience macro to get the byte size of a field. Works for integers,
  * struct/unions, pointers, arrays, and enums.
  */
 #define bpf_core_field_size(field)					    \
 	__builtin_preserve_field_info(field, BPF_FIELD_BYTE_SIZE)
+
+/*
+ * Convenience macro to get BTF type ID of a specified type, using a local BTF
+ * information. Return 32-bit unsigned integer with type ID from program's own
+ * BTF. Always succeeds.
+ */
+#define bpf_core_type_id_local(type)					    \
+	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_LOCAL)
+
+/*
+ * Convenience macro to get BTF type ID of a target kernel's type that matches
+ * specified local type.
+ * Returns:
+ *    - valid 32-bit unsigned type ID in kernel BTF;
+ *    - 0, if no matching type was found in a target kernel BTF.
+ */
+#define bpf_core_type_id_kernel(type)					    \
+	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_TARGET)
+
+/*
+ * Convenience macro to check that provided named type
+ * (struct/union/enum/typedef) exists in a target kernel.
+ * Returns:
+ *    1, if such type is present in target kernel's BTF;
+ *    0, if no matching type is found.
+ */
+#define bpf_core_type_exists(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_EXISTS)
+
+/*
+ * Convenience macro to get the byte size of a provided named type
+ * (struct/union/enum/typedef) in a target kernel.
+ * Returns:
+ *    >= 0 size (in bytes), if type is present in target kernel's BTF;
+ *    0, if no matching type is found.
+ */
+#define bpf_core_type_size(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_SIZE)
 
 /*
  * bpf_core_read() abstracts away bpf_probe_read_kernel() call and captures

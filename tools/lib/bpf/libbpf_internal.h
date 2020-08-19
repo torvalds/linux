@@ -238,6 +238,10 @@ enum bpf_core_relo_kind {
 	BPF_FIELD_SIGNED = 3,		/* field signedness (0 - unsigned, 1 - signed) */
 	BPF_FIELD_LSHIFT_U64 = 4,	/* bitfield-specific left bitshift */
 	BPF_FIELD_RSHIFT_U64 = 5,	/* bitfield-specific right bitshift */
+	BPF_TYPE_ID_LOCAL = 6,		/* type ID in local BPF object */
+	BPF_TYPE_ID_TARGET = 7,		/* type ID in target kernel */
+	BPF_TYPE_EXISTS = 8,		/* type existence in target kernel */
+	BPF_TYPE_SIZE = 9,		/* type size in bytes */
 };
 
 /* The minimum bpf_core_relo checked by the loader
