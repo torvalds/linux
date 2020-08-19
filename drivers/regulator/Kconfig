@@ -907,6 +907,7 @@ config REGULATOR_ROHM
 config REGULATOR_RT4801
 	tristate "Richtek RT4801 Regulators"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  This adds support for voltage regulators in Richtek RT4801 Display Bias IC.
 	  The device supports two regulators (DSVP/DSVN).
