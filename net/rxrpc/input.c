@@ -608,36 +608,57 @@ unlock:
 }
 
 /*
- * Process a requested ACK.
+ * See if there's a cached RTT probe to complete.
  */
-static void rxrpc_input_requested_ack(struct rxrpc_call *call,
-				      ktime_t resp_time,
-				      rxrpc_serial_t orig_serial,
-				      rxrpc_serial_t ack_serial)
+static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
+				     ktime_t resp_time,
+				     rxrpc_serial_t acked_serial,
+				     rxrpc_serial_t ack_serial,
+				     enum rxrpc_rtt_rx_trace type)
 {
-	struct rxrpc_skb_priv *sp;
-	struct sk_buff *skb;
+	rxrpc_serial_t orig_serial;
+	unsigned long avail;
 	ktime_t sent_at;
-	int ix;
+	bool matched = false;
+	int i;
 
-	for (ix = 0; ix < RXRPC_RXTX_BUFF_SIZE; ix++) {
-		skb = call->rxtx_buffer[ix];
-		if (!skb)
+	avail = READ_ONCE(call->rtt_avail);
+	smp_rmb(); /* Read avail bits before accessing data. */
+
+	for (i = 0; i < ARRAY_SIZE(call->rtt_serial); i++) {
+		if (!test_bit(i + RXRPC_CALL_RTT_PEND_SHIFT, &avail))
 			continue;
 
-		sent_at = skb->tstamp;
-		smp_rmb(); /* Read timestamp before serial. */
-		sp = rxrpc_skb(skb);
-		if (sp->hdr.serial != orig_serial)
-			continue;
-		goto found;
+		sent_at = call->rtt_sent_at[i];
+		orig_serial = call->rtt_serial[i];
+
+		if (orig_serial == acked_serial) {
+			clear_bit(i + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
+			smp_mb(); /* Read data before setting avail bit */
+			set_bit(i, &call->rtt_avail);
+			if (type != rxrpc_rtt_rx_cancel)
+				rxrpc_peer_add_rtt(call, type, i, acked_serial, ack_serial,
+						   sent_at, resp_time);
+			else
+				trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_cancel, i,
+						   orig_serial, acked_serial, 0, 0);
+			matched = true;
+		}
+
+		/* If a later serial is being acked, then mark this slot as
+		 * being available.
+		 */
+		if (after(acked_serial, orig_serial)) {
+			trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_obsolete, i,
+					   orig_serial, acked_serial, 0, 0);
+			clear_bit(i + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
+			smp_wmb();
+			set_bit(i, &call->rtt_avail);
+		}
 	}
 
-	return;
-
-found:
-	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_requested_ack,
-			   orig_serial, ack_serial, sent_at, resp_time);
+	if (!matched)
+		trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_lost, 9, 0, acked_serial, 0, 0);
 }
 
 /*
@@ -682,27 +703,11 @@ static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
  */
 static void rxrpc_input_ping_response(struct rxrpc_call *call,
 				      ktime_t resp_time,
-				      rxrpc_serial_t orig_serial,
+				      rxrpc_serial_t acked_serial,
 				      rxrpc_serial_t ack_serial)
 {
-	rxrpc_serial_t ping_serial;
-	ktime_t ping_time;
-
-	ping_time = call->ping_time;
-	smp_rmb();
-	ping_serial = READ_ONCE(call->ping_serial);
-
-	if (orig_serial == call->acks_lost_ping)
+	if (acked_serial == call->acks_lost_ping)
 		rxrpc_input_check_for_lost_ack(call);
-
-	if (before(orig_serial, ping_serial) ||
-	    !test_and_clear_bit(RXRPC_CALL_PINGING, &call->flags))
-		return;
-	if (after(orig_serial, ping_serial))
-		return;
-
-	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_ping_response,
-			   orig_serial, ack_serial, ping_time, resp_time);
 }
 
 /*
@@ -869,12 +874,23 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 			   first_soft_ack, prev_pkt,
 			   summary.ack_reason, nr_acks);
 
-	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
+	switch (buf.ack.reason) {
+	case RXRPC_ACK_PING_RESPONSE:
 		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
 					  ack_serial);
-	if (buf.ack.reason == RXRPC_ACK_REQUESTED)
-		rxrpc_input_requested_ack(call, skb->tstamp, acked_serial,
-					  ack_serial);
+		rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
+					 rxrpc_rtt_rx_ping_response);
+		break;
+	case RXRPC_ACK_REQUESTED:
+		rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
+					 rxrpc_rtt_rx_requested_ack);
+		break;
+	default:
+		if (acked_serial != 0)
+			rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
+						 rxrpc_rtt_rx_cancel);
+		break;
+	}
 
 	if (buf.ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", ack_serial);
