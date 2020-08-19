@@ -310,6 +310,12 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
 }
 
+static inline void kvm_apic_set_dfr(struct kvm_lapic *apic, u32 val)
+{
+	kvm_lapic_set_reg(apic, APIC_DFR, val);
+	atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
+}
+
 static inline u32 kvm_apic_calc_x2apic_ldr(u32 id)
 {
 	return ((id >> 4) << 16) | (1 << (id & 0xf));
@@ -1984,10 +1990,9 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		break;
 
 	case APIC_DFR:
-		if (!apic_x2apic_mode(apic)) {
-			kvm_lapic_set_reg(apic, APIC_DFR, val | 0x0FFFFFFF);
-			atomic_set_release(&apic->vcpu->kvm->arch.apic_map_dirty, DIRTY);
-		} else
+		if (!apic_x2apic_mode(apic))
+			kvm_apic_set_dfr(apic, val | 0x0FFFFFFF);
+		else
 			ret = 1;
 		break;
 
@@ -2303,7 +2308,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 			     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
 	apic_manage_nmi_watchdog(apic, kvm_lapic_get_reg(apic, APIC_LVT0));
 
-	kvm_lapic_set_reg(apic, APIC_DFR, 0xffffffffU);
+	kvm_apic_set_dfr(apic, 0xffffffffU);
 	apic_set_spiv(apic, 0xff);
 	kvm_lapic_set_reg(apic, APIC_TASKPRI, 0);
 	if (!apic_x2apic_mode(apic))
