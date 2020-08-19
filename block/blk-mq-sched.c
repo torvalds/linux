@@ -560,7 +560,7 @@ static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 				   struct blk_mq_hw_ctx *hctx,
 				   unsigned int hctx_idx)
 {
-	unsigned int flags = set->flags;
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 
 	if (hctx->sched_tags) {
 		blk_mq_free_rqs(set, hctx->sched_tags, hctx_idx);
@@ -574,7 +574,8 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 				   unsigned int hctx_idx)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
-	unsigned int flags = set->flags;
+	/* Clear HCTX_SHARED so tags are init'ed */
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
 	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
@@ -596,7 +597,8 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		unsigned int flags = hctx->flags;
+		/* Clear HCTX_SHARED so tags are freed */
+		unsigned int flags = hctx->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 
 		if (hctx->sched_tags) {
 			blk_mq_free_rq_map(hctx->sched_tags, flags);
