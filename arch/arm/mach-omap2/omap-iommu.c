@@ -74,7 +74,7 @@ static struct powerdomain *_get_pwrdm(struct device *dev)
 		return pwrdm;
 
 	clk = of_clk_get(dev->of_node->parent, 0);
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		dev_err(dev, "no fck found\n");
 		return NULL;
 	}
