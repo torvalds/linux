@@ -1489,6 +1489,12 @@ void __cpu_die(unsigned int cpu)
 		smp_ops->cpu_die(cpu);
 }
 
+void arch_cpu_idle_dead(void)
+{
+	sched_preempt_enable_no_resched();
+	cpu_die();
+}
+
 void cpu_die(void)
 {
 	/*
