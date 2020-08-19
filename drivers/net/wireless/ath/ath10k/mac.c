@@ -6688,6 +6688,7 @@ out:
 struct ath10k_mac_iter_tid_conf_data {
 	struct ieee80211_vif *curr_vif;
 	struct ath10k *ar;
+	bool reset_config;
 };
 
 static bool
@@ -7073,6 +7074,58 @@ ath10k_mac_parse_tid_config(struct ath10k *ar,
 	return ret;
 }
 
+static int ath10k_mac_reset_tid_config(struct ath10k *ar,
+				       struct ieee80211_sta *sta,
+				       struct ath10k_vif *arvif,
+				       u8 tids)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct wmi_per_peer_per_tid_cfg_arg arg;
+	int ret = 0, i = 0;
+
+	arg.vdev_id = arvif->vdev_id;
+	while (i < ATH10K_TID_MAX) {
+		if (!(tids & BIT(i))) {
+			i++;
+			continue;
+		}
+
+		arg.tid = i;
+		arg.ack_policy = WMI_PEER_TID_CONFIG_ACK;
+		arg.retry_count = ATH10K_MAX_RETRY_COUNT;
+		arg.rate_ctrl = WMI_TID_CONFIG_RATE_CONTROL_AUTO;
+		arg.aggr_control = WMI_TID_CONFIG_AGGR_CONTROL_ENABLE;
+		arg.rtscts_ctrl = WMI_TID_CONFIG_RTSCTS_CONTROL_ENABLE;
+		arg.ext_tid_cfg_bitmap = WMI_EXT_TID_RTS_CTS_CONFIG;
+
+		ether_addr_copy(arg.peer_macaddr.addr, sta->addr);
+
+		ret = ath10k_wmi_set_per_peer_per_tid_cfg(ar, &arg);
+		if (ret)
+			return ret;
+
+		if (!arvif->tids_rst) {
+			arsta->retry_long[i] = -1;
+			arsta->noack[i] = -1;
+			arsta->ampdu[i] = -1;
+			arsta->rate_code[i] = -1;
+			arsta->rate_ctrl[i] = 0;
+			arsta->rtscts[i] = -1;
+		} else {
+			arvif->retry_long[i] = 0;
+			arvif->noack[i] = 0;
+			arvif->ampdu[i] = 0;
+			arvif->rate_code[i] = 0;
+			arvif->rate_ctrl[i] = 0;
+			arvif->rtscts[i] = 0;
+		}
+
+		i++;
+	}
+
+	return ret;
+}
+
 static void ath10k_sta_tid_cfg_wk(struct work_struct *wk)
 {
 	struct wmi_per_peer_per_tid_cfg_arg arg = {};
@@ -7091,6 +7144,12 @@ static void ath10k_sta_tid_cfg_wk(struct work_struct *wk)
 	ar = arvif->ar;
 
 	mutex_lock(&ar->conf_mutex);
+
+	if (arvif->tids_rst) {
+		ret = ath10k_mac_reset_tid_config(ar, sta, arvif,
+						  arvif->tids_rst);
+		goto exit;
+	}
 
 	ether_addr_copy(arg.peer_macaddr.addr, sta->addr);
 
@@ -7184,6 +7243,7 @@ static void ath10k_sta_tid_cfg_wk(struct work_struct *wk)
 		arg.rcode_flags = 0;
 	}
 
+exit:
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -9100,6 +9160,7 @@ static int ath10k_mac_op_set_tid_config(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 	arg.vdev_id = arvif->vdev_id;
 
+	arvif->tids_rst = 0;
 	memset(arvif->tid_conf_changed, 0, sizeof(arvif->tid_conf_changed));
 
 	for (i = 0; i < tid_config->n_tid_conf; i++) {
@@ -9114,9 +9175,39 @@ static int ath10k_mac_op_set_tid_config(struct ieee80211_hw *hw,
 		goto exit;
 
 	ret = 0;
+	arvif->tids_rst = 0;
 	data.curr_vif = vif;
 	data.ar = ar;
 
+	ieee80211_iterate_stations_atomic(hw, ath10k_mac_vif_stations_tid_conf,
+					  &data);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_mac_op_reset_tid_config(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta,
+					  u8 tids)
+{
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_mac_iter_tid_conf_data data = {};
+	struct ath10k *ar = hw->priv;
+	int ret = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (sta) {
+		arvif->tids_rst = 0;
+		ret = ath10k_mac_reset_tid_config(ar, sta, arvif, tids);
+		goto exit;
+	}
+
+	arvif->tids_rst = tids;
+	data.curr_vif = vif;
+	data.ar = ar;
 	ieee80211_iterate_stations_atomic(hw, ath10k_mac_vif_stations_tid_conf,
 					  &data);
 
@@ -9169,6 +9260,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.sta_pre_rcu_remove		= ath10k_mac_op_sta_pre_rcu_remove,
 	.sta_statistics			= ath10k_sta_statistics,
 	.set_tid_config			= ath10k_mac_op_set_tid_config,
+	.reset_tid_config		= ath10k_mac_op_reset_tid_config,
 
 	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
 

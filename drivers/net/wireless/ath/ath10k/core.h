@@ -633,6 +633,7 @@ struct ath10k_vif {
 	u8 rate_ctrl[ATH10K_TID_MAX];
 	u32 rate_code[ATH10K_TID_MAX];
 	int rtscts[ATH10K_TID_MAX];
+	u32 tids_rst;
 };
 
 struct ath10k_vif_iter {
