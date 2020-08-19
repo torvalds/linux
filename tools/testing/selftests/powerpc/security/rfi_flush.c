@@ -89,6 +89,9 @@ int rfi_flush_test(void)
 
 	SKIP_IF(geteuid() != 0);
 
+	// The PMU event we use only works on Power7 or later
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
+
 	if (read_debugfs_file("powerpc/rfi_flush", &rfi_flush_org)) {
 		perror("Unable to read powerpc/rfi_flush debugfs file");
 		SKIP_IF(1);
