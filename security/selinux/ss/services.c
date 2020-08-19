@@ -2293,6 +2293,9 @@ size_t security_policydb_len(struct selinux_state *state)
 {
 	size_t len;
 
+	if (!selinux_initialized(state))
+		return 0;
+
 	read_lock(&state->ss->policy_rwlock);
 	len = state->ss->policy->policydb.len;
 	read_unlock(&state->ss->policy_rwlock);
@@ -2313,6 +2316,11 @@ int security_port_sid(struct selinux_state *state,
 	struct sidtab *sidtab;
 	struct ocontext *c;
 	int rc = 0;
+
+	if (!selinux_initialized(state)) {
+		*out_sid = SECINITSID_PORT;
+		return 0;
+	}
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2358,6 +2366,11 @@ int security_ib_pkey_sid(struct selinux_state *state,
 	struct sidtab *sidtab;
 	struct ocontext *c;
 	int rc = 0;
+
+	if (!selinux_initialized(state)) {
+		*out_sid = SECINITSID_UNLABELED;
+		return 0;
+	}
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2405,6 +2418,11 @@ int security_ib_endport_sid(struct selinux_state *state,
 	struct ocontext *c;
 	int rc = 0;
 
+	if (!selinux_initialized(state)) {
+		*out_sid = SECINITSID_UNLABELED;
+		return 0;
+	}
+
 	read_lock(&state->ss->policy_rwlock);
 
 	policydb = &state->ss->policy->policydb;
@@ -2449,6 +2467,11 @@ int security_netif_sid(struct selinux_state *state,
 	struct sidtab *sidtab;
 	int rc = 0;
 	struct ocontext *c;
+
+	if (!selinux_initialized(state)) {
+		*if_sid = SECINITSID_NETIF;
+		return 0;
+	}
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2512,6 +2535,11 @@ int security_node_sid(struct selinux_state *state,
 	struct sidtab *sidtab;
 	int rc;
 	struct ocontext *c;
+
+	if (!selinux_initialized(state)) {
+		*out_sid = SECINITSID_NODE;
+		return 0;
+	}
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2780,6 +2808,11 @@ int security_genfs_sid(struct selinux_state *state,
 {
 	int retval;
 
+	if (!selinux_initialized(state)) {
+		*sid = SECINITSID_UNLABELED;
+		return 0;
+	}
+
 	read_lock(&state->ss->policy_rwlock);
 	retval = __security_genfs_sid(state->ss->policy,
 				fstype, path, orig_sclass, sid);
@@ -2809,6 +2842,12 @@ int security_fs_use(struct selinux_state *state, struct super_block *sb)
 	struct ocontext *c;
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *fstype = sb->s_type->name;
+
+	if (!selinux_initialized(state)) {
+		sbsec->behavior = SECURITY_FS_USE_NONE;
+		sbsec->sid = SECINITSID_UNLABELED;
+		return 0;
+	}
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2906,6 +2945,9 @@ int security_set_bools(struct selinux_state *state, u32 len, int *values)
 	int rc;
 	u32 i, seqno = 0;
 
+	if (!selinux_initialized(state))
+		return -EINVAL;
+
 	/*
 	 * NOTE: We do not need to take the policy read-lock
 	 * around the code below because other policy-modifying
@@ -2981,6 +3023,9 @@ int security_get_bool_value(struct selinux_state *state,
 	struct policydb *policydb;
 	int rc;
 	u32 len;
+
+	if (!selinux_initialized(state))
+		return 0;
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -3161,6 +3206,9 @@ int security_net_peersid_resolve(struct selinux_state *state,
 		return 0;
 	}
 
+	if (!selinux_initialized(state))
+		return 0;
+
 	read_lock(&state->ss->policy_rwlock);
 
 	policydb = &state->ss->policy->policydb;
@@ -3307,6 +3355,9 @@ int security_get_reject_unknown(struct selinux_state *state)
 {
 	int value;
 
+	if (!selinux_initialized(state))
+		return 0;
+
 	read_lock(&state->ss->policy_rwlock);
 	value = state->ss->policy->policydb.reject_unknown;
 	read_unlock(&state->ss->policy_rwlock);
@@ -3316,6 +3367,9 @@ int security_get_reject_unknown(struct selinux_state *state)
 int security_get_allow_unknown(struct selinux_state *state)
 {
 	int value;
+
+	if (!selinux_initialized(state))
+		return 0;
 
 	read_lock(&state->ss->policy_rwlock);
 	value = state->ss->policy->policydb.allow_unknown;
@@ -3337,6 +3391,9 @@ int security_policycap_supported(struct selinux_state *state,
 				 unsigned int req_cap)
 {
 	int rc;
+
+	if (!selinux_initialized(state))
+		return 0;
 
 	read_lock(&state->ss->policy_rwlock);
 	rc = ebitmap_get_bit(&state->ss->policy->policydb.policycaps, req_cap);
@@ -3498,6 +3555,9 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 		WARN_ONCE(1, "selinux_audit_rule_match: missing rule\n");
 		return -ENOENT;
 	}
+
+	if (!selinux_initialized(state))
+		return 0;
 
 	read_lock(&state->ss->policy_rwlock);
 
