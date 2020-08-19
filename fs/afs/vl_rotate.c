@@ -193,7 +193,7 @@ pick_server:
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
 
 		if (!test_bit(i, &vc->untried) ||
-		    !(s->probe.flags & AFS_VLSERVER_PROBE_RESPONDED))
+		    !test_bit(AFS_VLSERVER_FL_RESPONDING, &s->flags))
 			continue;
 		if (s->probe.rtt < rtt) {
 			vc->index = i;

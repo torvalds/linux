@@ -310,7 +310,7 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 				   alist->preferred == i ? '>' : '-',
 				   &alist->addrs[i].transport);
 	}
-	seq_printf(m, " info: fl=%lx rtt=%d\n", vlserver->flags, vlserver->probe.rtt);
+	seq_printf(m, " info: fl=%lx rtt=%d\n", vlserver->flags, vlserver->rtt);
 	seq_printf(m, " probe: fl=%x e=%d ac=%d out=%d\n",
 		   vlserver->probe.flags, vlserver->probe.error,
 		   vlserver->probe.abort_code,

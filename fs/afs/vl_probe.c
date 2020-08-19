@@ -11,15 +11,33 @@
 #include "internal.h"
 #include "protocol_yfs.h"
 
-static bool afs_vl_probe_done(struct afs_vlserver *server)
-{
-	if (!atomic_dec_and_test(&server->probe_outstanding))
-		return false;
 
-	wake_up_var(&server->probe_outstanding);
+/*
+ * Handle the completion of a set of probes.
+ */
+static void afs_finished_vl_probe(struct afs_vlserver *server)
+{
+	if (!(server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED)) {
+		server->rtt = UINT_MAX;
+		clear_bit(AFS_VLSERVER_FL_RESPONDING, &server->flags);
+	}
+
 	clear_bit_unlock(AFS_VLSERVER_FL_PROBING, &server->flags);
 	wake_up_bit(&server->flags, AFS_VLSERVER_FL_PROBING);
-	return true;
+}
+
+/*
+ * Handle the completion of a probe RPC call.
+ */
+static void afs_done_one_vl_probe(struct afs_vlserver *server, bool wake_up)
+{
+	if (atomic_dec_and_test(&server->probe_outstanding)) {
+		afs_finished_vl_probe(server);
+		wake_up = true;
+	}
+
+	if (wake_up)
+		wake_up_all(&server->probe_wq);
 }
 
 /*
@@ -52,8 +70,13 @@ void afs_vlserver_probe_result(struct afs_call *call)
 		goto responded;
 	case -ENOMEM:
 	case -ENONET:
+	case -EKEYEXPIRED:
+	case -EKEYREVOKED:
+	case -EKEYREJECTED:
 		server->probe.flags |= AFS_VLSERVER_PROBE_LOCAL_FAILURE;
-		afs_io_error(call, afs_io_error_vl_probe_fail);
+		if (server->probe.error == 0)
+			server->probe.error = ret;
+		trace_afs_io_error(call->debug_id, ret, afs_io_error_vl_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
 	case -ERFKILL:
@@ -72,7 +95,7 @@ void afs_vlserver_probe_result(struct afs_call *call)
 		     server->probe.error == -ETIMEDOUT ||
 		     server->probe.error == -ETIME))
 			server->probe.error = ret;
-		afs_io_error(call, afs_io_error_vl_probe_fail);
+		trace_afs_io_error(call->debug_id, ret, afs_io_error_vl_probe_fail);
 		goto out;
 	}
 
@@ -95,22 +118,22 @@ responded:
 	if (rxrpc_kernel_get_srtt(call->net->socket, call->rxcall, &rtt_us) &&
 	    rtt_us < server->probe.rtt) {
 		server->probe.rtt = rtt_us;
+		server->rtt = rtt_us;
 		alist->preferred = index;
-		have_result = true;
 	}
 
 	smp_wmb(); /* Set rtt before responded. */
 	server->probe.flags |= AFS_VLSERVER_PROBE_RESPONDED;
 	set_bit(AFS_VLSERVER_FL_PROBED, &server->flags);
+	set_bit(AFS_VLSERVER_FL_RESPONDING, &server->flags);
+	have_result = true;
 out:
 	spin_unlock(&server->probe_lock);
 
 	_debug("probe [%u][%u] %pISpc rtt=%u ret=%d",
 	       server_index, index, &alist->addrs[index].transport, rtt_us, ret);
 
-	have_result |= afs_vl_probe_done(server);
-	if (have_result)
-		wake_up_all(&server->probe_wq);
+	afs_done_one_vl_probe(server, have_result);
 }
 
 /*
@@ -148,11 +171,10 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 			in_progress = true;
 		} else {
 			afs_prioritise_error(_e, PTR_ERR(call), ac.abort_code);
+			afs_done_one_vl_probe(server, false);
 		}
 	}
 
-	if (!in_progress)
-		afs_vl_probe_done(server);
 	return in_progress;
 }
 
@@ -190,7 +212,7 @@ int afs_wait_for_vl_probes(struct afs_vlserver_list *vllist,
 {
 	struct wait_queue_entry *waits;
 	struct afs_vlserver *server;
-	unsigned int rtt = UINT_MAX;
+	unsigned int rtt = UINT_MAX, rtt_s;
 	bool have_responders = false;
 	int pref = -1, i;
 
@@ -246,10 +268,11 @@ stop:
 	for (i = 0; i < vllist->nr_servers; i++) {
 		if (test_bit(i, &untried)) {
 			server = vllist->servers[i].server;
-			if ((server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED) &&
-			    server->probe.rtt < rtt) {
+			rtt_s = READ_ONCE(server->rtt);
+			if (test_bit(AFS_VLSERVER_FL_RESPONDING, &server->flags) &&
+			    rtt_s < rtt) {
 				pref = i;
-				rtt = server->probe.rtt;
+				rtt = rtt_s;
 			}
 
 			remove_wait_queue(&server->probe_wq, &waits[i]);
