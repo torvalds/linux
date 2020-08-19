@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/prctl.h>
-#include <asm/cputable.h>
 
 #include "event.h"
 #include "utils.h"

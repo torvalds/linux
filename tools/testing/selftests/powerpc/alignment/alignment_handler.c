@@ -55,8 +55,6 @@
 #include <setjmp.h>
 #include <signal.h>
 
-#include <asm/cputable.h>
-
 #include "utils.h"
 #include "instructions.h"
 
