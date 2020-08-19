@@ -30,7 +30,6 @@ extern int spinning_secondaries;
 extern u32 *cpu_to_phys_id;
 extern bool coregroup_enabled;
 
-extern void cpu_die(void);
 extern int cpu_to_chip_id(int cpu);
 
 #ifdef CONFIG_SMP
