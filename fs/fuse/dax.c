@@ -575,6 +575,16 @@ out:
 	return ret;
 }
 
+static int fuse_dax_writepages(struct address_space *mapping,
+			       struct writeback_control *wbc)
+{
+
+	struct inode *inode = mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	return dax_writeback_mapping_range(mapping, fc->dax->dev, wbc);
+}
+
 static vm_fault_t __fuse_dax_fault(struct vm_fault *vmf,
 				   enum page_entry_size pe_size, bool write)
 {
@@ -741,6 +751,13 @@ bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi)
 	return true;
 }
 
+static const struct address_space_operations fuse_dax_file_aops  = {
+	.writepages	= fuse_dax_writepages,
+	.direct_IO	= noop_direct_IO,
+	.set_page_dirty	= noop_set_page_dirty,
+	.invalidatepage	= noop_invalidatepage,
+};
+
 void fuse_dax_inode_init(struct inode *inode)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -749,6 +766,7 @@ void fuse_dax_inode_init(struct inode *inode)
 		return;
 
 	inode->i_flags |= S_DAX;
+	inode->i_data.a_ops = &fuse_dax_file_aops;
 }
 
 bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment)
