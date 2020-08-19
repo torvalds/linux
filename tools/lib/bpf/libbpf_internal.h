@@ -9,6 +9,7 @@
 #ifndef __LIBBPF_LIBBPF_INTERNAL_H
 #define __LIBBPF_LIBBPF_INTERNAL_H
 
+#include <stdlib.h>
 #include "libbpf.h"
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
@@ -23,6 +24,12 @@
 #define BTF_PARAM_ENC(name, type) (name), (type)
 #define BTF_VAR_SECINFO_ENC(type, offset, size) (type), (offset), (size)
 
+#ifndef likely
+#define likely(x) __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 #ifndef min
 # define min(x, y) ((x) < (y) ? (x) : (y))
 #endif
@@ -62,6 +69,24 @@ do {				\
 #define pr_warn(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
+
+/*
+ * Re-implement glibc's reallocarray() for libbpf internal-only use.
+ * reallocarray(), unfortunately, is not available in all versions of glibc,
+ * so requires extra feature detection and using reallocarray() stub from
+ * <tools/libc_compat.h> and COMPAT_NEED_REALLOCARRAY. All this complicates
+ * build of libbpf unnecessarily and is just a maintenance burden. Instead,
+ * it's trivial to implement libbpf-specific internal version and use it
+ * throughout libbpf.
+ */
+static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
+{
+	size_t total;
+
+	if (unlikely(__builtin_mul_overflow(nmemb, size, &total)))
+		return NULL;
+	return realloc(ptr, total);
+}
 
 static inline bool libbpf_validate_opts(const char *opts,
 					size_t opts_sz, size_t user_sz,

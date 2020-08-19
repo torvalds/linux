@@ -16,7 +16,6 @@
 #include <asm/barrier.h>
 #include <sys/mman.h>
 #include <sys/epoll.h>
-#include <tools/libc_compat.h>
 
 #include "libbpf.h"
 #include "libbpf_internal.h"
@@ -82,12 +81,12 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 		return -EINVAL;
 	}
 
-	tmp = reallocarray(rb->rings, rb->ring_cnt + 1, sizeof(*rb->rings));
+	tmp = libbpf_reallocarray(rb->rings, rb->ring_cnt + 1, sizeof(*rb->rings));
 	if (!tmp)
 		return -ENOMEM;
 	rb->rings = tmp;
 
-	tmp = reallocarray(rb->events, rb->ring_cnt + 1, sizeof(*rb->events));
+	tmp = libbpf_reallocarray(rb->events, rb->ring_cnt + 1, sizeof(*rb->events));
 	if (!tmp)
 		return -ENOMEM;
 	rb->events = tmp;
