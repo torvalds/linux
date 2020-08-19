@@ -30,8 +30,10 @@ struct intel_ring;
 struct intel_context_ops {
 	int (*alloc)(struct intel_context *ce);
 
-	int (*pin)(struct intel_context *ce);
+	int (*pre_pin)(struct intel_context *ce, void **vaddr);
+	int (*pin)(struct intel_context *ce, void *vaddr);
 	void (*unpin)(struct intel_context *ce);
+	void (*post_unpin)(struct intel_context *ce);
 
 	void (*enter)(struct intel_context *ce);
 	void (*exit)(struct intel_context *ce);

@@ -93,79 +93,6 @@ static void intel_context_active_release(struct intel_context *ce)
 	i915_active_release(&ce->active);
 }
 
-int __intel_context_do_pin(struct intel_context *ce)
-{
-	int err;
-
-	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
-		err = intel_context_alloc_state(ce);
-		if (err)
-			return err;
-	}
-
-	err = i915_active_acquire(&ce->active);
-	if (err)
-		return err;
-
-	if (mutex_lock_interruptible(&ce->pin_mutex)) {
-		err = -EINTR;
-		goto out_release;
-	}
-
-	if (unlikely(intel_context_is_closed(ce))) {
-		err = -ENOENT;
-		goto out_unlock;
-	}
-
-	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
-		err = intel_context_active_acquire(ce);
-		if (unlikely(err))
-			goto out_unlock;
-
-		err = ce->ops->pin(ce);
-		if (unlikely(err))
-			goto err_active;
-
-		CE_TRACE(ce, "pin ring:{start:%08x, head:%04x, tail:%04x}\n",
-			 i915_ggtt_offset(ce->ring->vma),
-			 ce->ring->head, ce->ring->tail);
-
-		smp_mb__before_atomic(); /* flush pin before it is visible */
-		atomic_inc(&ce->pin_count);
-	}
-
-	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
-	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	goto out_unlock;
-
-err_active:
-	intel_context_active_release(ce);
-out_unlock:
-	mutex_unlock(&ce->pin_mutex);
-out_release:
-	i915_active_release(&ce->active);
-	return err;
-}
-
-void intel_context_unpin(struct intel_context *ce)
-{
-	if (!atomic_dec_and_test(&ce->pin_count))
-		return;
-
-	CE_TRACE(ce, "unpin\n");
-	ce->ops->unpin(ce);
-
-	/*
-	 * Once released, we may asynchronously drop the active reference.
-	 * As that may be the only reference keeping the context alive,
-	 * take an extra now so that it is not freed before we finish
-	 * dereferencing it.
-	 */
-	intel_context_get(ce);
-	intel_context_active_release(ce);
-	intel_context_put(ce);
-}
-
 static int __context_pin_state(struct i915_vma *vma)
 {
 	unsigned int bias = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
@@ -225,37 +152,15 @@ static void __ring_retire(struct intel_ring *ring)
 	intel_ring_unpin(ring);
 }
 
-__i915_active_call
-static void __intel_context_retire(struct i915_active *active)
+static int intel_context_pre_pin(struct intel_context *ce)
 {
-	struct intel_context *ce = container_of(active, typeof(*ce), active);
-
-	CE_TRACE(ce, "retire runtime: { total:%lluns, avg:%lluns }\n",
-		 intel_context_get_total_runtime_ns(ce),
-		 intel_context_get_avg_runtime_ns(ce));
-
-	set_bit(CONTEXT_VALID_BIT, &ce->flags);
-	if (ce->state)
-		__context_unpin_state(ce->state);
-
-	intel_timeline_unpin(ce->timeline);
-	__ring_retire(ce->ring);
-
-	intel_context_put(ce);
-}
-
-static int __intel_context_active(struct i915_active *active)
-{
-	struct intel_context *ce = container_of(active, typeof(*ce), active);
 	int err;
 
 	CE_TRACE(ce, "active\n");
 
-	intel_context_get(ce);
-
 	err = __ring_active(ce->ring);
 	if (err)
-		goto err_put;
+		return err;
 
 	err = intel_timeline_pin(ce->timeline);
 	if (err)
@@ -268,10 +173,155 @@ static int __intel_context_active(struct i915_active *active)
 	if (err)
 		goto err_timeline;
 
+
 	return 0;
 
 err_timeline:
 	intel_timeline_unpin(ce->timeline);
+err_ring:
+	__ring_retire(ce->ring);
+	return err;
+}
+
+static void intel_context_post_unpin(struct intel_context *ce)
+{
+	if (ce->state)
+		__context_unpin_state(ce->state);
+
+	intel_timeline_unpin(ce->timeline);
+	__ring_retire(ce->ring);
+}
+
+int __intel_context_do_pin(struct intel_context *ce)
+{
+	bool handoff = false;
+	void *vaddr;
+	int err = 0;
+
+	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
+		err = intel_context_alloc_state(ce);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * We always pin the context/ring/timeline here, to ensure a pin
+	 * refcount for __intel_context_active(), which prevent a lock
+	 * inversion of ce->pin_mutex vs dma_resv_lock().
+	 */
+	err = intel_context_pre_pin(ce);
+	if (err)
+		return err;
+
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		goto err_ctx_unpin;
+
+	err = ce->ops->pre_pin(ce, &vaddr);
+	if (err)
+		goto err_release;
+
+	err = mutex_lock_interruptible(&ce->pin_mutex);
+	if (err)
+		goto err_post_unpin;
+
+	if (unlikely(intel_context_is_closed(ce))) {
+		err = -ENOENT;
+		goto err_unlock;
+	}
+
+	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
+		err = intel_context_active_acquire(ce);
+		if (unlikely(err))
+			goto err_unlock;
+
+		err = ce->ops->pin(ce, vaddr);
+		if (err) {
+			intel_context_active_release(ce);
+			goto err_unlock;
+		}
+
+		CE_TRACE(ce, "pin ring:{start:%08x, head:%04x, tail:%04x}\n",
+			 i915_ggtt_offset(ce->ring->vma),
+			 ce->ring->head, ce->ring->tail);
+
+		handoff = true;
+		smp_mb__before_atomic(); /* flush pin before it is visible */
+		atomic_inc(&ce->pin_count);
+	}
+
+	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+
+err_unlock:
+	mutex_unlock(&ce->pin_mutex);
+err_post_unpin:
+	if (!handoff)
+		ce->ops->post_unpin(ce);
+err_release:
+	i915_active_release(&ce->active);
+err_ctx_unpin:
+	intel_context_post_unpin(ce);
+	return err;
+}
+
+void intel_context_unpin(struct intel_context *ce)
+{
+	if (!atomic_dec_and_test(&ce->pin_count))
+		return;
+
+	CE_TRACE(ce, "unpin\n");
+	ce->ops->unpin(ce);
+	ce->ops->post_unpin(ce);
+
+	/*
+	 * Once released, we may asynchronously drop the active reference.
+	 * As that may be the only reference keeping the context alive,
+	 * take an extra now so that it is not freed before we finish
+	 * dereferencing it.
+	 */
+	intel_context_get(ce);
+	intel_context_active_release(ce);
+	intel_context_put(ce);
+}
+
+__i915_active_call
+static void __intel_context_retire(struct i915_active *active)
+{
+	struct intel_context *ce = container_of(active, typeof(*ce), active);
+
+	CE_TRACE(ce, "retire runtime: { total:%lluns, avg:%lluns }\n",
+		 intel_context_get_total_runtime_ns(ce),
+		 intel_context_get_avg_runtime_ns(ce));
+
+	set_bit(CONTEXT_VALID_BIT, &ce->flags);
+	intel_context_post_unpin(ce);
+	intel_context_put(ce);
+}
+
+static int __intel_context_active(struct i915_active *active)
+{
+	struct intel_context *ce = container_of(active, typeof(*ce), active);
+	int err;
+
+	intel_context_get(ce);
+
+	/* everything should already be activated by intel_context_pre_pin() */
+	err = __ring_active(ce->ring);
+	if (GEM_WARN_ON(err))
+		goto err_put;
+
+	err = intel_timeline_pin(ce->timeline);
+	if (GEM_WARN_ON(err))
+		goto err_ring;
+
+	if (ce->state) {
+		GEM_WARN_ON(!i915_active_acquire_if_busy(&ce->state->active));
+		__i915_vma_pin(ce->state);
+		i915_vma_make_unshrinkable(ce->state);
+	}
+
+	return 0;
+
 err_ring:
 	__ring_retire(ce->ring);
 err_put:

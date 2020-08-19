@@ -500,6 +500,10 @@ static void __context_unpin_ppgtt(struct intel_context *ce)
 
 static void ring_context_unpin(struct intel_context *ce)
 {
+}
+
+static void ring_context_post_unpin(struct intel_context *ce)
+{
 	__context_unpin_ppgtt(ce);
 }
 
@@ -587,9 +591,14 @@ static int ring_context_alloc(struct intel_context *ce)
 	return 0;
 }
 
-static int ring_context_pin(struct intel_context *ce)
+static int ring_context_pre_pin(struct intel_context *ce, void **unused)
 {
 	return __context_pin_ppgtt(ce);
+}
+
+static int ring_context_pin(struct intel_context *ce, void *unused)
+{
+	return 0;
 }
 
 static void ring_context_reset(struct intel_context *ce)
@@ -600,8 +609,10 @@ static void ring_context_reset(struct intel_context *ce)
 static const struct intel_context_ops ring_context_ops = {
 	.alloc = ring_context_alloc,
 
+	.pre_pin = ring_context_pre_pin,
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
+	.post_unpin = ring_context_post_unpin,
 
 	.enter = intel_context_enter_engine,
 	.exit = intel_context_exit_engine,
