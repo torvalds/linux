@@ -164,6 +164,10 @@ static bool shared_tags;
 module_param(shared_tags, bool, 0444);
 MODULE_PARM_DESC(shared_tags, "Share tag set between devices for blk-mq");
 
+static bool g_shared_tag_bitmap;
+module_param_named(shared_tag_bitmap, g_shared_tag_bitmap, bool, 0444);
+MODULE_PARM_DESC(shared_tag_bitmap, "Use shared tag bitmap for all submission queues for blk-mq");
+
 static int g_irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
@@ -1692,6 +1696,8 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->flags = BLK_MQ_F_SHOULD_MERGE;
 	if (g_no_sched)
 		set->flags |= BLK_MQ_F_NO_SCHED;
+	if (g_shared_tag_bitmap)
+		set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	set->driver_data = NULL;
 
 	if ((nullb && nullb->dev->blocking) || g_blocking)
