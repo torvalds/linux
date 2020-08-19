@@ -189,6 +189,17 @@
 	};
 };
 
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		cif_sditf: endpoint {
+			remote-endpoint = <&isp_virt1_in>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
 &rkisp_vir0 {
 	ports {
 		port@0 {
@@ -201,6 +212,18 @@
 
 &rkisp_vir1 {
 	status = "okay";
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_virt1_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_sditf>;
+			};
+		};
+	};
 };
 
 &rkispp_vir1 {
