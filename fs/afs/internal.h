@@ -412,7 +412,6 @@ struct afs_vlserver {
 		unsigned int	rtt;		/* RTT as ktime/64 */
 		u32		abort_code;
 		short		error;
-		bool		have_result;
 		bool		responded:1;
 		bool		is_yfs:1;
 		bool		not_yfs:1;

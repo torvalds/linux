@@ -109,11 +109,8 @@ out:
 	       server_index, index, &alist->addrs[index].transport, rtt_us, ret);
 
 	have_result |= afs_vl_probe_done(server);
-	if (have_result) {
-		server->probe.have_result = true;
-		wake_up_var(&server->probe.have_result);
+	if (have_result)
 		wake_up_all(&server->probe_wq);
-	}
 }
 
 /*
