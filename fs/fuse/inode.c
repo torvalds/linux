@@ -908,9 +908,10 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
 {
 	struct fuse_init_args *ia = container_of(args, typeof(*ia), args);
 	struct fuse_init_out *arg = &ia->out;
+	bool ok = true;
 
 	if (error || arg->major != FUSE_KERNEL_VERSION)
-		fc->conn_error = 1;
+		ok = false;
 	else {
 		unsigned long ra_pages;
 
@@ -973,6 +974,11 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
 					min_t(unsigned int, FUSE_MAX_MAX_PAGES,
 					max_t(unsigned int, arg->max_pages, 1));
 			}
+			if (IS_ENABLED(CONFIG_FUSE_DAX) &&
+			    arg->flags & FUSE_MAP_ALIGNMENT &&
+			    !fuse_dax_check_alignment(fc, arg->map_alignment)) {
+				ok = false;
+			}
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
 			fc->no_lock = 1;
@@ -987,6 +993,11 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
 		fc->conn_init = 1;
 	}
 	kfree(ia);
+
+	if (!ok) {
+		fc->conn_init = 0;
+		fc->conn_error = 1;
+	}
 
 	fuse_set_initialized(fc);
 	wake_up_all(&fc->blocked_waitq);
@@ -1011,6 +1022,10 @@ void fuse_send_init(struct fuse_conn *fc)
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
 		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
+#ifdef CONFIG_FUSE_DAX
+	if (fc->dax)
+		ia->in.flags |= FUSE_MAP_ALIGNMENT;
+#endif
 	ia->args.opcode = FUSE_INIT;
 	ia->args.in_numargs = 1;
 	ia->args.in_args[0].size = sizeof(ia->in);

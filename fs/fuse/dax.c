@@ -9,7 +9,10 @@
 #include <linux/dax.h>
 #include <linux/pfn_t.h>
 
-/* Default memory range size, 2MB */
+/*
+ * Default memory range size.  A power of 2 so it agrees with common FUSE_INIT
+ * map_alignment values 4KB and 64KB.
+ */
 #define FUSE_DAX_SHIFT	21
 #define FUSE_DAX_SZ	(1 << FUSE_DAX_SHIFT)
 #define FUSE_DAX_PAGES	(FUSE_DAX_SZ / PAGE_SIZE)
@@ -122,4 +125,14 @@ int fuse_dax_conn_alloc(struct fuse_conn *fc, struct dax_device *dax_dev)
 
 	fc->dax = fcd;
 	return 0;
+}
+
+bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment)
+{
+	if (fc->dax && (map_alignment > FUSE_DAX_SHIFT)) {
+		pr_warn("FUSE: map_alignment %u incompatible with dax mem range size %u\n",
+			map_alignment, FUSE_DAX_SZ);
+		return false;
+	}
+	return true;
 }
