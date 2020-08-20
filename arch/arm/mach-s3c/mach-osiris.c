@@ -356,7 +356,7 @@ static void __init osiris_map_io(void)
 
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c24xx_set_timer_source(S3C24XX_PWM3, S3C24XX_PWM4);
 
 	/* check for the newer revision boards with large page nand */
 
@@ -381,7 +381,7 @@ static void __init osiris_map_io(void)
 static void __init osiris_init_time(void)
 {
 	s3c2440_init_clocks(12000000);
-	samsung_timer_init();
+	s3c24xx_timer_init();
 }
 
 static void __init osiris_init(void)

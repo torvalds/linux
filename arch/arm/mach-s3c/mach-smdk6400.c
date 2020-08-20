@@ -60,7 +60,7 @@ static void __init smdk6400_map_io(void)
 	s3c64xx_init_io(smdk6400_iodesc, ARRAY_SIZE(smdk6400_iodesc));
 	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(smdk6400_uartcfgs, ARRAY_SIZE(smdk6400_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c64xx_set_timer_source(S3C64XX_PWM3, S3C64XX_PWM4);
 }
 
 static struct platform_device *smdk6400_devices[] __initdata = {
@@ -86,5 +86,5 @@ MACHINE_START(SMDK6400, "SMDK6400")
 	.init_irq	= s3c6400_init_irq,
 	.map_io		= smdk6400_map_io,
 	.init_machine	= smdk6400_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= s3c64xx_timer_init,
 MACHINE_END

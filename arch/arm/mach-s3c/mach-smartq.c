@@ -383,7 +383,7 @@ void __init smartq_map_io(void)
 	s3c64xx_set_xtal_freq(12000000);
 	s3c64xx_set_xusbxti_freq(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c64xx_set_timer_source(S3C64XX_PWM3, S3C64XX_PWM4);
 
 	smartq_lcd_mode_set();
 }

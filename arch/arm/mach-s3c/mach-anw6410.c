@@ -202,7 +202,7 @@ static void __init anw6410_map_io(void)
 	s3c64xx_init_io(anw6410_iodesc, ARRAY_SIZE(anw6410_iodesc));
 	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(anw6410_uartcfgs, ARRAY_SIZE(anw6410_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c64xx_set_timer_source(S3C64XX_PWM3, S3C64XX_PWM4);
 
 	anw6410_lcd_mode_set();
 }
@@ -226,5 +226,5 @@ MACHINE_START(ANW6410, "A&W6410")
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= s3c64xx_timer_init,
 MACHINE_END

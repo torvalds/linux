@@ -579,13 +579,13 @@ static void __init n30_map_io(void)
 	s3c24xx_init_io(n30_iodesc, ARRAY_SIZE(n30_iodesc));
 	n30_hwinit();
 	s3c24xx_init_uarts(n30_uartcfgs, ARRAY_SIZE(n30_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c24xx_set_timer_source(S3C24XX_PWM3, S3C24XX_PWM4);
 }
 
 static void __init n30_init_time(void)
 {
 	s3c2410_init_clocks(12000000);
-	samsung_timer_init();
+	s3c24xx_timer_init();
 }
 
 /* GPB3 is the line that controls the pull-up for the USB D+ line */

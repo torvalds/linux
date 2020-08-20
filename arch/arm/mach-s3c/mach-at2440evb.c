@@ -202,13 +202,13 @@ static void __init at2440evb_map_io(void)
 {
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_uarts(at2440evb_uartcfgs, ARRAY_SIZE(at2440evb_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c24xx_set_timer_source(S3C24XX_PWM3, S3C24XX_PWM4);
 }
 
 static void __init at2440evb_init_time(void)
 {
 	s3c2440_init_clocks(16934400);
-	samsung_timer_init();
+	s3c24xx_timer_init();
 }
 
 static void __init at2440evb_init(void)

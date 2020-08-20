@@ -686,7 +686,7 @@ static void __init h1940_map_io(void)
 {
 	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
 	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c24xx_set_timer_source(S3C24XX_PWM3, S3C24XX_PWM4);
 
 	/* setup PM */
 
@@ -703,7 +703,7 @@ static void __init h1940_map_io(void)
 static void __init h1940_init_time(void)
 {
 	s3c2410_init_clocks(12000000);
-	samsung_timer_init();
+	s3c24xx_timer_init();
 }
 
 /* H1940 and RX3715 need to reserve this for suspend */

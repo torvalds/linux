@@ -79,7 +79,7 @@ static void __init ncp_map_io(void)
 	s3c64xx_init_io(ncp_iodesc, ARRAY_SIZE(ncp_iodesc));
 	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(ncp_uartcfgs, ARRAY_SIZE(ncp_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	s3c64xx_set_timer_source(S3C64XX_PWM3, S3C64XX_PWM4);
 }
 
 static void __init ncp_machine_init(void)
@@ -96,5 +96,5 @@ MACHINE_START(NCP, "NCP")
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= ncp_map_io,
 	.init_machine	= ncp_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= s3c64xx_timer_init,
 MACHINE_END

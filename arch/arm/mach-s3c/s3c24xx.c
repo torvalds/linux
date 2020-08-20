@@ -222,13 +222,13 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	samsung_pwm_set_platdata(&s3c24xx_pwm_variant);
 }
 
-void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+void __init s3c24xx_set_timer_source(unsigned int event, unsigned int source)
 {
 	s3c24xx_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
 	s3c24xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
 }
 
-void __init samsung_timer_init(void)
+void __init s3c24xx_timer_init(void)
 {
 	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
 		IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2, IRQ_TIMER3, IRQ_TIMER4,

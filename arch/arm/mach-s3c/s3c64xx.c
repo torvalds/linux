@@ -168,13 +168,13 @@ static struct samsung_pwm_variant s3c64xx_pwm_variant = {
 	.tclk_mask	= (1 << 7) | (1 << 6) | (1 << 5),
 };
 
-void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+void __init s3c64xx_set_timer_source(unsigned int event, unsigned int source)
 {
 	s3c64xx_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
 	s3c64xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
 }
 
-void __init samsung_timer_init(void)
+void __init s3c64xx_timer_init(void)
 {
 	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
 		IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
