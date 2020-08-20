@@ -127,6 +127,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ML26124
 	imply SND_SOC_MT6351
 	imply SND_SOC_MT6358
+	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
@@ -1722,6 +1723,13 @@ config SND_SOC_MT6358
 	tristate "MediaTek MT6358 Codec"
 	help
 	  Enable support for the platform which uses MT6358 as
+	  external codec device.
+
+config SND_SOC_MT6359
+	tristate "MediaTek MT6359 Codec"
+	depends on MTK_PMIC_WRAP
+	help
+	  Enable support for the platform which uses MT6359 as
 	  external codec device.
 
 config SND_SOC_MT6660
