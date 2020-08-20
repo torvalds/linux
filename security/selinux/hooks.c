@@ -3271,6 +3271,9 @@ static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
 	}
 
+	if (!selinux_initialized(&selinux_state))
+		return 0;
+
 	/* No one is allowed to remove a SELinux security label.
 	   You can change the label, but all data must be labeled. */
 	return -EACCES;
