@@ -33,6 +33,18 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_COW,
 
 	/*
+	 * Oftentimes we need to lock adjacent nodes on the same level while
+	 * still holding the lock on the original node we searched to, such as
+	 * for searching forward or for split/balance.
+	 *
+	 * Because of this we need to indicate to lockdep that this is
+	 * acceptable by having a different subclass for each of these
+	 * operations.
+	 */
+	BTRFS_NESTING_LEFT,
+	BTRFS_NESTING_RIGHT,
+
+	/*
 	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're

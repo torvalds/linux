@@ -1896,7 +1896,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		left = NULL;
 
 	if (left) {
-		btrfs_tree_lock(left);
+		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 		btrfs_set_lock_blocking_write(left);
 		wret = btrfs_cow_block(trans, root, left,
 				       parent, pslot - 1, &left,
@@ -1912,7 +1912,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		right = NULL;
 
 	if (right) {
-		btrfs_tree_lock(right);
+		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 		btrfs_set_lock_blocking_write(right);
 		wret = btrfs_cow_block(trans, root, right,
 				       parent, pslot + 1, &right,
@@ -2076,7 +2076,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	if (left) {
 		u32 left_nr;
 
-		btrfs_tree_lock(left);
+		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 		btrfs_set_lock_blocking_write(left);
 
 		left_nr = btrfs_header_nritems(left);
@@ -2131,7 +2131,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	if (right) {
 		u32 right_nr;
 
-		btrfs_tree_lock(right);
+		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 		btrfs_set_lock_blocking_write(right);
 
 		right_nr = btrfs_header_nritems(right);
@@ -3806,7 +3806,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (IS_ERR(right))
 		return 1;
 
-	btrfs_tree_lock(right);
+	__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 	btrfs_set_lock_blocking_write(right);
 
 	free_space = btrfs_leaf_free_space(right);
@@ -4045,7 +4045,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (IS_ERR(left))
 		return 1;
 
-	btrfs_tree_lock(left);
+	__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 	btrfs_set_lock_blocking_write(left);
 
 	free_space = btrfs_leaf_free_space(left);
@@ -5467,7 +5467,7 @@ again:
 			if (!ret) {
 				btrfs_set_path_blocking(path);
 				__btrfs_tree_read_lock(next,
-						       BTRFS_NESTING_NORMAL,
+						       BTRFS_NESTING_RIGHT,
 						       path->recurse);
 			}
 			next_rw_lock = BTRFS_READ_LOCK;
@@ -5504,7 +5504,7 @@ again:
 			if (!ret) {
 				btrfs_set_path_blocking(path);
 				__btrfs_tree_read_lock(next,
-						       BTRFS_NESTING_NORMAL,
+						       BTRFS_NESTING_RIGHT,
 						       path->recurse);
 			}
 			next_rw_lock = BTRFS_READ_LOCK;
