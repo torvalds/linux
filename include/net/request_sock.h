@@ -42,6 +42,7 @@ struct request_sock_ops {
 int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req);
 
 struct saved_syn {
+	u32 mac_hdrlen;
 	u32 network_hdrlen;
 	u32 tcp_hdrlen;
 	u8 data[];

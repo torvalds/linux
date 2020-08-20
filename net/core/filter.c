@@ -4682,10 +4682,15 @@ static int bpf_sock_ops_get_syn(struct bpf_sock_ops_kern *bpf_sock,
 		if (optname == TCP_BPF_SYN) {
 			hdr_start = syn_skb->data;
 			ret = tcp_hdrlen(syn_skb);
-		} else {
-			/* optname == TCP_BPF_SYN_IP */
+		} else if (optname == TCP_BPF_SYN_IP) {
 			hdr_start = skb_network_header(syn_skb);
 			ret = skb_network_header_len(syn_skb) +
+				tcp_hdrlen(syn_skb);
+		} else {
+			/* optname == TCP_BPF_SYN_MAC */
+			hdr_start = skb_mac_header(syn_skb);
+			ret = skb_mac_header_len(syn_skb) +
+				skb_network_header_len(syn_skb) +
 				tcp_hdrlen(syn_skb);
 		}
 	} else {
@@ -4706,12 +4711,24 @@ static int bpf_sock_ops_get_syn(struct bpf_sock_ops_kern *bpf_sock,
 
 		if (optname == TCP_BPF_SYN) {
 			hdr_start = saved_syn->data +
+				saved_syn->mac_hdrlen +
 				saved_syn->network_hdrlen;
 			ret = saved_syn->tcp_hdrlen;
-		} else {
-			/* optname == TCP_BPF_SYN_IP */
-			hdr_start = saved_syn->data;
+		} else if (optname == TCP_BPF_SYN_IP) {
+			hdr_start = saved_syn->data +
+				saved_syn->mac_hdrlen;
 			ret = saved_syn->network_hdrlen +
+				saved_syn->tcp_hdrlen;
+		} else {
+			/* optname == TCP_BPF_SYN_MAC */
+
+			/* TCP_SAVE_SYN may not have saved the mac hdr */
+			if (!saved_syn->mac_hdrlen)
+				return -ENOENT;
+
+			hdr_start = saved_syn->data;
+			ret = saved_syn->mac_hdrlen +
+				saved_syn->network_hdrlen +
 				saved_syn->tcp_hdrlen;
 		}
 	}
@@ -4724,7 +4741,7 @@ BPF_CALL_5(bpf_sock_ops_getsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 	   int, level, int, optname, char *, optval, int, optlen)
 {
 	if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP &&
-	    optname >= TCP_BPF_SYN && optname <= TCP_BPF_SYN_IP) {
+	    optname >= TCP_BPF_SYN && optname <= TCP_BPF_SYN_MAC) {
 		int ret, copy_len = 0;
 		const u8 *start;
 
