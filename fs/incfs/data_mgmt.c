@@ -43,6 +43,8 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	mutex_init(&mi->mi_dir_struct_mutex);
 	init_waitqueue_head(&mi->mi_pending_reads_notif_wq);
 	init_waitqueue_head(&mi->mi_log.ml_notif_wq);
+	init_waitqueue_head(&mi->mi_blocks_written_notif_wq);
+	atomic_set(&mi->mi_blocks_written, 0);
 	INIT_DELAYED_WORK(&mi->mi_log.ml_wakeup_work, log_wake_up_all);
 	spin_lock_init(&mi->mi_log.rl_lock);
 	spin_lock_init(&mi->pending_read_lock);
@@ -902,6 +904,9 @@ static void notify_pending_reads(struct mount_info *mi,
 	}
 	rcu_read_unlock();
 	wake_up_all(&segment->new_data_arrival_wq);
+
+	atomic_inc(&mi->mi_blocks_written);
+	wake_up_all(&mi->mi_blocks_written_notif_wq);
 }
 
 static int wait_for_data_block(struct data_file *df, int block_index,

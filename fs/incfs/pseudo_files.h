@@ -6,7 +6,7 @@
 #ifndef _INCFS_PSEUDO_FILES_H
 #define _INCFS_PSEUDO_FILES_H
 
-#define PSEUDO_FILE_COUNT 2
+#define PSEUDO_FILE_COUNT 3
 #define INCFS_START_INO_RANGE 10
 
 int dir_lookup_pseudo_files(struct super_block *sb, struct dentry *dentry);
