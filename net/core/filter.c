@@ -4488,6 +4488,13 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 					return -EINVAL;
 				inet_csk(sk)->icsk_delack_max = timeout;
 				break;
+			case TCP_BPF_RTO_MIN:
+				timeout = usecs_to_jiffies(val);
+				if (timeout > TCP_RTO_MIN ||
+				    timeout < TCP_TIMEOUT_MIN)
+					return -EINVAL;
+				inet_csk(sk)->icsk_rto_min = timeout;
+				break;
 			case TCP_SAVE_SYN:
 				if (val < 0 || val > 1)
 					ret = -EINVAL;
