@@ -1571,6 +1571,7 @@
   set_page_dirty_lock
   sg_alloc_table_from_pages
   sysfs_remove_files
+  __tracepoint_gpu_mem_total
   unmapped_area_topdown
   unregister_shrinker
   vm_insert_page
