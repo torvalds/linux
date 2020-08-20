@@ -4404,6 +4404,14 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 	if (kvm_check_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu))
 		kvm_vcpu_flush_tlb_current(vcpu);
 
+	/*
+	 * VCPU_EXREG_PDPTR will be clobbered in arch/x86/kvm/vmx/vmx.h between
+	 * now and the new vmentry.  Ensure that the VMCS02 PDPTR fields are
+	 * up-to-date before switching to L1.
+	 */
+	if (enable_ept && is_pae_paging(vcpu))
+		vmx_ept_load_pdptrs(vcpu);
+
 	leave_guest_mode(vcpu);
 
 	if (nested_cpu_has_preemption_timer(vmcs12))

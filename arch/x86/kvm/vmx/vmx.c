@@ -2971,7 +2971,7 @@ static void vmx_flush_tlb_guest(struct kvm_vcpu *vcpu)
 	vpid_sync_context(to_vmx(vcpu)->vpid);
 }
 
-static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
+void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
 
@@ -3114,7 +3114,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
 			guest_cr3 = vcpu->arch.cr3;
 		else /* vmcs01.GUEST_CR3 is already up-to-date. */
 			update_guest_cr3 = false;
-		ept_load_pdptrs(vcpu);
+		vmx_ept_load_pdptrs(vcpu);
 	} else {
 		guest_cr3 = pgd;
 	}
