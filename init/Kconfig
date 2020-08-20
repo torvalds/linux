@@ -1710,6 +1710,8 @@ config BPF_JIT_DEFAULT_ON
 	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
 	depends on HAVE_EBPF_JIT && BPF_JIT
 
+source "kernel/bpf/preload/Kconfig"
+
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
 	depends on MMU
