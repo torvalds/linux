@@ -45,6 +45,14 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_RIGHT,
 
 	/*
+	 * When splitting we will be holding a lock on the left/right node when
+	 * we need to cow that node, thus we need a new set of subclasses for
+	 * these two operations.
+	 */
+	BTRFS_NESTING_LEFT_COW,
+	BTRFS_NESTING_RIGHT_COW,
+
+	/*
 	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're

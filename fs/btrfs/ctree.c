@@ -1900,7 +1900,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_set_lock_blocking_write(left);
 		wret = btrfs_cow_block(trans, root, left,
 				       parent, pslot - 1, &left,
-				       BTRFS_NESTING_COW);
+				       BTRFS_NESTING_LEFT_COW);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -1916,7 +1916,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_set_lock_blocking_write(right);
 		wret = btrfs_cow_block(trans, root, right,
 				       parent, pslot + 1, &right,
-				       BTRFS_NESTING_COW);
+				       BTRFS_NESTING_RIGHT_COW);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -2085,7 +2085,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		} else {
 			ret = btrfs_cow_block(trans, root, left, parent,
 					      pslot - 1, &left,
-					      BTRFS_NESTING_COW);
+					      BTRFS_NESTING_LEFT_COW);
 			if (ret)
 				wret = 1;
 			else {
@@ -2140,7 +2140,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		} else {
 			ret = btrfs_cow_block(trans, root, right,
 					      parent, pslot + 1,
-					      &right, BTRFS_NESTING_COW);
+					      &right, BTRFS_NESTING_RIGHT_COW);
 			if (ret)
 				wret = 1;
 			else {
@@ -3815,7 +3815,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, right, upper,
-			      slot + 1, &right, BTRFS_NESTING_COW);
+			      slot + 1, &right, BTRFS_NESTING_RIGHT_COW);
 	if (ret)
 		goto out_unlock;
 
@@ -4057,7 +4057,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, left,
 			      path->nodes[1], slot - 1, &left,
-			      BTRFS_NESTING_COW);
+			      BTRFS_NESTING_LEFT_COW);
 	if (ret) {
 		/* we hit -ENOSPC, but it isn't fatal here */
 		if (ret == -ENOSPC)
