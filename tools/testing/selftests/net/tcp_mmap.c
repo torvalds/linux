@@ -179,6 +179,10 @@ void *child_thread(void *arg)
 				total_mmap += zc.length;
 				if (xflg)
 					hash_zone(addr, zc.length);
+				/* It is more efficient to unmap the pages right now,
+				 * instead of doing this in next TCP_ZEROCOPY_RECEIVE.
+				 */
+				madvise(addr, zc.length, MADV_DONTNEED);
 				total += zc.length;
 			}
 			if (zc.recv_skip_hint) {
