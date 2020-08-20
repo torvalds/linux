@@ -97,7 +97,7 @@ static u32 mt7915_mac_wtbl_lmac_addr(struct mt7915_dev *dev, u16 wcid)
 }
 
 /* TODO: use txfree airtime info to avoid runtime accessing in the long run */
-void mt7915_mac_sta_poll(struct mt7915_dev *dev)
+static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
 		[IEEE80211_AC_BE] = 0,
@@ -114,7 +114,12 @@ void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 	struct ieee80211_sta *sta;
 	struct mt7915_sta *msta;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
+	LIST_HEAD(sta_poll_list);
 	int i;
+
+	spin_lock_bh(&dev->sta_poll_lock);
+	list_splice_init(&dev->sta_poll_list, &sta_poll_list);
+	spin_unlock_bh(&dev->sta_poll_lock);
 
 	rcu_read_lock();
 
@@ -124,11 +129,11 @@ void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 		u16 idx;
 
 		spin_lock_bh(&dev->sta_poll_lock);
-		if (list_empty(&dev->sta_poll_list)) {
+		if (list_empty(&sta_poll_list)) {
 			spin_unlock_bh(&dev->sta_poll_lock);
 			break;
 		}
-		msta = list_first_entry(&dev->sta_poll_list,
+		msta = list_first_entry(&sta_poll_list,
 					struct mt7915_sta, poll_list);
 		list_del_init(&msta->poll_list);
 		spin_unlock_bh(&dev->sta_poll_lock);
@@ -929,6 +934,8 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 		mt76_put_txwi(mdev, txwi);
 	}
 	dev_kfree_skb(skb);
+
+	mt7915_mac_sta_poll(dev);
 }
 
 void mt7915_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
