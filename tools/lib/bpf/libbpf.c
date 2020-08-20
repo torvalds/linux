@@ -5840,14 +5840,12 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 static bool insn_is_helper_call(struct bpf_insn *insn, enum bpf_func_id *func_id)
 {
-	__u8 class = BPF_CLASS(insn->code);
-
-	if ((class == BPF_JMP || class == BPF_JMP32) &&
+	if (BPF_CLASS(insn->code) == BPF_JMP &&
 	    BPF_OP(insn->code) == BPF_CALL &&
 	    BPF_SRC(insn->code) == BPF_K &&
-	    insn->src_reg == 0 && insn->dst_reg == 0) {
-		    if (func_id)
-			    *func_id = insn->imm;
+	    insn->src_reg == 0 &&
+	    insn->dst_reg == 0) {
+		    *func_id = insn->imm;
 		    return true;
 	}
 	return false;
