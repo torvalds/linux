@@ -101,12 +101,12 @@ static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
 			/* data+P failure. */
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
 			tx = async_raid6_datap_recov(disks, bytes,
-					faila, ptrs, &submit);
+					faila, ptrs, offs, &submit);
 		} else {
 			/* data+data failure. */
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
 			tx = async_raid6_2data_recov(disks, bytes,
-					faila, failb, ptrs, &submit);
+					faila, failb, ptrs, offs, &submit);
 		}
 	}
 	init_completion(&cmp);

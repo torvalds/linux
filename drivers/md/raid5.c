@@ -1685,13 +1685,13 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			return async_raid6_datap_recov(syndrome_disks+2,
 						RAID5_STRIPE_SIZE(sh->raid_conf),
 						faila,
-						blocks, &submit);
+						blocks, offs, &submit);
 		} else {
 			/* We're missing D+D. */
 			return async_raid6_2data_recov(syndrome_disks+2,
 						RAID5_STRIPE_SIZE(sh->raid_conf),
 						faila, failb,
-						blocks, &submit);
+						blocks, offs, &submit);
 		}
 	}
 }

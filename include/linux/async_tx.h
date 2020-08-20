@@ -196,11 +196,13 @@ async_syndrome_val(struct page **blocks, unsigned int *offsets, int src_cnt,
 
 struct dma_async_tx_descriptor *
 async_raid6_2data_recov(int src_num, size_t bytes, int faila, int failb,
-			struct page **ptrs, struct async_submit_ctl *submit);
+			struct page **ptrs, unsigned int *offs,
+			struct async_submit_ctl *submit);
 
 struct dma_async_tx_descriptor *
 async_raid6_datap_recov(int src_num, size_t bytes, int faila,
-			struct page **ptrs, struct async_submit_ctl *submit);
+			struct page **ptrs, unsigned int *offs,
+			struct async_submit_ctl *submit);
 
 void async_tx_quiesce(struct dma_async_tx_descriptor **tx);
 #endif /* _ASYNC_TX_H_ */
