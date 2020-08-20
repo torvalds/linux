@@ -270,6 +270,7 @@ freemr:
 /**
  * pvrdma_dereg_mr - deregister a memory region
  * @ibmr: memory region
+ * @udata: pointer to user data
  *
  * @return: 0 on success.
  */

@@ -90,7 +90,7 @@ int pvrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 
 /**
  * pvrdma_create_srq - create shared receive queue
- * @pd: protection domain
+ * @ibsrq: the IB shared receive queue
  * @init_attr: shared receive queue attributes
  * @udata: user data
  *

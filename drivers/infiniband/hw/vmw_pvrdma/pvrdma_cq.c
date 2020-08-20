@@ -375,7 +375,7 @@ retry:
  * pvrdma_poll_cq - poll for work completion queue entries
  * @ibcq: completion queue
  * @num_entries: the maximum number of entries
- * @entry: pointer to work completion array
+ * @wc: pointer to work completion array
  *
  * @return: number of polled completion entries
  */

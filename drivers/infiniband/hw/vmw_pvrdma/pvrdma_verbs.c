@@ -502,10 +502,9 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 
 /**
  * pvrdma_create_ah - create an address handle
- * @pd: the protection domain
- * @ah_attr: the attributes of the AH
- * @udata: user data blob
- * @flags: create address handle flags (see enum rdma_create_ah_flags)
+ * @ibah: the IB address handle
+ * @init_attr: the attributes of the AH
+ * @udata: pointer to user data
  *
  * @return: 0 on success, otherwise errno.
  */
