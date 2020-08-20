@@ -268,6 +268,7 @@ void test_sk_assign(void)
 	int server = -1;
 	int server_map;
 	int self_net;
+	int i;
 
 	self_net = open(NS_SELF, O_RDONLY);
 	if (CHECK_FAIL(self_net < 0)) {
@@ -286,7 +287,7 @@ void test_sk_assign(void)
 		goto cleanup;
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(tests) && !READ_ONCE(stop); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests) && !READ_ONCE(stop); i++) {
 		struct test_sk_cfg *test = &tests[i];
 		const struct sockaddr *addr;
 		const int zero = 0;
