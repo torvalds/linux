@@ -1,0 +1,2 @@
+
+obj-y = pci.o
