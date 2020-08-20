@@ -628,9 +628,8 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_QKEY)
 		qp->attr.qkey = attr->qkey;
 
-	if (mask & IB_QP_AV) {
+	if (mask & IB_QP_AV)
 		rxe_init_av(&attr->ah_attr, &qp->pri_av);
-	}
 
 	if (mask & IB_QP_ALT_PATH) {
 		rxe_init_av(&attr->alt_ah_attr, &qp->alt_av);

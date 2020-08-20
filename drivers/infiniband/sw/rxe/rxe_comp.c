@@ -690,9 +690,8 @@ int rxe_completer(void *arg)
 			 */
 
 			/* there is nothing to retry in this case */
-			if (!wqe || (wqe->state == wqe_state_posted)) {
+			if (!wqe || (wqe->state == wqe_state_posted))
 				goto exit;
-			}
 
 			/* if we've started a retry, don't start another
 			 * retry sequence, unless this is a timeout.

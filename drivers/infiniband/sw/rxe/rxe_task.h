@@ -60,7 +60,7 @@ struct rxe_task {
 /*
  * init rxe_task structure
  *	arg  => parameter to pass to fcn
- *	fcn  => function to call until it returns != 0
+ *	func => function to call until it returns != 0
  */
 int rxe_init_task(void *obj, struct rxe_task *task,
 		  void *arg, int (*func)(void *), char *name);
