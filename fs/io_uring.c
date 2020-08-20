@@ -3204,6 +3204,7 @@ done:
 	kiocb_done(kiocb, ret, cs);
 	ret = 0;
 out_free:
+	/* it's reportedly faster than delegating the null check to kfree() */
 	if (iovec)
 		kfree(iovec);
 	return ret;
@@ -3300,6 +3301,7 @@ copy_iov:
 			return -EAGAIN;
 	}
 out_free:
+	/* it's reportedly faster than delegating the null check to kfree() */
 	if (iovec)
 		kfree(iovec);
 	return ret;
