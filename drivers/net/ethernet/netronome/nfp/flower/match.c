@@ -434,6 +434,7 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	u32 port_id;
+	int ext_len;
 	int err;
 	u8 *ext;
 	u8 *msk;
@@ -587,6 +588,16 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 			if (err)
 				return err;
 		}
+	}
+
+	/* Check that the flow key does not exceed the maximum limit.
+	 * All structures in the key is multiples of 4 bytes, so use u32.
+	 */
+	ext_len = (u32 *)ext - (u32 *)nfp_flow->unmasked_data;
+	if (ext_len > NFP_FLOWER_KEY_MAX_LW) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: flow key too long");
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
