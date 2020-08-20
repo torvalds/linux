@@ -647,8 +647,10 @@ static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
 
 	ret = __verify_firmware(&init, fw);
-	if (ret)
-		return -EFAULT;
+	if (ret) {
+		ret = -EFAULT;
+		goto release_fw;
+	}
 
 	__disable_dcpu(priv);
 
@@ -667,18 +669,20 @@ static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 
 	ret = __write_firmware(priv->dmem, dmem, dmem_size, is_big_endian);
 	if (ret)
-		return ret;
+		goto release_fw;
 	ret = __write_firmware(priv->imem, imem, imem_size, is_big_endian);
 	if (ret)
-		return ret;
+		goto release_fw;
 
 	ret = __verify_fw_checksum(&init, priv, header, init.chksum);
 	if (ret)
-		return ret;
+		goto release_fw;
 
 	__enable_dcpu(priv);
 
-	return 0;
+release_fw:
+	release_firmware(fw);
+	return ret;
 }
 
 static ssize_t generic_show(unsigned int command, u32 response[],
