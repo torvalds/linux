@@ -67,7 +67,7 @@ Parameters::
     the value passed in <key_size>.
 
 <key_type>
-    Either 'logon' or 'user' kernel key type.
+    Either 'logon', 'user' or 'encrypted' kernel key type.
 
 <key_description>
     The kernel keyring key description crypt target should look for
