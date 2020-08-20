@@ -250,10 +250,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	if (atomic)
 		return -EAGAIN;
 
-	if (need_lock) {
+	if (need_lock)
 		btrfs_tree_read_lock(eb);
-		btrfs_set_lock_blocking_read(eb);
-	}
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
 			 &cached_state);
@@ -282,7 +280,7 @@ out:
 	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
 			     &cached_state);
 	if (need_lock)
-		btrfs_tree_read_unlock_blocking(eb);
+		btrfs_tree_read_unlock(eb);
 	return ret;
 }
 
@@ -1013,8 +1011,6 @@ void btrfs_clean_tree_block(struct extent_buffer *buf)
 			percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
 						 -buf->len,
 						 fs_info->dirty_metadata_batch);
-			/* ugh, clear_extent_buffer_dirty needs to lock the page */
-			btrfs_set_lock_blocking_write(buf);
 			clear_extent_buffer_dirty(buf);
 		}
 	}

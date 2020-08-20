@@ -51,31 +51,6 @@
  */
 
 /*
- * Mark already held read lock as blocking. Can be nested in write lock by the
- * same thread.
- *
- * Use when there are potentially long operations ahead so other thread waiting
- * on the lock will not actively spin but sleep instead.
- *
- * The rwlock is released and blocking reader counter is increased.
- */
-void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
-{
-}
-
-/*
- * Mark already held write lock as blocking.
- *
- * Use when there are potentially long operations ahead so other threads
- * waiting on the lock will not actively spin but sleep instead.
- *
- * The rwlock is released and blocking writers is set.
- */
-void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
-{
-}
-
-/*
  * __btrfs_tree_read_lock - lock extent buffer for read
  * @eb:		the eb to be locked
  * @nest:	the nesting level to be used for lockdep
@@ -131,17 +106,6 @@ void btrfs_tree_read_lock(struct extent_buffer *eb)
 }
 
 /*
- * Lock extent buffer for read, optimistically expecting that there are no
- * contending blocking writers. If there are, don't wait.
- *
- * Return 1 if the rwlock has been taken, 0 otherwise
- */
-int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
-{
-	return btrfs_try_tree_read_lock(eb);
-}
-
-/*
  * Try-lock for read.
  *
  * Retrun 1 if the rwlock has been taken, 0 otherwise
@@ -193,18 +157,6 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 }
 
 /*
- * Release read lock, previously set to blocking by a pairing call to
- * btrfs_set_lock_blocking_read(). Can be nested in write lock by the same
- * thread.
- *
- * State of rwlock is unchanged, last reader wakes waiting threads.
- */
-void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
-{
-	btrfs_tree_read_unlock(eb);
-}
-
-/*
  * __btrfs_tree_lock - lock eb for write
  * @eb:		the eb to lock
  * @nest:	the nesting to use for the lock
@@ -237,32 +189,6 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	trace_btrfs_tree_unlock(eb);
 	eb->lock_owner = 0;
 	up_write(&eb->lock);
-}
-
-/*
- * Set all locked nodes in the path to blocking locks.  This should be done
- * before scheduling
- */
-void btrfs_set_path_blocking(struct btrfs_path *p)
-{
-	int i;
-
-	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
-		if (!p->nodes[i] || !p->locks[i])
-			continue;
-		/*
-		 * If we currently have a spinning reader or writer lock this
-		 * will bump the count of blocking holders and drop the
-		 * spinlock.
-		 */
-		if (p->locks[i] == BTRFS_READ_LOCK) {
-			btrfs_set_lock_blocking_read(p->nodes[i]);
-			p->locks[i] = BTRFS_READ_LOCK_BLOCKING;
-		} else if (p->locks[i] == BTRFS_WRITE_LOCK) {
-			btrfs_set_lock_blocking_write(p->nodes[i]);
-			p->locks[i] = BTRFS_WRITE_LOCK_BLOCKING;
-		}
-	}
 }
 
 /*

@@ -1341,14 +1341,12 @@ again:
 					goto out;
 				}
 
-				if (!path->skip_locking) {
+				if (!path->skip_locking)
 					btrfs_tree_read_lock(eb);
-					btrfs_set_lock_blocking_read(eb);
-				}
 				ret = find_extent_in_eb(eb, bytenr,
 							*extent_item_pos, &eie, ignore_offset);
 				if (!path->skip_locking)
-					btrfs_tree_read_unlock_blocking(eb);
+					btrfs_tree_read_unlock(eb);
 				free_extent_buffer(eb);
 				if (ret < 0)
 					goto out;
@@ -1685,7 +1683,7 @@ char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 					   name_off, name_len);
 		if (eb != eb_in) {
 			if (!path->skip_locking)
-				btrfs_tree_read_unlock_blocking(eb);
+				btrfs_tree_read_unlock(eb);
 			free_extent_buffer(eb);
 		}
 		ret = btrfs_find_item(fs_root, path, parent, 0,
@@ -1705,8 +1703,6 @@ char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 		eb = path->nodes[0];
 		/* make sure we can use eb after releasing the path */
 		if (eb != eb_in) {
-			if (!path->skip_locking)
-				btrfs_set_lock_blocking_read(eb);
 			path->nodes[0] = NULL;
 			path->locks[0] = 0;
 		}

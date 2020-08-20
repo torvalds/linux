@@ -740,13 +740,6 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 		goto out;
 	}
 
-	/*
-	 * we need allocate some memory space, but it might cause the task
-	 * to sleep, so we set all locked nodes in the path to blocking locks
-	 * first.
-	 */
-	btrfs_set_path_blocking(path);
-
 	keys = kmalloc_array(nitems, sizeof(struct btrfs_key), GFP_NOFS);
 	if (!keys) {
 		ret = -ENOMEM;

@@ -1970,8 +1970,7 @@ static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
 			src_path->nodes[cur_level] = eb;
 
 			btrfs_tree_read_lock(eb);
-			btrfs_set_lock_blocking_read(eb);
-			src_path->locks[cur_level] = BTRFS_READ_LOCK_BLOCKING;
+			src_path->locks[cur_level] = BTRFS_READ_LOCK;
 		}
 
 		src_path->slots[cur_level] = dst_path->slots[cur_level];
@@ -2111,8 +2110,7 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 		dst_path->slots[cur_level] = 0;
 
 		btrfs_tree_read_lock(eb);
-		btrfs_set_lock_blocking_read(eb);
-		dst_path->locks[cur_level] = BTRFS_READ_LOCK_BLOCKING;
+		dst_path->locks[cur_level] = BTRFS_READ_LOCK;
 		need_cleanup = true;
 	}
 
@@ -2286,8 +2284,7 @@ walk_down:
 			path->slots[level] = 0;
 
 			btrfs_tree_read_lock(eb);
-			btrfs_set_lock_blocking_read(eb);
-			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
+			path->locks[level] = BTRFS_READ_LOCK;
 
 			ret = btrfs_qgroup_trace_extent(trans, child_bytenr,
 							fs_info->nodesize,
