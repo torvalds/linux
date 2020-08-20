@@ -178,18 +178,6 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	}
 }
 
-static void tmio_mmc_hw_reset(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	host->reset(host);
-
-	tmio_mmc_abort_dma(host);
-
-	if (host->hw_reset)
-		host->hw_reset(host);
-}
-
 static void tmio_mmc_reset_work(struct work_struct *work)
 {
 	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
@@ -228,11 +216,12 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	tmio_mmc_hw_reset(host->mmc);
+	host->reset(host);
 
 	/* Ready for new calls */
 	host->mrq = NULL;
 
+	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -720,6 +709,14 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	return 0;
 }
 
+static void tmio_mmc_hw_reset(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (host->hw_reset)
+		host->hw_reset(host);
+}
+
 static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
@@ -732,7 +729,7 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	if (ret < 0) {
 		dev_warn(&host->pdev->dev, "Tuning procedure failed\n");
-		tmio_mmc_hw_reset(mmc);
+		host->reset(host);
 	}
 
 	return ret;
@@ -1180,7 +1177,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 		_host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
 
 	_host->set_clock(_host, 0);
-	tmio_mmc_hw_reset(mmc);
+	_host->reset(_host);
 
 	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
@@ -1283,7 +1280,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
 	tmio_mmc_clk_enable(host);
-	tmio_mmc_hw_reset(host->mmc);
+	host->reset(host);
 
 	if (host->clk_cache)
 		host->set_clock(host, host->clk_cache);
