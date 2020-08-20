@@ -4324,8 +4324,18 @@ again:
 	else
 		btrfs_item_key(l, &disk_key, mid);
 
+	/*
+	 * We have to about BTRFS_NESTING_NEW_ROOT here if we've done a double
+	 * split, because we're only allowed to have MAX_LOCKDEP_SUBCLASSES
+	 * subclasses, which is 8 at the time of this patch, and we've maxed it
+	 * out.  In the future we could add a
+	 * BTRFS_NESTING_SPLIT_THE_SPLITTENING if we need to, but for now just
+	 * use BTRFS_NESTING_NEW_ROOT.
+	 */
 	right = alloc_tree_block_no_bg_flush(trans, root, 0, &disk_key, 0,
-					     l->start, 0, BTRFS_NESTING_SPLIT);
+					     l->start, 0, num_doubles ?
+					     BTRFS_NESTING_NEW_ROOT :
+					     BTRFS_NESTING_SPLIT);
 	if (IS_ERR(right))
 		return PTR_ERR(right);
 
