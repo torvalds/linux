@@ -75,10 +75,12 @@ int test_core_type_id(void *ctx)
 {
 	/* We use __builtin_btf_type_id() in this tests, but up until the time
 	 * __builtin_preserve_type_info() was added it contained a bug that
-	 * would make this test fail. The bug was fixed with addition of
+	 * would make this test fail. The bug was fixed ([0]) with addition of
 	 * __builtin_preserve_type_info(), though, so that's what we are using
 	 * to detect whether this test has to be executed, however strange
 	 * that might look like.
+	 *
+	 *   [0] https://reviews.llvm.org/D85174
 	 */
 #if __has_builtin(__builtin_preserve_type_info)
 	struct core_reloc_type_id_output *out = (void *)&data.out;

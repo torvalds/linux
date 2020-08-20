@@ -43,3 +43,24 @@ This is due to a llvm BPF backend bug. The fix
   https://reviews.llvm.org/D78466
 has been pushed to llvm 10.x release branch and will be
 available in 10.0.1. The fix is available in llvm 11.0.0 trunk.
+
+BPF CO-RE-based tests and Clang version
+=======================================
+
+A set of selftests use BPF target-specific built-ins, which might require
+bleeding-edge Clang versions (Clang 12 nightly at this time).
+
+Few sub-tests of core_reloc test suit (part of test_progs test runner) require
+the following built-ins, listed with corresponding Clang diffs introducing
+them to Clang/LLVM. These sub-tests are going to be skipped if Clang is too
+old to support them, they shouldn't cause build failures or runtime test
+failures:
+
+  - __builtin_btf_type_id() ([0], [1], [2]);
+  - __builtin_preserve_type_info(), __builtin_preserve_enum_value() ([3], [4]).
+
+  [0] https://reviews.llvm.org/D74572
+  [1] https://reviews.llvm.org/D74668
+  [2] https://reviews.llvm.org/D85174
+  [3] https://reviews.llvm.org/D83878
+  [4] https://reviews.llvm.org/D83242
