@@ -220,15 +220,13 @@ static void dcn30_set_writeback(
 		struct dc_writeback_info *wb_info,
 		struct dc_state *context)
 {
-	struct dwbc *dwb;
 	struct mcif_wb *mcif_wb;
 	struct mcif_buf_params *mcif_buf_params;
 
 	ASSERT(wb_info->dwb_pipe_inst < MAX_DWB_PIPES);
 	ASSERT(wb_info->wb_enabled);
 	ASSERT(wb_info->mpcc_inst >= 0);
-	ASSERT(wb_info->mpcc_inst < 4);
-	dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+	ASSERT(wb_info->mpcc_inst < dc->res_pool->mpcc_count);
 	mcif_wb = dc->res_pool->mcif_wb[wb_info->dwb_pipe_inst];
 	mcif_buf_params = &wb_info->mcif_buf_params;
 
