@@ -244,7 +244,7 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
  *
  * The rwlock is held upon exit.
  */
-void btrfs_tree_read_lock(struct extent_buffer *eb)
+void __btrfs_tree_read_lock(struct extent_buffer *eb, bool recurse)
 {
 	u64 start_ns = 0;
 
@@ -263,6 +263,7 @@ again:
 			 * depends on this as it may be called on a partly
 			 * (write-)locked tree.
 			 */
+			WARN_ON(!recurse);
 			BUG_ON(eb->lock_recursed);
 			eb->lock_recursed = true;
 			read_unlock(&eb->lock);
@@ -277,6 +278,11 @@ again:
 	btrfs_assert_tree_read_locks_get(eb);
 	btrfs_assert_spinning_readers_get(eb);
 	trace_btrfs_tree_read_lock(eb, start_ns);
+}
+
+void btrfs_tree_read_lock(struct extent_buffer *eb)
+{
+	__btrfs_tree_read_lock(eb, false);
 }
 
 /*
@@ -552,13 +558,14 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
  *
  * Return: root extent buffer with read lock held
  */
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *__btrfs_read_lock_root_node(struct btrfs_root *root,
+						  bool recurse)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
 		eb = btrfs_root_node(root);
-		btrfs_tree_read_lock(eb);
+		__btrfs_tree_read_lock(eb, recurse);
 		if (eb == root->node)
 			break;
 		btrfs_tree_read_unlock(eb);

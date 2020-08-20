@@ -21,6 +21,7 @@ struct btrfs_path;
 void btrfs_tree_lock(struct extent_buffer *eb);
 void btrfs_tree_unlock(struct extent_buffer *eb);
 
+void __btrfs_tree_read_lock(struct extent_buffer *eb, bool recurse);
 void btrfs_tree_read_lock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb);
@@ -29,6 +30,14 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb);
 int btrfs_try_tree_read_lock(struct extent_buffer *eb);
 int btrfs_try_tree_write_lock(struct extent_buffer *eb);
 int btrfs_tree_read_lock_atomic(struct extent_buffer *eb);
+struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
+struct extent_buffer *__btrfs_read_lock_root_node(struct btrfs_root *root,
+						  bool recurse);
+
+static inline struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+{
+	return __btrfs_read_lock_root_node(root, false);
+}
 
 #ifdef CONFIG_BTRFS_DEBUG
 static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) {
