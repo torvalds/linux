@@ -1999,9 +1999,9 @@ static u64 btrfs_num_devices(struct btrfs_fs_info *fs_info)
 	return num_devices;
 }
 
-static void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
-				      struct block_device *bdev,
-				      const char *device_path)
+void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
+			       struct block_device *bdev,
+			       const char *device_path)
 {
 	struct btrfs_super_block *disk_super;
 	int copy_num;
@@ -2223,12 +2223,6 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 {
 	struct btrfs_fs_info *fs_info = srcdev->fs_info;
 	struct btrfs_fs_devices *fs_devices = srcdev->fs_devices;
-
-	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &srcdev->dev_state)) {
-		/* zero out the old super if it is writable */
-		btrfs_scratch_superblocks(fs_info, srcdev->bdev,
-					  srcdev->name->str);
-	}
 
 	btrfs_close_bdev(srcdev);
 	synchronize_rcu();
