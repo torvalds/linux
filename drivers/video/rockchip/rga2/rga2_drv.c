@@ -922,14 +922,14 @@ static void rga2_try_set_reg(void)
 			rga2_copy_reg(reg, 0);
 			rga2_reg_from_wait_to_run(reg);
 
-			rga2_dma_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
+			rga2_dma_flush_range(&reg->cmd_reg[0], &reg->cmd_reg[32]);
 
 			//rga2_soft_reset();
 
 			rga2_write(0x0, RGA2_SYS_CTRL);
 
 			/* CMD buff */
-			rga2_write(virt_to_phys(rga2_service.cmd_buff), RGA2_CMD_BASE);
+			rga2_write(virt_to_phys(reg->cmd_reg), RGA2_CMD_BASE);
 
 #if RGA2_DEBUGFS
 			if (RGA2_TEST_REG) {
