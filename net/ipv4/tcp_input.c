@@ -146,6 +146,7 @@ static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
 				       BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG);
 	bool parse_all_opt = BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk),
 						    BPF_SOCK_OPS_PARSE_ALL_HDR_OPT_CB_FLAG);
+	struct bpf_sock_ops_kern sock_ops;
 
 	if (likely(!unknown_opt && !parse_all_opt))
 		return;
@@ -161,12 +162,15 @@ static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	/* BPF prog will have access to the sk and skb.
-	 *
-	 * The bpf running context preparation and the actual bpf prog
-	 * calling will be implemented in a later PATCH together with
-	 * other bpf pieces.
-	 */
+	sock_owned_by_me(sk);
+
+	memset(&sock_ops, 0, offsetof(struct bpf_sock_ops_kern, temp));
+	sock_ops.op = BPF_SOCK_OPS_PARSE_HDR_OPT_CB;
+	sock_ops.is_fullsock = 1;
+	sock_ops.sk = sk;
+	bpf_skops_init_skb(&sock_ops, skb, tcp_hdrlen(skb));
+
+	BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
 }
 
 static void bpf_skops_established(struct sock *sk, int bpf_op,
@@ -180,7 +184,9 @@ static void bpf_skops_established(struct sock *sk, int bpf_op,
 	sock_ops.op = bpf_op;
 	sock_ops.is_fullsock = 1;
 	sock_ops.sk = sk;
-	/* skb will be passed to the bpf prog in a later patch. */
+	/* sk with TCP_REPAIR_ON does not have skb in tcp_finish_connect */
+	if (skb)
+		bpf_skops_init_skb(&sock_ops, skb, tcp_hdrlen(skb));
 
 	BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
 }

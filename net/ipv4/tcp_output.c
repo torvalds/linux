@@ -454,6 +454,18 @@ static void mptcp_options_write(__be32 *ptr, struct tcp_out_options *opts)
 }
 
 #ifdef CONFIG_CGROUP_BPF
+static int bpf_skops_write_hdr_opt_arg0(struct sk_buff *skb,
+					enum tcp_synack_type synack_type)
+{
+	if (unlikely(!skb))
+		return BPF_WRITE_HDR_TCP_CURRENT_MSS;
+
+	if (unlikely(synack_type == TCP_SYNACK_COOKIE))
+		return BPF_WRITE_HDR_TCP_SYNACK_COOKIE;
+
+	return 0;
+}
+
 /* req, syn_skb and synack_type are used when writing synack */
 static void bpf_skops_hdr_opt_len(struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req,
@@ -462,15 +474,60 @@ static void bpf_skops_hdr_opt_len(struct sock *sk, struct sk_buff *skb,
 				  struct tcp_out_options *opts,
 				  unsigned int *remaining)
 {
+	struct bpf_sock_ops_kern sock_ops;
+	int err;
+
 	if (likely(!BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk),
 					   BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG)) ||
 	    !*remaining)
 		return;
 
-	/* The bpf running context preparation and the actual bpf prog
-	 * calling will be implemented in a later PATCH together with
-	 * other bpf pieces.
-	 */
+	/* *remaining has already been aligned to 4 bytes, so *remaining >= 4 */
+
+	/* init sock_ops */
+	memset(&sock_ops, 0, offsetof(struct bpf_sock_ops_kern, temp));
+
+	sock_ops.op = BPF_SOCK_OPS_HDR_OPT_LEN_CB;
+
+	if (req) {
+		/* The listen "sk" cannot be passed here because
+		 * it is not locked.  It would not make too much
+		 * sense to do bpf_setsockopt(listen_sk) based
+		 * on individual connection request also.
+		 *
+		 * Thus, "req" is passed here and the cgroup-bpf-progs
+		 * of the listen "sk" will be run.
+		 *
+		 * "req" is also used here for fastopen even the "sk" here is
+		 * a fullsock "child" sk.  It is to keep the behavior
+		 * consistent between fastopen and non-fastopen on
+		 * the bpf programming side.
+		 */
+		sock_ops.sk = (struct sock *)req;
+		sock_ops.syn_skb = syn_skb;
+	} else {
+		sock_owned_by_me(sk);
+
+		sock_ops.is_fullsock = 1;
+		sock_ops.sk = sk;
+	}
+
+	sock_ops.args[0] = bpf_skops_write_hdr_opt_arg0(skb, synack_type);
+	sock_ops.remaining_opt_len = *remaining;
+	/* tcp_current_mss() does not pass a skb */
+	if (skb)
+		bpf_skops_init_skb(&sock_ops, skb, 0);
+
+	err = BPF_CGROUP_RUN_PROG_SOCK_OPS_SK(&sock_ops, sk);
+
+	if (err || sock_ops.remaining_opt_len == *remaining)
+		return;
+
+	opts->bpf_opt_len = *remaining - sock_ops.remaining_opt_len;
+	/* round up to 4 bytes */
+	opts->bpf_opt_len = (opts->bpf_opt_len + 3) & ~3;
+
+	*remaining -= opts->bpf_opt_len;
 }
 
 static void bpf_skops_write_hdr_opt(struct sock *sk, struct sk_buff *skb,
@@ -479,13 +536,42 @@ static void bpf_skops_write_hdr_opt(struct sock *sk, struct sk_buff *skb,
 				    enum tcp_synack_type synack_type,
 				    struct tcp_out_options *opts)
 {
-	if (likely(!opts->bpf_opt_len))
+	u8 first_opt_off, nr_written, max_opt_len = opts->bpf_opt_len;
+	struct bpf_sock_ops_kern sock_ops;
+	int err;
+
+	if (likely(!max_opt_len))
 		return;
 
-	/* The bpf running context preparation and the actual bpf prog
-	 * calling will be implemented in a later PATCH together with
-	 * other bpf pieces.
-	 */
+	memset(&sock_ops, 0, offsetof(struct bpf_sock_ops_kern, temp));
+
+	sock_ops.op = BPF_SOCK_OPS_WRITE_HDR_OPT_CB;
+
+	if (req) {
+		sock_ops.sk = (struct sock *)req;
+		sock_ops.syn_skb = syn_skb;
+	} else {
+		sock_owned_by_me(sk);
+
+		sock_ops.is_fullsock = 1;
+		sock_ops.sk = sk;
+	}
+
+	sock_ops.args[0] = bpf_skops_write_hdr_opt_arg0(skb, synack_type);
+	sock_ops.remaining_opt_len = max_opt_len;
+	first_opt_off = tcp_hdrlen(skb) - max_opt_len;
+	bpf_skops_init_skb(&sock_ops, skb, first_opt_off);
+
+	err = BPF_CGROUP_RUN_PROG_SOCK_OPS_SK(&sock_ops, sk);
+
+	if (err)
+		nr_written = 0;
+	else
+		nr_written = max_opt_len - sock_ops.remaining_opt_len;
+
+	if (nr_written < max_opt_len)
+		memset(skb->data + first_opt_off + nr_written, TCPOPT_NOP,
+		       max_opt_len - nr_written);
 }
 #else
 static void bpf_skops_hdr_opt_len(struct sock *sk, struct sk_buff *skb,

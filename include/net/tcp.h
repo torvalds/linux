@@ -2235,6 +2235,55 @@ int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
 		      struct msghdr *msg, int len, int flags);
 #endif /* CONFIG_NET_SOCK_MSG */
 
+#ifdef CONFIG_CGROUP_BPF
+/* Copy the listen sk's HDR_OPT_CB flags to its child.
+ *
+ * During 3-Way-HandShake, the synack is usually sent from
+ * the listen sk with the HDR_OPT_CB flags set so that
+ * bpf-prog will be called to write the BPF hdr option.
+ *
+ * In fastopen, the child sk is used to send synack instead
+ * of the listen sk.  Thus, inheriting the HDR_OPT_CB flags
+ * from the listen sk gives the bpf-prog a chance to write
+ * BPF hdr option in the synack pkt during fastopen.
+ *
+ * Both fastopen and non-fastopen child will inherit the
+ * HDR_OPT_CB flags to keep the bpf-prog having a consistent
+ * behavior when deciding to clear this cb flags (or not)
+ * during the PASSIVE_ESTABLISHED_CB.
+ *
+ * In the future, other cb flags could be inherited here also.
+ */
+static inline void bpf_skops_init_child(const struct sock *sk,
+					struct sock *child)
+{
+	tcp_sk(child)->bpf_sock_ops_cb_flags =
+		tcp_sk(sk)->bpf_sock_ops_cb_flags &
+		(BPF_SOCK_OPS_PARSE_ALL_HDR_OPT_CB_FLAG |
+		 BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
+		 BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG);
+}
+
+static inline void bpf_skops_init_skb(struct bpf_sock_ops_kern *skops,
+				      struct sk_buff *skb,
+				      unsigned int end_offset)
+{
+	skops->skb = skb;
+	skops->skb_data_end = skb->data + end_offset;
+}
+#else
+static inline void bpf_skops_init_child(const struct sock *sk,
+					struct sock *child)
+{
+}
+
+static inline void bpf_skops_init_skb(struct bpf_sock_ops_kern *skops,
+				      struct sk_buff *skb,
+				      unsigned int end_offset)
+{
+}
+#endif
+
 /* Call BPF_SOCK_OPS program that returns an int. If the return value
  * is < 0, then the BPF op failed (for example if the loaded BPF
  * program does not support the chosen operation or there is no BPF
