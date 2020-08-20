@@ -8,6 +8,7 @@
 #include "flash_com.h"
 #include "sfc.h"
 
+#define SFC_NAND_WAIT_TIME_OUT		3
 #define SFC_NAND_PROG_ERASE_ERROR	2
 #define SFC_NAND_HW_ERROR		1
 #define SFC_NAND_ECC_ERROR		NAND_ERROR

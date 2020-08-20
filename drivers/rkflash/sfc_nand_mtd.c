@@ -23,7 +23,15 @@ static inline struct snand_mtd_dev *mtd_to_priv(struct mtd_info *ptr_mtd)
 
 static int sfc_nand_erase_mtd(struct mtd_info *mtd, u32 addr)
 {
-	return sfc_nand_erase_block(0, addr >> mtd->writesize_shift);
+	int ret;
+
+	ret = sfc_nand_erase_block(0, addr >> mtd->writesize_shift);
+	if (ret) {
+		rkflash_print_error("%s fail ret= %d\n", __func__, ret);
+		ret = -EIO;
+	}
+
+	return ret;
 }
 
 static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
@@ -38,8 +46,11 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 
 	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, to, (u32)remaining);
 	if ((to + remaining) > mtd->size || to & mtd->writesize_mask ||
-	    remaining & mtd->writesize_mask)
+	    remaining & mtd->writesize_mask) {
+		rkflash_print_error("%s input error, %llx %x\n", __func__, to, (u32)remaining);
+
 		return -EINVAL;
+	}
 
 	ops->retlen = 0;
 	ops->oobretlen = 0;
@@ -52,8 +63,9 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 		ret = sfc_nand_prog_page_raw(0, to >> mtd->writesize_shift,
 					     (u32 *)p_dev->dma_buf);
 		if (ret != SFC_OK) {
-			rkflash_print_dio("%s addr %llx ret= %d\n",
-					  __func__, to, ret);
+			rkflash_print_error("%s addr %llx ret= %d\n",
+					    __func__, to, ret);
+			ret = -EIO;
 			break;
 		}
 
@@ -67,7 +79,7 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
@@ -84,8 +96,11 @@ static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 	int max_bitflips = 0;
 
 	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, from, (u32)remaining);
-	if ((from + remaining) > mtd->size)
+	if ((from + remaining) > mtd->size) {
+		rkflash_print_error("%s input error, %llx %x\n", __func__, from, (u32)remaining);
+
 		return -EINVAL;
+	}
 
 	ops->retlen = 0;
 	ops->oobretlen = 0;
@@ -93,11 +108,11 @@ static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 		ret = sfc_nand_read_page_raw(0, from >> mtd->writesize_shift,
 					     (u32 *)p_dev->dma_buf);
 		if (ret == SFC_NAND_HW_ERROR) {
+			rkflash_print_error("%s addr %llx ret= %d\n",
+					    __func__, from, ret);
 			ret = -EIO;
 			break;
-		}
-
-		if (ret == SFC_NAND_ECC_ERROR) {
+		} else if (ret == SFC_NAND_ECC_ERROR) {
 			rkflash_print_error("%s addr %llx ret= %d\n",
 					    __func__, from, ret);
 			ecc_failed = true;
@@ -144,8 +159,11 @@ static int sfc_nand_isbad_mtd(struct mtd_info *mtd, loff_t ofs)
 	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
 
 	rkflash_print_dio("%s %llx\n", __func__, ofs);
-	if (ofs & mtd->writesize_mask)
+	if (ofs & mtd->writesize_mask) {
+		rkflash_print_error("%s %llx input error\n", __func__, ofs);
+
 		return -EINVAL;
+	}
 
 	if (snanddev_bbt_is_initialized(p_dev)) {
 		unsigned int entry;
@@ -184,8 +202,11 @@ static int sfc_nand_markbad_mtd(struct mtd_info *mtd, loff_t ofs)
 	unsigned int entry;
 
 	rkflash_print_error("%s %llx\n", __func__, ofs);
-	if (ofs & mtd->erasesize_mask)
+	if (ofs & mtd->erasesize_mask) {
+		rkflash_print_error("%s %llx input error\n", __func__, ofs);
+
 		return -EINVAL;
+	}
 
 	if (sfc_nand_isbad_mtd(mtd, ofs))
 		return 0;
@@ -247,8 +268,8 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 		ret = snanddev_bbt_get_block_status(nand, addr >> mtd->erasesize_shift);
 		if (ret == NAND_BBT_BLOCK_WORN ||
 		    ret == NAND_BBT_BLOCK_FACTORY_BAD) {
-			pr_warn("attempt to erase a bad/reserved block @%llx\n",
-				addr >> mtd->erasesize_shift);
+			rkflash_print_error("attempt to erase a bad/reserved block @%llx\n",
+					    addr >> mtd->erasesize_shift);
 			addr += mtd->erasesize;
 			remaining -= mtd->erasesize;
 			continue;

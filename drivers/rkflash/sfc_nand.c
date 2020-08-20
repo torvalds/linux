@@ -192,7 +192,7 @@ static int sfc_nand_wait_busy(u8 *data, int timeout)
 			return SFC_OK;
 		sfc_delay(1);
 	}
-	return -1;
+	return SFC_NAND_WAIT_TIME_OUT;
 }
 
 /*
