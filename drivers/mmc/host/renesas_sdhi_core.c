@@ -631,11 +631,20 @@ static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host)
 	return renesas_sdhi_manual_correction(host, use_4tap);
 }
 
-static void renesas_sdhi_hw_reset(struct tmio_mmc_host *host)
+static void renesas_sdhi_reset(struct tmio_mmc_host *host)
 {
-	struct renesas_sdhi *priv;
+	struct renesas_sdhi *priv = host_to_priv(host);
 
-	priv = host_to_priv(host);
+	/* FIXME - should we set stop clock reg here */
+	sd_ctrl_write16(host, CTL_RESET_SD, 0x0000);
+	usleep_range(10000, 11000);
+	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
+	usleep_range(10000, 11000);
+
+	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
+		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
+	}
 
 	renesas_sdhi_reset_scc(host, priv);
 	renesas_sdhi_reset_hs400_mode(host, priv);
@@ -862,11 +871,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			renesas_sdhi_start_signal_voltage_switch;
 		host->sdcard_irq_setbit_mask = TMIO_STAT_ALWAYS_SET_27;
 
-		/* SDR and HS200/400 registers requires HW reset */
 		if (of_data && of_data->scc_offset) {
 			priv->scc_ctl = host->ctl + of_data->scc_offset;
-			host->mmc->caps |= MMC_CAP_HW_RESET;
-			host->hw_reset = renesas_sdhi_hw_reset;
+			host->reset = renesas_sdhi_reset;
 		}
 	}
 
