@@ -2826,10 +2826,8 @@ static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
 	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
 		if (req->flags & REQ_F_BUFFER_SELECT) {
 			buf = io_rw_buffer_select(req, &sqe_len, needs_lock);
-			if (IS_ERR(buf)) {
-				*iovec = NULL;
+			if (IS_ERR(buf))
 				return PTR_ERR(buf);
-			}
 			req->rw.len = sqe_len;
 		}
 
