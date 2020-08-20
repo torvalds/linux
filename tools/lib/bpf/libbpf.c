@@ -2672,6 +2672,46 @@ static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn)
 	return data;
 }
 
+static bool is_sec_name_dwarf(const char *name)
+{
+	/* approximation, but the actual list is too long */
+	return strncmp(name, ".debug_", sizeof(".debug_") - 1) == 0;
+}
+
+static bool ignore_elf_section(GElf_Shdr *hdr, const char *name)
+{
+	/* no special handling of .strtab */
+	if (hdr->sh_type == SHT_STRTAB)
+		return true;
+
+	/* ignore .llvm_addrsig section as well */
+	if (hdr->sh_type == 0x6FFF4C03 /* SHT_LLVM_ADDRSIG */)
+		return true;
+
+	/* no subprograms will lead to an empty .text section, ignore it */
+	if (hdr->sh_type == SHT_PROGBITS && hdr->sh_size == 0 &&
+	    strcmp(name, ".text") == 0)
+		return true;
+
+	/* DWARF sections */
+	if (is_sec_name_dwarf(name))
+		return true;
+
+	if (strncmp(name, ".rel", sizeof(".rel") - 1) == 0) {
+		name += sizeof(".rel") - 1;
+		/* DWARF section relocations */
+		if (is_sec_name_dwarf(name))
+			return true;
+
+		/* .BTF and .BTF.ext don't need relocations */
+		if (strcmp(name, BTF_ELF_SEC) == 0 ||
+		    strcmp(name, BTF_EXT_ELF_SEC) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
@@ -2693,6 +2733,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		name = elf_sec_str(obj, sh.sh_name);
 		if (!name)
 			return -LIBBPF_ERRNO__FORMAT;
+
+		if (ignore_elf_section(&sh, name))
+			continue;
 
 		data = elf_sec_data(obj, scn);
 		if (!data)
@@ -2746,8 +2789,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				obj->efile.st_ops_data = data;
 				obj->efile.st_ops_shndx = idx;
 			} else {
-				pr_debug("elf: skipping unrecognized data section(%d) %s\n",
-					 idx, name);
+				pr_info("elf: skipping unrecognized data section(%d) %s\n",
+					idx, name);
 			}
 		} else if (sh.sh_type == SHT_REL) {
 			int nr_sects = obj->efile.nr_reloc_sects;
@@ -2758,9 +2801,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			if (!section_have_execinstr(obj, sec) &&
 			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
 			    strcmp(name, ".rel" MAPS_ELF_SEC)) {
-				pr_debug("elf: skipping relo section(%d) %s for section(%d) %s\n",
-					 idx, name, sec,
-					 elf_sec_name(obj, elf_sec_by_idx(obj, sec)) ?: "<?>");
+				pr_info("elf: skipping relo section(%d) %s for section(%d) %s\n",
+					idx, name, sec,
+					elf_sec_name(obj, elf_sec_by_idx(obj, sec)) ?: "<?>");
 				continue;
 			}
 
@@ -2778,7 +2821,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			obj->efile.bss = data;
 			obj->efile.bss_shndx = idx;
 		} else {
-			pr_debug("elf: skipping section(%d) %s\n", idx, name);
+			pr_info("elf: skipping section(%d) %s (size %zu)\n", idx, name, sh.sh_size);
 		}
 	}
 
