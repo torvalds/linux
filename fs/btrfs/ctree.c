@@ -198,7 +198,8 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		btrfs_node_key(buf, &disk_key, 0);
 
 	cow = btrfs_alloc_tree_block(trans, root, 0, new_root_objectid,
-			&disk_key, level, buf->start, 0, BTRFS_NESTING_NORMAL);
+				     &disk_key, level, buf->start, 0,
+				     BTRFS_NESTING_NEW_ROOT);
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
@@ -3407,7 +3408,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	c = alloc_tree_block_no_bg_flush(trans, root, 0, &lower_key, level,
 					 root->node->start, 0,
-					 BTRFS_NESTING_NORMAL);
+					 BTRFS_NESTING_NEW_ROOT);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 

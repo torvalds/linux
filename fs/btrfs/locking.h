@@ -62,6 +62,15 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_SPLIT,
 
 	/*
+	 * When promoting a new block to a root we need to have a special
+	 * subclass so we don't confuse lockdep, as it will appear that we are
+	 * locking a higher level node before a lower level one.  Copying also
+	 * has this problem as it appears we're locking the same block again
+	 * when we make a snapshot of an existing root.
+	 */
+	BTRFS_NESTING_NEW_ROOT,
+
+	/*
 	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're
