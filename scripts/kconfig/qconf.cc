@@ -1076,75 +1076,80 @@ void ConfigInfoView::symbolInfo(void)
 void ConfigInfoView::menuInfo(void)
 {
 	struct symbol* sym;
-	QString head, debug, help;
+	QString info;
+	QTextStream stream(&info);
 
 	sym = _menu->sym;
 	if (sym) {
 		if (_menu->prompt) {
-			head += "<big><b>";
-			head += print_filter(_menu->prompt->text);
-			head += "</b></big>";
+			stream << "<big><b>";
+			stream << print_filter(_menu->prompt->text);
+			stream << "</b></big>";
 			if (sym->name) {
-				head += " (";
+				stream << " (";
 				if (showDebug())
-					head += QString().sprintf("<a href=\"s%s\">", sym->name);
-				head += print_filter(sym->name);
+					stream << "<a href=\"s" << sym->name << "\">";
+				stream << print_filter(sym->name);
 				if (showDebug())
-					head += "</a>";
-				head += ")";
+					stream << "</a>";
+				stream << ")";
 			}
 		} else if (sym->name) {
-			head += "<big><b>";
+			stream << "<big><b>";
 			if (showDebug())
-				head += QString().sprintf("<a href=\"s%s\">", sym->name);
-			head += print_filter(sym->name);
+				stream << "<a href=\"s" << sym->name << "\">";
+			stream << print_filter(sym->name);
 			if (showDebug())
-				head += "</a>";
-			head += "</b></big>";
+				stream << "</a>";
+			stream << "</b></big>";
 		}
-		head += "<br><br>";
+		stream << "<br><br>";
 
 		if (showDebug())
-			debug = debug_info(sym);
+			stream << debug_info(sym);
+
 	} else if (_menu->prompt) {
-		head += "<big><b>";
-		head += print_filter(_menu->prompt->text);
-		head += "</b></big><br><br>";
+		stream << "<big><b>";
+		stream << print_filter(_menu->prompt->text);
+		stream << "</b></big><br><br>";
 		if (showDebug()) {
 			if (_menu->prompt->visible.expr) {
-				debug += "&nbsp;&nbsp;dep: ";
-				expr_print(_menu->prompt->visible.expr, expr_print_help, &debug, E_NONE);
-				debug += "<br><br>";
+				stream << "&nbsp;&nbsp;dep: ";
+				expr_print(_menu->prompt->visible.expr,
+					   expr_print_help, &stream, E_NONE);
+				stream << "<br><br>";
 			}
 		}
 	}
 	if (showDebug())
-		debug += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineno);
+		stream << "defined at " << _menu->file->name << ":"
+		       << _menu->lineno << "<br><br>";
 
-	setText(head + debug);
+	setText(info);
 }
 
 QString ConfigInfoView::debug_info(struct symbol *sym)
 {
 	QString debug;
+	QTextStream stream(&debug);
 
-	debug += "type: ";
-	debug += print_filter(sym_type_name(sym->type));
+	stream << "type: ";
+	stream << print_filter(sym_type_name(sym->type));
 	if (sym_is_choice(sym))
-		debug += " (choice)";
+		stream << " (choice)";
 	debug += "<br>";
 	if (sym->rev_dep.expr) {
-		debug += "reverse dep: ";
-		expr_print(sym->rev_dep.expr, expr_print_help, &debug, E_NONE);
-		debug += "<br>";
+		stream << "reverse dep: ";
+		expr_print(sym->rev_dep.expr, expr_print_help, &stream, E_NONE);
+		stream << "<br>";
 	}
 	for (struct property *prop = sym->prop; prop; prop = prop->next) {
 		switch (prop->type) {
 		case P_PROMPT:
 		case P_MENU:
-			debug += QString().sprintf("prompt: <a href=\"m%s\">", sym->name);
-			debug += print_filter(prop->text);
-			debug += "</a><br>";
+			stream << "prompt: <a href=\"m" << sym->name << "\">";
+			stream << print_filter(prop->text);
+			stream << "</a><br>";
 			break;
 		case P_DEFAULT:
 		case P_SELECT:
@@ -1152,30 +1157,33 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		case P_COMMENT:
 		case P_IMPLY:
 		case P_SYMBOL:
-			debug += prop_get_type_name(prop->type);
-			debug += ": ";
-			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
+			stream << prop_get_type_name(prop->type);
+			stream << ": ";
+			expr_print(prop->expr, expr_print_help,
+				   &stream, E_NONE);
+			stream << "<br>";
 			break;
 		case P_CHOICE:
 			if (sym_is_choice(sym)) {
-				debug += "choice: ";
-				expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-				debug += "<br>";
+				stream << "choice: ";
+				expr_print(prop->expr, expr_print_help,
+					   &stream, E_NONE);
+				stream << "<br>";
 			}
 			break;
 		default:
-			debug += "unknown property: ";
-			debug += prop_get_type_name(prop->type);
-			debug += "<br>";
+			stream << "unknown property: ";
+			stream << prop_get_type_name(prop->type);
+			stream << "<br>";
 		}
 		if (prop->visible.expr) {
-			debug += "&nbsp;&nbsp;&nbsp;&nbsp;dep: ";
-			expr_print(prop->visible.expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
+			stream << "&nbsp;&nbsp;&nbsp;&nbsp;dep: ";
+			expr_print(prop->visible.expr, expr_print_help,
+				   &stream, E_NONE);
+			stream << "<br>";
 		}
 	}
-	debug += "<br>";
+	stream << "<br>";
 
 	return debug;
 }
@@ -1213,15 +1221,15 @@ QString ConfigInfoView::print_filter(const QString &str)
 
 void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char *str)
 {
-	QString* text = reinterpret_cast<QString*>(data);
-	QString str2 = print_filter(str);
+	QTextStream *stream = reinterpret_cast<QTextStream *>(data);
 
 	if (sym && sym->name && !(sym->flags & SYMBOL_CONST)) {
-		*text += QString().sprintf("<a href=\"s%s\">", sym->name);
-		*text += str2;
-		*text += "</a>";
-	} else
-		*text += str2;
+		*stream << "<a href=\"s" << sym->name << "\">";
+		*stream << print_filter(str);
+		*stream << "</a>";
+	} else {
+		*stream << print_filter(str);
+	}
 }
 
 void ConfigInfoView::clicked(const QUrl &url)
