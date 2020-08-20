@@ -4990,7 +4990,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	rwlock_init(&eb->lock);
 	atomic_set(&eb->blocking_readers, 0);
 	eb->blocking_writers = 0;
-	eb->lock_nested = false;
+	eb->lock_recursed = false;
 	init_waitqueue_head(&eb->write_lock_wq);
 	init_waitqueue_head(&eb->read_lock_wq);
 

@@ -102,7 +102,7 @@ struct extent_buffer {
 
 	int blocking_writers;
 	atomic_t blocking_readers;
-	bool lock_nested;
+	bool lock_recursed;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	short log_index;
 

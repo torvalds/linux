@@ -57,8 +57,8 @@
  * performance reasons.
  *
  *
- * Lock nesting
- * ------------
+ * Lock recursion
+ * --------------
  *
  * A write operation on a tree might indirectly start a look up on the same
  * tree.  This can happen when btrfs_cow_block locks the tree and needs to
@@ -201,7 +201,7 @@ void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
 	 * lock, but it won't change to or away from us.  If we have the write
 	 * lock, we are the owner and it'll never change.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
+	if (eb->lock_recursed && current->pid == eb->lock_owner)
 		return;
 	btrfs_assert_tree_read_locked(eb);
 	atomic_inc(&eb->blocking_readers);
@@ -225,7 +225,7 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	 * lock, but it won't change to or away from us.  If we have the write
 	 * lock, we are the owner and it'll never change.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
+	if (eb->lock_recursed && current->pid == eb->lock_owner)
 		return;
 	if (eb->blocking_writers == 0) {
 		btrfs_assert_spinning_writers_put(eb);
@@ -263,8 +263,8 @@ again:
 			 * depends on this as it may be called on a partly
 			 * (write-)locked tree.
 			 */
-			BUG_ON(eb->lock_nested);
-			eb->lock_nested = true;
+			BUG_ON(eb->lock_recursed);
+			eb->lock_recursed = true;
 			read_unlock(&eb->lock);
 			trace_btrfs_tree_read_lock(eb, start_ns);
 			return;
@@ -362,11 +362,11 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
-	 * The write unlock will do a barrier for us, and the lock_nested
+	 * The write unlock will do a barrier for us, and the lock_recursed
 	 * field only matters to the lock owner.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = false;
+	if (eb->lock_recursed && current->pid == eb->lock_owner) {
+		eb->lock_recursed = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
@@ -388,11 +388,11 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
-	 * The write unlock will do a barrier for us, and the lock_nested
+	 * The write unlock will do a barrier for us, and the lock_recursed
 	 * field only matters to the lock owner.
 	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = false;
+	if (eb->lock_recursed && current->pid == eb->lock_owner) {
+		eb->lock_recursed = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
