@@ -45,14 +45,14 @@ void afs_vlserver_probe_result(struct afs_call *call)
 		server->probe.error = 0;
 		goto responded;
 	case -ECONNABORTED:
-		if (!server->probe.responded) {
+		if (!(server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED)) {
 			server->probe.abort_code = call->abort_code;
 			server->probe.error = ret;
 		}
 		goto responded;
 	case -ENOMEM:
 	case -ENONET:
-		server->probe.local_failure = true;
+		server->probe.flags |= AFS_VLSERVER_PROBE_LOCAL_FAILURE;
 		afs_io_error(call, afs_io_error_vl_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
@@ -67,7 +67,7 @@ void afs_vlserver_probe_result(struct afs_call *call)
 	default:
 		clear_bit(index, &alist->responded);
 		set_bit(index, &alist->failed);
-		if (!server->probe.responded &&
+		if (!(server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED) &&
 		    (server->probe.error == 0 ||
 		     server->probe.error == -ETIMEDOUT ||
 		     server->probe.error == -ETIME))
@@ -81,12 +81,12 @@ responded:
 	clear_bit(index, &alist->failed);
 
 	if (call->service_id == YFS_VL_SERVICE) {
-		server->probe.is_yfs = true;
+		server->probe.flags |= AFS_VLSERVER_PROBE_IS_YFS;
 		set_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 		alist->addrs[index].srx_service = call->service_id;
 	} else {
-		server->probe.not_yfs = true;
-		if (!server->probe.is_yfs) {
+		server->probe.flags |= AFS_VLSERVER_PROBE_NOT_YFS;
+		if (!(server->probe.flags & AFS_VLSERVER_PROBE_IS_YFS)) {
 			clear_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 			alist->addrs[index].srx_service = call->service_id;
 		}
@@ -100,7 +100,7 @@ responded:
 	}
 
 	smp_wmb(); /* Set rtt before responded. */
-	server->probe.responded = true;
+	server->probe.flags |= AFS_VLSERVER_PROBE_RESPONDED;
 	set_bit(AFS_VLSERVER_FL_PROBED, &server->flags);
 out:
 	spin_unlock(&server->probe_lock);
@@ -202,7 +202,7 @@ int afs_wait_for_vl_probes(struct afs_vlserver_list *vllist,
 			server = vllist->servers[i].server;
 			if (!test_bit(AFS_VLSERVER_FL_PROBING, &server->flags))
 				__clear_bit(i, &untried);
-			if (server->probe.responded)
+			if (server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED)
 				have_responders = true;
 		}
 	}
@@ -228,7 +228,7 @@ int afs_wait_for_vl_probes(struct afs_vlserver_list *vllist,
 		for (i = 0; i < vllist->nr_servers; i++) {
 			if (test_bit(i, &untried)) {
 				server = vllist->servers[i].server;
-				if (server->probe.responded)
+				if (server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED)
 					goto stop;
 				if (test_bit(AFS_VLSERVER_FL_PROBING, &server->flags))
 					still_probing = true;
@@ -246,7 +246,7 @@ stop:
 	for (i = 0; i < vllist->nr_servers; i++) {
 		if (test_bit(i, &untried)) {
 			server = vllist->servers[i].server;
-			if (server->probe.responded &&
+			if ((server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED) &&
 			    server->probe.rtt < rtt) {
 				pref = i;
 				rtt = server->probe.rtt;
