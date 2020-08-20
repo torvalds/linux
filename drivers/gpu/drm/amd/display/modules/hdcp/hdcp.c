@@ -472,8 +472,7 @@ enum mod_hdcp_status mod_hdcp_process_event(struct mod_hdcp *hdcp,
 	}
 
 	/* Clear CP_IRQ status if needed */
-	if (event_ctx.event == MOD_HDCP_EVENT_CPIRQ &&
-			event_ctx.unexpected_event == 0) {
+	if (event_ctx.event == MOD_HDCP_EVENT_CPIRQ) {
 		status = mod_hdcp_clear_cp_irq_status(hdcp);
 		if (status != MOD_HDCP_STATUS_SUCCESS)
 			push_error_status(hdcp, status);
