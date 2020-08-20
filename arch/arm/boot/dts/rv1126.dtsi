@@ -1828,6 +1828,8 @@
 		clock-names = "aclk_isp", "hclk_isp", "clk_isp";
 		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
 		assigned-clock-rates = <500000000>, <250000000>;
+		resets = <&cru SRST_ISP>, <&cru SRST_ISP_RX_P>;
+		reset-names = "isp", "isp-rx-p";
 		power-domains = <&power RV1126_PD_VI>;
 		/* iommus = <&rkisp_mmu>; */
 		memory-region = <&isp_reserved>;
