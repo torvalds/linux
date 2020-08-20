@@ -1032,12 +1032,43 @@ static int mc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int mc_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct snd_soc_dai_link *link;
+	int ret;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
+		if (!codec_info_list[i].exit)
+			continue;
+		/*
+		 * We don't need to call .exit function if there is no matched
+		 * dai link found.
+		 */
+		for_each_card_prelinks(card, j, link) {
+			if (!strcmp(link->codecs[0].dai_name,
+				    codec_info_list[i].dai_name)) {
+				ret = codec_info_list[i].exit(&pdev->dev, link);
+				if (ret)
+					dev_warn(&pdev->dev,
+						 "codec exit failed %d\n",
+						 ret);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static struct platform_driver sof_sdw_driver = {
 	.driver = {
 		.name = "sof_sdw",
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = mc_probe,
+	.remove = mc_remove,
 };
 
 module_platform_driver(sof_sdw_driver);
