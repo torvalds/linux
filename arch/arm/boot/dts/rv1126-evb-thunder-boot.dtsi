@@ -2,6 +2,10 @@
 	clock-frequency = <1000000>;
 };
 
+&isp_reserved {
+	size = <0x08000000>;
+};
+
 &route_dsi {
 	status = "disabled";
 };
