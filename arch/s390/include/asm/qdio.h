@@ -91,8 +91,8 @@ struct qdr {
  * @pfmt: implementation dependent parameter format
  * @rflags: QEBSM
  * @ac: adapter characteristics
- * @isliba: absolute address of first input SLIB
- * @osliba: absolute address of first output SLIB
+ * @isliba: logical address of first input SLIB
+ * @osliba: logical address of first output SLIB
  * @ebcnam: adapter identifier in EBCDIC
  * @parm: implementation dependent parameters
  */
