@@ -25,6 +25,14 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_NORMAL,
 
 	/*
+	 * When we COW a block we are holding the lock on the original block,
+	 * and since our lockdep maps are rootid+level, this confuses lockdep
+	 * when we lock the newly allocated COW'd block.  Handle this by having
+	 * a subclass for COW'ed blocks so that lockdep doesn't complain.
+	 */
+	BTRFS_NESTING_COW,
+
+	/*
 	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're

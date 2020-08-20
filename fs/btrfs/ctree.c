@@ -198,7 +198,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		btrfs_node_key(buf, &disk_key, 0);
 
 	cow = btrfs_alloc_tree_block(trans, root, 0, new_root_objectid,
-			&disk_key, level, buf->start, 0);
+			&disk_key, level, buf->start, 0, BTRFS_NESTING_NORMAL);
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
@@ -957,7 +957,8 @@ static struct extent_buffer *alloc_tree_block_no_bg_flush(
 					  const struct btrfs_disk_key *disk_key,
 					  int level,
 					  u64 hint,
-					  u64 empty_size)
+					  u64 empty_size,
+					  enum btrfs_lock_nesting nest)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *ret;
@@ -986,7 +987,7 @@ static struct extent_buffer *alloc_tree_block_no_bg_flush(
 
 	ret = btrfs_alloc_tree_block(trans, root, parent_start,
 				     root->root_key.objectid, disk_key, level,
-				     hint, empty_size);
+				     hint, empty_size, nest);
 	trans->can_flush_pending_bgs = true;
 
 	return ret;
@@ -1009,7 +1010,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			     struct extent_buffer *buf,
 			     struct extent_buffer *parent, int parent_slot,
 			     struct extent_buffer **cow_ret,
-			     u64 search_start, u64 empty_size)
+			     u64 search_start, u64 empty_size,
+			     enum btrfs_lock_nesting nest)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_disk_key disk_key;
@@ -1040,7 +1042,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		parent_start = parent->start;
 
 	cow = alloc_tree_block_no_bg_flush(trans, root, parent_start, &disk_key,
-					   level, search_start, empty_size);
+					   level, search_start, empty_size, nest);
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
@@ -1446,7 +1448,8 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
-		    struct extent_buffer **cow_ret)
+		    struct extent_buffer **cow_ret,
+		    enum btrfs_lock_nesting nest)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 search_start;
@@ -1485,7 +1488,7 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_qgroup_trace_subtree_after_cow(trans, root, buf);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
-				 parent_slot, cow_ret, search_start, 0);
+				 parent_slot, cow_ret, search_start, 0, nest);
 
 	trace_btrfs_cow_block(root, buf, *cow_ret);
 
@@ -1657,7 +1660,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		err = __btrfs_cow_block(trans, root, cur, parent, i,
 					&cur, search_start,
 					min(16 * blocksize,
-					    (end_slot - i) * blocksize));
+					    (end_slot - i) * blocksize),
+					BTRFS_NESTING_COW);
 		if (err) {
 			btrfs_tree_unlock(cur);
 			free_extent_buffer(cur);
@@ -1855,7 +1859,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 		btrfs_tree_lock(child);
 		btrfs_set_lock_blocking_write(child);
-		ret = btrfs_cow_block(trans, root, child, mid, 0, &child);
+		ret = btrfs_cow_block(trans, root, child, mid, 0, &child,
+				      BTRFS_NESTING_COW);
 		if (ret) {
 			btrfs_tree_unlock(child);
 			free_extent_buffer(child);
@@ -1894,7 +1899,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_tree_lock(left);
 		btrfs_set_lock_blocking_write(left);
 		wret = btrfs_cow_block(trans, root, left,
-				       parent, pslot - 1, &left);
+				       parent, pslot - 1, &left,
+				       BTRFS_NESTING_COW);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -1909,7 +1915,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_tree_lock(right);
 		btrfs_set_lock_blocking_write(right);
 		wret = btrfs_cow_block(trans, root, right,
-				       parent, pslot + 1, &right);
+				       parent, pslot + 1, &right,
+				       BTRFS_NESTING_COW);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -2077,7 +2084,8 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 			wret = 1;
 		} else {
 			ret = btrfs_cow_block(trans, root, left, parent,
-					      pslot - 1, &left);
+					      pslot - 1, &left,
+					      BTRFS_NESTING_COW);
 			if (ret)
 				wret = 1;
 			else {
@@ -2132,7 +2140,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		} else {
 			ret = btrfs_cow_block(trans, root, right,
 					      parent, pslot + 1,
-					      &right);
+					      &right, BTRFS_NESTING_COW);
 			if (ret)
 				wret = 1;
 			else {
@@ -2740,11 +2748,13 @@ again:
 			btrfs_set_path_blocking(p);
 			if (last_level)
 				err = btrfs_cow_block(trans, root, b, NULL, 0,
-						      &b);
+						      &b,
+						      BTRFS_NESTING_COW);
 			else
 				err = btrfs_cow_block(trans, root, b,
 						      p->nodes[level + 1],
-						      p->slots[level + 1], &b);
+						      p->slots[level + 1], &b,
+						      BTRFS_NESTING_COW);
 			if (err) {
 				ret = err;
 				goto done;
@@ -3396,7 +3406,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 		btrfs_node_key(lower, &lower_key, 0);
 
 	c = alloc_tree_block_no_bg_flush(trans, root, 0, &lower_key, level,
-					 root->node->start, 0);
+					 root->node->start, 0,
+					 BTRFS_NESTING_NORMAL);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 
@@ -3526,7 +3537,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	btrfs_node_key(c, &disk_key, mid);
 
 	split = alloc_tree_block_no_bg_flush(trans, root, 0, &disk_key, level,
-					     c->start, 0);
+					     c->start, 0, BTRFS_NESTING_NORMAL);
 	if (IS_ERR(split))
 		return PTR_ERR(split);
 
@@ -3804,7 +3815,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, right, upper,
-			      slot + 1, &right);
+			      slot + 1, &right, BTRFS_NESTING_COW);
 	if (ret)
 		goto out_unlock;
 
@@ -4045,7 +4056,8 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, left,
-			      path->nodes[1], slot - 1, &left);
+			      path->nodes[1], slot - 1, &left,
+			      BTRFS_NESTING_COW);
 	if (ret) {
 		/* we hit -ENOSPC, but it isn't fatal here */
 		if (ret == -ENOSPC)
@@ -4312,7 +4324,7 @@ again:
 		btrfs_item_key(l, &disk_key, mid);
 
 	right = alloc_tree_block_no_bg_flush(trans, root, 0, &disk_key, 0,
-					     l->start, 0);
+					     l->start, 0, BTRFS_NESTING_NORMAL);
 	if (IS_ERR(right))
 		return PTR_ERR(right);
 
