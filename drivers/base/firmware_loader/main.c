@@ -252,9 +252,11 @@ static void __free_fw_priv(struct kref *ref)
 	list_del(&fw_priv->list);
 	spin_unlock(&fwc->lock);
 
-	fw_free_paged_buf(fw_priv); /* free leftover pages */
-	if (!fw_priv->allocated_size)
+	if (fw_is_paged_buf(fw_priv))
+		fw_free_paged_buf(fw_priv);
+	else if (!fw_priv->allocated_size)
 		vfree(fw_priv->data);
+
 	kfree_const(fw_priv->fw_name);
 	kfree(fw_priv);
 }
@@ -268,12 +270,19 @@ static void free_fw_priv(struct fw_priv *fw_priv)
 }
 
 #ifdef CONFIG_FW_LOADER_PAGED_BUF
+bool fw_is_paged_buf(struct fw_priv *fw_priv)
+{
+	return fw_priv->is_paged_buf;
+}
+
 void fw_free_paged_buf(struct fw_priv *fw_priv)
 {
 	int i;
 
 	if (!fw_priv->pages)
 		return;
+
+	vunmap(fw_priv->data);
 
 	for (i = 0; i < fw_priv->nr_pages; i++)
 		__free_page(fw_priv->pages[i]);
@@ -327,10 +336,6 @@ int fw_map_paged_buf(struct fw_priv *fw_priv)
 			     PAGE_KERNEL_RO);
 	if (!fw_priv->data)
 		return -ENOMEM;
-
-	/* page table is no longer needed after mapping, let's free */
-	kvfree(fw_priv->pages);
-	fw_priv->pages = NULL;
 
 	return 0;
 }
