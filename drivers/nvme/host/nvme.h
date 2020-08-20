@@ -758,6 +758,7 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
+int nvme_revalidate_zones(struct nvme_ns *ns);
 #ifdef CONFIG_BLK_DEV_ZONED
 int nvme_update_zone_info(struct gendisk *disk, struct nvme_ns *ns,
 			  unsigned lbaf);

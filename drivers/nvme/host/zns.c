@@ -7,6 +7,17 @@
 #include <linux/vmalloc.h>
 #include "nvme.h"
 
+int nvme_revalidate_zones(struct nvme_ns *ns)
+{
+	struct request_queue *q = ns->queue;
+	int ret;
+
+	ret = blk_revalidate_disk_zones(ns->disk, NULL);
+	if (!ret)
+		blk_queue_max_zone_append_sectors(q, ns->ctrl->max_zone_append);
+	return ret;
+}
+
 static int nvme_set_max_append(struct nvme_ctrl *ctrl)
 {
 	struct nvme_command c = { };

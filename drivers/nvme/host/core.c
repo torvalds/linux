@@ -2202,28 +2202,6 @@ out:
 	return ret;
 }
 
-static int nvme_revalidate_disk(struct gendisk *disk)
-{
-	int ret;
-
-	ret = _nvme_revalidate_disk(disk);
-	if (ret)
-		return ret;
-
-#ifdef CONFIG_BLK_DEV_ZONED
-	if (blk_queue_is_zoned(disk->queue)) {
-		struct nvme_ns *ns = disk->private_data;
-		struct nvme_ctrl *ctrl = ns->ctrl;
-
-		ret = blk_revalidate_disk_zones(disk, NULL);
-		if (!ret)
-			blk_queue_max_zone_append_sectors(disk->queue,
-							  ctrl->max_zone_append);
-	}
-#endif
-	return ret;
-}
-
 static char nvme_pr_type(enum pr_type type)
 {
 	switch (type) {
@@ -3958,6 +3936,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	if (__nvme_revalidate_disk(disk, id))
 		goto out_put_disk;
+	if (blk_queue_is_zoned(ns->queue) && nvme_revalidate_zones(ns))
+		goto out_put_disk;
 
 	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
 		ret = nvme_nvm_register(ns, disk_name, node);
@@ -4052,7 +4032,9 @@ static void nvme_validate_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		return;
 	}
 
-	ret = nvme_revalidate_disk(ns->disk);
+	ret = _nvme_revalidate_disk(ns->disk);
+	if (!ret && blk_queue_is_zoned(ns->queue))
+		ret = nvme_revalidate_zones(ns);
 	revalidate_disk_size(ns->disk, ret == 0);
 	if (ret)
 		nvme_ns_remove(ns);
