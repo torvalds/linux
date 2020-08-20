@@ -461,7 +461,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	t->rcu_read_unlock_special.s = 0;
 	if (special.b.need_qs) {
 		if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD)) {
-			rcu_report_qs_rdp(rdp->cpu, rdp);
+			rcu_report_qs_rdp(rdp);
 			udelay(rcu_unlock_delay);
 		} else {
 			rcu_qs();
@@ -791,7 +791,7 @@ void rcu_read_unlock_strict(void)
 	   irqs_disabled() || preempt_count() || !rcu_state.gp_kthread)
 		return;
 	rdp = this_cpu_ptr(&rcu_data);
-	rcu_report_qs_rdp(rdp->cpu, rdp);
+	rcu_report_qs_rdp(rdp);
 	udelay(rcu_unlock_delay);
 }
 EXPORT_SYMBOL_GPL(rcu_read_unlock_strict);
