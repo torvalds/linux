@@ -16,12 +16,35 @@
 #define BTRFS_WRITE_LOCK_BLOCKING 3
 #define BTRFS_READ_LOCK_BLOCKING 4
 
+/*
+ * We are limited in number of subclasses by MAX_LOCKDEP_SUBCLASSES, which at
+ * the time of this patch is 8, which is how many we use.  Keep this in mind if
+ * you decide you want to add another subclass.
+ */
+enum btrfs_lock_nesting {
+	BTRFS_NESTING_NORMAL,
+
+	/*
+	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
+	 * add this in here and add a static_assert to keep us from going over
+	 * the limit.  As of this writing we're limited to 8, and we're
+	 * definitely using 8, hence this check to keep us from messing up in
+	 * the future.
+	 */
+	BTRFS_NESTING_MAX,
+};
+
+static_assert(BTRFS_NESTING_MAX <= MAX_LOCKDEP_SUBCLASSES,
+	      "too many lock subclasses defined");
+
 struct btrfs_path;
 
+void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest);
 void btrfs_tree_lock(struct extent_buffer *eb);
 void btrfs_tree_unlock(struct extent_buffer *eb);
 
-void __btrfs_tree_read_lock(struct extent_buffer *eb, bool recurse);
+void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest,
+			    bool recurse);
 void btrfs_tree_read_lock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb);
