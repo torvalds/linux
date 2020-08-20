@@ -367,7 +367,6 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	props->port_cap_flags = 0;
 	props->gid_tbl_len = 1;
-	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
 	props->max_mtu = IB_MTU_4096;
@@ -434,16 +433,6 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			&gid->raw[0]);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return 0;
-}
-
-int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
-				u16 *pkey)
-{
-	if (index > 0)
-		return -EINVAL;
-
-	*pkey = 0xffff;
 	return 0;
 }
 

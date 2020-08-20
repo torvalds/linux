@@ -315,7 +315,6 @@ static int usnic_port_immutable(struct ib_device *ibdev, u8 port_num,
 	if (err)
 		return err;
 
-	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	return 0;
@@ -355,7 +354,6 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.modify_qp = usnic_ib_modify_qp,
 	.query_device = usnic_ib_query_device,
 	.query_gid = usnic_ib_query_gid,
-	.query_pkey = usnic_ib_query_pkey,
 	.query_port = usnic_ib_query_port,
 	.query_qp = usnic_ib_query_qp,
 	.reg_user_mr = usnic_ib_reg_mr,
