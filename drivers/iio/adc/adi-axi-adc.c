@@ -276,7 +276,7 @@ static struct attribute *adi_axi_adc_attributes[] = {
 static umode_t axi_adc_attr_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adi_axi_adc_state *st = iio_priv(indio_dev);
 	struct adi_axi_adc_conv *conv = &st->client->conv;
