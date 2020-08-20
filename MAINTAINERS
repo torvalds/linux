@@ -18300,7 +18300,6 @@ VIDEOBUF2 FRAMEWORK
 M:	Tomasz Figa <tfiga@chromium.org>
 M:	Pawel Osciak <pawel@osciak.com>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
-M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/common/videobuf2/*
