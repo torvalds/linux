@@ -5327,7 +5327,6 @@ int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	struct btrfs_key key;
 	u32 nritems;
 	int ret;
-	int old_spinning = path->leave_spinning;
 	int next_rw_lock = 0;
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
@@ -5342,7 +5341,6 @@ again:
 	btrfs_release_path(path);
 
 	path->keep_locks = 1;
-	path->leave_spinning = 1;
 
 	if (time_seq)
 		ret = btrfs_search_old_slot(root, &key, path, time_seq);
@@ -5477,7 +5475,6 @@ again:
 	ret = 0;
 done:
 	unlock_up(path, 0, 1, 0, NULL);
-	path->leave_spinning = old_spinning;
 
 	return ret;
 }

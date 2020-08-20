@@ -347,7 +347,6 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		u64 drop_start;
 
 		/* Note the key will change type as we walk through the tree */
-		path->leave_spinning = 1;
 		ret = btrfs_search_slot(NULL, BTRFS_I(src)->root, &key, path,
 				0, 0);
 		if (ret < 0)
@@ -417,7 +416,6 @@ process_slot:
 				   size);
 
 		btrfs_release_path(path);
-		path->leave_spinning = 0;
 
 		memcpy(&new_key, &key, sizeof(new_key));
 		new_key.objectid = btrfs_ino(BTRFS_I(inode));
@@ -533,7 +531,6 @@ process_slot:
 		 * mixing buffered and direct IO writes against this file.
 		 */
 		btrfs_release_path(path);
-		path->leave_spinning = 0;
 
 		ret = btrfs_replace_file_extents(inode, path, last_dest_end,
 				destoff + len - 1, NULL, &trans);

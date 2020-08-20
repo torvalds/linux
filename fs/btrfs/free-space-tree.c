@@ -1193,8 +1193,6 @@ static int clear_free_space_tree(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	path->leave_spinning = 1;
-
 	key.objectid = 0;
 	key.type = 0;
 	key.offset = 0;
