@@ -635,17 +635,6 @@ static void renesas_sdhi_reset(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 
-	/* FIXME - should we set stop clock reg here */
-	sd_ctrl_write16(host, CTL_RESET_SD, 0x0000);
-	usleep_range(10000, 11000);
-	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
-	usleep_range(10000, 11000);
-
-	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
-		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
-		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
-	}
-
 	renesas_sdhi_reset_scc(host, priv);
 	renesas_sdhi_reset_hs400_mode(host, priv);
 
