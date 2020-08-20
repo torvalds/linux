@@ -263,9 +263,13 @@ no_more_servers:
 	for (i = 0; i < vc->server_list->nr_servers; i++) {
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
 
+		if (test_bit(AFS_VLSERVER_FL_RESPONDING, &s->flags))
+			e.responded = true;
 		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
 				     s->probe.abort_code);
 	}
+
+	error = e.error;
 
 failed_set_error:
 	vc->error = error;
