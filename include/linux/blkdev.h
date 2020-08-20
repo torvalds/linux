@@ -692,7 +692,9 @@ static inline bool queue_is_mq(struct request_queue *q)
 static inline enum blk_zoned_model
 blk_queue_zoned_model(struct request_queue *q)
 {
-	return q->limits.zoned;
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
+		return q->limits.zoned;
+	return BLK_ZONED_NONE;
 }
 
 static inline bool blk_queue_is_zoned(struct request_queue *q)
