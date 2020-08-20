@@ -215,6 +215,8 @@ struct igc_adapter {
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
+	struct timespec64 prev_ptp_time; /* Pre-reset PTP clock */
+	ktime_t ptp_reset_start; /* Reset time in clock mono */
 };
 
 void igc_up(struct igc_adapter *adapter);
