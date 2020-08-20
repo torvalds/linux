@@ -121,6 +121,14 @@ submit_from_crypt_cpus
     thread because it benefits CFQ to have writes submitted using the
     same context.
 
+no_read_workqueue
+    Bypass dm-crypt internal workqueue and process read requests synchronously.
+
+no_write_workqueue
+    Bypass dm-crypt internal workqueue and process write requests synchronously.
+    This option is automatically enabled for host-managed zoned block devices
+    (e.g. host-managed SMR hard-disks).
+
 integrity:<bytes>:<type>
     The device requires additional <bytes> metadata per-sector stored
     in per-bio integrity structure. This metadata must by provided
