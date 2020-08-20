@@ -53,6 +53,15 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_RIGHT_COW,
 
 	/*
+	 * When splitting we may push nodes to the left or right, but still use
+	 * the subsequent nodes in our path, keeping our locks on those adjacent
+	 * blocks.  Thus when we go to allocate a new split block we've already
+	 * used up all of our available subclasses, so this subclass exists to
+	 * handle this case where we need to allocate a new split block.
+	 */
+	BTRFS_NESTING_SPLIT,
+
+	/*
 	 * We are limited to MAX_LOCKDEP_SUBLCLASSES number of subclasses, so
 	 * add this in here and add a static_assert to keep us from going over
 	 * the limit.  As of this writing we're limited to 8, and we're
