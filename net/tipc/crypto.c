@@ -757,10 +757,12 @@ static void tipc_aead_encrypt_done(struct crypto_async_request *base, int err)
 	switch (err) {
 	case 0:
 		this_cpu_inc(tx->stats->stat[STAT_ASYNC_OK]);
+		rcu_read_lock();
 		if (likely(test_bit(0, &b->up)))
 			b->media->send_msg(net, skb, b, &tx_ctx->dst);
 		else
 			kfree_skb(skb);
+		rcu_read_unlock();
 		break;
 	case -EINPROGRESS:
 		return;
