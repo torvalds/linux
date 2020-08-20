@@ -1080,6 +1080,8 @@ struct nft_table {
 					flags:8,
 					genmask:2;
 	char				*name;
+	u16				udlen;
+	u8				*udata;
 };
 
 void nft_register_chain_type(const struct nft_chain_type *);
