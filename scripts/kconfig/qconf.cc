@@ -1106,11 +1106,6 @@ void ConfigInfoView::menuInfo(void)
 
 		if (showDebug())
 			debug = debug_info(sym);
-
-		struct gstr help_gstr = str_new();
-		menu_get_ext_help(_menu, &help_gstr);
-		help = print_filter(str_get(&help_gstr));
-		str_free(&help_gstr);
 	} else if (_menu->prompt) {
 		head += "<big><b>";
 		head += print_filter(_menu->prompt->text);
@@ -1126,7 +1121,7 @@ void ConfigInfoView::menuInfo(void)
 	if (showDebug())
 		debug += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineno);
 
-	setText(head + debug + help);
+	setText(head + debug);
 }
 
 QString ConfigInfoView::debug_info(struct symbol *sym)
