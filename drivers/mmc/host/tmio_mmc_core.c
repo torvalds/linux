@@ -722,10 +722,8 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	ret = host->execute_tuning(host, opcode);
 
-	if (ret < 0) {
+	if (ret < 0)
 		dev_warn(&host->pdev->dev, "Tuning procedure failed\n");
-		tmio_mmc_reset(host);
-	}
 
 	return ret;
 }
