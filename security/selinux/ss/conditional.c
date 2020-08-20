@@ -686,11 +686,10 @@ static int cond_bools_copy(struct hashtab_node *new, struct hashtab_node *orig, 
 {
 	struct cond_bool_datum *datum;
 
-	datum = kmalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
+	datum = kmemdup(orig->datum, sizeof(struct cond_bool_datum),
+			GFP_KERNEL);
 	if (!datum)
 		return -ENOMEM;
-
-	memcpy(datum, orig->datum, sizeof(struct cond_bool_datum));
 
 	new->key = orig->key; /* No need to copy, never modified */
 	new->datum = datum;
