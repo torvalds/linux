@@ -743,7 +743,7 @@ failed_unlock:
 failed_kiq_read:
 	if (reg_val_offs)
 		amdgpu_device_wb_free(adev, reg_val_offs);
-	pr_err("failed to read reg:%x\n", reg);
+	dev_err(adev->dev, "failed to read reg:%x\n", reg);
 	return ~0;
 }
 
@@ -796,5 +796,5 @@ failed_undo:
 	amdgpu_ring_undo(ring);
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
-	pr_err("failed to write reg:%x\n", reg);
+	dev_err(adev->dev, "failed to write reg:%x\n", reg);
 }

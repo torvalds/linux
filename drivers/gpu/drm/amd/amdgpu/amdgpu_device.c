@@ -3370,7 +3370,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 {
 	int r;
 
-	DRM_INFO("amdgpu: finishing device.\n");
+	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
 	adev->shutdown = true;
 
@@ -3555,12 +3555,12 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	if (amdgpu_device_need_post(adev)) {
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r)
-			DRM_ERROR("amdgpu asic init failed\n");
+			dev_err(adev->dev, "amdgpu asic init failed\n");
 	}
 
 	r = amdgpu_device_ip_resume(adev);
 	if (r) {
-		DRM_ERROR("amdgpu_device_ip_resume failed (%d).\n", r);
+		dev_err(adev->dev, "amdgpu_device_ip_resume failed (%d).\n", r);
 		return r;
 	}
 	amdgpu_fence_driver_resume(adev);
@@ -3584,7 +3584,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 				if (r == 0) {
 					r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
 					if (r != 0)
-						DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+						dev_err(adev->dev, "Failed to pin cursor BO (%d)\n", r);
 					amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
 					amdgpu_bo_unreserve(aobj);
 				}
@@ -3674,7 +3674,7 @@ static bool amdgpu_device_ip_check_soft_reset(struct amdgpu_device *adev)
 			adev->ip_blocks[i].status.hang =
 				adev->ip_blocks[i].version->funcs->check_soft_reset(adev);
 		if (adev->ip_blocks[i].status.hang) {
-			DRM_INFO("IP block:%s is hung!\n", adev->ip_blocks[i].version->funcs->name);
+			dev_info(adev->dev, "IP block:%s is hung!\n", adev->ip_blocks[i].version->funcs->name);
 			asic_hang = true;
 		}
 	}
@@ -3735,7 +3735,7 @@ static bool amdgpu_device_ip_need_full_reset(struct amdgpu_device *adev)
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) ||
 		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP) {
 			if (adev->ip_blocks[i].status.hang) {
-				DRM_INFO("Some block need full reset!\n");
+				dev_info(adev->dev, "Some block need full reset!\n");
 				return true;
 			}
 		}
@@ -3823,7 +3823,7 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 	else
 		tmo = msecs_to_jiffies(100);
 
-	DRM_INFO("recover vram bo from shadow start\n");
+	dev_info(adev->dev, "recover vram bo from shadow start\n");
 	mutex_lock(&adev->shadow_list_lock);
 	list_for_each_entry(shadow, &adev->shadow_list, shadow_list) {
 
@@ -3859,11 +3859,11 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 	dma_fence_put(fence);
 
 	if (r < 0 || tmo <= 0) {
-		DRM_ERROR("recover vram bo from shadow failed, r is %ld, tmo is %ld\n", r, tmo);
+		dev_err(adev->dev, "recover vram bo from shadow failed, r is %ld, tmo is %ld\n", r, tmo);
 		return -EIO;
 	}
 
-	DRM_INFO("recover vram bo from shadow done\n");
+	dev_info(adev->dev, "recover vram bo from shadow done\n");
 	return 0;
 }
 
@@ -3962,7 +3962,7 @@ bool amdgpu_device_has_job_running(struct amdgpu_device *adev)
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 {
 	if (!amdgpu_device_ip_check_soft_reset(adev)) {
-		DRM_INFO("Timeout, but no hardware hang detected.\n");
+		dev_info(adev->dev, "Timeout, but no hardware hang detected.\n");
 		return false;
 	}
 
@@ -4002,7 +4002,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 	return true;
 
 disabled:
-		DRM_INFO("GPU recovery disabled.\n");
+		dev_info(adev->dev, "GPU recovery disabled.\n");
 		return false;
 }
 
@@ -4041,7 +4041,7 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 			r = amdgpu_device_ip_soft_reset(adev);
 			amdgpu_device_ip_post_soft_reset(adev);
 			if (r || amdgpu_device_ip_check_soft_reset(adev)) {
-				DRM_INFO("soft reset failed, will fallback to full reset!\n");
+				dev_info(adev->dev, "soft reset failed, will fallback to full reset!\n");
 				need_full_reset = true;
 			}
 		}
@@ -4077,7 +4077,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				r = amdgpu_asic_reset(tmp_adev);
 
 			if (r) {
-				DRM_ERROR("ASIC reset failed with error, %d for drm dev, %s",
+				dev_err(tmp_adev->dev, "ASIC reset failed with error, %d for drm dev, %s",
 					 r, tmp_adev->ddev->unique);
 				break;
 			}
@@ -4111,7 +4111,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 		if (need_full_reset) {
 			/* post card */
 			if (amdgpu_atom_asic_init(tmp_adev->mode_info.atom_context))
-				DRM_WARN("asic atom init failed!");
+				dev_warn(tmp_adev->dev, "asic atom init failed!");
 
 			if (!r) {
 				dev_info(tmp_adev->dev, "GPU reset succeeded, trying to resume\n");
@@ -4369,7 +4369,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 		if (!amdgpu_device_lock_adev(tmp_adev)) {
-			DRM_INFO("Bailing on TDR for s_job:%llx, as another already in progress",
+			dev_info(tmp_adev->dev, "Bailing on TDR for s_job:%llx, as another already in progress",
 				  job ? job->base.id : -1);
 			r = 0;
 			goto skip_recovery;
@@ -4444,7 +4444,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 						 &need_full_reset);
 		/*TODO Should we stop ?*/
 		if (r) {
-			DRM_ERROR("GPU pre asic reset failed with err, %d for drm dev, %s ",
+			dev_err(tmp_adev->dev, "GPU pre asic reset failed with err, %d for drm dev, %s ",
 				  r, tmp_adev->ddev->unique);
 			tmp_adev->asic_reset_res = r;
 		}
