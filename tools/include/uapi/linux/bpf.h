@@ -4257,6 +4257,7 @@ enum {
 enum {
 	TCP_BPF_IW		= 1001,	/* Set TCP initial congestion window */
 	TCP_BPF_SNDCWND_CLAMP	= 1002,	/* Set sndcwnd_clamp */
+	TCP_BPF_DELACK_MAX	= 1003, /* Max delay ack in usecs */
 };
 
 struct bpf_perf_event_value {
