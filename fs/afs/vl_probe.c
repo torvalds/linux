@@ -92,8 +92,8 @@ responded:
 		}
 	}
 
-	rtt_us = rxrpc_kernel_get_srtt(call->net->socket, call->rxcall);
-	if (rtt_us < server->probe.rtt) {
+	if (rxrpc_kernel_get_srtt(call->net->socket, call->rxcall, &rtt_us) &&
+	    rtt_us < server->probe.rtt) {
 		server->probe.rtt = rtt_us;
 		alist->preferred = index;
 		have_result = true;
