@@ -123,6 +123,28 @@ void hash_zone(void *zone, unsigned int length)
 #define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
 #define ALIGN_PTR_UP(p, ptr_align_to)	((typeof(p))ALIGN_UP((unsigned long)(p), ptr_align_to))
 
+
+static void *mmap_large_buffer(size_t need, size_t *allocated)
+{
+	void *buffer;
+	size_t sz;
+
+	/* Attempt to use huge pages if possible. */
+	sz = ALIGN_UP(need, map_align);
+	buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
+		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+
+	if (buffer == (void *)-1) {
+		sz = need;
+		buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		if (buffer != (void *)-1)
+			fprintf(stderr, "MAP_HUGETLB attempt failed, look at /sys/kernel/mm/hugepages for optimal performance\n");
+	}
+	*allocated = sz;
+	return buffer;
+}
+
 void *child_thread(void *arg)
 {
 	unsigned long total_mmap = 0, total = 0;
@@ -351,6 +373,7 @@ int main(int argc, char *argv[])
 	uint64_t total = 0;
 	char *host = NULL;
 	int fd, c, on = 1;
+	size_t buffer_sz;
 	char *buffer;
 	int sflg = 0;
 	int mss = 0;
@@ -441,8 +464,8 @@ int main(int argc, char *argv[])
 		}
 		do_accept(fdlisten);
 	}
-	buffer = mmap(NULL, chunk_size, PROT_READ | PROT_WRITE,
-			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	buffer = mmap_large_buffer(chunk_size, &buffer_sz);
 	if (buffer == (char *)-1) {
 		perror("mmap");
 		exit(1);
@@ -488,6 +511,6 @@ int main(int argc, char *argv[])
 		total += wr;
 	}
 	close(fd);
-	munmap(buffer, chunk_size);
+	munmap(buffer, buffer_sz);
 	return 0;
 }
