@@ -18,6 +18,7 @@ struct rkisp_hw_dev {
 	int num_clks;
 	const unsigned int *clk_rate_tbl;
 	int num_clk_rate_tbl;
+	struct reset_control *reset;
 	int mipi_irq;
 	enum rkisp_isp_ver isp_ver;
 	struct rkisp_device *isp[DEV_MAX];
@@ -45,4 +46,5 @@ struct rkisp_hw_dev {
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);
+void rkisp_soft_reset(struct rkisp_hw_dev *dev);
 #endif

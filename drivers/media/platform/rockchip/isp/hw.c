@@ -14,6 +14,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #include "common.h"
 #include "dev.h"
@@ -466,14 +467,20 @@ static inline bool is_iommu_enable(struct device *dev)
 	return true;
 }
 
-static void isp_soft_reset(struct rkisp_hw_dev *dev)
+void rkisp_soft_reset(struct rkisp_hw_dev *dev)
 {
 	void __iomem *base = dev->base_addr;
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev->dev);
 
-	writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
-	writel(0xffff, base + CIF_IRCL);
-	usleep_range(100, 200);
+	if (dev->reset) {
+		reset_control_assert(dev->reset);
+		udelay(10);
+		reset_control_deassert(dev->reset);
+	} else {
+		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
+		writel(0xffff, base + CIF_IRCL);
+		udelay(10);
+	}
 	if (domain) {
 #ifdef CONFIG_IOMMU_API
 		domain->ops->detach_dev(domain, dev->dev);
@@ -547,7 +554,7 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		clk_set_rate(dev->clks[0], 500 * 1000000UL);
 
 	if (!dev->is_thunderboot) {
-		isp_soft_reset(dev);
+		rkisp_soft_reset(dev);
 		isp_config_clk(dev, true);
 	}
 
@@ -631,6 +638,12 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->num_clks = match_data->num_clks;
 	hw_dev->clk_rate_tbl = match_data->clk_rate_tbl;
 	hw_dev->num_clk_rate_tbl = match_data->num_clk_rate_tbl;
+
+	hw_dev->reset = devm_reset_control_array_get(dev, false, false);
+	if (IS_ERR(hw_dev->reset)) {
+		dev_dbg(dev, "failed to get reset\n");
+		hw_dev->reset = NULL;
+	}
 
 	hw_dev->dev_num = 0;
 	hw_dev->cur_dev_id = 0;

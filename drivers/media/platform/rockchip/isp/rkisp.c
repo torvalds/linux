@@ -923,13 +923,10 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 			clk_set_rate(dev->hw_dev->clks[0], safe_rate);
 			udelay(100);
 		}
-		writel(CIF_IRCL_CIF_SW_RST, base + CIF_IRCL);
+		rkisp_soft_reset(dev->hw_dev);
 		/* restore the old ispclk after reset */
 		if (old_rate != safe_rate)
 			clk_set_rate(dev->hw_dev->clks[0], old_rate);
-	} else {
-		/* abnormal case, in irq function */
-		writel(CIF_IRCL_CIF_SW_RST, base + CIF_IRCL);
 	}
 	rkisp_write(dev, CTRL_VI_ISP_CLK_CTRL, val, true);
 
@@ -941,18 +938,6 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		writel(0, base + CIF_ISP_CSI0_MASK3);
 	} else if (dev->isp_ver == ISP_V20) {
 		writel(0, base + CSI2RX_CSI2_RESETN);
-	}
-
-	if (!in_interrupt()) {
-		struct iommu_domain *domain;
-
-		domain = iommu_get_domain_for_dev(dev->dev);
-		if (domain) {
-#ifdef CONFIG_IOMMU_API
-			domain->ops->detach_dev(domain, dev->dev);
-			domain->ops->attach_dev(domain, dev->dev);
-#endif
-		}
 	}
 
 	dev->hw_dev->is_idle = true;
