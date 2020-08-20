@@ -63,6 +63,8 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
+#define BPF_INSN_SZ (sizeof(struct bpf_insn))
+
 /* vsprintf() in __base_pr() uses nonliteral format string. It may break
  * compilation if user enables corresponding warning. Disable it explicitly.
  */
@@ -3225,7 +3227,7 @@ bpf_object__section_to_libbpf_map_type(const struct bpf_object *obj, int shndx)
 
 static int bpf_program__record_reloc(struct bpf_program *prog,
 				     struct reloc_desc *reloc_desc,
-				     __u32 insn_idx, const char *name,
+				     __u32 insn_idx, const char *sym_name,
 				     const GElf_Sym *sym, const GElf_Rel *rel)
 {
 	struct bpf_insn *insn = &prog->insns[insn_idx];
@@ -3233,22 +3235,25 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	struct bpf_object *obj = prog->obj;
 	__u32 shdr_idx = sym->st_shndx;
 	enum libbpf_map_type type;
+	const char *sym_sec_name;
 	struct bpf_map *map;
 
 	/* sub-program call relocation */
 	if (insn->code == (BPF_JMP | BPF_CALL)) {
 		if (insn->src_reg != BPF_PSEUDO_CALL) {
-			pr_warn("incorrect bpf_call opcode\n");
+			pr_warn("prog '%s': incorrect bpf_call opcode\n", prog->name);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		/* text_shndx can be 0, if no default "main" program exists */
 		if (!shdr_idx || shdr_idx != obj->efile.text_shndx) {
-			pr_warn("bad call relo against section %u\n", shdr_idx);
+			sym_sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, shdr_idx));
+			pr_warn("prog '%s': bad call relo against '%s' in section '%s'\n",
+				prog->name, sym_name, sym_sec_name);
 			return -LIBBPF_ERRNO__RELOC;
 		}
-		if (sym->st_value % 8) {
-			pr_warn("bad call relo offset: %zu\n",
-				(size_t)sym->st_value);
+		if (sym->st_value % BPF_INSN_SZ) {
+			pr_warn("prog '%s': bad call relo against '%s' at offset %zu\n",
+				prog->name, sym_name, (size_t)sym->st_value);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		reloc_desc->type = RELO_CALL;
@@ -3259,8 +3264,8 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	}
 
 	if (insn->code != (BPF_LD | BPF_IMM | BPF_DW)) {
-		pr_warn("invalid relo for insns[%d].code 0x%x\n",
-			insn_idx, insn->code);
+		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
+			prog->name, sym_name, insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 
@@ -3275,12 +3280,12 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 				break;
 		}
 		if (i >= n) {
-			pr_warn("extern relo failed to find extern for sym %d\n",
-				sym_idx);
+			pr_warn("prog '%s': extern relo failed to find extern for '%s' (%d)\n",
+				prog->name, sym_name, sym_idx);
 			return -LIBBPF_ERRNO__RELOC;
 		}
-		pr_debug("found extern #%d '%s' (sym %d) for insn %u\n",
-			 i, ext->name, ext->sym_idx, insn_idx);
+		pr_debug("prog '%s': found extern #%d '%s' (sym %d) for insn #%u\n",
+			 prog->name, i, ext->name, ext->sym_idx, insn_idx);
 		reloc_desc->type = RELO_EXTERN;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->sym_off = i; /* sym_off stores extern index */
@@ -3288,18 +3293,19 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	}
 
 	if (!shdr_idx || shdr_idx >= SHN_LORESERVE) {
-		pr_warn("invalid relo for \'%s\' in special section 0x%x; forgot to initialize global var?..\n",
-			name, shdr_idx);
+		pr_warn("prog '%s': invalid relo against '%s' in special section 0x%x; forgot to initialize global var?..\n",
+			prog->name, sym_name, shdr_idx);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 
 	type = bpf_object__section_to_libbpf_map_type(obj, shdr_idx);
+	sym_sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, shdr_idx));
 
 	/* generic map reference relocation */
 	if (type == LIBBPF_MAP_UNSPEC) {
 		if (!bpf_object__shndx_is_maps(obj, shdr_idx)) {
-			pr_warn("bad map relo against section %u\n",
-				shdr_idx);
+			pr_warn("prog '%s': bad map relo against '%s' in section '%s'\n",
+				prog->name, sym_name, sym_sec_name);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
@@ -3308,14 +3314,14 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 			    map->sec_idx != sym->st_shndx ||
 			    map->sec_offset != sym->st_value)
 				continue;
-			pr_debug("found map %zd (%s, sec %d, off %zu) for insn %u\n",
-				 map_idx, map->name, map->sec_idx,
+			pr_debug("prog '%s': found map %zd (%s, sec %d, off %zu) for insn #%u\n",
+				 prog->name, map_idx, map->name, map->sec_idx,
 				 map->sec_offset, insn_idx);
 			break;
 		}
 		if (map_idx >= nr_maps) {
-			pr_warn("map relo failed to find map for sec %u, off %zu\n",
-				shdr_idx, (size_t)sym->st_value);
+			pr_warn("prog '%s': map relo failed to find map for section '%s', off %zu\n",
+				prog->name, sym_sec_name, (size_t)sym->st_value);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		reloc_desc->type = RELO_LD64;
@@ -3327,21 +3333,22 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 
 	/* global data map relocation */
 	if (!bpf_object__shndx_is_data(obj, shdr_idx)) {
-		pr_warn("bad data relo against section %u\n", shdr_idx);
+		pr_warn("prog '%s': bad data relo against section '%s'\n",
+			prog->name, sym_sec_name);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 	for (map_idx = 0; map_idx < nr_maps; map_idx++) {
 		map = &obj->maps[map_idx];
 		if (map->libbpf_type != type)
 			continue;
-		pr_debug("found data map %zd (%s, sec %d, off %zu) for insn %u\n",
-			 map_idx, map->name, map->sec_idx, map->sec_offset,
-			 insn_idx);
+		pr_debug("prog '%s': found data map %zd (%s, sec %d, off %zu) for insn %u\n",
+			 prog->name, map_idx, map->name, map->sec_idx,
+			 map->sec_offset, insn_idx);
 		break;
 	}
 	if (map_idx >= nr_maps) {
-		pr_warn("data relo failed to find map for sec %u\n",
-			shdr_idx);
+		pr_warn("prog '%s': data relo failed to find map for section '%s'\n",
+			prog->name, sym_sec_name);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 
@@ -3357,9 +3364,17 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			   Elf_Data *data, struct bpf_object *obj)
 {
 	Elf_Data *symbols = obj->efile.symbols;
+	const char *relo_sec_name, *sec_name;
+	size_t sec_idx = shdr->sh_info;
 	int err, i, nrels;
 
-	pr_debug("collecting relocating info for: '%s'\n", prog->section_name);
+	relo_sec_name = elf_sec_str(obj, shdr->sh_name);
+	sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, sec_idx));
+	if (!relo_sec_name || !sec_name)
+		return -EINVAL;
+
+	pr_debug("sec '%s': collecting relocation for section(%zu) '%s'\n",
+		 relo_sec_name, sec_idx, sec_name);
 	nrels = shdr->sh_size / shdr->sh_entsize;
 
 	prog->reloc_desc = malloc(sizeof(*prog->reloc_desc) * nrels);
@@ -3370,34 +3385,34 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 	prog->nr_reloc = nrels;
 
 	for (i = 0; i < nrels; i++) {
-		const char *name;
+		const char *sym_name;
 		__u32 insn_idx;
 		GElf_Sym sym;
 		GElf_Rel rel;
 
 		if (!gelf_getrel(data, i, &rel)) {
-			pr_warn("relocation: failed to get %d reloc\n", i);
+			pr_warn("sec '%s': failed to get relo #%d\n", relo_sec_name, i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 		if (!gelf_getsym(symbols, GELF_R_SYM(rel.r_info), &sym)) {
-			pr_warn("relocation: symbol %zx not found\n",
-				(size_t)GELF_R_SYM(rel.r_info));
+			pr_warn("sec '%s': symbol 0x%zx not found for relo #%d\n",
+				relo_sec_name, (size_t)GELF_R_SYM(rel.r_info), i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
-		if (rel.r_offset % sizeof(struct bpf_insn))
+		if (rel.r_offset % BPF_INSN_SZ) {
+			pr_warn("sec '%s': invalid offset 0x%zx for relo #%d\n",
+				relo_sec_name, (size_t)GELF_R_SYM(rel.r_info), i);
 			return -LIBBPF_ERRNO__FORMAT;
+		}
 
-		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
-		name = elf_sym_str(obj, sym.st_name) ?: "<?>";
+		insn_idx = rel.r_offset / BPF_INSN_SZ;
+		sym_name = elf_sym_str(obj, sym.st_name) ?: "<?>";
 
-		pr_debug("relo for shdr %u, symb %zu, value %zu, type %d, bind %d, name %d (\'%s\'), insn %u\n",
-			 (__u32)sym.st_shndx, (size_t)GELF_R_SYM(rel.r_info),
-			 (size_t)sym.st_value, GELF_ST_TYPE(sym.st_info),
-			 GELF_ST_BIND(sym.st_info), sym.st_name, name,
-			 insn_idx);
+		pr_debug("sec '%s': relo #%d: insn #%u against '%s'\n",
+			 relo_sec_name, i, insn_idx, sym_name);
 
 		err = bpf_program__record_reloc(prog, &prog->reloc_desc[i],
-						insn_idx, name, &sym, &rel);
+						insn_idx, sym_name, &sym, &rel);
 		if (err)
 			return err;
 	}
@@ -5155,9 +5170,9 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	int insn_idx;
 	__u8 class;
 
-	if (relo->insn_off % sizeof(struct bpf_insn))
+	if (relo->insn_off % BPF_INSN_SZ)
 		return -EINVAL;
-	insn_idx = relo->insn_off / sizeof(struct bpf_insn);
+	insn_idx = relo->insn_off / BPF_INSN_SZ;
 	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
 
@@ -5588,7 +5603,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 			goto out;
 		}
 
-		pr_debug("prog '%s': performing %d CO-RE offset relocs\n",
+		pr_debug("sec '%s': found %d CO-RE relocations\n",
 			 sec_name, sec->num_info);
 
 		for_each_btf_ext_rec(seg, sec, i, rec) {
@@ -5596,7 +5611,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 						  targ_btf, cand_cache);
 			if (err) {
 				pr_warn("prog '%s': relo #%d: failed to relocate: %d\n",
-					sec_name, i, err);
+					prog->name, i, err);
 				goto out;
 			}
 		}
@@ -5716,7 +5731,8 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 				return err;
 			break;
 		default:
-			pr_warn("relo #%d: bad relo type %d\n", i, relo->type);
+			pr_warn("prog '%s': relo #%d: bad relo type %d\n",
+				prog->name, i, relo->type);
 			return -EINVAL;
 		}
 	}
@@ -5751,7 +5767,8 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 
 		err = bpf_program__relocate(prog, obj);
 		if (err) {
-			pr_warn("failed to relocate '%s'\n", prog->section_name);
+			pr_warn("prog '%s': failed to relocate data references: %d\n",
+				prog->name, err);
 			return err;
 		}
 		break;
@@ -5766,7 +5783,8 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 
 		err = bpf_program__relocate(prog, obj);
 		if (err) {
-			pr_warn("failed to relocate '%s'\n", prog->section_name);
+			pr_warn("prog '%s': failed to relocate calls: %d\n",
+				prog->name, err);
 			return err;
 		}
 	}
@@ -6198,8 +6216,7 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 		if (bpf_program__is_function_storage(prog, obj))
 			continue;
 		if (!prog->load) {
-			pr_debug("prog '%s'('%s'): skipped loading\n",
-				 prog->name, prog->section_name);
+			pr_debug("prog '%s': skipped loading\n", prog->name);
 			continue;
 		}
 		prog->log_level |= log_level;
@@ -7343,7 +7360,7 @@ int bpf_program__fd(const struct bpf_program *prog)
 
 size_t bpf_program__size(const struct bpf_program *prog)
 {
-	return prog->insns_cnt * sizeof(struct bpf_insn);
+	return prog->insns_cnt * BPF_INSN_SZ;
 }
 
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
