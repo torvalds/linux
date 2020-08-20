@@ -110,7 +110,7 @@ static inline struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root 
 
 #ifdef CONFIG_BTRFS_DEBUG
 static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) {
-	BUG_ON(!eb->write_locks);
+	lockdep_assert_held(&eb->lock);
 }
 #else
 static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) { }
