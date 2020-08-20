@@ -10,6 +10,7 @@
 #define __LIBBPF_LIBBPF_INTERNAL_H
 
 #include <stdlib.h>
+#include <limits.h>
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
@@ -77,6 +78,9 @@ do {				\
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
 
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
 /*
  * Re-implement glibc's reallocarray() for libbpf internal-only use.
  * reallocarray(), unfortunately, is not available in all versions of glibc,
@@ -90,8 +94,14 @@ static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
 {
 	size_t total;
 
+#if __has_builtin(__builtin_mul_overflow)
 	if (unlikely(__builtin_mul_overflow(nmemb, size, &total)))
 		return NULL;
+#else
+	if (size == 0 || nmemb > ULONG_MAX / size)
+		return NULL;
+	total = nmemb * size;
+#endif
 	return realloc(ptr, total);
 }
 
