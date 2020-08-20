@@ -109,7 +109,7 @@ static void rtw_pci_free_tx_ring_skbs(struct rtw_dev *rtwdev,
 		tx_data = rtw_pci_get_tx_data(skb);
 		dma = tx_data->dma;
 
-		pci_unmap_single(pdev, dma, skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&pdev->dev, dma, skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -125,7 +125,7 @@ static void rtw_pci_free_tx_ring(struct rtw_dev *rtwdev,
 	rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
 
 	/* free the ring itself */
-	pci_free_consistent(pdev, ring_sz, head, tx_ring->r.dma);
+	dma_free_coherent(&pdev->dev, ring_sz, head, tx_ring->r.dma);
 	tx_ring->r.head = NULL;
 }
 
@@ -144,7 +144,7 @@ static void rtw_pci_free_rx_ring_skbs(struct rtw_dev *rtwdev,
 			continue;
 
 		dma = *((dma_addr_t *)skb->cb);
-		pci_unmap_single(pdev, dma, buf_sz, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&pdev->dev, dma, buf_sz, DMA_FROM_DEVICE);
 		dev_kfree_skb(skb);
 		rx_ring->buf[i] = NULL;
 	}
@@ -159,7 +159,7 @@ static void rtw_pci_free_rx_ring(struct rtw_dev *rtwdev,
 
 	rtw_pci_free_rx_ring_skbs(rtwdev, rx_ring);
 
-	pci_free_consistent(pdev, ring_sz, head, rx_ring->r.dma);
+	dma_free_coherent(&pdev->dev, ring_sz, head, rx_ring->r.dma);
 }
 
 static void rtw_pci_free_trx_ring(struct rtw_dev *rtwdev)
@@ -194,7 +194,7 @@ static int rtw_pci_init_tx_ring(struct rtw_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	head = pci_zalloc_consistent(pdev, ring_sz, &dma);
+	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate tx ring\n");
 		return -ENOMEM;
@@ -223,8 +223,8 @@ static int rtw_pci_reset_rx_desc(struct rtw_dev *rtwdev, struct sk_buff *skb,
 	if (!skb)
 		return -EINVAL;
 
-	dma = pci_map_single(pdev, skb->data, buf_sz, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(pdev, dma))
+	dma = dma_map_single(&pdev->dev, skb->data, buf_sz, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&pdev->dev, dma))
 		return -EBUSY;
 
 	*((dma_addr_t *)skb->cb) = dma;
@@ -272,7 +272,7 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	head = pci_zalloc_consistent(pdev, ring_sz, &dma);
+	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate rx ring\n");
 		return -ENOMEM;
@@ -311,11 +311,11 @@ err_out:
 		if (!skb)
 			continue;
 		dma = *((dma_addr_t *)skb->cb);
-		pci_unmap_single(pdev, dma, buf_sz, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&pdev->dev, dma, buf_sz, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(skb);
 		rx_ring->buf[i] = NULL;
 	}
-	pci_free_consistent(pdev, ring_sz, head, dma);
+	dma_free_coherent(&pdev->dev, ring_sz, head, dma);
 
 	rtw_err(rtwdev, "failed to init rx buffer\n");
 
@@ -675,8 +675,7 @@ static void rtw_pci_release_rsvd_page(struct rtw_pci *rtwpci,
 
 	tx_data = rtw_pci_get_tx_data(prev);
 	dma = tx_data->dma;
-	pci_unmap_single(rtwpci->pdev, dma, prev->len,
-			 PCI_DMA_TODEVICE);
+	dma_unmap_single(&rtwpci->pdev->dev, dma, prev->len, DMA_TO_DEVICE);
 	dev_kfree_skb_any(prev);
 }
 
@@ -755,9 +754,9 @@ static int rtw_pci_tx_write_data(struct rtw_dev *rtwdev,
 	memset(pkt_desc, 0, tx_pkt_desc_sz);
 	pkt_info->qsel = rtw_pci_get_tx_qsel(skb, queue);
 	rtw_tx_fill_tx_desc(pkt_info, skb);
-	dma = pci_map_single(rtwpci->pdev, skb->data, skb->len,
-			     PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(rtwpci->pdev, dma))
+	dma = dma_map_single(&rtwpci->pdev->dev, skb->data, skb->len,
+			     DMA_TO_DEVICE);
+	if (dma_mapping_error(&rtwpci->pdev->dev, dma))
 		return -EBUSY;
 
 	/* after this we got dma mapped, there is no way back */
@@ -896,8 +895,8 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 			break;
 		}
 		tx_data = rtw_pci_get_tx_data(skb);
-		pci_unmap_single(rtwpci->pdev, tx_data->dma, skb->len,
-				 PCI_DMA_TODEVICE);
+		dma_unmap_single(&rtwpci->pdev->dev, tx_data->dma, skb->len,
+				 DMA_TO_DEVICE);
 
 		/* just free command packets from host to card */
 		if (hw_queue == RTW_TX_QUEUE_H2C) {
