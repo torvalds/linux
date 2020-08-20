@@ -186,13 +186,13 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 struct dma_async_tx_descriptor *async_trigger_callback(struct async_submit_ctl *submit);
 
 struct dma_async_tx_descriptor *
-async_gen_syndrome(struct page **blocks, unsigned int offset, int src_cnt,
+async_gen_syndrome(struct page **blocks, unsigned int *offsets, int src_cnt,
 		   size_t len, struct async_submit_ctl *submit);
 
 struct dma_async_tx_descriptor *
-async_syndrome_val(struct page **blocks, unsigned int offset, int src_cnt,
+async_syndrome_val(struct page **blocks, unsigned int *offsets, int src_cnt,
 		   size_t len, enum sum_check_flags *pqres, struct page *spare,
-		   struct async_submit_ctl *submit);
+		   unsigned int s_off, struct async_submit_ctl *submit);
 
 struct dma_async_tx_descriptor *
 async_raid6_2data_recov(int src_num, size_t bytes, int faila, int failb,

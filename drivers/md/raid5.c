@@ -1459,6 +1459,7 @@ ops_run_compute5(struct stripe_head *sh, struct raid5_percpu *percpu)
 
 /* set_syndrome_sources - populate source buffers for gen_syndrome
  * @srcs - (struct page *) array of size sh->disks
+ * @offs - (unsigned int) array of offset for each page
  * @sh - stripe_head to parse
  *
  * Populates srcs in proper layout order for the stripe and returns the
@@ -1467,6 +1468,7 @@ ops_run_compute5(struct stripe_head *sh, struct raid5_percpu *percpu)
  * is recorded in srcs[count+1]].
  */
 static int set_syndrome_sources(struct page **srcs,
+				unsigned int *offs,
 				struct stripe_head *sh,
 				int srctype)
 {
@@ -1497,6 +1499,12 @@ static int set_syndrome_sources(struct page **srcs,
 				srcs[slot] = sh->dev[i].orig_page;
 			else
 				srcs[slot] = sh->dev[i].page;
+			/*
+			 * For R5_InJournal, PAGE_SIZE must be 4KB and will
+			 * not shared page. In that case, dev[i].offset
+			 * is 0.
+			 */
+			offs[slot] = sh->dev[i].offset;
 		}
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
@@ -1540,13 +1548,13 @@ ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 	atomic_inc(&sh->count);
 
 	if (target == qd_idx) {
-		count = set_syndrome_sources(blocks, sh, SYNDROME_SRC_ALL);
+		count = set_syndrome_sources(blocks, offs, sh, SYNDROME_SRC_ALL);
 		blocks[count] = NULL; /* regenerating p is not necessary */
 		BUG_ON(blocks[count+1] != dest); /* q should already be set */
 		init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 				  ops_complete_compute, sh,
 				  to_addr_conv(sh, percpu, 0));
-		tx = async_gen_syndrome(blocks, 0, count+2,
+		tx = async_gen_syndrome(blocks, offs, count+2,
 				RAID5_STRIPE_SIZE(sh->raid_conf), &submit);
 	} else {
 		/* Compute any data- or p-drive using XOR */
@@ -1628,7 +1636,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 					  ops_complete_compute, sh,
 					  to_addr_conv(sh, percpu, 0));
-			return async_gen_syndrome(blocks, 0, syndrome_disks+2,
+			return async_gen_syndrome(blocks, offs, syndrome_disks+2,
 						  RAID5_STRIPE_SIZE(sh->raid_conf),
 						  &submit);
 		} else {
@@ -1660,11 +1668,11 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 				       RAID5_STRIPE_SIZE(sh->raid_conf),
 				       &submit);
 
-			count = set_syndrome_sources(blocks, sh, SYNDROME_SRC_ALL);
+			count = set_syndrome_sources(blocks, offs, sh, SYNDROME_SRC_ALL);
 			init_async_submit(&submit, ASYNC_TX_FENCE, tx,
 					  ops_complete_compute, sh,
 					  to_addr_conv(sh, percpu, 0));
-			return async_gen_syndrome(blocks, 0, count+2,
+			return async_gen_syndrome(blocks, offs, count+2,
 						  RAID5_STRIPE_SIZE(sh->raid_conf),
 						  &submit);
 		}
@@ -1750,17 +1758,18 @@ ops_run_prexor6(struct stripe_head *sh, struct raid5_percpu *percpu,
 		struct dma_async_tx_descriptor *tx)
 {
 	struct page **blocks = to_addr_page(percpu, 0);
+	unsigned int *offs = to_addr_offs(sh, percpu);
 	int count;
 	struct async_submit_ctl submit;
 
 	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
-	count = set_syndrome_sources(blocks, sh, SYNDROME_SRC_WANT_DRAIN);
+	count = set_syndrome_sources(blocks, offs, sh, SYNDROME_SRC_WANT_DRAIN);
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_PQ_XOR_DST, tx,
 			  ops_complete_prexor, sh, to_addr_conv(sh, percpu, 0));
-	tx = async_gen_syndrome(blocks, 0, count+2,
+	tx = async_gen_syndrome(blocks, offs, count+2,
 			RAID5_STRIPE_SIZE(sh->raid_conf), &submit);
 
 	return tx;
@@ -1989,6 +1998,7 @@ ops_run_reconstruct6(struct stripe_head *sh, struct raid5_percpu *percpu,
 {
 	struct async_submit_ctl submit;
 	struct page **blocks;
+	unsigned int *offs;
 	int count, i, j = 0;
 	struct stripe_head *head_sh = sh;
 	int last_stripe;
@@ -2013,6 +2023,7 @@ ops_run_reconstruct6(struct stripe_head *sh, struct raid5_percpu *percpu,
 
 again:
 	blocks = to_addr_page(percpu, j);
+	offs = to_addr_offs(sh, percpu);
 
 	if (sh->reconstruct_state == reconstruct_state_prexor_drain_run) {
 		synflags = SYNDROME_SRC_WRITTEN;
@@ -2022,7 +2033,7 @@ again:
 		txflags = ASYNC_TX_ACK;
 	}
 
-	count = set_syndrome_sources(blocks, sh, synflags);
+	count = set_syndrome_sources(blocks, offs, sh, synflags);
 	last_stripe = !head_sh->batch_head ||
 		list_first_entry(&sh->batch_list,
 				 struct stripe_head, batch_list) == head_sh;
@@ -2034,7 +2045,7 @@ again:
 	} else
 		init_async_submit(&submit, 0, tx, NULL, NULL,
 				  to_addr_conv(sh, percpu, j));
-	tx = async_gen_syndrome(blocks, 0, count+2,
+	tx = async_gen_syndrome(blocks, offs, count+2,
 			RAID5_STRIPE_SIZE(sh->raid_conf),  &submit);
 	if (!last_stripe) {
 		j++;
@@ -2100,6 +2111,7 @@ static void ops_run_check_p(struct stripe_head *sh, struct raid5_percpu *percpu)
 static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu, int checkp)
 {
 	struct page **srcs = to_addr_page(percpu, 0);
+	unsigned int *offs = to_addr_offs(sh, percpu);
 	struct async_submit_ctl submit;
 	int count;
 
@@ -2107,16 +2119,16 @@ static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu
 		(unsigned long long)sh->sector, checkp);
 
 	BUG_ON(sh->batch_head);
-	count = set_syndrome_sources(srcs, sh, SYNDROME_SRC_ALL);
+	count = set_syndrome_sources(srcs, offs, sh, SYNDROME_SRC_ALL);
 	if (!checkp)
 		srcs[count] = NULL;
 
 	atomic_inc(&sh->count);
 	init_async_submit(&submit, ASYNC_TX_ACK, NULL, ops_complete_check,
 			  sh, to_addr_conv(sh, percpu, 0));
-	async_syndrome_val(srcs, 0, count+2,
+	async_syndrome_val(srcs, offs, count+2,
 			   RAID5_STRIPE_SIZE(sh->raid_conf),
-			   &sh->ops.zero_sum_result, percpu->spare_page, &submit);
+			   &sh->ops.zero_sum_result, percpu->spare_page, 0, &submit);
 }
 
 static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
