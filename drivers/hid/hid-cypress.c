@@ -26,18 +26,16 @@
 #define CP_2WHEEL_MOUSE_HACK		0x02
 #define CP_2WHEEL_MOUSE_HACK_ON		0x04
 
+#define VA_INVAL_LOGICAL_BOUNDARY	0x08
+
 /*
  * Some USB barcode readers from cypress have usage min and usage max in
  * the wrong order
  */
-static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static __u8 *cp_rdesc_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 	unsigned int i;
-
-	if (!(quirks & CP_RDESC_SWAPPED_MIN_MAX))
-		return rdesc;
 
 	if (*rsize < 4)
 		return rdesc;
@@ -48,6 +46,40 @@ static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			rdesc[i + 2] = 0x29;
 			swap(rdesc[i + 3], rdesc[i + 1]);
 		}
+	return rdesc;
+}
+
+static __u8 *va_logical_boundary_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	/*
+	 * Varmilo VA104M (with VID Cypress and device ID 07B1) incorrectly
+	 * reports Logical Minimum of its Consumer Control device as 572
+	 * (0x02 0x3c). Fix this by setting its Logical Minimum to zero.
+	 */
+	if (*rsize == 25 &&
+			rdesc[0] == 0x05 && rdesc[1] == 0x0c &&
+			rdesc[2] == 0x09 && rdesc[3] == 0x01 &&
+			rdesc[6] == 0x19 && rdesc[7] == 0x00 &&
+			rdesc[11] == 0x16 && rdesc[12] == 0x3c && rdesc[13] == 0x02) {
+		hid_info(hdev,
+			 "fixing up varmilo VA104M consumer control report descriptor\n");
+		rdesc[12] = 0x00;
+		rdesc[13] = 0x00;
+	}
+	return rdesc;
+}
+
+static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
+{
+	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+
+	if (quirks & CP_RDESC_SWAPPED_MIN_MAX)
+		rdesc = cp_rdesc_fixup(hdev, rdesc, rsize);
+	if (quirks & VA_INVAL_LOGICAL_BOUNDARY)
+		rdesc = va_logical_boundary_fixup(hdev, rdesc, rsize);
+
 	return rdesc;
 }
 
@@ -131,6 +163,8 @@ static const struct hid_device_id cp_devices[] = {
 		.driver_data = CP_RDESC_SWAPPED_MIN_MAX },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE),
 		.driver_data = CP_2WHEEL_MOUSE_HACK },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_VARMILO_VA104M_07B1),
+		.driver_data = VA_INVAL_LOGICAL_BOUNDARY },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, cp_devices);
