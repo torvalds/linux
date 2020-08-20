@@ -155,6 +155,13 @@ struct mount_info {
 
 	void *pending_read_xattr;
 	size_t pending_read_xattr_size;
+
+	/* A queue of waiters who want to be notified about blocks_written */
+	wait_queue_head_t mi_blocks_written_notif_wq;
+
+	/* Number of blocks written since mount */
+	atomic_t mi_blocks_written;
+
 };
 
 struct data_file_block {

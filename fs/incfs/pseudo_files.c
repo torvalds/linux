@@ -20,13 +20,14 @@
 
 #define INCFS_PENDING_READS_INODE 2
 #define INCFS_LOG_INODE 3
+#define INCFS_BLOCKS_WRITTEN_INODE 4
 #define READ_WRITE_FILE_MODE 0666
 
 /*******************************************************************************
  * .log pseudo file definition
  ******************************************************************************/
 static const char log_file_name[] = INCFS_LOG_FILENAME;
-static struct mem_range log_file_name_range = {
+static const struct mem_range log_file_name_range = {
 	.data = (u8 *)log_file_name,
 	.len = ARRAY_SIZE(log_file_name) - 1
 };
@@ -156,7 +157,7 @@ static const struct file_operations incfs_log_file_ops = {
  * .pending_reads pseudo file definition
  ******************************************************************************/
 static const char pending_reads_file_name[] = INCFS_PENDING_READS_FILENAME;
-static struct mem_range pending_reads_file_name_range = {
+static const struct mem_range pending_reads_file_name_range = {
 	.data = (u8 *)pending_reads_file_name,
 	.len = ARRAY_SIZE(pending_reads_file_name) - 1
 };
@@ -928,6 +929,90 @@ static const struct file_operations incfs_pending_read_file_ops = {
 };
 
 /*******************************************************************************
+ * .blocks_written pseudo file definition
+ ******************************************************************************/
+static const char blocks_written_file_name[] = INCFS_BLOCKS_WRITTEN_FILENAME;
+static const struct mem_range blocks_written_file_name_range = {
+	.data = (u8 *)blocks_written_file_name,
+	.len = ARRAY_SIZE(blocks_written_file_name) - 1
+};
+
+/* State of an open .blocks_written file, unique for each file descriptor. */
+struct blocks_written_file_state {
+	unsigned long blocks_written;
+};
+
+static ssize_t blocks_written_read(struct file *f, char __user *buf, size_t len,
+			loff_t *ppos)
+{
+	struct mount_info *mi = get_mount_info(file_superblock(f));
+	struct blocks_written_file_state *state = f->private_data;
+	unsigned long blocks_written;
+	char string[21];
+	int result = 0;
+
+	if (!mi)
+		return -EFAULT;
+
+	blocks_written = atomic_read(&mi->mi_blocks_written);
+	if (state->blocks_written == blocks_written)
+		return 0;
+
+	result = snprintf(string, sizeof(string), "%lu", blocks_written);
+	if (result > len)
+		result = len;
+	if (copy_to_user(buf, string, result))
+		return -EFAULT;
+
+	state->blocks_written = blocks_written;
+	return result;
+}
+
+static __poll_t blocks_written_poll(struct file *f, poll_table *wait)
+{
+	struct mount_info *mi = get_mount_info(file_superblock(f));
+	struct blocks_written_file_state *state = f->private_data;
+	unsigned long blocks_written;
+
+	if (!mi)
+		return -EFAULT;
+
+	poll_wait(f, &mi->mi_blocks_written_notif_wq, wait);
+	blocks_written = atomic_read(&mi->mi_blocks_written);
+	if (state->blocks_written == blocks_written)
+		return 0;
+
+	return EPOLLIN | EPOLLRDNORM;
+}
+
+static int blocks_written_open(struct inode *inode, struct file *file)
+{
+	struct blocks_written_file_state *state =
+		kzalloc(sizeof(*state), GFP_NOFS);
+
+	if (!state)
+		return -ENOMEM;
+
+	state->blocks_written = -1;
+	file->private_data = state;
+	return 0;
+}
+
+static int blocks_written_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations incfs_blocks_written_file_ops = {
+	.read = blocks_written_read,
+	.poll = blocks_written_poll,
+	.open = blocks_written_open,
+	.release = blocks_written_release,
+	.llseek = noop_llseek,
+};
+
+/*******************************************************************************
  * Generic inode lookup functionality
  ******************************************************************************/
 static bool get_pseudo_inode(int ino, struct inode *inode)
@@ -948,6 +1033,10 @@ static bool get_pseudo_inode(int ino, struct inode *inode)
 
 	case INCFS_LOG_INODE:
 		inode->i_fop = &incfs_log_file_ops;
+		return true;
+
+	case INCFS_BLOCKS_WRITTEN_INODE:
+		inode->i_fop = &incfs_blocks_written_file_ops;
 		return true;
 
 	default:
@@ -977,27 +1066,10 @@ static int inode_set(struct inode *inode, void *opaque)
 	return -EINVAL;
 }
 
-static struct inode *fetch_pending_reads_inode(struct super_block *sb)
+static struct inode *fetch_inode(struct super_block *sb, unsigned long ino)
 {
 	struct inode_search search = {
-		.ino = INCFS_PENDING_READS_INODE
-	};
-	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
-				inode_set, &search);
-
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-
-	return inode;
-}
-
-static struct inode *fetch_log_inode(struct super_block *sb)
-{
-	struct inode_search search = {
-		.ino = INCFS_LOG_INODE
+		.ino = ino
 	};
 	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
 				inode_set, &search);
@@ -1015,28 +1087,24 @@ int dir_lookup_pseudo_files(struct super_block *sb, struct dentry *dentry)
 {
 	struct mem_range name_range =
 			range((u8 *)dentry->d_name.name, dentry->d_name.len);
+	unsigned long ino;
+	struct inode *inode;
 
-	if (incfs_equal_ranges(pending_reads_file_name_range, name_range)) {
-		struct inode *inode = fetch_pending_reads_inode(sb);
+	if (incfs_equal_ranges(pending_reads_file_name_range, name_range))
+		ino = INCFS_PENDING_READS_INODE;
+	else if (incfs_equal_ranges(log_file_name_range, name_range))
+		ino = INCFS_LOG_INODE;
+	else if (incfs_equal_ranges(blocks_written_file_name_range, name_range))
+		ino = INCFS_BLOCKS_WRITTEN_INODE;
+	else
+		return -ENOENT;
 
-		if (IS_ERR(inode))
-			return PTR_ERR(inode);
+	inode = fetch_inode(sb, ino);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-		d_add(dentry, inode);
-		return 0;
-	}
-
-	if (incfs_equal_ranges(log_file_name_range, name_range)) {
-		struct inode *inode = fetch_log_inode(sb);
-
-		if (IS_ERR(inode))
-			return PTR_ERR(inode);
-
-		d_add(dentry, inode);
-		return 0;
-	}
-
-	return -ENOENT;
+	d_add(dentry, inode);
+	return 0;
 }
 
 int emit_pseudo_files(struct dir_context *ctx)
@@ -1054,6 +1122,15 @@ int emit_pseudo_files(struct dir_context *ctx)
 		if (!dir_emit(ctx, log_file_name,
 			      ARRAY_SIZE(log_file_name) - 1,
 			      INCFS_LOG_INODE, DT_REG))
+			return -EINVAL;
+
+		ctx->pos++;
+	}
+
+	if (ctx->pos == 2) {
+		if (!dir_emit(ctx, blocks_written_file_name,
+			      ARRAY_SIZE(blocks_written_file_name) - 1,
+			      INCFS_BLOCKS_WRITTEN_INODE, DT_REG))
 			return -EINVAL;
 
 		ctx->pos++;

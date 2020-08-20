@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <lz4.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -963,6 +964,7 @@ static bool iterate_directory(const char *dir_to_iterate, bool root,
 	} names[] = {
 		{INCFS_LOG_FILENAME, true, false},
 		{INCFS_PENDING_READS_FILENAME, true, false},
+		{INCFS_BLOCKS_WRITTEN_FILENAME, true, false},
 		{".index", true, false},
 		{"..", false, false},
 		{".", false, false},
@@ -2293,9 +2295,38 @@ static int emit_partial_test_file_data(const char *mount_dir,
 	int *block_indexes = NULL;
 	int result = 0;
 	int blocks_written = 0;
+	int bw_fd = -1;
+	char buffer[20];
+	struct pollfd pollfd;
+	long blocks_written_total, blocks_written_new_total;
 
 	if (file->size == 0)
 		return 0;
+
+	bw_fd = open_blocks_written_file(mount_dir);
+	if (bw_fd == -1)
+		return -errno;
+
+	result = read(bw_fd, buffer, sizeof(buffer));
+	if (result <= 0) {
+		result = -EIO;
+		goto out;
+	}
+
+	buffer[result] = 0;
+	blocks_written_total = atol(buffer);
+	result = 0;
+
+	pollfd = (struct pollfd) {
+		.fd = bw_fd,
+		.events = POLLIN,
+	};
+
+	result = poll(&pollfd, 1, 0);
+	if (result) {
+		result = -EIO;
+		goto out;
+	}
 
 	/* Emit 2 blocks, skip 2 blocks etc*/
 	block_indexes = calloc(block_cnt, sizeof(*block_indexes));
@@ -2316,9 +2347,29 @@ static int emit_partial_test_file_data(const char *mount_dir,
 			result = -EIO;
 			goto out;
 		}
+
+		result = poll(&pollfd, 1, 0);
+		if (result != 1 || pollfd.revents != POLLIN) {
+			result = -EIO;
+			goto out;
+		}
+
+		result = read(bw_fd, buffer, sizeof(buffer));
+		buffer[result] = 0;
+		blocks_written_new_total = atol(buffer);
+
+		if (blocks_written_new_total - blocks_written_total
+		    != blocks_written) {
+			result = -EIO;
+			goto out;
+		}
+
+		blocks_written_total = blocks_written_new_total;
+		result = 0;
 	}
 out:
 	free(block_indexes);
+	close(bw_fd);
 	return result;
 }
 

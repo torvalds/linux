@@ -30,6 +30,7 @@
 
 #define INCFS_PENDING_READS_FILENAME ".pending_reads"
 #define INCFS_LOG_FILENAME ".log"
+#define INCFS_BLOCKS_WRITTEN_FILENAME ".blocks_written"
 #define INCFS_XATTR_ID_NAME (XATTR_USER_PREFIX "incfs.id")
 #define INCFS_XATTR_SIZE_NAME (XATTR_USER_PREFIX "incfs.size")
 #define INCFS_XATTR_METADATA_NAME (XATTR_USER_PREFIX "incfs.metadata")
