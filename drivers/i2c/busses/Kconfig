@@ -840,7 +840,6 @@ config I2C_PASEMI
 config I2C_PCA_PLATFORM
 	tristate "PCA9564/PCA9665 as platform device"
 	select I2C_ALGOPCA
-	default n
 	help
 	  This driver supports a memory mapped Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.
@@ -1240,7 +1239,6 @@ config I2C_TAOS_EVM
 	depends on TTY
 	select SERIO
 	select SERIO_SERPORT
-	default n
 	help
 	  This supports TAOS evaluation modules on serial port. In order to
 	  use this driver, you will need the inputattach tool, which is part
@@ -1324,7 +1322,6 @@ config I2C_PCA_ISA
 	tristate "PCA9564/PCA9665 on an ISA bus"
 	depends on ISA
 	select I2C_ALGOPCA
-	default n
 	help
 	  This driver supports ISA boards using the Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.
