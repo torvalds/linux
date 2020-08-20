@@ -448,13 +448,74 @@ out:
 	return sh;
 }
 
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+static void free_stripe_pages(struct stripe_head *sh)
+{
+	int i;
+	struct page *p;
+
+	/* Have not allocate page pool */
+	if (!sh->pages)
+		return;
+
+	for (i = 0; i < sh->nr_pages; i++) {
+		p = sh->pages[i];
+		if (p)
+			put_page(p);
+		sh->pages[i] = NULL;
+	}
+}
+
+static int alloc_stripe_pages(struct stripe_head *sh, gfp_t gfp)
+{
+	int i;
+	struct page *p;
+
+	for (i = 0; i < sh->nr_pages; i++) {
+		/* The page have allocated. */
+		if (sh->pages[i])
+			continue;
+
+		p = alloc_page(gfp);
+		if (!p) {
+			free_stripe_pages(sh);
+			return -ENOMEM;
+		}
+		sh->pages[i] = p;
+	}
+	return 0;
+}
+
+static int
+init_stripe_shared_pages(struct stripe_head *sh, struct r5conf *conf, int disks)
+{
+	int nr_pages, cnt;
+
+	if (sh->pages)
+		return 0;
+
+	/* Each of the sh->dev[i] need one conf->stripe_size */
+	cnt = PAGE_SIZE / conf->stripe_size;
+	nr_pages = (disks + cnt - 1) / cnt;
+
+	sh->pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!sh->pages)
+		return -ENOMEM;
+	sh->nr_pages = nr_pages;
+	sh->stripes_per_page = cnt;
+	return 0;
+}
+#endif
+
 static void shrink_buffers(struct stripe_head *sh)
 {
-	struct page *p;
 	int i;
 	int num = sh->raid_conf->pool_size;
 
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
 	for (i = 0; i < num ; i++) {
+		struct page *p;
+
 		WARN_ON(sh->dev[i].page != sh->dev[i].orig_page);
 		p = sh->dev[i].page;
 		if (!p)
@@ -462,6 +523,11 @@ static void shrink_buffers(struct stripe_head *sh)
 		sh->dev[i].page = NULL;
 		put_page(p);
 	}
+#else
+	for (i = 0; i < num; i++)
+		sh->dev[i].page = NULL;
+	free_stripe_pages(sh); /* Free pages */
+#endif
 }
 
 static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
@@ -469,6 +535,7 @@ static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 	int i;
 	int num = sh->raid_conf->pool_size;
 
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
 	for (i = 0; i < num; i++) {
 		struct page *page;
 
@@ -479,7 +546,16 @@ static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 		sh->dev[i].orig_page = page;
 		sh->dev[i].offset = 0;
 	}
+#else
+	if (alloc_stripe_pages(sh, gfp))
+		return -ENOMEM;
 
+	for (i = 0; i < num; i++) {
+		sh->dev[i].page = raid5_get_dev_page(sh, i);
+		sh->dev[i].orig_page = sh->dev[i].page;
+		sh->dev[i].offset = raid5_get_page_offset(sh, i);
+	}
+#endif
 	return 0;
 }
 
@@ -2205,6 +2281,9 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 
 static void free_stripe(struct kmem_cache *sc, struct stripe_head *sh)
 {
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	kfree(sh->pages);
+#endif
 	if (sh->ppl_page)
 		__free_page(sh->ppl_page);
 	kmem_cache_free(sc, sh);
@@ -2238,9 +2317,15 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 			sh->ppl_page = alloc_page(gfp);
 			if (!sh->ppl_page) {
 				free_stripe(sc, sh);
-				sh = NULL;
+				return NULL;
 			}
 		}
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+		if (init_stripe_shared_pages(sh, conf, disks)) {
+			free_stripe(sc, sh);
+			return NULL;
+		}
+#endif
 	}
 	return sh;
 }
