@@ -157,6 +157,7 @@ void *child_thread(void *arg)
 	void *addr = NULL;
 	double throughput;
 	struct rusage ru;
+	size_t buffer_sz;
 	int lu, fd;
 
 	fd = (int)(unsigned long)arg;
@@ -164,9 +165,9 @@ void *child_thread(void *arg)
 	gettimeofday(&t0, NULL);
 
 	fcntl(fd, F_SETFL, O_NDELAY);
-	buffer = malloc(chunk_size);
-	if (!buffer) {
-		perror("malloc");
+	buffer = mmap_large_buffer(chunk_size, &buffer_sz);
+	if (buffer == (void *)-1) {
+		perror("mmap");
 		goto error;
 	}
 	if (zflg) {
@@ -256,7 +257,7 @@ end:
 				ru.ru_nvcsw);
 	}
 error:
-	free(buffer);
+	munmap(buffer, buffer_sz);
 	close(fd);
 	if (zflg)
 		munmap(raddr, chunk_size + map_align);
