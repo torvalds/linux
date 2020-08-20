@@ -2224,6 +2224,8 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 	struct btrfs_fs_info *fs_info = srcdev->fs_info;
 	struct btrfs_fs_devices *fs_devices = srcdev->fs_devices;
 
+	mutex_lock(&uuid_mutex);
+
 	btrfs_close_bdev(srcdev);
 	synchronize_rcu();
 	btrfs_free_device(srcdev);
@@ -2252,6 +2254,7 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 		close_fs_devices(fs_devices);
 		free_fs_devices(fs_devices);
 	}
+	mutex_unlock(&uuid_mutex);
 }
 
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
