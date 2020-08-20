@@ -139,6 +139,36 @@ EXPORT_SYMBOL_GPL(clean_acked_data_flush);
 #endif
 
 #ifdef CONFIG_CGROUP_BPF
+static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
+{
+	bool unknown_opt = tcp_sk(sk)->rx_opt.saw_unknown &&
+		BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk),
+				       BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG);
+	bool parse_all_opt = BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk),
+						    BPF_SOCK_OPS_PARSE_ALL_HDR_OPT_CB_FLAG);
+
+	if (likely(!unknown_opt && !parse_all_opt))
+		return;
+
+	/* The skb will be handled in the
+	 * bpf_skops_established() or
+	 * bpf_skops_write_hdr_opt().
+	 */
+	switch (sk->sk_state) {
+	case TCP_SYN_RECV:
+	case TCP_SYN_SENT:
+	case TCP_LISTEN:
+		return;
+	}
+
+	/* BPF prog will have access to the sk and skb.
+	 *
+	 * The bpf running context preparation and the actual bpf prog
+	 * calling will be implemented in a later PATCH together with
+	 * other bpf pieces.
+	 */
+}
+
 static void bpf_skops_established(struct sock *sk, int bpf_op,
 				  struct sk_buff *skb)
 {
@@ -155,6 +185,10 @@ static void bpf_skops_established(struct sock *sk, int bpf_op,
 	BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
 }
 #else
+static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
+{
+}
+
 static void bpf_skops_established(struct sock *sk, int bpf_op,
 				  struct sk_buff *skb)
 {
@@ -5622,6 +5656,8 @@ syn_challenge:
 		tcp_send_challenge_ack(sk, skb);
 		goto discard;
 	}
+
+	bpf_skops_parse_hdr(sk, skb);
 
 	return true;
 

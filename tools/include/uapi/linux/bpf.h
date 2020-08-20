@@ -4173,8 +4173,10 @@ enum {
 	BPF_SOCK_OPS_RETRANS_CB_FLAG	= (1<<1),
 	BPF_SOCK_OPS_STATE_CB_FLAG	= (1<<2),
 	BPF_SOCK_OPS_RTT_CB_FLAG	= (1<<3),
+	BPF_SOCK_OPS_PARSE_ALL_HDR_OPT_CB_FLAG  = (1<<4),
+	BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG = (1<<5),
 /* Mask of all currently supported cb flags */
-	BPF_SOCK_OPS_ALL_CB_FLAGS       = 0xF,
+	BPF_SOCK_OPS_ALL_CB_FLAGS       = 0x3F,
 };
 
 /* List of known BPF sock_ops operators.
