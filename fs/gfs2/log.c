@@ -716,16 +716,24 @@ void gfs2_write_revokes(struct gfs2_sbd *sdp)
 		atomic_dec(&sdp->sd_log_blks_free);
 		/* If no blocks have been reserved, we need to also
 		 * reserve a block for the header */
-		if (!sdp->sd_log_blks_reserved)
+		if (!sdp->sd_log_blks_reserved) {
 			atomic_dec(&sdp->sd_log_blks_free);
+			trace_gfs2_log_blocks(sdp, -2);
+		} else {
+			trace_gfs2_log_blocks(sdp, -1);
+		}
 	}
 	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
 
 	if (!sdp->sd_log_num_revoke) {
 		atomic_inc(&sdp->sd_log_blks_free);
-		if (!sdp->sd_log_blks_reserved)
+		if (!sdp->sd_log_blks_reserved) {
 			atomic_inc(&sdp->sd_log_blks_free);
+			trace_gfs2_log_blocks(sdp, 2);
+		} else {
+			trace_gfs2_log_blocks(sdp, 1);
+		}
 	}
 }
 
