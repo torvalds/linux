@@ -81,36 +81,6 @@
 		bl	phex
 		.endm
 
-		.macro	debug_reloc_start
-#ifdef DEBUG
-		kputc	#'\n'
-		kphex	r6, 8		/* processor id */
-		kputc	#':'
-		kphex	r7, 8		/* architecture id */
-#ifdef CONFIG_CPU_CP15
-		kputc	#':'
-		mrc	p15, 0, r0, c1, c0
-		kphex	r0, 8		/* control reg */
-#endif
-		kputc	#'\n'
-		kphex	r5, 8		/* decompressed kernel start */
-		kputc	#'-'
-		kphex	r9, 8		/* decompressed kernel end  */
-		kputc	#'>'
-		kphex	r4, 8		/* kernel execution address */
-		kputc	#'\n'
-#endif
-		.endm
-
-		.macro	debug_reloc_end
-#ifdef DEBUG
-		kphex	r5, 8		/* end of kernel */
-		kputc	#'\n'
-		mov	r0, r4
-		bl	memdump		/* dump 256 bytes at start of kernel */
-#endif
-		.endm
-
 		/*
 		 * Debug kernel copy by printing the memory addresses involved
 		 */
