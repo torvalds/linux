@@ -276,6 +276,9 @@ void dw_pcie_msi_init(struct pcie_port *pp)
 	struct device *dev = pci->dev;
 	u64 msi_target;
 
+	if (!IS_ENABLED(CONFIG_PCI_MSI))
+		return;
+
 	pp->msi_page = alloc_page(GFP_KERNEL);
 	pp->msi_data = dma_map_page(dev, pp->msi_page, 0, PAGE_SIZE,
 				    DMA_FROM_DEVICE);
