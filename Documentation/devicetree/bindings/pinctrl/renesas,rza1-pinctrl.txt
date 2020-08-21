@@ -117,10 +117,9 @@ function or a GPIO controller alternatively.
     - input-enable:
       enable input bufer for pins requiring software driven IO input
       operations.
-    - output-high:
+    - output-enable:
       enable output buffer for pins requiring software driven IO output
-      operations. output-low can be used alternatively, as line value is
-      ignored by the driver.
+      operations.
 
   The hardware reference manual specifies when a pin has to be configured to
   work in bi-directional mode and when the IO direction has to be specified
