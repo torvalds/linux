@@ -1538,7 +1538,7 @@ static int do_request_fw(struct b43legacy_wldev *dev,
 		size = be32_to_cpu(hdr->size);
 		if (size != (*fw)->size - sizeof(struct b43legacy_fw_header))
 			goto err_format;
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_FW_TYPE_IV:
 		if (hdr->ver != 1)
 			goto err_format;
@@ -2077,7 +2077,7 @@ static void b43legacy_rate_memory_init(struct b43legacy_wldev *dev)
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_36MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_48MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_54MB, 1);
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_PHYTYPE_B:
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_1MB, 0);
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_2MB, 0);
