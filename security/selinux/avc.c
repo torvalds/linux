@@ -31,6 +31,9 @@
 #include "avc_ss.h"
 #include "classmap.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/avc.h>
+
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
 #define AVC_CACHE_RECLAIM		16
@@ -705,6 +708,8 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	char *scontext;
 	u32 scontext_len;
 	int rc;
+
+	trace_selinux_audited(sad);
 
 	rc = security_sid_to_context(sad->state, sad->ssid, &scontext,
 				     &scontext_len);
