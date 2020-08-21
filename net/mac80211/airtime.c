@@ -487,13 +487,60 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(ieee80211_calc_rx_airtime);
 
+static bool ieee80211_fill_rate_info(struct ieee80211_hw *hw,
+				     struct ieee80211_rx_status *stat, u8 band,
+				     struct rate_info *ri)
+{
+	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
+	int i;
+
+	if (!ri || !sband)
+	    return false;
+
+	stat->bw = ri->bw;
+	stat->nss = ri->nss;
+	stat->rate_idx = ri->mcs;
+
+	if (ri->flags & RATE_INFO_FLAGS_HE_MCS)
+		stat->encoding = RX_ENC_HE;
+	else if (ri->flags & RATE_INFO_FLAGS_VHT_MCS)
+		stat->encoding = RX_ENC_VHT;
+	else if (ri->flags & RATE_INFO_FLAGS_MCS)
+		stat->encoding = RX_ENC_HT;
+	else
+		stat->encoding = RX_ENC_LEGACY;
+
+	if (ri->flags & RATE_INFO_FLAGS_SHORT_GI)
+		stat->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+
+	stat->he_gi = ri->he_gi;
+
+	if (stat->encoding != RX_ENC_LEGACY)
+		return true;
+
+	stat->rate_idx = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (ri->legacy != sband->bitrates[i].bitrate)
+			continue;
+
+		stat->rate_idx = i;
+		return true;
+	}
+
+	return false;
+}
+
 static u32 ieee80211_calc_tx_airtime_rate(struct ieee80211_hw *hw,
 					  struct ieee80211_tx_rate *rate,
+					  struct rate_info *ri,
 					  u8 band, int len)
 {
 	struct ieee80211_rx_status stat = {
 		.band = band,
 	};
+
+	if (ieee80211_fill_rate_info(hw, &stat, band, ri))
+		goto out;
 
 	if (rate->idx < 0 || !rate->count)
 		return 0;
@@ -522,6 +569,7 @@ static u32 ieee80211_calc_tx_airtime_rate(struct ieee80211_hw *hw,
 		stat.encoding = RX_ENC_LEGACY;
 	}
 
+out:
 	return ieee80211_calc_rx_airtime(hw, &stat, len);
 }
 
@@ -536,7 +584,7 @@ u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw,
 		struct ieee80211_tx_rate *rate = &info->status.rates[i];
 		u32 cur_duration;
 
-		cur_duration = ieee80211_calc_tx_airtime_rate(hw, rate,
+		cur_duration = ieee80211_calc_tx_airtime_rate(hw, rate, NULL,
 							      info->band, len);
 		if (!cur_duration)
 			break;
@@ -573,6 +621,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
 		struct ieee80211_tx_rate *rate = &sta->tx_stats.last_rate;
+		struct rate_info *ri = &sta->tx_stats.last_rate_info;
 		u32 airtime;
 
 		if (!(rate->flags & (IEEE80211_TX_RC_VHT_MCS |
@@ -586,7 +635,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		 * This will not be very accurate, but much better than simply
 		 * assuming un-aggregated tx.
 		 */
-		airtime = ieee80211_calc_tx_airtime_rate(hw, rate, band,
+		airtime = ieee80211_calc_tx_airtime_rate(hw, rate, ri, band,
 							 ampdu ? len * 16 : len);
 		if (ampdu)
 			airtime /= 16;
