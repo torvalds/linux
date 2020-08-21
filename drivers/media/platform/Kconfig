@@ -256,6 +256,7 @@ config VIDEO_MEDIATEK_VCODEC
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_MEDIATEK_VPU
+	select MTK_SCP
 	help
 	    Mediatek video codec driver provides HW capability to
 	    encode and decode in a range of video formats
