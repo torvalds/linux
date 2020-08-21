@@ -509,17 +509,6 @@ static void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
 
 }
 
-void dw_pcie_link_set_n_fts(struct dw_pcie *pci, u32 n_fts)
-{
-	u32 val;
-
-	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-	val &= ~PORT_LOGIC_N_FTS_MASK;
-	val |= n_fts & PORT_LOGIC_N_FTS_MASK;
-	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
-}
-EXPORT_SYMBOL_GPL(dw_pcie_link_set_n_fts);
-
 static u8 dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
 {
 	u32 val;
@@ -548,6 +537,23 @@ void dw_pcie_setup(struct dw_pcie *pci)
 
 	if (pci->link_gen > 0)
 		dw_pcie_link_set_max_speed(pci, pci->link_gen);
+
+	/* Configure Gen1 N_FTS */
+	if (pci->n_fts[0]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_PORT_AFR);
+		val &= ~(PORT_AFR_N_FTS_MASK | PORT_AFR_CC_N_FTS_MASK);
+		val |= PORT_AFR_N_FTS(pci->n_fts[0]);
+		val |= PORT_AFR_CC_N_FTS(pci->n_fts[0]);
+		dw_pcie_writel_dbi(pci, PCIE_PORT_AFR, val);
+	}
+
+	/* Configure Gen2+ N_FTS */
+	if (pci->n_fts[1]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+		val &= ~PORT_LOGIC_N_FTS_MASK;
+		val |= pci->n_fts[pci->link_gen - 1];
+		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
+	}
 
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 	val &= ~PORT_LINK_FAST_LINK_MODE;

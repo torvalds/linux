@@ -67,7 +67,6 @@ struct intel_pcie_port {
 	void __iomem		*app_base;
 	struct gpio_desc	*reset_gpio;
 	u32			rst_intrvl;
-	u32			n_fts;
 	struct clk		*core_clk;
 	struct reset_control	*core_rst;
 	struct phy		*phy;
@@ -138,37 +137,29 @@ static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 	pcie_rc_cfg_wr(lpp, offset + PCI_EXP_LNKCTL, val);
 }
 
-static void intel_pcie_port_logic_setup(struct intel_pcie_port *lpp)
+static void intel_pcie_init_n_fts(struct dw_pcie *pci)
 {
-	u32 val, mask;
-	struct dw_pcie *pci = &lpp->pci;
-
-	switch (pcie_link_speed[pci->link_gen]) {
-	case PCIE_SPEED_8_0GT:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN3;
+	switch (pci->link_gen) {
+	case 3:
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN3;
 		break;
-	case PCIE_SPEED_16_0GT:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN4;
+	case 4:
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN4;
 		break;
 	default:
-		lpp->n_fts = PORT_AFR_N_FTS_GEN12_DFT;
+		pci->n_fts[1] = PORT_AFR_N_FTS_GEN12_DFT;
 		break;
 	}
-
-	mask = PORT_AFR_N_FTS_MASK | PORT_AFR_CC_N_FTS_MASK;
-	val = FIELD_PREP(PORT_AFR_N_FTS_MASK, lpp->n_fts) |
-	       FIELD_PREP(PORT_AFR_CC_N_FTS_MASK, lpp->n_fts);
-	pcie_rc_cfg_wr_mask(lpp, PCIE_PORT_AFR, mask, val);
+	pci->n_fts[0] = PORT_AFR_N_FTS_GEN12_DFT;
 }
 
 static void intel_pcie_rc_setup(struct intel_pcie_port *lpp)
 {
 	intel_pcie_ltssm_disable(lpp);
 	intel_pcie_link_setup(lpp);
+	intel_pcie_init_n_fts(&lpp->pci);
 	dw_pcie_setup_rc(&lpp->pci.pp);
 	dw_pcie_upconfig_setup(&lpp->pci);
-	intel_pcie_port_logic_setup(lpp);
-	dw_pcie_link_set_n_fts(&lpp->pci, lpp->n_fts);
 }
 
 static int intel_pcie_ep_rst_init(struct intel_pcie_port *lpp)
