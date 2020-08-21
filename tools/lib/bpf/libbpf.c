@@ -5390,7 +5390,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 			       struct hashmap *cand_cache)
 {
 	const char *prog_name = bpf_program__title(prog, false);
-	struct bpf_core_spec local_spec, cand_spec, targ_spec;
+	struct bpf_core_spec local_spec, cand_spec, targ_spec = {};
 	const void *type_key = u32_as_hash_key(relo->type_id);
 	struct bpf_core_relo_res cand_res, targ_res;
 	const struct btf_type *local_type;
