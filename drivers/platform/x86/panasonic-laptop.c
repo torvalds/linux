@@ -13,6 +13,7 @@
  *
  * ChangeLog:
  *	Aug.18, 2020	Kenneth Chan <kenneth.t.chan@gmail.com>
+ *		-v0.98	add platform devices for firmware brightness registers
  *			add support for battery charging threshold (eco mode)
  *			resolve hotkey double trigger
  *			add write support to mute
@@ -132,6 +133,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/platform_device.h>
 
+
 MODULE_AUTHOR("Hiroshi Miura <miura@da-cha.org>");
 MODULE_AUTHOR("David Bronaugh <dbronaugh@linuxboxen.org>");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
@@ -173,6 +175,7 @@ enum SINF_BITS { SINF_NUM_BATTERIES = 0,
 		 SINF_MUTE,
 		 SINF_RESERVED,
 		 SINF_ECO_MODE = 0x0A,
+		 SINF_CUR_BRIGHT = 0x0D,
 		 SINF_STICKY_KEY = 0x80,
 	};
 /* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't know AC state */
@@ -228,6 +231,9 @@ struct pcc_acpi {
 	int			sticky_key;
 	int			eco_mode;
 	int			mute;
+	int			ac_brightness;
+	int			dc_brightness;
+	int			current_brightness;
 	u32			*sinf;
 	struct acpi_device	*device;
 	struct input_dev	*input_dev;
@@ -610,6 +616,97 @@ static ssize_t eco_mode_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t ac_brightness_show(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+
+	if (!acpi_pcc_retrieve_biosdata(pcc))
+		return -EIO;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_AC_CUR_BRIGHT]);
+}
+
+static ssize_t ac_brightness_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+	int err, val;
+
+	err = kstrtoint(buf, 0, &val);
+	if (err)
+		return err;
+	if (val >= 0 && val <= 255) {
+		acpi_pcc_write_sset(pcc, SINF_AC_CUR_BRIGHT, val);
+		pcc->ac_brightness = val;
+	}
+
+	return count;
+}
+
+static ssize_t dc_brightness_show(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+
+	if (!acpi_pcc_retrieve_biosdata(pcc))
+		return -EIO;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_DC_CUR_BRIGHT]);
+}
+
+static ssize_t dc_brightness_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+	int err, val;
+
+	err = kstrtoint(buf, 0, &val);
+	if (err)
+		return err;
+	if (val >= 0 && val <= 255) {
+		acpi_pcc_write_sset(pcc, SINF_DC_CUR_BRIGHT, val);
+		pcc->dc_brightness = val;
+	}
+
+	return count;
+}
+
+static ssize_t current_brightness_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+
+	if (!acpi_pcc_retrieve_biosdata(pcc))
+		return -EIO;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_CUR_BRIGHT]);
+}
+
+static ssize_t current_brightness_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct acpi_device *acpi = to_acpi_device(dev);
+	struct pcc_acpi *pcc = acpi_driver_data(acpi);
+	int err, val;
+
+	err = kstrtoint(buf, 0, &val);
+	if (err)
+		return err;
+
+	if (val >= 0 && val <= 255) {
+		err = acpi_pcc_write_sset(pcc, SINF_CUR_BRIGHT, val);
+		pcc->current_brightness = val;
+	}
+
+	return count;
+}
+
 static ssize_t cdpower_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -633,6 +730,9 @@ static DEVICE_ATTR_RO(lcdtype);
 static DEVICE_ATTR_RW(mute);
 static DEVICE_ATTR_RW(sticky_key);
 static DEVICE_ATTR_RW(eco_mode);
+static DEVICE_ATTR_RW(ac_brightness);
+static DEVICE_ATTR_RW(dc_brightness);
+static DEVICE_ATTR_RW(current_brightness);
 static DEVICE_ATTR_RW(cdpower);
 
 static struct attribute *pcc_sysfs_entries[] = {
@@ -641,6 +741,9 @@ static struct attribute *pcc_sysfs_entries[] = {
 	&dev_attr_mute.attr,
 	&dev_attr_sticky_key.attr,
 	&dev_attr_eco_mode.attr,
+	&dev_attr_ac_brightness.attr,
+	&dev_attr_dc_brightness.attr,
+	&dev_attr_current_brightness.attr,
 	&dev_attr_cdpower.attr,
 	NULL,
 };
@@ -794,6 +897,9 @@ static int acpi_pcc_hotkey_resume(struct device *dev)
 	acpi_pcc_write_sset(pcc, SINF_MUTE, pcc->mute);
 	acpi_pcc_write_sset(pcc, SINF_ECO_MODE, pcc->eco_mode);
 	acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, pcc->sticky_key);
+	acpi_pcc_write_sset(pcc, SINF_AC_CUR_BRIGHT, pcc->ac_brightness);
+	acpi_pcc_write_sset(pcc, SINF_DC_CUR_BRIGHT, pcc->dc_brightness);
+	acpi_pcc_write_sset(pcc, SINF_CUR_BRIGHT, pcc->current_brightness);
 
 	return 0;
 }
@@ -865,6 +971,9 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 
 	pcc->eco_mode = pcc->sinf[SINF_ECO_MODE];
 	pcc->mute = pcc->sinf[SINF_MUTE];
+	pcc->ac_brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
+	pcc->dc_brightness = pcc->sinf[SINF_DC_CUR_BRIGHT];
+	result = pcc->current_brightness = pcc->sinf[SINF_CUR_BRIGHT];
 
 	/* add sysfs attributes */
 	result = sysfs_create_group(&device->dev.kobj, &pcc_attr_group);
