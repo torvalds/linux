@@ -147,12 +147,13 @@ void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
-	const struct rtw_hw_reg *dig_cck = &chip->dig_cck[0];
 	u32 addr, mask;
 	u8 path;
 
-	if (dig_cck)
+	if (chip->dig_cck) {
+		const struct rtw_hw_reg *dig_cck = &chip->dig_cck[0];
 		rtw_write32_mask(rtwdev, dig_cck->addr, dig_cck->mask, igi >> 1);
+	}
 
 	for (path = 0; path < hal->rf_path_num; path++) {
 		addr = chip->dig[path].addr;
