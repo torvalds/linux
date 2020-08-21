@@ -78,6 +78,8 @@
 		regulator-min-microvolt = <720000>;
 		regulator-max-microvolt = <1000000>;
 		regulator-init-microvolt = <824000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_hold>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-settling-time-up-us = <250>;
@@ -110,8 +112,59 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	CW2015@62 {
+		compatible = "cw201x";
+		reg = <0x62>;
+		bat_low_gpio = <&gpio2 RK_PD7 GPIO_ACTIVE_LOW>;
+		dc_det_gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+		chg_ok_gpio = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		bat_config_info = <0x15 0x42 0x60 0x59 0x52 0x58 0x4D 0x48 0x48 0x44 0x44
+				   0x46 0x49 0x48 0x32 0x24 0x20 0x17 0x13 0x0F 0x19 0x3E
+				   0x51 0x45 0x08 0x76 0x0B 0x85 0x0E 0x1C 0x2E 0x3E 0x4D
+				   0x52 0x52 0x57 0x3D 0x1B 0x6A 0x2D 0x25 0x43 0x52 0x87
+				   0x8F 0x91 0x94 0x52 0x82 0x8C 0x92 0x96 0xFF 0x7B 0xBB
+				   0xCB 0x2F 0x7D 0x72 0xA5 0xB5 0xC1 0x46 0xAE>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+		divider_res1 = <200>;
+		divider_res2 = <200>;
+	};
+
+	pcf8563: pcf8563@51 {
+		compatible = "pcf8563";
+		reg = <0x51>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_int>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+};
+
 &npu {
 	npu-supply = <&vdd_npu_vepu>;
+};
+
+&pinctrl {
+	regulator {
+		/omit-if-no-ref/
+		power_hold: power-hold {
+			rockchip,pins =
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	rtc {
+		/omit-if-no-ref/
+		rtc_int: rtc-int {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
 
 &pmu_io_domains {
@@ -160,4 +213,8 @@
 	sd-uhs-sdr104;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
+};
+
+&u2phy0 {
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 };
