@@ -194,12 +194,12 @@ static bool is_module_segment(unsigned long addr)
 #ifdef MODULES_VADDR
 	if (addr < ALIGN_DOWN(MODULES_VADDR, SZ_256M))
 		return false;
-	if (addr >= ALIGN(MODULES_END, SZ_256M))
+	if (addr > ALIGN(MODULES_END, SZ_256M) - 1)
 		return false;
 #else
 	if (addr < ALIGN_DOWN(VMALLOC_START, SZ_256M))
 		return false;
-	if (addr >= ALIGN(VMALLOC_END, SZ_256M))
+	if (addr > ALIGN(VMALLOC_END, SZ_256M) - 1)
 		return false;
 #endif
 	return true;
