@@ -491,6 +491,7 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 [id] = {\
 	LE_DCN3_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
 static const struct dce110_aux_registers_shift aux_shift = {
