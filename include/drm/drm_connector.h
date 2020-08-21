@@ -1313,9 +1313,6 @@ int drm_connector_set_path_property(struct drm_connector *connector,
 int drm_connector_set_tile_property(struct drm_connector *connector);
 int drm_connector_update_edid_property(struct drm_connector *connector,
 				       const struct edid *edid);
-int
-drm_mode_connector_update_hdr_property(struct drm_connector *connector,
-				       const struct hdr_static_metadata *data);
 void drm_connector_set_link_status_property(struct drm_connector *connector,
 					    uint64_t link_status);
 int drm_connector_init_panel_orientation_property(

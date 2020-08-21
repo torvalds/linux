@@ -1026,14 +1026,6 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.hdr_output_metadata_property = prop;
 
-	prop = drm_property_create(dev,
-				   DRM_MODE_PROP_BLOB |
-				   DRM_MODE_PROP_IMMUTABLE,
-				   "HDR_PANEL_METADATA", 0);
-	if (!prop)
-		return -ENOMEM;
-	dev->mode_config.hdr_panel_metadata_property = prop;
-
 	return 0;
 }
 
@@ -1582,28 +1574,6 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_update_edid_property);
-
-int
-drm_mode_connector_update_hdr_property(struct drm_connector *connector,
-				       const struct hdr_static_metadata *data)
-{
-	struct drm_device *dev = connector->dev;
-	size_t size = sizeof(*data);
-	struct drm_property *property =
-			dev->mode_config.hdr_panel_metadata_property;
-	struct drm_property_blob **replace =
-		&connector->state->hdr_panel_blob_ptr;
-	int ret;
-
-	ret = drm_property_replace_global_blob(dev,
-					       replace,
-					       size,
-					       data,
-					       &connector->base,
-					       property);
-	return ret;
-}
-EXPORT_SYMBOL(drm_mode_connector_update_hdr_property);
 
 /**
  * drm_connector_set_link_status_property - Set link status property of a connector
