@@ -67,7 +67,6 @@ struct intel_pcie_port {
 	void __iomem		*app_base;
 	struct gpio_desc	*reset_gpio;
 	u32			rst_intrvl;
-	u32			max_width;
 	u32			n_fts;
 	struct clk		*core_clk;
 	struct reset_control	*core_rst;
@@ -132,9 +131,6 @@ static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 {
 	u32 val;
 	u8 offset = dw_pcie_find_capability(&lpp->pci, PCI_CAP_ID_EXP);
-
-	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCAP);
-	lpp->max_width = FIELD_GET(PCI_EXP_LNKCAP_MLW, val);
 
 	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCTL);
 
