@@ -173,6 +173,11 @@ static struct snd_soc_codec_conf codec_conf[] = {
 		.dlc = COMP_CODEC_CONF("sdw:0:25d:5682:0"),
 		.name_prefix = "rt5682",
 	},
+	/* rt5682 on link2 */
+	{
+		.dlc = COMP_CODEC_CONF("sdw:2:25d:5682:0"),
+		.name_prefix = "rt5682",
+	},
 };
 
 static struct snd_soc_dai_link_component dmic_component[] = {
