@@ -149,6 +149,19 @@ static void bpf_iter_detach_map(struct bpf_iter_aux_info *aux)
 	bpf_map_put_with_uref(aux->map);
 }
 
+void bpf_iter_map_show_fdinfo(const struct bpf_iter_aux_info *aux,
+			      struct seq_file *seq)
+{
+	seq_printf(seq, "map_id:\t%u\n", aux->map->id);
+}
+
+int bpf_iter_map_fill_link_info(const struct bpf_iter_aux_info *aux,
+				struct bpf_link_info *info)
+{
+	info->iter.map.map_id = aux->map->id;
+	return 0;
+}
+
 DEFINE_BPF_ITER_FUNC(bpf_map_elem, struct bpf_iter_meta *meta,
 		     struct bpf_map *map, void *key, void *value)
 
@@ -156,6 +169,8 @@ static const struct bpf_iter_reg bpf_map_elem_reg_info = {
 	.target			= "bpf_map_elem",
 	.attach_target		= bpf_iter_attach_map,
 	.detach_target		= bpf_iter_detach_map,
+	.show_fdinfo		= bpf_iter_map_show_fdinfo,
+	.fill_link_info		= bpf_iter_map_fill_link_info,
 	.ctx_arg_info_size	= 2,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__bpf_map_elem, key),
