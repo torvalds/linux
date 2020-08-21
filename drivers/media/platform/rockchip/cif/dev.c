@@ -335,6 +335,7 @@ static int rkcif_create_links(struct rkcif_device *dev)
 	int ret;
 	u32 flags;
 	unsigned int s, pad, id, stream_num = 0;
+	bool mipi_lvds_linked = false;
 
 	if (dev->inf_id == RKCIF_MIPI_LVDS)
 		stream_num = RKCIF_MAX_STREAM_MIPI;
@@ -397,8 +398,8 @@ static int rkcif_create_links(struct rkcif_device *dev)
 
 					if ((dev->chip_id != CHIP_RK1808_CIF &&
 					     dev->chip_id != CHIP_RV1126_CIF &&
-					     dev->chip_id != CHIP_RV1126_CIF_LITE) |
-					    (id == pad - 1))
+					     dev->chip_id != CHIP_RV1126_CIF_LITE) ||
+					    (id == pad - 1 && !mipi_lvds_linked))
 						flags = MEDIA_LNK_FL_ENABLED;
 					else
 						flags = 0;
@@ -431,6 +432,10 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					linked_sensor.sd->name,
 					sensor->sd->name);
 		}
+
+		if (linked_sensor.mbus.type != V4L2_MBUS_BT656 &&
+		    linked_sensor.mbus.type != V4L2_MBUS_PARALLEL)
+			mipi_lvds_linked = true;
 	}
 
 	return 0;
