@@ -297,8 +297,7 @@ static void deactivate_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	     i++)
+	for (i = 0; i < adapter->num_active_rx_pools; i++)
 		adapter->rx_pool[i].active = 0;
 }
 
@@ -402,8 +401,7 @@ static void replenish_pools(struct ibmvnic_adapter *adapter)
 	int i;
 
 	adapter->replenish_task_cycles++;
-	for (i = 0; i < be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	     i++) {
+	for (i = 0; i < adapter->num_active_rx_pools; i++) {
 		if (adapter->rx_pool[i].active)
 			replenish_rx_pool(adapter, &adapter->rx_pool[i]);
 	}
@@ -470,22 +468,20 @@ static int init_stats_token(struct ibmvnic_adapter *adapter)
 static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
+	u64 buff_size;
 	int rx_scrqs;
 	int i, j, rc;
-	u64 *size_array;
 
-	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
-		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
-
-	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	buff_size = adapter->cur_rx_buf_sz;
+	rx_scrqs = adapter->num_active_rx_pools;
 	for (i = 0; i < rx_scrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev, "Re-setting rx_pool[%d]\n", i);
 
-		if (rx_pool->buff_size != be64_to_cpu(size_array[i])) {
+		if (rx_pool->buff_size != buff_size) {
 			free_long_term_buff(adapter, &rx_pool->long_term_buff);
-			rx_pool->buff_size = be64_to_cpu(size_array[i]);
+			rx_pool->buff_size = buff_size;
 			rc = alloc_long_term_buff(adapter,
 						  &rx_pool->long_term_buff,
 						  rx_pool->size *
@@ -553,13 +549,11 @@ static int init_rx_pools(struct net_device *netdev)
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_rx_pool *rx_pool;
 	int rxadd_subcrqs;
-	u64 *size_array;
+	u64 buff_size;
 	int i, j;
 
-	rxadd_subcrqs =
-		be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
-		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
+	rxadd_subcrqs = adapter->num_active_rx_scrqs;
+	buff_size = adapter->cur_rx_buf_sz;
 
 	adapter->rx_pool = kcalloc(rxadd_subcrqs,
 				   sizeof(struct ibmvnic_rx_pool),
@@ -577,11 +571,11 @@ static int init_rx_pools(struct net_device *netdev)
 		netdev_dbg(adapter->netdev,
 			   "Initializing rx_pool[%d], %lld buffs, %lld bytes each\n",
 			   i, adapter->req_rx_add_entries_per_subcrq,
-			   be64_to_cpu(size_array[i]));
+			   buff_size);
 
 		rx_pool->size = adapter->req_rx_add_entries_per_subcrq;
 		rx_pool->index = i;
-		rx_pool->buff_size = be64_to_cpu(size_array[i]);
+		rx_pool->buff_size = buff_size;
 		rx_pool->active = 1;
 
 		rx_pool->free_map = kcalloc(rx_pool->size, sizeof(int),
@@ -644,7 +638,7 @@ static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 	int tx_scrqs;
 	int i, rc;
 
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	tx_scrqs = adapter->num_active_tx_pools;
 	for (i = 0; i < tx_scrqs; i++) {
 		rc = reset_one_tx_pool(adapter, &adapter->tso_pool[i]);
 		if (rc)
@@ -733,7 +727,7 @@ static int init_tx_pools(struct net_device *netdev)
 	int tx_subcrqs;
 	int i, rc;
 
-	tx_subcrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	tx_subcrqs = adapter->num_active_tx_scrqs;
 	adapter->tx_pool = kcalloc(tx_subcrqs,
 				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 	if (!adapter->tx_pool)
@@ -4290,6 +4284,7 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	u64 *rx_handle_array;
 	int num_tx_pools;
 	int num_rx_pools;
+	u64 *size_array;
 	int i;
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
@@ -4324,6 +4319,12 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 		ibmvnic_remove(adapter->vdev);
 		return -EIO;
 	}
+	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
+	/* variable buffer sizes are not supported, so just read the
+	 * first entry.
+	 */
+	adapter->cur_rx_buf_sz = be64_to_cpu(size_array[0]);
 
 	num_tx_pools = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	num_rx_pools = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
@@ -4339,6 +4340,8 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	for (i = 0; i < num_rx_pools; i++)
 		adapter->rx_scrq[i]->handle = rx_handle_array[i];
 
+	adapter->num_active_tx_scrqs = num_tx_pools;
+	adapter->num_active_rx_scrqs = num_rx_pools;
 	release_login_rsp_buffer(adapter);
 	release_login_buffer(adapter);
 	complete(&adapter->init_done);
@@ -5298,8 +5301,7 @@ static unsigned long ibmvnic_get_desired_dma(struct vio_dev *vdev)
 	for (i = 0; i < adapter->req_tx_queues + adapter->req_rx_queues; i++)
 		ret += 4 * PAGE_SIZE; /* the scrq message queue */
 
-	for (i = 0; i < be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	     i++)
+	for (i = 0; i < adapter->num_active_rx_pools; i++)
 		ret += adapter->rx_pool[i].size *
 		    IOMMU_PAGE_ALIGN(adapter->rx_pool[i].buff_size, tbl);
 
