@@ -22,15 +22,6 @@
 
 #define to_meson_pcie(x) dev_get_drvdata((x)->dev)
 
-#define TYPE1_HDR_OFFSET		0x0
-#define PCIE_STATUS_COMMAND		(TYPE1_HDR_OFFSET + 0x04)
-#define PCI_IO_EN			BIT(0)
-#define PCI_MEM_SPACE_EN		BIT(1)
-#define PCI_BUS_MASTER_EN		BIT(2)
-
-#define PCIE_BASE_ADDR0			(TYPE1_HDR_OFFSET + 0x10)
-#define PCIE_BASE_ADDR1			(TYPE1_HDR_OFFSET + 0x14)
-
 #define PCIE_CAP_OFFSET			0x70
 #define PCIE_DEV_CTRL_DEV_STUS		(PCIE_CAP_OFFSET + 0x08)
 #define PCIE_CAP_MAX_PAYLOAD_MASK	GENMASK(7, 5)
@@ -275,9 +266,6 @@ static void meson_pcie_init_dw(struct meson_pcie *mp)
 	val = meson_cfg_readl(mp, PCIE_CFG0);
 	val |= APP_LTSSM_ENABLE;
 	meson_cfg_writel(mp, val, PCIE_CFG0);
-
-	meson_elb_writel(mp, 0x0, PCIE_BASE_ADDR0);
-	meson_elb_writel(mp, 0x0, PCIE_BASE_ADDR1);
 }
 
 static int meson_size_to_payload(struct meson_pcie *mp, int size)
@@ -325,13 +313,6 @@ static void meson_set_max_rd_req_size(struct meson_pcie *mp, int size)
 	meson_elb_writel(mp, val, PCIE_DEV_CTRL_DEV_STUS);
 }
 
-static inline void meson_enable_memory_space(struct meson_pcie *mp)
-{
-	/* Set the RC Bus Master, Memory Space and I/O Space enables */
-	meson_elb_writel(mp, PCI_IO_EN | PCI_MEM_SPACE_EN | PCI_BUS_MASTER_EN,
-			 PCIE_STATUS_COMMAND);
-}
-
 static int meson_pcie_establish_link(struct meson_pcie *mp)
 {
 	struct dw_pcie *pci = &mp->pci;
@@ -342,7 +323,6 @@ static int meson_pcie_establish_link(struct meson_pcie *mp)
 	meson_set_max_rd_req_size(mp, MAX_READ_REQ_SIZE);
 
 	dw_pcie_setup_rc(pp);
-	meson_enable_memory_space(mp);
 
 	meson_pcie_assert_reset(mp);
 
