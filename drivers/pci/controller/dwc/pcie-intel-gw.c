@@ -164,10 +164,6 @@ static void intel_pcie_port_logic_setup(struct intel_pcie_port *lpp)
 	val = FIELD_PREP(PORT_AFR_N_FTS_MASK, lpp->n_fts) |
 	       FIELD_PREP(PORT_AFR_CC_N_FTS_MASK, lpp->n_fts);
 	pcie_rc_cfg_wr_mask(lpp, PCIE_PORT_AFR, mask, val);
-
-	/* Port Link Control Register */
-	pcie_rc_cfg_wr_mask(lpp, PCIE_PORT_LINK_CONTROL, PORT_LINK_DLL_LINK_EN,
-			    PORT_LINK_DLL_LINK_EN);
 }
 
 static void intel_pcie_rc_setup(struct intel_pcie_port *lpp)
