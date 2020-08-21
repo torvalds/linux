@@ -2645,9 +2645,6 @@ static int __init hifn_init(void)
 	unsigned int freq;
 	int err;
 
-	/* HIFN supports only 32-bit addresses */
-	BUILD_BUG_ON(sizeof(dma_addr_t) != 4);
-
 	if (strncmp(hifn_pll_ref, "ext", 3) &&
 	    strncmp(hifn_pll_ref, "pci", 3)) {
 		pr_err("hifn795x: invalid hifn_pll_ref clock, must be pci or ext");
