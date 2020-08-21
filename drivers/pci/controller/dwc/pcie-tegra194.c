@@ -816,26 +816,24 @@ static void config_gen3_gen4_eq_presets(struct tegra_pcie_dw *pcie)
 
 	/* Program init preset */
 	for (i = 0; i < pcie->num_lanes; i++) {
-		dw_pcie_read(pci->dbi_base + CAP_SPCIE_CAP_OFF
-				 + (i * 2), 2, &val);
+		val = dw_pcie_readw_dbi(pci, CAP_SPCIE_CAP_OFF + (i * 2));
 		val &= ~CAP_SPCIE_CAP_OFF_DSP_TX_PRESET0_MASK;
 		val |= GEN3_GEN4_EQ_PRESET_INIT;
 		val &= ~CAP_SPCIE_CAP_OFF_USP_TX_PRESET0_MASK;
 		val |= (GEN3_GEN4_EQ_PRESET_INIT <<
 			   CAP_SPCIE_CAP_OFF_USP_TX_PRESET0_SHIFT);
-		dw_pcie_write(pci->dbi_base + CAP_SPCIE_CAP_OFF
-				 + (i * 2), 2, val);
+		dw_pcie_writew_dbi(pci, CAP_SPCIE_CAP_OFF + (i * 2), val);
 
 		offset = dw_pcie_find_ext_capability(pci,
 						     PCI_EXT_CAP_ID_PL_16GT) +
 				PCI_PL_16GT_LE_CTRL;
-		dw_pcie_read(pci->dbi_base + offset + i, 1, &val);
+		val = dw_pcie_readb_dbi(pci, offset + i);
 		val &= ~PCI_PL_16GT_LE_CTRL_DSP_TX_PRESET_MASK;
 		val |= GEN3_GEN4_EQ_PRESET_INIT;
 		val &= ~PCI_PL_16GT_LE_CTRL_USP_TX_PRESET_MASK;
 		val |= (GEN3_GEN4_EQ_PRESET_INIT <<
 			PCI_PL_16GT_LE_CTRL_USP_TX_PRESET_SHIFT);
-		dw_pcie_write(pci->dbi_base + offset + i, 1, val);
+		dw_pcie_writeb_dbi(pci, offset + i, val);
 	}
 
 	val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
