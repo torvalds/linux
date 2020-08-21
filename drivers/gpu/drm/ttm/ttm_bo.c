@@ -650,6 +650,9 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	evict_mem.mm_node = NULL;
 	evict_mem.bus.io_reserved_vm = false;
 	evict_mem.bus.io_reserved_count = 0;
+	evict_mem.bus.base = 0;
+	evict_mem.bus.offset = 0;
+	evict_mem.bus.addr = NULL;
 
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, ctx);
 	if (ret) {
@@ -1084,6 +1087,9 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.page_alignment = bo->mem.page_alignment;
 	mem.bus.io_reserved_vm = false;
 	mem.bus.io_reserved_count = 0;
+	mem.bus.base = 0;
+	mem.bus.offset = 0;
+	mem.bus.addr = NULL;
 	mem.mm_node = NULL;
 
 	/*
@@ -1243,6 +1249,9 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.page_alignment = page_alignment;
 	bo->mem.bus.io_reserved_vm = false;
 	bo->mem.bus.io_reserved_count = 0;
+	bo->mem.bus.base = 0;
+	bo->mem.bus.offset = 0;
+	bo->mem.bus.addr = NULL;
 	bo->moving = NULL;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
 	bo->acc_size = acc_size;
