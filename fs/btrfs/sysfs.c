@@ -14,6 +14,7 @@
 #include "ctree.h"
 #include "discard.h"
 #include "disk-io.h"
+#include "send.h"
 #include "transaction.h"
 #include "sysfs.h"
 #include "volumes.h"
@@ -321,9 +322,17 @@ static ssize_t supported_checksums_show(struct kobject *kobj,
 }
 BTRFS_ATTR(static_feature, supported_checksums, supported_checksums_show);
 
+static ssize_t send_stream_version_show(struct kobject *kobj,
+					struct kobj_attribute *ka, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", BTRFS_SEND_STREAM_VERSION);
+}
+BTRFS_ATTR(static_feature, send_stream_version, send_stream_version_show);
+
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
 	BTRFS_ATTR_PTR(static_feature, supported_checksums),
+	BTRFS_ATTR_PTR(static_feature, send_stream_version),
 	NULL
 };
 
