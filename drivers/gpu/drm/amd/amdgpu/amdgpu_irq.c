@@ -65,6 +65,40 @@
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT 200
 
+const char *soc15_ih_clientid_name[] = {
+	"IH",
+	"SDMA2 or ACP",
+	"ATHUB",
+	"BIF",
+	"SDMA3 or DCE",
+	"SDMA4 or ISP",
+	"VMC1 or PCIE0",
+	"RLC",
+	"SDMA0",
+	"SDMA1",
+	"SE0SH",
+	"SE1SH",
+	"SE2SH",
+	"SE3SH",
+	"VCN1 or UVD1",
+	"THM",
+	"VCN or UVD",
+	"SDMA5 or VCE0",
+	"VMC",
+	"SDMA6 or XDMA",
+	"GRBM_CP",
+	"ATS",
+	"ROM_SMUIO",
+	"DF",
+	"SDMA7 or VCE1",
+	"PWR",
+	"UTCL2",
+	"EA",
+	"UTCL2LOG",
+	"MP0",
+	"MP1"
+};
+
 /**
  * amdgpu_hotplug_work_func - work handler for display hotplug event
  *
