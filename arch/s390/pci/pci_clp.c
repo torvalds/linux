@@ -441,23 +441,6 @@ int clp_scan_pci_devices(void)
 	return rc;
 }
 
-int clp_rescan_pci_devices(void)
-{
-	struct clp_req_rsp_list_pci *rrb;
-	int rc;
-
-	zpci_remove_reserved_devices();
-
-	rrb = clp_alloc_block(GFP_KERNEL);
-	if (!rrb)
-		return -ENOMEM;
-
-	rc = clp_list_pci(rrb, NULL, __clp_add);
-
-	clp_free_block(rrb);
-	return rc;
-}
-
 /* Rescan PCI functions and refresh function handles. If fid is non-NULL only
  * refresh the handle of the function matching @fid
  */
