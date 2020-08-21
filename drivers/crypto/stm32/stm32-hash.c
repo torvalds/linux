@@ -749,7 +749,7 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 static void stm32_hash_copy_hash(struct ahash_request *req)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
-	u32 *hash = (u32 *)rctx->digest;
+	__be32 *hash = (void *)rctx->digest;
 	unsigned int i, hashsize;
 
 	switch (rctx->flags & HASH_FLAGS_ALGO_MASK) {
@@ -770,7 +770,7 @@ static void stm32_hash_copy_hash(struct ahash_request *req)
 	}
 
 	for (i = 0; i < hashsize / sizeof(u32); i++)
-		hash[i] = be32_to_cpu(stm32_hash_read(rctx->hdev,
+		hash[i] = cpu_to_be32(stm32_hash_read(rctx->hdev,
 						      HASH_HREG(i)));
 }
 
