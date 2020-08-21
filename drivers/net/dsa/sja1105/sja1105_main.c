@@ -3415,7 +3415,7 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 
 	sja1105_unpack(prod_id, &part_no, 19, 4, SJA1105_SIZE_DEVICE_ID);
 
-	for (match = sja1105_dt_ids; match->compatible; match++) {
+	for (match = sja1105_dt_ids; match->compatible[0]; match++) {
 		const struct sja1105_info *info = match->data;
 
 		/* Is what's been probed in our match table at all? */
