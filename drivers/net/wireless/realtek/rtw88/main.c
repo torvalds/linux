@@ -474,10 +474,10 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 	case EFUSE_HW_CAP_IGNORE:
 	case EFUSE_HW_CAP_SUPP_BW80:
 		bw |= BIT(RTW_CHANNEL_WIDTH_80);
-		/* fall through */
+		fallthrough;
 	case EFUSE_HW_CAP_SUPP_BW40:
 		bw |= BIT(RTW_CHANNEL_WIDTH_40);
-		/* fall through */
+		fallthrough;
 	default:
 		bw |= BIT(RTW_CHANNEL_WIDTH_20);
 		break;
