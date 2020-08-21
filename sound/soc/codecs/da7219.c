@@ -1864,6 +1864,9 @@ static int da7219_handle_supplies(struct snd_soc_component *component,
 		return ret;
 	}
 
+	/* Default to upper range */
+	*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
+
 	/* Determine VDDIO voltage provided */
 	vddio = da7219->supplies[DA7219_SUPPLY_VDDIO].consumer;
 	ret = regulator_get_voltage(vddio);
@@ -1871,8 +1874,6 @@ static int da7219_handle_supplies(struct snd_soc_component *component,
 		dev_warn(component->dev, "Invalid VDDIO voltage\n");
 	else if (ret < 2800000)
 		*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_1_2V_2_8V;
-	else
-		*io_voltage_lvl = DA7219_IO_VOLTAGE_LEVEL_2_5V_3_6V;
 
 	/* Enable main supplies */
 	ret = regulator_bulk_enable(DA7219_NUM_SUPPLIES, da7219->supplies);
