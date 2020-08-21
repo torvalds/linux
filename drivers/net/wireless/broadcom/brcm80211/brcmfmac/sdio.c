@@ -4299,9 +4299,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					   CY_43455_MESBUSYCTRL, &err);
 			break;
 		case SDIO_DEVICE_ID_BROADCOM_4359:
-			/* fallthrough */
 		case SDIO_DEVICE_ID_BROADCOM_4354:
-			/* fallthrough */
 		case SDIO_DEVICE_ID_BROADCOM_4356:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_435X_F2_WATERMARK);

@@ -3477,7 +3477,7 @@ brcmf_get_netinfo_array(struct brcmf_pno_scanresults_le *pfn_v1)
 	switch (pfn_v1->version) {
 	default:
 		WARN_ON(1);
-		/* fall-thru */
+		fallthrough;
 	case cpu_to_le32(1):
 		netinfo = (struct brcmf_pno_net_info_le *)(pfn_v1 + 1);
 		break;
@@ -6473,7 +6473,7 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		default:
 			wiphy_warn(wiphy, "Firmware reported unsupported bandwidth %d\n",
 				   ch.bw);
-			/* fall through */
+			fallthrough;
 		case BRCMU_CHAN_BW_20:
 			/* enable the channel and disable other bandwidths
 			 * for now as mentioned order assure they are enabled
@@ -6611,10 +6611,10 @@ static void brcmf_get_bwcap(struct brcmf_if *ifp, u32 bw_cap[])
 	switch (mimo_bwcap) {
 	case WLC_N_BW_40ALL:
 		bw_cap[NL80211_BAND_2GHZ] |= WLC_BW_40MHZ_BIT;
-		/* fall-thru */
+		fallthrough;
 	case WLC_N_BW_20IN2G_40IN5G:
 		bw_cap[NL80211_BAND_5GHZ] |= WLC_BW_40MHZ_BIT;
-		/* fall-thru */
+		fallthrough;
 	case WLC_N_BW_20ALL:
 		bw_cap[NL80211_BAND_2GHZ] |= WLC_BW_20MHZ_BIT;
 		bw_cap[NL80211_BAND_5GHZ] |= WLC_BW_20MHZ_BIT;
