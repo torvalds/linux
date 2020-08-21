@@ -382,7 +382,6 @@ static DEFINE_MUTEX(perf_sched_mutex);
 static atomic_t perf_sched_count;
 
 static DEFINE_PER_CPU(atomic_t, perf_cgroup_events);
-static DEFINE_PER_CPU(int, perf_sched_cb_usages);
 static DEFINE_PER_CPU(struct pmu_event_list, pmu_sb_events);
 
 static atomic_t nr_mmap_events __read_mostly;
@@ -3384,10 +3383,12 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
 	struct perf_event_context *parent, *next_parent;
 	struct perf_cpu_context *cpuctx;
 	int do_switch = 1;
+	struct pmu *pmu;
 
 	if (likely(!ctx))
 		return;
 
+	pmu = ctx->pmu;
 	cpuctx = __get_cpu_context(ctx);
 	if (!cpuctx->task_ctx)
 		return;
@@ -3417,10 +3418,14 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
 		raw_spin_lock(&ctx->lock);
 		raw_spin_lock_nested(&next_ctx->lock, SINGLE_DEPTH_NESTING);
 		if (context_equiv(ctx, next_ctx)) {
-			struct pmu *pmu = ctx->pmu;
 
 			WRITE_ONCE(ctx->task, next);
 			WRITE_ONCE(next_ctx->task, task);
+
+			perf_pmu_disable(pmu);
+
+			if (cpuctx->sched_cb_usage && pmu->sched_task)
+				pmu->sched_task(ctx, false);
 
 			/*
 			 * PMU specific parts of task perf context can require
@@ -3432,6 +3437,8 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
 				pmu->swap_task_ctx(ctx, next_ctx);
 			else
 				swap(ctx->task_ctx_data, next_ctx->task_ctx_data);
+
+			perf_pmu_enable(pmu);
 
 			/*
 			 * RCU_INIT_POINTER here is safe because we've not
@@ -3455,21 +3462,22 @@ unlock:
 
 	if (do_switch) {
 		raw_spin_lock(&ctx->lock);
+		perf_pmu_disable(pmu);
+
+		if (cpuctx->sched_cb_usage && pmu->sched_task)
+			pmu->sched_task(ctx, false);
 		task_ctx_sched_out(cpuctx, ctx, EVENT_ALL);
+
+		perf_pmu_enable(pmu);
 		raw_spin_unlock(&ctx->lock);
 	}
 }
-
-static DEFINE_PER_CPU(struct list_head, sched_cb_list);
 
 void perf_sched_cb_dec(struct pmu *pmu)
 {
 	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
 
-	this_cpu_dec(perf_sched_cb_usages);
-
-	if (!--cpuctx->sched_cb_usage)
-		list_del(&cpuctx->sched_cb_entry);
+	--cpuctx->sched_cb_usage;
 }
 
 
@@ -3477,10 +3485,7 @@ void perf_sched_cb_inc(struct pmu *pmu)
 {
 	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
 
-	if (!cpuctx->sched_cb_usage++)
-		list_add(&cpuctx->sched_cb_entry, this_cpu_ptr(&sched_cb_list));
-
-	this_cpu_inc(perf_sched_cb_usages);
+	cpuctx->sched_cb_usage++;
 }
 
 /*
@@ -3509,20 +3514,6 @@ static void __perf_pmu_sched_task(struct perf_cpu_context *cpuctx, bool sched_in
 	perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
 }
 
-static void perf_pmu_sched_task(struct task_struct *prev,
-				struct task_struct *next,
-				bool sched_in)
-{
-	struct perf_cpu_context *cpuctx;
-
-	if (prev == next)
-		return;
-
-	list_for_each_entry(cpuctx, this_cpu_ptr(&sched_cb_list), sched_cb_entry)
-		__perf_pmu_sched_task(cpuctx, sched_in);
-
-}
-
 static void perf_event_switch(struct task_struct *task,
 			      struct task_struct *next_prev, bool sched_in);
 
@@ -3544,9 +3535,6 @@ void __perf_event_task_sched_out(struct task_struct *task,
 				 struct task_struct *next)
 {
 	int ctxn;
-
-	if (__this_cpu_read(perf_sched_cb_usages))
-		perf_pmu_sched_task(task, next, false);
 
 	if (atomic_read(&nr_switch_events))
 		perf_event_switch(task, next, false);
@@ -12867,7 +12855,6 @@ static void __init perf_event_init_all_cpus(void)
 #ifdef CONFIG_CGROUP_PERF
 		INIT_LIST_HEAD(&per_cpu(cgrp_cpuctx_list, cpu));
 #endif
-		INIT_LIST_HEAD(&per_cpu(sched_cb_list, cpu));
 	}
 }
 
