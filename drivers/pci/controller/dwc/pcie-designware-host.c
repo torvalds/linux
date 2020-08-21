@@ -20,24 +20,7 @@
 #include "pcie-designware.h"
 
 static struct pci_ops dw_pcie_ops;
-
-static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
-			       u32 *val)
-{
-	struct dw_pcie *pci;
-
-	pci = to_dw_pcie_from_pp(pp);
-	return dw_pcie_read(pci->dbi_base + where, size, val);
-}
-
-static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
-			       u32 val)
-{
-	struct dw_pcie *pci;
-
-	pci = to_dw_pcie_from_pp(pp);
-	return dw_pcie_write(pci->dbi_base + where, size, val);
-}
+static struct pci_ops dw_child_pcie_ops;
 
 static void dw_msi_ack_irq(struct irq_data *d)
 {
@@ -443,7 +426,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	/* Set default bus ops */
 	bridge->ops = &dw_pcie_ops;
-	bridge->child_ops = &dw_pcie_ops;
+	bridge->child_ops = &dw_child_pcie_ops;
 
 	if (pp->ops->host_init) {
 		ret = pp->ops->host_init(pp);
@@ -487,14 +470,14 @@ void dw_pcie_host_deinit(struct pcie_port *pp)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_host_deinit);
 
-static int dw_pcie_access_other_conf(struct pcie_port *pp, struct pci_bus *bus,
-				     u32 devfn, int where, int size, u32 *val,
-				     bool write)
+static void __iomem *dw_pcie_other_conf_map_bus(struct pci_bus *bus,
+						unsigned int devfn, int where)
 {
-	int ret, type;
+	int type;
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
+	struct pcie_port *pp = bus->sysdata;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
@@ -515,12 +498,20 @@ static int dw_pcie_access_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX1,
 				  type, cpu_addr,
 				  busdev, cfg_size);
-	if (write)
-		ret = dw_pcie_write(va_cfg_base + where, size, *val);
-	else
-		ret = dw_pcie_read(va_cfg_base + where, size, val);
 
-	if (pci->num_viewport <= 2)
+	return va_cfg_base + where;
+}
+
+static int dw_pcie_rd_other_conf(struct pci_bus *bus, unsigned int devfn,
+				 int where, int size, u32 *val)
+{
+	int ret;
+	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+
+	ret = pci_generic_config_read(bus, devfn, where, size, val);
+
+	if (!ret && pci->num_viewport <= 2)
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX1,
 					  PCIE_ATU_TYPE_IO, pp->io_base,
 					  pp->io_bus_addr, pp->io_size);
@@ -528,65 +519,28 @@ static int dw_pcie_access_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	return ret;
 }
 
-static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
-				 u32 devfn, int where, int size, u32 *val)
+static int dw_pcie_wr_other_conf(struct pci_bus *bus, unsigned int devfn,
+				 int where, int size, u32 val)
 {
-	return dw_pcie_access_other_conf(pp, bus, devfn, where, size, val,
-					 false);
-}
-
-static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
-				 u32 devfn, int where, int size, u32 val)
-{
-	return dw_pcie_access_other_conf(pp, bus, devfn, where, size, &val,
-					 true);
-}
-
-static int dw_pcie_valid_device(struct pcie_port *pp, struct pci_bus *bus,
-				int dev)
-{
+	int ret;
+	struct pcie_port *pp = bus->sysdata;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
-	/* If there is no link, then there is no device */
-	if (!pci_is_root_bus(bus)) {
-		if (!dw_pcie_link_up(pci))
-			return 0;
-	} else if (dev > 0)
-		/* Access only one slot on each root port */
-		return 0;
+	ret = pci_generic_config_write(bus, devfn, where, size, val);
 
-	return 1;
+	if (!ret && pci->num_viewport <= 2)
+		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX1,
+					  PCIE_ATU_TYPE_IO, pp->io_base,
+					  pp->io_bus_addr, pp->io_size);
+
+	return ret;
 }
 
-static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
-			   int size, u32 *val)
-{
-	struct pcie_port *pp = bus->sysdata;
-
-	if (!dw_pcie_valid_device(pp, bus, PCI_SLOT(devfn))) {
-		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
-
-	if (pci_is_root_bus(bus))
-		return dw_pcie_rd_own_conf(pp, where, size, val);
-
-	return dw_pcie_rd_other_conf(pp, bus, devfn, where, size, val);
-}
-
-static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
-			   int where, int size, u32 val)
-{
-	struct pcie_port *pp = bus->sysdata;
-
-	if (!dw_pcie_valid_device(pp, bus, PCI_SLOT(devfn)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	if (pci_is_root_bus(bus))
-		return dw_pcie_wr_own_conf(pp, where, size, val);
-
-	return dw_pcie_wr_other_conf(pp, bus, devfn, where, size, val);
-}
+static struct pci_ops dw_child_pcie_ops = {
+	.map_bus = dw_pcie_other_conf_map_bus,
+	.read = dw_pcie_rd_other_conf,
+	.write = dw_pcie_wr_other_conf,
+};
 
 void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus, unsigned int devfn, int where)
 {
@@ -601,8 +555,9 @@ void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus, unsigned int devfn, 
 EXPORT_SYMBOL_GPL(dw_pcie_own_conf_map_bus);
 
 static struct pci_ops dw_pcie_ops = {
-	.read = dw_pcie_rd_conf,
-	.write = dw_pcie_wr_conf,
+	.map_bus = dw_pcie_own_conf_map_bus,
+	.read = pci_generic_config_read,
+	.write = pci_generic_config_write,
 };
 
 void dw_pcie_setup_rc(struct pcie_port *pp)
@@ -661,7 +616,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	 * the platform uses its own address translation component rather than
 	 * ATU, so we should not program the ATU here.
 	 */
-	if (pp->bridge->child_ops == &dw_pcie_ops && !pp->ops->rd_other_conf) {
+	if (pp->bridge->child_ops == &dw_child_pcie_ops) {
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX0,
 					  PCIE_ATU_TYPE_MEM, pp->mem_base,
 					  pp->mem_bus_addr, pp->mem_size);
