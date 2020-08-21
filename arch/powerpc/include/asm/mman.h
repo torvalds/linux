@@ -40,8 +40,13 @@ static inline bool arch_validate_prot(unsigned long prot, unsigned long addr)
 {
 	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | PROT_SAO))
 		return false;
-	if ((prot & PROT_SAO) && !cpu_has_feature(CPU_FTR_SAO))
-		return false;
+	if (prot & PROT_SAO) {
+		if (!cpu_has_feature(CPU_FTR_SAO))
+			return false;
+		if (firmware_has_feature(FW_FEATURE_LPAR) &&
+		    !IS_ENABLED(CONFIG_PPC_PROT_SAO_LPAR))
+			return false;
+	}
 	return true;
 }
 #define arch_validate_prot arch_validate_prot
