@@ -432,7 +432,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 
 		case STATE_DFU_DOWNLOAD_IDLE:
 			at76_dbg(DBG_DFU, "DOWNLOAD...");
-			/* fall through */
+			fallthrough;
 		case STATE_DFU_IDLE:
 			at76_dbg(DBG_DFU, "DFU IDLE");
 

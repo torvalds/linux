@@ -1227,7 +1227,7 @@ static irqreturn_t service_interrupt(int irq, void *dev_id)
 
 		case ISR_RxFRAMELOST:
 			priv->wstats.discard.misc++;
-			/* fall through */
+			fallthrough;
 		case ISR_RxCOMPLETE:
 			rx_done_irq(priv);
 			break;
