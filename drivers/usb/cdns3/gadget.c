@@ -261,8 +261,8 @@ int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep)
 		 */
 		link_trb->control = 0;
 	} else {
-		link_trb->buffer = TRB_BUFFER(priv_ep->trb_pool_dma);
-		link_trb->control = TRB_CYCLE | TRB_TYPE(TRB_LINK) | TRB_TOGGLE;
+		link_trb->buffer = cpu_to_le32(TRB_BUFFER(priv_ep->trb_pool_dma));
+		link_trb->control = cpu_to_le32(TRB_CYCLE | TRB_TYPE(TRB_LINK) | TRB_TOGGLE);
 	}
 	return 0;
 }
@@ -847,10 +847,10 @@ static void cdns3_wa1_restore_cycle_bit(struct cdns3_endpoint *priv_ep)
 		priv_ep->wa1_trb_index = 0xFFFF;
 		if (priv_ep->wa1_cycle_bit) {
 			priv_ep->wa1_trb->control =
-				priv_ep->wa1_trb->control | 0x1;
+				priv_ep->wa1_trb->control | cpu_to_le32(0x1);
 		} else {
 			priv_ep->wa1_trb->control =
-				priv_ep->wa1_trb->control & ~0x1;
+				priv_ep->wa1_trb->control & cpu_to_le32(~0x1);
 		}
 	}
 }
@@ -1008,17 +1008,16 @@ static int cdns3_ep_run_stream_transfer(struct cdns3_endpoint *priv_ep,
 		  TRB_STREAM_ID(priv_req->request.stream_id) | TRB_ISP;
 
 	if (!request->num_sgs) {
-		trb->buffer = TRB_BUFFER(trb_dma);
+		trb->buffer = cpu_to_le32(TRB_BUFFER(trb_dma));
 		length = request->length;
 	} else {
-		trb->buffer = TRB_BUFFER(request->sg[sg_idx].dma_address);
+		trb->buffer = cpu_to_le32(TRB_BUFFER(request->sg[sg_idx].dma_address));
 		length = request->sg[sg_idx].length;
 	}
 
 	tdl = DIV_ROUND_UP(length, priv_ep->endpoint.maxpacket);
 
-	trb->length = TRB_BURST_LEN(16 /*priv_ep->trb_burst_size*/) |
-				  TRB_LEN(length);
+	trb->length = cpu_to_le32(TRB_BURST_LEN(16) | TRB_LEN(length));
 
 	/*
 	 * For DEV_VER_V2 controller version we have enabled
@@ -1027,11 +1026,11 @@ static int cdns3_ep_run_stream_transfer(struct cdns3_endpoint *priv_ep,
 	 */
 	if (priv_dev->dev_ver >= DEV_VER_V2) {
 		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
-			trb->length |= TRB_TDL_SS_SIZE(tdl);
+			trb->length |= cpu_to_le32(TRB_TDL_SS_SIZE(tdl));
 	}
 	priv_req->flags |= REQUEST_PENDING;
 
-	trb->control = control;
+	trb->control = cpu_to_le32(control);
 
 	trace_cdns3_prepare_trb(priv_ep, priv_req->trb);
 
@@ -1156,8 +1155,8 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		    TRBS_PER_SEGMENT > 2)
 			ch_bit = TRB_CHAIN;
 
-		link_trb->control = ((priv_ep->pcs) ? TRB_CYCLE : 0) |
-				    TRB_TYPE(TRB_LINK) | TRB_TOGGLE | ch_bit;
+		link_trb->control = cpu_to_le32(((priv_ep->pcs) ? TRB_CYCLE : 0) |
+				    TRB_TYPE(TRB_LINK) | TRB_TOGGLE | ch_bit);
 	}
 
 	if (priv_dev->dev_ver <= DEV_VER_V2)
@@ -1172,8 +1171,8 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 
 		/* fill TRB */
 		control |= TRB_TYPE(TRB_NORMAL);
-		trb->buffer = TRB_BUFFER(request->num_sgs == 0
-				? trb_dma : request->sg[sg_iter].dma_address);
+		trb->buffer = cpu_to_le32(TRB_BUFFER(request->num_sgs == 0
+				? trb_dma : request->sg[sg_iter].dma_address));
 
 		if (likely(!request->num_sgs))
 			length = request->length;
@@ -1187,10 +1186,10 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			total_tdl += DIV_ROUND_UP(length,
 					       priv_ep->endpoint.maxpacket);
 
-		trb->length = TRB_BURST_LEN(priv_ep->trb_burst_size) |
-					TRB_LEN(length);
+		trb->length = cpu_to_le32(TRB_BURST_LEN(priv_ep->trb_burst_size) |
+					TRB_LEN(length));
 		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
-			trb->length |= TRB_TDL_SS_SIZE(td_size);
+			trb->length |= cpu_to_le32(TRB_TDL_SS_SIZE(td_size));
 		else
 			control |= TRB_TDL_HS_SIZE(td_size);
 
@@ -1212,9 +1211,9 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		}
 
 		if (sg_iter)
-			trb->control = control;
+			trb->control = cpu_to_le32(control);
 		else
-			priv_req->trb->control = control;
+			priv_req->trb->control = cpu_to_le32(control);
 
 		control = 0;
 		++sg_iter;
@@ -1228,7 +1227,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	priv_req->flags |= REQUEST_PENDING;
 
 	if (sg_iter == 1)
-		trb->control |= TRB_IOC | TRB_ISP;
+		trb->control |= cpu_to_le32(TRB_IOC | TRB_ISP);
 
 	if (priv_dev->dev_ver < DEV_VER_V2 &&
 	    (priv_ep->flags & EP_TDLCHK_EN)) {
@@ -1254,7 +1253,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 
 	/* give the TD to the consumer*/
 	if (togle_pcs)
-		trb->control =  trb->control ^ 1;
+		trb->control = trb->control ^ cpu_to_le32(1);
 
 	if (priv_dev->dev_ver <= DEV_VER_V2)
 		cdns3_wa1_tray_restore_cycle_bit(priv_dev, priv_ep);
@@ -1388,7 +1387,7 @@ static bool cdns3_request_handled(struct cdns3_endpoint *priv_ep,
 
 	trb = &priv_ep->trb_pool[priv_req->start_trb];
 
-	if ((trb->control  & TRB_CYCLE) != priv_ep->ccs)
+	if ((le32_to_cpu(trb->control) & TRB_CYCLE) != priv_ep->ccs)
 		goto finish;
 
 	if (doorbell == 1 && current_index == priv_ep->dequeue)
@@ -1437,7 +1436,7 @@ static void cdns3_transfer_completed(struct cdns3_device *priv_dev,
 		trb = priv_ep->trb_pool + priv_ep->dequeue;
 
 		/* Request was dequeued and TRB was changed to TRB_LINK. */
-		if (TRB_FIELD_TO_TYPE(trb->control) == TRB_LINK) {
+		if (TRB_FIELD_TO_TYPE(le32_to_cpu(trb->control)) == TRB_LINK) {
 			trace_cdns3_complete_trb(priv_ep, trb);
 			cdns3_move_deq_to_next_trb(priv_req);
 		}
@@ -1569,7 +1568,7 @@ static int cdns3_check_ep_interrupt_proceed(struct cdns3_endpoint *priv_ep)
 		 * that host ignore the ERDY packet and driver has to send it
 		 * again.
 		 */
-		if (tdl && (dbusy | !EP_STS_BUFFEMPTY(ep_sts_reg) |
+		if (tdl && (dbusy || !EP_STS_BUFFEMPTY(ep_sts_reg) ||
 		    EP_STS_HOSTPP(ep_sts_reg))) {
 			writel(EP_CMD_ERDY |
 			       EP_CMD_ERDY_SID(priv_ep->last_stream_id),
@@ -2551,10 +2550,10 @@ found:
 
 	/* Update ring only if removed request is on pending_req_list list */
 	if (req_on_hw_ring && link_trb) {
-		link_trb->buffer = TRB_BUFFER(priv_ep->trb_pool_dma +
-			((priv_req->end_trb + 1) * TRB_SIZE));
-		link_trb->control = (link_trb->control & TRB_CYCLE) |
-				    TRB_TYPE(TRB_LINK) | TRB_CHAIN;
+		link_trb->buffer = cpu_to_le32(TRB_BUFFER(priv_ep->trb_pool_dma +
+			((priv_req->end_trb + 1) * TRB_SIZE)));
+		link_trb->control = cpu_to_le32((le32_to_cpu(link_trb->control) & TRB_CYCLE) |
+				    TRB_TYPE(TRB_LINK) | TRB_CHAIN);
 
 		if (priv_ep->wa1_trb == priv_req->trb)
 			cdns3_wa1_restore_cycle_bit(priv_ep);
@@ -2609,7 +2608,7 @@ int __cdns3_gadget_ep_clear_halt(struct cdns3_endpoint *priv_ep)
 		priv_req = to_cdns3_request(request);
 		trb = priv_req->trb;
 		if (trb)
-			trb->control = trb->control ^ TRB_CYCLE;
+			trb->control = trb->control ^ cpu_to_le32(TRB_CYCLE);
 	}
 
 	writel(EP_CMD_CSTALL | EP_CMD_EPRST, &priv_dev->regs->ep_cmd);
@@ -2624,7 +2623,8 @@ int __cdns3_gadget_ep_clear_halt(struct cdns3_endpoint *priv_ep)
 
 	if (request) {
 		if (trb)
-			trb->control = trb->control ^ TRB_CYCLE;
+			trb->control = trb->control ^ cpu_to_le32(TRB_CYCLE);
+
 		cdns3_rearm_transfer(priv_ep, 1);
 	}
 
