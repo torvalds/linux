@@ -65,8 +65,12 @@ const struct dev_pm_ops ccree_pm = {
 int cc_pm_get(struct device *dev)
 {
 	int rc = pm_runtime_get_sync(dev);
+	if (rc < 0) {
+		pm_runtime_put_noidle(dev);
+		return rc;
+	}
 
-	return (rc == 1 ? 0 : rc);
+	return 0;
 }
 
 void cc_pm_put_suspend(struct device *dev)
