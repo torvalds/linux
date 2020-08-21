@@ -436,7 +436,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	return pdata;
 }
 
-static const struct of_device_id fan53555_dt_ids[] = {
+static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 	{
 		.compatible = "fcs,fan53526",
 		.data = (void *)FAN53526_VENDOR_FAIRCHILD,
