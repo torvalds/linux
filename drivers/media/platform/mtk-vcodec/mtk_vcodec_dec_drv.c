@@ -268,6 +268,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 
 	dev->dec_irq = platform_get_irq(pdev, 0);
+	irq_set_status_flags(dev->dec_irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(&pdev->dev, dev->dec_irq,
 			mtk_vcodec_dec_irq_handler, 0, pdev->name, dev);
 	if (ret) {
@@ -277,7 +278,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	disable_irq(dev->dec_irq);
 	mutex_init(&dev->dec_mutex);
 	mutex_init(&dev->dev_mutex);
 	spin_lock_init(&dev->irqlock);

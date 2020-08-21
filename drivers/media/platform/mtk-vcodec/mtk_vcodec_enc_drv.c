@@ -320,6 +320,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 
 	dev->enc_irq = platform_get_irq(pdev, 0);
+	irq_set_status_flags(dev->enc_irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(&pdev->dev, dev->enc_irq,
 			       mtk_vcodec_enc_irq_handler,
 			       0, pdev->name, dev);
@@ -330,7 +331,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_res;
 	}
-	disable_irq(dev->enc_irq);
 
 	if (dev->venc_pdata->has_lt_irq) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -342,6 +342,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		mtk_v4l2_debug(2, "reg[%d] base=0x%p", i, dev->reg_base[VENC_LT_SYS]);
 
 		dev->enc_lt_irq = platform_get_irq(pdev, 1);
+		irq_set_status_flags(dev->enc_lt_irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(&pdev->dev,
 				       dev->enc_lt_irq,
 				       mtk_vcodec_enc_lt_irq_handler,
@@ -353,7 +354,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 			goto err_res;
 		}
-		disable_irq(dev->enc_lt_irq); /* VENC_LT */
 	}
 
 	mutex_init(&dev->enc_mutex);
