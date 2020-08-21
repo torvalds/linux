@@ -476,7 +476,7 @@ struct dc_debug_options {
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
 #endif
 	unsigned int force_fclk_khz;
-	bool disable_tri_buf;
+	bool enable_tri_buf;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)

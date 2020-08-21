@@ -2415,8 +2415,7 @@ static void commit_planes_for_stream(struct dc *dc,
 				plane_state->triplebuffer_flips = false;
 				if (update_type == UPDATE_TYPE_FAST &&
 					dc->hwss.program_triplebuffer != NULL &&
-					!plane_state->flip_immediate &&
-					!dc->debug.disable_tri_buf) {
+					!plane_state->flip_immediate && dc->debug.enable_tri_buf) {
 						/*triple buffer for VUpdate  only*/
 						plane_state->triplebuffer_flips = true;
 				}
@@ -2443,8 +2442,7 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
 
-			if (dc->hwss.program_triplebuffer != NULL &&
-				!dc->debug.disable_tri_buf) {
+			if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
 				/*turn off triple buffer for full update*/
 				dc->hwss.program_triplebuffer(
 					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
@@ -2509,8 +2507,7 @@ static void commit_planes_for_stream(struct dc *dc,
 				if (pipe_ctx->plane_state != plane_state)
 					continue;
 				/*program triple buffer after lock based on flip type*/
-				if (dc->hwss.program_triplebuffer != NULL &&
-					!dc->debug.disable_tri_buf) {
+				if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
 					/*only enable triplebuffer for  fast_update*/
 					dc->hwss.program_triplebuffer(
 						dc, pipe_ctx, plane_state->triplebuffer_flips);

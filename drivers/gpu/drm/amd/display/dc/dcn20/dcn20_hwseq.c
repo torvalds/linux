@@ -1642,16 +1642,15 @@ void dcn20_program_front_end_for_ctx(
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+	if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
-			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
-			if (dc->hwss.program_triplebuffer != NULL &&
-				!dc->debug.disable_tri_buf) {
+			if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
+				ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
 				/*turn off triple buffer for full update*/
 				dc->hwss.program_triplebuffer(
-					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
+						dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
 			}
 		}
 	}

@@ -865,6 +865,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.scl_reset_length10 = true,
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
+	.enable_tri_buf = true,
 };
 
 void dcn30_dpp_destroy(struct dpp **dpp)
