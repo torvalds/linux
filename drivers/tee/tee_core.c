@@ -383,25 +383,38 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
 			/*
-			 * If we fail to get a pointer to a shared memory
-			 * object (and increase the ref count) from an
-			 * identifier we return an error. All pointers that
-			 * has been added in params have an increased ref
-			 * count. It's the callers responibility to do
-			 * tee_shm_put() on all resolved pointers.
+			 * If a NULL pointer is passed to a TA in the TEE,
+			 * the ip.c IOCTL parameters is set to TEE_MEMREF_NULL
+			 * indicating a NULL memory reference.
 			 */
-			shm = tee_shm_get_from_id(ctx, ip.c);
-			if (IS_ERR(shm))
-				return PTR_ERR(shm);
+			if (ip.c != TEE_MEMREF_NULL) {
+				/*
+				 * If we fail to get a pointer to a shared
+				 * memory object (and increase the ref count)
+				 * from an identifier we return an error. All
+				 * pointers that has been added in params have
+				 * an increased ref count. It's the callers
+				 * responibility to do tee_shm_put() on all
+				 * resolved pointers.
+				 */
+				shm = tee_shm_get_from_id(ctx, ip.c);
+				if (IS_ERR(shm))
+					return PTR_ERR(shm);
 
-			/*
-			 * Ensure offset + size does not overflow offset
-			 * and does not overflow the size of the referred
-			 * shared memory object.
-			 */
-			if ((ip.a + ip.b) < ip.a ||
-			    (ip.a + ip.b) > shm->size) {
-				tee_shm_put(shm);
+				/*
+				 * Ensure offset + size does not overflow
+				 * offset and does not overflow the size of
+				 * the referred shared memory object.
+				 */
+				if ((ip.a + ip.b) < ip.a ||
+				    (ip.a + ip.b) > shm->size) {
+					tee_shm_put(shm);
+					return -EINVAL;
+				}
+			} else if (ctx->cap_memref_null) {
+				/* Pass NULL pointer to OP-TEE */
+				shm = NULL;
+			} else {
 				return -EINVAL;
 			}
 

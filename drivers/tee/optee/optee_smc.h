@@ -215,6 +215,9 @@ struct optee_smc_get_shm_config_result {
  */
 #define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		BIT(2)
 
+/* Secure world supports Shared Memory with a NULL buffer reference */
+#define OPTEE_SMC_SEC_CAP_MEMREF_NULL		BIT(4)
+
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES)
