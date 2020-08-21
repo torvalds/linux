@@ -49,6 +49,7 @@
 
 #include "gfx_v9_4.h"
 #include "gfx_v9_0.h"
+#include "gfx_v9_4_2.h"
 
 #include "asic_reg/pwr/pwr_10_0_offset.h"
 #include "asic_reg/pwr/pwr_10_0_sh_mask.h"
