@@ -377,6 +377,8 @@ void dw_pcie_setup_rc(struct pcie_port *pp);
 int dw_pcie_host_init(struct pcie_port *pp);
 void dw_pcie_host_deinit(struct pcie_port *pp);
 int dw_pcie_allocate_domains(struct pcie_port *pp);
+void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus, unsigned int devfn,
+				       int where);
 #else
 static inline irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 {
@@ -407,6 +409,12 @@ static inline void dw_pcie_host_deinit(struct pcie_port *pp)
 static inline int dw_pcie_allocate_domains(struct pcie_port *pp)
 {
 	return 0;
+}
+static inline void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus,
+						     unsigned int devfn,
+						     int where)
+{
+	return NULL;
 }
 #endif
 
