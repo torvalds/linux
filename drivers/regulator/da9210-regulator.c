@@ -125,7 +125,7 @@ error_i2c:
  * I2C driver interface functions
  */
 
-static const struct of_device_id da9210_dt_ids[] = {
+static const struct of_device_id __maybe_unused da9210_dt_ids[] = {
 	{ .compatible = "dlg,da9210", },
 	{ }
 };

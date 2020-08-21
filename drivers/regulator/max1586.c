@@ -201,7 +201,7 @@ static int of_get_max1586_platform_data(struct device *dev,
 	return 0;
 }
 
-static const struct of_device_id max1586_of_match[] = {
+static const struct of_device_id __maybe_unused max1586_of_match[] = {
 	{ .compatible = "maxim,max1586", },
 	{},
 };
