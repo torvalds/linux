@@ -13,6 +13,7 @@
  *
  * ChangeLog:
  *	Aug.18, 2020	Kenneth Chan <kenneth.t.chan@gmail.com>
+ *			resolve hotkey double trigger
  *			add write support to mute
  *			fix sticky_key init bug
  *			fix naming of platform files for consistency with other
@@ -597,9 +598,11 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 					result & 0xf, 0x80, false);
 	}
 
-	if (!sparse_keymap_report_event(hotk_input_dev,
-					result & 0xf, result & 0x80, false))
-		pr_err("Unknown hotkey event: 0x%04llx\n", result);
+	if ((result & 0xf) == 0x7 || (result & 0xf) == 0x9 || (result & 0xf) == 0xa) {
+		if (!sparse_keymap_report_event(hotk_input_dev,
+						result & 0xf, result & 0x80, false))
+			pr_err("Unknown hotkey event: 0x%04llx\n", result);
+	}
 }
 
 static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
