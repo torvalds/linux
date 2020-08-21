@@ -1503,7 +1503,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 			schedule_work(&priv->join_work);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case HERMES_INQ_HOSTSCAN:
 	case HERMES_INQ_HOSTSCAN_SYMBOL: {
 		/* Result of a scanning. Contains information about
@@ -1594,7 +1594,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 		/* Ignore this frame for now */
 		if (priv->firmware_type == FIRMWARE_TYPE_AGERE)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		printk(KERN_DEBUG "%s: Unknown information frame received: "
 		       "type 0x%04x, length %d\n", dev->name, type, len);
