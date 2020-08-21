@@ -160,6 +160,7 @@ enum tx_mcu_port_q_idx {
 #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 #define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
 #define MT_CT_INFO_HSR2_TX		BIT(4)
+#define MT_CT_INFO_FROM_HOST		BIT(7)
 
 #define MT_TXD_SIZE			(8 * 4)
 
@@ -255,8 +256,7 @@ struct mt7915_txp {
 	__le16 flags;
 	__le16 token;
 	u8 bss_idx;
-	u8 rept_wds_wcid;
-	u8 rsv;
+	__le16 rept_wds_wcid;
 	u8 nbuf;
 	__le32 buf[MT_TXP_MAX_BUF_NUM];
 	__le16 len[MT_TXP_MAX_BUF_NUM];

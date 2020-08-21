@@ -276,7 +276,10 @@ static int __mt7915_mcu_msg_send(struct mt7915_dev *dev, struct sk_buff *skb,
 			mcu_txd->set_query = MCU_Q_SET;
 	}
 
-	mcu_txd->s2d_index = MCU_S2D_H2N;
+	if (cmd == MCU_EXT_CMD_MWDS_SUPPORT)
+		mcu_txd->s2d_index = MCU_S2D_H2C;
+	else
+		mcu_txd->s2d_index = MCU_S2D_H2N;
 	WARN_ON(cmd == MCU_EXT_CMD_EFUSE_ACCESS &&
 		mcu_txd->set_query != MCU_Q_QUERY);
 
@@ -1693,6 +1696,7 @@ mt7915_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
 			      void *sta_wtbl, void *wtbl_tlv)
 {
+	struct mt7915_sta *msta;
 	struct wtbl_hdr_trans *htr = NULL;
 	struct tlv *tlv;
 
@@ -1704,6 +1708,33 @@ mt7915_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 		htr->to_ds = true;
 	else
 		htr->from_ds = true;
+
+	if (!sta)
+		return;
+
+	msta = (struct mt7915_sta *)sta->drv_priv;
+	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags)) {
+		htr->to_ds = true;
+		htr->from_ds = true;
+	}
+}
+
+int mt7915_mcu_sta_update_hdr_trans(struct mt7915_dev *dev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta)
+{
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct wtbl_req_hdr *wtbl_hdr;
+	struct sk_buff *skb;
+
+	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, MT7915_WTBL_UPDATE_MAX_SIZE);
+	if (!skb)
+		return -ENOMEM;
+
+	wtbl_hdr = mt7915_mcu_alloc_wtbl_req(dev, msta, WTBL_SET, NULL, &skb);
+	mt7915_mcu_wtbl_hdr_trans_tlv(skb, vif, sta, NULL, wtbl_hdr);
+
+	return __mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_EXT_CMD_WTBL_UPDATE, true);
 }
 
 int mt7915_mcu_add_smps(struct mt7915_dev *dev, struct ieee80211_vif *vif,
@@ -2867,6 +2898,19 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level)
 				   &data, sizeof(data), false);
 }
 
+static int mt7915_mcu_set_mwds(struct mt7915_dev *dev, bool enabled)
+{
+	struct {
+		u8 enable;
+		u8 _rsv[3];
+	} __packed req = {
+		.enable = enabled
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_MWDS_SUPPORT,
+				   &req, sizeof(req), false);
+}
+
 int mt7915_mcu_init(struct mt7915_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7915_mcu_ops = {
@@ -2889,6 +2933,7 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	mt7915_mcu_fw_log_2_host(dev, 0);
+	mt7915_mcu_set_mwds(dev, 1);
 
 	return 0;
 }

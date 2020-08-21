@@ -185,6 +185,7 @@ struct mt76_queue_ops {
 enum mt76_wcid_flags {
 	MT_WCID_FLAG_CHECK_PS,
 	MT_WCID_FLAG_PS,
+	MT_WCID_FLAG_4ADDR,
 };
 
 #define MT76_N_WCIDS 288

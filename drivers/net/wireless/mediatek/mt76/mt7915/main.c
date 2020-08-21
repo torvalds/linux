@@ -173,6 +173,8 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 		mtxq->wcid = &mvif->sta.wcid;
 	}
 
+	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
+
 out:
 	mutex_unlock(&dev->mt76.mutex);
 
@@ -804,6 +806,22 @@ mt7915_sta_rc_update(struct ieee80211_hw *hw,
 	ieee80211_queue_work(hw, &dev->rc_work);
 }
 
+static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 bool enabled)
+{
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+
+	if (enabled)
+		set_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
+	else
+		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
+
+	mt7915_mcu_sta_update_hdr_trans(dev, vif, sta);
+}
+
 const struct ieee80211_ops mt7915_ops = {
 	.tx = mt7915_tx,
 	.start = mt7915_start,
@@ -835,6 +853,7 @@ const struct ieee80211_ops mt7915_ops = {
 	.set_antenna = mt7915_set_antenna,
 	.set_coverage_class = mt7915_set_coverage_class,
 	.sta_statistics = mt7915_sta_statistics,
+	.sta_set_4addr = mt7915_sta_set_4addr,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.sta_add_debugfs = mt7915_sta_add_debugfs,
 #endif
