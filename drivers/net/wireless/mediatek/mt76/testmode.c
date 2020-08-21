@@ -442,9 +442,13 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	mutex_lock(&dev->mutex);
 
 	if (tb[MT76_TM_ATTR_STATS]) {
+		err = -EINVAL;
+
 		a = nla_nest_start(msg, MT76_TM_ATTR_STATS);
-		err = mt76_testmode_dump_stats(dev, msg);
-		nla_nest_end(msg, a);
+		if (a) {
+			err = mt76_testmode_dump_stats(dev, msg);
+			nla_nest_end(msg, a);
+		}
 
 		goto out;
 	}
