@@ -164,6 +164,8 @@ struct nouveau_drm {
 		int type_vram;
 		int type_host[2];
 		int type_ncoh[2];
+		struct mutex io_reserve_mutex;
+		struct list_head io_reserve_lru;
 	} ttm;
 
 	/* GEM interface support */

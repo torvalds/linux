@@ -137,6 +137,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
 	WARN_ON(nvbo->pin_refcnt > 0);
+	nouveau_bo_del_io_reserve_lru(bo);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 
 	/*
@@ -304,6 +305,7 @@ nouveau_bo_init(struct nouveau_bo *nvbo, u64 size, int align, u32 flags,
 
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
+	INIT_LIST_HEAD(&nvbo->io_reserve_lru);
 
 	ret = ttm_bo_init(nvbo->bo.bdev, &nvbo->bo, size, type,
 			  &nvbo->placement, align >> PAGE_SHIFT, false,
@@ -572,6 +574,26 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
 		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
 					PAGE_SIZE, DMA_FROM_DEVICE);
+}
+
+void nouveau_bo_add_io_reserve_lru(struct ttm_buffer_object *bo)
+{
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	mutex_lock(&drm->ttm.io_reserve_mutex);
+	list_move_tail(&nvbo->io_reserve_lru, &drm->ttm.io_reserve_lru);
+	mutex_unlock(&drm->ttm.io_reserve_mutex);
+}
+
+void nouveau_bo_del_io_reserve_lru(struct ttm_buffer_object *bo)
+{
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	mutex_lock(&drm->ttm.io_reserve_mutex);
+	list_del_init(&nvbo->io_reserve_lru);
+	mutex_unlock(&drm->ttm.io_reserve_mutex);
 }
 
 int
@@ -888,6 +910,8 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 	if (bo->destroy != nouveau_bo_del_ttm)
 		return;
 
+	nouveau_bo_del_io_reserve_lru(bo);
+
 	if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
 	    mem->mem.page == nvbo->page) {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
@@ -1018,17 +1042,42 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 					  filp->private_data);
 }
 
+static void
+nouveau_ttm_io_mem_free_locked(struct nouveau_drm *drm,
+			       struct ttm_resource *reg)
+{
+	struct nouveau_mem *mem = nouveau_mem(reg);
+
+	if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+		switch (reg->mem_type) {
+		case TTM_PL_TT:
+			if (mem->kind)
+				nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		case TTM_PL_VRAM:
+			nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int
 nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
+	int ret;
 
+	mutex_lock(&drm->ttm.io_reserve_mutex);
+retry:
 	switch (reg->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-		return 0;
+		ret = 0;
+		goto out;
 	case TTM_PL_TT:
 #if IS_ENABLED(CONFIG_AGP)
 		if (drm->agp.bridge) {
@@ -1037,9 +1086,12 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 			reg->bus.is_iomem = !drm->agp.cma;
 		}
 #endif
-		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 || !mem->kind)
+		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 ||
+		    !mem->kind) {
 			/* untiled */
+			ret = 0;
 			break;
+		}
 		fallthrough;	/* tiled memory */
 	case TTM_PL_VRAM:
 		reg->bus.offset = reg->start << PAGE_SHIFT;
@@ -1052,7 +1104,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 			} args;
 			u64 handle, length;
 			u32 argc = 0;
-			int ret;
 
 			switch (mem->mem.object.oclass) {
 			case NVIF_CLASS_MEM_NV50:
@@ -1078,39 +1129,47 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 						     &handle, &length);
 			if (ret != 1) {
 				if (WARN_ON(ret == 0))
-					return -EINVAL;
-				return ret;
+					ret = -EINVAL;
+				goto out;
 			}
 
 			reg->bus.base = 0;
 			reg->bus.offset = handle;
+			ret = 0;
 		}
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-	return 0;
+
+out:
+	if (ret == -ENOSPC) {
+		struct nouveau_bo *nvbo;
+
+		nvbo = list_first_entry_or_null(&drm->ttm.io_reserve_lru,
+						typeof(*nvbo),
+						io_reserve_lru);
+		if (nvbo) {
+			list_del_init(&nvbo->io_reserve_lru);
+			drm_vma_node_unmap(&nvbo->bo.base.vma_node,
+					   bdev->dev_mapping);
+			nouveau_ttm_io_mem_free_locked(drm, &nvbo->bo.mem);
+			goto retry;
+		}
+
+	}
+	mutex_unlock(&drm->ttm.io_reserve_mutex);
+	return ret;
 }
 
 static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
-		switch (reg->mem_type) {
-		case TTM_PL_TT:
-			if (mem->kind)
-				nvif_object_unmap_handle(&mem->mem.object);
-			break;
-		case TTM_PL_VRAM:
-			nvif_object_unmap_handle(&mem->mem.object);
-			break;
-		default:
-			break;
-		}
-	}
+	mutex_lock(&drm->ttm.io_reserve_mutex);
+	nouveau_ttm_io_mem_free_locked(drm, reg);
+	mutex_unlock(&drm->ttm.io_reserve_mutex);
 }
 
 static int
