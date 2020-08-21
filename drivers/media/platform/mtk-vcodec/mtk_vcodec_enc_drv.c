@@ -249,6 +249,14 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		mtk_v4l2_err("[VPU] vpu device in not ready");
 		return -EPROBE_DEFER;
 	}
+	if (!pdev->dev.dma_parms) {
+		pdev->dev.dma_parms = devm_kzalloc(&pdev->dev,
+						sizeof(*pdev->dev.dma_parms),
+						GFP_KERNEL);
+		if (!pdev->dev.dma_parms)
+			return -ENOMEM;
+	}
+	dma_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
 	vpu_wdt_reg_handler(dev->vpu_plat_dev, mtk_vcodec_enc_reset_handler,
 				dev, VPU_RST_ENC);
