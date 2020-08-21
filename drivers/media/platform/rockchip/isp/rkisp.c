@@ -1007,7 +1007,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	val |= CIF_ISP_CTRL_ISP_CFG_UPD | CIF_ISP_CTRL_ISP_ENABLE |
 	       CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_CFG_UPD_PERMANENT;
 	if (dev->isp_ver == ISP_V20)
-		val |= NOC_HURRY_W_HIGH | NOC_HURRY_W_MODE(3);
+		val |= NOC_HURRY_PRIORITY(2) | NOC_HURRY_W_MODE(2) | NOC_HURRY_R_MODE(1);
 	if (atomic_read(&dev->hw_dev->refcnt) > 1)
 		is_direct = false;
 	rkisp_write(dev, CIF_ISP_CTRL, val, is_direct);

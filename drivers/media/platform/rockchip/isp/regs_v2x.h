@@ -1772,9 +1772,9 @@
 #define SW_LVDS_EAV(a)			(((a) & 0xfff) << 16)
 
 /* ISP CTRL */
-#define NOC_HURRY_W_HIGH		(3 << 30)
-#define NOC_HURRY_W_MODE(a)		(((a) & 0x3) << 21)
-#define NOC_HURRY_R_MODE(a)		(((a) & 0x3) << 18)
+#define NOC_HURRY_PRIORITY(a)		(((a) & 0x3) << 30)
+#define NOC_HURRY_W_MODE(a)		(((a) & 0x7) << 21)
+#define NOC_HURRY_R_MODE(a)		(((a) & 0x7) << 18)
 
 /* isp interrupt */
 #define ISP2X_OFF			BIT(0)
