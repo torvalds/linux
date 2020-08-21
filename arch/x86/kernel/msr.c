@@ -102,8 +102,8 @@ static int filter_write(u32 reg)
 	if (reg == MSR_IA32_ENERGY_PERF_BIAS)
 		return 0;
 
-	pr_err("Write to unrecognized MSR 0x%x by %s\n"
-	       "Please report to x86@kernel.org\n", reg, current->comm);
+	pr_err("Write to unrecognized MSR 0x%x by %s (pid: %d). Please report to x86@kernel.org.\n",
+	       reg, current->comm, current->pid);
 
 	return 0;
 }
