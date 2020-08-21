@@ -3542,14 +3542,17 @@ static int chcr_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.error));
 	seq_printf(seq, "Fallback: %10u \n",
 		   atomic_read(&adap->chcr_stats.fallback));
-	seq_printf(seq, "IPSec PDU: %10u\n",
-		   atomic_read(&adap->chcr_stats.ipsec_cnt));
 	seq_printf(seq, "TLS PDU Tx: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_pdu_tx));
 	seq_printf(seq, "TLS PDU Rx: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_pdu_rx));
 	seq_printf(seq, "TLS Keys (DDR) Count: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_key));
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+	seq_puts(seq, "\nChelsio Inline IPsec Crypto Accelerator Stats\n");
+	seq_printf(seq, "IPSec PDU: %10u\n",
+		   atomic_read(&adap->ch_ipsec_stats.ipsec_cnt));
+#endif
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 	seq_puts(seq, "\nChelsio KTLS Crypto Accelerator Stats\n");
 	seq_printf(seq, "Tx TLS offload refcount:          %20u\n",

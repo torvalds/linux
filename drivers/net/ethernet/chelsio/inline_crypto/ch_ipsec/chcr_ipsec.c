@@ -60,9 +60,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
 
-#include "chcr_core.h"
-#include "chcr_algo.h"
-#include "chcr_crypto.h"
+#include "chcr_ipsec.h"
 
 /*
  * Max Tx descriptor space we allow for an Ethernet packet to be inlined
@@ -71,11 +69,17 @@
 #define MAX_IMM_TX_PKT_LEN 256
 #define GCM_ESP_IV_SIZE     8
 
+static LIST_HEAD(uld_ctx_list);
+static DEFINE_MUTEX(dev_mutex);
+
 static int chcr_xfrm_add_state(struct xfrm_state *x);
 static void chcr_xfrm_del_state(struct xfrm_state *x);
 static void chcr_xfrm_free_state(struct xfrm_state *x);
 static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
 static void chcr_advance_esn_state(struct xfrm_state *x);
+static int ch_ipsec_uld_state_change(void *handle, enum cxgb4_state new_state);
+static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop);
+static void update_netdev_features(void);
 
 static const struct xfrmdev_ops chcr_xfrmdev_ops = {
 	.xdo_dev_state_add      = chcr_xfrm_add_state,
@@ -100,6 +104,57 @@ void chcr_add_xfrmops(const struct cxgb4_lld_info *lld)
 		netdev->features |= NETIF_F_HW_ESP;
 		netdev_change_features(netdev);
 	}
+}
+
+static struct cxgb4_uld_info ch_ipsec_uld_info = {
+	.name = CHIPSEC_DRV_MODULE_NAME,
+	.nrxq = MAX_ULD_QSETS,
+	/* Max ntxq will be derived from fw config file*/
+	.rxq_size = 1024,
+	.add = ch_ipsec_uld_add,
+	.state_change = ch_ipsec_uld_state_change,
+	.tx_handler = chcr_ipsec_xmit,
+};
+
+static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop)
+{
+	struct ipsec_uld_ctx *u_ctx;
+
+	pr_info_once("%s - version %s\n", CHIPSEC_DRV_DESC,
+		     CHIPSEC_DRV_VERSION);
+	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	if (!u_ctx) {
+		u_ctx = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	u_ctx->lldi = *infop;
+out:
+	return u_ctx;
+}
+
+static int ch_ipsec_uld_state_change(void *handle, enum cxgb4_state new_state)
+{
+	struct ipsec_uld_ctx *u_ctx = handle;
+
+	pr_info("new_state %u\n", new_state);
+	switch (new_state) {
+	case CXGB4_STATE_UP:
+		pr_info("%s: Up\n", pci_name(u_ctx->lldi.pdev));
+		mutex_lock(&dev_mutex);
+		list_add_tail(&u_ctx->entry, &uld_ctx_list);
+		mutex_unlock(&dev_mutex);
+		break;
+	case CXGB4_STATE_START_RECOVERY:
+	case CXGB4_STATE_DOWN:
+	case CXGB4_STATE_DETACH:
+		pr_info("%s: Down\n", pci_name(u_ctx->lldi.pdev));
+		list_del(&u_ctx->entry);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static inline int chcr_ipsec_setauthsize(struct xfrm_state *x,
@@ -538,7 +593,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 	unsigned int kctx_len = sa_entry->kctx_len;
 	int qid = q->q.cntxt_id;
 
-	atomic_inc(&adap->chcr_stats.ipsec_cnt);
+	atomic_inc(&adap->ch_ipsec_stats.ipsec_cnt);
 
 	flits = calc_tx_sec_flits(skb, sa_entry, &immediate);
 	ndesc = DIV_ROUND_UP(flits, 2);
@@ -752,3 +807,51 @@ out_free:       dev_kfree_skb_any(skb);
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
 	return NETDEV_TX_OK;
 }
+
+static void update_netdev_features(void)
+{
+	struct ipsec_uld_ctx *u_ctx, *tmp;
+
+	mutex_lock(&dev_mutex);
+	list_for_each_entry_safe(u_ctx, tmp, &uld_ctx_list, entry) {
+		if (u_ctx->lldi.crypto & ULP_CRYPTO_IPSEC_INLINE)
+			chcr_add_xfrmops(&u_ctx->lldi);
+	}
+	mutex_unlock(&dev_mutex);
+}
+
+static int __init chcr_ipsec_init(void)
+{
+	cxgb4_register_uld(CXGB4_ULD_IPSEC, &ch_ipsec_uld_info);
+
+	rtnl_lock();
+	update_netdev_features();
+	rtnl_unlock();
+
+	return 0;
+}
+
+static void __exit chcr_ipsec_exit(void)
+{
+	struct ipsec_uld_ctx *u_ctx, *tmp;
+	struct adapter *adap;
+
+	mutex_lock(&dev_mutex);
+	list_for_each_entry_safe(u_ctx, tmp, &uld_ctx_list, entry) {
+		adap = pci_get_drvdata(u_ctx->lldi.pdev);
+		atomic_set(&adap->ch_ipsec_stats.ipsec_cnt, 0);
+		list_del(&u_ctx->entry);
+		kfree(u_ctx);
+	}
+	mutex_unlock(&dev_mutex);
+	cxgb4_unregister_uld(CXGB4_ULD_IPSEC);
+}
+
+module_init(chcr_ipsec_init);
+module_exit(chcr_ipsec_exit);
+
+MODULE_DESCRIPTION("Crypto IPSEC for Chelsio Terminator cards.");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Chelsio Communications");
+MODULE_VERSION(CHIPSEC_DRV_VERSION);
+

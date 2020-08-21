@@ -40,10 +40,6 @@ static const struct tlsdev_ops chcr_ktls_ops = {
 };
 #endif
 
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
-static void update_netdev_features(void);
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
-
 static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 	[CPL_FW6_PLD] = cpl_fw6_pld_handler,
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
@@ -60,10 +56,8 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
-#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
-	.tx_handler = chcr_uld_tx_handler,
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 #if defined(CONFIG_CHELSIO_TLS_DEVICE)
+	.tx_handler = chcr_uld_tx_handler,
 	.tlsdev_ops = &chcr_ktls_ops,
 #endif
 };
@@ -241,19 +235,11 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 	return 0;
 }
 
-#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
+#if defined(CONFIG_CHELSIO_TLS_DEVICE)
 int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
 {
-	/* In case if skb's decrypted bit is set, it's nic tls packet, else it's
-	 * ipsec packet.
-	 */
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
 	if (skb->decrypted)
 		return chcr_ktls_xmit(skb, dev);
-#endif
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
-	return chcr_ipsec_xmit(skb, dev);
-#endif
 	return 0;
 }
 #endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
@@ -305,24 +291,6 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 	return ret;
 }
 
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
-static void update_netdev_features(void)
-{
-	struct uld_ctx *u_ctx, *tmp;
-
-	mutex_lock(&drv_data.drv_mutex);
-	list_for_each_entry_safe(u_ctx, tmp, &drv_data.inact_dev, entry) {
-		if (u_ctx->lldi.crypto & ULP_CRYPTO_IPSEC_INLINE)
-			chcr_add_xfrmops(&u_ctx->lldi);
-	}
-	list_for_each_entry_safe(u_ctx, tmp, &drv_data.act_dev, entry) {
-		if (u_ctx->lldi.crypto & ULP_CRYPTO_IPSEC_INLINE)
-			chcr_add_xfrmops(&u_ctx->lldi);
-	}
-	mutex_unlock(&drv_data.drv_mutex);
-}
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
-
 static int __init chcr_crypto_init(void)
 {
 	INIT_LIST_HEAD(&drv_data.act_dev);
@@ -331,12 +299,6 @@ static int __init chcr_crypto_init(void)
 	mutex_init(&drv_data.drv_mutex);
 	drv_data.last_dev = NULL;
 	cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info);
-
-	#ifdef CONFIG_CHELSIO_IPSEC_INLINE
-	rtnl_lock();
-	update_netdev_features();
-	rtnl_unlock();
-	#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 
 	return 0;
 }
