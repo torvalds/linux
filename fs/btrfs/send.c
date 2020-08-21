@@ -122,8 +122,6 @@ struct send_ctx {
 
 	struct file_ra_state ra;
 
-	char *read_buf;
-
 	/*
 	 * We process inodes by their increasing order, so if before an
 	 * incremental send we reverse the parent/child relationship of
@@ -4794,7 +4792,25 @@ out:
 	return ret;
 }
 
-static int fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
+static inline u64 max_send_read_size(const struct send_ctx *sctx)
+{
+	return sctx->send_max_size - SZ_16K;
+}
+
+static int put_data_header(struct send_ctx *sctx, u32 len)
+{
+	struct btrfs_tlv_header *hdr;
+
+	if (sctx->send_max_size - sctx->send_size < sizeof(*hdr) + len)
+		return -EOVERFLOW;
+	hdr = (struct btrfs_tlv_header *)(sctx->send_buf + sctx->send_size);
+	put_unaligned_le16(BTRFS_SEND_A_DATA, &hdr->tlv_type);
+	put_unaligned_le16(len, &hdr->tlv_len);
+	sctx->send_size += sizeof(*hdr);
+	return 0;
+}
+
+static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 {
 	struct btrfs_root *root = sctx->send_root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4804,8 +4820,11 @@ static int fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
 	unsigned pg_offset = offset_in_page(offset);
-	int ret = 0;
-	size_t read = 0;
+	int ret;
+
+	ret = put_data_header(sctx, len);
+	if (ret)
+		return ret;
 
 	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
 	if (IS_ERR(inode))
@@ -4851,14 +4870,15 @@ static int fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 		}
 
 		addr = kmap(page);
-		memcpy(sctx->read_buf + read, addr + pg_offset, cur_len);
+		memcpy(sctx->send_buf + sctx->send_size, addr + pg_offset,
+		       cur_len);
 		kunmap(page);
 		unlock_page(page);
 		put_page(page);
 		index++;
 		pg_offset = 0;
 		len -= cur_len;
-		read += cur_len;
+		sctx->send_size += cur_len;
 	}
 	iput(inode);
 	return ret;
@@ -4880,10 +4900,6 @@ static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 
 	btrfs_debug(fs_info, "send_write offset=%llu, len=%d", offset, len);
 
-	ret = fill_read_buf(sctx, offset, len);
-	if (ret < 0)
-		goto out;
-
 	ret = begin_cmd(sctx, BTRFS_SEND_C_WRITE);
 	if (ret < 0)
 		goto out;
@@ -4894,7 +4910,9 @@ static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, p);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_FILE_OFFSET, offset);
-	TLV_PUT(sctx, BTRFS_SEND_A_DATA, sctx->read_buf, len);
+	ret = put_file_data(sctx, offset, len);
+	if (ret < 0)
+		goto out;
 
 	ret = send_cmd(sctx);
 
@@ -5013,8 +5031,8 @@ out:
 static int send_hole(struct send_ctx *sctx, u64 end)
 {
 	struct fs_path *p = NULL;
+	u64 read_size = max_send_read_size(sctx);
 	u64 offset = sctx->cur_inode_last_extent;
-	u64 len;
 	int ret = 0;
 
 	/*
@@ -5041,16 +5059,19 @@ static int send_hole(struct send_ctx *sctx, u64 end)
 	ret = get_cur_path(sctx, sctx->cur_ino, sctx->cur_inode_gen, p);
 	if (ret < 0)
 		goto tlv_put_failure;
-	memset(sctx->read_buf, 0, BTRFS_SEND_READ_SIZE);
 	while (offset < end) {
-		len = min_t(u64, end - offset, BTRFS_SEND_READ_SIZE);
+		u64 len = min(end - offset, read_size);
 
 		ret = begin_cmd(sctx, BTRFS_SEND_C_WRITE);
 		if (ret < 0)
 			break;
 		TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, p);
 		TLV_PUT_U64(sctx, BTRFS_SEND_A_FILE_OFFSET, offset);
-		TLV_PUT(sctx, BTRFS_SEND_A_DATA, sctx->read_buf, len);
+		ret = put_data_header(sctx, len);
+		if (ret < 0)
+			break;
+		memset(sctx->send_buf + sctx->send_size, 0, len);
+		sctx->send_size += len;
 		ret = send_cmd(sctx);
 		if (ret < 0)
 			break;
@@ -5066,17 +5087,16 @@ static int send_extent_data(struct send_ctx *sctx,
 			    const u64 offset,
 			    const u64 len)
 {
+	u64 read_size = max_send_read_size(sctx);
 	u64 sent = 0;
 
 	if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA)
 		return send_update_extent(sctx, offset, len);
 
 	while (sent < len) {
-		u64 size = len - sent;
+		u64 size = min(len - sent, read_size);
 		int ret;
 
-		if (size > BTRFS_SEND_READ_SIZE)
-			size = BTRFS_SEND_READ_SIZE;
 		ret = send_write(sctx, offset + sent, size);
 		if (ret < 0)
 			return ret;
@@ -7145,12 +7165,6 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 		goto out;
 	}
 
-	sctx->read_buf = kvmalloc(BTRFS_SEND_READ_SIZE, GFP_KERNEL);
-	if (!sctx->read_buf) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	sctx->pending_dir_moves = RB_ROOT;
 	sctx->waiting_dir_moves = RB_ROOT;
 	sctx->orphan_dirs = RB_ROOT;
@@ -7354,7 +7368,6 @@ out:
 
 		kvfree(sctx->clone_roots);
 		kvfree(sctx->send_buf);
-		kvfree(sctx->read_buf);
 
 		name_cache_free(sctx);
 
