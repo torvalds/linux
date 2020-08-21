@@ -546,9 +546,7 @@ static u8 dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
 
 void dw_pcie_setup(struct dw_pcie *pci)
 {
-	int ret;
 	u32 val;
-	u32 lanes;
 	struct device *dev = pci->dev;
 	struct device_node *np = dev->of_node;
 
@@ -562,16 +560,16 @@ void dw_pcie_setup(struct dw_pcie *pci)
 		"enabled" : "disabled");
 
 
-	ret = of_property_read_u32(np, "num-lanes", &lanes);
-	if (ret) {
-		dev_dbg(pci->dev, "property num-lanes isn't found\n");
+	of_property_read_u32(np, "num-lanes", &pci->num_lanes);
+	if (!pci->num_lanes) {
+		dev_dbg(pci->dev, "Using h/w default number of lanes\n");
 		return;
 	}
 
 	/* Set the number of lanes */
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 	val &= ~PORT_LINK_MODE_MASK;
-	switch (lanes) {
+	switch (pci->num_lanes) {
 	case 1:
 		val |= PORT_LINK_MODE_1_LANES;
 		break;
@@ -585,7 +583,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 		val |= PORT_LINK_MODE_8_LANES;
 		break;
 	default:
-		dev_err(pci->dev, "num-lanes %u: invalid value\n", lanes);
+		dev_err(pci->dev, "num-lanes %u: invalid value\n", pci->num_lanes);
 		return;
 	}
 	dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
@@ -593,7 +591,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	/* Set link width speed control register */
 	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
 	val &= ~PORT_LOGIC_LINK_WIDTH_MASK;
-	switch (lanes) {
+	switch (pci->num_lanes) {
 	case 1:
 		val |= PORT_LOGIC_LINK_WIDTH_1_LANES;
 		break;
