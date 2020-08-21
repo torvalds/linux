@@ -70,7 +70,7 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	if (dev->mt76.test.state != MT76_TM_STATE_OFF)
 		tx_power = dev->mt76.test.tx_power;
 
-	len = sizeof(req_hdr) + MT7615_EE_MAX - MT_EE_NIC_CONF_0;
+	len = MT7615_EE_MAX - MT_EE_NIC_CONF_0;
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) + len);
 	if (!skb)
 		return -ENOMEM;
@@ -83,8 +83,10 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 		int index;
 
 		ret = mt7615_eeprom_get_target_power_index(dev, chandef->chan, i);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_kfree_skb(skb);
 			return -EINVAL;
+		}
 
 		index = ret - MT_EE_NIC_CONF_0;
 		if (tx_power && tx_power[i])
