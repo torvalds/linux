@@ -890,9 +890,3 @@ out:
 	return rc;
 }
 subsys_initcall_sync(pci_base_init);
-
-void zpci_rescan(void)
-{
-	if (zpci_is_enabled())
-		clp_rescan_pci_devices_simple(NULL);
-}

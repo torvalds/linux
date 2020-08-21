@@ -233,12 +233,10 @@ static inline bool zpci_use_mio(struct zpci_dev *zdev)
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
-void zpci_rescan(void);
 bool zpci_is_enabled(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
-static inline void zpci_rescan(void) {}
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_HOTPLUG_PCI_S390
