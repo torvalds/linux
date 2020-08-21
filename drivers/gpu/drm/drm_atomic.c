@@ -1406,7 +1406,6 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 				val,
 				sizeof(struct hdr_output_metadata), -1,
 				&replaced);
-		state->hdr_metadata_changed |= replaced;
 		return ret;
 	} else if (property == config->aspect_ratio_property) {
 		state->picture_aspect_ratio = val;

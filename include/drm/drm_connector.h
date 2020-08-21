@@ -546,8 +546,6 @@ struct drm_connector_state {
 	struct drm_property_blob *hdr_output_metadata;
 
 	struct drm_property_blob *hdr_panel_blob_ptr;
-
-	bool hdr_metadata_changed : 1;
 };
 
 /**
