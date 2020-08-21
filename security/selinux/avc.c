@@ -705,34 +705,36 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	struct selinux_audit_data *sad = ad->selinux_audit_data;
-	char *scontext;
+	char *scontext = NULL;
+	char *tcontext = NULL;
+	const char *tclass = NULL;
 	u32 scontext_len;
+	u32 tcontext_len;
 	int rc;
-
-	trace_selinux_audited(sad);
 
 	rc = security_sid_to_context(sad->state, sad->ssid, &scontext,
 				     &scontext_len);
 	if (rc)
 		audit_log_format(ab, " ssid=%d", sad->ssid);
-	else {
+	else
 		audit_log_format(ab, " scontext=%s", scontext);
-		kfree(scontext);
-	}
 
-	rc = security_sid_to_context(sad->state, sad->tsid, &scontext,
-				     &scontext_len);
+	rc = security_sid_to_context(sad->state, sad->tsid, &tcontext,
+				     &tcontext_len);
 	if (rc)
 		audit_log_format(ab, " tsid=%d", sad->tsid);
-	else {
-		audit_log_format(ab, " tcontext=%s", scontext);
-		kfree(scontext);
-	}
+	else
+		audit_log_format(ab, " tcontext=%s", tcontext);
 
-	audit_log_format(ab, " tclass=%s", secclass_map[sad->tclass-1].name);
+	tclass = secclass_map[sad->tclass-1].name;
+	audit_log_format(ab, " tclass=%s", tclass);
 
 	if (sad->denied)
 		audit_log_format(ab, " permissive=%u", sad->result ? 0 : 1);
+
+	trace_selinux_audited(sad, scontext, tcontext, tclass);
+	kfree(tcontext);
+	kfree(scontext);
 
 	/* in case of invalid context report also the actual context string */
 	rc = security_sid_to_context_inval(sad->state, sad->ssid, &scontext,
