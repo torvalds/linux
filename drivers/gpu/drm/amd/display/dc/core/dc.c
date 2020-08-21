@@ -1246,6 +1246,19 @@ void dc_trigger_sync(struct dc *dc, struct dc_state *context)
 	}
 }
 
+static uint8_t get_stream_mask(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	unsigned int stream_mask = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			stream_mask |= 1 << i;
+	}
+
+	return stream_mask;
+}
+
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -1361,6 +1374,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		/* pplib is notified if disp_num changed */
 		dc->hwss.optimize_bandwidth(dc, context);
 	}
+
+	context->stream_mask = get_stream_mask(dc, context);
+
+	if (context->stream_mask != dc->current_state->stream_mask)
+		dc_dmub_srv_notify_stream_mask(dc->ctx->dmub_srv, context->stream_mask);
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;

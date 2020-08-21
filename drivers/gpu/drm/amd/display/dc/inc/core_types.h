@@ -397,6 +397,7 @@ struct dc_state {
 	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
 	uint8_t stream_count;
+	uint8_t stream_mask;
 
 	struct resource_context res_ctx;
 
