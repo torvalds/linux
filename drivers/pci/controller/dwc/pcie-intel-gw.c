@@ -268,12 +268,6 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = device_property_match_string(dev, "device_type", "pci");
-	if (ret) {
-		dev_err(dev, "Failed to find pci device type: %d\n", ret);
-		return ret;
-	}
-
 	ret = device_property_read_u32(dev, "reset-assert-ms",
 				       &lpp->rst_intrvl);
 	if (ret)
