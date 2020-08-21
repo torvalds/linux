@@ -37,7 +37,7 @@ static const struct snd_soc_acpi_endpoint spk_r_endpoint = {
 
 static const struct snd_soc_acpi_adr_device rt711_0_adr[] = {
 	{
-		.adr = 0x000010025D071100,
+		.adr = 0x000020025D071100,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 	}
