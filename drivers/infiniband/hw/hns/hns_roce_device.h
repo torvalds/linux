@@ -537,17 +537,18 @@ struct hns_roce_raq_table {
 };
 
 struct hns_roce_av {
-	u8          port;
-	u8          gid_index;
-	u8          stat_rate;
-	u8          hop_limit;
-	u32         flowlabel;
-	u8          sl;
-	u8          tclass;
-	u8          dgid[HNS_ROCE_GID_SIZE];
-	u8          mac[ETH_ALEN];
-	u16         vlan_id;
-	bool	    vlan_en;
+	u8 port;
+	u8 gid_index;
+	u8 stat_rate;
+	u8 hop_limit;
+	u32 flowlabel;
+	u16 udp_sport;
+	u8 sl;
+	u8 tclass;
+	u8 dgid[HNS_ROCE_GID_SIZE];
+	u8 mac[ETH_ALEN];
+	u16 vlan_id;
+	bool vlan_en;
 };
 
 struct hns_roce_ah {

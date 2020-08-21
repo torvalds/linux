@@ -369,7 +369,7 @@ static inline int set_ud_wqe(struct hns_roce_qp *qp,
 		       curr_idx & (qp->sge.sge_cnt - 1));
 
 	roce_set_field(ud_sq_wqe->byte_24, V2_UD_SEND_WQE_BYTE_24_UDPSPN_M,
-		       V2_UD_SEND_WQE_BYTE_24_UDPSPN_S, 0);
+		       V2_UD_SEND_WQE_BYTE_24_UDPSPN_S, ah->av.udp_sport);
 	ud_sq_wqe->qkey = cpu_to_le32(ud_wr(wr)->remote_qkey & 0x80000000 ?
 			  qp->qkey : ud_wr(wr)->remote_qkey);
 	roce_set_field(ud_sq_wqe->byte_32, V2_UD_SEND_WQE_BYTE_32_DQPN_M,
@@ -4165,6 +4165,14 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	return 0;
 }
 
+static inline u16 get_udp_sport(u32 fl, u32 lqpn, u32 rqpn)
+{
+	if (!fl)
+		fl = rdma_calc_flow_label(lqpn, rqpn);
+
+	return rdma_flow_label_to_udp_sport(fl);
+}
+
 static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 				const struct ib_qp_attr *attr,
 				int attr_mask,
@@ -4228,7 +4236,8 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 
 	roce_set_field(context->byte_52_udpspn_dmac, V2_QPC_BYTE_52_UDPSPN_M,
 		       V2_QPC_BYTE_52_UDPSPN_S,
-		       is_udp ? 0x12b7 : 0);
+		       is_udp ? get_udp_sport(grh->flow_label, ibqp->qp_num,
+					      attr->dest_qp_num) : 0);
 
 	roce_set_field(qpc_mask->byte_52_udpspn_dmac, V2_QPC_BYTE_52_UDPSPN_M,
 		       V2_QPC_BYTE_52_UDPSPN_S, 0);
