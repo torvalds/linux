@@ -116,49 +116,81 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	return 0;
 }
 
+static unsigned int venc_enc_param_crop_right(struct venc_vpu_inst *vpu,
+					      struct venc_enc_param *enc_prm)
+{
+	unsigned int img_crop_right = enc_prm->buf_width - enc_prm->width;
+
+	return img_crop_right % 16;
+}
+
+static unsigned int venc_enc_param_crop_bottom(struct venc_enc_param *enc_prm)
+{
+	return round_up(enc_prm->height, 16) - enc_prm->height;
+}
+
+static unsigned int venc_enc_param_num_mb(struct venc_enc_param *enc_prm)
+{
+	return DIV_ROUND_UP(enc_prm->width, 16) *
+	       DIV_ROUND_UP(enc_prm->height, 16);
+}
+
 int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		      enum venc_set_param_type id,
 		      struct venc_enc_param *enc_param)
 {
-	struct venc_ap_ipi_msg_set_param out;
+	const bool is_ext = MTK_ENC_CTX_IS_EXT(vpu->ctx);
+	size_t msg_size = is_ext ?
+		sizeof(struct venc_ap_ipi_msg_set_param_ext) :
+		sizeof(struct venc_ap_ipi_msg_set_param);
+	struct venc_ap_ipi_msg_set_param_ext out;
 
 	mtk_vcodec_debug(vpu, "id %d ->", id);
 
 	memset(&out, 0, sizeof(out));
-	out.msg_id = AP_IPIMSG_ENC_SET_PARAM;
-	out.vpu_inst_addr = vpu->inst_addr;
-	out.param_id = id;
+	out.base.msg_id = AP_IPIMSG_ENC_SET_PARAM;
+	out.base.vpu_inst_addr = vpu->inst_addr;
+	out.base.param_id = id;
 	switch (id) {
 	case VENC_SET_PARAM_ENC:
-		out.data_item = 0;
+		if (is_ext) {
+			out.base.data_item = 3;
+			out.base.data[0] =
+				venc_enc_param_crop_right(vpu, enc_param);
+			out.base.data[1] =
+				venc_enc_param_crop_bottom(enc_param);
+			out.base.data[2] = venc_enc_param_num_mb(enc_param);
+		} else {
+			out.base.data_item = 0;
+		}
 		break;
 	case VENC_SET_PARAM_FORCE_INTRA:
-		out.data_item = 0;
+		out.base.data_item = 0;
 		break;
 	case VENC_SET_PARAM_ADJUST_BITRATE:
-		out.data_item = 1;
-		out.data[0] = enc_param->bitrate;
+		out.base.data_item = 1;
+		out.base.data[0] = enc_param->bitrate;
 		break;
 	case VENC_SET_PARAM_ADJUST_FRAMERATE:
-		out.data_item = 1;
-		out.data[0] = enc_param->frm_rate;
+		out.base.data_item = 1;
+		out.base.data[0] = enc_param->frm_rate;
 		break;
 	case VENC_SET_PARAM_GOP_SIZE:
-		out.data_item = 1;
-		out.data[0] = enc_param->gop_size;
+		out.base.data_item = 1;
+		out.base.data[0] = enc_param->gop_size;
 		break;
 	case VENC_SET_PARAM_INTRA_PERIOD:
-		out.data_item = 1;
-		out.data[0] = enc_param->intra_period;
+		out.base.data_item = 1;
+		out.base.data[0] = enc_param->intra_period;
 		break;
 	case VENC_SET_PARAM_SKIP_FRAME:
-		out.data_item = 0;
+		out.base.data_item = 0;
 		break;
 	default:
 		mtk_vcodec_err(vpu, "id %d not supported", id);
 		return -EINVAL;
 	}
-	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
+	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
 		mtk_vcodec_err(vpu,
 			       "AP_IPIMSG_ENC_SET_PARAM %d fail", id);
 		return -EINVAL;
@@ -172,33 +204,44 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 		   struct venc_frm_buf *frm_buf,
 		   struct mtk_vcodec_mem *bs_buf,
-		   unsigned int *bs_size)
+		   unsigned int *bs_size,
+		   struct venc_frame_info *frame_info)
 {
-	struct venc_ap_ipi_msg_enc out;
+	const bool is_ext = MTK_ENC_CTX_IS_EXT(vpu->ctx);
+	size_t msg_size = is_ext ?
+		sizeof(struct venc_ap_ipi_msg_enc_ext) :
+		sizeof(struct venc_ap_ipi_msg_enc);
+	struct venc_ap_ipi_msg_enc_ext out;
 
 	mtk_vcodec_debug(vpu, "bs_mode %d ->", bs_mode);
 
 	memset(&out, 0, sizeof(out));
-	out.msg_id = AP_IPIMSG_ENC_ENCODE;
-	out.vpu_inst_addr = vpu->inst_addr;
-	out.bs_mode = bs_mode;
+	out.base.msg_id = AP_IPIMSG_ENC_ENCODE;
+	out.base.vpu_inst_addr = vpu->inst_addr;
+	out.base.bs_mode = bs_mode;
 	if (frm_buf) {
 		if ((frm_buf->fb_addr[0].dma_addr % 16 == 0) &&
 		    (frm_buf->fb_addr[1].dma_addr % 16 == 0) &&
 		    (frm_buf->fb_addr[2].dma_addr % 16 == 0)) {
-			out.input_addr[0] = frm_buf->fb_addr[0].dma_addr;
-			out.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
-			out.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
+			out.base.input_addr[0] = frm_buf->fb_addr[0].dma_addr;
+			out.base.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
+			out.base.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
 			mtk_vcodec_err(vpu, "dma_addr not align to 16");
 			return -EINVAL;
 		}
 	}
 	if (bs_buf) {
-		out.bs_addr = bs_buf->dma_addr;
-		out.bs_size = bs_buf->size;
+		out.base.bs_addr = bs_buf->dma_addr;
+		out.base.bs_size = bs_buf->size;
 	}
-	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
+	if (is_ext && frame_info) {
+		out.data_item = 3;
+		out.data[0] = frame_info->frm_count;
+		out.data[1] = frame_info->skip_frm_count;
+		out.data[2] = frame_info->frm_type;
+	}
+	if (vpu_enc_send_msg(vpu, &out, msg_size)) {
 		mtk_vcodec_err(vpu, "AP_IPIMSG_ENC_ENCODE %d fail",
 			       bs_mode);
 		return -EINVAL;

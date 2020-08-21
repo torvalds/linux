@@ -62,6 +62,11 @@ struct venc_ap_ipi_msg_set_param {
 	uint32_t data[8];
 };
 
+struct venc_ap_ipi_msg_set_param_ext {
+	struct venc_ap_ipi_msg_set_param base;
+	uint32_t data_ext[24];
+};
+
 /**
  * struct venc_ap_ipi_msg_enc - AP to VPU enc cmd structure
  * @msg_id:	message id (AP_IPIMSG_XXX_ENC_ENCODE)
@@ -80,6 +85,19 @@ struct venc_ap_ipi_msg_enc {
 	uint32_t input_addr[3];
 	uint32_t bs_addr;
 	uint32_t bs_size;
+};
+
+/**
+ * struct venc_ap_ipi_msg_enc_ext - AP to SCP extended enc cmd structure
+ *
+ * @base:	base msg structure
+ * @data_item:	number of items in the data array
+ * @data[8]:	data array to store the set parameters
+ */
+struct venc_ap_ipi_msg_enc_ext {
+	struct venc_ap_ipi_msg_enc base;
+	uint32_t data_item;
+	uint32_t data[32];
 };
 
 /**
