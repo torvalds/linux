@@ -1264,9 +1264,9 @@ static void tegra_pcie_downstream_dev_to_D0(struct tegra_pcie_dw *pcie)
 	 * 5.2 Link State Power Management (Page #428).
 	 */
 
-	list_for_each_entry(child, &pp->root_bus->children, node) {
+	list_for_each_entry(child, &pp->bridge->bus->children, node) {
 		/* Bring downstream devices to D0 if they are not already in */
-		if (child->parent == pp->root_bus) {
+		if (child->parent == pp->bridge->bus) {
 			root_bus = child;
 			break;
 		}
