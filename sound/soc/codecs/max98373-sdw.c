@@ -256,6 +256,9 @@ static __maybe_unused int max98373_resume(struct device *dev)
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 	unsigned long time;
 
+	if (!max98373->hw_init)
+		return 0;
+
 	if (!slave->unattach_request)
 		goto regmap_sync;
 
