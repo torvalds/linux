@@ -52,6 +52,7 @@ enum {
 
 struct sof_sdw_codec_info {
 	const int id;
+	const int version_id;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool direction[2]; // playback & capture support
