@@ -13,6 +13,7 @@
  *
  * ChangeLog:
  *	Aug.18, 2020	Kenneth Chan <kenneth.t.chan@gmail.com>
+ *			split MODULE_AUTHOR() by one author per macro call
  *			replace ACPI prints with pr_*() macros
  *		-v0.97	add support for cdpower hardware switch
  *		-v0.96	merge Lucina's enhancement
@@ -125,7 +126,11 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/platform_device.h>
 
-MODULE_AUTHOR("Hiroshi Miura, David Bronaugh and Harald Welte");
+MODULE_AUTHOR("Hiroshi Miura <miura@da-cha.org>");
+MODULE_AUTHOR("David Bronaugh <dbronaugh@linuxboxen.org>");
+MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
+MODULE_AUTHOR("Martin Lucina <mato@kotelna.sk>");
+MODULE_AUTHOR("Kenneth Chan <kenneth.t.chan@gmail.com>");
 MODULE_DESCRIPTION("ACPI HotKey driver for Panasonic Let's Note laptops");
 MODULE_LICENSE("GPL");
 
