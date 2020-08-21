@@ -4,7 +4,7 @@
  * Author: PoChun Lin <pochun.lin@mediatek.com>
  */
 
-#include "mtk_vpu.h"
+#include "mtk_vcodec_fw.h"
 #include "venc_ipi_msg.h"
 #include "venc_vpu_if.h"
 
@@ -13,7 +13,8 @@ static void handle_enc_init_msg(struct venc_vpu_inst *vpu, const void *data)
 	const struct venc_vpu_ipi_msg_init *msg = data;
 
 	vpu->inst_addr = msg->vpu_inst_addr;
-	vpu->vsi = vpu_mapping_dm_addr(vpu->dev, msg->vpu_inst_addr);
+	vpu->vsi = mtk_vcodec_fw_map_dm_addr(vpu->ctx->dev->fw_handler,
+					     msg->vpu_inst_addr);
 }
 
 static void handle_enc_encode_msg(struct venc_vpu_inst *vpu, const void *data)
@@ -25,7 +26,7 @@ static void handle_enc_encode_msg(struct venc_vpu_inst *vpu, const void *data)
 	vpu->is_key_frm = msg->is_key_frm;
 }
 
-static void vpu_enc_ipi_handler(const void *data, unsigned int len, void *priv)
+static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 {
 	const struct venc_vpu_ipi_msg_common *msg = data;
 	struct venc_vpu_inst *vpu =
@@ -63,12 +64,13 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 
 	mtk_vcodec_debug_enter(vpu);
 
-	if (!vpu->dev) {
+	if (!vpu->ctx->dev->fw_handler) {
 		mtk_vcodec_err(vpu, "inst dev is NULL");
 		return -EINVAL;
 	}
 
-	status = vpu_ipi_send(vpu->dev, vpu->id, msg, len);
+	status = mtk_vcodec_fw_ipi_send(vpu->ctx->dev->fw_handler, vpu->id, msg,
+					len, 2000);
 	if (status) {
 		mtk_vcodec_err(vpu, "vpu_ipi_send msg_id %x len %d fail %d",
 			       *(uint32_t *)msg, len, status);
@@ -93,8 +95,9 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	vpu->signaled = 0;
 	vpu->failure = 0;
 
-	status = vpu_ipi_register(vpu->dev, vpu->id, vpu_enc_ipi_handler,
-				  NULL, NULL);
+	status = mtk_vcodec_fw_ipi_register(vpu->ctx->dev->fw_handler, vpu->id,
+					    vpu_enc_ipi_handler, "venc", NULL);
+
 	if (status) {
 		mtk_vcodec_err(vpu, "vpu_ipi_register fail %d", status);
 		return -EINVAL;

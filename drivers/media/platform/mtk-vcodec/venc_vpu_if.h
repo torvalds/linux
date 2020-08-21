@@ -7,7 +7,7 @@
 #ifndef _VENC_VPU_IF_H_
 #define _VENC_VPU_IF_H_
 
-#include "mtk_vpu.h"
+#include "mtk_vcodec_fw.h"
 #include "venc_drv_if.h"
 
 /*
@@ -34,9 +34,8 @@ struct venc_vpu_inst {
 	int is_key_frm;
 	unsigned int inst_addr;
 	void *vsi;
-	enum ipi_id id;
+	int id;
 	struct mtk_vcodec_ctx *ctx;
-	struct platform_device *dev;
 };
 
 int vpu_enc_init(struct venc_vpu_inst *vpu);

@@ -17,7 +17,6 @@
 #include "../venc_drv_base.h"
 #include "../venc_ipi_msg.h"
 #include "../venc_vpu_if.h"
-#include "mtk_vpu.h"
 
 #define VENC_BITSTREAM_FRAME_SIZE 0x0098
 #define VENC_BITSTREAM_HEADER_LEN 0x00e8
@@ -190,10 +189,12 @@ static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
 		if (i == VENC_VP8_VPU_WORK_BUF_RC_CODE ||
 		    i == VENC_VP8_VPU_WORK_BUF_RC_CODE2 ||
 		    i == VENC_VP8_VPU_WORK_BUF_RC_CODE3) {
+			struct mtk_vcodec_fw *handler;
 			void *tmp_va;
 
-			tmp_va = vpu_mapping_dm_addr(inst->vpu_inst.dev,
-						     wb[i].vpua);
+			handler = inst->vpu_inst.ctx->dev->fw_handler;
+			tmp_va = mtk_vcodec_fw_map_dm_addr(handler,
+							   wb[i].vpua);
 			memcpy(inst->work_bufs[i].va, tmp_va, wb[i].size);
 		}
 		wb[i].iova = inst->work_bufs[i].dma_addr;
@@ -334,7 +335,6 @@ static int vp8_enc_init(struct mtk_vcodec_ctx *ctx)
 
 	inst->ctx = ctx;
 	inst->vpu_inst.ctx = ctx;
-	inst->vpu_inst.dev = ctx->dev->vpu_plat_dev;
 	inst->vpu_inst.id = IPI_VENC_VP8;
 	inst->hw_base = mtk_vcodec_get_reg_addr(inst->ctx, VENC_LT_SYS);
 
