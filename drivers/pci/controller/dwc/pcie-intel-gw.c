@@ -72,7 +72,6 @@ struct intel_pcie_port {
 	struct clk		*core_clk;
 	struct reset_control	*core_rst;
 	struct phy		*phy;
-	u8			pcie_cap_ofst;
 };
 
 static void pcie_update_bits(void __iomem *base, u32 ofs, u32 mask, u32 val)
@@ -132,7 +131,7 @@ static void intel_pcie_ltssm_disable(struct intel_pcie_port *lpp)
 static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 {
 	u32 val;
-	u8 offset = lpp->pcie_cap_ofst;
+	u8 offset = dw_pcie_find_capability(&lpp->pci, PCI_CAP_ID_EXP);
 
 	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCAP);
 	lpp->max_width = FIELD_GET(PCI_EXP_LNKCAP_MLW, val);
@@ -328,7 +327,6 @@ static void intel_pcie_turn_off(struct intel_pcie_port *lpp)
 
 static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 {
-	struct device *dev = lpp->pci.dev;
 	int ret;
 
 	intel_pcie_core_rst_assert(lpp);
@@ -344,17 +342,6 @@ static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 	if (ret) {
 		dev_err(lpp->pci.dev, "Core clock enable failed: %d\n", ret);
 		goto clk_err;
-	}
-
-	if (!lpp->pcie_cap_ofst) {
-		ret = dw_pcie_find_capability(&lpp->pci, PCI_CAP_ID_EXP);
-		if (!ret) {
-			ret = -ENXIO;
-			dev_err(dev, "Invalid PCIe capability offset\n");
-			goto app_init_err;
-		}
-
-		lpp->pcie_cap_ofst = ret;
 	}
 
 	intel_pcie_rc_setup(lpp);
