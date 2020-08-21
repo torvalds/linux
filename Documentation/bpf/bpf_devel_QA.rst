@@ -149,7 +149,7 @@ In case the patch or patch series has to be reworked and sent out
 again in a second or later revision, it is also required to add a
 version number (``v2``, ``v3``, ...) into the subject prefix::
 
-  git format-patch --subject-prefix='PATCH net-next v2' start..finish
+  git format-patch --subject-prefix='PATCH bpf-next v2' start..finish
 
 When changes have been requested to the patch series, always send the
 whole patch series again with the feedback incorporated (never send
@@ -479,17 +479,18 @@ LLVM's static compiler lists the supported targets through
 
      $ llc --version
      LLVM (http://llvm.org/):
-       LLVM version 6.0.0svn
+       LLVM version 10.0.0
        Optimized build.
        Default target: x86_64-unknown-linux-gnu
        Host CPU: skylake
 
        Registered Targets:
-         bpf    - BPF (host endian)
-         bpfeb  - BPF (big endian)
-         bpfel  - BPF (little endian)
-         x86    - 32-bit X86: Pentium-Pro and above
-         x86-64 - 64-bit X86: EM64T and AMD64
+         aarch64    - AArch64 (little endian)
+         bpf        - BPF (host endian)
+         bpfeb      - BPF (big endian)
+         bpfel      - BPF (little endian)
+         x86        - 32-bit X86: Pentium-Pro and above
+         x86-64     - 64-bit X86: EM64T and AMD64
 
 For developers in order to utilize the latest features added to LLVM's
 BPF back end, it is advisable to run the latest LLVM releases. Support
@@ -516,6 +517,10 @@ from the git repositories::
 
 The built binaries can then be found in the build/bin/ directory, where
 you can point the PATH variable to.
+
+Set ``-DLLVM_TARGETS_TO_BUILD`` equal to the target you wish to build, you
+will find a full list of targets within the llvm-project/llvm/lib/Target
+directory.
 
 Q: Reporting LLVM BPF issues
 ----------------------------
