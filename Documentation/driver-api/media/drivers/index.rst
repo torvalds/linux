@@ -35,4 +35,5 @@ Digital TV drivers
 
 	dvb-usb
 	frontends
+	vidtv
 	contributors
