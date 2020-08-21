@@ -881,18 +881,6 @@ static int __init ks_pcie_add_pcie_port(struct keystone_pcie *ks_pcie,
 	return 0;
 }
 
-static u32 ks_pcie_am654_read_dbi2(struct dw_pcie *pci, void __iomem *base,
-				   u32 reg, size_t size)
-{
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-	u32 val;
-
-	ks_pcie_set_dbi_mode(ks_pcie);
-	dw_pcie_read(base + reg, size, &val);
-	ks_pcie_clear_dbi_mode(ks_pcie);
-	return val;
-}
-
 static void ks_pcie_am654_write_dbi2(struct dw_pcie *pci, void __iomem *base,
 				     u32 reg, size_t size, u32 val)
 {
@@ -907,7 +895,6 @@ static const struct dw_pcie_ops ks_pcie_dw_pcie_ops = {
 	.start_link = ks_pcie_start_link,
 	.stop_link = ks_pcie_stop_link,
 	.link_up = ks_pcie_link_up,
-	.read_dbi2 = ks_pcie_am654_read_dbi2,
 	.write_dbi2 = ks_pcie_am654_write_dbi2,
 };
 

@@ -232,8 +232,6 @@ struct dw_pcie_ops {
 			    size_t size);
 	void	(*write_dbi)(struct dw_pcie *pcie, void __iomem *base, u32 reg,
 			     size_t size, u32 val);
-	u32     (*read_dbi2)(struct dw_pcie *pcie, void __iomem *base, u32 reg,
-			     size_t size);
 	void    (*write_dbi2)(struct dw_pcie *pcie, void __iomem *base, u32 reg,
 			      size_t size, u32 val);
 	int	(*link_up)(struct dw_pcie *pcie);
@@ -269,7 +267,6 @@ int dw_pcie_write(void __iomem *addr, int size, u32 val);
 
 u32 dw_pcie_read_dbi(struct dw_pcie *pci, u32 reg, size_t size);
 void dw_pcie_write_dbi(struct dw_pcie *pci, u32 reg, size_t size, u32 val);
-u32 dw_pcie_read_dbi2(struct dw_pcie *pci, u32 reg, size_t size);
 void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val);
 u32 dw_pcie_read_atu(struct dw_pcie *pci, u32 reg, size_t size);
 void dw_pcie_write_atu(struct dw_pcie *pci, u32 reg, size_t size, u32 val);
@@ -320,11 +317,6 @@ static inline u8 dw_pcie_readb_dbi(struct dw_pcie *pci, u32 reg)
 static inline void dw_pcie_writel_dbi2(struct dw_pcie *pci, u32 reg, u32 val)
 {
 	dw_pcie_write_dbi2(pci, reg, 0x4, val);
-}
-
-static inline u32 dw_pcie_readl_dbi2(struct dw_pcie *pci, u32 reg)
-{
-	return dw_pcie_read_dbi2(pci, reg, 0x4);
 }
 
 static inline void dw_pcie_writel_atu(struct dw_pcie *pci, u32 reg, u32 val)

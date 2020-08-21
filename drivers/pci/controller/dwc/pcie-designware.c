@@ -166,21 +166,6 @@ void dw_pcie_write_dbi(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_write_dbi);
 
-u32 dw_pcie_read_dbi2(struct dw_pcie *pci, u32 reg, size_t size)
-{
-	int ret;
-	u32 val;
-
-	if (pci->ops->read_dbi2)
-		return pci->ops->read_dbi2(pci, pci->dbi_base2, reg, size);
-
-	ret = dw_pcie_read(pci->dbi_base2 + reg, size, &val);
-	if (ret)
-		dev_err(pci->dev, "read DBI address failed\n");
-
-	return val;
-}
-
 void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
 {
 	int ret;
