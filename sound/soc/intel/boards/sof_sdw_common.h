@@ -51,7 +51,7 @@ enum {
 #define SOF_SDW_NO_AGGREGATION		BIT(12)
 
 struct sof_sdw_codec_info {
-	const int id;
+	const int part_id;
 	const int version_id;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];

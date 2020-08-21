@@ -212,20 +212,20 @@ static const struct snd_soc_ops sdw_ops = {
 
 static struct sof_sdw_codec_info codec_info_list[] = {
 	{
-		.id = 0x700,
+		.part_id = 0x700,
 		.direction = {true, true},
 		.dai_name = "rt700-aif1",
 		.init = sof_sdw_rt700_init,
 	},
 	{
-		.id = 0x711,
+		.part_id = 0x711,
 		.direction = {true, true},
 		.dai_name = "rt711-aif1",
 		.init = sof_sdw_rt711_init,
 		.exit = sof_sdw_rt711_exit,
 	},
 	{
-		.id = 0x1308,
+		.part_id = 0x1308,
 		.acpi_id = "10EC1308",
 		.direction = {true, false},
 		.dai_name = "rt1308-aif",
@@ -233,20 +233,20 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.init = sof_sdw_rt1308_init,
 	},
 	{
-		.id = 0x715,
+		.part_id = 0x715,
 		.direction = {false, true},
 		.dai_name = "rt715-aif2",
 		.init = sof_sdw_rt715_init,
 	},
 	{
-		.id = 0x8373,
+		.part_id = 0x8373,
 		.direction = {true, true},
 		.dai_name = "max98373-aif1",
 		.init = sof_sdw_mx8373_init,
 		.codec_card_late_probe = sof_sdw_mx8373_late_probe,
 	},
 	{
-		.id = 0x5682,
+		.part_id = 0x5682,
 		.direction = {true, true},
 		.dai_name = "rt5682-sdw",
 		.init = sof_sdw_rt5682_init,
@@ -265,7 +265,7 @@ static inline int find_codec_info_part(u64 adr)
 		 * A codec info is for all sdw version with the part id if
 		 * version_id is not specified in the codec info.
 		 */
-		if (part_id == codec_info_list[i].id &&
+		if (part_id == codec_info_list[i].part_id &&
 		    (!codec_info_list[i].version_id ||
 		     sdw_version == codec_info_list[i].version_id))
 			return i;
