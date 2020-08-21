@@ -342,6 +342,10 @@ static struct test generic_tests[] = {
 		.func = test__parse_metric,
 	},
 	{
+		.desc = "PE file support",
+		.func = test__pe_file_parsing,
+	},
+	{
 		.func = NULL,
 	},
 };
