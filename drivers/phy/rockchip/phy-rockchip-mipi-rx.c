@@ -47,6 +47,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-device.h>
 
 /* GRF */
 #define RK1808_GRF_PD_VI_CON_OFFSET	0x0430
@@ -209,6 +210,15 @@
 
 #define HIWORD_UPDATE(val, mask, shift) \
 	((val) << (shift) | (mask) << ((shift) + 16))
+
+enum mipi_dphy_chip_id {
+	CHIP_ID_RK1808 = 0,
+	CHIP_ID_RK3288,
+	CHIP_ID_RK3326,
+	CHIP_ID_RK3368,
+	CHIP_ID_RK3399,
+	CHIP_ID_RK1126,
+};
 
 enum mipi_dphy_rx_pads {
 	MIPI_DPHY_RX_PAD_SINK = 0,
@@ -514,6 +524,7 @@ struct dphy_drv_data {
 	const struct csiphy_reg *csiphy_regs;
 	enum mipi_dphy_ctl_type ctl_type;
 	void (*individual_init)(struct mipidphy_priv *priv);
+	enum mipi_dphy_chip_id chip_id;
 };
 
 struct sensor_async_subdev {
@@ -764,6 +775,36 @@ static int mipidphy_update_sensor_mbus(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static void rk1126_mipidphy_dphy_sel(struct v4l2_subdev *sd)
+{
+	struct mipidphy_priv *priv = to_dphy_priv(sd);
+	char *model;
+	u8 oldval, newval;
+
+	model = sd->v4l2_dev->mdev->model;
+	oldval = read_grf_reg(priv, GRF_DPHY_SEL);
+	newval = oldval;
+	if (!strncmp(model, "rkcif_lite_mipi_lvds", sizeof("rkcif_lite_mipi_lvds") - 1)) {
+		if (priv->phy_index == 0)
+			newval &= ~RV1126_GRF_PHY1_SEL_CIFLITE;
+		else
+			newval |= RV1126_GRF_PHY1_SEL_CIFLITE;
+	} else if (!strncmp(model, "rkcif_mipi_lvds", sizeof("rkcif_mipi_lvds") - 1)) {
+		if (priv->phy_index == 0)
+			newval &= ~RV1126_GRF_PHY1_SEL_CIF;
+		else
+			newval |= RV1126_GRF_PHY1_SEL_CIF;
+	} else {
+		if (priv->phy_index == 0)
+			newval &= ~RV1126_GRF_PHY1_SEL_ISP;
+		else
+			newval |= RV1126_GRF_PHY1_SEL_ISP;
+	}
+
+	if (newval != oldval)
+		write_grf_reg(priv, GRF_DPHY_SEL, newval);
+}
+
 static int mipidphy_s_stream_start(struct v4l2_subdev *sd)
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
@@ -775,6 +816,9 @@ static int mipidphy_s_stream_start(struct v4l2_subdev *sd)
 	ret = mipidphy_get_sensor_data_rate(sd);
 	if (ret < 0)
 		return ret;
+
+	if (priv->drv_data->chip_id == CHIP_ID_RK1126)
+		rk1126_mipidphy_dphy_sel(sd);
 
 	mipidphy_update_sensor_mbus(sd);
 	priv->stream_on(priv, sd);
@@ -1396,6 +1440,7 @@ static const struct dphy_drv_data rk1808_mipidphy_drv_data = {
 	.csiphy_regs = rk1808_csiphy_regs,
 	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
 	.individual_init = default_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK1808,
 };
 
 static const struct dphy_drv_data rk3288_mipidphy_drv_data = {
@@ -1407,6 +1452,7 @@ static const struct dphy_drv_data rk3288_mipidphy_drv_data = {
 	.txrx_regs = rk3288_txrx_regs,
 	.ctl_type = MIPI_DPHY_CTL_GRF_ONLY,
 	.individual_init = default_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK3288,
 };
 
 static const struct dphy_drv_data rk3326_mipidphy_drv_data = {
@@ -1418,6 +1464,7 @@ static const struct dphy_drv_data rk3326_mipidphy_drv_data = {
 	.csiphy_regs = rk3326_csiphy_regs,
 	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
 	.individual_init = default_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK3326,
 };
 
 static const struct dphy_drv_data rk3368_mipidphy_drv_data = {
@@ -1429,6 +1476,7 @@ static const struct dphy_drv_data rk3368_mipidphy_drv_data = {
 	.csiphy_regs = rk3368_csiphy_regs,
 	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
 	.individual_init = rk3368_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK3368,
 };
 
 static const struct dphy_drv_data rk3399_mipidphy_drv_data = {
@@ -1440,6 +1488,7 @@ static const struct dphy_drv_data rk3399_mipidphy_drv_data = {
 	.txrx_regs = rk3399_txrx_regs,
 	.ctl_type = MIPI_DPHY_CTL_GRF_ONLY,
 	.individual_init = rk3399_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK3399,
 };
 
 static const struct dphy_drv_data rv1126_mipidphy_drv_data = {
@@ -1450,6 +1499,7 @@ static const struct dphy_drv_data rv1126_mipidphy_drv_data = {
 	.csiphy_regs = rv1126_csiphy_regs,
 	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
 	.individual_init = rv1126_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK1126,
 };
 
 static const struct of_device_id rockchip_mipidphy_match_id[] = {
