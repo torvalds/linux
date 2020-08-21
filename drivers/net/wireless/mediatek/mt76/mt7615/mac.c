@@ -1857,12 +1857,13 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	spin_lock_bh(&dev->pm.txq_lock);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		struct mt7615_sta *msta = dev->pm.tx_q[i].msta;
-		struct mt76_wcid *wcid = msta ? &msta->wcid : NULL;
 		struct ieee80211_sta *sta = NULL;
+		struct mt76_wcid *wcid;
 
 		if (!dev->pm.tx_q[i].skb)
 			continue;
 
+		wcid = msta ? &msta->wcid : &dev->mt76.global_wcid;
 		if (msta && wcid->sta)
 			sta = container_of((void *)msta, struct ieee80211_sta,
 					   drv_priv);
