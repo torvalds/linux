@@ -1648,6 +1648,7 @@ int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog,
 			 struct bpf_prog *old, u32 which);
 int sock_map_get_from_fd(const union bpf_attr *attr, struct bpf_prog *prog);
 int sock_map_prog_detach(const union bpf_attr *attr, enum bpf_prog_type ptype);
+int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value, u64 flags);
 void sock_map_unhash(struct sock *sk);
 void sock_map_close(struct sock *sk, long timeout);
 #else
@@ -1666,6 +1667,12 @@ static inline int sock_map_get_from_fd(const union bpf_attr *attr,
 
 static inline int sock_map_prog_detach(const union bpf_attr *attr,
 				       enum bpf_prog_type ptype)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value,
+					   u64 flags)
 {
 	return -EOPNOTSUPP;
 }
