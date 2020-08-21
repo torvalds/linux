@@ -4708,7 +4708,7 @@ static int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id
 
 	/* caller made sure that names match (ignoring flavor suffix) */
 	local_type = btf__type_by_id(local_btf, local_id);
-	targ_type = btf__type_by_id(local_btf, local_id);
+	targ_type = btf__type_by_id(targ_btf, targ_id);
 	if (btf_kind(local_type) != btf_kind(targ_type))
 		return 0;
 
