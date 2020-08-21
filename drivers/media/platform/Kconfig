@@ -261,8 +261,8 @@ config VIDEO_MEDIATEK_VCODEC
 	    encode and decode in a range of video formats
 	    This driver rely on VPU driver to communicate with VPU.
 
-	    To compile this driver as a module, choose M here: the
-	    module will be called mtk-vcodec
+	    To compile this driver as modules, choose M here: the
+	    modules will be called mtk-vcodec-dec and mtk-vcodec-enc.
 
 config VIDEO_MEM2MEM_DEINTERLACE
 	tristate "Deinterlace support"
