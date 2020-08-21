@@ -180,31 +180,31 @@ void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
 		dev_err(pci->dev, "write DBI address failed\n");
 }
 
-u32 dw_pcie_read_atu(struct dw_pcie *pci, u32 reg, size_t size)
+static u32 dw_pcie_readl_atu(struct dw_pcie *pci, u32 reg)
 {
 	int ret;
 	u32 val;
 
 	if (pci->ops->read_dbi)
-		return pci->ops->read_dbi(pci, pci->atu_base, reg, size);
+		return pci->ops->read_dbi(pci, pci->atu_base, reg, 4);
 
-	ret = dw_pcie_read(pci->atu_base + reg, size, &val);
+	ret = dw_pcie_read(pci->atu_base + reg, 4, &val);
 	if (ret)
 		dev_err(pci->dev, "Read ATU address failed\n");
 
 	return val;
 }
 
-void dw_pcie_write_atu(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
+static void dw_pcie_writel_atu(struct dw_pcie *pci, u32 reg, u32 val)
 {
 	int ret;
 
 	if (pci->ops->write_dbi) {
-		pci->ops->write_dbi(pci, pci->atu_base, reg, size, val);
+		pci->ops->write_dbi(pci, pci->atu_base, reg, 4, val);
 		return;
 	}
 
-	ret = dw_pcie_write(pci->atu_base + reg, size, val);
+	ret = dw_pcie_write(pci->atu_base + reg, 4, val);
 	if (ret)
 		dev_err(pci->dev, "Write ATU address failed\n");
 }
