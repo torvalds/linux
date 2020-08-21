@@ -645,7 +645,7 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 	u32 rspec = 0, rspec_fallback = 0;
 	u32 rts_rspec = 0, rts_rspec_fallback = 0;
-	u8 plcp0, plcp3, is40, sgi, mcs;
+	u8 plcp0, is40, mcs;
 	u16 mch;
 	u8 preamble_type = BRCMS_GF_PREAMBLE;
 	u8 fbr_preamble_type = BRCMS_GF_PREAMBLE;
@@ -704,15 +704,12 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 	txh->MacTxControlLow = cpu_to_le16(mcl);
 
 	fbr = txrate[1].count > 0;
-	if (!fbr) {
+	if (!fbr)
 		plcp0 = plcp[0];
-		plcp3 = plcp[3];
-	} else {
+	else
 		plcp0 = txh->FragPLCPFallback[0];
-		plcp3 = txh->FragPLCPFallback[3];
-	}
+
 	is40 = (plcp0 & MIMO_PLCP_40MHZ) ? 1 : 0;
-	sgi = plcp3_issgi(plcp3) ? 1 : 0;
 	mcs = plcp0 & ~MIMO_PLCP_40MHZ;
 
 	if (is40) {
@@ -850,10 +847,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	bool ba_recd = false, ack_recd = false;
 	u8 suc_mpdu = 0, tot_mpdu = 0;
 	uint supr_status;
-	bool update_rate = true, retry = true, tx_error = false;
+	bool update_rate = true, retry = true;
 	u16 mimoantsel = 0;
-	u8 antselid = 0;
-	u8 retry_limit, rr_retry_limit;
+	u8 retry_limit;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
 
 #ifdef DEBUG
@@ -866,7 +862,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 	ini = &scb_ampdu->ini[tid];
 	retry_limit = ampdu->retry_limit_tid[tid];
-	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
 	memset(bitmap, 0, sizeof(bitmap));
 	queue = txs->frameid & TXFID_QUEUE_MASK;
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
@@ -923,8 +918,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				 * if there were underflows, but pre-loading
 				 * is not active, notify rate adaptation.
 				 */
-				if (brcms_c_ffpld_check_txfunfl(wlc, queue) > 0)
-					tx_error = true;
+				brcms_c_ffpld_check_txfunfl(wlc, queue);
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
@@ -1023,7 +1017,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	}
 
 	/* update rate state */
-	antselid = brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
+	brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
 }
 
 void
@@ -1032,11 +1026,7 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 {
 	struct scb_ampdu *scb_ampdu;
 	struct brcms_c_info *wlc = ampdu->wlc;
-	struct scb_ampdu_tid_ini *ini;
 	u32 s1 = 0, s2 = 0;
-	struct ieee80211_tx_info *tx_info;
-
-	tx_info = IEEE80211_SKB_CB(p);
 
 	/* BMAC_NOTE: For the split driver, second level txstatus comes later
 	 * So if the ACK was received then wait for the second level else just
@@ -1061,7 +1051,6 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 
 	if (scb) {
 		scb_ampdu = &scb->scb_ampdu;
-		ini = &scb_ampdu->ini[p->priority];
 		brcms_c_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
 	} else {
 		/* loop through all pkts and free */
@@ -1069,7 +1058,6 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		struct d11txh *txh;
 		u16 mcl;
 		while (p) {
-			tx_info = IEEE80211_SKB_CB(p);
 			txh = (struct d11txh *) p->data;
 			trace_brcms_txdesc(&wlc->hw->d11core->dev, txh,
 					   sizeof(*txh));
