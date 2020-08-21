@@ -361,6 +361,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		pci->num_viewport = 2;
 
+	if (pci->link_gen < 1)
+		pci->link_gen = of_pci_get_max_link_speed(np);
+
 	if (pci_msi_enabled()) {
 		/*
 		 * If a specific SoC driver needs to change the

@@ -26,7 +26,6 @@ struct spear13xx_pcie {
 	void __iomem		*app_base;
 	struct phy		*phy;
 	struct clk		*clk;
-	bool			is_gen1;
 };
 
 struct pcie_app_reg {
@@ -93,30 +92,6 @@ static int spear13xx_pcie_establish_link(struct spear13xx_pcie *spear13xx_pcie)
 
 	dw_pcie_write(pci->dbi_base + PCI_VENDOR_ID, 2, 0x104A);
 	dw_pcie_write(pci->dbi_base + PCI_DEVICE_ID, 2, 0xCD80);
-
-	/*
-	 * if is_gen1 is set then handle it, so that some buggy card
-	 * also works
-	 */
-	if (spear13xx_pcie->is_gen1) {
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
-			     4, &val);
-		if ((val & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			val &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			val |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCAP, 4, val);
-		}
-
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
-			     2, &val);
-		if ((val & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			val &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			val |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCTL2, 2, val);
-		}
-	}
 
 	/* enable ltssm */
 	writel(DEVICE_TYPE_RC | (1 << MISCTRL_EN_ID)
@@ -276,7 +251,7 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
 
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
-		spear13xx_pcie->is_gen1 = true;
+		pci->link_gen = 1;
 
 	platform_set_drvdata(pdev, spear13xx_pcie);
 

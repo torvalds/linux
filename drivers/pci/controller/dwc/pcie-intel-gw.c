@@ -67,8 +67,6 @@ struct intel_pcie_port {
 	void __iomem		*app_base;
 	struct gpio_desc	*reset_gpio;
 	u32			rst_intrvl;
-	u32			max_speed;
-	u32			link_gen;
 	u32			max_width;
 	u32			n_fts;
 	struct clk		*core_clk;
@@ -137,7 +135,6 @@ static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 	u8 offset = lpp->pcie_cap_ofst;
 
 	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCAP);
-	lpp->max_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, val);
 	lpp->max_width = FIELD_GET(PCI_EXP_LNKCAP_MLW, val);
 
 	val = pcie_rc_cfg_rd(lpp, offset + PCI_EXP_LNKCTL);
@@ -149,8 +146,9 @@ static void intel_pcie_link_setup(struct intel_pcie_port *lpp)
 static void intel_pcie_port_logic_setup(struct intel_pcie_port *lpp)
 {
 	u32 val, mask;
+	struct dw_pcie *pci = &lpp->pci;
 
-	switch (pcie_link_speed[lpp->max_speed]) {
+	switch (pcie_link_speed[pci->link_gen]) {
 	case PCIE_SPEED_8_0GT:
 		lpp->n_fts = PORT_AFR_N_FTS_GEN3;
 		break;
@@ -179,7 +177,6 @@ static void intel_pcie_rc_setup(struct intel_pcie_port *lpp)
 	dw_pcie_setup_rc(&lpp->pci.pp);
 	dw_pcie_upconfig_setup(&lpp->pci);
 	intel_pcie_port_logic_setup(lpp);
-	dw_pcie_link_set_max_speed(&lpp->pci, lpp->link_gen);
 	dw_pcie_link_set_n_fts(&lpp->pci, lpp->n_fts);
 }
 
@@ -286,9 +283,6 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 	if (ret)
 		lpp->rst_intrvl = RESET_INTERVAL_MS;
 
-	ret = of_pci_get_max_link_speed(dev->of_node);
-	lpp->link_gen = ret < 0 ? 0 : ret;
-
 	lpp->app_base = devm_platform_ioremap_resource_byname(pdev, "app");
 	if (IS_ERR(lpp->app_base))
 		return PTR_ERR(lpp->app_base);
@@ -313,8 +307,9 @@ static int intel_pcie_wait_l2(struct intel_pcie_port *lpp)
 {
 	u32 value;
 	int ret;
+	struct dw_pcie *pci = &lpp->pci;
 
-	if (pcie_link_speed[lpp->max_speed] < PCIE_SPEED_8_0GT)
+	if (pci->link_gen < 3)
 		return 0;
 
 	/* Send PME_TURN_OFF message */

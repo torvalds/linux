@@ -79,7 +79,6 @@ struct imx6_pcie {
 	u32			tx_deemph_gen2_6db;
 	u32			tx_swing_full;
 	u32			tx_swing_low;
-	int			link_gen;
 	struct regulator	*vpcie;
 	void __iomem		*phy_base;
 
@@ -771,7 +770,7 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	if (ret)
 		goto err_reset_phy;
 
-	if (imx6_pcie->link_gen == 2) {
+	if (pci->link_gen == 2) {
 		/* Allow Gen2 mode after the link is up. */
 		tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
 		tmp &= ~PCI_EXP_LNKCAP_SLS;
@@ -1153,10 +1152,8 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		imx6_pcie->tx_swing_low = 127;
 
 	/* Limit link speed */
-	ret = of_property_read_u32(node, "fsl,max-link-speed",
-				   &imx6_pcie->link_gen);
-	if (ret)
-		imx6_pcie->link_gen = 1;
+	pci->link_gen = 1;
+	ret = of_property_read_u32(node, "fsl,max-link-speed", &pci->link_gen);
 
 	imx6_pcie->vpcie = devm_regulator_get_optional(&pdev->dev, "vpcie");
 	if (IS_ERR(imx6_pcie->vpcie)) {

@@ -1107,32 +1107,6 @@ static int ks_pcie_am654_set_mode(struct device *dev,
 	return 0;
 }
 
-static void ks_pcie_set_link_speed(struct dw_pcie *pci, int link_speed)
-{
-	u32 val;
-	u32 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
-
-	dw_pcie_dbi_ro_wr_en(pci);
-
-	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
-	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
-		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
-		val |= link_speed;
-		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP,
-				   val);
-	}
-
-	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
-	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
-		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
-		val |= link_speed;
-		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2,
-				   val);
-	}
-
-	dw_pcie_dbi_ro_wr_dis(pci);
-}
-
 static const struct ks_pcie_of_data ks_pcie_rc_of_data = {
 	.host_ops = &ks_pcie_host_ops,
 	.version = 0x365A,
@@ -1185,7 +1159,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	unsigned int version;
 	void __iomem *base;
 	struct phy **phy;
-	int link_speed;
 	u32 num_lanes;
 	char name[10];
 	int ret;
@@ -1319,12 +1292,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_get_sync;
 	}
-
-	link_speed = of_pci_get_max_link_speed(np);
-	if (link_speed < 0)
-		link_speed = 2;
-
-	ks_pcie_set_link_speed(pci, link_speed);
 
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:

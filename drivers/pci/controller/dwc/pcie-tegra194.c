@@ -284,7 +284,6 @@ struct tegra_pcie_dw {
 	u8 init_link_width;
 	u32 msi_ctrl_int;
 	u32 num_lanes;
-	u32 max_speed;
 	u32 cid;
 	u32 cfg_link_cap_l1sub;
 	u32 pcie_cap_base;
@@ -900,16 +899,6 @@ static void tegra_pcie_prepare_host(struct pcie_port *pp)
 		AMBA_ERROR_RESPONSE_CRS_SHIFT);
 	dw_pcie_writel_dbi(pci, PORT_LOGIC_AMBA_ERROR_RESPONSE_DEFAULT, val);
 
-	/* Configure Max Speed from DT */
-	if (pcie->max_speed && pcie->max_speed != -EINVAL) {
-		val = dw_pcie_readl_dbi(pci, pcie->pcie_cap_base +
-					PCI_EXP_LNKCAP);
-		val &= ~PCI_EXP_LNKCAP_SLS;
-		val |= pcie->max_speed;
-		dw_pcie_writel_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKCAP,
-				   val);
-	}
-
 	/* Configure Max lane width from DT */
 	val = dw_pcie_readl_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKCAP);
 	val &= ~PCI_EXP_LNKCAP_MLW;
@@ -1118,8 +1107,6 @@ static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 		dev_err(pcie->dev, "Failed to read num-lanes: %d\n", ret);
 		return ret;
 	}
-
-	pcie->max_speed = of_pci_get_max_link_speed(np);
 
 	ret = of_property_read_u32_index(np, "nvidia,bpmp", 1, &pcie->cid);
 	if (ret) {
@@ -1817,16 +1804,6 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 	val &= ~PORT_LOGIC_N_FTS_MASK;
 	val |= FTS_VAL;
 	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
-
-	/* Configure Max Speed from DT */
-	if (pcie->max_speed && pcie->max_speed != -EINVAL) {
-		val = dw_pcie_readl_dbi(pci, pcie->pcie_cap_base +
-					PCI_EXP_LNKCAP);
-		val &= ~PCI_EXP_LNKCAP_SLS;
-		val |= pcie->max_speed;
-		dw_pcie_writel_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKCAP,
-				   val);
-	}
 
 	pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
 						      PCI_CAP_ID_EXP);

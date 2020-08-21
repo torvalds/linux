@@ -473,39 +473,41 @@ void dw_pcie_upconfig_setup(struct dw_pcie *pci)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_upconfig_setup);
 
-void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
+static void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
 {
-	u32 reg, val;
+	u32 cap, ctrl2, link_speed;
 	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 
-	reg = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
-	reg &= ~PCI_EXP_LNKCTL2_TLS;
+	cap = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+	ctrl2 = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
+	ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
 
 	switch (pcie_link_speed[link_gen]) {
 	case PCIE_SPEED_2_5GT:
-		reg |= PCI_EXP_LNKCTL2_TLS_2_5GT;
+		link_speed = PCI_EXP_LNKCTL2_TLS_2_5GT;
 		break;
 	case PCIE_SPEED_5_0GT:
-		reg |= PCI_EXP_LNKCTL2_TLS_5_0GT;
+		link_speed = PCI_EXP_LNKCTL2_TLS_5_0GT;
 		break;
 	case PCIE_SPEED_8_0GT:
-		reg |= PCI_EXP_LNKCTL2_TLS_8_0GT;
+		link_speed = PCI_EXP_LNKCTL2_TLS_8_0GT;
 		break;
 	case PCIE_SPEED_16_0GT:
-		reg |= PCI_EXP_LNKCTL2_TLS_16_0GT;
+		link_speed = PCI_EXP_LNKCTL2_TLS_16_0GT;
 		break;
 	default:
 		/* Use hardware capability */
-		val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
-		val = FIELD_GET(PCI_EXP_LNKCAP_SLS, val);
-		reg &= ~PCI_EXP_LNKCTL2_HASD;
-		reg |= FIELD_PREP(PCI_EXP_LNKCTL2_TLS, val);
+		link_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, cap);
+		ctrl2 &= ~PCI_EXP_LNKCTL2_HASD;
 		break;
 	}
 
-	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2, reg);
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2, ctrl2 | link_speed);
+
+	cap &= ~((u32)PCI_EXP_LNKCAP_SLS);
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, cap | link_speed);
+
 }
-EXPORT_SYMBOL_GPL(dw_pcie_link_set_max_speed);
 
 void dw_pcie_link_set_n_fts(struct dw_pcie *pci, u32 n_fts)
 {
@@ -543,6 +545,9 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	}
 	dev_dbg(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
 		"enabled" : "disabled");
+
+	if (pci->link_gen > 0)
+		dw_pcie_link_set_max_speed(pci, pci->link_gen);
 
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 	val &= ~PORT_LINK_FAST_LINK_MODE;

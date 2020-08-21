@@ -12,6 +12,8 @@
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 
+#include "../../pci.h"
+
 void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 {
 	struct pci_epc *epc = ep->epc;
@@ -519,18 +521,20 @@ int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep)
 	ep->msix_cap = dw_pcie_find_capability(pci, PCI_CAP_ID_MSIX);
 
 	offset = dw_pcie_ep_find_ext_capability(pci, PCI_EXT_CAP_ID_REBAR);
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
 	if (offset) {
 		reg = dw_pcie_readl_dbi(pci, offset + PCI_REBAR_CTRL);
 		nbars = (reg & PCI_REBAR_CTRL_NBAR_MASK) >>
 			PCI_REBAR_CTRL_NBAR_SHIFT;
 
-		dw_pcie_dbi_ro_wr_en(pci);
 		for (i = 0; i < nbars; i++, offset += PCI_REBAR_CTRL)
 			dw_pcie_writel_dbi(pci, offset + PCI_REBAR_CAP, 0x0);
-		dw_pcie_dbi_ro_wr_dis(pci);
 	}
 
 	dw_pcie_setup(pci);
+	dw_pcie_dbi_ro_wr_dis(pci);
 
 	return 0;
 }
@@ -590,6 +594,9 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (!addr)
 		return -ENOMEM;
 	ep->outbound_addr = addr;
+
+	if (pci->link_gen < 1)
+		pci->link_gen = of_pci_get_max_link_speed(np);
 
 	epc = devm_pci_epc_create(dev, &epc_ops);
 	if (IS_ERR(epc)) {
