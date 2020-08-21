@@ -18,7 +18,7 @@ DECLARE_HOOK(android_vh_arch_set_freq_scale,
 
 #else
 
-#define trace_android_rvh_arch_set_freq_scale(freq, max, scale)
+#define trace_android_vh_arch_set_freq_scale(freq, max, scale)
 
 #endif
 
