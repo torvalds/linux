@@ -183,19 +183,7 @@
 #define EVENT_COUNTER_GROUP_SEL_SHIFT	24
 #define EVENT_COUNTER_GROUP_5		0x5
 
-#define PORT_LOGIC_ACK_F_ASPM_CTRL			0x70C
-#define ENTER_ASPM					BIT(30)
-#define L0S_ENTRANCE_LAT_SHIFT				24
-#define L0S_ENTRANCE_LAT_MASK				GENMASK(26, 24)
-#define L1_ENTRANCE_LAT_SHIFT				27
-#define L1_ENTRANCE_LAT_MASK				GENMASK(29, 27)
-#define N_FTS_SHIFT					8
-#define N_FTS_MASK					GENMASK(7, 0)
 #define N_FTS_VAL					52
-
-#define PORT_LOGIC_GEN2_CTRL				0x80C
-#define PORT_LOGIC_GEN2_CTRL_DIRECT_SPEED_CHANGE	BIT(17)
-#define FTS_MASK					GENMASK(7, 0)
 #define FTS_VAL						52
 
 #define PORT_LOGIC_MSI_CTRL_INT_0_EN		0x828
@@ -401,9 +389,9 @@ static irqreturn_t tegra_pcie_rp_irq_handler(int irq, void *arg)
 			val |= APPL_CAR_RESET_OVRD_CYA_OVERRIDE_CORE_RST_N;
 			appl_writel(pcie, val, APPL_CAR_RESET_OVRD);
 
-			val = dw_pcie_readl_dbi(pci, PORT_LOGIC_GEN2_CTRL);
-			val |= PORT_LOGIC_GEN2_CTRL_DIRECT_SPEED_CHANGE;
-			dw_pcie_writel_dbi(pci, PORT_LOGIC_GEN2_CTRL, val);
+			val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+			val |= PORT_LOGIC_SPEED_CHANGE;
+			dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
 		}
 	}
 
@@ -694,11 +682,11 @@ static void init_host_aspm(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, pcie->cfg_link_cap_l1sub, val);
 
 	/* Program L0s and L1 entrance latencies */
-	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL);
-	val &= ~L0S_ENTRANCE_LAT_MASK;
-	val |= (pcie->aspm_l0s_enter_lat << L0S_ENTRANCE_LAT_SHIFT);
-	val |= ENTER_ASPM;
-	dw_pcie_writel_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL, val);
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_AFR);
+	val &= ~PORT_AFR_L0S_ENTRANCE_LAT_MASK;
+	val |= (pcie->aspm_l0s_enter_lat << PORT_AFR_L0S_ENTRANCE_LAT_SHIFT);
+	val |= PORT_AFR_ENTER_ASPM;
+	dw_pcie_writel_dbi(pci, PCIE_PORT_AFR, val);
 }
 
 static int init_debugfs(struct tegra_pcie_dw *pcie)
@@ -895,15 +883,15 @@ static void tegra_pcie_prepare_host(struct pcie_port *pp)
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, 0);
 
 	/* Configure FTS */
-	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL);
-	val &= ~(N_FTS_MASK << N_FTS_SHIFT);
-	val |= N_FTS_VAL << N_FTS_SHIFT;
-	dw_pcie_writel_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL, val);
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_AFR);
+	val &= ~PORT_AFR_N_FTS_MASK;
+	val |= PORT_AFR_N_FTS(N_FTS_VAL);
+	dw_pcie_writel_dbi(pci, PCIE_PORT_AFR, val);
 
-	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_GEN2_CTRL);
-	val &= ~FTS_MASK;
+	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+	val &= ~PORT_LOGIC_N_FTS_MASK;
 	val |= FTS_VAL;
-	dw_pcie_writel_dbi(pci, PORT_LOGIC_GEN2_CTRL, val);
+	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
 
 	/* Enable as 0xFFFF0001 response for CRS */
 	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_AMBA_ERROR_RESPONSE_DEFAULT);
@@ -1820,15 +1808,15 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 
 	/* Configure N_FTS & FTS */
-	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL);
-	val &= ~(N_FTS_MASK << N_FTS_SHIFT);
-	val |= N_FTS_VAL << N_FTS_SHIFT;
-	dw_pcie_writel_dbi(pci, PORT_LOGIC_ACK_F_ASPM_CTRL, val);
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_AFR);
+	val &= ~PORT_AFR_N_FTS_MASK;
+	val |= PORT_AFR_N_FTS(FTS_VAL);
+	dw_pcie_writel_dbi(pci, PCIE_PORT_AFR, val);
 
-	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_GEN2_CTRL);
-	val &= ~FTS_MASK;
+	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+	val &= ~PORT_LOGIC_N_FTS_MASK;
 	val |= FTS_VAL;
-	dw_pcie_writel_dbi(pci, PORT_LOGIC_GEN2_CTRL, val);
+	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
 
 	/* Configure Max Speed from DT */
 	if (pcie->max_speed && pcie->max_speed != -EINVAL) {
