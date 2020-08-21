@@ -647,27 +647,41 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	if (pubsta) {
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
+		struct ieee80211_rx_status stat;
 		struct ieee80211_tx_rate *rate = &sta->tx_stats.last_rate;
 		struct rate_info *ri = &sta->tx_stats.last_rate_info;
-		u32 airtime;
+		u32 duration, overhead;
+		u8 agg_shift;
 
-		if (!(rate->flags & (IEEE80211_TX_RC_VHT_MCS |
-				     IEEE80211_TX_RC_MCS)))
-			ampdu = false;
+		if (ieee80211_fill_rx_status(&stat, hw, rate, ri, band, len))
+			return 0;
 
+		if (stat.encoding == RX_ENC_LEGACY || !ampdu)
+			return ieee80211_calc_rx_airtime(hw, &stat, len);
+
+		duration = ieee80211_get_rate_duration(hw, &stat, &overhead);
 		/*
 		 * Assume that HT/VHT transmission on any AC except VO will
 		 * use aggregation. Since we don't have reliable reporting
-		 * of aggregation length, assume an average of 16.
+		 * of aggregation length, assume an average size based on the
+		 * tx rate.
 		 * This will not be very accurate, but much better than simply
-		 * assuming un-aggregated tx.
+		 * assuming un-aggregated tx in all cases.
 		 */
-		airtime = ieee80211_calc_tx_airtime_rate(hw, rate, ri, band,
-							 ampdu ? len * 16 : len);
-		if (ampdu)
-			airtime /= 16;
+		if (duration > 400) /* <= VHT20 MCS2 1S */
+			agg_shift = 1;
+		else if (duration > 250) /* <= VHT20 MCS3 1S or MCS1 2S */
+			agg_shift = 2;
+		else if (duration > 150) /* <= VHT20 MCS5 1S or MCS3 2S */
+			agg_shift = 3;
+		else
+			agg_shift = 4;
 
-		return airtime;
+		duration *= len;
+		duration /= AVG_PKT_SIZE;
+		duration /= 1024;
+
+		return duration + (overhead >> agg_shift);
 	}
 
 	if (!conf)
