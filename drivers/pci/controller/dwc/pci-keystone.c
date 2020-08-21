@@ -96,8 +96,6 @@
 #define LEG_EP				0x1
 #define RC				0x2
 
-#define EXP_CAP_ID_OFFSET		0x70
-
 #define KS_PCIE_SYSCLOCKOUTEN		BIT(0)
 
 #define AM654_PCIE_DEV_TYPE_MASK	0x3
@@ -1125,22 +1123,23 @@ static int ks_pcie_am654_set_mode(struct device *dev,
 static void ks_pcie_set_link_speed(struct dw_pcie *pci, int link_speed)
 {
 	u32 val;
+	u32 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 
 	dw_pcie_dbi_ro_wr_en(pci);
 
-	val = dw_pcie_readl_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCAP);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
 	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
 		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
 		val |= link_speed;
-		dw_pcie_writel_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCAP,
+		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP,
 				   val);
 	}
 
-	val = dw_pcie_readl_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCTL2);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
 	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
 		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
 		val |= link_speed;
-		dw_pcie_writel_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCTL2,
+		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2,
 				   val);
 	}
 
