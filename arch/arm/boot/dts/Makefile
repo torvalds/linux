@@ -43,6 +43,7 @@ dtb-$(CONFIG_SOC_AT91SAM9) += \
 	at91-smartkiz.dtb \
 	at91-wb45n.dtb \
 	at91sam9g15ek.dtb \
+	at91sam9g25-gardena-smart-gateway.dtb \
 	at91sam9g25ek.dtb \
 	at91sam9g35ek.dtb \
 	at91sam9x25ek.dtb \
