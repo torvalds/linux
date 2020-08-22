@@ -81,8 +81,7 @@ static int cros_ec_pwm_set_duty(struct cros_ec_device *ec, u8 index, u16 duty)
 	return cros_ec_cmd_xfer_status(ec, msg);
 }
 
-static int __cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index,
-				  u32 *result)
+static int cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index)
 {
 	struct {
 		struct cros_ec_command msg;
@@ -107,17 +106,10 @@ static int __cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index,
 	params->index = index;
 
 	ret = cros_ec_cmd_xfer_status(ec, msg);
-	if (result)
-		*result = msg->result;
 	if (ret < 0)
 		return ret;
 
 	return resp->duty;
-}
-
-static int cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index)
-{
-	return __cros_ec_pwm_get_duty(ec, index, NULL);
 }
 
 static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -215,28 +207,18 @@ static int cros_ec_num_pwms(struct cros_ec_device *ec)
 
 	/* The index field is only 8 bits */
 	for (i = 0; i <= U8_MAX; i++) {
-		u32 result = 0;
-
-		ret = __cros_ec_pwm_get_duty(ec, i, &result);
+		ret = cros_ec_pwm_get_duty(ec, i);
 		/*
 		 * We look for SUCCESS, INVALID_COMMAND, or INVALID_PARAM
 		 * responses; everything else is treated as an error.
-		 * The EC error codes either map to -EOPNOTSUPP / -EINVAL,
-		 * or -EPROTO is returned and the EC error is in the result
-		 * field. Check for both.
+		 * The EC error codes map to -EOPNOTSUPP and -EINVAL,
+		 * so check for those.
 		 */
 		switch (ret) {
 		case -EOPNOTSUPP:	/* invalid command */
 			return -ENODEV;
 		case -EINVAL:		/* invalid parameter */
 			return i;
-		case -EPROTO:
-			/* Old or new error return code: Handle both */
-			if (result == EC_RES_INVALID_COMMAND)
-				return -ENODEV;
-			else if (result == EC_RES_INVALID_PARAM)
-				return i;
-			return -EPROTO;
 		default:
 			if (ret < 0)
 				return ret;
