@@ -392,6 +392,15 @@
 		reg = <0x18105000 0x1000>;
 	};
 
+	uart2: serial@18008000 {
+		compatible = "ns16550a";
+		reg = <0x18008000 0x20>;
+		clocks = <&iprocslow>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		status = "disabled";
+	};
+
 	i2c0: i2c@18009000 {
 		compatible = "brcm,iproc-i2c";
 		reg = <0x18009000 0x50>;
