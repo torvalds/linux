@@ -204,6 +204,11 @@ static const struct pwm_ops cros_ec_pwm_ops = {
 	.owner		= THIS_MODULE,
 };
 
+/*
+ * Determine the number of supported PWMs. The EC does not return the number
+ * of PWMs it supports directly, so we have to read the pwm duty cycle for
+ * subsequent channels until we get an error.
+ */
 static int cros_ec_num_pwms(struct cros_ec_device *ec)
 {
 	int i, ret;
@@ -213,20 +218,30 @@ static int cros_ec_num_pwms(struct cros_ec_device *ec)
 		u32 result = 0;
 
 		ret = __cros_ec_pwm_get_duty(ec, i, &result);
-		/* We want to parse EC protocol errors */
-		if (ret < 0 && !(ret == -EPROTO && result))
-			return ret;
-
 		/*
 		 * We look for SUCCESS, INVALID_COMMAND, or INVALID_PARAM
 		 * responses; everything else is treated as an error.
+		 * The EC error codes either map to -EOPNOTSUPP / -EINVAL,
+		 * or -EPROTO is returned and the EC error is in the result
+		 * field. Check for both.
 		 */
-		if (result == EC_RES_INVALID_COMMAND)
+		switch (ret) {
+		case -EOPNOTSUPP:	/* invalid command */
 			return -ENODEV;
-		else if (result == EC_RES_INVALID_PARAM)
+		case -EINVAL:		/* invalid parameter */
 			return i;
-		else if (result)
+		case -EPROTO:
+			/* Old or new error return code: Handle both */
+			if (result == EC_RES_INVALID_COMMAND)
+				return -ENODEV;
+			else if (result == EC_RES_INVALID_PARAM)
+				return i;
 			return -EPROTO;
+		default:
+			if (ret < 0)
+				return ret;
+			break;
+		}
 	}
 
 	return U8_MAX;
