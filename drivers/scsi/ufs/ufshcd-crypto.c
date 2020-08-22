@@ -119,6 +119,9 @@ bool ufshcd_crypto_enable(struct ufs_hba *hba)
 	if (!(hba->caps & UFSHCD_CAP_CRYPTO))
 		return false;
 
+	if (hba->quirks & UFSHCD_QUIRK_NO_KEYSLOTS)
+		return false;
+
 	/* Reset might clear all keys, so reprogram all the keys. */
 	blk_ksm_reprogram_all_keys(&hba->ksm);
 	return true;
@@ -156,6 +159,9 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	int cap_idx;
 	int err = 0;
 	enum blk_crypto_mode_num blk_mode_num;
+
+	if (hba->quirks & UFSHCD_QUIRK_NO_KEYSLOTS)
+		return 0;
 
 	/*
 	 * Don't use crypto if either the hardware doesn't advertise the
@@ -226,6 +232,9 @@ void ufshcd_init_crypto(struct ufs_hba *hba)
 	int slot;
 
 	if (!(hba->caps & UFSHCD_CAP_CRYPTO))
+		return;
+
+	if (hba->quirks & UFSHCD_QUIRK_NO_KEYSLOTS)
 		return;
 
 	/* Clear all keyslots - the number of keyslots is (CFGC + 1) */

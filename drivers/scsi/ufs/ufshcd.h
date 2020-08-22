@@ -530,6 +530,15 @@ enum ufshcd_quirks {
 	 * auto-hibernate capability but it doesn't work.
 	 */
 	UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8		= 1 << 11,
+
+	/*
+	 * This quirk needs to be enabled if the host controller supports inline
+	 * encryption, but it uses a nonstandard mechanism where the standard
+	 * crypto registers aren't used and there is no concept of keyslots.
+	 * ufs_hba_variant_ops::init() is expected to initialize ufs_hba::ksm as
+	 * a passthrough keyslot manager.
+	 */
+	UFSHCD_QUIRK_NO_KEYSLOTS			= 1 << 12,
 };
 
 enum ufshcd_caps {
