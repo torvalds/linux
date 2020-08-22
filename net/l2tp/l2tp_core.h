@@ -66,6 +66,7 @@ struct l2tp_session_cfg {
  * Is linked into a per-tunnel session hashlist; and in the case of an L2TPv3 session into
  * an additional per-net ("global") hashlist.
  */
+#define L2TP_SESSION_NAME_MAX 32
 struct l2tp_session {
 	int			magic;		/* should be L2TP_SESSION_MAGIC */
 	long			dead;
@@ -90,7 +91,7 @@ struct l2tp_session {
 	struct hlist_node	hlist;		/* hash list node */
 	refcount_t		ref_count;
 
-	char			name[32];	/* for logging */
+	char			name[L2TP_SESSION_NAME_MAX]; /* for logging */
 	char			ifname[IFNAMSIZ];
 	unsigned int		recv_seq:1;	/* expect receive packets with sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence numbers? */
@@ -154,6 +155,7 @@ struct l2tp_tunnel_cfg {
  * Maintains a hashlist of sessions belonging to the tunnel instance.
  * Is linked into a per-net list of tunnels.
  */
+#define L2TP_TUNNEL_NAME_MAX 20
 struct l2tp_tunnel {
 	int			magic;		/* Should be L2TP_TUNNEL_MAGIC */
 
@@ -170,7 +172,7 @@ struct l2tp_tunnel {
 	u32			peer_tunnel_id;
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
 
-	char			name[20];	/* for logging */
+	char			name[L2TP_TUNNEL_NAME_MAX]; /* for logging */
 	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
