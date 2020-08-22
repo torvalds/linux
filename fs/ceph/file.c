@@ -863,6 +863,8 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		size_t page_off;
 		u64 i_size;
 		bool more;
+		int idx;
+		size_t left;
 
 		req = ceph_osdc_new_request(osdc, &ci->i_layout,
 					ci->i_vino, off, &len, 0, 1,
@@ -876,29 +878,13 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 
 		more = len < iov_iter_count(to);
 
-		if (unlikely(iov_iter_is_pipe(to))) {
-			ret = iov_iter_get_pages_alloc(to, &pages, len,
-						       &page_off);
-			if (ret <= 0) {
-				ceph_osdc_put_request(req);
-				ret = -ENOMEM;
-				break;
-			}
-			num_pages = DIV_ROUND_UP(ret + page_off, PAGE_SIZE);
-			if (ret < len) {
-				len = ret;
-				osd_req_op_extent_update(req, 0, len);
-				more = false;
-			}
-		} else {
-			num_pages = calc_pages_for(off, len);
-			page_off = off & ~PAGE_MASK;
-			pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
-			if (IS_ERR(pages)) {
-				ceph_osdc_put_request(req);
-				ret = PTR_ERR(pages);
-				break;
-			}
+		num_pages = calc_pages_for(off, len);
+		page_off = off & ~PAGE_MASK;
+		pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
+		if (IS_ERR(pages)) {
+			ceph_osdc_put_request(req);
+			ret = PTR_ERR(pages);
+			break;
 		}
 
 		osd_req_op_extent_osd_data_pages(req, 0, pages, len, page_off,
@@ -929,32 +915,23 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 			ret += zlen;
 		}
 
-		if (unlikely(iov_iter_is_pipe(to))) {
-			if (ret > 0) {
-				iov_iter_advance(to, ret);
-				off += ret;
-			} else {
-				iov_iter_advance(to, 0);
+		idx = 0;
+		left = ret > 0 ? ret : 0;
+		while (left > 0) {
+			size_t len, copied;
+			page_off = off & ~PAGE_MASK;
+			len = min_t(size_t, left, PAGE_SIZE - page_off);
+			SetPageUptodate(pages[idx]);
+			copied = copy_page_to_iter(pages[idx++],
+						   page_off, len, to);
+			off += copied;
+			left -= copied;
+			if (copied < len) {
+				ret = -EFAULT;
+				break;
 			}
-			ceph_put_page_vector(pages, num_pages, false);
-		} else {
-			int idx = 0;
-			size_t left = ret > 0 ? ret : 0;
-			while (left > 0) {
-				size_t len, copied;
-				page_off = off & ~PAGE_MASK;
-				len = min_t(size_t, left, PAGE_SIZE - page_off);
-				copied = copy_page_to_iter(pages[idx++],
-							   page_off, len, to);
-				off += copied;
-				left -= copied;
-				if (copied < len) {
-					ret = -EFAULT;
-					break;
-				}
-			}
-			ceph_release_page_vector(pages, num_pages);
 		}
+		ceph_release_page_vector(pages, num_pages);
 
 		if (ret < 0) {
 			if (ret == -EBLACKLISTED)
