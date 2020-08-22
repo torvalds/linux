@@ -251,7 +251,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 
 no_sock:
 	rcu_read_unlock();
-	l2tp_warn(session, L2TP_MSG_DATA, "%s: no socket\n", session->name);
+	pr_warn_ratelimited("%s: no socket in recv\n", session->name);
 	kfree_skb(skb);
 }
 
