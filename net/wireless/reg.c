@@ -1594,7 +1594,7 @@ freq_reg_info_regd(u32 center_freq,
 
 		/*
 		 * We only need to know if one frequency rule was
-		 * was in center_freq's band, that's enough, so lets
+		 * in center_freq's band, that's enough, so let's
 		 * not overwrite it once found
 		 */
 		if (!band_rule_found)
@@ -3167,7 +3167,7 @@ static void restore_custom_reg_settings(struct wiphy *wiphy)
  *   - send a user regulatory hint if applicable
  *
  * Device drivers that send a regulatory hint for a specific country
- * keep their own regulatory domain on wiphy->regd so that does does
+ * keep their own regulatory domain on wiphy->regd so that does
  * not need to be remembered.
  */
 static void restore_regulatory_settings(bool reset_user, bool cached)
