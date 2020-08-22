@@ -170,7 +170,7 @@ struct timing_reg {
 	unsigned int val;
 };
 
-static const struct timing_reg timing_row[] = {
+static const struct timing_reg timing_row_reg_fields[] = {
 	TIMING_FIELD("tRFC", 24, 31),
 	TIMING_FIELD("tRRD", 20, 23),
 	TIMING_FIELD("tRP", 16, 19),
@@ -179,7 +179,7 @@ static const struct timing_reg timing_row[] = {
 	TIMING_FIELD("tRAS", 0, 5),
 };
 
-static const struct timing_reg timing_data[] = {
+static const struct timing_reg timing_data_reg_fields[] = {
 	TIMING_FIELD("tWTR", 28, 31),
 	TIMING_FIELD("tWR", 24, 27),
 	TIMING_FIELD("tRTP", 20, 23),
@@ -190,7 +190,7 @@ static const struct timing_reg timing_data[] = {
 	TIMING_FIELD("RL", 0, 3),
 };
 
-static const struct timing_reg timing_power[] = {
+static const struct timing_reg timing_power_reg_fields[] = {
 	TIMING_FIELD("tFAW", 26, 31),
 	TIMING_FIELD("tXSR", 16, 25),
 	TIMING_FIELD("tXP", 8, 15),
@@ -198,8 +198,9 @@ static const struct timing_reg timing_power[] = {
 	TIMING_FIELD("tMRD", 0, 3),
 };
 
-#define TIMING_COUNT (ARRAY_SIZE(timing_row) + ARRAY_SIZE(timing_data) + \
-		      ARRAY_SIZE(timing_power))
+#define TIMING_COUNT (ARRAY_SIZE(timing_row_reg_fields) + \
+		      ARRAY_SIZE(timing_data_reg_fields) + \
+		      ARRAY_SIZE(timing_power_reg_fields))
 
 static int exynos5_counters_set_event(struct exynos5_dmc *dmc)
 {
@@ -1022,117 +1023,117 @@ static int create_timings_aligned(struct exynos5_dmc *dmc, u32 *reg_timing_row,
 	val = dmc->timings->tRFC / clk_period_ps;
 	val += dmc->timings->tRFC % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRFC);
-	reg = &timing_row[0];
+	reg = &timing_row_reg_fields[0];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRRD / clk_period_ps;
 	val += dmc->timings->tRRD % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRRD);
-	reg = &timing_row[1];
+	reg = &timing_row_reg_fields[1];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRPab / clk_period_ps;
 	val += dmc->timings->tRPab % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRPab);
-	reg = &timing_row[2];
+	reg = &timing_row_reg_fields[2];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRCD / clk_period_ps;
 	val += dmc->timings->tRCD % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRCD);
-	reg = &timing_row[3];
+	reg = &timing_row_reg_fields[3];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRC / clk_period_ps;
 	val += dmc->timings->tRC % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRC);
-	reg = &timing_row[4];
+	reg = &timing_row_reg_fields[4];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRAS / clk_period_ps;
 	val += dmc->timings->tRAS % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRAS);
-	reg = &timing_row[5];
+	reg = &timing_row_reg_fields[5];
 	*reg_timing_row |= TIMING_VAL2REG(reg, val);
 
 	/* data related timings */
 	val = dmc->timings->tWTR / clk_period_ps;
 	val += dmc->timings->tWTR % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tWTR);
-	reg = &timing_data[0];
+	reg = &timing_data_reg_fields[0];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tWR / clk_period_ps;
 	val += dmc->timings->tWR % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tWR);
-	reg = &timing_data[1];
+	reg = &timing_data_reg_fields[1];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRTP / clk_period_ps;
 	val += dmc->timings->tRTP % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRTP);
-	reg = &timing_data[2];
+	reg = &timing_data_reg_fields[2];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tW2W_C2C / clk_period_ps;
 	val += dmc->timings->tW2W_C2C % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tW2W_C2C);
-	reg = &timing_data[3];
+	reg = &timing_data_reg_fields[3];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tR2R_C2C / clk_period_ps;
 	val += dmc->timings->tR2R_C2C % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tR2R_C2C);
-	reg = &timing_data[4];
+	reg = &timing_data_reg_fields[4];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tWL / clk_period_ps;
 	val += dmc->timings->tWL % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tWL);
-	reg = &timing_data[5];
+	reg = &timing_data_reg_fields[5];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tDQSCK / clk_period_ps;
 	val += dmc->timings->tDQSCK % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tDQSCK);
-	reg = &timing_data[6];
+	reg = &timing_data_reg_fields[6];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tRL / clk_period_ps;
 	val += dmc->timings->tRL % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tRL);
-	reg = &timing_data[7];
+	reg = &timing_data_reg_fields[7];
 	*reg_timing_data |= TIMING_VAL2REG(reg, val);
 
 	/* power related timings */
 	val = dmc->timings->tFAW / clk_period_ps;
 	val += dmc->timings->tFAW % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tFAW);
-	reg = &timing_power[0];
+	reg = &timing_power_reg_fields[0];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tXSR / clk_period_ps;
 	val += dmc->timings->tXSR % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tXSR);
-	reg = &timing_power[1];
+	reg = &timing_power_reg_fields[1];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tXP / clk_period_ps;
 	val += dmc->timings->tXP % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tXP);
-	reg = &timing_power[2];
+	reg = &timing_power_reg_fields[2];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tCKE / clk_period_ps;
 	val += dmc->timings->tCKE % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tCKE);
-	reg = &timing_power[3];
+	reg = &timing_power_reg_fields[3];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
 	val = dmc->timings->tMRD / clk_period_ps;
 	val += dmc->timings->tMRD % clk_period_ps ? 1 : 0;
 	val = max(val, dmc->min_tck->tMRD);
-	reg = &timing_power[4];
+	reg = &timing_power_reg_fields[4];
 	*reg_timing_power |= TIMING_VAL2REG(reg, val);
 
 	return 0;
