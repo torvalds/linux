@@ -55,7 +55,7 @@
  *
  * Also note that the hidden_beacon_bss pointer is only relevant
  * if the driver uses something other than the IEs, e.g. private
- * data stored stored in the BSS struct, since the beacon IEs are
+ * data stored in the BSS struct, since the beacon IEs are
  * also linked into the probe response struct.
  */
 
@@ -1488,7 +1488,7 @@ static const struct element
 					 ielen - (mbssid_end - ie));
 
 	/*
-	 * If is is not the last subelement in current MBSSID IE or there isn't
+	 * If it is not the last subelement in current MBSSID IE or there isn't
 	 * a next MBSSID IE - profile is complete.
 	*/
 	if ((sub_elem->data + sub_elem->datalen < mbssid_end - 1) ||
