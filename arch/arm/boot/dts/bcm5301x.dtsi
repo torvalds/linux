@@ -350,6 +350,14 @@
 		};
 	};
 
+	pwm: pwm@18002000 {
+		compatible = "brcm,iproc-pwm";
+		reg = <0x18002000 0x28>;
+		clocks = <&osc>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
@@ -417,12 +425,12 @@
 					function = "spi";
 				};
 
-				i2c {
+				pinmux_i2c: i2c {
 					groups = "i2c_grp";
 					function = "i2c";
 				};
 
-				pwm {
+				pinmux_pwm: pwm {
 					groups = "pwm0_grp", "pwm1_grp",
 						 "pwm2_grp", "pwm3_grp";
 					function = "pwm";
