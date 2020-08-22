@@ -25,7 +25,7 @@
 
 	display_bl: display-bl {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
+		pwms = <&pwm2 3 500000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 16 22 30 40 55 75 102 138 188 255>;
 		default-brightness-level = <8>;
 		enable-gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
