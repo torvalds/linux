@@ -180,9 +180,13 @@ static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 		int	tmp;
 
 		/* Skip out endpoints */
-		if (!dep || !dep->direction ||
-		    !(dep->flags & DWC3_EP_ENABLED))
+		if (!dep || !dep->direction)
 			continue;
+
+		if (!(dep->flags & DWC3_EP_ENABLED)) {
+			fifo_number++;
+			continue;
+		}
 
 		if (usb_endpoint_xfer_bulk(dep->endpoint.desc)) {
 			mult = 3;
