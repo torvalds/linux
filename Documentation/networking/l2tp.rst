@@ -455,31 +455,16 @@ l2tp help`` for more information.
 Debugging
 ---------
 
-The L2TP subsystem offers a debug scheme where kernel trace messages
-may be optionally enabled per tunnel and per session. Care is needed
-when debugging a live system since the messages are not rate-limited
-and a busy system could be swamped. Userspace uses setsockopt on the
-PPPoX socket to set a debug mask, or ``L2TP_ATTR_DEBUG`` in netlink
-Create and Modify commands.
+The L2TP subsystem offers a range of debugging interfaces through the
+debugfs filesystem.
 
-The following debug mask bits are defined:-
-
-================  ==============================
-L2TP_MSG_DEBUG    verbose debug (if compiled in)
-L2TP_MSG_CONTROL  userspace - kernel interface
-L2TP_MSG_SEQ      sequence numbers handling
-L2TP_MSG_DATA     data packets
-================  ==============================
-
-Sessions inherit default debug flags from the parent tunnel.
-
-If enabled, files under a l2tp debugfs directory can be used to dump
-kernel state about L2TP tunnels and sessions. To access it, the
-debugfs filesystem must first be mounted::
+To access these interfaces, the debugfs filesystem must first be mounted::
 
     # mount -t debugfs debugfs /debug
 
-Files under the l2tp directory can then be accessed::
+Files under the l2tp directory can then be accessed, providing a summary
+of the current population of tunnel and session contexts existing in the
+kernel::
 
     # cat /debug/l2tp/tunnels
 
@@ -488,8 +473,14 @@ state information because the file format is subject to change. It is
 implemented to provide extra debug information to help diagnose
 problems. Applications should instead use the netlink API.
 
-/proc/net/pppol2tp is also provided for backwards compatibility with
-the original pppol2tp code. It lists information about L2TPv2
+In addition the L2TP subsystem implements tracepoints using the standard
+kernel event tracing API.  The available L2TP events can be reviewed as
+follows::
+
+    # find /debug/tracing/events/l2tp
+
+Finally, /proc/net/pppol2tp is also provided for backwards compatibility
+with the original pppol2tp code. It lists information about L2TPv2
 tunnels and sessions only. Its use is discouraged.
 
 Internal Implementation
