@@ -98,6 +98,8 @@ MODULE_PARM_DESC(irqmode, "Enable IRQ mode (0=off [default], 1=on)");
 
 /**
  * struct dmc_opp_table - Operating level desciption
+ * @freq_hz:		target frequency in Hz
+ * @volt_uv:		target voltage in uV
  *
  * Covers frequency and voltage settings of the DMC operating mode.
  */
@@ -108,6 +110,41 @@ struct dmc_opp_table {
 
 /**
  * struct exynos5_dmc - main structure describing DMC device
+ * @dev:		DMC device
+ * @df:			devfreq device structure returned by devfreq framework
+ * @gov_data:		configuration of devfreq governor
+ * @base_drexi0:	DREX0 registers mapping
+ * @base_drexi1:	DREX1 registers mapping
+ * @clk_regmap:		regmap for clock controller registers
+ * @lock:		protects curr_rate and frequency/voltage setting section
+ * @curr_rate:		current frequency
+ * @curr_volt:		current voltage
+ * @opp:		OPP table
+ * @opp_count:		number of 'opp' elements
+ * @timings_arr_size:	number of 'timings' elements
+ * @timing_row:		values for timing row register, for each OPP
+ * @timing_data:	values for timing data register, for each OPP
+ * @timing_power:	balues for timing power register, for each OPP
+ * @timings:		DDR memory timings, from device tree
+ * @min_tck:		DDR memory minimum timing values, from device tree
+ * @bypass_timing_row:	value for timing row register for bypass timings
+ * @bypass_timing_data:	value for timing data register for bypass timings
+ * @bypass_timing_power:	value for timing power register for bypass
+ *				timings
+ * @vdd_mif:		Memory interface regulator
+ * @fout_spll:		clock: SPLL
+ * @fout_bpll:		clock: BPLL
+ * @mout_spll:		clock: mux SPLL
+ * @mout_bpll:		clock: mux BPLL
+ * @mout_mclk_cdrex:	clock: mux mclk_cdrex
+ * @mout_mx_mspll_ccore:	clock: mux mx_mspll_ccore
+ * @counter:		devfreq events
+ * @num_counters:	number of 'counter' elements
+ * @last_overflow_ts:	time (in ns) of last overflow of each DREX
+ * @load:		utilization in percents
+ * @total:		total time between devfreq events
+ * @in_irq_mode:	whether running in interrupt mode (true)
+ *			or polling (false)
  *
  * The main structure for the Dynamic Memory Controller which covers clocks,
  * memory regions, HW information, parameters and current operating mode.
@@ -344,7 +381,6 @@ err_opp:
 /**
  * exynos5_set_bypass_dram_timings() - Low-level changes of the DRAM timings
  * @dmc:	device for which the new settings is going to be applied
- * @param:	DRAM parameters which passes timing data
  *
  * Low-level function for changing timings for DRAM memory clocking from
  * 'bypass' clock source (fixed frequency @400MHz).
@@ -612,6 +648,7 @@ disable_clocks:
  *			requested
  * @target_volt:	returned voltage which corresponds to the returned
  *			frequency
+ * @flags:	devfreq flags provided for this frequency change request
  *
  * Function gets requested frequency and checks OPP framework for needed
  * frequency and voltage. It populates the values 'target_rate' and
@@ -948,7 +985,7 @@ static int exynos5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
 	return 0;
 }
 
-/**
+/*
  * exynos5_dmc_df_profile - Devfreq governor's profile structure
  *
  * It provides to the devfreq framework needed functions and polling period.
@@ -991,7 +1028,9 @@ exynos5_dmc_align_init_freq(struct exynos5_dmc *dmc,
 /**
  * create_timings_aligned() - Create register values and align with standard
  * @dmc:	device for which the frequency is going to be set
- * @idx:	speed bin in the OPP table
+ * @reg_timing_row:	array to fill with values for timing row register
+ * @reg_timing_data:	array to fill with values for timing data register
+ * @reg_timing_power:	array to fill with values for timing power register
  * @clk_period_ps:	the period of the clock, known as tCK
  *
  * The function calculates timings and creates a register value ready for
@@ -1326,7 +1365,6 @@ static int exynos5_performance_counters_init(struct exynos5_dmc *dmc)
 /**
  * exynos5_dmc_set_pause_on_switching() - Controls a pause feature in DMC
  * @dmc:	device which is used for changing this feature
- * @set:	a boolean state passing enable/disable request
  *
  * There is a need of pausing DREX DMC when divider or MUX in clock tree
  * changes its configuration. In such situation access to the memory is blocked
