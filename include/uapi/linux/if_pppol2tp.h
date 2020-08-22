@@ -75,7 +75,7 @@ struct pppol2tpv3in6_addr {
 };
 
 /* Socket options:
- * DEBUG	- bitmask of debug message categories
+ * DEBUG	- bitmask of debug message categories (not used)
  * SENDSEQ	- 0 => don't send packets with sequence numbers
  *		  1 => send packets with sequence numbers
  * RECVSEQ	- 0 => receive packet sequence numbers are optional
