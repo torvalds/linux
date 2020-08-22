@@ -62,6 +62,9 @@
 
 #include "l2tp_core.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 #define L2TP_DRV_VERSION	"V2.0"
 
 /* L2TP header constants */
