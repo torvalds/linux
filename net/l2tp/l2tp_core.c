@@ -665,7 +665,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	/* Parse and check optional cookie */
 	if (session->peer_cookie_len > 0) {
 		if (memcmp(ptr, &session->peer_cookie[0], session->peer_cookie_len)) {
-			l2tp_info(tunnel, L2TP_MSG_DATA,
+			l2tp_warn(tunnel, L2TP_MSG_DATA,
 				  "%s: cookie mismatch (%u/%u). Discarding.\n",
 				  tunnel->name, tunnel->tunnel_id,
 				  session->session_id);
@@ -835,7 +835,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 
 	/* Short packet? */
 	if (!pskb_may_pull(skb, L2TP_HDR_SIZE_MAX)) {
-		l2tp_info(tunnel, L2TP_MSG_DATA,
+		l2tp_warn(tunnel, L2TP_MSG_DATA,
 			  "%s: recv short packet (len=%d)\n",
 			  tunnel->name, skb->len);
 		goto error;
@@ -851,7 +851,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	/* Check protocol version */
 	version = hdrflags & L2TP_HDR_VER_MASK;
 	if (version != tunnel->version) {
-		l2tp_info(tunnel, L2TP_MSG_DATA,
+		l2tp_warn(tunnel, L2TP_MSG_DATA,
 			  "%s: recv protocol version mismatch: got %d expected %d\n",
 			  tunnel->name, version, tunnel->version);
 		goto error;
@@ -891,7 +891,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 			l2tp_session_dec_refcount(session);
 
 		/* Not found? Pass to userspace to deal with */
-		l2tp_info(tunnel, L2TP_MSG_DATA,
+		l2tp_warn(tunnel, L2TP_MSG_DATA,
 			  "%s: no session found (%u/%u). Passing up.\n",
 			  tunnel->name, tunnel_id, session_id);
 		goto error;
@@ -1149,8 +1149,6 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	if (!tunnel)
 		goto end;
 
-	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing...\n", tunnel->name);
-
 	/* Disable udp encapsulation */
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
@@ -1209,18 +1207,12 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 	struct hlist_node *tmp;
 	struct l2tp_session *session;
 
-	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing all sessions...\n",
-		  tunnel->name);
-
 	write_lock_bh(&tunnel->hlist_lock);
 	tunnel->acpt_newsess = false;
 	for (hash = 0; hash < L2TP_HASH_SIZE; hash++) {
 again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
 			session = hlist_entry(walk, struct l2tp_session, hlist);
-
-			l2tp_info(session, L2TP_MSG_CONTROL,
-				  "%s: closing session\n", session->name);
 
 			hlist_del_init(&session->hlist);
 
