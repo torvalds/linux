@@ -101,7 +101,7 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 static void mt7615_irq_tasklet(unsigned long data)
 {
 	struct mt7615_dev *dev = (struct mt7615_dev *)data;
-	u32 intr, mask = 0;
+	u32 intr, mask = 0, tx_mcu_mask = mt7615_tx_mcu_int_mask(dev);
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
@@ -112,11 +112,11 @@ static void mt7615_irq_tasklet(unsigned long data)
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
 	mask |= intr & MT_INT_RX_DONE_ALL;
-	if (intr & MT_INT_TX_DONE_ALL)
-		mask |= MT_INT_TX_DONE_ALL;
+	if (intr & tx_mcu_mask)
+		mask |= tx_mcu_mask;
 	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 
-	if (intr & MT_INT_TX_DONE_ALL)
+	if (intr & tx_mcu_mask)
 		napi_schedule(&dev->mt76.tx_napi);
 
 	if (intr & MT_INT_RX_DONE(0))

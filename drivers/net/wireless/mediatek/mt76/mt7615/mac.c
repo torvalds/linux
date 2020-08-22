@@ -1424,6 +1424,14 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	struct mt7615_tx_free *free = (struct mt7615_tx_free *)skb->data;
 	u8 i, count;
 
+	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
+	if (is_mt7615(&dev->mt76)) {
+		mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			mt76_queue_tx_cleanup(dev, i, false);
+	}
+
 	count = FIELD_GET(MT_TX_FREE_MSDU_ID_CNT, le16_to_cpu(free->ctrl));
 	if (is_mt7615(&dev->mt76)) {
 		__le16 *token = &free->token[0];

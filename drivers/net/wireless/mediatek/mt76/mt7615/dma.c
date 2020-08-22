@@ -94,34 +94,16 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 	return 0;
 }
 
-static void
-mt7615_tx_cleanup(struct mt7615_dev *dev)
-{
-	int i;
-
-	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
-	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
-	if (is_mt7615(&dev->mt76)) {
-		mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
-	} else {
-		for (i = 0; i < IEEE80211_NUM_ACS; i++)
-			mt76_queue_tx_cleanup(dev, i, false);
-	}
-}
-
 static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct mt7615_dev *dev;
 
 	dev = container_of(napi, struct mt7615_dev, mt76.tx_napi);
 
-	mt7615_tx_cleanup(dev);
-
-	mt7615_pm_power_save_sched(dev);
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
 
 	if (napi_complete_done(napi, 0))
-		mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
+		mt7615_irq_enable(dev, mt7615_tx_mcu_int_mask(dev));
 
 	return 0;
 }
@@ -305,7 +287,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 		 MT_WPDMA_GLO_CFG_RX_DMA_EN);
 
 	/* enable interrupts for TX/RX rings */
-	mt7615_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
+	mt7615_irq_enable(dev, MT_INT_RX_DONE_ALL | mt7615_tx_mcu_int_mask(dev) |
 			       MT_INT_MCU_CMD);
 
 	if (is_mt7622(&dev->mt76))
