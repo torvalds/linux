@@ -913,6 +913,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		 readl(base + CIF_ISP_CTRL),
 		 readl(base + CIF_MIPI_CTRL));
 
+	val = rkisp_read(dev, CTRL_VI_ISP_CLK_CTRL, true);
 	if (!in_interrupt()) {
 		/* normal case */
 		/* check the isp_clk before isp reset operation */
@@ -930,6 +931,8 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		/* abnormal case, in irq function */
 		writel(CIF_IRCL_CIF_SW_RST, base + CIF_IRCL);
 	}
+	rkisp_write(dev, CTRL_VI_ISP_CLK_CTRL, val, true);
+
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
 		writel(0, base + CIF_ISP_CSI0_CSI2_RESETN);
 		writel(0, base + CIF_ISP_CSI0_CTRL0);
