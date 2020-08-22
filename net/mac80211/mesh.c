@@ -672,7 +672,7 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
  * @hdr:	802.11 frame header
  * @fc:		frame control field
  * @meshda:	destination address in the mesh
- * @meshsa:	source address address in the mesh.  Same as TA, as frame is
+ * @meshsa:	source address in the mesh.  Same as TA, as frame is
  *              locally originated.
  *
  * Return the length of the 802.11 (does not include a mesh control header)
