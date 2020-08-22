@@ -1401,15 +1401,11 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	tunnel->version = version;
 	tunnel->tunnel_id = tunnel_id;
 	tunnel->peer_tunnel_id = peer_tunnel_id;
-	tunnel->debug = L2TP_DEFAULT_DEBUG_FLAGS;
 
 	tunnel->magic = L2TP_TUNNEL_MAGIC;
 	sprintf(&tunnel->name[0], "tunl %u", tunnel_id);
 	rwlock_init(&tunnel->hlist_lock);
 	tunnel->acpt_newsess = true;
-
-	if (cfg)
-		tunnel->debug = cfg->debug;
 
 	tunnel->encap = encap;
 
@@ -1608,12 +1604,8 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		INIT_HLIST_NODE(&session->hlist);
 		INIT_HLIST_NODE(&session->global_hlist);
 
-		/* Inherit debug options from tunnel */
-		session->debug = tunnel->debug;
-
 		if (cfg) {
 			session->pwtype = cfg->pw_type;
-			session->debug = cfg->debug;
 			session->send_seq = cfg->send_seq;
 			session->recv_seq = cfg->recv_seq;
 			session->lns_mode = cfg->lns_mode;

@@ -51,7 +51,6 @@ struct l2tp_session_cfg {
 	unsigned int		lns_mode:1;	/* behave as LNS?
 						 * LAC enables sequence numbers under LNS control.
 						 */
-	int			debug;		/* bitmask of debug message categories */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */
@@ -98,7 +97,6 @@ struct l2tp_session {
 	unsigned int		lns_mode:1;	/* behave as LNS?
 						 * LAC enables sequence numbers under LNS control.
 						 */
-	int			debug;		/* bitmask of debug message categories */
 	int			reorder_timeout; /* configured reorder timeout (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
@@ -132,7 +130,6 @@ struct l2tp_session {
 
 /* L2TP tunnel configuration */
 struct l2tp_tunnel_cfg {
-	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 
 	/* Used only for kernel-created sockets */
@@ -173,7 +170,6 @@ struct l2tp_tunnel {
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
 
 	char			name[L2TP_TUNNEL_NAME_MAX]; /* for logging */
-	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 

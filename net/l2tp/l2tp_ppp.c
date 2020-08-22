@@ -702,7 +702,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		if (!tunnel) {
 			struct l2tp_tunnel_cfg tcfg = {
 				.encap = L2TP_ENCAPTYPE_UDP,
-				.debug = 0,
 			};
 
 			/* Prevent l2tp_tunnel_register() from trying to set up
@@ -1147,7 +1146,7 @@ static int pppol2tp_tunnel_setsockopt(struct sock *sk,
 
 	switch (optname) {
 	case PPPOL2TP_SO_DEBUG:
-		tunnel->debug = val;
+		/* Tunnel debug flags option is deprecated */
 		break;
 
 	default:
@@ -1199,7 +1198,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 		break;
 
 	case PPPOL2TP_SO_DEBUG:
-		session->debug = val;
+		/* Session debug flags option is deprecated */
 		break;
 
 	case PPPOL2TP_SO_REORDERTO:
@@ -1271,7 +1270,8 @@ static int pppol2tp_tunnel_getsockopt(struct sock *sk,
 
 	switch (optname) {
 	case PPPOL2TP_SO_DEBUG:
-		*val = tunnel->debug;
+		/* Tunnel debug flags option is deprecated */
+		*val = 0;
 		break;
 
 	default:
@@ -1304,7 +1304,8 @@ static int pppol2tp_session_getsockopt(struct sock *sk,
 		break;
 
 	case PPPOL2TP_SO_DEBUG:
-		*val = session->debug;
+		/* Session debug flags option is deprecated */
+		*val = 0;
 		break;
 
 	case PPPOL2TP_SO_REORDERTO:
@@ -1496,7 +1497,7 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 		   (tunnel == tunnel->sock->sk_user_data) ? 'Y' : 'N',
 		   refcount_read(&tunnel->ref_count) - 1);
 	seq_printf(m, " %08x %ld/%ld/%ld %ld/%ld/%ld\n",
-		   tunnel->debug,
+		   0,
 		   atomic_long_read(&tunnel->stats.tx_packets),
 		   atomic_long_read(&tunnel->stats.tx_bytes),
 		   atomic_long_read(&tunnel->stats.tx_errors),
@@ -1542,7 +1543,7 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
-		   session->debug,
+		   0,
 		   jiffies_to_msecs(session->reorder_timeout));
 	seq_printf(m, "   %hu/%hu %ld/%ld/%ld %ld/%ld/%ld\n",
 		   session->nr, session->ns,
