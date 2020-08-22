@@ -222,7 +222,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 
 	family->mcgrp_offset = first_id;
 
-	/* if still initializing, can't and don't need to to realloc bitmaps */
+	/* if still initializing, can't and don't need to realloc bitmaps */
 	if (!init_net.genl_sock)
 		return 0;
 
