@@ -41,12 +41,12 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
 	mask = intr & MT_INT_RX_DONE_ALL;
-	if (intr & MT_INT_TX_DONE_ALL)
-		mask |= MT_INT_TX_DONE_ALL;
+	if (intr & MT_INT_TX_DONE_MCU)
+		mask |= MT_INT_TX_DONE_MCU;
 
 	mt7915_irq_disable(dev, mask);
 
-	if (intr & MT_INT_TX_DONE_ALL)
+	if (intr & MT_INT_TX_DONE_MCU)
 		napi_schedule(&dev->mt76.tx_napi);
 
 	if (intr & MT_INT_RX_DONE_DATA)

@@ -874,6 +874,10 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	struct ieee80211_sta *sta = NULL;
 	u8 i, count;
 
+	/* clean DMA queues and unmap buffers first */
+	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
+	mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
+
 	/*
 	 * TODO: MT_TX_FREE_LATENCY is msdu time from the TXD is queued into PLE,
 	 * to the time ack is received or dropped by hw (air + hw queue time).

@@ -84,8 +84,6 @@ mt7915_tx_cleanup(struct mt7915_dev *dev)
 {
 	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
 	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU_WA, false);
-	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
-	mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
 }
 
 static int mt7915_poll_tx(struct napi_struct *napi, int budget)
@@ -97,7 +95,7 @@ static int mt7915_poll_tx(struct napi_struct *napi, int budget)
 	mt7915_tx_cleanup(dev);
 
 	if (napi_complete_done(napi, 0))
-		mt7915_irq_enable(dev, MT_INT_TX_DONE_ALL);
+		mt7915_irq_enable(dev, MT_INT_TX_DONE_MCU);
 
 	return 0;
 }
@@ -242,7 +240,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 		 MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN);
 
 	/* enable interrupts for TX/RX rings */
-	mt7915_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
+	mt7915_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_MCU |
 			  MT_INT_MCU_CMD);
 
 	return 0;
