@@ -589,19 +589,6 @@ config MACH_VR41XX
 	select SYS_SUPPORTS_MIPS16
 	select GPIOLIB
 
-config NXP_STB220
-	bool "NXP STB220 board"
-	select SOC_PNX833X
-	help
-	  Support for NXP Semiconductors STB220 Development Board.
-
-config NXP_STB225
-	bool "NXP 225 board"
-	select SOC_PNX833X
-	select SOC_PNX8335
-	help
-	  Support for NXP Semiconductors STB225 Development Board.
-
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
@@ -1265,23 +1252,6 @@ config PCI_XTALK_BRIDGE
 
 config NO_EXCEPT_FILL
 	bool
-
-config SOC_PNX833X
-	bool
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_MIPS_CPU
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_MIPS16
-	select CPU_MIPSR2_IRQ_VI
-
-config SOC_PNX8335
-	bool
-	select SOC_PNX833X
 
 config MIPS_SPRAM
 	bool
