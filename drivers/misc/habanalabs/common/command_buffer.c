@@ -300,7 +300,6 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cb *cb;
-	phys_addr_t address;
 	u32 handle, user_cb_size;
 	int rc;
 
@@ -360,12 +359,8 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 
 	vma->vm_private_data = cb;
 
-	/* Calculate address for CB */
-	address = virt_to_phys((void *) (uintptr_t) cb->kernel_address);
-
-	rc = hdev->asic_funcs->cb_mmap(hdev, vma, cb->kernel_address,
-					address, cb->size);
-
+	rc = hdev->asic_funcs->cb_mmap(hdev, vma, (void *) cb->kernel_address,
+					cb->bus_address, cb->size);
 	if (rc) {
 		spin_lock(&cb->lock);
 		cb->mmap = false;

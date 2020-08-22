@@ -3091,17 +3091,16 @@ static int gaudi_resume(struct hl_device *hdev)
 }
 
 static int gaudi_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
-		u64 kaddress, phys_addr_t paddress, u32 size)
+			void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	int rc;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
 			VM_DONTCOPY | VM_NORESERVE;
 
-	rc = remap_pfn_range(vma, vma->vm_start, paddress >> PAGE_SHIFT,
-				size, vma->vm_page_prot);
+	rc = dma_mmap_coherent(hdev->dev, vma, cpu_addr, dma_addr, size);
 	if (rc)
-		dev_err(hdev->dev, "remap_pfn_range error %d", rc);
+		dev_err(hdev->dev, "dma_mmap_coherent error %d", rc);
 
 	return rc;
 }
