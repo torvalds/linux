@@ -466,8 +466,8 @@ extern struct work_struct cfg80211_disconnect_work;
  *
  * Checks if chandef is usable and we can/need start CAC on such channel.
  *
- * Return: Return true if all channels available and at least
- *	   one channel require CAC (NL80211_DFS_USABLE)
+ * Return: true if all channels available and at least
+ *	   one channel requires CAC (NL80211_DFS_USABLE)
  */
 bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
 				 const struct cfg80211_chan_def *chandef);
