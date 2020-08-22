@@ -539,6 +539,13 @@ enum ufshcd_quirks {
 	 * a passthrough keyslot manager.
 	 */
 	UFSHCD_QUIRK_NO_KEYSLOTS			= 1 << 12,
+
+	/*
+	 * This quirk needs to be enabled if the host controller requires that
+	 * the PRDT be cleared after each encrypted request because encryption
+	 * keys were stored in it.
+	 */
+	UFSHCD_QUIRK_KEYS_IN_PRDT			= 1 << 13,
 };
 
 enum ufshcd_caps {
