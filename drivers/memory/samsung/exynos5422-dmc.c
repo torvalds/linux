@@ -123,9 +123,7 @@ struct exynos5_dmc {
 	struct mutex lock;
 	unsigned long curr_rate;
 	unsigned long curr_volt;
-	unsigned long bypass_rate;
 	struct dmc_opp_table *opp;
-	struct dmc_opp_table opp_bypass;
 	int opp_count;
 	u32 timings_arr_size;
 	u32 *timing_row;
@@ -143,8 +141,6 @@ struct exynos5_dmc {
 	struct clk *mout_bpll;
 	struct clk *mout_mclk_cdrex;
 	struct clk *mout_mx_mspll_ccore;
-	struct clk *mx_mspll_ccore_phy;
-	struct clk *mout_mx_mspll_ccore_phy;
 	struct devfreq_event_dev **counter;
 	int num_counters;
 	u64 last_overflow_ts[2];
@@ -455,9 +451,6 @@ static int exynos5_dmc_align_bypass_voltage(struct exynos5_dmc *dmc,
 					    unsigned long target_volt)
 {
 	int ret = 0;
-	unsigned long bypass_volt = dmc->opp_bypass.volt_uv;
-
-	target_volt = max(bypass_volt, target_volt);
 
 	if (dmc->curr_volt >= target_volt)
 		return 0;
@@ -1267,8 +1260,6 @@ static int exynos5_dmc_init_clks(struct exynos5_dmc *dmc)
 	dmc->curr_volt = target_volt;
 
 	clk_set_parent(dmc->mout_mx_mspll_ccore, dmc->mout_spll);
-
-	dmc->bypass_rate = clk_get_rate(dmc->mout_mx_mspll_ccore);
 
 	clk_prepare_enable(dmc->fout_bpll);
 	clk_prepare_enable(dmc->mout_bpll);
