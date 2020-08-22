@@ -339,19 +339,6 @@ static inline int l2tp_v3_ensure_opt_in_linear(struct l2tp_session *session, str
 	return 0;
 }
 
-#define l2tp_printk(ptr, type, func, fmt, ...)				\
-do {									\
-	if (((ptr)->debug) & (type))					\
-		func(fmt, ##__VA_ARGS__);				\
-} while (0)
-
-#define l2tp_warn(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_warn, fmt, ##__VA_ARGS__)
-#define l2tp_info(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_info, fmt, ##__VA_ARGS__)
-#define l2tp_dbg(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
-
 #define MODULE_ALIAS_L2TP_PWTYPE(type) \
 	MODULE_ALIAS("net-l2tp-type-" __stringify(type))
 
