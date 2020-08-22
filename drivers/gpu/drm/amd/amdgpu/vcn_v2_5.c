@@ -1103,7 +1103,7 @@ static int vcn_v2_5_mmsch_start(struct amdgpu_device *adev,
 {
 	uint32_t data = 0, loop = 0, size = 0;
 	uint64_t addr = table->gpu_addr;
-	struct mmsch_v1_1_init_header *header = NULL;;
+	struct mmsch_v1_1_init_header *header = NULL;
 
 	header = (struct mmsch_v1_1_init_header *)table->cpu_addr;
 	size = header->total_size;
