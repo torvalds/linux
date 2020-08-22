@@ -660,7 +660,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      int length)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
-	u32 ns = 0, nr = 0;
 	int offset;
 
 	/* Parse and check optional cookie */
@@ -686,32 +685,21 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	L2TP_SKB_CB(skb)->has_seq = 0;
 	if (tunnel->version == L2TP_HDR_VER_2) {
 		if (hdrflags & L2TP_HDRFLAG_S) {
-			ns = ntohs(*(__be16 *)ptr);
-			ptr += 2;
-			nr = ntohs(*(__be16 *)ptr);
-			ptr += 2;
-
 			/* Store L2TP info in the skb */
-			L2TP_SKB_CB(skb)->ns = ns;
+			L2TP_SKB_CB(skb)->ns = ntohs(*(__be16 *)ptr);
 			L2TP_SKB_CB(skb)->has_seq = 1;
+			ptr += 2;
+			/* Skip past nr in the header */
+			ptr += 2;
 
-			l2tp_dbg(session, L2TP_MSG_SEQ,
-				 "%s: recv data ns=%u, nr=%u, session nr=%u\n",
-				 session->name, ns, nr, session->nr);
 		}
 	} else if (session->l2specific_type == L2TP_L2SPECTYPE_DEFAULT) {
 		u32 l2h = ntohl(*(__be32 *)ptr);
 
 		if (l2h & 0x40000000) {
-			ns = l2h & 0x00ffffff;
-
 			/* Store L2TP info in the skb */
-			L2TP_SKB_CB(skb)->ns = ns;
+			L2TP_SKB_CB(skb)->ns = l2h & 0x00ffffff;
 			L2TP_SKB_CB(skb)->has_seq = 1;
-
-			l2tp_dbg(session, L2TP_MSG_SEQ,
-				 "%s: recv data ns=%u, session nr=%u\n",
-				 session->name, ns, session->nr);
 		}
 		ptr += 4;
 	}
@@ -853,16 +841,6 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 		goto error;
 	}
 
-	/* Trace packet contents, if enabled */
-	if (tunnel->debug & L2TP_MSG_DATA) {
-		length = min(32u, skb->len);
-		if (!pskb_may_pull(skb, length))
-			goto error;
-
-		pr_debug("%s: recv\n", tunnel->name);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
-	}
-
 	/* Point to L2TP header */
 	optr = skb->data;
 	ptr = skb->data;
@@ -883,12 +861,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	length = skb->len;
 
 	/* If type is control packet, it is handled by userspace. */
-	if (hdrflags & L2TP_HDRFLAG_T) {
-		l2tp_dbg(tunnel, L2TP_MSG_DATA,
-			 "%s: recv control packet, len=%d\n",
-			 tunnel->name, length);
+	if (hdrflags & L2TP_HDRFLAG_T)
 		goto error;
-	}
 
 	/* Skip flags */
 	ptr += 2;
@@ -952,9 +926,6 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	tunnel = rcu_dereference_sk_user_data(sk);
 	if (!tunnel)
 		goto pass_up;
-
-	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
-		 tunnel->name, skb->len);
 
 	if (l2tp_udp_recv_core(tunnel, skb))
 		goto pass_up;
@@ -1048,23 +1019,6 @@ static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int len = skb->len;
 	int error;
-
-	/* Debug */
-	if (session->send_seq)
-		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %zd bytes, ns=%u\n",
-			 session->name, data_len, session->ns - 1);
-	else
-		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %zd bytes\n",
-			 session->name, data_len);
-
-	if (session->debug & L2TP_MSG_DATA) {
-		int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
-		unsigned char *datap = skb->data + uhlen;
-
-		pr_debug("%s: xmit\n", session->name);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
-				     datap, min_t(size_t, 32, len - uhlen));
-	}
 
 	/* Queue the packet to IP for output */
 	skb->ignore_df = 1;
