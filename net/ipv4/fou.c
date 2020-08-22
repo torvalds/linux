@@ -237,7 +237,7 @@ static struct sk_buff *fou_gro_receive(struct sock *sk,
 
 	/* We can clear the encap_mark for FOU as we are essentially doing
 	 * one of two possible things.  We are either adding an L4 tunnel
-	 * header to the outer L3 tunnel header, or we are are simply
+	 * header to the outer L3 tunnel header, or we are simply
 	 * treating the GRE tunnel header as though it is a UDP protocol
 	 * specific header such as VXLAN or GENEVE.
 	 */
@@ -429,7 +429,7 @@ next_proto:
 
 	/* We can clear the encap_mark for GUE as we are essentially doing
 	 * one of two possible things.  We are either adding an L4 tunnel
-	 * header to the outer L3 tunnel header, or we are are simply
+	 * header to the outer L3 tunnel header, or we are simply
 	 * treating the GRE tunnel header as though it is a UDP protocol
 	 * specific header such as VXLAN or GENEVE.
 	 */
