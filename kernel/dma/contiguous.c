@@ -119,7 +119,7 @@ void __init dma_pernuma_cma_reserve(void)
 
 	for_each_online_node(nid) {
 		int ret;
-		char name[20];
+		char name[CMA_MAX_NAME];
 		struct cma **cma = &dma_contiguous_pernuma_area[nid];
 
 		snprintf(name, sizeof(name), "pernuma%d", nid);
