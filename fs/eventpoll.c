@@ -455,15 +455,7 @@ static bool ep_push_nested(void *cookie)
 static int ep_call_nested(int (*nproc)(void *, void *, int), void *priv,
 			  void *cookie)
 {
-	int error;
-
-	if (!ep_push_nested(cookie))
-		return -1;
-	/* Call the nested function */
-	error = (*nproc)(priv, cookie, nesting - 1);
-	nesting--;
-
-	return error;
+	return (*nproc)(priv, cookie, nesting);
 }
 
 /*
@@ -1340,6 +1332,9 @@ static int reverse_path_check_proc(void *priv, void *cookie, int call_nests)
 	struct file *child_file;
 	struct epitem *epi;
 
+	if (!ep_push_nested(cookie)) /* limits recursion */
+		return -1;
+
 	/* CTL_DEL can remove links here, but that can't increase our count */
 	rcu_read_lock();
 	list_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
@@ -1362,6 +1357,7 @@ static int reverse_path_check_proc(void *priv, void *cookie, int call_nests)
 		}
 	}
 	rcu_read_unlock();
+	nesting--; /* pop */
 	return error;
 }
 
@@ -1913,6 +1909,9 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 	struct rb_node *rbp;
 	struct epitem *epi;
 
+	if (!ep_push_nested(cookie)) /* limits recursion */
+		return -1;
+
 	mutex_lock_nested(&ep->mtx, call_nests + 1);
 	ep->gen = loop_check_gen;
 	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
@@ -1942,6 +1941,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 		}
 	}
 	mutex_unlock(&ep->mtx);
+	nesting--; /* pop */
 
 	return error;
 }
