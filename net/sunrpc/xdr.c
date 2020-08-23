@@ -658,7 +658,7 @@ EXPORT_SYMBOL_GPL(xdr_reserve_space);
  * head, tail, and page lengths are adjusted to correspond.
  *
  * If this means moving xdr->p to a different buffer, we assume that
- * that the end pointer should be set to the end of the current page,
+ * the end pointer should be set to the end of the current page,
  * except in the case of the head buffer when we assume the head
  * buffer's current length represents the end of the available buffer.
  *
