@@ -5,6 +5,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/qed/qed_if.h>
 #include "qed.h"
 #include "qed_devlink.h"
 
@@ -13,17 +14,12 @@ enum qed_devlink_param_id {
 	QED_DEVLINK_PARAM_ID_IWARP_CMT,
 };
 
-struct qed_devlink {
-	struct qed_dev *cdev;
-};
-
 static int qed_dl_param_get(struct devlink *dl, u32 id,
 			    struct devlink_param_gset_ctx *ctx)
 {
-	struct qed_devlink *qed_dl;
+	struct qed_devlink *qed_dl = devlink_priv(dl);
 	struct qed_dev *cdev;
 
-	qed_dl = devlink_priv(dl);
 	cdev = qed_dl->cdev;
 	ctx->val.vbool = cdev->iwarp_cmt;
 
@@ -33,10 +29,9 @@ static int qed_dl_param_get(struct devlink *dl, u32 id,
 static int qed_dl_param_set(struct devlink *dl, u32 id,
 			    struct devlink_param_gset_ctx *ctx)
 {
-	struct qed_devlink *qed_dl;
+	struct qed_devlink *qed_dl = devlink_priv(dl);
 	struct qed_dev *cdev;
 
-	qed_dl = devlink_priv(dl);
 	cdev = qed_dl->cdev;
 	cdev->iwarp_cmt = ctx->val.vbool;
 
@@ -52,21 +47,19 @@ static const struct devlink_param qed_devlink_params[] = {
 
 static const struct devlink_ops qed_dl_ops;
 
-int qed_devlink_register(struct qed_dev *cdev)
+struct devlink *qed_devlink_register(struct qed_dev *cdev)
 {
 	union devlink_param_value value;
-	struct qed_devlink *qed_dl;
+	struct qed_devlink *qdevlink;
 	struct devlink *dl;
 	int rc;
 
-	dl = devlink_alloc(&qed_dl_ops, sizeof(*qed_dl));
+	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink));
 	if (!dl)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	qed_dl = devlink_priv(dl);
-
-	cdev->dl = dl;
-	qed_dl->cdev = cdev;
+	qdevlink = devlink_priv(dl);
+	qdevlink->cdev = cdev;
 
 	rc = devlink_register(dl, &cdev->pdev->dev);
 	if (rc)
@@ -85,26 +78,25 @@ int qed_devlink_register(struct qed_dev *cdev)
 	devlink_params_publish(dl);
 	cdev->iwarp_cmt = false;
 
-	return 0;
+	return dl;
 
 err_unregister:
 	devlink_unregister(dl);
 
 err_free:
-	cdev->dl = NULL;
 	devlink_free(dl);
 
-	return rc;
+	return ERR_PTR(rc);
 }
 
-void qed_devlink_unregister(struct qed_dev *cdev)
+void qed_devlink_unregister(struct devlink *devlink)
 {
-	if (!cdev->dl)
+	if (!devlink)
 		return;
 
-	devlink_params_unregister(cdev->dl, qed_devlink_params,
+	devlink_params_unregister(devlink, qed_devlink_params,
 				  ARRAY_SIZE(qed_devlink_params));
 
-	devlink_unregister(cdev->dl);
-	devlink_free(cdev->dl);
+	devlink_unregister(devlink);
+	devlink_free(devlink);
 }

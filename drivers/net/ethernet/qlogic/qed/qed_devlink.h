@@ -9,7 +9,7 @@
 #include <linux/qed/qed_if.h>
 #include <net/devlink.h>
 
-int qed_devlink_register(struct qed_dev *cdev);
-void qed_devlink_unregister(struct qed_dev *cdev);
+struct devlink *qed_devlink_register(struct qed_dev *cdev);
+void qed_devlink_unregister(struct devlink *devlink);
 
 #endif

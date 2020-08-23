@@ -1170,10 +1170,23 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 			rc = -ENOMEM;
 			goto err2;
 		}
+
+		edev->devlink = qed_ops->common->devlink_register(cdev);
+		if (IS_ERR(edev->devlink)) {
+			DP_NOTICE(edev, "Cannot register devlink\n");
+			edev->devlink = NULL;
+			/* Go on, we can live without devlink */
+		}
 	} else {
 		struct net_device *ndev = pci_get_drvdata(pdev);
 
 		edev = netdev_priv(ndev);
+
+		if (edev->devlink) {
+			struct qed_devlink *qdl = devlink_priv(edev->devlink);
+
+			qdl->cdev = cdev;
+		}
 		edev->cdev = cdev;
 		memset(&edev->stats, 0, sizeof(edev->stats));
 		memcpy(&edev->dev_info, &dev_info, sizeof(dev_info));
@@ -1296,6 +1309,11 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	qed_ops->common->slowpath_stop(cdev);
 	if (system_state == SYSTEM_POWER_OFF)
 		return;
+
+	if (mode != QEDE_REMOVE_RECOVERY && edev->devlink) {
+		qed_ops->common->devlink_unregister(edev->devlink);
+		edev->devlink = NULL;
+	}
 	qed_ops->common->remove(cdev);
 	edev->cdev = NULL;
 

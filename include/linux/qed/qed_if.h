@@ -21,6 +21,7 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <net/devlink.h>
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
@@ -779,6 +780,10 @@ enum qed_nvm_flash_cmd {
 	QED_NVM_FLASH_CMD_NVM_MAX,
 };
 
+struct qed_devlink {
+	struct qed_dev *cdev;
+};
+
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void (*link_update)(void *dev, struct qed_link_output *link);
@@ -1137,6 +1142,10 @@ struct qed_common_ops {
  *
  */
 	int (*set_grc_config)(struct qed_dev *cdev, u32 cfg_id, u32 val);
+
+	struct devlink* (*devlink_register)(struct qed_dev *cdev);
+
+	void (*devlink_unregister)(struct devlink *devlink);
 };
 
 #define MASK_FIELD(_name, _value) \

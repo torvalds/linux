@@ -172,6 +172,7 @@ struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
 	struct pci_dev			*pdev;
+	struct devlink			*devlink;
 
 	u32				dp_module;
 	u8				dp_level;
