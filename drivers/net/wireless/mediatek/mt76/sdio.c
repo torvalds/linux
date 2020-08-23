@@ -98,8 +98,8 @@ mt76s_get_next_rx_entry(struct mt76_queue *q)
 
 	spin_lock_bh(&q->lock);
 	if (q->queued > 0) {
-		e = &q->entry[q->head];
-		q->head = (q->head + 1) % q->ndesc;
+		e = &q->entry[q->tail];
+		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
 	}
 	spin_unlock_bh(&q->lock);
@@ -142,17 +142,17 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	bool wake;
 
 	while (q->queued > n_dequeued) {
-		if (!q->entry[q->head].done)
+		if (!q->entry[q->tail].done)
 			break;
 
-		if (q->entry[q->head].schedule) {
-			q->entry[q->head].schedule = false;
+		if (q->entry[q->tail].schedule) {
+			q->entry[q->tail].schedule = false;
 			n_sw_dequeued++;
 		}
 
-		entry = q->entry[q->head];
-		q->entry[q->head].done = false;
-		q->head = (q->head + 1) % q->ndesc;
+		entry = q->entry[q->tail];
+		q->entry[q->tail].done = false;
+		q->tail = (q->tail + 1) % q->ndesc;
 		n_dequeued++;
 
 		if (qid == MT_TXQ_MCU)
@@ -222,7 +222,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		.skb = skb,
 	};
 	int err, len = skb->len;
-	u16 idx = q->tail;
+	u16 idx = q->head;
 
 	if (q->queued == q->ndesc)
 		return -ENOSPC;
@@ -232,9 +232,9 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (err < 0)
 		return err;
 
-	q->entry[q->tail].skb = tx_info.skb;
-	q->entry[q->tail].buf_sz = len;
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->entry[q->head].skb = tx_info.skb;
+	q->entry[q->head].buf_sz = len;
+	q->head = (q->head + 1) % q->ndesc;
 	q->queued++;
 
 	return idx;
@@ -256,9 +256,9 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 
 	spin_lock_bh(&q->lock);
 
-	q->entry[q->tail].buf_sz = len;
-	q->entry[q->tail].skb = skb;
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->entry[q->head].buf_sz = len;
+	q->entry[q->head].skb = skb;
+	q->head = (q->head + 1) % q->ndesc;
 	q->queued++;
 
 	spin_unlock_bh(&q->lock);
