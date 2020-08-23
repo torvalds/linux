@@ -731,7 +731,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 		return 1;
 	}
 	/*
-	 * If P.Data Offset is too too large for packet, drop packet and return
+	 * If P.Data Offset is too large for packet, drop packet and return
 	 */
 	if (!pskb_may_pull(skb, dccph_doff * sizeof(u32))) {
 		DCCP_WARN("P.Data Offset(%u) too large\n", dccph_doff);
