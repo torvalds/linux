@@ -1224,12 +1224,10 @@ static void siw_cm_llp_data_ready(struct sock *sk)
 
 	switch (cep->state) {
 	case SIW_EPSTATE_RDMA_MODE:
-		/* fall through */
 	case SIW_EPSTATE_LISTENING:
 		break;
 
 	case SIW_EPSTATE_AWAIT_MPAREQ:
-		/* fall through */
 	case SIW_EPSTATE_AWAIT_MPAREP:
 		siw_cm_queue_work(cep, SIW_CM_WORK_READ_MPAHDR);
 		break;

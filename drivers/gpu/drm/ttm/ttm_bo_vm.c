@@ -525,7 +525,7 @@ int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 			if (unlikely(ret != 0))
 				return ret;
 		}
-		/* fall through */
+		fallthrough;
 	case TTM_PL_TT:
 		ret = ttm_bo_vm_access_kmap(bo, offset, buf, len, write);
 		break;

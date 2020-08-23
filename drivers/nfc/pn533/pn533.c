@@ -2321,7 +2321,7 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* jumbo frame ? */
 		if (skb->len > PN533_CMD_DATAEXCH_DATA_MAXLEN) {
@@ -2448,7 +2448,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		skb_put_u8(skb, 1); /*TG*/
 

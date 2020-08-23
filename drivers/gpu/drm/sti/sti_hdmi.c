@@ -850,13 +850,13 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	switch (info->channels) {
 	case 8:
 		audio_cfg |= HDMI_AUD_CFG_CH78_VALID;
-		/* fall through */
+		fallthrough;
 	case 6:
 		audio_cfg |= HDMI_AUD_CFG_CH56_VALID;
-		/* fall through */
+		fallthrough;
 	case 4:
 		audio_cfg |= HDMI_AUD_CFG_CH34_VALID | HDMI_AUD_CFG_8CH;
-		/* fall through */
+		fallthrough;
 	case 2:
 		audio_cfg |= HDMI_AUD_CFG_CH12_VALID;
 		break;

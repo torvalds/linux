@@ -1061,7 +1061,7 @@ static void b53_force_port_config(struct b53_device *dev, int port,
 	switch (speed) {
 	case 2000:
 		reg |= PORT_OVERRIDE_SPEED_2000M;
-		/* fallthrough */
+		fallthrough;
 	case SPEED_1000:
 		reg |= PORT_OVERRIDE_SPEED_1000M;
 		break;

@@ -713,7 +713,7 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 			break;
 		case FB_BLANK_POWERDOWN:
 			ctrl &= ~0x33;
-			/* fall through */
+			fallthrough;
 		case FB_BLANK_NORMAL:
 			ctrl |= 0x400;
 			break;

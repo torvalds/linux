@@ -220,7 +220,7 @@ static int calibrate_8916(struct tsens_priv *priv)
 		p2[4] = (qfprom_cdata[1] & MSM8916_S4_P2_MASK) >> MSM8916_S4_P2_SHIFT;
 		for (i = 0; i < priv->num_sensors; i++)
 			p2[i] = ((base1 + p2[i]) << 3);
-		/* Fall through */
+		fallthrough;
 	case ONE_PT_CALIB2:
 		base0 = (qfprom_cdata[0] & MSM8916_BASE0_MASK);
 		p1[0] = (qfprom_cdata[0] & MSM8916_S0_P1_MASK) >> MSM8916_S0_P1_SHIFT;
@@ -355,7 +355,7 @@ static int calibrate_8974(struct tsens_priv *priv)
 			p2[8] = (calib[5] & S8_P2_BKP_MASK) >> S8_P2_BKP_SHIFT;
 			p2[9] = (calib[5] & S9_P2_BKP_MASK) >> S9_P2_BKP_SHIFT;
 			p2[10] = (calib[5] & S10_P2_BKP_MASK) >> S10_P2_BKP_SHIFT;
-			/* Fall through */
+			fallthrough;
 		case ONE_PT_CALIB:
 		case ONE_PT_CALIB2:
 			base1 = bkp[0] & BASE1_MASK;
@@ -390,7 +390,7 @@ static int calibrate_8974(struct tsens_priv *priv)
 			p2[8] = (calib[4] & S8_P2_MASK) >> S8_P2_SHIFT;
 			p2[9] = (calib[4] & S9_P2_MASK) >> S9_P2_SHIFT;
 			p2[10] = (calib[4] & S10_P2_MASK) >> S10_P2_SHIFT;
-			/* Fall through */
+			fallthrough;
 		case ONE_PT_CALIB:
 		case ONE_PT_CALIB2:
 			base1 = calib[0] & BASE1_MASK;
@@ -420,7 +420,7 @@ static int calibrate_8974(struct tsens_priv *priv)
 			p2[i] <<= 2;
 			p2[i] |= BIT_APPEND;
 		}
-		/* Fall through */
+		fallthrough;
 	case ONE_PT_CALIB2:
 		for (i = 0; i < priv->num_sensors; i++) {
 			p1[i] += base1;

@@ -223,7 +223,7 @@ static void rcar_pci_setup(struct rcar_pci_priv *priv)
 		pr_warn("unknown window size %ld - defaulting to 256M\n",
 			window_size);
 		window_size = SZ_256M;
-		/* fall-through */
+		fallthrough;
 	case SZ_256M:
 		val |= RCAR_USBCTR_PCIAHB_WIN1_256M;
 		break;

@@ -177,7 +177,7 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 			break;
 		case CS_TIMEOUT:
 			rval = QLA_FUNCTION_TIMEOUT;
-			/* fall through */
+			fallthrough;
 		default:
 			ql_dbg(ql_dbg_disc, vha, 0x2033,
 			    "%s failed, completion status (%x) on port_id: "

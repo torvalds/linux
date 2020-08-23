@@ -233,7 +233,7 @@ void net_dim(struct dim *dim, struct dim_sample end_sample)
 			schedule_work(&dim->work);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case DIM_START_MEASURE:
 		dim_update_sample(end_sample.event_ctr, end_sample.pkt_ctr,
 				  end_sample.byte_ctr, &dim->start_sample);

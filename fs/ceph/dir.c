@@ -1745,7 +1745,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 			case -ENOENT:
 				if (d_really_is_negative(dentry))
 					valid = 1;
-				/* Fallthrough */
+				fallthrough;
 			default:
 				break;
 			}

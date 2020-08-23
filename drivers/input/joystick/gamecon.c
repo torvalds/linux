@@ -885,7 +885,6 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_MULTI:
 		input_set_capability(input_dev, EV_KEY, BTN_TRIGGER);
-		/* fall through */
 		break;
 
 	case GC_PSX:

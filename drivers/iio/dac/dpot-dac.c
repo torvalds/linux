@@ -78,7 +78,7 @@ static int dpot_dac_read_raw(struct iio_dev *indio_dev,
 			 */
 			*val2 = 1;
 			ret = IIO_VAL_FRACTIONAL;
-			/* fall through */
+			fallthrough;
 		case IIO_VAL_FRACTIONAL:
 			*val *= regulator_get_voltage(dac->vref) / 1000;
 			*val2 *= dac->max_ohms;

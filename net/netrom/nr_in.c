@@ -122,7 +122,7 @@ static int nr_state2_machine(struct sock *sk, struct sk_buff *skb,
 
 	case NR_DISCREQ:
 		nr_write_internal(sk, NR_DISCACK);
-		/* fall through */
+		fallthrough;
 	case NR_DISCACK:
 		nr_disconnect(sk, 0);
 		break;

@@ -1958,7 +1958,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		 */
 		set_buffer_new(bh);
 		set_buffer_unwritten(bh);
-		/* FALLTHRU */
+		fallthrough;
 	case IOMAP_MAPPED:
 		if ((iomap->flags & IOMAP_F_NEW) ||
 		    offset >= i_size_read(inode))

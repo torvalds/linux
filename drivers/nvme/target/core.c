@@ -73,7 +73,7 @@ inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 		status = NVME_SC_ACCESS_DENIED;
 		break;
 	case -EIO:
-		/* FALLTHRU */
+		fallthrough;
 	default:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		status = NVME_SC_INTERNAL | NVME_SC_DNR;

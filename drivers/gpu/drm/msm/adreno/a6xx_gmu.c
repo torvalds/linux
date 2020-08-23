@@ -602,7 +602,7 @@ static void a6xx_gmu_power_config(struct a6xx_gmu *gmu)
 		gmu_rmw(gmu, REG_A6XX_GMU_PWR_COL_INTER_FRAME_CTRL, 0,
 			A6XX_GMU_PWR_COL_INTER_FRAME_CTRL_IFPC_ENABLE |
 			A6XX_GMU_PWR_COL_INTER_FRAME_CTRL_HM_POWER_COLLAPSE_ENABLE);
-		/* Fall through */
+		fallthrough;
 	case GMU_IDLE_STATE_SPTP:
 		gmu_write(gmu, REG_A6XX_GMU_PWR_COL_SPTPRAC_HYST,
 			GMU_PWR_COL_HYST);
