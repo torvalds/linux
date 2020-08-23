@@ -704,7 +704,7 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 		err = ip_defrag(net, skb, user);
 		local_bh_enable();
 		if (err && err != -EINPROGRESS)
-			goto out_free;
+			return err;
 
 		if (!err) {
 			*defrag = true;

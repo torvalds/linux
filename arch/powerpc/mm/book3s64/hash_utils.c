@@ -1115,8 +1115,10 @@ void hash__early_init_mmu_secondary(void)
 			&& cpu_has_feature(CPU_FTR_HVMODE))
 		tlbiel_all();
 
-	if (IS_ENABLED(CONFIG_PPC_MEM_KEYS) && mmu_has_feature(MMU_FTR_PKEY))
+#ifdef CONFIG_PPC_MEM_KEYS
+	if (mmu_has_feature(MMU_FTR_PKEY))
 		mtspr(SPRN_UAMOR, default_uamor);
+#endif
 }
 #endif /* CONFIG_SMP */
 
