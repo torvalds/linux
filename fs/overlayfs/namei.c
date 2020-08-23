@@ -1006,6 +1006,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	 * Just make sure a corresponding data dentry has been found.
 	 */
 	if (d.metacopy || (uppermetacopy && !ctr)) {
+		pr_warn_ratelimited("metacopy with no lower data found - abort lookup (%pd2)\n",
+				    dentry);
 		err = -EIO;
 		goto out_put;
 	} else if (!d.is_dir && upperdentry && !ctr && origin_path) {
