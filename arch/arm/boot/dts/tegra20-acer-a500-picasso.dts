@@ -318,16 +318,24 @@
 				nvidia,pins = "drive_ddc",
 						"drive_vi1",
 						"drive_sdio1";
+				nvidia,pull-up-strength = <31>;
+				nvidia,pull-down-strength = <31>;
 				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_4>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
 			};
 			drive_dbg {
 				nvidia,pins = "drive_dbg",
 						"drive_vi2",
 						"drive_at1",
 						"drive_ao1";
+				nvidia,pull-up-strength = <31>;
+				nvidia,pull-down-strength = <31>;
 				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_4>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 			};
