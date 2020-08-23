@@ -927,10 +927,21 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		mt7915_txp_skb_unmap(mdev, txwi);
 		if (txwi->skb) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txwi->skb);
 			void *txwi_ptr = mt76_get_txwi_ptr(mdev, txwi);
 
 			if (likely(txwi->skb->protocol != cpu_to_be16(ETH_P_PAE)))
 				mt7915_tx_check_aggr(sta, txwi_ptr);
+
+			if (sta && !info->tx_time_est) {
+				struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
+				int pending;
+
+				pending = atomic_dec_return(&wcid->non_aql_packets);
+				if (pending < 0)
+					atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
+			}
+
 			mt7915_tx_complete_status(mdev, txwi->skb, sta, stat);
 			txwi->skb = NULL;
 		}

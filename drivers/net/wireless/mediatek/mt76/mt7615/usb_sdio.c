@@ -234,7 +234,7 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 		headroom += MT_USB_HDR_SIZE;
 	skb_pull(e->skb, headroom);
 
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_complete_skb);
 

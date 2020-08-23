@@ -1400,6 +1400,9 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
+	__le32 *txwi_data;
+	u32 val;
+	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
 
@@ -1410,9 +1413,13 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	if (!txwi)
 		return;
 
+	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
+	val = le32_to_cpu(txwi_data[1]);
+	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
+
 	mt7615_txp_skb_unmap(mdev, txwi);
 	if (txwi->skb) {
-		mt76_tx_complete_skb(mdev, txwi->skb);
+		mt76_tx_complete_skb(mdev, wcid, txwi->skb);
 		txwi->skb = NULL;
 	}
 

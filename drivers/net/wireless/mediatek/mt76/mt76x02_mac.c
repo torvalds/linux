@@ -917,7 +917,7 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 	txwi = (struct mt76x02_txwi *)txwi_ptr;
 	trace_mac_txdone(mdev, txwi->wcid, txwi->pktid);
 
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);
 

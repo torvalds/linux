@@ -1282,7 +1282,7 @@ void mt7603_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 	}
 
 	dev->tx_hang_check = 0;
-	mt76_tx_complete_skb(mdev, skb);
+	mt76_tx_complete_skb(mdev, e->wcid, skb);
 }
 
 static bool

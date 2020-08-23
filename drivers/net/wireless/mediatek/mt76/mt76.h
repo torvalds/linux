@@ -22,6 +22,9 @@
 #define MT_RX_BUF_SIZE      2048
 #define MT_SKB_HEAD_LEN     128
 
+#define MT_MAX_NON_AQL_PKT  16
+#define MT_TXQ_FREE_THR     32
+
 struct mt76_dev;
 struct mt76_phy;
 struct mt76_wcid;
@@ -100,10 +103,9 @@ struct mt76_queue_entry {
 		struct urb *urb;
 		int buf_sz;
 	};
-	enum mt76_txq_id qid;
+	u16 wcid;
 	bool skip_buf0:1;
 	bool skip_buf1:1;
-	bool schedule:1;
 	bool done:1;
 };
 
@@ -139,8 +141,6 @@ struct mt76_queue {
 
 struct mt76_sw_queue {
 	struct mt76_queue *q;
-
-	int swq_queued;
 };
 
 struct mt76_mcu_ops {
@@ -205,6 +205,7 @@ DECLARE_EWMA(signal, 10, 8);
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
+	atomic_t non_aql_packets;
 	unsigned long flags;
 
 	struct ewma_signal rssi;
@@ -943,7 +944,7 @@ struct sk_buff *mt76_tx_status_skb_get(struct mt76_dev *dev,
 				       struct sk_buff_head *list);
 void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
 			     struct sk_buff_head *list);
-void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb);
+void mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid, struct sk_buff *skb);
 void mt76_tx_status_check(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			  bool flush);
 int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

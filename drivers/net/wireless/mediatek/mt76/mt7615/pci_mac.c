@@ -44,7 +44,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 	}
 
 	if (e->skb)
-		mt76_tx_complete_skb(mdev, e->skb);
+		mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 
 static void

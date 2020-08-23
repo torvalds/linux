@@ -18,7 +18,7 @@ static void mt76x02u_remove_dma_hdr(struct sk_buff *skb)
 void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	mt76x02u_remove_dma_hdr(e->skb);
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 

@@ -811,7 +811,6 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 			entry = q->entry[q->tail];
 			q->entry[q->tail].done = false;
-			q->entry[q->tail].schedule = false;
 
 			mt76_queue_tx_complete(dev, q, &entry);
 		}
@@ -1053,7 +1052,6 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 
 			entry = q->entry[q->tail];
 			q->entry[q->tail].done = false;
-			q->entry[q->tail].schedule = false;
 
 			mt76_queue_tx_complete(dev, q, &entry);
 		}

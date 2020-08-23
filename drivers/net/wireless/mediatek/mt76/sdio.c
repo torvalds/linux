@@ -144,7 +144,6 @@ static void mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 
 		entry = q->entry[q->tail];
 		q->entry[q->tail].done = false;
-		q->entry[q->tail].schedule = false;
 
 		if (qid == MT_TXQ_MCU) {
 			dev_kfree_skb(entry.skb);
