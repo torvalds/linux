@@ -592,8 +592,8 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 	if (partition_overlaps(bdev->bd_disk, start, length, partno))
 		goto out_unlock;
 
-	part_nr_sects_write(part, (sector_t)length);
-	i_size_write(bdevp->bd_inode, length << SECTOR_SHIFT);
+	part_nr_sects_write(part, length);
+	bd_set_nr_sectors(bdevp, length);
 
 	ret = 0;
 out_unlock:

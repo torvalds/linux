@@ -876,6 +876,7 @@ struct block_device *bdget(dev_t dev)
 	bdev = &BDEV_I(inode)->bdev;
 
 	if (inode->i_state & I_NEW) {
+		spin_lock_init(&bdev->bd_size_lock);
 		bdev->bd_contains = NULL;
 		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
@@ -1290,6 +1291,7 @@ static void check_disk_size_change(struct gendisk *disk,
 {
 	loff_t disk_size, bdev_size;
 
+	spin_lock(&bdev->bd_size_lock);
 	disk_size = (loff_t)get_capacity(disk) << 9;
 	bdev_size = i_size_read(bdev->bd_inode);
 	if (disk_size != bdev_size) {
@@ -1299,11 +1301,15 @@ static void check_disk_size_change(struct gendisk *disk,
 			       disk->disk_name, bdev_size, disk_size);
 		}
 		i_size_write(bdev->bd_inode, disk_size);
-		if (bdev_size > disk_size && __invalidate_device(bdev, false))
+	}
+	bdev->bd_invalidated = 0;
+	spin_unlock(&bdev->bd_size_lock);
+
+	if (bdev_size > disk_size) {
+		if (__invalidate_device(bdev, false))
 			pr_warn("VFS: busy inodes on resized disk %s\n",
 				disk->disk_name);
 	}
-	bdev->bd_invalidated = 0;
 }
 
 /**
@@ -1328,13 +1334,10 @@ int revalidate_disk(struct gendisk *disk)
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		struct block_device *bdev = bdget_disk(disk, 0);
 
-		if (!bdev)
-			return ret;
-
-		mutex_lock(&bdev->bd_mutex);
-		check_disk_size_change(disk, bdev, ret == 0);
-		mutex_unlock(&bdev->bd_mutex);
-		bdput(bdev);
+		if (bdev) {
+			check_disk_size_change(disk, bdev, ret == 0);
+			bdput(bdev);
+		}
 	}
 	return ret;
 }
@@ -1373,9 +1376,9 @@ EXPORT_SYMBOL(check_disk_change);
 
 void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
-	inode_lock(bdev->bd_inode);
+	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	inode_unlock(bdev->bd_inode);
+	spin_unlock(&bdev->bd_size_lock);
 }
 EXPORT_SYMBOL(bd_set_nr_sectors);
 
