@@ -455,21 +455,19 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
  *                  the same nested call (by the meaning of same cookie) is
  *                  no re-entered.
  *
- * @ncalls: Pointer to the nested_calls structure to be used for this call.
  * @nproc: Nested call core function pointer.
  * @priv: Opaque data to be passed to the @nproc callback.
  * @cookie: Cookie to be used to identify this nested call.
- * @ctx: This instance context.
  *
  * Returns: Returns the code returned by the @nproc callback, or -1 if
  *          the maximum recursion limit has been exceeded.
  */
-static int ep_call_nested(struct nested_calls *ncalls,
-			  int (*nproc)(void *, void *, int), void *priv,
-			  void *cookie, void *ctx)
+static int ep_call_nested(int (*nproc)(void *, void *, int), void *priv,
+			  void *cookie)
 {
 	int error, call_nests = 0;
 	unsigned long flags;
+	struct nested_calls *ncalls = &poll_loop_ncalls;
 	struct list_head *lsthead = &ncalls->tasks_call_list;
 	struct nested_call_node *tncur;
 	struct nested_call_node tnode;
@@ -482,7 +480,7 @@ static int ep_call_nested(struct nested_calls *ncalls,
 	 * very much limited.
 	 */
 	list_for_each_entry(tncur, lsthead, llink) {
-		if (tncur->ctx == ctx &&
+		if (tncur->ctx == current &&
 		    (tncur->cookie == cookie || ++call_nests > EP_MAX_NESTS)) {
 			/*
 			 * Ops ... loop detected or maximum nest level reached.
@@ -494,7 +492,7 @@ static int ep_call_nested(struct nested_calls *ncalls,
 	}
 
 	/* Add the current task and cookie to the list */
-	tnode.ctx = ctx;
+	tnode.ctx = current;
 	tnode.cookie = cookie;
 	list_add(&tnode.llink, lsthead);
 
@@ -1397,10 +1395,8 @@ static int reverse_path_check_proc(void *priv, void *cookie, int call_nests)
 					break;
 				}
 			} else {
-				error = ep_call_nested(&poll_loop_ncalls,
-							reverse_path_check_proc,
-							child_file, child_file,
-							current);
+				error = ep_call_nested(reverse_path_check_proc,
+							child_file, child_file);
 			}
 			if (error != 0)
 				break;
@@ -1431,9 +1427,8 @@ static int reverse_path_check(void)
 	/* let's call this for all tfiles */
 	list_for_each_entry(current_file, &tfile_check_list, f_tfile_llink) {
 		path_count_init();
-		error = ep_call_nested(&poll_loop_ncalls,
-					reverse_path_check_proc, current_file,
-					current_file, current);
+		error = ep_call_nested(reverse_path_check_proc, current_file,
+					current_file);
 		if (error)
 			break;
 	}
@@ -1970,9 +1965,8 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 			ep_tovisit = epi->ffd.file->private_data;
 			if (ep_tovisit->gen == loop_check_gen)
 				continue;
-			error = ep_call_nested(&poll_loop_ncalls,
-					ep_loop_check_proc, epi->ffd.file,
-					ep_tovisit, current);
+			error = ep_call_nested(ep_loop_check_proc, epi->ffd.file,
+					ep_tovisit);
 			if (error != 0)
 				break;
 		} else {
@@ -2009,8 +2003,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
  */
 static int ep_loop_check(struct eventpoll *ep, struct file *file)
 {
-	return ep_call_nested(&poll_loop_ncalls,
-			      ep_loop_check_proc, file, ep, current);
+	return ep_call_nested(ep_loop_check_proc, file, ep);
 }
 
 static void clear_tfile_check_list(void)
