@@ -14,6 +14,24 @@ enum qed_devlink_param_id {
 	QED_DEVLINK_PARAM_ID_IWARP_CMT,
 };
 
+struct qed_fw_fatal_ctx {
+	enum qed_hw_err_type err_type;
+};
+
+int qed_report_fatal_error(struct devlink *devlink, enum qed_hw_err_type err_type)
+{
+	struct qed_devlink *qdl = devlink_priv(devlink);
+	struct qed_fw_fatal_ctx fw_fatal_ctx = {
+		.err_type = err_type,
+	};
+
+	if (qdl->fw_reporter)
+		devlink_health_report(qdl->fw_reporter,
+				      "Fatal error occurred", &fw_fatal_ctx);
+
+	return 0;
+}
+
 static const struct devlink_health_reporter_ops qed_fw_fatal_reporter_ops = {
 		.name = "fw_fatal",
 };

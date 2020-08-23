@@ -906,6 +906,9 @@ struct qed_common_ops {
 
 	int (*dbg_all_data_size) (struct qed_dev *cdev);
 
+	int (*report_fatal_error)(struct devlink *devlink,
+				  enum qed_hw_err_type err_type);
+
 /**
  * @brief can_link_change - can the instance change the link or not
  *

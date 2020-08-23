@@ -15,4 +15,6 @@ void qed_devlink_unregister(struct devlink *devlink);
 void qed_fw_reporters_create(struct devlink *devlink);
 void qed_fw_reporters_destroy(struct devlink *devlink);
 
+int qed_report_fatal_error(struct devlink *dl, enum qed_hw_err_type err_type);
+
 #endif
