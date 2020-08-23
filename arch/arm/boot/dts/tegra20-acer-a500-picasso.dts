@@ -736,7 +736,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		max-frequency = <25000000>;
+		max-frequency = <50000000>;
 		keep-power-in-suspend;
 		bus-width = <4>;
 		non-removable;
