@@ -220,8 +220,8 @@ __rate_test()
 
 	rate=$(trap_rate_get)
 	pct=$((100 * (rate - 1000) / 1000))
-	((-5 <= pct && pct <= 5))
-	check_err $? "Expected rate 1000 pps, got $rate pps, which is $pct% off. Required accuracy is +-5%"
+	((-10 <= pct && pct <= 10))
+	check_err $? "Expected rate 1000 pps, got $rate pps, which is $pct% off. Required accuracy is +-10%"
 	log_info "Expected rate 1000 pps, measured rate $rate pps"
 
 	drop_rate=$(policer_drop_rate_get $id)
