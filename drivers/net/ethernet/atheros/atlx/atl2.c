@@ -281,8 +281,8 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 		adapter->txs_ring_size * 4 + 7 +	/* dword align */
 		adapter->rxd_ring_size * 1536 + 127;	/* 128bytes align */
 
-	adapter->ring_vir_addr = pci_alloc_consistent(pdev, size,
-		&adapter->ring_dma);
+	adapter->ring_vir_addr = dma_alloc_coherent(&pdev->dev, size,
+						    &adapter->ring_dma, GFP_KERNEL);
 	if (!adapter->ring_vir_addr)
 		return -ENOMEM;
 
@@ -663,8 +663,8 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 static void atl2_free_ring_resources(struct atl2_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	pci_free_consistent(pdev, adapter->ring_size, adapter->ring_vir_addr,
-		adapter->ring_dma);
+	dma_free_coherent(&pdev->dev, adapter->ring_size,
+			  adapter->ring_vir_addr, adapter->ring_dma);
 }
 
 /**
@@ -1328,8 +1328,8 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * until the kernel has the proper infrastructure to support 64-bit DMA
 	 * on these devices.
 	 */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) &&
+	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
 		err = -EIO;
 		goto err_dma;

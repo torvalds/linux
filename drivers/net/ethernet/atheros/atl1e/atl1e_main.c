@@ -654,11 +654,13 @@ static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 		tx_buffer = &tx_ring->tx_buffer[index];
 		if (tx_buffer->dma) {
 			if (tx_buffer->flags & ATL1E_TX_PCIMAP_SINGLE)
-				pci_unmap_single(pdev, tx_buffer->dma,
-					tx_buffer->length, PCI_DMA_TODEVICE);
+				dma_unmap_single(&pdev->dev, tx_buffer->dma,
+						 tx_buffer->length,
+						 DMA_TO_DEVICE);
 			else if (tx_buffer->flags & ATL1E_TX_PCIMAP_PAGE)
-				pci_unmap_page(pdev, tx_buffer->dma,
-					tx_buffer->length, PCI_DMA_TODEVICE);
+				dma_unmap_page(&pdev->dev, tx_buffer->dma,
+					       tx_buffer->length,
+					       DMA_TO_DEVICE);
 			tx_buffer->dma = 0;
 		}
 	}
@@ -774,8 +776,8 @@ static void atl1e_free_ring_resources(struct atl1e_adapter *adapter)
 	atl1e_clean_rx_ring(adapter);
 
 	if (adapter->ring_vir_addr) {
-		pci_free_consistent(pdev, adapter->ring_size,
-				adapter->ring_vir_addr, adapter->ring_dma);
+		dma_free_coherent(&pdev->dev, adapter->ring_size,
+				  adapter->ring_vir_addr, adapter->ring_dma);
 		adapter->ring_vir_addr = NULL;
 	}
 
@@ -810,11 +812,12 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	/* real ring DMA buffer */
 
 	size = adapter->ring_size;
-	adapter->ring_vir_addr = pci_zalloc_consistent(pdev, adapter->ring_size,
-						       &adapter->ring_dma);
+	adapter->ring_vir_addr = dma_alloc_coherent(&pdev->dev,
+						    adapter->ring_size,
+						    &adapter->ring_dma, GFP_KERNEL);
 	if (adapter->ring_vir_addr == NULL) {
 		netdev_err(adapter->netdev,
-			   "pci_alloc_consistent failed, size = D%d\n", size);
+			   "dma_alloc_coherent failed, size = D%d\n", size);
 		return -ENOMEM;
 	}
 
@@ -870,8 +873,8 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	return 0;
 failed:
 	if (adapter->ring_vir_addr != NULL) {
-		pci_free_consistent(pdev, adapter->ring_size,
-				adapter->ring_vir_addr, adapter->ring_dma);
+		dma_free_coherent(&pdev->dev, adapter->ring_size,
+				  adapter->ring_vir_addr, adapter->ring_dma);
 		adapter->ring_vir_addr = NULL;
 	}
 	return err;
@@ -1233,11 +1236,15 @@ static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 		tx_buffer = &tx_ring->tx_buffer[next_to_clean];
 		if (tx_buffer->dma) {
 			if (tx_buffer->flags & ATL1E_TX_PCIMAP_SINGLE)
-				pci_unmap_single(adapter->pdev, tx_buffer->dma,
-					tx_buffer->length, PCI_DMA_TODEVICE);
+				dma_unmap_single(&adapter->pdev->dev,
+						 tx_buffer->dma,
+						 tx_buffer->length,
+						 DMA_TO_DEVICE);
 			else if (tx_buffer->flags & ATL1E_TX_PCIMAP_PAGE)
-				pci_unmap_page(adapter->pdev, tx_buffer->dma,
-					tx_buffer->length, PCI_DMA_TODEVICE);
+				dma_unmap_page(&adapter->pdev->dev,
+					       tx_buffer->dma,
+					       tx_buffer->length,
+					       DMA_TO_DEVICE);
 			tx_buffer->dma = 0;
 		}
 
@@ -1710,8 +1717,9 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 
 		tx_buffer = atl1e_get_tx_buffer(adapter, use_tpd);
 		tx_buffer->length = map_len;
-		tx_buffer->dma = pci_map_single(adapter->pdev,
-					skb->data, hdr_len, PCI_DMA_TODEVICE);
+		tx_buffer->dma = dma_map_single(&adapter->pdev->dev,
+						skb->data, hdr_len,
+						DMA_TO_DEVICE);
 		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma))
 			return -ENOSPC;
 
@@ -1739,8 +1747,9 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 			((buf_len - mapped_len) >= MAX_TX_BUF_LEN) ?
 			MAX_TX_BUF_LEN : (buf_len - mapped_len);
 		tx_buffer->dma =
-			pci_map_single(adapter->pdev, skb->data + mapped_len,
-					map_len, PCI_DMA_TODEVICE);
+			dma_map_single(&adapter->pdev->dev,
+				       skb->data + mapped_len, map_len,
+				       DMA_TO_DEVICE);
 
 		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma)) {
 			/* We need to unwind the mappings we've done */
@@ -1749,8 +1758,10 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 			while (adapter->tx_ring.next_to_use != ring_end) {
 				tpd = atl1e_get_tpd(adapter);
 				tx_buffer = atl1e_get_tx_buffer(adapter, tpd);
-				pci_unmap_single(adapter->pdev, tx_buffer->dma,
-						 tx_buffer->length, PCI_DMA_TODEVICE);
+				dma_unmap_single(&adapter->pdev->dev,
+						 tx_buffer->dma,
+						 tx_buffer->length,
+						 DMA_TO_DEVICE);
 			}
 			/* Reset the tx rings next pointer */
 			adapter->tx_ring.next_to_use = ring_start;
@@ -2300,8 +2311,8 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * various kernel subsystems to support the mechanics required by a
 	 * fixed-high-32-bit system.
 	 */
-	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
-	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
+	if ((dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) != 0) ||
+	    (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)) != 0)) {
 		dev_err(&pdev->dev, "No usable DMA configuration,aborting\n");
 		goto err_dma;
 	}
