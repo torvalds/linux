@@ -118,6 +118,17 @@ config DMA_CMA
 	  If unsure, say "n".
 
 if  DMA_CMA
+
+config DMA_PERNUMA_CMA
+	bool "Enable separate DMA Contiguous Memory Area for each NUMA Node"
+	default NUMA && ARM64
+	help
+	  Enable this option to get pernuma CMA areas so that devices like
+	  ARM64 SMMU can get local memory by DMA coherent APIs.
+
+	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
+	  on the kernel's command line.
+
 comment "Default contiguous memory area size:"
 
 config CMA_SIZE_MBYTES
