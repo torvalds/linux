@@ -27,8 +27,7 @@ ns2out=""
 log_netns=$(sysctl -n net.netfilter.nf_log_all_netns)
 
 checktool (){
-	$1 > /dev/null 2>&1
-	if [ $? -ne 0 ];then
+	if ! $1 > /dev/null 2>&1; then
 		echo "SKIP: Could not $2"
 		exit $ksft_skip
 	fi
@@ -187,15 +186,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # test basic connectivity
-ip netns exec ns1 ping -c 1 -q 10.0.2.99 > /dev/null
-if [ $? -ne 0 ];then
+if ! ip netns exec ns1 ping -c 1 -q 10.0.2.99 > /dev/null; then
   echo "ERROR: ns1 cannot reach ns2" 1>&2
   bash
   exit 1
 fi
 
-ip netns exec ns2 ping -c 1 -q 10.0.1.99 > /dev/null
-if [ $? -ne 0 ];then
+if ! ip netns exec ns2 ping -c 1 -q 10.0.1.99 > /dev/null; then
   echo "ERROR: ns2 cannot reach ns1" 1>&2
   exit 1
 fi
@@ -230,8 +227,7 @@ check_transfer()
 	out=$2
 	what=$3
 
-	cmp "$in" "$out" > /dev/null 2>&1
-	if [ $? -ne 0 ] ;then
+	if ! cmp "$in" "$out" > /dev/null 2>&1; then
 		echo "FAIL: file mismatch for $what" 1>&2
 		ls -l "$in"
 		ls -l "$out"
@@ -268,13 +264,11 @@ test_tcp_forwarding_ip()
 
 	wait
 
-	check_transfer "$ns1in" "$ns2out" "ns1 -> ns2"
-	if [ $? -ne 0 ];then
+	if ! check_transfer "$ns1in" "$ns2out" "ns1 -> ns2"; then
 		lret=1
 	fi
 
-	check_transfer "$ns2in" "$ns1out" "ns1 <- ns2"
-	if [ $? -ne 0 ];then
+	if ! check_transfer "$ns2in" "$ns1out" "ns1 <- ns2"; then
 		lret=1
 	fi
 
@@ -308,8 +302,7 @@ make_file "$ns2in"
 
 # First test:
 # No PMTU discovery, nsr1 is expected to fragment packets from ns1 to ns2 as needed.
-test_tcp_forwarding ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2"
 else
 	echo "FAIL: flow offload for ns1/ns2:" 1>&2
@@ -340,9 +333,7 @@ table ip nat {
 }
 EOF
 
-test_tcp_forwarding_nat ns1 ns2
-
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding_nat ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT"
 else
 	echo "FAIL: flow offload for ns1/ns2 with NAT" 1>&2
@@ -354,8 +345,7 @@ fi
 # Same as second test, but with PMTU discovery enabled.
 handle=$(ip netns exec nsr1 nft -a list table inet filter | grep something-to-grep-for | cut -d \# -f 2)
 
-ip netns exec nsr1 nft delete rule inet filter forward $handle
-if [ $? -ne 0 ] ;then
+if ! ip netns exec nsr1 nft delete rule inet filter forward $handle; then
 	echo "FAIL: Could not delete large-packet accept rule"
 	exit 1
 fi
@@ -363,8 +353,7 @@ fi
 ip netns exec ns1 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 ip netns exec ns2 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 
-test_tcp_forwarding_nat ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding_nat ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT and pmtu discovery"
 else
 	echo "FAIL: flow offload for ns1/ns2 with NAT and pmtu discovery" 1>&2
@@ -410,8 +399,7 @@ ip -net ns2 route del 192.168.10.1 via 10.0.2.1
 ip -net ns2 route add default via 10.0.2.1
 ip -net ns2 route add default via dead:2::1
 
-test_tcp_forwarding ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding ns1 ns2; then
 	echo "PASS: ipsec tunnel mode for ns1/ns2"
 else
 	echo "FAIL: ipsec tunnel mode for ns1/ns2"
