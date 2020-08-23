@@ -124,7 +124,7 @@ static int imx8mq_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops imx8mq_usb_phy_ops = {
+static const struct phy_ops imx8mq_usb_phy_ops = {
 	.init		= imx8mq_usb_phy_init,
 	.power_on	= imx8mq_phy_power_on,
 	.power_off	= imx8mq_phy_power_off,
