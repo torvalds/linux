@@ -207,7 +207,7 @@ __rate_test()
 
 	RET=0
 
-	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 16
+	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 512
 	devlink trap group set $DEVLINK_DEV group l3_drops policer $id
 
 	# Send packets at highest possible rate and make sure they are dropped
