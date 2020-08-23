@@ -251,7 +251,7 @@ static int cdns_salvo_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops cdns_salvo_phy_ops = {
+static const struct phy_ops cdns_salvo_phy_ops = {
 	.init		= cdns_salvo_phy_init,
 	.power_on	= cdns_salvo_phy_power_on,
 	.power_off	= cdns_salvo_phy_power_off,
