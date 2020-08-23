@@ -441,6 +441,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.end_addr =
 			(VA_HOST_SPACE_START + VA_HOST_SPACE_SIZE / 2) - 1;
 	prop->pmmu.page_size = PAGE_SIZE_4KB;
+	prop->pmmu.num_hops = MMU_ARCH_5_HOPS;
 
 	/* PMMU and HPMMU are the same except of page size */
 	memcpy(&prop->pmmu_huge, &prop->pmmu, sizeof(prop->pmmu));

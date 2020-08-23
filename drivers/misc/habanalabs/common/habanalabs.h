@@ -236,12 +236,15 @@ enum hl_device_hw_state {
  * @hop2_shift: shift of hop 2 mask.
  * @hop3_shift: shift of hop 3 mask.
  * @hop4_shift: shift of hop 4 mask.
+ * @hop5_shift: shift of hop 5 mask.
  * @hop0_mask: mask to get the PTE address in hop 0.
  * @hop1_mask: mask to get the PTE address in hop 1.
  * @hop2_mask: mask to get the PTE address in hop 2.
  * @hop3_mask: mask to get the PTE address in hop 3.
  * @hop4_mask: mask to get the PTE address in hop 4.
+ * @hop5_mask: mask to get the PTE address in hop 5.
  * @page_size: default page size used to allocate memory.
+ * @num_hops: The amount of hops supported by the translation table.
  */
 struct hl_mmu_properties {
 	u64	start_addr;
@@ -251,12 +254,15 @@ struct hl_mmu_properties {
 	u64	hop2_shift;
 	u64	hop3_shift;
 	u64	hop4_shift;
+	u64	hop5_shift;
 	u64	hop0_mask;
 	u64	hop1_mask;
 	u64	hop2_mask;
 	u64	hop3_mask;
 	u64	hop4_mask;
+	u64	hop5_mask;
 	u32	page_size;
+	u32	num_hops;
 };
 
 /**
