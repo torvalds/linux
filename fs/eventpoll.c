@@ -439,25 +439,6 @@ static bool ep_push_nested(void *cookie)
 	return true;
 }
 
-/**
- * ep_call_nested - Perform a bound (possibly) nested call, by checking
- *                  that the recursion limit is not exceeded, and that
- *                  the same nested call (by the meaning of same cookie) is
- *                  no re-entered.
- *
- * @nproc: Nested call core function pointer.
- * @priv: Opaque data to be passed to the @nproc callback.
- * @cookie: Cookie to be used to identify this nested call.
- *
- * Returns: Returns the code returned by the @nproc callback, or -1 if
- *          the maximum recursion limit has been exceeded.
- */
-static int ep_call_nested(int (*nproc)(void *, void *, int), void *priv,
-			  void *cookie)
-{
-	return (*nproc)(priv, cookie, nesting);
-}
-
 /*
  * As described in commit 0ccf831cb lockdep: annotate epoll
  * the use of wait queues used by epoll is done in a very controlled
@@ -1325,7 +1306,7 @@ static void path_count_init(void)
 		path_count[i] = 0;
 }
 
-static int reverse_path_check_proc(void *priv, void *cookie, int call_nests)
+static int reverse_path_check_proc(void *priv, void *cookie, int depth)
 {
 	int error = 0;
 	struct file *file = priv;
@@ -1341,13 +1322,13 @@ static int reverse_path_check_proc(void *priv, void *cookie, int call_nests)
 		child_file = epi->ep->file;
 		if (is_file_epoll(child_file)) {
 			if (list_empty(&child_file->f_ep_links)) {
-				if (path_count_inc(call_nests)) {
+				if (path_count_inc(depth)) {
 					error = -1;
 					break;
 				}
 			} else {
-				error = ep_call_nested(reverse_path_check_proc,
-							child_file, child_file);
+				error = reverse_path_check_proc(child_file, child_file,
+								depth + 1);
 			}
 			if (error != 0)
 				break;
@@ -1379,8 +1360,7 @@ static int reverse_path_check(void)
 	/* let's call this for all tfiles */
 	list_for_each_entry(current_file, &tfile_check_list, f_tfile_llink) {
 		path_count_init();
-		error = ep_call_nested(reverse_path_check_proc, current_file,
-					current_file);
+		error = reverse_path_check_proc(current_file, current_file, 0);
 		if (error)
 			break;
 	}
@@ -1886,8 +1866,7 @@ send_events:
 }
 
 /**
- * ep_loop_check_proc - Callback function to be passed to the @ep_call_nested()
- *                      API, to verify that adding an epoll file inside another
+ * ep_loop_check_proc - verify that adding an epoll file inside another
  *                      epoll structure, does not violate the constraints, in
  *                      terms of closed loops, or too deep chains (which can
  *                      result in excessive stack usage).
@@ -1900,7 +1879,7 @@ send_events:
  * Returns: Returns zero if adding the epoll @file inside current epoll
  *          structure @ep does not violate the constraints, or -1 otherwise.
  */
-static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
+static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 {
 	int error = 0;
 	struct file *file = priv;
@@ -1912,7 +1891,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 	if (!ep_push_nested(cookie)) /* limits recursion */
 		return -1;
 
-	mutex_lock_nested(&ep->mtx, call_nests + 1);
+	mutex_lock_nested(&ep->mtx, depth + 1);
 	ep->gen = loop_check_gen;
 	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
@@ -1920,8 +1899,8 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 			ep_tovisit = epi->ffd.file->private_data;
 			if (ep_tovisit->gen == loop_check_gen)
 				continue;
-			error = ep_call_nested(ep_loop_check_proc, epi->ffd.file,
-					ep_tovisit);
+			error = ep_loop_check_proc(epi->ffd.file, ep_tovisit,
+						   depth + 1);
 			if (error != 0)
 				break;
 		} else {
@@ -1959,7 +1938,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
  */
 static int ep_loop_check(struct eventpoll *ep, struct file *file)
 {
-	return ep_call_nested(ep_loop_check_proc, file, ep);
+	return ep_loop_check_proc(file, ep, 0);
 }
 
 static void clear_tfile_check_list(void)
