@@ -109,25 +109,6 @@ struct epoll_filefd {
 	int fd;
 } __packed;
 
-/*
- * Structure used to track possible nested calls, for too deep recursions
- * and loop cycles.
- */
-struct nested_call_node {
-	struct list_head llink;
-	void *cookie;
-	void *ctx;
-};
-
-/*
- * This structure is used as collector for nested calls, to check for
- * maximum recursion dept and loop cycles.
- */
-struct nested_calls {
-	struct list_head tasks_call_list;
-	spinlock_t lock;
-};
-
 /* Wait structure used by the poll hooks */
 struct eppoll_entry {
 	/* List header used to link this structure to the "struct epitem" */
@@ -273,7 +254,8 @@ static DEFINE_MUTEX(epmutex);
 static u64 loop_check_gen = 0;
 
 /* Used to check for epoll file descriptor inclusion loops */
-static struct nested_calls poll_loop_ncalls;
+static void *cookies[EP_MAX_NESTS + 1];
+static int nesting;
 
 /* Slab cache used to allocate "struct epitem" */
 static struct kmem_cache *epi_cache __read_mostly;
@@ -346,13 +328,6 @@ static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
 static inline struct epitem *ep_item_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
-}
-
-/* Initialize the poll safe wake up structure */
-static void ep_nested_calls_init(struct nested_calls *ncalls)
-{
-	INIT_LIST_HEAD(&ncalls->tasks_call_list);
-	spin_lock_init(&ncalls->lock);
 }
 
 /**
@@ -465,47 +440,20 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 static int ep_call_nested(int (*nproc)(void *, void *, int), void *priv,
 			  void *cookie)
 {
-	int error, call_nests = 0;
-	unsigned long flags;
-	struct nested_calls *ncalls = &poll_loop_ncalls;
-	struct list_head *lsthead = &ncalls->tasks_call_list;
-	struct nested_call_node *tncur;
-	struct nested_call_node tnode;
+	int error, i;
 
-	spin_lock_irqsave(&ncalls->lock, flags);
+	if (nesting > EP_MAX_NESTS) /* too deep nesting */
+		return -1;
 
-	/*
-	 * Try to see if the current task is already inside this wakeup call.
-	 * We use a list here, since the population inside this set is always
-	 * very much limited.
-	 */
-	list_for_each_entry(tncur, lsthead, llink) {
-		if (tncur->ctx == current &&
-		    (tncur->cookie == cookie || ++call_nests > EP_MAX_NESTS)) {
-			/*
-			 * Ops ... loop detected or maximum nest level reached.
-			 * We abort this wake by breaking the cycle itself.
-			 */
-			error = -1;
-			goto out_unlock;
-		}
+	for (i = 0; i < nesting; i++) {
+		if (cookies[i] == cookie) /* loop detected */
+			return -1;
 	}
-
-	/* Add the current task and cookie to the list */
-	tnode.ctx = current;
-	tnode.cookie = cookie;
-	list_add(&tnode.llink, lsthead);
-
-	spin_unlock_irqrestore(&ncalls->lock, flags);
+	cookies[nesting++] = cookie;
 
 	/* Call the nested function */
-	error = (*nproc)(priv, cookie, call_nests);
-
-	/* Remove the current task from the list */
-	spin_lock_irqsave(&ncalls->lock, flags);
-	list_del(&tnode.llink);
-out_unlock:
-	spin_unlock_irqrestore(&ncalls->lock, flags);
+	error = (*nproc)(priv, cookie, nesting - 1);
+	nesting--;
 
 	return error;
 }
@@ -2378,12 +2326,6 @@ static int __init eventpoll_init(void)
 	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
 		EP_ITEM_COST;
 	BUG_ON(max_user_watches < 0);
-
-	/*
-	 * Initialize the structure used to perform epoll file descriptor
-	 * inclusion loops checks.
-	 */
-	ep_nested_calls_init(&poll_loop_ncalls);
 
 	/*
 	 * We can have many thousands of epitems, so prevent this from
