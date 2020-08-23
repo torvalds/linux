@@ -165,16 +165,8 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		last = readl(&q->regs->dma_idx);
 
 	while (q->queued > 0 && q->tail != last) {
-		int swq_qid = -1;
-
 		mt76_dma_tx_cleanup_idx(dev, q, q->tail, &entry);
-		if (entry.schedule)
-			swq_qid = entry.qid;
-
-		q->tail = (q->tail + 1) % q->ndesc;
-
-		if (entry.skb)
-			dev->drv->tx_complete_skb(dev, qid, &entry);
+		mt76_queue_tx_complete(dev, q, &entry);
 
 		if (entry.txwi) {
 			if (!(dev->drv->drv_flags & MT_DRV_TXWI_NO_FREE))
@@ -185,13 +177,6 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		if (!flush && q->tail == last)
 			last = readl(&q->regs->dma_idx);
 
-		spin_lock_bh(&q->lock);
-		if (swq_qid >= 4)
-			dev->q_tx[__MT_TXQ_MAX + swq_qid - 4].swq_queued--;
-		else if (swq_qid >= 0)
-			dev->q_tx[swq_qid].swq_queued--;
-		q->queued--;
-		spin_unlock_bh(&q->lock);
 	}
 
 	if (flush) {

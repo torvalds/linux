@@ -802,32 +802,19 @@ static void mt76u_tx_tasklet(unsigned long data)
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		u32 n_dequeued = 0, n_sw_dequeued = 0;
-
 		sq = &dev->q_tx[i];
 		q = sq->q;
 
-		while (q->queued > n_dequeued) {
+		while (q->queued > 0) {
 			if (!q->entry[q->tail].done)
 				break;
 
-			if (q->entry[q->tail].schedule) {
-				q->entry[q->tail].schedule = false;
-				n_sw_dequeued++;
-			}
-
 			entry = q->entry[q->tail];
 			q->entry[q->tail].done = false;
-			q->tail = (q->tail + 1) % q->ndesc;
-			n_dequeued++;
+			q->entry[q->tail].schedule = false;
 
-			dev->drv->tx_complete_skb(dev, i, &entry);
+			mt76_queue_tx_complete(dev, q, &entry);
 		}
-
-		spin_lock_bh(&q->lock);
-
-		sq->swq_queued -= n_sw_dequeued;
-		q->queued -= n_dequeued;
 
 		wake = q->stopped && q->queued < q->ndesc - 8;
 		if (wake)
@@ -835,8 +822,6 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 		if (!q->queued)
 			wake_up(&dev->tx_wait);
-
-		spin_unlock_bh(&q->lock);
 
 		mt76_txq_schedule(&dev->phy, i);
 
@@ -1068,16 +1053,11 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 			if (!q)
 				continue;
 
-			/* Assure we are in sync with killed tasklet. */
-			spin_lock_bh(&q->lock);
-			while (q->queued) {
-				entry = q->entry[q->tail];
-				q->tail = (q->tail + 1) % q->ndesc;
-				q->queued--;
+			entry = q->entry[q->tail];
+			q->entry[q->tail].done = false;
+			q->entry[q->tail].schedule = false;
 
-				dev->drv->tx_complete_skb(dev, i, &entry);
-			}
-			spin_unlock_bh(&q->lock);
+			mt76_queue_tx_complete(dev, q, &entry);
 		}
 	}
 

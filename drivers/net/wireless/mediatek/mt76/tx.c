@@ -696,3 +696,25 @@ int mt76_skb_adjust_pad(struct sk_buff *skb)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_skb_adjust_pad);
+
+void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
+			    struct mt76_queue_entry *e)
+{
+	enum mt76_txq_id qid = e->qid % 4;
+	bool ext_phy = e->qid >= 4;
+
+	if (e->skb)
+		dev->drv->tx_complete_skb(dev, qid, e);
+
+	spin_lock_bh(&q->lock);
+	q->tail = (q->tail + 1) % q->ndesc;
+	q->queued--;
+
+	if (ext_phy)
+		qid += __MT_TXQ_MAX;
+
+	if (e->schedule)
+		dev->q_tx[qid].swq_queued--;
+	spin_unlock_bh(&q->lock);
+}
+EXPORT_SYMBOL_GPL(mt76_queue_tx_complete);

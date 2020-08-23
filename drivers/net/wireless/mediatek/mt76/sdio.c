@@ -133,38 +133,28 @@ mt76s_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	return nframes;
 }
 
-static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
+static void mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 {
 	struct mt76_sw_queue *sq = &dev->q_tx[qid];
-	u32 n_dequeued = 0, n_sw_dequeued = 0;
 	struct mt76_queue_entry entry;
 	struct mt76_queue *q = sq->q;
 	bool wake;
 
-	while (q->queued > n_dequeued) {
+	while (q->queued > 0) {
 		if (!q->entry[q->tail].done)
 			break;
 
-		if (q->entry[q->tail].schedule) {
-			q->entry[q->tail].schedule = false;
-			n_sw_dequeued++;
-		}
-
 		entry = q->entry[q->tail];
 		q->entry[q->tail].done = false;
-		q->tail = (q->tail + 1) % q->ndesc;
-		n_dequeued++;
+		q->entry[q->tail].schedule = false;
 
-		if (qid == MT_TXQ_MCU)
+		if (qid == MT_TXQ_MCU) {
 			dev_kfree_skb(entry.skb);
-		else
-			dev->drv->tx_complete_skb(dev, qid, &entry);
+			entry.skb = NULL;
+		}
+
+		mt76_queue_tx_complete(dev, q, &entry);
 	}
-
-	spin_lock_bh(&q->lock);
-
-	sq->swq_queued -= n_sw_dequeued;
-	q->queued -= n_dequeued;
 
 	wake = q->stopped && q->queued < q->ndesc - 8;
 	if (wake)
@@ -173,18 +163,13 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
 
-	spin_unlock_bh(&q->lock);
-
 	if (qid == MT_TXQ_MCU)
-		goto out;
+		return;
 
 	mt76_txq_schedule(&dev->phy, qid);
 
 	if (wake)
 		ieee80211_wake_queue(dev->hw, qid);
-
-out:
-	return n_dequeued;
 }
 
 static void mt76s_tx_status_data(struct work_struct *work)
