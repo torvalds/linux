@@ -86,12 +86,23 @@ omtu=9000
 lmtu=1500
 rmtu=2000
 
+usage(){
+	echo "nft_flowtable.sh [OPTIONS]"
+	echo
+	echo "MTU options"
+	echo "   -o originator"
+	echo "   -l link"
+	echo "   -r responder"
+	exit 1
+}
+
 while getopts "o:l:r:" o
 do
 	case $o in
 		o) omtu=$OPTARG;;
 		l) lmtu=$OPTARG;;
 		r) rmtu=$OPTARG;;
+		*) usage;;
 	esac
 done
 
