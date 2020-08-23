@@ -96,10 +96,16 @@ do
 	esac
 done
 
-ip -net nsr1 link set veth0 mtu $omtu
+if ! ip -net nsr1 link set veth0 mtu $omtu; then
+	exit 1
+fi
+
 ip -net ns1 link set eth0 mtu $omtu
 
-ip -net nsr2 link set veth1 mtu $rmtu
+if ! ip -net nsr2 link set veth1 mtu $rmtu; then
+	exit 1
+fi
+
 ip -net ns2 link set eth0 mtu $rmtu
 
 # transfer-net between nsr1 and nsr2.
@@ -120,7 +126,10 @@ for i in 1 2; do
   ip -net ns$i route add default via 10.0.$i.1
   ip -net ns$i addr add dead:$i::99/64 dev eth0
   ip -net ns$i route add default via dead:$i::1
-  ip netns exec ns$i sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null
+  if ! ip netns exec ns$i sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null; then
+	echo "ERROR: Check Originator/Responder values (problem during address addition)"
+	exit 1
+  fi
 
   # don't set ip DF bit for first two tests
   ip netns exec ns$i sysctl net.ipv4.ip_no_pmtu_disc=1 > /dev/null
