@@ -71,11 +71,11 @@ tracex4-objs := tracex4_user.o
 tracex5-objs := tracex5_user.o $(TRACE_HELPERS)
 tracex6-objs := tracex6_user.o
 tracex7-objs := tracex7_user.o
-test_probe_write_user-objs := bpf_load.o test_probe_write_user_user.o
-trace_output-objs := bpf_load.o trace_output_user.o $(TRACE_HELPERS)
-lathist-objs := bpf_load.o lathist_user.o
+test_probe_write_user-objs := test_probe_write_user_user.o
+trace_output-objs := trace_output_user.o $(TRACE_HELPERS)
+lathist-objs := lathist_user.o
 offwaketime-objs := bpf_load.o offwaketime_user.o $(TRACE_HELPERS)
-spintest-objs := bpf_load.o spintest_user.o $(TRACE_HELPERS)
+spintest-objs := spintest_user.o $(TRACE_HELPERS)
 map_perf_test-objs := map_perf_test_user.o
 test_overhead-objs := bpf_load.o test_overhead_user.o
 test_cgrp2_array_pin-objs := test_cgrp2_array_pin.o
@@ -86,7 +86,7 @@ xdp1-objs := xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := xdp1_user.o
 xdp_router_ipv4-objs := xdp_router_ipv4_user.o
-test_current_task_under_cgroup-objs := bpf_load.o $(CGROUP_HELPERS) \
+test_current_task_under_cgroup-objs := $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := trace_event_user.o $(TRACE_HELPERS)
 sampleip-objs := sampleip_user.o $(TRACE_HELPERS)
