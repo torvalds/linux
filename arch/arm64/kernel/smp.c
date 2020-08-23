@@ -53,6 +53,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/debug.h>
 
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
@@ -901,6 +903,7 @@ static void do_handle_IPI(int ipinr)
 		break;
 
 	case IPI_CPU_STOP:
+		trace_android_vh_ipi_stop(get_irq_regs());
 		local_cpu_stop();
 		break;
 
