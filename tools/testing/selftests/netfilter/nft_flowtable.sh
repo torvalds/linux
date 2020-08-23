@@ -212,7 +212,6 @@ ns2out=$(mktemp)
 make_file()
 {
 	name=$1
-	who=$2
 
 	SIZE=$((RANDOM % (1024 * 8)))
 	TSIZE=$((SIZE * 1024))
@@ -304,8 +303,8 @@ test_tcp_forwarding_nat()
 	return $lret
 }
 
-make_file "$ns1in" "ns1"
-make_file "$ns2in" "ns2"
+make_file "$ns1in"
+make_file "$ns2in"
 
 # First test:
 # No PMTU discovery, nsr1 is expected to fragment packets from ns1 to ns2 as needed.
