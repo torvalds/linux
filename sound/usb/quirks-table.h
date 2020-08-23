@@ -2827,14 +2827,24 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 /* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
 {
 	USB_DEVICE(0x17aa, 0x1046),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
-			     "Lenovo-ThinkStation-P620-Rear"),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Lenovo",
+		.product_name = "ThinkStation P620 Rear",
+		.profile_name = "Lenovo-ThinkStation-P620-Rear",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
 },
 /* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
 {
 	USB_DEVICE(0x17aa, 0x104d),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
-			     "Lenovo-ThinkStation-P620-Main"),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Lenovo",
+		.product_name = "ThinkStation P620 Main",
+		.profile_name = "Lenovo-ThinkStation-P620-Main",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
 },
 
 /* Native Instruments MK2 series */
