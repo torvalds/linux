@@ -497,8 +497,8 @@ mt76u_get_next_rx_entry(struct mt76_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->queued > 0) {
-		urb = q->entry[q->head].urb;
-		q->head = (q->head + 1) % q->ndesc;
+		urb = q->entry[q->tail].urb;
+		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
 	}
 	spin_unlock_irqrestore(&q->lock, flags);
@@ -622,10 +622,10 @@ static void mt76u_complete_rx(struct urb *urb)
 	}
 
 	spin_lock_irqsave(&q->lock, flags);
-	if (WARN_ONCE(q->entry[q->tail].urb != urb, "rx urb mismatch"))
+	if (WARN_ONCE(q->entry[q->head].urb != urb, "rx urb mismatch"))
 		goto out;
 
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->head = (q->head + 1) % q->ndesc;
 	q->queued++;
 	tasklet_schedule(&dev->usb.rx_tasklet);
 out:
@@ -808,17 +808,17 @@ static void mt76u_tx_tasklet(unsigned long data)
 		q = sq->q;
 
 		while (q->queued > n_dequeued) {
-			if (!q->entry[q->head].done)
+			if (!q->entry[q->tail].done)
 				break;
 
-			if (q->entry[q->head].schedule) {
-				q->entry[q->head].schedule = false;
+			if (q->entry[q->tail].schedule) {
+				q->entry[q->tail].schedule = false;
 				n_sw_dequeued++;
 			}
 
-			entry = q->entry[q->head];
-			q->entry[q->head].done = false;
-			q->head = (q->head + 1) % q->ndesc;
+			entry = q->entry[q->tail];
+			q->entry[q->tail].done = false;
+			q->tail = (q->tail + 1) % q->ndesc;
 			n_dequeued++;
 
 			dev->drv->tx_complete_skb(dev, i, &entry);
@@ -913,7 +913,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
-	u16 idx = q->tail;
+	u16 idx = q->head;
 	int err;
 
 	if (q->queued == q->ndesc)
@@ -932,7 +932,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 			    q->entry[idx].urb, mt76u_complete_tx,
 			    &q->entry[idx]);
 
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->head = (q->head + 1) % q->ndesc;
 	q->entry[idx].skb = tx_info.skb;
 	q->queued++;
 
@@ -944,7 +944,7 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	struct urb *urb;
 	int err;
 
-	while (q->first != q->tail) {
+	while (q->first != q->head) {
 		urb = q->entry[q->first].urb;
 
 		trace_submit_urb(dev, urb);
@@ -1071,8 +1071,8 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 			/* Assure we are in sync with killed tasklet. */
 			spin_lock_bh(&q->lock);
 			while (q->queued) {
-				entry = q->entry[q->head];
-				q->head = (q->head + 1) % q->ndesc;
+				entry = q->entry[q->tail];
+				q->tail = (q->tail + 1) % q->ndesc;
 				q->queued--;
 
 				dev->drv->tx_complete_skb(dev, i, &entry);
