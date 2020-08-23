@@ -424,6 +424,21 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
+static bool ep_push_nested(void *cookie)
+{
+	int i;
+
+	if (nesting > EP_MAX_NESTS) /* too deep nesting */
+		return false;
+
+	for (i = 0; i < nesting; i++) {
+		if (cookies[i] == cookie) /* loop detected */
+			return false;
+	}
+	cookies[nesting++] = cookie;
+	return true;
+}
+
 /**
  * ep_call_nested - Perform a bound (possibly) nested call, by checking
  *                  that the recursion limit is not exceeded, and that
@@ -440,17 +455,10 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 static int ep_call_nested(int (*nproc)(void *, void *, int), void *priv,
 			  void *cookie)
 {
-	int error, i;
+	int error;
 
-	if (nesting > EP_MAX_NESTS) /* too deep nesting */
+	if (!ep_push_nested(cookie))
 		return -1;
-
-	for (i = 0; i < nesting; i++) {
-		if (cookies[i] == cookie) /* loop detected */
-			return -1;
-	}
-	cookies[nesting++] = cookie;
-
 	/* Call the nested function */
 	error = (*nproc)(priv, cookie, nesting - 1);
 	nesting--;
