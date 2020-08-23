@@ -226,7 +226,6 @@ bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_status_data);
 
 void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
-				     enum mt76_txq_id qid,
 				     struct mt76_queue_entry *e)
 {
 	unsigned int headroom = MT_USB_TXD_SIZE;

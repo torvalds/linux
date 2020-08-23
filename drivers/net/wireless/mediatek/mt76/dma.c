@@ -359,7 +359,7 @@ free:
 
 	e.skb = tx_info.skb;
 	e.txwi = t;
-	dev->drv->tx_complete_skb(dev, qid, &e);
+	dev->drv->tx_complete_skb(dev, &e);
 	mt76_put_txwi(dev, t);
 	return ret;
 }

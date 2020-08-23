@@ -704,7 +704,7 @@ void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 	bool ext_phy = e->qid >= 4;
 
 	if (e->skb)
-		dev->drv->tx_complete_skb(dev, qid, e);
+		dev->drv->tx_complete_skb(dev, e);
 
 	spin_lock_bh(&q->lock);
 	q->tail = (q->tail + 1) % q->ndesc;

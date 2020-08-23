@@ -1271,8 +1271,7 @@ out:
 	rcu_read_unlock();
 }
 
-void mt7603_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			    struct mt76_queue_entry *e)
+void mt7603_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	struct sk_buff *skb = e->skb;
@@ -1282,9 +1281,7 @@ void mt7603_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 		return;
 	}
 
-	if (qid < 4)
-		dev->tx_hang_check = 0;
-
+	dev->tx_hang_check = 0;
 	mt76_tx_complete_skb(mdev, skb);
 }
 

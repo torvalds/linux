@@ -14,8 +14,7 @@
 #include "../dma.h"
 #include "mac.h"
 
-void mt7615_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			    struct mt76_queue_entry *e)
+void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	if (!e->txwi) {
 		dev_kfree_skb_any(e->skb);
