@@ -141,7 +141,7 @@ static int ltq_rcu_usb2_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_rcu_usb2_phy_ops = {
+static const struct phy_ops ltq_rcu_usb2_phy_ops = {
 	.init		= ltq_rcu_usb2_phy_init,
 	.power_on	= ltq_rcu_usb2_phy_power_on,
 	.power_off	= ltq_rcu_usb2_phy_power_off,
