@@ -52,8 +52,8 @@
 #define MTK_IR_END(v, p)	  ((v) == MTK_MAX_SAMPLES && (p) == 0)
 /* Number of registers to record the pulse width */
 #define MTK_CHKDATA_SZ		  17
-/* Sample period in ns */
-#define MTK_IR_SAMPLE		  46000
+/* Sample period in us */
+#define MTK_IR_SAMPLE		  46
 
 enum mtk_fields {
 	/* Register to setting software sampling period */

@@ -193,7 +193,6 @@ static inline bool is_timing_event(struct ir_raw_event ev)
 	return !ev.carrier_report && !ev.reset;
 }
 
-#define TO_US(duration)			DIV_ROUND_CLOSEST((duration), 1000)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
 
 /* functions for IR encoders */

@@ -146,8 +146,8 @@ struct ite_dev {
 #define ITE_DEFAULT_CARRIER_FREQ	38000
 
 /* convert bits to us */
-#define ITE_BITS_TO_NS(bits, sample_period) \
-((u32) ((bits) * ITE_BAUDRATE_DIVISOR * sample_period))
+#define ITE_BITS_TO_US(bits, sample_period) \
+((u32)((bits) * ITE_BAUDRATE_DIVISOR * (sample_period) / 1000))
 
 /*
  * n in RDCR produces a tolerance of +/- n * 6.25% around the center

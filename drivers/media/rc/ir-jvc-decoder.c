@@ -9,7 +9,7 @@
 #include "rc-core-priv.h"
 
 #define JVC_NBITS		16		/* dev(8) + func(8) */
-#define JVC_UNIT		525000		/* ns */
+#define JVC_UNIT		525		/* us */
 #define JVC_HEADER_PULSE	(16 * JVC_UNIT) /* lack of header -> repeat */
 #define JVC_HEADER_SPACE	(8  * JVC_UNIT)
 #define JVC_BIT_PULSE		(1  * JVC_UNIT)
@@ -49,7 +49,7 @@ static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		goto out;
 
 	dev_dbg(&dev->dev, "JVC decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 again:
 	switch (data->state) {
@@ -157,7 +157,7 @@ again:
 
 out:
 	dev_dbg(&dev->dev, "JVC decode failed at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

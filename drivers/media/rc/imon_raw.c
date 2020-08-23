@@ -8,7 +8,7 @@
 #include <media/rc-core.h>
 
 /* Each bit is 250us */
-#define BIT_DURATION 250000
+#define BIT_DURATION 250
 
 struct imon {
 	struct device *dev;

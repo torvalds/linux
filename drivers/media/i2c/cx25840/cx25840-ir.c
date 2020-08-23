@@ -688,7 +688,7 @@ static int cx25840_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		}
 
 		v = (unsigned) pulse_width_count_to_ns(
-				  (u16) (p->hw_fifo_data & FIFO_RXTX), divider);
+				  (u16)(p->hw_fifo_data & FIFO_RXTX), divider) / 1000;
 		if (v > IR_MAX_DURATION)
 			v = IR_MAX_DURATION;
 

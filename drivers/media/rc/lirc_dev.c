@@ -67,17 +67,16 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev->gap = true;
 		dev->gap_duration = ev.duration;
 
-		sample = LIRC_TIMEOUT(ev.duration / 1000);
+		sample = LIRC_TIMEOUT(ev.duration);
 		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
 		if (dev->gap) {
-			dev->gap_duration += ktime_to_ns(ktime_sub(ktime_get(),
+			dev->gap_duration += ktime_to_us(ktime_sub(ktime_get(),
 							 dev->gap_start));
 
-			/* Convert to ms and cap by LIRC_VALUE_MASK */
-			do_div(dev->gap_duration, 1000);
+			/* Cap by LIRC_VALUE_MASK */
 			dev->gap_duration = min_t(u64, dev->gap_duration,
 						  LIRC_VALUE_MASK);
 
@@ -89,10 +88,10 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 			dev->gap = false;
 		}
 
-		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
-					LIRC_SPACE(ev.duration / 1000);
+		sample = ev.pulse ? LIRC_PULSE(ev.duration) :
+					LIRC_SPACE(ev.duration);
 		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
-			TO_US(ev.duration), TO_STR(ev.pulse));
+			ev.duration, TO_STR(ev.pulse));
 	}
 
 	/*
@@ -296,8 +295,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		}
 
 		for (i = 0; i < count; i++)
-			/* Convert from NS to US */
-			txbuf[i] = DIV_ROUND_UP(raw[i].duration, 1000);
+			txbuf[i] = raw[i].duration;
 
 		if (dev->s_tx_carrier) {
 			int carrier = ir_raw_encode_carrier(scan.rc_proto);
@@ -325,7 +323,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	}
 
 	for (i = 0; i < count; i++) {
-		if (txbuf[i] > IR_MAX_DURATION / 1000 - duration || !txbuf[i]) {
+		if (txbuf[i] > IR_MAX_DURATION - duration || !txbuf[i]) {
 			ret = -EINVAL;
 			goto out_kfree;
 		}
@@ -517,7 +515,7 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		if (!dev->rx_resolution)
 			ret = -ENOTTY;
 		else
-			val = dev->rx_resolution / 1000;
+			val = dev->rx_resolution;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
@@ -539,31 +537,26 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		if (!dev->max_timeout)
 			ret = -ENOTTY;
 		else
-			val = DIV_ROUND_UP(dev->min_timeout, 1000);
+			val = dev->min_timeout;
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!dev->max_timeout)
 			ret = -ENOTTY;
 		else
-			val = dev->max_timeout / 1000;
+			val = dev->max_timeout;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT:
 		if (!dev->max_timeout) {
 			ret = -ENOTTY;
-		} else if (val > U32_MAX / 1000) {
-			/* Check for multiply overflow */
-			ret = -EINVAL;
 		} else {
-			u32 tmp = val * 1000;
-
-			if (tmp < dev->min_timeout || tmp > dev->max_timeout)
+			if (val < dev->min_timeout || val > dev->max_timeout)
 				ret = -EINVAL;
 			else if (dev->s_timeout)
-				ret = dev->s_timeout(dev, tmp);
+				ret = dev->s_timeout(dev, val);
 			else
-				dev->timeout = tmp;
+				dev->timeout = val;
 		}
 		break;
 
@@ -571,7 +564,7 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		if (!dev->timeout)
 			ret = -ENOTTY;
 		else
-			val = DIV_ROUND_UP(dev->timeout, 1000);
+			val = dev->timeout;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:

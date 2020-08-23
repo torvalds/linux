@@ -176,14 +176,14 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	if (next_one > 0) {
 		ev.pulse = true;
 		ev.duration =
-		    ITE_BITS_TO_NS(next_one, sample_period);
+		    ITE_BITS_TO_US(next_one, sample_period);
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 	}
 
 	while (next_one < size) {
 		next_zero = find_next_zero_bit_le(ldata, size, next_one + 1);
 		ev.pulse = false;
-		ev.duration = ITE_BITS_TO_NS(next_zero - next_one, sample_period);
+		ev.duration = ITE_BITS_TO_US(next_zero - next_one, sample_period);
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 
 		if (next_zero < size) {
@@ -193,7 +193,7 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 						     next_zero + 1);
 			ev.pulse = true;
 			ev.duration =
-			    ITE_BITS_TO_NS(next_one - next_zero,
+			    ITE_BITS_TO_US(next_one - next_zero,
 					   sample_period);
 			ir_raw_event_store_with_filter
 			    (dev->rdev, &ev);
@@ -1555,9 +1555,9 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	rdev->timeout = IR_DEFAULT_TIMEOUT;
 	rdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	rdev->rx_resolution = ITE_BAUDRATE_DIVISOR *
-				itdev->params.sample_period;
+				itdev->params.sample_period / 1000;
 	rdev->tx_resolution = ITE_BAUDRATE_DIVISOR *
-				itdev->params.sample_period;
+				itdev->params.sample_period / 1000;
 
 	/* set up transmitter related values if needed */
 	if (itdev->params.hw_tx_capable) {
