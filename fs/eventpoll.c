@@ -1306,20 +1306,18 @@ static void path_count_init(void)
 		path_count[i] = 0;
 }
 
-static int reverse_path_check_proc(void *priv, void *cookie, int depth)
+static int reverse_path_check_proc(struct file *file, int depth)
 {
 	int error = 0;
-	struct file *file = priv;
-	struct file *child_file;
 	struct epitem *epi;
 
-	if (!ep_push_nested(cookie)) /* limits recursion */
+	if (!ep_push_nested(file)) /* limits recursion */
 		return -1;
 
 	/* CTL_DEL can remove links here, but that can't increase our count */
 	rcu_read_lock();
 	list_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
-		child_file = epi->ep->file;
+		struct file *child_file = epi->ep->file;
 		if (is_file_epoll(child_file)) {
 			if (list_empty(&child_file->f_ep_links)) {
 				if (path_count_inc(depth)) {
@@ -1327,7 +1325,7 @@ static int reverse_path_check_proc(void *priv, void *cookie, int depth)
 					break;
 				}
 			} else {
-				error = reverse_path_check_proc(child_file, child_file,
+				error = reverse_path_check_proc(child_file,
 								depth + 1);
 			}
 			if (error != 0)
@@ -1360,7 +1358,7 @@ static int reverse_path_check(void)
 	/* let's call this for all tfiles */
 	list_for_each_entry(current_file, &tfile_check_list, f_tfile_llink) {
 		path_count_init();
-		error = reverse_path_check_proc(current_file, current_file, 0);
+		error = reverse_path_check_proc(current_file, 0);
 		if (error)
 			break;
 	}
