@@ -42,8 +42,6 @@ static int mt76s_alloc_tx(struct mt76_dev *dev)
 	int i;
 
 	for (i = 0; i < MT_TXQ_MCU_WA; i++) {
-		INIT_LIST_HEAD(&dev->q_tx[i].swq);
-
 		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
 		if (!q)
 			return -ENOMEM;

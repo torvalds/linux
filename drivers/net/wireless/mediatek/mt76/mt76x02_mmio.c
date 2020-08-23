@@ -118,7 +118,6 @@ mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	INIT_LIST_HEAD(&q->swq);
 	q->q = hwq;
 
 	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));

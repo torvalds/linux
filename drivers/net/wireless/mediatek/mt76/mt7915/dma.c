@@ -23,7 +23,6 @@ mt7915_init_tx_queues(struct mt7915_dev *dev, int n_desc)
 
 	for (i = 0; i < MT_TXQ_MCU; i++) {
 		q = &dev->mt76.q_tx[i];
-		INIT_LIST_HEAD(&q->swq);
 		q->q = hwq;
 	}
 
@@ -45,7 +44,6 @@ mt7915_init_mcu_queue(struct mt7915_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	INIT_LIST_HEAD(&q->swq);
 	q->q = hwq;
 
 	return 0;
