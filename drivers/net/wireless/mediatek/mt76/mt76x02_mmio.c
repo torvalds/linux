@@ -14,7 +14,7 @@
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 {
 	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD].q;
+	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD];
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i;
@@ -104,8 +104,7 @@ void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 EXPORT_SYMBOL_GPL(mt76x02e_init_beacon_config);
 
 static int
-mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
-		      int idx, int n_desc)
+mt76x02_init_tx_queue(struct mt76x02_dev *dev, int qid, int idx, int n_desc)
 {
 	struct mt76_queue *hwq;
 	int err;
@@ -118,7 +117,7 @@ mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	q->q = hwq;
+	dev->mt76.q_tx[qid] = hwq;
 
 	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));
 
@@ -209,19 +208,18 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		ret = mt76x02_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					    mt76_ac_to_hwq(i),
+		ret = mt76x02_init_tx_queue(dev, i, mt76_ac_to_hwq(i),
 					    MT_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt76x02_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_PSD],
+	ret = mt76x02_init_tx_queue(dev, MT_TXQ_PSD,
 				    MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt76x02_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
+	ret = mt76x02_init_tx_queue(dev, MT_TXQ_MCU,
 				    MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
@@ -293,7 +291,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);
 		else
-			mt76_queue_kick(dev, dev->mt76.q_tx[MT_TXQ_PSD].q);
+			mt76_queue_kick(dev, dev->mt76.q_tx[MT_TXQ_PSD]);
 	}
 
 	if (intr & MT_INT_TX_STAT)
@@ -365,7 +363,7 @@ static bool mt76x02_tx_hang(struct mt76x02_dev *dev)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		q = dev->mt76.q_tx[i].q;
+		q = dev->mt76.q_tx[i];
 
 		if (!q->queued)
 			continue;

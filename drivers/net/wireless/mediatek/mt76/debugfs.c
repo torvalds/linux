@@ -31,7 +31,7 @@ int mt76_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
-		struct mt76_queue *q = dev->q_tx[i].q;
+		struct mt76_queue *q = dev->q_tx[i];
 
 		if (!q)
 			continue;

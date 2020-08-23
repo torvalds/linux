@@ -543,7 +543,7 @@ bool mt76_has_tx_pending(struct mt76_phy *phy)
 	offset = __MT_TXQ_MAX * (phy != &dev->phy);
 
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
-		q = dev->q_tx[offset + i].q;
+		q = dev->q_tx[offset + i];
 		if (q && q->queued)
 			return true;
 	}

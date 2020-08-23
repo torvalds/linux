@@ -29,7 +29,7 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 		return;
 
 	qid = skb_get_queue_mapping(skb);
-	q = dev->q_tx[qid].q;
+	q = dev->q_tx[qid];
 
 	spin_lock_bh(&q->lock);
 

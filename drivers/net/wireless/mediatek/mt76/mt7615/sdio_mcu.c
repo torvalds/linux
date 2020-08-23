@@ -53,7 +53,7 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (ret)
 		goto out;
 
-	mt76_queue_kick(dev, mdev->q_tx[MT_TXQ_MCU].q);
+	mt76_queue_kick(dev, mdev->q_tx[MT_TXQ_MCU]);
 	if (wait_resp)
 		ret = mt7615_mcu_wait_response(dev, cmd, seq);
 

@@ -48,7 +48,7 @@ static int mt76s_alloc_tx(struct mt76_dev *dev)
 
 		spin_lock_init(&q->lock);
 		q->hw_idx = i;
-		dev->q_tx[i].q = q;
+		dev->q_tx[i] = q;
 
 		q->entry = devm_kcalloc(dev->dev,
 					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
@@ -133,9 +133,8 @@ mt76s_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 
 static void mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 {
-	struct mt76_sw_queue *sq = &dev->q_tx[qid];
+	struct mt76_queue *q = dev->q_tx[qid];
 	struct mt76_queue_entry entry;
-	struct mt76_queue *q = sq->q;
 	bool wake;
 
 	while (q->queued > 0) {
@@ -199,7 +198,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		   struct sk_buff *skb, struct mt76_wcid *wcid,
 		   struct ieee80211_sta *sta)
 {
-	struct mt76_queue *q = dev->q_tx[qid].q;
+	struct mt76_queue *q = dev->q_tx[qid];
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
@@ -226,7 +225,7 @@ static int
 mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 		       struct sk_buff *skb, u32 tx_info)
 {
-	struct mt76_queue *q = dev->q_tx[qid].q;
+	struct mt76_queue *q = dev->q_tx[qid];
 	int ret = -ENOSPC, len = skb->len;
 
 	if (q->queued == q->ndesc)

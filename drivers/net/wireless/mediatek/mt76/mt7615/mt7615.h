@@ -542,7 +542,7 @@ static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
 
 static inline u32 mt7615_tx_mcu_int_mask(struct mt7615_dev *dev)
 {
-	return MT_INT_TX_DONE(dev->mt76.q_tx[MT_TXQ_MCU].q->hw_idx);
+	return MT_INT_TX_DONE(dev->mt76.q_tx[MT_TXQ_MCU]->hw_idx);
 }
 
 void mt7615_dma_reset(struct mt7615_dev *dev);

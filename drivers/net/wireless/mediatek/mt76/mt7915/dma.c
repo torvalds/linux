@@ -8,7 +8,6 @@
 static int
 mt7915_init_tx_queues(struct mt7915_dev *dev, int n_desc)
 {
-	struct mt76_sw_queue *q;
 	struct mt76_queue *hwq;
 	int err, i;
 
@@ -21,17 +20,14 @@ mt7915_init_tx_queues(struct mt7915_dev *dev, int n_desc)
 	if (err < 0)
 		return err;
 
-	for (i = 0; i < MT_TXQ_MCU; i++) {
-		q = &dev->mt76.q_tx[i];
-		q->q = hwq;
-	}
+	for (i = 0; i < MT_TXQ_MCU; i++)
+		dev->mt76.q_tx[i] = hwq;
 
 	return 0;
 }
 
 static int
-mt7915_init_mcu_queue(struct mt7915_dev *dev, struct mt76_sw_queue *q,
-		      int idx, int n_desc)
+mt7915_init_mcu_queue(struct mt7915_dev *dev, int qid, int idx, int n_desc)
 {
 	struct mt76_queue *hwq;
 	int err;
@@ -44,7 +40,7 @@ mt7915_init_mcu_queue(struct mt7915_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	q->q = hwq;
+	dev->mt76.q_tx[qid] = hwq;
 
 	return 0;
 }
@@ -266,22 +262,19 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 		return ret;
 
 	/* command to WM */
-	ret = mt7915_init_mcu_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
-				    MT7915_TXQ_MCU_WM,
+	ret = mt7915_init_mcu_queue(dev, MT_TXQ_MCU, MT7915_TXQ_MCU_WM,
 				    MT7915_TX_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
 	/* command to WA */
-	ret = mt7915_init_mcu_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU_WA],
-				    MT7915_TXQ_MCU_WA,
+	ret = mt7915_init_mcu_queue(dev, MT_TXQ_MCU_WA, MT7915_TXQ_MCU_WA,
 				    MT7915_TX_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
 	/* firmware download */
-	ret = mt7915_init_mcu_queue(dev, &dev->mt76.q_tx[MT_TXQ_FWDL],
-				    MT7915_TXQ_FWDL,
+	ret = mt7915_init_mcu_queue(dev, MT_TXQ_FWDL, MT7915_TXQ_FWDL,
 				    MT7915_TX_FWDL_RING_SIZE);
 	if (ret)
 		return ret;

@@ -139,10 +139,6 @@ struct mt76_queue {
 	struct page_frag_cache rx_page;
 };
 
-struct mt76_sw_queue {
-	struct mt76_queue *q;
-};
-
 struct mt76_mcu_ops {
 	u32 headroom;
 	u32 tailroom;
@@ -229,7 +225,7 @@ struct mt76_wcid {
 };
 
 struct mt76_txq {
-	struct mt76_sw_queue *swq;
+	struct mt76_queue *q;
 	struct mt76_wcid *wcid;
 
 	struct sk_buff_head retry_q;
@@ -604,7 +600,7 @@ struct mt76_dev {
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];
 
 	struct list_head txwi_cache;
-	struct mt76_sw_queue q_tx[2 * __MT_TXQ_MAX];
+	struct mt76_queue *q_tx[2 * __MT_TXQ_MAX];
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
 	int tx_dma_idx[4];

@@ -339,15 +339,15 @@ mt7615_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
-		struct mt76_sw_queue *q = &dev->mt76.q_tx[queue_map[i].id];
+		struct mt76_queue *q = dev->mt76.q_tx[queue_map[i].id];
 
-		if (!q->q)
+		if (!q)
 			continue;
 
 		seq_printf(s,
 			   "%s:	queued=%d head=%d tail=%d\n",
-			   queue_map[i].queue, q->q->queued, q->q->head,
-			   q->q->tail);
+			   queue_map[i].queue, q->queued, q->head,
+			   q->tail);
 	}
 
 	return 0;

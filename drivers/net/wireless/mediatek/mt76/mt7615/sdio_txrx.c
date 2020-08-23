@@ -162,7 +162,7 @@ static int mt7663s_tx_update_sched(struct mt76_dev *dev,
 
 static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool mcu = q == dev->q_tx[MT_TXQ_MCU].q;
+	bool mcu = q == dev->q_tx[MT_TXQ_MCU];
 	struct mt76_sdio *sdio = &dev->sdio;
 	int nframes = 0;
 
@@ -204,7 +204,7 @@ void mt7663s_tx_work(struct work_struct *work)
 	for (i = 0; i < MT_TXQ_MCU_WA; i++) {
 		int ret;
 
-		ret = mt7663s_tx_run_queue(dev, dev->q_tx[i].q);
+		ret = mt7663s_tx_run_queue(dev, dev->q_tx[i]);
 		if (ret < 0)
 			break;
 

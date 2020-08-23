@@ -5,8 +5,7 @@
 #include "../dma.h"
 
 static int
-mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_sw_queue *q,
-		     int idx, int n_desc)
+mt7603_init_tx_queue(struct mt7603_dev *dev, int qid, int idx, int n_desc)
 {
 	struct mt76_queue *hwq;
 	int err;
@@ -19,7 +18,7 @@ mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	q->q = hwq;
+	dev->mt76.q_tx[qid] = hwq;
 
 	mt7603_irq_enable(dev, MT_INT_TX_DONE(idx));
 
@@ -192,29 +191,28 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 	mt7603_pse_client_reset(dev);
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
-		ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					   wmm_queue_map[i],
+		ret = mt7603_init_tx_queue(dev, i, wmm_queue_map[i],
 					   MT_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_PSD],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_PSD,
 				   MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_MCU,
 				   MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_BEACON],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_BEACON,
 				   MT_TX_HW_QUEUE_BCN, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_CAB],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_CAB,
 				   MT_TX_HW_QUEUE_BMC, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
