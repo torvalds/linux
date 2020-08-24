@@ -123,6 +123,15 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.driver_data = (void *)(SOF_SDW_TGL_HDMI | SOF_SDW_PCH_DMIC |
 					SOF_SDW_FOUR_SPK),
 	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Ripto"),
+		},
+		.driver_data = (void *)(SOF_SDW_TGL_HDMI | SOF_SDW_PCH_DMIC |
+					SOF_SDW_FOUR_SPK),
+	},
 
 	{}
 };
@@ -130,6 +139,10 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 static struct snd_soc_codec_conf codec_conf[] = {
 	{
 		.dlc = COMP_CODEC_CONF("sdw:0:25d:711:0"),
+		.name_prefix = "rt711",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("sdw:0:25d:711:1"),
 		.name_prefix = "rt711",
 	},
 	/* rt1308 w/ I2S connection */
@@ -173,6 +186,23 @@ static struct snd_soc_codec_conf codec_conf[] = {
 		.dlc = COMP_CODEC_CONF("sdw:0:25d:5682:0"),
 		.name_prefix = "rt5682",
 	},
+	/* rt5682 on link2 */
+	{
+		.dlc = COMP_CODEC_CONF("sdw:2:25d:5682:0"),
+		.name_prefix = "rt5682",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("sdw:1:25d:1316:1"),
+		.name_prefix = "rt1316-1",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("sdw:2:25d:1316:1"),
+		.name_prefix = "rt1316-2",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("sdw:3:25d:714:1"),
+		.name_prefix = "rt714",
+	},
 };
 
 static struct snd_soc_dai_link_component dmic_component[] = {
@@ -207,20 +237,29 @@ static const struct snd_soc_ops sdw_ops = {
 
 static struct sof_sdw_codec_info codec_info_list[] = {
 	{
-		.id = 0x700,
+		.part_id = 0x700,
 		.direction = {true, true},
 		.dai_name = "rt700-aif1",
 		.init = sof_sdw_rt700_init,
 	},
 	{
-		.id = 0x711,
+		.part_id = 0x711,
+		.version_id = 3,
+		.direction = {true, true},
+		.dai_name = "rt711-sdca-aif1",
+		.init = sof_sdw_rt711_sdca_init,
+		.exit = sof_sdw_rt711_sdca_exit,
+	},
+	{
+		.part_id = 0x711,
+		.version_id = 2,
 		.direction = {true, true},
 		.dai_name = "rt711-aif1",
 		.init = sof_sdw_rt711_init,
 		.exit = sof_sdw_rt711_exit,
 	},
 	{
-		.id = 0x1308,
+		.part_id = 0x1308,
 		.acpi_id = "10EC1308",
 		.direction = {true, false},
 		.dai_name = "rt1308-aif",
@@ -228,38 +267,57 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.init = sof_sdw_rt1308_init,
 	},
 	{
-		.id = 0x715,
+		.part_id = 0x1316,
+		.direction = {true, true},
+		.dai_name = "rt1316-aif",
+		.init = sof_sdw_rt1316_init,
+	},
+	{
+		.part_id = 0x714,
+		.direction = {false, true},
+		.dai_name = "rt715-aif2",
+		.init = sof_sdw_rt715_sdca_init,
+	},
+	{
+		.part_id = 0x715,
 		.direction = {false, true},
 		.dai_name = "rt715-aif2",
 		.init = sof_sdw_rt715_init,
 	},
 	{
-		.id = 0x8373,
+		.part_id = 0x8373,
 		.direction = {true, true},
 		.dai_name = "max98373-aif1",
 		.init = sof_sdw_mx8373_init,
 		.codec_card_late_probe = sof_sdw_mx8373_late_probe,
 	},
 	{
-		.id = 0x5682,
+		.part_id = 0x5682,
 		.direction = {true, true},
 		.dai_name = "rt5682-sdw",
 		.init = sof_sdw_rt5682_init,
 	},
 };
 
-static inline int find_codec_info_part(unsigned int part_id)
+static inline int find_codec_info_part(u64 adr)
 {
+	unsigned int part_id, sdw_version;
 	int i;
 
+	part_id = SDW_PART_ID(adr);
+	sdw_version = SDW_VERSION(adr);
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
-		if (part_id == codec_info_list[i].id)
-			break;
+		/*
+		 * A codec info is for all sdw version with the part id if
+		 * version_id is not specified in the codec info.
+		 */
+		if (part_id == codec_info_list[i].part_id &&
+		    (!codec_info_list[i].version_id ||
+		     sdw_version == codec_info_list[i].version_id))
+			return i;
 
-	if (i == ARRAY_SIZE(codec_info_list))
-		return -EINVAL;
+	return -EINVAL;
 
-	return i;
 }
 
 static inline int find_codec_info_acpi(const u8 *acpi_id)
@@ -305,13 +363,12 @@ static int get_sdw_dailink_info(const struct snd_soc_acpi_link_adr *links,
 
 	for (link = links; link->num_adr; link++) {
 		const struct snd_soc_acpi_endpoint *endpoint;
-		int part_id, codec_index;
+		int codec_index;
 		int stream;
 		u64 adr;
 
 		adr = link->adr_d->adr;
-		part_id = SDW_PART_ID(adr);
-		codec_index = find_codec_info_part(part_id);
+		codec_index = find_codec_info_part(adr);
 		if (codec_index < 0)
 			return codec_index;
 
@@ -439,7 +496,7 @@ static int create_codec_dai_name(struct device *dev,
 		if (!codec[comp_index].name)
 			return -ENOMEM;
 
-		codec_index = find_codec_info_part(part_id);
+		codec_index = find_codec_info_part(adr);
 		if (codec_index < 0)
 			return codec_index;
 
@@ -463,11 +520,9 @@ static int set_codec_init_func(const struct snd_soc_acpi_link_adr *link,
 		 * same group.
 		 */
 		for (i = 0; i < link->num_adr; i++) {
-			unsigned int part_id;
 			int codec_index;
 
-			part_id = SDW_PART_ID(link->adr_d[i].adr);
-			codec_index = find_codec_info_part(part_id);
+			codec_index = find_codec_info_part(link->adr_d[i].adr);
 
 			if (codec_index < 0)
 				return codec_index;
@@ -571,7 +626,7 @@ static int create_sdw_dailink(struct device *dev, int *be_index,
 	struct snd_soc_dai_link_component *codecs;
 	int cpu_dai_id[SDW_MAX_CPU_DAIS];
 	int cpu_dai_num, cpu_dai_index;
-	unsigned int part_id, group_id;
+	unsigned int group_id;
 	int codec_idx = 0;
 	int i = 0, j = 0;
 	int codec_index;
@@ -613,8 +668,7 @@ static int create_sdw_dailink(struct device *dev, int *be_index,
 	}
 
 	/* find codec info to create BE DAI */
-	part_id = SDW_PART_ID(link->adr_d[0].adr);
-	codec_index = find_codec_info_part(part_id);
+	codec_index = find_codec_info_part(link->adr_d[0].adr);
 	if (codec_index < 0)
 		return codec_index;
 

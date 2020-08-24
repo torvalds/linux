@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Intel Corporation
 
 /*
- *  sof_sdw_rt711 - Helpers to handle RT711 from generic machine driver
+ *  sof_sdw_rt711_sdca - Helpers to handle RT711-SDCA from generic machine driver
  */
 
 #include <linux/device.h>
@@ -21,7 +21,7 @@
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int rt711_add_codec_device_props(const char *sdw_dev_name)
+static int rt711_sdca_add_codec_device_props(const char *sdw_dev_name)
 {
 	struct property_entry props[MAX_NO_PROPS] = {};
 	struct device *sdw_dev;
@@ -42,23 +42,23 @@ static int rt711_add_codec_device_props(const char *sdw_dev_name)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget rt711_widgets[] = {
+static const struct snd_soc_dapm_widget rt711_sdca_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
 
-static const struct snd_soc_dapm_route rt711_map[] = {
+static const struct snd_soc_dapm_route rt711_sdca_map[] = {
 	/* Headphones */
 	{ "Headphone", NULL, "rt711 HP" },
 	{ "rt711 MIC2", NULL, "Headset Mic" },
 };
 
-static const struct snd_kcontrol_new rt711_controls[] = {
+static const struct snd_kcontrol_new rt711_sdca_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
-static struct snd_soc_jack_pin rt711_jack_pins[] = {
+static struct snd_soc_jack_pin rt711_sdca_jack_pins[] = {
 	{
 		.pin    = "Headphone",
 		.mask   = SND_JACK_HEADPHONE,
@@ -69,7 +69,7 @@ static struct snd_soc_jack_pin rt711_jack_pins[] = {
 	},
 };
 
-static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
+static int rt711_sdca_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -79,30 +79,30 @@ static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s hs:rt711",
+					  "%s hs:rt711-sdca",
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt711_controls,
-					ARRAY_SIZE(rt711_controls));
+	ret = snd_soc_add_card_controls(card, rt711_sdca_controls,
+					ARRAY_SIZE(rt711_sdca_controls));
 	if (ret) {
-		dev_err(card->dev, "rt711 controls addition failed: %d\n", ret);
+		dev_err(card->dev, "rt711-sdca controls addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt711_widgets,
-					ARRAY_SIZE(rt711_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, rt711_sdca_widgets,
+					ARRAY_SIZE(rt711_sdca_widgets));
 	if (ret) {
-		dev_err(card->dev, "rt711 widgets addition failed: %d\n", ret);
+		dev_err(card->dev, "rt711-sdca widgets addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt711_map,
-				      ARRAY_SIZE(rt711_map));
+	ret = snd_soc_dapm_add_routes(&card->dapm, rt711_sdca_map,
+				      ARRAY_SIZE(rt711_sdca_map));
 
 	if (ret) {
-		dev_err(card->dev, "rt711 map addition failed: %d\n", ret);
+		dev_err(card->dev, "rt711-sdca map addition failed: %d\n", ret);
 		return ret;
 	}
 
@@ -111,8 +111,8 @@ static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 				    SND_JACK_BTN_1 | SND_JACK_BTN_2 |
 				    SND_JACK_BTN_3,
 				    &ctx->sdw_headset,
-				    rt711_jack_pins,
-				    ARRAY_SIZE(rt711_jack_pins));
+				    rt711_sdca_jack_pins,
+				    ARRAY_SIZE(rt711_sdca_jack_pins));
 	if (ret) {
 		dev_err(rtd->card->dev, "Headset Jack creation failed: %d\n",
 			ret);
@@ -135,7 +135,7 @@ static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_rt711_exit(struct device *dev, struct snd_soc_dai_link *dai_link)
+int sof_sdw_rt711_sdca_exit(struct device *dev, struct snd_soc_dai_link *dai_link)
 {
 	struct device *sdw_dev;
 
@@ -150,10 +150,10 @@ int sof_sdw_rt711_exit(struct device *dev, struct snd_soc_dai_link *dai_link)
 	return 0;
 }
 
-int sof_sdw_rt711_init(const struct snd_soc_acpi_link_adr *link,
-		       struct snd_soc_dai_link *dai_links,
-		       struct sof_sdw_codec_info *info,
-		       bool playback)
+int sof_sdw_rt711_sdca_init(const struct snd_soc_acpi_link_adr *link,
+			    struct snd_soc_dai_link *dai_links,
+			    struct sof_sdw_codec_info *info,
+			    bool playback)
 {
 	int ret;
 
@@ -164,11 +164,11 @@ int sof_sdw_rt711_init(const struct snd_soc_acpi_link_adr *link,
 	if (!playback)
 		return 0;
 
-	ret = rt711_add_codec_device_props(dai_links->codecs[0].name);
+	ret = rt711_sdca_add_codec_device_props(dai_links->codecs[0].name);
 	if (ret < 0)
 		return ret;
 
-	dai_links->init = rt711_rtd_init;
+	dai_links->init = rt711_sdca_rtd_init;
 
 	return 0;
 }

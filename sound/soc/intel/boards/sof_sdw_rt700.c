@@ -8,8 +8,10 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/input.h>
+#include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
 
