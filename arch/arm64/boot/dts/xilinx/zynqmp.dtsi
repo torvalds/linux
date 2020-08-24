@@ -131,7 +131,6 @@
 			};
 
 			zynqmp_clk: clock-controller {
-				u-boot,dm-pre-reloc;
 				#clock-cells = <1>;
 				compatible = "xlnx,zynqmp-clk";
 				clocks = <&pss_ref_clk>,
