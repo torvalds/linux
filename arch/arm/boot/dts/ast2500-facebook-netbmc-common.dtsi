@@ -47,25 +47,12 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "spi0.0";
-
-#include "facebook-bmc-flash-layout.dtsi"
 	};
 
 	fmc_flash1: flash@1 {
 		status = "okay";
 		m25p,fast-read;
 		label = "spi0.1";
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			flash1@0 {
-				reg = <0x0 0x2000000>;
-				label = "flash1";
-			};
-		};
 	};
 };
 
