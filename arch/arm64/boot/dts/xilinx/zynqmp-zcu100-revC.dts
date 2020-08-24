@@ -56,27 +56,27 @@
 
 	leds {
 		compatible = "gpio-leds";
-		ds2 {
+		led-ds2 {
 			label = "ds2";
 			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		ds3 {
+		led-ds3 {
 			label = "ds3";
 			gpios = <&gpio 19 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx"; /* WLAN tx */
 			default-state = "off";
 		};
 
-		ds4 {
+		led-ds4 {
 			label = "ds4";
 			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0rx"; /* WLAN rx */
 			default-state = "off";
 		};
 
-		ds5 {
+		led-ds5 {
 			label = "ds5";
 			gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "bluetooth-power";
