@@ -1219,7 +1219,6 @@ static void qdio_trace_init_data(struct qdio_irq *irq,
 				 struct qdio_initialize *data)
 {
 	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
-	DBF_DEV_HEX(irq, data->adapter_name, 8, DBF_ERR);
 	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
 	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
 	DBF_DEV_HEX(irq, &data->input_slib_elements, sizeof(void *), DBF_ERR);

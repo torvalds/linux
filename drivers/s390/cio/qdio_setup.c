@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/io.h>
+
+#include <asm/ebcdic.h>
 #include <asm/qdio.h>
 
 #include "cio.h"
@@ -452,7 +454,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	if (init_data->no_output_qs)
 		irq_ptr->qib.osliba =
 			(unsigned long)(irq_ptr->output_qs[0]->slib);
-	memcpy(irq_ptr->qib.ebcnam, init_data->adapter_name, 8);
+	memcpy(irq_ptr->qib.ebcnam, dev_name(&irq_ptr->cdev->dev), 8);
+	ASCEBC(irq_ptr->qib.ebcnam, 8);
 }
 
 int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)

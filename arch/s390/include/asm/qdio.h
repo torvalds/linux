@@ -327,7 +327,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * struct qdio_initialize - qdio initialization data
  * @q_format: queue format
  * @qdr_ac: feature flags to set
- * @adapter_name: name for the adapter
  * @qib_param_field_format: format for qib_parm_field
  * @qib_param_field: pointer to 128 bytes or NULL, if no param field
  * @qib_rflags: rflags to set
@@ -347,7 +346,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 struct qdio_initialize {
 	unsigned char q_format;
 	unsigned char qdr_ac;
-	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
 	unsigned char qib_rflags;
