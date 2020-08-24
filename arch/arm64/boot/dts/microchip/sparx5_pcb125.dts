@@ -53,6 +53,20 @@
 			reg = <0x9>;	/* SPI */
 		};
 	};
+	spi@1 {
+		compatible = "spi-mux";
+		mux-controls = <&mux 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>; /* CS1 */
+		spi-flash@9 {
+			compatible = "spi-nand";
+			pinctrl-0 = <&cs1_pins>;
+			pinctrl-names = "default";
+			spi-max-frequency = <8000000>;
+			reg = <0x9>;	/* SPI */
+		};
+	};
 };
 
 &i2c1 {
