@@ -47,9 +47,9 @@
 #define GC8034_REG_SET_PAGE		0xfe
 #define GC8034_SET_PAGE_ZERO		0x00
 
-#define GC8034_REG_CTRL_MODE		0x00
+#define GC8034_REG_CTRL_MODE		0x3f
 #define GC8034_MODE_SW_STANDBY		0x00
-#define GC8034_MODE_STREAMING		0x01
+#define GC8034_MODE_STREAMING		0xd0
 
 #define GC8034_REG_EXPOSURE_H		0x03
 #define GC8034_REG_EXPOSURE_L		0x04
@@ -377,15 +377,7 @@ static const struct regval gc8034_global_regs[] = {
 	{0x2b, 0x04},
 	{0xfe, 0x00},
 	{0x3f, 0x00},
-	{REG_NULL, 0x00},
-};
 
-/*
- * Xclk 24Mhz
- * max_framerate 30fps
- * mipi_datarate per lane 656Mbps
- */
-static const struct regval gc8034_3264x2448_regs[] = {
 	/*SYS*/
 	{0xf2, 0x00},
 	{0xf4, 0x80},
@@ -441,7 +433,17 @@ static const struct regval gc8034_3264x2448_regs[] = {
 	{0x2a, 0x12},
 	{0x2b, 0x07},
 	{0xfe, 0x00},
-	{0x3f, 0xd0},
+	{0x3f, 0x00},
+
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 656Mbps
+ */
+static const struct regval gc8034_3264x2448_regs[] = {
 	{REG_NULL, 0x00},
 };
 
@@ -451,11 +453,11 @@ static const struct gc8034_mode supported_modes[] = {
 		.height = 2448,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 299625,
+			.denominator = 300000,
 		},
 		.exp_def = 0x08c6,
 		.hts_def = 0x10b0,
-		.vts_def = 0x09c4,
+		.vts_def = 0x09c0,
 		.reg_list = gc8034_3264x2448_regs,
 	},
 };
@@ -1466,11 +1468,27 @@ static int __gc8034_start_stream(struct gc8034 *gc8034)
 	mutex_unlock(&gc8034->mutex);
 	ret = v4l2_ctrl_handler_setup(&gc8034->ctrl_handler);
 	mutex_lock(&gc8034->mutex);
+	ret = gc8034_write_reg(gc8034->client,
+		GC8034_REG_SET_PAGE,
+		GC8034_SET_PAGE_ZERO);
+	ret |= gc8034_write_reg(gc8034->client,
+		GC8034_REG_CTRL_MODE,
+		GC8034_MODE_STREAMING);
+
 	return ret;
 }
 
 static int __gc8034_stop_stream(struct gc8034 *gc8034)
 {
+	int ret;
+
+	ret = gc8034_write_reg(gc8034->client,
+		GC8034_REG_SET_PAGE,
+		GC8034_SET_PAGE_ZERO);
+	ret |= gc8034_write_reg(gc8034->client,
+		GC8034_REG_CTRL_MODE,
+		GC8034_MODE_SW_STANDBY);
+
 	return 0;
 }
 
