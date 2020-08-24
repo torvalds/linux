@@ -134,7 +134,7 @@ static int set_reset_mode(struct net_device *ndev)
 	struct rockchip_can *rcan = netdev_priv(ndev);
 
 	reset_control_assert(rcan->reset);
-	usleep_range(2000, 2500);
+	udelay(2);
 	reset_control_deassert(rcan->reset);
 
 	writel(0, rcan->base + CAN_MODE);
