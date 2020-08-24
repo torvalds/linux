@@ -856,12 +856,16 @@ struct xfs_agfl {
  * seconds and nanoseconds; time zero is the Unix epoch, Jan  1 00:00:00 UTC
  * 1970, which means that the timestamp epoch is the same as the Unix epoch.
  * Therefore, the ondisk min and max defined here can be used directly to
- * constrain the incore timestamps on a Unix system.
+ * constrain the incore timestamps on a Unix system.  Note that we actually
+ * encode a __be64 value on disk.
  */
-typedef struct xfs_timestamp {
+typedef __be64 xfs_timestamp_t;
+
+/* Legacy timestamp encoding format. */
+struct xfs_legacy_timestamp {
 	__be32		t_sec;		/* timestamp seconds */
 	__be32		t_nsec;		/* timestamp nanoseconds */
-} xfs_timestamp_t;
+};
 
 /*
  * Smallest possible ondisk seconds value with traditional timestamps.  This

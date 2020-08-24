@@ -115,6 +115,21 @@ out_free_ip:
 	return error;
 }
 
+/* Convert a log timestamp to an ondisk timestamp. */
+static inline xfs_timestamp_t
+xfs_log_dinode_to_disk_ts(
+	const xfs_ictimestamp_t		its)
+{
+	struct xfs_legacy_timestamp	*lts;
+	xfs_timestamp_t			ts;
+
+	lts = (struct xfs_legacy_timestamp *)&ts;
+	lts->t_sec = cpu_to_be32(its.t_sec);
+	lts->t_nsec = cpu_to_be32(its.t_nsec);
+
+	return ts;
+}
+
 STATIC void
 xfs_log_dinode_to_disk(
 	struct xfs_log_dinode	*from,
@@ -132,12 +147,9 @@ xfs_log_dinode_to_disk(
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 
-	to->di_atime.t_sec = cpu_to_be32(from->di_atime.t_sec);
-	to->di_atime.t_nsec = cpu_to_be32(from->di_atime.t_nsec);
-	to->di_mtime.t_sec = cpu_to_be32(from->di_mtime.t_sec);
-	to->di_mtime.t_nsec = cpu_to_be32(from->di_mtime.t_nsec);
-	to->di_ctime.t_sec = cpu_to_be32(from->di_ctime.t_sec);
-	to->di_ctime.t_nsec = cpu_to_be32(from->di_ctime.t_nsec);
+	to->di_atime = xfs_log_dinode_to_disk_ts(from->di_atime);
+	to->di_mtime = xfs_log_dinode_to_disk_ts(from->di_mtime);
+	to->di_ctime = xfs_log_dinode_to_disk_ts(from->di_ctime);
 
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
@@ -153,8 +165,7 @@ xfs_log_dinode_to_disk(
 
 	if (from->di_version == 3) {
 		to->di_changecount = cpu_to_be64(from->di_changecount);
-		to->di_crtime.t_sec = cpu_to_be32(from->di_crtime.t_sec);
-		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.t_nsec);
+		to->di_crtime = xfs_log_dinode_to_disk_ts(from->di_crtime);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
 		to->di_ino = cpu_to_be64(from->di_ino);
