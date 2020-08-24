@@ -715,8 +715,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd->kfd2kgd->get_hive_id)
 		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
 
-	if (kfd->kfd2kgd->get_unique_id)
-		kfd->unique_id = kfd->kfd2kgd->get_unique_id(kfd->kgd);
+	kfd->unique_id = amdgpu_amdkfd_get_unique_id(kfd->kgd);
 
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
