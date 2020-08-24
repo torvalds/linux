@@ -8,18 +8,4 @@
 #ifndef __ASM_MIPS_MACH_SIBYTE_WAR_H
 #define __ASM_MIPS_MACH_SIBYTE_WAR_H
 
-#if defined(CONFIG_SB1_PASS_2_WORKAROUNDS)
-
-#ifndef __ASSEMBLY__
-extern int sb1250_m3_workaround_needed(void);
-#endif
-
-#define BCM1250_M3_WAR	sb1250_m3_workaround_needed()
-
-#else
-
-#define BCM1250_M3_WAR	0
-
-#endif
-
 #endif /* __ASM_MIPS_MACH_SIBYTE_WAR_H */

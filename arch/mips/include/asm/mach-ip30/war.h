@@ -5,6 +5,4 @@
 #ifndef __ASM_MIPS_MACH_IP30_WAR_H
 #define __ASM_MIPS_MACH_IP30_WAR_H
 
-#define BCM1250_M3_WAR			0
-
 #endif /* __ASM_MIPS_MACH_IP30_WAR_H */
