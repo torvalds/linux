@@ -812,7 +812,6 @@ static int config_fec(struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
-	void __iomem *base = dev->hw_dev->base_addr;
 	struct rkispp_dummy_buffer *buf;
 	u32 width, height, fmt, mult = 1;
 	u32 mesh_size;
@@ -856,7 +855,7 @@ static int config_fec(struct rkispp_device *dev)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret < 0)
 		goto err;
-	rkispp_write(base, RKISPP_FEC_MESH_XINT_BASE, buf->dma_addr);
+	rkispp_write(dev, RKISPP_FEC_MESH_XINT_BASE, buf->dma_addr);
 
 	buf = &vdev->fec_buf.mesh_yint;
 	buf->is_need_vaddr = true;
@@ -2104,7 +2103,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	if (vdev->nr.cur_wr && is_start) {
 		dummy = vdev->nr.cur_wr;
 		val = dummy->dma_addr;
-		rkispp_write(base, RKISPP_SHARP_WR_Y_BASE, val);
+		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 		val += vdev->fec.uv_offset;
 		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
 	}
