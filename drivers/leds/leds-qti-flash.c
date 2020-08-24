@@ -1102,7 +1102,7 @@ static ssize_t qti_flash_on_time_show(struct device *dev,
 
 	snode = container_of(led_cdev, struct flash_switch_data, cdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%lu\n", snode->on_time_ms);
+	return scnprintf(buf, PAGE_SIZE, "%lu\n", snode->on_time_ms * 1000);
 }
 
 static ssize_t qti_flash_off_time_store(struct device *dev,
@@ -1133,7 +1133,7 @@ static ssize_t qti_flash_off_time_show(struct device *dev,
 
 	snode = container_of(led_cdev, struct flash_switch_data, cdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%lu\n", snode->off_time_ms);
+	return scnprintf(buf, PAGE_SIZE, "%lu\n", snode->off_time_ms * 1000);
 }
 
 static struct device_attribute qti_flash_led_attrs[] = {
