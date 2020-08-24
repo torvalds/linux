@@ -2604,7 +2604,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
 					 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	uint32_t fw_ver;
 	int ret;
 
@@ -2631,7 +2631,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 						       size_t count)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	void *cpu_addr;
 	dma_addr_t dma_addr;
 	int ret;

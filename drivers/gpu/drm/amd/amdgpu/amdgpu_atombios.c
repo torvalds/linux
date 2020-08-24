@@ -1882,7 +1882,7 @@ static void cail_mc_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 
 	WREG32(reg, val);
 }
@@ -1898,7 +1898,7 @@ static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 	uint32_t r;
 
 	r = RREG32(reg);
@@ -1916,7 +1916,7 @@ static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
  */
 static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 
 	WREG32_IO(reg, val);
 }
@@ -1932,7 +1932,7 @@ static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 	uint32_t r;
 
 	r = RREG32_IO(reg);
@@ -1944,7 +1944,7 @@ static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
 						 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct atom_context *ctx = adev->mode_info.atom_context;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->vbios_version);

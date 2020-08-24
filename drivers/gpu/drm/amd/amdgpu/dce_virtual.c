@@ -132,7 +132,7 @@ static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	unsigned type;
 
@@ -697,7 +697,7 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 	struct amdgpu_crtc *amdgpu_crtc = container_of(vblank_timer,
 						       struct amdgpu_crtc, vblank_timer);
 	struct drm_device *ddev = amdgpu_crtc->base.dev;
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 
 	drm_handle_vblank(ddev, amdgpu_crtc->crtc_id);
 	dce_virtual_pageflip(adev, amdgpu_crtc->crtc_id);

@@ -986,6 +986,11 @@ struct amdgpu_device {
 	struct ratelimit_state		throttling_logging_rs;
 };
 
+static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
+{
+	return ddev->dev_private;
+}
+
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
 {
 	return container_of(bdev, struct amdgpu_device, mman.bdev);

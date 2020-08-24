@@ -483,7 +483,7 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 		/* Can't handle buffers from different drivers */
 		goto out_put;
 
-	adev = obj->dev->dev_private;
+	adev = drm_to_adev(obj->dev);
 	bo = gem_to_amdgpu_bo(obj);
 	if (!(bo->preferred_domains & (AMDGPU_GEM_DOMAIN_VRAM |
 				    AMDGPU_GEM_DOMAIN_GTT)))

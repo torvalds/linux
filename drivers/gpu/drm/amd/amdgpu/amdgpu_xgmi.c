@@ -215,7 +215,7 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 				     char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 
 	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.xgmi.node_id);
 
@@ -227,7 +227,7 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 				      char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	uint32_t ficaa_pie_ctl_in, ficaa_pie_status_in;
 	uint64_t fica_out;
 	unsigned int error_count = 0;

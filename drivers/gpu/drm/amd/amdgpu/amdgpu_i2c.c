@@ -40,7 +40,7 @@
 static int amdgpu_i2c_pre_xfer(struct i2c_adapter *i2c_adap)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
 
@@ -82,7 +82,7 @@ static int amdgpu_i2c_pre_xfer(struct i2c_adapter *i2c_adap)
 static void amdgpu_i2c_post_xfer(struct i2c_adapter *i2c_adap)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
 
@@ -101,7 +101,7 @@ static void amdgpu_i2c_post_xfer(struct i2c_adapter *i2c_adap)
 static int amdgpu_i2c_get_clock(void *i2c_priv)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_priv;
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
@@ -116,7 +116,7 @@ static int amdgpu_i2c_get_clock(void *i2c_priv)
 static int amdgpu_i2c_get_data(void *i2c_priv)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_priv;
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
@@ -130,7 +130,7 @@ static int amdgpu_i2c_get_data(void *i2c_priv)
 static void amdgpu_i2c_set_clock(void *i2c_priv, int clock)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_priv;
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
@@ -143,7 +143,7 @@ static void amdgpu_i2c_set_clock(void *i2c_priv, int clock)
 static void amdgpu_i2c_set_data(void *i2c_priv, int data)
 {
 	struct amdgpu_i2c_chan *i2c = i2c_priv;
-	struct amdgpu_device *adev = i2c->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(i2c->dev);
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 

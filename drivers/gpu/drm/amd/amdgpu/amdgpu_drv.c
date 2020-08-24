@@ -1167,7 +1167,7 @@ retry_init:
 	} else if (ret)
 		goto err_pci;
 
-	adev = dev->dev_private;
+	adev = drm_to_adev(dev);
 	ret = amdgpu_debugfs_init(adev);
 	if (ret)
 		DRM_ERROR("Creating debugfs files failed (%d).\n", ret);
@@ -1201,7 +1201,7 @@ static void
 amdgpu_pci_shutdown(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	if (amdgpu_ras_intr_triggered())
 		return;
@@ -1234,7 +1234,7 @@ static int amdgpu_pmops_resume(struct device *dev)
 static int amdgpu_pmops_freeze(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = drm_dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int r;
 
 	adev->in_hibernate = true;
@@ -1270,7 +1270,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct amdgpu_device *adev = drm_dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int ret, i;
 
 	if (!adev->runpm) {
@@ -1321,7 +1321,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct amdgpu_device *adev = drm_dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int ret;
 
 	if (!adev->runpm)
@@ -1357,7 +1357,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 static int amdgpu_pmops_runtime_idle(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = drm_dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
 	int ret = 1;
 
