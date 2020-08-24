@@ -712,8 +712,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	if (kfd->kfd2kgd->get_hive_id)
-		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
+	kfd->hive_id = amdgpu_amdkfd_get_hive_id(kfd->kgd);
 
 	kfd->unique_id = amdgpu_amdkfd_get_unique_id(kfd->kgd);
 
