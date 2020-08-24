@@ -376,32 +376,15 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	return f2fs_do_sync_file(file, start, end, datasync, false);
 }
 
-static pgoff_t __get_first_dirty_index(struct address_space *mapping,
-						pgoff_t pgofs, int whence)
-{
-	struct page *page;
-	int nr_pages;
-
-	if (whence != SEEK_DATA)
-		return 0;
-
-	/* find first dirty page index */
-	nr_pages = find_get_pages_tag(mapping, &pgofs, PAGECACHE_TAG_DIRTY,
-				      1, &page);
-	if (!nr_pages)
-		return ULONG_MAX;
-	pgofs = page->index;
-	put_page(page);
-	return pgofs;
-}
-
-static bool __found_offset(struct f2fs_sb_info *sbi, block_t blkaddr,
-				pgoff_t dirty, pgoff_t pgofs, int whence)
+static bool __found_offset(struct address_space *mapping, block_t blkaddr,
+				pgoff_t index, int whence)
 {
 	switch (whence) {
 	case SEEK_DATA:
-		if ((blkaddr == NEW_ADDR && dirty == pgofs) ||
-			__is_valid_data_blkaddr(blkaddr))
+		if (__is_valid_data_blkaddr(blkaddr))
+			return true;
+		if (blkaddr == NEW_ADDR &&
+		    xa_get_mark(&mapping->i_pages, index, PAGECACHE_TAG_DIRTY))
 			return true;
 		break;
 	case SEEK_HOLE:
@@ -417,7 +400,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 	struct inode *inode = file->f_mapping->host;
 	loff_t maxbytes = inode->i_sb->s_maxbytes;
 	struct dnode_of_data dn;
-	pgoff_t pgofs, end_offset, dirty;
+	pgoff_t pgofs, end_offset;
 	loff_t data_ofs = offset;
 	loff_t isize;
 	int err = 0;
@@ -436,8 +419,6 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 	}
 
 	pgofs = (pgoff_t)(offset >> PAGE_SHIFT);
-
-	dirty = __get_first_dirty_index(inode->i_mapping, pgofs, whence);
 
 	for (; data_ofs < isize; data_ofs = (loff_t)pgofs << PAGE_SHIFT) {
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
@@ -471,7 +452,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 				goto fail;
 			}
 
-			if (__found_offset(F2FS_I_SB(inode), blkaddr, dirty,
+			if (__found_offset(file->f_mapping, blkaddr,
 							pgofs, whence)) {
 				f2fs_put_dnode(&dn);
 				goto found;
