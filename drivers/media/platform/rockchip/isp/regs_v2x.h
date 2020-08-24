@@ -1816,6 +1816,13 @@
 #define ISP2X_3A_RAWAWB			BIT(11)
 #define ISP2X_3A_DDR_DONE		BIT(12)
 
+/* MI_WR_CTRL */
+#define MI_LUM_BURST_MASK		GENMASK(17, 16)
+#define MI_MIPI_LUM_BURST2		BIT(16)
+#define MI_MIPI_LUM_BURST4		BIT(17)
+#define MI_MIPI_LUM_BURST8		(3 << 16)
+#define MI_MIPI_LUM_BURST16		(0 << 16)
+
 /* mi interrupt */
 #define MI_MP_FRAME			BIT(0)
 #define MI_SP_FRAME			BIT(1)

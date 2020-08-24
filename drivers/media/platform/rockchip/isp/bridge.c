@@ -125,6 +125,8 @@ static int config_mpfbc(struct rkisp_bridge_device *dev)
 
 	ctrl |= (dev->work_mode & ISP_ISPP_422) | SW_MPFBC_EN;
 	rkisp_write(dev->ispdev, ISP_MPFBC_BASE, ctrl, true);
+	rkisp_set_bits(dev->ispdev, MI_WR_CTRL, MI_LUM_BURST_MASK,
+		       MI_MIPI_LUM_BURST16, true);
 	return 0;
 }
 
