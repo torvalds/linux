@@ -27,6 +27,7 @@
 #define NIXLF_PROMISC_ENTRY	2
 
 #define NPC_PARSE_RESULT_DMAC_OFFSET	8
+#define NPC_HW_TSTAMP_OFFSET		8
 
 static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
 				      int blkaddr, u16 pcifunc);
@@ -59,6 +60,36 @@ int rvu_npc_get_pkind(struct rvu *rvu, u16 pf)
 			return i;
 	}
 	return -1;
+}
+
+#define NPC_AF_ACTION0_PTR_ADVANCE	GENMASK_ULL(27, 20)
+
+int npc_config_ts_kpuaction(struct rvu *rvu, int pf, u16 pcifunc, bool enable)
+{
+	int pkind, blkaddr;
+	u64 val;
+
+	pkind = rvu_npc_get_pkind(rvu, pf);
+	if (pkind < 0) {
+		dev_err(rvu->dev, "%s: pkind not mapped\n", __func__);
+		return -EINVAL;
+	}
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, pcifunc);
+	if (blkaddr < 0) {
+		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		return -EINVAL;
+	}
+
+	val = rvu_read64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind));
+	val &= ~NPC_AF_ACTION0_PTR_ADVANCE;
+	/* If timestamp is enabled then configure NPC to shift 8 bytes */
+	if (enable)
+		val |= FIELD_PREP(NPC_AF_ACTION0_PTR_ADVANCE,
+				  NPC_HW_TSTAMP_OFFSET);
+	rvu_write64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind), val);
+
+	return 0;
 }
 
 static int npc_get_nixlf_mcam_index(struct npc_mcam *mcam,
