@@ -7,7 +7,6 @@
 
 #define BCM1250_M3_WAR			0
 #define SIBYTE_1956_WAR			0
-#define ICACHE_REFILLS_WORKAROUND_WAR	0
 #ifdef CONFIG_CPU_R10000
 #define R10000_LLSC_WAR			1
 #else

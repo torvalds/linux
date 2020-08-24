@@ -24,7 +24,6 @@ extern int sb1250_m3_workaround_needed(void);
 
 #endif
 
-#define ICACHE_REFILLS_WORKAROUND_WAR	0
 #define R10000_LLSC_WAR			0
 #define MIPS34K_MISSED_ITLB_WAR		0
 

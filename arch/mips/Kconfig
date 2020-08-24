@@ -568,6 +568,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_SUPPORTS_ZBOOT
 	select USE_OF
+	select WAR_ICACHE_REFILLS
 	select ZONE_DMA32 if 64BIT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
@@ -756,6 +757,7 @@ config SGI_IP32
 	select SYS_HAS_CPU_NEVADA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_ICACHE_REFILLS
 	help
 	  If you want this kernel to run on SGI O2 workstation, say Y here.
 
@@ -2664,6 +2666,13 @@ config WAR_R4600_V2_HIT_CACHEOP
 #
 # Workaround: do two phase flushing for Index_Invalidate_I
 config WAR_TX49XX_ICACHE_INDEX_INV
+	bool
+
+# The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
+# opposes it being called that) where invalid instructions in the same
+# I-cache line worth of instructions being fetched may case spurious
+# exceptions.
+config WAR_ICACHE_REFILLS
 	bool
 
 #

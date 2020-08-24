@@ -94,16 +94,6 @@
 #endif
 
 /*
- * The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
- * opposes it being called that) where invalid instructions in the same
- * I-cache line worth of instructions being fetched may case spurious
- * exceptions.
- */
-#ifndef ICACHE_REFILLS_WORKAROUND_WAR
-#error Check setting of ICACHE_REFILLS_WORKAROUND_WAR for your platform
-#endif
-
-/*
  * On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
