@@ -93,7 +93,7 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	 * targeted by the flip
 	 */
 	if (amdgpu_crtc->enabled &&
-	    (amdgpu_display_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
+	    (amdgpu_display_get_crtc_scanoutpos(adev_to_drm(adev), work->crtc_id, 0,
 						&vpos, &hpos, NULL, NULL,
 						&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
@@ -619,51 +619,51 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 	int sz;
 
 	adev->mode_info.coherent_mode_property =
-		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "coherent", 0, 1);
 	if (!adev->mode_info.coherent_mode_property)
 		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
-		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "load detection", 0, 1);
 	if (!adev->mode_info.load_detect_property)
 		return -ENOMEM;
 
-	drm_mode_create_scaling_mode_property(adev->ddev);
+	drm_mode_create_scaling_mode_property(adev_to_drm(adev));
 
 	sz = ARRAY_SIZE(amdgpu_underscan_enum_list);
 	adev->mode_info.underscan_property =
-		drm_property_create_enum(adev->ddev, 0,
-				    "underscan",
-				    amdgpu_underscan_enum_list, sz);
+		drm_property_create_enum(adev_to_drm(adev), 0,
+					 "underscan",
+					 amdgpu_underscan_enum_list, sz);
 
 	adev->mode_info.underscan_hborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan hborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan hborder", 0, 128);
 	if (!adev->mode_info.underscan_hborder_property)
 		return -ENOMEM;
 
 	adev->mode_info.underscan_vborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan vborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan vborder", 0, 128);
 	if (!adev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
 
 	sz = ARRAY_SIZE(amdgpu_audio_enum_list);
 	adev->mode_info.audio_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "audio",
 					 amdgpu_audio_enum_list, sz);
 
 	sz = ARRAY_SIZE(amdgpu_dither_enum_list);
 	adev->mode_info.dither_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
 	if (amdgpu_device_has_dc_support(adev)) {
 		adev->mode_info.abm_level_property =
-			drm_property_create_range(adev->ddev, 0,
-						"abm level", 0, 4);
+			drm_property_create_range(adev_to_drm(adev), 0,
+						  "abm level", 0, 4);
 		if (!adev->mode_info.abm_level_property)
 			return -ENOMEM;
 	}

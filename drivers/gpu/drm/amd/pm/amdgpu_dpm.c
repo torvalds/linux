@@ -122,7 +122,7 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 
 void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
 {
-	struct drm_device *ddev = adev->ddev;
+	struct drm_device *ddev = adev_to_drm(adev);
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
 
@@ -143,7 +143,7 @@ void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
 
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev)
 {
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
 	u32 vblank_in_pixels;
@@ -170,7 +170,7 @@ u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev)
 
 u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 {
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
 	u32 vrefresh = 0;

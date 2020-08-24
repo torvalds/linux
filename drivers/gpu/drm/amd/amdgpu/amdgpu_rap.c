@@ -46,7 +46,7 @@ static ssize_t amdgpu_rap_debugfs_write(struct file *f, const char __user *buf,
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ta_rap_shared_memory *rap_shared_mem;
 	struct ta_rap_cmd_output_data *rap_cmd_output;
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	uint32_t op;
 	int ret;
 
@@ -116,7 +116,7 @@ static const struct file_operations amdgpu_rap_debugfs_ops = {
 void amdgpu_rap_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
 
 	if (!adev->psp.rap_context.rap_initialized)
 		return;

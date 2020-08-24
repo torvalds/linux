@@ -1921,8 +1921,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       &amdgpu_bo_driver,
-			       adev->ddev->anon_inode->i_mapping,
-			       adev->ddev->vma_offset_manager,
+			       adev_to_drm(adev)->anon_inode->i_mapping,
+			       adev_to_drm(adev)->vma_offset_manager,
 			       dma_addressing_limited(adev->dev));
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
@@ -2606,7 +2606,7 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 	unsigned count;
 
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *ent, *root = minor->debugfs_root;
 
 	for (count = 0; count < ARRAY_SIZE(ttm_debugfs_entries); count++) {

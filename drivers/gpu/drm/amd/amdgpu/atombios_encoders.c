@@ -1673,7 +1673,7 @@ amdgpu_atombios_encoder_set_crtc_source(struct drm_encoder *encoder)
 void
 amdgpu_atombios_encoder_init_dig(struct amdgpu_device *adev)
 {
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_encoder *encoder;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {

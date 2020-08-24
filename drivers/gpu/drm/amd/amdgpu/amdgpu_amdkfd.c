@@ -119,7 +119,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.gpuvm_size = min(adev->vm_manager.max_pfn
 					  << AMDGPU_GPU_PAGE_SHIFT,
 					  AMDGPU_GMC_HOLE_START),
-			.drm_render_minor = adev->ddev->render->index,
+			.drm_render_minor = adev_to_drm(adev)->render->index,
 			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
 
 		};
@@ -160,7 +160,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					adev->doorbell_index.last_non_cp;
 		}
 
-		kgd2kfd_device_init(adev->kfd.dev, adev->ddev, &gpu_resources);
+		kgd2kfd_device_init(adev->kfd.dev, adev_to_drm(adev), &gpu_resources);
 	}
 }
 
@@ -479,7 +479,7 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 		goto out_put;
 
 	obj = dma_buf->priv;
-	if (obj->dev->driver != adev->ddev->driver)
+	if (obj->dev->driver != adev_to_drm(adev)->driver)
 		/* Can't handle buffers from different drivers */
 		goto out_put;
 

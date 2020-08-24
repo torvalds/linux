@@ -148,7 +148,7 @@ void amdgpu_atombios_i2c_init(struct amdgpu_device *adev)
 
 			if (i2c.valid) {
 				sprintf(stmp, "0x%x", i2c.i2c_id);
-				adev->i2c_bus[i] = amdgpu_i2c_create(adev->ddev, &i2c, stmp);
+				adev->i2c_bus[i] = amdgpu_i2c_create(adev_to_drm(adev), &i2c, stmp);
 			}
 			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
 				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
@@ -541,7 +541,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 		}
 	}
 
-	amdgpu_link_encoder_connector(adev->ddev);
+	amdgpu_link_encoder_connector(adev_to_drm(adev));
 
 	return true;
 }
@@ -1995,7 +1995,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 		return -ENOMEM;
 
 	adev->mode_info.atom_card_info = atom_card_info;
-	atom_card_info->dev = adev->ddev;
+	atom_card_info->dev = adev_to_drm(adev);
 	atom_card_info->reg_read = cail_reg_read;
 	atom_card_info->reg_write = cail_reg_write;
 	/* needed for iio ops */

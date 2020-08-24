@@ -294,7 +294,7 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 
 
 remove_link:
-	sysfs_remove_link(&adev->dev->kobj, adev->ddev->unique);
+	sysfs_remove_link(&adev->dev->kobj, adev_to_drm(adev)->unique);
 
 remove_file:
 	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);

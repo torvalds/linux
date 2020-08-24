@@ -1509,7 +1509,7 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 	adev->enable_virtual_display = false;
 
 	if (amdgpu_virtual_display) {
-		struct drm_device *ddev = adev->ddev;
+		struct drm_device *ddev = adev_to_drm(adev);
 		const char *pci_address_name = pci_name(ddev->pdev);
 		char *pciaddstr, *pciaddstr_tmp, *pciaddname_tmp, *pciaddname;
 
@@ -2872,13 +2872,13 @@ static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
 	if (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 
 		task_barrier_enter(&hive->tb);
-		adev->asic_reset_res = amdgpu_device_baco_enter(adev->ddev);
+		adev->asic_reset_res = amdgpu_device_baco_enter(adev_to_drm(adev));
 
 		if (adev->asic_reset_res)
 			goto fail;
 
 		task_barrier_exit(&hive->tb);
-		adev->asic_reset_res = amdgpu_device_baco_exit(adev->ddev);
+		adev->asic_reset_res = amdgpu_device_baco_exit(adev_to_drm(adev));
 
 		if (adev->asic_reset_res)
 			goto fail;
@@ -2894,7 +2894,7 @@ static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
 fail:
 	if (adev->asic_reset_res)
 		DRM_WARN("ASIC reset failed with error, %d for drm dev, %s",
-			 adev->asic_reset_res, adev->ddev->unique);
+			 adev->asic_reset_res, adev_to_drm(adev)->unique);
 	amdgpu_put_xgmi_hive(hive);
 }
 
@@ -3243,7 +3243,7 @@ fence_driver_init:
 	}
 
 	/* init the mode config */
-	drm_mode_config_init(adev->ddev);
+	drm_mode_config_init(adev_to_drm(adev));
 
 	r = amdgpu_device_ip_init(adev);
 	if (r) {
@@ -3385,9 +3385,9 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_irq_disable_all(adev);
 	if (adev->mode_info.mode_config_initialized){
 		if (!amdgpu_device_has_dc_support(adev))
-			drm_helper_force_disable_all(adev->ddev);
+			drm_helper_force_disable_all(adev_to_drm(adev));
 		else
-			drm_atomic_helper_shutdown(adev->ddev);
+			drm_atomic_helper_shutdown(adev_to_drm(adev));
 	}
 	amdgpu_fence_driver_fini(adev);
 	if (adev->pm_sysfs_en)
@@ -3411,7 +3411,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    !pci_is_thunderbolt_attached(adev->pdev))
 		vga_switcheroo_unregister_client(adev->pdev);
-	if (amdgpu_device_supports_boco(adev->ddev))
+	if (amdgpu_device_supports_boco(adev_to_drm(adev)))
 		vga_switcheroo_fini_domain_pm_ops(adev->dev);
 	vga_client_register(adev->pdev, NULL, NULL, NULL);
 	if (adev->rio_mem)
@@ -4079,7 +4079,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 
 			if (r) {
 				dev_err(tmp_adev->dev, "ASIC reset failed with error, %d for drm dev, %s",
-					 r, tmp_adev->ddev->unique);
+					 r, adev_to_drm(tmp_adev)->unique);
 				break;
 			}
 		}
@@ -4452,7 +4452,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		/*TODO Should we stop ?*/
 		if (r) {
 			dev_err(tmp_adev->dev, "GPU pre asic reset failed with err, %d for drm dev, %s ",
-				  r, tmp_adev->ddev->unique);
+				  r, adev_to_drm(tmp_adev)->unique);
 			tmp_adev->asic_reset_res = r;
 		}
 	}
@@ -4488,7 +4488,7 @@ skip_hw_reset:
 		}
 
 		if (!amdgpu_device_has_dc_support(tmp_adev) && !job_signaled) {
-			drm_helper_resume_force_mode(tmp_adev->ddev);
+			drm_helper_resume_force_mode(adev_to_drm(tmp_adev));
 		}
 
 		tmp_adev->asic_reset_res = 0;
@@ -4665,7 +4665,7 @@ int amdgpu_device_baco_enter(struct drm_device *dev)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	if (!amdgpu_device_supports_baco(adev->ddev))
+	if (!amdgpu_device_supports_baco(adev_to_drm(adev)))
 		return -ENOTSUPP;
 
 	if (ras && ras->supported)
@@ -4680,7 +4680,7 @@ int amdgpu_device_baco_exit(struct drm_device *dev)
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	int ret = 0;
 
-	if (!amdgpu_device_supports_baco(adev->ddev))
+	if (!amdgpu_device_supports_baco(adev_to_drm(adev)))
 		return -ENOTSUPP;
 
 	ret = amdgpu_dpm_baco_exit(adev);

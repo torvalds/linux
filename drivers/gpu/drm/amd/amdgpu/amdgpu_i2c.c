@@ -253,7 +253,7 @@ void amdgpu_i2c_add(struct amdgpu_device *adev,
 		    const struct amdgpu_i2c_bus_rec *rec,
 		    const char *name)
 {
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	int i;
 
 	for (i = 0; i < AMDGPU_MAX_I2C_BUS; i++) {

@@ -2194,7 +2194,7 @@ static int force_timing_sync_set(void *data, u64 val)
 
 	adev->dm.force_timing_sync = (bool)val;
 
-	amdgpu_dm_trigger_timing_sync(adev->ddev);
+	amdgpu_dm_trigger_timing_sync(adev_to_drm(adev));
 
 	return 0;
 }
@@ -2253,7 +2253,7 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 		.llseek = default_llseek
 	};
 
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
 	int ret;
 

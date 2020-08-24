@@ -991,6 +991,11 @@ static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
 	return ddev->dev_private;
 }
 
+static inline struct drm_device *adev_to_drm(struct amdgpu_device *adev)
+{
+	return adev->ddev;
+}
+
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
 {
 	return container_of(bdev, struct amdgpu_device, mman.bdev);
