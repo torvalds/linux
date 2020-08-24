@@ -196,6 +196,10 @@ struct seccomp_filter {
  */
 static void populate_seccomp_data(struct seccomp_data *sd)
 {
+	/*
+	 * Instead of using current_pt_reg(), we're already doing the work
+	 * to safely fetch "current", so just use "task" everywhere below.
+	 */
 	struct task_struct *task = current;
 	struct pt_regs *regs = task_pt_regs(task);
 	unsigned long args[6];
@@ -910,7 +914,7 @@ out:
 	if (flags & SECCOMP_USER_NOTIF_FLAG_CONTINUE)
 		return 0;
 
-	syscall_set_return_value(current, task_pt_regs(current),
+	syscall_set_return_value(current, current_pt_regs(),
 				 err, ret);
 	return -1;
 }
@@ -943,13 +947,13 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		/* Set low-order bits as an errno, capped at MAX_ERRNO. */
 		if (data > MAX_ERRNO)
 			data = MAX_ERRNO;
-		syscall_set_return_value(current, task_pt_regs(current),
+		syscall_set_return_value(current, current_pt_regs(),
 					 -data, 0);
 		goto skip;
 
 	case SECCOMP_RET_TRAP:
 		/* Show the handler the original registers. */
-		syscall_rollback(current, task_pt_regs(current));
+		syscall_rollback(current, current_pt_regs());
 		/* Let the filter pass back 16 bits of data. */
 		seccomp_send_sigsys(this_syscall, data);
 		goto skip;
@@ -962,7 +966,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		/* ENOSYS these calls if there is no tracer attached. */
 		if (!ptrace_event_enabled(current, PTRACE_EVENT_SECCOMP)) {
 			syscall_set_return_value(current,
-						 task_pt_regs(current),
+						 current_pt_regs(),
 						 -ENOSYS, 0);
 			goto skip;
 		}
@@ -982,7 +986,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		if (fatal_signal_pending(current))
 			goto skip;
 		/* Check if the tracer forced the syscall to be skipped. */
-		this_syscall = syscall_get_nr(current, task_pt_regs(current));
+		this_syscall = syscall_get_nr(current, current_pt_regs());
 		if (this_syscall < 0)
 			goto skip;
 
@@ -1025,7 +1029,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 			kernel_siginfo_t info;
 
 			/* Show the original registers in the dump. */
-			syscall_rollback(current, task_pt_regs(current));
+			syscall_rollback(current, current_pt_regs());
 			/* Trigger a manual coredump since do_exit skips it. */
 			seccomp_init_siginfo(&info, this_syscall, data);
 			do_coredump(&info);
@@ -1060,7 +1064,7 @@ int __secure_computing(const struct seccomp_data *sd)
 		return 0;
 
 	this_syscall = sd ? sd->nr :
-		syscall_get_nr(current, task_pt_regs(current));
+		syscall_get_nr(current, current_pt_regs());
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
