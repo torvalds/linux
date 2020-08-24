@@ -73,16 +73,6 @@
 #endif
 
 /*
- * Another R4600 erratum.  Due to the lack of errata information the exact
- * technical details aren't known.  I've experimentally found that disabling
- * interrupts during indexed I-cache flushes seems to be sufficient to deal
- * with the issue.
- */
-#ifndef R4600_V1_INDEX_ICACHEOP_WAR
-#error Check setting of R4600_V1_INDEX_ICACHEOP_WAR for your platform
-#endif
-
-/*
  * Pleasures of the R4600 V1.x.	 Cite from the IDT R4600 V1.7 errata:
  *
  *  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,

@@ -638,6 +638,7 @@ config SGI_IP22
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_R4600_V1_INDEX_ICACHEOP
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
@@ -2605,6 +2606,13 @@ config MIPS_ASID_BITS_VARIABLE
 	bool
 
 config MIPS_CRC_SUPPORT
+	bool
+
+# R4600 erratum.  Due to the lack of errata information the exact
+# technical details aren't known.  I've experimentally found that disabling
+# interrupts during indexed I-cache flushes seems to be sufficient to deal
+# with the issue.
+config WAR_R4600_V1_INDEX_ICACHEOP
 	bool
 
 #
