@@ -9,8 +9,6 @@
 #ifndef _ASM_WAR_H
 #define _ASM_WAR_H
 
-#include <war.h>
-
 /*
  * Work around certain R4000 CPU errata (as implemented by GCC):
  *
