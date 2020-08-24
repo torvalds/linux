@@ -528,8 +528,10 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
 	int i;
 
-	for (i = 0; i < cif_hw->dev_num; i++)
-		cif_hw->cif_dev[i]->isr_hdl(irq, cif_hw->cif_dev[i]);
+	for (i = 0; i < cif_hw->dev_num; i++) {
+		if (cif_hw->cif_dev[i]->isr_hdl)
+			cif_hw->cif_dev[i]->isr_hdl(irq, cif_hw->cif_dev[i]);
+	}
 
 	return IRQ_HANDLED;
 }
