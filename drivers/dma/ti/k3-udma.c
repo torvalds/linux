@@ -2024,11 +2024,6 @@ udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 	int num_tr = 0;
 	int tr_idx = 0;
 
-	if (!is_slave_direction(dir)) {
-		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
-		return NULL;
-	}
-
 	/* estimate the number of TRs we will need */
 	for_each_sg(sgl, sgent, sglen, i) {
 		if (sg_dma_len(sgent) < SZ_64K)
@@ -2399,11 +2394,6 @@ udma_prep_dma_cyclic_tr(struct udma_chan *uc, dma_addr_t buf_addr,
 	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
 	unsigned int i;
 	int num_tr;
-
-	if (!is_slave_direction(dir)) {
-		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
-		return NULL;
-	}
 
 	num_tr = udma_get_tr_counters(period_len, __ffs(buf_addr), &tr0_cnt0,
 				      &tr0_cnt1, &tr1_cnt0);
