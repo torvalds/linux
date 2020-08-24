@@ -422,7 +422,6 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
  */
 struct radeon_ttm_tt {
 	struct ttm_dma_tt		ttm;
-	struct radeon_device		*rdev;
 	u64				offset;
 
 	uint64_t			userptr;
@@ -525,6 +524,7 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_resource *bo_mem)
 {
 	struct radeon_ttm_tt *gtt = (void*)ttm;
+	struct radeon_device *rdev = radeon_get_rdev(ttm->bdev);
 	uint32_t flags = RADEON_GART_PAGE_VALID | RADEON_GART_PAGE_READ |
 		RADEON_GART_PAGE_WRITE;
 	int r;
@@ -541,7 +541,7 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 	}
 	if (ttm->caching_state == tt_cached)
 		flags |= RADEON_GART_PAGE_SNOOP;
-	r = radeon_gart_bind(gtt->rdev, gtt->offset, ttm->num_pages,
+	r = radeon_gart_bind(rdev, gtt->offset, ttm->num_pages,
 			     ttm->pages, gtt->ttm.dma_address, flags);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
@@ -554,8 +554,9 @@ static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
 static void radeon_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct radeon_ttm_tt *gtt = (void *)ttm;
+	struct radeon_device *rdev = radeon_get_rdev(ttm->bdev);
 
-	radeon_gart_unbind(gtt->rdev, gtt->offset, ttm->num_pages);
+	radeon_gart_unbind(rdev, gtt->offset, ttm->num_pages);
 
 	if (gtt->userptr)
 		radeon_ttm_tt_unpin_userptr(ttm);
@@ -594,7 +595,6 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 		return NULL;
 	}
 	gtt->ttm.ttm.func = &radeon_backend_func;
-	gtt->rdev = rdev;
 	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
