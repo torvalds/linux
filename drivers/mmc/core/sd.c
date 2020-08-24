@@ -759,7 +759,7 @@ static struct attribute *sd_std_attrs[] = {
 static umode_t sd_std_is_visible(struct kobject *kobj, struct attribute *attr,
 				 int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct mmc_card *card = mmc_dev_to_card(dev);
 
 	/* CIS vendor and device ids, revision and info string are available only for Combo cards */
