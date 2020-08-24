@@ -94,14 +94,6 @@
 #endif
 
 /*
- * On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
- * may cause ll / sc and lld / scd sequences to execute non-atomically.
- */
-#ifndef R10000_LLSC_WAR
-#error Check setting of R10000_LLSC_WAR for your platform
-#endif
-
-/*
  * 34K core erratum: "Problems Executing the TLBR Instruction"
  */
 #ifndef MIPS34K_MISSED_ITLB_WAR

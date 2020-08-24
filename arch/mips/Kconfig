@@ -669,6 +669,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NUMA
 	help
@@ -704,6 +705,7 @@ config SGI_IP28
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This is the SGI Indigo2 with R10000 processor.  To compile a Linux
@@ -730,6 +732,7 @@ config SGI_IP30
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_SMP
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select ARC_MEMORY
 	help
@@ -2673,6 +2676,11 @@ config WAR_TX49XX_ICACHE_INDEX_INV
 # I-cache line worth of instructions being fetched may case spurious
 # exceptions.
 config WAR_ICACHE_REFILLS
+	bool
+
+# On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
+# may cause ll / sc and lld / scd sequences to execute non-atomically.
+config WAR_R10000_LLSC
 	bool
 
 #
