@@ -259,8 +259,11 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	mt7663_usb_sdio_write_txwi(dev, wcid, qid, sta, skb);
-	if (mt76_is_usb(mdev))
-		put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
+	if (mt76_is_usb(mdev)) {
+		u32 len = skb->len;
+
+		put_unaligned_le32(len, skb_push(skb, sizeof(len)));
+	}
 
 	return mt76_skb_adjust_pad(skb);
 }

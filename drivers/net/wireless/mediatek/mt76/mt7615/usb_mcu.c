@@ -19,6 +19,7 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	int ret, seq, ep;
+	u32 len;
 
 	mutex_lock(&mdev->mcu.mutex);
 
@@ -28,7 +29,8 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	else
 		ep = MT_EP_OUT_AC_BE;
 
-	put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
+	len = skb->len;
+	put_unaligned_le32(len, skb_push(skb, sizeof(len)));
 	ret = mt76_skb_adjust_pad(skb);
 	if (ret < 0)
 		goto out;
