@@ -12,7 +12,6 @@
  * R4600 CPU modules for the Indy come with both V1.7 and V2.0 processors.
  */
 
-#define R4600_V1_HIT_CACHEOP_WAR	1
 #define R4600_V2_HIT_CACHEOP_WAR	1
 #define BCM1250_M3_WAR			0
 #define SIBYTE_1956_WAR			0

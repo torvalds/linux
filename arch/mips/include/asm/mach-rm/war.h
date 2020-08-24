@@ -12,7 +12,6 @@
  * The RM200C seems to have been shipped only with V2.0 R4600s
  */
 
-#define R4600_V1_HIT_CACHEOP_WAR	0
 #define R4600_V2_HIT_CACHEOP_WAR	1
 #define BCM1250_M3_WAR			0
 #define SIBYTE_1956_WAR			0

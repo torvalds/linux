@@ -73,37 +73,6 @@
 #endif
 
 /*
- * Pleasures of the R4600 V1.x.	 Cite from the IDT R4600 V1.7 errata:
- *
- *  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
- *	Hit_Invalidate_D and Create_Dirty_Excl_D should only be
- *	executed if there is no other dcache activity. If the dcache is
- *	accessed for another instruction immeidately preceding when these
- *	cache instructions are executing, it is possible that the dcache
- *	tag match outputs used by these cache instructions will be
- *	incorrect. These cache instructions should be preceded by at least
- *	four instructions that are not any kind of load or store
- *	instruction.
- *
- *	This is not allowed:	lw
- *				nop
- *				nop
- *				nop
- *				cache	    Hit_Writeback_Invalidate_D
- *
- *	This is allowed:	lw
- *				nop
- *				nop
- *				nop
- *				nop
- *				cache	    Hit_Writeback_Invalidate_D
- */
-#ifndef R4600_V1_HIT_CACHEOP_WAR
-#error Check setting of R4600_V1_HIT_CACHEOP_WAR for your platform
-#endif
-
-
-/*
  * Writeback and invalidate the primary cache dcache before DMA.
  *
  * R4600 v2.0 bug: "The CACHE instructions Hit_Writeback_Inv_D,

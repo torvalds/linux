@@ -639,6 +639,7 @@ config SGI_IP22
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select WAR_R4600_V1_INDEX_ICACHEOP
+	select WAR_R4600_V1_HIT_CACHEOP
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
@@ -2613,6 +2614,33 @@ config MIPS_CRC_SUPPORT
 # interrupts during indexed I-cache flushes seems to be sufficient to deal
 # with the issue.
 config WAR_R4600_V1_INDEX_ICACHEOP
+	bool
+
+# Pleasures of the R4600 V1.x.  Cite from the IDT R4600 V1.7 errata:
+#
+#  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
+#      Hit_Invalidate_D and Create_Dirty_Excl_D should only be
+#      executed if there is no other dcache activity. If the dcache is
+#      accessed for another instruction immeidately preceding when these
+#      cache instructions are executing, it is possible that the dcache
+#      tag match outputs used by these cache instructions will be
+#      incorrect. These cache instructions should be preceded by at least
+#      four instructions that are not any kind of load or store
+#      instruction.
+#
+#      This is not allowed:    lw
+#                              nop
+#                              nop
+#                              nop
+#                              cache       Hit_Writeback_Invalidate_D
+#
+#      This is allowed:        lw
+#                              nop
+#                              nop
+#                              nop
+#                              nop
+#                              cache       Hit_Writeback_Invalidate_D
+config WAR_R4600_V1_HIT_CACHEOP
 	bool
 
 #

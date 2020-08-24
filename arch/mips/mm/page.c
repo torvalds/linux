@@ -250,7 +250,8 @@ static inline void build_clear_pref(u32 **buf, int off)
 		if (cpu_has_cache_cdex_s) {
 			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
 		} else if (cpu_has_cache_cdex_p) {
-			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
+			    cpu_is_r4600_v1_x()) {
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
@@ -402,7 +403,8 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 		if (cpu_has_cache_cdex_s) {
 			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
 		} else if (cpu_has_cache_cdex_p) {
-			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
+			    cpu_is_r4600_v1_x()) {
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
