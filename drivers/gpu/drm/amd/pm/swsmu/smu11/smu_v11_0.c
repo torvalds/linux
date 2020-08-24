@@ -721,7 +721,6 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 	int ret = 0;
 	uint32_t feature_mask[2];
 
-	mutex_lock(&feature->mutex);
 	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) || feature->feature_num < 64)
 		goto failed;
 
@@ -738,7 +737,6 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 		goto failed;
 
 failed:
-	mutex_unlock(&feature->mutex);
 	return ret;
 }
 

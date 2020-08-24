@@ -361,20 +361,16 @@ static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 	int ret = 0;
 	uint32_t allowed_feature_mask[SMU_FEATURE_MAX/32];
 
-	mutex_lock(&feature->mutex);
 	bitmap_zero(feature->allowed, SMU_FEATURE_MAX);
-	mutex_unlock(&feature->mutex);
 
 	ret = smu_get_allowed_feature_mask(smu, allowed_feature_mask,
 					     SMU_FEATURE_MAX/32);
 	if (ret)
 		return ret;
 
-	mutex_lock(&feature->mutex);
 	bitmap_or(feature->allowed, feature->allowed,
 		      (unsigned long *)allowed_feature_mask,
 		      feature->feature_num);
-	mutex_unlock(&feature->mutex);
 
 	return ret;
 }
