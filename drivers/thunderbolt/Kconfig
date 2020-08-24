@@ -28,5 +28,5 @@ config USB4_DEBUGFS_WRITE
 
 config USB4_KUNIT_TEST
 	bool "KUnit tests"
+	depends on USB4
 	depends on KUNIT=y
-	depends on USB4=y

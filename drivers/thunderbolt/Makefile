@@ -6,5 +6,4 @@ thunderbolt-objs += nvm.o retimer.o quirks.o
 
 thunderbolt-${CONFIG_ACPI} += acpi.o
 thunderbolt-$(CONFIG_DEBUG_FS) += debugfs.o
-
-obj-${CONFIG_USB4_KUNIT_TEST} += test.o
+thunderbolt-${CONFIG_USB4_KUNIT_TEST} += test.o
