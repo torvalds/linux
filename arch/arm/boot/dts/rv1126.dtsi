@@ -333,7 +333,8 @@
 	rkcif_dvp: rkcif_dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
+		// iommus = <&rkcif_mmu>;
+		memory-region = <&isp_reserved>;
 		status = "disabled";
 	};
 
@@ -359,7 +360,8 @@
 	rkcif_mipi_lvds: rkcif_mipi_lvds {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
+		// iommus = <&rkcif_mmu>;
+		memory-region = <&isp_reserved>;
 		status = "disabled";
 	};
 
