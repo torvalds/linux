@@ -138,6 +138,10 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	if (fa.fsx_projid >= U32_MAX)
 		return -EINVAL;
 
+	/*
+	 * inode fields accessible via the xattr interface are stored with a +1
+	 * bias, so that 0 means unset:
+	 */
 	s.projid = fa.fsx_projid + 1;
 
 	ret = mnt_want_write_file(file);
@@ -151,7 +155,7 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = bch2_set_projid(c, inode, s.projid);
+	ret = bch2_set_projid(c, inode, fa.fsx_projid);
 	if (ret)
 		goto err_unlock;
 

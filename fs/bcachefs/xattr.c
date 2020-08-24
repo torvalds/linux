@@ -513,7 +513,11 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 
 	mutex_lock(&inode->ei_update_lock);
 	if (inode_opt_id == Inode_opt_project) {
-		ret = bch2_set_projid(c, inode, s.v);
+		/*
+		 * inode fields accessible via the xattr interface are stored
+		 * with a +1 bias, so that 0 means unset:
+		 */
+		ret = bch2_set_projid(c, inode, s.v ? s.v - 1 : 0);
 		if (ret)
 			goto err;
 	}
