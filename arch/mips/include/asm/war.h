@@ -94,41 +94,6 @@
 #endif
 
 /*
- * Fill buffers not flushed on CACHE instructions
- *
- * Hit_Invalidate_I cacheops invalidate an icache line but the refill
- * for that line can get stale data from the fill buffer instead of
- * accessing memory if the previous icache miss was also to that line.
- *
- * Workaround: generate an icache refill from a different line
- *
- * Affects:
- *  MIPS 4K		RTL revision <3.0, PRID revision <4
- */
-#ifndef MIPS4K_ICACHE_REFILL_WAR
-#error Check setting of MIPS4K_ICACHE_REFILL_WAR for your platform
-#endif
-
-/*
- * Missing implicit forced flush of evictions caused by CACHE
- * instruction
- *
- * Evictions caused by a CACHE instructions are not forced on to the
- * bus. The BIU gives higher priority to fetches than to the data from
- * the eviction buffer and no collision detection is performed between
- * fetches and pending data from the eviction buffer.
- *
- * Workaround: Execute a SYNC instruction after the cache instruction
- *
- * Affects:
- *   MIPS 5Kc,5Kf	RTL revision <2.3, PRID revision <8
- *   MIPS 20Kc		RTL revision <4.0, PRID revision <?
- */
-#ifndef MIPS_CACHE_SYNC_WAR
-#error Check setting of MIPS_CACHE_SYNC_WAR for your platform
-#endif
-
-/*
  * From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
  * the line which this instruction itself exists, the following
  * operation is not guaranteed."
