@@ -293,22 +293,6 @@ static void vcs_read_buf_noattr(const struct vc_data *vc, char *con_buf,
 	}
 }
 
-static unsigned int vcs_read_buf_header(const struct vc_data *vc, char *con_buf,
-		unsigned int pos, unsigned int count)
-{
-	count = min(HEADER_SIZE - pos, count);
-
-	/* clamp header values if they don't fit */
-	con_buf[0] = min(vc->vc_rows, 0xFFu);
-	con_buf[1] = min(vc->vc_cols, 0xFFu);
-	getconsxy(vc, con_buf + 2);
-
-	if (pos)
-		memmove(con_buf, con_buf + pos, count);
-
-	return count;
-}
-
 static unsigned int vcs_read_buf(const struct vc_data *vc, char *con_buf,
 		unsigned int pos, unsigned int count, bool viewed,
 		unsigned int *skip)
@@ -318,11 +302,22 @@ static unsigned int vcs_read_buf(const struct vc_data *vc, char *con_buf,
 	unsigned int filled = count;
 
 	if (pos < HEADER_SIZE) {
-		count -= vcs_read_buf_header(vc, con_buf, pos, count);
+		/* clamp header values if they don't fit */
+		con_buf[0] = min(vc->vc_rows, 0xFFu);
+		con_buf[1] = min(vc->vc_cols, 0xFFu);
+		getconsxy(vc, con_buf + 2);
 
+		*skip += pos;
+		count += pos;
+		if (count > CON_BUF_SIZE) {
+			count = CON_BUF_SIZE;
+			filled = count - pos;
+		}
+
+		/* Advance state pointers and move on. */
+		count -= min(HEADER_SIZE, count);
 		pos = HEADER_SIZE;
 		con_buf += HEADER_SIZE;
-
 		/* If count >= 0, then pos is even... */
 	} else if (pos & 1) {
 		/*
