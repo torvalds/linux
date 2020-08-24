@@ -49,16 +49,18 @@ Register preservation rules
 Register preservation rules match the ELF ABI calling sequence with the
 following differences:
 
-=========== ============= ========================================
 --- For the sc instruction, differences with the ELF ABI ---
+=========== ============= ========================================
 r0          Volatile      (System call number.)
 r3          Volatile      (Parameter 1, and return value.)
 r4-r8       Volatile      (Parameters 2-6.)
 cr0         Volatile      (cr0.SO is the return error condition.)
 cr1, cr5-7  Nonvolatile
 lr          Nonvolatile
+=========== ============= ========================================
 
 --- For the scv 0 instruction, differences with the ELF ABI ---
+=========== ============= ========================================
 r0          Volatile      (System call number.)
 r3          Volatile      (Parameter 1, and return value.)
 r4-r8       Volatile      (Parameters 2-6.)
