@@ -1426,13 +1426,8 @@ static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v
 bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	bool baco_support;
 
-	mutex_lock(&smu_baco->mutex);
-	baco_support = smu_baco->platform_support;
-	mutex_unlock(&smu_baco->mutex);
-
-	if (!baco_support)
+	if (!smu_baco->platform_support)
 		return false;
 
 	/* Arcturus does not support this bit mask */
