@@ -14,6 +14,7 @@
 	#size-cells = <1>;
 
 	aliases {
+		spi0 = &spi0;
 		serial0 = &uart0;
 		serial1 = &uart1;
 	};
@@ -118,6 +119,22 @@
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		cpu_ctrl: syscon@600000000 {
+			compatible = "microchip,sparx5-cpu-syscon", "syscon",
+				     "simple-mfd";
+			reg = <0x6 0x00000000 0xd0>;
+			mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <0>;
+				/*
+				 * SI_OWNER and SI2_OWNER in GENERAL_CTRL
+				 * SPI:  value 9 - (SIMC,SIBM) = 0b1001
+				 * SPI2: value 6 - (SIBM,SIMC) = 0b0110
+				 */
+				mux-reg-masks = <0x88 0xf0>;
+			};
+		};
+
 		uart0: serial@600100000 {
 			pinctrl-0 = <&uart_pins>;
 			pinctrl-names = "default";
@@ -141,6 +158,19 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
+			status = "disabled";
+		};
+
+		spi0: spi@600104000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sparx5-spi";
+			reg = <0x6 0x00104000 0x40>;
+			num-cs = <16>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			clocks = <&ahb_clk>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
