@@ -817,7 +817,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 							q - 2);
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case '=':
 			ret = xbc_parse_kv(&p, q, c);
 			break;
@@ -826,7 +826,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 			break;
 		case '#':
 			q = skip_comment(q);
-			/* fall through */
+			fallthrough;
 		case ';':
 		case '\n':
 			ret = xbc_parse_key(&p, q);

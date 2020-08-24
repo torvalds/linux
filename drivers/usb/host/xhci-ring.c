@@ -2103,7 +2103,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			break;
 		xhci_dbg(xhci, "TRB error %u, halted endpoint index = %u\n",
 			 trb_comp_code, ep_index);
-		/* else fall through */
+		fallthrough;
 	case COMP_STALL_ERROR:
 		/* Did we transfer part of the data (middle) phase? */
 		if (trb_type == TRB_DATA || trb_type == TRB_NORMAL)

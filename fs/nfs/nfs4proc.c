@@ -483,7 +483,7 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 						stateid);
 				goto wait_on_recovery;
 			}
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_OPENMODE:
 			if (inode) {
 				int err;
@@ -534,10 +534,10 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 				ret = -EBUSY;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_DELAY:
 			nfs_inc_server_stats(server, NFSIOS_DELAY);
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_LAYOUTTRYLATER:
 		case -NFS4ERR_RECALLCONFLICT:
@@ -1505,7 +1505,7 @@ static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode,
 	case NFS4_OPEN_CLAIM_PREVIOUS:
 		if (!test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
 			break;
-		/* Fall through */
+		fallthrough;
 	default:
 		return 0;
 	}
@@ -2439,7 +2439,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
 		data->o_arg.open_bitmap = &nfs4_open_noattr_bitmap[0];
-		/* Fall through */
+		fallthrough;
 	case NFS4_OPEN_CLAIM_FH:
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 	}
@@ -3545,11 +3545,11 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			nfs4_free_revoked_stateid(server,
 					&calldata->arg.stateid,
 					task->tk_msg.rpc_cred);
-			/* Fallthrough */
+			fallthrough;
 		case -NFS4ERR_BAD_STATEID:
 			if (calldata->arg.fmode == 0)
 				break;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			task->tk_status = nfs4_async_handle_exception(task,
 					server, task->tk_status, &exception);
@@ -6294,7 +6294,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		nfs4_free_revoked_stateid(data->res.server,
 				data->args.stateid,
 				task->tk_msg.rpc_cred);
-		/* Fallthrough */
+		fallthrough;
 	case -NFS4ERR_BAD_STATEID:
 	case -NFS4ERR_STALE_STATEID:
 	case -ETIMEDOUT:
@@ -6314,7 +6314,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 			data->res.fattr = NULL;
 			goto out_restart;
 		}
-		/* Fallthrough */
+		fallthrough;
 	default:
 		task->tk_status = nfs4_async_handle_exception(task,
 				data->res.server, task->tk_status,
@@ -6622,13 +6622,13 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 			if (nfs4_update_lock_stateid(calldata->lsp,
 					&calldata->res.stateid))
 				break;
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_EXPIRED:
 			nfs4_free_revoked_stateid(calldata->server,
 					&calldata->arg.stateid,
 					task->tk_msg.rpc_cred);
-			/* Fall through */
+			fallthrough;
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_STALE_STATEID:
 			if (nfs4_sync_lock_stateid(&calldata->arg.stateid,
@@ -8665,7 +8665,7 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 		dprintk("%s Retry: tk_status %d\n", __func__, task->tk_status);
 		rpc_delay(task, NFS4_POLL_RETRY_MIN);
 		task->tk_status = 0;
-		/* fall through */
+		fallthrough;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		rpc_restart_call_prepare(task);
 		return;
@@ -9113,13 +9113,13 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 	switch(task->tk_status) {
 	case 0:
 		wake_up_all(&clp->cl_lock_waitq);
-		/* Fallthrough */
+		fallthrough;
 	case -NFS4ERR_COMPLETE_ALREADY:
 	case -NFS4ERR_WRONG_CRED: /* What to do here? */
 		break;
 	case -NFS4ERR_DELAY:
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
-		/* fall through */
+		fallthrough;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		return -EAGAIN;
 	case -NFS4ERR_BADSESSION:
@@ -9434,10 +9434,10 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 					&lrp->args.range,
 					lrp->args.inode))
 			goto out_restart;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		task->tk_status = 0;
-		/* Fallthrough */
+		fallthrough;
 	case 0:
 		break;
 	case -NFS4ERR_DELAY:

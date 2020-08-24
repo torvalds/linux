@@ -1437,7 +1437,7 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	switch (vma->ggtt_view.type) {
 	default:
 		GEM_BUG_ON(vma->ggtt_view.type);
-		/* fall through */
+		fallthrough;
 	case I915_GGTT_VIEW_NORMAL:
 		vma->pages = vma->obj->mm.pages;
 		return 0;

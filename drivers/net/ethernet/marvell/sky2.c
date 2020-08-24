@@ -1376,7 +1376,7 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = PHY_ADDR_MARV;
 
-		/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG: {
 		u16 val = 0;
 
@@ -2764,7 +2764,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 
 		case OP_RXCHKSVLAN:
 			sky2_rx_tag(sky2, length);
-			/* fall through */
+			fallthrough;
 		case OP_RXCHKS:
 			if (likely(dev->features & NETIF_F_RXCSUM))
 				sky2_rx_checksum(sky2, status);

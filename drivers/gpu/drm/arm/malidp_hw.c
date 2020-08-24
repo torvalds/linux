@@ -532,7 +532,7 @@ static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
 		malidp_hw_write(hwdev, lower_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_LOW);
 		malidp_hw_write(hwdev, upper_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_HIGH);
 		malidp_hw_write(hwdev, pitches[1], base + MALIDP_MW_P2_STRIDE);
-		/* fall through */
+		fallthrough;
 	case 1:
 		malidp_hw_write(hwdev, lower_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_LOW);
 		malidp_hw_write(hwdev, upper_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_HIGH);
@@ -869,7 +869,7 @@ static int malidp550_enable_memwrite(struct malidp_hw_device *hwdev,
 		malidp_hw_write(hwdev, lower_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_LOW);
 		malidp_hw_write(hwdev, upper_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_HIGH);
 		malidp_hw_write(hwdev, pitches[1], base + MALIDP_MW_P2_STRIDE);
-		/* fall through */
+		fallthrough;
 	case 1:
 		malidp_hw_write(hwdev, lower_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_LOW);
 		malidp_hw_write(hwdev, upper_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_HIGH);
@@ -1324,7 +1324,7 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 			break;
 		case MW_RESTART:
 			drm_writeback_signal_completion(&malidp->mw_connector, 0);
-			/* fall through - to a new start */
+			fallthrough;	/* to a new start */
 		case MW_START:
 			/* writeback started, need to emulate one-shot mode */
 			hw->disable_memwrite(hwdev);

@@ -990,7 +990,7 @@ static long vfio_pci_ioctl(void *device_data,
 		case VFIO_PCI_ERR_IRQ_INDEX:
 			if (pci_is_pcie(vdev->pdev))
 				break;
-		/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 		}

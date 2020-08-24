@@ -229,7 +229,7 @@ int intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
 	case DRM_MODE_SCALE_NONE:
 		WARN_ON(adjusted_mode->crtc_hdisplay != crtc_state->pipe_src_w);
 		WARN_ON(adjusted_mode->crtc_vdisplay != crtc_state->pipe_src_h);
-		/* fall through */
+		fallthrough;
 	case DRM_MODE_SCALE_FULLSCREEN:
 		x = y = 0;
 		width = adjusted_mode->crtc_hdisplay;

@@ -866,7 +866,6 @@ static void nvme_tcp_state_change(struct sock *sk)
 	case TCP_LAST_ACK:
 	case TCP_FIN_WAIT1:
 	case TCP_FIN_WAIT2:
-		/* fallthrough */
 		nvme_tcp_error_recovery(&queue->ctrl->ctrl);
 		break;
 	default:

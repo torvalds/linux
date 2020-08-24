@@ -1542,7 +1542,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_INITMEASURING);
 
-		/* Intentional fallthrough */
+		fallthrough;
 	case AB8500_FG_DISCHARGE_INITMEASURING:
 		/*
 		 * Discard a number of samples during startup.
@@ -1572,7 +1572,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_RECOVERY);
 
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case AB8500_FG_DISCHARGE_RECOVERY:
 		sleep_time = di->bm->fg_params->recovery_sleep_timer;

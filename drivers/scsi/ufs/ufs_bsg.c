@@ -110,7 +110,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 			goto out;
 		}
 
-		/* fall through */
+		fallthrough;
 	case UPIU_TRANSACTION_NOP_OUT:
 	case UPIU_TRANSACTION_TASK_REQ:
 		ret = ufshcd_exec_raw_upiu_cmd(hba, &bsg_request->upiu_req,

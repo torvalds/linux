@@ -352,7 +352,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 		if (ret)
 			return ret;
 
-		/* fall through */
+		fallthrough;
 	case hwmon_curr_crit:
 	case hwmon_curr_max:
 		if (!resistance_uo)

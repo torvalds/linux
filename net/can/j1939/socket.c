@@ -1086,7 +1086,7 @@ static int j1939_sk_send_loop(struct j1939_priv *priv,  struct sock *sk,
 		break;
 	case -ERESTARTSYS:
 		ret = -EINTR;
-		/* fall through */
+		fallthrough;
 	case -EAGAIN: /* OK */
 		if (todo_size != size)
 			ret = size - todo_size;

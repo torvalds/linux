@@ -188,7 +188,7 @@ send_attribute:
 		goto next;
 	case NLA_NESTED:
 		type = NL_ATTR_TYPE_NESTED;
-		/* fall through */
+		fallthrough;
 	case NLA_NESTED_ARRAY:
 		if (pt->type == NLA_NESTED_ARRAY)
 			type = NL_ATTR_TYPE_NESTED_ARRAY;

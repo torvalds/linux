@@ -35,11 +35,11 @@ static int lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 		net_warn_ratelimited("%s: received unknown dispatch\n",
 				     __func__);
 
-		/* fall-through */
+		fallthrough;
 	case RX_DROP_UNUSABLE:
 		kfree_skb(skb);
 
-		/* fall-through */
+		fallthrough;
 	case RX_DROP:
 		return NET_RX_DROP;
 	case RX_QUEUED:

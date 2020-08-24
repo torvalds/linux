@@ -1553,7 +1553,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			break;
 		case 3: /* include scrollback */
 			flush_scrollback(vc);
-			/* fallthrough */
+			fallthrough;
 		case 2: /* erase whole display */
 			vc_uniscr_clear_lines(vc, 0, vc->vc_rows);
 			count = vc->vc_cols * vc->vc_rows;
@@ -2167,7 +2167,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		lf(vc);
 		if (!is_kbd(vc, lnm))
 			return;
-		/* fall through */
+		fallthrough;
 	case 13:
 		cr(vc);
 		return;
@@ -2306,7 +2306,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		}
 		vc->vc_priv = EPecma;
-		/* fall through */
+		fallthrough;
 	case ESgetpars:
 		if (c == ';' && vc->vc_npar < NPAR - 1) {
 			vc->vc_npar++;

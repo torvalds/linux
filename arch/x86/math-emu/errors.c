@@ -186,7 +186,7 @@ void FPU_printall(void)
 		case TAG_Special:
 			/* Update tagi for the printk below */
 			tagi = FPU_Special(r);
-			/* fall through */
+			fallthrough;
 		case TAG_Valid:
 			printk("st(%d)  %c .%04lx %04lx %04lx %04lx e%+-6d ", i,
 			       getsign(r) ? '-' : '+',

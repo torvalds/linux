@@ -4618,7 +4618,7 @@ static unsigned long long xhci_calculate_intel_u1_timeout(
 			break;
 		}
 		/* Otherwise the calculation is the same as isoc eps */
-		/* fall through */
+		fallthrough;
 	case USB_ENDPOINT_XFER_ISOC:
 		timeout_ns = xhci_service_interval_to_ns(desc);
 		timeout_ns = DIV_ROUND_UP_ULL(timeout_ns * 105, 100);

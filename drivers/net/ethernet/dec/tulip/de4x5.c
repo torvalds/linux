@@ -3203,7 +3203,7 @@ srom_map_media(struct net_device *dev)
       case SROM_10BASETF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_10BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
@@ -3225,7 +3225,7 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASETF:
         if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_100BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
@@ -3239,7 +3239,7 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASEFF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
-	/* fall through */
+	fallthrough;
 
       case SROM_100BASEF:
 	if (lp->params.fdx && !lp->fdx) return -1;

@@ -52,7 +52,7 @@ cnl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum phy phy)
 	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
 	default:
 		MISSING_CASE(val);
-		/* fall through */
+		fallthrough;
 	case VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0:
 		procmon = &cnl_procmon_values[PROCMON_0_85V_DOT_0];
 		break;
@@ -320,7 +320,7 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 			break;
 		default:
 			MISSING_CASE(lane_count);
-			/* fall-through */
+			fallthrough;
 		case 4:
 			lane_mask = PWR_UP_ALL_LANES;
 			break;
@@ -337,7 +337,7 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 			break;
 		default:
 			MISSING_CASE(lane_count);
-			/* fall-through */
+			fallthrough;
 		case 4:
 			lane_mask = PWR_UP_ALL_LANES;
 			break;

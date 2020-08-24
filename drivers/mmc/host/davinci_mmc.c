@@ -300,7 +300,7 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 		 * then it's harmless for us to allow it.
 		 */
 		cmd_reg |= MMCCMD_BSYEXP;
-		/* FALLTHROUGH */
+		fallthrough;
 	case MMC_RSP_R1:		/* 48 bits, CRC */
 		cmd_reg |= MMCCMD_RSPFMT_R1456;
 		break;
