@@ -654,6 +654,20 @@ static void amdgpu_block_invalid_wreg(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_device_asic_init - Wrapper for atom asic_init
+ *
+ * @dev: drm_device pointer
+ *
+ * Does any asic specific work and then calls atom asic init.
+ */
+static int amdgpu_device_asic_init(struct amdgpu_device *adev)
+{
+	amdgpu_asic_pre_asic_init(adev);
+
+	return amdgpu_atom_asic_init(adev->mode_info.atom_context);
+}
+
+/**
  * amdgpu_device_vram_scratch_init - allocate the VRAM scratch page
  *
  * @adev: amdgpu device pointer
@@ -3201,7 +3215,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 			goto failed;
 		}
 		DRM_INFO("GPU posting now...\n");
-		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		r = amdgpu_device_asic_init(adev);
 		if (r) {
 			dev_err(adev->dev, "gpu post error!\n");
 			goto failed;
@@ -3549,7 +3563,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 
 	/* post card */
 	if (amdgpu_device_need_post(adev)) {
-		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		r = amdgpu_device_asic_init(adev);
 		if (r)
 			dev_err(adev->dev, "amdgpu asic init failed\n");
 	}
@@ -4106,7 +4120,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 		if (need_full_reset) {
 			/* post card */
-			if (amdgpu_atom_asic_init(tmp_adev->mode_info.atom_context))
+			if (amdgpu_device_asic_init(tmp_adev))
 				dev_warn(tmp_adev->dev, "asic atom init failed!");
 
 			if (!r) {
