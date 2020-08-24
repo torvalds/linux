@@ -1265,6 +1265,8 @@ static int check_inode(struct btree_trans *trans,
 		      u.bi_inum))) {
 		bch_verbose(c, "deleting inode %llu", u.bi_inum);
 
+		bch2_fs_lazy_rw(c);
+
 		ret = bch2_inode_rm(c, u.bi_inum);
 		if (ret)
 			bch_err(c, "error in fsck: error %i while deleting inode", ret);
@@ -1276,6 +1278,8 @@ static int check_inode(struct btree_trans *trans,
 	     fsck_err(c, "filesystem marked clean, but inode %llu has i_size dirty",
 		      u.bi_inum))) {
 		bch_verbose(c, "truncating inode %llu", u.bi_inum);
+
+		bch2_fs_lazy_rw(c);
 
 		/*
 		 * XXX: need to truncate partial blocks too here - or ideally

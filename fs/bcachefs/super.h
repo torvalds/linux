@@ -221,6 +221,15 @@ void bch2_fs_read_only(struct bch_fs *);
 int bch2_fs_read_write(struct bch_fs *);
 int bch2_fs_read_write_early(struct bch_fs *);
 
+/*
+ * Only for use in the recovery/fsck path:
+ */
+static inline void bch2_fs_lazy_rw(struct bch_fs *c)
+{
+	if (percpu_ref_is_zero(&c->writes))
+		bch2_fs_read_write_early(c);
+}
+
 void bch2_fs_stop(struct bch_fs *);
 
 int bch2_fs_start(struct bch_fs *);
