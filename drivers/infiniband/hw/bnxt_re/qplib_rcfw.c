@@ -307,14 +307,15 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 	__le16  mcookie;
 	u16 cookie;
 	int rc = 0;
-	u32 qp_id;
+	u32 qp_id, tbl_indx;
 
 	pdev = rcfw->pdev;
 	switch (qp_event->event) {
 	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
 		err_event = (struct creq_qp_error_notification *)qp_event;
 		qp_id = le32_to_cpu(err_event->xid);
-		qp = rcfw->qp_tbl[qp_id].qp_handle;
+		tbl_indx = map_qp_id_to_tbl_indx(qp_id, rcfw);
+		qp = rcfw->qp_tbl[tbl_indx].qp_handle;
 		dev_dbg(&pdev->dev, "Received QP error notification\n");
 		dev_dbg(&pdev->dev,
 			"qpid 0x%x, req_err=0x%x, resp_err=0x%x\n",
@@ -615,8 +616,9 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 
 	cmdq->bmap_size = bmap_size;
 
-	rcfw->qp_tbl_size = qp_tbl_sz;
-	rcfw->qp_tbl = kcalloc(qp_tbl_sz, sizeof(struct bnxt_qplib_qp_node),
+	/* Allocate one extra to hold the QP1 entries */
+	rcfw->qp_tbl_size = qp_tbl_sz + 1;
+	rcfw->qp_tbl = kcalloc(rcfw->qp_tbl_size, sizeof(struct bnxt_qplib_qp_node),
 			       GFP_KERNEL);
 	if (!rcfw->qp_tbl)
 		goto fail;
