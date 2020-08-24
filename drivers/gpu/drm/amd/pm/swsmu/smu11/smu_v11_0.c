@@ -453,9 +453,6 @@ int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	if (smu_power->power_context || smu_power->power_context_size != 0)
-		return -EINVAL;
-
 	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 					   GFP_KERNEL);
 	if (!smu_power->power_context)
@@ -468,9 +465,6 @@ int smu_v11_0_init_power(struct smu_context *smu)
 int smu_v11_0_fini_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
-
-	if (!smu_power->power_context || smu_power->power_context_size == 0)
-		return -EINVAL;
 
 	kfree(smu_power->power_context);
 	smu_power->power_context = NULL;
@@ -700,18 +694,16 @@ int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 
 int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
-	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 
 	/* Navy_Flounder do not support to change display num currently */
 	if (adev->asic_type == CHIP_NAVY_FLOUNDER)
 		return 0;
 
-	if (!smu->pm_enabled)
-		return ret;
-
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count, NULL);
-	return ret;
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_NumOfDisplays,
+					       count,
+					       NULL);
 }
 
 
@@ -772,9 +764,6 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 int smu_v11_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
-
-	if (!smu->pm_enabled)
-		return ret;
 
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)

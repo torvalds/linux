@@ -580,9 +580,6 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 	struct smu_table *tables = smu_table->tables;
 	struct smu_table *driver_table = &(smu_table->driver_table);
 
-	if (!tables)
-		return 0;
-
 	if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
 		amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
 				      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
@@ -2312,19 +2309,6 @@ int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk)
 	ret = smu_set_min_dcef_deep_sleep(smu, clk);
 
 	mutex_unlock(&smu->mutex);
-
-	return ret;
-}
-
-int smu_set_active_display_count(struct smu_context *smu, uint32_t count)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	if (smu->ppt_funcs->set_active_display_count)
-		ret = smu->ppt_funcs->set_active_display_count(smu, count);
 
 	return ret;
 }
