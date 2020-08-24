@@ -1491,6 +1491,7 @@ xfs_fc_fill_super(
 		sb->s_time_min = XFS_LEGACY_TIME_MIN;
 		sb->s_time_max = XFS_LEGACY_TIME_MAX;
 	}
+	trace_xfs_inode_timestamp_range(mp, sb->s_time_min, sb->s_time_max);
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	set_posix_acl_flag(sb);

@@ -670,6 +670,8 @@ xfs_qm_init_quotainfo(
 		qinf->qi_expiry_min = XFS_DQ_LEGACY_EXPIRY_MIN;
 		qinf->qi_expiry_max = XFS_DQ_LEGACY_EXPIRY_MAX;
 	}
+	trace_xfs_quota_expiry_range(mp, qinf->qi_expiry_min,
+			qinf->qi_expiry_max);
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 
