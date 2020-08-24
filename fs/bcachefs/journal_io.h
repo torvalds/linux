@@ -9,6 +9,8 @@
 struct journal_replay {
 	struct list_head	list;
 	struct bch_devs_list	devs;
+	/* checksum error, but we may want to try using it anyways: */
+	bool			bad;
 	/* must be last: */
 	struct jset		j;
 };
