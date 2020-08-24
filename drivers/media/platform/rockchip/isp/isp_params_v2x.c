@@ -3202,7 +3202,15 @@ static void
 isp_hdrtmo_enable(struct rkisp_isp_params_vdev *params_vdev,
 		  bool en)
 {
+	u32 value;
+
 	params_vdev->hdrtmo_en = en;
+	value = rkisp_ioread32(params_vdev, ISP_HDRTMO_CTRL);
+	if (en)
+		value |= ISP_HDRTMO_EN;
+	else
+		value &= ~ISP_HDRTMO_EN;
+	rkisp_iowrite32(params_vdev, value, ISP_HDRTMO_CTRL);
 }
 
 static void
