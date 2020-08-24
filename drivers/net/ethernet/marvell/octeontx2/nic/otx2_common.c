@@ -671,6 +671,13 @@ static int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	if (!sq->sg)
 		return -ENOMEM;
 
+	if (pfvf->ptp) {
+		err = qmem_alloc(pfvf->dev, &sq->timestamps, qset->sqe_cnt,
+				 sizeof(*sq->timestamps));
+		if (err)
+			return err;
+	}
+
 	sq->head = 0;
 	sq->sqe_per_sqb = (pfvf->hw.sqb_size / sq->sqe_size) - 1;
 	sq->num_sqbs = (qset->sqe_cnt + sq->sqe_per_sqb) / sq->sqe_per_sqb;
