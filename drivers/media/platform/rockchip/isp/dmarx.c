@@ -948,7 +948,7 @@ void rkisp_dmarx_get_frame(struct rkisp_device *dev,
 	}
 
 	spin_lock_irqsave(&dev->csi_dev.rdbk_lock, flag);
-	if (sync || dev->csi_dev.is_isp_end) {
+	if (sync) {
 		frame_id = dev->dmarx_dev.cur_frame.id;
 		frame_timestamp = dev->dmarx_dev.cur_frame.timestamp;
 	} else {

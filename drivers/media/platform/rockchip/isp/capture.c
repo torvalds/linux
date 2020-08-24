@@ -3227,7 +3227,7 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 				end_tx0 = false;
 				end_tx1 = false;
 				end_tx2 = false;
-				rkisp_trigger_read_back(&dev->csi_dev, false);
+				rkisp_trigger_read_back(&dev->csi_dev, false, false);
 			}
 		}
 	}

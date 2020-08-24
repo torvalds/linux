@@ -133,7 +133,6 @@ static int rkisp_csi_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp_device *dev = csi->ispdev;
 
 	memset(csi->tx_first, 0, sizeof(csi->tx_first));
-	memset(csi->filt_state, 0, sizeof(csi->filt_state));
 
 	if (!IS_HDR_RDBK(dev->hdr.op_mode))
 		return 0;
@@ -452,10 +451,11 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		rkisp_write(dev, CSI2RX_MASK_STAT, 0x7FFFFF7F, true);
 	}
 
-	if (IS_HDR_RDBK(dev->hdr.op_mode))
+	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
+		dev->csi_dev.rd_mode = dev->hdr.op_mode;
 		rkisp_set_bits(dev, CTRL_SWS_CFG,
 			       0, SW_MPIP_DROP_FRM_DIS, true);
-	dev->csi_dev.is_isp_end = true;
+	}
 	return ret;
 }
 
@@ -463,31 +463,37 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
  * for hdr read back mode, rawrd read back data
  * this will update rawrd base addr to shadow.
  */
-void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
+void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 {
 	struct rkisp_device *dev = csi->ispdev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
-	u32 val, cur_frame_id;
+	u32 val, cur_frame_id, tmp;
+	bool is_upd = false;
 
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, true);
 	if (dma2frm > 2)
 		dma2frm = 2;
-	memset(csi->filt_state, 0, sizeof(csi->filt_state));
-	switch (dev->hdr.op_mode) {
-	case HDR_RDBK_FRAME3://is rawrd1 rawrd0 rawrd2
-		csi->filt_state[CSI_F_RD1] = dma2frm;
-	case HDR_RDBK_FRAME2://is rawrd0 and rawrd2
-		csi->filt_state[CSI_F_RD0] = dma2frm;
-	case HDR_RDBK_FRAME1://only rawrd2
-		csi->filt_state[CSI_F_RD2] = dma2frm;
-		break;
-	default://other no support readback
-		return;
-	}
 
 	/* configure hdr params in rdbk mode */
 	rkisp_params_cfg(params_vdev, cur_frame_id, dma2frm + 1);
+
+	val = 0;
+	if (mode & T_START_X1) {
+		csi->rd_mode = HDR_RDBK_FRAME1;
+	} else if (mode & T_START_X2) {
+		csi->rd_mode = HDR_RDBK_FRAME2;
+		val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
+	} else if (mode & T_START_X3) {
+		csi->rd_mode = HDR_RDBK_FRAME3;
+		val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX3;
+	}
+
+	tmp = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
+	if (val != tmp) {
+		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
+		is_upd = true;
+	}
 
 	if (!hw->is_single) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
@@ -499,7 +505,9 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 			val = ISP_LSC_LUT_EN | ISP_LSC_EN;
 			rkisp_set_bits(dev, ISP_LSC_CTRL, val, val, true);
 		}
-
+		is_upd = true;
+	}
+	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_write(dev, ISP_CTRL, val, true);
@@ -507,15 +515,13 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 		/* wait 50 us to load lsc table, otherwise lsc lut error will occur */
 		udelay(50);
 	}
-	/* not using isp V_START irq to generate sof event */
-	csi->filt_state[CSI_F_VS] = dma2frm + 1;
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d\n",
 		 cur_frame_id, dma2frm + 1);
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
 	val |= SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) |
-		SW_IBUF_OP_MODE(dev->hdr.op_mode);
+		SW_IBUF_OP_MODE(csi->rd_mode);
 	rkisp_write(dev, CSI2RX_CTRL0, val, true);
 }
 
@@ -527,6 +533,7 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 	unsigned long lock_flags = 0;
 	int i, times = -1, max = 0, id = 0;
 	int len[DEV_MAX] = { 0 };
+	u32 mode = 0;
 
 	spin_lock_irqsave(&hw->rdbk_lock, lock_flags);
 	if (cmd == T_CMD_END)
@@ -553,6 +560,7 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		isp->dmarx_dev.pre_frame = isp->dmarx_dev.cur_frame;
 		isp->dmarx_dev.cur_frame.id = t.frame_id;
 		isp->dmarx_dev.cur_frame.timestamp = t.frame_timestamp;
+		mode = t.mode;
 		times = t.times;
 		hw->cur_dev_id = id;
 		hw->is_idle = false;
@@ -560,7 +568,7 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 end:
 	spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
 	if (times >= 0)
-		rkisp_trigger_read_back(&isp->csi_dev, times);
+		rkisp_trigger_read_back(&isp->csi_dev, times, mode);
 }
 
 /* handle read back event from user or isp idle isr */

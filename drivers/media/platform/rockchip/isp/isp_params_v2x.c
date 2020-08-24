@@ -3435,8 +3435,8 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value, i, gain_wsize;
 	u8 tmo_en, mge_en;
 
-	if (dev->hdr.op_mode != HDR_NORMAL &&
-	    dev->hdr.op_mode != HDR_RDBK_FRAME1) {
+	if (dev->csi_dev.rd_mode != HDR_NORMAL &&
+	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1) {
 		tmo_en = 1;
 		mge_en = 1;
 	} else {
@@ -4255,7 +4255,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		cur_buf = list_first_entry(&params_vdev->params,
 				struct rkisp_buffer, queue);
 
-		if (!IS_HDR_RDBK(dev->hdr.op_mode)) {
+		if (!IS_HDR_RDBK(dev->csi_dev.rd_mode)) {
 			list_del(&cur_buf->queue);
 			break;
 		}
@@ -4312,13 +4312,13 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			return;
 
 		params_vdev->rdbk_times--;
-		if (IS_HDR_RDBK(dev->hdr.op_mode) && !params_vdev->rdbk_times) {
+		if (IS_HDR_RDBK(dev->csi_dev.rd_mode) && !params_vdev->rdbk_times) {
 			rkisp_params_cfg_v2x(params_vdev, cur_frame_id, 0, RKISP_PARAMS_SHD);
 			return;
 		}
 	}
 
-	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->hdr.op_mode))
+	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->csi_dev.rd_mode))
 		rkisp_params_cfg_v2x(params_vdev, cur_frame_id, 0, RKISP_PARAMS_ALL);
 }
 
