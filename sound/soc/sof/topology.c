@@ -2083,12 +2083,12 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_dapm_widget *widget = swidget->widget;
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_process *process = NULL;
+	struct sof_ipc_comp_process *process;
 	struct sof_widget_data *wdata = NULL;
 	size_t ipc_data_size = 0;
 	size_t ipc_size;
 	int offset = 0;
-	int ret = 0;
+	int ret;
 	int i;
 
 	if (type == SOF_COMP_NONE) {
