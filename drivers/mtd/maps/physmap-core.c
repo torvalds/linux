@@ -515,7 +515,8 @@ static int physmap_flash_probe(struct platform_device *dev)
 		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
 			   res);
 
-		info->maps[i].name = dev_name(&dev->dev);
+		if (!info->maps[i].name)
+			info->maps[i].name = dev_name(&dev->dev);
 
 		if (!info->maps[i].phys)
 			info->maps[i].phys = res->start;
