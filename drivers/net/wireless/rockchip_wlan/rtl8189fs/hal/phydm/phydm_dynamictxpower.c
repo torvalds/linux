@@ -1,633 +1,553 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017  Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
  *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+ * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
+ * Hsinchu 300, Taiwan.
  *
- ******************************************************************************/
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ *****************************************************************************/
 
-//============================================================
-// include files
-//============================================================
+/*************************************************************
+ * include files
+ ************************************************************/
 #include "mp_precomp.h"
 #include "phydm_precomp.h"
 
-VOID 
-odm_DynamicTxPowerInit(
-	IN		PVOID					pDM_VOID	
-	)
-{
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	PADAPTER	Adapter = pDM_Odm->Adapter;
-	PMGNT_INFO			pMgntInfo = &Adapter->MgntInfo;
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+#ifdef CONFIG_DYNAMIC_TX_TWR
 
-	#if DEV_BUS_TYPE==RT_USB_INTERFACE					
-	if(RT_GetInterfaceSelection(Adapter) == INTF_SEL1_USB_High_Power)
-	{
-		odm_DynamicTxPowerSavePowerIndex(pDM_Odm);
-		pMgntInfo->bDynamicTxPowerEnable = TRUE;
-	}		
-	else	
+#ifdef BB_RAM_SUPPORT
+
+void
+phdm_2ndtype_rd_ram_pwr(void *dm_void,	u8	macid)
+{
+};
+
+void
+phdm_2ndtype_wt_ram_pwr(void *dm_void, u8	macid, boolean pwr_offset0_en,
+			     boolean	pwr_offset1_en, s8 pwr_offset0, s8 pwr_offset1)
+{
+	u32 reg_io_0x1e84 = 0;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_bb_ram_per_sta *dm_ram_per_sta = NULL;
+	dm_ram_per_sta = &dm->p_bb_ram_ctrl.pram_sta_ctrl[macid];
+	dm_ram_per_sta->tx_pwr_offset0_en = pwr_offset0_en;
+	dm_ram_per_sta->tx_pwr_offset1_en = pwr_offset1_en;
+	dm_ram_per_sta->tx_pwr_offset0 = pwr_offset0;
+	dm_ram_per_sta->tx_pwr_offset1 = pwr_offset1;
+	reg_io_0x1e84 = (dm_ram_per_sta->hw_igi_en<<7) + dm_ram_per_sta->hw_igi;
+	reg_io_0x1e84 |= (pwr_offset0_en<<15) + ((pwr_offset0&0x7f)<<8);
+	reg_io_0x1e84 |= (pwr_offset1_en<<23) + ((pwr_offset1&0x7f)<<16);
+	reg_io_0x1e84 |= (macid&0x3f)<<24;
+	reg_io_0x1e84 |= BIT(30);
+	odm_set_bb_reg(dm, 0x1e84, 0xffffffff, reg_io_0x1e84);
+};
+
+u8 phydm_pwr_lv_mapping_2ndtype(u8 tx_pwr_lv)
+{
+	if (tx_pwr_lv == tx_high_pwr_level_level3)
+		/*PHYDM_2ND_OFFSET_MINUS_11DB;*/
+		return PHYDM_2ND_OFFSET_MINUS_7DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level2)
+		return PHYDM_2ND_OFFSET_MINUS_7DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level1)
+		return PHYDM_2ND_OFFSET_MINUS_3DB;
+	else
+		return PHYDM_2ND_OFFSET_ZERO;
+}
+
+#if CONFIG_PHY_CTRL_PWR
+void phydm_pwr_lv_ctrl(void *dm_void, u8 macid, u8 tx_pwr_lv)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	s8 pwr_offset;
+
+	if (tx_pwr_lv == tx_high_pwr_level_level3)
+		pwr_offset = PHYDM_BBRAM_OFFSET_MINUS_11DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level2)
+		pwr_offset = PHYDM_BBRAM_OFFSET_MINUS_7DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level1)
+		pwr_offset = PHYDM_BBRAM_OFFSET_MINUS_3DB;
+	else
+		pwr_offset = PHYDM_BBRAM_OFFSET_ZERO;
+	phdm_2ndtype_wt_ram_pwr(dm, macid, false, true, 0, pwr_offset);
+	odm_set_mac_reg(dm, ODM_REG_RESP_TX_11AC, BIT(19) | BIT(18), 1);
+}
+#endif
+
+void phydm_dtp_fill_cmninfo_2ndtype(void *dm_void, u8 macid, u8 dtp_lvl)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dtp_info *dtp = NULL;
+
+	dtp = &dm->phydm_sta_info[macid]->dtp_stat;
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+	#if CONFIG_PHY_CTRL_PWR
+	dtp->dyn_tx_power = 1;
 	#else
-	//so 92c pci do not need dynamic tx power? vivi check it later
-	if(IS_HARDWARE_TYPE_8192D(Adapter))
-		pMgntInfo->bDynamicTxPowerEnable = TRUE;
-	else
-		pMgntInfo->bDynamicTxPowerEnable = FALSE;
+	dtp->dyn_tx_power = phydm_pwr_lv_mapping_2ndtype(dtp_lvl);
 	#endif
-	
-
-	pHalData->LastDTPLvl = TxHighPwrLevel_Normal;
-	pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-
-
-#endif
-	
+	PHYDM_DBG(dm, DBG_DYN_TXPWR,
+		  "Fill cmninfo TxPwr: macid=(%d), PwrLv (%d)\n", macid,
+		  dtp->dyn_tx_power);
+	/* dyn_tx_power is 2 bit at 8822C/14B/98F/12F*/
 }
 
-VOID
-odm_DynamicTxPowerSavePowerIndex(
-	IN		PVOID					pDM_VOID	
-	)
-{	
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE & (ODM_CE|ODM_WIN))
-	u1Byte		index;
-	u4Byte		Power_Index_REG[6] = {0xc90, 0xc91, 0xc92, 0xc98, 0xc99, 0xc9a};
-	
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)	
-	PADAPTER	Adapter = pDM_Odm->Adapter;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
-	for(index = 0; index< 6; index++)
-		pHalData->PowerIndex_backup[index] = PlatformEFIORead1Byte(Adapter, Power_Index_REG[index]);
-	
-	
-#endif
-#endif
-}
-
-VOID
-odm_DynamicTxPowerRestorePowerIndex(
-	IN		PVOID					pDM_VOID
-	)
+void
+phydm_2ndtype_dtp_init(void *dm_void)
 {
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE & (ODM_CE|ODM_WIN))
-	u1Byte			index;
-	PADAPTER		Adapter = pDM_Odm->Adapter;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	u4Byte			Power_Index_REG[6] = {0xc90, 0xc91, 0xc92, 0xc98, 0xc99, 0xc9a};
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	for(index = 0; index< 6; index++)
-		PlatformEFIOWrite1Byte(Adapter, Power_Index_REG[index], pHalData->PowerIndex_backup[index]);
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8	pwr_offset_minus3, pwr_offset_minus7;
+	u8	i;
 
+	#if 0
+	/*@ 2's com, for offset 3dB and 7dB, which 1 step will be 1dB*/
+	pwr_offset_minus3 = 0x0;
+	pwr_offset_minus7 = 0x0;
+	odm_set_bb_reg(dm, 0x1e70, 0x00ff0000, pwr_offset_minus3);
+	odm_set_bb_reg(dm, 0x1e70, 0xff000000, pwr_offset_minus7);
+	for (i = 0; i <= 63; i++)
+		phdm_2ndtype_wt_ram_pwr(dm, i, false, false, 0, 0);
+	#endif
+};
 
 #endif
-#endif
-}
 
-VOID
-odm_DynamicTxPowerWritePowerIndex(
-	IN		PVOID					pDM_VOID, 
-	IN 	u1Byte		Value)
+boolean
+phydm_check_rates(void *dm_void, u8 rate_idx)
 {
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	u1Byte			index;
-	u4Byte			Power_Index_REG[6] = {0xc90, 0xc91, 0xc92, 0xc98, 0xc99, 0xc9a};
-	
-	for(index = 0; index< 6; index++)
-		//PlatformEFIOWrite1Byte(Adapter, Power_Index_REG[index], Value);
-		ODM_Write1Byte(pDM_Odm, Power_Index_REG[index], Value);
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 check_rate_bitmap0 = 0x08080808; /* @check CCK11M, OFDM54M, MCS7, MCS15*/
+	u32 check_rate_bitmap1 = 0x80200808; /* @check MCS23, MCS31, VHT1SS M9, VHT2SS M9*/
+	u32 check_rate_bitmap2 = 0x00080200; /* @check VHT3SS M9, VHT4SS M9*/
+	u32 bitmap_result;
 
-}
-
-
-VOID 
-odm_DynamicTxPower(
-	IN		PVOID					pDM_VOID
-	)
-{
-	// 
-	// For AP/ADSL use prtl8192cd_priv
-	// For CE/NIC use PADAPTER
-	//
-	//PADAPTER		pAdapter = pDM_Odm->Adapter;
-//	prtl8192cd_priv	priv		= pDM_Odm->priv;
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	if (!(pDM_Odm->SupportAbility & ODM_BB_DYNAMIC_TXPWR))
-		return;
-	//
-	// 2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate
-	// at the same time. In the stage2/3, we need to prive universal interface and merge all
-	// HW dynamic mechanism.
-	//
-	switch	(pDM_Odm->SupportPlatform)
-	{
-		case	ODM_WIN:
-		case	ODM_CE:
-			odm_DynamicTxPowerNIC(pDM_Odm);
-			break;	
-		case	ODM_AP:
-			odm_DynamicTxPowerAP(pDM_Odm);
-			break;		
-
-		case	ODM_ADSL:
-			//odm_DIGAP(pDM_Odm);
-			break;	
+#if (RTL8822B_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8822B) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0xfffff000;
+		check_rate_bitmap0 &= 0x0fffffff;
 	}
-
-	
-}
-
-
-VOID 
-odm_DynamicTxPowerNIC(
-	IN		PVOID					pDM_VOID
-	)
-{	
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	
-	if (!(pDM_Odm->SupportAbility & ODM_BB_DYNAMIC_TXPWR))
-		return;
-	
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
-
-	if(pDM_Odm->SupportICType == ODM_RTL8192C)	
-	{
-		odm_DynamicTxPower_92C(pDM_Odm);
-	}
-	else if(pDM_Odm->SupportICType == ODM_RTL8192D)
-	{
-		odm_DynamicTxPower_92D(pDM_Odm);
-	}
-	else if (pDM_Odm->SupportICType == ODM_RTL8821)
-	{
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
-		PADAPTER		Adapter	 =  pDM_Odm->Adapter;
-		PMGNT_INFO		pMgntInfo = GetDefaultMgntInfo(Adapter);
-
-		if (pMgntInfo->RegRspPwr == 1)
-		{
-			if(pDM_Odm->RSSI_Min > 60)
-			{
-				ODM_SetMACReg(pDM_Odm, ODM_REG_RESP_TX_11AC, BIT20|BIT19|BIT18, 1); // Resp TXAGC offset = -3dB
-
-			}
-			else if(pDM_Odm->RSSI_Min < 55)
-			{
-				ODM_SetMACReg(pDM_Odm, ODM_REG_RESP_TX_11AC, BIT20|BIT19|BIT18, 0); // Resp TXAGC offset = 0dB
-			}
-		}
-#endif
-	}
-#endif	
-}
-
-VOID 
-odm_DynamicTxPowerAP(
-	IN		PVOID					pDM_VOID
-
-	)
-{	
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
-
-//#if ((RTL8192C_SUPPORT==1) || (RTL8192D_SUPPORT==1) || (RTL8188E_SUPPORT==1) || (RTL8812E_SUPPORT==1))
-
-
-	prtl8192cd_priv	priv		= pDM_Odm->priv;
-	s4Byte i;
-	s2Byte pwr_thd = TX_POWER_NEAR_FIELD_THRESH_AP;
-
-	if(!priv->pshare->rf_ft_var.tx_pwr_ctrl)
-		return;
-	
-#if ((RTL8812E_SUPPORT==1) || (RTL8881A_SUPPORT==1) || (RTL8814A_SUPPORT==1))
-	if (pDM_Odm->SupportICType & (ODM_RTL8812 | ODM_RTL8881A | ODM_RTL8814A))
-		pwr_thd = TX_POWER_NEAR_FIELD_THRESH_8812;
 #endif
 
-#if defined(CONFIG_RTL_92D_SUPPORT) || defined(CONFIG_RTL_92C_SUPPORT)
-	if(CHIP_VER_92X_SERIES(priv))
-	{
-#ifdef HIGH_POWER_EXT_PA
-	if(pDM_Odm->ExtPA)
-		tx_power_control(priv);
-#endif		
+#if (RTL8197F_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8197F) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0;
+		check_rate_bitmap0 &= 0x0fffffff;
 	}
-#endif	
-	/*
-	 *	Check if station is near by to use lower tx power
-	 */
+#endif
 
-	if ((priv->up_time % 3) == 0 )  {
-		int disable_pwr_ctrl = ((pDM_Odm->FalseAlmCnt.Cnt_all > 1000 ) || ((pDM_Odm->FalseAlmCnt.Cnt_all > 300 ) && ((RTL_R8(0xc50) & 0x7f) >= 0x32))) ? 1 : 0;
-			
-		for(i=0; i<ODM_ASSOCIATE_ENTRY_NUM; i++){
-			PSTA_INFO_T pstat = pDM_Odm->pODM_StaInfo[i];
-			if(IS_STA_VALID(pstat) ) {
-					if(disable_pwr_ctrl)
-						pstat->hp_level = 0;
-					 else if ((pstat->hp_level == 0) && (pstat->rssi > pwr_thd))
-					pstat->hp_level = 1;
-						else if ((pstat->hp_level == 1) && (pstat->rssi < (pwr_thd-8)))
-					pstat->hp_level = 0;
-			}
-		}
-
-#if defined(CONFIG_WLAN_HAL_8192EE)
-		if (GET_CHIP_VER(priv) == VERSION_8192E) {
-			if( !disable_pwr_ctrl && (pDM_Odm->RSSI_Min != 0xff) ) {
-				if(pDM_Odm->RSSI_Min > pwr_thd)
-					RRSR_power_control_11n(priv,  1 );
-				else if(pDM_Odm->RSSI_Min < (pwr_thd-8))
-					RRSR_power_control_11n(priv,  0 );
-			} else {
-					RRSR_power_control_11n(priv,  0 );
-			}
-		}
-#endif			
-
-#ifdef CONFIG_WLAN_HAL_8814AE
-		if (GET_CHIP_VER(priv) == VERSION_8814A) {
-			if (!disable_pwr_ctrl && (pDM_Odm->RSSI_Min != 0xff)) {
-				if (pDM_Odm->RSSI_Min > pwr_thd)
-					RRSR_power_control_14(priv,  1);
-				else if (pDM_Odm->RSSI_Min < (pwr_thd-8))
-					RRSR_power_control_14(priv,  0);
-			} else {
-					RRSR_power_control_14(priv,  0);
-			}
-		}
-#endif		
-
+#if (RTL8192E_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8192E) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0;
+		check_rate_bitmap0 &= 0x0fffffff;
 	}
-//#endif	
+#endif
 
-#endif	
-}
-
-
-VOID 
-odm_DynamicTxPower_92C(
-	IN		PVOID					pDM_VOID
-	)
-{
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	PADAPTER Adapter = pDM_Odm->Adapter;
-	PMGNT_INFO			pMgntInfo = &Adapter->MgntInfo;
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
-	s4Byte				UndecoratedSmoothedPWDB;
-
-	// 2012/01/12 MH According to Luke's suggestion, only high power will support the feature.
-	if (pDM_Odm->ExtPA == FALSE)
-		return;
-
-	// STA not connected and AP not connected
-	if((!pMgntInfo->bMediaConnect) &&	
-		(pHalData->EntryMinUndecoratedSmoothedPWDB == 0))
-	{
-		ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("Not connected to any \n"));
-		pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-
-		//the LastDTPlvl should reset when disconnect, 
-		//otherwise the tx power level wouldn't change when disconnect and connect again.
-		// Maddest 20091220.
-		 pHalData->LastDTPLvl=TxHighPwrLevel_Normal;
-		return;
+/*@jj add 20170822*/
+#if (RTL8192F_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8192F) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0;
+		check_rate_bitmap0 &= 0x0fffffff;
 	}
-
-#if (INTEL_PROXIMITY_SUPPORT == 1)
-	// Intel set fixed tx power 
-	if(pMgntInfo->IntelProximityModeInfo.PowerOutput > 0)
-	{
-		switch(pMgntInfo->IntelProximityModeInfo.PowerOutput){
-			case 1:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_100;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_100\n"));
-				break;
-			case 2:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_70;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_70\n"));
-				break;
-			case 3:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_50;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_50\n"));
-				break;
-			case 4:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_35;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_35\n"));
-				break;
-			case 5:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_15;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_15\n"));
-				break;
-			default:
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_100;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_100\n"));
-				break;
-		}		
+#endif
+#if (RTL8721D_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8721D) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0;
+		check_rate_bitmap0 &= 0x000fffff;
 	}
+#endif
+#if (RTL8821C_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8821C) {
+		check_rate_bitmap2 &= 0;
+		check_rate_bitmap1 &= 0x003ff000;
+		check_rate_bitmap0 &= 0x000fffff;
+	}
+#endif
+
+	if (rate_idx >= 64)
+		bitmap_result = BIT(rate_idx - 64) & check_rate_bitmap2;
+	else if (rate_idx >= 32)
+		bitmap_result = BIT(rate_idx - 32) & check_rate_bitmap1;
+	else if (rate_idx <= 31)
+		bitmap_result = BIT(rate_idx) & check_rate_bitmap0;
+
+	if (bitmap_result != 0)
+		return true;
 	else
-#endif		
-	{ 
-		if(	(pMgntInfo->bDynamicTxPowerEnable != TRUE) ||
-			pMgntInfo->IOTAction & HT_IOT_ACT_DISABLE_HIGH_POWER)
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-		}
-		else
-		{
-			if(pMgntInfo->bMediaConnect)	// Default port
-			{
-				if(ACTING_AS_AP(Adapter) || ACTING_AS_IBSS(Adapter))
-				{
-					UndecoratedSmoothedPWDB = pHalData->EntryMinUndecoratedSmoothedPWDB;
-					ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("AP Client PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-				}
-				else
-				{
-					UndecoratedSmoothedPWDB = pHalData->UndecoratedSmoothedPWDB;
-					ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("STA Default Port PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-				}
-			}
-			else // associated entry pwdb
-			{	
-				UndecoratedSmoothedPWDB = pHalData->EntryMinUndecoratedSmoothedPWDB;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("AP Ext Port PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-			}
-				
-			if(UndecoratedSmoothedPWDB >= TX_POWER_NEAR_FIELD_THRESH_LVL2)
-			{
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level2;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Level1 (TxPwr=0x0)\n"));
-			}
-			else if((UndecoratedSmoothedPWDB < (TX_POWER_NEAR_FIELD_THRESH_LVL2-3)) &&
-				(UndecoratedSmoothedPWDB >= TX_POWER_NEAR_FIELD_THRESH_LVL1) )
-			{
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level1;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Level1 (TxPwr=0x10)\n"));
-			}
-			else if(UndecoratedSmoothedPWDB < (TX_POWER_NEAR_FIELD_THRESH_LVL1-5))
-			{
-				pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Normal\n"));
-			}
-		}
-	}
-	if( pHalData->DynamicTxHighPowerLvl != pHalData->LastDTPLvl )
-	{
-		ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("PHY_SetTxPowerLevel8192C() Channel = %d \n" , pHalData->CurrentChannel));
-		PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-		if(	(pHalData->DynamicTxHighPowerLvl == TxHighPwrLevel_Normal) &&
-			(pHalData->LastDTPLvl == TxHighPwrLevel_Level1 || pHalData->LastDTPLvl == TxHighPwrLevel_Level2)) //TxHighPwrLevel_Normal
-			odm_DynamicTxPowerRestorePowerIndex(pDM_Odm);
-		else if(pHalData->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
-			odm_DynamicTxPowerWritePowerIndex(pDM_Odm, 0x14);
-		else if(pHalData->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2)
-			odm_DynamicTxPowerWritePowerIndex(pDM_Odm, 0x10);
-	}
-	pHalData->LastDTPLvl = pHalData->DynamicTxHighPowerLvl;
-
-	
-
-
-#endif	// #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-
+		return false;
 }
 
-
-VOID 
-odm_DynamicTxPower_92D(
-	IN		PVOID					pDM_VOID
-	)
+enum rf_path
+phydm_check_paths(void *dm_void)
 {
-#if (RTL8192D_SUPPORT==1)
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	PADAPTER Adapter = pDM_Odm->Adapter;
-	PMGNT_INFO			pMgntInfo = &Adapter->MgntInfo;
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
-	s4Byte				UndecoratedSmoothedPWDB;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	enum rf_path max_path = RF_PATH_A;
 
-	PADAPTER	BuddyAdapter = Adapter->BuddyAdapter;
-	BOOLEAN		bGetValueFromBuddyAdapter = dm_DualMacGetParameterFromBuddyAdapter(Adapter);
-	u1Byte		HighPowerLvlBackForMac0 = TxHighPwrLevel_Level1;
+	if (dm->num_rf_path == 1)
+		max_path = RF_PATH_A;
+	if (dm->num_rf_path == 2)
+		max_path = RF_PATH_B;
+	if (dm->num_rf_path == 3)
+		max_path = RF_PATH_C;
+	if (dm->num_rf_path == 4)
+		max_path = RF_PATH_D;
 
-	// 2012/01/12 MH According to Luke's suggestion, only high power will support the feature.
-	if (pDM_Odm->ExtPA == FALSE)
-		return;
+	return max_path;
+}
 
-	// If dynamic high power is disabled.
-	if( (pMgntInfo->bDynamicTxPowerEnable != TRUE) ||
-		pMgntInfo->IOTAction & HT_IOT_ACT_DISABLE_HIGH_POWER)
-	{
-		pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-		return;
-	}
+#ifndef PHYDM_COMMON_API_SUPPORT
+u8 phydm_dtp_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 ret = 0xff;
 
-	// STA not connected and AP not connected
-	if((!pMgntInfo->bMediaConnect) &&	
-		(pHalData->EntryMinUndecoratedSmoothedPWDB == 0))
-	{
-		ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("Not connected to any \n"));
-		pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-
-		//the LastDTPlvl should reset when disconnect, 
-		//otherwise the tx power level wouldn't change when disconnect and connect again.
-		// Maddest 20091220.
-		 pHalData->LastDTPLvl=TxHighPwrLevel_Normal;
-		return;
-	}
-	
-	if(pMgntInfo->bMediaConnect)	// Default port
-	{
-		if(ACTING_AS_AP(Adapter) || pMgntInfo->mIbss)
-		{
-			UndecoratedSmoothedPWDB = pHalData->EntryMinUndecoratedSmoothedPWDB;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("AP Client PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-		}
-		else
-		{
-			UndecoratedSmoothedPWDB = pHalData->UndecoratedSmoothedPWDB;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("STA Default Port PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-		}
-	}
-	else // associated entry pwdb
-	{	
-		UndecoratedSmoothedPWDB = pHalData->EntryMinUndecoratedSmoothedPWDB;
-		ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("AP Ext Port PWDB = 0x%x \n", UndecoratedSmoothedPWDB));
-	}
-	
-	if(IS_HARDWARE_TYPE_8192D(Adapter) && GET_HAL_DATA(Adapter)->CurrentBandType == 1){
-		if(UndecoratedSmoothedPWDB >= 0x33)
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level2;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("5G:TxHighPwrLevel_Level2 (TxPwr=0x0)\n"));
-		}
-		else if((UndecoratedSmoothedPWDB <0x33) &&
-			(UndecoratedSmoothedPWDB >= 0x2b) )
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level1;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("5G:TxHighPwrLevel_Level1 (TxPwr=0x10)\n"));
-		}
-		else if(UndecoratedSmoothedPWDB < 0x2b)
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("5G:TxHighPwrLevel_Normal\n"));
-		}
-
-	}
-	else
-	
-	{
-		if(UndecoratedSmoothedPWDB >= TX_POWER_NEAR_FIELD_THRESH_LVL2)
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level1;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Level1 (TxPwr=0x0)\n"));
-		}
-		else if((UndecoratedSmoothedPWDB < (TX_POWER_NEAR_FIELD_THRESH_LVL2-3)) &&
-			(UndecoratedSmoothedPWDB >= TX_POWER_NEAR_FIELD_THRESH_LVL1) )
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Level1;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Level1 (TxPwr=0x10)\n"));
-		}
-		else if(UndecoratedSmoothedPWDB < (TX_POWER_NEAR_FIELD_THRESH_LVL1-5))
-		{
-			pHalData->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("TxHighPwrLevel_Normal\n"));
-		}
-
-	}
-
-//sherry  delete flag 20110517
-	if(bGetValueFromBuddyAdapter)
-	{
-		ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() mac 0 for mac 1 \n"));
-		if(Adapter->DualMacDMSPControl.bChangeTxHighPowerLvlForAnotherMacOfDMSP)
-		{
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() change value \n"));
-			HighPowerLvlBackForMac0 = pHalData->DynamicTxHighPowerLvl;
-			pHalData->DynamicTxHighPowerLvl = Adapter->DualMacDMSPControl.CurTxHighLvlForAnotherMacOfDMSP;
-			PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-			pHalData->DynamicTxHighPowerLvl = HighPowerLvlBackForMac0;
-			Adapter->DualMacDMSPControl.bChangeTxHighPowerLvlForAnotherMacOfDMSP = FALSE;
-		}						
-	}
-
-	if( (pHalData->DynamicTxHighPowerLvl != pHalData->LastDTPLvl) )
-	{
-			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("PHY_SetTxPowerLevel8192S() Channel = %d \n" , pHalData->CurrentChannel));
-			if(Adapter->DualMacSmartConcurrent == TRUE)
-			{
-				if(BuddyAdapter == NULL)
-				{
-					ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() BuddyAdapter == NULL case \n"));
-					if(!Adapter->bSlaveOfDMSP)
-					{
-						PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-					}
-				}
-				else
-				{
-					if(pHalData->MacPhyMode92D == DUALMAC_SINGLEPHY)
-					{
-						ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() BuddyAdapter DMSP \n"));
-						if(Adapter->bSlaveOfDMSP)
-						{
-							ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() bslave case  \n"));
-							BuddyAdapter->DualMacDMSPControl.bChangeTxHighPowerLvlForAnotherMacOfDMSP = TRUE;
-							BuddyAdapter->DualMacDMSPControl.CurTxHighLvlForAnotherMacOfDMSP = pHalData->DynamicTxHighPowerLvl;
-						}
-						else
-						{
-							ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() master case  \n"));					
-							if(!bGetValueFromBuddyAdapter)
-							{
-								ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() mac 0 for mac 0 \n"));
-								PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-							}
-						}
-					}
-					else
-					{
-						ODM_RT_TRACE(pDM_Odm,ODM_COMP_DYNAMIC_TXPWR,DBG_LOUD,("dm_DynamicTxPower() BuddyAdapter DMDP\n"));
-						PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-					}
-				}
-			}
-			else
-			{
-				PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
-			}
-
-		}
-	pHalData->LastDTPLvl = pHalData->DynamicTxHighPowerLvl;
-
-
-#endif	// #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+#if (RTL8192E_SUPPORT == 1)
+	ret = config_phydm_read_txagc_n(dm, path, hw_rate);
 #endif
+	return ret;
 }
+#endif
 
-VOID 
-odm_DynamicTxPower_8821(
-	IN		PVOID			pDM_VOID,	
-	IN		pu1Byte			pDesc,
-	IN		u1Byte			macId	
-	)
+u8 phydm_search_min_power_index(void *dm_void)
 {
-#if (RTL8821A_SUPPORT == 1)
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PSTA_INFO_T		pEntry;
-	u1Byte			reg0xc56_byte;
-	u1Byte			reg0xe56_byte;
-	u1Byte			txpwr_offset = 0;
-	
-	pEntry = pDM_Odm->pODM_StaInfo[macId];	
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	enum rf_path path;
+	enum rf_path max_path;
+	u8 min_gain_index = 0x3f;
+	u8 gain_index;
+	u8 rate_idx;
 
-	reg0xc56_byte = ODM_Read1Byte(pDM_Odm, 0xc56);
+	PHYDM_DBG(dm, DBG_DYN_TXPWR, "%s\n", __func__);
+	max_path = phydm_check_paths(dm);
+	for (path = 0; path <= max_path; path++)
+		for (rate_idx = 0; rate_idx < 84; rate_idx++)
+			if (phydm_check_rates(dm, rate_idx)) {
+#ifdef PHYDM_COMMON_API_SUPPORT
+				/*This is for API support IC : 97F,8822B,92F,8821C*/
+				gain_index = phydm_api_get_txagc(dm, path, rate_idx);
+#else
+				/*This is for API non-support IC : 92E */
+				gain_index = phydm_dtp_get_txagc(dm, path, rate_idx);
+#endif
+				if (gain_index == 0xff) {
+					min_gain_index = 0x20;
+					PHYDM_DBG(dm, DBG_DYN_TXPWR, 
+						"Error Gain idx!! Rewite to: ((%d))\n", min_gain_index);
+					break;
+				}
+				PHYDM_DBG(dm, DBG_DYN_TXPWR,
+					  "Support Rate: ((%d)) -> Gain idx: ((%d))\n",
+					  rate_idx, gain_index);
+				if (gain_index < min_gain_index)
+					min_gain_index = gain_index;
+			}
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("reg0xc56_byte=%d\n", reg0xc56_byte));
-
-	if (pEntry[macId].rssi_stat.UndecoratedSmoothedPWDB > 85) {
-
-		/* Avoid TXAGC error after TX power offset is applied.
-		For example: Reg0xc56=0x6, if txpwr_offset=3( reduce 11dB )
-		Total power = 6-11= -5( overflow!! ), PA may be burned !
-		so txpwr_offset should be adjusted by Reg0xc56*/
-		
-		if (reg0xc56_byte < 7)
-			txpwr_offset = 1;
-		else if (reg0xc56_byte < 11)
-			txpwr_offset = 2;
-		else
-			txpwr_offset = 3;
-		
-		SET_TX_DESC_TX_POWER_OFFSET_8812(pDesc, txpwr_offset);
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("odm_DynamicTxPower_8821: RSSI=%d, txpwr_offset=%d\n", pEntry[macId].rssi_stat.UndecoratedSmoothedPWDB, txpwr_offset));
-
-	} else{
-		SET_TX_DESC_TX_POWER_OFFSET_8812(pDesc, txpwr_offset);
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DYNAMIC_TXPWR, DBG_LOUD, ("odm_DynamicTxPower_8821: RSSI=%d, txpwr_offset=%d\n", pEntry[macId].rssi_stat.UndecoratedSmoothedPWDB, txpwr_offset));
-
-	}
-#endif	/*#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)*/
-#endif	/*#if (RTL8821A_SUPPORT==1)*/
+	return min_gain_index;
 }
 
+void phydm_dynamic_tx_power_init(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 i;
+	dm->last_dtp_lvl = tx_high_pwr_level_normal;
+	dm->dynamic_tx_high_power_lvl = tx_high_pwr_level_normal;
+	for (i = 0; i < 3; i++) {
+		dm->enhance_pwr_th[i] = 0xff;
+	}
+	dm->set_pwr_th[0] = TX_POWER_NEAR_FIELD_THRESH_LVL1;
+	dm->set_pwr_th[1] = TX_POWER_NEAR_FIELD_THRESH_LVL2;
+	dm->set_pwr_th[2] = 0xff;
+	dm->min_power_index = phydm_search_min_power_index(dm);
+	PHYDM_DBG(dm, DBG_DYN_TXPWR, "DTP init: Min Gain idx: ((%d))\n",
+		  dm->min_power_index);
+	#ifdef BB_RAM_SUPPORT
+	phydm_2ndtype_dtp_init(dm);
+	#endif
+}
+
+void phydm_noisy_enhance_hp_th(void *dm_void, u8 noisy_state)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	if (noisy_state == 0) {
+		dm->enhance_pwr_th[0] = dm->set_pwr_th[0];
+		dm->enhance_pwr_th[1] = dm->set_pwr_th[1];
+		dm->enhance_pwr_th[2] = dm->set_pwr_th[2];
+	} else {
+		dm->enhance_pwr_th[0] = dm->set_pwr_th[0] + 8;
+		dm->enhance_pwr_th[1] = dm->set_pwr_th[1] + 5;
+		dm->enhance_pwr_th[2] = dm->set_pwr_th[2];
+	}
+	PHYDM_DBG(dm, DBG_DYN_TXPWR,
+		  "DTP hp_th: Lv1_th =%d ,Lv2_th = %d ,Lv3_th = %d\n",
+		  dm->enhance_pwr_th[0], dm->enhance_pwr_th[1],
+		  dm->enhance_pwr_th[2]);
+}
+
+u8 phydm_pwr_lvl_check(void *dm_void, u8 input_rssi)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 th0,th1,th2;
+	th2 = dm->enhance_pwr_th[2];
+	th1 = dm->enhance_pwr_th[1];
+	th0 = dm->enhance_pwr_th[0];
+	if (input_rssi >= th2)
+		return tx_high_pwr_level_level3;
+	else if (input_rssi < (th2 - 3) && input_rssi >= th1)
+		return tx_high_pwr_level_level2;
+	else if (input_rssi < (th1 - 3) && input_rssi >= th0)
+		return tx_high_pwr_level_level1;
+	else if (input_rssi < (th0 - 3))
+		return tx_high_pwr_level_normal;
+	else
+		return tx_high_pwr_level_unchange;
+}
+
+u8 phydm_pwr_lv_mapping(u8 tx_pwr_lv)
+{
+	if (tx_pwr_lv == tx_high_pwr_level_level3)
+		return PHYDM_OFFSET_MINUS_11DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level2)
+		return PHYDM_OFFSET_MINUS_7DB;
+	else if (tx_pwr_lv == tx_high_pwr_level_level1)
+		return PHYDM_OFFSET_MINUS_3DB;
+	else
+		return PHYDM_OFFSET_ZERO;
+}
+
+void phydm_dynamic_response_power(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 rpwr;
+
+#if CONFIG_PHY_CTRL_PWR
+	return;
+#endif
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+	if (dm->dynamic_tx_high_power_lvl == tx_high_pwr_level_unchange) {
+		dm->dynamic_tx_high_power_lvl = dm->last_dtp_lvl;
+		PHYDM_DBG(dm, DBG_DYN_TXPWR, "RespPwr not change\n");
+		return;
+	}
+	PHYDM_DBG(dm, DBG_DYN_TXPWR,
+		  "RespPwr update_DTP_lv: ((%d)) -> ((%d))\n", dm->last_dtp_lvl,
+		  dm->dynamic_tx_high_power_lvl);
+	dm->last_dtp_lvl = dm->dynamic_tx_high_power_lvl;
+	rpwr = phydm_pwr_lv_mapping(dm->dynamic_tx_high_power_lvl);
+	odm_set_mac_reg(dm, ODM_REG_RESP_TX_11AC, BIT(20) | BIT(19) | BIT(18), rpwr);
+	PHYDM_DBG(dm, DBG_DYN_TXPWR, "RespPwr Set TxPwr: Lv (%d)\n",
+		  dm->dynamic_tx_high_power_lvl);
+}
+
+void phydm_dtp_fill_cmninfo(void *dm_void, u8 macid, u8 dtp_lvl)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dtp_info *dtp = NULL;
+	dtp = &dm->phydm_sta_info[macid]->dtp_stat;
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+	dtp->dyn_tx_power = phydm_pwr_lv_mapping(dtp_lvl);
+	PHYDM_DBG(dm, DBG_DYN_TXPWR,
+		  "Fill cmninfo TxPwr: macid=(%d), PwrLv (%d)\n", macid,
+		  dtp->dyn_tx_power);
+}
+
+void phydm_dtp_per_sta(void *dm_void, u8 macid)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct cmn_sta_info *sta = dm->phydm_sta_info[macid];
+	struct dtp_info *dtp = NULL;
+	struct rssi_info *rssi = NULL;
+	if (is_sta_active(sta)) {
+		dtp = &sta->dtp_stat;
+		rssi = &sta->rssi_stat;
+		dtp->sta_tx_high_power_lvl = phydm_pwr_lvl_check(dm, rssi->rssi);
+		PHYDM_DBG(dm, DBG_DYN_TXPWR,
+			  "STA=%d , RSSI: %d , GetPwrLv: %d\n", macid,
+			  rssi->rssi, dtp->sta_tx_high_power_lvl);
+		if (dtp->sta_tx_high_power_lvl == tx_high_pwr_level_unchange 
+			|| dtp->sta_tx_high_power_lvl == dtp->sta_last_dtp_lvl) {
+			dtp->sta_tx_high_power_lvl = dtp->sta_last_dtp_lvl;
+			PHYDM_DBG(dm, DBG_DYN_TXPWR,
+				  "DTP_lv not change: ((%d))\n",
+				  dtp->sta_tx_high_power_lvl);
+			return;
+		}
+
+		PHYDM_DBG(dm, DBG_DYN_TXPWR,
+			  "DTP_lv update: ((%d)) -> ((%d))\n", dm->last_dtp_lvl,
+			  dm->dynamic_tx_high_power_lvl);
+		dtp->sta_last_dtp_lvl = dtp->sta_tx_high_power_lvl;
+#ifdef BB_RAM_SUPPORT
+		phydm_dtp_fill_cmninfo_2ndtype(dm, macid, dtp->sta_tx_high_power_lvl);
+#else
+		phydm_dtp_fill_cmninfo(dm, macid, dtp->sta_tx_high_power_lvl);
+#endif
+	}
+}
+
+
+void odm_set_dyntxpwr(void *dm_void, u8 *desc, u8 macid)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dtp_info *dtp = NULL;
+	dtp = &dm->phydm_sta_info[macid]->dtp_stat;
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+	if (dm->fill_desc_dyntxpwr)
+		dm->fill_desc_dyntxpwr(dm, desc, dtp->dyn_tx_power);
+	else
+		PHYDM_DBG(dm, DBG_DYN_TXPWR,
+			  "%s: fill_desc_dyntxpwr is null!\n", __func__);
+	if (dtp->last_tx_power != dtp->dyn_tx_power) {
+		PHYDM_DBG(dm, DBG_DYN_TXPWR,
+			  "%s: last_offset=%d, txpwr_offset=%d\n", __func__,
+			  dtp->last_tx_power, dtp->dyn_tx_power);
+		dtp->last_tx_power = dtp->dyn_tx_power;
+	}
+}
+
+void phydm_dtp_debug(void *dm_void, char input[][16], u32 *_used, char *output,
+			     u32 *_out_len)
+{
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	char help[] = "-h";
+	u32 var1[3] = {0};
+	u8 set_pwr_th1, set_pwr_th2, set_pwr_th3;
+	u8 i;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Set DTP threhosld: {1} {TH[0]} {TH[1]} {TH[2]}\n");
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
+		}
+		if (var1[0] == 1) {
+			for (i = 0; i < 3; i++)
+				if (var1[i] == 0 || var1[i] > 100)
+					dm->set_pwr_th[i] = 0xff;
+				else
+					dm->set_pwr_th[i] = (u8)var1[1 + i];
+
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "DTP_TH[0:2] = {%d, %d, %d}\n",
+				 dm->set_pwr_th[0], dm->set_pwr_th[1],
+				 dm->set_pwr_th[2]);
+		}
+	}
+	*_used = used;
+	*_out_len = out_len;
+}
+
+
+void phydm_dynamic_tx_power(void *dm_void)
+{
+
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct cmn_sta_info *sta = NULL;
+	u8 i;
+	u8 cnt = 0;
+	u8 rssi_min = dm->rssi_min;
+	u8 rssi_tmp = 0;
+
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+
+	PHYDM_DBG(dm, DBG_DYN_TXPWR,
+		  "[%s] RSSI_min = %d, Noisy_dec = %d\n", __func__, rssi_min,
+		  dm->noisy_decision);
+	phydm_noisy_enhance_hp_th(dm, dm->noisy_decision);
+	/* Response Power */
+	dm->dynamic_tx_high_power_lvl = phydm_pwr_lvl_check(dm, rssi_min);
+	phydm_dynamic_response_power(dm);
+	/* Per STA Tx power */
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		phydm_dtp_per_sta(dm, i);
+		cnt++;
+		if (cnt >= dm->number_linked_client)
+			break;
+	}
+}
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+
+void phydm_dynamic_tx_power_init_win(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	void *adapter = dm->adapter;
+	PMGNT_INFO mgnt_info = &((PADAPTER)adapter)->MgntInfo;
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA((PADAPTER)adapter);
+
+	mgnt_info->bDynamicTxPowerEnable = false;
+
+	#if DEV_BUS_TYPE == RT_USB_INTERFACE
+	if (RT_GetInterfaceSelection((PADAPTER)adapter) ==
+	    INTF_SEL1_USB_High_Power) {
+		mgnt_info->bDynamicTxPowerEnable = true;
+	}
+	#endif
+
+	hal_data->LastDTPLvl = tx_high_pwr_level_normal;
+	hal_data->DynamicTxHighPowerLvl = tx_high_pwr_level_normal;
+
+	PHYDM_DBG(dm, DBG_DYN_TXPWR, "[%s] DTP=%d\n", __func__,
+		  mgnt_info->bDynamicTxPowerEnable);
+}
+
+void phydm_dynamic_tx_power_win(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
+		return;
+
+	#if (RTL8814A_SUPPORT == 1)
+	if (dm->support_ic_type == ODM_RTL8814A)
+		odm_dynamic_tx_power_8814a(dm);
+	#endif
+
+	#if (RTL8821A_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8821) {
+		void *adapter = dm->adapter;
+		PMGNT_INFO mgnt_info = GetDefaultMgntInfo((PADAPTER)adapter);
+
+		if (mgnt_info->RegRspPwr == 1) {
+			if (dm->rssi_min > 60) {
+				/*Resp TXAGC offset = -3dB*/
+				odm_set_mac_reg(dm, 0x6d8, 0x1C0000, 1);
+			} else if (dm->rssi_min < 55) {
+				/*Resp TXAGC offset = 0dB*/
+				odm_set_mac_reg(dm, 0x6d8, 0x1C0000, 0);
+			}
+		}
+	}
+	#endif
+}
+#endif /*@#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)*/
+#endif /* @#ifdef CONFIG_DYNAMIC_TX_TWR */

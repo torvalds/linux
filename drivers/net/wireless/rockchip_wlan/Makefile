@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_BCMDHD)	+= rkwifi/
+obj-$(CONFIG_RTL8189FS)	+= rtl8189fs/
 obj-$(CONFIG_RTL8723CS)	+= rtl8723cs/
 obj-$(CONFIG_RTL8723DS)	+= rtl8723ds/
 obj-$(CONFIG_RTL8821CS) += rtl8821cs/

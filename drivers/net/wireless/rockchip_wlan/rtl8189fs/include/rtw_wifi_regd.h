@@ -1,7 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2010 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
  *
  *****************************************************************************/
 
@@ -18,10 +27,9 @@ enum country_code_type_t {
 
 	/*add new channel plan above this line */
 	COUNTRY_CODE_MAX
-}; 
+};
 
-int rtw_regd_init(_adapter *padapter);
-void rtw_reg_notify_by_driver(_adapter *adapter);
+void rtw_regd_apply_flags(struct wiphy *wiphy);
+int rtw_regd_init(struct wiphy *wiphy);
 
 #endif /* __RTW_WIFI_REGD_H__ */
-

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,24 +12,13 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8814A_DM_H__
 #define __RTL8814A_DM_H__
 
-void rtl8814_init_dm_priv(IN PADAPTER Adapter);
-void rtl8814_deinit_dm_priv(IN PADAPTER Adapter);
-void rtl8814_InitHalDm(IN PADAPTER Adapter);
-void rtl8814_HalDmWatchDog(IN PADAPTER Adapter);
-
-#ifdef CONFIG_ANTENNA_DIVERSITY
-void AntDivCompare8814(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src);
-u8 AntDivBeforeLink8814(PADAPTER Adapter );
-#endif //CONFIG_ANTENNA_DIVERSITY
+void rtl8814_init_dm_priv(PADAPTER Adapter);
+void rtl8814_deinit_dm_priv(PADAPTER Adapter);
+void rtl8814_InitHalDm(PADAPTER Adapter);
+void rtl8814_HalDmWatchDog(PADAPTER Adapter);
 
 #endif
-

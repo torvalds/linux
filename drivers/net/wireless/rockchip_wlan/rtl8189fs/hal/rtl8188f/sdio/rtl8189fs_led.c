@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,33 +12,29 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTL8188FS_LED_C_
 
 #include "rtl8188f_hal.h"
+#ifdef CONFIG_RTW_SW_LED
 
-//================================================================================
-// LED object.
-//================================================================================
+/* ********************************************************************************
+ * LED object.
+ * ******************************************************************************** */
 
 
-//================================================================================
-//	Prototype of protected function.
-//================================================================================
+/* ********************************************************************************
+ *	Prototype of protected function.
+ * ******************************************************************************** */
 
-//================================================================================
-// LED_819xUsb routines.
-//================================================================================
+/* ********************************************************************************
+ * LED_819xUsb routines.
+ * ******************************************************************************** */
 
-//
-//	Description:
-//		Turn on LED according to LedPin specified.
-//
+/*
+ *	Description:
+ *		Turn on LED according to LedPin specified.
+ *   */
 void
 SwLedOn_8188FS(
 	_adapter			*padapter,
@@ -55,10 +52,10 @@ SwLedOn_8188FS(
 }
 
 
-//
-//	Description:
-//		Turn off LED according to LedPin specified.
-//
+/*
+ *	Description:
+ *		Turn off LED according to LedPin specified.
+ *   */
 void
 SwLedOff_8188FS(
 	_adapter			*padapter,
@@ -76,52 +73,52 @@ exit:
 
 }
 
-//================================================================================
-// Interface to manipulate LED objects.
-//================================================================================
+/* ********************************************************************************
+ * Interface to manipulate LED objects.
+ * ******************************************************************************** */
 
-//================================================================================
-// Default LED behavior.
-//================================================================================
+/* ********************************************************************************
+ * Default LED behavior.
+ * ******************************************************************************** */
 
-//
-//	Description:
-//		Initialize all LED_871x objects.
-//
+/*
+ *	Description:
+ *		Initialize all LED_871x objects.
+ *   */
 void
 rtl8188fs_InitSwLeds(
 	_adapter	*padapter
-	)
+)
 {
 #if 0
-	struct led_priv *pledpriv = &(padapter->ledpriv);
+	struct led_priv *pledpriv = adapter_to_led(padapter);
 
 	pledpriv->LedControlHandler = LedControlSDIO;
 
 	pledpriv->SwLedOn = SwLedOn_8188FS;
 	pledpriv->SwLedOff = SwLedOff_8188FS;
-	
+
 	InitLed871x(padapter, &(pledpriv->SwLed0), LED_PIN_LED0);
 
-	InitLed871x(padapter,&(pledpriv->SwLed1), LED_PIN_LED1);
+	InitLed871x(padapter, &(pledpriv->SwLed1), LED_PIN_LED1);
 #endif
 }
 
 
-//
-//	Description:
-//		DeInitialize all LED_819xUsb objects.
-//
+/*
+ *	Description:
+ *		DeInitialize all LED_819xUsb objects.
+ *   */
 void
 rtl8188fs_DeInitSwLeds(
 	_adapter	*padapter
-	)
+)
 {
 #if 0
-	struct led_priv	*ledpriv = &(padapter->ledpriv);
+	struct led_priv	*ledpriv = adapter_to_led(padapter);
 
-	DeInitLed871x( &(ledpriv->SwLed0) );
-	DeInitLed871x( &(ledpriv->SwLed1) );
+	DeInitLed871x(&(ledpriv->SwLed0));
+	DeInitLed871x(&(ledpriv->SwLed1));
 #endif
 }
-
+#endif

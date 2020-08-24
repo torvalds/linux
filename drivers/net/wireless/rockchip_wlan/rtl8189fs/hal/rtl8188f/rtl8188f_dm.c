@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*============================================================ */
 /* Description: */
 /* */
@@ -34,52 +30,6 @@
 /*============================================================ */
 /* Global var */
 /*============================================================ */
-
-
-static VOID
-dm_CheckProtection(
-	IN	PADAPTER	Adapter
-)
-{
-#if 0
-	PMGNT_INFO		pMgntInfo = &(Adapter->MgntInfo);
-	u1Byte			CurRate, RateThreshold;
-
-	if (pMgntInfo->pHTInfo->bCurBW40MHz)
-		RateThreshold = MGN_MCS1;
-	else
-		RateThreshold = MGN_MCS3;
-
-	if (Adapter->TxStats.CurrentInitTxRate <= RateThreshold) {
-		pMgntInfo->bDmDisableProtect = TRUE;
-		DbgPrint("Forced disable protect: %x\n", Adapter->TxStats.CurrentInitTxRate);
-	} else {
-		pMgntInfo->bDmDisableProtect = FALSE;
-		DbgPrint("Enable protect: %x\n", Adapter->TxStats.CurrentInitTxRate);
-	}
-#endif
-}
-
-static VOID
-dm_CheckStatistics(
-	IN	PADAPTER	Adapter
-)
-{
-#if 0
-	if (!Adapter->MgntInfo.bMediaConnect)
-		return;
-
-	/*2008.12.10 tynli Add for getting Current_Tx_Rate_Reg flexibly. */
-	rtw_hal_get_hwreg(Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate));
-
-	/* Calculate current Tx Rate(Successful transmited!!) */
-
-	/* Calculate current Rx Rate(Successful received!!) */
-
-	/*for tx tx retry count */
-	rtw_hal_get_hwreg(Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount));
-#endif
-}
 #ifdef CONFIG_SUPPORT_HW_WPS_PBC
 static void dm_CheckPbcGPIO(_adapter *padapter)
 {
@@ -110,7 +60,6 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 		bPbcPressed = _TRUE;
 #else
 	tmp1byte = rtw_read8(padapter, GPIO_IN);
-	/*RT_TRACE(COMP_IO, DBG_TRACE, ("dm_CheckPbcGPIO - %x\n", tmp1byte)); */
 
 	if (tmp1byte == 0xff || padapter->init_adpt_in_progress)
 		return;
@@ -122,7 +71,7 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 	if (_TRUE == bPbcPressed) {
 		/* Here we only set bPbcPressed to true */
 		/* After trigger PBC, the variable will be set to false */
-		DBG_8192C("CheckPbcGPIO - PBC is pressed\n");
+		RTW_INFO("CheckPbcGPIO - PBC is pressed\n");
 		rtw_request_wps_pbc_event(padapter);
 	}
 }
@@ -139,9 +88,9 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 /* */
 /*	Created by Roger, 2010.03.05. */
 /* */
-VOID
+void
 dm_InterruptMigration(
-	IN	PADAPTER	Adapter
+		PADAPTER	Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -160,8 +109,8 @@ dm_InterruptMigration(
 	/* when interrupt migration is set before. 2010.03.05. */
 	/* */
 	if (!Adapter->registrypriv.wifi_spec &&
-		(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) &&
-		pmlmepriv->LinkDetectInfo.bHigherBusyTraffic) {
+	    (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) &&
+	    pmlmepriv->LinkDetectInfo.bHigherBusyTraffic) {
 		IntMtToSet = _TRUE;
 
 		/* To check whether we should disable Tx interrupt or not. */
@@ -171,7 +120,7 @@ dm_InterruptMigration(
 
 	/*Update current settings. */
 	if (bCurrentIntMt != IntMtToSet) {
-		DBG_8192C("%s(): Update interrupt migration(%d)\n", __func__, IntMtToSet);
+		RTW_INFO("%s(): Update interrupt migration(%d)\n", __func__, IntMtToSet);
 		if (IntMtToSet) {
 			/* */
 			/* <Roger_Notes> Set interrupt migration timer and corresponging Tx/Rx counter. */
@@ -189,7 +138,7 @@ dm_InterruptMigration(
 
 #if 0 /* mask */
 	if (bCurrentACIntDisable != ACIntToSet) {
-		DBG_8192C("%s(): Update AC interrupt(%d)\n", __func__, ACIntToSet);
+		RTW_INFO("%s(): Update AC interrupt(%d)\n", __func__, ACIntToSet);
 		if (ACIntToSet) { /* Disable four ACs interrupts. */
 			/* */
 			/* <Roger_Notes> Disable VO, VI, BE and BK four AC interrupts to gain more efficient CPU utilization. */
@@ -212,9 +161,10 @@ dm_InterruptMigration(
 /* */
 /* Initialize GPIO setting registers */
 /* */
+#ifdef CONFIG_USB_HCI
 static void
 dm_InitGPIOSetting(
-	IN	PADAPTER	Adapter
+		PADAPTER	Adapter
 )
 {
 	PHAL_DATA_TYPE		pHalData = GET_HAL_DATA(Adapter);
@@ -226,207 +176,65 @@ dm_InitGPIOSetting(
 
 	rtw_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
 }
+#endif
 /*============================================================ */
 /* functions */
 /*============================================================ */
 static void Init_ODM_ComInfo_8188f(PADAPTER	Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-	u32 SupportAbility = 0;
+	struct dm_struct		*pDM_Odm = &(pHalData->odmpriv);
 	u8	cut_ver, fab_ver;
 
 	Init_ODM_ComInfo(Adapter);
 
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PACKAGE_TYPE, pHalData->PackageType);
+	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_PACKAGE_TYPE, pHalData->PackageType);
 
 	fab_ver = ODM_TSMC;
-	cut_ver = GET_CVID_CUT_VERSION(pHalData->VersionID);
+	cut_ver = GET_CVID_CUT_VERSION(pHalData->version_id);
 
-	DBG_871X("%s(): fab_ver=%d cut_ver=%d\n", __func__, fab_ver, cut_ver);
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_FAB_VER, fab_ver);
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_CUT_VER, cut_ver);
-
-#ifdef CONFIG_DISABLE_ODM
-	SupportAbility = 0;
-#else
-	SupportAbility =	ODM_RF_CALIBRATION		|
-						ODM_RF_TX_PWR_TRACK	/*| */
-						;
-	/*if(pHalData->AntDivCfg) */
-	/*	pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV; */
-#endif
-
-	ODM_CmnInfoUpdate(pDM_Odm, ODM_CMNINFO_ABILITY, SupportAbility);
-}
-
-static void Update_ODM_ComInfo_8188f(PADAPTER	Adapter)
-{
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-	u32 SupportAbility = 0;
-
-	SupportAbility = 0
-			 | ODM_BB_DIG
-			 | ODM_BB_RA_MASK
-			 | ODM_BB_DYNAMIC_TXPWR
-			 | ODM_BB_FA_CNT
-			 | ODM_BB_RSSI_MONITOR
-			 | ODM_BB_CCK_PD
-			 /* | ODM_BB_PWR_SAVE */
-			 | ODM_BB_CFO_TRACKING
-			 | ODM_MAC_EDCA_TURBO
-			 | ODM_RF_TX_PWR_TRACK
-			 | ODM_RF_CALIBRATION
-			 | ODM_BB_NHM_CNT
-			 /*| ODM_BB_PWR_TRAIN */
-			 ;
-
-	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE) {
-		rtw_odm_adaptivity_config_msg(RTW_DBGDUMP, Adapter);
-		SupportAbility |= ODM_BB_ADAPTIVITY;
-	}
-
-#ifdef CONFIG_ANTENNA_DIVERSITY
-	if (pHalData->AntDivCfg)
-		SupportAbility |= ODM_BB_ANT_DIV;
-#endif
-
-#if (MP_DRIVER==1)
-	if (Adapter->registrypriv.mp_mode == 1) {
-		SupportAbility = 0
-						 | ODM_RF_CALIBRATION
-						 | ODM_RF_TX_PWR_TRACK
-						 ;
-	}
-#endif/*(MP_DRIVER==1) */
-
-#ifdef CONFIG_DISABLE_ODM
-	SupportAbility = 0;
-#endif/*CONFIG_DISABLE_ODM */
-
-	ODM_CmnInfoUpdate(pDM_Odm, ODM_CMNINFO_ABILITY, SupportAbility);
+	RTW_INFO("%s(): fab_ver=%d cut_ver=%d\n", __func__, fab_ver, cut_ver);
+	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_FAB_VER, fab_ver);
+	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_CUT_VER, cut_ver);
 }
 
 void
 rtl8188f_InitHalDm(
-	IN	PADAPTER	Adapter
+		PADAPTER	Adapter
 )
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-
-	u8	i;
+	struct dm_struct		*pDM_Odm = &(pHalData->odmpriv);
 
 #ifdef CONFIG_USB_HCI
 	dm_InitGPIOSetting(Adapter);
 #endif
-
-	pHalData->DM_Type = DM_Type_ByDriver;
-
-	Update_ODM_ComInfo_8188f(Adapter);
-
-	ODM_DMInit(pDM_Odm);
-
+	rtw_phydm_init(Adapter);
 }
 
-#if 0 /* function never used */
-static void
-FindMinimumRSSI_8188f(
-	IN	PADAPTER	pAdapter
-)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
-	/*1 1.Determine the minimum RSSI */
-
-
-#ifdef CONFIG_CONCURRENT_MODE
-	/*	FindMinimumRSSI()	per-adapter */
-	{
-		PADAPTER pbuddy_adapter = pAdapter->pbuddy_adapter;
-		PHAL_DATA_TYPE	pbuddy_HalData = GET_HAL_DATA(pbuddy_adapter);
-		struct dm_priv *pbuddy_dmpriv = &pbuddy_HalData->dmpriv;
-
-		if ((pHalData->EntryMinUndecoratedSmoothedPWDB != 0) &&
-			(pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB != 0)) {
-
-			if (pHalData->EntryMinUndecoratedSmoothedPWDB > pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB)
-				pHalData->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
-		} else {
-			if (pHalData->EntryMinUndecoratedSmoothedPWDB == 0)
-				pHalData->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
-
-		}
-#if 0
-		if ((pHalData->UndecoratedSmoothedPWDB != (-1)) &&
-			(pbuddy_dmpriv->UndecoratedSmoothedPWDB != (-1))) {
-
-			if ((pHalData->UndecoratedSmoothedPWDB > pbuddy_dmpriv->UndecoratedSmoothedPWDB) &&
-				(pbuddy_dmpriv->UndecoratedSmoothedPWDB != 0))
-				pHalData->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
-		} else {
-			if ((pHalData->UndecoratedSmoothedPWDB == (-1)) && (pbuddy_dmpriv->UndecoratedSmoothedPWDB != 0))
-				pHalData->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
-		}
-#endif
-	}
-#endif
-
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE) &&
-		(pHalData->EntryMinUndecoratedSmoothedPWDB == 0)) {
-		pHalData->MinUndecoratedPWDBForDM = 0;
-		/*ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("Not connected to any\n")); */
-	}
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {	/* Default port */
-#if 0
-		if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE)) {
-			pHalData->MinUndecoratedPWDBForDM = pHalData->EntryMinUndecoratedSmoothedPWDB;
-			/*ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("AP Client PWDB = 0x%x\n", pHalData->MinUndecoratedPWDBForDM)); */
-		} else { /*for STA mode */
-			pHalData->MinUndecoratedPWDBForDM = pHalData->UndecoratedSmoothedPWDB;
-			/*ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("STA Default Port PWDB = 0x%x\n", pHalData->MinUndecoratedPWDBForDM)); */
-		}
-#else
-		pHalData->MinUndecoratedPWDBForDM = pHalData->EntryMinUndecoratedSmoothedPWDB;
-#endif
-	} else { /* associated entry pwdb */
-		pHalData->MinUndecoratedPWDBForDM = pHalData->EntryMinUndecoratedSmoothedPWDB;
-		/*ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("AP Ext Port or disconnect PWDB = 0x%x\n", pHalData->MinUndecoratedPWDBForDM)); */
-	}
-
-	/*odm_FindMinimumRSSI_Dmsp(pAdapter); */
-	/*DBG_8192C("%s=>MinUndecoratedPWDBForDM(%d)\n",__func__,pHalData->MinUndecoratedPWDBForDM); */
-	/*ODM_RT_TRACE(pDM_Odm,COMP_DIG, DBG_LOUD, ("MinUndecoratedPWDBForDM =%d\n",pHalData->MinUndecoratedPWDBForDM)); */
-}
-#endif
-
-VOID
+void
 rtl8188f_HalDmWatchDog(
-	IN	PADAPTER	Adapter
+		PADAPTER	Adapter
 )
 {
 	BOOLEAN		bFwCurrentInPSMode = _FALSE;
-	BOOLEAN		bFwPSAwake = _TRUE;
+	u8 bFwPSAwake = _TRUE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
+	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
+	u8 in_lps = _FALSE;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
-#endif /*CONFIG_CONCURRENT_MODE */
-
+#ifdef CONFIG_MP_INCLUDED
 	if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm == 0) /* for MP power tracking */
 		return;
-
+#endif
 
 	if (!rtw_is_hw_init_completed(Adapter))
 		goto skip_dm;
 
 #ifdef CONFIG_LPS
-	bFwCurrentInPSMode = adapter_to_pwrctl(Adapter)->bFwCurrentInPSMode;
-	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	bFwCurrentInPSMode = pwrpriv->bFwCurrentInPSMode;
+	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, &bFwPSAwake);
 #endif
 
 #ifdef CONFIG_P2P
@@ -437,16 +245,12 @@ rtl8188f_HalDmWatchDog(
 #endif /*CONFIG_P2P */
 
 	if ((rtw_is_hw_init_completed(Adapter))
-		&& ((!bFwCurrentInPSMode) && bFwPSAwake)) {
-		/* */
-		/* Calculate Tx/Rx statistics. */
-		/* */
-		dm_CheckStatistics(Adapter);
+	    && ((!bFwCurrentInPSMode) && bFwPSAwake)) {
+
 		rtw_hal_check_rxfifo_full(Adapter);
 		/* */
 		/* Dynamically switch RTS/CTS protection. */
 		/* */
-		/*dm_CheckProtection(Adapter); */
 
 #ifdef CONFIG_PCI_HCI
 		/* 20100630 Joseph: Disable Interrupt Migration mechanism temporarily because it degrades Rx throughput. */
@@ -458,39 +262,16 @@ rtl8188f_HalDmWatchDog(
 #endif
 	}
 
-	/*ODM */
-	if (rtw_is_hw_init_completed(Adapter)) {
-		u8	bLinked = _FALSE;
-		u8	bsta_state = _FALSE;
-		u8	bBtDisabled = _TRUE;
+#ifdef CONFIG_DISABLE_ODM
+	goto skip_dm;
+#endif
 
-		if (rtw_linked_check(Adapter)) {
-			bLinked = _TRUE;
-			if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE))
-				bsta_state = _TRUE;
-		}
+#ifdef CONFIG_LPS
+	if (pwrpriv->bLeisurePs && bFwCurrentInPSMode && pwrpriv->pwr_mode != PS_MODE_ACTIVE)
+		in_lps = _TRUE;
+#endif
 
-#ifdef CONFIG_CONCURRENT_MODE
-		if (pbuddy_adapter && rtw_linked_check(pbuddy_adapter)) {
-			bLinked = _TRUE;
-			if (pbuddy_adapter && check_fwstate(&pbuddy_adapter->mlmepriv, WIFI_STATION_STATE))
-				bsta_state = _TRUE;
-		}
-#endif /*CONFIG_CONCURRENT_MODE */
-
-		ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_LINK, bLinked);
-		ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_STATION_STATE, bsta_state);
-
-		/*FindMinimumRSSI_8188f(Adapter); */
-		/*ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pHalData->MinUndecoratedPWDBForDM); */
-
-#ifdef CONFIG_BT_COEXIST
-		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
-#endif /* CONFIG_BT_COEXIST */
-		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == _TRUE) ? _FALSE : _TRUE));
-
-		ODM_DMWatchdog(&pHalData->odmpriv);
-	}
+	rtw_phydm_watchdog(Adapter, in_lps);
 
 skip_dm:
 
@@ -507,115 +288,20 @@ skip_dm:
 	return;
 }
 
-void rtl8188f_hal_dm_in_lps(PADAPTER padapter)
-{
-	u32	PWDB_rssi = 0;
-	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
-	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
-	pDIG_T	pDM_DigTable = &pDM_Odm->DM_DigTable;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct sta_info *psta = NULL;
-
-	DBG_871X("%s, RSSI_Min=%d\n", __func__, pDM_Odm->RSSI_Min);
-
-	/*update IGI */
-	ODM_Write_DIG(pDM_Odm, pDM_Odm->RSSI_Min);
-
-
-	/*set rssi to fw */
-	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta && (psta->rssi_stat.UndecoratedSmoothedPWDB > 0)) {
-		PWDB_rssi = (psta->mac_id | (psta->rssi_stat.UndecoratedSmoothedPWDB << 16));
-
-		rtl8188f_set_rssi_cmd(padapter, (u8 *)&PWDB_rssi);
-	}
-
-}
-
-void rtl8188f_HalDmWatchDog_in_LPS(IN	PADAPTER	Adapter)
-{
-	u8	bLinked = _FALSE;
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct mlme_priv 	*pmlmepriv = &Adapter->mlmepriv;
-	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
-	pDIG_T	pDM_DigTable = &pDM_Odm->DM_DigTable;
-	struct sta_priv *pstapriv = &Adapter->stapriv;
-	struct sta_info *psta = NULL;
-#ifdef CONFIG_CONCURRENT_MODE
-	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
-#endif /*CONFIG_CONCURRENT_MODE */
-
-	if (!rtw_is_hw_init_completed(Adapter))
-		goto skip_lps_dm;
-
-
-	if (rtw_linked_check(Adapter))
-		bLinked = _TRUE;
-
-#ifdef CONFIG_CONCURRENT_MODE
-	if (pbuddy_adapter && rtw_linked_check(pbuddy_adapter))
-		bLinked = _TRUE;
-#endif /*CONFIG_CONCURRENT_MODE */
-
-	ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_LINK, bLinked);
-
-	if (bLinked == _FALSE)
-		goto skip_lps_dm;
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
-		goto skip_lps_dm;
-
-
-	/*ODM_DMWatchdog(&pHalData->odmpriv); */
-	/*Do DIG by RSSI In LPS-32K */
-
-	/*.1 Find MIN-RSSI */
-	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta == NULL)
-		goto skip_lps_dm;
-
-	pHalData->EntryMinUndecoratedSmoothedPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
-
-	DBG_871X("CurIGValue=%d, EntryMinUndecoratedSmoothedPWDB = %d\n", pDM_DigTable->CurIGValue, pHalData->EntryMinUndecoratedSmoothedPWDB);
-
-	if (pHalData->EntryMinUndecoratedSmoothedPWDB <= 0)
-		goto skip_lps_dm;
-
-	pHalData->MinUndecoratedPWDBForDM = pHalData->EntryMinUndecoratedSmoothedPWDB;
-
-	pDM_Odm->RSSI_Min = pHalData->MinUndecoratedPWDBForDM;
-
-	/*if(pDM_DigTable->CurIGValue != pDM_Odm->RSSI_Min) */
-	if ((pDM_DigTable->CurIGValue > pDM_Odm->RSSI_Min + 5) ||
-		(pDM_DigTable->CurIGValue < pDM_Odm->RSSI_Min - 5))
-
-	{
-#ifdef CONFIG_LPS
-		rtw_dm_in_lps_wk_cmd(Adapter);
-#endif
-	}
-
-
-skip_lps_dm:
-
-	return;
-
-}
-
-void rtl8188f_init_dm_priv(IN PADAPTER Adapter)
+void rtl8188f_init_dm_priv(PADAPTER Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
+	struct dm_struct		*podmpriv = &pHalData->odmpriv;
 	Init_ODM_ComInfo_8188f(Adapter);
-	ODM_InitAllTimers(podmpriv);
+	odm_init_all_timers(podmpriv);
+
 }
 
-void rtl8188f_deinit_dm_priv(IN PADAPTER Adapter)
+void rtl8188f_deinit_dm_priv(PADAPTER Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
-	ODM_CancelAllTimers(podmpriv);
+	struct dm_struct		*podmpriv = &pHalData->odmpriv;
+
+	odm_cancel_all_timers(podmpriv);
 
 }
-

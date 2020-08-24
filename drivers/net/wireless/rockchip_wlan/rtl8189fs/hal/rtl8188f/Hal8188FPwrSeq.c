@@ -1,20 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) Semiconductor - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 
-/*++
-Copyright (c) Realtek Semiconductor Corp. All rights reserved.
-
-Module Name:
-	Hal8188FPwrSeq.c
-
-Abstract:
-	This file includes all kinds of Power Action event for RTL8188F and corresponding hardware configurtions which are released from HW SD.
-
-Major Change History:
-	When                   What
-	-------------------    ---------------
-	2014-08-18             Create.
-
---*/
 
 #include "Hal8188FPwrSeq.h"
 

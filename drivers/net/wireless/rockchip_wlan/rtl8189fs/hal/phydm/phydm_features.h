@@ -1,115 +1,73 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017  Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
  *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+ * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
+ * Hsinchu 300, Taiwan.
  *
- ******************************************************************************/
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ *****************************************************************************/
 
-#ifndef	__PHYDM_FEATURES_H__
-#define __PHYDM_FEATURES
+#ifndef __PHYDM_FEATURES_H__
+#define __PHYDM_FEATURES_H__
 
+#define CONFIG_RUN_IN_DRV
+#define ODM_DC_CANCELLATION_SUPPORT		(ODM_RTL8188F | \
+						 ODM_RTL8710B | \
+						 ODM_RTL8192F | \
+						 ODM_RTL8821C | \
+						 ODM_RTL8721D)
+#define ODM_RECEIVER_BLOCKING_SUPPORT	(ODM_RTL8188E | ODM_RTL8192E)
 
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	/*Antenna Diversity*/
-	#define CONFIG_PHYDM_ANTENNA_DIVERSITY
-	#ifdef CONFIG_PHYDM_ANTENNA_DIVERSITY
-	
-		#if (RTL8723B_SUPPORT == 1) || (RTL8821A_SUPPORT == 1) || (RTL8188F_SUPPORT == 1)
-		#define	CONFIG_S0S1_SW_ANTENNA_DIVERSITY
-		#endif
-		
-		#if (RTL8821A_SUPPORT == 1)
-		/*#define CONFIG_HL_SMART_ANTENNA_TYPE1*/
-		#endif
-	#endif
+/*@20170103 YuChen add for FW API*/
+#define PHYDM_FW_API_ENABLE_8822B		1
+#define PHYDM_FW_API_FUNC_ENABLE_8822B		1
+#define PHYDM_FW_API_ENABLE_8821C		1
+#define PHYDM_FW_API_FUNC_ENABLE_8821C		1
+#define PHYDM_FW_API_ENABLE_8195B		1
+#define PHYDM_FW_API_FUNC_ENABLE_8195B		1
+#define PHYDM_FW_API_ENABLE_8198F		1
+#define PHYDM_FW_API_FUNC_ENABLE_8198F		1
+#define PHYDM_FW_API_ENABLE_8822C 1
+#define PHYDM_FW_API_FUNC_ENABLE_8822C 1
+#define PHYDM_FW_API_ENABLE_8814B 1
+#define PHYDM_FW_API_FUNC_ENABLE_8814B 1
+#define PHYDM_FW_API_ENABLE_8812F 1
+#define PHYDM_FW_API_FUNC_ENABLE_8812F 1
 
-	/*#define CONFIG_PATH_DIVERSITY*/
-	/*#define CONFIG_RA_DYNAMIC_RTY_LIMIT*/
-	#define CONFIG_ANT_DETECTION
-	#define CONFIG_RA_DBG_CMD
+#define CONFIG_POWERSAVING 0
 
-#elif (DM_ODM_SUPPORT_TYPE == ODM_AP)
-
-	/*  [ Configure RA Debug H2C CMD ]*/
-	#define CONFIG_RA_DBG_CMD
-	
-	/*#define CONFIG_PATH_DIVERSITY*/
-	/*#define CONFIG_RA_DYNAMIC_RTY_LIMIT*/
-	#define CONFIG_RA_DYNAMIC_RATE_ID
-	
-	/* [ Configure Antenna Diversity ] */
-	#if defined(CONFIG_RTL_8881A_ANT_SWITCH) || defined(CONFIG_SLOT_0_ANT_SWITCH) || defined(CONFIG_SLOT_1_ANT_SWITCH)
-		#define CONFIG_PHYDM_ANTENNA_DIVERSITY 
-		#define ODM_EVM_ENHANCE_ANTDIV
-
-		/*----------*/
-		
-		#if (!defined(CONFIG_NO_2G_DIVERSITY) && !defined(CONFIG_2G5G_CG_TRX_DIVERSITY_8881A) && !defined(CONFIG_2G_CGCS_RX_DIVERSITY) && !defined(CONFIG_2G_CG_TRX_DIVERSITY) && !defined(CONFIG_2G_CG_SMART_ANT_DIVERSITY))
-			#define CONFIG_NO_2G_DIVERSITY
-		#endif
-
-		#ifdef CONFIG_NO_5G_DIVERSITY_8881A
-			#define CONFIG_NO_5G_DIVERSITY
-		#elif defined(CONFIG_5G_CGCS_RX_DIVERSITY_8881A)
-			#define CONFIG_5G_CGCS_RX_DIVERSITY
-		#elif defined(CONFIG_5G_CG_TRX_DIVERSITY_8881A)
-			#define CONFIG_5G_CG_TRX_DIVERSITY
-		#elif defined(CONFIG_2G5G_CG_TRX_DIVERSITY_8881A)
-			#define CONFIG_2G5G_CG_TRX_DIVERSITY
-		#endif
-		#if (!defined(CONFIG_NO_5G_DIVERSITY) && !defined(CONFIG_5G_CGCS_RX_DIVERSITY) && !defined(CONFIG_5G_CG_TRX_DIVERSITY) && !defined(CONFIG_2G5G_CG_TRX_DIVERSITY) && !defined(CONFIG_5G_CG_SMART_ANT_DIVERSITY))
-			#define CONFIG_NO_5G_DIVERSITY
-		#endif	
-		 /*----------*/
-		#if (defined(CONFIG_NO_2G_DIVERSITY) && defined(CONFIG_NO_5G_DIVERSITY))
-			#define CONFIG_NOT_SUPPORT_ANTDIV 
-		#elif (!defined(CONFIG_NO_2G_DIVERSITY) && defined(CONFIG_NO_5G_DIVERSITY))
-			#define CONFIG_2G_SUPPORT_ANTDIV
-		#elif (defined(CONFIG_NO_2G_DIVERSITY) && !defined(CONFIG_NO_5G_DIVERSITY))
-			#define CONFIG_5G_SUPPORT_ANTDIV
-		#elif ((!defined(CONFIG_NO_2G_DIVERSITY) && !defined(CONFIG_NO_5G_DIVERSITY)) || defined(CONFIG_2G5G_CG_TRX_DIVERSITY))
-			#define CONFIG_2G5G_SUPPORT_ANTDIV 
-		#endif
-		 /*----------*/
-	#endif
-
-#elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
-
-	/*Antenna Diversity*/
-	#ifdef CONFIG_ANTENNA_DIVERSITY
-		#define CONFIG_PHYDM_ANTENNA_DIVERSITY
-		
-		#ifdef CONFIG_PHYDM_ANTENNA_DIVERSITY
-		
-			#if (RTL8723B_SUPPORT == 1) || (RTL8821A_SUPPORT == 1) || (RTL8188F_SUPPORT == 1)
-			#define	CONFIG_S0S1_SW_ANTENNA_DIVERSITY
-			#endif
-			
-			#if (RTL8821A_SUPPORT == 1)
-			/*#define CONFIG_HL_SMART_ANTENNA_TYPE1*/
-			#endif
-		#endif
-	#endif
-	
-	/*#define CONFIG_RA_DBG_CMD*/
-	/*#define CONFIG_ANT_DETECTION*/
-	/*#define CONFIG_PATH_DIVERSITY*/
-	/*#define CONFIG_RA_DYNAMIC_RTY_LIMIT*/
-
+#ifdef BEAMFORMING_SUPPORT
+#if (BEAMFORMING_SUPPORT)
+	#define PHYDM_BEAMFORMING_SUPPORT
+#endif
 #endif
 
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	#include	"phydm_features_win.h"
+#elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	#include	"phydm_features_ce.h"
+	/*@#include	"phydm_features_ce2_kernel.h"*/
+#elif (DM_ODM_SUPPORT_TYPE == ODM_AP)
+	#include	"phydm_features_ap.h"
+#elif (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+	#include	"phydm_features_iot.h"
+#endif
 
 #endif
