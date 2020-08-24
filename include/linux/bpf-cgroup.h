@@ -279,6 +279,31 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 #define BPF_CGROUP_RUN_PROG_UDP6_RECVMSG_LOCK(sk, uaddr)			\
 	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_UDP6_RECVMSG, NULL)
 
+/* The SOCK_OPS"_SK" macro should be used when sock_ops->sk is not a
+ * fullsock and its parent fullsock cannot be traced by
+ * sk_to_full_sk().
+ *
+ * e.g. sock_ops->sk is a request_sock and it is under syncookie mode.
+ * Its listener-sk is not attached to the rsk_listener.
+ * In this case, the caller holds the listener-sk (unlocked),
+ * set its sock_ops->sk to req_sk, and call this SOCK_OPS"_SK" with
+ * the listener-sk such that the cgroup-bpf-progs of the
+ * listener-sk will be run.
+ *
+ * Regardless of syncookie mode or not,
+ * calling bpf_setsockopt on listener-sk will not make sense anyway,
+ * so passing 'sock_ops->sk == req_sk' to the bpf prog is appropriate here.
+ */
+#define BPF_CGROUP_RUN_PROG_SOCK_OPS_SK(sock_ops, sk)			\
+({									\
+	int __ret = 0;							\
+	if (cgroup_bpf_enabled)						\
+		__ret = __cgroup_bpf_run_filter_sock_ops(sk,		\
+							 sock_ops,	\
+							 BPF_CGROUP_SOCK_OPS); \
+	__ret;								\
+})
+
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops)				       \
 ({									       \
 	int __ret = 0;							       \
