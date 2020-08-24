@@ -273,6 +273,12 @@ static bool __get_mem_config_intel(struct rdt_resource *r)
 	}
 	r->data_width = 3;
 
+	if (boot_cpu_has(X86_FEATURE_PER_THREAD_MBA))
+		r->membw.throttle_mode = THREAD_THROTTLE_PER_THREAD;
+	else
+		r->membw.throttle_mode = THREAD_THROTTLE_MAX;
+	thread_throttle_mode_init();
+
 	r->alloc_capable = true;
 	r->alloc_enabled = true;
 
@@ -293,6 +299,11 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 	r->membw.delay_linear = false;
 	r->membw.arch_needs_linear = false;
 
+	/*
+	 * AMD does not use memory delay throttle model to control
+	 * the allocation like Intel does.
+	 */
+	r->membw.throttle_mode = THREAD_THROTTLE_UNDEFINED;
 	r->membw.min_bw = 0;
 	r->membw.bw_gran = 1;
 	/* Max value is 2048, Data width should be 4 in decimal */
