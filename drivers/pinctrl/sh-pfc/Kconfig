@@ -66,7 +66,7 @@ config PINCTRL_SH_FUNC_GPIO
 	  This enables legacy function GPIOs for SH platforms
 
 config PINCTRL_PFC_EMEV2
-	bool "Emma Mobile AV2 pin control support" if COMPILE_TEST
+	bool "Emma Mobile EV2 pin control support" if COMPILE_TEST
 
 config PINCTRL_PFC_R8A73A4
 	bool "R-Mobile APE6 pin control support" if COMPILE_TEST
