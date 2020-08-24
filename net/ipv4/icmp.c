@@ -690,9 +690,9 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 		rcu_read_unlock();
 	}
 
-	tos = icmp_pointers[type].error ? ((iph->tos & IPTOS_TOS_MASK) |
+	tos = icmp_pointers[type].error ? (RT_TOS(iph->tos) |
 					   IPTOS_PREC_INTERNETCONTROL) :
-					  iph->tos;
+					   iph->tos;
 	mark = IP4_REPLY_MARK(net, skb_in->mark);
 
 	if (__ip_options_echo(net, &icmp_param.replyopts.opt.opt, skb_in, opt))
