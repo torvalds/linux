@@ -192,13 +192,13 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
 		ret = mt7603_init_tx_queue(dev, i, wmm_queue_map[i],
-					   MT_TX_RING_SIZE);
+					   MT7603_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
 
 	ret = mt7603_init_tx_queue(dev, MT_TXQ_PSD,
-				   MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
+				   MT_TX_HW_QUEUE_MGMT, MT7603_PSD_RING_SIZE);
 	if (ret)
 		return ret;
 
