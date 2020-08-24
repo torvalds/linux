@@ -22,7 +22,7 @@
 
 /*
  * __has_attribute is supported on gcc >= 5, clang >= 2.9 and icc >= 17.
- * In the meantime, to support 4.6 <= gcc < 5, we implement __has_attribute
+ * In the meantime, to support gcc < 5, we implement __has_attribute
  * by hand.
  */
 #ifndef __has_attribute
