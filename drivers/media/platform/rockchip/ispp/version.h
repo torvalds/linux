@@ -20,6 +20,8 @@
  * v0.1.2:
  * support multi virtual device;
  *
+ * v0.1.3:
+ * fix reg write err for fec
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
