@@ -203,7 +203,7 @@ static int rt4801_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id rt4801_of_id[] = {
+static const struct of_device_id __maybe_unused rt4801_of_id[] = {
 	{ .compatible = "richtek,rt4801", },
 	{ },
 };
