@@ -6,23 +6,23 @@
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/io.h>
-#include <linux/phy/omap_usb.h>
-#include <linux/usb/phy_companion.h>
 #include <linux/clk.h>
-#include <linux/err.h>
-#include <linux/pm_runtime.h>
 #include <linux/delay.h>
-#include <linux/phy/omap_control_phy.h>
-#include <linux/phy/phy.h>
+#include <linux/err.h>
+#include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/phy/omap_control_phy.h>
+#include <linux/phy/omap_usb.h>
+#include <linux/phy/phy.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 #include <linux/sys_soc.h>
+#include <linux/usb/phy_companion.h>
 
 #define USB2PHY_ANA_CONFIG1		0x4c
 #define USB2PHY_DISCON_BYP_LATCH	BIT(31)
@@ -89,7 +89,7 @@ static inline void omap_usb_writel(void __iomem *addr, unsigned int offset,
 }
 
 /**
- * omap_usb2_set_comparator - links the comparator present in the sytem with
+ * omap_usb2_set_comparator - links the comparator present in the system with
  *	this phy
  * @comparator - the companion phy(comparator) for this phy
  *
@@ -142,7 +142,7 @@ static int omap_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 }
 
 static int omap_usb_set_peripheral(struct usb_otg *otg,
-		struct usb_gadget *gadget)
+				   struct usb_gadget *gadget)
 {
 	otg->gadget = gadget;
 	if (!gadget)
@@ -409,7 +409,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		return PTR_ERR(phy->phy_base);
 
 	phy->syscon_phy_power = syscon_regmap_lookup_by_phandle(node,
-							"syscon-phy-power");
+								"syscon-phy-power");
 	if (IS_ERR(phy->syscon_phy_power)) {
 		dev_dbg(&pdev->dev,
 			"can't get syscon-phy-power, using control device\n");
@@ -438,7 +438,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		}
 	}
 
-
 	phy->wkupclk = devm_clk_get(phy->dev, "wkupclk");
 	if (IS_ERR(phy->wkupclk)) {
 		if (PTR_ERR(phy->wkupclk) == -EPROBE_DEFER)
@@ -452,10 +451,10 @@ static int omap_usb2_probe(struct platform_device *pdev)
 			if (PTR_ERR(phy->wkupclk) != -EPROBE_DEFER)
 				dev_err(&pdev->dev, "unable to get usb_phy_cm_clk32k\n");
 			return PTR_ERR(phy->wkupclk);
-		} else {
-			dev_warn(&pdev->dev,
-				 "found usb_phy_cm_clk32k, please fix DTS\n");
 		}
+
+		dev_warn(&pdev->dev,
+			 "found usb_phy_cm_clk32k, please fix DTS\n");
 	}
 
 	phy->optclk = devm_clk_get(phy->dev, "refclk");
@@ -503,7 +502,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		pm_runtime_disable(phy->dev);
 		return PTR_ERR(phy_provider);
 	}
-
 
 	usb_add_phy_dev(&phy->phy);
 
