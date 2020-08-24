@@ -121,11 +121,13 @@ xfs_log_dinode_to_disk_ts(
 	const xfs_ictimestamp_t		its)
 {
 	struct xfs_legacy_timestamp	*lts;
+	struct xfs_legacy_ictimestamp	*lits;
 	xfs_timestamp_t			ts;
 
 	lts = (struct xfs_legacy_timestamp *)&ts;
-	lts->t_sec = cpu_to_be32(its.t_sec);
-	lts->t_nsec = cpu_to_be32(its.t_nsec);
+	lits = (struct xfs_legacy_ictimestamp *)&its;
+	lts->t_sec = cpu_to_be32(lits->t_sec);
+	lts->t_nsec = cpu_to_be32(lits->t_nsec);
 
 	return ts;
 }
