@@ -36,7 +36,7 @@ bool ef100_rx_buf_hash_valid(const u8 *prefix)
 	return PREFIX_FIELD(prefix, RSS_HASH_VALID);
 }
 
-static bool check_fcs(struct efx_channel *channel, u32 *prefix)
+static bool ef100_has_fcs_error(struct efx_channel *channel, u32 *prefix)
 {
 	u16 rxclass;
 	u8 l2status;
@@ -46,11 +46,11 @@ static bool check_fcs(struct efx_channel *channel, u32 *prefix)
 
 	if (likely(l2status == ESE_GZ_RH_HCLASS_L2_STATUS_OK))
 		/* Everything is ok */
-		return 0;
+		return false;
 
 	if (l2status == ESE_GZ_RH_HCLASS_L2_STATUS_FCS_ERR)
 		channel->n_rx_eth_crc_err++;
-	return 1;
+	return true;
 }
 
 void __ef100_rx_packet(struct efx_channel *channel)
@@ -63,7 +63,7 @@ void __ef100_rx_packet(struct efx_channel *channel)
 
 	prefix = (u32 *)(eh - ESE_GZ_RX_PKT_PREFIX_LEN);
 
-	if (check_fcs(channel, prefix) &&
+	if (ef100_has_fcs_error(channel, prefix) &&
 	    unlikely(!(efx->net_dev->features & NETIF_F_RXALL)))
 		goto out;
 
