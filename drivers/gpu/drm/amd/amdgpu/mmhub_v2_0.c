@@ -134,6 +134,12 @@ static void mmhub_v2_0_init_cache_regs(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
 
+	/* These registers are not accessible to VF-SRIOV.
+	 * The PF will program them instead.
+	 */
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(MMHUB, 0, mmMMVM_L2_CNTL);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_CACHE, 1);
@@ -189,6 +195,12 @@ static void mmhub_v2_0_enable_system_domain(struct amdgpu_device *adev)
 
 static void mmhub_v2_0_disable_identity_aperture(struct amdgpu_device *adev)
 {
+	/* These registers are not accessible to VF-SRIOV.
+	 * The PF will program them instead.
+	 */
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	WREG32_SOC15(MMHUB, 0,
 		     mmMMVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32,
 		     0xFFFFFFFF);
@@ -318,6 +330,13 @@ void mmhub_v2_0_gart_disable(struct amdgpu_device *adev)
 void mmhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 {
 	u32 tmp;
+
+	/* These registers are not accessible to VF-SRIOV.
+	 * The PF will program them instead.
+	 */
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	tmp = RREG32_SOC15(MMHUB, 0, mmMMVM_L2_PROTECTION_FAULT_CNTL);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL,
 			    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);

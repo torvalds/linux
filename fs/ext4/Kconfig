@@ -110,7 +110,7 @@ config EXT4_KUNIT_TESTS
 	  This builds the ext4 KUnit tests.
 
 	  KUnit tests run during boot and output the results to the debug log
-	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
 	  running KUnit test harness and are not for inclusion into a production
 	  build.
 
