@@ -209,7 +209,7 @@ config SND_SOC_INTEL_SKYLAKE_SSP_CLK
 config SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
 	bool "HDAudio codec support"
 	help
-	  If you have Intel Skylake or Kabylake with HDaudio codec
+	  If you have Intel Skylake or Kabylake with HDAudio codec
 	  and DMIC present then enable this option by saying Y.
 
 config SND_SOC_INTEL_SKYLAKE_COMMON
