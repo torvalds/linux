@@ -349,7 +349,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	config.driver_data = di;
 	config.of_node = np;
 
-	if (!of_property_read_u32(np, "mps,switch-frequency", &freq))
+	if (!of_property_read_u32(np, "mps,switch-frequency-hz", &freq))
 		mp886x_set_switch_freq(di, regmap, freq);
 
 	ret = mp886x_regulator_register(di, &config);
