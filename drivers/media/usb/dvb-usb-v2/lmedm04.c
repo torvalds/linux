@@ -751,20 +751,6 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 	return fw_lme;
 }
 
-static int lme2510_kill_urb(struct usb_data_stream *stream)
-{
-	int i;
-
-	for (i = 0; i < stream->urbs_submitted; i++) {
-		deb_info(3, "killing URB no. %d.", i);
-		/* stop the URB */
-		usb_kill_urb(stream->urb_list[i]);
-	}
-	stream->urbs_submitted = 0;
-
-	return 0;
-}
-
 static struct tda10086_config tda10086_config = {
 	.demod_address = 0x0e,
 	.invert = 0,
@@ -1198,11 +1184,6 @@ static int lme2510_get_rc_config(struct dvb_usb_device *d,
 static void lme2510_exit(struct dvb_usb_device *d)
 {
 	struct lme2510_state *st = d->priv;
-	struct dvb_usb_adapter *adap = &d->adapter[0];
-
-	if (adap != NULL) {
-		lme2510_kill_urb(&adap->stream);
-	}
 
 	if (st->lme_urb) {
 		usb_kill_urb(st->lme_urb);
