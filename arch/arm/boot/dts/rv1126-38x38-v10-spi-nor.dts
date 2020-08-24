@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "rv1126.dtsi"
 #include "rv1126-ipc.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Rockchip RV1126 38x38 V10 SPI NOR DDR3 Board";
@@ -97,6 +98,20 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <825000>;
 		regulator-max-microvolt = <825000>;
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		esc-key {
+			label = "esc";
+			linux,code = <KEY_ESC>;
+			press-threshold-microvolt = <0>;
+		};
 	};
 
 	cam_ircut0: cam_ircut {
@@ -396,6 +411,11 @@
 		| RKPM_SLP_PMU_DIS_OSC
 		)
 	>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
 };
 
 &sdmmc0_bus4 {
