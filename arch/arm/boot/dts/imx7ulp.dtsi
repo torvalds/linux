@@ -394,7 +394,7 @@
 			clocks = <&pcc2 IMX7ULP_CLK_RGPIO2P1>,
 				 <&pcc3 IMX7ULP_CLK_PCTLC>;
 			clock-names = "gpio", "port";
-			gpio-ranges = <&iomuxc1 0 0 32>;
+			gpio-ranges = <&iomuxc1 0 0 20>;
 		};
 
 		gpio_ptd: gpio@40af0000 {
@@ -408,7 +408,7 @@
 			clocks = <&pcc2 IMX7ULP_CLK_RGPIO2P1>,
 				 <&pcc3 IMX7ULP_CLK_PCTLD>;
 			clock-names = "gpio", "port";
-			gpio-ranges = <&iomuxc1 0 32 32>;
+			gpio-ranges = <&iomuxc1 0 32 12>;
 		};
 
 		gpio_pte: gpio@40b00000 {
@@ -422,7 +422,7 @@
 			clocks = <&pcc2 IMX7ULP_CLK_RGPIO2P1>,
 				 <&pcc3 IMX7ULP_CLK_PCTLE>;
 			clock-names = "gpio", "port";
-			gpio-ranges = <&iomuxc1 0 64 32>;
+			gpio-ranges = <&iomuxc1 0 64 16>;
 		};
 
 		gpio_ptf: gpio@40b10000 {
@@ -436,7 +436,7 @@
 			clocks = <&pcc2 IMX7ULP_CLK_RGPIO2P1>,
 				 <&pcc3 IMX7ULP_CLK_PCTLF>;
 			clock-names = "gpio", "port";
-			gpio-ranges = <&iomuxc1 0 96 32>;
+			gpio-ranges = <&iomuxc1 0 96 20>;
 		};
 	};
 
