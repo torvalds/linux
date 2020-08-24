@@ -35,14 +35,6 @@
 	.bInterfaceClass = USB_CLASS_AUDIO, \
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 
-/* Another standard entry matching with vid/pid and the audio class */
-#define USB_AUDIO_CLASS(vend, prod) \
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
-		       USB_DEVICE_ID_MATCH_INT_CLASS, \
-	.idVendor = vend, \
-	.idProduct = prod, \
-	.bInterfaceClass = USB_CLASS_AUDIO
-
 /* FTDI devices */
 {
 	USB_DEVICE(0x0403, 0xb8d8),
@@ -77,13 +69,13 @@
 },
 
 /* E-Mu 0202 USB */
-{ USB_AUDIO_CLASS(0x041e, 0x3f02) },
+{ USB_DEVICE_VENDOR_SPEC(0x041e, 0x3f02) },
 /* E-Mu 0404 USB */
-{ USB_AUDIO_CLASS(0x041e, 0x3f04) },
+{ USB_DEVICE_VENDOR_SPEC(0x041e, 0x3f04) },
 /* E-Mu Tracker Pre */
-{ USB_AUDIO_CLASS(0x041e, 0x3f0a) },
+{ USB_DEVICE_VENDOR_SPEC(0x041e, 0x3f0a) },
 /* E-Mu 0204 USB */
-{ USB_AUDIO_CLASS(0x041e, 0x3f19) },
+{ USB_DEVICE_VENDOR_SPEC(0x041e, 0x3f19) },
 
 /*
  * HP Wireless Audio
@@ -2707,6 +2699,23 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
+{
+	USB_DEVICE(0x17aa, 0x1046),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
+},
+/* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
+{
+	USB_DEVICE(0x17aa, 0x104d),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
+},
+
 /* Native Instruments MK2 series */
 {
 	/* Komplete Audio 6 */
@@ -2739,7 +2748,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 
 /* KeithMcMillen Stringport */
-{ USB_AUDIO_CLASS(0x1f38, 0x0001) },
+{ USB_DEVICE(0x1f38, 0x0001) }, /* FIXME: should be more restrictive matching */
 
 /* Miditech devices */
 {
@@ -2962,7 +2971,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 },
 {
 	/* Tascam US122 MKII - playback-only support */
-	USB_AUDIO_CLASS(0x0644, 0x8021),
+	USB_DEVICE_VENDOR_SPEC(0x0644, 0x8021),
 	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
 		.vendor_name = "TASCAM",
 		.product_name = "US122 MKII",
@@ -3594,4 +3603,3 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 
 #undef USB_DEVICE_VENDOR_SPEC
 #undef USB_AUDIO_DEVICE
-#undef USB_AUDIO_CLASS
