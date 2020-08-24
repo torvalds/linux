@@ -93,11 +93,4 @@
 #error Check setting of SIBYTE_1956_WAR for your platform
 #endif
 
-/*
- * 34K core erratum: "Problems Executing the TLBR Instruction"
- */
-#ifndef MIPS34K_MISSED_ITLB_WAR
-#error Check setting of MIPS34K_MISSED_ITLB_WAR for your platform
-#endif
-
 #endif /* _ASM_WAR_H */

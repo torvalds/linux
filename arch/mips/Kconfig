@@ -2683,6 +2683,10 @@ config WAR_ICACHE_REFILLS
 config WAR_R10000_LLSC
 	bool
 
+# 34K core erratum: "Problems Executing the TLBR Instruction"
+config WAR_MIPS34K_MISSED_ITLB
+	bool
+
 #
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
