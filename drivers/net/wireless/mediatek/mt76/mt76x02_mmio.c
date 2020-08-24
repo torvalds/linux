@@ -209,13 +209,13 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		ret = mt76x02_init_tx_queue(dev, i, mt76_ac_to_hwq(i),
-					    MT_TX_RING_SIZE);
+					    MT76x02_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
 
 	ret = mt76x02_init_tx_queue(dev, MT_TXQ_PSD,
-				    MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
+				    MT_TX_HW_QUEUE_MGMT, MT76x02_PSD_RING_SIZE);
 	if (ret)
 		return ret;
 
