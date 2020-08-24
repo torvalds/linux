@@ -341,7 +341,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		};
 
 		ttm = bo->ttm;
-		if (ttm_tt_populate(bo->ttm, &ctx))
+		if (ttm_tt_populate(bdev, bo->ttm, &ctx))
 			return VM_FAULT_OOM;
 	} else {
 		/* Iomem should not be marked encrypted */

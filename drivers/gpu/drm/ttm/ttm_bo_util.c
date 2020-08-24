@@ -67,7 +67,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 			return ret;
 		}
 
-		ttm_tt_unbind(ttm);
+		ttm_tt_unbind(bo->bdev, ttm);
 		ttm_bo_free_old_node(bo);
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
 				TTM_PL_MASK_MEM);
@@ -79,7 +79,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		return ret;
 
 	if (new_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_tt_bind(ttm, new_mem, ctx);
+		ret = ttm_tt_bind(bo->bdev, ttm, new_mem, ctx);
 		if (unlikely(ret != 0))
 			return ret;
 	}
@@ -264,7 +264,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	 * TTM might be null for moves within the same region.
 	 */
 	if (ttm) {
-		ret = ttm_tt_populate(ttm, ctx);
+		ret = ttm_tt_populate(bdev, ttm, ctx);
 		if (ret)
 			goto out1;
 	}
@@ -303,7 +303,7 @@ out2:
 	new_mem->mm_node = NULL;
 
 	if (!man->use_tt) {
-		ttm_tt_destroy(ttm);
+		ttm_tt_destroy(bdev, ttm);
 		bo->ttm = NULL;
 	}
 
@@ -454,7 +454,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 
 	BUG_ON(!ttm);
 
-	ret = ttm_tt_populate(ttm, &ctx);
+	ret = ttm_tt_populate(bo->bdev, ttm, &ctx);
 	if (ret)
 		return ret;
 
@@ -550,7 +550,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			return ret;
 
 		if (!man->use_tt) {
-			ttm_tt_destroy(bo->ttm);
+			ttm_tt_destroy(bdev, bo->ttm);
 			bo->ttm = NULL;
 		}
 		ttm_bo_free_old_node(bo);
@@ -673,7 +673,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			return ret;
 
 		if (!to->use_tt) {
-			ttm_tt_destroy(bo->ttm);
+			ttm_tt_destroy(bdev, bo->ttm);
 			bo->ttm = NULL;
 		}
 		ttm_bo_free_old_node(bo);

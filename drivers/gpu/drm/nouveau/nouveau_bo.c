@@ -848,7 +848,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_tt_bind(bo->ttm, &tmp_reg, &ctx);
+	ret = ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg, &ctx);
 	if (ret)
 		goto out;
 
@@ -1219,7 +1219,8 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 }
 
 static int
-nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
+nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
+			struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
@@ -1237,12 +1238,12 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		return 0;
 	}
 
-	drm = nouveau_bdev(ttm->bdev);
+	drm = nouveau_bdev(bdev);
 	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
-		return ttm_agp_tt_populate(ttm, ctx);
+		return ttm_agp_tt_populate(bdev, ttm, ctx);
 	}
 #endif
 
@@ -1255,7 +1256,8 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 }
 
 static void
-nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
+nouveau_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
+			  struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
@@ -1265,12 +1267,12 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	if (slave)
 		return;
 
-	drm = nouveau_bdev(ttm->bdev);
+	drm = nouveau_bdev(bdev);
 	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
-		ttm_agp_tt_unpopulate(ttm);
+		ttm_agp_tt_unpopulate(bdev, ttm);
 		return;
 	}
 #endif
