@@ -178,10 +178,15 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 					  32, 32))
 		return false;
 
+	/*
+	 * IV_INO_LBLK_32 hashes the inode number, so in principle it can
+	 * support any ino_bits.  However, currently the inode number is gotten
+	 * from inode::i_ino which is 'unsigned long'.  So for now the
+	 * implementation limit is 32 bits.
+	 */
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) &&
-	    /* This uses hashed inode numbers, so ino_bits doesn't matter. */
 	    !supported_iv_ino_lblk_policy(policy, inode, "IV_INO_LBLK_32",
-					  INT_MAX, 32))
+					  32, 32))
 		return false;
 
 	if (memchr_inv(policy->__reserved, 0, sizeof(policy->__reserved))) {
