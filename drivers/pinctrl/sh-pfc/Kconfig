@@ -3,6 +3,8 @@
 # Renesas SH and SH Mobile PINCTRL drivers
 #
 
+menu "Renesas pinctrl drivers"
+
 config PINCTRL_SH_PFC
 	bool "Renesas SoC pin control support" if COMPILE_TEST && !(ARCH_RENESAS || SUPERH)
 	default y if ARCH_RENESAS || SUPERH
@@ -52,6 +54,38 @@ config PINCTRL_SH_PFC
 	select PINCTRL_PFC_SHX3 if CPU_SUBTYPE_SHX3
 	help
 	  This enables pin control drivers for Renesas SuperH and ARM platforms
+
+config PINCTRL_RZA1
+	bool "RZ/A1 gpio and pinctrl driver"
+	depends on OF
+	depends on ARCH_R7S72100 || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects pinctrl driver for Renesas RZ/A1 platforms.
+
+config PINCTRL_RZA2
+	bool "RZ/A2 gpio and pinctrl driver"
+	depends on OF
+	depends on ARCH_R7S9210 || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
+
+config PINCTRL_RZN1
+	bool "RZ/N1 pinctrl driver"
+	depends on OF
+	depends on ARCH_RZN1 || COMPILE_TEST
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects pinctrl driver for Renesas RZ/N1 devices.
 
 config PINCTRL_SH_PFC_GPIO
 	select GPIOLIB
@@ -203,3 +237,5 @@ config PINCTRL_PFC_SH7786
 config PINCTRL_PFC_SHX3
 	bool "SH-X3 pin control support" if COMPILE_TEST
 	select PINCTRL_SH_FUNC_GPIO
+
+endmenu

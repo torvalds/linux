@@ -26,10 +26,10 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
 
-#include "core.h"
-#include "devicetree.h"
-#include "pinconf.h"
-#include "pinmux.h"
+#include "../core.h"
+#include "../devicetree.h"
+#include "../pinconf.h"
+#include "../pinmux.h"
 
 #define DRIVER_NAME			"pinctrl-rza1"
 

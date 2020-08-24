@@ -43,6 +43,10 @@ obj-$(CONFIG_PINCTRL_PFC_SH7785)	+= pfc-sh7785.o
 obj-$(CONFIG_PINCTRL_PFC_SH7786)	+= pfc-sh7786.o
 obj-$(CONFIG_PINCTRL_PFC_SHX3)		+= pfc-shx3.o
 
+obj-$(CONFIG_PINCTRL_RZA1)	+= pinctrl-rza1.o
+obj-$(CONFIG_PINCTRL_RZA2)	+= pinctrl-rza2.o
+obj-$(CONFIG_PINCTRL_RZN1)	+= pinctrl-rzn1.o
+
 ifeq ($(CONFIG_COMPILE_TEST),y)
 CFLAGS_pfc-sh7203.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
 CFLAGS_pfc-sh7264.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
