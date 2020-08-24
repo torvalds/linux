@@ -40,6 +40,10 @@
  *5. support cif compact mode(lvds & mipi) can be set from user space
  *v0.1.6
  *1. add cif self-defined ioctrl cmd:V4L2_CID_CIF_DATA_COMPACT
+ *v0.1.7
+ *1. support dvp and mipi/lvds run simultaneously
+ *2. add subdev as interface for isp
+ *3. support hdr_x3 mode
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION
