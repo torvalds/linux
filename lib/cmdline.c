@@ -132,23 +132,23 @@ unsigned long long memparse(const char *ptr, char **retptr)
 	case 'E':
 	case 'e':
 		ret <<= 10;
-		fallthrough;
+		/* fall through */
 	case 'P':
 	case 'p':
 		ret <<= 10;
-		fallthrough;
+		/* fall through */
 	case 'T':
 	case 't':
 		ret <<= 10;
-		fallthrough;
+		/* fall through */
 	case 'G':
 	case 'g':
 		ret <<= 10;
-		fallthrough;
+		/* fall through */
 	case 'M':
 	case 'm':
 		ret <<= 10;
-		fallthrough;
+		/* fall through */
 	case 'K':
 	case 'k':
 		ret <<= 10;
