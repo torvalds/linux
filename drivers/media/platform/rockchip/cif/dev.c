@@ -185,6 +185,24 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 	return val;
 }
 
+static bool is_iommu_enable(struct device *dev)
+{
+	struct device_node *iommu;
+
+	iommu = of_parse_phandle(dev->of_node, "iommus", 0);
+	if (!iommu) {
+		dev_info(dev, "no iommu attached, using non-iommu buffers\n");
+		return false;
+	} else if (!of_device_is_available(iommu)) {
+		dev_info(dev, "iommu is disabled, using non-iommu buffers\n");
+		of_node_put(iommu);
+		return false;
+	}
+	of_node_put(iommu);
+
+	return true;
+}
+
 /**************************** pipeline operations *****************************/
 static int __cif_pipeline_prepare(struct rkcif_pipeline *p,
 				  struct media_entity *me)
@@ -800,6 +818,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkcif_device *cif_dev;
 	const struct rkcif_match_data *data;
+	bool iommu_en;
 	int ret;
 
 	sprintf(rkcif_version, "v%02x.%02x.%02x",
@@ -825,6 +844,13 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	rkcif_attach_hw(cif_dev);
+
+	iommu_en = is_iommu_enable(dev);
+	if (!iommu_en) {
+		ret = of_reserved_mem_device_init(dev);
+		if (ret)
+			dev_info(dev, "No reserved memory region assign to CIF\n");
+	}
 
 	ret = rkcif_plat_init(cif_dev, node, data->inf_id);
 	if (ret)
