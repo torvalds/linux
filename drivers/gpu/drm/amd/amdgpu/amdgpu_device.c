@@ -4117,7 +4117,8 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 
 static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 			       struct list_head *device_list_handle,
-			       bool *need_full_reset_arg)
+			       bool *need_full_reset_arg,
+			       bool skip_hw_reset)
 {
 	struct amdgpu_device *tmp_adev = NULL;
 	bool need_full_reset = *need_full_reset_arg, vram_lost = false;
@@ -4127,7 +4128,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	 * ASIC reset has to be done on all HGMI hive nodes ASAP
 	 * to allow proper links negotiation in FW (within 1 sec)
 	 */
-	if (need_full_reset) {
+	if (!skip_hw_reset && need_full_reset) {
 		list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 			/* For XGMI run all resets in parallel to speed up the process */
 			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
@@ -4522,7 +4523,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		if (r)
 			adev->asic_reset_res = r;
 	} else {
-		r  = amdgpu_do_asic_reset(hive, device_list_handle, &need_full_reset);
+		r  = amdgpu_do_asic_reset(hive, device_list_handle, &need_full_reset, false);
 		if (r && r == -EAGAIN)
 			goto retry;
 	}
@@ -4850,14 +4851,19 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	int r, i;
-	bool vram_lost;
+	bool need_full_reset = true;
 	u32 memsize;
+	struct list_head device_list;
 
 	DRM_INFO("PCI error: slot reset callback!!\n");
+
+	INIT_LIST_HEAD(&device_list);
+	list_add_tail(&adev->gmc.xgmi.head, &device_list);
 
 	/* wait for asic to come out of reset */
 	msleep(500);
 
+	/* Restore PCI confspace */
 	amdgpu_device_load_pci_state(pdev);
 
 	/* confirm  ASIC came out of reset */
@@ -4873,70 +4879,15 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 		goto out;
 	}
 
-	/* TODO Call amdgpu_pre_asic_reset instead */
 	adev->in_pci_err_recovery = true;	
-	r = amdgpu_device_ip_suspend(adev);
+	r = amdgpu_device_pre_asic_reset(adev, NULL, &need_full_reset);
 	adev->in_pci_err_recovery = false;
 	if (r)
 		goto out;
 
-
-	/* post card */
-	r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
-	if (r)
-		goto out;
-
-	r = amdgpu_device_ip_resume_phase1(adev);
-	if (r)
-		goto out;
-
-	vram_lost = amdgpu_device_check_vram_lost(adev);
-	if (vram_lost) {
-		DRM_INFO("VRAM is lost due to GPU reset!\n");
-		amdgpu_inc_vram_lost(adev);
-	}
-
-	r = amdgpu_gtt_mgr_recover(
-		&adev->mman.bdev.man[TTM_PL_TT]);
-	if (r)
-		goto out;
-
-	r = amdgpu_device_fw_loading(adev);
-	if (r)
-		return r;
-
-	r = amdgpu_device_ip_resume_phase2(adev);
-	if (r)
-		goto out;
-
-	if (vram_lost)
-		amdgpu_device_fill_reset_magic(adev);
-
-	/*
-	 * Add this ASIC as tracked as reset was already
-	 * complete successfully.
-	 */
-	amdgpu_register_gpu_instance(adev);
-
-	r = amdgpu_device_ip_late_init(adev);
-	if (r)
-		goto out;
-
-	amdgpu_fbdev_set_suspend(adev, 0);
-
-	/* must succeed. */
-	amdgpu_ras_resume(adev);
-
-
-	amdgpu_irq_gpu_reset_resume_helper(adev);
-	r = amdgpu_ib_ring_tests(adev);
-	if (r)
-		goto out;
-
-	r = amdgpu_device_recover_vram(adev);
+	r = amdgpu_do_asic_reset(NULL, &device_list, &need_full_reset, true);
 
 out:
-
 	if (!r) {
 		if (amdgpu_device_cache_pci_state(adev->pdev))
 			pci_restore_state(adev->pdev);
