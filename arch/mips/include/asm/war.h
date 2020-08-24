@@ -94,17 +94,6 @@
 #endif
 
 /*
- * From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
- * the line which this instruction itself exists, the following
- * operation is not guaranteed."
- *
- * Workaround: do two phase flushing for Index_Invalidate_I
- */
-#ifndef TX49XX_ICACHE_INDEX_INV_WAR
-#error Check setting of TX49XX_ICACHE_INDEX_INV_WAR for your platform
-#endif
-
-/*
  * The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
  * opposes it being called that) where invalid instructions in the same
  * I-cache line worth of instructions being fetched may case spurious

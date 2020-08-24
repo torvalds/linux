@@ -239,7 +239,7 @@ static void r4k_blast_dcache_setup(void)
 		r4k_blast_dcache = blast_dcache128;
 }
 
-/* force code alignment (used for TX49XX_ICACHE_INDEX_INV_WAR) */
+/* force code alignment (used for CONFIG_WAR_TX49XX_ICACHE_INDEX_INV) */
 #define JUMP_TO_ALIGN(order) \
 	__asm__ __volatile__( \
 		"b\t1f\n\t" \
@@ -371,7 +371,7 @@ static void r4k_blast_icache_page_indexed_setup(void)
 		    cpu_is_r4600_v1_x())
 			r4k_blast_icache_page_indexed =
 				blast_icache32_r4600_v1_page_indexed;
-		else if (TX49XX_ICACHE_INDEX_INV_WAR)
+		else if (IS_ENABLED(CONFIG_WAR_TX49XX_ICACHE_INDEX_INV))
 			r4k_blast_icache_page_indexed =
 				tx49_blast_icache32_page_indexed;
 		else if (current_cpu_type() == CPU_LOONGSON2EF)
@@ -399,7 +399,7 @@ static void r4k_blast_icache_setup(void)
 		if (IS_ENABLED(CONFIG_WAR_R4600_V1_INDEX_ICACHEOP) &&
 		    cpu_is_r4600_v1_x())
 			r4k_blast_icache = blast_r4600_v1_icache32;
-		else if (TX49XX_ICACHE_INDEX_INV_WAR)
+		else if (IS_ENABLED(CONFIG_WAR_TX49XX_ICACHE_INDEX_INV))
 			r4k_blast_icache = tx49_blast_icache32;
 		else if (current_cpu_type() == CPU_LOONGSON2EF)
 			r4k_blast_icache = loongson2_blast_icache32;

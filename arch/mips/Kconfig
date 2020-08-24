@@ -890,6 +890,7 @@ config MACH_TX39XX
 
 config MACH_TX49XX
 	bool "Toshiba TX49 series based machines"
+	select WAR_TX49XX_ICACHE_INDEX_INV
 
 config MIKROTIK_RB532
 	bool "Mikrotik RB532 boards"
@@ -2655,6 +2656,14 @@ config WAR_R4600_V1_HIT_CACHEOP
 # (Revision 2.0 device errata from IDT available on https://www.idt.com/
 # in .pdf format.)
 config WAR_R4600_V2_HIT_CACHEOP
+	bool
+
+# From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
+# the line which this instruction itself exists, the following
+# operation is not guaranteed."
+#
+# Workaround: do two phase flushing for Index_Invalidate_I
+config WAR_TX49XX_ICACHE_INDEX_INV
 	bool
 
 #
