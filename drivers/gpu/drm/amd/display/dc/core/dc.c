@@ -1481,13 +1481,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	return true;
 }
 
-struct dc_state *dc_create_state(struct dc *dc)
+static void init_state(struct dc *dc, struct dc_state *context)
 {
-	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
-					    GFP_KERNEL);
-
-	if (!context)
-		return NULL;
 	/* Each context must have their own instance of VBA and in order to
 	 * initialize and obtain IP and SOC the base DML instance from DC is
 	 * initially copied into every context
@@ -1495,6 +1490,17 @@ struct dc_state *dc_create_state(struct dc *dc)
 #ifdef CONFIG_DRM_AMD_DC_DCN
 	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
 #endif
+}
+
+struct dc_state *dc_create_state(struct dc *dc)
+{
+	struct dc_state *context = kzalloc(sizeof(struct dc_state),
+					   GFP_KERNEL);
+
+	if (!context)
+		return NULL;
+
+	init_state(dc, context);
 
 	kref_init(&context->refcount);
 
