@@ -2944,14 +2944,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	/*
-	 * alloc memory for private member
-	 * Used to track the pdm config array index currently being parsed
-	 */
-	sdev->private = kzalloc(sizeof(u32), GFP_KERNEL);
-	if (!sdev->private)
-		return -ENOMEM;
-
 	/* get DMIC PDM tokens */
 	ret = sof_parse_token_sets(scomp, &config->dmic.pdm[0], dmic_pdm_tokens,
 			       ARRAY_SIZE(dmic_pdm_tokens), private->array,
@@ -2962,7 +2954,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dmic pdm tokens failed %d\n",
 			le32_to_cpu(private->size));
-		goto err;
+		return ret;
 	}
 
 	/* set IPC header size */
@@ -3006,9 +2998,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	if (ret < 0)
 		dev_err(scomp->dev, "error: failed to save DAI config for DMIC%d\n",
 			config->dai_index);
-
-err:
-	kfree(sdev->private);
 
 	return ret;
 }
