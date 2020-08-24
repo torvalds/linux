@@ -890,13 +890,11 @@ static int init_powerplay_table_information(
 				power_saving_clock_count);
 	}
 
-	pptable_information->smc_pptable = kmalloc(sizeof(PPTable_t), GFP_KERNEL);
+	pptable_information->smc_pptable = kmemdup(&(powerplay_table->smcPPTable),
+						   sizeof(PPTable_t),
+						   GFP_KERNEL);
 	if (pptable_information->smc_pptable == NULL)
 		return -ENOMEM;
-
-	memcpy(pptable_information->smc_pptable,
-			&(powerplay_table->smcPPTable),
-			sizeof(PPTable_t));
 
 
 	result = append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
