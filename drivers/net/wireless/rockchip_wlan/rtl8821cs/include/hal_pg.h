@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -588,7 +589,7 @@
  */
 #define	EEPROM_TX_PWR_INX_8822C			0x10
 #define	EEPROM_ChannelPlan_8822C		0xB8
-#define	EEPROM_XTAL_8822C			0xB9
+#define	EEPROM_XTAL_B9_8822C			0xB9
 #define	EEPROM_IQK_LCK_8822C			0xBB
 #define	EEPROM_2G_5G_PA_TYPE_8822C		0xBC
 /* PATH A & PATH B */
@@ -612,6 +613,10 @@
 #define EEPROM_COUNTRY_CODE_8822C		0xCB
 #define	EEPROM_THERMAL_METER_A_8822C		0xD0
 #define	EEPROM_THERMAL_METER_B_8822C		0xD1
+
+#define	EEPROM_XTAL_110_8822C			0x110
+#define	EEPROM_XTAL_111_8822C			0x111
+
 /* RTL8822CU */
 #define EEPROM_MAC_ADDR_8822CU			0x157
 #define EEPROM_VID_8822CU			0x100
@@ -705,14 +710,8 @@
 #define	EEPROM_TX_PWR_INX_8814B			0x10
 #define	EEPROM_ChannelPlan_8814B		0xB8
 #define	EEPROM_XTAL_8814B			0xB9
-#define	EEPROM_THERMAL_METER_8814B		0xBA
 #define	EEPROM_IQK_LCK_8814B			0xBB
 
-#define EEPROM_PA_TYPE_8814B			0xBC
-#define EEPROM_LNA_TYPE_AB_2G_8814B		0xBD
-#define	EEPROM_LNA_TYPE_CD_2G_8814B		0xBE
-#define EEPROM_LNA_TYPE_AB_5G_8814B		0xBF
-#define EEPROM_LNA_TYPE_CD_5G_8814B		0xC0
 #define	EEPROM_RF_BOARD_OPTION_8814B		0xC1
 #define	EEPROM_RF_FEATURE_OPTION_8814B		0xC2
 #define	EEPROM_RF_BT_SETTING_8814B		0xC3
@@ -724,6 +723,11 @@
 #define	EEPROM_RF_ANTENNA_OPT_8814B		0xC9
 #define	EEPROM_RFE_OPTION_8814B			0xCA
 #define	EEPROM_COUNTRY_CODE_8814B		0xCB
+
+#define	EEPROM_THERMAL_METER_A_8814B		0xD0
+#define	EEPROM_THERMAL_METER_B_8814B		0xD1
+#define	EEPROM_THERMAL_METER_C_8814B		0xD2
+#define	EEPROM_THERMAL_METER_D_8814B		0xD3
 
 #define	EEPROM_MAC_ADDR_8814BE			0x120
 #define	EEPROM_VID_8814B			0x126
@@ -792,6 +796,7 @@
 #define	EEPROM_Default_ThermalMeter_8188GTV		0x18
 #define EEPROM_Default_ThermalMeter_8814A		0x18
 #define	EEPROM_Default_ThermalMeter_8192F		0x1A
+#define EEPROM_Default_ThermalMeter_8814B		0x20
 
 #define EEPROM_Default_CrystalCap				0x0
 #define EEPROM_Default_CrystalCap_8723A		0x20
@@ -805,7 +810,9 @@
 #define EEPROM_Default_CrystalCap_8188F			0x20
 #define EEPROM_Default_CrystalCap_8188GTV		0x20
 #define EEPROM_Default_CrystalCap_8192F			0x20
-#define EEPROM_Default_CrystalCap_8822C			0x3F
+#define EEPROM_Default_CrystalCap_B9_8822C		0x3F
+#define EEPROM_Default_CrystalCap_110_8822C		0x40
+#define EEPROM_Default_CrystalCap_111_8822C		0x40
 #define EEPROM_Default_CrystalCap_8814B			0x40
 #define EEPROM_Default_CrystalFreq				0x0
 #define EEPROM_Default_TxPowerLevel_92C		0x22

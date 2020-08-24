@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -174,6 +175,33 @@ do {\
 #define		BTC_ANT_WIFI_AT_CPL_MAIN	0
 #define		BTC_ANT_WIFI_AT_CPL_AUX		1
 
+/* for common code request */
+#define REG_LTE_IDR_COEX_CTRL	0x0038
+#define REG_SYS_SDIO_CTRL		0x0070
+#define REG_SYS_SDIO_CTRL3		0x0073
+/* #define REG_RETRY_LIMIT		0x042a */
+/* #define REG_DARFRC			0x0430 */
+#define REG_DARFRCH				0x0434
+#define REG_CCK_CHECK			0x0454
+#define REG_AMPDU_MAX_TIME_V1	0x0455
+#define REG_TX_HANG_CTRL		0x045E
+#define REG_LIFETIME_EN			0x0426
+#define REG_BT_COEX_TABLE0		0x06C0
+#define REG_BT_COEX_TABLE1		0x06C4
+#define REG_BT_COEX_BRK_TABLE	0x06C8
+#define REG_BT_COEX_TABLE_H		0x06CC
+#define REG_BT_ACT_STATISTICS	0x0770
+#define REG_BT_ACT_STATISTICS_1	0x0774
+#define REG_BT_STAT_CTRL		0x0778
+
+#define BIT_EN_GNT_BT_AWAKE	BIT(3)
+#define BIT_EN_BCN_FUNCTION	BIT(3)
+#define BIT_EN_BCN_PKT_REL	BIT(6)
+#define BIT_FEN_BB_GLB_RST	BIT(1)
+#define BIT_FEN_BB_RSTB		BIT(0)
+
+#define TDMA_4SLOT			BIT(8)
+
 typedef enum _BTC_POWERSAVE_TYPE {
 	BTC_PS_WIFI_NATIVE			= 0,	/* wifi original power save behavior */
 	BTC_PS_LPS_ON				= 1,
@@ -252,9 +280,9 @@ enum btc_gnt_setup_state {
 };
 
 enum btc_gnt_setup_state_2 {
-	BTC_GNT_SW_LOW		= 0x0,
-	BTC_GNT_SW_HIGH		= 0x1,
-	BTC_GNT_HW_PTA		= 0x2,
+	BTC_GNT_HW_PTA		= 0x0,
+	BTC_GNT_SW_LOW		= 0x1,
+	BTC_GNT_SW_HIGH		= 0x3,
 	BTC_GNT_MAX
 };
 
@@ -560,6 +588,7 @@ enum btc_timer_cnt {
 	BTC_TIMER_WL_FWDBG	= 0x6,
 	BTC_TIMER_BT_RELINK	= 0x7,
 	BTC_TIMER_BT_REENABLE	= 0x8,
+	BTC_TIMER_BT_MULTILINK	= 0x9,
 	BTC_TIMER_MAX
 };
 
@@ -659,10 +688,6 @@ struct btc_coex_dm {
 	u8	bt_status;
 	u8	wl_chnl_info[3];
 	u8	cur_toggle_para[6];
-	u8	cur_val0x6cc;
-	u32	cur_val0x6c0;
-	u32	cur_val0x6c4;
-	u32	cur_val0x6c8;
 	u32	cur_ant_pos_type;
 	u32	cur_switch_status;
 	u32	setting_tdma;
@@ -671,7 +696,6 @@ struct btc_coex_dm {
 struct btc_coex_sta {
 	boolean coex_freeze;
 	boolean coex_freerun;
-	boolean tdma_bt_autoslot;
 	boolean rf4ce_en;
 	boolean is_no_wl_5ms_extend;
 
@@ -694,6 +718,8 @@ struct btc_coex_sta {
 	boolean bt_fix_2M;
 	boolean bt_setup_link;
 	boolean bt_multi_link;
+	boolean bt_multi_link_pre;
+	boolean bt_multi_link_remain;
 	boolean bt_a2dp_sink;
 	boolean bt_reenable;
 	boolean bt_ble_scan_en;
@@ -702,6 +728,7 @@ struct btc_coex_sta {
 	boolean bt_slave_latency;
 	boolean bt_init_scan;
 	boolean bt_418_hid_exist;
+	boolean bt_ble_hid_exist;
 	boolean bt_mesh;
 
 	boolean wl_under_lps;
@@ -718,7 +745,6 @@ struct btc_coex_sta {
 	boolean wl_gl_busy_pre;
 	boolean wl_linkscan_proc;
 	boolean wl_mimo_ps;
-	boolean wl_ps_state_fail;
 	boolean wl_cck_dead_lock_ap;
 	boolean wl_tx_limit_en;
 	boolean wl_ampdu_limit_en;
@@ -753,6 +779,7 @@ struct btc_coex_sta {
 	u8	bt_iqk_state;
 	u8	bt_sut_pwr_lvl[4];
 	u8	bt_golden_rx_shift[4];
+	u8	bt_ext_autoslot_thres;
 
 	u8	wl_pnp_state_pre;
 	u8	wl_noisy_level;
@@ -767,9 +794,10 @@ struct btc_coex_sta {
 	u8	wl_coex_mode;
 	u8	wl_iot_peer;
 	u8	wl_ra_thres;
-	u8	wl_ampdulen_backup;
+	u8	wl_ampdulen;
 	u8	wl_rxagg_size;
 	u8	wl_toggle_para[6];
+	u8	wl_toggle_interval;
 
 	u16	score_board_BW;
 	u16	score_board_WB;
@@ -777,7 +805,7 @@ struct btc_coex_sta {
 	u16	bt_reg_vendor_ae;
 	u16	bt_reg_modem_a;
 	u16	bt_reg_rf_2;
-	u16	wl_txlimit_backup;
+	u16	wl_txlimit;
 
 	u32	hi_pri_tx;
 	u32	hi_pri_rx;
@@ -787,8 +815,9 @@ struct btc_coex_sta {
 	u32	bt_supported_version;
 	u32	bt_ble_scan_para[3];
 	u32	bt_a2dp_device_name;
-	u32	wl_arfb1_backup;
-	u32	wl_arfb2_backup;
+	u32	bt_a2dp_flush_time;
+	u32	wl_arfb1;
+	u32	wl_arfb2;
 	u32	wl_traffic_dir;
 	u32	wl_bw;
 	u32	cnt_bt_info_c2h[BTC_BTINFO_SRC_MAX];
@@ -1011,6 +1040,7 @@ typedef enum _BTC_GET_TYPE {
 	BTC_GET_U4_SUPPORTED_FEATURE,
 	BTC_GET_U4_BT_DEVICE_INFO,
 	BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL,
+	BTC_GET_U4_BT_A2DP_FLUSH_VAL,
 	BTC_GET_U4_WIFI_IQK_TOTAL,
 	BTC_GET_U4_WIFI_IQK_OK,
 	BTC_GET_U4_WIFI_IQK_FAIL,
@@ -1378,7 +1408,7 @@ typedef u4Byte
 	IN 	PVOID			pBtcContext,
 	IN	u2Byte			reg_addr
 	);
-typedef VOID
+typedef u2Byte
 (*BFP_BTC_R_SCBD)(
 	IN 	PVOID			pBtcContext,
 	IN	pu2Byte			score_board_val

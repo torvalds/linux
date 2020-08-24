@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -93,10 +94,9 @@ void hal_txbf_jaguar_download_ndpa(
 #endif
 	PHYDM_DBG(dm, DBG_TXBF, "[%s] Start!\n", __func__);
 
-	if (idx == 0)
-		head_page = 0xFE;
-	else
-		head_page = 0xFE;
+	/* if (idx == 0) head_page = 0xFE; */
+	/* else	head_page = 0xFE;*/
+	head_page = 0xFE;
 
 	phydm_get_hal_def_var_handler_interface(dm, HAL_DEF_TX_PAGE_BOUNDARY, (u8 *)&tx_page_bndy);
 

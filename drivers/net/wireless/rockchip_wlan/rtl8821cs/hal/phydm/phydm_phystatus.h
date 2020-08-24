@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -25,6 +26,9 @@
 
 #ifndef __PHYDM_PHYSTATUS_H__
 #define __PHYDM_PHYSTATUS_H__
+
+/* 2019.06.24 remove the condition of is_packet_beacon for basic dbg msg*/
+#define PHYSTS_VERSION "1.0"
 
 /*@--------------------------Define ------------------------------------------*/
 #define CCK_RSSI_INIT_COUNT 5
@@ -1092,18 +1096,53 @@ __PACK struct phy_sts_rpt_jgr3_type5 {
 	u8 inf_pos_0_d;
 	u8 inf_pos_1_d;
 };
+
+__PACK struct phy_sts_rpt_jgr3_ofdm_cmn {
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 page_num : 4;
+	u8 pkt_cnt : 2;
+	u8 channel_msb : 2;
+	#else
+	u8 channel_msb : 2;
+	u8 pkt_cnt : 2;
+	u8 page_num : 4;
+	#endif
+	u8 pwdb[4];
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 l_rxsc : 4;
+	u8 ht_rxsc : 4;
+	#else
+	u8 ht_rxsc : 4;
+	u8 l_rxsc : 4;
+	#endif
+	u8 channel_lsb;
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 band : 2;
+	u8 rsvd_0 : 2;
+	u8 gnt_bt : 1;
+	u8 ldpc : 1;
+	u8 stbc : 1;
+	u8 beamformed : 1;
+	#else
+	u8 beamformed : 1;
+	u8 stbc : 1;
+	u8 ldpc : 1;
+	u8 gnt_bt : 1;
+	u8 rsvd_0 : 1;
+	u8 band : 2;
+	#endif
+};
 #endif /*@#ifdef PHYSTS_3RD_TYPE_SUPPORT*/
+
+#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
+void phydm_physts_auto_switch_jgr3_set(void *dm_void, boolean enable,
+				       u8 bitmap_en);
+#endif
 
 #if (ODM_PHY_STATUS_NEW_TYPE_SUPPORT == 1)
 boolean
 phydm_query_is_mu_api(struct dm_struct *phydm, u8 ppdu_idx, u8 *p_data_rate,
 		      u8 *p_gid);
-#endif
-
-#ifdef PHYSTS_3RD_TYPE_SUPPORT
-void phydm_rx_physts_3rd_type(void *dm_void, u8 *phy_sts,
-			      struct phydm_perpkt_info_struct *pktinfo,
-			      struct phydm_phyinfo_struct *phy_info);
 #endif
 
 void phydm_reset_phystatus_avg(struct dm_struct *dm);
@@ -1127,10 +1166,10 @@ void phydm_normal_driver_rx_sniffer(
 s32 phydm_signal_scale_mapping(struct dm_struct *dm, s32 curr_sig);
 #endif
 
-void odm_phy_status_query(struct dm_struct *dm,
-			  struct phydm_phyinfo_struct *phy_info,
-			  u8 *phy_status_inf,
-			  struct phydm_perpkt_info_struct *pktinfo);
+boolean odm_phy_status_query(struct dm_struct *dm,
+			     struct phydm_phyinfo_struct *phy_info,
+			     u8 *phy_sts,
+			     struct phydm_perpkt_info_struct *pktinfo);
 
 void phydm_rx_phy_status_init(void *dm_void);
 

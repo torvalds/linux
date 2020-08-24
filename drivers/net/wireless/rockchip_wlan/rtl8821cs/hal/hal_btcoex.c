@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2013 - 2017 Realtek Corporation.
+ * Copyright(c) 2013 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -172,6 +173,7 @@ typedef enum _bt_op_code {
 	BT_LO_OP_GET_AFH_MAP_M					= 0x1f,
 	BT_LO_OP_GET_AFH_MAP_H					= 0x20,
 
+	BT_OP_SET_BT_TRX_MASK					= 0x29,
 	BT_OP_GET_BT_COEX_SUPPORTED_FEATURE		= 0x2a,
 	BT_OP_GET_BT_COEX_SUPPORTED_VERSION		= 0x2b,
 	BT_OP_GET_BT_ANT_DET_VAL				= 0x2c,
@@ -533,7 +535,7 @@ u8 halbtcoutsrc_IsWifiBusy(PADAPTER padapter)
 {
 	if (rtw_mi_check_status(padapter, MI_AP_ASSOC))
 		return _TRUE;
-	if (rtw_mi_busy_traffic_check(padapter, _FALSE))
+	if (rtw_mi_busy_traffic_check(padapter))
 		return _TRUE;
 
 	return _FALSE;
@@ -782,7 +784,7 @@ static u8 _btmpoper_cmd(PBTC_COEXIST pBtCoexist, u8 opcode, u8 opcodever, u8 *cm
 	/* GLBtcBtMpRptWait should be _FALSE here*/
 
 	if (GLBtcBtMpRptWiFiOK == _FALSE) {
-		RTW_ERR("%s: Didn't get H2C Rsp Event!\n", __FUNCTION__);
+		RTW_DBG("%s: Didn't get H2C Rsp Event!\n", __FUNCTION__);
 		ret = BT_STATUS_H2C_TIMTOUT;
 		goto exit;
 	}
@@ -1123,10 +1125,10 @@ u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 
 	case BTC_GET_BL_WIFI_SCAN:
 #if 0
-		*pu8 = (rtw_mi_check_fwstate(padapter, WIFI_SITE_MONITOR)) ? _TRUE : _FALSE;
+		*pu8 = (rtw_mi_check_fwstate(padapter, WIFI_UNDER_SURVEY)) ? _TRUE : _FALSE;
 #else
 		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or not, since the originally used flag
-			WIFI_SITE_MONITOR in fwstate may not be cleared in time */
+			WIFI_UNDER_SURVEY in fwstate may not be cleared in time */
 		*pu8 = GLBtcWiFiInScanState;
 #endif
 		break;
@@ -1276,6 +1278,7 @@ u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL:
+	case BTC_GET_U4_BT_A2DP_FLUSH_VAL:
 		*pU4Tmp = halbtcoutsrc_GetBtForbiddenSlotVal(pBtCoexist);
 		break;
 
@@ -2290,17 +2293,19 @@ void halbtcoutsrc_WriteLIndirectReg(void *pBtcContext, u16 reg_addr, u32 bit_mas
 	}
 }
 
-void halbtcoutsrc_Read_scbd(void *pBtcContext, u16* score_board_val)
+u16 halbtcoutsrc_Read_scbd(void *pBtcContext, u16* score_board_val)
 {
 	PBTC_COEXIST btc = (PBTC_COEXIST)pBtcContext;
 	struct btc_coex_sta *coex_sta = &btc->coex_sta;
 	const struct btc_chip_para *chip_para = btc->chip_para;
 
 	if (!chip_para->scbd_support)
-		return;
+		return 0;
 
 	*score_board_val = (btc->btc_read_2byte(btc, 0xaa)) & 0x7fff;
 	coex_sta->score_board_BW = *score_board_val;
+
+	return coex_sta->score_board_BW;
 }
 
 void halbtcoutsrc_Write_scbd(void *pBtcContext, u16 bitpos, u8 state)
@@ -2450,36 +2455,50 @@ u8 halbtcoutsrc_SetBtAntDetection(void *pBtcContext, u8 txTime, u8 btChnl)
 #endif
 }
 
-BOOLEAN
-halbtcoutsrc_SetBtTRXMASK(
-		void			*pBtcContext,
-		u8			bt_trx_mask
-	)
+u8 halbtcoutsrc_SetBtTRXMASK(void *pBtcContext, u8 bt_trx_mask)
 {
-	/* Always return _FALSE since we don't implement this yet */
-#if 0
-	struct btc_coexist *pBtCoexist = (struct btc_coexist *)pBtcContext;
-	PADAPTER			Adapter = pBtCoexist->Adapter;
-	BOOLEAN				bStatus = FALSE;
-	u8				btCanTx = 0;
+	PBTC_COEXIST 	pBtCoexist;
+	u8			bStatus = _FALSE;
+	u8			btCanTx = 0;
+	u16 		ret = BT_STATUS_BT_OP_SUCCESS;
+
+	pBtCoexist = (PBTC_COEXIST)pBtcContext;
 
 	if (IS_HARDWARE_TYPE_8723B(pBtCoexist->Adapter) || IS_HARDWARE_TYPE_8723D(pBtCoexist->Adapter)
 			|| IS_HARDWARE_TYPE_8821C(pBtCoexist->Adapter)) {
 
-	if (IS_HARDWARE_TYPE_8723B(pBtCoexist->Adapter))
-		bStatus = NDBG_SetBtTRXMASK(Adapter, 1, bt_trx_mask, &btCanTx);
-	else
-		bStatus = NDBG_SetBtTRXMASK(Adapter, 2, bt_trx_mask, &btCanTx);
+		if (halbtcoutsrc_IsHwMailboxExist(pBtCoexist) == _TRUE) {
+			u8 buf[3] = {0};
+			u8 len = 0;
+			_irqL irqL;
+			u8 op_code;
+			u8 status;
+
+			if (IS_HARDWARE_TYPE_8723B(pBtCoexist->Adapter)) {
+				buf[0] = bt_trx_mask;
+				len = 1;
+			} else {
+				buf[0] = (bt_trx_mask & 0x80) >> 7;
+				buf[1] = bt_trx_mask & 0x7f;
+				len = 2;
+			}
+
+			_enter_critical_mutex(&GLBtcBtMpOperLock, &irqL);
+
+			op_code = BT_OP_SET_BT_TRX_MASK;
+			status = _btmpoper_cmd(pBtCoexist, op_code, 0, buf, len);
+			if (status != BT_STATUS_BT_OP_SUCCESS)
+				ret = SET_BT_MP_OPER_RET(op_code, status);
+
+			_exit_critical_mutex(&GLBtcBtMpOperLock, &irqL);
+		} else
+			ret = BT_STATUS_NOT_IMPLEMENT;
 	}
 
-	
-	if (bStatus)
-		return TRUE;
+	if (ret == BT_STATUS_BT_OP_SUCCESS)
+		return _TRUE;
 	else
-		return FALSE;
-#else
-	return _FALSE;
-#endif
+		return _FALSE;
 }
 
 u16 halbtcoutsrc_GetBtReg_with_status(void *pBtcContext, u8 RegType, u32 RegAddr, u32 *data)

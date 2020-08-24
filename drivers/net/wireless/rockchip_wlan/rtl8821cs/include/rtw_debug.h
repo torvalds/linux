@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -106,12 +107,40 @@ extern uint rtw_drv_log_level;
 
 #if defined(_dbgdump)
 
+#ifdef PLATFORM_LINUX
+#ifdef DBG_THREAD_PID
+#define T_PID_FMT	"(%5u) "
+#define T_PID_ARG	current->pid
+#else /* !DBG_THREAD_PID */
+#define T_PID_FMT	"%s"
+#define T_PID_ARG	""
+#endif /* !DBG_THREAD_PID */
+
+#ifdef DBG_CPU_INFO
+#define CPU_INFO_FMT	"[%u] "
+#define CPU_INFO_ARG	get_cpu()
+#else /* !DBG_CPU_INFO */
+#define CPU_INFO_FMT	"%s"
+#define CPU_INFO_ARG	""
+#endif /* !DBG_CPU_INFO */
+
+/* Extra information in prefix */
+#define EX_INFO_FMT	T_PID_FMT CPU_INFO_FMT
+#define EX_INFO_ARG	T_PID_ARG, CPU_INFO_ARG
+#else /* !PLATFORM_LINUX */
+#define EX_INFO_FMT	"%s"
+#define EX_INFO_ARG	""
+#endif /* !PLATFORM_LINUX */
+
+#define DBG_PREFIX	EX_INFO_FMT DRIVER_PREFIX
+#define DBG_PREFIX_ARG	EX_INFO_ARG
+
 /* with driver-defined prefix */
 #undef RTW_PRINT
 #define RTW_PRINT(fmt, arg...)     \
 	do {\
 		if (_DRV_ALWAYS_ <= rtw_drv_log_level) {\
-			_dbgdump(DRIVER_PREFIX fmt, ##arg);\
+			_dbgdump(DBG_PREFIX fmt, DBG_PREFIX_ARG, ##arg);\
 		} \
 	} while (0)
 
@@ -119,7 +148,8 @@ extern uint rtw_drv_log_level;
 #define RTW_ERR(fmt, arg...)     \
 	do {\
 		if (_DRV_ERR_ <= rtw_drv_log_level) {\
-			_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
+			_dbgdump(DBG_PREFIX "ERROR " fmt, \
+				 DBG_PREFIX_ARG, ##arg);\
 		} \
 	} while (0)
 
@@ -128,7 +158,8 @@ extern uint rtw_drv_log_level;
 #define RTW_WARN(fmt, arg...)     \
 	do {\
 		if (_DRV_WARNING_ <= rtw_drv_log_level) {\
-			_dbgdump(DRIVER_PREFIX"WARN " fmt, ##arg);\
+			_dbgdump(DBG_PREFIX "WARN " fmt, \
+				 DBG_PREFIX_ARG, ##arg);\
 		} \
 	} while (0)
 
@@ -136,7 +167,7 @@ extern uint rtw_drv_log_level;
 #define RTW_INFO(fmt, arg...)     \
 	do {\
 		if (_DRV_INFO_ <= rtw_drv_log_level) {\
-			_dbgdump(DRIVER_PREFIX fmt, ##arg);\
+			_dbgdump(DBG_PREFIX fmt, DBG_PREFIX_ARG, ##arg);\
 		} \
 	} while (0)
 
@@ -145,7 +176,7 @@ extern uint rtw_drv_log_level;
 #define RTW_DBG(fmt, arg...)     \
 	do {\
 		if (_DRV_DEBUG_ <= rtw_drv_log_level) {\
-			_dbgdump(DRIVER_PREFIX fmt, ##arg);\
+			_dbgdump(DBG_PREFIX fmt, DBG_PREFIX_ARG, ##arg);\
 		} \
 	} while (0)
 
@@ -425,6 +456,8 @@ ssize_t proc_set_rx_ampdu_density(struct file *file, const char __user *buffer, 
 int proc_get_tx_ampdu_density(struct seq_file *m, void *v);
 ssize_t proc_set_tx_ampdu_density(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
+int proc_get_tx_quick_addba_req(struct seq_file *m, void *v);
+ssize_t proc_set_tx_quick_addba_req(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 #ifdef CONFIG_TX_AMSDU
 int proc_get_tx_amsdu(struct seq_file *m, void *v);
 ssize_t proc_set_tx_amsdu(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -432,6 +465,9 @@ int proc_get_tx_amsdu_rate(struct seq_file *m, void *v);
 ssize_t proc_set_tx_amsdu_rate(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 #endif
 #endif /* CONFIG_80211N_HT */
+
+ssize_t proc_set_dyn_rrsr(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_dyn_rrsr(struct seq_file *m, void *v);
 
 int proc_get_en_fwps(struct seq_file *m, void *v);
 ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -484,6 +520,9 @@ ssize_t proc_set_tx_ring_ext(struct file *file, const char __user *buffer, size_
 #endif
 
 #ifdef CONFIG_WOWLAN
+int proc_get_wow_enable(struct seq_file *m, void *v);
+ssize_t proc_set_wow_enable(struct file *file, const char __user *buffer,
+		size_t count, loff_t *pos, void *data);
 int proc_get_pattern_info(struct seq_file *m, void *v);
 ssize_t proc_set_pattern_info(struct file *file, const char __user *buffer,
 		size_t count, loff_t *pos, void *data);
@@ -605,6 +644,9 @@ int proc_get_lps_chk_tp(struct seq_file *m, void *v);
 ssize_t proc_set_smps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 int proc_get_smps(struct seq_file *m, void *v);
 #endif
+
+int proc_get_defs_param(struct seq_file *m, void *v);
+ssize_t proc_set_defs_param(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #define _drv_always_		1
 #define _drv_emerg_			2

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -532,8 +533,7 @@ get_swing_index(
 	if (dm->support_ic_type == ODM_RTL8188E || dm->support_ic_type == ODM_RTL8723B ||
 	    dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type == ODM_RTL8188F || 
 	    dm->support_ic_type == ODM_RTL8703B || dm->support_ic_type == ODM_RTL8723D || 
-	    dm->support_ic_type == ODM_RTL8192F || dm->support_ic_type == ODM_RTL8710B ||
-	    dm->support_ic_type == ODM_RTL8821) {
+	    dm->support_ic_type == ODM_RTL8192F || dm->support_ic_type == ODM_RTL8710B) {
 		bb_swing = odm_get_bb_reg(dm, REG_OFDM_0_XA_TX_IQ_IMBALANCE, 0xFFC00000);
 
 		for (i = 0; i < OFDM_TABLE_SIZE; i++) {
@@ -683,8 +683,7 @@ odm_txpowertracking_thermal_meter_init(
 	if (cali_info->default_bb_swing_index_flag != true) {
 		/*The index of "0 dB" in SwingTable.*/
 		if (dm->support_ic_type == ODM_RTL8188E || dm->support_ic_type == ODM_RTL8723B ||
-		    dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type == ODM_RTL8703B ||
-		    dm->support_ic_type == ODM_RTL8821) {
+		    dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type == ODM_RTL8703B) {
 			cali_info->default_ofdm_index = (default_swing_index >= OFDM_TABLE_SIZE) ? 30 : default_swing_index;
 			cali_info->default_cck_index = (default_cck_swing_index >= CCK_TABLE_SIZE) ? 20 : default_cck_swing_index;
 		} else if (dm->support_ic_type == ODM_RTL8188F) {          /*add by Mingzhi.Guo  2015-03-23*/

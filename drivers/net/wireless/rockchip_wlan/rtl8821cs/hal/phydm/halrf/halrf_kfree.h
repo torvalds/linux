@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -180,13 +181,21 @@
 #define PPG_PABIAS_10C 0x1D6
 #define PPG_LNA_10C 0x1D0
 
+/*8814B*/
+#define PPG_THERMAL_A_OFFSET_14B 0x3D4
+#define PPG_THERMAL_B_OFFSET_14B 0x3D3
+#define PPG_THERMAL_C_OFFSET_14B 0x3D2
+#define PPG_THERMAL_D_OFFSET_14B 0x3D1
+
 struct odm_power_trim_data {
 	u8 flag;
 	u8 pa_bias_flag;
 	u8 lna_flag;
 	s8 bb_gain[KFREE_BAND_NUM][MAX_RF_PATH];
 	s8 tssi_trim[KFREE_BAND_NUM][MAX_RF_PATH];
+	s8 lna_trim[MAX_RF_PATH];
 	s8 thermal;
+	s8 multi_thermal[MAX_RF_PATH];
 };
 
 enum phydm_kfree_channeltosw {
@@ -206,6 +215,8 @@ void phydm_get_pa_bias_offset(void *dm_void);
 
 s8 phydm_get_thermal_offset(void *dm_void);
 
+s8 phydm_get_multi_thermal_offset(void *dm_void, u8 path);
+
 void phydm_clear_kfree_to_rf(void *dm_void, u8 e_rf_path, u8 data);
 
 void phydm_config_new_kfree(void *dm_void);
@@ -213,5 +224,7 @@ void phydm_config_new_kfree(void *dm_void);
 s8 phydm_get_tssi_trim_de(void *dm_void, u8 path);
 
 void phydm_config_kfree(void *dm_void, u8 channel_to_sw);
+
+void phydm_set_lna_trim_offset (void *dm_void, u8 path, u8 cg_cs, u8 enable);
 
 #endif /*__HALRF_KFREE_H__*/

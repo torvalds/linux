@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -621,10 +622,6 @@ void phydm_snr_collect(
 	struct phydm_lna_sat_t	*pinfo = &dm->dm_lna_sat_info;
 
 	if (pinfo->is_sm_done) {
-#if 0
-		/*PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==>\n", __func__);*/
-#endif
-
 		/* @adapt only path-A for calculation */
 		pinfo->snr_statistic[pinfo->cnt_snr_statistic] = rx_snr;
 

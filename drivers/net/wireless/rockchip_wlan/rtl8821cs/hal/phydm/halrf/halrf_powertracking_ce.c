@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -717,7 +718,7 @@ void odm_txpowertracking_thermal_meter_init(void *dm_void)
 	if (!cali_info->default_bb_swing_index_flag) {
 		if (dm->support_ic_type &
 			(ODM_RTL8188E | ODM_RTL8723B | ODM_RTL8192E |
-			ODM_RTL8703B | ODM_RTL8821)) {
+			ODM_RTL8703B)) {
 			if (swing_idx >= OFDM_TABLE_SIZE)
 				cali_info->default_ofdm_index = 30;
 			else

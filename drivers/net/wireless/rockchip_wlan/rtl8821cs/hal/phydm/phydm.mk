@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 EXTRA_CFLAGS += -I$(src)/hal/phydm
 
 _PHYDM_FILES := hal/phydm/phydm_debug.o	\
@@ -214,6 +215,7 @@ _PHYDM_FILES += hal/phydm/$(RTL871X)/halhwimg8822c_bb.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_iqk_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_tssi_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_dpk_8822c.o\
+								hal/phydm/halrf/$(RTL871X)/halrf_txgapk_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_rfk_init_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halhwimg8822c_rf.o
 endif
@@ -227,5 +229,6 @@ _PHYDM_FILES += hal/phydm/$(RTL871X)/halhwimg8814b_bb.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_8814b.o \
 								hal/phydm/halrf/$(RTL871X)/halrf_iqk_8814b.o \
 								hal/phydm/halrf/$(RTL871X)/halrf_dpk_8814b.o\
-								hal/phydm/halrf/$(RTL871X)/halrf_rfk_init_8814b.o
+								hal/phydm/halrf/$(RTL871X)/halrf_rfk_init_8814b.o\
+								hal/phydm/halrf/$(RTL871X)/halrf_txgapk_8814b.o
 endif

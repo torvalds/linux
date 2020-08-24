@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -67,8 +68,6 @@
 		#define CONFIG_80211N_HT
 	#endif
 #endif
-
-#define CONFIG_IEEE80211_BAND_5GHZ
 
 /* Set CONFIG_IOCTL_CFG80211 from Makefile */
 #ifdef CONFIG_IOCTL_CFG80211
@@ -152,8 +151,6 @@
 #ifdef CONFIG_XMIT_ACK
 	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 #endif
-
-#define CONFIG_DFS
 
 #define DISABLE_BB_RF		0
 #define RTW_NOTCH_FILTER	0 /* 0:Disable, 1:Enable */

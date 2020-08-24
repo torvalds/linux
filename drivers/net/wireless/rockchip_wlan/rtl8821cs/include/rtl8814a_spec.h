@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -485,6 +486,11 @@
 #define REG_Q6_Q7_INFO_8814A		0x140C
 #define REG_MGQ_HIQ_INFO_8814A	0x1410
 #define REG_CMDQ_BCNQ_INFO_8814A	0x1414
+
+#define REG_MACID_DROP0_8814A 0x1450
+#define REG_MACID_DROP1_8814A 0x1454
+#define REG_MACID_DROP2_8814A 0x1458
+#define REG_MACID_DROP3_8814A 0x145C
 
 #define DDMA_LEN_MASK		0x0001FFFF
 #define FW_CHKSUM_DUMMY_SZ		8

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -32,8 +33,8 @@
  * ============================================================
  */
 
-/* 2019.2.12, refine code structure and set macid 127 only for 22C*/
-#define DYNAMIC_TXPWR_VERSION "1.8"
+/* 2019.6.14, Modify per sta API to fix the AP problem of early return*/
+#define DYNAMIC_TXPWR_VERSION "2.1"
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2 74
@@ -121,6 +122,15 @@ void phydm_dynamic_tx_power_init(void *dm_void);
 
 void phydm_dtp_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 			     u32 *_out_len);
+
+void phydm_rd_reg_pwr(void *dm_void, u32 *_used, char *output, u32 *_out_len);
+
+void phydm_wt_reg_pwr(void *dm_void, boolean is_ofst1, boolean pwr_ofst_en,
+            		     s8 pwr_ofst);
+
+void phydm_wt_ram_pwr(void *dm_void, u8 macid, boolean is_ofst1, 
+		             boolean pwr_ofst_en, s8 pwr_ofst);
+
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 void odm_dynamic_tx_power_win(void *dm_void);

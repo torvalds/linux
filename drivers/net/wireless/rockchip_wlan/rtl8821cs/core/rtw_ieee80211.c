@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -38,6 +39,13 @@ u8 RSN_CIPHER_SUITE_WEP40[] = { 0x00, 0x0f, 0xac, 1 };
 u8 RSN_CIPHER_SUITE_TKIP[] = { 0x00, 0x0f, 0xac, 2 };
 u8 RSN_CIPHER_SUITE_WRAP[] = { 0x00, 0x0f, 0xac, 3 };
 u8 RSN_CIPHER_SUITE_CCMP[] = { 0x00, 0x0f, 0xac, 4 };
+u8 RSN_CIPHER_SUITE_AES_128_CMAC[] = { 0x00, 0x0f, 0xac, 6 };
+u8 RSN_CIPHER_SUITE_GCMP[] = { 0x00, 0x0f, 0xac, 8 };
+u8 RSN_CIPHER_SUITE_GCMP_256[] = { 0x00, 0x0f, 0xac, 9 };
+u8 RSN_CIPHER_SUITE_CCMP_256[] = { 0x00, 0x0f, 0xac, 10 };
+u8 RSN_CIPHER_SUITE_BIP_GMAC_128[] = { 0x00, 0x0f, 0xac, 11 };
+u8 RSN_CIPHER_SUITE_BIP_GMAC_256[] = { 0x00, 0x0f, 0xac, 12 };
+u8 RSN_CIPHER_SUITE_BIP_CMAC_256[] = { 0x00, 0x0f, 0xac, 13 };
 u8 RSN_CIPHER_SUITE_WEP104[] = { 0x00, 0x0f, 0xac, 5 };
 
 u8 WLAN_AKM_8021X[] = {0x00, 0x0f, 0xac, 1};
@@ -706,7 +714,7 @@ int rtw_get_wpa_cipher_suite(u8 *s)
 	return 0;
 }
 
-int rtw_get_wpa2_cipher_suite(u8 *s)
+int rtw_get_rsn_cipher_suite(u8 *s)
 {
 	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_NONE, RSN_SELECTOR_LEN) == _TRUE)
 		return WPA_CIPHER_NONE;
@@ -716,9 +724,22 @@ int rtw_get_wpa2_cipher_suite(u8 *s)
 		return WPA_CIPHER_TKIP;
 	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_CCMP, RSN_SELECTOR_LEN) == _TRUE)
 		return WPA_CIPHER_CCMP;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_GCMP, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_GCMP;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_GCMP_256, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_GCMP_256;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_CCMP_256, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_CCMP_256;
 	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_WEP104, RSN_SELECTOR_LEN) == _TRUE)
 		return WPA_CIPHER_WEP104;
-
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_AES_128_CMAC, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_BIP_CMAC_128;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_BIP_GMAC_128, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_BIP_GMAC_128;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_BIP_GMAC_256, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_BIP_GMAC_256;
+	if (_rtw_memcmp(s, RSN_CIPHER_SUITE_BIP_CMAC_256, RSN_SELECTOR_LEN) == _TRUE)
+		return WPA_CIPHER_BIP_CMAC_256;
 	return 0;
 }
 
@@ -931,7 +952,7 @@ err:
 }
 
 int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
-	int *pairwise_cipher, u32 *akm, u8 *mfp_opt)
+	int *pairwise_cipher, int *gmcs, u32 *akm, u8 *mfp_opt)
 {
 	struct rsne_info info;
 	int i, ret = _SUCCESS;
@@ -942,7 +963,7 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 
 	if (group_cipher) {
 		if (info.gcs)
-			*group_cipher = rtw_get_wpa2_cipher_suite(info.gcs);
+			*group_cipher = rtw_get_rsn_cipher_suite(info.gcs);
 		else
 			*group_cipher = 0;
 	}
@@ -950,7 +971,14 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 	if (pairwise_cipher) {
 		*pairwise_cipher = 0;
 		for (i = 0; i < info.pcs_cnt; i++)
-			*pairwise_cipher |= rtw_get_wpa2_cipher_suite(info.pcs_list + 4 * i);
+			*pairwise_cipher |= rtw_get_rsn_cipher_suite(info.pcs_list + 4 * i);
+	}
+
+	if (gmcs) {
+		if (info.gmcs)
+			*gmcs = rtw_get_rsn_cipher_suite(info.gmcs);
+		else
+			*gmcs = WPA_CIPHER_BIP_CMAC_128; /* default value when absent */
 	}
 
 	if (akm) {
@@ -1238,6 +1266,62 @@ u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8
 	return NULL;
 }
 
+/* OWE */
+
+/**
+ * rtw_get_OWE_ie - Search OWE IE from a series of IEs
+ * @in_ie: Address of IEs to search
+ * @in_len: Length limit from in_ie
+ * @wps_ie: If not NULL and OWE IE is found, OWE IE will be copied to the buf starting from owe_ie
+ * @wps_ielen: If not NULL and OWE IE is found, will set to the length of the entire OWE IE
+ *
+ * Returns: The address of the OWE IE found, or NULL
+ */
+u8 *rtw_get_owe_ie(const u8 *in_ie, uint in_len, u8 *owe_ie, uint *owe_ielen)
+{
+	uint cnt;
+	const u8 *oweie_ptr = NULL;
+	u8 eid;
+
+	if (owe_ielen)
+		*owe_ielen = 0;
+
+	if (!in_ie) {
+		rtw_warn_on(1);
+		return (u8 *)oweie_ptr;
+	}
+
+	if (in_len <= 0)
+		return (u8 *)oweie_ptr;
+
+	cnt = 0;
+
+	while (cnt + 1 + 4 < in_len) {
+		eid = in_ie[cnt];
+
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
+
+		if ((eid == WLAN_EID_EXTENSION) && (in_ie[cnt + 2] == WLAN_EID_EXT_OWE_DH_PARAM)) {
+			oweie_ptr = in_ie + cnt;
+
+			if (owe_ie)
+				_rtw_memcpy(owe_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (owe_ielen)
+				*owe_ielen = in_ie[cnt + 1] + 2;
+
+			break;
+		} else
+			cnt += in_ie[cnt + 1] + 2;
+
+	}
+
+	return (u8 *)oweie_ptr;
+}
+
 static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		struct rtw_ieee802_11_elems *elems,
 		int show_errors)
@@ -1322,7 +1406,14 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			return -1;
 		}
 		break;
-
+#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
+	case OUI_REALTEK:
+		if (elen == 8) {  // TBTX capable IE length is 8
+			elems->tbtx_cap = pos;
+			elems->tbtx_cap_len = elen;
+		}
+		break;
+#endif
 	default:
 		RTW_DBG("unknown vendor specific information "
 			"element ignored (vendor OUI %02x:%02x:%02x "
@@ -1657,7 +1748,7 @@ void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr)
 
 	if (!rockchip_wifi_mac_addr(mac)) {
 		printk("get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
-		mac[2], mac[3], mac[4], mac[5]);
+				mac[2], mac[3], mac[4], mac[5]);
 	}
 
 err_chk:

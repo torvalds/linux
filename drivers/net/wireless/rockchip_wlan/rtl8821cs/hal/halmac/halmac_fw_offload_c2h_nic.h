@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -34,6 +35,7 @@
 #define C2H_SUB_CMD_ID_FW_MEM_DUMP_ACK 0X01
 #define C2H_SUB_CMD_ID_ACT_SCHEDULE_REQ_ACK 0X1
 #define C2H_SUB_CMD_ID_NAN_FUNC_CTRL_ACK 0X1
+#define C2H_SUB_CMD_ID_DPK_ACK 0X1
 #define C2H_SUB_CMD_ID_PSD_DATA 0X04
 #define C2H_SUB_CMD_ID_EFUSE_DATA 0X05
 #define C2H_SUB_CMD_ID_IQK_DATA 0X06
@@ -60,6 +62,7 @@
 #define C2H_SUB_CMD_ID_SCAN_CH_NOTIFY 0X22
 #define C2H_SUB_CMD_ID_FW_TBTT_RPT 0X23
 #define C2H_SUB_CMD_ID_BCN_OFFLOAD 0X24
+#define C2H_SUB_CMD_ID_DPK_DATA 0X25
 #define H2C_SUB_CMD_ID_CFG_PARAM_ACK SUB_CMD_ID_CFG_PARAM
 #define H2C_SUB_CMD_ID_CH_SWITCH_ACK SUB_CMD_ID_CH_SWITCH
 #define H2C_SUB_CMD_ID_BT_COEX_ACK SUB_CMD_ID_BT_COEX
@@ -75,6 +78,7 @@
 #define H2C_SUB_CMD_ID_FW_MEM_DUMP_ACK SUB_CMD_ID_FW_MEM_DUMP
 #define H2C_SUB_CMD_ID_ACT_SCHEDULE_REQ_ACK SUB_CMD_ID_ACT_SCHEDULE_REQ
 #define H2C_SUB_CMD_ID_NAN_FUNC_CTRL_ACK SUB_CMD_ID_NAN_FUNC_CTRL
+#define H2C_SUB_CMD_ID_DPK_ACK SUB_CMD_ID_DPK
 #define H2C_SUB_CMD_ID_CCX_RPT SUB_CMD_ID_CCX_RPT
 #define H2C_SUB_CMD_ID_FW_DBG_MSG SUB_CMD_ID_FW_DBG_MSG
 #define H2C_SUB_CMD_ID_FW_SNDING_ACK SUB_CMD_ID_FW_SNDING
@@ -96,6 +100,7 @@
 #define H2C_CMD_ID_FW_MEM_DUMP_ACK 0XFF
 #define H2C_CMD_ID_ACT_SCHEDULE_REQ_ACK 0XFF
 #define H2C_CMD_ID_NAN_FUNC_CTRL_ACK 0XFF
+#define H2C_CMD_ID_DPK_ACK 0XFF
 #define H2C_CMD_ID_CCX_RPT 0XFF
 #define H2C_CMD_ID_FW_DBG_MSG 0XFF
 #define H2C_CMD_ID_FW_SNDING_ACK 0XFF
@@ -501,4 +506,55 @@
 #define BCN_OFFLOAD_GET_STATUS(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X04, 8, 8)
 #define BCN_OFFLOAD_SET_STATUS(c2h_pkt, value)                                 \
 	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X04, 8, 8, value)
+#define DPK_DATA_GET_SEGMENT_ID(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X04, 0, 7)
+#define DPK_DATA_SET_SEGMENT_ID(c2h_pkt, value)                                \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X04, 0, 7, value)
+#define DPK_DATA_GET_END_SEGMENT(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X04, 7, 1)
+#define DPK_DATA_SET_END_SEGMENT(c2h_pkt, value)                               \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X04, 7, 1, value)
+#define DPK_DATA_GET_SEGMENT_SIZE(c2h_pkt)                                     \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X04, 8, 8)
+#define DPK_DATA_SET_SEGMENT_SIZE(c2h_pkt, value)                              \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X04, 8, 8, value)
+#define DPK_DATA_GET_TOTAL_SIZE(c2h_pkt)                                       \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X04, 16, 16)
+#define DPK_DATA_SET_TOTAL_SIZE(c2h_pkt, value)                                \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X04, 16, 16, value)
+#define DPK_DATA_GET_H2C_SEQ(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X08, 0, 16)
+#define DPK_DATA_SET_H2C_SEQ(c2h_pkt, value)                                   \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X08, 0, 16, value)
+#define DPK_DATA_GET_PATH0_OK(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X08, 16, 8)
+#define DPK_DATA_SET_PATH0_OK(c2h_pkt, value)                                  \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X08, 16, 8, value)
+#define DPK_DATA_GET_PATH1_OK(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X08, 24, 8)
+#define DPK_DATA_SET_PATH1_OK(c2h_pkt, value)                                  \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X08, 24, 8, value)
+#define DPK_DATA_GET_THERM0_S0(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X0C, 0, 8)
+#define DPK_DATA_SET_THERM0_S0(c2h_pkt, value)                                 \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X0C, 0, 8, value)
+#define DPK_DATA_GET_THERM0_S1(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X0C, 8, 8)
+#define DPK_DATA_SET_THERM0_S1(c2h_pkt, value)                                 \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X0C, 8, 8, value)
+#define DPK_DATA_GET_THERM1_S0(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X0C, 16, 8)
+#define DPK_DATA_SET_THERM1_S0(c2h_pkt, value)                                 \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X0C, 16, 8, value)
+#define DPK_DATA_GET_THERM1_S1(c2h_pkt) LE_BITS_TO_4BYTE(c2h_pkt + 0X0C, 24, 8)
+#define DPK_DATA_SET_THERM1_S1(c2h_pkt, value)                                 \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X0C, 24, 8, value)
+#define DPK_DATA_GET_THERM_DELTA0_S0(c2h_pkt)                                  \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X10, 0, 8)
+#define DPK_DATA_SET_THERM_DELTA0_S0(c2h_pkt, value)                           \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X10, 0, 8, value)
+#define DPK_DATA_GET_THERM_DELTA0_S1(c2h_pkt)                                  \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X10, 8, 8)
+#define DPK_DATA_SET_THERM_DELTA0_S1(c2h_pkt, value)                           \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X10, 8, 8, value)
+#define DPK_DATA_GET_THERM_DELTA1_S0(c2h_pkt)                                  \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X10, 16, 8)
+#define DPK_DATA_SET_THERM_DELTA1_S0(c2h_pkt, value)                           \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X10, 16, 8, value)
+#define DPK_DATA_GET_THERM_DELTA1_S1(c2h_pkt)                                  \
+	LE_BITS_TO_4BYTE(c2h_pkt + 0X10, 24, 8)
+#define DPK_DATA_SET_THERM_DELTA1_S1(c2h_pkt, value)                           \
+	SET_BITS_TO_LE_4BYTE(c2h_pkt + 0X10, 24, 8, value)
 #endif

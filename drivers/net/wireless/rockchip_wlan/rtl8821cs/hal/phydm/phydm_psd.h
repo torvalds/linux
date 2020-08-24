@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,7 +28,9 @@
 #define __PHYDMPSD_H__
 
 /*@#define PSD_VERSION	"1.0"*/ /*@2016.09.22  Dino*/
-#define PSD_VERSION "1.1" /*@2016.10.07  Dino, Add Option for PSD Tone index Selection */
+/*@2016.10.07  Dino, Add Option for PSD Tone index Selection */
+/*@2019.04.26  Early return & "IF0" for JGR3 ICs */
+#define PSD_VERSION "1.2"
 
 #ifdef CONFIG_PSD_TOOL
 

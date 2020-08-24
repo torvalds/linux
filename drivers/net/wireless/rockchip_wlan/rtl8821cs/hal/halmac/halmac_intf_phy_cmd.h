@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -41,6 +42,8 @@ enum halmac_ip_sel {
 enum halmac_intf_phy_platform {
 	HALMAC_INTF_PHY_PLATFORM_ALL = BIT(0),
 	HALMAC_INTF_PHY_PLATFORM_ASUS = BIT(1),
+	HALMAC_INTF_PHY_PLATFORM_LENOVO_V540 = BIT(2),
+	HALMAC_INTF_PHY_PLATFORM_DHC = BIT(3),
 	HALMAC_INTF_PHY_PLATFORM_FOR_ALL = 0x7FFF,
 };
 

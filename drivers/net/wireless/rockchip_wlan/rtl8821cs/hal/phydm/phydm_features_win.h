@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -40,7 +41,7 @@
 #endif
 
 #if (RTL8822C_SUPPORT)
-	/*#define PHYDM_PHYSTAUS_AUTO_SWITCH*/
+	#define PHYDM_PHYSTAUS_AUTO_SWITCH
 #endif
 
 /*#define PHYDM_TDMA_DIG_SUPPORT*/
@@ -154,6 +155,10 @@
 
 #if (RTL8188E_SUPPORT || RTL8192E_SUPPORT)
 	#define	CONFIG_RECEIVER_BLOCKING
+#endif
+
+#if (RTL8821C_SUPPORT || RTL8822C_SUPPORT || RTL8822B_SUPPORT)
+	#define CONFIG_BW_INDICATION
 #endif
 
 #if (RTL8812A_SUPPORT || RTL8821A_SUPPORT || RTL8881A_SUPPORT ||\

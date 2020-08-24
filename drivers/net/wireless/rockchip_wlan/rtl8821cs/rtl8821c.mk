@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 EXTRA_CFLAGS += -DCONFIG_RTL8821C
 
 ifeq ($(CONFIG_USB_HCI), y)

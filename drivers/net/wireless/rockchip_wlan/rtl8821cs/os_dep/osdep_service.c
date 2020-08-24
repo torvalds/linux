@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -970,6 +971,24 @@ int	_rtw_memcmp(const void *dst, const void *src, u32 sz)
 
 
 
+}
+
+int _rtw_memcmp2(const void *dst, const void *src, u32 sz)
+{
+	const unsigned char *p1 = dst, *p2 = src;
+
+	if (sz == 0)
+		return 0;
+
+	while (*p1 == *p2) {
+		p1++;
+		p2++;
+		sz--;
+		if (sz == 0)
+			return 0;
+	}
+
+	return *p1 - *p2;
 }
 
 void _rtw_memset(void *pbuf, int c, u32 sz)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -76,9 +77,7 @@ u8 rtl8821c_sc_mapping(PADAPTER, struct pkt_attrib *);
 void rtl8821c_cal_txdesc_chksum(PADAPTER, u8 *ptxdesc);
 void rtl8821c_update_txdesc(struct xmit_frame *, u8 *pbuf);
 void rtl8821c_dbg_dump_tx_desc(PADAPTER, int frame_tag, u8 *ptxdesc);
-#if defined(CONFIG_CONCURRENT_MODE)
 void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 /* rx */

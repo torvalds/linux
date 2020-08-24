@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -251,7 +252,6 @@
 		#define CONFIG_FW_C2H_PKT
 	#endif /* CONFIG_FW_C2H_PKT */
 	#define RTW_TX_PA_BIAS	/* Adjust TX PA Bias from eFuse */
-	#define CONFIG_DFS	/* Enable 5G band 2&3 channel */
 	#define RTW_AMPDU_AGG_RETRY_AND_NEW
 
 	#ifdef CONFIG_WOWLAN
@@ -343,7 +343,6 @@
 		#define CONFIG_FW_C2H_PKT
 	#endif /* CONFIG_FW_C2H_PKT */
 	#define RTW_TX_PA_BIAS	/* Adjust TX PA Bias from eFuse */
-	#define CONFIG_DFS	/* Enable 5G band 2&3 channel */
 
 	#ifdef CONFIG_WOWLAN
 		#define CONFIG_GTK_OL
@@ -369,9 +368,15 @@
 		#define RTW_BEAMFORMING_VERSION_2
 	#endif /* CONFIG_BEAMFORMING */
 
-	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
-		#define CONFIG_RTW_MAC_HIDDEN_RPT
-	#endif /* CONFIG_RTW_MAC_HIDDEN_RPT */
+	#ifdef CONFIG_NO_FW
+		#ifdef CONFIG_RTW_MAC_HIDDEN_RPT
+			#undef CONFIG_RTW_MAC_HIDDEN_RPT
+		#endif
+	#else
+		#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+			#define CONFIG_RTW_MAC_HIDDEN_RPT
+		#endif
+	#endif
 
 	#ifndef DBG_RX_DFRAME_RAW_DATA
 		#define DBG_RX_DFRAME_RAW_DATA
@@ -428,6 +433,8 @@
 	#ifndef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
 	#define CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
 	#endif
+
+	#define CONFIG_RTL8822C_XCAP_NEW_POLICY
 #endif /* CONFIG_RTL8822C */
 
 #ifdef CONFIG_RTL8821C
@@ -477,6 +484,8 @@
 	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#define CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#endif
+
+	#define CONFIG_BT_EFUSE_MASK
 #endif /*CONFIG_RTL8821C*/
 
 #ifdef CONFIG_RTL8710B
@@ -499,7 +508,6 @@
 		#define CONFIG_FW_C2H_PKT
 	#endif /* CONFIG_FW_C2H_PKT */
 	#define RTW_TX_PA_BIAS	/* Adjust TX PA Bias from eFuse */
-	//#define CONFIG_DFS	/* Enable 5G band 2&3 channel */
 	#define RTW_AMPDU_AGG_RETRY_AND_NEW
 
 	#ifdef CONFIG_WOWLAN
@@ -582,7 +590,7 @@
 	#define CONFIG_RTW_TX_NPATH_EN		/* 8814B is always 4TX */
 
 	#ifdef CONFIG_LPS
-		/* #define CONFIG_LPS_ACK */	/* Supported after FW v04 */
+		#define CONFIG_LPS_ACK	/* Supported after FW v04 */
 	#endif
 
 	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX

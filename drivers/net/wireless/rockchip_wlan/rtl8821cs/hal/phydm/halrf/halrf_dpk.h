@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -65,6 +66,13 @@ struct dm_dpk_info {
 	u8	dpk_band;
 	u8	dpk_bw;
 
+#if (RTL8822C_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1)
+	u16	dc_i[2];			/*MDPD DC I path*/
+	u16	dc_q[2];			/*MDPD DC Q path*/
+	u8	corr_val[2];			/*Corr value path*/
+	u8	corr_idx[2];			/*Corr index path*/
+#endif
+
 #if (RTL8822C_SUPPORT == 1 || RTL8812F_SUPPORT == 1)
 	u8	result[2];			/*path*/
 	u8	dpk_txagc[2];			/*path*/
@@ -121,5 +129,13 @@ struct dm_dpk_info {
 #endif
 
 };
+
+#if (RTL8822C_SUPPORT == 1)
+struct dm_dpk_c2h_report {
+	u8	path_ok[2];		/*path0_ok/path1_ok*/
+	u8	therm[2][2];		/*therm0_s0/therm0_s1/therm1_s0/therm1_s1*/
+	u8	therm_delta[2][2];	/*therm_delta0_s0/therm_delta0_s1/therm_delta1_s0/therm_delta1_s1*/
+};
+#endif
 
 #endif /*__HALRF_DPK_H__*/

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -118,6 +119,29 @@
 #define DESC_RATEVHTSS4MCS7		0x51
 #define DESC_RATEVHTSS4MCS8		0x52
 #define DESC_RATEVHTSS4MCS9		0x53
+
+#define IS_CCK_HRATE(_rate)		((_rate) <= DESC_RATE11M)
+#define IS_OFDM_HRATE(_rate)	((_rate) >= DESC_RATE6M && (_rate) <= DESC_RATE54M)
+#define IS_LEGACY_HRATE(_rate)	((_rate) <= DESC_RATE54M)
+#define IS_HT_HRATE(_rate)		((_rate) >= DESC_RATEMCS0 && (_rate) <= DESC_RATEMCS31)
+#define IS_VHT_HRATE(_rate)		((_rate) >= DESC_RATEVHTSS1MCS0 && (_rate) <= DESC_RATEVHTSS4MCS9)
+
+#define IS_HT1SS_HRATE(_rate) ((_rate) >= DESC_RATEMCS0 && (_rate) <= DESC_RATEMCS7)
+#define IS_HT2SS_HRATE(_rate) ((_rate) >= DESC_RATEMCS8 && (_rate) <= DESC_RATEMCS15)
+#define IS_HT3SS_HRATE(_rate) ((_rate) >= DESC_RATEMCS16 && (_rate) <= DESC_RATEMCS23)
+#define IS_HT4SS_HRATE(_rate) ((_rate) >= DESC_RATEMCS24 && (_rate) <= DESC_RATEMCS31)
+
+#define IS_VHT1SS_HRATE(_rate) ((_rate) >= DESC_RATEVHTSS1MCS0 && (_rate) <= DESC_RATEVHTSS1MCS9)
+#define IS_VHT2SS_HRATE(_rate) ((_rate) >= DESC_RATEVHTSS2MCS0 && (_rate) <= DESC_RATEVHTSS2MCS9)
+#define IS_VHT3SS_HRATE(_rate) ((_rate) >= DESC_RATEVHTSS3MCS0 && (_rate) <= DESC_RATEVHTSS3MCS9)
+#define IS_VHT4SS_HRATE(_rate) ((_rate) >= DESC_RATEVHTSS4MCS0 && (_rate) <= DESC_RATEVHTSS4MCS9)
+
+#define IS_1SS_HRATE(_rate)	(IS_CCK_HRATE((_rate)) || IS_OFDM_HRATE((_rate)) || IS_HT1SS_HRATE((_rate)) || IS_VHT1SS_HRATE((_rate)))
+#define IS_2SS_HRATE(_rate)	(IS_HT2SS_HRATE((_rate)) || IS_VHT2SS_HRATE((_rate)))
+#define IS_3SS_HRATE(_rate)	(IS_HT3SS_HRATE((_rate)) || IS_VHT3SS_HRATE((_rate)))
+#define IS_4SS_HRATE(_rate)	(IS_HT4SS_HRATE((_rate)) || IS_VHT4SS_HRATE((_rate)))
+
+#define HRARE_SS_NUM(_rate) (IS_1SS_HRATE(_rate) ? 1 : (IS_2SS_HRATE(_rate) ? 2 : (IS_3SS_HRATE(_rate) ? 3 : (IS_4SS_HRATE(_rate) ? 4 : 0))))
 
 #define HDATA_RATE(rate)\
 	(rate == DESC_RATE1M) ? "CCK_1M" :\
@@ -484,13 +508,6 @@ void rtw_hal_reqtxrpt(_adapter *padapter, u8 macid);
 u8 SetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value);
 u8 GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value);
 
-BOOLEAN
-eqNByte(
-	u8	*str1,
-	u8	*str2,
-	u32	num
-);
-
 u32
 MapCharToHexDigit(
 		char	chTmp
@@ -661,6 +678,7 @@ void rtw_hal_construct_beacon(_adapter *padapter, u8 *pframe, u32 *pLength);
 void rtw_hal_construct_NullFunctionData(PADAPTER, u8 *pframe, u32 *pLength,
 				u8 bQoS, u8 AC, u8 bEosp, u8 bForcePowerSave);
 
+bool _rtw_wow_chk_cap(_adapter *adapter, u8 cap);
 #ifdef CONFIG_WOWLAN
 struct rtl_wow_pattern {
 	u16	crc;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -880,47 +881,46 @@ void hw_tsf_reset(_adapter *adapter)
 	rtw_write8(adapter, tsf_rst_addr, tsf_rst_bit);
 }
 
-static void hw_var_set_monitor(PADAPTER Adapter, u8 *val)
+static void hw_var_set_monitor(PADAPTER adapter)
 {
-	u32	rcr_bits;
-	u8 mode;
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
-	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
+#ifdef CONFIG_WIFI_MONITOR
+	u8 tmp_8bit;
+	u32 tmp_32bit;
+	struct net_device *ndev = adapter->pnetdev;
+	struct mon_reg_backup *mon = &GET_HAL_DATA(adapter)->mon_backup;
 
-	mode = *((u8 *)val);
-
-	if (mode != _HW_STATE_MONITOR_) {
-		RTW_ERR(FUNC_ADPT_FMT" mode(0x%02x) invalid\n", FUNC_ADPT_ARG(Adapter), mode);
-		return;
-	}
+	mon->known_rcr = 1;
+	rtw_hal_get_hwreg(adapter, HW_VAR_RCR, (u8 *)& mon->rcr);
 
 	/* Receive all type */
-	rcr_bits = BIT_AAP_8821C | BIT_APM_8821C  | BIT_AM_8821C
-		   | BIT_AB_8821C  | BIT_APWRMGT_8821C
-		   | BIT_APP_PHYSTS_8821C;
+	tmp_32bit = BIT_AAP_8821C | BIT_APP_PHYSTS_8821C;
 
-	#if defined(CONFIG_RX_PACKET_APPEND_FCS) && !defined(CONFIG_CUSTOMER_ALIBABA_GENERAL)
-	/* Append FCS */
-	rcr_bits |= BIT_APP_FCS_8821C;
-	#endif
+	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP) {
+		/* Append FCS */
+		tmp_32bit |= BIT_APP_FCS_8821C;
+	}
 
-	#ifdef CONFIG_RX_PACKET_APPEND_CRC
-	/*CRC and ICV packet will drop in rx func*/
-	rcr_bits |= (BIT_ACRC32_8821C | BIT_AICV_8821C);
-	#endif
+	rtw_hal_set_hwreg(adapter, HW_VAR_RCR, (u8 *)& tmp_32bit);
 
-	rtw_hal_get_hwreg(Adapter, HW_VAR_RCR, (u8 *)&pHalData->rcr_backup);
-	rtw_hal_set_hwreg(Adapter, HW_VAR_RCR, (u8 *)&rcr_bits);
+	if (1)
+		rtw_halmac_config_rx_info(adapter_to_dvobj(adapter),
+			HALMAC_DRV_INFO_PHY_SNIFFER);
+	else
+		rtw_halmac_config_rx_info(adapter_to_dvobj(adapter),
+			HALMAC_DRV_INFO_PHY_PLCP);
+
+	tmp_8bit = rtw_read8(adapter, REG_RX_DRVINFO_SZ_8821C);
+	rtw_write8(adapter, REG_RX_DRVINFO_SZ_8821C, (tmp_8bit | 0x80));
 
 	/* Receive all data frames */
-	rtw_write16(Adapter, REG_RXFLTMAP0_8821C, 0xFFFF);
-	rtw_write16(Adapter, REG_RXFLTMAP1_8821C, 0xFFFF);
-	rtw_write16(Adapter, REG_RXFLTMAP2_8821C, 0xFFFF);
-
-	#if 0
-	/* tx pause */
-	rtw_write8(padapter, REG_TXPAUSE, 0xFF);
-	#endif
+	mon->known_rxfilter = 1;
+	mon->rxfilter0 = rtw_read16(adapter, REG_RXFLTMAP0_8821C);
+	mon->rxfilter1 = rtw_read16(adapter, REG_RXFLTMAP1_8821C);
+	mon->rxfilter2 = rtw_read16(adapter, REG_RXFLTMAP2_8821C);
+	rtw_write16(adapter, REG_RXFLTMAP0_8821C, 0xFFFF);
+	rtw_write16(adapter, REG_RXFLTMAP1_8821C, 0xFFFF);
+	rtw_write16(adapter, REG_RXFLTMAP2_8821C, 0xFFFF);
+#endif /* CONFIG_WIFI_MONITOR */
 }
 
 void hw_set_ta(_adapter *adapter, u8 hw_port, u8 *val)
@@ -1009,18 +1009,38 @@ static void hw_var_set_opmode(PADAPTER Adapter, u8 *val)
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
 
 	if (isMonitor == _TRUE) {
-		/* reset RCR from backup */
-		rtw_hal_set_hwreg(Adapter, HW_VAR_RCR, (u8 *)&pHalData->rcr_backup);
-		rtw_hal_rcr_set_chk_bssid(Adapter, MLME_ACTION_NONE);
+#ifdef CONFIG_WIFI_MONITOR
+		struct mon_reg_backup *backup = &GET_HAL_DATA(Adapter)->mon_backup;
+
+		if (backup->known_rcr) {
+			backup->known_rcr = 0;
+			rtw_hal_set_hwreg(Adapter, HW_VAR_RCR, (u8 *)&backup->rcr);
+
+			if (!!(backup->rcr &= BIT_APP_PHYSTS_8821C))
+				rtw_halmac_config_rx_info(adapter_to_dvobj(Adapter),
+					HALMAC_DRV_INFO_PHY_STATUS);
+			else
+				rtw_halmac_config_rx_info(adapter_to_dvobj(Adapter),
+					HALMAC_DRV_INFO_NONE);
+
+			rtw_hal_rcr_set_chk_bssid(Adapter, MLME_ACTION_NONE);
+		}
+		if (backup->known_rxfilter) {
+			backup->known_rxfilter = 0;
+			rtw_write16(Adapter, REG_RXFLTMAP0_8821C, backup->rxfilter0);
+			rtw_write16(Adapter, REG_RXFLTMAP1_8821C, backup->rxfilter1);
+			rtw_write16(Adapter, REG_RXFLTMAP2_8821C, backup->rxfilter2);
+		}
+#endif /* CONFIG_WIFI_MONITOR */
 		isMonitor = _FALSE;
 	}
 
 	if (mode == _HW_STATE_MONITOR_) {
 		isMonitor = _TRUE;
+
 		/* set net_type */
 		Set_MSR(Adapter, _HW_STATE_NOLINK_);
-
-		hw_var_set_monitor(Adapter, val);
+		hw_var_set_monitor(Adapter);
 		return;
 	}
 
@@ -1317,7 +1337,7 @@ static void hw_var_set_mlme_sitesurvey(PADAPTER adapter, u8 enable)
 		 * 2. config RCR not to receive different BSSID BCN or probe rsp
 		 * 3. can enable TSF update &  buddy TSF right now due to HW support(IC before 8821C not support ex:8812A/8814A/8192E...)
 		 */
-		if (rtw_mi_check_fwstate(adapter, _FW_LINKED | WIFI_AP_STATE | WIFI_MESH_STATE))/* enable to rx data frame */
+		if (rtw_mi_check_fwstate(adapter, WIFI_ASOC_STATE | WIFI_AP_STATE | WIFI_MESH_STATE))/* enable to rx data frame */
 			rtw_write16(adapter, REG_RXFLTMAP2_8821C, 0xFFFF);
 
 		rtw_hal_rcr_set_chk_bssid(adapter, MLME_SCAN_DONE);
@@ -2649,7 +2669,6 @@ void rtl8821c_init_xmit_priv(_adapter *adapter)
 }
 
 
-#if defined(CONFIG_CONCURRENT_MODE)
 void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc)
 {
 	if ((pattrib->encrypt > 0) && (!pattrib->bswenc)
@@ -2659,7 +2678,6 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc)
 		SET_TX_DESC_MACID_8821C(ptxdesc, pattrib->bmc_camid);
 	}
 }
-#endif
 
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc)
 {
@@ -2686,6 +2704,11 @@ void rtl8821c_fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc)
 #endif
 		case _AES_:
 			SET_TX_DESC_SEC_TYPE_8821C(ptxdesc, 0x3);
+			break;
+		case _CCMP_256_:
+		case _GCMP_:
+		case _GCMP_256_:
+			SET_TX_DESC_SEC_TYPE_8821C(ptxdesc, 0x2);
 			break;
 		case _NO_PRIVACY_:
 		default:
@@ -2964,10 +2987,8 @@ static void fill_default_txdesc(struct xmit_frame *pxmitframe, u8 *pbuf)
 
 		rtl8821c_fill_txdesc_sectype(pattrib, pbuf);
 
-#if defined(CONFIG_CONCURRENT_MODE)
 		if (bmcst)
 			fill_txdesc_force_bmc_camid(pattrib, pbuf);
-#endif
 
 #if defined(CONFIG_USB_TX_AGGREGATION) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 		if (pxmitframe->agg_num > 1) {
@@ -3290,6 +3311,10 @@ static void fill_fake_txdesc(PADAPTER adapter, u8 *pDesc, u32 BufferLen,
 		case _AES_:
 			SET_TX_DESC_SEC_TYPE_8821C(pDesc, 0x3);
 			break;
+		case _CCMP_256_:
+		case _GCMP_:
+		case _GCMP_256_:
+			SET_TX_DESC_SEC_TYPE_8821C(pDesc, 0x2);
 		default:
 			SET_TX_DESC_SEC_TYPE_8821C(pDesc, 0x0);
 			break;
@@ -3334,6 +3359,8 @@ void rtl8821c_rxdesc2attribute(struct rx_pkt_attrib *pattrib, u8 *desc)
 
 		pattrib->seq_num = (u16)GET_RX_DESC_SEQ_8821C(desc);
 		pattrib->frag_num = (u8)GET_RX_DESC_FRAG_8821C(desc);
+		pattrib->ampdu = (u8)GET_RX_DESC_PAGGR_8821C(desc);
+		pattrib->ampdu_eof = (u8)GET_RX_DESC_RX_EOF_8821C(desc);
 		pattrib->ppdu_cnt = (u8)GET_RX_DESC_PPDU_CNT_8821C(desc);
 		pattrib->free_cnt = (u32)GET_RX_DESC_TSFL_8821C(desc);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -1010,8 +1011,6 @@ void phydm_dm_summary_cli_win(void *dm_void, char *buf, u8 macid)
 
 	sta = dm->phydm_sta_info[macid];
 	if (is_sta_active(sta)) {
-		RT_PRINT(buf);
-
 		ra = &sta->ra_info;
 		dtp = &sta->dtp_stat;
 
@@ -1084,11 +1083,13 @@ void phydm_dm_summary_cli_win(void *dm_void, char *buf, u8 macid)
 		   DIFF_2(cfo_t->crystal_cap, cfo_t->def_x_cap));
 	RT_PRINT(buf);
 
-	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "15.(%s) %-12s: ratio{nhm, clm}={%d, %d}\n",
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "15.(%s) %-12s: ratio{nhm, clm}={%d, %d}, level{valid, RSSI}={%d, %d}\n",
 		   ((comp & ODM_BB_ENV_MONITOR) ?
 		   ((pause_comp & ODM_BB_ENV_MONITOR) ? "P" : "V") : "."),
 		   "EnvMntr",
-		   dm->dm_ccx_info.nhm_ratio, dm->dm_ccx_info.clm_ratio);
+		   dm->dm_ccx_info.nhm_ratio, dm->dm_ccx_info.clm_ratio,
+		   dm->dm_ccx_info.nhm_level_valid, dm->dm_ccx_info.nhm_level);
 	RT_PRINT(buf);
 #ifdef PHYDM_PRIMARY_CCA
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "16.(%s) %-12s: CCA @ (%s SB)\n",
@@ -1122,9 +1123,10 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
 	struct phydm_cfo_track_struct *cfo_t = &dm->dm_cfo_track;
-	struct odm_phy_dbg_info *dbg = &dm->phy_dbg_info;
+	struct odm_phy_dbg_info *dbg = &dm->phy_dbg_info_win_bkp;
 	struct phydm_phystatus_statistic *dbg_s = &dbg->physts_statistic_info;
 	struct phydm_phystatus_avg *dbg_avg = &dbg->phystatus_statistic_avg;
+
 	char *rate_type = NULL;
 	u8 tmp_rssi_avg[4];
 	u8 tmp_snr_avg[4];
@@ -1137,8 +1139,6 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 	struct cmn_sta_info *entry = NULL;
 	char dbg_buf[PHYDM_SNPRINT_SIZE] = {0};
 
-	if (dm->debug_components & DBG_CMN)
-		return;
 
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n PHYDM Common Dbg Msg --------->");
 	RT_PRINT(buf);
@@ -1280,15 +1280,12 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 		}
 #endif
 
-		phydm_reset_rx_rate_distribution(dm);
-
 		//1 Show phydm_avg_phystatus_val
 		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
 			   "\r\n [Avg PHY Statistic] ==============>\n");
 		RT_PRINT(buf);
-#if 1
-		phydm_get_avg_phystatus_val(dm);
 
+		/*===[Beacon]===*/
 		switch (dm->num_rf_path) {
 #if (defined(PHYDM_COMPILE_ABOVE_4SS))
 		case 4:
@@ -1329,6 +1326,7 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 		}
 		RT_PRINT(buf);
 
+		/*===[CCK]===*/
 		switch (dm->num_rf_path) {
 #ifdef PHYSTS_3RD_TYPE_SUPPORT
 	#if (defined(PHYDM_COMPILE_ABOVE_4SS))
@@ -1428,118 +1426,6 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 				    tmp_evm_avg[0], tmp_evm_avg[1], tmp_evm_avg[2], tmp_evm_avg[3]);
 			RT_PRINT(buf);
 		}
-#else
-		phydm_reset_phystatus_avg(dm);
-
-		/*@CCK*/
-		dbg_avg->rssi_cck_avg = (u8)((dbg_s->rssi_cck_cnt != 0) ? (dbg_s->rssi_cck_sum / dbg_s->rssi_cck_cnt) : 0);
-		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * cck Cnt= ((%d)) RSSI:{%d}",
-			   dbg_s->rssi_cck_cnt, dbg_avg->rssi_cck_avg);
-		RT_PRINT(buf);
-
-		/*OFDM*/
-		if (dbg_s->rssi_ofdm_cnt != 0) {
-			dbg_avg->rssi_ofdm_avg = (u8)(dbg_s->rssi_ofdm_sum / dbg_s->rssi_ofdm_cnt);
-			dbg_avg->evm_ofdm_avg = (u8)(dbg_s->evm_ofdm_sum / dbg_s->rssi_ofdm_cnt);
-			dbg_avg->snr_ofdm_avg = (u8)(dbg_s->snr_ofdm_sum / dbg_s->rssi_ofdm_cnt);
-		}
-
-		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * ofdm Cnt= ((%d)) RSSI:{%d} EVM:{%d} SNR:{%d}",
-			   dbg_s->rssi_ofdm_cnt, dbg_avg->rssi_ofdm_avg,
-			   dbg_avg->evm_ofdm_avg, dbg_avg->snr_ofdm_avg);
-		RT_PRINT(buf);
-
-		if (dbg_s->rssi_1ss_cnt != 0) {
-			dbg_avg->rssi_1ss_avg = (u8)(dbg_s->rssi_1ss_sum / dbg_s->rssi_1ss_cnt);
-			dbg_avg->evm_1ss_avg = (u8)(dbg_s->evm_1ss_sum / dbg_s->rssi_1ss_cnt);
-			dbg_avg->snr_1ss_avg = (u8)(dbg_s->snr_1ss_sum / dbg_s->rssi_1ss_cnt);
-		}
-
-		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * 1-ss Cnt= ((%d)) RSSI:{%d} EVM:{%d} SNR:{%d}",
-			   dbg_s->rssi_1ss_cnt, dbg_avg->rssi_1ss_avg,
-			   dbg_avg->evm_1ss_avg, dbg_avg->snr_1ss_avg);
-		RT_PRINT(buf);
-
-#if (defined(PHYDM_COMPILE_ABOVE_2SS))
-		if (dm->support_ic_type & (PHYDM_IC_ABOVE_2SS)) {
-			if (dbg_s->rssi_2ss_cnt != 0) {
-				dbg_avg->rssi_2ss_avg[0] = (u8)(dbg_s->rssi_2ss_sum[0] / dbg_s->rssi_2ss_cnt);
-				dbg_avg->rssi_2ss_avg[1] = (u8)(dbg_s->rssi_2ss_sum[1] / dbg_s->rssi_2ss_cnt);
-
-				dbg_avg->evm_2ss_avg[0] = (u8)(dbg_s->evm_2ss_sum[0] / dbg_s->rssi_2ss_cnt);
-				dbg_avg->evm_2ss_avg[1] = (u8)(dbg_s->evm_2ss_sum[1] / dbg_s->rssi_2ss_cnt);
-
-				dbg_avg->snr_2ss_avg[0] = (u8)(dbg_s->snr_2ss_sum[0] / dbg_s->rssi_2ss_cnt);
-				dbg_avg->snr_2ss_avg[1] = (u8)(dbg_s->snr_2ss_sum[1] / dbg_s->rssi_2ss_cnt);
-			}
-
-			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * 2-ss Cnt= ((%d)) RSSI:{%d, %d}, EVM:{%d, %d}, SNR:{%d, %d}",
-				   dbg_s->rssi_2ss_cnt, dbg_avg->rssi_2ss_avg[0],
-				   dbg_avg->rssi_2ss_avg[1], dbg_avg->evm_2ss_avg[0],
-				   dbg_avg->evm_2ss_avg[1], dbg_avg->snr_2ss_avg[0],
-				   dbg_avg->snr_2ss_avg[1]);
-			RT_PRINT(buf);
-		}
-#endif
-
-#if (defined(PHYDM_COMPILE_ABOVE_3SS))
-		if (dm->support_ic_type & (PHYDM_IC_ABOVE_3SS)) {
-			if (dbg_s->rssi_3ss_cnt != 0) {
-				dbg_avg->rssi_3ss_avg[0] = (u8)(dbg_s->rssi_3ss_sum[0] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->rssi_3ss_avg[1] = (u8)(dbg_s->rssi_3ss_sum[1] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->rssi_3ss_avg[2] = (u8)(dbg_s->rssi_3ss_sum[2] / dbg_s->rssi_3ss_cnt);
-
-				dbg_avg->evm_3ss_avg[0] = (u8)(dbg_s->evm_3ss_sum[0] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->evm_3ss_avg[1] = (u8)(dbg_s->evm_3ss_sum[1] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->evm_3ss_avg[2] = (u8)(dbg_s->evm_3ss_sum[2] / dbg_s->rssi_3ss_cnt);
-
-				dbg_avg->snr_3ss_avg[0] = (u8)(dbg_s->snr_3ss_sum[0] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->snr_3ss_avg[1] = (u8)(dbg_s->snr_3ss_sum[1] / dbg_s->rssi_3ss_cnt);
-				dbg_avg->snr_3ss_avg[2] = (u8)(dbg_s->snr_3ss_sum[2] / dbg_s->rssi_3ss_cnt);
-			}
-
-			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * 3-ss Cnt= ((%d)) RSSI:{%d, %d, %d} EVM:{%d, %d, %d} SNR:{%d, %d, %d}",
-				   dbg_s->rssi_3ss_cnt, dbg_avg->rssi_3ss_avg[0],
-				   dbg_avg->rssi_3ss_avg[1], dbg_avg->rssi_3ss_avg[2],
-				   dbg_avg->evm_3ss_avg[0], dbg_avg->evm_3ss_avg[1],
-				   dbg_avg->evm_3ss_avg[2], dbg_avg->snr_3ss_avg[0],
-				   dbg_avg->snr_3ss_avg[1], dbg_avg->snr_3ss_avg[2]);
-			RT_PRINT(buf);
-		}
-#endif
-
-#if (defined(PHYDM_COMPILE_ABOVE_4SS))
-		if (dm->support_ic_type & PHYDM_IC_ABOVE_4SS) {
-			if (dbg_s->rssi_4ss_cnt != 0) {
-				dbg_avg->rssi_4ss_avg[0] = (u8)(dbg_s->rssi_4ss_sum[0] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->rssi_4ss_avg[1] = (u8)(dbg_s->rssi_4ss_sum[1] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->rssi_4ss_avg[2] = (u8)(dbg_s->rssi_4ss_sum[2] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->rssi_4ss_avg[3] = (u8)(dbg_s->rssi_4ss_sum[3] / dbg_s->rssi_4ss_cnt);
-
-				dbg_avg->evm_4ss_avg[0] = (u8)(dbg_s->evm_4ss_sum[0] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->evm_4ss_avg[1] = (u8)(dbg_s->evm_4ss_sum[1] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->evm_4ss_avg[2] = (u8)(dbg_s->evm_4ss_sum[2] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->evm_4ss_avg[3] = (u8)(dbg_s->evm_4ss_sum[3] / dbg_s->rssi_4ss_cnt);
-
-				dbg_avg->snr_4ss_avg[0] = (u8)(dbg_s->snr_4ss_sum[0] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->snr_4ss_avg[1] = (u8)(dbg_s->snr_4ss_sum[1] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->snr_4ss_avg[2] = (u8)(dbg_s->snr_4ss_sum[2] / dbg_s->rssi_4ss_cnt);
-				dbg_avg->snr_4ss_avg[3] = (u8)(dbg_s->snr_4ss_sum[3] / dbg_s->rssi_4ss_cnt);
-			}
-
-			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE, "\r\n * 4-ss Cnt= ((%d)) RSSI:{%d, %d, %d, %d} EVM:{%d, %d, %d, %d} SNR:{%d, %d, %d, %d}",
-				   dbg_s->rssi_4ss_cnt, dbg_avg->rssi_4ss_avg[0],
-				   dbg_avg->rssi_4ss_avg[1], dbg_avg->rssi_4ss_avg[2],
-				   dbg_avg->rssi_4ss_avg[3], dbg_avg->evm_4ss_avg[0],
-				   dbg_avg->evm_4ss_avg[1], dbg_avg->evm_4ss_avg[2],
-				   dbg_avg->evm_4ss_avg[3], dbg_avg->snr_4ss_avg[0],
-				   dbg_avg->snr_4ss_avg[1], dbg_avg->snr_4ss_avg[2],
-				   dbg_avg->snr_4ss_avg[3]);
-			RT_PRINT(buf);
-		}
-#endif
-#endif
-		phydm_reset_phystatus_statistic(dm);
 		/*@----------------------------------------------------------*/
 
 		/*Print TX rate*/
@@ -1599,16 +1485,75 @@ void phydm_basic_dbg_msg_cli_win(void *dm_void, char *buf)
 		   fa_t->cnt_cck_fail, fa_t->cnt_ofdm_fail, fa_t->cnt_all);
 	RT_PRINT(buf);
 
-	#if (ODM_IC_11N_SERIES_SUPPORT)
-	if (dm->support_ic_type & ODM_IC_11N_SERIES) {
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "\r\n [OFDM FA] Parity=%d, Rate=%d, Fast_Fsync=%d, SBD=%d",
+		   fa_t->cnt_parity_fail, fa_t->cnt_rate_illegal,
+		   fa_t->cnt_fast_fsync, fa_t->cnt_sb_search_fail);
+	RT_PRINT(buf);
+
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "\r\n [HT FA] HT_CRC8=%d, HT_MCS=%d",
+		   fa_t->cnt_crc8_fail, fa_t->cnt_mcs_fail);
+	RT_PRINT(buf);
+
+#if (ODM_IC_11AC_SERIES_SUPPORT || defined(PHYDM_IC_JGR3_SERIES_SUPPORT))
+	if (dm->support_ic_type & (ODM_IC_11AC_SERIES | ODM_IC_JGR3_SERIES)) {
 		RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
-			   "\r\n [OFDM FA Detail] Parity_Fail=%d, Rate_Illegal=%d, CRC8=%d, MCS_fail=%d, Fast_sync=%d, SB_Search_fail=%d",
-			   fa_t->cnt_parity_fail, fa_t->cnt_rate_illegal,
-			   fa_t->cnt_crc8_fail, fa_t->cnt_mcs_fail,
-			   fa_t->cnt_fast_fsync, fa_t->cnt_sb_search_fail);
+			   "\r\n [VHT FA] VHT_SIGA_CRC8=%d, VHT_SIGB_CRC8=%d, VHT_MCS=%d",
+			   fa_t->cnt_crc8_fail_vhta, fa_t->cnt_crc8_fail_vhtb,
+			   fa_t->cnt_mcs_fail_vht);
 		RT_PRINT(buf);
 	}
-	#endif
+#endif
+
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "\r\n [CRC32 OK Cnt] {CCK, OFDM, HT, VHT, Total} = {%d, %d, %d, %d, %d}",
+		   fa_t->cnt_cck_crc32_ok, fa_t->cnt_ofdm_crc32_ok,
+		   fa_t->cnt_ht_crc32_ok, fa_t->cnt_vht_crc32_ok,
+		   fa_t->cnt_crc32_ok_all);
+	RT_PRINT(buf);
+
+	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+		   "\r\n [CRC32 Err Cnt] {CCK, OFDM, HT, VHT, Total} = {%d, %d, %d, %d, %d}",
+		   fa_t->cnt_cck_crc32_error,
+		   fa_t->cnt_ofdm_crc32_error,
+		   fa_t->cnt_ht_crc32_error, fa_t->cnt_vht_crc32_error,
+		   fa_t->cnt_crc32_error_all);
+	RT_PRINT(buf);
+
+#if (ODM_IC_11AC_SERIES_SUPPORT || defined(PHYDM_IC_JGR3_SERIES_SUPPORT))
+	if (dm->support_ic_type & (ODM_IC_11AC_SERIES | ODM_IC_JGR3_SERIES)) {
+		if (fa_t->ofdm2_rate_idx) {
+			phydm_print_rate_2_buff(dm, fa_t->ofdm2_rate_idx,
+						dbg_buf, PHYDM_SNPRINT_SIZE);
+			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+				   "\r\n [OFDM:%s CRC32 Cnt] {error, ok}= {%d, %d}",
+				   dbg_buf, fa_t->cnt_ofdm2_crc32_error,
+				   fa_t->cnt_ofdm2_crc32_ok);
+			RT_PRINT(buf);
+		}
+
+		if (fa_t->ht2_rate_idx) {
+			phydm_print_rate_2_buff(dm, fa_t->ht2_rate_idx, dbg_buf,
+						PHYDM_SNPRINT_SIZE);
+			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+				   "\r\n [HT  :%s CRC32 Cnt] {error, ok}= {%d, %d}",
+				   dbg_buf, fa_t->cnt_ht2_crc32_error,
+				   fa_t->cnt_ht2_crc32_ok);
+			RT_PRINT(buf);
+		}
+
+		if (fa_t->vht2_rate_idx) {
+			phydm_print_rate_2_buff(dm, fa_t->vht2_rate_idx,
+						dbg_buf, PHYDM_SNPRINT_SIZE);
+			RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
+				   "\r\n [VHT :%s CRC32 Cnt] {error, ok}= {%d, %d}",
+				   dbg_buf, fa_t->cnt_vht2_crc32_error,
+				   fa_t->cnt_vht2_crc32_ok);
+			RT_PRINT(buf);
+		}
+	}
+#endif
 	RT_SPRINTF(buf, DBGM_CLI_BUF_SIZE,
 		   "\r\n is_linked = %d, Num_client = %d, rssi_min = %d, IGI = 0x%x, bNoisy=%d\n",
 		   dm->is_linked, dm->number_linked_client, dm->rssi_min,
@@ -2005,7 +1950,7 @@ void phydm_show_cn_hitogram(void *dm_void)
 
 	phydm_print_hist_2_buf(dm, th_tmp,
 			       PHY_HIST_TH_SIZE, buf, PHYDM_SNPRINT_SIZE);
-	PHYDM_DBG(dm, DBG_CMN, "%-22s=%s\n", "[CN_TH]", buf);
+	PHYDM_DBG(dm, DBG_CMN, "%-24s=%s\n", "[CN_TH]", buf);
 
 /*@===[Histogram]=============================================================*/
 
@@ -2013,13 +1958,16 @@ void phydm_show_cn_hitogram(void *dm_void)
 		if (dbg_s->p4_cnt[i] == 0)
 			continue;
 
-		cn_avg = PHYDM_DIV((dbg_s->cn_sum[i] + (dbg_s->p4_cnt[i] >> 1)),
-				   dbg_s->p4_cnt[i]);
+		cn_avg = PHYDM_DIV((dbg_s->cn_sum[i] +
+				   (dbg_s->p4_cnt[i] >> 1)) << 2,
+				   dbg_s->p4_cnt[i]); /*u(8,1)<<2 -> u(10,3)*/
+
 		cn_hist = &dbg_s->cn_hist[i][0];
 		phydm_print_hist_2_buf(dm, cn_hist,
 				       PHY_HIST_SIZE, buf, PHYDM_SNPRINT_SIZE);
-		PHYDM_DBG(dm, DBG_CMN, "[%d-SS]%s=(avg:%d.%d)%s\n",
-			  i + 1, "[CN]", cn_avg >> 1, (cn_avg & 0x1) * 5, buf);
+		PHYDM_DBG(dm, DBG_CMN, "[%d-SS]%s=(avg:%d.%4d)%s\n",
+			  i + 1, "[CN]", cn_avg >> 3,
+			  phydm_show_fraction_num(cn_avg & 0x7, 3), buf);
 	}
 }
 #endif
@@ -2310,30 +2258,8 @@ void phydm_get_avg_phystatus_val(void *dm_void)
 		break;
 	}
 
-#if 1
 	for (i = 0; i <= dm->num_rf_path; i++)
 		phydm_avg_phy_val_nss(dm, i);
-#else
-	/*@===[OFDM]===*/
-	phydm_avg_phy_val_nss(dm, 0);
-	/*@===[1-SS]===*/
-	phydm_avg_phy_val_nss(dm, 1);
-	/*@===[2-SS]===*/
-	#if (defined(PHYDM_COMPILE_ABOVE_2SS))
-	if (dm->support_ic_type & (PHYDM_IC_ABOVE_2SS))
-		phydm_avg_phy_val_nss(dm, 2);
-	#endif
-	/*@===[3-SS]===*/
-	#if (defined(PHYDM_COMPILE_ABOVE_3SS))
-	if (dm->support_ic_type & (PHYDM_IC_ABOVE_3SS))
-		phydm_avg_phy_val_nss(dm, 3);
-	#endif
-	/*@===[4-SS]===*/
-	#if (defined(PHYDM_COMPILE_ABOVE_4SS))
-	if (dm->support_ic_type & PHYDM_IC_ABOVE_4SS)
-		phydm_avg_phy_val_nss(dm, 4);
-	#endif
-#endif
 }
 
 void phydm_get_phy_statistic(void *dm_void)
@@ -2493,6 +2419,13 @@ void phydm_basic_dbg_msg_linked(void *dm_void)
 			  (dbg_t->is_ldpc_pkt) ? "Y" : "N",
 			  (dbg_t->is_stbc_pkt) ? "Y" : "N");
 #endif
+
+#if (RTL8822C_SUPPORT)
+	/*Beamformed pkt*/
+	if (dm->support_ic_type == ODM_RTL8822C)
+		PHYDM_DBG(dm, DBG_CMN, "Beamformed=((%s))\n",
+			  (dm->is_beamformed) ? "Y" : "N");
+#endif
 }
 
 void phydm_dm_summary(void *dm_void, u8 macid)
@@ -2628,14 +2561,30 @@ void phydm_basic_dbg_message(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
+	struct odm_phy_dbg_info *dbg = &dm->phy_dbg_info;
+	#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	struct odm_phy_dbg_info *dbg_b = &dm->phy_dbg_info_win_bkp;
+	#endif
 	#ifdef NHM_SUPPORT
 	struct ccx_info *ccx = &dm->dm_ccx_info;
-	u8 nhm_valid = 0;
 	#endif
 
-	if (!(dm->debug_components & DBG_CMN))
+	#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	/* backup memory*/
+	odm_move_memory(dm, dbg_b, dbg, sizeof(struct odm_phy_dbg_info));
+	#endif
+
+	if (!(dm->debug_components & DBG_CMN)) {
+		#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+		/* reset rx rate distribution*/
+		phydm_reset_rx_rate_distribution(dm);
+		/* cal & reset avg of rssi/snr/evm*/
+		phydm_get_avg_phystatus_val(dm);
+		/* reset sum of rssi/snr/evm*/
+		phydm_reset_phystatus_statistic(dm);
+		#endif
 		return;
-	
+	}
 
 	if (dm->cmn_dbg_msg_cnt >= dm->cmn_dbg_msg_period) {
 		dm->cmn_dbg_msg_cnt = PHYDM_WATCH_DOG_PERIOD;
@@ -2654,24 +2603,34 @@ void phydm_basic_dbg_message(void *dm_void)
 
 	PHYDM_DBG(dm, DBG_CMN, "[CCA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_cca, fa_t->cnt_ofdm_cca, fa_t->cnt_cca_all);
-
 	PHYDM_DBG(dm, DBG_CMN, "[FA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_fail, fa_t->cnt_ofdm_fail, fa_t->cnt_all);
-
 	PHYDM_DBG(dm, DBG_CMN,
-		  "[OFDM FA Detail] Parity_Fail=%d, Rate_Illegal=%d, CRC8=%d, MCS_fail=%d, Fast_sync=%d, SB_Search_fail=%d\n",
+		  "[OFDM FA] Parity=%d, Rate=%d, Fast_Fsync=%d, SBD=%d\n",
 		  fa_t->cnt_parity_fail, fa_t->cnt_rate_illegal,
-		  fa_t->cnt_crc8_fail, fa_t->cnt_mcs_fail,
 		  fa_t->cnt_fast_fsync, fa_t->cnt_sb_search_fail);
-
+	PHYDM_DBG(dm, DBG_CMN,
+		  "[HT FA] HT_CRC8=%d, HT_MCS=%d\n",
+		  fa_t->cnt_crc8_fail, fa_t->cnt_mcs_fail);
 #if (ODM_IC_11AC_SERIES_SUPPORT || defined(PHYDM_IC_JGR3_SERIES_SUPPORT))
 	if (dm->support_ic_type & (ODM_IC_11AC_SERIES | ODM_IC_JGR3_SERIES)) {
 		PHYDM_DBG(dm, DBG_CMN,
-			  "[OFDM FA Detail VHT] CRC8_VHT-SIGA=%d, CRC8_VHT-SIGB=%d, MCS_Fail_VHT=%d\n",
+			  "[VHT FA] VHT_SIGA_CRC8=%d, VHT_SIGB_CRC8=%d, VHT_MCS=%d\n",
 			  fa_t->cnt_crc8_fail_vhta, fa_t->cnt_crc8_fail_vhtb,
 			  fa_t->cnt_mcs_fail_vht);
 	}
 #endif
+	PHYDM_DBG(dm, DBG_CMN,
+		  "[CRC32 OK Cnt] {CCK, OFDM, HT, VHT, Total} = {%d, %d, %d, %d, %d}\n",
+		  fa_t->cnt_cck_crc32_ok, fa_t->cnt_ofdm_crc32_ok,
+		  fa_t->cnt_ht_crc32_ok, fa_t->cnt_vht_crc32_ok,
+		  fa_t->cnt_crc32_ok_all);
+	PHYDM_DBG(dm, DBG_CMN,
+		  "[CRC32 Err Cnt] {CCK, OFDM, HT, VHT, Total} = {%d, %d, %d, %d, %d}\n",
+		  fa_t->cnt_cck_crc32_error, fa_t->cnt_ofdm_crc32_error,
+		  fa_t->cnt_ht_crc32_error, fa_t->cnt_vht_crc32_error,
+		  fa_t->cnt_crc32_error_all);
+
 	PHYDM_DBG(dm, DBG_CMN,
 		  "is_linked = %d, Num_client = %d, rssi_min = %d, IGI = 0x%x, bNoisy=%d\n",
 		  dm->is_linked, dm->number_linked_client, dm->rssi_min,
@@ -2679,13 +2638,9 @@ void phydm_basic_dbg_message(void *dm_void)
 
 #ifdef NHM_SUPPORT
 	if (dm->support_ability & ODM_BB_ENV_MONITOR) {
-		nhm_valid = (ccx->nhm_noise_pwr_point * 100) >> 8;
-
 		PHYDM_DBG(dm, DBG_CMN,
-			  "[NHM] valid: %d percent, noise(RSSI) = %d, nhm_r[11](RSSI > %d)= %d\n\n",
-			  nhm_valid, ccx->nhm_noise_pwr,
-			  NTH_TH_2_RSSI(ccx->nhm_th[NHM_TH_NUM - 1]),
-			  ccx->nhm_result[NHM_RPT_NUM - 1]);
+			  "[NHM] valid: %d percent, noise(RSSI) = %d\n",
+			  ccx->nhm_level_valid, ccx->nhm_level);
 	}
 #endif
 }
@@ -2926,7 +2881,7 @@ void phydm_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %d\n",
 		 "RFE type", dm->rfe_type);
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %s\n",
-		 "Cut Ver", cut);
+		 "CART_Ver", cut);
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %d\n",
 		 "PHY Para Ver", odm_get_hw_img_version(dm));
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %d\n",
@@ -3443,6 +3398,33 @@ void phydm_set_txagc_dbg(void *dm_void, char input[][16], u32 *_used,
 	*_out_len = out_len;
 }
 
+void phydm_cmn_msg_setting(void *dm_void, u32 *val, u32 *_used,
+			   char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+
+	if (val[1] == 1) {
+		dm->cmn_dbg_msg_period = (u8)val[2];
+
+		if (dm->cmn_dbg_msg_period < PHYDM_WATCH_DOG_PERIOD)
+			dm->cmn_dbg_msg_period = PHYDM_WATCH_DOG_PERIOD;
+
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "cmn_dbg_msg_period=%d\n", dm->cmn_dbg_msg_period);
+	}
+
+#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
+	if (val[1] == 1)
+		phydm_physts_auto_switch_jgr3_set(dm, true, BIT(4) | BIT(1));
+	else
+		phydm_physts_auto_switch_jgr3_set(dm, false, BIT(1));
+#endif
+	*_used = used;
+	*_out_len = out_len;
+}
+
 void phydm_debug_trace(void *dm_void, char input[][16], u32 *_used,
 		       char *output, u32 *_out_len)
 {
@@ -3577,15 +3559,8 @@ void phydm_debug_trace(void *dm_void, char input[][16], u32 *_used,
 				 dm->phy_dbg_info.show_phy_sts_all_pkt,
 				 dm->phy_dbg_info.show_phy_sts_max_cnt);
 
-		} else if ((BIT(val[0]) == DBG_CMN) && (val[1] == 1)) {
-			dm->cmn_dbg_msg_period = (u8)val[2];
-
-			if (dm->cmn_dbg_msg_period < PHYDM_WATCH_DOG_PERIOD)
-				dm->cmn_dbg_msg_period = PHYDM_WATCH_DOG_PERIOD;
-
-			PDM_SNPF(out_len, used, output + used, out_len - used,
-				 "cmn_dbg_msg_period=%d\n",
-				 dm->cmn_dbg_msg_period);
+		} else if (BIT(val[0]) == DBG_CMN) {
+			phydm_cmn_msg_setting(dm, val, &used, output, &out_len);
 		}
 	}
 	PDM_SNPF(out_len, used, output + used, out_len - used,
@@ -3693,7 +3668,7 @@ void phydm_dump_bb_reg_ac(void *dm_void, u32 *_used, char *output,
 	}
 
 	if (!(dm->support_ic_type &
-	    (ODM_RTL8822B | ODM_RTL8814A | ODM_RTL8821C)))
+	    (ODM_RTL8822B | ODM_RTL8814A | ODM_RTL8821C | ODM_RTL8195B)))
 		goto rpt_reg;
 
 	if (dm->rf_type > RF_2T2R) {
@@ -3817,8 +3792,8 @@ void phydm_get_per_path_anapar_jgr3(void *dm_void, u8 path, u32 *_used,
 	u32 dbgport_idx = 0;
 	u32 dbgport_val = 0;
 
-	PDM_SNPF(out_len, used, output + used, out_len - used, "path-%d:\n",
-		 path);
+	PDM_VAST_SNPF(out_len, used, output + used, out_len - used,
+		      "path-%d:\n", path);
 
 	if (path == RF_PATH_A) {
 		reg_idx = R_0x1830;
@@ -3843,14 +3818,16 @@ void phydm_get_per_path_anapar_jgr3(void *dm_void, u8 path, u32 *_used,
 			dbgport_val = phydm_get_bb_dbg_port_val(dm);
 			phydm_release_bb_dbg_port(dm);
 		} else {
-			PDM_SNPF(out_len, used, output + used, out_len - used,
-				 "state:0x%x = read dbg_port error!\n", state);
+			PDM_VAST_SNPF(out_len, used, output + used,
+				      out_len - used,
+				      "state:0x%x = read dbg_port error!\n",
+				      state);
 		}
 		control_bb = (dbgport_val & 0xFFFF0) >> 4;
 		control_pow = dbgport_val & 0xF;
-		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "state:0x%x = control_bb:0x%x pow_bb:0x%x\n",
-			 state, control_bb, control_pow);
+		PDM_VAST_SNPF(out_len, used, output + used, out_len - used,
+			      "state:0x%x = control_bb:0x%x pow_bb:0x%x\n",
+			      state, control_bb, control_pow);
 	}
 	odm_set_bb_reg(dm, reg_idx, 0xf00000, state_bp);
 	odm_set_bb_reg(dm, reg_idx, 0x38000000, 0x6); /* @write en*/
@@ -4897,6 +4874,122 @@ void phydm_reg_monitor(void *dm_void, char input[][16], u32 *_used,
 	*_out_len = out_len;
 }
 
+#if (RTL8822C_SUPPORT)
+u16 phydm_get_agc_rf_gain(void *dm_void, boolean is_mod, u8 tab, u8 mp_gain_i)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u16 rf_gain = 0x0;
+
+	if (is_mod)
+		rf_gain = dm->agc_rf_gain[tab][mp_gain_i];
+	else
+		rf_gain = dm->agc_rf_gain_ori[tab][mp_gain_i];
+
+	return rf_gain;
+}
+#endif
+
+void phydm_get_rxagc_table_dbg(void *dm_void, char input[][16], u32 *_used,
+			       char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 tab = 0;
+	boolean is_modified = false;
+	u8 mp_gain = 0;
+	u16 rf_gain = 0;
+	u8 i = 0;
+
+#if (RTL8822C_SUPPORT)
+	if (!(dm->support_ic_type & ODM_RTL8822C))
+		return;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "get rxagc table : {0:ori, 1:modified} {table:0~15} {mp_gain_idx:0~63, all:0xff}\n");
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
+		}
+
+		is_modified = (boolean)var1[0];
+		tab = (u8)var1[1];
+		mp_gain = (u8)var1[2];
+
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "agc_table_cnt:%d, is_agc_tab_pos_shift:%d, agc_table_shift:%d\n",
+			 dm->agc_table_cnt, dm->is_agc_tab_pos_shift,
+			 dm->agc_table_shift);
+
+		if (mp_gain == 0xff) {
+			for (i = 0; i < 64; i++) {
+				rf_gain = phydm_get_agc_rf_gain(dm, is_modified,
+								tab, i);
+
+				PDM_SNPF(out_len, used, output + used,
+					 out_len - used,
+					 "agc_table:%d, mp_gain_idx:0x%x, rf_gain_idx:0x%x\n",
+					 tab, i, rf_gain);
+			}
+		} else {
+			rf_gain = phydm_get_agc_rf_gain(dm, is_modified, tab,
+							mp_gain);
+
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "agc_table:%d, mp_gain_idx:0x%x, rf_gain_idx:0x%x\n",
+				 tab, mp_gain, rf_gain);
+		}
+	}
+#endif
+	*_used = used;
+	*_out_len = out_len;
+}
+
+void phydm_shift_rxagc_table_dbg(void *dm_void, char input[][16], u32 *_used,
+				 char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 i = 0;
+	u16 value_db = 0;
+
+#if (RTL8822C_SUPPORT)
+	if (!(dm->support_ic_type & ODM_RTL8822C))
+		return;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "shift rxagc table : {0:-, 1:+} {value(0~63, unit:2dB)}\n");
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+					     &var1[i]);
+		}
+
+		if ((u8)var1[1] > 63) {
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "Do not enter the value larger than 63!\n");
+		} else {
+			phydm_shift_rxagc_table(dm, (boolean)var1[0],
+						(u8)var1[1]);
+
+			value_db = (u8)var1[1] << 1;
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "shift %s%d dB gain\n",
+				 (((boolean)var1[0]) ? "+" : "-"), value_db);
+		}
+	}
+#endif
+}
+
 #if RTL8814B_SUPPORT
 void phydm_spur_detect_dbg(void *dm_void, char input[][16], u32 *_used,
 			   char *output, u32 *_out_len)
@@ -4910,40 +5003,36 @@ void phydm_spur_detect_dbg(void *dm_void, char input[][16], u32 *_used,
 
 	if ((strcmp(input[1], help) == 0)) {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "{0: Auto spur detect(NBI+CSI), 1:NBI only,");
+			 "{0: Auto spur detect(NBI+CSI), 1:NBI always ON/ CSI Auto,");
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "2: CSI only, 3: Disable}\n");
+			 "2: CSI always On/ NBI Auto, 3: Disable, 4: CSI & NBI ON}\n");
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "{NBI path(0~3) | CSI wgt (0~7)}\n");
+			 "{If CSI always ON (Mode 2 or 4) -> CSI wgt manual(0~7)}\n");
 	} else {
 		for (i = 0; i < 10; i++) {
 			if (input[i + 1])
 				PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
 		}
 
-		if (var1[0] == 1)
+		if (var1[0] == 1) {
 			dm->dsde_sel = DET_NBI;
-		else if (var1[0] == 2)
+		} else if (var1[0] == 2) {
 			dm->dsde_sel = DET_CSI;
-		else if (var1[0] == 3)
+		} else if (var1[0] == 3) {
 			dm->dsde_sel = DET_DISABLE;
-		else
+		} else if (var1[0] == 4) {
+			dm->dsde_sel = DET_CSI_NBI_EN;
+		} else if (var1[0] == 0) {
 			dm->dsde_sel = DET_AUTO;
-
+		} else {
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "Spur detection mode invalid!\n");
+			return;
+		}
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "spur detect mode = %d\n", dm->dsde_sel);
 
-		if (dm->dsde_sel == DET_NBI) {
-			if (var1[1] < 4) {
-				dm->nbi_path_sel = (u8)var1[1];
-				PDM_SNPF(out_len, used, output + used,
-					 out_len - used, "NBI set path %d\n",
-					 dm->nbi_path_sel);
-			} else {
-				PDM_SNPF(out_len, used, output + used,
-					 out_len - used, "path setting fail\n");
-			}
-		} else if (dm->dsde_sel == DET_CSI) {
+		if (dm->dsde_sel == DET_CSI_NBI_EN) {
 			if (var1[1] < 8) {
 				dm->csi_wgt = (u8)var1[1];
 				PDM_SNPF(out_len, used, output + used,
@@ -4952,7 +5041,8 @@ void phydm_spur_detect_dbg(void *dm_void, char input[][16], u32 *_used,
 			} else {
 				PDM_SNPF(out_len, used, output + used,
 					 out_len - used,
-					 "CSI wgt setting fail\n");
+					 "CSI wgt setting invalid. Please set the correct wgt!\n");
+				return;
 			}
 		}
 	}
@@ -5023,7 +5113,10 @@ enum PHYDM_CMD_ID {
 #if RTL8814B_SUPPORT
 	PHYDM_SPUR_DETECT,
 #endif
-	PHYDM_PHY_STATUS
+	PHYDM_PHY_STATUS,
+	PHYDM_FA_CNT,
+	PHYDM_GET_RXAGC,
+	PHYDM_SHIFT_RXAGC
 };
 
 struct phydm_command phy_dm_ary[] = {
@@ -5082,7 +5175,10 @@ struct phydm_command phy_dm_ary[] = {
 #if RTL8814B_SUPPORT
 	{"spur_detect", PHYDM_SPUR_DETECT},
 #endif
-	{"physts", PHYDM_PHY_STATUS}
+	{"physts", PHYDM_PHY_STATUS},
+	{"fa_cnt", PHYDM_FA_CNT},
+	{"get_rxagc", PHYDM_GET_RXAGC},
+	{"shift_rxagc", PHYDM_SHIFT_RXAGC}
 	};
 
 #endif /*@#ifdef CONFIG_PHYDM_DEBUG_FUNCTION*/
@@ -5442,10 +5538,18 @@ void phydm_cmd_parser(struct dm_struct *dm, char input[][MAX_ARGV],
 		phydm_spur_detect_dbg(dm, input, &used, output, &out_len);
 		break;
 #endif
+	case PHYDM_FA_CNT:
+		phydm_fa_cnt_dbg(dm, input, &used, output, &out_len);
+		break;
 	case PHYDM_PHY_STATUS:
 		phydm_physts_dbg(dm, input, &used, output, &out_len);
 		break;
-
+	case PHYDM_GET_RXAGC:
+		phydm_get_rxagc_table_dbg(dm, input, &used, output, &out_len);
+		break;
+	case PHYDM_SHIFT_RXAGC:
+		phydm_shift_rxagc_table_dbg(dm, input, &used, output, &out_len);
+		break;
 	default:
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "Do not support this command\n");
@@ -5571,9 +5675,7 @@ void phydm_fw_trace_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 
 		PHYDM_DBG(dm, DBG_FW_TRACE, "[FW DBG Msg] %s\n",
 			  dm->fw_debug_trace);
-#if 0
-		/*@dbg_print("[FW DBG Msg] %s\n", dm->fw_debug_trace);*/
-#endif
+
 		dm->c2h_cmd_start = 0;
 		dm->fw_buff_is_enpty = true;
 	}
@@ -5816,12 +5918,6 @@ void phydm_fw_trace_handler_8051(void *dm_void, u8 *buffer, u8 cmd_len)
 {
 #ifdef CONFIG_PHYDM_DEBUG_FUNCTION
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-#if 0
-	if (cmd_len >= 3)
-		cmd_buf[cmd_len - 1] = '\0';
-	PHYDM_DBG(dm, DBG_FW_TRACE, "[FW DBG Msg] %s\n", &cmd_buf[3]);
-#else
-
 	int i = 0;
 	u8 extend_c2h_sub_id = 0, extend_c2h_dbg_len = 0;
 	u8 extend_c2h_dbg_seq = 0;
@@ -5866,7 +5962,5 @@ go_backfor_aggre_dbg_pkt:
 			goto go_backfor_aggre_dbg_pkt;
 		}
 	}
-
-#endif
 #endif /*@#ifdef CONFIG_PHYDM_DEBUG_FUNCTION*/
 }

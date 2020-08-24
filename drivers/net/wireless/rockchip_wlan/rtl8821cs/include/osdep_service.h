@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -68,6 +69,9 @@
 
 #ifndef BIT
 	#define BIT(x)	(1 << (x))
+#endif
+#ifndef BIT_ULL
+#define BIT_ULL(x)	(1ULL << (x))
 #endif
 
 #define CHECK_BIT(a, b) (!!((a) & (b)))
@@ -309,6 +313,7 @@ u32 rtw_os_pkt_len(_pkt *pkt);
 extern void	_rtw_memcpy(void *dec, const void *sour, u32 sz);
 extern void _rtw_memmove(void *dst, const void *src, u32 sz);
 extern int	_rtw_memcmp(const void *dst, const void *src, u32 sz);
+extern int _rtw_memcmp2(const void *dst, const void *src, u32 sz);
 extern void	_rtw_memset(void *pbuf, int c, u32 sz);
 
 extern void	_rtw_init_listhead(_list *list);
@@ -596,7 +601,7 @@ static inline int largest_bit_64(u64 bitmask)
 	int i;
 
 	for (i = 63; i >= 0; i--)
-		if (bitmask & BIT(i))
+		if (bitmask & BIT_ULL(i))
 			break;
 
 	return i;
@@ -604,6 +609,7 @@ static inline int largest_bit_64(u64 bitmask)
 
 #define rtw_abs(a) (a < 0 ? -a : a)
 #define rtw_min(a, b) ((a > b) ? b : a)
+#define rtw_max(a, b) ((a > b) ? a : b)
 #define rtw_is_range_a_in_b(hi_a, lo_a, hi_b, lo_b) (((hi_a) <= (hi_b)) && ((lo_a) >= (lo_b)))
 #define rtw_is_range_overlap(hi_a, lo_a, hi_b, lo_b) (((hi_a) > (lo_b)) && ((lo_a) < (hi_b)))
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -135,7 +136,7 @@ void phydm_wt_ram_pwr(void *dm_void, u8 macid, boolean is_ofst1,
 		dm_ram_per_sta->tx_pwr_offset1 = pwr_ofst;
 
 		pwr_ofst_ano_en = dm_ram_per_sta->tx_pwr_offset0_en;
-		pwr_ofst_ano = dm_ram_per_sta->tx_pwr_offset1;
+		pwr_ofst_ano = dm_ram_per_sta->tx_pwr_offset0;
 
 		reg_0x1e84 |= (pwr_ofst_ano_en << 15) +
 			      ((pwr_ofst_ano & 0x7f) << 8) +
@@ -199,29 +200,24 @@ void phydm_pwr_lv_ctrl(void *dm_void, u8 macid, u8 tx_pwr_lv)
 		pwr_offset = PHYDM_BBRAM_OFFSET_ZERO;
 
 	phydm_wt_ram_pwr(dm, macid, RAM_PWR_OFST0, true, pwr_offset);
-	/* still need to check with SD7*/
-	#if (RTL8822C_SUPPORT)
-	if (dm->support_ic_type & ODM_RTL8822C)
-		phydm_wt_ram_pwr(dm, 127, RAM_PWR_OFST0, true, pwr_offset);
-	#endif
 }
 
-void phydm_dtp_fill_cmninfo_2nd(void *dm_void, u8 macid, u8 dtp_lvl)
+void phydm_dtp_fill_cmninfo_2nd(void *dm_void, u8 sta_id, u8 dtp_lvl)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct cmn_sta_info *sta = dm->phydm_sta_info[macid];
+	struct cmn_sta_info *sta = dm->phydm_sta_info[sta_id];
 	struct dtp_info *dtp = NULL;
 
 	if (!is_sta_active(sta))
 		return;
 
-	dtp = &dm->phydm_sta_info[macid]->dtp_stat;
+	dtp = &dm->phydm_sta_info[sta_id]->dtp_stat;
 	dtp->dyn_tx_power = phydm_pwr_lv_mapping_2nd(dtp_lvl);
-	phydm_pwr_lv_ctrl(dm, macid, dtp_lvl);
+	phydm_pwr_lv_ctrl(dm, sta->mac_id, dtp_lvl);
 
 	PHYDM_DBG(dm, DBG_DYN_TXPWR,
-		  "Fill cmninfo TxPwr: macid=(%d), PwrLv (%d)\n", macid,
-		  dtp->dyn_tx_power);
+		  "Fill cmninfo TxPwr: sta_id=(%d), macid=(%d), PwrLv (%d)\n",
+		  sta_id, sta->mac_id, dtp->dyn_tx_power);
 }
 
 void phydm_dtp_init_2nd(void *dm_void)
@@ -231,8 +227,8 @@ void phydm_dtp_init_2nd(void *dm_void)
 	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
 		return;
 
-	#if (RTL8822C_SUPPORT)
-	if (dm->support_ic_type & ODM_RTL8822C) {
+	#if (RTL8822C_SUPPORT || RTL8812F_SUPPORT)
+	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F)) {
 		phydm_rst_ram_pwr(dm);
 		/* rsp tx use type 0*/
 		odm_set_mac_reg(dm, R_0x6d8, BIT(19) | BIT(18), RAM_PWR_OFST0);
@@ -489,10 +485,10 @@ void phydm_dynamic_response_power(void *dm_void)
 		  dm->dynamic_tx_high_power_lvl);
 }
 
-void phydm_dtp_fill_cmninfo(void *dm_void, u8 macid, u8 dtp_lvl)
+void phydm_dtp_fill_cmninfo(void *dm_void, u8 sta_id, u8 dtp_lvl)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct cmn_sta_info *sta = dm->phydm_sta_info[macid];
+	struct cmn_sta_info *sta = dm->phydm_sta_info[sta_id];
 	struct dtp_info *dtp = NULL;
 
 	if (!is_sta_active(sta))
@@ -501,61 +497,71 @@ void phydm_dtp_fill_cmninfo(void *dm_void, u8 macid, u8 dtp_lvl)
 	dtp = &sta->dtp_stat;
 	dtp->dyn_tx_power = phydm_pwr_lv_mapping(dtp_lvl);
 	PHYDM_DBG(dm, DBG_DYN_TXPWR,
-		  "Fill cmninfo TxPwr: macid=(%d), PwrLv (%d)\n", macid,
-		  dtp->dyn_tx_power);
+		  "Fill cmninfo TxPwr: sta_id=(%d), macid=(%d), PwrLv (%d)\n",
+		  sta_id, sta->mac_id, dtp->dyn_tx_power);
 }
 
-void phydm_dtp_per_sta(void *dm_void, u8 macid)
+void phydm_dtp_per_sta(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct cmn_sta_info *sta = dm->phydm_sta_info[macid];
+	struct cmn_sta_info *sta = NULL;
 	struct dtp_info *dtp = NULL;
 	struct rssi_info *rssi = NULL;
+	u8 sta_cnt = 0;
+	u8 i = 0;
+	u8 curr_pwr_lv = 0;
+	u8 last_pwr_lv = 0;
 
-	if (is_sta_active(sta)) {
-		dtp = &sta->dtp_stat;
-		rssi = &sta->rssi_stat;
-		dtp->sta_tx_high_power_lvl = phydm_pwr_lvl_check(dm,
-								 rssi->rssi);
-		PHYDM_DBG(dm, DBG_DYN_TXPWR,
-			  "STA=%d , RSSI: %d , GetPwrLv: %d\n", macid,
-			  rssi->rssi, dtp->sta_tx_high_power_lvl);
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		sta = dm->phydm_sta_info[i];
+		if (is_sta_active(sta)) {
+			sta_cnt++;
 
-		if (dtp->sta_tx_high_power_lvl == tx_high_pwr_level_unchange 
-			|| dtp->sta_tx_high_power_lvl == dtp->sta_last_dtp_lvl) {
-			dtp->sta_tx_high_power_lvl = dtp->sta_last_dtp_lvl;
+			dtp = &sta->dtp_stat;
+			rssi = &sta->rssi_stat;
+			last_pwr_lv = dtp->sta_last_dtp_lvl;
+			curr_pwr_lv = phydm_pwr_lvl_check(dm, rssi->rssi);
+			dtp->sta_tx_high_power_lvl = curr_pwr_lv;
 			PHYDM_DBG(dm, DBG_DYN_TXPWR,
-				  "DTP_lv not change: ((%d))\n",
-				  dtp->sta_tx_high_power_lvl);
-			return;
+				  "STA_id=%d, MACID=%d , RSSI: %d , GetPwrLv: %d\n",
+				  i, sta->mac_id, rssi->rssi, curr_pwr_lv);
+
+			if (curr_pwr_lv == tx_high_pwr_level_unchange ||
+			    curr_pwr_lv == last_pwr_lv) {
+				dtp->sta_tx_high_power_lvl = last_pwr_lv;
+				PHYDM_DBG(dm, DBG_DYN_TXPWR,
+					  "DTP_lv not change: ((%d))\n",
+					  curr_pwr_lv);
+				return;
+			}
+
+			PHYDM_DBG(dm, DBG_DYN_TXPWR,
+				  "DTP_lv update: ((%d)) -> ((%d))\n",
+				  last_pwr_lv, curr_pwr_lv);
+
+			dtp->sta_last_dtp_lvl = curr_pwr_lv;
+
+			switch (dm->ic_ip_series) {
+			#ifdef BB_RAM_SUPPORT
+			case PHYDM_IC_JGR3:
+				phydm_dtp_fill_cmninfo_2nd(dm, i, curr_pwr_lv);
+				break;
+			#endif
+			default:
+				phydm_dtp_fill_cmninfo(dm, i, curr_pwr_lv);
+				break;
+			}
+
+			if (sta_cnt == dm->number_linked_client)
+				break;
 		}
-
-		PHYDM_DBG(dm, DBG_DYN_TXPWR,
-			  "DTP_lv update: ((%d)) -> ((%d))\n",
-			  dtp->sta_last_dtp_lvl, dtp->sta_tx_high_power_lvl);
-
-		dtp->sta_last_dtp_lvl = dtp->sta_tx_high_power_lvl;
-
-		switch (dm->ic_ip_series) {
-		#ifdef BB_RAM_SUPPORT
-		case PHYDM_IC_JGR3:
-			phydm_dtp_fill_cmninfo_2nd(dm, macid,
-						   dtp->sta_tx_high_power_lvl);
-			break;
-		#endif
-		default:
-			phydm_dtp_fill_cmninfo(dm, macid,
-					       dtp->sta_tx_high_power_lvl);
-			break;
-		}
-
 	}
 }
 
-void odm_set_dyntxpwr(void *dm_void, u8 *desc, u8 macid)
+void odm_set_dyntxpwr(void *dm_void, u8 *desc, u8 sta_id)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct cmn_sta_info *sta = dm->phydm_sta_info[macid];
+	struct cmn_sta_info *sta = dm->phydm_sta_info[sta_id];
 	struct dtp_info *dtp = NULL;
 
 	if (!is_sta_active(sta))
@@ -671,7 +677,7 @@ void phydm_dynamic_tx_power(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct cmn_sta_info *sta = NULL;
 	u8 i = 0;
-	u8 cnt = 0;
+
 	u8 rssi_min = dm->rssi_min;
 	u8 rssi_tmp = 0;
 
@@ -689,12 +695,7 @@ void phydm_dynamic_tx_power(void *dm_void)
 		phydm_dynamic_response_power(dm);
 	}
 	/* Per STA Tx power */
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		phydm_dtp_per_sta(dm, i);
-		cnt++;
-		if (cnt >= dm->number_linked_client)
-			break;
-	}
+	phydm_dtp_per_sta(dm);
 }
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 

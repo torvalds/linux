@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2017 Realtek Corporation.
@@ -42,8 +43,9 @@ const int mcc_max_policy_num = sizeof(mcc_switch_channel_policy_table) /sizeof(u
 static void dump_iqk_val_table(PADAPTER padapter)
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	struct hal_iqk_reg_backup *iqk_reg_backup = pHalData->iqk_reg_backup;
-	u8 total_rf_path = pHalData->NumTotalRFPath;
+	u8 total_rf_path = hal_spec->rf_reg_path_num;
 	u8 rf_path_idx = 0;
 	u8 backup_chan_idx = 0;
 	u8 backup_reg_idx = 0;
@@ -1270,6 +1272,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 	struct mlme_ext_info *pmlmeinfo = NULL;
 	struct mlme_ext_priv *pmlmeext = NULL;
 	struct hal_com_data *hal = GET_HAL_DATA(adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	struct mcc_adapter_priv *mccadapriv = NULL;
 	u8 ret = _SUCCESS, i = 0, j  =0, order = 0, CurtPktPageNum = 0;
 	u8 *start = NULL;
@@ -1375,7 +1378,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 
 		total_rate_offset = start;
 			
-		for (path = RF_PATH_A; path < hal->NumTotalRFPath; ++path) {
+		for (path = RF_PATH_A; path < hal_spec->rf_reg_path_num; ++path) {
 			total_rate = 0;
 			/* PATH A for 0~63 byte, PATH B for 64~127 byte*/
 			if (path == RF_PATH_A)
@@ -1392,7 +1395,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rate_array_sz = rates_by_sections[CCK].rate_num;
 				rates = rates_by_sections[CCK].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
-					power_index = phy_get_tx_power_index_ex(iface, path, CCK, rates[j], bw, band, center_ch);
+					power_index = phy_get_tx_power_index_ex(iface, path, CCK, rates[j], bw, band, center_ch, ch);
 					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 					shift = rate % 4;
@@ -1434,7 +1437,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rate_array_sz = rates_by_sections[OFDM].rate_num;
 			rates = rates_by_sections[OFDM].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
-				power_index = phy_get_tx_power_index_ex(iface, path, OFDM, rates[j], bw, band, center_ch);
+				power_index = phy_get_tx_power_index_ex(iface, path, OFDM, rates[j], bw, band, center_ch, ch);
 				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 				shift = rate % 4;
@@ -1474,7 +1477,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rate_array_sz = rates_by_sections[HT_MCS0_MCS7].rate_num;
 			rates = rates_by_sections[HT_MCS0_MCS7].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
-				power_index = phy_get_tx_power_index_ex(iface, path, HT_1SS, rates[j], bw, band, center_ch);
+				power_index = phy_get_tx_power_index_ex(iface, path, HT_1SS, rates[j], bw, band, center_ch, ch);
 				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 				shift = rate % 4;
@@ -1514,7 +1517,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rate_array_sz = rates_by_sections[HT_MCS8_MCS15].rate_num;
 			rates = rates_by_sections[HT_MCS8_MCS15].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
-				power_index = phy_get_tx_power_index_ex(iface, path, HT_2SS, rates[j], bw, band, center_ch);
+				power_index = phy_get_tx_power_index_ex(iface, path, HT_2SS, rates[j], bw, band, center_ch, ch);
 				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 				shift = rate % 4;
@@ -1553,7 +1556,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rate_array_sz = rates_by_sections[VHT_1SSMCS0_1SSMCS9].rate_num;
 			rates = rates_by_sections[VHT_1SSMCS0_1SSMCS9].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
-				power_index = phy_get_tx_power_index_ex(iface, path, VHT_1SS, rates[j], bw, band, center_ch);
+				power_index = phy_get_tx_power_index_ex(iface, path, VHT_1SS, rates[j], bw, band, center_ch, ch);
 				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 				shift = rate % 4;
@@ -1589,7 +1592,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rate_array_sz = rates_by_sections[VHT_2SSMCS0_2SSMCS9].rate_num;
 			rates = rates_by_sections[VHT_2SSMCS0_2SSMCS9].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
-				power_index = phy_get_tx_power_index_ex(iface, path, VHT_2SS, rates[j], bw, band, center_ch);
+				power_index = phy_get_tx_power_index_ex(iface, path, VHT_2SS, rates[j], bw, band, center_ch, ch);
 				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
 
 				shift = rate % 4;
@@ -1679,12 +1682,12 @@ static void rtw_hal_set_mcc_rsvdpage_cmd(_adapter *padapter)
 {
 	u8 cmd[H2C_MCC_LOCATION_LEN] = {0}, i = 0, order = 0;
 	_adapter *iface = NULL;
-	PHAL_DATA_TYPE hal = GET_HAL_DATA(padapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct mcc_obj_priv *pmccobjpriv = &(dvobj->mcc_objpriv);
 
 	SET_H2CCMD_MCC_PWRIDX_OFFLOAD_EN(cmd, _TRUE);
-	SET_H2CCMD_MCC_PWRIDX_OFFLOAD_RFNUM(cmd, hal->NumTotalRFPath);
+	SET_H2CCMD_MCC_PWRIDX_OFFLOAD_RFNUM(cmd, hal_spec->rf_reg_path_num);
 	for (order = 0; order < MAX_MCC_NUM; order++) {
 		iface = pmccobjpriv->iface[i];
 
@@ -1787,7 +1790,7 @@ static void rtw_hal_set_mcc_IQK_offload_cmd(PADAPTER padapter)
 	_adapter *iface = NULL;
 	u8 cmd[H2C_MCC_IQK_PARAM_LEN] = {0}, bready = 0, i = 0, order = 0;
 	u16 TX_X = 0, TX_Y = 0, RX_X = 0, RX_Y = 0;
-	u8 total_rf_path = GET_HAL_DATA(padapter)->NumTotalRFPath;
+	u8 total_rf_path = GET_HAL_SPEC(padapter)->rf_reg_path_num;
 	u8 rf_path_idx = 0, last_order = MAX_MCC_NUM - 1, last_rf_path_index = total_rf_path - 1;
 
 	/* by order, last order & last_rf_path_index must set ready bit = 1 */
@@ -2644,9 +2647,9 @@ static void rtw_hal_mcc_update_noa_start_time_hdl(PADAPTER padapter, u8 buflen, 
 
 static u8 mcc_get_reg_hdl(PADAPTER adapter, const u8 *val)
 {
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	struct mcc_obj_priv *mccobjpriv = &(dvobj->mcc_objpriv);
-	struct hal_com_data *hal = GET_HAL_DATA(adapter);
 	_adapter *cur_iface = NULL;
 	u8 ret = _SUCCESS;
 	u8 cur_order = 0;
@@ -2673,7 +2676,7 @@ static u8 mcc_get_reg_hdl(PADAPTER adapter, const u8 *val)
 		goto exit;
 	}
 
-	path_nums = hal->NumTotalRFPath;
+	path_nums = hal_spec->rf_reg_path_num;
 	if (cur_order == 0xff)
 		cur_iface = adapter;
 	else
@@ -2749,7 +2752,7 @@ static u8 mcc_get_reg_cmd(_adapter *adapter, u8 cur_order)
 
 	_rtw_memcpy(mcc_cur_order, &cur_order, 1);
 
-	init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 	res = rtw_enqueue_cmd(pcmdpriv, cmdobj);
 
 exit:
@@ -3423,7 +3426,7 @@ static void rtw_hal_mcc_dump_noa_content(void *sel, PADAPTER padapter)
 static void mcc_dump_dbg_reg(void *sel, _adapter *adapter)
 {
 	struct mcc_obj_priv *mccobjpriv = adapter_to_mccobjpriv(adapter);
-	HAL_DATA_TYPE *hal = GET_HAL_DATA(adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	u8 i,j;
 	_irqL irqL;
 
@@ -3436,7 +3439,7 @@ static void mcc_dump_dbg_reg(void *sel, _adapter *adapter)
 			RTW_PRINT_SEL(sel, "REG_0x%X:0x%08x\n", mccobjpriv->dbg_reg[i], mccobjpriv->dbg_reg_val[i]);
 
 	for (i = 0; i < ARRAY_SIZE(mccobjpriv->dbg_rf_reg); i++) {
-		for (j = 0; j < hal->NumTotalRFPath; j++)
+		for (j = 0; j < hal_spec->rf_reg_path_num; j++)
 			RTW_PRINT_SEL(sel, "RF_PATH_%d_REG_0x%X:0x%08x\n",
 				j, mccobjpriv->dbg_rf_reg[i], mccobjpriv->dbg_rf_reg_val[i][j]);
 	}
@@ -3826,7 +3829,7 @@ u8 rtw_set_mcc_duration_cmd(_adapter *adapter, u8 type, u8 val)
 	_rtw_memcpy(buf, &type, 1);
 	_rtw_memcpy(buf + 1, &val, 1);
 
-	init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 	res = rtw_enqueue_cmd(pcmdpriv, cmdobj);
 
 exit:
@@ -3892,7 +3895,7 @@ u8 rtw_set_mcc_phydm_offload_enable_cmd(_adapter *adapter, u8 enable, u8 enqueue
 		pdrvextra_cmd_parm->pbuf = mcc_phydm_offload_enable;
 
 		_rtw_memcpy(mcc_phydm_offload_enable, &enable, 1);
-		init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(cmdobj, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 		res = rtw_enqueue_cmd(pcmdpriv, cmdobj);
 	} else {
 		mcc_phydm_offload_enable_hdl(adapter, &enable);

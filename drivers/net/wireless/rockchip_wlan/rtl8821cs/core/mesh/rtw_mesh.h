@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -412,7 +413,7 @@ u8 *rtw_set_ie_mesh_config(u8 *buf, u32 *buf_len
 	, bool mbca_en, bool tbtt_adj, bool ps_level);
 
 int rtw_bss_is_same_mbss(WLAN_BSSID_EX *a, WLAN_BSSID_EX *b);
-int rtw_bss_is_candidate_mesh_peer(WLAN_BSSID_EX *self, WLAN_BSSID_EX *target, u8 ch, u8 add_peer);
+int rtw_bss_is_candidate_mesh_peer(_adapter *adapter, WLAN_BSSID_EX *target, u8 ch, u8 add_peer);
 
 void rtw_chk_candidate_peer_notify(_adapter *adapter, struct wlan_network *scanned);
 
@@ -484,7 +485,8 @@ void rtw_mesh_plink_ctl_init(_adapter *adapter);
 void rtw_mesh_plink_ctl_deinit(_adapter *adapter);
 void dump_mesh_plink_ctl(void *sel, _adapter *adapter);
 
-int rtw_mesh_peer_establish(_adapter *adapter, struct mesh_plink_ent *plink, struct sta_info *sta);
+u8 rtw_mesh_set_plink_state_cmd(_adapter *adapter, const u8 *mac, u8 plink_state);
+
 void _rtw_mesh_expire_peer_ent(_adapter *adapter, struct mesh_plink_ent *plink);
 void rtw_mesh_expire_peer(_adapter *adapter, const u8 *peer_addr);
 u8 rtw_mesh_ps_annc(_adapter *adapter, u8 ps);

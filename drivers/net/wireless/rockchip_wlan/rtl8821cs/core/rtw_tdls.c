@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -1814,9 +1815,9 @@ int On_TDLS_Dis_Rsp(_adapter *padapter, union recv_frame *precv_frame)
 			issue_tdls_setup_req(padapter, &txmgmt, _FALSE);
 		}
 	}
+exit:
 #endif /* CONFIG_TDLS_AUTOSETUP */
 
-exit:
 	return ret;
 
 }
@@ -2199,7 +2200,7 @@ int On_TDLS_Setup_Rsp(_adapter *padapter, union recv_frame *precv_frame, struct 
 
 			if (ptdls_sta->tdls_sta_state & TDLS_RESPONDER_STATE) {
 				ptdls_sta->tdls_sta_state |= TDLS_LINKED_STATE;
-				ptdls_sta->state |= _FW_LINKED;
+				ptdls_sta->state |= WIFI_ASOC_STATE;
 				_cancel_timer_ex(&ptdls_sta->handshake_timer);
 			}
 
@@ -2316,7 +2317,7 @@ int On_TDLS_Setup_Cfm(_adapter *padapter, union recv_frame *precv_frame, struct 
 
 		if (ptdls_sta->tdls_sta_state & TDLS_INITIATOR_STATE) {
 			ptdls_sta->tdls_sta_state |= TDLS_LINKED_STATE;
-			ptdls_sta->state |= _FW_LINKED;
+			ptdls_sta->state |= WIFI_ASOC_STATE;
 			_cancel_timer_ex(&ptdls_sta->handshake_timer);
 		}
 
@@ -2768,7 +2769,7 @@ void wfd_ie_tdls(_adapter *padapter, u8 *pframe, u32 *pktlen)
 
 	/* Value: */
 	/* Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);

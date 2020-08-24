@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -131,7 +132,7 @@ int rtw_mi_get_ch_setting_union_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, u8 
 
 		mlmeext = &iface->mlmeextpriv;
 
-		if (!check_fwstate(&iface->mlmepriv, _FW_LINKED | _FW_UNDER_LINKING))
+		if (!check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE | WIFI_UNDER_LINKING))
 			continue;
 
 		if (check_fwstate(&iface->mlmepriv, WIFI_OP_CH_SWITCHING))
@@ -198,7 +199,7 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 
 		if (check_fwstate(&iface->mlmepriv, WIFI_STATION_STATE) == _TRUE) {
 			MSTATE_STA_NUM(mstate)++;
-			if (check_fwstate(&iface->mlmepriv, _FW_LINKED) == _TRUE) {
+			if (check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE) == _TRUE) {
 				MSTATE_STA_LD_NUM(mstate)++;
 
 				#ifdef CONFIG_TDLS
@@ -210,12 +211,12 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 					MSTATE_P2P_GC_NUM(mstate)++;
 				#endif
 			}
-			if (check_fwstate(&iface->mlmepriv, _FW_UNDER_LINKING) == _TRUE)
+			if (check_fwstate(&iface->mlmepriv, WIFI_UNDER_LINKING) == _TRUE)
 				MSTATE_STA_LG_NUM(mstate)++;
 
 #ifdef CONFIG_AP_MODE
 		} else if (check_fwstate(&iface->mlmepriv, WIFI_AP_STATE) == _TRUE ) {
-			if (check_fwstate(&iface->mlmepriv, _FW_LINKED) == _TRUE) {
+			if (check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE) == _TRUE) {
 				MSTATE_AP_NUM(mstate)++;
 				if (iface->stapriv.asoc_sta_count > 2)
 					MSTATE_AP_LD_NUM(mstate)++;
@@ -228,7 +229,7 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 #endif
 
 		} else if (check_fwstate(&iface->mlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) == _TRUE
-			&& check_fwstate(&iface->mlmepriv, _FW_LINKED) == _TRUE
+			&& check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE) == _TRUE
 		) {
 			MSTATE_ADHOC_NUM(mstate)++;
 			if (iface->stapriv.asoc_sta_count > 2)
@@ -236,7 +237,7 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 
 #ifdef CONFIG_RTW_MESH
 		} else if (check_fwstate(&iface->mlmepriv, WIFI_MESH_STATE) == _TRUE
-			&& check_fwstate(&iface->mlmepriv, _FW_LINKED) == _TRUE
+			&& check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE) == _TRUE
 		) {
 			MSTATE_MESH_NUM(mstate)++;
 			if (iface->stapriv.asoc_sta_count > 2)
@@ -248,7 +249,7 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 		if (check_fwstate(&iface->mlmepriv, WIFI_UNDER_WPS) == _TRUE)
 			MSTATE_WPS_NUM(mstate)++;
 
-		if (check_fwstate(&iface->mlmepriv, WIFI_SITE_MONITOR) == _TRUE) {
+		if (check_fwstate(&iface->mlmepriv, WIFI_UNDER_SURVEY) == _TRUE) {
 			MSTATE_SCAN_NUM(mstate)++;
 
 			if (mlmeext_scan_state(&iface->mlmeextpriv) != SCAN_DISABLE
@@ -407,7 +408,7 @@ u8 rtw_mi_check_status(_adapter *adapter, u8 type)
 
 	switch (type) {
 	case MI_LINKED:
-		if (MSTATE_STA_LD_NUM(iface_state) || MSTATE_AP_NUM(iface_state) || MSTATE_ADHOC_NUM(iface_state) || MSTATE_MESH_NUM(iface_state)) /*check_fwstate(&iface->mlmepriv, _FW_LINKED)*/
+		if (MSTATE_STA_LD_NUM(iface_state) || MSTATE_AP_NUM(iface_state) || MSTATE_ADHOC_NUM(iface_state) || MSTATE_MESH_NUM(iface_state)) /*check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE)*/
 			ret = _TRUE;
 		break;
 	case MI_ASSOC:
@@ -824,7 +825,7 @@ void rtw_mi_buddy_set_scan_deny(_adapter *adapter, u32 ms)
 static u8 _rtw_mi_beacon_update(_adapter *padapter, void *data)
 {
 	if (!MLME_IS_STA(padapter)
-	    && check_fwstate(&padapter->mlmepriv, _FW_LINKED) == _TRUE) {
+	    && check_fwstate(&padapter->mlmepriv, WIFI_ASOC_STATE) == _TRUE) {
 		RTW_INFO(ADPT_FMT" - update_beacon\n", ADPT_ARG(padapter));
 		update_beacon(padapter, 0xFF, NULL, _TRUE, 0);
 	}
@@ -841,22 +842,26 @@ void rtw_mi_buddy_beacon_update(_adapter *padapter)
 	_rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_beacon_update);
 }
 
-static u8 _rtw_mi_hal_dump_macaddr(_adapter *padapter, void *data)
+#ifndef CONFIG_MI_WITH_MBSSID_CAM
+static u8 _rtw_mi_hal_dump_macaddr(_adapter *padapter, void *sel)
 {
 	u8 mac_addr[ETH_ALEN] = {0};
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_MAC_ADDR, mac_addr);
-	RTW_INFO(ADPT_FMT"MAC Address ="MAC_FMT"\n", ADPT_ARG(padapter), MAC_ARG(mac_addr));
+	RTW_PRINT_SEL(sel, ADPT_FMT"- hw port(%d) mac_addr ="MAC_FMT"\n",
+					ADPT_ARG(padapter), padapter->hw_port, MAC_ARG(mac_addr));
+
 	return _TRUE;
 }
-void rtw_mi_hal_dump_macaddr(_adapter *padapter)
+void rtw_mi_hal_dump_macaddr(void *sel, _adapter *padapter)
 {
-	_rtw_mi_process(padapter, _FALSE, NULL, _rtw_mi_hal_dump_macaddr);
+	_rtw_mi_process(padapter, _FALSE, sel, _rtw_mi_hal_dump_macaddr);
 }
-void rtw_mi_buddy_hal_dump_macaddr(_adapter *padapter)
+void rtw_mi_buddy_hal_dump_macaddr(void *sel, _adapter *padapter)
 {
-	_rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_hal_dump_macaddr);
+	_rtw_mi_process(padapter, _TRUE, sel, _rtw_mi_hal_dump_macaddr);
 }
+#endif
 
 #ifdef CONFIG_PCI_HCI
 static u8 _rtw_mi_xmit_tasklet_schedule(_adapter *padapter, void *data)
@@ -879,36 +884,16 @@ void rtw_mi_buddy_xmit_tasklet_schedule(_adapter *padapter)
 
 u8 _rtw_mi_busy_traffic_check(_adapter *padapter, void *data)
 {
-	u32 passtime;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	bool check_sc_interval = *(bool *)data;
-
-	if (pmlmepriv->LinkDetectInfo.bBusyTraffic == _TRUE) {
-		if (check_sc_interval) {
-			/* Miracast can't do AP scan*/
-			passtime = rtw_get_passing_time_ms(pmlmepriv->lastscantime);
-			if (passtime > BUSY_TRAFFIC_SCAN_DENY_PERIOD) {
-				RTW_INFO(ADPT_FMT" bBusyTraffic == _TRUE\n", ADPT_ARG(padapter));
-				return _TRUE;
-			}
-		} else
-			return _TRUE;
-	}
-
-	return _FALSE;
+	return padapter->mlmepriv.LinkDetectInfo.bBusyTraffic;
 }
 
-u8 rtw_mi_busy_traffic_check(_adapter *padapter, bool check_sc_interval)
+u8 rtw_mi_busy_traffic_check(_adapter *padapter)
 {
-	bool in_data = check_sc_interval;
-
-	return _rtw_mi_process(padapter, _FALSE, &in_data, _rtw_mi_busy_traffic_check);
+	return _rtw_mi_process(padapter, _FALSE, NULL, _rtw_mi_busy_traffic_check);
 }
-u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter, bool check_sc_interval)
+u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter)
 {
-	bool in_data = check_sc_interval;
-
-	return _rtw_mi_process(padapter, _TRUE, &in_data, _rtw_mi_busy_traffic_check);
+	return _rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_busy_traffic_check);
 }
 static u8 _rtw_mi_check_mlmeinfo_state(_adapter *padapter, void *data)
 {
@@ -948,21 +933,21 @@ static void rtw_dbg_dump_fwstate(_adapter *padapter, sint state)
 		RTW_INFO(FUNC_ADPT_FMT"fwstate-%s\n", FUNC_ADPT_ARG(padapter), buf);
 	}
 
-	if (state & _FW_LINKED) {
+	if (state & WIFI_ASOC_STATE) {
 		_rtw_memset(buf, 0, 32);
-		sprintf(buf, "_FW_LINKED");
+		sprintf(buf, "WIFI_ASOC_STATE");
 		RTW_INFO(FUNC_ADPT_FMT"fwstate-%s\n", FUNC_ADPT_ARG(padapter), buf);
 	}
 
-	if (state & _FW_UNDER_LINKING) {
+	if (state & WIFI_UNDER_LINKING) {
 		_rtw_memset(buf, 0, 32);
-		sprintf(buf, "_FW_UNDER_LINKING");
+		sprintf(buf, "WIFI_UNDER_LINKING");
 		RTW_INFO(FUNC_ADPT_FMT"fwstate-%s\n", FUNC_ADPT_ARG(padapter), buf);
 	}
 
-	if (state & _FW_UNDER_SURVEY) {
+	if (state & WIFI_UNDER_SURVEY) {
 		_rtw_memset(buf, 0, 32);
-		sprintf(buf, "_FW_UNDER_SURVEY");
+		sprintf(buf, "WIFI_UNDER_SURVEY");
 		RTW_INFO(FUNC_ADPT_FMT"fwstate-%s\n", FUNC_ADPT_ARG(padapter), buf);
 	}
 }

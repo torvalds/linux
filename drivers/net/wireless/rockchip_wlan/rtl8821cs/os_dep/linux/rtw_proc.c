@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -682,6 +683,41 @@ ssize_t proc_set_aid_status(struct file *file, const char __user *buffer, size_t
 			started_aid = started_aid % (stapriv->max_aid + 1);
 			stapriv->started_aid = started_aid ? started_aid : 1;
 		}
+	}
+
+	return count;
+}
+
+int proc_get_ap_isolate(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	RTW_PRINT_SEL(m, "%d\n", adapter->mlmepriv.ap_isolate);
+
+	return 0;
+}
+
+ssize_t proc_set_ap_isolate(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		int ap_isolate;
+		int num = sscanf(tmp, "%d", &ap_isolate);
+
+		if (num >= 1)
+			adapter->mlmepriv.ap_isolate = ap_isolate ? 1 : 0;
 	}
 
 	return count;
@@ -1598,9 +1634,9 @@ static int proc_get_ch_sel_policy(struct seq_file *m, void *v)
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
 	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
 
-	RTW_PRINT_SEL(m, "%-16s\n", "same_band_prefer");
+	RTW_PRINT_SEL(m, "%-16s\n", "within_same_band");
 
-	RTW_PRINT_SEL(m, "%16u\n", rfctl->ch_sel_same_band_prefer);
+	RTW_PRINT_SEL(m, "%16d\n", rfctl->ch_sel_within_same_band);
 
 	return 0;
 }
@@ -1611,7 +1647,7 @@ static ssize_t proc_set_ch_sel_policy(struct file *file, const char __user *buff
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
 	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
 	char tmp[32];
-	u8 sb_prefer;
+	u8 within_sb;
 	int num;
 
 	if (count < 1)
@@ -1625,9 +1661,9 @@ static ssize_t proc_set_ch_sel_policy(struct file *file, const char __user *buff
 	if (!buffer || copy_from_user(tmp, buffer, count))
 		goto exit;
 
-	num = sscanf(tmp, "%hhu", &sb_prefer);
+	num = sscanf(tmp, "%hhu", &within_sb);
 	if (num >=	1)
-		rfctl->ch_sel_same_band_prefer = sb_prefer;
+		rfctl->ch_sel_within_same_band = within_sb ? 1 : 0;
 
 exit:
 	return count;
@@ -1785,7 +1821,7 @@ exit:
 	return count;
 }
 
-#ifdef CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
+#if CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
 static int proc_get_dfs_slave_with_rd(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -2376,7 +2412,7 @@ static int proc_get_hal_txpwr_info(struct seq_file *m, void *v)
 		if (hal_is_band_support(adapter, BAND_ON_2_4G))
 			dump_hal_txpwr_info_2g(m, adapter, hal_spec->rfpath_num_2g, hal_data->max_tx_cnt);
 
-		#ifdef CONFIG_IEEE80211_BAND_5GHZ
+		#if CONFIG_IEEE80211_BAND_5GHZ
 		if (hal_is_band_support(adapter, BAND_ON_5G))
 			dump_hal_txpwr_info_5g(m, adapter, hal_spec->rfpath_num_5g, hal_data->max_tx_cnt);
 		#endif
@@ -2461,6 +2497,8 @@ static ssize_t proc_set_tx_power_ext_info(struct file *file, const char __user *
 		else
 			rtw_run_in_thread_cmd(adapter, ((void *)(phy_reload_tx_power_ext_info)), adapter);
 
+		rtw_run_in_thread_cmd_wait(adapter, ((void *)(rtw_hal_update_txpwr_level)), adapter, 2000);
+
 clear_ps_deny:
 		rtw_ps_deny_cancel(adapter, PS_DENY_IOCTL);
 	}
@@ -2504,16 +2542,19 @@ static int proc_get_tx_power_idx(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	u32 pos = *((loff_t *)(v));
 	u8 path = (pos & 0xFF00) >> 8;
 	u8 rs = pos & 0xFF;
+	enum channel_width bw = hal_data->current_channel_bw;
+	u8 cch = hal_data->current_channel;
 
 	if (0)
 		RTW_INFO("%s path=%u, rs=%u\n", __func__, path, rs);
 
 	if (path == RF_PATH_A && rs == CCK)
-		dump_tx_power_idx_title(m, adapter);
-	dump_tx_power_idx_by_path_rs(m, adapter, path, rs);
+		dump_tx_power_idx_title(m, adapter, bw, cch, 0);
+	dump_tx_power_idx_by_path_rs(m, adapter, path, rs, bw, cch, 0);
 
 	return 0;
 }
@@ -2524,6 +2565,113 @@ static struct seq_operations seq_ops_tx_power_idx = {
 	.next  = proc_next_tx_power_idx,
 	.show  = proc_get_tx_power_idx,
 };
+
+static ssize_t proc_set_tx_power_idx_dump(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	char tmp[32] = {0};
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		u8 ch, bw, offset;
+		u8 cch;
+
+		int num = sscanf(tmp, "%hhu %hhu %hhu", &ch, &bw, &offset);
+
+		if (num < 3)
+			return count;
+
+		cch = rtw_get_center_ch(ch, bw, offset);
+		dump_tx_power_idx(RTW_DBGDUMP, adapter, bw, cch, ch);
+	}
+
+	return count;
+}
+
+static void *proc_start_txpwr_total_dbm(struct seq_file *m, loff_t *pos)
+{
+	u8 rs = *pos;
+
+	if (rs >= RATE_SECTION_NUM)
+		return NULL;
+
+	return pos;
+}
+
+static void proc_stop_txpwr_total_dbm(struct seq_file *m, void *v)
+{
+}
+
+static void *proc_next_txpwr_total_dbm(struct seq_file *m, void *v, loff_t *pos)
+{
+	u8 rs = *pos;
+
+	rs++;
+	if (rs >= RATE_SECTION_NUM)
+		return NULL;
+
+	*pos = rs;
+
+	return pos;
+}
+
+static int proc_get_txpwr_total_dbm(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u32 pos = *((loff_t *)(v));
+	u8 rs = pos;
+	enum channel_width bw = hal_data->current_channel_bw;
+	u8 cch = hal_data->current_channel;
+
+	if (rs == CCK)
+		dump_txpwr_total_dbm_title(m, adapter, bw, cch, 0);
+	dump_txpwr_total_dbm_by_rs(m, adapter, rs, bw, cch, 0);
+
+	return 0;
+}
+
+static struct seq_operations seq_ops_txpwr_total_dbm = {
+	.start = proc_start_txpwr_total_dbm,
+	.stop  = proc_stop_txpwr_total_dbm,
+	.next  = proc_next_txpwr_total_dbm,
+	.show  = proc_get_txpwr_total_dbm,
+};
+
+static ssize_t proc_set_txpwr_total_dbm_dump(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	char tmp[32] = {0};
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		u8 ch, bw, offset;
+		u8 cch;
+
+		int num = sscanf(tmp, "%hhu %hhu %hhu", &ch, &bw, &offset);
+
+		if (num < 3)
+			return count;
+
+		cch = rtw_get_center_ch(ch, bw, offset);
+		dump_txpwr_total_dbm(RTW_DBGDUMP, adapter, bw, cch, ch);
+	}
+
+	return count;
+}
 
 #ifdef CONFIG_RF_POWER_TRIM
 static int proc_get_kfree_flag(struct seq_file *m, void *v)
@@ -2567,7 +2715,7 @@ static int proc_get_kfree_bb_gain(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	struct kfree_data_t *kfree_data = GET_KFREE_DATA(adapter);
 	u8 i, j;
 
@@ -2575,7 +2723,7 @@ static int proc_get_kfree_bb_gain(struct seq_file *m, void *v)
 
 			if (i == 0)
 				_RTW_PRINT_SEL(m, "2G: ");
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 			switch (i) {
 			case 1:
 					_RTW_PRINT_SEL(m, "5GLB1: ");
@@ -2594,7 +2742,7 @@ static int proc_get_kfree_bb_gain(struct seq_file *m, void *v)
 					break;
 		}
 #endif
-		for (j = 0; j < hal_data->NumTotalRFPath; j++)
+		for (j = 0; j < hal_spec->rf_reg_path_num; j++)
 			_RTW_PRINT_SEL(m, "%d ", kfree_data->bb_gain[i][j]);
 		_RTW_PRINT_SEL(m, "\n");
 	}
@@ -2630,7 +2778,7 @@ static ssize_t proc_set_kfree_bb_gain(struct file *file, const char __user *buff
 		}
 		if (strcmp("2G", ch_band_Group) == 0)
 			chidx = BB_GAIN_2G;
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 		else if (strcmp("5GLB1", ch_band_Group) == 0)
 			chidx = BB_GAIN_5GLB1;
 		else if (strcmp("5GLB2", ch_band_Group) == 0)
@@ -3974,6 +4122,57 @@ exit:
 }
 #endif /* CONFIG_RTW_MESH */
 
+#ifdef RTW_BUSY_DENY_SCAN
+static int proc_get_scan_interval_thr(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	struct _ADAPTER *adapter= (struct _ADAPTER *)rtw_netdev_priv(dev);
+	struct registry_priv *rp = &adapter->registrypriv;
+
+
+	RTW_PRINT_SEL(m, "scan interval threshold = %u ms\n",
+		      rp->scan_interval_thr);
+
+	return 0;
+}
+
+static ssize_t proc_set_scan_interval_thr(struct file *file,
+				          const char __user *buffer,
+				          size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	struct _ADAPTER *adapter= (struct _ADAPTER *)rtw_netdev_priv(dev);
+	struct registry_priv *rp = &adapter->registrypriv;
+	char tmp[12];
+	int num = 0;
+	u32 thr = 0;
+
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (!buffer || copy_from_user(tmp, buffer, count))
+		goto exit;
+
+	num = sscanf(tmp, "%u", &thr);
+	if (num != 1) {
+		RTW_ERR("%s: invalid parameter!\n", __FUNCTION__);
+		goto exit;
+	}
+
+	rp->scan_interval_thr = thr;
+
+	RTW_PRINT("%s: scan interval threshold = %u ms\n",
+		  __FUNCTION__, rp->scan_interval_thr);
+
+exit:
+	return count;
+}
+
+#endif /* RTW_BUSY_DENY_SCAN */
+
 static int proc_get_scan_deny(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -4217,7 +4416,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #ifdef CONFIG_RTW_80211R
 	RTW_PROC_HDL_SSEQ("ft_flags", proc_get_ft_flags, proc_set_ft_flags),
 #endif
-
+	RTW_PROC_HDL_SSEQ("defs_param", proc_get_defs_param, proc_set_defs_param),
 #ifdef CONFIG_SDIO_HCI
 	RTW_PROC_HDL_SSEQ("sd_f0_reg_dump", proc_get_sd_f0_reg_dump, NULL),
 	RTW_PROC_HDL_SSEQ("sdio_local_reg_dump", proc_get_sdio_local_reg_dump, NULL),
@@ -4246,6 +4445,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 
 #ifdef CONFIG_AP_MODE
 	RTW_PROC_HDL_SSEQ("aid_status", proc_get_aid_status, proc_set_aid_status),
+	RTW_PROC_HDL_SSEQ("ap_isolate", proc_get_ap_isolate, proc_set_ap_isolate),
 	RTW_PROC_HDL_SSEQ("all_sta_info", proc_get_all_sta_info, NULL),
 	RTW_PROC_HDL_SSEQ("bmc_tx_rate", proc_get_bmc_tx_rate, proc_set_bmc_tx_rate),
 #endif /* CONFIG_AP_MODE */
@@ -4272,12 +4472,13 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("rx_ampdu_density", proc_get_rx_ampdu_density, proc_set_rx_ampdu_density),
 	RTW_PROC_HDL_SSEQ("tx_ampdu_density", proc_get_tx_ampdu_density, proc_set_tx_ampdu_density),
 	RTW_PROC_HDL_SSEQ("tx_max_agg_num", proc_get_tx_max_agg_num, proc_set_tx_max_agg_num),
+	RTW_PROC_HDL_SSEQ("tx_quick_addba_req", proc_get_tx_quick_addba_req, proc_set_tx_quick_addba_req),
 #ifdef CONFIG_TX_AMSDU
 	RTW_PROC_HDL_SSEQ("tx_amsdu", proc_get_tx_amsdu, proc_set_tx_amsdu),
 	RTW_PROC_HDL_SSEQ("tx_amsdu_rate", proc_get_tx_amsdu_rate, proc_set_tx_amsdu_rate),
 #endif
 #endif /* CONFIG_80211N_HT */
-
+	RTW_PROC_HDL_SSEQ("dynamic_rrsr", proc_get_dyn_rrsr, proc_set_dyn_rrsr),
 	RTW_PROC_HDL_SSEQ("en_fwps", proc_get_en_fwps, proc_set_en_fwps),
 
 	/* RTW_PROC_HDL_SSEQ("path_rssi", proc_get_two_path_rssi, NULL),
@@ -4346,6 +4547,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #endif
 
 #ifdef CONFIG_WOWLAN
+	RTW_PROC_HDL_SSEQ("wow_enable", proc_get_wow_enable, proc_set_wow_enable),
 	RTW_PROC_HDL_SSEQ("wow_pattern_info", proc_get_pattern_info, proc_set_pattern_info),
 	RTW_PROC_HDL_SSEQ("wow_wakeup_event", proc_get_wakeup_event,
 			  proc_set_wakeup_event),
@@ -4375,7 +4577,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("update_non_ocp", NULL, proc_set_update_non_ocp),
 	RTW_PROC_HDL_SSEQ("radar_detect", NULL, proc_set_radar_detect),
 	RTW_PROC_HDL_SSEQ("dfs_ch_sel_d_flags", proc_get_dfs_ch_sel_d_flags, proc_set_dfs_ch_sel_d_flags),
-	#ifdef CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
+	#if CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
 	RTW_PROC_HDL_SSEQ("dfs_slave_with_rd", proc_get_dfs_slave_with_rd, proc_set_dfs_slave_with_rd),
 	#endif
 #endif
@@ -4400,7 +4602,8 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("tx_power_limit", proc_get_tx_power_limit, NULL),
 #endif
 	RTW_PROC_HDL_SSEQ("tx_power_ext_info", proc_get_tx_power_ext_info, proc_set_tx_power_ext_info),
-	RTW_PROC_HDL_SEQ("tx_power_idx", &seq_ops_tx_power_idx, NULL),
+	RTW_PROC_HDL_SEQ("tx_power_idx", &seq_ops_tx_power_idx, proc_set_tx_power_idx_dump),
+	RTW_PROC_HDL_SEQ("txpwr_total_dbm", &seq_ops_txpwr_total_dbm, proc_set_txpwr_total_dbm_dump),
 #ifdef CONFIG_RF_POWER_TRIM
 	RTW_PROC_HDL_SSEQ("tx_gain_offset", NULL, proc_set_tx_gain_offset),
 	RTW_PROC_HDL_SSEQ("kfree_flag", proc_get_kfree_flag, proc_set_kfree_flag),
@@ -4526,6 +4729,10 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("smps", proc_get_smps, proc_set_smps),
 #endif
 
+#ifdef RTW_BUSY_DENY_SCAN
+	RTW_PROC_HDL_SSEQ("scan_interval_thr", proc_get_scan_interval_thr, \
+			  proc_set_scan_interval_thr),
+#endif
 	RTW_PROC_HDL_SSEQ("scan_deny", proc_get_scan_deny, proc_set_scan_deny),
 #ifdef CONFIG_RTW_TPT_MODE
 	RTW_PROC_HDL_SSEQ("tpt_mode", proc_get_tpt_mode, proc_set_tpt_mode),

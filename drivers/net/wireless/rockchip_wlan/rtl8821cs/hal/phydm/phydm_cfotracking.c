@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -349,6 +350,14 @@ void phydm_cfo_tracking_reset(void *dm_void)
 		phydm_set_atc_status(dm, true);
 #endif
 #endif
+#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE | ODM_AP))
+	if (dm->support_ic_type & ODM_RTL8814B) {
+		/*Disable advance time for CFO residual*/
+		odm_set_bb_reg(dm, R_0xc2c, BIT29, 0x0);
+	}
+#endif
+#endif
 }
 
 void phydm_cfo_tracking_init(void *dm_void)
@@ -498,6 +507,14 @@ void phydm_cfo_tracking(void *dm_void)
 			else
 				phydm_set_atc_status(dm, true);
 
+		}
+		#endif
+		#endif
+		#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+		#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE | ODM_AP))
+		if (dm->support_ic_type & ODM_RTL8814B) {
+			//Disable advance time for CFO residual
+			odm_set_bb_reg(dm, R_0xc2c, BIT29, 0x0);
 		}
 		#endif
 		#endif

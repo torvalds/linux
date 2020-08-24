@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -770,7 +771,7 @@ static void _sounding_handler(PADAPTER adapter)
 
 		wait_cnt = 0;
 
-		if (check_fwstate(&adapter->mlmepriv, WIFI_SITE_MONITOR) == _TRUE) {
+		if (check_fwstate(&adapter->mlmepriv, WIFI_UNDER_SURVEY) == _TRUE) {
 			RTW_INFO("%s: Sounding abort! scanning APs...\n", __FUNCTION__);
 			info->sounding_running--;
 			return;
@@ -1890,7 +1891,7 @@ u8 rtw_bf_cmd(PADAPTER adapter, s32 type, u8 *pbuf, s32 size, u8 enqueue)
 	pdrvextra_cmd_parm->size = size;
 	pdrvextra_cmd_parm->pbuf = wk_buf;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -2097,7 +2098,7 @@ u8	beamforming_wk_cmd(_adapter *padapter, s32 type, u8 *pbuf, s32 size, u8 enque
 		pdrvextra_cmd_parm->size = size;
 		pdrvextra_cmd_parm->pbuf = wk_buf;
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 	} else

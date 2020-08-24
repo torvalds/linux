@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -119,9 +120,10 @@
 	#define CONFIG_DIRECTIONAL_BF
 #endif
 
-#ifdef CONFIG_SUPPORT_DYNAMIC_TXPWR
-#define CONFIG_DYNAMIC_TX_TWR
+#if (RTL8197G_SUPPORT || RTL8812F_SUPPORT || RTL8814B_SUPPORT)
+	#define CONFIG_DYNAMIC_TX_TWR
 #endif
+
 /*#define	CONFIG_PSD_TOOL*/
 #define PHYDM_SUPPORT_CCKPD
 #define PHYDM_SUPPORT_ADAPTIVITY

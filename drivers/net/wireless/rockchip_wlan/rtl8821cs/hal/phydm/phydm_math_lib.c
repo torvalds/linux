@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -179,8 +180,7 @@ u32 odm_convert_to_db(u64 value)
 	} else {
 		if (db_invert_table[i][j] - value >
 		    value - db_invert_table[i][j - 1]) {
-			/* fix clang warning */
-			/* i = i; */
+			i = i + 0;
 			j = j - 1;
 		}
 	}

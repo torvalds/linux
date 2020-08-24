@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -66,6 +67,11 @@ struct phydm_bf_rate_info_jgr3 {
 	u32			pre_mu_ratio;
 	u16			num_mu_vht_pkt[VHT_RATE_NUM];
 	u16			num_qry_vht_pkt[VHT_RATE_NUM];
+	boolean			mu_set_trxpath;
+	u8			tx_path_en_ofdm_1sts;
+	u8			tx_path_en_ofdm_2sts;
+	u8			rx_path_en_ofdm;
+	boolean			mu_been_iot;
 };
 
 /*this function is only used for BFer*/

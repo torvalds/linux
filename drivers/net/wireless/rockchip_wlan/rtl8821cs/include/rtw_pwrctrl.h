@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -383,11 +384,6 @@ struct pwrctrl_priv {
 	systime	lps_deny_time; /* will deny LPS when system time is smaller than this */
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
-
-	#ifdef CONFIG_AUTOSUSPEND
-	int		ps_flag; /* used by autosuspend */
-	u8		bInternalAutoSuspend;
-	#endif
 	u8		bInSuspend;
 #ifdef CONFIG_BT_COEXIST
 	u8		bAutoResume;
@@ -480,14 +476,14 @@ struct pwrctrl_priv {
 #endif
 	u8 current_lps_hw_port_id;
 
-#ifdef CONFIG_RTW_CFGVEDNOR_LLSTATS
+#ifdef CONFIG_RTW_CFGVENDOR_LLSTATS
 	systime radio_on_start_time;
 	systime pwr_saving_start_time;
 	u32 pwr_saving_time;
 	u32 on_time;
 	u32 tx_time;
 	u32 rx_time;
-#endif /* CONFIG_RTW_CFGVEDNOR_LLSTATS */
+#endif /* CONFIG_RTW_CFGVENDOR_LLSTATS */
 
 #ifdef CONFIG_LPS_ACK
 	struct submit_ctx lps_ack_sctx;
@@ -542,9 +538,6 @@ int ips_leave(_adapter *padapter);
 
 void rtw_ps_processor(_adapter *padapter);
 
-#ifdef CONFIG_AUTOSUSPEND
-int autoresume_enter(_adapter *padapter);
-#endif
 #ifdef SUPPORT_HW_RFOFF_DETECTED
 rt_rf_power_state RfOnOffDetect(PADAPTER pAdapter);
 #endif

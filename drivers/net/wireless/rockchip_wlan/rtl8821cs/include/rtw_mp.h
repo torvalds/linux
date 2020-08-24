@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -274,6 +275,7 @@ enum {
 	EFUSE_BT_MASK,
 	EFUSE_MASK,
 	EFUSE_FILE,
+	EFUSE_FILE_STORE,
 	MP_TX,
 	MP_RX,
 	MP_IQK,
@@ -289,6 +291,8 @@ enum {
 	MP_LINK,
 	MP_DPK_TRK,
 	MP_DPK,
+	MP_GET_TSSIDE,
+	MP_SET_TSSIDE,
 	MP_NULL,
 #ifdef CONFIG_APPEND_VENDOR_IE_ENABLE
 	VENDOR_IE_SET ,
@@ -385,6 +389,8 @@ struct mp_priv {
 	BOOLEAN mplink_btx;
 
 	bool tssitrk_on;
+	bool efuse_update_file;
+	char efuse_file_path[128];
 };
 
 typedef struct _IOCMD_STRUCT_ {
@@ -725,17 +731,19 @@ void hal_mpt_SetContinuousTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleToneTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
-void mpt_ProSetPMacTx(PADAPTER	Adapter);
+u8 mpt_ProSetPMacTx(PADAPTER	Adapter);
 void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter , BOOLEAN bMain);
 void mp_phy_switch_rf_path_set(PADAPTER pAdapter , u8 *pstate);
 u8 MP_PHY_QueryRFPathSwitch(PADAPTER pAdapter);
 u32 mpt_ProQueryCalTxPower(PADAPTER	pAdapter, u8 RfPath);
-void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
+void MPT_PwrCtlDM(PADAPTER padapter, u32 trk_type);
 u8 mpt_to_mgnt_rate(u32	MptRateIdx);
 u8 rtw_mpRateParseFunc(PADAPTER pAdapter, u8 *targetStr);
 u32 mp_join(PADAPTER padapter, u8 mode);
 u32 hal_mpt_query_phytxok(PADAPTER	pAdapter);
 u32 mpt_get_tx_power_finalabs_val(PADAPTER	padapter, u8 rf_path);
+void mpt_trigger_tssi_tracking(PADAPTER pAdapter, u8 rf_path);
+
 
 void
 PMAC_Get_Pkt_Param(
@@ -897,6 +905,9 @@ int rtw_bt_efuse_mask_file(struct net_device *dev,
 int rtw_efuse_file_map(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
+int rtw_efuse_file_map_store(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
 int rtw_bt_efuse_file_map(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
@@ -918,6 +929,12 @@ int rtw_mp_iqk(struct net_device *dev,
 		 struct iw_request_info *info,
 		 struct iw_point *wrqu, char *extra);
 int rtw_mp_lck(struct net_device *dev,
+		struct iw_request_info *info,
+		struct iw_point *wrqu, char *extra);
+int rtw_mp_get_tsside(struct net_device *dev,
+		struct iw_request_info *info,
+		struct iw_point *wrqu, char *extra);
+int rtw_mp_set_tsside(struct net_device *dev,
 		struct iw_request_info *info,
 		struct iw_point *wrqu, char *extra);
 #endif /* _RTW_MP_H_ */

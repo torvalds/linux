@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -318,6 +319,7 @@ void rtl8814_stop_thread(PADAPTER padapter);
 	BOOLEAN	InterruptRecognized8814AE(PADAPTER Adapter);
 	void	UpdateInterruptMask8814AE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 	void	InitMAC_TRXBD_8814AE(PADAPTER Adapter);
+	void rtl8814ae_reset_desc_ring(_adapter *padapter);
 	u16	get_txbd_rw_reg(u16 ff_hwaddr);
 #endif
 

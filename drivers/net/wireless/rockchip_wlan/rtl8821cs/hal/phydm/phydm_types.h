@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -180,7 +181,9 @@ enum rt_spinlock_type {
 	#define	boolean	bool
 
 	#define	phydm_timer_list	timer_list
-
+	#if defined(__ECOS)
+	#define s64	s8Byte
+	#endif 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE) && defined(DM_ODM_CE_MAC80211)
 
 	#include <asm/byteorder.h>

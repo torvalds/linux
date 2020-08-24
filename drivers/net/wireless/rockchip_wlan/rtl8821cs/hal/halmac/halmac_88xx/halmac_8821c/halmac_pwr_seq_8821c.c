@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -167,7 +168,7 @@ static struct halmac_wlan_pwr_cfg TRANS_ACT_TO_CARDEMU_8821C[] = {
 	 HALMAC_PWR_CUT_ALL_MSK,
 	 HALMAC_PWR_INTF_ALL_MSK,
 	 HALMAC_PWR_ADDR_MAC,
-	 HALMAC_PWR_CMD_WRITE, BIT(3), 0},
+	 HALMAC_PWR_CMD_WRITE, 0xFF, 0xC4},
 	{0x001F,
 	 HALMAC_PWR_CUT_ALL_MSK,
 	 HALMAC_PWR_INTF_ALL_MSK,

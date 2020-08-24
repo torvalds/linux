@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -210,6 +211,7 @@ static u8 _init_phy_parameter_rf(PADAPTER adapter)
 	enum rf_path eRFPath;
 	PBB_REGISTER_DEFINITION_T pPhyReg;
 	PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	enum hal_status status;
 	int res;
 	u8 ret = _TRUE;
@@ -218,7 +220,7 @@ static u8 _init_phy_parameter_rf(PADAPTER adapter)
 	/*
 	 * Initialize RF
 	 */
-	for (eRFPath = RF_PATH_A; eRFPath < hal->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = RF_PATH_A; eRFPath < hal_spec->rf_reg_path_num; eRFPath++) {
 		pPhyReg = &hal->PHYRegDef[eRFPath];
 
 		/* Initialize RF from configuration file */

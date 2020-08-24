@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -1073,7 +1074,7 @@ odm_txpowertracking_thermal_meter_init(
 
 #if (RTL8192F_SUPPORT == 1)
 	if (GET_CHIP_VER(priv) == VERSION_8192F) {
-		cali_info->default_ofdm_index = 30;
+		cali_info->default_ofdm_index = (default_swing_index >= (OFDM_TABLE_SIZE_92D - 1)) ? 30 : default_swing_index;
 		cali_info->default_cck_index = 28;
 	}
 #endif

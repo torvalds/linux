@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -26,7 +27,8 @@
 #ifndef __PHYDM_CCK_PD_H__
 #define __PHYDM_CCK_PD_H__
 
-#define CCK_PD_VERSION "3.3" /* @ modify invalid type4 API*/
+/* 2019.05.09 Modify the return criterion of supportability of CCK_PD*/
+#define CCK_PD_VERSION "3.5"
 
 /*@
  * 1 ============================================================
@@ -35,10 +37,9 @@
  */
 #define CCK_FA_MA_RESET 0xffffffff
 
-#define INVALID_CS_RATIO_0 27 /* @ only for type4 ICs*/
-#define INVALID_CS_RATIO_1 29 /* @ only for type4 ICs*/
-#define MAXVALID_CS_RATIO 31
-#define MAXVALID_PD_THRES 255
+#define INVALID_CS_RATIO_0 0x1b /* @ only for type4 ICs*/
+#define INVALID_CS_RATIO_1 0x1d /* @ only for type4 ICs*/
+#define MAXVALID_CS_RATIO 0x1f
 /*@Run time flag of CCK_PD HW type*/
 #define CCK_PD_IC_TYPE1 (ODM_RTL8188E | ODM_RTL8812 | ODM_RTL8821 |\
 			ODM_RTL8192E | ODM_RTL8723B | ODM_RTL8814A |\
@@ -141,7 +142,7 @@ struct phydm_cckpd_struct {
 	#endif
 	#ifdef PHYDM_COMPILE_CCKPD_TYPE4
 	/*@[bw][nrx][0:PD/1:CS][lv]*/
-	u8		cck_pd_table_jgr3[2][4][2][CCK_PD_LV_MAX];
+	u8		cckpd_jgr3[2][4][2][CCK_PD_LV_MAX];
 	#endif
 };
 #endif

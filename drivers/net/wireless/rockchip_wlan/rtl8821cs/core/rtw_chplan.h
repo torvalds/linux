@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2018 Realtek Corporation.
@@ -87,6 +88,7 @@ enum rtw_chplan_id {
 	RTW_CHPLAN_FCC1_FCC15 = 0x4C,
 	RTW_CHPLAN_FCC2_MEX1 = 0x4D,
 	RTW_CHPLAN_ETSI1_ETSI22 = 0x4E,
+	RTW_CHPLAN_NULL_MKK9 = 0x4F,
 	RTW_CHPLAN_WORLD_ETSI9 = 0x50,
 	RTW_CHPLAN_WORLD_ETSI10 = 0x51,
 	RTW_CHPLAN_WORLD_ETSI11 = 0x52,
@@ -97,6 +99,11 @@ enum rtw_chplan_id {
 	RTW_CHPLAN_FCC1_FCC10 = 0x57,
 	RTW_CHPLAN_MKK2_MKK4 = 0x58,
 	RTW_CHPLAN_WORLD_ETSI14 = 0x59,
+	RTW_CHPLAN_NULL_FCC19 = 0x5A,
+	RTW_CHPLAN_NULL_FCC20 = 0x5B,
+	RTW_CHPLAN_NULL_FCC21 = 0x5C,
+	RTW_CHPLAN_ETSI1_ETSI23	= 0x5D,
+	RTW_CHPLAN_ETSI1_ETSI2 = 0x5E,
 	RTW_CHPLAN_FCC1_FCC5 = 0x60,
 	RTW_CHPLAN_FCC2_FCC7 = 0x61,
 	RTW_CHPLAN_FCC2_FCC1 = 0x62,
@@ -150,6 +157,7 @@ u8 init_channel_set(_adapter *padapter, u8 ChannelPlan, struct _RT_CHANNEL_INFO 
 #define RTW_MODULE_RTL8723DE_NGFF1630	BIT8	/* RTL8723DE(NGFF1630) */
 #define RTW_MODULE_RTL8822BE			BIT9	/* RTL8822BE */
 #define RTW_MODULE_RTL8821CE			BIT10	/* RTL8821CE */
+#define RTW_MODULE_RTL8822CE			BIT11	/* RTL8822CE */
 
 struct country_chplan {
 	char alpha2[2];

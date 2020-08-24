@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *

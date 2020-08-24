@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -91,21 +92,6 @@ enum phydm_halmac_param {
 #define _reg_ic(_name, _ic)		ODM_##_name##_ic
 #define _bit_all(_name)			BIT_##_name
 #define _bit_ic(_name, _ic)		BIT_##_name##_ic
-
-/* @_cat: implemented by Token-Pasting Operator. */
-#if 0
-#define _cat(_name, _ic_type, _func) \
-	(                            \
-		_func##_all(_name))
-#endif
-
-#if 0
-
-#define ODM_REG_DIG_11N		0xC50
-#define ODM_REG_DIG_11AC	0xDDD
-
-ODM_REG(DIG,_pdm_odm)
-#endif
 
 #if defined(DM_ODM_CE_MAC80211)
 #define ODM_BIT(name, dm)				\
@@ -322,15 +308,6 @@ void phydm_add_interrupt_mask_handler(struct dm_struct *dm, u8 interrupt_type);
 
 void phydm_enable_rx_related_interrupt_handler(struct dm_struct *dm);
 
-#if 0
-boolean
-phydm_get_txbf_en(
-	struct dm_struct		*dm,
-	u16		mac_id,
-	u8		i
-);
-#endif
-
 void phydm_iqk_wait(struct dm_struct *dm, u32 timeout);
 u8 phydm_get_hwrate_to_mrate(struct dm_struct *dm, u8 rate);
 
@@ -340,6 +317,9 @@ void phydm_run_in_thread_cmd(struct dm_struct *dm, void (*func)(void *),
 u8 phydm_get_tx_rate(struct dm_struct *dm);
 u8 phydm_get_tx_power_dbm(struct dm_struct *dm, u8 rf_path,
 					u8 rate, u8 bandwidth, u8 channel);
+
+u32 phydm_rfe_ctrl_gpio(struct dm_struct *dm, u8 gpio_num);
+
 u64 phydm_division64(u64 x, u64 y);
 
 #endif /* @__ODM_INTERFACE_H__ */

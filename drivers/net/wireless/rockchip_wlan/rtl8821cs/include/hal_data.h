@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -209,7 +210,7 @@ struct kfree_data_t {
 	u8 flag;
 	s8 bb_gain[BB_GAIN_NUM][RF_PATH_MAX];
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	s8 pa_bias_5g[RF_PATH_MAX];
 	s8 pad_bias_5g[RF_PATH_MAX];
 #endif
@@ -224,10 +225,16 @@ struct hal_spec_t {
 
 	u8 sec_cam_ent_num;
 	u8 sec_cap;
+	u8 wow_cap;
+	u8 macid_cap;
+	u16 macid_txrpt;
+	u8 macid_txrpt_pgsz;
 
 	u8 rfpath_num_2g:4;	/* used for tx power index path */
 	u8 rfpath_num_5g:4;	/* used for tx power index path */
 	u8 rf_reg_path_num;
+	u8 rf_reg_path_avail_num;
+	u8 rf_reg_trx_path_bmp; /* [7:4]TX path bmp, [0:3]RX path bmp */
 	u8 max_tx_cnt;
 
 	u8 tx_nss_num:4;
@@ -331,7 +338,7 @@ struct txpwr_lmt_ent {
 		[CENTER_CH_2G_NUM]
 		[MAX_TX_COUNT];
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	s8 lmt_5g[MAX_5G_BANDWIDTH_NUM]
 		[TXPWR_LMT_RS_NUM_5G]
 		[CENTER_CH_5G_ALL_NUM]
@@ -367,7 +374,6 @@ typedef struct hal_com_data {
 	WIRELESS_MODE	CurrentWirelessMode;
 	enum channel_width current_channel_bw;
 	BAND_TYPE		current_band_type;	/* 0:2.4G, 1:5G */
-	BAND_TYPE		BandSet;
 	u8				current_channel;
 	u8				cch_20;
 	u8				cch_40;
@@ -379,7 +385,9 @@ typedef struct hal_com_data {
 	u8				bDisableSWChannelPlan; /* flag of disable software change channel plan	 */
 	u16				BasicRateSet;
 	u32				ReceiveConfig;
-	u32				rcr_backup; /* used for switching back from monitor mode */
+#ifdef CONFIG_WIFI_MONITOR
+	struct mon_reg_backup		mon_backup; /* used for switching back from monitor mode */
+#endif /* CONFIG_WIFI_MONITOR */
 	u8				rx_tsf_addr_filter_config; /* for 8822B/8821C USE */
 	BOOLEAN			bSwChnl;
 	BOOLEAN			bSetChnlBW;
@@ -496,7 +504,7 @@ typedef struct hal_com_data {
 	s8	BW40_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	/* 5G TX power info for target TX power*/
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	u8	Index5G_BW40_Base[MAX_RF_PATH][CENTER_CH_5G_ALL_NUM];
 	u8	Index5G_BW80_Base[MAX_RF_PATH][CENTER_CH_5G_80M_NUM];
 	s8	OFDM_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
@@ -519,13 +527,15 @@ typedef struct hal_com_data {
 	u8	target_txpwr_5g[TX_PWR_BY_RATE_NUM_RF]
 		[NUM_OF_TARGET_TXPWR_5G];
 
+	bool set_entire_txpwr;
+
 #if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
 	u32 txagc_set_buf;
 #endif
-#ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
-	/* reference value buf */
-	s8 txpwr_idx_mcs7_target;
-	s8 txpwr_idx_mcs7_amends;
+
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+	u8 txpwr_idx_offload_buf[3]; /* for CCK, OFDM, HT1SS */
+	struct submit_ctx txpwr_idx_offload_sctx;
 #endif
 
 	u8	txpwr_by_rate_loaded:1;
@@ -587,6 +597,7 @@ typedef struct hal_com_data {
 	u8			neediqk_24g;
 	u8			IQK_MP_Switch;
 	u8			bScanInProcess;
+	u8			phydm_init_result; /*BB and RF para match or not*/
 	/******** PHY DM & DM Section **********/
 
 
@@ -622,6 +633,8 @@ typedef struct hal_com_data {
 	u8 rxagg_dma_size;
 	u8 rxagg_dma_timeout;
 #endif /* RTW_RX_AGGREGATION */
+
+	bool intf_start;
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	/*  */

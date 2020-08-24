@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -47,9 +48,6 @@ struct _DFS_STATISTICS {
 	u8		st_l2h_cur;
 	u16		fa_count_pre;
 	u16		fa_inc_hist[5];
-	u16		vht_crc_ok_cnt_pre;
-	u16		ht_crc_ok_cnt_pre;
-	u16		leg_crc_ok_cnt_pre;
 	u16		short_pulse_cnt_pre;
 	u16		long_pulse_cnt_pre;
 	u8		pwdb_th;
@@ -62,10 +60,10 @@ struct _DFS_STATISTICS {
 	u8		three_peak_opt;
 	u8		three_peak_th2;
 	u8		fa_mask_th;
-	u8		det_flag_offset;
 	u8		st_l2h_max;
 	u8		st_l2h_min;
-	u8		mask_hist_checked;
+	u8		dfs_polling_time;
+	u8		mask_hist_checked : 3;
 	boolean		pulse_flag_hist[5];
 	boolean		pulse_type_hist[5];
 	boolean		radar_det_mask_hist[5];
@@ -76,10 +74,9 @@ struct _DFS_STATISTICS {
 	boolean		det_print;
 	boolean		det_print2;
 	boolean		radar_type;
-	u8		dfs_polling_time;
-	/*@dfs histogram*/
 	boolean		print_hist_rpt;
 	boolean		hist_cond_on;
+	/*@dfs histogram*/
 	boolean		pri_cond1;
 	boolean		pri_cond2;
 	boolean		pri_cond3;
@@ -97,47 +94,45 @@ struct _DFS_STATISTICS {
 	boolean		pri_flag;
 	boolean		pri_type3_4_flag;	/*@for ETSI*/
 	boolean		long_radar_flag;
-	u16		pri_hold_sum[6];
-	u16		pw_hold_sum[6];
-	u16		pri_long_hold_sum[6];
-	u16		pw_long_hold_sum[6];
+	u8		pri_hold_sum[6];
+	u8		pw_hold_sum[6];
+	u8		pri_long_hold_sum[6];
+	u8		pw_long_hold_sum[6];
 	u8		hist_idx;
 	u8		hist_long_idx;
 	u8		pw_hold[4][6];
 	u8		pri_hold[4][6];
-	u8		pw_long_hold[300][6];
-	u8		pri_long_hold[300][6];
-	u16		pw_std;	/*@The std(var) of reasonable num of pw group*/
-	u16		pri_std;/*@The std(var) of reasonable num of pri group*/
+	u8		pw_std;	/*@The std(var) of reasonable num of pw group*/
+	u8		pri_std;/*@The std(var) of reasonable num of pri group*/
 	/*@dfs histogram threshold*/
-	u8		pri_hist_th;
-	u8		pri_sum_g1_th;
-	u8		pri_sum_g5_th;
-	u8		pri_sum_g1_fcc_th;
-	u8		pri_sum_g3_fcc_th;
-	u8		pri_sum_safe_fcc_th;
-	u8		pri_sum_type4_th;
-	u8		pri_sum_type6_th;
-	u8		pri_sum_safe_th;
-	u8		pri_sum_g5_under_g1_th;
-	u8		pri_pw_diff_th;
-	u8		pri_pw_diff_fcc_th;
-	u8		pri_pw_diff_fcc_idle_th;
-	u8		pri_pw_diff_w53_th;
-	u8		pri_type1_low_fcc_th;
-	u8		pri_type1_upp_fcc_th;
-	u8		pri_type1_cen_fcc_th;
-	u8		pw_g0_th;
-	u8		pw_long_lower_20m_th;
-	u8		pw_long_lower_th;
-	u8		pri_long_upper_th;
-	u8		pw_long_sum_upper_th;
-	u8		pw_std_th;
-	u8		pw_std_idle_th;
-	u8		pri_std_th;
-	u8		pri_std_idle_th;
-	u8		type4_pw_max_cnt;
-	u8		type4_safe_pri_sum_th;
+	u8		pri_hist_th : 3;
+	u8		pri_sum_g1_th : 4;
+	u8		pri_sum_g5_th : 4;
+	u8		pri_sum_g1_fcc_th : 3;
+	u8		pri_sum_g3_fcc_th : 3;
+	u8		pri_sum_safe_fcc_th : 7;
+	u8		pri_sum_type4_th : 5;
+	u8		pri_sum_type6_th : 5;
+	u8		pri_sum_safe_th : 6;
+	u8		pri_sum_g5_under_g1_th : 3;
+	u8		pri_pw_diff_th : 3;
+	u8		pri_pw_diff_fcc_th : 4;
+	u8		pri_pw_diff_fcc_idle_th : 2;
+	u8		pri_pw_diff_w53_th : 4;
+	u8		pri_type1_low_fcc_th : 7;
+	u8		pri_type1_upp_fcc_th : 7;
+	u8		pri_type1_cen_fcc_th : 7;
+	u8		pw_g0_th : 4;
+	u8		pw_long_lower_20m_th : 4;
+	u8		pw_long_lower_th : 3;
+	u8		pri_long_upper_th : 6;
+	u8		pw_long_sum_upper_th : 7;
+	u8		pw_std_th : 4;
+	u8		pw_std_idle_th : 4;
+	u8		pri_std_th : 4;
+	u8		pri_std_idle_th : 4;
+	u8		type4_pw_max_cnt : 4;
+	u8		type4_safe_pri_sum_th : 3;
 };
 
 /*@

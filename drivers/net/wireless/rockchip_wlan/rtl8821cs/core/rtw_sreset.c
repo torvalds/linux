@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -232,10 +233,10 @@ void sreset_stop_adapter(_adapter *padapter)
 	tasklet_kill(&pxmitpriv->xmit_tasklet);
 #endif
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
+	if (check_fwstate(pmlmepriv, WIFI_UNDER_SURVEY))
 		rtw_scan_abort(padapter);
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
+	if (check_fwstate(pmlmepriv, WIFI_UNDER_LINKING)) {
 		rtw_set_to_roam(padapter, 0);
 		rtw_join_timeout_handler(padapter);
 	}
@@ -252,7 +253,7 @@ void sreset_start_adapter(_adapter *padapter)
 
 	RTW_INFO(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED))
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE))
 		sreset_restore_network_status(padapter);
 
 	/* TODO: OS and HCI independent */

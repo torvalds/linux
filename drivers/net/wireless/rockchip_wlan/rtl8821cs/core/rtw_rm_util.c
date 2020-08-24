@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -124,16 +125,20 @@ u8 rm_get_bcn_rcpi(struct rm_obj *prm, struct wlan_network *pnetwork)
 u8 rm_get_frame_rsni(struct rm_obj *prm, union recv_frame *pframe)
 {
 	int i;
-	u8 val8, snr;
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(prm->psta->padapter);
+	u8 val8, snr, rx_num;
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(prm->psta->padapter);
 
 	if (IS_CCK_RATE((hw_rate_to_m_rate(pframe->u.hdr.attrib.data_rate))))
 		val8 = 255;
 	else {
-		snr = 0;
-		for (i = 0; i < pHalData->NumTotalRFPath; i++)
-			snr += pframe->u.hdr.attrib.phy_info.rx_snr[i];
-		snr = snr / pHalData->NumTotalRFPath;
+		snr = rx_num = 0;
+		for (i = 0; i < hal_spec->rf_reg_path_num; i++) {
+			if (GET_HAL_RX_PATH_BMP(prm->psta->padapter) & BIT(i)) {
+				snr += pframe->u.hdr.attrib.phy_info.rx_snr[i];
+				rx_num++;
+			}
+		}
+		snr = snr / rx_num;
 		val8 = (u8)(snr + 10)*2;
 	}
 	return val8;
@@ -142,20 +147,22 @@ u8 rm_get_frame_rsni(struct rm_obj *prm, union recv_frame *pframe)
 u8 rm_get_bcn_rsni(struct rm_obj *prm, struct wlan_network *pnetwork)
 {
 	int i;
-	u8 val8, snr;
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(prm->psta->padapter);
-
+	u8 val8, snr, rx_num;
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(prm->psta->padapter);
 
 	if (pnetwork->network.PhyInfo.is_cck_rate) {
 		/* current HW doesn't have CCK RSNI */
 		/* 255 indicates RSNI is unavailable */
 		val8 = 255;
 	} else {
-		snr = 0;
-		for (i = 0; i < pHalData->NumTotalRFPath; i++) {
-			snr += pnetwork->network.PhyInfo.rx_snr[i];
+		snr = rx_num = 0;
+		for (i = 0; i < hal_spec->rf_reg_path_num; i++) {
+			if (GET_HAL_RX_PATH_BMP(prm->psta->padapter) & BIT(i)) {
+				snr += pnetwork->network.PhyInfo.rx_snr[i];
+				rx_num++;
+			}
 		}
-		snr = snr / pHalData->NumTotalRFPath;
+		snr = snr / rx_num;
 		val8 = (u8)(snr + 10)*2;
 	}
 	return val8;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -231,6 +232,7 @@ mount_api_88xx(struct halmac_adapter *adapter)
 	api->halmac_get_logical_efuse_size = get_log_efuse_size_88xx;
 
 	api->halmac_write_logical_efuse = write_log_efuse_88xx;
+	api->halmac_write_logical_efuse_word = write_log_efuse_word_88xx;
 	api->halmac_read_logical_efuse = read_logical_efuse_88xx;
 
 	api->halmac_write_wifi_phy_efuse = write_wifi_phy_efuse_88xx;
@@ -269,6 +271,7 @@ mount_api_88xx(struct halmac_adapter *adapter)
 	api->halmac_drop_scan_packet = drop_scan_packet_88xx;
 
 	api->halmac_start_iqk = start_iqk_88xx;
+	api->halmac_start_dpk = start_dpk_88xx;
 	api->halmac_ctrl_pwr_tracking = ctrl_pwr_tracking_88xx;
 	api->halmac_psd = psd_88xx;
 	api->halmac_cfg_la_mode = cfg_la_mode_88xx;
@@ -588,6 +591,9 @@ reset_ofld_feature_88xx(struct halmac_adapter *adapter,
 		state->fw_snding_state.proc_status = HALMAC_CMD_PROCESS_IDLE;
 		state->fw_snding_state.cmd_cnstr_state = HALMAC_CMD_CNSTR_IDLE;
 		break;
+	case HALMAC_FEATURE_DPK:
+		state->dpk_state.proc_status = HALMAC_CMD_PROCESS_IDLE;
+		break;
 	case HALMAC_FEATURE_ALL:
 		state->cfg_param_state.proc_status = HALMAC_CMD_PROCESS_IDLE;
 		state->cfg_param_state.cmd_cnstr_state = HALMAC_CMD_CNSTR_IDLE;
@@ -673,14 +679,13 @@ verify_io_88xx(struct halmac_adapter *adapter)
 	enum halmac_ret_status ret_status = HALMAC_RET_SUCCESS;
 
 	if (adapter->intf == HALMAC_INTERFACE_SDIO) {
+#if HALMAC_SDIO_SUPPORT
 		offset = REG_PAGE5_DUMMY;
 		if (0 == (offset & 0xFFFF0000))
 			offset |= WLAN_IOREG_OFFSET;
-#if HALMAC_SDIO_SUPPORT
+
 		ret_status = cnv_to_sdio_bus_offset_88xx(adapter, &offset);
-#else
-		return HALMAC_RET_WRONG_INTF;
-#endif
+
 		/* Verify CMD52 R/W */
 		wvalue8 = 0xab;
 		PLTFM_SDIO_CMD52_W(offset, wvalue8);
@@ -727,6 +732,9 @@ verify_io_88xx(struct halmac_adapter *adapter)
 			PLTFM_MSG_ERR("[ERR]cmd52 is used\n");
 			ret_status = HALMAC_RET_PLATFORM_API_INCORRECT;
 		}
+#else
+		return HALMAC_RET_WRONG_INTF;
+#endif
 	} else {
 		wvalue32 = 0x77665511;
 		PLTFM_REG_W32(REG_PAGE5_DUMMY, wvalue32);

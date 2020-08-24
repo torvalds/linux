@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -31,8 +32,8 @@
 /*#define DEBUG_VERSION	"1.3"*/ /*2016.04.28 YuChen*/
 /*#define DEBUG_VERSION	"1.4"*/ /*2017.03.13 Dino*/
 /*#define DEBUG_VERSION "2.0"*/ /*2018.01.10 Dino*/
-/* 2019.03.25 fix nhm_r[11] debug msg error*/
-#define DEBUG_VERSION "2.6"
+/* 2019.07.01 Move location of nhm_level msg in win_cli*/
+#define DEBUG_VERSION "3.8"
 
 /*@
  * ============================================================

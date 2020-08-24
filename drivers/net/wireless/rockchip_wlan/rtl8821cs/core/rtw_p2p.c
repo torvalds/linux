@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -598,7 +599,7 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -710,7 +711,7 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -853,7 +854,7 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1007,7 +1008,7 @@ u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1106,7 +1107,7 @@ u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1205,7 +1206,7 @@ u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1304,7 +1305,7 @@ u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1404,7 +1405,7 @@ u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1504,7 +1505,7 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1617,7 +1618,7 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1730,7 +1731,7 @@ u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -1830,7 +1831,7 @@ u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Value: */
 	/*	Associated BSSID */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		_rtw_memcpy(wfdie + wfdielen, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 	else
 		_rtw_memset(wfdie + wfdielen, 0x00, ETH_ALEN);
@@ -3229,8 +3230,8 @@ u8 roch_stay_in_cur_chan(_adapter *padapter)
 		if (iface) {
 			pmlmepriv = &iface->mlmepriv;
 
-			if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING | WIFI_UNDER_WPS | WIFI_UNDER_KEY_HANDSHAKE) == _TRUE) {
-				RTW_INFO(ADPT_FMT"- _FW_UNDER_LINKING |WIFI_UNDER_WPS | WIFI_UNDER_KEY_HANDSHAKE (mlme state:0x%x)\n",
+			if (check_fwstate(pmlmepriv, WIFI_UNDER_LINKING | WIFI_UNDER_WPS | WIFI_UNDER_KEY_HANDSHAKE) == _TRUE) {
+				RTW_INFO(ADPT_FMT"- WIFI_UNDER_LINKING |WIFI_UNDER_WPS | WIFI_UNDER_KEY_HANDSHAKE (mlme state:0x%x)\n",
 						ADPT_ARG(iface), get_fwstate(&iface->mlmepriv));
 				rst = _TRUE;
 				break;
@@ -3297,7 +3298,7 @@ static int ro_ch_handler(_adapter *adapter, u8 *buf)
 
 	#ifdef CONFIG_CONCURRENT_MODE
 	if (rtw_mi_check_status(adapter, MI_LINKED) && (0 != rtw_mi_get_union_chan(adapter))) {
-		if ((remain_ch != rtw_mi_get_union_chan(adapter)) && !check_fwstate(&adapter->mlmepriv, _FW_LINKED)) {
+		if ((remain_ch != rtw_mi_get_union_chan(adapter)) && !check_fwstate(&adapter->mlmepriv, WIFI_ASOC_STATE)) {
 			if (remain_ch != pmlmeext->cur_channel
 				#ifdef RTW_ROCH_BACK_OP
 				|| ATOMIC_READ(&pwdev_priv->switch_ch_to) == 1
@@ -3322,7 +3323,7 @@ static int ro_ch_handler(_adapter *adapter, u8 *buf)
 
 	if (ready_on_channel == _TRUE) {
 		#ifndef RTW_SINGLE_WIPHY
-		if (!check_fwstate(&adapter->mlmepriv, _FW_LINKED))
+		if (!check_fwstate(&adapter->mlmepriv, WIFI_ASOC_STATE))
 		#endif
 		{
 			#ifdef CONFIG_CONCURRENT_MODE
@@ -4519,7 +4520,7 @@ void p2p_ps_wk_hdl(_adapter *padapter, u8 p2p_ps_state)
 		_exit_pwrlock(&adapter_to_pwrctl(padapter)->lock);
 
 		if ((ps_deny & (PS_DENY_SCAN | PS_DENY_JOIN))
-			|| rtw_mi_check_fwstate(padapter, (_FW_UNDER_SURVEY | _FW_UNDER_LINKING))) {
+			|| rtw_mi_check_fwstate(padapter, (WIFI_UNDER_SURVEY | WIFI_UNDER_LINKING))) {
 			pwdinfo->p2p_ps_mode = P2P_PS_NONE;
 			RTW_DBG(FUNC_ADPT_FMT" Block P2P PS under site survey or LINKING\n", FUNC_ADPT_ARG(padapter));
 			return;
@@ -4601,7 +4602,7 @@ u8 p2p_ps_wk_cmd(_adapter *padapter, u8 p2p_ps_state, u8 enqueue)
 		pdrvextra_cmd_parm->size = 0;
 		pdrvextra_cmd_parm->pbuf = NULL;
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 	} else

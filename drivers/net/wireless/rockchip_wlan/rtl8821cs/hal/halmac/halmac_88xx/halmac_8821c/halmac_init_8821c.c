@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -770,6 +771,7 @@ init_protocol_cfg_8821c(struct halmac_adapter *adapter)
 	u32 max_agg_num;
 	u32 max_rts_agg_num;
 	u32 value32;
+	u8 value8;
 	struct halmac_api *api = (struct halmac_api *)adapter->halmac_api;
 
 	PLTFM_MSG_TRACE("[TRACE]%s ===>\n", __func__);
@@ -800,6 +802,9 @@ init_protocol_cfg_8821c(struct halmac_adapter *adapter)
 	HALMAC_REG_W8(REG_FAST_EDCA_VOVI_SETTING + 2, WLAN_FAST_EDCA_VI_TH);
 	HALMAC_REG_W8(REG_FAST_EDCA_BEBK_SETTING, WLAN_FAST_EDCA_BE_TH);
 	HALMAC_REG_W8(REG_FAST_EDCA_BEBK_SETTING + 2, WLAN_FAST_EDCA_BK_TH);
+
+	value8 = HALMAC_REG_R8(REG_INIRTS_RATE_SEL);
+	HALMAC_REG_W8(REG_INIRTS_RATE_SEL, value8 | BIT(5));
 
 	PLTFM_MSG_TRACE("[TRACE]%s <===\n", __func__);
 

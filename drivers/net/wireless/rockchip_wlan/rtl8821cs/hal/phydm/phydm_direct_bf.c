@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -94,7 +95,7 @@ void phydm_iq_gen_en(void *dm_void)
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x18000);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x000cf);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x71fc2);
-		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x18000);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x08000);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x000ef);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x01042);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0xef, 0x80000, 0x0);

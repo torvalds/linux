@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -168,22 +169,5 @@ void adc_smp_de_init(void *dm_void);
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 void adc_smp_work_item_callback(void *context);
 #endif
-
-#if 0
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-enum rt_status adc_smp_query(void *dm_void, ULONG info_buf_length,
-			     void *info_buf, PULONG bytes_written);
-
-#elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
-
-void adc_smp_query(void *dm_void, void *output, u32 out_len, u32 *pused);
-
-s32 adc_smp_get_sample_counts(void *dm_void);
-
-s32 adc_smp_query_single_data(void *dm_void, void *output, u32 out_len,
-			      u32 idx);
-#endif
-#endif
-
 #endif
 #endif

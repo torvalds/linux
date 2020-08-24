@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -459,41 +460,6 @@ beamforming_add_bfer_entry(
 	} else
 		return NULL;
 }
-
-#if 0
-boolean
-beamforming_remove_entry(
-	void			*adapter,
-	u8		*RA,
-	u8		*idx
-)
-{
-	HAL_DATA_TYPE			*hal_data = GET_HAL_DATA(((PADAPTER)adapter));
-	struct dm_struct				*dm = &hal_data->DM_OutSrc;
-
-	struct _RT_BEAMFORMER_ENTRY	*bfer_entry = phydm_beamforming_get_bfer_entry_by_addr(dm, RA, idx);
-	struct _RT_BEAMFORMEE_ENTRY	*entry = phydm_beamforming_get_bfee_entry_by_addr(dm, RA, idx);
-	boolean ret = false;
-
-	RT_DISP(FBEAM, FBEAM_FUN, ("[Beamforming]@%s Start!\n", __func__));
-	RT_DISP(FBEAM, FBEAM_FUN, ("[Beamforming]@%s, bfer_entry=0x%x\n", __func__, bfer_entry));
-	RT_DISP(FBEAM, FBEAM_FUN, ("[Beamforming]@%s, entry=0x%x\n", __func__, entry));
-
-	if (entry != NULL) {
-		entry->is_used = false;
-		entry->beamform_entry_cap = BEAMFORMING_CAP_NONE;
-		/*@entry->beamform_entry_state = BEAMFORMING_ENTRY_STATE_UNINITIALIZE;*/
-		entry->is_beamforming_in_progress = false;
-		ret = true;
-	}
-	if (bfer_entry != NULL) {
-		bfer_entry->is_used = false;
-		bfer_entry->beamform_entry_cap = BEAMFORMING_CAP_NONE;
-		ret = true;
-	}
-	return ret;
-}
-#endif
 
 /* Used for beamforming_start_v1 */
 void phydm_beamforming_ndpa_rate(
@@ -1806,35 +1772,6 @@ void beamforming_leave(
 
 	PHYDM_DBG(dm, DBG_TXBF, "[%s] End!!\n", __func__);
 }
-
-#if 0
-/* Nobody calls this function */
-void
-phydm_beamforming_set_txbf_en(
-	void		*dm_void,
-	u8			mac_id,
-	boolean			is_txbf
-)
-{
-	struct dm_struct				*dm = (struct dm_struct *)dm_void;
-	u8					idx = 0;
-	struct _RT_BEAMFORMEE_ENTRY	*entry;
-
-	PHYDM_DBG(dm, DBG_TXBF, "%s Start!\n", __func__);
-
-	entry = phydm_beamforming_get_entry_by_mac_id(dm, mac_id, &idx);
-
-	if (entry == NULL)
-		return;
-	else
-		entry->is_txbf = is_txbf;
-
-	PHYDM_DBG(dm, DBG_TXBF, "%s mac_id %d TxBF %d\n", __func__,
-		  entry->mac_id, entry->is_txbf);
-
-	phydm_beamforming_notify(dm);
-}
-#endif
 
 enum beamforming_cap
 phydm_beamforming_get_beam_cap(

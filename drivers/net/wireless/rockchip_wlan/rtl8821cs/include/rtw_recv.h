@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -197,11 +198,15 @@ struct rx_pkt_attrib	{
 	u8	ldpc;
 	u8	sgi;
 	u8	pkt_rpt_type;
-	u32 tsfl;
 	u32	MacIDValidEntry[2];	/* 64 bits present 64 entry. */
+	u8	ampdu;
 	u8	ppdu_cnt;
+	u8	ampdu_eof;
 	u32 	free_cnt;		/* free run counter */
 	struct phydm_phyinfo_struct phy_info;
+#ifdef CONFIG_WIFI_MONITOR
+	u8 moif[16];
+#endif
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	/* checksum offload realted varaiables */

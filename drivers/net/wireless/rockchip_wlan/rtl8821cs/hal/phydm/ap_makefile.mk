@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 _PHYDM_FILES :=\
 	phydm/phydm.o \
@@ -190,6 +191,7 @@ ifeq ($(CONFIG_WLAN_HAL_8814BE),y)
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_iqk_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_dpk_8814b.o
+		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_txgapk_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halrf_rfk_init_8814b.o
 		_PHYDM_FILES += phydm/halrf/rtl8814b/halhwimg8814b_rf.o
 	ifeq ($(CONFIG_RTL_ODM_WLAN_DRIVER),y)

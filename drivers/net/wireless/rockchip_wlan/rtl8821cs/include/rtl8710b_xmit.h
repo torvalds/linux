@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -476,9 +477,7 @@ void rtl8710b_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, str
 void rtl8710b_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, struct tx_desc *ptxdesc);
 void rtl8710b_fill_fake_txdesc(PADAPTER padapter, u8 *pDesc, u32 BufferLen, u8 IsPsPoll, u8 IsBTQosNull, u8 bDataFrame);
 
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)

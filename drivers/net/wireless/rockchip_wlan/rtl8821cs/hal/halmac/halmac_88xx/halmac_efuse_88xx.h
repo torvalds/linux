@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -67,6 +68,10 @@ read_logical_efuse_88xx(struct halmac_adapter *adapter, u32 offset, u8 *value);
 
 enum halmac_ret_status
 write_log_efuse_88xx(struct halmac_adapter *adapter, u32 offset, u8 value);
+
+enum halmac_ret_status
+write_log_efuse_word_88xx(struct halmac_adapter *adapter, u32 offset,
+			  u16 value);
 
 enum halmac_ret_status
 pg_efuse_by_map_88xx(struct halmac_adapter *adapter,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -165,6 +166,8 @@
 		pattrib_iv[6] = dot11txpn._byte_.TSC4;\
 		pattrib_iv[7] = dot11txpn._byte_.TSC5;\
 	} while (0)
+
+#define GCMP_IV(a, b, c) AES_IV(a, b, c)
 
 /* Check if AMPDU Tx is supported or not. If it is supported,
 * it need to check "amsdu in ampdu" is supported or not.
@@ -424,9 +427,7 @@ struct pkt_attrib {
 	u32	last_txcmdsz;
 	u8	nr_frags;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
-#if defined(CONFIG_CONCURRENT_MODE)
 	u8	bmc_camid;
-#endif
 	u8	iv_len;
 	u8	icv_len;
 	u8	iv[18];
@@ -1000,6 +1001,8 @@ u8 rtw_get_tx_bw_mode(_adapter *adapter, struct sta_info *sta);
 void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj);
 u8 rtw_get_tx_bw_bmp_of_ht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
 u8 rtw_get_tx_bw_bmp_of_vht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
+s16 rtw_adapter_get_oper_txpwr_max_mbm(_adapter *adapter);
+s16 rtw_get_oper_txpwr_max_mbm(struct dvobj_priv *dvobj);
 
 u8 query_ra_short_GI(struct sta_info *psta, u8 bw);
 

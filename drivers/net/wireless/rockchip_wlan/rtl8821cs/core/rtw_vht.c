@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -562,7 +563,7 @@ void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 	struct vht_priv		*pvhtpriv = &pmlmepriv->vhtpriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, tx_nss = 0;
+	u8	cur_ldpc_cap = 0, cur_stbc_cap = 0, rx_nss = 0;
 	u16	cur_beamform_cap = 0;
 	u8	*pcap_mcs;
 
@@ -663,8 +664,8 @@ void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 	pvhtpriv->ampdu_len = GET_VHT_CAPABILITY_ELE_MAX_RXAMPDU_FACTOR(pIE->data);
 
 	pcap_mcs = GET_VHT_CAPABILITY_ELE_RX_MCS(pIE->data);
-	tx_nss = GET_HAL_TX_NSS(padapter);
-	rtw_vht_nss_to_mcsmap(tx_nss, pvhtpriv->vht_mcs_map, pcap_mcs);
+	rx_nss = GET_HAL_RX_NSS(padapter);
+	rtw_vht_nss_to_mcsmap(rx_nss, pvhtpriv->vht_mcs_map, pcap_mcs);
 	pvhtpriv->vht_highest_rate = rtw_get_vht_highest_rate(pvhtpriv->vht_mcs_map);
 }
 
@@ -878,7 +879,8 @@ u32	rtw_build_vht_cap_ie(_adapter *padapter, u8 *pbuf)
 		/* IOT action suggested by Yu Chen 2017/3/3 */
 #ifdef CONFIG_80211AC_VHT
 		if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_BROADCOM) &&
-			!pvhtpriv->ap_is_mu_bfer)
+			!pvhtpriv->ap_bf_cap.is_mu_bfer &&
+			pvhtpriv->ap_bf_cap.su_sound_dim == 2)
 			rf_num = (rf_num >= 2 ? 2 : rf_num);
 #endif
 		/* B13 14 15 Compressed Steering Number of Beamformer Antennas Supported */

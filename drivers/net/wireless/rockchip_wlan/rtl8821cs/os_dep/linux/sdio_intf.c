@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -89,6 +90,7 @@ static const struct sdio_device_id sdio_ids[] = {
 #ifdef CONFIG_RTL8821C
 	{SDIO_DEVICE(0x024C, 0xB821), .driver_data = RTL8821C},
 	{SDIO_DEVICE(0x024C, 0xC821), .driver_data = RTL8821C},
+	{SDIO_DEVICE(0x024C, 0x8733), .driver_data = RTL8821C}, /* 8733AS */
 #endif
 
 #ifdef CONFIG_RTL8822C
@@ -900,7 +902,7 @@ static void rtw_sdio_primary_adapter_deinit(_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED))
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE))
 		rtw_disassoc_cmd(padapter, 0, RTW_CMDF_DIRECTLY);
 
 #ifdef CONFIG_AP_MODE
@@ -1256,7 +1258,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 	pdbgpriv->dbg_resume_cnt++;
 
-#ifdef CONFIG_PLATFORM_ROCKCHIPS
+#ifdef CONFIG_PLATFORM_INTEL_BYT
 	if (0)
 #else
 	if (pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode)
@@ -1285,7 +1287,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 }
 
-static int __init rtw_drv_entry(void)
+static int rtw_drv_entry(void)
 {
 	int ret = 0;
 
@@ -1333,7 +1335,7 @@ exit:
 	return ret;
 }
 
-static void __exit rtw_drv_halt(void)
+static void rtw_drv_halt(void)
 {
 	RTW_PRINT("module exit start\n");
 
@@ -1370,5 +1372,60 @@ int rtw_sdio_set_power(int on)
 }
 #endif /* CONFIG_PLATFORM_INTEL_BYT */
 
-module_init(rtw_drv_entry);
-module_exit(rtw_drv_halt);
+#include "rtw_version.h"
+#include <linux/rfkill-wlan.h>
+extern int get_wifi_chip_type(void);
+extern int rockchip_wifi_power(int on);
+extern int rockchip_wifi_set_carddetect(int val);
+
+int rockchip_wifi_init_module_rtkwifi(void)
+{
+//#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+//    int type = get_wifi_chip_type();
+//    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return 0;
+//#endif
+    printk("\n");
+    printk("=======================================================\n");
+    printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
+    printk("=======================================================\n");
+    printk("Realtek 8821CS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", DRIVERVERSION);
+
+    rockchip_wifi_power(1);
+    rockchip_wifi_set_carddetect(1);    
+    
+    return rtw_drv_entry();
+
+}
+
+void rockchip_wifi_exit_module_rtkwifi(void)
+{
+//#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+//    int type = get_wifi_chip_type();
+//    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return;
+//#endif
+    printk("\n");
+    printk("=======================================================\n");
+    printk("==== Dislaunching Wi-Fi driver! (Powered by Rockchip) ====\n");
+    printk("=======================================================\n");
+    printk("Realtek 8821CS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", DRIVERVERSION);
+
+    rtw_drv_halt();
+    
+    rockchip_wifi_set_carddetect(0);
+    rockchip_wifi_power(0);
+
+}
+
+#ifdef CONFIG_WIFI_BUILD_MODULE
+module_init(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
+#else
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+late_initcall(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
+#else
+EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
+#endif
+#endif
+

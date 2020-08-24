@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2012 - 2017 Realtek Corporation.
@@ -439,9 +440,7 @@ u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
 u8	SCMapping_92E(PADAPTER Adapter, struct pkt_attrib	*pattrib);
 void fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_vcs(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 void fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);

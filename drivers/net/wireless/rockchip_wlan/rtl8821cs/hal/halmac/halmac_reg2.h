@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -8018,6 +8019,12 @@
      HALMAC_8822B_SUPPORT || HALMAC_8822C_SUPPORT)
 
 #define REG_PWRBIT_SETTING 0x1660
+
+#endif
+
+#if (HALMAC_8822B_SUPPORT)
+
+#define REG_MACRX_HANG_TIMER_CONTROL 0x1661
 
 #endif
 

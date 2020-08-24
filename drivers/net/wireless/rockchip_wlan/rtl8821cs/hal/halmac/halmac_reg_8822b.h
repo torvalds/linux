@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -636,6 +637,7 @@
 #define REG_BSSID4_8822B 0x1648
 #define REG_NOA_REPORT_8822B 0x1650
 #define REG_PWRBIT_SETTING_8822B 0x1660
+#define REG_MACRX_HANG_TIMER_CONTROL_8822B 0x1661
 #define REG_WMAC_MU_BF_OPTION_8822B 0x167C
 #define REG_WMAC_MU_ARB_8822B 0x167E
 #define REG_WMAC_MU_OPTION_8822B 0x167F

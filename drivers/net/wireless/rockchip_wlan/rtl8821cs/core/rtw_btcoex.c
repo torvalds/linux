@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -83,7 +84,7 @@ void rtw_btcoex_ScanNotify(PADAPTER padapter, u8 type)
 
 	if (_FALSE == type) {
 		#ifdef CONFIG_CONCURRENT_MODE
-		if (rtw_mi_buddy_check_fwstate(padapter, WIFI_SITE_MONITOR))
+		if (rtw_mi_buddy_check_fwstate(padapter, WIFI_UNDER_SURVEY))
 			return;
 		#endif
 
@@ -577,7 +578,7 @@ u8 rtw_btcoex_btinfo_cmd(_adapter *adapter, u8 *buf, u16 len)
 
 	_rtw_memcpy(btinfo, buf, len);
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 

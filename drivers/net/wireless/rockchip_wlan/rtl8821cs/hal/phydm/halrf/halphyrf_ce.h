@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -49,6 +50,7 @@
 #if (RTL8814B_SUPPORT == 1)
 	#include "halrf/rtl8814b/halrf_iqk_8814b.h"	
 	#include "halrf/rtl8814b/halrf_dpk_8814b.h"
+	#include "halrf/rtl8814b/halrf_txgapk_8814b.h"
 #endif
 
 #include "halrf/halrf_powertracking_ce.h"

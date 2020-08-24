@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -96,6 +97,8 @@ PHY_SetTxPowerLevel8188F(
 		PADAPTER		Adapter,
 		u8			channel
 );
+
+void rtl8188f_set_txpwr_done(_adapter *adapter);
 
 void
 PHY_SetSwChnlBWMode8188F(

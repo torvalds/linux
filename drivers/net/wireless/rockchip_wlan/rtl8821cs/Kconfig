@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTL8821CS
 	tristate "Realtek 8821C SDIO WiFi"
 	---help---

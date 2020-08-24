@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -28,6 +29,7 @@ enum h2c_cmd {
 	H2C_DISCON_DECISION = 0x04,
 	H2C_PSD_OFFLOAD = 0x05,
 	H2C_CUSTOMER_STR_REQ = 0x06,
+	H2C_TXPWR_IDX_OFFLOAD = 0x07,
 	H2C_AP_OFFLOAD = 0x08,
 	H2C_BCN_RSVDPAGE = 0x09,
 	H2C_PROBERSP_RSVDPAGE = 0x0A,
@@ -319,6 +321,13 @@ s32 rtw_hal_h2c_customer_str_write(_adapter *adapter, const u8 *cs);
 s32 rtw_hal_customer_str_write(_adapter *adapter, const u8 *cs);
 #endif /* CONFIG_RTW_CUSTOMER_STR */
 
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+#define H2C_TXPWR_IDX_OFFLOAD_LEN 3
+#define SET_H2CCMD_TXPWR_IDX_CCK(__pH2CCmd, __Value) SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 8, __Value)
+#define SET_H2CCMD_TXPWR_IDX_OFDM(__pH2CCmd, __Value) SET_BITS_TO_LE_1BYTE(__pH2CCmd + 1, 0, 8, __Value)
+#define SET_H2CCMD_TXPWR_IDX_HT1SS(__pH2CCmd, __Value) SET_BITS_TO_LE_1BYTE(__pH2CCmd  + 2, 0, 8, __Value)
+#endif
+
 /* _AP_Offload 0x08 */
 #define SET_H2CCMD_AP_WOWLAN_EN(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 8, __Value)
 /* _BCN_RsvdPage	0x09 */
@@ -348,6 +357,8 @@ s32 rtw_hal_customer_str_write(_adapter *adapter, const u8 *cs);
 	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 2, 1, __Value)
 #define SET_H2CCMD_INACTIVE_DISBBRF(__pH2CCmd, __Value) \
 	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 3, 1, __Value)
+#define SET_H2CCMD_INACTIVE_PORT_NUM(__pH2CCmd, __Value) \
+	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 5, 3, __Value)	
 #define SET_H2CCMD_INACTIVE_PS_FREQ(__pH2CCmd, __Value) \
 	SET_BITS_TO_LE_1BYTE(__pH2CCmd + 1, 0, 8, __Value)
 #define SET_H2CCMD_INACTIVE_PS_DURATION(__pH2CCmd, __Value) \

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -26,8 +27,8 @@
 #ifndef __PHYDMCCX_H__
 #define __PHYDMCCX_H__
 
-/* 2019.03.27 add noise_pwr in env_mntr_rpt.*/
-#define CCX_VERSION "2.4"
+/* 2019.07.01 Modify nhm cmd*/
+#define CCX_VERSION "3.1"
 
 /* @1 ============================================================
  * 1  Definition
@@ -47,15 +48,6 @@
 #define	NHM_RPT_NUM		12
 #ifdef NHM_DYM_PW_TH_SUPPORT
 #define	DYM_PWTH_CCA_CAP	24
-#define NHM_1PEAK_PS		1	/* @case1 : positive skew*/
-#define NHM_1PEAK_NS		2	/* @case2 : negative skew*/
-#define NHM_1PEAK_SYM		3	/* @case3 : symmetry*/
-#define NHM_TH1			33	/* @13%, for step2 decision*/
-#define NHM_TH2			35	/* @14%, for step3_c1_c2 decision*/
-#define NHM_TH3			31	/* @12%, for step3_c3 decision*/
-#define NHM_TH4			178	/* @70%, for step4 decision*/
-#define NHM_TH5			25	/* @10%, for step5_c1_c2 decision*/
-#define NHM_TH6			39	/* @15%, for step5_c3 decision*/
 #endif
 
 #define	IGI_2_NHM_TH(igi)	((igi) << 1)/*NHM_threshold = IGI * 2*/
@@ -162,6 +154,8 @@ struct nhm_para_info {
 	enum nhm_application		nhm_app;
 	enum phydm_nhm_level		nhm_lv;
 	u16				mntr_time;	/*@0~262 unit ms*/
+	boolean				en_1db_mode;
+	u8				nhm_th0_manual;	/* for 1-db mode*/
 };
 
 struct clm_para_info {
@@ -191,13 +185,13 @@ struct ccx_info {
 	u8			nhm_set_lv;
 	boolean			nhm_ongoing;
 	u8			nhm_rpt_stamp;
-	u8			nhm_noise_pwr;
-	u8			nhm_noise_pwr_point;
+	u8			nhm_level;
+	u8			nhm_level_valid;
 #ifdef NHM_DYM_PW_TH_SUPPORT
 	boolean			nhm_dym_pw_th_en;
-	boolean			nhm_dym_1_peak_en;
 	boolean			dym_pwth_manual_ctrl;
-	u8			nhm_pw_th_rf20_dft;
+	u8			pw_th_rf20_ori;
+	u8			pw_th_rf20_cur;
 	u8			nhm_pw_th_max;
 	u8			nhm_period_decre;
 	u8			nhm_sl_pw_th;

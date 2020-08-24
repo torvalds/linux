@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -471,7 +472,9 @@ mpt_SetTxPower(
 			MGN_MCS25, MGN_MCS26, MGN_MCS27, MGN_MCS28, MGN_MCS29,
 			MGN_MCS30, MGN_MCS31,
 		};
-		if (pHalData->rf_type == RF_3T3R)
+		if (pHalData->rf_type == RF_4T4R)
+			MaxRate = MGN_MCS31;
+		else if (pHalData->rf_type == RF_3T3R)
 			MaxRate = MGN_MCS23;
 		else if (pHalData->rf_type == RF_2T2R)
 			MaxRate = MGN_MCS15;
@@ -497,7 +500,9 @@ mpt_SetTxPower(
 			MGN_VHT4SS_MCS0, MGN_VHT4SS_MCS1, MGN_VHT4SS_MCS2, MGN_VHT4SS_MCS3, MGN_VHT4SS_MCS4,
 			MGN_VHT4SS_MCS5, MGN_VHT4SS_MCS6, MGN_VHT4SS_MCS7, MGN_VHT4SS_MCS8, MGN_VHT4SS_MCS9,
 		};
-		if (pHalData->rf_type == RF_3T3R)
+		if (pHalData->rf_type == RF_4T4R)
+			MaxRate = MGN_VHT4SS_MCS9;
+		else if (pHalData->rf_type == RF_3T3R)
 			MaxRate = MGN_VHT3SS_MCS9;
 		else if (pHalData->rf_type == RF_2T2R || pHalData->rf_type == RF_2T4R)
 			MaxRate = MGN_VHT2SS_MCS9;
@@ -1506,9 +1511,68 @@ void mpt_set_rfpath_8192f(PADAPTER	pAdapter)
 #endif
 
 void hal_mpt_SetAntenna(PADAPTER	pAdapter)
-
 {
-	RTW_INFO("Do %s\n", __func__);
+	PHAL_DATA_TYPE hal;
+	ANTENNA_PATH anttx;
+	enum bb_path bb_tx = 0;
+
+
+	hal = GET_HAL_DATA(pAdapter);
+	anttx = hal->antenna_tx_path;
+
+	switch (anttx) {
+	case ANTENNA_A:
+		bb_tx = BB_PATH_A;
+		break;
+	case ANTENNA_B:
+		bb_tx = BB_PATH_B;
+		break;
+	case ANTENNA_C:
+		bb_tx = BB_PATH_C;
+		break;
+	case ANTENNA_D:
+		bb_tx = BB_PATH_D;
+		break;
+	case ANTENNA_AB:
+		bb_tx = BB_PATH_AB;
+		break;
+	case ANTENNA_AC:
+		bb_tx = BB_PATH_AC;
+		break;
+	case ANTENNA_AD:
+		bb_tx = BB_PATH_AD;
+		break;
+	case ANTENNA_BC:
+		bb_tx = BB_PATH_BC;
+		break;
+	case ANTENNA_BD:
+		bb_tx = BB_PATH_BD;
+		break;
+	case ANTENNA_CD:
+		bb_tx = BB_PATH_CD;
+		break;
+	case ANTENNA_ABC:
+		bb_tx = BB_PATH_ABC;
+		break;
+	case ANTENNA_BCD:
+		bb_tx = BB_PATH_BCD;
+		break;
+	case ANTENNA_ABD:
+		bb_tx = BB_PATH_ABD;
+		break;
+	case ANTENNA_ACD:
+		bb_tx = BB_PATH_ACD;
+		break;
+	case ANTENNA_ABCD:
+		bb_tx = BB_PATH_ABCD;
+		break;
+	default:
+		bb_tx = BB_PATH_A;
+		break;
+	}
+	tx_path_nss_set_full_tx(hal->txpath_nss, hal->txpath_num_nss, bb_tx);
+	RTW_INFO("%s ,ant idx %d, tx path_num_nss = %d\n", __func__, anttx, hal->txpath_num_nss[0]);
+
 #ifdef CONFIG_RTL8822C
 	if (IS_HARDWARE_TYPE_8822C(pAdapter)) {
 		rtl8822c_mp_config_rfpath(pAdapter);
@@ -1597,12 +1661,7 @@ s32 hal_mpt_SetThermalMeter(PADAPTER pAdapter, u8 target_ther)
 		return _FAIL;
 	}
 
-
 	target_ther &= 0xff;
-	if (target_ther < 0x07)
-		target_ther = 0x07;
-	else if (target_ther > 0x1d)
-		target_ther = 0x1d;
 
 	pHalData->eeprom_thermal_meter = target_ther;
 
@@ -2276,14 +2335,16 @@ static void mpt_convert_phydm_txinfo_for_jaguar3(
 #endif
 
 /* for HW TX mode */
-void mpt_ProSetPMacTx(PADAPTER	Adapter)
+u8 mpt_ProSetPMacTx(PADAPTER	Adapter)
 {
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
 	PMPT_CONTEXT	pMptCtx		=	&(Adapter->mppriv.mpt_ctx);
 	struct mp_priv *pmppriv = &Adapter->mppriv;
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(Adapter);
 	RT_PMAC_TX_INFO	PMacTxInfo	=	pMptCtx->PMacTxInfo;
-	u32			u4bTmp;
 	struct dm_struct *p_dm_odm;
+	u32			u4bTmp;
+	u8 status = _TRUE;
 
 	p_dm_odm = &pHalData->odmpriv;
 
@@ -2308,14 +2369,42 @@ void mpt_ProSetPMacTx(PADAPTER	Adapter)
 	RTW_INFO("TXSC %d BandWidth %d PacketPeriod %d PacketCount %d PacketLength %d PacketPattern %d\n", PMacTxInfo.TX_SC, PMacTxInfo.BandWidth, PMacTxInfo.PacketPeriod, PMacTxInfo.PacketCount,
 		 PMacTxInfo.PacketLength, PMacTxInfo.PacketPattern);
 
+	if (hal_spec->tx_nss_num < 2 && MPT_IS_2SS_RATE(PMacTxInfo.TX_RATE))
+		return _FALSE;
+	if (hal_spec->tx_nss_num < 3 && MPT_IS_3SS_RATE(PMacTxInfo.TX_RATE))
+		return _FALSE;
+	if (hal_spec->tx_nss_num < 4 && MPT_IS_4SS_RATE(PMacTxInfo.TX_RATE))
+		return _FALSE;
+	if (!is_supported_vht(Adapter->registrypriv.wireless_mode) && MPT_IS_VHT_RATE(PMacTxInfo.TX_RATE))
+		return _FALSE;
+	if (!is_supported_ht(Adapter->registrypriv.wireless_mode) && MPT_IS_HT_RATE(PMacTxInfo.TX_RATE))
+		return _FALSE;
+
+	if (PMacTxInfo.BandWidth == 1 && hal_chk_bw_cap(Adapter, BW_CAP_40M))
+		PMacTxInfo.BandWidth = CHANNEL_WIDTH_40;
+	else if (PMacTxInfo.BandWidth == 2 && hal_chk_bw_cap(Adapter, BW_CAP_80M))
+		PMacTxInfo.BandWidth = CHANNEL_WIDTH_80;
+	else
+		PMacTxInfo.BandWidth = CHANNEL_WIDTH_20;
+
 	if (IS_HARDWARE_TYPE_JAGUAR3(Adapter)) {
 #ifdef PHYDM_PMAC_TX_SETTING_SUPPORT
 		struct phydm_pmac_info phydm_mactxinfo;
 
+		if (PMacTxInfo.bEnPMacTx == TRUE) {
+			pMptCtx->HWTxmode = PMacTxInfo.Mode;
+			pMptCtx->mpt_rate_index = PMacTxInfo.TX_RATE;
+			if (PMacTxInfo.Mode == CONTINUOUS_TX)
+				hal_mpt_SetTxPower(Adapter);
+		} else {
+			PMacTxInfo.Mode = pMptCtx->HWTxmode;
+			PMacTxInfo.TX_RATE = pMptCtx->mpt_rate_index;
+			pMptCtx->HWTxmode = TEST_NONE;
+		}
 		mpt_convert_phydm_txinfo_for_jaguar3(PMacTxInfo, &phydm_mactxinfo);
 		phydm_set_pmac_tx(p_dm_odm, &phydm_mactxinfo, pMptCtx->mpt_rf_path);
 #endif
-		return;
+		return status;
 	}
 
 	if (PMacTxInfo.bEnPMacTx == FALSE) {
@@ -2342,7 +2431,7 @@ void mpt_ProSetPMacTx(PADAPTER	Adapter)
 			mpt_SetSingleTone_8814A(Adapter, FALSE, TRUE);
 		}
 		pMptCtx->HWTxmode = TEST_NONE;
-		return;
+		return status;
 	}
 
     	pMptCtx->mpt_rate_index = PMacTxInfo.TX_RATE;
@@ -2506,6 +2595,7 @@ void mpt_ProSetPMacTx(PADAPTER	Adapter)
 	if (PMacTxInfo.Mode == OFDM_Single_Tone_TX)
 		mpt_SetSingleTone_8814A(Adapter, TRUE, TRUE);
 
+	return status;
 }
 
 #endif
@@ -2530,6 +2620,16 @@ void hal_mpt_SetContinuousTx(PADAPTER pAdapter, u8 bStart)
 		else
 			mpt_StopOfdmContTx(pAdapter);
 	}
+}
+
+void mpt_trigger_tssi_tracking(PADAPTER pAdapter, u8 rf_path)
+{
+#ifdef CONFIG_RTL8814B
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	struct dm_struct		*pDM_Odm = &pHalData->odmpriv;
+
+	halrf_do_tssi_8814b(pDM_Odm, rf_path);
+#endif
 }
 
 #endif /* CONFIG_MP_INCLUDE*/

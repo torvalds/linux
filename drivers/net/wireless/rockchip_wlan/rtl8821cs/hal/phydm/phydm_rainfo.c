@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -49,6 +50,18 @@ boolean phydm_is_ofdm_rate(void *dm_void, u8 rate)
 boolean phydm_is_cck_rate(void *dm_void, u8 rate)
 {
 	return ((rate & 0x7f) <= ODM_RATE11M) ? true : false;
+}
+
+u8 phydm_legacy_rate_2_spec_rate(void *dm_void, u8 rate)
+{
+	u8 rate_idx = 0x0;
+	u8 legacy_spec_rate_t[8] = {PHYDM_SPEC_RATE_6M, PHYDM_SPEC_RATE_9M,
+				    PHYDM_SPEC_RATE_12M, PHYDM_SPEC_RATE_18M,
+				    PHYDM_SPEC_RATE_24M, PHYDM_SPEC_RATE_36M,
+				    PHYDM_SPEC_RATE_48M, PHYDM_SPEC_RATE_54M};
+
+	rate_idx = rate - ODM_RATE6M;
+	return legacy_spec_rate_t[rate_idx];
 }
 
 u8 phydm_rate_2_rate_digit(void *dm_void, u8 rate)
@@ -158,7 +171,7 @@ void phydm_fw_fix_rate(void *dm_void, u8 en, u8 macid, u8 bw, u8 rate)
 
 	if (dm->support_ic_type & PHYDM_IC_8051_SERIES) {
 		reg_u32_tmp = (bw << 24) | (rate << 16) | (macid << 8) | en;
-		odm_set_bb_reg(dm, R_0x4a0, MASKDWORD, reg_u32_tmp);
+		odm_set_mac_reg(dm, R_0x4a0, MASKDWORD, reg_u32_tmp);
 
 	} else {
 		if (en == 1)
@@ -166,9 +179,9 @@ void phydm_fw_fix_rate(void *dm_void, u8 en, u8 macid, u8 bw, u8 rate)
 		else
 			reg_u32_tmp = 0x40000000;
 		if (dm->support_ic_type & ODM_RTL8814B)
-			odm_set_bb_reg(dm, R_0x448, MASKDWORD, reg_u32_tmp);
+			odm_set_mac_reg(dm, R_0x448, MASKDWORD, reg_u32_tmp);
 		else
-			odm_set_bb_reg(dm, R_0x450, MASKDWORD, reg_u32_tmp);
+			odm_set_mac_reg(dm, R_0x450, MASKDWORD, reg_u32_tmp);
 	}
 	if (en == 1) {
 		PHYDM_DBG(dm, ODM_COMP_API,
@@ -353,9 +366,8 @@ void phydm_ra_dynamic_retry_count(void *dm_void)
 	if (!(dm->support_ability & ODM_BB_DYNAMIC_ARFR))
 		return;
 
-#if 0
 	/*PHYDM_DBG(dm, DBG_RA, "dm->pre_b_noisy = %d\n", dm->pre_b_noisy );*/
-#endif
+
 	if (dm->pre_b_noisy != dm->noisy_decision) {
 		if (dm->noisy_decision) {
 			PHYDM_DBG(dm, DBG_DYN_ARFR, "Noisy Env. RA fallback\n");
@@ -399,10 +411,11 @@ void phydm_print_rate_2_buff(void *dm_void, u8 rate, char *buf, u16 buf_size)
 	u8 rate_ss = phydm_rate_to_num_ss(dm, rate_idx);
 	u8 rate_digit = phydm_rate_2_rate_digit(dm, rate_idx);
 
-	PHYDM_SNPRINTF(buf, buf_size, "( %s%s%s%s%d%s%s)",
+	PHYDM_SNPRINTF(buf, buf_size, "( %s%s%s%s%s%d%s%s)",
 		       (vht_en && (rate_ss == 1)) ? "VHT 1ss " : "",
 		       (vht_en && (rate_ss == 2)) ? "VHT 2ss " : "",
 		       (vht_en && (rate_ss == 3)) ? "VHT 3ss " : "",
+		       (vht_en && (rate_ss == 4)) ? "VHT 4ss " : "",
 		       (rate_idx >= ODM_RATEMCS0) ? "MCS " : "",
 		       rate_digit,
 		       (b_sgi) ? "-S" : " ",
@@ -450,7 +463,7 @@ void phydm_c2h_ra_report_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 			PHYDM_DBG(dm, DBG_RA, "Try rate\n");
 	}
 	phydm_print_rate_2_buff(dm, rate, dbg_buf, PHYDM_SNPRINT_SIZE);
-	PHYDM_DBG(dm, DBG_RA, "Tx Rate=%s (%d)", dbg_buf, rate);
+	PHYDM_DBG(dm, DBG_RA, "Tx Rate=%s (%d)\n", dbg_buf, rate);
 
 #ifdef MU_EX_MACID
 	if (macid >= 128 && macid < (128 + MU_EX_MACID)) {
@@ -487,13 +500,6 @@ void phydm_c2h_ra_report_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 
 void odm_ra_post_action_on_assoc(void *dm_void)
 {
-#if 0
-	struct dm_struct	*dm = (struct dm_struct *)dm_void;
-
-	dm->h2c_rarpt_connect = 1;
-	phydm_rssi_monitor_check(dm);
-	dm->h2c_rarpt_connect = 0;
-#endif
 }
 
 void phydm_modify_RA_PCR_threshold(void *dm_void, u8 ra_ofst_direc,
@@ -1888,14 +1894,13 @@ void phydm_ra_info_init(void *dm_void)
 	ra_tab->ra_th_ofst = 0;
 	ra_tab->ra_ofst_direc = 0;
 	ra_tab->rrsr_val_init = odm_get_mac_reg(dm, R_0x440, MASKDWORD);
-	ra_tab->dynamic_rrsr_en = true;
 
 #if (RTL8822B_SUPPORT == 1)
 	if (dm->support_ic_type == ODM_RTL8822B) {
 		u32 ret_value;
 
-		ret_value = odm_get_bb_reg(dm, R_0x4c8, MASKBYTE2);
-		odm_set_bb_reg(dm, R_0x4cc, MASKBYTE3, (ret_value - 1));
+		ret_value = odm_get_mac_reg(dm, R_0x4c8, MASKBYTE2);
+		odm_set_mac_reg(dm, R_0x4cc, MASKBYTE3, (ret_value - 1));
 	}
 #endif
 

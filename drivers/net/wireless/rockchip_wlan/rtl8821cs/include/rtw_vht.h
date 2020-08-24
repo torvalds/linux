@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -115,13 +116,18 @@ extern const char *const _vht_op_ch_width_str[];
 
 void dump_vht_op_ie(void *sel, const u8 *ie, u32 ie_len);
 
+struct vht_bf_cap {
+	u8 is_mu_bfer;
+	u8 su_sound_dim;
+};
+
 struct vht_priv {
 	u8	vht_option;
 
 	u8	ldpc_cap;
 	u8	stbc_cap;
 	u16	beamform_cap;
-	u8	ap_is_mu_bfer;
+	struct	vht_bf_cap ap_bf_cap;
 
 	u8	sgi_80m;/* short GI */
 	u8	ampdu_len;

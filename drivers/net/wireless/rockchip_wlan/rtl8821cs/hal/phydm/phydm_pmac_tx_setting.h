@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -26,34 +27,35 @@
 #ifndef __PHYDM_PMAC_TX_SETTING_H__
 #define __PHYDM_PMAC_TX_SETTING_H__
 
-#define PMAC_TX_SETTING_VERSION "1.3"
+/* 2019.06.10 Modify STBC setting for different OS*/
+#define PMAC_TX_SETTING_VERSION "1.6"
 
-/* @1 ============================================================
+/* 1 ============================================================
  * 1  Definition
  * 1 ============================================================
  */
 #define RANDOM_BY_PN32 0x12
-/* @1 ============================================================
+/* 1 ============================================================
  * 1  structure
  * 1 ============================================================
  */
 struct phydm_pmac_info {
-	u8 en_pmac_tx:1; /*@ disable pmac 1: enable pmac */
-	u8 mode:3; /*@ 0: Packet TX 3:Continuous TX */
-	/* @u8 Ntx:4; */
+	u8 en_pmac_tx:1; /*0: disable pmac 1: enable pmac */
+	u8 mode:3; /*0: Packet TX 3:Continuous TX */
+	/* u8 Ntx:4; */
 	u8 tx_rate; /* @should be HW rate*/
-	/* @u8 TX_RATE_HEX; */
+	/* u8 TX_RATE_HEX; */
 	u8 tx_sc;
-	/* @u8 bSGI:1; */
+	/* u8 bSGI:1; */
 	u8 is_short_preamble:1;
-	/* @u8 bSTBC:1; */
-	/* @u8 bLDPC:1; */
+	/* u8 bSTBC:1; */
+	/* u8 bLDPC:1; */
 	u8 ndp_sound:1;
-	u8 bw:3; /* @0:20 1:40 2:80Mhz */
-	u8 m_stbc; /* @bSTBC + 1 */
+	u8 bw:3; /* 0:20 1:40 2:80Mhz */
+	u8 m_stbc; /* bSTBC + 1 for WIN/CE, bSTBC for others*/
 	u16 packet_period;
 	u32 packet_count;
-	/* @u32 PacketLength; */
+	/* u32 PacketLength; */
 	u8 packet_pattern;
 	u16 sfd;
 	u8 signal_field;
@@ -66,7 +68,7 @@ struct phydm_pmac_info {
 	u8 vht_sig_b[4];
 	u8 vht_sig_b_crc;
 	u8 vht_delimiter[4];
-	/* @u8 mac_addr[6]; */
+	/* u8 mac_addr[6]; */
 };
 
 struct phydm_pmac_tx {
@@ -80,7 +82,7 @@ struct phydm_pmac_tx {
 	u32 tx_scailing;
 };
 
-/* @1 ============================================================
+/* 1 ============================================================
  * 1  enumeration
  * 1 ============================================================
  */
@@ -94,7 +96,7 @@ enum phydm_pmac_mode {
 	CCK_CARRIER_SIPPRESSION_TX
 };
 
-/* @1 ============================================================
+/* 1 ============================================================
  * 1  function prototype
  * 1 ============================================================
  */

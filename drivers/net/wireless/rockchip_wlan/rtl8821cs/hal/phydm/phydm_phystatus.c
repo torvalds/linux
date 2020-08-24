@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -197,24 +198,35 @@ void phydm_reset_phystatus_statistic(struct dm_struct *dm)
 		       sizeof(struct phydm_phystatus_statistic));
 }
 
-void phydm_avg_phystatus_index_p1(void *dm_void,
-				  struct phydm_phyinfo_struct *phy_info,
-				  struct phydm_perpkt_info_struct *pktinfo)
+void phydm_reset_phy_info(struct dm_struct *dm,
+			  struct phydm_phyinfo_struct *phy_info)
+{
+	u8 i = 0;
+
+	odm_memory_set(dm, &phy_info->physts_rpt_valid, 0,
+		       sizeof(struct phydm_phyinfo_struct));
+
+	phy_info->rx_power = -110;
+	phy_info->recv_signal_power = -110;
+
+	for (i = 0; i < dm->num_rf_path; i++)
+		phy_info->rx_pwr[i] = -110;
+}
+
+void phydm_avg_rssi_evm_snr(void *dm_void,
+			    struct phydm_phyinfo_struct *phy_info,
+			    struct phydm_perpkt_info_struct *pktinfo)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
 	struct phydm_phystatus_statistic *dbg_s = &dbg_i->physts_statistic_info;
-	u8 rssi[PHYSTS_PATH_NUM] = {0};
-	u8 evm[PHYSTS_PATH_NUM] = {0};
-	s8 snr[PHYSTS_PATH_NUM] = {0};
+	u8 *rssi = phy_info->rx_mimo_signal_strength;
+	u8 *evm = phy_info->rx_mimo_evm_dbm;
+	s8 *snr = phy_info->rx_snr;
 	u32 size = PHYSTS_PATH_NUM; /*size of path=4*/
 	u16 size_th = PHY_HIST_SIZE - 1; /*size of threshold*/
 	u16 val = 0, intvl = 0;
 	u8 i = 0;
-
-	odm_move_memory(dm, rssi, phy_info->rx_mimo_signal_strength, size);
-	odm_move_memory(dm, evm, phy_info->rx_mimo_evm_dbm, size);
-	odm_move_memory(dm, snr, phy_info->rx_snr, size);
 
 	if (pktinfo->is_packet_beacon) {
 		for (i = 0; i < dm->num_rf_path; i++)
@@ -401,7 +413,7 @@ u8 phydm_get_signal_quality(struct phydm_phyinfo_struct *phy_info,
 	return result;
 }
 
-u8 phydm_pwr_2_percent(s8 ant_power)
+u8 phydm_pw_2_percent(s8 ant_power)
 {
 	if ((ant_power <= -100) || ant_power >= 20)
 		return 0;
@@ -412,73 +424,6 @@ u8 phydm_pwr_2_percent(s8 ant_power)
 }
 
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-
-#if 0 /*(DM_ODM_SUPPORT_TYPE == ODM_CE)*/
-s32 phydm_signal_scale_mapping_92c_series(struct dm_struct *dm, s32 curr_sig)
-{
-	s32 ret_sig = 0;
-
-#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
-	if (dm->support_interface == ODM_ITRF_PCIE) {
-		/* step 1. Scale mapping. */
-		if (curr_sig >= 61 && curr_sig <= 100)
-			ret_sig = 90 + ((curr_sig - 60) / 4);
-		else if (curr_sig >= 41 && curr_sig <= 60)
-			ret_sig = 78 + ((curr_sig - 40) / 2);
-		else if (curr_sig >= 31 && curr_sig <= 40)
-			ret_sig = 66 + (curr_sig - 30);
-		else if (curr_sig >= 21 && curr_sig <= 30)
-			ret_sig = 54 + (curr_sig - 20);
-		else if (curr_sig >= 5 && curr_sig <= 20)
-			ret_sig = 42 + (((curr_sig - 5) * 2) / 3);
-		else if (curr_sig == 4)
-			ret_sig = 36;
-		else if (curr_sig == 3)
-			ret_sig = 27;
-		else if (curr_sig == 2)
-			ret_sig = 18;
-		else if (curr_sig == 1)
-			ret_sig = 9;
-		else
-			ret_sig = curr_sig;
-	}
-#endif
-
-#if ((DEV_BUS_TYPE == RT_USB_INTERFACE) || (DEV_BUS_TYPE == RT_SDIO_INTERFACE))
-	if (dm->support_interface == ODM_ITRF_USB ||
-	    dm->support_interface == ODM_ITRF_SDIO) {
-		if (curr_sig >= 51 && curr_sig <= 100)
-			ret_sig = 100;
-		else if (curr_sig >= 41 && curr_sig <= 50)
-			ret_sig = 80 + ((curr_sig - 40) * 2);
-		else if (curr_sig >= 31 && curr_sig <= 40)
-			ret_sig = 66 + (curr_sig - 30);
-		else if (curr_sig >= 21 && curr_sig <= 30)
-			ret_sig = 54 + (curr_sig - 20);
-		else if (curr_sig >= 10 && curr_sig <= 20)
-			ret_sig = 42 + (((curr_sig - 10) * 2) / 3);
-		else if (curr_sig >= 5 && curr_sig <= 9)
-			ret_sig = 22 + (((curr_sig - 5) * 3) / 2);
-		else if (curr_sig >= 1 && curr_sig <= 4)
-			ret_sig = 6 + (((curr_sig - 1) * 3) / 2);
-		else
-			ret_sig = curr_sig;
-	}
-
-#endif
-	return ret_sig;
-}
-
-s32 phydm_signal_scale_mapping(struct dm_struct *dm, s32 curr_sig)
-{
-#ifdef CONFIG_SIGNAL_SCALE_MAPPING
-	return phydm_signal_scale_mapping_92c_series(dm, curr_sig);
-#else
-	return curr_sig;
-#endif
-}
-#endif
-
 void phydm_process_signal_strength(struct dm_struct *dm,
 				   struct phydm_phyinfo_struct *phy_info,
 				   struct phydm_perpkt_info_struct *pktinfo)
@@ -522,9 +467,7 @@ void phydm_process_signal_strength(struct dm_struct *dm,
 
 	phy_info->signal_strength = ss;
 }
-#endif
 
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 static u8 phydm_sq_patch_lenovo(
 	struct dm_struct *dm,
 	u8 is_cck_rate,
@@ -918,7 +861,7 @@ void phydm_phy_sts_n_parsing(struct dm_struct *dm,
 		if (dm->board_type & ODM_BOARD_EXT_LNA)
 			rx_pwr_all -= dm->ext_lna_gain;
 
-		pwdb_all = phydm_pwr_2_percent(rx_pwr_all);
+		pwdb_all = phydm_pw_2_percent(rx_pwr_all);
 
 		if (pktinfo->is_to_self) {
 			dm->cck_lna_idx = lna_idx;
@@ -939,9 +882,8 @@ void phydm_phy_sts_n_parsing(struct dm_struct *dm,
 		#endif
 			sq = phydm_get_signal_quality(phy_info, dm, phy_sts);
 
-#if 0
 		/* @dbg_print("cck sq = %d\n", sq); */
-#endif
+
 		phy_info->signal_quality = sq;
 		phy_info->rx_mimo_signal_quality[RF_PATH_A] = sq;
 		phy_info->rx_mimo_signal_quality[RF_PATH_B] = -1;
@@ -967,7 +909,7 @@ void phydm_phy_sts_n_parsing(struct dm_struct *dm,
 				dm->ofdm_agc_idx[i] = val_s8;
 
 			phy_info->rx_pwr[i] = rx_pwr[i];
-			RSSI = phydm_pwr_2_percent(rx_pwr[i]);
+			RSSI = phydm_pw_2_percent(rx_pwr[i]);
 			total_rssi += RSSI;
 
 			phy_info->rx_mimo_signal_strength[i] = (u8)RSSI;
@@ -992,7 +934,7 @@ void phydm_phy_sts_n_parsing(struct dm_struct *dm,
 		val_s8 = phy_sts->cck_sig_qual_ofdm_pwdb_all >> 1;
 		rx_pwr_all = (val_s8  & 0x7f) - 110;
 
-		pwdb_all = phydm_pwr_2_percent(rx_pwr_all);
+		pwdb_all = phydm_pw_2_percent(rx_pwr_all);
 		pwdb_all_bt = pwdb_all;
 
 		phy_info->rx_pwdb_all = pwdb_all;
@@ -1170,7 +1112,7 @@ void phydm_rx_physts_1st_type(struct dm_struct *dm,
 		vga_idx = cck_agc_rpt & 0x1F;
 
 		rx_pwr_db = phydm_get_cck_rssi(dm, lna_idx, vga_idx);
-		rssi = phydm_pwr_2_percent(rx_pwr_db);
+		rssi = phydm_pw_2_percent(rx_pwr_db);
 
 		if (dm->support_ic_type == ODM_RTL8812 &&
 		    !dm->is_cck_high_power) {
@@ -1199,7 +1141,7 @@ void phydm_rx_physts_1st_type(struct dm_struct *dm,
 				val = phy_sts->gain_trsw_cd[i - 2];
 
 			phy_info->rx_pwr[i] = (val & 0x7F) - 110;
-			rssi = phydm_pwr_2_percent(phy_info->rx_pwr[i]);
+			rssi = phydm_pw_2_percent(phy_info->rx_pwr[i]);
 			phy_info->rx_mimo_signal_strength[i] = rssi;
 
 			/*@[SNR]*/
@@ -1231,7 +1173,7 @@ void phydm_rx_physts_1st_type(struct dm_struct *dm,
 			val = phy_sts->pwdb_all >> 1; /*old fomula*/
 
 		rx_pwr_db = (val & 0x7f) - 110;
-		phy_info->rx_pwdb_all = phydm_pwr_2_percent(rx_pwr_db);
+		phy_info->rx_pwdb_all = phydm_pw_2_percent(rx_pwr_db);
 
 		/*@(4)EVM of OFDM rate*/
 		for (i = 0; i < pktinfo->rate_ss; i++) {
@@ -1375,9 +1317,6 @@ void phydm_process_rssi_for_dm(struct dm_struct *dm,
 	#ifdef CONFIG_S0S1_SW_ANTENNA_DIVERSITY
 	odm_s0s1_sw_ant_div_by_ctrl_frame_process_rssi(dm, phy_info, pktinfo);
 	#endif
-	#ifdef ODM_EVM_ENHANCE_ANTDIV
-	phydm_rx_rate_for_antdiv(dm, pktinfo);
-	#endif
 
 	sta = dm->phydm_sta_info[pktinfo->station_id];
 
@@ -1415,6 +1354,10 @@ void phydm_process_rssi_for_dm(struct dm_struct *dm,
 	}
 
 	/* @--------------Statistic for antenna/path diversity--------------- */
+	#ifdef ODM_EVM_ENHANCE_ANTDIV
+	phydm_rx_rate_for_antdiv(dm, pktinfo);
+	#endif
+
 	#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
 	if (dm->support_ability & ODM_BB_ANT_DIV)
 		odm_process_rssi_for_ant_div(dm, phy_info, pktinfo);
@@ -1597,6 +1540,7 @@ boolean phydm_physts_auto_switch_jgr3(void *dm_void, u8 *phy_sts,
 	boolean is_skip_physts_parsing = false;
 	u8 phy_sts_byte0 = (*phy_sts & 0xff);
 	u8 phy_ppdu_cnt_pre = 0, mac_ppdu_cnt_pre = 0;
+	u8 ppdu_phy_rate_pre = 0, ppdu_macid_pre = 0;
 	u8 page = phy_sts_byte0 & 0xf;
 
 	if (!pkt_proc->physts_auto_swch_en)
@@ -1604,9 +1548,13 @@ boolean phydm_physts_auto_switch_jgr3(void *dm_void, u8 *phy_sts,
 
 	phy_ppdu_cnt_pre = pkt_proc->phy_ppdu_cnt;
 	mac_ppdu_cnt_pre = pkt_proc->mac_ppdu_cnt;
+	ppdu_phy_rate_pre = pkt_proc->ppdu_phy_rate;
+	ppdu_macid_pre = pkt_proc->ppdu_macid;
 
 	pkt_proc->phy_ppdu_cnt = (phy_sts_byte0 & 0x30) >> 4;
 	pkt_proc->mac_ppdu_cnt = pktinfo->ppdu_cnt;
+	pkt_proc->ppdu_phy_rate = pktinfo->data_rate;
+	pkt_proc->ppdu_macid = pktinfo->station_id;
 
 	PHYDM_DBG(dm, DBG_PHY_STATUS,
 		  "[rate:0x%x] PPDU mac{pre, curr}= {%d, %d}, phy{pre, curr}= {%d, %d}\n",
@@ -1618,7 +1566,9 @@ boolean phydm_physts_auto_switch_jgr3(void *dm_void, u8 *phy_sts,
 		return is_skip_physts_parsing;
 	}
 
-	if (phy_ppdu_cnt_pre == pkt_proc->phy_ppdu_cnt &&
+	if (ppdu_macid_pre == pkt_proc->ppdu_macid &&
+	    ppdu_phy_rate_pre == pkt_proc->ppdu_phy_rate &&
+	    phy_ppdu_cnt_pre == pkt_proc->phy_ppdu_cnt &&
 	    mac_ppdu_cnt_pre == pkt_proc->mac_ppdu_cnt) {
 		if (pkt_proc->page_bitmap_record & BIT(page)) {
 			/*@PHYDM_DBG(dm, DBG_PHY_STATUS, "collect page-%d enough\n", page);*/
@@ -1631,9 +1581,11 @@ boolean phydm_physts_auto_switch_jgr3(void *dm_void, u8 *phy_sts,
 			/*@PHYDM_DBG(dm, DBG_PHY_STATUS, "update page-%d\n", page);*/
 			pkt_proc->page_bitmap_record |= BIT(page);
 		}
+		pkt_proc->is_1st_mpdu = false;
 	} else {
 		/*@PHYDM_DBG(dm, DBG_PHY_STATUS, "[New Pkt] update page-%d\n", page);*/
 		pkt_proc->page_bitmap_record = BIT(page);
+		pkt_proc->is_1st_mpdu = true;
 	}
 
 	PHYDM_DBG(dm, DBG_PHY_STATUS,
@@ -1651,39 +1603,40 @@ void phydm_physts_auto_switch_jgr3_set(void *dm_void, boolean enable,
 	struct pkt_process_info *pkt_proc = &dm->pkt_proc_struct;
 	u16 en_page_num = 1;
 
-	if (dm->support_ic_type != ODM_RTL8822C)
+	if (!(dm->support_ic_type & PHYSTS_AUTO_SWITCH_IC))
 		return;
-
+#if 0
+	if (!(dm->support_ic_type & PHYSTS_3RD_TYPE_IC))
+		return;
+#endif
 	pkt_proc->physts_auto_swch_en = enable;
 	pkt_proc->page_bitmap_target = bitmap_en;
 	phydm_physts_auto_switch_jgr3_reset(dm);
 	en_page_num = phydm_ones_num_in_bitmap((u64)bitmap_en, 8);
 
-	PHYDM_DBG(dm, DBG_PHY_STATUS, "en=%d, bitmap_en=%d, en_page_num=%d\n",
-		  enable, bitmap_en, en_page_num);
+	PHYDM_DBG(dm, DBG_CMN, "[%s]en=%d, bitmap_en=%d, en_page_num=%d\n",
+		  __func__, enable, bitmap_en, en_page_num);
 
-	if (dm->support_ic_type & PHYSTS_3RD_TYPE_IC) {
-		if (enable) {
-			/*@per MPDU latch & update phy-staatus*/
-			odm_set_mac_reg(dm, R_0x60c, BIT(31), 1);
-			/*@Update Period (OFDM Symbol)*/
-			odm_set_bb_reg(dm, R_0x8c0, 0xfc000, 3);
-			/*@switchin bitmap*/
-			odm_set_bb_reg(dm, R_0x8c4, 0x7f80000, bitmap_en);
-			/*@mode 3*/
-			odm_set_bb_reg(dm, R_0x8c4, (BIT(28) | BIT(27)), 3);
-		} else {
-			odm_set_mac_reg(dm, R_0x60c, BIT(31), 0);
-			odm_set_bb_reg(dm, R_0x8c0, 0xfc000, 0x0);
-			odm_set_bb_reg(dm, R_0x8c4, 0x7f80000, 0x2);
-			odm_set_bb_reg(dm, R_0x8c4, (BIT(28) | BIT(27)), 0);
-		}
+	if (enable) {
+		/*@per MPDU latch & update phy-staatus*/
+		odm_set_mac_reg(dm, R_0x60c, BIT(31), 1);
+		/*@Update Period (OFDM Symbol)*/
+		odm_set_bb_reg(dm, R_0x8c0, 0xfc000, 3);
+		/*@switchin bitmap*/
+		odm_set_bb_reg(dm, R_0x8c4, 0x7f80000, bitmap_en);
+		/*@mode 3*/
+		odm_set_bb_reg(dm, R_0x8c4, (BIT(28) | BIT(27)), 3);
+	} else {
+		odm_set_mac_reg(dm, R_0x60c, BIT(31), 0);
+		odm_set_bb_reg(dm, R_0x8c0, 0xfc000, 0x1);
+		odm_set_bb_reg(dm, R_0x8c4, 0x7f80000, 0x2);
+		odm_set_bb_reg(dm, R_0x8c4, (BIT(28) | BIT(27)), 0);
 	}
 }
 
-void phydm_avg_phystatus_index_p4(void *dm_void,
-				  struct phydm_phyinfo_struct *phy_info,
-				  struct phydm_perpkt_info_struct *pktinfo)
+void phydm_avg_condi_num(void *dm_void,
+			 struct phydm_phyinfo_struct *phy_info,
+			 struct phydm_perpkt_info_struct *pktinfo)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
@@ -1698,37 +1651,20 @@ void phydm_avg_phystatus_index_p4(void *dm_void,
 	arry_idx = pktinfo->rate_ss - 1;
 
 	dbg_s->p4_cnt[arry_idx]++;
-	dbg_s->cn_sum[arry_idx] += phy_info->condition_num_seg0;
+	dbg_s->cn_sum[arry_idx] += dbg_i->condition_num_seg0;
 
 	/*CN Histogram*/
-	val = (u16)phy_info->condition_num_seg0;
+	val = (u16)dbg_i->condition_num_seg0;
 	intvl = phydm_find_intrvl(dm, val, dbg_i->cn_hist_th, size_th);
 	dbg_s->cn_hist[arry_idx][intvl]++;
 
-	dbg_i->condi_num = (u32)phy_info->condition_num_seg0; /*will remove*/
+	dbg_i->condi_num = (u32)dbg_i->condition_num_seg0; /*will remove*/
 }
-
-void phydm_get_physts_jgr3_4_cn(struct dm_struct *dm, u8 *phy_status_inf,
-				struct phydm_perpkt_info_struct *pktinfo,
-				struct phydm_phyinfo_struct *phy_info)
-{
-	struct phy_sts_rpt_jgr3_type4 *phy_sts = NULL;
-	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
-
-	if (pktinfo->rate_ss == 1)
-		return;
-
-	phy_sts = (struct phy_sts_rpt_jgr3_type4 *)phy_status_inf;
-
-	odm_move_memory(dm, phy_info->eigen_val, phy_sts->eigenvalue, 4);
-	phy_info->condition_num_seg0 = phy_sts->avg_cond_num_0;
-}
-
 #endif
 
-void phydm_print_phystat_jaguar3(struct dm_struct *dm, u8 *phy_sts,
-				 struct phydm_perpkt_info_struct *pktinfo,
-				 struct phydm_phyinfo_struct *phy_info)
+void phydm_print_phystat_jgr3(struct dm_struct *dm, u8 *phy_sts,
+			      struct phydm_perpkt_info_struct *pktinfo,
+			      struct phydm_phyinfo_struct *phy_info)
 {
 	struct phy_sts_rpt_jgr3_type0 *rpt0 = NULL;
 	struct phy_sts_rpt_jgr3_type1 *rpt1 = NULL;
@@ -1737,9 +1673,12 @@ void phydm_print_phystat_jaguar3(struct dm_struct *dm, u8 *phy_sts,
 	struct phy_sts_rpt_jgr3_type5 *rpt4 = NULL;
 	struct odm_phy_dbg_info *dbg = &dm->phy_dbg_info;
 	u8 phy_status_page_num = (*phy_sts & 0xf);
-	u32 phy_status_tmp[PHY_STATUS_JRGUAR3_DW_LEN] = {0};
+	u32 *phy_status_tmp = NULL;
 	u8 i = 0;
-	u32 size = PHY_STATUS_JRGUAR3_DW_LEN << 2;
+	/*u32 size = PHY_STATUS_JRGUAR3_DW_LEN << 2;*/
+
+	if (!(dm->debug_components & DBG_PHY_STATUS))
+		return;
 
 	rpt0 = (struct phy_sts_rpt_jgr3_type0 *)phy_sts;
 	rpt1 = (struct phy_sts_rpt_jgr3_type1 *)phy_sts;
@@ -1747,9 +1686,7 @@ void phydm_print_phystat_jaguar3(struct dm_struct *dm, u8 *phy_sts,
 	rpt3 = (struct phy_sts_rpt_jgr3_type4 *)phy_sts;
 	rpt4 = (struct phy_sts_rpt_jgr3_type5 *)phy_sts;
 
-	odm_move_memory(dm, phy_status_tmp, phy_sts, size);
-	if (!(dm->debug_components & DBG_PHY_STATUS))
-		return;
+	phy_status_tmp = (u32 *)phy_sts;
 
 	if (dbg->show_phy_sts_all_pkt == 0) {
 		if (!pktinfo->is_packet_match_bssid)
@@ -1916,17 +1853,15 @@ void phydm_print_phystat_jaguar3(struct dm_struct *dm, u8 *phy_sts,
 	}
 }
 
-void phydm_reset_phy_info_3rd(struct dm_struct *phydm,
-			      struct phydm_phyinfo_struct *phy_info)
+void phydm_reset_phy_info_jgr3(struct dm_struct *phydm,
+			       struct phydm_phyinfo_struct *phy_info)
 {
+	u8 i;
+
 	phy_info->rx_pwdb_all = 0;
 	phy_info->signal_quality = 0;
 	phy_info->band_width = 0;
 	phy_info->rx_count = 0;
-	odm_memory_set(phydm, phy_info->rx_mimo_signal_quality, 0, 4);
-	odm_memory_set(phydm, phy_info->rx_mimo_signal_strength, 0, 4);
-	odm_memory_set(phydm, phy_info->rx_snr, 0, 4);
-
 	phy_info->rx_power = -110;
 	phy_info->recv_signal_power = -110;
 	phy_info->bt_rx_rssi_percentage = 0;
@@ -1935,13 +1870,19 @@ void phydm_reset_phy_info_3rd(struct dm_struct *phydm,
 	phy_info->is_mu_packet = 0;
 	phy_info->is_beamformed = 0;
 	phy_info->rxsc = 0;
-	odm_memory_set(phydm, phy_info->rx_pwr, -110, 4);
-	odm_memory_set(phydm, phy_info->cfo_short, 0, 8);
-	odm_memory_set(phydm, phy_info->cfo_tail, 0, 8);
 
-	odm_memory_set(phydm, phy_info->rx_mimo_evm_dbm, 0, 4);
+	for (i = 0; i < 4; i++) {
+		phy_info->rx_mimo_signal_strength[i] = 0;
+		phy_info->rx_mimo_signal_quality[i] = 0;
+		phy_info->rx_mimo_evm_dbm[i] = 0;
+		phy_info->cfo_short[i] = 0;
+		phy_info->cfo_tail[i] = 0;
+		phy_info->rx_pwr[i] = -110;
+		phy_info->rx_snr[i] = 0;
+	}
 }
 
+#if 0
 void phydm_per_path_info_3rd(u8 rx_path, s8 pwr, s8 rx_evm, s8 cfo_tail,
 			     s8 rx_snr, struct phydm_phyinfo_struct *phy_info)
 {
@@ -1950,36 +1891,23 @@ void phydm_per_path_info_3rd(u8 rx_path, s8 pwr, s8 rx_evm, s8 cfo_tail,
 
 	/* SNR is S(8,1), EVM is S(8,1), CFO is S(8,7) */
 
-	if (rx_evm < 0) {
-		/* @Calculate EVM in dBm */
-		evm_dbm = ((u8)(0 - rx_evm) >> 1);
-
-		if (evm_dbm == 64)
-			evm_dbm = 0; /*@if 1SS rate, evm_dbm [2nd stream] =64*/
-
-		if (evm_dbm != 0) {
-			/* @Convert EVM to 0%~100% percentage */
-			if (evm_dbm >= 34)
-				evm_percentage = 100;
-			else
-				evm_percentage = (evm_dbm << 1) + (evm_dbm);
-		}
-	}
+	evm_dbm = (rx_evm == -128) ? 0 : ((u8)(0 - rx_evm) >> 1);
+	evm_percentage = (evm_dbm >= 34) ? 100 : evm_dbm * 3;
 
 	phy_info->rx_pwr[rx_path] = pwr;
 
 	/*@CFO(kHz) = CFO_tail * 312.5(kHz) / 2^7 ~= CFO tail * 5/2 (kHz)*/
 	phy_info->cfo_tail[rx_path] = (cfo_tail * 5) >> 1;
 	phy_info->rx_mimo_evm_dbm[rx_path] = evm_dbm;
-	phy_info->rx_mimo_signal_strength[rx_path] = phydm_pwr_2_percent(pwr);
+	phy_info->rx_mimo_signal_strength[rx_path] = phydm_pw_2_percent(pwr);
 	phy_info->rx_mimo_signal_quality[rx_path] = evm_percentage;
 	phy_info->rx_snr[rx_path] = rx_snr >> 1;
 }
 
-void phydm_common_phy_info_3rd(s8 rx_power, u8 channel, boolean is_beamformed,
-			       boolean is_mu_packet, u8 bandwidth,
-			       u8 signal_quality, u8 rxsc,
-			       struct phydm_phyinfo_struct *phy_info)
+void phydm_common_phy_info_jgr3(s8 rx_power, u8 channel, boolean is_beamformed,
+				boolean is_mu_packet, u8 bandwidth,
+				u8 signal_quality, u8 rxsc,
+				struct phydm_phyinfo_struct *phy_info)
 {
 	phy_info->rx_power = rx_power; /* RSSI in dB */
 	phy_info->recv_signal_power = rx_power; /* RSSI in dB */
@@ -1988,22 +1916,13 @@ void phydm_common_phy_info_3rd(s8 rx_power, u8 channel, boolean is_beamformed,
 	phy_info->is_mu_packet = is_mu_packet; /* @MU packet */
 	phy_info->rxsc = rxsc;
 
-	phy_info->rx_pwdb_all = phydm_pwr_2_percent(rx_power); /*percentage */
+	phy_info->rx_pwdb_all = phydm_pw_2_percent(rx_power); /*percentage */
 	phy_info->signal_quality = signal_quality; /* signal quality */
 	phy_info->band_width = bandwidth; /* @bandwidth */
-
-#if 0
-	/* @if (pktinfo->is_packet_match_bssid) */
-	{
-		dbg_print("rx_pwdb_all = %d, rx_power = %d, recv_signal_power = %d\n", phy_info->rx_pwdb_all, phy_info->rx_power, phy_info->recv_signal_power);
-		dbg_print("signal_quality = %d\n", phy_info->signal_quality);
-		dbg_print("is_beamformed = %d, is_mu_packet = %d, rx_count = %d\n", phy_info->is_beamformed, phy_info->is_mu_packet, phy_info->rx_count + 1);
-		dbg_print("channel = %d, rxsc = %d, band_width = %d\n", channel, rxsc, bandwidth);
-	}
-#endif
 }
+#endif
 
-void phydm_get_physts_jgr3_0(struct dm_struct *dm, u8 *phy_status_inf,
+void phydm_get_physts_0_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
 			     struct phydm_perpkt_info_struct *pktinfo,
 			     struct phydm_phyinfo_struct *phy_info)
 {
@@ -2011,18 +1930,27 @@ void phydm_get_physts_jgr3_0(struct dm_struct *dm, u8 *phy_status_inf,
 	struct phy_sts_rpt_jgr3_type0 *phy_sts = NULL;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
 	u8 sq = 0, i, rx_cnt = 0;
-	s8 rx_power[4];
+	s8 rx_power[4], pwdb;
 	s8 rx_pwr_db_max = -120;
 
 	phy_sts = (struct phy_sts_rpt_jgr3_type0 *)phy_status_inf;
+
+	#if (RTL8197G_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8197G) {
+		if (dm->rx_ant_status == BB_PATH_B) {
+			phy_sts->pwdb_b = phy_sts->pwdb_a;
+			phy_sts->pwdb_a = 0;
+		}
+	}
+	#endif
 
 	rx_power[0] = phy_sts->pwdb_a;
 	rx_power[1] = phy_sts->pwdb_b;
 	rx_power[2] = phy_sts->pwdb_c;
 	rx_power[3] = phy_sts->pwdb_d;
 
-	#if (RTL8822C_SUPPORT)
-	if (dm->support_ic_type & ODM_RTL8822C) {
+	#if (RTL8822C_SUPPORT || RTL8197G_SUPPORT)
+	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8197G)) {
 		struct phydm_physts *physts_table = &dm->dm_physts_table;
 		if (phy_sts->gain_a < physts_table->cck_gi_l_bnd)
 			rx_power[0] += ((physts_table->cck_gi_l_bnd -
@@ -2042,27 +1970,26 @@ void phydm_get_physts_jgr3_0(struct dm_struct *dm, u8 *phy_status_inf,
 
 	/* @Update per-path information */
 	for (i = RF_PATH_A; i < dm->num_rf_path; i++) {
-		if (dm->rx_ant_status & BIT(i)) {
-			rx_cnt++; /* @check the number of the ant */
+		if ((dm->rx_ant_status & BIT(i)) == 0)
+			continue;
 
-			if (rx_cnt > dm->num_rf_path)
-				break;
+		rx_cnt++; /* @check the number of the ant */
 
-			if (pktinfo->is_to_self)
-				dm->ofdm_agc_idx[i] = rx_power[i];
+		if (rx_cnt > dm->num_rf_path)
+			break;
 
-			/* @Setting the RX power: agc_idx -110 dBm*/
-			rx_power[i] -= 110;
+		if (pktinfo->is_to_self)
+			dm->ofdm_agc_idx[i] = rx_power[i];
 
-			/* Update CCK pwdb */
-			/* Update per-path information */
-			phydm_per_path_info_3rd(i, rx_power[i], 0, 0, 0,
-						phy_info);
+		/* @Setting the RX power: agc_idx -110 dBm*/
+		pwdb = rx_power[i] - 110;
 
-			/* search maximum pwdb */
-			if (rx_power[i] > rx_pwr_db_max)
-				rx_pwr_db_max = rx_power[i];
-		}
+		phy_info->rx_pwr[i] = pwdb;
+		phy_info->rx_mimo_signal_strength[i] = phydm_pw_2_percent(pwdb);
+
+		/* search maximum pwdb */
+		if (pwdb > rx_pwr_db_max)
+			rx_pwr_db_max = pwdb;
 	}
 
 	/* @Calculate Signal Quality*/
@@ -2094,10 +2021,15 @@ void phydm_get_physts_jgr3_0(struct dm_struct *dm, u8 *phy_status_inf,
 	dbg_i->is_ldpc_pkt = false;
 	dbg_i->is_stbc_pkt = false;
 
-	/* Update Common information */
-	phydm_common_phy_info_3rd(rx_pwr_db_max, phy_sts->channel, false,
-				  false, CHANNEL_WIDTH_20, sq,
-				  phy_sts->l_rxsc, phy_info);
+	phy_info->rx_power = rx_pwr_db_max;
+	phy_info->recv_signal_power = rx_pwr_db_max;
+	phy_info->channel = phy_sts->channel;
+	phy_info->is_beamformed = false;
+	phy_info->is_mu_packet = false;
+	phy_info->rxsc = phy_sts->l_rxsc;
+	phy_info->rx_pwdb_all = phydm_pw_2_percent(rx_pwr_db_max);
+	phy_info->signal_quality = sq;
+	phy_info->band_width = CHANNEL_WIDTH_20;
 
 	#ifdef CONFIG_PHYDM_ANTENNA_DIVERSITY
 	dm->dm_fat_table.antsel_rx_keep_0 = phy_sts->antidx_a;
@@ -2107,99 +2039,43 @@ void phydm_get_physts_jgr3_0(struct dm_struct *dm, u8 *phy_status_inf,
 	#endif
 }
 
-void phydm_get_physts_jgr3_1(struct dm_struct *dm, u8 *phy_status_inf,
-			     struct phydm_perpkt_info_struct *pktinfo,
-			     struct phydm_phyinfo_struct *phy_info)
+void phydm_get_physts_1_others_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
+				    struct phydm_perpkt_info_struct *pktinfo,
+				    struct phydm_phyinfo_struct *phy_info)
 {
-	/* type 1 is used for ofdm packet */
 	struct phy_sts_rpt_jgr3_type1 *phy_sts = NULL;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
-	s8 rx_pwr_db = -120;
-	s8 rx_path_pwr_db = 0;
-	u8 i, rxsc, bw = CHANNEL_WIDTH_20, rx_cnt = 0;
-	u8 pwdb[4];
-	boolean is_mu = false;
+	s8 evm = 0;
+	u8 i;
+	s8 sq = 0;
 
 	phy_sts = (struct phy_sts_rpt_jgr3_type1 *)phy_status_inf;
 
-	pwdb[0] = phy_sts->pwdb_a;
-	pwdb[1] = phy_sts->pwdb_b;
-	pwdb[2] = phy_sts->pwdb_c;
-	pwdb[3] = phy_sts->pwdb_d;
+	/* SNR: S(8,1), EVM: S(8,1), CFO: S(8,7) */
 
-	/* Update per-path information */
 	for (i = RF_PATH_A; i < dm->num_rf_path; i++) {
-		if (dm->rx_ant_status & BIT(i)) {
-			rx_cnt++; /* @check the number of the ant */
+		if ((dm->rx_ant_status & BIT(i)) == 0)
+			continue;
 
-			if (rx_cnt > dm->num_rf_path)
-				break;
+		evm = phy_sts->rxevm[i];
+		evm = (evm == -128) ? 0 : ((0 - evm) >> 1);
+		sq = (evm >= 34) ? 100 : evm * 3; /* @Convert EVM to 0~100%*/
 
-			/* Update per-path information
-			 * (RSSI_dB RSSI_percentage EVM SNR CFO sq)
-			 */
-			/* @EVM report is reported by stream, not path */
-			/* @per-path pw (dB)*/
-			rx_path_pwr_db = (s8)pwdb[i] - 110;
-
-			if (pktinfo->is_to_self)
-				dm->ofdm_agc_idx[i] = pwdb[i];
-
-			phydm_per_path_info_3rd(i, rx_path_pwr_db,
-						phy_sts->rxevm[rx_cnt - 1],
-						phy_sts->cfo_tail[i],
-						phy_sts->rxsnr[i], phy_info);
-
-			/*@CFO(kHz) = CFO_tail*312.5/2^7 ~= CFO tail*5/2*/
-			dbg_i->cfo_tail[i] = (phy_sts->cfo_tail[i] * 5) >> 1;
-			/* search maximum pwdb */
-			if (rx_path_pwr_db > rx_pwr_db)
-				rx_pwr_db = rx_path_pwr_db;
-		}
+		phy_info->rx_mimo_evm_dbm[i] = (u8)evm;
+		phy_info->rx_mimo_signal_quality[i] = sq;
+		phy_info->rx_snr[i] = phy_sts->rxsnr[i] >> 1;
+		/*@CFO(kHz) = CFO_tail*312.5(kHz)/2^7 ~= CFO tail * 5/2 (kHz)*/
+		phy_info->cfo_tail[i] = (phy_sts->cfo_tail[i] * 5) >> 1;
+		dbg_i->cfo_tail[i] = (phy_sts->cfo_tail[i] * 5) >> 1;
 	}
+	phy_info->signal_quality = phy_info->rx_mimo_signal_quality[0];
 
-	/* @mapping RX counter from 1~4 to 0~3 */
-	if (rx_cnt > 0)
-		phy_info->rx_count = rx_cnt - 1;
-
-	/* @Check if MU packet or not */
 	if (phy_sts->gid != 0 && phy_sts->gid != 63) {
-		is_mu = true;
+		phy_info->is_mu_packet = true;
 		dbg_i->num_qry_mu_pkt++;
 	} else {
-		is_mu = false;
+		phy_info->is_mu_packet = false;
 	}
-
-	/* @count BF packet */
-	dbg_i->num_qry_bf_pkt = dbg_i->num_qry_bf_pkt + phy_sts->beamformed;
-
-	/*STBC or LDPC pkt*/
-	dbg_i->is_ldpc_pkt = phy_sts->ldpc;
-	dbg_i->is_stbc_pkt = phy_sts->stbc;
-
-	/* @Check sub-channel */
-	if (pktinfo->data_rate > ODM_RATE11M &&
-	    pktinfo->data_rate < ODM_RATEMCS0)
-		rxsc = phy_sts->l_rxsc; /*@Legacy*/
-	else
-		rxsc = phy_sts->ht_rxsc; /* @HT and VHT */
-
-	/* @Check RX bandwidth */
-	if (rxsc >= 1 && rxsc <= 8)
-		bw = CHANNEL_WIDTH_20;
-	else if (rxsc >= 9 && rxsc <= 12)
-		bw = CHANNEL_WIDTH_40;
-	else if (rxsc >= 13)
-		bw = CHANNEL_WIDTH_80;
-	else
-		bw = *dm->band_width;
-
-	/* Update packet information */
-	/* RX power choose the path with the maximum power */
-	phydm_common_phy_info_3rd(rx_pwr_db, phy_sts->channel_pri_lsb,
-				  (boolean)phy_sts->beamformed, is_mu,
-				  bw, phy_info->rx_mimo_signal_quality[0],
-				  rxsc, phy_info);
 
 	phydm_parsing_cfo(dm, pktinfo, phy_sts->cfo_tail, pktinfo->rate_ss);
 
@@ -2211,239 +2087,109 @@ void phydm_get_physts_jgr3_1(struct dm_struct *dm, u8 *phy_status_inf,
 #endif
 }
 
-void phydm_get_physts_jgr3_2_3(struct dm_struct *dm, u8 *phy_status_inf,
-			       struct phydm_perpkt_info_struct *pktinfo,
-			       struct phydm_phyinfo_struct *phy_info)
+void phydm_get_physts_2_others_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
+				    struct phydm_perpkt_info_struct *pktinfo,
+				    struct phydm_phyinfo_struct *phy_info)
 {
 	/* type 2 & 3 is used for ofdm packet */
 	struct phy_sts_rpt_jgr3_type2_3 *phy_sts = NULL;
-	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
-	s8 rx_pwr_db_max = -120;
-	s8 rx_path_pwr_db = 0;
-	u8 i, rxsc, bw = CHANNEL_WIDTH_20, rx_count = 0;
-
-	phy_sts = (struct phy_sts_rpt_jgr3_type2_3 *)phy_status_inf;
-
-	/* Update per-path information */
-	for (i = RF_PATH_A; i < dm->num_rf_path; i++) {
-		if (dm->rx_ant_status & BIT(i)) {
-			rx_count++; /* @check the number of the ant */
-
-			if (rx_count > dm->num_rf_path)
-				break;
-
-			/* Update per-path information
-			 * (RSSI_dB RSSI_percentage EVM SNR CFO sq)
-			 */
-			/* @EVM report is reported by stream, not path */
-			rx_path_pwr_db = (s8)phy_sts->pwdb[i] - 110; /*@dB*/
-
-			if (pktinfo->is_to_self)
-				dm->ofdm_agc_idx[i] = phy_sts->pwdb[i];
-
-			phydm_per_path_info_3rd(i, rx_path_pwr_db, 0,
-						0, 0, phy_info);
-
-			/* search maximum pwdb */
-			if (rx_path_pwr_db > rx_pwr_db_max)
-				rx_pwr_db_max = rx_path_pwr_db;
-		}
-	}
-
-	/* @mapping RX counter from 1~4 to 0~3 */
-	if (rx_count > 0)
-		phy_info->rx_count = rx_count - 1;
-
-	/* @count BF packet */
-	dbg_i->num_qry_bf_pkt = dm->phy_dbg_info.num_qry_bf_pkt +
-					  phy_sts->beamformed;
-
-	/*STBC or LDPC pkt*/
-	dbg_i->is_ldpc_pkt = phy_sts->ldpc;
-	dbg_i->is_stbc_pkt = phy_sts->stbc;
-
-	/* @Check sub-channel */
-	if (pktinfo->data_rate > ODM_RATE11M &&
-	    pktinfo->data_rate < ODM_RATEMCS0)
-		rxsc = phy_sts->l_rxsc; /*@Legacy*/
-	else
-		rxsc = phy_sts->ht_rxsc; /* @HT and VHT */
-
-	/* @Check RX bandwidth */
-	if (rxsc >= 1 && rxsc <= 8)
-		bw = CHANNEL_WIDTH_20;
-	else if (rxsc >= 9 && rxsc <= 12)
-		bw = CHANNEL_WIDTH_40;
-	else if (rxsc >= 13)
-		bw = CHANNEL_WIDTH_80;
-	else
-		bw = *dm->band_width;
-
-	/* Update packet information */
-	/* RX power choose the path with the maximum power */
-	phydm_common_phy_info_3rd(rx_pwr_db_max, phy_sts->channel_lsb,
-				  (boolean)phy_sts->beamformed,
-				  false, bw, 0, rxsc, phy_info);
 }
 
-void phydm_get_physts_jgr3_4(struct dm_struct *dm, u8 *phy_status_inf,
-			     struct phydm_perpkt_info_struct *pktinfo,
-			     struct phydm_phyinfo_struct *phy_info)
+void phydm_get_physts_4_others_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
+				    struct phydm_perpkt_info_struct *pktinfo,
+				    struct phydm_phyinfo_struct *phy_info)
 {
-	/* type 4 is used for ofdm packet */
 	struct phy_sts_rpt_jgr3_type4 *phy_sts = NULL;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
-	s8 rx_pwr_db_max = -120;
-	s8 rx_path_pwr_db = 0;
-	u8 i, rxsc, bw = CHANNEL_WIDTH_20, rx_cnt = 0;
+	s8 evm = 0;
+	u8 i;
+	s8 sq = 0;
 
 	phy_sts = (struct phy_sts_rpt_jgr3_type4 *)phy_status_inf;
 
-	/* Update per-path information */
+	/* SNR: S(8,1), EVM: S(8,1), CFO: S(8,7) */
+
 	for (i = RF_PATH_A; i < dm->num_rf_path; i++) {
-		if (dm->rx_ant_status & BIT(i)) {
-			rx_cnt++; /* @check the number of the ant */
+		if ((dm->rx_ant_status & BIT(i)) == 0)
+			continue;
 
-			if (rx_cnt > dm->num_rf_path)
-				break;
+		evm = phy_sts->rxevm[i];
+		evm = (evm == -128) ? 0 : ((0 - evm) >> 1);
+		sq = (evm >= 34) ? 100 : evm * 3; /* @Convert EVM to 0~100%*/
 
-			/* Update per-path information
-			 * (RSSI_dB RSSI_percentage EVM SNR CFO sq)
-			 */
-			/* @EVM report is reported by stream, not path */
-			rx_path_pwr_db = (s8)phy_sts->pwdb[i] - 110; /*@dB*/
-
-			if (pktinfo->is_to_self)
-				dm->ofdm_agc_idx[i] = phy_sts->pwdb[i];
-
-			phydm_per_path_info_3rd(i, rx_path_pwr_db,
-						phy_sts->rxevm[rx_cnt - 1],
-						0, phy_sts->rxsnr[i],
-						phy_info);
-
-			/* search maximum pwdb */
-			if (rx_path_pwr_db > rx_pwr_db_max)
-				rx_pwr_db_max = rx_path_pwr_db;
-		}
+		phy_info->rx_mimo_evm_dbm[i] = (u8)evm;
+		phy_info->rx_mimo_signal_quality[i] = sq;
+		phy_info->rx_snr[i] = phy_sts->rxsnr[i] >> 1;
 	}
-
-	/* @mapping RX counter from 1~4 to 0~3 */
-	if (rx_cnt > 0)
-		phy_info->rx_count = rx_cnt - 1;
-
-	/* @count BF packet */
-	dbg_i->num_qry_bf_pkt = dm->phy_dbg_info.num_qry_bf_pkt +
-					  phy_sts->beamformed;
-
-	/* @STBC or LDPC pkt*/
-	dbg_i->is_ldpc_pkt = phy_sts->ldpc;
-	dbg_i->is_stbc_pkt = phy_sts->stbc;
-
-	/* @Check sub-channel */
-	if (pktinfo->data_rate > ODM_RATE11M &&
-	    pktinfo->data_rate < ODM_RATEMCS0)
-		rxsc = phy_sts->l_rxsc; /*@Legacy*/
-	else
-		rxsc = phy_sts->ht_rxsc; /* @HT and VHT */
-
-	/* @Check RX bandwidth */
-	if (rxsc >= 1 && rxsc <= 8)
-		bw = CHANNEL_WIDTH_20;
-	else if (rxsc >= 9 && rxsc <= 12)
-		bw = CHANNEL_WIDTH_40;
-	else if (rxsc >= 13)
-		bw = CHANNEL_WIDTH_80;
-	else
-		bw = *dm->band_width;
-
-	/* @Conditional number */
-	dbg_i->condi_num = (u32)phy_sts->avg_cond_num_0;
-
-	/* Update packet information */
-	/* RX power choose the path with the maximum power */
-	phydm_common_phy_info_3rd(rx_pwr_db_max, phy_sts->channel_lsb,
-				  (boolean)phy_sts->beamformed,
-				  false, bw, 0, rxsc, phy_info);
+	phy_info->signal_quality = phy_info->rx_mimo_signal_quality[0];
+#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
+	dm->dm_fat_table.antsel_rx_keep_0 = phy_sts->antidx_a;
+	dm->dm_fat_table.antsel_rx_keep_1 = phy_sts->antidx_b;
+	dm->dm_fat_table.antsel_rx_keep_2 = phy_sts->antidx_c;
+	dm->dm_fat_table.antsel_rx_keep_3 = phy_sts->antidx_d;
+#endif
+	odm_move_memory(dm, dbg_i->eigen_val, phy_sts->eigenvalue, 4);
+	dbg_i->condition_num_seg0 = phy_sts->avg_cond_num_0;
 }
 
-void phydm_get_physts_jgr3_5(struct dm_struct *dm, u8 *phy_status_inf,
-			     struct phydm_perpkt_info_struct *pktinfo,
-			     struct phydm_phyinfo_struct *phy_info)
+void phydm_get_physts_5_others_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
+				    struct phydm_perpkt_info_struct *pktinfo,
+				    struct phydm_phyinfo_struct *phy_info)
 {
-	/* type 5 is used for ofdm packet */
 	struct phy_sts_rpt_jgr3_type5 *phy_sts = NULL;
+
+}
+
+void phydm_get_physts_ofdm_cmn_jgr3(struct dm_struct *dm, u8 *phy_status_inf,
+				    struct phydm_perpkt_info_struct *pktinfo,
+				    struct phydm_phyinfo_struct *phy_info)
+{
+	struct phy_sts_rpt_jgr3_ofdm_cmn *phy_sts = NULL;
 	struct odm_phy_dbg_info *dbg_i = &dm->phy_dbg_info;
 	s8 rx_pwr_db_max = -120;
-	s8 rx_path_pwr_db = 0;
-	u8 i, rxsc, bw = CHANNEL_WIDTH_20, rx_count = 0;
+	s8 pwdb = 0;
+	u8 i, rx_cnt = 0;
 
-	phy_sts = (struct phy_sts_rpt_jgr3_type5 *)phy_status_inf;
+	phy_sts = (struct phy_sts_rpt_jgr3_ofdm_cmn *)phy_status_inf;
 
-	/* Update per-path information */
+	/* Parsing Offset0 & 4*/
 	for (i = RF_PATH_A; i < dm->num_rf_path; i++) {
-		if (dm->rx_ant_status & BIT(i)) {
-			rx_count++; /* @check the number of the ant */
+		if ((dm->rx_ant_status & BIT(i)) == 0)
+			continue;
 
-			if (rx_count > dm->num_rf_path)
-				break;
+		rx_cnt++; /* @check the number of the ant */
 
-			/* Update per-path information
-			 * (RSSI_dB RSSI_percentage EVM SNR CFO sq)
-			 */
-			/* @EVM report is reported by stream, not path */
-			rx_path_pwr_db = (s8)phy_sts->pwdb[i] - 110; /*@dB*/
+		pwdb = (s8)phy_sts->pwdb[i] - 110; /*@dB*/
 
-			if (pktinfo->is_to_self)
-				dm->ofdm_agc_idx[i] = phy_sts->pwdb[i];
+		if (pktinfo->is_to_self)
+			dm->ofdm_agc_idx[i] = phy_sts->pwdb[i];
 
-			phydm_per_path_info_3rd(i, rx_path_pwr_db,
-						0, 0, 0, phy_info);
+		/* search maximum pwdb */
+		if (pwdb > rx_pwr_db_max)
+			rx_pwr_db_max = pwdb;
 
-			/* search maximum pwdb */
-			if (rx_path_pwr_db > rx_pwr_db_max)
-				rx_pwr_db_max = rx_path_pwr_db;
-		}
+		phy_info->rx_pwr[i] = pwdb;
+		phy_info->rx_mimo_signal_strength[i] = phydm_pw_2_percent(pwdb);
 	}
 
-	/* @mapping RX counter from 1~4 to 0~3 */
-	if (rx_count > 0)
-		phy_info->rx_count = rx_count - 1;
+	phy_info->rx_count = (rx_cnt > 0) ? rx_cnt - 1 : 0; /*from 1~4 to 0~3 */
+	phy_info->rx_power = rx_pwr_db_max;
+	phy_info->rx_pwdb_all = phydm_pw_2_percent(rx_pwr_db_max);
+	phy_info->recv_signal_power = rx_pwr_db_max;
+	phy_info->channel = phy_sts->channel_lsb;
+	phy_info->is_beamformed = (boolean)phy_sts->beamformed;
+	phy_info->rxsc = (PHYDM_IS_LEGACY_RATE(pktinfo->data_rate)) ?
+			  phy_sts->l_rxsc : phy_sts->ht_rxsc;
+	phy_info->band_width = phydm_rxsc_2_bw(dm, phy_info->rxsc);
 
-	/* @count BF packet */
-	dbg_i->num_qry_bf_pkt = dm->phy_dbg_info.num_qry_bf_pkt +
-					  phy_sts->beamformed;
-
-	/*STBC or LDPC pkt*/
 	dbg_i->is_ldpc_pkt = phy_sts->ldpc;
 	dbg_i->is_stbc_pkt = phy_sts->stbc;
-
-	/* @Check sub-channel */
-	if (pktinfo->data_rate > ODM_RATE11M &&
-	    pktinfo->data_rate < ODM_RATEMCS0)
-		rxsc = phy_sts->l_rxsc; /*@Legacy*/
-	else
-		rxsc = phy_sts->ht_rxsc; /* @HT and VHT */
-
-	/* @Check RX bandwidth */
-	if (rxsc >= 1 && rxsc <= 8)
-		bw = CHANNEL_WIDTH_20;
-	else if (rxsc >= 9 && rxsc <= 12)
-		bw = CHANNEL_WIDTH_40;
-	else if (rxsc >= 13)
-		bw = CHANNEL_WIDTH_80;
-	else
-		bw = *dm->band_width;
-
-	/* Update packet information */
-	/* RX power choose the path with the maximum power */
-	phydm_common_phy_info_3rd(rx_pwr_db_max, phy_sts->channel_lsb,
-				  (boolean)phy_sts->beamformed,
-				  false, bw, 0, rxsc, phy_info);
+	dbg_i->num_qry_bf_pkt += phy_sts->beamformed;
 }
 
-void phydm_process_dm_rssi_3rd_type(struct dm_struct *dm,
-				    struct phydm_phyinfo_struct *phy_info,
-				    struct phydm_perpkt_info_struct *pktinfo)
+void phydm_process_dm_rssi_jgr3(struct dm_struct *dm,
+				struct phydm_phyinfo_struct *phy_info,
+				struct phydm_perpkt_info_struct *pktinfo)
 {
 	struct cmn_sta_info *sta = NULL;
 	struct rssi_info *rssi_t = NULL;
@@ -2477,6 +2223,15 @@ void phydm_process_dm_rssi_3rd_type(struct dm_struct *dm,
 		dm->phy_dbg_info.beacon_phy_rate = pktinfo->data_rate;
 	}
 
+	#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
+	if (dm->support_ability & ODM_BB_ANT_DIV)
+		odm_process_rssi_for_ant_div(dm, phy_info, pktinfo);
+	#endif
+
+	#ifdef ODM_EVM_ENHANCE_ANTDIV
+	phydm_rx_rate_for_antdiv(dm, pktinfo);
+	#endif
+
 	#if (defined(CONFIG_PATH_DIVERSITY))
 	if (dm->support_ability & ODM_BB_PATH_DIV)
 		phydm_process_rssi_for_path_div(dm, phy_info, pktinfo);
@@ -2488,11 +2243,6 @@ void phydm_process_dm_rssi_3rd_type(struct dm_struct *dm,
 	#endif
 
 	rssi_t = &sta->rssi_stat;
-
-	if (pktinfo->is_cck_rate)
-		rssi_t->rssi_cck = (s8)rssi_db;
-	else
-		rssi_t->rssi_ofdm = (s8)rssi_db;
 
 	for (i = 0; i < dm->num_rf_path; i++) {
 		rssi_tmp = phy_info->rx_mimo_signal_strength[i];
@@ -2525,49 +2275,80 @@ void phydm_process_dm_rssi_3rd_type(struct dm_struct *dm,
 		rssi_t->rssi_acc = MA_ACC(rssi_t->rssi_acc, rssi_db, RSSI_MA);
 		rssi_t->rssi = (s8)GET_MA_VAL(rssi_t->rssi_acc, RSSI_MA);
 	}
+
+	if (pktinfo->is_cck_rate)
+		rssi_t->rssi_cck = (s8)rssi_db;
+	else
+		rssi_t->rssi_ofdm = (s8)rssi_db;
 }
 
-void phydm_rx_physts_3rd_type(void *dm_void, u8 *phy_sts,
-			      struct phydm_perpkt_info_struct *pktinfo,
-			      struct phydm_phyinfo_struct *phy_info)
+void phydm_rx_physts_jgr3(void *dm_void, u8 *phy_sts,
+			  struct phydm_perpkt_info_struct *pktinfo,
+			  struct phydm_phyinfo_struct *phy_info)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	u8 phy_status_type = (*phy_sts & 0xf);
 
 	/*@[Step 2]*/
-	phydm_reset_phy_info_3rd(dm, phy_info); /* @Memory reset */
+	/*phydm_reset_phy_info_jgr3(dm, phy_info);*/ /* @Memory reset */
 
 	/* Phy status parsing */
 	switch (phy_status_type) {
 	case 0: /*@CCK*/
-		phydm_get_physts_jgr3_0(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_0_jgr3(dm, phy_sts, pktinfo, phy_info);
 		break;
 	case 1:
-		phydm_get_physts_jgr3_1(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_ofdm_cmn_jgr3(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_1_others_jgr3(dm, phy_sts, pktinfo, phy_info);
 		break;
 	case 2:
 	case 3:
-		phydm_get_physts_jgr3_2_3(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_ofdm_cmn_jgr3(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_2_others_jgr3(dm, phy_sts, pktinfo, phy_info);
 		break;
 	case 4:
-		#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
-		if (dm->pkt_proc_struct.physts_auto_swch_en)
-			phydm_get_physts_jgr3_4_cn(dm,
-						   phy_sts, pktinfo, phy_info);
-		else
-		#endif
-			phydm_get_physts_jgr3_4(dm, phy_sts, pktinfo, phy_info);
-		break;
+		phydm_get_physts_ofdm_cmn_jgr3(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_4_others_jgr3(dm, phy_sts, pktinfo, phy_info);
 	case 5:
-		phydm_get_physts_jgr3_5(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_ofdm_cmn_jgr3(dm, phy_sts, pktinfo, phy_info);
+		phydm_get_physts_5_others_jgr3(dm, phy_sts, pktinfo, phy_info);
 		break;
 	default:
 		break;
 	}
 
+#if 0
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "RSSI: {%d, %d}\n",
+		  phy_info->rx_mimo_signal_strength[0],
+		  phy_info->rx_mimo_signal_strength[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "rxdb: {%d, %d}\n",
+		  phy_info->rx_pwr[0], phy_info->rx_pwr[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "EVM: {%d, %d}\n",
+		  phy_info->rx_mimo_evm_dbm[0], phy_info->rx_mimo_evm_dbm[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "SQ: {%d, %d}\n",
+		  phy_info->rx_mimo_signal_quality[0],
+		  phy_info->rx_mimo_signal_quality[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "SNR: {%d, %d}\n",
+		  phy_info->rx_snr[0], phy_info->rx_snr[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "CFO: {%d, %d}\n",
+		  phy_info->cfo_tail[0], phy_info->cfo_tail[1]);
+	PHYDM_DBG(dm, DBG_PHY_STATUS,
+		  "rx_pwdb_all = %d, rx_power = %d, recv_signal_power = %d\n",
+		  phy_info->rx_pwdb_all, phy_info->rx_power,
+		  phy_info->recv_signal_power);
+	PHYDM_DBG(dm, DBG_PHY_STATUS, "signal_quality = %d\n",
+		  phy_info->signal_quality);
+	PHYDM_DBG(dm, DBG_PHY_STATUS,
+		  "is_beamformed = %d, is_mu_packet = %d, rx_count = %d\n",
+		  phy_info->is_beamformed, phy_info->is_mu_packet,
+		  phy_info->rx_count);
+	PHYDM_DBG(dm, DBG_PHY_STATUS,
+		  "channel = %d, rxsc = %d, band_width = %d\n",
+		  phy_info->channel, phy_info->rxsc, phy_info->band_width);
+#endif
 
 	/*@[Step 1]*/
-	phydm_print_phystat_jaguar3(dm, phy_sts, pktinfo, phy_info);
+	phydm_print_phystat_jgr3(dm, phy_sts, pktinfo, phy_info);
 }
 
 #endif
@@ -2597,33 +2378,6 @@ phydm_query_is_mu_api(struct dm_struct *phydm, u8 ppdu_idx, u8 *p_data_rate,
 	*p_gid = gid;
 
 	return is_mu;
-}
-
-void phydm_reset_phy_info(struct dm_struct *phydm,
-			  struct phydm_phyinfo_struct *phy_info)
-{
-	phy_info->rx_pwdb_all = 0;
-	phy_info->signal_quality = 0;
-	phy_info->band_width = 0;
-	phy_info->rx_count = 0;
-	odm_memory_set(phydm, phy_info->rx_mimo_signal_quality, 0, 4);
-	odm_memory_set(phydm, phy_info->rx_mimo_signal_strength, 0, 4);
-	odm_memory_set(phydm, phy_info->rx_snr, 0, 4);
-
-	phy_info->rx_power = -110;
-	phy_info->recv_signal_power = -110;
-	phy_info->bt_rx_rssi_percentage = 0;
-	phy_info->signal_strength = 0;
-	phy_info->channel = 0;
-	phy_info->is_mu_packet = 0;
-	phy_info->is_beamformed = 0;
-	phy_info->rxsc = 0;
-	odm_memory_set(phydm, phy_info->rx_pwr, -110, 4);
-	odm_memory_set(phydm, phy_info->cfo_short, 0, 8);
-	odm_memory_set(phydm, phy_info->cfo_tail, 0, 8);
-	odm_memory_set(phydm, phy_info->ant_idx, 0, 4);
-
-	odm_memory_set(phydm, phy_info->rx_mimo_evm_dbm, 0, 4);
 }
 
 void phydm_print_phy_sts_jgr2(struct dm_struct *dm, u8 *phy_status_inf,
@@ -2771,7 +2525,7 @@ void phydm_set_per_path_phy_info(u8 rx_path, s8 pwr, s8 rx_evm, s8 cfo_tail,
 	/*@CFO(kHz) = CFO_tail * 312.5(kHz) / 2^7 ~= CFO tail * 5/2 (kHz)*/
 	phy_info->cfo_tail[rx_path] = (cfo_tail * 5) >> 1;
 	phy_info->rx_mimo_evm_dbm[rx_path] = evm_dbm;
-	phy_info->rx_mimo_signal_strength[rx_path] = phydm_pwr_2_percent(pwr);
+	phy_info->rx_mimo_signal_strength[rx_path] = phydm_pw_2_percent(pwr);
 	phy_info->rx_mimo_signal_quality[rx_path] = evm_percentage;
 	phy_info->rx_snr[rx_path] = rx_snr >> 1;
 	phy_info->ant_idx[rx_path] = ant_idx;
@@ -2806,7 +2560,7 @@ void phydm_set_common_phy_info(s8 rx_power, u8 channel, boolean is_beamformed,
 	phy_info->rxsc = rxsc;
 
 	/* RSSI in percentage */
-	phy_info->rx_pwdb_all = phydm_pwr_2_percent(rx_power);
+	phy_info->rx_pwdb_all = phydm_pw_2_percent(rx_power);
 	phy_info->signal_quality = signal_quality; /* signal quality */
 	phy_info->band_width = bandwidth; /* @bandwidth */
 
@@ -3211,8 +2965,6 @@ void phydm_rx_physts_2nd_type(void *dm_void, u8 *phy_sts,
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	u8 page = (*phy_sts & 0xf);
 
-	phydm_reset_phy_info(dm, phy_info); /* @Memory reset */
-
 	/* Phy status parsing */
 	switch (page) {
 	case 0: /*@CCK*/
@@ -3237,15 +2989,19 @@ void phydm_rx_physts_2nd_type(void *dm_void, u8 *phy_sts,
 /*@==============================================*/
 #endif
 
-void odm_phy_status_query(struct dm_struct *dm,
-			  struct phydm_phyinfo_struct *phy_info,
-			  u8 *phy_sts,
-			  struct phydm_perpkt_info_struct *pktinfo)
+boolean odm_phy_status_query(struct dm_struct *dm,
+			     struct phydm_phyinfo_struct *phy_info,
+			     u8 *phy_sts,
+			     struct phydm_perpkt_info_struct *pktinfo)
 {
+#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
+	struct pkt_process_info *pkt_proc = &dm->pkt_proc_struct;
+	boolean auto_swch_en = dm->pkt_proc_struct.physts_auto_swch_en;
+#endif
 	u8 rate = pktinfo->data_rate;
 	u8 page = (*phy_sts & 0xf);
 
-	pktinfo->is_cck_rate = (rate <= ODM_RATE11M) ? true : false;
+	pktinfo->is_cck_rate = PHYDM_IS_CCK_RATE(rate);
 	pktinfo->rate_ss = phydm_rate_to_num_ss(dm, rate);
 	dm->rate_ss = pktinfo->rate_ss; /*@For AP EVM SW antenna diversity use*/
 
@@ -3255,18 +3011,19 @@ void odm_phy_status_query(struct dm_struct *dm,
 		dm->phy_dbg_info.num_qry_phy_status_ofdm++;
 
 	/*Reset phy_info*/
-	odm_memory_set(dm, phy_info->rx_mimo_signal_strength, 0, 4);
-	odm_memory_set(dm, phy_info->rx_mimo_signal_quality, 0, 4);
+	phydm_reset_phy_info(dm, phy_info);
+
 	if (dm->support_ic_type & PHYSTS_3RD_TYPE_IC) {
 		#ifdef PHYSTS_3RD_TYPE_SUPPORT
 		#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
 		if (phydm_physts_auto_switch_jgr3(dm, phy_sts, pktinfo)) {
 			PHYDM_DBG(dm, DBG_PHY_STATUS, "SKIP parsing\n");
-			return;
+			phy_info->physts_rpt_valid = false;
+			return false;
 		}
 		#endif
-		phydm_rx_physts_3rd_type(dm, phy_sts, pktinfo, phy_info);
-		phydm_process_dm_rssi_3rd_type(dm, phy_info, pktinfo);
+		phydm_rx_physts_jgr3(dm, phy_sts, pktinfo, phy_info);
+		phydm_process_dm_rssi_jgr3(dm, phy_info, pktinfo);
 		#endif
 	} else if (dm->support_ic_type & PHYSTS_2ND_TYPE_IC) {
 		#if (ODM_PHY_STATUS_NEW_TYPE_SUPPORT)
@@ -3290,8 +3047,7 @@ void odm_phy_status_query(struct dm_struct *dm,
 	#endif
 
 	/*For basic debug message*/
-	if (pktinfo->is_packet_match_bssid || pktinfo->is_packet_beacon ||
-	    *dm->mp_mode) {
+	if (pktinfo->is_packet_match_bssid || *dm->mp_mode) {
 		dm->curr_station_id = pktinfo->station_id;
 		dm->rx_rate = rate;
 		dm->rssi_a = phy_info->rx_mimo_signal_strength[RF_PATH_A];
@@ -3308,19 +3064,21 @@ void odm_phy_status_query(struct dm_struct *dm,
 		else if (phy_info->band_width == CHANNEL_WIDTH_80)
 			dm->rxsc_80 = (s8)phy_info->rxsc;
 
-		#ifdef PHYSTS_3RD_TYPE_SUPPORT
 		#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
-		if (page == 4 && dm->pkt_proc_struct.physts_auto_swch_en &&
-		    pktinfo->rate_ss > 1) {
-			phydm_avg_phystatus_index_p4(dm, phy_info, pktinfo);
-		} else if (page <= 1)
-		#endif
+		if (auto_swch_en && page == 4 && pktinfo->rate_ss > 1)
+			phydm_avg_condi_num(dm, phy_info, pktinfo);
+
+		if (!auto_swch_en ||
+		    (pkt_proc->is_1st_mpdu || PHYDM_IS_LEGACY_RATE(rate)))
 		#endif
 		{
-			phydm_avg_phystatus_index_p1(dm, phy_info, pktinfo);
+			phydm_avg_rssi_evm_snr(dm, phy_info, pktinfo);
 			phydm_rx_statistic_cal(dm, phy_info, phy_sts, pktinfo);
 		}
 	}
+
+	phy_info->physts_rpt_valid = true;
+	return true;
 }
 
 void phydm_rx_phy_status_init(void *dm_void)
@@ -3333,10 +3091,9 @@ void phydm_rx_phy_status_init(void *dm_void)
 	dbg->show_phy_sts_cnt = 0;
 
 	phydm_avg_phystatus_init(dm);
-	#if 0
+
 	#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
-	phydm_physts_auto_switch_jgr3_set(dm, true, BIT(4) | BIT(1));
-	#endif
+	dm->pkt_proc_struct.physts_auto_swch_en = false;
 	#endif
 }
 
@@ -3358,8 +3115,8 @@ void phydm_physts_dbg(void *dm_void, char input[][16], u32 *_used,
 
 	if ((strcmp(input[1], help) == 0)) {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "Page Auto Switching: {1} {en} {bitmap(hex)}\n");
-	} else if (var[0] == 1) {
+			 "Page Auto Switching: swh {en} {bitmap(hex)}\n");
+	} else if ((strcmp(input[1], "swh") == 0)) {
 		#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
 		PHYDM_SSCANF(input[3], DCMD_HEX, &var[2]);
 		enable = (boolean)var[1];

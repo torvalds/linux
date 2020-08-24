@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -541,6 +542,38 @@ void rtw_get_shared_macid_tx_rate_bmp_by_bw(struct dvobj_priv *dvobj, u8 bw, u16
 		*r_bmp_vht = bmp_vht;
 }
 
+void rtw_get_adapter_tx_rate_bmp(_adapter *adapter, u16 r_bmp_cck_ofdm[], u32 r_bmp_ht[], u64 r_bmp_vht[])
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	u8 bw;
+	u16 bmp_cck_ofdm, tmp_cck_ofdm;
+	u32 bmp_ht, tmp_ht;
+	u64 bmp_vht, tmp_vht;
+	int i;
+
+	for (bw = CHANNEL_WIDTH_20; bw <= CHANNEL_WIDTH_160; bw++) {
+		bmp_cck_ofdm = bmp_ht = bmp_vht = 0;
+		if (hal_is_bw_support(adapter, bw)) {
+			{
+				rtw_get_adapter_tx_rate_bmp_by_bw(adapter, bw, &tmp_cck_ofdm, &tmp_ht, &tmp_vht);
+				bmp_cck_ofdm |= tmp_cck_ofdm;
+				bmp_ht |= tmp_ht;
+				bmp_vht |= tmp_vht;
+			}
+			rtw_get_shared_macid_tx_rate_bmp_by_bw(dvobj, bw, &tmp_cck_ofdm, &tmp_ht, &tmp_vht);
+			bmp_cck_ofdm |= tmp_cck_ofdm;
+			bmp_ht |= tmp_ht;
+			bmp_vht |= tmp_vht;
+		}
+		if (bw == CHANNEL_WIDTH_20)
+			r_bmp_cck_ofdm[bw] = bmp_cck_ofdm;
+		if (bw <= CHANNEL_WIDTH_40)
+			r_bmp_ht[bw] = bmp_ht;
+		if (bw <= CHANNEL_WIDTH_160)
+			r_bmp_vht[bw] = bmp_vht;
+	}
+}
+
 void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj)
 {
 	struct rf_ctl_t *rf_ctl = dvobj_to_rfctl(dvobj);
@@ -645,7 +678,7 @@ void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj)
 
 		/* TODO: per rfpath and rate section handling? */
 		if (update_ht_rs == _TRUE || update_vht_rs == _TRUE)
-			rtw_hal_set_tx_power_level(dvobj_get_primary_adapter(dvobj), hal_data->current_channel);
+			rtw_hal_update_txpwr_level(adapter);
 	}
 #endif /* CONFIG_TXPWR_LIMIT */
 }
@@ -689,7 +722,7 @@ u8 rtw_get_tx_bw_bmp_of_vht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw)
 		goto exit;
 	}
 
-	rate_bmp = 1ULL << (rate - MGN_VHT1SS_MCS0);
+	rate_bmp = BIT_ULL(rate - MGN_VHT1SS_MCS0);
 
 	if (max_bw > CHANNEL_WIDTH_160)
 		max_bw = CHANNEL_WIDTH_160;
@@ -702,6 +735,88 @@ u8 rtw_get_tx_bw_bmp_of_vht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw)
 
 exit:
 	return bw_bmp;
+}
+
+s16 rtw_adapter_get_oper_txpwr_max_mbm(_adapter *adapter)
+{
+	s16 mbm = -100 * MBM_PDBM;
+
+	if (MLME_IS_ASOC(adapter)) {
+		struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
+		u8 ch = mlmeext->cur_channel;
+		u8 bw = mlmeext->cur_bwmode;
+		u8 offset = mlmeext->cur_ch_offset;
+		u8 cch = rtw_get_center_ch(ch, bw, offset);
+		u8 hw_rate = MRateToHwRate(mlmeext->tx_rate);
+		u16 bmp_cck_ofdm_by_bw[1] = {0};
+		u32 bmp_ht_by_bw[2] = {0};
+		u64 bmp_vht_by_bw[4] = {0};
+		u16 bmp_cck_ofdm = 0;
+		u32 bmp_ht = 0;
+		u64 bmp_vht = 0;
+		int i;
+
+		rtw_get_adapter_tx_rate_bmp(adapter, bmp_cck_ofdm_by_bw, bmp_ht_by_bw, bmp_vht_by_bw);
+
+		bmp_cck_ofdm |= bmp_cck_ofdm_by_bw[0];
+		for (i = 0; i < 2; i++)
+			bmp_ht |= bmp_ht_by_bw[i];
+		for (i = 0; i < 4; i++)
+			bmp_vht |= bmp_vht_by_bw[i];
+
+		if (IS_LEGACY_HRATE(hw_rate))
+			bmp_cck_ofdm |= BIT(hw_rate);
+		else if (IS_HT_HRATE(hw_rate))
+			bmp_ht |= BIT(hw_rate - DESC_RATEMCS0);
+		else if (IS_VHT_HRATE(hw_rate))
+			bmp_vht |= BIT(hw_rate - DESC_RATEVHTSS1MCS0);
+
+		mbm = phy_get_txpwr_total_max_mbm(adapter
+			, bw, cch, ch, bmp_cck_ofdm, bmp_ht, bmp_vht);
+	}
+
+	return mbm;
+}
+
+s16 rtw_get_oper_txpwr_max_mbm(struct dvobj_priv *dvobj)
+{
+	struct rf_ctl_t *rfctl = dvobj_to_rfctl(dvobj);
+	_adapter *adapter = dvobj_get_primary_adapter(dvobj);
+	s16 mbm = -100 * MBM_PDBM;
+	u8 ch, bw, offset;
+
+	if (rtw_mi_get_ch_setting_union(adapter, &ch, &bw, &offset)) {
+		u8 cch = rtw_get_center_ch(ch, bw, offset);
+		u16 bmp_cck_ofdm = 0;
+		u32 bmp_ht = 0;
+		u64 bmp_vht = 0;
+		int i;
+
+		for (i = 0; i < dvobj->iface_nums; i++) {
+			if (dvobj->padapters[i] && MLME_IS_ASOC(dvobj->padapters[i])) {
+				struct mlme_ext_priv *mlmeext = &(dvobj->padapters[i]->mlmeextpriv);
+				u8 hw_rate = MRateToHwRate(mlmeext->tx_rate);
+
+				if (IS_LEGACY_HRATE(hw_rate))
+					bmp_cck_ofdm |= BIT(hw_rate);
+				else if (IS_HT_HRATE(hw_rate))
+					bmp_ht |= BIT(hw_rate - DESC_RATEMCS0);
+				else if (IS_VHT_HRATE(hw_rate))
+					bmp_vht |= BIT(hw_rate - DESC_RATEVHTSS1MCS0);
+			}
+		}
+
+		bmp_cck_ofdm |= rfctl->rate_bmp_cck_ofdm;
+		for (i = 0; i < 2; i++)
+			bmp_ht |= rfctl->rate_bmp_ht_by_bw[i];
+		for (i = 0; i < 4; i++)
+			bmp_vht |= rfctl->rate_bmp_vht_by_bw[i];
+
+		mbm = phy_get_txpwr_total_max_mbm(adapter
+			, bw, cch, ch, bmp_cck_ofdm, bmp_ht, bmp_vht);
+	}
+
+	return mbm;
 }
 
 u8 query_ra_short_GI(struct sta_info *psta, u8 bw)
@@ -758,9 +873,9 @@ static void update_attrib_vcs_info(_adapter *padapter, struct xmit_frame *pxmitf
 			return;
 		}
 
-		if(!(psta->state &_FW_LINKED))
+		if(!(psta->state &WIFI_ASOC_STATE))
 		{
-			RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+			RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 			return;
 		}
 	*/
@@ -1064,6 +1179,31 @@ static s32 update_attrib_sec_info(_adapter *padapter, struct pkt_attrib *pattrib
 
 		break;
 
+	case _GCMP_:
+	case _GCMP_256_:
+
+		pattrib->iv_len = 8;
+		pattrib->icv_len = 16;
+
+		if (bmcast)
+			GCMP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+		else
+			GCMP_IV(pattrib->iv, psta->dot11txpn, 0);
+
+		break;
+
+	case _CCMP_256_:
+
+		pattrib->iv_len = 8;
+		pattrib->icv_len = 16;
+
+		if (bmcast)
+			GCMP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+		else
+			GCMP_IV(pattrib->iv, psta->dot11txpn, 0);
+
+		break;
+
 #ifdef CONFIG_WAPI_SUPPORT
 	case _SMS4_:
 		pattrib->iv_len = 18;
@@ -1077,8 +1217,11 @@ static s32 update_attrib_sec_info(_adapter *padapter, struct pkt_attrib *pattrib
 		break;
 	}
 
-	if (pattrib->encrypt > 0)
-		_rtw_memcpy(pattrib->dot118021x_UncstKey.skey, psta->dot118021x_UncstKey.skey, 16);
+	if (pattrib->encrypt > 0) {
+		_rtw_memcpy(pattrib->dot118021x_UncstKey.skey
+			, psta->dot118021x_UncstKey.skey
+			, (pattrib->encrypt & _SEC_TYPE_256_) ? 32 : 16);
+	}
 
 
 	if (pattrib->encrypt &&
@@ -1088,9 +1231,7 @@ static s32 update_attrib_sec_info(_adapter *padapter, struct pkt_attrib *pattrib
 		pattrib->bswenc = _FALSE;
 	}
 
-#if defined(CONFIG_CONCURRENT_MODE)
 	pattrib->bmc_camid = padapter->securitypriv.dot118021x_bmc_cam_id;
-#endif
 
 	if (pattrib->encrypt && bmcast && _rtw_camctl_chk_flags(padapter, SEC_STATUS_STA_PK_GK_CONFLICT_DIS_BMC_SEARCH))
 		pattrib->bswenc = _TRUE;
@@ -1418,16 +1559,16 @@ get_sta_info:
 			#endif
 			res = _FAIL;
 			goto exit;
-		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE && !(psta->state & _FW_LINKED)) {
+		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE && !(psta->state & WIFI_ASOC_STATE)) {
 			DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_ucast_ap_link);
 			res = _FAIL;
 			goto exit;
 		}
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & WIFI_ASOC_STATE)) {
 		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_link);
-		RTW_INFO("%s-"ADPT_FMT" psta("MAC_FMT")->state(0x%x) != _FW_LINKED\n",
+		RTW_INFO("%s-"ADPT_FMT" psta("MAC_FMT")->state(0x%x) != WIFI_ASOC_STATE\n",
 			__func__, ADPT_ARG(padapter), MAC_ARG(psta->cmn.mac_addr), psta->state);
 		res = _FAIL;
 		goto exit;
@@ -1649,9 +1790,9 @@ static s32 xmitframe_addmic(_adapter *padapter, struct xmit_frame *pxmitframe)
 			return _FAIL;
 		}
 
-		if(!(stainfo->state &_FW_LINKED))
+		if(!(stainfo->state &WIFI_ASOC_STATE))
 		{
-			RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, stainfo->state);
+			RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, stainfo->state);
 			return _FAIL;
 		}
 	*/
@@ -1769,7 +1910,12 @@ static s32 xmitframe_swencrypt(_adapter *padapter, struct xmit_frame *pxmitframe
 			rtw_tkip_encrypt(padapter, (u8 *)pxmitframe);
 			break;
 		case _AES_:
+		case _CCMP_256_:
 			rtw_aes_encrypt(padapter, (u8 *)pxmitframe);
+			break;
+		case _GCMP_:
+		case _GCMP_256_:
+			rtw_gcmp_encrypt(padapter, (u8 *)pxmitframe);
 			break;
 #ifdef CONFIG_WAPI_SUPPORT
 		case _SMS4_:
@@ -1815,9 +1961,9 @@ s32 rtw_make_wlanhdr(_adapter *padapter , u8 *hdr, struct pkt_attrib *pattrib)
 			return _FAIL;
 		}
 
-		if(!(psta->state &_FW_LINKED))
+		if(!(psta->state &WIFI_ASOC_STATE))
 		{
-			RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+			RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 			return _FAIL;
 		}
 	*/
@@ -1932,8 +2078,8 @@ s32 rtw_make_wlanhdr(_adapter *padapter , u8 *hdr, struct pkt_attrib *pattrib)
 				return _FAIL;
 			}
 
-			if (!(psta->state & _FW_LINKED)) {
-				RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+			if (!(psta->state & WIFI_ASOC_STATE)) {
+				RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 				return _FAIL;
 			}
 
@@ -2025,8 +2171,8 @@ s32 rtw_txframes_sta_ac_pending(_adapter *padapter, struct pkt_attrib *pattrib)
 		return 0;
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
-		RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+	if (!(psta->state & WIFI_ASOC_STATE)) {
+		RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 		return 0;
 	}
 
@@ -2656,9 +2802,9 @@ s32 rtw_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame *pxm
 		}
 
 
-		if(!(psta->state &_FW_LINKED))
+		if(!(psta->state &WIFI_ASOC_STATE))
 		{
-			RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+			RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 			return _FAIL;
 		}
 	*/
@@ -2847,11 +2993,13 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u8 MME[_MME_IE_LENGTH_];
+	u8 mme_cont[_MME_IE_LENGTH_ - 2];
+	u8 mme_clen;
 
 	_irqL irqL;
 	u32	ori_len;
 	union pn48 *pn = NULL;
+	enum security_type cipher = _NO_PRIVACY_;
 	u8 kid;
 
 	if (pxmitframe->buf_addr == NULL) {
@@ -2892,7 +3040,7 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 		}
 	}
 
-	ori_len = BIP_AAD_SIZE + pattrib->pktlen;
+	ori_len = BIP_AAD_SIZE + pattrib->pktlen + _MME_IE_LENGTH_;
 	tmp_buf = BIP_AAD = rtw_zmalloc(ori_len);
 	if (BIP_AAD == NULL)
 		return _FAIL;
@@ -2923,6 +3071,7 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 			}
 
 			pn = &psta->dot11txpn;
+			cipher = padapter->securitypriv.dot118021XGrpPrivacy;
 			kid = padapter->securitypriv.dot118021XGrpKeyid;
 		} else {
 			#ifdef CONFIG_IEEE80211W
@@ -2945,19 +3094,20 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 			}
 			#endif
 
-			_rtw_memset(MME, 0, _MME_IE_LENGTH_);
+			_rtw_memset(mme_cont, 0, _MME_IE_LENGTH_ - 2);
+			mme_clen = padapter->securitypriv.dot11wCipher == _BIP_CMAC_128_ ? 16 : 24;
 
 			MGMT_body = pframe + sizeof(struct rtw_ieee80211_hdr_3addr);
 			pframe += pattrib->pktlen;
 
 			/* octent 0 and 1 is key index ,BIP keyid is 4 or 5, LSB only need octent 0 */
-			MME[0] = padapter->securitypriv.dot11wBIPKeyid;
+			mme_cont[0] = padapter->securitypriv.dot11wBIPKeyid;
 			/* increase PN and apply to packet */
 			padapter->securitypriv.dot11wBIPtxpn.val++;
-			RTW_PUT_LE64(&MME[2], padapter->securitypriv.dot11wBIPtxpn.val);
+			RTW_PUT_LE64(&mme_cont[2], padapter->securitypriv.dot11wBIPtxpn.val);
 
 			/* add MME IE with MIC all zero, MME string doesn't include element id and length */
-			pframe = rtw_set_ie(pframe, _MME_IE_ , 16 , MME, &(pattrib->pktlen));
+			pframe = rtw_set_ie(pframe, _MME_IE_ , mme_clen , mme_cont, &(pattrib->pktlen));
 			pattrib->last_txcmdsz = pattrib->pktlen;
 			/* total frame length - header length */
 			frame_body_len = pattrib->pktlen - sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -2984,8 +3134,10 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 			#endif
 
 			/* calculate mic */
-			if (omac1_aes_128(padapter->securitypriv.dot11wBIPKey[padapter->securitypriv.dot11wBIPKeyid].skey
-				  , BIP_AAD, BIP_AAD_SIZE + frame_body_len, mic))
+			if (rtw_calculate_bip_mic(padapter->securitypriv.dot11wCipher,
+				(u8 *)pwlanhdr, pattrib->pktlen,
+				padapter->securitypriv.dot11wBIPKey[padapter->securitypriv.dot11wBIPKeyid].skey, 
+				BIP_AAD, (BIP_AAD_SIZE + frame_body_len), mic) == _FAIL)
 				goto xmitframe_coalesce_fail;
 
 			#if DBG_MGMT_XMIT_BIP_DUMP
@@ -3000,7 +3152,10 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 			#endif
 
 			/* copy right BIP mic value, total is 128bits, we use the 0~63 bits */
-			_rtw_memcpy(pframe - 8, mic, 8);
+			if (padapter->securitypriv.dot11wCipher == _BIP_CMAC_128_)
+				_rtw_memcpy(pframe - 8, mic, 8);
+			else
+				_rtw_memcpy(pframe - 16, mic, 16);
 
 			#if DBG_MGMT_XMIT_BIP_DUMP
 			/*dump all packet after mic ok */
@@ -3033,16 +3188,19 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 		}
 		#endif
 
-		_rtw_memcpy(pattrib->dot118021x_UncstKey.skey, psta->dot118021x_UncstKey.skey, 16);
+		pn = &psta->dot11txpn;
+		cipher = psta->dot118021XPrivacy;
+		kid = 0;
+
+		_rtw_memcpy(pattrib->dot118021x_UncstKey.skey
+			, psta->dot118021x_UncstKey.skey
+			, (cipher & _SEC_TYPE_256_) ? 32 : 16);
 
 		/* To use wrong key */
 		if (pattrib->key_type == IEEE80211W_WRONG_KEY) {
 			RTW_INFO("use wrong key\n");
 			pattrib->dot118021x_UncstKey.skey[0] = 0xff;
 		}
-
-		pn = &psta->dot11txpn;
-		kid = 0;
 	}
 
 	#if DBG_MGMT_XMIT_ENC_DUMP
@@ -3061,20 +3219,31 @@ s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame
 	/* move to data portion */
 	pframe += pattrib->hdrlen;
 
-	/* 802.11w encrypted management packet must be _AES_ */
 	if (pattrib->key_type != IEEE80211W_NO_KEY) {
-		pattrib->encrypt = _AES_;
+		pattrib->encrypt = cipher;
 		pattrib->bswenc = _TRUE;
 	}
 
-	pattrib->iv_len = 8;
-	/* it's MIC of AES */
-	pattrib->icv_len = 8;
-
+	/*
+	* 802.11w encrypted management packet must be:
+	* _AES_, _CCMP_256_, _GCMP_, _GCMP_256_
+	*/
 	switch (pattrib->encrypt) {
 	case _AES_:
-		/* set AES IV header */
+		pattrib->iv_len = 8;
+		pattrib->icv_len = 8;
 		AES_IV(pattrib->iv, (*pn), kid);
+		break;
+	case _CCMP_256_:
+		pattrib->iv_len = 8;
+		pattrib->icv_len = 16;
+		AES_IV(pattrib->iv, (*pn), kid);
+		break;
+	case _GCMP_:
+	case _GCMP_256_:
+		pattrib->iv_len = 8;
+		pattrib->icv_len = 16;
+		GCMP_IV(pattrib->iv, (*pn), kid);
 		break;
 	default:
 		goto xmitframe_coalesce_fail;
@@ -4067,9 +4236,9 @@ s32 rtw_xmit_classifier(_adapter *padapter, struct xmit_frame *pxmitframe)
 		goto exit;
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & WIFI_ASOC_STATE)) {
 		DBG_COUNTER(padapter->tx_logs.core_tx_enqueue_class_err_fwlink);
-		RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+		RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 		return _FAIL;
 	}
 
@@ -4972,9 +5141,9 @@ sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *p
 		return _FALSE;
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & WIFI_ASOC_STATE)) {
 		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_link);
-		RTW_INFO("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+		RTW_INFO("%s, psta->state(0x%x) != WIFI_ASOC_STATE\n", __func__, psta->state);
 		return _FALSE;
 	}
 
@@ -5156,7 +5325,8 @@ void stop_sta_xmit(_adapter *padapter, struct sta_info *psta)
 
 	/* for BC/MC Frames */
 	psta_bmc = rtw_get_bcmc_stainfo(padapter);
-
+	if (!psta_bmc)
+		rtw_warn_on(1);
 
 	_enter_critical_bh(&pxmitpriv->lock, &irqL0);
 
@@ -5176,10 +5346,12 @@ void stop_sta_xmit(_adapter *padapter, struct sta_info *psta)
 	dequeue_xmitframes_to_sleeping_queue(padapter, psta, &pstaxmitpriv->bk_q.sta_pending);
 	rtw_list_delete(&(pstaxmitpriv->bk_q.tx_pending));
 
-#ifdef CONFIG_TDLS
-	if (!(psta->tdls_sta_state & TDLS_LINKED_STATE) && (psta_bmc != NULL)) {
-#endif /* CONFIG_TDLS */
-
+	if (psta_bmc != NULL
+		#ifdef CONFIG_TDLS
+		&& !(psta->tdls_sta_state & TDLS_LINKED_STATE)
+		#endif
+	)
+	{
 		/* for BC/MC Frames */
 		pstaxmitpriv = &psta_bmc->sta_xmitpriv;
 		dequeue_xmitframes_to_sleeping_queue(padapter, psta_bmc, &pstaxmitpriv->vo_q.sta_pending);
@@ -5190,10 +5362,7 @@ void stop_sta_xmit(_adapter *padapter, struct sta_info *psta)
 		rtw_list_delete(&(pstaxmitpriv->be_q.tx_pending));
 		dequeue_xmitframes_to_sleeping_queue(padapter, psta_bmc, &pstaxmitpriv->bk_q.sta_pending);
 		rtw_list_delete(&(pstaxmitpriv->bk_q.tx_pending));
-
-#ifdef CONFIG_TDLS
 	}
-#endif /* CONFIG_TDLS	 */
 	_exit_critical_bh(&pxmitpriv->lock, &irqL0);
 
 
@@ -5710,7 +5879,7 @@ bool rtw_xmit_ac_blocked(_adapter *adapter)
 #endif/* #ifdef DBG_CONFIG_ERROR_DETECT */
 
 	if (rfctl->offch_state != OFFCHS_NONE
-		#ifdef CONFIG_DFS
+		#if CONFIG_DFS
 		|| IS_RADAR_DETECTED(rfctl) || rfctl->csa_ch
 		#endif
 	) {

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -107,6 +108,9 @@ typedef struct _ADAPTER _adapter, ADAPTER, *PADAPTER;
 #include <rtw_ap.h>
 #ifdef CONFIG_RTW_MESH
 #include "../core/mesh/rtw_mesh.h"
+#endif
+#ifdef CONFIG_WIFI_MONITOR
+#include "../core/monitor/rtw_radiotap.h"
 #endif
 #include <rtw_efuse.h>
 #include <rtw_version.h>
@@ -259,6 +263,7 @@ struct registry_priv {
 	u8	rx_stbc;
 	u8	rx_ampdu_amsdu;/* Rx A-MPDU Supports A-MSDU is permitted */
 	u8	tx_ampdu_amsdu;/* Tx A-MPDU Supports A-MSDU is permitted */
+	u8	tx_quick_addba_req;
 	u8 rx_ampdu_sz_limit_by_nss_bw[4][4]; /* 1~4SS, BW20~BW160 */
 	/* Short GI support Bit Map */
 	/* BIT0 - 20MHz, 1: support, 0: non-support */
@@ -301,7 +306,9 @@ struct registry_priv {
 
 	u8	wifi_spec;/* !turbo_mode */
 
-	u8 rf_path; /*rf_config*/
+	u8 trx_path_bmp; /* [7:4]TX path bmp, [0:3]RX path bmp, 0: not specified */
+	u8 tx_path_lmt; /* limit of TX path number, 0: not specified */
+	u8 rx_path_lmt; /* limit of TX path number, 0: not specified */
 	u8 tx_nss;
 	u8 rx_nss;
 
@@ -364,7 +371,7 @@ struct registry_priv {
 
 	u8 target_tx_pwr_valid;
 	s8 target_tx_pwr_2g[RF_PATH_MAX][RATE_SECTION_NUM];
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	s8 target_tx_pwr_5g[RF_PATH_MAX][RATE_SECTION_NUM - 1];
 #endif
 
@@ -446,6 +453,7 @@ struct registry_priv {
 #endif /* CONFIG_RTW_NAPI */
 
 #ifdef CONFIG_WOWLAN
+	u8 wowlan_enable;
 	u8 wakeup_event;
 	u8 suspend_type;
 #endif
@@ -496,8 +504,26 @@ struct registry_priv {
 	u8 tdmadig_mode;
 	u8 tdmadig_dynamic;
 #endif/*CONFIG_TDMADIG*/
+	u8 en_dyn_rrsr;
+	u32 set_rrsr_value;
 #ifdef CONFIG_RTW_MESH
 	u8 peer_alive_based_preq;
+#endif
+
+#ifdef RTW_BUSY_DENY_SCAN
+	/*
+	 * scan_interval_thr means scan interval threshold which is used to
+	 * judge if user is in scan page or not.
+	 * If scan interval < scan_interval_thr we guess user is in scan page,
+	 * and driver won't deny any scan request at that time.
+	 * Its default value comes from compiler flag
+	 * BUSY_TRAFFIC_SCAN_DENY_PERIOD, and unit is ms.
+	 */
+	u32 scan_interval_thr;
+#endif
+
+#ifdef CONFIG_RTL8822C_XCAP_NEW_POLICY
+	u8 rtw_8822c_xcap_overwrite;
 #endif
 };
 
@@ -612,6 +638,7 @@ struct rx_logs {
 	u32 core_rx_post_decrypt_tkip;
 	u32 core_rx_post_decrypt_aes;
 	u32 core_rx_post_decrypt_wapi;
+	u32 core_rx_post_decrypt_gcmp;
 	u32 core_rx_post_decrypt_hw;
 	u32 core_rx_post_decrypt_unknown;
 	u32 core_rx_post_decrypt_err;
@@ -762,6 +789,10 @@ struct rtw_traffic_statistics {
 };
 
 #define SEC_CAP_CHK_BMC	BIT0
+#define SEC_CAP_CHK_EXTRA_SEC	BIT1 /* 256 bit */
+
+#define MACID_DROP BIT0
+#define MACID_DROP_INDIRECT BIT1
 
 #define SEC_STATUS_STA_PK_GK_CONFLICT_DIS_BMC_SEARCH	BIT0
 
@@ -843,23 +874,31 @@ struct macid_ctl_t {
 	u8 op_num[H2C_MSR_ROLE_MAX]; /* number of macid having h2c_msr's OPMODE = 1 for specific ROLE */
 
 	struct sta_info *sta[MACID_NUM_SW_LIMIT]; /* corresponding stainfo when macid is not shared */
-
+	u8 macid_cap;
 	/* macid sleep registers */
 #ifdef CONFIG_PROTSEL_MACSLEEP
 	u16 reg_sleep_ctrl;
 	u16 reg_sleep_info;
+	u16 reg_drop_ctrl;
+	u16 reg_drop_info;
 #else
 	u16 reg_sleep_m0;
+	u16 reg_drop_m0;
 #if (MACID_NUM_SW_LIMIT > 32)
 	u16 reg_sleep_m1;
+	u16 reg_drop_m1;
 #endif
 #if (MACID_NUM_SW_LIMIT > 64)
 	u16 reg_sleep_m2;
+	u16 reg_drop_m2;
 #endif
 #if (MACID_NUM_SW_LIMIT > 96)
 	u16 reg_sleep_m3;
+	u16 reg_drop_m3;
 #endif
 #endif
+	u16 macid_txrpt;
+	u8 macid_txrpt_pgsz;
 };
 
 /* used for rf_ctl_t.rate_bmp_cck_ofdm */
@@ -942,15 +981,15 @@ struct rf_ctl_t {
 	const char *regd_name;
 
 	u8 txpwr_lmt_2g_cck_ofdm_state;
-	#ifdef CONFIG_IEEE80211_BAND_5GHZ
+	#if CONFIG_IEEE80211_BAND_5GHZ
 	u8 txpwr_lmt_5g_cck_ofdm_state;
 	u8 txpwr_lmt_5g_20_40_ref;
 	#endif
 #endif
 
-	u8 ch_sel_same_band_prefer;
+	bool ch_sel_within_same_band;
 
-#ifdef CONFIG_DFS
+#if CONFIG_DFS
 	u8 csa_ch;
 
 #ifdef CONFIG_DFS_MASTER
@@ -967,7 +1006,7 @@ struct rf_ctl_t {
 	systime cac_end_time;
 	u8 cac_force_stop;
 
-#ifdef CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
+#if CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
 	u8 dfs_slave_with_rd;
 #endif
 	u8 dfs_ch_sel_d_flags;
@@ -978,6 +1017,12 @@ struct rf_ctl_t {
 #endif /* CONFIG_DFS_MASTER */
 #endif /* CONFIG_DFS */
 };
+
+struct wow_ctl_t {
+	u8 wow_cap;
+};
+
+#define WOW_CAP_TKIP_OL BIT0
 
 #define RTW_CAC_STOPPED 0
 #ifdef CONFIG_DFS_MASTER
@@ -992,7 +1037,7 @@ struct rf_ctl_t {
 #define IS_RADAR_DETECTED(rfctl) 0
 #endif /* CONFIG_DFS_MASTER */
 
-#ifdef CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
+#if CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
 #define IS_DFS_SLAVE_WITH_RD(rfctl) ((rfctl)->dfs_slave_with_rd)
 #else
 #define IS_DFS_SLAVE_WITH_RD(rfctl) 0
@@ -1024,13 +1069,6 @@ struct halmac_indicator {
 
 struct halmacpriv {
 	/* flags */
-#ifdef CONFIG_SDIO_HCI
-	/*
-	 * Indirect Access for SDIO,
-	 * 0:default, 1:enable, 2:disable
-	 */
-	u8 sdio_io_indir;
-#endif /* CONFIG_SDIO_HCI */
 
 	/* For asynchronous functions */
 	struct halmac_indicator *indicator;
@@ -1147,6 +1185,8 @@ struct dvobj_priv {
 
 	struct cam_ctl_t cam_ctl;
 	struct sec_cam_ent cam_cache[SEC_CAM_ENT_NUM_SW_LIMIT];
+	
+	struct wow_ctl_t wow_ctl;
 
 #ifdef CONFIG_MBSSID_CAM
 	struct mbid_cam_ctl_t mbid_cam_ctl;
@@ -1619,9 +1659,6 @@ struct _ADAPTER {
 	/*	The driver will show the current P2P status when the upper application reads it. */
 	u8 bShowGetP2PState;
 #endif
-#ifdef CONFIG_AUTOSUSPEND
-	u8	bDisableAutosuspend;
-#endif
 
 	u8 isprimary; /* is primary adapter or not */
 	/* notes:
@@ -1670,6 +1707,8 @@ struct _ADAPTER {
 	u8 driver_tx_bw_mode;
 	u8 rsvd_page_offset;
 	u8 rsvd_page_num;
+	u8 ch_clm_ratio;
+	u8 ch_nhm_ratio;
 #ifdef CONFIG_SUPPORT_FIFO_DUMP
 	u8 fifo_sel;
 	u32 fifo_addr;
@@ -1714,6 +1753,13 @@ struct _ADAPTER {
 	_workitem mesh_work;
 	unsigned long wrkq_flags;
 #endif /* CONFIG_RTW_MESH */
+
+#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
+	ATOMIC_T tbtx_tx_pause;
+	ATOMIC_T tbtx_remove_tx_pause;
+	u8 tbtx_capability;
+	u32	tbtx_duration;
+#endif /* CONFIG_RTW_TOKEN_BASED_XMIT */
 };
 
 #define adapter_to_dvobj(adapter) ((adapter)->dvobj)

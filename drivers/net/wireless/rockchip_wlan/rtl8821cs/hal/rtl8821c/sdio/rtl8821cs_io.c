@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -682,7 +683,6 @@ void sd_int_hdl(PADAPTER adapter)
 		RTW_WARN("%s: unexpected interrupt!\n", __FUNCTION__);
 		return;
 	}
-
 
 	/*pHalData->sdio_hisr = rtl8821cs_get_interrupt(adapter);*/
 	rtw_read_mem(adapter, REG_SDIO_HISR_8821C, 8, data);

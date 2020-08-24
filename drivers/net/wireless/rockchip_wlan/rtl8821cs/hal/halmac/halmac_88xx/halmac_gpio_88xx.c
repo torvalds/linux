@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -239,6 +240,23 @@ pinmux_parser_88xx(struct halmac_adapter *adapter,
 			break;
 		}
 		cur_list++;
+	}
+
+	switch (*cur_func) {
+	case HALMAC_BT_DPDT_SEL:
+		*cur_func = (HALMAC_REG_R8(REG_LED_CFG + 3) & BIT(0)) ?
+				HALMAC_WL_DPDT_SEL : HALMAC_BT_DPDT_SEL;
+		break;
+	case HALMAC_BT_PAPE_SEL:
+		*cur_func = (HALMAC_REG_R8(REG_PAD_CTRL1 + 3) & BIT(5)) ?
+				HALMAC_WL_PAPE_SEL : HALMAC_BT_PAPE_SEL;
+		break;
+	case HALMAC_BT_LNAON_SEL:
+		*cur_func = (HALMAC_REG_R8(REG_PAD_CTRL1 + 3) & BIT(4)) ?
+				HALMAC_WL_LNAON_SEL : HALMAC_BT_LNAON_SEL;
+		break;
+	default:
+		break;
 	}
 
 	*state = HALMAC_GPIO_CFG_STATE_IDLE;

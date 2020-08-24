@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -588,7 +589,7 @@ static u8 hal_chk_pg_txpwr_info_2g(_adapter *adapter, TxPowerInfo24G *pwr_info)
 
 static u8 hal_chk_pg_txpwr_info_5g(_adapter *adapter, TxPowerInfo5G *pwr_info)
 {
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	u8 path, group, tx_idx;
@@ -656,7 +657,7 @@ static inline void hal_init_pg_txpwr_info_2g(_adapter *adapter, TxPowerInfo24G *
 
 static inline void hal_init_pg_txpwr_info_5g(_adapter *adapter, TxPowerInfo5G *pwr_info)
 {
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	u8 path, group, tx_idx;
 
@@ -838,7 +839,7 @@ u16 hal_load_pg_txpwr_info_path_5g(
 	u8 tmp_base;
 	s8 tmp_diff;
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	if (pwr_info == NULL || !hal_chk_band_cap(adapter, BAND_CAP_5G))
 #endif
 	{
@@ -846,7 +847,7 @@ u16 hal_load_pg_txpwr_info_path_5g(
 		goto exit;
 	}
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	if (DBG_PG_TXPWR_READ)
 		RTW_INFO("%s[%c] eaddr:0x%03x\n", __func__, rf_path_char(path), offset);
 
@@ -976,7 +977,7 @@ u16 hal_load_pg_txpwr_info_path_5g(
 		rtw_warn_on(1);
 	}
 
-#endif /* #ifdef CONFIG_IEEE80211_BAND_5GHZ */
+#endif /* CONFIG_IEEE80211_BAND_5GHZ */
 
 exit:
 	return offset;
@@ -1082,8 +1083,17 @@ int check_phy_efuse_tx_power_info_valid(_adapter *adapter)
 	u16 pg_offset = hal_spec->pg_txpwr_saddr;
 	u8 path;
 	u8 valid_2g_path_bmp = 0;
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	u8 valid_5g_path_bmp = 0;
+#endif
+#ifdef CONFIG_MP_INCLUDED
+	struct mp_priv *pmp_priv = &adapter->mppriv;
+
+
+	if (pmp_priv->efuse_update_file == _TRUE && (rtw_mp_mode_check(adapter))) {
+		RTW_INFO("%s: To use efuse_update_file !!!\n", __func__);
+		return _FALSE;
+	}
 #endif
 
 	/* NOTE: TSSI offset use the same layout as TXPWR base */
@@ -1103,7 +1113,7 @@ int check_phy_efuse_tx_power_info_valid(_adapter *adapter)
 		}
 		pg_offset += PG_TXPWR_1PATH_BYTE_NUM_2G;
 
-		#ifdef CONFIG_IEEE80211_BAND_5GHZ
+		#if CONFIG_IEEE80211_BAND_5GHZ
 		if (HAL_SPEC_CHK_RF_PATH_5G(hal_spec, path)) {
 			ret = _check_phy_efuse_tx_power_info_valid(pg_data, PG_TXPWR_BASE_BYTE_NUM_5G, pg_offset);
 			if (ret == _TRUE)
@@ -1116,7 +1126,7 @@ int check_phy_efuse_tx_power_info_valid(_adapter *adapter)
 	}
 
 	if ((hal_chk_band_cap(adapter, BAND_CAP_2G) && valid_2g_path_bmp)
-		#ifdef CONFIG_IEEE80211_BAND_5GHZ
+		#if CONFIG_IEEE80211_BAND_5GHZ
 		|| (hal_chk_band_cap(adapter, BAND_CAP_5G) && valid_5g_path_bmp)
 		#endif
 	)
@@ -1139,7 +1149,7 @@ void hal_load_txpwr_info(_adapter *adapter)
 
 	if (hal_chk_band_cap(adapter, BAND_CAP_2G))
 		pwr_info_2g = rtw_vmalloc(sizeof(TxPowerInfo24G));
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	if (hal_chk_band_cap(adapter, BAND_CAP_5G))
 		pwr_info_5g = rtw_vmalloc(sizeof(TxPowerInfo5G));
 #endif
@@ -1177,7 +1187,7 @@ void hal_load_txpwr_info(_adapter *adapter)
 bypass_2g:
 		;
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 		if (!pwr_info_5g || !HAL_SPEC_CHK_RF_PATH_5G(hal_spec, rfpath))
 			goto bypass_5g;
 
@@ -1307,7 +1317,7 @@ void dump_hal_txpwr_info_2g(void *sel, _adapter *adapter, u8 rfpath_num, u8 max_
 
 void dump_hal_txpwr_info_5g(void *sel, _adapter *adapter, u8 rfpath_num, u8 max_tx_cnt)
 {
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	int path, ch_idx, tx_idx;
 	u8 dump_section = 0;
@@ -1432,7 +1442,7 @@ s8 rtw_regsty_get_target_tx_power(
 	}
 
 	if (Band != BAND_ON_2_4G
-		#ifdef CONFIG_IEEE80211_BAND_5GHZ
+		#if CONFIG_IEEE80211_BAND_5GHZ
 		&& Band != BAND_ON_5G
 		#endif
 	) {
@@ -1441,7 +1451,7 @@ s8 rtw_regsty_get_target_tx_power(
 	}
 
 	if (RateSection >= RATE_SECTION_NUM
-		#ifdef CONFIG_IEEE80211_BAND_5GHZ
+		#if CONFIG_IEEE80211_BAND_5GHZ
 		|| (Band == BAND_ON_5G && RateSection == CCK)
 		#endif
 	) {
@@ -1452,7 +1462,7 @@ s8 rtw_regsty_get_target_tx_power(
 
 	if (Band == BAND_ON_2_4G)
 		value = regsty->target_tx_pwr_2g[RfPath][RateSection];
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	else /* BAND_ON_5G */
 		value = regsty->target_tx_pwr_5g[RfPath][RateSection - 1];
 #endif
@@ -2167,6 +2177,10 @@ PHY_TxPowerByRateConfiguration(
 	phy_store_target_tx_power(pAdapter);
 }
 
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+extern bool phy_set_txpwr_idx_offload(_adapter *adapter);
+#endif
+
 void
 phy_set_tx_power_index_by_rate_section(
 		PADAPTER		pAdapter,
@@ -2195,16 +2209,21 @@ phy_set_tx_power_index_by_rate_section(
 		struct txpwr_idx_comp tic;
 
 		powerIndex = rtw_hal_get_tx_power_index(pAdapter, RFPath
-			, rs, rates_by_sections[rs].rates[i], bw, band, Channel, &tic);
-		dump_tx_power_index_inline(RTW_DBGDUMP, RFPath, bw, Channel
+			, rs, rates_by_sections[rs].rates[i], bw, band, Channel, 0, &tic);
+		dump_tx_power_index_inline(RTW_DBGDUMP, pAdapter, RFPath, bw, Channel
 			, rates_by_sections[rs].rates[i], powerIndex, &tic);
 #else
 		powerIndex = phy_get_tx_power_index_ex(pAdapter, RFPath
-			, rs, rates_by_sections[rs].rates[i], bw, band, Channel);
+			, rs, rates_by_sections[rs].rates[i], bw, band, Channel, 0);
 #endif
 		PHY_SetTxPowerIndex(pAdapter, powerIndex, RFPath, rates_by_sections[rs].rates[i]);
 	}
 
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+	if (!hal_data->set_entire_txpwr
+		&& phy_set_txpwr_idx_offload(pAdapter))
+		rtw_hal_set_txpwr_done(pAdapter);
+#endif
 
 exit:
 	return;
@@ -2355,7 +2374,7 @@ u8 phy_get_pg_txpwr_idx(_adapter *pAdapter
 			goto exit;
 		}
 	}
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	else if (band == BAND_ON_5G) {
 		if (IS_CCK_RATE_SECTION(rs)) {
 			RTW_WARN("===>%s: INVALID, CCK on 5G\n", __func__);
@@ -2861,7 +2880,7 @@ phy_set_tx_power_level_by_path(
 			if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
 				phy_set_tx_power_index_by_rate_section(Adapter, path, channel, VHT_1SSMCS0_1SSMCS9);
 
-			if (pHalData->NumTotalRFPath >= 2) {
+			if (pHalData->tx_nss >= 2) {
 				phy_set_tx_power_index_by_rate_section(Adapter, path, channel, HT_MCS8_MCS15);
 
 				if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
@@ -3006,7 +3025,7 @@ s8 phy_get_txpwr_lmt(
 				lmt = rtw_min(lmt, ent->lmt_2g[bw][tlrs][ch_idx][ntx_idx]);
 		}
 	}
-	#ifdef CONFIG_IEEE80211_BAND_5GHZ
+	#if CONFIG_IEEE80211_BAND_5GHZ
 	else if (Band == BAND_ON_5G) {
 		if (!is_ww_regd) {
 			lmt = ent->lmt_5g[bw][tlrs - 1][ch_idx][ntx_idx];
@@ -3059,19 +3078,23 @@ inline s8 phy_get_txpwr_lmt_diff(_adapter *adapter
 
 /*
 * May search for secondary channels for min limit
+* @opch: used to specify operating channel position to get
+* cch of every bandwidths which differ from current hal_data.cch20, 40, 80...
+*
 * return txpwr limit in unit of TX Gain Index
 * hsl_spec->txgi_max is returned when NO limit
 */
 s8 phy_get_txpwr_lmt_sub_chs(_adapter *adapter
 	, const char *regd_name
 	, BAND_TYPE band, enum channel_width bw
-	, u8 rfpath, u8 rate, u8 ntx_idx, u8 cch)
+	, u8 rfpath, u8 rate, u8 ntx_idx, u8 cch, u8 opch)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	BOOLEAN no_sc = _FALSE;
+	u8 cch_20 = hal_data->cch_20, cch_40 = hal_data->cch_40, cch_80 = hal_data->cch_80;
 	s8 tlrs = -1;
 	s8 lmt = hal_spec->txgi_max;
 	u8 tmp_cch = 0;
@@ -3105,6 +3128,17 @@ s8 phy_get_txpwr_lmt_sub_chs(_adapter *adapter
 		tmp_cch = cch;
 		bw_bmp = ch_width_to_bw_cap(bw);
 	} else {
+		/* decide center channel of each bandwidth */
+		if (opch != 0) {
+			cch_80 = bw == CHANNEL_WIDTH_80 ? cch : 0;
+			cch_40 = bw == CHANNEL_WIDTH_40 ? cch : 0;
+			cch_20 = bw == CHANNEL_WIDTH_20 ? cch : 0;
+			if (cch_80 != 0)
+				cch_40 = rtw_get_scch_by_cch_opch(cch_80, CHANNEL_WIDTH_80, opch);
+			if (cch_40 != 0)
+				cch_20 = rtw_get_scch_by_cch_opch(cch_40, CHANNEL_WIDTH_40, opch);
+		}
+
 		/*
 		* find the possible tx bandwidth bmp for this rate, and then will get center channel for each bandwidth
 		* if no possible tx bandwidth bmp, select valid bandwidth up to current RF bandwidth into bmp
@@ -3135,11 +3169,11 @@ s8 phy_get_txpwr_lmt_sub_chs(_adapter *adapter
 
 		if (no_sc == _FALSE) {
 			if (tmp_bw == CHANNEL_WIDTH_20)
-				tmp_cch = hal_data->cch_20;
+				tmp_cch = cch_20;
 			else if (tmp_bw == CHANNEL_WIDTH_40)
-				tmp_cch = hal_data->cch_40;
+				tmp_cch = cch_40;
 			else if (tmp_bw == CHANNEL_WIDTH_80)
-				tmp_cch = hal_data->cch_80;
+				tmp_cch = cch_80;
 			else {
 				tmp_cch = 0;
 				rtw_warn_on(1);
@@ -3180,7 +3214,7 @@ static void phy_txpwr_lmt_cck_ofdm_mt_chk(_adapter *adapter)
 	u8 channel, tlrs, ntx_idx;
 
 	rfctl->txpwr_lmt_2g_cck_ofdm_state = 0;
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	rfctl->txpwr_lmt_5g_cck_ofdm_state = 0;
 #endif
 
@@ -3216,7 +3250,7 @@ static void phy_txpwr_lmt_cck_ofdm_mt_chk(_adapter *adapter)
 			}
 		}
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 		/* check 5G OFDM state*/
 		for (ntx_idx = RF_1TX; ntx_idx < MAX_TX_COUNT; ntx_idx++) {
 			for (channel = 0; channel < CENTER_CH_5G_ALL_NUM; ++channel) {
@@ -3240,7 +3274,7 @@ static void phy_txpwr_lmt_cck_ofdm_mt_chk(_adapter *adapter)
 	}
 }
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 static void phy_txpwr_lmt_cross_ref_ht_vht(_adapter *adapter)
 {
 	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
@@ -3394,7 +3428,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 						if (band == BAND_ON_2_4G
 							&& !(rfctl->txpwr_lmt_2g_cck_ofdm_state & (TXPWR_LMT_HAS_OFDM_1T << ntx_idx)))
 							continue;
-						#ifdef CONFIG_IEEE80211_BAND_5GHZ
+						#if CONFIG_IEEE80211_BAND_5GHZ
 						if (band == BAND_ON_5G
 							&& !(rfctl->txpwr_lmt_5g_cck_ofdm_state & (TXPWR_LMT_HAS_OFDM_1T << ntx_idx)))
 							continue;
@@ -3402,7 +3436,7 @@ void phy_txpwr_limit_bandwidth_chk(_adapter *adapter)
 					}
 
 					/* bypass 5G 20M, 40M pure reference */
-					#ifdef CONFIG_IEEE80211_BAND_5GHZ
+					#if CONFIG_IEEE80211_BAND_5GHZ
 					if (band == BAND_ON_5G && (bw == CHANNEL_WIDTH_20 || bw == CHANNEL_WIDTH_40)) {
 						if (rfctl->txpwr_lmt_5g_20_40_ref == TXPWR_LMT_REF_HT_FROM_VHT) {
 							if (tlrs == TXPWR_LMT_RS_HT)
@@ -3524,7 +3558,7 @@ static void phy_txpwr_lmt_post_hdl(_adapter *adapter)
 
 	_enter_critical_mutex(&rfctl->txpwr_lmt_mutex, &irqL);
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	if (IS_HARDWARE_TYPE_JAGUAR_ALL(adapter))
 		phy_txpwr_lmt_cross_ref_ht_vht(adapter);
 #endif
@@ -3612,46 +3646,46 @@ phy_set_tx_power_limit(
 			powerLimit =  ww_lmt_val + 1;
 	}
 
-	if (eqNByte(RateSection, (u8 *)("CCK"), 3))
+	if (strncmp(RateSection, "CCK", 3) == 0)
 		tlrs = TXPWR_LMT_RS_CCK;
-	else if (eqNByte(RateSection, (u8 *)("OFDM"), 4))
+	else if (strncmp(RateSection, "OFDM", 4) == 0)
 		tlrs = TXPWR_LMT_RS_OFDM;
-	else if (eqNByte(RateSection, (u8 *)("HT"), 2))
+	else if (strncmp(RateSection, "HT", 2) == 0)
 		tlrs = TXPWR_LMT_RS_HT;
-	else if (eqNByte(RateSection, (u8 *)("VHT"), 3))
+	else if (strncmp(RateSection, "VHT", 3) == 0)
 		tlrs = TXPWR_LMT_RS_VHT;
 	else {
 		RTW_PRINT("Wrong rate section:%s\n", RateSection);
 		return;
 	}
 
-	if (eqNByte(ntx, (u8 *)("1T"), 2))
+	if (strncmp(ntx, "1T", 2) == 0)
 		ntx_idx = RF_1TX;
-	else if (eqNByte(ntx, (u8 *)("2T"), 2))
+	else if (strncmp(ntx, "2T", 2) == 0)
 		ntx_idx = RF_2TX;
-	else if (eqNByte(ntx, (u8 *)("3T"), 2))
+	else if (strncmp(ntx, "3T", 2) == 0)
 		ntx_idx = RF_3TX;
-	else if (eqNByte(ntx, (u8 *)("4T"), 2))
+	else if (strncmp(ntx, "4T", 2) == 0)
 		ntx_idx = RF_4TX;
 	else {
 		RTW_PRINT("Wrong tx num:%s\n", ntx);
 		return;
 	}
 
-	if (eqNByte(Bandwidth, (u8 *)("20M"), 3))
+	if (strncmp(Bandwidth, "20M", 3) == 0)
 		bandwidth = CHANNEL_WIDTH_20;
-	else if (eqNByte(Bandwidth, (u8 *)("40M"), 3))
+	else if (strncmp(Bandwidth, "40M", 3) == 0)
 		bandwidth = CHANNEL_WIDTH_40;
-	else if (eqNByte(Bandwidth, (u8 *)("80M"), 3))
+	else if (strncmp(Bandwidth, "80M", 3) == 0)
 		bandwidth = CHANNEL_WIDTH_80;
-	else if (eqNByte(Bandwidth, (u8 *)("160M"), 4))
+	else if (strncmp(Bandwidth, "160M", 4) == 0)
 		bandwidth = CHANNEL_WIDTH_160;
 	else {
 		RTW_PRINT("unknown bandwidth: %s\n", Bandwidth);
 		return;
 	}
 
-	if (eqNByte(Band, (u8 *)("2.4G"), 4)) {
+	if (strncmp(Band, "2.4G", 4) == 0) {
 		band = BAND_ON_2_4G;
 		channelIndex = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_2_4G, channel);
 
@@ -3667,8 +3701,8 @@ phy_set_tx_power_limit(
 
 		rtw_txpwr_lmt_add(adapter_to_rfctl(Adapter), Regulation, band, bandwidth, tlrs, ntx_idx, channelIndex, powerLimit);
 	}
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
-	else if (eqNByte(Band, (u8 *)("5G"), 2)) {
+#if CONFIG_IEEE80211_BAND_5GHZ
+	else if (strncmp(Band, "5G", 2) == 0) {
 		band = BAND_ON_5G;
 		channelIndex = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_5G, channel);
 
@@ -3689,9 +3723,9 @@ phy_set_tx_power_limit(
 
 u8 phy_get_tx_power_index_ex(_adapter *adapter
 	, enum rf_path rfpath, RATE_SECTION rs, enum MGN_RATE rate
-	, enum channel_width bw, BAND_TYPE band, u8 cch)
+	, enum channel_width bw, BAND_TYPE band, u8 cch, u8 opch)
 {
-	return rtw_hal_get_tx_power_index(adapter, rfpath, rs, rate, bw, band, cch, NULL);
+	return rtw_hal_get_tx_power_index(adapter, rfpath, rs, rate, bw, band, cch, opch, NULL);
 }
 
 u8 phy_get_tx_power_index(
@@ -3705,7 +3739,7 @@ u8 phy_get_tx_power_index(
 	RATE_SECTION rs = mgn_rate_to_rs(Rate);
 	BAND_TYPE band = Channel <= 14 ? BAND_ON_2_4G : BAND_ON_5G;
 
-	return rtw_hal_get_tx_power_index(pAdapter, RFPath, rs, Rate, BandWidth, band, Channel, NULL);
+	return rtw_hal_get_tx_power_index(pAdapter, RFPath, rs, Rate, BandWidth, band, Channel, 0, NULL);
 }
 
 void
@@ -3719,16 +3753,25 @@ PHY_SetTxPowerIndex(
 	rtw_hal_set_tx_power_index(pAdapter, PowerIndex, RFPath, Rate);
 }
 
-void dump_tx_power_index_inline(void *sel, u8 rfpath, u8 bw, u8 cch, enum MGN_RATE rate, u8 pwr_idx, struct txpwr_idx_comp *tic)
+void dump_tx_power_index_inline(void *sel, _adapter *adapter, u8 rfpath, enum channel_width bw, u8 cch, enum MGN_RATE rate, u8 pwr_idx, struct txpwr_idx_comp *tic)
 {
-	RTW_PRINT_SEL(sel, "TXPWR: [%c][%s]cch:%u, %s %uT, pwr_idx:%u(0x%02x) = (%d) + (%d=%d:%d) + btc(%d) + extra(%d) + tpt(%d) + dpd(%d)\n"
-		, rf_path_char(rfpath), ch_width_str(bw), cch
-		, MGN_RATE_STR(rate), tic->ntx_idx + 1
-		, pwr_idx, pwr_idx, tic->base
-		, (tic->by_rate > tic->limit ? tic->limit : tic->by_rate)
-		, tic->by_rate, tic->limit
-		, tic->btc, tic->extra
-		, tic->tpt, tic->dpd);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
+
+	if (tic->utarget == hal_spec->txgi_max) {
+		RTW_PRINT_SEL(sel, "TXPWR: [%c][%s]cch:%u, %s %uT, idx:%u(0x%02x) = base(%d) + min((byr(%d) + btc(%d) + extra(%d)), lmt(%d), ulmt(%d)) + tpt(%d) + dpd(%d)\n"
+			, rf_path_char(rfpath), ch_width_str(bw), cch
+			, MGN_RATE_STR(rate), tic->ntx_idx + 1
+			, pwr_idx, pwr_idx, tic->base
+			, tic->by_rate, tic->btc, tic->extra, tic->limit, tic->ulimit
+			, tic->tpt, tic->dpd);
+	} else {
+		RTW_PRINT_SEL(sel, "TXPWR: [%c][%s]cch:%u, %s %uT, idx:%u(0x%02x) = base(%d) + min(utgt(%d), lmt(%d), ulmt(%d)) + tpt(%d) + dpd(%d)\n"
+			, rf_path_char(rfpath), ch_width_str(bw), cch
+			, MGN_RATE_STR(rate), tic->ntx_idx + 1
+			, pwr_idx, pwr_idx, tic->base
+			, tic->utarget, tic->limit, tic->ulimit
+			, tic->tpt, tic->dpd);
+	}
 }
 
 void dump_tx_power_idx_value(void *sel, _adapter *adapter, u8 rfpath, enum MGN_RATE rate, u8 pwr_idx, struct txpwr_idx_comp *tic)
@@ -3738,46 +3781,66 @@ void dump_tx_power_idx_value(void *sel, _adapter *adapter, u8 rfpath, enum MGN_R
 
 	txpwr_idx_get_dbm_str(tic->target, hal_spec->txgi_max, hal_spec->txgi_pdbm, 0, tmp_str, 8);
 
-	RTW_PRINT_SEL(sel, "%4c %9s %uT %s %3u(0x%02x)"
-		"   %4d %4d (%4d %4d)"
-		" %3d %5d %3d %3d\n"
-		, rf_path_char(rfpath), MGN_RATE_STR(rate), tic->ntx_idx + 1
-		, tmp_str, pwr_idx, pwr_idx
-		, tic->base, (tic->by_rate > tic->limit ? tic->limit : tic->by_rate), tic->by_rate, tic->limit
-		, tic->btc, tic->extra
-		, tic->tpt, tic->dpd);
+	if (tic->utarget == hal_spec->txgi_max) {
+		RTW_PRINT_SEL(sel, "%4c %9s %uT %s %3u(0x%02x)"
+			"   %4d      ((%4d   %3d   %5d)  %4d  %4d)   %3d   %3d\n"
+			, rf_path_char(rfpath), MGN_RATE_STR(rate), tic->ntx_idx + 1
+			, tmp_str, pwr_idx, pwr_idx
+			, tic->base, tic->by_rate, tic->btc, tic->extra, tic->limit, tic->ulimit
+			, tic->tpt, tic->dpd);
+	} else {
+		RTW_PRINT_SEL(sel, "%4c %9s %uT %s %3u(0x%02x)"
+			"   %4d      (%4d  %4d  %4d)   %3d   %3d\n"
+			, rf_path_char(rfpath), MGN_RATE_STR(rate), tic->ntx_idx + 1
+			, tmp_str, pwr_idx, pwr_idx
+			, tic->base, tic->utarget, tic->limit, tic->ulimit
+			, tic->tpt, tic->dpd);
+	}
 }
 
-void dump_tx_power_idx_title(void *sel, _adapter *adapter)
+void dump_tx_power_idx_title(void *sel, _adapter *adapter, enum channel_width bw, u8 cch, u8 opch)
 {
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	u8 bw = hal_data->current_channel_bw;
+	u8 cch_20, cch_40, cch_80;
+
+	cch_80 = bw == CHANNEL_WIDTH_80 ? cch : 0;
+	cch_40 = bw == CHANNEL_WIDTH_40 ? cch : 0;
+	cch_20 = bw == CHANNEL_WIDTH_20 ? cch : 0;
+	if (cch_80 != 0)
+		cch_40 = rtw_get_scch_by_cch_opch(cch_80, CHANNEL_WIDTH_80, opch);
+	if (cch_40 != 0)
+		cch_20 = rtw_get_scch_by_cch_opch(cch_40, CHANNEL_WIDTH_40, opch);
 
 	RTW_PRINT_SEL(sel, "%s", ch_width_str(bw));
 	if (bw >= CHANNEL_WIDTH_80)
-		_RTW_PRINT_SEL(sel, ", cch80:%u", hal_data->cch_80);
+		_RTW_PRINT_SEL(sel, ", cch80:%u", cch_80);
 	if (bw >= CHANNEL_WIDTH_40)
-		_RTW_PRINT_SEL(sel, ", cch40:%u", hal_data->cch_40);
-	_RTW_PRINT_SEL(sel, ", cch20:%u\n", hal_data->cch_20);
+		_RTW_PRINT_SEL(sel, ", cch40:%u", cch_40);
+	_RTW_PRINT_SEL(sel, ", cch20:%u\n", cch_20);
 
-	RTW_PRINT_SEL(sel, "%-4s %-9s %2s %-6s %-3s%6s"
-		" = %-4s %-4s (%-4s %-4s)"
-		" %-3s %-5s %-3s %-3s\n"
-		, "path", "rate", "", "dBm", "pwr", ""
-		, "base", "", "byr", "lmt"
-		, "btc", "extra", "tpt", "dpd");
+	if (!phy_is_txpwr_user_target_specified(adapter)) {
+		RTW_PRINT_SEL(sel, "%-4s %-9s %2s %-6s %-3s%6s"
+			" = %-4s + min((%-4s + %-3s + %-5s), %-4s, %-4s) + %-3s + %-3s\n"
+			, "path", "rate", "", "dBm", "idx", ""
+			, "base", "byr", "btc", "extra", "lmt", "ulmt"
+			, "tpt", "dpd");
+	} else {
+		RTW_PRINT_SEL(sel, "%-4s %-9s %2s %-6s %-3s%6s"
+			" = %-4s + min(%-4s, %-4s, %-4s) + %-3s + %-3s\n"
+			, "path", "rate", "", "dBm", "idx", ""
+			, "base", "utgt", "lmt", "ulmt"
+			, "tpt", "dpd");
+	}
 }
 
-void dump_tx_power_idx_by_path_rs(void *sel, _adapter *adapter, u8 rfpath, u8 rs)
+void dump_tx_power_idx_by_path_rs(void *sel, _adapter *adapter, u8 rfpath
+	, RATE_SECTION rs, enum channel_width bw, u8 cch, u8 opch)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	u8 power_idx;
 	struct txpwr_idx_comp tic;
 	u8 tx_num, i;
-	u8 band = hal_data->current_band_type;
-	u8 cch = hal_data->current_channel;
-	u8 bw = hal_data->current_channel_bw;
+	u8 band = cch > 14 ? BAND_ON_5G : BAND_ON_2_4G;
 
 	if (!HAL_SPEC_CHK_RF_PATH(hal_spec, band, rfpath))
 		return;
@@ -3796,19 +3859,146 @@ void dump_tx_power_idx_by_path_rs(void *sel, _adapter *adapter, u8 rfpath, u8 rs
 		return;
 
 	for (i = 0; i < rates_by_sections[rs].rate_num; i++) {
-		power_idx = rtw_hal_get_tx_power_index(adapter, rfpath, rs, rates_by_sections[rs].rates[i], bw, band, cch, &tic);
+		power_idx = rtw_hal_get_tx_power_index(adapter, rfpath, rs, rates_by_sections[rs].rates[i], bw, band, cch, opch, &tic);
 		dump_tx_power_idx_value(sel, adapter, rfpath, rates_by_sections[rs].rates[i], power_idx, &tic);
 	}
 }
 
-void dump_tx_power_idx(void *sel, _adapter *adapter)
+void dump_tx_power_idx(void *sel, _adapter *adapter, enum channel_width bw, u8 cch, u8 opch)
 {
 	u8 rfpath, rs;
 
-	dump_tx_power_idx_title(sel, adapter);
+	dump_tx_power_idx_title(sel, adapter, bw, cch, opch);
 	for (rfpath = RF_PATH_A; rfpath < RF_PATH_MAX; rfpath++)
 		for (rs = CCK; rs < RATE_SECTION_NUM; rs++)
-			dump_tx_power_idx_by_path_rs(sel, adapter, rfpath, rs);
+			dump_tx_power_idx_by_path_rs(sel, adapter, rfpath, rs, bw, cch, opch);
+}
+
+void dump_txpwr_total_dbm_value(void *sel, _adapter *adapter, enum MGN_RATE rate, u8 ntx_idx
+	, s16 target, s16 byr, s16 btc, s16 extra, s16 lmt, s16 ulmt)
+{
+	char target_str[8];
+	char byr_str[8];
+	char btc_str[8];
+	char extra_str[8];
+	char lmt_str[8];
+	char ulmt_str[8];
+
+	txpwr_mbm_get_dbm_str(target, 0, target_str, 8);
+	txpwr_mbm_get_dbm_str(byr, 0, byr_str, 8);
+	txpwr_mbm_get_dbm_str(btc, 0, btc_str, 8);
+	txpwr_mbm_get_dbm_str(extra, 0, extra_str, 8);
+	txpwr_mbm_get_dbm_str(lmt, 0, lmt_str, 8);
+	txpwr_mbm_get_dbm_str(ulmt, 0, ulmt_str, 8);
+
+	RTW_PRINT_SEL(sel, "%9s %uT %s =    ((%s   %s   %s), %s, %s)\n"
+		, MGN_RATE_STR(rate), ntx_idx + 1
+		, target_str, byr_str, btc_str, extra_str, lmt_str, ulmt_str);
+}
+
+void dump_txpwr_total_dbm_value_utgt(void *sel, _adapter *adapter, enum MGN_RATE rate, u8 ntx_idx
+	, s16 target, s16 utgt, s16 lmt, s16 ulmt)
+{
+	char target_str[8];
+	char utgt_str[8];
+	char lmt_str[8];
+	char ulmt_str[8];
+
+	txpwr_mbm_get_dbm_str(target, 0, target_str, 8);
+	txpwr_mbm_get_dbm_str(utgt, 0, utgt_str, 8);
+	txpwr_mbm_get_dbm_str(lmt, 0, lmt_str, 8);
+	txpwr_mbm_get_dbm_str(ulmt, 0, ulmt_str, 8);
+
+	RTW_PRINT_SEL(sel, "%9s %uT %s =    (%s, %s, %s)\n"
+		, MGN_RATE_STR(rate), ntx_idx + 1
+		, target_str, utgt_str, lmt_str, ulmt_str);
+}
+
+void dump_txpwr_total_dbm_title(void *sel, _adapter *adapter, enum channel_width bw, u8 cch, u8 opch)
+{
+	u8 cch_20, cch_40, cch_80;
+
+	cch_80 = bw == CHANNEL_WIDTH_80 ? cch : 0;
+	cch_40 = bw == CHANNEL_WIDTH_40 ? cch : 0;
+	cch_20 = bw == CHANNEL_WIDTH_20 ? cch : 0;
+	if (cch_80 != 0)
+		cch_40 = rtw_get_scch_by_cch_opch(cch_80, CHANNEL_WIDTH_80, opch);
+	if (cch_40 != 0)
+		cch_20 = rtw_get_scch_by_cch_opch(cch_40, CHANNEL_WIDTH_40, opch);
+
+	RTW_PRINT_SEL(sel, "%s", ch_width_str(bw));
+	if (bw >= CHANNEL_WIDTH_80)
+		_RTW_PRINT_SEL(sel, ", cch80:%u", cch_80);
+	if (bw >= CHANNEL_WIDTH_40)
+		_RTW_PRINT_SEL(sel, ", cch40:%u", cch_40);
+	_RTW_PRINT_SEL(sel, ", cch20:%u\n", cch_20);
+
+	if (!phy_is_txpwr_user_target_specified(adapter)) {
+		RTW_PRINT_SEL(sel, "%-9s %2s %-6s = min((%-6s + %-6s + %-6s), %-6s, %-6s)\n"
+			, "rate", "", "target", "byr", "btc", "extra", "lmt", "ulmt");
+	} else {
+		RTW_PRINT_SEL(sel, "%-9s %2s %-6s = min(%-6s, %-6s, %-6s)\n"
+			, "rate", "", "target", "utgt", "lmt", "ulmt");
+	}
+}
+
+void dump_txpwr_total_dbm_by_rs(void *sel, _adapter *adapter, u8 rs, enum channel_width bw, u8 cch, u8 opch)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
+	u8 i;
+	u8 band = cch > 14 ? BAND_ON_5G : BAND_ON_2_4G;
+
+	if (rs >= RATE_SECTION_NUM)
+		return;
+
+	if (rate_section_to_tx_num(rs) + 1 > hal_data->tx_nss)
+		return;
+
+	if (band == BAND_ON_5G && IS_CCK_RATE_SECTION(rs))
+		return;
+
+	if (IS_VHT_RATE_SECTION(rs) && !IS_HARDWARE_TYPE_JAGUAR_ALL(adapter))
+		return;
+
+	for (i = 0; i < rates_by_sections[rs].rate_num; i++) {
+		struct txpwr_idx_comp tic;
+		s16 target, byr, btc, extra, utgt, lmt, ulmt;
+		u8 tx_num;
+
+		target = phy_get_txpwr_total_mbm(adapter, rs, rates_by_sections[rs].rates[i], bw, cch, opch, &tic);
+		tx_num = tic.ntx_idx + 1;
+		if (tic.limit == hal_spec->txgi_max)
+			lmt = UNSPECIFIED_MBM;
+		else
+			lmt = ((tic.limit * MBM_PDBM) / hal_spec->txgi_pdbm) + mb_of_ntx(tx_num);
+		if (tic.ulimit == hal_spec->txgi_max)
+			ulmt = UNSPECIFIED_MBM;
+		else
+			ulmt = ((tic.ulimit * MBM_PDBM) / hal_spec->txgi_pdbm) + mb_of_ntx(tx_num);
+
+		if (tic.utarget == hal_spec->txgi_max) {
+			byr = ((tic.by_rate * MBM_PDBM) / hal_spec->txgi_pdbm) + mb_of_ntx(tx_num);
+			btc = (tic.btc * MBM_PDBM) / hal_spec->txgi_pdbm;
+			extra = (tic.extra * MBM_PDBM) / hal_spec->txgi_pdbm;
+			dump_txpwr_total_dbm_value(sel, adapter, rates_by_sections[rs].rates[i], tic.ntx_idx
+				, target, byr, btc, extra, lmt, ulmt);
+		} else {
+			utgt = ((tic.utarget * MBM_PDBM) / hal_spec->txgi_pdbm) + mb_of_ntx(tx_num);
+			dump_txpwr_total_dbm_value_utgt(sel, adapter, rates_by_sections[rs].rates[i], tic.ntx_idx
+				, target, utgt, lmt, ulmt);
+		}
+	}
+}
+
+/* dump txpowr in dBm with effect of N-TX */
+void dump_txpwr_total_dbm(void *sel, _adapter *adapter, enum channel_width bw, u8 cch, u8 opch)
+{
+	u8 rs;
+
+	dump_txpwr_total_dbm_title(sel, adapter, bw, cch, opch);
+	for (rs = CCK; rs < RATE_SECTION_NUM; rs++)
+		dump_txpwr_total_dbm_by_rs(sel, adapter, rs, bw, cch, opch);
 }
 
 bool phy_is_tx_power_limit_needed(_adapter *adapter)
@@ -4367,15 +4557,15 @@ phy_ParseBBPgParaFile(
 		if (!IsCommentString(szLine)) {
 			/* Get header info (relative value or exact value) */
 			if (firstLine) {
-				if (eqNByte(szLine, (u8 *)("#[v1]"), 5)
-					|| eqNByte(szLine, (u8 *)("#[v2]"), 5))
+				if (strncmp(szLine, "#[v1]", 5) == 0
+					|| strncmp(szLine, "#[v2]", 5) == 0)
 					pHalData->odmpriv.phy_reg_pg_version = szLine[3] - '0';
 				else {
 					RTW_ERR("The format in PHY_REG_PG are invalid %s\n", szLine);
 					goto exit;
 				}
 
-				if (eqNByte(szLine + 5, (u8 *)("[Exact]#"), 8)) {
+				if (strncmp(szLine + 5, "[Exact]#", 8) == 0) {
 					pHalData->odmpriv.phy_reg_pg_value_type = PHY_REG_PG_EXACT_VALUE;
 					firstLine = _FALSE;
 					continue;
@@ -4388,17 +4578,17 @@ phy_ParseBBPgParaFile(
 			if (pHalData->odmpriv.phy_reg_pg_version > 0) {
 				u32	index = 0;
 
-				if (eqNByte(szLine, "0xffff", 6))
+				if (strncmp(szLine, "0xffff", 6) == 0)
 					break;
 
-				if (!eqNByte("#[END]#", szLine, 7)) {
+				if (strncmp(szLine, "#[END]#", 7)) {
 					/* load the table label info */
 					if (szLine[0] == '#') {
 						index = 0;
-						if (eqNByte(szLine, "#[2.4G]" , 7)) {
+						if (strncmp(szLine, "#[2.4G]", 7) == 0) {
 							band = BAND_ON_2_4G;
 							index += 8;
-						} else if (eqNByte(szLine, "#[5G]", 5)) {
+						} else if (strncmp(szLine, "#[5G]", 5) == 0) {
 							band = BAND_ON_5G;
 							index += 6;
 						} else {
@@ -5165,7 +5355,7 @@ phy_ParsePowerLimitTableFile(
 			while (szLine[i] == ' ' || szLine[i] == '\t')
 				++i;
 
-			if (!eqNByte((u8 *)(szLine + i), (u8 *)("START"), 5)) {
+			if (strncmp((u8 *)(szLine + i), "START", 5)) {
 				RTW_ERR("Missing \"##   START\" label\n");
 				goto exit;
 			}
@@ -5243,7 +5433,7 @@ phy_ParsePowerLimitTableFile(
 				while (szLine[i] == ' ' || szLine[i] == '\t')
 					++i;
 
-				if (eqNByte((u8 *)(szLine + i), (u8 *)("END"), 3)) {
+				if (strncmp((u8 *)(szLine + i), "END", 3) == 0) {
 					loadingStage = LD_STAGE_TAB_DEFINE;
 					if (regulation) {
 						for (forCnt = 0; forCnt < colNum; ++forCnt) {
@@ -5466,17 +5656,89 @@ inline void phy_free_filebuf(_adapter *padapter)
 #endif
 
 /*
+* check if user specified mbm is valid
+*/
+bool phy_is_txpwr_user_mbm_valid(_adapter *adapter, s16 mbm)
+{
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
+
+	/* 1T upper bound check */
+	if (hal_spec->txgi_max <= mbm * hal_spec->txgi_pdbm / MBM_PDBM)
+		return 0;
+
+	return 1;
+}
+
+bool phy_is_txpwr_user_target_specified(_adapter *adapter)
+{
+	s16 total_mbm = UNSPECIFIED_MBM;
+
+#ifdef CONFIG_IOCTL_CFG80211
+	total_mbm = rtw_cfg80211_dev_get_total_txpwr_target_mbm(adapter_to_dvobj(adapter));
+#endif
+
+	return total_mbm != UNSPECIFIED_MBM;
+}
+
+/*
+* Return value in unit of TX Gain Index
+* hal_spec.txgi_max means unspecified
+*/
+s8 phy_get_txpwr_user_target(_adapter *adapter, struct hal_spec_t *hal_spec, u8 ntx_idx)
+{
+	s16 total_mbm = UNSPECIFIED_MBM;
+	s8 target;
+
+#ifdef CONFIG_IOCTL_CFG80211
+	total_mbm = rtw_cfg80211_dev_get_total_txpwr_target_mbm(adapter_to_dvobj(adapter));
+#endif
+	if (total_mbm != UNSPECIFIED_MBM)
+		target = (total_mbm - mb_of_ntx(ntx_idx + 1)) * hal_spec->txgi_pdbm / MBM_PDBM;
+	else
+		target = hal_spec->txgi_max;
+
+	return target;
+}
+
+/*
+* Return value in unit of TX Gain Index
+* hal_spec.txgi_max means unspecified
+*/
+s8 phy_get_txpwr_user_lmt(_adapter *adapter, struct hal_spec_t *hal_spec, u8 ntx_idx)
+{
+	s16 total_mbm = UNSPECIFIED_MBM;
+	s8 lmt;
+
+#ifdef CONFIG_IOCTL_CFG80211
+	total_mbm = rtw_cfg80211_dev_get_total_txpwr_lmt_mbm(adapter_to_dvobj(adapter));
+#endif
+	if (total_mbm != UNSPECIFIED_MBM)
+		lmt = (total_mbm - mb_of_ntx(ntx_idx + 1)) * hal_spec->txgi_pdbm / MBM_PDBM;
+	else
+		lmt = hal_spec->txgi_max;
+
+	return lmt;
+}
+
+/*
 * Return value in unit of TX Gain Index
 */
 s8 phy_get_txpwr_target(_adapter *adapter, u8 rfpath, RATE_SECTION rs, u8 rate, u8 ntx_idx
-	, enum channel_width bw, BAND_TYPE band, u8 cch, struct txpwr_idx_comp *tic)
+	, enum channel_width bw, BAND_TYPE band, u8 cch, u8 opch, struct txpwr_idx_comp *tic)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
-	s8 target, by_rate = 0, lmt = 0, btc_diff = 0, extra = 0;
+	s8 target, by_rate = 0, btc_diff = 0, extra = 0;
+	s8 lmt, utgt, ulmt;
+
+	lmt = utgt = ulmt = hal_spec->txgi_max;
 
 	if (band != BAND_ON_2_4G && IS_CCK_RATE(rate))
 		goto exit;
+
+	utgt = phy_get_txpwr_user_target(adapter, hal_spec, ntx_idx);
+	if (utgt != hal_spec->txgi_max)
+		goto get_lmt;
 
 #ifdef CONFIG_RTL8812A
 	if (IS_HARDWARE_TYPE_8812(adapter)
@@ -5488,10 +5750,6 @@ s8 phy_get_txpwr_target(_adapter *adapter, u8 rfpath, RATE_SECTION rs, u8 rate, 
 	if (by_rate == hal_spec->txgi_max)
 		by_rate = 0;
 
-	lmt = phy_get_txpwr_lmt_sub_chs(adapter, NULL, band, bw, rfpath, rate, ntx_idx, cch);
-
-	/* TODO: limit from outer source, ex: 11d */
-
 #ifdef CONFIG_BT_COEXIST
 	if (hal_data->EEPROMBluetoothCoexist == _TRUE)
 		btc_diff = -(rtw_btcoex_query_reduced_wl_pwr_lvl(adapter) * hal_spec->txgi_pdbm);
@@ -5499,15 +5757,32 @@ s8 phy_get_txpwr_target(_adapter *adapter, u8 rfpath, RATE_SECTION rs, u8 rate, 
 
 	extra = rtw_hal_get_txpwr_target_extra_bias(adapter, rfpath, rs, rate, bw, band, cch);
 
+get_lmt:
+	lmt = phy_get_txpwr_lmt_sub_chs(adapter, NULL, band, bw, rfpath, rate, ntx_idx, cch, opch);
+	ulmt = phy_get_txpwr_user_lmt(adapter, hal_spec, ntx_idx);
+	/* TODO: limit from outer source, ex: 11d */
+
 exit:
-	target = (by_rate > lmt ? lmt : by_rate) + btc_diff + extra;
-	
+	if (utgt != hal_spec->txgi_max)
+		target = utgt;
+	else
+		target = by_rate + btc_diff + extra;
+
+	if (target > lmt)
+		target = lmt;
+	if (target > ulmt)
+		target = ulmt;
+
 	if (tic) {
 		tic->target = target;
-		tic->by_rate = by_rate;
+		if (utgt == hal_spec->txgi_max) {
+			tic->by_rate = by_rate;
+			tic->btc = btc_diff;
+			tic->extra = extra;
+		}
+		tic->utarget = utgt;
 		tic->limit = lmt;
-		tic->btc = btc_diff;
-		tic->extra = extra;
+		tic->ulimit = ulmt;
 	}
 
 	return target;
@@ -5553,21 +5828,20 @@ exit:
 }
 
 #ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
-void phy_update_tssi_txpwr_by_rate_ref(_adapter *adapter, u8 cch, enum rf_path path)
+s8 phy_get_tssi_txpwr_by_rate_ref(_adapter *adapter, enum rf_path path
+	, enum channel_width bw, u8 cch, u8 opch)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u8 ntx_idx = phy_get_current_tx_num(adapter, MGN_MCS7);
+	BAND_TYPE band = cch > 14 ? BAND_ON_5G : BAND_ON_2_4G;
+	s8 pwr_idx;
 
-	if (hal_data->txpwr_pg_mode == TXPWR_PG_WITH_TSSI_OFFSET) {
-		u8 ntx_idx;
-		BAND_TYPE band = hal_data->current_band_type;
-		enum channel_width bw = hal_data->current_channel_bw;
+	pwr_idx = phy_get_txpwr_target(adapter, path, HT_1SS, MGN_MCS7
+		, ntx_idx, bw, band, cch, opch, NULL);
+	pwr_idx += phy_get_txpwr_amends(adapter, path, HT_1SS, MGN_MCS7
+		, ntx_idx, bw, band, cch, NULL);
 
-		ntx_idx = phy_get_current_tx_num(adapter, MGN_MCS7);
-		hal_data->txpwr_idx_mcs7_target = phy_get_txpwr_target(adapter, path, HT_1SS, MGN_MCS7
-			, ntx_idx, bw, band, cch, NULL);
-		hal_data->txpwr_idx_mcs7_amends= phy_get_txpwr_amends(adapter, path, HT_1SS, MGN_MCS7
-			, ntx_idx, bw, band, cch, NULL);
-	}
+	return pwr_idx;
 }
 #endif
 
@@ -5575,7 +5849,7 @@ void phy_update_tssi_txpwr_by_rate_ref(_adapter *adapter, u8 cch, enum rf_path p
  * Rteurn tx power index for rate
  */
 u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
-	, RATE_SECTION rs, enum MGN_RATE rate, enum channel_width bw, BAND_TYPE band, u8 cch
+	, RATE_SECTION rs, enum MGN_RATE rate, enum channel_width bw, BAND_TYPE band, u8 cch, u8 opch
 	, struct txpwr_idx_comp *tic)
 {
 	PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
@@ -5586,7 +5860,7 @@ u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
 	u8 ntx_idx = phy_get_current_tx_num(adapter, rate);
 
 	/* target */
-	rate_target = phy_get_txpwr_target(adapter, rfpath, rs, rate, ntx_idx, bw, band, cch, tic);
+	rate_target = phy_get_txpwr_target(adapter, rfpath, rs, rate, ntx_idx, bw, band, cch, opch, tic);
 
 	/* amends */
 	rate_amends = phy_get_txpwr_amends(adapter, rfpath, rs, rate, ntx_idx, bw, band, cch, tic);
@@ -5607,15 +5881,20 @@ u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
 		power_idx = base + (rate_target - rs_target) + (rate_amends);
 
 		if (tic) {
-			tic->by_rate -= rs_target;
+			if (tic->utarget == hal_spec->txgi_max)
+				tic->by_rate -= rs_target;
+			else
+				tic->utarget -= rs_target;
 			if (tic->limit != hal_spec->txgi_max)
 				tic->limit -= rs_target;
+			if (tic->ulimit != hal_spec->txgi_max)
+				tic->ulimit -= rs_target;
 		}
 	}
 		break;
 #endif
 #ifdef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
-	case TXPWR_PG_WITH_TSSI_OFFSET:
+	case TXPWR_PG_WITH_TSSI_OFFSET: {
 		/*
 		* power index = 
 		* 1. base (fixed) +
@@ -5623,10 +5902,12 @@ u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
 		* 3. amends diff (per rate)
 		* base is selected that power index of MCS7 ==  halrf_get_tssi_codeword_for_txindex()
 		*/
-		base = halrf_get_tssi_codeword_for_txindex(adapter_to_phydm(adapter))
-				- (hal->txpwr_idx_mcs7_target + hal->txpwr_idx_mcs7_amends);
-		power_idx = base + rate_target + rate_amends;
+		s8 mcs7_idx;
 
+		mcs7_idx = phy_get_tssi_txpwr_by_rate_ref(adapter, rfpath, bw, cch, opch);
+		base = halrf_get_tssi_codeword_for_txindex(adapter_to_phydm(adapter)) - mcs7_idx;
+		power_idx = base + rate_target + rate_amends;
+	}
 		break;
 #endif
 	}
@@ -5650,6 +5931,101 @@ u8 hal_com_get_txpwr_idx(_adapter *adapter, enum rf_path rfpath
 	return power_idx;
 }
 
+/* get txpowr in mBm for single path */
+s16 phy_get_txpwr_single_mbm(_adapter *adapter, u8 rfpath, RATE_SECTION rs, u8 rate
+	, enum channel_width bw, u8 cch, u8 opch, struct txpwr_idx_comp *tic)
+{
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
+	BAND_TYPE band = cch <= 14 ? BAND_ON_2_4G : BAND_ON_5G;
+	u8 ntx_idx = phy_get_current_tx_num(adapter, rate);
+	s16 val;
+
+	val = phy_get_txpwr_target(adapter, rfpath, rs, rate, ntx_idx, bw, band, cch, opch, tic);
+	val = (val * MBM_PDBM) / hal_spec->txgi_pdbm;
+	if (tic)
+		tic->ntx_idx = ntx_idx;
+
+	return val;
+}
+
+/* get txpowr in mBm with effect of N-TX */
+s16 phy_get_txpwr_total_mbm(_adapter *adapter, RATE_SECTION rs, u8 rate
+	, enum channel_width bw, u8 cch, u8 opch, struct txpwr_idx_comp *tic)
+{
+	s16 val;
+	u8 tx_num = phy_get_current_tx_num(adapter, rate) + 1;
+
+	/* assume all path have same txpower target */
+	val = phy_get_txpwr_single_mbm(adapter, RF_PATH_A, rs, rate, bw, cch, opch, tic);
+	val += mb_of_ntx(tx_num);
+
+	return val;
+}
+
+static s16 _phy_get_txpwr_max_mbm(_adapter *adapter, s8 rfpath
+	, enum channel_width bw, u8 cch, u8 opch, u16 bmp_cck_ofdm, u32 bmp_ht, u64 bmp_vht)
+{
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	BAND_TYPE band = cch <= 14 ? BAND_ON_2_4G : BAND_ON_5G;
+	u8 tx_num;
+	RATE_SECTION rs;
+	u8 hw_rate;
+	int i;
+	s16 max = UNSPECIFIED_MBM, mbm;
+
+	if (0)
+		RTW_INFO("cck_ofdm:0x%04x, ht:0x%08x, vht:0x%016llx\n", bmp_cck_ofdm, bmp_ht, bmp_vht);
+
+	for (rs = 0; rs < RATE_SECTION_NUM; rs++) {
+		tx_num = rate_section_to_tx_num(rs);
+		if (tx_num + 1 > hal_data->tx_nss)
+			continue;
+		
+		if (band == BAND_ON_5G && IS_CCK_RATE_SECTION(rs))
+			continue;
+		
+		if (IS_VHT_RATE_SECTION(rs) && !IS_HARDWARE_TYPE_JAGUAR_ALL(adapter))
+			continue;
+		
+		for (i = 0; i < rates_by_sections[rs].rate_num; i++) {
+			hw_rate = MRateToHwRate(rates_by_sections[rs].rates[i]);
+			if (IS_LEGACY_HRATE(hw_rate)) {
+				if (!(bmp_cck_ofdm & BIT(hw_rate)))
+					continue;
+			} else if (IS_HT_HRATE(hw_rate)) {
+				if (!(bmp_ht & BIT(hw_rate - DESC_RATEMCS0)))
+					continue;
+			} else if (IS_VHT_HRATE(hw_rate)) {
+				if (!(bmp_vht & BIT(hw_rate - DESC_RATEVHTSS1MCS0)))
+					continue;
+			}
+
+			if (rfpath < 0) /* total */
+				mbm = phy_get_txpwr_total_mbm(adapter, rs, rates_by_sections[rs].rates[i], bw, cch, opch, NULL);
+			else
+				mbm = phy_get_txpwr_single_mbm(adapter, rfpath, rs, rates_by_sections[rs].rates[i], bw, cch, opch, NULL);
+
+			if (max == UNSPECIFIED_MBM || mbm > max)
+				max = mbm;
+		}
+	}
+
+	return max;
+}
+
+s16 phy_get_txpwr_single_max_mbm(_adapter *adapter, u8 rfpath
+	, enum channel_width bw, u8 cch, u8 opch, u16 bmp_cck_ofdm, u32 bmp_ht, u64 bmp_vht)
+{
+	return _phy_get_txpwr_max_mbm(adapter, rfpath, bw, cch, opch, bmp_cck_ofdm, bmp_ht, bmp_vht);
+}
+
+s16 phy_get_txpwr_total_max_mbm(_adapter *adapter
+	, enum channel_width bw, u8 cch, u8 opch, u16 bmp_cck_ofdm, u32 bmp_ht, u64 bmp_vht)
+{
+	return _phy_get_txpwr_max_mbm(adapter, -1, bw, cch, opch, bmp_cck_ofdm, bmp_ht, bmp_vht);
+}
+
 s8
 phy_get_tx_power_final_absolute_value(_adapter *adapter, u8 rfpath, u8 rate,
 				      enum channel_width bw, u8 cch)
@@ -5657,10 +6033,10 @@ phy_get_tx_power_final_absolute_value(_adapter *adapter, u8 rfpath, u8 rate,
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	RATE_SECTION rs = mgn_rate_to_rs(rate);
 	BAND_TYPE band = cch <= 14 ? BAND_ON_2_4G : BAND_ON_5G;
-	s8 val; 
+	s8 val;
 
 	val = phy_get_txpwr_target(adapter, rfpath
-		, rs, rate, phy_get_current_tx_num(adapter, rate), bw, band, cch, NULL);
+		, rs, rate, phy_get_current_tx_num(adapter, rate), bw, band, cch, 0, NULL);
 
 	val /= hal_spec->txgi_pdbm;
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -122,11 +123,6 @@
 
 #ifdef CONFIG_USB_HCI
 	typedef struct urb   *PURB;
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22))
-		#ifdef CONFIG_USB_SUSPEND
-			#define CONFIG_AUTOSUSPEND	1
-		#endif
-	#endif
 #endif
 
 #if defined(CONFIG_RTW_GRO) && (!defined(CONFIG_RTW_NAPI))

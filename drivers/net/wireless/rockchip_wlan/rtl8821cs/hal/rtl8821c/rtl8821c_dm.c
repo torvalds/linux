@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -107,7 +108,7 @@ void dm_InterruptMigration(PADAPTER adapter)
 	 * when interrupt migration is set before. 2010.03.05.
 	 */
 	if (!adapter->registrypriv.wifi_spec
-		&& (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+		&& (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)
 		&& pmlmepriv->LinkDetectInfo.bHigherBusyTraffic) {
 		IntMtToSet = _TRUE;
 
@@ -209,6 +210,32 @@ void rtl8821c_phy_init_haldm(PADAPTER adapter)
 	rtw_phydm_init(adapter);
 }
 
+static void check_rxfifo_full(PADAPTER adapter)
+{
+	struct dvobj_priv *psdpriv = adapter->dvobj;
+	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct registry_priv *regsty = &adapter->registrypriv;
+	u8 val8 = 0;
+
+	if (regsty->check_hw_status == 1) {
+		/* switch counter to RX fifo */
+		val8 = rtw_read8(adapter, REG_RXERR_RPT_8821C + 3);
+		rtw_write8(adapter, REG_RXERR_RPT_8821C + 3, (val8 | 0xa0));
+
+		pdbgpriv->dbg_rx_fifo_last_overflow = pdbgpriv->dbg_rx_fifo_curr_overflow;
+		pdbgpriv->dbg_rx_fifo_curr_overflow = rtw_read16(adapter, REG_RXERR_RPT_8821C);
+		if (pdbgpriv->dbg_rx_fifo_curr_overflow >= pdbgpriv->dbg_rx_fifo_last_overflow)
+			pdbgpriv->dbg_rx_fifo_diff_overflow =
+				pdbgpriv->dbg_rx_fifo_curr_overflow - pdbgpriv->dbg_rx_fifo_last_overflow;
+		else
+			pdbgpriv->dbg_rx_fifo_diff_overflow =
+				(0xFFFF - pdbgpriv->dbg_rx_fifo_last_overflow)
+				+ pdbgpriv->dbg_rx_fifo_curr_overflow;
+
+	}
+}
+
+
 void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 {
 	BOOLEAN bFwCurrentInPSMode = _FALSE;
@@ -237,6 +264,9 @@ void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 
 	if ((rtw_is_hw_init_completed(Adapter))
 		&& ((!bFwCurrentInPSMode) && bFwPSAwake)) {
+		
+		/* check rx fifo */
+		check_rxfifo_full(Adapter);
 
 		/* Dynamically switch RTS/CTS protection.*/
 	}
@@ -262,7 +292,7 @@ void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 #ifdef CONFIG_BEAMFORMING
 #ifdef RTW_BEAMFORMING_VERSION_2
 	if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE) &&
-			check_fwstate(&Adapter->mlmepriv, _FW_LINKED))
+			check_fwstate(&Adapter->mlmepriv, WIFI_ASOC_STATE))
 		rtw_hal_beamforming_config_csirate(Adapter);
 #endif
 #endif

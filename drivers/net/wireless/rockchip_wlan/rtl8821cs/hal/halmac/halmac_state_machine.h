@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2017 - 2019 Realtek Corporation. All rights reserved.
@@ -128,6 +129,15 @@ struct halmac_iqk_state {
 	u16 seq_num;
 };
 
+struct halmac_dpk_state {
+	enum halmac_cmd_process_status proc_status;
+	u16 data_size;
+	u16 seg_size;
+	u8 *data;
+	u8 fw_rc;
+	u16 seq_num;
+};
+
 struct halmac_pwr_tracking_state {
 	enum halmac_cmd_process_status	proc_status;
 	u8 fw_rc;
@@ -158,6 +168,7 @@ struct halmac_state {
 	struct halmac_scan_pkt_state scan_pkt_state;
 	struct halmac_drop_pkt_state drop_pkt_state;
 	struct halmac_iqk_state iqk_state;
+	struct halmac_dpk_state dpk_state;
 	struct halmac_pwr_tracking_state pwr_trk_state;
 	struct halmac_psd_state psd_state;
 	struct halmac_fw_snding_state fw_snding_state;

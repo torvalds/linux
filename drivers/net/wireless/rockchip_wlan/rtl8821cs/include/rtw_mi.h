@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -25,24 +26,24 @@ int rtw_mi_get_ch_setting_union_no_self(_adapter *adapter, u8 *ch, u8 *bw, u8 *o
 
 struct mi_state {
 	u8 sta_num;			/* WIFI_STATION_STATE */
-	u8 ld_sta_num;		/* WIFI_STATION_STATE && _FW_LINKED */
-	u8 lg_sta_num;		/* WIFI_STATION_STATE && _FW_UNDER_LINKING */
+	u8 ld_sta_num;		/* WIFI_STATION_STATE && WIFI_ASOC_STATE */
+	u8 lg_sta_num;		/* WIFI_STATION_STATE && WIFI_UNDER_LINKING */
 #ifdef CONFIG_TDLS
 	u8 ld_tdls_num;		/* adapter.tdlsinfo.link_established */
 #endif
 #ifdef CONFIG_AP_MODE
-	u8 ap_num;			/* WIFI_AP_STATE && _FW_LINKED */
+	u8 ap_num;			/* WIFI_AP_STATE && WIFI_ASOC_STATE */
 	u8 starting_ap_num;	/*WIFI_FW_AP_STATE*/
-	u8 ld_ap_num;		/* WIFI_AP_STATE && _FW_LINKED && asoc_sta_count > 2 */
+	u8 ld_ap_num;		/* WIFI_AP_STATE && WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #endif
-	u8 adhoc_num;		/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && _FW_LINKED */
-	u8 ld_adhoc_num;	/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && _FW_LINKED && asoc_sta_count > 2 */
+	u8 adhoc_num;		/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && WIFI_ASOC_STATE */
+	u8 ld_adhoc_num;	/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #ifdef CONFIG_RTW_MESH
-	u8 mesh_num;		/* WIFI_MESH_STATE &&  _FW_LINKED */
-	u8 ld_mesh_num;		/* WIFI_MESH_STATE &&  _FW_LINKED && asoc_sta_count > 2 */
+	u8 mesh_num;		/* WIFI_MESH_STATE &&  WIFI_ASOC_STATE */
+	u8 ld_mesh_num;		/* WIFI_MESH_STATE &&  WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #endif
-	u8 scan_num;		/* WIFI_SITE_MONITOR */
-	u8 scan_enter_num;	/* WIFI_SITE_MONITOR && !SCAN_DISABLE && !SCAN_BACK_OP */
+	u8 scan_num;		/* WIFI_UNDER_SURVEY */
+	u8 scan_enter_num;	/* WIFI_UNDER_SURVEY && !SCAN_DISABLE && !SCAN_BACK_OP */
 	u8 uwps_num;		/* WIFI_UNDER_WPS */
 #ifdef CONFIG_IOCTL_CFG80211
 	#ifdef CONFIG_P2P
@@ -195,16 +196,18 @@ u8 rtw_mi_buddy_is_scan_deny(_adapter *adapter);
 void rtw_mi_beacon_update(_adapter *padapter);
 void rtw_mi_buddy_beacon_update(_adapter *padapter);
 
-void rtw_mi_hal_dump_macaddr(_adapter *padapter);
-void rtw_mi_buddy_hal_dump_macaddr(_adapter *padapter);
+#ifndef CONFIG_MI_WITH_MBSSID_CAM
+void rtw_mi_hal_dump_macaddr(void *sel, _adapter *padapter);
+void rtw_mi_buddy_hal_dump_macaddr(void *sel, _adapter *padapter);
+#endif
 
 #ifdef CONFIG_PCI_HCI
 void rtw_mi_xmit_tasklet_schedule(_adapter *padapter);
 void rtw_mi_buddy_xmit_tasklet_schedule(_adapter *padapter);
 #endif
 
-u8 rtw_mi_busy_traffic_check(_adapter *padapter, bool check_sc_interval);
-u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter, bool check_sc_interval);
+u8 rtw_mi_busy_traffic_check(_adapter *padapter);
+u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter);
 
 u8 rtw_mi_check_mlmeinfo_state(_adapter *padapter, u32 state);
 u8 rtw_mi_buddy_check_mlmeinfo_state(_adapter *padapter, u32 state);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -44,6 +45,7 @@
 #define CMD_ID_NAN_CHANNEL_PLAN_0 0XFF
 #define CMD_ID_NAN_CHANNEL_PLAN_1 0XFF
 #define CMD_ID_NAN_FUNC_CTRL 0XFF
+#define CMD_ID_DPK 0XFF
 #define CATEGORY_H2C_CMD_HEADER 0X00
 #define CATEGORY_FW_OFFLOAD_H2C 0X01
 #define CATEGORY_FW_ACCESS_TEST 0X01
@@ -74,6 +76,7 @@
 #define CATEGORY_NAN_CHANNEL_PLAN_0 0X01
 #define CATEGORY_NAN_CHANNEL_PLAN_1 0X01
 #define CATEGORY_NAN_FUNC_CTRL 0X01
+#define CATEGORY_DPK 0X01
 #define SUB_CMD_ID_FW_ACCESS_TEST 0X00
 #define SUB_CMD_ID_CH_SWITCH 0X02
 #define SUB_CMD_ID_DUMP_PHYSICAL_EFUSE 0X03
@@ -102,6 +105,7 @@
 #define SUB_CMD_ID_NAN_CHANNEL_PLAN_0 0XB4
 #define SUB_CMD_ID_NAN_CHANNEL_PLAN_1 0XB5
 #define SUB_CMD_ID_NAN_FUNC_CTRL 0XB6
+#define SUB_CMD_ID_DPK 0XB7
 #define H2C_CMD_HEADER_GET_CATEGORY(h2c_pkt) GET_H2C_FIELD(h2c_pkt + 0X00, 0, 7)
 #define H2C_CMD_HEADER_SET_CATEGORY(h2c_pkt, value)                            \
 	SET_H2C_FIELD_CLR(h2c_pkt + 0X00, 0, 7, value)

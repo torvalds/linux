@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -42,6 +43,7 @@ const char *rtw_log_level_str[] = {
 void dump_drv_version(void *sel)
 {
 	RTW_PRINT_SEL(sel, "%s %s\n", DRV_NAME, DRIVERVERSION);
+	RTW_PRINT_SEL(sel, "build time: %s %s\n", __DATE__, __TIME__);
 }
 
 void dump_drv_cfg(void *sel)
@@ -154,6 +156,12 @@ void dump_drv_cfg(void *sel)
 
 #ifdef CONFIG_RTW_WIFI_HAL
 	RTW_PRINT_SEL(sel, "CONFIG_RTW_WIFI_HAL\n");
+#endif
+
+#ifdef RTW_BUSY_DENY_SCAN
+	RTW_PRINT_SEL(sel, "RTW_BUSY_DENY_SCAN\n");
+	RTW_PRINT_SEL(sel, "BUSY_TRAFFIC_SCAN_DENY_PERIOD = %u ms\n", \
+		      BUSY_TRAFFIC_SCAN_DENY_PERIOD);
 #endif
 
 #ifdef CONFIG_RTW_TPT_MODE
@@ -438,9 +446,10 @@ void bb_reg_dump_ex(void *sel, _adapter *adapter)
 
 void rf_reg_dump(void *sel, _adapter *adapter)
 {
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 	int i, j = 1, path;
 	u32 value;
-	u8 path_nums = GET_HAL_RFPATH_NUM(adapter);
+	u8 path_nums = hal_spec->rf_reg_path_num;
 
 	RTW_PRINT_SEL(sel, "======= RF REG =======\n");
 
@@ -744,15 +753,17 @@ void dump_adapters_status(void *sel, struct dvobj_priv *dvobj)
 #define SEC_CAM_ENT_ID_VALUE_FMT "%2u"
 #define SEC_CAM_ENT_ID_VALUE_ARG(id) (id)
 
-#define SEC_CAM_ENT_TITLE_FMT "%-6s %-17s %-32s %-3s %-7s %-2s %-2s %-5s"
+#define SEC_CAM_ENT_TITLE_FMT "%-6s %-17s %-32s %-3s %-8s %-2s %-2s %-5s"
 #define SEC_CAM_ENT_TITLE_ARG "ctrl", "addr", "key", "kid", "type", "MK", "GK", "valid"
-#define SEC_CAM_ENT_VALUE_FMT "0x%04x "MAC_FMT" "KEY_FMT" %3u %-7s %2u %2u %5u"
+#define SEC_CAM_ENT_VALUE_FMT "0x%04x "MAC_FMT" "KEY_FMT" %3u %-8s %2u %2u %5u"
 #define SEC_CAM_ENT_VALUE_ARG(ent) \
 	(ent)->ctrl \
 	, MAC_ARG((ent)->mac) \
 	, KEY_ARG((ent)->key) \
 	, ((ent)->ctrl) & 0x03 \
-	, security_type_str((((ent)->ctrl) >> 2) & 0x07) \
+	, (((ent)->ctrl) & 0x200) ? \
+	security_type_str((((ent)->ctrl) >> 2 & 0x7) | _SEC_TYPE_256_) : \
+	security_type_str(((ent)->ctrl) >> 2 & 0x7) \
 	, (((ent)->ctrl) >> 5) & 0x01 \
 	, (((ent)->ctrl) >> 6) & 0x01 \
 	, (((ent)->ctrl) >> 15) & 0x01
@@ -880,6 +891,53 @@ u16 rtw_ap_linking_test_force_asoc_fail(void)
 	return ap_linking_test_force_asoc_fail;
 }
 #endif
+
+int proc_get_defs_param(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+
+	RTW_PRINT_SEL(m, "%s %15s\n", "lmt_sta", "lmt_time");
+	RTW_PRINT_SEL(m, "%-15u %-15u\n"
+		, mlme->defs_lmt_sta
+		, mlme->defs_lmt_time
+	);
+
+	return 0;
+}
+
+ssize_t proc_set_defs_param(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+
+	char tmp[32];
+	u32 defs_lmt_sta;
+	u32 defs_lmt_time;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+
+		int num = sscanf(tmp, "%u %u", &defs_lmt_sta, &defs_lmt_time);
+
+		if (num >= 1)
+			mlme->defs_lmt_sta = defs_lmt_sta;
+		if (num >= 2)
+			mlme->defs_lmt_time = defs_lmt_time;
+	}
+
+	return count;
+
+}
 
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
@@ -1150,6 +1208,11 @@ int proc_get_sec_info(struct seq_file *m, void *v)
 		, sec->aes_sw_enc_cnt_bc , sec->aes_sw_enc_cnt_mc, sec->aes_sw_enc_cnt_uc);
 	RTW_PRINT_SEL(m, "aes_sw_dec_cnt=%llu, %llu, %llu\n"
 		, sec->aes_sw_dec_cnt_bc , sec->aes_sw_dec_cnt_mc, sec->aes_sw_dec_cnt_uc);
+
+	RTW_PRINT_SEL(m, "gcmp_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->gcmp_sw_enc_cnt_bc , sec->gcmp_sw_enc_cnt_mc, sec->gcmp_sw_enc_cnt_uc);
+	RTW_PRINT_SEL(m, "gcmp_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->gcmp_sw_dec_cnt_bc , sec->gcmp_sw_dec_cnt_mc, sec->gcmp_sw_dec_cnt_uc);
 #endif /* DBG_SW_SEC_CNT */
 
 	return 0;
@@ -1597,7 +1660,7 @@ int proc_get_survey_info(struct seq_file *m, void *v)
 		if (!pnetwork)
 			break;
 
-		if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE &&
+		if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE &&
 		    is_same_network(&pmlmepriv->cur_network.network, &pnetwork->network, 0)) {
 			notify_signal = translate_percentage_to_dbm(padapter->recvpriv.signal_strength);/* dbm */
 		} else {
@@ -1650,8 +1713,27 @@ ssize_t proc_set_survey_info(struct file *file, const char __user *buffer, size_
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	u8 _status = _FALSE;
 	u8 ssc_chk;
+	char tmp[32] = {0};
+	char cmd[8] = {0};
+	bool acs = 0;
+
 	if (count < 1)
 		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		int num = sscanf(tmp, "%s", cmd);
+
+		if (num < 1)
+			return count;
+
+		if (strcmp("acs", cmd) == 0)
+			acs = 1;
+	}
 
 #if 1
 	ssc_chk = rtw_sitesurvey_condition_check(padapter, _FALSE);
@@ -1686,7 +1768,7 @@ ssize_t proc_set_survey_info(struct file *file, const char __user *buffer, size_
 		goto cancel_ps_deny;
 	}
 
-	if (rtw_mi_busy_traffic_check(padapter, _FALSE)) {
+	if (rtw_mi_busy_traffic_check(padapter)) {
 		RTW_INFO("scan abort!! BusyTraffic == _TRUE\n");
 		goto cancel_ps_deny;
 	}
@@ -1695,20 +1777,26 @@ ssize_t proc_set_survey_info(struct file *file, const char __user *buffer, size_
 		RTW_INFO("scan abort!! AP mode process WPS\n");
 		goto cancel_ps_deny;
 	}
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING) == _TRUE) {
+	if (check_fwstate(pmlmepriv, WIFI_UNDER_SURVEY | WIFI_UNDER_LINKING) == _TRUE) {
 		RTW_INFO("scan abort!! fwstate=0x%x\n", pmlmepriv->fw_state);
 		goto cancel_ps_deny;
 	}
 
 #ifdef CONFIG_CONCURRENT_MODE
 	if (rtw_mi_buddy_check_fwstate(padapter,
-		       _FW_UNDER_SURVEY | _FW_UNDER_LINKING | WIFI_UNDER_WPS)) {
+		       WIFI_UNDER_SURVEY | WIFI_UNDER_LINKING | WIFI_UNDER_WPS)) {
 		RTW_INFO("scan abort!! buddy_fwstate check failed\n");
 		goto cancel_ps_deny;
 	}
 #endif
 #endif
-	_status = rtw_set_802_11_bssid_list_scan(padapter, NULL);
+
+	if (acs) {
+		#ifdef CONFIG_RTW_ACS
+		_status = rtw_set_acs_sitesurvey(padapter);
+		#endif
+	} else
+		_status = rtw_set_802_11_bssid_list_scan(padapter, NULL);
 
 cancel_ps_deny:
 	rtw_ps_deny_cancel(padapter, PS_DENY_SCAN);
@@ -2037,7 +2125,7 @@ ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t c
 				hal_data->ForcedDataRate = hw_rate_to_m_rate(fix_rate & 0x7F);
 
 			if (adapter->fix_bw != 0xFF && fix_rate_ori != fix_rate)
-				rtw_update_tx_rate_bmp(adapter_to_dvobj(adapter));
+				rtw_run_in_thread_cmd(adapter, ((void *)(rtw_update_tx_rate_bmp)), adapter_to_dvobj(adapter));
 		}
 		if (num >= 2)
 			adapter->data_fb = data_fb ? 1 : 0;
@@ -2169,7 +2257,7 @@ ssize_t proc_set_bw_ctl(struct file *file, const char __user *buffer, size_t cou
 			adapter->fix_bw = fix_bw;
 
 			if (adapter->fix_rate != 0xFF && fix_bw_ori != fix_bw)
-				rtw_update_tx_rate_bmp(adapter_to_dvobj(adapter));
+				rtw_run_in_thread_cmd(adapter, ((void *)(rtw_update_tx_rate_bmp)), adapter_to_dvobj(adapter));
 		}
 	}
 
@@ -2728,7 +2816,7 @@ int proc_get_huawei_trx_info(struct seq_file *sel, void *v)
 	u8 mac_id;
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
 	u8 isCCKrate, rf_path;
-	PHAL_DATA_TYPE	pHalData =  GET_HAL_DATA(padapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(padapter);
 	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
 #endif
 
@@ -2760,7 +2848,9 @@ int proc_get_huawei_trx_info(struct seq_file *sel, void *v)
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
 	isCCKrate = (psample_pkt_rssi->data_rate <= DESC_RATE11M) ? TRUE : FALSE;
 
-	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
+	for (rf_path = 0; rf_path < hal_spec->rf_reg_path_num; rf_path++) {
+		if (!(GET_HAL_RX_PATH_BMP(padapter) & BIT(rf_path)))
+			continue;
 		if (!isCCKrate)
 			_RTW_PRINT_SEL(sel , "RF_PATH_%d : rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
 				rf_path, psample_pkt_rssi->ofdm_pwr[rf_path], psample_pkt_rssi->ofdm_snr[rf_path]);
@@ -3283,6 +3373,46 @@ ssize_t proc_set_tx_ampdu_density(struct file *file, const char __user *buffer, 
 	return count;
 }
 
+int proc_get_tx_quick_addba_req(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+
+	if (padapter)
+		RTW_PRINT_SEL(m, "tx_quick_addba_req = %x\n", pregpriv->tx_quick_addba_req);
+
+	return 0;
+}
+
+ssize_t proc_set_tx_quick_addba_req(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 enable;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+
+		int num = sscanf(tmp, "%d ", &enable);
+
+		if (padapter && (num == 1)) {
+			pregpriv->tx_quick_addba_req = enable;
+			RTW_INFO("tx_quick_addba_req = %d\n", pregpriv->tx_quick_addba_req);
+		}
+	}
+
+	return count;
+}
 #ifdef CONFIG_TX_AMSDU
 int proc_get_tx_amsdu(struct seq_file *m, void *v)
 {
@@ -3382,7 +3512,51 @@ ssize_t proc_set_tx_amsdu_rate(struct file *file, const char __user *buffer, siz
 }
 #endif /* CONFIG_TX_AMSDU */
 #endif /* CONFIG_80211N_HT */
+ssize_t proc_set_dyn_rrsr(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *pregpriv = &padapter->registrypriv;
 
+	char tmp[32] = {0};
+	u32 num = 0, enable = 0, rrsr_val = 0; /* gpio_mode:0 input  1:output; */
+
+	if (count < 2)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		num	= sscanf(tmp, "%d 0x%x", &enable, &rrsr_val);
+		RTW_INFO("num=%u enable=%d rrsr_val=0x%x\n", num, enable, rrsr_val);
+		pregpriv->en_dyn_rrsr = enable;
+		pregpriv->set_rrsr_value = rrsr_val;
+		rtw_phydm_dyn_rrsr_en(padapter, enable);
+		rtw_phydm_set_rrsr(padapter, rrsr_val, TRUE);
+
+	}
+	return count;
+
+}
+int proc_get_dyn_rrsr(struct seq_file *m, void *v) {
+
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *pregpriv = &padapter->registrypriv;
+	u32 init_rrsr =0xFFFFFFFF;
+
+	if (padapter) 
+		RTW_PRINT_SEL(m, "en_dyn_rrsr = %d fixed_rrsr_value =0x%x %s\n"
+			, pregpriv->en_dyn_rrsr
+			, pregpriv->set_rrsr_value 
+			, (pregpriv->set_rrsr_value == init_rrsr)?"(default)":"(fixed)"
+		);
+
+	return 0;
+}
 int proc_get_en_fwps(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -3870,12 +4044,14 @@ int proc_get_all_sta_info(struct seq_file *m, void *v)
 #ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
 int proc_get_rtkm_info(struct seq_file *m, void *v)
 {
+#ifdef CONFIG_USB_HCI
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 	struct recv_buf *precvbuf;
 
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
+#endif /* CONFIG_USB_HCI */
 
 	RTW_PRINT_SEL(m, "============[RTKM Info]============\n");
 	RTW_PRINT_SEL(m, "MAX_RTKM_NR_PREALLOC_RECV_SKB: %d\n", rtw_rtkm_get_nr_recv_skb());
@@ -3883,7 +4059,11 @@ int proc_get_rtkm_info(struct seq_file *m, void *v)
 
 	RTW_PRINT_SEL(m, "============[Driver Info]============\n");
 	RTW_PRINT_SEL(m, "NR_PREALLOC_RECV_SKB: %d\n", NR_PREALLOC_RECV_SKB);
+#ifdef CONFIG_USB_HCI
 	RTW_PRINT_SEL(m, "MAX_RECVBUF_SZ: %d\n", precvbuf->alloc_sz);
+#else /* !CONFIG_USB_HCI */
+	RTW_PRINT_SEL(m, "MAX_RECVBUF_SZ: %d\n", MAX_RECVBUF_SZ);
+#endif /* !CONFIG_USB_HCI */
 
 	return 0;
 }
@@ -4643,6 +4823,59 @@ ssize_t proc_set_tx_ring_ext(struct file *file, const char __user *buffer, size_
 #endif
 
 #ifdef CONFIG_WOWLAN
+int proc_get_wow_enable(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *registry_pair = &padapter->registrypriv;
+
+	RTW_PRINT_SEL(m, "wow - %s\n", (registry_pair->wowlan_enable)? "enable" : "disable");
+	return 0;
+}
+
+ssize_t proc_set_wow_enable(struct file *file, const char __user *buffer,
+			    size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *registry_pair = &padapter->registrypriv;
+	char tmp[8];
+	int num = 0;
+	int mode = 0;
+
+	if (count < 1) 
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) 
+		num = sscanf(tmp, "%d", &mode);
+	else 
+		return -EFAULT;
+
+	if (num != 1) {
+		RTW_ERR("%s: %s - invalid parameter!\n", __func__, tmp);
+		return -EINVAL;
+	}
+
+	if (mode == 1) {
+		RTW_PRINT("%s: wowlan - enable\n", __func__);
+	} else if (mode == 0) {
+		RTW_PRINT("%s: wowlan - disable\n", __func__);
+	} else {
+		RTW_ERR("%s: %s - invalid parameter!, mode=%d\n",
+			__func__, tmp, mode);
+		return -EINVAL;
+	}
+
+	registry_pair->wowlan_enable = mode;
+
+	return count;
+}
+
 int proc_get_pattern_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -5341,7 +5574,7 @@ static int proc_tdls_display_network_info(struct seq_file *m)
 	/* Display the linked AP/GO info */
 	RTW_PRINT_SEL(m, "============[Associated AP/GO Info]============\n");
 
-	if ((pmlmepriv->fw_state & WIFI_STATION_STATE) && (pmlmepriv->fw_state & _FW_LINKED)) {
+	if ((pmlmepriv->fw_state & WIFI_STATION_STATE) && (pmlmepriv->fw_state & WIFI_ASOC_STATE)) {
 		RTW_PRINT_SEL(m, "%-*s = %s\n", SpaceBtwnItemAndValue, "BSSID", cur_network->network.Ssid.Ssid);
 		RTW_PRINT_SEL(m, "%-*s = "MAC_FMT"\n", SpaceBtwnItemAndValue, "Mac Address", MAC_ARG(cur_network->network.MacAddress));
 
@@ -5395,14 +5628,16 @@ static int proc_tdls_display_network_info(struct seq_file *m)
 		case _WEP104_:
 			RTW_PRINT_SEL(m, "%s\n", "WEP 104");
 			break;
+#if 0 /* no this setting */
 		case _WEP_WPA_MIXED_:
 			RTW_PRINT_SEL(m, "%s\n", "WEP/WPA Mixed");
 			break;
+#endif
 		case _SMS4_:
 			RTW_PRINT_SEL(m, "%s\n", "SMS4");
 			break;
 #ifdef CONFIG_IEEE80211W
-		case _BIP_:
+		case _BIP_CMAC_128_:
 			RTW_PRINT_SEL(m, "%s\n", "BIP");
 			break;
 #endif /* CONFIG_IEEE80211W */
@@ -5596,14 +5831,16 @@ static int proc_tdls_display_tdls_sta_info(struct seq_file *m)
 				case _WEP104_:
 					RTW_PRINT_SEL(m, "%s\n", "WEP 104");
 					break;
+#if 0 /* no this setting */
 				case _WEP_WPA_MIXED_:
 					RTW_PRINT_SEL(m, "%s\n", "WEP/WPA Mixed");
 					break;
+#endif
 				case _SMS4_:
 					RTW_PRINT_SEL(m, "%s\n", "SMS4");
 					break;
 #ifdef CONFIG_IEEE80211W
-				case _BIP_:
+				case _BIP_CMAC_128_:
 					RTW_PRINT_SEL(m, "%s\n", "BIP");
 					break;
 #endif /* CONFIG_IEEE80211W */
@@ -5661,11 +5898,14 @@ int proc_get_monitor(struct seq_file *m, void *v)
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-	if (WIFI_MONITOR_STATE == get_fwstate(pmlmepriv)) {
+	if (MLME_IS_MONITOR(padapter)) {
 		RTW_PRINT_SEL(m, "Monitor mode : Enable\n");
+		RTW_PRINT_SEL(m, "Device type  : %u\n", dev->type);
 
 		RTW_PRINT_SEL(m, "ch=%d, ch_offset=%d, bw=%d\n",
-			rtw_get_oper_ch(padapter), rtw_get_oper_choffset(padapter), rtw_get_oper_bw(padapter));
+			rtw_get_oper_ch(padapter),
+			rtw_get_oper_choffset(padapter),
+			rtw_get_oper_bw(padapter));
 	} else
 		RTW_PRINT_SEL(m, "Monitor mode : Disable\n");
 
@@ -5677,7 +5917,8 @@ ssize_t proc_set_monitor(struct file *file, const char __user *buffer, size_t co
 	char tmp[32];
 	struct net_device *dev = data;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	u8 target_chan, target_offset, target_bw;
+	u16 target_type;
+	u8 target_ch, target_offset, target_bw;
 
 	if (count < 3) {
 		RTW_INFO("argument size is less than 3\n");
@@ -5690,15 +5931,24 @@ ssize_t proc_set_monitor(struct file *file, const char __user *buffer, size_t co
 	}
 
 	if (buffer && !copy_from_user(tmp, buffer, count)) {
-		int num = sscanf(tmp, "%hhu %hhu %hhu", &target_chan, &target_offset, &target_bw);
+		int num = 0;
 
+		num = sscanf(tmp, "type %hu", &target_type);
+		if ((num == 1) &&
+			((target_type != ARPHRD_IEEE80211) &&
+			(target_type != ARPHRD_IEEE80211_RADIOTAP))) {
+			dev->type = ARPHRD_IEEE80211_RADIOTAP;
+			return count;
+		}
+
+		num = sscanf(tmp, "%hhu %hhu %hhu", &target_ch, &target_offset, &target_bw);
 		if (num != 3) {
 			RTW_INFO("invalid write_reg parameter!\n");
 			return count;
 		}
 
-		padapter->mlmeextpriv.cur_channel  = target_chan;
-		set_channel_bwmode(padapter, target_chan, target_offset, target_bw);
+		padapter->mlmeextpriv.cur_channel = target_ch;
+		set_channel_bwmode(padapter, target_ch, target_offset, target_bw);
 	}
 
 	return count;
@@ -5892,7 +6142,7 @@ ssize_t proc_set_tx_sa_query(struct file *file, const char __user *buffer, size_
 	}
 
 	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)
-	    && (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) && SEC_IS_BIP_KEY_INSTALLED(&padapter->securitypriv) == _TRUE) {
+	    && (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE) && SEC_IS_BIP_KEY_INSTALLED(&padapter->securitypriv) == _TRUE) {
 		RTW_INFO("STA:"MAC_FMT"\n", MAC_ARG(get_my_bssid(&(pmlmeinfo->network))));
 		/* TX unicast sa_query to AP */
 		issue_action_SA_Query(padapter, get_my_bssid(&(pmlmeinfo->network)), 0, 0, (u8)key_type);
@@ -5975,7 +6225,7 @@ ssize_t proc_set_tx_deauth(struct file *file, const char __user *buffer, size_t 
 		return count;
 
 	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)
-	    && (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)) {
+	    && (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)) {
 		if (key_type == 3) /* key_type 3 only for AP mode */
 			return count;
 		/* TX unicast deauth to AP */
@@ -6014,6 +6264,10 @@ ssize_t proc_set_tx_deauth(struct file *file, const char __user *buffer, size_t 
 						if (rtw_is_list_empty(&psta->asoc_list) == _FALSE) {
 							rtw_list_delete(&psta->asoc_list);
 							pstapriv->asoc_list_cnt--;
+							#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
+							if (psta->tbtx_enable)
+								pstapriv->tbtx_asoc_list_cnt--;
+							#endif
 							updated |= ap_free_sta(padapter, psta, _FALSE, WLAN_REASON_PREV_AUTH_NOT_VALID, _TRUE);
 
 						}
@@ -6077,7 +6331,7 @@ ssize_t proc_set_tx_auth(struct file *file, const char __user *buffer, size_t co
 	}
 
 	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)
-	    && (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)) {
+	    && (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE)) {
 		if (tx_auth == 1) {
 			/* TX unicast auth to AP */
 			issue_auth(padapter, NULL, 0);

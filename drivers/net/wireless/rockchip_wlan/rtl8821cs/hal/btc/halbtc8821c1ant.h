@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -243,6 +244,7 @@ struct coex_sta_8821c_1ant {
 	boolean	hid_exist;
 	boolean	pan_exist;
 	boolean	msft_mr_exist;
+	boolean bt_a2dp_active;
 	u8	num_of_profile;
 
 	boolean	under_lps;
@@ -252,6 +254,7 @@ struct coex_sta_8821c_1ant {
 	u32	high_priority_rx;
 	u32	low_priority_tx;
 	u32	low_priority_rx;
+	boolean bt_ctr_ok;
 	boolean	is_hi_pri_rx_overhead;
 	s8	bt_rssi;
 	u8	pre_bt_rssi_state;
@@ -260,8 +263,12 @@ struct coex_sta_8821c_1ant {
 	u32	bt_info_c2h_cnt[BT_8821C_1ANT_INFO_SRC_MAX];
 	boolean	bt_whck_test;
 	boolean	c2h_bt_inquiry_page;
+	boolean bt_inq_page_pre;
+	boolean bt_inq_page_remain;
 	boolean	c2h_bt_remote_name_req;
 	boolean	c2h_bt_page;
+	boolean bt_a2dp_active_pre;
+	boolean bt_a2dp_active_remain;
 
 	boolean	wifi_high_pri_task1;
 	boolean	wifi_high_pri_task2;
@@ -314,10 +321,10 @@ struct coex_sta_8821c_1ant {
 	boolean	is_A2DP_3M;
 	boolean	voice_over_HOGP;
 	boolean	bt_418_hid_exist;
+	boolean bt_ble_hid_exist;
 	u8	forbidden_slot;
 	u8	hid_busy_num;
 	u8	hid_pair_cnt;
-	boolean	hid_418;
 
 	u32	cnt_remote_name_req;
 	u32	cnt_setup_link;
@@ -336,6 +343,8 @@ struct coex_sta_8821c_1ant {
 
 	u8	bt_afh_map[10];
 	u8	bt_relink_downcount;
+	u8	bt_inq_page_downcount;
+	u8	bt_a2dp_active_downcount;
 	boolean	is_tdma_btautoslot;
 
 	u8	switch_band_notify_to;
@@ -358,6 +367,7 @@ struct coex_sta_8821c_1ant {
 	boolean	is_hid_rcu;
 	u8	bt_a2dp_vendor_id;
 	u32	bt_a2dp_device_name;
+	u32	bt_a2dp_flush_time;
 	boolean	is_ble_scan_en;
 
 	boolean	is_bt_opp_exist;
@@ -386,6 +396,7 @@ struct coex_sta_8821c_1ant {
 	u8	tdma_timer_base;
 	boolean wl_slot_toggle;
 	boolean wl_slot_toggle_change; /* if toggle to no-toggle */
+	u8	wl_iot_peer;
 };
 
 

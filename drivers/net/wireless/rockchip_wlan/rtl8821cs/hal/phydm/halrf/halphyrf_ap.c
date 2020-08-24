@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -440,10 +441,15 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 		for (i = 0; i < c.rf_path_count; i++) {
 			thermal_value[i] = (u8)odm_get_rf_reg(dm, i, c.thermal_reg_addr, 0xfc00);	/* 0x42: RF Reg[15:10] 88E */
 
-			thermal_value_temp[i] = (s8)thermal_value[i] + phydm_get_thermal_offset(dm);
-
-			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
-				"thermal_value_temp[%d](%d) = thermal_value[%d](%d) + power_time_thermal(%d)\n", i, thermal_value_temp[i], i, thermal_value[i], phydm_get_thermal_offset(dm));
+			if (dm->support_ic_type == ODM_RTL8814B) {
+				thermal_value_temp[i] = (s8)thermal_value[i] + phydm_get_multi_thermal_offset(dm, i);
+				RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+					"thermal_value_temp[%d](%d) = thermal_value[%d](%d) + multi_thermal_trim(%d)\n", i, thermal_value_temp[i], i, thermal_value[i], phydm_get_multi_thermal_offset(dm, i));
+			} else {
+				thermal_value_temp[i] = (s8)thermal_value[i] + phydm_get_thermal_offset(dm);
+				RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+					"thermal_value_temp[%d](%d) = thermal_value[%d](%d) + thermal_trim(%d)\n", i, thermal_value_temp[i], i, thermal_value[i], phydm_get_thermal_offset(dm));
+			}
 
 			if (thermal_value_temp[i] > 63)
 				thermal_value[i] = 63;
@@ -591,7 +597,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 
 #endif
 	/* Wait sacn to do IQK by RF Jenyu*/
-	if ((*dm->is_scan_in_process == false) && (!iqk_info->rfk_forbidden)) {
+	if ((*dm->is_scan_in_process == false) && (!iqk_info->rfk_forbidden) && dm->is_linked) {
 		/*Delta temperature is equal to or larger than 20 centigrade (When threshold is 8).*/
 		if (delta_IQK >= c.threshold_iqk) {
 			cali_info->thermal_value_iqk = thermal_value[RF_PATH_A];
@@ -838,9 +844,9 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series3(
 				if (GET_CHIP_VER(priv) == VERSION_8197F) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, BBSWING, p, 0);
-				//}  else if (GET_CHIP_VER(priv) == VERSION_8192F) {
-				//	for (p = RF_PATH_A; p < c.rf_path_count; p++)
-				//		(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+				} else if (GET_CHIP_VER(priv) == VERSION_8192F) {
+					for (p = RF_PATH_A; p < c.rf_path_count; p++)
+						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
 				} else if (GET_CHIP_VER(priv) == VERSION_8822B) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
@@ -850,15 +856,18 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series3(
 				}  else if (GET_CHIP_VER(priv) == VERSION_8198F) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+				} else if (GET_CHIP_VER(priv) == VERSION_8192F) {
+					for (p = RF_PATH_A; p < c.rf_path_count; p++)
+						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
 				}
 			} else {
 				RF_DBG(dm, DBG_RF_TX_PWR_TRACK, ">>> decrese power --->\n");
 				if (GET_CHIP_VER(priv) == VERSION_8197F) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, BBSWING, p, 0);
-				//} else if (GET_CHIP_VER(priv) == VERSION_8192F) {
-				//	for (p = RF_PATH_A; p < c.rf_path_count; p++)
-				//		(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+				} else if (GET_CHIP_VER(priv) == VERSION_8192F) {
+					for (p = RF_PATH_A; p < c.rf_path_count; p++)
+						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
 				} else if (GET_CHIP_VER(priv) == VERSION_8822B) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
@@ -868,13 +877,16 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series3(
 				} else if (GET_CHIP_VER(priv) == VERSION_8198F) {
 					for (p = RF_PATH_A; p < c.rf_path_count; p++)
 						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
+				} else if (GET_CHIP_VER(priv) == VERSION_8192F) {
+					for (p = RF_PATH_A; p < c.rf_path_count; p++)
+						(*c.odm_tx_pwr_track_set_pwr)(dm, MIX_MODE, p, 0);
 				}
 			}
 		}
 #endif
 
 		if (GET_CHIP_VER(priv) != VERSION_8198F) {
-			if ((delta_IQK >= c.threshold_iqk) && (!iqk_info->rfk_forbidden)) {
+			if ((delta_IQK >= c.threshold_iqk) && (!iqk_info->rfk_forbidden) && dm->is_linked) {
 				RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "delta_IQK(%d) >= threshold_iqk(%d)\n", delta_IQK, c.threshold_iqk);
 				dm->rf_calibrate_info.thermal_value_iqk = thermal_value;
 				if (!(dm->support_ic_type & ODM_RTL8197F)) {

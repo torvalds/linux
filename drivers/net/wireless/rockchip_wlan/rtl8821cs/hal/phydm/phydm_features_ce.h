@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -127,6 +128,10 @@
 	#define	CONFIG_RECEIVER_BLOCKING
 #endif
 
+#if (RTL8821C_SUPPORT || RTL8822C_SUPPORT || RTL8822B_SUPPORT)
+	#define CONFIG_BW_INDICATION
+#endif
+
 #if (RTL8192F_SUPPORT)
 	/*#define	CONFIG_8912F_SPUR_CALIBRATION*/
 #endif
@@ -224,6 +229,10 @@
 
 #if (RTL8822B_SUPPORT || RTL8192F_SUPPORT)
 	#define CONFIG_DIRECTIONAL_BF
+#endif
+
+#if (RTL8822C_SUPPORT)
+	#define CONFIG_MU_RSOML
 #endif
 
 #endif

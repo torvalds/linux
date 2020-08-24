@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -25,7 +26,9 @@ void rtw_rframe_set_os_pkt(union recv_frame *rframe);
 extern int rtw_recv_indicatepkt(_adapter *adapter, union recv_frame *precv_frame);
 extern void rtw_recv_returnpacket(_nic_hdl cnxt, _pkt *preturnedpkt);
 
+#ifdef CONFIG_WIFI_MONITOR
 extern int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame);
+#endif /* CONFIG_WIFI_MONITOR */
 
 #ifdef CONFIG_HOSTAPD_MLME
 extern void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame);

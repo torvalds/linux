@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -705,9 +706,6 @@ void odm_initialize_timer(struct dm_struct *dm, struct phydm_timer_list *timer,
 	init_timer(timer);
 	timer->function = call_back_func;
 	timer->data = (unsigned long)dm;
-#if 0
-	/*@mod_timer(timer, jiffies+RTL_MILISECONDS_TO_JIFFIES(10));	*/
-#endif
 #elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && defined(DM_ODM_CE_MAC80211)
 	timer_setup(timer, call_back_func, 0);
 #elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
@@ -1332,82 +1330,6 @@ void phydm_enable_rx_related_interrupt_handler(struct dm_struct *dm)
 #endif
 }
 
-#if 0
-boolean
-phydm_get_txbf_en(
-	struct dm_struct		*dm,
-	u16							mac_id,
-	u8							i
-)
-{
-	boolean txbf_en = false;
-
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-#elif (DM_ODM_SUPPORT_TYPE & ODM_CE) && !defined(DM_ODM_CE_MAC80211)
-
-#ifdef CONFIG_BEAMFORMING
-	enum beamforming_cap beamform_cap;
-	void *adapter = dm->adapter;
-	#ifdef PHYDM_BEAMFORMING_SUPPORT
-	beamform_cap =
-	phydm_beamforming_get_entry_beam_cap_by_mac_id(dm, mac_id);
-	#else/*@for drv beamforming*/
-	beamform_cap =
-	beamforming_get_entry_beam_cap_by_mac_id(&adapter->mlmepriv, mac_id);
-	#endif
-	if (beamform_cap & (BEAMFORMER_CAP_HT_EXPLICIT | BEAMFORMER_CAP_VHT_SU))
-		txbf_en = true;
-	else
-		txbf_en = false;
-#endif /*@#ifdef CONFIG_BEAMFORMING*/
-
-#elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
-
-#ifdef PHYDM_BEAMFORMING_SUPPORT
-	u8 idx = 0xff;
-	boolean act_bfer = false;
-	BEAMFORMING_CAP beamform_cap = BEAMFORMING_CAP_NONE;
-	PRT_BEAMFORMING_ENTRY	entry = NULL;
-	struct rtl8192cd_priv *priv			= dm->priv;
-	#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
-	struct _BF_DIV_COEX_	*dm_bdc_table = &dm->dm_bdc_table;
-
-	dm_bdc_table->num_txbfee_client = 0;
-	dm_bdc_table->num_txbfer_client = 0;
-	#endif
-#endif
-
-#ifdef PHYDM_BEAMFORMING_SUPPORT
-	beamform_cap = Beamforming_GetEntryBeamCapByMacId(priv, mac_id);
-	entry = Beamforming_GetEntryByMacId(priv, mac_id, &idx);
-	if (beamform_cap & (BEAMFORMER_CAP_HT_EXPLICIT | BEAMFORMER_CAP_VHT_SU)) {
-		if (entry->Sounding_En)
-			txbf_en = true;
-		else
-			txbf_en = false;
-		act_bfer = true;
-	}
-	#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY)) /*@BDC*/
-	if (act_bfer == true) {
-		dm_bdc_table->w_bfee_client[i] = true; /* @AP act as BFer */
-		dm_bdc_table->num_txbfee_client++;
-	} else
-		dm_bdc_table->w_bfee_client[i] = false; /* @AP act as BFer */
-
-	if (beamform_cap & (BEAMFORMEE_CAP_HT_EXPLICIT | BEAMFORMEE_CAP_VHT_SU)) {
-		dm_bdc_table->w_bfer_client[i] = true; /* @AP act as BFee */
-		dm_bdc_table->num_txbfer_client++;
-	} else
-		dm_bdc_table->w_bfer_client[i] = false; /* @AP act as BFer */
-
-	#endif
-#endif
-
-#endif
-	return txbf_en;
-}
-#endif
-
 void phydm_iqk_wait(struct dm_struct *dm, u32 timeout)
 {
 #if (DM_ODM_SUPPORT_TYPE == ODM_CE)
@@ -1516,6 +1438,14 @@ u8 phydm_get_tx_power_dbm(struct dm_struct *dm, u8 rf_path,
 	tx_power_dbm = PHY_GetTxPowerFinalAbsoluteValue(dm, rf_path, rate, bandwidth, channel);
 #endif
 	return tx_power_dbm;
+}
+
+u32 phydm_rfe_ctrl_gpio(struct dm_struct *dm, u8 gpio_num)
+{
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	return rtw_phydm_rfe_ctrl_gpio(dm->adapter, gpio_num);
+#endif
+	return 0;
 }
 
 u64 phydm_division64(u64 x, u64 y)

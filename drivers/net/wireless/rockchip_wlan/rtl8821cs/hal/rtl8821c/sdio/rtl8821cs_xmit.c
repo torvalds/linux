@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -679,8 +680,7 @@ s32 rtl8821cs_hal_xmit(PADAPTER adapter, struct xmit_frame *pxmitframe)
 	    && (pxmitframe->attrib.ether_type != 0x0806)
 	    && (pxmitframe->attrib.ether_type != 0x888e)
 	    && (pxmitframe->attrib.dhcp_pkt != 1)) {
-		if (adapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE)
-			rtw_issue_addbareq_cmd(adapter, pxmitframe);
+		rtw_issue_addbareq_cmd(adapter, pxmitframe, _TRUE);
 	}
 #endif /* CONFIG_80211N_HT */
 

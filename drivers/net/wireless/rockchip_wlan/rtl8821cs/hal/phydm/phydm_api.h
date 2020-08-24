@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -87,6 +88,7 @@ struct phydm_api_stuc {
 	u32 rxiqc_reg2; /*N-mode: for pathB REG0xc1c*/
 	u8 tx_queue_bitmap; /*REG0x520[23:16]*/
 	u8 ccktx_path;
+	u8 pri_ch_idx;
 };
 
 /* @1 ============================================================
@@ -98,6 +100,8 @@ struct phydm_api_stuc {
  * 1  function prototype
  * 1 ============================================================
  */
+enum channel_width phydm_rxsc_2_bw(void *dm_void, u8 rxsc);
+
 void phydm_reset_bb_hw_cnt(void *dm_void);
 
 void phydm_dynamic_ant_weighting(void *dm_void);
@@ -129,6 +133,10 @@ void phydm_stop_3_wire(void *dm_void, u8 set_type);
 u8 phydm_stop_ic_trx(void *dm_void, u8 set_type);
 
 void phydm_dis_cck_trx(void *dm_void, u8 set_type);
+
+void phydm_bw_fixed_enable(void *dm_void, boolean enable);
+
+void phydm_bw_fixed_setting(void *dm_void);
 
 void phydm_set_ext_switch(void *dm_void, u32 ext_ant_switch);
 
@@ -182,6 +190,10 @@ phydm_api_set_txagc(void *dm_void, u32 power_index, enum rf_path path,
 		    u8 hw_rate, boolean is_single_rate);
 
 u8 phydm_api_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate);
+
+#if (RTL8822C_SUPPORT)
+void phydm_shift_rxagc_table(void *dm_void, boolean shift_up, u8 shift);
+#endif
 
 boolean
 phydm_api_switch_bw_channel(void *dm_void, u8 central_ch, u8 primary_ch_idx,

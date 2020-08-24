@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -26,7 +27,8 @@
 #ifndef __PHYDMDIG_H__
 #define __PHYDMDIG_H__
 
-#define DIG_VERSION "2.5" /* @Add new fa_cnt for VHT-SIGA/VHT-SIGB*/
+/*20190701 Refine FA cnt code structure*/
+#define DIG_VERSION "2.8"
 
 #define	DIG_HW		0
 #define DIG_LIMIT_PERIOD 60 /*@60 sec*/
@@ -173,7 +175,7 @@ struct phydm_dig_struct {
 	u8		cur_ig_value_tdma;
 	u8		low_ig_value;
 	u8		tdma_dig_state;	/*@To distinguish which state is now.(L-sate or H-state)*/
-	u32		tdma_dig_cnt;	/*@for phydm_tdma_dig_timer_check use*/
+	u8		tdma_dig_cnt;	/*@for phydm_tdma_dig_timer_check use*/
 	u8		pre_tdma_dig_cnt;
 	u8		sec_factor;
 	u32		cur_timestamp;
@@ -230,6 +232,16 @@ struct phydm_fa_struct {
 	boolean		ofdm_block_enable;
 	u32		dbg_port0;
 	boolean		edcca_flag;
+	u8		ofdm2_rate_idx;
+	u32		cnt_ofdm2_crc32_error;
+	u32		cnt_ofdm2_crc32_ok;
+	u8		ht2_rate_idx;
+	u32		cnt_ht2_crc32_error;
+	u32		cnt_ht2_crc32_ok;
+	u8		vht2_rate_idx;
+	u32		cnt_vht2_crc32_error;
+	u32		cnt_vht2_crc32_ok;
+
 };
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
@@ -328,6 +340,9 @@ void phydm_set_ofdm_agc_tab(void *dm_void, u8 tab_sel);
 
 void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 		     u32 *_out_len);
+
+void phydm_fa_cnt_dbg(void *dm_void, char input[][16], u32 *_used, char *output,
+		      u32 *_out_len);
 
 #ifdef CONFIG_MCC_DM
 void phydm_mcc_igi_cal(void *dm_void);

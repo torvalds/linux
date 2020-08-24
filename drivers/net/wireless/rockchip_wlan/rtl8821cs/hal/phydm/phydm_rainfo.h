@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -26,8 +27,8 @@
 #ifndef __PHYDMRAINFO_H__
 #define __PHYDMRAINFO_H__
 
-/* 2019.3.5 add dynamic RRSR en API*/
-#define RAINFO_VERSION "8.2"
+/* 2019.06.28 Add legacy rate 2 spec rate API*/
+#define RAINFO_VERSION "8.5"
 
 #define	FORCED_UPDATE_RAMASK_PERIOD	5
 
@@ -40,6 +41,9 @@
 #define	RA_RETRY_DESCEND_NUM	2
 #define	RA_RETRY_LIMIT_LOW	4
 #define	RA_RETRY_LIMIT_HIGH	32
+
+#define PHYDM_IS_LEGACY_RATE(rate) ((rate <= ODM_RATE54M) ? true : false)
+#define PHYDM_IS_CCK_RATE(rate) ((rate <= ODM_RATE11M) ? true : false)
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 	#define	FIRST_MACID	1
@@ -212,6 +216,10 @@ boolean phydm_is_ofdm_rate(void *dm_void, u8 rate);
 boolean phydm_is_ht_rate(void *dm_void, u8 rate);
 
 boolean phydm_is_vht_rate(void *dm_void, u8 rate);
+
+u8 phydm_legacy_rate_2_spec_rate(void *dm_void, u8 rate);
+
+u8 phydm_rate_2_rate_digit(void *dm_void, u8 rate);
 
 u8 phydm_rate_type_2_num_ss(void *dm_void, enum PDM_RATE_TYPE type);
 

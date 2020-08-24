@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -303,6 +304,7 @@ struct sta_info {
 	union pn48 gtk_pn;
 	#ifdef CONFIG_IEEE80211W
 	/* peer's IGTK, RX only */
+	enum security_type dot11wCipher;
 	u8 igtk_bmp;
 	u8 igtk_id;
 	union Keytype igtk;
@@ -504,6 +506,11 @@ struct sta_info {
 	bool vendor_8812;
 #endif
 
+#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
+	u8 tbtx_enable;			/* Does this sta_info support & enable TBTX function? */
+//	u8 tbtx_timeslot;		/* This sta_info belong to which time slot.	*/
+#endif
+
 	/*
 	 * Vaiables for queuing TX pkt a short period of time
 	 * to wait something ready.
@@ -693,7 +700,12 @@ struct	sta_priv {
 	#if CONFIG_RTW_PRE_LINK_STA
 	struct pre_link_sta_ctl_t pre_link_sta_ctl;
 	#endif
-
+#ifdef CONFIG_RTW_TOKEN_BASED_XMIT
+	u8 tbtx_asoc_list_cnt;
+	struct sta_info *token_holder[NR_MAXSTA_INSLOT];
+	struct sta_info *last_token_holder;
+	ATOMIC_T nr_token_keeper;
+#endif
 #endif /* CONFIG_AP_MODE */
 
 #ifdef CONFIG_ATMEL_RC_PATCH

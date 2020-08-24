@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2014 - 2017 Realtek Corporation.
@@ -407,6 +408,7 @@ void Init_ODM_ComInfo(_adapter *adapter)
 	/*halrf info init*/
 	halrf_cmn_info_init(pDM_Odm, HALRF_CMNINFO_EEPROM_THERMAL_VALUE, pHalData->eeprom_thermal_meter);
 	halrf_cmn_info_init(pDM_Odm, HALRF_CMNINFO_PWT_TYPE, 0);
+	halrf_cmn_info_init(pDM_Odm, HALRF_CMNINFO_MP_POWER_TRACKING_TYPE, pHalData->txpwr_pg_mode);
 
 	if (rtw_odm_adaptivity_needed(adapter) == _TRUE)
 		rtw_odm_adaptivity_config_msg(RTW_DBGDUMP, adapter);
@@ -839,6 +841,15 @@ u8 rtw_phydm_get_cur_igi(_adapter *adapter)
 	return cur_igi;
 }
 
+bool rtw_phydm_get_edcca_flag(_adapter *adapter)
+{
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	bool cur_edcca_flag = 0;
+
+	cur_edcca_flag = phydm_cmn_info_query(phydm, (enum phydm_info_query) PHYDM_INFO_EDCCA_FLAG);
+	return cur_edcca_flag;
+}
+
 u32 rtw_phydm_get_phy_cnt(_adapter *adapter, enum phy_cnt cnt)
 {
 	struct dm_struct *phydm = adapter_to_phydm(adapter);
@@ -1026,6 +1037,19 @@ void GetHalODMVar(
 #ifdef RTW_HALMAC
 #include "../hal_halmac.h"
 #endif
+
+int rtw_phydm_rfe_ctrl_gpio(
+	_adapter *adapter,
+	u8 gpio_num
+)
+{
+	#ifdef RTW_HALMAC
+	if(rtw_halmac_rfe_ctrl_cfg(adapter_to_dvobj(adapter), gpio_num))
+		return _TRUE;
+	else
+		return _FALSE;
+	#endif/*RTW_HALMAC*/
+}
 
 enum hal_status
 rtw_phydm_fw_iqk(
@@ -1329,12 +1353,17 @@ void dump_sta_info(void *sel, struct sta_info *psta)
 void rtw_phydm_ra_registed(_adapter *adapter, struct sta_info *psta)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct macid_ctl_t *macid_ctl = dvobj_to_macidctl(dvobj);
 
 	if (psta == NULL) {
 		RTW_ERR(FUNC_ADPT_FMT" sta is NULL\n", FUNC_ADPT_ARG(adapter));
 		rtw_warn_on(1);
 		return;
 	}
+
+	if (psta->cmn.mac_id >= macid_ctl->num)
+		return;
 
 	phydm_ra_registed(&hal_data->odmpriv, psta->cmn.mac_id, psta->cmn.rssi_stat.rssi);
 	dump_sta_info(RTW_DBGDUMP, psta);
@@ -1491,7 +1520,8 @@ void rtw_phydm_init(_adapter *adapter)
 
 	rtw_phydm_config_trx_path(adapter);
 	init_phydm_info(adapter);
-	odm_dm_init(phydm);
+	hal_data->phydm_init_result = odm_dm_init(phydm);
+
 #ifdef CONFIG_CUSTOMER01_SMART_ANTENNA
 	phydm_pathb_q_matrix_rotate_en(phydm);
 #endif
@@ -1618,7 +1648,9 @@ static u8 _rtw_phydm_pwr_tracking_rate_check(_adapter *adapter)
 	u8		if_tx_rate = 0xFF;
 	u8		tx_rate = 0xFF;
 	struct mlme_ext_priv	*pmlmeext = NULL;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
 
 	for (i = 0; i < dvobj->iface_nums; i++) {
 		iface = dvobj->padapters[i];
@@ -1630,12 +1662,24 @@ static u8 _rtw_phydm_pwr_tracking_rate_check(_adapter *adapter)
 			else
 #endif
 				if_tx_rate = pmlmeext->tx_rate;
-			if(if_tx_rate < tx_rate)
-				tx_rate = if_tx_rate;
 
-			RTW_DBG("%s i=%d tx_rate =0x%x\n", __func__, i, if_tx_rate);
+			if (if_tx_rate < tx_rate) {
+				/*5G limit ofdm rate*/
+				if (pHalData->current_channel > 14) {
+					if (!IS_CCK_RATE(if_tx_rate))
+						tx_rate = if_tx_rate;
+				} else {
+					tx_rate = if_tx_rate;
+				}
+			}
+			RTW_DBG("%s i=%d if_tx_rate =0x%x\n", __func__, i, if_tx_rate);
 		}
 	}
+
+	/*suggest by RF James,unlinked setting ofdm rate*/
+	if (tx_rate == 0xFF)
+		tx_rate = IEEE80211_OFDM_RATE_6MB;
+
 	RTW_DBG("%s tx_low_rate (unlinked to any AP)=0x%x\n", __func__, tx_rate);
 	return tx_rate;
 }
@@ -1689,12 +1733,23 @@ void rtw_dyn_soml_config(_adapter *adapter)
 
 void rtw_phydm_set_rrsr(_adapter *adapter, u32 rrsr_value, bool write_rrsr)
 {
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	u32 temp_rrsr =0xFFFFFFFF;
 
+	if (adapter->registrypriv.set_rrsr_value != 0xFFFFFFFF)
+		temp_rrsr = adapter->registrypriv.set_rrsr_value;
+	else
+		temp_rrsr = rrsr_value;
+
+	odm_cmn_info_update(phydm, ODM_CMNINFO_RRSR_VAL, temp_rrsr);
+	if(write_rrsr)
+		phydm_rrsr_set_register(phydm, temp_rrsr);
+}
+void rtw_phydm_dyn_rrsr_en(_adapter *adapter, bool en_rrsr)
+{
 	struct dm_struct *phydm = adapter_to_phydm(adapter);
 
-	odm_cmn_info_update(phydm, ODM_CMNINFO_RRSR_VAL, rrsr_value);
-	if(write_rrsr)
-		phydm_rrsr_set_register(phydm, rrsr_value);
+	phydm_rrsr_en(phydm, en_rrsr);
 }
 void rtw_phydm_read_efuse(_adapter *adapter)
 {
@@ -1740,7 +1795,7 @@ void rtw_phydm_watchdog(_adapter *adapter, bool in_lps)
 		RTW_DBG("%s skip due to hw_init_completed == FALSE\n", __func__);
 		return;
 	}
-	if (rtw_mi_check_fwstate(adapter, _FW_UNDER_SURVEY))
+	if (rtw_mi_check_fwstate(adapter, WIFI_UNDER_SURVEY))
 		pHalData->bScanInProcess = _TRUE;
 	else
 		pHalData->bScanInProcess = _FALSE;

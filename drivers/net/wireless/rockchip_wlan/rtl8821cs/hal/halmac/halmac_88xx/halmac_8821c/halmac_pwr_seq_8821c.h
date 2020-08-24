@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -21,7 +22,7 @@
 
 #if HALMAC_8821C_SUPPORT
 
-#define HALMAC_8821C_PWR_SEQ_VER  "V20"
+#define HALMAC_8821C_PWR_SEQ_VER  "V23"
 
 extern struct halmac_wlan_pwr_cfg *card_dis_flow_8821c[];
 extern struct halmac_wlan_pwr_cfg *card_en_flow_8821c[];

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
 EXTRA_CFLAGS += -O1
 #EXTRA_CFLAGS += -O3
@@ -82,11 +83,18 @@ CONFIG_RTW_GRO = y
 CONFIG_RTW_NETIF_SG = y
 CONFIG_RTW_IPCAM_APPLICATION = n
 CONFIG_RTW_REPEATER_SON = n
-CONFIG_RTW_WIFI_HAL = y
 CONFIG_ICMP_VOQ = n
-CONFIG_IP_R_MONITOR = y #arp VOQ and high rate
+CONFIG_IP_R_MONITOR = n #arp VOQ and high rate
 # user priority mapping rule : tos, dscp
 CONFIG_RTW_UP_MAPPING_RULE = tos
+
+########################## Android ###########################
+# CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10 : Android version
+CONFIG_RTW_ANDROID = 10
+
+ifeq ($(shell test $(CONFIG_RTW_ANDROID) -gt 0; echo $$?), 0)
+EXTRA_CFLAGS += -DCONFIG_RTW_ANDROID=$(CONFIG_RTW_ANDROID)
+endif
 
 ########################## Debug ###########################
 CONFIG_RTW_DEBUG = y
@@ -106,6 +114,8 @@ CONFIG_WOW_LPS_MODE = default
 CONFIG_SUSPEND_TYPE = 0
 CONFIG_WOW_STA_MIX = n
 CONFIG_GPIO_WAKEUP = y
+# Please contact with RTK support team first. After getting the agreement from RTK support team, 
+# you are just able to modify the CONFIG_WAKEUP_GPIO_IDX with customized requirement.
 CONFIG_WAKEUP_GPIO_IDX = default
 CONFIG_HIGH_ACTIVE_DEV2HST = n
 ######### only for USB #########
@@ -1244,15 +1254,6 @@ ifeq ($(CONFIG_IP_R_MONITOR), y)
 EXTRA_CFLAGS += -DCONFIG_IP_R_MONITOR
 endif
 
-ifeq ($(CONFIG_RTW_WIFI_HAL), y)
-#EXTRA_CFLAGS += -DCONFIG_RTW_WIFI_HAL_DEBUG
-EXTRA_CFLAGS += -DCONFIG_RTW_WIFI_HAL
-EXTRA_CFLAGS += -DCONFIG_RTW_CFGVEDNOR_LLSTATS
-EXTRA_CFLAGS += -DCONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
-EXTRA_CFLAGS += -DCONFIG_RTW_CFGVEDNOR_RSSIMONITOR
-EXTRA_CFLAGS += -DCONFIG_RTW_CFGVENDOR_WIFI_LOGGER
-endif
-
 ifeq ($(CONFIG_MP_VHT_HW_TX_MODE), y)
 EXTRA_CFLAGS += -DCONFIG_MP_VHT_HW_TX_MODE
 ifeq ($(CONFIG_PLATFORM_I386_PC), y)
@@ -1288,6 +1289,7 @@ EXTRA_CFLAGS += -DDM_ODM_SUPPORT_TYPE=0x04
 ifeq ($(CONFIG_PLATFORM_I386_PC), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
+
 SUBARCH := $(shell uname -m | sed -e s/i.86/i386/)
 ARCH ?= $(SUBARCH)
 CROSS_COMPILE ?=
@@ -1655,10 +1657,10 @@ EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ANDROID -DCONFIG_PLATFO
 # default setting for Android 4.1, 4.2, 4.3, 4.4
 EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
 EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+EXTRA_CFLAGS += -DCONFIG_RESUME_IN_WORKQUEUE
 # default setting for Power control
 #EXTRA_CFLAGS += -DRTW_ENABLE_WIFI_CONTROL_FUNC
 EXTRA_CFLAGS += -DRTW_SUPPORT_PLATFORM_SHUTDOWN
-EXTRA_CFLAGS += -DCONFIG_RESUME_IN_WORKQUEUE
 # default setting for Special function
 ARCH := arm
 CROSS_COMPILE := /home/android_sdk/Rockchip/Rk3188/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
@@ -1877,6 +1879,7 @@ EXTRA_CFLAGS += -DCONFIG_RADIO_WORK
 endif
 #ARCH, CROSS_COMPILE, KSRC,and  MODDESTDIR are provided by external makefile
 INSTALL_PREFIX :=
+MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RTD299X_LG), y)
@@ -2273,6 +2276,7 @@ rtk_core :=	core/rtw_cmd.o \
 		core/rtw_pwrctrl.o \
 		core/rtw_rf.o \
 		core/rtw_chplan.o \
+		core/monitor/rtw_radiotap.o \
 		core/rtw_recv.o \
 		core/rtw_sta_mgt.o \
 		core/rtw_ap.o \
@@ -2298,6 +2302,23 @@ rtk_core :=	core/rtw_cmd.o \
 ifeq ($(CONFIG_SDIO_HCI), y)
 rtk_core += core/rtw_sdio.o
 endif
+
+EXTRA_CFLAGS += -I$(src)/core/crypto
+rtk_core += \
+		core/crypto/aes-internal.o \
+		core/crypto/aes-internal-enc.o \
+		core/crypto/aes-gcm.o \
+		core/crypto/aes-ccm.o \
+		core/crypto/aes-omac1.o \
+		core/crypto/ccmp.o \
+		core/crypto/gcmp.o \
+		core/crypto/aes-siv.o \
+		core/crypto/aes-ctr.o \
+		core/crypto/sha256-internal.o \
+		core/crypto/sha256.o \
+		core/crypto/sha256-prf.o \
+		core/crypto/rtw_crypto_wrap.o \
+		core/rtw_swcrypto.o
 
 $(MODULE_NAME)-y += $(rtk_core)
 

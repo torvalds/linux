@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -89,7 +90,7 @@ void halrf_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 #endif
 
 #if (RTL8192F_SUPPORT)
-	case ODM_RTL8197F:
+	case ODM_RTL8192F:
 		rf_release_ver = RF_RELEASE_VERSION_8192F;
 		break;
 #endif
@@ -200,6 +201,23 @@ void halrf_debug_trace(void *dm_void, char input[][16], u32 *_used,
 	*_out_len = out_len;
 }
 
+void halrf_dack_debug_cmd(void *dm_void, char input[][16])
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _hal_rf_ *rf = &dm->rf_table;
+	u32 dm_value[10] = {0};
+	u8 i;
+
+	for (i = 0; i < 7; i++)
+		if (input[i + 1])
+			PHYDM_SSCANF(input[i + 2], DCMD_DECIMAL, &dm_value[i]);
+
+	if (dm_value[0] == 1)
+		halrf_dack_trigger(dm, true);
+	else			
+		halrf_dack_trigger(dm, false);	
+}
+
 struct halrf_command {
 	char name[16];
 	u8 id;
@@ -214,6 +232,9 @@ enum halrf_CMD_ID {
 	HALRF_IQK,
 	HALRF_IQK_DEBUG,
 	HALRF_DPK,
+	HALRF_DACK,
+	HALRF_DACK_DEBUG,
+	HALRF_DUMP_RFK_REG,
 #ifdef CONFIG_2G_BAND_SHIFT
 	HAL_BAND_SHIFT,
 #endif
@@ -226,8 +247,11 @@ struct halrf_command halrf_cmd_ary[] = {
 	{"profile", HALRF_PROFILE},
 	{"iqk_info", HALRF_IQK_INFO},
 	{"iqk", HALRF_IQK},
-	{"dpk", HALRF_DPK},
 	{"iqk_dbg", HALRF_IQK_DEBUG},
+	{"dpk", HALRF_DPK},
+	{"dack", HALRF_DACK},
+	{"dack_dbg", HALRF_DACK_DEBUG},
+	{"dump_rfk_reg", HALRF_DUMP_RFK_REG},
 #ifdef CONFIG_2G_BAND_SHIFT
 	{"band_shift", HAL_BAND_SHIFT},
 #endif
@@ -300,7 +324,8 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 #endif
 		break;
 	case HALRF_IQK_DEBUG:
-
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "IQK DEBUG!!!!!\n");
 		for (i = 0; i < 5; i++) {
 			if (input[i + 1]) {
 				PHYDM_SSCANF(input[i + 2], DCMD_HEX,
@@ -310,17 +335,28 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 		}
 
 		if (input_idx >= 1) {
-#if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1)
-			if (dm->support_ic_type & (ODM_RTL8822B | ODM_RTL8821C))
+#if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1)
+			if (dm->support_ic_type & (ODM_RTL8822B | ODM_RTL8821C | ODM_RTL8822C | ODM_RTL8814B))
 				halrf_iqk_debug(dm, (u32 *)rf_var, &used,
 						output, &out_len);
 #endif
 		}
 		break;
 	case HALRF_DPK:
+		halrf_dpk_debug_cmd(dm, input, &used, output, &out_len);
+		break;
+	case HALRF_DACK:
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "DPK Trigger\n");
-		halrf_dpk_trigger(dm);
+			 "DACK Trigger\n");
+		halrf_dack_debug_cmd(dm, &input[0]);
+		break;
+	case HALRF_DACK_DEBUG:
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "DACK DEBUG\n");
+		halrf_dack_dbg(dm);
+		break;
+	case HALRF_DUMP_RFK_REG:
+		halrf_dump_rfk_reg(dm, input, &used, output, &out_len);
 		break;
 	default:
 		break;
@@ -337,6 +373,7 @@ void halrf_init_debug_setting(void *dm_void)
 	struct _hal_rf_ *rf = &dm->rf_table;
 
 	rf->rf_dbg_comp =
+
 #if DBG
 #if 0
 	/*DBG_RF_TX_PWR_TRACK	|*/

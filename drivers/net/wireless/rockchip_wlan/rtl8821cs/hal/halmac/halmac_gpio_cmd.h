@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2019 Realtek Corporation. All rights reserved.
@@ -83,10 +84,10 @@
 #define HALMAC_WL_DPDT_SEL		37
 #define HALMAC_BT_PAPE_SEL		38
 #define HALMAC_SW_PAPE_SEL		39
-#define HALMAC_WLBT_PAPE_SEL		40
+#define HALMAC_WL_PAPE_SEL		40
 #define HALMAC_SW_LNAON_SET		41
 #define HALMAC_BT_LNAON_SEL		42
-#define HALMAC_WLBT_LNAON_SEL		43
+#define HALMAC_WL_LNAON_SEL		43
 #define HALMAC_SWR_CTRL_EN		44
 #define HALMAC_UART_BRIDGE		45
 #define HALMAC_BT_I2C			46

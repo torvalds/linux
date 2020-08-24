@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -30,7 +31,7 @@ u32 rtw_hal_get_sdio_tx_max_length(PADAPTER padapter, u8 queue_idx);
 bool sdio_power_on_check(PADAPTER padapter);
 
 #ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
-#if defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8821A)
+#if defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8821A)
 void rtw_hal_sdio_avail_page_threshold_init(_adapter *adapter);
 void rtw_hal_sdio_avail_page_threshold_en(_adapter *adapter, u8 qidx);
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -433,7 +434,7 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 
 		DBG_COUNTER(padapter->rx_logs.os_indicate);
 
-		if (MLME_IS_AP(padapter)) {
+		if (MLME_IS_AP(padapter) && !pmlmepriv->ap_isolate) {
 			_pkt *pskb2 = NULL;
 			struct sta_info *psta = NULL;
 			struct sta_priv *pstapriv = &padapter->stapriv;
@@ -635,20 +636,15 @@ void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
 }
 #endif /* CONFIG_HOSTAPD_MLME */
 
+#ifdef CONFIG_WIFI_MONITOR
+/* 
+   precv_frame: impossible to be NULL
+   precv_frame: free by caller
+ */
 int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame)
 {
 	int ret = _FAIL;
-	struct recv_priv *precvpriv;
-	_queue	*pfree_recv_queue;
 	_pkt *skb;
-	struct rx_pkt_attrib *pattrib;
-
-	if (NULL == precv_frame)
-		goto _recv_drop;
-
-	pattrib = &precv_frame->u.hdr.attrib;
-	precvpriv = &(padapter->recvpriv);
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
 	skb = precv_frame->u.hdr.pkt;
 	if (skb == NULL) {
@@ -663,6 +659,7 @@ int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame)
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(0x0019); /* ETH_P_80211_RAW */
 
+	/* send to kernel */
 	rtw_netif_rx(padapter->pnetdev, skb);
 
 	/* pointers to NULL before rtw_free_recvframe() */
@@ -671,14 +668,9 @@ int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame)
 	ret = _SUCCESS;
 
 _recv_drop:
-
-	/* enqueue back to free_recv_queue */
-	if (precv_frame)
-		rtw_free_recvframe(precv_frame, pfree_recv_queue);
-
 	return ret;
-
 }
+#endif /* CONFIG_WIFI_MONITOR */
 
 inline void rtw_rframe_set_os_pkt(union recv_frame *rframe)
 {

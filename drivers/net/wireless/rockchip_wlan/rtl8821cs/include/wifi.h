@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -18,6 +19,9 @@
 
 #ifndef BIT
 #define BIT(x)	(1 << (x))
+#endif
+#ifndef BIT_ULL
+#define BIT_ULL(x)	(1ULL << (x))
 #endif
 
 
@@ -761,7 +765,7 @@ typedef	enum _ELEMENT_ID {
 #define _WEP_WPA_MIXED_PRIVACY_ 6	/*  WEP + WPA */
 #endif
 
-#define _MME_IE_LENGTH_  18
+#define _MME_IE_LENGTH_  26
 
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM

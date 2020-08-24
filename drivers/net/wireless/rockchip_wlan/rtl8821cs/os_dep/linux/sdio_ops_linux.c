@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -870,7 +871,7 @@ s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 #else 
 #define DUMP_LEN_LMT	32
 #endif
-#define GET_DUMP_LEN(len)	(DUMP_LEN_LMT ? MIN(len, DUMP_LEN_LMT) : len)
+#define GET_DUMP_LEN(len)	(DUMP_LEN_LMT ? rtw_min(len, DUMP_LEN_LMT) : len)
 
 #ifdef DBG_SDIO
 #if (DBG_SDIO >= 1)

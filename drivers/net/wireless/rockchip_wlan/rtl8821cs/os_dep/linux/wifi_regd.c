@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2009-2010 - 2017 Realtek Corporation.
@@ -303,7 +304,7 @@ void rtw_regd_apply_flags(struct wiphy *wiphy)
 		} else
 			ch->flags = 0;
 
-		#ifdef CONFIG_DFS
+		#if CONFIG_IEEE80211_BAND_5GHZ && CONFIG_DFS
 		if (rtw_is_dfs_ch(ch->hw_value)
 			#if defined(CONFIG_DFS_MASTER)
 			&& rtw_odm_dfs_domain_unknown(dvobj)
@@ -316,7 +317,7 @@ void rtw_regd_apply_flags(struct wiphy *wiphy)
 			ch->flags |= IEEE80211_CHAN_NO_IR;
 			#endif
 		}
-		#endif /* CONFIG_DFS */
+		#endif /* CONFIG_IEEE80211_BAND_5GHZ && CONFIG_DFS */
 	}
 }
 
