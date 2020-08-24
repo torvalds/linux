@@ -344,7 +344,7 @@ again:
 		}
 
 		lsc.scancode = scancode;
-		ir_lirc_scancode_event(dev, &lsc);
+		lirc_scancode_event(dev, &lsc);
 		data->state = STATE_INACTIVE;
 		input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
 		input_sync(dev->input_dev);

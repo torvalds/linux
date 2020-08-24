@@ -30,12 +30,12 @@ static DEFINE_IDA(lirc_ida);
 static struct class *lirc_class;
 
 /**
- * ir_lirc_raw_event() - Send raw IR data to lirc to be relayed to userspace
+ * lirc_raw_event() - Send raw IR data to lirc to be relayed to userspace
  *
  * @dev:	the struct rc_dev descriptor of the device
  * @ev:		the struct ir_raw_event descriptor of the pulse/space
  */
-void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
+void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	unsigned long flags;
 	struct lirc_fh *fh;
@@ -111,12 +111,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 }
 
 /**
- * ir_lirc_scancode_event() - Send scancode data to lirc to be relayed to
+ * lirc_scancode_event() - Send scancode data to lirc to be relayed to
  *		userspace. This can be called in atomic context.
  * @dev:	the struct rc_dev descriptor of the device
  * @lsc:	the struct lirc_scancode describing the decoded scancode
  */
-void ir_lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc)
+void lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc)
 {
 	unsigned long flags;
 	struct lirc_fh *fh;
@@ -130,9 +130,9 @@ void ir_lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc)
 	}
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 }
-EXPORT_SYMBOL_GPL(ir_lirc_scancode_event);
+EXPORT_SYMBOL_GPL(lirc_scancode_event);
 
-static int ir_lirc_open(struct inode *inode, struct file *file)
+static int lirc_open(struct inode *inode, struct file *file)
 {
 	struct rc_dev *dev = container_of(inode->i_cdev, struct rc_dev,
 					  lirc_cdev);
@@ -200,7 +200,7 @@ out_fh:
 	return retval;
 }
 
-static int ir_lirc_close(struct inode *inode, struct file *file)
+static int lirc_close(struct inode *inode, struct file *file)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *dev = fh->rc;
@@ -222,8 +222,8 @@ static int ir_lirc_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
-				   size_t n, loff_t *ppos)
+static ssize_t lirc_transmit(struct file *file, const char __user *buf,
+			     size_t n, loff_t *ppos)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *dev = fh->rc;
@@ -363,8 +363,7 @@ out_unlock:
 	return ret;
 }
 
-static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *dev = fh->rc;
@@ -586,7 +585,7 @@ out:
 	return ret;
 }
 
-static __poll_t ir_lirc_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t lirc_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *rcdev = fh->rc;
@@ -609,8 +608,8 @@ static __poll_t ir_lirc_poll(struct file *file, struct poll_table_struct *wait)
 	return events;
 }
 
-static ssize_t ir_lirc_read_mode2(struct file *file, char __user *buffer,
-				  size_t length)
+static ssize_t lirc_read_mode2(struct file *file, char __user *buffer,
+			       size_t length)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *rcdev = fh->rc;
@@ -647,8 +646,8 @@ static ssize_t ir_lirc_read_mode2(struct file *file, char __user *buffer,
 	return copied;
 }
 
-static ssize_t ir_lirc_read_scancode(struct file *file, char __user *buffer,
-				     size_t length)
+static ssize_t lirc_read_scancode(struct file *file, char __user *buffer,
+				  size_t length)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *rcdev = fh->rc;
@@ -686,8 +685,8 @@ static ssize_t ir_lirc_read_scancode(struct file *file, char __user *buffer,
 	return copied;
 }
 
-static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
-			    size_t length, loff_t *ppos)
+static ssize_t lirc_read(struct file *file, char __user *buffer, size_t length,
+			 loff_t *ppos)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *rcdev = fh->rc;
@@ -699,20 +698,20 @@ static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
 		return -ENODEV;
 
 	if (fh->rec_mode == LIRC_MODE_MODE2)
-		return ir_lirc_read_mode2(file, buffer, length);
+		return lirc_read_mode2(file, buffer, length);
 	else /* LIRC_MODE_SCANCODE */
-		return ir_lirc_read_scancode(file, buffer, length);
+		return lirc_read_scancode(file, buffer, length);
 }
 
 static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
-	.write		= ir_lirc_transmit_ir,
-	.unlocked_ioctl	= ir_lirc_ioctl,
+	.write		= lirc_transmit,
+	.unlocked_ioctl	= lirc_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.read		= ir_lirc_read,
-	.poll		= ir_lirc_poll,
-	.open		= ir_lirc_open,
-	.release	= ir_lirc_close,
+	.read		= lirc_read,
+	.poll		= lirc_poll,
+	.open		= lirc_open,
+	.release	= lirc_close,
 	.llseek		= no_llseek,
 };
 
@@ -723,7 +722,7 @@ static void lirc_release_device(struct device *ld)
 	put_device(&rcdev->dev);
 }
 
-int ir_lirc_register(struct rc_dev *dev)
+int lirc_register(struct rc_dev *dev)
 {
 	const char *rx_type, *tx_type;
 	int err, minor;
@@ -777,7 +776,7 @@ out_ida:
 	return err;
 }
 
-void ir_lirc_unregister(struct rc_dev *dev)
+void lirc_unregister(struct rc_dev *dev)
 {
 	unsigned long flags;
 	struct lirc_fh *fh;
