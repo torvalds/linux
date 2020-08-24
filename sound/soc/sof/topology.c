@@ -2374,8 +2374,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
 	default:
-		dev_warn(scomp->dev, "warning: widget type %d name %s not handled\n",
-			 swidget->id, tw->name);
+		dev_dbg(scomp->dev, "widget type %d name %s not handled\n", swidget->id, tw->name);
 		break;
 	}
 
