@@ -484,13 +484,13 @@ static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 	/* disable BM */
 	pci_clear_master(adev->pdev);
 
-	pci_save_state(adev->pdev);
+	amdgpu_device_cache_pci_state(adev->pdev);
 
 	ret = psp_gpu_reset(adev);
 	if (ret)
 		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
-	pci_restore_state(adev->pdev);
+	amdgpu_device_load_pci_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {

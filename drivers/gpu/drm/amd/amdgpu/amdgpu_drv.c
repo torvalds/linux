@@ -1315,7 +1315,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		if (amdgpu_is_atpx_hybrid()) {
 			pci_ignore_hotplug(pdev);
 		} else {
-			pci_save_state(pdev);
+			amdgpu_device_cache_pci_state(pdev);
 			pci_disable_device(pdev);
 			pci_ignore_hotplug(pdev);
 			pci_set_power_state(pdev, PCI_D3cold);
@@ -1348,7 +1348,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 			pci_set_master(pdev);
 		} else {
 			pci_set_power_state(pdev, PCI_D0);
-			pci_restore_state(pdev);
+			amdgpu_device_load_pci_state(pdev);
 			ret = pci_enable_device(pdev);
 			if (ret)
 				return ret;

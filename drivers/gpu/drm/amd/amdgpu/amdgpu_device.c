@@ -1292,7 +1292,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
 		pci_set_power_state(dev->pdev, PCI_D0);
-		pci_restore_state(dev->pdev);
+		amdgpu_device_load_pci_state(dev->pdev);
 		r = pci_enable_device(dev->pdev);
 		if (r)
 			DRM_WARN("pci_enable_device failed (%d)\n", r);
@@ -1305,7 +1305,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		amdgpu_device_suspend(dev, true);
-		pci_save_state(dev->pdev);
+		amdgpu_device_cache_pci_state(dev->pdev);
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3cold);
@@ -3408,6 +3408,10 @@ fence_driver_init:
 	if (r)
 		dev_err(adev->dev, "amdgpu_pmu_init failed\n");
 
+	/* Have stored pci confspace at hand for restore in sudden PCI error */
+	if (amdgpu_device_cache_pci_state(adev->pdev))
+		pci_restore_state(pdev);
+
 	return 0;
 
 failed:
@@ -3431,6 +3435,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
 	adev->shutdown = true;
+
+	kfree(adev->pci_state);
 
 	/* make sure IB test finished before entering exclusive mode
 	 * to avoid preemption on IB test
@@ -4852,7 +4858,7 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	/* wait for asic to come out of reset */
 	msleep(500);
 
-	pci_restore_state(pdev);
+	amdgpu_device_load_pci_state(pdev);
 
 	/* confirm  ASIC came out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -4932,6 +4938,9 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 out:
 
 	if (!r) {
+		if (amdgpu_device_cache_pci_state(adev->pdev))
+			pci_restore_state(adev->pdev);
+
 		DRM_INFO("PCIe error recovery succeeded\n");
 	} else {
 		DRM_ERROR("PCIe error recovery failed, err:%d", r);
@@ -4971,3 +4980,50 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 
 	amdgpu_device_unlock_adev(adev);
 }
+
+bool amdgpu_device_cache_pci_state(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int r;
+
+	r = pci_save_state(pdev);
+	if (!r) {
+		kfree(adev->pci_state);
+
+		adev->pci_state = pci_store_saved_state(pdev);
+
+		if (!adev->pci_state) {
+			DRM_ERROR("Failed to store PCI saved state");
+			return false;
+		}
+	} else {
+		DRM_WARN("Failed to save PCI state, err:%d\n", r);
+		return false;
+	}
+
+	return true;
+}
+
+bool amdgpu_device_load_pci_state(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int r;
+
+	if (!adev->pci_state)
+		return false;
+
+	r = pci_load_saved_state(pdev, adev->pci_state);
+
+	if (!r) {
+		pci_restore_state(pdev);
+	} else {
+		DRM_WARN("Failed to load PCI state, err:%d\n", r);
+		return false;
+	}
+
+	return true;
+}
+
+
