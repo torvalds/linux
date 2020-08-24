@@ -130,7 +130,8 @@ struct bcache_ops *bcops = &no_sc_ops;
 
 #define R4600_HIT_CACHEOP_WAR_IMPL					\
 do {									\
-	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())		\
+	if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&		\
+	    cpu_is_r4600_v2_x())					\
 		*(volatile unsigned long *)CKSEG1;			\
 	if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP))					\
 		__asm__ __volatile__("nop;nop;nop;nop");		\

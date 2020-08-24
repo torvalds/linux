@@ -8,11 +8,6 @@
 #ifndef __ASM_MIPS_MACH_RM_WAR_H
 #define __ASM_MIPS_MACH_RM_WAR_H
 
-/*
- * The RM200C seems to have been shipped only with V2.0 R4600s
- */
-
-#define R4600_V2_HIT_CACHEOP_WAR	1
 #define BCM1250_M3_WAR			0
 #define SIBYTE_1956_WAR			0
 #define MIPS4K_ICACHE_REFILL_WAR	0

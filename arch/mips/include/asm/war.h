@@ -73,21 +73,6 @@
 #endif
 
 /*
- * Writeback and invalidate the primary cache dcache before DMA.
- *
- * R4600 v2.0 bug: "The CACHE instructions Hit_Writeback_Inv_D,
- * Hit_Writeback_D, Hit_Invalidate_D and Create_Dirty_Exclusive_D will only
- * operate correctly if the internal data cache refill buffer is empty.	 These
- * CACHE instructions should be separated from any potential data cache miss
- * by a load instruction to an uncached address to empty the response buffer."
- * (Revision 2.0 device errata from IDT available on https://www.idt.com/
- * in .pdf format.)
- */
-#ifndef R4600_V2_HIT_CACHEOP_WAR
-#error Check setting of R4600_V2_HIT_CACHEOP_WAR for your platform
-#endif
-
-/*
  * Workaround for the Sibyte M3 errata the text of which can be found at
  *
  *   http://sibyte.broadcom.com/hw/bcm1250/docs/pass2errata.txt

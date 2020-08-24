@@ -8,8 +8,6 @@
 #ifndef __ASM_MIPS_MACH_SIBYTE_WAR_H
 #define __ASM_MIPS_MACH_SIBYTE_WAR_H
 
-#define R4600_V2_HIT_CACHEOP_WAR	0
-
 #if defined(CONFIG_SB1_PASS_2_WORKAROUNDS)
 
 #ifndef __ASSEMBLY__

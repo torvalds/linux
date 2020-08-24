@@ -640,6 +640,7 @@ config SGI_IP22
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select WAR_R4600_V1_INDEX_ICACHEOP
 	select WAR_R4600_V1_HIT_CACHEOP
+	select WAR_R4600_V2_HIT_CACHEOP
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
@@ -877,6 +878,7 @@ config SNI_RM
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select WAR_R4600_V2_HIT_CACHEOP
 	help
 	  The SNI RM200/300/400 are MIPS-based machines manufactured by
 	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
@@ -2641,6 +2643,18 @@ config WAR_R4600_V1_INDEX_ICACHEOP
 #                              nop
 #                              cache       Hit_Writeback_Invalidate_D
 config WAR_R4600_V1_HIT_CACHEOP
+	bool
+
+# Writeback and invalidate the primary cache dcache before DMA.
+#
+# R4600 v2.0 bug: "The CACHE instructions Hit_Writeback_Inv_D,
+# Hit_Writeback_D, Hit_Invalidate_D and Create_Dirty_Exclusive_D will only
+# operate correctly if the internal data cache refill buffer is empty.  These
+# CACHE instructions should be separated from any potential data cache miss
+# by a load instruction to an uncached address to empty the response buffer."
+# (Revision 2.0 device errata from IDT available on https://www.idt.com/
+# in .pdf format.)
+config WAR_R4600_V2_HIT_CACHEOP
 	bool
 
 #
