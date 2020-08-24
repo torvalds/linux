@@ -9,6 +9,5 @@
 #define __ASM_MIPS_MACH_IP32_WAR_H
 
 #define BCM1250_M3_WAR			0
-#define SIBYTE_1956_WAR			0
 
 #endif /* __ASM_MIPS_MACH_IP32_WAR_H */

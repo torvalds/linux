@@ -86,11 +86,4 @@
 #error Check setting of BCM1250_M3_WAR for your platform
 #endif
 
-/*
- * This is a DUART workaround related to glitches around register accesses
- */
-#ifndef SIBYTE_1956_WAR
-#error Check setting of SIBYTE_1956_WAR for your platform
-#endif
-
 #endif /* _ASM_WAR_H */
