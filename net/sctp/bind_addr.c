@@ -505,7 +505,7 @@ int sctp_in_scope(struct net *net, const union sctp_addr *addr,
 		return 0;
 	/*
 	 * For INIT and INIT-ACK address list, let L be the level of
-	 * of requested destination address, sender and receiver
+	 * requested destination address, sender and receiver
 	 * SHOULD include all of its addresses with level greater
 	 * than or equal to L.
 	 *
