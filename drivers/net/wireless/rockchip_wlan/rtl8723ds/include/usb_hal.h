@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -48,6 +49,10 @@ void rtl8814au_set_hal_ops(_adapter *padapter);
 void rtl8188fu_set_hal_ops(_adapter *padapter);
 #endif
 
+#ifdef CONFIG_RTL8188GTV
+void rtl8188gtvu_set_hal_ops(_adapter *padapter);
+#endif
+
 #ifdef CONFIG_RTL8703B
 void rtl8703bu_set_hal_ops(_adapter *padapter);
 #endif
@@ -56,7 +61,12 @@ void rtl8703bu_set_hal_ops(_adapter *padapter);
 void rtl8723du_set_hal_ops(_adapter *padapter);
 #endif
 
-#ifdef CONFIG_INTEL_PROXIM
-extern _adapter  *rtw_usb_get_sw_pointer(void);
-#endif /* CONFIG_INTEL_PROXIM */
+#ifdef CONFIG_RTL8710B
+void rtl8710bu_set_hal_ops(_adapter *padapter);
+#endif
+
+#ifdef CONFIG_RTL8192F
+void rtl8192fu_set_hal_ops(_adapter *padapter);
+#endif /* CONFIG_RTL8192F */
+
 #endif /* __USB_HAL_H__ */

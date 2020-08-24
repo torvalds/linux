@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,9 +16,9 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
-#include "rtw_rm_fsm.h"
-
 #ifdef CONFIG_RTW_80211K
+#include "rtw_rm_fsm.h"
+#include "rtw_rm_util.h"
 
 struct fsm_state {
 	u8 *name;
@@ -65,7 +66,7 @@ int rtw_init_rm(_adapter *padapter)
 
 	/* bit 0-7 */
 	prmpriv->rm_en_cap_def[0] = 0
-		/*| BIT(RM_LINK_MEAS_CAP_EN)*/
+		| BIT(RM_LINK_MEAS_CAP_EN)
 		| BIT(RM_NB_REP_CAP_EN)
 		/*| BIT(RM_PARAL_MEAS_CAP_EN)*/
 		| BIT(RM_REPEAT_MEAS_CAP_EN)
@@ -387,7 +388,7 @@ u8 rtw_rm_post_envent_cmd(_adapter *padapter, u32 rmid, u8 evid)
 	pev->rmid = rmid;
 	pev->evid = evid;
 
-	init_h2fwcmd_w_parm_no_rsp(pcmd, pev, GEN_CMD_CODE(_RM_POST_EVENT));
+	init_h2fwcmd_w_parm_no_rsp(pcmd, pev, CMD_RM_POST_EVENT);
 	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 exit:
 	return res;
@@ -501,6 +502,8 @@ static int rm_issue_meas_req(struct rm_obj *prm)
 		issue_nb_req(prm);
 		break;
 	case RM_ACT_LINK_MEAS_REQ:
+		issue_link_meas_req(prm);
+		break;
 	default:
 		return _FALSE;
 	} /* action_code */
@@ -555,8 +558,8 @@ static int rm_state_idle(struct rm_obj *prm, enum RM_EV_ID evid)
 				prm->rmid);
 			break;
 		case RM_ACT_LINK_MEAS_REQ:
+			prm->p.diag_token = prm->q.diag_token;
 			prm->p.action_code = RM_ACT_LINK_MEAS_REP;
-			rm_set_rep_mode(prm, MEAS_REP_MOD_INCAP);
 			RTW_INFO("RM: rmid=%x Link meas switch in\n",
 				prm->rmid);
 			break;
@@ -650,20 +653,25 @@ static int rm_state_do_meas(struct rm_obj *prm, enum RM_EV_ID evid)
 					RM_EV_busy_timer_expire);
 				return _SUCCESS;
 			}
+		} else if (prm->q.action_code == RM_ACT_LINK_MEAS_REQ) {
+			; /* do nothing */
+			rm_state_goto(prm, RM_ST_SEND_REPORT);
+			return _SUCCESS;
 		}
 		_rm_post_event(padapter, prm->rmid, RM_EV_start_meas);
 		break;
 	case RM_EV_start_meas:
 		if (prm->q.action_code == RM_ACT_RADIO_MEAS_REQ) {
 			/* resotre measurement start time */
-			rtw_hal_get_hwreg(padapter, HW_VAR_TSF, (u8 *)&val64);
-			prm->meas_start_time = val64;
+			prm->meas_start_time = rtw_hal_get_tsftr_by_port(padapter
+									, rtw_hal_get_port(padapter));
 
 			switch (prm->q.m_type) {
 			case bcn_req:
 				val8 = 1; /* Enable free run counter */
-				rtw_hal_set_hwreg(padapter,
-					HW_VAR_FREECNT, &val8);
+				prm->free_run_counter_valid = rtw_hal_set_hwreg(
+					padapter, HW_VAR_FREECNT, &val8);
+
 				rm_sitesurvey(prm);
 				break;
 			case ch_load_req:
@@ -741,8 +749,8 @@ static int rm_state_do_meas(struct rm_obj *prm, enum RM_EV_ID evid)
 	case RM_EV_state_out:
 		rm_cancel_clock(prm);
 		/* resotre measurement end time */
-		rtw_hal_get_hwreg(padapter, HW_VAR_TSF, (u8 *)&val64);
-		_rtw_memcpy(&prm->meas_end_time, (char *)&val64, sizeof(u64));
+		prm->meas_end_time = rtw_hal_get_tsftr_by_port(padapter
+								, rtw_hal_get_port(padapter));
 
 		val8 = 0; /* Disable free run counter */
 		rtw_hal_set_hwreg(padapter, HW_VAR_FREECNT, &val8);
@@ -790,15 +798,26 @@ static int rm_state_send_report(struct rm_obj *prm, enum RM_EV_ID evid)
 	switch (evid) {
 	case RM_EV_state_in:
 		/* we have to issue report */
-		switch (prm->q.m_type) {
-		case bcn_req:
-			issue_beacon_rep(prm);
-			break;
-		case ch_load_req:
-		case noise_histo_req:
-			issue_radio_meas_rep(prm);
-			break;
-		default:
+		if (prm->q.action_code == RM_ACT_RADIO_MEAS_REQ) {
+			switch (prm->q.m_type) {
+			case bcn_req:
+				issue_beacon_rep(prm);
+				break;
+			case ch_load_req:
+			case noise_histo_req:
+				issue_radio_meas_rep(prm);
+				break;
+			default:
+				rm_state_goto(prm, RM_ST_END);
+				return _SUCCESS;
+			}
+
+		} else if (prm->q.action_code == RM_ACT_LINK_MEAS_REQ) {
+			issue_link_meas_rep(prm);
+			rm_state_goto(prm, RM_ST_END);
+			return _SUCCESS;
+
+		} else {
 			rm_state_goto(prm, RM_ST_END);
 			return _SUCCESS;
 		}

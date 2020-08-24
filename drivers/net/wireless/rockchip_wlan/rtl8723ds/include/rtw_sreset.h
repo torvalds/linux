@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -21,6 +22,7 @@ enum {
 	SRESET_TGP_NULL = 0,
 	SRESET_TGP_XMIT_STATUS = 1,
 	SRESET_TGP_LINK_STATUS = 2,
+	SRESET_TGP_INFO = 99,
 };
 
 struct sreset_priv {
@@ -34,15 +36,12 @@ struct sreset_priv {
 	u64 self_dect_tx_cnt;
 	u64 self_dect_rx_cnt;
 	u64 self_dect_fw_cnt;
-	u64 self_dect_scan_cnt;
-	u64 txbuf_empty_cnt;
 	u64 tx_dma_status_cnt;
 	u64 rx_dma_status_cnt;
 	u8 rx_cnt;
 	u8 self_dect_fw;
-	u8 self_dect_scan;
-	u8 is_txbuf_empty;
 	u8 self_dect_case;
+	u16 last_mac_rxff_ptr;
 	u8 dbg_sreset_ctrl;
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -164,7 +165,9 @@ s32 rtl8723ds_recv_hdl(_adapter *padapter)
 		d = adapter_to_dvobj(padapter);
 		for (i = 0; i < d->iface_nums; i++) {
 			a = d->padapters[i];
-			if (rtw_if_up(a) == _TRUE)
+			precvpriv = &a->recvpriv;
+			if (rtw_if_up(a) == _TRUE
+				&& skb_queue_len(&precvpriv->rx_napi_skb_queue))
 				napi_schedule(&a->napi);
 	
 		}

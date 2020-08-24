@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -70,6 +71,13 @@ void interrupt_handler_8188fu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
 #endif
 #endif
 
+#ifdef CONFIG_RTL8188GTV
+void rtl8188gtvu_set_hw_type(struct dvobj_priv *pdvobj);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8188gtvu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
+#endif
+
 #ifdef CONFIG_RTL8723B
 void rtl8723bu_set_hw_type(struct dvobj_priv *pdvobj);
 #ifdef CONFIG_SUPPORT_USB_INT
@@ -95,6 +103,24 @@ void rtl8723du_xmit_tasklet(void *priv);
 void interrupt_handler_8723du(_adapter *padapter, u16 pkt_len, u8 *pbuf);
 #endif /* CONFIG_SUPPORT_USB_INT */
 #endif /* CONFIG_RTL8723D */
+
+#ifdef CONFIG_RTL8710B
+void rtl8710bu_set_hw_type(struct dvobj_priv *pdvobj);
+void rtl8710bu_set_intf_ops(struct _io_ops *pops);
+void rtl8710bu_recv_tasklet(void *priv);
+void rtl8710bu_xmit_tasklet(void *priv);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8710bu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif /* CONFIG_SUPPORT_USB_INT */
+#endif /* CONFIG_RTL8710B */
+
+#ifdef CONFIG_RTL8192F
+void rtl8192fu_set_hw_type(struct dvobj_priv *pdvobj);
+void rtl8192fu_xmit_tasklet(void *priv);
+#ifdef CONFIG_SUPPORT_USB_INT
+void rtl8192fu_interrupt_handler(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif /* CONFIG_SUPPORT_USB_INT */
+#endif /* CONFIG_RTL8192F */
 
 enum RTW_USB_SPEED {
 	RTW_USB_SPEED_UNKNOWN	= 0,

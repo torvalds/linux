@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -13,10 +14,8 @@
  *
  *****************************************************************************/
 
-#ifndef	__PHYDMPOWERTRACKING_H__
-#define    __PHYDMPOWERTRACKING_H__
-
-#define HALRF_POWRTRACKING_VER	"1.1"
+#ifndef __HALRF_POWERTRACKING_H__
+#define __HALRF_POWERTRACKING_H__
 
 #define	DPK_DELTA_MAPPING_NUM	13
 #define	index_mapping_HP_NUM	15
@@ -32,13 +31,13 @@
 #define	CCK_TABLE_SIZE_88F	21
 /* JJ ADD 20161014 */
 #define	CCK_TABLE_SIZE_8710B   41
+#define	CCK_TABLE_SIZE_8192F   41
 
 
 #define	dm_check_txpowertracking	odm_txpowertracking_check
 
 #define IQK_MATRIX_SETTINGS_NUM	(14+24+21) /* Channels_2_4G_NUM + Channels_5G_20M_NUM + Channels_5G */
 #define	AVG_THERMAL_NUM		8
-#define	HP_THERMAL_NUM		8
 #define	iqk_matrix_reg_num	8
 #define	IQK_MAC_REG_NUM		4
 #define	IQK_ADDA_REG_NUM		16
@@ -59,6 +58,7 @@ extern	u8 cck_swing_table_ch14_88f[CCK_TABLE_SIZE_88F][16];
 extern	u32 cck_swing_table_ch1_ch14_8723d[CCK_TABLE_SIZE_8723D];
 /* JJ ADD 20161014 */
 extern	u32 cck_swing_table_ch1_ch14_8710b[CCK_TABLE_SIZE_8710B];
+extern	u32 cck_swing_table_ch1_ch14_8192f[CCK_TABLE_SIZE_8192F];
 
 extern  u32 tx_scaling_table_jaguar[TXSCALE_TABLE_SIZE];
 
@@ -68,33 +68,33 @@ static u8 delta_swing_table_idx_2ga_n_8188e[] = {0, 0, 0, 2, 2, 3, 3, 4, 4, 4, 4
 
 void
 odm_txpowertracking_check(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 void
 odm_txpowertracking_check_ap(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 void
 odm_txpowertracking_thermal_meter_init(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 void
 odm_txpowertracking_init(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 void
 odm_txpowertracking_check_mp(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 
 void
 odm_txpowertracking_check_ce(
-	void		*p_dm_void
+	void		*dm_void
 );
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
@@ -102,18 +102,18 @@ odm_txpowertracking_check_ce(
 
 void
 odm_txpowertracking_thermal_meter_check(
-	struct _ADAPTER		*adapter
+	void		*adapter
 );
 
 #endif
 
-struct _IQK_MATRIX_REGS_SETTING {
+struct iqk_matrix_regs_setting {
 	boolean	is_iqk_done;
 	s32		value[3][iqk_matrix_reg_num];
 	boolean	is_bw_iqk_result_saved[3];
 };
 
-struct odm_rf_calibration_structure {
+struct dm_rf_calibration_struct {
 	/* for tx power tracking */
 
 	u32	rega24; /* for TempCCK */
@@ -131,12 +131,15 @@ struct odm_rf_calibration_structure {
 
 	u8  	thermal_meter[2];    /* thermal_meter, index 0 for RFIC0, and 1 for RFIC1 */
 	u8	thermal_value;
+	u8	thermal_value_path[MAX_RF_PATH];
 	u8	thermal_value_lck;
 	u8	thermal_value_iqk;
-	u8  thermal_value_dpk;
-	s8  	thermal_value_delta; /* delta of thermal_value and efuse thermal */
+	u8	thermal_value_dpk;
+	s8	thermal_value_delta; /* delta of thermal_value and efuse thermal */
 	u8	thermal_value_avg[AVG_THERMAL_NUM];
+	u8	thermal_value_avg_path[MAX_RF_PATH][AVG_THERMAL_NUM];
 	u8	thermal_value_avg_index;
+	u8	thermal_value_avg_index_path[MAX_RF_PATH];
 	u8	thermal_value_rx_gain;
 
 
@@ -156,9 +159,7 @@ struct odm_rf_calibration_structure {
 	s8	xtal_offset;
 	s8	xtal_offset_last;
 
-	u8	thermal_value_hp[HP_THERMAL_NUM];
-	u8	thermal_value_hp_index;
-	struct _IQK_MATRIX_REGS_SETTING iqk_matrix_reg_setting[IQK_MATRIX_SETTINGS_NUM];
+	struct iqk_matrix_regs_setting iqk_matrix_reg_setting[IQK_MATRIX_SETTINGS_NUM];
 	u8	delta_lck;
 	s8  bb_swing_diff_2g, bb_swing_diff_5g; /* Unit: dB */
 	u8  delta_swing_table_idx_2g_cck_a_p[DELTA_SWINGIDX_SIZE];
@@ -228,6 +229,7 @@ struct odm_rf_calibration_structure {
 	boolean			modify_tx_agc_flag_path_c;
 	boolean			modify_tx_agc_flag_path_d;
 	boolean			modify_tx_agc_flag_path_a_cck;
+	boolean			modify_tx_agc_flag_path_b_cck;
 
 	s8			kfree_offset[MAX_RF_PATH];
 
@@ -296,11 +298,9 @@ struct odm_rf_calibration_structure {
 	/*Add by Yuchen for Kfree Phydm*/
 	u8			reg_rf_kfree_enable;	/*for registry*/
 	u8			rf_kfree_enable;		/*for efuse enable check*/
-
-	HALMAC_PWR_TRACKING_OPTION	HALMAC_PWR_TRACKING_INFO;
 };
 
 
 
 
-#endif
+#endif	/*#ifndef __HALRF_POWER_TRACKING_H__*/

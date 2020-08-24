@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -18,27 +19,23 @@
 #if defined(CONFIG_USB_HCI)
 
 	#ifndef MAX_RECVBUF_SZ
-		#ifdef PLATFORM_OS_CE
-			#define MAX_RECVBUF_SZ (8192+1024) /* 8K+1k */
-		#else
-			#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-				#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
-					#define MAX_RECVBUF_SZ (rtw_rtkm_get_buff_size()) /*depend rtkm*/
-				#else
-					#define MAX_RECVBUF_SZ (32768)  /*32k*/
-				#endif
-				/* #define MAX_RECVBUF_SZ (24576) */ /* 24k */
-				/* #define MAX_RECVBUF_SZ (20480) */ /* 20K */
-				/* #define MAX_RECVBUF_SZ (10240) */ /* 10K */
-				/* #define MAX_RECVBUF_SZ (15360) */ /* 15k < 16k */
-				/* #define MAX_RECVBUF_SZ (8192+1024) */ /* 8K+1k */
-				#ifdef CONFIG_PLATFORM_NOVATEK_NT72668
-					#undef MAX_RECVBUF_SZ
-					#define MAX_RECVBUF_SZ (15360) /* 15k < 16k */
-				#endif /* CONFIG_PLATFORM_NOVATEK_NT72668 */
+		#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+			#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+				#define MAX_RECVBUF_SZ (rtw_rtkm_get_buff_size()) /*depend rtkm*/
 			#else
-				#define MAX_RECVBUF_SZ (4000) /* about 4K */
+				#define MAX_RECVBUF_SZ (32768)  /*32k*/
 			#endif
+			/* #define MAX_RECVBUF_SZ (24576) */ /* 24k */
+			/* #define MAX_RECVBUF_SZ (20480) */ /* 20K */
+			/* #define MAX_RECVBUF_SZ (10240) */ /* 10K */
+			/* #define MAX_RECVBUF_SZ (15360) */ /* 15k < 16k */
+			/* #define MAX_RECVBUF_SZ (8192+1024) */ /* 8K+1k */
+			#ifdef CONFIG_PLATFORM_NOVATEK_NT72668
+				#undef MAX_RECVBUF_SZ
+				#define MAX_RECVBUF_SZ (15360) /* 15k < 16k */
+			#endif /* CONFIG_PLATFORM_NOVATEK_NT72668 */
+		#else
+			#define MAX_RECVBUF_SZ (4000) /* about 4K */
 		#endif
 	#endif /* !MAX_RECVBUF_SZ */
 

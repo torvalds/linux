@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -20,20 +21,15 @@
 #define RECV_BLK_TH RECV_BLK_CNT
 
 #if defined(CONFIG_USB_HCI)
-
 	#ifndef MAX_RECVBUF_SZ
-		#ifdef PLATFORM_OS_CE
-			#define MAX_RECVBUF_SZ (8192+1024) /* 8K+1k */
+		#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+			/* #define MAX_RECVBUF_SZ (32768) */ /* 32k */
+			/* #define MAX_RECVBUF_SZ (16384) */ /* 16K */
+			/* #define MAX_RECVBUF_SZ (10240) */ /* 10K */
+			#define MAX_RECVBUF_SZ (15360) /* 15k < 16k */
+			/* #define MAX_RECVBUF_SZ (8192+1024) */ /* 8K+1k */
 		#else
-			#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-				/* #define MAX_RECVBUF_SZ (32768) */ /* 32k */
-				/* #define MAX_RECVBUF_SZ (16384) */ /* 16K */
-				/* #define MAX_RECVBUF_SZ (10240) */ /* 10K */
-				#define MAX_RECVBUF_SZ (15360) /* 15k < 16k */
-				/* #define MAX_RECVBUF_SZ (8192+1024) */ /* 8K+1k */
-			#else
-				#define MAX_RECVBUF_SZ (4000) /* about 4K */
-			#endif
+			#define MAX_RECVBUF_SZ (4000) /* about 4K */
 		#endif
 	#endif /* !MAX_RECVBUF_SZ */
 

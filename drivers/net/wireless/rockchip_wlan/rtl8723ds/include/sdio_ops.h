@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -25,25 +26,6 @@
 #include <sdio_ops_linux.h>
 #endif
 
-#ifdef PLATFORM_WINDOWS
-
-#ifdef PLATFORM_OS_XP
-#include <sdio_ops_xp.h>
-struct async_context {
-	PMDL pmdl;
-	PSDBUS_REQUEST_PACKET sdrp;
-	unsigned char *r_buf;
-	unsigned char *padapter;
-};
-#endif
-
-#ifdef PLATFORM_OS_CE
-#include <sdio_ops_ce.h>
-#endif
-
-#endif /* PLATFORM_WINDOWS */
-
-
 extern void sdio_set_intf_ops(_adapter *padapter, struct _io_ops *pops);
 void dump_sdio_card_info(void *sel, struct dvobj_priv *dvobj);
 
@@ -51,6 +33,7 @@ u32 sdio_init(struct dvobj_priv *dvobj);
 void sdio_deinit(struct dvobj_priv *dvobj);
 int sdio_alloc_irq(struct dvobj_priv *dvobj);
 void sdio_free_irq(struct dvobj_priv *dvobj);
+u8 sdio_get_num_of_func(struct dvobj_priv *dvobj);
 
 #if 0
 extern void sdio_func1cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
@@ -91,7 +74,7 @@ void ClearInterrupt8821AS(PADAPTER padapter);
 #endif /* CONFIG_RTL8821A */
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B)
+#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C)
 u8 rtw_hal_enable_cpwm2(_adapter *adapter);
 #endif
 extern u8 RecvOnePkt(PADAPTER padapter);
@@ -146,6 +129,20 @@ extern void ClearInterrupt8723DSdio(PADAPTER padapter);
 #endif /* CONFIG_WOWLAN */
 #endif
 
+#ifdef CONFIG_RTL8192F
+extern void InitInterrupt8192FSdio(PADAPTER padapter);
+extern void InitSysInterrupt8192FSdio(PADAPTER padapter);
+extern void EnableInterrupt8192FSdio(PADAPTER padapter);
+extern void DisableInterrupt8192FSdio(PADAPTER padapter);
+extern void UpdateInterruptMask8192FSdio(PADAPTER padapter, u32 AddMSR, u32 RemoveMSR);
+extern u8 HalQueryTxBufferStatus8192FSdio(PADAPTER padapter);
+extern u8 HalQueryTxOQTBufferStatus8192FSdio(PADAPTER padapter);
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+extern void DisableInterruptButCpwm2192fSdio(PADAPTER padapter);
+extern void ClearInterrupt8192FSdio(PADAPTER padapter);
+#endif /* CONFIG_WOWLAN */
+#endif
+
 #ifdef CONFIG_RTL8188F
 extern void InitInterrupt8188FSdio(PADAPTER padapter);
 extern void InitSysInterrupt8188FSdio(PADAPTER padapter);
@@ -158,5 +155,53 @@ extern void DisableInterruptButCpwm28188FSdio(PADAPTER padapter);
 extern void ClearInterrupt8188FSdio(PADAPTER padapter);
 #endif /* defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN) */
 #endif
+
+#ifdef CONFIG_RTL8188GTV
+extern void InitInterrupt8188GTVSdio(PADAPTER padapter);
+extern void InitSysInterrupt8188GTVSdio(PADAPTER padapter);
+extern void EnableInterrupt8188GTVSdio(PADAPTER padapter);
+extern void DisableInterrupt8188GTVSdio(PADAPTER padapter);
+extern u8 HalQueryTxBufferStatus8188GTVSdio(PADAPTER padapter);
+extern u8 HalQueryTxOQTBufferStatus8188GTVSdio(PADAPTER padapter);
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+extern void DisableInterruptButCpwm28188GTVSdio(PADAPTER padapter);
+extern void ClearInterrupt8188GTVSdio(PADAPTER padapter);
+#endif /* defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN) */
+#endif
+
+/**
+ * rtw_sdio_get_block_size() - Get block size of SDIO transfer
+ * @d		struct dvobj_priv*
+ *
+ * The unit of return value is byte.
+ */
+static inline u32 rtw_sdio_get_block_size(struct dvobj_priv *d)
+{
+	return d->intf_data.block_transfer_len;
+}
+
+/**
+ * rtw_sdio_cmd53_align_size() - Align size to one CMD53 could complete
+ * @d		struct dvobj_priv*
+ * @len		length to align
+ *
+ * Adjust len to align block size, and the new size could be transfered by one
+ * CMD53.
+ * If len < block size, it would keep original value, otherwise the value
+ * would be rounded up by block size.
+ *
+ * Return adjusted length.
+ */
+static inline size_t rtw_sdio_cmd53_align_size(struct dvobj_priv *d, size_t len)
+{
+	u32 blk_sz;
+
+
+	blk_sz = rtw_sdio_get_block_size(d);
+	if (len <= blk_sz)
+		return len;
+
+	return _RND(len, blk_sz);
+}
 
 #endif /* !__SDIO_OPS_H__ */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -184,13 +185,14 @@
 	#define SET_TX_DESC_ANTSEL_D_8703B(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 25, 3, __Value)
 
 	/* Dword 7 */
-	#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+	#ifdef CONFIG_PCI_HCI
 		#define SET_TX_DESC_TX_BUFFER_SIZE_8703B(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-	#else
+	#endif /*CONFIG_PCI_HCI*/
+	#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_USB_HCI)
 		#define SET_TX_DESC_TX_DESC_CHECKSUM_8703B(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
 	#endif
 	#define SET_TX_DESC_USB_TXAGG_NUM_8703B(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 24, 8, __Value)
-	#if (DEV_BUS_TYPE == RT_SDIO_INTERFACE)
+	#ifdef CONFIG_SDIO_HCI
 		#define SET_TX_DESC_SDIO_TXSEQ_8703B(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 16, 8, __Value)
 	#endif
 
@@ -285,9 +287,7 @@
 
 void rtl8703b_update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem);
 void rtl8703b_fill_fake_txdesc(PADAPTER padapter, u8 *pDesc, u32 BufferLen, u8 IsPsPoll, u8 IsBTQosNull, u8 bDataFrame);
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)

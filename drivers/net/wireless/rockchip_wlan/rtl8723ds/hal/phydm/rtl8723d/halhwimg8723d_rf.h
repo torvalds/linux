@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -24,19 +25,17 @@
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_radioa(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
-u32	odm_get_version_mp_8723d_radioa(void);
+odm_read_and_config_mp_8723d_radioa( /* tc: Test Chip, mp: mp Chip*/
+				    struct dm_struct *dm);
+u32 odm_get_version_mp_8723d_radioa(void);
 
 /******************************************************************************
 *                           txpowertrack_pcie.TXT
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_txpowertrack_pcie(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_txpowertrack_pcie( /* tc: Test Chip, mp: mp Chip*/
+					       struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_txpowertrack_pcie(void);
 
 /******************************************************************************
@@ -44,9 +43,8 @@ u32	odm_get_version_mp_8723d_txpowertrack_pcie(void);
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_txpowertrack_sdio(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_txpowertrack_sdio( /* tc: Test Chip, mp: mp Chip*/
+					       struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_txpowertrack_sdio(void);
 
 /******************************************************************************
@@ -54,9 +52,8 @@ u32	odm_get_version_mp_8723d_txpowertrack_sdio(void);
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_txpowertrack_usb(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_txpowertrack_usb( /* tc: Test Chip, mp: mp Chip*/
+					      struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_txpowertrack_usb(void);
 
 /******************************************************************************
@@ -64,9 +61,8 @@ u32	odm_get_version_mp_8723d_txpowertrack_usb(void);
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_txpwr_lmt(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_txpwr_lmt( /* tc: Test Chip, mp: mp Chip*/
+				       struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_txpwr_lmt(void);
 
 /******************************************************************************
@@ -74,9 +70,8 @@ u32	odm_get_version_mp_8723d_txpwr_lmt(void);
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_txxtaltrack(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_txxtaltrack( /* tc: Test Chip, mp: mp Chip*/
+					 struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_txxtaltrack(void);
 
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -44,9 +45,9 @@ struct pkt_file {
 #define ETH_ALEN	6
 
 extern NDIS_STATUS rtw_xmit_entry(
-	IN _nic_hdl		cnxt,
-	IN NDIS_PACKET		*pkt,
-	IN UINT				flags
+	_nic_hdl		cnxt,
+	NDIS_PACKET		*pkt,
+	u32				flags
 );
 
 #endif /* PLATFORM_WINDOWS */
@@ -87,6 +88,8 @@ extern sint rtw_endofpktfile(struct pkt_file *pfile);
 extern void rtw_os_pkt_complete(_adapter *padapter, _pkt *pkt);
 extern void rtw_os_xmit_complete(_adapter *padapter, struct xmit_frame *pxframe);
 
+void rtw_os_check_wakup_queue(_adapter *adapter, u16 os_qid);
+bool rtw_os_check_stop_queue(_adapter *adapter, u16 os_qid);
 void rtw_os_wake_queue_at_free_stainfo(_adapter *padapter, int *qcnt_freed);
 
 void dump_os_queue(void *sel, _adapter *padapter);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -47,10 +48,10 @@ typedef enum _RT_USB_WVALUE {
 
 
 #if 0
-BOOLEAN usbvendorrequest(PCE_USB_DEVICE	CEdevice, RT_USB_BREQUEST bRequest, RT_USB_WVALUE wValue, UCHAR wIndex, PVOID Data, UCHAR DataLength, BOOLEAN isDirectionIn);
-BOOLEAN CEusbGetStatusRequest(PCE_USB_DEVICE CEdevice, IN USHORT Op, IN USHORT Index, PVOID Data);
-BOOLEAN CEusbFeatureRequest(PCE_USB_DEVICE CEdevice, IN USHORT Op, IN USHORT FeatureSelector, IN USHORT Index);
-BOOLEAN CEusbGetDescriptorRequest(PCE_USB_DEVICE CEdevice, IN short urbLength, IN UCHAR DescriptorType, IN UCHAR Index, IN USHORT LanguageId, IN PVOID  TransferBuffer, IN ULONG TransferBufferLength);
+BOOLEAN usbvendorrequest(PCE_USB_DEVICE	CEdevice, RT_USB_BREQUEST bRequest, RT_USB_WVALUE wValue, u8 wIndex, void *Data, u8 DataLength, BOOLEAN isDirectionIn);
+BOOLEAN CEusbGetStatusRequest(PCE_USB_DEVICE CEdevice, u16 Op, u16 Index, void *Data);
+BOOLEAN CEusbFeatureRequest(PCE_USB_DEVICE CEdevice, u16 Op, u16 FeatureSelector, u16 Index);
+BOOLEAN CEusbGetDescriptorRequest(PCE_USB_DEVICE CEdevice, short urbLength, u8 DescriptorType, u8 Index, u16 LanguageId, void *TransferBuffer, u32 TransferBufferLength);
 #endif
 
 #endif

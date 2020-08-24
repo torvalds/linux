@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
@@ -326,6 +327,9 @@ int rtw_rson_isupdate_roamcan(struct mlme_priv *mlme
 		|| (rson_comp.id != CONFIG_RTW_REPEATER_SON_ID))
 		return _FALSE;
 
+	if (is_match_bssid(competitor->network.MacAddress, rtw_rson_block_bssid, rtw_rson_block_bssid_idx) == _TRUE)
+		return _FALSE;
+
 	if ((!mlme->cur_network_scanned)
 		|| (mlme->cur_network_scanned == competitor)
 		|| (rtw_get_rson_struct(&(mlme->cur_network_scanned->network), &rson_curr)) != _TRUE)
@@ -494,7 +498,7 @@ u8 rtw_rson_scan_wk_cmd(_adapter *padapter, int op)
 	pdrvextra_cmd_parm->size = 0;
 	pdrvextra_cmd_parm->pbuf = NULL;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -510,7 +514,7 @@ void rtw_rson_scan_cmd_hdl(_adapter *padapter, int op)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u8 val8;
 
-	if (mlmeext_chk_scan_state(pmlmeext, SCAN_DISABLE) != _FALSE)
+	if (mlmeext_chk_scan_state(pmlmeext, SCAN_DISABLE) != _TRUE)
 		return;
 	if (op == RSON_SCAN_PROCESS) {
 		padapter->rtw_rson_scanstage = RSON_SCAN_PROCESS;
@@ -532,39 +536,32 @@ void rtw_rson_scan_cmd_hdl(_adapter *padapter, int op)
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) != _TRUE) {
 				int s_ret;
 
-				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
+				set_fwstate(pmlmepriv, WIFI_UNDER_LINKING);
 				pmlmepriv->to_join = _FALSE;
 				s_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
 				if (s_ret == _SUCCESS)
 					_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
 				else if (s_ret == 2) {
-					_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+					_clr_fwstate_(pmlmepriv, WIFI_UNDER_LINKING);
 					rtw_indicate_connect(padapter);
 				} else {
 					RTW_INFO("try_to_join, but select scanning queue fail, to_roam:%d\n", rtw_to_roam(padapter));
 					if (rtw_to_roam(padapter) != 0) {
 						if (rtw_dec_to_roam(padapter) == 0) {
 							rtw_set_to_roam(padapter, 0);
-#ifdef CONFIG_INTEL_WIDI
-							if (padapter->mlmepriv.widi_state == INTEL_WIDI_STATE_ROAMING) {
-								_rtw_memset(pmlmepriv->sa_ext, 0x00, L2SDTA_SERVICE_VE_LEN);
-								intel_widi_wk_cmd(padapter, INTEL_WIDI_LISTEN_WK, NULL, 0);
-								RTW_INFO("change to widi listen\n");
-							}
-#endif /* CONFIG_INTEL_WIDI */
-							rtw_free_assoc_resources(padapter, 1);
+							rtw_free_assoc_resources(padapter, _TRUE);
 							rtw_indicate_disconnect(padapter, 0, _FALSE);
 						} else
 							pmlmepriv->to_join = _TRUE;
 					} else
 						rtw_indicate_disconnect(padapter, 0, _FALSE);
-					_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+					_clr_fwstate_(pmlmepriv, WIFI_UNDER_LINKING);
 				}
 			}
 		} else {
 			if (rtw_chk_roam_flags(padapter, RTW_ROAM_ACTIVE)) {
 				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
-				    && check_fwstate(pmlmepriv, _FW_LINKED)) {
+				    && check_fwstate(pmlmepriv, WIFI_ASOC_STATE)) {
 					if (rtw_select_roaming_candidate(pmlmepriv) == _SUCCESS) {
 #ifdef CONFIG_RTW_80211R
 						if (rtw_chk_ft_flags(padapter, RTW_FT_OVER_DS_SUPPORTED)) {

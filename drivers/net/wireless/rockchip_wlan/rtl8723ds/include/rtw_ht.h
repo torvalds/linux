@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,6 +16,8 @@
 #ifndef _RTW_HT_H_
 #define _RTW_HT_H_
 
+#define HT_CAP_IE_LEN 26
+#define HT_OP_IE_LEN 22
 
 struct ht_priv {
 	u8	ht_option;
@@ -42,9 +45,27 @@ struct ht_priv {
 	u8	beamform_cap;
 	u8	smps_cap; /*spatial multiplexing power save mode. 0:static SMPS, 1:dynamic SMPS, 3:SMPS disabled, 2:reserved*/
 
+	u8 op_present:1; /* ht_op is present */
+
 	struct rtw_ieee80211_ht_cap ht_cap;
+	u8 ht_op[HT_OP_IE_LEN];
 
 };
+
+#ifdef ROKU_PRIVATE
+struct ht_priv_infra_ap {
+
+	/*Infra mode, only store AP's info , not intersection of STA and AP*/
+	u8	channel_width_infra_ap;
+	u8	sgi_20m_infra_ap;
+	u8	sgi_40m_infra_ap;
+	u8	ldpc_cap_infra_ap;
+	u8	stbc_cap_infra_ap;
+	u8	MCS_set_infra_ap[16];
+	u8	Rx_ss_infra_ap;
+	u16	rx_highest_data_rate_infra_ap;
+};
+#endif /* ROKU_PRIVATE */
 
 typedef enum AGGRE_SIZE {
 	HT_AGG_SIZE_8K = 0,
@@ -56,23 +77,6 @@ typedef enum AGGRE_SIZE {
 	VHT_AGG_SIZE_512K = 6,
 	VHT_AGG_SIZE_1024K = 7,
 } AGGRE_SIZE_E, *PAGGRE_SIZE_E;
-
-typedef enum _RT_HT_INF0_CAP {
-	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
-	RT_HT_CAP_USE_LONG_PREAMBLE = 0x02,
-	RT_HT_CAP_USE_AMPDU = 0x04,
-	RT_HT_CAP_USE_WOW = 0x8,
-	RT_HT_CAP_USE_SOFTAP = 0x10,
-	RT_HT_CAP_USE_92SE = 0x20,
-	RT_HT_CAP_USE_88C_92C = 0x40,
-	RT_HT_CAP_USE_AP_CLIENT_MODE = 0x80,	/* AP team request to reserve this bit, by Emily */
-} RT_HT_INF0_CAPBILITY, *PRT_HT_INF0_CAPBILITY;
-
-typedef enum _RT_HT_INF1_CAP {
-	RT_HT_CAP_USE_VIDEO_CLIENT = 0x01,
-	RT_HT_CAP_USE_JAGUAR_BCUT = 0x02,
-	RT_HT_CAP_USE_JAGUAR_CCUT = 0x04,
-} RT_HT_INF1_CAPBILITY, *PRT_HT_INF1_CAPBILITY;
 
 #define	LDPC_HT_ENABLE_RX			BIT0
 #define	LDPC_HT_ENABLE_TX			BIT1
@@ -138,6 +142,9 @@ typedef enum _RT_HT_INF1_CAP {
 	, (1 << (13+GET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(((u8 *)x)-2)))-1 \
 	, GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(((u8 *)x)-2)
 
+#define SET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 2, 0, 2, _val)
+#define SET_HT_CAP_ELE_MIN_MPDU_S_SPACE(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 2, 2, 3, _val)
+
 /* Supported MCS Set field */
 #define HT_CAP_ELE_SUP_MCS_SET(_pEleStart)				(((u8 *)(_pEleStart))+3)
 #define HT_CAP_ELE_RX_MCS_MAP(_pEleStart)				HT_CAP_ELE_SUP_MCS_SET(_pEleStart)
@@ -147,11 +154,14 @@ typedef enum _RT_HT_INF1_CAP {
 #define GET_HT_CAP_ELE_TX_MAX_SS(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 2, 2)
 #define GET_HT_CAP_ELE_TX_UEQM(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 4, 1)
 
-#define HT_SUP_MCS_SET_FMT "%02x %02x %02x %02x %02x%02x%02x%02x%02x%02x" \
+#define HT_RX_MCS_BMP_FMT "%02x %02x %02x %02x %02x%02x%02x%02x%02x%02x"
+#define HT_RX_MCS_BMP_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5], \
+	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9]
+
+#define HT_SUP_MCS_SET_FMT HT_RX_MCS_BMP_FMT \
 	/* "\n%02x%02x%02x%02x%02x%02x" */\
 	" %uMbps %s%s%s"
-#define HT_SUP_MCS_SET_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5], \
-	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9] \
+#define HT_SUP_MCS_SET_ARG(x) HT_RX_MCS_BMP_ARG(x) \
 	/*,((u8 *)(x))[10], ((u8 *)(x))[11], ((u8 *)(x))[12], ((u8 *)(x))[13], ((u8 *)(x))[14], ((u8 *)(x))[15] */\
 	, GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(((u8 *)x)-3) \
 	, GET_HT_CAP_ELE_TX_MCS_DEF(((u8 *)x)-3) ? "TX_MCS_DEF " : "" \

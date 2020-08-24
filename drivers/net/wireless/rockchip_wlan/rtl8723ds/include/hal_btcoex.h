@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -67,6 +68,9 @@ u8 hal_btcoex_IsLpsOn(PADAPTER);
 u8 hal_btcoex_RpwmVal(PADAPTER);
 u8 hal_btcoex_LpsVal(PADAPTER);
 u32 hal_btcoex_GetRaMask(PADAPTER);
+u8 hal_btcoex_query_reduced_wl_pwr_lvl(PADAPTER padapter);
+void hal_btcoex_set_reduced_wl_pwr_lvl(PADAPTER padapter, u8 val);
+void hal_btcoex_do_reduce_wl_pwr_lvl(PADAPTER padapter);
 void hal_btcoex_RecordPwrMode(PADAPTER padapter, u8 *pCmdBuf, u8 cmdLen);
 void hal_btcoex_DisplayBtCoexInfo(PADAPTER, u8 *pbuf, u32 bufsize);
 void hal_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
@@ -80,7 +84,7 @@ void hal_btcoex_StackUpdateProfileInfo(void);
 void hal_btcoex_pta_off_on_notify(PADAPTER padapter, u8 bBTON);
 void hal_btcoex_SetAntIsolationType(PADAPTER padapter, u8 anttype);
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-	int hal_btcoex_AntIsolationConfig_ParaFile(IN PADAPTER	Adapter, IN char *pFileName);
+	int hal_btcoex_AntIsolationConfig_ParaFile(PADAPTER	Adapter, char *pFileName);
 	int hal_btcoex_ParseAntIsolationConfigFile(PADAPTER Adapter, char	*buffer);
 #endif /* CONFIG_LOAD_PHY_PARA_FROM_FILE */
 u16 hal_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data);
@@ -89,9 +93,15 @@ void hal_btcoex_set_rfe_type(u8 type);
 void hal_btcoex_switchband_notify(u8 under_scan, u8 band_type);
 void hal_btcoex_WlFwDbgInfoNotify(PADAPTER padapter, u8* tmpBuf, u8 length);
 void hal_btcoex_rx_rate_change_notify(PADAPTER padapter, u8 is_data_frame, u8 rate_id);
+u16 hal_btcoex_btset_testode(PADAPTER padapter, u8 type);
 
 #ifdef CONFIG_RF4CE_COEXIST
 void hal_btcoex_set_rf4ce_link_state(u8 state);
 u8 hal_btcoex_get_rf4ce_link_state(void);
 #endif
+
+#ifdef CONFIG_SDIO_HCI
+#include <hal_sdio_coex.h>	/* sdio multi coex */
+#endif
+
 #endif /* !__HAL_BTCOEX_H__ */

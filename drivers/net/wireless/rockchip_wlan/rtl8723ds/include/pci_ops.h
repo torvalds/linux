@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -25,6 +26,7 @@
 	void	rtl8188ee_recv_tasklet(void *priv);
 	void	rtl8188ee_prepare_bcn_tasklet(void *priv);
 	void	rtl8188ee_set_intf_ops(struct _io_ops	*pops);
+	void	rtw8188ee_unmap_beacon_icf(_adapter *padapter);
 #endif
 
 #if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
@@ -36,6 +38,7 @@
 	void	rtl8812ae_recv_tasklet(void *priv);
 	void	rtl8812ae_prepare_bcn_tasklet(void *priv);
 	void	rtl8812ae_set_intf_ops(struct _io_ops	*pops);
+	void	rtw8812ae_unmap_beacon_icf(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_RTL8192E
@@ -46,6 +49,19 @@
 	void	rtl8192ee_prepare_bcn_tasklet(void *priv);
 	int	rtl8192ee_interrupt(PADAPTER Adapter);
 	void	rtl8192ee_set_intf_ops(struct _io_ops	*pops);
+	void	rtw8192ee_unmap_beacon_icf(_adapter *padapter);
+#endif
+
+#ifdef CONFIG_RTL8192F
+	u32	rtl8192fe_init_desc_ring(_adapter *padapter);
+	u32	rtl8192fe_free_desc_ring(_adapter *padapter);
+	void	rtl8192fe_reset_desc_ring(_adapter *padapter);
+	int	rtl8192fe_interrupt(PADAPTER Adapter);
+	void	rtl8192fe_recv_tasklet(void *priv);
+	void	rtl8192fe_prepare_bcn_tasklet(void *priv);
+	void	rtl8192fe_set_intf_ops(struct _io_ops	*pops);
+	u8 check_tx_desc_resource(_adapter *padapter, int prio);
+	void	rtl8192fe_unmap_beacon_icf(PADAPTER Adapter);
 #endif
 
 #ifdef CONFIG_RTL8723B
@@ -56,6 +72,7 @@
 	void	rtl8723be_recv_tasklet(void *priv);
 	void	rtl8723be_prepare_bcn_tasklet(void *priv);
 	void	rtl8723be_set_intf_ops(struct _io_ops	*pops);
+	void	rtl8723be_unmap_beacon_icf(PADAPTER Adapter);
 #endif
 
 #ifdef CONFIG_RTL8723D
@@ -67,6 +84,7 @@
 	void	rtl8723de_prepare_bcn_tasklet(void *priv);
 	void	rtl8723de_set_intf_ops(struct _io_ops	*pops);
 	u8 check_tx_desc_resource(_adapter *padapter, int prio);
+	void 	rtl8723de_unmap_beacon_icf(PADAPTER Adapter);
 #endif
 
 #ifdef CONFIG_RTL8814A
@@ -78,6 +96,7 @@
 	void	rtl8814ae_recv_tasklet(void *priv);
 	void	rtl8814ae_prepare_bcn_tasklet(void *priv);
 	void	rtl8814ae_set_intf_ops(struct _io_ops	*pops);
+	void	rtl8814ae_unmap_beacon_icf(PADAPTER Adapter);
 #endif
 
 #ifdef CONFIG_RTL8822B
@@ -88,4 +107,11 @@
 	void rtl8821ce_set_intf_ops(struct _io_ops *pops);
 #endif
 
+#ifdef CONFIG_RTL8822C
+	void rtl8822ce_set_intf_ops(struct _io_ops *pops);
+#endif
+
+#ifdef CONFIG_RTL8814B
+	void rtl8814be_set_intf_ops(struct _io_ops *pops);
+#endif
 #endif

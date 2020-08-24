@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2017 Realtek Corporation.
@@ -34,22 +35,18 @@
 
 	/* recv_buffer must be large than usb agg size */
 	#ifndef MAX_RECVBUF_SZ
-		#ifdef PLATFORM_OS_CE
-			#define MAX_RECVBUF_SZ (8192+1024)
-		#else /* !PLATFORM_OS_CE */
-			#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-				#ifdef CONFIG_PLATFORM_NOVATEK_NT72668
+		#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+			#ifdef CONFIG_PLATFORM_NOVATEK_NT72668
 				#define MAX_RECVBUF_SZ (15360) /* 15k */
 				#elif defined(CONFIG_PLATFORM_HISILICON)
 				/* use 16k to workaround for HISILICON platform */
 				#define MAX_RECVBUF_SZ (16384)
-				#else
-				#define MAX_RECVBUF_SZ (32768)
-				#endif
 			#else
-				#define MAX_RECVBUF_SZ (4000)
+				#define MAX_RECVBUF_SZ (32768)
 			#endif
-		#endif /* PLATFORM_OS_CE */
+		#else
+			#define MAX_RECVBUF_SZ (4000)
+		#endif
 	#endif /* !MAX_RECVBUF_SZ */
 
 	/* rtl8822bu_ops.c */

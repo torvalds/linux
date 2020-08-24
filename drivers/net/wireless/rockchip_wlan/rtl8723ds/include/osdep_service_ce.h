@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -40,7 +41,7 @@ typedef u32	_irqL;
 
 typedef NDIS_HANDLE  _nic_hdl;
 
-struct timer_list {
+struct rtw_timer_list {
 	NDIS_MINIPORT_TIMER ndis_timer;
 	void (*function)(void *);
 	void *arg;

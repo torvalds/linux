@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -208,6 +209,7 @@ struct beamforming_info {
 	u32 beamformee_mu_reg_maping;
 	u8 first_mu_bfee_index;
 	u8 mu_bfer_curidx;
+	u8 cur_csi_rpt_rate;
 
 	struct sounding_info sounding_info;
 	/* schedule regular timer for sounding */
@@ -257,112 +259,23 @@ void rtw_bf_update_traffic(PADAPTER);
 #define beamforming_wk_cmd				rtw_bf_cmd
 #define update_attrib_txbf_info				rtw_bf_update_attrib
 
+#define HT_BF_CAP(adapter) ((adapter)->mlmepriv.htpriv.beamform_cap)
+#define VHT_BF_CAP(adapter) ((adapter)->mlmepriv.vhtpriv.beamform_cap)
+
+#define IS_HT_BEAMFORMEE(adapter) \
+		(HT_BF_CAP(adapter) & \
+		(BEAMFORMING_HT_BEAMFORMEE_ENABLE))
+
+#define IS_VHT_BEAMFORMEE(adapter) \
+		(VHT_BF_CAP(adapter) & \
+		(BEAMFORMING_VHT_BEAMFORMEE_ENABLE | \
+		 BEAMFORMING_VHT_MU_MIMO_STA_ENABLE))
+
+#define IS_BEAMFORMEE(adapter) (IS_HT_BEAMFORMEE(adapter) | \
+				IS_VHT_BEAMFORMEE(adapter))
+
 #else /* !RTW_BEAMFORMING_VERSION_2 */
-
-#if (BEAMFORMING_SUPPORT == 0) /*for diver defined beamforming*/
-#define BEAMFORMING_ENTRY_NUM		2
-#define GET_BEAMFORM_INFO(_pmlmepriv)	((struct beamforming_info *)(&(_pmlmepriv)->beamforming_info))
-
-
-typedef enum _BEAMFORMING_ENTRY_STATE {
-	BEAMFORMING_ENTRY_STATE_UNINITIALIZE,
-	BEAMFORMING_ENTRY_STATE_INITIALIZEING,
-	BEAMFORMING_ENTRY_STATE_INITIALIZED,
-	BEAMFORMING_ENTRY_STATE_PROGRESSING,
-	BEAMFORMING_ENTRY_STATE_PROGRESSED,
-} BEAMFORMING_ENTRY_STATE, *PBEAMFORMING_ENTRY_STATE;
-
-
-typedef enum _BEAMFORMING_STATE {
-	BEAMFORMING_STATE_IDLE,
-	BEAMFORMING_STATE_START,
-	BEAMFORMING_STATE_END,
-} BEAMFORMING_STATE, *PBEAMFORMING_STATE;
-
-
-typedef enum _BEAMFORMING_CAP {
-	BEAMFORMING_CAP_NONE = 0x0,
-	BEAMFORMER_CAP_HT_EXPLICIT = 0x1,
-	BEAMFORMEE_CAP_HT_EXPLICIT = 0x2,
-	BEAMFORMER_CAP_VHT_SU = 0x4,			/* Self has er Cap, because Reg er  & peer ee */
-	BEAMFORMEE_CAP_VHT_SU = 0x8, 			/* Self has ee Cap, because Reg ee & peer er */
-	BEAMFORMER_CAP = 0x10,
-	BEAMFORMEE_CAP = 0x20,
-} BEAMFORMING_CAP, *PBEAMFORMING_CAP;
-
-
-typedef enum _SOUNDING_MODE {
-	SOUNDING_SW_VHT_TIMER = 0x0,
-	SOUNDING_SW_HT_TIMER = 0x1,
-	SOUNDING_STOP_All_TIMER = 0x2,
-	SOUNDING_HW_VHT_TIMER = 0x3,
-	SOUNDING_HW_HT_TIMER = 0x4,
-	SOUNDING_STOP_OID_TIMER = 0x5,
-	SOUNDING_AUTO_VHT_TIMER = 0x6,
-	SOUNDING_AUTO_HT_TIMER = 0x7,
-	SOUNDING_FW_VHT_TIMER = 0x8,
-	SOUNDING_FW_HT_TIMER = 0x9,
-} SOUNDING_MODE, *PSOUNDING_MODE;
-
-struct beamforming_entry {
-	BOOLEAN	bUsed;
-	BOOLEAN	bSound;
-	u16	aid;			/* Used to construct AID field of NDPA packet. */
-	u16	mac_id;		/* Used to Set Reg42C in IBSS mode. */
-	u16	p_aid;		/* Used to fill Reg42C & Reg714 to compare with P_AID of Tx DESC. */
-	u16 g_id;
-	u8	mac_addr[6];/* Used to fill Reg6E4 to fill Mac address of CSI report frame. */
-	enum channel_width	sound_bw;	/* Sounding BandWidth */
-	u16	sound_period;
-	BEAMFORMING_CAP	beamforming_entry_cap;
-	BEAMFORMING_ENTRY_STATE	beamforming_entry_state;
-	u8				ClockResetTimes;			/*Modified by Jeffery @2015-04-10*/
-	u8				PreLogSeq;				/*Modified by Jeffery @2015-03-30*/
-	u8				LogSeq;					/*Modified by Jeffery @2014-10-29*/
-	u16				LogRetryCnt:3;			/*Modified by Jeffery @2014-10-29*/
-	u16				LogSuccess:2;			/*Modified by Jeffery @2014-10-29*/
-
-	u8	LogStatusFailCnt;
-	u8	PreCsiReport[327];
-	u8	DefaultCsiCnt;
-	BOOLEAN	bDefaultCSI;
-};
-
-struct sounding_info {
-	u8				sound_idx;
-	enum channel_width	sound_bw;
-	SOUNDING_MODE	sound_mode;
-	u16				sound_period;
-};
-
-struct beamforming_info {
-	BEAMFORMING_CAP		beamforming_cap;
-	BEAMFORMING_STATE		beamforming_state;
-	struct beamforming_entry	beamforming_entry[BEAMFORMING_ENTRY_NUM];
-	u8						beamforming_cur_idx;
-	u8						beamforming_in_progress;
-	u8						sounding_sequence;
-	struct sounding_info		sounding_info;
-};
-
-struct rtw_ndpa_sta_info {
-	u16	aid:12;
-	u16	feedback_type:1;
-	u16	nc_index:3;
-};
-
-BEAMFORMING_CAP beamforming_get_entry_beam_cap_by_mac_id(PVOID pmlmepriv , u8 mac_id);
-void	beamforming_notify(PADAPTER adapter);
-BEAMFORMING_CAP beamforming_get_beamform_cap(struct beamforming_info	*pBeamInfo);
-
-BOOLEAN	beamforming_send_ht_ndpa_packet(PADAPTER Adapter, u8 *ra, enum channel_width bw, u8 qidx);
-BOOLEAN	beamforming_send_vht_ndpa_packet(PADAPTER Adapter, u8 *ra, u16 aid, enum channel_width bw, u8 qidx);
-
-void	beamforming_check_sounding_success(PADAPTER Adapter, BOOLEAN status);
-
-void	beamforming_watchdog(PADAPTER Adapter);
-#endif /*#if (BEAMFORMING_SUPPORT ==0)- for diver defined beamforming*/
-
+/*PHYDM_BF - (BEAMFORMING_SUPPORT == 1)*/
 enum BEAMFORMING_CTRL_TYPE {
 	BEAMFORMING_CTRL_ENTER = 0,
 	BEAMFORMING_CTRL_LEAVE = 1,

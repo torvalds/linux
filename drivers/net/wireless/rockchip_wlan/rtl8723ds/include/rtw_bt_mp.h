@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -37,16 +38,16 @@ typedef enum _MP_BT_MODE {
 
 /* definition for BT_UP_OP_BT_SET_TX_RX_PARAMETER */
 typedef struct _BT_TXRX_PARAMETERS {
-	u1Byte		txrxChannel;
-	u4Byte		txrxTxPktCnt;
-	u1Byte		txrxTxPktInterval;
-	u1Byte		txrxPayloadType;
-	u1Byte		txrxPktType;
-	u2Byte		txrxPayloadLen;
-	u4Byte		txrxPktHeader;
-	u1Byte		txrxWhitenCoeff;
-	u1Byte		txrxBdaddr[6];
-	u1Byte		txrxTxGainIndex;
+	u8		txrxChannel;
+	u32		txrxTxPktCnt;
+	u8		txrxTxPktInterval;
+	u8		txrxPayloadType;
+	u8		txrxPktType;
+	u16		txrxPayloadLen;
+	u32		txrxPktHeader;
+	u8		txrxWhitenCoeff;
+	u8		txrxBdaddr[6];
+	u8		txrxTxGainIndex;
 } BT_TXRX_PARAMETERS, *PBT_TXRX_PARAMETERS;
 
 /* txrxPktType */
@@ -160,71 +161,71 @@ typedef enum _BT_REPORT_TYPE {
 	BT_REPORT_MAX
 } BT_REPORT_TYPE, *PBT_REPORT_TYPE;
 
-VOID
+void
 MPTBT_Test(
-	IN	PADAPTER	Adapter,
-	IN	u1Byte		opCode,
-	IN	u1Byte		byte1,
-	IN	u1Byte		byte2,
-	IN	u1Byte		byte3
+		PADAPTER	Adapter,
+		u8		opCode,
+		u8		byte1,
+		u8		byte2,
+		u8		byte3
 );
 
-NDIS_STATUS
+uint
 MPTBT_SendOidBT(
-	IN	PADAPTER		pAdapter,
-	IN	PVOID			InformationBuffer,
-	IN	ULONG			InformationBufferLength,
-	OUT	PULONG			BytesRead,
-	OUT	PULONG			BytesNeeded
+		PADAPTER		pAdapter,
+		void				*InformationBuffer,
+		u32				InformationBufferLength,
+		u32 				*BytesRead,
+		u32 				*BytesNeeded
 );
 
-VOID
+void
 MPTBT_FwC2hBtMpCtrl(
 	PADAPTER	Adapter,
-	pu1Byte	tmpBuf,
-	u1Byte		length
+	u8 			*tmpBuf,
+	u8			length
 );
 
 void MPh2c_timeout_handle(void *FunctionContext);
 
-VOID mptbt_BtControlProcess(
+void mptbt_BtControlProcess(
 	PADAPTER	Adapter,
-	PVOID		pInBuf
+	void			*pInBuf
 );
 
 #define	BT_H2C_MAX_RETRY								1
 #define	BT_MAX_C2H_LEN								20
 
 typedef struct _BT_REQ_CMD {
-	UCHAR       opCodeVer;
-	UCHAR       OpCode;
-	USHORT      paraLength;
-	UCHAR       pParamStart[100];
+	u8       opCodeVer;
+	u8       OpCode;
+	u16      paraLength;
+	u8       pParamStart[100];
 } BT_REQ_CMD, *PBT_REQ_CMD;
 
 typedef struct _BT_RSP_CMD {
-	USHORT      status;
-	USHORT      paraLength;
-	UCHAR       pParamStart[100];
+	u16      status;
+	u16      paraLength;
+	u8       pParamStart[100];
 } BT_RSP_CMD, *PBT_RSP_CMD;
 
 
 typedef struct _BT_H2C {
-	u1Byte	opCodeVer:4;
-	u1Byte	reqNum:4;
-	u1Byte	opCode;
-	u1Byte	buf[100];
+	u8	opCodeVer:4;
+	u8	reqNum:4;
+	u8	opCode;
+	u8	buf[100];
 } BT_H2C, *PBT_H2C;
 
 
 
 typedef struct _BT_EXT_C2H {
-	u1Byte	extendId;
-	u1Byte	statusCode:4;
-	u1Byte	retLen:4;
-	u1Byte	opCodeVer:4;
-	u1Byte	reqNum:4;
-	u1Byte	buf[100];
+	u8	extendId;
+	u8	statusCode:4;
+	u8	retLen:4;
+	u8	opCodeVer:4;
+	u8	reqNum:4;
+	u8	buf[100];
 } BT_EXT_C2H, *PBT_EXT_C2H;
 
 

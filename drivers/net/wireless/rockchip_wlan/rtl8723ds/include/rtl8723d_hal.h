@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -111,18 +112,10 @@ typedef struct _RT_8723D_FIRMWARE_HDR {
 /* Note: We will divide number of page equally for each queue other than public queue! */
 
 /* For General Reserved Page Number(Beacon Queue is reserved page)
- * Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1 */
-#define BCNQ_PAGE_NUM_8723D		0x08
-#ifdef CONFIG_CONCURRENT_MODE
-	#define BCNQ1_PAGE_NUM_8723D		0x08 /* 0x04 */
-#else
-	#define BCNQ1_PAGE_NUM_8723D		0x00
-#endif
+ * Beacon:MAX_BEACON_LEN/PAGE_SIZE_TX_8723D
+ * PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1,CTS-2-SELF,LTE QoS Null*/
 
-#ifdef CONFIG_PNO_SUPPORT
-	#undef BCNQ1_PAGE_NUM_8723D
-	#define BCNQ1_PAGE_NUM_8723D		0x00 /* 0x04 */
-#endif
+#define BCNQ_PAGE_NUM_8723D		(MAX_BEACON_LEN/PAGE_SIZE_TX_8723D + 6) /*0x08*/
 
 /* For WoWLan , more reserved page
  * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt 1, PNO: 6
@@ -144,7 +137,7 @@ typedef struct _RT_8723D_FIRMWARE_HDR {
 #endif
 
 #define TX_TOTAL_PAGE_NUMBER_8723D\
-	(0xFF - BCNQ_PAGE_NUM_8723D - BCNQ1_PAGE_NUM_8723D - WOWLAN_PAGE_NUM_8723D)
+	(0xFF - BCNQ_PAGE_NUM_8723D - WOWLAN_PAGE_NUM_8723D)
 #define TX_PAGE_BOUNDARY_8723D		(TX_TOTAL_PAGE_NUMBER_8723D + 1)
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723D	TX_TOTAL_PAGE_NUMBER_8723D
@@ -240,8 +233,6 @@ void Hal_EfuseParseBTCoexistInfo_8723D(PADAPTER padapter,
 				       u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseEEPROMVer_8723D(PADAPTER padapter,
 				   u8 *hwinfo, BOOLEAN AutoLoadFail);
-void Hal_EfuseParsePackageType_8723D(PADAPTER pAdapter,
-				     u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseChnlPlan_8723D(PADAPTER padapter,
 				  u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseCustomerID_8723D(PADAPTER padapter,
@@ -252,9 +243,9 @@ void Hal_EfuseParseXtal_8723D(PADAPTER pAdapter,
 			      u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723D(PADAPTER padapter,
 				      u8 *hwinfo, u8 AutoLoadFail);
-VOID Hal_EfuseParseVoltage_8723D(PADAPTER pAdapter,
+void Hal_EfuseParseVoltage_8723D(PADAPTER pAdapter,
 				 u8 *hwinfo, BOOLEAN	AutoLoadFail);
-VOID Hal_EfuseParseBoardType_8723D(PADAPTER Adapter,
+void Hal_EfuseParseBoardType_8723D(PADAPTER Adapter,
 				   u8	*PROMContent, BOOLEAN AutoloadFail);
 
 void rtl8723d_set_hal_ops(struct hal_ops *pHalFunc);
@@ -267,8 +258,6 @@ u8 GetHalDefVar8723D(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 /* register */
 void rtl8723d_InitBeaconParameters(PADAPTER padapter);
 void rtl8723d_InitBeaconMaxError(PADAPTER padapter, u8 InfraMode);
-void _InitBurstPktLen_8723DS(PADAPTER Adapter);
-void _InitLTECoex_8723DS(PADAPTER Adapter);
 void _InitMacAPLLSetting_8723D(PADAPTER Adapter);
 void _8051Reset8723(PADAPTER padapter);
 #ifdef CONFIG_WOWLAN
@@ -289,7 +278,7 @@ void rtl8723d_stop_thread(_adapter *padapter);
 	void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
 #endif
 #ifdef CONFIG_MP_INCLUDED
-int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
+int FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 #endif
 void CCX_FwC2HTxRpt_8723d(PADAPTER padapter, u8 *pdata, u8 len);
 
@@ -308,7 +297,7 @@ void Hal_ReadRFGainOffset(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 
 #ifdef CONFIG_PCI_HCI
 	BOOLEAN	InterruptRecognized8723DE(PADAPTER Adapter);
-	VOID	UpdateInterruptMask8723DE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
+	void	UpdateInterruptMask8723DE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 	u16 get_txbd_rw_reg(u16 ff_hwaddr);
 #endif
 

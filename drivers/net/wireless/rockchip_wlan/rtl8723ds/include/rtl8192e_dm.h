@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2012 - 2017 Realtek Corporation.
@@ -16,13 +17,13 @@
 #define __RTL8192E_DM_H__
 
 
-void rtl8192e_init_dm_priv(IN PADAPTER Adapter);
-void rtl8192e_deinit_dm_priv(IN PADAPTER Adapter);
-void rtl8192e_InitHalDm(IN PADAPTER Adapter);
-void rtl8192e_HalDmWatchDog(IN PADAPTER Adapter);
+void rtl8192e_init_dm_priv(PADAPTER Adapter);
+void rtl8192e_deinit_dm_priv(PADAPTER Adapter);
+void rtl8192e_InitHalDm(PADAPTER Adapter);
+void rtl8192e_HalDmWatchDog(PADAPTER Adapter);
 
-/* VOID rtl8192c_dm_CheckTXPowerTracking(IN PADAPTER Adapter); */
+/* void rtl8192c_dm_CheckTXPowerTracking(PADAPTER Adapter); */
 
-/* void rtl8192c_dm_RF_Saving(IN PADAPTER pAdapter, IN u8 bForceInNormal); */
+/* void rtl8192c_dm_RF_Saving(PADAPTER pAdapter, u8 bForceInNormal); */
 
 #endif

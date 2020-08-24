@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -218,9 +219,10 @@ typedef struct txdescriptor_8814 {
 
 
 /* Dword 7 */
-#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+#ifdef CONFIG_PCI_HCI
 	#define SET_TX_DESC_TX_BUFFER_SIZE_8814A(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-#else
+#endif
+#if defined(CONFIG_SDIO_HCI)|| defined(CONFIG_USB_HCI)
 	#define SET_TX_DESC_TX_DESC_CHECKSUM_8814A(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
 #endif
 #define SET_TX_DESC_NTX_MAP_8814A(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 20, 4, __Value)
@@ -233,9 +235,10 @@ typedef struct txdescriptor_8814 {
 #define SET_TX_DESC_DATA_RC_8814A(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 8, 6, __Value)
 #define SET_TX_DESC_EN_HWEXSEQ_8814A(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 14, 1, __Value)
 #define SET_TX_DESC_HWSEQ_EN_8814A(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 15, 1, __Value)
-#if (DEV_BUS_TYPE != RT_SDIO_INTERFACE)
+#if defined(CONFIG_PCI_HCI)|| defined(CONFIG_USB_HCI)
 	#define SET_TX_DESC_NEXT_HEAD_PAGE_L_8814A(__pTxDesc, __Value)(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 16, 8, __Value)
-#else
+#endif
+#ifdef CONFIG_SDIO_HCI
 	#define SET_TX_DESC_SDIO_SEQ_8814A(__pTxDesc, __Value)(__pTxDesc, __Value) 			SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 16, 8, __Value) /* 20130415 KaiYuan add for 8814AS */
 #endif
 #define SET_TX_DESC_TAIL_PAGE_L_8814A(__pTxDesc, __Value)(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 24, 8, __Value)
@@ -262,9 +265,7 @@ void rtl8814a_fill_fake_txdesc(PADAPTER	padapter, u8 *pDesc, u32 BufferLen, u8 I
 void rtl8814a_fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8814a_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8814a_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #ifdef CONFIG_USB_HCI
@@ -295,14 +296,14 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void _dbg_dump_tx_info(_adapter	*padapter, int frame_tag, u8 *ptxdesc);
 u8
 SCMapping_8814(
-	IN	PADAPTER		Adapter,
-	IN	struct pkt_attrib	*pattrib
+		PADAPTER		Adapter,
+		struct pkt_attrib	*pattrib
 );
 
 u8
 BWMapping_8814(
-	IN	PADAPTER		Adapter,
-	IN	struct pkt_attrib	*pattrib
+		PADAPTER		Adapter,
+		struct pkt_attrib	*pattrib
 );
 
 

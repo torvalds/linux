@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -135,7 +136,6 @@ typedef struct _RSVDPAGE_LOC_88E {
 /* host message to firmware cmd */
 void rtl8188e_set_FwPwrMode_cmd(PADAPTER padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
-u8 rtl8188e_set_rssi_cmd(PADAPTER padapter, u8 *param);
 s32 FillH2CCmd_88E(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 /* u8 rtl8192c_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period); */
 u8 GetTxBufferRsvdPageNum8188E(_adapter *padapter, bool wowlan);

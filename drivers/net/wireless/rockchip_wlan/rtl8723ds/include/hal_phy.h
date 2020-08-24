@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -151,6 +152,14 @@ typedef struct _R_ANTENNA_SELECT_CCK {
 	u8			r_ccktx_enable:4;
 } R_ANTENNA_SELECT_CCK;
 
+
+/*--------------------------Exported Function prototype---------------------*/
+u32
+PHY_CalculateBitShift(
+	u32 BitMask
+);
+
+#ifdef CONFIG_RF_SHADOW_RW
 typedef struct RF_Shadow_Compare_Map {
 	/* Shadow register value */
 	u32		Value;
@@ -164,70 +173,63 @@ typedef struct RF_Shadow_Compare_Map {
 	u8		Driver_Write;
 } RF_SHADOW_T;
 
-/*--------------------------Exported Function prototype---------------------*/
-
-u32
-PHY_CalculateBitShift(
-	u32 BitMask
-);
-
 u32
 PHY_RFShadowRead(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowWrite(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset,
-	IN	u32				Data);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u32				Data);
 
 BOOLEAN
 PHY_RFShadowCompare(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowRecorver(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowCompareAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRecorverAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowCompareFlagSet(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset,
-	IN	u8				Type);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u8				Type);
 
-VOID
+void
 PHY_RFShadowRecorverFlagSet(
-	IN	PADAPTER		Adapter,
-	IN	enum rf_path		eRFPath,
-	IN	u32				Offset,
-	IN	u8				Type);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u8				Type);
 
-VOID
+void
 PHY_RFShadowCompareFlagSetAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRecorverFlagSetAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRefresh(
-	IN	PADAPTER		Adapter);
-
+		PADAPTER		Adapter);
+#endif /*#CONFIG_RF_SHADOW_RW*/
 #endif /* __HAL_COMMON_H__ */

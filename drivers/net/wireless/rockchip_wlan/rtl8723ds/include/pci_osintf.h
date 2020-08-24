@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -35,16 +36,35 @@
 //#define PCI_BC_ASPM_LTR	BIT4
 //#define PCI_BC_ASPM_OBFF	BIT5
 
-void	rtw_pci_disable_aspm(_adapter *padapter);
-void	rtw_pci_enable_aspm(_adapter *padapter);
 void	PlatformClearPciPMEStatus(PADAPTER Adapter);
 void	rtw_pci_aspm_config(_adapter *padapter);
 void	rtw_pci_aspm_config_l1off_general(_adapter *padapter, u8 eanble);
-#ifdef CONFIG_PCI_DYNAMIC_ASPM
-void	rtw_pci_aspm_config_dynamic_l1_ilde_time(_adapter *padapter);
-#endif
 #ifdef CONFIG_64BIT_DMA
 	u8	PlatformEnableDMA64(PADAPTER Adapter);
+#endif
+#ifdef CONFIG_PCI_DYNAMIC_ASPM
+void rtw_pci_set_aspm_lnkctl(_adapter *padapter, u8 mode);
+void rtw_pci_set_l1_latency(_adapter *padapter, u8 mode);
+
+static inline void rtw_pci_dynamic_aspm_set_mode(_adapter *padapter, u8 mode)
+{
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct pci_priv	*pcipriv = &(pdvobjpriv->pcipriv);
+
+	if (mode == pcipriv->aspm_mode)
+		return;
+
+	pcipriv->aspm_mode = mode;
+
+#ifdef CONFIG_PCI_DYNAMIC_ASPM_LINK_CTRL
+	rtw_pci_set_aspm_lnkctl(padapter, mode);
+#endif
+#ifdef CONFIG_PCI_DYNAMIC_ASPM_L1_LATENCY
+	rtw_pci_set_l1_latency(padapter, mode);
+#endif
+}
+#else
+#define rtw_pci_dynamic_aspm_set_mode(adapter, mode)
 #endif
 
 #endif

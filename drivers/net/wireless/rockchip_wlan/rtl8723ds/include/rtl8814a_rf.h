@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,14 +16,14 @@
 #ifndef __RTL8814A_RF_H__
 #define __RTL8814A_RF_H__
 
-VOID
+void
 PHY_RF6052SetBandwidth8814A(
-	IN	PADAPTER				Adapter,
-	IN	enum channel_width		Bandwidth);
+		PADAPTER				Adapter,
+		enum channel_width		Bandwidth);
 
 
 int
 PHY_RF6052_Config_8814A(
-	IN	PADAPTER	Adapter);
+		PADAPTER	Adapter);
 
 #endif/* __RTL8188E_RF_H__ */

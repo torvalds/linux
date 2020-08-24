@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -13,7 +14,7 @@
  *
  *****************************************************************************/
 
-#if DEV_BUS_TYPE == RT_USB_INTERFACE
+#ifdef CONFIG_USB_HCI
 
 	#if defined(CONFIG_RTL8188E)
 		#include "rtl8188e/HalEfuseMask8188E_USB.h"
@@ -51,6 +52,10 @@
 		#include "rtl8188f/HalEfuseMask8188F_USB.h"
 	#endif
 
+	#if defined(CONFIG_RTL8188GTV)
+		#include "rtl8188gtv/HalEfuseMask8188GTV_USB.h"
+	#endif
+
 	#if defined(CONFIG_RTL8822B)
 		#include "rtl8822b/HalEfuseMask8822B_USB.h"
 	#endif
@@ -58,8 +63,23 @@
 	#if defined(CONFIG_RTL8821C)
 		#include "rtl8821c/HalEfuseMask8821C_USB.h"
 	#endif
+	
+	#if defined(CONFIG_RTL8710B)
+		#include "rtl8710b/HalEfuseMask8710B_USB.h"
+	#endif
+	
+	#if defined(CONFIG_RTL8192F)
+		#include "rtl8192f/HalEfuseMask8192F_USB.h"
+	#endif
+	#if defined(CONFIG_RTL8822C)
+		#include "rtl8822c/HalEfuseMask8822C_USB.h"
+	#endif
+	#if defined(CONFIG_RTL8814B)
+		#include "rtl8814b/HalEfuseMask8814B_USB.h"
+	#endif
+#endif /*CONFIG_USB_HCI*/
 
-#elif DEV_BUS_TYPE == RT_PCI_INTERFACE
+#ifdef CONFIG_PCI_HCI
 
 	#if defined(CONFIG_RTL8188E)
 		#include "rtl8188e/HalEfuseMask8188E_PCIE.h"
@@ -99,7 +119,17 @@
 		#include "rtl8821c/HalEfuseMask8821C_PCIE.h"
 	#endif
 
-#elif DEV_BUS_TYPE == RT_SDIO_INTERFACE
+	#if defined(CONFIG_RTL8192F)
+		#include "rtl8192f/HalEfuseMask8192F_PCIE.h"
+	#endif
+	#if defined(CONFIG_RTL8822C)
+		#include "rtl8822c/HalEfuseMask8822C_PCIE.h"
+	#endif
+	#if defined(CONFIG_RTL8814B)
+		#include "rtl8814b/HalEfuseMask8814B_PCIE.h"
+	#endif
+#endif /*CONFIG_PCI_HCI*/
+#ifdef CONFIG_SDIO_HCI
 	#if defined(CONFIG_RTL8723B)
 		#include "rtl8723b/HalEfuseMask8723B_SDIO.h"
 	#endif
@@ -114,6 +144,10 @@
 
 	#if defined(CONFIG_RTL8188F)
 		#include "rtl8188f/HalEfuseMask8188F_SDIO.h"
+	#endif
+
+	#if defined(CONFIG_RTL8188GTV)
+		#include "rtl8188gtv/HalEfuseMask8188GTV_SDIO.h"
 	#endif
 
 	#if defined(CONFIG_RTL8723D)
@@ -135,4 +169,14 @@
 	#if defined(CONFIG_RTL8822B)
 		#include "rtl8822b/HalEfuseMask8822B_SDIO.h"
 	#endif
-#endif
+
+	#if defined(CONFIG_RTL8192F)
+		#include "rtl8192f/HalEfuseMask8192F_SDIO.h"
+	#endif
+
+
+	#if defined(CONFIG_RTL8822C)
+		#include "rtl8822c/HalEfuseMask8822C_SDIO.h"
+	#endif
+
+#endif /*CONFIG_SDIO_HCI*/

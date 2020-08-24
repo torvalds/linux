@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -24,29 +25,26 @@
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_agc_tab(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
-u32	odm_get_version_mp_8723d_agc_tab(void);
+odm_read_and_config_mp_8723d_agc_tab( /* tc: Test Chip, mp: mp Chip*/
+				     struct dm_struct *dm);
+u32 odm_get_version_mp_8723d_agc_tab(void);
 
 /******************************************************************************
 *                           phy_reg.TXT
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_phy_reg(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
-u32	odm_get_version_mp_8723d_phy_reg(void);
+odm_read_and_config_mp_8723d_phy_reg( /* tc: Test Chip, mp: mp Chip*/
+				     struct dm_struct *dm);
+u32 odm_get_version_mp_8723d_phy_reg(void);
 
 /******************************************************************************
 *                           phy_reg_pg.TXT
 ******************************************************************************/
 
 void
-odm_read_and_config_mp_8723d_phy_reg_pg(/* tc: Test Chip, mp: mp Chip*/
-	struct	PHY_DM_STRUCT *p_dm
-);
+odm_read_and_config_mp_8723d_phy_reg_pg( /* tc: Test Chip, mp: mp Chip*/
+					struct dm_struct *dm);
 u32	odm_get_version_mp_8723d_phy_reg_pg(void);
 
 #endif

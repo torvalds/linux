@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -197,6 +198,8 @@
 #define rB_RFE_Inv_Jaguar		0xeb4 /* Path_B RFE control */
 #define rA_RFE_Jaguar			0xcb8  /* Path_A RFE cotrol   */
 #define rB_RFE_Jaguar			0xeb8 /* Path_B RFE control */
+#define	rA_RFE_Inverse_Jaguar	0xCBC	/* Path_A RFE control inverse */
+#define	rB_RFE_Inverse_Jaguar	0xEBC	/* Path_B RFE control inverse */
 #define r_ANTSEL_SW_Jaguar		0x900 /* ANTSEL SW Control */
 #define bMask_RFEInv_Jaguar		0x3ff00000
 #define bMask_AntselPathFollow_Jaguar 0x00030000

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -17,11 +18,11 @@
 
 
 
-int	PHY_RF6052_Config8188E(IN	PADAPTER		Adapter);
-void		rtl8188e_RF_ChangeTxPath(IN	PADAPTER	Adapter,
-		IN	u16		DataRate);
+int	PHY_RF6052_Config8188E(PADAPTER		Adapter);
+void		rtl8188e_RF_ChangeTxPath(PADAPTER	Adapter,
+			u16		DataRate);
 void		rtl8188e_PHY_RF6052SetBandwidth(
-	IN	PADAPTER				Adapter,
-	IN	enum channel_width		Bandwidth);
+		PADAPTER				Adapter,
+		enum channel_width		Bandwidth);
 
 #endif/* __RTL8188E_RF_H__ */

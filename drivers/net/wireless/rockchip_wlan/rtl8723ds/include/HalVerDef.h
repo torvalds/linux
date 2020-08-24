@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -35,7 +36,12 @@ typedef enum tag_HAL_IC_Type_Definition {
 	CHIP_8188F	=	12,
 	CHIP_8822B	=	13,
 	CHIP_8723D	=	14,
-	CHIP_8821C	=	15
+	CHIP_8821C	=	15,
+	CHIP_8710B	=	16,
+	CHIP_8192F	=	17,
+	CHIP_8188GTV =	18,
+	CHIP_8822C	=	19,
+	CHIP_8814B	=	20,
 } HAL_IC_TYPE_E;
 
 /* HAL_CHIP_TYPE_E */
@@ -112,6 +118,7 @@ typedef	struct tag_HAL_VERSION {
 
 #define IS_8188E(version)					((GET_CVID_IC_TYPE(version) == CHIP_8188E) ? TRUE : FALSE)
 #define IS_8188F(version)					((GET_CVID_IC_TYPE(version) == CHIP_8188F) ? TRUE : FALSE)
+#define IS_8188GTV(version)					((GET_CVID_IC_TYPE(version) == CHIP_8188GTV) ? TRUE : FALSE)
 #define IS_8192E(version)					((GET_CVID_IC_TYPE(version) == CHIP_8192E) ? TRUE : FALSE)
 #define IS_8812_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8812) ? TRUE : FALSE)
 #define IS_8821_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8821) ? TRUE : FALSE)
@@ -120,8 +127,13 @@ typedef	struct tag_HAL_VERSION {
 #define IS_8703B_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8703B) ? TRUE : FALSE)
 #define IS_8822B_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8822B) ? TRUE : FALSE)
 #define IS_8821C_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8821C) ? TRUE : FALSE)
-#define IS_8723D_SERIES(version)\
-	((GET_CVID_IC_TYPE(version) == CHIP_8723D) ? TRUE : FALSE)
+#define IS_8723D_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8723D) ? TRUE : FALSE)
+#define IS_8710B_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8710B) ? TRUE : FALSE)
+#define IS_8822C_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8822C) ? TRUE : FALSE)
+#define IS_8814B_SERIES(version)			((GET_CVID_IC_TYPE(version) == CHIP_8814B) ? TRUE : FALSE)
+
+#define IS_8192F_SERIES(version)\
+	((GET_CVID_IC_TYPE(version) == CHIP_8192F) ? TRUE : FALSE)
 /* HAL_CHIP_TYPE_E */
 #define IS_TEST_CHIP(version)			((GET_CVID_CHIP_TYPE(version) == TEST_CHIP) ? TRUE : FALSE)
 #define IS_NORMAL_CHIP(version)			((GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP) ? TRUE : FALSE)
@@ -146,6 +158,8 @@ typedef	struct tag_HAL_VERSION {
 #define IS_1T1R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_1T1R) ? TRUE : FALSE)
 #define IS_1T2R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_1T2R) ? TRUE : FALSE)
 #define IS_2T2R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_2T2R) ? TRUE : FALSE)
+#define IS_2T3R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_2T3R) ? TRUE : FALSE)
+#define IS_2T4R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_2T4R) ? TRUE : FALSE)
 #define IS_3T3R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_3T3R) ? TRUE : FALSE)
 #define IS_3T4R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_3T4R) ? TRUE : FALSE)
 #define IS_4T4R(version)					((GET_CVID_RF_TYPE(version) == RF_TYPE_4T4R) ? TRUE : FALSE)

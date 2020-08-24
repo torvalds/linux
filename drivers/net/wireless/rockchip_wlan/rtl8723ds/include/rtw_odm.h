@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -77,20 +78,26 @@ void rtw_odm_adaptivity_config_msg(void *sel, _adapter *adapter);
 
 bool rtw_odm_adaptivity_needed(_adapter *adapter);
 void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter);
-void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff, s8 th_l2h_ini_mode2, s8 th_edcca_hl_diff_mode2, u8 edcca_enable);
+void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff);
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter);
 void rtw_odm_acquirespinlock(_adapter *adapter,	enum rt_spinlock_type type);
 void rtw_odm_releasespinlock(_adapter *adapter,	enum rt_spinlock_type type);
 
-u8 rtw_odm_get_dfs_domain(_adapter *adapter);
-u8 rtw_odm_dfs_domain_unknown(_adapter *adapter);
+struct dm_struct;
+s16 rtw_odm_get_tx_power_mbm(struct dm_struct *dm, u8 rfpath, u8 rate, u8 bw, u8 cch);
+
 #ifdef CONFIG_DFS_MASTER
-VOID rtw_odm_radar_detect_reset(_adapter *adapter);
-VOID rtw_odm_radar_detect_disable(_adapter *adapter);
-VOID rtw_odm_radar_detect_enable(_adapter *adapter);
+void rtw_odm_radar_detect_reset(_adapter *adapter);
+void rtw_odm_radar_detect_disable(_adapter *adapter);
+void rtw_odm_radar_detect_enable(_adapter *adapter);
 BOOLEAN rtw_odm_radar_detect(_adapter *adapter);
+u8 rtw_odm_radar_detect_polling_int_ms(struct dvobj_priv *dvobj);
 #endif /* CONFIG_DFS_MASTER */
 
 void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys);
+
+#if defined(CONFIG_RTL8822C) && defined(CONFIG_LPS_PG)
+void odm_lps_pg_debug_8822c(void *dm_void);
+#endif
 
 #endif /* __RTW_ODM_H__ */

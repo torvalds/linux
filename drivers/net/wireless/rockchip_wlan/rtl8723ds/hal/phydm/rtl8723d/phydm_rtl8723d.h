@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -12,16 +13,12 @@
  * more details.
  *
  *****************************************************************************/
-#ifndef	__ODM_RTL8723D_H__
+#ifndef __ODM_RTL8723D_H__
 #define __ODM_RTL8723D_H__
 
 #if (RTL8723D_SUPPORT == 1)
 
-s8
-odm_cckrssi_8723d(
-	u8	lna_idx,
-	u8	vga_idx
-);
+s8 phydm_cckrssi_8723d(struct dm_struct *dm, u8 lna_idx, u8 vga_idx);
 
 #endif
 

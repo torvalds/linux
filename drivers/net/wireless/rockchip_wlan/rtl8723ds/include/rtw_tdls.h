@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -120,13 +121,14 @@ void rtw_tdls_set_link_established(_adapter *adapter, bool en);
 void rtw_reset_tdls_info(_adapter *padapter);
 int rtw_init_tdls_info(_adapter *padapter);
 void rtw_free_tdls_info(struct tdls_info *ptdlsinfo);
-void rtw_free_all_tdls_sta(_adapter *padapter, u8 from_cmd_thread);
+void rtw_free_all_tdls_sta(_adapter *padapter, u8 enqueue_cmd);
 void rtw_enable_tdls_func(_adapter *padapter);
-void rtw_disable_tdls_func(_adapter *padapter, u8 from_cmd_thread);
+void rtw_disable_tdls_func(_adapter *padapter, u8 enqueue_cmd);
 int issue_nulldata_to_TDLS_peer_STA(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
 void rtw_init_tdls_timer(_adapter *padapter, struct sta_info *psta);
-void	rtw_free_tdls_timer(struct sta_info *psta);
-void free_tdls_sta(_adapter *padapter, struct sta_info *ptdls_sta);
+void	rtw_cancel_tdls_timer(struct sta_info *psta);
+void rtw_tdls_teardown_pre_hdl(_adapter *padapter, struct sta_info *psta);
+void rtw_tdls_teardown_post_hdl(_adapter *padapter, struct sta_info *psta, u8 enqueue_cmd);
 
 #ifdef CONFIG_TDLS_CH_SW
 void rtw_tdls_set_ch_sw_oper_control(_adapter *padapter, u8 enable);

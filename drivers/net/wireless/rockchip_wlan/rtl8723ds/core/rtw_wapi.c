@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -792,6 +793,14 @@ void rtw_wapi_return_all_sta_info(_adapter *padapter)
 	WAPI_TRACE(WAPI_API, "<========== %s\n", __FUNCTION__);
 }
 
+void CAM_empty_entry(
+	PADAPTER	Adapter,
+	u8			ucIndex
+)
+{
+	rtw_hal_set_hwreg(Adapter, HW_VAR_CAM_EMPTY_ENTRY, (u8 *)(&ucIndex));
+}
+
 void rtw_wapi_clear_cam_entry(_adapter *padapter, u8 *pMacAddr)
 {
 	u8 UcIndex = 0;
@@ -1065,7 +1074,7 @@ void wapi_test_set_key(struct _adapter *padapter, u8 *buf)
 void wapi_test_init(struct _adapter *padapter)
 {
 	u8 keybuf[100];
-	u8 mac_addr[6] = {0x00, 0xe0, 0x4c, 0x72, 0x04, 0x70};
+	u8 mac_addr[ETH_ALEN] = {0x00, 0xe0, 0x4c, 0x72, 0x04, 0x70};
 	u8 UskDataKey[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
 	u8 UskMicKey[16] = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
 	u8 UskId = 0;
@@ -1091,7 +1100,7 @@ void wapi_test_init(struct _adapter *padapter)
 	keybuf[2] = 1; 				/* AE */
 	keybuf[3] = 0; 				/* not update */
 
-	memcpy(keybuf + 4, mac_addr, 6);
+	memcpy(keybuf + 4, mac_addr, ETH_ALEN);
 	memcpy(keybuf + 10, UskDataKey, 16);
 	memcpy(keybuf + 26, UskMicKey, 16);
 	keybuf[42] = UskId;
@@ -1103,7 +1112,7 @@ void wapi_test_init(struct _adapter *padapter)
 	keybuf[2] = 0; 				/* AE */
 	keybuf[3] = 0; 				/* not update */
 
-	memcpy(keybuf + 4, mac_addr, 6);
+	memcpy(keybuf + 4, mac_addr, ETH_ALEN);
 	memcpy(keybuf + 10, UskDataKey, 16);
 	memcpy(keybuf + 26, UskMicKey, 16);
 	keybuf[42] = UskId;
@@ -1116,7 +1125,7 @@ void wapi_test_init(struct _adapter *padapter)
 	keybuf[1] = 1;                               /* Enable TX */
 	keybuf[2] = 1; 				/* AE */
 	keybuf[3] = 0;                              /* not update */
-	memcpy(keybuf + 4, mac_addr, 6);
+	memcpy(keybuf + 4, mac_addr, ETH_ALEN);
 	memcpy(keybuf + 10, MskDataKey, 16);
 	memcpy(keybuf + 26, MskMicKey, 16);
 	keybuf[42] = MskId;
@@ -1127,7 +1136,7 @@ void wapi_test_init(struct _adapter *padapter)
 	keybuf[1] = 1;                               /* Enable TX */
 	keybuf[2] = 0; 				/* AE */
 	keybuf[3] = 0;                              /* not update */
-	memcpy(keybuf + 4, mac_addr, 6);
+	memcpy(keybuf + 4, mac_addr, ETH_ALEN);
 	memcpy(keybuf + 10, MskDataKey, 16);
 	memcpy(keybuf + 26, MskMicKey, 16);
 	keybuf[42] = MskId;
@@ -1252,4 +1261,61 @@ bool rtw_wapi_drop_for_key_absent(_adapter *padapter, u8 *pRA)
 	return bDrop;
 }
 
+void rtw_wapi_set_set_encryption(_adapter *padapter, struct ieee_param *param)
+{
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
+	PRT_WAPI_T			pWapiInfo = &padapter->wapiInfo;
+	PRT_WAPI_STA_INFO	pWapiSta;
+	u8					WapiASUEPNInitialValueSrc[16] = {0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C} ;
+	u8					WapiAEPNInitialValueSrc[16] = {0x37, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C} ;
+	u8					WapiAEMultiCastPNInitialValueSrc[16] = {0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C, 0x36, 0x5C} ;
+
+	if (param->u.crypt.set_tx == 1) {
+		list_for_each_entry(pWapiSta, &pWapiInfo->wapiSTAUsedList, list) {
+			if (_rtw_memcmp(pWapiSta->PeerMacAddr, param->sta_addr, 6)) {
+				_rtw_memcpy(pWapiSta->lastTxUnicastPN, WapiASUEPNInitialValueSrc, 16);
+
+				pWapiSta->wapiUsk.bSet = true;
+				_rtw_memcpy(pWapiSta->wapiUsk.dataKey, param->u.crypt.key, 16);
+				_rtw_memcpy(pWapiSta->wapiUsk.micKey, param->u.crypt.key + 16, 16);
+				pWapiSta->wapiUsk.keyId = param->u.crypt.idx ;
+				pWapiSta->wapiUsk.bTxEnable = true;
+
+				_rtw_memcpy(pWapiSta->lastRxUnicastPNBEQueue, WapiAEPNInitialValueSrc, 16);
+				_rtw_memcpy(pWapiSta->lastRxUnicastPNBKQueue, WapiAEPNInitialValueSrc, 16);
+				_rtw_memcpy(pWapiSta->lastRxUnicastPNVIQueue, WapiAEPNInitialValueSrc, 16);
+				_rtw_memcpy(pWapiSta->lastRxUnicastPNVOQueue, WapiAEPNInitialValueSrc, 16);
+				_rtw_memcpy(pWapiSta->lastRxUnicastPN, WapiAEPNInitialValueSrc, 16);
+				pWapiSta->wapiUskUpdate.bTxEnable = false;
+				pWapiSta->wapiUskUpdate.bSet = false;
+
+				if (psecuritypriv->sw_encrypt == false || psecuritypriv->sw_decrypt == false) {
+					/* set unicast key for ASUE */
+					rtw_wapi_set_key(padapter, &pWapiSta->wapiUsk, pWapiSta, false, false);
+				}
+			}
+		}
+	} else {
+		list_for_each_entry(pWapiSta, &pWapiInfo->wapiSTAUsedList, list) {
+			if (_rtw_memcmp(pWapiSta->PeerMacAddr, get_bssid(pmlmepriv), 6)) {
+				pWapiSta->wapiMsk.bSet = true;
+				_rtw_memcpy(pWapiSta->wapiMsk.dataKey, param->u.crypt.key, 16);
+				_rtw_memcpy(pWapiSta->wapiMsk.micKey, param->u.crypt.key + 16, 16);
+				pWapiSta->wapiMsk.keyId = param->u.crypt.idx ;
+				pWapiSta->wapiMsk.bTxEnable = false;
+				if (!pWapiSta->bSetkeyOk)
+					pWapiSta->bSetkeyOk = true;
+				pWapiSta->bAuthenticateInProgress = false;
+
+				_rtw_memcpy(pWapiSta->lastRxMulticastPN, WapiAEMultiCastPNInitialValueSrc, 16);
+
+				if (psecuritypriv->sw_decrypt == false) {
+					/* set rx broadcast key for ASUE */
+					rtw_wapi_set_key(padapter, &pWapiSta->wapiMsk, pWapiSta, true, false);
+				}
+			}
+		}
+	}
+}
 #endif

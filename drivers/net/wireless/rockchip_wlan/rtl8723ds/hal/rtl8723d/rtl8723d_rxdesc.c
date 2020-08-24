@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -50,7 +51,7 @@ void rtl8723d_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc)
 
 		/* Offset 12 */
 		pattrib->data_rate = (u8)GET_RX_STATUS_DESC_RX_RATE_8723D(pdesc);
-
+		pattrib->bw = CHANNEL_WIDTH_MAX;
 		/* Offset 20 */
 		/* pattrib->tsfl=(u8)GET_RX_STATUS_DESC_TSFL_8723D(pdesc); */
 	}

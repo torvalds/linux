@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -77,23 +78,8 @@
 	#include <linux/kernel.h>
 	#include <linux/init.h>
 	#include <linux/utsname.h>
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
 
 	typedef	signed int sint;
-
-	#ifndef	PVOID
-		typedef void *PVOID;
-		/* #define PVOID	(void *) */
-	#endif
-
-	#define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
 typedef _Bool bool;
@@ -110,37 +96,8 @@ enum {
 	typedef	__kernel_ssize_t	SSIZE_T;
 	#define FIELD_OFFSET(s, field)	((SSIZE_T)&((s *)(0))->field)
 
-#define u1Byte		u8
-#define pu1Byte		u8*
-
-#define u2Byte		u16
-#define pu2Byte		u16*
-
-#define u4Byte		u32
-#define pu4Byte		u32*
-
-#define u8Byte		u64
-#define pu8Byte		u64*
-
-#define s1Byte		s8
-#define ps1Byte		s8*
-
-#define s2Byte		s16
-#define ps2Byte		s16*
-
-#define s4Byte		s32
-#define ps4Byte		s32*
-
-#define s8Byte		s64
-#define ps8Byte		s64*
-
-#define UCHAR u8
-#define USHORT u16
-#define UINT u32
-#define ULONG u32
-#define PULONG u32*
-
-#endif
+#define NDIS_OID uint
+#endif /*PLATFORM_LINUX*/
 
 
 #ifdef PLATFORM_FREEBSD
@@ -160,21 +117,8 @@ enum {
 
 	typedef signed long long s64;
 	typedef unsigned long long u64;
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
 
-	#ifndef	PVOID
-		typedef void *PVOID;
-		/* #define PVOID	(void *) */
-	#endif
 	typedef u32 dma_addr_t;
-	#define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32
 
 	typedef void (*proc_t)(void *);
 

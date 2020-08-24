@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2017 Realtek Corporation.
@@ -23,7 +24,11 @@
 #ifdef CONFIG_SUPPORT_TRX_SHARED
 #define MAX_RECVBUF_SZ		46080	/* 45KB, TX: (256-64)KB */
 #else /* !CONFIG_SUPPORT_TRX_SHARED */
+#ifdef CONFIG_PCI_HCI
+#define MAX_RECVBUF_SZ		12288	/* 12KB */
+#else
 #define MAX_RECVBUF_SZ		24576	/* 24KB, TX: 256KB */
+#endif /* !CONFIG_PCI_HCI */
 #endif /* !CONFIG_SUPPORT_TRX_SHARED */
 
 /*
@@ -38,7 +43,7 @@
 #define REG_C2HEVT_MSG_NORMAL	0x1A0			/* hal_com.c */
 #define REG_C2HEVT_CLEAR	0x1AF			/* hal_com.c */
 #define REG_BCN_CTRL_1		REG_BCN_CTRL_CLINT0_8822B	/* hal_com.c */
-#define REG_TSFTR1		REG_FREERUN_CNT_8822B	/* hal_com.c */
+
 #define REG_WOWLAN_WAKE_REASON	0x01C7 /* hal_com.c */
 #define REG_GPIO_PIN_CTRL_2		REG_GPIO_EXT_CTRL_8822B		/* hal_com.c */
 
@@ -128,7 +133,6 @@
 #define rOFDM0_XBAGCCore1		0xC58	/* phydm only */
 #define rOFDM0_XATxIQImbalance		0xC80	/* phydm only */
 #define rA_LSSIWrite_Jaguar		0xC90	/* RF write addr, LSSI Parameter (rtl8822b_phy.c) */
-#define rA_RFE_Pinmux_Jaguar		0xCB0	/* hal_mp.c */
 
 #define rOFDM1_LSTF			0xD00
 #define rOFDM1_TRxPathEnable		0xD04	/* hal_mp.c */
@@ -147,7 +151,22 @@
 #define rB_TxScale_Jaguar		0xE1C	/* Path_B TX scaling factor (hal_mp.c) */
 #define rB_IGI_Jaguar			0xE50	/* Initial Gain for path-B (hal_mp.c) */
 #define rB_LSSIWrite_Jaguar		0xE90	/* RF write addr, LSSI Parameter (rtl8822b_phy.c) */
-#define rB_RFE_Pinmux_Jaguar		0xEB0	/* hal_mp.c */
+/* RFE */
+#define rA_RFE_Pinmux_Jaguar	0xCB0	/* hal_mp.c */
+#define	rB_RFE_Pinmux_Jaguar	0xEB0	/* Path_B RFE control pinmux */
+#define	rA_RFE_Inv_Jaguar		0xCB4	/* Path_A RFE cotrol */  
+#define	rB_RFE_Inv_Jaguar		0xEB4	/* Path_B RFE control */
+#define	rA_RFE_Jaguar			0xCB8 	/* Path_A RFE cotrol */  
+#define	rB_RFE_Jaguar			0xEB8	/* Path_B RFE control */
+#define	rA_RFE_Inverse_Jaguar	0xCBC	/* Path_A RFE control inverse */
+#define	rB_RFE_Inverse_Jaguar	0xEBC	/* Path_B RFE control inverse */
+#define	r_ANTSEL_SW_Jaguar		0x900	/* ANTSEL SW Control */
+#define	bMask_RFEInv_Jaguar	0x3FF00000
+#define	bMask_AntselPathFollow_Jaguar 0x00030000
+
+#define		rC_RFE_Pinmux_Jaguar	0x18B4	/* Path_C RFE cotrol pinmux*/
+#define		rD_RFE_Pinmux_Jaguar	0x1AB4	/* Path_D RFE cotrol pinmux*/
+#define		rA_RFE_Sel_Jaguar2		0x1990
 
 /* Page1(0x100) */
 #define bBBResetB			0x100
@@ -203,6 +222,7 @@ void rtl8822b_init_hal_spec(PADAPTER);				/* hal/hal_com.c */
 void rtl8822b_prepare_mp_txdesc(PADAPTER, struct mp_priv *);	/* rtw_mp.c */
 void rtl8822b_mp_config_rfpath(PADAPTER);			/* hal_mp.c */
 #endif
+void hw_var_set_dl_rsvd_page(PADAPTER adapter, u8 mstatus);
 
 #ifdef CONFIG_USB_HCI
 #include <rtl8822bu_hal.h>

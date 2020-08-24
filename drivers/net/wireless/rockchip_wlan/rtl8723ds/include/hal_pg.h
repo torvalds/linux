@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -29,8 +30,6 @@
 /* ****************************************************
  *			EEPROM/Efuse PG Offset for 88EE/88EU/88ES
  * **************************************************** */
-#define EEPROM_TX_PWR_INX_88E					0x10
-
 #define EEPROM_ChannelPlan_88E					0xB8
 #define EEPROM_XTAL_88E						0xB9
 #define EEPROM_THERMAL_METER_88E				0xBA
@@ -68,9 +67,6 @@
 
 #define PPG_BB_GAIN_2G_TXA_OFFSET_8192E	0x1F6
 #define PPG_THERMAL_OFFSET_8192E		0x1F5
-
-/* 0x10 ~ 0x63 = TX power area. */
-#define	EEPROM_TX_PWR_INX_8192E				0x10
 
 #define	EEPROM_ChannelPlan_8192E				0xB8
 #define	EEPROM_XTAL_8192E						0xB9
@@ -112,10 +108,8 @@
 #define	EEPROM_MAC_ADDR_8192ES				0x11A
 /* ****************************************************
  *			EEPROM/Efuse PG Offset for 8812AE/8812AU/8812AS
- * ****************************************************
- * 0x10 ~ 0x63 = TX power area. */
+ * *****************************************************/
 #define EEPROM_USB_MODE_8812					0x08
-#define EEPROM_TX_PWR_INX_8812				0x10
 
 #define EEPROM_ChannelPlan_8812				0xB8
 #define EEPROM_XTAL_8812						0xB9
@@ -180,7 +174,6 @@
 
 #define PPG_THERMAL_OFFSET_8814A		0x3EF
 
-#define EEPROM_TX_PWR_INX_8814				0x10
 #define EEPROM_USB_MODE_8814A				0x0E
 #define EEPROM_ChannelPlan_8814				0xB8
 #define EEPROM_XTAL_8814					0xB9
@@ -227,8 +220,6 @@
 #define PPG_BB_GAIN_5GMB1_TXA_OFFSET_8821A	0x1F2
 #define PPG_BB_GAIN_5GMB2_TXA_OFFSET_8821A	0x1F1
 #define PPG_BB_GAIN_5GHB_TXA_OFFSET_8821A	0x1F0
-
-#define EEPROM_TX_PWR_INX_8821				0x10
 
 #define EEPROM_ChannelPlan_8821				0xB8
 #define EEPROM_XTAL_8821						0xB9
@@ -297,9 +288,6 @@
 #define PPG_BB_GAIN_2G_TXA_OFFSET_8188F	0xEE
 #define PPG_THERMAL_OFFSET_8188F		0xEF
 
-/* 0x10 ~ 0x63 = TX power area. */
-#define	EEPROM_TX_PWR_INX_8188F				0x10
-
 #define	EEPROM_ChannelPlan_8188F			0xB8
 #define	EEPROM_XTAL_8188F					0xB9
 #define	EEPROM_THERMAL_METER_8188F			0xBA
@@ -333,12 +321,53 @@
 #define	EEPROM_MAC_ADDR_8188FS				0x11A
 #define EEPROM_Voltage_ADDR_8188F			0x8
 
+/* ====================================================
+	EEPROM/Efuse PG Offset for 8188GTV/8188GTVS
+   ====================================================
+ */
+
+#define GET_PG_KFREE_ON_8188GTV(_pg_m)				LE_BITS_TO_1BYTE(((u8 *)(_pg_m)) + 0xC1, 4, 1)
+#define GET_PG_KFREE_THERMAL_K_ON_8188GTV(_pg_m)	LE_BITS_TO_1BYTE(((u8 *)(_pg_m)) + 0xC8, 5, 1)
+
+#define PPG_BB_GAIN_2G_TXA_OFFSET_8188GTV	0xEE
+#define PPG_THERMAL_OFFSET_8188GTV			0xEF
+
+#define	EEPROM_ChannelPlan_8188GTV				0xB8
+#define	EEPROM_XTAL_8188GTV						0xB9
+#define	EEPROM_THERMAL_METER_8188GTV			0xBA
+#define	EEPROM_IQK_LCK_8188GTV					0xBB
+#define	EEPROM_2G_5G_PA_TYPE_8188GTV			0xBC
+#define	EEPROM_2G_LNA_TYPE_GAIN_SEL_8188GTV		0xBD
+#define	EEPROM_5G_LNA_TYPE_GAIN_SEL_8188GTV		0xBF
+
+#define	EEPROM_RF_BOARD_OPTION_8188GTV			0xC1
+#define	EEPROM_FEATURE_OPTION_8188GTV			0xC2
+#define	EEPROM_RF_BT_SETTING_8188GTV			0xC3
+#define	EEPROM_VERSION_8188GTV					0xC4
+#define	EEPROM_CustomID_8188GTV					0xC5
+#define	EEPROM_TX_BBSWING_2G_8188GTV			0xC6
+#define	EEPROM_TX_PWR_CALIBRATE_RATE_8188GTV	0xC8
+#define	EEPROM_RF_ANTENNA_OPT_8188GTV			0xC9
+#define	EEPROM_RFE_OPTION_8188GTV				0xCA
+#define EEPROM_COUNTRY_CODE_8188GTV				0xCB
+#define EEPROM_CUSTOMER_ID_8188GTV				0x7F
+#define EEPROM_SUBCUSTOMER_ID_8188GTV			0x59
+
+/* RTL8188GTVU */
+#define EEPROM_MAC_ADDR_8188GTVU				0xD7
+#define EEPROM_VID_8188GTVU						0xD0
+#define EEPROM_PID_8188GTVU						0xD2
+#define EEPROM_PA_TYPE_8188GTVU					0xBC
+#define EEPROM_LNA_TYPE_2G_8188GTVU				0xBD
+#define EEPROM_USB_OPTIONAL_FUNCTION0_8188GTVU	0xD4
+
+/* RTL8188GTVS */
+#define	EEPROM_MAC_ADDR_8188GTVS				0x11A
+#define EEPROM_Voltage_ADDR_8188GTV				0x8
+
 /* ****************************************************
  *			EEPROM/Efuse PG Offset for 8723BE/8723BU/8723BS
- * ****************************************************
- * 0x10 ~ 0x63 = TX power area. */
-#define	EEPROM_TX_PWR_INX_8723B				0x10
-
+ * *****************************************************/
 #define	EEPROM_ChannelPlan_8723B				0xB8
 #define	EEPROM_XTAL_8723B						0xB9
 #define	EEPROM_THERMAL_METER_8723B			0xBA
@@ -386,8 +415,6 @@
 #define PPG_BB_GAIN_2G_TXA_OFFSET_8703B	0xEE
 #define PPG_THERMAL_OFFSET_8703B		0xEF
 
-#define	EEPROM_TX_PWR_INX_8703B				0x10
-
 #define	EEPROM_ChannelPlan_8703B				0xB8
 #define	EEPROM_XTAL_8703B					0xB9
 #define	EEPROM_THERMAL_METER_8703B			0xBA
@@ -424,8 +451,6 @@
  *	EEPROM/Efuse PG Offset for 8822B
  * ====================================================
  */
-#define	EEPROM_TX_PWR_INX_8822B			0x10
-
 #define	EEPROM_ChannelPlan_8822B		0xB8
 #define	EEPROM_XTAL_8822B			0xB9
 #define	EEPROM_THERMAL_METER_8822B		0xBA
@@ -468,8 +493,6 @@
  *	EEPROM/Efuse PG Offset for 8821C
  * ====================================================
  */
-#define	EEPROM_TX_PWR_INX_8821C			0x10
-
 #define	EEPROM_CHANNEL_PLAN_8821C		0xB8
 #define	EEPROM_XTAL_8821C			0xB9
 #define	EEPROM_THERMAL_METER_8821C		0xBA
@@ -523,8 +546,6 @@
 #define PPG_BB_GAIN_2G_TX_OFFSET_8723D		0x1EE
 #define PPG_THERMAL_OFFSET_8723D		0xEF
 
-#define	EEPROM_TX_PWR_INX_8723D			0x10
-
 #define	EEPROM_ChannelPlan_8723D		0xB8
 #define	EEPROM_XTAL_8723D			0xB9
 #define	EEPROM_THERMAL_METER_8723D		0xBA
@@ -561,10 +582,170 @@
 #define	EEPROM_MAC_ADDR_8723DS			0x11A
 #define	EEPROM_Voltage_ADDR_8723D		0x8
 
+/*
+ * ====================================================
+ *	EEPROM/Efuse PG Offset for 8822C
+ * ====================================================
+ */
+#define	EEPROM_TX_PWR_INX_8822C			0x10
+#define	EEPROM_ChannelPlan_8822C		0xB8
+#define	EEPROM_XTAL_B9_8822C			0xB9
+#define	EEPROM_IQK_LCK_8822C			0xBB
+#define	EEPROM_2G_5G_PA_TYPE_8822C		0xBC
+/* PATH A & PATH B */
+#define	EEPROM_2G_LNA_TYPE_GAIN_SEL_AB_8822C	0xBD
+/* PATH C & PATH D */
+#define	EEPROM_2G_LNA_TYPE_GAIN_SEL_CD_8822C	0xBE
+/* PATH A & PATH B */
+#define	EEPROM_5G_LNA_TYPE_GAIN_SEL_AB_8822C	0xBF
+/* PATH C & PATH D */
+#define	EEPROM_5G_LNA_TYPE_GAIN_SEL_CD_8822C	0xC0
+
+#define	EEPROM_RF_BOARD_OPTION_8822C		0xC1
+#define	EEPROM_FEATURE_OPTION_8822C		0xC2
+#define	EEPROM_RF_BT_SETTING_8822C		0xC3
+#define	EEPROM_VERSION_8822C			0xC4
+#define	EEPROM_CustomID_8822C			0xC5
+#define	EEPROM_TX_BBSWING_2G_8822C		0xC6
+#define	EEPROM_TX_PWR_CALIBRATE_RATE_8822C	0xC8
+#define	EEPROM_RF_ANTENNA_OPT_8822C		0xC9
+#define	EEPROM_RFE_OPTION_8822C			0xCA
+#define EEPROM_COUNTRY_CODE_8822C		0xCB
+#define	EEPROM_THERMAL_METER_A_8822C		0xD0
+#define	EEPROM_THERMAL_METER_B_8822C		0xD1
+
+#define	EEPROM_XTAL_110_8822C			0x110
+#define	EEPROM_XTAL_111_8822C			0x111
+
+/* RTL8822CU */
+#define EEPROM_MAC_ADDR_8822CU			0x157
+#define EEPROM_VID_8822CU			0x100
+#define EEPROM_PID_8822CU			0x102
+#define EEPROM_USB_OPTIONAL_FUNCTION0_8822CU	0x104
+#define EEPROM_USB_MODE_8822CU			0x06
+
+/* RTL8822CS */
+#define	EEPROM_MAC_ADDR_8822CS			0x16A
+
+/* RTL8822CE */
+#define	EEPROM_MAC_ADDR_8822CE			0x120
+
+/* ****************************************************
+ *	EEPROM/Efuse PG Offset for 8192F
+ * **************************************************** */
+#define	EEPROM_ChannelPlan_8192F			0xB8
+#define	EEPROM_XTAL_8192F					0xB9
+#define	EEPROM_THERMAL_METER_8192F			0xBA
+#define	EEPROM_IQK_LCK_8192F				0xBB
+#define	EEPROM_2G_5G_PA_TYPE_8192F			0xBC
+#define	EEPROM_2G_LNA_TYPE_GAIN_SEL_8192F	0xBD
+#define	EEPROM_5G_LNA_TYPE_GAIN_SEL_8192F	0xBF
+
+#define	EEPROM_RF_BOARD_OPTION_8192F		0xC1
+#define	EEPROM_FEATURE_OPTION_8192F			0xC2
+#define	EEPROM_RF_BT_SETTING_8192F			0xC3
+#define	EEPROM_VERSION_8192F				0xC4
+#define	EEPROM_CustomID_8192F				0xC5
+#define	EEPROM_TX_BBSWING_2G_8192F			0xC6
+#define	EEPROM_TX_BBSWING_5G_8192F			0xC7
+#define	EEPROM_TX_PWR_CALIBRATE_RATE_8192F	0xC8
+#define	EEPROM_RF_ANTENNA_OPT_8192F			0xC9
+#define	EEPROM_RFE_OPTION_8192F				0xCA
+#define EEPROM_COUNTRY_CODE_8192F			0xCB
+/*RTL8192FS*/
+#define	EEPROM_MAC_ADDR_8192FS				0x11A
+#define EEPROM_Voltage_ADDR_8192F			0x8
+/* RTL8192FU */
+#define EEPROM_MAC_ADDR_8192FU					0x107
+#define EEPROM_VID_8192FU							0x100
+#define EEPROM_PID_8192FU							0x102
+#define EEPROM_USB_OPTIONAL_FUNCTION0_8192FU	0x104
+/* RTL8192FE */
+#define EEPROM_MAC_ADDR_8192FE					0xD0
+#define EEPROM_VID_8192FE							0xD6
+#define EEPROM_DID_8192FE							0xD8
+#define EEPROM_SVID_8192FE							0xDA
+#define EEPROM_SMID_8192FE						0xDC
+
+/* ****************************************************
+ *	EEPROM/Efuse PG Offset for 8710B
+ * **************************************************** */
+#define RTL_EEPROM_ID_8710B 					0x8195
+#define EEPROM_Default_ThermalMeter_8710B		0x1A
+
+#define	EEPROM_CHANNEL_PLAN_8710B			0xC8
+#define	EEPROM_XTAL_8710B					0xC9
+#define	EEPROM_THERMAL_METER_8710B			0xCA
+#define	EEPROM_IQK_LCK_8710B					0xCB
+#define	EEPROM_2G_5G_PA_TYPE_8710B			0xCC
+#define	EEPROM_2G_LNA_TYPE_GAIN_SEL_8710B	0xCD
+#define	EEPROM_5G_LNA_TYPE_GAIN_SEL_8710B	0xCF
+#define 	EEPROM_TX_KFREE_8710B				0xEE    //Physical  Efuse Address
+#define 	EEPROM_THERMAL_8710B				0xEF    //Physical  Efuse Address
+#define 	EEPROM_PACKAGE_TYPE_8710B			0xF8    //Physical  Efuse Address
+
+#define EEPROM_RF_BOARD_OPTION_8710B		0x131
+#define EEPROM_RF_FEATURE_OPTION_8710B		0x132
+#define EEPROM_RF_BT_SETTING_8710B			0x133
+#define EEPROM_VERSION_8710B					0x134
+#define EEPROM_CUSTOM_ID_8710B				0x135
+#define EEPROM_TX_BBSWING_2G_8710B			0x136
+#define EEPROM_TX_BBSWING_5G_8710B			0x137
+#define EEPROM_TX_PWR_CALIBRATE_RATE_8710B	0x138
+#define EEPROM_RF_ANTENNA_OPT_8710B			0x139
+#define EEPROM_RFE_OPTION_8710B				0x13A
+#define EEPROM_COUNTRY_CODE_8710B			0x13B
+#define EEPROM_COUNTRY_CODE_2_8710B			0x13C
+
+#define EEPROM_MAC_ADDR_8710B 				0x11A
+#define EEPROM_VID_8710BU						0x1C0
+#define EEPROM_PID_8710BU						0x1C2
+
+/* ****************************************************
+ *	EEPROM/Efuse PG Offset for 8814B
+ * **************************************************** */
+
+#define	EEPROM_USB_MODE_8814BU			0x06
+/* 0x10 ~ 0x63 = TX power area. */
+#define	EEPROM_TX_PWR_INX_8814B			0x10
+#define	EEPROM_ChannelPlan_8814B		0xB8
+#define	EEPROM_XTAL_8814B			0xB9
+#define	EEPROM_IQK_LCK_8814B			0xBB
+
+#define	EEPROM_RF_BOARD_OPTION_8814B		0xC1
+#define	EEPROM_RF_FEATURE_OPTION_8814B		0xC2
+#define	EEPROM_RF_BT_SETTING_8814B		0xC3
+#define	EEPROM_VERSION_8814B			0xC4
+#define	EEPROM_CustomID_8814B			0xC5
+#define	EEPROM_TX_BBSWING_2G_8814B		0xC6
+#define	EEPROM_TX_BBSWING_5G_8814B		0xC7
+#define	EEPROM_TX_PWR_CALIBRATE_RATE_8814B	0xC8
+#define	EEPROM_RF_ANTENNA_OPT_8814B		0xC9
+#define	EEPROM_RFE_OPTION_8814B			0xCA
+#define	EEPROM_COUNTRY_CODE_8814B		0xCB
+
+#define	EEPROM_THERMAL_METER_A_8814B		0xD0
+#define	EEPROM_THERMAL_METER_B_8814B		0xD1
+#define	EEPROM_THERMAL_METER_C_8814B		0xD2
+#define	EEPROM_THERMAL_METER_D_8814B		0xD3
+
+#define	EEPROM_MAC_ADDR_8814BE			0x120
+#define	EEPROM_VID_8814B			0x126
+#define	EEPROM_DID_8814B			0x128
+#define	EEPROM_SVID_8814B			0x12A
+#define	EEPROM_SMID_8814B			0x12C
+
+/* RTL8814BU */
+#define EEPROM_MAC_ADDR_8814BU			0x157
+#define EEPROM_VID_8814BU			0x150
+#define EEPROM_PID_8814BU			0x152
+#define EEPROM_USB_OPTIONAL_FUNCTION0_8814BU	0x154
+
 /* ****************************************************
  *			EEPROM/Efuse Value Type
  * **************************************************** */
 #define EETYPE_TX_PWR							0x0
+#define EETYPE_MAX_RFE_8192F					0x31
 /* ****************************************************
  *			EEPROM/Efuse Default Value
  * **************************************************** */
@@ -612,8 +793,10 @@
 #define	EEPROM_Default_ThermalMeter_8703B		0x18
 #define	EEPROM_Default_ThermalMeter_8723D		0x18
 #define	EEPROM_Default_ThermalMeter_8188F		0x18
+#define	EEPROM_Default_ThermalMeter_8188GTV		0x18
 #define EEPROM_Default_ThermalMeter_8814A		0x18
-
+#define	EEPROM_Default_ThermalMeter_8192F		0x1A
+#define EEPROM_Default_ThermalMeter_8814B		0x20
 
 #define EEPROM_Default_CrystalCap				0x0
 #define EEPROM_Default_CrystalCap_8723A		0x20
@@ -625,6 +808,12 @@
 #define EEPROM_Default_CrystalCap_8703B			0x20
 #define EEPROM_Default_CrystalCap_8723D			0x20
 #define EEPROM_Default_CrystalCap_8188F			0x20
+#define EEPROM_Default_CrystalCap_8188GTV		0x20
+#define EEPROM_Default_CrystalCap_8192F			0x20
+#define EEPROM_Default_CrystalCap_B9_8822C		0x3F
+#define EEPROM_Default_CrystalCap_110_8822C		0x40
+#define EEPROM_Default_CrystalCap_111_8822C		0x40
+#define EEPROM_Default_CrystalCap_8814B			0x40
 #define EEPROM_Default_CrystalFreq				0x0
 #define EEPROM_Default_TxPowerLevel_92C		0x22
 #define EEPROM_Default_TxPowerLevel_2G			0x2C
@@ -730,27 +919,6 @@
 /* It must always set to 4, otherwise read efuse table sequence will be wrong. */
 #define	MAX_TX_COUNT				4
 
-typedef struct _TxPowerInfo24G {
-	u8 IndexCCK_Base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
-	u8 IndexBW40_Base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
-	/* If only one tx, only BW20 and OFDM are used. */
-	s8 CCK_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 OFDM_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW20_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW40_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-} TxPowerInfo24G, *PTxPowerInfo24G;
-
-typedef struct _TxPowerInfo5G {
-	u8 IndexBW40_Base[MAX_RF_PATH][MAX_CHNL_GROUP_5G];
-	/* If only one tx, only BW20, OFDM, BW80 and BW160 are used. */
-	s8 OFDM_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW20_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW40_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW80_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8 BW160_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-} TxPowerInfo5G, *PTxPowerInfo5G;
-
-
 typedef	enum _BT_Ant_NUM {
 	Ant_x2	= 0,
 	Ant_x1	= 1
@@ -772,7 +940,10 @@ typedef	enum _BT_CoType {
 	BT_RTL8703B		= 12,
 	BT_RTL8822B		= 13,
 	BT_RTL8723D		= 14,
-	BT_RTL8821C		= 15
+	BT_RTL8821C		= 15,
+	BT_RTL8192F		= 16,
+	BT_RTL8822C		= 17,
+	BT_RTL8814B		= 18,
 } BT_CoType, *PBT_CoType;
 
 typedef	enum _BT_RadioShared {

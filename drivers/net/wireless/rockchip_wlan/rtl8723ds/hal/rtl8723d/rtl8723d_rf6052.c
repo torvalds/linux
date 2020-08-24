@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -45,9 +46,11 @@
 
 
 /*------------------------Define local variable------------------------------*/
+#ifdef CONFIG_RF_SHADOW_RW
 /* 2008/11/20 MH For Debug only, RF
  * static	RF_SHADOW_T	RF_Shadow[RF6052_MAX_PATH][RF6052_MAX_REG] = {0}; */
 static	RF_SHADOW_T	RF_Shadow[RF6052_MAX_PATH][RF6052_MAX_REG];
+#endif /*CONFIG_RF_SHADOW_RW*/
 /*------------------------Define local variable------------------------------*/
 
 /*-----------------------------------------------------------------------------
@@ -64,10 +67,10 @@ static	RF_SHADOW_T	RF_Shadow[RF6052_MAX_PATH][RF6052_MAX_REG];
  *
  * Note:		For RF type 0222D
  *---------------------------------------------------------------------------*/
-VOID
+void
 PHY_RF6052SetBandwidth8723D(
-	IN PADAPTER padapter,
-	IN enum channel_width Bandwidth)	/* 20M or 40M */
+		PADAPTER padapter,
+		enum channel_width Bandwidth)	/* 20M or 40M */
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
 
@@ -93,22 +96,9 @@ PHY_RF6052SetBandwidth8723D(
 	}
 }
 
-static VOID
-phy_RF6052_Config_HardCode(
-	IN	PADAPTER		Adapter
-)
-{
-
-	/* Set Default Bandwidth to 20M */
-	/* Adapter->HalFunc	.SetBWModeHandler(Adapter, CHANNEL_WIDTH_20); */
-
-	/* TODO: Set Default Channel to channel one for RTL8225 */
-
-}
-
 static int
 phy_RF6052_Config_ParaFile(
-	IN	PADAPTER		Adapter
+		PADAPTER		Adapter
 )
 {
 	u32					u4RegValue = 0;
@@ -117,12 +107,12 @@ phy_RF6052_Config_ParaFile(
 
 	int					rtStatus = _SUCCESS;
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(Adapter);
 
 	/* 3//----------------------------------------------------------------- */
 	/* 3// <2> Initialize RF */
 	/* 3//----------------------------------------------------------------- */
-	/* for(eRFPath = RF_PATH_A; eRFPath <pHalData->NumTotalRFPath; eRFPath++) */
-	for (eRFPath = RF_PATH_A; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = RF_PATH_A; eRFPath < hal_spec->rf_reg_path_num; eRFPath++) {
 
 		pPhyReg = &pHalData->PHYRegDef[eRFPath];
 
@@ -232,26 +222,15 @@ phy_RF6052_Config_ParaFile_Fail:
 
 int
 PHY_RF6052_Config8723D(
-	IN	PADAPTER		Adapter)
+		PADAPTER		Adapter)
 {
-	HAL_DATA_TYPE				*pHalData = GET_HAL_DATA(Adapter);
 	int					rtStatus = _SUCCESS;
-
-	/* */
-	/* Initialize general global value */
-	/* */
-	/* TODO: Extend RF_PATH_C and RF_PATH_D in the future */
-	if (pHalData->rf_type == RF_1T1R)
-		pHalData->NumTotalRFPath = 1;
-	else
-		pHalData->NumTotalRFPath = 2;
 
 	/* */
 	/* Config BB and RF */
 	/* */
 	rtStatus = phy_RF6052_Config_ParaFile(Adapter);
 	return rtStatus;
-
 }
 
 /* End of HalRf6052.c */

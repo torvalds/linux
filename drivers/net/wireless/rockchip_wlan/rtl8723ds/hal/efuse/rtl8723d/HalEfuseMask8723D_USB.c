@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -22,7 +23,7 @@
 *                           MUSB.TXT
 ******************************************************************************/
 
-u1Byte Array_MP_8723D_MUSB[] = {
+u8 Array_MP_8723D_MUSB[] = {
 	0xFF,
 	0xF3,
 	0x00,
@@ -58,25 +59,25 @@ u1Byte Array_MP_8723D_MUSB[] = {
 
 };
 
-u2Byte
-EFUSE_GetArrayLen_MP_8723D_MUSB(VOID)
+u16
+EFUSE_GetArrayLen_MP_8723D_MUSB(void)
 {
-	return sizeof(Array_MP_8723D_MUSB) / sizeof(u1Byte);
+	return sizeof(Array_MP_8723D_MUSB) / sizeof(u8);
 }
 
-VOID
+void
 EFUSE_GetMaskArray_MP_8723D_MUSB(
-	IN	OUT pu1Byte Array
+		u8 *Array
 )
 {
-	u2Byte len = EFUSE_GetArrayLen_MP_8723D_MUSB(), i = 0;
+	u16 len = EFUSE_GetArrayLen_MP_8723D_MUSB(), i = 0;
 
 	for (i = 0; i < len; ++i)
 		Array[i] = Array_MP_8723D_MUSB[i];
 }
 BOOLEAN
 EFUSE_IsAddressMasked_MP_8723D_MUSB(
-	IN   u2Byte  Offset
+		u16 Offset
 )
 {
 	int r = Offset / 16;

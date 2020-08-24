@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -97,13 +98,13 @@ BT_CTRL_STATUS
 mptbt_SendH2c(
 	PADAPTER	Adapter,
 	PBT_H2C	pH2c,
-	u2Byte		h2cCmdLen
+	u16		h2cCmdLen
 )
 {
 	/* KIRQL				OldIrql = KeGetCurrentIrql(); */
 	BT_CTRL_STATUS	h2cStatus = BT_STATUS_H2C_SUCCESS;
 	PMPT_CONTEXT		pMptCtx = &(Adapter->mppriv.mpt_ctx);
-	u1Byte				i;
+	u8				i;
 
 	RTW_INFO("[MPT], mptbt_SendH2c()=========>\n");
 
@@ -192,17 +193,17 @@ mptbt_CheckBtRspStatus(
 BT_CTRL_STATUS
 mptbt_BtFwOpCodeProcess(
 	PADAPTER		Adapter,
-	u1Byte			btFwOpCode,
-	u1Byte			opCodeVer,
-	pu1Byte			pH2cPar,
-	u1Byte			h2cParaLen
+	u8			btFwOpCode,
+	u8			opCodeVer,
+	u8			*pH2cPar,
+	u8			h2cParaLen
 )
 {
-	u1Byte				H2C_Parameter[6] = {0};
+	u8				H2C_Parameter[6] = {0};
 	PBT_H2C				pH2c = (PBT_H2C)&H2C_Parameter[0];
 	PMPT_CONTEXT		pMptCtx = &(Adapter->mppriv.mpt_ctx);
 	PBT_EXT_C2H			pExtC2h = (PBT_EXT_C2H)&pMptCtx->c2hBuf[0];
-	u2Byte				paraLen = 0, i;
+	u16				paraLen = 0, i;
 	BT_CTRL_STATUS	h2cStatus = BT_STATUS_H2C_SUCCESS, c2hStatus = BT_STATUS_C2H_SUCCESS;
 	BT_CTRL_STATUS	retStatus = BT_STATUS_H2C_BT_NO_RSP;
 
@@ -248,25 +249,25 @@ mptbt_BtFwOpCodeProcess(
 
 
 
-u2Byte
+u16
 mptbt_BtReady(
 	PADAPTER		Adapter,
 	PBT_REQ_CMD	pBtReq,
 	PBT_RSP_CMD	pBtRsp
 )
 {
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
 	PMPT_CONTEXT		pMptCtx = &(Adapter->mppriv.mpt_ctx);
 	PBT_EXT_C2H			pExtC2h = (PBT_EXT_C2H)&pMptCtx->c2hBuf[0];
-	u1Byte				i;
-	u1Byte				btFwVer = 0, bdAddr[6] = {0};
-	u2Byte				btRealFwVer = 0;
-	pu2Byte			pu2Tmp = NULL;
+	u8				i;
+	u8				btFwVer = 0, bdAddr[6] = {0};
+	u16				btRealFwVer = 0;
+	u16				*pu2Tmp = NULL;
 
 	/*  */
 	/* check upper layer parameters */
@@ -296,7 +297,7 @@ mptbt_BtReady(
 		RTW_INFO("[MPT], Error!! status code=0x%x\n", pBtRsp->status);
 		return paraLen;
 	} else {
-		pu2Tmp = (pu2Byte)&pExtC2h->buf[0];
+		pu2Tmp = (u16 *)&pExtC2h->buf[0];
 		btRealFwVer = *pu2Tmp;
 		btFwVer = pExtC2h->buf[1];
 		RTW_INFO("[MPT], btRealFwVer=0x%x, btFwVer=0x%x\n", btRealFwVer, btFwVer);
@@ -337,7 +338,7 @@ mptbt_BtReady(
 		RTW_INFO(" 0x%x ", bdAddr[i]);
 	pBtRsp->status = BT_STATUS_SUCCESS;
 	pBtRsp->pParamStart[0] = MP_BT_READY;
-	pu2Tmp = (pu2Byte)&pBtRsp->pParamStart[1];
+	pu2Tmp = (u16 *)&pBtRsp->pParamStart[1];
 	*pu2Tmp = btRealFwVer;
 	pBtRsp->pParamStart[3] = btFwVer;
 	for (i = 0; i < 6; i++)
@@ -360,9 +361,9 @@ void mptbt_open_WiFiRF(PADAPTER	Adapter)
 	phy_set_rf_reg(Adapter, RF_PATH_A, 0x0, 0xF0000, 0x3);
 }
 
-u4Byte mptbt_switch_RF(PADAPTER	Adapter, u1Byte	Enter)
+u32 mptbt_switch_RF(PADAPTER	Adapter, u8	Enter)
 {
-	u2Byte	tmp_2byte = 0;
+	u16	tmp_2byte = 0;
 
 	/* Enter test mode */
 	if (Enter) {
@@ -390,20 +391,20 @@ u4Byte mptbt_switch_RF(PADAPTER	Adapter, u1Byte	Enter)
 	return 0;
 }
 
-u2Byte
+u16
 mptbt_BtSetMode(
 	PADAPTER		Adapter,
 	PBT_REQ_CMD	pBtReq,
 	PBT_RSP_CMD	pBtRsp
 )
 {
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
-	u1Byte				btModeToSet = 0;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
+	u8				btModeToSet = 0;
 
 	/*  */
 	/* check upper layer parameters */
@@ -455,11 +456,11 @@ mptbt_BtSetMode(
 }
 
 
-VOID
+void
 MPTBT_FwC2hBtMpCtrl(
 	PADAPTER	Adapter,
-	pu1Byte	tmpBuf,
-	u1Byte		length
+	u8		*tmpBuf,
+	u8		length
 )
 {
 	u32 i;
@@ -525,28 +526,28 @@ MPTBT_FwC2hBtMpCtrl(
 }
 
 
-u2Byte
+u16
 mptbt_BtGetGeneral(
-	IN	PADAPTER		Adapter,
-	IN	PBT_REQ_CMD	pBtReq,
-	IN	PBT_RSP_CMD	pBtRsp
+		PADAPTER		Adapter,
+		PBT_REQ_CMD	pBtReq,
+		PBT_RSP_CMD	pBtRsp
 )
 {
 	PMPT_CONTEXT		pMptCtx = &(Adapter->mppriv.mpt_ctx);
 	PBT_EXT_C2H		pExtC2h = (PBT_EXT_C2H)&pMptCtx->c2hBuf[0];
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode, bdAddr[6] = {0};
-	u1Byte				btOpcodeVer = 0;
-	u1Byte				getType = 0, i;
-	u2Byte				getParaLen = 0, validParaLen = 0;
-	u1Byte				regType = 0, reportType = 0;
-	u4Byte				regAddr = 0, regValue = 0;
-	pu4Byte			pu4Tmp;
-	pu2Byte			pu2Tmp;
-	pu1Byte			pu1Tmp;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode, bdAddr[6] = {0};
+	u8				btOpcodeVer = 0;
+	u8				getType = 0, i;
+	u16				getParaLen = 0, validParaLen = 0;
+	u8				regType = 0, reportType = 0;
+	u32				regAddr = 0, regValue = 0;
+	u32 				*pu4Tmp;
+	u16 				*pu2Tmp;
+	u8 				*pu1Tmp;
 
 	/*  */
 	/* check upper layer parameters */
@@ -577,7 +578,7 @@ mptbt_BtGetGeneral(
 		if (getParaLen == validParaLen) {
 			btOpcode = BT_LO_OP_READ_REG;
 			regType = pBtReq->pParamStart[1];
-			pu4Tmp = (pu4Byte)&pBtReq->pParamStart[2];
+			pu4Tmp = (u32 *)&pBtReq->pParamStart[2];
 			regAddr = *pu4Tmp;
 			RTW_INFO("[MPT], BT_GGET_REG regType=0x%02x, regAddr=0x%08x!!\n",
 				 regType, regAddr);
@@ -646,12 +647,12 @@ mptbt_BtGetGeneral(
 			return paraLen;
 		}
 
-		pu2Tmp = (pu2Byte)&pExtC2h->buf[0];
+		pu2Tmp = (u16 *)&pExtC2h->buf[0];
 		regValue = *pu2Tmp;
 		RTW_INFO("[MPT], read reg regType=0x%02x, regAddr=0x%08x, regValue=0x%04x\n",
 			 regType, regAddr, regValue);
 
-		pu4Tmp = (pu4Byte)&pBtRsp->pParamStart[0];
+		pu4Tmp = (u32 *)&pBtRsp->pParamStart[0];
 		*pu4Tmp = regValue;
 		paraLen = 4;
 	} else if (BT_GGET_STATUS == getType) {
@@ -829,26 +830,26 @@ mptbt_BtGetGeneral(
 
 
 
-u2Byte
+u16
 mptbt_BtSetGeneral(
-	IN	PADAPTER		Adapter,
-	IN	PBT_REQ_CMD	pBtReq,
-	IN	PBT_RSP_CMD	pBtRsp
+		PADAPTER		Adapter,
+		PBT_REQ_CMD	pBtReq,
+		PBT_RSP_CMD	pBtRsp
 )
 {
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
-	u1Byte				setType = 0;
-	u2Byte				setParaLen = 0, validParaLen = 0;
-	u1Byte				regType = 0, bdAddr[6] = {0}, calVal = 0;
-	u4Byte				regAddr = 0, regValue = 0;
-	pu4Byte			pu4Tmp;
-	pu2Byte			pu2Tmp;
-	pu1Byte			pu1Tmp;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
+	u8				setType = 0;
+	u16				setParaLen = 0, validParaLen = 0;
+	u8				regType = 0, bdAddr[6] = {0}, calVal = 0;
+	u32				regAddr = 0, regValue = 0;
+	u32 				*pu4Tmp;
+	u16 				*pu2Tmp;
+	u8 				*pu1Tmp;
 
 	/*  */
 	/* check upper layer parameters */
@@ -879,9 +880,9 @@ mptbt_BtSetGeneral(
 		if (setParaLen == validParaLen) {
 			btOpcode = BT_LO_OP_WRITE_REG_VALUE;
 			regType = pBtReq->pParamStart[1];
-			pu4Tmp = (pu4Byte)&pBtReq->pParamStart[2];
+			pu4Tmp = (u32 *)&pBtReq->pParamStart[2];
 			regAddr = *pu4Tmp;
-			pu4Tmp = (pu4Byte)&pBtReq->pParamStart[6];
+			pu4Tmp = (u32 *)&pBtReq->pParamStart[6];
 			regValue = *pu4Tmp;
 			RTW_INFO("[MPT], BT_GSET_REG regType=0x%x, regAddr=0x%x, regValue=0x%x!!\n",
 				 regType, regAddr, regValue);
@@ -1116,23 +1117,23 @@ mptbt_BtSetGeneral(
 
 
 
-u2Byte
+u16
 mptbt_BtSetTxRxPars(
-	IN	PADAPTER		Adapter,
-	IN	PBT_REQ_CMD	pBtReq,
-	IN	PBT_RSP_CMD	pBtRsp
+		PADAPTER		Adapter,
+		PBT_REQ_CMD	pBtReq,
+		PBT_RSP_CMD	pBtRsp
 )
 {
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
 	PBT_TXRX_PARAMETERS pTxRxPars = (PBT_TXRX_PARAMETERS)&pBtReq->pParamStart[0];
-	u2Byte				lenTxRx = sizeof(BT_TXRX_PARAMETERS);
-	u1Byte				i;
-	u1Byte				bdAddr[6] = {0};
+	u16				lenTxRx = sizeof(BT_TXRX_PARAMETERS);
+	u8				i;
+	u8				bdAddr[6] = {0};
 
 	/*  */
 	/* check upper layer parameters */
@@ -1179,9 +1180,9 @@ mptbt_BtSetTxRxPars(
 		pBtRsp->status = (btOpcode << 8) | BT_STATUS_PARAMETER_OUT_OF_RANGE_U;
 		return paraLen;
 	} else {
-		h2cParaBuf[0] = (u1Byte)(pTxRxPars->txrxPktHeader & 0xff);
-		h2cParaBuf[1] = (u1Byte)((pTxRxPars->txrxPktHeader & 0xff00) >> 8);
-		h2cParaBuf[2] = (u1Byte)((pTxRxPars->txrxPktHeader & 0xff0000) >> 16);
+		h2cParaBuf[0] = (u8)(pTxRxPars->txrxPktHeader & 0xff);
+		h2cParaBuf[1] = (u8)((pTxRxPars->txrxPktHeader & 0xff00) >> 8);
+		h2cParaBuf[2] = (u8)((pTxRxPars->txrxPktHeader & 0xff0000) >> 16);
 		h2cParaLen = 3;
 		retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);
 	}
@@ -1196,7 +1197,7 @@ mptbt_BtSetTxRxPars(
 	/* fill h2c parameters */
 	btOpcode = BT_LO_OP_SET_PKT_TYPE_LEN;
 	{
-		u2Byte	payloadLenLimit = 0;
+		u16	payloadLenLimit = 0;
 		switch (pTxRxPars->txrxPktType) {
 		case MP_BT_PKT_DH1:
 			payloadLenLimit = 27 * 8;
@@ -1244,8 +1245,8 @@ mptbt_BtSetTxRxPars(
 		}
 
 		h2cParaBuf[0] = pTxRxPars->txrxPktType;
-		h2cParaBuf[1] = (u1Byte)((pTxRxPars->txrxPayloadLen & 0xff));
-		h2cParaBuf[2] = (u1Byte)((pTxRxPars->txrxPayloadLen & 0xff00) >> 8);
+		h2cParaBuf[1] = (u8)((pTxRxPars->txrxPayloadLen & 0xff));
+		h2cParaBuf[2] = (u8)((pTxRxPars->txrxPayloadLen & 0xff00) >> 8);
 		h2cParaLen = 3;
 		retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);
 	}
@@ -1264,8 +1265,8 @@ mptbt_BtSetTxRxPars(
 		pBtRsp->status = (btOpcode << 8) | BT_STATUS_PARAMETER_OUT_OF_RANGE_U;
 		return paraLen;
 	} else {
-		h2cParaBuf[0] = (u1Byte)((pTxRxPars->txrxTxPktCnt & 0xff));
-		h2cParaBuf[1] = (u1Byte)((pTxRxPars->txrxTxPktCnt & 0xff00) >> 8);
+		h2cParaBuf[0] = (u8)((pTxRxPars->txrxTxPktCnt & 0xff));
+		h2cParaBuf[1] = (u8)((pTxRxPars->txrxTxPktCnt & 0xff00) >> 8);
 		h2cParaBuf[2] = pTxRxPars->txrxPayloadType;
 		h2cParaLen = 3;
 		retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);
@@ -1285,8 +1286,8 @@ mptbt_BtSetTxRxPars(
 		pBtRsp->status = (btOpcode << 8) | BT_STATUS_PARAMETER_OUT_OF_RANGE_U;
 		return paraLen;
 	} else {
-		h2cParaBuf[0] = (u1Byte)((pTxRxPars->txrxTxPktCnt & 0xff0000) >> 16);
-		h2cParaBuf[1] = (u1Byte)((pTxRxPars->txrxTxPktCnt & 0xff000000) >> 24);
+		h2cParaBuf[0] = (u8)((pTxRxPars->txrxTxPktCnt & 0xff0000) >> 16);
+		h2cParaBuf[1] = (u8)((pTxRxPars->txrxTxPktCnt & 0xff000000) >> 24);
 		h2cParaBuf[2] = pTxRxPars->txrxTxPktInterval;
 		h2cParaLen = 3;
 		retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);
@@ -1395,20 +1396,20 @@ mptbt_BtSetTxRxPars(
 
 
 
-u2Byte
+u16
 mptbt_BtTestCtrl(
-	IN	PADAPTER		Adapter,
-	IN	PBT_REQ_CMD	pBtReq,
-	IN	PBT_RSP_CMD	pBtRsp
+		PADAPTER		Adapter,
+		PBT_REQ_CMD	pBtReq,
+		PBT_RSP_CMD	pBtRsp
 )
 {
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
-	u1Byte				testCtrl = 0;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
+	u8				testCtrl = 0;
 
 	/*  */
 	/* check upper layer parameters */
@@ -1460,21 +1461,21 @@ mptbt_BtTestCtrl(
 }
 
 
-u2Byte
+u16
 mptbt_TestBT(
-	IN	PADAPTER		Adapter,
-	IN	PBT_REQ_CMD	pBtReq,
-	IN	PBT_RSP_CMD	pBtRsp
+		PADAPTER		Adapter,
+		PBT_REQ_CMD	pBtReq,
+		PBT_RSP_CMD	pBtRsp
 )
 {
 
-	u1Byte				h2cParaBuf[6] = {0};
-	u1Byte				h2cParaLen = 0;
-	u2Byte				paraLen = 0;
-	u1Byte				retStatus = BT_STATUS_BT_OP_SUCCESS;
-	u1Byte				btOpcode;
-	u1Byte				btOpcodeVer = 0;
-	u1Byte				testCtrl = 0;
+	u8				h2cParaBuf[6] = {0};
+	u8				h2cParaLen = 0;
+	u16				paraLen = 0;
+	u8				retStatus = BT_STATUS_BT_OP_SUCCESS;
+	u8				btOpcode;
+	u8				btOpcodeVer = 0;
+	u8				testCtrl = 0;
 
 	/* 1. fill h2c parameters	 */
 	btOpcode =  0x11;
@@ -1499,18 +1500,18 @@ mptbt_TestBT(
 	return paraLen;
 }
 
-VOID
+void
 mptbt_BtControlProcess(
 	PADAPTER	Adapter,
-	PVOID		pInBuf
+	void			*pInBuf
 )
 {
-	u1Byte			H2C_Parameter[6] = {0};
+	u8			H2C_Parameter[6] = {0};
 	PBT_H2C		pH2c = (PBT_H2C)&H2C_Parameter[0];
 	PMPT_CONTEXT	pMptCtx = &(Adapter->mppriv.mpt_ctx);
 	PBT_REQ_CMD	pBtReq = (PBT_REQ_CMD)pInBuf;
 	PBT_RSP_CMD	pBtRsp;
-	u1Byte			i;
+	u8			i;
 
 
 	RTW_INFO("[MPT], mptbt_BtControlProcess()=========>\n");

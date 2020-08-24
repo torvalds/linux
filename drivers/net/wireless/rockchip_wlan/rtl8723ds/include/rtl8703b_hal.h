@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -106,18 +107,10 @@ typedef struct _RT_8703B_FIRMWARE_HDR {
 /* Note: We will divide number of page equally for each queue other than public queue! */
 
 /* For General Reserved Page Number(Beacon Queue is reserved page)
- * Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1 */
-#define BCNQ_PAGE_NUM_8703B		0x08
-#ifdef CONFIG_CONCURRENT_MODE
-	#define BCNQ1_PAGE_NUM_8703B		0x08 /* 0x04 */
-#else
-	#define BCNQ1_PAGE_NUM_8703B		0x00
-#endif
+ * Beacon:MAX_BEACON_LEN/PAGE_SIZE_TX_8703B
+ * PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1,CTS-2-SELF,LTE QoS Null*/
 
-#ifdef CONFIG_PNO_SUPPORT
-	#undef BCNQ1_PAGE_NUM_8703B
-	#define BCNQ1_PAGE_NUM_8703B		0x00 /* 0x04 */
-#endif
+#define BCNQ_PAGE_NUM_8703B		(MAX_BEACON_LEN/PAGE_SIZE_TX_8703B + 6) /*0x08*/
 
 /* For WoWLan , more reserved page
  * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt: 1 PNO: 6
@@ -138,7 +131,7 @@ typedef struct _RT_8703B_FIRMWARE_HDR {
 	#define AP_WOWLAN_PAGE_NUM_8703B	0x02
 #endif
 
-#define TX_TOTAL_PAGE_NUMBER_8703B	(0xFF - BCNQ_PAGE_NUM_8703B - BCNQ1_PAGE_NUM_8703B - WOWLAN_PAGE_NUM_8703B)
+#define TX_TOTAL_PAGE_NUMBER_8703B	(0xFF - BCNQ_PAGE_NUM_8703B - WOWLAN_PAGE_NUM_8703B)
 #define TX_PAGE_BOUNDARY_8703B		(TX_TOTAL_PAGE_NUMBER_8703B + 1)
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8703B	TX_TOTAL_PAGE_NUMBER_8703B
@@ -222,8 +215,8 @@ void Hal_EfuseParseCustomerID_8703B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoL
 void Hal_EfuseParseAntennaDiversity_8703B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseXtal_8703B(PADAPTER pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8703B(PADAPTER padapter, u8 *hwinfo, u8 AutoLoadFail);
-VOID Hal_EfuseParseVoltage_8703B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
-VOID Hal_EfuseParseBoardType_8703B(PADAPTER Adapter,	u8	*PROMContent, BOOLEAN AutoloadFail);
+void Hal_EfuseParseVoltage_8703B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
+void Hal_EfuseParseBoardType_8703B(PADAPTER Adapter,	u8	*PROMContent, BOOLEAN AutoloadFail);
 
 void rtl8703b_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8703b(_adapter *adapter);
@@ -257,7 +250,7 @@ void rtl8703b_stop_thread(_adapter *padapter);
 	void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
 #endif
 #ifdef CONFIG_MP_INCLUDED
-int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
+int FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 #endif
 void CCX_FwC2HTxRpt_8703b(PADAPTER padapter, u8 *pdata, u8 len);
 
@@ -268,7 +261,7 @@ void Hal_ReadRFGainOffset(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 
 #ifdef CONFIG_PCI_HCI
 	BOOLEAN	InterruptRecognized8703BE(PADAPTER Adapter);
-	VOID	UpdateInterruptMask8703BE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
+	void	UpdateInterruptMask8703BE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif
 
 #endif

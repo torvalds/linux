@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,33 +16,52 @@
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
 
+enum security_type {
+	/* TYPE */
+	_NO_PRIVACY_	= 0x00,
+	_WEP40_		= 0x01,
+	_TKIP_		= 0x02,
+	_TKIP_WTMIC_	= 0x03,
+	_AES_		= 0x04,
+	_WEP104_	= 0x05,
+	_SMS4_		= 0x06,
+	_GCMP_		= 0x07,
+	_SEC_TYPE_MAX_,
 
-#define _NO_PRIVACY_		0x0
-#define _WEP40_				0x1
-#define _TKIP_				0x2
-#define _TKIP_WTMIC_		0x3
-#define _AES_				0x4
-#define _WEP104_			0x5
-#define _WEP_WPA_MIXED_	0x07  /* WEP + WPA */
-#define _SMS4_				0x06
+	/* EXT_SECTYPE=1 */
+	_SEC_TYPE_256_	= 0x10,
+	_CCMP_256_	= (_AES_ | _SEC_TYPE_256_),
+	_GCMP_256_	= (_GCMP_ | _SEC_TYPE_256_),
+
 #ifdef CONFIG_IEEE80211W
-#define _BIP_				0x8
-#endif /* CONFIG_IEEE80211W */
+	/* EXT_SECTYPE=0, MGNT=1, GK=0/1, KEYID=00/01 */
+	_SEC_TYPE_BIT_	= 0x20,
+	_BIP_CMAC_128_	= (_SEC_TYPE_BIT_),
+	_BIP_GMAC_128_	= (_SEC_TYPE_BIT_ + 1),
+	_BIP_GMAC_256_	= (_SEC_TYPE_BIT_ + 2),
+	/* EXT_SECTYPE=1, MGNT=1, GK=1, KEYID=00/01 */
+	_BIP_CMAC_256_	= (_SEC_TYPE_BIT_ + 3),
+	_BIP_MAX_,
+#endif
+};
+
 /* 802.11W use wrong key */
 #define IEEE80211W_RIGHT_KEY	0x0
 #define IEEE80211W_WRONG_KEY	0x1
 #define IEEE80211W_NO_KEY		0x2
 
+#define CCMPH_2_PN(ch)	((ch) & 0x000000000000ffff) \
+			| (((ch) & 0xffffffff00000000) >> 16)
+
 #define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
 
 const char *security_type_str(u8 value);
+#ifdef CONFIG_IEEE80211W
+u32 security_type_bip_to_gmcs(enum security_type type);
+#endif
 
 #define _WPA_IE_ID_	0xdd
 #define _WPA2_IE_ID_	0x30
-
-#define SHA256_MAC_LEN 32
-#define AES_BLOCK_SIZE 16
-#define AES_PRIV_SIZE (4 * 44)
 
 #define RTW_KEK_LEN 16
 #define RTW_KCK_LEN 16
@@ -103,10 +123,8 @@ struct {
 };
 
 union Keytype {
-	u8   skey[16];
-	u32    lkey[4];
+	u8 skey[32];
 };
-
 
 typedef struct _RT_PMKID_LIST {
 	u8						bUsed;
@@ -124,24 +142,25 @@ struct security_priv {
 
 	/* WEP */
 	u32	  dot11PrivacyKeyIndex;	/* this is only valid for legendary wep, 0~3 for key id. (tx key index) */
-	union Keytype dot11DefKey[4];			/* this is only valid for def. key	 */
-	u32	dot11DefKeylen[4];
-	u8	dot11Def_camid[4];
+	union Keytype dot11DefKey[6];			/* this is only valid for def. key	 */
+	u32	dot11DefKeylen[6];
+	u8	dot11Def_camid[6];
 	u8 	key_mask; /* use to restore wep key after hal_init */
 
 	u32 dot118021XGrpPrivacy;	/* This specify the privacy algthm. used for Grp key */
 	u32	dot118021XGrpKeyid;		/* key id used for Grp Key ( tx key index) */
-	union Keytype	dot118021XGrpKey[4];	/* 802.1x Group Key, for inx0 and inx1	 */
-	union Keytype	dot118021XGrptxmickey[4];
-	union Keytype	dot118021XGrprxmickey[4];
+	union Keytype	dot118021XGrpKey[6];	/* 802.1x Group Key, for inx0 and inx1	 */
+	union Keytype	dot118021XGrptxmickey[6];
+	union Keytype	dot118021XGrprxmickey[6];
 	union pn48		dot11Grptxpn;			/* PN48 used for Grp Key xmit. */
 	union pn48		dot11Grprxpn;			/* PN48 used for Grp Key recv. */
 	u8				iv_seq[4][8];
 #ifdef CONFIG_IEEE80211W
+	enum security_type dot11wCipher;
 	u32	dot11wBIPKeyid;						/* key id used for BIP Key ( tx key index) */
 	union Keytype	dot11wBIPKey[6];		/* BIP Key, for index4 and index5 */
-	union pn48		dot11wBIPtxpn;			/* PN48 used for Grp Key xmit. */
-	union pn48		dot11wBIPrxpn;			/* PN48 used for Grp Key recv. */
+	union pn48		dot11wBIPtxpn;			/* PN48 used for BIP xmit. */
+	union pn48		dot11wBIPrxpn;			/* PN48 used for BIP recv. */
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_AP_MODE
 	/* extend security capabilities for AP_MODE */
@@ -151,16 +170,18 @@ struct security_priv {
 	unsigned int wpa2_group_cipher;
 	unsigned int wpa_pairwise_cipher;
 	unsigned int wpa2_pairwise_cipher;
+	unsigned int akmp; /* An authentication and key management protocol */
+	u8 mfp_opt;
 #endif
-#ifdef CONFIG_CONCURRENT_MODE
 	u8	dot118021x_bmc_cam_id;
-#endif
 	/*IEEE802.11-2012 Std. Table 8-101 AKM Suite Selectors*/
 	u32	rsn_akm_suite_type;
 
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
 
+	u8 owe_ie[MAX_OWE_IE_LEN];/* added in assoc req */
+	int owe_ie_len;
 
 	u8	binstallGrpkey;
 #ifdef CONFIG_GTK_OL
@@ -173,6 +194,9 @@ struct security_priv {
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
 
+	u8	auth_alg;
+	u8	auth_type;
+	u8	extauth_status;
 	/* u8	packet_cnt; */ /* unused, removed */
 
 	s32	sw_encrypt;/* from registry_priv */
@@ -186,9 +210,6 @@ struct security_priv {
 	u32 ndisencryptstatus;	/* NDIS_802_11_ENCRYPTION_STATUS */
 
 	NDIS_802_11_WEP ndiswep;
-#ifdef PLATFORM_WINDOWS
-	u8 KeyMaterial[16];/* variable length depending on above field. */
-#endif
 
 	u8 assoc_info[600];
 	u8 szofcapability[256]; /* for wpa2 usage */
@@ -237,14 +258,21 @@ struct security_priv {
 	u64 aes_sw_dec_cnt_bc;
 	u64 aes_sw_dec_cnt_mc;
 	u64 aes_sw_dec_cnt_uc;
+
+	u64 gcmp_sw_enc_cnt_bc;
+	u64 gcmp_sw_enc_cnt_mc;
+	u64 gcmp_sw_enc_cnt_uc;
+	u64 gcmp_sw_dec_cnt_bc;
+	u64 gcmp_sw_dec_cnt_mc;
+	u64 gcmp_sw_dec_cnt_uc;
 #endif /* DBG_SW_SEC_CNT */
 };
 
-struct sha256_state {
-	u64 length;
-	u32 state[8], curlen;
-	u8 buf[64];
-};
+#ifdef CONFIG_IEEE80211W
+#define SEC_IS_BIP_KEY_INSTALLED(sec) ((sec)->binstallBIPkey)
+#else
+#define SEC_IS_BIP_KEY_INSTALLED(sec) _FALSE
+#endif
 
 #define GET_ENCRY_ALGO(psecuritypriv, psta, encry_algo, bmcst)\
 	do {\
@@ -284,6 +312,15 @@ struct sha256_state {
 			iv_len = 8;\
 			icv_len = 8;\
 			break;\
+		case _GCMP_:\
+		case _GCMP_256_:\
+			iv_len = 8;\
+			icv_len = 16;\
+			break;\
+		case _CCMP_256_:\
+			iv_len = 8;\
+			icv_len = 16;\
+			break;\
 		case _SMS4_:\
 			iv_len = 18;\
 			icv_len = 16;\
@@ -317,126 +354,6 @@ struct mic_data {
 	u32     nBytesInM;      /*  # bytes in M */
 };
 
-extern const u32 Te0[256];
-extern const u32 Te1[256];
-extern const u32 Te2[256];
-extern const u32 Te3[256];
-extern const u32 Te4[256];
-extern const u32 Td0[256];
-extern const u32 Td1[256];
-extern const u32 Td2[256];
-extern const u32 Td3[256];
-extern const u32 Td4[256];
-extern const u32 rcon[10];
-extern const u8 Td4s[256];
-extern const u8 rcons[10];
-
-#define RCON(i) (rcons[(i)] << 24)
-
-static inline u32 rotr(u32 val, int bits)
-{
-	return (val >> bits) | (val << (32 - bits));
-}
-
-#define TE0(i) Te0[((i) >> 24) & 0xff]
-#define TE1(i) rotr(Te0[((i) >> 16) & 0xff], 8)
-#define TE2(i) rotr(Te0[((i) >> 8) & 0xff], 16)
-#define TE3(i) rotr(Te0[(i) & 0xff], 24)
-#define TE41(i) ((Te0[((i) >> 24) & 0xff] << 8) & 0xff000000)
-#define TE42(i) (Te0[((i) >> 16) & 0xff] & 0x00ff0000)
-#define TE43(i) (Te0[((i) >> 8) & 0xff] & 0x0000ff00)
-#define TE44(i) ((Te0[(i) & 0xff] >> 8) & 0x000000ff)
-#define TE421(i) ((Te0[((i) >> 16) & 0xff] << 8) & 0xff000000)
-#define TE432(i) (Te0[((i) >> 8) & 0xff] & 0x00ff0000)
-#define TE443(i) (Te0[(i) & 0xff] & 0x0000ff00)
-#define TE414(i) ((Te0[((i) >> 24) & 0xff] >> 8) & 0x000000ff)
-#define TE4(i) ((Te0[(i)] >> 8) & 0x000000ff)
-
-#define TD0(i) Td0[((i) >> 24) & 0xff]
-#define TD1(i) rotr(Td0[((i) >> 16) & 0xff], 8)
-#define TD2(i) rotr(Td0[((i) >> 8) & 0xff], 16)
-#define TD3(i) rotr(Td0[(i) & 0xff], 24)
-#define TD41(i) (Td4s[((i) >> 24) & 0xff] << 24)
-#define TD42(i) (Td4s[((i) >> 16) & 0xff] << 16)
-#define TD43(i) (Td4s[((i) >> 8) & 0xff] << 8)
-#define TD44(i) (Td4s[(i) & 0xff])
-#define TD0_(i) Td0[(i) & 0xff]
-#define TD1_(i) rotr(Td0[(i) & 0xff], 8)
-#define TD2_(i) rotr(Td0[(i) & 0xff], 16)
-#define TD3_(i) rotr(Td0[(i) & 0xff], 24)
-
-#define GETU32(pt) (((u32)(pt)[0] << 24) ^ ((u32)(pt)[1] << 16) ^ \
-			((u32)(pt)[2] <<  8) ^ ((u32)(pt)[3]))
-
-#define PUTU32(ct, st) { \
-		(ct)[0] = (u8)((st) >> 24); (ct)[1] = (u8)((st) >> 16); \
-		(ct)[2] = (u8)((st) >>  8); (ct)[3] = (u8)(st); }
-
-#define WPA_GET_BE32(a) ((((u32) (a)[0]) << 24) | (((u32) (a)[1]) << 16) | \
-			 (((u32) (a)[2]) << 8) | ((u32) (a)[3]))
-
-#define WPA_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16) (val)) >> 8;	\
-		(a)[0] = ((u16) (val)) & 0xff;	\
-	} while (0)
-
-#define WPA_PUT_BE32(a, val)					\
-	do {							\
-		(a)[0] = (u8) ((((u32) (val)) >> 24) & 0xff);	\
-		(a)[1] = (u8) ((((u32) (val)) >> 16) & 0xff);	\
-		(a)[2] = (u8) ((((u32) (val)) >> 8) & 0xff);	\
-		(a)[3] = (u8) (((u32) (val)) & 0xff);		\
-	} while (0)
-
-#define WPA_PUT_BE64(a, val)				\
-	do {						\
-		(a)[0] = (u8) (((u64) (val)) >> 56);	\
-		(a)[1] = (u8) (((u64) (val)) >> 48);	\
-		(a)[2] = (u8) (((u64) (val)) >> 40);	\
-		(a)[3] = (u8) (((u64) (val)) >> 32);	\
-		(a)[4] = (u8) (((u64) (val)) >> 24);	\
-		(a)[5] = (u8) (((u64) (val)) >> 16);	\
-		(a)[6] = (u8) (((u64) (val)) >> 8);	\
-		(a)[7] = (u8) (((u64) (val)) & 0xff);	\
-	} while (0)
-
-/* the K array */
-static const unsigned long K[64] = {
-	0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL, 0x3956c25bUL,
-	0x59f111f1UL, 0x923f82a4UL, 0xab1c5ed5UL, 0xd807aa98UL, 0x12835b01UL,
-	0x243185beUL, 0x550c7dc3UL, 0x72be5d74UL, 0x80deb1feUL, 0x9bdc06a7UL,
-	0xc19bf174UL, 0xe49b69c1UL, 0xefbe4786UL, 0x0fc19dc6UL, 0x240ca1ccUL,
-	0x2de92c6fUL, 0x4a7484aaUL, 0x5cb0a9dcUL, 0x76f988daUL, 0x983e5152UL,
-	0xa831c66dUL, 0xb00327c8UL, 0xbf597fc7UL, 0xc6e00bf3UL, 0xd5a79147UL,
-	0x06ca6351UL, 0x14292967UL, 0x27b70a85UL, 0x2e1b2138UL, 0x4d2c6dfcUL,
-	0x53380d13UL, 0x650a7354UL, 0x766a0abbUL, 0x81c2c92eUL, 0x92722c85UL,
-	0xa2bfe8a1UL, 0xa81a664bUL, 0xc24b8b70UL, 0xc76c51a3UL, 0xd192e819UL,
-	0xd6990624UL, 0xf40e3585UL, 0x106aa070UL, 0x19a4c116UL, 0x1e376c08UL,
-	0x2748774cUL, 0x34b0bcb5UL, 0x391c0cb3UL, 0x4ed8aa4aUL, 0x5b9cca4fUL,
-	0x682e6ff3UL, 0x748f82eeUL, 0x78a5636fUL, 0x84c87814UL, 0x8cc70208UL,
-	0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL
-};
-
-
-/* Various logical functions */
-#define RORc(x, y) \
-	(((((unsigned long) (x) & 0xFFFFFFFFUL) >> (unsigned long) ((y) & 31)) | \
-	  ((unsigned long) (x) << (unsigned long) (32 - ((y) & 31)))) & 0xFFFFFFFFUL)
-#define Ch(x, y, z)       (z ^ (x & (y ^ z)))
-#define Maj(x, y, z)      (((x | y) & z) | (x & y))
-#define S(x, n)         RORc((x), (n))
-#define R(x, n)         (((x) & 0xFFFFFFFFUL)>>(n))
-#define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
-#define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
-#define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))
-#define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
-#ifndef MIN
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#endif
-#ifdef CONFIG_IEEE80211W
-int omac1_aes_128(u8 *key, u8 *data, size_t data_len, u8 *mac);
-#endif /* CONFIG_IEEE80211W */
 void rtw_secmicsetkey(struct mic_data *pmicdata, u8 *key);
 void rtw_secmicappendbyte(struct mic_data *pmicdata, u8 b);
 void rtw_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nBytes);
@@ -457,11 +374,27 @@ void rtw_wep_encrypt(_adapter *padapter, u8  *pxmitframe);
 u32 rtw_aes_decrypt(_adapter *padapter, u8  *precvframe);
 u32 rtw_tkip_decrypt(_adapter *padapter, u8  *precvframe);
 void rtw_wep_decrypt(_adapter *padapter, u8  *precvframe);
+
+u32 rtw_gcmp_encrypt(_adapter *padapter, u8 *pxmitframe);
+u32 rtw_gcmp_decrypt(_adapter *padapter, u8 *precvframe);
+
+#ifdef CONFIG_RTW_MESH_AEK
+int rtw_aes_siv_encrypt(const u8 *key, size_t key_len,
+	const u8 *pw, size_t pwlen, size_t num_elem,
+	const u8 *addr[], const size_t *len, u8 *out);
+int rtw_aes_siv_decrypt(const u8 *key, size_t key_len,
+	const u8 *iv_crypt, size_t iv_c_len, size_t num_elem,
+	const u8 *addr[], const size_t *len, u8 *out);
+#endif /* CONFIG_RTW_MESH_AEK */
+
 #ifdef CONFIG_IEEE80211W
-u32	rtw_BIP_verify(_adapter *padapter, u8 *precvframe);
-#endif /* CONFIG_IEEE80211W */
+u8 rtw_calculate_bip_mic(enum security_type gmcs, u8 *whdr_pos, s32 len,
+	const u8 *key, const u8 *data, size_t data_len, u8 *mic);
+u32 rtw_bip_verify(enum security_type gmcs, u16 pkt_len,
+	u8 *whdr_pos, sint flen, const u8 *key, u16 keyid, u64 *ipn);
+#endif
 #ifdef CONFIG_TDLS
-void wpa_tdls_generate_tpk(_adapter *padapter, PVOID sta);
+void wpa_tdls_generate_tpk(_adapter *padapter, void *sta);
 int wpa_tdls_ftie_mic(u8 *kck, u8 trans_seq,
 			u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie,
 			u8 *mic);
@@ -478,4 +411,12 @@ u8 rtw_handle_tkip_countermeasure(_adapter *adapter, const char *caller);
 u16 rtw_calc_crc(u8  *pdata, int length);
 #endif /*CONFIG_WOWLAN*/
 
+#define rtw_sec_chk_auth_alg(a, s) \
+	((a)->securitypriv.auth_alg == (s))
+
+#define rtw_sec_chk_auth_type(a, s) \
+	((a)->securitypriv.auth_type == (s))
+
 #endif /* __RTL871X_SECURITY_H_ */
+
+u32 rtw_calc_crc32(u8 *data, size_t len);

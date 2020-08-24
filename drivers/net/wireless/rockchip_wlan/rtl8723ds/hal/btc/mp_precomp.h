@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2013 - 2017 Realtek Corporation.
@@ -17,11 +18,13 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
+#include "btc_basic_types.h"
 
 #define BT_TMP_BUF_SIZE	100
 
 #ifdef PLATFORM_LINUX
 #define rsprintf snprintf
+#define rstrncat(dst, src, src_size) strncat(dst, src, src_size)
 #elif defined(PLATFORM_WINDOWS)
 #define rsprintf sprintf_s
 #endif
@@ -59,27 +62,99 @@ extern u4Byte GLBtcDbgType[];
 #define HS_SUPPORT		0
 #endif
 
-#include "halbtcoutsrc.h"
-#include "halbtc8192e1ant.h"
-#include "halbtc8192e2ant.h"
-#include "halbtc8723b1ant.h"
-#include "halbtc8723b2ant.h"
-#include "halbtc8812a1ant.h"
-#include "halbtc8812a2ant.h"
-#include "halbtc8821a1ant.h"
-#include "halbtc8821a2ant.h"
-#include "halbtc8703b1ant.h"
-#include "halbtc8723d1ant.h"
-#include "halbtc8723d2ant.h"
-#include "halbtc8822b1ant.h"
-#include "halbtc8822b2ant.h"
-#include "halbtc8821c1ant.h"
-#include "halbtc8821c2ant.h"
-
 /* for wifi only mode */
 #include "hal_btcoex_wifionly.h"
+
+#ifdef CONFIG_BT_COEXIST
+#define BTC_BTINFO_LENGTH_MAX 10
+
+struct wifi_only_cfg;
+struct btc_coexist;
+
+#ifdef CONFIG_RTL8192E
+#include "halbtc8192e1ant.h"
+#include "halbtc8192e2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8723B
 #include "halbtc8723bwifionly.h"
+#include "halbtc8723b1ant.h"
+#include "halbtc8723b2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8812A
+#include "halbtc8812a1ant.h"
+#include "halbtc8812a2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8821A
+#include "halbtc8821a1ant.h"
+#include "halbtc8821a2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8703B
+#include "halbtc8703b1ant.h"
+#endif
+
+#ifdef CONFIG_RTL8723D
+#include "halbtc8723d1ant.h"
+#include "halbtc8723d2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8822B
 #include "halbtc8822bwifionly.h"
+#include "halbtc8822b1ant.h"
+#include "halbtc8822b2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8821C
 #include "halbtc8821cwifionly.h"
+#include "halbtc8821c1ant.h"
+#include "halbtc8821c2ant.h"
+#endif
+
+#ifdef CONFIG_RTL8814A
+#include "halbtc8814a2ant.h"
+#endif
+
+#if (CONFIG_BTCOEX_SUPPORT_BTC_CMN == 1)
+#include "halbtccommon.h"
+
+#ifdef CONFIG_RTL8822C
+#include "halbtc8822cwifionly.h"
+#include "halbtc8822c.h"
+#endif
+
+#ifdef CONFIG_RTL8192F
+#include "halbtc8192f.h"
+#endif
+
+#endif
+
+#include "halbtcoutsrc.h"
+
+#else /* CONFIG_BT_COEXIST */
+
+#ifdef CONFIG_RTL8723B
+#include "halbtc8723bwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8822B
+#include "halbtc8822bwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8821C
+#include "halbtc8821cwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8822C
+#include "halbtc8822cwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8814B
+#include "halbtc8814bwifionly.h"
+#endif
+
+#endif /* CONFIG_BT_COEXIST */
 
 #endif /*  __MP_PRECOMP_H__ */

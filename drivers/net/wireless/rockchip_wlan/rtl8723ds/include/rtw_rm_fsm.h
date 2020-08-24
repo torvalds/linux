@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /******************************************************************************
  *
@@ -55,13 +56,6 @@
 #define RM_GET_AID(rmid)	((rmid&0xffff0000)>>16)
 #define RM_IS_ID_FOR_ALL(rmid)	(rmid&RM_ALL_MEAS)
 
-/*
- * define the following channels as the max channels in each channel plan.
- * 2G, total 14 chnls
- * {1,2,3,4,5,6,7,8,9,10,11,12,13,14}
- * 5G, total 25 chnls
- * {36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,144,149,153,157,161,165}
- */
 #define	MAX_OP_CHANNEL_SET_NUM	11
 typedef struct _RT_OPERATING_CLASS {
 	int	global_op_class;
@@ -228,6 +222,9 @@ struct rm_meas_req {
 	u8 *opt_s_elem_start;
 	int opt_s_elem_len;
 
+	s8 tx_pwr_used;		/* for link measurement */
+	s8 tx_pwr_max;		/* for link measurement */
+
 	union {
 		struct bcn_req_opt bcn;
 		struct meas_req_opt clm;
@@ -236,6 +233,10 @@ struct rm_meas_req {
 
 	struct rtw_ieee80211_channel ch_set[MAX_OP_CHANNEL_SET_NUM];
 	u8 ch_set_ch_amount;
+	s8 rx_pwr;		/* in dBm */
+	u8 rx_bw;
+	u8 rx_rate;
+	u8 rx_rsni;
 };
 
 struct rm_meas_rep {
@@ -284,6 +285,7 @@ struct rm_obj {
 	u64 meas_end_time;
 	int wait_busy;
 	u8 poll_mode;
+	u8 free_run_counter_valid; /* valid:_SUCCESS/invalid:_FAIL */
 
 	struct data_buf buf[MAX_BUF_NUM];
 
@@ -372,6 +374,10 @@ int rm_recv_radio_mens_req(_adapter *padapter,
 	union recv_frame *precv_frame,struct sta_info *psta);
 int rm_recv_radio_mens_rep(_adapter *padapter,
 	union recv_frame *precv_frame, struct sta_info *psta);
+int rm_recv_link_mens_req(_adapter *padapter,
+	union recv_frame *precv_frame,struct sta_info *psta);
+int rm_recv_link_mens_rep(_adapter *padapter,
+	union recv_frame *precv_frame, struct sta_info *psta);
 int rm_radio_mens_nb_rep(_adapter *padapter,
 	union recv_frame *precv_frame, struct sta_info *psta);
 int issue_null_reply(struct rm_obj *prm);
@@ -379,6 +385,8 @@ int issue_beacon_rep(struct rm_obj *prm);
 int issue_nb_req(struct rm_obj *prm);
 int issue_radio_meas_req(struct rm_obj *prm);
 int issue_radio_meas_rep(struct rm_obj *prm);
+int issue_link_meas_req(struct rm_obj *prm);
+int issue_link_meas_rep(struct rm_obj *prm);
 
 void rm_set_rep_mode(struct rm_obj *prm, u8 mode);
 

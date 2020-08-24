@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -18,15 +19,15 @@
 ******************************************************************************/
 
 
-u2Byte
-EFUSE_GetArrayLen_MP_8723D_MPCIE(VOID);
+u16
+EFUSE_GetArrayLen_MP_8723D_MPCIE(void);
 
-VOID
+void
 EFUSE_GetMaskArray_MP_8723D_MPCIE(
-	IN	OUT pu1Byte Array
+		u8 *Array
 );
 
 BOOLEAN
 EFUSE_IsAddressMasked_MP_8723D_MPCIE(/* TC: Test Chip, MP: MP Chip */
-	IN   u2Byte  Offset
+		u16 Offset
 );

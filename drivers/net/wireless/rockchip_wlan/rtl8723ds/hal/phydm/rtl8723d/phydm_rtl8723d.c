@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -13,25 +14,21 @@
  *
  *****************************************************************************/
 
-/*============================================================
- include files
-============================================================*/
+/* ============================================================
+ *  include files
+ * ============================================================
+ */
 
 #include "mp_precomp.h"
 #include "../phydm_precomp.h"
 
 #if (RTL8723D_SUPPORT == 1)
 
-s8
-odm_cckrssi_8723d(
-	u8	lna_idx,
-	u8	vga_idx
-)
+s8 phydm_cckrssi_8723d(struct dm_struct *dm, u8 lna_idx, u8 vga_idx)
 {
-	s8	rx_pwr_all = 0x00;
+	s8 rx_pwr_all = 0x00;
 
 	switch (lna_idx) {
-
 	case 0xf:
 		rx_pwr_all = -46 - (2 * vga_idx);
 		break;
@@ -49,7 +46,6 @@ odm_cckrssi_8723d(
 	}
 
 	return rx_pwr_all;
-
 }
 
 #endif

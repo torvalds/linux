@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -81,6 +82,8 @@ void rtw_ap_parse_sta_rm_en_cap(_adapter *padapter,
 
 int rm_post_event(_adapter *padapter, u32 rmid, enum RM_EV_ID evid);
 void rm_handler(_adapter *padapter, struct rm_event *pev);
+
+u8 rm_add_nb_req(_adapter *padapter, struct sta_info *psta);
 
 #endif /*CONFIG_RTW_80211K */
 #endif /* __RTW_RM_H_ */

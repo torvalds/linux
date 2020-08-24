@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -17,15 +18,15 @@
 *                           MSDIO.TXT
 ******************************************************************************/
 
-u2Byte
-EFUSE_GetArrayLen_MP_8723D_MSDIO(VOID);
+u16
+EFUSE_GetArrayLen_MP_8723D_MSDIO(void);
 
-VOID
+void
 EFUSE_GetMaskArray_MP_8723D_MSDIO(
-	IN	OUT pu1Byte Array
+		u8 *Array
 );
 /* TC: Test Chip, MP: MP Chip */
 BOOLEAN
 EFUSE_IsAddressMasked_MP_8723D_MSDIO(
-	IN   u2Byte  Offset
+		u16 Offset
 );

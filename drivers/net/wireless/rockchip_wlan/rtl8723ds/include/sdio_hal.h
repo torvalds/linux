@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -44,6 +45,14 @@ void rtl8723ds_set_hal_ops(PADAPTER padapter);
 
 #ifdef CONFIG_RTL8188F
 void rtl8188fs_set_hal_ops(PADAPTER padapter);
+#endif
+
+#ifdef CONFIG_RTL8188GTV
+void rtl8188gtvs_set_hal_ops(PADAPTER padapter);
+#endif
+
+#ifdef CONFIG_RTL8192F
+void rtl8192fs_set_hal_ops(PADAPTER padapter);
 #endif
 
 #endif /* __SDIO_HAL_H__ */

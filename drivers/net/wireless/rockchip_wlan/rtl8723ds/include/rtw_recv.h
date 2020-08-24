@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,41 +16,31 @@
 #ifndef _RTW_RECV_H_
 #define _RTW_RECV_H_
 
-#ifdef PLATFORM_OS_XP
-	#ifdef CONFIG_SDIO_HCI
-		#define NR_RECVBUFF 1024/* 512 */ /* 128 */
-	#else
-		#define NR_RECVBUFF (16)
-	#endif
-#elif defined(PLATFORM_OS_CE)
-	#ifdef CONFIG_SDIO_HCI
-		#define NR_RECVBUFF (128)
-	#else
-		#define NR_RECVBUFF (4)
-	#endif
-#else /* PLATFORM_LINUX /PLATFORM_BSD */
+#define RTW_RX_MSDU_ACT_NONE		0
+#define RTW_RX_MSDU_ACT_INDICATE	BIT0
+#define RTW_RX_MSDU_ACT_FORWARD		BIT1
 
-	#ifdef CONFIG_SINGLE_RECV_BUF
-		#define NR_RECVBUFF (1)
+#ifdef CONFIG_SINGLE_RECV_BUF
+	#define NR_RECVBUFF (1)
+#else
+	#if defined(CONFIG_GSPI_HCI)
+		#define NR_RECVBUFF (32)
+	#elif defined(CONFIG_SDIO_HCI)
+		#define NR_RECVBUFF (8)
 	#else
-		#if defined(CONFIG_GSPI_HCI)
-			#define NR_RECVBUFF (32)
-		#elif defined(CONFIG_SDIO_HCI)
-			#define NR_RECVBUFF (8)
-		#else
-			#define NR_RECVBUFF (8)
-		#endif
-	#endif /* CONFIG_SINGLE_RECV_BUF */
-	#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
-		#define NR_PREALLOC_RECV_SKB (rtw_rtkm_get_nr_recv_skb()>>1)
-	#else /*!CONFIG_PREALLOC_RX_SKB_BUFFER */
-		#define NR_PREALLOC_RECV_SKB 8
-	#endif /* CONFIG_PREALLOC_RX_SKB_BUFFER */
-
-	#ifdef CONFIG_RTW_NAPI
-		#define RTL_NAPI_WEIGHT (32)
+		#define NR_RECVBUFF (8)
 	#endif
+#endif /* CONFIG_SINGLE_RECV_BUF */
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+	#define NR_PREALLOC_RECV_SKB (rtw_rtkm_get_nr_recv_skb()>>1)
+#else /*!CONFIG_PREALLOC_RX_SKB_BUFFER */
+	#define NR_PREALLOC_RECV_SKB 8
+#endif /* CONFIG_PREALLOC_RX_SKB_BUFFER */
+
+#ifdef CONFIG_RTW_NAPI
+	#define RTL_NAPI_WEIGHT (32)
 #endif
+
 
 #if defined(CONFIG_RTL8821C) && defined(CONFIG_SDIO_HCI) && defined(CONFIG_RECV_THREAD_MODE)
 	#ifdef NR_RECVBUFF
@@ -80,20 +71,14 @@
 #define RX_CMD_QUEUE				1
 #define RX_MAX_QUEUE				2
 
-static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
-
-static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
-static u8 SNAP_ETH_TYPE_APPLETALK_DDP[2] = {0x80, 0x9b};
-static u8 SNAP_ETH_TYPE_TDLS[2] = {0x89, 0x0d};
-static u8 SNAP_HDR_APPLETALK_DDP[3] = {0x08, 0x00, 0x07}; /* Datagram Delivery Protocol */
-
-static u8 oui_8021h[] = {0x00, 0x00, 0xf8};
-static u8 oui_rfc1042[] = {0x00, 0x00, 0x00};
-
 #define MAX_SUBFRAME_COUNT	64
-static u8 rtw_rfc1042_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 /* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static u8 rtw_bridge_tunnel_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+extern u8 rtw_bridge_tunnel_header[];
+extern u8 rtw_rfc1042_header[];
+
+enum addba_rsp_ack_state {
+	RTW_RECV_ACK_OR_TIMEOUT,
+};
 
 /* for Rx reordering buffer control */
 struct recv_reorder_ctrl {
@@ -107,11 +92,13 @@ struct recv_reorder_ctrl {
 	_queue pending_recvframe_queue;
 	_timer reordering_ctrl_timer;
 	u8 bReorderWaiting;
+	unsigned long rec_abba_rsp_ack;
 };
 
 struct	stainfo_rxcache	{
 	u16	tid_rxseq[16];
 	u8 iv[16][8];
+	u8 last_tid;
 #if 0
 	unsigned short	tid0_rxseq;
 	unsigned short	tid1_rxseq;
@@ -186,13 +173,17 @@ struct rx_pkt_attrib	{
 	u8	crc_err;
 	u8	icv_err;
 
-	u16	eth_type;
-
 	u8	dst[ETH_ALEN];
 	u8	src[ETH_ALEN];
 	u8	ta[ETH_ALEN];
 	u8	ra[ETH_ALEN];
 	u8	bssid[ETH_ALEN];
+#ifdef CONFIG_RTW_MESH
+	u8	msa[ETH_ALEN]; /* mesh sa */
+	u8	mda[ETH_ALEN]; /* mesh da */
+	u8 mesh_ctrl_present;
+	u8	mesh_ctrl_len; /* length of mesh control field */
+#endif
 
 	u8	ack_policy;
 
@@ -205,13 +196,28 @@ struct rx_pkt_attrib	{
 	u8	ldpc;
 	u8	sgi;
 	u8	pkt_rpt_type;
-	u32 tsfl;
 	u32	MacIDValidEntry[2];	/* 64 bits present 64 entry. */
+	u8	ampdu;
 	u8	ppdu_cnt;
+	u8	ampdu_eof;
 	u32 	free_cnt;		/* free run counter */
 	struct phydm_phyinfo_struct phy_info;
+#ifdef CONFIG_WIFI_MONITOR
+	u8 moif[16];
+#endif
+
+#ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
+	/* checksum offload realted varaiables */
+	u8 csum_valid;		/* Checksum valid, 0: not check, 1: checked */
+	u8 csum_err;		/* Checksum Error occurs */
+#endif /* CONFIG_TCP_CSUM_OFFLOAD_RX */
 };
 
+#ifdef CONFIG_RTW_MESH
+#define RATTRIB_GET_MCTRL_LEN(rattrib) ((rattrib)->mesh_ctrl_len)
+#else
+#define RATTRIB_GET_MCTRL_LEN(rattrib) 0
+#endif
 
 /* These definition is used for Rx packet reordering. */
 #define SN_LESS(a, b)		(((a-b) & 0x800) != 0)
@@ -220,7 +226,11 @@ struct rx_pkt_attrib	{
 /* #define REORDER_ENTRY_NUM	128 */
 #define REORDER_WAIT_TIME	(50) /* (ms) */
 
-#define RECVBUFF_ALIGN_SZ 8
+#if defined(CONFIG_PLATFORM_RTK390X) && defined(CONFIG_USB_HCI)
+	#define RECVBUFF_ALIGN_SZ 32
+#else
+	#define RECVBUFF_ALIGN_SZ 8
+#endif
 
 #ifdef CONFIG_TRX_BD_ARCH
 	#define RX_WIFI_INFO_SIZE	24
@@ -250,7 +260,7 @@ struct recv_stat {
 
 	unsigned int rxdw1;
 
-#if !((defined(CONFIG_RTL8192E) || defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)) && defined(CONFIG_PCI_HCI))  /* exclude 8192ee, 8814ae, 8822be, 8821ce */
+#if !((defined(CONFIG_RTL8192E) || defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C)) && defined(CONFIG_PCI_HCI))  /* exclude 8192ee, 8814ae, 8822be, 8821ce */
 	unsigned int rxdw2;
 
 	unsigned int rxdw3;
@@ -336,18 +346,6 @@ struct recv_priv {
 
 	_adapter	*adapter;
 
-#ifdef PLATFORM_WINDOWS
-	_nic_hdl  RxPktPoolHdl;
-	_nic_hdl  RxBufPoolHdl;
-
-#ifdef PLATFORM_OS_XP
-	PMDL	pbytecnt_mdl;
-#endif
-	uint	counter; /* record the number that up-layer will return to drv; only when counter==0 can we  release recv_priv */
-	NDIS_EVENT	recv_resource_evt ;
-#endif
-
-
 	u32 is_any_non_be_pkts;
 
 	u64	rx_bytes;
@@ -383,20 +381,16 @@ struct recv_priv {
 
 #endif
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
-#ifdef PLATFORM_FREEBSD
-	struct task irq_prepare_beacon_tasklet;
-	struct task recv_tasklet;
-#else /* PLATFORM_FREEBSD */
-	struct tasklet_struct irq_prepare_beacon_tasklet;
-	struct tasklet_struct recv_tasklet;
-#endif /* PLATFORM_FREEBSD */
+	_tasklet irq_prepare_beacon_tasklet;
+	_tasklet recv_tasklet;
+
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
 #ifdef CONFIG_RTW_NAPI
 		struct sk_buff_head rx_napi_skb_queue;
 #endif 
 #ifdef CONFIG_RX_INDICATE_QUEUE
-	struct task rx_indicate_tasklet;
+	_tasklet rx_indicate_tasklet;
 	struct ifqueue rx_indicate_queue;
 #endif /* CONFIG_RX_INDICATE_QUEUE */
 
@@ -415,7 +409,7 @@ struct recv_priv {
 	/* Rx */
 	struct rtw_rx_ring	rx_ring[PCI_MAX_RX_QUEUE];
 	int rxringcount;	/* size should be PCI_MAX_RX_QUEUE */
-	u16	rxbuffersize;
+	u32	rxbuffersize;
 #endif
 
 	/* For display the phy informatiom */
@@ -484,6 +478,9 @@ struct sta_recv_priv {
 	_queue defrag_q;	 /* keeping the fragment frame until defrag */
 
 	struct	stainfo_rxcache rxcache;
+	u16	bmc_tid_rxseq[16];
+	u16	nonqos_rxseq;
+	u16	nonqos_bmc_rxseq;
 
 	/* uint	sta_rx_bytes; */
 	/* uint	sta_rx_pkts; */
@@ -511,24 +508,12 @@ struct recv_buf {
 	u8	*pend;
 
 #ifdef CONFIG_USB_HCI
-
-#if defined(PLATFORM_OS_XP) || defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
 	PURB	purb;
 	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
 	u32 alloc_sz;
-#endif
-
-#ifdef PLATFORM_OS_XP
-	PIRP		pirp;
-#endif
-
-#ifdef PLATFORM_OS_CE
-	USB_TRANSFER	usb_transfer_read_port;
-#endif
 
 	u8  irp_pending;
 	int  transfer_len;
-
 #endif
 
 #if defined(PLATFORM_LINUX)
@@ -604,6 +589,12 @@ union recv_frame {
 
 };
 
+enum rtw_rx_llc_hdl {
+	RTW_RX_LLC_KEEP		= 0,
+	RTW_RX_LLC_REMOVE	= 1,
+	RTW_RX_LLC_VLAN		= 2,
+};
+
 bool rtw_rframe_del_wfd_ie(union recv_frame *rframe, u8 ies_offset);
 
 typedef enum _RX_PACKET_TYPE {
@@ -629,6 +620,9 @@ u32 rtw_free_uc_swdec_pending_queue(_adapter *adapter);
 sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, _queue *queue);
 sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, _queue *queue);
 struct recv_buf *rtw_dequeue_recvbuf(_queue *queue);
+
+void process_pwrbit_data(_adapter *padapter, union recv_frame *precv_frame, struct sta_info *psta);
+void process_wmmps_data(_adapter *padapter, union recv_frame *precv_frame, struct sta_info *psta);
 
 #if defined(CONFIG_80211N_HT) && defined(CONFIG_RECV_REORDERING_CTRL)
 void rtw_reordering_ctrl_timeout_handler(void *pcontext);
@@ -773,22 +767,6 @@ __inline static u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
 
 }
 
-
-
-__inline static _buffer *get_rxbuf_desc(union recv_frame *precvframe)
-{
-	_buffer *buf_desc;
-
-	if (precvframe == NULL)
-		return NULL;
-#ifdef PLATFORM_WINDOWS
-	NdisQueryPacket(precvframe->u.hdr.pkt, NULL, NULL, &buf_desc, NULL);
-#endif
-
-	return buf_desc;
-}
-
-
 __inline static union recv_frame *rxmem_to_recvframe(u8 *rxmem)
 {
 	/* due to the design of 2048 bytes alignment of recv_frame, we can reference the union recv_frame */
@@ -804,13 +782,6 @@ __inline static union recv_frame *pkt_to_recvframe(_pkt *pkt)
 
 	u8 *buf_star;
 	union recv_frame *precv_frame;
-#ifdef PLATFORM_WINDOWS
-	_buffer *buf_desc;
-	uint len;
-
-	NdisQueryPacket(pkt, NULL, NULL, &buf_desc, &len);
-	NdisQueryBufferSafe(buf_desc, &buf_star, &len, HighPagePriority);
-#endif
 	precv_frame = rxmem_to_recvframe((unsigned char *)buf_star);
 
 	return precv_frame;
@@ -847,15 +818,8 @@ __inline static s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32	SignalPower; /* in dBm. */
 
-#ifdef CONFIG_SIGNAL_SCALE_MAPPING
-	/* Translate to dBm (x=0.5y-95). */
-	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1);
-	SignalPower -= 95;
-#else
 	/* Translate to dBm (x=y-100) */
 	SignalPower = SignalStrengthIndex - 100;
-#endif
-
 	return SignalPower;
 }
 
@@ -867,5 +831,6 @@ extern void  mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame);
 
 u8 adapter_allow_bmc_data_rx(_adapter *adapter);
 s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status);
+void count_rx_stats(_adapter *padapter, union recv_frame *prframe, struct sta_info *sta);
 
 #endif

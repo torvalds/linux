@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -15,11 +16,11 @@
 #ifndef __RTL8188F_RF_H__
 #define __RTL8188F_RF_H__
 
-int	PHY_RF6052_Config8188F(IN	PADAPTER		Adapter);
+int	PHY_RF6052_Config8188F(PADAPTER		Adapter);
 
-VOID
+void
 PHY_RF6052SetBandwidth8188F(
-	IN	PADAPTER				Adapter,
-	IN	enum channel_width		Bandwidth);
+		PADAPTER				Adapter,
+		enum channel_width		Bandwidth);
 
 #endif
