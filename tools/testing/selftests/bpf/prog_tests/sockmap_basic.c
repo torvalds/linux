@@ -118,10 +118,8 @@ static void test_sockmap_update(enum bpf_map_type map_type)
 		return;
 
 	skel = test_sockmap_update__open_and_load();
-	if (CHECK(!skel, "open_and_load", "cannot load skeleton\n")) {
-		close(sk);
-		return;
-	}
+	if (CHECK(!skel, "open_and_load", "cannot load skeleton\n"))
+		goto close_sk;
 
 	prog = bpf_program__fd(skel->progs.copy_sock_map);
 	src = bpf_map__fd(skel->maps.src);
@@ -158,8 +156,9 @@ static void test_sockmap_update(enum bpf_map_type map_type)
 	      dst_cookie, src_cookie);
 
 out:
-	close(sk);
 	test_sockmap_update__destroy(skel);
+close_sk:
+	close(sk);
 }
 
 static void test_sockmap_invalid_update(void)
@@ -168,8 +167,7 @@ static void test_sockmap_invalid_update(void)
 	int duration = 0;
 
 	skel = test_sockmap_invalid_update__open_and_load();
-	CHECK(skel, "open_and_load", "verifier accepted map_update\n");
-	if (skel)
+	if (CHECK(skel, "open_and_load", "verifier accepted map_update\n"))
 		test_sockmap_invalid_update__destroy(skel);
 }
 
