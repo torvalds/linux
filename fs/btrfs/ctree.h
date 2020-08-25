@@ -542,11 +542,6 @@ enum {
 	/* Used to record internally whether fs has been frozen */
 	BTRFS_FS_FROZEN,
 	/*
-	 * Indicate that a whole-filesystem exclusive operation is running
-	 * (device replace, resize, device add/delete, balance)
-	 */
-	BTRFS_FS_EXCL_OP,
-	/*
 	 * Indicate that balance has been set up from the ioctl and is in the
 	 * main phase. The fs_info::balance_ctl is initialized.
 	 * Set and cleared while holding fs_info::balance_mutex.
@@ -564,6 +559,19 @@ enum {
 
 	/* Indicate that the discard workqueue can service discards. */
 	BTRFS_FS_DISCARD_RUNNING,
+};
+
+/*
+ * Exclusive operations (device replace, resize, device add/remove, balance)
+ */
+enum btrfs_exclusive_operation {
+	BTRFS_EXCLOP_NONE,
+	BTRFS_EXCLOP_BALANCE,
+	BTRFS_EXCLOP_DEV_ADD,
+	BTRFS_EXCLOP_DEV_REMOVE,
+	BTRFS_EXCLOP_DEV_REPLACE,
+	BTRFS_EXCLOP_RESIZE,
+	BTRFS_EXCLOP_SWAP_ACTIVATE,
 };
 
 struct btrfs_fs_info {
@@ -936,6 +944,9 @@ struct btrfs_fs_info {
 	 * Updated while holding fs_info::balance_mutex.
 	 */
 	int send_in_progress;
+
+	/* Type of exclusive operation running */
+	unsigned long exclusive_operation;
 
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	spinlock_t ref_verify_lock;
@@ -3032,6 +3043,9 @@ void btrfs_get_block_group_info(struct list_head *groups_list,
 				struct btrfs_ioctl_space_info *space);
 void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 			       struct btrfs_ioctl_balance_args *bargs);
+bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
+			enum btrfs_exclusive_operation type);
+void btrfs_exclop_finish(struct btrfs_fs_info *fs_info);
 
 /* file.c */
 int __init btrfs_auto_defrag_init(void);

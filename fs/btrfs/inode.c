@@ -10015,14 +10015,14 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 
 	/*
 	 * Balance or device remove/replace/resize can move stuff around from
-	 * under us. The EXCL_OP flag makes sure they aren't running/won't run
-	 * concurrently while we are mapping the swap extents, and
-	 * fs_info->swapfile_pins prevents them from running while the swap file
-	 * is active and moving the extents. Note that this also prevents a
-	 * concurrent device add which isn't actually necessary, but it's not
+	 * under us. The exclop protection makes sure they aren't running/won't
+	 * run concurrently while we are mapping the swap extents, and
+	 * fs_info->swapfile_pins prevents them from running while the swap
+	 * file is active and moving the extents. Note that this also prevents
+	 * a concurrent device add which isn't actually necessary, but it's not
 	 * really worth the trouble to allow it.
 	 */
-	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
+	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_SWAP_ACTIVATE)) {
 		btrfs_warn(fs_info,
 	   "cannot activate swapfile while exclusive operation is running");
 		return -EBUSY;
@@ -10168,7 +10168,7 @@ out:
 	if (ret)
 		btrfs_swap_deactivate(file);
 
-	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+	btrfs_exclop_finish(fs_info);
 
 	if (ret)
 		return ret;

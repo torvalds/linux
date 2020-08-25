@@ -291,8 +291,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  *   balance_mutex
  *
  *
- * Exclusive operations, BTRFS_FS_EXCL_OP
- * ======================================
+ * Exclusive operations
+ * ====================
  *
  * Maintains the exclusivity of the following operations that apply to the
  * whole filesystem and cannot run in parallel.
@@ -318,11 +318,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  * - system power-cycle and filesystem mounted as read-only
  * - filesystem or device errors leading to forced read-only
  *
- * BTRFS_FS_EXCL_OP flag is set and cleared using atomic operations.
- * During the course of Paused state, the BTRFS_FS_EXCL_OP remains set.
+ * The status of exclusive operation is set and cleared atomically.
+ * During the course of Paused state, fs_info::exclusive_operation remains set.
  * A device operation in Paused or Running state can be canceled or resumed
  * either by ioctl (Balance only) or when remounted as read-write.
- * BTRFS_FS_EXCL_OP flag is cleared when the device operation is canceled or
+ * The exclusive status is cleared when the device operation is canceled or
  * completed.
  */
 
@@ -4033,7 +4033,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * rw_devices will not change at the moment, device add/delete/replace
-	 * are excluded by EXCL_OP
+	 * are exclusive
 	 */
 	num_devices = fs_info->fs_devices->rw_devices;
 
@@ -4169,7 +4169,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
 	    balance_need_close(fs_info)) {
 		reset_balance_state(fs_info);
-		clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+		btrfs_exclop_finish(fs_info);
 	}
 
 	wake_up(&fs_info->balance_wait_q);
@@ -4180,7 +4180,7 @@ out:
 		reset_balance_state(fs_info);
 	else
 		kfree(bctl);
-	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+	btrfs_exclop_finish(fs_info);
 
 	return ret;
 }
@@ -4282,7 +4282,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	 * is in a paused state and must have fs_info::balance_ctl properly
 	 * set up.
 	 */
-	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags))
+	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE))
 		btrfs_warn(fs_info,
 	"balance: cannot set exclusive op status, resume manually");
 
@@ -4364,7 +4364,7 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 
 		if (fs_info->balance_ctl) {
 			reset_balance_state(fs_info);
-			clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+			btrfs_exclop_finish(fs_info);
 			btrfs_info(fs_info, "balance: canceled");
 		}
 	}
