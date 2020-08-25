@@ -424,6 +424,9 @@ struct snd_sof_dsp_ops sof_imx8_ops = {
 	/* firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 
+	/* Firmware ops */
+	.arch_ops = &sof_xtensa_arch_ops,
+
 	/* DAI drivers */
 	.drv = imx8_dai,
 	.num_drv = ARRAY_SIZE(imx8_dai),
@@ -464,6 +467,9 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 	/* firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 
+	/* Firmware ops */
+	.arch_ops = &sof_xtensa_arch_ops,
+
 	/* DAI drivers */
 	.drv = imx8_dai,
 	.num_drv = ARRAY_SIZE(imx8_dai),
@@ -477,4 +483,5 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 };
 EXPORT_SYMBOL(sof_imx8x_ops);
 
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
