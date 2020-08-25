@@ -708,9 +708,9 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	WRITE_PPS(pps->second_chroma_qp_index_offset,
 		  SECOND_CHROMA_QP_INDEX_OFFSET);
 
-	/* always use the matrix sent from userspace */
-	WRITE_PPS(1, SCALING_LIST_ENABLE_FLAG);
-
+	WRITE_PPS(!!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT),
+		  SCALING_LIST_ENABLE_FLAG);
+	/* To be on the safe side, program the scaling matrix address */
 	scaling_distance = offsetof(struct rkvdec_h264_priv_tbl, scaling_list);
 	scaling_list_address = h264_ctx->priv_tbl.dma + scaling_distance;
 	WRITE_PPS(scaling_list_address, SCALING_LIST_ADDRESS);
@@ -792,8 +792,12 @@ static void assemble_hw_scaling_list(struct rkvdec_ctx *ctx,
 				     struct rkvdec_h264_run *run)
 {
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling = run->scaling_matrix;
+	const struct v4l2_ctrl_h264_pps *pps = run->pps;
 	struct rkvdec_h264_ctx *h264_ctx = ctx->priv;
 	struct rkvdec_h264_priv_tbl *tbl = h264_ctx->priv_tbl.cpu;
+
+	if (!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT))
+		return;
 
 	BUILD_BUG_ON(sizeof(tbl->scaling_list.scaling_list_4x4) !=
 		     sizeof(scaling->scaling_list_4x4));
