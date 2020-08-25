@@ -79,7 +79,7 @@ error:
  * reset/stall and then turn it off
  */
 static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
-		       u32 fwsize, int stream_tag)
+		       u32 fwsize, int stream_tag, int iteration)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -90,7 +90,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	/* step 1: power up corex */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
+		if (iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
 		goto err;
 	}
 
@@ -112,7 +113,9 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
 	ret = hda_dsp_core_run(sdev, HDA_DSP_CORE_MASK(0));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core start failed %d\n", ret);
+		if (iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: dsp core start failed %d\n", ret);
 		ret = -EIO;
 		goto err;
 	}
@@ -126,8 +129,10 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 					    HDA_DSP_INIT_TIMEOUT_US);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: %s: timeout for HIPCIE done\n",
-			__func__);
+		if (iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: %s: timeout for HIPCIE done\n",
+				__func__);
 		goto err;
 	}
 
@@ -141,7 +146,9 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	ret = hda_dsp_core_power_down(sdev,
 				  chip->cores_mask & ~(HDA_DSP_CORE_MASK(0)));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core x power down failed\n");
+		if (iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: dsp core x power down failed\n");
 		goto err;
 	}
 
@@ -159,9 +166,10 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	if (!ret)
 		return 0;
 
-	dev_err(sdev->dev,
-		"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
-		__func__);
+	if (iteration == HDA_FW_BOOT_ATTEMPTS)
+		dev_err(sdev->dev,
+			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+			__func__);
 
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
@@ -329,25 +337,25 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	/* try ROM init a few times before giving up */
 	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
+		dev_dbg(sdev->dev,
+			"Attempting iteration %d of Core En/ROM load...\n", i);
+
 		ret = cl_dsp_init(sdev, stripped_firmware.data,
-				  stripped_firmware.size, tag);
+				  stripped_firmware.size, tag, i + 1);
 
 		/* don't retry anymore if successful */
 		if (!ret)
 			break;
-
-		dev_dbg(sdev->dev, "iteration %d of Core En/ROM load failed: %d\n",
-			i, ret);
-		dev_dbg(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_ERROR),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_STATUS));
 	}
 
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
 		dev_err(sdev->dev, "error: dsp init failed after %d attempts with err: %d\n",
 			i, ret);
+		dev_err(sdev->dev, "ROM error=0x%x: FW status=0x%x\n",
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_ERROR),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_STATUS));
 		goto cleanup;
 	}
 
