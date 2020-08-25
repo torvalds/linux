@@ -589,7 +589,7 @@ static inline int check_stack(void)
 	return 1;
 }
 
-struct bpf_sk_storage_map {
+struct bpf_local_storage_map {
 	struct bpf_map map;
 } __attribute__((preserve_access_index));
 
@@ -602,8 +602,8 @@ struct {
 
 static inline int check_sk_storage(void)
 {
-	struct bpf_sk_storage_map *sk_storage =
-		(struct bpf_sk_storage_map *)&m_sk_storage;
+	struct bpf_local_storage_map *sk_storage =
+		(struct bpf_local_storage_map *)&m_sk_storage;
 	struct bpf_map *map = (struct bpf_map *)&m_sk_storage;
 
 	VERIFY(check(&sk_storage->map, map, sizeof(__u32), sizeof(__u32), 0));
