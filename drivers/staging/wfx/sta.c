@@ -434,7 +434,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wvif->link_id_map |= BIT(sta_priv->link_id);
 	WARN_ON(!sta_priv->link_id);
 	WARN_ON(sta_priv->link_id >= HIF_LINK_ID_MAX);
-	hif_map_link(wvif, sta->addr, sta->mfp ? 2 : 0, sta_priv->link_id);
+	hif_map_link(wvif, false, sta->addr, sta_priv->link_id, sta->mfp);
 
 	return 0;
 }
@@ -449,7 +449,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!sta_priv->link_id)
 		return 0;
 	// FIXME add a mutex?
-	hif_map_link(wvif, sta->addr, 1, sta_priv->link_id);
+	hif_map_link(wvif, true, sta->addr, sta_priv->link_id, false);
 	wvif->link_id_map &= ~BIT(sta_priv->link_id);
 	return 0;
 }

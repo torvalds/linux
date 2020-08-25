@@ -55,7 +55,8 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
 int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	      const struct ieee80211_channel *channel);
 int hif_beacon_transmit(struct wfx_vif *wvif, bool enable);
-int hif_map_link(struct wfx_vif *wvif, u8 *mac_addr, int flags, int sta_id);
+int hif_map_link(struct wfx_vif *wvif,
+		 bool unmap, u8 *mac_addr, int sta_id, bool mfp);
 int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len);
 int hif_sl_set_mac_key(struct wfx_dev *wdev,
 		       const u8 *slk_key, int destination);
