@@ -34,6 +34,8 @@ struct rk1608_dphy {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
+	struct v4l2_ctrl *h_flip;
+	struct v4l2_ctrl *v_flip;
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	u32 cam_nums;
@@ -53,4 +55,6 @@ struct rk1608_dphy {
 	u32 fmt_inf_num;
 	u32 fmt_inf_idx;
 	struct rk1608_fmt_inf fmt_inf[RK1608_MAX_FMTINF];
+
+	bool first_stream;
 };

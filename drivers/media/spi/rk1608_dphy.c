@@ -52,6 +52,7 @@
  * extra sensor,and it is passed to the Soc through ISP.
  */
 
+static DEFINE_MUTEX(rk1608_dphy_mutex);
 static inline struct rk1608_dphy *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct rk1608_dphy, sd);
@@ -248,6 +249,23 @@ static int rk1608_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int rk1608_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+
+	struct rk1608_dphy *pdata = to_state(sd);
+	u32 val = 0;
+
+	val = 1 << (pdata->fmt_inf[pdata->fmt_inf_idx].mipi_lane - 1) |
+	V4L2_MBUS_CSI2_CHANNEL_0 |
+	V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
@@ -255,12 +273,28 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case PREISP_CMD_SAVE_HDRAE_PARAM:
+		ret = v4l2_subdev_call(pdata->rk1608_sd, core, ioctl,
+				       cmd, arg);
+		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
 	case RKMODULE_GET_MODULE_INFO:
+	case RKMODULE_AWB_CFG:
+
+	case PREISP_DISP_SET_FRAME_OUTPUT:
+	case PREISP_DISP_SET_FRAME_FORMAT:
+	case PREISP_DISP_SET_FRAME_TYPE:
+	case PREISP_DISP_SET_PRO_TIME:
+	case PREISP_DISP_SET_PRO_CURRENT:
+	case PREISP_DISP_SET_DENOISE:
+	case PREISP_DISP_WRITE_EEPROM:
+	case PREISP_DISP_READ_EEPROM:
+	case PREISP_DISP_SET_LED_ON_OFF:
+		mutex_lock(&rk1608_dphy_mutex);
 		pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 		ret = v4l2_subdev_call(pdata->rk1608_sd, core, ioctl,
 				       cmd, arg);
-		return ret;
+		mutex_unlock(&rk1608_dphy_mutex);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -275,6 +309,7 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct preisp_hdrae_exp_s hdrae_exp;
 	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *cfg;
 	long ret;
 
 	switch (cmd) {
@@ -294,6 +329,17 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = copy_to_user(up, inf, sizeof(*inf));
 		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		if (!cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		if (copy_from_user(cfg, up, sizeof(cfg)))
+			return -EFAULT;
+		ret = rk1608_ioctl(sd, cmd, cfg);
+		kfree(cfg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -374,7 +420,7 @@ static int rk1608_initialize_controls(struct rk1608_dphy *dphy)
 {
 	u32 i;
 	int ret;
-	s64 pixel_rate, pixel_bit;
+	u64 pixel_rate, pixel_bit;
 	u32 idx = dphy->fmt_inf_idx;
 	struct v4l2_ctrl_handler *handler;
 	unsigned long flags = V4L2_CTRL_FLAG_VOLATILE |
@@ -465,6 +511,7 @@ static const struct v4l2_subdev_video_ops rk1608_subdev_video_ops = {
 	.s_stream	= rk1608_s_stream,
 	.g_frame_interval = rk1608_g_frame_interval,
 	.s_frame_interval = rk1608_s_frame_interval,
+	.g_mbus_config = rk1608_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {

@@ -15,7 +15,9 @@
 #include <linux/version.h>
 #include "rk1608_dphy.h"
 
-#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+
+#define UPDATE_REF_DATA_FROM_EEPROM (1)
 
 #define RK1608_OP_TRY_MAX		3
 #define RK1608_OP_TRY_DELAY		10
@@ -41,7 +43,7 @@
 #define RK1608_MSG_QUEUE_OK_MASK	0xffff0001
 #define RK1608_MSG_QUEUE_OK_TAG		0x16080001
 #define RK1608_MAX_OP_BYTES		60000
-#define MSG_SYNC_TIMEOUT		50
+#define MSG_SYNC_TIMEOUT		3000
 
 #define BOOT_FLAG_CRC			(0x01 << 0)
 #define BOOT_FLAG_EXE			(0x01 << 1)
@@ -69,6 +71,9 @@
 #define RK1608_MAX_SEC_NUM		10
 
 #define ISP_DSP_HDRAE_MAXGRIDITEMS	225
+
+#define MIRROR_BIT_MASK BIT(0)
+#define FLIP_BIT_MASK BIT(1)
 
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -99,6 +104,7 @@ struct rk1608_state {
 	struct mutex spi2apb_lock; /* protect spi2apb write/read */
 	spinlock_t hdrae_lock; /* protect hdrae parameter */
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *pwren_gpio;
 	struct gpio_desc *irq_gpio;
 	int irq;
 	struct gpio_desc *wakeup_gpio;
@@ -124,6 +130,8 @@ struct rk1608_state {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
+	struct v4l2_ctrl *h_flip;
+	struct v4l2_ctrl *v_flip;
 	struct v4l2_ctrl_handler ctrl_handler;
 	u32 max_speed_hz;
 	u32 min_speed_hz;
@@ -131,6 +139,7 @@ struct rk1608_state {
 	struct preisp_hdrae_exp_s hdrae_exp;
 	u32 set_exp_cnt;
 	const char *firm_name;
+	u8 flip;
 };
 
 struct rk1608_section {
@@ -229,12 +238,22 @@ struct msg_out_size_head {
 	u16 line_length_pclk;
 	u16 frame_length_lines;
 	u16 mipi_lane;
-	u16 reserved;
+	union {
+		u16 flip;
+		u16 reserved;
+	};
 };
 
 struct msg_set_output_size {
 	struct msg_out_size_head head;
 	struct preisp_vc_cfg channel[4];
+};
+
+struct msg_init_dsp_time {
+	struct msg msg_head;
+	u16 t_ms;
+	s32 tv_sec;
+	s32 tv_usec;
 };
 
 enum ISP_AE_Bayer_Mode_e {
@@ -297,6 +316,25 @@ struct msg_set_sensor_info_s {
 	s32 lsc_table[17 * 17];
 	struct ISP_DSP_hdrae_cfg_s dsp_hdrae;
 };
+
+struct msg_calib_temp {
+	u32 size; // unit 4 bytes
+	u16 type; // msg identification
+	s8  camera_id;
+	s8  sync;
+
+	u32 temp;
+	u32 calib_version;
+
+#if UPDATE_REF_DATA_FROM_EEPROM
+	u32 calib_exist;
+	u32 calib_sn_size;
+	u32 calib_sn_offset;
+	u32 calib_sn_code;
+#endif
+};
+
+#define MSG_RESPONSE_ID_OFFSET 0x2ff
 
 enum {
 	/* AP -> RK1608
@@ -376,9 +414,93 @@ enum {
 	/* RK1608 -> AP
 	 * 10  msg of xfile
 	 */
-	id_msg_xfile_import_t =		0x8000 + 0x0600,
+	/* id_msg_xfile_import_t =		0x8000 + 0x0600,
+	 * id_msg_xfile_export_t,
+	 * id_msg_xfile_mkdir_t
+	 */
+
+	/* for dsp time. */
+	id_msg_frame_time_t = 0x1000,
+	id_msg_sys_time_set_t,
+
+	//calib temperature and version
+	id_msg_temperature_t = 0x1002,
+	id_msg_temperature_req_t = 0x1302,
+	id_msg_calib_temperature_t = 0x1004,
+	id_msg_calib_temperature_req_t = 0x1303,
+
+	id_msg_calibration_write_req_t = 0x1050,
+	id_msg_calibration_write_done_t,
+	id_msg_calibration_read_req_t = 0x1052,
+	id_msg_calibration_read_done_t,
+	id_msg_calibration_write_req_mode2_t = 0x1054,
+	id_msg_calibration_read_req_mode2_t,
+
+	id_msg_calibration_write_req_ret_t = 0x1050 + MSG_RESPONSE_ID_OFFSET,
+	id_msg_calibration_write_done_ret_t = 0x1051 + MSG_RESPONSE_ID_OFFSET,
+	id_msg_calibration_read_req_ret_t = 0x1052 + MSG_RESPONSE_ID_OFFSET,
+	id_msg_calibration_read_done_ret_t = 0x1053 + MSG_RESPONSE_ID_OFFSET,
+
+
+	/* 1808 for disp control */
+	id_msg_disp_set_frame_output_t = 0x1070,
+	id_msg_disp_set_frame_format_t,
+	id_msg_disp_set_frame_type_t,
+	id_msg_disp_set_pro_time_t,
+	id_msg_disp_set_pro_current_t,
+	id_msg_disp_set_denoise_t,
+	id_msg_disp_set_led_on_off_t,
+
+	/* 0xf000 ~ 0xfdff id reversed. */
+	id_msg_xfile_import_t = 0xfe00,
 	id_msg_xfile_export_t,
 	id_msg_xfile_mkdir_t
+
+};
+
+
+#define PREISP_CALIB_ITEM_NUM       24
+#define PREISP_CALIB_MAGIC      "#SLM_CALIB_DATA#"
+
+struct calib_item {
+	unsigned char name[48];
+	unsigned int  offset;
+	unsigned int  size;
+	unsigned int  temp;
+	unsigned int  crc32;
+};
+
+struct calib_head {
+	unsigned char magic[16];
+	unsigned int  version;
+	unsigned int  head_size;
+	unsigned int  image_size;
+	unsigned int  items_number;
+	unsigned char reserved0[32];
+	unsigned int  hash_len;
+	unsigned char hash[32];
+	unsigned char reserved1[28];
+	unsigned int  sign_tag;
+	unsigned int  sign_len;
+	unsigned char rsa_hash[256];
+	unsigned char reserved2[120];
+	struct calib_item item[PREISP_CALIB_ITEM_NUM];
+};
+
+#define XFILE_MAX_PATH 256
+struct msg_xfile {
+	u32 size;
+	u16 type;
+	s8  camera_id;
+	union {
+		s8 sync;
+		s8 ret;
+	};
+	u32 addr;
+	u32 data_size;
+	u32 cb;
+	u32 args;
+	char path[XFILE_MAX_PATH];
 };
 
 int rk1608_send_msg_to_dsp(struct rk1608_state *pdata, struct msg *m);

@@ -23,10 +23,18 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <linux/crc32.h>
 #include "rk1608.h"
+
+#define REF_DATA_PATH "/data/ref_data.img"
 
 #define ENABLE_DMA_BUFFER 1
 #define SPI_BUFSIZ  max(32, SMP_CACHE_BYTES)
+
+struct msg_disp {
+	struct msg msg;
+	int32_t  value[2];
+};
 
 struct rk1608_power_work {
 	struct work_struct wk;
@@ -329,26 +337,54 @@ int rk1608_read(struct spi_device *spi,
  *
  * It returns zero on success, else a negative error code.
  */
-int rk1608_safe_read(struct rk1608_state *rk1608, struct spi_device *spi,
+static int _rk1608_safe_read(struct rk1608_state *rk1608, struct spi_device *spi,
 		     s32 addr, s32 *data, size_t data_len)
 {
 	s32 state = 0;
 	s32 retry = 0;
+	int ret = 0;
 
 	do {
 		mutex_lock(&rk1608->spi2apb_lock);
-		rk1608_read(spi, addr, data, data_len);
-		if (rk1608_operation_query(spi, &state) != 0) {
-			mutex_unlock(&rk1608->spi2apb_lock);
-			return -EPERM;
-		}
+		ret = rk1608_read(spi, addr, data, data_len);
+		if (ret == 0)
+			ret = rk1608_operation_query(spi, &state);
 		mutex_unlock(&rk1608->spi2apb_lock);
+
+		if (ret != 0)
+			return ret;
+
 		if ((state & RK1608_STATE_MASK) == 0)
 			break;
 		udelay(RK1608_OP_TRY_DELAY);
 	} while (retry++ != RK1608_OP_TRY_MAX);
 
 	return -(state & RK1608_STATE_MASK);
+}
+
+int rk1608_safe_read(struct rk1608_state *rk1608, struct spi_device *spi,
+		     s32 addr, s32 *data, size_t data_len)
+{
+	int ret = 0;
+	size_t max_op_size = (size_t)RK1608_MAX_OP_BYTES;
+
+	while (data_len > 0) {
+		size_t slen = ALIGN(MIN(data_len, max_op_size), 4);
+
+		ret = _rk1608_safe_read(rk1608, spi, addr, data, slen);
+		if (ret == -ENOMEM) {
+			max_op_size = slen / 2;
+			continue;
+		}
+
+		if (ret)
+			break;
+		data_len = data_len - slen;
+		data = (s32 *)((s8 *)data + slen);
+		addr += slen;
+	}
+
+	return ret;
 }
 
 static int rk1608_read_wait(struct rk1608_state *rk1608, struct spi_device *spi,
@@ -540,6 +576,23 @@ static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
 
+static int rk1608_msg_init_dsp_time(struct rk1608_state *pdata,
+				  struct msg_init_dsp_time *msg, int id)
+{
+	struct timeval tv;
+
+	msg->msg_head.size = sizeof(struct msg_init_dsp_time);
+	msg->msg_head.type = id_msg_sys_time_set_t;
+	msg->msg_head.id.camera_id = id;
+	msg->msg_head.mux.sync = 0;
+
+	do_gettimeofday(&tv);
+	msg->tv_sec = tv.tv_sec;
+	msg->tv_usec = tv.tv_usec;
+
+	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
+}
+
 static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
 				     struct msg_in_size *msg, int id)
 {
@@ -600,6 +653,7 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 	msg->head.line_length_pclk = fmt_inf->htotal;
 	msg->head.frame_length_lines = fmt_inf->vtotal;
 	msg->head.mipi_lane = fmt_inf->mipi_lane;
+	msg->head.flip = pdata->flip;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->head.msg_head);
 }
@@ -673,13 +727,14 @@ static int rk1608_send_meta_hdrae(struct rk1608_state *pdata,
 	unsigned long flags;
 	struct msg_set_sensor_info_s *msg;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
 	msg->msg_head.size = sizeof(*msg) / 4;
 	msg->msg_head.type = id_msg_set_sensor_info_t;
 	msg->msg_head.id.camera_id = 0;
+	msg->msg_head.mux.sync = 0;
 	msg->set_exp_cnt = pdata->set_exp_cnt++;
 
 	spin_lock_irqsave(&pdata->hdrae_lock, flags);
@@ -725,12 +780,162 @@ static int rk1608_send_meta_hdrae(struct rk1608_state *pdata,
 	return ret;
 }
 
+static int rk1608_disp_set_frame_output(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_frame_output_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_frame_format(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_frame_format_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_led_on_off(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_led_on_off_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_frame_type(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_frame_type_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_pro_time(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_pro_time_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_pro_current(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int value = *(unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d\n", __func__, value);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_pro_current_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_set_denoise(struct rk1608_state *pdata,
+		void *args)
+{
+	int ret = 0;
+	unsigned int *value = (unsigned int *)args;
+	struct msg_disp msg_disp;
+
+	dev_info(pdata->dev, "%s:%d %d\n", __func__, value[0], value[1]);
+	msg_disp.msg.size = sizeof(msg_disp) / 4;
+	msg_disp.msg.type = id_msg_disp_set_denoise_t;
+	msg_disp.msg.id.camera_id = pdata->sd.grp_id;
+	msg_disp.msg.mux.sync = 0;
+	msg_disp.value[0] = value[0];
+	msg_disp.value[1] = value[1];
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg_disp);
+	return ret;
+}
+
+static int rk1608_disp_write_eeprom_request(struct rk1608_state *pdata)
+{
+	int ret = 0;
+	struct msg msg;
+
+	dev_info(pdata->dev, "%s\n", __func__);
+	msg.size = sizeof(struct msg) / 4;
+	msg.type = id_msg_calibration_write_req_mode2_t;
+	msg.id.camera_id = pdata->sd.grp_id;
+	msg.mux.sync = 0;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg);
+	return ret;
+}
+
+static int rk1608_disp_read_eeprom_request(struct rk1608_state *pdata)
+{
+	int ret = 0;
+	struct msg msg;
+
+	dev_info(pdata->dev, "%s\n", __func__);
+	msg.size = sizeof(struct msg) / 4;
+	msg.type = id_msg_calibration_read_req_mode2_t;
+	msg.id.camera_id = pdata->sd.grp_id;
+	msg.mux.sync = 0;
+	ret = rk1608_send_msg_to_dsp(pdata, (struct msg *)&msg);
+	return ret;
+}
+
 static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 {
 	struct msg *msg = NULL;
 	struct msg_init *msg_init = NULL;
 	struct msg_in_size *msg_in_size = NULL;
 	struct msg_set_output_size *msg_out_size = NULL;
+	struct msg_init_dsp_time *msg_init_time = NULL;
 	int ret = 0;
 
 	if (!pdata->sensor[id]) {
@@ -748,6 +953,13 @@ static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	msg_init_time = kzalloc(sizeof(*msg_init_time), GFP_KERNEL);
+	if (!msg_init_time) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	msg_in_size = kzalloc(sizeof(*msg_in_size), GFP_KERNEL);
 	if (!msg_in_size) {
 		ret = -ENOMEM;
@@ -760,6 +972,7 @@ static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 	}
 
 	ret = rk1608_msg_init_sensor(pdata, msg_init, id);
+	ret |= rk1608_msg_init_dsp_time(pdata, msg_init_time, id);
 	ret |= rk1608_msg_set_input_size(pdata, msg_in_size, id);
 	ret |= rk1608_msg_set_output_size(pdata, msg_out_size, id);
 	ret |= rk1608_msg_set_stream_in_on(pdata, msg, id);
@@ -767,6 +980,7 @@ static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 
 err:
 	kfree(msg_init);
+	kfree(msg_init_time);
 	kfree(msg_in_size);
 	kfree(msg_out_size);
 	kfree(msg);
@@ -798,7 +1012,7 @@ static void rk1608_cs_set_value(struct rk1608_state *pdata, int value)
 		.len    = sizeof(null_cmd),
 		.cs_change = !value,
 	};
-	struct spi_message  m;
+	struct spi_message m;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&null_cmd_packet, &m);
@@ -1093,8 +1307,36 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rk1608_send_meta_hdrae(pdata, hdrae_exp);
 		break;
 	case RKMODULE_GET_MODULE_INFO:
+	case RKMODULE_AWB_CFG:
 		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, ioctl,
 				 cmd, arg);
+		break;
+	case PREISP_DISP_SET_FRAME_OUTPUT:
+		rk1608_disp_set_frame_output(pdata, arg);
+		break;
+	case PREISP_DISP_SET_FRAME_FORMAT:
+		rk1608_disp_set_frame_format(pdata, arg);
+		break;
+	case PREISP_DISP_SET_FRAME_TYPE:
+		rk1608_disp_set_frame_type(pdata, arg);
+		break;
+	case PREISP_DISP_SET_PRO_TIME:
+		rk1608_disp_set_pro_time(pdata, arg);
+		break;
+	case PREISP_DISP_SET_PRO_CURRENT:
+		rk1608_disp_set_pro_current(pdata, arg);
+		break;
+	case PREISP_DISP_SET_DENOISE:
+		rk1608_disp_set_denoise(pdata, arg);
+		break;
+	case PREISP_DISP_WRITE_EEPROM:
+		rk1608_disp_write_eeprom_request(pdata);
+		break;
+	case PREISP_DISP_READ_EEPROM:
+		rk1608_disp_read_eeprom_request(pdata);
+		break;
+	case PREISP_DISP_SET_LED_ON_OFF:
+		rk1608_disp_set_led_on_off(pdata, arg);
 		break;
 	default:
 		return -ENOTTY;
@@ -1140,6 +1382,35 @@ static int rk1608_set_ctrl(struct v4l2_ctrl *ctrl)
 			     struct rk1608_state, ctrl_handler);
 	int id = pdata->sd.grp_id;
 
+	if (id == 1) {
+		switch (ctrl->id) {
+		case V4L2_CID_HFLIP:
+			if (ctrl->val)
+				pdata->flip |= MIRROR_BIT_MASK;
+			else
+				pdata->flip &= ~MIRROR_BIT_MASK;
+			dev_info(pdata->dev, "%s V4L2_CID_HFLIP ctrl id:0x%x, flip:0x%x\n",
+				__func__, ctrl->id, pdata->flip);
+			break;
+		case V4L2_CID_VFLIP:
+			if (ctrl->val)
+				pdata->flip |= FLIP_BIT_MASK;
+			else
+				pdata->flip &= ~FLIP_BIT_MASK;
+			dev_info(pdata->dev, "%s V4L2_CID_VFLIP ctrl id:0x%x, flip:0x%x\n",
+				__func__, ctrl->id, pdata->flip);
+			break;
+		default:
+			dev_warn(pdata->dev, "%s Unhandled id:0x%x, val:0x%x\n",
+				__func__, ctrl->id, ctrl->val);
+			break;
+		}
+	}
+	if (!pdata->sensor[id]) {
+		dev_err(pdata->dev, "Did not find a sensor[%d]!\n", id);
+		return -EINVAL;
+	}
+
 	remote_ctrl = v4l2_ctrl_find(pdata->sensor[id]->ctrl_handler,
 				     ctrl->id);
 	if (remote_ctrl)
@@ -1161,7 +1432,7 @@ static int rk1608_initialize_controls(struct rk1608_state *rk1608)
 			      V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
 
 	handler = &rk1608->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 10);
 	if (ret)
 		return ret;
 
@@ -1192,6 +1463,15 @@ static int rk1608_initialize_controls(struct rk1608_state *rk1608)
 					 0, 0x7FFFFFFF, 1, 0);
 	if (rk1608->gain)
 		rk1608->gain->flags |= flags;
+	rk1608->h_flip = v4l2_ctrl_new_std(handler, &rk1608_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (rk1608->h_flip)
+		rk1608->h_flip->flags |= flags;
+	rk1608->v_flip = v4l2_ctrl_new_std(handler, &rk1608_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (rk1608->v_flip)
+		rk1608->v_flip->flags |= flags;
+	rk1608->flip = 0;
 
 	if (handler->error) {
 		ret = handler->error;
@@ -1483,6 +1763,516 @@ static void rk1608_print_rk1608_log(struct rk1608_state *pdata,
 	dev_info(pdata->dev, "DSP(%d): %s", log->id.core_id, str);
 }
 
+static int preisp_file_import_part(struct rk1608_state *pdata, struct msg *msg)
+{
+	struct file *fp;
+	int ret = -1;
+	loff_t pos = 0;
+	unsigned int file_size = 0;
+	unsigned int write_size = 0;
+	char *file_data = NULL;
+	struct msg_xfile *xfile;
+	struct calib_head *head = NULL;
+	char *name;
+	u32 crc_val;
+	int i;
+
+	xfile = (struct msg_xfile *)msg;
+	fp = filp_open(REF_DATA_PATH, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_err("open %s error\n", REF_DATA_PATH);
+		return -EFAULT;
+	}
+
+	head = vmalloc(sizeof(struct calib_head));
+	if (!head) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	pos = 0;
+	ret = kernel_read(fp, (char *)head, sizeof(struct calib_head), &pos);
+	if (ret <= 0)
+		pr_err("%s: read error: ret=%d\n", __func__, ret);
+
+	if (strncmp(head->magic, PREISP_CALIB_MAGIC, sizeof(head->magic))) {
+		pr_err("%s: magic(%s) is unmatch\n", __func__, head->magic);
+		goto err;
+	}
+
+	name = strrchr(xfile->path, '/');
+	if (!name)
+		goto err;
+
+	name += 1;
+	for (i = 0; i < head->items_number; i++) {
+		if (!strncmp(head->item[i].name, name, sizeof(head->item[i].name)))
+			break;
+	}
+
+	if (i >= head->items_number) {
+		pr_err("%s: cannot find %s\n", __func__, name);
+		goto err;
+	}
+
+	file_size = head->item[i].size;
+	/* file_size = align4(file_size); */
+
+	pr_info("start import addr:0x%x size:%d to %s\n", xfile->addr, file_size, xfile->path);
+
+	file_data = vmalloc(file_size);
+	if (!file_data) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	pos = head->item[i].offset;
+	ret = kernel_read(fp, file_data, head->item[i].size, &pos);
+	if (ret <= 0) {
+		pr_err("%s: read error: ret=%d\n", __func__, ret);
+		goto err;
+	}
+
+	crc_val = crc32_le(~0, file_data, head->item[i].size);
+	crc_val = ~crc_val;
+	if (crc_val != head->item[i].crc32) {
+		pr_err("%s: crc check error: 0x%x, 0x%x\n", __func__,
+				crc_val, head->item[i].crc32);
+		goto err;
+	}
+
+	write_size = (file_size <= xfile->data_size)?file_size:xfile->data_size;
+	if (file_size != xfile->data_size)
+		pr_err("%s import size:%d != file size:%d, write size:%d\n",
+			__func__, xfile->data_size, file_size, write_size);
+
+	ret = rk1608_safe_write(pdata, pdata->spi, xfile->addr, (s32 *)file_data, write_size);
+	if (ret) {
+		pr_err("%s: spi2apb write addr 0x%x size %d failed\n",
+			__func__, xfile->addr, file_size);
+		goto err;
+	}
+
+	xfile->data_size = file_size;
+	xfile->ret = ret;
+	rk1608_msq_send_msg(pdata, pdata->spi, (struct msg *)xfile);
+
+	pr_info("import %s to preisp addr:0x%x size:%d success!\n",
+			xfile->path, xfile->addr, file_size);
+
+err:
+	if (file_data)
+		vfree(file_data);
+	if (fp)
+		filp_close(fp, NULL);
+	if (head)
+		vfree(head);
+
+	return ret;
+}
+
+static int preisp_file_import_data(struct rk1608_state *pdata, struct msg *msg)
+{
+	struct file *fp;
+	int ret = -1;
+	loff_t pos = 0;
+	unsigned int file_size = 0;
+	unsigned int write_size = 0;
+	char *file_data = NULL;
+	struct kstat *stat;
+	struct msg_xfile *xfile;
+
+	char *ref_data_path = REF_DATA_PATH;
+	char *file_path = NULL;
+
+	xfile = (struct msg_xfile *)msg;
+
+	if (!strncmp(xfile->path, "ref_data.img", sizeof("ref_data.img") - 1))
+		file_path = ref_data_path;
+	else
+		file_path = xfile->path;
+
+	fp = filp_open(file_path, O_RDONLY, 0766);
+	if (IS_ERR(fp)) {
+		dev_err(pdata->dev, "open import file(%s) error\n", file_path);
+		return -EFAULT;
+	}
+
+	stat = kmalloc(sizeof(*stat), GFP_KERNEL);
+	if (!stat) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	vfs_stat(file_path, stat);
+
+	file_size = stat->size;
+	file_size = (file_size+0x3)&(~0x3);
+
+	dev_info(pdata->dev, "start import %s to addr:0x%x size:%d\n",
+			file_path, xfile->addr, file_size);
+
+	file_data = vmalloc(file_size);
+	if (!file_data) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = kernel_read(fp, file_data, file_size, &pos);
+	if (ret <= 0)
+		dev_err(pdata->dev, "%s: read error: ret=%d\n",
+				__func__, ret);
+
+	write_size = (file_size <= xfile->data_size)?file_size:xfile->data_size;
+	if (file_size != xfile->data_size)
+		dev_err(pdata->dev,
+				"%s import size:%d != file size:%d, write size:%d\n",
+				__func__, xfile->data_size, file_size, write_size);
+
+	ret = rk1608_safe_write(pdata, pdata->spi, xfile->addr, (s32 *)file_data, write_size);
+	if (ret) {
+		dev_err(pdata->dev,
+				"%s: spi2apb write addr 0x%x size %d failed\n",
+				__func__, xfile->addr, file_size);
+		goto err;
+	}
+
+	xfile->data_size = file_size;
+	xfile->ret = ret;
+	rk1608_msq_send_msg(pdata, pdata->spi, (struct msg *)xfile);
+
+	dev_info(pdata->dev, "import %s to preisp addr:0x%x size:%d success!\n",
+			xfile->path, xfile->addr, file_size);
+
+err:
+	kfree(stat);
+	if (file_data)
+		vfree(file_data);
+	if (fp)
+		filp_close(fp, NULL);
+
+	return ret;
+}
+
+static int rk1608_file_export(struct rk1608_state *pdata, struct msg *msg)
+{
+	struct file *fp;
+	int ret = -1;
+	loff_t pos = 0;
+	unsigned int file_size = 0;
+	char *file_data = NULL;
+	struct msg_xfile *xfile;
+
+	char *ref_data_path = REF_DATA_PATH;
+	char *file_path = NULL;
+
+	xfile = (struct msg_xfile *)msg;
+
+	if (!strncmp(xfile->path, "ref_data.img", sizeof("ref_data.img") - 1))
+		file_path = ref_data_path;
+	else
+		file_path = xfile->path;
+
+	dev_info(pdata->dev, "start export addr:0x%x size:%d to %s\n",
+			xfile->addr, xfile->data_size, file_path);
+
+	fp = filp_open(file_path, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(fp)) {
+		dev_err(pdata->dev, "%s open/create export file(%s) error\n",
+			__func__, file_path);
+		return -EFAULT;
+	}
+
+	file_size = xfile->data_size;
+	file_size = (file_size + 3)&(~3);
+
+	file_data = vmalloc(file_size);
+	if (!file_data) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = rk1608_safe_read(pdata, pdata->spi, xfile->addr, (s32 *)file_data, file_size);
+	if (ret) {
+		dev_err(pdata->dev,
+				"%s: spi2apb read addr 0x%x size %d failed, ret:%d\n",
+				__func__, xfile->addr, file_size, ret);
+		goto err;
+	}
+
+	ret = kernel_write(fp, file_data, file_size, &pos);
+	if (ret <= 0) {
+		dev_err(pdata->dev, "%s: read error: ret=%d\n",
+				__func__, ret);
+	}
+
+	xfile->data_size = file_size;
+	xfile->ret = ret;
+
+	rk1608_msq_send_msg(pdata, pdata->spi, (struct msg *)xfile);
+	dev_info(pdata->dev, "export %s to preisp addr:0x%x size:%d success!\n",
+			xfile->path, xfile->addr, file_size);
+
+err:
+	if (file_data)
+		vfree(file_data);
+	if (fp)
+		filp_close(fp, NULL);
+
+	return ret;
+}
+
+static int rk1608_file_import(struct rk1608_state *pdata, struct msg *msg)
+{
+	struct msg_xfile *xfile;
+
+	xfile = (struct msg_xfile *)msg;
+
+	if (!strncmp(xfile->path, "/dev", sizeof("/dev") - 1))
+		return preisp_file_import_part(pdata, msg);
+	else
+		return preisp_file_import_data(pdata, msg);
+}
+
+#if UPDATE_REF_DATA_FROM_EEPROM
+static int rk1608_get_calib_version_temperature_sn(struct rk1608_state *pdata,
+						   struct msg_calib_temp **calibdata)
+{
+	struct file *fp;
+	int ret = -1;
+	loff_t pos = 0;
+	struct calib_head *head = NULL;
+	int i;
+	struct msg_calib_temp *calibdata_ = NULL;
+	unsigned int msg_size;
+
+	fp = filp_open(REF_DATA_PATH, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		dev_err(pdata->dev, "open %s error\n", REF_DATA_PATH);
+		ret = -ENOMEM;
+		goto file_err;
+	}
+
+	head = vmalloc(sizeof(struct calib_head));
+	if (!head) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	pos = 0;
+	ret = kernel_read(fp, (char *)head, sizeof(*head), &pos);
+	if (ret <= 0)
+		dev_err(pdata->dev, "%s: read error: ret=%d\n", __func__, ret);
+
+	if (strncmp(head->magic, PREISP_CALIB_MAGIC, sizeof(head->magic))) {
+		dev_err(pdata->dev, "%s: magic(%s) is unmatch\n", __func__, head->magic);
+		goto err;
+	}
+
+	dev_info(pdata->dev,
+			"version: 0x%x, head_size: 0x%x, image_size: 0x%x, items_number: 0x%x, hash_len: 0x%x, sign_len: 0x%x\n",
+			head->version,
+			head->head_size,
+			head->image_size,
+			head->items_number,
+			head->hash_len,
+			head->sign_len);
+
+	for (i = 0; i < head->items_number; i++) {
+		dev_info(pdata->dev, "item[%d]: %s, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+				i,
+				head->item[i].name,
+				head->item[i].offset,
+				head->item[i].size,
+				head->item[i].temp,
+				head->item[i].crc32);
+	}
+
+	for (i = 0; i < head->items_number; i++) {
+		if (!strncmp(head->item[i].name, "sn_code", strlen("sn_code")))
+			break;
+	}
+	if (i >= head->items_number) {
+		dev_err(pdata->dev, "%s: cannot find %s\n", __func__, "sn_code");
+		goto err;
+	}
+
+	if (head->item[i].size > 128) {
+		dev_err(pdata->dev, "%s: %s size:%d error!\n",
+			__func__, head->item[i].name, head->item[i].size);
+		goto err;
+	}
+
+	msg_size = sizeof(struct msg_calib_temp) + head->item[i].size;
+	msg_size = (msg_size + 3)&(~0x03);
+	calibdata_ = vmalloc(msg_size);
+	if (!calibdata_) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	memset((char *)calibdata_, 0, msg_size);
+
+	pos = head->item[i].offset;
+
+	ret = kernel_read(fp, (char *)&calibdata_->calib_sn_code, head->item[i].size, &pos);
+	if (ret <= 0) {
+		dev_err(pdata->dev, "%s: read error: ret=%d\n", __func__, ret);
+		goto err;
+	}
+
+	calibdata_->size = msg_size>>2;
+	calibdata_->calib_version = head->version;
+	calibdata_->temp = head->item[i].temp;
+	calibdata_->calib_sn_size = head->item[i].size;
+	calibdata_->calib_sn_offset = head->item[i].offset;
+	calibdata_->calib_exist = 1;
+
+	dev_info(pdata->dev, "version:%#x, temp:%#x, name:%s, size:%d sn_code:%s\n",
+			head->version,
+			head->item[i].temp,
+			head->item[i].name,
+			head->item[i].size,
+			(char *)&calibdata_->calib_sn_code);
+
+err:
+	*calibdata = calibdata_;
+
+	if (fp)
+		filp_close(fp, NULL);
+	if (head)
+		vfree(head);
+
+	if (calibdata_ != NULL)
+		return ret;
+
+file_err:
+	msg_size = sizeof(struct msg_calib_temp);
+	calibdata_ = vmalloc(msg_size);
+	if (!calibdata_) {
+		ret = -ENOMEM;
+		*calibdata = NULL;
+		return ret;
+	}
+
+	memset((char *)calibdata_, 0, msg_size);
+	calibdata_->size = msg_size>>2;
+	*calibdata = calibdata_;
+
+	return ret;
+}
+
+static int rk1608_send_calib_version_temperature(struct rk1608_state *pdata, struct msg *msg)
+{
+	int ret = 0;
+	struct msg_calib_temp *calibdata = NULL;
+
+	rk1608_get_calib_version_temperature_sn(pdata, &calibdata);
+
+	if (calibdata == NULL) {
+		dev_err(pdata->dev, "%s error\n", __func__);
+		return -1;
+	}
+
+	calibdata->type = id_msg_calib_temperature_t;
+	calibdata->camera_id = msg->id.camera_id;
+
+	mutex_lock(&pdata->send_msg_lock);
+	ret = rk1608_msq_send_msg(pdata, pdata->spi, (struct msg *)calibdata);
+	mutex_unlock(&pdata->send_msg_lock);
+
+	if (calibdata)
+		vfree(calibdata);
+
+	return ret;
+}
+#else
+static int rk1608_get_calib_version_temperature(u32 *version, u32 *temp)
+{
+	struct file *fp;
+	int ret = -1;
+	loff_t pos = 0;
+	struct calib_head *head = NULL;
+	int i;
+
+	fp = filp_open(REF_DATA_PATH, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_err("open %s error\n", REF_DATA_PATH);
+		return -1;
+	}
+
+	head = vmalloc(sizeof(struct calib_head));
+	if (!head) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	pos = 0;
+	ret = kernel_read(fp, (char *)head, sizeof(*head), &pos);
+	if (ret <= 0)
+		pr_err("%s: read error: ret=%d\n", __func__, ret);
+
+	if (strncmp(head->magic, PREISP_CALIB_MAGIC, sizeof(head->magic))) {
+		pr_err("%s: magic(%s) is unmatch\n", __func__, head->magic);
+		goto err;
+	}
+
+	pr_info("%s: version: 0x%x, head_size: 0x%x, image_size: 0x%x, items_number: 0x%x, hash_len: 0x%x, sign_len: 0x%x\n",
+			__func__,
+			head->version,
+			head->head_size,
+			head->image_size,
+			head->items_number,
+			head->hash_len,
+			head->sign_len);
+
+	for (i = 0; i < head->items_number; i++) {
+		pr_info("%s: item[%d]: %s, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+				__func__, i,
+				head->item[i].name,
+				head->item[i].offset,
+				head->item[i].size,
+				head->item[i].temp,
+				head->item[i].crc32);
+	}
+
+	*version = head->version;
+	for (i = 0; i < head->items_number; i++) {
+		if (!strncmp(head->item[i].name, "ref1bit.bin", sizeof(head->item[i].name)))
+			break;
+	}
+	if (i >= head->items_number) {
+		pr_err("%s: cannot find %s\n", __func__, "ref1bit.bin");
+		goto err;
+	}
+
+	*temp = head->item[i].temp;
+
+err:
+	if (fp)
+		filp_close(fp, NULL);
+	if (head)
+		vfree(head);
+
+	return ret;
+}
+
+static int rk1608_send_calib_version_temperature(struct rk1608_state *pdata, struct msg *msg)
+{
+	struct msg_calib_temp m;
+	int ret = 0;
+
+	m.type = id_msg_calib_temperature_t;
+	m.size = sizeof(struct msg_calib_temp) / 4;
+	m.camera_id = msg->id.camera_id;
+	rk1608_get_calib_version_temperature(&m.calib_version, &m.temp);
+	mutex_lock(&pdata->send_msg_lock);
+	ret = rk1608_msq_send_msg(pdata, pdata->spi, (struct msg *)&m);
+	mutex_unlock(&pdata->send_msg_lock);
+
+	return ret;
+}
+#endif
+
 static void rk1608_dispatch_received_msg(struct rk1608_state *pdata,
 					 struct msg *msg)
 {
@@ -1494,9 +2284,141 @@ static void rk1608_dispatch_received_msg(struct rk1608_state *pdata,
 
 	if (msg->type == id_msg_rk1608_log_t)
 		rk1608_print_rk1608_log(pdata, msg);
-
-	rk1608_dev_receive_msg(pdata, msg);
+	else if (msg->type == id_msg_xfile_import_t)
+		rk1608_file_import(pdata, msg);
+	else if (msg->type == id_msg_xfile_export_t)
+		rk1608_file_export(pdata, msg);
+	else if (msg->type == id_msg_calib_temperature_req_t)
+		rk1608_send_calib_version_temperature(pdata, msg);
+	else
+		rk1608_dev_receive_msg(pdata, msg);
 }
+
+#define PREISP_DCROP_ITEM_NAME		"calib_data.bin"
+#define PREISP_DCROP_CALIB_RATIO		192
+#define PREISP_DCROP_CALIB_XOFFSET	196
+#define PREISP_DCROP_CALIB_YOFFSET	198
+static int rk1608_get_dcrop_cfg(struct v4l2_rect *crop_in,
+			 struct v4l2_rect *crop_out)
+{
+	struct file *fp;
+	int ret = 0;
+	loff_t pos = 0;
+	unsigned int file_size = 0;
+	char *file_data = NULL;
+	struct calib_head *head = NULL;
+	short xoffset, yoffset;
+	int left, top, width, height, temp;
+	int ratio;
+	int i;
+
+	fp = filp_open("/data/ref_data.img", O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_err("%s: open /data/ref_data.img error\n", __func__);
+		return -1;
+	}
+
+	head = vmalloc(sizeof(struct calib_head));
+	if (!head) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	pos = 0;
+	ret = kernel_read(fp, (char *)head, sizeof(*head), &pos);
+	if (ret <= 0) {
+		ret = -EFAULT;
+		pr_err("%s: read error: ret=%d\n", __func__, ret);
+		goto err;
+	}
+
+	if (strncmp(head->magic, PREISP_CALIB_MAGIC, sizeof(head->magic))) {
+		ret = -EFAULT;
+		pr_err("%s: magic(%s) is unmatch\n", __func__, head->magic);
+		goto err;
+	}
+
+	for (i = 0; i < head->items_number; i++) {
+		if (!strncmp(head->item[i].name, PREISP_DCROP_ITEM_NAME,
+			     strlen(PREISP_DCROP_ITEM_NAME)))
+			break;
+	}
+
+	if (i >= head->items_number) {
+		ret = -EFAULT;
+		pr_err("%s: cannot find %s\n", __func__, PREISP_DCROP_ITEM_NAME);
+		goto err;
+	}
+
+	file_size = head->item[i].size;
+	if (file_size < (PREISP_DCROP_CALIB_YOFFSET + 2)) {
+		ret = -EFAULT;
+		pr_err("%s: file_size is not correct:%d\n", __func__, file_size);
+		goto err;
+	}
+
+	file_data = vmalloc(file_size);
+	if (!file_data) {
+		ret = -ENOMEM;
+		pr_err("%s: no memory\n", __func__);
+		goto err;
+	}
+
+	pos = head->item[i].offset;
+	ret = kernel_read(fp, file_data, head->item[i].size, &pos);
+	if (ret <= 0) {
+		ret = -EFAULT;
+		pr_err("%s: read error: ret=%d\n", __func__, ret);
+		goto err;
+	}
+
+	ratio = *(int *)(file_data + PREISP_DCROP_CALIB_RATIO);
+	xoffset = *(short *)(file_data + PREISP_DCROP_CALIB_XOFFSET);
+	yoffset = *(short *)(file_data + PREISP_DCROP_CALIB_YOFFSET);
+	pr_info("%s: item %s: file_size %d, ratio 0x%x, xoffset %d, yoffset %d\n",
+		__func__, head->item[i].name, file_size, ratio, xoffset, yoffset);
+	if (ratio > 0x10000 || ratio == 0) {
+		ret = -EFAULT;
+		goto err;
+	}
+
+	temp = xoffset * crop_in->width;
+	temp = temp / 2592 / 16;
+	left = (0x10000 - ratio) * crop_in->width / 0x10000 / 2 + temp;
+	top = (0x10000 - ratio) * crop_in->height / 0x10000 / 2;
+	width = crop_in->width * ratio / 0x10000;
+	height = crop_in->height  * ratio / 0x10000;
+	width = (width + 1) & 0xFFFFFFFE;
+	height = (height + 1) & 0xFFFFFFFE;
+	pr_info("%s: calculate left %d, top %d, width %d, height %d, crop_in %d, %d\n",
+		__func__, left, top, width, height, crop_in->width, crop_in->height);
+
+	if ((left + width) > crop_in->width ||
+	    (top + height) > crop_in->height ||
+	    left < 0 || top < 0) {
+		ret = -EFAULT;
+		goto err;
+	}
+
+	ret = 0;
+	crop_out->left = left;
+	crop_out->top = top;
+	crop_out->width = width;
+	crop_out->height = height;
+	pr_info("%s: DEFRECT %d, %d, %d, %d\n",
+		__func__, crop_out->left, crop_out->top, crop_out->width, crop_out->height);
+
+err:
+	if (file_data)
+		vfree(file_data);
+	if (fp)
+		filp_close(fp, NULL);
+	if (head)
+		vfree(head);
+
+	return ret;
+}
+EXPORT_SYMBOL(rk1608_get_dcrop_cfg);
 
 static irqreturn_t rk1608_threaded_isr(int irq, void *ctx)
 {
@@ -1549,6 +2471,13 @@ static int rk1608_parse_dt_property(struct rk1608_state *pdata)
 	if (ret) {
 		dev_warn(dev, "can not get firmware-names!");
 		pdata->firm_name = NULL;
+	}
+
+	pdata->pwren_gpio = devm_gpiod_get_optional(dev, "pwren",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(pdata->pwren_gpio)) {
+		dev_err(dev, "can not find pwren_gpio\n");
+		return PTR_ERR(pdata->pwren_gpio);
 	}
 
 	pdata->reset_gpio = devm_gpiod_get_optional(dev, "reset",
