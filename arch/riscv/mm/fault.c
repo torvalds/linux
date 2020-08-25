@@ -53,6 +53,84 @@ static inline void bad_area(struct pt_regs *regs, struct mm_struct *mm, int code
 	no_context(regs, addr);
 }
 
+static void inline vmalloc_fault(struct pt_regs *regs, int code, unsigned long addr)
+{
+	pgd_t *pgd, *pgd_k;
+	pud_t *pud, *pud_k;
+	p4d_t *p4d, *p4d_k;
+	pmd_t *pmd, *pmd_k;
+	pte_t *pte_k;
+	int index;
+
+	/* User mode accesses just cause a SIGSEGV */
+	if (user_mode(regs))
+		return do_trap(regs, SIGSEGV, code, addr);
+
+	/*
+	 * Synchronize this task's top level page-table
+	 * with the 'reference' page table.
+	 *
+	 * Do _not_ use "tsk->active_mm->pgd" here.
+	 * We might be inside an interrupt in the middle
+	 * of a task switch.
+	 */
+	index = pgd_index(addr);
+	pgd = (pgd_t *)pfn_to_virt(csr_read(CSR_SATP)) + index;
+	pgd_k = init_mm.pgd + index;
+
+	if (!pgd_present(*pgd_k)) {
+		no_context(regs, addr);
+		return;
+	}
+	set_pgd(pgd, *pgd_k);
+
+	p4d = p4d_offset(pgd, addr);
+	p4d_k = p4d_offset(pgd_k, addr);
+	if (!p4d_present(*p4d_k)) {
+		no_context(regs, addr);
+		return;
+	}
+
+	pud = pud_offset(p4d, addr);
+	pud_k = pud_offset(p4d_k, addr);
+	if (!pud_present(*pud_k)) {
+		no_context(regs, addr);
+		return;
+	}
+
+	/*
+	 * Since the vmalloc area is global, it is unnecessary
+	 * to copy individual PTEs
+	 */
+	pmd = pmd_offset(pud, addr);
+	pmd_k = pmd_offset(pud_k, addr);
+	if (!pmd_present(*pmd_k)) {
+		no_context(regs, addr);
+		return;
+	}
+	set_pmd(pmd, *pmd_k);
+
+	/*
+	 * Make sure the actual PTE exists as well to
+	 * catch kernel vmalloc-area accesses to non-mapped
+	 * addresses. If we don't do this, this will just
+	 * silently loop forever.
+	 */
+	pte_k = pte_offset_kernel(pmd_k, addr);
+	if (!pte_present(*pte_k)) {
+		no_context(regs, addr);
+		return;
+	}
+
+	/*
+	 * The kernel assumes that TLBs don't cache invalid
+	 * entries, but in RISC-V, SFENCE.VMA specifies an
+	 * ordering constraint, not a cache flush; it is
+	 * necessary even after writing invalid entries.
+	 */
+	local_flush_tlb_page(addr);
+}
+
 /*
  * This routine handles page faults.  It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
@@ -82,8 +160,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (unlikely((addr >= VMALLOC_START) && (addr <= VMALLOC_END)))
-		goto vmalloc_fault;
+	if (unlikely((addr >= VMALLOC_START) && (addr <= VMALLOC_END))) {
+		vmalloc_fault(regs, code, addr);
+		return;
+	}
 
 	/* Enable interrupts if they were enabled in the parent context. */
 	if (likely(regs->status & SR_PIE))
@@ -211,84 +291,4 @@ do_sigbus:
 	}
 	do_trap(regs, SIGBUS, BUS_ADRERR, addr);
 	return;
-
-vmalloc_fault:
-	{
-		pgd_t *pgd, *pgd_k;
-		pud_t *pud, *pud_k;
-		p4d_t *p4d, *p4d_k;
-		pmd_t *pmd, *pmd_k;
-		pte_t *pte_k;
-		int index;
-
-		/* User mode accesses just cause a SIGSEGV */
-		if (user_mode(regs))
-			return do_trap(regs, SIGSEGV, code, addr);
-
-		/*
-		 * Synchronize this task's top level page-table
-		 * with the 'reference' page table.
-		 *
-		 * Do _not_ use "tsk->active_mm->pgd" here.
-		 * We might be inside an interrupt in the middle
-		 * of a task switch.
-		 */
-		index = pgd_index(addr);
-		pgd = (pgd_t *)pfn_to_virt(csr_read(CSR_SATP)) + index;
-		pgd_k = init_mm.pgd + index;
-
-		if (!pgd_present(*pgd_k)) {
-			no_context(regs, addr);
-			return;
-		}
-		set_pgd(pgd, *pgd_k);
-
-		p4d = p4d_offset(pgd, addr);
-		p4d_k = p4d_offset(pgd_k, addr);
-		if (!p4d_present(*p4d_k)) {
-			no_context(regs, addr);
-			return;
-		}
-
-		pud = pud_offset(p4d, addr);
-		pud_k = pud_offset(p4d_k, addr);
-		if (!pud_present(*pud_k)) {
-			no_context(regs, addr);
-			return;
-		}
-
-		/*
-		 * Since the vmalloc area is global, it is unnecessary
-		 * to copy individual PTEs
-		 */
-		pmd = pmd_offset(pud, addr);
-		pmd_k = pmd_offset(pud_k, addr);
-		if (!pmd_present(*pmd_k)) {
-			no_context(regs, addr);
-			return;
-		}
-		set_pmd(pmd, *pmd_k);
-
-		/*
-		 * Make sure the actual PTE exists as well to
-		 * catch kernel vmalloc-area accesses to non-mapped
-		 * addresses. If we don't do this, this will just
-		 * silently loop forever.
-		 */
-		pte_k = pte_offset_kernel(pmd_k, addr);
-		if (!pte_present(*pte_k)) {
-			no_context(regs, addr);
-			return;
-		}
-
-		/*
-		 * The kernel assumes that TLBs don't cache invalid
-		 * entries, but in RISC-V, SFENCE.VMA specifies an
-		 * ordering constraint, not a cache flush; it is
-		 * necessary even after writing invalid entries.
-		 */
-		local_flush_tlb_page(addr);
-
-		return;
-	}
 }
