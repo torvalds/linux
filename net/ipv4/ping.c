@@ -383,20 +383,6 @@ static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
 	}
 }
 
-static void ping_clear_saddr(struct sock *sk, int dif)
-{
-	sk->sk_bound_dev_if = dif;
-	if (sk->sk_family == AF_INET) {
-		struct inet_sock *isk = inet_sk(sk);
-		isk->inet_rcv_saddr = isk->inet_saddr = 0;
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (sk->sk_family == AF_INET6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-		memset(&sk->sk_v6_rcv_saddr, 0, sizeof(sk->sk_v6_rcv_saddr));
-		memset(&np->saddr, 0, sizeof(np->saddr));
-#endif
-	}
-}
 /*
  * We need our own bind because there are no privileged id's == local ports.
  * Moreover, we don't allow binding to multi- and broadcast addresses.
@@ -420,12 +406,13 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto out;
 
 	err = -EADDRINUSE;
-	ping_set_saddr(sk, uaddr);
 	snum = ntohs(((struct sockaddr_in *)uaddr)->sin_port);
 	if (ping_get_port(sk, snum) != 0) {
-		ping_clear_saddr(sk, dif);
+		/* Restore possibly modified sk->sk_bound_dev_if by ping_check_bind_addr(). */
+		sk->sk_bound_dev_if = dif;
 		goto out;
 	}
+	ping_set_saddr(sk, uaddr);
 
 	pr_debug("after bind(): num = %hu, dif = %d\n",
 		 isk->inet_num,
