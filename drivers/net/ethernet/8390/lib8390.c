@@ -597,10 +597,12 @@ static void ei_tx_intr(struct net_device *dev)
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
 			netif_trans_update(dev);
-			ei_local->tx2 = -1,
+			ei_local->tx2 = -1;
 			ei_local->lasttx = 2;
-		} else
-			ei_local->lasttx = 20, ei_local->txing = 0;
+		} else {
+			ei_local->lasttx = 20;
+			ei_local->txing = 0;
+		}
 	} else if (ei_local->tx2 < 0) {
 		if (ei_local->lasttx != 2  &&  ei_local->lasttx != -2)
 			pr_err("%s: bogus last_tx_buffer %d, tx2=%d\n",
@@ -612,8 +614,10 @@ static void ei_tx_intr(struct net_device *dev)
 			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
-		} else
-			ei_local->lasttx = 10, ei_local->txing = 0;
+		} else {
+			ei_local->lasttx = 10;
+			ei_local->txing = 0;
+		}
 	} /* else
 		netdev_warn(dev, "unexpected TX-done interrupt, lasttx=%d\n",
 			    ei_local->lasttx);
