@@ -33,14 +33,13 @@ static const unsigned int SD_DEGENERATE_GROUPS_MASK =
 #undef SD_FLAG
 
 #ifdef CONFIG_SCHED_DEBUG
-#define SD_FLAG(_name, mflags) [__##_name] = { .meta_flags = mflags, .name = #_name },
-static const struct {
+
+struct sd_flag_debug {
 	unsigned int meta_flags;
 	char *name;
-} sd_flag_debug[] = {
-#include <linux/sched/sd_flags.h>
 };
-#undef SD_FLAG
+extern const struct sd_flag_debug sd_flag_debug[];
+
 #endif
 
 #ifdef CONFIG_SCHED_SMT
