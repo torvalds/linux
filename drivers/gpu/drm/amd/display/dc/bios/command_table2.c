@@ -904,6 +904,33 @@ static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp, uint8_t id)
 	return 0;
 }
 
+/******************************************************************************
+ ******************************************************************************
+ **
+ **                  LVTMA CONTROL
+ **
+ ******************************************************************************
+ *****************************************************************************/
+
+static enum bp_result enable_lvtma_control(
+	struct bios_parser *bp,
+	uint8_t uc_pwr_on);
+
+static void init_enable_lvtma_control(struct bios_parser *bp)
+{
+	/* TODO add switch for table vrsion */
+	bp->cmd_tbl.enable_lvtma_control = enable_lvtma_control;
+
+}
+
+static enum bp_result enable_lvtma_control(
+	struct bios_parser *bp,
+	uint8_t uc_pwr_on)
+{
+	enum bp_result result = BP_RESULT_FAILURE;
+	return result;
+}
+
 void dal_firmware_parser_init_cmd_tbl(struct bios_parser *bp)
 {
 	init_dig_encoder_control(bp);
@@ -919,4 +946,5 @@ void dal_firmware_parser_init_cmd_tbl(struct bios_parser *bp)
 	init_set_dce_clock(bp);
 	init_get_smu_clock_info(bp);
 
+	init_enable_lvtma_control(bp);
 }

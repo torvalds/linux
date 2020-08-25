@@ -725,8 +725,10 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		if (!psize)
 			return -EINVAL;
 
-		if (!sk_wmem_schedule(sk, psize + dfrag->overhead))
+		if (!sk_wmem_schedule(sk, psize + dfrag->overhead)) {
+			iov_iter_revert(&msg->msg_iter, psize);
 			return -ENOMEM;
+		}
 	} else {
 		offset = dfrag->offset;
 		psize = min_t(size_t, dfrag->data_len, avail_size);
@@ -737,8 +739,11 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	 */
 	ret = do_tcp_sendpages(ssk, page, offset, psize,
 			       msg->msg_flags | MSG_SENDPAGE_NOTLAST | MSG_DONTWAIT);
-	if (ret <= 0)
+	if (ret <= 0) {
+		if (!retransmission)
+			iov_iter_revert(&msg->msg_iter, psize);
 		return ret;
+	}
 
 	frag_truesize += ret;
 	if (!retransmission) {
@@ -1388,7 +1393,9 @@ static void mptcp_worker(struct work_struct *work)
 	struct mptcp_data_frag *dfrag;
 	u64 orig_write_seq;
 	size_t copied = 0;
-	struct msghdr msg;
+	struct msghdr msg = {
+		.msg_flags = MSG_DONTWAIT,
+	};
 	long timeo = 0;
 
 	lock_sock(sk);
@@ -1421,7 +1428,6 @@ static void mptcp_worker(struct work_struct *work)
 
 	lock_sock(ssk);
 
-	msg.msg_flags = MSG_DONTWAIT;
 	orig_len = dfrag->data_len;
 	orig_offset = dfrag->offset;
 	orig_write_seq = dfrag->data_seq;

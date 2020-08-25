@@ -2705,7 +2705,7 @@ void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe)
 	struct iommu_table *tbl = pe->table_group.tables[0];
 	int64_t rc;
 
-	if (pe->dma_setup_done)
+	if (!pe->dma_setup_done)
 		return;
 
 	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
