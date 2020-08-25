@@ -163,9 +163,6 @@ struct v4l2_h264_reference {
 };
 
 struct v4l2_ctrl_h264_slice_params {
-	/* Size in bytes, including header */
-	__u32 size;
-
 	/* Offset in bytes to the start of slice in the OUTPUT buffer. */
 	__u32 start_byte_offset;
 

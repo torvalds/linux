@@ -1761,9 +1761,6 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :widths:       1 1 2
 
     * - __u32
-      - ``size``
-      -
-    * - __u32
       - ``start_byte_offset``
         Offset (in bytes) from the beginning of the OUTPUT buffer to the start
         of the slice. If the slice starts with a start code, then this is the
