@@ -850,8 +850,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->clk))
 		return PTR_ERR(dmac->clk);
 
-	INIT_LIST_HEAD(&dmac->chan.active_descs);
-
 	of_channels = of_get_child_by_name(pdev->dev.of_node, "adi,channels");
 	if (of_channels == NULL)
 		return -ENODEV;
@@ -865,6 +863,8 @@ static int axi_dmac_probe(struct platform_device *pdev)
 		}
 	}
 	of_node_put(of_channels);
+
+	INIT_LIST_HEAD(&dmac->chan.active_descs);
 
 	pdev->dev.dma_parms = &dmac->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
