@@ -310,6 +310,8 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	u32 outbox_size = 0;
 	u32 stream_size = 0;
 	u32 inbox_size = 0;
+	u32 debug_size = 0;
+	u32 debug_offset = 0;
 	int window_offset;
 	int bar;
 	int i;
@@ -363,6 +365,8 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DEBUG:
+			debug_offset = window_offset + elem->offset;
+			debug_size = elem->size;
 			snd_sof_debugfs_io_item(sdev,
 						sdev->bar[bar] +
 						window_offset +
@@ -412,12 +416,17 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	sdev->stream_box.offset = stream_offset;
 	sdev->stream_box.size = stream_size;
 
+	sdev->debug_box.offset = debug_offset;
+	sdev->debug_box.size = debug_size;
+
 	dev_dbg(sdev->dev, " mailbox upstream 0x%x - size 0x%x\n",
 		inbox_offset, inbox_size);
 	dev_dbg(sdev->dev, " mailbox downstream 0x%x - size 0x%x\n",
 		outbox_offset, outbox_size);
 	dev_dbg(sdev->dev, " stream region 0x%x - size 0x%x\n",
 		stream_offset, stream_size);
+	dev_dbg(sdev->dev, " debug region 0x%x - size 0x%x\n",
+		debug_offset, debug_size);
 }
 
 /* check for ABI compatibility and create memory windows on first boot */
