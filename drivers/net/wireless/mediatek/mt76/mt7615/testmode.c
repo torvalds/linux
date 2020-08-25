@@ -193,7 +193,7 @@ mt7615_tm_set_tx_antenna(struct mt7615_dev *dev, bool en)
 	for (i = 0; i < 4; i++) {
 		mt76_rmw_field(dev, MT_WF_PHY_RFINTF3_0(i),
 			       MT_WF_PHY_RFINTF3_0_ANT,
-			       td->tx_antenna_mask & BIT(i) ? 0 : 0xa);
+			       (td->tx_antenna_mask & BIT(i)) ? 0 : 0xa);
 
 	}
 
