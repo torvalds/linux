@@ -68,10 +68,11 @@ static inline int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offs
 		      		    size_t length) {
 	return -EINVAL;
 }
-static inline int ib_umem_find_best_pgsz(struct ib_umem *umem,
-					 unsigned long pgsz_bitmap,
-					 unsigned long virt) {
-	return -EINVAL;
+static inline unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
+						   unsigned long pgsz_bitmap,
+						   unsigned long virt)
+{
+	return 0;
 }
 
 #endif /* CONFIG_INFINIBAND_USER_MEM */
