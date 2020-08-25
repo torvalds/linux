@@ -238,7 +238,11 @@ static void cedrus_write_scaling_lists(struct cedrus_ctx *ctx,
 {
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling =
 		run->h264.scaling_matrix;
+	const struct v4l2_ctrl_h264_pps *pps = run->h264.pps;
 	struct cedrus_dev *dev = ctx->dev;
+
+	if (!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT))
+		return;
 
 	cedrus_h264_write_sram(dev, CEDRUS_SRAM_H264_SCALING_LIST_8x8_0,
 			       scaling->scaling_list_8x8[0],
@@ -442,6 +446,8 @@ static void cedrus_set_params(struct cedrus_ctx *ctx,
 	reg |= (pps->second_chroma_qp_index_offset & 0x3f) << 16;
 	reg |= (pps->chroma_qp_index_offset & 0x3f) << 8;
 	reg |= (pps->pic_init_qp_minus26 + 26 + slice->slice_qp_delta) & 0x3f;
+	if (pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT)
+		reg |= VE_H264_SHS_QP_SCALING_MATRIX_DEFAULT;
 	cedrus_write(dev, VE_H264_SHS_QP, reg);
 
 	// clear status flags
