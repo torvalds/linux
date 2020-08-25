@@ -159,6 +159,18 @@
 	/* status = "okay"; */
 };
 
+&pcie_bus_clk {
+	clock-frequency = <100000000>;
+};
+
+&pciec {
+	/* SW2[6] determines which connector is activated
+	 * ON = PCIe X4 (connector-J7)
+	 * OFF = mini-PCIe (connector-J26)
+	 */
+	status = "okay";
+};
+
 &pfc {
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii";
