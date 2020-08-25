@@ -473,7 +473,7 @@ error:
  * help move buffers to and from VRAM.
  */
 static int amdgpu_move_blit(struct ttm_buffer_object *bo,
-			    bool evict, bool no_wait_gpu,
+			    bool evict,
 			    struct ttm_resource *new_mem,
 			    struct ttm_resource *old_mem)
 {
@@ -571,7 +571,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* blit VRAM to GTT */
-	r = amdgpu_move_blit(bo, evict, ctx->no_wait_gpu, &tmp_mem, old_mem);
+	r = amdgpu_move_blit(bo, evict, &tmp_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -621,7 +621,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* copy to VRAM */
-	r = amdgpu_move_blit(bo, evict, ctx->no_wait_gpu, new_mem, old_mem);
+	r = amdgpu_move_blit(bo, evict, new_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -710,7 +710,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 		   new_mem->mem_type == TTM_PL_VRAM) {
 		r = amdgpu_move_ram_vram(bo, evict, ctx, new_mem);
 	} else {
-		r = amdgpu_move_blit(bo, evict, ctx->no_wait_gpu,
+		r = amdgpu_move_blit(bo, evict,
 				     new_mem, old_mem);
 	}
 
