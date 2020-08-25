@@ -3886,16 +3886,22 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	return true;
 }
 
-int btf_struct_access(struct bpf_verifier_log *log,
-		      const struct btf_type *t, int off, int size,
-		      enum bpf_access_type atype,
-		      u32 *next_btf_id)
+enum bpf_struct_walk_result {
+	/* < 0 error */
+	WALK_SCALAR = 0,
+	WALK_PTR,
+	WALK_STRUCT,
+};
+
+static int btf_struct_walk(struct bpf_verifier_log *log,
+			   const struct btf_type *t, int off, int size,
+			   u32 *next_btf_id)
 {
 	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
 	const struct btf_type *mtype, *elem_type = NULL;
 	const struct btf_member *member;
 	const char *tname, *mname;
-	u32 vlen;
+	u32 vlen, elem_id, mid;
 
 again:
 	tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
@@ -3966,7 +3972,7 @@ error:
 			 */
 			if (off <= moff &&
 			    BITS_ROUNDUP_BYTES(end_bit) <= off + size)
-				return SCALAR_VALUE;
+				return WALK_SCALAR;
 
 			/* off may be accessing a following member
 			 *
@@ -3988,11 +3994,13 @@ error:
 			break;
 
 		/* type of the field */
+		mid = member->type;
 		mtype = btf_type_by_id(btf_vmlinux, member->type);
 		mname = __btf_name_by_offset(btf_vmlinux, member->name_off);
 
 		mtype = __btf_resolve_size(btf_vmlinux, mtype, &msize,
-					   &elem_type, NULL, &total_nelems, NULL);
+					   &elem_type, &elem_id, &total_nelems,
+					   &mid);
 		if (IS_ERR(mtype)) {
 			bpf_log(log, "field %s doesn't have size\n", mname);
 			return -EFAULT;
@@ -4054,6 +4062,7 @@ error:
 			elem_idx = (off - moff) / msize;
 			moff += elem_idx * msize;
 			mtype = elem_type;
+			mid = elem_id;
 		}
 
 		/* the 'off' we're looking for is either equal to start
@@ -4062,6 +4071,12 @@ error:
 		if (btf_type_is_struct(mtype)) {
 			/* our field must be inside that union or struct */
 			t = mtype;
+
+			/* return if the offset matches the member offset */
+			if (off == moff) {
+				*next_btf_id = mid;
+				return WALK_STRUCT;
+			}
 
 			/* adjust offset we're looking for */
 			off -= moff;
@@ -4078,11 +4093,10 @@ error:
 					mname, moff, tname, off, size);
 				return -EACCES;
 			}
-
 			stype = btf_type_skip_modifiers(btf_vmlinux, mtype->type, &id);
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
-				return PTR_TO_BTF_ID;
+				return WALK_PTR;
 			}
 		}
 
@@ -4099,9 +4113,50 @@ error:
 			return -EACCES;
 		}
 
-		return SCALAR_VALUE;
+		return WALK_SCALAR;
 	}
 	bpf_log(log, "struct %s doesn't have field at offset %d\n", tname, off);
+	return -EINVAL;
+}
+
+int btf_struct_access(struct bpf_verifier_log *log,
+		      const struct btf_type *t, int off, int size,
+		      enum bpf_access_type atype __maybe_unused,
+		      u32 *next_btf_id)
+{
+	int err;
+	u32 id;
+
+	do {
+		err = btf_struct_walk(log, t, off, size, &id);
+
+		switch (err) {
+		case WALK_PTR:
+			/* If we found the pointer or scalar on t+off,
+			 * we're done.
+			 */
+			*next_btf_id = id;
+			return PTR_TO_BTF_ID;
+		case WALK_SCALAR:
+			return SCALAR_VALUE;
+		case WALK_STRUCT:
+			/* We found nested struct, so continue the search
+			 * by diving in it. At this point the offset is
+			 * aligned with the new type, so set it to 0.
+			 */
+			t = btf_type_by_id(btf_vmlinux, id);
+			off = 0;
+			break;
+		default:
+			/* It's either error or unknown return value..
+			 * scream and leave.
+			 */
+			if (WARN_ONCE(err > 0, "unknown btf_struct_walk return value"))
+				return -EINVAL;
+			return err;
+		}
+	} while (t);
+
 	return -EINVAL;
 }
 
