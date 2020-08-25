@@ -208,6 +208,9 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
+	if (cause == EXC_STORE_PAGE_FAULT)
+		flags |= FAULT_FLAG_WRITE;
+
 retry:
 	mmap_read_lock(mm);
 	vma = find_vma(mm, addr);
@@ -251,7 +254,6 @@ good_area:
 			bad_area(regs, mm, code, addr);
 			return;
 		}
-		flags |= FAULT_FLAG_WRITE;
 		break;
 	default:
 		panic("%s: unhandled cause %lu", __func__, cause);
