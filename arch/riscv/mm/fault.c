@@ -37,6 +37,36 @@ static inline void no_context(struct pt_regs *regs, unsigned long addr)
 	do_exit(SIGKILL);
 }
 
+static inline void mm_fault_error(struct pt_regs *regs, unsigned long addr, vm_fault_t fault)
+{
+	if (fault & VM_FAULT_OOM)
+		goto out_of_memory;
+	else if (fault & VM_FAULT_SIGBUS)
+		goto do_sigbus;
+	BUG();
+
+	/*
+	 * We ran out of memory, call the OOM killer, and return the userspace
+	 * (which will retry the fault, or kill us if we got oom-killed).
+	 */
+out_of_memory:
+	if (!user_mode(regs)) {
+		no_context(regs, addr);
+		return;
+	}
+	pagefault_out_of_memory();
+	return;
+
+do_sigbus:
+	/* Kernel mode? Handle exceptions or die */
+	if (!user_mode(regs)) {
+		no_context(regs, addr);
+		return;
+	}
+	do_trap(regs, SIGBUS, BUS_ADRERR, addr);
+	return;
+}
+
 static inline void bad_area(struct pt_regs *regs, struct mm_struct *mm, int code, unsigned long addr)
 {
 	/*
@@ -261,32 +291,8 @@ good_area:
 	mmap_read_unlock(mm);
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto do_sigbus;
-		BUG();
-	}
-	return;
-
-	/*
-	 * We ran out of memory, call the OOM killer, and return the userspace
-	 * (which will retry the fault, or kill us if we got oom-killed).
-	 */
-out_of_memory:
-	if (!user_mode(regs)) {
-		no_context(regs, addr);
+		mm_fault_error(regs, addr, fault);
 		return;
 	}
-	pagefault_out_of_memory();
-	return;
-
-do_sigbus:
-	/* Kernel mode? Handle exceptions or die */
-	if (!user_mode(regs)) {
-		no_context(regs, addr);
-		return;
-	}
-	do_trap(regs, SIGBUS, BUS_ADRERR, addr);
 	return;
 }
