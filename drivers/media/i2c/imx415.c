@@ -492,6 +492,37 @@ static __maybe_unused const struct regval imx415_global_10bit_3864x2192_regs[] =
 	{REG_NULL, 0x00},
 };
 
+static __maybe_unused const struct regval imx415_hdr3_10bit_3864x2192_1782M_regs[] = {
+	{0x3024, 0xEA},
+	{0x3025, 0x07},
+	{0x3028, 0xCA},
+	{0x3029, 0x01},
+	{0x302C, 0x01},
+	{0x302D, 0x02},
+	{0x3050, 0x3E},
+	{0x3051, 0x01},
+	{0x3054, 0x0D},
+	{0x3058, 0x9E},
+	{0x3060, 0x91},
+	{0x3064, 0xC2},
+	{0x30CF, 0x03},
+	{0x3118, 0xA0},
+	{0x3260, 0x00},
+	{0x400C, 0x01},
+	{0x4018, 0xA7},
+	{0x401A, 0x57},
+	{0x401C, 0x5F},
+	{0x401E, 0x97},
+	{0x401F, 0x01},
+	{0x4020, 0x5F},
+	{0x4022, 0xAF},
+	{0x4024, 0x5F},
+	{0x4026, 0x9F},
+	{0x4028, 0x4F},
+	{0x4074, 0x00},
+	{REG_NULL, 0x00},
+};
+
 static __maybe_unused const struct regval imx415_hdr2_10bit_3864x2192_1485M_regs[] = {
 	{0x3024, 0xFC},
 	{0x3028, 0x1A},
@@ -671,6 +702,31 @@ static const struct imx415_mode supported_modes[] = {
 		.reg_list = imx415_hdr2_10bit_3864x2192_1485M_regs,
 		.hdr_mode = HDR_X2,
 		.mipi_freq_idx = 2,
+		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 200000,
+		},
+		.exp_def = 0x13e,
+		.hts_def = 0x01ca * IMX415_4LANES * 2,
+		/*
+		 * IMX415 HDR mode T-line is half of Linear mode,
+		 * make vts double to workaround.
+		 */
+		.vts_def = 0x07ea * 4,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs,
+		.reg_list = imx415_hdr3_10bit_3864x2192_1782M_regs,
+		.hdr_mode = HDR_X3,
+		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
