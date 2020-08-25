@@ -2083,12 +2083,12 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_dapm_widget *widget = swidget->widget;
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_process *process = NULL;
+	struct sof_ipc_comp_process *process;
 	struct sof_widget_data *wdata = NULL;
 	size_t ipc_data_size = 0;
 	size_t ipc_size;
 	int offset = 0;
-	int ret = 0;
+	int ret;
 	int i;
 
 	if (type == SOF_COMP_NONE) {
@@ -2374,8 +2374,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
 	default:
-		dev_warn(scomp->dev, "warning: widget type %d name %s not handled\n",
-			 swidget->id, tw->name);
+		dev_dbg(scomp->dev, "widget type %d name %s not handled\n", swidget->id, tw->name);
 		break;
 	}
 
@@ -2944,14 +2943,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	/*
-	 * alloc memory for private member
-	 * Used to track the pdm config array index currently being parsed
-	 */
-	sdev->private = kzalloc(sizeof(u32), GFP_KERNEL);
-	if (!sdev->private)
-		return -ENOMEM;
-
 	/* get DMIC PDM tokens */
 	ret = sof_parse_token_sets(scomp, &config->dmic.pdm[0], dmic_pdm_tokens,
 			       ARRAY_SIZE(dmic_pdm_tokens), private->array,
@@ -2962,7 +2953,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse dmic pdm tokens failed %d\n",
 			le32_to_cpu(private->size));
-		goto err;
+		return ret;
 	}
 
 	/* set IPC header size */
@@ -3006,9 +2997,6 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	if (ret < 0)
 		dev_err(scomp->dev, "error: failed to save DAI config for DMIC%d\n",
 			config->dai_index);
-
-err:
-	kfree(sdev->private);
 
 	return ret;
 }
