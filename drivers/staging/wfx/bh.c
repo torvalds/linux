@@ -18,25 +18,40 @@
 
 static void device_wakeup(struct wfx_dev *wdev)
 {
+	int max_retry = 3;
+
 	if (!wdev->pdata.gpio_wakeup)
 		return;
 	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup))
 		return;
 
-	gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 	if (wfx_api_older_than(wdev, 1, 4)) {
+		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		if (!completion_done(&wdev->hif.ctrl_ready))
 			usleep_range(2000, 2500);
-	} else {
+		return;
+	}
+	for (;;) {
+		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		// completion.h does not provide any function to wait
 		// completion without consume it (a kind of
 		// wait_for_completion_done_timeout()). So we have to emulate
 		// it.
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
-						msecs_to_jiffies(2)))
+						msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
-		else
+			return;
+		} else if (max_retry-- > 0) {
+			// Older firmwares have a race in sleep/wake-up process.
+			// Redo the process is sufficient to unfreeze the
+			// chip.
 			dev_err(wdev->dev, "timeout while wake up chip\n");
+			gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
+			usleep_range(2000, 2500);
+		} else {
+			dev_err(wdev->dev, "max wake-up retries reached\n");
+			return;
+		}
 	}
 }
 
