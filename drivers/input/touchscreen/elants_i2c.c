@@ -955,7 +955,7 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			break;
 
 		ts->state = ELAN_STATE_NORMAL;
-		/* fall through */
+		fallthrough;
 
 	case ELAN_STATE_NORMAL:
 

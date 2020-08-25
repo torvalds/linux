@@ -82,7 +82,7 @@ static int aic32x4_get_mfp1_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_DINCTL);
+	val = snd_soc_component_read(component, AIC32X4_DINCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -96,7 +96,7 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_DOUTCTL);
+	val = snd_soc_component_read(component, AIC32X4_DOUTCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP2 is not configure as a GPIO output\n",
@@ -123,7 +123,7 @@ static int aic32x4_get_mfp3_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_SCLKCTL);
+	val = snd_soc_component_read(component, AIC32X4_SCLKCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -137,7 +137,7 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_MISOCTL);
+	val = snd_soc_component_read(component, AIC32X4_MISOCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP4 is not configure as a GPIO output\n",
@@ -164,7 +164,7 @@ static int aic32x4_get_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read(component, AIC32X4_GPIOCTL);
 	ucontrol->value.integer.value[0] = ((val & 0x2) >> 1);
 
 	return 0;
@@ -177,7 +177,7 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read(component, AIC32X4_GPIOCTL);
 	gpio_check = (val & AIC32X4_MFP5_GPIO_OUTPUT);
 	if (gpio_check != AIC32X4_MFP5_GPIO_OUTPUT) {
 		printk(KERN_ERR "%s: MFP5 is not configure as a GPIO output\n",
@@ -812,7 +812,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
+static int aic32x4_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -866,9 +866,10 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
-	.digital_mute = aic32x4_mute,
+	.mute_stream = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,
 	.set_sysclk = aic32x4_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic32x4_dai = {
@@ -978,7 +979,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 			AIC32X4_LDOCTLEN : 0;
 	snd_soc_component_write(component, AIC32X4_LDOCTL, tmp_reg);
 
-	tmp_reg = snd_soc_component_read32(component, AIC32X4_CMMODE);
+	tmp_reg = snd_soc_component_read(component, AIC32X4_CMMODE);
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36)
 		tmp_reg |= AIC32X4_LDOIN_18_36;
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED)
@@ -1004,7 +1005,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	 * and down for the first capture to work properly. It seems related to
 	 * a HW BUG or some kind of behavior not documented in the datasheet.
 	 */
-	tmp_reg = snd_soc_component_read32(component, AIC32X4_ADCSETUP);
+	tmp_reg = snd_soc_component_read(component, AIC32X4_ADCSETUP);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |
 				AIC32X4_LADC_EN | AIC32X4_RADC_EN);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg);

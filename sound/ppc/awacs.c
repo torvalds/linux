@@ -1063,12 +1063,12 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	if (pm5500 || imac || lombard) {
 		vmaster_sw = snd_ctl_make_virtual_master(
 			"Master Playback Switch", (unsigned int *) NULL);
-		err = snd_ctl_add_slave_uncached(vmaster_sw,
-						 chip->master_sw_ctl);
+		err = snd_ctl_add_follower_uncached(vmaster_sw,
+						    chip->master_sw_ctl);
 		if (err < 0)
 			return err;
-		err = snd_ctl_add_slave_uncached(vmaster_sw,
-						  chip->speaker_sw_ctl);
+		err = snd_ctl_add_follower_uncached(vmaster_sw,
+						    chip->speaker_sw_ctl);
 		if (err < 0)
 			return err;
 		err = snd_ctl_add(chip->card, vmaster_sw);
@@ -1076,10 +1076,10 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 			return err;
 		vmaster_vol = snd_ctl_make_virtual_master(
 			"Master Playback Volume", (unsigned int *) NULL);
-		err = snd_ctl_add_slave(vmaster_vol, master_vol);
+		err = snd_ctl_add_follower(vmaster_vol, master_vol);
 		if (err < 0)
 			return err;
-		err = snd_ctl_add_slave(vmaster_vol, speaker_vol);
+		err = snd_ctl_add_follower(vmaster_vol, speaker_vol);
 		if (err < 0)
 			return err;
 		err = snd_ctl_add(chip->card, vmaster_vol);

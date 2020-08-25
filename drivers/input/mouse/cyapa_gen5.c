@@ -2554,7 +2554,7 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 		}
 
 		cyapa->state = CYAPA_STATE_GEN5_APP;
-		/* fall through */
+		fallthrough;
 
 	case CYAPA_STATE_GEN5_APP:
 		/*

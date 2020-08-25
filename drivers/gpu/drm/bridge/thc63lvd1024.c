@@ -51,6 +51,7 @@ static int thc63_attach(struct drm_bridge *bridge,
 }
 
 static enum drm_mode_status thc63_mode_valid(struct drm_bridge *bridge,
+					const struct drm_display_info *info,
 					const struct drm_display_mode *mode)
 {
 	struct thc63_dev *thc63 = to_thc63(bridge);

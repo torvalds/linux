@@ -22,6 +22,10 @@
 #define P_PIDFD 3
 #endif
 
+#ifndef CLONE_NEWTIME
+#define CLONE_NEWTIME 0x00000080
+#endif
+
 #ifndef CLONE_PIDFD
 #define CLONE_PIDFD 0x00001000
 #endif

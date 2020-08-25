@@ -566,9 +566,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @rx_read: Reads received codes or pulse width data.
  *	The semantics are similar to a non-blocking read() call.
- * @rx_g_parameters: Get the current operating parameters and state of the
+ * @rx_g_parameters: Get the current operating parameters and state of
  *	the IR receiver.
- * @rx_s_parameters: Set the current operating parameters and state of the
+ * @rx_s_parameters: Set the current operating parameters and state of
  *	the IR receiver.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
@@ -582,9 +582,9 @@ struct v4l2_subdev_ir_parameters {
  *
  * @tx_write: Writes codes or pulse width data for transmission.
  *	The semantics are similar to a non-blocking write() call.
- * @tx_g_parameters: Get the current operating parameters and state of the
+ * @tx_g_parameters: Get the current operating parameters and state of
  *	the IR transmitter.
- * @tx_s_parameters: Set the current operating parameters and state of the
+ * @tx_s_parameters: Set the current operating parameters and state of
  *	the IR transmitter.  It is recommended to call
  *	[rt]x_g_parameters first to fill out the current state, and only change
  *	the fields that need to be changed.  Upon return, the actual device
@@ -930,10 +930,10 @@ struct v4l2_subdev_fh {
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_mbus_framefmt
-*v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad)
+static inline struct v4l2_mbus_framefmt *
+v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
+			   unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -948,10 +948,10 @@ static inline struct v4l2_mbus_framefmt
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_pad_config *cfg,
+			 unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
@@ -959,22 +959,23 @@ static inline struct v4l2_rect
 }
 
 /**
- * v4l2_subdev_get_try_crop - ancillary routine to call
+ * v4l2_subdev_get_try_compose - ancillary routine to call
  *	&struct v4l2_subdev_pad_config->try_compose
  *
  * @sd: pointer to &struct v4l2_subdev
  * @cfg: pointer to &struct v4l2_subdev_pad_config array.
  * @pad: index of the pad in the @cfg array.
  */
-static inline struct v4l2_rect
-*v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
-			     unsigned int pad)
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad)
 {
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
 	return &cfg[pad].try_compose;
 }
+
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
@@ -1031,8 +1032,8 @@ static inline void *v4l2_get_subdev_hostdata(const struct v4l2_subdev *sd)
  * v4l2_subdev_get_fwnode_pad_1_to_1 - Get pad number from a subdev fwnode
  *                                     endpoint, assuming 1:1 port:pad
  *
- * @entity - Pointer to the subdev entity
- * @endpoint - Pointer to a parsed fwnode endpoint
+ * @entity: Pointer to the subdev entity
+ * @endpoint: Pointer to a parsed fwnode endpoint
  *
  * This function can be used as the .get_fwnode_pad operation for
  * subdevices that map port numbers and pad indexes 1:1. If the endpoint

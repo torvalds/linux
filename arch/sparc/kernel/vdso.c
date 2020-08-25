@@ -7,7 +7,6 @@
  *  a different vsyscall implementation for Linux/IA32 and for the name.
  */
 
-#include <linux/seqlock.h>
 #include <linux/time.h>
 #include <linux/timekeeper_internal.h>
 

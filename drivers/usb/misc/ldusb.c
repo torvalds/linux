@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * Generic USB driver for report based interrupt in/out devices
  * like LD Didactic's USB devices. LD Didactic's USB devices are
  * HID devices which do not use HID report definitons (they use
@@ -184,7 +184,7 @@ struct ld_usb {
 
 static struct usb_driver ld_usb_driver;
 
-/**
+/*
  *	ld_usb_abort_transfers
  *      aborts transfers and frees associated data structures
  */
@@ -199,7 +199,7 @@ static void ld_usb_abort_transfers(struct ld_usb *dev)
 		usb_kill_urb(dev->interrupt_out_urb);
 }
 
-/**
+/*
  *	ld_usb_delete
  */
 static void ld_usb_delete(struct ld_usb *dev)
@@ -213,7 +213,7 @@ static void ld_usb_delete(struct ld_usb *dev)
 	kfree(dev);
 }
 
-/**
+/*
  *	ld_usb_interrupt_in_callback
  */
 static void ld_usb_interrupt_in_callback(struct urb *urb)
@@ -274,7 +274,7 @@ exit:
 	wake_up_interruptible(&dev->read_wait);
 }
 
-/**
+/*
  *	ld_usb_interrupt_out_callback
  */
 static void ld_usb_interrupt_out_callback(struct urb *urb)
@@ -294,7 +294,7 @@ static void ld_usb_interrupt_out_callback(struct urb *urb)
 	wake_up_interruptible(&dev->write_wait);
 }
 
-/**
+/*
  *	ld_usb_open
  */
 static int ld_usb_open(struct inode *inode, struct file *file)
@@ -365,7 +365,7 @@ unlock_exit:
 	return retval;
 }
 
-/**
+/*
  *	ld_usb_release
  */
 static int ld_usb_release(struct inode *inode, struct file *file)
@@ -407,7 +407,7 @@ exit:
 	return retval;
 }
 
-/**
+/*
  *	ld_usb_poll
  */
 static __poll_t ld_usb_poll(struct file *file, poll_table *wait)
@@ -431,7 +431,7 @@ static __poll_t ld_usb_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-/**
+/*
  *	ld_usb_read
  */
 static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
@@ -518,7 +518,7 @@ exit:
 	return retval;
 }
 
-/**
+/*
  *	ld_usb_write
  */
 static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
@@ -641,7 +641,7 @@ static struct usb_class_driver ld_usb_class = {
 	.minor_base =	USB_LD_MINOR_BASE,
 };
 
-/**
+/*
  *	ld_usb_probe
  *
  *	Called by the usb core when a new device is connected that it thinks
@@ -745,7 +745,7 @@ error:
 	return retval;
 }
 
-/**
+/*
  *	ld_usb_disconnect
  *
  *	Called by the usb core when the device is removed from the system.

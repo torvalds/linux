@@ -2342,44 +2342,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__sham = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_core -> AES */
-static struct omap_hwmod_class_sysconfig omap3_aes_sysc = {
-	.rev_offs	= 0x44,
-	.sysc_offs	= 0x48,
-	.syss_offs	= 0x4c,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap3xxx_aes_sysc_fields,
-};
-
-static struct omap_hwmod_class omap3xxx_aes_class = {
-	.name	= "aes",
-	.sysc	= &omap3_aes_sysc,
-};
-
-
-static struct omap_hwmod omap3xxx_aes_hwmod = {
-	.name		= "aes",
-	.main_clk	= "aes2_ick",
-	.prcm		= {
-		.omap2 = {
-			.module_offs = CORE_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_AES2_SHIFT,
-		},
-	},
-	.class		= &omap3xxx_aes_class,
-};
-
-
-static struct omap_hwmod_ocp_if omap3xxx_l4_core__aes = {
-	.master		= &omap3xxx_l4_core_hwmod,
-	.slave		= &omap3xxx_aes_hwmod,
-	.clk		= "aes2_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /*
  * 'ssi' class
  * synchronous serial interface (multichannel and full-duplex serial if)
@@ -2473,20 +2435,11 @@ static struct omap_hwmod_ocp_if *omap34xx_sham_hwmod_ocp_ifs[] __initdata = {
 	NULL,
 };
 
-static struct omap_hwmod_ocp_if *omap34xx_aes_hwmod_ocp_ifs[] __initdata = {
-	&omap3xxx_l4_core__aes,
-	NULL,
-};
-
 static struct omap_hwmod_ocp_if *omap36xx_sham_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__sham,
 	NULL
 };
 
-static struct omap_hwmod_ocp_if *omap36xx_aes_hwmod_ocp_ifs[] __initdata = {
-	&omap3xxx_l4_core__aes,
-	NULL
-};
 
 /*
  * Apparently the SHA/MD5 and AES accelerator IP blocks are
@@ -2499,11 +2452,6 @@ static struct omap_hwmod_ocp_if *omap36xx_aes_hwmod_ocp_ifs[] __initdata = {
 static struct omap_hwmod_ocp_if *am35xx_sham_hwmod_ocp_ifs[] __initdata = {
 	/* &omap3xxx_l4_core__sham, */
 	NULL
-};
-
-static struct omap_hwmod_ocp_if *am35xx_aes_hwmod_ocp_ifs[] __initdata = {
-	/* &omap3xxx_l4_core__aes, */
-	NULL,
 };
 
 /* 3430ES1-only hwmod links */
@@ -2641,7 +2589,6 @@ int __init omap3xxx_hwmod_init(void)
 {
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_sham = NULL;
-	struct omap_hwmod_ocp_if **h_aes = NULL;
 	struct device_node *bus;
 	unsigned int rev;
 
@@ -2664,16 +2611,13 @@ int __init omap3xxx_hwmod_init(void)
 	    rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2) {
 		h = omap34xx_hwmod_ocp_ifs;
 		h_sham = omap34xx_sham_hwmod_ocp_ifs;
-		h_aes = omap34xx_aes_hwmod_ocp_ifs;
 	} else if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
 		h = am35xx_hwmod_ocp_ifs;
 		h_sham = am35xx_sham_hwmod_ocp_ifs;
-		h_aes = am35xx_aes_hwmod_ocp_ifs;
 	} else if (rev == OMAP3630_REV_ES1_0 || rev == OMAP3630_REV_ES1_1 ||
 		   rev == OMAP3630_REV_ES1_2) {
 		h = omap36xx_hwmod_ocp_ifs;
 		h_sham = omap36xx_sham_hwmod_ocp_ifs;
-		h_aes = omap36xx_aes_hwmod_ocp_ifs;
 	} else {
 		WARN(1, "OMAP3 hwmod family init: unknown chip type\n");
 		return -EINVAL;
@@ -2696,11 +2640,6 @@ int __init omap3xxx_hwmod_init(void)
 			goto put_node;
 	}
 
-	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
-		r = omap_hwmod_register_links(h_aes);
-		if (r < 0)
-			goto put_node;
-	}
 	of_node_put(bus);
 
 	/*

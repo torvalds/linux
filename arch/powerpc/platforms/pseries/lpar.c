@@ -40,6 +40,7 @@
 #include <asm/fadump.h>
 #include <asm/asm-prototypes.h>
 #include <asm/debugfs.h>
+#include <asm/dtl.h>
 
 #include "pseries.h"
 
@@ -1680,9 +1681,11 @@ static int pseries_lpar_register_process_table(unsigned long base,
 
 	if (table_size)
 		flags |= PROC_TABLE_NEW;
-	if (radix_enabled())
-		flags |= PROC_TABLE_RADIX | PROC_TABLE_GTSE;
-	else
+	if (radix_enabled()) {
+		flags |= PROC_TABLE_RADIX;
+		if (mmu_has_feature(MMU_FTR_GTSE))
+			flags |= PROC_TABLE_GTSE;
+	} else
 		flags |= PROC_TABLE_HPT_SLB;
 	for (;;) {
 		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,

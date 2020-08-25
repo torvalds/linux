@@ -16,6 +16,23 @@ struct wm8960_data {
 	bool capless;  /* Headphone outputs configured in capless mode */
 
 	bool shared_lrclk;  /* DAC and ADC LRCLKs are wired together */
+
+	/*
+	 * Setup for headphone detection
+	 *
+	 * hp_cfg[0]: HPSEL[1:0] of R48 (Additional Control 4)
+	 * hp_cfg[1]: {HPSWEN:HPSWPOL} of R24 (Additional Control 2).
+	 * hp_cfg[2]: {TOCLKSEL:TOEN} of R23 (Additional Control 1).
+	 */
+	u32 hp_cfg[3];
+
+	/*
+	 * Setup for gpio configuration
+	 *
+	 * gpio_cfg[0]: ALRCGPIO of R9 (Audio interface)
+	 * gpio_cfg[1]: {GPIOPOL:GPIOSEL[2:0]} of R48 (Additional Control 4).
+	 */
+	u32 gpio_cfg[2];
 };
 
 #endif

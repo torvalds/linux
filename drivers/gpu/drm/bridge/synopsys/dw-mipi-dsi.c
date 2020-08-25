@@ -27,7 +27,6 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
-#include <drm/drm_probe_helper.h>
 
 #define HWVER_131			0x31333100	/* IP version 1.31 */
 
@@ -924,6 +923,7 @@ static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 
 static enum drm_mode_status
 dw_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,
+			      const struct drm_display_info *info,
 			      const struct drm_display_mode *mode)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);

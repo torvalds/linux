@@ -13,7 +13,7 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params,
 			      unsigned int mclk_fs)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
 	unsigned int mclk;
 	int ret, i;
@@ -119,7 +119,7 @@ unsigned int meson_card_parse_daifmt(struct device_node *node,
 	struct device_node *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_of_parse_daifmt(node, DT_PREFIX,
+	daifmt = snd_soc_of_parse_daifmt(node, "",
 					 &bitclkmaster, &framemaster);
 	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 
@@ -146,10 +146,6 @@ int meson_card_set_be_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component *codec;
 	struct device_node *np;
 	int ret, num_codecs;
-
-	link->no_pcm = 1;
-	link->dpcm_playback = 1;
-	link->dpcm_capture = 1;
 
 	num_codecs = of_get_child_count(node);
 	if (!num_codecs) {

@@ -187,18 +187,13 @@ static int tda7419_vol_get(struct snd_kcontrol *kcontrol,
 	int thresh = tvc->thresh;
 	unsigned int invert = tvc->invert;
 	int val;
-	int ret;
 
-	ret = snd_soc_component_read(component, reg, &val);
-	if (ret < 0)
-		return ret;
+	val = snd_soc_component_read(component, reg);
 	ucontrol->value.integer.value[0] =
 		tda7419_vol_get_value(val, mask, min, thresh, invert);
 
 	if (tda7419_vol_is_stereo(tvc)) {
-		ret = snd_soc_component_read(component, rreg, &val);
-		if (ret < 0)
-			return ret;
+		val = snd_soc_component_read(component, rreg);
 		ucontrol->value.integer.value[1] =
 			tda7419_vol_get_value(val, mask, min, thresh, invert);
 	}

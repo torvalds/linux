@@ -183,7 +183,7 @@ void rtw_bf_del_sounding(struct rtw_dev *rtwdev)
 void rtw_bf_enable_bfee_su(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 			   struct rtw_bfee *bfee)
 {
-	u8 nc_index = 1;
+	u8 nc_index = hweight8(rtwdev->hal.antenna_rx) - 1;
 	u8 nr_index = bfee->sound_dim;
 	u8 grouping = 0, codebookinfo = 1, coefficientsize = 3;
 	u32 addr_bfer_info, addr_csi_rpt, csi_param;
@@ -231,7 +231,8 @@ void rtw_bf_enable_bfee_mu(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 {
 	struct rtw_bf_info *bf_info = &rtwdev->bf_info;
 	struct mu_bfer_init_para param;
-	u8 nc_index = 1, nr_index = 1;
+	u8 nc_index = hweight8(rtwdev->hal.antenna_rx) - 1;
+	u8 nr_index = 1;
 	u8 grouping = 0, codebookinfo = 1, coefficientsize = 0;
 	u32 csi_param;
 

@@ -137,7 +137,7 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 
 	while (chain) {
 		chain_tmp = chain->next;
-		kzfree(chain);
+		kfree_sensitive(chain);
 		chain = chain_tmp;
 	}
 }

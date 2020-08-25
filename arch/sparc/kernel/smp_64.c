@@ -47,6 +47,7 @@
 #include <linux/uaccess.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
+#include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/mdesc.h>

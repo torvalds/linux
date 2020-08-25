@@ -3,7 +3,7 @@
  * Synopsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *		https://www.samsung.com
  *
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
@@ -346,11 +346,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (!bridge)
 		return -ENOMEM;
 
-	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
-					      &bridge->dma_ranges, NULL);
-	if (ret)
-		return ret;
-
 	/* Get the I/O and memory ranges from DT */
 	resource_list_for_each_entry(win, &bridge->windows) {
 		switch (resource_type(win->res)) {
@@ -473,14 +468,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		goto err_free_msi;
 	}
 
-	pp->root_bus_nr = pp->busn->start;
-
-	bridge->dev.parent = dev;
 	bridge->sysdata = pp;
-	bridge->busnr = pp->root_bus_nr;
 	bridge->ops = &dw_pcie_ops;
-	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_scan_root_bus_bridge(bridge);
 	if (ret)
@@ -529,7 +518,7 @@ static int dw_pcie_access_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
-	if (bus->parent->number == pp->root_bus_nr) {
+	if (pci_is_root_bus(bus->parent)) {
 		type = PCIE_ATU_TYPE_CFG0;
 		cpu_addr = pp->cfg0_base;
 		cfg_size = pp->cfg0_size;
@@ -585,13 +574,11 @@ static int dw_pcie_valid_device(struct pcie_port *pp, struct pci_bus *bus,
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	/* If there is no link, then there is no device */
-	if (bus->number != pp->root_bus_nr) {
+	if (!pci_is_root_bus(bus)) {
 		if (!dw_pcie_link_up(pci))
 			return 0;
-	}
-
-	/* Access only one slot on each root port */
-	if (bus->number == pp->root_bus_nr && dev > 0)
+	} else if (dev > 0)
+		/* Access only one slot on each root port */
 		return 0;
 
 	return 1;
@@ -607,7 +594,7 @@ static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	if (bus->number == pp->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return dw_pcie_rd_own_conf(pp, where, size, val);
 
 	return dw_pcie_rd_other_conf(pp, bus, devfn, where, size, val);
@@ -621,7 +608,7 @@ static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (!dw_pcie_valid_device(pp, bus, PCI_SLOT(devfn)))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (bus->number == pp->root_bus_nr)
+	if (pci_is_root_bus(bus))
 		return dw_pcie_wr_own_conf(pp, where, size, val);
 
 	return dw_pcie_wr_other_conf(pp, bus, devfn, where, size, val);

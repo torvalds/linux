@@ -121,7 +121,6 @@ const struct ch7006_tv_norm_info ch7006_tv_norms[] = {
 			.vscan = 0,					\
 			.flags = DRM_MODE_FLAG_##hsynp##HSYNC |		\
 				DRM_MODE_FLAG_##vsynp##VSYNC,		\
-			.vrefresh = 0,					\
 		},							\
 		.enc_hdisp = e_hd,					\
 		.enc_vdisp = e_vd,					\

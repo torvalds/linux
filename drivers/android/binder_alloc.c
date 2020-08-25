@@ -547,6 +547,7 @@ static void binder_delete_free_buffer(struct binder_alloc *alloc,
 {
 	struct binder_buffer *prev, *next = NULL;
 	bool to_free = true;
+
 	BUG_ON(alloc->buffers.next == &buffer->entry);
 	prev = binder_buffer_prev(buffer);
 	BUG_ON(!prev->free);

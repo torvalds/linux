@@ -29,10 +29,13 @@
 
 #include <nvif/class.h>
 #include <nvif/object.h>
+#include <nvif/push906f.h>
 #include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
 #include <nvif/if000c.h>
+
+#include <nvhw/class/cla0b5.h>
 
 #include <linux/sched/mm.h>
 #include <linux/hmm.h>
@@ -100,7 +103,7 @@ unsigned long nouveau_dmem_page_addr(struct page *page)
 	unsigned long off = (page_to_pfn(page) << PAGE_SHIFT) -
 				chunk->pagemap.res.start;
 
-	return chunk->bo->bo.offset + off;
+	return chunk->bo->offset + off;
 }
 
 static void nouveau_dmem_page_free(struct page *page)
@@ -140,6 +143,7 @@ static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
 {
 	struct device *dev = drm->dev->dev;
 	struct page *dpage, *spage;
+	struct nouveau_svmm *svmm;
 
 	spage = migrate_pfn_to_page(args->src[0]);
 	if (!spage || !(args->src[0] & MIGRATE_PFN_MIGRATE))
@@ -154,14 +158,19 @@ static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
 	if (dma_mapping_error(dev, *dma_addr))
 		goto error_free_page;
 
+	svmm = spage->zone_device_data;
+	mutex_lock(&svmm->mutex);
+	nouveau_svmm_invalidate(svmm, args->start, args->end);
 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
 			NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage)))
 		goto error_dma_unmap;
+	mutex_unlock(&svmm->mutex);
 
 	args->dst[0] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
 	return 0;
 
 error_dma_unmap:
+	mutex_unlock(&svmm->mutex);
 	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 error_free_page:
 	__free_page(dpage);
@@ -182,7 +191,8 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 		.end		= vmf->address + PAGE_SIZE,
 		.src		= &src,
 		.dst		= &dst,
-		.src_owner	= drm->dev,
+		.pgmap_owner	= drm->dev,
+		.flags		= MIGRATE_VMA_SELECT_DEVICE_PRIVATE,
 	};
 
 	/*
@@ -385,57 +395,72 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 		    enum nouveau_aper dst_aper, u64 dst_addr,
 		    enum nouveau_aper src_aper, u64 src_addr)
 {
-	struct nouveau_channel *chan = drm->dmem->migrate.chan;
-	u32 launch_dma = (1 << 9) /* MULTI_LINE_ENABLE. */ |
-			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 2) /* FLUSH_ENABLE_TRUE. */ |
-			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
+	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
+	u32 launch_dma = 0;
 	int ret;
 
-	ret = RING_SPACE(chan, 13);
+	ret = PUSH_WAIT(push, 13);
 	if (ret)
 		return ret;
 
 	if (src_aper != NOUVEAU_APER_VIRT) {
 		switch (src_aper) {
 		case NOUVEAU_APER_VRAM:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0260, 0);
+			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
 		case NOUVEAU_APER_HOST:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0260, 1);
+			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
 		default:
 			return -EINVAL;
 		}
-		launch_dma |= 0x00001000; /* SRC_TYPE_PHYSICAL. */
+
+		launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, SRC_TYPE, PHYSICAL);
 	}
 
 	if (dst_aper != NOUVEAU_APER_VIRT) {
 		switch (dst_aper) {
 		case NOUVEAU_APER_VRAM:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
+			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
 		case NOUVEAU_APER_HOST:
-			BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
 		default:
 			return -EINVAL;
 		}
-		launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
+
+		launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, DST_TYPE, PHYSICAL);
 	}
 
-	BEGIN_NVC0(chan, NvSubCopy, 0x0400, 8);
-	OUT_RING  (chan, upper_32_bits(src_addr));
-	OUT_RING  (chan, lower_32_bits(src_addr));
-	OUT_RING  (chan, upper_32_bits(dst_addr));
-	OUT_RING  (chan, lower_32_bits(dst_addr));
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, PAGE_SIZE);
-	OUT_RING  (chan, npages);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
-	OUT_RING  (chan, launch_dma);
+	PUSH_MTHD(push, NVA0B5, OFFSET_IN_UPPER,
+		  NVVAL(NVA0B5, OFFSET_IN_UPPER, UPPER, upper_32_bits(src_addr)),
+
+				OFFSET_IN_LOWER, lower_32_bits(src_addr),
+
+				OFFSET_OUT_UPPER,
+		  NVVAL(NVA0B5, OFFSET_OUT_UPPER, UPPER, upper_32_bits(dst_addr)),
+
+				OFFSET_OUT_LOWER, lower_32_bits(dst_addr),
+				PITCH_IN, PAGE_SIZE,
+				PITCH_OUT, PAGE_SIZE,
+				LINE_LENGTH_IN, PAGE_SIZE,
+				LINE_COUNT, npages);
+
+	PUSH_MTHD(push, NVA0B5, LAUNCH_DMA, launch_dma |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, REMAP_ENABLE, FALSE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, BYPASS_L2, USE_PTE_SETTING));
 	return 0;
 }
 
@@ -443,45 +468,55 @@ static int
 nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 		     enum nouveau_aper dst_aper, u64 dst_addr)
 {
-	struct nouveau_channel *chan = drm->dmem->migrate.chan;
-	u32 launch_dma = (1 << 10) /* REMAP_ENABLE_TRUE */ |
-			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 2) /* FLUSH_ENABLE_TRUE. */ |
-			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
-	u32 remap = (4 <<  0) /* DST_X_CONST_A */ |
-		    (5 <<  4) /* DST_Y_CONST_B */ |
-		    (3 << 16) /* COMPONENT_SIZE_FOUR */ |
-		    (1 << 24) /* NUM_DST_COMPONENTS_TWO */;
+	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
+	u32 launch_dma = 0;
 	int ret;
 
-	ret = RING_SPACE(chan, 12);
+	ret = PUSH_WAIT(push, 12);
 	if (ret)
 		return ret;
 
 	switch (dst_aper) {
 	case NOUVEAU_APER_VRAM:
-		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
-			break;
+		PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+			  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, LOCAL_FB));
+		break;
 	case NOUVEAU_APER_HOST:
-		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+		PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+			  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 		break;
 	default:
 		return -EINVAL;
 	}
-	launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
 
-	BEGIN_NVC0(chan, NvSubCopy, 0x0700, 3);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, remap);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0408, 2);
-	OUT_RING(chan, upper_32_bits(dst_addr));
-	OUT_RING(chan, lower_32_bits(dst_addr));
-	BEGIN_NVC0(chan, NvSubCopy, 0x0418, 1);
-	OUT_RING(chan, length >> 3);
-	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
-	OUT_RING(chan, launch_dma);
+	launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, DST_TYPE, PHYSICAL);
+
+	PUSH_MTHD(push, NVA0B5, SET_REMAP_CONST_A, 0,
+				SET_REMAP_CONST_B, 0,
+
+				SET_REMAP_COMPONENTS,
+		  NVDEF(NVA0B5, SET_REMAP_COMPONENTS, DST_X, CONST_A) |
+		  NVDEF(NVA0B5, SET_REMAP_COMPONENTS, DST_Y, CONST_B) |
+		  NVDEF(NVA0B5, SET_REMAP_COMPONENTS, COMPONENT_SIZE, FOUR) |
+		  NVDEF(NVA0B5, SET_REMAP_COMPONENTS, NUM_DST_COMPONENTS, TWO));
+
+	PUSH_MTHD(push, NVA0B5, OFFSET_OUT_UPPER,
+		  NVVAL(NVA0B5, OFFSET_OUT_UPPER, UPPER, upper_32_bits(dst_addr)),
+
+				OFFSET_OUT_LOWER, lower_32_bits(dst_addr));
+
+	PUSH_MTHD(push, NVA0B5, LINE_LENGTH_IN, length >> 3);
+
+	PUSH_MTHD(push, NVA0B5, LAUNCH_DMA, launch_dma |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, FALSE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, REMAP_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, BYPASS_L2, USE_PTE_SETTING));
 	return 0;
 }
 
@@ -530,7 +565,8 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 }
 
 static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
-		unsigned long src, dma_addr_t *dma_addr, u64 *pfn)
+		struct nouveau_svmm *svmm, unsigned long src,
+		dma_addr_t *dma_addr, u64 *pfn)
 {
 	struct device *dev = drm->dev->dev;
 	struct page *dpage, *spage;
@@ -560,6 +596,7 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 			goto out_free_page;
 	}
 
+	dpage->zone_device_data = svmm;
 	*pfn = NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
 		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
 	if (src & MIGRATE_PFN_WRITE)
@@ -583,8 +620,8 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 	unsigned long addr = args->start, nr_dma = 0, i;
 
 	for (i = 0; addr < args->end; i++) {
-		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->src[i],
-				dma_addrs + nr_dma, pfns + i);
+		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, svmm,
+				args->src[i], dma_addrs + nr_dma, pfns + i);
 		if (!dma_mapping_error(drm->dev->dev, dma_addrs[nr_dma]))
 			nr_dma++;
 		addr += PAGE_SIZE;
@@ -615,6 +652,8 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	struct migrate_vma args = {
 		.vma		= vma,
 		.start		= start,
+		.pgmap_owner	= drm->dev,
+		.flags		= MIGRATE_VMA_SELECT_SYSTEM,
 	};
 	unsigned long i;
 	u64 *pfns;

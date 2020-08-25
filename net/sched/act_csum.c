@@ -598,7 +598,8 @@ again:
 		if (!tcf_csum_ipv6(skb, update_flags))
 			goto drop;
 		break;
-	case cpu_to_be16(ETH_P_8021AD): /* fall through */
+	case cpu_to_be16(ETH_P_8021AD):
+		fallthrough;
 	case cpu_to_be16(ETH_P_8021Q):
 		if (skb_vlan_tag_present(skb) && !orig_vlan_tag_present) {
 			protocol = skb->protocol;

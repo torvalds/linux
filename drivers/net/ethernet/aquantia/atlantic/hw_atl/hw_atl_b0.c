@@ -20,6 +20,7 @@
 
 #define DEFAULT_B0_BOARD_BASIC_CAPABILITIES \
 	.is_64_dma = true,		  \
+	.op64bit = false,		  \
 	.msix_irqs = 8U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL_B0_RSS_MAX,	  \
@@ -40,6 +41,7 @@
 			NETIF_F_RXHASH |  \
 			NETIF_F_SG |      \
 			NETIF_F_TSO |     \
+			NETIF_F_TSO6 |    \
 			NETIF_F_LRO |     \
 			NETIF_F_NTUPLE |  \
 			NETIF_F_HW_VLAN_CTAG_FILTER | \
@@ -53,8 +55,6 @@
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
 	.mac_regs_count = 88,		  \
 	.hw_alive_check_addr = 0x10U
-
-#define FRAC_PER_NS 0x100000000LL
 
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
@@ -127,7 +127,7 @@ static int hw_atl_b0_hw_reset(struct aq_hw_s *self)
 	return err;
 }
 
-static int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc)
+int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc)
 {
 	hw_atl_rpb_rx_xoff_en_per_tc_set(self, !!(fc & AQ_NIC_FC_RX), tc);
 
@@ -1257,7 +1257,7 @@ static void hw_atl_b0_adj_params_get(u64 freq, s64 adj, u32 *ns, u32 *fns)
 	if (base_ns != nsi * NSEC_PER_SEC) {
 		s64 divisor = div64_s64((s64)NSEC_PER_SEC * NSEC_PER_SEC,
 					base_ns - nsi * NSEC_PER_SEC);
-		nsi_frac = div64_s64(FRAC_PER_NS * NSEC_PER_SEC, divisor);
+		nsi_frac = div64_s64(AQ_FRAC_PER_NS * NSEC_PER_SEC, divisor);
 	}
 
 	*ns = (u32)nsi;
@@ -1270,23 +1270,23 @@ hw_atl_b0_mac_adj_param_calc(struct hw_fw_request_ptp_adj_freq *ptp_adj_freq,
 {
 	s64 adj_fns_val;
 	s64 fns_in_sec_phy = phyfreq * (ptp_adj_freq->fns_phy +
-					FRAC_PER_NS * ptp_adj_freq->ns_phy);
+					AQ_FRAC_PER_NS * ptp_adj_freq->ns_phy);
 	s64 fns_in_sec_mac = macfreq * (ptp_adj_freq->fns_mac +
-					FRAC_PER_NS * ptp_adj_freq->ns_mac);
-	s64 fault_in_sec_phy = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
-	s64 fault_in_sec_mac = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
+					AQ_FRAC_PER_NS * ptp_adj_freq->ns_mac);
+	s64 fault_in_sec_phy = AQ_FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
+	s64 fault_in_sec_mac = AQ_FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
 	/* MAC MCP counter freq is macfreq / 4 */
 	s64 diff_in_mcp_overflow = (fault_in_sec_mac - fault_in_sec_phy) *
-				   4 * FRAC_PER_NS;
+				   4 * AQ_FRAC_PER_NS;
 
 	diff_in_mcp_overflow = div64_s64(diff_in_mcp_overflow,
 					 AQ_HW_MAC_COUNTER_HZ);
-	adj_fns_val = (ptp_adj_freq->fns_mac + FRAC_PER_NS *
+	adj_fns_val = (ptp_adj_freq->fns_mac + AQ_FRAC_PER_NS *
 		       ptp_adj_freq->ns_mac) + diff_in_mcp_overflow;
 
-	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, FRAC_PER_NS);
+	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, AQ_FRAC_PER_NS);
 	ptp_adj_freq->mac_fns_adj = adj_fns_val - ptp_adj_freq->mac_ns_adj *
-				    FRAC_PER_NS;
+				    AQ_FRAC_PER_NS;
 }
 
 static int hw_atl_b0_adj_sys_clock(struct aq_hw_s *self, s64 delta)
@@ -1580,7 +1580,7 @@ static int hw_atl_b0_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
+int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
 {
 	switch (mode) {
 	case AQ_HW_LOOPBACK_DMA_SYS:
@@ -1600,6 +1600,48 @@ static int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static u32 hw_atl_b0_ts_ready_and_latch_high_get(struct aq_hw_s *self)
+{
+	if (hw_atl_ts_ready_get(self) && hw_atl_ts_ready_latch_high_get(self))
+		return 1;
+
+	return 0;
+}
+
+static int hw_atl_b0_get_mac_temp(struct aq_hw_s *self, u32 *temp)
+{
+	bool ts_disabled;
+	int err;
+	u32 val;
+	u32 ts;
+
+	ts_disabled = (hw_atl_ts_power_down_get(self) == 1U);
+
+	if (ts_disabled) {
+		// Set AFE Temperature Sensor to on (off by default)
+		hw_atl_ts_power_down_set(self, 0U);
+
+		// Reset internal capacitors, biasing, and counters
+		hw_atl_ts_reset_set(self, 1);
+		hw_atl_ts_reset_set(self, 0);
+	}
+
+	err = readx_poll_timeout(hw_atl_b0_ts_ready_and_latch_high_get, self,
+				 val, val == 1, 10000U, 500000U);
+	if (err)
+		return err;
+
+	ts = hw_atl_ts_data_get(self);
+	*temp = ts * ts * 16 / 100000 + 60 * ts - 83410;
+
+	if (ts_disabled) {
+		// Set AFE Temperature Sensor back to off
+		hw_atl_ts_power_down_set(self, 1U);
 	}
 
 	return 0;
@@ -1661,4 +1703,6 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_offload          = hw_atl_b0_hw_offload_set,
 	.hw_set_loopback         = hw_atl_b0_set_loopback,
 	.hw_set_fc               = hw_atl_b0_set_fc,
+
+	.hw_get_mac_temp         = hw_atl_b0_get_mac_temp,
 };

@@ -35,7 +35,7 @@ mlx5_core-$(CONFIG_MLX5_EN_RXNFC)    += en_fs_ethtool.o
 mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) += en_dcbnl.o en/port_buffer.o
 mlx5_core-$(CONFIG_PCI_HYPERV_INTERFACE) += en/hv_vhca_stats.o
 mlx5_core-$(CONFIG_MLX5_ESWITCH)     += lag_mp.o lib/geneve.o lib/port_tun.o \
-					en_rep.o en/rep/bond.o
+					en_rep.o en/rep/bond.o en/mod_hdr.o
 mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en_tc.o en/rep/tc.o en/rep/neigh.o \
 					en/mapping.o esw/chains.o en/tc_tun.o \
 					en/tc_tun_vxlan.o en/tc_tun_gre.o en/tc_tun_geneve.o \
@@ -64,6 +64,7 @@ mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o ipoib/ipoib
 #
 # Accelerations & FPGA
 #
+mlx5_core-$(CONFIG_MLX5_IPSEC) += accel/ipsec_offload.o
 mlx5_core-$(CONFIG_MLX5_FPGA_IPSEC) += fpga/ipsec.o
 mlx5_core-$(CONFIG_MLX5_FPGA_TLS)   += fpga/tls.o
 mlx5_core-$(CONFIG_MLX5_ACCEL)      += lib/crypto.o accel/tls.o accel/ipsec.o
@@ -71,10 +72,11 @@ mlx5_core-$(CONFIG_MLX5_ACCEL)      += lib/crypto.o accel/tls.o accel/ipsec.o
 mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o
 
 mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
-				     en_accel/ipsec_stats.o
+				     en_accel/ipsec_stats.o en_accel/ipsec_fs.o
 
 mlx5_core-$(CONFIG_MLX5_EN_TLS) += en_accel/tls.o en_accel/tls_rxtx.o en_accel/tls_stats.o \
-				   en_accel/ktls.o en_accel/ktls_tx.o
+				   en_accel/fs_tcp.o en_accel/ktls.o en_accel/ktls_txrx.o \
+				   en_accel/ktls_tx.o en_accel/ktls_rx.o
 
 mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o \
 					steering/dr_matcher.o steering/dr_rule.o \

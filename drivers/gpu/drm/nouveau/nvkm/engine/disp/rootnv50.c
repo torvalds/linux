@@ -205,8 +205,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 					   vendor, vendor_size);
 
 		if (outp->ior->func->hdmi.scdc)
-			outp->ior->func->hdmi.scdc(
-					outp->ior, hidx, args->v0.scdc);
+			outp->ior->func->hdmi.scdc(outp->ior, args->v0.scdc);
 
 		return 0;
 	}

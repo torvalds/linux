@@ -50,7 +50,7 @@ source "drivers/clk/versatile/Kconfig"
 config CLK_HSDK
 	bool "PLL Driver for HSDK platform"
 	depends on OF || COMPILE_TEST
-	depends on IOMEM
+	depends on HAS_IOMEM
 	help
 	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
 	  control.
@@ -121,7 +121,6 @@ config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
 	select REGMAP_I2C
-	select RATIONAL
 	help
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
@@ -163,7 +162,6 @@ config COMMON_CLK_CDCE706
 	tristate "Clock driver for TI CDCE706 clock synthesizer"
 	depends on I2C
 	select REGMAP_I2C
-	select RATIONAL
 	help
 	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 

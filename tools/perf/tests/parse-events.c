@@ -631,6 +631,34 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
 	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "umask"));
 
+	/*
+	 * read
+	 *
+	 * The perf_pmu__test_parse_init injects 'read' term into
+	 * perf_pmu_events_list, so 'read' is evaluated as read term
+	 * and not as raw event with 'ead' hex value.
+	 */
+	term = list_entry(term->list.next, struct parse_events_term, list);
+	TEST_ASSERT_VAL("wrong type term",
+			term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
+	TEST_ASSERT_VAL("wrong type val",
+			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
+	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "read"));
+
+	/*
+	 * r0xead
+	 *
+	 * To be still able to pass 'ead' value with 'r' syntax,
+	 * we added support to parse 'r0xHEX' event.
+	 */
+	term = list_entry(term->list.next, struct parse_events_term, list);
+	TEST_ASSERT_VAL("wrong type term",
+			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG);
+	TEST_ASSERT_VAL("wrong type val",
+			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
+	TEST_ASSERT_VAL("wrong val", term->val.num == 0xead);
+	TEST_ASSERT_VAL("wrong config", !term->config);
 	return 0;
 }
 
@@ -1766,6 +1794,11 @@ static struct evlist_test test__events_pmu[] = {
 		.check = test__checkevent_raw_pmu,
 		.id    = 4,
 	},
+	{
+		.name  = "software/r0x1a/",
+		.check = test__checkevent_raw_pmu,
+		.id    = 4,
+	},
 };
 
 struct terms_test {
@@ -1776,7 +1809,7 @@ struct terms_test {
 
 static struct terms_test test__terms[] = {
 	[0] = {
-		.str   = "config=10,config1,config2=3,umask=1",
+		.str   = "config=10,config1,config2=3,umask=1,read,r0xead",
 		.check = test__checkterms_simple,
 	},
 };
@@ -1835,6 +1868,13 @@ static int test_term(struct terms_test *t)
 	int ret;
 
 	INIT_LIST_HEAD(&terms);
+
+	/*
+	 * The perf_pmu__test_parse_init prepares perf_pmu_events_list
+	 * which gets freed in parse_events_terms.
+	 */
+	if (perf_pmu__test_parse_init())
+		return -1;
 
 	ret = parse_events_terms(&terms, t->str);
 	if (ret) {

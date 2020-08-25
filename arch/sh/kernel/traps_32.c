@@ -482,8 +482,6 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 	error_code = lookup_exception_vector();
 #endif
 
-	oldfs = get_fs();
-
 	if (user_mode(regs)) {
 		int si_code = BUS_ADRERR;
 		unsigned int user_action;
@@ -491,13 +489,13 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		local_irq_enable();
 		inc_unaligned_user_access();
 
-		set_fs(USER_DS);
+		oldfs = force_uaccess_begin();
 		if (copy_from_user(&instruction, (insn_size_t *)(regs->pc & ~1),
 				   sizeof(instruction))) {
-			set_fs(oldfs);
+			force_uaccess_end(oldfs);
 			goto uspace_segv;
 		}
-		set_fs(oldfs);
+		force_uaccess_end(oldfs);
 
 		/* shout about userspace fixups */
 		unaligned_fixups_notify(current, instruction, regs);
@@ -520,11 +518,11 @@ fixup:
 			goto uspace_segv;
 		}
 
-		set_fs(USER_DS);
+		oldfs = force_uaccess_begin();
 		tmp = handle_unaligned_access(instruction, regs,
 					      &user_mem_access, 0,
 					      address);
-		set_fs(oldfs);
+		force_uaccess_end(oldfs);
 
 		if (tmp == 0)
 			return; /* sorted */

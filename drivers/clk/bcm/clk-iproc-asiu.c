@@ -119,7 +119,7 @@ static long iproc_asiu_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (rate == *parent_rate)
 		return *parent_rate;
 
-	div = DIV_ROUND_UP(*parent_rate, rate);
+	div = DIV_ROUND_CLOSEST(*parent_rate, rate);
 	if (div < 2)
 		return *parent_rate;
 
@@ -145,7 +145,7 @@ static int iproc_asiu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		return 0;
 	}
 
-	div = DIV_ROUND_UP(parent_rate, rate);
+	div = DIV_ROUND_CLOSEST(parent_rate, rate);
 	if (div < 2)
 		return -EINVAL;
 

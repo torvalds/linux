@@ -94,13 +94,15 @@ _GLOBAL(__restore_cpu_power8)
 _GLOBAL(__setup_cpu_power10)
 	mflr	r11
 	bl	__init_FSCR_power10
+	bl	__init_PMU
+	bl	__init_PMU_ISA31
 	b	1f
 
 _GLOBAL(__setup_cpu_power9)
 	mflr	r11
-	bl	__init_FSCR
-1:	bl	__init_PMU
-	bl	__init_hvmode_206
+	bl	__init_FSCR_power9
+	bl	__init_PMU
+1:	bl	__init_hvmode_206
 	mtlr	r11
 	beqlr
 	li	r0,0
@@ -124,13 +126,15 @@ _GLOBAL(__setup_cpu_power9)
 _GLOBAL(__restore_cpu_power10)
 	mflr	r11
 	bl	__init_FSCR_power10
+	bl	__init_PMU
+	bl	__init_PMU_ISA31
 	b	1f
 
 _GLOBAL(__restore_cpu_power9)
 	mflr	r11
-	bl	__init_FSCR
-1:	bl	__init_PMU
-	mfmsr	r3
+	bl	__init_FSCR_power9
+	bl	__init_PMU
+1:	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	mtlr	r11
 	beqlr
@@ -198,6 +202,12 @@ __init_FSCR_power10:
 	mtspr	SPRN_FSCR, r3
 	// fall through
 
+__init_FSCR_power9:
+	mfspr	r3, SPRN_FSCR
+	ori	r3, r3, FSCR_SCV
+	mtspr	SPRN_FSCR, r3
+	// fall through
+
 __init_FSCR:
 	mfspr	r3,SPRN_FSCR
 	ori	r3,r3,FSCR_TAR|FSCR_EBB
@@ -232,4 +242,11 @@ __init_PMU:
 __init_PMU_ISA207:
 	li	r5,0
 	mtspr	SPRN_MMCRS,r5
+	blr
+
+__init_PMU_ISA31:
+	li	r5,0
+	mtspr	SPRN_MMCR3,r5
+	LOAD_REG_IMMEDIATE(r5, MMCRA_BHRB_DISABLE)
+	mtspr	SPRN_MMCRA,r5
 	blr

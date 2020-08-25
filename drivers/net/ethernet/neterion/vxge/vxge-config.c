@@ -1102,10 +1102,10 @@ static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 	hldev = blockpool->hldev;
 
 	list_for_each_safe(p, n, &blockpool->free_block_list) {
-		pci_unmap_single(hldev->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
-			((struct __vxge_hw_blockpool_entry *)p)->length,
-			PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_single(&hldev->pdev->dev,
+				 ((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
+				 ((struct __vxge_hw_blockpool_entry *)p)->length,
+				 DMA_BIDIRECTIONAL);
 
 		vxge_os_dma_free(hldev->pdev,
 			((struct __vxge_hw_blockpool_entry *)p)->memblock,
@@ -1178,10 +1178,10 @@ __vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
 			goto blockpool_create_exit;
 		}
 
-		dma_addr = pci_map_single(hldev->pdev, memblock,
-				VXGE_HW_BLOCK_SIZE, PCI_DMA_BIDIRECTIONAL);
-		if (unlikely(pci_dma_mapping_error(hldev->pdev,
-				dma_addr))) {
+		dma_addr = dma_map_single(&hldev->pdev->dev, memblock,
+					  VXGE_HW_BLOCK_SIZE,
+					  DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(&hldev->pdev->dev, dma_addr))) {
 			vxge_os_dma_free(hldev->pdev, memblock, &acc_handle);
 			__vxge_hw_blockpool_destroy(blockpool);
 			status = VXGE_HW_ERR_OUT_OF_MEMORY;
@@ -2264,10 +2264,10 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 		goto exit;
 	}
 
-	dma_addr = pci_map_single(devh->pdev, block_addr, length,
-				PCI_DMA_BIDIRECTIONAL);
+	dma_addr = dma_map_single(&devh->pdev->dev, block_addr, length,
+				  DMA_BIDIRECTIONAL);
 
-	if (unlikely(pci_dma_mapping_error(devh->pdev, dma_addr))) {
+	if (unlikely(dma_mapping_error(&devh->pdev->dev, dma_addr))) {
 		vxge_os_dma_free(devh->pdev, block_addr, &acc_handle);
 		blockpool->req_out--;
 		goto exit;
@@ -2359,11 +2359,10 @@ static void *__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
 		if (!memblock)
 			goto exit;
 
-		dma_object->addr = pci_map_single(devh->pdev, memblock, size,
-					PCI_DMA_BIDIRECTIONAL);
+		dma_object->addr = dma_map_single(&devh->pdev->dev, memblock,
+						  size, DMA_BIDIRECTIONAL);
 
-		if (unlikely(pci_dma_mapping_error(devh->pdev,
-				dma_object->addr))) {
+		if (unlikely(dma_mapping_error(&devh->pdev->dev, dma_object->addr))) {
 			vxge_os_dma_free(devh->pdev, memblock,
 				&dma_object->acc_handle);
 			memblock = NULL;
@@ -2410,11 +2409,10 @@ __vxge_hw_blockpool_blocks_remove(struct __vxge_hw_blockpool *blockpool)
 		if (blockpool->pool_size < blockpool->pool_max)
 			break;
 
-		pci_unmap_single(
-			(blockpool->hldev)->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
-			((struct __vxge_hw_blockpool_entry *)p)->length,
-			PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_single(&(blockpool->hldev)->pdev->dev,
+				 ((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
+				 ((struct __vxge_hw_blockpool_entry *)p)->length,
+				 DMA_BIDIRECTIONAL);
 
 		vxge_os_dma_free(
 			(blockpool->hldev)->pdev,
@@ -2445,8 +2443,8 @@ static void __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
 	blockpool = &devh->block_pool;
 
 	if (size != blockpool->block_size) {
-		pci_unmap_single(devh->pdev, dma_object->addr, size,
-			PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_single(&devh->pdev->dev, dma_object->addr, size,
+				 DMA_BIDIRECTIONAL);
 		vxge_os_dma_free(devh->pdev, memblock, &dma_object->acc_handle);
 	} else {
 

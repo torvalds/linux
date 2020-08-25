@@ -88,13 +88,9 @@ config NEED_MULTIPLE_NODES
 	def_bool y
 	depends on DISCONTIGMEM || NUMA
 
-config HAVE_MEMORY_PRESENT
-	def_bool y
-	depends on ARCH_HAVE_MEMORY_PRESENT || SPARSEMEM
-
 #
 # SPARSEMEM_EXTREME (which is the default) does some bootmem
-# allocations when memory_present() is called.  If this cannot
+# allocations when sparse_init() is called.  If this cannot
 # be done on your architecture, select this option.  However,
 # statically allocating the mem_section[] array can potentially
 # consume vast quantities of .bss, so be careful.
@@ -387,7 +383,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
 	  This option specifies the initial value of this option.  The default
 	  of 1 says that all excess pages should be trimmed.
 
-	  See Documentation/nommu-mmap.txt for more information.
+	  See Documentation/mm/nommu-mmap.rst for more information.
 
 config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"

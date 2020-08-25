@@ -13,31 +13,49 @@
 #include "idt8a340_reg.h"
 
 #define FW_FILENAME	"idtcm.bin"
-#define MAX_PHC_PLL	4
+#define MAX_TOD		(4)
+#define MAX_PLL		(8)
 
 #define MAX_ABS_WRITE_PHASE_PICOSECONDS (107374182350LL)
 
-#define PLL_MASK_ADDR		(0xFFA5)
-#define DEFAULT_PLL_MASK	(0x04)
+#define TOD_MASK_ADDR		(0xFFA5)
+#define DEFAULT_TOD_MASK	(0x04)
 
 #define SET_U16_LSB(orig, val8) (orig = (0xff00 & (orig)) | (val8))
 #define SET_U16_MSB(orig, val8) (orig = (0x00ff & (orig)) | (val8 << 8))
 
-#define OUTPUT_MASK_PLL0_ADDR		(0xFFB0)
-#define OUTPUT_MASK_PLL1_ADDR		(0xFFB2)
-#define OUTPUT_MASK_PLL2_ADDR		(0xFFB4)
-#define OUTPUT_MASK_PLL3_ADDR		(0xFFB6)
+#define TOD0_PTP_PLL_ADDR		(0xFFA8)
+#define TOD1_PTP_PLL_ADDR		(0xFFA9)
+#define TOD2_PTP_PLL_ADDR		(0xFFAA)
+#define TOD3_PTP_PLL_ADDR		(0xFFAB)
+
+#define TOD0_OUT_ALIGN_MASK_ADDR	(0xFFB0)
+#define TOD1_OUT_ALIGN_MASK_ADDR	(0xFFB2)
+#define TOD2_OUT_ALIGN_MASK_ADDR	(0xFFB4)
+#define TOD3_OUT_ALIGN_MASK_ADDR	(0xFFB6)
 
 #define DEFAULT_OUTPUT_MASK_PLL0	(0x003)
 #define DEFAULT_OUTPUT_MASK_PLL1	(0x00c)
 #define DEFAULT_OUTPUT_MASK_PLL2	(0x030)
 #define DEFAULT_OUTPUT_MASK_PLL3	(0x0c0)
 
+#define DEFAULT_TOD0_PTP_PLL		(0)
+#define DEFAULT_TOD1_PTP_PLL		(1)
+#define DEFAULT_TOD2_PTP_PLL		(2)
+#define DEFAULT_TOD3_PTP_PLL		(3)
+
 #define POST_SM_RESET_DELAY_MS		(3000)
 #define PHASE_PULL_IN_THRESHOLD_NS	(150000)
-#define TOD_WRITE_OVERHEAD_COUNT_MAX	(5)
+#define PHASE_PULL_IN_THRESHOLD_NS_V487	(15000)
+#define TOD_WRITE_OVERHEAD_COUNT_MAX	(2)
 #define TOD_BYTE_COUNT			(11)
 #define WR_PHASE_SETUP_MS		(5000)
+
+#define OUTPUT_MODULE_FROM_INDEX(index)	(OUTPUT_0 + (index) * 0x10)
+
+#define PEROUT_ENABLE_OUTPUT_MASK		(0xdeadbeef)
+
+#define IDTCM_MAX_WRITE_COUNT			(512)
 
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
@@ -48,7 +66,8 @@ enum pll_mode {
 	PLL_MODE_GPIO_INC_DEC = 3,
 	PLL_MODE_SYNTHESIS = 4,
 	PLL_MODE_PHASE_MEASUREMENT = 5,
-	PLL_MODE_MAX = PLL_MODE_PHASE_MEASUREMENT,
+	PLL_MODE_DISABLED = 6,
+	PLL_MODE_MAX = PLL_MODE_DISABLED,
 };
 
 enum hw_tod_write_trig_sel {
@@ -61,6 +80,26 @@ enum hw_tod_write_trig_sel {
 	HW_TOD_WR_TRIG_SEL_GPIO = 5,
 	HW_TOD_WR_TRIG_SEL_FOD_SYNC = 6,
 	WR_TRIG_SEL_MAX = HW_TOD_WR_TRIG_SEL_FOD_SYNC,
+};
+
+/* 4.8.7 only */
+enum scsr_tod_write_trig_sel {
+	SCSR_TOD_WR_TRIG_SEL_DISABLE = 0,
+	SCSR_TOD_WR_TRIG_SEL_IMMEDIATE = 1,
+	SCSR_TOD_WR_TRIG_SEL_REFCLK = 2,
+	SCSR_TOD_WR_TRIG_SEL_PWMPPS = 3,
+	SCSR_TOD_WR_TRIG_SEL_TODPPS = 4,
+	SCSR_TOD_WR_TRIG_SEL_SYNCFOD = 5,
+	SCSR_TOD_WR_TRIG_SEL_GPIO = 6,
+	SCSR_TOD_WR_TRIG_SEL_MAX = SCSR_TOD_WR_TRIG_SEL_GPIO,
+};
+
+/* 4.8.7 only */
+enum scsr_tod_write_type_sel {
+	SCSR_TOD_WR_TYPE_SEL_ABSOLUTE = 0,
+	SCSR_TOD_WR_TYPE_SEL_DELTA_PLUS = 1,
+	SCSR_TOD_WR_TYPE_SEL_DELTA_MINUS = 2,
+	SCSR_TOD_WR_TYPE_SEL_MAX = SCSR_TOD_WR_TYPE_SEL_DELTA_MINUS,
 };
 
 struct idtcm;
@@ -79,15 +118,17 @@ struct idtcm_channel {
 	u16			tod_n;
 	u16			hw_dpll_n;
 	enum pll_mode		pll_mode;
+	u8			pll;
 	u16			output_mask;
 	int			write_phase_ready;
 };
 
 struct idtcm {
-	struct idtcm_channel	channel[MAX_PHC_PLL];
+	struct idtcm_channel	channel[MAX_TOD];
 	struct i2c_client	*client;
 	u8			page_offset;
-	u8			pll_mask;
+	u8			tod_mask;
+	char			version[16];
 
 	/* Overhead calculation for adjtime */
 	u8			calculate_overhead_flag;

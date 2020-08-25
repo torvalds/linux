@@ -39,7 +39,7 @@ Author: Jean Delvare <jdelvare@suse.de>
 Thanks go to Tyan and especially Alex Buckingham for setting up a remote
 access to their S4882 test platform for this driver.
 
-  http://www.tyan.com/
+  https://www.tyan.com/
 
 Description
 -----------

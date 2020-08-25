@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/remoteproc.h>
+#include <linux/slab.h>
 
 #include "st_fdma.h"
 

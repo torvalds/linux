@@ -62,12 +62,10 @@ static int tipc_eth_raw2addr(struct tipc_bearer *b,
 			     struct tipc_media_addr *addr,
 			     char *msg)
 {
-	char bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 	memset(addr, 0, sizeof(*addr));
 	ether_addr_copy(addr->value, msg);
 	addr->media_id = TIPC_MEDIA_TYPE_ETH;
-	addr->broadcast = !memcmp(addr->value, bcast_mac, ETH_ALEN);
+	addr->broadcast = is_broadcast_ether_addr(addr->value);
 	return 0;
 }
 

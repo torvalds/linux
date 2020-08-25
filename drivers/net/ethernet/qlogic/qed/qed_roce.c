@@ -1,34 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
+
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/bitops.h>
@@ -62,35 +37,30 @@
 
 static void qed_roce_free_real_icid(struct qed_hwfn *p_hwfn, u16 icid);
 
-static int
-qed_roce_async_event(struct qed_hwfn *p_hwfn,
-		     u8 fw_event_code,
-		     u16 echo, union event_ring_data *data, u8 fw_return_code)
+static int qed_roce_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
+				__le16 echo, union event_ring_data *data,
+				u8 fw_return_code)
 {
 	struct qed_rdma_events events = p_hwfn->p_rdma_info->events;
+	union rdma_eqe_data *rdata = &data->rdma_data;
 
 	if (fw_event_code == ROCE_ASYNC_EVENT_DESTROY_QP_DONE) {
-		u16 icid =
-		    (u16)le32_to_cpu(data->rdma_data.rdma_destroy_qp_data.cid);
+		u16 icid = (u16)le32_to_cpu(rdata->rdma_destroy_qp_data.cid);
 
 		/* icid release in this async event can occur only if the icid
 		 * was offloaded to the FW. In case it wasn't offloaded this is
 		 * handled in qed_roce_sp_destroy_qp.
 		 */
 		qed_roce_free_real_icid(p_hwfn, icid);
+	} else if (fw_event_code == ROCE_ASYNC_EVENT_SRQ_EMPTY ||
+		   fw_event_code == ROCE_ASYNC_EVENT_SRQ_LIMIT) {
+		u16 srq_id = (u16)le32_to_cpu(rdata->async_handle.lo);
+
+		events.affiliated_event(events.context, fw_event_code,
+					&srq_id);
 	} else {
-		if (fw_event_code == ROCE_ASYNC_EVENT_SRQ_EMPTY ||
-		    fw_event_code == ROCE_ASYNC_EVENT_SRQ_LIMIT) {
-			u16 srq_id = (u16)data->rdma_data.async_handle.lo;
-
-			events.affiliated_event(events.context, fw_event_code,
-						&srq_id);
-		} else {
-			union rdma_eqe_data rdata = data->rdma_data;
-
-			events.affiliated_event(events.context, fw_event_code,
-						(void *)&rdata.async_handle);
-		}
+		events.affiliated_event(events.context, fw_event_code,
+					(void *)&rdata->async_handle);
 	}
 
 	return 0;
@@ -247,9 +217,9 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	struct roce_create_qp_resp_ramrod_data *p_ramrod;
 	u16 regular_latency_queue, low_latency_queue;
 	struct qed_sp_init_data init_data;
-	enum roce_flavor roce_flavor;
 	struct qed_spq_entry *p_ent;
 	enum protocol_type proto;
+	u32 flags = 0;
 	int rc;
 	u8 tc;
 
@@ -282,45 +252,34 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-	p_ramrod = &p_ent->ramrod.roce_create_qp_resp;
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR,
+		  qed_roce_mode_to_flavor(qp->roce_mode));
 
-	p_ramrod->flags = 0;
-
-	roce_flavor = qed_roce_mode_to_flavor(qp->roce_mode);
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR, roce_flavor);
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN,
 		  qp->incoming_rdma_read_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN,
 		  qp->incoming_rdma_write_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN,
 		  qp->incoming_atomic_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN,
 		  qp->e2e_flow_control_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG, qp->use_srq);
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG, qp->use_srq);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN,
 		  qp->fmr_and_reserved_lkey);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER,
 		  qp->min_rnr_nak_timer);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG,
 		  qed_rdma_is_xrc_qp(qp));
 
+	p_ramrod = &p_ent->ramrod.roce_create_qp_resp;
+	p_ramrod->flags = cpu_to_le32(flags);
 	p_ramrod->max_ird = qp->max_rd_atomic_resp;
 	p_ramrod->traffic_class = qp->traffic_class_tos;
 	p_ramrod->hop_limit = qp->hop_limit_ttl;
@@ -335,10 +294,10 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->rq_pbl_addr, qp->rq_pbl_ptr);
 	DMA_REGPAIR_LE(p_ramrod->irq_pbl_addr, qp->irq_phys_addr);
 	qed_rdma_copy_gids(qp, p_ramrod->src_gid, p_ramrod->dst_gid);
-	p_ramrod->qp_handle_for_async.hi = cpu_to_le32(qp->qp_handle_async.hi);
-	p_ramrod->qp_handle_for_async.lo = cpu_to_le32(qp->qp_handle_async.lo);
-	p_ramrod->qp_handle_for_cqe.hi = cpu_to_le32(qp->qp_handle.hi);
-	p_ramrod->qp_handle_for_cqe.lo = cpu_to_le32(qp->qp_handle.lo);
+	p_ramrod->qp_handle_for_async.hi = qp->qp_handle_async.hi;
+	p_ramrod->qp_handle_for_async.lo = qp->qp_handle_async.lo;
+	p_ramrod->qp_handle_for_cqe.hi = qp->qp_handle.hi;
+	p_ramrod->qp_handle_for_cqe.lo = qp->qp_handle.lo;
 	p_ramrod->cq_cid = cpu_to_le32((p_hwfn->hw_info.opaque_fid << 16) |
 				       qp->rq_cq_id);
 	p_ramrod->xrc_domain = cpu_to_le16(qp->xrcd_id);
@@ -360,7 +319,7 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	qed_rdma_set_fw_mac(p_ramrod->remote_mac_addr, qp->remote_mac_addr);
 	qed_rdma_set_fw_mac(p_ramrod->local_mac_addr, qp->local_mac_addr);
 
-	p_ramrod->udp_src_port = qp->udp_src_port;
+	p_ramrod->udp_src_port = cpu_to_le16(qp->udp_src_port);
 	p_ramrod->vlan_id = cpu_to_le16(qp->vlan_id);
 	p_ramrod->srq_id.srq_idx = cpu_to_le16(qp->srq_id);
 	p_ramrod->srq_id.opaque_fid = cpu_to_le16(p_hwfn->hw_info.opaque_fid);
@@ -396,9 +355,9 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	struct roce_create_qp_req_ramrod_data *p_ramrod;
 	u16 regular_latency_queue, low_latency_queue;
 	struct qed_sp_init_data init_data;
-	enum roce_flavor roce_flavor;
 	struct qed_spq_entry *p_ent;
 	enum protocol_type proto;
+	u16 flags = 0;
 	int rc;
 	u8 tc;
 
@@ -432,34 +391,29 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-	p_ramrod = &p_ent->ramrod.roce_create_qp_req;
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR,
+		  qed_roce_mode_to_flavor(qp->roce_mode));
 
-	p_ramrod->flags = 0;
-
-	roce_flavor = qed_roce_mode_to_flavor(qp->roce_mode);
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR, roce_flavor);
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN,
 		  qp->fmr_and_reserved_lkey);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP, qp->signal_all);
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP,
+		  qp->signal_all);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT, qp->retry_cnt);
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT,
+		  qp->retry_cnt);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT,
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT,
 		  qp->rnr_retry_cnt);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG,
+	SET_FIELD(flags, ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG,
 		  qed_rdma_is_xrc_qp(qp));
 
-	SET_FIELD(p_ramrod->flags2,
-		  ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE, qp->edpm_mode);
+	p_ramrod = &p_ent->ramrod.roce_create_qp_req;
+	p_ramrod->flags = cpu_to_le16(flags);
+
+	SET_FIELD(p_ramrod->flags2, ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE,
+		  qp->edpm_mode);
 
 	p_ramrod->max_ord = qp->max_rd_atomic_req;
 	p_ramrod->traffic_class = qp->traffic_class_tos;
@@ -476,10 +430,10 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->sq_pbl_addr, qp->sq_pbl_ptr);
 	DMA_REGPAIR_LE(p_ramrod->orq_pbl_addr, qp->orq_phys_addr);
 	qed_rdma_copy_gids(qp, p_ramrod->src_gid, p_ramrod->dst_gid);
-	p_ramrod->qp_handle_for_async.hi = cpu_to_le32(qp->qp_handle_async.hi);
-	p_ramrod->qp_handle_for_async.lo = cpu_to_le32(qp->qp_handle_async.lo);
-	p_ramrod->qp_handle_for_cqe.hi = cpu_to_le32(qp->qp_handle.hi);
-	p_ramrod->qp_handle_for_cqe.lo = cpu_to_le32(qp->qp_handle.lo);
+	p_ramrod->qp_handle_for_async.hi = qp->qp_handle_async.hi;
+	p_ramrod->qp_handle_for_async.lo = qp->qp_handle_async.lo;
+	p_ramrod->qp_handle_for_cqe.hi = qp->qp_handle.hi;
+	p_ramrod->qp_handle_for_cqe.lo = qp->qp_handle.lo;
 	p_ramrod->cq_cid =
 	    cpu_to_le32((p_hwfn->hw_info.opaque_fid << 16) | qp->sq_cq_id);
 
@@ -500,7 +454,7 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	qed_rdma_set_fw_mac(p_ramrod->remote_mac_addr, qp->remote_mac_addr);
 	qed_rdma_set_fw_mac(p_ramrod->local_mac_addr, qp->local_mac_addr);
 
-	p_ramrod->udp_src_port = qp->udp_src_port;
+	p_ramrod->udp_src_port = cpu_to_le16(qp->udp_src_port);
 	p_ramrod->vlan_id = cpu_to_le16(qp->vlan_id);
 	p_ramrod->stats_counter_id = RESC_START(p_hwfn, QED_RDMA_STATS_QUEUE) +
 				     qp->stats_queue;
@@ -532,6 +486,7 @@ static int qed_roce_sp_modify_responder(struct qed_hwfn *p_hwfn,
 	struct roce_modify_qp_resp_ramrod_data *p_ramrod;
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
+	u16 flags = 0;
 	int rc;
 
 	if (!qp->has_resp)
@@ -556,52 +511,42 @@ static int qed_roce_sp_modify_responder(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	p_ramrod = &p_ent->ramrod.roce_modify_qp_resp;
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG,
+		  !!move_to_err);
 
-	p_ramrod->flags = 0;
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG, move_to_err);
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN,
 		  qp->incoming_rdma_read_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN,
 		  qp->incoming_rdma_write_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN,
 		  qp->incoming_atomic_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN,
+	SET_FIELD(flags, ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN,
 		  qp->e2e_flow_control_en);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_RDMA_MODIFY_QP_VALID_RDMA_OPS_EN));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG,
 		  GET_FIELD(modify_flags, QED_ROCE_MODIFY_QP_VALID_PKEY));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_ROCE_MODIFY_QP_VALID_ADDRESS_VECTOR));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_RESP));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_ROCE_MODIFY_QP_VALID_MIN_RNR_NAK_TIMER));
+
+	p_ramrod = &p_ent->ramrod.roce_modify_qp_resp;
+	p_ramrod->flags = cpu_to_le16(flags);
 
 	p_ramrod->fields = 0;
 	SET_FIELD(p_ramrod->fields,
@@ -629,6 +574,7 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 	struct roce_modify_qp_req_ramrod_data *p_ramrod;
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
+	u16 flags = 0;
 	int rc;
 
 	if (!qp->has_req)
@@ -653,54 +599,44 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	p_ramrod = &p_ent->ramrod.roce_modify_qp_req;
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG,
+		  !!move_to_err);
 
-	p_ramrod->flags = 0;
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG,
+		  !!move_to_sqd);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG, move_to_err);
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG, move_to_sqd);
-
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY,
 		  qp->sqd_async);
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG,
 		  GET_FIELD(modify_flags, QED_ROCE_MODIFY_QP_VALID_PKEY));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_ROCE_MODIFY_QP_VALID_ADDRESS_VECTOR));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_REQ));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_ROCE_MODIFY_QP_VALID_RNR_RETRY_CNT));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG,
 		  GET_FIELD(modify_flags, QED_ROCE_MODIFY_QP_VALID_RETRY_CNT));
 
-	SET_FIELD(p_ramrod->flags,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG,
 		  GET_FIELD(modify_flags,
 			    QED_ROCE_MODIFY_QP_VALID_ACK_TIMEOUT));
+
+	p_ramrod = &p_ent->ramrod.roce_modify_qp_req;
+	p_ramrod->flags = cpu_to_le16(flags);
 
 	p_ramrod->fields = 0;
 	SET_FIELD(p_ramrod->fields,
 		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT, qp->retry_cnt);
-
-	SET_FIELD(p_ramrod->fields,
-		  ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT,
+	SET_FIELD(p_ramrod->fields, ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT,
 		  qp->rnr_retry_cnt);
 
 	p_ramrod->max_ord = qp->max_rd_atomic_req;
@@ -821,8 +757,7 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 	if (!qp->req_offloaded)
 		return 0;
 
-	p_ramrod_res = (struct roce_destroy_qp_req_output_params *)
-		       dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+	p_ramrod_res = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 					  sizeof(*p_ramrod_res),
 					  &ramrod_res_phys, GFP_KERNEL);
 	if (!p_ramrod_res) {

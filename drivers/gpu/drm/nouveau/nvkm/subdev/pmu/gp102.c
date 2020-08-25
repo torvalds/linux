@@ -46,7 +46,7 @@ gp102_pmu = {
 
 static const struct nvkm_pmu_fwif
 gp102_pmu_fwif[] = {
-	{ -1, gf100_pmu_nofw, &gp102_pmu },
+	{ -1, gm200_pmu_nofw, &gp102_pmu },
 	{}
 };
 

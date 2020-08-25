@@ -36,6 +36,8 @@ static inline unsigned long cputime_to_usecs(const cputime_t ct)
 	return mulhdu((__force u64) ct, __cputime_usec_factor);
 }
 
+#define cputime_to_nsecs(cputime) tb_to_ns((__force u64)cputime)
+
 /*
  * PPC64 uses PACA which is task independent for storing accounting data while
  * PPC32 uses struct thread_info, therefore at task switch the accounting data
@@ -65,7 +67,7 @@ static inline void arch_vtime_task_switch(struct task_struct *prev)
 
 /*
  * account_cpu_user_entry/exit runs "unreconciled", so can't trace,
- * can't use use get_paca()
+ * can't use get_paca()
  */
 static notrace inline void account_cpu_user_entry(void)
 {

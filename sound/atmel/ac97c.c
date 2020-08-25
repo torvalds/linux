@@ -219,7 +219,7 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 	switch (runtime->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		break;
-	case SNDRV_PCM_FORMAT_S16_BE: /* fall through */
+	case SNDRV_PCM_FORMAT_S16_BE:
 		word &= ~(AC97C_CMR_CEM_LITTLE);
 		break;
 	default:
@@ -301,7 +301,7 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 	switch (runtime->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		break;
-	case SNDRV_PCM_FORMAT_S16_BE: /* fall through */
+	case SNDRV_PCM_FORMAT_S16_BE:
 		word &= ~(AC97C_CMR_CEM_LITTLE);
 		break;
 	default:
@@ -356,14 +356,14 @@ atmel_ac97c_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	camr = ac97c_readl(chip, CAMR);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
-	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
 		ptcr = ATMEL_PDC_TXTEN;
 		camr |= AC97C_CMR_CENA | AC97C_CSR_ENDTX;
 		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
-	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		ptcr |= ATMEL_PDC_TXTDIS;
 		if (chip->opened <= 1)
@@ -388,14 +388,14 @@ atmel_ac97c_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 	ptcr = readl(chip->regs + ATMEL_PDC_PTSR);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
-	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
 		ptcr = ATMEL_PDC_RXTEN;
 		camr |= AC97C_CMR_CENA | AC97C_CSR_ENDRX;
 		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
-	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		ptcr |= ATMEL_PDC_RXTDIS;
 		if (chip->opened <= 1)

@@ -61,7 +61,7 @@ MODULE_ALIAS("arusb_lnx");
  * Note:
  *
  * Always update our wiki's device list (located at:
- * http://wireless.kernel.org/en/users/Drivers/ar9170/devices ),
+ * https://wireless.wiki.kernel.org/en/users/Drivers/ar9170/devices ),
  * whenever you add a new device.
  */
 static const struct usb_device_id carl9170_usb_ids[] = {

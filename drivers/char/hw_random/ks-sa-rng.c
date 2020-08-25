@@ -2,7 +2,7 @@
 /*
  * Random Number Generator driver for the Keystone SOC
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors:	Sandeep Nair
  *		Vitaly Andrianov

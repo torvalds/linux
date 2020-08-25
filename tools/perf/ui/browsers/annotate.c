@@ -209,7 +209,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		ui_browser__mark_fused(browser,
 				       pcnt_width + 3 + notes->widths.addr + width,
 				       from - 1,
-				       to > from ? true : false);
+				       to > from);
 	}
 }
 

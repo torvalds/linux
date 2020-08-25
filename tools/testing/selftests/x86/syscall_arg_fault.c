@@ -53,6 +53,7 @@ static void sigsegv_or_sigbus(int sig, siginfo_t *info, void *ctx_void)
 	if (ax != -EFAULT && ax != -ENOSYS) {
 		printf("[FAIL]\tAX had the wrong value: 0x%lx\n",
 		       (unsigned long)ax);
+		printf("\tIP = 0x%lx\n", (unsigned long)ctx->uc_mcontext.gregs[REG_IP]);
 		n_errs++;
 	} else {
 		printf("[OK]\tSeems okay\n");
@@ -206,6 +207,31 @@ int main()
 			: : : "memory", "flags");
 	}
 	set_eflags(get_eflags() & ~X86_EFLAGS_TF);
+
+#ifdef __x86_64__
+	printf("[RUN]\tSYSENTER with TF, invalid state, and GSBASE < 0\n");
+
+	if (sigsetjmp(jmpbuf, 1) == 0) {
+		sigtrap_consecutive_syscalls = 0;
+
+		asm volatile ("wrgsbase %%rax\n\t"
+			      :: "a" (0xffffffffffff0000UL));
+
+		set_eflags(get_eflags() | X86_EFLAGS_TF);
+		asm volatile (
+			"movl $-1, %%eax\n\t"
+			"movl $-1, %%ebx\n\t"
+			"movl $-1, %%ecx\n\t"
+			"movl $-1, %%edx\n\t"
+			"movl $-1, %%esi\n\t"
+			"movl $-1, %%edi\n\t"
+			"movl $-1, %%ebp\n\t"
+			"movl $-1, %%esp\n\t"
+			"sysenter"
+			: : : "memory", "flags");
+	}
+	set_eflags(get_eflags() & ~X86_EFLAGS_TF);
+#endif
 
 	return 0;
 }

@@ -8,7 +8,7 @@
 #include "core_priv.h"
 #include "restrack.h"
 
-#define ALL_AUTO_MODE_MASKS (RDMA_COUNTER_MASK_QP_TYPE)
+#define ALL_AUTO_MODE_MASKS (RDMA_COUNTER_MASK_QP_TYPE | RDMA_COUNTER_MASK_PID)
 
 static int __counter_set_mode(struct rdma_counter_mode *curr,
 			      enum rdma_nl_counter_mode new_mode,
@@ -149,22 +149,12 @@ static bool auto_mode_match(struct ib_qp *qp, struct rdma_counter *counter,
 	struct auto_mode_param *param = &counter->mode.param;
 	bool match = true;
 
-	/*
-	 * Ensure that counter belongs to the right PID.  This operation can
-	 * race with user space which kills the process and leaves QP and
-	 * counters orphans.
-	 *
-	 * It is not a big deal because exitted task will leave both QP and
-	 * counter in the same bucket of zombie process. Just ensure that
-	 * process is still alive before procedding.
-	 *
-	 */
-	if (task_pid_nr(counter->res.task) != task_pid_nr(qp->res.task) ||
-	    !task_pid_nr(qp->res.task))
-		return false;
-
 	if (auto_mask & RDMA_COUNTER_MASK_QP_TYPE)
 		match &= (param->qp_type == qp->qp_type);
+
+	if (auto_mask & RDMA_COUNTER_MASK_PID)
+		match &= (task_pid_nr(counter->res.task) ==
+			  task_pid_nr(qp->res.task));
 
 	return match;
 }
@@ -288,7 +278,7 @@ int rdma_counter_bind_qp_auto(struct ib_qp *qp, u8 port)
 	struct rdma_counter *counter;
 	int ret;
 
-	if (!qp->res.valid)
+	if (!qp->res.valid || rdma_is_kernel_res(&qp->res))
 		return 0;
 
 	if (!rdma_is_port_valid(dev, port))
@@ -483,7 +473,7 @@ int rdma_counter_bind_qpn(struct ib_device *dev, u8 port,
 		goto err;
 	}
 
-	if (counter->res.task != qp->res.task) {
+	if (rdma_is_kernel_res(&counter->res) != rdma_is_kernel_res(&qp->res)) {
 		ret = -EINVAL;
 		goto err_task;
 	}

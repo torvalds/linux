@@ -85,6 +85,6 @@ static inline struct thread_info *current_thread_info(void)
 				 _TIF_NOTIFY_RESUME | _TIF_UPROBE)
 
 #define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
-				 _TIF_SYSCALL_TRACEPOINT)
+				 _TIF_SYSCALL_TRACEPOINT | _TIF_SECCOMP)
 
 #endif	/* _ASM_CSKY_THREAD_INFO_H */

@@ -252,7 +252,6 @@ static int adc108s102_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->name = spi->modalias;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adc108s102_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adc108s102_channels);

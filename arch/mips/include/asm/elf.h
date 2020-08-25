@@ -410,6 +410,7 @@ do {									\
 	clear_thread_flag(TIF_32BIT_FPREGS);				\
 	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
+	current->personality &= ~READ_IMPLIES_EXEC;			\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
 		__SET_PERSONALITY32(ex, state);				\

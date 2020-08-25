@@ -14,7 +14,6 @@ struct i40e_hw;
 #define I40E_HMC_DIRECT_BP_SIZE		0x200000 /* 2M */
 #define I40E_HMC_PAGED_BP_SIZE		4096
 #define I40E_HMC_PD_BP_BUF_ALIGNMENT	4096
-#define I40E_FIRST_VF_FPM_ID		16
 
 struct i40e_hmc_obj_info {
 	u64 base;	/* base addr in FPM */

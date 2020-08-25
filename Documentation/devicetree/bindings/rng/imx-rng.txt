@@ -5,6 +5,9 @@ Required properties:
                "fsl,imx21-rnga"
                "fsl,imx31-rnga" (backward compatible with "fsl,imx21-rnga")
                "fsl,imx25-rngb"
+               "fsl,imx6sl-rngb" (backward compatible with "fsl,imx25-rngb")
+               "fsl,imx6sll-rngb" (backward compatible with "fsl,imx25-rngb")
+               "fsl,imx6ull-rngb" (backward compatible with "fsl,imx25-rngb")
                "fsl,imx35-rngc"
 - reg : offset and length of the register set of this block
 - interrupts : the interrupt number for the RNG block

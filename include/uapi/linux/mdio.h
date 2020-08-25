@@ -324,4 +324,30 @@ static inline __u16 mdio_phy_id_c45(int prtad, int devad)
 	return MDIO_PHY_ID_C45 | (prtad << 5) | devad;
 }
 
+/* UsxgmiiChannelInfo[15:0] for USXGMII in-band auto-negotiation.*/
+#define MDIO_USXGMII_EEE_CLK_STP	0x0080	/* EEE clock stop supported */
+#define MDIO_USXGMII_EEE		0x0100	/* EEE supported */
+#define MDIO_USXGMII_SPD_MASK		0x0e00	/* USXGMII speed mask */
+#define MDIO_USXGMII_FULL_DUPLEX	0x1000	/* USXGMII full duplex */
+#define MDIO_USXGMII_DPX_SPD_MASK	0x1e00	/* USXGMII duplex and speed bits */
+#define MDIO_USXGMII_10			0x0000	/* 10Mbps */
+#define MDIO_USXGMII_10HALF		0x0000	/* 10Mbps half-duplex */
+#define MDIO_USXGMII_10FULL		0x1000	/* 10Mbps full-duplex */
+#define MDIO_USXGMII_100		0x0200	/* 100Mbps */
+#define MDIO_USXGMII_100HALF		0x0200	/* 100Mbps half-duplex */
+#define MDIO_USXGMII_100FULL		0x1200	/* 100Mbps full-duplex */
+#define MDIO_USXGMII_1000		0x0400	/* 1000Mbps */
+#define MDIO_USXGMII_1000HALF		0x0400	/* 1000Mbps half-duplex */
+#define MDIO_USXGMII_1000FULL		0x1400	/* 1000Mbps full-duplex */
+#define MDIO_USXGMII_10G		0x0600	/* 10Gbps */
+#define MDIO_USXGMII_10GHALF		0x0600	/* 10Gbps half-duplex */
+#define MDIO_USXGMII_10GFULL		0x1600	/* 10Gbps full-duplex */
+#define MDIO_USXGMII_2500		0x0800	/* 2500Mbps */
+#define MDIO_USXGMII_2500HALF		0x0800	/* 2500Mbps half-duplex */
+#define MDIO_USXGMII_2500FULL		0x1800	/* 2500Mbps full-duplex */
+#define MDIO_USXGMII_5000		0x0a00	/* 5000Mbps */
+#define MDIO_USXGMII_5000HALF		0x0a00	/* 5000Mbps half-duplex */
+#define MDIO_USXGMII_5000FULL		0x1a00	/* 5000Mbps full-duplex */
+#define MDIO_USXGMII_LINK		0x8000	/* PHY link with copper-side partner */
+
 #endif /* _UAPI__LINUX_MDIO_H__ */

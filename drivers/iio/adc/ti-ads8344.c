@@ -4,7 +4,7 @@
  *
  * Author: Gregory CLEMENT <gregory.clement@bootlin.com>
  *
- * Datasheet: http://www.ti.com/lit/ds/symlink/ads8344.pdf
+ * Datasheet: https://www.ti.com/lit/ds/symlink/ads8344.pdf
  */
 
 #include <linux/delay.h>
@@ -148,8 +148,6 @@ static int ads8344_probe(struct spi_device *spi)
 	mutex_init(&adc->lock);
 
 	indio_dev->name = dev_name(&spi->dev);
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &ads8344_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ads8344_channels;

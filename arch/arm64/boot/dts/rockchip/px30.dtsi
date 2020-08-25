@@ -714,6 +714,7 @@
 			reg = <0x0 0xff240000 0x0 0x4000>;
 			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
@@ -733,9 +734,9 @@
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <120000>;
 		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&tsadc_otp_gpio>;
+		pinctrl-0 = <&tsadc_otp_pin>;
 		pinctrl-1 = <&tsadc_otp_out>;
-		pinctrl-2 = <&tsadc_otp_gpio>;
+		pinctrl-2 = <&tsadc_otp_pin>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
@@ -1373,7 +1374,7 @@
 		};
 
 		tsadc {
-			tsadc_otp_gpio: tsadc-otp-gpio {
+			tsadc_otp_pin: tsadc-otp-pin {
 				rockchip,pins =
 					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};

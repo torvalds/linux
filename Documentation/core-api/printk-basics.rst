@@ -69,7 +69,7 @@ You can check the current *console_loglevel* with::
 The result shows the *current*, *default*, *minimum* and *boot-time-default* log
 levels.
 
-To change the current console_loglevel simply write the the desired level to
+To change the current console_loglevel simply write the desired level to
 ``/proc/sys/kernel/printk``. For example, to print all messages to the console::
 
   # echo 8 > /proc/sys/kernel/printk

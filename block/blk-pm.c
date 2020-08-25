@@ -164,9 +164,8 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  *
  * Description:
  *    Update the queue's runtime status according to the return value of the
- *    device's runtime_resume function. If it is successfully resumed, process
- *    the requests that are queued into the device's queue when it is resuming
- *    and then mark last busy and initiate autosuspend for it.
+ *    device's runtime_resume function. If the resume was successful, call
+ *    blk_set_runtime_active() to do the real work of restarting the queue.
  *
  *    This function should be called near the end of the device's
  *    runtime_resume callback.
@@ -175,19 +174,13 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 {
 	if (!q->dev)
 		return;
-
-	spin_lock_irq(&q->queue_lock);
 	if (!err) {
-		q->rpm_status = RPM_ACTIVE;
-		pm_runtime_mark_last_busy(q->dev);
-		pm_request_autosuspend(q->dev);
+		blk_set_runtime_active(q);
 	} else {
+		spin_lock_irq(&q->queue_lock);
 		q->rpm_status = RPM_SUSPENDED;
+		spin_unlock_irq(&q->queue_lock);
 	}
-	spin_unlock_irq(&q->queue_lock);
-
-	if (!err)
-		blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_resume);
 
@@ -204,15 +197,25 @@ EXPORT_SYMBOL(blk_post_runtime_resume);
  * This function can be used in driver's resume hook to correct queue
  * runtime PM status and re-enable peeking requests from the queue. It
  * should be called before first request is added to the queue.
+ *
+ * This function is also called by blk_post_runtime_resume() for successful
+ * runtime resumes.  It does everything necessary to restart the queue.
  */
 void blk_set_runtime_active(struct request_queue *q)
 {
-	if (q->dev) {
-		spin_lock_irq(&q->queue_lock);
-		q->rpm_status = RPM_ACTIVE;
-		pm_runtime_mark_last_busy(q->dev);
-		pm_request_autosuspend(q->dev);
-		spin_unlock_irq(&q->queue_lock);
-	}
+	int old_status;
+
+	if (!q->dev)
+		return;
+
+	spin_lock_irq(&q->queue_lock);
+	old_status = q->rpm_status;
+	q->rpm_status = RPM_ACTIVE;
+	pm_runtime_mark_last_busy(q->dev);
+	pm_request_autosuspend(q->dev);
+	spin_unlock_irq(&q->queue_lock);
+
+	if (old_status != RPM_ACTIVE)
+		blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_set_runtime_active);

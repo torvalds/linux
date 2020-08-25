@@ -454,7 +454,6 @@
 	nop
 	LDREG		0(\ptp),\pte
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
-	LDCW		0(\tmp),\tmp1
 	b		\fault
 	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
@@ -464,23 +463,26 @@
 3:
 	.endm
 
-	/* Release pa_tlb_lock lock without reloading lock address. */
-	.macro		tlb_unlock0	spc,tmp,tmp1
+	/* Release pa_tlb_lock lock without reloading lock address.
+	   Note that the values in the register spc are limited to
+	   NR_SPACE_IDS (262144). Thus, the stw instruction always
+	   stores a nonzero value even when register spc is 64 bits.
+	   We use an ordered store to ensure all prior accesses are
+	   performed prior to releasing the lock. */
+	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 98:	or,COND(=)	%r0,\spc,%r0
-	LDCW		0(\tmp),\tmp1
-	or,COND(=)	%r0,\spc,%r0
-	stw		\spc,0(\tmp)
+	stw,ma		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
-	.macro		tlb_unlock1	spc,tmp,tmp1
+	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
 98:	load_pa_tlb_lock \tmp
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-	tlb_unlock0	\spc,\tmp,\tmp1
+	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
 
@@ -1163,7 +1165,7 @@ dtlb_miss_20w:
 	
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1189,7 +1191,7 @@ nadtlb_miss_20w:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1223,7 +1225,7 @@ dtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1256,7 +1258,7 @@ nadtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1285,7 +1287,7 @@ dtlb_miss_20:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1313,7 +1315,7 @@ nadtlb_miss_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1420,7 +1422,7 @@ itlb_miss_20w:
 	
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1444,7 +1446,7 @@ naitlb_miss_20w:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1478,7 +1480,7 @@ itlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1502,7 +1504,7 @@ naitlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1532,7 +1534,7 @@ itlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1552,7 +1554,7 @@ naitlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1582,7 +1584,7 @@ dbit_trap_20w:
 		
 	idtlbt          pte,prot
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #else
@@ -1608,7 +1610,7 @@ dbit_trap_11:
 
 	mtsp            t1, %sr1     /* Restore sr1 */
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 
@@ -1628,7 +1630,7 @@ dbit_trap_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #endif

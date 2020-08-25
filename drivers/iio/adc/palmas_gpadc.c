@@ -76,7 +76,7 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 	PALMAS_ADC_INFO(IN15, 0, 0, 0, 0, INVALID, INVALID, true),
 };
 
-/**
+/*
  * struct palmas_gpadc - the palmas_gpadc structure
  * @ch0_current:	channel 0 current source setting
  *			0: 0 uA
@@ -94,7 +94,6 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
  * This is the palmas_gpadc structure to store run-time information
  * and pointers for this driver instance.
  */
-
 struct palmas_gpadc {
 	struct device			*dev;
 	struct palmas			*palmas;
@@ -593,7 +592,6 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	adc->extended_delay = gpadc_pdata->extended_delay;
 
 	indio_dev->name = MOD_NAME;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &palmas_gpadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = palmas_gpadc_iio_channel;

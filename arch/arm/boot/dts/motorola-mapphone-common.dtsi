@@ -140,13 +140,13 @@
 		compatible = "audio-graph-card";
 		label = "Droid 4 Audio";
 
-		simple-graph-card,widgets =
+		widgets =
 			"Speaker", "Earpiece",
 			"Speaker", "Loudspeaker",
 			"Headphone", "Headphone Jack",
 			"Microphone", "Internal Mic";
 
-		simple-graph-card,routing =
+		routing =
 			"Earpiece", "EP",
 			"Loudspeaker", "SPKR",
 			"Headphone Jack", "HSL",

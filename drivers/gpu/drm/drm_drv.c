@@ -815,8 +815,7 @@ static void drm_dev_release(struct kref *ref)
 
 	drm_managed_release(dev);
 
-	if (dev->managed.final_kfree)
-		kfree(dev->managed.final_kfree);
+	kfree(dev->managed.final_kfree);
 }
 
 /**

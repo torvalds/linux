@@ -1,6 +1,6 @@
 * Avago APDS9300 ambient light sensor
 
-http://www.avagotech.com/docs/AV02-1077EN
+https://www.avagotech.com/docs/AV02-1077EN
 
 Required properties:
 

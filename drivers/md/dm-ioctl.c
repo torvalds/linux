@@ -1168,7 +1168,7 @@ static void retrieve_status(struct dm_table *table,
 		spec->sector_start = ti->begin;
 		spec->length = ti->len;
 		strncpy(spec->target_type, ti->type->name,
-			sizeof(spec->target_type));
+			sizeof(spec->target_type) - 1);
 
 		outptr += sizeof(struct dm_target_spec);
 		remaining = len - (outptr - outbuf);
@@ -1844,7 +1844,7 @@ static int ctl_ioctl(struct file *file, uint command, struct dm_ioctl __user *us
 	int ioctl_flags;
 	int param_flags;
 	unsigned int cmd;
-	struct dm_ioctl *uninitialized_var(param);
+	struct dm_ioctl *param;
 	ioctl_fn fn = NULL;
 	size_t input_param_size;
 	struct dm_ioctl param_kernel;

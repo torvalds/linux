@@ -1727,6 +1727,13 @@ DEFINE_NFS4_IDMAP_EVENT(nfs4_map_group_to_gid);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_uid_to_name);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_gid_to_group);
 
+#ifdef CONFIG_NFS_V4_1
+#define NFS4_LSEG_LAYOUT_STATEID_HASH(lseg) \
+	(lseg ? nfs_stateid_hash(&lseg->pls_layout->plh_stateid) : 0)
+#else
+#define NFS4_LSEG_LAYOUT_STATEID_HASH(lseg) (0)
+#endif
+
 DECLARE_EVENT_CLASS(nfs4_read_event,
 		TP_PROTO(
 			const struct nfs_pgio_header *hdr,
@@ -1745,6 +1752,8 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 			__field(unsigned long, error)
 			__field(int, stateid_seq)
 			__field(u32, stateid_hash)
+			__field(int, layoutstateid_seq)
+			__field(u32, layoutstateid_hash)
 		),
 
 		TP_fast_assign(
@@ -1754,6 +1763,7 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 						  hdr->args.fh : &nfsi->fh;
 			const struct nfs4_state *state =
 				hdr->args.context->state;
+			const struct pnfs_layout_segment *lseg = hdr->lseg;
 
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
@@ -1766,11 +1776,15 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 				be32_to_cpu(state->stateid.seqid);
 			__entry->stateid_hash =
 				nfs_stateid_hash(&state->stateid);
+			__entry->layoutstateid_seq = lseg ? lseg->pls_seq : 0;
+			__entry->layoutstateid_hash =
+				NFS4_LSEG_LAYOUT_STATEID_HASH(lseg);
 		),
 
 		TP_printk(
 			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%u res=%u stateid=%d:0x%08x",
+			"offset=%lld count=%u res=%u stateid=%d:0x%08x "
+			"layoutstateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -1778,7 +1792,8 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 			__entry->fhandle,
 			(long long)__entry->offset,
 			__entry->arg_count, __entry->res_count,
-			__entry->stateid_seq, __entry->stateid_hash
+			__entry->stateid_seq, __entry->stateid_hash,
+			__entry->layoutstateid_seq, __entry->layoutstateid_hash
 		)
 );
 #define DEFINE_NFS4_READ_EVENT(name) \
@@ -1811,6 +1826,8 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 			__field(unsigned long, error)
 			__field(int, stateid_seq)
 			__field(u32, stateid_hash)
+			__field(int, layoutstateid_seq)
+			__field(u32, layoutstateid_hash)
 		),
 
 		TP_fast_assign(
@@ -1820,6 +1837,7 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 						  hdr->args.fh : &nfsi->fh;
 			const struct nfs4_state *state =
 				hdr->args.context->state;
+			const struct pnfs_layout_segment *lseg = hdr->lseg;
 
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
@@ -1832,11 +1850,15 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 				be32_to_cpu(state->stateid.seqid);
 			__entry->stateid_hash =
 				nfs_stateid_hash(&state->stateid);
+			__entry->layoutstateid_seq = lseg ? lseg->pls_seq : 0;
+			__entry->layoutstateid_hash =
+				NFS4_LSEG_LAYOUT_STATEID_HASH(lseg);
 		),
 
 		TP_printk(
 			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%u res=%u stateid=%d:0x%08x",
+			"offset=%lld count=%u res=%u stateid=%d:0x%08x "
+			"layoutstateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -1844,7 +1866,8 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 			__entry->fhandle,
 			(long long)__entry->offset,
 			__entry->arg_count, __entry->res_count,
-			__entry->stateid_seq, __entry->stateid_hash
+			__entry->stateid_seq, __entry->stateid_hash,
+			__entry->layoutstateid_seq, __entry->layoutstateid_hash
 		)
 );
 
@@ -1875,6 +1898,8 @@ DECLARE_EVENT_CLASS(nfs4_commit_event,
 			__field(unsigned long, error)
 			__field(loff_t, offset)
 			__field(u32, count)
+			__field(int, layoutstateid_seq)
+			__field(u32, layoutstateid_hash)
 		),
 
 		TP_fast_assign(
@@ -1882,6 +1907,7 @@ DECLARE_EVENT_CLASS(nfs4_commit_event,
 			const struct nfs_inode *nfsi = NFS_I(inode);
 			const struct nfs_fh *fh = data->args.fh ?
 						  data->args.fh : &nfsi->fh;
+			const struct pnfs_layout_segment *lseg = data->lseg;
 
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
@@ -1889,18 +1915,22 @@ DECLARE_EVENT_CLASS(nfs4_commit_event,
 			__entry->offset = data->args.offset;
 			__entry->count = data->args.count;
 			__entry->error = error < 0 ? -error : 0;
+			__entry->layoutstateid_seq = lseg ? lseg->pls_seq : 0;
+			__entry->layoutstateid_hash =
+				NFS4_LSEG_LAYOUT_STATEID_HASH(lseg);
 		),
 
 		TP_printk(
 			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%u",
+			"offset=%lld count=%u layoutstateid=%d:0x%08x",
 			-__entry->error,
 			show_nfsv4_errors(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset,
-			__entry->count
+			__entry->count,
+			__entry->layoutstateid_seq, __entry->layoutstateid_hash
 		)
 );
 #define DEFINE_NFS4_COMMIT_EVENT(name) \
@@ -1993,7 +2023,9 @@ TRACE_EVENT(nfs4_layoutget,
 
 DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutcommit);
 DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutreturn);
-DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn_on_close);
+DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutreturn_on_close);
+DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layouterror);
+DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutstats);
 
 TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_UNKNOWN);
 TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_NO_PNFS);

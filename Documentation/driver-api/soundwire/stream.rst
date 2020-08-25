@@ -293,6 +293,10 @@ per stream. From ASoC DPCM framework, this stream state maybe linked to
 
   int sdw_alloc_stream(char * stream_name);
 
+The SoundWire core provides a sdw_startup_stream() helper function,
+typically called during a dailink .startup() callback, which performs
+stream allocation and sets the stream pointer for all DAIs
+connected to a stream.
 
 SDW_STREAM_CONFIGURED
 ~~~~~~~~~~~~~~~~~~~~~
@@ -509,7 +513,12 @@ In .shutdown() the data structure maintaining stream state are freed up.
 
   void sdw_release_stream(struct sdw_stream_runtime * stream);
 
-Not Supported
+The SoundWire core provides a sdw_shutdown_stream() helper function,
+typically called during a dailink .shutdown() callback, which clears
+the stream pointer for all DAIS connected to a stream and releases the
+memory allocated for the stream.
+
+  Not Supported
 =============
 
 1. A single port with multiple channels supported cannot be used between two

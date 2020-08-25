@@ -43,29 +43,18 @@ properties:
   '#sound-dai-cells':
     const: 1
 
-  fsia,spdif-connection:
+patternProperties:
+  "^fsi(a|b),spdif-connection$":
     $ref: /schemas/types.yaml#/definitions/flag
     description: FSI is connected by S/PDIF
 
-  fsia,stream-mode-support:
+  "^fsi(a|b),stream-mode-support$":
     $ref: /schemas/types.yaml#/definitions/flag
     description: FSI supports 16bit stream mode
 
-  fsia,use-internal-clock:
+  "^fsi(a|b),use-internal-clock$":
     $ref: /schemas/types.yaml#/definitions/flag
     description: FSI uses internal clock when master mode
-
-  fsib,spdif-connection:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description: same as fsia
-
-  fsib,stream-mode-support:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description: same as fsia
-
-  fsib,use-internal-clock:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description: same as fsia
 
 required:
   - compatible

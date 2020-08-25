@@ -8,9 +8,8 @@ There are various L3 encapsulation standards using UDP being discussed to
 leverage the UDP based load balancing capability of different networks.
 MPLSoUDP (__ https://tools.ietf.org/html/rfc7510) is one among them.
 
-The Bareudp tunnel module provides a generic L3 encapsulation tunnelling
-support for tunnelling different L3 protocols like MPLS, IP, NSH etc. inside
-a UDP tunnel.
+The Bareudp tunnel module provides a generic L3 encapsulation support for
+tunnelling different L3 protocols like MPLS, IP, NSH etc. inside a UDP tunnel.
 
 Special Handling
 ----------------

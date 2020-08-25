@@ -32,7 +32,6 @@
 #define DRIVER_DESC		"Marvell PXA USB3.0 Device Controller driver"
 
 static const char driver_name[] = "mv_u3d";
-static const char driver_desc[] = DRIVER_DESC;
 
 static void mv_u3d_nuke(struct mv_u3d_ep *ep, int status);
 static void mv_u3d_stop_activity(struct mv_u3d *u3d,

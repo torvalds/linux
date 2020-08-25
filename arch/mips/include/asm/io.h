@@ -51,15 +51,13 @@
 
 /* ioswab[bwlq], __mem_ioswab[bwlq] are defined in mangle-port.h */
 
-#define IO_SPACE_LIMIT 0xffff
-
 /*
  * On MIPS I/O ports are memory mapped, so we access them using normal
  * load/store instructions. mips_io_port_base is the virtual address to
  * which all ports are being mapped.  For sake of efficiency some code
  * assumes that this is an address that can be loaded with a single lui
  * instruction, so the lower 16 bits must be zero.  Should be true on
- * on any sane architecture; generic code does not use this assumption.
+ * any sane architecture; generic code does not use this assumption.
  */
 extern unsigned long mips_io_port_base;
 

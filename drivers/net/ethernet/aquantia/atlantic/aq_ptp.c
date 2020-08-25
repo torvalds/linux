@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Aquantia Corporation Network Driver
- * Copyright (C) 2014-2019 Aquantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ptp.c:
@@ -17,6 +19,8 @@
 #include "aq_ring.h"
 #include "aq_phy.h"
 #include "aq_filters.h"
+
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
 #define AQ_PTP_TX_TIMEOUT        (HZ *  10)
 
@@ -77,6 +81,8 @@ struct aq_ptp_s {
 
 	bool extts_pin_enabled;
 	u64 last_sync1588_ts;
+
+	bool a1_ptp;
 };
 
 struct ptp_tm_offset {
@@ -778,8 +784,10 @@ int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 		err = aq_nic->aq_hw_ops->hw_ring_tx_xmit(aq_nic->aq_hw,
 						       ring, frags);
 		if (err >= 0) {
+			u64_stats_update_begin(&ring->stats.tx.syncp);
 			++ring->stats.tx.packets;
 			ring->stats.tx.bytes += skb->len;
+			u64_stats_update_end(&ring->stats.tx.syncp);
 		}
 	} else {
 		err = NETDEV_TX_BUSY;
@@ -840,7 +848,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return 0;
 
-	err = aq_ring_init(&aq_ptp->ptp_tx);
+	err = aq_ring_init(&aq_ptp->ptp_tx, ATL_RING_TX);
 	if (err < 0)
 		goto err_exit;
 	err = aq_nic->aq_hw_ops->hw_ring_tx_init(aq_nic->aq_hw,
@@ -849,7 +857,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (err < 0)
 		goto err_exit;
 
-	err = aq_ring_init(&aq_ptp->ptp_rx);
+	err = aq_ring_init(&aq_ptp->ptp_rx, ATL_RING_RX);
 	if (err < 0)
 		goto err_exit;
 	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,
@@ -867,7 +875,7 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 	if (err < 0)
 		goto err_rx_free;
 
-	err = aq_ring_init(&aq_ptp->hwts_rx);
+	err = aq_ring_init(&aq_ptp->hwts_rx, ATL_RING_RX);
 	if (err < 0)
 		goto err_rx_free;
 	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,
@@ -941,21 +949,6 @@ void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic)
 	aq_ring_rx_deinit(&aq_ptp->ptp_rx);
 }
 
-#define PTP_8TC_RING_IDX             8
-#define PTP_4TC_RING_IDX            16
-#define PTP_HWST_RING_IDX           31
-
-/* Index must be 8 (8 TCs) or 16 (4 TCs).
- * It depends on Traffic Class mode.
- */
-static unsigned int ptp_ring_idx(const enum aq_tc_mode tc_mode)
-{
-	if (tc_mode == AQ_TC_MODE_8TCS)
-		return PTP_8TC_RING_IDX;
-
-	return PTP_4TC_RING_IDX;
-}
-
 int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 {
 	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
@@ -967,7 +960,7 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return 0;
 
-	tx_ring_idx = ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
+	tx_ring_idx = aq_ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
 
 	ring = aq_ring_tx_alloc(&aq_ptp->ptp_tx, aq_nic,
 				tx_ring_idx, &aq_nic->aq_nic_cfg);
@@ -976,7 +969,7 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 		goto err_exit;
 	}
 
-	rx_ring_idx = ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
+	rx_ring_idx = aq_ptp_ring_idx(aq_nic->aq_nic_cfg.tc_mode);
 
 	ring = aq_ring_rx_alloc(&aq_ptp->ptp_rx, aq_nic,
 				rx_ring_idx, &aq_nic->aq_nic_cfg);
@@ -1168,10 +1161,16 @@ static void aq_ptp_poll_sync_work_cb(struct work_struct *w);
 
 int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 {
+	bool a1_ptp = ATL_HW_IS_CHIP_FEATURE(aq_nic->aq_hw, ATLANTIC);
 	struct hw_atl_utils_mbox mbox;
 	struct ptp_clock *clock;
 	struct aq_ptp_s *aq_ptp;
 	int err = 0;
+
+	if (!a1_ptp) {
+		aq_nic->aq_ptp = NULL;
+		return 0;
+	}
 
 	if (!aq_nic->aq_hw_ops->hw_get_ptp_ts) {
 		aq_nic->aq_ptp = NULL;
@@ -1199,6 +1198,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 	}
 
 	aq_ptp->aq_nic = aq_nic;
+	aq_ptp->a1_ptp = a1_ptp;
 
 	spin_lock_init(&aq_ptp->ptp_lock);
 	spin_lock_init(&aq_ptp->ptp_ring_lock);
@@ -1389,3 +1389,36 @@ static void aq_ptp_poll_sync_work_cb(struct work_struct *w)
 		schedule_delayed_work(&aq_ptp->poll_sync, timeout);
 	}
 }
+
+int aq_ptp_get_ring_cnt(struct aq_nic_s *aq_nic, const enum atl_ring_type ring_type)
+{
+	if (!aq_nic->aq_ptp)
+		return 0;
+
+	/* Additional RX ring is allocated for PTP HWTS on A1 */
+	return (aq_nic->aq_ptp->a1_ptp && ring_type == ATL_RING_RX) ? 2 : 1;
+}
+
+u64 *aq_ptp_get_stats(struct aq_nic_s *aq_nic, u64 *data)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	unsigned int count = 0U;
+
+	if (!aq_ptp)
+		return data;
+
+	count = aq_ring_fill_stats_data(&aq_ptp->ptp_rx, data);
+	data += count;
+	count = aq_ring_fill_stats_data(&aq_ptp->ptp_tx, data);
+	data += count;
+
+	if (aq_ptp->a1_ptp) {
+		/* Only Receive ring for HWTS */
+		count = aq_ring_fill_stats_data(&aq_ptp->hwts_rx, data);
+		data += count;
+	}
+
+	return data;
+}
+
+#endif

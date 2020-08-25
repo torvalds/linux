@@ -10,6 +10,7 @@ Block
    bfq-iosched
    biodoc
    biovecs
+   blk-mq
    capability
    cmdline-partition
    data-integrity

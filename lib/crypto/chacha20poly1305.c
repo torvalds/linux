@@ -21,8 +21,6 @@
 
 #define CHACHA_KEY_WORDS	(CHACHA_KEY_SIZE / sizeof(u32))
 
-bool __init chacha20poly1305_selftest(void);
-
 static void chacha_load_key(u32 *k, const u8 *in)
 {
 	k[0] = get_unaligned_le32(in);

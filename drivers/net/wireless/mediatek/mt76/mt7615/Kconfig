@@ -28,13 +28,28 @@ config MT7622_WMAC
 	  which has the same feature set as a MT7615, but limited to
 	  2.4 GHz only.
 
+config MT7663_USB_SDIO_COMMON
+	tristate
+	select MT7615_COMMON
+
 config MT7663U
 	tristate "MediaTek MT7663U (USB) support"
 	select MT76_USB
-	select MT7615_COMMON
+	select MT7663_USB_SDIO_COMMON
 	depends on MAC80211
 	depends on USB
 	help
-	  This adds support for MT7663U 802.11ax 2x2:2 wireless devices.
+	  This adds support for MT7663U 802.11ac 2x2:2 wireless devices.
+
+	  To compile this driver as a module, choose M here.
+
+config MT7663S
+	tristate "MediaTek MT7663S (SDIO) support"
+	select MT76_SDIO
+	select MT7663_USB_SDIO_COMMON
+	depends on MAC80211
+	depends on MMC
+	help
+	  This adds support for MT7663S 802.11ac 2x2:2 wireless devices.
 
 	  To compile this driver as a module, choose M here.

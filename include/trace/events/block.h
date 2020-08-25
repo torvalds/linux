@@ -212,6 +212,21 @@ DEFINE_EVENT(block_rq, block_rq_issue,
 );
 
 /**
+ * block_rq_merge - merge request with another one in the elevator
+ * @q: queue holding operation
+ * @rq: block IO operation operation request
+ *
+ * Called when block operation request @rq from queue @q is merged to another
+ * request queued in the elevator.
+ */
+DEFINE_EVENT(block_rq, block_rq_merge,
+
+	TP_PROTO(struct request_queue *q, struct request *rq),
+
+	TP_ARGS(q, rq)
+);
+
+/**
  * block_bio_bounce - used bounce buffer when processing block operation
  * @q: queue holding the block operation
  * @bio: block operation

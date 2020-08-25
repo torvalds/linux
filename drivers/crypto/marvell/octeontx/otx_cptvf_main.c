@@ -68,7 +68,7 @@ static void cleanup_worker_threads(struct otx_cptvf *cptvf)
 	for (i = 0; i < cptvf->num_queues; i++)
 		tasklet_kill(&cwqe_info->vq_wqe[i].twork);
 
-	kzfree(cwqe_info);
+	kfree_sensitive(cwqe_info);
 	cptvf->wqe_info = NULL;
 }
 
@@ -82,7 +82,7 @@ static void free_pending_queues(struct otx_cpt_pending_qinfo *pqinfo)
 			continue;
 
 		/* free single queue */
-		kzfree((queue->head));
+		kfree_sensitive((queue->head));
 		queue->front = 0;
 		queue->rear = 0;
 		queue->qlen = 0;
@@ -176,7 +176,7 @@ static void free_command_queues(struct otx_cptvf *cptvf,
 			chunk->head = NULL;
 			chunk->dma_addr = 0;
 			list_del(&chunk->nextchunk);
-			kzfree(chunk);
+			kfree_sensitive(chunk);
 		}
 		queue->num_chunks = 0;
 		queue->idx = 0;

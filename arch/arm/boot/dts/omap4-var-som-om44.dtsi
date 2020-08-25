@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Joachim Eastwood <manabian@gmail.com>
- * Copyright (C) 2012 Variscite Ltd. - http://www.variscite.com
+ * Copyright (C) 2012 Variscite Ltd. - https://www.variscite.com
  */
 #include "omap4460.dtsi"
 #include "omap4-mcpdm.dtsi"

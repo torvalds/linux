@@ -51,15 +51,16 @@ static void rps_timer(struct timer_list *t)
 {
 	struct intel_rps *rps = from_timer(rps, t, timer);
 	struct intel_engine_cs *engine;
+	ktime_t dt, last, timestamp;
 	enum intel_engine_id id;
 	s64 max_busy[3] = {};
-	ktime_t dt, last;
 
+	timestamp = 0;
 	for_each_engine(engine, rps_to_gt(rps), id) {
 		s64 busy;
 		int i;
 
-		dt = intel_engine_get_busy_time(engine);
+		dt = intel_engine_get_busy_time(engine, &timestamp);
 		last = engine->stats.rps;
 		engine->stats.rps = dt;
 
@@ -69,16 +70,14 @@ static void rps_timer(struct timer_list *t)
 				swap(busy, max_busy[i]);
 		}
 	}
-
-	dt = ktime_get();
 	last = rps->pm_timestamp;
-	rps->pm_timestamp = dt;
+	rps->pm_timestamp = timestamp;
 
 	if (intel_rps_is_active(rps)) {
 		s64 busy;
 		int i;
 
-		dt = ktime_sub(dt, last);
+		dt = ktime_sub(timestamp, last);
 
 		/*
 		 * Our goal is to evaluate each engine independently, so we run
@@ -1063,11 +1062,12 @@ static bool gen6_rps_enable(struct intel_rps *rps)
 static int chv_rps_max_freq(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_gt *gt = rps_to_gt(rps);
 	u32 val;
 
 	val = vlv_punit_read(i915, FB_GFX_FMAX_AT_VMAX_FUSE);
 
-	switch (RUNTIME_INFO(i915)->sseu.eu_total) {
+	switch (gt->info.sseu.eu_total) {
 	case 8:
 		/* (2 * 4) config */
 		val >>= FB_GFX_FMAX_AT_VMAX_2SS4EU_FUSE_SHIFT;

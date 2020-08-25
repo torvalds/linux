@@ -114,6 +114,13 @@ patternProperties:
         description:
           Contains the native Ready/Busy IDs.
 
+      rb-gpios:
+        description:
+          Contains one or more GPIO descriptor (the numper of descriptor
+          depends on the number of R/B pins exposed by the flash) for the
+          Ready/Busy pins. Active state refers to the NAND ready state and
+          should be set to GPIOD_ACTIVE_HIGH unless the signal is inverted.
+
     required:
       - reg
 

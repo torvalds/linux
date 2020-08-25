@@ -6,6 +6,7 @@
 #ifndef __SELFTESTS_POWERPC_PMU_LIB_H
 #define __SELFTESTS_POWERPC_PMU_LIB_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>

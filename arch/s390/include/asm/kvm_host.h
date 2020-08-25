@@ -260,7 +260,8 @@ struct kvm_s390_sie_block {
 	__u32	scaol;			/* 0x0064 */
 	__u8	sdf;			/* 0x0068 */
 	__u8    epdx;			/* 0x0069 */
-	__u8    reserved6a[2];		/* 0x006a */
+	__u8	cpnc;			/* 0x006a */
+	__u8	reserved6b;		/* 0x006b */
 	__u32	todpr;			/* 0x006c */
 #define GISA_FORMAT1 0x00000001
 	__u32	gd;			/* 0x0070 */
@@ -745,6 +746,7 @@ struct kvm_vcpu_arch {
 	bool gs_enabled;
 	bool skey_enabled;
 	struct kvm_s390_pv_vcpu pv;
+	union diag318_info diag318_info;
 };
 
 struct kvm_vm_stat {

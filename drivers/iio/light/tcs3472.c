@@ -454,7 +454,6 @@ static int tcs3472_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tcs3472_info;
 	indio_dev->name = TCS3472_DRV_NAME;
 	indio_dev->channels = tcs3472_channels;

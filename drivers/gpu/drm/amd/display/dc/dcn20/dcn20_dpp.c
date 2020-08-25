@@ -181,9 +181,11 @@ static void dpp2_cnv_setup (
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX:
 		pixel_format = 112;
+		alpha_en = 0;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX:
 		pixel_format = 113;
+		alpha_en = 0;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010:
 		pixel_format = 114;
@@ -199,9 +201,11 @@ static void dpp2_cnv_setup (
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT:
 		pixel_format = 118;
+		alpha_en = 0;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT:
 		pixel_format = 119;
+		alpha_en = 0;
 		break;
 	default:
 		break;

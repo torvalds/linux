@@ -271,7 +271,6 @@ static int adis16201_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi->dev.driver->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16201_info;
 
 	indio_dev->channels = adis16201_channels;

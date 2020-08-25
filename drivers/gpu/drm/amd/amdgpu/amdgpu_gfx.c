@@ -578,6 +578,20 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 }
 
+int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
+{
+
+	int r = 0;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	r = smu_get_status_gfxoff(adev, value);
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+
+	return r;
+}
+
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;

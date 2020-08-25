@@ -162,9 +162,6 @@ struct i915_request {
 	struct dma_fence fence;
 	spinlock_t lock;
 
-	/** On Which ring this request was generated */
-	struct drm_i915_private *i915;
-
 	/**
 	 * Context and ring buffer related to this request
 	 * Contexts are refcounted, so when this request is associated with a
@@ -214,7 +211,7 @@ struct i915_request {
 			ktime_t emitted;
 		} duration;
 	};
-	struct list_head execute_cb;
+	struct llist_head execute_cb;
 	struct i915_sw_fence semaphore;
 
 	/*
@@ -564,7 +561,7 @@ static inline void i915_request_clear_hold(struct i915_request *rq)
 }
 
 static inline struct intel_timeline *
-i915_request_timeline(struct i915_request *rq)
+i915_request_timeline(const struct i915_request *rq)
 {
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->timeline,
@@ -572,14 +569,14 @@ i915_request_timeline(struct i915_request *rq)
 }
 
 static inline struct i915_gem_context *
-i915_request_gem_context(struct i915_request *rq)
+i915_request_gem_context(const struct i915_request *rq)
 {
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->context->gem_context, true);
 }
 
 static inline struct intel_timeline *
-i915_request_active_timeline(struct i915_request *rq)
+i915_request_active_timeline(const struct i915_request *rq)
 {
 	/*
 	 * When in use during submission, we are protected by a guarantee that

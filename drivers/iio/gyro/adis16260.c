@@ -381,7 +381,6 @@ static int adis16260_probe(struct spi_device *spi)
 	adis16260->info = &adis16260_chip_info_table[id->driver_data];
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16260_info;
 	indio_dev->channels = adis16260->info->channels;
 	indio_dev->num_channels = adis16260->info->num_channels;

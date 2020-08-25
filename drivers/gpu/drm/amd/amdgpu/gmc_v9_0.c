@@ -68,9 +68,6 @@
 #define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_WIDTH_MASK                                          0x00003FFFL
 #define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_HEIGHT_MASK                                         0x3FFF0000L
 
-/* XXX Move this macro to VEGA10 header file, which is like vid.h for VI.*/
-#define AMDGPU_NUM_OF_VMIDS			8
-
 static const u32 golden_settings_vega10_hdp[] =
 {
 	0xf64, 0x0fffffff, 0x00000000,
@@ -505,11 +502,11 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	if (adev->gfx.kiq.ring.sched.ready &&
 			(amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
 			!adev->in_gpu_reset) {
-		uint32_t req = hub->vm_inv_eng0_req + eng;
-		uint32_t ack = hub->vm_inv_eng0_ack + eng;
+		uint32_t req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
+		uint32_t ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
 		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
-				1 << vmid);
+						   1 << vmid);
 		return;
 	}
 
@@ -526,7 +523,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	if (use_semaphore) {
 		for (j = 0; j < adev->usec_timeout; j++) {
 			/* a read return value of 1 means semaphore acuqire */
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng);
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem +
+					    hub->eng_distance * eng);
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -537,7 +535,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	do {
-		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
+		WREG32_NO_KIQ(hub->vm_inv_eng0_req +
+			      hub->eng_distance * eng, inv_req);
 
 		/*
 		 * Issue a dummy read to wait for the ACK register to
@@ -545,10 +544,12 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 * GRBM interface.
 		 */
 		if (vmhub == AMDGPU_GFXHUB_0)
-			RREG32_NO_KIQ(hub->vm_inv_eng0_req + eng);
+			RREG32_NO_KIQ(hub->vm_inv_eng0_req +
+				      hub->eng_distance * eng);
 
 		for (j = 0; j < adev->usec_timeout; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack +
+					    hub->eng_distance * eng);
 			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
@@ -564,7 +565,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		WREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng, 0);
+		WREG32_NO_KIQ(hub->vm_inv_eng0_sem +
+			      hub->eng_distance * eng, 0);
 
 	spin_unlock(&adev->gmc.invalidate_lock);
 
@@ -679,16 +681,21 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	if (use_semaphore)
 		/* a read return value of 1 means semaphore acuqire */
 		amdgpu_ring_emit_reg_wait(ring,
-					  hub->vm_inv_eng0_sem + eng, 0x1, 0x1);
+					  hub->vm_inv_eng0_sem +
+					  hub->eng_distance * eng, 0x1, 0x1);
 
-	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 +
+			      (hub->ctx_addr_distance * vmid),
 			      lower_32_bits(pd_addr));
 
-	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 + (2 * vmid),
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 +
+			      (hub->ctx_addr_distance * vmid),
 			      upper_32_bits(pd_addr));
 
-	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req + eng,
-					    hub->vm_inv_eng0_ack + eng,
+	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req +
+					    hub->eng_distance * eng,
+					    hub->vm_inv_eng0_ack +
+					    hub->eng_distance * eng,
 					    req, 1 << vmid);
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
@@ -697,7 +704,8 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_sem + eng, 0);
+		amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_sem +
+				      hub->eng_distance * eng, 0);
 
 	return pd_addr;
 }
@@ -1248,12 +1256,15 @@ static int gmc_v9_0_sw_init(void *handle)
 	/*
 	 * number of VMs
 	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
+	 * amdgpu graphics/compute will use VMIDs 1..n-1
+	 * amdkfd will use VMIDs n..15
+	 *
+	 * The first KFD VMID is 8 for GPUs with graphics, 3 for
+	 * compute-only GPUs. On compute-only GPUs that leaves 2 VMIDs
+	 * for video processing.
 	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB_1].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.first_kfd_vmid =
+		adev->asic_type == CHIP_ARCTURUS ? 3 : 8;
 
 	amdgpu_vm_manager_init(adev);
 

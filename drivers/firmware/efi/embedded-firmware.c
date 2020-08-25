@@ -37,9 +37,8 @@ static const struct dmi_system_id * const embedded_fw_table[] = {
 static int __init efi_check_md_for_embedded_firmware(
 	efi_memory_desc_t *md, const struct efi_embedded_fw_desc *desc)
 {
-	struct sha256_state sctx;
 	struct efi_embedded_fw *fw;
-	u8 sha256[32];
+	u8 hash[32];
 	u64 i, size;
 	u8 *map;
 
@@ -54,10 +53,8 @@ static int __init efi_check_md_for_embedded_firmware(
 		if (memcmp(map + i, desc->prefix, EFI_EMBEDDED_FW_PREFIX_LEN))
 			continue;
 
-		sha256_init(&sctx);
-		sha256_update(&sctx, map + i, desc->length);
-		sha256_final(&sctx, sha256);
-		if (memcmp(sha256, desc->sha256, 32) == 0)
+		sha256(map + i, desc->length, hash);
+		if (memcmp(hash, desc->sha256, 32) == 0)
 			break;
 	}
 	if ((i + desc->length) > size) {

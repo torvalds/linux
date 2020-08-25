@@ -184,18 +184,20 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *rq, int on)
 {
 	struct ocelot *ocelot = container_of(ptp, struct ocelot, ptp_info);
-	struct timespec64 ts_start, ts_period;
+	struct timespec64 ts_phase, ts_period;
 	enum ocelot_ptp_pins ptp_pin;
 	unsigned long flags;
 	bool pps = false;
 	int pin = -1;
+	s64 wf_high;
+	s64 wf_low;
 	u32 val;
-	s64 ns;
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_PEROUT:
 		/* Reject requests with unsupported flags */
-		if (rq->perout.flags)
+		if (rq->perout.flags & ~(PTP_PEROUT_DUTY_CYCLE |
+					 PTP_PEROUT_PHASE))
 			return -EOPNOTSUPP;
 
 		pin = ptp_find_pin(ocelot->ptp_clock, PTP_PF_PEROUT,
@@ -211,21 +213,11 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		else
 			return -EBUSY;
 
-		ts_start.tv_sec = rq->perout.start.sec;
-		ts_start.tv_nsec = rq->perout.start.nsec;
 		ts_period.tv_sec = rq->perout.period.sec;
 		ts_period.tv_nsec = rq->perout.period.nsec;
 
 		if (ts_period.tv_sec == 1 && ts_period.tv_nsec == 0)
 			pps = true;
-
-		if (ts_start.tv_sec || (ts_start.tv_nsec && !pps)) {
-			dev_warn(ocelot->dev,
-				 "Absolute start time not supported!\n");
-			dev_warn(ocelot->dev,
-				 "Accept nsec for PPS phase adjustment, otherwise start time should be 0 0.\n");
-			return -EINVAL;
-		}
 
 		/* Handle turning off */
 		if (!on) {
@@ -236,16 +228,48 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 			break;
 		}
 
+		if (rq->perout.flags & PTP_PEROUT_PHASE) {
+			ts_phase.tv_sec = rq->perout.phase.sec;
+			ts_phase.tv_nsec = rq->perout.phase.nsec;
+		} else {
+			/* Compatibility */
+			ts_phase.tv_sec = rq->perout.start.sec;
+			ts_phase.tv_nsec = rq->perout.start.nsec;
+		}
+		if (ts_phase.tv_sec || (ts_phase.tv_nsec && !pps)) {
+			dev_warn(ocelot->dev,
+				 "Absolute start time not supported!\n");
+			dev_warn(ocelot->dev,
+				 "Accept nsec for PPS phase adjustment, otherwise start time should be 0 0.\n");
+			return -EINVAL;
+		}
+
+		/* Calculate waveform high and low times */
+		if (rq->perout.flags & PTP_PEROUT_DUTY_CYCLE) {
+			struct timespec64 ts_on;
+
+			ts_on.tv_sec = rq->perout.on.sec;
+			ts_on.tv_nsec = rq->perout.on.nsec;
+
+			wf_high = timespec64_to_ns(&ts_on);
+		} else {
+			if (pps) {
+				wf_high = 1000;
+			} else {
+				wf_high = timespec64_to_ns(&ts_period);
+				wf_high = div_s64(wf_high, 2);
+			}
+		}
+
+		wf_low = timespec64_to_ns(&ts_period);
+		wf_low -= wf_high;
+
 		/* Handle PPS request */
 		if (pps) {
 			spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-			/* Pulse generated perout.start.nsec after TOD has
-			 * increased seconds.
-			 * Pulse width is set to 1us.
-			 */
-			ocelot_write_rix(ocelot, ts_start.tv_nsec,
+			ocelot_write_rix(ocelot, ts_phase.tv_nsec,
 					 PTP_PIN_WF_LOW_PERIOD, ptp_pin);
-			ocelot_write_rix(ocelot, 1000,
+			ocelot_write_rix(ocelot, wf_high,
 					 PTP_PIN_WF_HIGH_PERIOD, ptp_pin);
 			val = PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_CLOCK);
 			val |= PTP_PIN_CFG_SYNC;
@@ -255,14 +279,16 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		}
 
 		/* Handle periodic clock */
-		ns = timespec64_to_ns(&ts_period);
-		ns = ns >> 1;
-		if (ns > 0x3fffffff || ns <= 0x6)
+		if (wf_high > 0x3fffffff || wf_high <= 0x6)
+			return -EINVAL;
+		if (wf_low > 0x3fffffff || wf_low <= 0x6)
 			return -EINVAL;
 
 		spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-		ocelot_write_rix(ocelot, ns, PTP_PIN_WF_LOW_PERIOD, ptp_pin);
-		ocelot_write_rix(ocelot, ns, PTP_PIN_WF_HIGH_PERIOD, ptp_pin);
+		ocelot_write_rix(ocelot, wf_low, PTP_PIN_WF_LOW_PERIOD,
+				 ptp_pin);
+		ocelot_write_rix(ocelot, wf_high, PTP_PIN_WF_HIGH_PERIOD,
+				 ptp_pin);
 		val = PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_CLOCK);
 		ocelot_write_rix(ocelot, val, PTP_PIN_CFG, ptp_pin);
 		spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);

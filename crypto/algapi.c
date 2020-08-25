@@ -690,6 +690,8 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 		spawn->mask = mask;
 		spawn->next = inst->spawns;
 		inst->spawns = spawn;
+		inst->alg.cra_flags |=
+			(alg->cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 		err = 0;
 	}
 	up_write(&crypto_alg_sem);
@@ -816,7 +818,23 @@ struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 }
 EXPORT_SYMBOL_GPL(crypto_get_attr_type);
 
-int crypto_check_attr_type(struct rtattr **tb, u32 type)
+/**
+ * crypto_check_attr_type() - check algorithm type and compute inherited mask
+ * @tb: the template parameters
+ * @type: the algorithm type the template would be instantiated as
+ * @mask_ret: (output) the mask that should be passed to crypto_grab_*()
+ *	      to restrict the flags of any inner algorithms
+ *
+ * Validate that the algorithm type the user requested is compatible with the
+ * one the template would actually be instantiated as.  E.g., if the user is
+ * doing crypto_alloc_shash("cbc(aes)", ...), this would return an error because
+ * the "cbc" template creates an "skcipher" algorithm, not an "shash" algorithm.
+ *
+ * Also compute the mask to use to restrict the flags of any inner algorithms.
+ *
+ * Return: 0 on success; -errno on failure
+ */
+int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret)
 {
 	struct crypto_attr_type *algt;
 
@@ -827,6 +845,7 @@ int crypto_check_attr_type(struct rtattr **tb, u32 type)
 	if ((algt->type ^ type) & algt->mask)
 		return -EINVAL;
 
+	*mask_ret = crypto_algt_inherited_mask(algt);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_check_attr_type);

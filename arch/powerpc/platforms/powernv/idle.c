@@ -48,7 +48,7 @@ static bool default_stop_found;
  * First stop state levels when SPR and TB loss can occur.
  */
 static u64 pnv_first_tb_loss_level = MAX_STOP_STATE + 1;
-static u64 pnv_first_spr_loss_level = MAX_STOP_STATE + 1;
+static u64 deep_spr_loss_state = MAX_STOP_STATE + 1;
 
 /*
  * psscr value and mask of the deepest stop idle state.
@@ -73,9 +73,6 @@ static int pnv_save_sprs_for_deep_states(void)
 	 */
 	uint64_t lpcr_val	= mfspr(SPRN_LPCR);
 	uint64_t hid0_val	= mfspr(SPRN_HID0);
-	uint64_t hid1_val	= mfspr(SPRN_HID1);
-	uint64_t hid4_val	= mfspr(SPRN_HID4);
-	uint64_t hid5_val	= mfspr(SPRN_HID5);
 	uint64_t hmeer_val	= mfspr(SPRN_HMEER);
 	uint64_t msr_val = MSR_IDLE;
 	uint64_t psscr_val = pnv_deepest_stop_psscr_val;
@@ -117,6 +114,9 @@ static int pnv_save_sprs_for_deep_states(void)
 
 			/* Only p8 needs to set extra HID regiters */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+				uint64_t hid1_val = mfspr(SPRN_HID1);
+				uint64_t hid4_val = mfspr(SPRN_HID4);
+				uint64_t hid5_val = mfspr(SPRN_HID5);
 
 				rc = opal_slw_set_reg(pir, SPRN_HID1, hid1_val);
 				if (rc != 0)
@@ -611,6 +611,7 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	unsigned long srr1;
 	unsigned long pls;
 	unsigned long mmcr0 = 0;
+	unsigned long mmcra = 0;
 	struct p9_sprs sprs = {}; /* avoid false used-uninitialised */
 	bool sprs_saved = false;
 
@@ -657,7 +658,22 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 		  */
 		mmcr0		= mfspr(SPRN_MMCR0);
 	}
-	if ((psscr & PSSCR_RL_MASK) >= pnv_first_spr_loss_level) {
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		/*
+		 * POWER10 uses MMCRA (BHRBRD) as BHRB disable bit.
+		 * If the user hasn't asked for the BHRB to be
+		 * written, the value of MMCRA[BHRBRD] is 1.
+		 * On wakeup from stop, MMCRA[BHRBD] will be 0,
+		 * since it is previleged resource and will be lost.
+		 * Thus, if we do not save and restore the MMCRA[BHRBD],
+		 * hardware will be needlessly writing to the BHRB
+		 * in problem mode.
+		 */
+		mmcra		= mfspr(SPRN_MMCRA);
+	}
+
+	if ((psscr & PSSCR_RL_MASK) >= deep_spr_loss_state) {
 		sprs.lpcr	= mfspr(SPRN_LPCR);
 		sprs.hfscr	= mfspr(SPRN_HFSCR);
 		sprs.fscr	= mfspr(SPRN_FSCR);
@@ -700,8 +716,6 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
 
 	if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
-		unsigned long mmcra;
-
 		/*
 		 * We don't need an isync after the mtsprs here because the
 		 * upcoming mtmsrd is execution synchronizing.
@@ -720,6 +734,10 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 			asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT);
 			mtspr(SPRN_MMCR0, mmcr0);
 		}
+
+		/* Reload MMCRA to restore BHRB disable bit for POWER10 */
+		if (cpu_has_feature(CPU_FTR_ARCH_31))
+			mtspr(SPRN_MMCRA, mmcra);
 
 		/*
 		 * DD2.2 and earlier need to set then clear bit 60 in MMCRA
@@ -741,7 +759,7 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	 * just always test PSSCR for SPR/TB state loss.
 	 */
 	pls = (psscr & PSSCR_PLS) >> PSSCR_PLS_SHIFT;
-	if (likely(pls < pnv_first_spr_loss_level)) {
+	if (likely(pls < deep_spr_loss_state)) {
 		if (sprs_saved)
 			atomic_stop_thread_idle();
 		goto out;
@@ -1088,7 +1106,7 @@ static void __init pnv_power9_idle_init(void)
 	 * the deepest loss-less (OPAL_PM_STOP_INST_FAST) stop state.
 	 */
 	pnv_first_tb_loss_level = MAX_STOP_STATE + 1;
-	pnv_first_spr_loss_level = MAX_STOP_STATE + 1;
+	deep_spr_loss_state = MAX_STOP_STATE + 1;
 	for (i = 0; i < nr_pnv_idle_states; i++) {
 		int err;
 		struct pnv_idle_states_t *state = &pnv_idle_states[i];
@@ -1099,8 +1117,8 @@ static void __init pnv_power9_idle_init(void)
 			pnv_first_tb_loss_level = psscr_rl;
 
 		if ((state->flags & OPAL_PM_LOSE_FULL_CONTEXT) &&
-		     (pnv_first_spr_loss_level > psscr_rl))
-			pnv_first_spr_loss_level = psscr_rl;
+		     (deep_spr_loss_state > psscr_rl))
+			deep_spr_loss_state = psscr_rl;
 
 		/*
 		 * The idle code does not deal with TB loss occurring
@@ -1111,8 +1129,8 @@ static void __init pnv_power9_idle_init(void)
 		 * compatibility.
 		 */
 		if ((state->flags & OPAL_PM_TIMEBASE_STOP) &&
-		     (pnv_first_spr_loss_level > psscr_rl))
-			pnv_first_spr_loss_level = psscr_rl;
+		     (deep_spr_loss_state > psscr_rl))
+			deep_spr_loss_state = psscr_rl;
 
 		err = validate_psscr_val_mask(&state->psscr_val,
 					      &state->psscr_mask,
@@ -1158,7 +1176,7 @@ static void __init pnv_power9_idle_init(void)
 	}
 
 	pr_info("cpuidle-powernv: First stop level that may lose SPRs = 0x%llx\n",
-		pnv_first_spr_loss_level);
+		deep_spr_loss_state);
 
 	pr_info("cpuidle-powernv: First stop level that may lose timebase = 0x%llx\n",
 		pnv_first_tb_loss_level);
@@ -1205,7 +1223,7 @@ static void __init pnv_probe_idle_states(void)
 		return;
 	}
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (pvr_version_is(PVR_POWER9))
 		pnv_power9_idle_init();
 
 	for (i = 0; i < nr_pnv_idle_states; i++)

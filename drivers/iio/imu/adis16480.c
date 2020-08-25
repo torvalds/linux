@@ -1102,12 +1102,12 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 	/*
 	 * Get the interrupt line behaviour. The data ready polarity can be
 	 * configured as positive or negative, corresponding to
-	 * IRQF_TRIGGER_RISING or IRQF_TRIGGER_FALLING respectively.
+	 * IRQ_TYPE_EDGE_RISING or IRQ_TYPE_EDGE_FALLING respectively.
 	 */
 	irq_type = irqd_get_trigger_type(desc);
-	if (irq_type == IRQF_TRIGGER_RISING) { /* Default */
+	if (irq_type == IRQ_TYPE_EDGE_RISING) { /* Default */
 		val |= ADIS16480_DRDY_POL(1);
-	} else if (irq_type == IRQF_TRIGGER_FALLING) {
+	} else if (irq_type == IRQ_TYPE_EDGE_FALLING) {
 		val |= ADIS16480_DRDY_POL(0);
 	} else {
 		dev_err(&st->adis.spi->dev,
@@ -1229,7 +1229,6 @@ static int adis16480_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->chip_info = &adis16480_chip_info[id->driver_data];
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;

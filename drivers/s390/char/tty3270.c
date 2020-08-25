@@ -556,8 +556,9 @@ tty3270_scroll_backward(struct kbd_data *kbd)
  * Pass input line to tty.
  */
 static void
-tty3270_read_tasklet(struct raw3270_request *rrq)
+tty3270_read_tasklet(unsigned long data)
 {
+	struct raw3270_request *rrq = (struct raw3270_request *)data;
 	static char kreset_data = TW_KR;
 	struct tty3270 *tp = container_of(rrq->view, struct tty3270, view);
 	char *input;
@@ -652,8 +653,9 @@ tty3270_issue_read(struct tty3270 *tp, int lock)
  * Hang up the tty
  */
 static void
-tty3270_hangup_tasklet(struct tty3270 *tp)
+tty3270_hangup_tasklet(unsigned long data)
 {
+	struct tty3270 *tp = (struct tty3270 *)data;
 	tty_port_tty_hangup(&tp->port, true);
 	raw3270_put_view(&tp->view);
 }
@@ -752,11 +754,9 @@ tty3270_alloc_view(void)
 
 	tty_port_init(&tp->port);
 	timer_setup(&tp->timer, tty3270_update, 0);
-	tasklet_init(&tp->readlet,
-		     (void (*)(unsigned long)) tty3270_read_tasklet,
+	tasklet_init(&tp->readlet, tty3270_read_tasklet,
 		     (unsigned long) tp->read);
-	tasklet_init(&tp->hanglet,
-		     (void (*)(unsigned long)) tty3270_hangup_tasklet,
+	tasklet_init(&tp->hanglet, tty3270_hangup_tasklet,
 		     (unsigned long) tp);
 	INIT_WORK(&tp->resize_work, tty3270_resize_work);
 

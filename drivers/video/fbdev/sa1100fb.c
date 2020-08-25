@@ -18,7 +18,7 @@
  * Clean patches should be sent to the ARM Linux Patch System.  Please see the
  * following web page for more information:
  *
- *	http://www.arm.linux.org.uk/developer/patches/info.shtml
+ *	https://www.arm.linux.org.uk/developer/patches/info.shtml
  *
  * Thank you.
  *

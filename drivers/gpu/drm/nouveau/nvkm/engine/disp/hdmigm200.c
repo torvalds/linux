@@ -24,7 +24,7 @@
 #include "hdmi.h"
 
 void
-gm200_hdmi_scdc(struct nvkm_ior *ior, int head, u8 scdc)
+gm200_hdmi_scdc(struct nvkm_ior *ior, u8 scdc)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
 	const u32 soff = nv50_ior_base(ior);

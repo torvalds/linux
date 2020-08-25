@@ -424,7 +424,6 @@ static int adxrs450_probe(struct spi_device *spi)
 	/* This is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adxrs450_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels =

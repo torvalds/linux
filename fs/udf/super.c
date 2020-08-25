@@ -11,8 +11,8 @@
  *  This code is based on version 2.00 of the UDF specification,
  *  and revision 3 of the ECMA 167 standard [equivalent to ISO 13346].
  *    http://www.osta.org/
- *    http://www.ecma.ch/
- *    http://www.iso.org/
+ *    https://www.ecma.ch/
+ *    https://www.iso.org/
  *
  * COPYRIGHT
  *  This file is distributed under the terms of the GNU General Public

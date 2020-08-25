@@ -46,7 +46,7 @@
 
 void __iomem *mips_gic_base;
 
-DEFINE_PER_CPU_READ_MOSTLY(unsigned long[GIC_MAX_LONGS], pcpu_masks);
+static DEFINE_PER_CPU_READ_MOSTLY(unsigned long[GIC_MAX_LONGS], pcpu_masks);
 
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
@@ -617,8 +617,8 @@ error:
 	return ret;
 }
 
-void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
-			 unsigned int nr_irqs)
+static void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
+				unsigned int nr_irqs)
 {
 	irq_hw_number_t base_hwirq;
 	struct irq_data *data;
@@ -631,8 +631,8 @@ void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
 	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 }
 
-int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
-			 enum irq_domain_bus_token bus_token)
+static int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
+				enum irq_domain_bus_token bus_token)
 {
 	bool is_ipi;
 

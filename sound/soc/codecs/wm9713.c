@@ -807,7 +807,7 @@ static void pll_factors(struct snd_soc_component *component,
 	pll_div->k = K;
 }
 
-/**
+/*
  * Please note that changing the PLL input frequency may require
  * resynchronisation with the AC97 controller.
  */
@@ -939,7 +939,7 @@ static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	u16 gpio = snd_soc_component_read32(component, AC97_GPIO_CFG) & 0xffc5;
+	u16 gpio = snd_soc_component_read(component, AC97_GPIO_CFG) & 0xffc5;
 	u16 reg = 0x8000;
 
 	/* clock masters */

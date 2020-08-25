@@ -3428,7 +3428,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_PMAO_BUG)
 	mtspr	SPRN_PMC6, r9
 	ld	r3, VCPU_MMCR(r4)
 	ld	r5, VCPU_MMCR + 8(r4)
-	ld	r6, VCPU_MMCR + 16(r4)
+	ld	r6, VCPU_MMCRA(r4)
 	ld	r7, VCPU_SIAR(r4)
 	ld	r8, VCPU_SDAR(r4)
 	mtspr	SPRN_MMCR1, r5
@@ -3436,14 +3436,22 @@ END_FTR_SECTION_IFSET(CPU_FTR_PMAO_BUG)
 	mtspr	SPRN_SIAR, r7
 	mtspr	SPRN_SDAR, r8
 BEGIN_FTR_SECTION
-	ld	r5, VCPU_MMCR + 24(r4)
+	ld      r5, VCPU_MMCR + 24(r4)
+	ld      r6, VCPU_SIER + 8(r4)
+	ld      r7, VCPU_SIER + 16(r4)
+	mtspr   SPRN_MMCR3, r5
+	mtspr   SPRN_SIER2, r6
+	mtspr   SPRN_SIER3, r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_31)
+BEGIN_FTR_SECTION
+	ld	r5, VCPU_MMCR + 16(r4)
 	ld	r6, VCPU_SIER(r4)
 	mtspr	SPRN_MMCR2, r5
 	mtspr	SPRN_SIER, r6
 BEGIN_FTR_SECTION_NESTED(96)
 	lwz	r7, VCPU_PMC + 24(r4)
 	lwz	r8, VCPU_PMC + 28(r4)
-	ld	r9, VCPU_MMCR + 32(r4)
+	ld	r9, VCPU_MMCRS(r4)
 	mtspr	SPRN_SPMC1, r7
 	mtspr	SPRN_SPMC2, r8
 	mtspr	SPRN_MMCRS, r9
@@ -3496,6 +3504,14 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_MMCR2, r8
 	mtspr	SPRN_SIER, r9
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
+	ld      r5, HSTATE_MMCR3(r13)
+	ld      r6, HSTATE_SIER2(r13)
+	ld      r7, HSTATE_SIER3(r13)
+	mtspr   SPRN_MMCR3, r5
+	mtspr   SPRN_SIER2, r6
+	mtspr   SPRN_SIER3, r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_31)
 	mtspr	SPRN_MMCR0, r3
 	isync
 	mtlr	r0
@@ -3551,10 +3567,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mfspr	r8, SPRN_SDAR
 	std	r4, VCPU_MMCR(r9)
 	std	r5, VCPU_MMCR + 8(r9)
-	std	r6, VCPU_MMCR + 16(r9)
+	std	r6, VCPU_MMCRA(r9)
 BEGIN_FTR_SECTION
-	std	r10, VCPU_MMCR + 24(r9)
+	std	r10, VCPU_MMCR + 16(r9)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
+	mfspr   r5, SPRN_MMCR3
+	mfspr   r6, SPRN_SIER2
+	mfspr   r7, SPRN_SIER3
+	std     r5, VCPU_MMCR + 24(r9)
+	std     r6, VCPU_SIER + 8(r9)
+	std     r7, VCPU_SIER + 16(r9)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_31)
 	std	r7, VCPU_SIAR(r9)
 	std	r8, VCPU_SDAR(r9)
 	mfspr	r3, SPRN_PMC1
@@ -3578,7 +3602,7 @@ BEGIN_FTR_SECTION_NESTED(96)
 	mfspr	r8, SPRN_MMCRS
 	stw	r6, VCPU_PMC + 24(r9)
 	stw	r7, VCPU_PMC + 28(r9)
-	std	r8, VCPU_MMCR + 32(r9)
+	std	r8, VCPU_MMCRS(r9)
 	lis	r4, 0x8000
 	mtspr	SPRN_MMCRS, r4
 END_FTR_SECTION_NESTED(CPU_FTR_ARCH_300, 0, 96)

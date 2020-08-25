@@ -566,6 +566,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret) {
 			fs_err(sdp, "dirty_inode: glock %d\n", ret);
+			gfs2_dump_glock(NULL, ip->i_gl, true);
 			return;
 		}
 		need_unlock = 1;

@@ -1405,7 +1405,7 @@ void tty_save_termios(struct tty_struct *tty)
 	/* Stash the termios data */
 	tp = tty->driver->termios[idx];
 	if (tp == NULL) {
-		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+		tp = kmalloc(sizeof(*tp), GFP_KERNEL);
 		if (tp == NULL)
 			return;
 		tty->driver->termios[idx] = tp;
@@ -2489,7 +2489,7 @@ static int tty_tiocsserial(struct tty_struct *tty, struct serial_struct __user *
 	struct serial_struct v;
 	int flags;
 
-	if (copy_from_user(&v, ss, sizeof(struct serial_struct)))
+	if (copy_from_user(&v, ss, sizeof(*ss)))
 		return -EFAULT;
 
 	flags = v.flags & ASYNC_DEPRECATED;
@@ -2507,11 +2507,11 @@ static int tty_tiocgserial(struct tty_struct *tty, struct serial_struct __user *
 	struct serial_struct v;
 	int err;
 
-	memset(&v, 0, sizeof(struct serial_struct));
+	memset(&v, 0, sizeof(v));
 	if (!tty->ops->get_serial)
 		return -ENOTTY;
 	err = tty->ops->get_serial(tty, &v);
-	if (!err && copy_to_user(ss, &v, sizeof(struct serial_struct)))
+	if (!err && copy_to_user(ss, &v, sizeof(v)))
 		err = -EFAULT;
 	return err;
 }
@@ -2673,25 +2673,25 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_COMPAT
 
 struct serial_struct32 {
-        compat_int_t    type;
-        compat_int_t    line;
-        compat_uint_t   port;
-        compat_int_t    irq;
-        compat_int_t    flags;
-        compat_int_t    xmit_fifo_size;
-        compat_int_t    custom_divisor;
-        compat_int_t    baud_base;
-        unsigned short  close_delay;
-        char    io_type;
-        char    reserved_char[1];
-        compat_int_t    hub6;
-        unsigned short  closing_wait; /* time to wait before closing */
-        unsigned short  closing_wait2; /* no longer used... */
-        compat_uint_t   iomem_base;
-        unsigned short  iomem_reg_shift;
-        unsigned int    port_high;
-     /* compat_ulong_t  iomap_base FIXME */
-        compat_int_t    reserved[1];
+	compat_int_t    type;
+	compat_int_t    line;
+	compat_uint_t   port;
+	compat_int_t    irq;
+	compat_int_t    flags;
+	compat_int_t    xmit_fifo_size;
+	compat_int_t    custom_divisor;
+	compat_int_t    baud_base;
+	unsigned short  close_delay;
+	char    io_type;
+	char    reserved_char;
+	compat_int_t    hub6;
+	unsigned short  closing_wait; /* time to wait before closing */
+	unsigned short  closing_wait2; /* no longer used... */
+	compat_uint_t   iomem_base;
+	unsigned short  iomem_reg_shift;
+	unsigned int    port_high;
+	/* compat_ulong_t  iomap_base FIXME */
+	compat_int_t    reserved;
 };
 
 static int compat_tty_tiocsserial(struct tty_struct *tty,
@@ -2705,7 +2705,7 @@ static int compat_tty_tiocsserial(struct tty_struct *tty,
 	struct serial_struct v;
 	int flags;
 
-	if (copy_from_user(&v32, ss, sizeof(struct serial_struct32)))
+	if (copy_from_user(&v32, ss, sizeof(*ss)))
 		return -EFAULT;
 
 	memcpy(&v, &v32, offsetof(struct serial_struct32, iomem_base));
@@ -2743,7 +2743,7 @@ static int compat_tty_tiocgserial(struct tty_struct *tty,
 			0xfffffff : ptr_to_compat(v.iomem_base);
 		v32.iomem_reg_shift = v.iomem_reg_shift;
 		v32.port_high = v.port_high;
-		if (copy_to_user(ss, &v32, sizeof(struct serial_struct32)))
+		if (copy_to_user(ss, &v32, sizeof(v32)))
 			err = -EFAULT;
 	}
 	return err;
@@ -3215,7 +3215,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	if (!lines || (flags & TTY_DRIVER_UNNUMBERED_NODE && lines > 1))
 		return ERR_PTR(-EINVAL);
 
-	driver = kzalloc(sizeof(struct tty_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver)
 		return ERR_PTR(-ENOMEM);
 

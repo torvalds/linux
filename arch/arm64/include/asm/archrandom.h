@@ -6,7 +6,6 @@
 
 #include <linux/bug.h>
 #include <linux/kernel.h>
-#include <linux/random.h>
 #include <asm/cpufeature.h>
 
 static inline bool __arm64_rndr(unsigned long *v)

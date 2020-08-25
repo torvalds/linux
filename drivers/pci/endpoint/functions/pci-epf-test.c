@@ -181,7 +181,7 @@ static int pci_epf_test_init_dma_chan(struct pci_epf_test *epf_test)
 
 /**
  * pci_epf_test_clean_dma_chan() - Function to cleanup EPF test DMA channel
- * @epf: the EPF test device that performs data transfer operation
+ * @epf_test: the EPF test device that performs data transfer operation
  *
  * Helper to cleanup EPF test DMA channel.
  */

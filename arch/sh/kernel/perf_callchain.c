@@ -11,11 +11,6 @@
 #include <asm/unwinder.h>
 #include <asm/ptrace.h>
 
-static int callchain_stack(void *data, char *name)
-{
-	return 0;
-}
-
 static void callchain_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry_ctx *entry = data;
@@ -25,7 +20,6 @@ static void callchain_address(void *data, unsigned long addr, int reliable)
 }
 
 static const struct stacktrace_ops callchain_ops = {
-	.stack		= callchain_stack,
 	.address	= callchain_address,
 };
 

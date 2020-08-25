@@ -46,29 +46,6 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 	return conf->disks + lo;
 }
 
-/*
- * In linear_congested() conf->raid_disks is used as a copy of
- * mddev->raid_disks to iterate conf->disks[], because conf->raid_disks
- * and conf->disks[] are created in linear_conf(), they are always
- * consitent with each other, but mddev->raid_disks does not.
- */
-static int linear_congested(struct mddev *mddev, int bits)
-{
-	struct linear_conf *conf;
-	int i, ret = 0;
-
-	rcu_read_lock();
-	conf = rcu_dereference(mddev->private);
-
-	for (i = 0; i < conf->raid_disks && !ret ; i++) {
-		struct request_queue *q = bdev_get_queue(conf->disks[i].rdev->bdev);
-		ret |= bdi_congested(q->backing_dev_info, bits);
-	}
-
-	rcu_read_unlock();
-	return ret;
-}
-
 static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	struct linear_conf *conf;
@@ -267,7 +244,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 		struct bio *split = bio_split(bio, end_sector - bio_sector,
 					      GFP_NOIO, &mddev->bio_set);
 		bio_chain(split, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 		bio = split;
 	}
 
@@ -286,7 +263,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 					      bio_sector);
 		mddev_check_writesame(mddev, bio);
 		mddev_check_write_zeroes(mddev, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	}
 	return true;
 
@@ -322,7 +299,6 @@ static struct md_personality linear_personality =
 	.hot_add_disk	= linear_add,
 	.size		= linear_size,
 	.quiesce	= linear_quiesce,
-	.congested	= linear_congested,
 };
 
 static int __init linear_init (void)

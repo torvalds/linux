@@ -1150,7 +1150,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	default:
 		pr_debug_once("Unsupported prio_attr: %02x.\n",
 				cmd_iu->prio_attr);
-		/* fall through */
+		fallthrough;
 	case UAS_SIMPLE_TAG:
 		cmd->prio_attr = TCM_SIMPLE_TAG;
 		break;

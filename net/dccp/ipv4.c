@@ -694,6 +694,8 @@ EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
 
 /**
  *	dccp_invalid_packet  -  check for malformed packets
+ *	@skb: Packet to validate
+ *
  *	Implements RFC 4340, 8.5:  Step 1: Check header basics
  *	Packets that fail these checks are ignored and do not receive Resets.
  */
@@ -911,10 +913,6 @@ static const struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.getsockopt	   = ip_getsockopt,
 	.addr2sockaddr	   = inet_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ip_setsockopt,
-	.compat_getsockopt = compat_ip_getsockopt,
-#endif
 };
 
 static int dccp_v4_init_sock(struct sock *sk)
@@ -961,10 +959,6 @@ static struct proto dccp_v4_prot = {
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
 	.h.hashinfo		= &dccp_hashinfo,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_dccp_setsockopt,
-	.compat_getsockopt	= compat_dccp_getsockopt,
-#endif
 };
 
 static const struct net_protocol dccp_v4_protocol = {
@@ -997,10 +991,6 @@ static const struct proto_ops inet_dccp_ops = {
 	.recvmsg	   = sock_common_recvmsg,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
-#endif
 };
 
 static struct inet_protosw dccp_v4_protosw = {

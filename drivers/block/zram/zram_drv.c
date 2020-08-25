@@ -793,9 +793,9 @@ static void zram_sync_read(struct work_struct *work)
 }
 
 /*
- * Block layer want one ->make_request_fn to be active at a time
- * so if we use chained IO with parent IO in same context,
- * it's a deadlock. To avoid, it, it uses worker thread context.
+ * Block layer want one ->submit_bio to be active at a time, so if we use
+ * chained IO with parent IO in same context, it's a deadlock. To avoid that,
+ * use a worker thread context.
  */
 static int read_from_bdev_sync(struct zram *zram, struct bio_vec *bvec,
 				unsigned long entry, struct bio *bio)
@@ -1584,9 +1584,9 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 /*
  * Handler function for all zram I/O requests.
  */
-static blk_qc_t zram_make_request(struct request_queue *queue, struct bio *bio)
+static blk_qc_t zram_submit_bio(struct bio *bio)
 {
-	struct zram *zram = queue->queuedata;
+	struct zram *zram = bio->bi_disk->private_data;
 
 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
 					bio->bi_iter.bi_size)) {
@@ -1813,6 +1813,7 @@ static int zram_open(struct block_device *bdev, fmode_t mode)
 
 static const struct block_device_operations zram_devops = {
 	.open = zram_open,
+	.submit_bio = zram_submit_bio,
 	.swap_slot_free_notify = zram_slot_free_notify,
 	.rw_page = zram_rw_page,
 	.owner = THIS_MODULE
@@ -1891,7 +1892,7 @@ static int zram_add(void)
 #ifdef CONFIG_ZRAM_WRITEBACK
 	spin_lock_init(&zram->wb_limit_lock);
 #endif
-	queue = blk_alloc_queue(zram_make_request, NUMA_NO_NODE);
+	queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!queue) {
 		pr_err("Error allocating disk queue for device %d\n",
 			device_id);
@@ -1912,7 +1913,6 @@ static int zram_add(void)
 	zram->disk->first_minor = device_id;
 	zram->disk->fops = &zram_devops;
 	zram->disk->queue = queue;
-	zram->disk->queue->queuedata = zram;
 	zram->disk->private_data = zram;
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 

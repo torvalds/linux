@@ -24,7 +24,6 @@
 #include <asm/topology.h>
 
 #include "pseries.h"
-#include "offline_states.h"
 
 static struct device_node *pmem_node;
 
@@ -147,6 +146,12 @@ const struct of_device_id drc_pmem_match[] = {
 
 static int pseries_pmem_init(void)
 {
+	/*
+	 * Only supported on POWER8 and above.
+	 */
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return 0;
+
 	pmem_node = of_find_node_by_type(NULL, "ibm,persistent-memory");
 	if (!pmem_node)
 		return 0;

@@ -220,7 +220,7 @@ static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		ali_keepalive();
 	}
-		/* fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:

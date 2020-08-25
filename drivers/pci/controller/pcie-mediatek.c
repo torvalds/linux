@@ -209,7 +209,6 @@ struct mtk_pcie_port {
  * @mem: non-prefetchable memory resource
  * @ports: pointer to PCIe port information
  * @soc: pointer to SoC-dependent operations
- * @busnr: root bus number
  */
 struct mtk_pcie {
 	struct device *dev;
@@ -218,7 +217,6 @@ struct mtk_pcie {
 
 	struct list_head ports;
 	const struct mtk_pcie_soc *soc;
-	unsigned int busnr;
 };
 
 static void mtk_pcie_subsys_powerdown(struct mtk_pcie *pcie)
@@ -905,7 +903,6 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 			       int slot)
 {
 	struct mtk_pcie_port *port;
-	struct resource *regs;
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	char name[10];
@@ -916,8 +913,7 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 		return -ENOMEM;
 
 	snprintf(name, sizeof(name), "port%d", slot);
-	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	port->base = devm_ioremap_resource(dev, regs);
+	port->base = devm_platform_ioremap_resource_byname(pdev, name);
 	if (IS_ERR(port->base)) {
 		dev_err(dev, "failed to map port%d base\n", slot);
 		return PTR_ERR(port->base);
@@ -1031,17 +1027,7 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node, *child;
 	struct mtk_pcie_port *port, *tmp;
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct list_head *windows = &host->windows;
-	struct resource *bus;
 	int err;
-
-	err = pci_parse_request_of_pci_ranges(dev, windows,
-					      &host->dma_ranges, &bus);
-	if (err)
-		return err;
-
-	pcie->busnr = bus->start;
 
 	for_each_available_child_of_node(node, child) {
 		int slot;
@@ -1096,11 +1082,7 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	host->busnr = pcie->busnr;
-	host->dev.parent = pcie->dev;
 	host->ops = pcie->soc->ops;
-	host->map_irq = of_irq_parse_and_map_pci;
-	host->swizzle_irq = pci_common_swizzle;
 	host->sysdata = pcie;
 
 	err = pci_host_probe(host);

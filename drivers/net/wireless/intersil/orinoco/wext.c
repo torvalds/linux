@@ -31,8 +31,8 @@ static int orinoco_set_key(struct orinoco_private *priv, int index,
 			   enum orinoco_alg alg, const u8 *key, int key_len,
 			   const u8 *seq, int seq_len)
 {
-	kzfree(priv->keys[index].key);
-	kzfree(priv->keys[index].seq);
+	kfree_sensitive(priv->keys[index].key);
+	kfree_sensitive(priv->keys[index].seq);
 
 	if (key_len) {
 		priv->keys[index].key = kzalloc(key_len, GFP_ATOMIC);

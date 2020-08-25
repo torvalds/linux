@@ -139,9 +139,6 @@ static inline void ftrace_ops_init(struct ftrace_ops *ops)
 #endif
 }
 
-#define FTRACE_PID_IGNORE	-1
-#define FTRACE_PID_TRACE	-2
-
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 			    struct ftrace_ops *op, struct pt_regs *regs)
 {
@@ -2388,6 +2385,14 @@ struct ftrace_ops direct_ops = {
 	.flags		= FTRACE_OPS_FL_IPMODIFY | FTRACE_OPS_FL_RECURSION_SAFE
 			  | FTRACE_OPS_FL_DIRECT | FTRACE_OPS_FL_SAVE_REGS
 			  | FTRACE_OPS_FL_PERMANENT,
+	/*
+	 * By declaring the main trampoline as this trampoline
+	 * it will never have one allocated for it. Allocated
+	 * trampolines should not call direct functions.
+	 * The direct_ops should only be called by the builtin
+	 * ftrace_regs_caller trampoline.
+	 */
+	.trampoline	= FTRACE_REGS_ADDR,
 };
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 
@@ -2764,6 +2769,50 @@ void __weak arch_ftrace_trampoline_free(struct ftrace_ops *ops)
 {
 }
 
+/* List of trace_ops that have allocated trampolines */
+static LIST_HEAD(ftrace_ops_trampoline_list);
+
+static void ftrace_add_trampoline_to_kallsyms(struct ftrace_ops *ops)
+{
+	lockdep_assert_held(&ftrace_lock);
+	list_add_rcu(&ops->list, &ftrace_ops_trampoline_list);
+}
+
+static void ftrace_remove_trampoline_from_kallsyms(struct ftrace_ops *ops)
+{
+	lockdep_assert_held(&ftrace_lock);
+	list_del_rcu(&ops->list);
+}
+
+/*
+ * "__builtin__ftrace" is used as a module name in /proc/kallsyms for symbols
+ * for pages allocated for ftrace purposes, even though "__builtin__ftrace" is
+ * not a module.
+ */
+#define FTRACE_TRAMPOLINE_MOD "__builtin__ftrace"
+#define FTRACE_TRAMPOLINE_SYM "ftrace_trampoline"
+
+static void ftrace_trampoline_free(struct ftrace_ops *ops)
+{
+	if (ops && (ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP) &&
+	    ops->trampoline) {
+		/*
+		 * Record the text poke event before the ksymbol unregister
+		 * event.
+		 */
+		perf_event_text_poke((void *)ops->trampoline,
+				     (void *)ops->trampoline,
+				     ops->trampoline_size, NULL, 0);
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   ops->trampoline, ops->trampoline_size,
+				   true, FTRACE_TRAMPOLINE_SYM);
+		/* Remove from kallsyms after the perf events */
+		ftrace_remove_trampoline_from_kallsyms(ops);
+	}
+
+	arch_ftrace_trampoline_free(ops);
+}
+
 static void ftrace_startup_enable(int command)
 {
 	if (saved_ftrace_func != ftrace_trace_function) {
@@ -2934,7 +2983,7 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 			synchronize_rcu_tasks();
 
  free_ops:
-		arch_ftrace_trampoline_free(ops);
+		ftrace_trampoline_free(ops);
 	}
 
 	return 0;
@@ -6178,6 +6227,27 @@ struct ftrace_mod_map {
 	unsigned int		num_funcs;
 };
 
+static int ftrace_get_trampoline_kallsym(unsigned int symnum,
+					 unsigned long *value, char *type,
+					 char *name, char *module_name,
+					 int *exported)
+{
+	struct ftrace_ops *op;
+
+	list_for_each_entry_rcu(op, &ftrace_ops_trampoline_list, list) {
+		if (!op->trampoline || symnum--)
+			continue;
+		*value = op->trampoline;
+		*type = 't';
+		strlcpy(name, FTRACE_TRAMPOLINE_SYM, KSYM_NAME_LEN);
+		strlcpy(module_name, FTRACE_TRAMPOLINE_MOD, MODULE_NAME_LEN);
+		*exported = 0;
+		return 0;
+	}
+
+	return -ERANGE;
+}
+
 #ifdef CONFIG_MODULES
 
 #define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
@@ -6190,8 +6260,19 @@ static int referenced_filters(struct dyn_ftrace *rec)
 	int cnt = 0;
 
 	for (ops = ftrace_ops_list; ops != &ftrace_list_end; ops = ops->next) {
-		if (ops_references_rec(ops, rec))
-		    cnt++;
+		if (ops_references_rec(ops, rec)) {
+			if (WARN_ON_ONCE(ops->flags & FTRACE_OPS_FL_DIRECT))
+				continue;
+			if (WARN_ON_ONCE(ops->flags & FTRACE_OPS_FL_IPMODIFY))
+				continue;
+			cnt++;
+			if (ops->flags & FTRACE_OPS_FL_SAVE_REGS)
+				rec->flags |= FTRACE_FL_REGS;
+			if (cnt == 1 && ops->trampoline)
+				rec->flags |= FTRACE_FL_TRAMP;
+			else
+				rec->flags &= ~FTRACE_FL_TRAMP;
+		}
 	}
 
 	return cnt;
@@ -6370,8 +6451,8 @@ void ftrace_module_enable(struct module *mod)
 		if (ftrace_start_up)
 			cnt += referenced_filters(rec);
 
-		/* This clears FTRACE_FL_DISABLED */
-		rec->flags = cnt;
+		rec->flags &= ~FTRACE_FL_DISABLED;
+		rec->flags += cnt;
 
 		if (ftrace_start_up && cnt) {
 			int failed = __ftrace_replace_code(rec, 1);
@@ -6514,6 +6595,7 @@ int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
 {
 	struct ftrace_mod_map *mod_map;
 	struct ftrace_mod_func *mod_func;
+	int ret;
 
 	preempt_disable();
 	list_for_each_entry_rcu(mod_map, &ftrace_mod_maps, list) {
@@ -6540,8 +6622,10 @@ int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
 		WARN_ON(1);
 		break;
 	}
+	ret = ftrace_get_trampoline_kallsym(symnum, value, type, name,
+					    module_name, exported);
 	preempt_enable();
-	return -ERANGE;
+	return ret;
 }
 
 #else
@@ -6552,6 +6636,18 @@ allocate_ftrace_mod_map(struct module *mod,
 			unsigned long start, unsigned long end)
 {
 	return NULL;
+}
+int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
+			   char *type, char *name, char *module_name,
+			   int *exported)
+{
+	int ret;
+
+	preempt_disable();
+	ret = ftrace_get_trampoline_kallsym(symnum, value, type, name,
+					    module_name, exported);
+	preempt_enable();
+	return ret;
 }
 #endif /* CONFIG_MODULES */
 
@@ -6733,7 +6829,24 @@ void __weak arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 
 static void ftrace_update_trampoline(struct ftrace_ops *ops)
 {
+	unsigned long trampoline = ops->trampoline;
+
 	arch_ftrace_update_trampoline(ops);
+	if (ops->trampoline && ops->trampoline != trampoline &&
+	    (ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP)) {
+		/* Add to kallsyms before the perf events */
+		ftrace_add_trampoline_to_kallsyms(ops);
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   ops->trampoline, ops->trampoline_size, false,
+				   FTRACE_TRAMPOLINE_SYM);
+		/*
+		 * Record the perf text poke event after the ksymbol register
+		 * event.
+		 */
+		perf_event_text_poke((void *)ops->trampoline, NULL, 0,
+				     (void *)ops->trampoline,
+				     ops->trampoline_size);
+	}
 }
 
 void ftrace_init_trace_array(struct trace_array *tr)
@@ -6969,12 +7082,12 @@ void ftrace_pid_follow_fork(struct trace_array *tr, bool enable)
 	if (enable) {
 		register_trace_sched_process_fork(ftrace_pid_follow_sched_process_fork,
 						  tr);
-		register_trace_sched_process_exit(ftrace_pid_follow_sched_process_exit,
+		register_trace_sched_process_free(ftrace_pid_follow_sched_process_exit,
 						  tr);
 	} else {
 		unregister_trace_sched_process_fork(ftrace_pid_follow_sched_process_fork,
 						    tr);
-		unregister_trace_sched_process_exit(ftrace_pid_follow_sched_process_exit,
+		unregister_trace_sched_process_free(ftrace_pid_follow_sched_process_exit,
 						    tr);
 	}
 }

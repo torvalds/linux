@@ -88,8 +88,8 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 				 u8 *guid);
 
-static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux);
-static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_aux *aux);
+static int drm_dp_mst_register_i2c_bus(struct drm_dp_mst_port *port);
+static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_mst_port *port);
 static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr);
 
 #define DBG_PREFIX "[dp_mst]"
@@ -259,6 +259,7 @@ static u8 drm_dp_msg_data_crc4(const uint8_t *data, u8 number_of_bytes)
 static inline u8 drm_dp_calc_sb_hdr_size(struct drm_dp_sideband_msg_hdr *hdr)
 {
 	u8 size = 3;
+
 	size += (hdr->lct / 2);
 	return size;
 }
@@ -269,6 +270,7 @@ static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	int idx = 0;
 	int i;
 	u8 crc4;
+
 	buf[idx++] = ((hdr->lct & 0xf) << 4) | (hdr->lcr & 0xf);
 	for (i = 0; i < (hdr->lct / 2); i++)
 		buf[idx++] = hdr->rad[i];
@@ -289,6 +291,7 @@ static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	u8 len;
 	int i;
 	u8 idx;
+
 	if (buf[0] == 0)
 		return false;
 	len = 3;
@@ -326,6 +329,7 @@ drm_dp_encode_sideband_req(const struct drm_dp_sideband_msg_req_body *req,
 	int idx = 0;
 	int i;
 	u8 *buf = raw->msg;
+
 	buf[idx++] = req->req_type & 0x7f;
 
 	switch (req->req_type) {
@@ -673,6 +677,7 @@ drm_dp_mst_dump_sideband_msg_tx(struct drm_printer *p,
 static void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len)
 {
 	u8 crc4;
+
 	crc4 = drm_dp_msg_data_crc4(msg, len);
 	msg[len] = crc4;
 }
@@ -747,6 +752,7 @@ static bool drm_dp_sideband_parse_link_address(struct drm_dp_sideband_msg_rx *ra
 {
 	int idx = 1;
 	int i;
+
 	memcpy(repmsg->u.link_addr.guid, &raw->msg[idx], 16);
 	idx += 16;
 	repmsg->u.link_addr.nports = raw->msg[idx] & 0xf;
@@ -798,6 +804,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 						   struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.remote_dpcd_read_ack.port_number = raw->msg[idx] & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -818,6 +825,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_write(struct drm_dp_sideband_msg_r
 						      struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.remote_dpcd_write_ack.port_number = raw->msg[idx] & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -851,6 +859,7 @@ static bool drm_dp_sideband_parse_enum_path_resources_ack(struct drm_dp_sideband
 							  struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.path_resources.port_number = (raw->msg[idx] >> 4) & 0xf;
 	repmsg->u.path_resources.fec_capable = raw->msg[idx] & 0x1;
 	idx++;
@@ -874,6 +883,7 @@ static bool drm_dp_sideband_parse_allocate_payload_ack(struct drm_dp_sideband_ms
 							  struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.allocate_payload.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -896,6 +906,7 @@ static bool drm_dp_sideband_parse_query_payload_ack(struct drm_dp_sideband_msg_r
 						    struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
+
 	repmsg->u.query_payload.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
 	if (idx > raw->curlen)
@@ -1082,6 +1093,7 @@ static void build_allocate_payload(struct drm_dp_sideband_msg_tx *msg,
 				   u8 *sdp_stream_sink)
 {
 	struct drm_dp_sideband_msg_req_body req;
+
 	memset(&req, 0, sizeof(req));
 	req.req_type = DP_ALLOCATE_PAYLOAD;
 	req.u.allocate_payload.port_number = port_num;
@@ -1142,6 +1154,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 				      int vcpi)
 {
 	int i;
+
 	if (vcpi == 0)
 		return;
 
@@ -1178,12 +1191,38 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 				    struct drm_dp_sideband_msg_tx *txmsg)
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
+	unsigned long wait_timeout = msecs_to_jiffies(4000);
+	unsigned long wait_expires = jiffies + wait_timeout;
 	int ret;
 
-	ret = wait_event_timeout(mgr->tx_waitq,
-				 check_txmsg_state(mgr, txmsg),
-				 (4 * HZ));
-	mutex_lock(&mstb->mgr->qlock);
+	for (;;) {
+		/*
+		 * If the driver provides a way for this, change to
+		 * poll-waiting for the MST reply interrupt if we didn't receive
+		 * it for 50 msec. This would cater for cases where the HPD
+		 * pulse signal got lost somewhere, even though the sink raised
+		 * the corresponding MST interrupt correctly. One example is the
+		 * Club 3D CAC-1557 TypeC -> DP adapter which for some reason
+		 * filters out short pulses with a duration less than ~540 usec.
+		 *
+		 * The poll period is 50 msec to avoid missing an interrupt
+		 * after the sink has cleared it (after a 110msec timeout
+		 * since it raised the interrupt).
+		 */
+		ret = wait_event_timeout(mgr->tx_waitq,
+					 check_txmsg_state(mgr, txmsg),
+					 mgr->cbs->poll_hpd_irq ?
+						msecs_to_jiffies(50) :
+						wait_timeout);
+
+		if (ret || !mgr->cbs->poll_hpd_irq ||
+		    time_after(jiffies, wait_expires))
+			break;
+
+		mgr->cbs->poll_hpd_irq(mgr);
+	}
+
+	mutex_lock(&mgr->qlock);
 	if (ret > 0) {
 		if (txmsg->state == DRM_DP_SIDEBAND_TX_TIMEOUT) {
 			ret = -EIO;
@@ -1197,7 +1236,8 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 
 		/* remove from q */
 		if (txmsg->state == DRM_DP_SIDEBAND_TX_QUEUED ||
-		    txmsg->state == DRM_DP_SIDEBAND_TX_START_SEND)
+		    txmsg->state == DRM_DP_SIDEBAND_TX_START_SEND ||
+		    txmsg->state == DRM_DP_SIDEBAND_TX_SENT)
 			list_del(&txmsg->next);
 	}
 out:
@@ -1603,7 +1643,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	mutex_lock(&mgr->delayed_destroy_lock);
 	list_add(&mstb->destroy_next, &mgr->destroy_branch_device_list);
 	mutex_unlock(&mgr->delayed_destroy_lock);
-	schedule_work(&mgr->delayed_destroy_work);
+	queue_work(mgr->delayed_destroy_wq, &mgr->delayed_destroy_work);
 }
 
 /**
@@ -1720,7 +1760,7 @@ static void drm_dp_destroy_port(struct kref *kref)
 	mutex_lock(&mgr->delayed_destroy_lock);
 	list_add(&port->next, &mgr->destroy_port_list);
 	mutex_unlock(&mgr->delayed_destroy_lock);
-	schedule_work(&mgr->delayed_destroy_work);
+	queue_work(mgr->delayed_destroy_wq, &mgr->delayed_destroy_work);
 }
 
 /**
@@ -1913,6 +1953,7 @@ static u8 drm_dp_calculate_rad(struct drm_dp_mst_port *port,
 	int parent_lct = port->parent->lct;
 	int shift = 4;
 	int idx = (parent_lct - 1) / 2;
+
 	if (parent_lct > 1) {
 		memcpy(rad, port->parent->rad, idx + 1);
 		shift = (parent_lct % 2) ? 4 : 0;
@@ -1966,7 +2007,7 @@ drm_dp_port_set_pdt(struct drm_dp_mst_port *port, u8 new_pdt,
 			}
 
 			/* remove i2c over sideband */
-			drm_dp_mst_unregister_i2c_bus(&port->aux);
+			drm_dp_mst_unregister_i2c_bus(port);
 		} else {
 			mutex_lock(&mgr->lock);
 			drm_dp_mst_topology_put_mstb(port->mstb);
@@ -1981,7 +2022,7 @@ drm_dp_port_set_pdt(struct drm_dp_mst_port *port, u8 new_pdt,
 	if (port->pdt != DP_PEER_DEVICE_NONE) {
 		if (drm_dp_mst_is_end_device(port->pdt, port->mcs)) {
 			/* add i2c over sideband */
-			ret = drm_dp_mst_register_i2c_bus(&port->aux);
+			ret = drm_dp_mst_register_i2c_bus(port);
 		} else {
 			lct = drm_dp_calculate_rad(port, rad);
 			mstb = drm_dp_add_mst_branch_device(lct, rad);
@@ -2091,10 +2132,12 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 {
 	int i;
 	char temp[8];
+
 	snprintf(proppath, proppath_size, "mst:%d", mstb->mgr->conn_base_id);
 	for (i = 0; i < (mstb->lct - 1); i++) {
 		int shift = (i % 2) ? 0 : 4;
 		int port_num = (mstb->rad[i / 2] >> shift) & 0xf;
+
 		snprintf(temp, sizeof(temp), "-%d", port_num);
 		strlcat(proppath, temp, proppath_size);
 	}
@@ -2894,8 +2937,9 @@ out:
 	return ret < 0 ? ret : changed;
 }
 
-void drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_dp_mst_branch *mstb)
+static void
+drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
+				   struct drm_dp_mst_branch *mstb)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
@@ -3130,6 +3174,7 @@ static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_payload *payload)
 {
 	int ret;
+
 	ret = drm_dp_payload_send_msg(mgr, port, id, port->vcpi.pbn);
 	if (ret < 0)
 		return ret;
@@ -3286,6 +3331,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_mst_port *port;
 	int i;
 	int ret = 0;
+
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 
@@ -3751,6 +3797,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 	/* Were we actually expecting a response, and from this mstb? */
 	if (!txmsg || txmsg->dst != mstb) {
 		struct drm_dp_sideband_msg_hdr *hdr;
+
 		hdr = &msg->initial_hdr;
 		DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
 			      mstb, hdr->seqno, hdr->lct, hdr->rad[0],
@@ -4261,11 +4308,11 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 {
 	int ret;
 
-	port = drm_dp_mst_topology_get_port_validated(mgr, port);
-	if (!port)
+	if (slots < 0)
 		return false;
 
-	if (slots < 0)
+	port = drm_dp_mst_topology_get_port_validated(mgr, port);
+	if (!port)
 		return false;
 
 	if (port->vcpi.vcpi > 0) {
@@ -4281,6 +4328,7 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 	if (ret) {
 		DRM_DEBUG_KMS("failed to init vcpi slots=%d max=63 ret=%d\n",
 			      DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
+		drm_dp_mst_topology_put_port(port);
 		goto out;
 	}
 	DRM_DEBUG_KMS("initing vcpi for pbn=%d slots=%d\n",
@@ -4298,6 +4346,7 @@ EXPORT_SYMBOL(drm_dp_mst_allocate_vcpi);
 int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
 {
 	int slots = 0;
+
 	port = drm_dp_mst_topology_get_port_validated(mgr, port);
 	if (!port)
 		return slots;
@@ -4641,12 +4690,13 @@ static void drm_dp_tx_work(struct work_struct *work)
 static inline void
 drm_dp_delayed_destroy_port(struct drm_dp_mst_port *port)
 {
+	drm_dp_port_set_pdt(port, DP_PEER_DEVICE_NONE, port->mcs);
+
 	if (port->connector) {
 		drm_connector_unregister(port->connector);
 		drm_connector_put(port->connector);
 	}
 
-	drm_dp_port_set_pdt(port, DP_PEER_DEVICE_NONE, port->mcs);
 	drm_dp_mst_put_port_malloc(port);
 }
 
@@ -5179,6 +5229,15 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	INIT_LIST_HEAD(&mgr->destroy_port_list);
 	INIT_LIST_HEAD(&mgr->destroy_branch_device_list);
 	INIT_LIST_HEAD(&mgr->up_req_list);
+
+	/*
+	 * delayed_destroy_work will be queued on a dedicated WQ, so that any
+	 * requeuing will be also flushed when deiniting the topology manager.
+	 */
+	mgr->delayed_destroy_wq = alloc_ordered_workqueue("drm_dp_mst_wq", 0);
+	if (mgr->delayed_destroy_wq == NULL)
+		return -ENOMEM;
+
 	INIT_WORK(&mgr->work, drm_dp_mst_link_probe_work);
 	INIT_WORK(&mgr->tx_work, drm_dp_tx_work);
 	INIT_WORK(&mgr->delayed_destroy_work, drm_dp_delayed_destroy_work);
@@ -5223,7 +5282,11 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 {
 	drm_dp_mst_topology_mgr_set_mst(mgr, false);
 	flush_work(&mgr->work);
-	cancel_work_sync(&mgr->delayed_destroy_work);
+	/* The following will also drain any requeued work on the WQ. */
+	if (mgr->delayed_destroy_wq) {
+		destroy_workqueue(mgr->delayed_destroy_wq);
+		mgr->delayed_destroy_wq = NULL;
+	}
 	mutex_lock(&mgr->payload_lock);
 	kfree(mgr->payloads);
 	mgr->payloads = NULL;
@@ -5346,22 +5409,26 @@ static const struct i2c_algorithm drm_dp_mst_i2c_algo = {
 
 /**
  * drm_dp_mst_register_i2c_bus() - register an I2C adapter for I2C-over-AUX
- * @aux: DisplayPort AUX channel
+ * @port: The port to add the I2C bus on
  *
  * Returns 0 on success or a negative error code on failure.
  */
-static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux)
+static int drm_dp_mst_register_i2c_bus(struct drm_dp_mst_port *port)
 {
+	struct drm_dp_aux *aux = &port->aux;
+	struct device *parent_dev = port->mgr->dev->dev;
+
 	aux->ddc.algo = &drm_dp_mst_i2c_algo;
 	aux->ddc.algo_data = aux;
 	aux->ddc.retries = 3;
 
 	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
-	aux->ddc.dev.parent = aux->dev;
-	aux->ddc.dev.of_node = aux->dev->of_node;
+	/* FIXME: set the kdev of the port's connector as parent */
+	aux->ddc.dev.parent = parent_dev;
+	aux->ddc.dev.of_node = parent_dev->of_node;
 
-	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
+	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(parent_dev),
 		sizeof(aux->ddc.name));
 
 	return i2c_add_adapter(&aux->ddc);
@@ -5369,11 +5436,11 @@ static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux)
 
 /**
  * drm_dp_mst_unregister_i2c_bus() - unregister an I2C-over-AUX adapter
- * @aux: DisplayPort AUX channel
+ * @port: The port to remove the I2C bus from
  */
-static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_aux *aux)
+static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_mst_port *port)
 {
-	i2c_del_adapter(&aux->ddc);
+	i2c_del_adapter(&port->aux.ddc);
 }
 
 /**
@@ -5447,7 +5514,7 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *immediate_upstream_port;
 	struct drm_dp_mst_port *fec_port;
-	struct drm_dp_desc desc = { };
+	struct drm_dp_desc desc = {};
 	u8 endpoint_fec;
 	u8 endpoint_dsc;
 

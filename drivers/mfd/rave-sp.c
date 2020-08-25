@@ -96,7 +96,7 @@ struct rave_sp_deframer {
  * @data:	Buffer to store reply payload in
  * @code:	Expected reply code
  * @ackid:	Expected reply ACK ID
- * @completion: Successful reply reception completion
+ * @received:   Successful reply reception completion
  */
 struct rave_sp_reply {
 	size_t length;

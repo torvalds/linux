@@ -1286,9 +1286,6 @@ int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 	case XDP_SETUP_PROG:
 		return cpsw_xdp_prog_setup(priv, bpf);
 
-	case XDP_QUERY_PROG:
-		return xdp_attachment_query(&priv->xdpi, bpf);
-
 	default:
 		return -EINVAL;
 	}

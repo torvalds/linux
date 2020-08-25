@@ -129,7 +129,7 @@ will create the following directory::
 
 	/sys/devices/system/node/nodeX/memory_side_cache/
 
-If that directory is not present, the system either does not not provide
+If that directory is not present, the system either does not provide
 a memory-side cache, or that information is not accessible to the kernel.
 
 The attributes for each level of cache is provided under its cache

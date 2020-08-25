@@ -64,6 +64,52 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  *   &dma_buf.resv pointer.
  */
 
+/**
+ * DOC: fence cross-driver contract
+ *
+ * Since &dma_fence provide a cross driver contract, all drivers must follow the
+ * same rules:
+ *
+ * * Fences must complete in a reasonable time. Fences which represent kernels
+ *   and shaders submitted by userspace, which could run forever, must be backed
+ *   up by timeout and gpu hang recovery code. Minimally that code must prevent
+ *   further command submission and force complete all in-flight fences, e.g.
+ *   when the driver or hardware do not support gpu reset, or if the gpu reset
+ *   failed for some reason. Ideally the driver supports gpu recovery which only
+ *   affects the offending userspace context, and no other userspace
+ *   submissions.
+ *
+ * * Drivers may have different ideas of what completion within a reasonable
+ *   time means. Some hang recovery code uses a fixed timeout, others a mix
+ *   between observing forward progress and increasingly strict timeouts.
+ *   Drivers should not try to second guess timeout handling of fences from
+ *   other drivers.
+ *
+ * * To ensure there's no deadlocks of dma_fence_wait() against other locks
+ *   drivers should annotate all code required to reach dma_fence_signal(),
+ *   which completes the fences, with dma_fence_begin_signalling() and
+ *   dma_fence_end_signalling().
+ *
+ * * Drivers are allowed to call dma_fence_wait() while holding dma_resv_lock().
+ *   This means any code required for fence completion cannot acquire a
+ *   &dma_resv lock. Note that this also pulls in the entire established
+ *   locking hierarchy around dma_resv_lock() and dma_resv_unlock().
+ *
+ * * Drivers are allowed to call dma_fence_wait() from their &shrinker
+ *   callbacks. This means any code required for fence completion cannot
+ *   allocate memory with GFP_KERNEL.
+ *
+ * * Drivers are allowed to call dma_fence_wait() from their &mmu_notifier
+ *   respectively &mmu_interval_notifier callbacks. This means any code required
+ *   for fence completeion cannot allocate memory with GFP_NOFS or GFP_NOIO.
+ *   Only GFP_ATOMIC is permissible, which might fail.
+ *
+ * Note that only GPU drivers have a reasonable excuse for both requiring
+ * &mmu_interval_notifier and &shrinker callbacks at the same time as having to
+ * track asynchronous compute work using &dma_fence. No driver outside of
+ * drivers/gpu should ever call dma_fence_wait() in such contexts.
+ */
+
 static const char *dma_fence_stub_get_name(struct dma_fence *fence)
 {
         return "stub";
@@ -109,6 +155,160 @@ u64 dma_fence_context_alloc(unsigned num)
 	return atomic64_fetch_add(num, &dma_fence_context_counter);
 }
 EXPORT_SYMBOL(dma_fence_context_alloc);
+
+/**
+ * DOC: fence signalling annotation
+ *
+ * Proving correctness of all the kernel code around &dma_fence through code
+ * review and testing is tricky for a few reasons:
+ *
+ * * It is a cross-driver contract, and therefore all drivers must follow the
+ *   same rules for lock nesting order, calling contexts for various functions
+ *   and anything else significant for in-kernel interfaces. But it is also
+ *   impossible to test all drivers in a single machine, hence brute-force N vs.
+ *   N testing of all combinations is impossible. Even just limiting to the
+ *   possible combinations is infeasible.
+ *
+ * * There is an enormous amount of driver code involved. For render drivers
+ *   there's the tail of command submission, after fences are published,
+ *   scheduler code, interrupt and workers to process job completion,
+ *   and timeout, gpu reset and gpu hang recovery code. Plus for integration
+ *   with core mm with have &mmu_notifier, respectively &mmu_interval_notifier,
+ *   and &shrinker. For modesetting drivers there's the commit tail functions
+ *   between when fences for an atomic modeset are published, and when the
+ *   corresponding vblank completes, including any interrupt processing and
+ *   related workers. Auditing all that code, across all drivers, is not
+ *   feasible.
+ *
+ * * Due to how many other subsystems are involved and the locking hierarchies
+ *   this pulls in there is extremely thin wiggle-room for driver-specific
+ *   differences. &dma_fence interacts with almost all of the core memory
+ *   handling through page fault handlers via &dma_resv, dma_resv_lock() and
+ *   dma_resv_unlock(). On the other side it also interacts through all
+ *   allocation sites through &mmu_notifier and &shrinker.
+ *
+ * Furthermore lockdep does not handle cross-release dependencies, which means
+ * any deadlocks between dma_fence_wait() and dma_fence_signal() can't be caught
+ * at runtime with some quick testing. The simplest example is one thread
+ * waiting on a &dma_fence while holding a lock::
+ *
+ *     lock(A);
+ *     dma_fence_wait(B);
+ *     unlock(A);
+ *
+ * while the other thread is stuck trying to acquire the same lock, which
+ * prevents it from signalling the fence the previous thread is stuck waiting
+ * on::
+ *
+ *     lock(A);
+ *     unlock(A);
+ *     dma_fence_signal(B);
+ *
+ * By manually annotating all code relevant to signalling a &dma_fence we can
+ * teach lockdep about these dependencies, which also helps with the validation
+ * headache since now lockdep can check all the rules for us::
+ *
+ *    cookie = dma_fence_begin_signalling();
+ *    lock(A);
+ *    unlock(A);
+ *    dma_fence_signal(B);
+ *    dma_fence_end_signalling(cookie);
+ *
+ * For using dma_fence_begin_signalling() and dma_fence_end_signalling() to
+ * annotate critical sections the following rules need to be observed:
+ *
+ * * All code necessary to complete a &dma_fence must be annotated, from the
+ *   point where a fence is accessible to other threads, to the point where
+ *   dma_fence_signal() is called. Un-annotated code can contain deadlock issues,
+ *   and due to the very strict rules and many corner cases it is infeasible to
+ *   catch these just with review or normal stress testing.
+ *
+ * * &struct dma_resv deserves a special note, since the readers are only
+ *   protected by rcu. This means the signalling critical section starts as soon
+ *   as the new fences are installed, even before dma_resv_unlock() is called.
+ *
+ * * The only exception are fast paths and opportunistic signalling code, which
+ *   calls dma_fence_signal() purely as an optimization, but is not required to
+ *   guarantee completion of a &dma_fence. The usual example is a wait IOCTL
+ *   which calls dma_fence_signal(), while the mandatory completion path goes
+ *   through a hardware interrupt and possible job completion worker.
+ *
+ * * To aid composability of code, the annotations can be freely nested, as long
+ *   as the overall locking hierarchy is consistent. The annotations also work
+ *   both in interrupt and process context. Due to implementation details this
+ *   requires that callers pass an opaque cookie from
+ *   dma_fence_begin_signalling() to dma_fence_end_signalling().
+ *
+ * * Validation against the cross driver contract is implemented by priming
+ *   lockdep with the relevant hierarchy at boot-up. This means even just
+ *   testing with a single device is enough to validate a driver, at least as
+ *   far as deadlocks with dma_fence_wait() against dma_fence_signal() are
+ *   concerned.
+ */
+#ifdef CONFIG_LOCKDEP
+static struct lockdep_map dma_fence_lockdep_map = {
+	.name = "dma_fence_map"
+};
+
+/**
+ * dma_fence_begin_signalling - begin a critical DMA fence signalling section
+ *
+ * Drivers should use this to annotate the beginning of any code section
+ * required to eventually complete &dma_fence by calling dma_fence_signal().
+ *
+ * The end of these critical sections are annotated with
+ * dma_fence_end_signalling().
+ *
+ * Returns:
+ *
+ * Opaque cookie needed by the implementation, which needs to be passed to
+ * dma_fence_end_signalling().
+ */
+bool dma_fence_begin_signalling(void)
+{
+	/* explicitly nesting ... */
+	if (lock_is_held_type(&dma_fence_lockdep_map, 1))
+		return true;
+
+	/* rely on might_sleep check for soft/hardirq locks */
+	if (in_atomic())
+		return true;
+
+	/* ... and non-recursive readlock */
+	lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
+
+	return false;
+}
+EXPORT_SYMBOL(dma_fence_begin_signalling);
+
+/**
+ * dma_fence_end_signalling - end a critical DMA fence signalling section
+ *
+ * Closes a critical section annotation opened by dma_fence_begin_signalling().
+ */
+void dma_fence_end_signalling(bool cookie)
+{
+	if (cookie)
+		return;
+
+	lock_release(&dma_fence_lockdep_map, _RET_IP_);
+}
+EXPORT_SYMBOL(dma_fence_end_signalling);
+
+void __dma_fence_might_wait(void)
+{
+	bool tmp;
+
+	tmp = lock_is_held_type(&dma_fence_lockdep_map, 1);
+	if (tmp)
+		lock_release(&dma_fence_lockdep_map, _THIS_IP_);
+	lock_map_acquire(&dma_fence_lockdep_map);
+	lock_map_release(&dma_fence_lockdep_map);
+	if (tmp)
+		lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _THIS_IP_);
+}
+#endif
+
 
 /**
  * dma_fence_signal_locked - signal completion of a fence
@@ -170,13 +370,18 @@ int dma_fence_signal(struct dma_fence *fence)
 {
 	unsigned long flags;
 	int ret;
+	bool tmp;
 
 	if (!fence)
 		return -EINVAL;
 
+	tmp = dma_fence_begin_signalling();
+
 	spin_lock_irqsave(fence->lock, flags);
 	ret = dma_fence_signal_locked(fence);
 	spin_unlock_irqrestore(fence->lock, flags);
+
+	dma_fence_end_signalling(tmp);
 
 	return ret;
 }
@@ -207,6 +412,10 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 
 	if (WARN_ON(timeout < 0))
 		return -EINVAL;
+
+	might_sleep();
+
+	__dma_fence_might_wait();
 
 	trace_dma_fence_wait_start(fence);
 	if (fence->ops->wait)

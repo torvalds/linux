@@ -175,7 +175,7 @@ int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon)
 	}
 	hlist_del(&daemon->euid_chain);
 	mutex_unlock(&daemon->mux);
-	kzfree(daemon);
+	kfree_sensitive(daemon);
 out:
 	return rc;
 }

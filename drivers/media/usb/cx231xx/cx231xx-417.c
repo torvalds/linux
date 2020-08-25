@@ -1734,7 +1734,7 @@ static void cx231xx_video_dev_init(
 int cx231xx_417_register(struct cx231xx *dev)
 {
 	/* FIXME: Port1 hardcoded here */
-	int err = -ENODEV;
+	int err;
 	struct cx231xx_tsport *tsport = &dev->ts1;
 	struct vb2_queue *q;
 

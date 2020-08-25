@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-userprogs := uhid-example
-always-y := $(userprogs)
+userprogs-always-y += uhid-example
 
 userccflags += -I usr/include

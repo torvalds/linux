@@ -39,6 +39,7 @@ enum dma_status {
 	DMA_IN_PROGRESS,
 	DMA_PAUSED,
 	DMA_ERROR,
+	DMA_OUT_OF_ORDER,
 };
 
 /**
@@ -61,6 +62,9 @@ enum dma_transaction_type {
 	DMA_SLAVE,
 	DMA_CYCLIC,
 	DMA_INTERLEAVE,
+	DMA_COMPLETION_NO_ORDER,
+	DMA_REPEAT,
+	DMA_LOAD_EOT,
 /* last transaction type for creation of the capabilities mask */
 	DMA_TX_TYPE_END,
 };
@@ -162,7 +166,7 @@ struct dma_interleaved_template {
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
  *  this transaction
  * @DMA_CTRL_ACK - if clear, the descriptor cannot be reused until the client
- *  acknowledges receipt, i.e. has has a chance to establish any dependency
+ *  acknowledges receipt, i.e. has a chance to establish any dependency
  *  chains
  * @DMA_PREP_PQ_DISABLE_P - prevent generation of P while generating Q
  * @DMA_PREP_PQ_DISABLE_Q - prevent generation of Q while generating P
@@ -176,6 +180,16 @@ struct dma_interleaved_template {
  * @DMA_PREP_CMD: tell the driver that the data passed to DMA API is command
  *  data and the descriptor should be in different format from normal
  *  data descriptors.
+ * @DMA_PREP_REPEAT: tell the driver that the transaction shall be automatically
+ *  repeated when it ends until a transaction is issued on the same channel
+ *  with the DMA_PREP_LOAD_EOT flag set. This flag is only applicable to
+ *  interleaved transactions and is ignored for all other transaction types.
+ * @DMA_PREP_LOAD_EOT: tell the driver that the transaction shall replace any
+ *  active repeated (as indicated by DMA_PREP_REPEAT) transaction when the
+ *  repeated transaction ends. Not setting this flag when the previously queued
+ *  transaction is marked with DMA_PREP_REPEAT will cause the new transaction
+ *  to never be processed and stay in the issued queue forever. The flag is
+ *  ignored if the previous transaction is not a repeated transaction.
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
@@ -186,6 +200,8 @@ enum dma_ctrl_flags {
 	DMA_PREP_FENCE = (1 << 5),
 	DMA_CTRL_REUSE = (1 << 6),
 	DMA_PREP_CMD = (1 << 7),
+	DMA_PREP_REPEAT = (1 << 8),
+	DMA_PREP_LOAD_EOT = (1 << 9),
 };
 
 /**
@@ -465,7 +481,11 @@ enum dma_residue_granularity {
  *	Since the enum dma_transfer_direction is not defined as bit flag for
  *	each type, the dma controller should set BIT(<TYPE>) and same
  *	should be checked by controller as well
+ * @min_burst: min burst capability per-transfer
  * @max_burst: max burst capability per-transfer
+ * @max_sg_burst: max number of SG list entries executed in a single burst
+ *	DMA tansaction with no software intervention for reinitialization.
+ *	Zero value means unlimited number of entries.
  * @cmd_pause: true, if pause is supported (i.e. for reading residue or
  *	       for resume later)
  * @cmd_resume: true, if resume is supported
@@ -478,7 +498,9 @@ struct dma_slave_caps {
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
 	u32 directions;
+	u32 min_burst;
 	u32 max_burst;
+	u32 max_sg_burst;
 	bool cmd_pause;
 	bool cmd_resume;
 	bool cmd_terminate;
@@ -769,7 +791,11 @@ struct dma_filter {
  *	Since the enum dma_transfer_direction is not defined as bit flag for
  *	each type, the dma controller should set BIT(<TYPE>) and same
  *	should be checked by controller as well
+ * @min_burst: min burst capability per-transfer
  * @max_burst: max burst capability per-transfer
+ * @max_sg_burst: max number of SG list entries executed in a single burst
+ *	DMA tansaction with no software intervention for reinitialization.
+ *	Zero value means unlimited number of entries.
  * @residue_granularity: granularity of the transfer residue reported
  *	by tx_status
  * @device_alloc_chan_resources: allocate resources and return the
@@ -789,6 +815,8 @@ struct dma_filter {
  *	be called after period_len bytes have been transferred.
  * @device_prep_interleaved_dma: Transfer expression in a generic way.
  * @device_prep_dma_imm_data: DMA's 8 byte immediate data to the dst address
+ * @device_caps: May be used to override the generic DMA slave capabilities
+ *	with per-channel specific ones
  * @device_config: Pushes a new configuration to a channel, return 0 or an error
  *	code
  * @device_pause: Pauses any transfer happening on a channel. Returns
@@ -839,7 +867,9 @@ struct dma_device {
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
 	u32 directions;
+	u32 min_burst;
 	u32 max_burst;
+	u32 max_sg_burst;
 	bool descriptor_reuse;
 	enum dma_residue_granularity residue_granularity;
 
@@ -887,6 +917,8 @@ struct dma_device {
 		struct dma_chan *chan, dma_addr_t dst, u64 data,
 		unsigned long flags);
 
+	void (*device_caps)(struct dma_chan *chan,
+			    struct dma_slave_caps *caps);
 	int (*device_config)(struct dma_chan *chan,
 			     struct dma_slave_config *config);
 	int (*device_pause)(struct dma_chan *chan);
@@ -979,6 +1011,9 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
 		unsigned long flags)
 {
 	if (!chan || !chan->device || !chan->device->device_prep_interleaved_dma)
+		return NULL;
+	if (flags & DMA_PREP_REPEAT &&
+	    !test_bit(DMA_REPEAT, chan->device->cap_mask.bits))
 		return NULL;
 
 	return chan->device->device_prep_interleaved_dma(chan, xt, flags);

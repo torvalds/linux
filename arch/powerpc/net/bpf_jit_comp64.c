@@ -95,12 +95,12 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	 * invoked through a tail call.
 	 */
 	if (ctx->seen & SEEN_TAILCALL) {
-		PPC_LI(b2p[TMP_REG_1], 0);
+		EMIT(PPC_RAW_LI(b2p[TMP_REG_1], 0));
 		/* this goes in the redzone */
 		PPC_BPF_STL(b2p[TMP_REG_1], 1, -(BPF_PPC_STACK_SAVE + 8));
 	} else {
-		PPC_NOP();
-		PPC_NOP();
+		EMIT(PPC_RAW_NOP());
+		EMIT(PPC_RAW_NOP());
 	}
 
 #define BPF_TAILCALL_PROLOGUE_SIZE	8
@@ -129,8 +129,8 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 
 	/* Setup frame pointer to point to the bpf stack area */
 	if (bpf_is_seen_register(ctx, BPF_REG_FP))
-		PPC_ADDI(b2p[BPF_REG_FP], 1,
-				STACK_FRAME_MIN_SIZE + ctx->stack_size);
+		EMIT(PPC_RAW_ADDI(b2p[BPF_REG_FP], 1,
+				STACK_FRAME_MIN_SIZE + ctx->stack_size));
 }
 
 static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx)
@@ -144,10 +144,10 @@ static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx
 
 	/* Tear down our stack frame */
 	if (bpf_has_stack_frame(ctx)) {
-		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME + ctx->stack_size);
+		EMIT(PPC_RAW_ADDI(1, 1, BPF_PPC_STACKFRAME + ctx->stack_size));
 		if (ctx->seen & SEEN_FUNC) {
 			PPC_BPF_LL(0, 1, PPC_LR_STKOFF);
-			PPC_MTLR(0);
+			EMIT(PPC_RAW_MTLR(0));
 		}
 	}
 }
@@ -157,9 +157,9 @@ static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	bpf_jit_emit_common_epilogue(image, ctx);
 
 	/* Move result to r3 */
-	PPC_MR(3, b2p[BPF_REG_0]);
+	EMIT(PPC_RAW_MR(3, b2p[BPF_REG_0]));
 
-	PPC_BLR();
+	EMIT(PPC_RAW_BLR());
 }
 
 static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
@@ -171,7 +171,7 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 	/* Load actual entry point from function descriptor */
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
 	/* ... and move it to LR */
-	PPC_MTLR(b2p[TMP_REG_1]);
+	EMIT(PPC_RAW_MTLR(b2p[TMP_REG_1]));
 	/*
 	 * Load TOC from function descriptor at offset 8.
 	 * We can clobber r2 since we get called through a
@@ -182,9 +182,9 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 #else
 	/* We can clobber r12 */
 	PPC_FUNC_ADDR(12, func);
-	PPC_MTLR(12);
+	EMIT(PPC_RAW_MTLR(12));
 #endif
-	PPC_BLRL();
+	EMIT(PPC_RAW_BLRL());
 }
 
 static void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx,
@@ -206,7 +206,7 @@ static void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx,
 	 * that PPC_LI64() can emit.
 	 */
 	for (i = ctx->idx - ctx_idx; i < 5; i++)
-		PPC_NOP();
+		EMIT(PPC_RAW_NOP());
 
 #ifdef PPC64_ELF_ABI_v1
 	/*
@@ -220,8 +220,8 @@ static void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx,
 	PPC_BPF_LL(12, 12, 0);
 #endif
 
-	PPC_MTLR(12);
-	PPC_BLRL();
+	EMIT(PPC_RAW_MTLR(12));
+	EMIT(PPC_RAW_BLRL());
 }
 
 static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
@@ -239,9 +239,9 @@ static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 
 	 * if (index >= array->map.max_entries)
 	 *   goto out;
 	 */
-	PPC_LWZ(b2p[TMP_REG_1], b2p_bpf_array, offsetof(struct bpf_array, map.max_entries));
-	PPC_RLWINM(b2p_index, b2p_index, 0, 0, 31);
-	PPC_CMPLW(b2p_index, b2p[TMP_REG_1]);
+	EMIT(PPC_RAW_LWZ(b2p[TMP_REG_1], b2p_bpf_array, offsetof(struct bpf_array, map.max_entries)));
+	EMIT(PPC_RAW_RLWINM(b2p_index, b2p_index, 0, 0, 31));
+	EMIT(PPC_RAW_CMPLW(b2p_index, b2p[TMP_REG_1]));
 	PPC_BCC(COND_GE, out);
 
 	/*
@@ -249,42 +249,42 @@ static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 
 	 *   goto out;
 	 */
 	PPC_BPF_LL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
-	PPC_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT);
+	EMIT(PPC_RAW_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT));
 	PPC_BCC(COND_GT, out);
 
 	/*
 	 * tail_call_cnt++;
 	 */
-	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], 1);
+	EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], 1));
 	PPC_BPF_STL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
 
 	/* prog = array->ptrs[index]; */
-	PPC_MULI(b2p[TMP_REG_1], b2p_index, 8);
-	PPC_ADD(b2p[TMP_REG_1], b2p[TMP_REG_1], b2p_bpf_array);
+	EMIT(PPC_RAW_MULI(b2p[TMP_REG_1], b2p_index, 8));
+	EMIT(PPC_RAW_ADD(b2p[TMP_REG_1], b2p[TMP_REG_1], b2p_bpf_array));
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_array, ptrs));
 
 	/*
 	 * if (prog == NULL)
 	 *   goto out;
 	 */
-	PPC_CMPLDI(b2p[TMP_REG_1], 0);
+	EMIT(PPC_RAW_CMPLDI(b2p[TMP_REG_1], 0));
 	PPC_BCC(COND_EQ, out);
 
 	/* goto *(prog->bpf_func + prologue_size); */
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
 #ifdef PPC64_ELF_ABI_v1
 	/* skip past the function descriptor */
-	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1],
-			FUNCTION_DESCR_SIZE + BPF_TAILCALL_PROLOGUE_SIZE);
+	EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1],
+			FUNCTION_DESCR_SIZE + BPF_TAILCALL_PROLOGUE_SIZE));
 #else
-	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], BPF_TAILCALL_PROLOGUE_SIZE);
+	EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], BPF_TAILCALL_PROLOGUE_SIZE));
 #endif
-	PPC_MTCTR(b2p[TMP_REG_1]);
+	EMIT(PPC_RAW_MTCTR(b2p[TMP_REG_1]));
 
 	/* tear down stack, restore NVRs, ... */
 	bpf_jit_emit_common_epilogue(image, ctx);
 
-	PPC_BCTR();
+	EMIT(PPC_RAW_BCTR());
 	/* out: */
 }
 
@@ -340,11 +340,11 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		 */
 		case BPF_ALU | BPF_ADD | BPF_X: /* (u32) dst += (u32) src */
 		case BPF_ALU64 | BPF_ADD | BPF_X: /* dst += src */
-			PPC_ADD(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_ADD(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_SUB | BPF_X: /* (u32) dst -= (u32) src */
 		case BPF_ALU64 | BPF_SUB | BPF_X: /* dst -= src */
-			PPC_SUB(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SUB(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_ADD | BPF_K: /* (u32) dst += (u32) imm */
 		case BPF_ALU | BPF_SUB | BPF_K: /* (u32) dst -= (u32) imm */
@@ -354,53 +354,53 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 				imm = -imm;
 			if (imm) {
 				if (imm >= -32768 && imm < 32768)
-					PPC_ADDI(dst_reg, dst_reg, IMM_L(imm));
+					EMIT(PPC_RAW_ADDI(dst_reg, dst_reg, IMM_L(imm)));
 				else {
 					PPC_LI32(b2p[TMP_REG_1], imm);
-					PPC_ADD(dst_reg, dst_reg, b2p[TMP_REG_1]);
+					EMIT(PPC_RAW_ADD(dst_reg, dst_reg, b2p[TMP_REG_1]));
 				}
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_MUL | BPF_X: /* (u32) dst *= (u32) src */
 		case BPF_ALU64 | BPF_MUL | BPF_X: /* dst *= src */
 			if (BPF_CLASS(code) == BPF_ALU)
-				PPC_MULW(dst_reg, dst_reg, src_reg);
+				EMIT(PPC_RAW_MULW(dst_reg, dst_reg, src_reg));
 			else
-				PPC_MULD(dst_reg, dst_reg, src_reg);
+				EMIT(PPC_RAW_MULD(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_MUL | BPF_K: /* (u32) dst *= (u32) imm */
 		case BPF_ALU64 | BPF_MUL | BPF_K: /* dst *= imm */
 			if (imm >= -32768 && imm < 32768)
-				PPC_MULI(dst_reg, dst_reg, IMM_L(imm));
+				EMIT(PPC_RAW_MULI(dst_reg, dst_reg, IMM_L(imm)));
 			else {
 				PPC_LI32(b2p[TMP_REG_1], imm);
 				if (BPF_CLASS(code) == BPF_ALU)
-					PPC_MULW(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+					EMIT(PPC_RAW_MULW(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 				else
-					PPC_MULD(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+					EMIT(PPC_RAW_MULD(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_DIV | BPF_X: /* (u32) dst /= (u32) src */
 		case BPF_ALU | BPF_MOD | BPF_X: /* (u32) dst %= (u32) src */
 			if (BPF_OP(code) == BPF_MOD) {
-				PPC_DIVWU(b2p[TMP_REG_1], dst_reg, src_reg);
-				PPC_MULW(b2p[TMP_REG_1], src_reg,
-						b2p[TMP_REG_1]);
-				PPC_SUB(dst_reg, dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_DIVWU(b2p[TMP_REG_1], dst_reg, src_reg));
+				EMIT(PPC_RAW_MULW(b2p[TMP_REG_1], src_reg,
+						b2p[TMP_REG_1]));
+				EMIT(PPC_RAW_SUB(dst_reg, dst_reg, b2p[TMP_REG_1]));
 			} else
-				PPC_DIVWU(dst_reg, dst_reg, src_reg);
+				EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
 			if (BPF_OP(code) == BPF_MOD) {
-				PPC_DIVDU(b2p[TMP_REG_1], dst_reg, src_reg);
-				PPC_MULD(b2p[TMP_REG_1], src_reg,
-						b2p[TMP_REG_1]);
-				PPC_SUB(dst_reg, dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_DIVDU(b2p[TMP_REG_1], dst_reg, src_reg));
+				EMIT(PPC_RAW_MULD(b2p[TMP_REG_1], src_reg,
+						b2p[TMP_REG_1]));
+				EMIT(PPC_RAW_SUB(dst_reg, dst_reg, b2p[TMP_REG_1]));
 			} else
-				PPC_DIVDU(dst_reg, dst_reg, src_reg);
+				EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_MOD | BPF_K: /* (u32) dst %= (u32) imm */
 		case BPF_ALU | BPF_DIV | BPF_K: /* (u32) dst /= (u32) imm */
@@ -415,35 +415,37 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			switch (BPF_CLASS(code)) {
 			case BPF_ALU:
 				if (BPF_OP(code) == BPF_MOD) {
-					PPC_DIVWU(b2p[TMP_REG_2], dst_reg,
-							b2p[TMP_REG_1]);
-					PPC_MULW(b2p[TMP_REG_1],
+					EMIT(PPC_RAW_DIVWU(b2p[TMP_REG_2],
+							dst_reg,
+							b2p[TMP_REG_1]));
+					EMIT(PPC_RAW_MULW(b2p[TMP_REG_1],
 							b2p[TMP_REG_1],
-							b2p[TMP_REG_2]);
-					PPC_SUB(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+							b2p[TMP_REG_2]));
+					EMIT(PPC_RAW_SUB(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 				} else
-					PPC_DIVWU(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+					EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 				break;
 			case BPF_ALU64:
 				if (BPF_OP(code) == BPF_MOD) {
-					PPC_DIVDU(b2p[TMP_REG_2], dst_reg,
-							b2p[TMP_REG_1]);
-					PPC_MULD(b2p[TMP_REG_1],
+					EMIT(PPC_RAW_DIVDU(b2p[TMP_REG_2],
+							dst_reg,
+							b2p[TMP_REG_1]));
+					EMIT(PPC_RAW_MULD(b2p[TMP_REG_1],
 							b2p[TMP_REG_1],
-							b2p[TMP_REG_2]);
-					PPC_SUB(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+							b2p[TMP_REG_2]));
+					EMIT(PPC_RAW_SUB(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 				} else
-					PPC_DIVDU(dst_reg, dst_reg,
-							b2p[TMP_REG_1]);
+					EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg,
+							b2p[TMP_REG_1]));
 				break;
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_NEG: /* (u32) dst = -dst */
 		case BPF_ALU64 | BPF_NEG: /* dst = -dst */
-			PPC_NEG(dst_reg, dst_reg);
+			EMIT(PPC_RAW_NEG(dst_reg, dst_reg));
 			goto bpf_alu32_trunc;
 
 		/*
@@ -451,101 +453,101 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		 */
 		case BPF_ALU | BPF_AND | BPF_X: /* (u32) dst = dst & src */
 		case BPF_ALU64 | BPF_AND | BPF_X: /* dst = dst & src */
-			PPC_AND(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_AND(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_AND | BPF_K: /* (u32) dst = dst & imm */
 		case BPF_ALU64 | BPF_AND | BPF_K: /* dst = dst & imm */
 			if (!IMM_H(imm))
-				PPC_ANDI(dst_reg, dst_reg, IMM_L(imm));
+				EMIT(PPC_RAW_ANDI(dst_reg, dst_reg, IMM_L(imm)));
 			else {
 				/* Sign-extended */
 				PPC_LI32(b2p[TMP_REG_1], imm);
-				PPC_AND(dst_reg, dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_AND(dst_reg, dst_reg, b2p[TMP_REG_1]));
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_OR | BPF_X: /* dst = (u32) dst | (u32) src */
 		case BPF_ALU64 | BPF_OR | BPF_X: /* dst = dst | src */
-			PPC_OR(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_OR(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_OR | BPF_K:/* dst = (u32) dst | (u32) imm */
 		case BPF_ALU64 | BPF_OR | BPF_K:/* dst = dst | imm */
 			if (imm < 0 && BPF_CLASS(code) == BPF_ALU64) {
 				/* Sign-extended */
 				PPC_LI32(b2p[TMP_REG_1], imm);
-				PPC_OR(dst_reg, dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_OR(dst_reg, dst_reg, b2p[TMP_REG_1]));
 			} else {
 				if (IMM_L(imm))
-					PPC_ORI(dst_reg, dst_reg, IMM_L(imm));
+					EMIT(PPC_RAW_ORI(dst_reg, dst_reg, IMM_L(imm)));
 				if (IMM_H(imm))
-					PPC_ORIS(dst_reg, dst_reg, IMM_H(imm));
+					EMIT(PPC_RAW_ORIS(dst_reg, dst_reg, IMM_H(imm)));
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_XOR | BPF_X: /* (u32) dst ^= src */
 		case BPF_ALU64 | BPF_XOR | BPF_X: /* dst ^= src */
-			PPC_XOR(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_XOR(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_XOR | BPF_K: /* (u32) dst ^= (u32) imm */
 		case BPF_ALU64 | BPF_XOR | BPF_K: /* dst ^= imm */
 			if (imm < 0 && BPF_CLASS(code) == BPF_ALU64) {
 				/* Sign-extended */
 				PPC_LI32(b2p[TMP_REG_1], imm);
-				PPC_XOR(dst_reg, dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_XOR(dst_reg, dst_reg, b2p[TMP_REG_1]));
 			} else {
 				if (IMM_L(imm))
-					PPC_XORI(dst_reg, dst_reg, IMM_L(imm));
+					EMIT(PPC_RAW_XORI(dst_reg, dst_reg, IMM_L(imm)));
 				if (IMM_H(imm))
-					PPC_XORIS(dst_reg, dst_reg, IMM_H(imm));
+					EMIT(PPC_RAW_XORIS(dst_reg, dst_reg, IMM_H(imm)));
 			}
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_LSH | BPF_X: /* (u32) dst <<= (u32) src */
 			/* slw clears top 32 bits */
-			PPC_SLW(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SLW(dst_reg, dst_reg, src_reg));
 			/* skip zero extension move, but set address map. */
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		case BPF_ALU64 | BPF_LSH | BPF_X: /* dst <<= src; */
-			PPC_SLD(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SLD(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_LSH | BPF_K: /* (u32) dst <<== (u32) imm */
 			/* with imm 0, we still need to clear top 32 bits */
-			PPC_SLWI(dst_reg, dst_reg, imm);
+			EMIT(PPC_RAW_SLWI(dst_reg, dst_reg, imm));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		case BPF_ALU64 | BPF_LSH | BPF_K: /* dst <<== imm */
 			if (imm != 0)
-				PPC_SLDI(dst_reg, dst_reg, imm);
+				EMIT(PPC_RAW_SLDI(dst_reg, dst_reg, imm));
 			break;
 		case BPF_ALU | BPF_RSH | BPF_X: /* (u32) dst >>= (u32) src */
-			PPC_SRW(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SRW(dst_reg, dst_reg, src_reg));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		case BPF_ALU64 | BPF_RSH | BPF_X: /* dst >>= src */
-			PPC_SRD(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SRD(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_RSH | BPF_K: /* (u32) dst >>= (u32) imm */
-			PPC_SRWI(dst_reg, dst_reg, imm);
+			EMIT(PPC_RAW_SRWI(dst_reg, dst_reg, imm));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		case BPF_ALU64 | BPF_RSH | BPF_K: /* dst >>= imm */
 			if (imm != 0)
-				PPC_SRDI(dst_reg, dst_reg, imm);
+				EMIT(PPC_RAW_SRDI(dst_reg, dst_reg, imm));
 			break;
 		case BPF_ALU | BPF_ARSH | BPF_X: /* (s32) dst >>= src */
-			PPC_SRAW(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SRAW(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_ARSH | BPF_X: /* (s64) dst >>= src */
-			PPC_SRAD(dst_reg, dst_reg, src_reg);
+			EMIT(PPC_RAW_SRAD(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_ARSH | BPF_K: /* (s32) dst >>= imm */
-			PPC_SRAWI(dst_reg, dst_reg, imm);
+			EMIT(PPC_RAW_SRAWI(dst_reg, dst_reg, imm));
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_ARSH | BPF_K: /* (s64) dst >>= imm */
 			if (imm != 0)
-				PPC_SRADI(dst_reg, dst_reg, imm);
+				EMIT(PPC_RAW_SRADI(dst_reg, dst_reg, imm));
 			break;
 
 		/*
@@ -555,10 +557,10 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		case BPF_ALU64 | BPF_MOV | BPF_X: /* dst = src */
 			if (imm == 1) {
 				/* special mov32 for zext */
-				PPC_RLWINM(dst_reg, dst_reg, 0, 0, 31);
+				EMIT(PPC_RAW_RLWINM(dst_reg, dst_reg, 0, 0, 31));
 				break;
 			}
-			PPC_MR(dst_reg, src_reg);
+			EMIT(PPC_RAW_MR(dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_MOV | BPF_K: /* (u32) dst = imm */
 		case BPF_ALU64 | BPF_MOV | BPF_K: /* dst = (s64) imm */
@@ -572,7 +574,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 bpf_alu32_trunc:
 		/* Truncate to 32-bits */
 		if (BPF_CLASS(code) == BPF_ALU && !fp->aux->verifier_zext)
-			PPC_RLWINM(dst_reg, dst_reg, 0, 0, 31);
+			EMIT(PPC_RAW_RLWINM(dst_reg, dst_reg, 0, 0, 31));
 		break;
 
 		/*
@@ -590,11 +592,11 @@ bpf_alu32_trunc:
 			switch (imm) {
 			case 16:
 				/* Rotate 8 bits left & mask with 0x0000ff00 */
-				PPC_RLWINM(b2p[TMP_REG_1], dst_reg, 8, 16, 23);
+				EMIT(PPC_RAW_RLWINM(b2p[TMP_REG_1], dst_reg, 8, 16, 23));
 				/* Rotate 8 bits right & insert LSB to reg */
-				PPC_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 24, 31);
+				EMIT(PPC_RAW_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 24, 31));
 				/* Move result back to dst_reg */
-				PPC_MR(dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_MR(dst_reg, b2p[TMP_REG_1]));
 				break;
 			case 32:
 				/*
@@ -602,12 +604,12 @@ bpf_alu32_trunc:
 				 * 2 bytes are already in their final position
 				 * -- byte 2 and 4 (of bytes 1, 2, 3 and 4)
 				 */
-				PPC_RLWINM(b2p[TMP_REG_1], dst_reg, 8, 0, 31);
+				EMIT(PPC_RAW_RLWINM(b2p[TMP_REG_1], dst_reg, 8, 0, 31));
 				/* Rotate 24 bits and insert byte 1 */
-				PPC_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 0, 7);
+				EMIT(PPC_RAW_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 0, 7));
 				/* Rotate 24 bits and insert byte 3 */
-				PPC_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 16, 23);
-				PPC_MR(dst_reg, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_RLWIMI(b2p[TMP_REG_1], dst_reg, 24, 16, 23));
+				EMIT(PPC_RAW_MR(dst_reg, b2p[TMP_REG_1]));
 				break;
 			case 64:
 				/*
@@ -619,8 +621,8 @@ bpf_alu32_trunc:
 				 * same across all passes
 				 */
 				PPC_BPF_STL(dst_reg, 1, bpf_jit_stack_local(ctx));
-				PPC_ADDI(b2p[TMP_REG_1], 1, bpf_jit_stack_local(ctx));
-				PPC_LDBRX(dst_reg, 0, b2p[TMP_REG_1]);
+				EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], 1, bpf_jit_stack_local(ctx)));
+				EMIT(PPC_RAW_LDBRX(dst_reg, 0, b2p[TMP_REG_1]));
 				break;
 			}
 			break;
@@ -629,14 +631,14 @@ emit_clear:
 			switch (imm) {
 			case 16:
 				/* zero-extend 16 bits into 64 bits */
-				PPC_RLDICL(dst_reg, dst_reg, 0, 48);
+				EMIT(PPC_RAW_RLDICL(dst_reg, dst_reg, 0, 48));
 				if (insn_is_zext(&insn[i + 1]))
 					addrs[++i] = ctx->idx * 4;
 				break;
 			case 32:
 				if (!fp->aux->verifier_zext)
 					/* zero-extend 32 bits into 64 bits */
-					PPC_RLDICL(dst_reg, dst_reg, 0, 32);
+					EMIT(PPC_RAW_RLDICL(dst_reg, dst_reg, 0, 32));
 				break;
 			case 64:
 				/* nop */
@@ -650,18 +652,18 @@ emit_clear:
 		case BPF_STX | BPF_MEM | BPF_B: /* *(u8 *)(dst + off) = src */
 		case BPF_ST | BPF_MEM | BPF_B: /* *(u8 *)(dst + off) = imm */
 			if (BPF_CLASS(code) == BPF_ST) {
-				PPC_LI(b2p[TMP_REG_1], imm);
+				EMIT(PPC_RAW_LI(b2p[TMP_REG_1], imm));
 				src_reg = b2p[TMP_REG_1];
 			}
-			PPC_STB(src_reg, dst_reg, off);
+			EMIT(PPC_RAW_STB(src_reg, dst_reg, off));
 			break;
 		case BPF_STX | BPF_MEM | BPF_H: /* (u16 *)(dst + off) = src */
 		case BPF_ST | BPF_MEM | BPF_H: /* (u16 *)(dst + off) = imm */
 			if (BPF_CLASS(code) == BPF_ST) {
-				PPC_LI(b2p[TMP_REG_1], imm);
+				EMIT(PPC_RAW_LI(b2p[TMP_REG_1], imm));
 				src_reg = b2p[TMP_REG_1];
 			}
-			PPC_STH(src_reg, dst_reg, off);
+			EMIT(PPC_RAW_STH(src_reg, dst_reg, off));
 			break;
 		case BPF_STX | BPF_MEM | BPF_W: /* *(u32 *)(dst + off) = src */
 		case BPF_ST | BPF_MEM | BPF_W: /* *(u32 *)(dst + off) = imm */
@@ -669,7 +671,7 @@ emit_clear:
 				PPC_LI32(b2p[TMP_REG_1], imm);
 				src_reg = b2p[TMP_REG_1];
 			}
-			PPC_STW(src_reg, dst_reg, off);
+			EMIT(PPC_RAW_STW(src_reg, dst_reg, off));
 			break;
 		case BPF_STX | BPF_MEM | BPF_DW: /* (u64 *)(dst + off) = src */
 		case BPF_ST | BPF_MEM | BPF_DW: /* *(u64 *)(dst + off) = imm */
@@ -686,24 +688,24 @@ emit_clear:
 		/* *(u32 *)(dst + off) += src */
 		case BPF_STX | BPF_XADD | BPF_W:
 			/* Get EA into TMP_REG_1 */
-			PPC_ADDI(b2p[TMP_REG_1], dst_reg, off);
+			EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], dst_reg, off));
 			tmp_idx = ctx->idx * 4;
 			/* load value from memory into TMP_REG_2 */
-			PPC_BPF_LWARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
+			EMIT(PPC_RAW_LWARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0));
 			/* add value from src_reg into this */
-			PPC_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg);
+			EMIT(PPC_RAW_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg));
 			/* store result back */
-			PPC_BPF_STWCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
+			EMIT(PPC_RAW_STWCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]));
 			/* we're done if this succeeded */
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
 			break;
 		/* *(u64 *)(dst + off) += src */
 		case BPF_STX | BPF_XADD | BPF_DW:
-			PPC_ADDI(b2p[TMP_REG_1], dst_reg, off);
+			EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], dst_reg, off));
 			tmp_idx = ctx->idx * 4;
-			PPC_BPF_LDARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
-			PPC_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg);
-			PPC_BPF_STDCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
+			EMIT(PPC_RAW_LDARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0));
+			EMIT(PPC_RAW_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg));
+			EMIT(PPC_RAW_STDCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]));
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
 			break;
 
@@ -712,19 +714,19 @@ emit_clear:
 		 */
 		/* dst = *(u8 *)(ul) (src + off) */
 		case BPF_LDX | BPF_MEM | BPF_B:
-			PPC_LBZ(dst_reg, src_reg, off);
+			EMIT(PPC_RAW_LBZ(dst_reg, src_reg, off));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		/* dst = *(u16 *)(ul) (src + off) */
 		case BPF_LDX | BPF_MEM | BPF_H:
-			PPC_LHZ(dst_reg, src_reg, off);
+			EMIT(PPC_RAW_LHZ(dst_reg, src_reg, off));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
 		/* dst = *(u32 *)(ul) (src + off) */
 		case BPF_LDX | BPF_MEM | BPF_W:
-			PPC_LWZ(dst_reg, src_reg, off);
+			EMIT(PPC_RAW_LWZ(dst_reg, src_reg, off));
 			if (insn_is_zext(&insn[i + 1]))
 				addrs[++i] = ctx->idx * 4;
 			break;
@@ -775,7 +777,7 @@ emit_clear:
 			else
 				bpf_jit_emit_func_call_rel(image, ctx, func_addr);
 			/* move return value from r3 to BPF_REG_0 */
-			PPC_MR(b2p[BPF_REG_0], 3);
+			EMIT(PPC_RAW_MR(b2p[BPF_REG_0], 3));
 			break;
 
 		/*
@@ -860,9 +862,9 @@ cond_branch:
 			case BPF_JMP32 | BPF_JNE | BPF_X:
 				/* unsigned comparison */
 				if (BPF_CLASS(code) == BPF_JMP32)
-					PPC_CMPLW(dst_reg, src_reg);
+					EMIT(PPC_RAW_CMPLW(dst_reg, src_reg));
 				else
-					PPC_CMPLD(dst_reg, src_reg);
+					EMIT(PPC_RAW_CMPLD(dst_reg, src_reg));
 				break;
 			case BPF_JMP | BPF_JSGT | BPF_X:
 			case BPF_JMP | BPF_JSLT | BPF_X:
@@ -874,21 +876,21 @@ cond_branch:
 			case BPF_JMP32 | BPF_JSLE | BPF_X:
 				/* signed comparison */
 				if (BPF_CLASS(code) == BPF_JMP32)
-					PPC_CMPW(dst_reg, src_reg);
+					EMIT(PPC_RAW_CMPW(dst_reg, src_reg));
 				else
-					PPC_CMPD(dst_reg, src_reg);
+					EMIT(PPC_RAW_CMPD(dst_reg, src_reg));
 				break;
 			case BPF_JMP | BPF_JSET | BPF_X:
 			case BPF_JMP32 | BPF_JSET | BPF_X:
 				if (BPF_CLASS(code) == BPF_JMP) {
-					PPC_AND_DOT(b2p[TMP_REG_1], dst_reg,
-						    src_reg);
+					EMIT(PPC_RAW_AND_DOT(b2p[TMP_REG_1], dst_reg,
+						    src_reg));
 				} else {
 					int tmp_reg = b2p[TMP_REG_1];
 
-					PPC_AND(tmp_reg, dst_reg, src_reg);
-					PPC_RLWINM_DOT(tmp_reg, tmp_reg, 0, 0,
-						       31);
+					EMIT(PPC_RAW_AND(tmp_reg, dst_reg, src_reg));
+					EMIT(PPC_RAW_RLWINM_DOT(tmp_reg, tmp_reg, 0, 0,
+						       31));
 				}
 				break;
 			case BPF_JMP | BPF_JNE | BPF_K:
@@ -912,19 +914,19 @@ cond_branch:
 				 */
 				if (imm >= 0 && imm < 32768) {
 					if (is_jmp32)
-						PPC_CMPLWI(dst_reg, imm);
+						EMIT(PPC_RAW_CMPLWI(dst_reg, imm));
 					else
-						PPC_CMPLDI(dst_reg, imm);
+						EMIT(PPC_RAW_CMPLDI(dst_reg, imm));
 				} else {
 					/* sign-extending load */
 					PPC_LI32(b2p[TMP_REG_1], imm);
 					/* ... but unsigned comparison */
 					if (is_jmp32)
-						PPC_CMPLW(dst_reg,
-							  b2p[TMP_REG_1]);
+						EMIT(PPC_RAW_CMPLW(dst_reg,
+							  b2p[TMP_REG_1]));
 					else
-						PPC_CMPLD(dst_reg,
-							  b2p[TMP_REG_1]);
+						EMIT(PPC_RAW_CMPLD(dst_reg,
+							  b2p[TMP_REG_1]));
 				}
 				break;
 			}
@@ -945,17 +947,17 @@ cond_branch:
 				 */
 				if (imm >= -32768 && imm < 32768) {
 					if (is_jmp32)
-						PPC_CMPWI(dst_reg, imm);
+						EMIT(PPC_RAW_CMPWI(dst_reg, imm));
 					else
-						PPC_CMPDI(dst_reg, imm);
+						EMIT(PPC_RAW_CMPDI(dst_reg, imm));
 				} else {
 					PPC_LI32(b2p[TMP_REG_1], imm);
 					if (is_jmp32)
-						PPC_CMPW(dst_reg,
-							 b2p[TMP_REG_1]);
+						EMIT(PPC_RAW_CMPW(dst_reg,
+							 b2p[TMP_REG_1]));
 					else
-						PPC_CMPD(dst_reg,
-							 b2p[TMP_REG_1]);
+						EMIT(PPC_RAW_CMPD(dst_reg,
+							 b2p[TMP_REG_1]));
 				}
 				break;
 			}
@@ -964,19 +966,19 @@ cond_branch:
 				/* andi does not sign-extend the immediate */
 				if (imm >= 0 && imm < 32768)
 					/* PPC_ANDI is _only/always_ dot-form */
-					PPC_ANDI(b2p[TMP_REG_1], dst_reg, imm);
+					EMIT(PPC_RAW_ANDI(b2p[TMP_REG_1], dst_reg, imm));
 				else {
 					int tmp_reg = b2p[TMP_REG_1];
 
 					PPC_LI32(tmp_reg, imm);
 					if (BPF_CLASS(code) == BPF_JMP) {
-						PPC_AND_DOT(tmp_reg, dst_reg,
-							    tmp_reg);
+						EMIT(PPC_RAW_AND_DOT(tmp_reg, dst_reg,
+							    tmp_reg));
 					} else {
-						PPC_AND(tmp_reg, dst_reg,
-							tmp_reg);
-						PPC_RLWINM_DOT(tmp_reg, tmp_reg,
-							       0, 0, 31);
+						EMIT(PPC_RAW_AND(tmp_reg, dst_reg,
+							tmp_reg));
+						EMIT(PPC_RAW_RLWINM_DOT(tmp_reg, tmp_reg,
+							       0, 0, 31));
 					}
 				}
 				break;

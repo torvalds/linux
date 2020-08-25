@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_llh_internal.h: Preprocessor definitions
@@ -10,6 +11,36 @@
 
 #ifndef HW_ATL_LLH_INTERNAL_H
 #define HW_ATL_LLH_INTERNAL_H
+
+/* COM Temperature Sense Reset Bitfield Definitions */
+#define HW_ATL_TS_RESET_ADR 0x00003100
+#define HW_ATL_TS_RESET_MSK 0x00000004
+#define HW_ATL_TS_RESET_SHIFT 2
+#define HW_ATL_TS_RESET_WIDTH 1
+
+/* COM Temperature Sense Power Down Bitfield Definitions */
+#define HW_ATL_TS_POWER_DOWN_ADR 0x00003100
+#define HW_ATL_TS_POWER_DOWN_MSK 0x00000001
+#define HW_ATL_TS_POWER_DOWN_SHIFT 0
+#define HW_ATL_TS_POWER_DOWN_WIDTH 1
+
+/* COM Temperature Sense Ready Bitfield Definitions */
+#define HW_ATL_TS_READY_ADR 0x00003120
+#define HW_ATL_TS_READY_MSK 0x80000000
+#define HW_ATL_TS_READY_SHIFT 31
+#define HW_ATL_TS_READY_WIDTH 1
+
+/*  COM Temperature Sense Ready Latch High Bitfield Definitions */
+#define HW_ATL_TS_READY_LATCH_HIGH_ADR 0x00003120
+#define HW_ATL_TS_READY_LATCH_HIGH_MSK 0x40000000
+#define HW_ATL_TS_READY_LATCH_HIGH_SHIFT 30
+#define HW_ATL_TS_READY_LATCH_HIGH_WIDTH 1
+
+/* COM Temperature Sense Data Out [B:0] Bitfield Definitions */
+#define HW_ATL_TS_DATA_OUT_ADR 0x00003120
+#define HW_ATL_TS_DATA_OUT_MSK 0x00000FFF
+#define HW_ATL_TS_DATA_OUT_SHIFT 0
+#define HW_ATL_TS_DATA_OUT_WIDTH 12
 
 /* global microprocessor semaphore  definitions
  * base address: 0x000003a0
@@ -2837,7 +2868,11 @@
 /* Default value of bitfield MDIO Address [F:0] */
 #define HW_ATL_MDIO_ADDRESS_DEFAULT 0x0
 
+#define HW_ATL_MIF_RESET_TIMEOUT_ADR 0x00000348
+
 #define HW_ATL_FW_SM_MDIO       0x0U
 #define HW_ATL_FW_SM_RAM        0x2U
+#define HW_ATL_FW_SM_RESET1     0x3U
+#define HW_ATL_FW_SM_RESET2     0x4U
 
 #endif /* HW_ATL_LLH_INTERNAL_H */

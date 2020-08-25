@@ -2,6 +2,7 @@
 
 #include <test_progs.h>
 #include "cgroup_helpers.h"
+#include "testing_helpers.h"
 #include "test_cgroup_link.skel.h"
 
 static __u32 duration = 0;
@@ -37,7 +38,8 @@ void test_cgroup_link(void)
 	int last_cg = ARRAY_SIZE(cgs) - 1, cg_nr = ARRAY_SIZE(cgs);
 	DECLARE_LIBBPF_OPTS(bpf_link_update_opts, link_upd_opts);
 	struct bpf_link *links[ARRAY_SIZE(cgs)] = {}, *tmp_link;
-	__u32 prog_ids[ARRAY_SIZE(cgs)], prog_cnt = 0, attach_flags;
+	__u32 prog_ids[ARRAY_SIZE(cgs)], prog_cnt = 0, attach_flags, prog_id;
+	struct bpf_link_info info;
 	int i = 0, err, prog_fd;
 	bool detach_legacy = false;
 
@@ -218,6 +220,22 @@ void test_cgroup_link(void)
 
 	/* BPF programs should still get called */
 	ping_and_check(0, cg_nr);
+
+	prog_id = link_info_prog_id(links[0], &info);
+	CHECK(prog_id == 0, "link_info", "failed\n");
+	CHECK(info.cgroup.cgroup_id == 0, "cgroup_id", "unexpected %llu\n", info.cgroup.cgroup_id);
+
+	err = bpf_link__detach(links[0]);
+	if (CHECK(err, "link_detach", "failed %d\n", err))
+		goto cleanup;
+
+	/* cgroup_id should be zero in link_info */
+	prog_id = link_info_prog_id(links[0], &info);
+	CHECK(prog_id == 0, "link_info", "failed\n");
+	CHECK(info.cgroup.cgroup_id != 0, "cgroup_id", "unexpected %llu\n", info.cgroup.cgroup_id);
+
+	/* First BPF program shouldn't be called anymore */
+	ping_and_check(0, cg_nr - 1);
 
 	/* leave cgroup and remove them, don't detach programs */
 	cleanup_cgroup_environment();

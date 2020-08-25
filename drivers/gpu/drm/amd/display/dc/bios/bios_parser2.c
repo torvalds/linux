@@ -1108,6 +1108,18 @@ static enum bp_result bios_parser_enable_disp_power_gating(
 		action);
 }
 
+static enum bp_result bios_parser_enable_lvtma_control(
+	struct dc_bios *dcb,
+	uint8_t uc_pwr_on)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+
+	if (!bp->cmd_tbl.enable_lvtma_control)
+		return BP_RESULT_FAILURE;
+
+	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on);
+}
+
 static bool bios_parser_is_accelerated_mode(
 	struct dc_bios *dcb)
 {
@@ -1154,6 +1166,9 @@ static enum bp_result bios_parser_get_firmware_info(
 				result = get_firmware_info_v3_2(bp, info);
 				break;
 			case 3:
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+			case 4:
+#endif
 				result = get_firmware_info_v3_2(bp, info);
 				break;
 			default:
@@ -1373,6 +1388,63 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 	}
 
 	return NULL;
+}
+
+static enum bp_result get_vram_info_v23(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_3 *info_v23;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v23 = GET_IMAGE(struct atom_vram_info_header_v2_3,
+						DATA_TABLES(vram_info));
+
+	if (info_v23 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v23->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v23->vram_module[0].channel_width) / 8;
+
+	return result;
+}
+
+static enum bp_result get_vram_info_v24(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_4 *info_v24;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v24 = GET_IMAGE(struct atom_vram_info_header_v2_4,
+						DATA_TABLES(vram_info));
+
+	if (info_v24 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v24->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v24->vram_module[0].channel_width) / 8;
+
+	return result;
+}
+
+static enum bp_result get_vram_info_v25(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_5 *info_v25;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v25 = GET_IMAGE(struct atom_vram_info_header_v2_5,
+						DATA_TABLES(vram_info));
+
+	if (info_v25 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v25->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v25->vram_module[0].channel_width) / 8;
+
+	return result;
 }
 
 /*
@@ -1666,6 +1738,46 @@ static enum bp_result construct_integrated_info(
 	return result;
 }
 
+static enum bp_result bios_parser_get_vram_info(
+		struct dc_bios *dcb,
+		struct dc_vram_info *info)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	struct atom_common_table_header *header;
+	struct atom_data_revision revision;
+
+	if (info && DATA_TABLES(vram_info)) {
+		header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(vram_info));
+
+		get_atom_data_table_revision(header, &revision);
+
+		switch (revision.major) {
+		case 2:
+			switch (revision.minor) {
+			case 3:
+				result = get_vram_info_v23(bp, info);
+				break;
+			case 4:
+				result = get_vram_info_v24(bp, info);
+				break;
+			case 5:
+				result = get_vram_info_v25(bp, info);
+				break;
+			default:
+				break;
+			}
+			break;
+
+		default:
+			return result;
+		}
+
+	}
+	return result;
+}
+
 static struct integrated_info *bios_parser_create_integrated_info(
 	struct dc_bios *dcb)
 {
@@ -1877,6 +1989,187 @@ static enum bp_result bios_get_board_layout_info(
 	return BP_RESULT_OK;
 }
 
+
+static uint16_t bios_parser_pack_data_tables(
+	struct dc_bios *dcb,
+	void *dst)
+{
+#ifdef PACK_BIOS_DATA
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	struct atom_rom_header_v2_2 *rom_header = NULL;
+	struct atom_rom_header_v2_2 *packed_rom_header = NULL;
+	struct atom_common_table_header *data_tbl_header = NULL;
+	struct atom_master_list_of_data_tables_v2_1 *data_tbl_list = NULL;
+	struct atom_master_data_table_v2_1 *packed_master_data_tbl = NULL;
+	struct atom_data_revision tbl_rev = {0};
+	uint16_t *rom_header_offset = NULL;
+	const uint8_t *bios = bp->base.bios;
+	uint8_t *bios_dst = (uint8_t *)dst;
+	uint16_t packed_rom_header_offset;
+	uint16_t packed_masterdatatable_offset;
+	uint16_t packed_data_tbl_offset;
+	uint16_t data_tbl_offset;
+	unsigned int i;
+
+	rom_header_offset =
+		GET_IMAGE(uint16_t, OFFSET_TO_ATOM_ROM_HEADER_POINTER);
+
+	if (!rom_header_offset)
+		return 0;
+
+	rom_header = GET_IMAGE(struct atom_rom_header_v2_2, *rom_header_offset);
+
+	if (!rom_header)
+		return 0;
+
+	get_atom_data_table_revision(&rom_header->table_header, &tbl_rev);
+	if (!(tbl_rev.major >= 2 && tbl_rev.minor >= 2))
+		return 0;
+
+	get_atom_data_table_revision(&bp->master_data_tbl->table_header, &tbl_rev);
+	if (!(tbl_rev.major >= 2 && tbl_rev.minor >= 1))
+		return 0;
+
+	packed_rom_header_offset =
+		OFFSET_TO_ATOM_ROM_HEADER_POINTER + sizeof(*rom_header_offset);
+
+	packed_masterdatatable_offset =
+		packed_rom_header_offset + rom_header->table_header.structuresize;
+
+	packed_data_tbl_offset =
+		packed_masterdatatable_offset +
+		bp->master_data_tbl->table_header.structuresize;
+
+	packed_rom_header =
+		(struct atom_rom_header_v2_2 *)(bios_dst + packed_rom_header_offset);
+
+	packed_master_data_tbl =
+		(struct atom_master_data_table_v2_1 *)(bios_dst +
+		packed_masterdatatable_offset);
+
+	memcpy(bios_dst, bios, OFFSET_TO_ATOM_ROM_HEADER_POINTER);
+
+	*((uint16_t *)(bios_dst + OFFSET_TO_ATOM_ROM_HEADER_POINTER)) =
+		packed_rom_header_offset;
+
+	memcpy(bios_dst + packed_rom_header_offset, rom_header,
+		rom_header->table_header.structuresize);
+
+	packed_rom_header->masterdatatable_offset = packed_masterdatatable_offset;
+
+	memcpy(&packed_master_data_tbl->table_header,
+		&bp->master_data_tbl->table_header,
+		sizeof(bp->master_data_tbl->table_header));
+
+	data_tbl_list = &bp->master_data_tbl->listOfdatatables;
+
+	/* Each data table offset in data table list is 2 bytes,
+	 * we can use that to iterate through listOfdatatables
+	 * without knowing the name of each member.
+	 */
+	for (i = 0; i < sizeof(*data_tbl_list)/sizeof(uint16_t); i++) {
+		data_tbl_offset = *((uint16_t *)data_tbl_list + i);
+
+		if (data_tbl_offset) {
+			data_tbl_header =
+				(struct atom_common_table_header *)(bios + data_tbl_offset);
+
+			memcpy(bios_dst + packed_data_tbl_offset, data_tbl_header,
+				data_tbl_header->structuresize);
+
+			*((uint16_t *)&packed_master_data_tbl->listOfdatatables + i) =
+				packed_data_tbl_offset;
+
+			packed_data_tbl_offset += data_tbl_header->structuresize;
+		} else {
+			*((uint16_t *)&packed_master_data_tbl->listOfdatatables + i) = 0;
+		}
+	}
+	return packed_data_tbl_offset;
+#endif
+	// TODO: There is data bytes alignment issue, disable it for now.
+	return 0;
+}
+
+static struct atom_dc_golden_table_v1 *bios_get_golden_table(
+		struct bios_parser *bp,
+		uint32_t rev_major,
+		uint32_t rev_minor,
+		uint16_t *dc_golden_table_ver)
+{
+	struct atom_display_controller_info_v4_4 *disp_cntl_tbl_4_4 = NULL;
+	uint32_t dc_golden_offset = 0;
+	*dc_golden_table_ver = 0;
+
+	if (!DATA_TABLES(dce_info))
+		return NULL;
+
+	/* ver.4.4 or higher */
+	switch (rev_major) {
+	case 4:
+		switch (rev_minor) {
+		case 4:
+			disp_cntl_tbl_4_4 = GET_IMAGE(struct atom_display_controller_info_v4_4,
+									DATA_TABLES(dce_info));
+			if (!disp_cntl_tbl_4_4)
+				return NULL;
+			dc_golden_offset = DATA_TABLES(dce_info) + disp_cntl_tbl_4_4->dc_golden_table_offset;
+			*dc_golden_table_ver = disp_cntl_tbl_4_4->dc_golden_table_ver;
+			break;
+		}
+		break;
+	}
+
+	if (!dc_golden_offset)
+		return NULL;
+
+	if (*dc_golden_table_ver != 1)
+		return NULL;
+
+	return GET_IMAGE(struct atom_dc_golden_table_v1,
+			dc_golden_offset);
+}
+
+static enum bp_result bios_get_atom_dc_golden_table(
+	struct dc_bios *dcb)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_dc_golden_table_v1 *atom_dc_golden_table = NULL;
+	struct atom_common_table_header *header;
+	struct atom_data_revision tbl_revision;
+	uint16_t dc_golden_table_ver = 0;
+
+	header = GET_IMAGE(struct atom_common_table_header,
+							DATA_TABLES(dce_info));
+	if (!header)
+		return BP_RESULT_UNSUPPORTED;
+
+	get_atom_data_table_revision(header, &tbl_revision);
+
+	atom_dc_golden_table = bios_get_golden_table(bp,
+			tbl_revision.major,
+			tbl_revision.minor,
+			&dc_golden_table_ver);
+
+	if (!atom_dc_golden_table)
+		return BP_RESULT_UNSUPPORTED;
+
+	dcb->golden_table.dc_golden_table_ver = dc_golden_table_ver;
+	dcb->golden_table.aux_dphy_rx_control0_val = atom_dc_golden_table->aux_dphy_rx_control0_val;
+	dcb->golden_table.aux_dphy_rx_control1_val = atom_dc_golden_table->aux_dphy_rx_control1_val;
+	dcb->golden_table.aux_dphy_tx_control_val = atom_dc_golden_table->aux_dphy_tx_control_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_0_val = atom_dc_golden_table->dc_gpio_aux_ctrl_0_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_1_val = atom_dc_golden_table->dc_gpio_aux_ctrl_1_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_2_val = atom_dc_golden_table->dc_gpio_aux_ctrl_2_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_3_val = atom_dc_golden_table->dc_gpio_aux_ctrl_3_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_4_val = atom_dc_golden_table->dc_gpio_aux_ctrl_4_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_5_val = atom_dc_golden_table->dc_gpio_aux_ctrl_5_val;
+
+	return result;
+}
+
+
 static const struct dc_vbios_funcs vbios_funcs = {
 	.get_connectors_number = bios_parser_get_connectors_number,
 
@@ -1925,6 +2218,11 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.bios_parser_destroy = firmware_parser_destroy,
 
 	.get_board_layout_info = bios_get_board_layout_info,
+	.pack_data_tables = bios_parser_pack_data_tables,
+
+	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table,
+
+	.enable_lvtma_control = bios_parser_enable_lvtma_control
 };
 
 static bool bios_parser2_construct(
@@ -2006,6 +2304,7 @@ static bool bios_parser2_construct(
 
 	bp->base.integrated_info = bios_parser_create_integrated_info(&bp->base);
 	bp->base.fw_info_valid = bios_parser_get_firmware_info(&bp->base, &bp->base.fw_info) == BP_RESULT_OK;
+	bios_parser_get_vram_info(&bp->base, &bp->base.vram_info);
 
 	return true;
 }

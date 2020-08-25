@@ -128,7 +128,6 @@ static int si7020_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	*data = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &si7020_info;

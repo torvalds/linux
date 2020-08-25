@@ -15,6 +15,7 @@
 #include <asm/powernv.h>
 #include <asm/firmware.h>
 #include <asm/ultravisor.h>
+#include <asm/kexec.h>
 
 #include <mm/mmu_decl.h>
 #include <trace/events/thp.h>
@@ -165,6 +166,8 @@ void mmu_cleanup_all(void)
 		radix__mmu_cleanup_all();
 	else if (mmu_hash_ops.hpte_clear_all)
 		mmu_hash_ops.hpte_clear_all();
+
+	reset_sprs();
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -339,6 +342,9 @@ void pmd_fragment_free(unsigned long *pmd)
 {
 	struct page *page = virt_to_page(pmd);
 
+	if (PageReserved(page))
+		return free_reserved_page(page);
+
 	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
 	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
 		pgtable_pmd_page_dtor(page);
@@ -356,7 +362,7 @@ static inline void pgtable_free(void *table, int index)
 		pmd_fragment_free(table);
 		break;
 	case PUD_INDEX:
-		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), table);
+		__pud_free(table);
 		break;
 #if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
 		/* 16M hugepd directory at pud level */

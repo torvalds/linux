@@ -59,6 +59,7 @@
 #define AT91_PMC_PLL_UPDT		0x1C		/* PMC PLL update register [for SAM9X60] */
 #define		AT91_PMC_PLL_UPDT_UPDATE	(1 << 8)	/* Update PLL settings */
 #define		AT91_PMC_PLL_UPDT_ID		(1 << 0)	/* PLL ID */
+#define		AT91_PMC_PLL_UPDT_ID_MSK	(0xf)		/* PLL ID mask */
 #define		AT91_PMC_PLL_UPDT_STUPTIM	(0xff << 16)	/* Startup time */
 
 #define	AT91_CKGR_MOR		0x20			/* Main Oscillator Register [not on SAM9RL] */
@@ -136,6 +137,8 @@
 #define			AT91_PMC_PLLADIV2_ON		(1 << 12)
 #define		AT91_PMC_H32MXDIV	BIT(24)
 
+#define AT91_PMC_XTALF		0x34			/* Main XTAL Frequency Register [SAMA7G5 only] */
+
 #define	AT91_PMC_USB		0x38			/* USB Clock Register [some SAM9 only] */
 #define		AT91_PMC_USBS		(0x1 <<  0)		/* USB OHCI Input clock selection */
 #define			AT91_PMC_USBS_PLLA		(0 << 0)
@@ -174,6 +177,7 @@
 #define		AT91_PMC_MOSCRCS	(1 << 17)		/* Main On-Chip RC [some SAM9] */
 #define		AT91_PMC_CFDEV		(1 << 18)		/* Clock Failure Detector Event [some SAM9] */
 #define		AT91_PMC_GCKRDY		(1 << 24)		/* Generated Clocks */
+#define		AT91_PMC_MCKXRDY	(1 << 26)		/* Master Clock x [x=1..4] Ready Status */
 #define	AT91_PMC_IMR		0x6c			/* Interrupt Mask Register */
 
 #define AT91_PMC_FSMR		0x70		/* Fast Startup Mode Register */

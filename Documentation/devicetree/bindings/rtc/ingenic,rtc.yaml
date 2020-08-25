@@ -16,16 +16,16 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4740-rtc
-        - ingenic,jz4760-rtc
+          - ingenic,jz4740-rtc
+          - ingenic,jz4760-rtc
       - items:
-        - const: ingenic,jz4725b-rtc
-        - const: ingenic,jz4740-rtc
+          - const: ingenic,jz4725b-rtc
+          - const: ingenic,jz4740-rtc
       - items:
-        - enum:
-          - ingenic,jz4770-rtc
-          - ingenic,jz4780-rtc
-        - const: ingenic,jz4760-rtc
+          - enum:
+              - ingenic,jz4770-rtc
+              - ingenic,jz4780-rtc
+          - const: ingenic,jz4760-rtc
 
   reg:
     maxItems: 1

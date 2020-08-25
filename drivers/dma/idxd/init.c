@@ -141,22 +141,12 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	return rc;
 }
 
-static void idxd_wqs_free_lock(struct idxd_device *idxd)
-{
-	int i;
-
-	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
-
-		percpu_free_rwsem(&wq->submit_lock);
-	}
-}
-
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
 	int i;
 
+	init_waitqueue_head(&idxd->cmd_waitq);
 	idxd->groups = devm_kcalloc(dev, idxd->max_groups,
 				    sizeof(struct idxd_group), GFP_KERNEL);
 	if (!idxd->groups)
@@ -181,25 +171,21 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 
 	for (i = 0; i < idxd->max_wqs; i++) {
 		struct idxd_wq *wq = &idxd->wqs[i];
-		int rc;
 
 		wq->id = i;
 		wq->idxd = idxd;
 		mutex_init(&wq->wq_lock);
-		atomic_set(&wq->dq_count, 0);
-		init_waitqueue_head(&wq->submit_waitq);
 		wq->idxd_cdev.minor = -1;
-		rc = percpu_init_rwsem(&wq->submit_lock);
-		if (rc < 0) {
-			idxd_wqs_free_lock(idxd);
-			return rc;
-		}
 	}
 
 	for (i = 0; i < idxd->max_engines; i++) {
 		idxd->engines[i].idxd = idxd;
 		idxd->engines[i].id = i;
 	}
+
+	idxd->wq = create_workqueue(dev_name(dev));
+	if (!idxd->wq)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -296,9 +282,7 @@ static int idxd_probe(struct idxd_device *idxd)
 	int rc;
 
 	dev_dbg(dev, "%s entered and resetting device\n", __func__);
-	rc = idxd_device_reset(idxd);
-	if (rc < 0)
-		return rc;
+	idxd_device_init_reset(idxd);
 	dev_dbg(dev, "IDXD reset complete\n");
 
 	idxd_read_caps(idxd);
@@ -433,11 +417,8 @@ static void idxd_shutdown(struct pci_dev *pdev)
 	int rc, i;
 	struct idxd_irq_entry *irq_entry;
 	int msixcnt = pci_msix_vec_count(pdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
 	rc = idxd_device_disable(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 	if (rc)
 		dev_err(&pdev->dev, "Disabling device failed\n");
 
@@ -453,6 +434,8 @@ static void idxd_shutdown(struct pci_dev *pdev)
 		idxd_flush_pending_llist(irq_entry);
 		idxd_flush_work_list(irq_entry);
 	}
+
+	destroy_workqueue(idxd->wq);
 }
 
 static void idxd_remove(struct pci_dev *pdev)
@@ -462,7 +445,6 @@ static void idxd_remove(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
 	idxd_cleanup_sysfs(idxd);
 	idxd_shutdown(pdev);
-	idxd_wqs_free_lock(idxd);
 	mutex_lock(&idxd_idr_lock);
 	idr_remove(&idxd_idrs[idxd->type], idxd->id);
 	mutex_unlock(&idxd_idr_lock);

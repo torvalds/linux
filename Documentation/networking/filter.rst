@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _networking-filter:
+
 =======================================================
 Linux Socket Filtering aka Berkeley Packet Filter (BPF)
 =======================================================

@@ -168,10 +168,10 @@ static int i40e_run_xdp_zc(struct i40e_ring *rx_ring, struct xdp_buff *xdp)
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping packet */
+		fallthrough; /* handle aborts by dropping packet */
 	case XDP_DROP:
 		result = I40E_XDP_CONSUMED;
 		break;
@@ -378,19 +378,13 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
  **/
 static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 {
+	unsigned int sent_frames = 0, total_bytes = 0;
 	struct i40e_tx_desc *tx_desc = NULL;
 	struct i40e_tx_buffer *tx_bi;
-	bool work_done = true;
 	struct xdp_desc desc;
 	dma_addr_t dma;
 
 	while (budget-- > 0) {
-		if (!unlikely(I40E_DESC_UNUSED(xdp_ring))) {
-			xdp_ring->tx_stats.tx_busy++;
-			work_done = false;
-			break;
-		}
-
 		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &desc))
 			break;
 
@@ -408,6 +402,9 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 				   | I40E_TX_DESC_CMD_EOP,
 				   0, desc.len, 0);
 
+		sent_frames++;
+		total_bytes += tx_bi->bytecount;
+
 		xdp_ring->next_to_use++;
 		if (xdp_ring->next_to_use == xdp_ring->count)
 			xdp_ring->next_to_use = 0;
@@ -420,9 +417,10 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 		i40e_xdp_ring_update_tail(xdp_ring);
 
 		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+		i40e_update_tx_stats(xdp_ring, sent_frames, total_bytes);
 	}
 
-	return !!budget && work_done;
+	return !!budget;
 }
 
 /**
@@ -434,6 +432,7 @@ static void i40e_clean_xdp_tx_buffer(struct i40e_ring *tx_ring,
 				     struct i40e_tx_buffer *tx_bi)
 {
 	xdp_return_frame(tx_bi->xdpf);
+	tx_ring->xdp_tx_active--;
 	dma_unmap_single(tx_ring->dev,
 			 dma_unmap_addr(tx_bi, dma),
 			 dma_unmap_len(tx_bi, len), DMA_TO_DEVICE);
@@ -442,32 +441,29 @@ static void i40e_clean_xdp_tx_buffer(struct i40e_ring *tx_ring,
 
 /**
  * i40e_clean_xdp_tx_irq - Completes AF_XDP entries, and cleans XDP entries
+ * @vsi: Current VSI
  * @tx_ring: XDP Tx ring
- * @tx_bi: Tx buffer info to clean
  *
  * Returns true if cleanup/tranmission is done.
  **/
-bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi,
-			   struct i40e_ring *tx_ring, int napi_budget)
+bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi, struct i40e_ring *tx_ring)
 {
-	unsigned int ntc, total_bytes = 0, budget = vsi->work_limit;
-	u32 i, completed_frames, frames_ready, xsk_frames = 0;
 	struct xdp_umem *umem = tx_ring->xsk_umem;
+	u32 i, completed_frames, xsk_frames = 0;
 	u32 head_idx = i40e_get_head(tx_ring);
-	bool work_done = true, xmit_done;
 	struct i40e_tx_buffer *tx_bi;
+	unsigned int ntc;
 
 	if (head_idx < tx_ring->next_to_clean)
 		head_idx += tx_ring->count;
-	frames_ready = head_idx - tx_ring->next_to_clean;
+	completed_frames = head_idx - tx_ring->next_to_clean;
 
-	if (frames_ready == 0) {
+	if (completed_frames == 0)
 		goto out_xmit;
-	} else if (frames_ready > budget) {
-		completed_frames = budget;
-		work_done = false;
-	} else {
-		completed_frames = frames_ready;
+
+	if (likely(!tx_ring->xdp_tx_active)) {
+		xsk_frames = completed_frames;
+		goto skip;
 	}
 
 	ntc = tx_ring->next_to_clean;
@@ -475,18 +471,18 @@ bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi,
 	for (i = 0; i < completed_frames; i++) {
 		tx_bi = &tx_ring->tx_bi[ntc];
 
-		if (tx_bi->xdpf)
+		if (tx_bi->xdpf) {
 			i40e_clean_xdp_tx_buffer(tx_ring, tx_bi);
-		else
+			tx_bi->xdpf = NULL;
+		} else {
 			xsk_frames++;
-
-		tx_bi->xdpf = NULL;
-		total_bytes += tx_bi->bytecount;
+		}
 
 		if (++ntc >= tx_ring->count)
 			ntc = 0;
 	}
 
+skip:
 	tx_ring->next_to_clean += completed_frames;
 	if (unlikely(tx_ring->next_to_clean >= tx_ring->count))
 		tx_ring->next_to_clean -= tx_ring->count;
@@ -494,16 +490,13 @@ bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi,
 	if (xsk_frames)
 		xsk_umem_complete_tx(umem, xsk_frames);
 
-	i40e_arm_wb(tx_ring, vsi, budget);
-	i40e_update_tx_stats(tx_ring, completed_frames, total_bytes);
+	i40e_arm_wb(tx_ring, vsi, completed_frames);
 
 out_xmit:
 	if (xsk_umem_uses_need_wakeup(tx_ring->xsk_umem))
 		xsk_set_tx_need_wakeup(tx_ring->xsk_umem);
 
-	xmit_done = i40e_xmit_zc(tx_ring, budget);
-
-	return work_done && xmit_done;
+	return i40e_xmit_zc(tx_ring, I40E_DESC_UNUSED(tx_ring));
 }
 
 /**
@@ -567,7 +560,7 @@ void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring)
 
 /**
  * i40e_xsk_clean_xdp_ring - Clean the XDP Tx ring on shutdown
- * @xdp_ring: XDP Tx ring
+ * @tx_ring: XDP Tx ring
  **/
 void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
 {

@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: none
 
-    Product info and datasheet: http://www.ti.com/product/tmp103
+    Product info and datasheet: https://www.ti.com/product/tmp103
 
 Author:
 

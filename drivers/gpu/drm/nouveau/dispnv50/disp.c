@@ -26,6 +26,7 @@
 #include "core.h"
 #include "head.h"
 #include "wndw.h"
+#include "handles.h"
 
 #include <linux/dma-mapping.h>
 #include <linux/hdmi.h>
@@ -40,12 +41,21 @@
 #include <drm/drm_scdc_helper.h>
 #include <drm/drm_vblank.h>
 
+#include <nvif/push507c.h>
+
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
 #include <nvif/cl507d.h>
 #include <nvif/event.h>
 #include <nvif/timer.h>
+
+#include <nvhw/class/cl507c.h>
+#include <nvhw/class/cl507d.h>
+#include <nvhw/class/cl837d.h>
+#include <nvhw/class/cl887d.h>
+#include <nvhw/class/cl907d.h>
+#include <nvhw/class/cl917d.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -56,24 +66,6 @@
 #include "nouveau_fbcon.h"
 
 #include <subdev/bios/dp.h>
-
-/******************************************************************************
- * Atomic state
- *****************************************************************************/
-
-struct nv50_outp_atom {
-	struct list_head head;
-
-	struct drm_encoder *encoder;
-	bool flush_disable;
-
-	union nv50_outp_atom_mask {
-		struct {
-			bool ctrl:1;
-		};
-		u8 mask;
-	} set, clr;
-};
 
 /******************************************************************************
  * EVO channel
@@ -96,8 +88,9 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 	while (oclass[0]) {
 		for (i = 0; i < n; i++) {
 			if (sclass[i].oclass == oclass[0]) {
-				ret = nvif_object_init(disp, 0, oclass[0],
-						       data, size, &chan->user);
+				ret = nvif_object_ctor(disp, "kmsChan", 0,
+						       oclass[0], data, size,
+						       &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user, NULL, 0);
 				nvif_object_sclass_put(&sclass);
@@ -114,7 +107,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 static void
 nv50_chan_destroy(struct nv50_chan *chan)
 {
-	nvif_object_fini(&chan->user);
+	nvif_object_dtor(&chan->user);
 }
 
 /******************************************************************************
@@ -124,12 +117,106 @@ nv50_chan_destroy(struct nv50_chan *chan)
 void
 nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
-	nvif_object_fini(&dmac->vram);
-	nvif_object_fini(&dmac->sync);
+	nvif_object_dtor(&dmac->vram);
+	nvif_object_dtor(&dmac->sync);
 
 	nv50_chan_destroy(&dmac->base);
 
-	nvif_mem_fini(&dmac->push);
+	nvif_mem_dtor(&dmac->_push.mem);
+}
+
+static void
+nv50_dmac_kick(struct nvif_push *push)
+{
+	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
+
+	dmac->cur = push->cur - (u32 *)dmac->_push.mem.object.map.ptr;
+	if (dmac->put != dmac->cur) {
+		/* Push buffer fetches are not coherent with BAR1, we need to ensure
+		 * writes have been flushed right through to VRAM before writing PUT.
+		 */
+		if (dmac->push->mem.type & NVIF_MEM_VRAM) {
+			struct nvif_device *device = dmac->base.device;
+			nvif_wr32(&device->object, 0x070000, 0x00000001);
+			nvif_msec(device, 2000,
+				if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+					break;
+			);
+		}
+
+		NVIF_WV32(&dmac->base.user, NV507C, PUT, PTR, dmac->cur);
+		dmac->put = dmac->cur;
+	}
+
+	push->bgn = push->cur;
+}
+
+static int
+nv50_dmac_free(struct nv50_dmac *dmac)
+{
+	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
+	if (get > dmac->cur) /* NVIDIA stay 5 away from GET, do the same. */
+		return get - dmac->cur - 5;
+	return dmac->max - dmac->cur;
+}
+
+static int
+nv50_dmac_wind(struct nv50_dmac *dmac)
+{
+	/* Wait for GET to depart from the beginning of the push buffer to
+	 * prevent writing PUT == GET, which would be ignored by HW.
+	 */
+	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
+	if (get == 0) {
+		/* Corner-case, HW idle, but non-committed work pending. */
+		if (dmac->put == 0)
+			nv50_dmac_kick(dmac->push);
+
+		if (nvif_msec(dmac->base.device, 2000,
+			if (NVIF_TV32(&dmac->base.user, NV507C, GET, PTR, >, 0))
+				break;
+		) < 0)
+			return -ETIMEDOUT;
+	}
+
+	PUSH_RSVD(dmac->push, PUSH_JUMP(dmac->push, 0));
+	dmac->cur = 0;
+	return 0;
+}
+
+static int
+nv50_dmac_wait(struct nvif_push *push, u32 size)
+{
+	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
+	int free;
+
+	if (WARN_ON(size > dmac->max))
+		return -EINVAL;
+
+	dmac->cur = push->cur - (u32 *)dmac->_push.mem.object.map.ptr;
+	if (dmac->cur + size >= dmac->max) {
+		int ret = nv50_dmac_wind(dmac);
+		if (ret)
+			return ret;
+
+		push->cur = dmac->_push.mem.object.map.ptr;
+		push->cur = push->cur + dmac->cur;
+		nv50_dmac_kick(push);
+	}
+
+	if (nvif_msec(dmac->base.device, 2000,
+		if ((free = nv50_dmac_free(dmac)) >= size)
+			break;
+	) < 0) {
+		WARN_ON(1);
+		return -ETIMEDOUT;
+	}
+
+	push->bgn = dmac->_push.mem.object.map.ptr;
+	push->bgn = push->bgn + dmac->cur;
+	push->cur = push->bgn;
+	push->end = push->cur + free;
+	return 0;
 }
 
 int
@@ -156,13 +243,21 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
 		type |= NVIF_MEM_VRAM;
 
-	ret = nvif_mem_init_map(&cli->mmu, type, 0x1000, &dmac->push);
+	ret = nvif_mem_ctor_map(&cli->mmu, "kmsChanPush", type, 0x1000,
+				&dmac->_push.mem);
 	if (ret)
 		return ret;
 
-	dmac->ptr = dmac->push.object.map.ptr;
+	dmac->ptr = dmac->_push.mem.object.map.ptr;
+	dmac->_push.wait = nv50_dmac_wait;
+	dmac->_push.kick = nv50_dmac_kick;
+	dmac->push = &dmac->_push;
+	dmac->push->bgn = dmac->_push.mem.object.map.ptr;
+	dmac->push->cur = dmac->push->bgn;
+	dmac->push->end = dmac->push->bgn;
+	dmac->max = 0x1000/4 - 1;
 
-	args->pushbuf = nvif_handle(&dmac->push.object);
+	args->pushbuf = nvif_handle(&dmac->_push.mem.object);
 
 	ret = nv50_chan_create(device, disp, oclass, head, data, size,
 			       &dmac->base);
@@ -172,7 +267,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!syncbuf)
 		return 0;
 
-	ret = nvif_object_init(&dmac->base.user, 0xf0000000, NV_DMA_IN_MEMORY,
+	ret = nvif_object_ctor(&dmac->base.user, "kmsSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
+			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -183,7 +279,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_init(&dmac->base.user, 0xf0000001, NV_DMA_IN_MEMORY,
+	ret = nvif_object_ctor(&dmac->base.user, "kmsVramCtxDma", NV50_DISP_HANDLE_VRAM,
+			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -195,64 +292,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		return ret;
 
 	return ret;
-}
-
-/******************************************************************************
- * EVO channel helpers
- *****************************************************************************/
-static void
-evo_flush(struct nv50_dmac *dmac)
-{
-	/* Push buffer fetches are not coherent with BAR1, we need to ensure
-	 * writes have been flushed right through to VRAM before writing PUT.
-	 */
-	if (dmac->push.type & NVIF_MEM_VRAM) {
-		struct nvif_device *device = dmac->base.device;
-		nvif_wr32(&device->object, 0x070000, 0x00000001);
-		nvif_msec(device, 2000,
-			if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
-				break;
-		);
-	}
-}
-
-u32 *
-evo_wait(struct nv50_dmac *evoc, int nr)
-{
-	struct nv50_dmac *dmac = evoc;
-	struct nvif_device *device = dmac->base.device;
-	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
-
-	mutex_lock(&dmac->lock);
-	if (put + nr >= (PAGE_SIZE / 4) - 8) {
-		dmac->ptr[put] = 0x20000000;
-		evo_flush(dmac);
-
-		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
-		if (nvif_msec(device, 2000,
-			if (!nvif_rd32(&dmac->base.user, 0x0004))
-				break;
-		) < 0) {
-			mutex_unlock(&dmac->lock);
-			pr_err("nouveau: evo channel stalled\n");
-			return NULL;
-		}
-
-		put = 0;
-	}
-
-	return dmac->ptr + put;
-}
-
-void
-evo_kick(u32 *push, struct nv50_dmac *evoc)
-{
-	struct nv50_dmac *dmac = evoc;
-
-	evo_flush(dmac);
-
-	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
-	mutex_unlock(&dmac->lock);
 }
 
 /******************************************************************************
@@ -380,8 +419,9 @@ nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, NONE);
 	if (nv_encoder->crtc)
-		core->func->dac->ctrl(core, nv_encoder->or, 0x00000000, NULL);
+		core->func->dac->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -393,10 +433,23 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	u32 ctrl = 0;
+
+	switch (nv_crtc->index) {
+	case 0: ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, OWNER, HEAD0); break;
+	case 1: ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, OWNER, HEAD1); break;
+	case 2: ctrl |= NVDEF(NV907D, DAC_SET_CONTROL, OWNER_MASK, HEAD2); break;
+	case 3: ctrl |= NVDEF(NV907D, DAC_SET_CONTROL, OWNER_MASK, HEAD3); break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, PROTOCOL, RGB_CRT);
 
 	nv50_outp_acquire(nv_encoder, false);
 
-	core->func->dac->ctrl(core, nv_encoder->or, 1 << nv_crtc->index, asyh);
+	core->func->dac->ctrl(core, nv_encoder->or, ctrl, asyh);
 	asyh->or.depth = 0;
 
 	nv_encoder->crtc = encoder->crtc;
@@ -801,6 +854,19 @@ struct nv50_msto {
 	bool disabled;
 };
 
+struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
+{
+	struct nv50_msto *msto;
+
+	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
+		return nouveau_encoder(encoder);
+
+	msto = nv50_msto(encoder);
+	if (!msto->mstc)
+		return NULL;
+	return msto->mstc->mstm->outp;
+}
+
 static struct drm_dp_payload *
 nv50_msto_payload(struct nv50_msto *msto)
 {
@@ -933,10 +999,10 @@ static u8
 nv50_dp_bpc_to_depth(unsigned int bpc)
 {
 	switch (bpc) {
-	case  6: return 0x2;
-	case  8: return 0x5;
-	case 10: /* fall-through */
-	default: return 0x6;
+	case  6: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_18_444;
+	case  8: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_24_444;
+	case 10:
+	default: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_30_444;
 	}
 }
 
@@ -975,9 +1041,9 @@ nv50_msto_enable(struct drm_encoder *encoder)
 		nv50_outp_acquire(mstm->outp, false /*XXX: MST audio.*/);
 
 	if (mstm->outp->link & 1)
-		proto = 0x8;
+		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 	else
-		proto = 0x9;
+		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
 	mstm->outp->update(mstm->outp, head->base.index, armh, proto,
 			   nv50_dp_bpc_to_depth(armh->or.bpc));
@@ -1506,10 +1572,10 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 
 	if (!asyh) {
 		nv_encoder->ctrl &= ~BIT(head);
-		if (!(nv_encoder->ctrl & 0x0000000f))
+		if (NVDEF_TEST(nv_encoder->ctrl, NV507D, SOR_SET_CONTROL, OWNER, ==, NONE))
 			nv_encoder->ctrl = 0;
 	} else {
-		nv_encoder->ctrl |= proto << 8;
+		nv_encoder->ctrl |= NVVAL(NV507D, SOR_SET_CONTROL, PROTOCOL, proto);
 		nv_encoder->ctrl |= BIT(head);
 		asyh->or.depth = depth;
 	}
@@ -1567,8 +1633,8 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
 	bool hda = false;
-	u8 proto = 0xf;
-	u8 depth = 0x0;
+	u8 proto = NV507D_SOR_SET_CONTROL_PROTOCOL_CUSTOM;
+	u8 depth = NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	nv_encoder->crtc = encoder->crtc;
@@ -1582,7 +1648,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->link & 1) {
-			proto = 0x1;
+			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_A;
 			/* Only enable dual-link if:
 			 *  - Need to (i.e. rate > 165MHz)
 			 *  - DCB says we can
@@ -1592,15 +1658,15 @@ nv50_sor_enable(struct drm_encoder *encoder)
 			if (mode->clock >= 165000 &&
 			    nv_encoder->dcb->duallink_possible &&
 			    !drm_detect_hdmi_monitor(nv_connector->edid))
-				proto |= 0x4;
+				proto = NV507D_SOR_SET_CONTROL_PROTOCOL_DUAL_TMDS;
 		} else {
-			proto = 0x2;
+			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_B;
 		}
 
 		nv50_hdmi_enable(&nv_encoder->base.base, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
-		proto = 0x0;
+		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
 
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
@@ -1634,9 +1700,9 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
 		if (nv_encoder->link & 1)
-			proto = 0x8;
+			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 		else
-			proto = 0x9;
+			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
 		nv50_audio_enable(encoder, mode);
 		break;
@@ -1771,8 +1837,9 @@ nv50_pior_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, NONE);
 	if (nv_encoder->crtc)
-		core->func->pior->ctrl(core, nv_encoder->or, 0x00000000, NULL);
+		core->func->pior->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -1784,29 +1851,36 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
-	u8 owner = 1 << nv_crtc->index;
-	u8 proto;
+	u32 ctrl = 0;
+
+	switch (nv_crtc->index) {
+	case 0: ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, HEAD0); break;
+	case 1: ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, HEAD1); break;
+	default:
+		WARN_ON(1);
+		break;
+	}
 
 	nv50_outp_acquire(nv_encoder, false);
 
 	switch (asyh->or.bpc) {
-	case 10: asyh->or.depth = 0x6; break;
-	case  8: asyh->or.depth = 0x5; break;
-	case  6: asyh->or.depth = 0x2; break;
-	default: asyh->or.depth = 0x0; break;
+	case 10: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_30_444; break;
+	case  8: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_24_444; break;
+	case  6: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_18_444; break;
+	default: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT; break;
 	}
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 	case DCB_OUTPUT_DP:
-		proto = 0x0;
+		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	core->func->pior->ctrl(core, nv_encoder->or, (proto << 8) | owner, asyh);
+	core->func->pior->ctrl(core, nv_encoder->or, ctrl, asyh);
 	nv_encoder->crtc = encoder->crtc;
 }
 
@@ -1948,8 +2022,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct nv50_outp_atom *outp, *outt;
 	u32 interlock[NV50_DISP_INTERLOCK__SIZE] = {};
 	int i;
+	bool flushed = false;
 
 	NV_ATOMIC(drm, "commit %d %d\n", atom->lock_core, atom->flush_disable);
+	nv50_crc_atomic_stop_reporting(state);
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 	drm_atomic_helper_wait_for_dependencies(state);
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
@@ -2007,6 +2083,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 				nv50_disp_atomic_commit_wndw(state, interlock);
 				nv50_disp_atomic_commit_core(state, interlock);
 				memset(interlock, 0x00, sizeof(interlock));
+
+				flushed = true;
 			}
 		}
 	}
@@ -2017,8 +2095,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			nv50_disp_atomic_commit_wndw(state, interlock);
 			nv50_disp_atomic_commit_core(state, interlock);
 			memset(interlock, 0x00, sizeof(interlock));
+
+			flushed = true;
 		}
 	}
+
+	if (flushed)
+		nv50_crc_atomic_release_notifier_contexts(state);
+	nv50_crc_atomic_init_notifier_contexts(state);
 
 	/* Update output path(s). */
 	list_for_each_entry_safe(outp, outt, &atom->outp, head) {
@@ -2133,6 +2217,9 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
+	nv50_crc_atomic_start_reporting(state);
+	if (!flushed)
+		nv50_crc_atomic_release_notifier_contexts(state);
 	drm_atomic_helper_commit_hw_done(state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_helper_commit_cleanup_done(state);
@@ -2160,8 +2247,10 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	int ret, i;
 
 	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0 && ret != -EACCES)
+	if (ret < 0 && ret != -EACCES) {
+		pm_runtime_put_autosuspend(dev->dev);
 		return ret;
+	}
 
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
@@ -2290,11 +2379,27 @@ static int
 nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	struct nv50_atom *atom = nv50_atom(state);
+	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	struct drm_connector *connector;
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
+	struct nv50_head *head;
+	struct nv50_head_atom *asyh;
 	int ret, i;
+
+	if (core->assign_windows && core->func->head->static_wndw_map) {
+		drm_for_each_crtc(crtc, dev) {
+			new_crtc_state = drm_atomic_get_crtc_state(state,
+								   crtc);
+			if (IS_ERR(new_crtc_state))
+				return PTR_ERR(new_crtc_state);
+
+			head = nv50_head(crtc);
+			asyh = nv50_head_atom(new_crtc_state);
+			core->func->head->static_wndw_map(head, asyh);
+		}
+	}
 
 	/* We need to handle colour management on a per-plane basis. */
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -2322,6 +2427,8 @@ nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	ret = drm_dp_mst_atomic_check(state);
 	if (ret)
 		return ret;
+
+	nv50_crc_atomic_check_outp(atom);
 
 	return 0;
 }
@@ -2434,7 +2541,7 @@ nv50_display_destroy(struct drm_device *dev)
 	nv50_audio_component_fini(nouveau_drm(dev));
 
 	nvif_object_unmap(&disp->caps);
-	nvif_object_fini(&disp->caps);
+	nvif_object_dtor(&disp->caps);
 	nv50_core_del(&disp->core);
 
 	nouveau_bo_unmap(disp->sync);

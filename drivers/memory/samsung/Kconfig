@@ -23,5 +23,12 @@ config EXYNOS5422_DMC
 config EXYNOS_SROM
 	bool "Exynos SROM controller driver" if COMPILE_TEST
 	depends on (ARM && ARCH_EXYNOS) || (COMPILE_TEST && HAS_IOMEM)
+	help
+	  This adds driver for Samsung Exynos SoC SROM controller.  The driver
+	  in basic operation mode only saves and restores SROM registers
+	  during suspend.  If however appropriate device tree configuration
+	  is provided, the driver enables support for external memory
+	  or external devices.
+	  If unsure, say Y on devices with Samsung Exynos SocS.
 
 endif

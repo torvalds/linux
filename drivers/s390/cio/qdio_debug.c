@@ -165,7 +165,7 @@ static int qstat_show(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "\n1          2..        4..        8..        "
-		   "16..       32..       64..       127\n");
+		   "16..       32..       64..       128\n");
 	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
 		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
 	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",

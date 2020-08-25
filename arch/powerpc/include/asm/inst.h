@@ -122,6 +122,25 @@ static inline u64 ppc_inst_as_u64(struct ppc_inst x)
 #endif
 }
 
+#define PPC_INST_STR_LEN sizeof("00000000 00000000")
+
+static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], struct ppc_inst x)
+{
+	if (ppc_inst_prefixed(x))
+		sprintf(str, "%08x %08x", ppc_inst_val(x), ppc_inst_suffix(x));
+	else
+		sprintf(str, "%08x", ppc_inst_val(x));
+
+	return str;
+}
+
+#define ppc_inst_as_str(x)		\
+({					\
+	char __str[PPC_INST_STR_LEN];	\
+	__ppc_inst_as_str(__str, x);	\
+	__str;				\
+})
+
 int probe_user_read_inst(struct ppc_inst *inst,
 			 struct ppc_inst __user *nip);
 

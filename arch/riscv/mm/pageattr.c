@@ -7,6 +7,7 @@
 #include <linux/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/bitops.h>
+#include <asm/set_memory.h>
 
 struct pageattr_masks {
 	pgprot_t set_mask;
@@ -94,7 +95,7 @@ static int pageattr_pte_hole(unsigned long addr, unsigned long next,
 	return 0;
 }
 
-const static struct mm_walk_ops pageattr_ops = {
+static const struct mm_walk_ops pageattr_ops = {
 	.pgd_entry = pageattr_pgd_entry,
 	.p4d_entry = pageattr_p4d_entry,
 	.pud_entry = pageattr_pud_entry,

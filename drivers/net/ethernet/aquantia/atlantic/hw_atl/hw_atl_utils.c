@@ -46,6 +46,7 @@
 #define HW_ATL_FW_VER_1X 0x01050006U
 #define HW_ATL_FW_VER_2X 0x02000000U
 #define HW_ATL_FW_VER_3X 0x03000000U
+#define HW_ATL_FW_VER_4X 0x04000000U
 
 #define FORCE_FLASHLESS 0
 
@@ -72,14 +73,13 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 	self->fw_ver_actual = hw_atl_utils_get_fw_version(self);
 
-	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
-				   self->fw_ver_actual) == 0) {
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_1x_ops;
-	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
-					  self->fw_ver_actual) == 0) {
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_2x_ops;
-	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
-					  self->fw_ver_actual) == 0) {
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X, self->fw_ver_actual)) {
+		*fw_ops = &aq_fw_2x_ops;
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_4X, self->fw_ver_actual)) {
 		*fw_ops = &aq_fw_2x_ops;
 	} else {
 		aq_pr_err("Bad FW version detected: %x\n",
@@ -217,7 +217,7 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 
 	if (rbl_status == 0xF1A7) {
 		aq_pr_err("No FW detected. Dynamic FW load not implemented\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	for (k = 0; k < 1000; k++) {
@@ -239,6 +239,7 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 
 int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 {
+	int ver = hw_atl_utils_get_fw_version(self);
 	u32 boot_exit_code = 0;
 	u32 val;
 	int k;
@@ -259,14 +260,12 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 
 	self->rbl_enabled = (boot_exit_code != 0);
 
-	/* FW 1.x may bootup in an invalid POWER state (WOL feature).
-	 * We should work around this by forcing its state back to DEINIT
-	 */
-	if (!hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
-				    aq_hw_read_reg(self,
-						   HW_ATL_MPI_FW_VERSION))) {
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, ver)) {
 		int err = 0;
 
+		/* FW 1.x may bootup in an invalid POWER state (WOL feature).
+		 * We should work around this by forcing its state back to DEINIT
+		 */
 		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
 		err = readx_poll_timeout_atomic(hw_atl_utils_mpi_get_state,
 						self, val,
@@ -275,6 +274,27 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 						10, 10000U);
 		if (err)
 			return err;
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_4X, ver)) {
+		u64 sem_timeout = aq_hw_read_reg(self, HW_ATL_MIF_RESET_TIMEOUT_ADR);
+
+		/* Acquire 2 semaphores before issuing reset for FW 4.x */
+		if (sem_timeout > 3000)
+			sem_timeout = 3000;
+		sem_timeout = sem_timeout * 1000;
+
+		if (sem_timeout != 0) {
+			int err;
+
+			err = readx_poll_timeout_atomic(hw_atl_sem_reset1_get, self, val,
+							val == 1U, 1U, sem_timeout);
+			if (err)
+				aq_pr_err("reset sema1 timeout");
+
+			err = readx_poll_timeout_atomic(hw_atl_sem_reset2_get, self, val,
+							val == 1U, 1U, sem_timeout);
+			if (err)
+				aq_pr_err("reset sema2 timeout");
+		}
 	}
 
 	if (self->rbl_enabled)
@@ -434,20 +454,20 @@ int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
 					     p, cnt, MCP_AREA_SETTINGS);
 }
 
-int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
+bool hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
 {
 	const u32 dw_major_mask = 0xff000000U;
 	const u32 dw_minor_mask = 0x00ffffffU;
-	int err = 0;
+	bool ver_match;
 
-	err = (dw_major_mask & (ver_expected ^ ver_actual)) ? -EOPNOTSUPP : 0;
-	if (err < 0)
+	ver_match = (dw_major_mask & (ver_expected ^ ver_actual)) ? false : true;
+	if (!ver_match)
 		goto err_exit;
-	err = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
-		-EOPNOTSUPP : 0;
+	ver_match = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
+		false : true;
 
 err_exit:
-	return err;
+	return ver_match;
 }
 
 static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
@@ -704,6 +724,7 @@ int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 			return -EBUSY;
 		}
 	}
+	link_status->full_duplex = true;
 
 	return 0;
 }
@@ -1045,6 +1066,7 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_state = hw_atl_utils_mpi_set_state,
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
+	.get_mac_temp = NULL,
 	.get_phy_temp = NULL,
 	.set_power = aq_fw1x_set_power,
 	.set_eee_rate = NULL,

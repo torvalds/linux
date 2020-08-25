@@ -14,6 +14,7 @@
 #include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
@@ -110,6 +111,9 @@ struct msm_dsi_host {
 	struct clk *byte_clk_src;
 	struct clk *pixel_clk_src;
 	struct clk *byte_intf_clk;
+
+	struct opp_table *opp_table;
+	bool has_opp_table;
 
 	u32 byte_clk_rate;
 	u32 pixel_clk_rate;
@@ -512,9 +516,10 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 	DBG("Set clk rates: pclk=%d, byteclk=%d",
 		msm_host->mode->clock, msm_host->byte_clk_rate);
 
-	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+	ret = dev_pm_opp_set_rate(&msm_host->pdev->dev,
+				  msm_host->byte_clk_rate);
 	if (ret) {
-		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
+		pr_err("%s: dev_pm_opp_set_rate failed %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -658,6 +663,8 @@ error:
 
 void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host)
 {
+	/* Drop the performance state vote */
+	dev_pm_opp_set_rate(&msm_host->pdev->dev, 0);
 	clk_disable_unprepare(msm_host->esc_clk);
 	clk_disable_unprepare(msm_host->pixel_clk);
 	if (msm_host->byte_intf_clk)
@@ -986,16 +993,16 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 		/* image data and 1 byte write_memory_start cmd */
 		wc = hdisplay * dsi_get_bpp(msm_host->format) / 8 + 1;
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM_CTRL,
-			DSI_CMD_MDP_STREAM_CTRL_WORD_COUNT(wc) |
-			DSI_CMD_MDP_STREAM_CTRL_VIRTUAL_CHANNEL(
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_CTRL,
+			DSI_CMD_MDP_STREAM0_CTRL_WORD_COUNT(wc) |
+			DSI_CMD_MDP_STREAM0_CTRL_VIRTUAL_CHANNEL(
 					msm_host->channel) |
-			DSI_CMD_MDP_STREAM_CTRL_DATA_TYPE(
+			DSI_CMD_MDP_STREAM0_CTRL_DATA_TYPE(
 					MIPI_DSI_DCS_LONG_WRITE));
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM_TOTAL,
-			DSI_CMD_MDP_STREAM_TOTAL_H_TOTAL(hdisplay) |
-			DSI_CMD_MDP_STREAM_TOTAL_V_TOTAL(mode->vdisplay));
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_TOTAL,
+			DSI_CMD_MDP_STREAM0_TOTAL_H_TOTAL(hdisplay) |
+			DSI_CMD_MDP_STREAM0_TOTAL_V_TOTAL(mode->vdisplay));
 	}
 }
 
@@ -1132,7 +1139,7 @@ static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 	priv = dev->dev_private;
 	if (msm_host->tx_gem_obj) {
 		msm_gem_unpin_iova(msm_host->tx_gem_obj, priv->kms->aspace);
-		drm_gem_object_put_unlocked(msm_host->tx_gem_obj);
+		drm_gem_object_put(msm_host->tx_gem_obj);
 		msm_host->tx_gem_obj = NULL;
 	}
 
@@ -1879,6 +1886,19 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
+	msm_host->opp_table = dev_pm_opp_set_clkname(&pdev->dev, "byte");
+	if (IS_ERR(msm_host->opp_table))
+		return PTR_ERR(msm_host->opp_table);
+	/* OPP table is optional */
+	ret = dev_pm_opp_of_add_table(&pdev->dev);
+	if (!ret) {
+		msm_host->has_opp_table = true;
+	} else if (ret != -ENODEV) {
+		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
+		dev_pm_opp_put_clkname(msm_host->opp_table);
+		return ret;
+	}
+
 	init_completion(&msm_host->dma_comp);
 	init_completion(&msm_host->video_comp);
 	mutex_init(&msm_host->dev_mutex);
@@ -1914,6 +1934,9 @@ void msm_dsi_host_destroy(struct mipi_dsi_host *host)
 	mutex_destroy(&msm_host->cmd_mutex);
 	mutex_destroy(&msm_host->dev_mutex);
 
+	if (msm_host->has_opp_table)
+		dev_pm_opp_of_remove_table(&msm_host->pdev->dev);
+	dev_pm_opp_put_clkname(msm_host->opp_table);
 	pm_runtime_disable(&msm_host->pdev->dev);
 }
 

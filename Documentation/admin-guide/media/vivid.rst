@@ -293,6 +293,15 @@ all configurable using the following module options:
 		- 0: vmalloc
 		- 1: dma-contig
 
+- cache_hints:
+
+	specifies if the device should set queues' user-space cache and memory
+	consistency hint capability (V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS).
+	The hints are valid only when using MMAP streaming I/O. Default is 0.
+
+		- 0: forbid hints
+		- 1: allow hints
+
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
 It is also very suitable to emulate hardware that is not yet available, e.g.

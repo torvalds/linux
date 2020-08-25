@@ -117,7 +117,7 @@ enum regulator_status {
  *                       suspended.
  * @set_suspend_mode: Set the operating mode for the regulator when the
  *                    system is suspended.
- *
+ * @resume: Resume operation of suspended regulator.
  * @set_pull_down: Configure the regulator to pull down when the regulator
  *		   is disabled.
  *
@@ -305,6 +305,9 @@ enum regulator_type {
  * @enable_time: Time taken for initial enable of regulator (in uS).
  * @off_on_delay: guard time (in uS), before re-enabling a regulator
  *
+ * @poll_enabled_time: The polling interval (in uS) to use while checking that
+ *                     the regulator was actually enabled. Max upto enable_time.
+ *
  * @of_map_mode: Maps a hardware mode defined in a DeviceTree to a standard mode
  */
 struct regulator_desc {
@@ -371,6 +374,8 @@ struct regulator_desc {
 	unsigned int enable_time;
 
 	unsigned int off_on_delay;
+
+	unsigned int poll_enabled_time;
 
 	unsigned int (*of_map_mode)(unsigned int mode);
 };

@@ -273,36 +273,14 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	}
 }
 
-#ifdef CONFIG_PPC_PSERIES
-static void handle_prrn_event(s32 scope)
-{
-	/*
-	 * For PRRN, we must pass the negative of the scope value in
-	 * the RTAS event.
-	 */
-	pseries_devicetree_update(-scope);
-	numa_update_cpu_topology(false);
-}
-
 static void handle_rtas_event(const struct rtas_error_log *log)
 {
-	if (rtas_error_type(log) != RTAS_TYPE_PRRN || !prrn_is_enabled())
+	if (!machine_is(pseries))
 		return;
 
-	/* For PRRN Events the extended log length is used to denote
-	 * the scope for calling rtas update-nodes.
-	 */
-	handle_prrn_event(rtas_error_extended_log_length(log));
+	if (rtas_error_type(log) == RTAS_TYPE_PRRN)
+		pr_info_ratelimited("Platform resource reassignment ignored.\n");
 }
-
-#else
-
-static void handle_rtas_event(const struct rtas_error_log *log)
-{
-	return;
-}
-
-#endif
 
 static int rtas_log_open(struct inode * inode, struct file * file)
 {

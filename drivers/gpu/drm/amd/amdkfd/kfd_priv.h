@@ -97,7 +97,7 @@
  * Size of the per-process TBA+TMA buffer: 2 pages
  *
  * The first page is the TBA used for the CWSR ISA code. The second
- * page is used as TMA for daisy changing a user-mode trap handler.
+ * page is used as TMA for user-mode trap handler setup in daisy-chain mode.
  */
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
@@ -157,25 +157,20 @@ extern int debug_largebar;
  */
 extern int ignore_crat;
 
-/*
- * Set sh_mem_config.retry_disable on Vega10
- */
+/* Set sh_mem_config.retry_disable on GFX v9 */
 extern int amdgpu_noretry;
 
-/*
- * Halt if HWS hang is detected
- */
+/* Halt if HWS hang is detected */
 extern int halt_if_hws_hang;
 
-/*
- * Whether MEC FW support GWS barriers
- */
+/* Whether MEC FW support GWS barriers */
 extern bool hws_gws_support;
 
-/*
- * Queue preemption timeout in ms
- */
+/* Queue preemption timeout in ms */
 extern int queue_preemption_timeout_ms;
+
+/* Enable eviction debug messages */
+extern bool debug_evictions;
 
 enum cache_policy {
 	cache_policy_coherent,
@@ -296,7 +291,7 @@ struct kfd_dev {
 
 	/* xGMI */
 	uint64_t hive_id;
-    
+
 	/* UUID */
 	uint64_t unique_id;
 
@@ -308,8 +303,12 @@ struct kfd_dev {
 	/* Compute Profile ref. count */
 	atomic_t compute_profile;
 
-	/* Global GWS resource shared b/t processes*/
+	/* Global GWS resource shared between processes */
 	void *gws;
+
+	/* Clients watching SMI events */
+	struct list_head smi_clients;
+	spinlock_t smi_lock;
 };
 
 enum kfd_mempool {
@@ -324,7 +323,7 @@ void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
 /**
- * enum kfd_unmap_queues_filter
+ * enum kfd_unmap_queues_filter - Enum for queue filters.
  *
  * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
  *
@@ -343,15 +342,17 @@ enum kfd_unmap_queues_filter {
 };
 
 /**
- * enum kfd_queue_type
+ * enum kfd_queue_type - Enum for various queue types.
  *
  * @KFD_QUEUE_TYPE_COMPUTE: Regular user mode queue type.
  *
- * @KFD_QUEUE_TYPE_SDMA: Sdma user mode queue type.
+ * @KFD_QUEUE_TYPE_SDMA: SDMA user mode queue type.
  *
  * @KFD_QUEUE_TYPE_HIQ: HIQ queue type.
  *
  * @KFD_QUEUE_TYPE_DIQ: DIQ queue type.
+ *
+ * @KFD_QUEUE_TYPE_SDMA_XGMI: Special SDMA queue for XGMI interface.
  */
 enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
@@ -397,9 +398,9 @@ enum KFD_QUEUE_PRIORITY {
  *
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
- * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
- * the queue ring buffer. This field should be similar to write_ptr and the
- * user should update this field after he updated the write_ptr.
+ * @doorbell_ptr: Notifies the H/W of new packet written to the queue ring
+ * buffer. This field should be similar to write_ptr and the user should
+ * update this field after updating the write_ptr.
  *
  * @doorbell_off: The doorbell offset in the doorbell pci-bar.
  *
@@ -468,7 +469,7 @@ struct queue_properties {
  *
  * @list: Queue linked list.
  *
- * @mqd: The queue MQD.
+ * @mqd: The queue MQD (memory queue descriptor).
  *
  * @mqd_mem_obj: The MQD local gpu memory object.
  *
@@ -477,7 +478,7 @@ struct queue_properties {
  * @properties: The queue properties.
  *
  * @mec: Used only in no cp scheduling mode and identifies to micro engine id
- *	 that the queue should be execute on.
+ *	 that the queue should be executed on.
  *
  * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
  *	  id.
@@ -518,9 +519,6 @@ struct queue {
 	struct kobject kobj;
 };
 
-/*
- * Please read the kfd_mqd_manager.h description.
- */
 enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_HIQ = 0,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
@@ -578,9 +576,7 @@ struct qcm_process_device {
 	 */
 	bool mapped_gws_queue;
 
-	/*
-	 * All the memory management data should be here too
-	 */
+	/* All the memory management data should be here too */
 	uint64_t gds_context_area;
 	/* Contains page table flags such as AMDGPU_PTE_VALID since gfx9 */
 	uint64_t page_table_base;
@@ -630,7 +626,14 @@ enum kfd_pdd_bound {
 	PDD_BOUND_SUSPENDED,
 };
 
-#define MAX_VRAM_FILENAME_LEN 11
+#define MAX_SYSFS_FILENAME_LEN 11
+
+/*
+ * SDMA counter runs at 100MHz frequency.
+ * We display SDMA activity in microsecond granularity in sysfs.
+ * As a result, the divisor is 100.
+ */
+#define SDMA_ACTIVITY_DIVISOR  100
 
 /* Data that is per-process-per device. */
 struct kfd_process_device {
@@ -678,7 +681,12 @@ struct kfd_process_device {
 	/* VRAM usage */
 	uint64_t vram_usage;
 	struct attribute attr_vram;
-	char vram_filename[MAX_VRAM_FILENAME_LEN];
+	char vram_filename[MAX_SYSFS_FILENAME_LEN];
+
+	/* SDMA activity tracking */
+	uint64_t sdma_past_activity_counter;
+	struct attribute attr_sdma;
+	char sdma_filename[MAX_SYSFS_FILENAME_LEN];
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -768,11 +776,13 @@ extern DECLARE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
 extern struct srcu_struct kfd_processes_srcu;
 
 /**
- * Ioctl function type.
+ * typedef amdkfd_ioctl_t - typedef for ioctl function pointer.
  *
- * \param filep pointer to file structure.
- * \param p amdkfd process pointer.
- * \param data pointer to arg that was copied from user.
+ * @filep: pointer to file structure.
+ * @p: amdkfd process pointer.
+ * @data: pointer to arg that was copied from user.
+ *
+ * Return: returns ioctl completion code.
  */
 typedef int amdkfd_ioctl_t(struct file *filep, struct kfd_process *p,
 				void *data);

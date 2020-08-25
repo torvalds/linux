@@ -1367,14 +1367,6 @@ out_err:
 	return ret;
 }
 
-static inline u8 iwl_mvm_tid_to_ac_queue(int tid)
-{
-	if (tid == IWL_MAX_TID_COUNT)
-		return IEEE80211_AC_VO; /* MGMT */
-
-	return tid_to_mac80211_ac[tid];
-}
-
 void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm,

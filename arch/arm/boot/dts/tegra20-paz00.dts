@@ -314,7 +314,7 @@
 	memory-controller@7000f400 {
 		nvidia,use-ram-code;
 
-		emc-tables@hynix {
+		emc-tables@0 {
 			nvidia,ram-code = <0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -543,7 +543,7 @@
 		status = "okay";
 	};
 
-	sdhci@c8000000 {
+	mmc@c8000000 {
 		status = "okay";
 		cd-gpios = <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_LOW>;
 		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
@@ -551,7 +551,7 @@
 		bus-width = <4>;
 	};
 
-	sdhci@c8000600 {
+	mmc@c8000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
@@ -569,17 +569,10 @@
 		backlight-boot-off;
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock@0 {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	gpio-keys {
@@ -596,7 +589,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		wifi {
+		led-0 {
 			label = "wifi-led";
 			gpios = <&gpio TEGRA_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "rfkill0";
@@ -613,30 +606,22 @@
 		backlight = <&backlight>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	p5valw_reg: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "+5valw";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 
-		p5valw_reg: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "+5valw";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
-
-		vdd_pnl_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "+3VS,vdd_pnl";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-boot-on;
-			gpio = <&gpio TEGRA_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vdd_pnl_reg: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "+3VS,vdd_pnl";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	sound {

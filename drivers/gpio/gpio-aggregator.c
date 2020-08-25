@@ -10,6 +10,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -38,9 +39,9 @@ static DEFINE_IDR(gpio_aggregator_idr);
 
 static char *get_arg(char **args)
 {
-	char *start = *args, *end;
+	char *start, *end;
 
-	start = skip_spaces(start);
+	start = skip_spaces(*args);
 	if (!*start)
 		return NULL;
 
@@ -111,55 +112,45 @@ static int aggr_add_gpio(struct gpio_aggregator *aggr, const char *key,
 
 static int aggr_parse(struct gpio_aggregator *aggr)
 {
-	unsigned int first_index, last_index, i, n = 0;
-	char *name, *offsets, *first, *last, *next;
 	char *args = aggr->args;
-	int error;
+	unsigned long *bitmap;
+	unsigned int i, n = 0;
+	char *name, *offsets;
+	int error = 0;
+
+	bitmap = bitmap_alloc(ARCH_NR_GPIOS, GFP_KERNEL);
+	if (!bitmap)
+		return -ENOMEM;
 
 	for (name = get_arg(&args), offsets = get_arg(&args); name;
 	     offsets = get_arg(&args)) {
 		if (IS_ERR(name)) {
 			pr_err("Cannot get GPIO specifier: %pe\n", name);
-			return PTR_ERR(name);
+			error = PTR_ERR(name);
+			goto free_bitmap;
 		}
 
 		if (!isrange(offsets)) {
 			/* Named GPIO line */
 			error = aggr_add_gpio(aggr, name, U16_MAX, &n);
 			if (error)
-				return error;
+				goto free_bitmap;
 
 			name = offsets;
 			continue;
 		}
 
 		/* GPIO chip + offset(s) */
-		for (first = offsets; *first; first = next) {
-			next = strchrnul(first, ',');
-			if (*next)
-				*next++ = '\0';
+		error = bitmap_parselist(offsets, bitmap, ARCH_NR_GPIOS);
+		if (error) {
+			pr_err("Cannot parse %s: %d\n", offsets, error);
+			goto free_bitmap;
+		}
 
-			last = strchr(first, '-');
-			if (last)
-				*last++ = '\0';
-
-			if (kstrtouint(first, 10, &first_index)) {
-				pr_err("Cannot parse GPIO index %s\n", first);
-				return -EINVAL;
-			}
-
-			if (!last) {
-				last_index = first_index;
-			} else if (kstrtouint(last, 10, &last_index)) {
-				pr_err("Cannot parse GPIO index %s\n", last);
-				return -EINVAL;
-			}
-
-			for (i = first_index; i <= last_index; i++) {
-				error = aggr_add_gpio(aggr, name, i, &n);
-				if (error)
-					return error;
-			}
+		for_each_set_bit(i, bitmap, ARCH_NR_GPIOS) {
+			error = aggr_add_gpio(aggr, name, i, &n);
+			if (error)
+				goto free_bitmap;
 		}
 
 		name = get_arg(&args);
@@ -167,10 +158,12 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 
 	if (!n) {
 		pr_err("No GPIOs specified\n");
-		return -EINVAL;
+		error = -EINVAL;
 	}
 
-	return 0;
+free_bitmap:
+	bitmap_free(bitmap);
+	return error;
 }
 
 static ssize_t new_device_store(struct device_driver *driver, const char *buf,

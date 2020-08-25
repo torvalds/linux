@@ -171,7 +171,8 @@ struct simd_skcipher_alg *simd_skcipher_create_compat(const char *algname,
 		     drvname) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_salg;
 
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC |
+		(ialg->base.cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 	alg->base.cra_priority = ialg->base.cra_priority;
 	alg->base.cra_blocksize = ialg->base.cra_blocksize;
 	alg->base.cra_alignmask = ialg->base.cra_alignmask;
@@ -417,7 +418,8 @@ struct simd_aead_alg *simd_aead_create_compat(const char *algname,
 		     drvname) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_salg;
 
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC |
+		(ialg->base.cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 	alg->base.cra_priority = ialg->base.cra_priority;
 	alg->base.cra_blocksize = ialg->base.cra_blocksize;
 	alg->base.cra_alignmask = ialg->base.cra_alignmask;

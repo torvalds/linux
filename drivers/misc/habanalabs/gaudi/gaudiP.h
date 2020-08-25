@@ -9,11 +9,11 @@
 #define GAUDIP_H_
 
 #include <uapi/misc/habanalabs.h>
-#include "habanalabs.h"
-#include "include/hl_boot_if.h"
-#include "include/gaudi/gaudi_packets.h"
-#include "include/gaudi/gaudi.h"
-#include "include/gaudi/gaudi_async_events.h"
+#include "../common/habanalabs.h"
+#include "../include/common/hl_boot_if.h"
+#include "../include/gaudi/gaudi_packets.h"
+#include "../include/gaudi/gaudi.h"
+#include "../include/gaudi/gaudi_async_events.h"
 
 #define NUMBER_OF_EXT_HW_QUEUES		12
 #define NUMBER_OF_CMPLT_QUEUES		NUMBER_OF_EXT_HW_QUEUES
@@ -56,6 +56,12 @@
 #define DMA_MAX_TRANSFER_SIZE		U32_MAX
 
 #define GAUDI_DEFAULT_CARD_NAME		"HL2000"
+
+#define GAUDI_MAX_PENDING_CS		1024
+
+#if !IS_MAX_PENDING_CS_VALID(GAUDI_MAX_PENDING_CS)
+#error "GAUDI_MAX_PENDING_CS must be power of 2 and greater than 1"
+#endif
 
 #define PCI_DMA_NUMBER_OF_CHNLS		3
 #define HBM_DMA_NUMBER_OF_CHNLS		5
@@ -117,14 +123,14 @@
 
 /* Internal QMANs PQ sizes */
 
-#define MME_QMAN_LENGTH			64
+#define MME_QMAN_LENGTH			1024
 #define MME_QMAN_SIZE_IN_BYTES		(MME_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
-#define HBM_DMA_QMAN_LENGTH		64
+#define HBM_DMA_QMAN_LENGTH		1024
 #define HBM_DMA_QMAN_SIZE_IN_BYTES	\
 				(HBM_DMA_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
-#define TPC_QMAN_LENGTH			64
+#define TPC_QMAN_LENGTH			1024
 #define TPC_QMAN_SIZE_IN_BYTES		(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
 #define SRAM_USER_BASE_OFFSET  GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START
@@ -228,7 +234,6 @@ struct gaudi_internal_qman_info {
  *                      engine.
  * @multi_msi_mode: whether we are working in multi MSI single MSI mode.
  *                  Multi MSI is possible only with IOMMU enabled.
- * @ext_queue_idx: helper index for external queues initialization.
  * @mmu_cache_inv_pi: PI for MMU cache invalidation flow. The H/W expects an
  *                    8-bit value so use u8.
  */
@@ -249,7 +254,6 @@ struct gaudi_device {
 	u32				events_stat_aggregate[GAUDI_EVENT_SIZE];
 	u32				hw_cap_initialized;
 	u8				multi_msi_mode;
-	u8				ext_queue_idx;
 	u8				mmu_cache_inv_pi;
 };
 

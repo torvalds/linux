@@ -117,10 +117,10 @@ nv04_fifo_swmthd(struct nvkm_device *device, u32 chid, u32 addr, u32 data)
 	switch (mthd) {
 	case 0x0000 ... 0x0000: /* subchannel's engine -> software */
 		nvkm_wr32(device, 0x003280, (engine &= ~mask));
-		/* fall through */
+		fallthrough;
 	case 0x0180 ... 0x01fc: /* handle -> instance */
 		data = nvkm_rd32(device, 0x003258) & 0x0000ffff;
-		/* fall through */
+		fallthrough;
 	case 0x0100 ... 0x017c:
 	case 0x0200 ... 0x1ffc: /* pass method down to sw */
 		if (!(engine & mask) && sw)

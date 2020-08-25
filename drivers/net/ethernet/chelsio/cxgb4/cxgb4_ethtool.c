@@ -10,6 +10,8 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 #include "cxgb4_cudbg.h"
+#include "cxgb4_filter.h"
+#include "cxgb4_tc_flower.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -22,6 +24,23 @@ static void set_msglevel(struct net_device *dev, u32 val)
 {
 	netdev2adap(dev)->msg_enable = val;
 }
+
+enum cxgb4_ethtool_tests {
+	CXGB4_ETHTOOL_LB_TEST,
+	CXGB4_ETHTOOL_MAX_TEST,
+};
+
+static const char cxgb4_selftest_strings[CXGB4_ETHTOOL_MAX_TEST][ETH_GSTRING_LEN] = {
+	"Loop back test (offline)",
+};
+
+static const char * const flash_region_strings[] = {
+	"All",
+	"Firmware",
+	"PHY Firmware",
+	"Boot",
+	"Boot CFG",
+};
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_octets_ok           ",
@@ -156,6 +175,8 @@ static int get_sset_count(struct net_device *dev, int sset)
 		       ARRAY_SIZE(loopback_stats_strings);
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(cxgb4_priv_flags_strings);
+	case ETH_SS_TEST:
+		return ARRAY_SIZE(cxgb4_selftest_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -218,6 +239,9 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	} else if (stringset == ETH_SS_PRIV_FLAGS) {
 		memcpy(data, cxgb4_priv_flags_strings,
 		       sizeof(cxgb4_priv_flags_strings));
+	} else if (stringset == ETH_SS_TEST) {
+		memcpy(data, cxgb4_selftest_strings,
+		       sizeof(cxgb4_selftest_strings));
 	}
 }
 
@@ -1235,15 +1259,211 @@ out:
 	return err;
 }
 
-static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
+static int cxgb4_ethtool_flash_bootcfg(struct net_device *netdev,
+				       const u8 *data, u32 size)
 {
+	struct adapter *adap = netdev2adap(netdev);
 	int ret;
-	const struct firmware *fw;
+
+	ret = t4_load_bootcfg(adap, data, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot cfg image\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_boot(struct net_device *netdev,
+				    const u8 *bdata, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	unsigned int offset;
+	u8 *data;
+	int ret;
+
+	data = kmemdup(bdata, size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	offset = OFFSET_G(t4_read_reg(adap, PF_REG(0, PCIE_PF_EXPROM_OFST_A)));
+
+	ret = t4_load_boot(adap, data, offset, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot image\n");
+
+	kfree(data);
+	return ret;
+}
+
+#define CXGB4_PHY_SIG 0x130000ea
+
+static int cxgb4_validate_phy_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_fw_data *header;
+
+	header = (struct cxgb4_fw_data *)data;
+	if (be32_to_cpu(header->signature) != CXGB4_PHY_SIG)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int cxgb4_ethtool_flash_phy(struct net_device *netdev,
+				   const u8 *data, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	ret = cxgb4_validate_phy_image(data, NULL);
+	if (ret) {
+		dev_err(adap->pdev_dev, "PHY signature mismatch\n");
+		return ret;
+	}
+
+	spin_lock_bh(&adap->win0_lock);
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, NULL, data, size);
+	spin_unlock_bh(&adap->win0_lock);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load PHY FW\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_fw(struct net_device *netdev,
+				  const u8 *data, u32 size)
+{
 	struct adapter *adap = netdev2adap(netdev);
 	unsigned int mbox = PCIE_FW_MASTER_M + 1;
-	u32 pcie_fw;
+	int ret;
+
+	/* If the adapter has been fully initialized then we'll go ahead and
+	 * try to get the firmware's cooperation in upgrading to the new
+	 * firmware image otherwise we'll try to do the entire job from the
+	 * host ... and we always "force" the operation in this path.
+	 */
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
+		mbox = adap->mbox;
+
+	ret = t4_fw_upgrade(adap, mbox, data, size, 1);
+	if (ret)
+		dev_err(adap->pdev_dev,
+			"Failed to flash firmware\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_region(struct net_device *netdev,
+				      const u8 *data, u32 size, u32 region)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	switch (region) {
+	case CXGB4_ETHTOOL_FLASH_FW:
+		ret = cxgb4_ethtool_flash_fw(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_PHY:
+		ret = cxgb4_ethtool_flash_phy(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_BOOT:
+		ret = cxgb4_ethtool_flash_boot(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_BOOTCFG:
+		ret = cxgb4_ethtool_flash_bootcfg(netdev, data, size);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	if (!ret)
+		dev_info(adap->pdev_dev,
+			 "loading %s successful, reload cxgb4 driver\n",
+			 flash_region_strings[region]);
+	return ret;
+}
+
+#define CXGB4_FW_SIG 0x4368656c
+#define CXGB4_FW_SIG_OFFSET 0x160
+
+static int cxgb4_validate_fw_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_fw_data *header;
+
+	header = (struct cxgb4_fw_data *)&data[CXGB4_FW_SIG_OFFSET];
+	if (be32_to_cpu(header->signature) != CXGB4_FW_SIG)
+		return -EINVAL;
+
+	if (size)
+		*size = be16_to_cpu(((struct fw_hdr *)data)->len512) * 512;
+
+	return 0;
+}
+
+static int cxgb4_validate_bootcfg_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_bootcfg_data *header;
+
+	header = (struct cxgb4_bootcfg_data *)data;
+	if (le16_to_cpu(header->signature) != BOOT_CFG_SIG)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int cxgb4_validate_boot_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_pci_exp_rom_header *exp_header;
+	struct cxgb4_pcir_data *pcir_header;
+	struct legacy_pci_rom_hdr *header;
+	const u8 *cur_header = data;
+	u16 pcir_offset;
+
+	exp_header = (struct cxgb4_pci_exp_rom_header *)data;
+
+	if (le16_to_cpu(exp_header->signature) != BOOT_SIGNATURE)
+		return -EINVAL;
+
+	if (size) {
+		do {
+			header = (struct legacy_pci_rom_hdr *)cur_header;
+			pcir_offset = le16_to_cpu(header->pcir_offset);
+			pcir_header = (struct cxgb4_pcir_data *)(cur_header +
+				      pcir_offset);
+
+			*size += header->size512 * 512;
+			cur_header += header->size512 * 512;
+		} while (!(pcir_header->indicator & CXGB4_HDR_INDI));
+	}
+
+	return 0;
+}
+
+static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
+{
+	if (!cxgb4_validate_fw_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_FW;
+	if (!cxgb4_validate_boot_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOT;
+	if (!cxgb4_validate_phy_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_PHY;
+	if (!cxgb4_validate_bootcfg_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOTCFG;
+
+	return -EOPNOTSUPP;
+}
+
+static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	const struct firmware *fw;
 	unsigned int master;
 	u8 master_vld = 0;
+	const u8 *fw_data;
+	size_t fw_size;
+	u32 size = 0;
+	u32 pcie_fw;
+	int region;
+	int ret;
 
 	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
 	master = PCIE_FW_MASTER_G(pcie_fw);
@@ -1261,19 +1481,32 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	if (ret < 0)
 		return ret;
 
-	/* If the adapter has been fully initialized then we'll go ahead and
-	 * try to get the firmware's cooperation in upgrading to the new
-	 * firmware image otherwise we'll try to do the entire job from the
-	 * host ... and we always "force" the operation in this path.
-	 */
-	if (adap->flags & CXGB4_FULL_INIT_DONE)
-		mbox = adap->mbox;
+	fw_data = fw->data;
+	fw_size = fw->size;
+	if (ef->region == ETHTOOL_FLASH_ALL_REGIONS) {
+		while (fw_size > 0) {
+			size = 0;
+			region = cxgb4_ethtool_get_flash_region(fw_data, &size);
+			if (region < 0 || !size) {
+				ret = region;
+				goto out_free_fw;
+			}
 
-	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
+			ret = cxgb4_ethtool_flash_region(netdev, fw_data, size,
+							 region);
+			if (ret)
+				goto out_free_fw;
+
+			fw_data += size;
+			fw_size -= size;
+		}
+	} else {
+		ret = cxgb4_ethtool_flash_region(netdev, fw_data, fw_size,
+						 ef->region);
+	}
+
+out_free_fw:
 	release_firmware(fw);
-	if (!ret)
-		dev_info(adap->pdev_dev,
-			 "loaded firmware %s, reload cxgb4 driver\n", ef->data);
 	return ret;
 }
 
@@ -1355,10 +1588,120 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	return -EPERM;
 }
 
+static struct filter_entry *cxgb4_get_filter_entry(struct adapter *adap,
+						   u32 ftid)
+{
+	struct tid_info *t = &adap->tids;
+	struct filter_entry *f;
+
+	if (ftid < t->nhpftids)
+		f = &adap->tids.hpftid_tab[ftid];
+	else if (ftid < t->nftids)
+		f = &adap->tids.ftid_tab[ftid - t->nhpftids];
+	else
+		f = lookup_tid(&adap->tids, ftid);
+
+	return f;
+}
+
+static void cxgb4_fill_filter_rule(struct ethtool_rx_flow_spec *fs,
+				   struct ch_filter_specification *dfs)
+{
+	switch (dfs->val.proto) {
+	case IPPROTO_TCP:
+		if (dfs->type)
+			fs->flow_type = TCP_V6_FLOW;
+		else
+			fs->flow_type = TCP_V4_FLOW;
+		break;
+	case IPPROTO_UDP:
+		if (dfs->type)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			fs->flow_type = UDP_V4_FLOW;
+		break;
+	}
+
+	if (dfs->type) {
+		fs->h_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6dst));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6dst));
+		fs->h_u.tcp_ip6_spec.tclass = dfs->val.tos;
+		fs->m_u.tcp_ip6_spec.tclass = dfs->mask.tos;
+	} else {
+		fs->h_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4dst));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4dst));
+		fs->h_u.tcp_ip4_spec.tos = dfs->val.tos;
+		fs->m_u.tcp_ip4_spec.tos = dfs->mask.tos;
+	}
+	fs->h_ext.vlan_tci = cpu_to_be16(dfs->val.ivlan);
+	fs->m_ext.vlan_tci = cpu_to_be16(dfs->mask.ivlan);
+	fs->flow_type |= FLOW_EXT;
+
+	if (dfs->action == FILTER_DROP)
+		fs->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fs->ring_cookie = dfs->iq;
+}
+
+static int cxgb4_ntuple_get_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd,
+				   unsigned int loc)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct filter_entry *f;
+	int ftid;
+
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;
+
+	/* Check for maximum filter range */
+	if (!adap->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (loc >= adap->ethtool_filters->nentries)
+		return -ERANGE;
+
+	if (!test_bit(loc, adap->ethtool_filters->port[pi->port_id].bmap))
+		return -ENOENT;
+
+	ftid = adap->ethtool_filters->port[pi->port_id].loc_array[loc];
+
+	/* Fetch filter_entry */
+	f = cxgb4_get_filter_entry(adap, ftid);
+
+	cxgb4_fill_filter_rule(&cmd->fs, &f->fs);
+
+	return 0;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
 	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	unsigned int count = 0, index = 0;
+	int ret = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXFH: {
@@ -1414,8 +1757,142 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = pi->nqsets;
 		return 0;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt =
+		       adap->ethtool_filters->port[pi->port_id].in_use;
+		return 0;
+	case ETHTOOL_GRXCLSRULE:
+		return cxgb4_ntuple_get_filter(dev, info, info->fs.location);
+	case ETHTOOL_GRXCLSRLALL:
+		info->data = adap->ethtool_filters->nentries;
+		while (count < info->rule_cnt) {
+			ret = cxgb4_ntuple_get_filter(dev, info, index);
+			if (!ret)
+				rules[count++] = index;
+			index++;
+		}
+		return 0;
 	}
+
 	return -EOPNOTSUPP;
+}
+
+static int cxgb4_ntuple_del_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(dev);
+	struct port_info *pi = netdev_priv(dev);
+	struct filter_entry *f;
+	u32 filter_id;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	if (!test_bit(cmd->fs.location, filter_info->bmap))
+		return -ENOENT;
+
+	filter_id = filter_info->loc_array[cmd->fs.location];
+	f = cxgb4_get_filter_entry(adapter, filter_id);
+
+	ret = cxgb4_flow_rule_destroy(dev, f->fs.tc_prio, &f->fs, filter_id);
+	if (ret)
+		goto err;
+
+	clear_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use--;
+
+err:
+	return ret;
+}
+
+/* Add Ethtool n-tuple filters. */
+static int cxgb4_ntuple_set_filter(struct net_device *netdev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec_input input = {};
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(netdev);
+	struct port_info *pi = netdev_priv(netdev);
+	struct ch_filter_specification fs;
+	struct ethtool_rx_flow_rule *flow;
+	u32 tid;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	if (test_bit(cmd->fs.location,
+		     adapter->ethtool_filters->port[pi->port_id].bmap))
+		return -EEXIST;
+
+	memset(&fs, 0, sizeof(fs));
+
+	input.fs = &cmd->fs;
+	flow = ethtool_rx_flow_rule_create(&input);
+	if (IS_ERR(flow)) {
+		ret = PTR_ERR(flow);
+		goto exit;
+	}
+
+	fs.hitcnts = 1;
+
+	ret = cxgb4_flow_rule_replace(netdev, flow->rule, cmd->fs.location,
+				      NULL, &fs, &tid);
+	if (ret)
+		goto free;
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	filter_info->loc_array[cmd->fs.location] = tid;
+	set_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use++;
+
+free:
+	ethtool_rx_flow_rule_destroy(flow);
+exit:
+	return ret;
+}
+
+static int set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = cxgb4_ntuple_set_filter(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = cxgb4_ntuple_del_filter(dev, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static int set_dump(struct net_device *dev, struct ethtool_dump *eth_dump)
@@ -1593,6 +2070,44 @@ static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
 	return 0;
 }
 
+static void cxgb4_lb_test(struct net_device *netdev, u64 *lb_status)
+{
+	int dev_state = netif_running(netdev);
+
+	if (dev_state) {
+		netif_tx_stop_all_queues(netdev);
+		netif_carrier_off(netdev);
+	}
+
+	*lb_status = cxgb4_selftest_lb_pkt(netdev);
+
+	if (dev_state) {
+		netif_tx_start_all_queues(netdev);
+		netif_carrier_on(netdev);
+	}
+}
+
+static void cxgb4_self_test(struct net_device *netdev,
+			    struct ethtool_test *eth_test, u64 *data)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+
+	memset(data, 0, sizeof(u64) * CXGB4_ETHTOOL_MAX_TEST);
+
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE) ||
+	    !(adap->flags & CXGB4_FW_OK)) {
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	if (eth_test->flags & ETH_TEST_FL_OFFLINE)
+		cxgb4_lb_test(netdev, &data[CXGB4_ETHTOOL_LB_TEST]);
+
+	if (data[CXGB4_ETHTOOL_LB_TEST])
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
@@ -1623,9 +2138,11 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
 	.get_rxnfc         = get_rxnfc,
+	.set_rxnfc         = set_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
+	.self_test	   = cxgb4_self_test,
 	.flash_device      = set_flash,
 	.get_ts_info       = get_ts_info,
 	.set_dump          = set_dump,
@@ -1636,6 +2153,87 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_priv_flags    = cxgb4_get_priv_flags,
 	.set_priv_flags    = cxgb4_set_priv_flags,
 };
+
+void cxgb4_cleanup_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	u8 i;
+
+	if (!adap->ethtool_filters)
+		return;
+
+	eth_filter_info = adap->ethtool_filters->port;
+
+	if (eth_filter_info) {
+		for (i = 0; i < adap->params.nports; i++) {
+			kvfree(eth_filter_info[i].loc_array);
+			kfree(eth_filter_info[i].bmap);
+		}
+		kfree(eth_filter_info);
+	}
+
+	kfree(adap->ethtool_filters);
+}
+
+int cxgb4_init_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	struct cxgb4_ethtool_filter *eth_filter;
+	struct tid_info *tids = &adap->tids;
+	u32 nentries, i;
+	int ret;
+
+	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
+	if (!eth_filter)
+		return -ENOMEM;
+
+	eth_filter_info = kcalloc(adap->params.nports,
+				  sizeof(*eth_filter_info),
+				  GFP_KERNEL);
+	if (!eth_filter_info) {
+		ret = -ENOMEM;
+		goto free_eth_filter;
+	}
+
+	eth_filter->port = eth_filter_info;
+
+	nentries = tids->nhpftids + tids->nftids;
+	if (is_hashfilter(adap))
+		nentries += tids->nhash +
+			    (adap->tids.stid_base - adap->tids.tid_base);
+	eth_filter->nentries = nentries;
+
+	for (i = 0; i < adap->params.nports; i++) {
+		eth_filter->port[i].loc_array = kvzalloc(nentries, GFP_KERNEL);
+		if (!eth_filter->port[i].loc_array) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+
+		eth_filter->port[i].bmap = kcalloc(BITS_TO_LONGS(nentries),
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (!eth_filter->port[i].bmap) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+	}
+
+	adap->ethtool_filters = eth_filter;
+	return 0;
+
+free_eth_finfo:
+	while (i-- > 0) {
+		kfree(eth_filter->port[i].bmap);
+		kvfree(eth_filter->port[i].loc_array);
+	}
+	kfree(eth_filter_info);
+
+free_eth_filter:
+	kfree(eth_filter);
+
+	return ret;
+}
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
 {

@@ -160,7 +160,7 @@ config XES_MPC85xx
 	  computers from Extreme Engineering Solutions (X-ES) based on
 	  Freescale MPC85xx processors.
 	  Manufacturer: Extreme Engineering Solutions, Inc.
-	  URL: <http://www.xes-inc.com/>
+	  URL: <https://www.xes-inc.com/>
 
 config STX_GP3
 	bool "Silicon Turnkey Express GP3"

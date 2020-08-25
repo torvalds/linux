@@ -900,7 +900,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 				return -NF_REPEAT;
 			return NF_DROP;
 		}
-		/* Fall through */
+		fallthrough;
 	case TCP_CONNTRACK_IGNORE:
 		/* Ignored packets:
 		 *

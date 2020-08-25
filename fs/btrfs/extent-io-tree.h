@@ -34,6 +34,8 @@ struct io_failure_record;
  */
 #define CHUNK_ALLOCATED				EXTENT_DIRTY
 #define CHUNK_TRIMMED				EXTENT_DEFRAG
+#define CHUNK_STATE_MASK			(CHUNK_ALLOCATED |		\
+						 CHUNK_TRIMMED)
 
 enum {
 	IO_TREE_FS_PINNED_EXTENTS,
@@ -233,14 +235,11 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       struct extent_state **cached_state);
 
 /* This should be reworked in the future and put elsewhere. */
-int get_state_failrec(struct extent_io_tree *tree, u64 start,
-		      struct io_failure_record **failrec);
+struct io_failure_record *get_state_failrec(struct extent_io_tree *tree, u64 start);
 int set_state_failrec(struct extent_io_tree *tree, u64 start,
 		      struct io_failure_record *failrec);
 void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
 		u64 end);
-int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
-				struct io_failure_record **failrec_ret);
 int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);

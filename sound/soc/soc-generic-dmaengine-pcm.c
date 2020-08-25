@@ -46,7 +46,7 @@ static struct device *dmaengine_dma_dev(struct dmaengine_pcm *pcm,
 int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct dma_slave_config *slave_config)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	int ret;
 
@@ -105,7 +105,7 @@ static int
 dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct device *dma_dev = dmaengine_dma_dev(pcm, substream);
 	struct dma_chan *chan = pcm->chan[substream->stream];
@@ -424,6 +424,7 @@ static void dmaengine_pcm_release_chan(struct dmaengine_pcm *pcm)
 int snd_dmaengine_pcm_register(struct device *dev,
 	const struct snd_dmaengine_pcm_config *config, unsigned int flags)
 {
+	const struct snd_soc_component_driver *driver;
 	struct dmaengine_pcm *pcm;
 	int ret;
 
@@ -442,12 +443,15 @@ int snd_dmaengine_pcm_register(struct device *dev,
 		goto err_free_dma;
 
 	if (config && config->process)
-		ret = snd_soc_add_component(dev, &pcm->component,
-					    &dmaengine_pcm_component_process,
-					    NULL, 0);
+		driver = &dmaengine_pcm_component_process;
 	else
-		ret = snd_soc_add_component(dev, &pcm->component,
-					    &dmaengine_pcm_component, NULL, 0);
+		driver = &dmaengine_pcm_component;
+
+	ret = snd_soc_component_initialize(&pcm->component, driver, dev);
+	if (ret)
+		goto err_free_dma;
+
+	ret = snd_soc_add_component(&pcm->component, NULL, 0);
 	if (ret)
 		goto err_free_dma;
 

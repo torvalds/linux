@@ -651,7 +651,7 @@ static int davinci_pll_sysclk_rate_change(struct notifier_block *nb,
 		pllcmd = readl(pll->base + PLLCMD);
 		pllcmd |= PLLCMD_GOSET;
 		writel(pllcmd, pll->base + PLLCMD);
-		/* fallthrough */
+		fallthrough;
 	case PRE_RATE_CHANGE:
 		/* Wait until for outstanding changes to take effect */
 		do {

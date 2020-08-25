@@ -90,7 +90,7 @@ static void nitrox_free_aqm_queues(struct nitrox_device *ndev)
 
 	for (i = 0; i < ndev->nr_queues; i++) {
 		nitrox_cmdq_cleanup(ndev->aqmq[i]);
-		kzfree(ndev->aqmq[i]);
+		kfree_sensitive(ndev->aqmq[i]);
 		ndev->aqmq[i] = NULL;
 	}
 }
@@ -122,7 +122,7 @@ static int nitrox_alloc_aqm_queues(struct nitrox_device *ndev)
 
 		err = nitrox_cmdq_init(cmdq, AQM_Q_ALIGN_BYTES);
 		if (err) {
-			kzfree(cmdq);
+			kfree_sensitive(cmdq);
 			goto aqmq_fail;
 		}
 		ndev->aqmq[i] = cmdq;

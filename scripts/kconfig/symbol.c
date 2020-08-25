@@ -15,15 +15,21 @@ struct symbol symbol_yes = {
 	.name = "y",
 	.curr = { "y", yes },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
-}, symbol_mod = {
+};
+
+struct symbol symbol_mod = {
 	.name = "m",
 	.curr = { "m", mod },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
-}, symbol_no = {
+};
+
+struct symbol symbol_no = {
 	.name = "n",
 	.curr = { "n", no },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
-}, symbol_empty = {
+};
+
+static struct symbol symbol_empty = {
 	.name = "",
 	.curr = { "", no },
 	.flags = SYMBOL_VALID,
@@ -31,7 +37,7 @@ struct symbol symbol_yes = {
 
 struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
-tristate modules_val;
+static tristate modules_val;
 
 enum symbol_type sym_get_type(struct symbol *sym)
 {

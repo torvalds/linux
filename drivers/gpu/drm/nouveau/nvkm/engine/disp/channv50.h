@@ -21,6 +21,8 @@ struct nv50_disp_chan {
 
 	struct nvkm_memory *memory;
 	u64 push;
+
+	u32 suspend_put;
 };
 
 struct nv50_disp_chan_func {

@@ -121,7 +121,7 @@
  * operate correctly if the internal data cache refill buffer is empty.	 These
  * CACHE instructions should be separated from any potential data cache miss
  * by a load instruction to an uncached address to empty the response buffer."
- * (Revision 2.0 device errata from IDT available on http://www.idt.com/
+ * (Revision 2.0 device errata from IDT available on https://www.idt.com/
  * in .pdf format.)
  */
 #ifndef R4600_V2_HIT_CACHEOP_WAR

@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2013-2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
+ * Copyright (c) 2020 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
  */
 
 #include <linux/clk-provider.h>
@@ -19,49 +20,50 @@
 
 /* CGU register offsets */
 #define CGU_REG_CLOCKCONTROL	0x00
-#define CGU_REG_LCR			0x04
-#define CGU_REG_APLL		0x10
-#define CGU_REG_MPLL		0x14
-#define CGU_REG_EPLL		0x18
-#define CGU_REG_VPLL		0x1c
-#define CGU_REG_CLKGR0		0x20
-#define CGU_REG_OPCR		0x24
-#define CGU_REG_CLKGR1		0x28
-#define CGU_REG_DDRCDR		0x2c
-#define CGU_REG_VPUCDR		0x30
-#define CGU_REG_USBPCR		0x3c
-#define CGU_REG_USBRDT		0x40
-#define CGU_REG_USBVBFIL	0x44
-#define CGU_REG_USBPCR1		0x48
-#define CGU_REG_LP0CDR		0x54
-#define CGU_REG_I2SCDR		0x60
-#define CGU_REG_LP1CDR		0x64
-#define CGU_REG_MSC0CDR		0x68
-#define CGU_REG_UHCCDR		0x6c
-#define CGU_REG_SSICDR		0x74
-#define CGU_REG_CIMCDR		0x7c
-#define CGU_REG_PCMCDR		0x84
-#define CGU_REG_GPUCDR		0x88
-#define CGU_REG_HDMICDR		0x8c
-#define CGU_REG_MSC1CDR		0xa4
-#define CGU_REG_MSC2CDR		0xa8
-#define CGU_REG_BCHCDR		0xac
-#define CGU_REG_CLOCKSTATUS	0xd4
+#define CGU_REG_LCR				0x04
+#define CGU_REG_APLL			0x10
+#define CGU_REG_MPLL			0x14
+#define CGU_REG_EPLL			0x18
+#define CGU_REG_VPLL			0x1c
+#define CGU_REG_CLKGR0			0x20
+#define CGU_REG_OPCR			0x24
+#define CGU_REG_CLKGR1			0x28
+#define CGU_REG_DDRCDR			0x2c
+#define CGU_REG_VPUCDR			0x30
+#define CGU_REG_USBPCR			0x3c
+#define CGU_REG_USBRDT			0x40
+#define CGU_REG_USBVBFIL		0x44
+#define CGU_REG_USBPCR1			0x48
+#define CGU_REG_LP0CDR			0x54
+#define CGU_REG_I2SCDR			0x60
+#define CGU_REG_LP1CDR			0x64
+#define CGU_REG_MSC0CDR			0x68
+#define CGU_REG_UHCCDR			0x6c
+#define CGU_REG_SSICDR			0x74
+#define CGU_REG_CIMCDR			0x7c
+#define CGU_REG_PCMCDR			0x84
+#define CGU_REG_GPUCDR			0x88
+#define CGU_REG_HDMICDR			0x8c
+#define CGU_REG_MSC1CDR			0xa4
+#define CGU_REG_MSC2CDR			0xa8
+#define CGU_REG_BCHCDR			0xac
+#define CGU_REG_CLOCKSTATUS		0xd4
 
 /* bits within the OPCR register */
-#define OPCR_SPENDN0		BIT(7)
-#define OPCR_SPENDN1		BIT(6)
+#define OPCR_SPENDN0			BIT(7)
+#define OPCR_SPENDN1			BIT(6)
 
 /* bits within the USBPCR register */
-#define USBPCR_USB_MODE		BIT(31)
+#define USBPCR_USB_MODE			BIT(31)
 #define USBPCR_IDPULLUP_MASK	(0x3 << 28)
-#define USBPCR_COMMONONN	BIT(25)
-#define USBPCR_VBUSVLDEXT	BIT(24)
+#define USBPCR_COMMONONN		BIT(25)
+#define USBPCR_VBUSVLDEXT		BIT(24)
 #define USBPCR_VBUSVLDEXTSEL	BIT(23)
-#define USBPCR_POR		BIT(22)
-#define USBPCR_OTG_DISABLE	BIT(20)
+#define USBPCR_POR				BIT(22)
+#define USBPCR_SIDDQ			BIT(21)
+#define USBPCR_OTG_DISABLE		BIT(20)
 #define USBPCR_COMPDISTUNE_MASK	(0x7 << 17)
-#define USBPCR_OTGTUNE_MASK	(0x7 << 14)
+#define USBPCR_OTGTUNE_MASK		(0x7 << 14)
 #define USBPCR_SQRXTUNE_MASK	(0x7 << 11)
 #define USBPCR_TXFSLSTUNE_MASK	(0xf << 7)
 #define USBPCR_TXPREEMPHTUNE	BIT(6)
@@ -78,13 +80,13 @@
 #define USBPCR1_REFCLKDIV_48	(0x2 << USBPCR1_REFCLKDIV_SHIFT)
 #define USBPCR1_REFCLKDIV_24	(0x1 << USBPCR1_REFCLKDIV_SHIFT)
 #define USBPCR1_REFCLKDIV_12	(0x0 << USBPCR1_REFCLKDIV_SHIFT)
-#define USBPCR1_USB_SEL		BIT(28)
-#define USBPCR1_WORD_IF0	BIT(19)
-#define USBPCR1_WORD_IF1	BIT(18)
+#define USBPCR1_USB_SEL			BIT(28)
+#define USBPCR1_WORD_IF0		BIT(19)
+#define USBPCR1_WORD_IF1		BIT(18)
 
 /* bits within the USBRDT register */
-#define USBRDT_VBFIL_LD_EN	BIT(25)
-#define USBRDT_USBRDT_MASK	0x7fffff
+#define USBRDT_VBFIL_LD_EN		BIT(25)
+#define USBRDT_USBRDT_MASK		0x7fffff
 
 /* bits within the USBVBFIL register */
 #define USBVBFIL_IDDIGFIL_SHIFT	16
@@ -92,39 +94,13 @@
 #define USBVBFIL_USBVBFIL_MASK	(0xffff)
 
 /* bits within the LCR register */
-#define LCR_PD_SCPU			BIT(31)
-#define LCR_SCPUS			BIT(27)
+#define LCR_PD_SCPU				BIT(31)
+#define LCR_SCPUS				BIT(27)
 
 /* bits within the CLKGR1 register */
-#define CLKGR1_CORE1		BIT(15)
+#define CLKGR1_CORE1			BIT(15)
 
 static struct ingenic_cgu *cgu;
-
-static u8 jz4780_otg_phy_get_parent(struct clk_hw *hw)
-{
-	/* we only use CLKCORE, revisit if that ever changes */
-	return 0;
-}
-
-static int jz4780_otg_phy_set_parent(struct clk_hw *hw, u8 idx)
-{
-	unsigned long flags;
-	u32 usbpcr1;
-
-	if (idx > 0)
-		return -EINVAL;
-
-	spin_lock_irqsave(&cgu->lock, flags);
-
-	usbpcr1 = readl(cgu->base + CGU_REG_USBPCR1);
-	usbpcr1 &= ~USBPCR1_REFCLKSEL_MASK;
-	/* we only use CLKCORE */
-	usbpcr1 |= USBPCR1_REFCLKSEL_CORE;
-	writel(usbpcr1, cgu->base + CGU_REG_USBPCR1);
-
-	spin_unlock_irqrestore(&cgu->lock, flags);
-	return 0;
-}
 
 static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
@@ -149,7 +125,6 @@ static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 		return 19200000;
 	}
 
-	BUG();
 	return parent_rate;
 }
 
@@ -206,13 +181,43 @@ static int jz4780_otg_phy_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	return 0;
 }
 
-static const struct clk_ops jz4780_otg_phy_ops = {
-	.get_parent = jz4780_otg_phy_get_parent,
-	.set_parent = jz4780_otg_phy_set_parent,
+static int jz4780_otg_phy_enable(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
 
+	writel(readl(reg_opcr) | OPCR_SPENDN0, reg_opcr);
+	writel(readl(reg_usbpcr) & ~USBPCR_OTG_DISABLE & ~USBPCR_SIDDQ, reg_usbpcr);
+	return 0;
+}
+
+static void jz4780_otg_phy_disable(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
+
+	writel(readl(reg_opcr) & ~OPCR_SPENDN0, reg_opcr);
+	writel(readl(reg_usbpcr) | USBPCR_OTG_DISABLE | USBPCR_SIDDQ, reg_usbpcr);
+}
+
+static int jz4780_otg_phy_is_enabled(struct clk_hw *hw)
+{
+	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
+	void __iomem *reg_usbpcr	= cgu->base + CGU_REG_USBPCR;
+
+	return (readl(reg_opcr) & OPCR_SPENDN0) &&
+		!(readl(reg_usbpcr) & USBPCR_SIDDQ) &&
+		!(readl(reg_usbpcr) & USBPCR_OTG_DISABLE);
+}
+
+static const struct clk_ops jz4780_otg_phy_ops = {
 	.recalc_rate = jz4780_otg_phy_recalc_rate,
 	.round_rate = jz4780_otg_phy_round_rate,
 	.set_rate = jz4780_otg_phy_set_rate,
+
+	.enable		= jz4780_otg_phy_enable,
+	.disable	= jz4780_otg_phy_disable,
+	.is_enabled	= jz4780_otg_phy_is_enabled,
 };
 
 static int jz4780_core1_enable(struct clk_hw *hw)
@@ -514,6 +519,18 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.mux = { CGU_REG_BCHCDR, 30, 2 },
 		.div = { CGU_REG_BCHCDR, 0, 1, 4, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 1 },
+	},
+
+	[JZ4780_CLK_EXCLK_DIV512] = {
+		"exclk_div512", CGU_CLK_FIXDIV,
+		.parents = { JZ4780_CLK_EXCLK },
+		.fixdiv = { 512 },
+	},
+
+	[JZ4780_CLK_RTC] = {
+		"rtc_ercs", CGU_CLK_MUX | CGU_CLK_GATE,
+		.parents = { JZ4780_CLK_EXCLK_DIV512, JZ4780_CLK_RTCLK },
+		.mux = { CGU_REG_OPCR, 2, 1},
 	},
 
 	/* Gate-only clocks */
