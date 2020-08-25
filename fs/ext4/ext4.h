@@ -3012,22 +3012,24 @@ static inline int ext4_has_group_desc_csum(struct super_block *sb)
 	return ext4_has_feature_gdt_csum(sb) || ext4_has_metadata_csum(sb);
 }
 
+#define ext4_read_incompat_64bit_val(es, name) \
+	(((es)->s_feature_incompat & cpu_to_le32(EXT4_FEATURE_INCOMPAT_64BIT) \
+		? (ext4_fsblk_t)le32_to_cpu(es->name##_hi) << 32 : 0) | \
+		le32_to_cpu(es->name##_lo))
+
 static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
 {
-	return ((ext4_fsblk_t)le32_to_cpu(es->s_blocks_count_hi) << 32) |
-		le32_to_cpu(es->s_blocks_count_lo);
+	return ext4_read_incompat_64bit_val(es, s_blocks_count);
 }
 
 static inline ext4_fsblk_t ext4_r_blocks_count(struct ext4_super_block *es)
 {
-	return ((ext4_fsblk_t)le32_to_cpu(es->s_r_blocks_count_hi) << 32) |
-		le32_to_cpu(es->s_r_blocks_count_lo);
+	return ext4_read_incompat_64bit_val(es, s_r_blocks_count);
 }
 
 static inline ext4_fsblk_t ext4_free_blocks_count(struct ext4_super_block *es)
 {
-	return ((ext4_fsblk_t)le32_to_cpu(es->s_free_blocks_count_hi) << 32) |
-		le32_to_cpu(es->s_free_blocks_count_lo);
+	return ext4_read_incompat_64bit_val(es, s_free_blocks_count);
 }
 
 static inline void ext4_blocks_count_set(struct ext4_super_block *es,
