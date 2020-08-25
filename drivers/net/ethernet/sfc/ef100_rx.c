@@ -31,6 +31,11 @@
 #define ESF_GZ_RX_PREFIX_NT_OR_INNER_L3_CLASS_WIDTH	\
 		ESF_GZ_RX_PREFIX_HCLASS_NT_OR_INNER_L3_CLASS_WIDTH
 
+bool ef100_rx_buf_hash_valid(const u8 *prefix)
+{
+	return PREFIX_FIELD(prefix, RSS_HASH_VALID);
+}
+
 static bool check_fcs(struct efx_channel *channel, u32 *prefix)
 {
 	u16 rxclass;

@@ -295,14 +295,13 @@ static int dlci_close(struct net_device *dev)
 {
 	struct dlci_local	*dlp;
 	struct frad_local	*flp;
-	int			err;
 
 	netif_stop_queue(dev);
 
 	dlp = netdev_priv(dev);
 
 	flp = netdev_priv(dlp->slave);
-	err = (*flp->deactivate)(dlp->slave, dev);
+	(*flp->deactivate)(dlp->slave, dev);
 
 	return 0;
 }
