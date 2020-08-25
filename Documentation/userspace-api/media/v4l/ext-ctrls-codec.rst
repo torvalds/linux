@@ -1767,43 +1767,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``slice_type``
       -
     * - __u8
-      - ``pic_parameter_set_id``
-      -
-    * - __u8
       - ``colour_plane_id``
       -
     * - __u8
       - ``redundant_pic_cnt``
       -
-    * - __u16
-      - ``frame_num``
-      -
-    * - __u16
-      - ``idr_pic_id``
-      -
-    * - __u16
-      - ``pic_order_cnt_lsb``
-      -
-    * - __s32
-      - ``delta_pic_order_cnt_bottom``
-      -
-    * - __s32
-      - ``delta_pic_order_cnt0``
-      -
-    * - __s32
-      - ``delta_pic_order_cnt1``
-      -
-    * - struct :c:type:`v4l2_h264_pred_weight_table`
-      - ``pred_weight_table``
-      -
-    * - __u32
-      - ``dec_ref_pic_marking_bit_size``
-      - Size in bits of the dec_ref_pic_marking() syntax element.
-    * - __u32
-      - ``pic_order_cnt_bit_size``
-      - Combined size in bits of the picture order count related syntax
-        elements: pic_order_cnt_lsb, delta_pic_order_cnt_bottom,
-        delta_pic_order_cnt0, and delta_pic_order_cnt1.
     * - __u8
       - ``cabac_init_idc``
       -
@@ -1830,9 +1798,9 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``num_ref_idx_l1_active_minus1``
       - If num_ref_idx_active_override_flag is not set, this field must be
         set to the value of num_ref_idx_l1_default_active_minus1.
-    * - __u32
-      - ``slice_group_change_cycle``
-      -
+    * - __u8
+      - ``reserved``
+      - Applications and drivers must set this to zero.
     * - struct :c:type:`v4l2_h264_reference`
       - ``ref_pic_list0[32]``
       - Reference picture list after applying the per-slice modifications
@@ -1854,17 +1822,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - ``V4L2_H264_SLICE_FLAG_FIELD_PIC``
+    * - ``V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED``
       - 0x00000001
       -
-    * - ``V4L2_H264_SLICE_FLAG_BOTTOM_FIELD``
-      - 0x00000002
-      -
-    * - ``V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED``
-      - 0x00000004
-      -
     * - ``V4L2_H264_SLICE_FLAG_SP_FOR_SWITCH``
-      - 0x00000008
+      - 0x00000002
       -
 
 ``V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS (struct)``
@@ -1990,12 +1952,44 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - __u16
       - ``nal_ref_idc``
       - NAL reference ID value coming from the NAL Unit header
+    * - __u16
+      - ``frame_num``
+      -
     * - __s32
       - ``top_field_order_cnt``
       - Picture Order Count for the coded top field
     * - __s32
       - ``bottom_field_order_cnt``
       - Picture Order Count for the coded bottom field
+    * - __u16
+      - ``idr_pic_id``
+      -
+    * - __u16
+      - ``pic_order_cnt_lsb``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt_bottom``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt0``
+      -
+    * - __s32
+      - ``delta_pic_order_cnt1``
+      -
+    * - __u32
+      - ``dec_ref_pic_marking_bit_size``
+      - Size in bits of the dec_ref_pic_marking() syntax element.
+    * - __u32
+      - ``pic_order_cnt_bit_size``
+      - Combined size in bits of the picture order count related syntax
+        elements: pic_order_cnt_lsb, delta_pic_order_cnt_bottom,
+        delta_pic_order_cnt0, and delta_pic_order_cnt1.
+    * - __u32
+      - ``slice_group_change_cycle``
+      -
+    * - __u32
+      - ``reserved``
+      - Applications and drivers must set this to zero.
     * - __u32
       - ``flags``
       - See :ref:`Decode Parameters Flags <h264_decode_params_flags>`
@@ -2014,6 +2008,12 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - ``V4L2_H264_DECODE_PARAM_FLAG_IDR_PIC``
       - 0x00000001
       - That picture is an IDR picture
+    * - ``V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC``
+      - 0x00000002
+      -
+    * - ``V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD``
+      - 0x00000004
+      -
 
 .. c:type:: v4l2_h264_dpb_entry
 

@@ -372,8 +372,7 @@ int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx)
 
 	/* Build the P/B{0,1} ref lists. */
 	v4l2_h264_init_reflist_builder(&reflist_builder, ctrls->decode,
-				       &ctrls->slices[0], ctrls->sps,
-				       ctx->h264_dec.dpb);
+				       ctrls->sps, ctx->h264_dec.dpb);
 	v4l2_h264_build_p_ref_list(&reflist_builder, h264_ctx->reflists.p);
 	v4l2_h264_build_b_ref_lists(&reflist_builder, h264_ctx->reflists.b0,
 				    h264_ctx->reflists.b1);

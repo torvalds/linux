@@ -95,7 +95,6 @@ static void cedrus_write_frame_list(struct cedrus_ctx *ctx,
 {
 	struct cedrus_h264_sram_ref_pic pic_list[CEDRUS_H264_FRAME_NUM];
 	const struct v4l2_ctrl_h264_decode_params *decode = run->h264.decode_params;
-	const struct v4l2_ctrl_h264_slice_params *slice = run->h264.slice_params;
 	const struct v4l2_ctrl_h264_sps *sps = run->h264.sps;
 	struct vb2_queue *cap_q;
 	struct cedrus_buffer *output_buf;
@@ -144,7 +143,7 @@ static void cedrus_write_frame_list(struct cedrus_ctx *ctx,
 	output_buf = vb2_to_cedrus_buffer(&run->dst->vb2_buf);
 	output_buf->codec.h264.position = position;
 
-	if (slice->flags & V4L2_H264_SLICE_FLAG_FIELD_PIC)
+	if (decode->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC)
 		output_buf->codec.h264.pic_type = CEDRUS_H264_PIC_TYPE_FIELD;
 	else if (sps->flags & V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD)
 		output_buf->codec.h264.pic_type = CEDRUS_H264_PIC_TYPE_MBAFF;
@@ -407,7 +406,7 @@ static void cedrus_set_params(struct cedrus_ctx *ctx,
 		reg |= VE_H264_SPS_DIRECT_8X8_INFERENCE;
 	cedrus_write(dev, VE_H264_SPS, reg);
 
-	mbaff_pic = !(slice->flags & V4L2_H264_SLICE_FLAG_FIELD_PIC) &&
+	mbaff_pic = !(decode->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC) &&
 		    (sps->flags & V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD);
 	pic_width_in_mbs = sps->pic_width_in_mbs_minus1 + 1;
 
@@ -421,9 +420,9 @@ static void cedrus_set_params(struct cedrus_ctx *ctx,
 	reg |= slice->cabac_init_idc & 0x3;
 	if (ctx->fh.m2m_ctx->new_frame)
 		reg |= VE_H264_SHS_FIRST_SLICE_IN_PIC;
-	if (slice->flags & V4L2_H264_SLICE_FLAG_FIELD_PIC)
+	if (decode->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC)
 		reg |= VE_H264_SHS_FIELD_PIC;
-	if (slice->flags & V4L2_H264_SLICE_FLAG_BOTTOM_FIELD)
+	if (decode->flags & V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD)
 		reg |= VE_H264_SHS_BOTTOM_FIELD;
 	if (slice->flags & V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED)
 		reg |= VE_H264_SHS_DIRECT_SPATIAL_MV_PRED;

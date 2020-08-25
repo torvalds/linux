@@ -730,7 +730,6 @@ static void assemble_hw_rps(struct rkvdec_ctx *ctx,
 			    struct rkvdec_h264_run *run)
 {
 	const struct v4l2_ctrl_h264_decode_params *dec_params = run->decode_params;
-	const struct v4l2_ctrl_h264_slice_params *sl_params = &run->slices_params[0];
 	const struct v4l2_h264_dpb_entry *dpb = dec_params->dpb;
 	struct rkvdec_h264_ctx *h264_ctx = ctx->priv;
 	const struct v4l2_ctrl_h264_sps *sps = run->sps;
@@ -754,7 +753,7 @@ static void assemble_hw_rps(struct rkvdec_ctx *ctx,
 			continue;
 
 		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM ||
-		    dpb[i].frame_num < sl_params->frame_num) {
+		    dpb[i].frame_num < dec_params->frame_num) {
 			p[i] = dpb[i].frame_num;
 			continue;
 		}
@@ -1094,8 +1093,7 @@ static int rkvdec_h264_run(struct rkvdec_ctx *ctx)
 
 	/* Build the P/B{0,1} ref lists. */
 	v4l2_h264_init_reflist_builder(&reflist_builder, run.decode_params,
-				       &run.slices_params[0], run.sps,
-				       run.decode_params->dpb);
+				       run.sps, run.decode_params->dpb);
 	h264_ctx->reflists.num_valid = reflist_builder.num_valid;
 	v4l2_h264_build_p_ref_list(&reflist_builder, h264_ctx->reflists.p);
 	v4l2_h264_build_b_ref_lists(&reflist_builder, h264_ctx->reflists.b0,
