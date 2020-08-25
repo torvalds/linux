@@ -164,6 +164,10 @@
 
 #include "axp22x.dtsi"
 
+&ir0 {
+	status = "okay";
+};
+
 &mmc0 {
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
