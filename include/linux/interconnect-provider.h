@@ -75,6 +75,8 @@ struct icc_provider {
  * @req_list: a list of QoS constraint requests associated with this node
  * @avg_bw: aggregated value of average bandwidth requests from all consumers
  * @peak_bw: aggregated value of peak bandwidth requests from all consumers
+ * @init_avg: average bandwidth value that is read from the hardware during init
+ * @init_peak: peak bandwidth value that is read from the hardware during init
  * @data: pointer to private data
  */
 struct icc_node {
@@ -91,6 +93,8 @@ struct icc_node {
 	struct hlist_head	req_list;
 	u32			avg_bw;
 	u32			peak_bw;
+	u32			init_avg;
+	u32			init_peak;
 	void			*data;
 };
 
@@ -108,6 +112,7 @@ int icc_nodes_remove(struct icc_provider *provider);
 int icc_provider_add(struct icc_provider *provider);
 int icc_provider_del(struct icc_provider *provider);
 struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec);
+void icc_sync_state(struct device *dev);
 
 #else
 
