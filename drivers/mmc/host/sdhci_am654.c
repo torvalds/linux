@@ -6,6 +6,7 @@
  *
  */
 #include <linux/clk.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -272,9 +273,19 @@ static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
 	sdhci_set_clock(host, clock);
 }
 
+static u8 sdhci_am654_write_power_on(struct sdhci_host *host, u8 val, int reg)
+{
+	writeb(val, host->ioaddr + reg);
+	usleep_range(1000, 10000);
+	return readb(host->ioaddr + reg);
+}
+
+#define MAX_POWER_ON_TIMEOUT	1500000 /* us */
 static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 {
 	unsigned char timing = host->mmc->ios.timing;
+	u8 pwr;
+	int ret;
 
 	if (reg == SDHCI_HOST_CONTROL) {
 		switch (timing) {
@@ -291,6 +302,19 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 	}
 
 	writeb(val, host->ioaddr + reg);
+	if (reg == SDHCI_POWER_CONTROL && (val & SDHCI_POWER_ON)) {
+		/*
+		 * Power on will not happen until the card detect debounce
+		 * timer expires. Wait at least 1.5 seconds for the power on
+		 * bit to be set
+		 */
+		ret = read_poll_timeout(sdhci_am654_write_power_on, pwr,
+					pwr & SDHCI_POWER_ON, 0,
+					MAX_POWER_ON_TIMEOUT, false, host, val,
+					reg);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc), "Power on failed\n");
+	}
 }
 
 static int sdhci_am654_execute_tuning(struct mmc_host *mmc, u32 opcode)
