@@ -3321,8 +3321,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	rx_ctx.base = (ring->dma / 128);
 	rx_ctx.qlen = ring->count;
 
-	/* use 32 byte descriptors */
-	rx_ctx.dsize = 1;
+	/* use 16 byte descriptors */
+	rx_ctx.dsize = 0;
 
 	/* descriptor type is always zero
 	 * rx_ctx.dtype = 0;

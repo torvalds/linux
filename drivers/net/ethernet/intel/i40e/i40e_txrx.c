@@ -533,11 +533,11 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 {
 	struct i40e_pf *pf = rx_ring->vsi->back;
 	struct pci_dev *pdev = pf->pdev;
-	struct i40e_32b_rx_wb_qw0 *qw0;
+	struct i40e_16b_rx_wb_qw0 *qw0;
 	u32 fcnt_prog, fcnt_avail;
 	u32 error;
 
-	qw0 = (struct i40e_32b_rx_wb_qw0 *)&qword0_raw;
+	qw0 = (struct i40e_16b_rx_wb_qw0 *)&qword0_raw;
 	error = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
 		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
 
@@ -1418,7 +1418,7 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	u64_stats_init(&rx_ring->syncp);
 
 	/* Round up to nearest 4K */
-	rx_ring->size = rx_ring->count * sizeof(union i40e_32byte_rx_desc);
+	rx_ring->size = rx_ring->count * sizeof(union i40e_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);

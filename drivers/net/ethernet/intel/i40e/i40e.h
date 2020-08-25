@@ -90,7 +90,7 @@
 #define I40E_OEM_RELEASE_MASK		0x0000ffff
 
 #define I40E_RX_DESC(R, i)	\
-	(&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
+	(&(((union i40e_rx_desc *)((R)->desc))[i]))
 #define I40E_TX_DESC(R, i)	\
 	(&(((struct i40e_tx_desc *)((R)->desc))[i]))
 #define I40E_TX_CTXTDESC(R, i)	\
