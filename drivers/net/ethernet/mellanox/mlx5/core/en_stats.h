@@ -103,6 +103,7 @@ unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv);
 void mlx5e_stats_update(struct mlx5e_priv *priv);
 void mlx5e_stats_fill(struct mlx5e_priv *priv, u64 *data, int idx);
 void mlx5e_stats_fill_strings(struct mlx5e_priv *priv, u8 *data);
+void mlx5e_stats_update_ndo_stats(struct mlx5e_priv *priv);
 
 /* Concrete NIC Stats */
 
