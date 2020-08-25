@@ -176,6 +176,22 @@ static int ext_man_get_cc_info(struct snd_sof_dev *sdev,
 	return get_cc_info(sdev, &cc->cc_version.ext_hdr);
 }
 
+static int ext_man_get_dbg_abi_info(struct snd_sof_dev *sdev,
+				    const struct sof_ext_man_elem_header *hdr)
+{
+	const struct ext_man_dbg_abi *dbg_abi =
+		container_of(hdr, struct ext_man_dbg_abi, hdr);
+
+	if (sdev->first_boot)
+		dev_dbg(sdev->dev,
+			"Firmware: DBG_ABI %d:%d:%d\n",
+			SOF_ABI_VERSION_MAJOR(dbg_abi->dbg_abi.abi_dbg_version),
+			SOF_ABI_VERSION_MINOR(dbg_abi->dbg_abi.abi_dbg_version),
+			SOF_ABI_VERSION_PATCH(dbg_abi->dbg_abi.abi_dbg_version));
+
+	return 0;
+}
+
 static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
 {
 	const struct sof_ext_man_header *head;
@@ -254,6 +270,9 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 			break;
 		case SOF_EXT_MAN_ELEM_CC_VERSION:
 			ret = ext_man_get_cc_info(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_DBG_ABI:
+			ret = ext_man_get_dbg_abi_info(sdev, elem_hdr);
 			break;
 		default:
 			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
