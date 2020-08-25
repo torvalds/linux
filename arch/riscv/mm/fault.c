@@ -156,6 +156,30 @@ static void inline vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	local_flush_tlb_page(addr);
 }
 
+static inline bool access_error(unsigned long cause, struct vm_area_struct *vma)
+{
+	switch (cause) {
+	case EXC_INST_PAGE_FAULT:
+		if (!(vma->vm_flags & VM_EXEC)) {
+			return true;
+		}
+		break;
+	case EXC_LOAD_PAGE_FAULT:
+		if (!(vma->vm_flags & VM_READ)) {
+			return true;
+		}
+		break;
+	case EXC_STORE_PAGE_FAULT:
+		if (!(vma->vm_flags & VM_WRITE)) {
+			return true;
+		}
+		break;
+	default:
+		panic("%s: unhandled cause %lu", __func__, cause);
+	}
+	return false;
+}
+
 /*
  * This routine handles page faults.  It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
@@ -236,27 +260,9 @@ retry:
 good_area:
 	code = SEGV_ACCERR;
 
-	switch (cause) {
-	case EXC_INST_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_EXEC)) {
-			bad_area(regs, mm, code, addr);
-			return;
-		}
-		break;
-	case EXC_LOAD_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_READ)) {
-			bad_area(regs, mm, code, addr);
-			return;
-		}
-		break;
-	case EXC_STORE_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_WRITE)) {
-			bad_area(regs, mm, code, addr);
-			return;
-		}
-		break;
-	default:
-		panic("%s: unhandled cause %lu", __func__, cause);
+	if (unlikely(access_error(cause, vma))) {
+		bad_area(regs, mm, code, addr);
+		return;
 	}
 
 	/*
