@@ -680,15 +680,16 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 		     struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params)
 {
-	/* Aggregation is implemented fully in firmware,
-	 * including block ack negotiation. Do not allow
-	 * mac80211 stack to do anything: it interferes with
-	 * the firmware.
-	 */
-
-	/* Note that we still need this function stubbed. */
-
-	return -ENOTSUPP;
+	// Aggregation is implemented fully in firmware
+	switch (params->action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		// Just acknowledge it to enable frame re-ordering
+		return 0;
+	default:
+		// Leave the firmware doing its business for tx aggregation
+		return -ENOTSUPP;
+	}
 }
 
 int wfx_add_chanctx(struct ieee80211_hw *hw,
