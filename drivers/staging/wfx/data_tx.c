@@ -325,6 +325,8 @@ static int wfx_tx_get_icv_len(struct ieee80211_key_conf *hw_key)
 
 	if (!hw_key)
 		return 0;
+	if (hw_key->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		return 0;
 	mic_space = (hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) ? 8 : 0;
 	return hw_key->icv_len + mic_space;
 }
@@ -350,8 +352,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	// Fill tx_priv
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
-	if (ieee80211_has_protected(hdr->frame_control))
-		tx_priv->hw_key = hw_key;
+	tx_priv->hw_key = hw_key;
 
 	// Fill hif_msg
 	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");

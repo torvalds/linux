@@ -198,8 +198,8 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		else
 			k.type = fill_sms4_group(&k.key.wapi_group_key, key);
 	} else if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
-		k.type = fill_aes_cmac_group(&k.key.igtk_group_key, key,
-					     &seq);
+		k.type = fill_aes_cmac_group(&k.key.igtk_group_key, key, &seq);
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
 	} else {
 		dev_warn(wdev->dev, "unsupported key type %d\n", key->cipher);
 		wfx_free_key(wdev, idx);
