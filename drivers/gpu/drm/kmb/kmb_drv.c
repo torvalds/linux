@@ -203,6 +203,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 	unsigned long status, val, val1;
 	int plane_id, dma0_state, dma1_state;
 	struct kmb_drm_private *kmb = to_kmb(dev);
+	u32 ctrl = 0;
 
 	status = kmb_read_lcd(kmb, LCD_INT_STATUS);
 
@@ -226,6 +227,19 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 
 				kmb_clr_bitmask_lcd(kmb, LCD_CONTROL,
 						    kmb->plane_status[plane_id].ctrl);
+
+				ctrl = kmb_read_lcd(kmb, LCD_CONTROL);
+				if (!(ctrl & (LCD_CTRL_VL1_ENABLE |
+				    LCD_CTRL_VL2_ENABLE |
+				    LCD_CTRL_GL1_ENABLE |
+				    LCD_CTRL_GL2_ENABLE))) {
+					/* If no LCD layers are using DMA,
+					 * then disable DMA pipelined AXI read
+					 * transactions.
+					 */
+					kmb_clr_bitmask_lcd(kmb, LCD_CONTROL,
+							    LCD_CTRL_PIPELINE_DMA);
+				}
 
 				kmb->plane_status[plane_id].disable = false;
 			}
