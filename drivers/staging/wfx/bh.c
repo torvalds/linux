@@ -33,7 +33,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 		// wait_for_completion_done_timeout()). So we have to emulate
 		// it.
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
-						msecs_to_jiffies(2) + 1))
+						msecs_to_jiffies(2)))
 			complete(&wdev->hif.ctrl_ready);
 		else
 			dev_err(wdev->dev, "timeout while wake up chip\n");
