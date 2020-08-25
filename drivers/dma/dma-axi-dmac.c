@@ -6,6 +6,7 @@
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -44,6 +45,16 @@
  * device side is a dedicated data bus only connected to a single peripheral
  * there is no address than can or needs to be configured for the device side.
  */
+
+#define AXI_DMAC_REG_INTERFACE_DESC	0x10
+#define   AXI_DMAC_DMA_SRC_TYPE_MSK	GENMASK(13, 12)
+#define   AXI_DMAC_DMA_SRC_TYPE_GET(x)	FIELD_GET(AXI_DMAC_DMA_SRC_TYPE_MSK, x)
+#define   AXI_DMAC_DMA_SRC_WIDTH_MSK	GENMASK(11, 8)
+#define   AXI_DMAC_DMA_SRC_WIDTH_GET(x)	FIELD_GET(AXI_DMAC_DMA_SRC_WIDTH_MSK, x)
+#define   AXI_DMAC_DMA_DST_TYPE_MSK	GENMASK(5, 4)
+#define   AXI_DMAC_DMA_DST_TYPE_GET(x)	FIELD_GET(AXI_DMAC_DMA_DST_TYPE_MSK, x)
+#define   AXI_DMAC_DMA_DST_WIDTH_MSK	GENMASK(3, 0)
+#define   AXI_DMAC_DMA_DST_WIDTH_GET(x)	FIELD_GET(AXI_DMAC_DMA_DST_WIDTH_MSK, x)
 
 #define AXI_DMAC_REG_IRQ_MASK		0x80
 #define AXI_DMAC_REG_IRQ_PENDING	0x84
@@ -801,6 +812,51 @@ static int axi_dmac_parse_dt(struct device *dev, struct axi_dmac *dmac)
 	return 0;
 }
 
+static int axi_dmac_read_chan_config(struct device *dev, struct axi_dmac *dmac)
+{
+	struct axi_dmac_chan *chan = &dmac->chan;
+	unsigned int val, desc;
+
+	desc = axi_dmac_read(dmac, AXI_DMAC_REG_INTERFACE_DESC);
+	if (desc == 0) {
+		dev_err(dev, "DMA interface register reads zero\n");
+		return -EFAULT;
+	}
+
+	val = AXI_DMAC_DMA_SRC_TYPE_GET(desc);
+	if (val > AXI_DMAC_BUS_TYPE_FIFO) {
+		dev_err(dev, "Invalid source bus type read: %d\n", val);
+		return -EINVAL;
+	}
+	chan->src_type = val;
+
+	val = AXI_DMAC_DMA_DST_TYPE_GET(desc);
+	if (val > AXI_DMAC_BUS_TYPE_FIFO) {
+		dev_err(dev, "Invalid destination bus type read: %d\n", val);
+		return -EINVAL;
+	}
+	chan->dest_type = val;
+
+	val = AXI_DMAC_DMA_SRC_WIDTH_GET(desc);
+	if (val == 0) {
+		dev_err(dev, "Source bus width is zero\n");
+		return -EINVAL;
+	}
+	/* widths are stored in log2 */
+	chan->src_width = 1 << val;
+
+	val = AXI_DMAC_DMA_DST_WIDTH_GET(desc);
+	if (val == 0) {
+		dev_err(dev, "Destination bus width is zero\n");
+		return -EINVAL;
+	}
+	chan->dest_width = 1 << val;
+
+	axi_dmac_adjust_chan_params(chan);
+
+	return 0;
+}
+
 static int axi_dmac_detect_caps(struct axi_dmac *dmac, unsigned int version)
 {
 	struct axi_dmac_chan *chan = &dmac->chan;
@@ -880,7 +936,13 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = axi_dmac_parse_dt(&pdev->dev, dmac);
+	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
+
+	if (version >= ADI_AXI_PCORE_VER(4, 3, 'a'))
+		ret = axi_dmac_read_chan_config(&pdev->dev, dmac);
+	else
+		ret = axi_dmac_parse_dt(&pdev->dev, dmac);
+
 	if (ret < 0)
 		goto err_clk_disable;
 
@@ -911,8 +973,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	dmac->chan.vchan.desc_free = axi_dmac_desc_free;
 	vchan_init(&dmac->chan.vchan, dma_dev);
-
-	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
 
 	ret = axi_dmac_detect_caps(dmac, version);
 	if (ret)
