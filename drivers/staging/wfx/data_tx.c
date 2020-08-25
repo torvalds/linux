@@ -336,7 +336,6 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 {
 	struct hif_msg *hif_msg;
 	struct hif_req_tx *req;
-	struct wfx_tx_priv *tx_priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -350,14 +349,11 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 	// From now tx_info->control is unusable
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
-	// Fill tx_priv
-	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
-	tx_priv->hw_key = hw_key;
 
 	// Fill hif_msg
 	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");
 	WARN(offset & 1, "attempt to transmit an unaligned frame");
-	skb_put(skb, wfx_tx_get_icv_len(tx_priv->hw_key));
+	skb_put(skb, wfx_tx_get_icv_len(hw_key));
 	skb_push(skb, wmsg_len);
 	memset(skb->data, 0, wmsg_len);
 	hif_msg = (struct hif_msg *)skb->data;
@@ -489,7 +485,6 @@ static void wfx_tx_fill_rates(struct wfx_dev *wdev,
 void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 {
 	struct ieee80211_tx_info *tx_info;
-	const struct wfx_tx_priv *tx_priv;
 	struct wfx_vif *wvif;
 	struct sk_buff *skb;
 
@@ -499,18 +494,15 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 			 arg->packet_id);
 		return;
 	}
+	tx_info = IEEE80211_SKB_CB(skb);
 	wvif = wdev_to_wvif(wdev, ((struct hif_msg *)skb->data)->interface);
 	WARN_ON(!wvif);
 	if (!wvif)
 		return;
-	tx_info = IEEE80211_SKB_CB(skb);
-	tx_priv = wfx_skb_tx_priv(skb);
+
+	// Note that wfx_pending_get_pkt_us_delay() get data from tx_info
 	_trace_tx_stats(arg, skb, wfx_pending_get_pkt_us_delay(wdev, skb));
-
-	// You can touch to tx_priv, but don't touch to tx_info->status.
 	wfx_tx_fill_rates(wdev, tx_info, arg);
-	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
-
 	// From now, you can touch to tx_info->status, but do not touch to
 	// tx_priv anymore
 	// FIXME: use ieee80211_tx_info_clear_status()
