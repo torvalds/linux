@@ -126,7 +126,7 @@ static struct imx_dsp_ops dsp_ops = {
 
 static int imx8_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
-	struct imx8_priv *priv = (struct imx8_priv *)sdev->private;
+	struct imx8_priv *priv = sdev->pdata->hw_pdata;
 
 	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
 			  msg->msg_size);
@@ -140,7 +140,7 @@ static int imx8_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
  */
 static int imx8x_run(struct snd_sof_dev *sdev)
 {
-	struct imx8_priv *dsp_priv = (struct imx8_priv *)sdev->private;
+	struct imx8_priv *dsp_priv = sdev->pdata->hw_pdata;
 	int ret;
 
 	ret = imx_sc_misc_set_control(dsp_priv->sc_ipc, IMX_SC_R_DSP,
@@ -180,7 +180,7 @@ static int imx8x_run(struct snd_sof_dev *sdev)
 
 static int imx8_run(struct snd_sof_dev *sdev)
 {
-	struct imx8_priv *dsp_priv = (struct imx8_priv *)sdev->private;
+	struct imx8_priv *dsp_priv = sdev->pdata->hw_pdata;
 	int ret;
 
 	ret = imx_sc_misc_set_control(dsp_priv->sc_ipc, IMX_SC_R_DSP,
@@ -213,7 +213,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	if (!priv)
 		return -ENOMEM;
 
-	sdev->private = priv;
+	sdev->pdata->hw_pdata = priv;
 	priv->dev = sdev->dev;
 	priv->sdev = sdev;
 
@@ -339,7 +339,7 @@ exit_unroll_pm:
 
 static int imx8_remove(struct snd_sof_dev *sdev)
 {
-	struct imx8_priv *priv = (struct imx8_priv *)sdev->private;
+	struct imx8_priv *priv = sdev->pdata->hw_pdata;
 	int i;
 
 	platform_device_unregister(priv->ipc_dev);
