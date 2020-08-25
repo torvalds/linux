@@ -149,6 +149,146 @@ static int check_all_bounds(struct device *dev,
 #define DPHY_CONST		16
 #define PHY_CONST_DIV		16
 
+static void
+__ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
+		       const struct ccs_pll_branch_limits_bk *op_lim_bk,
+		       struct ccs_pll *pll, struct ccs_pll_branch_fr *pll_fr,
+		       struct ccs_pll_branch_bk *op_pll_bk, bool cphy,
+		       uint32_t phy_const)
+{
+	uint32_t sys_div;
+	uint32_t best_pix_div = INT_MAX >> 1;
+	uint32_t vt_op_binning_div;
+	uint32_t min_vt_div, max_vt_div, vt_div;
+	uint32_t min_sys_div, max_sys_div;
+
+	/*
+	 * Some sensors perform analogue binning and some do this
+	 * digitally. The ones doing this digitally can be roughly be
+	 * found out using this formula. The ones doing this digitally
+	 * should run at higher clock rate, so smaller divisor is used
+	 * on video timing side.
+	 */
+	if (lim->min_line_length_pck_bin > lim->min_line_length_pck
+	    / pll->binning_horizontal)
+		vt_op_binning_div = pll->binning_horizontal;
+	else
+		vt_op_binning_div = 1;
+	dev_dbg(dev, "vt_op_binning_div: %u\n", vt_op_binning_div);
+
+	/*
+	 * Profile 2 supports vt_pix_clk_div E [4, 10]
+	 *
+	 * Horizontal binning can be used as a base for difference in
+	 * divisors. One must make sure that horizontal blanking is
+	 * enough to accommodate the CSI-2 sync codes.
+	 *
+	 * Take scaling factor and number of VT lanes into account as well.
+	 *
+	 * Find absolute limits for the factor of vt divider.
+	 */
+	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
+	min_vt_div = DIV_ROUND_UP(pll->bits_per_pixel * op_pll_bk->sys_clk_div
+				  * pll->scale_n * pll->vt_lanes * phy_const,
+				  (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+				   pll->csi2.lanes : 1)
+				  * vt_op_binning_div * pll->scale_m
+				  * PHY_CONST_DIV);
+
+	/* Find smallest and biggest allowed vt divisor. */
+	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);
+	min_vt_div = max(min_vt_div,
+			 DIV_ROUND_UP(pll_fr->pll_op_clk_freq_hz,
+				      lim->vt_bk.max_pix_clk_freq_hz));
+	dev_dbg(dev, "min_vt_div: max_vt_pix_clk_freq_hz: %u\n",
+		min_vt_div);
+	min_vt_div = max_t(uint32_t, min_vt_div,
+			   lim->vt_bk.min_pix_clk_div
+			   * lim->vt_bk.min_sys_clk_div);
+	dev_dbg(dev, "min_vt_div: min_vt_clk_div: %u\n", min_vt_div);
+
+	max_vt_div = lim->vt_bk.max_sys_clk_div * lim->vt_bk.max_pix_clk_div;
+	dev_dbg(dev, "max_vt_div: %u\n", max_vt_div);
+	max_vt_div = min(max_vt_div,
+			 DIV_ROUND_UP(pll_fr->pll_op_clk_freq_hz,
+				      lim->vt_bk.min_pix_clk_freq_hz));
+	dev_dbg(dev, "max_vt_div: min_vt_pix_clk_freq_hz: %u\n",
+		max_vt_div);
+
+	/*
+	 * Find limitsits for sys_clk_div. Not all values are possible
+	 * with all values of pix_clk_div.
+	 */
+	min_sys_div = lim->vt_bk.min_sys_clk_div;
+	dev_dbg(dev, "min_sys_div: %u\n", min_sys_div);
+	min_sys_div = max(min_sys_div,
+			  DIV_ROUND_UP(min_vt_div,
+				       lim->vt_bk.max_pix_clk_div));
+	dev_dbg(dev, "min_sys_div: max_vt_pix_clk_div: %u\n", min_sys_div);
+	min_sys_div = max(min_sys_div,
+			  pll_fr->pll_op_clk_freq_hz
+			  / lim->vt_bk.max_sys_clk_freq_hz);
+	dev_dbg(dev, "min_sys_div: max_pll_op_clk_freq_hz: %u\n", min_sys_div);
+	min_sys_div = clk_div_even_up(min_sys_div);
+	dev_dbg(dev, "min_sys_div: one or even: %u\n", min_sys_div);
+
+	max_sys_div = lim->vt_bk.max_sys_clk_div;
+	dev_dbg(dev, "max_sys_div: %u\n", max_sys_div);
+	max_sys_div = min(max_sys_div,
+			  DIV_ROUND_UP(max_vt_div,
+				       lim->vt_bk.min_pix_clk_div));
+	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_div: %u\n", max_sys_div);
+	max_sys_div = min(max_sys_div,
+			  DIV_ROUND_UP(pll_fr->pll_op_clk_freq_hz,
+				       lim->vt_bk.min_pix_clk_freq_hz));
+	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_freq_hz: %u\n", max_sys_div);
+
+	/*
+	 * Find pix_div such that a legal pix_div * sys_div results
+	 * into a value which is not smaller than div, the desired
+	 * divisor.
+	 */
+	for (vt_div = min_vt_div; vt_div <= max_vt_div;
+	     vt_div += 2 - (vt_div & 1)) {
+		for (sys_div = min_sys_div;
+		     sys_div <= max_sys_div;
+		     sys_div += 2 - (sys_div & 1)) {
+			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
+			uint16_t rounded_div;
+
+			if (pix_div < lim->vt_bk.min_pix_clk_div
+			    || pix_div > lim->vt_bk.max_pix_clk_div) {
+				dev_dbg(dev,
+					"pix_div %u too small or too big (%u--%u)\n",
+					pix_div,
+					lim->vt_bk.min_pix_clk_div,
+					lim->vt_bk.max_pix_clk_div);
+				continue;
+			}
+
+			rounded_div = roundup(vt_div, best_pix_div);
+
+			/* Check if this one is better. */
+			if (pix_div * sys_div <= rounded_div)
+				best_pix_div = pix_div;
+
+			/* Bail out if we've already found the best value. */
+			if (vt_div == rounded_div)
+				break;
+		}
+		if (best_pix_div < INT_MAX >> 1)
+			break;
+	}
+
+	pll->vt_bk.sys_clk_div = DIV_ROUND_UP(vt_div, best_pix_div);
+	pll->vt_bk.pix_clk_div = best_pix_div;
+
+	pll->vt_bk.sys_clk_freq_hz =
+		pll_fr->pll_op_clk_freq_hz / pll->vt_bk.sys_clk_div;
+	pll->vt_bk.pix_clk_freq_hz =
+		pll->vt_bk.sys_clk_freq_hz / pll->vt_bk.pix_clk_div;
+}
+
 /*
  * Heuristically guess the PLL tree for a given common multiplier and
  * divisor. Begin with the operational timing and continue to video
@@ -168,9 +308,6 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		    struct ccs_pll_branch_bk *op_pll_bk, uint32_t mul,
 		    uint32_t div, uint32_t l, bool cphy, uint32_t phy_const)
 {
-	uint32_t sys_div;
-	uint32_t best_pix_div = INT_MAX >> 1;
-	uint32_t vt_op_binning_div;
 	/*
 	 * Higher multipliers (and divisors) are often required than
 	 * necessitated by the external clock and the output clocks.
@@ -179,8 +316,6 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	 */
 	uint32_t more_mul_min, more_mul_max;
 	uint32_t more_mul_factor;
-	uint32_t min_vt_div, max_vt_div, vt_div;
-	uint32_t min_sys_div, max_sys_div;
 	uint32_t i;
 
 	/*
@@ -269,138 +404,10 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 
 	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
 
-	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
-		/* No OP clocks --- VT clocks are used instead. */
-		goto out_skip_vt_calc;
-	}
+	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS))
+		__ccs_pll_calculate_vt(dev, lim, op_lim_bk, pll, op_pll_fr,
+				       op_pll_bk, cphy, phy_const);
 
-	/*
-	 * Some sensors perform analogue binning and some do this
-	 * digitally. The ones doing this digitally can be roughly be
-	 * found out using this formula. The ones doing this digitally
-	 * should run at higher clock rate, so smaller divisor is used
-	 * on video timing side.
-	 */
-	if (lim->min_line_length_pck_bin > lim->min_line_length_pck
-	    / pll->binning_horizontal)
-		vt_op_binning_div = pll->binning_horizontal;
-	else
-		vt_op_binning_div = 1;
-	dev_dbg(dev, "vt_op_binning_div: %u\n", vt_op_binning_div);
-
-	/*
-	 * Profile 2 supports vt_pix_clk_div E [4, 10]
-	 *
-	 * Horizontal binning can be used as a base for difference in
-	 * divisors. One must make sure that horizontal blanking is
-	 * enough to accommodate the CSI-2 sync codes.
-	 *
-	 * Take scaling factor and number of VT lanes into account as well.
-	 *
-	 * Find absolute limits for the factor of vt divider.
-	 */
-	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
-	min_vt_div = DIV_ROUND_UP(pll->bits_per_pixel * op_pll_bk->sys_clk_div
-				  * pll->scale_n * pll->vt_lanes * phy_const,
-				  (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-				   pll->csi2.lanes : 1)
-				  * vt_op_binning_div * pll->scale_m
-				  * PHY_CONST_DIV);
-
-	/* Find smallest and biggest allowed vt divisor. */
-	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);
-	min_vt_div = max(min_vt_div,
-			 DIV_ROUND_UP(op_pll_fr->pll_op_clk_freq_hz,
-				      lim->vt_bk.max_pix_clk_freq_hz));
-	dev_dbg(dev, "min_vt_div: max_vt_pix_clk_freq_hz: %u\n",
-		min_vt_div);
-	min_vt_div = max_t(uint32_t, min_vt_div,
-			   lim->vt_bk.min_pix_clk_div
-			   * lim->vt_bk.min_sys_clk_div);
-	dev_dbg(dev, "min_vt_div: min_vt_clk_div: %u\n", min_vt_div);
-
-	max_vt_div = lim->vt_bk.max_sys_clk_div * lim->vt_bk.max_pix_clk_div;
-	dev_dbg(dev, "max_vt_div: %u\n", max_vt_div);
-	max_vt_div = min(max_vt_div,
-			 DIV_ROUND_UP(op_pll_fr->pll_op_clk_freq_hz,
-				      lim->vt_bk.min_pix_clk_freq_hz));
-	dev_dbg(dev, "max_vt_div: min_vt_pix_clk_freq_hz: %u\n",
-		max_vt_div);
-
-	/*
-	 * Find limitsits for sys_clk_div. Not all values are possible
-	 * with all values of pix_clk_div.
-	 */
-	min_sys_div = lim->vt_bk.min_sys_clk_div;
-	dev_dbg(dev, "min_sys_div: %u\n", min_sys_div);
-	min_sys_div = max(min_sys_div,
-			  DIV_ROUND_UP(min_vt_div,
-				       lim->vt_bk.max_pix_clk_div));
-	dev_dbg(dev, "min_sys_div: max_vt_pix_clk_div: %u\n", min_sys_div);
-	min_sys_div = max(min_sys_div,
-			  op_pll_fr->pll_op_clk_freq_hz
-			  / lim->vt_bk.max_sys_clk_freq_hz);
-	dev_dbg(dev, "min_sys_div: max_pll_op_clk_freq_hz: %u\n", min_sys_div);
-	min_sys_div = clk_div_even_up(min_sys_div);
-	dev_dbg(dev, "min_sys_div: one or even: %u\n", min_sys_div);
-
-	max_sys_div = lim->vt_bk.max_sys_clk_div;
-	dev_dbg(dev, "max_sys_div: %u\n", max_sys_div);
-	max_sys_div = min(max_sys_div,
-			  DIV_ROUND_UP(max_vt_div,
-				       lim->vt_bk.min_pix_clk_div));
-	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_div: %u\n", max_sys_div);
-	max_sys_div = min(max_sys_div,
-			  DIV_ROUND_UP(op_pll_fr->pll_op_clk_freq_hz,
-				       lim->vt_bk.min_pix_clk_freq_hz));
-	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_freq_hz: %u\n", max_sys_div);
-
-	/*
-	 * Find pix_div such that a legal pix_div * sys_div results
-	 * into a value which is not smaller than div, the desired
-	 * divisor.
-	 */
-	for (vt_div = min_vt_div; vt_div <= max_vt_div;
-	     vt_div += 2 - (vt_div & 1)) {
-		for (sys_div = min_sys_div;
-		     sys_div <= max_sys_div;
-		     sys_div += 2 - (sys_div & 1)) {
-			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
-			uint16_t rounded_div;
-
-			if (pix_div < lim->vt_bk.min_pix_clk_div
-			    || pix_div > lim->vt_bk.max_pix_clk_div) {
-				dev_dbg(dev,
-					"pix_div %u too small or too big (%u--%u)\n",
-					pix_div,
-					lim->vt_bk.min_pix_clk_div,
-					lim->vt_bk.max_pix_clk_div);
-				continue;
-			}
-
-			rounded_div = roundup(vt_div, best_pix_div);
-
-			/* Check if this one is better. */
-			if (pix_div * sys_div <= rounded_div)
-				best_pix_div = pix_div;
-
-			/* Bail out if we've already found the best value. */
-			if (vt_div == rounded_div)
-				break;
-		}
-		if (best_pix_div < INT_MAX >> 1)
-			break;
-	}
-
-	pll->vt_bk.sys_clk_div = DIV_ROUND_UP(vt_div, best_pix_div);
-	pll->vt_bk.pix_clk_div = best_pix_div;
-
-	pll->vt_bk.sys_clk_freq_hz =
-		op_pll_fr->pll_op_clk_freq_hz / pll->vt_bk.sys_clk_div;
-	pll->vt_bk.pix_clk_freq_hz =
-		pll->vt_bk.sys_clk_freq_hz / pll->vt_bk.pix_clk_div;
-
-out_skip_vt_calc:
 	pll->pixel_rate_pixel_array =
 		pll->vt_bk.pix_clk_freq_hz * pll->vt_lanes;
 
