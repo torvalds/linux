@@ -25,13 +25,6 @@ enum {
 };
 #undef SD_FLAG
 
-/* Generate a mask of SD flags with the SDF_NEEDS_GROUPS metaflag */
-#define SD_FLAG(name, mflags) (name * !!((mflags) & SDF_NEEDS_GROUPS)) |
-static const unsigned int SD_DEGENERATE_GROUPS_MASK =
-#include <linux/sched/sd_flags.h>
-0;
-#undef SD_FLAG
-
 #ifdef CONFIG_SCHED_DEBUG
 
 struct sd_flag_debug {
