@@ -859,7 +859,6 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 
 out:
 	nf_conntrack_double_unlock(hash, reply_hash);
-	NF_CT_STAT_INC(net, insert_failed);
 	local_bh_enable();
 	return -EEXIST;
 }
@@ -934,7 +933,7 @@ static int __nf_ct_resolve_clash(struct sk_buff *skb,
 		nf_conntrack_put(&loser_ct->ct_general);
 		nf_ct_set(skb, ct, ctinfo);
 
-		NF_CT_STAT_INC(net, insert_failed);
+		NF_CT_STAT_INC(net, clash_resolve);
 		return NF_ACCEPT;
 	}
 
@@ -998,6 +997,8 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
 
 	hlist_nulls_add_head_rcu(&loser_ct->tuplehash[IP_CT_DIR_REPLY].hnnode,
 				 &nf_conntrack_hash[repl_idx]);
+
+	NF_CT_STAT_INC(net, clash_resolve);
 	return NF_ACCEPT;
 }
 
@@ -1027,10 +1028,10 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
  *
  * Failing that, the new, unconfirmed conntrack is still added to the table
  * provided that the collision only occurs in the ORIGINAL direction.
- * The new entry will be added after the existing one in the hash list,
+ * The new entry will be added only in the non-clashing REPLY direction,
  * so packets in the ORIGINAL direction will continue to match the existing
  * entry.  The new entry will also have a fixed timeout so it expires --
- * due to the collision, it will not see bidirectional traffic.
+ * due to the collision, it will only see reply traffic.
  *
  * Returns NF_DROP if the clash could not be resolved.
  */
