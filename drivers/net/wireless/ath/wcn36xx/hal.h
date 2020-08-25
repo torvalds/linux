@@ -728,6 +728,14 @@ enum pe_stats_mask {
 #define WCN36XX_HAL_CFG_ENABLE_TDLS_OXYGEN_MODE		104
 #define WCN36XX_HAL_CFG_MAX_PARAMS			105
 
+/* Specify the starting bitrate, 11B and 11A/G rates can be specified in
+ * multiples of 0.5 So for 5.5 mbps => 11. for MCS 0 - 7 rates, Bit 7 should
+ * set to 1 and Bit 0-6 represent the MCS index. so for MCS2 => 130.
+ * Any invalid non-zero value or unsupported rate will set the start rate
+ * to 6 mbps.
+ */
+#define WCN36XX_HAL_CFG_ENABLE_DYNAMIC_RA_START_RATE	210
+
 /* Message definitons - All the messages below need to be packed */
 
 /* Definition for HAL API Version. */
