@@ -323,11 +323,14 @@ static int adjust_dual(int *begin, int step, int *end, int eq, int mu)
 	p = begin + step;
 	s = p == end ? f + 1 : *p;
 
-	for (; p != end; p += step)
-		if (*p < f)
-			s = f, f = *p;
-		else if (*p < s)
+	for (; p != end; p += step) {
+		if (*p < f) {
+			s = f;
+			f = *p;
+		} else if (*p < s) {
 			s = *p;
+		}
+	}
 
 	c = (f + s + 1) / 2;
 	if (c == 0 || (c > mu && (!eq || mu > 0)))
