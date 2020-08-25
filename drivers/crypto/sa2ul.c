@@ -1148,12 +1148,10 @@ static int sa_run(struct sa_req *req)
 			ret = sg_split(req->dst, mapped_dst_nents, 0, 1,
 				       &split_size, &dst, &dst_nents,
 				       gfp_flags);
-			if (ret) {
-				dst_nents = dst_nents;
+			if (ret)
 				dst = req->dst;
-			} else {
+			else
 				rxd->split_dst_sg = dst;
-			}
 		}
 	}
 
