@@ -993,20 +993,10 @@ struct mlxsw_sp1_port_link_mode {
 
 static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100BASE_T,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-		.speed		= SPEED_100,
-	},
-	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_SGMII |
 				  MLXSW_REG_PTYS_ETH_SPEED_1000BASE_KX,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 		.speed		= SPEED_1000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_10GBASE_T,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-		.speed		= SPEED_10000,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CX4 |
@@ -1021,11 +1011,6 @@ static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 				  MLXSW_REG_PTYS_ETH_SPEED_10GBASE_ER_LR,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 		.speed		= SPEED_10000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_20GBASE_KR2,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
-		.speed		= SPEED_20000,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4,
@@ -1090,11 +1075,6 @@ static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
-		.speed		= SPEED_100000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_LR4_ER4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
 		.speed		= SPEED_100000,
 	},
 };
@@ -1235,14 +1215,6 @@ mlxsw_sp2_mask_ethtool_1000base_x_sgmii[] = {
 
 #define MLXSW_SP2_MASK_ETHTOOL_1000BASE_X_SGMII_LEN \
 	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_1000base_x_sgmii)
-
-static const enum ethtool_link_mode_bit_indices
-mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii[] = {
-	ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
-};
-
-#define MLXSW_SP2_MASK_ETHTOOL_2_5GBASE_X_2_5GMII_LEN \
-	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii)
 
 static const enum ethtool_link_mode_bit_indices
 mlxsw_sp2_mask_ethtool_5gbase_r[] = {
@@ -1406,16 +1378,6 @@ static const struct mlxsw_sp2_port_link_mode mlxsw_sp2_port_link_mode[] = {
 				  MLXSW_SP_PORT_MASK_WIDTH_4X |
 				  MLXSW_SP_PORT_MASK_WIDTH_8X,
 		.speed		= SPEED_1000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_2_5GBASE_X_2_5GMII,
-		.mask_ethtool	= mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii,
-		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_2_5GBASE_X_2_5GMII_LEN,
-		.mask_width	= MLXSW_SP_PORT_MASK_WIDTH_1X |
-				  MLXSW_SP_PORT_MASK_WIDTH_2X |
-				  MLXSW_SP_PORT_MASK_WIDTH_4X |
-				  MLXSW_SP_PORT_MASK_WIDTH_8X,
-		.speed		= SPEED_2500,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_5GBASE_R,
