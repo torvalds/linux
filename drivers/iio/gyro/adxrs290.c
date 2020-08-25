@@ -385,6 +385,8 @@ static int adxrs290_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(adxrs290_channels);
 	indio_dev->info = &adxrs290_info;
 
+	mutex_init(&st->lock);
+
 	val = spi_w8r8(spi, ADXRS290_READ_REG(ADXRS290_REG_ADI_ID));
 	if (val != ADXRS290_ADI_ID) {
 		dev_err(&spi->dev, "Wrong ADI ID 0x%02x\n", val);
