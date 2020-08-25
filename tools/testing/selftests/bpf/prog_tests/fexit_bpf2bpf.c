@@ -123,6 +123,7 @@ static void test_func_replace(void)
 		"freplace/get_skb_len",
 		"freplace/get_skb_ifindex",
 		"freplace/get_constant",
+		"freplace/test_pkt_write_access_subprog",
 	};
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
 				  "./test_pkt_access.o",
