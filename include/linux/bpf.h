@@ -34,6 +34,8 @@ struct btf_type;
 struct exception_table_entry;
 struct seq_operations;
 struct bpf_iter_aux_info;
+struct bpf_local_storage;
+struct bpf_local_storage_map;
 
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
@@ -104,6 +106,12 @@ struct bpf_map_ops {
 	__poll_t (*map_poll)(struct bpf_map *map, struct file *filp,
 			     struct poll_table_struct *pts);
 
+	/* Functions called by bpf_local_storage maps */
+	int (*map_local_storage_charge)(struct bpf_local_storage_map *smap,
+					void *owner, u32 size);
+	void (*map_local_storage_uncharge)(struct bpf_local_storage_map *smap,
+					   void *owner, u32 size);
+	struct bpf_local_storage __rcu ** (*map_owner_storage_ptr)(void *owner);
 	/* BTF name and id of struct allocated by map_alloc */
 	const char * const map_btf_name;
 	int *map_btf_id;
