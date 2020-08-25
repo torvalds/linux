@@ -20,13 +20,12 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 {
 	const struct sof_ipc_window *w =
 		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
-	size_t w_size = struct_size(w, window, w->num_windows);
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
 		return -EINVAL;
 
 	if (sdev->info_window) {
-		if (memcmp(sdev->info_window, w, w_size)) {
+		if (memcmp(sdev->info_window, w, ext_hdr->hdr.size)) {
 			dev_err(sdev->dev, "error: mismatch between window descriptor from extended manifest and mailbox");
 			return -EINVAL;
 		}
@@ -34,7 +33,7 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 	}
 
 	/* keep a local copy of the data */
-	sdev->info_window = kmemdup(w, w_size, GFP_KERNEL);
+	sdev->info_window = kmemdup(w, ext_hdr->hdr.size, GFP_KERNEL);
 	if (!sdev->info_window)
 		return -ENOMEM;
 

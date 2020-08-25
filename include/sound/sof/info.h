@@ -99,7 +99,7 @@ struct sof_ipc_window_elem {
 struct sof_ipc_window {
 	struct sof_ipc_ext_data_hdr ext_hdr;
 	uint32_t num_windows;
-	struct sof_ipc_window_elem window[];
+	struct sof_ipc_window_elem window[SOF_IPC_MAX_ELEMS];
 }  __packed;
 
 struct sof_ipc_cc_version {
