@@ -13,8 +13,10 @@
 #include <linux/stddef.h>
 #include <linux/etherdevice.h>
 #include <linux/log2.h>
+#include <linux/net_tstamp.h>
 
 #include "otx2_common.h"
+#include "otx2_ptp.h"
 
 #define DRV_NAME	"octeontx2-nicpf"
 #define DRV_VF_NAME	"octeontx2-nicvf"
@@ -663,6 +665,31 @@ static u32 otx2_get_link(struct net_device *netdev)
 	return pfvf->linfo.link_up;
 }
 
+static int otx2_get_ts_info(struct net_device *netdev,
+			    struct ethtool_ts_info *info)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+
+	if (!pfvf->ptp)
+		return ethtool_op_get_ts_info(netdev, info);
+
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE |
+				SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->phc_index = otx2_ptp_clock_index(pfvf);
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -687,6 +714,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.set_msglevel		= otx2_set_msglevel,
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
+	.get_ts_info		= otx2_get_ts_info,
 };
 
 void otx2_set_ethtool_ops(struct net_device *netdev)
