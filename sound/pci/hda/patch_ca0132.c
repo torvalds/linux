@@ -38,6 +38,8 @@
 #define FLOAT_ONE	0x3f800000
 #define FLOAT_TWO	0x40000000
 #define FLOAT_THREE     0x40400000
+#define FLOAT_FIVE	0x40a00000
+#define FLOAT_SIX       0x40c00000
 #define FLOAT_EIGHT     0x41000000
 #define FLOAT_MINUS_5	0xc0a00000
 
@@ -143,7 +145,8 @@ enum {
 	MIC_BOOST_ENUM,
 	AE5_HEADPHONE_GAIN_ENUM,
 	AE5_SOUND_FILTER_ENUM,
-	ZXR_HEADPHONE_GAIN
+	ZXR_HEADPHONE_GAIN,
+	SPEAKER_CHANNEL_CFG_ENUM,
 #define EFFECTS_COUNT  (EFFECT_END_NID - EFFECT_START_NID)
 };
 
@@ -686,6 +689,39 @@ static const struct ca0132_alt_out_set alt_out_presets[] = {
 	}
 };
 
+/* Surround output channel count configuration structures. */
+#define SPEAKER_CHANNEL_CFG_COUNT 5
+enum {
+	SPEAKER_CHANNELS_2_0,
+	SPEAKER_CHANNELS_2_1,
+	SPEAKER_CHANNELS_4_0,
+	SPEAKER_CHANNELS_4_1,
+	SPEAKER_CHANNELS_5_1,
+};
+
+struct ca0132_alt_speaker_channel_cfg {
+	char *name;
+	unsigned int val;
+};
+
+static const struct ca0132_alt_speaker_channel_cfg speaker_channel_cfgs[] = {
+	{ .name = "2.0",
+	  .val = FLOAT_ONE
+	},
+	{ .name = "2.1",
+	  .val = FLOAT_TWO
+	},
+	{ .name = "4.0",
+	  .val = FLOAT_FIVE
+	},
+	{ .name = "4.1",
+	  .val = FLOAT_SIX
+	},
+	{ .name = "5.1",
+	  .val = FLOAT_EIGHT
+	}
+};
+
 /*
  * DSP volume setting structs. Req 1 is left volume, req 2 is right volume,
  * and I don't know what the third req is, but it's always zero. I assume it's
@@ -1063,6 +1099,7 @@ struct ca0132_spec {
 	/* ca0132_alt control related values */
 	unsigned char in_enum_val;
 	unsigned char out_enum_val;
+	unsigned char channel_cfg_val;
 	unsigned char mic_boost_enum_val;
 	unsigned char smart_volume_setting;
 	long fx_ctl_val[EFFECT_LEVEL_SLIDERS];
@@ -4476,7 +4513,8 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		snd_hda_set_pin_ctl(codec, spec->out_pins[3],
 				    pin_ctl | PIN_OUT);
 
-		dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_EIGHT);
+		tmp = speaker_channel_cfgs[spec->channel_cfg_val].val;
+		dspio_set_uint_param(codec, 0x80, 0x04, tmp);
 		break;
 	}
 	/*
@@ -5582,6 +5620,54 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+/* Select surround output type: 2.1, 4.0, 4.1, or 5.1. */
+static int ca0132_alt_speaker_channel_cfg_get_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	unsigned int items = SPEAKER_CHANNEL_CFG_COUNT;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = items;
+	if (uinfo->value.enumerated.item >= items)
+		uinfo->value.enumerated.item = items - 1;
+	strcpy(uinfo->value.enumerated.name,
+			speaker_channel_cfgs[uinfo->value.enumerated.item].name);
+	return 0;
+}
+
+static int ca0132_alt_speaker_channel_cfg_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->channel_cfg_val;
+	return 0;
+}
+
+static int ca0132_alt_speaker_channel_cfg_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	int sel = ucontrol->value.enumerated.item[0];
+	unsigned int items = SPEAKER_CHANNEL_CFG_COUNT;
+
+	if (sel >= items)
+		return 0;
+
+	codec_dbg(codec, "ca0132_alt_speaker_channels: sel=%d, channels=%s\n",
+		    sel, speaker_channel_cfgs[sel].name);
+
+	spec->channel_cfg_val = sel;
+
+	if (spec->out_enum_val == SURROUND_OUT)
+		ca0132_alt_select_out(codec);
+
+	return 1;
+}
+
 /*
  * Smart Volume output setting control. Three different settings, Normal,
  * which takes the value from the smart volume slider. The two others, loud
@@ -6227,6 +6313,23 @@ static int ca0132_alt_add_output_enum(struct hda_codec *codec)
 }
 
 /*
+ * Add a control for selecting channel count on speaker output. Setting this
+ * allows the DSP to do bass redirection and channel upmixing on surround
+ * configurations.
+ */
+static int ca0132_alt_add_speaker_channel_cfg_enum(struct hda_codec *codec)
+{
+	struct snd_kcontrol_new knew =
+		HDA_CODEC_MUTE_MONO("Surround Channel Config",
+				    SPEAKER_CHANNEL_CFG_ENUM, 1, 0, HDA_OUTPUT);
+	knew.info = ca0132_alt_speaker_channel_cfg_get_info;
+	knew.get = ca0132_alt_speaker_channel_cfg_get;
+	knew.put = ca0132_alt_speaker_channel_cfg_put;
+	return snd_hda_ctl_add(codec, SPEAKER_CHANNEL_CFG_ENUM,
+				snd_ctl_new1(&knew, codec));
+}
+
+/*
  * Create an Input Source enumerated control for the alternate ca0132 codecs
  * because the front microphone has no auto-detect, and Line-in has to be set
  * somehow.
@@ -6530,6 +6633,9 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 */
 	if (ca0132_use_alt_functions(spec)) {
 		err = ca0132_alt_add_output_enum(codec);
+		if (err < 0)
+			return err;
+		err = ca0132_alt_add_speaker_channel_cfg_enum(codec);
 		if (err < 0)
 			return err;
 		err = ca0132_alt_add_mic_boost_enum(codec);
