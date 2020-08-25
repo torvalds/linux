@@ -42,6 +42,7 @@ int cmd_check(int argc, const char **argv)
 {
 	const char *objname, *s;
 	struct objtool_file *file;
+	int ret;
 
 	argc = parse_options(argc, argv, check_options, check_usage, 0);
 
@@ -58,5 +59,12 @@ int cmd_check(int argc, const char **argv)
 	if (!file)
 		return 1;
 
-	return check(file, false);
+	ret = check(file);
+	if (ret)
+		return ret;
+
+	if (file->elf->changed)
+		return elf_write(file->elf);
+
+	return 0;
 }

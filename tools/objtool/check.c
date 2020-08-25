@@ -2908,7 +2908,7 @@ static int validate_reachable_instructions(struct objtool_file *file)
 	return 0;
 }
 
-int check(struct objtool_file *file, bool orc)
+int check(struct objtool_file *file)
 {
 	int ret, warnings = 0;
 
@@ -2959,22 +2959,6 @@ int check(struct objtool_file *file, bool orc)
 	if (ret < 0)
 		goto out;
 	warnings += ret;
-
-	if (orc) {
-		ret = create_orc(file);
-		if (ret < 0)
-			goto out;
-
-		ret = create_orc_sections(file);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (file->elf->changed) {
-		ret = elf_write(file->elf);
-		if (ret < 0)
-			goto out;
-	}
 
 out:
 	if (ret < 0) {
