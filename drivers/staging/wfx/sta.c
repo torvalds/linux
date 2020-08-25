@@ -323,36 +323,6 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 	hif_wep_default_key_id(wvif, idx);
 }
 
-static void wfx_set_mfp(struct wfx_vif *wvif,
-			struct cfg80211_bss *bss)
-{
-	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
-	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
-	const int akm_suite_size = 4 / sizeof(u16);
-	const u16 *ptr = NULL;
-	bool mfpc = false;
-	bool mfpr = false;
-
-	/* 802.11w protected mgmt frames */
-
-	/* retrieve MFPC and MFPR flags from beacon or PBRSP */
-
-	rcu_read_lock();
-	if (bss)
-		ptr = (const u16 *)ieee80211_bss_get_ie(bss, WLAN_EID_RSN);
-
-	if (ptr) {
-		ptr += pairwise_cipher_suite_count_offset;
-		ptr += 1 + pairwise_cipher_suite_size * *ptr;
-		ptr += 1 + akm_suite_size * *ptr;
-		mfpr = *ptr & BIT(6);
-		mfpc = *ptr & BIT(7);
-	}
-	rcu_read_unlock();
-
-	hif_set_mfp(wvif, mfpc, mfpr);
-}
-
 void wfx_reset(struct wfx_vif *wvif)
 {
 	struct wfx_dev *wdev = wvif->wdev;
@@ -400,7 +370,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	}
 	rcu_read_unlock();
 
-	wfx_set_mfp(wvif, bss);
 	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 
 	wvif->join_in_progress = true;
@@ -426,6 +395,9 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
 	sta_priv->vif_id = wvif->id;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		hif_set_mfp(wvif, sta->mfp, sta->mfp);
 
 	// In station mode, the firmware interprets new link-id as a TDLS peer.
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
