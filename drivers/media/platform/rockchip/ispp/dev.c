@@ -27,6 +27,10 @@ int rkispp_debug;
 module_param_named(debug, rkispp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
 
+bool rkispp_clk_dbg;
+module_param_named(clk_dbg, rkispp_clk_dbg, bool, 0644);
+MODULE_PARM_DESC(clk_dbg, "rkispp clk set by user");
+
 static int rkisp_ispp_mode = ISP_ISPP_FBC;
 module_param_named(mode, rkisp_ispp_mode, int, 0644);
 MODULE_PARM_DESC(mode, "isp->ispp mode: bit0 fbc, bit1 yuv422, bit2 quick");
@@ -65,6 +69,9 @@ static void get_remote_node_dev(struct rkispp_device *ispp_dev)
 			} else {
 				ispp_dev->ispp_sdev.remote_sd = sd;
 				v4l2_set_subdev_hostdata(sd, &ispp_dev->ispp_sdev.sd);
+				if (ispp_dev->hw_dev->max_in.w && ispp_dev->hw_dev->max_in.h)
+					v4l2_subdev_call(sd, core, ioctl, RKISP_ISPP_CMD_SET_FMT,
+							 &ispp_dev->hw_dev->max_in);
 				break;
 			}
 		}

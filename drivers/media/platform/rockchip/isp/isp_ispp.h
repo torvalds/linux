@@ -48,7 +48,6 @@ struct max_input {
 };
 
 struct rkisp_ispp_mode {
-	struct max_input max_in;
 	u8 work_mode;
 	u8 buf_num;
 };

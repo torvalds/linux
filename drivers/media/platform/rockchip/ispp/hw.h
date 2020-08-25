@@ -8,14 +8,21 @@
 
 #define ISPP_MAX_BUS_CLK 4
 
+struct ispp_clk_info {
+	u32 clk_rate;
+	u32 refer_data;
+};
+
 struct rkispp_hw_dev {
 	struct device *dev;
 	void __iomem *base_addr;
+	const struct ispp_clk_info *clk_rate_tbl;
 	struct clk *clks[ISPP_MAX_BUS_CLK];
 	struct rkispp_device *ispp[DEV_MAX];
 	struct rkispp_isp_buf_pool pool[RKISPP_BUF_POOL_MAX];
 	struct max_input max_in;
 	struct list_head list;
+	int clk_rate_tbl_num;
 	int clks_num;
 	int dev_num;
 	int cur_dev_id;

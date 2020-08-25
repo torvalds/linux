@@ -95,6 +95,7 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 }
 
 extern int rkispp_debug;
+extern bool rkispp_clk_dbg;
 extern struct platform_driver rkispp_plat_drv;
 
 void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val);

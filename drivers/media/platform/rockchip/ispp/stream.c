@@ -1471,7 +1471,6 @@ static int start_isp(struct rkispp_device *dev)
 	mutex_lock(&dev->hw_dev->dev_lock);
 
 	mode.work_mode = dev->isp_mode;
-	mode.max_in = dev->hw_dev->max_in;
 	mode.buf_num = (dev->isp_mode & ISP_ISPP_QUICK) ?
 			1 : RKISPP_BUF_MAX;
 	i = 1;

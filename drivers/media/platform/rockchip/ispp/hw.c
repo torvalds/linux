@@ -36,6 +36,8 @@ struct irqs_data {
 struct match_data {
 	int clks_num;
 	const char * const *clks;
+	int clk_rate_tbl_num;
+	const struct ispp_clk_info *clk_rate_tbl;
 	enum rkispp_ver ispp_ver;
 	struct irqs_data *irqs;
 	int num_irqs;
@@ -94,6 +96,8 @@ static void disable_sys_clk(struct rkispp_hw_dev *dev)
 
 static int enable_sys_clk(struct rkispp_hw_dev *dev)
 {
+	struct rkispp_device *ispp = dev->ispp[dev->cur_dev_id];
+	u32 w = dev->max_in.w ? dev->max_in.w : ispp->ispp_sdev.in_fmt.width;
 	int i, ret = -EINVAL;
 
 	for (i = 0; i < dev->clks_num; i++) {
@@ -102,6 +106,17 @@ static int enable_sys_clk(struct rkispp_hw_dev *dev)
 			goto err;
 	}
 
+	if (rkispp_clk_dbg)
+		return 0;
+	for (i = 0; i < dev->clk_rate_tbl_num; i++)
+		if (w <= dev->clk_rate_tbl[i].refer_data)
+			break;
+	if (!dev->is_single)
+		i++;
+	if (i > dev->clk_rate_tbl_num - 1)
+		i = dev->clk_rate_tbl_num - 1;
+	clk_set_rate(dev->clks[0], dev->clk_rate_tbl[i].clk_rate * 1000000UL);
+	dev_dbg(dev->dev, "set ispp clk:%luHz\n", clk_get_rate(dev->clks[0]));
 	return 0;
 err:
 	for (--i; i >= 0; --i)
@@ -129,9 +144,25 @@ static irqreturn_t irq_hdl(int irq, void *ctx)
 }
 
 static const char * const rv1126_ispp_clks[] = {
+	"clk_ispp",
 	"aclk_ispp",
 	"hclk_ispp",
-	"clk_ispp",
+};
+
+static const struct ispp_clk_info rv1126_ispp_clk_rate[] = {
+	{
+		.clk_rate = 250,
+		.refer_data = 1920 //width
+	}, {
+		.clk_rate = 350,
+		.refer_data = 2688,
+	}, {
+		.clk_rate = 400,
+		.refer_data = 3072,
+	}, {
+		.clk_rate = 500,
+		.refer_data = 3840,
+	}
 };
 
 static struct irqs_data rv1126_ispp_irqs[] = {
@@ -142,6 +173,8 @@ static struct irqs_data rv1126_ispp_irqs[] = {
 static const struct match_data rv1126_ispp_match_data = {
 	.clks = rv1126_ispp_clks,
 	.clks_num = ARRAY_SIZE(rv1126_ispp_clks),
+	.clk_rate_tbl = rv1126_ispp_clk_rate,
+	.clk_rate_tbl_num = ARRAY_SIZE(rv1126_ispp_clk_rate),
 	.irqs = rv1126_ispp_irqs,
 	.num_irqs = ARRAY_SIZE(rv1126_ispp_irqs),
 	.ispp_ver = ISPP_V10,
@@ -239,6 +272,8 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 		hw_dev->clks[i] = clk;
 	}
 	hw_dev->clks_num = match_data->clks_num;
+	hw_dev->clk_rate_tbl = match_data->clk_rate_tbl;
+	hw_dev->clk_rate_tbl_num = match_data->clk_rate_tbl_num;
 
 	hw_dev->dev_num = 0;
 	hw_dev->cur_dev_id = 0;

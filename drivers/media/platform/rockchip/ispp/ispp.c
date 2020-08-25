@@ -290,13 +290,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 	v4l2_dbg(1, rkispp_debug, &ispp_dev->v4l2_dev,
 		 "s_power on:%d\n", on);
 	if (on) {
-		ret = pm_runtime_get_sync(ispp_dev->dev);
-		if (ret < 0) {
-			v4l2_err(&ispp_dev->v4l2_dev,
-				 "%s runtime get failed:%d\n",
-				 __func__, ret);
-			return ret;
-		}
 		atomic_set(&ispp_sdev->frm_sync_seq, 0);
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format fmt;
@@ -310,7 +303,7 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 				v4l2_err(&ispp_dev->v4l2_dev,
 					 "%s get format fail:%d\n",
 					 __func__, ret);
-				goto err;
+				return ret;
 			}
 			sel.pad = RKISPP_PAD_SINK;
 			sel.target = V4L2_SEL_TGT_CROP;
@@ -321,7 +314,7 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 				v4l2_err(&ispp_dev->v4l2_dev,
 					 "%s get crop fail:%d\n",
 					 __func__, ret);
-				goto err;
+				return ret;
 			}
 
 			ret = v4l2_subdev_call(ispp_sdev->remote_sd,
@@ -330,8 +323,18 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 				v4l2_err(&ispp_dev->v4l2_dev,
 					 "%s set isp power on fail:%d\n",
 					 __func__, ret);
-				goto err;
+				return ret;
 			}
+		}
+		ret = pm_runtime_get_sync(ispp_dev->dev);
+		if (ret < 0) {
+			v4l2_err(&ispp_dev->v4l2_dev,
+				 "%s runtime get failed:%d\n",
+				 __func__, ret);
+			if (ispp_dev->inp == INP_ISP)
+				v4l2_subdev_call(ispp_sdev->remote_sd,
+						 core, s_power, 0);
+			return ret;
 		}
 	} else {
 		if (ispp_dev->inp == INP_ISP)
@@ -343,9 +346,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 				 __func__, ret);
 	}
 
-	return ret;
-err:
-	pm_runtime_put(ispp_dev->dev);
 	return ret;
 }
 
