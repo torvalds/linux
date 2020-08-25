@@ -43,7 +43,7 @@ Description:	read only
 		This sysfs interface exposes the number of cores per chip
 		present in the system.
 
-What:		/sys/devices/hv_24x7/interface/cpumask
+What:		/sys/devices/hv_24x7/cpumask
 Date:		July 2020
 Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:	read only
