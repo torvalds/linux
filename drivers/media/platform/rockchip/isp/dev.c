@@ -59,6 +59,10 @@ int rkisp_debug;
 module_param_named(debug, rkisp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+static bool rkisp_clk_dbg;
+module_param_named(clk_dbg, rkisp_clk_dbg, bool, 0644);
+MODULE_PARM_DESC(clk_dbg, "rkisp clk set by user");
+
 static char rkisp_version[RKISP_VERNO_LEN];
 module_param_string(version, rkisp_version, RKISP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
@@ -139,17 +143,31 @@ static int __isp_pipeline_prepare(struct rkisp_pipeline *p,
 static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 {
 	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
+	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
+	u32 w = hw_dev->max_in.w ? hw_dev->max_in.w : dev->isp_sdev.in_frm.width;
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl *ctrl;
 	u64 data_rate;
 	int i;
 
-	if (!dev->hw_dev->is_single)
+	if (rkisp_clk_dbg)
 		return 0;
 
-	if (!(dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS))) {
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
+		for (i = 0; i < hw_dev->num_clk_rate_tbl; i++) {
+			if (w <= hw_dev->clk_rate_tbl[i].refer_data)
+				break;
+		}
+		if (!hw_dev->is_single)
+			i++;
+		if (i > hw_dev->num_clk_rate_tbl - 1)
+			i = hw_dev->num_clk_rate_tbl - 1;
+		goto end;
+	}
+
+	if (dev->isp_inp == INP_DMARX_ISP) {
 		if (dev->hw_dev->clks[0])
-			clk_set_rate(dev->hw_dev->clks[0], 500 * 1000000UL);
+			clk_set_rate(hw_dev->clks[0], 400 * 1000000UL);
 		return 0;
 	}
 
@@ -162,13 +180,13 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	}
 
 	if (i == p->num_subdevs) {
-		v4l2_warn(sd, "No active sensor\n");
+		v4l2_warn(&dev->v4l2_dev, "No active sensor\n");
 		return -EPIPE;
 	}
 
 	ctrl = v4l2_ctrl_find(sd->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		v4l2_warn(sd, "No pixel rate control in subdev\n");
+		v4l2_warn(&dev->v4l2_dev, "No pixel rate control in subdev\n");
 		return -EPIPE;
 	}
 
@@ -182,16 +200,15 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	data_rate += data_rate >> 2;
 
 	/* compare with isp clock adjustment table */
-	for (i = 0; i < dev->hw_dev->num_clk_rate_tbl; i++)
-		if (data_rate <= dev->hw_dev->clk_rate_tbl[i])
+	for (i = 0; i < hw_dev->num_clk_rate_tbl; i++)
+		if (data_rate <= hw_dev->clk_rate_tbl[i].clk_rate)
 			break;
-	if (i == dev->hw_dev->num_clk_rate_tbl)
+	if (i == hw_dev->num_clk_rate_tbl)
 		i--;
-
+end:
 	/* set isp clock rate */
-	clk_set_rate(dev->hw_dev->clks[0], dev->hw_dev->clk_rate_tbl[i] * 1000000UL);
-	v4l2_dbg(1, rkisp_debug, sd, "set isp clk = %luHz\n",
-		 clk_get_rate(dev->hw_dev->clks[0]));
+	clk_set_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
+	dev_info(hw_dev->dev, "set isp clk = %luHz\n", clk_get_rate(hw_dev->clks[0]));
 
 	return 0;
 }

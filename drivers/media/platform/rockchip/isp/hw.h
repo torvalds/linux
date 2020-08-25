@@ -8,6 +8,11 @@
 
 #define RKISP_MAX_BUS_CLK 8
 
+struct isp_clk_info {
+	u32 clk_rate;
+	u32 refer_data;
+};
+
 struct rkisp_hw_dev {
 	const struct isp_match_data *match_data;
 	struct platform_device *pdev;
@@ -16,7 +21,7 @@ struct rkisp_hw_dev {
 	void __iomem *base_addr;
 	struct clk *clks[RKISP_MAX_BUS_CLK];
 	int num_clks;
-	const unsigned int *clk_rate_tbl;
+	const struct isp_clk_info *clk_rate_tbl;
 	int num_clk_rate_tbl;
 	struct reset_control *reset;
 	int mipi_irq;

@@ -12,6 +12,8 @@
 
 #define RKISP_ISPP_CMD_SET_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_ispp_mode)
+#define RKISP_ISPP_CMD_SET_FMT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct max_input)
 
 enum rkisp_ispp_dev {
 	DEV_ID0 = 0,

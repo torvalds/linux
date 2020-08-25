@@ -680,12 +680,16 @@ static long bridge_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_bridge_device *dev = v4l2_get_subdevdata(sd);
 	struct rkisp_ispp_mode *mode;
+	struct max_input *max_in;
 	long ret = 0;
 
 	switch (cmd) {
+	case RKISP_ISPP_CMD_SET_FMT:
+		max_in = arg;
+		dev->ispdev->hw_dev->max_in = *max_in;
+		break;
 	case RKISP_ISPP_CMD_SET_MODE:
 		mode = arg;
-		dev->ispdev->hw_dev->max_in = mode->max_in;
 		dev->work_mode = mode->work_mode;
 		dev->buf_num = mode->buf_num;
 		ret = config_mode(dev);

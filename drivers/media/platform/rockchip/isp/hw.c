@@ -40,7 +40,7 @@ struct isp_match_data {
 	const char * const *clks;
 	int num_clks;
 	enum rkisp_isp_ver isp_ver;
-	const unsigned int *clk_rate_tbl;
+	const struct isp_clk_info  *clk_rate_tbl;
 	int num_clk_rate_tbl;
 	struct isp_irqs_data *irqs;
 	int num_irqs;
@@ -308,32 +308,44 @@ static const char * const rv1126_isp_clks[] = {
 };
 
 /* isp clock adjustment table (MHz) */
-static const unsigned int rk1808_isp_clk_rate[] = {
-	300, 400, 500, 600
+static const struct isp_clk_info rk1808_isp_clk_rate[] = {
+	{300, }, {400, }, {500, }, {600, }
 };
 
 /* isp clock adjustment table (MHz) */
-static const unsigned int rk3288_isp_clk_rate[] = {
-	150, 384, 500, 594
+static const struct isp_clk_info rk3288_isp_clk_rate[] = {
+	{150, }, {384, }, {500, }, {594, }
 };
 
 /* isp clock adjustment table (MHz) */
-static const unsigned int rk3326_isp_clk_rate[] = {
-	300, 347, 400, 520, 600
+static const struct isp_clk_info rk3326_isp_clk_rate[] = {
+	{300, }, {347, }, {400, }, {520, }, {600, }
 };
 
 /* isp clock adjustment table (MHz) */
-static const unsigned int rk3368_isp_clk_rate[] = {
-	300, 400, 600
+static const struct isp_clk_info rk3368_isp_clk_rate[] = {
+	{300, }, {400, }, {600, }
 };
 
 /* isp clock adjustment table (MHz) */
-static const unsigned int rk3399_isp_clk_rate[] = {
-	300, 400, 600
+static const struct isp_clk_info rk3399_isp_clk_rate[] = {
+	{300, }, {400, }, {600, }
 };
 
-static const unsigned int rv1126_isp_clk_rate[] = {
-	400, 500
+static const struct isp_clk_info rv1126_isp_clk_rate[] = {
+	{
+		.clk_rate = 300,
+		.refer_data = 1920, //width
+	}, {
+		.clk_rate = 400,
+		.refer_data = 2688,
+	}, {
+		.clk_rate = 500,
+		.refer_data = 3072,
+	}, {
+		.clk_rate = 600,
+		.refer_data = 3840,
+	}
 };
 
 static struct isp_irqs_data rk1808_isp_irqs[] = {
@@ -549,9 +561,6 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 				goto err;
 		}
 	}
-
-	if (!dev->is_single)
-		clk_set_rate(dev->clks[0], 500 * 1000000UL);
 
 	if (!dev->is_thunderboot) {
 		rkisp_soft_reset(dev);
