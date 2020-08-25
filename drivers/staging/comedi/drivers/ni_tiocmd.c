@@ -286,7 +286,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 		 * This should be done, but we don't yet know the actual
 		 * register values.  These should be tested and then documented
 		 * in the ni_route_values/ni_*.csv files, with indication of
-		 * who/when/which/how these these were tested.
+		 * who/when/which/how these were tested.
 		 * When at least a e/m/660x series have been tested, this code
 		 * should be uncommented:
 		 *
