@@ -37,6 +37,7 @@
 #include "shim.h"
 
 #define EXCEPT_MAX_HDR_SIZE	0x400
+#define HDA_EXT_ROM_STATUS_SIZE 8
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
@@ -414,6 +415,22 @@ void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags)
 	}
 }
 
+/* dump the first 8 dwords representing the extended ROM status */
+static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev)
+{
+	char msg[128];
+	int len = 0;
+	u32 value;
+	int i;
+
+	for (i = 0; i < HDA_EXT_ROM_STATUS_SIZE; i++) {
+		value = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_ROM_STATUS + i * 0x4);
+		len += snprintf(msg + len, sizeof(msg) - len, " 0x%x", value);
+	}
+
+	dev_err(sdev->dev, "error: extended rom status:%s", msg);
+}
+
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	struct sof_ipc_dsp_oops_xtensa xoops;
@@ -437,6 +454,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	} else {
 		dev_err(sdev->dev, "error: status = 0x%8.8x panic = 0x%8.8x\n",
 			status, panic);
+		hda_dsp_dump_ext_rom_status(sdev);
 		hda_dsp_get_status(sdev);
 	}
 }
