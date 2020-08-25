@@ -1,0 +1,286 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv1126-rmsl.dtsi"
+#include <dt-bindings/display/media-bus-format.h>
+
+#define LINK_FREQ               400000000
+
+/ {
+	model = "Rockchip RV1126 RMSL DDR3L Board";
+	compatible = "rockchip,rv1126-rmsl-ddr3L-v1", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work-led {
+			gpios = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+	};
+
+	mipidphy0: mipidphy0 {
+	compatible =  "rockchip,rk1608-dphy";
+		status = "okay";
+		rockchip,grf = <&grf>;
+		id = <0>;
+
+		cam_nums = <1>;
+		in_mipi = <0>;
+		out_mipi = <0>;
+		link-freqs = /bits/ 64 <LINK_FREQ>;
+
+		sensor_i2c_bus = <0>;
+		sensor_i2c_addr = <0xC0>;
+		sensor-name = "OV9282";
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+
+		format-config-0 {
+			data_type = <0x2b>;
+			mipi_lane = <2>;
+			field = <1>;
+			colorspace = <8>;
+			code = <MEDIA_BUS_FMT_SBGGR10_1X10>;
+			width = <2560>;
+			height= <1000>;
+			hactive = <2560>;
+			vactive = <1000>;
+			htotal = <3000>;
+			vtotal = <1400>;
+			inch0-info = <1280 800 0x2b 0x2b 1>;
+			outch0-info = <2560 1000 0x2b 0x2b 1>;
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				rk1608_dphy0_in: endpoint {
+					remote-endpoint = <&rk1608_out0>;
+					data-lanes = <1 2>;
+				};
+			};
+			port@1 {
+				rk1608_dphy0_out: endpoint {
+					remote-endpoint = <&mipi_in_ucam0>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-freqs = /bits/ 64 <LINK_FREQ>;
+				};
+			};
+		};
+	};
+};
+
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&rk1608_dphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&csi_dphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ov02k10: ov02k10@36 {
+		compatible = "ovti,ov02k10";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		pwren-gpios= <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "ORCF-0249-00-PD-V1";
+		rockchip,camera-module-lens-name = "xuye";
+		// NO_HDR:0 HDR_X2:5 HDR_X3:6
+		rockchip,camera-hdr-mode = <0>;
+		port {
+			ucam_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+		pisp_dmy: pisp_dmy@37 {
+		compatible = "pisp_dmy";
+		reg = <0x37>;
+
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "xvclk";
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+
+		port {
+			cam0_out: endpoint {
+				remote-endpoint = <&rk1608_in0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+	//assigned-clocks = <&cru SCLK_SPI0>;
+	//assigned-clock-rates = <100000000>;
+	//rx-sample-delay-ns = <10>;
+	//dma-names = "tx", "rx";
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi0m1_clk &spi0m1_cs0n &spi0m1_cs0n &spi0m1_miso &spi0m1_mosi>;
+	pinctrl-1 = <&spi0m1_clk_hs &spi0m1_cs0n &spi0m1_miso_hs &spi0m1_mosi_hs>;
+
+	spi_rk1608@00 {
+		compatible =  "rockchip,rk1608";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-min-frequency = <16000000>;
+
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "mclk";
+
+		firmware-names = "rk1608.rkl";
+
+		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>; //
+		irq-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>; //
+		pwren-gpios = <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&preisp_irq_gpios &preisp_reset_gpios &preisp_pwren_gpios &preisp_24m_mclk>;
+
+		/* regulator config */
+		//vdd-core-regulator = "vdd_preisp";
+		//vdd-core-microvolt = <1150000>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				reg = <0>;
+				rk1608_out0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&rk1608_dphy0_in>;
+				};
+			};
+
+			port@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				reg = <1>;
+				rk1608_in0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&cam0_out>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	rk1608_gpios {
+		preisp_irq_gpios: preisp-irq-gpios {
+			rockchip,pins =
+				<0 RK_PA4 0 &pcfg_pull_up>;
+		};
+
+		preisp_reset_gpios: preisp-reset-gpios {
+			rockchip,pins =
+				<0 RK_PA5 0 &pcfg_output_low>;
+		};
+
+		preisp_pwren_gpios: preisp-pwren-gpios {
+			rockchip,pins =
+				<2 RK_PD7 0 &pcfg_pull_up>;
+		};
+
+		preisp_24m_mclk: preisp-24m-mclk {
+			rockchip,pins =
+				<0 RK_PA0 1 &pcfg_pull_none>;
+		};
+	};
+};
