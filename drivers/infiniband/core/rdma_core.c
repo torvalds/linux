@@ -895,8 +895,9 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 		if (__uverbs_cleanup_ufile(ufile, reason)) {
 			/*
 			 * No entry was cleaned-up successfully during this
-			 * iteration
+			 * iteration. It is a driver bug to fail destruction.
 			 */
+			WARN_ON(!list_empty(&ufile->uobjects));
 			break;
 		}
 
