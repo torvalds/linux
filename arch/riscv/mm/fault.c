@@ -247,14 +247,6 @@ good_area:
 	if (fault_signal_pending(fault, regs))
 		return;
 
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto do_sigbus;
-		BUG();
-	}
-
 	if (unlikely((fault & VM_FAULT_RETRY) && (flags & FAULT_FLAG_ALLOW_RETRY))) {
 		flags |= FAULT_FLAG_TRIED;
 
@@ -267,6 +259,14 @@ good_area:
 	}
 
 	mmap_read_unlock(mm);
+
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto do_sigbus;
+		BUG();
+	}
 	return;
 
 	/*
@@ -274,7 +274,6 @@ good_area:
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
 out_of_memory:
-	mmap_read_unlock(mm);
 	if (!user_mode(regs)) {
 		no_context(regs, addr);
 		return;
@@ -283,7 +282,6 @@ out_of_memory:
 	return;
 
 do_sigbus:
-	mmap_read_unlock(mm);
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs)) {
 		no_context(regs, addr);
