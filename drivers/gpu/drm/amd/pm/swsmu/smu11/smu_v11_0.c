@@ -1153,6 +1153,27 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	return ret;
 }
 
+int smu_v11_0_get_fan_speed_rpm(struct smu_context *smu,
+				uint32_t *speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t tach_period, crystal_clock_freq;
+	uint64_t tmp64;
+
+	tach_period = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
+				    CG_TACH_CTRL, TARGET_PERIOD);
+	if (!tach_period)
+		return -EINVAL;
+
+	crystal_clock_freq = amdgpu_asic_get_xclk(adev);
+
+	tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
+	do_div(tmp64, (tach_period * 8));
+	*speed = (uint32_t)tmp64;
+
+	return 0;
+}
+
 int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate)
 {
