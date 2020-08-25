@@ -53,6 +53,9 @@ properties:
 
   gpio-ranges: true
 
+  power-domains:
+    maxItems: 1
+
 patternProperties:
   "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
     type: object
