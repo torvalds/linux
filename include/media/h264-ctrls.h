@@ -19,6 +19,8 @@
  */
 #define V4L2_H264_NUM_DPB_ENTRIES 16
 
+#define V4L2_H264_REF_LIST_LEN (2 * V4L2_H264_NUM_DPB_ENTRIES)
+
 /* Our pixel format isn't stable at the moment */
 #define V4L2_PIX_FMT_H264_SLICE v4l2_fourcc('S', '2', '6', '4') /* H264 parsed slices */
 
@@ -140,6 +142,17 @@ struct v4l2_h264_pred_weight_table {
 #define V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED	0x04
 #define V4L2_H264_SLICE_FLAG_SP_FOR_SWITCH		0x08
 
+#define V4L2_H264_TOP_FIELD_REF				0x1
+#define V4L2_H264_BOTTOM_FIELD_REF			0x2
+#define V4L2_H264_FRAME_REF				0x3
+
+struct v4l2_h264_reference {
+	__u8 fields;
+
+	/* Index into v4l2_ctrl_h264_decode_params.dpb[] */
+	__u8 index;
+};
+
 struct v4l2_ctrl_h264_slice_params {
 	/* Size in bytes, including header */
 	__u32 size;
@@ -178,12 +191,8 @@ struct v4l2_ctrl_h264_slice_params {
 	__u8 num_ref_idx_l1_active_minus1;
 	__u32 slice_group_change_cycle;
 
-	/*
-	 * Entries on each list are indices into
-	 * v4l2_ctrl_h264_decode_params.dpb[].
-	 */
-	__u8 ref_pic_list0[32];
-	__u8 ref_pic_list1[32];
+	struct v4l2_h264_reference ref_pic_list0[V4L2_H264_REF_LIST_LEN];
+	struct v4l2_h264_reference ref_pic_list1[V4L2_H264_REF_LIST_LEN];
 
 	__u32 flags;
 };
