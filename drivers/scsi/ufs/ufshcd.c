@@ -238,6 +238,7 @@ static int ufshcd_setup_hba_vreg(struct ufs_hba *hba, bool on);
 static int ufshcd_setup_vreg(struct ufs_hba *hba, bool on);
 static inline int ufshcd_config_vreg_hpm(struct ufs_hba *hba,
 					 struct ufs_vreg *vreg);
+static int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag);
 static int ufshcd_wb_buf_flush_enable(struct ufs_hba *hba);
 static int ufshcd_wb_buf_flush_disable(struct ufs_hba *hba);
 static int ufshcd_wb_ctrl(struct ufs_hba *hba, bool enable);
@@ -5672,8 +5673,8 @@ static void ufshcd_err_handler(struct work_struct *work)
 {
 	struct ufs_hba *hba;
 	unsigned long flags;
-	u32 err_xfer = 0;
-	u32 err_tm = 0;
+	bool err_xfer = false;
+	bool err_tm = false;
 	int err = 0;
 	int tag;
 	bool needs_reset = false;
@@ -5749,7 +5750,7 @@ static void ufshcd_err_handler(struct work_struct *work)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 	/* Clear pending transfer requests */
 	for_each_set_bit(tag, &hba->outstanding_reqs, hba->nutrs) {
-		if (ufshcd_clear_cmd(hba, tag)) {
+		if (ufshcd_try_to_abort_task(hba, tag)) {
 			err_xfer = true;
 			goto lock_skip_pending_xfer_clear;
 		}
@@ -6501,7 +6502,7 @@ static void ufshcd_set_req_abort_skip(struct ufs_hba *hba, unsigned long bitmap)
 }
 
 /**
- * ufshcd_abort - abort a specific command
+ * ufshcd_try_to_abort_task - abort a specific task
  * @cmd: SCSI command pointer
  *
  * Abort the pending command in device by sending UFS_ABORT_TASK task management
@@ -6509,6 +6510,80 @@ static void ufshcd_set_req_abort_skip(struct ufs_hba *hba, unsigned long bitmap)
  * be race between controller sending the command to the device while abort is
  * issued. To avoid that, first issue UFS_QUERY_TASK to check if the command is
  * really issued and then try to abort it.
+ *
+ * Returns zero on success, non-zero on failure
+ */
+static int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
+{
+	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
+	int err = 0;
+	int poll_cnt;
+	u8 resp = 0xF;
+	u32 reg;
+
+	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
+		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
+				UFS_QUERY_TASK, &resp);
+		if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED) {
+			/* cmd pending in the device */
+			dev_err(hba->dev, "%s: cmd pending in the device. tag = %d\n",
+				__func__, tag);
+			break;
+		} else if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
+			/*
+			 * cmd not pending in the device, check if it is
+			 * in transition.
+			 */
+			dev_err(hba->dev, "%s: cmd at tag %d not pending in the device.\n",
+				__func__, tag);
+			reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+			if (reg & (1 << tag)) {
+				/* sleep for max. 200us to stabilize */
+				usleep_range(100, 200);
+				continue;
+			}
+			/* command completed already */
+			dev_err(hba->dev, "%s: cmd at tag %d successfully cleared from DB.\n",
+				__func__, tag);
+			goto out;
+		} else {
+			dev_err(hba->dev,
+				"%s: no response from device. tag = %d, err %d\n",
+				__func__, tag, err);
+			if (!err)
+				err = resp; /* service response error */
+			goto out;
+		}
+	}
+
+	if (!poll_cnt) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
+			UFS_ABORT_TASK, &resp);
+	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
+		if (!err) {
+			err = resp; /* service response error */
+			dev_err(hba->dev, "%s: issued. tag = %d, err %d\n",
+				__func__, tag, err);
+		}
+		goto out;
+	}
+
+	err = ufshcd_clear_cmd(hba, tag);
+	if (err)
+		dev_err(hba->dev, "%s: Failed clearing cmd at tag %d, err %d\n",
+			__func__, tag, err);
+
+out:
+	return err;
+}
+
+/**
+ * ufshcd_abort - scsi host template eh_abort_handler callback
+ * @cmd: SCSI command pointer
  *
  * Returns SUCCESS/FAILED
  */
@@ -6519,8 +6594,6 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	unsigned int tag;
 	int err = 0;
-	int poll_cnt;
-	u8 resp = 0xF;
 	struct ufshcd_lrb *lrbp;
 	u32 reg;
 
@@ -6589,63 +6662,9 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
-		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
-				UFS_QUERY_TASK, &resp);
-		if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED) {
-			/* cmd pending in the device */
-			dev_err(hba->dev, "%s: cmd pending in the device. tag = %d\n",
-				__func__, tag);
-			break;
-		} else if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
-			/*
-			 * cmd not pending in the device, check if it is
-			 * in transition.
-			 */
-			dev_err(hba->dev, "%s: cmd at tag %d not pending in the device.\n",
-				__func__, tag);
-			reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
-			if (reg & (1 << tag)) {
-				/* sleep for max. 200us to stabilize */
-				usleep_range(100, 200);
-				continue;
-			}
-			/* command completed already */
-			dev_err(hba->dev, "%s: cmd at tag %d successfully cleared from DB.\n",
-				__func__, tag);
-			goto out;
-		} else {
-			dev_err(hba->dev,
-				"%s: no response from device. tag = %d, err %d\n",
-				__func__, tag, err);
-			if (!err)
-				err = resp; /* service response error */
-			goto out;
-		}
-	}
-
-	if (!poll_cnt) {
-		err = -EBUSY;
+	err = ufshcd_try_to_abort_task(hba, tag);
+	if (err)
 		goto out;
-	}
-
-	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
-			UFS_ABORT_TASK, &resp);
-	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
-		if (!err) {
-			err = resp; /* service response error */
-			dev_err(hba->dev, "%s: issued. tag = %d, err %d\n",
-				__func__, tag, err);
-		}
-		goto out;
-	}
-
-	err = ufshcd_clear_cmd(hba, tag);
-	if (err) {
-		dev_err(hba->dev, "%s: Failed clearing cmd at tag %d, err %d\n",
-			__func__, tag, err);
-		goto out;
-	}
 
 	spin_lock_irqsave(host->host_lock, flags);
 	__ufshcd_transfer_req_compl(hba, (1UL << tag));
