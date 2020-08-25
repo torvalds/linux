@@ -809,6 +809,42 @@ static ssize_t btrfs_checksum_show(struct kobject *kobj,
 
 BTRFS_ATTR(, checksum, btrfs_checksum_show);
 
+static ssize_t btrfs_exclusive_operation_show(struct kobject *kobj,
+		struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	const char *str;
+
+	switch (READ_ONCE(fs_info->exclusive_operation)) {
+		case  BTRFS_EXCLOP_NONE:
+			str = "none\n";
+			break;
+		case BTRFS_EXCLOP_BALANCE:
+			str = "balance\n";
+			break;
+		case BTRFS_EXCLOP_DEV_ADD:
+			str = "device add\n";
+			break;
+		case BTRFS_EXCLOP_DEV_REMOVE:
+			str = "device remove\n";
+			break;
+		case BTRFS_EXCLOP_DEV_REPLACE:
+			str = "device replace\n";
+			break;
+		case BTRFS_EXCLOP_RESIZE:
+			str = "resize\n";
+			break;
+		case BTRFS_EXCLOP_SWAP_ACTIVATE:
+			str = "swap activate\n";
+			break;
+		default:
+			str = "UNKNOWN\n";
+			break;
+	}
+	return scnprintf(buf, PAGE_SIZE, "%s", str);
+}
+BTRFS_ATTR(, exclusive_operation, btrfs_exclusive_operation_show);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -817,6 +853,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, quota_override),
 	BTRFS_ATTR_PTR(, metadata_uuid),
 	BTRFS_ATTR_PTR(, checksum),
+	BTRFS_ATTR_PTR(, exclusive_operation),
 	NULL,
 };
 

@@ -387,6 +387,7 @@ bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
 void btrfs_exclop_finish(struct btrfs_fs_info *fs_info)
 {
 	WRITE_ONCE(fs_info->exclusive_operation, BTRFS_EXCLOP_NONE);
+	sysfs_notify(&fs_info->fs_devices->fsid_kobj, NULL, "exclusive_operation");
 }
 
 /*
