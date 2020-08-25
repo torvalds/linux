@@ -782,7 +782,13 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 
 	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
 
-	data->recout.x = stream->dst.x;
+	/*
+	 * Only the leftmost ODM pipe should be offset by a nonzero distance
+	 */
+	if (!pipe_ctx->prev_odm_pipe)
+		data->recout.x = stream->dst.x;
+	else
+		data->recout.x = 0;
 	if (stream->src.x < surf_clip.x)
 		data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
 						/ stream->src.width;
@@ -957,7 +963,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *odm_pipe = pipe_ctx->prev_odm_pipe;
+	struct pipe_ctx *odm_pipe = pipe_ctx;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
 	int recout_skip_h, recout_skip_v, surf_size_h, surf_size_v;
@@ -988,21 +994,24 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 		swap(src.width, src.height);
 	}
 
+	/*modified recout_skip_h calculation due to odm having no recout offset*/
+	while (odm_pipe->prev_odm_pipe) {
+		odm_idx++;
+		odm_pipe = odm_pipe->prev_odm_pipe;
+	}
+	/*odm_pipe is the leftmost pipe in the ODM group*/
+	recout_skip_h = odm_idx * data->recout.width;
+
 	/* Recout matching initial vp offset = recout_offset - (stream dst offset +
 	 *			((surf dst offset - stream src offset) * 1/ stream scaling ratio)
 	 *			- (surf surf_src offset * 1/ full scl ratio))
 	 */
-	recout_skip_h = data->recout.x - (stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+	recout_skip_h += odm_pipe->plane_res.scl_data.recout.x
+				- (stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 					src.x * plane_state->dst_rect.width / src.width
 					* stream->dst.width / stream->src.width);
-	/*modified recout_skip_h calculation due to odm having no recout offset*/
-	while (odm_pipe) {
-		odm_idx++;
-		odm_pipe = odm_pipe->prev_odm_pipe;
-	}
-	if (odm_idx)
-		recout_skip_h += odm_idx * data->recout.width;
+
 
 	recout_skip_v = data->recout.y - (stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
