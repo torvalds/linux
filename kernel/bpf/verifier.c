@@ -8294,7 +8294,7 @@ static bool stacksafe(struct bpf_func_state *old,
 		if (old->stack[spi].slot_type[i % BPF_REG_SIZE] !=
 		    cur->stack[spi].slot_type[i % BPF_REG_SIZE])
 			/* Ex: old explored (safe) state has STACK_SPILL in
-			 * this stack slot, but current has has STACK_MISC ->
+			 * this stack slot, but current has STACK_MISC ->
 			 * this verifier states are not equivalent,
 			 * return false to continue verification of this path
 			 */

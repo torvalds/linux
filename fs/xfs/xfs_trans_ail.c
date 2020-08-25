@@ -480,7 +480,7 @@ xfsaild_push(
 			 * inode buffer is locked because we already pushed the
 			 * updates to it as part of inode clustering.
 			 *
-			 * We do not want to to stop flushing just because lots
+			 * We do not want to stop flushing just because lots
 			 * of items are already being flushed, but we need to
 			 * re-try the flushing relatively soon if most of the
 			 * AIL is being flushed.
@@ -515,7 +515,7 @@ xfsaild_push(
 		/*
 		 * Are there too many items we can't do anything with?
 		 *
-		 * If we we are skipping too many items because we can't flush
+		 * If we are skipping too many items because we can't flush
 		 * them or they are already being flushed, we back off and
 		 * given them time to complete whatever operation is being
 		 * done. i.e. remove pressure from the AIL while we can't make

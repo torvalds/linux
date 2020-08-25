@@ -29,6 +29,7 @@
 #include <asm/cache.h>
 #include <asm/pgalloc.h>
 #include <linux/sizes.h>
+#include "ioremap.h"
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
@@ -424,15 +425,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
 
 	return ret;
 }
-
-#ifdef CONFIG_NUMA
-int memory_add_physaddr_to_nid(u64 addr)
-{
-	/* Node 0 for now.. */
-	return 0;
-}
-EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
-#endif
 
 void arch_remove_memory(int nid, u64 start, u64 size,
 			struct vmem_altmap *altmap)

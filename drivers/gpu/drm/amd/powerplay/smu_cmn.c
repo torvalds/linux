@@ -166,7 +166,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 
 	switch (type) {
 	case CMN2ASIC_MAPPING_MSG:
-		if (index > SMU_MSG_MAX_COUNT ||
+		if (index >= SMU_MSG_MAX_COUNT ||
 		    !smu->message_map)
 			return -EINVAL;
 
@@ -181,7 +181,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return msg_mapping.map_to;
 
 	case CMN2ASIC_MAPPING_CLK:
-		if (index > SMU_CLK_COUNT ||
+		if (index >= SMU_CLK_COUNT ||
 		    !smu->clock_map)
 			return -EINVAL;
 
@@ -192,7 +192,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_FEATURE:
-		if (index > SMU_FEATURE_COUNT ||
+		if (index >= SMU_FEATURE_COUNT ||
 		    !smu->feature_map)
 			return -EINVAL;
 
@@ -203,7 +203,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_TABLE:
-		if (index > SMU_TABLE_COUNT ||
+		if (index >= SMU_TABLE_COUNT ||
 		    !smu->table_map)
 			return -EINVAL;
 
@@ -214,7 +214,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_PWR:
-		if (index > SMU_POWER_SOURCE_COUNT ||
+		if (index >= SMU_POWER_SOURCE_COUNT ||
 		    !smu->pwr_src_map)
 			return -EINVAL;
 

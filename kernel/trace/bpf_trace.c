@@ -383,7 +383,7 @@ static DEFINE_RAW_SPINLOCK(trace_printk_lock);
 
 #define BPF_TRACE_PRINTK_SIZE   1024
 
-static inline __printf(1, 0) int bpf_do_trace_printk(const char *fmt, ...)
+static __printf(1, 0) int bpf_do_trace_printk(const char *fmt, ...)
 {
 	static char buf[BPF_TRACE_PRINTK_SIZE];
 	unsigned long flags;

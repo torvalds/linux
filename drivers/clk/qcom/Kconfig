@@ -308,6 +308,15 @@ config SC_GCC_7180
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
 
+config SC_LPASS_CORECC_7180
+	tristate "SC7180 LPASS Core Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the LPASS(Low Power Audio Subsystem) core clock controller
+	  on SC7180 devices.
+	  Say Y if you want to use LPASS clocks and power domains of the LPASS
+	  core clock controller.
+
 config SC_GPUCC_7180
 	tristate "SC7180 Graphics Clock Controller"
 	select SC_GCC_7180
@@ -418,6 +427,22 @@ config SM_GCC_8250
 	  Support for the global clock controller on SM8250 devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SM_GPUCC_8150
+	tristate "SM8150 Graphics Clock Controller"
+	select SM_GCC_8150
+	help
+	  Support for the graphics clock controller on SM8150 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SM_GPUCC_8250
+	tristate "SM8250 Graphics Clock Controller"
+	select SM_GCC_8250
+	help
+	  Support for the graphics clock controller on SM8250 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
 
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"

@@ -119,17 +119,17 @@ then:
         # The LVDS encoder can use the EXTAL or DU_DOTCLKINx clocks.
         # These clocks are optional.
         - enum:
-          - extal
-          - dclkin.0
-          - dclkin.1
+            - extal
+            - dclkin.0
+            - dclkin.1
         - enum:
-          - extal
-          - dclkin.0
-          - dclkin.1
+            - extal
+            - dclkin.0
+            - dclkin.1
         - enum:
-          - extal
-          - dclkin.0
-          - dclkin.1
+            - extal
+            - dclkin.0
+            - dclkin.1
 
   required:
     - clock-names

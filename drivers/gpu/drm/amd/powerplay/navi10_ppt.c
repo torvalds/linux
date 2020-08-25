@@ -785,8 +785,6 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 
 static int navi10_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
@@ -796,14 +794,12 @@ static int navi10_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 			if (ret)
 				return ret;
 		}
-		power_gate->vcn_gated = false;
 	} else {
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->vcn_gated = true;
 	}
 
 	return ret;
@@ -811,8 +807,6 @@ static int navi10_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 
 static int navi10_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
@@ -821,14 +815,12 @@ static int navi10_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 			if (ret)
 				return ret;
 		}
-		power_gate->jpeg_gated = false;
 	} else {
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
 			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PowerDownJpeg, NULL);
 			if (ret)
 				return ret;
 		}
-		power_gate->jpeg_gated = true;
 	}
 
 	return ret;
@@ -2457,21 +2449,10 @@ static const struct i2c_algorithm navi10_i2c_algo = {
 	.functionality = navi10_i2c_func,
 };
 
-static bool navi10_i2c_adapter_is_added(struct i2c_adapter *control)
-{
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-
-	return control->dev.parent == &adev->pdev->dev;
-}
-
 static int navi10_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
-
-	/* smu_i2c_eeprom_init may be called twice in sriov */
-	if (navi10_i2c_adapter_is_added(control))
-		return 0;
 
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
@@ -2488,9 +2469,6 @@ static int navi10_i2c_control_init(struct smu_context *smu, struct i2c_adapter *
 
 static void navi10_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
 {
-	if (!navi10_i2c_adapter_is_added(control))
-		return;
-
 	i2c_del_adapter(control);
 }
 

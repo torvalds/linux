@@ -64,7 +64,7 @@ static void enter_exception64(struct kvm_vcpu *vcpu, unsigned long target_mode,
 	case PSR_MODE_EL1h:
 		vbar = vcpu_read_sys_reg(vcpu, VBAR_EL1);
 		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-		vcpu_write_elr_el1(vcpu, *vcpu_pc(vcpu));
+		vcpu_write_sys_reg(vcpu, *vcpu_pc(vcpu), ELR_EL1);
 		break;
 	default:
 		/* Don't do that */

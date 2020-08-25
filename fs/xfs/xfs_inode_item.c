@@ -191,7 +191,7 @@ xfs_inode_item_format_data_fork(
 		    ip->i_df.if_bytes > 0) {
 			/*
 			 * Round i_bytes up to a word boundary.
-			 * The underlying memory is guaranteed to
+			 * The underlying memory is guaranteed
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_df.if_bytes, 4);
@@ -275,7 +275,7 @@ xfs_inode_item_format_attr_fork(
 		    ip->i_afp->if_bytes > 0) {
 			/*
 			 * Round i_bytes up to a word boundary.
-			 * The underlying memory is guaranteed to
+			 * The underlying memory is guaranteed
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_afp->if_bytes, 4);

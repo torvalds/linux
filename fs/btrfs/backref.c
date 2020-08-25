@@ -2303,7 +2303,7 @@ struct btrfs_backref_iter *btrfs_backref_iter_alloc(
 		return NULL;
 
 	ret->path = btrfs_alloc_path();
-	if (!ret) {
+	if (!ret->path) {
 		kfree(ret);
 		return NULL;
 	}

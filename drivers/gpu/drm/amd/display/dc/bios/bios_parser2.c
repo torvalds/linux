@@ -2079,6 +2079,85 @@ static uint16_t bios_parser_pack_data_tables(
 	return 0;
 }
 
+static struct atom_dc_golden_table_v1 *bios_get_golden_table(
+		struct bios_parser *bp,
+		uint32_t rev_major,
+		uint32_t rev_minor,
+		uint16_t *dc_golden_table_ver)
+{
+	struct atom_display_controller_info_v4_4 *disp_cntl_tbl_4_4 = NULL;
+	uint32_t dc_golden_offset = 0;
+	*dc_golden_table_ver = 0;
+
+	if (!DATA_TABLES(dce_info))
+		return NULL;
+
+	/* ver.4.4 or higher */
+	switch (rev_major) {
+	case 4:
+		switch (rev_minor) {
+		case 4:
+			disp_cntl_tbl_4_4 = GET_IMAGE(struct atom_display_controller_info_v4_4,
+									DATA_TABLES(dce_info));
+			if (!disp_cntl_tbl_4_4)
+				return NULL;
+			dc_golden_offset = DATA_TABLES(dce_info) + disp_cntl_tbl_4_4->dc_golden_table_offset;
+			*dc_golden_table_ver = disp_cntl_tbl_4_4->dc_golden_table_ver;
+			break;
+		}
+		break;
+	}
+
+	if (!dc_golden_offset)
+		return NULL;
+
+	if (*dc_golden_table_ver != 1)
+		return NULL;
+
+	return GET_IMAGE(struct atom_dc_golden_table_v1,
+			dc_golden_offset);
+}
+
+static enum bp_result bios_get_atom_dc_golden_table(
+	struct dc_bios *dcb)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_dc_golden_table_v1 *atom_dc_golden_table = NULL;
+	struct atom_common_table_header *header;
+	struct atom_data_revision tbl_revision;
+	uint16_t dc_golden_table_ver = 0;
+
+	header = GET_IMAGE(struct atom_common_table_header,
+							DATA_TABLES(dce_info));
+	if (!header)
+		return BP_RESULT_UNSUPPORTED;
+
+	get_atom_data_table_revision(header, &tbl_revision);
+
+	atom_dc_golden_table = bios_get_golden_table(bp,
+			tbl_revision.major,
+			tbl_revision.minor,
+			&dc_golden_table_ver);
+
+	if (!atom_dc_golden_table)
+		return BP_RESULT_UNSUPPORTED;
+
+	dcb->golden_table.dc_golden_table_ver = dc_golden_table_ver;
+	dcb->golden_table.aux_dphy_rx_control0_val = atom_dc_golden_table->aux_dphy_rx_control0_val;
+	dcb->golden_table.aux_dphy_rx_control1_val = atom_dc_golden_table->aux_dphy_rx_control1_val;
+	dcb->golden_table.aux_dphy_tx_control_val = atom_dc_golden_table->aux_dphy_tx_control_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_0_val = atom_dc_golden_table->dc_gpio_aux_ctrl_0_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_1_val = atom_dc_golden_table->dc_gpio_aux_ctrl_1_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_2_val = atom_dc_golden_table->dc_gpio_aux_ctrl_2_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_3_val = atom_dc_golden_table->dc_gpio_aux_ctrl_3_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_4_val = atom_dc_golden_table->dc_gpio_aux_ctrl_4_val;
+	dcb->golden_table.dc_gpio_aux_ctrl_5_val = atom_dc_golden_table->dc_gpio_aux_ctrl_5_val;
+
+	return result;
+}
+
+
 static const struct dc_vbios_funcs vbios_funcs = {
 	.get_connectors_number = bios_parser_get_connectors_number,
 
@@ -2128,6 +2207,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_board_layout_info = bios_get_board_layout_info,
 	.pack_data_tables = bios_parser_pack_data_tables,
+
+	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table
 };
 
 static bool bios_parser2_construct(

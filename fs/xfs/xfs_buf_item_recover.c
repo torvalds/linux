@@ -948,7 +948,7 @@ xlog_recover_buf_commit_pass2(
 	 * or inode_cluster_size bytes, whichever is bigger.  The inode
 	 * buffers in the log can be a different size if the log was generated
 	 * by an older kernel using unclustered inode buffers or a newer kernel
-	 * running with a different inode cluster size.  Regardless, if the
+	 * running with a different inode cluster size.  Regardless, if
 	 * the inode buffer size isn't max(blocksize, inode_cluster_size)
 	 * for *our* value of inode_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't

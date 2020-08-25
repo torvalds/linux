@@ -4853,7 +4853,7 @@ static int skb_checksum_setup_ipv4(struct sk_buff *skb, bool recalculate)
 	if (err < 0)
 		goto out;
 
-	if (ip_hdr(skb)->frag_off & htons(IP_OFFSET | IP_MF))
+	if (ip_is_fragment(ip_hdr(skb)))
 		fragment = true;
 
 	off = ip_hdrlen(skb);

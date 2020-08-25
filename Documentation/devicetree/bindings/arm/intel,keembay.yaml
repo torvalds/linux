@@ -14,6 +14,6 @@ properties:
   compatible:
     items:
       - enum:
-        - intel,keembay-evm
+          - intel,keembay-evm
       - const: intel,keembay
 ...

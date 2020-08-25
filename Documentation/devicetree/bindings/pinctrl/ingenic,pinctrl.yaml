@@ -32,20 +32,20 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4740-pinctrl
-        - ingenic,jz4725b-pinctrl
-        - ingenic,jz4760-pinctrl
-        - ingenic,jz4770-pinctrl
-        - ingenic,jz4780-pinctrl
-        - ingenic,x1000-pinctrl
-        - ingenic,x1500-pinctrl
-        - ingenic,x1830-pinctrl
+          - ingenic,jz4740-pinctrl
+          - ingenic,jz4725b-pinctrl
+          - ingenic,jz4760-pinctrl
+          - ingenic,jz4770-pinctrl
+          - ingenic,jz4780-pinctrl
+          - ingenic,x1000-pinctrl
+          - ingenic,x1500-pinctrl
+          - ingenic,x1830-pinctrl
       - items:
-        - const: ingenic,jz4760b-pinctrl
-        - const: ingenic,jz4760-pinctrl
+          - const: ingenic,jz4760b-pinctrl
+          - const: ingenic,jz4760-pinctrl
       - items:
-        - const: ingenic,x1000e-pinctrl
-        - const: ingenic,x1000-pinctrl
+          - const: ingenic,x1000e-pinctrl
+          - const: ingenic,x1000-pinctrl
 
   reg:
     maxItems: 1

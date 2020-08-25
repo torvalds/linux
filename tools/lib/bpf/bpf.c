@@ -599,6 +599,9 @@ int bpf_link_create(int prog_fd, int target_fd,
 	attr.link_create.target_fd = target_fd;
 	attr.link_create.attach_type = attach_type;
 	attr.link_create.flags = OPTS_GET(opts, flags, 0);
+	attr.link_create.iter_info =
+		ptr_to_u64(OPTS_GET(opts, iter_info, (void *)0));
+	attr.link_create.iter_info_len = OPTS_GET(opts, iter_info_len, 0);
 
 	return sys_bpf(BPF_LINK_CREATE, &attr, sizeof(attr));
 }

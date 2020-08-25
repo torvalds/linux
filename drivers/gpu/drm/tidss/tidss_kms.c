@@ -154,7 +154,7 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 				break;
 			case DISPC_VP_DPI:
 				enc_type = DRM_MODE_ENCODER_DPI;
-				conn_type = DRM_MODE_CONNECTOR_LVDS;
+				conn_type = DRM_MODE_CONNECTOR_DPI;
 				break;
 			default:
 				WARN_ON(1);

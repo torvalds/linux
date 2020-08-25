@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   compatible:
-      const: cirrus,cs42l51
+    const: cirrus,cs42l51
 
   reg:
     maxItems: 1

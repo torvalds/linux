@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
-PATCHLEVEL = 8
+PATCHLEVEL = 9
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc1
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
@@ -891,6 +891,10 @@ ifdef CONFIG_SHADOW_CALL_STACK
 CC_FLAGS_SCS	:= -fsanitize=shadow-call-stack
 KBUILD_CFLAGS	+= $(CC_FLAGS_SCS)
 export CC_FLAGS_SCS
+endif
+
+ifdef CONFIG_DEBUG_FORCE_FUNCTION_ALIGN_32B
+KBUILD_CFLAGS += -falign-functions=32
 endif
 
 # arch Makefile may override CC so keep this after arch Makefile is included

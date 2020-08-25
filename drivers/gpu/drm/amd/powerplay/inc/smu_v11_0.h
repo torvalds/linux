@@ -30,8 +30,8 @@
 #define SMU11_DRIVER_IF_VERSION_NV10 0x36
 #define SMU11_DRIVER_IF_VERSION_NV12 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x36
-#define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x33
-#define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x2
+#define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x34
+#define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x3
 
 /* MP Apertures */
 #define MP0_Public			0x03800000

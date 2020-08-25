@@ -2056,7 +2056,7 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 	struct machine *machine;
 	u16 cpumode;
 	struct dso *dso;
-	enum dso_kernel_type dso_type;
+	enum dso_space_type dso_space;
 
 	machine = perf_session__findnew_machine(session, bev->pid);
 	if (!machine)
@@ -2066,14 +2066,14 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		dso_type = DSO_TYPE_KERNEL;
+		dso_space = DSO_SPACE__KERNEL;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		dso_type = DSO_TYPE_GUEST_KERNEL;
+		dso_space = DSO_SPACE__KERNEL_GUEST;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
-		dso_type = DSO_TYPE_USER;
+		dso_space = DSO_SPACE__USER;
 		break;
 	default:
 		goto out;
@@ -2085,14 +2085,13 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (dso_type != DSO_TYPE_USER) {
+		if (dso_space != DSO_SPACE__USER) {
 			struct kmod_path m = { .name = NULL, };
 
 			if (!kmod_path__parse_name(&m, filename) && m.kmod)
 				dso__set_module_info(dso, &m, machine);
-			else
-				dso->kernel = dso_type;
 
+			dso->kernel = dso_space;
 			free(m.name);
 		}
 

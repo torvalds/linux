@@ -24,19 +24,19 @@ properties:
       - const: fsl,imx21-kpp
       - items:
           - enum:
-            - fsl,imx25-kpp
-            - fsl,imx27-kpp
-            - fsl,imx31-kpp
-            - fsl,imx35-kpp
-            - fsl,imx51-kpp
-            - fsl,imx53-kpp
-            - fsl,imx50-kpp
-            - fsl,imx6q-kpp
-            - fsl,imx6sx-kpp
-            - fsl,imx6sl-kpp
-            - fsl,imx6sll-kpp
-            - fsl,imx6ul-kpp
-            - fsl,imx7d-kpp
+              - fsl,imx25-kpp
+              - fsl,imx27-kpp
+              - fsl,imx31-kpp
+              - fsl,imx35-kpp
+              - fsl,imx51-kpp
+              - fsl,imx53-kpp
+              - fsl,imx50-kpp
+              - fsl,imx6q-kpp
+              - fsl,imx6sx-kpp
+              - fsl,imx6sl-kpp
+              - fsl,imx6sll-kpp
+              - fsl,imx6ul-kpp
+              - fsl,imx7d-kpp
           - const: fsl,imx21-kpp
 
   reg:

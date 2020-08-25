@@ -1100,7 +1100,7 @@ xlog_verify_head(
 		 *
 		 * Note that xlog_find_tail() clears the blocks at the new head
 		 * (i.e., the records with invalid CRC) if the cycle number
-		 * matches the the current cycle.
+		 * matches the current cycle.
 		 */
 		found = xlog_rseek_logrec_hdr(log, first_bad, *tail_blk, 1,
 				buffer, rhead_blk, rhead, wrapped);

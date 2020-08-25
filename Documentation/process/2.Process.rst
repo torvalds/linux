@@ -113,7 +113,7 @@ than one development cycle past their initial release. So, for example, the
 5.2 kernel's history looked like this (all dates in 2019):
 
 	==============  ===============================
-	September 15 	5.2 stable release
+	July 7		5.2 stable release
 	July 14		5.2.1
 	July 21		5.2.2
 	July 26		5.2.3

@@ -820,22 +820,22 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE))
 		return 1;
 
-	if (cr0 & X86_CR0_PG) {
 #ifdef CONFIG_X86_64
-		if (!is_paging(vcpu) && (vcpu->arch.efer & EFER_LME)) {
-			int cs_db, cs_l;
+	if ((vcpu->arch.efer & EFER_LME) && !is_paging(vcpu) &&
+	    (cr0 & X86_CR0_PG)) {
+		int cs_db, cs_l;
 
-			if (!is_pae(vcpu))
-				return 1;
-			kvm_x86_ops.get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-			if (cs_l)
-				return 1;
-		} else
-#endif
-		if (is_pae(vcpu) && ((cr0 ^ old_cr0) & pdptr_bits) &&
-		    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu)))
+		if (!is_pae(vcpu))
+			return 1;
+		kvm_x86_ops.get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+		if (cs_l)
 			return 1;
 	}
+#endif
+	if (!(vcpu->arch.efer & EFER_LME) && (cr0 & X86_CR0_PG) &&
+	    is_pae(vcpu) && ((cr0 ^ old_cr0) & pdptr_bits) &&
+	    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu)))
+		return 1;
 
 	if (!(cr0 & X86_CR0_PG) && kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
 		return 1;

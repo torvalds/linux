@@ -58,7 +58,7 @@ Bus and Subdevices
 
 For each Intel TH device in the system a bus of its own is
 created and assigned an id number that reflects the order in which TH
-devices were emumerated. All TH subdevices (devices on intel_th bus)
+devices were enumerated. All TH subdevices (devices on intel_th bus)
 begin with this id: 0-gth, 0-msc0, 0-msc1, 0-pti, 0-sth, which is
 followed by device's name and an optional index.
 

@@ -298,7 +298,7 @@ static __u64 crush_ln(unsigned int xin)
  *
  * for reference, see:
  *
- * http://en.wikipedia.org/wiki/Exponential_distribution#Distribution_of_the_minimum_of_exponential_random_variables
+ * https://en.wikipedia.org/wiki/Exponential_distribution#Distribution_of_the_minimum_of_exponential_random_variables
  *
  */
 

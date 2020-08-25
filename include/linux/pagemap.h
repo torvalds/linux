@@ -381,7 +381,7 @@ static inline struct page *find_subpage(struct page *head, pgoff_t index)
 	if (PageHuge(head))
 		return head;
 
-	return head + (index & (hpage_nr_pages(head) - 1));
+	return head + (index & (thp_nr_pages(head) - 1));
 }
 
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
@@ -773,7 +773,7 @@ static inline struct page *readahead_page(struct readahead_control *rac)
 
 	page = xa_load(&rac->mapping->i_pages, rac->_index);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	rac->_batch_count = hpage_nr_pages(page);
+	rac->_batch_count = thp_nr_pages(page);
 
 	return page;
 }
@@ -796,7 +796,7 @@ static inline unsigned int __readahead_batch(struct readahead_control *rac,
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
 		VM_BUG_ON_PAGE(PageTail(page), page);
 		array[i++] = page;
-		rac->_batch_count += hpage_nr_pages(page);
+		rac->_batch_count += thp_nr_pages(page);
 
 		/*
 		 * The page cache isn't using multi-index entries yet,

@@ -164,7 +164,7 @@
 150	o32	unused150			sys_ni_syscall
 151	o32	getsid				sys_getsid
 152	o32	fdatasync			sys_fdatasync
-153	o32	_sysctl				sys_sysctl			compat_sys_sysctl
+153	o32	_sysctl				sys_ni_syscall
 154	o32	mlock				sys_mlock
 155	o32	munlock				sys_munlock
 156	o32	mlockall			sys_mlockall

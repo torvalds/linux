@@ -44,8 +44,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Sets TDM RX capture edge.
     enum:
-          - 0 # Rising edge
-          - 1 # Falling edge
+      - 0 # Rising edge
+      - 1 # Falling edge
 
   '#sound-dai-cells':
     const: 1

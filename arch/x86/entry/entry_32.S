@@ -449,8 +449,6 @@
 
 .macro SWITCH_TO_KERNEL_STACK
 
-	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
-
 	BUG_IF_WRONG_CR3
 
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
@@ -598,8 +596,6 @@
  * Therefore we switch the stack only after everything is copied over.
  */
 .macro SWITCH_TO_ENTRY_STACK
-
-	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
 
 	/* Bytes to copy */
 	movl	$PTREGS_SIZE, %ecx
@@ -872,17 +868,6 @@ SYM_ENTRY(__begin_SYSENTER_singlestep_region, SYM_L_GLOBAL, SYM_A_NONE)
  * will ignore all of the single-step traps generated in this range.
  */
 
-#ifdef CONFIG_XEN_PV
-/*
- * Xen doesn't set %esp to be precisely what the normal SYSENTER
- * entry point expects, so fix it up before using the normal path.
- */
-SYM_CODE_START(xen_sysenter_target)
-	addl	$5*4, %esp			/* remove xen-provided frame */
-	jmp	.Lsysenter_past_esp
-SYM_CODE_END(xen_sysenter_target)
-#endif
-
 /*
  * 32-bit SYSENTER entry.
  *
@@ -965,9 +950,8 @@ SYM_FUNC_START(entry_SYSENTER_32)
 
 	movl	%esp, %eax
 	call	do_SYSENTER_32
-	/* XEN PV guests always use IRET path */
-	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
-		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
+	testl	%eax, %eax
+	jz	.Lsyscall_32_done
 
 	STACKLEAK_ERASE
 
@@ -1164,95 +1148,6 @@ SYM_FUNC_END(entry_INT80_32)
 .Lno_fixup_\@:
 #endif
 .endm
-
-#ifdef CONFIG_PARAVIRT
-SYM_CODE_START(native_iret)
-	iret
-	_ASM_EXTABLE(native_iret, asm_iret_error)
-SYM_CODE_END(native_iret)
-#endif
-
-#ifdef CONFIG_XEN_PV
-/*
- * See comment in entry_64.S for further explanation
- *
- * Note: This is not an actual IDT entry point. It's a XEN specific entry
- * point and therefore named to match the 64-bit trampoline counterpart.
- */
-SYM_FUNC_START(xen_asm_exc_xen_hypervisor_callback)
-	/*
-	 * Check to see if we got the event in the critical
-	 * region in xen_iret_direct, after we've reenabled
-	 * events and checked for pending events.  This simulates
-	 * iret instruction's behaviour where it delivers a
-	 * pending interrupt when enabling interrupts:
-	 */
-	cmpl	$xen_iret_start_crit, (%esp)
-	jb	1f
-	cmpl	$xen_iret_end_crit, (%esp)
-	jae	1f
-	call	xen_iret_crit_fixup
-1:
-	pushl	$-1				/* orig_ax = -1 => not a system call */
-	SAVE_ALL
-	ENCODE_FRAME_POINTER
-
-	mov	%esp, %eax
-	call	xen_pv_evtchn_do_upcall
-	jmp	handle_exception_return
-SYM_FUNC_END(xen_asm_exc_xen_hypervisor_callback)
-
-/*
- * Hypervisor uses this for application faults while it executes.
- * We get here for two reasons:
- *  1. Fault while reloading DS, ES, FS or GS
- *  2. Fault while executing IRET
- * Category 1 we fix up by reattempting the load, and zeroing the segment
- * register if the load fails.
- * Category 2 we fix up by jumping to do_iret_error. We cannot use the
- * normal Linux return path in this case because if we use the IRET hypercall
- * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
- * We distinguish between categories by maintaining a status value in EAX.
- */
-SYM_FUNC_START(xen_failsafe_callback)
-	pushl	%eax
-	movl	$1, %eax
-1:	mov	4(%esp), %ds
-2:	mov	8(%esp), %es
-3:	mov	12(%esp), %fs
-4:	mov	16(%esp), %gs
-	/* EAX == 0 => Category 1 (Bad segment)
-	   EAX != 0 => Category 2 (Bad IRET) */
-	testl	%eax, %eax
-	popl	%eax
-	lea	16(%esp), %esp
-	jz	5f
-	jmp	asm_iret_error
-5:	pushl	$-1				/* orig_ax = -1 => not a system call */
-	SAVE_ALL
-	ENCODE_FRAME_POINTER
-	jmp	handle_exception_return
-
-.section .fixup, "ax"
-6:	xorl	%eax, %eax
-	movl	%eax, 4(%esp)
-	jmp	1b
-7:	xorl	%eax, %eax
-	movl	%eax, 8(%esp)
-	jmp	2b
-8:	xorl	%eax, %eax
-	movl	%eax, 12(%esp)
-	jmp	3b
-9:	xorl	%eax, %eax
-	movl	%eax, 16(%esp)
-	jmp	4b
-.previous
-	_ASM_EXTABLE(1b, 6b)
-	_ASM_EXTABLE(2b, 7b)
-	_ASM_EXTABLE(3b, 8b)
-	_ASM_EXTABLE(4b, 9b)
-SYM_FUNC_END(xen_failsafe_callback)
-#endif /* CONFIG_XEN_PV */
 
 SYM_CODE_START_LOCAL_NOALIGN(handle_exception)
 	/* the function address is in %gs's slot on the stack */

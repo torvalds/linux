@@ -97,13 +97,13 @@ allOf:
         clock-names:
           oneOf:
             - items:
-              - const: t0_clk
-              - const: slow_clk
+                - const: t0_clk
+                - const: slow_clk
             - items:
-              - const: t0_clk
-              - const: t1_clk
-              - const: t2_clk
-              - const: slow_clk
+                - const: t0_clk
+                - const: t1_clk
+                - const: t2_clk
+                - const: slow_clk
 
 required:
   - compatible

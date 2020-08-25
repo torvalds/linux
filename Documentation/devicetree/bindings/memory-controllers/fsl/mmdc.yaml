@@ -15,12 +15,12 @@ properties:
       - const: fsl,imx6q-mmdc
       - items:
           - enum:
-            - fsl,imx6qp-mmdc
-            - fsl,imx6sl-mmdc
-            - fsl,imx6sll-mmdc
-            - fsl,imx6sx-mmdc
-            - fsl,imx6ul-mmdc
-            - fsl,imx7ulp-mmdc
+              - fsl,imx6qp-mmdc
+              - fsl,imx6sl-mmdc
+              - fsl,imx6sll-mmdc
+              - fsl,imx6sx-mmdc
+              - fsl,imx6ul-mmdc
+              - fsl,imx7ulp-mmdc
           - const: fsl,imx6q-mmdc
 
   reg:

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/gpmi-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:  Freescale General-Purpose Media Interface (GPMI) binding
+title: Freescale General-Purpose Media Interface (GPMI) binding
 
 maintainers:
   - Han Xu <han.xu@nxp.com>

@@ -95,7 +95,7 @@
 
 /**
  * struct imxdi_dev - private imxdi rtc data
- * @pdev: pionter to platform dev
+ * @pdev: pointer to platform dev
  * @rtc: pointer to rtc struct
  * @ioaddr: IO registers pointer
  * @clk: input reference clock
@@ -350,7 +350,7 @@ static int di_handle_invalid_and_failure_state(struct imxdi_dev *imxdi, u32 dsr)
 			 * the tamper register is locked. We cannot disable the
 			 * tamper detection. The TDCHL can only be reset by a
 			 * DRYICE POR, but we cannot force a DRYICE POR in
-			 * softwere because we are still in "FAILURE STATE".
+			 * software because we are still in "FAILURE STATE".
 			 * We need a DRYICE POR via battery power cycling....
 			 */
 			/*

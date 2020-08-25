@@ -119,14 +119,6 @@ static void __init xen_banner(void)
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
-
-#ifdef CONFIG_X86_32
-	pr_warn("WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!\n"
-		"Support for running as 32-bit PV-guest under Xen will soon be removed\n"
-		"from the Linux kernel!\n"
-		"Please use either a 64-bit kernel or switch to HVM or PVH mode!\n"
-		"WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!\n");
-#endif
 }
 
 static void __init xen_pv_init_platform(void)
@@ -353,15 +345,13 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	pte_t *ptep;
 	pte_t pte;
 	unsigned long pfn;
-	struct page *page;
 	unsigned char dummy;
+	void *va;
 
 	ptep = lookup_address((unsigned long)v, &level);
 	BUG_ON(ptep == NULL);
 
 	pfn = pte_pfn(*ptep);
-	page = pfn_to_page(pfn);
-
 	pte = pfn_pte(pfn, prot);
 
 	/*
@@ -391,14 +381,10 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
 		BUG();
 
-	if (!PageHighMem(page)) {
-		void *av = __va(PFN_PHYS(pfn));
+	va = __va(PFN_PHYS(pfn));
 
-		if (av != v)
-			if (HYPERVISOR_update_va_mapping((unsigned long)av, pte, 0))
-				BUG();
-	} else
-		kmap_flush_unused();
+	if (va != v && HYPERVISOR_update_va_mapping((unsigned long)va, pte, 0))
+		BUG();
 
 	preempt_enable();
 }
@@ -538,30 +524,12 @@ static void load_TLS_descriptor(struct thread_struct *t,
 static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 {
 	/*
-	 * XXX sleazy hack: If we're being called in a lazy-cpu zone
-	 * and lazy gs handling is enabled, it means we're in a
-	 * context switch, and %gs has just been saved.  This means we
-	 * can zero it out to prevent faults on exit from the
-	 * hypervisor if the next process has no %gs.  Either way, it
-	 * has been saved, and the new value will get loaded properly.
-	 * This will go away as soon as Xen has been modified to not
-	 * save/restore %gs for normal hypercalls.
-	 *
-	 * On x86_64, this hack is not used for %gs, because gs points
-	 * to KERNEL_GS_BASE (and uses it for PDA references), so we
-	 * must not zero %gs on x86_64
-	 *
-	 * For x86_64, we need to zero %fs, otherwise we may get an
+	 * In lazy mode we need to zero %fs, otherwise we may get an
 	 * exception between the new %fs descriptor being loaded and
 	 * %fs being effectively cleared at __switch_to().
 	 */
-	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU) {
-#ifdef CONFIG_X86_32
-		lazy_load_gs(0);
-#else
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)
 		loadsegment(fs, 0);
-#endif
-	}
 
 	xen_mc_batch();
 
@@ -572,13 +540,11 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 }
 
-#ifdef CONFIG_X86_64
 static void xen_load_gs_index(unsigned int idx)
 {
 	if (HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, idx))
 		BUG();
 }
-#endif
 
 static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 				const void *ptr)
@@ -597,7 +563,6 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 	preempt_enable();
 }
 
-#ifdef CONFIG_X86_64
 void noist_exc_debug(struct pt_regs *regs);
 
 DEFINE_IDTENTRY_RAW(xenpv_exc_nmi)
@@ -697,7 +662,6 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 
 	return true;
 }
-#endif
 
 static int cvt_gate_to_trap(int vector, const gate_desc *val,
 			    struct trap_info *info)
@@ -710,10 +674,8 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 	info->vector = vector;
 
 	addr = gate_offset(val);
-#ifdef CONFIG_X86_64
 	if (!get_trap_addr((void **)&addr, val->bits.ist))
 		return 0;
-#endif	/* CONFIG_X86_64 */
 	info->address = addr;
 
 	info->cs = gate_segment(val);
@@ -958,15 +920,12 @@ static u64 xen_read_msr_safe(unsigned int msr, int *err)
 static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 {
 	int ret;
-#ifdef CONFIG_X86_64
 	unsigned int which;
 	u64 base;
-#endif
 
 	ret = 0;
 
 	switch (msr) {
-#ifdef CONFIG_X86_64
 	case MSR_FS_BASE:		which = SEGBASE_FS; goto set;
 	case MSR_KERNEL_GS_BASE:	which = SEGBASE_GS_USER; goto set;
 	case MSR_GS_BASE:		which = SEGBASE_GS_KERNEL; goto set;
@@ -976,7 +935,6 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		if (HYPERVISOR_set_segment_base(which, base) != 0)
 			ret = -EIO;
 		break;
-#endif
 
 	case MSR_STAR:
 	case MSR_CSTAR:
@@ -1058,9 +1016,7 @@ void __init xen_setup_vcpu_info_placement(void)
 static const struct pv_info xen_info __initconst = {
 	.shared_kernel_pmd = 0,
 
-#ifdef CONFIG_X86_64
 	.extra_user_64bit_cs = FLAT_USER_CS64,
-#endif
 	.name = "Xen",
 };
 
@@ -1086,18 +1042,14 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_pmc = xen_read_pmc,
 
 	.iret = xen_iret,
-#ifdef CONFIG_X86_64
 	.usergs_sysret64 = xen_sysret64,
-#endif
 
 	.load_tr_desc = paravirt_nop,
 	.set_ldt = xen_set_ldt,
 	.load_gdt = xen_load_gdt,
 	.load_idt = xen_load_idt,
 	.load_tls = xen_load_tls,
-#ifdef CONFIG_X86_64
 	.load_gs_index = xen_load_gs_index,
-#endif
 
 	.alloc_ldt = xen_alloc_ldt,
 	.free_ldt = xen_free_ldt,
@@ -1364,15 +1316,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 
-#ifdef CONFIG_X86_32
-	pv_info.kernel_rpl = 1;
-	if (xen_feature(XENFEAT_supervisor_mode_kernel))
-		pv_info.kernel_rpl = 0;
-#else
 	pv_info.kernel_rpl = 0;
-#endif
-	/* set the limit of our address space */
-	xen_reserve_top();
 
 	/*
 	 * We used to do this in xen_arch_setup, but that is too late
@@ -1384,12 +1328,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	if (rc != 0)
 		xen_raw_printk("physdev_op failed %d\n", rc);
 
-#ifdef CONFIG_X86_32
-	/* set up basic CPUID stuff */
-	cpu_detect(&new_cpu_data);
-	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
-	new_cpu_data.x86_capability[CPUID_1_EDX] = cpuid_edx(1);
-#endif
 
 	if (xen_start_info->mod_start) {
 	    if (xen_start_info->flags & SIF_MOD_START_PFN)
@@ -1458,12 +1396,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_efi_init(&boot_params);
 
 	/* Start the world */
-#ifdef CONFIG_X86_32
-	i386_start_kernel();
-#else
 	cr4_init_shadow(); /* 32b kernel does this in i386_start_kernel() */
 	x86_64_start_reservations((char *)__pa_symbol(&boot_params));
-#endif
 }
 
 static int xen_cpu_up_prepare_pv(unsigned int cpu)

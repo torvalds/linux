@@ -147,7 +147,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 #if CONFIG_PGTABLE_LEVELS > 3
 
-#ifndef __HAVE_ARCH_PUD_FREE
+#ifndef __HAVE_ARCH_PUD_ALLOC_ONE
 /**
  * pud_alloc_one - allocate a page for PUD-level page table
  * @mm: the mm_struct of the current context

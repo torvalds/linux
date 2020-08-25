@@ -3883,7 +3883,7 @@ static int tracing_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *
 	return -EINVAL;
 }
 
-#define BPF_LINK_CREATE_LAST_FIELD link_create.flags
+#define BPF_LINK_CREATE_LAST_FIELD link_create.iter_info_len
 static int link_create(union bpf_attr *attr)
 {
 	enum bpf_prog_type ptype;

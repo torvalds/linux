@@ -44,7 +44,7 @@ MODULE_PARM_DESC(aux_timeout_ms, "DP aux timeout value in msec (default: 50)");
  */
 static uint zynqmp_dp_power_on_delay_ms = 4;
 module_param_named(power_on_delay_ms, zynqmp_dp_power_on_delay_ms, uint, 0444);
-MODULE_PARM_DESC(aux_timeout_ms, "DP power on delay in msec (default: 4)");
+MODULE_PARM_DESC(power_on_delay_ms, "DP power on delay in msec (default: 4)");
 
 /* Link configuration registers */
 #define ZYNQMP_DP_LINK_BW_SET				0x0
@@ -567,34 +567,37 @@ static int zynqmp_dp_mode_configure(struct zynqmp_dp *dp, int pclock,
 				    u8 current_bw)
 {
 	int max_rate = dp->link_config.max_rate;
-	u8 bws[3] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7, DP_LINK_BW_5_4 };
+	u8 bw_code;
 	u8 max_lanes = dp->link_config.max_lanes;
 	u8 max_link_rate_code = drm_dp_link_rate_to_bw_code(max_rate);
 	u8 bpp = dp->config.bpp;
 	u8 lane_cnt;
-	s8 i;
 
-	if (current_bw == DP_LINK_BW_1_62) {
+	/* Downshift from current bandwidth */
+	switch (current_bw) {
+	case DP_LINK_BW_5_4:
+		bw_code = DP_LINK_BW_2_7;
+		break;
+	case DP_LINK_BW_2_7:
+		bw_code = DP_LINK_BW_1_62;
+		break;
+	case DP_LINK_BW_1_62:
 		dev_err(dp->dev, "can't downshift. already lowest link rate\n");
 		return -EINVAL;
-	}
-
-	for (i = ARRAY_SIZE(bws) - 1; i >= 0; i--) {
-		if (current_bw && bws[i] >= current_bw)
-			continue;
-
-		if (bws[i] <= max_link_rate_code)
-			break;
+	default:
+		/* If not given, start with max supported */
+		bw_code = max_link_rate_code;
+		break;
 	}
 
 	for (lane_cnt = 1; lane_cnt <= max_lanes; lane_cnt <<= 1) {
 		int bw;
 		u32 rate;
 
-		bw = drm_dp_bw_code_to_link_rate(bws[i]);
+		bw = drm_dp_bw_code_to_link_rate(bw_code);
 		rate = zynqmp_dp_max_rate(bw, lane_cnt, bpp);
 		if (pclock <= rate) {
-			dp->mode.bw_code = bws[i];
+			dp->mode.bw_code = bw_code;
 			dp->mode.lane_cnt = lane_cnt;
 			dp->mode.pclock = pclock;
 			return dp->mode.bw_code;
@@ -1308,7 +1311,7 @@ zynqmp_dp_connector_detect(struct drm_connector *connector, bool force)
 		ret = drm_dp_dpcd_read(&dp->aux, 0x0, dp->dpcd,
 				       sizeof(dp->dpcd));
 		if (ret < 0) {
-			dev_dbg(dp->dev, "DPCD read failes");
+			dev_dbg(dp->dev, "DPCD read failed");
 			goto disconnected;
 		}
 

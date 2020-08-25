@@ -8,26 +8,9 @@
 #ifndef _LINUX_SOCKPTR_H
 #define _LINUX_SOCKPTR_H
 
-#include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
-typedef union {
-	void		*kernel;
-	void __user	*user;
-} sockptr_t;
-
-static inline bool sockptr_is_kernel(sockptr_t sockptr)
-{
-	return (unsigned long)sockptr.kernel >= TASK_SIZE;
-}
-
-static inline sockptr_t KERNEL_SOCKPTR(void *p)
-{
-	return (sockptr_t) { .kernel = p };
-}
-#else /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
 typedef struct {
 	union {
 		void		*kernel;
@@ -45,15 +28,10 @@ static inline sockptr_t KERNEL_SOCKPTR(void *p)
 {
 	return (sockptr_t) { .kernel = p, .is_kernel = true };
 }
-#endif /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
 
-static inline int __must_check init_user_sockptr(sockptr_t *sp, void __user *p,
-		size_t size)
+static inline sockptr_t USER_SOCKPTR(void __user *p)
 {
-	if (!access_ok(p, size))
-		return -EFAULT;
-	*sp = (sockptr_t) { .user = p };
-	return 0;
+	return (sockptr_t) { .user = p };
 }
 
 static inline bool sockptr_is_null(sockptr_t sockptr)

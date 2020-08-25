@@ -1756,6 +1756,7 @@ err:
 /* Called with ovs_mutex. */
 static void __dp_destroy(struct datapath *dp)
 {
+	struct flow_table *table = &dp->table;
 	int i;
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
@@ -1774,7 +1775,14 @@ static void __dp_destroy(struct datapath *dp)
 	 */
 	ovs_dp_detach_port(ovs_vport_ovsl(dp, OVSP_LOCAL));
 
-	/* RCU destroy the flow table */
+	/* Flush sw_flow in the tables. RCU cb only releases resource
+	 * such as dp, ports and tables. That may avoid some issues
+	 * such as RCU usage warning.
+	 */
+	table_instance_flow_flush(table, ovsl_dereference(table->ti),
+				  ovsl_dereference(table->ufid_ti));
+
+	/* RCU destroy the ports, meters and flow tables. */
 	call_rcu(&dp->rcu, destroy_dp_rcu);
 }
 

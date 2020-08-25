@@ -890,6 +890,10 @@ struct task_struct {
 	/* Empty if CONFIG_POSIX_CPUTIMERS=n */
 	struct posix_cputimers		posix_cputimers;
 
+#ifdef CONFIG_POSIX_CPU_TIMERS_TASK_WORK
+	struct posix_cputimers_work	posix_cputimers_work;
+#endif
+
 	/* Process credentials: */
 
 	/* Tracer's credentials at attach: */

@@ -2,7 +2,7 @@
 /*
  *   S/390 debug facility
  *
- *    Copyright IBM Corp. 1999, 2012
+ *    Copyright IBM Corp. 1999, 2020
  *
  *    Author(s): Michael Holzheu (holzheu@de.ibm.com),
  *		 Holger Smolinski (Holger.Smolinski@de.ibm.com)
@@ -433,7 +433,7 @@ static int debug_format_entry(file_private_info_t *p_info)
 	act_entry = (debug_entry_t *) ((char *)id_snap->areas[p_info->act_area]
 				       [p_info->act_page] + p_info->act_entry);
 
-	if (act_entry->id.stck == 0LL)
+	if (act_entry->clock == 0LL)
 		goto out; /* empty entry */
 	if (view->header_proc)
 		len += view->header_proc(id_snap, view, p_info->act_area,
@@ -829,12 +829,17 @@ static inline debug_entry_t *get_active_entry(debug_info_t *id)
 static inline void debug_finish_entry(debug_info_t *id, debug_entry_t *active,
 				      int level, int exception)
 {
-	active->id.stck = get_tod_clock_fast() -
-		*(unsigned long long *) &tod_clock_base[1];
-	active->id.fields.cpuid = smp_processor_id();
+	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+	unsigned long timestamp;
+
+	get_tod_clock_ext(clk);
+	timestamp = *(unsigned long *) &clk[0] >> 4;
+	timestamp -= TOD_UNIX_EPOCH >> 12;
+	active->clock = timestamp;
+	active->cpu = smp_processor_id();
 	active->caller = __builtin_return_address(0);
-	active->id.fields.exception = exception;
-	active->id.fields.level = level;
+	active->exception = exception;
+	active->level = level;
 	proceed_active_entry(id);
 	if (exception)
 		proceed_active_area(id);
@@ -1398,25 +1403,24 @@ static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
 int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 			 int area, debug_entry_t *entry, char *out_buf)
 {
-	unsigned long base, sec, usec;
+	unsigned long sec, usec;
 	unsigned long caller;
 	unsigned int level;
 	char *except_str;
 	int rc = 0;
 
-	level = entry->id.fields.level;
-	base = (*(unsigned long *) &tod_clock_base[0]) >> 4;
-	sec = (entry->id.stck >> 12) + base - (TOD_UNIX_EPOCH >> 12);
+	level = entry->level;
+	sec = entry->clock;
 	usec = do_div(sec, USEC_PER_SEC);
 
-	if (entry->id.fields.exception)
+	if (entry->exception)
 		except_str = "*";
 	else
 		except_str = "-";
 	caller = (unsigned long) entry->caller;
-	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %02i %pK  ",
+	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %04u %pK  ",
 		      area, sec, usec, level, except_str,
-		      entry->id.fields.cpuid, (void *)caller);
+		      entry->cpu, (void *)caller);
 	return rc;
 }
 EXPORT_SYMBOL(debug_dflt_header_fn);

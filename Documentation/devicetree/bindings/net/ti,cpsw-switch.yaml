@@ -35,7 +35,7 @@ properties:
   reg:
     maxItems: 1
     description:
-       The physical base address and size of full the CPSW module IO range
+      The physical base address and size of full the CPSW module IO range
 
   '#address-cells':
     const: 1
@@ -85,36 +85,36 @@ properties:
 
     patternProperties:
       "^port@[0-9]+$":
-          type: object
-          description: CPSW external ports
+        type: object
+        description: CPSW external ports
 
-          allOf:
-            - $ref: ethernet-controller.yaml#
+        allOf:
+          - $ref: ethernet-controller.yaml#
 
-          properties:
-            reg:
-              items:
-                - enum: [1, 2]
-              description: CPSW port number
+        properties:
+          reg:
+            items:
+              - enum: [1, 2]
+            description: CPSW port number
 
-            phys:
-              maxItems: 1
-              description:  phandle on phy-gmii-sel PHY
+          phys:
+            maxItems: 1
+            description: phandle on phy-gmii-sel PHY
 
-            label:
-              description: label associated with this port
+          label:
+            description: label associated with this port
 
-            ti,dual-emac-pvid:
-              $ref: /schemas/types.yaml#/definitions/uint32
-              minimum: 1
-              maximum: 1024
-              description:
-                Specifies default PORT VID to be used to segregate
-                ports. Default value - CPSW port number.
+          ti,dual-emac-pvid:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 1
+            maximum: 1024
+            description:
+              Specifies default PORT VID to be used to segregate
+              ports. Default value - CPSW port number.
 
-          required:
-            - reg
-            - phys
+        required:
+          - reg
+          - phys
 
   cpts:
     type: object

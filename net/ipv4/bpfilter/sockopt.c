@@ -57,18 +57,16 @@ int bpfilter_ip_set_sockopt(struct sock *sk, int optname, sockptr_t optval,
 	return bpfilter_mbox_request(sk, optname, optval, optlen, true);
 }
 
-int bpfilter_ip_get_sockopt(struct sock *sk, int optname,
-			    char __user *user_optval, int __user *optlen)
+int bpfilter_ip_get_sockopt(struct sock *sk, int optname, char __user *optval,
+			    int __user *optlen)
 {
-	sockptr_t optval;
-	int err, len;
+	int len;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
-	err = init_user_sockptr(&optval, user_optval, len);
-	if (err)
-		return err;
-	return bpfilter_mbox_request(sk, optname, optval, len, false);
+
+	return bpfilter_mbox_request(sk, optname, USER_SOCKPTR(optval), len,
+				     false);
 }
 
 static int __init bpfilter_sockopt_init(void)

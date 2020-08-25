@@ -163,6 +163,11 @@ struct nfs_server {
 	unsigned int		dtsize;		/* readdir size */
 	unsigned short		port;		/* "port=" setting */
 	unsigned int		bsize;		/* server block size */
+#ifdef CONFIG_NFS_V4_2
+	unsigned int		gxasize;	/* getxattr size */
+	unsigned int		sxasize;	/* setxattr size */
+	unsigned int		lxasize;	/* listxattr size */
+#endif
 	unsigned int		acregmin;	/* attr cache timeouts */
 	unsigned int		acregmax;
 	unsigned int		acdirmin;
@@ -281,5 +286,6 @@ struct nfs_server {
 #define NFS_CAP_OFFLOAD_CANCEL	(1U << 25)
 #define NFS_CAP_LAYOUTERROR	(1U << 26)
 #define NFS_CAP_COPY_NOTIFY	(1U << 27)
+#define NFS_CAP_XATTR		(1U << 28)
 
 #endif

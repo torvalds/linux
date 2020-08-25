@@ -351,11 +351,6 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 
 		};
 
-		if (ttm_tt_create(bo, true)) {
-			ret = VM_FAULT_OOM;
-			goto out_io_unlock;
-		}
-
 		ttm = bo->ttm;
 		if (ttm_tt_populate(bo->ttm, &ctx)) {
 			ret = VM_FAULT_OOM;
@@ -510,8 +505,10 @@ static int ttm_bo_vm_access_kmap(struct ttm_buffer_object *bo,
 int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		     void *buf, int len, int write)
 {
-	unsigned long offset = (addr) - vma->vm_start;
 	struct ttm_buffer_object *bo = vma->vm_private_data;
+	unsigned long offset = (addr) - vma->vm_start +
+		((vma->vm_pgoff - drm_vma_node_start(&bo->base.vma_node))
+		 << PAGE_SHIFT);
 	int ret;
 
 	if (len < 1 || (offset + len) >> PAGE_SHIFT > bo->num_pages)

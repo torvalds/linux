@@ -16,6 +16,7 @@ config M68K
 	select HAVE_DEBUG_BUGVERBOSE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ATOMIC64
+	select NO_DMA if !MMU && !COLDFIRE
 	select HAVE_UID16
 	select VIRT_TO_BUS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
@@ -58,9 +59,6 @@ config TIME_LOW_RES
 
 config NO_IOPORT_MAP
 	def_bool y
-
-config NO_DMA
-	def_bool (MMU && SUN3) || (!MMU && !COLDFIRE)
 
 config ZONE_DMA
 	bool

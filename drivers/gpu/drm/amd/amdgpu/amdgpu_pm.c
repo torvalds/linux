@@ -3212,6 +3212,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
+	/* Skip crit temp on APU */
+	if ((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ) &&
+	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
+		return 0;
+
 	/* Skip limit attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||

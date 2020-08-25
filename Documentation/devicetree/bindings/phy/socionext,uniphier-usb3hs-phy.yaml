@@ -37,12 +37,12 @@ properties:
     oneOf:
       - const: link          # for PXs2
       - items:               # for PXs3 with phy-ext
-        - const: link
-        - const: phy
-        - const: phy-ext
+          - const: link
+          - const: phy
+          - const: phy-ext
       - items:               # for others
-        - const: link
-        - const: phy
+          - const: link
+          - const: phy
 
   resets:
     maxItems: 2

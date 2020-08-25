@@ -721,7 +721,7 @@ xfs_reflink_end_cow(
 	 * repeatedly cycles the ILOCK to allocate one transaction per remapped
 	 * extent.
 	 *
-	 * If we're being called by writeback then the the pages will still
+	 * If we're being called by writeback then the pages will still
 	 * have PageWriteback set, which prevents races with reflink remapping
 	 * and truncate.  Reflink remapping prevents races with writeback by
 	 * taking the iolock and mmaplock before flushing the pages and
