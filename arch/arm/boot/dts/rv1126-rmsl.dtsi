@@ -1,0 +1,412 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	vcc5v0_sys: vccsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <725000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-init-microvolt = <900000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc5v0_sys>;
+		status = "okay";
+	};
+
+	vdd_npu: vdd-npu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 0 5000 1>;
+		regulator-name = "vdd_npu";
+		regulator-min-microvolt = <725000>;
+		regulator-max-microvolt = <875000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc5v0_sys>;
+		status = "okay";
+	};
+
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+		pwms = <&pwm2 0 5000 1>;
+		regulator-name = "vdd_logic";
+		regulator-min-microvolt = <725000>;
+		regulator-max-microvolt = <875000>;
+		regulator-init-microvolt = <825000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc5v0_sys>;
+		status = "disabled";
+	};
+
+	vdd_fixed: vdd-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <825000>;
+		regulator-max-microvolt = <825000>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu_tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	pinctrl-names = "gpio", "otpout";
+	pinctrl-0 = <&tsadcm0_pins>;
+	pinctrl-1 = <&tsadc_shutorg>;
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	supports-emmc;
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "okay";
+};
+
+&fiq_debugger {
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&nandc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand@0 {
+		reg = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
+
+&npu {
+	npu-supply = <&vdd_fixed>;
+	status = "okay";
+};
+
+&npu_tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	pinctrl-names = "gpio", "otpout";
+	pinctrl-0 = <&tsadcm0_pins>;
+	pinctrl-1 = <&tsadc_shutorg>;
+	status = "okay";
+};
+
+&optee {
+	status = "disabled";
+};
+
+&otp {
+	status = "okay";
+};
+
+&pinctrl {
+	pmic {
+		/omit-if-no-ref/
+		pmic_int: pmic_int {
+			rockchip,pins =
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		/omit-if-no-ref/
+		soc_slppin_gpio: soc_slppin_gpio {
+			rockchip,pins =
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		/omit-if-no-ref/
+		soc_slppin_slp: soc_slppin_slp {
+			rockchip,pins =
+				<0 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		soc_slppin_rst: soc_slppin_rst {
+			rockchip,pins =
+				<0 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	status = "okay";
+
+	pmuio0-supply = <&vcc_1v8>;
+	pmuio1-supply = <&vcc_1v8>;
+	vccio1-supply = <&vcc_1v8>;
+	vccio2-supply = <&vcc_3v3>;
+	vccio3-supply = <&vcc_1v8>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc_3v3>;
+	vccio6-supply = <&vcc_1v8>;
+	vccio7-supply = <&vcc_1v8>;
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm0m0_pins_pull_down>;
+};
+
+&pwm1 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm1m0_pins_pull_down>;
+};
+
+&pwm2 {
+	status = "disabled";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm2m0_pins_pull_down>;
+};
+
+&ramoops {
+	status = "okay";
+};
+
+&rk_rga {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "disabled";
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	port {
+		/* Parallel bus endpoint */
+		/*
+		cif_para_in: endpoint {
+			remote-endpoint = <&cam_para_out1>;
+			bus-width = <12>;
+			hsync-active = <1>;
+			vsync-active = <0>;
+		};
+		*/
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			/*remote-endpoint = <&isp_in>;*/
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			isp_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&csidphy1_out>;
+			};
+		};
+	};
+};
+
+&rkisp_mmu {
+	status = "disabled";
+};
+
+&rkispp {
+	status = "okay";
+	/* the max input w h and fps of mulit sensor */
+	//max-input = <2688 1520 30>;
+};
+
+&rkispp_vir0 {
+	status = "okay";
+};
+
+&rkispp_mmu {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
+
+&rkvenc {
+	venc-supply = <&vdd_fixed>;
+	status = "okay";
+};
+
+&rkvenc_mmu {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
+&u2phy0 {
+	status = "okay";
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+	u2phy_otg: otg-port {
+		status = "okay";
+		rockchip,vbus-always-on;
+	};
+};
+
+&usbdrd {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+	snps,tx-fifo-resize;
+	dr_mode = "peripheral";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
