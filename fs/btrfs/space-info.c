@@ -1044,12 +1044,18 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
  *   total_bytes_pinned < reservation we will not commit.  This is why the
  *   previous states are actually important, to make sure we know for sure
  *   whether committing the transaction will allow us to make progress.
+ *
+ * ALLOC_CHUNK_FORCE
+ *   For data we start with alloc chunk force, however we could have been full
+ *   before, and then the transaction commit could have freed new block groups,
+ *   so if we now have space to allocate do the force chunk allocation.
  */
 static const enum btrfs_flush_state data_flush_states[] = {
 	FLUSH_DELALLOC_WAIT,
 	RUN_DELAYED_IPUTS,
 	FLUSH_DELAYED_REFS,
 	COMMIT_TRANS,
+	ALLOC_CHUNK_FORCE,
 };
 
 static void btrfs_async_reclaim_data_space(struct work_struct *work)
