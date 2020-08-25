@@ -3160,7 +3160,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 			goto out_free;
 		return -EAGAIN;
 	} else if (ret < 0) {
-		goto out_free;
+		/* make sure -ERESTARTSYS -> -EINTR is done */
+		goto done;
 	}
 
 	/* read it all, or we did blocking attempt. no retry. */
