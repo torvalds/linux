@@ -9,6 +9,7 @@ qed-y :=			\
 	qed_dcbx.o		\
 	qed_debug.o		\
 	qed_dev.o		\
+	qed_devlink.o		\
 	qed_hw.o		\
 	qed_init_fw_funcs.o	\
 	qed_init_ops.o		\
