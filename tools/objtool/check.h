@@ -43,7 +43,9 @@ struct instruction {
 	struct symbol *func;
 	struct list_head stack_ops;
 	struct cfi_state cfi;
+#ifdef INSN_USE_ORC
 	struct orc_entry orc;
+#endif
 };
 
 struct instruction *find_insn(struct objtool_file *file,

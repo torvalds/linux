@@ -11,7 +11,9 @@
 #include "objtool.h"
 #include "cfi.h"
 
+#ifdef INSN_USE_ORC
 #include <asm/orc_types.h>
+#endif
 
 enum insn_type {
 	INSN_JUMP_CONDITIONAL,
