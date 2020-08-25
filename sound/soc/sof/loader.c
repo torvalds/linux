@@ -33,7 +33,8 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 	}
 
 	/* keep a local copy of the data */
-	sdev->info_window = kmemdup(w, ext_hdr->hdr.size, GFP_KERNEL);
+	sdev->info_window = devm_kmemdup(sdev->dev, w, ext_hdr->hdr.size,
+					 GFP_KERNEL);
 	if (!sdev->info_window)
 		return -ENOMEM;
 
