@@ -7728,6 +7728,15 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		    refresh_rate);
 }
 
+static void
+intel_edp_drrs_enable_locked(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	dev_priv->drrs.busy_frontbuffer_bits = 0;
+	dev_priv->drrs.dp = intel_dp;
+}
+
 /**
  * intel_edp_drrs_enable - init drrs struct if supported
  * @intel_dp: DP struct
@@ -7746,17 +7755,32 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 	drm_dbg_kms(&dev_priv->drm, "Enabling DRRS\n");
 
 	mutex_lock(&dev_priv->drrs.mutex);
+
 	if (dev_priv->drrs.dp) {
-		drm_dbg_kms(&dev_priv->drm, "DRRS already enabled\n");
+		drm_warn(&dev_priv->drm, "DRRS already enabled\n");
 		goto unlock;
 	}
 
-	dev_priv->drrs.busy_frontbuffer_bits = 0;
-
-	dev_priv->drrs.dp = intel_dp;
+	intel_edp_drrs_enable_locked(intel_dp);
 
 unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
+}
+
+static void
+intel_edp_drrs_disable_locked(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR) {
+		int refresh;
+
+		refresh = drm_mode_vrefresh(intel_dp->attached_connector->panel.fixed_mode);
+		intel_dp_set_drrs_state(dev_priv, crtc_state, refresh);
+	}
+
+	dev_priv->drrs.dp = NULL;
 }
 
 /**
@@ -7779,14 +7803,43 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp,
 		return;
 	}
 
-	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(dev_priv, old_crtc_state,
-			drm_mode_vrefresh(intel_dp->attached_connector->panel.fixed_mode));
-
-	dev_priv->drrs.dp = NULL;
+	intel_edp_drrs_disable_locked(intel_dp, old_crtc_state);
 	mutex_unlock(&dev_priv->drrs.mutex);
 
 	cancel_delayed_work_sync(&dev_priv->drrs.work);
+}
+
+/**
+ * intel_edp_drrs_update - Update DRRS state
+ * @intel_dp: Intel DP
+ * @crtc_state: new CRTC state
+ *
+ * This function will update DRRS states, disabling or enabling DRRS when
+ * executing fastsets. For full modeset, intel_edp_drrs_disable() and
+ * intel_edp_drrs_enable() should be called instead.
+ */
+void
+intel_edp_drrs_update(struct intel_dp *intel_dp,
+		      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	if (dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT)
+		return;
+
+	mutex_lock(&dev_priv->drrs.mutex);
+
+	/* New state matches current one? */
+	if (crtc_state->has_drrs == !!dev_priv->drrs.dp)
+		goto unlock;
+
+	if (crtc_state->has_drrs)
+		intel_edp_drrs_enable_locked(intel_dp);
+	else
+		intel_edp_drrs_disable_locked(intel_dp, crtc_state);
+
+unlock:
+	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 static void intel_edp_drrs_downclock_work(struct work_struct *work)
