@@ -282,6 +282,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
 					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
 					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
+	hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
