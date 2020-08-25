@@ -908,6 +908,7 @@ static void __nf_conntrack_insert_prepare(struct nf_conn *ct)
 		tstamp->start = ktime_get_real_ns();
 }
 
+/* caller must hold locks to prevent concurrent changes */
 static int __nf_ct_resolve_clash(struct sk_buff *skb,
 				 struct nf_conntrack_tuple_hash *h)
 {
@@ -921,12 +922,11 @@ static int __nf_ct_resolve_clash(struct sk_buff *skb,
 	if (nf_ct_is_dying(ct))
 		return NF_DROP;
 
-	if (!atomic_inc_not_zero(&ct->ct_general.use))
-		return NF_DROP;
-
 	if (((ct->status & IPS_NAT_DONE_MASK) == 0) ||
 	    nf_ct_match(ct, loser_ct)) {
 		struct net *net = nf_ct_net(ct);
+
+		nf_conntrack_get(&ct->ct_general);
 
 		nf_ct_acct_merge(ct, ctinfo, loser_ct);
 		nf_ct_add_to_dying_list(loser_ct);
@@ -937,7 +937,6 @@ static int __nf_ct_resolve_clash(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	nf_ct_put(ct);
 	return NF_DROP;
 }
 
