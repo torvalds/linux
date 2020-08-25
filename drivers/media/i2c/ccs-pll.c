@@ -177,7 +177,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	uint32_t more_mul_factor;
 	uint32_t min_vt_div, max_vt_div, vt_div;
 	uint32_t min_sys_div, max_sys_div;
-	unsigned int i;
+	uint32_t i;
 
 	/*
 	 * Get pre_pll_clk_div so that our pll_op_clk_freq_hz won't be
@@ -406,7 +406,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	uint16_t max_op_pre_pll_clk_div;
 	uint32_t lane_op_clock_ratio;
 	uint32_t mul, div;
-	unsigned int i;
+	uint32_t i;
 	int rval = -EINVAL;
 
 	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
