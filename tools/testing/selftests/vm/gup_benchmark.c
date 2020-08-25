@@ -105,12 +105,16 @@ int main(int argc, char **argv)
 		gup.flags |= FOLL_WRITE;
 
 	fd = open("/sys/kernel/debug/gup_benchmark", O_RDWR);
-	if (fd == -1)
-		perror("open"), exit(1);
+	if (fd == -1) {
+		perror("open");
+		exit(1);
+	}
 
 	p = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, filed, 0);
-	if (p == MAP_FAILED)
-		perror("mmap"), exit(1);
+	if (p == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
 	gup.addr = (unsigned long)p;
 
 	if (thp == 1)
@@ -123,8 +127,10 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < repeats; i++) {
 		gup.size = size;
-		if (ioctl(fd, cmd, &gup))
-			perror("ioctl"), exit(1);
+		if (ioctl(fd, cmd, &gup)) {
+			perror("ioctl");
+			exit(1);
+		}
 
 		printf("Time: get:%lld put:%lld us", gup.get_delta_usec,
 			gup.put_delta_usec);
