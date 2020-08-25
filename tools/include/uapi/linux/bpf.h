@@ -3513,6 +3513,7 @@ union bpf_attr {
  *
  *		**-EPERM** This helper cannot be used under the
  *			   current sock_ops->op.
+ *
  * void *bpf_inode_storage_get(struct bpf_map *map, void *inode, void *value, u64 flags)
  *	Description
  *		Get a bpf_local_storage from an *inode*.
@@ -3548,6 +3549,18 @@ union bpf_attr {
  *		0 on success.
  *
  *		**-ENOENT** if the bpf_local_storage cannot be found.
+ *
+ * long bpf_d_path(struct path *path, char *buf, u32 sz)
+ *	Description
+ *		Return full path for given 'struct path' object, which
+ *		needs to be the kernel BTF 'path' object. The path is
+ *		returned in the provided buffer 'buf' of size 'sz' and
+ *		is zero terminated.
+ *
+ *	Return
+ *		On success, the strictly positive length of the string,
+ *		including the trailing NUL character. On error, a negative
+ *		value.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3697,6 +3710,7 @@ union bpf_attr {
 	FN(reserve_hdr_opt),		\
 	FN(inode_storage_get),		\
 	FN(inode_storage_delete),	\
+	FN(d_path),			\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
