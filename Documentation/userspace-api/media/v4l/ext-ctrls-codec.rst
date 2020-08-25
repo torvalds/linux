@@ -1695,9 +1695,10 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - ``V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE``
       - 0x00000040
       -
-    * - ``V4L2_H264_PPS_FLAG_PIC_SCALING_MATRIX_PRESENT``
+    * - ``V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT``
       - 0x00000080
-      -
+      - Indicates that ``V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX``
+        must be used for this picture.
 
 ``V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX (struct)``
     Specifies the scaling matrix (as extracted from the bitstream) for
