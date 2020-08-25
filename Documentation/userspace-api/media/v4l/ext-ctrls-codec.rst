@@ -1879,18 +1879,23 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - 0x00000008
       -
 
-``Prediction Weight Table``
+``V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS (struct)``
+    Prediction weight table defined according to :ref:`h264`,
+    section 7.4.3.2 "Prediction Weight Table Semantics".
+    The prediction weight table must be passed by applications
+    under the conditions explained in section 7.3.3 "Slice header
+    syntax".
 
-    The bitstream parameters are defined according to :ref:`h264`,
-    section 7.4.3.2 "Prediction Weight Table Semantics". For further
-    documentation, refer to the above specification, unless there is
-    an explicit comment stating otherwise.
+    .. note::
 
-.. c:type:: v4l2_h264_pred_weight_table
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_h264_pred_weights
 
 .. cssclass:: longtable
 
-.. flat-table:: struct v4l2_h264_pred_weight_table
+.. flat-table:: struct v4l2_ctrl_h264_pred_weights
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2

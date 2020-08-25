@@ -256,10 +256,8 @@ static void cedrus_write_scaling_lists(struct cedrus_ctx *ctx,
 static void cedrus_write_pred_weight_table(struct cedrus_ctx *ctx,
 					   struct cedrus_run *run)
 {
-	const struct v4l2_ctrl_h264_slice_params *slice =
-		run->h264.slice_params;
-	const struct v4l2_h264_pred_weight_table *pred_weight =
-		&slice->pred_weight_table;
+	const struct v4l2_ctrl_h264_pred_weights *pred_weight =
+		run->h264.pred_weights;
 	struct cedrus_dev *dev = ctx->dev;
 	int i, j, k;
 
@@ -367,11 +365,7 @@ static void cedrus_set_params(struct cedrus_ctx *ctx,
 
 	cedrus_skip_bits(dev, slice->header_bit_size);
 
-	if (((pps->flags & V4L2_H264_PPS_FLAG_WEIGHTED_PRED) &&
-	     (slice->slice_type == V4L2_H264_SLICE_TYPE_P ||
-	      slice->slice_type == V4L2_H264_SLICE_TYPE_SP)) ||
-	    (pps->weighted_bipred_idc == 1 &&
-	     slice->slice_type == V4L2_H264_SLICE_TYPE_B))
+	if (V4L2_H264_CTRL_PRED_WEIGHTS_REQUIRED(pps, slice))
 		cedrus_write_pred_weight_table(ctx, run);
 
 	if ((slice->slice_type == V4L2_H264_SLICE_TYPE_P) ||

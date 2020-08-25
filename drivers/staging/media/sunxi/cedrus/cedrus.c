@@ -80,6 +80,13 @@ static const struct cedrus_control cedrus_controls[] = {
 	},
 	{
 		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS,
+		},
+		.codec		= CEDRUS_CODEC_H264,
+		.required	= false,
+	},
+	{
+		.cfg = {
 			.id	= V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE,
 			.max	= V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED,
 			.def	= V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED,
