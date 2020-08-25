@@ -78,7 +78,7 @@ static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)
 	/*
 	 * Polling is only necessary while VBUS is offline. While online, a
 	 * present->absent transition implies an online->offline transition
-	 * and will triger the VBUS_REMOVAL IRQ.
+	 * and will trigger the VBUS_REMOVAL IRQ.
 	 */
 	if (power->axp20x_id >= AXP221_ID && !power->online)
 		return true;

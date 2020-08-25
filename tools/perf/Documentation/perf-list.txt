@@ -119,6 +119,7 @@ It's also possible to use pmu syntax:
 
  perf record -e r1a8 -a sleep 1
  perf record -e cpu/r1a8/ ...
+ perf record -e cpu/r0x1a8/ ...
 
 You should refer to the processor specific documentation for getting these
 details. Some of them are referenced in the SEE ALSO section below.

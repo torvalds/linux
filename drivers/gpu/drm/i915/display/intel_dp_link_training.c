@@ -34,9 +34,25 @@ intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 		      link_status[3], link_status[4], link_status[5]);
 }
 
+static u8 dp_voltage_max(u8 preemph)
+{
+	switch (preemph & DP_TRAIN_PRE_EMPHASIS_MASK) {
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
+	default:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
+	}
+}
+
 void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const u8 link_status[DP_LINK_STATUS_SIZE])
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 v = 0;
 	u8 p = 0;
 	int lane;
@@ -44,22 +60,27 @@ void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 	u8 preemph_max;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
-		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
-
-		if (this_v > v)
-			v = this_v;
-		if (this_p > p)
-			p = this_p;
+		v = max(v, drm_dp_get_adjust_request_voltage(link_status, lane));
+		p = max(p, drm_dp_get_adjust_request_pre_emphasis(link_status, lane));
 	}
 
-	voltage_max = intel_dp_voltage_max(intel_dp);
-	if (v >= voltage_max)
-		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
+	preemph_max = intel_dp->preemph_max(intel_dp);
+	drm_WARN_ON_ONCE(&i915->drm,
+			 preemph_max != DP_TRAIN_PRE_EMPH_LEVEL_2 &&
+			 preemph_max != DP_TRAIN_PRE_EMPH_LEVEL_3);
 
-	preemph_max = intel_dp_pre_emphasis_max(intel_dp, v);
 	if (p >= preemph_max)
 		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
+
+	v = min(v, dp_voltage_max(p));
+
+	voltage_max = intel_dp->voltage_max(intel_dp);
+	drm_WARN_ON_ONCE(&i915->drm,
+			 voltage_max != DP_TRAIN_VOLTAGE_SWING_LEVEL_2 &&
+			 voltage_max != DP_TRAIN_VOLTAGE_SWING_LEVEL_3);
+
+	if (v >= voltage_max)
+		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
 
 	for (lane = 0; lane < 4; lane++)
 		intel_dp->train_set[lane] = v | p;

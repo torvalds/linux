@@ -127,9 +127,7 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp)
 			 * not atomic, which is OK, since the fuzziness is
 			 * resolved as further ACKs go out.
 			 */
-			credits = head - tail;
-			if ((int)credits < 0)
-				credits += qp->r_rq.size;
+			credits = rvt_get_rq_count(&qp->r_rq, head, tail);
 		}
 		/*
 		 * Binary search the credit table to find the code to

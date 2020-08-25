@@ -27,7 +27,6 @@
 #else /* !CONFIG_MMU */
 
 #include <linux/swap.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 static inline void __tlb_remove_table(void *_table)

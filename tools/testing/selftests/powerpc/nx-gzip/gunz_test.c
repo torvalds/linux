@@ -698,13 +698,13 @@ restart_nx:
 
 	switch (cc) {
 
-	case ERR_NX_TRANSLATION:
+	case ERR_NX_AT_FAULT:
 
 		/* We touched the pages ahead of time.  In the most common case
 		 * we shouldn't be here.  But may be some pages were paged out.
 		 * Kernel should have placed the faulting address to fsaddr.
 		 */
-		NXPRT(fprintf(stderr, "ERR_NX_TRANSLATION %p\n",
+		NXPRT(fprintf(stderr, "ERR_NX_AT_FAULT %p\n",
 			      (void *)cmdp->crb.csb.fsaddr));
 
 		if (pgfault_retries == NX_MAX_FAULTS) {

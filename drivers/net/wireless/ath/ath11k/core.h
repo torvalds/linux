@@ -21,6 +21,8 @@
 #include "hal_rx.h"
 #include "reg.h"
 #include "thermal.h"
+#include "dbring.h"
+#include "spectral.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -215,12 +217,15 @@ struct ath11k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool spectral_enabled;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
+	bool rsnie_present;
+	bool wpaie_present;
 };
 
 struct ath11k_vif_iter {
@@ -353,7 +358,10 @@ struct ath11k_sta {
 #endif
 };
 
-#define ATH11K_NUM_CHANS 41
+#define ATH11K_MIN_5G_FREQ 4150
+#define ATH11K_MIN_6G_FREQ 5945
+#define ATH11K_MAX_6G_FREQ 7115
+#define ATH11K_NUM_CHANS 100
 #define ATH11K_MAX_5G_CHAN 173
 
 enum ath11k_state {
@@ -431,6 +439,7 @@ struct ath11k {
 	u32 vht_cap_info;
 	struct ath11k_he ar_he;
 	enum ath11k_state state;
+	bool supports_6ghz;
 	struct {
 		struct completion started;
 		struct completion completed;
@@ -537,6 +546,9 @@ struct ath11k {
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct ath11k_debug debug;
 #endif
+#ifdef CONFIG_ATH11K_SPECTRAL
+	struct ath11k_spectral spectral;
+#endif
 	bool dfs_block_radar_events;
 	struct ath11k_thermal thermal;
 };
@@ -548,6 +560,7 @@ struct ath11k_band_cap {
 	u32 he_mcs;
 	u32 he_cap_phy_info[PSOC_HOST_MAX_PHY_SIZE];
 	struct ath11k_ppe_threshold he_ppet;
+	u16 he_6ghz_capa;
 };
 
 struct ath11k_pdev_cap {
@@ -579,12 +592,42 @@ struct ath11k_board_data {
 /* IPQ8074 HW channel counters frequency value in hertz */
 #define IPQ8074_CC_FREQ_HERTZ 320000
 
-struct ath11k_soc_dp_rx_stats {
+struct ath11k_bp_stats {
+	/* Head Pointer reported by the last HTT Backpressure event for the ring */
+	u16 hp;
+
+	/* Tail Pointer reported by the last HTT Backpressure event for the ring */
+	u16 tp;
+
+	/* Number of Backpressure events received for the ring */
+	u32 count;
+
+	/* Last recorded event timestamp */
+	unsigned long jiffies;
+};
+
+struct ath11k_dp_ring_bp_stats {
+	struct ath11k_bp_stats umac_ring_bp_stats[HTT_SW_UMAC_RING_IDX_MAX];
+	struct ath11k_bp_stats lmac_ring_bp_stats[HTT_SW_LMAC_RING_IDX_MAX][MAX_RADIOS];
+};
+
+struct ath11k_soc_dp_tx_err_stats {
+	/* TCL Ring Descriptor unavailable */
+	u32 desc_na[DP_TCL_NUM_RING_MAX];
+	/* Other failures during dp_tx due to mem allocation failure
+	 * idr unavailable etc.
+	 */
+	atomic_t misc_fail;
+};
+
+struct ath11k_soc_dp_stats {
 	u32 err_ring_pkts;
 	u32 invalid_rbm;
 	u32 rxdma_error[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX];
 	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
 	u32 hal_reo_error[DP_REO_DST_RING_MAX];
+	struct ath11k_soc_dp_tx_err_stats tx_err;
+	struct ath11k_dp_ring_bp_stats bp_stats;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
@@ -653,7 +696,7 @@ struct ath11k_base {
 	struct dentry *debugfs_soc;
 	struct dentry *debugfs_ath11k;
 #endif
-	struct ath11k_soc_dp_rx_stats soc_stats;
+	struct ath11k_soc_dp_stats soc_stats;
 
 	unsigned long dev_flags;
 	struct completion driver_recovery;
@@ -667,6 +710,9 @@ struct ath11k_base {
 
 	/* Round robbin based TCL ring selector */
 	atomic_t tcl_ring_selector;
+
+	struct ath11k_dbring_cap *db_caps;
+	u32 num_db_cap;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -98,7 +98,6 @@ static struct tegra_function tegra194_functions[] = {
 		.sfsel_bit = 10,				\
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
-		.drv_reg = -1,					\
 		.parked_bitmask = 0
 
 #define drive_pex_l5_clkreq_n_pgg0				\

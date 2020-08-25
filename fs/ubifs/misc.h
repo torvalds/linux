@@ -121,7 +121,7 @@ static inline const char *ubifs_compr_name(struct ubifs_info *c, int compr_type)
  * ubifs_wbuf_sync - synchronize write-buffer.
  * @wbuf: write-buffer to synchronize
  *
- * This is the same as as 'ubifs_wbuf_sync_nolock()' but it does not assume
+ * This is the same as 'ubifs_wbuf_sync_nolock()' but it does not assume
  * that the write-buffer is already locked.
  */
 static inline int ubifs_wbuf_sync(struct ubifs_wbuf *wbuf)

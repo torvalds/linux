@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function trace on module
-
-check_filter_file set_ftrace_filter
+# requires: set_ftrace_filter
 
 : "mod: allows to filter a non exist function"
 echo 'non_exist_func:mod:non_exist_module' > set_ftrace_filter

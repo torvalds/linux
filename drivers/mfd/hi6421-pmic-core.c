@@ -5,7 +5,7 @@
  * Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
  *              http://www.hisilicon.com
  * Copyright (c) <2013-2017> Linaro Ltd.
- *              http://www.linaro.org
+ *              https://www.linaro.org
  *
  * Author: Guodong Xu <guodong.xu@linaro.org>
  */

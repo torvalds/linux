@@ -24,7 +24,7 @@ description: |
   IEEE 802.3 Standard Media Independent Interface (MII), the IEEE 802.3 Gigabit
   Media Independent Interface (GMII) or Reduced GMII (RGMII).
 
-  Specifications about the charger can be found at:
+  Specifications about the Ethernet PHY can be found at:
     https://www.ti.com/lit/gpn/dp83867ir
 
 properties:

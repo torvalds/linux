@@ -1651,7 +1651,7 @@ static int get_sdp_info(struct snd_soc_component *component, int dai_id)
 	if (component == NULL)
 		return -EINVAL;
 
-	val = snd_soc_component_read32(component, RT5640_I2S1_SDP);
+	val = snd_soc_component_read(component, RT5640_I2S1_SDP);
 	val = (val & RT5640_I2S_IF_MASK) >> RT5640_I2S_IF_SFT;
 	switch (dai_id) {
 	case RT5640_AIF1:
@@ -1662,7 +1662,7 @@ static int get_sdp_info(struct snd_soc_component *component, int dai_id)
 			break;
 		case RT5640_IF_113:
 			ret |= RT5640_U_IF1;
-			/* fall through */
+			fallthrough;
 		case RT5640_IF_312:
 		case RT5640_IF_213:
 			ret |= RT5640_U_IF2;
@@ -1678,7 +1678,7 @@ static int get_sdp_info(struct snd_soc_component *component, int dai_id)
 			break;
 		case RT5640_IF_223:
 			ret |= RT5640_U_IF1;
-			/* fall through */
+			fallthrough;
 		case RT5640_IF_123:
 		case RT5640_IF_321:
 			ret |= RT5640_U_IF2;
@@ -2081,7 +2081,7 @@ int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
 	snd_soc_component_update_bits(component, RT5640_ASRC_2,
 		asrc2_mask, asrc2_value);
 
-	if (snd_soc_component_read32(component, RT5640_ASRC_2)) {
+	if (snd_soc_component_read(component, RT5640_ASRC_2)) {
 		rt5640->asrc_en = true;
 		snd_soc_component_update_bits(component, RT5640_JD_CTRL, 0x3, 0x3);
 	} else {
@@ -2146,7 +2146,7 @@ static bool rt5640_micbias1_ovcd(struct snd_soc_component *component)
 {
 	int val;
 
-	val = snd_soc_component_read32(component, RT5640_IRQ_CTRL2);
+	val = snd_soc_component_read(component, RT5640_IRQ_CTRL2);
 	dev_dbg(component->dev, "irq ctrl2 %#04x\n", val);
 
 	return (val & RT5640_MB1_OC_STATUS);
@@ -2157,7 +2157,7 @@ static bool rt5640_jack_inserted(struct snd_soc_component *component)
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	int val;
 
-	val = snd_soc_component_read32(component, RT5640_INT_IRQ_ST);
+	val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
 	dev_dbg(component->dev, "irq status %#04x\n", val);
 
 	if (rt5640->jd_inverted)
@@ -2484,7 +2484,7 @@ static int rt5640_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, RT5640_MICBIAS, 0x0030, 0x0030);
 	snd_soc_component_update_bits(component, RT5640_DSP_PATH2, 0xfc00, 0x0c00);
 
-	switch (snd_soc_component_read32(component, RT5640_RESET) & RT5640_ID_MASK) {
+	switch (snd_soc_component_read(component, RT5640_RESET) & RT5640_ID_MASK) {
 	case RT5640_ID_5640:
 	case RT5640_ID_5642:
 		snd_soc_add_component_controls(component,

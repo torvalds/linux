@@ -71,7 +71,7 @@ static bool afs_get_io_locks(struct afs_operation *op)
 		swap(vnode, vnode2);
 
 	if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
-		op->error = -EINTR;
+		op->error = -ERESTARTSYS;
 		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [I 0]");
 		return false;
@@ -80,7 +80,7 @@ static bool afs_get_io_locks(struct afs_operation *op)
 
 	if (vnode2) {
 		if (mutex_lock_interruptible_nested(&vnode2->io_lock, 1) < 0) {
-			op->error = -EINTR;
+			op->error = -ERESTARTSYS;
 			op->flags |= AFS_OPERATION_STOP;
 			mutex_unlock(&vnode->io_lock);
 			op->flags &= ~AFS_OPERATION_LOCK_0;
@@ -187,9 +187,17 @@ void afs_wait_for_operation(struct afs_operation *op)
 		op->error = afs_wait_for_call_to_complete(op->call, &op->ac);
 	}
 
-	if (op->error == 0) {
+	switch (op->error) {
+	case 0:
 		_debug("success");
 		op->ops->success(op);
+		break;
+	case -ECONNABORTED:
+		if (op->ops->aborted)
+			op->ops->aborted(op);
+		break;
+	default:
+		break;
 	}
 
 	afs_end_vnode_operation(op);
@@ -227,6 +235,7 @@ int afs_put_operation(struct afs_operation *op)
 	afs_end_cursor(&op->ac);
 	afs_put_serverlist(op->net, op->server_list);
 	afs_put_volume(op->net, op->volume, afs_volume_trace_put_put_op);
+	key_put(op->key);
 	kfree(op);
 	return ret;
 }

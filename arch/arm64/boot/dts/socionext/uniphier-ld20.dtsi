@@ -936,7 +936,9 @@
 			compatible = "socionext,uniphier-ld20-pcie-phy";
 			reg = <0x66038000 0x4000>;
 			#phy-cells = <0>;
+			clock-names = "link";
 			clocks = <&sys_clk 24>;
+			reset-names = "link";
 			resets = <&sys_rst 24>;
 			socionext,syscon = <&soc_glue>;
 		};

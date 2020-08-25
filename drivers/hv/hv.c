@@ -241,7 +241,6 @@ int hv_synic_cleanup(unsigned int cpu)
 {
 	struct vmbus_channel *channel, *sc;
 	bool channel_found = false;
-	unsigned long flags;
 
 	/*
 	 * Hyper-V does not provide a way to change the connect CPU once
@@ -263,14 +262,12 @@ int hv_synic_cleanup(unsigned int cpu)
 			channel_found = true;
 			break;
 		}
-		spin_lock_irqsave(&channel->lock, flags);
 		list_for_each_entry(sc, &channel->sc_list, sc_list) {
 			if (sc->target_cpu == cpu) {
 				channel_found = true;
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&channel->lock, flags);
 		if (channel_found)
 			break;
 	}

@@ -212,6 +212,6 @@ static struct comedi_driver dt2815_driver = {
 };
 module_comedi_driver(dt2815_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

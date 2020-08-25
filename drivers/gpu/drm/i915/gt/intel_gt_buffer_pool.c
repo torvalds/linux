@@ -212,8 +212,9 @@ void intel_gt_flush_buffer_pool(struct intel_gt *gt)
 {
 	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
 
-	if (cancel_delayed_work_sync(&pool->work))
+	do {
 		pool_free_imm(pool);
+	} while (cancel_delayed_work_sync(&pool->work));
 }
 
 void intel_gt_fini_buffer_pool(struct intel_gt *gt)

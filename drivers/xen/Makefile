@@ -5,8 +5,7 @@ obj-y	+= mem-reservation.o
 obj-y	+= events/
 obj-y	+= xenbus/
 
-nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_features.o			:= $(nostackp)
+CFLAGS_features.o			:= -fno-stack-protector
 
 dom0-$(CONFIG_ARM64) += arm-device.o
 dom0-$(CONFIG_PCI) += pci.o

@@ -163,7 +163,7 @@ static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
 	msleep((2000000U / odr) + 1);
 }
 
-/**
+/*
  * st_lsm6dsx_shub_read_output - read i2c controller register
  *
  * Read st_lsm6dsx i2c controller register
@@ -195,7 +195,7 @@ out:
 	return err;
 }
 
-/**
+/*
  * st_lsm6dsx_shub_write_reg - write i2c controller register
  *
  * Write st_lsm6dsx i2c controller register
@@ -273,7 +273,7 @@ out:
 	return err;
 }
 
-/**
+/*
  * st_lsm6dsx_shub_read - read data from slave device register
  *
  * Read data from slave device register. SLV0 is used for
@@ -323,7 +323,7 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 					 sizeof(config));
 }
 
-/**
+/*
  * st_lsm6dsx_shub_write - write data to slave device register
  *
  * Write data from slave device register. SLV0 is used for
@@ -735,7 +735,6 @@ st_lsm6dsx_shub_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		return NULL;
 
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->dev.parent = hw->dev;
 	iio_dev->info = &st_lsm6dsx_ext_info;
 
 	sensor = iio_priv(iio_dev);

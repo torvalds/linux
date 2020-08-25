@@ -842,16 +842,79 @@ static u8 __from_ib_qp_type(enum ib_qp_type type)
 	}
 }
 
+static u16 bnxt_re_setup_rwqe_size(struct bnxt_qplib_qp *qplqp,
+				   int rsge, int max)
+{
+	if (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
+		rsge = max;
+	return bnxt_re_get_rwqe_size(rsge);
+}
+
+static u16 bnxt_re_get_wqe_size(int ilsize, int nsge)
+{
+	u16 wqe_size, calc_ils;
+
+	wqe_size = bnxt_re_get_swqe_size(nsge);
+	if (ilsize) {
+		calc_ils = sizeof(struct sq_send_hdr) + ilsize;
+		wqe_size = max_t(u16, calc_ils, wqe_size);
+		wqe_size = ALIGN(wqe_size, sizeof(struct sq_send_hdr));
+	}
+	return wqe_size;
+}
+
+static int bnxt_re_setup_swqe_size(struct bnxt_re_qp *qp,
+				   struct ib_qp_init_attr *init_attr)
+{
+	struct bnxt_qplib_dev_attr *dev_attr;
+	struct bnxt_qplib_qp *qplqp;
+	struct bnxt_re_dev *rdev;
+	struct bnxt_qplib_q *sq;
+	int align, ilsize;
+
+	rdev = qp->rdev;
+	qplqp = &qp->qplib_qp;
+	sq = &qplqp->sq;
+	dev_attr = &rdev->dev_attr;
+
+	align = sizeof(struct sq_send_hdr);
+	ilsize = ALIGN(init_attr->cap.max_inline_data, align);
+
+	sq->wqe_size = bnxt_re_get_wqe_size(ilsize, sq->max_sge);
+	if (sq->wqe_size > bnxt_re_get_swqe_size(dev_attr->max_qp_sges))
+		return -EINVAL;
+	/* For gen p4 and gen p5 backward compatibility mode
+	 * wqe size is fixed to 128 bytes
+	 */
+	if (sq->wqe_size < bnxt_re_get_swqe_size(dev_attr->max_qp_sges) &&
+			qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
+		sq->wqe_size = bnxt_re_get_swqe_size(dev_attr->max_qp_sges);
+
+	if (init_attr->cap.max_inline_data) {
+		qplqp->max_inline_data = sq->wqe_size -
+			sizeof(struct sq_send_hdr);
+		init_attr->cap.max_inline_data = qplqp->max_inline_data;
+		if (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
+			sq->max_sge = qplqp->max_inline_data /
+				sizeof(struct sq_sge);
+	}
+
+	return 0;
+}
+
 static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 				struct bnxt_re_qp *qp, struct ib_udata *udata)
 {
+	struct bnxt_qplib_qp *qplib_qp;
+	struct bnxt_re_ucontext *cntx;
 	struct bnxt_re_qp_req ureq;
-	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
-	struct ib_umem *umem;
 	int bytes = 0, psn_sz;
-	struct bnxt_re_ucontext *cntx = rdma_udata_to_drv_context(
-		udata, struct bnxt_re_ucontext, ib_uctx);
+	struct ib_umem *umem;
+	int psn_nume;
 
+	qplib_qp = &qp->qplib_qp;
+	cntx = rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext,
+					 ib_uctx);
 	if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
 		return -EFAULT;
 
@@ -859,10 +922,15 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
 		psn_sz = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
-					sizeof(struct sq_psn_search_ext) :
-					sizeof(struct sq_psn_search);
-		bytes += (qplib_qp->sq.max_wqe * psn_sz);
+						   sizeof(struct sq_psn_search_ext) :
+						   sizeof(struct sq_psn_search);
+		psn_nume = (qplib_qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
+			    qplib_qp->sq.max_wqe :
+			    ((qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size) /
+			      sizeof(struct bnxt_qplib_sge));
+		bytes += (psn_nume * psn_sz);
 	}
+
 	bytes = PAGE_ALIGN(bytes);
 	umem = ib_umem_get(&rdev->ibdev, ureq.qpsva, bytes,
 			   IB_ACCESS_LOCAL_WRITE);
@@ -975,7 +1043,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.sig_type = true;
 
 	/* Shadow QP SQ depth should be same as QP1 RQ depth */
-	qp->qplib_qp.sq.wqe_size = bnxt_re_get_swqe_size();
+	qp->qplib_qp.sq.wqe_size = bnxt_re_get_wqe_size(0, 6);
 	qp->qplib_qp.sq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.sq.max_sge = 2;
 	/* Q full delta can be 1 since it is internal QP */
@@ -986,7 +1054,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.scq = qp1_qp->scq;
 	qp->qplib_qp.rcq = qp1_qp->rcq;
 
-	qp->qplib_qp.rq.wqe_size = bnxt_re_get_rwqe_size();
+	qp->qplib_qp.rq.wqe_size = bnxt_re_get_rwqe_size(6);
 	qp->qplib_qp.rq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.rq.max_sge = qp1_qp->rq.max_sge;
 	/* Q full delta can be 1 since it is internal QP */
@@ -1041,19 +1109,21 @@ static int bnxt_re_init_rq_attr(struct bnxt_re_qp *qp,
 		qplqp->srq = &srq->qplib_srq;
 		rq->max_wqe = 0;
 	} else {
-		rq->wqe_size = bnxt_re_get_rwqe_size();
+		rq->max_sge = init_attr->cap.max_recv_sge;
+		if (rq->max_sge > dev_attr->max_qp_sges)
+			rq->max_sge = dev_attr->max_qp_sges;
+		init_attr->cap.max_recv_sge = rq->max_sge;
+		rq->wqe_size = bnxt_re_setup_rwqe_size(qplqp, rq->max_sge,
+						       dev_attr->max_qp_sges);
 		/* Allocate 1 more than what's provided so posting max doesn't
 		 * mean empty.
 		 */
 		entries = roundup_pow_of_two(init_attr->cap.max_recv_wr + 1);
 		rq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + 1);
-		rq->q_full_delta = rq->max_wqe - init_attr->cap.max_recv_wr;
-		rq->max_sge = init_attr->cap.max_recv_sge;
-		if (rq->max_sge > dev_attr->max_qp_sges)
-			rq->max_sge = dev_attr->max_qp_sges;
+		rq->q_full_delta = 0;
+		rq->sg_info.pgsize = PAGE_SIZE;
+		rq->sg_info.pgshft = PAGE_SHIFT;
 	}
-	rq->sg_info.pgsize = PAGE_SIZE;
-	rq->sg_info.pgshft = PAGE_SHIFT;
 
 	return 0;
 }
@@ -1068,41 +1138,48 @@ static void bnxt_re_adjust_gsi_rq_attr(struct bnxt_re_qp *qp)
 	qplqp = &qp->qplib_qp;
 	dev_attr = &rdev->dev_attr;
 
-	qplqp->rq.max_sge = dev_attr->max_qp_sges;
-	if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
+	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
 		qplqp->rq.max_sge = dev_attr->max_qp_sges;
-	qplqp->rq.max_sge = 6;
+		if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
+			qplqp->rq.max_sge = dev_attr->max_qp_sges;
+		qplqp->rq.max_sge = 6;
+	}
 }
 
-static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
-				 struct ib_qp_init_attr *init_attr,
-				 struct ib_udata *udata)
+static int bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
+				struct ib_qp_init_attr *init_attr,
+				struct ib_udata *udata)
 {
 	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_qplib_qp *qplqp;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_q *sq;
 	int entries;
+	int diff;
+	int rc;
 
 	rdev = qp->rdev;
 	qplqp = &qp->qplib_qp;
 	sq = &qplqp->sq;
 	dev_attr = &rdev->dev_attr;
 
-	sq->wqe_size = bnxt_re_get_swqe_size();
 	sq->max_sge = init_attr->cap.max_send_sge;
-	if (sq->max_sge > dev_attr->max_qp_sges)
+	if (sq->max_sge > dev_attr->max_qp_sges) {
 		sq->max_sge = dev_attr->max_qp_sges;
-	/*
-	 * Change the SQ depth if user has requested minimum using
-	 * configfs. Only supported for kernel consumers
-	 */
+		init_attr->cap.max_send_sge = sq->max_sge;
+	}
+
+	rc = bnxt_re_setup_swqe_size(qp, init_attr);
+	if (rc)
+		return rc;
+
 	entries = init_attr->cap.max_send_wr;
 	/* Allocate 128 + 1 more than what's provided */
-	entries = roundup_pow_of_two(entries + BNXT_QPLIB_RESERVED_QP_WRS + 1);
-	sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes +
-			    BNXT_QPLIB_RESERVED_QP_WRS + 1);
-	sq->q_full_delta = BNXT_QPLIB_RESERVED_QP_WRS + 1;
+	diff = (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE) ?
+		0 : BNXT_QPLIB_RESERVED_QP_WRS;
+	entries = roundup_pow_of_two(entries + diff + 1);
+	sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + diff + 1);
+	sq->q_full_delta = diff + 1;
 	/*
 	 * Reserving one slot for Phantom WQE. Application can
 	 * post one extra entry in this case. But allowing this to avoid
@@ -1111,6 +1188,8 @@ static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 	qplqp->sq.q_full_delta -= 1;
 	qplqp->sq.sg_info.pgsize = PAGE_SIZE;
 	qplqp->sq.sg_info.pgshft = PAGE_SHIFT;
+
+	return 0;
 }
 
 static void bnxt_re_adjust_gsi_sq_attr(struct bnxt_re_qp *qp,
@@ -1125,13 +1204,16 @@ static void bnxt_re_adjust_gsi_sq_attr(struct bnxt_re_qp *qp,
 	qplqp = &qp->qplib_qp;
 	dev_attr = &rdev->dev_attr;
 
-	entries = roundup_pow_of_two(init_attr->cap.max_send_wr + 1);
-	qplqp->sq.max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + 1);
-	qplqp->sq.q_full_delta = qplqp->sq.max_wqe -
-				 init_attr->cap.max_send_wr;
-	qplqp->sq.max_sge++; /* Need one extra sge to put UD header */
-	if (qplqp->sq.max_sge > dev_attr->max_qp_sges)
-		qplqp->sq.max_sge = dev_attr->max_qp_sges;
+	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+		entries = roundup_pow_of_two(init_attr->cap.max_send_wr + 1);
+		qplqp->sq.max_wqe = min_t(u32, entries,
+					  dev_attr->max_qp_wqes + 1);
+		qplqp->sq.q_full_delta = qplqp->sq.max_wqe -
+			init_attr->cap.max_send_wr;
+		qplqp->sq.max_sge++; /* Need one extra sge to put UD header */
+		if (qplqp->sq.max_sge > dev_attr->max_qp_sges)
+			qplqp->sq.max_sge = dev_attr->max_qp_sges;
+	}
 }
 
 static int bnxt_re_init_qp_type(struct bnxt_re_dev *rdev,
@@ -1183,6 +1265,7 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 		goto out;
 	}
 	qplqp->type = (u8)qptype;
+	qplqp->wqe_mode = rdev->chip_ctx->modes.wqe_mode;
 
 	if (init_attr->qp_type == IB_QPT_RC) {
 		qplqp->max_rd_atomic = dev_attr->max_qp_rd_atom;
@@ -1226,7 +1309,9 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 		bnxt_re_adjust_gsi_rq_attr(qp);
 
 	/* Setup SQ */
-	bnxt_re_init_sq_attr(qp, init_attr, udata);
+	rc = bnxt_re_init_sq_attr(qp, init_attr, udata);
+	if (rc)
+		goto out;
 	if (init_attr->qp_type == IB_QPT_GSI)
 		bnxt_re_adjust_gsi_sq_attr(qp, init_attr);
 
@@ -1574,8 +1659,9 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 		entries = dev_attr->max_srq_wqes + 1;
 	srq->qplib_srq.max_wqe = entries;
 
-	srq->qplib_srq.wqe_size = bnxt_re_get_rwqe_size();
 	srq->qplib_srq.max_sge = srq_init_attr->attr.max_sge;
+	srq->qplib_srq.wqe_size =
+			bnxt_re_get_rwqe_size(srq->qplib_srq.max_sge);
 	srq->qplib_srq.threshold = srq_init_attr->attr.srq_limit;
 	srq->srq_limit = srq_init_attr->attr.srq_limit;
 	srq->qplib_srq.eventq_hw_ring_id = rdev->nq[0].ring_id;
@@ -3569,7 +3655,7 @@ int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 }
 
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
-			       u32 max_num_sg, struct ib_udata *udata)
+			       u32 max_num_sg)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;

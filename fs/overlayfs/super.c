@@ -580,12 +580,19 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		}
 	}
 
-	/* Workdir is useless in non-upper mount */
-	if (!config->upperdir && config->workdir) {
-		pr_info("option \"workdir=%s\" is useless in a non-upper mount, ignore\n",
-			config->workdir);
-		kfree(config->workdir);
-		config->workdir = NULL;
+	/* Workdir/index are useless in non-upper mount */
+	if (!config->upperdir) {
+		if (config->workdir) {
+			pr_info("option \"workdir=%s\" is useless in a non-upper mount, ignore\n",
+				config->workdir);
+			kfree(config->workdir);
+			config->workdir = NULL;
+		}
+		if (config->index && index_opt) {
+			pr_info("option \"index=on\" is useless in a non-upper mount, ignore\n");
+			index_opt = false;
+		}
+		config->index = false;
 	}
 
 	err = ovl_parse_redirect_mode(config, config->redirect_mode);
@@ -622,11 +629,13 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 	/* Resolve nfs_export -> index dependency */
 	if (config->nfs_export && !config->index) {
-		if (nfs_export_opt && index_opt) {
+		if (!config->upperdir && config->redirect_follow) {
+			pr_info("NFS export requires \"redirect_dir=nofollow\" on non-upper mount, falling back to nfs_export=off.\n");
+			config->nfs_export = false;
+		} else if (nfs_export_opt && index_opt) {
 			pr_err("conflicting options: nfs_export=on,index=off\n");
 			return -EINVAL;
-		}
-		if (index_opt) {
+		} else if (index_opt) {
 			/*
 			 * There was an explicit index=off that resulted
 			 * in this conflict.
@@ -1352,8 +1361,15 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 		goto out;
 	}
 
+	/* index dir will act also as workdir */
+	iput(ofs->workdir_trap);
+	ofs->workdir_trap = NULL;
+	dput(ofs->workdir);
+	ofs->workdir = NULL;
 	ofs->indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
 	if (ofs->indexdir) {
+		ofs->workdir = dget(ofs->indexdir);
+
 		err = ovl_setup_trap(sb, ofs->indexdir, &ofs->indexdir_trap,
 				     "indexdir");
 		if (err)
@@ -1395,6 +1411,18 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 
 	if (!ofs->config.nfs_export && !ovl_upper_mnt(ofs))
 		return true;
+
+	/*
+	 * We allow using single lower with null uuid for index and nfs_export
+	 * for example to support those features with single lower squashfs.
+	 * To avoid regressions in setups of overlay with re-formatted lower
+	 * squashfs, do not allow decoding origin with lower null uuid unless
+	 * user opted-in to one of the new features that require following the
+	 * lower inode of non-dir upper.
+	 */
+	if (!ofs->config.index && !ofs->config.metacopy && !ofs->config.xino &&
+	    uuid_is_null(uuid))
+		return false;
 
 	for (i = 0; i < ofs->numfs; i++) {
 		/*
@@ -1493,14 +1521,23 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		if (err < 0)
 			goto out;
 
+		/*
+		 * Check if lower root conflicts with this overlay layers before
+		 * checking if it is in-use as upperdir/workdir of "another"
+		 * mount, because we do not bother to check in ovl_is_inuse() if
+		 * the upperdir/workdir is in fact in-use by our
+		 * upperdir/workdir.
+		 */
 		err = ovl_setup_trap(sb, stack[i].dentry, &trap, "lowerdir");
 		if (err)
 			goto out;
 
 		if (ovl_is_inuse(stack[i].dentry)) {
 			err = ovl_report_in_use(ofs, "lowerdir");
-			if (err)
+			if (err) {
+				iput(trap);
 				goto out;
+			}
 		}
 
 		mnt = clone_private_mount(&stack[i]);
@@ -1575,10 +1612,6 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 	if (!ofs->config.upperdir && numlower == 1) {
 		pr_err("at least 2 lowerdir are needed while upperdir nonexistent\n");
 		return ERR_PTR(-EINVAL);
-	} else if (!ofs->config.upperdir && ofs->config.nfs_export &&
-		   ofs->config.redirect_follow) {
-		pr_warn("NFS export requires \"redirect_dir=nofollow\" on non-upper mount, falling back to nfs_export=off.\n");
-		ofs->config.nfs_export = false;
 	}
 
 	stack = kcalloc(numlower, sizeof(struct path), GFP_KERNEL);
@@ -1842,21 +1875,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ovl_upper_mnt(ofs))
 		sb->s_flags |= SB_RDONLY;
 
-	if (!(ovl_force_readonly(ofs)) && ofs->config.index) {
-		/* index dir will act also as workdir */
-		dput(ofs->workdir);
-		ofs->workdir = NULL;
-		iput(ofs->workdir_trap);
-		ofs->workdir_trap = NULL;
-
+	if (!ovl_force_readonly(ofs) && ofs->config.index) {
 		err = ovl_get_indexdir(sb, ofs, oe, &upperpath);
 		if (err)
 			goto out_free_oe;
 
 		/* Force r/o mount with no index dir */
-		if (ofs->indexdir)
-			ofs->workdir = dget(ofs->indexdir);
-		else
+		if (!ofs->indexdir)
 			sb->s_flags |= SB_RDONLY;
 	}
 

@@ -30,8 +30,8 @@ Required properties:
                 "di2_sel" - IPU2 DI0 mux
                 "di3_sel" - IPU2 DI1 mux
         The needed clock numbers for each are documented in
-        Documentation/devicetree/bindings/clock/imx5-clock.txt, and in
-        Documentation/devicetree/bindings/clock/imx6q-clock.txt.
+        Documentation/devicetree/bindings/clock/imx5-clock.yaml, and in
+        Documentation/devicetree/bindings/clock/imx6q-clock.yaml.
 
 Optional properties:
  - pinctrl-names : should be "default" on i.MX53, not used on i.MX6q

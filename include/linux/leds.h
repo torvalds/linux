@@ -57,6 +57,10 @@ struct led_init_data {
 	bool devname_mandatory;
 };
 
+struct led_hw_trigger_type {
+	int dummy;
+};
+
 struct led_classdev {
 	const char		*name;
 	enum led_brightness	 brightness;
@@ -141,6 +145,9 @@ struct led_classdev {
 	void			*trigger_data;
 	/* true if activated - deactivate routine uses it to do cleanup */
 	bool			activated;
+
+	/* LEDs that have private triggers have this set */
+	struct led_hw_trigger_type	*trigger_type;
 #endif
 
 #ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
@@ -344,6 +351,9 @@ struct led_trigger {
 	const char	 *name;
 	int		(*activate)(struct led_classdev *led_cdev);
 	void		(*deactivate)(struct led_classdev *led_cdev);
+
+	/* LED-private triggers have this set */
+	struct led_hw_trigger_type *trigger_type;
 
 	/* LEDs under control by this trigger (for simple triggers) */
 	rwlock_t	  leddev_list_lock;

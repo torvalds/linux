@@ -93,16 +93,24 @@ static int __net_init ip6table_mangle_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit ip6table_mangle_net_pre_exit(struct net *net)
+{
+	if (net->ipv6.ip6table_mangle)
+		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_mangle,
+					       mangle_ops);
+}
+
 static void __net_exit ip6table_mangle_net_exit(struct net *net)
 {
 	if (!net->ipv6.ip6table_mangle)
 		return;
 
-	ip6t_unregister_table(net, net->ipv6.ip6table_mangle, mangle_ops);
+	ip6t_unregister_table_exit(net, net->ipv6.ip6table_mangle);
 	net->ipv6.ip6table_mangle = NULL;
 }
 
 static struct pernet_operations ip6table_mangle_net_ops = {
+	.pre_exit = ip6table_mangle_net_pre_exit,
 	.exit = ip6table_mangle_net_exit,
 };
 

@@ -16,32 +16,35 @@
 #include "hw_atl_llh.h"
 #include "hw_atl_a0_internal.h"
 
-#define DEFAULT_A0_BOARD_BASIC_CAPABILITIES \
-	.is_64_dma = true,		  \
-	.msix_irqs = 4U,		  \
-	.irq_mask = ~0U,		  \
-	.vecs = HW_ATL_A0_RSS_MAX,	  \
-	.tcs_max = HW_ATL_A0_TC_MAX,	  \
-	.rxd_alignment = 1U,		  \
-	.rxd_size = HW_ATL_A0_RXD_SIZE,   \
-	.rxds_max = HW_ATL_A0_MAX_RXD,    \
-	.rxds_min = HW_ATL_A0_MIN_RXD,    \
-	.txd_alignment = 1U,		  \
-	.txd_size = HW_ATL_A0_TXD_SIZE,   \
-	.txds_max = HW_ATL_A0_MAX_TXD,    \
-	.txds_min = HW_ATL_A0_MIN_RXD,    \
-	.txhwb_alignment = 4096U,	  \
-	.tx_rings = HW_ATL_A0_TX_RINGS,   \
-	.rx_rings = HW_ATL_A0_RX_RINGS,   \
-	.hw_features = NETIF_F_HW_CSUM |  \
-			NETIF_F_RXHASH |  \
-			NETIF_F_RXCSUM |  \
-			NETIF_F_SG |	  \
-			NETIF_F_TSO,	  \
-	.hw_priv_flags = IFF_UNICAST_FLT, \
-	.flow_control = true,		  \
-	.mtu = HW_ATL_A0_MTU_JUMBO,       \
-	.mac_regs_count = 88,		  \
+#define DEFAULT_A0_BOARD_BASIC_CAPABILITIES	     \
+	.is_64_dma = true,			     \
+	.op64bit = false,			     \
+	.msix_irqs = 4U,			     \
+	.irq_mask = ~0U,			     \
+	.vecs = HW_ATL_A0_RSS_MAX,		     \
+	.tcs_max = HW_ATL_A0_TC_MAX,		     \
+	.rxd_alignment = 1U,			     \
+	.rxd_size = HW_ATL_A0_RXD_SIZE,		     \
+	.rxds_max = HW_ATL_A0_MAX_RXD,		     \
+	.rxds_min = HW_ATL_A0_MIN_RXD,		     \
+	.txd_alignment = 1U,			     \
+	.txd_size = HW_ATL_A0_TXD_SIZE,		     \
+	.txds_max = HW_ATL_A0_MAX_TXD,		     \
+	.txds_min = HW_ATL_A0_MIN_RXD,		     \
+	.txhwb_alignment = 4096U,		     \
+	.tx_rings = HW_ATL_A0_TX_RINGS,		     \
+	.rx_rings = HW_ATL_A0_RX_RINGS,		     \
+	.hw_features = NETIF_F_HW_CSUM |	     \
+			NETIF_F_RXHASH |	     \
+			NETIF_F_RXCSUM |	     \
+			NETIF_F_SG |		     \
+			NETIF_F_TSO |		     \
+			NETIF_F_NTUPLE |	     \
+			NETIF_F_HW_VLAN_CTAG_FILTER, \
+	.hw_priv_flags = IFF_UNICAST_FLT,	     \
+	.flow_control = true,			     \
+	.mtu = HW_ATL_A0_MTU_JUMBO,		     \
+	.mac_regs_count = 88,			     \
 	.hw_alive_check_addr = 0x10U
 
 const struct aq_hw_caps_s hw_atl_a0_caps_aqc100 = {
@@ -329,6 +332,7 @@ static int hw_atl_a0_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr)
 		err = -EINVAL;
 		goto err_exit;
 	}
+
 	h = (mac_addr[0] << 8) | (mac_addr[1]);
 	l = (mac_addr[2] << 24) | (mac_addr[3] << 16) |
 	    (mac_addr[4] << 8) | mac_addr[5];
@@ -354,7 +358,6 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	};
 	struct aq_nic_cfg_s *aq_nic_cfg = self->aq_nic_cfg;
 	int err = 0;
-
 
 	hw_atl_a0_hw_init_tx_path(self);
 	hw_atl_a0_hw_init_rx_path(self);
@@ -751,6 +754,7 @@ static int hw_atl_a0_hw_irq_read(struct aq_hw_s *self, u64 *mask)
 static int hw_atl_a0_hw_packet_filter_set(struct aq_hw_s *self,
 					  unsigned int packet_filter)
 {
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	unsigned int i = 0U;
 
 	hw_atl_rpfl2promiscuous_mode_en_set(self,
@@ -759,14 +763,13 @@ static int hw_atl_a0_hw_packet_filter_set(struct aq_hw_s *self,
 					 IS_FILTER_ENABLED(IFF_MULTICAST), 0);
 	hw_atl_rpfl2broadcast_en_set(self, IS_FILTER_ENABLED(IFF_BROADCAST));
 
-	self->aq_nic_cfg->is_mc_list_enabled =
-			IS_FILTER_ENABLED(IFF_MULTICAST);
+	cfg->is_mc_list_enabled = IS_FILTER_ENABLED(IFF_MULTICAST);
 
 	for (i = HW_ATL_A0_MAC_MIN; i < HW_ATL_A0_MAC_MAX; ++i)
 		hw_atl_rpfl2_uc_flr_en_set(self,
-					   (self->aq_nic_cfg->is_mc_list_enabled &&
-					   (i <= self->aq_nic_cfg->mc_list_count)) ?
-					   1U : 0U, i);
+					   (cfg->is_mc_list_enabled &&
+					    (i <= cfg->mc_list_count)) ? 1U : 0U,
+					   i);
 
 	return aq_hw_err_from_flags(self);
 }
@@ -779,19 +782,18 @@ static int hw_atl_a0_hw_multicast_list_set(struct aq_hw_s *self,
 					   [ETH_ALEN],
 					   u32 count)
 {
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	int err = 0;
 
 	if (count > (HW_ATL_A0_MAC_MAX - HW_ATL_A0_MAC_MIN)) {
-		err = EBADRQC;
+		err = -EBADRQC;
 		goto err_exit;
 	}
-	for (self->aq_nic_cfg->mc_list_count = 0U;
-			self->aq_nic_cfg->mc_list_count < count;
-			++self->aq_nic_cfg->mc_list_count) {
-		u32 i = self->aq_nic_cfg->mc_list_count;
+	for (cfg->mc_list_count = 0U; cfg->mc_list_count < count; ++cfg->mc_list_count) {
+		u32 i = cfg->mc_list_count;
 		u32 h = (ar_mac[i][0] << 8) | (ar_mac[i][1]);
 		u32 l = (ar_mac[i][2] << 24) | (ar_mac[i][3] << 16) |
-					(ar_mac[i][4] << 8) | ar_mac[i][5];
+			(ar_mac[i][4] << 8) | ar_mac[i][5];
 
 		hw_atl_rpfl2_uc_flr_en_set(self, 0U, HW_ATL_A0_MAC_MIN + i);
 
@@ -804,7 +806,7 @@ static int hw_atl_a0_hw_multicast_list_set(struct aq_hw_s *self,
 							HW_ATL_A0_MAC_MIN + i);
 
 		hw_atl_rpfl2_uc_flr_en_set(self,
-					   (self->aq_nic_cfg->is_mc_list_enabled),
+					   (cfg->is_mc_list_enabled),
 					   HW_ATL_A0_MAC_MIN + i);
 	}
 
@@ -885,6 +887,63 @@ static int hw_atl_a0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_a0_hw_fl3l4_clear(struct aq_hw_s *self,
+				    struct aq_rx_filter_l3l4 *data)
+{
+	u8 location = data->location;
+
+	if (!data->is_ipv6) {
+		hw_atl_rpfl3l4_cmd_clear(self, location);
+		hw_atl_rpf_l4_spd_set(self, 0U, location);
+		hw_atl_rpf_l4_dpd_set(self, 0U, location);
+		hw_atl_rpfl3l4_ipv4_src_addr_clear(self, location);
+		hw_atl_rpfl3l4_ipv4_dest_addr_clear(self, location);
+	} else {
+		int i;
+
+		for (i = 0; i < HW_ATL_RX_CNT_REG_ADDR_IPV6; ++i) {
+			hw_atl_rpfl3l4_cmd_clear(self, location + i);
+			hw_atl_rpf_l4_spd_set(self, 0U, location + i);
+			hw_atl_rpf_l4_dpd_set(self, 0U, location + i);
+		}
+		hw_atl_rpfl3l4_ipv6_src_addr_clear(self, location);
+		hw_atl_rpfl3l4_ipv6_dest_addr_clear(self, location);
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_a0_hw_fl3l4_set(struct aq_hw_s *self,
+				  struct aq_rx_filter_l3l4 *data)
+{
+	u8 location = data->location;
+
+	hw_atl_a0_hw_fl3l4_clear(self, data);
+
+	if (data->cmd) {
+		if (!data->is_ipv6) {
+			hw_atl_rpfl3l4_ipv4_dest_addr_set(self,
+							  location,
+							  data->ip_dst[0]);
+			hw_atl_rpfl3l4_ipv4_src_addr_set(self,
+							 location,
+							 data->ip_src[0]);
+		} else {
+			hw_atl_rpfl3l4_ipv6_dest_addr_set(self,
+							  location,
+							  data->ip_dst);
+			hw_atl_rpfl3l4_ipv6_src_addr_set(self,
+							 location,
+							 data->ip_src);
+		}
+	}
+	hw_atl_rpf_l4_dpd_set(self, data->p_dst, location);
+	hw_atl_rpf_l4_spd_set(self, data->p_src, location);
+	hw_atl_rpfl3l4_cmd_set(self, location, data->cmd);
+
+	return aq_hw_err_from_flags(self);
+}
+
 const struct aq_hw_ops hw_atl_ops_a0 = {
 	.hw_soft_reset        = hw_atl_utils_soft_reset,
 	.hw_prepare           = hw_atl_utils_initfw,
@@ -911,6 +970,7 @@ const struct aq_hw_ops hw_atl_ops_a0 = {
 	.hw_ring_rx_init             = hw_atl_a0_hw_ring_rx_init,
 	.hw_ring_tx_init             = hw_atl_a0_hw_ring_tx_init,
 	.hw_packet_filter_set        = hw_atl_a0_hw_packet_filter_set,
+	.hw_filter_l3l4_set          = hw_atl_a0_hw_fl3l4_set,
 	.hw_multicast_list_set       = hw_atl_a0_hw_multicast_list_set,
 	.hw_interrupt_moderation_set = hw_atl_a0_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl_a0_hw_rss_set,

@@ -207,10 +207,11 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 	if (no_formal_ino && ip->i_no_formal_ino &&
 	    no_formal_ino != ip->i_no_formal_ino) {
+		error = -ESTALE;
 		if (inode->i_state & I_NEW)
 			goto fail;
 		iput(inode);
-		return ERR_PTR(-ESTALE);
+		return ERR_PTR(error);
 	}
 
 	if (inode->i_state & I_NEW)

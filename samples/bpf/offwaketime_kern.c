@@ -12,7 +12,12 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-#define _(P) ({typeof(P) val; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P)                                                                   \
+	({                                                                     \
+		typeof(P) val;                                                 \
+		bpf_probe_read_kernel(&val, sizeof(val), &(P));                \
+		val;                                                           \
+	})
 
 #define MINBLOCK_US	1
 

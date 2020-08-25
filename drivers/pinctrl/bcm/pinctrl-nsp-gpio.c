@@ -154,15 +154,9 @@ static irqreturn_t nsp_gpio_irq_handler(int irq, void *data)
 		level &= readl(chip->base + NSP_GPIO_INT_MASK);
 		int_bits = level | event;
 
-		for_each_set_bit(bit, &int_bits, gc->ngpio) {
-			/*
-			 * Clear the interrupt before invoking the
-			 * handler, so we do not leave any window
-			 */
-			writel(BIT(bit), chip->base + NSP_GPIO_EVENT);
+		for_each_set_bit(bit, &int_bits, gc->ngpio)
 			generic_handle_irq(
 				irq_linear_revmap(gc->irq.domain, bit));
-		}
 	}
 
 	return  int_bits ? IRQ_HANDLED : IRQ_NONE;
@@ -178,7 +172,7 @@ static void nsp_gpio_irq_ack(struct irq_data *d)
 
 	trigger_type = irq_get_trigger_type(d->irq);
 	if (trigger_type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
-		nsp_set_bit(chip, REG, NSP_GPIO_EVENT, gpio, val);
+		writel(val, chip->base + NSP_GPIO_EVENT);
 }
 
 /*
@@ -262,6 +256,12 @@ static int nsp_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	nsp_set_bit(chip, REG, NSP_GPIO_EVENT_INT_POLARITY, gpio, falling);
 	nsp_set_bit(chip, REG, NSP_GPIO_INT_POLARITY, gpio, level_low);
+
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else
+		irq_set_handler_locked(d, handle_level_irq);
+
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u level_low:%s falling:%s\n", gpio,
@@ -691,7 +691,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		girq->num_parents = 0;
 		girq->parents = NULL;
 		girq->default_type = IRQ_TYPE_NONE;
-		girq->handler = handle_simple_irq;
+		girq->handler = handle_bad_irq;
 	}
 
 	ret = devm_gpiochip_add_data(dev, gc, chip);

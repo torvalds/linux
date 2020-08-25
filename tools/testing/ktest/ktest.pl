@@ -11,6 +11,7 @@ use File::Path qw(mkpath);
 use File::Copy qw(cp);
 use FileHandle;
 use FindBin;
+use IO::Handle;
 
 my $VERSION = "0.2";
 
@@ -81,6 +82,8 @@ my %default = (
     "IGNORE_UNUSED"		=> 0,
 );
 
+my $test_log_start = 0;
+
 my $ktest_config = "ktest.conf";
 my $version;
 my $have_version = 0;
@@ -98,6 +101,7 @@ my $final_post_ktest;
 my $pre_ktest;
 my $post_ktest;
 my $pre_test;
+my $pre_test_die;
 my $post_test;
 my $pre_build;
 my $post_build;
@@ -223,6 +227,7 @@ my $dirname = $FindBin::Bin;
 my $mailto;
 my $mailer;
 my $mail_path;
+my $mail_max_size;
 my $mail_command;
 my $email_on_error;
 my $email_when_finished;
@@ -259,6 +264,7 @@ my %option_map = (
     "MAILTO"			=> \$mailto,
     "MAILER"			=> \$mailer,
     "MAIL_PATH"			=> \$mail_path,
+    "MAIL_MAX_SIZE"		=> \$mail_max_size,
     "MAIL_COMMAND"		=> \$mail_command,
     "EMAIL_ON_ERROR"		=> \$email_on_error,
     "EMAIL_WHEN_FINISHED"	=> \$email_when_finished,
@@ -273,6 +279,7 @@ my %option_map = (
     "PRE_KTEST"			=> \$pre_ktest,
     "POST_KTEST"		=> \$post_ktest,
     "PRE_TEST"			=> \$pre_test,
+    "PRE_TEST_DIE"		=> \$pre_test_die,
     "POST_TEST"			=> \$post_test,
     "BUILD_TYPE"		=> \$build_type,
     "BUILD_OPTIONS"		=> \$build_options,
@@ -507,9 +514,7 @@ EOF
 
 sub _logit {
     if (defined($opt{"LOG_FILE"})) {
-	open(OUT, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
-	print OUT @_;
-	close(OUT);
+	print LOG @_;
     }
 }
 
@@ -907,6 +912,12 @@ sub process_expression {
 	} else {
 	    return value_defined($2);
 	}
+    }
+
+    if ($val =~ s/^\s*NOT\s+(.*)//) {
+	my $express = $1;
+	my $ret = process_expression($name, $express);
+	return !$ret;
     }
 
     if ($val =~ /^\s*0\s*$/) {
@@ -1485,8 +1496,32 @@ sub dodie {
 
     if ($email_on_error) {
 	my $name = get_test_name;
+	my $log_file;
+
+	if (defined($opt{"LOG_FILE"})) {
+	    my $whence = 0; # beginning of file
+	    my $pos = $test_log_start;
+
+	    if (defined($mail_max_size)) {
+		my $log_size = tell LOG;
+		$log_size -= $test_log_start;
+		if ($log_size > $mail_max_size) {
+		    $whence = 2; # end of file
+		    $pos = - $mail_max_size;
+		}
+	    }
+	    $log_file = "$tmpdir/log";
+	    open (L, "$opt{LOG_FILE}") or die "Can't open $opt{LOG_FILE} to read)";
+	    open (O, "> $tmpdir/log") or die "Can't open $tmpdir/log\n";
+	    seek(L, $pos, $whence);
+	    while (<L>) {
+		print O;
+	    }
+	    close O;
+	    close L;
+	}
         send_email("KTEST: critical failure for test $i [$name]",
-                "Your test started at $script_start_time has failed with:\n@_\n");
+                "Your test started at $script_start_time has failed with:\n@_\n", $log_file);
     }
 
     if ($monitor_cnt) {
@@ -1508,7 +1543,7 @@ sub create_pty {
     my $TIOCGPTN = 0x80045430;
 
     sysopen($ptm, "/dev/ptmx", O_RDWR | O_NONBLOCK) or
-	dodie "Cant open /dev/ptmx";
+	dodie "Can't open /dev/ptmx";
 
     # unlockpt()
     $tmp = pack("i", 0);
@@ -1772,8 +1807,6 @@ sub run_command {
 	(fail "unable to exec $command" and return 0);
 
     if (defined($opt{"LOG_FILE"})) {
-	open(LOG, ">>$opt{LOG_FILE}") or
-	    dodie "failed to write to log";
 	$dolog = 1;
     }
 
@@ -1821,7 +1854,6 @@ sub run_command {
     }
 
     close(CMD);
-    close(LOG) if ($dolog);
     close(RD)  if ($dord);
 
     $end_time = time;
@@ -3188,6 +3220,8 @@ sub config_bisect_end {
     doprint "***************************************\n\n";
 }
 
+my $pass = 1;
+
 sub run_config_bisect {
     my ($good, $bad, $last_result) = @_;
     my $reset = "";
@@ -3210,11 +3244,15 @@ sub run_config_bisect {
 
     $ret = run_config_bisect_test $config_bisect_type;
     if ($ret) {
-        doprint "NEW GOOD CONFIG\n";
+        doprint "NEW GOOD CONFIG ($pass)\n";
+	system("cp $output_config $tmpdir/good_config.tmp.$pass");
+	$pass++;
 	# Return 3 for good config
 	return 3;
     } else {
-        doprint "NEW BAD CONFIG\n";
+        doprint "NEW BAD CONFIG ($pass)\n";
+	system("cp $output_config $tmpdir/bad_config.tmp.$pass");
+	$pass++;
 	# Return 4 for bad config
 	return 4;
     }
@@ -4077,8 +4115,12 @@ if ($#new_configs >= 0) {
     }
 }
 
-if ($opt{"CLEAR_LOG"} && defined($opt{"LOG_FILE"})) {
-    unlink $opt{"LOG_FILE"};
+if (defined($opt{"LOG_FILE"})) {
+    if ($opt{"CLEAR_LOG"}) {
+	unlink $opt{"LOG_FILE"};
+    }
+    open(LOG, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
+    LOG->autoflush(1);
 }
 
 doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
@@ -4171,7 +4213,7 @@ sub find_mailer {
 }
 
 sub do_send_mail {
-    my ($subject, $message) = @_;
+    my ($subject, $message, $file) = @_;
 
     if (!defined($mail_path)) {
 	# find the mailer
@@ -4181,16 +4223,30 @@ sub do_send_mail {
 	}
     }
 
+    my $header_file = "$tmpdir/header";
+    open (HEAD, ">$header_file") or die "Can not create $header_file\n";
+    print HEAD "To: $mailto\n";
+    print HEAD "Subject: $subject\n\n";
+    print HEAD "$message\n";
+    close HEAD;
+
     if (!defined($mail_command)) {
 	if ($mailer eq "mail" || $mailer eq "mailx") {
-	    $mail_command = "\$MAIL_PATH/\$MAILER -s \'\$SUBJECT\' \$MAILTO <<< \'\$MESSAGE\'";
+	    $mail_command = "cat \$HEADER_FILE \$BODY_FILE | \$MAIL_PATH/\$MAILER -s \'\$SUBJECT\' \$MAILTO";
 	} elsif ($mailer eq "sendmail" ) {
-	    $mail_command =  "echo \'Subject: \$SUBJECT\n\n\$MESSAGE\' | \$MAIL_PATH/\$MAILER -t \$MAILTO";
+	    $mail_command =  "cat \$HEADER_FILE \$BODY_FILE | \$MAIL_PATH/\$MAILER -t \$MAILTO";
 	} else {
 	    die "\nYour mailer: $mailer is not supported.\n";
 	}
     }
 
+    if (defined($file)) {
+	$mail_command =~ s/\$BODY_FILE/$file/g;
+    } else {
+	$mail_command =~ s/\$BODY_FILE//g;
+    }
+
+    $mail_command =~ s/\$HEADER_FILE/$header_file/g;
     $mail_command =~ s/\$MAILER/$mailer/g;
     $mail_command =~ s/\$MAIL_PATH/$mail_path/g;
     $mail_command =~ s/\$MAILTO/$mailto/g;
@@ -4338,10 +4394,19 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     doprint "\n\n";
+
+    if (defined($opt{"LOG_FILE"})) {
+	$test_log_start = tell(LOG);
+    }
+
     doprint "RUNNING TEST $i of $opt{NUM_TESTS}$name with option $test_type $run_type$installme\n\n";
 
     if (defined($pre_test)) {
-	run_command $pre_test;
+	my $ret = run_command $pre_test;
+	if (!$ret && defined($pre_test_die) &&
+	    $pre_test_die) {
+	    dodie "failed to pre_test\n";
+	}
     }
 
     unlink $dmesg;
@@ -4441,4 +4506,10 @@ if ($email_when_finished) {
     send_email("KTEST: Your test has finished!",
             "$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
 }
+
+if (defined($opt{"LOG_FILE"})) {
+    print "\n See $opt{LOG_FILE} for the record of results.\n\n";
+    close LOG;
+}
+
 exit 0;

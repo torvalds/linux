@@ -304,7 +304,6 @@ static int ad7292_probe(struct spi_device *spi)
 		st->vref_mv = 1250;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;

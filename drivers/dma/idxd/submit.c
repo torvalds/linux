@@ -8,61 +8,61 @@
 #include "idxd.h"
 #include "registers.h"
 
-struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype)
+static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 {
 	struct idxd_desc *desc;
-	int idx;
-	struct idxd_device *idxd = wq->idxd;
-
-	if (idxd->state != IDXD_DEV_ENABLED)
-		return ERR_PTR(-EIO);
-
-	if (optype == IDXD_OP_BLOCK)
-		percpu_down_read(&wq->submit_lock);
-	else if (!percpu_down_read_trylock(&wq->submit_lock))
-		return ERR_PTR(-EBUSY);
-
-	if (!atomic_add_unless(&wq->dq_count, 1, wq->size)) {
-		int rc;
-
-		if (optype == IDXD_OP_NONBLOCK) {
-			percpu_up_read(&wq->submit_lock);
-			return ERR_PTR(-EAGAIN);
-		}
-
-		percpu_up_read(&wq->submit_lock);
-		percpu_down_write(&wq->submit_lock);
-		rc = wait_event_interruptible(wq->submit_waitq,
-					      atomic_add_unless(&wq->dq_count,
-								1, wq->size) ||
-					       idxd->state != IDXD_DEV_ENABLED);
-		percpu_up_write(&wq->submit_lock);
-		if (rc < 0)
-			return ERR_PTR(-EINTR);
-		if (idxd->state != IDXD_DEV_ENABLED)
-			return ERR_PTR(-EIO);
-	} else {
-		percpu_up_read(&wq->submit_lock);
-	}
-
-	idx = sbitmap_get(&wq->sbmap, 0, false);
-	if (idx < 0) {
-		atomic_dec(&wq->dq_count);
-		return ERR_PTR(-EAGAIN);
-	}
 
 	desc = wq->descs[idx];
 	memset(desc->hw, 0, sizeof(struct dsa_hw_desc));
 	memset(desc->completion, 0, sizeof(struct dsa_completion_record));
+	desc->cpu = cpu;
 	return desc;
+}
+
+struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype)
+{
+	int cpu, idx;
+	struct idxd_device *idxd = wq->idxd;
+	DEFINE_SBQ_WAIT(wait);
+	struct sbq_wait_state *ws;
+	struct sbitmap_queue *sbq;
+
+	if (idxd->state != IDXD_DEV_ENABLED)
+		return ERR_PTR(-EIO);
+
+	sbq = &wq->sbq;
+	idx = sbitmap_queue_get(sbq, &cpu);
+	if (idx < 0) {
+		if (optype == IDXD_OP_NONBLOCK)
+			return ERR_PTR(-EAGAIN);
+	} else {
+		return __get_desc(wq, idx, cpu);
+	}
+
+	ws = &sbq->ws[0];
+	for (;;) {
+		sbitmap_prepare_to_wait(sbq, ws, &wait, TASK_INTERRUPTIBLE);
+		if (signal_pending_state(TASK_INTERRUPTIBLE, current))
+			break;
+		idx = sbitmap_queue_get(sbq, &cpu);
+		if (idx > 0)
+			break;
+		schedule();
+	}
+
+	sbitmap_finish_wait(sbq, ws, &wait);
+	if (idx < 0)
+		return ERR_PTR(-EAGAIN);
+
+	return __get_desc(wq, idx, cpu);
 }
 
 void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
-	atomic_dec(&wq->dq_count);
+	int cpu = desc->cpu;
 
-	sbitmap_clear_bit(&wq->sbmap, desc->id);
-	wake_up(&wq->submit_waitq);
+	desc->cpu = -1;
+	sbitmap_queue_clear(&wq->sbq, desc->id, cpu);
 }
 
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)

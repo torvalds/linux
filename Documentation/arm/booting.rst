@@ -128,7 +128,7 @@ it.  The recommended placement is in the first 16KiB of RAM.
 
 The boot loader must load a device tree image (dtb) into system ram
 at a 64bit aligned address and initialize it with the boot data.  The
-dtb format is documented in Documentation/devicetree/booting-without-of.txt.
+dtb format is documented in Documentation/devicetree/booting-without-of.rst.
 The kernel will look for the dtb magic value of 0xd00dfeed at the dtb
 physical address to determine if a dtb has been passed instead of a
 tagged list.

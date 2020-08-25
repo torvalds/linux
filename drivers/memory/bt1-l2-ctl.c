@@ -66,6 +66,7 @@ struct l2_ctl_device_attribute {
 	struct device_attribute dev_attr;
 	enum l2_ctl_stall id;
 };
+
 #define to_l2_ctl_dev_attr(_dev_attr) \
 	container_of(_dev_attr, struct l2_ctl_device_attribute, dev_attr)
 
@@ -242,6 +243,7 @@ static ssize_t l2_ctl_latency_store(struct device *dev,
 
 	return count;
 }
+
 static L2_CTL_ATTR_RW(l2_ws_latency, l2_ctl_latency, L2_WS_STALL);
 static L2_CTL_ATTR_RW(l2_tag_latency, l2_ctl_latency, L2_TAG_STALL);
 static L2_CTL_ATTR_RW(l2_data_latency, l2_ctl_latency, L2_DATA_STALL);

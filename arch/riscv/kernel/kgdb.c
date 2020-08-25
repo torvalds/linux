@@ -44,25 +44,25 @@ DECLARE_INSN(c_beqz, MATCH_C_BEQZ, MASK_C_BEQZ)
 DECLARE_INSN(c_bnez, MATCH_C_BNEZ, MASK_C_BNEZ)
 DECLARE_INSN(sret, MATCH_SRET, MASK_SRET)
 
-int decode_register_index(unsigned long opcode, int offset)
+static int decode_register_index(unsigned long opcode, int offset)
 {
 	return (opcode >> offset) & 0x1F;
 }
 
-int decode_register_index_short(unsigned long opcode, int offset)
+static int decode_register_index_short(unsigned long opcode, int offset)
 {
 	return ((opcode >> offset) & 0x7) + 8;
 }
 
 /* Calculate the new address for after a step */
-int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
+static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 {
 	unsigned long pc = regs->epc;
 	unsigned long *regs_ptr = (unsigned long *)regs;
 	unsigned int rs1_num, rs2_num;
 	int op_code;
 
-	if (probe_kernel_address((void *)pc, op_code))
+	if (get_kernel_nofault(op_code, (void *)pc))
 		return -EINVAL;
 	if ((op_code & __INSN_LENGTH_MASK) != __INSN_LENGTH_GE_32) {
 		if (is_c_jalr_insn(op_code) || is_c_jr_insn(op_code)) {
@@ -136,7 +136,7 @@ int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	return 0;
 }
 
-int do_single_step(struct pt_regs *regs)
+static int do_single_step(struct pt_regs *regs)
 {
 	/* Determine where the target instruction will send us to */
 	unsigned long addr = 0;
@@ -146,14 +146,14 @@ int do_single_step(struct pt_regs *regs)
 		return error;
 
 	/* Store the op code in the stepped address */
-	error = probe_kernel_address((void *)addr, stepped_opcode);
+	error = get_kernel_nofault(stepped_opcode, (void *)addr);
 	if (error)
 		return error;
 
 	stepped_address = addr;
 
 	/* Replace the op code with the break instruction */
-	error = probe_kernel_write((void *)stepped_address,
+	error = copy_to_kernel_nofault((void *)stepped_address,
 				   arch_kgdb_ops.gdb_bpt_instr,
 				   BREAK_INSTR_SIZE);
 	/* Flush and return */
@@ -173,7 +173,7 @@ int do_single_step(struct pt_regs *regs)
 static void undo_single_step(struct pt_regs *regs)
 {
 	if (stepped_opcode != 0) {
-		probe_kernel_write((void *)stepped_address,
+		copy_to_kernel_nofault((void *)stepped_address,
 				   (void *)&stepped_opcode, BREAK_INSTR_SIZE);
 		flush_icache_range(stepped_address,
 				   stepped_address + BREAK_INSTR_SIZE);
@@ -320,7 +320,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	return err;
 }
 
-int kgdb_riscv_kgdbbreak(unsigned long addr)
+static int kgdb_riscv_kgdbbreak(unsigned long addr)
 {
 	if (stepped_address == addr)
 		return KGDB_SW_SINGLE_STEP;

@@ -44,7 +44,7 @@ struct tboot_acpi_generic_address {
 
 /*
  * combines Sx info from FADT and FACS tables per ACPI 2.0+ spec
- * (http://www.acpi.info/)
+ * (https://uefi.org/specifications)
  */
 struct tboot_acpi_sleep_info {
 	struct tboot_acpi_generic_address pm1a_cnt_blk;

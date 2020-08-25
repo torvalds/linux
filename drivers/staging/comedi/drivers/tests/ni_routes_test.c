@@ -607,7 +607,7 @@ static void __exit ni_routes_unittest_exit(void) { }
 module_init(ni_routes_unittest);
 module_exit(ni_routes_unittest_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi unit-tests for ni_routes module");
 MODULE_LICENSE("GPL");
 /* **** END simple module entry/exit functions **** */

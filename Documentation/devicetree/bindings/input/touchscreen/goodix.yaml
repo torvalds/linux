@@ -35,9 +35,8 @@ properties:
     maxItems: 1
 
   irq-gpios:
-    description: GPIO pin used for IRQ.
-                 The driver uses the interrupt gpio pin as
-                 output to reset the device.
+    description: GPIO pin used for IRQ. The driver uses the interrupt gpio pin
+      as output to reset the device.
     maxItems: 1
 
   reset-gpios:

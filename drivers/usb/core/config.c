@@ -298,10 +298,10 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 		goto skip_to_next_endpoint_or_interface_descriptor;
 	}
 
-	/* Ignore blacklisted endpoints */
-	if (udev->quirks & USB_QUIRK_ENDPOINT_BLACKLIST) {
-		if (usb_endpoint_is_blacklisted(udev, ifp, d)) {
-			dev_warn(ddev, "config %d interface %d altsetting %d has a blacklisted endpoint with address 0x%X, skipping\n",
+	/* Ignore some endpoints */
+	if (udev->quirks & USB_QUIRK_ENDPOINT_IGNORE) {
+		if (usb_endpoint_is_ignored(udev, ifp, d)) {
+			dev_warn(ddev, "config %d interface %d altsetting %d has an ignored endpoint with address 0x%X, skipping\n",
 					cfgno, inum, asnum,
 					d->bEndpointAddress);
 			goto skip_to_next_endpoint_or_interface_descriptor;
@@ -427,7 +427,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 			i = maxp & (BIT(12) | BIT(11));
 			maxp &= ~i;
 		}
-		/* fallthrough */
+		fallthrough;
 	default:
 		maxpacket_maxes = high_speed_maxpacket_maxes;
 		break;

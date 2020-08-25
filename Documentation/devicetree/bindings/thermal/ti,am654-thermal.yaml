@@ -35,7 +35,7 @@ examples:
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     vtm: thermal@42050000 {
         compatible = "ti,am654-vtm";
-        reg = <0x0 0x42050000 0x0 0x25c>;
+        reg = <0x42050000 0x25c>;
         power-domains = <&k3_pds 80 TI_SCI_PD_EXCLUSIVE>;
         #thermal-sensor-cells = <1>;
     };

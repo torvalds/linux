@@ -229,7 +229,9 @@ Date:		August 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Do background GC agressively when set. When gc_urgent = 1,
 		background thread starts to do GC by given gc_urgent_sleep_time
-		interval. It is set to 0 by default.
+		interval. When gc_urgent = 2, F2FS will lower the bar of
+		checking idle in order to process outstanding discard commands
+		and GC a little bit aggressively. It is set to 0 by default.
 
 What:		/sys/fs/f2fs/<disk>/gc_urgent_sleep_time
 Date:		August 2017

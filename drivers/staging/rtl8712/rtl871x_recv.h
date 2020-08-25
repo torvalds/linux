@@ -12,8 +12,6 @@
 
 #define MAX_SUBFRAME_COUNT	64
 
-#define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
-
 /* for Rx reordering buffer control */
 struct recv_reorder_ctrl {
 	struct _adapter	*padapter;

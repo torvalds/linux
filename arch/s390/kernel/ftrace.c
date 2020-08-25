@@ -83,7 +83,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	if (addr == MCOUNT_ADDR) {
 		/* Initial code replacement */
@@ -105,7 +105,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	struct ftrace_insn orig, new, old;
 
-	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
+	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	/* Replace nop with an ftrace call. */
 	ftrace_generate_nop_insn(&orig);

@@ -98,6 +98,11 @@ devlink_resource_size_set()
 	check_err $? "Failed setting path $path to size $size"
 }
 
+devlink_resource_occ_get()
+{
+	devlink_resource_get "$@" | jq '.["occ"]'
+}
+
 devlink_reload()
 {
 	local still_pending

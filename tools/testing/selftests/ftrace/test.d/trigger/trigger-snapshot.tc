@@ -1,26 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test snapshot-trigger
+# requires: set_event events/sched/sched_process_fork/trigger snapshot
 
 fail() { #msg
     echo $1
     exit_fail
 }
-
-if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/trigger ]; then
-    echo "event trigger is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f snapshot ]; then
-    echo "snapshot is not supported"
-    exit_unsupported
-fi
 
 FEATURE=`grep snapshot events/sched/sched_process_fork/trigger`
 if [ -z "$FEATURE" ]; then

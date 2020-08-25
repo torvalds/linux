@@ -225,7 +225,6 @@ static void afs_fetch_data_success(struct afs_operation *op)
 	struct afs_vnode *vnode = op->file[0].vnode;
 
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, vnode);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_stat_v(vnode, n_fetches);
 	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
@@ -240,6 +239,7 @@ static const struct afs_operation_ops afs_fetch_data_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_data,
 	.issue_yfs_rpc	= yfs_fs_fetch_data,
 	.success	= afs_fetch_data_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.put		= afs_fetch_data_put,
 };
 

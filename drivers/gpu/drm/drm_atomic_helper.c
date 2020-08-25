@@ -506,7 +506,8 @@ static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
 	}
 
 	bridge = drm_bridge_chain_get_first_bridge(encoder);
-	ret = drm_bridge_chain_mode_valid(bridge, mode);
+	ret = drm_bridge_chain_mode_valid(bridge, &connector->display_info,
+					  mode);
 	if (ret != MODE_OK) {
 		DRM_DEBUG_ATOMIC("[BRIDGE] mode_valid() failed\n");
 		return ret;
@@ -1097,7 +1098,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		else if (funcs->dpms)
 			funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
-		if (!(dev->irq_enabled && dev->num_crtcs))
+		if (!drm_dev_has_vblank(dev))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);

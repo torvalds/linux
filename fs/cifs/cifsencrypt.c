@@ -797,7 +797,7 @@ calc_seckey(struct cifs_ses *ses)
 	ses->auth_key.len = CIFS_SESS_KEY_SIZE;
 
 	memzero_explicit(sec_key, CIFS_SESS_KEY_SIZE);
-	kzfree(ctx_arc4);
+	kfree_sensitive(ctx_arc4);
 	return 0;
 }
 

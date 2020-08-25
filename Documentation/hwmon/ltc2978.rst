@@ -179,7 +179,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.analog.com/ltm4680
+    Datasheet: https://www.analog.com/ltm4680
 
   * Analog Devices LTM4686
 
@@ -187,7 +187,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.analog.com/ltm4686
+    Datasheet: https://www.analog.com/ltm4686
 
   * Analog Devices LTM4700
 
@@ -195,7 +195,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.analog.com/ltm4700
+    Datasheet: https://www.analog.com/ltm4700
 
 
 

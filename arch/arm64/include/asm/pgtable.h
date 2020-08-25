@@ -40,6 +40,16 @@ extern void __pmd_error(const char *file, int line, unsigned long val);
 extern void __pud_error(const char *file, int line, unsigned long val);
 extern void __pgd_error(const char *file, int line, unsigned long val);
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
+
+/* Set stride and tlb_level in flush_*_tlb_range */
+#define flush_pmd_tlb_range(vma, addr, end)	\
+	__flush_tlb_range(vma, addr, end, PMD_SIZE, false, 2)
+#define flush_pud_tlb_range(vma, addr, end)	\
+	__flush_tlb_range(vma, addr, end, PUD_SIZE, false, 1)
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
@@ -416,7 +426,7 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
 #define pgprot_nx(prot) \
-	__pgprot_modify(prot, 0, PTE_PXN)
+	__pgprot_modify(prot, PTE_MAYBE_GP, PTE_PXN)
 
 /*
  * Mark the prot value as uncacheable and unbufferable.

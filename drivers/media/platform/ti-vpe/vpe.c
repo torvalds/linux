@@ -1576,7 +1576,7 @@ static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	*f = q_data->format;
 
-	if (!V4L2_TYPE_IS_OUTPUT(f->type)) {
+	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
 		struct vpe_q_data *s_q_data;
 		struct v4l2_pix_format_mplane *spix;
 

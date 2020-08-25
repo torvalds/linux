@@ -314,7 +314,7 @@ void afs_fs_probe_timer(struct timer_list *timer)
 {
 	struct afs_net *net = container_of(timer, struct afs_net, fs_probe_timer);
 
-	if (!queue_work(afs_wq, &net->fs_prober))
+	if (!net->live || !queue_work(afs_wq, &net->fs_prober))
 		afs_dec_servers_outstanding(net);
 }
 
@@ -457,4 +457,13 @@ dont_wait:
 	if (timo == 0)
 		return -ETIME;
 	return -EDESTADDRREQ;
+}
+
+/*
+ * Clean up the probing when the namespace is killed off.
+ */
+void afs_fs_probe_cleanup(struct afs_net *net)
+{
+	if (del_timer_sync(&net->fs_probe_timer))
+		afs_dec_servers_outstanding(net);
 }

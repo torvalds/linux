@@ -903,7 +903,6 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			w_ctr(ppb, 0x4);
 		}
 		return 0;	/* Finished */
-		break;
 
 	default:
 		printk("imm: Invalid scsi phase\n");
@@ -969,10 +968,8 @@ static int imm_abort(struct scsi_cmnd *cmd)
 	case 1:		/* Have not connected to interface */
 		dev->cur_cmd = NULL;	/* Forget the problem */
 		return SUCCESS;
-		break;
 	default:		/* SCSI command sent, can not abort */
 		return FAILED;
-		break;
 	}
 }
 

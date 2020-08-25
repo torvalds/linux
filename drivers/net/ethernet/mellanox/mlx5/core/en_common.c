@@ -60,6 +60,16 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
 }
 
+void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
+{
+	bool ro_pci_enable = pcie_relaxed_ordering_enabled(mdev->pdev);
+	bool ro_write = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
+	bool ro_read = MLX5_CAP_GEN(mdev, relaxed_ordering_read);
+
+	MLX5_SET(mkc, mkc, relaxed_ordering_read, ro_pci_enable && ro_read);
+	MLX5_SET(mkc, mkc, relaxed_ordering_write, ro_pci_enable && ro_write);
+}
+
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 			     struct mlx5_core_mkey *mkey)
 {
@@ -76,7 +86,7 @@ static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_PA);
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
-
+	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
 	MLX5_SET(mkc, mkc, pd, pdn);
 	MLX5_SET(mkc, mkc, length64, 1);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);

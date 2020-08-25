@@ -48,12 +48,12 @@ properties:
   port: true
 
 required:
- - compatible
- - reg
- - enable-gpios
- - pp1800-supply
- - avdd-supply
- - avee-supply
+  - compatible
+  - reg
+  - enable-gpios
+  - pp1800-supply
+  - avdd-supply
+  - avee-supply
 
 additionalProperties: false
 

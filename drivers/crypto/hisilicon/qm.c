@@ -1064,19 +1064,10 @@ static ssize_t qm_cmd_read(struct file *filp, char __user *buffer,
 	char buf[QM_DBG_READ_LEN];
 	int len;
 
-	if (*pos)
-		return 0;
+	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n",
+			"Please echo help to cmd to get help information");
 
-	if (count < QM_DBG_READ_LEN)
-		return -ENOSPC;
-
-	len = snprintf(buf, QM_DBG_READ_LEN, "%s\n",
-		       "Please echo help to cmd to get help information");
-
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-
-	return (*pos = len);
+	return simple_read_from_buffer(buffer, count, pos, buf, len);
 }
 
 static void *qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
@@ -1741,7 +1732,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
-static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
@@ -1813,7 +1804,7 @@ static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
 	int qp_id = qp->qp_id;
-	int pasid = arg;
+	u32 pasid = arg;
 	int ret;
 
 	if (!qm_qp_avail_state(qm, qp, QP_START))
@@ -2179,8 +2170,12 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 		.flags = UACCE_DEV_SVA,
 		.ops = &uacce_qm_ops,
 	};
+	int ret;
 
-	strncpy(interface.name, pdev->driver->name, sizeof(interface.name));
+	ret = strscpy(interface.name, pdev->driver->name,
+		      sizeof(interface.name));
+	if (ret < 0)
+		return -ENAMETOOLONG;
 
 	uacce = uacce_alloc(&pdev->dev, &interface);
 	if (IS_ERR(uacce))
@@ -2691,24 +2686,12 @@ static ssize_t qm_status_read(struct file *filp, char __user *buffer,
 {
 	struct hisi_qm *qm = filp->private_data;
 	char buf[QM_DBG_READ_LEN];
-	int val, cp_len, len;
-
-	if (*pos)
-		return 0;
-
-	if (count < QM_DBG_READ_LEN)
-		return -ENOSPC;
+	int val, len;
 
 	val = atomic_read(&qm->status.flags);
-	len = snprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
-	if (!len)
-		return -EFAULT;
+	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
 
-	cp_len = copy_to_user(buffer, buf, len);
-	if (cp_len)
-		return -EFAULT;
-
-	return (*pos = len);
+	return simple_read_from_buffer(buffer, count, pos, buf, len);
 }
 
 static const struct file_operations qm_status_fops = {

@@ -2742,7 +2742,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 		ep_wait_for_stopped(xudc, ep_index);
 		ep->enq_ptr = ep->deq_ptr;
 		tegra_xudc_ep_nuke(ep, -EIO);
-		/* FALLTHROUGH */
+		fallthrough;
 	case TRB_CMPL_CODE_STREAM_NUMP_ERROR:
 	case TRB_CMPL_CODE_CTRL_DIR_ERR:
 	case TRB_CMPL_CODE_INVALID_STREAM_TYPE_ERR:
@@ -3750,15 +3750,12 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 		return PTR_ERR(xudc->base);
 	xudc->phys_base = res->start;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fpci");
-	xudc->fpci = devm_ioremap_resource(&pdev->dev, res);
+	xudc->fpci = devm_platform_ioremap_resource_byname(pdev, "fpci");
 	if (IS_ERR(xudc->fpci))
 		return PTR_ERR(xudc->fpci);
 
 	if (xudc->soc->has_ipfs) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "ipfs");
-		xudc->ipfs = devm_ioremap_resource(&pdev->dev, res);
+		xudc->ipfs = devm_platform_ioremap_resource_byname(pdev, "ipfs");
 		if (IS_ERR(xudc->ipfs))
 			return PTR_ERR(xudc->ipfs);
 	}

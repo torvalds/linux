@@ -3916,7 +3916,7 @@ static const struct hash_testvec hmac_sm3_tv_template[] = {
 };
 
 /*
- * SHA1 test vectors  from from FIPS PUB 180-1
+ * SHA1 test vectors from FIPS PUB 180-1
  * Long vector from CAVS 5.0
  */
 static const struct hash_testvec sha1_tv_template[] = {
@@ -4103,7 +4103,7 @@ static const struct hash_testvec sha1_tv_template[] = {
 
 
 /*
- * SHA224 test vectors from from FIPS PUB 180-2
+ * SHA224 test vectors from FIPS PUB 180-2
  */
 static const struct hash_testvec sha224_tv_template[] = {
 	{
@@ -4273,7 +4273,7 @@ static const struct hash_testvec sha224_tv_template[] = {
 };
 
 /*
- * SHA256 test vectors from from NIST
+ * SHA256 test vectors from NIST
  */
 static const struct hash_testvec sha256_tv_template[] = {
 	{
@@ -4442,7 +4442,7 @@ static const struct hash_testvec sha256_tv_template[] = {
 };
 
 /*
- * SHA384 test vectors from from NIST and kerneli
+ * SHA384 test vectors from NIST and kerneli
  */
 static const struct hash_testvec sha384_tv_template[] = {
 	{
@@ -4632,7 +4632,7 @@ static const struct hash_testvec sha384_tv_template[] = {
 };
 
 /*
- * SHA512 test vectors from from NIST and kerneli
+ * SHA512 test vectors from NIST and kerneli
  */
 static const struct hash_testvec sha512_tv_template[] = {
 	{

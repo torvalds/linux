@@ -338,7 +338,6 @@ static int jsa1212_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = jsa1212_channels;
 	indio_dev->num_channels = ARRAY_SIZE(jsa1212_channels);
 	indio_dev->name = JSA1212_DRIVER_NAME;

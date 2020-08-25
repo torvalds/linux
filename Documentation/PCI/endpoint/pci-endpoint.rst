@@ -214,7 +214,7 @@ pci-ep-cfs.c can be used as reference for using these APIs.
 * pci_epf_create()
 
    Create a new PCI EPF device by passing the name of the PCI EPF device.
-   This name will be used to bind the the EPF device to a EPF driver.
+   This name will be used to bind the EPF device to a EPF driver.
 
 * pci_epf_destroy()
 

@@ -125,7 +125,7 @@ static int rt5033_battery_probe(struct i2c_client *client,
 
 	battery = devm_kzalloc(&client->dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
-		return -EINVAL;
+		return -ENOMEM;
 
 	battery->client = client;
 	battery->regmap = devm_regmap_init_i2c(client,

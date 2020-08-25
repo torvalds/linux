@@ -103,7 +103,7 @@ struct drm_crtc_commit {
 	 *
 	 * Will be signalled when all hw register changes for this commit have
 	 * been written out. Especially when disabling a pipe this can be much
-	 * later than than @flip_done, since that can signal already when the
+	 * later than @flip_done, since that can signal already when the
 	 * screen goes black, whereas to fully shut down a pipe more register
 	 * I/O is required.
 	 *

@@ -73,6 +73,8 @@ hwsp_alloc(struct intel_timeline *timeline, unsigned int *cacheline)
 			return vma;
 		}
 
+		GT_TRACE(timeline->gt, "new HWSP allocated\n");
+
 		vma->private = hwsp;
 		hwsp->gt = timeline->gt;
 		hwsp->vma = vma;
@@ -327,6 +329,8 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	tl->hwsp_offset =
 		i915_ggtt_offset(tl->hwsp_ggtt) +
 		offset_in_page(tl->hwsp_offset);
+	GT_TRACE(tl->gt, "timeline:%llx using HWSP offset:%x\n",
+		 tl->fence_context, tl->hwsp_offset);
 
 	cacheline_acquire(tl->hwsp_cacheline);
 	if (atomic_fetch_inc(&tl->pin_count)) {
@@ -434,6 +438,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	int err;
 
 	might_lock(&tl->gt->ggtt->vm.mutex);
+	GT_TRACE(tl->gt, "timeline:%llx wrapped\n", tl->fence_context);
 
 	/*
 	 * If there is an outstanding GPU reference to this cacheline,
@@ -497,6 +502,8 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 		memset(vaddr + tl->hwsp_offset, 0, CACHELINE_BYTES);
 
 	tl->hwsp_offset += i915_ggtt_offset(vma);
+	GT_TRACE(tl->gt, "timeline:%llx using HWSP offset:%x\n",
+		 tl->fence_context, tl->hwsp_offset);
 
 	cacheline_acquire(cl);
 	tl->hwsp_cacheline = cl;

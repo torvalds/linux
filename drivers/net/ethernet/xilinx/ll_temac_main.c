@@ -1407,10 +1407,8 @@ static int temac_probe(struct platform_device *pdev)
 	}
 
 	/* map device registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lp->regs = devm_ioremap(&pdev->dev, res->start,
-					resource_size(res));
-	if (!lp->regs) {
+	lp->regs = devm_platform_ioremap_resource_byname(pdev, 0);
+	if (IS_ERR(lp->regs)) {
 		dev_err(&pdev->dev, "could not map TEMAC registers\n");
 		return -ENOMEM;
 	}

@@ -11,7 +11,7 @@
 		     + __GNUC_PATCHLEVEL__)
 
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 */
-#if GCC_VERSION < 40800
+#if GCC_VERSION < 40900
 # error Sorry, your compiler is too old - please upgrade it.
 #endif
 
@@ -58,12 +58,6 @@
 	__asm__ ("" : "=r"(__ptr) : "0"(ptr));				\
 	(typeof(ptr)) (__ptr + (off));					\
 })
-
-/*
- * A trick to suppress uninitialized variable warning without generating any
- * code
- */
-#define uninitialized_var(x) x = x
 
 #ifdef CONFIG_RETPOLINE
 #define __noretpoline __attribute__((__indirect_branch__("keep")))
@@ -148,6 +142,12 @@
 #define __no_sanitize_thread __attribute__((no_sanitize_thread))
 #else
 #define __no_sanitize_thread
+#endif
+
+#if __has_attribute(__no_sanitize_undefined__)
+#define __no_sanitize_undefined __attribute__((no_sanitize_undefined))
+#else
+#define __no_sanitize_undefined
 #endif
 
 #if GCC_VERSION >= 50100

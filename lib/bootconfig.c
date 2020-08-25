@@ -329,22 +329,30 @@ const char * __init xbc_node_find_next_key_value(struct xbc_node *root,
 
 /* XBC parse and tree build */
 
+static int __init xbc_init_node(struct xbc_node *node, char *data, u32 flag)
+{
+	unsigned long offset = data - xbc_data;
+
+	if (WARN_ON(offset >= XBC_DATA_MAX))
+		return -EINVAL;
+
+	node->data = (u16)offset | flag;
+	node->child = 0;
+	node->next = 0;
+
+	return 0;
+}
+
 static struct xbc_node * __init xbc_add_node(char *data, u32 flag)
 {
 	struct xbc_node *node;
-	unsigned long offset;
 
 	if (xbc_node_num == XBC_NODE_MAX)
 		return NULL;
 
 	node = &xbc_nodes[xbc_node_num++];
-	offset = data - xbc_data;
-	node->data = (u16)offset;
-	if (WARN_ON(offset >= XBC_DATA_MAX))
+	if (xbc_init_node(node, data, flag) < 0)
 		return NULL;
-	node->data |= flag;
-	node->child = 0;
-	node->next = 0;
 
 	return node;
 }
@@ -603,7 +611,9 @@ static int __init xbc_parse_kv(char **k, char *v, int op)
 	if (c < 0)
 		return c;
 
-	if (!xbc_add_sibling(v, XBC_VALUE))
+	if (op == ':' && child) {
+		xbc_init_node(child, v, XBC_VALUE);
+	} else if (!xbc_add_sibling(v, XBC_VALUE))
 		return -ENOMEM;
 
 	if (c == ',') {	/* Array */
@@ -787,7 +797,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 
 	p = buf;
 	do {
-		q = strpbrk(p, "{}=+;\n#");
+		q = strpbrk(p, "{}=+;:\n#");
 		if (!q) {
 			p = skip_spaces(p);
 			if (*p != '\0')
@@ -798,9 +808,12 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 		c = *q;
 		*q++ = '\0';
 		switch (c) {
+		case ':':
 		case '+':
 			if (*q++ != '=') {
-				ret = xbc_parse_error("Wrong '+' operator",
+				ret = xbc_parse_error(c == '+' ?
+						"Wrong '+' operator" :
+						"Wrong ':' operator",
 							q - 2);
 				break;
 			}

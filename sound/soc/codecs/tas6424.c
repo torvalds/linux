@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Texas Instruments TAS6424 Quad-Channel Audio Amplifier
  *
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Author: Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */
@@ -252,7 +252,7 @@ static int tas6424_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int tas6424_mute(struct snd_soc_dai *dai, int mute)
+static int tas6424_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct tas6424_data *tas6424 = snd_soc_component_get_drvdata(component);
@@ -382,7 +382,8 @@ static const struct snd_soc_dai_ops tas6424_speaker_dai_ops = {
 	.hw_params	= tas6424_hw_params,
 	.set_fmt	= tas6424_set_dai_fmt,
 	.set_tdm_slot	= tas6424_set_dai_tdm_slot,
-	.digital_mute	= tas6424_mute,
+	.mute_stream	= tas6424_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tas6424_dai[] = {

@@ -78,7 +78,7 @@ properties:
       - const: vp4
 
   interrupts:
-     items:
+    items:
       - description: common_m DSS Master common
       - description: common_s0 DSS Shared common 0
       - description: common_s1 DSS Shared common 1

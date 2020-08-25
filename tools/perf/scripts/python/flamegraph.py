@@ -17,6 +17,7 @@
 from __future__ import print_function
 import sys
 import os
+import io
 import argparse
 import json
 
@@ -81,7 +82,7 @@ class FlameGraphCLI:
 
         if self.args.format == "html":
             try:
-                with open(self.args.template) as f:
+                with io.open(self.args.template, encoding="utf-8") as f:
                     output_str = f.read().replace("/** @flamegraph_json **/",
                                                   json_str)
             except IOError as e:
@@ -93,11 +94,12 @@ class FlameGraphCLI:
             output_fn = self.args.output or "stacks.json"
 
         if output_fn == "-":
-            sys.stdout.write(output_str)
+            with io.open(sys.stdout.fileno(), "w", encoding="utf-8", closefd=False) as out:
+                out.write(output_str)
         else:
             print("dumping data to {}".format(output_fn))
             try:
-                with open(output_fn, "w") as out:
+                with io.open(output_fn, "w", encoding="utf-8") as out:
                     out.write(output_str)
             except IOError as e:
                 print("Error writing output file: {}".format(e), file=sys.stderr)

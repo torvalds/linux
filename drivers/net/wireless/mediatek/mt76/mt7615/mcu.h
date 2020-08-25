@@ -81,6 +81,7 @@ enum {
 	MCU_EVENT_GENERIC = 0x01,
 	MCU_EVENT_ACCESS_REG = 0x02,
 	MCU_EVENT_MT_PATCH_SEM = 0x04,
+	MCU_EVENT_REG_ACCESS = 0x05,
 	MCU_EVENT_SCAN_DONE = 0x0d,
 	MCU_EVENT_ROC = 0x10,
 	MCU_EVENT_BSS_ABSENCE  = 0x11,
@@ -238,8 +239,11 @@ enum {
 #define MCU_FW_PREFIX		BIT(31)
 #define MCU_UNI_PREFIX		BIT(30)
 #define MCU_CE_PREFIX		BIT(29)
+#define MCU_QUERY_PREFIX	BIT(28)
 #define MCU_CMD_MASK		~(MCU_FW_PREFIX | MCU_UNI_PREFIX |	\
-				  MCU_CE_PREFIX)
+				  MCU_CE_PREFIX | MCU_QUERY_PREFIX)
+
+#define MCU_QUERY_MASK		BIT(16)
 
 enum {
 	MCU_CMD_TARGET_ADDRESS_LEN_REQ = MCU_FW_PREFIX | 0x01,
@@ -254,6 +258,7 @@ enum {
 };
 
 enum {
+	MCU_EXT_CMD_RF_REG_ACCESS = 0x02,
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
@@ -266,6 +271,7 @@ enum {
 	MCU_EXT_CMD_GET_TEMP = 0x2c,
 	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
+	MCU_EXT_CMD_ATE_CTRL = 0x3d,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
 	MCU_EXT_CMD_DBDC_CTRL = 0x45,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
@@ -285,6 +291,11 @@ enum {
 	MCU_UNI_CMD_SUSPEND = MCU_UNI_PREFIX | 0x05,
 	MCU_UNI_CMD_OFFLOAD = MCU_UNI_PREFIX | 0x06,
 	MCU_UNI_CMD_HIF_CTRL = MCU_UNI_PREFIX | 0x07,
+};
+
+enum {
+	MCU_ATE_SET_FREQ_OFFSET = 0xa,
+	MCU_ATE_SET_TX_POWER_CONTROL = 0x15,
 };
 
 struct mt7615_mcu_uni_event {
@@ -421,6 +432,11 @@ struct nt7615_sched_scan_done {
 	__le16 pad;
 } __packed;
 
+struct mt7615_mcu_reg_event {
+	__le32 reg;
+	__le32 val;
+} __packed;
+
 struct mt7615_mcu_bss_event {
 	u8 bss_idx;
 	u8 is_absent;
@@ -451,6 +467,13 @@ struct mt7615_bss_basic_tlv {
 		     */
 	__le16 sta_idx;
 	u8 nonht_basic_phy;
+	u8 pad[3];
+} __packed;
+
+struct mt7615_bss_qos_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 qos;
 	u8 pad[3];
 } __packed;
 
@@ -545,6 +568,15 @@ struct mt7615_roc_tlv {
 	u8 rsv1[8];
 } __packed;
 
+struct mt7615_arpns_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 mode;
+	u8 ips_num;
+	u8 option;
+	u8 pad[1];
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
@@ -557,6 +589,8 @@ enum {
 	MCU_CMD_SET_P2P_OPPPS = MCU_CE_PREFIX | 0x33,
 	MCU_CMD_SCHED_SCAN_ENABLE = MCU_CE_PREFIX | 0x61,
 	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,
+	MCU_CMD_REG_WRITE = MCU_CE_PREFIX | 0xc0,
+	MCU_CMD_REG_READ = MCU_CE_PREFIX | MCU_QUERY_MASK | 0xc0,
 };
 
 #define MCU_CMD_ACK		BIT(0)
@@ -569,6 +603,8 @@ enum {
 	UNI_BSS_INFO_BASIC = 0,
 	UNI_BSS_INFO_RLM = 2,
 	UNI_BSS_INFO_BCN_CONTENT = 7,
+	UNI_BSS_INFO_QBSS = 15,
+	UNI_BSS_INFO_UAPSD = 19,
 };
 
 enum {
@@ -580,8 +616,8 @@ enum {
 };
 
 enum {
-	UNI_OFFLOAD_OFFLOAD_ARPNS_IPV4,
-	UNI_OFFLOAD_OFFLOAD_ARPNS_IPV6,
+	UNI_OFFLOAD_OFFLOAD_ARP,
+	UNI_OFFLOAD_OFFLOAD_ND,
 	UNI_OFFLOAD_OFFLOAD_GTK_REKEY,
 	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
 };
@@ -882,6 +918,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_basic) +	\
 					 sizeof(struct sta_rec_ht) +	\
 					 sizeof(struct sta_rec_vht) +	\
+					 sizeof(struct sta_rec_uapsd) + \
 					 sizeof(struct tlv) +	\
 					 MT7615_WTBL_UPDATE_MAX_SIZE)
 
@@ -969,6 +1006,17 @@ struct sta_rec_ba {
 	u8 ba_en;
 	__le16 ssn;
 	__le16 winsize;
+} __packed;
+
+struct sta_rec_uapsd {
+	__le16 tag;
+	__le16 len;
+	u8 dac_map;
+	u8 tac_map;
+	u8 max_sp;
+	u8 rsv0;
+	__le16 listen_interval;
+	u8 rsv1[2];
 } __packed;
 
 enum {

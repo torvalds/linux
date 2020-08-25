@@ -155,7 +155,7 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
  * Loop over each sg element in the given sg_table object.
  */
 #define for_each_sgtable_sg(sgt, sg, i)		\
-	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+	for_each_sg((sgt)->sgl, sg, (sgt)->orig_nents, i)
 
 /*
  * Loop over each sg element in the given *DMA mapped* sg_table object.
@@ -163,7 +163,7 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
  * of the each element.
  */
 #define for_each_sgtable_dma_sg(sgt, sg, i)	\
-	for_each_sg(sgt->sgl, sg, sgt->nents, i)
+	for_each_sg((sgt)->sgl, sg, (sgt)->nents, i)
 
 /**
  * sg_chain - Chain two sglists together
@@ -451,7 +451,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
  * See also for_each_sg_page(). In each loop it operates on PAGE_SIZE unit.
  */
 #define for_each_sgtable_page(sgt, piter, pgoffset)	\
-	for_each_sg_page(sgt->sgl, piter, sgt->orig_nents, pgoffset)
+	for_each_sg_page((sgt)->sgl, piter, (sgt)->orig_nents, pgoffset)
 
 /**
  * for_each_sgtable_dma_page - iterate over the DMA mapped sg_table object
@@ -465,7 +465,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
  * unit.
  */
 #define for_each_sgtable_dma_page(sgt, dma_iter, pgoffset)	\
-	for_each_sg_dma_page(sgt->sgl, dma_iter, sgt->nents, pgoffset)
+	for_each_sg_dma_page((sgt)->sgl, dma_iter, (sgt)->nents, pgoffset)
 
 
 /*

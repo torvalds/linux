@@ -1187,17 +1187,10 @@ static int sx150x_probe(struct i2c_client *client,
 	if (pctl->data->model != SX150X_789)
 		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
 
-	ret = devm_gpiochip_add_data(dev, &pctl->gpio, pctl);
-	if (ret)
-		return ret;
-
-	ret = gpiochip_add_pin_range(&pctl->gpio, dev_name(dev),
-				     0, 0, pctl->data->npins);
-	if (ret)
-		return ret;
-
 	/* Add Interrupt support if an irq is specified */
 	if (client->irq > 0) {
+		struct gpio_irq_chip *girq;
+
 		pctl->irq_chip.irq_mask = sx150x_irq_mask;
 		pctl->irq_chip.irq_unmask = sx150x_irq_unmask;
 		pctl->irq_chip.irq_set_type = sx150x_irq_set_type;
@@ -1213,8 +1206,8 @@ static int sx150x_probe(struct i2c_client *client,
 
 		/*
 		 * Because sx150x_irq_threaded_fn invokes all of the
-		 * nested interrrupt handlers via handle_nested_irq,
-		 * any "handler" passed to gpiochip_irqchip_add()
+		 * nested interrupt handlers via handle_nested_irq,
+		 * any "handler" assigned to struct gpio_irq_chip
 		 * below is going to be ignored, so the choice of the
 		 * function does not matter that much.
 		 *
@@ -1222,13 +1215,15 @@ static int sx150x_probe(struct i2c_client *client,
 		 * plus it will be instantly noticeable if it is ever
 		 * called (should not happen)
 		 */
-		ret = gpiochip_irqchip_add_nested(&pctl->gpio,
-					&pctl->irq_chip, 0,
-					handle_bad_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(dev, "could not connect irqchip to gpiochip\n");
-			return ret;
-		}
+		girq = &pctl->gpio.irq;
+		girq->chip = &pctl->irq_chip;
+		/* This will let us handle the parent IRQ in the driver */
+		girq->parent_handler = NULL;
+		girq->num_parents = 0;
+		girq->parents = NULL;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_bad_irq;
+		girq->threaded = true;
 
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						sx150x_irq_thread_fn,
@@ -1237,11 +1232,16 @@ static int sx150x_probe(struct i2c_client *client,
 						pctl->irq_chip.name, pctl);
 		if (ret < 0)
 			return ret;
-
-		gpiochip_set_nested_irqchip(&pctl->gpio,
-					    &pctl->irq_chip,
-					    client->irq);
 	}
+
+	ret = devm_gpiochip_add_data(dev, &pctl->gpio, pctl);
+	if (ret)
+		return ret;
+
+	ret = gpiochip_add_pin_range(&pctl->gpio, dev_name(dev),
+				     0, 0, pctl->data->npins);
+	if (ret)
+		return ret;
 
 	return 0;
 }

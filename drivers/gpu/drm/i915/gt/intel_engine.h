@@ -187,7 +187,6 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define I915_GEM_HWS_SEQNO		0x40
 #define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
 #define I915_GEM_HWS_SCRATCH		0x80
-#define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH * sizeof(u32))
 
 #define I915_HWS_CSB_BUF0_INDEX		0x10
 #define I915_HWS_CSB_WRITE_INDEX	0x1f
@@ -335,7 +334,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
 
-ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
+				   ktime_t *now);
 
 struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine);

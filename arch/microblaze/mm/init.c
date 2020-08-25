@@ -172,9 +172,6 @@ void __init setup_memory(void)
 				  &memblock.memory, 0);
 	}
 
-	/* XXX need to clip this if using highmem? */
-	sparse_memory_present_with_active_regions(0);
-
 	paging_init();
 }
 

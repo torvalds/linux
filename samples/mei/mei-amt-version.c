@@ -267,7 +267,7 @@ struct amt_host_if_msg_header {
 struct amt_host_if_resp_header {
 	struct amt_host_if_msg_header header;
 	uint32_t status;
-	unsigned char data[0];
+	unsigned char data[];
 } __attribute__((packed));
 
 const uuid_le MEI_IAMTHIF = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d,  \

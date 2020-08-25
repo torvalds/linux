@@ -966,26 +966,21 @@ qla82xx_read_status_reg(struct qla_hw_data *ha, uint32_t *val)
 static int
 qla82xx_flash_wait_write_finish(struct qla_hw_data *ha)
 {
-	long timeout = 0;
-	uint32_t done = 1 ;
 	uint32_t val;
-	int ret = 0;
+	int i, ret;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_ABYTE_CNT, 0);
-	while ((done != 0) && (ret == 0)) {
+	for (i = 0; i < 50000; i++) {
 		ret = qla82xx_read_status_reg(ha, &val);
-		done = val & 1;
-		timeout++;
+		if (ret < 0 || (val & 1) == 0)
+			return ret;
 		udelay(10);
 		cond_resched();
-		if (timeout >= 50000) {
-			ql_log(ql_log_warn, vha, 0xb00d,
-			    "Timeout reached waiting for write finish.\n");
-			return -1;
-		}
 	}
-	return ret;
+	ql_log(ql_log_warn, vha, 0xb00d,
+	       "Timeout reached waiting for write finish.\n");
+	return -1;
 }
 
 static int
@@ -1172,6 +1167,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	 * Offset 4: Offset and number of addr/value pairs
 	 * that present in CRB initialize sequence
 	 */
+	n = 0;
 	if (qla82xx_rom_fast_read(ha, 0, &n) != 0 || n != 0xcafecafeUL ||
 	    qla82xx_rom_fast_read(ha, 4, &n) != 0) {
 		ql_log(ql_log_fatal, vha, 0x006e,

@@ -25,6 +25,7 @@
 #include <asm/cpufeature.h>
 #include <asm/pti.h>
 #include <asm/text-patching.h>
+#include <asm/memtype.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -911,8 +912,6 @@ void free_kernel_image_pages(const char *what, void *begin, void *end)
 	if (IS_ENABLED(CONFIG_X86_64) && cpu_feature_enabled(X86_FEATURE_PTI))
 		set_memory_np_noalias(begin_ul, len_pages);
 }
-
-void __weak mem_encrypt_free_decrypted_mem(void) { }
 
 void __ref free_initmem(void)
 {

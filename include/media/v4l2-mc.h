@@ -89,8 +89,8 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  * v4l2_create_fwnode_links_to_pad - Create fwnode-based links from a
  *                                   source subdev to a sink subdev pad.
  *
- * @src_sd - pointer to a source subdev
- * @sink - pointer to a subdev sink pad
+ * @src_sd: pointer to a source subdev
+ * @sink:  pointer to a subdev sink pad
  *
  * This function searches for fwnode endpoint connections from a source
  * subdevice to a single sink pad, and if suitable connections are found,
@@ -113,8 +113,8 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
  * v4l2_create_fwnode_links - Create fwnode-based links from a source
  *                            subdev to a sink subdev.
  *
- * @src_sd - pointer to a source subdevice
- * @sink_sd - pointer to a sink subdevice
+ * @src_sd: pointer to a source subdevice
+ * @sink_sd: pointer to a sink subdevice
  *
  * This function searches for any and all fwnode endpoint connections
  * between source and sink subdevices, and translates them into media

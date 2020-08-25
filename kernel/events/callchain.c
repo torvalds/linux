@@ -149,7 +149,7 @@ void put_callchain_buffers(void)
 	}
 }
 
-static struct perf_callchain_entry *get_callchain_entry(int *rctx)
+struct perf_callchain_entry *get_callchain_entry(int *rctx)
 {
 	int cpu;
 	struct callchain_cpus_entries *entries;
@@ -159,8 +159,10 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 		return NULL;
 
 	entries = rcu_dereference(callchain_cpus_entries);
-	if (!entries)
+	if (!entries) {
+		put_recursion_context(this_cpu_ptr(callchain_recursion), *rctx);
 		return NULL;
+	}
 
 	cpu = smp_processor_id();
 
@@ -168,7 +170,7 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 		(*rctx * perf_callchain_entry__sizeof()));
 }
 
-static void
+void
 put_callchain_entry(int rctx)
 {
 	put_recursion_context(this_cpu_ptr(callchain_recursion), rctx);
@@ -183,11 +185,8 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 	int rctx;
 
 	entry = get_callchain_entry(&rctx);
-	if (rctx == -1)
-		return NULL;
-
 	if (!entry)
-		goto exit_put;
+		return NULL;
 
 	ctx.entry     = entry;
 	ctx.max_stack = max_stack;
@@ -218,10 +217,9 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 			if (add_mark)
 				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
 
-			fs = get_fs();
-			set_fs(USER_DS);
+			fs = force_uaccess_begin();
 			perf_callchain_user(&ctx, regs);
-			set_fs(fs);
+			force_uaccess_end(fs);
 		}
 	}
 

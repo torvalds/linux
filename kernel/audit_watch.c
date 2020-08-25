@@ -53,7 +53,7 @@ static struct fsnotify_group *audit_watch_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_WATCH (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			FS_MOVE_SELF | FS_EVENT_ON_CHILD | FS_UNMOUNT)
+			FS_MOVE_SELF | FS_UNMOUNT)
 
 static void audit_free_parent(struct audit_parent *parent)
 {
@@ -464,20 +464,17 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 }
 
 /* Update watch data in audit rules based on fsnotify events. */
-static int audit_watch_handle_event(struct fsnotify_group *group,
-				    struct inode *to_tell,
-				    u32 mask, const void *data, int data_type,
-				    const struct qstr *dname, u32 cookie,
-				    struct fsnotify_iter_info *iter_info)
+static int audit_watch_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				    struct inode *inode, struct inode *dir,
+				    const struct qstr *dname)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	const struct inode *inode = fsnotify_data_inode(data, data_type);
 	struct audit_parent *parent;
 
 	parent = container_of(inode_mark, struct audit_parent, mark);
 
-	BUG_ON(group != audit_watch_group);
-	WARN_ON(!inode);
+	if (WARN_ON_ONCE(inode_mark->group != audit_watch_group) ||
+	    WARN_ON_ONCE(!inode))
+		return 0;
 
 	if (mask & (FS_CREATE|FS_MOVED_TO) && inode)
 		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);
@@ -490,7 +487,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 }
 
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
-	.handle_event = 	audit_watch_handle_event,
+	.handle_inode_event =	audit_watch_handle_event,
 	.free_mark =		audit_watch_free_mark,
 };
 

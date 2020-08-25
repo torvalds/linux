@@ -179,7 +179,7 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 static int ssp1_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *runtime = substream->private_data;
+	struct snd_soc_pcm_runtime *runtime = asoc_substream_to_rtd(substream);
 	int ret, j;
 
 	for (j = 0; j < runtime->num_codecs; j++) {

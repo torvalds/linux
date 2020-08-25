@@ -1870,6 +1870,11 @@ static const struct hid_device_id wiimote_hid_devices[] = {
 				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ }
 };
+
+bool wiimote_dpad_as_analog = false;
+module_param_named(dpad_as_analog, wiimote_dpad_as_analog, bool, 0644);
+MODULE_PARM_DESC(dpad_as_analog, "Use D-Pad as main analog input");
+
 MODULE_DEVICE_TABLE(hid, wiimote_hid_devices);
 
 static struct hid_driver wiimote_hid_driver = {

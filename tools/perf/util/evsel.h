@@ -399,6 +399,12 @@ static inline bool evsel__has_br_stack(const struct evsel *evsel)
 	       evsel->synth_sample_type & PERF_SAMPLE_BRANCH_STACK;
 }
 
+static inline bool evsel__is_dummy_event(struct evsel *evsel)
+{
+	return (evsel->core.attr.type == PERF_TYPE_SOFTWARE) &&
+	       (evsel->core.attr.config == PERF_COUNT_SW_DUMMY);
+}
+
 struct perf_env *evsel__env(struct evsel *evsel);
 
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);

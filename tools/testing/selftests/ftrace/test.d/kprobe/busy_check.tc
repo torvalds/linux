@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event - busy event check
-
-[ -f kprobe_events ] || exit_unsupported
+# requires: kprobe_events
 
 echo p:myevent _do_fork > kprobe_events
 test -d events/kprobes/myevent

@@ -6,7 +6,6 @@ test_lpm_map
 test_tag
 FEATURE-DUMP.libbpf
 fixdep
-test_align
 test_dev_cgroup
 /test_progs*
 test_tcpbpf_user

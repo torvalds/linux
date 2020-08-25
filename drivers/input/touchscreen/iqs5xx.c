@@ -289,7 +289,7 @@ static int iqs5xx_bl_cmd(struct i2c_client *client, u8 bl_cmd, u16 bl_addr)
 		break;
 	case IQS5XX_BL_CMD_EXEC:
 		usleep_range(10000, 10100);
-		/* fall through */
+		fallthrough;
 	default:
 		return 0;
 	}

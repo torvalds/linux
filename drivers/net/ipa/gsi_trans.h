@@ -75,7 +75,7 @@ struct gsi_trans {
  * @count:	Minimum number of elements in the pool
  * @max_alloc:	Maximum number of elements allocated at a time from pool
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int gsi_trans_pool_init(struct gsi_trans_pool *pool, size_t size, u32 count,
 			u32 max_alloc);
@@ -85,7 +85,7 @@ int gsi_trans_pool_init(struct gsi_trans_pool *pool, size_t size, u32 count,
  * @pool:	Pool pointer
  * @count:	Number of elements to allocate from the pool
  *
- * @Return:	Virtual address of element(s) allocated from the pool
+ * Return:	Virtual address of element(s) allocated from the pool
  */
 void *gsi_trans_pool_alloc(struct gsi_trans_pool *pool, u32 count);
 
@@ -103,7 +103,7 @@ void gsi_trans_pool_exit(struct gsi_trans_pool *pool);
  * @count:	Minimum number of elements in the pool
  * @max_alloc:	Maximum number of elements allocated at a time from pool
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  *
  * Structures in this pool reside in DMA-coherent memory.
  */
@@ -115,7 +115,7 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
  * @pool:	DMA pool pointer
  * @addr:	DMA address "handle" associated with the allocation
  *
- * @Return:	Virtual address of element allocated from the pool
+ * Return:	Virtual address of element allocated from the pool
  *
  * Only one element at a time may be allocated from a DMA pool.
  */
@@ -134,7 +134,7 @@ void gsi_trans_pool_exit_dma(struct device *dev, struct gsi_trans_pool *pool);
  * @tre_count:	Number of elements in the transaction
  * @direction:	DMA direction for entire SGL (or DMA_NONE)
  *
- * @Return:	A GSI transaction structure, or a null pointer if all
+ * Return:	A GSI transaction structure, or a null pointer if all
  *		available transactions are in use
  */
 struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
@@ -175,7 +175,7 @@ int gsi_trans_page_add(struct gsi_trans *trans, struct page *page, u32 size,
  * @trans:	Transaction
  * @skb:	Socket buffer for transfer (outbound)
  *
- * @Return:	0, or -EMSGSIZE if socket data won't fit in transaction.
+ * Return:	0, or -EMSGSIZE if socket data won't fit in transaction.
  */
 int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb);
 

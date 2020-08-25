@@ -1,10 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Generic dynamic event - add/remove synthetic events
-
-[ -f dynamic_events ] || exit_unsupported
-
-grep -q "s:\[synthetic/\]" README || exit_unsupported
+# requires: dynamic_events "s:[synthetic/]":README
 
 echo 0 > events/enable
 echo > dynamic_events

@@ -40,14 +40,6 @@ MODULE_AUTHOR("Bob Pearson, Frank Zago, John Groves, Kamal Heib");
 MODULE_DESCRIPTION("Soft RDMA transport");
 MODULE_LICENSE("Dual BSD/GPL");
 
-/* free resources for all ports on a device */
-static void rxe_cleanup_ports(struct rxe_dev *rxe)
-{
-	kfree(rxe->port.pkey_tbl);
-	rxe->port.pkey_tbl = NULL;
-
-}
-
 /* free resources for a rxe device all objects created for this device must
  * have been destroyed
  */
@@ -65,8 +57,6 @@ void rxe_dealloc(struct ib_device *ib_dev)
 	rxe_pool_cleanup(&rxe->mw_pool);
 	rxe_pool_cleanup(&rxe->mc_grp_pool);
 	rxe_pool_cleanup(&rxe->mc_elem_pool);
-
-	rxe_cleanup_ports(rxe);
 
 	if (rxe->tfm)
 		crypto_free_shash(rxe->tfm);
@@ -111,7 +101,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 }
 
 /* initialize port attributes */
-static int rxe_init_port_param(struct rxe_port *port)
+static void rxe_init_port_param(struct rxe_port *port)
 {
 	port->attr.state		= IB_PORT_DOWN;
 	port->attr.max_mtu		= IB_MTU_4096;
@@ -134,35 +124,19 @@ static int rxe_init_port_param(struct rxe_port *port)
 	port->attr.phys_state		= RXE_PORT_PHYS_STATE;
 	port->mtu_cap			= ib_mtu_enum_to_int(IB_MTU_256);
 	port->subnet_prefix		= cpu_to_be64(RXE_PORT_SUBNET_PREFIX);
-
-	return 0;
 }
 
 /* initialize port state, note IB convention that HCA ports are always
  * numbered from 1
  */
-static int rxe_init_ports(struct rxe_dev *rxe)
+static void rxe_init_ports(struct rxe_dev *rxe)
 {
 	struct rxe_port *port = &rxe->port;
 
 	rxe_init_port_param(port);
-
-	if (!port->attr.pkey_tbl_len || !port->attr.gid_tbl_len)
-		return -EINVAL;
-
-	port->pkey_tbl = kcalloc(port->attr.pkey_tbl_len,
-			sizeof(*port->pkey_tbl), GFP_KERNEL);
-
-	if (!port->pkey_tbl)
-		return -ENOMEM;
-
-	port->pkey_tbl[0] = 0xffff;
 	addrconf_addr_eui48((unsigned char *)&port->port_guid,
 			    rxe->ndev->dev_addr);
-
 	spin_lock_init(&port->port_lock);
-
-	return 0;
 }
 
 /* init pools of managed objects */
@@ -252,13 +226,11 @@ static int rxe_init(struct rxe_dev *rxe)
 	/* init default device parameters */
 	rxe_init_device_param(rxe);
 
-	err = rxe_init_ports(rxe);
-	if (err)
-		goto err1;
+	rxe_init_ports(rxe);
 
 	err = rxe_init_pools(rxe);
 	if (err)
-		goto err2;
+		return err;
 
 	/* init pending mmap list */
 	spin_lock_init(&rxe->mmap_offset_lock);
@@ -268,11 +240,6 @@ static int rxe_init(struct rxe_dev *rxe)
 	mutex_init(&rxe->usdev_lock);
 
 	return 0;
-
-err2:
-	rxe_cleanup_ports(rxe);
-err1:
-	return err;
 }
 
 void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)

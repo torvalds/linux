@@ -449,7 +449,7 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 	{ "ROUT2", NULL, "Right Out 2" },
 };
 
-static int es8328_mute(struct snd_soc_dai *dai, int mute)
+static int es8328_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	return snd_soc_component_update_bits(dai->component, ES8328_DACCONTROL3,
 			ES8328_DACCONTROL3_DACMUTE,
@@ -562,14 +562,14 @@ static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
 		break;
 	case 22579200:
 		mclkdiv2 = 1;
-		/* fall through */
+		fallthrough;
 	case 11289600:
 		es8328->sysclk_constraints = &constraints_11289;
 		es8328->mclk_ratios = ratios_11289;
 		break;
 	case 24576000:
 		mclkdiv2 = 1;
-		/* fall through */
+		fallthrough;
 	case 12288000:
 		es8328->sysclk_constraints = &constraints_12288;
 		es8328->mclk_ratios = ratios_12288;
@@ -692,9 +692,10 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops es8328_dai_ops = {
 	.startup	= es8328_startup,
 	.hw_params	= es8328_hw_params,
-	.digital_mute	= es8328_mute,
+	.mute_stream	= es8328_mute,
 	.set_sysclk	= es8328_set_sysclk,
 	.set_fmt	= es8328_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8328_dai = {

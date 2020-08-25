@@ -42,7 +42,7 @@ enum {
  * active request.
  */
 #define I915_PRIORITY_UNPREEMPTABLE INT_MAX
-#define I915_PRIORITY_BARRIER INT_MAX
+#define I915_PRIORITY_BARRIER (I915_PRIORITY_UNPREEMPTABLE - 1)
 
 struct i915_priolist {
 	struct list_head requests[I915_PRIORITY_COUNT];

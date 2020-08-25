@@ -402,7 +402,7 @@
 
 &gbe0 {
 	phy-handle = <&ethphy0>;
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii-rxid";
 	status = "okay";
 };
 

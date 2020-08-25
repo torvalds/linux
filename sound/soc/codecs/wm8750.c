@@ -578,8 +578,8 @@ static int wm8750_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8750_priv *wm8750 = snd_soc_component_get_drvdata(component);
-	u16 iface = snd_soc_component_read32(component, WM8750_IFACE) & 0x1f3;
-	u16 srate = snd_soc_component_read32(component, WM8750_SRATE) & 0x1c0;
+	u16 iface = snd_soc_component_read(component, WM8750_IFACE) & 0x1f3;
+	u16 srate = snd_soc_component_read(component, WM8750_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8750->sysclk, params_rate(params));
 
 	/* bit size */
@@ -606,10 +606,10 @@ static int wm8750_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8750_mute(struct snd_soc_dai *dai, int mute)
+static int wm8750_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8750_ADCDAC) & 0xfff7;
+	u16 mute_reg = snd_soc_component_read(component, WM8750_ADCDAC) & 0xfff7;
 
 	if (mute)
 		snd_soc_component_write(component, WM8750_ADCDAC, mute_reg | 0x8);
@@ -621,7 +621,7 @@ static int wm8750_mute(struct snd_soc_dai *dai, int mute)
 static int wm8750_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	u16 pwr_reg = snd_soc_component_read32(component, WM8750_PWR1) & 0xfe3e;
+	u16 pwr_reg = snd_soc_component_read(component, WM8750_PWR1) & 0xfe3e;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -660,9 +660,10 @@ static int wm8750_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8750_dai_ops = {
 	.hw_params	= wm8750_pcm_hw_params,
-	.digital_mute	= wm8750_mute,
+	.mute_stream	= wm8750_mute,
 	.set_fmt	= wm8750_set_dai_fmt,
 	.set_sysclk	= wm8750_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8750_dai = {

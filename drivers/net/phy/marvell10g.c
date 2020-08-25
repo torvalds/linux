@@ -80,6 +80,8 @@ enum {
 	MV_V2_PORT_CTRL		= 0xf001,
 	MV_V2_PORT_CTRL_SWRST	= BIT(15),
 	MV_V2_PORT_CTRL_PWRDOWN = BIT(11),
+	MV_V2_PORT_MAC_TYPE_MASK = 0x7,
+	MV_V2_PORT_MAC_TYPE_RATE_MATCH = 0x6,
 	/* Temperature control/read registers (88X3310 only) */
 	MV_V2_TEMP_CTRL		= 0xf08a,
 	MV_V2_TEMP_CTRL_MASK	= 0xc000,
@@ -91,6 +93,7 @@ enum {
 
 struct mv3310_priv {
 	u32 firmware_ver;
+	bool rate_match;
 
 	struct device *hwmon_dev;
 	char *hwmon_name;
@@ -205,13 +208,6 @@ static int mv3310_hwmon_config(struct phy_device *phydev, bool enable)
 			      MV_V2_TEMP_CTRL_MASK, val);
 }
 
-static void mv3310_hwmon_disable(void *data)
-{
-	struct phy_device *phydev = data;
-
-	mv3310_hwmon_config(phydev, false);
-}
-
 static int mv3310_hwmon_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -232,10 +228,6 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 	priv->hwmon_name[j] = '\0';
 
 	ret = mv3310_hwmon_config(phydev, true);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, mv3310_hwmon_disable, phydev);
 	if (ret)
 		return ret;
 
@@ -423,6 +415,11 @@ static int mv3310_probe(struct phy_device *phydev)
 	return phy_sfp_probe(phydev, &mv3310_sfp_ops);
 }
 
+static void mv3310_remove(struct phy_device *phydev)
+{
+	mv3310_hwmon_config(phydev, false);
+}
+
 static int mv3310_suspend(struct phy_device *phydev)
 {
 	return mv3310_power_down(phydev);
@@ -458,7 +455,9 @@ static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
 
 static int mv3310_config_init(struct phy_device *phydev)
 {
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
 	int err;
+	int val;
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -474,6 +473,12 @@ static int mv3310_config_init(struct phy_device *phydev)
 	err = mv3310_power_up(phydev);
 	if (err)
 		return err;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL);
+	if (val < 0)
+		return val;
+	priv->rate_match = ((val & MV_V2_PORT_MAC_TYPE_MASK) ==
+			MV_V2_PORT_MAC_TYPE_RATE_MATCH);
 
 	/* Enable EDPD mode - saving 600mW */
 	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
@@ -581,6 +586,17 @@ static int mv3310_aneg_done(struct phy_device *phydev)
 
 static void mv3310_update_interface(struct phy_device *phydev)
 {
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+
+	/* In "XFI with Rate Matching" mode the PHY interface is fixed at
+	 * 10Gb. The PHY adapts the rate to actual wire speed with help of
+	 * internal 16KB buffer.
+	 */
+	if (priv->rate_match) {
+		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
+		return;
+	}
+
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
 	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
 	     phydev->interface == PHY_INTERFACE_MODE_10GBASER) &&
@@ -762,6 +778,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.read_status	= mv3310_read_status,
 		.get_tunable	= mv3310_get_tunable,
 		.set_tunable	= mv3310_set_tunable,
+		.remove		= mv3310_remove,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
@@ -776,6 +793,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.read_status	= mv3310_read_status,
 		.get_tunable	= mv3310_get_tunable,
 		.set_tunable	= mv3310_set_tunable,
+		.remove		= mv3310_remove,
 	},
 };
 

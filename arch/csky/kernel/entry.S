@@ -23,6 +23,24 @@
 #endif
 .endm
 
+.macro	context_tracking
+#ifdef CONFIG_CONTEXT_TRACKING
+	mfcr	a0, epsr
+	btsti	a0, 31
+	bt	1f
+	jbsr	context_tracking_user_exit
+	ldw	a0, (sp, LSAVE_A0)
+	ldw	a1, (sp, LSAVE_A1)
+	ldw	a2, (sp, LSAVE_A2)
+	ldw	a3, (sp, LSAVE_A3)
+#if defined(__CSKYABIV1__)
+	ldw	r6, (sp, LSAVE_A4)
+	ldw	r7, (sp, LSAVE_A5)
+#endif
+1:
+#endif
+.endm
+
 .macro tlbop_begin name, val0, val1, val2
 ENTRY(csky_\name)
 	mtcr    a3, ss2
@@ -103,6 +121,7 @@ ENTRY(csky_\name)
 .endm
 .macro tlbop_end is_write
 	zero_fp
+	context_tracking
 	RD_MEH	a2
 	psrset  ee, ie
 	mov     a0, sp
@@ -128,6 +147,7 @@ tlbop_end 1
 ENTRY(csky_systemcall)
 	SAVE_ALL TRAP0_SIZE
 	zero_fp
+	context_tracking
 	psrset  ee, ie
 
 	lrw     r9, __NR_syscalls
@@ -168,6 +188,8 @@ ENTRY(csky_systemcall)
 csky_syscall_trace:
 	mov	a0, sp                  /* sp = pt_regs pointer */
 	jbsr	syscall_trace_enter
+	cmpnei	a0, 0
+	bt	1f
 	/* Prepare args before do system call */
 	ldw	a0, (sp, LSAVE_A0)
 	ldw	a1, (sp, LSAVE_A1)
@@ -188,6 +210,7 @@ csky_syscall_trace:
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
+1:
 #ifdef CONFIG_DEBUG_RSEQ
 	mov	a0, sp
 	jbsr	rseq_syscall
@@ -234,6 +257,9 @@ ret_from_exception:
 	and	r10, r9
 	cmpnei	r10, 0
 	bt	exit_work
+#ifdef CONFIG_CONTEXT_TRACKING
+	jbsr	context_tracking_user_enter
+#endif
 1:
 #ifdef CONFIG_PREEMPTION
 	mov	r9, sp
@@ -274,6 +300,7 @@ work_resched:
 ENTRY(csky_trap)
 	SAVE_ALL 0
 	zero_fp
+	context_tracking
 	psrset	ee
 	mov	a0, sp                 /* Push Stack pointer arg */
 	jbsr	trap_c                 /* Call C-level trap handler */
@@ -308,6 +335,7 @@ ENTRY(csky_get_tls)
 ENTRY(csky_irq)
 	SAVE_ALL 0
 	zero_fp
+	context_tracking
 	psrset	ee
 
 #ifdef CONFIG_TRACE_IRQFLAGS

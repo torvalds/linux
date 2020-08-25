@@ -400,6 +400,27 @@ out:
 	return ret;
 }
 
+static int qca_disable_soc_logging(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	u8 cmd[2];
+	int err;
+
+	cmd[0] = QCA_DISABLE_LOGGING_SUB_OP;
+	cmd[1] = 0x00;
+	skb = __hci_cmd_sync_ev(hdev, QCA_DISABLE_LOGGING, sizeof(cmd), cmd,
+				HCI_EV_CMD_COMPLETE, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		bt_dev_err(hdev, "QCA Failed to disable soc logging(%d)", err);
+		return err;
+	}
+
+	kfree_skb(skb);
+
+	return 0;
+}
+
 int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
 	struct sk_buff *skb;
@@ -484,6 +505,12 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	if (err < 0) {
 		bt_dev_err(hdev, "QCA Failed to download NVM (%d)", err);
 		return err;
+	}
+
+	if (soc_type >= QCA_WCN3991) {
+		err = qca_disable_soc_logging(hdev);
+		if (err < 0)
+			return err;
 	}
 
 	/* Perform HCI reset */

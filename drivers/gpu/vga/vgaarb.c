@@ -529,7 +529,7 @@ EXPORT_SYMBOL(vga_get);
  *
  * 0 on success, negative error code on failure.
  */
-int vga_tryget(struct pci_dev *pdev, unsigned int rsrc)
+static int vga_tryget(struct pci_dev *pdev, unsigned int rsrc)
 {
 	struct vga_device *vgadev;
 	unsigned long flags;
@@ -554,7 +554,6 @@ bail:
 	spin_unlock_irqrestore(&vga_lock, flags);
 	return rc;
 }
-EXPORT_SYMBOL(vga_tryget);
 
 /**
  * vga_put - release lock on legacy VGA resources

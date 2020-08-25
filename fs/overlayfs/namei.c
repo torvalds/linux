@@ -389,7 +389,7 @@ invalid:
 }
 
 static int ovl_check_origin(struct ovl_fs *ofs, struct dentry *upperdentry,
-			    struct ovl_path **stackp, unsigned int *ctrp)
+			    struct ovl_path **stackp)
 {
 	struct ovl_fh *fh = ovl_get_fh(upperdentry, OVL_XATTR_ORIGIN);
 	int err;
@@ -406,10 +406,6 @@ static int ovl_check_origin(struct ovl_fs *ofs, struct dentry *upperdentry,
 		return err;
 	}
 
-	if (WARN_ON(*ctrp))
-		return -EIO;
-
-	*ctrp = 1;
 	return 0;
 }
 
@@ -861,8 +857,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out;
 		}
 		if (upperdentry && !d.is_dir) {
-			unsigned int origin_ctr = 0;
-
 			/*
 			 * Lookup copy up origin by decoding origin file handle.
 			 * We may get a disconnected dentry, which is fine,
@@ -873,8 +867,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			 * number - it's the same as if we held a reference
 			 * to a dentry in lower layer that was moved under us.
 			 */
-			err = ovl_check_origin(ofs, upperdentry, &origin_path,
-					       &origin_ctr);
+			err = ovl_check_origin(ofs, upperdentry, &origin_path);
 			if (err)
 				goto out_put_upper;
 
@@ -1073,6 +1066,10 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			upperredirect = NULL;
 			goto out_free_oe;
 		}
+		err = ovl_check_metacopy_xattr(upperdentry);
+		if (err < 0)
+			goto out_free_oe;
+		uppermetacopy = err;
 	}
 
 	if (upperdentry || ctr) {

@@ -516,7 +516,7 @@ ap_i2c_audio: &i2c8 {
 	 * configured as SDMMC and not JTAG.
 	 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_cd_gpio
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_cd_pin
 		     &sdmmc_bus4>;
 
 	bus-width = <4>;
@@ -767,7 +767,7 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		/* This is where we actually hook up CD; has external pull */
-		sdmmc_cd_gpio: sdmmc-cd-gpio {
+		sdmmc_cd_pin: sdmmc-cd-pin {
 			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

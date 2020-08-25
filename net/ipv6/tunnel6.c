@@ -155,6 +155,33 @@ drop:
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_INET6_XFRM_TUNNEL)
+static int tunnel6_rcv_cb(struct sk_buff *skb, u8 proto, int err)
+{
+	struct xfrm6_tunnel __rcu *head;
+	struct xfrm6_tunnel *handler;
+	int ret;
+
+	head = (proto == IPPROTO_IPV6) ? tunnel6_handlers : tunnel46_handlers;
+
+	for_each_tunnel_rcu(head, handler) {
+		if (handler->cb_handler) {
+			ret = handler->cb_handler(skb, err);
+			if (ret <= 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static const struct xfrm_input_afinfo tunnel6_input_afinfo = {
+	.family		=	AF_INET6,
+	.is_ipip	=	true,
+	.callback	=	tunnel6_rcv_cb,
+};
+#endif
+
 static int tunnel46_rcv(struct sk_buff *skb)
 {
 	struct xfrm6_tunnel *handler;
@@ -245,11 +272,25 @@ static int __init tunnel6_init(void)
 		inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP);
 		return -EAGAIN;
 	}
+#if IS_ENABLED(CONFIG_INET6_XFRM_TUNNEL)
+	if (xfrm_input_register_afinfo(&tunnel6_input_afinfo)) {
+		pr_err("%s: can't add input afinfo\n", __func__);
+		inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6);
+		inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP);
+		if (xfrm6_tunnel_mpls_supported())
+			inet6_del_protocol(&tunnelmpls6_protocol, IPPROTO_MPLS);
+		return -EAGAIN;
+	}
+#endif
 	return 0;
 }
 
 static void __exit tunnel6_fini(void)
 {
+#if IS_ENABLED(CONFIG_INET6_XFRM_TUNNEL)
+	if (xfrm_input_unregister_afinfo(&tunnel6_input_afinfo))
+		pr_err("%s: can't remove input afinfo\n", __func__);
+#endif
 	if (inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP))
 		pr_err("%s: can't remove protocol\n", __func__);
 	if (inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6))

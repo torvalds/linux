@@ -6,7 +6,7 @@
  */
 
 #include "goyaP.h"
-#include "include/goya/asic_reg/goya_regs.h"
+#include "../include/goya/asic_reg/goya_regs.h"
 
 /*
  * goya_set_block_as_protected - set the given block as protected

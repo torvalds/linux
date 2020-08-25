@@ -1761,7 +1761,7 @@ static void ns_switch_state(struct nandsim *ns)
 
 		NS_DBG("switch_state: operation is unknown, try to find it\n");
 
-		if (!ns_find_operation(ns, 0))
+		if (ns_find_operation(ns, 0))
 			return;
 
 		if ((ns->state & ACTION_MASK) &&

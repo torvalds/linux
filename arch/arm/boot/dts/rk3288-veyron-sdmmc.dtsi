@@ -41,7 +41,7 @@
 		};
 
 		/* This is where we actually hook up CD */
-		sdmmc_cd_gpio: sdmmc-cd-gpio {
+		sdmmc_cd_pin: sdmmc-cd-pin {
 			rockchip,pins = <7 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

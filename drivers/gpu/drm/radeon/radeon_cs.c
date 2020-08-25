@@ -443,7 +443,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 			if (bo == NULL)
 				continue;
 
-			drm_gem_object_put_unlocked(&bo->tbo.base);
+			drm_gem_object_put(&bo->tbo.base);
 		}
 	}
 	kfree(parser->track);

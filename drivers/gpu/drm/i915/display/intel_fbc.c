@@ -48,19 +48,6 @@
 #include "intel_frontbuffer.h"
 
 /*
- * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
- * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
- * origin so the x and y offsets can actually fit the registers. As a
- * consequence, the fence doesn't really start exactly at the display plane
- * address we program because it starts at the real start of the buffer, so we
- * have to take this into consideration here.
- */
-static unsigned int get_crtc_fence_y_offset(struct intel_fbc *fbc)
-{
-	return fbc->state_cache.plane.y - fbc->state_cache.plane.adjusted_y;
-}
-
-/*
  * For SKL+, the plane source size used by the hardware is based on the value we
  * write to the PLANE_SIZE register. For BDW-, the hardware looks at the value
  * we wrote to PIPESRC.
@@ -141,18 +128,17 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 			fbc_ctl2 |= FBC_CTL_CPU_FENCE;
 		intel_de_write(dev_priv, FBC_CONTROL2, fbc_ctl2);
 		intel_de_write(dev_priv, FBC_FENCE_OFF,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	}
 
 	/* enable it... */
-	fbc_ctl = intel_de_read(dev_priv, FBC_CONTROL);
-	fbc_ctl &= 0x3fff << FBC_CTL_INTERVAL_SHIFT;
+	fbc_ctl = FBC_CTL_INTERVAL(params->interval);
 	fbc_ctl |= FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
-	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
+	fbc_ctl |= FBC_CTL_STRIDE(cfb_pitch & 0xff);
 	if (params->fence_id >= 0)
-		fbc_ctl |= params->fence_id;
+		fbc_ctl |= FBC_CTL_FENCENO(params->fence_id);
 	intel_de_write(dev_priv, FBC_CONTROL, fbc_ctl);
 }
 
@@ -175,7 +161,7 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
 		intel_de_write(dev_priv, DPFC_FENCE_YOFF,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	} else {
 		intel_de_write(dev_priv, DPFC_FENCE_YOFF, 0);
 	}
@@ -201,8 +187,30 @@ static bool g4x_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void i8xx_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
+			  intel_de_read_fw(dev_priv, DSPADDR(i9xx_plane)));
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
+static void i965_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
+			  intel_de_read_fw(dev_priv, DSPSURF(i9xx_plane)));
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
 /* This function forces a CFB recompression through the nuke operation. */
-static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
+static void snb_fbc_recompress(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
@@ -210,6 +218,16 @@ static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 
 	intel_de_write(dev_priv, MSG_FBC_REND_STATE, FBC_REND_NUKE);
 	intel_de_posting_read(dev_priv, MSG_FBC_REND_STATE);
+}
+
+static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) >= 6)
+		snb_fbc_recompress(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 4)
+		i965_fbc_recompress(dev_priv);
+	else
+		i8xx_fbc_recompress(dev_priv);
 }
 
 static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
@@ -243,7 +261,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 			intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
 				       SNB_CPU_FENCE_ENABLE | params->fence_id);
 			intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-				       params->crtc.fence_y_offset);
+				       params->fence_y_offset);
 		}
 	} else {
 		if (IS_GEN(dev_priv, 6)) {
@@ -253,7 +271,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	intel_de_write(dev_priv, ILK_DPFC_FENCE_YOFF,
-		       params->crtc.fence_y_offset);
+		       params->fence_y_offset);
 	/* enable it... */
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
@@ -320,7 +338,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA,
 			       SNB_CPU_FENCE_ENABLE | params->fence_id);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
-			       params->crtc.fence_y_offset);
+			       params->fence_y_offset);
 	} else if (dev_priv->ggtt.num_fences) {
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
@@ -328,21 +346,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
-
-	if (IS_IVYBRIDGE(dev_priv)) {
-		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
-		intel_de_write(dev_priv, ILK_DISPLAY_CHICKEN1,
-			       intel_de_read(dev_priv, ILK_DISPLAY_CHICKEN1) | ILK_FBCQ_DIS);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
-		intel_de_write(dev_priv, CHICKEN_PIPESL_1(params->crtc.pipe),
-			       intel_de_read(dev_priv, CHICKEN_PIPESL_1(params->crtc.pipe)) | HSW_FBCQ_DIS);
-	}
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		/* Wa_1409120013:icl,ehl,tgl */
-		intel_de_write(dev_priv, ILK_DPFC_CHICKEN,
-			       ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 
 	intel_de_write(dev_priv, ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
@@ -474,7 +477,7 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			       unsigned int size, unsigned int fb_cpp)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_mm_node *uninitialized_var(compressed_llb);
+	struct drm_mm_node *compressed_llb;
 	int ret;
 
 	drm_WARN_ON(&dev_priv->drm,
@@ -631,8 +634,8 @@ static bool rotation_is_valid(struct drm_i915_private *dev_priv,
 /*
  * For some reason, the hardware tracking starts looking at whatever we
  * programmed as the display plane base address register. It does not look at
- * the X and Y offset registers. That's why we look at the crtc->adjusted{x,y}
- * variables instead of just looking at the pipe/plane size.
+ * the X and Y offset registers. That's why we include the src x/y offsets
+ * instead of just looking at the plane size.
  */
 static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 {
@@ -705,13 +708,21 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	cache->plane.adjusted_x = plane_state->color_plane[0].x;
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
-	cache->plane.y = plane_state->uapi.src.y1 >> 16;
 
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
 	cache->fb.format = fb->format;
-	cache->fb.stride = fb->pitches[0];
 	cache->fb.modifier = fb->modifier;
+
+	/* FIXME is this correct? */
+	cache->fb.stride = plane_state->color_plane[0].stride;
+	if (drm_rotation_90_or_270(plane_state->hw.rotation))
+		cache->fb.stride *= fb->format->cpp[0];
+
+	/* FBC1 compression interval: arbitrary choice of 1 second */
+	cache->interval = drm_mode_vrefresh(&crtc_state->hw.adjusted_mode);
+
+	cache->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->flags & PLANE_HAS_FENCE &&
 		    !plane_state->vma->fence);
@@ -731,6 +742,25 @@ static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
 		fbc->compressed_fb.size * fbc->threshold;
 }
 
+static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+
+	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    cache->fb.modifier != I915_FORMAT_MOD_X_TILED)
+		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
+	else
+		return 0;
+}
+
+static bool intel_fbc_gen9_wa_cfb_stride_changed(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	return fbc->params.gen9_wa_cfb_stride != intel_fbc_gen9_wa_cfb_stride(dev_priv);
+}
+
 static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -740,7 +770,7 @@ static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 		return false;
 	}
 
-	if (!i915_modparams.enable_fbc) {
+	if (!dev_priv->params.enable_fbc) {
 		fbc->no_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
@@ -807,6 +837,11 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
+	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
+		fbc->no_fbc_reason = "pixel format is invalid";
+		return false;
+	}
+
 	if (!rotation_is_valid(dev_priv, cache->fb.format->format,
 			       cache->plane.rotation)) {
 		fbc->no_fbc_reason = "rotation unsupported";
@@ -820,11 +855,6 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	if (!stride_is_valid(dev_priv, cache->fb.modifier, cache->fb.stride)) {
 		fbc->no_fbc_reason = "framebuffer stride not supported";
-		return false;
-	}
-
-	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
-		fbc->no_fbc_reason = "pixel format is invalid";
 		return false;
 	}
 
@@ -883,12 +913,15 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	memset(params, 0, sizeof(*params));
 
 	params->fence_id = cache->fence_id;
+	params->fence_y_offset = cache->fence_y_offset;
+
+	params->interval = cache->interval;
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
-	params->crtc.fence_y_offset = get_crtc_fence_y_offset(fbc);
 
 	params->fb.format = cache->fb.format;
+	params->fb.modifier = cache->fb.modifier;
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
@@ -916,6 +949,9 @@ static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
 		return false;
 
 	if (params->fb.format != cache->fb.format)
+		return false;
+
+	if (params->fb.modifier != cache->fb.modifier)
 		return false;
 
 	if (params->fb.stride != cache->fb.stride)
@@ -1017,7 +1053,7 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 
 	fbc->flip_pending = false;
 
-	if (!i915_modparams.enable_fbc) {
+	if (!dev_priv->params.enable_fbc) {
 		intel_fbc_deactivate(dev_priv, "disabled at runtime per module param");
 		__intel_fbc_disable(dev_priv);
 
@@ -1090,11 +1126,19 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	if (!HAS_FBC(dev_priv))
 		return;
 
+	/*
+	 * GTT tracking does not nuke the entire cfb
+	 * so don't clear busy_bits set for some other
+	 * reason.
+	 */
+	if (origin == ORIGIN_GTT)
+		return;
+
 	mutex_lock(&fbc->lock);
 
 	fbc->busy_bits &= ~frontbuffer_bits;
 
-	if (origin == ORIGIN_GTT || origin == ORIGIN_FLIP)
+	if (origin == ORIGIN_FLIP)
 		goto out;
 
 	if (!fbc->busy_bits && fbc->crtc &&
@@ -1197,7 +1241,8 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 
 	if (fbc->crtc) {
 		if (fbc->crtc != crtc ||
-		    !intel_fbc_cfb_size_changed(dev_priv))
+		    (!intel_fbc_cfb_size_changed(dev_priv) &&
+		     !intel_fbc_gen9_wa_cfb_stride_changed(dev_priv)))
 			goto out;
 
 		__intel_fbc_disable(dev_priv);
@@ -1219,12 +1264,7 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 		goto out;
 	}
 
-	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
-	    plane_state->hw.fb->modifier != I915_FORMAT_MOD_X_TILED)
-		cache->gen9_wa_cfb_stride =
-			DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
-	else
-		cache->gen9_wa_cfb_stride = 0;
+	cache->gen9_wa_cfb_stride = intel_fbc_gen9_wa_cfb_stride(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling FBC on pipe %c\n",
 		    pipe_name(crtc->pipe));
@@ -1370,8 +1410,8 @@ void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv)
  */
 static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 {
-	if (i915_modparams.enable_fbc >= 0)
-		return !!i915_modparams.enable_fbc;
+	if (dev_priv->params.enable_fbc >= 0)
+		return !!dev_priv->params.enable_fbc;
 
 	if (!HAS_FBC(dev_priv))
 		return 0;
@@ -1415,19 +1455,14 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	if (need_fbc_vtd_wa(dev_priv))
 		mkwrite_device_info(dev_priv)->display.has_fbc = false;
 
-	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
+	dev_priv->params.enable_fbc = intel_sanitize_fbc_option(dev_priv);
 	drm_dbg_kms(&dev_priv->drm, "Sanitized enable_fbc value: %d\n",
-		    i915_modparams.enable_fbc);
+		    dev_priv->params.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";
 		return;
 	}
-
-	/* This value was pulled out of someone's hat */
-	if (INTEL_GEN(dev_priv) <= 4 && !IS_GM45(dev_priv))
-		intel_de_write(dev_priv, FBC_CONTROL,
-		               500 << FBC_CTL_INTERVAL_SHIFT);
 
 	/* We still don't have any sort of hardware state readout for FBC, so
 	 * deactivate it in case the BIOS activated it to make sure software

@@ -304,8 +304,8 @@ static int switchdev_port_obj_add_defer(struct net_device *dev,
  *	switchdev_port_obj_add - Add port object
  *
  *	@dev: port device
- *	@id: object ID
  *	@obj: object to add
+ *	@extack: netlink extended ack
  *
  *	Use a 2-phase prepare-commit transaction model to ensure
  *	system is not left in a partially updated state due to
@@ -357,7 +357,6 @@ static int switchdev_port_obj_del_defer(struct net_device *dev,
  *	switchdev_port_obj_del - Delete port object
  *
  *	@dev: port device
- *	@id: object ID
  *	@obj: object to delete
  *
  *	rtnl_lock must be held and must not be in atomic section,

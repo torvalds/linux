@@ -405,6 +405,10 @@ be added to the following table:
      - ``control``
      - Traps packets logged during processing of flow action trap (e.g., via
        tc's trap action)
+   * - ``early_drop``
+     - ``drop``
+     - Traps packets dropped due to the RED (Random Early Detection) algorithm
+       (i.e., early drops)
 
 Driver-specific Packet Traps
 ============================
@@ -486,6 +490,10 @@ narrow. The description of these groups must be added to the following table:
      - Contains packet traps for packets that should be locally delivered after
        routing, but do not match more specific packet traps (e.g.,
        ``ipv4_bgp``)
+   * - ``external_delivery``
+     - Contains packet traps for packets that should be routed through an
+       external interface (e.g., management interface) that does not belong to
+       the same device (e.g., switch ASIC) as the ingress interface
    * - ``ipv6``
      - Contains packet traps for various IPv6 control packets (e.g., Router
        Advertisements)

@@ -94,7 +94,11 @@ static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
 					   size_t offset)
 {
 	struct snd_sg_buf *sgbuf = dmab->private_data;
-	dma_addr_t addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
+	dma_addr_t addr;
+
+	if (!sgbuf)
+		return dmab->addr + offset;
+	addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
 	addr &= ~((dma_addr_t)PAGE_SIZE - 1);
 	return addr + offset % PAGE_SIZE;
 }
@@ -106,6 +110,9 @@ static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
 				     size_t offset)
 {
 	struct snd_sg_buf *sgbuf = dmab->private_data;
+
+	if (!sgbuf)
+		return dmab->area + offset;
 	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
 }
 

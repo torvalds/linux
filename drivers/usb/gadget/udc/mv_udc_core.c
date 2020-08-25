@@ -53,7 +53,6 @@
 static DECLARE_COMPLETION(release_done);
 
 static const char driver_name[] = "mv_udc";
-static const char driver_desc[] = DRIVER_DESC;
 
 static void nuke(struct mv_ep *ep, int status);
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver);
@@ -1502,7 +1501,7 @@ out:
 
 static void mv_udc_testmode(struct mv_udc *udc, u16 index)
 {
-	if (index <= TEST_FORCE_EN) {
+	if (index <= USB_TEST_FORCE_ENABLE) {
 		udc->test_mode = index;
 		if (udc_prime_status(udc, EP_DIR_IN, 0, true))
 			ep0_stall(udc);
@@ -2313,7 +2312,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 	return 0;
 
 err_create_workqueue:
-	destroy_workqueue(udc->qwork);
+	if (udc->qwork)
+		destroy_workqueue(udc->qwork);
 err_destroy_dma:
 	dma_pool_destroy(udc->dtd_pool);
 err_free_dma:

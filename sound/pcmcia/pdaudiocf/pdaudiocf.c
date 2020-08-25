@@ -139,6 +139,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 
 /**
  * snd_pdacf_assign_resources - initialize the hardware and card instance.
+ * @pdacf: context
  * @port: i/o port for the card
  * @irq: irq number for the card
  *

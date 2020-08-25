@@ -551,7 +551,7 @@ EXPORT_SYMBOL_GPL(ieee80211_calc_tx_airtime);
 u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_sta *pubsta,
-				       int len)
+				       int len, bool ampdu)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *conf;
@@ -572,10 +572,26 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	if (pubsta) {
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
+		struct ieee80211_tx_rate *rate = &sta->tx_stats.last_rate;
+		u32 airtime;
 
-		return ieee80211_calc_tx_airtime_rate(hw,
-						      &sta->tx_stats.last_rate,
-						      band, len);
+		if (!(rate->flags & (IEEE80211_TX_RC_VHT_MCS |
+				     IEEE80211_TX_RC_MCS)))
+			ampdu = false;
+
+		/*
+		 * Assume that HT/VHT transmission on any AC except VO will
+		 * use aggregation. Since we don't have reliable reporting
+		 * of aggregation length, assume an average of 16.
+		 * This will not be very accurate, but much better than simply
+		 * assuming un-aggregated tx.
+		 */
+		airtime = ieee80211_calc_tx_airtime_rate(hw, rate, band,
+							 ampdu ? len * 16 : len);
+		if (ampdu)
+			airtime /= 16;
+
+		return airtime;
 	}
 
 	if (!conf)

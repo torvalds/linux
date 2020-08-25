@@ -244,7 +244,7 @@ static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
 
 static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy;
+	u32 val, dummy __always_unused;
 
 	rdmsr(MSR_IA32_PERF_CTL, val, dummy);
 	return val;
@@ -261,7 +261,7 @@ static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 
 static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 {
-	u32 val, dummy;
+	u32 val, dummy __always_unused;
 
 	rdmsr(MSR_AMD_PERF_CTL, val, dummy);
 	return val;
@@ -612,7 +612,7 @@ static const struct dmi_system_id sw_any_bug_dmi_table[] = {
 static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 {
 	/* Intel Xeon Processor 7100 Series Specification Update
-	 * http://www.intel.com/Assets/PDF/specupdate/314554.pdf
+	 * https://www.intel.com/Assets/PDF/specupdate/314554.pdf
 	 * AL30: A Machine Check Exception (MCE) Occurring during an
 	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
 	 * Both Processor Cores to Lock Up. */
@@ -993,14 +993,14 @@ MODULE_PARM_DESC(acpi_pstate_strict,
 late_initcall(acpi_cpufreq_init);
 module_exit(acpi_cpufreq_exit);
 
-static const struct x86_cpu_id acpi_cpufreq_ids[] = {
+static const struct x86_cpu_id __maybe_unused acpi_cpufreq_ids[] = {
 	X86_MATCH_FEATURE(X86_FEATURE_ACPI, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_HW_PSTATE, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, acpi_cpufreq_ids);
 
-static const struct acpi_device_id processor_device_ids[] = {
+static const struct acpi_device_id __maybe_unused processor_device_ids[] = {
 	{ACPI_PROCESSOR_OBJECT_HID, },
 	{ACPI_PROCESSOR_DEVICE_HID, },
 	{},

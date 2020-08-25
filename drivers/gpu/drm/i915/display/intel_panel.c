@@ -521,10 +521,10 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	drm_WARN_ON(&dev_priv->drm, panel->backlight.max == 0);
 
-	if (i915_modparams.invert_brightness < 0)
+	if (dev_priv->params.invert_brightness < 0)
 		return val;
 
-	if (i915_modparams.invert_brightness > 0 ||
+	if (dev_priv->params.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
 		return panel->backlight.max - val + panel->backlight.min;
 	}
@@ -1929,7 +1929,7 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 		return retval;
 	}
 
-	level = DIV_ROUND_UP(pwm_get_duty_cycle(panel->backlight.pwm) * 100,
+	level = DIV_ROUND_UP_ULL(pwm_get_duty_cycle(panel->backlight.pwm) * 100,
 			     CRC_PMIC_PWM_PERIOD_NS);
 	panel->backlight.level =
 		intel_panel_compute_brightness(connector, level);

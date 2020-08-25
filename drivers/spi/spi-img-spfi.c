@@ -9,7 +9,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -100,10 +99,6 @@ struct img_spfi {
 	struct dma_chan *tx_ch;
 	bool tx_dma_busy;
 	bool rx_dma_busy;
-};
-
-struct img_spfi_device_data {
-	bool gpio_requested;
 };
 
 static inline u32 spfi_readl(struct img_spfi *spfi, u32 reg)
@@ -442,54 +437,6 @@ static int img_spfi_unprepare(struct spi_master *master,
 	return 0;
 }
 
-static int img_spfi_setup(struct spi_device *spi)
-{
-	int ret = -EINVAL;
-	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
-
-	if (!spfi_data) {
-		spfi_data = kzalloc(sizeof(*spfi_data), GFP_KERNEL);
-		if (!spfi_data)
-			return -ENOMEM;
-		spfi_data->gpio_requested = false;
-		spi_set_ctldata(spi, spfi_data);
-	}
-	if (!spfi_data->gpio_requested) {
-		ret = gpio_request_one(spi->cs_gpio,
-				       (spi->mode & SPI_CS_HIGH) ?
-				       GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-				       dev_name(&spi->dev));
-		if (ret)
-			dev_err(&spi->dev, "can't request chipselect gpio %d\n",
-				spi->cs_gpio);
-		else
-			spfi_data->gpio_requested = true;
-	} else {
-		if (gpio_is_valid(spi->cs_gpio)) {
-			int mode = ((spi->mode & SPI_CS_HIGH) ?
-				    GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
-
-			ret = gpio_direction_output(spi->cs_gpio, mode);
-			if (ret)
-				dev_err(&spi->dev, "chipselect gpio %d setup failed (%d)\n",
-					spi->cs_gpio, ret);
-		}
-	}
-	return ret;
-}
-
-static void img_spfi_cleanup(struct spi_device *spi)
-{
-	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
-
-	if (spfi_data) {
-		if (spfi_data->gpio_requested)
-			gpio_free(spi->cs_gpio);
-		kfree(spfi_data);
-		spi_set_ctldata(spi, NULL);
-	}
-}
-
 static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 			    struct spi_transfer *xfer)
 {
@@ -659,12 +606,11 @@ static int img_spfi_probe(struct platform_device *pdev)
 			master->max_speed_hz = max_speed_hz;
 	}
 
-	master->setup = img_spfi_setup;
-	master->cleanup = img_spfi_cleanup;
 	master->transfer_one = img_spfi_transfer_one;
 	master->prepare_message = img_spfi_prepare;
 	master->unprepare_message = img_spfi_unprepare;
 	master->handle_err = img_spfi_handle_err;
+	master->use_gpio_descriptors = true;
 
 	spfi->tx_ch = dma_request_chan(spfi->dev, "tx");
 	if (IS_ERR(spfi->tx_ch)) {

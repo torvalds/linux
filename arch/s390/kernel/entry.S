@@ -370,7 +370,7 @@ EXPORT_SYMBOL(sie_exit)
 
 /*
  * SVC interrupt handler routine. System calls are synchronous events and
- * are executed with interrupts enabled.
+ * are entered with interrupts disabled.
  */
 
 ENTRY(system_call)
@@ -378,9 +378,9 @@ ENTRY(system_call)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	BPOFF
 	lg	%r12,__LC_CURRENT
-	lghi	%r13,__TASK_thread
 	lghi	%r14,_PIF_SYSCALL
 .Lsysc_per:
+	lghi	%r13,__TASK_thread
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 	UPDATE_VTIME %r8,%r9,__LC_SYNC_ENTER_TIMER
@@ -401,9 +401,9 @@ ENTRY(system_call)
 	jnz	.Lsysc_nr_ok
 	# svc 0: system call number in %r1
 	llgfr	%r1,%r1				# clear high word in r1
+	sth	%r1,__PT_INT_CODE+2(%r11)
 	cghi	%r1,NR_syscalls
 	jnl	.Lsysc_nr_ok
-	sth	%r1,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r1,3
 .Lsysc_nr_ok:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)

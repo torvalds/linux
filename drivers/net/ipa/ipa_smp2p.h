@@ -15,7 +15,7 @@ struct ipa;
  * @ipa:	IPA pointer
  * @modem_init:	Whether the modem is responsible for GSI initialization
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  *
  */
 int ipa_smp2p_init(struct ipa *ipa, bool modem_init);

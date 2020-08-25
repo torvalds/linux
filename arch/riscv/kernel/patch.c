@@ -63,7 +63,7 @@ static int patch_insn_write(void *addr, const void *insn, size_t len)
 
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
-	ret = probe_kernel_write(waddr, insn, len);
+	ret = copy_to_kernel_nofault(waddr, insn, len);
 
 	patch_unmap(FIX_TEXT_POKE0);
 
@@ -76,7 +76,7 @@ NOKPROBE_SYMBOL(patch_insn_write);
 #else
 static int patch_insn_write(void *addr, const void *insn, size_t len)
 {
-	return probe_kernel_write(addr, insn, len);
+	return copy_to_kernel_nofault(addr, insn, len);
 }
 NOKPROBE_SYMBOL(patch_insn_write);
 #endif /* CONFIG_MMU */

@@ -72,7 +72,7 @@ struct mvebu_a3700_utmi_caps {
  * struct mvebu_a3700_utmi - PHY driver data
  *
  * @regs: PHY registers
- * @usb_mis: Regmap with USB miscellaneous registers including PHY ones
+ * @usb_misc: Regmap with USB miscellaneous registers including PHY ones
  * @caps: PHY capabilities
  * @phy: PHY handle
  */

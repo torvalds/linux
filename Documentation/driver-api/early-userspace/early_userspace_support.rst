@@ -92,7 +92,7 @@ You can obtain somewhat infrequent snapshots of klibc from
 https://www.kernel.org/pub/linux/libs/klibc/
 
 For active users, you are better off using the klibc git
-repository, at http://git.kernel.org/?p=libs/klibc/klibc.git
+repository, at https://git.kernel.org/?p=libs/klibc/klibc.git
 
 The standalone klibc distribution currently provides three components,
 in addition to the klibc library:
@@ -122,7 +122,7 @@ and a number of other utilities, so you can replace kinit and build
 custom initramfs images that meet your needs exactly.
 
 For questions and help, you can sign up for the early userspace
-mailing list at http://www.zytor.com/mailman/listinfo/klibc
+mailing list at https://www.zytor.com/mailman/listinfo/klibc
 
 How does it work?
 =================

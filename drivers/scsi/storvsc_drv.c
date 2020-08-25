@@ -462,6 +462,11 @@ struct storvsc_device {
 	 * Mask of CPUs bound to subchannels.
 	 */
 	struct cpumask alloced_cpus;
+	/*
+	 * Serializes modifications of stor_chns[] from storvsc_do_io()
+	 * and storvsc_change_target_cpu().
+	 */
+	spinlock_t lock;
 	/* Used for vsc/vsp channel reset process */
 	struct storvsc_cmd_request init_request;
 	struct storvsc_cmd_request reset_request;
@@ -639,7 +644,7 @@ static void storvsc_change_target_cpu(struct vmbus_channel *channel, u32 old,
 		return;
 
 	/* See storvsc_do_io() -> get_og_chn(). */
-	spin_lock_irqsave(&device->channel->lock, flags);
+	spin_lock_irqsave(&stor_device->lock, flags);
 
 	/*
 	 * Determines if the storvsc device has other channels assigned to
@@ -676,7 +681,7 @@ old_is_alloced:
 	WRITE_ONCE(stor_device->stor_chns[new], channel);
 	cpumask_set_cpu(new, &stor_device->alloced_cpus);
 
-	spin_unlock_irqrestore(&device->channel->lock, flags);
+	spin_unlock_irqrestore(&stor_device->lock, flags);
 }
 
 static void handle_sc_creation(struct vmbus_channel *new_sc)
@@ -1033,7 +1038,7 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 			do_work = true;
 			process_err_fn = storvsc_device_scan;
 			/*
-			 * Retry the I/O that trigerred this.
+			 * Retry the I/O that triggered this.
 			 */
 			set_host_byte(scmnd, DID_REQUEUE);
 		}
@@ -1100,6 +1105,10 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 			data_transfer_length = 0;
 	}
 
+	/* Validate data_transfer_length (from Hyper-V) */
+	if (data_transfer_length > cmd_request->payload->range.len)
+		data_transfer_length = cmd_request->payload->range.len;
+
 	scsi_set_resid(scmnd,
 		cmd_request->payload->range.len - data_transfer_length);
 
@@ -1140,6 +1149,11 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 	/* Copy over the status...etc */
 	stor_pkt->vm_srb.scsi_status = vstor_packet->vm_srb.scsi_status;
 	stor_pkt->vm_srb.srb_status = vstor_packet->vm_srb.srb_status;
+
+	/* Validate sense_info_length (from Hyper-V) */
+	if (vstor_packet->vm_srb.sense_info_length > sense_buffer_size)
+		vstor_packet->vm_srb.sense_info_length = sense_buffer_size;
+
 	stor_pkt->vm_srb.sense_info_length =
 	vstor_packet->vm_srb.sense_info_length;
 
@@ -1433,14 +1447,14 @@ static int storvsc_do_io(struct hv_device *device,
 			}
 		}
 	} else {
-		spin_lock_irqsave(&device->channel->lock, flags);
+		spin_lock_irqsave(&stor_device->lock, flags);
 		outgoing_channel = stor_device->stor_chns[q_num];
 		if (outgoing_channel != NULL) {
-			spin_unlock_irqrestore(&device->channel->lock, flags);
+			spin_unlock_irqrestore(&stor_device->lock, flags);
 			goto found_channel;
 		}
 		outgoing_channel = get_og_chn(stor_device, q_num);
-		spin_unlock_irqrestore(&device->channel->lock, flags);
+		spin_unlock_irqrestore(&stor_device->lock, flags);
 	}
 
 found_channel:
@@ -1565,6 +1579,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 
 	request = &stor_device->reset_request;
 	vstor_packet = &request->vstor_packet;
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
 
 	init_completion(&request->wait_event);
 
@@ -1668,6 +1683,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	/* Setup the cmd request */
 	cmd_request->cmd = scmnd;
 
+	memset(&cmd_request->vstor_packet, 0, sizeof(struct vstor_packet));
 	vm_srb = &cmd_request->vstor_packet.vm_srb;
 	vm_srb->win8_extension.time_out_value = 60;
 
@@ -1881,6 +1897,7 @@ static int storvsc_probe(struct hv_device *device,
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
 	stor_device->host = host;
+	spin_lock_init(&stor_device->lock);
 	hv_set_drvdata(device, stor_device);
 
 	stor_device->port_number = host->host_no;

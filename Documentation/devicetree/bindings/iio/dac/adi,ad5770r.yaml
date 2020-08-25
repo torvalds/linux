@@ -61,17 +61,17 @@ properties:
         const: 0
 
       adi,range-microamp:
-          description: Output range of the channel.
-          oneOf:
-            - items:
-                - const: 0
-                - const: 300000
-            - items:
-                - const: -60000
-                - const: 0
-            - items:
-                - const: -60000
-                - const: 300000
+        description: Output range of the channel.
+        oneOf:
+          - items:
+              - const: 0
+              - const: 300000
+          - items:
+              - const: -60000
+              - const: 0
+          - items:
+              - const: -60000
+              - const: 300000
 
   channel@1:
     description: Represents an external channel which are
@@ -84,10 +84,10 @@ properties:
         const: 1
 
       adi,range-microamp:
-          description: Output range of the channel.
-          items:
-            - const: 0
-            - enum: [ 140000, 250000 ]
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [140000, 250000]
 
   channel@2:
     description: Represents an external channel which are
@@ -100,10 +100,10 @@ properties:
         const: 2
 
       adi,range-microamp:
-          description: Output range of the channel.
-          items:
-            - const: 0
-            - enum: [ 55000, 150000 ]
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [55000, 150000]
 
 patternProperties:
   "^channel@([3-5])$":
@@ -116,19 +116,19 @@ patternProperties:
         maximum: 5
 
       adi,range-microamp:
-          description: Output range of the channel.
-          items:
-            - const: 0
-            - enum: [ 45000, 100000 ]
+        description: Output range of the channel.
+        items:
+          - const: 0
+          - enum: [45000, 100000]
 
 required:
-- reg
-- channel@0
-- channel@1
-- channel@2
-- channel@3
-- channel@4
-- channel@5
+  - reg
+  - channel@0
+  - channel@1
+  - channel@2
+  - channel@3
+  - channel@4
+  - channel@5
 
 examples:
   - |

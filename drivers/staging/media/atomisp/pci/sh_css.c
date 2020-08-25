@@ -1841,8 +1841,13 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 #endif
 
 #if !defined(HAS_NO_INPUT_SYSTEM)
-	dma_set_max_burst_size(DMA0_ID, HIVE_DMA_BUS_DDR_CONN,
-			       ISP_DMA_MAX_BURST_LENGTH);
+
+	if (!IS_ISP2401)
+		dma_set_max_burst_size(DMA0_ID, HIVE_DMA_BUS_DDR_CONN,
+				       ISP2400_DMA_MAX_BURST_LENGTH);
+	else
+		dma_set_max_burst_size(DMA0_ID, HIVE_DMA_BUS_DDR_CONN,
+				       ISP2401_DMA_MAX_BURST_LENGTH);
 
 	if (ia_css_isys_init() != INPUT_SYSTEM_ERR_NO_ERROR)
 		err = -EINVAL;

@@ -306,13 +306,13 @@ int compress_file(int argc, char **argv, void *handle)
 			lzcounts, cmdp, handle);
 
 		if (cc != ERR_NX_OK && cc != ERR_NX_TPBC_GT_SPBC &&
-		    cc != ERR_NX_TRANSLATION) {
+		    cc != ERR_NX_AT_FAULT) {
 			fprintf(stderr, "nx error: cc= %d\n", cc);
 			exit(-1);
 		}
 
 		/* Page faults are handled by the user code */
-		if (cc == ERR_NX_TRANSLATION) {
+		if (cc == ERR_NX_AT_FAULT) {
 			NXPRT(fprintf(stderr, "page fault: cc= %d, ", cc));
 			NXPRT(fprintf(stderr, "try= %d, fsa= %08llx\n",
 				  fault_tries,

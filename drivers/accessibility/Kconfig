@@ -31,4 +31,6 @@ config A11Y_BRAILLE_CONSOLE
 
 	  If unsure, say N.
 
+source "drivers/accessibility/speakup/Kconfig"
+
 endif # ACCESSIBILITY

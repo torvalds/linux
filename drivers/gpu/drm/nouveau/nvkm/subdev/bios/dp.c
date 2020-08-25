@@ -100,7 +100,7 @@ nvbios_dpout_parse(struct nvkm_bios *bios, u8 idx,
 		switch (*ver) {
 		case 0x20:
 			info->mask |= 0x00c0; /* match any link */
-			/* fall-through */
+			fallthrough;
 		case 0x21:
 		case 0x30:
 			info->flags     = nvbios_rd08(bios, data + 0x05);

@@ -288,7 +288,7 @@ struct btrfs_fs_devices {
  */
 struct btrfs_io_bio {
 	unsigned int mirror_num;
-	unsigned int stripe_index;
+	struct btrfs_device *device;
 	u64 logical;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
@@ -408,7 +408,7 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 		return BTRFS_MAP_WRITE;
 	default:
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case REQ_OP_READ:
 		return BTRFS_MAP_READ;
 	}

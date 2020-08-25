@@ -739,6 +739,6 @@ static struct comedi_driver driver_das800 = {
 };
 module_comedi_driver(driver_das800);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

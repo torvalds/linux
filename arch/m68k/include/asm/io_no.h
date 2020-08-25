@@ -14,15 +14,15 @@
  * that behavior here first before we include asm-generic/io.h.
  */
 #define __raw_readb(addr) \
-    ({ unsigned char __v = (*(volatile unsigned char *) (addr)); __v; })
+    ({ u8 __v = (*(__force volatile u8 *) (addr)); __v; })
 #define __raw_readw(addr) \
-    ({ unsigned short __v = (*(volatile unsigned short *) (addr)); __v; })
+    ({ u16 __v = (*(__force volatile u16 *) (addr)); __v; })
 #define __raw_readl(addr) \
-    ({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
+    ({ u32 __v = (*(__force volatile u32 *) (addr)); __v; })
 
-#define __raw_writeb(b, addr) (void)((*(volatile unsigned char *) (addr)) = (b))
-#define __raw_writew(b, addr) (void)((*(volatile unsigned short *) (addr)) = (b))
-#define __raw_writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
+#define __raw_writeb(b, addr) (void)((*(__force volatile u8 *) (addr)) = (b))
+#define __raw_writew(b, addr) (void)((*(__force volatile u16 *) (addr)) = (b))
+#define __raw_writel(b, addr) (void)((*(__force volatile u32 *) (addr)) = (b))
 
 #if defined(CONFIG_COLDFIRE)
 /*
@@ -67,7 +67,7 @@ static inline u16 readw(const volatile void __iomem *addr)
 {
 	if (cf_internalio(addr))
 		return __raw_readw(addr);
-	return __le16_to_cpu(__raw_readw(addr));
+	return swab16(__raw_readw(addr));
 }
 
 #define readl readl
@@ -75,7 +75,7 @@ static inline u32 readl(const volatile void __iomem *addr)
 {
 	if (cf_internalio(addr))
 		return __raw_readl(addr);
-	return __le32_to_cpu(__raw_readl(addr));
+	return swab32(__raw_readl(addr));
 }
 
 #define writew writew
@@ -84,7 +84,7 @@ static inline void writew(u16 value, volatile void __iomem *addr)
 	if (cf_internalio(addr))
 		__raw_writew(value, addr);
 	else
-		__raw_writew(__cpu_to_le16(value), addr);
+		__raw_writew(swab16(value), addr);
 }
 
 #define writel writel
@@ -93,7 +93,7 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 	if (cf_internalio(addr))
 		__raw_writel(value, addr);
 	else
-		__raw_writel(__cpu_to_le32(value), addr);
+		__raw_writel(swab32(value), addr);
 }
 
 #else

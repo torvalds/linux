@@ -161,10 +161,51 @@ struct nf_flow_route {
 struct flow_offload *flow_offload_alloc(struct nf_conn *ct);
 void flow_offload_free(struct flow_offload *flow);
 
-int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
-				 flow_setup_cb_t *cb, void *cb_priv);
-void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
-				  flow_setup_cb_t *cb, void *cb_priv);
+static inline int
+nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
+			     flow_setup_cb_t *cb, void *cb_priv)
+{
+	struct flow_block *block = &flow_table->flow_block;
+	struct flow_block_cb *block_cb;
+	int err = 0;
+
+	down_write(&flow_table->flow_block_lock);
+	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
+	if (block_cb) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	block_cb = flow_block_cb_alloc(cb, cb_priv, cb_priv, NULL);
+	if (IS_ERR(block_cb)) {
+		err = PTR_ERR(block_cb);
+		goto unlock;
+	}
+
+	list_add_tail(&block_cb->list, &block->cb_list);
+
+unlock:
+	up_write(&flow_table->flow_block_lock);
+	return err;
+}
+
+static inline void
+nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
+			     flow_setup_cb_t *cb, void *cb_priv)
+{
+	struct flow_block *block = &flow_table->flow_block;
+	struct flow_block_cb *block_cb;
+
+	down_write(&flow_table->flow_block_lock);
+	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
+	if (block_cb) {
+		list_del(&block_cb->list);
+		flow_block_cb_free(block_cb);
+	} else {
+		WARN_ON(true);
+	}
+	up_write(&flow_table->flow_block_lock);
+}
 
 int flow_offload_route_init(struct flow_offload *flow,
 			    const struct nf_flow_route *route);

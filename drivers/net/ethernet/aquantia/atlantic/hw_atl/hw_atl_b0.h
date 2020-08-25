@@ -18,17 +18,15 @@ extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc100;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc107;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc108;
 extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc109;
-
-#define hw_atl_b0_caps_aqc111 hw_atl_b0_caps_aqc108
-#define hw_atl_b0_caps_aqc112 hw_atl_b0_caps_aqc109
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc111;
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc112;
 
 #define hw_atl_b0_caps_aqc100s hw_atl_b0_caps_aqc100
 #define hw_atl_b0_caps_aqc107s hw_atl_b0_caps_aqc107
 #define hw_atl_b0_caps_aqc108s hw_atl_b0_caps_aqc108
 #define hw_atl_b0_caps_aqc109s hw_atl_b0_caps_aqc109
-
-#define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc108
-#define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc109
+#define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc111
+#define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc112
 
 extern const struct aq_hw_ops hw_atl_ops_b0;
 
@@ -61,6 +59,9 @@ int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self, struct aq_ring_s *ring);
 void hw_atl_b0_hw_init_rx_rss_ctrl1(struct aq_hw_s *self);
 
 int hw_atl_b0_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr);
+
+int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc);
+int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable);
 
 int hw_atl_b0_hw_start(struct aq_hw_s *self);
 

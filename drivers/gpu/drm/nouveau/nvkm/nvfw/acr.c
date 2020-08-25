@@ -45,9 +45,8 @@ wpr_header_v1_dump(struct nvkm_subdev *subdev, const struct wpr_header_v1 *hdr)
 	nvkm_debug(subdev, "\tstatus        : %d\n", hdr->status);
 }
 
-void
-lsb_header_tail_dump(struct nvkm_subdev *subdev,
-			struct lsb_header_tail *hdr)
+static void
+lsb_header_tail_dump(struct nvkm_subdev *subdev, struct lsb_header_tail *hdr)
 {
 	nvkm_debug(subdev, "lsbHeader\n");
 	nvkm_debug(subdev, "\tucodeOff      : 0x%x\n", hdr->ucode_off);

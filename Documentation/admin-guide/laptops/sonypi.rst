@@ -151,7 +151,7 @@ Bugs:
 	  different way to adjust the backlighting of the screen. There
 	  is a userspace utility to adjust the brightness on those models,
 	  which can be downloaded from
-	  http://www.acc.umu.se/~erikw/program/smartdimmer-0.1.tar.bz2
+	  https://www.acc.umu.se/~erikw/program/smartdimmer-0.1.tar.bz2
 
 	- since all development was done by reverse engineering, there is
 	  *absolutely no guarantee* that this driver will not crash your

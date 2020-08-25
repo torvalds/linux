@@ -181,7 +181,7 @@ static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
-	return snprintf(page, PAGE_SIZE, _format, ##args);		\
+	return scnprintf(page, PAGE_SIZE, _format, ##args);		\
 }
 
 #define IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk)			\

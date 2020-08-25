@@ -33,6 +33,7 @@ extern struct time_namespace init_time_ns;
 #ifdef CONFIG_TIME_NS
 extern int vdso_join_timens(struct task_struct *task,
 			    struct time_namespace *ns);
+extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
 
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)
 {
@@ -94,6 +95,11 @@ static inline int vdso_join_timens(struct task_struct *task,
 				   struct time_namespace *ns)
 {
 	return 0;
+}
+
+static inline void timens_commit(struct task_struct *tsk,
+				 struct time_namespace *ns)
+{
 }
 
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)

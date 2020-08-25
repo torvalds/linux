@@ -254,6 +254,7 @@ DECLARE_QCA_GPIO_PINS(99);
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
+		.od_bit = 12,			\
 		.oe_bit = 9,			\
 		.in_bit = 0,			\
 		.out_bit = 1,			\

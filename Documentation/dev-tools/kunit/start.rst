@@ -18,7 +18,7 @@ The wrapper can be run with:
 
 .. code-block:: bash
 
-	./tools/testing/kunit/kunit.py run --defconfig
+	./tools/testing/kunit/kunit.py run
 
 For more information on this wrapper (also called kunit_tool) check out the
 :doc:`kunit-tool` page.

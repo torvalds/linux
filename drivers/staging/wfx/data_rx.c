@@ -13,55 +13,22 @@
 #include "bh.h"
 #include "sta.h"
 
-static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
-				 const struct hif_ind_rx *arg,
-				 struct sk_buff *skb)
+static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 {
-	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
-	size_t hdrlen = ieee80211_hdrlen(frame->frame_control);
-	size_t iv_len, icv_len;
+	int params, tid;
 
-	/* Oops... There is no fast way to ask mac80211 about
-	 * IV/ICV lengths. Even defineas are not exposed.
-	 */
-	switch (arg->rx_flags.encryp) {
-	case HIF_RI_FLAGS_WEP_ENCRYPTED:
-		iv_len = 4 /* WEP_IV_LEN */;
-		icv_len = 4 /* WEP_ICV_LEN */;
+	switch (mgmt->u.action.u.addba_req.action_code) {
+	case WLAN_ACTION_ADDBA_REQ:
+		params = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+		tid = (params & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
+		ieee80211_start_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
 		break;
-	case HIF_RI_FLAGS_TKIP_ENCRYPTED:
-		iv_len = 8 /* TKIP_IV_LEN */;
-		icv_len = 4 /* TKIP_ICV_LEN */
-			+ 8 /*MICHAEL_MIC_LEN*/;
+	case WLAN_ACTION_DELBA:
+		params = le16_to_cpu(mgmt->u.action.u.delba.params);
+		tid = (params &  IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
+		ieee80211_stop_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
 		break;
-	case HIF_RI_FLAGS_AES_ENCRYPTED:
-		iv_len = 8 /* CCMP_HDR_LEN */;
-		icv_len = 8 /* CCMP_MIC_LEN */;
-		break;
-	case HIF_RI_FLAGS_WAPI_ENCRYPTED:
-		iv_len = 18 /* WAPI_HDR_LEN */;
-		icv_len = 16 /* WAPI_MIC_LEN */;
-		break;
-	default:
-		dev_err(wdev->dev, "unknown encryption type %d\n",
-			arg->rx_flags.encryp);
-		return -EIO;
 	}
-
-	/* Firmware strips ICV in case of MIC failure. */
-	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
-		icv_len = 0;
-
-	if (skb->len < hdrlen + iv_len + icv_len) {
-		dev_warn(wdev->dev, "malformed SDU received\n");
-		return -EIO;
-	}
-
-	/* Remove IV, ICV and MIC */
-	skb_trim(skb, skb->len - icv_len);
-	memmove(skb->data + iv_len, skb->data, hdrlen);
-	skb_pull(skb, iv_len);
-	return 0;
 }
 
 void wfx_rx_cb(struct wfx_vif *wvif,
@@ -72,12 +39,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	memset(hdr, 0, sizeof(*hdr));
-
-	// FIXME: Why do we drop these frames?
-	if (!arg->rcpi_rssi &&
-	    (ieee80211_is_probe_resp(frame->frame_control) ||
-	     ieee80211_is_beacon(frame->frame_control)))
-		goto drop;
 
 	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
 		hdr->flag |= RX_FLAG_MMIC_ERROR;
@@ -102,24 +63,26 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 		hdr->rate_idx = arg->rxed_rate;
 	}
 
+	if (!arg->rcpi_rssi) {
+		hdr->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		dev_info(wvif->wdev->dev, "received frame without RSSI data\n");
+	}
 	hdr->signal = arg->rcpi_rssi / 2 - 110;
 	hdr->antenna = 0;
 
-	if (arg->rx_flags.encryp) {
-		if (wfx_drop_encrypt_data(wvif->wdev, arg, skb))
-			goto drop;
-		hdr->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED;
-		if (arg->rx_flags.encryp == HIF_RI_FLAGS_TKIP_ENCRYPTED)
-			hdr->flag |= RX_FLAG_MMIC_STRIPPED;
+	if (arg->rx_flags.encryp)
+		hdr->flag |= RX_FLAG_DECRYPTED;
+
+	// Block ack negociation is offloaded by the firmware. However,
+	// re-ordering must be done by the mac80211.
+	if (ieee80211_is_action(frame->frame_control) &&
+	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
+	    skb->len > IEEE80211_MIN_ACTION_SIZE) {
+		wfx_rx_handle_ba(wvif, mgmt);
+		goto drop;
 	}
 
-	/* Filter block ACK negotiation: fully controlled by firmware */
-	if (ieee80211_is_action(frame->frame_control) &&
-	    arg->rx_flags.match_uc_addr &&
-	    mgmt->u.action.category == WLAN_CATEGORY_BACK)
-		goto drop;
 	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
-
 	return;
 
 drop:

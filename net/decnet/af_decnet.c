@@ -150,7 +150,8 @@ static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
 static atomic_long_t decnet_memory_allocated;
 
-static int __dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen, int flags);
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags);
 static int __dn_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen, int flags);
 
 static struct hlist_head *dn_find_list(struct sock *sk)
@@ -1320,7 +1321,8 @@ out:
 	return err;
 }
 
-static int dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
+static int dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err;
@@ -1338,7 +1340,8 @@ static int dn_setsockopt(struct socket *sock, int level, int optname, char __use
 	return err;
 }
 
-static int __dn_setsockopt(struct socket *sock, int level,int optname, char __user *optval, unsigned int optlen, int flags)
+static int __dn_setsockopt(struct socket *sock, int level, int optname,
+		sockptr_t optval, unsigned int optlen, int flags)
 {
 	struct	sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
@@ -1354,13 +1357,13 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	} u;
 	int err;
 
-	if (optlen && !optval)
+	if (optlen && sockptr_is_null(optval))
 		return -EINVAL;
 
 	if (optlen > sizeof(u))
 		return -EINVAL;
 
-	if (copy_from_user(&u, optval, optlen))
+	if (copy_from_sockptr(&u, optval, optlen))
 		return -EFAULT;
 
 	switch (optname) {
@@ -2134,14 +2137,11 @@ static struct sock *dn_socket_get_next(struct seq_file *seq,
 	struct dn_iter_state *state = seq->private;
 
 	n = sk_next(n);
-try_again:
-	if (n)
-		goto out;
-	if (++state->bucket >= DN_SK_HASH_SIZE)
-		goto out;
-	n = sk_head(&dn_sk_hash[state->bucket]);
-	goto try_again;
-out:
+	while (!n) {
+		if (++state->bucket >= DN_SK_HASH_SIZE)
+			break;
+		n = sk_head(&dn_sk_hash[state->bucket]);
+	}
 	return n;
 }
 

@@ -824,13 +824,12 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 				return -EINVAL;
 			}
 
-			ipctl->input_sel_base = devm_of_iomap(&pdev->dev, np,
-							      0, NULL);
+			ipctl->input_sel_base = of_iomap(np, 0);
 			of_node_put(np);
-			if (IS_ERR(ipctl->input_sel_base)) {
+			if (!ipctl->input_sel_base) {
 				dev_err(&pdev->dev,
 					"iomuxc input select base address not found\n");
-				return PTR_ERR(ipctl->input_sel_base);
+				return -ENOMEM;
 			}
 		}
 	}
@@ -878,6 +877,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 
 	return pinctrl_enable(ipctl->pctl);
 }
+EXPORT_SYMBOL_GPL(imx_pinctrl_probe);
 
 static int __maybe_unused imx_pinctrl_suspend(struct device *dev)
 {
@@ -897,3 +897,4 @@ const struct dev_pm_ops imx_pinctrl_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(imx_pinctrl_suspend,
 					imx_pinctrl_resume)
 };
+EXPORT_SYMBOL_GPL(imx_pinctrl_pm_ops);

@@ -2115,12 +2115,12 @@ offload_to_thread:
 		dio->in_flight = (atomic_t)ATOMIC_INIT(1);
 		dio->completion = NULL;
 
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 
 		return;
 	}
 
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 
 	if (need_sync_io) {
 		wait_for_completion_io(&read_comp);
@@ -2420,7 +2420,7 @@ static void integrity_writer(struct work_struct *w)
 	unsigned prev_free_sectors;
 
 	/* the following test is not needed, but it tests the replay code */
-	if (unlikely(dm_suspended(ic->ti)) && !ic->meta_dev)
+	if (unlikely(dm_post_suspending(ic->ti)) && !ic->meta_dev)
 		return;
 
 	spin_lock_irq(&ic->endio_wait.lock);
@@ -2481,7 +2481,7 @@ static void integrity_recalc(struct work_struct *w)
 
 next_chunk:
 
-	if (unlikely(dm_suspended(ic->ti)))
+	if (unlikely(dm_post_suspending(ic->ti)))
 		goto unlock_ret;
 
 	range.logical_sector = le64_to_cpu(ic->sb->recalc_sector);
@@ -3405,8 +3405,8 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 
 static void free_alg(struct alg_spec *a)
 {
-	kzfree(a->alg_string);
-	kzfree(a->key);
+	kfree_sensitive(a->alg_string);
+	kfree_sensitive(a->key);
 	memset(a, 0, sizeof *a);
 }
 
@@ -4337,7 +4337,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		for (i = 0; i < ic->journal_sections; i++) {
 			struct skcipher_request *req = ic->sk_requests[i];
 			if (req) {
-				kzfree(req->iv);
+				kfree_sensitive(req->iv);
 				skcipher_request_free(req);
 			}
 		}

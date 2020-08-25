@@ -6,19 +6,18 @@
 #ifndef VC4_REGS_H
 #define VC4_REGS_H
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 
 #define VC4_MASK(high, low) ((u32)GENMASK(high, low))
 /* Using the GNU statement expression extension */
 #define VC4_SET_FIELD(value, field)					\
 	({								\
-		uint32_t fieldval = (value) << field##_SHIFT;		\
-		WARN_ON((fieldval & ~field##_MASK) != 0);		\
-		fieldval & field##_MASK;				\
+		WARN_ON(!FIELD_FIT(field##_MASK, value));		\
+		FIELD_PREP(field##_MASK, value);			\
 	 })
 
-#define VC4_GET_FIELD(word, field) (((word) & field##_MASK) >>		\
-				    field##_SHIFT)
+#define VC4_GET_FIELD(word, field) FIELD_GET(field##_MASK, word)
 
 #define V3D_IDENT0   0x00000
 # define V3D_EXPECTED_IDENT0 \

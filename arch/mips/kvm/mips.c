@@ -67,7 +67,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("vz_ghfc", vz_ghfc_exits),
 	VCPU_STAT("vz_gpa", vz_gpa_exits),
 	VCPU_STAT("vz_resvd", vz_resvd_exits),
+#ifdef CONFIG_CPU_LOONGSON64
 	VCPU_STAT("vz_cpucfg", vz_cpucfg_exits),
+#endif
 #endif
 	VCPU_STAT("halt_successful_poll", halt_successful_poll),
 	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
@@ -448,7 +450,6 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
 	int r = -EINTR;
 
 	vcpu_load(vcpu);
@@ -457,11 +458,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	if (vcpu->mmio_needed) {
 		if (!vcpu->mmio_is_write)
-			kvm_mips_complete_mmio_load(vcpu, run);
+			kvm_mips_complete_mmio_load(vcpu);
 		vcpu->mmio_needed = 0;
 	}
 
-	if (run->immediate_exit)
+	if (vcpu->run->immediate_exit)
 		goto out;
 
 	lose_fpu(1);
@@ -478,7 +479,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	 */
 	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
-	r = kvm_mips_callbacks->vcpu_run(run, vcpu);
+	r = kvm_mips_callbacks->vcpu_run(vcpu);
 
 	trace_kvm_out(vcpu);
 	guest_exit_irqoff();
@@ -1234,7 +1235,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * end up causing an exception to be delivered to the Guest
 		 * Kernel
 		 */
-		er = kvm_mips_check_privilege(cause, opc, run, vcpu);
+		er = kvm_mips_check_privilege(cause, opc, vcpu);
 		if (er == EMULATE_PRIV_FAIL) {
 			goto skip_emul;
 		} else if (er == EMULATE_FAIL) {
@@ -1383,7 +1384,7 @@ skip_emul:
 		 */
 		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
-		kvm_mips_callbacks->vcpu_reenter(run, vcpu);
+		kvm_mips_callbacks->vcpu_reenter(vcpu);
 
 		/*
 		 * If FPU / MSA are enabled (i.e. the guest's FPU / MSA context

@@ -19,15 +19,13 @@
 								\
 	/*							\
 	 * We can't unroll if the number of iterations isn't	\
-	 * compile-time constant. Unfortunately GCC versions	\
-	 * up until 4.6 tend to miss obvious constants & cause	\
+	 * compile-time constant. Unfortunately clang versions	\
+	 * up until 8.0 tend to miss obvious constants & cause	\
 	 * this check to fail, even though they go on to	\
 	 * generate reasonable code for the switch statement,	\
 	 * so we skip the sanity check for those compilers.	\
 	 */							\
-	BUILD_BUG_ON((CONFIG_GCC_VERSION >= 40700 ||		\
-		      CONFIG_CLANG_VERSION >= 80000) &&		\
-		     !__builtin_constant_p(times));		\
+	BUILD_BUG_ON(!__builtin_constant_p(times));		\
 								\
 	switch (times) {					\
 	case 32: fn(__VA_ARGS__); /* fall through */		\
