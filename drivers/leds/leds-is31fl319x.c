@@ -16,6 +16,8 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 
 /* register numbers */
 #define IS31FL319X_SHUTDOWN		0x00
@@ -61,6 +63,7 @@
 struct is31fl319x_chip {
 	const struct is31fl319x_chipdef *cdef;
 	struct i2c_client               *client;
+	struct gpio_desc		*shutdown_gpio;
 	struct regmap                   *regmap;
 	struct mutex                    lock;
 	u32                             audio_gain_db;
@@ -207,6 +210,15 @@ static int is31fl319x_parse_dt(struct device *dev,
 	if (!np)
 		return -ENODEV;
 
+	is31->shutdown_gpio = devm_gpiod_get_optional(dev,
+						"shutdown",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(is31->shutdown_gpio)) {
+		ret = PTR_ERR(is31->shutdown_gpio);
+		dev_err(dev, "Failed to get shutdown gpio: %d\n", ret);
+		return ret;
+	}
+
 	of_dev_id = of_match_device(of_is31fl319x_match, dev);
 	if (!of_dev_id) {
 		dev_err(dev, "Failed to match device with supported chips\n");
@@ -349,6 +361,12 @@ static int is31fl319x_probe(struct i2c_client *client,
 	err = is31fl319x_parse_dt(&client->dev, is31);
 	if (err)
 		goto free_mutex;
+
+	if (is31->shutdown_gpio) {
+		gpiod_direction_output(is31->shutdown_gpio, 0);
+		mdelay(5);
+		gpiod_direction_output(is31->shutdown_gpio, 1);
+	}
 
 	is31->client = client;
 	is31->regmap = devm_regmap_init_i2c(client, &regmap_config);
