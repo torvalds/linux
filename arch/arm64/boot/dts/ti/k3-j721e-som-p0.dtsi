@@ -165,3 +165,11 @@
 &mailbox0_cluster11 {
 	status = "disabled";
 };
+
+&c66_0 {
+	mboxes = <&mailbox0_cluster3 &mbox_c66_0>;
+};
+
+&c66_1 {
+	mboxes = <&mailbox0_cluster3 &mbox_c66_1>;
+};
