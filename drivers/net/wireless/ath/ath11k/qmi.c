@@ -1868,16 +1868,16 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 	const struct firmware *fw_entry;
 	struct ath11k_board_data bd;
 	u32 fw_size;
-	int ret = 0;
-
-	memset(&bd, 0, sizeof(bd));
+	int ret;
 
 	switch (type) {
 	case ATH11K_QMI_FILE_TYPE_BDF_GOLDEN:
+		memset(&bd, 0, sizeof(bd));
+
 		ret = ath11k_core_fetch_bdf(ab, &bd);
 		if (ret) {
 			ath11k_warn(ab, "qmi failed to load BDF\n");
-			goto out;
+			return ret;
 		}
 
 		fw_size = min_t(u32, ab->hw_params.fw.board_size, bd.len);
@@ -1886,10 +1886,11 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 		break;
 	case ATH11K_QMI_FILE_TYPE_CALDATA:
 		fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
-		if (ret) {
+		if (IS_ERR(fw_entry)) {
+			ret = PTR_ERR(fw_entry);
 			ath11k_warn(ab, "failed to load %s: %d\n",
 				    ATH11K_DEFAULT_CAL_FILE, ret);
-			goto out;
+			return ret;
 		}
 
 		fw_size = min_t(u32, ab->hw_params.fw.board_size,
@@ -1901,14 +1902,11 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 		release_firmware(fw_entry);
 		break;
 	default:
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	req->total_size = fw_size;
-
-out:
-	return ret;
+	return 0;
 }
 
 static int ath11k_qmi_load_bdf_fixed_addr(struct ath11k_base *ab)
