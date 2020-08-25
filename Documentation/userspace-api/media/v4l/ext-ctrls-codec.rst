@@ -1748,9 +1748,6 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
        This compound control is not yet part of the public kernel API
        and it is expected to change.
 
-       This structure is expected to be passed as an array, with one
-       entry for each slice included in the bitstream buffer.
-
 .. c:type:: v4l2_ctrl_h264_slice_params
 
 .. cssclass:: longtable
@@ -1761,16 +1758,8 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :widths:       1 1 2
 
     * - __u32
-      - ``start_byte_offset``
-        Offset (in bytes) from the beginning of the OUTPUT buffer to the start
-        of the slice. If the slice starts with a start code, then this is the
-        offset to such start code. When operating in slice-based decoding mode
-        (see :c:type:`v4l2_mpeg_video_h264_decode_mode`), this field should
-        be set to 0. When operating in frame-based decoding mode, this field
-        should be 0 for the first slice.
-    * - __u32
       - ``header_bit_size``
-      -
+      - Offset in bits to slice_data() from the beginning of this slice.
     * - __u32
       - ``first_mb_in_slice``
       -
@@ -1999,12 +1988,6 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``dpb[16]``
       -
     * - __u16
-      - ``num_slices``
-      - Number of slices needed to decode the current frame/field. When
-        operating in slice-based decoding mode (see
-        :c:type:`v4l2_mpeg_video_h264_decode_mode`), this field
-        should always be set to one.
-    * - __u16
       - ``nal_ref_idc``
       - NAL reference ID value coming from the NAL Unit header
     * - __s32
@@ -2121,22 +2104,20 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - ``V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED``
       - 0
       - Decoding is done at the slice granularity.
-        In this mode, ``num_slices`` field in struct
-        :c:type:`v4l2_ctrl_h264_decode_params` should be set to 1,
-        and ``start_byte_offset`` in struct
-        :c:type:`v4l2_ctrl_h264_slice_params` should be set to 0.
         The OUTPUT buffer must contain a single slice.
+        When this mode is selected, the ``V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS``
+        control shall be set. When multiple slices compose a frame,
+        use of ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` flag
+        is required.
     * - ``V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED``
       - 1
-      - Decoding is done at the frame granularity.
-        In this mode, ``num_slices`` field in struct
-        :c:type:`v4l2_ctrl_h264_decode_params` should be set to the number
-        of slices in the frame, and ``start_byte_offset`` in struct
-        :c:type:`v4l2_ctrl_h264_slice_params` should be set accordingly
-        for each slice. For the first slice, ``start_byte_offset`` should
-        be zero.
+      - Decoding is done at the frame granularity,
         The OUTPUT buffer must contain all slices needed to decode the
         frame. The OUTPUT buffer must also contain both fields.
+        This mode will be supported by devices that
+        parse the slice(s) header(s) in hardware. When this mode is
+        selected, the ``V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS``
+        control shall not be set.
 
 ``V4L2_CID_MPEG_VIDEO_H264_START_CODE (enum)``
     Specifies the H264 slice start code expected for each slice.

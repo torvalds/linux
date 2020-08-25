@@ -163,9 +163,6 @@ struct v4l2_h264_reference {
 };
 
 struct v4l2_ctrl_h264_slice_params {
-	/* Offset in bytes to the start of slice in the OUTPUT buffer. */
-	__u32 start_byte_offset;
-
 	/* Offset in bits to slice_data() from the beginning of this slice. */
 	__u32 header_bit_size;
 
@@ -224,7 +221,6 @@ struct v4l2_h264_dpb_entry {
 
 struct v4l2_ctrl_h264_decode_params {
 	struct v4l2_h264_dpb_entry dpb[V4L2_H264_NUM_DPB_ENTRIES];
-	__u16 num_slices;
 	__u16 nal_ref_idc;
 	__s32 top_field_order_cnt;
 	__s32 bottom_field_order_cnt;
