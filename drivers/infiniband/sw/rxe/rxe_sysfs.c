@@ -61,6 +61,11 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 	struct net_device *ndev;
 	struct rxe_dev *exists;
 
+	if (!rxe_initialized) {
+		pr_err("Module parameters are not supported, use rdma link add or rxe_cfg\n");
+		return -EAGAIN;
+	}
+
 	len = sanitize_arg(val, intf, sizeof(intf));
 	if (!len) {
 		pr_err("add: invalid interface name\n");
