@@ -213,9 +213,10 @@ struct v4l2_ctrl_h264_slice_params {
 
 struct v4l2_h264_dpb_entry {
 	__u64 reference_ts;
+	__u32 pic_num;
 	__u16 frame_num;
-	__u16 pic_num;
 	__u8 fields;
+	__u8 reserved[5];
 	/* Note that field is indicated by v4l2_buffer.field */
 	__s32 top_field_order_cnt;
 	__s32 bottom_field_order_cnt;

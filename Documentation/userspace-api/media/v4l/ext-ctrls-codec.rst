@@ -2051,15 +2051,18 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
         ``timestamp`` field in struct :c:type:`v4l2_buffer`. Use the
         :c:func:`v4l2_timeval_to_ns()` function to convert the struct
         :c:type:`timeval` in struct :c:type:`v4l2_buffer` to a __u64.
-    * - __u16
-      - ``frame_num``
+    * - __u32
+      - ``pic_num``
       -
     * - __u16
-      - ``pic_num``
+      - ``frame_num``
       -
     * - __u8
       - ``fields``
       - Specifies how the DPB entry is referenced. See :ref:`Reference Fields <h264_ref_fields>`
+    * - __u8
+      - ``reserved[5]``
+      - Applications and drivers must set this to zero.
     * - __s32
       - ``top_field_order_cnt``
       -
