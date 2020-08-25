@@ -142,10 +142,50 @@ static void test_func_replace_verify(void)
 				  prog_name, false);
 }
 
+static void test_func_replace_return_code(void)
+{
+	/*
+	 * standalone test that asserts failure to load freplace prog
+	 * because of invalid return code.
+	 */
+	struct bpf_object *obj = NULL, *pkt_obj;
+	int err, pkt_fd;
+	__u32 duration = 0;
+	const char *target_obj_file = "./connect4_prog.o";
+	const char *obj_file = "./freplace_connect_v4_prog.o";
+
+	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
+			    &pkt_obj, &pkt_fd);
+	/* the target prog should load fine */
+	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
+		  target_obj_file, err, errno))
+		return;
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
+			    .attach_prog_fd = pkt_fd,
+			   );
+
+	obj = bpf_object__open_file(obj_file, &opts);
+	if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
+		  "failed to open %s: %ld\n", obj_file,
+		  PTR_ERR(obj)))
+		goto close_prog;
+
+	/* It should fail to load the program */
+	err = bpf_object__load(obj);
+	if (CHECK(!err, "bpf_obj_load should fail", "err %d\n", err))
+		goto close_prog;
+
+close_prog:
+	if (!IS_ERR_OR_NULL(obj))
+		bpf_object__close(obj);
+	bpf_object__close(pkt_obj);
+}
+
 void test_fexit_bpf2bpf(void)
 {
 	test_target_no_callees();
 	test_target_yes_callees();
 	test_func_replace();
 	test_func_replace_verify();
+	test_func_replace_return_code();
 }
