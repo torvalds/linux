@@ -19,6 +19,24 @@
 
 #include "../kernel/head.h"
 
+static inline void no_context(struct pt_regs *regs, unsigned long addr)
+{
+	/* Are we prepared to handle this kernel fault? */
+	if (fixup_exception(regs))
+		return;
+
+	/*
+	 * Oops. The kernel tried to access some bad page. We'll have to
+	 * terminate things with extreme prejudice.
+	 */
+	bust_spinlocks(1);
+	pr_alert("Unable to handle kernel %s at virtual address " REG_FMT "\n",
+		(addr < PAGE_SIZE) ? "NULL pointer dereference" :
+		"paging request", addr);
+	die(regs, "Oops");
+	do_exit(SIGKILL);
+}
+
 /*
  * This routine handles page faults.  It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
@@ -59,8 +77,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	 * If we're in an interrupt, have no user context, or are running
 	 * in an atomic region, then we must not take the fault.
 	 */
-	if (unlikely(faulthandler_disabled() || !mm))
-		goto no_context;
+	if (unlikely(faulthandler_disabled() || !mm)) {
+		no_context(regs, addr);
+		return;
+	}
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -153,21 +173,8 @@ bad_area:
 		return;
 	}
 
-no_context:
-	/* Are we prepared to handle this kernel fault? */
-	if (fixup_exception(regs))
-		return;
-
-	/*
-	 * Oops. The kernel tried to access some bad page. We'll have to
-	 * terminate things with extreme prejudice.
-	 */
-	bust_spinlocks(1);
-	pr_alert("Unable to handle kernel %s at virtual address " REG_FMT "\n",
-		(addr < PAGE_SIZE) ? "NULL pointer dereference" :
-		"paging request", addr);
-	die(regs, "Oops");
-	do_exit(SIGKILL);
+	no_context(regs, addr);
+	return;
 
 	/*
 	 * We ran out of memory, call the OOM killer, and return the userspace
@@ -175,16 +182,20 @@ no_context:
 	 */
 out_of_memory:
 	mmap_read_unlock(mm);
-	if (!user_mode(regs))
-		goto no_context;
+	if (!user_mode(regs)) {
+		no_context(regs, addr);
+		return;
+	}
 	pagefault_out_of_memory();
 	return;
 
 do_sigbus:
 	mmap_read_unlock(mm);
 	/* Kernel mode? Handle exceptions or die */
-	if (!user_mode(regs))
-		goto no_context;
+	if (!user_mode(regs)) {
+		no_context(regs, addr);
+		return;
+	}
 	do_trap(regs, SIGBUS, BUS_ADRERR, addr);
 	return;
 
@@ -213,19 +224,25 @@ vmalloc_fault:
 		pgd = (pgd_t *)pfn_to_virt(csr_read(CSR_SATP)) + index;
 		pgd_k = init_mm.pgd + index;
 
-		if (!pgd_present(*pgd_k))
-			goto no_context;
+		if (!pgd_present(*pgd_k)) {
+			no_context(regs, addr);
+			return;
+		}
 		set_pgd(pgd, *pgd_k);
 
 		p4d = p4d_offset(pgd, addr);
 		p4d_k = p4d_offset(pgd_k, addr);
-		if (!p4d_present(*p4d_k))
-			goto no_context;
+		if (!p4d_present(*p4d_k)) {
+			no_context(regs, addr);
+			return;
+		}
 
 		pud = pud_offset(p4d, addr);
 		pud_k = pud_offset(p4d_k, addr);
-		if (!pud_present(*pud_k))
-			goto no_context;
+		if (!pud_present(*pud_k)) {
+			no_context(regs, addr);
+			return;
+		}
 
 		/*
 		 * Since the vmalloc area is global, it is unnecessary
@@ -233,8 +250,10 @@ vmalloc_fault:
 		 */
 		pmd = pmd_offset(pud, addr);
 		pmd_k = pmd_offset(pud_k, addr);
-		if (!pmd_present(*pmd_k))
-			goto no_context;
+		if (!pmd_present(*pmd_k)) {
+			no_context(regs, addr);
+			return;
+		}
 		set_pmd(pmd, *pmd_k);
 
 		/*
@@ -244,8 +263,10 @@ vmalloc_fault:
 		 * silently loop forever.
 		 */
 		pte_k = pte_offset_kernel(pmd_k, addr);
-		if (!pte_present(*pte_k))
-			goto no_context;
+		if (!pte_present(*pte_k)) {
+			no_context(regs, addr);
+			return;
+		}
 
 		/*
 		 * The kernel assumes that TLBs don't cache invalid
