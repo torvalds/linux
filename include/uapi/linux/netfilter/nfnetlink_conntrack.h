@@ -247,7 +247,7 @@ enum ctattr_stats_cpu {
 	CTA_STATS_FOUND,
 	CTA_STATS_NEW,		/* no longer used */
 	CTA_STATS_INVALID,
-	CTA_STATS_IGNORE,
+	CTA_STATS_IGNORE,	/* no longer used */
 	CTA_STATS_DELETE,	/* no longer used */
 	CTA_STATS_DELETE_LIST,	/* no longer used */
 	CTA_STATS_INSERT,

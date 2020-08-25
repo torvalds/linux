@@ -8,7 +8,6 @@
 struct ip_conntrack_stat {
 	unsigned int found;
 	unsigned int invalid;
-	unsigned int ignore;
 	unsigned int insert;
 	unsigned int insert_failed;
 	unsigned int drop;

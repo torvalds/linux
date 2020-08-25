@@ -1800,10 +1800,8 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 	if (tmpl || ctinfo == IP_CT_UNTRACKED) {
 		/* Previously seen (loopback or untracked)?  Ignore. */
 		if ((tmpl && !nf_ct_is_template(tmpl)) ||
-		     ctinfo == IP_CT_UNTRACKED) {
-			NF_CT_STAT_INC_ATOMIC(state->net, ignore);
+		     ctinfo == IP_CT_UNTRACKED)
 			return NF_ACCEPT;
-		}
 		skb->_nfct = 0;
 	}
 

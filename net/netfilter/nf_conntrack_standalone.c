@@ -439,7 +439,7 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 		   st->found,
 		   0,
 		   st->invalid,
-		   st->ignore,
+		   0,
 		   0,
 		   0,
 		   st->insert,
