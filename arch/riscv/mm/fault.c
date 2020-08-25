@@ -37,6 +37,22 @@ static inline void no_context(struct pt_regs *regs, unsigned long addr)
 	do_exit(SIGKILL);
 }
 
+static inline void bad_area(struct pt_regs *regs, struct mm_struct *mm, int code, unsigned long addr)
+{
+	/*
+	 * Something tried to access memory that isn't in our memory map.
+	 * Fix it, but check if it's kernel or user first.
+	 */
+	mmap_read_unlock(mm);
+	/* User mode accesses just cause a SIGSEGV */
+	if (user_mode(regs)) {
+		do_trap(regs, SIGSEGV, code, addr);
+		return;
+	}
+
+	no_context(regs, addr);
+}
+
 /*
  * This routine handles page faults.  It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
@@ -90,14 +106,20 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 retry:
 	mmap_read_lock(mm);
 	vma = find_vma(mm, addr);
-	if (unlikely(!vma))
-		goto bad_area;
+	if (unlikely(!vma)) {
+		bad_area(regs, mm, code, addr);
+		return;
+	}
 	if (likely(vma->vm_start <= addr))
 		goto good_area;
-	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
-		goto bad_area;
-	if (unlikely(expand_stack(vma, addr)))
-		goto bad_area;
+	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
+		bad_area(regs, mm, code, addr);
+		return;
+	}
+	if (unlikely(expand_stack(vma, addr))) {
+		bad_area(regs, mm, code, addr);
+		return;
+	}
 
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
@@ -108,16 +130,22 @@ good_area:
 
 	switch (cause) {
 	case EXC_INST_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_EXEC))
-			goto bad_area;
+		if (!(vma->vm_flags & VM_EXEC)) {
+			bad_area(regs, mm, code, addr);
+			return;
+		}
 		break;
 	case EXC_LOAD_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_READ))
-			goto bad_area;
+		if (!(vma->vm_flags & VM_READ)) {
+			bad_area(regs, mm, code, addr);
+			return;
+		}
 		break;
 	case EXC_STORE_PAGE_FAULT:
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
+		if (!(vma->vm_flags & VM_WRITE)) {
+			bad_area(regs, mm, code, addr);
+			return;
+		}
 		flags |= FAULT_FLAG_WRITE;
 		break;
 	default:
@@ -159,21 +187,6 @@ good_area:
 	}
 
 	mmap_read_unlock(mm);
-	return;
-
-	/*
-	 * Something tried to access memory that isn't in our memory map.
-	 * Fix it, but check if it's kernel or user first.
-	 */
-bad_area:
-	mmap_read_unlock(mm);
-	/* User mode accesses just cause a SIGSEGV */
-	if (user_mode(regs)) {
-		do_trap(regs, SIGSEGV, code, addr);
-		return;
-	}
-
-	no_context(regs, addr);
 	return;
 
 	/*
