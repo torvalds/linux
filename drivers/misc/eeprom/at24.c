@@ -422,10 +422,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	struct at24_data *at24;
 	struct device *dev;
 	char *buf = val;
-	int ret;
-	unsigned int orig_off = off;
-	char *orig_buf = buf;
-	size_t orig_count = count;
+	int i, ret;
 
 	at24 = priv;
 	dev = at24_base_client_dev(at24);
@@ -448,16 +445,13 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	 */
 	mutex_lock(&at24->lock);
 
-	while (count) {
-		ret = at24_regmap_read(at24, buf, off, count);
+	for (i = 0; count; i += ret, count -= ret) {
+		ret = at24_regmap_read(at24, buf + i, off + i, count);
 		if (ret < 0) {
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
 			return ret;
 		}
-		buf += ret;
-		off += ret;
-		count -= ret;
 	}
 
 	mutex_unlock(&at24->lock);
@@ -465,7 +459,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	pm_runtime_put(dev);
 
 	if (unlikely(at24->read_post))
-		at24->read_post(orig_off, orig_buf, orig_count);
+		at24->read_post(off, buf, i);
 
 	return 0;
 }
