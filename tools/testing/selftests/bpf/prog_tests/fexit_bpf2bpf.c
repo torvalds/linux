@@ -142,7 +142,20 @@ static void test_func_replace_verify(void)
 				  prog_name, false);
 }
 
-static void test_func_replace_return_code(void)
+static void test_func_sockmap_update(void)
+{
+	const char *prog_name[] = {
+		"freplace/cls_redirect",
+	};
+	test_fexit_bpf2bpf_common("./freplace_cls_redirect.o",
+				  "./test_cls_redirect.o",
+				  ARRAY_SIZE(prog_name),
+				  prog_name, false);
+}
+
+static void test_obj_load_failure_common(const char *obj_file,
+					  const char *target_obj_file)
+
 {
 	/*
 	 * standalone test that asserts failure to load freplace prog
@@ -151,8 +164,6 @@ static void test_func_replace_return_code(void)
 	struct bpf_object *obj = NULL, *pkt_obj;
 	int err, pkt_fd;
 	__u32 duration = 0;
-	const char *target_obj_file = "./connect4_prog.o";
-	const char *obj_file = "./freplace_connect_v4_prog.o";
 
 	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
@@ -181,11 +192,27 @@ close_prog:
 	bpf_object__close(pkt_obj);
 }
 
+static void test_func_replace_return_code(void)
+{
+	/* test invalid return code in the replaced program */
+	test_obj_load_failure_common("./freplace_connect_v4_prog.o",
+				     "./connect4_prog.o");
+}
+
+static void test_func_map_prog_compatibility(void)
+{
+	/* test with spin lock map value in the replaced program */
+	test_obj_load_failure_common("./freplace_attach_probe.o",
+				     "./test_attach_probe.o");
+}
+
 void test_fexit_bpf2bpf(void)
 {
 	test_target_no_callees();
 	test_target_yes_callees();
 	test_func_replace();
 	test_func_replace_verify();
+	test_func_sockmap_update();
 	test_func_replace_return_code();
+	test_func_map_prog_compatibility();
 }
