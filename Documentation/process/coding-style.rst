@@ -69,8 +69,25 @@ something to hide:
 	if (condition) do_this;
 	  do_something_everytime;
 
+Don't use commas to avoid using braces:
+
+.. code-block:: c
+
+	if (condition)
+		do_this(), do_that();
+
+Always uses braces for multiple statements:
+
+.. code-block:: c
+
+	if (condition) {
+		do_this();
+		do_that();
+	}
+
 Don't put multiple assignments on a single line either.  Kernel coding style
 is super simple.  Avoid tricky expressions.
+
 
 Outside of comments, documentation and except in Kconfig, spaces are never
 used for indentation, and the above example is deliberately broken.
