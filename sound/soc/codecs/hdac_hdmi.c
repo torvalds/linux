@@ -1474,7 +1474,7 @@ static int hdac_hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	struct hdac_hdmi_port *port;
 	struct hdac_hdmi_eld *eld;
 
-	memset(ucontrol->value.bytes.data, 0, ARRAY_SIZE(ucontrol->value.bytes.data));
+	memset(ucontrol->value.bytes.data, 0, sizeof(ucontrol->value.bytes.data));
 
 	pcm = get_hdmi_pcm_from_id(hdmi, kcontrol->id.device);
 	if (!pcm) {
