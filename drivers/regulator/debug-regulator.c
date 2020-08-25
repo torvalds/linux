@@ -3,8 +3,6 @@
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
-#define pr_fmt(fmt) "%s: " fmt, __func__
-
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -17,9 +15,12 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/coupler.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/debug-regulator.h>
+
+#include <trace/events/power.h>
 
 #include "internal.h"
 
@@ -44,9 +45,10 @@ static const char *rdev_name(struct regulator_dev *rdev)
 }
 
 #define dreg_err(dreg, fmt, ...)					\
-	pr_err("%s: " fmt, rdev_name((dreg)->rdev), ##__VA_ARGS__)
+	pr_err("%s: %s: " fmt, __func__, rdev_name((dreg)->rdev), ##__VA_ARGS__)
 #define dreg_dbg(dreg, fmt, ...)					\
-	pr_debug("%s: " fmt, rdev_name((dreg)->rdev), ##__VA_ARGS__)
+	pr_debug("%s: %s: " fmt, __func__, rdev_name((dreg)->rdev),	\
+		##__VA_ARGS__)
 
 static struct regulator *reg_debug_get_consumer(struct debug_regulator *dreg)
 {
@@ -365,7 +367,7 @@ static struct debug_regulator *regulator_debug_add(struct device *dev,
 	mode_t mode;
 
 	if (!dev || !rdev) {
-		pr_err("dev or rdev is NULL\n");
+		pr_err("%s: dev or rdev is NULL\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -468,7 +470,7 @@ void regulator_debug_unregister(struct regulator_dev *rdev)
 	struct debug_regulator *dreg, *temp;
 
 	if (IS_ERR_OR_NULL(rdev)) {
-		pr_err("invalid regulator device pointer\n");
+		pr_err("%s: invalid regulator device pointer\n", __func__);
 		return;
 	}
 
@@ -575,7 +577,7 @@ void devm_regulator_debug_unregister(struct regulator_dev *rdev)
 	struct debug_regulator *dreg, *temp;
 
 	if (IS_ERR_OR_NULL(rdev)) {
-		pr_err("invalid regulator device pointer\n");
+		pr_err("%s: invalid regulator device pointer\n", __func__);
 		return;
 	}
 
@@ -588,6 +590,147 @@ void devm_regulator_debug_unregister(struct regulator_dev *rdev)
 	mutex_unlock(&debug_reg_list_lock);
 }
 EXPORT_SYMBOL(devm_regulator_debug_unregister);
+
+static int _regulator_is_enabled(struct regulator_dev *rdev)
+{
+	if (rdev->ena_pin)
+		return rdev->ena_gpio_state;
+
+	if (!rdev->desc->ops->is_enabled)
+		return 1;
+
+	return rdev->desc->ops->is_enabled(rdev);
+}
+
+static void regulator_debug_print_enabled(struct regulator_dev *rdev)
+{
+	struct regulator *reg;
+	const char *supply_name;
+	int mode = -EPERM;
+	int uV = -EPERM;
+
+	if (_regulator_is_enabled(rdev) <= 0)
+		return;
+
+	uV = regulator_get_voltage_rdev(rdev);
+
+	if (rdev->desc->ops->get_mode)
+		mode = rdev->desc->ops->get_mode(rdev);
+
+	if (uV != -EPERM && mode != -EPERM)
+		pr_info("%s[%u] %d uV, mode=%d\n",
+			rdev_name(rdev), rdev->use_count, uV, mode);
+	else if (uV != -EPERM)
+		pr_info("%s[%u] %d uV\n",
+			rdev_name(rdev), rdev->use_count, uV);
+	else if (mode != -EPERM)
+		pr_info("%s[%u], mode=%d\n",
+			rdev_name(rdev), rdev->use_count, mode);
+	else
+		pr_info("%s[%u]\n", rdev_name(rdev), rdev->use_count);
+
+	/* Print a header if there are consumers. */
+	if (rdev->open_count)
+		pr_info("  %-32s EN    Min_uV   Max_uV  load_uA\n",
+			"Device-Supply");
+
+	list_for_each_entry(reg, &rdev->consumer_list, list) {
+		if (reg->supply_name)
+			supply_name = reg->supply_name;
+		else
+			supply_name = "(null)-(null)";
+
+		pr_info("  %-32s %d   %8d %8d %8d\n", supply_name,
+			reg->enable_count,
+			reg->voltage[PM_SUSPEND_ON].min_uV,
+			reg->voltage[PM_SUSPEND_ON].max_uV,
+			reg->uA_load);
+	}
+}
+
+static void regulator_debug_suspend_trace_probe(void *unused,
+					const char *action, int val, bool start)
+{
+	struct debug_regulator *dreg;
+
+	if (start && val > 0 && !strcmp("machine_suspend", action)) {
+		pr_info("Enabled regulators:\n");
+		list_for_each_entry(dreg, &debug_reg_list, list)
+			regulator_debug_print_enabled(dreg->rdev);
+	}
+}
+
+static bool debug_suspend;
+static struct dentry *regulator_suspend_debugfs;
+
+static int reg_debug_suspend_enable_get(void *data, u64 *val)
+{
+	*val = debug_suspend;
+
+	return 0;
+}
+
+static int reg_debug_suspend_enable_set(void *data, u64 val)
+{
+	int ret;
+
+	val = !!val;
+	if (val == debug_suspend)
+		return 0;
+
+	if (val)
+		ret = register_trace_suspend_resume(
+				regulator_debug_suspend_trace_probe, NULL);
+	else
+		ret = unregister_trace_suspend_resume(
+				regulator_debug_suspend_trace_probe, NULL);
+	if (ret) {
+		pr_err("%s: Failed to %sregister suspend trace callback, ret=%d\n",
+			__func__, val ? "" : "un", ret);
+		return ret;
+	}
+	debug_suspend = val;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(reg_debug_suspend_enable_fops,
+	reg_debug_suspend_enable_get, reg_debug_suspend_enable_set, "%llu\n");
+
+static int __init regulator_debug_init(void)
+{
+	static struct dentry *dir;
+	int ret;
+
+	dir = debugfs_lookup("regulator", NULL);
+	if (IS_ERR_OR_NULL(dir)) {
+		ret = PTR_ERR(dir);
+		pr_err("%s: unable to find root regulator debugfs directory, ret=%d\n",
+			__func__, ret);
+		return 0;
+	}
+
+	regulator_suspend_debugfs = debugfs_create_file_unsafe("debug_suspend",
+						0644, dir, NULL,
+						&reg_debug_suspend_enable_fops);
+	dput(dir);
+	if (IS_ERR(regulator_suspend_debugfs)) {
+		ret = PTR_ERR(regulator_suspend_debugfs);
+		pr_err("%s: unable to create regulator debug_suspend debugfs directory, ret=%d\n",
+			__func__, ret);
+	}
+
+	return 0;
+}
+module_init(regulator_debug_init);
+
+static void __exit regulator_debug_exit(void)
+{
+	debugfs_remove(regulator_suspend_debugfs);
+	if (debug_suspend)
+		unregister_trace_suspend_resume(
+				regulator_debug_suspend_trace_probe, NULL);
+}
+module_exit(regulator_debug_exit);
 
 MODULE_DESCRIPTION("Regulator debug control library");
 MODULE_LICENSE("GPL v2");
