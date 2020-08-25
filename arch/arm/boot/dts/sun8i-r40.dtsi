@@ -513,6 +513,16 @@
 				function = "i2c4";
 			};
 
+			ir0_pins: ir0-pins {
+				pins = "PB4";
+				function = "ir0";
+			};
+
+			ir1_pins: ir1-pins {
+				pins = "PB23";
+				function = "ir1";
+			};
+
 			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
@@ -589,6 +599,32 @@
 			reg = <0x01c20c90 0x10>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&osc24M>;
+		};
+
+		ir0: ir@1c21800 {
+			compatible = "allwinner,sun8i-r40-ir",
+				     "allwinner,sun6i-a31-ir";
+			reg = <0x01c21800 0x400>;
+			pinctrl-0 = <&ir0_pins>;
+			pinctrl-names = "default";
+			clocks = <&ccu CLK_BUS_IR0>, <&ccu CLK_IR0>;
+			clock-names = "apb", "ir";
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ccu RST_BUS_IR0>;
+			status = "disabled";
+		};
+
+		ir1: ir@1c21c00 {
+			compatible = "allwinner,sun8i-r40-ir",
+				     "allwinner,sun6i-a31-ir";
+			reg = <0x01c21c00 0x400>;
+			pinctrl-0 = <&ir1_pins>;
+			pinctrl-names = "default";
+			clocks = <&ccu CLK_BUS_IR1>, <&ccu CLK_IR1>;
+			clock-names = "apb", "ir";
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ccu RST_BUS_IR1>;
+			status = "disabled";
 		};
 
 		ths: thermal-sensor@1c24c00 {
