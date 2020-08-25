@@ -51,6 +51,8 @@ properties:
 
   gpio-controller: true
 
+  gpio-ranges: true
+
 required:
   - compatible
   - reg
