@@ -717,6 +717,20 @@ static const struct regmap_config axi_dmac_regmap_config = {
 	.writeable_reg = axi_dmac_regmap_rdwr,
 };
 
+static void axi_dmac_adjust_chan_params(struct axi_dmac_chan *chan)
+{
+	chan->address_align_mask = max(chan->dest_width, chan->src_width) - 1;
+
+	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_MEM_TO_MEM;
+	else if (!axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_MEM_TO_DEV;
+	else if (axi_dmac_dest_is_mem(chan) && !axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_DEV_TO_MEM;
+	else
+		chan->direction = DMA_DEV_TO_DEV;
+}
+
 /*
  * The configuration stored in the devicetree matches the configuration
  * parameters of the peripheral instance and allows the driver to know which
@@ -760,16 +774,7 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 		return ret;
 	chan->dest_width = val / 8;
 
-	chan->address_align_mask = max(chan->dest_width, chan->src_width) - 1;
-
-	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_MEM_TO_MEM;
-	else if (!axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_MEM_TO_DEV;
-	else if (axi_dmac_dest_is_mem(chan) && !axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_DEV_TO_MEM;
-	else
-		chan->direction = DMA_DEV_TO_DEV;
+	axi_dmac_adjust_chan_params(chan);
 
 	return 0;
 }
