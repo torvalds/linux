@@ -59,9 +59,8 @@ static void set_params(struct hantro_ctx *ctx)
 	reg = G1_REG_DEC_CTRL2_CH_QP_OFFSET(pps->chroma_qp_index_offset) |
 	      G1_REG_DEC_CTRL2_CH_QP_OFFSET2(pps->second_chroma_qp_index_offset);
 
-	/* always use the matrix sent from userspace */
-	reg |= G1_REG_DEC_CTRL2_TYPE1_QUANT_E;
-
+	if (pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT)
+		reg |= G1_REG_DEC_CTRL2_TYPE1_QUANT_E;
 	if (!(sps->flags & V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY))
 		reg |= G1_REG_DEC_CTRL2_FIELDPIC_FLAG_E;
 	vdpu_write_relaxed(vpu, reg, G1_REG_DEC_CTRL2);

@@ -197,6 +197,7 @@ assemble_scaling_list(struct hantro_ctx *ctx)
 {
 	const struct hantro_h264_dec_ctrls *ctrls = &ctx->h264_dec.ctrls;
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling = ctrls->scaling;
+	const struct v4l2_ctrl_h264_pps *pps = ctrls->pps;
 	const size_t num_list_4x4 = ARRAY_SIZE(scaling->scaling_list_4x4);
 	const size_t list_len_4x4 = ARRAY_SIZE(scaling->scaling_list_4x4[0]);
 	const size_t list_len_8x8 = ARRAY_SIZE(scaling->scaling_list_8x8[0]);
@@ -204,6 +205,9 @@ assemble_scaling_list(struct hantro_ctx *ctx)
 	u32 *dst = (u32 *)tbl->scaling_list;
 	const u32 *src;
 	int i, j;
+
+	if (!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT))
+		return;
 
 	for (i = 0; i < num_list_4x4; i++) {
 		src = (u32 *)&scaling->scaling_list_4x4[i];
