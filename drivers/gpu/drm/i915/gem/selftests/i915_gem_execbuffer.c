@@ -37,20 +37,14 @@ static int __igt_gpu_reloc(struct i915_execbuffer *eb,
 		return err;
 
 	/* 8-Byte aligned */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[0] * sizeof(u32),
-			       0)) {
-		err = -EIO;
+	err = __reloc_entry_gpu(eb, vma, offsets[0] * sizeof(u32), 0);
+	if (err)
 		goto unpin_vma;
-	}
 
 	/* !8-Byte aligned */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[1] * sizeof(u32),
-			       1)) {
-		err = -EIO;
+	err = __reloc_entry_gpu(eb, vma, offsets[1] * sizeof(u32), 1);
+	if (err)
 		goto unpin_vma;
-	}
 
 	/* Skip to the end of the cmd page */
 	i = PAGE_SIZE / sizeof(u32) - RELOC_TAIL - 1;
@@ -60,12 +54,9 @@ static int __igt_gpu_reloc(struct i915_execbuffer *eb,
 	eb->reloc_cache.rq_size += i;
 
 	/* Force batch chaining */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[2] * sizeof(u32),
-			       2)) {
-		err = -EIO;
+	err = __reloc_entry_gpu(eb, vma, offsets[2] * sizeof(u32), 2);
+	if (err)
 		goto unpin_vma;
-	}
 
 	GEM_BUG_ON(!eb->reloc_cache.rq);
 	rq = i915_request_get(eb->reloc_cache.rq);

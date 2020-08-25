@@ -42,6 +42,7 @@
 
 extern const struct ethtool_ops mlx5i_ethtool_ops;
 extern const struct ethtool_ops mlx5i_pkey_ethtool_ops;
+extern const struct mlx5e_rx_handlers mlx5i_rx_handlers;
 
 #define MLX5_IB_GRH_BYTES       40
 #define MLX5_IPOIB_ENCAP_LEN    4
@@ -117,7 +118,6 @@ struct mlx5i_tx_wqe {
 
 void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		   struct mlx5_av *av, u32 dqpn, u32 dqkey, bool xmit_more);
-void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5i_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 #endif /* CONFIG_MLX5_CORE_IPOIB */

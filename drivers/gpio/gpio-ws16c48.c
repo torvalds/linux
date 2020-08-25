@@ -365,10 +365,25 @@ static const char *ws16c48_names[WS16C48_NGPIO] = {
 	"Port 5 Bit 4", "Port 5 Bit 5", "Port 5 Bit 6", "Port 5 Bit 7"
 };
 
+static int ws16c48_irq_init_hw(struct gpio_chip *gc)
+{
+	struct ws16c48_gpio *const ws16c48gpio = gpiochip_get_data(gc);
+
+	/* Disable IRQ by default */
+	outb(0x80, ws16c48gpio->base + 7);
+	outb(0, ws16c48gpio->base + 8);
+	outb(0, ws16c48gpio->base + 9);
+	outb(0, ws16c48gpio->base + 10);
+	outb(0xC0, ws16c48gpio->base + 7);
+
+	return 0;
+}
+
 static int ws16c48_probe(struct device *dev, unsigned int id)
 {
 	struct ws16c48_gpio *ws16c48gpio;
 	const char *const name = dev_name(dev);
+	struct gpio_irq_chip *girq;
 	int err;
 
 	ws16c48gpio = devm_kzalloc(dev, sizeof(*ws16c48gpio), GFP_KERNEL);
@@ -396,25 +411,21 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.set_multiple = ws16c48_gpio_set_multiple;
 	ws16c48gpio->base = base[id];
 
+	girq = &ws16c48gpio->chip.irq;
+	girq->chip = &ws16c48_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+	girq->init_hw = ws16c48_irq_init_hw;
+
 	raw_spin_lock_init(&ws16c48gpio->lock);
 
 	err = devm_gpiochip_add_data(dev, &ws16c48gpio->chip, ws16c48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	/* Disable IRQ by default */
-	outb(0x80, base[id] + 7);
-	outb(0, base[id] + 8);
-	outb(0, base[id] + 9);
-	outb(0, base[id] + 10);
-	outb(0xC0, base[id] + 7);
-
-	err = gpiochip_irqchip_add(&ws16c48gpio->chip, &ws16c48_irqchip, 0,
-		handle_edge_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
 		return err;
 	}
 

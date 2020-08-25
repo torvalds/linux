@@ -33,14 +33,15 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 					      gva_t eaddr, void *to, void *from,
 					      unsigned long n)
 {
-	int uninitialized_var(old_pid), old_lpid;
+	int old_pid, old_lpid;
 	unsigned long quadrant, ret = n;
 	bool is_load = !!to;
 
 	/* Can't access quadrants 1 or 2 in non-HV mode, call the HV to do it */
 	if (kvmhv_on_pseries())
 		return plpar_hcall_norets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
-					  __pa(to), __pa(from), n);
+					  (to != NULL) ? __pa(to): 0,
+					  (from != NULL) ? __pa(from): 0, n);
 
 	quadrant = 1;
 	if (!pid)
@@ -64,9 +65,9 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	isync();
 
 	if (is_load)
-		ret = probe_user_read(to, (const void __user *)from, n);
+		ret = copy_from_user_nofault(to, (const void __user *)from, n);
 	else
-		ret = probe_user_write((void __user *)to, from, n);
+		ret = copy_to_user_nofault((void __user *)to, from, n);
 
 	/* switch the pid first to avoid running host with unallocated pid */
 	if (quadrant == 1 && pid != old_pid)
@@ -160,7 +161,9 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			return -EINVAL;
 		/* Read the entry from guest memory */
 		addr = base + (index * sizeof(rpte));
+		vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 		ret = kvm_read_guest(kvm, addr, &rpte, sizeof(rpte));
+		srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
 		if (ret) {
 			if (pte_ret_p)
 				*pte_ret_p = addr;
@@ -236,7 +239,9 @@ int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	/* Read the table to find the root of the radix tree */
 	ptbl = (table & PRTB_MASK) + (table_index * sizeof(entry));
+	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 	ret = kvm_read_guest(kvm, ptbl, &entry, sizeof(entry));
+	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
 	if (ret)
 		return ret;
 

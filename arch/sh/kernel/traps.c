@@ -118,7 +118,7 @@ int is_valid_bugaddr(unsigned long addr)
 
 	if (addr < PAGE_OFFSET)
 		return 0;
-	if (probe_kernel_address((insn_size_t *)addr, opcode))
+	if (get_kernel_nofault(opcode, (insn_size_t *)addr))
 		return 0;
 	if (opcode == TRAPA_BUG_OPCODE)
 		return 1;

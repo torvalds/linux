@@ -542,6 +542,7 @@ static int amd_select_drive_strength(struct mmc_card *card,
 				     unsigned int max_dtr, int host_drv,
 				     int card_drv, int *drv_type)
 {
+	*drv_type = MMC_SET_DRIVER_TYPE_A;
 	return MMC_SET_DRIVER_TYPE_A;
 }
 

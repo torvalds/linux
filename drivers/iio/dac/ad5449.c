@@ -56,7 +56,7 @@ struct ad5449_chip_info {
  * @has_sdo:		whether the SDO line is connected
  * @dac_cache:		Cache for the DAC values
  * @data:		spi transfer buffers
- * @lock		lock to protect the data buffer during SPI ops
+ * @lock:		lock to protect the data buffer during SPI ops
  */
 struct ad5449 {
 	struct spi_device		*spi;
@@ -297,7 +297,6 @@ static int ad5449_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ad5449_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

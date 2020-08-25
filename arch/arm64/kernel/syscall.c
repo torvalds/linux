@@ -50,6 +50,9 @@ static void invoke_syscall(struct pt_regs *regs, unsigned int scno,
 		ret = do_ni_syscall(regs, scno);
 	}
 
+	if (is_compat_task())
+		ret = lower_32_bits(ret);
+
 	regs->regs[0] = ret;
 }
 
@@ -121,7 +124,21 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	user_exit();
 
 	if (has_syscall_work(flags)) {
-		/* set default errno for user-issued syscall(-1) */
+		/*
+		 * The de-facto standard way to skip a system call using ptrace
+		 * is to set the system call to -1 (NO_SYSCALL) and set x0 to a
+		 * suitable error code for consumption by userspace. However,
+		 * this cannot be distinguished from a user-issued syscall(-1)
+		 * and so we must set x0 to -ENOSYS here in case the tracer doesn't
+		 * issue the skip and we fall into trace_exit with x0 preserved.
+		 *
+		 * This is slightly odd because it also means that if a tracer
+		 * sets the system call number to -1 but does not initialise x0,
+		 * then x0 will be preserved for all system calls apart from a
+		 * user-issued syscall(-1). However, requesting a skip and not
+		 * setting the return value is unlikely to do anything sensible
+		 * anyway.
+		 */
 		if (scno == NO_SYSCALL)
 			regs->regs[0] = -ENOSYS;
 		scno = syscall_trace_enter(regs);
@@ -139,7 +156,7 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	if (!has_syscall_work(flags) && !IS_ENABLED(CONFIG_DEBUG_RSEQ)) {
 		local_daif_mask();
 		flags = current_thread_info()->flags;
-		if (!has_syscall_work(flags)) {
+		if (!has_syscall_work(flags) && !(flags & _TIF_SINGLESTEP)) {
 			/*
 			 * We're off to userspace, where interrupts are
 			 * always enabled after we restore the flags from

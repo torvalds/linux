@@ -274,6 +274,7 @@ static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 	} else {
 		link_status->mbps = 0;
 	}
+	link_status->full_duplex = true;
 
 	return 0;
 }
@@ -352,7 +353,7 @@ static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
 	/* Convert PHY temperature from 1/256 degree Celsius
 	 * to 1/1000 degree Celsius.
 	 */
-	*temp = (temp_res & 0xFFFF) * 1000 / 256;
+	*temp = (int16_t)(temp_res & 0xFFFF) * 1000 / 256;
 
 	return 0;
 }
@@ -680,6 +681,7 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.set_state          = aq_fw2x_set_state,
 	.update_link_status = aq_fw2x_update_link_status,
 	.update_stats       = aq_fw2x_update_stats,
+	.get_mac_temp       = NULL,
 	.get_phy_temp       = aq_fw2x_get_phy_temp,
 	.set_power          = aq_fw2x_set_power,
 	.set_eee_rate       = aq_fw2x_set_eee_rate,

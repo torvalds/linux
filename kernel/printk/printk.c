@@ -943,6 +943,14 @@ out:
 	return ret;
 }
 
+/*
+ * Be careful when modifying this function!!!
+ *
+ * Only few operations are supported because the device works only with the
+ * entire variable length messages (records). Non-standard values are
+ * returned in the other cases and has been this way for quite some time.
+ * User space applications might depend on this behavior.
+ */
 static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct devkmsg_user *user = file->private_data;
@@ -973,16 +981,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 		/* after the last record */
 		user->idx = log_next_idx;
 		user->seq = log_next_seq;
-		break;
-	case SEEK_CUR:
-		/*
-		 * It isn't supported due to the record nature of this
-		 * interface: _SET _DATA and _END point to very specific
-		 * record positions, while _CUR would be more useful in case
-		 * of a byte-based log. Because of that, return the default
-		 * errno value for invalid seek operation.
-		 */
-		ret = -ESPIPE;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2668,7 +2666,7 @@ early_param("keep_bootcon", keep_bootcon_setup);
 static int try_enable_new_console(struct console *newcon, bool user_specified)
 {
 	struct console_cmdline *c;
-	int i;
+	int i, err;
 
 	for (i = 0, c = console_cmdline;
 	     i < MAX_CMDLINECONSOLES && c->name[0];
@@ -2691,8 +2689,8 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 				return 0;
 
 			if (newcon->setup &&
-			    newcon->setup(newcon, c->options) != 0)
-				return -EIO;
+			    (err = newcon->setup(newcon, c->options)) != 0)
+				return err;
 		}
 		newcon->flags |= CON_ENABLED;
 		if (i == preferred_console) {
@@ -2705,7 +2703,7 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 	/*
 	 * Some consoles, such as pstore and netconsole, can be enabled even
 	 * without matching. Accept the pre-enabled consoles only when match()
-	 * and setup() had a change to be called.
+	 * and setup() had a chance to be called.
 	 */
 	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
 		return 0;

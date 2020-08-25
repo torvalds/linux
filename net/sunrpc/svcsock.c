@@ -44,6 +44,7 @@
 #include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <linux/uaccess.h>
+#include <linux/highmem.h>
 #include <asm/ioctls.h>
 
 #include <linux/sunrpc/types.h>
@@ -563,7 +564,7 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 		.msg_control	= cmh,
 		.msg_controllen	= sizeof(buffer),
 	};
-	unsigned int uninitialized_var(sent);
+	unsigned int sent;
 	int err;
 
 	svc_udp_release_rqst(rqstp);
@@ -1080,7 +1081,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	struct msghdr msg = {
 		.msg_flags	= 0,
 	};
-	unsigned int uninitialized_var(sent);
+	unsigned int sent;
 	int err;
 
 	svc_tcp_release_rqst(rqstp);

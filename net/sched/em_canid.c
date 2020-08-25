@@ -40,6 +40,7 @@ struct canid_match {
 
 /**
  * em_canid_get_id() - Extracts Can ID out of the sk_buff structure.
+ * @skb: buffer to extract Can ID from
  */
 static canid_t em_canid_get_id(struct sk_buff *skb)
 {

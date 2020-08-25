@@ -159,7 +159,7 @@
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
 	pinctrl-0 = <&mmc1_pins_default>;
-	ti,non-removable;
+	non-removable;
 	status = "okay";
 };
 

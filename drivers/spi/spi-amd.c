@@ -294,11 +294,13 @@ err_free_master:
 	return err;
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id spi_acpi_match[] = {
 	{ "AMDI0061", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, spi_acpi_match);
+#endif
 
 static struct platform_driver amd_spi_driver = {
 	.driver = {

@@ -2235,8 +2235,10 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 				 dw0, dw1, complete_hdr->act, dw3,
 				 error_info[0], error_info[1],
 				 error_info[2], error_info[3]);
-		if (unlikely(slot->abort))
+		if (unlikely(slot->abort)) {
+			sas_task_abort(task);
 			return;
+		}
 		goto out;
 	}
 
@@ -3075,6 +3077,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
+	.dma_need_drain		= ata_scsi_dma_need_drain,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= hisi_sas_slave_configure,
 	.scan_finished		= hisi_sas_scan_finished,

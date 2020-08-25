@@ -13,6 +13,8 @@
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
 
+#include "gt/intel_gt_requests.h"
+
 #include "i915_trace.h"
 
 static bool swap_available(void)
@@ -111,15 +113,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	unsigned long count = 0;
 	unsigned long scanned = 0;
 
-	/*
-	 * When shrinking the active list, we should also consider active
-	 * contexts. Active contexts are pinned until they are retired, and
-	 * so can not be simply unbound to retire and unpin their pages. To
-	 * shrink the contexts, we must wait until the gpu is idle and
-	 * completed its switch to the kernel context. In short, we do
-	 * not have a good mechanism for idling a specific context.
-	 */
-
 	trace_i915_gem_shrink(i915, target, shrink);
 
 	/*
@@ -132,6 +125,20 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		if (!wakeref)
 			shrink &= ~I915_SHRINK_BOUND;
 	}
+
+	/*
+	 * When shrinking the active list, we should also consider active
+	 * contexts. Active contexts are pinned until they are retired, and
+	 * so can not be simply unbound to retire and unpin their pages. To
+	 * shrink the contexts, we must wait until the gpu is idle and
+	 * completed its switch to the kernel context. In short, we do
+	 * not have a good mechanism for idling a specific context, but
+	 * what we can do is give them a kick so that we do not keep idle
+	 * contexts around longer than is necessary.
+	 */
+	if (shrink & I915_SHRINK_ACTIVE)
+		/* Retire requests to unpin all idle contexts */
+		intel_gt_retire_requests(&i915->gt);
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
@@ -408,16 +415,8 @@ void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915)
 void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 				    struct mutex *mutex)
 {
-	bool unlock = false;
-
 	if (!IS_ENABLED(CONFIG_LOCKDEP))
 		return;
-
-	if (!lockdep_is_held_type(&i915->drm.struct_mutex, -1)) {
-		mutex_acquire(&i915->drm.struct_mutex.dep_map,
-			      I915_MM_NORMAL, 0, _RET_IP_);
-		unlock = true;
-	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
 
@@ -425,9 +424,6 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 	mutex_release(&mutex->dep_map, _RET_IP_);
 
 	fs_reclaim_release(GFP_KERNEL);
-
-	if (unlock)
-		mutex_release(&i915->drm.struct_mutex.dep_map, _RET_IP_);
 }
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)

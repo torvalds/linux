@@ -230,7 +230,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		pxm &= 0xff;
 
 	node = acpi_map_pxm_to_node(pxm);
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	if (node == NUMA_NO_NODE) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		goto out_err_bad_srat;
 	}
@@ -291,8 +291,6 @@ acpi_parse_x2apic_affinity(union acpi_subtable_headers *header,
 	struct acpi_srat_x2apic_cpu_affinity *processor_affinity;
 
 	processor_affinity = (struct acpi_srat_x2apic_cpu_affinity *)header;
-	if (!processor_affinity)
-		return -EINVAL;
 
 	acpi_table_print_srat_entry(&header->common);
 
@@ -309,8 +307,6 @@ acpi_parse_processor_affinity(union acpi_subtable_headers *header,
 	struct acpi_srat_cpu_affinity *processor_affinity;
 
 	processor_affinity = (struct acpi_srat_cpu_affinity *)header;
-	if (!processor_affinity)
-		return -EINVAL;
 
 	acpi_table_print_srat_entry(&header->common);
 
@@ -327,8 +323,6 @@ acpi_parse_gicc_affinity(union acpi_subtable_headers *header,
 	struct acpi_srat_gicc_affinity *processor_affinity;
 
 	processor_affinity = (struct acpi_srat_gicc_affinity *)header;
-	if (!processor_affinity)
-		return -EINVAL;
 
 	acpi_table_print_srat_entry(&header->common);
 
@@ -347,8 +341,6 @@ acpi_parse_memory_affinity(union acpi_subtable_headers * header,
 	struct acpi_srat_mem_affinity *memory_affinity;
 
 	memory_affinity = (struct acpi_srat_mem_affinity *)header;
-	if (!memory_affinity)
-		return -EINVAL;
 
 	acpi_table_print_srat_entry(&header->common);
 

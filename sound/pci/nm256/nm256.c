@@ -560,7 +560,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		s->suspended = 0;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (! s->running) {
 			snd_nm256_playback_start(chip, s, substream);
@@ -569,7 +569,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		s->suspended = 1;
-		/* fallthru */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (s->running) {
 			snd_nm256_playback_stop(chip);
@@ -1632,11 +1632,11 @@ __error:
 }
 
 
-enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
+enum { NM_IGNORED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
 static const struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
-	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
+	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_IGNORED),
 	/* Reset workarounds to avoid lock-ups */
 	SND_PCI_QUIRK(0x104d, 0x8041, "Sony PCG-F305", NM_RESET_WORKAROUND),
 	SND_PCI_QUIRK(0x1028, 0x0080, "Dell Latitude LS", NM_RESET_WORKAROUND),
@@ -1658,13 +1658,13 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		dev_dbg(&pci->dev, "Enabled quirk for %s.\n",
 			    snd_pci_quirk_name(q));
 		switch (q->value) {
-		case NM_BLACKLISTED:
+		case NM_IGNORED:
 			dev_info(&pci->dev,
-				 "The device is blacklisted. Loading stopped\n");
+				 "The device is on the denylist. Loading stopped\n");
 			return -ENODEV;
 		case NM_RESET_WORKAROUND_2:
 			reset_workaround_2 = 1;
-			/* Fall-through */
+			fallthrough;
 		case NM_RESET_WORKAROUND:
 			reset_workaround = 1;
 			break;

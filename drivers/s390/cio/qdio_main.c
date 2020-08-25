@@ -254,10 +254,17 @@ static inline int set_buf_states(struct qdio_q *q, int bufnr,
 	if (is_qebsm(q))
 		return qdio_do_sqbs(q, state, bufnr, count);
 
+	/* Ensure that all preceding changes to the SBALs are visible: */
+	mb();
+
 	for (i = 0; i < count; i++) {
-		xchg(&q->slsb.val[bufnr], state);
+		WRITE_ONCE(q->slsb.val[bufnr], state);
 		bufnr = next_buf(bufnr);
 	}
+
+	/* Make our SLSB changes visible: */
+	mb();
+
 	return count;
 }
 
@@ -393,28 +400,21 @@ int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 
 static inline void qdio_stop_polling(struct qdio_q *q)
 {
-	if (!q->u.in.ack_count)
+	if (!q->u.in.batch_count)
 		return;
 
 	qperf_inc(q, stop_polling);
 
 	/* show the card that we are not polling anymore */
-	set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-		       q->u.in.ack_count);
-	q->u.in.ack_count = 0;
+	set_buf_states(q, q->u.in.batch_start, SLSB_P_INPUT_NOT_INIT,
+		       q->u.in.batch_count);
+	q->u.in.batch_count = 0;
 }
 
 static inline void account_sbals(struct qdio_q *q, unsigned int count)
 {
-	int pos;
-
 	q->q_stats.nr_sbal_total += count;
-	if (count == QDIO_MAX_BUFFERS_MASK) {
-		q->q_stats.nr_sbals[7]++;
-		return;
-	}
-	pos = ilog2(count);
-	q->q_stats.nr_sbals[pos]++;
+	q->q_stats.nr_sbals[ilog2(count)]++;
 }
 
 static void process_buffer_error(struct qdio_q *q, unsigned int start,
@@ -441,42 +441,13 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 static inline void inbound_handle_work(struct qdio_q *q, unsigned int start,
 				       int count, bool auto_ack)
 {
-	int new;
+	/* ACK the newest SBAL: */
+	if (!auto_ack)
+		set_buf_state(q, add_buf(start, count - 1), SLSB_P_INPUT_ACK);
 
-	if (auto_ack) {
-		if (!q->u.in.ack_count) {
-			q->u.in.ack_count = count;
-			q->u.in.ack_start = start;
-			return;
-		}
-
-		/* delete the previous ACK's */
-		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-			       q->u.in.ack_count);
-		q->u.in.ack_count = count;
-		q->u.in.ack_start = start;
-		return;
-	}
-
-	/*
-	 * ACK the newest buffer. The ACK will be removed in qdio_stop_polling
-	 * or by the next inbound run.
-	 */
-	new = add_buf(start, count - 1);
-	set_buf_state(q, new, SLSB_P_INPUT_ACK);
-
-	/* delete the previous ACKs */
-	if (q->u.in.ack_count)
-		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-			       q->u.in.ack_count);
-
-	q->u.in.ack_count = 1;
-	q->u.in.ack_start = new;
-	count--;
-	if (!count)
-		return;
-	/* need to change ALL buffers to get more interrupts */
-	set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
+	if (!q->u.in.batch_count)
+		q->u.in.batch_start = start;
+	q->u.in.batch_count += count;
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
@@ -486,11 +457,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 
 	q->timestamp = get_tod_clock_fast();
 
-	/*
-	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
-	 * would return 0.
-	 */
-	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
+	count = atomic_read(&q->nr_buf_used);
 	if (!count)
 		return 0;
 
@@ -525,29 +492,25 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 			account_sbals_error(q, count);
 		return count;
 	case SLSB_CU_INPUT_EMPTY:
-	case SLSB_P_INPUT_NOT_INIT:
-	case SLSB_P_INPUT_ACK:
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
 			      q->nr, start);
 		return 0;
+	case SLSB_P_INPUT_NOT_INIT:
+	case SLSB_P_INPUT_ACK:
+		/* We should never see this state, throw a WARN: */
 	default:
-		WARN_ON_ONCE(1);
+		dev_WARN_ONCE(&q->irq_ptr->cdev->dev, 1,
+			      "found state %#x at index %u on queue %u\n",
+			      state, start, q->nr);
 		return 0;
 	}
 }
 
 static int qdio_inbound_q_moved(struct qdio_q *q, unsigned int start)
 {
-	int count;
-
-	count = get_inbound_buffer_frontier(q, start);
-
-	if (count && !is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-		q->u.in.timestamp = get_tod_clock();
-
-	return count;
+	return get_inbound_buffer_frontier(q, start);
 }
 
 static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
@@ -565,22 +528,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 		/* more work coming */
 		return 0;
 
-	if (is_thinint_irq(q->irq_ptr))
-		return 1;
-
-	/* don't poll under z/VM */
-	if (MACHINE_IS_VM)
-		return 1;
-
-	/*
-	 * At this point we know, that inbound first_to_check
-	 * has (probably) not moved (see qdio_inbound_processing).
-	 */
-	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x", start);
-		return 1;
-	} else
-		return 0;
+	return 1;
 }
 
 static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)
@@ -738,11 +686,14 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out primed:%1d",
 			      q->nr);
 		return 0;
-	case SLSB_P_OUTPUT_NOT_INIT:
 	case SLSB_P_OUTPUT_HALTED:
 		return 0;
+	case SLSB_P_OUTPUT_NOT_INIT:
+		/* We should never see this state, throw a WARN: */
 	default:
-		WARN_ON_ONCE(1);
+		dev_WARN_ONCE(&q->irq_ptr->cdev->dev, 1,
+			      "found state %#x at index %u on queue %u\n",
+			      state, start, q->nr);
 		return 0;
 	}
 }
@@ -938,10 +889,10 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 	}
 }
 
-static void qdio_handle_activate_check(struct ccw_device *cdev,
-				unsigned long intparm, int cstat, int dstat)
+static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
+				       unsigned long intparm, int cstat,
+				       int dstat)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct qdio_q *q;
 
 	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_no);
@@ -968,11 +919,9 @@ no_handler:
 	lgr_info_log();
 }
 
-static void qdio_establish_handle_irq(struct ccw_device *cdev, int cstat,
+static void qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
 				      int dstat)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "qest irq");
 
 	if (cstat)
@@ -1019,7 +968,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:
-		qdio_establish_handle_irq(cdev, cstat, dstat);
+		qdio_establish_handle_irq(irq_ptr, cstat, dstat);
 		break;
 	case QDIO_IRQ_STATE_CLEANUP:
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
@@ -1031,7 +980,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			return;
 		}
 		if (cstat || dstat)
-			qdio_handle_activate_check(cdev, intparm, cstat,
+			qdio_handle_activate_check(irq_ptr, intparm, cstat,
 						   dstat);
 		break;
 	case QDIO_IRQ_STATE_STOPPED:
@@ -1446,12 +1395,12 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 
 	qperf_inc(q, inbound_call);
 
-	/* If any ACKed SBALs are returned to HW, adjust ACK tracking: */
-	overlap = min(count - sub_buf(q->u.in.ack_start, bufnr),
-		      q->u.in.ack_count);
+	/* If any processed SBALs are returned to HW, adjust our tracking: */
+	overlap = min_t(int, count - sub_buf(q->u.in.batch_start, bufnr),
+			     q->u.in.batch_count);
 	if (overlap > 0) {
-		q->u.in.ack_start = add_buf(q->u.in.ack_start, overlap);
-		q->u.in.ack_count -= overlap;
+		q->u.in.batch_start = add_buf(q->u.in.batch_start, overlap);
+		q->u.in.batch_count -= overlap;
 	}
 
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
@@ -1535,12 +1484,11 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	    int q_nr, unsigned int bufnr, unsigned int count)
 {
-	struct qdio_irq *irq_ptr;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	if (bufnr >= QDIO_MAX_BUFFERS_PER_Q || count > QDIO_MAX_BUFFERS_PER_Q)
 		return -EINVAL;
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 

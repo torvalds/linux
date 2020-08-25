@@ -1324,13 +1324,13 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
 			return 0; /* fw doesn't need any host buffers */
 
 		/* spin till we get enough memory */
-		while(host_page_buffer_sz > 0) {
-
-			if((ioc->HostPageBuffer = pci_alloc_consistent(
-			    ioc->pcidev,
-			    host_page_buffer_sz,
-			    &ioc->HostPageBuffer_dma)) != NULL) {
-
+		while (host_page_buffer_sz > 0) {
+			ioc->HostPageBuffer =
+				dma_alloc_coherent(&ioc->pcidev->dev,
+						host_page_buffer_sz,
+						&ioc->HostPageBuffer_dma,
+						GFP_KERNEL);
+			if (ioc->HostPageBuffer) {
 				dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 				    "host_page_buffer @ %p, dma @ %x, sz=%d bytes\n",
 				    ioc->name, ioc->HostPageBuffer,
@@ -2741,8 +2741,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		sz = ioc->alloc_sz;
 		dexitprintk(ioc, printk(MYIOC_s_INFO_FMT "free  @ %p, sz=%d bytes\n",
 		    ioc->name, ioc->alloc, ioc->alloc_sz));
-		pci_free_consistent(ioc->pcidev, sz,
-				ioc->alloc, ioc->alloc_dma);
+		dma_free_coherent(&ioc->pcidev->dev, sz, ioc->alloc,
+				ioc->alloc_dma);
 		ioc->reply_frames = NULL;
 		ioc->req_frames = NULL;
 		ioc->alloc = NULL;
@@ -2751,8 +2751,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 
 	if (ioc->sense_buf_pool != NULL) {
 		sz = (ioc->req_depth * MPT_SENSE_BUFFER_ALLOC);
-		pci_free_consistent(ioc->pcidev, sz,
-				ioc->sense_buf_pool, ioc->sense_buf_pool_dma);
+		dma_free_coherent(&ioc->pcidev->dev, sz, ioc->sense_buf_pool,
+				ioc->sense_buf_pool_dma);
 		ioc->sense_buf_pool = NULL;
 		ioc->alloc_total -= sz;
 	}
@@ -2802,7 +2802,7 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 			"HostPageBuffer free  @ %p, sz=%d bytes\n",
 			ioc->name, ioc->HostPageBuffer,
 			ioc->HostPageBuffer_sz));
-		pci_free_consistent(ioc->pcidev, ioc->HostPageBuffer_sz,
+		dma_free_coherent(&ioc->pcidev->dev, ioc->HostPageBuffer_sz,
 		    ioc->HostPageBuffer, ioc->HostPageBuffer_dma);
 		ioc->HostPageBuffer = NULL;
 		ioc->HostPageBuffer_sz = 0;
@@ -4497,7 +4497,8 @@ PrimeIocFifos(MPT_ADAPTER *ioc)
 			 	ioc->name, sz, sz, num_chain));
 
 		total_size += sz;
-		mem = pci_alloc_consistent(ioc->pcidev, total_size, &alloc_dma);
+		mem = dma_alloc_coherent(&ioc->pcidev->dev, total_size,
+				&alloc_dma, GFP_KERNEL);
 		if (mem == NULL) {
 			printk(MYIOC_s_ERR_FMT "Unable to allocate Reply, Request, Chain Buffers!\n",
 				ioc->name);
@@ -4574,8 +4575,8 @@ PrimeIocFifos(MPT_ADAPTER *ioc)
 		spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 
 		sz = (ioc->req_depth * MPT_SENSE_BUFFER_ALLOC);
-		ioc->sense_buf_pool =
-			pci_alloc_consistent(ioc->pcidev, sz, &ioc->sense_buf_pool_dma);
+		ioc->sense_buf_pool = dma_alloc_coherent(&ioc->pcidev->dev, sz,
+				&ioc->sense_buf_pool_dma, GFP_KERNEL);
 		if (ioc->sense_buf_pool == NULL) {
 			printk(MYIOC_s_ERR_FMT "Unable to allocate Sense Buffers!\n",
 				ioc->name);
@@ -4613,18 +4614,16 @@ out_fail:
 
 	if (ioc->alloc != NULL) {
 		sz = ioc->alloc_sz;
-		pci_free_consistent(ioc->pcidev,
-				sz,
-				ioc->alloc, ioc->alloc_dma);
+		dma_free_coherent(&ioc->pcidev->dev, sz, ioc->alloc,
+				ioc->alloc_dma);
 		ioc->reply_frames = NULL;
 		ioc->req_frames = NULL;
 		ioc->alloc_total -= sz;
 	}
 	if (ioc->sense_buf_pool != NULL) {
 		sz = (ioc->req_depth * MPT_SENSE_BUFFER_ALLOC);
-		pci_free_consistent(ioc->pcidev,
-				sz,
-				ioc->sense_buf_pool, ioc->sense_buf_pool_dma);
+		dma_free_coherent(&ioc->pcidev->dev, sz, ioc->sense_buf_pool,
+				ioc->sense_buf_pool_dma);
 		ioc->sense_buf_pool = NULL;
 	}
 

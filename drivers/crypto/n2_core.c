@@ -1382,7 +1382,8 @@ static int __n2_register_one_skcipher(const struct n2_skcipher_tmpl *tmpl)
 	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-n2", tmpl->drv_name);
 	alg->base.cra_priority = N2_CRA_PRIORITY;
-	alg->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC |
+			      CRYPTO_ALG_ALLOCATES_MEMORY;
 	alg->base.cra_blocksize = tmpl->block_size;
 	p->enc_type = tmpl->enc_type;
 	alg->base.cra_ctxsize = sizeof(struct n2_skcipher_context);

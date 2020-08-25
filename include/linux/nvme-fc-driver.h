@@ -672,7 +672,7 @@ enum {
  * Values set by the LLDD indicating completion status of the FCP operation.
  * Must be set prior to calling the done() callback.
  * @transferred_length: amount of DATA_OUT payload data received by a
- *            a WRITEDATA operation. If not a WRITEDATA operation, value must
+ *            WRITEDATA operation. If not a WRITEDATA operation, value must
  *            be set to 0. Should equal transfer_length on success.
  * @fcp_error: status of the FCP operation. Must be 0 on success; on failure
  *            must be a NVME_SC_FC_xxxx value.

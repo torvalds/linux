@@ -47,7 +47,7 @@ Supported chips:
 
     Prefix: 'tmp461'
 
-    Datasheet: http://www.ti.com/product/tmp461
+    Datasheet: https://www.ti.com/product/tmp461
 
 
 

@@ -39,7 +39,6 @@ struct div_result {
 };
 
 /* Accessor functions for the timebase (RTC on 601) registers. */
-/* If one day CONFIG_POWER is added just define __USE_RTC as 1 */
 #define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 
 #ifdef CONFIG_PPC64

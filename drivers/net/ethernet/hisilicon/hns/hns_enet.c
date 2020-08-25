@@ -699,7 +699,7 @@ static void hns_nic_rx_up_pro(struct hns_nic_ring_data *ring_data,
 	struct net_device *ndev = ring_data->napi.dev;
 
 	skb->protocol = eth_type_trans(skb, ndev);
-	(void)napi_gro_receive(&ring_data->napi, skb);
+	napi_gro_receive(&ring_data->napi, skb);
 }
 
 static int hns_desc_unused(struct hnae_ring *ring)

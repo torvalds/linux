@@ -1,10 +1,3 @@
-check_filter_file() { # check filter file introduced by dynamic ftrace
-    if [ ! -f "$1" ]; then
-        echo "$1 not found? Is dynamic ftrace not set?"
-        exit_unsupported
-    fi
-}
-
 clear_trace() { # reset trace output
     echo > trace
 }
@@ -111,6 +104,27 @@ initialize_ftrace() { # Reset ftrace to initial-state
     [ -f snapshot ] && echo 0 > snapshot
     clear_trace
     enable_tracing
+}
+
+check_requires() { # Check required files and tracers
+    for i in "$@" ; do
+        r=${i%:README}
+        t=${i%:tracer}
+        if [ $t != $i ]; then
+            if ! grep -wq $t available_tracers ; then
+                echo "Required tracer $t is not configured."
+                exit_unsupported
+            fi
+        elif [ $r != $i ]; then
+            if ! grep -Fq "$r" README ; then
+                echo "Required feature pattern \"$r\" is not in README."
+                exit_unsupported
+            fi
+        elif [ ! -e $i ]; then
+            echo "Required feature interface $i doesn't exist."
+            exit_unsupported
+        fi
+    done
 }
 
 LOCALHOST=127.0.0.1

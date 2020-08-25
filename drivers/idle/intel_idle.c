@@ -66,8 +66,6 @@ static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static unsigned long auto_demotion_disable_flags;
 static bool disable_promotion_to_c1e;
 
-static bool lapic_timer_always_reliable;
-
 struct idle_cpu {
 	struct cpuidle_state *state_table;
 
@@ -132,7 +130,7 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	struct cpuidle_state *state = &drv->states[index];
 	unsigned long eax = flg2MWAIT(state->flags);
 	unsigned long ecx = 1; /* break on interrupt flag */
-	bool uninitialized_var(tick);
+	bool tick;
 	int cpu = smp_processor_id();
 
 	/*
@@ -142,7 +140,7 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
 		leave_mm(cpu);
 
-	if (!static_cpu_has(X86_FEATURE_ARAT) && !lapic_timer_always_reliable) {
+	if (!static_cpu_has(X86_FEATURE_ARAT)) {
 		/*
 		 * Switch over to one-shot tick broadcast if the target C-state
 		 * is deeper than C1.
@@ -175,13 +173,15 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
  * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
  * scheduler tick and suspended scheduler clock on the target CPU.
  */
-static __cpuidle void intel_idle_s2idle(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
+static __cpuidle int intel_idle_s2idle(struct cpuidle_device *dev,
+				       struct cpuidle_driver *drv, int index)
 {
 	unsigned long eax = flg2MWAIT(drv->states[index].flags);
 	unsigned long ecx = 1; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
+
+	return 0;
 }
 
 /*
@@ -752,6 +752,35 @@ static struct cpuidle_state skx_cstates[] __initdata = {
 		.enter = NULL }
 };
 
+static struct cpuidle_state icx_cstates[] __initdata = {
+	{
+		.name = "C1",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 4,
+		.target_residency = 4,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 128,
+		.target_residency = 384,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.enter = NULL }
+};
+
 static struct cpuidle_state atom_cstates[] __initdata = {
 	{
 		.name = "C1E",
@@ -1056,6 +1085,12 @@ static const struct idle_cpu idle_cpu_skx __initconst = {
 	.use_acpi = true,
 };
 
+static const struct idle_cpu idle_cpu_icx __initconst = {
+	.state_table = icx_cstates,
+	.disable_promotion_to_c1e = true,
+	.use_acpi = true,
+};
+
 static const struct idle_cpu idle_cpu_avn __initconst = {
 	.state_table = avn_cstates,
 	.disable_promotion_to_c1e = true,
@@ -1110,6 +1145,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&idle_cpu_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&idle_cpu_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&idle_cpu_skx),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&idle_cpu_icx),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&idle_cpu_knl),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&idle_cpu_knl),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&idle_cpu_bxt),
@@ -1562,7 +1598,7 @@ static int intel_idle_cpu_online(unsigned int cpu)
 {
 	struct cpuidle_device *dev;
 
-	if (!lapic_timer_always_reliable)
+	if (!boot_cpu_has(X86_FEATURE_ARAT))
 		tick_broadcast_enable();
 
 	/*
@@ -1655,16 +1691,13 @@ static int __init intel_idle_init(void)
 		goto init_driver_fail;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_always_reliable = true;
-
 	retval = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "idle/intel:online",
 				   intel_idle_cpu_online, NULL);
 	if (retval < 0)
 		goto hp_setup_fail;
 
 	pr_debug("Local APIC timer is reliable in %s\n",
-		 lapic_timer_always_reliable ? "all C-states" : "C1");
+		 boot_cpu_has(X86_FEATURE_ARAT) ? "all C-states" : "C1");
 
 	return 0;
 

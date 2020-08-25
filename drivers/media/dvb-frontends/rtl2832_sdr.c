@@ -5,7 +5,7 @@
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  *
  * GNU Radio plugin "gr-kernel" for device usage will be on:
- * http://git.linuxtv.org/anttip/gr-kernel.git
+ * https://git.linuxtv.org/anttip/gr-kernel.git
  */
 
 #include "rtl2832_sdr.h"

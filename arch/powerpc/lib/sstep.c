@@ -16,6 +16,7 @@
 #include <asm/disassemble.h>
 
 extern char system_call_common[];
+extern char system_call_vectored_emulate[];
 
 #ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
@@ -200,8 +201,8 @@ static nokprobe_inline unsigned long mlsd_8lsd_ea(unsigned int instr,
 	unsigned int  dd;
 	unsigned long ea, d0, d1, d;
 
-	prefix_r = instr & (1ul << 20);
-	ra = (suffix >> 16) & 0x1f;
+	prefix_r = GET_PREFIX_R(instr);
+	ra = GET_PREFIX_RA(suffix);
 
 	d0 = instr & 0x3ffff;
 	d1 = suffix & 0xffff;
@@ -1236,6 +1237,9 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	case 17:	/* sc */
 		if ((word & 0xfe2) == 2)
 			op->type = SYSCALL;
+		else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
+				(word & 0xfe3) == 1)
+			op->type = SYSCALL_VECTORED_0;
 		else
 			op->type = UNKNOWN;
 		return 0;
@@ -1339,8 +1343,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	switch (opcode) {
 #ifdef __powerpc64__
 	case 1:
-		prefix_r = word & (1ul << 20);
-		ra = (suffix >> 16) & 0x1f;
+		prefix_r = GET_PREFIX_R(word);
+		ra = GET_PREFIX_RA(suffix);
 		rd = (suffix >> 21) & 0x1f;
 		op->reg = rd;
 		op->val = regs->gpr[rd];
@@ -1802,7 +1806,18 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->val = (int) regs->gpr[ra] /
 				(int) regs->gpr[rb];
 			goto arith_done;
-
+#ifdef __powerpc64__
+		case 425:	/* divde[.] */
+			asm volatile(PPC_DIVDE(%0, %1, %2) :
+				"=r" (op->val) : "r" (regs->gpr[ra]),
+				"r" (regs->gpr[rb]));
+			goto arith_done;
+		case 393:	/* divdeu[.] */
+			asm volatile(PPC_DIVDEU(%0, %1, %2) :
+				"=r" (op->val) : "r" (regs->gpr[ra]),
+				"r" (regs->gpr[rb]));
+			goto arith_done;
+#endif
 		case 755:	/* darn */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300))
 				return -1;
@@ -2715,8 +2730,8 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		}
 		break;
 	case 1: /* Prefixed instructions */
-		prefix_r = word & (1ul << 20);
-		ra = (suffix >> 16) & 0x1f;
+		prefix_r = GET_PREFIX_R(word);
+		ra = GET_PREFIX_RA(suffix);
 		op->update_reg = ra;
 		rd = (suffix >> 21) & 0x1f;
 		op->reg = rd;
@@ -3377,6 +3392,18 @@ int emulate_step(struct pt_regs *regs, struct ppc_inst instr)
 		regs->nip = (unsigned long) &system_call_common;
 		regs->msr = MSR_KERNEL;
 		return 1;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	case SYSCALL_VECTORED_0:	/* scv 0 */
+		regs->gpr[9] = regs->gpr[13];
+		regs->gpr[10] = MSR_KERNEL;
+		regs->gpr[11] = regs->nip + 4;
+		regs->gpr[12] = regs->msr & MSR_MASK;
+		regs->gpr[13] = (unsigned long) get_paca();
+		regs->nip = (unsigned long) &system_call_vectored_emulate;
+		regs->msr = MSR_KERNEL;
+		return 1;
+#endif
 
 	case RFI:
 		return -1;

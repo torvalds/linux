@@ -721,7 +721,7 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 		return next;
 
 	/* When no more children in primary, continue with secondary */
-	if (!IS_ERR_OR_NULL(fwnode->secondary))
+	if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary))
 		next = fwnode_get_next_child_node(fwnode->secondary, child);
 
 	return next;

@@ -88,7 +88,7 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 			struct drm_gem_object **obj = afbc_fb->base.obj;
 
 			for (i = 0; i < info->num_planes; ++i)
-				drm_gem_object_put_unlocked(obj[i]);
+				drm_gem_object_put(obj[i]);
 
 			kfree(afbc_fb);
 			return ERR_PTR(ret);

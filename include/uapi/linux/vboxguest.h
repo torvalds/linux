@@ -103,7 +103,7 @@ VMMDEV_ASSERT_SIZE(vbg_ioctl_driver_version_info, 24 + 20);
 
 
 /* IOCTL to perform a VMM Device request larger then 1KB. */
-#define VBG_IOCTL_VMMDEV_REQUEST_BIG	_IOC(_IOC_READ | _IOC_WRITE, 'V', 3, 0)
+#define VBG_IOCTL_VMMDEV_REQUEST_BIG	_IO('V', 3)
 
 
 /** VBG_IOCTL_HGCM_CONNECT data structure. */
@@ -198,7 +198,7 @@ struct vbg_ioctl_log {
 	} u;
 };
 
-#define VBG_IOCTL_LOG(s)		_IOC(_IOC_READ | _IOC_WRITE, 'V', 9, s)
+#define VBG_IOCTL_LOG(s)		_IO('V', 9)
 
 
 /** VBG_IOCTL_WAIT_FOR_EVENTS data structure. */
@@ -255,6 +255,30 @@ VMMDEV_ASSERT_SIZE(vbg_ioctl_change_filter, 24 + 8);
 /* IOCTL to VBoxGuest to control the event filter mask. */
 #define VBG_IOCTL_CHANGE_FILTER_MASK \
 	_IOWR('V', 12, struct vbg_ioctl_change_filter)
+
+
+/** VBG_IOCTL_ACQUIRE_GUEST_CAPABILITIES data structure. */
+struct vbg_ioctl_acquire_guest_caps {
+	/** The header. */
+	struct vbg_ioctl_hdr hdr;
+	union {
+		struct {
+			/** Flags (VBGL_IOC_AGC_FLAGS_XXX). */
+			__u32 flags;
+			/** Capabilities to set (VMMDEV_GUEST_SUPPORTS_XXX). */
+			__u32 or_mask;
+			/** Capabilities to drop (VMMDEV_GUEST_SUPPORTS_XXX). */
+			__u32 not_mask;
+		} in;
+	} u;
+};
+VMMDEV_ASSERT_SIZE(vbg_ioctl_acquire_guest_caps, 24 + 12);
+
+#define VBGL_IOC_AGC_FLAGS_CONFIG_ACQUIRE_MODE		0x00000001
+#define VBGL_IOC_AGC_FLAGS_VALID_MASK			0x00000001
+
+#define VBG_IOCTL_ACQUIRE_GUEST_CAPABILITIES \
+	_IOWR('V', 13, struct vbg_ioctl_acquire_guest_caps)
 
 
 /** VBG_IOCTL_CHANGE_GUEST_CAPABILITIES data structure. */

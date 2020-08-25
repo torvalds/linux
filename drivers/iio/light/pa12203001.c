@@ -362,7 +362,6 @@ static int pa12203001_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &pa12203001_info;
 	indio_dev->name = PA12203001_DRIVER_NAME;
 	indio_dev->channels = pa12203001_channels;

@@ -2169,6 +2169,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case COMEDI_CHANINFO: {
 		struct comedi_chaninfo it;
+
 		if (copy_from_user(&it, (void __user *)arg, sizeof(it)))
 			rc = -EFAULT;
 		else
@@ -2177,6 +2178,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	}
 	case COMEDI_RANGEINFO: {
 		struct comedi_rangeinfo it;
+
 		if (copy_from_user(&it, (void __user *)arg, sizeof(it)))
 			rc = -EFAULT;
 		else
@@ -2249,6 +2251,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	}
 	case COMEDI_INSN: {
 		struct comedi_insn insn;
+
 		if (copy_from_user(&insn, (void __user *)arg, sizeof(insn)))
 			rc = -EFAULT;
 		else
@@ -2953,7 +2956,7 @@ static int get_compat_cmd(struct comedi_cmd *cmd,
 	cmd->scan_end_arg = v32.scan_end_arg;
 	cmd->stop_src = v32.stop_src;
 	cmd->stop_arg = v32.stop_arg;
-	cmd->chanlist = compat_ptr(v32.chanlist);
+	cmd->chanlist = (unsigned int __force *)compat_ptr(v32.chanlist);
 	cmd->chanlist_len = v32.chanlist_len;
 	cmd->data = compat_ptr(v32.data);
 	cmd->data_len = v32.data_len;
@@ -2980,7 +2983,7 @@ static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
 	v32.stop_src = cmd->stop_src;
 	v32.stop_arg = cmd->stop_arg;
 	/* Assume chanlist pointer is unchanged. */
-	v32.chanlist = ptr_to_compat(cmd->chanlist);
+	v32.chanlist = ptr_to_compat((unsigned int __user *)cmd->chanlist);
 	v32.chanlist_len = cmd->chanlist_len;
 	v32.data = ptr_to_compat(cmd->data);
 	v32.data_len = cmd->data_len;
@@ -3426,6 +3429,6 @@ static void __exit comedi_cleanup(void)
 }
 module_exit(comedi_cleanup);
 
-MODULE_AUTHOR("http://www.comedi.org");
+MODULE_AUTHOR("https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");

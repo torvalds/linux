@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/spi/spi.h>
@@ -40,10 +39,6 @@
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
-
-static int gpio_wakeup = -2;
-module_param(gpio_wakeup, int, 0644);
-MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
 
 #define RATETAB_ENT(_rate, _rateid, _flags) { \
 	.bitrate  = (_rate),   \
@@ -168,38 +163,6 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	if (wdev->hw_caps.api_version_minor < minor)
 		return true;
 	return false;
-}
-
-struct gpio_desc *wfx_get_gpio(struct device *dev,
-			       int override, const char *label)
-{
-	struct gpio_desc *ret;
-	char label_buf[256];
-
-	if (override >= 0) {
-		snprintf(label_buf, sizeof(label_buf), "wfx_%s", label);
-		ret = ERR_PTR(devm_gpio_request_one(dev, override,
-						    GPIOF_OUT_INIT_LOW,
-						    label_buf));
-		if (!ret)
-			ret = gpio_to_desc(override);
-	} else if (override == -1) {
-		ret = NULL;
-	} else {
-		ret = devm_gpiod_get(dev, label, GPIOD_OUT_LOW);
-	}
-	if (IS_ERR_OR_NULL(ret)) {
-		if (!ret || PTR_ERR(ret) == -ENOENT)
-			dev_warn(dev, "gpio %s is not defined\n", label);
-		else
-			dev_warn(dev, "error while requesting gpio %s\n",
-				 label);
-		ret = NULL;
-	} else {
-		dev_dbg(dev, "using gpio %d for %s\n",
-			desc_to_gpio(ret), label);
-	}
-	return ret;
 }
 
 /* NOTE: wfx_send_pds() destroy buf */
@@ -340,7 +303,12 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
 	of_property_read_string(dev->of_node, "config-file",
 				&wdev->pdata.file_pds);
-	wdev->pdata.gpio_wakeup = wfx_get_gpio(dev, gpio_wakeup, "wakeup");
+	wdev->pdata.gpio_wakeup = devm_gpiod_get_optional(dev, "wakeup",
+							  GPIOD_OUT_LOW);
+	if (IS_ERR(wdev->pdata.gpio_wakeup))
+		return ERR_CAST(wdev->pdata.gpio_wakeup);
+	if (wdev->pdata.gpio_wakeup)
+		gpiod_set_consumer_name(wdev->pdata.gpio_wakeup, "wfx wakeup");
 	wfx_sl_fill_pdata(dev, &wdev->pdata);
 
 	mutex_init(&wdev->conf_mutex);
@@ -349,8 +317,10 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	init_completion(&wdev->firmware_ready);
 	INIT_DELAYED_WORK(&wdev->cooling_timeout_work,
 			  wfx_cooling_timeout_work);
+	skb_queue_head_init(&wdev->tx_pending);
+	init_waitqueue_head(&wdev->tx_dequeue);
 	wfx_init_hif_cmd(&wdev->hif_cmd);
-	wfx_tx_queues_init(wdev);
+	wdev->force_ps_timeout = -1;
 
 	if (devm_add_action_or_reset(dev, wfx_free_common, wdev))
 		return NULL;
@@ -442,8 +412,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	wdev->pdata.gpio_wakeup = gpio_saved;
 	if (wdev->pdata.gpio_wakeup) {
 		dev_dbg(wdev->dev,
-			"enable 'quiescent' power mode with gpio %d and PDS file %s\n",
-			desc_to_gpio(wdev->pdata.gpio_wakeup),
+			"enable 'quiescent' power mode with wakeup GPIO and PDS file %s\n",
 			wdev->pdata.file_pds);
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		control_reg_write(wdev, 0);

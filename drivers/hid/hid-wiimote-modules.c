@@ -1088,12 +1088,28 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	 * is the same as before.
 	 */
 
+	static const s8 digital_to_analog[3] = {0x20, 0, -0x20};
+
 	if (wdata->state.flags & WIIPROTO_FLAG_MP_ACTIVE) {
-		lx = ext[0] & 0x3e;
-		ly = ext[1] & 0x3e;
+		if (wiimote_dpad_as_analog) {
+			lx = digital_to_analog[1 - !(ext[4] & 0x80)
+				+ !(ext[1] & 0x01)];
+			ly = digital_to_analog[1 - !(ext[4] & 0x40)
+				+ !(ext[0] & 0x01)];
+		} else {
+			lx = (ext[0] & 0x3e) - 0x20;
+			ly = (ext[1] & 0x3e) - 0x20;
+		}
 	} else {
-		lx = ext[0] & 0x3f;
-		ly = ext[1] & 0x3f;
+		if (wiimote_dpad_as_analog) {
+			lx = digital_to_analog[1 - !(ext[4] & 0x80)
+				+ !(ext[5] & 0x02)];
+			ly = digital_to_analog[1 - !(ext[4] & 0x40)
+				+ !(ext[5] & 0x01)];
+		} else {
+			lx = (ext[0] & 0x3f) - 0x20;
+			ly = (ext[1] & 0x3f) - 0x20;
+		}
 	}
 
 	rx = (ext[0] >> 3) & 0x18;
@@ -1110,19 +1126,13 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	rt <<= 1;
 	lt <<= 1;
 
-	input_report_abs(wdata->extension.input, ABS_HAT1X, lx - 0x20);
-	input_report_abs(wdata->extension.input, ABS_HAT1Y, ly - 0x20);
+	input_report_abs(wdata->extension.input, ABS_HAT1X, lx);
+	input_report_abs(wdata->extension.input, ABS_HAT1Y, ly);
 	input_report_abs(wdata->extension.input, ABS_HAT2X, rx - 0x20);
 	input_report_abs(wdata->extension.input, ABS_HAT2Y, ry - 0x20);
 	input_report_abs(wdata->extension.input, ABS_HAT3X, rt);
 	input_report_abs(wdata->extension.input, ABS_HAT3Y, lt);
 
-	input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_RIGHT],
-			 !(ext[4] & 0x80));
-	input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_DOWN],
-			 !(ext[4] & 0x40));
 	input_report_key(wdata->extension.input,
 			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_LT],
 			 !(ext[4] & 0x20));
@@ -1157,20 +1167,29 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_ZR],
 			 !(ext[5] & 0x04));
 
-	if (wdata->state.flags & WIIPROTO_FLAG_MP_ACTIVE) {
+	if (!wiimote_dpad_as_analog) {
 		input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_LEFT],
-			 !(ext[1] & 0x01));
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_RIGHT],
+				 !(ext[4] & 0x80));
 		input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_UP],
-			 !(ext[0] & 0x01));
-	} else {
-		input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_LEFT],
-			 !(ext[5] & 0x02));
-		input_report_key(wdata->extension.input,
-			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_UP],
-			 !(ext[5] & 0x01));
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_DOWN],
+				 !(ext[4] & 0x40));
+
+		if (wdata->state.flags & WIIPROTO_FLAG_MP_ACTIVE) {
+			input_report_key(wdata->extension.input,
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_LEFT],
+				 !(ext[1] & 0x01));
+			input_report_key(wdata->extension.input,
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_UP],
+				 !(ext[0] & 0x01));
+		} else {
+			input_report_key(wdata->extension.input,
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_LEFT],
+				 !(ext[5] & 0x02));
+			input_report_key(wdata->extension.input,
+				 wiimod_classic_map[WIIMOD_CLASSIC_KEY_UP],
+				 !(ext[5] & 0x01));
+		}
 	}
 
 	input_sync(wdata->extension.input);

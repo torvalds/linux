@@ -950,6 +950,7 @@ static void nf_flow_table_indr_cleanup(struct flow_block_cb *block_cb)
 	nf_flow_table_gc_cleanup(flowtable, dev);
 	down_write(&flowtable->flow_block_lock);
 	list_del(&block_cb->list);
+	list_del(&block_cb->driver_list);
 	flow_block_cb_free(block_cb);
 	up_write(&flowtable->flow_block_lock);
 }
@@ -963,7 +964,7 @@ static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 	nf_flow_table_block_offload_init(bo, dev_net(dev), cmd, flowtable,
 					 extack);
 
-	return flow_indr_dev_setup_offload(dev, TC_SETUP_FT, flowtable, bo,
+	return flow_indr_dev_setup_offload(dev, NULL, TC_SETUP_FT, flowtable, bo,
 					   nf_flow_table_indr_cleanup);
 }
 

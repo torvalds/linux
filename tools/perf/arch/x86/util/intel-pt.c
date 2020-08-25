@@ -641,6 +641,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			}
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = 1;
+			evsel->no_aux_samples = true;
 			intel_pt_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -835,6 +836,10 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				ptr->have_sched_switch = 1;
 		}
 	}
+
+	if (have_timing_info && !intel_pt_evsel->core.attr.exclude_kernel &&
+	    perf_can_record_text_poke_events() && perf_can_record_cpu_wide())
+		opts->text_poke = true;
 
 	if (intel_pt_evsel) {
 		/*

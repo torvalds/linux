@@ -41,7 +41,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     // Example 1: SDM845 TSENS
-    soc: soc@0 {
+    soc: soc {
             #address-cells = <2>;
             #size-cells = <2>;
 

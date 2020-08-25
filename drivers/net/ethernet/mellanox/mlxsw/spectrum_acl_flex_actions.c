@@ -136,11 +136,13 @@ mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
 			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
 	int err;
 
-	err = mlxsw_sp_span_agent_get(mlxsw_sp, out_dev, p_span_id);
+	agent_parms.to_dev = out_dev;
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, p_span_id, &agent_parms);
 	if (err)
 		return err;
 
@@ -167,6 +169,29 @@ mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
 }
 
+static int mlxsw_sp_act_policer_add(void *priv, u64 rate_bytes_ps, u32 burst,
+				    u16 *p_policer_index,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_policer_params params;
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	params.rate = rate_bytes_ps;
+	params.burst = burst;
+	params.bytes = true;
+	return mlxsw_sp_policer_add(mlxsw_sp,
+				    MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+				    &params, extack, p_policer_index);
+}
+
+static void mlxsw_sp_act_policer_del(void *priv, u16 policer_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp_policer_del(mlxsw_sp, MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+			     policer_index);
+}
+
 const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp1_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
@@ -177,6 +202,8 @@ const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.counter_index_put	= mlxsw_sp_act_counter_index_put,
 	.mirror_add		= mlxsw_sp_act_mirror_add,
 	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.policer_add		= mlxsw_sp_act_policer_add,
+	.policer_del		= mlxsw_sp_act_policer_del,
 };
 
 const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
@@ -189,6 +216,8 @@ const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
 	.counter_index_put	= mlxsw_sp_act_counter_index_put,
 	.mirror_add		= mlxsw_sp_act_mirror_add,
 	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.policer_add		= mlxsw_sp_act_policer_add,
+	.policer_del		= mlxsw_sp_act_policer_del,
 	.dummy_first_set	= true,
 };
 

@@ -2,7 +2,7 @@
 /*
  * ECAP PWM driver
  *
- * Copyright (C) 2012 Texas Instruments, Inc. - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments, Inc. - https://www.ti.com/
  */
 
 #include <linux/module.h>

@@ -2060,14 +2060,6 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 NOKPROBE_SYMBOL(DebugException);
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
-#if !defined(CONFIG_TAU_INT)
-void TAUException(struct pt_regs *regs)
-{
-	printk("TAU trap at PC: %lx, MSR: %lx, vector=%lx    %s\n",
-	       regs->nip, regs->msr, regs->trap, print_tainted());
-}
-#endif /* CONFIG_INT_TAU */
-
 #ifdef CONFIG_ALTIVEC
 void altivec_assist_exception(struct pt_regs *regs)
 {

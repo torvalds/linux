@@ -148,4 +148,8 @@
 	};
 };
 
+&usb0 {
+	status = "okay";
+};
+
 #include "fsl-ls1043-post.dtsi"

@@ -47,8 +47,10 @@ int intel_gt_terminally_wedged(struct intel_gt *gt);
 /*
  * There's no unset_wedged_on_init paired with this one.
  * Once we're wedged on init, there's no going back.
+ * Same thing for unset_wedged_on_fini.
  */
 void intel_gt_set_wedged_on_init(struct intel_gt *gt);
+void intel_gt_set_wedged_on_fini(struct intel_gt *gt);
 
 int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask);
 
@@ -70,14 +72,6 @@ void __intel_fini_wedge(struct intel_wedge_me *w);
 	for (__intel_init_wedge((W), (GT), (TIMEOUT), __func__);	\
 	     (W)->gt;							\
 	     __intel_fini_wedge((W)))
-
-static inline bool __intel_reset_failed(const struct intel_reset *reset)
-{
-	GEM_BUG_ON(test_bit(I915_WEDGED_ON_INIT, &reset->flags) ?
-		   !test_bit(I915_WEDGED, &reset->flags) : false);
-
-	return unlikely(test_bit(I915_WEDGED, &reset->flags));
-}
 
 bool intel_has_gpu_reset(const struct intel_gt *gt);
 bool intel_has_reset_engine(const struct intel_gt *gt);

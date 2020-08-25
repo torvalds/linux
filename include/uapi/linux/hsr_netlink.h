@@ -17,7 +17,7 @@
 /* Generic Netlink HSR family definition
  */
 
-/* attributes */
+/* attributes for HSR or PRP node */
 enum {
 	HSR_A_UNSPEC,
 	HSR_A_NODE_ADDR,

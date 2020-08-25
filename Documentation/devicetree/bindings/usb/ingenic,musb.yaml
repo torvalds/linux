@@ -16,11 +16,11 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4770-musb
-        - ingenic,jz4740-musb
+          - ingenic,jz4770-musb
+          - ingenic,jz4740-musb
       - items:
-        - const: ingenic,jz4725b-musb
-        - const: ingenic,jz4740-musb
+          - const: ingenic,jz4725b-musb
+          - const: ingenic,jz4740-musb
 
   reg:
     maxItems: 1

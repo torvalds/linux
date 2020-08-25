@@ -1044,8 +1044,9 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 next:
-		if ((skb && napi_gro_receive(&priv->napi, skb) != GRO_DROP) ||
-		    xdp_result) {
+		if (skb)
+			napi_gro_receive(&priv->napi, skb);
+		if (skb || xdp_result) {
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += xdp.data_end - xdp.data;
 		}
@@ -1810,9 +1811,6 @@ static int netsec_xdp(struct net_device *ndev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return netsec_xdp_setup(priv, xdp->prog, xdp->extack);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = priv->xdp_prog ? priv->xdp_prog->aux->id : 0;
-		return 0;
 	default:
 		return -EINVAL;
 	}

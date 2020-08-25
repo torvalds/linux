@@ -108,8 +108,6 @@
 /* ISC White Balance Gain for B, GB Register */
 #define ISC_WB_G_BGB	0x0000006c
 
-#define ISC_WB_O_ZERO_VAL	(1 << 13)
-
 /* ISC Color Filter Array Control Register */
 #define ISC_CFA_CTRL    0x00000070
 

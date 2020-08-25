@@ -428,6 +428,24 @@ by the driver:
    which were part of a TLS stream.
  * ``rx_tls_decrypted_bytes`` - number of TLS payload bytes in RX packets
    which were successfully decrypted.
+ * ``rx_tls_ctx`` - number of TLS RX HW offload contexts added to device for
+   decryption.
+ * ``rx_tls_del`` - number of TLS RX HW offload contexts deleted from device
+   (connection has finished).
+ * ``rx_tls_resync_req_pkt`` - number of received TLS packets with a resync
+    request.
+ * ``rx_tls_resync_req_start`` - number of times the TLS async resync request
+    was started.
+ * ``rx_tls_resync_req_end`` - number of times the TLS async resync request
+    properly ended with providing the HW tracked tcp-seq.
+ * ``rx_tls_resync_req_skip`` - number of times the TLS async resync request
+    procedure was started by not properly ended.
+ * ``rx_tls_resync_res_ok`` - number of times the TLS resync response call to
+    the driver was successfully handled.
+ * ``rx_tls_resync_res_skip`` - number of times the TLS resync response call to
+    the driver was terminated unsuccessfully.
+ * ``rx_tls_err`` - number of RX packets which were part of a TLS stream
+   but were not decrypted due to unexpected error in the state machine.
  * ``tx_tls_encrypted_packets`` - number of TX packets passed to the device
    for encryption of their TLS payload.
  * ``tx_tls_encrypted_bytes`` - number of TLS payload bytes in TX packets

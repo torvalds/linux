@@ -91,8 +91,6 @@ __tagtable(ATAG_VIDEOTEXT, parse_tag_videotext);
 static int __init parse_tag_ramdisk(const struct tag *tag)
 {
 	rd_image_start = tag->u.ramdisk.start;
-	rd_doload = (tag->u.ramdisk.flags & 1) == 0;
-	rd_prompt = (tag->u.ramdisk.flags & 2) == 0;
 
 	if (tag->u.ramdisk.size)
 		rd_size = tag->u.ramdisk.size;

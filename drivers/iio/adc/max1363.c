@@ -22,8 +22,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -150,7 +150,7 @@ struct max1363_chip_info {
  * @current_mode:	the scan mode of this chip
  * @requestedmask:	a valid requested set of channels
  * @reg:		supply regulator
- * @lock		lock to ensure state is consistent
+ * @lock:		lock to ensure state is consistent
  * @monitor_on:		whether monitor mode is enabled
  * @monitor_speed:	parameter corresponding to device monitor speed setting
  * @mask_high:		bitmask for enabled high thresholds
@@ -1529,8 +1529,6 @@ done:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
-
 #define MAX1363_COMPATIBLE(of_compatible, cfg) {		\
 			.compatible = of_compatible,		\
 			.data = &max1363_chip_info_tbl[cfg],	\
@@ -1578,7 +1576,6 @@ static const struct of_device_id max1363_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, max1363_of_match);
-#endif
 
 static int max1363_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -1593,7 +1590,6 @@ static int max1363_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.of_node = client->dev.of_node;
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
 		return ret;
@@ -1614,7 +1610,7 @@ static int max1363_probe(struct i2c_client *client,
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 
-	st->chip_info = of_device_get_match_data(&client->dev);
+	st->chip_info = device_get_match_data(&client->dev);
 	if (!st->chip_info)
 		st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
@@ -1652,9 +1648,6 @@ static int max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	/* Establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = id->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
@@ -1760,7 +1753,7 @@ MODULE_DEVICE_TABLE(i2c, max1363_id);
 static struct i2c_driver max1363_driver = {
 	.driver = {
 		.name = "max1363",
-		.of_match_table = of_match_ptr(max1363_of_match),
+		.of_match_table = max1363_of_match,
 	},
 	.probe = max1363_probe,
 	.remove = max1363_remove,

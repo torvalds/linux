@@ -55,6 +55,7 @@ static void free_list(struct list_head *head)
  * @dev:	Device to which the resource belongs
  * @res:	Resource to be tracked
  * @add_size:	Additional size to be optionally added to the resource
+ * @min_align:	Minimum memory window alignment
  */
 static int add_to_list(struct list_head *head, struct pci_dev *dev,
 		       struct resource *res, resource_size_t add_size,
@@ -152,7 +153,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 
 		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 		if (!tmp)
-			panic("pdev_sort_resources(): kmalloc() failed!\n");
+			panic("%s: kzalloc() failed!\n", __func__);
 		tmp->res = r;
 		tmp->dev = dev;
 

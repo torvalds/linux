@@ -116,7 +116,6 @@ static int ltc2471_i2c_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ltc2471_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

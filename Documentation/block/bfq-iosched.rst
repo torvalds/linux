@@ -492,13 +492,6 @@ set max_budget to higher values than those to which BFQ would have set
 it with auto-tuning. An alternative way to achieve this goal is to
 just increase the value of timeout_sync, leaving max_budget equal to 0.
 
-weights
--------
-
-Read-only parameter, used to show the weights of the currently active
-BFQ queues.
-
-
 4. Group scheduling with BFQ
 ============================
 
@@ -566,7 +559,7 @@ Parameters to set
 For each group, there is only the following parameter to set.
 
 weight (namely blkio.bfq.weight or io.bfq-weight): the weight of the
-group inside its parent. Available values: 1..10000 (default 100). The
+group inside its parent. Available values: 1..1000 (default 100). The
 linear mapping between ioprio and weights, described at the beginning
 of the tunable section, is still valid, but all weights higher than
 IOPRIO_BE_NR*10 are mapped to ioprio 0.

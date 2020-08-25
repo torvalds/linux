@@ -2,8 +2,6 @@
 #ifndef __ASM_SH_CACHEFLUSH_H
 #define __ASM_SH_CACHEFLUSH_H
 
-#ifdef __KERNEL__
-
 #include <linux/mm.h>
 
 /*
@@ -109,5 +107,4 @@ static inline void *sh_cacheop_vaddr(void *vaddr)
 	return vaddr;
 }
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

@@ -17,7 +17,6 @@
 #include <asm/mman.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 #include <asm/elf.h>
 
 #if 0	/* This is just for testing */

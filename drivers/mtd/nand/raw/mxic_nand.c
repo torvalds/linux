@@ -451,8 +451,8 @@ static int mxic_nfc_exec_op(struct nand_chip *chip,
 	return ret;
 }
 
-static int mxic_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
-					 const struct nand_data_interface *conf)
+static int mxic_nfc_setup_interface(struct nand_chip *chip, int chipnr,
+				    const struct nand_interface_config *conf)
 {
 	struct mxic_nand_ctlr *nfc = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *sdr;
@@ -480,7 +480,7 @@ static int mxic_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
 
 static const struct nand_controller_ops mxic_nand_controller_ops = {
 	.exec_op = mxic_nfc_exec_op,
-	.setup_data_interface = mxic_nfc_setup_data_interface,
+	.setup_interface = mxic_nfc_setup_interface,
 };
 
 static int mxic_nfc_probe(struct platform_device *pdev)

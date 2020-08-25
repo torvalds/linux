@@ -398,7 +398,7 @@ static int snd_via82xx_codec_valid(struct via82xx_modem *chip, int secondary)
 static void snd_via82xx_codec_wait(struct snd_ac97 *ac97)
 {
 	struct via82xx_modem *chip = ac97->private_data;
-	int err;
+	__always_unused int err;
 	err = snd_via82xx_codec_ready(chip, ac97->num);
 	/* here we need to wait fairly for long time.. */
 	msleep(500);

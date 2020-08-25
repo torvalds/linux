@@ -177,7 +177,6 @@ static int dpot_dac_probe(struct platform_device *pdev)
 	dac = iio_priv(indio_dev);
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &dpot_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &dpot_dac_iio_channel;

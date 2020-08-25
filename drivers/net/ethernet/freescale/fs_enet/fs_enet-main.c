@@ -1043,8 +1043,7 @@ out_cleanup_data:
 out_free_dev:
 	free_netdev(ndev);
 out_put:
-	if (fpi->clk_per)
-		clk_disable_unprepare(fpi->clk_per);
+	clk_disable_unprepare(fpi->clk_per);
 out_deregister_fixed_link:
 	of_node_put(fpi->phy_node);
 	if (of_phy_is_fixed_link(ofdev->dev.of_node))
@@ -1065,8 +1064,7 @@ static int fs_enet_remove(struct platform_device *ofdev)
 	fep->ops->cleanup_data(ndev);
 	dev_set_drvdata(fep->dev, NULL);
 	of_node_put(fep->fpi->phy_node);
-	if (fep->fpi->clk_per)
-		clk_disable_unprepare(fep->fpi->clk_per);
+	clk_disable_unprepare(fep->fpi->clk_per);
 	if (of_phy_is_fixed_link(ofdev->dev.of_node))
 		of_phy_deregister_fixed_link(ofdev->dev.of_node);
 	free_netdev(ndev);

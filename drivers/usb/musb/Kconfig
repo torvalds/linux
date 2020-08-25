@@ -113,7 +113,7 @@ config USB_MUSB_JZ4740
 	depends on OF
 	depends on MIPS || COMPILE_TEST
 	depends on USB_MUSB_GADGET
-	depends on USB=n || USB_OTG_BLACKLIST_HUB
+	depends on USB=n || USB_OTG_DISABLE_EXTERNAL_HUB
 	select USB_ROLE_SWITCH
 
 config USB_MUSB_MEDIATEK

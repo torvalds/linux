@@ -629,8 +629,7 @@ static void __init kw_i2c_probe(void)
 			for (i = 0; i < chans; i++)
 				kw_i2c_add(host, np, np, i);
 		} else {
-			for (child = NULL;
-			     (child = of_get_next_child(np, child)) != NULL;) {
+			for_each_child_of_node(np, child) {
 				const u32 *reg = of_get_property(child,
 						"reg", NULL);
 				if (reg == NULL)
@@ -1193,8 +1192,7 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 	 * platform function instance
 	 */
 	list_for_each_entry(bus, &pmac_i2c_busses, link) {
-		for (np = NULL;
-		     (np = of_get_next_child(bus->busnode, np)) != NULL;) {
+		for_each_child_of_node(bus->busnode, np) {
 			struct whitelist_ent *p;
 			/* If multibus, check if device is on that bus */
 			if (bus->flags & pmac_i2c_multibus)

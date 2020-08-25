@@ -1638,14 +1638,8 @@ int main(int argc, char **argv)
 		exit(err);
 	}
 
-	if (setup_cgroup_environment())
-		goto err;
-
-	cgfd = create_and_get_cgroup(CG_PATH);
+	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
-		goto err;
-
-	if (join_cgroup(CG_PATH))
 		goto err;
 
 	if (run_tests(cgfd))

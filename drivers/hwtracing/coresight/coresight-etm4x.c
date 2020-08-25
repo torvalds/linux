@@ -196,12 +196,14 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	writel_relaxed(config->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
 	writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
 
-	/*
-	 * Request to keep the trace unit powered and also
-	 * emulation of powerdown
-	 */
-	writel_relaxed(readl_relaxed(drvdata->base + TRCPDCR) | TRCPDCR_PU,
-		       drvdata->base + TRCPDCR);
+	if (!drvdata->skip_power_up) {
+		/*
+		 * Request to keep the trace unit powered and also
+		 * emulation of powerdown
+		 */
+		writel_relaxed(readl_relaxed(drvdata->base + TRCPDCR) |
+			       TRCPDCR_PU, drvdata->base + TRCPDCR);
+	}
 
 	/* Enable the trace unit */
 	writel_relaxed(1, drvdata->base + TRCPRGCTLR);
@@ -476,10 +478,12 @@ static void etm4_disable_hw(void *info)
 
 	CS_UNLOCK(drvdata->base);
 
-	/* power can be removed from the trace unit now */
-	control = readl_relaxed(drvdata->base + TRCPDCR);
-	control &= ~TRCPDCR_PU;
-	writel_relaxed(control, drvdata->base + TRCPDCR);
+	if (!drvdata->skip_power_up) {
+		/* power can be removed from the trace unit now */
+		control = readl_relaxed(drvdata->base + TRCPDCR);
+		control &= ~TRCPDCR_PU;
+		writel_relaxed(control, drvdata->base + TRCPDCR);
+	}
 
 	control = readl_relaxed(drvdata->base + TRCPRGCTLR);
 
@@ -505,6 +509,12 @@ static void etm4_disable_hw(void *info)
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
 		config->ss_status[i] =
 			readl_relaxed(drvdata->base + TRCSSCSRn(i));
+	}
+
+	/* read back the current counter values */
+	for (i = 0; i < drvdata->nr_cntr; i++) {
+		config->cntr_val[i] =
+			readl_relaxed(drvdata->base + TRCCNTVRn(i));
 	}
 
 	coresight_disclaim_device_unlocked(drvdata->base);
@@ -1196,8 +1206,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	}
 
 	for (i = 0; i < drvdata->nr_addr_cmp * 2; i++) {
-		state->trcacvr[i] = readl(drvdata->base + TRCACVRn(i));
-		state->trcacatr[i] = readl(drvdata->base + TRCACATRn(i));
+		state->trcacvr[i] = readq(drvdata->base + TRCACVRn(i));
+		state->trcacatr[i] = readq(drvdata->base + TRCACATRn(i));
 	}
 
 	/*
@@ -1208,10 +1218,10 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	 */
 
 	for (i = 0; i < drvdata->numcidc; i++)
-		state->trccidcvr[i] = readl(drvdata->base + TRCCIDCVRn(i));
+		state->trccidcvr[i] = readq(drvdata->base + TRCCIDCVRn(i));
 
 	for (i = 0; i < drvdata->numvmidc; i++)
-		state->trcvmidcvr[i] = readl(drvdata->base + TRCVMIDCVRn(i));
+		state->trcvmidcvr[i] = readq(drvdata->base + TRCVMIDCVRn(i));
 
 	state->trccidcctlr0 = readl(drvdata->base + TRCCIDCCTLR0);
 	state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
@@ -1309,18 +1319,18 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	}
 
 	for (i = 0; i < drvdata->nr_addr_cmp * 2; i++) {
-		writel_relaxed(state->trcacvr[i],
+		writeq_relaxed(state->trcacvr[i],
 			       drvdata->base + TRCACVRn(i));
-		writel_relaxed(state->trcacatr[i],
+		writeq_relaxed(state->trcacatr[i],
 			       drvdata->base + TRCACATRn(i));
 	}
 
 	for (i = 0; i < drvdata->numcidc; i++)
-		writel_relaxed(state->trccidcvr[i],
+		writeq_relaxed(state->trccidcvr[i],
 			       drvdata->base + TRCCIDCVRn(i));
 
 	for (i = 0; i < drvdata->numvmidc; i++)
-		writel_relaxed(state->trcvmidcvr[i],
+		writeq_relaxed(state->trcvmidcvr[i],
 			       drvdata->base + TRCVMIDCVRn(i));
 
 	writel_relaxed(state->trccidcctlr0, drvdata->base + TRCCIDCCTLR0);
@@ -1388,18 +1398,57 @@ static struct notifier_block etm4_cpu_pm_nb = {
 	.notifier_call = etm4_cpu_pm_notify,
 };
 
-static int etm4_cpu_pm_register(void)
+/* Setup PM. Called with cpus locked. Deals with error conditions and counts */
+static int etm4_pm_setup_cpuslocked(void)
 {
-	if (IS_ENABLED(CONFIG_CPU_PM))
-		return cpu_pm_register_notifier(&etm4_cpu_pm_nb);
+	int ret;
 
-	return 0;
+	if (etm4_count++)
+		return 0;
+
+	ret = cpu_pm_register_notifier(&etm4_cpu_pm_nb);
+	if (ret)
+		goto reduce_count;
+
+	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
+						   "arm/coresight4:starting",
+						   etm4_starting_cpu, etm4_dying_cpu);
+
+	if (ret)
+		goto unregister_notifier;
+
+	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+						   "arm/coresight4:online",
+						   etm4_online_cpu, NULL);
+
+	/* HP dyn state ID returned in ret on success */
+	if (ret > 0) {
+		hp_online = ret;
+		return 0;
+	}
+
+	/* failed dyn state - remove others */
+	cpuhp_remove_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING);
+
+unregister_notifier:
+	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+
+reduce_count:
+	--etm4_count;
+	return ret;
 }
 
-static void etm4_cpu_pm_unregister(void)
+static void etm4_pm_clear(void)
 {
-	if (IS_ENABLED(CONFIG_CPU_PM))
-		cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+	if (--etm4_count != 0)
+		return;
+
+	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	if (hp_online) {
+		cpuhp_remove_state_nocalls(hp_online);
+		hp_online = 0;
+	}
 }
 
 static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
@@ -1429,6 +1478,9 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 			return -ENOMEM;
 	}
 
+	if (fwnode_property_present(dev_fwnode(dev), "qcom,skip-power-up"))
+		drvdata->skip_power_up = true;
+
 	/* Validity for the resource is already checked by the AMBA core */
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
@@ -1453,23 +1505,14 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 				etm4_init_arch_data,  drvdata, 1))
 		dev_err(dev, "ETM arch init failed\n");
 
-	if (!etm4_count++) {
-		cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
-						     "arm/coresight4:starting",
-						     etm4_starting_cpu, etm4_dying_cpu);
-		ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
-							   "arm/coresight4:online",
-							   etm4_online_cpu, NULL);
-		if (ret < 0)
-			goto err_arch_supported;
-		hp_online = ret;
-
-		ret = etm4_cpu_pm_register();
-		if (ret)
-			goto err_arch_supported;
-	}
-
+	ret = etm4_pm_setup_cpuslocked();
 	cpus_read_unlock();
+
+	/* etm4_pm_setup_cpuslocked() does its own cleanup - exit on error */
+	if (ret) {
+		etmdrvdata[drvdata->cpu] = NULL;
+		return ret;
+	}
 
 	if (etm4_arch_supported(drvdata->arch) == false) {
 		ret = -EINVAL;
@@ -1517,13 +1560,7 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	etmdrvdata[drvdata->cpu] = NULL;
-	if (--etm4_count == 0) {
-		etm4_cpu_pm_unregister();
-
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
-		if (hp_online)
-			cpuhp_remove_state_nocalls(hp_online);
-	}
+	etm4_pm_clear();
 	return ret;
 }
 

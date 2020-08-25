@@ -20,6 +20,7 @@
 #include <asm/irqdomain.h>
 #include <asm/hpet.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/pci_x86.h>
 #include <asm/setup.h>
 #include <asm/i8259.h>

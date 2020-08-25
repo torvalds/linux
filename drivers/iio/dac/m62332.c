@@ -204,9 +204,6 @@ static int m62332_probe(struct i2c_client *client,
 	if (IS_ERR(data->vcc))
 		return PTR_ERR(data->vcc);
 
-	/* establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
-
 	indio_dev->num_channels = ARRAY_SIZE(m62332_channels);
 	indio_dev->channels = m62332_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;

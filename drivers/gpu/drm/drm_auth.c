@@ -122,27 +122,19 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 	return master;
 }
 
-static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
-			  bool new_master)
+static void drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
+			   bool new_master)
 {
-	int ret = 0;
-
 	dev->master = drm_master_get(fpriv->master);
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, fpriv, new_master);
-		if (unlikely(ret != 0)) {
-			drm_master_put(&dev->master);
-		}
-	}
+	if (dev->driver->master_set)
+		dev->driver->master_set(dev, fpriv, new_master);
 
-	fpriv->was_master = (ret == 0);
-	return ret;
+	fpriv->was_master = true;
 }
 
 static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct drm_master *old_master;
-	int ret;
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
@@ -157,22 +149,12 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 	fpriv->is_master = 1;
 	fpriv->authenticated = 1;
 
-	ret = drm_set_master(dev, fpriv, true);
-	if (ret)
-		goto out_err;
+	drm_set_master(dev, fpriv, true);
 
 	if (old_master)
 		drm_master_put(&old_master);
 
 	return 0;
-
-out_err:
-	/* drop references and restore old master on failure */
-	drm_master_put(&fpriv->master);
-	fpriv->master = old_master;
-	fpriv->is_master = 0;
-
-	return ret;
 }
 
 /*
@@ -233,7 +215,7 @@ drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&dev->master_mutex);
 
@@ -265,7 +247,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = drm_set_master(dev, file_priv, false);
+	drm_set_master(dev, file_priv, false);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
 	return ret;
@@ -282,7 +264,7 @@ static void drm_drop_master(struct drm_device *dev,
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	mutex_lock(&dev->master_mutex);
 
@@ -290,12 +272,15 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_unlock;
 
-	ret = -EINVAL;
-	if (!drm_is_current_master(file_priv))
+	if (!drm_is_current_master(file_priv)) {
+		ret = -EINVAL;
 		goto out_unlock;
+	}
 
-	if (!dev->master)
+	if (!dev->master) {
+		ret = -EINVAL;
 		goto out_unlock;
+	}
 
 	if (file_priv->master->lessor != NULL) {
 		DRM_DEBUG_LEASE("Attempt to drop lessee %d as master\n", file_priv->master->lessee_id);
@@ -303,7 +288,6 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = 0;
 	drm_drop_master(dev, file_priv);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);

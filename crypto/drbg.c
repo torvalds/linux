@@ -1218,19 +1218,19 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 {
 	if (!drbg)
 		return;
-	kzfree(drbg->Vbuf);
+	kfree_sensitive(drbg->Vbuf);
 	drbg->Vbuf = NULL;
 	drbg->V = NULL;
-	kzfree(drbg->Cbuf);
+	kfree_sensitive(drbg->Cbuf);
 	drbg->Cbuf = NULL;
 	drbg->C = NULL;
-	kzfree(drbg->scratchpadbuf);
+	kfree_sensitive(drbg->scratchpadbuf);
 	drbg->scratchpadbuf = NULL;
 	drbg->reseed_ctr = 0;
 	drbg->d_ops = NULL;
 	drbg->core = NULL;
 	if (IS_ENABLED(CONFIG_CRYPTO_FIPS)) {
-		kzfree(drbg->prev);
+		kfree_sensitive(drbg->prev);
 		drbg->prev = NULL;
 		drbg->fips_primed = false;
 	}
@@ -1631,9 +1631,11 @@ static int drbg_uninstantiate(struct drbg_state *drbg)
 	if (drbg->random_ready.func) {
 		del_random_ready_callback(&drbg->random_ready);
 		cancel_work_sync(&drbg->seed_work);
-		crypto_free_rng(drbg->jent);
-		drbg->jent = NULL;
 	}
+
+	if (!IS_ERR_OR_NULL(drbg->jent))
+		crypto_free_rng(drbg->jent);
+	drbg->jent = NULL;
 
 	if (drbg->d_ops)
 		drbg->d_ops->crypto_fini(drbg);
@@ -1699,7 +1701,7 @@ static int drbg_fini_hash_kernel(struct drbg_state *drbg)
 	struct sdesc *sdesc = (struct sdesc *)drbg->priv_data;
 	if (sdesc) {
 		crypto_free_shash(sdesc->shash.tfm);
-		kzfree(sdesc);
+		kfree_sensitive(sdesc);
 	}
 	drbg->priv_data = NULL;
 	return 0;

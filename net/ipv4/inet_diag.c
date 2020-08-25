@@ -52,6 +52,11 @@ static DEFINE_MUTEX(inet_diag_table_mutex);
 
 static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 {
+	if (proto < 0 || proto >= IPPROTO_MAX) {
+		mutex_lock(&inet_diag_table_mutex);
+		return ERR_PTR(-ENOENT);
+	}
+
 	if (!inet_diag_table[proto])
 		sock_load_diag_module(AF_INET, proto);
 
@@ -181,6 +186,28 @@ errout:
 }
 EXPORT_SYMBOL_GPL(inet_diag_msg_attrs_fill);
 
+static void inet_diag_parse_attrs(const struct nlmsghdr *nlh, int hdrlen,
+				  struct nlattr **req_nlas)
+{
+	struct nlattr *nla;
+	int remaining;
+
+	nlmsg_for_each_attr(nla, nlh, hdrlen, remaining) {
+		int type = nla_type(nla);
+
+		if (type < __INET_DIAG_REQ_MAX)
+			req_nlas[type] = nla;
+	}
+}
+
+static int inet_diag_get_protocol(const struct inet_diag_req_v2 *req,
+				  const struct inet_diag_dump_data *data)
+{
+	if (data->req_nlas[INET_DIAG_REQ_PROTOCOL])
+		return nla_get_u32(data->req_nlas[INET_DIAG_REQ_PROTOCOL]);
+	return req->sdiag_protocol;
+}
+
 #define MAX_DUMP_ALLOC_SIZE (KMALLOC_MAX_SIZE - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
@@ -198,7 +225,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	void *info = NULL;
 
 	cb_data = cb->data;
-	handler = inet_diag_table[req->sdiag_protocol];
+	handler = inet_diag_table[inet_diag_get_protocol(req, cb_data)];
 	BUG_ON(!handler);
 
 	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
@@ -539,20 +566,25 @@ EXPORT_SYMBOL_GPL(inet_diag_dump_one_icsk);
 
 static int inet_diag_cmd_exact(int cmd, struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh,
+			       int hdrlen,
 			       const struct inet_diag_req_v2 *req)
 {
 	const struct inet_diag_handler *handler;
-	int err;
+	struct inet_diag_dump_data dump_data;
+	int err, protocol;
 
-	handler = inet_diag_lock_handler(req->sdiag_protocol);
+	memset(&dump_data, 0, sizeof(dump_data));
+	inet_diag_parse_attrs(nlh, hdrlen, dump_data.req_nlas);
+	protocol = inet_diag_get_protocol(req, &dump_data);
+
+	handler = inet_diag_lock_handler(protocol);
 	if (IS_ERR(handler)) {
 		err = PTR_ERR(handler);
 	} else if (cmd == SOCK_DIAG_BY_FAMILY) {
-		struct inet_diag_dump_data empty_dump_data = {};
 		struct netlink_callback cb = {
 			.nlh = nlh,
 			.skb = in_skb,
-			.data = &empty_dump_data,
+			.data = &dump_data,
 		};
 		err = handler->dump_one(&cb, req);
 	} else if (cmd == SOCK_DESTROY && handler->destroy) {
@@ -1103,13 +1135,16 @@ EXPORT_SYMBOL_GPL(inet_diag_dump_icsk);
 static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    const struct inet_diag_req_v2 *r)
 {
+	struct inet_diag_dump_data *cb_data = cb->data;
 	const struct inet_diag_handler *handler;
 	u32 prev_min_dump_alloc;
-	int err = 0;
+	int protocol, err = 0;
+
+	protocol = inet_diag_get_protocol(r, cb_data);
 
 again:
 	prev_min_dump_alloc = cb->min_dump_alloc;
-	handler = inet_diag_lock_handler(r->sdiag_protocol);
+	handler = inet_diag_lock_handler(protocol);
 	if (!IS_ERR(handler))
 		handler->dump(skb, cb, r);
 	else
@@ -1139,19 +1174,13 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 	struct inet_diag_dump_data *cb_data;
 	struct sk_buff *skb = cb->skb;
 	struct nlattr *nla;
-	int rem, err;
+	int err;
 
 	cb_data = kzalloc(sizeof(*cb_data), GFP_KERNEL);
 	if (!cb_data)
 		return -ENOMEM;
 
-	nla_for_each_attr(nla, nlmsg_attrdata(nlh, hdrlen),
-			  nlmsg_attrlen(nlh, hdrlen), rem) {
-		int type = nla_type(nla);
-
-		if (type < __INET_DIAG_REQ_MAX)
-			cb_data->req_nlas[type] = nla;
-	}
+	inet_diag_parse_attrs(nlh, hdrlen, cb_data->req_nlas);
 
 	nla = cb_data->inet_diag_nla_bc;
 	if (nla) {
@@ -1237,7 +1266,8 @@ static int inet_diag_get_exact_compat(struct sk_buff *in_skb,
 	req.idiag_states = rc->idiag_states;
 	req.id = rc->id;
 
-	return inet_diag_cmd_exact(SOCK_DIAG_BY_FAMILY, in_skb, nlh, &req);
+	return inet_diag_cmd_exact(SOCK_DIAG_BY_FAMILY, in_skb, nlh,
+				   sizeof(struct inet_diag_req), &req);
 }
 
 static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
@@ -1279,7 +1309,8 @@ static int inet_diag_handler_cmd(struct sk_buff *skb, struct nlmsghdr *h)
 		return netlink_dump_start(net->diag_nlsk, skb, h, &c);
 	}
 
-	return inet_diag_cmd_exact(h->nlmsg_type, skb, h, nlmsg_data(h));
+	return inet_diag_cmd_exact(h->nlmsg_type, skb, h, hdrlen,
+				   nlmsg_data(h));
 }
 
 static

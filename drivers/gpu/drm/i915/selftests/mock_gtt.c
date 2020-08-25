@@ -38,7 +38,8 @@ static void mock_insert_entries(struct i915_address_space *vm,
 {
 }
 
-static int mock_bind_ppgtt(struct i915_vma *vma,
+static int mock_bind_ppgtt(struct i915_address_space *vm,
+			   struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
 			   u32 flags)
 {
@@ -47,7 +48,8 @@ static int mock_bind_ppgtt(struct i915_vma *vma,
 	return 0;
 }
 
-static void mock_unbind_ppgtt(struct i915_vma *vma)
+static void mock_unbind_ppgtt(struct i915_address_space *vm,
+			      struct i915_vma *vma)
 {
 }
 
@@ -88,7 +90,8 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 	return ppgtt;
 }
 
-static int mock_bind_ggtt(struct i915_vma *vma,
+static int mock_bind_ggtt(struct i915_address_space *vm,
+			  struct i915_vma *vma,
 			  enum i915_cache_level cache_level,
 			  u32 flags)
 {
@@ -96,7 +99,8 @@ static int mock_bind_ggtt(struct i915_vma *vma,
 	return 0;
 }
 
-static void mock_unbind_ggtt(struct i915_vma *vma)
+static void mock_unbind_ggtt(struct i915_address_space *vm,
+			     struct i915_vma *vma)
 {
 }
 

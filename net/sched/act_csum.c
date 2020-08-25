@@ -587,7 +587,7 @@ static int tcf_csum_act(struct sk_buff *skb, const struct tc_action *a,
 		goto drop;
 
 	update_flags = params->update_flags;
-	protocol = tc_skb_protocol(skb);
+	protocol = skb_protocol(skb, false);
 again:
 	switch (protocol) {
 	case cpu_to_be16(ETH_P_IP):
@@ -598,7 +598,8 @@ again:
 		if (!tcf_csum_ipv6(skb, update_flags))
 			goto drop;
 		break;
-	case cpu_to_be16(ETH_P_8021AD): /* fall through */
+	case cpu_to_be16(ETH_P_8021AD):
+		fallthrough;
 	case cpu_to_be16(ETH_P_8021Q):
 		if (skb_vlan_tag_present(skb) && !orig_vlan_tag_present) {
 			protocol = skb->protocol;

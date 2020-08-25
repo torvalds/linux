@@ -29,7 +29,6 @@
 #define cpu_has_octeon_cache	1
 #define cpu_has_4k_cache	0
 #else
-#define cpu_has_octeon_cache	0
 #define cpu_has_4k_cache	1
 #endif
 

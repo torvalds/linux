@@ -103,12 +103,12 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	kfree(buf_to_free->serverOS);
 	kfree(buf_to_free->serverDomain);
 	kfree(buf_to_free->serverNOS);
-	kzfree(buf_to_free->password);
+	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
-	kzfree(buf_to_free->auth_key.response);
+	kfree_sensitive(buf_to_free->auth_key.response);
 	kfree(buf_to_free->iface_list);
-	kzfree(buf_to_free);
+	kfree_sensitive(buf_to_free);
 }
 
 struct cifs_tcon *
@@ -148,7 +148,7 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	}
 	atomic_dec(&tconInfoAllocCount);
 	kfree(buf_to_free->nativeFileSystem);
-	kzfree(buf_to_free->password);
+	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->crfid.fid);
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	kfree(buf_to_free->dfs_path);
@@ -844,28 +844,26 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	struct bio_vec *bv = NULL;
 
 	if (iov_iter_is_kvec(iter)) {
-		memcpy(&ctx->iter, iter, sizeof(struct iov_iter));
+		memcpy(&ctx->iter, iter, sizeof(*iter));
 		ctx->len = count;
 		iov_iter_advance(iter, count);
 		return 0;
 	}
 
-	if (max_pages * sizeof(struct bio_vec) <= CIFS_AIO_KMALLOC_LIMIT)
-		bv = kmalloc_array(max_pages, sizeof(struct bio_vec),
-				   GFP_KERNEL);
+	if (array_size(max_pages, sizeof(*bv)) <= CIFS_AIO_KMALLOC_LIMIT)
+		bv = kmalloc_array(max_pages, sizeof(*bv), GFP_KERNEL);
 
 	if (!bv) {
-		bv = vmalloc(array_size(max_pages, sizeof(struct bio_vec)));
+		bv = vmalloc(array_size(max_pages, sizeof(*bv)));
 		if (!bv)
 			return -ENOMEM;
 	}
 
-	if (max_pages * sizeof(struct page *) <= CIFS_AIO_KMALLOC_LIMIT)
-		pages = kmalloc_array(max_pages, sizeof(struct page *),
-				      GFP_KERNEL);
+	if (array_size(max_pages, sizeof(*pages)) <= CIFS_AIO_KMALLOC_LIMIT)
+		pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
 
 	if (!pages) {
-		pages = vmalloc(array_size(max_pages, sizeof(struct page *)));
+		pages = vmalloc(array_size(max_pages, sizeof(*pages)));
 		if (!pages) {
 			kvfree(bv);
 			return -ENOMEM;
@@ -1166,8 +1164,7 @@ static inline void cifs_put_tcon_super(struct super_block *sb)
 }
 #endif
 
-int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
-			 size_t prefix_len)
+int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
 {
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
@@ -1181,8 +1178,8 @@ int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
 
 	kfree(cifs_sb->prepath);
 
-	if (*prefix && prefix_len) {
-		cifs_sb->prepath = kstrndup(prefix, prefix_len, GFP_ATOMIC);
+	if (prefix && *prefix) {
+		cifs_sb->prepath = kstrndup(prefix, strlen(prefix), GFP_ATOMIC);
 		if (!cifs_sb->prepath) {
 			rc = -ENOMEM;
 			goto out;

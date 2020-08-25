@@ -20,12 +20,17 @@ enum mcu_msg_type {
 	MCU_MSG_TYPE_PUSH_BUFFER_REFERENCE = 0x000f,
 };
 
+enum mcu_msg_version {
+	MCU_MSG_VERSION_2018_2,
+	MCU_MSG_VERSION_2019_2,
+};
+
 const char *msg_type_name(enum mcu_msg_type type);
 
 struct mcu_msg_header {
-	u16 length;		/* length of the body in bytes */
-	u16 type;
-} __attribute__ ((__packed__));
+	enum mcu_msg_type type;
+	enum mcu_msg_version version;
+};
 
 struct mcu_msg_init_request {
 	struct mcu_msg_header header;
@@ -33,48 +38,40 @@ struct mcu_msg_init_request {
 	u32 suballoc_dma;
 	u32 suballoc_size;
 	s32 l2_cache[3];
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_init_response {
 	struct mcu_msg_header header;
 	u32 reserved0;
-} __attribute__ ((__packed__));
+};
 
 struct create_channel_param {
+	enum mcu_msg_version version;
+	u32 layer_id;
 	u16 width;
 	u16 height;
+	u32 videomode;
 	u32 format;
 	u32 colorspace;
 	u32 src_mode;
+	u32 src_bit_depth;
 	u8 profile;
 	u16 constraint_set_flags;
-	s8 codec;
+	u32 codec;
 	u16 level;
 	u16 tier;
-	u32 sps_param;
-	u32 pps_param;
-
-	u32 enc_option;
-#define AL_OPT_WPP			BIT(0)
-#define AL_OPT_TILE			BIT(1)
-#define AL_OPT_LF			BIT(2)
-#define AL_OPT_LF_X_SLICE		BIT(3)
-#define AL_OPT_LF_X_TILE		BIT(4)
-#define AL_OPT_SCL_LST			BIT(5)
-#define AL_OPT_CONST_INTRA_PRED		BIT(6)
-#define AL_OPT_QP_TAB_RELATIVE		BIT(7)
-#define AL_OPT_FIX_PREDICTOR		BIT(8)
-#define AL_OPT_CUSTOM_LDA		BIT(9)
-#define AL_OPT_ENABLE_AUTO_QP		BIT(10)
-#define AL_OPT_ADAPT_AUTO_QP		BIT(11)
-#define AL_OPT_TRANSFO_SKIP		BIT(13)
-#define AL_OPT_FORCE_REC		BIT(15)
-#define AL_OPT_FORCE_MV_OUT		BIT(16)
-#define AL_OPT_FORCE_MV_CLIP		BIT(17)
-#define AL_OPT_LOWLAT_SYNC		BIT(18)
-#define AL_OPT_LOWLAT_INT		BIT(19)
-#define AL_OPT_RDO_COST_MODE		BIT(20)
-
+	u32 log2_max_poc;
+	u32 log2_max_frame_num;
+	u32 temporal_mvp_enable;
+	u32 enable_reordering;
+	u32 dbf_ovr_en;
+	u32 num_ref_idx_l0;
+	u32 num_ref_idx_l1;
+	u32 custom_lda;
+	u32 rdo_cost_mode;
+	u32 lf;
+	u32 lf_x_tile;
+	u32 lf_x_slice;
 	s8 beta_offset;
 	s8 tc_offset;
 	u16 reserved10;
@@ -114,6 +111,10 @@ struct create_channel_param {
 	u16 golden_delta;
 	u16 golden_ref_frequency;
 	u32 rate_control_option;
+	u32 num_pixel;
+	u16 max_psnr;
+	u16 max_pixel_value;
+	u32 maxpicturesize[3];
 
 	/* gop param */
 	u32 gop_ctrl_mode;
@@ -123,17 +124,26 @@ struct create_channel_param {
 	u16 gop_length;
 	u8 num_b;
 	u8 freq_golden_ref;
+	u32 enable_lt;
+	u32 tmpdqp;
 
 	u32 subframe_latency;
 	u32 lda_control_mode;
 	u32 unknown41;
-} __attribute__ ((__packed__));
+
+	u32 lda_factors[6];
+
+	u32 max_num_merge_cand;
+};
 
 struct mcu_msg_create_channel {
 	struct mcu_msg_header header;
 	u32 user_id;
-	struct create_channel_param param;
-} __attribute__ ((__packed__));
+	u32 *blob;
+	size_t blob_size;
+	u32 blob_mcu_addr;
+	u32 ep1_addr;
+};
 
 struct mcu_msg_create_channel_response {
 	struct mcu_msg_header header;
@@ -141,36 +151,38 @@ struct mcu_msg_create_channel_response {
 	u32 user_id;
 	u32 options;
 	u32 num_core;
-	u32 pps_param;
+	u32 num_ref_idx_l0;
+	u32 num_ref_idx_l1;
 	u32 int_buffers_count;
 	u32 int_buffers_size;
 	u32 rec_buffers_count;
 	u32 rec_buffers_size;
 	u32 reserved;
 	u32 error_code;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_destroy_channel {
 	struct mcu_msg_header header;
 	u32 channel_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_destroy_channel_response {
 	struct mcu_msg_header header;
 	u32 channel_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_push_buffers_internal_buffer {
 	u32 dma_addr;
 	u32 mcu_addr;
 	u32 size;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_push_buffers_internal {
 	struct mcu_msg_header header;
 	u32 channel_id;
+	size_t num_buffers;
 	struct mcu_msg_push_buffers_internal_buffer buffer[];
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_put_stream_buffer {
 	struct mcu_msg_header header;
@@ -180,7 +192,7 @@ struct mcu_msg_put_stream_buffer {
 	u32 size;
 	u32 offset;
 	u64 stream_id;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_encode_frame {
 	struct mcu_msg_header header;
@@ -208,12 +220,15 @@ struct mcu_msg_encode_frame {
 	/* u32 scene_change_delay (optional) */
 	/* rate control param (optional) */
 	/* gop param (optional) */
+	/* dynamic resolution params (optional) */
 	u32 src_y;
 	u32 src_uv;
+	u32 is_10_bit;
 	u32 stride;
+	u32 format;
 	u32 ep2;
 	u64 ep2_v;
-} __attribute__ ((__packed__));
+};
 
 struct mcu_msg_encode_frame_response {
 	struct mcu_msg_header header;
@@ -254,7 +269,11 @@ struct mcu_msg_encode_frame_response {
 	u16 pps_qp;
 	u16 reserved1;
 	u32 reserved2;
-} __attribute__ ((__packed__));
+	u32 reserved3;
+	u32 reserved4;
+	u32 reserved5;
+	u32 reserved6;
+};
 
 union mcu_msg_response {
 	struct mcu_msg_header header;
@@ -263,5 +282,13 @@ union mcu_msg_response {
 	struct mcu_msg_destroy_channel_response destroy_channel;
 	struct mcu_msg_encode_frame_response encode_frame;
 };
+
+ssize_t allegro_encode_config_blob(u32 *dst, struct create_channel_param *param);
+ssize_t allegro_decode_config_blob(struct create_channel_param *param,
+				   struct mcu_msg_create_channel_response *msg,
+				   u32 *src);
+
+int allegro_decode_mail(void *msg, u32 *src);
+ssize_t allegro_encode_mail(u32 *dst, void *msg);
 
 #endif

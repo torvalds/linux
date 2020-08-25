@@ -86,6 +86,7 @@ MODULE_PARM_DESC(polling_limit_us,
  * @clk: core clock, divided to calculate serial clock
  * @irq: interrupt, signals TX FIFO empty or RX FIFO ¾ full
  * @tfr: SPI transfer currently processed
+ * @ctlr: SPI controller reverse lookup
  * @tx_buf: pointer whence next transmitted byte is read
  * @rx_buf: pointer where next received byte is written
  * @tx_len: remaining bytes to transmit
@@ -125,6 +126,7 @@ struct bcm2835_spi {
 	struct clk *clk;
 	int irq;
 	struct spi_transfer *tfr;
+	struct spi_controller *ctlr;
 	const u8 *tx_buf;
 	u8 *rx_buf;
 	int tx_len;
@@ -243,13 +245,13 @@ static inline void bcm2835_rd_fifo_count(struct bcm2835_spi *bs, int count)
 
 	bs->rx_len -= count;
 
-	while (count > 0) {
+	do {
 		val = bcm2835_rd(bs, BCM2835_SPI_FIFO);
 		len = min(count, 4);
 		memcpy(bs->rx_buf, &val, len);
 		bs->rx_buf += len;
 		count -= 4;
-	}
+	} while (count > 0);
 }
 
 /**
@@ -269,7 +271,7 @@ static inline void bcm2835_wr_fifo_count(struct bcm2835_spi *bs, int count)
 
 	bs->tx_len -= count;
 
-	while (count > 0) {
+	do {
 		if (bs->tx_buf) {
 			len = min(count, 4);
 			memcpy(&val, bs->tx_buf, len);
@@ -279,7 +281,7 @@ static inline void bcm2835_wr_fifo_count(struct bcm2835_spi *bs, int count)
 		}
 		bcm2835_wr(bs, BCM2835_SPI_FIFO, val);
 		count -= 4;
-	}
+	} while (count > 0);
 }
 
 /**
@@ -308,12 +310,11 @@ static inline void bcm2835_rd_fifo_blind(struct bcm2835_spi *bs, int count)
 	count = min(count, bs->rx_len);
 	bs->rx_len -= count;
 
-	while (count) {
+	do {
 		val = bcm2835_rd(bs, BCM2835_SPI_FIFO);
 		if (bs->rx_buf)
 			*bs->rx_buf++ = val;
-		count--;
-	}
+	} while (--count);
 }
 
 /**
@@ -328,16 +329,14 @@ static inline void bcm2835_wr_fifo_blind(struct bcm2835_spi *bs, int count)
 	count = min(count, bs->tx_len);
 	bs->tx_len -= count;
 
-	while (count) {
+	do {
 		val = bs->tx_buf ? *bs->tx_buf++ : 0;
 		bcm2835_wr(bs, BCM2835_SPI_FIFO, val);
-		count--;
-	}
+	} while (--count);
 }
 
-static void bcm2835_spi_reset_hw(struct spi_controller *ctlr)
+static void bcm2835_spi_reset_hw(struct bcm2835_spi *bs)
 {
-	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
 
 	/* Disable SPI interrupts and transfer */
@@ -363,8 +362,7 @@ static void bcm2835_spi_reset_hw(struct spi_controller *ctlr)
 
 static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 {
-	struct spi_controller *ctlr = dev_id;
-	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
+	struct bcm2835_spi *bs = dev_id;
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
 
 	/*
@@ -386,9 +384,9 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 
 	if (!bs->rx_len) {
 		/* Transfer complete - reset SPI HW */
-		bcm2835_spi_reset_hw(ctlr);
+		bcm2835_spi_reset_hw(bs);
 		/* wake up the framework */
-		complete(&ctlr->xfer_completion);
+		complete(&bs->ctlr->xfer_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -607,7 +605,7 @@ static void bcm2835_spi_dma_rx_done(void *data)
 	bcm2835_spi_undo_prologue(bs);
 
 	/* reset fifo and HW */
-	bcm2835_spi_reset_hw(ctlr);
+	bcm2835_spi_reset_hw(bs);
 
 	/* and mark as completed */;
 	complete(&ctlr->xfer_completion);
@@ -641,7 +639,7 @@ static void bcm2835_spi_dma_tx_done(void *data)
 		dmaengine_terminate_async(ctlr->dma_rx);
 
 	bcm2835_spi_undo_prologue(bs);
-	bcm2835_spi_reset_hw(ctlr);
+	bcm2835_spi_reset_hw(bs);
 	complete(&ctlr->xfer_completion);
 }
 
@@ -825,14 +823,14 @@ static int bcm2835_spi_transfer_one_dma(struct spi_controller *ctlr,
 	if (!bs->rx_buf && !bs->tx_dma_active &&
 	    cmpxchg(&bs->rx_dma_active, true, false)) {
 		dmaengine_terminate_async(ctlr->dma_rx);
-		bcm2835_spi_reset_hw(ctlr);
+		bcm2835_spi_reset_hw(bs);
 	}
 
 	/* wait for wakeup in framework */
 	return 1;
 
 err_reset_hw:
-	bcm2835_spi_reset_hw(ctlr);
+	bcm2835_spi_reset_hw(bs);
 	bcm2835_spi_undo_prologue(bs);
 	return ret;
 }
@@ -1074,7 +1072,7 @@ static int bcm2835_spi_transfer_one_poll(struct spi_controller *ctlr,
 	}
 
 	/* Transfer complete - reset SPI HW */
-	bcm2835_spi_reset_hw(ctlr);
+	bcm2835_spi_reset_hw(bs);
 	/* and return without waiting for completion */
 	return 0;
 }
@@ -1084,7 +1082,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 				    struct spi_transfer *tfr)
 {
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
-	unsigned long spi_hz, clk_hz, cdiv, spi_used_hz;
+	unsigned long spi_hz, clk_hz, cdiv;
 	unsigned long hz_per_byte, byte_limit;
 	u32 cs = bs->prepare_cs[spi->chip_select];
 
@@ -1104,7 +1102,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 	} else {
 		cdiv = 0; /* 0 is the slowest we can go */
 	}
-	spi_used_hz = cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
+	tfr->effective_speed_hz = cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
 	bcm2835_wr(bs, BCM2835_SPI_CLK, cdiv);
 
 	/* handle all the 3-wire mode */
@@ -1124,7 +1122,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 	 * per 300,000 Hz of bus clock.
 	 */
 	hz_per_byte = polling_limit_us ? (9 * 1000000) / polling_limit_us : 0;
-	byte_limit = hz_per_byte ? spi_used_hz / hz_per_byte : 1;
+	byte_limit = hz_per_byte ? tfr->effective_speed_hz / hz_per_byte : 1;
 
 	/* run in polling mode for short transfers */
 	if (tfr->len < byte_limit)
@@ -1182,7 +1180,7 @@ static void bcm2835_spi_handle_err(struct spi_controller *ctlr,
 	bcm2835_spi_undo_prologue(bs);
 
 	/* and reset */
-	bcm2835_spi_reset_hw(ctlr);
+	bcm2835_spi_reset_hw(bs);
 }
 
 static int chip_match_name(struct gpio_chip *chip, void *data)
@@ -1311,6 +1309,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	bs = spi_controller_get_devdata(ctlr);
+	bs->ctlr = ctlr;
 
 	bs->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bs->regs)) {
@@ -1345,7 +1344,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
-			       dev_name(&pdev->dev), ctlr);
+			       dev_name(&pdev->dev), bs);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_dma_release;

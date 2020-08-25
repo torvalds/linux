@@ -7,16 +7,6 @@
 #include <soc/mscc/ocelot.h>
 #include "ocelot_police.h"
 
-enum mscc_qos_rate_mode {
-	MSCC_QOS_RATE_MODE_DISABLED, /* Policer/shaper disabled */
-	MSCC_QOS_RATE_MODE_LINE, /* Measure line rate in kbps incl. IPG */
-	MSCC_QOS_RATE_MODE_DATA, /* Measures data rate in kbps excl. IPG */
-	MSCC_QOS_RATE_MODE_FRAME, /* Measures frame rate in fps */
-	__MSCC_QOS_RATE_MODE_END,
-	NUM_MSCC_QOS_RATE_MODE = __MSCC_QOS_RATE_MODE_END,
-	MSCC_QOS_RATE_MODE_MAX = __MSCC_QOS_RATE_MODE_END - 1,
-};
-
 /* Types for ANA:POL[0-192]:POL_MODE_CFG.FRM_MODE */
 #define POL_MODE_LINERATE   0 /* Incl IPG. Unit: 33 1/3 kbps, 4096 bytes */
 #define POL_MODE_DATARATE   1 /* Excl IPG. Unit: 33 1/3 kbps, 4096 bytes  */
@@ -30,19 +20,8 @@ enum mscc_qos_rate_mode {
 /* Default policer order */
 #define POL_ORDER 0x1d3 /* Ocelot policer order: Serial (QoS -> Port -> VCAP) */
 
-struct qos_policer_conf {
-	enum mscc_qos_rate_mode mode;
-	bool dlb; /* Enable DLB (dual leaky bucket mode */
-	bool cf;  /* Coupling flag (ignored in SLB mode) */
-	u32  cir; /* CIR in kbps/fps (ignored in SLB mode) */
-	u32  cbs; /* CBS in bytes/frames (ignored in SLB mode) */
-	u32  pir; /* PIR in kbps/fps */
-	u32  pbs; /* PBS in bytes/frames */
-	u8   ipg; /* Size of IPG when MSCC_QOS_RATE_MODE_LINE is chosen */
-};
-
-static int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
-				struct qos_policer_conf *conf)
+int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
+			 struct qos_policer_conf *conf)
 {
 	u32 cf = 0, cir_ena = 0, frm_mode = POL_MODE_LINERATE;
 	u32 cir = 0, cbs = 0, pir = 0, pbs = 0;
@@ -228,27 +207,3 @@ int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_port_policer_del);
-
-int ocelot_ace_policer_add(struct ocelot *ocelot, u32 pol_ix,
-			   struct ocelot_policer *pol)
-{
-	struct qos_policer_conf pp = { 0 };
-
-	if (!pol)
-		return -EINVAL;
-
-	pp.mode = MSCC_QOS_RATE_MODE_DATA;
-	pp.pir = pol->rate;
-	pp.pbs = pol->burst;
-
-	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
-}
-
-int ocelot_ace_policer_del(struct ocelot *ocelot, u32 pol_ix)
-{
-	struct qos_policer_conf pp = { 0 };
-
-	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-
-	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
-}

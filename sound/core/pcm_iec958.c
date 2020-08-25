@@ -103,7 +103,7 @@ EXPORT_SYMBOL(snd_pcm_create_iec958_consumer);
 
 /**
  * snd_pcm_create_iec958_consumer_hw_params - create IEC958 channel status
- * @hw_params: the hw_params instance for extracting rate and sample format
+ * @params: the hw_params instance for extracting rate and sample format
  * @cs: channel status buffer, at least four bytes
  * @len: length of channel status buffer
  *

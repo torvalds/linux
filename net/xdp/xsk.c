@@ -123,7 +123,7 @@ static int __xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 	addr = xp_get_handle(xskb);
 	err = xskq_prod_reserve_desc(xs->rx, addr, len);
 	if (err) {
-		xs->rx_dropped++;
+		xs->rx_queue_full++;
 		return err;
 	}
 
@@ -274,8 +274,10 @@ bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
-		if (!xskq_cons_peek_desc(xs->tx, desc, umem))
+		if (!xskq_cons_peek_desc(xs->tx, desc, umem)) {
+			xs->tx->queue_empty_descs++;
 			continue;
+		}
 
 		/* This is the backpressure mechanism for the Tx path.
 		 * Reserve space in the completion queue and only proceed
@@ -386,6 +388,8 @@ static int xsk_generic_xmit(struct sock *sk)
 
 		sent_frame = true;
 	}
+
+	xs->tx->queue_empty_descs++;
 
 out:
 	if (sent_frame)
@@ -698,7 +702,7 @@ struct xdp_umem_reg_v1 {
 };
 
 static int xsk_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
@@ -716,7 +720,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 
 		if (optlen < sizeof(entries))
 			return -EINVAL;
-		if (copy_from_user(&entries, optval, sizeof(entries)))
+		if (copy_from_sockptr(&entries, optval, sizeof(entries)))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
@@ -743,7 +747,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		else if (optlen < sizeof(mr))
 			mr_size = sizeof(struct xdp_umem_reg_v1);
 
-		if (copy_from_user(&mr, optval, mr_size))
+		if (copy_from_sockptr(&mr, optval, mr_size))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
@@ -770,7 +774,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		struct xsk_queue **q;
 		int entries;
 
-		if (copy_from_user(&entries, optval, sizeof(entries)))
+		if (copy_from_sockptr(&entries, optval, sizeof(entries)))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
@@ -812,6 +816,12 @@ static void xsk_enter_umem_offsets(struct xdp_ring_offset_v1 *ring)
 	ring->desc = offsetof(struct xdp_umem_ring, desc);
 }
 
+struct xdp_statistics_v1 {
+	__u64 rx_dropped;
+	__u64 rx_invalid_descs;
+	__u64 tx_invalid_descs;
+};
+
 static int xsk_getsockopt(struct socket *sock, int level, int optname,
 			  char __user *optval, int __user *optlen)
 {
@@ -830,20 +840,36 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 	switch (optname) {
 	case XDP_STATISTICS:
 	{
-		struct xdp_statistics stats;
+		struct xdp_statistics stats = {};
+		bool extra_stats = true;
+		size_t stats_size;
 
-		if (len < sizeof(stats))
+		if (len < sizeof(struct xdp_statistics_v1)) {
 			return -EINVAL;
+		} else if (len < sizeof(stats)) {
+			extra_stats = false;
+			stats_size = sizeof(struct xdp_statistics_v1);
+		} else {
+			stats_size = sizeof(stats);
+		}
 
 		mutex_lock(&xs->mutex);
 		stats.rx_dropped = xs->rx_dropped;
+		if (extra_stats) {
+			stats.rx_ring_full = xs->rx_queue_full;
+			stats.rx_fill_ring_empty_descs =
+				xs->umem ? xskq_nb_queue_empty_descs(xs->umem->fq) : 0;
+			stats.tx_ring_empty_descs = xskq_nb_queue_empty_descs(xs->tx);
+		} else {
+			stats.rx_dropped += xs->rx_queue_full;
+		}
 		stats.rx_invalid_descs = xskq_nb_invalid_descs(xs->rx);
 		stats.tx_invalid_descs = xskq_nb_invalid_descs(xs->tx);
 		mutex_unlock(&xs->mutex);
 
-		if (copy_to_user(optval, &stats, sizeof(stats)))
+		if (copy_to_user(optval, &stats, stats_size))
 			return -EFAULT;
-		if (put_user(sizeof(stats), optlen))
+		if (put_user(stats_size, optlen))
 			return -EFAULT;
 
 		return 0;

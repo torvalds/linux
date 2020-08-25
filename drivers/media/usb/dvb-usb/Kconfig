@@ -151,6 +151,7 @@ config DVB_USB_CXUSB
 config DVB_USB_CXUSB_ANALOG
 	bool "Analog support for the Conexant USB2.0 hybrid reference design"
 	depends on DVB_USB_CXUSB && VIDEO_V4L2
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_USB_CXUSB
 	select VIDEO_CX25840
 	select VIDEOBUF2_VMALLOC
 	help

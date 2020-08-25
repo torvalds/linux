@@ -127,8 +127,14 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 	case ICE_VSI_PF:
 	case ICE_VSI_CTRL:
 	case ICE_VSI_LB:
-		vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
-		vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
+		/* a user could change the values of num_[tr]x_desc using
+		 * ethtool -G so we should keep those values instead of
+		 * overwriting them with the defaults.
+		 */
+		if (!vsi->num_rx_desc)
+			vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
+		if (!vsi->num_tx_desc)
+			vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
 		break;
 	default:
 		dev_dbg(ice_pf_to_dev(vsi->back), "Not setting number of Tx/Rx descriptors for VSI type %d\n",
@@ -1194,7 +1200,7 @@ static void ice_vsi_clear_rings(struct ice_vsi *vsi)
 		for (i = 0; i < vsi->alloc_txq; i++) {
 			if (vsi->tx_rings[i]) {
 				kfree_rcu(vsi->tx_rings[i], rcu);
-				vsi->tx_rings[i] = NULL;
+				WRITE_ONCE(vsi->tx_rings[i], NULL);
 			}
 		}
 	}
@@ -1202,7 +1208,7 @@ static void ice_vsi_clear_rings(struct ice_vsi *vsi)
 		for (i = 0; i < vsi->alloc_rxq; i++) {
 			if (vsi->rx_rings[i]) {
 				kfree_rcu(vsi->rx_rings[i], rcu);
-				vsi->rx_rings[i] = NULL;
+				WRITE_ONCE(vsi->rx_rings[i], NULL);
 			}
 		}
 	}
@@ -1235,7 +1241,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->vsi = vsi;
 		ring->dev = dev;
 		ring->count = vsi->num_tx_desc;
-		vsi->tx_rings[i] = ring;
+		WRITE_ONCE(vsi->tx_rings[i], ring);
 	}
 
 	/* Allocate Rx rings */
@@ -1254,7 +1260,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->netdev = vsi->netdev;
 		ring->dev = dev;
 		ring->count = vsi->num_rx_desc;
-		vsi->rx_rings[i] = ring;
+		WRITE_ONCE(vsi->rx_rings[i], ring);
 	}
 
 	return 0;
@@ -1468,6 +1474,30 @@ static void ice_vsi_set_rss_flow_fld(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_pf_state_is_nominal - checks the PF for nominal state
+ * @pf: pointer to PF to check
+ *
+ * Check the PF's state for a collection of bits that would indicate
+ * the PF is in a state that would inhibit normal operation for
+ * driver functionality.
+ *
+ * Returns true if PF is in a nominal state, false otherwise
+ */
+bool ice_pf_state_is_nominal(struct ice_pf *pf)
+{
+	DECLARE_BITMAP(check_bits, __ICE_STATE_NBITS) = { 0 };
+
+	if (!pf)
+		return false;
+
+	bitmap_set(check_bits, 0, __ICE_STATE_NOMINAL_CHECK_BITS);
+	if (bitmap_intersects(pf->state, check_bits, __ICE_STATE_NBITS))
+		return false;
+
+	return true;
+}
+
+/**
  * ice_update_eth_stats - Update VSI-specific ethernet statistics counters
  * @vsi: the VSI to be updated
  */
@@ -1667,7 +1697,7 @@ ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings)
 	u16 q_idx = 0;
 	int err = 0;
 
-	qg_buf = kzalloc(sizeof(*qg_buf), GFP_KERNEL);
+	qg_buf = kzalloc(struct_size(qg_buf, txqs, 1), GFP_KERNEL);
 	if (!qg_buf)
 		return -ENOMEM;
 
@@ -1986,6 +2016,13 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc)
 
 	if (!vsi)
 		return -EINVAL;
+
+	/* Don't enable VLAN pruning if the netdev is currently in promiscuous
+	 * mode. VLAN pruning will be enabled when the interface exits
+	 * promiscuous mode if any VLAN filters are active.
+	 */
+	if (vsi->netdev && vsi->netdev->flags & IFF_PROMISC && ena)
+		return 0;
 
 	pf = vsi->back;
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);

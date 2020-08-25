@@ -19,7 +19,11 @@
  * but it is not widely used and to prevent kernel crash rather AES is disabled.
  * There is also no runtime detection code if AES is disabled in L3 firewall...
  */
-&aes {
+&aes1_target {
+	status = "disabled";
+};
+
+&aes2_target {
 	status = "disabled";
 };
 
@@ -103,6 +107,14 @@
 			gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>; /* 89 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_FRONT_PROXIMITY>;
+			linux,can-disable;
+		};
+
+		machine_cover {
+			label = "Machine Cover";
+			gpios = <&gpio6 0 GPIO_ACTIVE_LOW>; /* 160 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_MACHINE_COVER>;
 			linux,can-disable;
 		};
 	};
@@ -819,10 +831,6 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
-	/* For debugging, it is often good idea to remove this GPIO.
-	   It means you can remove back cover (to reboot by removing
-	   battery) and still use the MMC card. */
-	cd-gpios = <&gpio6 0 GPIO_ACTIVE_LOW>; /* 160 */
 };
 
 /* most boards use vaux3, only some old versions use vmmc2 instead */

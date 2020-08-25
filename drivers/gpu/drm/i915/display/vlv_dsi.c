@@ -298,7 +298,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 
 	if (IS_GEN9_LP(dev_priv)) {
 		/* Enable Frame time stamp based scanline reporting */
-		adjusted_mode->private_flags |=
+		pipe_config->mode_flags |=
 			I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
 
 		/* Dual link goes to DSI transcoder A. */
@@ -1097,8 +1097,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
 
 	/* Enable Frame time stamo based scanline reporting */
-	adjusted_mode->private_flags |=
-			I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
+	pipe_config->mode_flags |=
+		I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
 
 	/* In terms of pixels */
 	adjusted_mode->crtc_hdisplay =

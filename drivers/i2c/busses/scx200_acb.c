@@ -151,7 +151,7 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 
 	case state_repeat_start:
 		outb(inb(ACBCTL1) | ACBCTL1_START, ACBCTL1);
-		/* fallthrough */
+		fallthrough;
 
 	case state_quick:
 		if (iface->address_byte & 1) {

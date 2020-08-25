@@ -38,7 +38,7 @@ config PRINTER
 	  box (as opposed to using a serial printer; if the connector at the
 	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
 	  Also read the Printing-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  <https://www.tldp.org/docs.html#howto>.
 
 	  It is possible to share one parallel port among several devices
 	  (e.g. printer and ZIP drive) and it is safe to compile the
@@ -201,7 +201,7 @@ config DTLK
 	depends on ISA
 	help
 	  This driver is for the DoubleTalk PC, a speech synthesizer
-	  manufactured by RC Systems (<http://www.rcsys.com/>).  It is also
+	  manufactured by RC Systems (<https://www.rcsys.com/>).  It is also
 	  called the `internal DoubleTalk'.
 
 	  To compile this driver as a module, choose M here: the
@@ -237,7 +237,7 @@ config APPLICOM
 	  This driver provides the kernel-side support for the intelligent
 	  fieldbus cards made by Applicom International. More information
 	  about these cards can be found on the WWW at the address
-	  <http://www.applicom-int.com/>, or by email from David Woodhouse
+	  <https://www.applicom-int.com/>, or by email from David Woodhouse
 	  <dwmw2@infradead.org>.
 
 	  To compile this driver as a module, choose M here: the

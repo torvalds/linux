@@ -376,7 +376,6 @@ bool force_dma_unencrypted(struct device *dev)
 	return false;
 }
 
-/* Architecture __weak replacement functions */
 void __init mem_encrypt_free_decrypted_mem(void)
 {
 	unsigned long vaddr, vaddr_end, npages;
@@ -401,6 +400,7 @@ void __init mem_encrypt_free_decrypted_mem(void)
 	free_init_pages("unused decrypted", vaddr, vaddr_end);
 }
 
+/* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
 {
 	if (!sme_me_mask)

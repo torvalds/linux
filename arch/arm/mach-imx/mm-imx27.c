@@ -79,8 +79,7 @@ void __init imx27_soc_init(void)
 	mxc_register_gpio("imx21-gpio", 5, MX27_GPIO6_BASE_ADDR, SZ_256, MX27_INT_GPIO, 0);
 
 	pinctrl_provide_dummies();
-	imx_add_imx_dma("imx27-dma", MX27_DMA_BASE_ADDR,
-			MX27_INT_DMACH0, 0); /* No ERR irq */
+	imx_add_imx_dma("imx27-dma", MX27_DMA_BASE_ADDR, MX27_INT_DMACH0);
 	/* imx27 has the imx21 type audmux */
 	platform_device_register_simple("imx21-audmux", 0, imx27_audmux_res,
 					ARRAY_SIZE(imx27_audmux_res));

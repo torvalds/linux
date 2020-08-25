@@ -230,7 +230,7 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		if (rc32434_wdt_set(new_timeout))
 			return -EINVAL;
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return copy_to_user(argp, &timeout, sizeof(int)) ? -EFAULT : 0;
 	default:

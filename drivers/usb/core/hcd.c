@@ -564,7 +564,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_CONFIGURATION:
 		tbuf[0] = 1;
 		len = 1;
-			/* FALLTHROUGH */
+		fallthrough;
 	case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
 		break;
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
@@ -633,7 +633,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_INTERFACE:
 		tbuf[0] = 0;
 		len = 1;
-			/* FALLTHROUGH */
+		fallthrough;
 	case DeviceOutRequest | USB_REQ_SET_INTERFACE:
 		break;
 	case DeviceOutRequest | USB_REQ_SET_ADDRESS:
@@ -651,7 +651,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		tbuf[0] = 0;
 		tbuf[1] = 0;
 		len = 2;
-			/* FALLTHROUGH */
+		fallthrough;
 	case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
 	case EndpointOutRequest | USB_REQ_SET_FEATURE:
 		dev_dbg (hcd->self.controller, "no endpoint features yet\n");
@@ -2726,7 +2726,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	case HCD_USB32:
 		rhdev->rx_lanes = 2;
 		rhdev->tx_lanes = 2;
-		/* fall through */
+		fallthrough;
 	case HCD_USB31:
 		rhdev->speed = USB_SPEED_SUPER_PLUS;
 		break;

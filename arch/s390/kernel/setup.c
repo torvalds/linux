@@ -1021,8 +1021,7 @@ static void __init setup_control_program_code(void)
 {
 	union diag318_info diag318_info = {
 		.cpnc = CPNC_LINUX,
-		.cpvc_linux = 0,
-		.cpvc_distro = {0},
+		.cpvc = 0,
 	};
 
 	if (!sclp.has_diag318)
@@ -1100,6 +1099,7 @@ void __init setup_arch(char **cmdline_p)
 	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
 		nospec_auto_detect();
 
+	jump_label_init();
 	parse_early_param();
 #ifdef CONFIG_CRASH_DUMP
 	/* Deactivate elfcorehdr= kernel parameter */
@@ -1125,14 +1125,6 @@ void __init setup_arch(char **cmdline_p)
 
 	free_mem_detect_info();
 	remove_oldmem();
-
-	/*
-	 * Make sure all chunks are MAX_ORDER aligned so we don't need the
-	 * extra checks that HOLES_IN_ZONE would require.
-	 *
-	 * Is this still required?
-	 */
-	memblock_trim_memory(1UL << (MAX_ORDER - 1 + PAGE_SHIFT));
 
 	if (is_prot_virt_host())
 		setup_uv();

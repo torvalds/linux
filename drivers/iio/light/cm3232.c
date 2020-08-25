@@ -340,7 +340,6 @@ static int cm3232_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	chip->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm3232_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm3232_channels);
 	indio_dev->info = &cm3232_info;

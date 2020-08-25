@@ -898,6 +898,7 @@ static int ax_close(struct net_device *dev)
 /**
  * axnet_tx_timeout - handle transmit time out condition
  * @dev: network device which has apparently fallen asleep
+ * @txqueue: unused
  *
  * Called by kernel when device never acknowledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.

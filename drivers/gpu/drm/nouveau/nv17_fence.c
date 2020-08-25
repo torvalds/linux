@@ -21,14 +21,16 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <nvif/os.h>
-#include <nvif/class.h>
-#include <nvif/cl0002.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
+
+#include <nvif/push006c.h>
+
+#include <nvif/class.h>
+#include <nvif/cl0002.h>
+
+#include <nvhw/class/cl176e.h>
 
 int
 nv17_fence_sync(struct nouveau_fence *fence,
@@ -37,6 +39,8 @@ nv17_fence_sync(struct nouveau_fence *fence,
 	struct nouveau_cli *cli = (void *)prev->user.client;
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx = chan->fence;
+	struct nvif_push *ppush = prev->chan.push;
+	struct nvif_push *npush = chan->chan.push;
 	u32 value;
 	int ret;
 
@@ -48,23 +52,21 @@ nv17_fence_sync(struct nouveau_fence *fence,
 	priv->sequence += 2;
 	spin_unlock(&priv->lock);
 
-	ret = RING_SPACE(prev, 5);
+	ret = PUSH_WAIT(ppush, 5);
 	if (!ret) {
-		BEGIN_NV04(prev, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 4);
-		OUT_RING  (prev, fctx->sema.handle);
-		OUT_RING  (prev, 0);
-		OUT_RING  (prev, value + 0);
-		OUT_RING  (prev, value + 1);
-		FIRE_RING (prev);
+		PUSH_MTHD(ppush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+					 SEMAPHORE_OFFSET, 0,
+					 SEMAPHORE_ACQUIRE, value + 0,
+					 SEMAPHORE_RELEASE, value + 1);
+		PUSH_KICK(ppush);
 	}
 
-	if (!ret && !(ret = RING_SPACE(chan, 5))) {
-		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 4);
-		OUT_RING  (chan, fctx->sema.handle);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, value + 1);
-		OUT_RING  (chan, value + 2);
-		FIRE_RING (chan);
+	if (!ret && !(ret = PUSH_WAIT(npush, 5))) {
+		PUSH_MTHD(npush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+					 SEMAPHORE_OFFSET, 0,
+					 SEMAPHORE_ACQUIRE, value + 1,
+					 SEMAPHORE_RELEASE, value + 2);
+		PUSH_KICK(npush);
 	}
 
 	mutex_unlock(&cli->mutex);
@@ -90,7 +92,8 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nvif_object_init(&chan->user, NvSema, NV_DMA_FROM_MEMORY,
+	ret = nvif_object_ctor(&chan->user, "fenceCtxDma", NvSema,
+			       NV_DMA_FROM_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,

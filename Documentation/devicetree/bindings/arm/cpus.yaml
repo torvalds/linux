@@ -330,8 +330,8 @@ if:
     - enable-method
 
 then:
-   required:
-     - secondary-boot-reg
+  required:
+    - secondary-boot-reg
 
 required:
   - device_type

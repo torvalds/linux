@@ -17,6 +17,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/of_device.h>
 #include <linux/iopoll.h>
+#include <linux/slab.h>
 
 /*
  * HPNFC can work in 3 modes:
@@ -2303,8 +2304,8 @@ static inline u32 calc_tdvw(u32 trp_cnt, u32 clk_period, u32 trhoh_min,
 }
 
 static int
-cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
-				  const struct nand_data_interface *conf)
+cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
+			     const struct nand_interface_config *conf)
 {
 	const struct nand_sdr_timings *sdr;
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
@@ -2690,7 +2691,7 @@ static int cadence_nand_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops cadence_nand_controller_ops = {
 	.attach_chip = cadence_nand_attach_chip,
 	.exec_op = cadence_nand_exec_op,
-	.setup_data_interface = cadence_nand_setup_data_interface,
+	.setup_interface = cadence_nand_setup_interface,
 };
 
 static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,

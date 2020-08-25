@@ -3473,6 +3473,28 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 
 	timer_setup(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry, 0);
 
+	ar_pci->attr = kmemdup(pci_host_ce_config_wlan,
+			       sizeof(pci_host_ce_config_wlan),
+			       GFP_KERNEL);
+	if (!ar_pci->attr)
+		return -ENOMEM;
+
+	ar_pci->pipe_config = kmemdup(pci_target_ce_config_wlan,
+				      sizeof(pci_target_ce_config_wlan),
+				      GFP_KERNEL);
+	if (!ar_pci->pipe_config) {
+		ret = -ENOMEM;
+		goto err_free_attr;
+	}
+
+	ar_pci->serv_to_pipe = kmemdup(pci_target_service_to_ce_map_wlan,
+				       sizeof(pci_target_service_to_ce_map_wlan),
+				       GFP_KERNEL);
+	if (!ar_pci->serv_to_pipe) {
+		ret = -ENOMEM;
+		goto err_free_pipe_config;
+	}
+
 	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
 
@@ -3480,18 +3502,31 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 	if (ret) {
 		ath10k_err(ar, "failed to allocate copy engine pipes: %d\n",
 			   ret);
-		return ret;
+		goto err_free_serv_to_pipe;
 	}
 
 	return 0;
+
+err_free_serv_to_pipe:
+	kfree(ar_pci->serv_to_pipe);
+err_free_pipe_config:
+	kfree(ar_pci->pipe_config);
+err_free_attr:
+	kfree(ar_pci->attr);
+	return ret;
 }
 
 void ath10k_pci_release_resource(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
 	ath10k_pci_rx_retry_sync(ar);
 	netif_napi_del(&ar->napi);
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_free_pipes(ar);
+	kfree(ar_pci->attr);
+	kfree(ar_pci->pipe_config);
+	kfree(ar_pci->serv_to_pipe);
 }
 
 static const struct ath10k_bus_ops ath10k_pci_bus_ops = {
@@ -3601,30 +3636,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	timer_setup(&ar_pci->ps_timer, ath10k_pci_ps_timer, 0);
 
-	ar_pci->attr = kmemdup(pci_host_ce_config_wlan,
-			       sizeof(pci_host_ce_config_wlan),
-			       GFP_KERNEL);
-	if (!ar_pci->attr) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
-	ar_pci->pipe_config = kmemdup(pci_target_ce_config_wlan,
-				      sizeof(pci_target_ce_config_wlan),
-				      GFP_KERNEL);
-	if (!ar_pci->pipe_config) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
-	ar_pci->serv_to_pipe = kmemdup(pci_target_service_to_ce_map_wlan,
-				       sizeof(pci_target_service_to_ce_map_wlan),
-				       GFP_KERNEL);
-	if (!ar_pci->serv_to_pipe) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to setup resource: %d\n", ret);
@@ -3705,10 +3716,9 @@ err_unsupported:
 
 err_free_irq:
 	ath10k_pci_free_irq(ar);
-	ath10k_pci_rx_retry_sync(ar);
 
 err_deinit_irq:
-	ath10k_pci_deinit_irq(ar);
+	ath10k_pci_release_resource(ar);
 
 err_sleep:
 	ath10k_pci_sleep_sync(ar);
@@ -3720,27 +3730,16 @@ err_free_pipes:
 err_core_destroy:
 	ath10k_core_destroy(ar);
 
-err_free:
-	kfree(ar_pci->attr);
-	kfree(ar_pci->pipe_config);
-	kfree(ar_pci->serv_to_pipe);
-
 	return ret;
 }
 
 static void ath10k_pci_remove(struct pci_dev *pdev)
 {
 	struct ath10k *ar = pci_get_drvdata(pdev);
-	struct ath10k_pci *ar_pci;
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci remove\n");
 
 	if (!ar)
-		return;
-
-	ar_pci = ath10k_pci_priv(ar);
-
-	if (!ar_pci)
 		return;
 
 	ath10k_core_unregister(ar);
@@ -3750,9 +3749,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	ath10k_pci_sleep_sync(ar);
 	ath10k_pci_release(ar);
 	ath10k_core_destroy(ar);
-	kfree(ar_pci->attr);
-	kfree(ar_pci->pipe_config);
-	kfree(ar_pci->serv_to_pipe);
 }
 
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);

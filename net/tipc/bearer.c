@@ -595,7 +595,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 
 /**
  * tipc_l2_rcv_msg - handle incoming TIPC message from an interface
- * @buf: the received packet
+ * @skb: the received message
  * @dev: the net device that the packet was received on
  * @pt: the packet_type structure which was used to register this handler
  * @orig_dev: the original receive net device in case the device is a bond

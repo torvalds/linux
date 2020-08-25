@@ -18,3 +18,13 @@ Description:
 		devices to opt-out of driver binding using a driver_override
 		name such as "none".  Only a single driver may be specified in
 		the override, there is no support for parsing delimiters.
+
+What:		/sys/bus/platform/devices/.../numa_node
+Date:		June 2020
+Contact:	Barry Song <song.bao.hua@hisilicon.com>
+Description:
+		This file contains the NUMA node to which the platform device
+		is attached. It won't be visible if the node is unknown. The
+		value comes from an ACPI _PXM method or a similar firmware
+		source. Initial users for this file would be devices like
+		arm smmu which are populated by arm64 acpi_iort.

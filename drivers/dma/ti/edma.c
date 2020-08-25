@@ -211,7 +211,7 @@ struct edma_desc {
 	u32				residue;
 	u32				residue_stat;
 
-	struct edma_pset		pset[0];
+	struct edma_pset		pset[];
 };
 
 struct edma_cc;

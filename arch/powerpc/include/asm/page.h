@@ -255,8 +255,10 @@ static inline bool pfn_valid(unsigned long pfn)
  */
 #ifdef CONFIG_PPC_BOOK3E_64
 #define is_kernel_addr(x)	((x) >= 0x8000000000000000ul)
-#else
+#elif defined(CONFIG_PPC_BOOK3S_64)
 #define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
+#else
+#define is_kernel_addr(x)	((x) >= TASK_SIZE)
 #endif
 
 #ifndef CONFIG_PPC_BOOK3S_64

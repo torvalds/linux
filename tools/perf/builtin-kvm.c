@@ -1319,7 +1319,7 @@ static struct evlist *kvm_live_event_list(void)
 		*name = '\0';
 		name++;
 
-		if (perf_evlist__add_newtp(evlist, sys, name, NULL)) {
+		if (evlist__add_newtp(evlist, sys, name, NULL)) {
 			pr_err("Failed to add %s tracepoint to the list\n", *events_tp);
 			free(tp);
 			goto out;

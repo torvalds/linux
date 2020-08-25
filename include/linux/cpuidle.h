@@ -65,10 +65,13 @@ struct cpuidle_state {
 	 * CPUs execute ->enter_s2idle with the local tick or entire timekeeping
 	 * suspended, so it must not re-enable interrupts at any point (even
 	 * temporarily) or attempt to change states of clock event devices.
+	 *
+	 * This callback may point to the same function as ->enter if all of
+	 * the above requirements are met by it.
 	 */
-	void (*enter_s2idle) (struct cpuidle_device *dev,
-			      struct cpuidle_driver *drv,
-			      int index);
+	int (*enter_s2idle)(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv,
+			    int index);
 };
 
 /* Idle State Flags */

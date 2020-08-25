@@ -1432,6 +1432,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ "INT33C0", LPSS_LPT_SSP },
 	{ "INT33C1", LPSS_LPT_SSP },
@@ -1442,6 +1443,7 @@ static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
+#endif
 
 /*
  * PCI IDs of compound devices that integrate both host controller and private
@@ -1485,6 +1487,11 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	{ PCI_VDEVICE(INTEL, 0x4daa), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x4dab), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x4dfb), LPSS_CNL_SSP },
+	/* TGL-H */
+	{ PCI_VDEVICE(INTEL, 0x43aa), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x43ab), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x43fb), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x43fd), LPSS_CNL_SSP },
 	/* APL */
 	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },

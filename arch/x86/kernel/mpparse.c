@@ -19,10 +19,11 @@
 #include <linux/smp.h>
 #include <linux/pci.h>
 
+#include <asm/io_apic.h>
+#include <asm/acpi.h>
 #include <asm/irqdomain.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
-#include <asm/pgalloc.h>
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/bios_ebda.h>

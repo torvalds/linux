@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c - 0x2e
 
-    Datasheet: http://www.analog.com/en/prod/0,2877,ADM1024,00.html
+    Datasheet: https://www.analog.com/en/prod/0,2877,ADM1024,00.html
 
 
 Authors:

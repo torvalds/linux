@@ -64,11 +64,7 @@
  * other component within DAL.
  */
 
-#include "inc/dmub_types.h"
 #include "inc/dmub_cmd.h"
-#include "inc/dmub_gpint_cmd.h"
-#include "inc/dmub_cmd_dal.h"
-#include "inc/dmub_rb.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -92,6 +88,9 @@ enum dmub_asic {
 	DMUB_ASIC_NONE = 0,
 	DMUB_ASIC_DCN20,
 	DMUB_ASIC_DCN21,
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	DMUB_ASIC_DCN30,
+#endif
 	DMUB_ASIC_MAX,
 };
 
@@ -257,6 +256,10 @@ struct dmub_srv_hw_funcs {
 
 	void (*set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
 
+	uint32_t (*emul_get_inbox1_rptr)(struct dmub_srv *dmub);
+
+	void (*emul_set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
+
 	bool (*is_supported)(struct dmub_srv *dmub);
 
 	bool (*is_hw_init)(struct dmub_srv *dmub);
@@ -280,6 +283,7 @@ struct dmub_srv_hw_funcs {
  * @hw_funcs: optional overrides for hw funcs
  * @user_ctx: context data for callback funcs
  * @asic: driver supplied asic
+ * @fw_version: the current firmware version, if any
  * @is_virtual: false for hw support only
  */
 struct dmub_srv_create_params {
@@ -287,6 +291,7 @@ struct dmub_srv_create_params {
 	struct dmub_srv_hw_funcs *hw_funcs;
 	void *user_ctx;
 	enum dmub_asic asic;
+	uint32_t fw_version;
 	bool is_virtual;
 };
 
@@ -310,12 +315,14 @@ struct dmub_srv_hw_params {
  * struct dmub_srv - software state for dmcub
  * @asic: dmub asic identifier
  * @user_ctx: user provided context for the dmub_srv
+ * @fw_version: the current firmware version, if any
  * @is_virtual: false if hardware support only
  * @fw_state: dmub firmware state pointer
  */
 struct dmub_srv {
 	enum dmub_asic asic;
 	void *user_ctx;
+	uint32_t fw_version;
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
 	volatile const struct dmub_fw_state *fw_state;
@@ -334,6 +341,13 @@ struct dmub_srv {
 	uint64_t fb_offset;
 	uint32_t psp_version;
 };
+
+/**
+ * DMUB firmware version helper macro - useful for checking if the version
+ * of a firmware to know if feature or functionality is supported or present.
+ */
+#define DMUB_FW_VERSION(major, minor, revision) \
+	((((major) & 0xFF) << 24) | (((minor) & 0xFF) << 16) | ((revision) & 0xFFFF))
 
 /**
  * dmub_srv_create() - creates the DMUB service.

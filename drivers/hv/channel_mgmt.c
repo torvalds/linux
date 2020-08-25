@@ -317,7 +317,6 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	spin_lock_init(&channel->sched_lock);
-	spin_lock_init(&channel->lock);
 	init_completion(&channel->rescind_event);
 
 	INIT_LIST_HEAD(&channel->sc_list);
@@ -400,8 +399,6 @@ static void vmbus_release_relid(u32 relid)
 
 void hv_process_channel_removal(struct vmbus_channel *channel)
 {
-	unsigned long flags;
-
 	lockdep_assert_held(&vmbus_connection.channel_mutex);
 	BUG_ON(!channel->rescind);
 
@@ -422,14 +419,10 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	if (channel->offermsg.child_relid != INVALID_RELID)
 		vmbus_channel_unmap_relid(channel);
 
-	if (channel->primary_channel == NULL) {
+	if (channel->primary_channel == NULL)
 		list_del(&channel->listentry);
-	} else {
-		struct vmbus_channel *primary_channel = channel->primary_channel;
-		spin_lock_irqsave(&primary_channel->lock, flags);
+	else
 		list_del(&channel->sc_list);
-		spin_unlock_irqrestore(&primary_channel->lock, flags);
-	}
 
 	/*
 	 * If this is a "perf" channel, updates the hv_numa_map[] masks so that
@@ -470,7 +463,6 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	struct vmbus_channel *newchannel =
 		container_of(work, struct vmbus_channel, add_channel_work);
 	struct vmbus_channel *primary_channel = newchannel->primary_channel;
-	unsigned long flags;
 	int ret;
 
 	/*
@@ -531,13 +523,10 @@ err_deq_chan:
 	 */
 	newchannel->probe_done = true;
 
-	if (primary_channel == NULL) {
+	if (primary_channel == NULL)
 		list_del(&newchannel->listentry);
-	} else {
-		spin_lock_irqsave(&primary_channel->lock, flags);
+	else
 		list_del(&newchannel->sc_list);
-		spin_unlock_irqrestore(&primary_channel->lock, flags);
-	}
 
 	/* vmbus_process_offer() has mapped the channel. */
 	vmbus_channel_unmap_relid(newchannel);
@@ -557,7 +546,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 {
 	struct vmbus_channel *channel;
 	struct workqueue_struct *wq;
-	unsigned long flags;
 	bool fnew = true;
 
 	/*
@@ -609,10 +597,10 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		}
 	}
 
-	if (fnew)
+	if (fnew) {
 		list_add_tail(&newchannel->listentry,
 			      &vmbus_connection.chn_list);
-	else {
+	} else {
 		/*
 		 * Check to see if this is a valid sub-channel.
 		 */
@@ -630,9 +618,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		 * Process the sub-channel.
 		 */
 		newchannel->primary_channel = channel;
-		spin_lock_irqsave(&channel->lock, flags);
 		list_add_tail(&newchannel->sc_list, &channel->sc_list);
-		spin_unlock_irqrestore(&channel->lock, flags);
 	}
 
 	vmbus_channel_map_relid(newchannel);
@@ -702,10 +688,7 @@ static void init_vp_index(struct vmbus_channel *channel)
 		 * In case alloc_cpumask_var() fails, bind it to
 		 * VMBUS_CONNECT_CPU.
 		 */
-		channel->numa_node = cpu_to_node(VMBUS_CONNECT_CPU);
 		channel->target_cpu = VMBUS_CONNECT_CPU;
-		channel->target_vp =
-			hv_cpu_number_to_vp_number(VMBUS_CONNECT_CPU);
 		if (perf_chn)
 			hv_set_alloced_cpu(VMBUS_CONNECT_CPU);
 		return;
@@ -721,7 +704,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 			continue;
 		break;
 	}
-	channel->numa_node = numa_node;
 	alloced_mask = &hv_context.hv_numa_map[numa_node];
 
 	if (cpumask_weight(alloced_mask) ==
@@ -739,7 +721,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 	cpumask_set_cpu(target_cpu, alloced_mask);
 
 	channel->target_cpu = target_cpu;
-	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 
 	free_cpumask_var(available_mask);
 }

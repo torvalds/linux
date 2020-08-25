@@ -1669,7 +1669,7 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 #define kern_addr_valid(addr)   (1)
 
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
-extern int vmem_remove_mapping(unsigned long start, unsigned long size);
+extern void vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);

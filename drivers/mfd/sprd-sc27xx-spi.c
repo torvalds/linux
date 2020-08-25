@@ -7,7 +7,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/sc27xx-pmic.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <uapi/linux/usb/charger.h>
@@ -92,73 +94,6 @@ enum usb_charger_type sprd_pmic_detect_charger_type(struct device *dev)
 	return type;
 }
 EXPORT_SYMBOL_GPL(sprd_pmic_detect_charger_type);
-
-static const struct mfd_cell sprd_pmic_devs[] = {
-	{
-		.name = "sc27xx-wdt",
-		.of_compatible = "sprd,sc2731-wdt",
-	}, {
-		.name = "sc27xx-rtc",
-		.of_compatible = "sprd,sc2731-rtc",
-	}, {
-		.name = "sc27xx-charger",
-		.of_compatible = "sprd,sc2731-charger",
-	}, {
-		.name = "sc27xx-chg-timer",
-		.of_compatible = "sprd,sc2731-chg-timer",
-	}, {
-		.name = "sc27xx-fast-chg",
-		.of_compatible = "sprd,sc2731-fast-chg",
-	}, {
-		.name = "sc27xx-chg-wdt",
-		.of_compatible = "sprd,sc2731-chg-wdt",
-	}, {
-		.name = "sc27xx-typec",
-		.of_compatible = "sprd,sc2731-typec",
-	}, {
-		.name = "sc27xx-flash",
-		.of_compatible = "sprd,sc2731-flash",
-	}, {
-		.name = "sc27xx-eic",
-		.of_compatible = "sprd,sc2731-eic",
-	}, {
-		.name = "sc27xx-efuse",
-		.of_compatible = "sprd,sc2731-efuse",
-	}, {
-		.name = "sc27xx-thermal",
-		.of_compatible = "sprd,sc2731-thermal",
-	}, {
-		.name = "sc27xx-adc",
-		.of_compatible = "sprd,sc2731-adc",
-	}, {
-		.name = "sc27xx-audio-codec",
-		.of_compatible = "sprd,sc2731-audio-codec",
-	}, {
-		.name = "sc27xx-regulator",
-		.of_compatible = "sprd,sc2731-regulator",
-	}, {
-		.name = "sc27xx-vibrator",
-		.of_compatible = "sprd,sc2731-vibrator",
-	}, {
-		.name = "sc27xx-keypad-led",
-		.of_compatible = "sprd,sc2731-keypad-led",
-	}, {
-		.name = "sc27xx-bltc",
-		.of_compatible = "sprd,sc2731-bltc",
-	}, {
-		.name = "sc27xx-fgu",
-		.of_compatible = "sprd,sc2731-fgu",
-	}, {
-		.name = "sc27xx-7sreset",
-		.of_compatible = "sprd,sc2731-7sreset",
-	}, {
-		.name = "sc27xx-poweroff",
-		.of_compatible = "sprd,sc2731-poweroff",
-	}, {
-		.name = "sc27xx-syscon",
-		.of_compatible = "sprd,sc2731-syscon",
-	},
-};
 
 static int sprd_pmic_spi_write(void *context, const void *data, size_t count)
 {
@@ -250,10 +185,8 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ddata->irq_chip.irqs = ddata->irqs;
-	for (i = 0; i < pdata->num_irqs; i++) {
-		ddata->irqs[i].reg_offset = i / pdata->num_irqs;
-		ddata->irqs[i].mask = BIT(i % pdata->num_irqs);
-	}
+	for (i = 0; i < pdata->num_irqs; i++)
+		ddata->irqs[i].mask = BIT(i);
 
 	ret = devm_regmap_add_irq_chip(&spi->dev, ddata->regmap, ddata->irq,
 				       IRQF_ONESHOT | IRQF_NO_SUSPEND, 0,
@@ -263,12 +196,9 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(&spi->dev, PLATFORM_DEVID_AUTO,
-				   sprd_pmic_devs, ARRAY_SIZE(sprd_pmic_devs),
-				   NULL, 0,
-				   regmap_irq_get_domain(ddata->irq_data));
+	ret = devm_of_platform_populate(&spi->dev);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to register device %d\n", ret);
+		dev_err(&spi->dev, "Failed to populate sub-devices %d\n", ret);
 		return ret;
 	}
 

@@ -433,7 +433,7 @@ static int inv_mpu6050_set_gyro_fsr(struct inv_mpu6050_state *st,
 	return regmap_write(st->map, st->reg->gyro_config, data);
 }
 
-/**
+/*
  *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
  *
  *  MPU60xx/MPU9150 use only 1 register for accelerometer + gyroscope
@@ -467,7 +467,7 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 	return regmap_write(st->map, st->reg->accel_lpf, val);
 }
 
-/**
+/*
  *  inv_mpu6050_init_config() - Initialize hardware, disable FIFO.
  *
  *  Initial configuration:
@@ -847,7 +847,7 @@ error_write_raw_unlock:
 	return result;
 }
 
-/**
+/*
  *  inv_mpu6050_set_lpf() - set low pass filer based on fifo rate.
  *
  *                  Based on the Nyquist principle, the bandwidth of the low
@@ -884,7 +884,7 @@ static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 	return 0;
 }
 
-/**
+/*
  * inv_mpu6050_fifo_rate_store() - Set fifo rate.
  */
 static ssize_t
@@ -945,7 +945,7 @@ fifo_rate_fail_unlock:
 	return count;
 }
 
-/**
+/*
  * inv_fifo_rate_show() - Get the current sampling rate.
  */
 static ssize_t
@@ -962,7 +962,7 @@ inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", fifo_rate);
 }
 
-/**
+/*
  * inv_attr_show() - calling this function will show current
  *                    parameters.
  *
@@ -1275,7 +1275,7 @@ static const struct iio_info mpu_info = {
 	.debugfs_reg_access = &inv_mpu6050_reg_access,
 };
 
-/**
+/*
  *  inv_check_and_setup_chip() - check and setup chip.
  */
 static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
@@ -1530,7 +1530,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	dev_set_drvdata(dev, indio_dev);
-	indio_dev->dev.parent = dev;
 	/* name will be NULL when enumerated via ACPI */
 	if (name)
 		indio_dev->name = name;

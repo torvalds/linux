@@ -306,7 +306,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		hw->phy.phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
 		ixgbe_setup_mux_ctl(hw);
 		ixgbe_check_cs4227(hw);
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		return ixgbe_identify_module_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_KX4:
@@ -325,7 +325,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY1_SM;
 		else
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
 		return ixgbe_identify_phy_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_1G_T:
@@ -2303,7 +2303,7 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 					break;
 				}
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			*speed = IXGBE_LINK_SPEED_10GB_FULL |
 				 IXGBE_LINK_SPEED_1GB_FULL;
@@ -2885,7 +2885,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		 * through to the fc_full statement.  Later, we will
 		 * disable the adapter's ability to send PAUSE frames.
 		 */
-		/* Fallthrough */
+		fallthrough;
 	case ixgbe_fc_full:
 		pause = true;
 		asm_dir = true;
@@ -3284,7 +3284,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_SGMII:
 	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
 		hw->phy.type = ixgbe_phy_sgmii;
-		/* Fallthrough */
+		fallthrough;
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 	case IXGBE_DEV_ID_X550EM_X_XFI:

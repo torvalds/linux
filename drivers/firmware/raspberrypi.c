@@ -181,6 +181,7 @@ EXPORT_SYMBOL_GPL(rpi_firmware_property);
 static void
 rpi_firmware_print_firmware_revision(struct rpi_firmware *fw)
 {
+	time64_t date_and_time;
 	u32 packet;
 	int ret = rpi_firmware_property(fw,
 					RPI_FIRMWARE_GET_FIRMWARE_REVISION,
@@ -189,7 +190,9 @@ rpi_firmware_print_firmware_revision(struct rpi_firmware *fw)
 	if (ret)
 		return;
 
-	dev_info(fw->cl.dev, "Attached to firmware from %ptT\n", &packet);
+	/* This is not compatible with y2038 */
+	date_and_time = packet;
+	dev_info(fw->cl.dev, "Attached to firmware from %ptT\n", &date_and_time);
 }
 
 static void
@@ -208,6 +211,20 @@ rpi_register_hwmon_driver(struct device *dev, struct rpi_firmware *fw)
 
 static void rpi_register_clk_driver(struct device *dev)
 {
+	struct device_node *firmware;
+
+	/*
+	 * Earlier DTs don't have a node for the firmware clocks but
+	 * rely on us creating a platform device by hand. If we do
+	 * have a node for the firmware clocks, just bail out here.
+	 */
+	firmware = of_get_compatible_child(dev->of_node,
+					   "raspberrypi,firmware-clocks");
+	if (firmware) {
+		of_node_put(firmware);
+		return;
+	}
+
 	rpi_clk = platform_device_register_data(dev, "raspberrypi-clk",
 						-1, NULL, 0);
 }

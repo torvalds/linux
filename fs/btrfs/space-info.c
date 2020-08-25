@@ -468,8 +468,8 @@ again:
 			"block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s",
 			cache->start, cache->length, cache->used, cache->pinned,
 			cache->reserved, cache->ro ? "[readonly]" : "");
-		btrfs_dump_free_space(cache, bytes);
 		spin_unlock(&cache->lock);
+		btrfs_dump_free_space(cache, bytes);
 	}
 	if (++index < BTRFS_NR_RAID_TYPES)
 		goto again;
@@ -879,8 +879,8 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 		return false;
 	}
 	global_rsv->reserved -= ticket->bytes;
+	remove_ticket(space_info, ticket);
 	ticket->bytes = 0;
-	list_del_init(&ticket->list);
 	wake_up(&ticket->wait);
 	space_info->tickets_id++;
 	if (global_rsv->reserved < global_rsv->size)

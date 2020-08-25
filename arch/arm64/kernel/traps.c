@@ -376,7 +376,7 @@ static int call_undef_hook(struct pt_regs *regs)
 
 	if (!user_mode(regs)) {
 		__le32 instr_le;
-		if (probe_kernel_address((__force __le32 *)pc, instr_le))
+		if (get_kernel_nofault(instr_le, (__force __le32 *)pc))
 			goto exit;
 		instr = le32_to_cpu(instr_le);
 	} else if (compat_thumb_mode(regs)) {
@@ -813,6 +813,7 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 		handler[reason], smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+	__show_regs(regs);
 	local_daif_mask();
 	panic("bad mode");
 }
@@ -854,7 +855,7 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 	pr_emerg("Task stack:     [0x%016lx..0x%016lx]\n",
 		 tsk_stk, tsk_stk + THREAD_SIZE);
 	pr_emerg("IRQ stack:      [0x%016lx..0x%016lx]\n",
-		 irq_stk, irq_stk + THREAD_SIZE);
+		 irq_stk, irq_stk + IRQ_STACK_SIZE);
 	pr_emerg("Overflow stack: [0x%016lx..0x%016lx]\n",
 		 ovf_stk, ovf_stk + OVERFLOW_STACK_SIZE);
 

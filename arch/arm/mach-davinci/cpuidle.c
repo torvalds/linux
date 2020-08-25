@@ -2,7 +2,7 @@
 /*
  * CPU idle for DaVinci SoCs
  *
- * Copyright (C) 2009 Texas Instruments Incorporated. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated. https://www.ti.com/
  *
  * Derived from Marvell Kirkwood CPU idle code
  * (arch/arm/mach-kirkwood/cpuidle.c)

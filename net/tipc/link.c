@@ -445,7 +445,7 @@ u32 tipc_link_state(struct tipc_link *l)
 
 /**
  * tipc_link_create - create a new link
- * @n: pointer to associated node
+ * @net: pointer to associated network namespace
  * @if_name: associated interface name
  * @bearer_id: id (index) of associated bearer
  * @tolerance: link tolerance to be used by link
@@ -530,7 +530,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 
 /**
  * tipc_link_bc_create - create new link to be used for broadcast
- * @n: pointer to associated node
+ * @net: pointer to associated network namespace
  * @mtu: mtu to be used initially if no peers
  * @window: send window to be used
  * @inputq: queue to put messages ready for delivery
@@ -827,11 +827,11 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		state |= l->bc_rcvlink->rcv_unacked;
 		state |= l->rcv_unacked;
 		state |= !skb_queue_empty(&l->transmq);
-		state |= !skb_queue_empty(&l->deferdq);
 		probe = mstate->probing;
 		probe |= l->silent_intv_cnt;
 		if (probe || mstate->monitoring)
 			l->silent_intv_cnt++;
+		probe |= !skb_queue_empty(&l->deferdq);
 		if (l->snd_nxt == l->checkpoint) {
 			tipc_link_update_cwin(l, 0, 0);
 			probe = true;
@@ -921,6 +921,21 @@ static void link_prepare_wakeup(struct tipc_link *l)
 
 }
 
+/**
+ * tipc_link_set_skb_retransmit_time - set the time at which retransmission of
+ *                                     the given skb should be next attempted
+ * @skb: skb to set a future retransmission time for
+ * @l: link the skb will be transmitted on
+ */
+static void tipc_link_set_skb_retransmit_time(struct sk_buff *skb,
+					      struct tipc_link *l)
+{
+	if (link_is_bc_sndlink(l))
+		TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+	else
+		TIPC_SKB_CB(skb)->nxt_retr = TIPC_UC_RETR_TIME;
+}
+
 void tipc_link_reset(struct tipc_link *l)
 {
 	struct sk_buff_head list;
@@ -974,7 +989,7 @@ void tipc_link_reset(struct tipc_link *l)
 
 /**
  * tipc_link_xmit(): enqueue buffer list according to queue situation
- * @link: link to use
+ * @l: link to use
  * @list: chain of buffers containing message
  * @xmitq: returned list of packets to be sent by caller
  *
@@ -1036,9 +1051,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 				return -ENOBUFS;
 			}
 			__skb_queue_tail(transmq, skb);
-			/* next retransmit attempt */
-			if (link_is_bc_sndlink(l))
-				TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+			tipc_link_set_skb_retransmit_time(skb, l);
 			__skb_queue_tail(xmitq, _skb);
 			TIPC_SKB_CB(skb)->ackers = l->ackers;
 			l->rcv_unacked = 0;
@@ -1139,9 +1152,7 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 		if (unlikely(skb == l->backlog[imp].target_bskb))
 			l->backlog[imp].target_bskb = NULL;
 		__skb_queue_tail(&l->transmq, skb);
-		/* next retransmit attempt */
-		if (link_is_bc_sndlink(l))
-			TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
+		tipc_link_set_skb_retransmit_time(skb, l);
 
 		__skb_queue_tail(xmitq, _skb);
 		TIPC_SKB_CB(skb)->ackers = l->ackers;
@@ -1385,12 +1396,12 @@ u16 tipc_get_gap_ack_blks(struct tipc_gap_ack_blks **ga, struct tipc_link *l,
 		p = (struct tipc_gap_ack_blks *)msg_data(hdr);
 		sz = ntohs(p->len);
 		/* Sanity check */
-		if (sz == tipc_gap_ack_blks_sz(p->ugack_cnt + p->bgack_cnt)) {
+		if (sz == struct_size(p, gacks, p->ugack_cnt + p->bgack_cnt)) {
 			/* Good, check if the desired type exists */
 			if ((uc && p->ugack_cnt) || (!uc && p->bgack_cnt))
 				goto ok;
 		/* Backward compatible: peer might not support bc, but uc? */
-		} else if (uc && sz == tipc_gap_ack_blks_sz(p->ugack_cnt)) {
+		} else if (uc && sz == struct_size(p, gacks, p->ugack_cnt)) {
 			if (p->ugack_cnt) {
 				p->bgack_cnt = 0;
 				goto ok;
@@ -1472,7 +1483,7 @@ static u16 tipc_build_gap_ack_blks(struct tipc_link *l, struct tipc_msg *hdr)
 			__tipc_build_gap_ack_blks(ga, l, ga->bgack_cnt) : 0;
 
 	/* Total len */
-	len = tipc_gap_ack_blks_sz(ga->bgack_cnt + ga->ugack_cnt);
+	len = struct_size(ga, gacks, ga->bgack_cnt + ga->ugack_cnt);
 	ga->len = htons(len);
 	return len;
 }
@@ -1521,7 +1532,7 @@ static int tipc_link_advance_transmq(struct tipc_link *l, struct tipc_link *r,
 		gacks = &ga->gacks[ga->bgack_cnt];
 	} else if (ga) {
 		/* Copy the Gap ACKs, bc part, for later renewal if needed */
-		this_ga = kmemdup(ga, tipc_gap_ack_blks_sz(ga->bgack_cnt),
+		this_ga = kmemdup(ga, struct_size(ga, gacks, ga->bgack_cnt),
 				  GFP_ATOMIC);
 		if (likely(this_ga)) {
 			this_ga->start_index = 0;
@@ -1584,8 +1595,7 @@ release:
 			/* retransmit skb if unrestricted*/
 			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
 				continue;
-			TIPC_SKB_CB(skb)->nxt_retr = (is_uc) ?
-					TIPC_UC_RETR_TIME : TIPC_BC_RETR_LIM;
+			tipc_link_set_skb_retransmit_time(skb, l);
 			_skb = pskb_copy(skb, GFP_ATOMIC);
 			if (!_skb)
 				continue;
@@ -2745,7 +2755,7 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg,
 	void *hdr;
 	struct nlattr *attrs;
 	struct nlattr *prop;
-	u32 bc_mode = tipc_bcast_get_broadcast_mode(net);
+	u32 bc_mode = tipc_bcast_get_mode(net);
 	u32 bc_ratio = tipc_bcast_get_broadcast_ratio(net);
 
 	if (!bcl)

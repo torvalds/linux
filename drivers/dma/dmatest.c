@@ -829,7 +829,10 @@ static int dmatest_func(void *data)
 			result("test timed out", total_tests, src->off, dst->off,
 			       len, 0);
 			goto error_unmap_continue;
-		} else if (status != DMA_COMPLETE) {
+		} else if (status != DMA_COMPLETE &&
+			   !(dma_has_cap(DMA_COMPLETION_NO_ORDER,
+					 dev->cap_mask) &&
+			     status == DMA_OUT_OF_ORDER)) {
 			result(status == DMA_ERROR ?
 			       "completion error status" :
 			       "completion busy status", total_tests, src->off,
@@ -1007,6 +1010,12 @@ static int dmatest_add_channel(struct dmatest_info *info,
 	dtc->chan = chan;
 	INIT_LIST_HEAD(&dtc->threads);
 
+	if (dma_has_cap(DMA_COMPLETION_NO_ORDER, dma_dev->cap_mask) &&
+	    info->params.polled) {
+		info->params.polled = false;
+		pr_warn("DMA_COMPLETION_NO_ORDER, polled disabled\n");
+	}
+
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
 		if (dmatest == 0) {
 			cnt = dmatest_add_threads(info, dtc, DMA_MEMCPY);
@@ -1176,6 +1185,8 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 	} else if (dmatest_run) {
 		if (!is_threaded_test_pending(info)) {
 			pr_info("No channels configured, continue with any\n");
+			if (!is_threaded_test_run(info))
+				stop_threaded_test(info);
 			add_threaded_test(info);
 		}
 		start_threaded_tests(info);

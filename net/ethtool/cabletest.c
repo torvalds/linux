@@ -58,6 +58,7 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	const struct ethtool_phy_ops *ops;
 	struct net_device *dev;
 	int ret;
 
@@ -81,11 +82,17 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
+	ops = ethtool_phy_ops;
+	if (!ops || !ops->start_cable_test) {
+		ret = -EOPNOTSUPP;
+		goto out_rtnl;
+	}
+
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		goto out_rtnl;
 
-	ret = phy_start_cable_test(dev->phydev, info->extack);
+	ret = ops->start_cable_test(dev->phydev, info->extack);
 
 	ethnl_ops_complete(dev);
 
@@ -234,6 +241,14 @@ static int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
 	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX + 1];
 	int ret;
 
+	cfg->first = 100;
+	cfg->step = 100;
+	cfg->last = MAX_CABLE_LENGTH_CM;
+	cfg->pair = PHY_PAIR_ALL;
+
+	if (!nest)
+		return 0;
+
 	ret = nla_parse_nested(tb, ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX, nest,
 			       cable_test_tdr_act_cfg_policy, info->extack);
 	if (ret < 0)
@@ -242,17 +257,12 @@ static int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
 	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST])
 		cfg->first = nla_get_u32(
 			tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]);
-	else
-		cfg->first = 100;
+
 	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST])
 		cfg->last = nla_get_u32(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST]);
-	else
-		cfg->last = MAX_CABLE_LENGTH_CM;
 
 	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP])
 		cfg->step = nla_get_u32(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP]);
-	else
-		cfg->step = 100;
 
 	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]) {
 		cfg->pair = nla_get_u8(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]);
@@ -263,8 +273,6 @@ static int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
 				"invalid pair parameter");
 			return -EINVAL;
 		}
-	} else {
-		cfg->pair = PHY_PAIR_ALL;
 	}
 
 	if (cfg->first > MAX_CABLE_LENGTH_CM) {
@@ -307,6 +315,7 @@ int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_TDR_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	const struct ethtool_phy_ops *ops;
 	struct phy_tdr_config cfg;
 	struct net_device *dev;
 	int ret;
@@ -336,11 +345,17 @@ int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info)
 		goto out_dev_put;
 
 	rtnl_lock();
+	ops = ethtool_phy_ops;
+	if (!ops || !ops->start_cable_test_tdr) {
+		ret = -EOPNOTSUPP;
+		goto out_rtnl;
+	}
+
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		goto out_rtnl;
 
-	ret = phy_start_cable_test_tdr(dev->phydev, info->extack, &cfg);
+	ret = ops->start_cable_test_tdr(dev->phydev, info->extack, &cfg);
 
 	ethnl_ops_complete(dev);
 

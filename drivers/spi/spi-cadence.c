@@ -556,7 +556,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = cdns_unprepare_transfer_hardware;
 	master->set_cs = cdns_spi_chipselect;
 	master->auto_runtime_pm = true;
-	master->mode_bits = SPI_CPOL | SPI_CPHA;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	/* Set to default valid value */
 	master->max_speed_hz = clk_get_rate(xspi->ref_clk) / 4;

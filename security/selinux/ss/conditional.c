@@ -27,6 +27,9 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
 	int s[COND_EXPR_MAXDEPTH];
 	int sp = -1;
 
+	if (expr->len == 0)
+		return -1;
+
 	for (i = 0; i < expr->len; i++) {
 		struct cond_expr_node *node = &expr->nodes[i];
 
@@ -200,7 +203,7 @@ static int bool_isvalid(struct cond_bool_datum *b)
 	return 1;
 }
 
-int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
+int cond_read_bool(struct policydb *p, struct symtab *s, void *fp)
 {
 	char *key = NULL;
 	struct cond_bool_datum *booldatum;
@@ -212,7 +215,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	if (!booldatum)
 		return -ENOMEM;
 
-	rc = next_entry(buf, fp, sizeof buf);
+	rc = next_entry(buf, fp, sizeof(buf));
 	if (rc)
 		goto err;
 
@@ -235,7 +238,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto err;
 	key[len] = '\0';
-	rc = hashtab_insert(h, key, booldatum);
+	rc = symtab_insert(s, key, booldatum);
 	if (rc)
 		goto err;
 
@@ -392,27 +395,19 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 
 		rc = next_entry(buf, fp, sizeof(u32) * 2);
 		if (rc)
-			goto err;
+			return rc;
 
 		expr->expr_type = le32_to_cpu(buf[0]);
 		expr->bool = le32_to_cpu(buf[1]);
 
-		if (!expr_node_isvalid(p, expr)) {
-			rc = -EINVAL;
-			goto err;
-		}
+		if (!expr_node_isvalid(p, expr))
+			return -EINVAL;
 	}
 
 	rc = cond_read_av_list(p, fp, &node->true_list, NULL);
 	if (rc)
-		goto err;
-	rc = cond_read_av_list(p, fp, &node->false_list, &node->true_list);
-	if (rc)
-		goto err;
-	return 0;
-err:
-	cond_node_destroy(node);
-	return rc;
+		return rc;
+	return cond_read_av_list(p, fp, &node->false_list, &node->true_list);
 }
 
 int cond_read_list(struct policydb *p, void *fp)
@@ -421,7 +416,7 @@ int cond_read_list(struct policydb *p, void *fp)
 	u32 i, len;
 	int rc;
 
-	rc = next_entry(buf, fp, sizeof buf);
+	rc = next_entry(buf, fp, sizeof(buf));
 	if (rc)
 		return rc;
 

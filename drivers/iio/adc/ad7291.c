@@ -502,8 +502,6 @@ static int ad7291_probe(struct i2c_client *client,
 	indio_dev->channels = ad7291_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7291_channels);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->info = &ad7291_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

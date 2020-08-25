@@ -59,7 +59,8 @@ config COPS
 	  package. This driver is experimental, which means that it may not
 	  work. This driver will only work if you choose "AppleTalk DDP"
 	  networking support, above.
-	  Please read the file <file:Documentation/networking/cops.rst>.
+	  Please read the file
+	  <file:Documentation/networking/device_drivers/appletalk/cops.rst>.
 
 config COPS_DAYNA
 	bool "Dayna firmware support"

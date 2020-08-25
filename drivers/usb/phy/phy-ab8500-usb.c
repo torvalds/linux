@@ -331,7 +331,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 	switch (lsts) {
 	case USB_LINK_ACA_RID_B_8505:
 		event = UX500_MUSB_RIDB;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_NOT_CONFIGURED_8505:
 	case USB_LINK_RESERVED0_8505:
 	case USB_LINK_RESERVED1_8505:
@@ -352,7 +352,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 
 	case USB_LINK_ACA_RID_C_NM_8505:
 		event = UX500_MUSB_RIDC;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_STD_HOST_NC_8505:
 	case USB_LINK_STD_HOST_C_NS_8505:
 	case USB_LINK_STD_HOST_C_S_8505:
@@ -371,7 +371,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_A_8505:
 	case USB_LINK_ACA_DOCK_CHGR_8505:
 		event = UX500_MUSB_RIDA;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_HM_IDGND_8505:
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
@@ -444,7 +444,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 	switch (lsts) {
 	case USB_LINK_ACA_RID_B_8500:
 		event = UX500_MUSB_RIDB;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_NOT_CONFIGURED_8500:
 	case USB_LINK_NOT_VALID_LINK_8500:
 		ab->mode = USB_IDLE;
@@ -461,7 +461,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_C_HS_8500:
 	case USB_LINK_ACA_RID_C_HS_CHIRP_8500:
 		event = UX500_MUSB_RIDC;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_STD_HOST_NC_8500:
 	case USB_LINK_STD_HOST_C_NS_8500:
 	case USB_LINK_STD_HOST_C_S_8500:
@@ -481,7 +481,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 
 	case USB_LINK_ACA_RID_A_8500:
 		event = UX500_MUSB_RIDA;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_HM_IDGND_8500:
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;

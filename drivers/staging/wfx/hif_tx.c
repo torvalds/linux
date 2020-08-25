@@ -240,7 +240,7 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 }
 
 int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
-	     int chan_start_idx, int chan_num)
+	     int chan_start_idx, int chan_num, int *timeout)
 {
 	int ret, i;
 	struct hif_msg *hif;
@@ -289,11 +289,13 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 	tmo_chan_fg = 512 * USEC_PER_TU + body->probe_delay;
 	tmo_chan_fg *= body->num_of_probe_requests;
 	tmo = chan_num * max(tmo_chan_bg, tmo_chan_fg) + 512 * USEC_PER_TU;
+	if (timeout)
+		*timeout = usecs_to_jiffies(tmo);
 
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START_SCAN, buf_len);
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
-	return ret ? ret : usecs_to_jiffies(tmo);
+	return ret;
 }
 
 int hif_stop_scan(struct wfx_vif *wvif)

@@ -31,8 +31,6 @@
 #include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
 
-static const unsigned int compute_vmid_bitmap = 0xFF00;
-
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
  */
@@ -113,7 +111,9 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 	if (adev->kfd.dev) {
 		struct kgd2kfd_shared_resources gpu_resources = {
-			.compute_vmid_bitmap = compute_vmid_bitmap,
+			.compute_vmid_bitmap =
+				((1 << AMDGPU_NUM_VMID) - 1) -
+				((1 << adev->vm_manager.first_kfd_vmid) - 1),
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe,
 			.gpuvm_size = min(adev->vm_manager.max_pfn
@@ -637,10 +637,8 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
 {
-	if (adev->kfd.dev) {
-		if ((1 << vmid) & compute_vmid_bitmap)
-			return true;
-	}
+	if (adev->kfd.dev)
+		return vmid >= adev->vm_manager.first_kfd_vmid;
 
 	return false;
 }

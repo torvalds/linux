@@ -262,12 +262,12 @@ int sja1105_static_config_upload(struct sja1105_private *priv);
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
 		       unsigned long port_bitmap, bool tx_inhibited);
 
-extern struct sja1105_info sja1105e_info;
-extern struct sja1105_info sja1105t_info;
-extern struct sja1105_info sja1105p_info;
-extern struct sja1105_info sja1105q_info;
-extern struct sja1105_info sja1105r_info;
-extern struct sja1105_info sja1105s_info;
+extern const struct sja1105_info sja1105e_info;
+extern const struct sja1105_info sja1105t_info;
+extern const struct sja1105_info sja1105p_info;
+extern const struct sja1105_info sja1105q_info;
+extern const struct sja1105_info sja1105r_info;
+extern const struct sja1105_info sja1105s_info;
 
 /* From sja1105_clocking.c */
 

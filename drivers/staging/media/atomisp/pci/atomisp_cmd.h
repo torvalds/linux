@@ -68,8 +68,8 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe);
 /*
  * Interrupt functions
  */
-void atomisp_msi_irq_init(struct atomisp_device *isp, struct pci_dev *dev);
-void atomisp_msi_irq_uninit(struct atomisp_device *isp, struct pci_dev *dev);
+void atomisp_msi_irq_init(struct atomisp_device *isp);
+void atomisp_msi_irq_uninit(struct atomisp_device *isp);
 void atomisp_wdt_work(struct work_struct *work);
 void atomisp_wdt(struct timer_list *t);
 void atomisp_setup_flash(struct atomisp_sub_device *asd);

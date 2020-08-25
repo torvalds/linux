@@ -78,8 +78,7 @@ void __init imx21_soc_init(void)
 	mxc_register_gpio("imx21-gpio", 5, MX21_GPIO6_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 
 	pinctrl_provide_dummies();
-	imx_add_imx_dma("imx21-dma", MX21_DMA_BASE_ADDR,
-			MX21_INT_DMACH0, 0); /* No ERR irq */
+	imx_add_imx_dma("imx21-dma", MX21_DMA_BASE_ADDR, MX21_INT_DMACH0);
 	platform_device_register_simple("imx21-audmux", 0, imx21_audmux_res,
 					ARRAY_SIZE(imx21_audmux_res));
 }

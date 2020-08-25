@@ -234,7 +234,6 @@ static inline void clwb(volatile void *__p)
 
 #define nop() asm volatile ("nop")
 
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_SPECIAL_INSNS_H */

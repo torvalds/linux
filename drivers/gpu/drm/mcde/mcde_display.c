@@ -812,7 +812,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_plane *plane = &pipe->plane;
 	struct drm_device *drm = crtc->dev;
-	struct mcde *mcde = drm->dev_private;
+	struct mcde *mcde = to_mcde(drm);
 	const struct drm_display_mode *mode = &cstate->mode;
 	struct drm_framebuffer *fb = plane->state->fb;
 	u32 format = fb->format->format;
@@ -1060,9 +1060,14 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	 */
 	if (fb) {
 		mcde_set_extsrc(mcde, drm_fb_cma_get_gem_addr(fb, pstate, 0));
-		if (!mcde->video_mode)
-			/* Send a single frame using software sync */
-			mcde_display_send_one_frame(mcde);
+		if (!mcde->video_mode) {
+			/*
+			 * Send a single frame using software sync if the flow
+			 * is not active yet.
+			 */
+			if (mcde->flow_active == 0)
+				mcde_display_send_one_frame(mcde);
+		}
 		dev_info_once(mcde->dev, "sent first display update\n");
 	} else {
 		/*

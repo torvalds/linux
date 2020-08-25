@@ -332,12 +332,12 @@ static struct adi_axi_adc_client *adi_axi_adc_attach_client(struct device *dev)
 		if (cl->dev->of_node != cln)
 			continue;
 
-		if (!try_module_get(dev->driver->owner)) {
+		if (!try_module_get(cl->dev->driver->owner)) {
 			mutex_unlock(&registered_clients_lock);
 			return ERR_PTR(-ENODEV);
 		}
 
-		get_device(dev);
+		get_device(cl->dev);
 		cl->info = info;
 		mutex_unlock(&registered_clients_lock);
 		return cl;
@@ -435,7 +435,6 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->info = &adi_axi_adc_info;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = "adi-axi-adc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = conv->chip_info->num_channels;

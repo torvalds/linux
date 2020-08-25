@@ -243,35 +243,19 @@ static const struct iio_info tcs3414_info = {
 static int tcs3414_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct tcs3414_data *data = iio_priv(indio_dev);
-	int ret;
-
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret)
-		return ret;
 
 	data->control |= TCS3414_CONTROL_ADC_EN;
-	ret = i2c_smbus_write_byte_data(data->client, TCS3414_CONTROL,
+	return i2c_smbus_write_byte_data(data->client, TCS3414_CONTROL,
 		data->control);
-	if (ret)
-		iio_triggered_buffer_predisable(indio_dev);
-
-	return ret;
 }
 
 static int tcs3414_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct tcs3414_data *data = iio_priv(indio_dev);
-	int ret, ret2;
 
 	data->control &= ~TCS3414_CONTROL_ADC_EN;
-	ret = i2c_smbus_write_byte_data(data->client, TCS3414_CONTROL,
+	return i2c_smbus_write_byte_data(data->client, TCS3414_CONTROL,
 		data->control);
-
-	ret2 = iio_triggered_buffer_predisable(indio_dev);
-	if (!ret)
-		ret = ret2;
-
-	return ret;
 }
 
 static const struct iio_buffer_setup_ops tcs3414_buffer_setup_ops = {
@@ -294,7 +278,6 @@ static int tcs3414_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tcs3414_info;
 	indio_dev->name = TCS3414_DRV_NAME;
 	indio_dev->channels = tcs3414_channels;

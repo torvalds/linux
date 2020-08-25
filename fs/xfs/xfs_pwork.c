@@ -132,5 +132,5 @@ xfs_pwork_guess_datadev_parallelism(
 	 * For now we'll go with the most conservative setting possible,
 	 * which is two threads for an SSD and 1 thread everywhere else.
 	 */
-	return blk_queue_nonrot(btp->bt_bdev->bd_queue) ? 2 : 1;
+	return blk_queue_nonrot(btp->bt_bdev->bd_disk->queue) ? 2 : 1;
 }

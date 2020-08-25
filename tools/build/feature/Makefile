@@ -26,6 +26,7 @@ FILES=                                          \
          test-libelf-gelf_getnote.bin           \
          test-libelf-getshdrstrndx.bin          \
          test-libelf-mmap.bin                   \
+         test-libdebuginfod.bin                 \
          test-libnuma.bin                       \
          test-numa_num_possible_cpus.bin        \
          test-libperl.bin                       \
@@ -68,14 +69,12 @@ FILES=                                          \
          test-llvm-version.bin			\
          test-libaio.bin			\
          test-libzstd.bin			\
-         test-clang-bpf-global-var.bin		\
+         test-clang-bpf-co-re.bin		\
          test-file-handle.bin			\
          test-libpfm4.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
-CC ?= $(CROSS_COMPILE)gcc
-CXX ?= $(CROSS_COMPILE)g++
 PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
 LLVM_CONFIG ?= llvm-config
 CLANG ?= clang
@@ -158,6 +157,9 @@ $(OUTPUT)test-libelf-gelf_getnote.bin:
 
 $(OUTPUT)test-libelf-getshdrstrndx.bin:
 	$(BUILD) -lelf
+
+$(OUTPUT)test-libdebuginfod.bin:
+	$(BUILD) -ldebuginfod
 
 $(OUTPUT)test-libnuma.bin:
 	$(BUILD) -lnuma
@@ -325,7 +327,7 @@ $(OUTPUT)test-libaio.bin:
 $(OUTPUT)test-libzstd.bin:
 	$(BUILD) -lzstd
 
-$(OUTPUT)test-clang-bpf-global-var.bin:
+$(OUTPUT)test-clang-bpf-co-re.bin:
 	$(CLANG) -S -g -target bpf -o - $(patsubst %.bin,%.c,$(@F)) |	\
 		grep BTF_KIND_VAR
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Solos PCI ADSL2+ card, designed to support Linux by
- *  Traverse Technologies -- http://www.traverse.com.au/
+ *  Traverse Technologies -- https://www.traverse.com.au/
  *  Xrio Limited          -- http://www.xrio.com/
  *
  * Copyright © 2008 Traverse Technologies
@@ -1179,8 +1179,6 @@ static const struct atmdev_ops fpga_ops = {
 	.open =		popen,
 	.close =	pclose,
 	.ioctl =	NULL,
-	.getsockopt =	NULL,
-	.setsockopt =	NULL,
 	.send =		psend,
 	.send_oam =	NULL,
 	.phy_put =	NULL,

@@ -232,10 +232,6 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 		.driver_data	= (unsigned long)ohci_quirk_qemu,
 	},
 
-	/* FIXME for some of the early AMD 760 southbridges, OHCI
-	 * won't work at all.  blacklist them.
-	 */
-
 	{},
 };
 

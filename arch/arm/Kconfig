@@ -41,6 +41,7 @@ config ARM
 	select CPU_PM if SUSPEND || CPU_IDLE
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select DMA_DECLARE_COHERENT
+	select DMA_OPS
 	select DMA_REMAP if MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
@@ -72,7 +73,6 @@ config ARM
 	select HAVE_ARM_SMCCC if CPU_V7
 	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
 	select HAVE_CONTEXT_TRACKING
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK if !XIP_KERNEL
 	select HAVE_DMA_CONTIGUOUS if MMU
@@ -668,6 +668,8 @@ source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-moxart/Kconfig"
 
+source "arch/arm/mach-mstar/Kconfig"
+
 source "arch/arm/mach-mv78xx0/Kconfig"
 
 source "arch/arm/mach-mvebu/Kconfig"
@@ -1148,12 +1150,6 @@ config PCI_NANOENGINE
 	help
 	  Enable PCI on the BSE nanoEngine board.
 
-config PCI_HOST_ITE8152
-	bool
-	depends on PCI && MACH_ARMCORE
-	default y
-	select DMABOUNCE
-
 config ARM_ERRATA_814220
 	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
 	depends on CPU_V7
@@ -1427,37 +1423,6 @@ config THUMB2_KERNEL
 	  Thumb-2 mode.
 
 	  If unsure, say N.
-
-config THUMB2_AVOID_R_ARM_THM_JUMP11
-	bool "Work around buggy Thumb-2 short branch relocations in gas"
-	depends on THUMB2_KERNEL && MODULES
-	default y
-	help
-	  Various binutils versions can resolve Thumb-2 branches to
-	  locally-defined, preemptible global symbols as short-range "b.n"
-	  branch instructions.
-
-	  This is a problem, because there's no guarantee the final
-	  destination of the symbol, or any candidate locations for a
-	  trampoline, are within range of the branch.  For this reason, the
-	  kernel does not support fixing up the R_ARM_THM_JUMP11 (102)
-	  relocation in modules at all, and it makes little sense to add
-	  support.
-
-	  The symptom is that the kernel fails with an "unsupported
-	  relocation" error when loading some modules.
-
-	  Until fixed tools are available, passing
-	  -fno-optimize-sibling-calls to gcc should prevent gcc generating
-	  code which hits this problem, at the cost of a bit of extra runtime
-	  stack usage in some cases.
-
-	  The problem is described in more detail at:
-	      https://bugs.launchpad.net/binutils-linaro/+bug/725126
-
-	  Only Thumb-2 kernels are affected.
-
-	  Unless you are sure your tools don't have this problem, say Y.
 
 config ARM_PATCH_IDIV
 	bool "Runtime patch udiv/sdiv instructions into __aeabi_{u}idiv()"
@@ -2097,3 +2062,5 @@ source "drivers/firmware/Kconfig"
 if CRYPTO
 source "arch/arm/crypto/Kconfig"
 endif
+
+source "arch/arm/Kconfig.assembler"

@@ -68,7 +68,7 @@ Required properties:
   datasheet
 - clocks : phandle to the PRE axi clock input, as described
   in Documentation/devicetree/bindings/clock/clock-bindings.txt and
-  Documentation/devicetree/bindings/clock/imx6q-clock.txt.
+  Documentation/devicetree/bindings/clock/imx6q-clock.yaml.
 - clock-names: should be "axi"
 - interrupts: should contain the PRE interrupt
 - fsl,iram: phandle pointing to the mmio-sram device node, that should be
@@ -94,7 +94,7 @@ Required properties:
   datasheet
 - clocks : phandles to the PRG ipg and axi clock inputs, as described
   in Documentation/devicetree/bindings/clock/clock-bindings.txt and
-  Documentation/devicetree/bindings/clock/imx6q-clock.txt.
+  Documentation/devicetree/bindings/clock/imx6q-clock.yaml.
 - clock-names: should be "ipg" and "axi"
 - fsl,pres: phandles to the PRE units attached to this PRG, with the fixed
   PRE as the first entry and the muxable PREs following.

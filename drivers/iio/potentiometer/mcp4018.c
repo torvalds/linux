@@ -165,7 +165,6 @@ static int mcp4018_probe(struct i2c_client *client)
 	if (!data->cfg)
 		data->cfg = &mcp4018_cfg[i2c_match_id(mcp4018_id, client)->driver_data];
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp4018_info;
 	indio_dev->channels = &mcp4018_channel;
 	indio_dev->num_channels = 1;

@@ -374,8 +374,7 @@ void blk_ksm_destroy(struct blk_keyslot_manager *ksm)
 	if (!ksm)
 		return;
 	kvfree(ksm->slot_hashtable);
-	memzero_explicit(ksm->slots, sizeof(ksm->slots[0]) * ksm->num_slots);
-	kvfree(ksm->slots);
+	kvfree_sensitive(ksm->slots, sizeof(ksm->slots[0]) * ksm->num_slots);
 	memzero_explicit(ksm, sizeof(*ksm));
 }
 EXPORT_SYMBOL_GPL(blk_ksm_destroy);

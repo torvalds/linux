@@ -856,7 +856,7 @@ static int tegra_xusb_init_context(struct tegra_xusb *tegra)
 	if (!tegra->context.ipfs)
 		return -ENOMEM;
 
-	tegra->context.fpci = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
+	tegra->context.fpci = devm_kcalloc(tegra->dev, soc->fpci.num_offsets,
 					   sizeof(u32), GFP_KERNEL);
 	if (!tegra->context.fpci)
 		return -ENOMEM;
@@ -1853,11 +1853,7 @@ static const char * const tegra124_supply_names[] = {
 	"avddio-pex",
 	"dvddio-pex",
 	"avdd-usb",
-	"avdd-pll-utmip",
-	"avdd-pll-erefe",
-	"avdd-usb-ss-pll",
 	"hvdd-usb-ss",
-	"hvdd-usb-ss-pll-e",
 };
 
 static const struct tegra_xusb_phy_type tegra124_phy_types[] = {
@@ -1931,10 +1927,6 @@ static const char * const tegra210_supply_names[] = {
 	"dvddio-pex",
 	"hvddio-pex",
 	"avdd-usb",
-	"avdd-pll-utmip",
-	"avdd-pll-uerefe",
-	"dvdd-pex-pll",
-	"hvdd-pex-pll-e",
 };
 
 static const struct tegra_xusb_phy_type tegra210_phy_types[] = {

@@ -13,39 +13,39 @@ properties:
   compatible:
     oneOf:
       - items:
-         - enum:
-             - renesas,gpio-r8a7778      # R-Car M1
-             - renesas,gpio-r8a7779      # R-Car H1
-         - const: renesas,rcar-gen1-gpio # R-Car Gen1
+          - enum:
+              - renesas,gpio-r8a7778      # R-Car M1
+              - renesas,gpio-r8a7779      # R-Car H1
+          - const: renesas,rcar-gen1-gpio # R-Car Gen1
 
       - items:
-         - enum:
-             - renesas,gpio-r8a7742      # RZ/G1H
-             - renesas,gpio-r8a7743      # RZ/G1M
-             - renesas,gpio-r8a7744      # RZ/G1N
-             - renesas,gpio-r8a7745      # RZ/G1E
-             - renesas,gpio-r8a77470     # RZ/G1C
-             - renesas,gpio-r8a7790      # R-Car H2
-             - renesas,gpio-r8a7791      # R-Car M2-W
-             - renesas,gpio-r8a7792      # R-Car V2H
-             - renesas,gpio-r8a7793      # R-Car M2-N
-             - renesas,gpio-r8a7794      # R-Car E2
-         - const: renesas,rcar-gen2-gpio # R-Car Gen2 or RZ/G1
+          - enum:
+              - renesas,gpio-r8a7742      # RZ/G1H
+              - renesas,gpio-r8a7743      # RZ/G1M
+              - renesas,gpio-r8a7744      # RZ/G1N
+              - renesas,gpio-r8a7745      # RZ/G1E
+              - renesas,gpio-r8a77470     # RZ/G1C
+              - renesas,gpio-r8a7790      # R-Car H2
+              - renesas,gpio-r8a7791      # R-Car M2-W
+              - renesas,gpio-r8a7792      # R-Car V2H
+              - renesas,gpio-r8a7793      # R-Car M2-N
+              - renesas,gpio-r8a7794      # R-Car E2
+          - const: renesas,rcar-gen2-gpio # R-Car Gen2 or RZ/G1
 
       - items:
-         - enum:
-             - renesas,gpio-r8a774a1     # RZ/G2M
-             - renesas,gpio-r8a774b1     # RZ/G2N
-             - renesas,gpio-r8a774c0     # RZ/G2E
-             - renesas,gpio-r8a7795      # R-Car H3
-             - renesas,gpio-r8a7796      # R-Car M3-W
-             - renesas,gpio-r8a77961     # R-Car M3-W+
-             - renesas,gpio-r8a77965     # R-Car M3-N
-             - renesas,gpio-r8a77970     # R-Car V3M
-             - renesas,gpio-r8a77980     # R-Car V3H
-             - renesas,gpio-r8a77990     # R-Car E3
-             - renesas,gpio-r8a77995     # R-Car D3
-         - const: renesas,rcar-gen3-gpio # R-Car Gen3 or RZ/G2
+          - enum:
+              - renesas,gpio-r8a774a1     # RZ/G2M
+              - renesas,gpio-r8a774b1     # RZ/G2N
+              - renesas,gpio-r8a774c0     # RZ/G2E
+              - renesas,gpio-r8a7795      # R-Car H3
+              - renesas,gpio-r8a7796      # R-Car M3-W
+              - renesas,gpio-r8a77961     # R-Car M3-W+
+              - renesas,gpio-r8a77965     # R-Car M3-N
+              - renesas,gpio-r8a77970     # R-Car V3M
+              - renesas,gpio-r8a77980     # R-Car V3H
+              - renesas,gpio-r8a77990     # R-Car E3
+              - renesas,gpio-r8a77995     # R-Car D3
+          - const: renesas,rcar-gen3-gpio # R-Car Gen3 or RZ/G2
 
   reg:
     maxItems: 1

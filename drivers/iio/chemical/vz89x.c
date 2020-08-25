@@ -382,7 +382,6 @@ static int vz89x_probe(struct i2c_client *client,
 	data->last_update = jiffies - HZ;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &vz89x_info;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;

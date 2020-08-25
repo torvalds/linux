@@ -113,7 +113,7 @@ int hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
 	if (!val)
 		return -ENOMEM;
 	val->num_of_info_elmts = cpu_to_le32(tbl_len);
-	memcpy(val->ie_table, tbl, tbl_len * sizeof(*tbl));
+	memcpy(val->ie_table, tbl, flex_array_size(val, ie_table, tbl_len));
 	ret = hif_write_mib(wvif->wdev, wvif->id,
 			    HIF_MIB_ID_BEACON_FILTER_TABLE, val, buf_len);
 	kfree(val);

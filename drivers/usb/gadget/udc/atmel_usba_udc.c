@@ -676,13 +676,7 @@ static int usba_ep_disable(struct usb_ep *_ep)
 
 	if (!ep->ep.desc) {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		/* REVISIT because this driver disables endpoints in
-		 * reset_all_endpoints() before calling disconnect(),
-		 * most gadget drivers would trigger this non-error ...
-		 */
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN)
-			DBG(DBG_ERR, "ep_disable: %s not enabled\n",
-					ep->ep.name);
+		DBG(DBG_ERR, "ep_disable: %s not enabled\n", ep->ep.name);
 		return -EINVAL;
 	}
 	ep->ep.desc = NULL;
@@ -871,7 +865,7 @@ static int usba_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	u32 status;
 
 	DBG(DBG_GADGET | DBG_QUEUE, "ep_dequeue: %s, req %p\n",
-			ep->ep.name, req);
+			ep->ep.name, _req);
 
 	spin_lock_irqsave(&udc->lock, flags);
 
@@ -1034,6 +1028,7 @@ usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	return 0;
 }
 
+static int atmel_usba_pullup(struct usb_gadget *gadget, int is_on);
 static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 static int atmel_usba_stop(struct usb_gadget *gadget);
@@ -1107,6 +1102,7 @@ static const struct usb_gadget_ops usba_udc_ops = {
 	.get_frame		= usba_udc_get_frame,
 	.wakeup			= usba_udc_wakeup,
 	.set_selfpowered	= usba_udc_set_selfpowered,
+	.pullup			= atmel_usba_pullup,
 	.udc_start		= atmel_usba_start,
 	.udc_stop		= atmel_usba_stop,
 	.match_ep		= atmel_usba_match_ep,
@@ -1963,6 +1959,24 @@ static irqreturn_t usba_vbus_irq_thread(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int atmel_usba_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
+	unsigned long flags;
+	u32 ctrl;
+
+	spin_lock_irqsave(&udc->lock, flags);
+	ctrl = usba_readl(udc, CTRL);
+	if (is_on)
+		ctrl &= ~USBA_DETACH;
+	else
+		ctrl |= USBA_DETACH;
+	usba_writel(udc, CTRL, ctrl);
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	return 0;
+}
+
 static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
@@ -2103,7 +2117,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
-	struct device_node *pp;
 	int i, ret;
 	struct usba_ep *eps, *ep;
 	const struct usba_udc_config *udc_config;
@@ -2128,7 +2141,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 						GPIOD_IN);
 
 	if (fifo_mode == 0) {
-		pp = NULL;
 		udc->num_ep = udc_config->num_ep;
 		udc->configured_ep = 1;
 	} else {
@@ -2144,7 +2156,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&eps[0].ep.ep_list);
 
-	pp = NULL;
 	i = 0;
 	while (i < udc->num_ep) {
 		const struct usba_ep_config *ep_cfg = &udc_config->config[i];

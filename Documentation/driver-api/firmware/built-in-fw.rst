@@ -28,6 +28,6 @@ able to make use of built-in firmware:
 * Some firmware files may be really large in size. The remote-proc subsystem
   is an example subsystem which deals with these sorts of firmware
 * The firmware may need to be scraped out from some device specific location
-  dynamically, an example is calibration data for for some WiFi chipsets. This
+  dynamically, an example is calibration data for some WiFi chipsets. This
   calibration data can be unique per sold device.
 

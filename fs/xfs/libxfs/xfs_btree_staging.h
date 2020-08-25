@@ -18,7 +18,7 @@ struct xbtree_afakeroot {
 	unsigned int		af_blocks;
 };
 
-/* Cursor interactions with with fake roots for AG-rooted btrees. */
+/* Cursor interactions with fake roots for AG-rooted btrees. */
 void xfs_btree_stage_afakeroot(struct xfs_btree_cur *cur,
 		struct xbtree_afakeroot *afake);
 void xfs_btree_commit_afakeroot(struct xfs_btree_cur *cur, struct xfs_trans *tp,
@@ -45,7 +45,7 @@ struct xbtree_ifakeroot {
 	unsigned int		if_extents;
 };
 
-/* Cursor interactions with with fake roots for inode-rooted btrees. */
+/* Cursor interactions with fake roots for inode-rooted btrees. */
 void xfs_btree_stage_ifakeroot(struct xfs_btree_cur *cur,
 		struct xbtree_ifakeroot *ifake,
 		struct xfs_btree_ops **new_ops);
@@ -90,7 +90,7 @@ struct xfs_btree_bload {
 
 	/*
 	 * Number of free records to leave in each leaf block.  If the caller
-	 * sets this to -1, the slack value will be calculated to be be halfway
+	 * sets this to -1, the slack value will be calculated to be halfway
 	 * between maxrecs and minrecs.  This typically leaves the block 75%
 	 * full.  Note that slack values are not enforced on inode root blocks.
 	 */

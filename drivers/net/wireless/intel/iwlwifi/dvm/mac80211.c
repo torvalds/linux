@@ -200,6 +200,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	iwl_leds_init(priv);
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_EXT_KEY_ID);
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {

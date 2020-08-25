@@ -74,7 +74,7 @@ int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 	 * ttm has its own object refcounting, so drop gem reference
 	 * to avoid double accounting counting.
 	 */
-	drm_gem_object_put_unlocked(gem);
+	drm_gem_object_put(gem);
 
 	return 0;
 }

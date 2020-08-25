@@ -574,7 +574,6 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 				IRQ_TYPE_EDGE_RISING : IRQ_TYPE_EDGE_FALLING;
 			break;
 		case EV_ACT_ANY:
-			/* fall through */
 		default:
 			/*
 			 * For other cases, we are OK letting suspend/resume

@@ -234,9 +234,10 @@ static const struct pci_device_id hisi_zip_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
-int zip_create_qps(struct hisi_qp **qps, int qp_num)
+int zip_create_qps(struct hisi_qp **qps, int qp_num, int node)
 {
-	int node = cpu_to_node(smp_processor_id());
+	if (node == NUMA_NO_NODE)
+		node = cpu_to_node(smp_processor_id());
 
 	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
 }

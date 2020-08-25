@@ -39,7 +39,7 @@ struct media_device;
  * @poll: pointer to the function that implements poll() syscall
  * @ioctl: pointer to the function that implements ioctl() syscall
  * @compat_ioctl: pointer to the function that will handle 32 bits userspace
- *	calls to the the ioctl() syscall on a Kernel compiled with 64 bits.
+ *	calls to the ioctl() syscall on a Kernel compiled with 64 bits.
  * @open: pointer to the function that implements open() syscall
  * @release: pointer to the function that will release the resources allocated
  *	by the @open function.

@@ -1,0 +1,126 @@
+What:		/sys/class/devlink/.../
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		Provide a place in sysfs for the device link objects in the
+		kernel at any given time.  The name of a device link directory,
+		denoted as ... above, is of the form <supplier>--<consumer>
+		where <supplier> is the supplier device name and <consumer> is
+		the consumer device name.
+
+What:		/sys/class/devlink/.../auto_remove_on
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file indicates if the device link will ever be
+		automatically removed by the driver core when the consumer and
+		supplier devices themselves are still present.
+
+		This will be one of the following strings:
+
+		'consumer unbind'
+		'supplier unbind'
+		'never'
+
+		'consumer unbind' means the device link will be removed when
+		the consumer's driver is unbound from the consumer device.
+
+		'supplier unbind' means the device link will be removed when
+		the supplier's driver is unbound from the supplier device.
+
+		'never' means the device link will not be automatically removed
+		when as long as the supplier and consumer devices themselves
+		are still present.
+
+What:		/sys/class/devlink/.../consumer
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file is a symlink to the consumer device's sysfs directory.
+
+What:		/sys/class/devlink/.../runtime_pm
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file indicates if the device link has any impact on the
+		runtime power management behavior of the consumer and supplier
+		devices. For example: Making sure the supplier doesn't enter
+		runtime suspend while the consumer is active.
+
+		This will be one of the following strings:
+
+		'0' - Does not affect runtime power management
+		'1' - Affects runtime power management
+
+What:		/sys/class/devlink/.../status
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file indicates the status of the device link. The status
+		of a device link is affected by whether the supplier and
+		consumer devices have been bound to their corresponding
+		drivers. The status of a device link also affects the binding
+		and unbinding of the supplier and consumer devices with their
+		drivers and also affects whether the software state of the
+		supplier device is synced with the hardware state of the
+		supplier device after boot up.
+		See also: sysfs-devices-state_synced.
+
+		This will be one of the following strings:
+
+		'not tracked'
+		'dormant'
+		'available'
+		'consumer probing'
+		'active'
+		'supplier unbinding'
+		'unknown'
+
+		'not tracked' means this device link does not track the status
+		and has no impact on the binding, unbinding and syncing the
+		hardware and software device state.
+
+		'dormant' means the supplier and the consumer devices have not
+		bound to their driver.
+
+		'available' means the supplier has bound to its driver and is
+		available to supply resources to the consumer device.
+
+		'consumer probing' means the consumer device is currently
+		trying to bind to its driver.
+
+		'active' means the supplier and consumer devices have both
+		bound successfully to their drivers.
+
+		'supplier unbinding' means the supplier devices is currently in
+		the process of unbinding from its driver.
+
+		'unknown' means the state of the device link is not any of the
+		above. If this is ever the value, there's a bug in the kernel.
+
+What:		/sys/class/devlink/.../supplier
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file is a symlink to the supplier device's sysfs directory.
+
+What:		/sys/class/devlink/.../sync_state_only
+Date:		May 2020
+Contact:	Saravana Kannan <saravanak@google.com>
+Description:
+		This file indicates if the device link is limited to only
+		affecting the syncing of the hardware and software state of the
+		supplier device.
+
+		This will be one of the following strings:
+
+		'0'
+		'1' - Affects runtime power management
+
+		'0' means the device link can affect other device behaviors
+		like binding/unbinding, suspend/resume, runtime power
+		management, etc.
+
+		'1' means the device link will only affect the syncing of
+		hardware and software state of the supplier device after boot
+		up and doesn't not affect other behaviors of the devices.

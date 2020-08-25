@@ -69,8 +69,6 @@
  */
 #define PRG_ETH0_ADJ_SKEW		GENMASK(24, 20)
 
-#define MUX_CLK_NUM_PARENTS		2
-
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -110,12 +108,12 @@ static void meson8b_dwmac_mask_bits(struct meson8b_dwmac *dwmac, u32 reg,
 
 static struct clk *meson8b_dwmac_register_clk(struct meson8b_dwmac *dwmac,
 					      const char *name_suffix,
-					      const char **parent_names,
+					      const struct clk_parent_data *parents,
 					      int num_parents,
 					      const struct clk_ops *ops,
 					      struct clk_hw *hw)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = { };
 	char clk_name[32];
 
 	snprintf(clk_name, sizeof(clk_name), "%s#%s", dev_name(dwmac->dev),
@@ -124,7 +122,7 @@ static struct clk *meson8b_dwmac_register_clk(struct meson8b_dwmac *dwmac,
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = parent_names;
+	init.parent_data = parents;
 	init.num_parents = num_parents;
 
 	hw->init = &init;
@@ -134,11 +132,12 @@ static struct clk *meson8b_dwmac_register_clk(struct meson8b_dwmac *dwmac,
 
 static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 {
-	int i, ret;
 	struct clk *clk;
 	struct device *dev = dwmac->dev;
-	const char *parent_name, *mux_parent_names[MUX_CLK_NUM_PARENTS];
-	struct meson8b_dwmac_clk_configs *clk_configs;
+	static const struct clk_parent_data mux_parents[] = {
+		{ .fw_name = "clkin0", },
+		{ .fw_name = "clkin1", },
+	};
 	static const struct clk_div_table div_table[] = {
 		{ .div = 2, .val = 2, },
 		{ .div = 3, .val = 3, },
@@ -148,62 +147,48 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 		{ .div = 7, .val = 7, },
 		{ /* end of array */ }
 	};
+	struct meson8b_dwmac_clk_configs *clk_configs;
+	struct clk_parent_data parent_data = { };
 
 	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);
 	if (!clk_configs)
 		return -ENOMEM;
 
-	/* get the mux parents from DT */
-	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
-		char name[16];
-
-		snprintf(name, sizeof(name), "clkin%d", i);
-		clk = devm_clk_get(dev, name);
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Missing clock %s\n", name);
-			return ret;
-		}
-
-		mux_parent_names[i] = __clk_get_name(clk);
-	}
-
 	clk_configs->m250_mux.reg = dwmac->regs + PRG_ETH0;
 	clk_configs->m250_mux.shift = PRG_ETH0_CLK_M250_SEL_SHIFT;
 	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK;
-	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel", mux_parent_names,
-					 MUX_CLK_NUM_PARENTS, &clk_mux_ops,
+	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel", mux_parents,
+					 ARRAY_SIZE(mux_parents), &clk_mux_ops,
 					 &clk_configs->m250_mux.hw);
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	parent_name = __clk_get_name(clk);
+	parent_data.hw = &clk_configs->m250_mux.hw;
 	clk_configs->m250_div.reg = dwmac->regs + PRG_ETH0;
 	clk_configs->m250_div.shift = PRG_ETH0_CLK_M250_DIV_SHIFT;
 	clk_configs->m250_div.width = PRG_ETH0_CLK_M250_DIV_WIDTH;
 	clk_configs->m250_div.table = div_table;
 	clk_configs->m250_div.flags = CLK_DIVIDER_ALLOW_ZERO |
 				      CLK_DIVIDER_ROUND_CLOSEST;
-	clk = meson8b_dwmac_register_clk(dwmac, "m250_div", &parent_name, 1,
+	clk = meson8b_dwmac_register_clk(dwmac, "m250_div", &parent_data, 1,
 					 &clk_divider_ops,
 					 &clk_configs->m250_div.hw);
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	parent_name = __clk_get_name(clk);
+	parent_data.hw = &clk_configs->m250_div.hw;
 	clk_configs->fixed_div2.mult = 1;
 	clk_configs->fixed_div2.div = 2;
-	clk = meson8b_dwmac_register_clk(dwmac, "fixed_div2", &parent_name, 1,
+	clk = meson8b_dwmac_register_clk(dwmac, "fixed_div2", &parent_data, 1,
 					 &clk_fixed_factor_ops,
 					 &clk_configs->fixed_div2.hw);
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	parent_name = __clk_get_name(clk);
+	parent_data.hw = &clk_configs->fixed_div2.hw;
 	clk_configs->rgmii_tx_en.reg = dwmac->regs + PRG_ETH0;
 	clk_configs->rgmii_tx_en.bit_idx = PRG_ETH0_RGMII_TX_CLK_EN;
-	clk = meson8b_dwmac_register_clk(dwmac, "rgmii_tx_en", &parent_name, 1,
+	clk = meson8b_dwmac_register_clk(dwmac, "rgmii_tx_en", &parent_data, 1,
 					 &clk_gate_ops,
 					 &clk_configs->rgmii_tx_en.hw);
 	if (WARN_ON(IS_ERR(clk)))
@@ -489,6 +474,10 @@ static const struct of_device_id meson8b_dwmac_match[] = {
 	},
 	{
 		.compatible = "amlogic,meson-axg-dwmac",
+		.data = &meson_axg_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson-g12a-dwmac",
 		.data = &meson_axg_dwmac_data,
 	},
 	{ }

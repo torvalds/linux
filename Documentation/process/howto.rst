@@ -597,7 +597,7 @@ For more details on what this should all look like, please see the
 ChangeLog section of the document:
 
   "The Perfect Patch"
-      http://www.ozlabs.org/~akpm/stuff/tpp.txt
+      https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 All of these things are sometimes very hard to do. It can take years to

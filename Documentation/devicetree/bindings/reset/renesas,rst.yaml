@@ -31,6 +31,7 @@ properties:
       - renesas,r8a774a1-rst      # RZ/G2M
       - renesas,r8a774b1-rst      # RZ/G2N
       - renesas,r8a774c0-rst      # RZ/G2E
+      - renesas,r8a774e1-rst      # RZ/G2H
       - renesas,r8a7778-reset-wdt # R-Car M1A
       - renesas,r8a7779-reset-wdt # R-Car H1
       - renesas,r8a7790-rst       # R-Car H2

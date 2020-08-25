@@ -574,9 +574,8 @@ void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *ste,
 {
 	struct mlx5dr_rule_member *rule_mem;
 
-	if (!list_empty(&ste->rule_list))
-		list_for_each_entry(rule_mem, &ste->rule_list, use_ste_list)
-			rule_mem->ste = new_ste;
+	list_for_each_entry(rule_mem, &ste->rule_list, use_ste_list)
+		rule_mem->ste = new_ste;
 }
 
 static void dr_rule_clean_rule_members(struct mlx5dr_rule *rule,

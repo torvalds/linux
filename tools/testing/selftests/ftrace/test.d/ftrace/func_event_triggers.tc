@@ -3,15 +3,14 @@
 # description: ftrace - test for function event triggers
 # flags: instance
 #
+# The triggers are set within the set_ftrace_filter file
+# requires: set_ftrace_filter
+#
 # Ftrace allows to add triggers to functions, such as enabling or disabling
 # tracing, enabling or disabling trace events, or recording a stack trace
 # within the ring buffer.
 #
 # This test is designed to test event triggers
-#
-
-# The triggers are set within the set_ftrace_filter file
-check_filter_file set_ftrace_filter
 
 do_reset() {
     reset_ftrace_filter

@@ -14,7 +14,7 @@ to the core through the special register mechanism that is susceptible
 to MDS attacks.
 
 Affected processors
---------------------
+-------------------
 Core models (desktop, mobile, Xeon-E3) that implement RDRAND and/or RDSEED may
 be affected.
 
@@ -59,7 +59,7 @@ executed on another core or sibling thread using MDS techniques.
 
 
 Mitigation mechanism
--------------------
+--------------------
 Intel will release microcode updates that modify the RDRAND, RDSEED, and
 EGETKEY instructions to overwrite secret special register data in the shared
 staging buffer before the secret data can be accessed by another logical
@@ -118,7 +118,7 @@ with the option "srbds=".  The option for this is:
   ============= =============================================================
 
 SRBDS System Information
------------------------
+------------------------
 The Linux kernel provides vulnerability status information through sysfs.  For
 SRBDS this can be accessed by the following sysfs file:
 /sys/devices/system/cpu/vulnerabilities/srbds

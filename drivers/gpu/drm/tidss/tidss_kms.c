@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
@@ -154,7 +154,7 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 				break;
 			case DISPC_VP_DPI:
 				enc_type = DRM_MODE_ENCODER_DPI;
-				conn_type = DRM_MODE_CONNECTOR_LVDS;
+				conn_type = DRM_MODE_CONNECTOR_DPI;
 				break;
 			default:
 				WARN_ON(1);
@@ -253,7 +253,6 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 int tidss_modeset_init(struct tidss_device *tidss)
 {
 	struct drm_device *ddev = &tidss->ddev;
-	unsigned int i;
 	int ret;
 
 	dev_dbg(tidss->dev, "%s\n", __func__);
@@ -277,10 +276,6 @@ int tidss_modeset_init(struct tidss_device *tidss)
 	ret = drm_vblank_init(ddev, tidss->num_crtcs);
 	if (ret)
 		return ret;
-
-	/* Start with vertical blanking interrupt reporting disabled. */
-	for (i = 0; i < tidss->num_crtcs; ++i)
-		drm_crtc_vblank_reset(tidss->crtcs[i]);
 
 	drm_mode_config_reset(ddev);
 

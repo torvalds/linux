@@ -336,7 +336,7 @@ WO 9901953 (A1)
         Execution and Audio Data Sequencing (Jan. 14, 1999)
 
 
-US Patents (http://www.uspto.gov/)
+US Patents (https://www.uspto.gov/)
 ----------------------------------
 
 US 5925841

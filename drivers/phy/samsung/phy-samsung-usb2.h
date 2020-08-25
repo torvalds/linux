@@ -43,7 +43,7 @@ struct samsung_usb2_phy_driver {
 	struct regmap *reg_pmu;
 	struct regmap *reg_sys;
 	spinlock_t lock;
-	struct samsung_usb2_phy_instance instances[0];
+	struct samsung_usb2_phy_instance instances[];
 };
 
 struct samsung_usb2_common_phy {

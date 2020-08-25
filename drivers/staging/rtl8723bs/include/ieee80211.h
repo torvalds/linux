@@ -152,8 +152,7 @@ typedef enum _RATR_TABLE_MODE {
 } RATR_TABLE_MODE, *PRATR_TABLE_MODE;
 
 
-enum NETWORK_TYPE
-{
+enum NETWORK_TYPE {
 	WIRELESS_INVALID = 0,
 	/* Sub-Element */
 	WIRELESS_11B = BIT(0), /*  tx: cck only , rx: cck only, hw: cck */

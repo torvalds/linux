@@ -109,6 +109,7 @@ struct fs_context {
 	enum fs_context_phase	phase:8;	/* The phase the context is in */
 	bool			need_free:1;	/* Need to call ops->free() */
 	bool			global:1;	/* Goes into &init_user_ns */
+	bool			oldapi:1;	/* Coming from mount(2) */
 };
 
 struct fs_context_operations {

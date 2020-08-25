@@ -167,7 +167,8 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	if (error)
 		return error;
 
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT,
 				   &freeze_gh);
 	if (error)
 		goto fail_threads;
@@ -203,7 +204,6 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	return 0;
 
 fail:
-	freeze_gh.gh_flags |= GL_NOCACHE;
 	gfs2_glock_dq_uninit(&freeze_gh);
 fail_threads:
 	if (sdp->sd_quotad_process)
@@ -430,7 +430,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   GL_NOCACHE, &sdp->sd_freeze_gh);
+				   LM_FLAG_NOEXP, &sdp->sd_freeze_gh);
 	if (error)
 		goto out;
 
@@ -566,6 +566,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret) {
 			fs_err(sdp, "dirty_inode: glock %d\n", ret);
+			gfs2_dump_glock(NULL, ip->i_gl, true);
 			return;
 		}
 		need_unlock = 1;
@@ -613,13 +614,15 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
 		if (!log_write_allowed) {
 			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
-						   LM_ST_SHARED, GL_NOCACHE |
-						   LM_FLAG_TRY, &freeze_gh);
+						   LM_ST_SHARED, LM_FLAG_TRY |
+						   LM_FLAG_NOEXP | GL_EXACT,
+						   &freeze_gh);
 			if (error == GLR_TRYFAILED)
 				error = 0;
 		} else {
 			error = gfs2_glock_nq_init(sdp->sd_freeze_gl,
-						   LM_ST_SHARED, GL_NOCACHE,
+						   LM_ST_SHARED,
+						   LM_FLAG_NOEXP | GL_EXACT,
 						   &freeze_gh);
 			if (error && !gfs2_withdrawn(sdp))
 				return error;
@@ -761,8 +764,8 @@ void gfs2_freeze_func(struct work_struct *work)
 	struct super_block *sb = sdp->sd_vfs;
 
 	atomic_inc(&sb->s_active);
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
-				   &freeze_gh);
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT, &freeze_gh);
 	if (error) {
 		fs_info(sdp, "GFS2: couldn't get freeze lock : %d\n", error);
 		gfs2_assert_withdraw(sdp, 0);
@@ -774,8 +777,6 @@ void gfs2_freeze_func(struct work_struct *work)
 				error);
 			gfs2_assert_withdraw(sdp, 0);
 		}
-		if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
-			freeze_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&freeze_gh);
 	}
 	deactivate_super(sb);
