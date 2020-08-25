@@ -850,16 +850,23 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->clk))
 		return PTR_ERR(dmac->clk);
 
+	ret = clk_prepare_enable(dmac->clk);
+	if (ret < 0)
+		return ret;
+
 	of_channels = of_get_child_by_name(pdev->dev.of_node, "adi,channels");
-	if (of_channels == NULL)
-		return -ENODEV;
+	if (of_channels == NULL) {
+		ret = -ENODEV;
+		goto err_clk_disable;
+	}
 
 	for_each_child_of_node(of_channels, of_chan) {
 		ret = axi_dmac_parse_chan_dt(of_chan, &dmac->chan);
 		if (ret) {
 			of_node_put(of_chan);
 			of_node_put(of_channels);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_clk_disable;
 		}
 	}
 	of_node_put(of_channels);
@@ -891,10 +898,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	dmac->chan.vchan.desc_free = axi_dmac_desc_free;
 	vchan_init(&dmac->chan.vchan, dma_dev);
-
-	ret = clk_prepare_enable(dmac->clk);
-	if (ret < 0)
-		return ret;
 
 	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
 
