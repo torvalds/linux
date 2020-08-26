@@ -2396,7 +2396,9 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		/* compact mode need bytesperline 4bytes align,
 		 * align 8 to bring into correspondence with virtual width
 		 */
-		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact) {
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
+		    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 ||
+		     dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)) {
 			bpl = ALIGN(width * fmt->raw_bpp / 8, 8);
 		} else {
 			bpp = rkcif_align_bits_per_pixel(fmt, i);
