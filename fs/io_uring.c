@@ -2866,6 +2866,11 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	return iov_iter_count(&req->io->rw.iter);
 }
 
+static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
+{
+	return kiocb->ki_filp->f_mode & FMODE_STREAM ? NULL : &kiocb->ki_pos;
+}
+
 /*
  * For files that don't have ->read_iter() and ->write_iter(), handle them
  * by looping over ->read() or ->write() manually.
@@ -2901,10 +2906,10 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 
 		if (rw == READ) {
 			nr = file->f_op->read(file, iovec.iov_base,
-					      iovec.iov_len, &kiocb->ki_pos);
+					      iovec.iov_len, io_kiocb_ppos(kiocb));
 		} else {
 			nr = file->f_op->write(file, iovec.iov_base,
-					       iovec.iov_len, &kiocb->ki_pos);
+					       iovec.iov_len, io_kiocb_ppos(kiocb));
 		}
 
 		if (iov_iter_is_bvec(iter))
@@ -3139,7 +3144,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		goto copy_iov;
 
 	iov_count = iov_iter_count(iter);
-	ret = rw_verify_area(READ, req->file, &kiocb->ki_pos, iov_count);
+	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), iov_count);
 	if (unlikely(ret))
 		goto out_free;
 
@@ -3262,7 +3267,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 		goto copy_iov;
 
 	iov_count = iov_iter_count(iter);
-	ret = rw_verify_area(WRITE, req->file, &kiocb->ki_pos, iov_count);
+	ret = rw_verify_area(WRITE, req->file, io_kiocb_ppos(kiocb), iov_count);
 	if (unlikely(ret))
 		goto out_free;
 
