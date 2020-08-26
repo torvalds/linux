@@ -82,8 +82,11 @@ static int ps8640_bridge_vdo_control(struct ps8640 *ps_bridge,
 	ret = i2c_smbus_write_i2c_block_data(client, PAGE3_SET_ADD,
 					     sizeof(vdo_ctrl_buf),
 					     vdo_ctrl_buf);
-	if (ret < 0)
+	if (ret < 0) {
+		DRM_ERROR("failed to %sable VDO: %d\n",
+			  ctrl == ENABLE ? "en" : "dis", ret);
 		return ret;
+	}
 
 	return 0;
 }
@@ -150,10 +153,8 @@ static void ps8640_pre_enable(struct drm_bridge *bridge)
 	}
 
 	ret = ps8640_bridge_vdo_control(ps_bridge, ENABLE);
-	if (ret) {
-		DRM_ERROR("failed to enable VDO: %d\n", ret);
+	if (ret)
 		goto err_regulators_disable;
-	}
 
 	/* Switch access edp panel's edid through i2c */
 	ret = i2c_smbus_write_byte_data(client, PAGE2_I2C_BYPASS,
@@ -175,9 +176,7 @@ static void ps8640_post_disable(struct drm_bridge *bridge)
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 	int ret;
 
-	ret = ps8640_bridge_vdo_control(ps_bridge, DISABLE);
-	if (ret < 0)
-		DRM_ERROR("failed to disable VDO: %d\n", ret);
+	ps8640_bridge_vdo_control(ps_bridge, DISABLE);
 
 	gpiod_set_value(ps_bridge->gpio_reset, 1);
 	gpiod_set_value(ps_bridge->gpio_powerdown, 1);
