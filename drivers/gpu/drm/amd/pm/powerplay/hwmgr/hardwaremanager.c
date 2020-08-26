@@ -271,7 +271,10 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 
 bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
-	PHM_FUNC_CHECK(hwmgr);
+	if (hwmgr == NULL ||
+	    hwmgr->hwmgr_func == NULL)
+		return false;
+
 	if (hwmgr->pp_one_vf)
 		return false;
 
