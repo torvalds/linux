@@ -103,6 +103,7 @@ struct selinux_state {
 
 	struct selinux_avc *avc;
 	struct selinux_policy __rcu *policy;
+	struct mutex policy_mutex;
 } __randomize_layout;
 
 void selinux_avc_init(struct selinux_avc **avc);
