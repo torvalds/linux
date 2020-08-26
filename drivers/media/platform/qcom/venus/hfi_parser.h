@@ -16,7 +16,7 @@ static inline u32 get_cap(struct venus_inst *inst, u32 type, u32 which)
 {
 	struct venus_core *core = inst->core;
 	struct hfi_capability *cap = NULL;
-	struct venus_caps *caps;
+	struct hfi_plat_caps *caps;
 	unsigned int i;
 
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);

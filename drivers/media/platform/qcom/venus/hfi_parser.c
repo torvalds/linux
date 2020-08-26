@@ -11,12 +11,12 @@
 #include "hfi_helper.h"
 #include "hfi_parser.h"
 
-typedef void (*func)(struct venus_caps *cap, const void *data,
+typedef void (*func)(struct hfi_plat_caps *cap, const void *data,
 		     unsigned int size);
 
 static void init_codecs(struct venus_core *core)
 {
-	struct venus_caps *caps = core->caps, *cap;
+	struct hfi_plat_caps *caps = core->caps, *cap;
 	unsigned long bit;
 
 	for_each_set_bit(bit, &core->dec_codecs, MAX_CODEC_NUM) {
@@ -34,11 +34,11 @@ static void init_codecs(struct venus_core *core)
 	}
 }
 
-static void for_each_codec(struct venus_caps *caps, unsigned int caps_num,
+static void for_each_codec(struct hfi_plat_caps *caps, unsigned int caps_num,
 			   u32 codecs, u32 domain, func cb, void *data,
 			   unsigned int size)
 {
-	struct venus_caps *cap;
+	struct hfi_plat_caps *cap;
 	unsigned int i;
 
 	for (i = 0; i < caps_num; i++) {
@@ -51,7 +51,7 @@ static void for_each_codec(struct venus_caps *caps, unsigned int caps_num,
 }
 
 static void
-fill_buf_mode(struct venus_caps *cap, const void *data, unsigned int num)
+fill_buf_mode(struct hfi_plat_caps *cap, const void *data, unsigned int num)
 {
 	const u32 *type = data;
 
@@ -81,7 +81,7 @@ parse_alloc_mode(struct venus_core *core, u32 codecs, u32 domain, void *data)
 	}
 }
 
-static void fill_profile_level(struct venus_caps *cap, const void *data,
+static void fill_profile_level(struct hfi_plat_caps *cap, const void *data,
 			       unsigned int num)
 {
 	const struct hfi_profile_level *pl = data;
@@ -107,7 +107,7 @@ parse_profile_level(struct venus_core *core, u32 codecs, u32 domain, void *data)
 }
 
 static void
-fill_caps(struct venus_caps *cap, const void *data, unsigned int num)
+fill_caps(struct hfi_plat_caps *cap, const void *data, unsigned int num)
 {
 	const struct hfi_capability *caps = data;
 
@@ -132,7 +132,7 @@ parse_caps(struct venus_core *core, u32 codecs, u32 domain, void *data)
 		       fill_caps, caps_arr, num_caps);
 }
 
-static void fill_raw_fmts(struct venus_caps *cap, const void *fmts,
+static void fill_raw_fmts(struct hfi_plat_caps *cap, const void *fmts,
 			  unsigned int num_fmts)
 {
 	const struct raw_formats *formats = fmts;
@@ -211,7 +211,7 @@ static void parser_init(struct venus_inst *inst, u32 *codecs, u32 *domain)
 
 static void parser_fini(struct venus_inst *inst, u32 codecs, u32 domain)
 {
-	struct venus_caps *caps, *cap;
+	struct hfi_plat_caps *caps, *cap;
 	unsigned int i;
 	u32 dom;
 

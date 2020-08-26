@@ -14,6 +14,7 @@
 
 #include "dbgfs.h"
 #include "hfi.h"
+#include "hfi_platform.h"
 
 #define VDBGL	"VenusLow : "
 #define VDBGM	"VenusMed : "
@@ -80,31 +81,6 @@ struct venus_format {
 	unsigned int num_planes;
 	u32 type;
 	u32 flags;
-};
-
-#define MAX_PLANES		4
-#define MAX_FMT_ENTRIES		32
-#define MAX_CAP_ENTRIES		32
-#define MAX_ALLOC_MODE_ENTRIES	16
-#define MAX_CODEC_NUM		32
-#define MAX_SESSIONS		16
-
-struct raw_formats {
-	u32 buftype;
-	u32 fmt;
-};
-
-struct venus_caps {
-	u32 codec;
-	u32 domain;
-	bool cap_bufs_mode_dynamic;
-	unsigned int num_caps;
-	struct hfi_capability caps[MAX_CAP_ENTRIES];
-	unsigned int num_pl;
-	struct hfi_profile_level pl[HFI_MAX_PROFILE_COUNT];
-	unsigned int num_fmts;
-	struct raw_formats fmts[MAX_FMT_ENTRIES];
-	bool valid;	/* used only for Venus v1xx */
 };
 
 /**
@@ -185,7 +161,7 @@ struct venus_core {
 	void *priv;
 	const struct hfi_ops *ops;
 	struct delayed_work work;
-	struct venus_caps caps[MAX_CODEC_NUM];
+	struct hfi_plat_caps caps[MAX_CODEC_NUM];
 	unsigned int codecs_count;
 	unsigned int core0_usage_count;
 	unsigned int core1_usage_count;
@@ -420,7 +396,7 @@ static inline void *to_hfi_priv(struct venus_core *core)
 	return core->priv;
 }
 
-static inline struct venus_caps *
+static inline struct hfi_plat_caps *
 venus_caps_by_codec(struct venus_core *core, u32 codec, u32 domain)
 {
 	unsigned int c;

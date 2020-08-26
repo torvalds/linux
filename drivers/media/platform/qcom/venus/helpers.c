@@ -481,7 +481,7 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 static bool is_dynamic_bufmode(struct venus_inst *inst)
 {
 	struct venus_core *core = inst->core;
-	struct venus_caps *caps;
+	struct hfi_plat_caps *caps;
 
 	/*
 	 * v4 doesn't send BUFFER_ALLOC_MODE_SUPPORTED property and supports
@@ -1531,7 +1531,7 @@ void venus_helper_init_instance(struct venus_inst *inst)
 }
 EXPORT_SYMBOL_GPL(venus_helper_init_instance);
 
-static bool find_fmt_from_caps(struct venus_caps *caps, u32 buftype, u32 fmt)
+static bool find_fmt_from_caps(struct hfi_plat_caps *caps, u32 buftype, u32 fmt)
 {
 	unsigned int i;
 
@@ -1548,7 +1548,7 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 			      u32 *out_fmt, u32 *out2_fmt, bool ubwc)
 {
 	struct venus_core *core = inst->core;
-	struct venus_caps *caps;
+	struct hfi_plat_caps *caps;
 	u32 ubwc_fmt, fmt = to_hfi_raw_fmt(v4l2_fmt);
 	bool found, found_ubwc;
 

@@ -12,6 +12,31 @@
 #include "hfi.h"
 #include "hfi_helper.h"
 
+#define MAX_PLANES		4
+#define MAX_FMT_ENTRIES		32
+#define MAX_CAP_ENTRIES		32
+#define MAX_ALLOC_MODE_ENTRIES	16
+#define MAX_CODEC_NUM		32
+#define MAX_SESSIONS		16
+
+struct raw_formats {
+	u32 buftype;
+	u32 fmt;
+};
+
+struct hfi_plat_caps {
+	u32 codec;
+	u32 domain;
+	bool cap_bufs_mode_dynamic;
+	unsigned int num_caps;
+	struct hfi_capability caps[MAX_CAP_ENTRIES];
+	unsigned int num_pl;
+	struct hfi_profile_level pl[HFI_MAX_PROFILE_COUNT];
+	unsigned int num_fmts;
+	struct raw_formats fmts[MAX_FMT_ENTRIES];
+	bool valid;	/* used only for Venus v1xx */
+};
+
 struct hfi_platform_codec_freq_data {
 	u32 pixfmt;
 	u32 session_type;
