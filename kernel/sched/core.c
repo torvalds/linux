@@ -1721,10 +1721,17 @@ static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 
 void migrate_disable(void)
 {
-	if (current->migration_disabled++)
-		return;
+	struct task_struct *p = current;
 
-	barrier();
+	if (p->migration_disabled) {
+		p->migration_disabled++;
+		return;
+	}
+
+	preempt_disable();
+	this_rq()->nr_pinned++;
+	p->migration_disabled = 1;
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(migrate_disable);
 
@@ -1751,6 +1758,7 @@ void migrate_enable(void)
 	 */
 	barrier();
 	p->migration_disabled = 0;
+	this_rq()->nr_pinned--;
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(migrate_enable);
@@ -1758,6 +1766,11 @@ EXPORT_SYMBOL_GPL(migrate_enable);
 static inline bool is_migration_disabled(struct task_struct *p)
 {
 	return p->migration_disabled;
+}
+
+static inline bool rq_has_pinned_tasks(struct rq *rq)
+{
+	return rq->nr_pinned;
 }
 
 #endif
@@ -2689,6 +2702,11 @@ static inline int __set_cpus_allowed_ptr(struct task_struct *p,
 static inline void migrate_disable_switch(struct rq *rq, struct task_struct *p) { }
 
 static inline bool is_migration_disabled(struct task_struct *p)
+{
+	return false;
+}
+
+static inline bool rq_has_pinned_tasks(struct rq *rq)
 {
 	return false;
 }
@@ -7066,15 +7084,20 @@ static void balance_push(struct rq *rq)
 	 * Both the cpu-hotplug and stop task are in this case and are
 	 * required to complete the hotplug process.
 	 */
-	if (is_per_cpu_kthread(push_task)) {
+	if (is_per_cpu_kthread(push_task) || is_migration_disabled(push_task)) {
 		/*
 		 * If this is the idle task on the outgoing CPU try to wake
 		 * up the hotplug control thread which might wait for the
 		 * last task to vanish. The rcuwait_active() check is
 		 * accurate here because the waiter is pinned on this CPU
 		 * and can't obviously be running in parallel.
+		 *
+		 * On RT kernels this also has to check whether there are
+		 * pinned and scheduled out tasks on the runqueue. They
+		 * need to leave the migrate disabled section first.
 		 */
-		if (!rq->nr_running && rcuwait_active(&rq->hotplug_wait)) {
+		if (!rq->nr_running && !rq_has_pinned_tasks(rq) &&
+		    rcuwait_active(&rq->hotplug_wait)) {
 			raw_spin_unlock(&rq->lock);
 			rcuwait_wake_up(&rq->hotplug_wait);
 			raw_spin_lock(&rq->lock);
@@ -7121,7 +7144,8 @@ static void balance_hotplug_wait(void)
 {
 	struct rq *rq = this_rq();
 
-	rcuwait_wait_event(&rq->hotplug_wait, rq->nr_running == 1,
+	rcuwait_wait_event(&rq->hotplug_wait,
+			   rq->nr_running == 1 && !rq_has_pinned_tasks(rq),
 			   TASK_UNINTERRUPTIBLE);
 }
 
@@ -7366,7 +7390,7 @@ int sched_cpu_dying(unsigned int cpu)
 	sched_tick_stop(cpu);
 
 	rq_lock_irqsave(rq, &rf);
-	BUG_ON(rq->nr_running != 1);
+	BUG_ON(rq->nr_running != 1 || rq_has_pinned_tasks(rq));
 	rq_unlock_irqrestore(rq, &rf);
 
 	calc_load_migrate(rq);
