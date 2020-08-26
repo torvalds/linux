@@ -472,20 +472,13 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 static int bnxt_get_num_ring_stats(struct bnxt *bp)
 {
 	int rx, tx, cmn;
-	bool sh = false;
-
-	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-		sh = true;
 
 	rx = NUM_RING_RX_HW_STATS + NUM_RING_RX_SW_STATS +
 	     bnxt_get_num_tpa_ring_stats(bp);
 	tx = NUM_RING_TX_HW_STATS;
 	cmn = NUM_RING_CMN_SW_STATS;
-	if (sh)
-		return (rx + tx + cmn) * bp->cp_nr_rings;
-	else
-		return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
-		       cmn * bp->cp_nr_rings;
+	return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
+	       cmn * bp->cp_nr_rings;
 }
 
 static int bnxt_get_num_stats(struct bnxt *bp)
