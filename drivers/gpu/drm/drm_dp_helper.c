@@ -733,6 +733,8 @@ EXPORT_SYMBOL(drm_dp_set_subconnector_property);
  * @dpcd: A cached copy of the connector's DPCD RX capabilities
  * @desc: A cached copy of the connector's DP descriptor
  *
+ * See also: drm_dp_read_sink_count()
+ *
  * Returns: %True if the (e)DP connector has a valid sink count that should
  * be probed, %false otherwise.
  */
@@ -747,6 +749,30 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 		!drm_dp_has_quirk(desc, 0, DP_DPCD_QUIRK_NO_SINK_COUNT);
 }
 EXPORT_SYMBOL(drm_dp_read_sink_count_cap);
+
+/**
+ * drm_dp_read_sink_count() - Retrieve the sink count for a given sink
+ * @aux: The DP AUX channel to use
+ *
+ * See also: drm_dp_read_sink_count_cap()
+ *
+ * Returns: The current sink count reported by @aux, or a negative error code
+ * otherwise.
+ */
+int drm_dp_read_sink_count(struct drm_dp_aux *aux)
+{
+	u8 count;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_SINK_COUNT, &count);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -EIO;
+
+	return DP_GET_SINK_COUNT(count);
+}
+EXPORT_SYMBOL(drm_dp_read_sink_count);
 
 /*
  * I2C-over-AUX implementation
