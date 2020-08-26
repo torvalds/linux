@@ -78,13 +78,10 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		led_data->pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
 	else
 		led_data->pwm = devm_pwm_get(dev, led->name);
-	if (IS_ERR(led_data->pwm)) {
-		ret = PTR_ERR(led_data->pwm);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "unable to request PWM for %s: %d\n",
-				led->name, ret);
-		return ret;
-	}
+	if (IS_ERR(led_data->pwm))
+		return dev_err_probe(dev, PTR_ERR(led_data->pwm),
+				     "unable to request PWM for %s\n",
+				     led->name);
 
 	led_data->cdev.brightness_set_blocking = led_pwm_set;
 
