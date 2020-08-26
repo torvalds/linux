@@ -113,7 +113,11 @@ enum drm_mode_status nv50_dp_mode_valid(struct drm_connector *,
 					unsigned *clock);
 
 struct nouveau_connector *
-nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
+nv50_outp_get_new_connector(struct nouveau_encoder *outp,
+			    struct drm_atomic_state *state);
+struct nouveau_connector *
+nv50_outp_get_old_connector(struct nouveau_encoder *outp,
+			    struct drm_atomic_state *state);
 
 int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
 void nv50_mstm_remove(struct nv50_mstm *);
