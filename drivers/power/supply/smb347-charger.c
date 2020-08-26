@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/power_supply.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <dt-bindings/power/summit,smb347-charger.h>
@@ -1176,7 +1177,7 @@ static bool smb347_readable_reg(struct device *dev, unsigned int reg)
 
 static void smb347_dt_parse_dev_info(struct smb347_charger *smb)
 {
-	struct device_node *np = smb->dev->of_node;
+	struct device *dev = smb->dev;
 
 	smb->soft_temp_limit_compensation =
 					SMB3XX_SOFT_TEMP_COMPENSATE_DEFAULT;
@@ -1190,32 +1191,29 @@ static void smb347_dt_parse_dev_info(struct smb347_charger *smb)
 	smb->hard_hot_temp_limit  = SMB3XX_TEMP_USE_DEFAULT;
 
 	/* Charging constraints */
-	of_property_read_u32(np, "summit,fast-voltage-threshold-microvolt",
-			     &smb->pre_to_fast_voltage);
-	of_property_read_u32(np, "summit,mains-current-limit-microamp",
-			     &smb->mains_current_limit);
-	of_property_read_u32(np, "summit,usb-current-limit-microamp",
-			     &smb->usb_hc_current_limit);
+	device_property_read_u32(dev, "summit,fast-voltage-threshold-microvolt",
+				 &smb->pre_to_fast_voltage);
+	device_property_read_u32(dev, "summit,mains-current-limit-microamp",
+				 &smb->mains_current_limit);
+	device_property_read_u32(dev, "summit,usb-current-limit-microamp",
+				 &smb->usb_hc_current_limit);
 
 	/* For thermometer monitoring */
-	of_property_read_u32(np, "summit,chip-temperature-threshold-celsius",
-			     &smb->chip_temp_threshold);
-	of_property_read_u32(np, "summit,soft-compensation-method",
-			     &smb->soft_temp_limit_compensation);
-	of_property_read_u32(np, "summit,charge-current-compensation-microamp",
-			     &smb->charge_current_compensation);
+	device_property_read_u32(dev, "summit,chip-temperature-threshold-celsius",
+				 &smb->chip_temp_threshold);
+	device_property_read_u32(dev, "summit,soft-compensation-method",
+				 &smb->soft_temp_limit_compensation);
+	device_property_read_u32(dev, "summit,charge-current-compensation-microamp",
+				 &smb->charge_current_compensation);
 
 	/* Supported charging mode */
-	smb->use_mains =
-		of_property_read_bool(np, "summit,enable-mains-charging");
-	smb->use_usb =
-		of_property_read_bool(np, "summit,enable-usb-charging");
-	smb->use_usb_otg =
-		of_property_read_bool(np, "summit,enable-otg-charging");
+	smb->use_mains = device_property_read_bool(dev, "summit,enable-mains-charging");
+	smb->use_usb = device_property_read_bool(dev, "summit,enable-usb-charging");
+	smb->use_usb_otg = device_property_read_bool(dev, "summit,enable-otg-charging");
 
 	/* Select charging control */
-	of_property_read_u32(np, "summit,enable-charge-control",
-			     &smb->enable_control);
+	device_property_read_u32(dev, "summit,enable-charge-control",
+				 &smb->enable_control);
 }
 
 static int smb347_get_battery_info(struct smb347_charger *smb)
