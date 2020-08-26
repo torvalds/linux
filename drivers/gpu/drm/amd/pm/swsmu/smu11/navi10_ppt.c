@@ -2185,19 +2185,18 @@ static int navi10_run_btc(struct smu_context *smu)
 	return ret;
 }
 
-static inline bool navi10_need_umc_cdr_12gbps_workaround(struct amdgpu_device *adev)
+static bool navi10_need_umc_cdr_12gbps_workaround(struct smu_context *smu)
 {
-	if (adev->asic_type != CHIP_NAVI10)
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
 		return false;
 
-	if (adev->pdev->device == 0x731f &&
-	    (adev->pdev->revision == 0xc2 ||
-	     adev->pdev->revision == 0xc3 ||
-	     adev->pdev->revision == 0xca ||
-	     adev->pdev->revision == 0xcb))
+	if (adev->asic_type == CHIP_NAVI10 ||
+	    adev->asic_type == CHIP_NAVI14)
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 static int navi10_umc_hybrid_cdr_workaround(struct smu_context *smu)
@@ -2286,7 +2285,7 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 	uint32_t param;
 	int ret = 0;
 
-	if (!navi10_need_umc_cdr_12gbps_workaround(adev))
+	if (!navi10_need_umc_cdr_12gbps_workaround(smu))
 		return 0;
 
 	ret = smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
