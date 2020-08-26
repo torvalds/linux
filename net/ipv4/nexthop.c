@@ -797,7 +797,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 		return;
 	}
 
-	newg->has_v4 = nhg->has_v4;
+	newg->has_v4 = false;
 	newg->mpath = nhg->mpath;
 	newg->fdb_nh = nhg->fdb_nh;
 	newg->num_nh = nhg->num_nh;
@@ -806,11 +806,17 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	nhges = nhg->nh_entries;
 	new_nhges = newg->nh_entries;
 	for (i = 0, j = 0; i < nhg->num_nh; ++i) {
+		struct nh_info *nhi;
+
 		/* current nexthop getting removed */
 		if (nhg->nh_entries[i].nh == nh) {
 			newg->num_nh--;
 			continue;
 		}
+
+		nhi = rtnl_dereference(nhges[i].nh->nh_info);
+		if (nhi->family == AF_INET)
+			newg->has_v4 = true;
 
 		list_del(&nhges[i].nh_list);
 		new_nhges[j].nh_parent = nhges[i].nh_parent;
