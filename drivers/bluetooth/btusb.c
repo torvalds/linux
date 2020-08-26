@@ -2338,10 +2338,10 @@ static bool btusb_setup_intel_new_get_fw_name(struct intel_version *ver,
 
 static int btusb_intel_download_firmware(struct hci_dev *hdev,
 					 struct intel_version *ver,
-					 struct intel_boot_params *params)
+					 struct intel_boot_params *params,
+					 u32 *boot_param)
 {
 	const struct firmware *fw;
-	u32 boot_param;
 	char fwname[64];
 	int err;
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -2479,7 +2479,7 @@ static int btusb_intel_download_firmware(struct hci_dev *hdev,
 	set_bit(BTUSB_DOWNLOADING, &data->flags);
 
 	/* Start firmware downloading and get boot parameter */
-	err = btintel_download_firmware(hdev, fw, &boot_param);
+	err = btintel_download_firmware(hdev, fw, boot_param);
 	if (err < 0) {
 		/* When FW download fails, send Intel Reset to retry
 		 * FW download.
@@ -2561,7 +2561,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		return err;
 	}
 
-	err = btusb_intel_download_firmware(hdev, &ver, &params);
+	err = btusb_intel_download_firmware(hdev, &ver, &params, &boot_param);
 	if (err)
 		return err;
 
