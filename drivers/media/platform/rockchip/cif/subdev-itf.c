@@ -33,6 +33,9 @@ static int sditf_g_frame_interval(struct v4l2_subdev *sd,
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
 
+	if (!cif_dev->active_sensor)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
+
 	if (cif_dev->active_sensor) {
 		sensor_sd = cif_dev->active_sensor->sd;
 		return v4l2_subdev_call(sensor_sd, video, g_frame_interval, fi);
@@ -48,6 +51,9 @@ static int sditf_g_mbus_config(struct v4l2_subdev *sd,
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
 
+	if (!cif_dev->active_sensor)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
+
 	if (cif_dev->active_sensor) {
 		sensor_sd = cif_dev->active_sensor->sd;
 		return v4l2_subdev_call(sensor_sd, video, g_mbus_config, config);
@@ -62,29 +68,32 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 {
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
-	struct v4l2_subdev *sensor_sd;
+	struct v4l2_subdev_selection input_sel;
+	int ret = -EINVAL;
 
-	if (cif_dev->active_sensor) {
-		sensor_sd = cif_dev->active_sensor->sd;
-		return v4l2_subdev_call(sensor_sd, pad, get_fmt, NULL, fmt);
+	if (!cif_dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
+
+	if (cif_dev->terminal_sensor.sd) {
+		v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, fmt);
+
+		input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				       pad, get_selection, NULL,
+				       &input_sel);
+		if (!ret) {
+			fmt->format.width = input_sel.r.width;
+			fmt->format.height = input_sel.r.height;
+		}
 	}
 
-	return -EINVAL;
+	return ret;
 }
 
 static int sditf_get_selection(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_selection *sel)
 {
-	struct sditf_priv *priv = to_sditf_priv(sd);
-	struct rkcif_device *cif_dev = priv->cif_dev;
-	struct v4l2_subdev *sensor_sd;
-
-	if (cif_dev->active_sensor) {
-		sensor_sd = cif_dev->active_sensor->sd;
-		return v4l2_subdev_call(sensor_sd, pad, get_selection, NULL, sel);
-	}
-
 	return -EINVAL;
 }
 
@@ -93,6 +102,9 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
+
+	if (!cif_dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
 
 	if (cif_dev->terminal_sensor.sd) {
 		sensor_sd = cif_dev->terminal_sensor.sd;
@@ -109,6 +121,9 @@ static long sditf_compat_ioctl32(struct v4l2_subdev *sd,
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
+
+	if (!cif_dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
 
 	if (cif_dev->terminal_sensor.sd) {
 		sensor_sd = cif_dev->terminal_sensor.sd;

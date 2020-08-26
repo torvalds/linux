@@ -478,33 +478,6 @@ static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 	return NULL;
 }
 
-static int rkcif_update_sensor_info(struct rkcif_stream *stream)
-{
-	struct rkcif_sensor_info *sensor, *terminal_sensor;
-	struct v4l2_subdev *sensor_sd;
-	int ret = 0;
-
-	sensor_sd = get_remote_sensor(stream, NULL);
-	if (!sensor_sd)
-		return -ENODEV;
-
-	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
-	if (!sensor) {
-		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
-		return -ENODEV;
-	}
-	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
-			       &sensor->mbus);
-	if (ret && ret != -ENOIOCTLCMD)
-		return ret;
-	stream->cifdev->active_sensor = sensor;
-
-	terminal_sensor = &stream->cifdev->terminal_sensor;
-	get_remote_terminal_sensor(stream, &terminal_sensor->sd);
-
-	return ret;
-}
-
 static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 {
 	switch (pixelformat) {
@@ -3246,6 +3219,33 @@ static u32 rkcif_lvds_get_sof(struct rkcif_device *dev)
 		return atomic_read(&dev->lvds_subdev.frm_sync_seq) - 1;
 
 	return 0;
+}
+
+int rkcif_update_sensor_info(struct rkcif_stream *stream)
+{
+	struct rkcif_sensor_info *sensor, *terminal_sensor;
+	struct v4l2_subdev *sensor_sd;
+	int ret = 0;
+
+	sensor_sd = get_remote_sensor(stream, NULL);
+	if (!sensor_sd)
+		return -ENODEV;
+
+	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
+	if (!sensor) {
+		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
+		return -ENODEV;
+	}
+	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
+			       &sensor->mbus);
+	if (ret && ret != -ENOIOCTLCMD)
+		return ret;
+	stream->cifdev->active_sensor = sensor;
+
+	terminal_sensor = &stream->cifdev->terminal_sensor;
+	get_remote_terminal_sensor(stream, &terminal_sensor->sd);
+
+	return ret;
 }
 
 int rkcif_register_lvds_subdev(struct rkcif_device *dev)

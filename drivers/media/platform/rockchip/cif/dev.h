@@ -406,5 +406,6 @@ u32 rkcif_get_sof(struct rkcif_device *cif_dev);
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id);
 int rkcif_plat_uninit(struct rkcif_device *cif_dev);
 int rkcif_attach_hw(struct rkcif_device *cif_dev);
+int rkcif_update_sensor_info(struct rkcif_stream *stream);
 
 #endif
