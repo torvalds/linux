@@ -133,12 +133,9 @@ static struct nexthop *nexthop_alloc(void)
 
 static struct nh_group *nexthop_grp_alloc(u16 num_nh)
 {
-	size_t sz = offsetof(struct nexthop, nh_grp)
-		    + sizeof(struct nh_group)
-		    + sizeof(struct nh_grp_entry) * num_nh;
 	struct nh_group *nhg;
 
-	nhg = kzalloc(sz, GFP_KERNEL);
+	nhg = kzalloc(struct_size(nhg, nh_entries, num_nh), GFP_KERNEL);
 	if (nhg)
 		nhg->num_nh = num_nh;
 
