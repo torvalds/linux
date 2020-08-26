@@ -58,7 +58,7 @@
 #define	XFS_IALLOC_SPACE_RES(mp)	\
 	(M_IGEO(mp)->ialloc_blks + \
 	 ((xfs_sb_version_hasfinobt(&mp->m_sb) ? 2 : 1) * \
-	  (M_IGEO(mp)->inobt_maxlevels - 1)))
+	  M_IGEO(mp)->inobt_maxlevels))
 
 /*
  * Space reservation values for various transactions.
