@@ -934,8 +934,7 @@ static void audit_free_reply(struct audit_reply *reply)
 	if (!reply)
 		return;
 
-	if (reply->skb)
-		kfree_skb(reply->skb);
+	kfree_skb(reply->skb);
 	if (reply->net)
 		put_net(reply->net);
 	kfree(reply);
