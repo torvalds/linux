@@ -966,7 +966,7 @@ exit:
  * brcmf_p2p_remain_on_channel() - put device on channel and stay there.
  *
  * @wiphy: wiphy device.
- * @wiphy: wireless device.
+ * @wdev: wireless device.
  * @channel: channel to stay on.
  * @duration: time in ms to remain on channel.
  * @cookie: cookie.
@@ -2038,8 +2038,7 @@ static void brcmf_p2p_get_current_chanspec(struct brcmf_p2p_info *p2p,
 
 /**
  * Change a P2P Role.
- * Parameters:
- * @mac: MAC address of the BSS to change a role
+ * @cfg: driver private data for cfg80211 interface.
  * @if_type: interface type.
  * Returns 0 if success.
  */
