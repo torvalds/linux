@@ -209,6 +209,16 @@ config DWMAC_IMX8
 	  device driver. This driver is used for i.MX8 series like
 	  iMX8MP/iMX8DXL GMAC ethernet controller.
 
+config DWMAC_INTEL_PLAT
+	tristate "Intel dwmac support"
+	depends on OF && COMMON_CLK
+	depends on STMMAC_ETH
+	help
+	  Support for ethernet controllers on Intel SoCs
+
+	  This selects the Intel platform specific glue layer support for
+	  the stmmac device driver. This driver is used for the Intel Keem Bay
+	  SoC.
 endif
 
 config DWMAC_INTEL
