@@ -246,6 +246,7 @@
 /* Intel Vendor Specific Registers */
 #define HDA_VS_INTEL_EM2		0x1030
 #define HDA_VS_INTEL_EM2_L1SEN		BIT(13)
+#define HDA_VS_INTEL_LTRP_GB_MASK	0x3F
 
 /*  HIPCI */
 #define HDA_DSP_REG_HIPCI_BUSY		BIT(31)
@@ -546,6 +547,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct hdac_ext_stream *stream,
 			     struct snd_dma_buffer *dmab,
 			     struct snd_pcm_hw_params *params);
+int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream,
+				    struct snd_dma_buffer *dmab,
+				    struct snd_pcm_hw_params *params);
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			   struct hdac_ext_stream *stream, int cmd);
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context);
