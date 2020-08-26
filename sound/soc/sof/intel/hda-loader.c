@@ -205,18 +205,15 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 }
 
 static struct hdac_ext_stream *get_stream_with_tag(struct snd_sof_dev *sdev,
-						   int tag)
+						   int tag, int direction)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *s;
 
 	/* get stream with tag */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    s->stream_tag == tag) {
+	list_for_each_entry(s, &bus->stream_list, list)
+		if (s->direction == direction && s->stream_tag == tag)
 			return stream_to_hdac_ext_stream(s);
-		}
-	}
 
 	return NULL;
 }
@@ -322,7 +319,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	}
 
 	/* get stream with tag */
-	stream = get_stream_with_tag(sdev, tag);
+	stream = get_stream_with_tag(sdev, tag, SNDRV_PCM_STREAM_PLAYBACK);
 	if (!stream) {
 		dev_err(sdev->dev,
 			"error: could not get stream with stream tag %d\n",
