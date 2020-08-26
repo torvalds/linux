@@ -78,8 +78,7 @@ error:
  * status on core 1, so power up core 1 also momentarily, keep it in
  * reset/stall and then turn it off
  */
-static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
-		       u32 fwsize, int stream_tag, int iteration)
+static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, int iteration)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -340,8 +339,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev,
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
-		ret = cl_dsp_init(sdev, stripped_firmware.data,
-				  stripped_firmware.size, tag, i + 1);
+		ret = cl_dsp_init(sdev, tag, i + 1);
 
 		/* don't retry anymore if successful */
 		if (!ret)
