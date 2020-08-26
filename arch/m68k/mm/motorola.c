@@ -226,7 +226,7 @@ static pte_t * __init kernel_page_table(void)
 {
 	pte_t *pte_table = last_pte_table;
 
-	if (((unsigned long)last_pte_table & ~PAGE_MASK) == 0) {
+	if (PAGE_ALIGNED(last_pte_table)) {
 		pte_table = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 		if (!pte_table) {
 			panic("%s: Failed to allocate %lu bytes align=%lx\n",
@@ -274,7 +274,7 @@ static pmd_t * __init kernel_ptr_table(void)
 	}
 
 	last_pmd_table += PTRS_PER_PMD;
-	if (((unsigned long)last_pmd_table & ~PAGE_MASK) == 0) {
+	if (PAGE_ALIGNED(last_pmd_table)) {
 		last_pmd_table = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
 							   PAGE_SIZE);
 		if (!last_pmd_table)
