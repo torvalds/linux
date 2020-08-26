@@ -87,7 +87,6 @@
 	panel: panel {
 		compatible = "lg,lp120up1";
 		power-supply = <&panel_fixed_3v3>;
-		ddc-i2c-bus = <&i2c0>;
 		backlight = <&backlight>;
 
 		port {
