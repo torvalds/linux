@@ -663,6 +663,45 @@ static int smu_free_memory_pool(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_alloc_dummy_read_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *dummy_read_1_table =
+			&smu_table->dummy_read_1_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	dummy_read_1_table->size = 0x40000;
+	dummy_read_1_table->align = PAGE_SIZE;
+	dummy_read_1_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
+
+	ret = amdgpu_bo_create_kernel(adev,
+				      dummy_read_1_table->size,
+				      dummy_read_1_table->align,
+				      dummy_read_1_table->domain,
+				      &dummy_read_1_table->bo,
+				      &dummy_read_1_table->mc_address,
+				      &dummy_read_1_table->cpu_addr);
+	if (ret)
+		dev_err(adev->dev, "VRAM allocation for dummy read table failed!\n");
+
+	return ret;
+}
+
+static void smu_free_dummy_read_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *dummy_read_1_table =
+			&smu_table->dummy_read_1_table;
+
+
+	amdgpu_bo_free_kernel(&dummy_read_1_table->bo,
+			      &dummy_read_1_table->mc_address,
+			      &dummy_read_1_table->cpu_addr);
+
+	memset(dummy_read_1_table, 0, sizeof(struct smu_table));
+}
+
 static int smu_smc_table_sw_init(struct smu_context *smu)
 {
 	int ret;
@@ -698,6 +737,10 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	ret = smu_alloc_dummy_read_table(smu);
+	if (ret)
+		return ret;
+
 	ret = smu_i2c_init(smu, &smu->adev->pm.smu_i2c);
 	if (ret)
 		return ret;
@@ -710,6 +753,8 @@ static int smu_smc_table_sw_fini(struct smu_context *smu)
 	int ret;
 
 	smu_i2c_fini(smu, &smu->adev->pm.smu_i2c);
+
+	smu_free_dummy_read_table(smu);
 
 	ret = smu_free_memory_pool(smu);
 	if (ret)

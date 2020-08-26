@@ -270,6 +270,7 @@ struct smu_table_context
 	 */
 	struct smu_table		driver_table;
 	struct smu_table		memory_pool;
+	struct smu_table		dummy_read_1_table;
 	uint8_t                         thermal_controller_type;
 
 	void				*overdrive_table;
