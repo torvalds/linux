@@ -112,4 +112,9 @@ static inline u32 core_num_max(struct venus_inst *inst)
 	return cap_max(inst, HFI_CAPABILITY_MAX_VIDEOCORES);
 }
 
+static inline u32 mbs_per_frame_max(struct venus_inst *inst)
+{
+	return cap_max(inst, HFI_CAPABILITY_MBS_PER_FRAME);
+}
+
 #endif

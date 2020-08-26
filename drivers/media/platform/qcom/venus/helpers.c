@@ -16,6 +16,7 @@
 #include "hfi_helper.h"
 #include "pm_helpers.h"
 #include "hfi_platform.h"
+#include "hfi_parser.h"
 
 struct intbuf {
 	struct list_head list;
@@ -553,6 +554,51 @@ static u32 to_hfi_raw_fmt(u32 v4l2_fmt)
 	return 0;
 }
 
+static int platform_get_bufreq(struct venus_inst *inst, u32 buftype,
+			       struct hfi_buffer_requirements *req)
+{
+	enum hfi_version version = inst->core->res->hfi_version;
+	const struct hfi_platform *hfi_plat;
+	struct hfi_plat_buffers_params params;
+	bool is_dec = inst->session_type == VIDC_SESSION_TYPE_DEC;
+	struct venc_controls *enc_ctr = &inst->controls.enc;
+
+	hfi_plat = hfi_platform_get(version);
+
+	if (!hfi_plat || !hfi_plat->bufreq)
+		return -EINVAL;
+
+	params.version = version;
+	params.num_vpp_pipes = hfi_platform_num_vpp_pipes(version);
+
+	if (is_dec) {
+		params.width = inst->width;
+		params.height = inst->height;
+		params.codec = inst->fmt_out->pixfmt;
+		params.hfi_color_fmt = to_hfi_raw_fmt(inst->fmt_cap->pixfmt);
+		params.dec.max_mbs_per_frame = mbs_per_frame_max(inst);
+		params.dec.buffer_size_limit = 0;
+		params.dec.is_secondary_output =
+			inst->opb_buftype == HFI_BUFFER_OUTPUT2;
+		params.dec.is_interlaced =
+			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE ?
+				true : false;
+	} else {
+		params.width = inst->out_width;
+		params.height = inst->out_height;
+		params.codec = inst->fmt_cap->pixfmt;
+		params.hfi_color_fmt = to_hfi_raw_fmt(inst->fmt_out->pixfmt);
+		params.enc.work_mode = VIDC_WORK_MODE_2;
+		params.enc.rc_type = HFI_RATE_CONTROL_OFF;
+		if (enc_ctr->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ)
+			params.enc.rc_type = HFI_RATE_CONTROL_CQ;
+		params.enc.num_b_frames = enc_ctr->num_b_frames;
+		params.enc.is_tenbit = inst->bit_depth == VIDC_BITDEPTH_10;
+	}
+
+	return hfi_plat->bufreq(&params, inst->session_type, buftype, req);
+}
+
 int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
 			    struct hfi_buffer_requirements *req)
 {
@@ -563,6 +609,10 @@ int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
 
 	if (req)
 		memset(req, 0, sizeof(*req));
+
+	ret = platform_get_bufreq(inst, type, req);
+	if (!ret)
+		return 0;
 
 	ret = hfi_session_get_property(inst, ptype, &hprop);
 	if (ret)
