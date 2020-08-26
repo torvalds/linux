@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  pxa2xx_ssp.h
- *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
  * This driver supports the following PXA CPU/SSP ports:-
