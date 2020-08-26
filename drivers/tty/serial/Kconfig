@@ -517,6 +517,7 @@ config SERIAL_IMX_CONSOLE
 
 config SERIAL_IMX_EARLYCON
 	bool "Earlycon on IMX serial port"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	select SERIAL_EARLYCON
 	help
