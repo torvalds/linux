@@ -6107,6 +6107,21 @@ static int bnxt_get_func_stat_ctxs(struct bnxt *bp)
 	return cp + ulp_stat;
 }
 
+/* Check if a default RSS map needs to be setup.  This function is only
+ * used on older firmware that does not require reserving RX rings.
+ */
+static void bnxt_check_rss_tbl_no_rmgr(struct bnxt *bp)
+{
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+	/* The RSS map is valid for RX rings set to resv_rx_rings */
+	if (hw_resc->resv_rx_rings != bp->rx_nr_rings) {
+		hw_resc->resv_rx_rings = bp->rx_nr_rings;
+		if (!netif_is_rxfh_configured(bp->dev))
+			bnxt_set_dflt_rss_indir_tbl(bp);
+	}
+}
+
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
@@ -6115,22 +6130,28 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	int rx = bp->rx_nr_rings, stat;
 	int vnic = 1, grp = rx;
 
-	if (bp->hwrm_spec_code < 0x10601)
-		return false;
-
-	if (hw_resc->resv_tx_rings != bp->tx_nr_rings)
+	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
+	    bp->hwrm_spec_code >= 0x10601)
 		return true;
 
+	/* Old firmware does not need RX ring reservations but we still
+	 * need to setup a default RSS map when needed.  With new firmware
+	 * we go through RX ring reservations first and then set up the
+	 * RSS map for the successfully reserved RX rings when needed.
+	 */
+	if (!BNXT_NEW_RM(bp)) {
+		bnxt_check_rss_tbl_no_rmgr(bp);
+		return false;
+	}
 	if ((bp->flags & BNXT_FLAG_RFS) && !(bp->flags & BNXT_FLAG_CHIP_P5))
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
 	stat = bnxt_get_func_stat_ctxs(bp);
-	if (BNXT_NEW_RM(bp) &&
-	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	     hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
-	     (hw_resc->resv_hw_ring_grps != grp &&
-	      !(bp->flags & BNXT_FLAG_CHIP_P5))))
+	if (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
+	    hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
+	    (hw_resc->resv_hw_ring_grps != grp &&
+	     !(bp->flags & BNXT_FLAG_CHIP_P5)))
 		return true;
 	if ((bp->flags & BNXT_FLAG_CHIP_P5) && BNXT_PF(bp) &&
 	    hw_resc->resv_irqs != nq)
