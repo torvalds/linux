@@ -402,11 +402,6 @@ static void xen_pv_teardown_msi_irqs(struct pci_dev *dev)
 	xen_teardown_msi_irqs(dev);
 }
 
-static void xen_teardown_msi_irq(unsigned int irq)
-{
-	WARN_ON_ONCE(1);
-}
-
 static int xen_msi_domain_alloc_irqs(struct irq_domain *domain,
 				     struct device *dev,  int nvec)
 {
@@ -482,8 +477,6 @@ static __init void xen_setup_pci_msi(void)
 		WARN_ON_ONCE(1);
 		return;
 	}
-
-	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 
 	/*
 	 * Override the PCI/MSI irq domain init function. No point
