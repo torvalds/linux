@@ -6608,13 +6608,6 @@ L:	iommu@lists.linux-foundation.org
 S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
-EZchip NPS platform support
-M:	Vineet Gupta <vgupta@synopsys.com>
-M:	Ofer Levi <oferle@nvidia.com>
-S:	Supported
-F:	arch/arc/boot/dts/eznps.dts
-F:	arch/arc/plat-eznps
-
 F2FS FILE SYSTEM
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
 M:	Chao Yu <yuchao0@huawei.com>
