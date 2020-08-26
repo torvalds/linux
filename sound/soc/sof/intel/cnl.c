@@ -29,7 +29,7 @@ static const struct snd_sof_debugfs_map cnl_dsp_debugfs[] = {
 static void cnl_ipc_host_done(struct snd_sof_dev *sdev);
 static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev);
 
-static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
+irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	u32 hipci;
@@ -163,8 +163,7 @@ static bool cnl_compact_ipc_compress(struct snd_sof_ipc_msg *msg,
 	return false;
 }
 
-static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
-			    struct snd_sof_ipc_msg *msg)
+int cnl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct sof_ipc_cmd_hdr *hdr;
@@ -211,7 +210,7 @@ static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-static void cnl_ipc_dump(struct snd_sof_dev *sdev)
+void cnl_ipc_dump(struct snd_sof_dev *sdev)
 {
 	u32 hipcctl;
 	u32 hipcida;
@@ -368,22 +367,6 @@ const struct sof_intel_dsp_desc icl_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
 EXPORT_SYMBOL_NS(icl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
-
-const struct sof_intel_dsp_desc tgl_chip_info = {
-	/* Tigerlake */
-	.cores_num = 4,
-	.init_core_mask = 1,
-	.cores_mask = HDA_DSP_CORE_MASK(0),
-	.ipc_req = CNL_DSP_REG_HIPCIDR,
-	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
-	.ipc_ack = CNL_DSP_REG_HIPCIDA,
-	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
-	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
-	.rom_init_timeout	= 300,
-	.ssp_count = ICL_SSP_COUNT,
-	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
-};
-EXPORT_SYMBOL_NS(tgl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc ehl_chip_info = {
 	/* Elkhartlake */
