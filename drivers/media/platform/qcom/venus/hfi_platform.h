@@ -53,6 +53,7 @@ struct hfi_platform {
 };
 
 extern const struct hfi_platform hfi_plat_v4;
+extern const struct hfi_platform hfi_plat_v6;
 
 const struct hfi_platform *hfi_platform_get(enum hfi_version version);
 unsigned long hfi_platform_get_codec_vpp_freq(enum hfi_version version, u32 codec,

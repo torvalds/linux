@@ -9,6 +9,8 @@ const struct hfi_platform *hfi_platform_get(enum hfi_version version)
 	switch (version) {
 	case HFI_VERSION_4XX:
 		return &hfi_plat_v4;
+	case HFI_VERSION_6XX:
+		return &hfi_plat_v6;
 	default:
 		break;
 	}
