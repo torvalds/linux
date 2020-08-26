@@ -267,6 +267,22 @@ bool __map__is_bpf_prog(const struct map *map)
 	return name && (strstr(name, "bpf_prog_") == name);
 }
 
+bool __map__is_bpf_image(const struct map *map)
+{
+	const char *name;
+
+	if (map->dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE)
+		return true;
+
+	/*
+	 * If PERF_RECORD_KSYMBOL is not included, the dso will not have
+	 * type of DSO_BINARY_TYPE__BPF_IMAGE. In such cases, we can
+	 * guess the type based on name.
+	 */
+	name = map->dso->short_name;
+	return name && is_bpf_image(name);
+}
+
 bool __map__is_ool(const struct map *map)
 {
 	return map->dso && map->dso->binary_type == DSO_BINARY_TYPE__OOL;
