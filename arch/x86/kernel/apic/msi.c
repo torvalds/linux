@@ -203,12 +203,6 @@ void native_teardown_msi_irq(unsigned int irq)
 	irq_domain_free_irqs(irq, 1);
 }
 
-static irq_hw_number_t pci_msi_get_hwirq(struct msi_domain_info *info,
-					 msi_alloc_info_t *arg)
-{
-	return arg->hwirq;
-}
-
 int pci_msi_prepare(struct irq_domain *domain, struct device *dev, int nvec,
 		    msi_alloc_info_t *arg)
 {
@@ -227,17 +221,8 @@ int pci_msi_prepare(struct irq_domain *domain, struct device *dev, int nvec,
 }
 EXPORT_SYMBOL_GPL(pci_msi_prepare);
 
-void pci_msi_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
-{
-	arg->desc = desc;
-	arg->hwirq = pci_msi_domain_calc_hwirq(desc);
-}
-EXPORT_SYMBOL_GPL(pci_msi_set_desc);
-
 static struct msi_domain_ops pci_msi_domain_ops = {
-	.get_hwirq	= pci_msi_get_hwirq,
 	.msi_prepare	= pci_msi_prepare,
-	.set_desc	= pci_msi_set_desc,
 };
 
 static struct msi_domain_info pci_msi_domain_info = {
@@ -322,12 +307,6 @@ static struct irq_chip dmar_msi_controller = {
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
-static irq_hw_number_t dmar_msi_get_hwirq(struct msi_domain_info *info,
-					  msi_alloc_info_t *arg)
-{
-	return arg->hwirq;
-}
-
 static int dmar_msi_init(struct irq_domain *domain,
 			 struct msi_domain_info *info, unsigned int virq,
 			 irq_hw_number_t hwirq, msi_alloc_info_t *arg)
@@ -339,7 +318,6 @@ static int dmar_msi_init(struct irq_domain *domain,
 }
 
 static struct msi_domain_ops dmar_msi_domain_ops = {
-	.get_hwirq	= dmar_msi_get_hwirq,
 	.msi_init	= dmar_msi_init,
 };
 
@@ -381,6 +359,7 @@ int dmar_alloc_hwirq(int id, int node, void *arg)
 	init_irq_alloc_info(&info, NULL);
 	info.type = X86_IRQ_ALLOC_TYPE_DMAR;
 	info.devid = id;
+	info.hwirq = id;
 	info.data = arg;
 
 	return irq_domain_alloc_irqs(domain, 1, node, &info);
@@ -419,12 +398,6 @@ static struct irq_chip hpet_msi_controller __ro_after_init = {
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static irq_hw_number_t hpet_msi_get_hwirq(struct msi_domain_info *info,
-					  msi_alloc_info_t *arg)
-{
-	return arg->hwirq;
-}
-
 static int hpet_msi_init(struct irq_domain *domain,
 			 struct msi_domain_info *info, unsigned int virq,
 			 irq_hw_number_t hwirq, msi_alloc_info_t *arg)
@@ -443,7 +416,6 @@ static void hpet_msi_free(struct irq_domain *domain,
 }
 
 static struct msi_domain_ops hpet_msi_domain_ops = {
-	.get_hwirq	= hpet_msi_get_hwirq,
 	.msi_init	= hpet_msi_init,
 	.msi_free	= hpet_msi_free,
 };
