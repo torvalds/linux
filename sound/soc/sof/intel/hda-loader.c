@@ -17,6 +17,7 @@
 
 #include <linux/firmware.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_register.h>
 #include <sound/sof.h>
 #include "../ops.h"
 #include "hda.h"
@@ -32,11 +33,6 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
-
-	if (direction != SNDRV_PCM_STREAM_PLAYBACK) {
-		dev_err(sdev->dev, "error: code loading DMA is playback only\n");
-		return -EINVAL;
-	}
 
 	dsp_stream = hda_dsp_stream_get(sdev, direction);
 
@@ -58,13 +54,20 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 	hstream->format_val = format;
 	hstream->bufsize = size;
 
-	ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
-		goto error;
+	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = hda_dsp_iccmax_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: iccmax stream prepare failed: %x\n", ret);
+			goto error;
+		}
+	} else {
+		ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
+			goto error;
+		}
+		hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
 	}
-
-	hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
 
 	return hstream->stream_tag;
 
@@ -224,12 +227,15 @@ static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret;
+	int ret = 0;
 
-	ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
+		ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+	else
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
+					SOF_HDA_SD_CTL_DMA_START, 0);
 
-	hda_dsp_stream_put(sdev, SNDRV_PCM_STREAM_PLAYBACK,
-			   hstream->stream_tag);
+	hda_dsp_stream_put(sdev, hstream->direction, hstream->stream_tag);
 	hstream->running = 0;
 	hstream->substream = NULL;
 
@@ -285,6 +291,62 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 	}
 
 	return status;
+}
+
+int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct hdac_ext_stream *iccmax_stream;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct firmware stripped_firmware;
+	int ret, ret1;
+	int iccmax_tag;
+	u8 original_gb;
+
+	/* save the original LTRP guardband value */
+	original_gb = snd_hdac_chip_readb(bus, VS_LTRP) & HDA_VS_INTEL_LTRP_GB_MASK;
+
+	if (plat_data->fw->size <= plat_data->fw_offset) {
+		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
+		return -EINVAL;
+	}
+
+	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
+
+	/* prepare capture stream for ICCMAX */
+	iccmax_tag = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+				       &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+	if (iccmax_tag < 0) {
+		dev_err(sdev->dev, "error: dma prepare for ICCMAX %x\n", iccmax_tag);
+		return iccmax_tag;
+	}
+
+	/* get stream with tag */
+	iccmax_stream = get_stream_with_tag(sdev, iccmax_tag, SNDRV_PCM_STREAM_CAPTURE);
+	if (!iccmax_stream) {
+		dev_err(sdev->dev, "error: could not get stream with stream tag %d\n", iccmax_tag);
+		ret = -ENODEV;
+	} else {
+		ret = hda_dsp_cl_boot_firmware(sdev);
+	}
+
+	/*
+	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
+	 * If the cleanup also fails, we return the initial error
+	 */
+	ret1 = cl_cleanup(sdev, &sdev->dmab_bdl, iccmax_stream);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "error: ICCMAX stream cleanup failed\n");
+
+		/* set return value to indicate cleanup failure */
+		if (!ret)
+			ret = ret1;
+	}
+
+	/* restore the original guardband value after FW boot */
+	snd_hdac_chip_updateb(bus, VS_LTRP, HDA_VS_INTEL_LTRP_GB_MASK, original_gb);
+
+	return ret;
 }
 
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
