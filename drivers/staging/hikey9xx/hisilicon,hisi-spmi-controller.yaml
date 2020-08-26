@@ -14,7 +14,7 @@ description: |
   It is a MIPI System Power Management (SPMI) controller.
 
   The PMIC part is provided by
-  Documentation/devicetree/bindings/mfd/hisilicon,hi6421-spmi-pmic.yaml.
+  drivers/staging/hikey9xx/hisilicon,hi6421-spmi-pmic.yaml.
 
 properties:
   $nodename:
@@ -41,7 +41,7 @@ patternProperties:
       PMIC properties, which are specific to the used SPMI PMIC device(s).
       When used in combination with HiSilicon 6421v600, the properties
       are documented at
-      Documentation/devicetree/bindings/mfd/hisilicon,hi6421-spmi-pmic.yaml.
+      drivers/staging/hikey9xx/hisilicon,hi6421-spmi-pmic.yaml.
 
 examples:
   - |
