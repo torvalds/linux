@@ -25,9 +25,9 @@
 #define HDA_FW_BOOT_ATTEMPTS	3
 #define HDA_CL_STREAM_FORMAT 0x40
 
-static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
-			     unsigned int size, struct snd_dma_buffer *dmab,
-			     int direction)
+static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
+						 unsigned int size, struct snd_dma_buffer *dmab,
+						 int direction)
 {
 	struct hdac_ext_stream *dsp_stream;
 	struct hdac_stream *hstream;
@@ -38,7 +38,7 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 
 	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 	}
 	hstream = &dsp_stream->hstream;
 	hstream->substream = NULL;
@@ -69,12 +69,12 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 		hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
 	}
 
-	return hstream->stream_tag;
+	return dsp_stream;
 
 error:
 	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 	snd_dma_free_pages(dmab);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -208,20 +208,6 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	}
 }
 
-static struct hdac_ext_stream *get_stream_with_tag(struct snd_sof_dev *sdev,
-						   int tag, int direction)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *s;
-
-	/* get stream with tag */
-	list_for_each_entry(s, &bus->stream_list, list)
-		if (s->direction == direction && s->stream_tag == tag)
-			return stream_to_hdac_ext_stream(s);
-
-	return NULL;
-}
-
 static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		      struct hdac_ext_stream *stream)
 {
@@ -300,7 +286,6 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct firmware stripped_firmware;
 	int ret, ret1;
-	int iccmax_tag;
 	u8 original_gb;
 
 	/* save the original LTRP guardband value */
@@ -314,21 +299,14 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
 
 	/* prepare capture stream for ICCMAX */
-	iccmax_tag = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-				       &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
-	if (iccmax_tag < 0) {
-		dev_err(sdev->dev, "error: dma prepare for ICCMAX %x\n", iccmax_tag);
-		return iccmax_tag;
+	iccmax_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+					  &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+	if (IS_ERR(iccmax_stream)) {
+		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
+		return PTR_ERR(iccmax_stream);
 	}
 
-	/* get stream with tag */
-	iccmax_stream = get_stream_with_tag(sdev, iccmax_tag, SNDRV_PCM_STREAM_CAPTURE);
-	if (!iccmax_stream) {
-		dev_err(sdev->dev, "error: could not get stream with stream tag %d\n", iccmax_tag);
-		ret = -ENODEV;
-	} else {
-		ret = hda_dsp_cl_boot_firmware(sdev);
-	}
+	ret = hda_dsp_cl_boot_firmware(sdev);
 
 	/*
 	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
@@ -356,7 +334,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
-	int ret, ret1, tag, i;
+	int ret, ret1, i;
 
 	chip_info = desc->chip_info;
 
@@ -372,23 +350,11 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 
 	/* prepare DMA for code loader stream */
-	tag = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-				&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
-
-	if (tag < 0) {
-		dev_err(sdev->dev, "error: dma prepare for fw loading err: %x\n",
-			tag);
-		return tag;
-	}
-
-	/* get stream with tag */
-	stream = get_stream_with_tag(sdev, tag, SNDRV_PCM_STREAM_PLAYBACK);
-	if (!stream) {
-		dev_err(sdev->dev,
-			"error: could not get stream with stream tag %d\n",
-			tag);
-		ret = -ENODEV;
-		goto err;
+	stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+				   &sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	if (IS_ERR(stream)) {
+		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
+		return PTR_ERR(stream);
 	}
 
 	memcpy(sdev->dmab.area, stripped_firmware.data,
@@ -399,7 +365,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev,
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
-		ret = cl_dsp_init(sdev, tag, i + 1);
+		ret = cl_dsp_init(sdev, stream->hstream.stream_tag, i + 1);
 
 		/* don't retry anymore if successful */
 		if (!ret)
@@ -468,7 +434,6 @@ cleanup:
 		return chip_info->init_core_mask;
 
 	/* dump dsp registers and disable DSP upon error */
-err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
 	/* disable DSP */
