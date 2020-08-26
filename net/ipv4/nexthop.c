@@ -1098,7 +1098,7 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 	while (1) {
 		struct nexthop *nh;
 
-		next = rtnl_dereference(*pp);
+		next = *pp;
 		if (!next)
 			break;
 
