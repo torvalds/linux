@@ -2185,7 +2185,7 @@ static int navi10_run_btc(struct smu_context *smu)
 	return ret;
 }
 
-static bool navi10_need_umc_cdr_12gbps_workaround(struct smu_context *smu)
+static bool navi10_need_umc_cdr_workaround(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
@@ -2276,7 +2276,7 @@ static int navi10_set_dummy_pstates_table_location(struct smu_context *smu)
 					       NULL);
 }
 
-static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
+static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint8_t umc_fw_greater_than_v136 = false;
@@ -2285,7 +2285,7 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 	uint32_t param;
 	int ret = 0;
 
-	if (!navi10_need_umc_cdr_12gbps_workaround(smu))
+	if (!navi10_need_umc_cdr_workaround(smu))
 		return 0;
 
 	ret = smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
@@ -2676,7 +2676,7 @@ static int navi10_post_smu_init(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = navi10_disable_umc_cdr_12gbps_workaround(smu);
+	ret = navi10_run_umc_cdr_workaround(smu);
 	if (ret)
 		dev_err(adev->dev, "Failed to apply umc cdr workaround!\n");
 
