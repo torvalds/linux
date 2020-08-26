@@ -412,14 +412,14 @@ void snd_soc_dai_link_set_capabilities(struct snd_soc_dai_link *dai_link)
 		supported_codec = false;
 
 		for_each_link_cpus(dai_link, i, cpu) {
-			dai = snd_soc_find_dai(cpu);
+			dai = snd_soc_find_dai_with_mutex(cpu);
 			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
 				supported_cpu = true;
 				break;
 			}
 		}
 		for_each_link_codecs(dai_link, i, codec) {
-			dai = snd_soc_find_dai(codec);
+			dai = snd_soc_find_dai_with_mutex(codec);
 			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
 				supported_codec = true;
 				break;
