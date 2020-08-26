@@ -16,10 +16,15 @@
 #ifndef __LINUX_SSP_H
 #define __LINUX_SSP_H
 
-#include <linux/list.h>
+#include <linux/compiler_types.h>
 #include <linux/io.h>
-#include <linux/of.h>
+#include <linux/kconfig.h>
+#include <linux/list.h>
+#include <linux/types.h>
 
+struct clk;
+struct device;
+struct device_node;
 
 /*
  * SSP Serial Port Registers
