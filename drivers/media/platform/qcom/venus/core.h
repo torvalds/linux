@@ -375,6 +375,7 @@ struct venus_inst {
 	union hfi_get_property hprop;
 	unsigned int core_acquired: 1;
 	unsigned int bit_depth;
+	unsigned int pic_struct;
 	bool next_buf_last;
 	bool drain_active;
 };
