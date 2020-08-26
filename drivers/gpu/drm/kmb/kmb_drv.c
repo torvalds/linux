@@ -425,10 +425,10 @@ static const struct drm_driver kmb_driver = {
 	.fops = &fops,
 	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.name = "kmb-drm",
-	.desc = "KEEMBAY DISPLAY DRIVER ",
-	.date = "20201008",
-	.major = 1,
-	.minor = 0,
+	.desc = "KEEMBAY DISPLAY DRIVER",
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
 };
 
 static int kmb_remove(struct platform_device *pdev)
