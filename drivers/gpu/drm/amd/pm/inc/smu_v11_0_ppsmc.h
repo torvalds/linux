@@ -128,7 +128,9 @@
 #define PPSMC_MSG_SetDriverDummyTableDramAddrHigh 0x4E
 #define PPSMC_MSG_SetDriverDummyTableDramAddrLow  0x4F
 
-#define PPSMC_Message_Count                      0x50
+#define PPSMC_MSG_GetUMCFWWA                     0x50
+
+#define PPSMC_Message_Count                      0x51
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;

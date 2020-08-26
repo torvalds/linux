@@ -142,6 +142,7 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,	0),
 	MSG_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_HIGH, PPSMC_MSG_SetDriverDummyTableDramAddrHigh, 0),
 	MSG_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_LOW, PPSMC_MSG_SetDriverDummyTableDramAddrLow, 0),
+	MSG_MAP(GET_UMC_FW_WA,			PPSMC_MSG_GetUMCFWWA,			0),
 };
 
 static struct cmn2asic_mapping navi10_clk_map[SMU_CLK_COUNT] = {
@@ -2278,21 +2279,57 @@ static int navi10_set_dummy_pstates_table_location(struct smu_context *smu)
 
 static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 {
-	uint32_t smu_version;
+	struct amdgpu_device *adev = smu->adev;
+	uint8_t umc_fw_greater_than_v136 = false;
+	uint8_t umc_fw_disable_cdr = false;
+	uint32_t pmfw_version;
+	uint32_t param;
 	int ret = 0;
 
-	if (!navi10_need_umc_cdr_12gbps_workaround(smu->adev))
+	if (!navi10_need_umc_cdr_12gbps_workaround(adev))
 		return 0;
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret)
+	ret = smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
+	if (ret) {
+		dev_err(adev->dev, "Failed to get smu version!\n");
 		return ret;
+	}
 
-	/* This workaround is available only for 42.50 or later SMC firmwares */
-	if (smu_version < 0x2A3200)
-		return 0;
+	/*
+	 * The messages below are only supported by 42.53.0 and later
+	 * PMFWs.
+	 * - PPSMC_MSG_SetDriverDummyTableDramAddrHigh
+	 * - PPSMC_MSG_SetDriverDummyTableDramAddrLow
+	 * - PPSMC_MSG_GetUMCFWWA
+	 */
+	if (pmfw_version >= 0x2a3500) {
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_GET_UMC_FW_WA,
+						      0,
+						      &param);
+		if (ret)
+			return ret;
 
-	return navi10_umc_hybrid_cdr_workaround(smu);
+		/* First bit indicates if the UMC f/w is above v137 */
+		umc_fw_greater_than_v136 = param & 0x1;
+
+		/* Second bit indicates if hybrid-cdr is disabled */
+		umc_fw_disable_cdr = param & 0x2;
+
+		/* w/a only allowed if UMC f/w is <= 136 */
+		if (umc_fw_greater_than_v136)
+			return 0;
+
+		if (umc_fw_disable_cdr && adev->asic_type == CHIP_NAVI10)
+			return navi10_umc_hybrid_cdr_workaround(smu);
+		else
+			return navi10_set_dummy_pstates_table_location(smu);
+	} else {
+		if (adev->asic_type == CHIP_NAVI10)
+			return navi10_umc_hybrid_cdr_workaround(smu);
+	}
+
+	return 0;
 }
 
 static void navi10_fill_i2c_req(SwI2cRequest_t  *req, bool write,
