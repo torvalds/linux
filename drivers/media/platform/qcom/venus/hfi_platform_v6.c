@@ -322,4 +322,5 @@ const struct hfi_platform hfi_plat_v6 = {
 	.codecs = get_codecs,
 	.capabilities = get_capabilities,
 	.num_vpp_pipes = num_vpp_pipes,
+	.bufreq = hfi_plat_bufreq_v6,
 };

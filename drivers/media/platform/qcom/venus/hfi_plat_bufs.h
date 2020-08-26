@@ -32,4 +32,7 @@ struct hfi_plat_buffers_params {
 	};
 };
 
+int hfi_plat_bufreq_v6(struct hfi_plat_buffers_params *params, u32 session_type,
+		       u32 buftype, struct hfi_buffer_requirements *bufreq);
+
 #endif
