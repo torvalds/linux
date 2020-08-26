@@ -3,12 +3,15 @@
 #include <linux/init.h>
 #include <asm/pci_x86.h>
 #include <asm/x86_init.h>
+#include <asm/irqdomain.h>
 
 /* arch_initcall has too random ordering, so call the initializers
    in the right sequence from here. */
 static __init int pci_arch_init(void)
 {
 	int type;
+
+	x86_create_pci_msi_domain();
 
 	type = pci_direct_probe();
 
