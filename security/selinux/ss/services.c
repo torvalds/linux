@@ -2145,10 +2145,10 @@ static void selinux_policy_free(struct selinux_policy *policy)
 	if (!policy)
 		return;
 
-	policydb_destroy(&policy->policydb);
 	sidtab_destroy(policy->sidtab);
-	kfree(policy->sidtab);
 	kfree(policy->map.mapping);
+	policydb_destroy(&policy->policydb);
+	kfree(policy->sidtab);
 	kfree(policy);
 }
 
@@ -2263,23 +2263,25 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len,
 		return -ENOMEM;
 
 	newpolicy->sidtab = kzalloc(sizeof(*newpolicy->sidtab), GFP_KERNEL);
-	if (!newpolicy->sidtab)
-		goto err;
+	if (!newpolicy->sidtab) {
+		rc = -ENOMEM;
+		goto err_policy;
+	}
 
 	rc = policydb_read(&newpolicy->policydb, fp);
 	if (rc)
-		goto err;
+		goto err_sidtab;
 
 	newpolicy->policydb.len = len;
 	rc = selinux_set_mapping(&newpolicy->policydb, secclass_map,
 				&newpolicy->map);
 	if (rc)
-		goto err;
+		goto err_policydb;
 
 	rc = policydb_load_isids(&newpolicy->policydb, newpolicy->sidtab);
 	if (rc) {
 		pr_err("SELinux:  unable to load the initial SIDs\n");
-		goto err;
+		goto err_mapping;
 	}
 
 
@@ -2301,7 +2303,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len,
 	rc = security_preserve_bools(oldpolicy, newpolicy);
 	if (rc) {
 		pr_err("SELinux:  unable to preserve booleans\n");
-		goto err;
+		goto err_free_isids;
 	}
 
 	/*
@@ -2321,13 +2323,23 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len,
 		pr_err("SELinux:  unable to convert the internal"
 			" representation of contexts in the new SID"
 			" table\n");
-		goto err;
+		goto err_free_isids;
 	}
 
 	*newpolicyp = newpolicy;
 	return 0;
-err:
-	selinux_policy_free(newpolicy);
+
+err_free_isids:
+	sidtab_destroy(newpolicy->sidtab);
+err_mapping:
+	kfree(newpolicy->map.mapping);
+err_policydb:
+	policydb_destroy(&newpolicy->policydb);
+err_sidtab:
+	kfree(newpolicy->sidtab);
+err_policy:
+	kfree(newpolicy);
+
 	return rc;
 }
 
