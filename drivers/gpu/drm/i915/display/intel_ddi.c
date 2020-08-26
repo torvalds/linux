@@ -1074,12 +1074,28 @@ static const struct cnl_ddi_buf_trans *
 ehl_get_combo_buf_trans(struct intel_encoder *encoder, int type, int rate,
 			int *n_entries)
 {
-	if (type != INTEL_OUTPUT_HDMI && type != INTEL_OUTPUT_EDP) {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	switch (type) {
+	case INTEL_OUTPUT_HDMI:
+		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
+		return icl_combo_phy_ddi_translations_hdmi;
+	case INTEL_OUTPUT_EDP:
+		if (dev_priv->vbt.edp.low_vswing) {
+			if (rate > 540000) {
+				*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
+				return icl_combo_phy_ddi_translations_edp_hbr3;
+			} else {
+				*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
+				return icl_combo_phy_ddi_translations_edp_hbr2;
+			}
+		}
+		/* fall through */
+	default:
+		/* All combo DP and eDP ports that do not support low_vswing */
 		*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_dp);
 		return ehl_combo_phy_ddi_translations_dp;
 	}
-
-	return icl_get_combo_buf_trans(encoder, type, rate, n_entries);
 }
 
 static const struct cnl_ddi_buf_trans *
