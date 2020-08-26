@@ -22,6 +22,7 @@
 #include "hda.h"
 
 #define HDA_FW_BOOT_ATTEMPTS	3
+#define HDA_CL_STREAM_FORMAT 0x40
 
 static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 			     unsigned int size, struct snd_dma_buffer *dmab,
@@ -309,7 +310,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 
 	/* prepare DMA for code loader stream */
-	tag = cl_stream_prepare(sdev, 0x40, stripped_firmware.size,
+	tag = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
 				&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
 
 	if (tag < 0) {
