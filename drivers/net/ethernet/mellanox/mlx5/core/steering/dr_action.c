@@ -590,8 +590,8 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 					return -EINVAL;
 				}
 				if (dest_tbl->tbl->level <= matcher->tbl->level) {
-					mlx5_core_warn_once(dmn->mdev,
-							    "Connecting table to a lower/same level destination table\n");
+					mlx5_core_dbg_once(dmn->mdev,
+							   "Connecting table to a lower/same level destination table\n");
 					mlx5dr_dbg(dmn,
 						   "Connecting table at level %d to a destination table at level %d\n",
 						   matcher->tbl->level,
