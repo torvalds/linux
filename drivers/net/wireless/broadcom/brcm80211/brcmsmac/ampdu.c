@@ -847,7 +847,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	bool ba_recd = false, ack_recd = false;
 	u8 suc_mpdu = 0, tot_mpdu = 0;
 	uint supr_status;
-	bool update_rate = true, retry = true;
+	bool retry = true;
 	u16 mimoantsel = 0;
 	u8 retry_limit;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
@@ -867,9 +867,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
 
 	if (txs->status & TX_STATUS_ACK_RCV) {
-		if (TX_STATUS_SUPR_UF == supr_status)
-			update_rate = false;
-
 		WARN_ON(!(txs->status & TX_STATUS_INTERMEDIATE));
 		start_seq = txs->sequence >> SEQNUM_SHIFT;
 		bitmap[0] = (txs->status & TX_STATUS_BA_BMAP03_MASK) >>
@@ -893,7 +890,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		ba_recd = true;
 	} else {
 		if (supr_status) {
-			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
 				brcms_dbg_ht(wlc->hw->d11core,
 					  "%s: Pkt tx suppressed, illegal channel possibly %d\n",
@@ -921,7 +917,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				brcms_c_ffpld_check_txfunfl(wlc, queue);
 			}
 		} else if (txs->phyerr) {
-			update_rate = false;
 			brcms_dbg_ht(wlc->hw->d11core,
 				     "%s: ampdu tx phy error (0x%x)\n",
 				     __func__, txs->phyerr);
@@ -1024,7 +1019,6 @@ void
 brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		     struct sk_buff *p, struct tx_status *txs)
 {
-	struct scb_ampdu *scb_ampdu;
 	struct brcms_c_info *wlc = ampdu->wlc;
 	u32 s1 = 0, s2 = 0;
 
@@ -1050,7 +1044,6 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	}
 
 	if (scb) {
-		scb_ampdu = &scb->scb_ampdu;
 		brcms_c_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
 	} else {
 		/* loop through all pkts and free */
