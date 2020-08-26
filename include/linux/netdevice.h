@@ -640,10 +640,14 @@ struct netdev_queue {
 extern int sysctl_fb_tunnels_only_for_init_net;
 extern int sysctl_devconf_inherit_init_net;
 
+/*
+ * sysctl_fb_tunnels_only_for_init_net == 0 : For all netns
+ *                                     == 1 : For initns only
+ *                                     == 2 : For none.
+ */
 static inline bool net_has_fallback_tunnels(const struct net *net)
 {
-	return net == &init_net ||
-	       !IS_ENABLED(CONFIG_SYSCTL) ||
+	return (net == &init_net && sysctl_fb_tunnels_only_for_init_net == 1) ||
 	       !sysctl_fb_tunnels_only_for_init_net;
 }
 
