@@ -644,8 +644,7 @@ static void ines_txtstamp(struct mii_timestamper *mii_ts,
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (old_skb)
-		kfree_skb(old_skb);
+	kfree_skb(old_skb);
 
 	schedule_delayed_work(&port->ts_work, 1);
 }
