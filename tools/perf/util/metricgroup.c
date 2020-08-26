@@ -833,7 +833,7 @@ static int recursion_check(struct metric *m, const char *id, struct expr_id **pa
 	if (ret)
 		return ret;
 
-	p = data->parent;
+	p = expr_id_data__parent(data);
 
 	while (p->parent) {
 		if (!strcmp(p->id, id)) {
@@ -854,7 +854,7 @@ static int recursion_check(struct metric *m, const char *id, struct expr_id **pa
 	}
 
 	p->id     = strdup(id);
-	p->parent = data->parent;
+	p->parent = expr_id_data__parent(data);
 	*parent   = p;
 
 	return p->id ? 0 : -ENOMEM;
