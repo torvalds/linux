@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/prefetch.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
@@ -1141,8 +1140,8 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, wi->offset,
 				      frag_size, DMA_FROM_DEVICE);
-	prefetchw(va); /* xdp_frame data area */
-	prefetch(data);
+	net_prefetchw(va); /* xdp_frame data area */
+	net_prefetch(data);
 
 	rcu_read_lock();
 	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt, &xdp);
@@ -1184,7 +1183,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 		return NULL;
 	}
 
-	prefetchw(skb->data);
+	net_prefetchw(skb->data);
 
 	while (byte_cnt) {
 		u16 frag_consumed_bytes =
@@ -1399,7 +1398,7 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 		return NULL;
 	}
 
-	prefetchw(skb->data);
+	net_prefetchw(skb->data);
 
 	if (unlikely(frag_offset >= PAGE_SIZE)) {
 		di++;
@@ -1452,8 +1451,8 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, head_offset,
 				      frag_size, DMA_FROM_DEVICE);
-	prefetchw(va); /* xdp_frame data area */
-	prefetch(data);
+	net_prefetchw(va); /* xdp_frame data area */
+	net_prefetch(data);
 
 	rcu_read_lock();
 	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt32, &xdp);
