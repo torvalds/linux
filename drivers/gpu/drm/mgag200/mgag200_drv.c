@@ -168,7 +168,7 @@ static void mgag200_g200_interpret_bios(struct mga_device *mdev,
 		return;
 	}
 	if (pins_len != expected_length[version]) {
-		drm_warn(dev, "Unexpected BIOS PInS size: %d expeced: %d\n",
+		drm_warn(dev, "Unexpected BIOS PInS size: %d expected: %d\n",
 			 pins_len, expected_length[version]);
 		return;
 	}
