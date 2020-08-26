@@ -242,8 +242,7 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 			dev_info(dev, "No VBUS GPIO, ignoring VBUS control\n");
 			info->vbus_gpiod = NULL;
 		} else {
-			dev_err_probe(dev, ret, "failed to get VBUS GPIO\n");
-			return ret;
+			return dev_err_probe(dev, ret, "failed to get VBUS GPIO\n");
 		}
 	}
 
@@ -253,10 +252,8 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 
 	info->regmap = devm_regmap_init_i2c(i2c, &ptn5150_regmap_config);
 	if (IS_ERR(info->regmap)) {
-		ret = PTR_ERR(info->regmap);
-		dev_err_probe(info->dev, ret, "failed to allocate register map: %d\n",
-			      ret);
-		return ret;
+		return dev_err_probe(info->dev, PTR_ERR(info->regmap),
+				     "failed to allocate register map\n");
 	}
 
 	if (i2c->irq > 0) {
@@ -264,9 +261,8 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 	} else {
 		info->int_gpiod = devm_gpiod_get(&i2c->dev, "int", GPIOD_IN);
 		if (IS_ERR(info->int_gpiod)) {
-			ret = PTR_ERR(info->int_gpiod);
-			dev_err_probe(dev, ret, "failed to get INT GPIO\n");
-			return ret;
+			return dev_err_probe(dev, PTR_ERR(info->int_gpiod),
+					     "failed to get INT GPIO\n");
 		}
 
 		info->irq = gpiod_to_irq(info->int_gpiod);
