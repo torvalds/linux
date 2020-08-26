@@ -276,7 +276,7 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 	case AF_INET:
 		fib_nh = &nhi->fib_nh;
 		if (fib_nh->fib_nh_gw_family &&
-		    nla_put_u32(skb, NHA_GATEWAY, fib_nh->fib_nh_gw4))
+		    nla_put_be32(skb, NHA_GATEWAY, fib_nh->fib_nh_gw4))
 			goto nla_put_failure;
 		break;
 
