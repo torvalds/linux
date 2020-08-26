@@ -964,6 +964,23 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	return 0;
 }
 
+static void nh_group_v4_update(struct nh_group *nhg)
+{
+	struct nh_grp_entry *nhges;
+	bool has_v4 = false;
+	int i;
+
+	nhges = nhg->nh_entries;
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_info *nhi;
+
+		nhi = rtnl_dereference(nhges[i].nh->nh_info);
+		if (nhi->family == AF_INET)
+			has_v4 = true;
+	}
+	nhg->has_v4 = has_v4;
+}
+
 static int replace_nexthop_single(struct net *net, struct nexthop *old,
 				  struct nexthop *new,
 				  struct netlink_ext_ack *extack)
@@ -986,6 +1003,21 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 
 	rcu_assign_pointer(old->nh_info, newi);
 	rcu_assign_pointer(new->nh_info, oldi);
+
+	/* When replacing an IPv4 nexthop with an IPv6 nexthop, potentially
+	 * update IPv4 indication in all the groups using the nexthop.
+	 */
+	if (oldi->family == AF_INET && newi->family == AF_INET6) {
+		struct nh_grp_entry *nhge;
+
+		list_for_each_entry(nhge, &old->grp_list, nh_list) {
+			struct nexthop *nhp = nhge->nh_parent;
+			struct nh_group *nhg;
+
+			nhg = rtnl_dereference(nhp->nh_grp);
+			nh_group_v4_update(nhg);
+		}
+	}
 
 	return 0;
 }
