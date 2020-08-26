@@ -354,6 +354,7 @@ enum brcmf_fws_mac_desc_state {
 /**
  * struct brcmf_fws_mac_descriptor - firmware signalling data per node/interface
  *
+ * @name: name of the descriptor.
  * @occupied: slot is in use.
  * @mac_handle: handle for mac entry determined by firmware.
  * @interface_id: interface index.
@@ -362,10 +363,15 @@ enum brcmf_fws_mac_desc_state {
  * @generation: generation bit.
  * @ac_bitmap: ac queue bitmap.
  * @requested_credit: credits requested by firmware.
+ * @requested_packet: packet requested by firmware.
  * @ea: ethernet address.
  * @seq: per-node free-running sequence.
  * @psq: power-save queue.
  * @transit_count: packet in transit to firmware.
+ * @suppr_transit_count: suppressed packet in transit to firmware.
+ * @send_tim_signal: if set tim signal will be sent.
+ * @traffic_pending_bmp: traffic pending bitmap.
+ * @traffic_lastreported_bmp: traffic last reported bitmap.
  */
 struct brcmf_fws_mac_descriptor {
 	char name[16];
