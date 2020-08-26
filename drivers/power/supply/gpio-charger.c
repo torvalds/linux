@@ -173,10 +173,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		gpio_charger->gpiod = gpio_to_desc(pdata->gpio);
 	} else if (IS_ERR(gpio_charger->gpiod)) {
 		/* Just try again if this happens */
-		if (PTR_ERR(gpio_charger->gpiod) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_err(dev, "error getting GPIO descriptor\n");
-		return PTR_ERR(gpio_charger->gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpio_charger->gpiod),
+				     "error getting GPIO descriptor\n");
 	}
 
 	if (gpio_charger->gpiod) {
