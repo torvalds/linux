@@ -201,7 +201,7 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 	pi = mlx5e_xdpsq_get_next_pi(sq, MLX5_SEND_WQE_MAX_WQEBBS);
 	session->wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
-	prefetchw(session->wqe->data);
+	net_prefetchw(session->wqe->data);
 	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;
 	session->pkt_count = 0;
 
@@ -322,7 +322,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_xmit_data *xdptxd,
 
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	prefetchw(wqe);
+	net_prefetchw(wqe);
 
 	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE || sq->hw_mtu < dma_len)) {
 		stats->err++;

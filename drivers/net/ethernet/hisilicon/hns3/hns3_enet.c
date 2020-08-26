@@ -3091,10 +3091,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 	 * lines. In such a case, single fetch would suffice to cache in the
 	 * relevant part of the header.
 	 */
-	prefetch(ring->va);
-#if L1_CACHE_BYTES < 128
-	prefetch(ring->va + L1_CACHE_BYTES);
-#endif
+	net_prefetch(ring->va);
 
 	if (!skb) {
 		ret = hns3_alloc_skb(ring, length, ring->va);

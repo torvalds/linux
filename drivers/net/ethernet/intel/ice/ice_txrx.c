@@ -919,10 +919,7 @@ ice_build_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	 * likely have a consumer accessing first few bytes of meta
 	 * data, and then actual data.
 	 */
-	prefetch(xdp->data_meta);
-#if L1_CACHE_BYTES < 128
-	prefetch((void *)(xdp->data + L1_CACHE_BYTES));
-#endif
+	net_prefetch(xdp->data_meta);
 	/* build an skb around the page buffer */
 	skb = build_skb(xdp->data_hard_start, truesize);
 	if (unlikely(!skb))
@@ -964,10 +961,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(xdp->data);
-#if L1_CACHE_BYTES < 128
-	prefetch((void *)(xdp->data + L1_CACHE_BYTES));
-#endif /* L1_CACHE_BYTES */
+	net_prefetch(xdp->data);
 
 	/* allocate a skb to store the frags */
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, ICE_RX_HDR_SIZE,
