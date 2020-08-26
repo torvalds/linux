@@ -30,6 +30,7 @@ config SND_SOC_SOF_IMX8_SUPPORT
 
 config SND_SOC_SOF_IMX8
 	tristate
+	select SND_SOC_SOF_XTENSA
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
@@ -44,6 +45,7 @@ config SND_SOC_SOF_IMX8M_SUPPORT
 
 config SND_SOC_SOF_IMX8M
 	tristate
+	select SND_SOC_SOF_XTENSA
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level

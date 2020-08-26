@@ -2114,9 +2114,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 			goto out;
 	}
 
-	ipc_size = sizeof(struct sof_ipc_comp_process) +
-		le32_to_cpu(private->size) +
-		ipc_data_size;
+	ipc_size = sizeof(struct sof_ipc_comp_process) + ipc_data_size;
 
 	/* we are exceeding max ipc size, config needs to be sent separately */
 	if (ipc_size > SOF_IPC_MSG_MAX_SIZE) {
