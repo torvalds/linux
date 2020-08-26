@@ -1534,19 +1534,23 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	evsel = __add_event(list, &parse_state->idx, &attr, true,
 			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats, NULL);
-	if (evsel) {
-		evsel->unit = info.unit;
-		evsel->scale = info.scale;
-		evsel->per_pkg = info.per_pkg;
-		evsel->snapshot = info.snapshot;
-		evsel->metric_expr = info.metric_expr;
-		evsel->metric_name = info.metric_name;
-		evsel->pmu_name = name ? strdup(name) : NULL;
-		evsel->use_uncore_alias = use_uncore_alias;
-		evsel->percore = config_term_percore(&evsel->config_terms);
-	}
+	if (!evsel)
+		return -ENOMEM;
 
-	return evsel ? 0 : -ENOMEM;
+	evsel->pmu_name = name ? strdup(name) : NULL;
+	evsel->use_uncore_alias = use_uncore_alias;
+	evsel->percore = config_term_percore(&evsel->config_terms);
+
+	if (parse_state->fake_pmu)
+		return 0;
+
+	evsel->unit = info.unit;
+	evsel->scale = info.scale;
+	evsel->per_pkg = info.per_pkg;
+	evsel->snapshot = info.snapshot;
+	evsel->metric_expr = info.metric_expr;
+	evsel->metric_name = info.metric_name;
+	return 0;
 }
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
