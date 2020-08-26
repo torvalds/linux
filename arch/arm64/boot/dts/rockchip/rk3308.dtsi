@@ -1074,6 +1074,7 @@
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_I2S0_2CH_M>, <&cru SRST_I2S0_2CH_H>;
 		reset-names = "reset-m", "reset-h";
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_2ch_0_sclk
 			     &i2s_2ch_0_lrck

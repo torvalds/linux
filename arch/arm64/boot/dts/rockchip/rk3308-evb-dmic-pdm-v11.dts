@@ -56,7 +56,6 @@
 &i2s_2ch_0 {
 	status = "okay";
 	#sound-dai-cells = <0>;
-	rockchip,clk-trcm = <1>;
 };
 
 &pdm_8ch {
