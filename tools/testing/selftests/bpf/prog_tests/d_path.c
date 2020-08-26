@@ -47,7 +47,7 @@ static int trigger_fstat_events(pid_t pid)
 	devfd = open("/dev/urandom", O_RDONLY);
 	if (CHECK(devfd < 0, "trigger", "open /dev/urandom failed\n"))
 		goto out_close;
-	localfd = open("/tmp/d_path_loadgen.txt", O_CREAT | O_RDONLY);
+	localfd = open("/tmp/d_path_loadgen.txt", O_CREAT | O_RDONLY, 0644);
 	if (CHECK(localfd < 0, "trigger", "open /tmp/d_path_loadgen.txt failed\n"))
 		goto out_close;
 	/* bpf_d_path will return path with (deleted) */
