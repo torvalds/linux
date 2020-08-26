@@ -879,16 +879,6 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
 #define nv50_mstc(p) container_of((p), struct nv50_mstc, connector)
 #define nv50_msto(p) container_of((p), struct nv50_msto, encoder)
 
-struct nv50_mstm {
-	struct nouveau_encoder *outp;
-
-	struct drm_dp_mst_topology_mgr mgr;
-
-	bool modified;
-	bool disabled;
-	int links;
-};
-
 struct nv50_mstc {
 	struct nv50_mstm *mstm;
 	struct drm_dp_mst_port *port;
@@ -1417,41 +1407,51 @@ nv50_mstm = {
 	.add_connector = nv50_mstm_add_connector,
 };
 
-void
-nv50_mstm_service(struct nv50_mstm *mstm)
+bool
+nv50_mstm_service(struct nouveau_drm *drm,
+		  struct nouveau_connector *nv_connector,
+		  struct nv50_mstm *mstm)
 {
-	struct drm_dp_aux *aux = mstm ? mstm->mgr.aux : NULL;
-	bool handled = true;
-	int ret;
+	struct drm_dp_aux *aux = &nv_connector->aux;
+	bool handled = true, ret = true;
+	int rc;
 	u8 esi[8] = {};
 
-	if (!aux)
-		return;
-
 	while (handled) {
-		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT_ESI, esi, 8);
-		if (ret != 8) {
-			drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, false);
-			return;
+		rc = drm_dp_dpcd_read(aux, DP_SINK_COUNT_ESI, esi, 8);
+		if (rc != 8) {
+			ret = false;
+			break;
 		}
 
 		drm_dp_mst_hpd_irq(&mstm->mgr, esi, &handled);
 		if (!handled)
 			break;
 
-		drm_dp_dpcd_write(aux, DP_SINK_COUNT_ESI + 1, &esi[1], 3);
+		rc = drm_dp_dpcd_write(aux, DP_SINK_COUNT_ESI + 1, &esi[1],
+				       3);
+		if (rc != 3) {
+			ret = false;
+			break;
+		}
 	}
+
+	if (!ret)
+		NV_DEBUG(drm, "Failed to handle ESI on %s: %d\n",
+			 nv_connector->base.name, rc);
+
+	return ret;
 }
 
 void
 nv50_mstm_remove(struct nv50_mstm *mstm)
 {
-	if (mstm)
-		drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, false);
+	mstm->is_mst = false;
+	drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, false);
 }
 
 static int
-nv50_mstm_enable(struct nv50_mstm *mstm, u8 dpcd, int state)
+nv50_mstm_enable(struct nv50_mstm *mstm, int state)
 {
 	struct nouveau_encoder *outp = mstm->outp;
 	struct {
@@ -1466,106 +1466,85 @@ nv50_mstm_enable(struct nv50_mstm *mstm, u8 dpcd, int state)
 	};
 	struct nouveau_drm *drm = nouveau_drm(outp->base.base.dev);
 	struct nvif_object *disp = &drm->display->disp.object;
-	int ret;
-
-	if (dpcd >= 0x12) {
-		/* Even if we're enabling MST, start with disabling the
-		 * branching unit to clear any sink-side MST topology state
-		 * that wasn't set by us
-		 */
-		ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL, 0);
-		if (ret < 0)
-			return ret;
-
-		if (state) {
-			/* Now, start initializing */
-			ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL,
-						 DP_MST_EN);
-			if (ret < 0)
-				return ret;
-		}
-	}
 
 	return nvif_mthd(disp, 0, &args, sizeof(args));
 }
 
 int
-nv50_mstm_detect(struct nv50_mstm *mstm, u8 dpcd[8], int allow)
+nv50_mstm_detect(struct nouveau_encoder *outp)
 {
+	struct nv50_mstm *mstm = outp->dp.mstm;
 	struct drm_dp_aux *aux;
 	int ret;
-	bool old_state, new_state;
-	u8 mstm_ctrl;
 
-	if (!mstm)
+	if (!mstm || !mstm->can_mst)
 		return 0;
 
-	mutex_lock(&mstm->mgr.lock);
-
-	old_state = mstm->mgr.mst_state;
-	new_state = old_state;
 	aux = mstm->mgr.aux;
 
-	if (old_state) {
-		/* Just check that the MST hub is still as we expect it */
-		ret = drm_dp_dpcd_readb(aux, DP_MSTM_CTRL, &mstm_ctrl);
-		if (ret < 0 || !(mstm_ctrl & DP_MST_EN)) {
-			DRM_DEBUG_KMS("Hub gone, disabling MST topology\n");
-			new_state = false;
-		}
-	} else if (dpcd[0] >= 0x12) {
-		ret = drm_dp_dpcd_readb(aux, DP_MSTM_CAP, &dpcd[1]);
-		if (ret < 0)
-			goto probe_error;
+	/* Clear any leftover MST state we didn't set ourselves by first
+	 * disabling MST if it was already enabled
+	 */
+	ret = drm_dp_dpcd_writeb(aux, DP_MSTM_CTRL, 0);
+	if (ret < 0)
+		return ret;
 
-		if (!(dpcd[1] & DP_MST_CAP))
-			dpcd[0] = 0x11;
-		else
-			new_state = allow;
+	/* And start enabling */
+	ret = nv50_mstm_enable(mstm, true);
+	if (ret)
+		return ret;
+
+	ret = drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, true);
+	if (ret) {
+		nv50_mstm_enable(mstm, false);
+		return ret;
 	}
 
-	if (new_state == old_state) {
-		mutex_unlock(&mstm->mgr.lock);
-		return new_state;
-	}
-
-	ret = nv50_mstm_enable(mstm, dpcd[0], new_state);
-	if (ret)
-		goto probe_error;
-
-	mutex_unlock(&mstm->mgr.lock);
-
-	ret = drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, new_state);
-	if (ret)
-		return nv50_mstm_enable(mstm, dpcd[0], 0);
-
-	return new_state;
-
-probe_error:
-	mutex_unlock(&mstm->mgr.lock);
-	return ret;
+	mstm->is_mst = true;
+	return 1;
 }
 
 static void
-nv50_mstm_fini(struct nv50_mstm *mstm)
+nv50_mstm_fini(struct nouveau_encoder *outp)
 {
-	if (mstm && mstm->mgr.mst_state)
+	struct nv50_mstm *mstm = outp->dp.mstm;
+
+	if (!mstm)
+		return;
+
+	/* Don't change the MST state of this connector until we've finished
+	 * resuming, since we can't safely grab hpd_irq_lock in our resume
+	 * path to protect mstm->is_mst without potentially deadlocking
+	 */
+	mutex_lock(&outp->dp.hpd_irq_lock);
+	mstm->suspended = true;
+	mutex_unlock(&outp->dp.hpd_irq_lock);
+
+	if (mstm->is_mst)
 		drm_dp_mst_topology_mgr_suspend(&mstm->mgr);
 }
 
 static void
-nv50_mstm_init(struct nv50_mstm *mstm, bool runtime)
+nv50_mstm_init(struct nouveau_encoder *outp, bool runtime)
 {
-	int ret;
+	struct nv50_mstm *mstm = outp->dp.mstm;
+	int ret = 0;
 
-	if (!mstm || !mstm->mgr.mst_state)
+	if (!mstm)
 		return;
 
-	ret = drm_dp_mst_topology_mgr_resume(&mstm->mgr, !runtime);
-	if (ret == -1) {
-		drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, false);
-		drm_kms_helper_hotplug_event(mstm->mgr.dev);
+	if (mstm->is_mst) {
+		ret = drm_dp_mst_topology_mgr_resume(&mstm->mgr, !runtime);
+		if (ret == -1)
+			nv50_mstm_remove(mstm);
 	}
+
+	mutex_lock(&outp->dp.hpd_irq_lock);
+	mstm->suspended = false;
+	mutex_unlock(&outp->dp.hpd_irq_lock);
+
+	if (ret == -1)
+		drm_kms_helper_hotplug_event(mstm->mgr.dev);
 }
 
 static void
@@ -1773,6 +1752,10 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	nv50_mstm_del(&nv_encoder->dp.mstm);
 	drm_encoder_cleanup(encoder);
+
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
+		mutex_destroy(&nv_encoder->dp.hpd_irq_lock);
+
 	kfree(encoder);
 }
 
@@ -1831,6 +1814,8 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
+
+		mutex_init(&nv_encoder->dp.hpd_irq_lock);
 
 		if (aux) {
 			if (disp->disp->object.oclass < GF110_DISP) {
@@ -2530,9 +2515,9 @@ nv50_disp_func = {
  *****************************************************************************/
 
 static void
-nv50_display_fini(struct drm_device *dev, bool suspend)
+nv50_display_fini(struct drm_device *dev, bool runtime, bool suspend)
 {
-	struct nouveau_encoder *nv_encoder;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
 	struct drm_plane *plane;
 
@@ -2544,11 +2529,12 @@ nv50_display_fini(struct drm_device *dev, bool suspend)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-			nv_encoder = nouveau_encoder(encoder);
-			nv50_mstm_fini(nv_encoder->dp.mstm);
-		}
+		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
+			nv50_mstm_fini(nouveau_encoder(encoder));
 	}
+
+	if (!runtime)
+		cancel_work_sync(&drm->hpd_work);
 }
 
 static int
@@ -2565,7 +2551,7 @@ nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
 			struct nouveau_encoder *nv_encoder =
 				nouveau_encoder(encoder);
-			nv50_mstm_init(nv_encoder->dp.mstm, runtime);
+			nv50_mstm_init(nv_encoder, runtime);
 		}
 	}
 

@@ -569,7 +569,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 		cancel_work_sync(&drm->hpd_work);
 
 	drm_kms_helper_poll_disable(dev);
-	disp->fini(dev, suspend);
+	disp->fini(dev, runtime, suspend);
 }
 
 static void

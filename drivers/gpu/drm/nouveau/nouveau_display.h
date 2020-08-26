@@ -18,7 +18,7 @@ struct nouveau_display {
 	void *priv;
 	void (*dtor)(struct drm_device *);
 	int  (*init)(struct drm_device *, bool resume, bool runtime);
-	void (*fini)(struct drm_device *, bool suspend);
+	void (*fini)(struct drm_device *, bool suspend, bool runtime);
 
 	struct nvif_disp disp;
 

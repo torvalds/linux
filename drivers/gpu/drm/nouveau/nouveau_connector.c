@@ -1143,19 +1143,15 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 	struct nouveau_connector *nv_connector =
 		container_of(notify, typeof(*nv_connector), hpd);
 	struct drm_connector *connector = &nv_connector->base;
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct drm_device *dev = connector->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	const struct nvif_notify_conn_rep_v0 *rep = notify->data;
 	const char *name = connector->name;
-	struct nouveau_encoder *nv_encoder;
 	int ret;
 	bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
 	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
-		NV_DEBUG(drm, "service %s\n", name);
-		drm_dp_cec_irq(&nv_connector->aux);
-		if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP)))
-			nv50_mstm_service(nv_encoder->dp.mstm);
-
+		nouveau_dp_irq(drm, nv_connector);
 		return NVIF_NOTIFY_KEEP;
 	}
 
@@ -1181,10 +1177,6 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 	if (!plugged)
 		drm_dp_cec_unset_edid(&nv_connector->aux);
 	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
-	if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP))) {
-		if (!plugged)
-			nv50_mstm_remove(nv_encoder->dp.mstm);
-	}
 
 	drm_helper_hpd_irq_event(connector->dev);
 
