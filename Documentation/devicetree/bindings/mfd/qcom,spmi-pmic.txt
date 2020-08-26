@@ -37,7 +37,7 @@ Required properties:
                    or generalized "qcom,spmi-pmic".
 - reg:             Specifies the SPMI USID slave address for this device.
                    For more information see:
-                   Documentation/devicetree/bindings/spmi/spmi.txt
+                   Documentation/devicetree/bindings/spmi/spmi.yaml
 
 Required properties for peripheral child nodes:
 - compatible:      Should contain "qcom,xxx", where "xxx" is a peripheral name.
