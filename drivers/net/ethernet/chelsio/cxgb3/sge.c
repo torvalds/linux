@@ -2372,10 +2372,7 @@ no_mem:
 			if (fl->use_pages) {
 				void *addr = fl->sdesc[fl->cidx].pg_chunk.va;
 
-				prefetch(addr);
-#if L1_CACHE_BYTES < 128
-				prefetch(addr + L1_CACHE_BYTES);
-#endif
+				net_prefetch(addr);
 				__refill_fl(adap, fl);
 				if (lro > 0) {
 					lro_add_page(adap, qs, fl,
