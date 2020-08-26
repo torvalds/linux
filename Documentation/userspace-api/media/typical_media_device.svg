@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-    Permission is granted to copy, distribute and/or modify this
-    document under the terms of the GNU Free Documentation License,
-    Version 1.1 or any later version published by the Free Software
-    Foundation, with no Invariant Sections, no Front-Cover Texts
-    and no Back-Cover Texts. A copy of the license is included at
-    Documentation/userspace-api/media/fdl-appendix.rst.
-
-    TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
--->
+<!-- SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later -->
 <svg id="svg2" width="235mm" height="179mm" clip-path="url(#a)" fill-rule="evenodd" stroke-linejoin="round" stroke-width="28.222" preserveAspectRatio="xMidYMid" version="1.2" viewBox="0 0 22648.239 17899.829" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><metadata id="metadata1533"><rdf:RDF><cc:Work rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/><dc:title/></cc:Work></rdf:RDF></metadata><defs id="defs4"><clipPath id="a"><rect id="rect7" width="28000" height="21000"/></clipPath></defs><path id="path11" d="m10146 2636c-518.06 0-1035.1 515-1035.1 1031v4124c0 516 517.06 1032 1035.1 1032h8572.2c518.06 0 1036.1-516 1036.1-1032v-4124c0-516-518.06-1031-1036.1-1031h-8572.2z"
 fill="#fcf" style=""/><path id="path15" d="m1505.5 13443c-293 0-585 292-585 585v2340c0 293 292 586 585 586h3275c293 0 586-293 586-586v-2340c0-293-293-585-586-585h-3275z" fill="#ffc" style=""/><path id="path19" d="m517.15 22.013c-461 0-922 461-922 922v11169c0 461 461 923 922 923h3692c461 0 922-462 922-923v-11169c0-461-461-922-922-922h-3692z" fill="#e6e6e6" style=""/><path id="path23" d="m2371.5 6438h-2260v-1086h4520v1086h-2260z" fill="#ff8080" style=""/><path id="path25" d="m2371.5 6438h-2260v-1086h4520v1086h-2260z" fill="none" stroke="#3465af" style=""/><text id="text27" class="TextShape" x="-2089.4541" y="-2163.9871" font-family="Serif, serif" font-size="493.88px"><tspan id="tspan29" class="TextParagraph" font-family="Serif, serif" font-size="493.88px"><tspan id="tspan31" class="TextPosition" x="489.5459" y="6111.0132" font-family="Serif, serif" font-size="493.88px"><tspan id="tspan33"
 fill="#000000" font-family="Serif, serif" font-size="493.88px">Audio decoder</tspan></tspan></tspan></text>
