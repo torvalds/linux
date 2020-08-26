@@ -165,7 +165,7 @@ void nouveau_dp_irq(struct nouveau_drm *drm,
 
 	if (mstm && mstm->is_mst) {
 		if (!nv50_mstm_service(drm, nv_connector, mstm))
-			schedule_work(&drm->hpd_work);
+			nouveau_connector_hpd(connector);
 	} else {
 		drm_dp_cec_irq(&nv_connector->aux);
 	}

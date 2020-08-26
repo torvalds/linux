@@ -1138,6 +1138,20 @@ nouveau_connector_funcs_lvds = {
 	.early_unregister = nouveau_connector_early_unregister,
 };
 
+void
+nouveau_connector_hpd(struct drm_connector *connector)
+{
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	u32 mask = drm_connector_mask(connector);
+
+	mutex_lock(&drm->hpd_lock);
+	if (!(drm->hpd_pending & mask)) {
+		drm->hpd_pending |= mask;
+		schedule_work(&drm->hpd_work);
+	}
+	mutex_unlock(&drm->hpd_lock);
+}
+
 static int
 nouveau_connector_hotplug(struct nvif_notify *notify)
 {
@@ -1147,8 +1161,6 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const struct nvif_notify_conn_rep_v0 *rep = notify->data;
-	const char *name = connector->name;
-	int ret;
 	bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
 	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
@@ -1156,31 +1168,9 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 		return NVIF_NOTIFY_KEEP;
 	}
 
-	ret = pm_runtime_get(drm->dev->dev);
-	if (ret == 0) {
-		/* We can't block here if there's a pending PM request
-		 * running, as we'll deadlock nouveau_display_fini() when it
-		 * calls nvif_put() on our nvif_notify struct. So, simply
-		 * defer the hotplug event until the device finishes resuming
-		 */
-		NV_DEBUG(drm, "Deferring HPD on %s until runtime resume\n",
-			 name);
-		schedule_work(&drm->hpd_work);
+	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", connector->name);
+	nouveau_connector_hpd(connector);
 
-		pm_runtime_put_noidle(drm->dev->dev);
-		return NVIF_NOTIFY_KEEP;
-	} else if (ret != 1 && ret != -EACCES) {
-		NV_WARN(drm, "HPD on %s dropped due to RPM failure: %d\n",
-			name, ret);
-		return NVIF_NOTIFY_DROP;
-	}
-
-	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
-
-	drm_helper_hpd_irq_event(connector->dev);
-
-	pm_runtime_mark_last_busy(drm->dev->dev);
-	pm_runtime_put_autosuspend(drm->dev->dev);
 	return NVIF_NOTIFY_KEEP;
 }
 
