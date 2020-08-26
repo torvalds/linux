@@ -6067,7 +6067,7 @@ retry_load:
 		free(log_buf);
 		goto retry_load;
 	}
-	ret = -errno;
+	ret = errno ? -errno : -LIBBPF_ERRNO__LOAD;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("load bpf program failed: %s\n", cp);
 	pr_perm_msg(ret);
