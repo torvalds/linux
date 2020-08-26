@@ -10,6 +10,7 @@
 #include <linux/videodev2.h>
 
 #include "hfi.h"
+#include "hfi_plat_bufs.h"
 #include "hfi_helper.h"
 
 #define MAX_PLANES		4
@@ -50,6 +51,8 @@ struct hfi_platform {
 	void (*codecs)(u32 *enc_codecs, u32 *dec_codecs, u32 *count);
 	const struct hfi_plat_caps *(*capabilities)(unsigned int *entries);
 	u8 (*num_vpp_pipes)(void);
+	int (*bufreq)(struct hfi_plat_buffers_params *params, u32 session_type,
+		      u32 buftype, struct hfi_buffer_requirements *bufreq);
 };
 
 extern const struct hfi_platform hfi_plat_v4;
