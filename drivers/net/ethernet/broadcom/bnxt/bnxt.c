@@ -6219,6 +6219,9 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	if (!tx || !rx || !cp || !grp || !vnic || !stat)
 		return -ENOMEM;
 
+	if (!netif_is_rxfh_configured(bp->dev))
+		bnxt_set_dflt_rss_indir_tbl(bp);
+
 	return rc;
 }
 
@@ -8500,9 +8503,6 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 			rc = bnxt_init_int_mode(bp);
 		bnxt_ulp_irq_restart(bp, rc);
 	}
-	if (!netif_is_rxfh_configured(bp->dev))
-		bnxt_set_dflt_rss_indir_tbl(bp);
-
 	if (rc) {
 		netdev_err(bp->dev, "ring reservation/IRQ init failure rc: %d\n", rc);
 		return rc;
@@ -12209,6 +12209,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (BNXT_CHIP_P5(bp))
 		bp->flags |= BNXT_FLAG_CHIP_P5;
 
+	rc = bnxt_alloc_rss_indir_tbl(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	rc = bnxt_fw_init_one_p2(bp);
 	if (rc)
 		goto init_err_pci_clean;
@@ -12312,11 +12316,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * limited MSIX, so we re-initialize the TX rings per TC.
 	 */
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
-
-	rc = bnxt_alloc_rss_indir_tbl(bp);
-	if (rc)
-		goto init_err_pci_clean;
-	bnxt_set_dflt_rss_indir_tbl(bp);
 
 	if (BNXT_PF(bp)) {
 		if (!bnxt_pf_wq) {
