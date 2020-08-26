@@ -45,6 +45,7 @@
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 #include "smu_cmn.h"
+#include "smu_11_0_cdr_table.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -139,6 +140,8 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetVoltageByDpm,		PPSMC_MSG_GetVoltageByDpm,		0),
 	MSG_MAP(GetVoltageByDpmOverdrive,	PPSMC_MSG_GetVoltageByDpmOverdrive,	0),
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,	0),
+	MSG_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_HIGH, PPSMC_MSG_SetDriverDummyTableDramAddrHigh, 0),
+	MSG_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_LOW, PPSMC_MSG_SetDriverDummyTableDramAddrLow, 0),
 };
 
 static struct cmn2asic_mapping navi10_clk_map[SMU_CLK_COUNT] = {
@@ -2240,6 +2243,37 @@ static int navi10_umc_hybrid_cdr_workaround(struct smu_context *smu)
 	 * of UCLK DPM, we have to re-enabled it.
 	 */
 	return smu_cmn_send_smc_msg(smu, SMU_MSG_DAL_ENABLE_DUMMY_PSTATE_CHANGE, NULL);
+}
+
+static int navi10_set_dummy_pstates_table_location(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *dummy_read_table =
+				&smu_table->dummy_read_1_table;
+	char *dummy_table = dummy_read_table->cpu_addr;
+	int ret = 0;
+	uint32_t i;
+
+	for (i = 0; i < 0x40000; i += 0x1000 * 2) {
+		memcpy(dummy_table, &NoDbiPrbs7[0], 0x1000);
+		dummy_table += 0x1000;
+		memcpy(dummy_table, &DbiPrbs7[0], 0x1000);
+		dummy_table += 0x1000;
+	}
+
+	amdgpu_asic_flush_hdp(smu->adev, NULL);
+
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_HIGH,
+					      upper_32_bits(dummy_read_table->mc_address),
+					      NULL);
+	if (ret)
+		return ret;
+
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_LOW,
+					       lower_32_bits(dummy_read_table->mc_address),
+					       NULL);
 }
 
 static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
