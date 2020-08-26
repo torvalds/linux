@@ -434,9 +434,9 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_find_icc_paths);
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 			      struct device_node *np)
 {
-	unsigned int count = opp_table->supported_hw_count;
-	u32 version;
-	int ret;
+	unsigned int levels = opp_table->supported_hw_count;
+	int count, versions, ret, i, j;
+	u32 val;
 
 	if (!opp_table->supported_hw) {
 		/*
@@ -451,21 +451,40 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 			return true;
 	}
 
-	while (count--) {
-		ret = of_property_read_u32_index(np, "opp-supported-hw", count,
-						 &version);
-		if (ret) {
-			dev_warn(dev, "%s: failed to read opp-supported-hw property at index %d: %d\n",
-				 __func__, count, ret);
-			return false;
-		}
-
-		/* Both of these are bitwise masks of the versions */
-		if (!(version & opp_table->supported_hw[count]))
-			return false;
+	count = of_property_count_u32_elems(np, "opp-supported-hw");
+	if (count <= 0 || count % levels) {
+		dev_err(dev, "%s: Invalid opp-supported-hw property (%d)\n",
+			__func__, count);
+		return false;
 	}
 
-	return true;
+	versions = count / levels;
+
+	/* All levels in at least one of the versions should match */
+	for (i = 0; i < versions; i++) {
+		bool supported = true;
+
+		for (j = 0; j < levels; j++) {
+			ret = of_property_read_u32_index(np, "opp-supported-hw",
+							 i * levels + j, &val);
+			if (ret) {
+				dev_warn(dev, "%s: failed to read opp-supported-hw property at index %d: %d\n",
+					 __func__, i * levels + j, ret);
+				return false;
+			}
+
+			/* Check if the level is supported */
+			if (!(val & opp_table->supported_hw[j])) {
+				supported = false;
+				break;
+			}
+		}
+
+		if (supported)
+			return true;
+	}
+
+	return false;
 }
 
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
