@@ -711,6 +711,15 @@ config REGULATOR_MT6358
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6360
+	tristate "MT6360 SubPMIC Regulator"
+	depends on MFD_MT6360
+	help
+	  Say Y here to enable MT6360 regulator support.
+	  This is support MT6360 PMIC/LDO part include
+	  2-channel buck with Thermal Shutdown and Overload Protection
+	  6-channel High PSRR and Low Dropout LDO.
+
 config REGULATOR_MT6380
 	tristate "MediaTek MT6380 PMIC"
 	depends on MTK_PMIC_WRAP
