@@ -541,9 +541,9 @@ config SOC_LS1021A
 
 endif
 
-comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
-
 if ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+
+comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
 
 config SOC_IMX7D_CA7
 	bool
