@@ -38,7 +38,7 @@ static int trigger_fstat_events(pid_t pid)
 		return ret;
 	/* unmountable pseudo-filesystems */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (CHECK(sockfd < 0, "trigger", "scoket failed\n"))
+	if (CHECK(sockfd < 0, "trigger", "socket failed\n"))
 		goto out_close;
 	/* mountable pseudo-filesystems */
 	procfd = open("/proc/self/comm", O_RDONLY);
