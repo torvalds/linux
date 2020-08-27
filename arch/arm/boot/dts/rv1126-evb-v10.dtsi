@@ -512,7 +512,7 @@
 
 			csidphy0_out: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&isp_in>;
+				remote-endpoint = <&mipi_csi2_input>;
 			};
 		};
 	};
@@ -544,7 +544,7 @@
 
 			csi_dphy1_output: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_csi2_input>;
+				/*remote-endpoint = <&mipi_csi2_input>;*/
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -981,7 +981,7 @@
 
 			mipi_csi2_input: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&csi_dphy1_output>;
+				remote-endpoint = <&csidphy0_out>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -1165,6 +1165,18 @@
 	};
 };
 
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
 &rkisp {
 	status = "okay";
 };
@@ -1180,7 +1192,7 @@
 
 			isp_in: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&csidphy0_out>;
+				remote-endpoint = <&mipi_lvds_sditf>;
 			};
 		};
 	};
