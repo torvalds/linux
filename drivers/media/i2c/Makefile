@@ -157,5 +157,6 @@ obj-$(CONFIG_VIDEO_BF3925)	+= bf3925.o
 obj-$(CONFIG_VIDEO_JX_H65)	+= jx_h65.o
 obj-$(CONFIG_VIDEO_SC031GS)	+= sc031gs.o
 obj-$(CONFIG_VIDEO_SC132GS)	+= sc132gs.o
+obj-$(CONFIG_VIDEO_SC2310)	+= sc2310.o
 
 obj-$(CONFIG_SDR_MAX2175) += max2175.o
