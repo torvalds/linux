@@ -275,6 +275,13 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
+	extcon_set_property_capability(info->edev, EXTCON_USB,
+					EXTCON_PROP_USB_VBUS);
+	extcon_set_property_capability(info->edev, EXTCON_USB_HOST,
+					EXTCON_PROP_USB_VBUS);
+	extcon_set_property_capability(info->edev, EXTCON_USB_HOST,
+					EXTCON_PROP_USB_TYPEC_POLARITY);
+
 	/* Initialize PTN5150 device and print vendor id and version id */
 	ret = ptn5150_init_dev_type(info);
 	if (ret)
