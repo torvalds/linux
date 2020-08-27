@@ -273,6 +273,17 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 	return qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
 }
 
+static void qeth_l2_set_pnso_mode(struct qeth_card *card,
+				  enum qeth_pnso_mode mode)
+{
+	spin_lock_irq(get_ccwdev_lock(CARD_RDEV(card)));
+	WRITE_ONCE(card->info.pnso_mode, mode);
+	spin_unlock_irq(get_ccwdev_lock(CARD_RDEV(card)));
+
+	if (mode == QETH_PNSO_NONE)
+		drain_workqueue(card->event_wq);
+}
+
 static void qeth_l2_stop_card(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 2, "stopcard");
@@ -290,7 +301,7 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_working_pool_list(card);
-	flush_workqueue(card->event_wq);
+	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
 	qeth_flush_local_addrs(card);
 	card->info.promisc_mode = 0;
 }
@@ -1153,19 +1164,34 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 }
 
 struct qeth_addr_change_data {
-	struct work_struct worker;
+	struct delayed_work dwork;
 	struct qeth_card *card;
 	struct qeth_ipacmd_addr_change ac_event;
 };
 
 static void qeth_addr_change_event_worker(struct work_struct *work)
 {
-	struct qeth_addr_change_data *data =
-		container_of(work, struct qeth_addr_change_data, worker);
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct qeth_addr_change_data *data;
+	struct qeth_card *card;
 	int i;
 
+	data = container_of(dwork, struct qeth_addr_change_data, dwork);
+	card = data->card;
+
 	QETH_CARD_TEXT(data->card, 4, "adrchgew");
+
+	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_NONE)
+		goto free;
+
 	if (data->ac_event.lost_event_mask) {
+		/* Potential re-config in progress, try again later: */
+		if (!mutex_trylock(&card->sbp_lock)) {
+			queue_delayed_work(card->event_wq, dwork,
+					   msecs_to_jiffies(100));
+			return;
+		}
+
 		dev_info(&data->card->gdev->dev,
 			 "Address change notification stopped on %s (%s)\n",
 			 data->card->dev->name,
@@ -1174,8 +1200,9 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 			: (data->ac_event.lost_event_mask == 0x02)
 			? "Bridge port state change"
 			: "Unknown reason");
-		mutex_lock(&data->card->sbp_lock);
+
 		data->card->options.sbp.hostnotification = 0;
+		card->info.pnso_mode = QETH_PNSO_NONE;
 		mutex_unlock(&data->card->sbp_lock);
 		qeth_bridge_emit_host_event(data->card, anev_abort,
 					    0, NULL, NULL);
@@ -1189,6 +1216,8 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 						    &entry->token,
 						    &entry->addr_lnid);
 		}
+
+free:
 	kfree(data);
 }
 
@@ -1199,6 +1228,9 @@ static void qeth_addr_change_event(struct qeth_card *card,
 		 &cmd->data.addrchange;
 	struct qeth_addr_change_data *data;
 	int extrasize;
+
+	if (card->info.pnso_mode == QETH_PNSO_NONE)
+		return;
 
 	QETH_CARD_TEXT(card, 4, "adrchgev");
 	if (cmd->hdr.return_code != 0x0000) {
@@ -1219,11 +1251,11 @@ static void qeth_addr_change_event(struct qeth_card *card,
 		QETH_CARD_TEXT(card, 2, "ACNalloc");
 		return;
 	}
-	INIT_WORK(&data->worker, qeth_addr_change_event_worker);
+	INIT_DELAYED_WORK(&data->dwork, qeth_addr_change_event_worker);
 	data->card = card;
 	memcpy(&data->ac_event, hostevs,
 			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
-	queue_work(card->event_wq, &data->worker);
+	queue_delayed_work(card->event_wq, &data->dwork, 0);
 }
 
 /* SETBRIDGEPORT support; sending commands */
@@ -1545,9 +1577,14 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 
 	if (enable) {
 		qeth_bridge_emit_host_event(card, anev_reset, 0, NULL, NULL);
+		qeth_l2_set_pnso_mode(card, QETH_PNSO_BRIDGEPORT);
 		rc = qeth_l2_pnso(card, 1, qeth_bridgeport_an_set_cb, card);
-	} else
+		if (rc)
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+	} else {
 		rc = qeth_l2_pnso(card, 0, NULL, NULL);
+		qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+	}
 	return rc;
 }
 
