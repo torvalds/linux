@@ -2045,7 +2045,7 @@ reset_out:
 	return err;
 }
 
-static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index)
+int ionic_lif_alloc(struct ionic *ionic)
 {
 	struct device *dev = ionic->dev;
 	union ionic_lif_identity *lid;
@@ -2056,7 +2056,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 
 	lid = kzalloc(sizeof(*lid), GFP_KERNEL);
 	if (!lid)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	netdev = alloc_etherdev_mqs(sizeof(*lif),
 				    ionic->ntxqs_per_lif, ionic->ntxqs_per_lif);
@@ -2070,7 +2070,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 
 	lif = netdev_priv(netdev);
 	lif->netdev = netdev;
-	ionic->master_lif = lif;
+	ionic->lif = lif;
 	netdev->netdev_ops = &ionic_netdev_ops;
 	ionic_ethtool_set_ops(netdev);
 
@@ -2089,7 +2089,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	lif->nxqs = ionic->ntxqs_per_lif;
 
 	lif->ionic = ionic;
-	lif->index = index;
+	lif->index = 0;
 	lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
 	lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
 	lif->tx_budget = IONIC_TX_BUDGET_DEFAULT;
@@ -2101,7 +2101,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	lif->tx_coalesce_usecs = lif->rx_coalesce_usecs;
 	lif->tx_coalesce_hw = lif->rx_coalesce_hw;
 
-	snprintf(lif->name, sizeof(lif->name), "lif%u", index);
+	snprintf(lif->name, sizeof(lif->name), "lif%u", lif->index);
 
 	spin_lock_init(&lif->adminq_lock);
 
@@ -2121,7 +2121,8 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 
 	ionic_debugfs_add_lif(lif);
 
-	/* allocate queues */
+	/* allocate control queues and txrx queue arrays */
+	ionic_lif_queue_identify(lif);
 	err = ionic_qcqs_alloc(lif);
 	if (err)
 		goto err_out_free_lif_info;
@@ -2140,9 +2141,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	}
 	netdev_rss_key_fill(lif->rss_hash_key, IONIC_RSS_HASH_KEY_SIZE);
 
-	list_add_tail(&lif->list, &ionic->lifs);
-
-	return lif;
+	return 0;
 
 err_out_free_qcqs:
 	ionic_qcqs_free(lif);
@@ -2156,27 +2155,7 @@ err_out_free_netdev:
 err_out_free_lid:
 	kfree(lid);
 
-	return ERR_PTR(err);
-}
-
-int ionic_lifs_alloc(struct ionic *ionic)
-{
-	struct ionic_lif *lif;
-
-	INIT_LIST_HEAD(&ionic->lifs);
-
-	/* only build the first lif, others are for later features */
-	set_bit(0, ionic->lifbits);
-
-	lif = ionic_lif_alloc(ionic, 0);
-	if (IS_ERR_OR_NULL(lif)) {
-		clear_bit(0, ionic->lifbits);
-		return -ENOMEM;
-	}
-
-	ionic_lif_queue_identify(lif);
-
-	return 0;
+	return err;
 }
 
 static void ionic_lif_reset(struct ionic_lif *lif)
@@ -2211,7 +2190,7 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 		ionic_txrx_deinit(lif);
 		ionic_txrx_free(lif);
 	}
-	ionic_lifs_deinit(ionic);
+	ionic_lif_deinit(lif);
 	ionic_reset(ionic);
 	ionic_qcqs_free(lif);
 
@@ -2234,7 +2213,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	if (err)
 		goto err_out;
 
-	err = ionic_lifs_init(ionic);
+	err = ionic_lif_init(lif);
 	if (err)
 		goto err_qcqs_free;
 
@@ -2263,14 +2242,14 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 err_txrx_free:
 	ionic_txrx_free(lif);
 err_lifs_deinit:
-	ionic_lifs_deinit(ionic);
+	ionic_lif_deinit(lif);
 err_qcqs_free:
 	ionic_qcqs_free(lif);
 err_out:
 	dev_err(ionic->dev, "FW Up: LIFs restart failed - err %d\n", err);
 }
 
-static void ionic_lif_free(struct ionic_lif *lif)
+void ionic_lif_free(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
 
@@ -2299,23 +2278,10 @@ static void ionic_lif_free(struct ionic_lif *lif)
 
 	/* free netdev & lif */
 	ionic_debugfs_del_lif(lif);
-	list_del(&lif->list);
 	free_netdev(lif->netdev);
 }
 
-void ionic_lifs_free(struct ionic *ionic)
-{
-	struct list_head *cur, *tmp;
-	struct ionic_lif *lif;
-
-	list_for_each_safe(cur, tmp, &ionic->lifs) {
-		lif = list_entry(cur, struct ionic_lif, list);
-
-		ionic_lif_free(lif);
-	}
-}
-
-static void ionic_lif_deinit(struct ionic_lif *lif)
+void ionic_lif_deinit(struct ionic_lif *lif)
 {
 	if (!test_and_clear_bit(IONIC_LIF_F_INITED, lif->state))
 		return;
@@ -2334,17 +2300,6 @@ static void ionic_lif_deinit(struct ionic_lif *lif)
 
 	mutex_destroy(&lif->queue_lock);
 	ionic_lif_reset(lif);
-}
-
-void ionic_lifs_deinit(struct ionic *ionic)
-{
-	struct list_head *cur, *tmp;
-	struct ionic_lif *lif;
-
-	list_for_each_safe(cur, tmp, &ionic->lifs) {
-		lif = list_entry(cur, struct ionic_lif, list);
-		ionic_lif_deinit(lif);
-	}
 }
 
 static int ionic_lif_adminq_init(struct ionic_lif *lif)
@@ -2492,7 +2447,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 	return 0;
 }
 
-static int ionic_lif_init(struct ionic_lif *lif)
+int ionic_lif_init(struct ionic_lif *lif)
 {
 	struct ionic_dev *idev = &lif->ionic->idev;
 	struct device *dev = lif->ionic->dev;
@@ -2582,22 +2537,6 @@ err_out_free_dbid:
 	return err;
 }
 
-int ionic_lifs_init(struct ionic *ionic)
-{
-	struct list_head *cur, *tmp;
-	struct ionic_lif *lif;
-	int err;
-
-	list_for_each_safe(cur, tmp, &ionic->lifs) {
-		lif = list_entry(cur, struct ionic_lif, list);
-		err = ionic_lif_init(lif);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static void ionic_lif_notify_work(struct work_struct *ws)
 {
 }
@@ -2646,45 +2585,41 @@ static int ionic_lif_notify(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-int ionic_lifs_register(struct ionic *ionic)
+int ionic_lif_register(struct ionic_lif *lif)
 {
 	int err;
 
-	INIT_WORK(&ionic->nb_work, ionic_lif_notify_work);
+	INIT_WORK(&lif->ionic->nb_work, ionic_lif_notify_work);
 
-	ionic->nb.notifier_call = ionic_lif_notify;
+	lif->ionic->nb.notifier_call = ionic_lif_notify;
 
-	err = register_netdevice_notifier(&ionic->nb);
+	err = register_netdevice_notifier(&lif->ionic->nb);
 	if (err)
-		ionic->nb.notifier_call = NULL;
+		lif->ionic->nb.notifier_call = NULL;
 
 	/* only register LIF0 for now */
-	err = register_netdev(ionic->master_lif->netdev);
+	err = register_netdev(lif->netdev);
 	if (err) {
-		dev_err(ionic->dev, "Cannot register net device, aborting\n");
+		dev_err(lif->ionic->dev, "Cannot register net device, aborting\n");
 		return err;
 	}
-	ionic->master_lif->registered = true;
-	ionic_lif_set_netdev_info(ionic->master_lif);
+	lif->registered = true;
+	ionic_lif_set_netdev_info(lif);
 
 	return 0;
 }
 
-void ionic_lifs_unregister(struct ionic *ionic)
+void ionic_lif_unregister(struct ionic_lif *lif)
 {
-	if (ionic->nb.notifier_call) {
-		unregister_netdevice_notifier(&ionic->nb);
-		cancel_work_sync(&ionic->nb_work);
-		ionic->nb.notifier_call = NULL;
+	if (lif->ionic->nb.notifier_call) {
+		unregister_netdevice_notifier(&lif->ionic->nb);
+		cancel_work_sync(&lif->ionic->nb_work);
+		lif->ionic->nb.notifier_call = NULL;
 	}
 
-	/* There is only one lif ever registered in the
-	 * current model, so don't bother searching the
-	 * ionic->lif for candidates to unregister
-	 */
-	if (ionic->master_lif &&
-	    ionic->master_lif->netdev->reg_state == NETREG_REGISTERED)
-		unregister_netdev(ionic->master_lif->netdev);
+	if (lif->netdev->reg_state == NETREG_REGISTERED)
+		unregister_netdev(lif->netdev);
+	lif->registered = false;
 }
 
 static void ionic_lif_queue_identify(struct ionic_lif *lif)
@@ -2803,7 +2738,7 @@ int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 	return 0;
 }
 
-int ionic_lifs_size(struct ionic *ionic)
+int ionic_lif_size(struct ionic *ionic)
 {
 	struct ionic_identity *ident = &ionic->ident;
 	unsigned int nintrs, dev_nintrs;

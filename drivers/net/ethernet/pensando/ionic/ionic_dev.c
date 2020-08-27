@@ -21,8 +21,8 @@ static void ionic_watchdog_cb(struct timer_list *t)
 
 	hb = ionic_heartbeat_check(ionic);
 
-	if (hb >= 0 && ionic->master_lif)
-		ionic_link_status_check_request(ionic->master_lif);
+	if (hb >= 0 && ionic->lif)
+		ionic_link_status_check_request(ionic->lif);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
@@ -126,7 +126,7 @@ int ionic_heartbeat_check(struct ionic *ionic)
 	/* is this a transition? */
 	if (fw_status != idev->last_fw_status &&
 	    idev->last_fw_status != 0xff) {
-		struct ionic_lif *lif = ionic->master_lif;
+		struct ionic_lif *lif = ionic->lif;
 		bool trigger = false;
 
 		if (!fw_status || fw_status == 0xff) {

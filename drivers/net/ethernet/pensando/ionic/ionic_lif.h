@@ -242,15 +242,15 @@ void ionic_get_stats64(struct net_device *netdev,
 		       struct rtnl_link_stats64 *ns);
 void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
 				struct ionic_deferred_work *work);
-int ionic_lifs_alloc(struct ionic *ionic);
-void ionic_lifs_free(struct ionic *ionic);
-void ionic_lifs_deinit(struct ionic *ionic);
-int ionic_lifs_init(struct ionic *ionic);
-int ionic_lifs_register(struct ionic *ionic);
-void ionic_lifs_unregister(struct ionic *ionic);
+int ionic_lif_alloc(struct ionic *ionic);
+int ionic_lif_init(struct ionic_lif *lif);
+void ionic_lif_free(struct ionic_lif *lif);
+void ionic_lif_deinit(struct ionic_lif *lif);
+int ionic_lif_register(struct ionic_lif *lif);
+void ionic_lif_unregister(struct ionic_lif *lif);
 int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 		       union ionic_lif_identity *lif_ident);
-int ionic_lifs_size(struct ionic *ionic);
+int ionic_lif_size(struct ionic *ionic);
 int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 			 const u8 *key, const u32 *indir);
 
