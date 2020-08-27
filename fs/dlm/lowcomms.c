@@ -1624,10 +1624,6 @@ static void work_flush(void)
 	struct hlist_node *n;
 	struct connection *con;
 
-	if (recv_workqueue)
-		flush_workqueue(recv_workqueue);
-	if (send_workqueue)
-		flush_workqueue(send_workqueue);
 	do {
 		ok = 1;
 		foreach_conn(stop_conn);
@@ -1659,6 +1655,12 @@ void dlm_lowcomms_stop(void)
 	mutex_lock(&connections_lock);
 	dlm_allow_conn = 0;
 	mutex_unlock(&connections_lock);
+
+	if (recv_workqueue)
+		flush_workqueue(recv_workqueue);
+	if (send_workqueue)
+		flush_workqueue(send_workqueue);
+
 	foreach_conn(shutdown_conn);
 	work_flush();
 	clean_writequeues();
