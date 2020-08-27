@@ -498,7 +498,6 @@ struct pptable_funcs {
 	int (*notify_smc_display_config)(struct smu_context *smu);
 	int (*set_cpu_power_state)(struct smu_context *smu);
 	bool (*is_dpm_running)(struct smu_context *smu);
-	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
