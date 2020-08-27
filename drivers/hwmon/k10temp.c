@@ -88,9 +88,13 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 /* F17h thermal registers through SMN */
 #define F17H_M01H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0xc)
 #define F17H_M01H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
+#define F17H_M31H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0x14)
+#define F17H_M31H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
 
-#define F17H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
-#define F17H_CFACTOR_ISOC			250000	/* 0.25A / LSB	*/
+#define F17H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F17H_M01H_CFACTOR_ISOC			250000	/* 0.25A / LSB	*/
+#define F17H_M31H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F17H_M31H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
 
 struct k10temp_data {
 	struct pci_dev *pdev;
@@ -580,17 +584,17 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			data->show_current = !is_threadripper() && !is_epyc();
 			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE0;
 			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE1;
-			data->cfactor[0] = F17H_CFACTOR_ICORE;
-			data->cfactor[1] = F17H_CFACTOR_ISOC;
+			data->cfactor[0] = F17H_M01H_CFACTOR_ICORE;
+			data->cfactor[1] = F17H_M01H_CFACTOR_ISOC;
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x71:	/* Zen2 */
 			data->show_current = !is_threadripper() && !is_epyc();
-			data->cfactor[0] = F17H_CFACTOR_ICORE;
-			data->cfactor[1] = F17H_CFACTOR_ISOC;
-			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE1;
-			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE0;
+			data->cfactor[0] = F17H_M31H_CFACTOR_ICORE;
+			data->cfactor[1] = F17H_M31H_CFACTOR_ISOC;
+			data->svi_addr[0] = F17H_M31H_SVI_TEL_PLANE0;
+			data->svi_addr[1] = F17H_M31H_SVI_TEL_PLANE1;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
