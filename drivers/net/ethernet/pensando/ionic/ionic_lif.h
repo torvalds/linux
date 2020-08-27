@@ -57,9 +57,15 @@ struct ionic_napi_stats {
 };
 
 struct ionic_qcq {
-	void *base;
-	dma_addr_t base_pa;
-	unsigned int total_size;
+	void *q_base;
+	dma_addr_t q_base_pa;
+	u32 q_size;
+	void *cq_base;
+	dma_addr_t cq_base_pa;
+	u32 cq_size;
+	void *sg_base;
+	dma_addr_t sg_base_pa;
+	u32 sg_size;
 	struct ionic_queue q;
 	struct ionic_cq cq;
 	struct ionic_intr_info intr;
