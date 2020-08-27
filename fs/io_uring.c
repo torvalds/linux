@@ -2295,22 +2295,6 @@ end_req:
 	io_req_complete(req, ret);
 	return false;
 }
-
-static void io_rw_resubmit(struct callback_head *cb)
-{
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-	struct io_ring_ctx *ctx = req->ctx;
-	int err;
-
-	err = io_sq_thread_acquire_mm(ctx, req);
-
-	if (io_resubmit_prep(req, err)) {
-		refcount_inc(&req->refs);
-		io_queue_async_work(req);
-	}
-
-	percpu_ref_put(&ctx->refs);
-}
 #endif
 
 static bool io_rw_reissue(struct io_kiocb *req, long res)
@@ -2321,12 +2305,14 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
 		return false;
 
-	init_task_work(&req->task_work, io_rw_resubmit);
-	percpu_ref_get(&req->ctx->refs);
+	ret = io_sq_thread_acquire_mm(req->ctx, req);
 
-	ret = io_req_task_work_add(req, &req->task_work, true);
-	if (!ret)
+	if (io_resubmit_prep(req, ret)) {
+		refcount_inc(&req->refs);
+		io_queue_async_work(req);
 		return true;
+	}
+
 #endif
 	return false;
 }
