@@ -246,7 +246,7 @@ $code.=<<___ if (!$kernel);
 ___
 &declare_function("poly1305_init_x86_64", 32, 3);
 $code.=<<___;
-	xor	%rax,%rax
+	xor	%eax,%eax
 	mov	%rax,0($ctx)		# initialize hash value
 	mov	%rax,8($ctx)
 	mov	%rax,16($ctx)
@@ -2869,7 +2869,7 @@ $code.=<<___;
 .type	poly1305_init_base2_44,\@function,3
 .align	32
 poly1305_init_base2_44:
-	xor	%rax,%rax
+	xor	%eax,%eax
 	mov	%rax,0($ctx)		# initialize hash value
 	mov	%rax,8($ctx)
 	mov	%rax,16($ctx)
@@ -3963,7 +3963,7 @@ xor128_decrypt_n_pad:
 	mov	\$16,$len
 	sub	%r10,$len
 	xor	%eax,%eax
-	xor	%r11,%r11
+	xor	%r11d,%r11d
 .Loop_dec_byte:
 	mov	($inp,$otp),%r11b
 	mov	($otp),%al
@@ -4101,7 +4101,7 @@ avx_handler:
 	.long	0xa548f3fc		# cld; rep movsq
 
 	mov	$disp,%rsi
-	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
+	xor	%ecx,%ecx		# arg1, UNW_FLAG_NHANDLER
 	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
 	mov	0(%rsi),%r8		# arg3, disp->ControlPc
 	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
