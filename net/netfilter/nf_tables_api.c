@@ -684,6 +684,18 @@ nla_put_failure:
 	return -1;
 }
 
+struct nftnl_skb_parms {
+	bool report;
+};
+#define NFT_CB(skb)	(*(struct nftnl_skb_parms*)&((skb)->cb))
+
+static void nft_notify_enqueue(struct sk_buff *skb, bool report,
+			       struct list_head *notify_list)
+{
+	NFT_CB(skb).report = report;
+	list_add_tail(&skb->list, notify_list);
+}
+
 static void nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 {
 	struct sk_buff *skb;
@@ -715,8 +727,7 @@ static void nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 		goto err;
 	}
 
-	nfnetlink_send(skb, ctx->net, ctx->portid, NFNLGRP_NFTABLES,
-		       ctx->report, GFP_KERNEL);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -1468,8 +1479,7 @@ static void nf_tables_chain_notify(const struct nft_ctx *ctx, int event)
 		goto err;
 	}
 
-	nfnetlink_send(skb, ctx->net, ctx->portid, NFNLGRP_NFTABLES,
-		       ctx->report, GFP_KERNEL);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -2807,8 +2817,7 @@ static void nf_tables_rule_notify(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nfnetlink_send(skb, ctx->net, ctx->portid, NFNLGRP_NFTABLES,
-		       ctx->report, GFP_KERNEL);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -3837,8 +3846,7 @@ static void nf_tables_set_notify(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nfnetlink_send(skb, ctx->net, portid, NFNLGRP_NFTABLES, ctx->report,
-		       gfp_flags);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(ctx->net, portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -4959,8 +4967,7 @@ static void nf_tables_setelem_notify(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nfnetlink_send(skb, net, portid, NFNLGRP_NFTABLES, ctx->report,
-		       GFP_KERNEL);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(net, portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -6275,7 +6282,7 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
 		goto err;
 	}
 
-	nfnetlink_send(skb, net, portid, NFNLGRP_NFTABLES, report, gfp);
+	nft_notify_enqueue(skb, report, &net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(net, portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -7085,8 +7092,7 @@ static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nfnetlink_send(skb, ctx->net, ctx->portid, NFNLGRP_NFTABLES,
-		       ctx->report, GFP_KERNEL);
+	nft_notify_enqueue(skb, ctx->report, &ctx->net->nft.notify_list);
 	return;
 err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
@@ -7695,6 +7701,41 @@ static void nf_tables_commit_release(struct net *net)
 	mutex_unlock(&net->nft.commit_mutex);
 }
 
+static void nft_commit_notify(struct net *net, u32 portid)
+{
+	struct sk_buff *batch_skb = NULL, *nskb, *skb;
+	unsigned char *data;
+	int len;
+
+	list_for_each_entry_safe(skb, nskb, &net->nft.notify_list, list) {
+		if (!batch_skb) {
+new_batch:
+			batch_skb = skb;
+			len = NLMSG_GOODSIZE - skb->len;
+			list_del(&skb->list);
+			continue;
+		}
+		len -= skb->len;
+		if (len > 0 && NFT_CB(skb).report == NFT_CB(batch_skb).report) {
+			data = skb_put(batch_skb, skb->len);
+			memcpy(data, skb->data, skb->len);
+			list_del(&skb->list);
+			kfree_skb(skb);
+			continue;
+		}
+		nfnetlink_send(batch_skb, net, portid, NFNLGRP_NFTABLES,
+			       NFT_CB(batch_skb).report, GFP_KERNEL);
+		goto new_batch;
+	}
+
+	if (batch_skb) {
+		nfnetlink_send(batch_skb, net, portid, NFNLGRP_NFTABLES,
+			       NFT_CB(batch_skb).report, GFP_KERNEL);
+	}
+
+	WARN_ON_ONCE(!list_empty(&net->nft.notify_list));
+}
+
 static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 {
 	struct nft_trans *trans, *next;
@@ -7897,6 +7938,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 		}
 	}
 
+	nft_commit_notify(net, NETLINK_CB(skb).portid);
 	nf_tables_gen_notify(net, skb, NFT_MSG_NEWGEN);
 	nf_tables_commit_release(net);
 
@@ -8721,6 +8763,7 @@ static int __net_init nf_tables_init_net(struct net *net)
 	INIT_LIST_HEAD(&net->nft.tables);
 	INIT_LIST_HEAD(&net->nft.commit_list);
 	INIT_LIST_HEAD(&net->nft.module_list);
+	INIT_LIST_HEAD(&net->nft.notify_list);
 	mutex_init(&net->nft.commit_mutex);
 	net->nft.base_seq = 1;
 	net->nft.validate_state = NFT_VALIDATE_SKIP;
@@ -8737,6 +8780,7 @@ static void __net_exit nf_tables_exit_net(struct net *net)
 	mutex_unlock(&net->nft.commit_mutex);
 	WARN_ON_ONCE(!list_empty(&net->nft.tables));
 	WARN_ON_ONCE(!list_empty(&net->nft.module_list));
+	WARN_ON_ONCE(!list_empty(&net->nft.notify_list));
 }
 
 static struct pernet_operations nf_tables_net_ops = {
