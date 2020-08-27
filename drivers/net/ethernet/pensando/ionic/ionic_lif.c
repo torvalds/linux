@@ -2079,7 +2079,8 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	lif->identity = lid;
 	lif->lif_type = IONIC_LIF_TYPE_CLASSIC;
 	ionic_lif_identify(ionic, lif->lif_type, lif->identity);
-	lif->netdev->min_mtu = le32_to_cpu(lif->identity->eth.min_frame_size);
+	lif->netdev->min_mtu = max_t(unsigned int, ETH_MIN_MTU,
+				     le32_to_cpu(lif->identity->eth.min_frame_size));
 	lif->netdev->max_mtu =
 		le32_to_cpu(lif->identity->eth.max_frame_size) - ETH_HLEN - VLAN_HLEN;
 
