@@ -493,18 +493,14 @@ static void ionic_get_ringparam(struct net_device *netdev,
 	ring->rx_pending = lif->nrxq_descs;
 }
 
-static void ionic_set_ringsize(struct ionic_lif *lif, void *arg)
-{
-	struct ethtool_ringparam *ring = arg;
-
-	lif->ntxq_descs = ring->tx_pending;
-	lif->nrxq_descs = ring->rx_pending;
-}
-
 static int ionic_set_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_queue_params qparam;
+	int err;
+
+	ionic_init_queue_params(lif, &qparam);
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
 		netdev_info(netdev, "Changing jumbo or mini descriptors not supported\n");
@@ -522,7 +518,28 @@ static int ionic_set_ringparam(struct net_device *netdev,
 	    ring->rx_pending == lif->nrxq_descs)
 		return 0;
 
-	return ionic_reset_queues(lif, ionic_set_ringsize, ring);
+	if (ring->tx_pending != lif->ntxq_descs)
+		netdev_info(netdev, "Changing Tx ring size from %d to %d\n",
+			    lif->ntxq_descs, ring->tx_pending);
+
+	if (ring->rx_pending != lif->nrxq_descs)
+		netdev_info(netdev, "Changing Rx ring size from %d to %d\n",
+			    lif->nrxq_descs, ring->rx_pending);
+
+	/* if we're not running, just set the values and return */
+	if (!netif_running(lif->netdev)) {
+		lif->ntxq_descs = ring->tx_pending;
+		lif->nrxq_descs = ring->rx_pending;
+		return 0;
+	}
+
+	qparam.ntxq_descs = ring->tx_pending;
+	qparam.nrxq_descs = ring->rx_pending;
+	err = ionic_reconfigure_queues(lif, &qparam);
+	if (err)
+		netdev_info(netdev, "Ring reconfiguration failed, changes canceled: %d\n", err);
+
+	return err;
 }
 
 static void ionic_get_channels(struct net_device *netdev,

@@ -207,6 +207,22 @@ struct ionic_lif {
 	struct work_struct tx_timeout_work;
 };
 
+struct ionic_queue_params {
+	unsigned int nxqs;
+	unsigned int ntxq_descs;
+	unsigned int nrxq_descs;
+	unsigned int intr_split;
+};
+
+static inline void ionic_init_queue_params(struct ionic_lif *lif,
+					   struct ionic_queue_params *qparam)
+{
+	qparam->nxqs = lif->nxqs;
+	qparam->ntxq_descs = lif->ntxq_descs;
+	qparam->nrxq_descs = lif->nrxq_descs;
+	qparam->intr_split = test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+}
+
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 {
 	u32 mult = le32_to_cpu(ionic->ident.dev.intr_coal_mult);
@@ -241,7 +257,8 @@ int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 int ionic_lif_size(struct ionic *ionic);
 int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 			 const u8 *key, const u32 *indir);
-
+int ionic_reconfigure_queues(struct ionic_lif *lif,
+			     struct ionic_queue_params *qparam);
 int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg);
 
 static inline void debug_stats_txq_post(struct ionic_queue *q, bool dbell)
