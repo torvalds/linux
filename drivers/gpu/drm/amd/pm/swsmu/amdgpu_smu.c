@@ -33,6 +33,7 @@
 #include "navi10_ppt.h"
 #include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
+#include "vangogh_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -400,6 +401,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
+		break;
+	case CHIP_VANGOGH:
+		vangogh_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
