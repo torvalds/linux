@@ -89,11 +89,13 @@ ENTRY(printascii)
 2:		teq     r1, #'\n'
 		bne	3f
 		mov	r1, #'\r'
-		waituart r2, r3
+		waituartcts r2, r3
+		waituarttxrdy r2, r3
 		senduart r1, r3
 		busyuart r2, r3
 		mov	r1, #'\n'
-3:		waituart r2, r3
+3:		waituartcts r2, r3
+		waituarttxrdy r2, r3
 		senduart r1, r3
 		busyuart r2, r3
 		b	1b

@@ -178,7 +178,7 @@
 1002:
 		.endm
 
-		.macro	waituart, rd, rx
+		.macro	waituartcts, rd, rx
 #ifdef FLOW_CONTROL
 		cmp	\rx, #0
 		beq	1002f
@@ -187,6 +187,9 @@
 		beq	1001b
 1002:
 #endif
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 		.endm
 
 /*

@@ -45,7 +45,10 @@
 		bne	1002b
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituarttxrdy,rd,rx
+		.endm
+
+		.macro	waituartcts,rd,rx
 #ifdef CONFIG_DEBUG_UART_8250_FLOW_CONTROL
 1001:		load	\rd, [\rx, #UART_MSR << UART_SHIFT]
 		tst	\rd, #UART_MSR_CTS
