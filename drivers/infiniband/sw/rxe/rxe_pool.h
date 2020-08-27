@@ -42,7 +42,6 @@ struct rxe_type_info {
 	u32			min_index;
 	size_t			key_offset;
 	size_t			key_size;
-	struct kmem_cache	*cache;
 };
 
 extern struct rxe_type_info rxe_type_info[];
@@ -85,12 +84,6 @@ struct rxe_pool {
 	size_t			key_offset;
 	size_t			key_size;
 };
-
-/* initialize slab caches for managed objects */
-int rxe_cache_init(void);
-
-/* cleanup slab caches for managed objects */
-void rxe_cache_exit(void);
 
 /* initialize a pool of objects with given limit on
  * number of elements. gets parameters from rxe_type_info

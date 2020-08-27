@@ -282,13 +282,6 @@ static int __init rxe_module_init(void)
 {
 	int err;
 
-	/* initialize slab caches for managed objects */
-	err = rxe_cache_init();
-	if (err) {
-		pr_err("unable to init object pools\n");
-		return err;
-	}
-
 	err = rxe_net_init();
 	if (err)
 		return err;
@@ -303,7 +296,6 @@ static void __exit rxe_module_exit(void)
 	rdma_link_unregister(&rxe_link_ops);
 	ib_unregister_driver(RDMA_DRIVER_RXE);
 	rxe_net_exit();
-	rxe_cache_exit();
 
 	pr_info("unloaded\n");
 }
