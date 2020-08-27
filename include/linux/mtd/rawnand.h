@@ -303,7 +303,7 @@ static const struct nand_ecc_caps __name = {			\
 
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
- * @mode:	ECC mode
+ * @engine_type: ECC engine type
  * @placement:	OOB bytes placement
  * @algo:	ECC algorithm
  * @steps:	number of ECC steps per page
@@ -356,7 +356,7 @@ static const struct nand_ecc_caps __name = {			\
  * @write_oob:	function to write chip OOB data
  */
 struct nand_ecc_ctrl {
-	enum nand_ecc_mode mode;
+	enum nand_ecc_engine_type engine_type;
 	enum nand_ecc_placement placement;
 	enum nand_ecc_algo algo;
 	int steps;

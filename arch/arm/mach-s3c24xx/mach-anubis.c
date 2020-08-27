@@ -218,7 +218,7 @@ static struct s3c2410_platform_nand __initdata anubis_nand_info = {
 	.nr_sets	= ARRAY_SIZE(anubis_nand_sets),
 	.sets		= anubis_nand_sets,
 	.select_chip	= anubis_nand_select,
-	.ecc_mode       = NAND_ECC_SOFT,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_SOFT,
 };
 
 /* IDE channels */

@@ -497,13 +497,13 @@ static int micron_nand_init(struct nand_chip *chip)
 	ondie = micron_supports_on_die_ecc(chip);
 
 	if (ondie == MICRON_ON_DIE_MANDATORY &&
-	    chip->ecc.mode != NAND_ECC_ON_DIE) {
+	    chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_DIE) {
 		pr_err("On-die ECC forcefully enabled, not supported\n");
 		ret = -EINVAL;
 		goto err_free_manuf_data;
 	}
 
-	if (chip->ecc.mode == NAND_ECC_ON_DIE) {
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_DIE) {
 		if (ondie == MICRON_ON_DIE_UNSUPPORTED) {
 			pr_err("On-die ECC selected but not supported\n");
 			ret = -EINVAL;

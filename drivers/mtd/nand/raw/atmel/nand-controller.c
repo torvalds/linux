@@ -1118,15 +1118,15 @@ static int atmel_nand_ecc_init(struct nand_chip *chip)
 
 	nc = to_nand_controller(chip->controller);
 
-	switch (chip->ecc.mode) {
-	case NAND_ECC_NONE:
-	case NAND_ECC_SOFT:
+	switch (chip->ecc.engine_type) {
+	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		/*
 		 * Nothing to do, the core will initialize everything for us.
 		 */
 		break;
 
-	case NAND_ECC_HW:
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		ret = atmel_nand_pmecc_init(chip);
 		if (ret)
 			return ret;
@@ -1140,7 +1140,7 @@ static int atmel_nand_ecc_init(struct nand_chip *chip)
 	default:
 		/* Other modes are not supported. */
 		dev_err(nc->dev, "Unsupported ECC mode: %d\n",
-			chip->ecc.mode);
+			chip->ecc.engine_type);
 		return -ENOTSUPP;
 	}
 
@@ -1155,7 +1155,7 @@ static int atmel_hsmc_nand_ecc_init(struct nand_chip *chip)
 	if (ret)
 		return ret;
 
-	if (chip->ecc.mode != NAND_ECC_HW)
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
 		return 0;
 
 	/* Adjust the ECC operations for the HSMC IP. */
@@ -1498,7 +1498,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 
 	/* Default to HW ECC if pmecc is available. */
 	if (nc->pmecc)
-		chip->ecc.mode = NAND_ECC_HW;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 }
 
 static void atmel_smc_nand_init(struct atmel_nand_controller *nc,

@@ -244,7 +244,7 @@ static int fsl_elbc_run_command(struct mtd_info *mtd)
 		return -EIO;
 	}
 
-	if (chip->ecc.mode != NAND_ECC_HW)
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
 		return 0;
 
 	elbc_fcm_ctrl->max_bitflips = 0;
@@ -727,12 +727,12 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 	unsigned int al;
 
-	switch (chip->ecc.mode) {
+	switch (chip->ecc.engine_type) {
 	/*
 	 * if ECC was not chosen in DT, decide whether to use HW or SW ECC from
 	 * CS Base Register
 	 */
-	case NAND_ECC_NONE:
+	case NAND_ECC_ENGINE_TYPE_NONE:
 		/* If CS Base Register selects full hardware ECC then use it */
 		if ((in_be32(&lbc->bank[priv->bank].br) & BR_DECC) ==
 		    BR_DECC_CHK_GEN) {
@@ -740,23 +740,23 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 			chip->ecc.write_page = fsl_elbc_write_page;
 			chip->ecc.write_subpage = fsl_elbc_write_subpage;
 
-			chip->ecc.mode = NAND_ECC_HW;
+			chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 			mtd_set_ooblayout(mtd, &fsl_elbc_ooblayout_ops);
 			chip->ecc.size = 512;
 			chip->ecc.bytes = 3;
 			chip->ecc.strength = 1;
 		} else {
 			/* otherwise fall back to default software ECC */
-			chip->ecc.mode = NAND_ECC_SOFT;
+			chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 			chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		}
 		break;
 
 	/* if SW ECC was chosen in DT, we do not need to set anything here */
-	case NAND_ECC_SOFT:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		break;
 
-	/* should we also implement NAND_ECC_HW to do as the code above? */
+	/* should we also implement *_ECC_ENGINE_CONTROLLER to do as above? */
 	default:
 		return -EINVAL;
 	}
@@ -786,8 +786,8 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	        chip->page_shift);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->phys_erase_shift = %d\n",
 	        chip->phys_erase_shift);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.mode = %d\n",
-	        chip->ecc.mode);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.engine_type = %d\n",
+		chip->ecc.engine_type);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.steps = %d\n",
 	        chip->ecc.steps);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.bytes = %d\n",

@@ -549,7 +549,7 @@ static int tango_attach_chip(struct nand_chip *chip)
 {
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 
-	ecc->mode = NAND_ECC_HW;
+	ecc->engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	ecc->algo = NAND_ECC_ALGO_BCH;
 	ecc->bytes = DIV_ROUND_UP(ecc->strength * FIELD_ORDER, BITS_PER_BYTE);
 

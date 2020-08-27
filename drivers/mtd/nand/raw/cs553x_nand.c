@@ -286,7 +286,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 		goto out_mtd;
 	}
 
-	this->ecc.mode = NAND_ECC_HW;
+	this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	this->ecc.size = 256;
 	this->ecc.bytes = 3;
 	this->ecc.hwctl  = cs_enable_hwecc;

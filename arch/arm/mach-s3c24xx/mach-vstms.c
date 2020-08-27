@@ -112,7 +112,7 @@ static struct s3c2410_platform_nand __initdata vstms_nand_info = {
 	.twrph1		= 20,
 	.nr_sets	= ARRAY_SIZE(vstms_nand_sets),
 	.sets		= vstms_nand_sets,
-	.ecc_mode       = NAND_ECC_SOFT,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_SOFT,
 };
 
 static struct platform_device *vstms_devices[] __initdata = {

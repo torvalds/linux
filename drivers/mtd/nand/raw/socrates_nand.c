@@ -153,7 +153,8 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->legacy.read_buf = socrates_nand_read_buf;
 	nand_chip->legacy.dev_ready = socrates_nand_device_ready;
 
-	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
+	/* enable ECC */
+	nand_chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 	nand_chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	/* TODO: I have no idea what real delay is. */

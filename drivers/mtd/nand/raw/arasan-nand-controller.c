@@ -1056,17 +1056,17 @@ static int anfc_attach_chip(struct nand_chip *chip)
 	chip->ecc.read_page_raw = nand_monolithic_read_page_raw;
 	chip->ecc.write_page_raw = nand_monolithic_write_page_raw;
 
-	switch (chip->ecc.mode) {
-	case NAND_ECC_NONE:
-	case NAND_ECC_SOFT:
-	case NAND_ECC_ON_DIE:
+	switch (chip->ecc.engine_type) {
+	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
+	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 		break;
-	case NAND_ECC_HW:
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		ret = anfc_init_hw_ecc_controller(nfc, chip);
 		break;
 	default:
 		dev_err(nfc->dev, "Unsupported ECC mode: %d\n",
-			chip->ecc.mode);
+			chip->ecc.engine_type);
 		return -EINVAL;
 	}
 

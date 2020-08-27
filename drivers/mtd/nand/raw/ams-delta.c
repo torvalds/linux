@@ -260,7 +260,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	this->ecc.mode = NAND_ECC_SOFT;
+	this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 	this->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	platform_set_drvdata(pdev, priv);
