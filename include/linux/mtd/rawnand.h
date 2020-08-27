@@ -14,6 +14,7 @@
 #define __LINUX_MTD_RAWNAND_H
 
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
 #include <linux/mtd/jedec.h>
@@ -1155,9 +1156,6 @@ struct nand_chip {
 	struct nand_ecc_ctrl ecc;
 	void *priv;
 };
-
-extern const struct mtd_ooblayout_ops nand_ooblayout_sp_ops;
-extern const struct mtd_ooblayout_ops nand_ooblayout_lp_ops;
 
 static inline struct nand_chip *mtd_to_nand(struct mtd_info *mtd)
 {
