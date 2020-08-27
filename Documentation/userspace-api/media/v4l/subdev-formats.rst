@@ -34,32 +34,107 @@ Media Bus Formats
 	:ref:`field-order` for details.
     * - __u32
       - ``colorspace``
-      - Image colorspace, from enum
-	:c:type:`v4l2_colorspace`. See
-	:ref:`colorspaces` for details.
+      - Image colorspace, from enum :c:type:`v4l2_colorspace`.
+        Must be set by the driver for subdevices. If the application sets the
+	flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set this
+	field on the source pad to request a specific colorspace for the media
+	bus data. If the driver cannot handle the requested conversion, it will
+	return another supported colorspace. The driver indicates that colorspace
+	conversion is supported by setting the flag
+	V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE in the corresponding struct
+	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
+	See :ref:`v4l2-subdev-mbus-code-flags`.
+    * - union {
+      - (anonymous)
     * - __u16
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
         This information supplements the ``colorspace`` and must be set by
-	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	the driver for subdevices, see :ref:`colorspaces`. If the application
+	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
+	this field on a source pad to request a specific Y'CbCr encoding
+	for the media bus data. If the driver cannot handle the requested
+	conversion, it will return another supported encoding.
+	This field is ignored for HSV media bus formats. The driver indicates
+	that ycbcr_enc conversion is supported by setting the flag
+	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC in the corresponding struct
+	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
+	See :ref:`v4l2-subdev-mbus-code-flags`.
+    * - __u16
+      - ``hsv_enc``
+      - HSV encoding, from enum :c:type:`v4l2_hsv_encoding`.
+        This information supplements the ``colorspace`` and must be set by
+	the driver for subdevices, see :ref:`colorspaces`. If the application
+	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
+	this field on a source pad to request a specific HSV encoding
+	for the media bus data. If the driver cannot handle the requested
+	conversion, it will return another supported encoding.
+	This field is ignored for Y'CbCr media bus formats. The driver indicates
+	that hsv_enc conversion is supported by setting the flag
+	V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC in the corresponding struct
+	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
+	See :ref:`v4l2-subdev-mbus-code-flags`
+    * - }
+      -
     * - __u16
       - ``quantization``
       - Quantization range, from enum :c:type:`v4l2_quantization`.
         This information supplements the ``colorspace`` and must be set by
-	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	the driver for subdevices, see :ref:`colorspaces`. If the application
+	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
+	this field on a source pad to request a specific quantization
+	for the media bus data. If the driver cannot handle the requested
+	conversion, it will return another supported quantization.
+	The driver indicates that quantization conversion is supported by
+	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION in the
+	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
+
     * - __u16
       - ``xfer_func``
       - Transfer function, from enum :c:type:`v4l2_xfer_func`.
         This information supplements the ``colorspace`` and must be set by
-	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	the driver for subdevices, see :ref:`colorspaces`. If the application
+	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
+	this field on a source pad to request a specific transfer
+	function for the media bus data. If the driver cannot handle the requested
+	conversion, it will return another supported transfer function.
+	The driver indicates that the transfer function conversion is supported by
+	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC in the
+	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
     * - __u16
-      - ``reserved``\ [11]
+      - ``flags``
+      - flags See:  :ref:v4l2-mbus-framefmt-flags
+    * - __u16
+      - ``reserved``\ [10]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
 
+.. _v4l2-mbus-framefmt-flags:
+
+.. flat-table:: v4l2_mbus_framefmt Flags
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * .. _`mbus-framefmt-set-csc`:
+
+      - ``V4L2_MBUS_FRAMEFMT_SET_CSC``
+      - 0x0001
+      - Set by the application. It is only used for source pads and is
+	ignored for sink pads. If set, then request the subdevice to do
+	colorspace conversion from the received colorspace to the requested
+	colorspace values. If the colorimetry field (``colorspace``, ``xfer_func``,
+	``ycbcr_enc``, ``hsv_enc`` or ``quantization``) is set to ``*_DEFAULT``,
+	then that colorimetry setting will remain unchanged from what was received.
+	So in order to change the quantization, only the ``quantization`` field shall
+	be set to non default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
+	``V4L2_QUANTIZATION_LIM_RANGE``) and all other colorimetry fields shall
+	be set to ``*_DEFAULT``.
+
+	To check which conversions are supported by the hardware for the current
+	media bus frame format, see :ref:`v4l2-subdev-mbus-code-flags`.
 
 
 .. _v4l2-mbus-pixelcode:
