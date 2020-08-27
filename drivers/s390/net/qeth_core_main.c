@@ -3549,8 +3549,9 @@ static unsigned int qeth_rx_refill_queue(struct qeth_card *card,
 
 static void qeth_buffer_reclaim_work(struct work_struct *work)
 {
-	struct qeth_card *card = container_of(work, struct qeth_card,
-		buffer_reclaim_work.work);
+	struct qeth_card *card = container_of(to_delayed_work(work),
+					      struct qeth_card,
+					      buffer_reclaim_work);
 
 	local_bh_disable();
 	napi_schedule(&card->napi);
