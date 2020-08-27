@@ -1088,15 +1088,14 @@ static void qeth_bridge_emit_host_event(struct qeth_card *card,
 struct qeth_bridge_state_data {
 	struct work_struct worker;
 	struct qeth_card *card;
-	struct qeth_sbp_state_change qports;
+	u8 role;
+	u8 state;
 };
 
 static void qeth_bridge_state_change_worker(struct work_struct *work)
 {
 	struct qeth_bridge_state_data *data =
 		container_of(work, struct qeth_bridge_state_data, worker);
-	/* We are only interested in the first entry - local port */
-	struct qeth_sbp_port_entry *entry = &data->qports.entry[0];
 	char env_locrem[32];
 	char env_role[32];
 	char env_state[32];
@@ -1109,14 +1108,14 @@ static void qeth_bridge_state_change_worker(struct work_struct *work)
 
 	snprintf(env_locrem, sizeof(env_locrem), "BRIDGEPORT=statechange");
 	snprintf(env_role, sizeof(env_role), "ROLE=%s",
-		(entry->role == QETH_SBP_ROLE_NONE) ? "none" :
-		(entry->role == QETH_SBP_ROLE_PRIMARY) ? "primary" :
-		(entry->role == QETH_SBP_ROLE_SECONDARY) ? "secondary" :
+		(data->role == QETH_SBP_ROLE_NONE) ? "none" :
+		(data->role == QETH_SBP_ROLE_PRIMARY) ? "primary" :
+		(data->role == QETH_SBP_ROLE_SECONDARY) ? "secondary" :
 		"<INVALID>");
 	snprintf(env_state, sizeof(env_state), "STATE=%s",
-		(entry->state == QETH_SBP_STATE_INACTIVE) ? "inactive" :
-		(entry->state == QETH_SBP_STATE_STANDBY) ? "standby" :
-		(entry->state == QETH_SBP_STATE_ACTIVE) ? "active" :
+		(data->state == QETH_SBP_STATE_INACTIVE) ? "inactive" :
+		(data->state == QETH_SBP_STATE_STANDBY) ? "standby" :
+		(data->state == QETH_SBP_STATE_ACTIVE) ? "active" :
 		"<INVALID>");
 	kobject_uevent_env(&data->card->gdev->dev.kobj,
 				KOBJ_CHANGE, env);
@@ -1129,7 +1128,6 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 	struct qeth_sbp_state_change *qports =
 		 &cmd->data.sbp.data.state_change;
 	struct qeth_bridge_state_data *data;
-	int extrasize;
 
 	QETH_CARD_TEXT(card, 2, "brstchng");
 	if (qports->num_entries == 0) {
@@ -1140,17 +1138,18 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 		QETH_CARD_TEXT_(card, 2, "BPsz%04x", qports->entry_length);
 		return;
 	}
-	extrasize = sizeof(struct qeth_sbp_port_entry) * qports->num_entries;
-	data = kzalloc(sizeof(struct qeth_bridge_state_data) + extrasize,
-		GFP_ATOMIC);
+
+	data = kzalloc(sizeof(*data), GFP_ATOMIC);
 	if (!data) {
 		QETH_CARD_TEXT(card, 2, "BPSalloc");
 		return;
 	}
 	INIT_WORK(&data->worker, qeth_bridge_state_change_worker);
 	data->card = card;
-	memcpy(&data->qports, qports,
-			sizeof(struct qeth_sbp_state_change) + extrasize);
+	/* Information for the local port: */
+	data->role = qports->entry[0].role;
+	data->state = qports->entry[0].state;
+
 	queue_work(card->event_wq, &data->worker);
 }
 
