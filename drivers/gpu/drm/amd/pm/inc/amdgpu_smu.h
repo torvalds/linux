@@ -452,6 +452,9 @@ struct smu_context
 
 	struct work_struct throttling_logging_work;
 	atomic64_t throttle_int_counter;
+
+	unsigned fan_max_rpm;
+	unsigned manual_fan_speed_rpm;
 };
 
 struct i2c_adapter;
@@ -598,6 +601,7 @@ struct pptable_funcs {
 	int (*enable_mgpu_fan_boost)(struct smu_context *smu);
 	int (*gfx_ulv_control)(struct smu_context *smu, bool enablement);
 	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
+	int (*get_fan_parameters)(struct smu_context *smu);
 };
 
 typedef enum {

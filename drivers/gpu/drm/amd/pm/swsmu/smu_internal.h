@@ -94,6 +94,7 @@
 #define smu_set_pp_feature_mask(smu, new_mask)				smu_ppt_funcs(set_pp_feature_mask, 0, smu, new_mask)
 #define smu_gfx_ulv_control(smu, enablement)				smu_ppt_funcs(gfx_ulv_control, 0, smu, enablement)
 #define smu_deep_sleep_control(smu, enablement)				smu_ppt_funcs(deep_sleep_control, 0, smu, enablement)
+#define smu_get_fan_parameters(smu)					smu_ppt_funcs(get_fan_parameters, 0, smu)
 
 #endif
 #endif
