@@ -54,11 +54,11 @@ enum xiic_endian {
  * @lock: Mutual exclusion
  * @tx_pos: Current pos in TX message
  * @nmsgs: Number of messages in tx_msg
- * @state: See STATE_
  * @rx_msg: Current RX message
  * @rx_pos: Position within current RX message
  * @endianness: big/little-endian byte order
  * @clk: Pointer to AXI4-lite input clock
+ * @state: See STATE_
  */
 struct xiic_i2c {
 	struct device *dev;
@@ -69,11 +69,11 @@ struct xiic_i2c {
 	struct mutex lock;
 	unsigned int tx_pos;
 	unsigned int nmsgs;
-	enum xilinx_i2c_state state;
 	struct i2c_msg *rx_msg;
 	int rx_pos;
 	enum xiic_endian endianness;
 	struct clk *clk;
+	enum xilinx_i2c_state state;
 };
 
 
