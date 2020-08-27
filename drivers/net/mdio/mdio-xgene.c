@@ -11,6 +11,7 @@
 #include <linux/efi.h>
 #include <linux/if_vlan.h>
 #include <linux/io.h>
+#include <linux/mdio/mdio-xgene.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
@@ -18,7 +19,6 @@
 #include <linux/prefetch.h>
 #include <linux/phy.h>
 #include <net/ip.h>
-#include "mdio-xgene.h"
 
 static bool xgene_mdio_status;
 

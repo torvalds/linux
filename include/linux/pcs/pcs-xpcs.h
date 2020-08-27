@@ -4,8 +4,8 @@
  * Synopsys DesignWare XPCS helpers
  */
 
-#ifndef __LINUX_MDIO_XPCS_H
-#define __LINUX_MDIO_XPCS_H
+#ifndef __LINUX_PCS_XPCS_H
+#define __LINUX_PCS_XPCS_H
 
 #include <linux/phy.h>
 #include <linux/phylink.h>
@@ -29,7 +29,7 @@ struct mdio_xpcs_ops {
 	int (*probe)(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
 };
 
-#if IS_ENABLED(CONFIG_MDIO_XPCS)
+#if IS_ENABLED(CONFIG_PCS_XPCS)
 struct mdio_xpcs_ops *mdio_xpcs_get_ops(void);
 #else
 static inline struct mdio_xpcs_ops *mdio_xpcs_get_ops(void)
@@ -38,4 +38,4 @@ static inline struct mdio_xpcs_ops *mdio_xpcs_get_ops(void)
 }
 #endif
 
-#endif /* __LINUX_MDIO_XPCS_H */
+#endif /* __LINUX_PCS_XPCS_H */
