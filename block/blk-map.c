@@ -109,7 +109,7 @@ static int bio_uncopy_user(struct bio *bio)
 	struct bio_map_data *bmd = bio->bi_private;
 	int ret = 0;
 
-	if (!bmd || !bmd->is_null_mapped) {
+	if (!bmd->is_null_mapped) {
 		/*
 		 * if we're in a workqueue, the request is orphaned, so
 		 * don't copy into a random user address space, just free
@@ -306,8 +306,6 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 		if (bytes)
 			break;
 	}
-
-	bio_set_flag(bio, BIO_USER_MAPPED);
 
 	/*
 	 * Subtle: if we end up needing to bounce a bio, it would normally
@@ -654,12 +652,12 @@ int blk_rq_unmap_user(struct bio *bio)
 		if (unlikely(bio_flagged(bio, BIO_BOUNCED)))
 			mapped_bio = bio->bi_private;
 
-		if (bio_flagged(mapped_bio, BIO_USER_MAPPED)) {
-			bio_unmap_user(mapped_bio);
-		} else {
+		if (bio->bi_private) {
 			ret2 = bio_uncopy_user(mapped_bio);
 			if (ret2 && !ret)
 				ret = ret2;
+		} else {
+			bio_unmap_user(mapped_bio);
 		}
 
 		mapped_bio = bio;
