@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"[drm-dp] %s: " fmt, __func__
 
+#include <linux/rational.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/rational.h>
@@ -131,51 +132,58 @@ static inline void dp_write_ahb(struct dp_catalog_private *catalog,
 static inline void dp_write_phy(struct dp_catalog_private *catalog,
 			       u32 offset, u32 data)
 {
+	offset += DP_PHY_REG_OFFSET;
 	/*
 	 * To make sure phy reg writes happens before any other operation,
 	 * this function uses writel() instread of writel_relaxed()
 	 */
-	writel(data, catalog->io->phy_io.base + offset);
+	writel(data, catalog->io->phy_reg.base + offset);
 }
 
 static inline u32 dp_read_phy(struct dp_catalog_private *catalog,
 			       u32 offset)
 {
+	offset += DP_PHY_REG_OFFSET;
 	/*
 	 * To make sure phy reg writes happens before any other operation,
 	 * this function uses writel() instread of writel_relaxed()
 	 */
-	return readl_relaxed(catalog->io->phy_io.base + offset);
+	return readl_relaxed(catalog->io->phy_reg.base + offset);
 }
 
 static inline void dp_write_pll(struct dp_catalog_private *catalog,
 			       u32 offset, u32 data)
 {
-	writel_relaxed(data, catalog->io->dp_pll_io.base + offset);
+	offset += DP_PHY_PLL_OFFSET;
+	writel_relaxed(data, catalog->io->phy_reg.base + offset);
 }
 
 static inline void dp_write_ln_tx0(struct dp_catalog_private *catalog,
 			       u32 offset, u32 data)
 {
-	writel_relaxed(data, catalog->io->ln_tx0_io.base + offset);
+	offset += DP_PHY_LN_TX0_OFFSET;
+	writel_relaxed(data, catalog->io->phy_reg.base + offset);
 }
 
 static inline void dp_write_ln_tx1(struct dp_catalog_private *catalog,
 			       u32 offset, u32 data)
 {
-	writel_relaxed(data, catalog->io->ln_tx1_io.base + offset);
+	offset += DP_PHY_LN_TX1_OFFSET;
+	writel_relaxed(data, catalog->io->phy_reg.base + offset);
 }
 
 static inline u32 dp_read_ln_tx0(struct dp_catalog_private *catalog,
 			       u32 offset)
 {
-	return readl_relaxed(catalog->io->ln_tx0_io.base + offset);
+	offset += DP_PHY_LN_TX0_OFFSET;
+	return readl_relaxed(catalog->io->phy_reg.base + offset);
 }
 
 static inline u32 dp_read_ln_tx1(struct dp_catalog_private *catalog,
 			       u32 offset)
 {
-	return readl_relaxed(catalog->io->ln_tx1_io.base + offset);
+	offset += DP_PHY_LN_TX1_OFFSET;
+	return readl_relaxed(catalog->io->phy_reg.base + offset);
 }
 
 static inline void dp_write_usb_cm(struct dp_catalog_private *catalog,
@@ -398,13 +406,16 @@ void dp_catalog_dump_regs(struct dp_catalog *dp_catalog)
 	dump_regs(catalog->io->usb3_dp_com.base, catalog->io->usb3_dp_com.len);
 
 	pr_info("LN TX0 regs\n");
-	dump_regs(catalog->io->ln_tx0_io.base, catalog->io->ln_tx0_io.len);
+	dump_regs(catalog->io->phy_reg.base + DP_PHY_LN_TX0_OFFSET,
+						DP_PHY_LN_TX0_SIZE);
 
 	pr_info("LN TX1 regs\n");
-	dump_regs(catalog->io->ln_tx1_io.base, catalog->io->ln_tx1_io.len);
+	dump_regs(catalog->io->phy_reg.base + DP_PHY_LN_TX1_OFFSET,
+						DP_PHY_LN_TX1_SIZE);
 
 	pr_info("DP PHY regs\n");
-	dump_regs(catalog->io->phy_io.base, catalog->io->phy_io.len);
+	dump_regs(catalog->io->phy_reg.base + DP_PHY_REG_OFFSET,
+						DP_PHY_REG_SIZE);
 }
 
 void dp_catalog_aux_setup(struct dp_catalog *dp_catalog)

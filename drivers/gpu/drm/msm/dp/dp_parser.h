@@ -10,6 +10,7 @@
 
 #include "dpu_io_util.h"
 #include "msm_drv.h"
+#include "dp_pll.h"
 
 #define DP_LABEL "MDSS DP DISPLAY"
 #define DP_MAX_PIXEL_CLK_KHZ	675000
@@ -66,10 +67,7 @@ struct dp_display_data {
  */
 struct dp_io {
 	struct dss_io_data dp_controller;
-	struct dss_io_data phy_io;
-	struct dss_io_data ln_tx0_io;
-	struct dss_io_data ln_tx1_io;
-	struct dss_io_data dp_pll_io;
+	struct dss_io_data phy_reg;
 	struct dss_io_data usb3_dp_com;
 };
 
@@ -117,6 +115,7 @@ struct dp_parser {
 	struct dp_pinctrl pinctrl;
 	struct dp_io io;
 	struct dp_display_data disp_data;
+	struct msm_dp_pll *pll;
 	const struct dp_regulator_cfg *regulator_cfg;
 	u32 max_dp_lanes;
 

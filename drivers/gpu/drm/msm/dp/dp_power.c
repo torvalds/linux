@@ -101,6 +101,16 @@ static int dp_power_clk_init(struct dp_power_private *power)
 	core = &power->parser->mp[DP_CORE_PM];
 	ctrl = &power->parser->mp[DP_CTRL_PM];
 
+	if (power->parser->pll && power->parser->pll->get_provider) {
+		rc = power->parser->pll->get_provider(power->parser->pll,
+			&power->link_provider, &power->pixel_provider);
+		if (rc) {
+			DRM_ERROR("%s:provider failed,don't set parent\n",
+								__func__);
+			return 0;
+		}
+	}
+
 	rc = msm_dss_get_clk(dev, core->clk_config, core->num_clk);
 	if (rc) {
 		DRM_ERROR("failed to get %s clk. err=%d\n",

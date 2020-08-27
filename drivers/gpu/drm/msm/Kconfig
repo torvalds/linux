@@ -61,6 +61,7 @@ config DRM_MSM_HDMI_HDCP
 config DRM_MSM_DP
 	bool "Enable DisplayPort support in MSM DRM driver"
 	depends on DRM_MSM
+	default y
 	help
 	  Compile in support for DP driver in MSM DRM driver. DP external
 	  display support is enabled through this config option. It can

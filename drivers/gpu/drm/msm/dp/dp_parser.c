@@ -6,6 +6,7 @@
 #include <linux/of_gpio.h>
 
 #include "dp_parser.h"
+#include "dp_reg.h"
 
 static const struct dp_regulator_cfg sdm845_dp_reg_cfg = {
 	.num = 2,
@@ -52,6 +53,7 @@ static void dp_parser_unmap_io_resources(struct dp_parser *parser)
 	struct dp_io *io = &parser->io;
 
 	msm_dss_iounmap(&io->dp_controller);
+	msm_dss_iounmap(&io->phy_reg);
 	msm_dss_iounmap(&io->usb3_dp_com);
 }
 

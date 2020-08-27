@@ -6,6 +6,22 @@
 #ifndef _DP_REG_H_
 #define _DP_REG_H_
 
+/* DP PHY Register Regions */
+#define REG_DP_PHY_REGION_BASE			(0x088ea000)
+#define REG_DP_PHY_REGION_SIZE			(0x00000C00)
+
+#define REG_USB3_DP_COM_REGION_BASE		(0x088e8000)
+#define REG_USB3_DP_COM_REGION_SIZE		(0x00000020)
+
+#define DP_PHY_PLL_OFFSET			(0x00000000)
+#define DP_PHY_PLL_SIZE				(0x00000200)
+#define DP_PHY_REG_OFFSET			(0x00000A00)
+#define DP_PHY_REG_SIZE				(0x00000200)
+#define DP_PHY_LN_TX0_OFFSET			(0x00000200)
+#define DP_PHY_LN_TX0_SIZE			(0x00000200)
+#define DP_PHY_LN_TX1_OFFSET			(0x00000600)
+#define DP_PHY_LN_TX1_SIZE			(0x00000200)
+
 /* DP_TX Registers */
 #define REG_DP_HW_VERSION			(0x00000000)
 
