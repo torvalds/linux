@@ -67,7 +67,6 @@ struct nfs4_xattr_bucket {
 
 struct nfs4_xattr_cache {
 	struct kref ref;
-	spinlock_t hash_lock;	/* protects hashtable and lru */
 	struct nfs4_xattr_bucket buckets[NFS4_XATTR_HASH_SIZE];
 	struct list_head lru;
 	struct list_head dispose;
