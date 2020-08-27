@@ -599,6 +599,73 @@ static const struct imx415_mode supported_modes[] = {
 	 * VMAX >= (PIX_VWIDTH / 2) + 46 = height + 46
 	 */
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x08fc - 0x08,
+		.hts_def = 0x044c * IMX415_4LANES * 2,
+		.vts_def = 0x08fc,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs,
+		.reg_list = imx415_linear_10bit_3864x2192_891M_regs,
+		.hdr_mode = NO_HDR,
+		.mipi_freq_idx = 1,
+		.bpp = 10,
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x08fc * 2 - 0x0da8,
+		.hts_def = 0x0226 * IMX415_4LANES * 2,
+		/*
+		 * IMX415 HDR mode T-line is half of Linear mode,
+		 * make vts double to workaround.
+		 */
+		.vts_def = 0x08fc * 2,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs,
+		.reg_list = imx415_hdr2_10bit_3864x2192_1485M_regs,
+		.hdr_mode = HDR_X2,
+		.mipi_freq_idx = 2,
+		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 200000,
+		},
+		.exp_def = 0x13e,
+		.hts_def = 0x01ca * IMX415_4LANES * 2,
+		/*
+		 * IMX415 HDR mode T-line is half of Linear mode,
+		 * make vts double to workaround.
+		 */
+		.vts_def = 0x07ea * 4,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs,
+		.reg_list = imx415_hdr3_10bit_3864x2192_1782M_regs,
+		.hdr_mode = HDR_X3,
+		.mipi_freq_idx = 0,
+		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_2,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_2,//S->csi wr2
+	},
+	{
 		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
 		.width = 3864,
@@ -665,73 +732,6 @@ static const struct imx415_mode supported_modes[] = {
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_2,//S->csi wr2
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08fc - 0x08,
-		.hts_def = 0x044c * IMX415_4LANES * 2,
-		.vts_def = 0x08fc,
-		.global_reg_list = imx415_global_10bit_3864x2192_regs,
-		.reg_list = imx415_linear_10bit_3864x2192_891M_regs,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 1,
-		.bpp = 10,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08fc * 2 - 0x0da8,
-		.hts_def = 0x0226 * IMX415_4LANES * 2,
-		/*
-		 * IMX415 HDR mode T-line is half of Linear mode,
-		 * make vts double to workaround.
-		 */
-		.vts_def = 0x08fc * 2,
-		.global_reg_list = imx415_global_10bit_3864x2192_regs,
-		.reg_list = imx415_hdr2_10bit_3864x2192_1485M_regs,
-		.hdr_mode = HDR_X2,
-		.mipi_freq_idx = 2,
-		.bpp = 10,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 200000,
-		},
-		.exp_def = 0x13e,
-		.hts_def = 0x01ca * IMX415_4LANES * 2,
-		/*
-		 * IMX415 HDR mode T-line is half of Linear mode,
-		 * make vts double to workaround.
-		 */
-		.vts_def = 0x07ea * 4,
-		.global_reg_list = imx415_global_10bit_3864x2192_regs,
-		.reg_list = imx415_hdr3_10bit_3864x2192_1782M_regs,
-		.hdr_mode = HDR_X3,
-		.mipi_freq_idx = 0,
-		.bpp = 10,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
 };
 
