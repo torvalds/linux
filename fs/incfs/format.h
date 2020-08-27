@@ -135,17 +135,8 @@ struct incfs_md_header {
 	 */
 	__le16 h_record_size;
 
-	/*
-	 * CRC32 of the metadata record.
-	 * (e.g. inode, dir entry etc) not just this struct.
-	 */
-	__le32 h_record_crc;
-
 	/* Offset of the next metadata entry if any */
 	__le64 h_next_md_offset;
-
-	/* Offset of the previous metadata entry if any */
-	__le64 h_prev_md_offset;
 
 } __packed;
 

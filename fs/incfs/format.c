@@ -148,26 +148,6 @@ static int append_zeros(struct backing_file_context *bfc, size_t len)
 	return append_zeros_no_fallocate(bfc, file_size, len);
 }
 
-static u32 calc_md_crc(struct incfs_md_header *record)
-{
-	u32 result = 0;
-	__le32 saved_crc = record->h_record_crc;
-	__le64 saved_md_offset = record->h_next_md_offset;
-	size_t record_size = min_t(size_t, le16_to_cpu(record->h_record_size),
-				INCFS_MAX_METADATA_RECORD_SIZE);
-
-	/* Zero fields which needs to be excluded from CRC calculation. */
-	record->h_record_crc = 0;
-	record->h_next_md_offset = 0;
-	result = crc32(0, record, record_size);
-
-	/* Restore excluded fields. */
-	record->h_record_crc = saved_crc;
-	record->h_next_md_offset = saved_md_offset;
-
-	return result;
-}
-
 /*
  * Append a given metadata record to the backing file and update a previous
  * record to add the new record the the metadata list.
@@ -191,9 +171,7 @@ static int append_md_to_backing_file(struct backing_file_context *bfc,
 
 	record_size = le16_to_cpu(record->h_record_size);
 	file_pos = incfs_get_end_offset(bfc->bc_file);
-	record->h_prev_md_offset = cpu_to_le64(bfc->bc_last_md_record_offset);
 	record->h_next_md_offset = 0;
-	record->h_record_crc = cpu_to_le32(calc_md_crc(record));
 
 	/* Write the metadata record to the end of the backing file */
 	record_offset = file_pos;
@@ -601,7 +579,6 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	ssize_t bytes_read = 0;
 	size_t md_record_size = 0;
 	loff_t next_record = 0;
-	loff_t prev_record = 0;
 	int res = 0;
 	struct incfs_md_header *md_hdr = NULL;
 
@@ -623,7 +600,6 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 
 	md_hdr = &handler->md_buffer.md_header;
 	next_record = le64_to_cpu(md_hdr->h_next_md_offset);
-	prev_record = le64_to_cpu(md_hdr->h_prev_md_offset);
 	md_record_size = le16_to_cpu(md_hdr->h_record_size);
 
 	if (md_record_size > max_md_size) {
@@ -640,16 +616,6 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	if (next_record <= handler->md_record_offset && next_record != 0) {
 		pr_warn("incfs: Next record (%lld) points back in file.",
 			next_record);
-		return -EBADMSG;
-	}
-
-	if (prev_record != handler->md_prev_record_offset) {
-		pr_warn("incfs: Metadata chain has been corrupted.");
-		return -EBADMSG;
-	}
-
-	if (le32_to_cpu(md_hdr->h_record_crc) != calc_md_crc(md_hdr)) {
-		pr_warn("incfs: Metadata CRC mismatch.");
 		return -EBADMSG;
 	}
 
