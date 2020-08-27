@@ -28,19 +28,19 @@
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
 #elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c8, c0, 0
 		.endm
 #else
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c1, c0, 0
 		.endm
 #endif
@@ -49,8 +49,13 @@
 
 #include CONFIG_DEBUG_LL_INCLUDE
 
-		.macro	writeb,	ch, rb
+		.macro	writeb,	ch, rb, tmp
+#ifdef CONFIG_DEBUG_UART_FLOW_CONTROL
+		waituartcts \tmp, \rb
+#endif
+		waituarttxrdy \tmp, \rb
 		senduart \ch, \rb
+		busyuart \tmp, \rb
 		.endm
 
 #if defined(CONFIG_ARCH_SA1100)
@@ -1326,7 +1331,7 @@ puts:		loadsp	r3, r2, r1
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
 		moveq	pc, lr
-2:		writeb	r2, r3
+2:		writeb	r2, r3, r1
 		mov	r1, #0x00020000
 3:		subs	r1, r1, #1
 		bne	3b
