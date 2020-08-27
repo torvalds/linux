@@ -314,7 +314,8 @@ static int qeth_l3_setdelip_cb(struct qeth_card *card, struct qeth_reply *reply,
 }
 
 static int qeth_l3_send_setdelmc(struct qeth_card *card,
-			struct qeth_ipaddr *addr, int ipacmd)
+				 struct qeth_ipaddr *addr,
+				 enum qeth_ipa_cmds ipacmd)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
