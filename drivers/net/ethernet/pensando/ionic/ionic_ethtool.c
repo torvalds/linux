@@ -561,32 +561,15 @@ static void ionic_get_channels(struct net_device *netdev,
 	}
 }
 
-static void ionic_set_queuecount(struct ionic_lif *lif, void *arg)
-{
-	struct ethtool_channels *ch = arg;
-
-	if (ch->combined_count) {
-		lif->nxqs = ch->combined_count;
-		if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state)) {
-			clear_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
-			lif->tx_coalesce_usecs = lif->rx_coalesce_usecs;
-			lif->tx_coalesce_hw = lif->rx_coalesce_hw;
-			netdev_info(lif->netdev, "Sharing queue interrupts\n");
-		}
-	} else {
-		lif->nxqs = ch->rx_count;
-		if (!test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state)) {
-			set_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
-			netdev_info(lif->netdev, "Splitting queue interrupts\n");
-		}
-	}
-}
-
 static int ionic_set_channels(struct net_device *netdev,
 			      struct ethtool_channels *ch)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
-	int new_cnt;
+	struct ionic_queue_params qparam;
+	int max_cnt;
+	int err;
+
+	ionic_init_queue_params(lif, &qparam);
 
 	if (ch->rx_count != ch->tx_count) {
 		netdev_info(netdev, "The rx and tx count must be equal\n");
@@ -594,20 +577,63 @@ static int ionic_set_channels(struct net_device *netdev,
 	}
 
 	if (ch->combined_count && ch->rx_count) {
-		netdev_info(netdev, "Use either combined_count or rx/tx_count, not both\n");
+		netdev_info(netdev, "Use either combined or rx and tx, not both\n");
 		return -EINVAL;
 	}
 
-	if (ch->combined_count)
-		new_cnt = ch->combined_count;
-	else
-		new_cnt = ch->rx_count;
+	max_cnt = lif->ionic->ntxqs_per_lif;
+	if (ch->combined_count) {
+		if (ch->combined_count > max_cnt)
+			return -EINVAL;
 
-	if (lif->nxqs != new_cnt)
-		netdev_info(netdev, "Changing queue count from %d to %d\n",
-			    lif->nxqs, new_cnt);
+		if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state))
+			netdev_info(lif->netdev, "Sharing queue interrupts\n");
+		else if (ch->combined_count == lif->nxqs)
+			return 0;
 
-	return ionic_reset_queues(lif, ionic_set_queuecount, ch);
+		if (lif->nxqs != ch->combined_count)
+			netdev_info(netdev, "Changing queue count from %d to %d\n",
+				    lif->nxqs, ch->combined_count);
+
+		qparam.nxqs = ch->combined_count;
+		qparam.intr_split = 0;
+	} else {
+		max_cnt /= 2;
+		if (ch->rx_count > max_cnt)
+			return -EINVAL;
+
+		if (!test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state))
+			netdev_info(lif->netdev, "Splitting queue interrupts\n");
+		else if (ch->rx_count == lif->nxqs)
+			return 0;
+
+		if (lif->nxqs != ch->rx_count)
+			netdev_info(netdev, "Changing queue count from %d to %d\n",
+				    lif->nxqs, ch->rx_count);
+
+		qparam.nxqs = ch->rx_count;
+		qparam.intr_split = 1;
+	}
+
+	/* if we're not running, just set the values and return */
+	if (!netif_running(lif->netdev)) {
+		lif->nxqs = qparam.nxqs;
+
+		if (qparam.intr_split) {
+			set_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+		} else {
+			clear_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+			lif->tx_coalesce_usecs = lif->rx_coalesce_usecs;
+			lif->tx_coalesce_hw = lif->rx_coalesce_hw;
+		}
+		return 0;
+	}
+
+	err = ionic_reconfigure_queues(lif, &qparam);
+	if (err)
+		netdev_info(netdev, "Queue reconfiguration failed, changes canceled: %d\n", err);
+
+	return err;
 }
 
 static u32 ionic_get_priv_flags(struct net_device *netdev)
