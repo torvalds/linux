@@ -64,7 +64,7 @@ static struct timekeeper shadow_timekeeper;
  * See @update_fast_timekeeper() below.
  */
 struct tk_fast {
-	seqcount_raw_spinlock_t	seq;
+	seqcount_latch_t	seq;
 	struct tk_read_base	base[2];
 };
 
@@ -81,13 +81,13 @@ static struct clocksource dummy_clock = {
 };
 
 static struct tk_fast tk_fast_mono ____cacheline_aligned = {
-	.seq     = SEQCNT_RAW_SPINLOCK_ZERO(tk_fast_mono.seq, &timekeeper_lock),
+	.seq     = SEQCNT_LATCH_ZERO(tk_fast_mono.seq),
 	.base[0] = { .clock = &dummy_clock, },
 	.base[1] = { .clock = &dummy_clock, },
 };
 
 static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
-	.seq     = SEQCNT_RAW_SPINLOCK_ZERO(tk_fast_raw.seq, &timekeeper_lock),
+	.seq     = SEQCNT_LATCH_ZERO(tk_fast_raw.seq),
 	.base[0] = { .clock = &dummy_clock, },
 	.base[1] = { .clock = &dummy_clock, },
 };
@@ -467,7 +467,7 @@ static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
 					tk_clock_read(tkr),
 					tkr->cycle_last,
 					tkr->mask));
-	} while (read_seqcount_retry(&tkf->seq, seq));
+	} while (read_seqcount_latch_retry(&tkf->seq, seq));
 
 	return now;
 }
@@ -533,7 +533,7 @@ static __always_inline u64 __ktime_get_real_fast_ns(struct tk_fast *tkf)
 					tk_clock_read(tkr),
 					tkr->cycle_last,
 					tkr->mask));
-	} while (read_seqcount_retry(&tkf->seq, seq));
+	} while (read_seqcount_latch_retry(&tkf->seq, seq));
 
 	return now;
 }
