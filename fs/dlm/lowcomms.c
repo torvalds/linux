@@ -1608,11 +1608,13 @@ static void shutdown_conn(struct connection *con)
 static void free_conn(struct connection *con)
 {
 	close_connection(con, true, true, true);
-	if (con->othercon)
-		kfree_rcu(con->othercon, rcu);
 	spin_lock(&connections_lock);
 	hlist_del_rcu(&con->list);
 	spin_unlock(&connections_lock);
+	if (con->othercon) {
+		clean_one_writequeue(con->othercon);
+		kfree_rcu(con->othercon, rcu);
+	}
 	clean_one_writequeue(con);
 	kfree_rcu(con, rcu);
 }
