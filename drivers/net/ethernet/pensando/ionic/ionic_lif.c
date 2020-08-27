@@ -36,6 +36,8 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif);
 static void ionic_lif_handle_fw_up(struct ionic_lif *lif);
 static void ionic_lif_set_netdev_info(struct ionic_lif *lif);
 
+static void ionic_txrx_deinit(struct ionic_lif *lif);
+static int ionic_txrx_init(struct ionic_lif *lif);
 static int ionic_start_queues(struct ionic_lif *lif);
 static void ionic_stop_queues(struct ionic_lif *lif);
 static void ionic_lif_queue_identify(struct ionic_lif *lif);
@@ -593,6 +595,17 @@ err_out:
 	return err;
 }
 
+static void ionic_qcq_sanitize(struct ionic_qcq *qcq)
+{
+	qcq->q.tail_idx = 0;
+	qcq->q.head_idx = 0;
+	qcq->cq.tail_idx = 0;
+	qcq->cq.done_color = 1;
+	memset(qcq->q_base, 0, qcq->q_size);
+	memset(qcq->cq_base, 0, qcq->cq_size);
+	memset(qcq->sg_base, 0, qcq->sg_size);
+}
+
 static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 {
 	struct device *dev = lif->ionic->dev;
@@ -632,9 +645,7 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "txq_init.ver %d\n", ctx.cmd.q_init.ver);
 	dev_dbg(dev, "txq_init.intr_index %d\n", ctx.cmd.q_init.intr_index);
 
-	q->tail_idx = 0;
-	q->head_idx = 0;
-	cq->tail_idx = 0;
+	ionic_qcq_sanitize(qcq);
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
@@ -689,9 +700,7 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "rxq_init.ver %d\n", ctx.cmd.q_init.ver);
 	dev_dbg(dev, "rxq_init.intr_index %d\n", ctx.cmd.q_init.intr_index);
 
-	q->tail_idx = 0;
-	q->head_idx = 0;
-	cq->tail_idx = 0;
+	ionic_qcq_sanitize(qcq);
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
@@ -1307,6 +1316,35 @@ static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 	return ionic_addr_add(netdev, mac);
 }
 
+static void ionic_stop_queues_reconfig(struct ionic_lif *lif)
+{
+	/* Stop and clean the queues before reconfiguration */
+	mutex_lock(&lif->queue_lock);
+	netif_device_detach(lif->netdev);
+	ionic_stop_queues(lif);
+	ionic_txrx_deinit(lif);
+}
+
+static int ionic_start_queues_reconfig(struct ionic_lif *lif)
+{
+	int err;
+
+	/* Re-init the queues after reconfiguration */
+
+	/* The only way txrx_init can fail here is if communication
+	 * with FW is suddenly broken.  There's not much we can do
+	 * at this point - error messages have already been printed,
+	 * so we can continue on and the user can eventually do a
+	 * DOWN and UP to try to reset and clear the issue.
+	 */
+	err = ionic_txrx_init(lif);
+	mutex_unlock(&lif->queue_lock);
+	ionic_link_status_check_request(lif);
+	netif_device_attach(lif->netdev);
+
+	return err;
+}
+
 static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
@@ -1326,9 +1364,12 @@ static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 		return err;
 
 	netdev->mtu = new_mtu;
-	err = ionic_reset_queues(lif, NULL, NULL);
+	/* if we're not running, nothing more to do */
+	if (!netif_running(netdev))
+		return 0;
 
-	return err;
+	ionic_stop_queues_reconfig(lif);
+	return ionic_start_queues_reconfig(lif);
 }
 
 static void ionic_tx_timeout_work(struct work_struct *ws)
