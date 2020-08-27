@@ -586,7 +586,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 	/* Give the current vmcb to the guest */
-	svm_set_gif(svm, false);
 
 	nested_vmcb->save.es     = vmcb->save.es;
 	nested_vmcb->save.cs     = vmcb->save.cs;
@@ -631,6 +630,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	/* Restore the original control entries */
 	copy_vmcb_control_area(&vmcb->control, &hsave->control);
+
+	/* On vmexit the  GIF is set to false */
+	svm_set_gif(svm, false);
 
 	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
 		svm->vcpu.arch.l1_tsc_offset;
