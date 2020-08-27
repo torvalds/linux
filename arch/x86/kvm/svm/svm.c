@@ -1190,11 +1190,11 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	svm = to_svm(vcpu);
 
 	err = -ENOMEM;
-	vmcb_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	vmcb_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!vmcb_page)
 		goto out;
 
-	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!hsave_page)
 		goto free_page1;
 
@@ -1209,7 +1209,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		svm->avic_is_running = true;
 
 	svm->nested.hsave = page_address(hsave_page);
-	clear_page(svm->nested.hsave);
 
 	svm->msrpm = svm_vcpu_init_msrpm();
 	if (!svm->msrpm)
@@ -1220,7 +1219,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		goto free_page3;
 
 	svm->vmcb = page_address(vmcb_page);
-	clear_page(svm->vmcb);
 	svm->vmcb_pa = __sme_set(page_to_pfn(vmcb_page) << PAGE_SHIFT);
 	svm->asid_generation = 0;
 	init_vmcb(svm);
