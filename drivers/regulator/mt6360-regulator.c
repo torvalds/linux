@@ -424,14 +424,14 @@ static int mt6360_regulator_probe(struct platform_device *pdev)
 
 		rdev = devm_regulator_register(&pdev->dev, &rdesc->desc, &config);
 		if (IS_ERR(rdev)) {
-			dev_err(&pdev->dev, "Failed to register  %d regulaotr\n", i);
+			dev_err(&pdev->dev, "Failed to register  %d regulator\n", i);
 			return PTR_ERR(rdev);
 		}
 
 		ret = mt6360_regulator_irq_register(pdev, rdev, rdesc->irq_tables,
 						    rdesc->irq_table_size);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to register  %d regulaotr irqs\n", i);
+			dev_err(&pdev->dev, "Failed to register  %d regulator irqs\n", i);
 			return ret;
 		}
 	}
