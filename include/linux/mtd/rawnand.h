@@ -82,18 +82,6 @@ struct nand_chip;
 #define NAND_DATA_IFACE_CHECK_ONLY	-1
 
 /*
- * Constants for ECC_MODES
- */
-enum nand_ecc_mode {
-	NAND_ECC_INVALID,
-	NAND_ECC_NONE,
-	NAND_ECC_SOFT,
-	NAND_ECC_HW,
-	NAND_ECC_HW_SYNDROME,
-	NAND_ECC_ON_DIE,
-};
-
-/*
  * Constants for Hardware ECC
  */
 /* Reset Hardware ECC for read */
