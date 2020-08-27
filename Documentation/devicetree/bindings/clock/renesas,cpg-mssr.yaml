@@ -25,6 +25,7 @@ properties:
   compatible:
     enum:
       - renesas,r7s9210-cpg-mssr  # RZ/A2
+      - renesas,r8a7742-cpg-mssr  # RZ/G1H
       - renesas,r8a7743-cpg-mssr  # RZ/G1M
       - renesas,r8a7744-cpg-mssr  # RZ/G1N
       - renesas,r8a7745-cpg-mssr  # RZ/G1E

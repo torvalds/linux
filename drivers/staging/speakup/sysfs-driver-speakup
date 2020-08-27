@@ -325,6 +325,12 @@ KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the pitch of the synthesizer. The range is 0-9.
 
+What:		/sys/accessibility/speakup/soft/inflection
+KernelVersion:	5.8
+Contact:	speakup@linux-speakup.org
+Description:	Gets or sets the inflection of the synthesizer, i.e. the pitch
+		range. The range is 0-9.
+
 What:		/sys/accessibility/speakup/soft/punct
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org

@@ -88,17 +88,15 @@ properties:
     description:
       Rate at which poll occurs when auto-poll is set.
       default 100ms.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 100
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 100
 
   poll-timeout-ms:
     description:
       Poll timeout when auto-poll is set, default
       3000ms.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 3000
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 3000
 
 required:
   - compatible

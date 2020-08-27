@@ -9,6 +9,6 @@ config SCSI_BNX2_ISCSI
 	select ETHERNET
 	select NET_VENDOR_BROADCOM
 	select CNIC
-	---help---
+	help
 	This driver supports iSCSI offload for the QLogic NetXtreme II
 	devices.

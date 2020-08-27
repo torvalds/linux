@@ -67,12 +67,13 @@ static int siw_device_register(struct siw_device *sdev, const char *name)
 	static int dev_id = 1;
 	int rv;
 
+	sdev->vendor_part_id = dev_id++;
+
 	rv = ib_register_device(base_dev, name);
 	if (rv) {
 		pr_warn("siw: device registration error %d\n", rv);
 		return rv;
 	}
-	sdev->vendor_part_id = dev_id++;
 
 	siw_dbg(base_dev, "HWaddr=%pM\n", sdev->netdev->dev_addr);
 
@@ -413,7 +414,6 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	sdev->attrs.max_mr = SIW_MAX_MR;
 	sdev->attrs.max_pd = SIW_MAX_PD;
 	sdev->attrs.max_mw = SIW_MAX_MW;
-	sdev->attrs.max_fmr = SIW_MAX_FMR;
 	sdev->attrs.max_srq = SIW_MAX_SRQ;
 	sdev->attrs.max_srq_wr = SIW_MAX_SRQ_WR;
 	sdev->attrs.max_srq_sge = SIW_MAX_SGE;

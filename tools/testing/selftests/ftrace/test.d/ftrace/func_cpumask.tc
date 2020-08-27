@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function trace with cpumask
+# requires: function:tracer
 
 if ! which nproc ; then
   nproc() {
@@ -13,11 +14,6 @@ NP=`nproc`
 if [ $NP -eq 1 ] ;then
   echo "We can not test cpumask on UP environment"
   exit_unresolved
-fi
-
-if ! grep -q "function" available_tracers ; then
-  echo "Function trace is not enabled"
-  exit_unsupported
 fi
 
 ORIG_CPUMASK=`cat tracing_cpumask`

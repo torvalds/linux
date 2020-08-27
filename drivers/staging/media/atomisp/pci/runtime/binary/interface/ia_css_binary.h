@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
@@ -143,8 +144,7 @@ struct ia_css_binary {
 	struct ia_css_isp_param_css_segments  css_params;
 };
 
-#define IA_CSS_BINARY_DEFAULT_SETTINGS \
-(struct ia_css_binary) { \
+#define IA_CSS_BINARY_DEFAULT_SETTINGS { \
 	.input_format		= ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY, \
 	.in_frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 	.internal_frame_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
@@ -152,13 +152,13 @@ struct ia_css_binary {
 	.vf_frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 }
 
-enum ia_css_err
+int
 ia_css_binary_init_infos(void);
 
-enum ia_css_err
+int
 ia_css_binary_uninit(void);
 
-enum ia_css_err
+int
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 			bool online,
 			bool two_ppc,
@@ -172,7 +172,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 			int stream_config_left_padding,
 			bool accelerator);
 
-enum ia_css_err
+int
 ia_css_binary_find(struct ia_css_binary_descr *descr,
 		   struct ia_css_binary *binary);
 
@@ -188,10 +188,10 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
  *		the shading table directly required from ISP.
  * @param[out] pipe_config: The pipe configuration.
  *		The shading information related to ISP (but, not necessary as API) is stored in the pipe_config.
- * @return	IA_CSS_SUCCESS or error code upon error.
+ * @return	0 or error code upon error.
  *
  */
-enum ia_css_err
+int
 ia_css_binary_get_shading_info(const struct ia_css_binary *binary,
 			       enum ia_css_shading_correction_type type,
 			       unsigned int required_bds_factor,
@@ -199,7 +199,7 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,
 			       struct ia_css_shading_info *shading_info,
 			       struct ia_css_pipe_config *pipe_config);
 
-enum ia_css_err
+int
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 			   struct ia_css_grid_info *info,
 			   struct ia_css_pipe *pipe);

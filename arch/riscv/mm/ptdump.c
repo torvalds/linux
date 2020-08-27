@@ -9,7 +9,7 @@
 #include <linux/ptdump.h>
 
 #include <asm/ptdump.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/kasan.h>
 
 #define pt_dump_seq_printf(m, fmt, args...)	\

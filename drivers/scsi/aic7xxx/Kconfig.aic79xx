@@ -15,7 +15,7 @@ config AIC79XX_CMDS_PER_DEVICE
 	int "Maximum number of TCQ commands per device"
 	depends on SCSI_AIC79XX
 	default "32"
-	---help---
+	help
 	Specify the number of commands you would like to allocate per SCSI
 	device when Tagged Command Queueing (TCQ) is enabled on that device.
 
@@ -38,7 +38,7 @@ config AIC79XX_RESET_DELAY_MS
 	int "Initial bus reset delay in milli-seconds"
 	depends on SCSI_AIC79XX
 	default "5000"
-	---help---
+	help
 	The number of milliseconds to delay after an initial bus reset.
 	The bus settle delay following all error recovery actions is
 	dictated by the SCSI layer and is not affected by this value.

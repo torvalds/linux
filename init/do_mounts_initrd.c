@@ -45,11 +45,6 @@ static int __init early_initrdmem(char *p)
 }
 early_param("initrdmem", early_initrdmem);
 
-/*
- * This is here as the initrd keyword has been in use since 11/2018
- * on ARM, PowerPC, and MIPS.
- * It should not be; it is reserved for bootloaders.
- */
 static int __init early_initrd(char *p)
 {
 	return early_initrdmem(p);

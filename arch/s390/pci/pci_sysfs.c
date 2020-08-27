@@ -33,6 +33,7 @@ zpci_attr(pchid, "0x%04x\n", pchid);
 zpci_attr(pfgid, "0x%02x\n", pfgid);
 zpci_attr(vfn, "0x%04x\n", vfn);
 zpci_attr(pft, "0x%02x\n", pft);
+zpci_attr(port, "%d\n", port);
 zpci_attr(uid, "0x%x\n", uid);
 zpci_attr(segment0, "0x%02x\n", pfip[0]);
 zpci_attr(segment1, "0x%02x\n", pfip[1]);
@@ -88,7 +89,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 		ret = zpci_enable_device(zdev);
 		if (ret)
 			goto out;
-		pci_rescan_bus(zdev->bus);
+		pci_rescan_bus(zdev->zbus->bus);
 	}
 out:
 	pci_unlock_rescan_remove();
@@ -142,6 +143,7 @@ static struct attribute *zpci_dev_attrs[] = {
 	&dev_attr_pchid.attr,
 	&dev_attr_pfgid.attr,
 	&dev_attr_pft.attr,
+	&dev_attr_port.attr,
 	&dev_attr_vfn.attr,
 	&dev_attr_uid.attr,
 	&dev_attr_recover.attr,

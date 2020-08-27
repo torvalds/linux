@@ -6,7 +6,7 @@ config RDMA_RXE
 	select NET_UDP_TUNNEL
 	select CRYPTO_CRC32
 	select DMA_VIRT_OPS
-	---help---
+	help
 	This driver implements the InfiniBand RDMA transport over
 	the Linux network stack. It enables a system with a
 	standard Ethernet adapter to interoperate with a RoCE

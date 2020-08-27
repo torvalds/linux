@@ -15,8 +15,6 @@
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
 
-#define ATOMIC_INIT(i)  { (i) }
-
 static inline int atomic_read(const atomic_t *v)
 {
 	int c;

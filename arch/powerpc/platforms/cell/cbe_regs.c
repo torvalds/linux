@@ -12,9 +12,9 @@
 #include <linux/export.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/cell-regs.h>

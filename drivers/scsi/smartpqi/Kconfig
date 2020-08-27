@@ -42,7 +42,7 @@ config SCSI_SMARTPQI
 	depends on PCI && SCSI && !S390
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
-	---help---
+	help
 	This driver supports Microsemi PQI controllers.
 
 	<http://www.microsemi.com>

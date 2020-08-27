@@ -1345,7 +1345,7 @@ static inline void cvmx_pow_tag_sw_wait(void)
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
  *		 If not set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns: the WQE pointer from POW. Returns NULL if no work
  * was available.
  */
 static inline struct cvmx_wqe *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
@@ -1379,7 +1379,7 @@ static inline struct cvmx_wqe *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
  *		 If not set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns: the WQE pointer from POW. Returns NULL if no work
  * was available.
  */
 static inline struct cvmx_wqe *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
@@ -1398,7 +1398,7 @@ static inline struct cvmx_wqe *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
  * This function waits for any previous tag switch to complete before
  * requesting the null_rd.
  *
- * Returns Returns the POW state of type cvmx_pow_tag_type_t.
+ * Returns: the POW state of type cvmx_pow_tag_type_t.
  */
 static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
 {
@@ -1482,7 +1482,7 @@ static inline void cvmx_pow_work_request_async(int scr_addr,
  * @scr_addr: Scratch memory address to get result from Byte address,
  *	      must be 8 byte aligned.
  *
- * Returns Returns the WQE from the scratch register, or NULL if no
+ * Returns: the WQE from the scratch register, or NULL if no
  * work was available.
  */
 static inline struct cvmx_wqe *cvmx_pow_work_response_async(int scr_addr)

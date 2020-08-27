@@ -34,7 +34,6 @@
 #include <linux/timer.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/dma.h>

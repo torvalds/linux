@@ -2,6 +2,7 @@
 // Copyright (C) 2020 Facebook
 
 #define _GNU_SOURCE
+#include <unistd.h>
 #include <linux/err.h>
 #include <bpf/libbpf.h>
 
@@ -9,11 +10,12 @@
 
 static int do_pin(int argc, char **argv)
 {
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, iter_opts);
 	const char *objfile, *path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_link *link;
-	int err;
+	int err = -1, map_fd = -1;
 
 	if (!REQ_ARGS(2))
 		usage();
@@ -21,10 +23,26 @@ static int do_pin(int argc, char **argv)
 	objfile = GET_ARG();
 	path = GET_ARG();
 
+	/* optional arguments */
+	if (argc) {
+		if (is_prefix(*argv, "map")) {
+			NEXT_ARG();
+
+			if (!REQ_ARGS(2)) {
+				p_err("incorrect map spec");
+				return -1;
+			}
+
+			map_fd = map_parse_fd(&argc, &argv);
+			if (map_fd < 0)
+				return -1;
+		}
+	}
+
 	obj = bpf_object__open(objfile);
 	if (IS_ERR(obj)) {
 		p_err("can't open objfile %s", objfile);
-		return -1;
+		goto close_map_fd;
 	}
 
 	err = bpf_object__load(obj);
@@ -39,7 +57,10 @@ static int do_pin(int argc, char **argv)
 		goto close_obj;
 	}
 
-	link = bpf_program__attach_iter(prog, NULL);
+	if (map_fd >= 0)
+		iter_opts.map_fd = map_fd;
+
+	link = bpf_program__attach_iter(prog, &iter_opts);
 	if (IS_ERR(link)) {
 		err = PTR_ERR(link);
 		p_err("attach_iter failed for program %s",
@@ -62,14 +83,18 @@ close_link:
 	bpf_link__destroy(link);
 close_obj:
 	bpf_object__close(obj);
+close_map_fd:
+	if (map_fd >= 0)
+		close(map_fd);
 	return err;
 }
 
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %1$s %2$s pin OBJ PATH\n"
+		"Usage: %1$s %2$s pin OBJ PATH [map MAP]\n"
 		"       %1$s %2$s help\n"
+		"       " HELP_SPEC_MAP "\n"
 		"",
 		bin_name, "iter");
 

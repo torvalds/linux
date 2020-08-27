@@ -231,16 +231,17 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 
 		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-number-list");
 		if (nval > 0) {
-			dpn[i].num_ch = nval;
-			dpn[i].ch = devm_kcalloc(&slave->dev, dpn[i].num_ch,
-						 sizeof(*dpn[i].ch),
+			dpn[i].num_channels = nval;
+			dpn[i].channels = devm_kcalloc(&slave->dev,
+						       dpn[i].num_channels,
+						       sizeof(*dpn[i].channels),
 						 GFP_KERNEL);
-			if (!dpn[i].ch)
+			if (!dpn[i].channels)
 				return -ENOMEM;
 
 			fwnode_property_read_u32_array(node,
 					"mipi-sdw-channel-number-list",
-					dpn[i].ch, dpn[i].num_ch);
+					dpn[i].channels, dpn[i].num_channels);
 		}
 
 		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-combination-list");

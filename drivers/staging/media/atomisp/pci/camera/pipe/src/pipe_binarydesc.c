@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -141,7 +142,7 @@ static struct sh_css_bds_factor bds_factors_list[] = {
 	{8, 1, SH_CSS_BDS_FACTOR_8_00}
 };
 
-enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
+int sh_css_bds_factor_get_numerator_denominator(
     unsigned int bds_factor,
     unsigned int *bds_factor_numerator,
     unsigned int *bds_factor_denominator)
@@ -153,16 +154,16 @@ enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
 		if (bds_factors_list[i].bds_factor == bds_factor) {
 			*bds_factor_numerator = bds_factors_list[i].numerator;
 			*bds_factor_denominator = bds_factors_list[i].denominator;
-			return IA_CSS_SUCCESS;
+			return 0;
 		}
 	}
 
 	/* Throw an error since bds_factor cannot be found
 	in bds_factors_list */
-	return IA_CSS_ERR_INVALID_ARGUMENTS;
+	return -EINVAL;
 }
 
-enum ia_css_err binarydesc_calculate_bds_factor(
+int binarydesc_calculate_bds_factor(
     struct ia_css_resolution input_res,
     struct ia_css_resolution output_res,
     unsigned int *bds_factor)
@@ -195,15 +196,15 @@ enum ia_css_err binarydesc_calculate_bds_factor(
 
 		if (cond) {
 			*bds_factor = bds_factors_list[i].bds_factor;
-			return IA_CSS_SUCCESS;
+			return 0;
 		}
 	}
 
 	/* Throw an error since a suitable bds_factor cannot be found */
-	return IA_CSS_ERR_INVALID_ARGUMENTS;
+	return -EINVAL;
 }
 
-enum ia_css_err ia_css_pipe_get_preview_binarydesc(
+int ia_css_pipe_get_preview_binarydesc(
     struct ia_css_pipe *const pipe,
     struct ia_css_binary_descr *preview_descr,
     struct ia_css_frame_info *in_info,
@@ -211,7 +212,7 @@ enum ia_css_err ia_css_pipe_get_preview_binarydesc(
     struct ia_css_frame_info *out_info,
     struct ia_css_frame_info *vf_info)
 {
-	enum ia_css_err err;
+	int err;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 	int mode = IA_CSS_BINARY_MODE_PREVIEW;
 	unsigned int i;
@@ -264,7 +265,7 @@ enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 			    binarydesc_calculate_bds_factor(in_info->res,
 							    bds_out_info->res,
 							    &preview_descr->required_bds_factor);
-			if (err != IA_CSS_SUCCESS)
+			if (err)
 				return err;
 		} else {
 			bds_out_info->res.width = in_info->res.width / 2;
@@ -318,11 +319,11 @@ enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 	preview_descr->enable_dpc = pipe->config.enable_dpc;
 
 	preview_descr->isp_pipe_version = pipe->config.isp_pipe_version;
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-	return IA_CSS_SUCCESS;
+	IA_CSS_LEAVE_ERR_PRIVATE(0);
+	return 0;
 }
 
-enum ia_css_err ia_css_pipe_get_video_binarydesc(
+int ia_css_pipe_get_video_binarydesc(
     struct ia_css_pipe *const pipe,
     struct ia_css_binary_descr *video_descr,
     struct ia_css_frame_info *in_info,
@@ -334,7 +335,7 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 	int mode = IA_CSS_BINARY_MODE_VIDEO;
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	bool stream_dz_config = false;
 
 	/* vf_info can be NULL */
@@ -407,7 +408,7 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 				    binarydesc_calculate_bds_factor(
 					in_info->res, bds_out_info->res,
 					&video_descr->required_bds_factor);
-				if (err != IA_CSS_SUCCESS)
+				if (err)
 					return err;
 			} else {
 				bds_out_info->res.width =
@@ -607,7 +608,7 @@ void ia_css_pipe_get_primary_binarydesc(
 		 * since it has better performance. */
 		if (pipe_version == IA_CSS_PIPE_VERSION_2_6_1)
 			prim_descr->striped = false;
-		else if (!atomisp_hw_is_isp2401) {
+		else if (!IS_ISP2401) {
 			prim_descr->striped = prim_descr->continuous &&
 					      (!pipe->stream->stop_copy_preview || !pipe->stream->disable_cont_vf);
 		} else {
@@ -848,7 +849,7 @@ void ia_css_pipe_get_ldc_binarydesc(
 	assert(out_info);
 	IA_CSS_ENTER_PRIVATE("");
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		*in_info = *out_info;
 	} else {
 		if (pipe->out_yuv_ds_input_info.res.width)

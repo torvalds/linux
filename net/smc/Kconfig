@@ -2,7 +2,7 @@
 config SMC
 	tristate "SMC socket protocol family"
 	depends on INET && INFINIBAND
-	---help---
+	help
 	  SMC-R provides a "sockets over RDMA" solution making use of
 	  RDMA over Converged Ethernet (RoCE) technology to upgrade
 	  AF_INET TCP connections transparently.
@@ -14,7 +14,7 @@ config SMC
 config SMC_DIAG
 	tristate "SMC: socket monitoring interface"
 	depends on SMC
-	---help---
+	help
 	  Support for SMC socket monitoring interface used by tools such as
 	  smcss.
 

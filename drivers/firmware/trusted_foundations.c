@@ -19,6 +19,7 @@
 
 #define TF_CACHE_ENABLE		1
 #define TF_CACHE_DISABLE	2
+#define TF_CACHE_REENABLE	4
 
 #define TF_SET_CPU_BOOT_ADDR_SMC 0xfffff200
 
@@ -29,6 +30,7 @@
 #define TF_CPU_PM_S1		0xffffffe4
 #define TF_CPU_PM_S1_NOFLUSH_L2	0xffffffe7
 
+static unsigned long tf_idle_mode = TF_PM_MODE_NONE;
 static unsigned long cpu_boot_addr;
 
 static void tf_generic_smc(u32 type, u32 arg1, u32 arg2)
@@ -85,9 +87,14 @@ static int tf_prepare_idle(unsigned long mode)
 			       cpu_boot_addr);
 		break;
 
+	case TF_PM_MODE_NONE:
+		break;
+
 	default:
 		return -EINVAL;
 	}
+
+	tf_idle_mode = mode;
 
 	return 0;
 }
@@ -95,15 +102,25 @@ static int tf_prepare_idle(unsigned long mode)
 #ifdef CONFIG_CACHE_L2X0
 static void tf_cache_write_sec(unsigned long val, unsigned int reg)
 {
-	u32 l2x0_way_mask = 0xff;
+	u32 enable_op, l2x0_way_mask = 0xff;
 
 	switch (reg) {
 	case L2X0_CTRL:
 		if (l2x0_saved_regs.aux_ctrl & L310_AUX_CTRL_ASSOCIATIVITY_16)
 			l2x0_way_mask = 0xffff;
 
+		switch (tf_idle_mode) {
+		case TF_PM_MODE_LP2:
+			enable_op = TF_CACHE_REENABLE;
+			break;
+
+		default:
+			enable_op = TF_CACHE_ENABLE;
+			break;
+		}
+
 		if (val == L2X0_CTRL_EN)
-			tf_generic_smc(TF_CACHE_MAINT, TF_CACHE_ENABLE,
+			tf_generic_smc(TF_CACHE_MAINT, enable_op,
 				       l2x0_saved_regs.aux_ctrl);
 		else
 			tf_generic_smc(TF_CACHE_MAINT, TF_CACHE_DISABLE,

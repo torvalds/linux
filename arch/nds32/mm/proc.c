@@ -5,7 +5,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/nds32.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/l2_cache.h>
@@ -16,14 +15,10 @@ extern struct cache_info L1_cache_info[2];
 
 int va_kernel_present(unsigned long addr)
 {
-	p4d_t *p4d;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
-	p4d = p4d_offset(pgd_offset_k(addr), addr);
-	pud = pud_offset(p4d, addr);
-	pmd = pmd_offset(pud, addr);
+	pmd = pmd_off_k(addr);
 	if (!pmd_none(*pmd)) {
 		ptep = pte_offset_map(pmd, addr);
 		pte = *ptep;

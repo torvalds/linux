@@ -177,7 +177,6 @@ static const struct drm_display_mode s6e88a0_ams452ef01_mode = {
 	.vsync_start = 960 + 14,
 	.vsync_end = 960 + 14 + 2,
 	.vtotal = 960 + 14 + 2 + 8,
-	.vrefresh = 60,
 	.width_mm = 56,
 	.height_mm = 100,
 };

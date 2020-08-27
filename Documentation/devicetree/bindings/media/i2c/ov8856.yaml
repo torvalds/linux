@@ -79,8 +79,7 @@ properties:
               - const: 4
 
           link-frequencies:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint64-array
+            $ref: /schemas/types.yaml#/definitions/uint64-array
             description:
               Allowed data bus frequencies. 360000000, 180000000 Hz or both
               are supported by the driver.

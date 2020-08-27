@@ -38,11 +38,11 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/pgtable.h>
 
 #include <trace/events/xen.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/smap.h>
 #include <asm/nospec-branch.h>
 

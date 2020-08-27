@@ -4,7 +4,7 @@
  *
  * Definitions for handling diagnostics in the the zfcp device driver.
  *
- * Copyright IBM Corp. 2018
+ * Copyright IBM Corp. 2018, 2020
  */
 
 #ifndef ZFCP_DIAG_H
@@ -56,11 +56,11 @@ struct zfcp_diag_adapter {
 
 	unsigned long	max_age;
 
-	struct {
+	struct zfcp_diag_adapter_port_data {
 		struct zfcp_diag_header		header;
 		struct fsf_qtcb_bottom_port	data;
 	} port_data;
-	struct {
+	struct zfcp_diag_adapter_config_data {
 		struct zfcp_diag_header		header;
 		struct fsf_qtcb_bottom_config	data;
 	} config_data;

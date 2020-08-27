@@ -17,8 +17,7 @@ properties:
     enum:
       - arm,smc-wdt
   arm,smc-id:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The ATF smc function id used by the firmware.
       Defaults to 0x82003D06 if unset.

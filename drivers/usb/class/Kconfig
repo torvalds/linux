@@ -7,7 +7,7 @@ comment "USB Device Class drivers"
 config USB_ACM
 	tristate "USB Modem (CDC ACM) support"
 	depends on TTY
-	---help---
+	help
 	  This driver supports USB modems and ISDN adapters which support the
 	  Communication Device Class Abstract Control Model interface.
 	  Please read <file:Documentation/usb/acm.rst> for details.
@@ -30,7 +30,7 @@ config USB_PRINTER
 
 config USB_WDM
 	tristate "USB Wireless Device Management support"
-	---help---
+	help
 	  This driver supports the WMC Device Management functionality
 	  of cell phones compliant to the CDC WMC specification. You can use
 	  AT commands over this device.

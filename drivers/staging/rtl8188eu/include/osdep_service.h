@@ -50,7 +50,7 @@ struct	__queue	{
 
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
-	return &(queue->queue);
+	return &queue->queue;
 }
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)

@@ -68,7 +68,7 @@ FILES=                                          \
          test-llvm-version.bin			\
          test-libaio.bin			\
          test-libzstd.bin			\
-         test-clang-bpf-global-var.bin		\
+         test-clang-bpf-co-re.bin		\
          test-file-handle.bin			\
          test-libpfm4.bin
 
@@ -325,7 +325,7 @@ $(OUTPUT)test-libaio.bin:
 $(OUTPUT)test-libzstd.bin:
 	$(BUILD) -lzstd
 
-$(OUTPUT)test-clang-bpf-global-var.bin:
+$(OUTPUT)test-clang-bpf-co-re.bin:
 	$(CLANG) -S -g -target bpf -o - $(patsubst %.bin,%.c,$(@F)) |	\
 		grep BTF_KIND_VAR
 

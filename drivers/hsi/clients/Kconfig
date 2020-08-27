@@ -35,7 +35,7 @@ config SSI_PROTOCOL
 config HSI_CHAR
 	tristate "HSI/SSI character driver"
 	depends on HSI
-	---help---
+	help
 	  If you say Y here, you will enable the HSI/SSI character driver.
 	  This driver provides a simple character device interface for
 	  serial communication with the cellular modem over HSI/SSI bus.

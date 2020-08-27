@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -55,11 +56,8 @@ enum ia_css_irq_info {
 	/** the css receiver received the end of frame */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOL              = 1 << 4,
 	/** the css receiver received the start of line */
-	IA_CSS_IRQ_INFO_PSYS_EVENTS_READY             = 1 << 5,
+	IA_CSS_IRQ_INFO_EVENTS_READY                  = 1 << 5,
 	/** One or more events are available in the PSYS event queue */
-	IA_CSS_IRQ_INFO_EVENTS_READY = IA_CSS_IRQ_INFO_PSYS_EVENTS_READY,
-	/** deprecated{obsolete version of IA_CSS_IRQ_INFO_PSYS_EVENTS_READY,
-	 * same functionality.} */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOL              = 1 << 6,
 	/** the css receiver received the end of line */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_SIDEBAND_CHANGED = 1 << 7,
@@ -144,14 +142,14 @@ struct ia_css_irq {
  * @return		If an error is encountered during the interrupt info
  *			and no interrupt could be translated successfully, this
  *			will return IA_CSS_INTERNAL_ERROR. Otherwise
- *			IA_CSS_SUCCESS.
+ *			0.
  *
  * This function is expected to be executed after an interrupt has been sent
  * to the IA from the CSS. This function returns information about the interrupt
  * which is needed by the IA code to properly handle the interrupt. This
  * information includes the image pipe, buffer type etc.
  */
-enum ia_css_err
+int
 ia_css_irq_translate(unsigned int *info);
 
 /* @brief Get CSI receiver error info.
@@ -227,9 +225,9 @@ ia_css_rx_port_clear_irq_info(enum mipi_port_id port, unsigned int irq_bits);
  * @return		Returns IA_CSS_INTERNAL_ERROR if this interrupt
  *			type cannot be enabled/disabled which is true for
  *			CSS internal interrupts. Otherwise returns
- *			IA_CSS_SUCCESS.
+ *			0.
  */
-enum ia_css_err
+int
 ia_css_irq_enable(enum ia_css_irq_info type, bool enable);
 
 #endif /* __IA_CSS_IRQ_H */

@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/sched/cputime.h>
+#include <trace/events/power.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include "entry.h"
@@ -24,19 +25,20 @@ void enabled_wait(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
-	unsigned long psw_mask;
+	unsigned long psw_mask, flags;
 
-	trace_hardirqs_on();
 
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 
+	trace_cpu_idle_rcuidle(1, smp_processor_id());
+	local_irq_save(flags);
 	/* Call the assembler magic in entry.S */
 	psw_idle(idle, psw_mask);
-
-	trace_hardirqs_off();
+	local_irq_restore(flags);
+	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	write_seqcount_begin(&idle->seqcount);
@@ -118,22 +120,16 @@ u64 arch_cpu_idle_time(int cpu)
 
 void arch_cpu_idle_enter(void)
 {
-	local_mcck_disable();
 }
 
 void arch_cpu_idle(void)
 {
-	if (!test_cpu_flag(CIF_MCCK_PENDING))
-		/* Halt the cpu and keep track of cpu time accounting. */
-		enabled_wait();
+	enabled_wait();
 	local_irq_enable();
 }
 
 void arch_cpu_idle_exit(void)
 {
-	local_mcck_enable();
-	if (test_cpu_flag(CIF_MCCK_PENDING))
-		s390_handle_mcck();
 }
 
 void arch_cpu_idle_dead(void)

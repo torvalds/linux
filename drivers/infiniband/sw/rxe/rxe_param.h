@@ -127,6 +127,9 @@ enum rxe_device_param {
 
 	/* Delay before calling arbiter timer */
 	RXE_NSEC_ARB_TIMER_DELAY	= 200,
+
+	/* IBTA v1.4 A3.3.1 VENDOR INFORMATION section */
+	RXE_VENDOR_ID			= 0XFFFFFF,
 };
 
 /* default/initial rxe port parameters */

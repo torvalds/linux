@@ -5,6 +5,7 @@
  * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
+#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
 #include "key.h"
@@ -20,14 +21,12 @@ static int wfx_alloc_key(struct wfx_dev *wdev)
 		return -1;
 
 	wdev->key_map |= BIT(idx);
-	wdev->keys[idx].entry_index = idx;
 	return idx;
 }
 
 static void wfx_free_key(struct wfx_dev *wdev, int idx)
 {
 	WARN(!(wdev->key_map & BIT(idx)), "inconsistent key allocation");
-	memset(&wdev->keys[idx], 0, sizeof(wdev->keys[idx]));
 	wdev->key_map &= ~BIT(idx);
 }
 
@@ -159,7 +158,7 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key)
 {
 	int ret;
-	struct hif_req_add_key *k;
+	struct hif_req_add_key k = { };
 	struct ieee80211_key_seq seq;
 	struct wfx_dev *wdev = wvif->wdev;
 	int idx = wfx_alloc_key(wvif->wdev);
@@ -169,44 +168,44 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	ieee80211_get_key_rx_seq(key, 0, &seq);
 	if (idx < 0)
 		return -EINVAL;
-	k = &wdev->keys[idx];
-	k->int_id = wvif->id;
+	k.int_id = wvif->id;
+	k.entry_index = idx;
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	    key->cipher ==  WLAN_CIPHER_SUITE_WEP104) {
 		if (pairwise)
-			k->type = fill_wep_pair(&k->key.wep_pairwise_key, key,
-						sta->addr);
+			k.type = fill_wep_pair(&k.key.wep_pairwise_key, key,
+					       sta->addr);
 		else
-			k->type = fill_wep_group(&k->key.wep_group_key, key);
+			k.type = fill_wep_group(&k.key.wep_group_key, key);
 	} else if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		if (pairwise)
-			k->type = fill_tkip_pair(&k->key.tkip_pairwise_key, key,
-						 sta->addr);
+			k.type = fill_tkip_pair(&k.key.tkip_pairwise_key, key,
+						sta->addr);
 		else
-			k->type = fill_tkip_group(&k->key.tkip_group_key, key,
-						  &seq, wvif->vif->type);
+			k.type = fill_tkip_group(&k.key.tkip_group_key, key,
+						 &seq, wvif->vif->type);
 	} else if (key->cipher == WLAN_CIPHER_SUITE_CCMP) {
 		if (pairwise)
-			k->type = fill_ccmp_pair(&k->key.aes_pairwise_key, key,
-						 sta->addr);
+			k.type = fill_ccmp_pair(&k.key.aes_pairwise_key, key,
+						sta->addr);
 		else
-			k->type = fill_ccmp_group(&k->key.aes_group_key, key,
-						  &seq);
+			k.type = fill_ccmp_group(&k.key.aes_group_key, key,
+						 &seq);
 	} else if (key->cipher ==  WLAN_CIPHER_SUITE_SMS4) {
 		if (pairwise)
-			k->type = fill_sms4_pair(&k->key.wapi_pairwise_key, key,
-						 sta->addr);
+			k.type = fill_sms4_pair(&k.key.wapi_pairwise_key, key,
+						sta->addr);
 		else
-			k->type = fill_sms4_group(&k->key.wapi_group_key, key);
+			k.type = fill_sms4_group(&k.key.wapi_group_key, key);
 	} else if (key->cipher ==  WLAN_CIPHER_SUITE_AES_CMAC) {
-		k->type = fill_aes_cmac_group(&k->key.igtk_group_key, key,
-					      &seq);
+		k.type = fill_aes_cmac_group(&k.key.igtk_group_key, key,
+					     &seq);
 	} else {
 		dev_warn(wdev->dev, "unsupported key type %d\n", key->cipher);
 		wfx_free_key(wdev, idx);
 		return -EOPNOTSUPP;
 	}
-	ret = hif_add_key(wdev, k);
+	ret = hif_add_key(wdev, &k);
 	if (ret) {
 		wfx_free_key(wdev, idx);
 		return -EOPNOTSUPP;
@@ -229,7 +228,7 @@ int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		struct ieee80211_key_conf *key)
 {
 	int ret = -EOPNOTSUPP;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	mutex_lock(&wvif->wdev->conf_mutex);
 	if (cmd == SET_KEY)
@@ -240,29 +239,3 @@ int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
-int wfx_upload_keys(struct wfx_vif *wvif)
-{
-	int i;
-	struct hif_req_add_key *key;
-	struct wfx_dev *wdev = wvif->wdev;
-
-	for (i = 0; i < ARRAY_SIZE(wdev->keys); i++) {
-		if (wdev->key_map & BIT(i)) {
-			key = &wdev->keys[i];
-			if (key->int_id == wvif->id)
-				hif_add_key(wdev, key);
-		}
-	}
-	return 0;
-}
-
-void wfx_wep_key_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif, wep_key_work);
-
-	wfx_tx_flush(wvif->wdev);
-	hif_wep_default_key_id(wvif, wvif->wep_default_key_id);
-	wfx_pending_requeue(wvif->wdev, wvif->wep_pending_skb);
-	wvif->wep_pending_skb = NULL;
-	wfx_tx_unlock(wvif->wdev);
-}

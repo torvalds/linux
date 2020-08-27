@@ -71,7 +71,7 @@ config VGACON_SOFT_SCROLLBACK_PERSISTENT_ENABLE_BY_DEFAULT
 config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA
 	tristate "MDA text console (dual-headed)"
-	---help---
+	help
 	  Say Y here if you have an old MDA or monochrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
 	  will then be able to use two monitors with your Linux system. Do not
@@ -128,7 +128,7 @@ config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
        bool "Map the console to the primary display device"
        depends on FRAMEBUFFER_CONSOLE
        default n
-       ---help---
+	help
 	 If this option is selected, the framebuffer console will
 	 automatically select the primary display device (if the architecture
 	 supports this feature).  Otherwise, the framebuffer console will

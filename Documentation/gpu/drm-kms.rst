@@ -460,6 +460,12 @@ HDMI Specific Connector Properties
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties
 
+Standard CRTC Properties
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: standard CRTC properties
+
 Plane Composition Properties
 ----------------------------
 
@@ -536,4 +542,19 @@ Vertical Blanking and Interrupt Handling Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :export:
+
+Vertical Blank Work
+===================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :doc: vblank works
+
+Vertical Blank Work Functions Reference
+---------------------------------------
+
+.. kernel-doc:: include/drm/drm_vblank_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
    :export:

@@ -53,6 +53,12 @@ ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring)
 {
 	tlan_ctx->cgd_num = ring->dcb_tc;
 }
+
+static inline bool ice_is_dcb_active(struct ice_pf *pf)
+{
+	return (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags) ||
+		test_bit(ICE_FLAG_DCB_ENA, pf->flags));
+}
 #else
 #define ice_dcb_rebuild(pf) do {} while (0)
 
@@ -93,6 +99,11 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring __always_unused *tx_ring,
 			      struct ice_tx_buf __always_unused *first)
 {
 	return 0;
+}
+
+static inline bool ice_is_dcb_active(struct ice_pf __always_unused *pf)
+{
+	return false;
 }
 
 static inline bool

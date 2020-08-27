@@ -61,6 +61,7 @@ enum {
 	ec_schedule = 0,
 	ec_call_function_single,
 	ec_stop_cpu,
+	ec_mcck_pending,
 };
 
 enum {
@@ -145,7 +146,7 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 static inline int pcpu_stopped(struct pcpu *pcpu)
 {
-	u32 uninitialized_var(status);
+	u32 status;
 
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
 			0, &status) != SIGP_CC_STATUS_STORED)
@@ -403,6 +404,11 @@ int smp_find_processor_id(u16 address)
 	return -1;
 }
 
+void schedule_mcck_handler(void)
+{
+	pcpu_ec_call(pcpu_devices + smp_processor_id(), ec_mcck_pending);
+}
+
 bool notrace arch_vcpu_is_preempted(int cpu)
 {
 	if (test_cpu_flag_of(CIF_ENABLED_WAIT, cpu))
@@ -497,6 +503,8 @@ static void smp_handle_ext_call(void)
 		scheduler_ipi();
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
+	if (test_bit(ec_mcck_pending, &bits))
+		s390_handle_mcck();
 }
 
 static void do_ext_call_interrupt(struct ext_code ext_code,
@@ -1004,10 +1012,6 @@ void __init smp_prepare_boot_cpu(void)
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 }
 
-void __init smp_cpus_done(unsigned int max_cpus)
-{
-}
-
 void __init smp_setup_processor_id(void)
 {
 	pcpu_devices[0].address = stap();
@@ -1137,6 +1141,7 @@ static int smp_cpu_online(unsigned int cpu)
 
 	return sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 }
+
 static int smp_cpu_pre_down(unsigned int cpu)
 {
 	struct device *s = &per_cpu(cpu_device, cpu)->dev;

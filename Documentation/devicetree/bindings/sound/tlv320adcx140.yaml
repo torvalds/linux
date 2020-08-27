@@ -49,9 +49,8 @@ properties:
        0 - Mic bias is set to VREF
        1 - Mic bias is set to VREF × 1.096
        6 - Mic bias is set to AVDD
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 6]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 6]
 
   ti,vref-source:
     description: |
@@ -59,9 +58,8 @@ properties:
        0 - Set VREF to 2.75V
        1 - Set VREF to 2.5V
        2 - Set VREF to 1.375V
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
 
   ti,pdm-edge-select:
     description: |
@@ -78,13 +76,12 @@ properties:
        PDMIN3 - PDMCLK latching edge used for channel 5 and 6 data
        PDMIN4 - PDMCLK latching edge used for channel 7 and 8 data
 
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 4
-        items:
-          maximum: 1
-        default: [0, 0, 0, 0]
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 1
+    default: [0, 0, 0, 0]
 
   ti,gpi-config:
     description: |
@@ -104,13 +101,12 @@ properties:
        7 - GPIX is configured as a PDM data input for channel 7 and channel
             (PDMDIN4)
 
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 4
-        items:
-          maximum: 7
-        default: [0, 0, 0, 0]
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 7
+    default: [0, 0, 0, 0]
 
 required:
   - compatible

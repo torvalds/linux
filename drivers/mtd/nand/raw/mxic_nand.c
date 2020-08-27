@@ -393,6 +393,9 @@ static int mxic_nfc_exec_op(struct nand_chip *chip,
 	int ret = 0;
 	unsigned int op_id;
 
+	if (check_only)
+		return 0;
+
 	mxic_nfc_cs_enable(nfc);
 	init_completion(&nfc->complete);
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
@@ -553,8 +556,13 @@ fail:
 static int mxic_nfc_remove(struct platform_device *pdev)
 {
 	struct mxic_nand_ctlr *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
+	int ret;
 
-	nand_release(&nfc->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
+
 	mxic_nfc_clk_disable(nfc);
 	return 0;
 }

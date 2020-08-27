@@ -50,7 +50,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sc7180.h>
     clock-controller@41a8000 {
       compatible = "qcom,sc7180-mss";
-      reg = <0 0x041a8000 0 0x8000>;
+      reg = <0x041a8000 0x8000>;
       clocks = <&gcc GCC_MSS_MFAB_AXIS_CLK>,
                <&gcc GCC_MSS_NAV_AXI_CLK>,
                <&gcc GCC_MSS_CFG_AHB_CLK>;

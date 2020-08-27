@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -40,7 +41,7 @@ typedef struct ia_css_queue ia_css_queue_t;
  * @param[out] qhandle. Handle to queue instance for use with API
  * @param[in]  desc.   Descriptor with queue properties filled-in
  * @return     0      - Successful init of local queue instance.
- * @return     EINVAL - Invalid argument.
+ * @return     -EINVAL - Invalid argument.
  *
  */
 int ia_css_queue_local_init(
@@ -52,7 +53,7 @@ int ia_css_queue_local_init(
  * @param[out] qhandle. Handle to queue instance for use with API
  * @param[in]  desc.   Descriptor with queue properties filled-in
  * @return     0      - Successful init of remote queue instance.
- * @return     EINVAL - Invalid argument.
+ * @return     -EINVAL - Invalid argument.
  */
 int ia_css_queue_remote_init(
     ia_css_queue_t *qhandle,
@@ -72,8 +73,8 @@ int ia_css_queue_uninit(
  * @param[in]  qhandle. Handle to queue instance
  * @param[in]  item.    Object to be enqueued.
  * @return     0       - Successful enqueue.
- * @return     EINVAL  - Invalid argument.
- * @return     ENOBUFS - Queue is full.
+ * @return     -EINVAL  - Invalid argument.
+ * @return     -ENOBUFS - Queue is full.
  *
  */
 int ia_css_queue_enqueue(
@@ -86,8 +87,8 @@ int ia_css_queue_enqueue(
  * @param[out] item.    Object to be dequeued into this item.
 
  * @return     0       - Successful dequeue.
- * @return     EINVAL  - Invalid argument.
- * @return     ENODATA - Queue is empty.
+ * @return     -EINVAL  - Invalid argument.
+ * @return     -ENODATA - Queue is empty.
  *
  */
 int ia_css_queue_dequeue(
@@ -99,8 +100,8 @@ int ia_css_queue_dequeue(
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  is_empty  True if empty, False if not.
  * @return     0       - Successful access state.
- * @return     EINVAL  - Invalid argument.
- * @return     ENOSYS  - Function not implemented.
+ * @return     -EINVAL  - Invalid argument.
+ * @return     -ENOSYS  - Function not implemented.
  *
  */
 int ia_css_queue_is_empty(
@@ -112,8 +113,8 @@ int ia_css_queue_is_empty(
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  is_full   True if Full, False if not.
  * @return     0       - Successfully access state.
- * @return     EINVAL  - Invalid argument.
- * @return     ENOSYS  - Function not implemented.
+ * @return     -EINVAL  - Invalid argument.
+ * @return     -ENOSYS  - Function not implemented.
  *
  */
 int ia_css_queue_is_full(
@@ -125,7 +126,7 @@ int ia_css_queue_is_full(
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  size      Number of available elements in the queue
  * @return     0       - Successfully access state.
- * @return     EINVAL  - Invalid argument.
+ * @return     -EINVAL  - Invalid argument.
  *
  */
 int ia_css_queue_get_used_space(
@@ -137,7 +138,7 @@ int ia_css_queue_get_used_space(
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  size      Number of free elements in the queue
  * @return     0       - Successfully access state.
- * @return     EINVAL  - Invalid argument.
+ * @return     -EINVAL  - Invalid argument.
  *
  */
 int ia_css_queue_get_free_space(
@@ -151,7 +152,7 @@ int ia_css_queue_get_free_space(
  *			 starting from head of queue
  * @param[in]  element   Value of element returned
  * @return     0       - Successfully access state.
- * @return     EINVAL  - Invalid argument.
+ * @return     -EINVAL  - Invalid argument.
  *
  */
 int ia_css_queue_peek(
@@ -164,8 +165,8 @@ int ia_css_queue_peek(
  * @param[in]  qhandle. Handle to queue instance
  * @param[out] size     Size value to be returned here.
  * @return     0       - Successful get size.
- * @return     EINVAL  - Invalid argument.
- * @return     ENOSYS  - Function not implemented.
+ * @return     -EINVAL  - Invalid argument.
+ * @return     -ENOSYS  - Function not implemented.
  *
  */
 int ia_css_queue_get_size(

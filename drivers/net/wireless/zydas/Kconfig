@@ -2,7 +2,7 @@
 config WLAN_VENDOR_ZYDAS
 	bool "ZyDAS devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -18,7 +18,7 @@ config USB_ZD1201
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select FW_LOADER
-	---help---
+	help
 	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
 	  ZD1201 chip.
 

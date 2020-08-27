@@ -10,16 +10,19 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#ifdef __GLIBC__
-#include <bits/wordsize.h>
-#else
-#include <bits/reg.h>
-#endif
+#include <limits.h>
 
 static inline size_t hash_bits(size_t h, int bits)
 {
 	/* shuffle bits and return requested number of upper bits */
-	return (h * 11400714819323198485llu) >> (__WORDSIZE - bits);
+#if (__SIZEOF_SIZE_T__ == __SIZEOF_LONG_LONG__)
+	/* LP64 case */
+	return (h * 11400714819323198485llu) >> (__SIZEOF_LONG_LONG__ * 8 - bits);
+#elif (__SIZEOF_SIZE_T__ <= __SIZEOF_LONG__)
+	return (h * 2654435769lu) >> (__SIZEOF_LONG__ * 8 - bits);
+#else
+#	error "Unsupported size_t size"
+#endif
 }
 
 typedef size_t (*hashmap_hash_fn)(const void *key, void *ctx);

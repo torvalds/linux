@@ -78,7 +78,6 @@ static bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 	switch (reg) {
 	case CSSELR_EL1:	*val = read_sysreg_s(SYS_CSSELR_EL1);	break;
 	case SCTLR_EL1:		*val = read_sysreg_s(SYS_SCTLR_EL12);	break;
-	case ACTLR_EL1:		*val = read_sysreg_s(SYS_ACTLR_EL1);	break;
 	case CPACR_EL1:		*val = read_sysreg_s(SYS_CPACR_EL12);	break;
 	case TTBR0_EL1:		*val = read_sysreg_s(SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		*val = read_sysreg_s(SYS_TTBR1_EL12);	break;
@@ -118,7 +117,6 @@ static bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	switch (reg) {
 	case CSSELR_EL1:	write_sysreg_s(val, SYS_CSSELR_EL1);	break;
 	case SCTLR_EL1:		write_sysreg_s(val, SYS_SCTLR_EL12);	break;
-	case ACTLR_EL1:		write_sysreg_s(val, SYS_ACTLR_EL1);	break;
 	case CPACR_EL1:		write_sysreg_s(val, SYS_CPACR_EL12);	break;
 	case TTBR0_EL1:		write_sysreg_s(val, SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		write_sysreg_s(val, SYS_TTBR1_EL12);	break;
@@ -1026,24 +1024,21 @@ static bool access_amu(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 
 /* Macro to expand the AMU counter and type registers*/
 #define AMU_AMEVCNTR0_EL0(n) { SYS_DESC(SYS_AMEVCNTR0_EL0(n)), access_amu }
-#define AMU_AMEVTYPE0_EL0(n) { SYS_DESC(SYS_AMEVTYPE0_EL0(n)), access_amu }
+#define AMU_AMEVTYPER0_EL0(n) { SYS_DESC(SYS_AMEVTYPER0_EL0(n)), access_amu }
 #define AMU_AMEVCNTR1_EL0(n) { SYS_DESC(SYS_AMEVCNTR1_EL0(n)), access_amu }
-#define AMU_AMEVTYPE1_EL0(n) { SYS_DESC(SYS_AMEVTYPE1_EL0(n)), access_amu }
+#define AMU_AMEVTYPER1_EL0(n) { SYS_DESC(SYS_AMEVTYPER1_EL0(n)), access_amu }
 
 static bool trap_ptrauth(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
 			 const struct sys_reg_desc *rd)
 {
-	kvm_arm_vcpu_ptrauth_trap(vcpu);
-
 	/*
-	 * Return false for both cases as we never skip the trapped
-	 * instruction:
-	 *
-	 * - Either we re-execute the same key register access instruction
-	 *   after enabling ptrauth.
-	 * - Or an UNDEF is injected as ptrauth is not supported/enabled.
+	 * If we land here, that is because we didn't fixup the access on exit
+	 * by allowing the PtrAuth sysregs. The only way this happens is when
+	 * the guest does not have PtrAuth support enabled.
 	 */
+	kvm_inject_undefined(vcpu);
+
 	return false;
 }
 
@@ -1319,10 +1314,16 @@ static bool access_clidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 static bool access_csselr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			  const struct sys_reg_desc *r)
 {
+	int reg = r->reg;
+
+	/* See the 32bit mapping in kvm_host.h */
+	if (p->is_aarch32)
+		reg = r->reg / 2;
+
 	if (p->is_write)
-		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
+		vcpu_write_sys_reg(vcpu, p->regval, reg);
 	else
-		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
+		p->regval = vcpu_read_sys_reg(vcpu, reg);
 	return true;
 }
 
@@ -1628,22 +1629,22 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVCNTR0_EL0(13),
 	AMU_AMEVCNTR0_EL0(14),
 	AMU_AMEVCNTR0_EL0(15),
-	AMU_AMEVTYPE0_EL0(0),
-	AMU_AMEVTYPE0_EL0(1),
-	AMU_AMEVTYPE0_EL0(2),
-	AMU_AMEVTYPE0_EL0(3),
-	AMU_AMEVTYPE0_EL0(4),
-	AMU_AMEVTYPE0_EL0(5),
-	AMU_AMEVTYPE0_EL0(6),
-	AMU_AMEVTYPE0_EL0(7),
-	AMU_AMEVTYPE0_EL0(8),
-	AMU_AMEVTYPE0_EL0(9),
-	AMU_AMEVTYPE0_EL0(10),
-	AMU_AMEVTYPE0_EL0(11),
-	AMU_AMEVTYPE0_EL0(12),
-	AMU_AMEVTYPE0_EL0(13),
-	AMU_AMEVTYPE0_EL0(14),
-	AMU_AMEVTYPE0_EL0(15),
+	AMU_AMEVTYPER0_EL0(0),
+	AMU_AMEVTYPER0_EL0(1),
+	AMU_AMEVTYPER0_EL0(2),
+	AMU_AMEVTYPER0_EL0(3),
+	AMU_AMEVTYPER0_EL0(4),
+	AMU_AMEVTYPER0_EL0(5),
+	AMU_AMEVTYPER0_EL0(6),
+	AMU_AMEVTYPER0_EL0(7),
+	AMU_AMEVTYPER0_EL0(8),
+	AMU_AMEVTYPER0_EL0(9),
+	AMU_AMEVTYPER0_EL0(10),
+	AMU_AMEVTYPER0_EL0(11),
+	AMU_AMEVTYPER0_EL0(12),
+	AMU_AMEVTYPER0_EL0(13),
+	AMU_AMEVTYPER0_EL0(14),
+	AMU_AMEVTYPER0_EL0(15),
 	AMU_AMEVCNTR1_EL0(0),
 	AMU_AMEVCNTR1_EL0(1),
 	AMU_AMEVCNTR1_EL0(2),
@@ -1660,22 +1661,22 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVCNTR1_EL0(13),
 	AMU_AMEVCNTR1_EL0(14),
 	AMU_AMEVCNTR1_EL0(15),
-	AMU_AMEVTYPE1_EL0(0),
-	AMU_AMEVTYPE1_EL0(1),
-	AMU_AMEVTYPE1_EL0(2),
-	AMU_AMEVTYPE1_EL0(3),
-	AMU_AMEVTYPE1_EL0(4),
-	AMU_AMEVTYPE1_EL0(5),
-	AMU_AMEVTYPE1_EL0(6),
-	AMU_AMEVTYPE1_EL0(7),
-	AMU_AMEVTYPE1_EL0(8),
-	AMU_AMEVTYPE1_EL0(9),
-	AMU_AMEVTYPE1_EL0(10),
-	AMU_AMEVTYPE1_EL0(11),
-	AMU_AMEVTYPE1_EL0(12),
-	AMU_AMEVTYPE1_EL0(13),
-	AMU_AMEVTYPE1_EL0(14),
-	AMU_AMEVTYPE1_EL0(15),
+	AMU_AMEVTYPER1_EL0(0),
+	AMU_AMEVTYPER1_EL0(1),
+	AMU_AMEVTYPER1_EL0(2),
+	AMU_AMEVTYPER1_EL0(3),
+	AMU_AMEVTYPER1_EL0(4),
+	AMU_AMEVTYPER1_EL0(5),
+	AMU_AMEVTYPER1_EL0(6),
+	AMU_AMEVTYPER1_EL0(7),
+	AMU_AMEVTYPER1_EL0(8),
+	AMU_AMEVTYPER1_EL0(9),
+	AMU_AMEVTYPER1_EL0(10),
+	AMU_AMEVTYPER1_EL0(11),
+	AMU_AMEVTYPER1_EL0(12),
+	AMU_AMEVTYPER1_EL0(13),
+	AMU_AMEVTYPER1_EL0(14),
+	AMU_AMEVTYPER1_EL0(15),
 
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_arch_timer },

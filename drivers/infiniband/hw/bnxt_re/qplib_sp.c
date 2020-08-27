@@ -132,9 +132,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_raw_ethy_qp = le32_to_cpu(sb->max_raw_eth_qp);
 	attr->max_ah = le32_to_cpu(sb->max_ah);
 
-	attr->max_fmr = le32_to_cpu(sb->max_fmr);
-	attr->max_map_per_fmr = sb->max_map_per_fmr;
-
 	attr->max_srq = le16_to_cpu(sb->max_srq);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
 	attr->max_srq_sges = sb->max_srq_sge;

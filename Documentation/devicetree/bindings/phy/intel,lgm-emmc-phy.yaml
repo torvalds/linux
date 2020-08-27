@@ -23,7 +23,7 @@ description: |+
 
 properties:
   compatible:
-      const: intel,lgm-emmc-phy
+    const: intel,lgm-emmc-phy
 
   "#phy-cells":
     const: 0

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -171,11 +172,11 @@ void ia_css_stream_config_defaults(struct ia_css_stream_config *stream_config);
 * @param[in]	num_pipes The number of pipes to incorporate in the stream.
 * @param[in]	pipes The pipes.
 * @param[out]	stream The stream.
-* @return	IA_CSS_SUCCESS or the error code.
+* @return	0 or the error code.
 *
 * This function will create a stream with a given configuration and given pipes.
 */
-enum ia_css_err
+int
 ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		     int num_pipes,
 		     struct ia_css_pipe *pipes[],
@@ -183,37 +184,37 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 
 /* @brief Destroys a stream
  * @param[in]	stream The stream.
- * @return	IA_CSS_SUCCESS or the error code.
+ * @return	0 or the error code.
  *
  * This function will destroy a given stream.
  */
-enum ia_css_err
+int
 ia_css_stream_destroy(struct ia_css_stream *stream);
 
 /* @brief Provides information about a stream
  * @param[in]	stream The stream.
  * @param[out]	stream_info The information about the stream.
- * @return	IA_CSS_SUCCESS or the error code.
+ * @return	0 or the error code.
  *
  * This function will destroy a given stream.
  */
-enum ia_css_err
+int
 ia_css_stream_get_info(const struct ia_css_stream *stream,
 		       struct ia_css_stream_info *stream_info);
 
 /* @brief load (rebuild) a stream that was unloaded.
  * @param[in]	stream The stream
- * @return		IA_CSS_SUCCESS or the error code
+ * @return		0 or the error code
  *
  * Rebuild a stream, including allocating structs, setting configuration and
  * building the required pipes.
  */
-enum ia_css_err
+int
 ia_css_stream_load(struct ia_css_stream *stream);
 
 /* @brief Starts the stream.
  * @param[in]	stream The stream.
- * @return IA_CSS_SUCCESS or the error code.
+ * @return 0 or the error code.
  *
  * The dynamic data in
  * the buffers are not used and need to be queued with a separate call
@@ -221,17 +222,17 @@ ia_css_stream_load(struct ia_css_stream *stream);
  * NOTE: this function will only send start event to corresponding
  * thread and will not start SP any more.
  */
-enum ia_css_err
+int
 ia_css_stream_start(struct ia_css_stream *stream);
 
 /* @brief Stop the stream.
  * @param[in]	stream The stream.
- * @return	IA_CSS_SUCCESS or the error code.
+ * @return	0 or the error code.
  *
  * NOTE: this function will send stop event to pipes belong to this
  * stream but will not terminate threads.
  */
-enum ia_css_err
+int
 ia_css_stream_stop(struct ia_css_stream *stream);
 
 /* @brief Check if a stream has stopped
@@ -245,11 +246,11 @@ ia_css_stream_has_stopped(struct ia_css_stream *stream);
 
 /* @brief	destroy a stream according to the stream seed previosly saved in the seed array.
  * @param[in]	stream The stream.
- * @return	IA_CSS_SUCCESS (no other errors are generated now)
+ * @return	0 (no other errors are generated now)
  *
  * Destroy the stream and all the pipes related to it.
  */
-enum ia_css_err
+int
 ia_css_stream_unload(struct ia_css_stream *stream);
 
 /* @brief Returns stream format
@@ -278,19 +279,19 @@ ia_css_stream_get_two_pixels_per_clock(const struct ia_css_stream *stream);
  *
  * This function will Set the output frame stride (at the last pipe)
  */
-enum ia_css_err
+int
 ia_css_stream_set_output_padded_width(struct ia_css_stream *stream,
 				      unsigned int output_padded_width);
 
 /* @brief Return max number of continuous RAW frames.
  * @param[in]	stream The stream.
  * @param[out]	buffer_depth The maximum number of continuous RAW frames.
- * @return	IA_CSS_SUCCESS or IA_CSS_ERR_INVALID_ARGUMENTS
+ * @return	0 or -EINVAL
  *
  * This function will return the maximum number of continuous RAW frames
  * the system can support.
  */
-enum ia_css_err
+int
 ia_css_stream_get_max_buffer_depth(struct ia_css_stream *stream,
 				   int *buffer_depth);
 
@@ -298,22 +299,22 @@ ia_css_stream_get_max_buffer_depth(struct ia_css_stream *stream,
  *
  * @param[in]	stream The stream.
  * @param[in]	buffer_depth	Number of frames to set.
- * @return	IA_CSS_SUCCESS or error code upon error.
+ * @return	0 or error code upon error.
  *
  * Set the number of continuous frames to use during continuous modes.
  */
-enum ia_css_err
+int
 ia_css_stream_set_buffer_depth(struct ia_css_stream *stream, int buffer_depth);
 
 /* @brief Get number of continuous RAW frames to use.
  * @param[in]	stream The stream.
  * @param[out]	buffer_depth The number of frames to use
- * @return	IA_CSS_SUCCESS or IA_CSS_ERR_INVALID_ARGUMENTS
+ * @return	0 or -EINVAL
  *
  * Get the currently set number of continuous frames
  * to use during continuous modes.
  */
-enum ia_css_err
+int
 ia_css_stream_get_buffer_depth(struct ia_css_stream *stream, int *buffer_depth);
 
 /* ===== CAPTURE ===== */
@@ -338,13 +339,13 @@ ia_css_stream_get_buffer_depth(struct ia_css_stream *stream, int *buffer_depth);
  *				with this offset. This allows the user to
  *				process RAW frames that were captured in the
  *				past or future.
- * @return			IA_CSS_SUCCESS or error code upon error.
+ * @return			0 or error code upon error.
  *
  *  For example, to capture the current frame plus the 2 previous
  *  frames and 2 subsequent frames, you would call
  *  ia_css_stream_capture(5, 0, -2).
  */
-enum ia_css_err
+int
 ia_css_stream_capture(struct ia_css_stream *stream,
 		      int num_captures,
 		      unsigned int skip,
@@ -355,12 +356,12 @@ ia_css_stream_capture(struct ia_css_stream *stream,
  * @param[in]	stream The stream.
  * @param[in]	exp_id	The exposure id of the raw frame to tag.
  *
- * @return			IA_CSS_SUCCESS or error code upon error.
+ * @return			0 or error code upon error.
  *
  * This function allows the user to tag a raw frame based on the exposure id
  * found in the viewfinder frames' frame info.
  */
-enum ia_css_err
+int
 ia_css_stream_capture_frame(struct ia_css_stream *stream,
 			    unsigned int exp_id);
 
@@ -492,7 +493,7 @@ ia_css_stream_request_flash(struct ia_css_stream *stream);
  * @param[in]	config	The set of filter coefficients.
  * @param[in]   pipe Pipe to be updated when set isp config, NULL means to
  *		   update all pipes in the stream.
- * @return		IA_CSS_SUCCESS or error code upon error.
+ * @return		0 or error code upon error.
  *
  * This function configures the filter coefficients for an image
  * stream. For image pipes that do not execute any ISP filters, this
@@ -501,7 +502,7 @@ ia_css_stream_request_flash(struct ia_css_stream *stream);
  * in fact this is the expected behavior most of the time. Proper
  * resource locking and double buffering is in place to allow for this.
  */
-enum ia_css_err
+int
 ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
 				     const struct ia_css_isp_config *config,
 				     struct ia_css_pipe *pipe);
@@ -511,7 +512,7 @@ ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
  *				   ia_css_pipe_set_isp_config()}
  * @param[in]	stream	The stream.
  * @param[in]	config	The set of filter coefficients.
- * @return		IA_CSS_SUCCESS or error code upon error.
+ * @return		0 or error code upon error.
  *
  * This function configures the filter coefficients for an image
  * stream. For image pipes that do not execute any ISP filters, this
@@ -521,7 +522,7 @@ ia_css_stream_set_isp_config_on_pipe(struct ia_css_stream *stream,
  * in fact this is the expected behaviour most of the time. Proper
  * resource locking and double buffering is in place to allow for this.
  */
-enum ia_css_err
+int
 ia_css_stream_set_isp_config(
     struct ia_css_stream *stream,
     const struct ia_css_isp_config *config);
@@ -537,37 +538,37 @@ ia_css_stream_get_isp_config(const struct ia_css_stream *stream,
 
 /* @brief allocate continuous raw frames for continuous capture
  * @param[in]	stream The stream.
- * @return IA_CSS_SUCCESS or error code.
+ * @return 0 or error code.
  *
  *  because this allocation takes a long time (around 120ms per frame),
  *  we separate the allocation part and update part to let driver call
  *  this function without locking. This function is the allocation part
  *  and next one is update part
  */
-enum ia_css_err
+int
 ia_css_alloc_continuous_frame_remain(struct ia_css_stream *stream);
 
 /* @brief allocate continuous raw frames for continuous capture
  * @param[in]	stream The stream.
- * @return	IA_CSS_SUCCESS or error code.
+ * @return	0 or error code.
  *
  *  because this allocation takes a long time (around 120ms per frame),
  *  we separate the allocation part and update part to let driver call
  *  this function without locking. This function is the update part
  */
-enum ia_css_err
+int
 ia_css_update_continuous_frames(struct ia_css_stream *stream);
 
 /* @brief ia_css_unlock_raw_frame . unlock a raw frame (HALv3 Support)
  * @param[in]	stream The stream.
  * @param[in]   exp_id exposure id that uniquely identifies the locked Raw Frame Buffer
- * @return      ia_css_err IA_CSS_SUCCESS or error code
+ * @return      ia_css_err 0 or error code
  *
  * As part of HALv3 Feature requirement, SP locks raw buffer until the Application
  * releases its reference to a raw buffer (which are managed by SP), this function allows
  * application to explicitly unlock that buffer in SP.
  */
-enum ia_css_err
+int
 ia_css_unlock_raw_frame(struct ia_css_stream *stream, uint32_t exp_id);
 
 /* @brief ia_css_en_dz_capt_pipe . Enable/Disable digital zoom for capture pipe

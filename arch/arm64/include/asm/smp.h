@@ -30,7 +30,6 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
-#include <asm/pointer_auth.h>
 
 DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
 

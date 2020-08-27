@@ -38,7 +38,7 @@ config SCSI_UFSHCD
 	select PM_DEVFREQ
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select NLS
-	---help---
+	help
 	This selects the support for UFS devices in Linux, say Y and make
 	  sure that you know the name of your UFS host adapter (the card
 	  inside your computer that "speaks" the UFS protocol, also
@@ -53,7 +53,7 @@ config SCSI_UFSHCD
 config SCSI_UFSHCD_PCI
 	tristate "PCI bus based UFS Controller support"
 	depends on SCSI_UFSHCD && PCI
-	---help---
+	help
 	This selects the PCI UFS Host Controller Interface. Select this if
 	you have UFS Host Controller with PCI Interface.
 
@@ -64,7 +64,7 @@ config SCSI_UFSHCD_PCI
 config SCSI_UFS_DWC_TC_PCI
 	tristate "DesignWare pci support using a G210 Test Chip"
 	depends on SCSI_UFSHCD_PCI
-	---help---
+	help
 	  Synopsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
@@ -72,7 +72,7 @@ config SCSI_UFS_DWC_TC_PCI
 config SCSI_UFSHCD_PLATFORM
 	tristate "Platform bus based UFS Controller support"
 	depends on SCSI_UFSHCD
-	---help---
+	help
 	This selects the UFS host controller support. Select this if
 	you have an UFS controller on Platform bus.
 
@@ -91,7 +91,7 @@ config SCSI_UFS_CDNS_PLATFORM
 config SCSI_UFS_DWC_TC_PLATFORM
 	tristate "DesignWare platform support using a G210 Test Chip"
 	depends on SCSI_UFSHCD_PLATFORM
-	---help---
+	help
 	  Synopsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
@@ -126,7 +126,7 @@ config SCSI_UFS_MEDIATEK
 config SCSI_UFS_HISI
 	tristate "Hisilicon specific hooks to UFS controller platform driver"
 	depends on (ARCH_HISI || COMPILE_TEST) && SCSI_UFSHCD_PLATFORM
-	---help---
+	help
 	  This selects the Hisilicon specific additions to UFSHCD platform driver.
 
 	  Select this if you have UFS controller on Hisilicon chipset.

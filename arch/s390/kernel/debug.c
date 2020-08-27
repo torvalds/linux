@@ -90,26 +90,10 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 				size_t user_buf_size, loff_t *offset);
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
 				     char *out_buf, const char *in_buf);
-static int debug_raw_format_fn(debug_info_t *id,
-			       struct debug_view *view, char *out_buf,
-			       const char *in_buf);
-static int debug_raw_header_fn(debug_info_t *id, struct debug_view *view,
-			       int area, debug_entry_t *entry, char *out_buf);
-
 static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 				   char *out_buf, debug_sprintf_entry_t *curr_event);
 
 /* globals */
-
-struct debug_view debug_raw_view = {
-	"raw",
-	NULL,
-	&debug_raw_header_fn,
-	&debug_raw_format_fn,
-	NULL,
-	NULL
-};
-EXPORT_SYMBOL(debug_raw_view);
 
 struct debug_view debug_hex_ascii_view = {
 	"hex_ascii",
@@ -198,9 +182,10 @@ static debug_entry_t ***debug_areas_alloc(int pages_per_area, int nr_areas)
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
+		/* GFP_NOWARN to avoid user triggerable WARN, we handle fails */
 		areas[i] = kmalloc_array(pages_per_area,
 					 sizeof(debug_entry_t *),
-					 GFP_KERNEL);
+					 GFP_KERNEL | __GFP_NOWARN);
 		if (!areas[i])
 			goto fail_malloc_areas2;
 		for (j = 0; j < pages_per_area; j++) {
@@ -1382,32 +1367,6 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 out:
 	*offset += user_len;
 	return rc;		/* number of input characters */
-}
-
-/*
- * prints debug header in raw format
- */
-static int debug_raw_header_fn(debug_info_t *id, struct debug_view *view,
-			       int area, debug_entry_t *entry, char *out_buf)
-{
-	int rc;
-
-	rc = sizeof(debug_entry_t);
-	memcpy(out_buf, entry, sizeof(debug_entry_t));
-	return rc;
-}
-
-/*
- * prints debug data in raw format
- */
-static int debug_raw_format_fn(debug_info_t *id, struct debug_view *view,
-			       char *out_buf, const char *in_buf)
-{
-	int rc;
-
-	rc = id->buf_size;
-	memcpy(out_buf, in_buf, id->buf_size);
-	return rc;
 }
 
 /*

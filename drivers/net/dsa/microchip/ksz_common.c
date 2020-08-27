@@ -135,26 +135,17 @@ int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 }
 EXPORT_SYMBOL_GPL(ksz_phy_write16);
 
-void ksz_adjust_link(struct dsa_switch *ds, int port,
-		     struct phy_device *phydev)
+void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+		       phy_interface_t interface)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p = &dev->ports[port];
 
 	/* Read all MIB counters when the link is going down. */
-	if (!phydev->link) {
-		p->read = true;
-		schedule_delayed_work(&dev->mib_read, 0);
-	}
-	mutex_lock(&dev->dev_mutex);
-	if (!phydev->link)
-		dev->live_ports &= ~(1 << port);
-	else
-		/* Remember which port is connected and active. */
-		dev->live_ports |= (1 << port) & dev->on_ports;
-	mutex_unlock(&dev->dev_mutex);
+	p->read = true;
+	schedule_delayed_work(&dev->mib_read, 0);
 }
-EXPORT_SYMBOL_GPL(ksz_adjust_link);
+EXPORT_SYMBOL_GPL(ksz_mac_link_down);
 
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
@@ -358,8 +349,6 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 
 	/* setup slave port */
 	dev->dev_ops->port_setup(dev, port, false);
-	if (dev->dev_ops->phy_setup)
-		dev->dev_ops->phy_setup(dev, port, phy);
 
 	/* port_stp_state_set() will be called after to enable the port so
 	 * there is no need to do anything.
@@ -368,22 +357,6 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_enable_port);
-
-void ksz_disable_port(struct dsa_switch *ds, int port)
-{
-	struct ksz_device *dev = ds->priv;
-
-	if (!dsa_is_user_port(ds, port))
-		return;
-
-	dev->on_ports &= ~(1 << port);
-	dev->live_ports &= ~(1 << port);
-
-	/* port_stp_state_set() will be called after to disable the port so
-	 * there is no need to do anything.
-	 */
-}
-EXPORT_SYMBOL_GPL(ksz_disable_port);
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 {

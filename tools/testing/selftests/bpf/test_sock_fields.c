@@ -421,19 +421,11 @@ int main(int argc, char **argv)
 	struct bpf_object *obj;
 	struct bpf_map *map;
 
-	err = setup_cgroup_environment();
-	CHECK(err, "setup_cgroup_environment()", "err:%d errno:%d",
-	      err, errno);
-
-	atexit(cleanup_cgroup_environment);
-
 	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	CHECK(cgroup_fd == -1, "create_and_get_cgroup()",
+	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
+	CHECK(cgroup_fd < 0, "cgroup_setup_and_join()",
 	      "cgroup_fd:%d errno:%d", cgroup_fd, errno);
-
-	err = join_cgroup(TEST_CGROUP);
-	CHECK(err, "join_cgroup", "err:%d errno:%d", err, errno);
+	atexit(cleanup_cgroup_environment);
 
 	err = bpf_prog_load_xattr(&attr, &obj, &egress_fd);
 	CHECK(err, "bpf_prog_load_xattr()", "err:%d", err);

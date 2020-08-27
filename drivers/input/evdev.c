@@ -282,7 +282,8 @@ static void evdev_pass_values(struct evdev_client *client,
 	spin_unlock(&client->buffer_lock);
 
 	if (wakeup)
-		wake_up_interruptible(&evdev->wait);
+		wake_up_interruptible_poll(&evdev->wait,
+			EPOLLIN | EPOLLOUT | EPOLLRDNORM | EPOLLWRNORM);
 }
 
 /*
@@ -429,7 +430,7 @@ static void evdev_hangup(struct evdev *evdev)
 		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	spin_unlock(&evdev->client_lock);
 
-	wake_up_interruptible(&evdev->wait);
+	wake_up_interruptible_poll(&evdev->wait, EPOLLHUP | EPOLLERR);
 }
 
 static int evdev_release(struct inode *inode, struct file *file)
@@ -945,7 +946,7 @@ static int evdev_revoke(struct evdev *evdev, struct evdev_client *client,
 	client->revoked = true;
 	evdev_ungrab(evdev, client);
 	input_flush_device(&evdev->handle, file);
-	wake_up_interruptible(&evdev->wait);
+	wake_up_interruptible_poll(&evdev->wait, EPOLLHUP | EPOLLERR);
 
 	return 0;
 }

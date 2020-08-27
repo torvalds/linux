@@ -472,7 +472,7 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 		break;
 	case CMD_SET:
 		data++;
-		/* FALL THROUGH */
+		fallthrough;
 	case '0' ... '9':
 		set = 1;
 		c = c2 = simple_strtoull(data, NULL, 0);

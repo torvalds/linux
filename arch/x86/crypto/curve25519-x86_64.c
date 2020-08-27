@@ -948,10 +948,8 @@ static void store_felem(u64 *b, u64 *f)
 {
 	u64 f30 = f[3U];
 	u64 top_bit0 = f30 >> (u32)63U;
-	u64 carry0;
 	u64 f31;
 	u64 top_bit;
-	u64 carry;
 	u64 f0;
 	u64 f1;
 	u64 f2;
@@ -970,11 +968,11 @@ static void store_felem(u64 *b, u64 *f)
 	u64 o2;
 	u64 o3;
 	f[3U] = f30 & (u64)0x7fffffffffffffffU;
-	carry0 = add_scalar(f, f, (u64)19U * top_bit0);
+	add_scalar(f, f, (u64)19U * top_bit0);
 	f31 = f[3U];
 	top_bit = f31 >> (u32)63U;
 	f[3U] = f31 & (u64)0x7fffffffffffffffU;
-	carry = add_scalar(f, f, (u64)19U * top_bit);
+	add_scalar(f, f, (u64)19U * top_bit);
 	f0 = f[0U];
 	f1 = f[1U];
 	f2 = f[2U];

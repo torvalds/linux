@@ -22,16 +22,23 @@ struct rsc_drv;
  * struct tcs_group: group of Trigger Command Sets (TCS) to send state requests
  * to the controller
  *
- * @drv:       the controller
- * @type:      type of the TCS in this group - active, sleep, wake
- * @mask:      mask of the TCSes relative to all the TCSes in the RSC
- * @offset:    start of the TCS group relative to the TCSes in the RSC
- * @num_tcs:   number of TCSes in this type
- * @ncpt:      number of commands in each TCS
- * @lock:      lock for synchronizing this TCS writes
- * @req:       requests that are sent from the TCS
- * @cmd_cache: flattened cache of cmds in sleep/wake TCS
- * @slots:     indicates which of @cmd_addr are occupied
+ * @drv:       The controller.
+ * @type:      Type of the TCS in this group - active, sleep, wake.
+ * @mask:      Mask of the TCSes relative to all the TCSes in the RSC.
+ * @offset:    Start of the TCS group relative to the TCSes in the RSC.
+ * @num_tcs:   Number of TCSes in this type.
+ * @ncpt:      Number of commands in each TCS.
+ * @req:       Requests that are sent from the TCS; only used for ACTIVE_ONLY
+ *             transfers (could be on a wake/sleep TCS if we are borrowing for
+ *             an ACTIVE_ONLY transfer).
+ *             Start: grab drv->lock, set req, set tcs_in_use, drop drv->lock,
+ *                    trigger
+ *             End: get irq, access req,
+ *                  grab drv->lock, clear tcs_in_use, drop drv->lock
+ * @slots:     Indicates which of @cmd_addr are occupied; only used for
+ *             SLEEP / WAKE TCSs.  Things are tightly packed in the
+ *             case that (ncpt < MAX_CMDS_PER_TCS).  That is if ncpt = 2 and
+ *             MAX_CMDS_PER_TCS = 16 then bit[2] = the first bit in 2nd TCS.
  */
 struct tcs_group {
 	struct rsc_drv *drv;
@@ -40,9 +47,7 @@ struct tcs_group {
 	u32 offset;
 	int num_tcs;
 	int ncpt;
-	spinlock_t lock;
 	const struct tcs_request *req[MAX_TCS_PER_TYPE];
-	u32 *cmd_cache;
 	DECLARE_BITMAP(slots, MAX_TCS_SLOTS);
 };
 
@@ -84,20 +89,32 @@ struct rpmh_ctrlr {
  * struct rsc_drv: the Direct Resource Voter (DRV) of the
  * Resource State Coordinator controller (RSC)
  *
- * @name:       controller identifier
- * @tcs_base:   start address of the TCS registers in this controller
- * @id:         instance id in the controller (Direct Resource Voter)
- * @num_tcs:    number of TCSes in this DRV
- * @tcs:        TCS groups
- * @tcs_in_use: s/w state of the TCS
- * @lock:       synchronize state of the controller
- * @client:     handle to the DRV's client.
+ * @name:               Controller identifier.
+ * @tcs_base:           Start address of the TCS registers in this controller.
+ * @id:                 Instance id in the controller (Direct Resource Voter).
+ * @num_tcs:            Number of TCSes in this DRV.
+ * @rsc_pm:             CPU PM notifier for controller.
+ *                      Used when solver mode is not present.
+ * @cpus_in_pm:         Number of CPUs not in idle power collapse.
+ *                      Used when solver mode is not present.
+ * @tcs:                TCS groups.
+ * @tcs_in_use:         S/W state of the TCS; only set for ACTIVE_ONLY
+ *                      transfers, but might show a sleep/wake TCS in use if
+ *                      it was borrowed for an active_only transfer.  You
+ *                      must hold the lock in this struct (AKA drv->lock) in
+ *                      order to update this.
+ * @lock:               Synchronize state of the controller.  If RPMH's cache
+ *                      lock will also be held, the order is: drv->lock then
+ *                      cache_lock.
+ * @client:             Handle to the DRV's client.
  */
 struct rsc_drv {
 	const char *name;
 	void __iomem *tcs_base;
 	int id;
 	int num_tcs;
+	struct notifier_block rsc_pm;
+	atomic_t cpus_in_pm;
 	struct tcs_group tcs[TCS_TYPE_NR];
 	DECLARE_BITMAP(tcs_in_use, MAX_TCS_NR);
 	spinlock_t lock;
@@ -107,7 +124,7 @@ struct rsc_drv {
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg);
 int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv,
 			     const struct tcs_request *msg);
-int rpmh_rsc_invalidate(struct rsc_drv *drv);
+void rpmh_rsc_invalidate(struct rsc_drv *drv);
 
 void rpmh_tx_done(const struct tcs_request *msg, int r);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr);

@@ -271,20 +271,12 @@ struct k3_udma_glue_tx_channel *k3_udma_glue_request_tx_chn(struct device *dev,
 	atomic_set(&tx_chn->free_pkts, cfg->txcq_cfg.size);
 
 	/* request and cfg rings */
-	tx_chn->ringtx = k3_ringacc_request_ring(tx_chn->common.ringacc,
-						 tx_chn->udma_tchan_id, 0);
-	if (!tx_chn->ringtx) {
-		ret = -ENODEV;
-		dev_err(dev, "Failed to get TX ring %u\n",
-			tx_chn->udma_tchan_id);
-		goto err;
-	}
-
-	tx_chn->ringtxcq = k3_ringacc_request_ring(tx_chn->common.ringacc,
-						   -1, 0);
-	if (!tx_chn->ringtxcq) {
-		ret = -ENODEV;
-		dev_err(dev, "Failed to get TXCQ ring\n");
+	ret =  k3_ringacc_request_rings_pair(tx_chn->common.ringacc,
+					     tx_chn->udma_tchan_id, -1,
+					     &tx_chn->ringtx,
+					     &tx_chn->ringtxcq);
+	if (ret) {
+		dev_err(dev, "Failed to get TX/TXCQ rings %d\n", ret);
 		goto err;
 	}
 
@@ -587,20 +579,14 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 	}
 
 	/* request and cfg rings */
-	flow->ringrx = k3_ringacc_request_ring(rx_chn->common.ringacc,
-					       flow_cfg->ring_rxq_id, 0);
-	if (!flow->ringrx) {
-		ret = -ENODEV;
-		dev_err(dev, "Failed to get RX ring\n");
+	ret =  k3_ringacc_request_rings_pair(rx_chn->common.ringacc,
+					     flow_cfg->ring_rxq_id,
+					     flow_cfg->ring_rxfdq0_id,
+					     &flow->ringrxfdq,
+					     &flow->ringrx);
+	if (ret) {
+		dev_err(dev, "Failed to get RX/RXFDQ rings %d\n", ret);
 		goto err_rflow_put;
-	}
-
-	flow->ringrxfdq = k3_ringacc_request_ring(rx_chn->common.ringacc,
-						  flow_cfg->ring_rxfdq0_id, 0);
-	if (!flow->ringrxfdq) {
-		ret = -ENODEV;
-		dev_err(dev, "Failed to get RXFDQ ring\n");
-		goto err_ringrx_free;
 	}
 
 	ret = k3_ringacc_ring_cfg(flow->ringrx, &flow_cfg->rx_cfg);
@@ -673,8 +659,6 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 
 err_ringrxfdq_free:
 	k3_ringacc_ring_free(flow->ringrxfdq);
-
-err_ringrx_free:
 	k3_ringacc_ring_free(flow->ringrx);
 
 err_rflow_put:

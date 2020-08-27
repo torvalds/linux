@@ -20,9 +20,9 @@
 #include <linux/ctype.h>
 #include <linux/ioport.h>
 #include <linux/refcount.h>
+#include <linux/pgtable.h>
 #include <asm/diag.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/ebcdic.h>
 #include <asm/errno.h>
 #include <asm/extmem.h>
@@ -313,15 +313,10 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		goto out_free;
 	}
 
-	rc = vmem_add_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
-
-	if (rc)
-		goto out_free;
-
 	seg->res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (seg->res == NULL) {
 		rc = -ENOMEM;
-		goto out_shared;
+		goto out_free;
 	}
 	seg->res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 	seg->res->start = seg->start_addr;
@@ -335,11 +330,16 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	if (rc == SEG_TYPE_SC ||
 	    ((rc == SEG_TYPE_SR || rc == SEG_TYPE_ER) && !do_nonshared))
 		seg->res->flags |= IORESOURCE_READONLY;
+
+	/* Check for overlapping resources before adding the mapping. */
 	if (request_resource(&iomem_resource, seg->res)) {
 		rc = -EBUSY;
-		kfree(seg->res);
-		goto out_shared;
+		goto out_free_resource;
 	}
+
+	rc = vmem_add_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
+	if (rc)
+		goto out_resource;
 
 	if (do_nonshared)
 		diag_cc = dcss_diag(&loadnsr_scode, seg->dcss_name,
@@ -351,14 +351,14 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		dcss_diag(&purgeseg_scode, seg->dcss_name,
 				&dummy, &dummy);
 		rc = diag_cc;
-		goto out_resource;
+		goto out_mapping;
 	}
 	if (diag_cc > 1) {
 		pr_warn("Loading DCSS %s failed with rc=%ld\n", name, end_addr);
 		rc = dcss_diag_translate_rc(end_addr);
 		dcss_diag(&purgeseg_scode, seg->dcss_name,
 				&dummy, &dummy);
-		goto out_resource;
+		goto out_mapping;
 	}
 	seg->start_addr = start_addr;
 	seg->end = end_addr;
@@ -377,11 +377,12 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	}
 	goto out;
+ out_mapping:
+	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
  out_resource:
 	release_resource(seg->res);
+ out_free_resource:
 	kfree(seg->res);
- out_shared:
-	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
  out_free:
 	kfree(seg);
  out:
@@ -400,8 +401,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
  * -EIO     : could not perform query or load diagnose
  * -ENOENT  : no such segment
  * -EOPNOTSUPP: multi-part segment cannot be used with linux
- * -ENOSPC  : segment cannot be used (overlaps with storage)
- * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
+ * -EBUSY   : segment cannot be used (overlaps with dcss or storage)
  * -ERANGE  : segment cannot be used (exceeds kernel mapping range)
  * -EPERM   : segment is currently loaded with incompatible permissions
  * -ENOMEM  : out of memory
@@ -625,10 +625,6 @@ void segment_warning(int rc, char *seg_name)
 	case -EOPNOTSUPP:
 		pr_err("DCSS %s has multiple page ranges and cannot be "
 		       "loaded or queried\n", seg_name);
-		break;
-	case -ENOSPC:
-		pr_err("DCSS %s overlaps with used storage and cannot "
-		       "be loaded\n", seg_name);
 		break;
 	case -EBUSY:
 		pr_err("%s needs used memory resources and cannot be "

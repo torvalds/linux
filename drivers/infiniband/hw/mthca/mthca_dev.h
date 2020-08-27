@@ -478,16 +478,6 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 			u32 access, struct mthca_mr *mr);
 void mthca_free_mr(struct mthca_dev *dev,  struct mthca_mr *mr);
 
-int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
-		    u32 access, struct mthca_fmr *fmr);
-int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
-			     int list_len, u64 iova);
-void mthca_tavor_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr);
-int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
-			     int list_len, u64 iova);
-void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr);
-int mthca_free_fmr(struct mthca_dev *dev,  struct mthca_fmr *fmr);
-
 int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt);
 void mthca_unmap_eq_icm(struct mthca_dev *dev);
 

@@ -89,13 +89,13 @@ config ADXL372_I2C
 	  module will be called adxl372_i2c.
 
 config BMA180
-	tristate "Bosch BMA180/BMA25x 3-Axis Accelerometer Driver"
-	depends on I2C
+	tristate "Bosch BMA023/BMA1x0/BMA25x 3-Axis Accelerometer Driver"
+	depends on I2C && INPUT_BMA150=n
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say Y here if you want to build a driver for the Bosch BMA180 or
-	  BMA25x triaxial acceleration sensor.
+	  Say Y here if you want to build a driver for the Bosch BMA023, BMA150
+	  BMA180, SMB380, or BMA25x triaxial acceleration sensor.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma180.
@@ -238,7 +238,7 @@ config IIO_ST_ACCEL_3AXIS
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
-	  LNG2DM, LIS3DE, LIS2DE12
+	  LNG2DM, LIS3DE, LIS2DE12, LIS2HH12
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

@@ -453,7 +453,7 @@ static int intel_pcie_msi_init(struct pcie_port *pp)
 	return 0;
 }
 
-u64 intel_pcie_cpu_addr(struct dw_pcie *pcie, u64 cpu_addr)
+static u64 intel_pcie_cpu_addr(struct dw_pcie *pcie, u64 cpu_addr)
 {
 	return cpu_addr + BUS_IATU_OFFSET;
 }

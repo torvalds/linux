@@ -8,8 +8,10 @@
 
 #include <linux/types.h>
 
-#include "i915_reg.h"
 #include "display/intel_bw.h"
+#include "display/intel_global_state.h"
+
+#include "i915_reg.h"
 
 struct drm_device;
 struct drm_i915_private;
@@ -38,6 +40,9 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 			       struct skl_ddb_entry *ddb_y,
 			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv);
+u16 intel_get_ddb_size(struct drm_i915_private *dev_priv);
+u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
+			    const struct skl_ddb_entry *entry);
 void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 			      struct skl_pipe_wm *out);
 void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
@@ -62,5 +67,27 @@ void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
 bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable);
+
+struct intel_dbuf_state {
+	struct intel_global_state base;
+
+	u8 enabled_slices;
+	u8 active_pipes;
+};
+
+int intel_dbuf_init(struct drm_i915_private *dev_priv);
+
+struct intel_dbuf_state *
+intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
+
+#define to_intel_dbuf_state(x) container_of((x), struct intel_dbuf_state, base)
+#define intel_atomic_get_old_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_i915(state->base.dev)->dbuf.obj))
+#define intel_atomic_get_new_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_i915(state->base.dev)->dbuf.obj))
+
+int intel_dbuf_init(struct drm_i915_private *dev_priv);
+void intel_dbuf_pre_plane_update(struct intel_atomic_state *state);
+void intel_dbuf_post_plane_update(struct intel_atomic_state *state);
 
 #endif /* __INTEL_PM_H__ */

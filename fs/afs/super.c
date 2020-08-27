@@ -352,7 +352,9 @@ static int afs_validate_fc(struct fs_context *fc)
 {
 	struct afs_fs_context *ctx = fc->fs_private;
 	struct afs_volume *volume;
+	struct afs_cell *cell;
 	struct key *key;
+	int ret;
 
 	if (!ctx->dyn_root) {
 		if (ctx->no_cell) {
@@ -365,6 +367,7 @@ static int afs_validate_fc(struct fs_context *fc)
 			return -EDESTADDRREQ;
 		}
 
+	reget_key:
 		/* We try to do the mount securely. */
 		key = afs_request_key(ctx->cell);
 		if (IS_ERR(key))
@@ -373,8 +376,24 @@ static int afs_validate_fc(struct fs_context *fc)
 		ctx->key = key;
 
 		if (ctx->volume) {
-			afs_put_volume(ctx->cell, ctx->volume);
+			afs_put_volume(ctx->net, ctx->volume,
+				       afs_volume_trace_put_validate_fc);
 			ctx->volume = NULL;
+		}
+
+		if (test_bit(AFS_CELL_FL_CHECK_ALIAS, &ctx->cell->flags)) {
+			ret = afs_cell_detect_alias(ctx->cell, key);
+			if (ret < 0)
+				return ret;
+			if (ret == 1) {
+				_debug("switch to alias");
+				key_put(ctx->key);
+				ctx->key = NULL;
+				cell = afs_get_cell(ctx->cell->alias_of);
+				afs_put_cell(ctx->net, ctx->cell);
+				ctx->cell = cell;
+				goto reget_key;
+			}
 		}
 
 		volume = afs_create_volume(ctx);
@@ -421,7 +440,6 @@ static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_iget_data iget_data;
 	struct inode *inode = NULL;
 	int ret;
 
@@ -446,13 +464,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
-		iget_data.fid.vid	= as->volume->vid;
-		iget_data.fid.vnode	= 1;
-		iget_data.fid.vnode_hi	= 0;
-		iget_data.fid.unique	= 1;
-		iget_data.cb_v_break	= as->volume->cb_v_break;
-		iget_data.cb_s_break	= 0;
-		inode = afs_iget(sb, ctx->key, &iget_data, NULL, NULL, NULL);
+		inode = afs_root_iget(sb, ctx->key);
 	}
 
 	if (IS_ERR(inode))
@@ -473,6 +485,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 			goto error;
 	} else {
 		sb->s_d_op = &afs_fs_dentry_operations;
+		rcu_assign_pointer(as->volume->sb, sb);
 	}
 
 	_leave(" = 0");
@@ -496,7 +509,8 @@ static struct afs_super_info *afs_alloc_sbi(struct fs_context *fc)
 			as->dyn_root = true;
 		} else {
 			as->cell = afs_get_cell(ctx->cell);
-			as->volume = __afs_get_volume(ctx->volume);
+			as->volume = afs_get_volume(ctx->volume,
+						    afs_volume_trace_get_alloc_sbi);
 		}
 	}
 	return as;
@@ -505,8 +519,9 @@ static struct afs_super_info *afs_alloc_sbi(struct fs_context *fc)
 static void afs_destroy_sbi(struct afs_super_info *as)
 {
 	if (as) {
-		afs_put_volume(as->cell, as->volume);
-		afs_put_cell(afs_net(as->net_ns), as->cell);
+		struct afs_net *net = afs_net(as->net_ns);
+		afs_put_volume(net, as->volume, afs_volume_trace_put_destroy_sbi);
+		afs_put_cell(net, as->cell);
 		put_net(as->net_ns);
 		kfree(as);
 	}
@@ -515,7 +530,6 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 static void afs_kill_super(struct super_block *sb)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_net *net = afs_net(as->net_ns);
 
 	if (as->dyn_root)
 		afs_dynroot_depopulate(sb);
@@ -524,7 +538,7 @@ static void afs_kill_super(struct super_block *sb)
 	 * deactivating the superblock.
 	 */
 	if (as->volume)
-		afs_clear_callback_interests(net, as->volume->servers);
+		rcu_assign_pointer(as->volume->sb, NULL);
 	kill_anon_super(sb);
 	if (as->volume)
 		afs_deactivate_volume(as->volume);
@@ -592,7 +606,7 @@ static void afs_free_fc(struct fs_context *fc)
 	struct afs_fs_context *ctx = fc->fs_private;
 
 	afs_destroy_sbi(fc->s_fs_info);
-	afs_put_volume(ctx->cell, ctx->volume);
+	afs_put_volume(ctx->net, ctx->volume, afs_volume_trace_put_free_fc);
 	afs_put_cell(ctx->net, ctx->cell);
 	key_put(ctx->key);
 	kfree(ctx);
@@ -674,7 +688,6 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->volume		= NULL;
 	vnode->lock_key		= NULL;
 	vnode->permit_cache	= NULL;
-	RCU_INIT_POINTER(vnode->cb_interest, NULL);
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache		= NULL;
 #endif
@@ -704,10 +717,29 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_debug("DESTROY INODE %p", inode);
 
-	ASSERTCMP(rcu_access_pointer(vnode->cb_interest), ==, NULL);
-
 	atomic_dec(&afs_count_active_inodes);
 }
+
+static void afs_get_volume_status_success(struct afs_operation *op)
+{
+	struct afs_volume_status *vs = &op->volstatus.vs;
+	struct kstatfs *buf = op->volstatus.buf;
+
+	if (vs->max_quota == 0)
+		buf->f_blocks = vs->part_max_blocks;
+	else
+		buf->f_blocks = vs->max_quota;
+
+	if (buf->f_blocks > vs->blocks_in_use)
+		buf->f_bavail = buf->f_bfree =
+			buf->f_blocks - vs->blocks_in_use;
+}
+
+static const struct afs_operation_ops afs_get_volume_status_operation = {
+	.issue_afs_rpc	= afs_fs_get_volume_status,
+	.issue_yfs_rpc	= yfs_fs_get_volume_status,
+	.success	= afs_get_volume_status_success,
+};
 
 /*
  * return information about an AFS volume
@@ -715,11 +747,8 @@ static void afs_destroy_inode(struct inode *inode)
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct afs_super_info *as = AFS_FS_S(dentry->d_sb);
-	struct afs_fs_cursor fc;
-	struct afs_volume_status vs;
+	struct afs_operation *op;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
-	struct key *key;
-	int ret;
 
 	buf->f_type	= dentry->d_sb->s_magic;
 	buf->f_bsize	= AFS_BLOCK_SIZE;
@@ -732,31 +761,13 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return 0;
 	}
 
-	key = afs_request_key(vnode->volume->cell);
-	if (IS_ERR(key))
-		return PTR_ERR(key);
+	op = afs_alloc_operation(NULL, as->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_get_volume_status(&fc, &vs);
-		}
-
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	key_put(key);
-
-	if (ret == 0) {
-		if (vs.max_quota == 0)
-			buf->f_blocks = vs.part_max_blocks;
-		else
-			buf->f_blocks = vs.max_quota;
-		buf->f_bavail = buf->f_bfree = buf->f_blocks - vs.blocks_in_use;
-	}
-
-	return ret;
+	afs_op_set_vnode(op, 0, vnode);
+	op->nr_files		= 1;
+	op->volstatus.buf	= buf;
+	op->ops			= &afs_get_volume_status_operation;
+	return afs_do_sync_operation(op);
 }

@@ -134,7 +134,7 @@ static void __init __sme_early_map_unmap_mem(void *vaddr, unsigned long size,
 		size = (size <= PMD_SIZE) ? 0 : size - PMD_SIZE;
 	} while (size);
 
-	__native_flush_tlb();
+	flush_tlb_local();
 }
 
 void __init sme_unmap_bootdata(char *real_mode_data)
@@ -376,7 +376,6 @@ bool force_dma_unencrypted(struct device *dev)
 	return false;
 }
 
-/* Architecture __weak replacement functions */
 void __init mem_encrypt_free_decrypted_mem(void)
 {
 	unsigned long vaddr, vaddr_end, npages;
@@ -401,6 +400,7 @@ void __init mem_encrypt_free_decrypted_mem(void)
 	free_init_pages("unused decrypted", vaddr, vaddr_end);
 }
 
+/* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
 {
 	if (!sme_me_mask)

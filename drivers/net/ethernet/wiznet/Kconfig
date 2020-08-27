@@ -7,7 +7,7 @@ config NET_VENDOR_WIZNET
 	bool "WIZnet devices"
 	depends on HAS_IOMEM
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ if NET_VENDOR_WIZNET
 config WIZNET_W5100
 	tristate "WIZnet W5100 Ethernet support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  Support for WIZnet W5100 chips.
 
 	  W5100 is a single chip with integrated 10/100 Ethernet MAC,
@@ -33,7 +33,7 @@ config WIZNET_W5100
 config WIZNET_W5300
 	tristate "WIZnet W5300 Ethernet support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  Support for WIZnet W5300 chips.
 
 	  W5300 is a single chip with integrated 10/100 Ethernet MAC,
@@ -50,20 +50,20 @@ choice
 
 config WIZNET_BUS_DIRECT
 	bool "Direct address bus mode"
-	---help---
+	help
 	  In direct address mode host system can directly access all registers
 	  after mapping to Memory-Mapped I/O space.
 
 config WIZNET_BUS_INDIRECT
 	bool "Indirect address bus mode"
-	---help---
+	help
 	  In indirect address mode host system indirectly accesses registers
 	  using Indirect Mode Address Register and Indirect Mode Data Register,
 	  which are directly mapped to Memory-Mapped I/O space.
 
 config WIZNET_BUS_ANY
 	bool "Select interface mode in runtime"
-	---help---
+	help
 	  If interface mode is unknown in compile time, it can be selected
 	  in runtime from board/platform resources configuration.
 
@@ -74,7 +74,7 @@ config WIZNET_W5100_SPI
 	tristate "WIZnet W5100/W5200/W5500 Ethernet support for SPI mode"
 	depends on WIZNET_BUS_ANY && WIZNET_W5100
 	depends on SPI
-	---help---
+	help
 	  In SPI mode host system accesses registers using SPI protocol
 	  (mode 0) on the SPI bus.
 

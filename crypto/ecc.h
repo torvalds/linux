@@ -148,6 +148,20 @@ int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
 				struct ecc_point *pk);
 
 /**
+ * ecc_is_pubkey_valid_full() - Full public key validation
+ *
+ * @curve:		elliptic curve domain parameters
+ * @pk:			public key as a point
+ *
+ * Valdiate public key according to SP800-56A section 5.6.2.3.3 ECC Full
+ * Public-Key Validation Routine.
+ *
+ * Return: 0 if validation is successful, -EINVAL if validation is failed.
+ */
+int ecc_is_pubkey_valid_full(const struct ecc_curve *curve,
+			     struct ecc_point *pk);
+
+/**
  * vli_is_zero() - Determine is vli is zero
  *
  * @vli:		vli to check.

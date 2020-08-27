@@ -19,7 +19,7 @@
 #include "efistub.h"
 
 bool efi_nochunk;
-bool efi_nokaslr;
+bool efi_nokaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
 bool efi_noinitrd;
 int efi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
 bool efi_novamap;
@@ -32,6 +32,10 @@ bool __pure __efi_soft_reserve_enabled(void)
 	return !efi_nosoftreserve;
 }
 
+/**
+ * efi_char16_puts() - Write a UCS-2 encoded string to the console
+ * @str:	UCS-2 encoded string
+ */
 void efi_char16_puts(efi_char16_t *str)
 {
 	efi_call_proto(efi_table_attr(efi_system_table, con_out),
@@ -83,6 +87,10 @@ u32 utf8_to_utf32(const u8 **s8)
 	return c32;
 }
 
+/**
+ * efi_puts() - Write a UTF-8 encoded string to the console
+ * @str:	UTF-8 encoded string
+ */
 void efi_puts(const char *str)
 {
 	efi_char16_t buf[128];
@@ -113,6 +121,16 @@ void efi_puts(const char *str)
 	}
 }
 
+/**
+ * efi_printk() - Print a kernel message
+ * @fmt:	format string
+ *
+ * The first letter of the format string is used to determine the logging level
+ * of the message. If the level is less then the current EFI logging level, the
+ * message is suppressed. The message will be truncated to 255 bytes.
+ *
+ * Return:	number of printed characters
+ */
 int efi_printk(const char *fmt, ...)
 {
 	char printf_buf[256];
@@ -154,13 +172,18 @@ int efi_printk(const char *fmt, ...)
 	return printed;
 }
 
-/*
- * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
+/**
+ * efi_parse_options() - Parse EFI command line options
+ * @cmdline:	kernel command line
+ *
+ * Parse the ASCII string @cmdline for EFI options, denoted by the efi=
  * option, e.g. efi=nochunk.
  *
  * It should be noted that efi= is parsed in two very different
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
+ *
+ * Return:	status code
  */
 efi_status_t efi_parse_options(char const *cmdline)
 {
@@ -286,13 +309,21 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 	return (char *)cmdline_addr;
 }
 
-/*
+/**
+ * efi_exit_boot_services() - Exit boot services
+ * @handle:	handle of the exiting image
+ * @map:	pointer to receive the memory map
+ * @priv:	argument to be passed to @priv_func
+ * @priv_func:	function to process the memory map before exiting boot services
+ *
  * Handle calling ExitBootServices according to the requirements set out by the
  * spec.  Obtains the current memory map, and returns that info after calling
  * ExitBootServices.  The client must specify a function to perform any
  * processing of the memory map data prior to ExitBootServices.  A client
  * specific structure may be passed to the function via priv.  The client
  * function may be called multiple times.
+ *
+ * Return:	status code
  */
 efi_status_t efi_exit_boot_services(void *handle,
 				    struct efi_boot_memmap *map,
@@ -361,6 +392,11 @@ fail:
 	return status;
 }
 
+/**
+ * get_efi_config_table() - retrieve UEFI configuration table
+ * @guid:	GUID of the configuration table to be retrieved
+ * Return:	pointer to the configuration table or NULL
+ */
 void *get_efi_config_table(efi_guid_t guid)
 {
 	unsigned long tables = efi_table_attr(efi_system_table, tables);
@@ -408,17 +444,18 @@ static const struct {
 };
 
 /**
- * efi_load_initrd_dev_path - load the initrd from the Linux initrd device path
+ * efi_load_initrd_dev_path() - load the initrd from the Linux initrd device path
  * @load_addr:	pointer to store the address where the initrd was loaded
  * @load_size:	pointer to store the size of the loaded initrd
  * @max:	upper limit for the initrd memory allocation
- * @return:	%EFI_SUCCESS if the initrd was loaded successfully, in which
- *		case @load_addr and @load_size are assigned accordingly
- *		%EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd
- *		device path
- *		%EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
- *		%EFI_OUT_OF_RESOURCES if memory allocation failed
- *		%EFI_LOAD_ERROR in all other cases
+ *
+ * Return:
+ * * %EFI_SUCCESS if the initrd was loaded successfully, in which
+ *   case @load_addr and @load_size are assigned accordingly
+ * * %EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd device path
+ * * %EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
+ * * %EFI_OUT_OF_RESOURCES if memory allocation failed
+ * * %EFI_LOAD_ERROR in all other cases
  */
 static
 efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
@@ -481,6 +518,16 @@ efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
 				    load_addr, load_size);
 }
 
+/**
+ * efi_load_initrd() - Load initial RAM disk
+ * @image:	EFI loaded image protocol
+ * @load_addr:	pointer to loaded initrd
+ * @load_size:	size of loaded initrd
+ * @soft_limit:	preferred size of allocated memory for loading the initrd
+ * @hard_limit:	minimum size of allocated memory
+ *
+ * Return:	status code
+ */
 efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long *load_addr,
 			     unsigned long *load_size,
@@ -505,6 +552,15 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	return status;
 }
 
+/**
+ * efi_wait_for_key() - Wait for key stroke
+ * @usec:	number of microseconds to wait for key stroke
+ * @key:	key entered
+ *
+ * Wait for up to @usec microseconds for a key stroke.
+ *
+ * Return:	status code, EFI_SUCCESS if key received
+ */
 efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
 {
 	efi_event_t events[2], timer;

@@ -182,7 +182,8 @@ module 8123.ko, which is built from the following files::
 	8123_pci.c
 	8123_bin.o_shipped	<= Binary blob
 
---- 3.1 Shared Makefile
+3.1 Shared Makefile
+-------------------
 
 	An external module always includes a wrapper makefile that
 	supports building the module using "make" with no arguments.
@@ -470,9 +471,9 @@ build.
 
 	The syntax of the Module.symvers file is::
 
-	<CRC>       <Symbol>         <Module>                         <Export Type>     <Namespace>
+		<CRC>       <Symbol>         <Module>                         <Export Type>     <Namespace>
 
-	0xe1cc2a05  usb_stor_suspend drivers/usb/storage/usb-storage  EXPORT_SYMBOL_GPL USB_STORAGE
+		0xe1cc2a05  usb_stor_suspend drivers/usb/storage/usb-storage  EXPORT_SYMBOL_GPL USB_STORAGE
 
 	The fields are separated by tabs and values may be empty (e.g.
 	if no namespace is defined for an exported symbol).
@@ -527,18 +528,6 @@ build.
 
 		will then do the expected and compile both modules with
 		full knowledge of symbols from either module.
-
-	Use an extra Module.symvers file
-		When an external module is built, a Module.symvers file
-		is generated containing all exported symbols which are
-		not defined in the kernel. To get access to symbols
-		from bar.ko, copy the Module.symvers file from the
-		compilation of bar.ko to the directory where foo.ko is
-		built. During the module build, kbuild will read the
-		Module.symvers file in the directory of the external
-		module, and when the build is finished, a new
-		Module.symvers file is created containing the sum of
-		all symbols defined and not part of the kernel.
 
 	Use "make" variable KBUILD_EXTRA_SYMBOLS
 		If it is impractical to add a top-level kbuild file,

@@ -225,7 +225,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		 */
 		if (sdata->hw_80211_encap)
 			return -EINVAL;
-		/* Fall through */
+		fallthrough;
 
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:

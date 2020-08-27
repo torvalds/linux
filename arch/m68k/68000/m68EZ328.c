@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/rtc.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/MC68EZ328.h>
 #ifdef CONFIG_UCSIMM

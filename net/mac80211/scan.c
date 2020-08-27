@@ -591,7 +591,6 @@ static void ieee80211_send_scan_probe_req(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_channel *channel)
 {
 	struct sk_buff *skb;
-	u32 txdata_flags = 0;
 
 	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
 					ssid, ssid_len,
@@ -600,15 +599,15 @@ static void ieee80211_send_scan_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (skb) {
 		if (flags & IEEE80211_PROBE_FLAG_RANDOM_SN) {
 			struct ieee80211_hdr *hdr = (void *)skb->data;
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			u16 sn = get_random_u32();
 
-			txdata_flags |= IEEE80211_TX_NO_SEQNO;
+			info->control.flags |= IEEE80211_TX_CTRL_NO_SEQNO;
 			hdr->seq_ctrl =
 				cpu_to_le16(IEEE80211_SN_TO_SEQ(sn));
 		}
 		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
-		ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band,
-					  txdata_flags);
+		ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
 	}
 }
 
@@ -913,6 +912,7 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	case NL80211_BSS_CHAN_WIDTH_10:
 		local->scan_chandef.width = NL80211_CHAN_WIDTH_10;
 		break;
+	default:
 	case NL80211_BSS_CHAN_WIDTH_20:
 		/* If scanning on oper channel, use whatever channel-type
 		 * is currently in use.

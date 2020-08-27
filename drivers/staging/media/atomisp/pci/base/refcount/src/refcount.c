@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,8 +13,9 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_refcount.h"
-#include "memory_access/memory_access.h"
 #include "sh_css_defs.h"
 
 #include "platform_support.h"
@@ -23,10 +25,10 @@
 #include "ia_css_debug.h"
 
 /* TODO: enable for other memory aswell
-	 now only for hrt_vaddress */
+	 now only for ia_css_ptr */
 struct ia_css_refcount_entry {
 	u32 count;
-	hrt_vaddress data;
+	ia_css_ptr data;
 	s32 id;
 };
 
@@ -37,7 +39,7 @@ struct ia_css_refcount_list {
 
 static struct ia_css_refcount_list myrefcount;
 
-static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
+static struct ia_css_refcount_entry *refcount_find_entry(ia_css_ptr ptr,
 	bool firstfree)
 {
 	u32 i;
@@ -46,7 +48,7 @@ static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
 		return NULL;
 	if (!myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "refcount_find_entry(): Ref count not initiliazed!\n");
+				    "%s(): Ref count not initialized!\n", __func__);
 		return NULL;
 	}
 
@@ -65,25 +67,25 @@ static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
 	return NULL;
 }
 
-enum ia_css_err ia_css_refcount_init(uint32_t size)
+int ia_css_refcount_init(uint32_t size)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	if (size == 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_refcount_init(): Size of 0 for Ref count init!\n");
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+				    "%s(): Size of 0 for Ref count init!\n", __func__);
+		return -EINVAL;
 	}
 	if (myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_refcount_init(): Ref count is already initialized\n");
-		return IA_CSS_ERR_INTERNAL_ERROR;
+				    "%s(): Ref count is already initialized\n", __func__);
+		return -EINVAL;
 	}
 	myrefcount.items =
-	    sh_css_malloc(sizeof(struct ia_css_refcount_entry) * size);
+	    kvmalloc(sizeof(struct ia_css_refcount_entry) * size, GFP_KERNEL);
 	if (!myrefcount.items)
-		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	if (err == IA_CSS_SUCCESS) {
+		err = -ENOMEM;
+	if (!err) {
 		memset(myrefcount.items, 0,
 		       sizeof(struct ia_css_refcount_entry) * size);
 		myrefcount.size = size;
@@ -97,7 +99,7 @@ void ia_css_refcount_uninit(void)
 	u32 i;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_refcount_uninit() entry\n");
+			    "%s() entry\n", __func__);
 	for (i = 0; i < myrefcount.size; i++) {
 		/* driver verifier tool has issues with &arr[i]
 		   and prefers arr + i; as these are actually equivalent
@@ -114,14 +116,14 @@ void ia_css_refcount_uninit(void)
 			entry->id = 0;
 		}
 	}
-	sh_css_free(myrefcount.items);
+	kvfree(myrefcount.items);
 	myrefcount.items = NULL;
 	myrefcount.size = 0;
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_refcount_uninit() leave\n");
+			    "%s() leave\n", __func__);
 }
 
-hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
+ia_css_ptr ia_css_refcount_increment(s32 id, ia_css_ptr ptr)
 {
 	struct ia_css_refcount_entry *entry;
 
@@ -131,7 +133,7 @@ hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
 	entry = refcount_find_entry(ptr, false);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_refcount_increment(%x) 0x%x\n", id, ptr);
+			    "%s(%x) 0x%x\n", __func__, id, ptr);
 
 	if (!entry) {
 		entry = refcount_find_entry(ptr, true);
@@ -143,7 +145,7 @@ hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
 
 	if (entry->id != id) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "ia_css_refcount_increment(): Ref count IDS do not match!\n");
+				    "%s(): Ref count IDS do not match!\n", __func__);
 		return mmgr_NULL;
 	}
 
@@ -158,12 +160,12 @@ hrt_vaddress ia_css_refcount_increment(s32 id, hrt_vaddress ptr)
 	return ptr;
 }
 
-bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
+bool ia_css_refcount_decrement(s32 id, ia_css_ptr ptr)
 {
 	struct ia_css_refcount_entry *entry;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_refcount_decrement(%x) 0x%x\n", id, ptr);
+			    "%s(%x) 0x%x\n", __func__, id, ptr);
 
 	if (ptr == mmgr_NULL)
 		return false;
@@ -173,7 +175,7 @@ bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
 	if (entry) {
 		if (entry->id != id) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-					    "ia_css_refcount_decrement(): Ref count IDS do not match!\n");
+					    "%s(): Ref count IDS do not match!\n", __func__);
 			return false;
 		}
 		if (entry->count > 0) {
@@ -201,7 +203,7 @@ bool ia_css_refcount_decrement(s32 id, hrt_vaddress ptr)
 	return false;
 }
 
-bool ia_css_refcount_is_single(hrt_vaddress ptr)
+bool ia_css_refcount_is_single(ia_css_ptr ptr)
 {
 	struct ia_css_refcount_entry *entry;
 
@@ -223,8 +225,8 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 	u32 count = 0;
 
 	assert(clear_func_ptr);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_refcount_clear(%x)\n",
-			    id);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s(%x)\n",
+			    __func__, id);
 
 	for (i = 0; i < myrefcount.size; i++) {
 		/* driver verifier tool has issues with &arr[i]
@@ -234,14 +236,14 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 		entry = myrefcount.items + i;
 		if ((entry->data != mmgr_NULL) && (entry->id == id)) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_refcount_clear: %x: 0x%x\n",
+					    "%s: %x: 0x%x\n", __func__,
 					    id, entry->data);
 			if (clear_func_ptr) {
 				/* clear using provided function */
 				clear_func_ptr(entry->data);
 			} else {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-						    "ia_css_refcount_clear: using hmm_free: no clear_func\n");
+						    "%s: using hmm_free: no clear_func\n", __func__);
 				hmm_free(entry->data);
 			}
 
@@ -258,11 +260,11 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 		}
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_refcount_clear(%x): cleared %d\n", id,
+			    "%s(%x): cleared %d\n", __func__, id,
 			    count);
 }
 
-bool ia_css_refcount_is_valid(hrt_vaddress ptr)
+bool ia_css_refcount_is_valid(ia_css_ptr ptr)
 {
 	struct ia_css_refcount_entry *entry;
 

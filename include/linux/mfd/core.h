@@ -74,7 +74,7 @@ struct mfd_cell {
 
 	/*
 	 * Device Tree compatible string
-	 * See: Documentation/devicetree/usage-model.txt Chapter 2.2 for details
+	 * See: Documentation/devicetree/usage-model.rst Chapter 2.2 for details
 	 */
 	const char		*of_compatible;
 

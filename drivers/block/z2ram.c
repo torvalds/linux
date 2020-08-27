@@ -35,10 +35,10 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/pgtable.h>
 
 #include <asm/setup.h>
 #include <asm/amigahw.h>
-#include <asm/pgtable.h>
 
 #include <linux/zorro.h>
 

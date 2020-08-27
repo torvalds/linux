@@ -527,8 +527,8 @@ static void program_hpx_type3_register(struct pci_dev *dev,
 			return;
 
 		break;
-	case HPX_CFG_VEND_CAP:	/* Fall through */
-	case HPX_CFG_DVSEC:	/* Fall through */
+	case HPX_CFG_VEND_CAP:
+	case HPX_CFG_DVSEC:
 	default:
 		pci_warn(dev, "Encountered _HPX type 3 with unsupported config space location");
 		return;
@@ -948,7 +948,7 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 	 * Look for a special _DSD property for the root port and if it
 	 * is set we know the hierarchy behind it supports D3 just fine.
 	 */
-	root = pci_find_pcie_root_port(dev);
+	root = pcie_find_root_port(dev);
 	if (!root)
 		return false;
 
@@ -1001,7 +1001,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
@@ -1128,7 +1128,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 		return;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(bus->bridge), &pci_acpi_dsm_guid, 3,
-				RESET_DELAY_DSM, NULL);
+				DSM_PCI_POWER_ON_RESET_DELAY, NULL);
 	if (!obj)
 		return;
 
@@ -1193,7 +1193,7 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 		pdev->d3cold_delay = 0;
 
 	obj = acpi_evaluate_dsm(handle, &pci_acpi_dsm_guid, 3,
-				FUNCTION_DELAY_DSM, NULL);
+				DSM_PCI_DEVICE_READINESS_DURATIONS, NULL);
 	if (!obj)
 		return;
 

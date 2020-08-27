@@ -123,9 +123,8 @@ properties:
       0: Disable active discharge.
       1: Enable active discharge.
       Absence of this property will leave configuration to default.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 0, 1 ]
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [0, 1]
 
   regulator-coupled-with:
     description: Regulators with which the regulator is coupled. The linkage

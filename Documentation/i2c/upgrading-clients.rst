@@ -8,7 +8,7 @@ Introduction
 ------------
 
 This guide outlines how to alter existing Linux 2.6 client drivers from
-the old to the new new binding methods.
+the old to the new binding methods.
 
 
 Example old-style driver

@@ -131,26 +131,23 @@ properties:
       property, describing the physical location of the children nodes.
       0 means motherboard site, while 1 and 2 are daughterboard sites, and
       0xf means "sisterboard" which is the site containing the main CPU tile.
-    allOf:
-      - $ref: '/schemas/types.yaml#/definitions/uint32'
-      - minimum: 0
-        maximum: 15
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    minimum: 0
+    maximum: 15
 
   arm,vexpress,position:
     description: When daughterboards are stacked on one site, their position
       in the stack be be described this attribute.
-    allOf:
-      - $ref: '/schemas/types.yaml#/definitions/uint32'
-      - minimum: 0
-        maximum: 3
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    minimum: 0
+    maximum: 3
 
   arm,vexpress,dcc:
     description: When describing tiles consisting of more than one DCC, its
       number can be specified with this attribute.
-    allOf:
-      - $ref: '/schemas/types.yaml#/definitions/uint32'
-      - minimum: 0
-        maximum: 3
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    minimum: 0
+    maximum: 3
 
 patternProperties:
   "^bus@[0-9a-f]+$":
@@ -162,8 +159,7 @@ patternProperties:
       "simple-bus". If the compatible is placed in the "motherboard" node,
       it is stricter and always has two compatibles.
     type: object
-    allOf:
-      - $ref: '/schemas/simple-bus.yaml'
+    $ref: '/schemas/simple-bus.yaml'
 
     properties:
       compatible:
@@ -195,11 +191,11 @@ patternProperties:
               - const: simple-bus
           arm,v2m-memory-map:
             description: This describes the memory map type.
-            allOf:
-              - $ref: '/schemas/types.yaml#/definitions/string'
-              - enum:
-                - rs1
-                - rs2
+            $ref: '/schemas/types.yaml#/definitions/string'
+            enum:
+              - rs1
+              - rs2
+
         required:
           - compatible
     required:

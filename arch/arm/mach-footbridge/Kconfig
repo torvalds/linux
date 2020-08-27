@@ -22,7 +22,7 @@ config ARCH_PERSONAL_SERVER
 	select ISA
 	select ISA_DMA
 	select FORCE_PCI
-	---help---
+	help
 	  Say Y here if you intend to run this kernel on the Compaq
 	  Personal Server.
 

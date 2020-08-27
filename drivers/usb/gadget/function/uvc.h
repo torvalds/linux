@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *	uvc_gadget.h  --  USB Video Class Gadget driver
  *
@@ -76,6 +76,8 @@ extern unsigned int uvc_gadget_trace_param;
 struct uvc_video {
 	struct uvc_device *uvc;
 	struct usb_ep *ep;
+
+	struct work_struct pump;
 
 	/* Frame parameters */
 	u8 bpp;

@@ -358,8 +358,7 @@ static int __init b15_rac_init(void)
 	set_bit(RAC_ENABLED, &b15_rac_flags);
 	spin_unlock(&rac_lock);
 
-	pr_info("Broadcom Brahma-B15 readahead cache at: 0x%p\n",
-		b15_rac_base + RAC_CONFIG0_REG);
+	pr_info("%pOF: Broadcom Brahma-B15 readahead cache\n", dn);
 
 	goto out;
 

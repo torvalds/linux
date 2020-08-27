@@ -34,11 +34,10 @@ patternProperties:
         #- $ref: "common.yaml#"
       rohm,led-compatible:
         description: LED identification string
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/string"
-          - enum:
-            - bd71828-ambled
-            - bd71828-grnled
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum:
+          - bd71828-ambled
+          - bd71828-grnled
       function:
         description:
           Purpose of LED as defined in dt-bindings/leds/common.h

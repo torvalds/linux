@@ -37,22 +37,21 @@ patternProperties:
           be found in <arch/arm64/boot/dts/freescale/imx8mq-pinfunc.h>. The last
           integer CONFIG is the pad setting value like pull-up on this pin. Please
           refer to i.MX8M Quad Reference Manual for detailed CONFIG settings.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-matrix
-          - items:
-              items:
-                - description: |
-                    "mux_reg" indicates the offset of mux register.
-                - description: |
-                    "conf_reg" indicates the offset of pad configuration register.
-                - description: |
-                    "input_reg" indicates the offset of select input register.
-                - description: |
-                    "mux_val" indicates the mux value to be applied.
-                - description: |
-                    "input_val" indicates the select input value to be applied.
-                - description: |
-                    "pad_setting" indicates the pad configuration value to be applied.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            - description: |
+                "mux_reg" indicates the offset of mux register.
+            - description: |
+                "conf_reg" indicates the offset of pad configuration register.
+            - description: |
+                "input_reg" indicates the offset of select input register.
+            - description: |
+                "mux_val" indicates the mux value to be applied.
+            - description: |
+                "input_val" indicates the select input value to be applied.
+            - description: |
+                "pad_setting" indicates the pad configuration value to be applied.
 
     required:
       - fsl,pins

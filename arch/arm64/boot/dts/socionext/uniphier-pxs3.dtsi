@@ -193,6 +193,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 39 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;
@@ -204,6 +206,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006100 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
@@ -496,6 +500,14 @@
 					bits = <0 4>;
 				};
 			};
+		};
+
+		xdmac: dma-controller@5fc10000 {
+			compatible = "socionext,uniphier-xdmac";
+			reg = <0x5fc10000 0x5300>;
+			interrupts = <0 188 4>;
+			dma-channels = <16>;
+			#dma-cells = <2>;
 		};
 
 		aidet: interrupt-controller@5fc20000 {
@@ -821,7 +833,9 @@
 			compatible = "socionext,uniphier-pxs3-pcie-phy";
 			reg = <0x66038000 0x4000>;
 			#phy-cells = <0>;
+			clock-names = "link";
 			clocks = <&sys_clk 24>;
+			reset-names = "link";
 			resets = <&sys_rst 24>;
 			socionext,syscon = <&soc_glue>;
 		};

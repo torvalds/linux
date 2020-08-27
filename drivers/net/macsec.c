@@ -3999,6 +3999,8 @@ static int macsec_add_dev(struct net_device *dev, sci_t sci, u8 icv_len)
 	return 0;
 }
 
+static struct lock_class_key macsec_netdev_addr_lock_key;
+
 static int macsec_newlink(struct net *net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[],
 			  struct netlink_ext_ack *extack)
@@ -4050,6 +4052,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 		return err;
 
 	netdev_lockdep_set_classes(dev);
+	lockdep_set_class(&dev->addr_list_lock,
+			  &macsec_netdev_addr_lock_key);
 
 	err = netdev_upper_dev_link(real_dev, dev, extack);
 	if (err < 0)

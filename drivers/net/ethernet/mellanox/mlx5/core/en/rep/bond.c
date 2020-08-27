@@ -183,12 +183,15 @@ void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
 
 static bool mlx5e_rep_is_lag_netdev(struct net_device *netdev)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *priv;
 
 	/* A given netdev is not a representor or not a slave of LAG configuration */
 	if (!mlx5e_eswitch_rep(netdev) || !bond_slave_get_rtnl(netdev))
 		return false;
+
+	priv = netdev_priv(netdev);
+	rpriv = priv->ppriv;
 
 	/* Egress acl forward to vport is supported only non-uplink representor */
 	return rpriv->rep->vport != MLX5_VPORT_UPLINK;

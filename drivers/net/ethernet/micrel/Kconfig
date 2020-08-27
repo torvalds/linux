@@ -7,7 +7,7 @@ config NET_VENDOR_MICREL
 	bool "Micrel devices"
 	default y
 	depends on (HAS_IOMEM && DMA_ENGINE) || SPI || PCI || HAS_IOMEM
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ if NET_VENDOR_MICREL
 config KS8842
 	tristate "Micrel KSZ8841/42 with generic bus interface"
 	depends on HAS_IOMEM && DMA_ENGINE
-	---help---
+	help
 	  This platform driver is for KSZ8841(1-port) / KS8842(2-port)
 	  ethernet switch chip (managed, VLAN, QoS) from Micrel or
 	  Timberdale(FPGA).
@@ -31,7 +31,7 @@ config KS8851
 	select MII
 	select CRC32
 	select EEPROM_93CX6
-	---help---
+	help
 	  SPI driver for Micrel KS8851 SPI attached network chip.
 
 config KS8851_MLL
@@ -40,7 +40,7 @@ config KS8851_MLL
 	select MII
 	select CRC32
 	select EEPROM_93CX6
-	---help---
+	help
 	  This platform driver is for Micrel KS8851 Address/data bus
 	  multiplexed network chip.
 
@@ -49,7 +49,7 @@ config KSZ884X_PCI
 	depends on PCI
 	select MII
 	select CRC32
-	---help---
+	help
 	  This PCI driver is for Micrel KSZ8841/KSZ8842 PCI Ethernet chip.
 
 	  To compile this driver as a module, choose M here. The module

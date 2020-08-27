@@ -40,7 +40,6 @@
 #include <asm/maar.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
@@ -84,7 +83,7 @@ void setup_zero_pages(void)
 static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 {
 	enum fixed_addresses idx;
-	unsigned int uninitialized_var(old_mmid);
+	unsigned int old_mmid;
 	unsigned long vaddr, flags, entrylo;
 	unsigned long old_ctx;
 	pte_t pte;

@@ -14,11 +14,13 @@ struct bpf_iter_target_info {
 
 struct bpf_iter_link {
 	struct bpf_link link;
+	struct bpf_iter_aux_info aux;
 	struct bpf_iter_target_info *tinfo;
 };
 
 struct bpf_iter_priv_data {
 	struct bpf_iter_target_info *tinfo;
+	const struct bpf_iter_seq_info *seq_info;
 	struct bpf_prog *prog;
 	u64 session_id;
 	u64 seq_num;
@@ -35,7 +37,8 @@ static DEFINE_MUTEX(link_mutex);
 /* incremented on every opened seq_file */
 static atomic64_t session_id;
 
-static int prepare_seq_file(struct file *file, struct bpf_iter_link *link);
+static int prepare_seq_file(struct file *file, struct bpf_iter_link *link,
+			    const struct bpf_iter_seq_info *seq_info);
 
 static void bpf_iter_inc_seq_num(struct seq_file *seq)
 {
@@ -199,11 +202,25 @@ done:
 	return copied;
 }
 
+static const struct bpf_iter_seq_info *
+__get_seq_info(struct bpf_iter_link *link)
+{
+	const struct bpf_iter_seq_info *seq_info;
+
+	if (link->aux.map) {
+		seq_info = link->aux.map->ops->iter_seq_info;
+		if (seq_info)
+			return seq_info;
+	}
+
+	return link->tinfo->reg_info->seq_info;
+}
+
 static int iter_open(struct inode *inode, struct file *file)
 {
 	struct bpf_iter_link *link = inode->i_private;
 
-	return prepare_seq_file(file, link);
+	return prepare_seq_file(file, link, __get_seq_info(link));
 }
 
 static int iter_release(struct inode *inode, struct file *file)
@@ -218,8 +235,8 @@ static int iter_release(struct inode *inode, struct file *file)
 	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
 				 target_private);
 
-	if (iter_priv->tinfo->reg_info->fini_seq_private)
-		iter_priv->tinfo->reg_info->fini_seq_private(seq->private);
+	if (iter_priv->seq_info->fini_seq_private)
+		iter_priv->seq_info->fini_seq_private(seq->private);
 
 	bpf_prog_put(iter_priv->prog);
 	seq->private = iter_priv;
@@ -318,6 +335,11 @@ bool bpf_iter_prog_supported(struct bpf_prog *prog)
 
 static void bpf_iter_link_release(struct bpf_link *link)
 {
+	struct bpf_iter_link *iter_link =
+		container_of(link, struct bpf_iter_link, link);
+
+	if (iter_link->aux.map)
+		bpf_map_put_with_uref(iter_link->aux.map);
 }
 
 static void bpf_iter_link_dealloc(struct bpf_link *link)
@@ -370,13 +392,12 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_iter_target_info *tinfo;
+	struct bpf_iter_aux_info aux = {};
 	struct bpf_iter_link *link;
+	u32 prog_btf_id, target_fd;
 	bool existed = false;
-	u32 prog_btf_id;
+	struct bpf_map *map;
 	int err;
-
-	if (attr->link_create.target_fd || attr->link_create.flags)
-		return -EINVAL;
 
 	prog_btf_id = prog->aux->attach_btf_id;
 	mutex_lock(&targets_mutex);
@@ -389,6 +410,13 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	mutex_unlock(&targets_mutex);
 	if (!existed)
 		return -ENOENT;
+
+	/* Make sure user supplied flags are target expected. */
+	target_fd = attr->link_create.target_fd;
+	if (attr->link_create.flags != tinfo->reg_info->req_linfo)
+		return -EINVAL;
+	if (!attr->link_create.flags && target_fd)
+		return -EINVAL;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
 	if (!link)
@@ -403,21 +431,45 @@ int bpf_iter_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		return err;
 	}
 
+	if (tinfo->reg_info->req_linfo == BPF_ITER_LINK_MAP_FD) {
+		map = bpf_map_get_with_uref(target_fd);
+		if (IS_ERR(map)) {
+			err = PTR_ERR(map);
+			goto cleanup_link;
+		}
+
+		aux.map = map;
+		err = tinfo->reg_info->check_target(prog, &aux);
+		if (err) {
+			bpf_map_put_with_uref(map);
+			goto cleanup_link;
+		}
+
+		link->aux.map = map;
+	}
+
 	return bpf_link_settle(&link_primer);
+
+cleanup_link:
+	bpf_link_cleanup(&link_primer);
+	return err;
 }
 
 static void init_seq_meta(struct bpf_iter_priv_data *priv_data,
 			  struct bpf_iter_target_info *tinfo,
+			  const struct bpf_iter_seq_info *seq_info,
 			  struct bpf_prog *prog)
 {
 	priv_data->tinfo = tinfo;
+	priv_data->seq_info = seq_info;
 	priv_data->prog = prog;
 	priv_data->session_id = atomic64_inc_return(&session_id);
 	priv_data->seq_num = 0;
 	priv_data->done_stop = false;
 }
 
-static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
+static int prepare_seq_file(struct file *file, struct bpf_iter_link *link,
+			    const struct bpf_iter_seq_info *seq_info)
 {
 	struct bpf_iter_priv_data *priv_data;
 	struct bpf_iter_target_info *tinfo;
@@ -433,21 +485,21 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link)
 
 	tinfo = link->tinfo;
 	total_priv_dsize = offsetof(struct bpf_iter_priv_data, target_private) +
-			   tinfo->reg_info->seq_priv_size;
-	priv_data = __seq_open_private(file, tinfo->reg_info->seq_ops,
+			   seq_info->seq_priv_size;
+	priv_data = __seq_open_private(file, seq_info->seq_ops,
 				       total_priv_dsize);
 	if (!priv_data) {
 		err = -ENOMEM;
 		goto release_prog;
 	}
 
-	if (tinfo->reg_info->init_seq_private) {
-		err = tinfo->reg_info->init_seq_private(priv_data->target_private);
+	if (seq_info->init_seq_private) {
+		err = seq_info->init_seq_private(priv_data->target_private, &link->aux);
 		if (err)
 			goto release_seq_file;
 	}
 
-	init_seq_meta(priv_data, tinfo, prog);
+	init_seq_meta(priv_data, tinfo, seq_info, prog);
 	seq = file->private_data;
 	seq->private = priv_data->target_private;
 
@@ -463,6 +515,7 @@ release_prog:
 
 int bpf_iter_new_fd(struct bpf_link *link)
 {
+	struct bpf_iter_link *iter_link;
 	struct file *file;
 	unsigned int flags;
 	int err, fd;
@@ -481,8 +534,8 @@ int bpf_iter_new_fd(struct bpf_link *link)
 		goto free_fd;
 	}
 
-	err = prepare_seq_file(file,
-			       container_of(link, struct bpf_iter_link, link));
+	iter_link = container_of(link, struct bpf_iter_link, link);
+	err = prepare_seq_file(file, iter_link, __get_seq_info(iter_link));
 	if (err)
 		goto free_file;
 

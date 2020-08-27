@@ -118,14 +118,14 @@ static int fake_resource_init(struct kunit_resource *res, void *context)
 {
 	struct kunit_test_resource_context *ctx = context;
 
-	res->allocation = &ctx->is_resource_initialized;
+	res->data = &ctx->is_resource_initialized;
 	ctx->is_resource_initialized = true;
 	return 0;
 }
 
 static void fake_resource_free(struct kunit_resource *res)
 {
-	bool *is_resource_initialized = res->allocation;
+	bool *is_resource_initialized = res->data;
 
 	*is_resource_initialized = false;
 }
@@ -154,11 +154,21 @@ static void kunit_resource_test_alloc_resource(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res);
 	KUNIT_EXPECT_PTR_EQ(test,
 			    &ctx->is_resource_initialized,
-			    (bool *) res->allocation);
+			    (bool *)res->data);
 	KUNIT_EXPECT_TRUE(test, list_is_last(&res->node, &ctx->test.resources));
 	KUNIT_EXPECT_PTR_EQ(test, free, res->free);
+
+	kunit_put_resource(res);
 }
 
+/*
+ * Note: tests below use kunit_alloc_and_get_resource(), so as a consequence
+ * they have a reference to the associated resource that they must release
+ * via kunit_put_resource().  In normal operation, users will only
+ * have to do this for cases where they use kunit_find_resource(), and the
+ * kunit_alloc_resource() function will be used (which does not take a
+ * resource reference).
+ */
 static void kunit_resource_test_destroy_resource(struct kunit *test)
 {
 	struct kunit_test_resource_context *ctx = test->priv;
@@ -169,11 +179,12 @@ static void kunit_resource_test_destroy_resource(struct kunit *test)
 			GFP_KERNEL,
 			ctx);
 
+	kunit_put_resource(res);
+
 	KUNIT_ASSERT_FALSE(test,
-			   kunit_resource_destroy(&ctx->test,
+			   kunit_destroy_resource(&ctx->test,
 						  kunit_resource_instance_match,
-						  res->free,
-						  res->allocation));
+						  res->data));
 
 	KUNIT_EXPECT_FALSE(test, ctx->is_resource_initialized);
 	KUNIT_EXPECT_TRUE(test, list_empty(&ctx->test.resources));
@@ -191,6 +202,7 @@ static void kunit_resource_test_cleanup_resources(struct kunit *test)
 							    fake_resource_free,
 							    GFP_KERNEL,
 							    ctx);
+		kunit_put_resource(resources[i]);
 	}
 
 	kunit_cleanup(&ctx->test);
@@ -221,14 +233,14 @@ static int fake_resource_2_init(struct kunit_resource *res, void *context)
 
 	KUNIT_RESOURCE_TEST_MARK_ORDER(ctx, allocate_order, 2);
 
-	res->allocation = ctx;
+	res->data = ctx;
 
 	return 0;
 }
 
 static void fake_resource_2_free(struct kunit_resource *res)
 {
-	struct kunit_test_resource_context *ctx = res->allocation;
+	struct kunit_test_resource_context *ctx = res->data;
 
 	KUNIT_RESOURCE_TEST_MARK_ORDER(ctx, free_order, 2);
 }
@@ -236,23 +248,26 @@ static void fake_resource_2_free(struct kunit_resource *res)
 static int fake_resource_1_init(struct kunit_resource *res, void *context)
 {
 	struct kunit_test_resource_context *ctx = context;
+	struct kunit_resource *res2;
 
-	kunit_alloc_and_get_resource(&ctx->test,
-				     fake_resource_2_init,
-				     fake_resource_2_free,
-				     GFP_KERNEL,
-				     ctx);
+	res2 = kunit_alloc_and_get_resource(&ctx->test,
+					    fake_resource_2_init,
+					    fake_resource_2_free,
+					    GFP_KERNEL,
+					    ctx);
 
 	KUNIT_RESOURCE_TEST_MARK_ORDER(ctx, allocate_order, 1);
 
-	res->allocation = ctx;
+	res->data = ctx;
+
+	kunit_put_resource(res2);
 
 	return 0;
 }
 
 static void fake_resource_1_free(struct kunit_resource *res)
 {
-	struct kunit_test_resource_context *ctx = res->allocation;
+	struct kunit_test_resource_context *ctx = res->data;
 
 	KUNIT_RESOURCE_TEST_MARK_ORDER(ctx, free_order, 1);
 }
@@ -265,13 +280,14 @@ static void fake_resource_1_free(struct kunit_resource *res)
 static void kunit_resource_test_proper_free_ordering(struct kunit *test)
 {
 	struct kunit_test_resource_context *ctx = test->priv;
+	struct kunit_resource *res;
 
 	/* fake_resource_1 allocates a fake_resource_2 in its init. */
-	kunit_alloc_and_get_resource(&ctx->test,
-				     fake_resource_1_init,
-				     fake_resource_1_free,
-				     GFP_KERNEL,
-				     ctx);
+	res = kunit_alloc_and_get_resource(&ctx->test,
+					   fake_resource_1_init,
+					   fake_resource_1_free,
+					   GFP_KERNEL,
+					   ctx);
 
 	/*
 	 * Since fake_resource_2_init calls KUNIT_RESOURCE_TEST_MARK_ORDER
@@ -280,6 +296,8 @@ static void kunit_resource_test_proper_free_ordering(struct kunit *test)
 	 */
 	KUNIT_EXPECT_EQ(test, ctx->allocate_order[0], 2);
 	KUNIT_EXPECT_EQ(test, ctx->allocate_order[1], 1);
+
+	kunit_put_resource(res);
 
 	kunit_cleanup(&ctx->test);
 
@@ -290,6 +308,57 @@ static void kunit_resource_test_proper_free_ordering(struct kunit *test)
 	 */
 	KUNIT_EXPECT_EQ(test, ctx->free_order[0], 1);
 	KUNIT_EXPECT_EQ(test, ctx->free_order[1], 2);
+}
+
+static void kunit_resource_test_static(struct kunit *test)
+{
+	struct kunit_test_resource_context ctx;
+	struct kunit_resource res;
+
+	KUNIT_EXPECT_EQ(test, kunit_add_resource(test, NULL, NULL, &res, &ctx),
+			0);
+
+	KUNIT_EXPECT_PTR_EQ(test, res.data, (void *)&ctx);
+
+	kunit_cleanup(test);
+
+	KUNIT_EXPECT_TRUE(test, list_empty(&test->resources));
+}
+
+static void kunit_resource_test_named(struct kunit *test)
+{
+	struct kunit_resource res1, res2, *found = NULL;
+	struct kunit_test_resource_context ctx;
+
+	KUNIT_EXPECT_EQ(test,
+			kunit_add_named_resource(test, NULL, NULL, &res1,
+						 "resource_1", &ctx),
+			0);
+	KUNIT_EXPECT_PTR_EQ(test, res1.data, (void *)&ctx);
+
+	KUNIT_EXPECT_EQ(test,
+			kunit_add_named_resource(test, NULL, NULL, &res1,
+						 "resource_1", &ctx),
+			-EEXIST);
+
+	KUNIT_EXPECT_EQ(test,
+			kunit_add_named_resource(test, NULL, NULL, &res2,
+						 "resource_2", &ctx),
+			0);
+
+	found = kunit_find_named_resource(test, "resource_1");
+
+	KUNIT_EXPECT_PTR_EQ(test, found, &res1);
+
+	if (found)
+		kunit_put_resource(&res1);
+
+	KUNIT_EXPECT_EQ(test, kunit_destroy_named_resource(test, "resource_2"),
+			0);
+
+	kunit_cleanup(test);
+
+	KUNIT_EXPECT_TRUE(test, list_empty(&test->resources));
 }
 
 static int kunit_resource_test_init(struct kunit *test)
@@ -320,6 +389,8 @@ static struct kunit_case kunit_resource_test_cases[] = {
 	KUNIT_CASE(kunit_resource_test_destroy_resource),
 	KUNIT_CASE(kunit_resource_test_cleanup_resources),
 	KUNIT_CASE(kunit_resource_test_proper_free_ordering),
+	KUNIT_CASE(kunit_resource_test_static),
+	KUNIT_CASE(kunit_resource_test_named),
 	{}
 };
 

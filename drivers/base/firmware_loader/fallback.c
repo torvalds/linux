@@ -9,6 +9,7 @@
 #include <linux/umh.h>
 #include <linux/sysctl.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "fallback.h"
 #include "firmware.h"
@@ -16,6 +17,8 @@
 /*
  * firmware fallback mechanism
  */
+
+MODULE_IMPORT_NS(FIRMWARE_LOADER_PRIVATE);
 
 extern struct firmware_fallback_config fw_fallback_config;
 
@@ -460,7 +463,7 @@ static const struct attribute_group *fw_dev_attr_groups[] = {
 
 static struct fw_sysfs *
 fw_create_instance(struct firmware *firmware, const char *fw_name,
-		   struct device *device, enum fw_opt opt_flags)
+		   struct device *device, u32 opt_flags)
 {
 	struct fw_sysfs *fw_sysfs;
 	struct device *f_dev;
@@ -493,7 +496,7 @@ exit:
  * In charge of constructing a sysfs fallback interface for firmware loading.
  **/
 static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs,
-				  enum fw_opt opt_flags, long timeout)
+				  u32 opt_flags, long timeout)
 {
 	int retval = 0;
 	struct device *f_dev = &fw_sysfs->dev;
@@ -547,7 +550,7 @@ err_put_dev:
 
 static int fw_load_from_user_helper(struct firmware *firmware,
 				    const char *name, struct device *device,
-				    enum fw_opt opt_flags)
+				    u32 opt_flags)
 {
 	struct fw_sysfs *fw_sysfs;
 	long timeout;
@@ -588,7 +591,7 @@ out_unlock:
 	return ret;
 }
 
-static bool fw_force_sysfs_fallback(enum fw_opt opt_flags)
+static bool fw_force_sysfs_fallback(u32 opt_flags)
 {
 	if (fw_fallback_config.force_sysfs_fallback)
 		return true;
@@ -597,7 +600,7 @@ static bool fw_force_sysfs_fallback(enum fw_opt opt_flags)
 	return true;
 }
 
-static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
+static bool fw_run_sysfs_fallback(u32 opt_flags)
 {
 	int ret;
 
@@ -640,7 +643,7 @@ static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
  **/
 int firmware_fallback_sysfs(struct firmware *fw, const char *name,
 			    struct device *device,
-			    enum fw_opt opt_flags,
+			    u32 opt_flags,
 			    int ret)
 {
 	if (!fw_run_sysfs_fallback(opt_flags))

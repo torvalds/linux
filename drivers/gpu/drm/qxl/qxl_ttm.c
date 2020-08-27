@@ -51,28 +51,18 @@ static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man)
 {
-	struct qxl_device *qdev = qxl_get_qdev(bdev);
-	unsigned int gpu_offset_shift =
-		64 - (qdev->rom->slot_gen_bits + qdev->rom->slot_id_bits + 8);
-	struct qxl_memslot *slot;
-
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
-		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
 	case TTM_PL_PRIV:
 		/* "On-card" video ram */
-		slot = (type == TTM_PL_VRAM) ?
-			&qdev->main_slot : &qdev->surfaces_slot;
-		slot->gpu_offset = (uint64_t)type << gpu_offset_shift;
 		man->func = &ttm_bo_manager_func;
-		man->gpu_offset = slot->gpu_offset;
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->flags = TTM_MEMTYPE_FLAG_FIXED;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
@@ -108,7 +98,6 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 			   struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
 
 	mem->bus.addr = NULL;
@@ -116,8 +105,7 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 	mem->bus.base = 0;
 	mem->bus.is_iomem = false;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
+
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* system memory */
@@ -136,11 +124,6 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static void qxl_ttm_io_mem_free(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem)
-{
 }
 
 /*
@@ -166,10 +149,9 @@ static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
 	return -1;
 }
 
-static int qxl_ttm_backend_unbind(struct ttm_tt *ttm)
+static void qxl_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	/* Not implemented */
-	return -1;
 }
 
 static void qxl_ttm_backend_destroy(struct ttm_tt *ttm)
@@ -256,7 +238,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
 };
 

@@ -39,13 +39,14 @@
 #define HNS_ROCE_VLAN_SL_BIT_MASK	7
 #define HNS_ROCE_VLAN_SL_SHIFT		13
 
-int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-		       u32 flags, struct ib_udata *udata)
+int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		       struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibah->device);
 	const struct ib_gid_attr *gid_attr;
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	u16 vlan_id = 0xffff;
 	bool vlan_en = false;

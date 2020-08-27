@@ -1231,9 +1231,7 @@ static void lpuart_dma_rx_free(struct uart_port *port)
 					struct lpuart_port, port);
 	struct dma_chan *chan = sport->dma_rx_chan;
 
-	if (chan)
-		dmaengine_terminate_all(chan);
-
+	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, &sport->rx_sgl, 1, DMA_FROM_DEVICE);
 	kfree(sport->rx_ring.buf);
 	sport->rx_ring.tail = 0;
@@ -1514,17 +1512,17 @@ static void lpuart_request_dma(struct lpuart_port *sport)
 {
 	sport->dma_tx_chan = dma_request_chan(sport->port.dev, "tx");
 	if (IS_ERR(sport->dma_tx_chan)) {
-		dev_info_once(sport->port.dev,
-			      "DMA tx channel request failed, operating without tx DMA (%ld)\n",
-			      PTR_ERR(sport->dma_tx_chan));
+		dev_dbg_once(sport->port.dev,
+			     "DMA tx channel request failed, operating without tx DMA (%ld)\n",
+			     PTR_ERR(sport->dma_tx_chan));
 		sport->dma_tx_chan = NULL;
 	}
 
 	sport->dma_rx_chan = dma_request_chan(sport->port.dev, "rx");
 	if (IS_ERR(sport->dma_rx_chan)) {
-		dev_info_once(sport->port.dev,
-			      "DMA rx channel request failed, operating without rx DMA (%ld)\n",
-			      PTR_ERR(sport->dma_rx_chan));
+		dev_dbg_once(sport->port.dev,
+			     "DMA rx channel request failed, operating without rx DMA (%ld)\n",
+			     PTR_ERR(sport->dma_rx_chan));
 		sport->dma_rx_chan = NULL;
 	}
 }
@@ -2621,7 +2619,9 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_attach_port;
 
-	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
+	ret = uart_get_rs485_mode(&sport->port);
+	if (ret)
+		goto failed_get_rs485;
 
 	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX)
 		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");
@@ -2634,6 +2634,7 @@ static int lpuart_probe(struct platform_device *pdev)
 
 	return 0;
 
+failed_get_rs485:
 failed_attach_port:
 failed_irq_request:
 	lpuart_disable_clks(sport);
@@ -2664,8 +2665,7 @@ static int lpuart_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int lpuart_suspend(struct device *dev)
+static int __maybe_unused lpuart_suspend(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned long temp;
@@ -2723,7 +2723,7 @@ static int lpuart_suspend(struct device *dev)
 	return 0;
 }
 
-static int lpuart_resume(struct device *dev)
+static int __maybe_unused lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	bool irq_wake = irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq));
@@ -2754,7 +2754,6 @@ static int lpuart_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(lpuart_pm_ops, lpuart_suspend, lpuart_resume);
 

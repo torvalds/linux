@@ -29,6 +29,7 @@ static struct usb_endpoint_descriptor cdns3_gadget_ep0_desc = {
  * @length: data length
  * @erdy: set it to 1 when ERDY packet should be sent -
  *        exit from flow control state
+ * @zlp: add zero length packet
  */
 static void cdns3_ep0_run_transfer(struct cdns3_device *priv_dev,
 				   dma_addr_t dma_addr,
@@ -37,18 +38,18 @@ static void cdns3_ep0_run_transfer(struct cdns3_device *priv_dev,
 	struct cdns3_usb_regs __iomem *regs = priv_dev->regs;
 	struct cdns3_endpoint *priv_ep = priv_dev->eps[0];
 
-	priv_ep->trb_pool[0].buffer = TRB_BUFFER(dma_addr);
-	priv_ep->trb_pool[0].length = TRB_LEN(length);
+	priv_ep->trb_pool[0].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
+	priv_ep->trb_pool[0].length = cpu_to_le32(TRB_LEN(length));
 
 	if (zlp) {
-		priv_ep->trb_pool[0].control = TRB_CYCLE | TRB_TYPE(TRB_NORMAL);
-		priv_ep->trb_pool[1].buffer = TRB_BUFFER(dma_addr);
-		priv_ep->trb_pool[1].length = TRB_LEN(0);
-		priv_ep->trb_pool[1].control = TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL);
+		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_TYPE(TRB_NORMAL));
+		priv_ep->trb_pool[1].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
+		priv_ep->trb_pool[1].length = cpu_to_le32(TRB_LEN(0));
+		priv_ep->trb_pool[1].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
+		    TRB_TYPE(TRB_NORMAL));
 	} else {
-		priv_ep->trb_pool[0].control = TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL);
+		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
+		    TRB_TYPE(TRB_NORMAL));
 		priv_ep->trb_pool[1].control = 0;
 	}
 
@@ -122,8 +123,6 @@ static void cdns3_ep0_complete_setup(struct cdns3_device *priv_dev,
 	priv_dev->ep0_stage = CDNS3_SETUP_STAGE;
 	writel((send_erdy ? EP_CMD_ERDY : 0) | EP_CMD_REQ_CMPL,
 	       &priv_dev->regs->ep_cmd);
-
-	cdns3_allow_enable_l1(priv_dev, 1);
 }
 
 /**
@@ -160,13 +159,12 @@ static int cdns3_req_ep0_set_configuration(struct cdns3_device *priv_dev,
 		if (result)
 			return result;
 
-		if (config) {
-			cdns3_set_hw_configuration(priv_dev);
-		} else {
+		if (!config) {
 			cdns3_hw_reset_eps_config(priv_dev);
 			usb_gadget_set_state(&priv_dev->gadget,
 					     USB_STATE_ADDRESS);
 		}
+
 		break;
 	case USB_STATE_CONFIGURED:
 		result = cdns3_ep0_delegate_req(priv_dev, ctrl_req);
@@ -227,7 +225,7 @@ static int cdns3_req_ep0_set_address(struct cdns3_device *priv_dev,
 /**
  * cdns3_req_ep0_get_status - Handling of GET_STATUS standard USB request
  * @priv_dev: extended gadget object
- * @ctrl_req: pointer to received setup packet
+ * @ctrl: pointer to received setup packet
  *
  * Returns 0 if success, error code on error
  */
@@ -264,11 +262,11 @@ static int cdns3_req_ep0_get_status(struct cdns3_device *priv_dev,
 	case USB_RECIP_INTERFACE:
 		return cdns3_ep0_delegate_req(priv_dev, ctrl);
 	case USB_RECIP_ENDPOINT:
-		index = cdns3_ep_addr_to_index(ctrl->wIndex);
+		index = cdns3_ep_addr_to_index(le16_to_cpu(ctrl->wIndex));
 		priv_ep = priv_dev->eps[index];
 
 		/* check if endpoint is stalled or stall is pending */
-		cdns3_select_ep(priv_dev, ctrl->wIndex);
+		cdns3_select_ep(priv_dev, le16_to_cpu(ctrl->wIndex));
 		if (EP_STS_STALL(readl(&priv_dev->regs->ep_sts)) ||
 		    (priv_ep->flags & EP_STALL_PENDING))
 			usb_status =  BIT(USB_ENDPOINT_HALT);
@@ -327,18 +325,12 @@ static int cdns3_ep0_feature_handle_device(struct cdns3_device *priv_dev,
 		if (!set || (tmode & 0xff) != 0)
 			return -EINVAL;
 
-		switch (tmode >> 8) {
-		case TEST_J:
-		case TEST_K:
-		case TEST_SE0_NAK:
-		case TEST_PACKET:
-			cdns3_ep0_complete_setup(priv_dev, 0, 1);
-			/**
-			 *  Little delay to give the controller some time
-			 * for sending status stage.
-			 * This time should be less then 3ms.
-			 */
-			mdelay(1);
+		tmode >>= 8;
+		switch (tmode) {
+		case USB_TEST_J:
+		case USB_TEST_K:
+		case USB_TEST_SE0_NAK:
+		case USB_TEST_PACKET:
 			cdns3_set_register_bit(&priv_dev->regs->usb_cmd,
 					       USB_CMD_STMODE |
 					       USB_STS_TMODE_SEL(tmode - 1));
@@ -387,10 +379,10 @@ static int cdns3_ep0_feature_handle_endpoint(struct cdns3_device *priv_dev,
 	if (!(ctrl->wIndex & ~USB_DIR_IN))
 		return 0;
 
-	index = cdns3_ep_addr_to_index(ctrl->wIndex);
+	index = cdns3_ep_addr_to_index(le16_to_cpu(ctrl->wIndex));
 	priv_ep = priv_dev->eps[index];
 
-	cdns3_select_ep(priv_dev, ctrl->wIndex);
+	cdns3_select_ep(priv_dev, le16_to_cpu(ctrl->wIndex));
 
 	if (set)
 		__cdns3_gadget_ep_set_halt(priv_ep);
@@ -407,7 +399,7 @@ static int cdns3_ep0_feature_handle_endpoint(struct cdns3_device *priv_dev,
  * Handling of GET/SET_FEATURE standard USB request
  *
  * @priv_dev: extended gadget object
- * @ctrl_req: pointer to received setup packet
+ * @ctrl: pointer to received setup packet
  * @set: must be set to 1 for SET_FEATURE request
  *
  * Returns 0 if success, error code on error
@@ -451,7 +443,7 @@ static int cdns3_req_ep0_set_sel(struct cdns3_device *priv_dev,
 	if (priv_dev->gadget.state < USB_STATE_ADDRESS)
 		return -EINVAL;
 
-	if (ctrl_req->wLength != 6) {
+	if (le16_to_cpu(ctrl_req->wLength) != 6) {
 		dev_err(priv_dev->dev, "Set SEL should be 6 bytes, got %d\n",
 			ctrl_req->wLength);
 		return -EINVAL;
@@ -475,7 +467,7 @@ static int cdns3_req_ep0_set_isoch_delay(struct cdns3_device *priv_dev,
 	if (ctrl_req->wIndex || ctrl_req->wLength)
 		return -EINVAL;
 
-	priv_dev->isoch_delay = ctrl_req->wValue;
+	priv_dev->isoch_delay = le16_to_cpu(ctrl_req->wValue);
 
 	return 0;
 }
@@ -616,7 +608,7 @@ static bool cdns3_check_new_setup(struct cdns3_device *priv_dev)
 {
 	u32 ep_sts_reg;
 
-	cdns3_select_ep(priv_dev, 0 | USB_DIR_OUT);
+	cdns3_select_ep(priv_dev, USB_DIR_OUT);
 	ep_sts_reg = readl(&priv_dev->regs->ep_sts);
 
 	return !!(ep_sts_reg & (EP_STS_SETUP | EP_STS_STPWAIT));
@@ -645,7 +637,6 @@ void cdns3_check_ep0_interrupt_proceed(struct cdns3_device *priv_dev, int dir)
 
 	if (priv_dev->wait_for_setup && ep_sts_reg & EP_STS_IOC) {
 		priv_dev->wait_for_setup = 0;
-		cdns3_allow_enable_l1(priv_dev, 0);
 		cdns3_ep0_setup_phase(priv_dev);
 	} else if ((ep_sts_reg & EP_STS_IOC) || (ep_sts_reg & EP_STS_ISP)) {
 		priv_dev->ep0_data_dir = dir;
@@ -660,6 +651,9 @@ void cdns3_check_ep0_interrupt_proceed(struct cdns3_device *priv_dev, int dir)
 
 /**
  * cdns3_gadget_ep0_enable
+ * @ep: pointer to endpoint zero object
+ * @desc: pointer to usb endpoint descriptor
+ *
  * Function shouldn't be called by gadget driver,
  * endpoint 0 is allways active
  */
@@ -671,6 +665,8 @@ static int cdns3_gadget_ep0_enable(struct usb_ep *ep,
 
 /**
  * cdns3_gadget_ep0_disable
+ * @ep: pointer to endpoint zero object
+ *
  * Function shouldn't be called by gadget driver,
  * endpoint 0 is allways active
  */
@@ -707,29 +703,23 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 	struct cdns3_endpoint *priv_ep = ep_to_cdns3_ep(ep);
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
 	unsigned long flags;
-	int erdy_sent = 0;
 	int ret = 0;
 	u8 zlp = 0;
 
+	spin_lock_irqsave(&priv_dev->lock, flags);
 	trace_cdns3_ep0_queue(priv_dev, request);
 
 	/* cancel the request if controller receive new SETUP packet. */
-	if (cdns3_check_new_setup(priv_dev))
+	if (cdns3_check_new_setup(priv_dev)) {
+		spin_unlock_irqrestore(&priv_dev->lock, flags);
 		return -ECONNRESET;
+	}
 
 	/* send STATUS stage. Should be called only for SET_CONFIGURATION */
 	if (priv_dev->ep0_stage == CDNS3_STATUS_STAGE) {
-		spin_lock_irqsave(&priv_dev->lock, flags);
 		cdns3_select_ep(priv_dev, 0x00);
-
-		erdy_sent = !priv_dev->hw_configured_flag;
 		cdns3_set_hw_configuration(priv_dev);
-
-		if (!erdy_sent)
-			cdns3_ep0_complete_setup(priv_dev, 0, 1);
-
-		cdns3_allow_enable_l1(priv_dev, 1);
-
+		cdns3_ep0_complete_setup(priv_dev, 0, 1);
 		request->actual = 0;
 		priv_dev->status_completion_no_call = true;
 		priv_dev->pending_status_request = request;
@@ -744,7 +734,6 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		return 0;
 	}
 
-	spin_lock_irqsave(&priv_dev->lock, flags);
 	if (!list_empty(&priv_ep->pending_req_list)) {
 		dev_err(priv_dev->dev,
 			"can't handle multiple requests for ep0\n");
@@ -865,7 +854,7 @@ void cdns3_ep0_config(struct cdns3_device *priv_dev)
 /**
  * cdns3_init_ep0 Initializes software endpoint 0 of gadget
  * @priv_dev: extended gadget object
- * @ep_priv: extended endpoint object
+ * @priv_ep: extended endpoint object
  *
  * Returns 0 on success else error code.
  */

@@ -18,9 +18,6 @@ description: |+
 
   Be aware that the clocksource driver supports only uniprocessor systems.
 
-allOf:
-  - $ref: pwm.yaml#
-
 properties:
   compatible:
     enum:
@@ -49,21 +46,22 @@ properties:
       are available.
     oneOf:
       - items:
-        - const: timers
+          - const: timers
       - items:
-        - const: timers
-        - const: pwm-tclk0
+          - const: timers
+          - const: pwm-tclk0
       - items:
-        - const: timers
-        - const: pwm-tclk1
+          - const: timers
+          - const: pwm-tclk1
       - items:
-        - const: timers
-        - const: pwm-tclk0
-        - const: pwm-tclk1
+          - const: timers
+          - const: pwm-tclk0
+          - const: pwm-tclk1
 
   interrupts:
     description:
-      One interrupt per timer, starting at timer 0.
+      One interrupt per timer, starting at timer 0. Necessary only for SoCs which
+      use PWM clocksource.
     minItems: 1
     maxItems: 5
 
@@ -78,22 +76,36 @@ properties:
       A list of PWM channels used as PWM outputs on particular platform.
       It is an array of up to 5 elements being indices of PWM channels
       (from 0 to 4), the order does not matter.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - uniqueItems: true
-      - items:
-          minimum: 0
-          maximum: 4
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    uniqueItems: true
+    items:
+      minimum: 0
+      maximum: 4
 
 required:
   - clocks
   - clock-names
   - compatible
-  - interrupts
   - "#pwm-cells"
   - reg
 
 additionalProperties: false
+
+allOf:
+  - $ref: pwm.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s3c2410-pwm
+              - samsung,s3c6400-pwm
+              - samsung,s5p6440-pwm
+              - samsung,s5pc100-pwm
+    then:
+      required:
+        - interrupts
 
 examples:
   - |

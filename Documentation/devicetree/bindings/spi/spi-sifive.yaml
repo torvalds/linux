@@ -32,11 +32,10 @@ properties:
       https://github.com/sifive/sifive-blocks/tree/master/src/main/scala/devices/spi
 
   reg:
-    maxItems: 1
-
-    description:
-      Physical base address and size of SPI registers map
-      A second (optional) range can indicate memory mapped flash
+    minItems: 1
+    items:
+      - description: SPI registers region
+      - description: Memory mapped flash region
 
   interrupts:
     maxItems: 1
@@ -50,18 +49,16 @@ properties:
   sifive,fifo-depth:
     description:
       Depth of hardware queues; defaults to 8
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 8 ]
-      - default: 8
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [8]
+    default: 8
 
   sifive,max-bits-per-word:
     description:
       Maximum bits per word; defaults to 8
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 0, 1, 2, 3, 4, 5, 6, 7, 8 ]
-      - default: 8
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    default: 8
 
 required:
   - compatible
@@ -73,7 +70,7 @@ examples:
   - |
     spi: spi@10040000 {
       compatible = "sifive,fu540-c000-spi", "sifive,spi0";
-      reg = <0x0 0x10040000 0x0 0x1000 0x0 0x20000000 0x0 0x10000000>;
+      reg = <0x10040000 0x1000>, <0x20000000 0x10000000>;
       interrupt-parent = <&plic>;
       interrupts = <51>;
       clocks = <&tlclk>;

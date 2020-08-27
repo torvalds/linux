@@ -424,7 +424,9 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = 250,
 			.nv12 = 1,
 			.fp16 = 1
-	}
+	},
+	64,
+	64
 };
 
 #define CTX  ctx

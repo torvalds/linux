@@ -132,7 +132,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 		stats->value[BNXT_RE_RECOVERABLE_ERRORS] =
 			le64_to_cpu(bnxt_re_stats->tx_bcast_pkts);
 		stats->value[BNXT_RE_RX_DROPS] =
-			le64_to_cpu(bnxt_re_stats->rx_drop_pkts);
+			le64_to_cpu(bnxt_re_stats->rx_error_pkts);
 		stats->value[BNXT_RE_RX_DISCARDS] =
 			le64_to_cpu(bnxt_re_stats->rx_discard_pkts);
 		stats->value[BNXT_RE_RX_PKTS] =

@@ -172,10 +172,11 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	case HAL_RXDMA_DST:
 	case HAL_RXDMA_MONITOR_DST:
 	case HAL_RXDMA_MONITOR_DESC:
-	case HAL_RXDMA_DIR_BUF:
 		params.intr_batch_cntr_thres_entries =
 					HAL_SRNG_INT_BATCH_THRESHOLD_OTHER;
 		params.intr_timer_thres_us = HAL_SRNG_INT_TIMER_THRESHOLD_OTHER;
+		break;
+	case HAL_RXDMA_DIR_BUF:
 		break;
 	default:
 		ath11k_warn(ab, "Not a valid ring type in dp :%d\n", type);

@@ -2,7 +2,7 @@
 menuconfig W1
 	tristate "Dallas's 1-wire support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  Dallas' 1-wire bus is useful to connect slow 1-pin devices
 	  such as iButtons and thermal sensors.
 
@@ -17,7 +17,7 @@ config W1_CON
 	depends on CONNECTOR
 	bool "Userspace communication over connector"
 	default y
-	---help---
+	help
 	  This allows to communicate with userspace using connector. For more
 	  information see <file:Documentation/driver-api/connector.rst>.
 	  There are three types of messages between w1 core and userspace:

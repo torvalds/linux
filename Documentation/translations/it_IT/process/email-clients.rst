@@ -3,6 +3,8 @@
 :Original: :doc:`../../../process/email-clients`
 :Translator: Alessia Mantegazza <amantegazza@vaga.pv.it>
 
+.. _it_email_clients:
+
 Informazioni sui programmi di posta elettronica per Linux
 =========================================================
 

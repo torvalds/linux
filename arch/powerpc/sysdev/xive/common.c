@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/msi.h>
+#include <linux/vmalloc.h>
 
 #include <asm/debugfs.h>
 #include <asm/prom.h>
@@ -195,6 +196,9 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
 static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
+
+	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
+		offset |= XIVE_ESB_LD_ST_MO;
 
 	/* Handle HW errata */
 	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
@@ -1017,12 +1021,16 @@ EXPORT_SYMBOL_GPL(is_xive_irq);
 void xive_cleanup_irq_data(struct xive_irq_data *xd)
 {
 	if (xd->eoi_mmio) {
+		unmap_kernel_range((unsigned long)xd->eoi_mmio,
+				   1u << xd->esb_shift);
 		iounmap(xd->eoi_mmio);
 		if (xd->eoi_mmio == xd->trig_mmio)
 			xd->trig_mmio = NULL;
 		xd->eoi_mmio = NULL;
 	}
 	if (xd->trig_mmio) {
+		unmap_kernel_range((unsigned long)xd->trig_mmio,
+				   1u << xd->esb_shift);
 		iounmap(xd->trig_mmio);
 		xd->trig_mmio = NULL;
 	}
@@ -1656,7 +1664,8 @@ DEFINE_SHOW_ATTRIBUTE(xive_core_debug);
 
 int xive_core_debug_init(void)
 {
-	debugfs_create_file("xive", 0400, powerpc_debugfs_root,
-			    NULL, &xive_core_debug_fops);
+	if (xive_enabled())
+		debugfs_create_file("xive", 0400, powerpc_debugfs_root,
+				    NULL, &xive_core_debug_fops);
 	return 0;
 }

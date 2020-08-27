@@ -380,7 +380,7 @@ struct spmi_regulator_mapping {
 	enum spmi_regulator_logical_type	logical_type;
 	u32					revision_min;
 	u32					revision_max;
-	struct regulator_ops			*ops;
+	const struct regulator_ops		*ops;
 	struct spmi_voltage_set_points		*set_points;
 	int					hpm_min_load;
 };
@@ -1261,7 +1261,7 @@ spmi_regulator_saw_set_voltage(struct regulator_dev *rdev, unsigned selector)
 
 static struct regulator_ops spmi_saw_ops = {};
 
-static struct regulator_ops spmi_smps_ops = {
+static const struct regulator_ops spmi_smps_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1276,7 +1276,7 @@ static struct regulator_ops spmi_smps_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 };
 
-static struct regulator_ops spmi_ldo_ops = {
+static const struct regulator_ops spmi_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1293,7 +1293,7 @@ static struct regulator_ops spmi_ldo_ops = {
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 };
 
-static struct regulator_ops spmi_ln_ldo_ops = {
+static const struct regulator_ops spmi_ln_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1305,7 +1305,7 @@ static struct regulator_ops spmi_ln_ldo_ops = {
 	.get_bypass		= spmi_regulator_common_get_bypass,
 };
 
-static struct regulator_ops spmi_vs_ops = {
+static const struct regulator_ops spmi_vs_ops = {
 	.enable			= spmi_regulator_vs_enable,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1316,7 +1316,7 @@ static struct regulator_ops spmi_vs_ops = {
 	.get_mode		= spmi_regulator_common_get_mode,
 };
 
-static struct regulator_ops spmi_boost_ops = {
+static const struct regulator_ops spmi_boost_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1327,7 +1327,7 @@ static struct regulator_ops spmi_boost_ops = {
 	.set_input_current_limit = spmi_regulator_set_ilim,
 };
 
-static struct regulator_ops spmi_ftsmps_ops = {
+static const struct regulator_ops spmi_ftsmps_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1342,7 +1342,7 @@ static struct regulator_ops spmi_ftsmps_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 };
 
-static struct regulator_ops spmi_ult_lo_smps_ops = {
+static const struct regulator_ops spmi_ult_lo_smps_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1356,7 +1356,7 @@ static struct regulator_ops spmi_ult_lo_smps_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 };
 
-static struct regulator_ops spmi_ult_ho_smps_ops = {
+static const struct regulator_ops spmi_ult_ho_smps_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1371,7 +1371,7 @@ static struct regulator_ops spmi_ult_ho_smps_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 };
 
-static struct regulator_ops spmi_ult_ldo_ops = {
+static const struct regulator_ops spmi_ult_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1388,7 +1388,7 @@ static struct regulator_ops spmi_ult_ldo_ops = {
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 };
 
-static struct regulator_ops spmi_ftsmps426_ops = {
+static const struct regulator_ops spmi_ftsmps426_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -1403,7 +1403,7 @@ static struct regulator_ops spmi_ftsmps426_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 };
 
-static struct regulator_ops spmi_hfs430_ops = {
+static const struct regulator_ops spmi_hfs430_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,

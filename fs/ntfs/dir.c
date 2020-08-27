@@ -8,6 +8,7 @@
 
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 
 #include "dir.h"
 #include "aops.h"

@@ -245,31 +245,40 @@ static int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
 static int dpu_hw_ctl_get_bitmask_intf_v1(struct dpu_hw_ctl *ctx,
 		u32 *flushbits, enum dpu_intf intf)
 {
-	switch (intf) {
-	case INTF_0:
-	case INTF_1:
-		*flushbits |= BIT(31);
-		break;
-	default:
-		return 0;
-	}
+	*flushbits |= BIT(31);
 	return 0;
 }
 
 static int dpu_hw_ctl_active_get_bitmask_intf(struct dpu_hw_ctl *ctx,
 		u32 *flushbits, enum dpu_intf intf)
 {
-	switch (intf) {
-	case INTF_0:
-		*flushbits |= BIT(0);
+	*flushbits |= BIT(intf - INTF_0);
+	return 0;
+}
+
+static uint32_t dpu_hw_ctl_get_bitmask_dspp(struct dpu_hw_ctl *ctx,
+	enum dpu_dspp dspp)
+{
+	uint32_t flushbits = 0;
+
+	switch (dspp) {
+	case DSPP_0:
+		flushbits = BIT(13);
 		break;
-	case INTF_1:
-		*flushbits |= BIT(1);
+	case DSPP_1:
+		flushbits = BIT(14);
+		break;
+	case DSPP_2:
+		flushbits = BIT(15);
+		break;
+	case DSPP_3:
+		flushbits = BIT(21);
 		break;
 	default:
 		return 0;
 	}
-	return 0;
+
+	return flushbits;
 }
 
 static u32 dpu_hw_ctl_poll_reset_status(struct dpu_hw_ctl *ctx, u32 timeout_us)
@@ -548,6 +557,7 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 	ops->setup_blendstage = dpu_hw_ctl_setup_blendstage;
 	ops->get_bitmask_sspp = dpu_hw_ctl_get_bitmask_sspp;
 	ops->get_bitmask_mixer = dpu_hw_ctl_get_bitmask_mixer;
+	ops->get_bitmask_dspp = dpu_hw_ctl_get_bitmask_dspp;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops;

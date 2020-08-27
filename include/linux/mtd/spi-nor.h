@@ -20,6 +20,7 @@
  */
 
 /* Flash opcodes. */
+#define SPINOR_OP_WRDI		0x04	/* Write disable */
 #define SPINOR_OP_WREN		0x06	/* Write enable */
 #define SPINOR_OP_RDSR		0x05	/* Read status register */
 #define SPINOR_OP_WRSR		0x01	/* Write status register 1 byte */
@@ -80,7 +81,6 @@
 
 /* Used for SST flashes only. */
 #define SPINOR_OP_BP		0x02	/* Byte program */
-#define SPINOR_OP_WRDI		0x04	/* Write disable */
 #define SPINOR_OP_AAI_WP	0xad	/* Auto address increment word program */
 
 /* Used for S3AN flashes only */
@@ -302,7 +302,7 @@ struct spi_nor;
  * @read:		read data from the SPI NOR.
  * @write:		write data to the SPI NOR.
  * @erase:		erase a sector of the SPI NOR at the offset @offs; if
- *			not provided by the driver, spi-nor will send the erase
+ *			not provided by the driver, SPI NOR will send the erase
  *			opcode via write_reg().
  */
 struct spi_nor_controller_ops {
@@ -327,16 +327,16 @@ struct spi_nor_manufacturer;
 struct spi_nor_flash_parameter;
 
 /**
- * struct spi_nor - Structure for defining a the SPI NOR layer
- * @mtd:		point to a mtd_info structure
+ * struct spi_nor - Structure for defining the SPI NOR layer
+ * @mtd:		an mtd_info structure
  * @lock:		the lock for the read/write/erase/lock/unlock operations
- * @dev:		point to a spi device, or a spi nor controller device.
- * @spimem:		point to the spi mem device
+ * @dev:		pointer to an SPI device or an SPI NOR controller device
+ * @spimem:		pointer to the SPI memory device
  * @bouncebuf:		bounce buffer used when the buffer passed by the MTD
  *                      layer is not DMA-able
  * @bouncebuf_size:	size of the bounce buffer
- * @info:		spi-nor part JDEC MFR id and other info
- * @manufacturer:	spi-nor manufacturer
+ * @info:		SPI NOR part JEDEC MFR ID and other info
+ * @manufacturer:	SPI NOR manufacturer
  * @page_size:		the page size of the SPI NOR
  * @addr_width:		number of address bytes
  * @erase_opcode:	the opcode for erasing a sector
@@ -344,17 +344,17 @@ struct spi_nor_flash_parameter;
  * @read_dummy:		the dummy needed by the read operation
  * @program_opcode:	the program opcode
  * @sst_write_second:	used by the SST write operation
- * @flags:		flag options for the current SPI-NOR (SNOR_F_*)
+ * @flags:		flag options for the current SPI NOR (SNOR_F_*)
  * @read_proto:		the SPI protocol for read operations
  * @write_proto:	the SPI protocol for write operations
- * @reg_proto		the SPI protocol for read_reg/write_reg/erase operations
+ * @reg_proto:		the SPI protocol for read_reg/write_reg/erase operations
  * @controller_ops:	SPI NOR controller driver specific operations.
- * @params:		[FLASH-SPECIFIC] SPI-NOR flash parameters and settings.
+ * @params:		[FLASH-SPECIFIC] SPI NOR flash parameters and settings.
  *                      The structure includes legacy flash parameters and
  *                      settings that can be overwritten by the spi_nor_fixups
  *                      hooks, or dynamically when parsing the SFDP tables.
  * @dirmap:		pointers to struct spi_mem_dirmap_desc for reads/writes.
- * @priv:		the private data
+ * @priv:		pointer to the private data
  */
 struct spi_nor {
 	struct mtd_info		mtd;

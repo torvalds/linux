@@ -7,8 +7,6 @@
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/triggered_buffer.h>
-#include <linux/iio/trigger_consumer.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -230,12 +228,8 @@ static int hid_temperature_probe(struct platform_device *pdev)
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = devm_iio_triggered_buffer_setup(&pdev->dev, indio_dev,
-					&iio_pollfunc_store_time, NULL, NULL);
-	if (ret)
-		return ret;
-
 	atomic_set(&temp_st->common_attributes.data_ready, 0);
+
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&temp_st->common_attributes);
 	if (ret)
@@ -258,7 +252,7 @@ static int hid_temperature_probe(struct platform_device *pdev)
 error_remove_callback:
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TEMPERATURE);
 error_remove_trigger:
-	hid_sensor_remove_trigger(&temp_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &temp_st->common_attributes);
 	return ret;
 }
 
@@ -270,7 +264,7 @@ static int hid_temperature_remove(struct platform_device *pdev)
 	struct temperature_state *temp_st = iio_priv(indio_dev);
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TEMPERATURE);
-	hid_sensor_remove_trigger(&temp_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &temp_st->common_attributes);
 
 	return 0;
 }

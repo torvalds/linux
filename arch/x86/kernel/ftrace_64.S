@@ -12,7 +12,7 @@
 #include <asm/frame.h>
 
 	.code64
-	.section .entry.text, "ax"
+	.section .text, "ax"
 
 #ifdef CONFIG_FRAME_POINTER
 /* Save parent and function stack frames (rip and rbp) */

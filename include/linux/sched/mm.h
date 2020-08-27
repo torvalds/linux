@@ -23,7 +23,7 @@ extern struct mm_struct *mm_alloc(void);
  * will still exist later on and mmget_not_zero() has to be used before
  * accessing it.
  *
- * This is a preferred way to to pin @mm for a longer/unbounded amount
+ * This is a preferred way to pin @mm for a longer/unbounded amount
  * of time.
  *
  * Use mmdrop() to release the reference acquired by mmgrab().
@@ -49,11 +49,9 @@ static inline void mmdrop(struct mm_struct *mm)
 		__mmdrop(mm);
 }
 
-void mmdrop(struct mm_struct *mm);
-
 /*
  * This has to be called after a get_task_mm()/mmget_not_zero()
- * followed by taking the mmap_sem for writing before modifying the
+ * followed by taking the mmap_lock for writing before modifying the
  * vmas or anything the coredump pretends not to change from under it.
  *
  * It also has to be called when mmgrab() is used in the context of
@@ -61,14 +59,14 @@ void mmdrop(struct mm_struct *mm);
  * the context of the process to run down_write() on that pinned mm.
  *
  * NOTE: find_extend_vma() called from GUP context is the only place
- * that can modify the "mm" (notably the vm_start/end) under mmap_sem
+ * that can modify the "mm" (notably the vm_start/end) under mmap_lock
  * for reading and outside the context of the process, so it is also
- * the only case that holds the mmap_sem for reading that must call
- * this function. Generally if the mmap_sem is hold for reading
+ * the only case that holds the mmap_lock for reading that must call
+ * this function. Generally if the mmap_lock is hold for reading
  * there's no need of this check after get_task_mm()/mmget_not_zero().
  *
  * This function can be obsoleted and the check can be removed, after
- * the coredump code will hold the mmap_sem for writing before
+ * the coredump code will hold the mmap_lock for writing before
  * invoking the ->core_dump methods.
  */
 static inline bool mmget_still_valid(struct mm_struct *mm)
@@ -234,7 +232,7 @@ static inline unsigned int memalloc_noio_save(void)
  * @flags: Flags to restore.
  *
  * Ends the implicit GFP_NOIO scope started by memalloc_noio_save function.
- * Always make sure that that the given flags is the return value from the
+ * Always make sure that the given flags is the return value from the
  * pairing memalloc_noio_save call.
  */
 static inline void memalloc_noio_restore(unsigned int flags)
@@ -265,7 +263,7 @@ static inline unsigned int memalloc_nofs_save(void)
  * @flags: Flags to restore.
  *
  * Ends the implicit GFP_NOFS scope started by memalloc_nofs_save function.
- * Always make sure that that the given flags is the return value from the
+ * Always make sure that the given flags is the return value from the
  * pairing memalloc_nofs_save call.
  */
 static inline void memalloc_nofs_restore(unsigned int flags)

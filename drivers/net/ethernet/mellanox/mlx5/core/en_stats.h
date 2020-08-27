@@ -186,6 +186,18 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_skip_no_sync_data;
 	u64 tx_tls_drop_no_sync_data;
 	u64 tx_tls_drop_bypass_req;
+
+	u64 rx_tls_decrypted_packets;
+	u64 rx_tls_decrypted_bytes;
+	u64 rx_tls_ctx;
+	u64 rx_tls_del;
+	u64 rx_tls_resync_req_pkt;
+	u64 rx_tls_resync_req_start;
+	u64 rx_tls_resync_req_end;
+	u64 rx_tls_resync_req_skip;
+	u64 rx_tls_resync_res_ok;
+	u64 rx_tls_resync_res_skip;
+	u64 rx_tls_err;
 #endif
 
 	u64 rx_xsk_packets;
@@ -305,6 +317,19 @@ struct mlx5e_rq_stats {
 	u64 congst_umr;
 	u64 arfs_err;
 	u64 recover;
+#ifdef CONFIG_MLX5_EN_TLS
+	u64 tls_decrypted_packets;
+	u64 tls_decrypted_bytes;
+	u64 tls_ctx;
+	u64 tls_del;
+	u64 tls_resync_req_pkt;
+	u64 tls_resync_req_start;
+	u64 tls_resync_req_end;
+	u64 tls_resync_req_skip;
+	u64 tls_resync_res_ok;
+	u64 tls_resync_res_skip;
+	u64 tls_err;
+#endif
 };
 
 struct mlx5e_sq_stats {

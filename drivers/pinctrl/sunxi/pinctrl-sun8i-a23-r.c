@@ -103,8 +103,11 @@ static int sun8i_a23_r_pinctrl_probe(struct platform_device *pdev)
 
 	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc)) {
-		dev_err(&pdev->dev, "Reset controller missing\n");
-		return PTR_ERR(rstc);
+		ret = PTR_ERR(rstc);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		dev_err(&pdev->dev, "Reset controller missing err=%d\n", ret);
+		return ret;
 	}
 
 	ret = reset_control_deassert(rstc);

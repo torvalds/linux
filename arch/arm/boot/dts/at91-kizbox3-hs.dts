@@ -283,7 +283,7 @@
 
 &flx3 {
 	status = "okay";
-	uart6: serial@200 {
+	uart8: serial@200 {
 		status = "okay";
 	};
 };
@@ -291,7 +291,7 @@
 &flx4 {
 	status = "okay";
 
-	i2c2: i2c@600 {
+	i2c6: i2c@600 {
 		status = "okay";
 	};
 };

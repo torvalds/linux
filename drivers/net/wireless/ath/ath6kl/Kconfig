@@ -2,7 +2,7 @@
 config ATH6KL
 	tristate "Atheros mobile chipsets support"
 	depends on CFG80211
-	---help---
+	help
 	  This module adds core support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets. You still need separate
 	  bus drivers for USB and SDIO to be able to use real devices.
@@ -15,7 +15,7 @@ config ATH6KL_SDIO
 	tristate "Atheros ath6kl SDIO support"
 	depends on ATH6KL
 	depends on MMC
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets running over SDIO. If you
 	  choose to build it as a module, it will be called ath6kl_sdio.
@@ -26,7 +26,7 @@ config ATH6KL_USB
 	tristate "Atheros ath6kl USB support"
 	depends on ATH6KL
 	depends on USB
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Atheros AR6004 chipset and chipsets based on it running over
 	  USB. If you choose to build it as a module, it will be
@@ -35,7 +35,7 @@ config ATH6KL_USB
 config ATH6KL_DEBUG
 	bool "Atheros ath6kl debugging"
 	depends on ATH6KL
-	---help---
+	help
 	  Enables ath6kl debug support, including debug messages
 	  enabled with debug_mask module parameter and debugfs
 	  interface.
@@ -46,7 +46,7 @@ config ATH6KL_TRACING
 	bool "Atheros ath6kl tracing support"
 	depends on ATH6KL
 	depends on EVENT_TRACING
-	---help---
+	help
 	  Select this to ath6kl use tracing infrastructure which, for
 	  example, can be enabled with help of trace-cmd. All debug
 	  messages and commands are delivered to using individually
@@ -58,7 +58,7 @@ config ATH6KL_REGDOMAIN
 	bool "Atheros ath6kl regdomain support"
 	depends on ATH6KL
 	depends on CFG80211_CERTIFICATION_ONUS
-	---help---
+	help
 	  Enabling this makes it possible to change the regdomain in
 	  the firmware. This can be only enabled if regulatory requirements
 	  are taken into account.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -22,13 +23,13 @@
 void
 mipi_init(void);
 
-enum ia_css_err
+int
 allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info);
 
-enum ia_css_err
+int
 free_mipi_frames(struct ia_css_pipe *pipe);
 
-enum ia_css_err
+int
 send_mipi_frames(struct ia_css_pipe *pipe);
 
 /**
@@ -41,7 +42,7 @@ send_mipi_frames(struct ia_css_pipe *pipe);
  *
  * @return
  */
-enum ia_css_err
+int
 calculate_mipi_buff_size(
     struct ia_css_stream_config *stream_cfg,
     unsigned int *size_mem_words);

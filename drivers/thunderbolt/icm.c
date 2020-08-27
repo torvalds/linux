@@ -1633,6 +1633,15 @@ static void icm_icl_rtd3_veto(struct tb *tb, const struct icm_pkg_header *hdr)
 		icm_veto_end(tb);
 }
 
+static bool icm_tgl_is_supported(struct tb *tb)
+{
+	/*
+	 * If the firmware is not running use software CM. This platform
+	 * should fully support both.
+	 */
+	return icm_firmware_running(tb->nhi);
+}
+
 static void icm_handle_notification(struct work_struct *work)
 {
 	struct icm_notification *n = container_of(work, typeof(*n), work);
@@ -2260,6 +2269,19 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
 	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
 		icm->is_supported = icm_fr_is_supported;
+		icm->driver_ready = icm_icl_driver_ready;
+		icm->set_uuid = icm_icl_set_uuid;
+		icm->device_connected = icm_icl_device_connected;
+		icm->device_disconnected = icm_tr_device_disconnected;
+		icm->xdomain_connected = icm_tr_xdomain_connected;
+		icm->xdomain_disconnected = icm_tr_xdomain_disconnected;
+		icm->rtd3_veto = icm_icl_rtd3_veto;
+		tb->cm_ops = &icm_icl_ops;
+		break;
+
+	case PCI_DEVICE_ID_INTEL_TGL_NHI0:
+	case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+		icm->is_supported = icm_tgl_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;
 		icm->device_connected = icm_icl_device_connected;

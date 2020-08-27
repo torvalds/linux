@@ -277,10 +277,7 @@ static int gpu_populate_client(struct gpu_i2c_dev *i2cd, int irq)
 	i2cd->gpu_ccgx_ucsi->irq = irq;
 	i2cd->gpu_ccgx_ucsi->properties = ccgx_props;
 	i2cd->ccgx_client = i2c_new_client_device(&i2cd->adapter, i2cd->gpu_ccgx_ucsi);
-	if (IS_ERR(i2cd->ccgx_client))
-		return PTR_ERR(i2cd->ccgx_client);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(i2cd->ccgx_client);
 }
 
 static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)

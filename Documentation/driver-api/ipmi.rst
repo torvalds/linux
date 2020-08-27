@@ -18,7 +18,7 @@ management software that can use the IPMI system.
 
 This document describes how to use the IPMI driver for Linux.  If you
 are not familiar with IPMI itself, see the web site at
-http://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
+https://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
 subject and I can't cover it all here!
 
 Configuration

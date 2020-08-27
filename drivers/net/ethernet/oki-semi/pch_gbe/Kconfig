@@ -9,7 +9,7 @@ config PCH_GBE
 	select MII
 	select PTP_1588_CLOCK_PCH
 	select NET_PTP_CLASSIFY
-	---help---
+	help
 	  This is a gigabit ethernet driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's
 	  general embedded platform.  EG20T PCH has Gigabit Ethernet interface.

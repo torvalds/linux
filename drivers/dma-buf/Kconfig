@@ -5,7 +5,7 @@ config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
 	select DMA_SHARED_BUFFER
-	---help---
+	help
 	  The Sync File Framework adds explicit synchronization via
 	  userspace. It enables send/receive 'struct dma_fence' objects to/from
 	  userspace via Sync File fds for synchronization between drivers via
@@ -22,7 +22,7 @@ config SW_SYNC
 	default n
 	depends on SYNC_FILE
 	depends on DEBUG_FS
-	---help---
+	help
 	  A sync object driver that uses a 32bit counter to coordinate
 	  synchronization.  Useful when there is no hardware primitive backing
 	  the synchronization.

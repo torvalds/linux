@@ -54,8 +54,6 @@
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
 #define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
-#define AMDGPU_NUM_OF_VMIDS	8
-
 #define		PIPEID(x)					((x) << 0)
 #define		MEID(x)						((x) << 2)
 #define		VMID(x)						((x) << 4)

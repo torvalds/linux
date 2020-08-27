@@ -1575,7 +1575,7 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 	}
 
 	tmp = strchr(str, '@');
-	if (tmp && tmp != str && strcmp(tmp + 1, "user")) { /* user attr */
+	if (tmp && tmp != str && !strcmp(tmp + 1, "user")) { /* user attr */
 		if (!user_access_is_supported()) {
 			semantic_error("ftrace does not support user access\n");
 			return -EINVAL;
@@ -1995,7 +1995,10 @@ static int __synthesize_probe_trace_arg_ref(struct probe_trace_arg_ref *ref,
 		if (depth < 0)
 			return depth;
 	}
-	err = strbuf_addf(buf, "%+ld(", ref->offset);
+	if (ref->user_access)
+		err = strbuf_addf(buf, "%s%ld(", "+u", ref->offset);
+	else
+		err = strbuf_addf(buf, "%+ld(", ref->offset);
 	return (err < 0) ? err : depth;
 }
 

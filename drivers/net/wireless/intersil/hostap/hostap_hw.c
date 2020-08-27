@@ -3048,6 +3048,7 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
  * This is a natural nesting, which needs a split lock type.
  */
 static struct lock_class_key hostap_netdev_xmit_lock_key;
+static struct lock_class_key hostap_netdev_addr_lock_key;
 
 static void prism2_set_lockdep_class_one(struct net_device *dev,
 					 struct netdev_queue *txq,
@@ -3059,6 +3060,8 @@ static void prism2_set_lockdep_class_one(struct net_device *dev,
 
 static void prism2_set_lockdep_class(struct net_device *dev)
 {
+	lockdep_set_class(&dev->addr_list_lock,
+			  &hostap_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, prism2_set_lockdep_class_one, NULL);
 }
 
@@ -3363,8 +3366,8 @@ static void prism2_free_local_data(struct net_device *dev)
 }
 
 
-#if (defined(PRISM2_PCI) && defined(CONFIG_PM)) || defined(PRISM2_PCCARD)
-static void prism2_suspend(struct net_device *dev)
+#if defined(PRISM2_PCI) || defined(PRISM2_PCCARD)
+static void __maybe_unused prism2_suspend(struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	struct local_info *local;
@@ -3382,7 +3385,7 @@ static void prism2_suspend(struct net_device *dev)
 	/* Disable hardware and firmware */
 	prism2_hw_shutdown(dev, 0);
 }
-#endif /* (PRISM2_PCI && CONFIG_PM) || PRISM2_PCCARD */
+#endif /* PRISM2_PCI || PRISM2_PCCARD */
 
 
 /* These might at some point be compiled separately and used as separate

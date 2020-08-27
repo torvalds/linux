@@ -1559,18 +1559,17 @@ void ql_dump_stat(struct ql_adapter *qdev)
 #ifdef QL_DEV_DUMP
 
 #define DUMP_QDEV_FIELD(qdev, type, field)		\
-	pr_err("qdev->%-24s = " type "\n", #field, (qdev)->(field))
+	pr_err("qdev->%-24s = " type "\n", #field, (qdev)->field)
 #define DUMP_QDEV_DMA_FIELD(qdev, field)		\
 	pr_err("qdev->%-24s = %llx\n", #field, (unsigned long long)qdev->field)
 #define DUMP_QDEV_ARRAY(qdev, type, array, index, field) \
 	pr_err("%s[%d].%s = " type "\n",		 \
-	       #array, index, #field, (qdev)->array[index].field);
+	       #array, index, #field, (qdev)->array[index].field)
 void ql_dump_qdev(struct ql_adapter *qdev)
 {
 	int i;
 
 	DUMP_QDEV_FIELD(qdev, "%lx", flags);
-	DUMP_QDEV_FIELD(qdev, "%p", vlgrp);
 	DUMP_QDEV_FIELD(qdev, "%p", pdev);
 	DUMP_QDEV_FIELD(qdev, "%p", ndev);
 	DUMP_QDEV_FIELD(qdev, "%d", chip_rev_id);
@@ -1758,8 +1757,6 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	       rx_ring->lbq.prod_idx_db_reg);
 	pr_err("rx_ring->lbq.next_to_use = %d\n", rx_ring->lbq.next_to_use);
 	pr_err("rx_ring->lbq.next_to_clean = %d\n", rx_ring->lbq.next_to_clean);
-	pr_err("rx_ring->lbq_clean_idx = %d\n", rx_ring->lbq_clean_idx);
-	pr_err("rx_ring->lbq_free_cnt = %d\n", rx_ring->lbq_free_cnt);
 
 	pr_err("rx_ring->sbq.base = %p\n", rx_ring->sbq.base);
 	pr_err("rx_ring->sbq.base_dma = %llx\n",

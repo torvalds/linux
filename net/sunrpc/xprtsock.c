@@ -496,8 +496,8 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 		int flags, struct rpc_rqst *req)
 {
 	struct xdr_buf *buf = &req->rq_private_buf;
-	size_t want, uninitialized_var(read);
-	ssize_t uninitialized_var(ret);
+	size_t want, read;
+	ssize_t ret;
 
 	xs_read_header(transport, buf);
 
@@ -844,7 +844,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	struct msghdr msg = {
 		.msg_flags	= XS_SENDMSG_FLAGS,
 	};
-	unsigned int uninitialized_var(sent);
+	unsigned int sent;
 	int status;
 
 	/* Close the stream if the previous transmission was incomplete */
@@ -915,7 +915,7 @@ static int xs_udp_send_request(struct rpc_rqst *req)
 		.msg_namelen	= xprt->addrlen,
 		.msg_flags	= XS_SENDMSG_FLAGS,
 	};
-	unsigned int uninitialized_var(sent);
+	unsigned int sent;
 	int status;
 
 	xs_pktdump("packet data:",
@@ -999,7 +999,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 		.msg_flags	= XS_SENDMSG_FLAGS,
 	};
 	bool vm_wait = false;
-	unsigned int uninitialized_var(sent);
+	unsigned int sent;
 	int status;
 
 	/* Close the stream if the previous transmission was incomplete */
@@ -2528,8 +2528,16 @@ static int bc_sendto(struct rpc_rqst *req)
 	return sent;
 }
 
-/*
- * The send routine. Borrows from svc_send
+/**
+ * bc_send_request - Send a backchannel Call on a TCP socket
+ * @req: rpc_rqst containing Call message to be sent
+ *
+ * xpt_mutex ensures @rqstp's whole message is written to the socket
+ * without interruption.
+ *
+ * Return values:
+ *   %0 if the message was sent successfully
+ *   %ENOTCONN if the message was not sent
  */
 static int bc_send_request(struct rpc_rqst *req)
 {

@@ -157,8 +157,10 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 
 	cpu_groups = kcalloc(nb_available_cpus, sizeof(cpu_groups),
 			     GFP_KERNEL);
-	if (!cpu_groups)
+	if (!cpu_groups) {
+		free_cpumask_var(tmp);
 		return -ENOMEM;
+	}
 
 	cpumask_copy(tmp, cpu_online_mask);
 
@@ -167,6 +169,7 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 			topology_core_cpumask(cpumask_any(tmp));
 
 		if (!alloc_cpumask_var(&cpu_groups[num_groups], GFP_KERNEL)) {
+			free_cpumask_var(tmp);
 			free_cpu_groups(num_groups, &cpu_groups);
 			return -ENOMEM;
 		}
@@ -196,13 +199,12 @@ static int hotplug_tests(void)
 	if (!page_buf)
 		goto out_free_cpu_groups;
 
-	err = 0;
 	/*
 	 * Of course the last CPU cannot be powered down and cpu_down() should
 	 * refuse doing that.
 	 */
 	pr_info("Trying to turn off and on again all CPUs\n");
-	err += down_and_up_cpus(cpu_online_mask, offlined_cpus);
+	err = down_and_up_cpus(cpu_online_mask, offlined_cpus);
 
 	/*
 	 * Take down CPUs by cpu group this time. When the last CPU is turned

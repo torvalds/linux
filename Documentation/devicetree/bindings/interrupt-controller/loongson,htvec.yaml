@@ -22,8 +22,8 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 4
-    description: Four parent interrupts that receive chained interrupts.
+    maxItems: 8
+    description: Eight parent interrupts that receive chained interrupts.
 
   interrupt-controller: true
 

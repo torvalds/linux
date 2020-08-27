@@ -32,6 +32,13 @@
 
 #include <nvif/class.h>
 
+int
+gm200_gr_nofw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	nvkm_warn(&gr->base.engine.subdev, "firmware unavailable\n");
+	return -ENODEV;
+}
+
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
@@ -275,7 +282,8 @@ MODULE_FIRMWARE("nvidia/gm206/gr/sw_method_init.bin");
 
 static const struct gf100_gr_fwif
 gm200_gr_fwif[] = {
-	{ 0, gm200_gr_load, &gm200_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{  0, gm200_gr_load, &gm200_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{ -1, gm200_gr_nofw },
 	{}
 };
 

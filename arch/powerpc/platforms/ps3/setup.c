@@ -138,7 +138,7 @@ static int __init early_parse_ps3fb(char *p)
 	if (!p)
 		return 1;
 
-	ps3fb_videomemory.size = _ALIGN_UP(memparse(p, &p),
+	ps3fb_videomemory.size = ALIGN(memparse(p, &p),
 					   ps3fb_videomemory.align);
 	return 0;
 }

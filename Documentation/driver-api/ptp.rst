@@ -23,6 +23,7 @@ PTP hardware clock infrastructure for Linux
   + Ancillary clock features
     - Time stamp external events
     - Period output signals configurable from user space
+    - Low Pass Filter (LPF) access from user space
     - Synchronization of the Linux system time via the PPS subsystem
 
 PTP hardware clock kernel API
@@ -94,3 +95,14 @@ Supported hardware
 
      - Auxiliary Slave/Master Mode Snapshot (optional interrupt)
      - Target Time (optional interrupt)
+
+   * Renesas (IDT) ClockMatrix™
+
+     - Up to 4 independent PHC channels
+     - Integrated low pass filter (LPF), access via .adjPhase (compliant to ITU-T G.8273.2)
+     - Programmable output periodic signals
+     - Programmable inputs can time stamp external triggers
+     - Driver and/or hardware configuration through firmware (idtcm.bin)
+          - LPF settings (bandwidth, phase limiting, automatic holdover, physical layer assist (per ITU-T G.8273.2))
+          - Programmable output PTP clocks, any frequency up to 1GHz (to other PHY/MAC time stampers, refclk to ASSPs/SoCs/FPGAs)
+          - Lock to GNSS input, automatic switching between GNSS and user-space PHC control (optional)

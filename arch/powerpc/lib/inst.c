@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ *  Copyright 2020, IBM Corporation.
+ */
+
+#include <linux/uaccess.h>
+#include <asm/disassemble.h>
+#include <asm/inst.h>
+#include <asm/ppc-opcode.h>
+
+#ifdef CONFIG_PPC64
+int probe_user_read_inst(struct ppc_inst *inst,
+			 struct ppc_inst __user *nip)
+{
+	unsigned int val, suffix;
+	int err;
+
+	err = copy_from_user_nofault(&val, nip, sizeof(val));
+	if (err)
+		return err;
+	if (get_op(val) == OP_PREFIX) {
+		err = copy_from_user_nofault(&suffix, (void __user *)nip + 4, 4);
+		*inst = ppc_inst_prefix(val, suffix);
+	} else {
+		*inst = ppc_inst(val);
+	}
+	return err;
+}
+
+int probe_kernel_read_inst(struct ppc_inst *inst,
+			   struct ppc_inst *src)
+{
+	unsigned int val, suffix;
+	int err;
+
+	err = copy_from_kernel_nofault(&val, src, sizeof(val));
+	if (err)
+		return err;
+	if (get_op(val) == OP_PREFIX) {
+		err = copy_from_kernel_nofault(&suffix, (void *)src + 4, 4);
+		*inst = ppc_inst_prefix(val, suffix);
+	} else {
+		*inst = ppc_inst(val);
+	}
+	return err;
+}
+#else /* !CONFIG_PPC64 */
+int probe_user_read_inst(struct ppc_inst *inst,
+			 struct ppc_inst __user *nip)
+{
+	unsigned int val;
+	int err;
+
+	err = copy_from_user_nofault(&val, nip, sizeof(val));
+	if (!err)
+		*inst = ppc_inst(val);
+
+	return err;
+}
+
+int probe_kernel_read_inst(struct ppc_inst *inst,
+			   struct ppc_inst *src)
+{
+	unsigned int val;
+	int err;
+
+	err = copy_from_kernel_nofault(&val, src, sizeof(val));
+	if (!err)
+		*inst = ppc_inst(val);
+
+	return err;
+}
+#endif /* CONFIG_PPC64 */

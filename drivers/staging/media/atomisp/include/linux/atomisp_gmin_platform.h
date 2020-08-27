@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel MID SoC Camera Imaging ISP subsystem.
  *

@@ -157,84 +157,78 @@ void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap)
 	kfree(bitmap->table);
 }
 
-void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
-		       struct hns_roce_buf *buf)
+void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf)
 {
-	int i;
 	struct device *dev = hr_dev->dev;
+	u32 size = buf->size;
+	int i;
 
-	if (buf->nbufs == 1) {
+	if (size == 0)
+		return;
+
+	buf->size = 0;
+
+	if (hns_roce_buf_is_direct(buf)) {
 		dma_free_coherent(dev, size, buf->direct.buf, buf->direct.map);
 	} else {
-		for (i = 0; i < buf->nbufs; ++i)
+		for (i = 0; i < buf->npages; ++i)
 			if (buf->page_list[i].buf)
 				dma_free_coherent(dev, 1 << buf->page_shift,
 						  buf->page_list[i].buf,
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
+		buf->page_list = NULL;
 	}
 }
 
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift)
 {
-	int i = 0;
-	dma_addr_t t;
+	struct hns_roce_buf_list *buf_list;
 	struct device *dev = hr_dev->dev;
-	u32 page_size = 1 << page_shift;
-	u32 order;
+	u32 page_size;
+	int i;
 
-	/* SQ/RQ buf lease than one page, SQ + RQ = 8K */
+	/* The minimum shift of the page accessed by hw is HNS_HW_PAGE_SHIFT */
+	buf->page_shift = max_t(int, HNS_HW_PAGE_SHIFT, page_shift);
+
+	page_size = 1 << buf->page_shift;
+	buf->npages = DIV_ROUND_UP(size, page_size);
+
+	/* required size is not bigger than one trunk size */
 	if (size <= max_direct) {
-		buf->nbufs = 1;
-		/* Npages calculated by page_size */
-		order = get_order(size);
-		if (order <= page_shift - PAGE_SHIFT)
-			order = 0;
-		else
-			order -= page_shift - PAGE_SHIFT;
-		buf->npages = 1 << order;
-		buf->page_shift = page_shift;
-		/* MTT PA must be recorded in 4k alignment, t is 4k aligned */
-		buf->direct.buf = dma_alloc_coherent(dev, size, &t,
+		buf->page_list = NULL;
+		buf->direct.buf = dma_alloc_coherent(dev, size,
+						     &buf->direct.map,
 						     GFP_KERNEL);
 		if (!buf->direct.buf)
 			return -ENOMEM;
-
-		buf->direct.map = t;
-
-		while (t & ((1 << buf->page_shift) - 1)) {
-			--buf->page_shift;
-			buf->npages *= 2;
-		}
 	} else {
-		buf->nbufs = (size + page_size - 1) / page_size;
-		buf->npages = buf->nbufs;
-		buf->page_shift = page_shift;
-		buf->page_list = kcalloc(buf->nbufs, sizeof(*buf->page_list),
-					 GFP_KERNEL);
-
-		if (!buf->page_list)
+		buf_list = kcalloc(buf->npages, sizeof(*buf_list), GFP_KERNEL);
+		if (!buf_list)
 			return -ENOMEM;
 
-		for (i = 0; i < buf->nbufs; ++i) {
-			buf->page_list[i].buf = dma_alloc_coherent(dev,
-								   page_size,
-								   &t,
-								   GFP_KERNEL);
-
-			if (!buf->page_list[i].buf)
-				goto err_free;
-
-			buf->page_list[i].map = t;
+		for (i = 0; i < buf->npages; i++) {
+			buf_list[i].buf = dma_alloc_coherent(dev, page_size,
+							     &buf_list[i].map,
+							     GFP_KERNEL);
+			if (!buf_list[i].buf)
+				break;
 		}
+
+		if (i != buf->npages && i > 0) {
+			while (i-- > 0)
+				dma_free_coherent(dev, page_size,
+						  buf_list[i].buf,
+						  buf_list[i].map);
+			kfree(buf_list);
+			return -ENOMEM;
+		}
+		buf->page_list = buf_list;
 	}
+	buf->size = size;
 
 	return 0;
-
-err_free:
-	hns_roce_buf_free(hr_dev, size, buf);
-	return -ENOMEM;
 }
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
@@ -246,33 +240,30 @@ int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 	end = start + buf_cnt;
 	if (end > buf->npages) {
 		dev_err(hr_dev->dev,
-			"invalid kmem region,offset %d,buf_cnt %d,total %d!\n",
+			"Failed to check kmem bufs, end %d + %d total %d!\n",
 			start, buf_cnt, buf->npages);
 		return -EINVAL;
 	}
 
 	total = 0;
 	for (i = start; i < end; i++)
-		if (buf->nbufs == 1)
-			bufs[total++] = buf->direct.map +
-					((dma_addr_t)i << buf->page_shift);
-		else
-			bufs[total++] = buf->page_list[i].map;
+		bufs[total++] = hns_roce_buf_page(buf, i);
 
 	return total;
 }
 
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct ib_umem *umem,
-			   int page_shift)
+			   unsigned int page_shift)
 {
 	struct ib_block_iter biter;
 	int total = 0;
 	int idx = 0;
 	u64 addr;
 
-	if (page_shift < PAGE_SHIFT) {
-		dev_err(hr_dev->dev, "invalid page shift %d!\n", page_shift);
+	if (page_shift < HNS_HW_PAGE_SHIFT) {
+		dev_err(hr_dev->dev, "Failed to check umem page shift %d!\n",
+			page_shift);
 		return -EINVAL;
 	}
 
@@ -290,49 +281,6 @@ int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 
 done:
 	return total;
-}
-
-void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
-			      int offset, int buf_cnt)
-{
-	if (hopnum == HNS_ROCE_HOP_NUM_0)
-		region->hopnum = 0;
-	else
-		region->hopnum = hopnum;
-
-	region->offset = offset;
-	region->count = buf_cnt;
-}
-
-void hns_roce_free_buf_list(dma_addr_t **bufs, int region_cnt)
-{
-	int i;
-
-	for (i = 0; i < region_cnt; i++) {
-		kfree(bufs[i]);
-		bufs[i] = NULL;
-	}
-}
-
-int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
-			    dma_addr_t **bufs, int region_cnt)
-{
-	struct hns_roce_buf_region *r;
-	int i;
-
-	for (i = 0; i < region_cnt; i++) {
-		r = &regions[i];
-		bufs[i] = kcalloc(r->count, sizeof(dma_addr_t), GFP_KERNEL);
-		if (!bufs[i])
-			goto err_alloc;
-	}
-
-	return 0;
-
-err_alloc:
-	hns_roce_free_buf_list(bufs, i);
-
-	return -ENOMEM;
 }
 
 void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev)

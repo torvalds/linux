@@ -19,9 +19,9 @@
 #include <linux/nmi.h>
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 #include <asm/pal.h>
-#include <asm/pgtable.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>
 

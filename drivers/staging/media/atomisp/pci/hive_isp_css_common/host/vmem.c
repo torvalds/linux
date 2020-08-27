@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2016, Intel Corporation.
@@ -20,7 +21,6 @@
 #include "ia_css_device_access.h"
 #endif
 #include "assert_support.h"
-#include "platform_support.h"			/* hrt_sleep() */
 
 typedef unsigned long long hive_uedge;
 typedef hive_uedge *hive_wide;
@@ -154,7 +154,7 @@ static void load_vector(
 		hive_sim_wide_unpack(data, &elem, ISP_VEC_ELEMBITS, i);
 		to[i] = elem;
 	}
-	hrt_sleep(); /* Spend at least 1 cycles per vector */
+	udelay(1); /* Spend at least 1 cycles per vector */
 }
 
 static void store_vector(
@@ -179,7 +179,7 @@ static void store_vector(
 	//hrt_mem_store (ISP, VMEM, (unsigned)to, &v, siz); /* This will overwrite the next vector as well */
 	hrt_master_port_store(ISP_BAMEM_BASE[ID] + (unsigned long)to, &v, size);
 #endif
-	hrt_sleep(); /* Spend at least 1 cycles per vector */
+	udelay(1); /* Spend at least 1 cycles per vector */
 }
 
 void isp_vmem_load(

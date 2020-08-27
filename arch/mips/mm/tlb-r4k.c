@@ -21,7 +21,6 @@
 #include <asm/bootinfo.h>
 #include <asm/hazards.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/tlbmisc.h>
 
@@ -120,7 +119,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		if (size <= (current_cpu_data.tlbsizeftlbsets ?
 			     current_cpu_data.tlbsize / 8 :
 			     current_cpu_data.tlbsize / 2)) {
-			unsigned long old_entryhi, uninitialized_var(old_mmid);
+			unsigned long old_entryhi, old_mmid;
 			int newpid = cpu_asid(cpu, mm);
 
 			old_entryhi = read_c0_entryhi();
@@ -214,7 +213,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	int cpu = smp_processor_id();
 
 	if (cpu_context(cpu, vma->vm_mm) != 0) {
-		unsigned long uninitialized_var(old_mmid);
+		unsigned long old_mmid;
 		unsigned long flags, old_entryhi;
 		int idx;
 
@@ -383,7 +382,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 #ifdef CONFIG_XPA
 	panic("Broken for XPA kernels");
 #else
-	unsigned int uninitialized_var(old_mmid);
+	unsigned int old_mmid;
 	unsigned long flags;
 	unsigned long wired;
 	unsigned long old_pagemask;

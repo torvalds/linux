@@ -12,15 +12,16 @@
  *  Copyright (C) 2012  Amit Daniel <amit.kachhap@linaro.org>
  */
 #include <linux/clk.h>
+#include <linux/clock_cooling.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
-#include <linux/clock_cooling.h>
 
 /**
  * struct clock_cooling_device - data for cooling device with clock

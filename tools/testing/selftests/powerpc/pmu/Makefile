@@ -2,7 +2,7 @@
 noarg:
 	$(MAKE) -C ../
 
-TEST_GEN_PROGS := count_instructions l3_bank_test per_event_excludes
+TEST_GEN_PROGS := count_instructions count_stcx_fail l3_bank_test per_event_excludes
 EXTRA_SOURCES := ../harness.c event.c lib.c ../utils.c
 
 top_srcdir = ../../../../..
@@ -13,8 +13,12 @@ all: $(TEST_GEN_PROGS) ebb
 $(TEST_GEN_PROGS): $(EXTRA_SOURCES)
 
 # loop.S can only be built 64-bit
+$(OUTPUT)/count_instructions: CFLAGS += -m64
 $(OUTPUT)/count_instructions: loop.S count_instructions.c $(EXTRA_SOURCES)
-	$(CC) $(CFLAGS) -m64 -o $@ $^
+
+$(OUTPUT)/count_stcx_fail: CFLAGS += -m64
+$(OUTPUT)/count_stcx_fail: loop.S $(EXTRA_SOURCES)
+
 
 $(OUTPUT)/per_event_excludes: ../utils.c
 

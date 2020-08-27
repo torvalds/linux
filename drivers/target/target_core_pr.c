@@ -4086,7 +4086,7 @@ target_check_reservation(struct se_cmd *cmd)
 		return 0;
 	if (!dev->dev_attrib.emulate_pr)
 		return 0;
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;
 
 	spin_lock(&dev->dev_reservation_lock);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -18,7 +19,6 @@
 #include <ia_css_err.h>
 #include <ia_css_types.h>
 #include "ia_css_debug.h"
-#include "memory_access.h"
 
 static struct ia_css_dvs_6axis_config *
 alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
@@ -28,14 +28,14 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 	unsigned int height_y = 0;
 	unsigned int width_uv = 0;
 	unsigned int height_uv = 0;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	struct ia_css_dvs_6axis_config  *dvs_config = NULL;
 
-	dvs_config = (struct ia_css_dvs_6axis_config *)sh_css_malloc(sizeof(
-			 struct ia_css_dvs_6axis_config));
+	dvs_config = kvmalloc(sizeof(struct ia_css_dvs_6axis_config),
+			      GFP_KERNEL);
 	if (!dvs_config)	{
 		IA_CSS_ERROR("out of memory");
-		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		err = -ENOMEM;
 	} else {
 		/*Initialize new struct with latest config settings*/
 		if (dvs_config_src) {
@@ -58,41 +58,41 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 		}
 
 		/* Generate Y buffers  */
-		dvs_config->xcoords_y = (uint32_t *)sh_css_malloc(width_y * height_y * sizeof(
-					    uint32_t));
+		dvs_config->xcoords_y = kvmalloc(width_y * height_y * sizeof(uint32_t),
+						 GFP_KERNEL);
 		if (!dvs_config->xcoords_y) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
-		dvs_config->ycoords_y = (uint32_t *)sh_css_malloc(width_y * height_y * sizeof(
-					    uint32_t));
+		dvs_config->ycoords_y = kvmalloc(width_y * height_y * sizeof(uint32_t),
+						 GFP_KERNEL);
 		if (!dvs_config->ycoords_y) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
 		/* Generate UV buffers  */
 		IA_CSS_LOG("UV W %d H %d", width_uv, height_uv);
 
-		dvs_config->xcoords_uv = (uint32_t *)sh_css_malloc(width_uv * height_uv *
-					 sizeof(uint32_t));
+		dvs_config->xcoords_uv = kvmalloc(width_uv * height_uv * sizeof(uint32_t),
+						  GFP_KERNEL);
 		if (!dvs_config->xcoords_uv) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
-		dvs_config->ycoords_uv = (uint32_t *)sh_css_malloc(width_uv * height_uv *
-					 sizeof(uint32_t));
+		dvs_config->ycoords_uv = kvmalloc(width_uv * height_uv * sizeof(uint32_t),
+						  GFP_KERNEL);
 		if (!dvs_config->ycoords_uv) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 		}
 exit:
-		if (err != IA_CSS_SUCCESS) {
+		if (err) {
 			free_dvs_6axis_table(
 			    &dvs_config); /* we might have allocated some memory, release this */
 			dvs_config = NULL;
@@ -208,28 +208,28 @@ free_dvs_6axis_table(struct ia_css_dvs_6axis_config  **dvs_6axis_config)
 	if ((dvs_6axis_config) && (*dvs_6axis_config)) {
 		IA_CSS_ENTER_PRIVATE("dvs_6axis_config %p", (*dvs_6axis_config));
 		if ((*dvs_6axis_config)->xcoords_y) {
-			sh_css_free((*dvs_6axis_config)->xcoords_y);
+			kvfree((*dvs_6axis_config)->xcoords_y);
 			(*dvs_6axis_config)->xcoords_y = NULL;
 		}
 
 		if ((*dvs_6axis_config)->ycoords_y) {
-			sh_css_free((*dvs_6axis_config)->ycoords_y);
+			kvfree((*dvs_6axis_config)->ycoords_y);
 			(*dvs_6axis_config)->ycoords_y = NULL;
 		}
 
 		/* Free up UV buffers */
 		if ((*dvs_6axis_config)->xcoords_uv) {
-			sh_css_free((*dvs_6axis_config)->xcoords_uv);
+			kvfree((*dvs_6axis_config)->xcoords_uv);
 			(*dvs_6axis_config)->xcoords_uv = NULL;
 		}
 
 		if ((*dvs_6axis_config)->ycoords_uv) {
-			sh_css_free((*dvs_6axis_config)->ycoords_uv);
+			kvfree((*dvs_6axis_config)->ycoords_uv);
 			(*dvs_6axis_config)->ycoords_uv = NULL;
 		}
 
 		IA_CSS_LEAVE_PRIVATE("dvs_6axis_config %p", (*dvs_6axis_config));
-		sh_css_free(*dvs_6axis_config);
+		kvfree(*dvs_6axis_config);
 		*dvs_6axis_config = NULL;
 	}
 }

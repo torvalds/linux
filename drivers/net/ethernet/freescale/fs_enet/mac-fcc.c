@@ -35,12 +35,12 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
 #include <asm/immap_cpm2.h>
 #include <asm/mpc8260.h>
 #include <asm/cpm2.h>
 
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 

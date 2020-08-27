@@ -389,9 +389,7 @@ static inline enum cc_fec fwcap_to_cc_fec(fw_port_cap32_t fw_fec)
 	return cc_fec;
 }
 
-/**
- * Return the highest speed set in the port capabilities, in Mb/s.
- */
+/* Return the highest speed set in the port capabilities, in Mb/s. */
 static unsigned int fwcap_to_speed(fw_port_cap32_t caps)
 {
 	#define TEST_SPEED_RETURN(__caps_speed, __speed) \
@@ -1467,6 +1465,7 @@ int t4vf_identify_port(struct adapter *adapter, unsigned int viid,
  *	@bcast: 1 to enable broadcast Rx, 0 to disable it, -1 no change
  *	@vlanex: 1 to enable hardware VLAN Tag extraction, 0 to disable it,
  *		-1 no change
+ *	@sleep_ok: call is allowed to sleep
  *
  *	Sets Rx properties of a virtual interface.
  */
@@ -1906,7 +1905,7 @@ static const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
 /**
  *	t4vf_handle_get_port_info - process a FW reply message
  *	@pi: the port info
- *	@rpl: start of the FW message
+ *	@cmd: start of the FW message
  *
  *	Processes a GET_PORT_INFO FW reply message.
  */
@@ -2137,8 +2136,6 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 	return 0;
 }
 
-/**
- */
 int t4vf_prep_adapter(struct adapter *adapter)
 {
 	int err;
@@ -2190,14 +2187,14 @@ int t4vf_prep_adapter(struct adapter *adapter)
  *	t4vf_get_vf_mac_acl - Get the MAC address to be set to
  *			      the VI of this VF.
  *	@adapter: The adapter
- *	@pf: The pf associated with vf
+ *	@port: The port associated with vf
  *	@naddr: the number of ACL MAC addresses returned in addr
  *	@addr: Placeholder for MAC addresses
  *
  *	Find the MAC address to be set to the VF's VI. The requested MAC address
  *	is from the host OS via callback in the PF driver.
  */
-int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int port,
 			unsigned int *naddr, u8 *addr)
 {
 	struct fw_acl_mac_cmd cmd;
@@ -2215,7 +2212,7 @@ int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
 	if (cmd.nmac < *naddr)
 		*naddr = cmd.nmac;
 
-	switch (pf) {
+	switch (port) {
 	case 3:
 		memcpy(addr, cmd.macaddr3, sizeof(cmd.macaddr3));
 		break;

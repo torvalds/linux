@@ -34,6 +34,11 @@ SECTIONS
 		KEEP(*(__soc_early_init_table))
 		__soc_early_init_table_end = .;
 	}
+	__soc_builtin_dtb_table : {
+		__soc_builtin_dtb_table_start = .;
+		KEEP(*(__soc_builtin_dtb_table))
+		__soc_builtin_dtb_table_end = .;
+	}
 	/* we have to discard exit text and such at runtime, not link time */
 	.exit.text :
 	{

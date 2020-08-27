@@ -8,7 +8,7 @@
 
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 75,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 90,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -78,12 +78,22 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING( 400000, FULL, 400000baseLR8_ER8_FR8_Full	),
 	PHY_SETTING( 400000, FULL, 400000baseDR8_Full		),
 	PHY_SETTING( 400000, FULL, 400000baseSR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseCR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseKR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseLR4_ER4_FR4_Full	),
+	PHY_SETTING( 400000, FULL, 400000baseDR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseSR4_Full		),
 	/* 200G */
 	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseLR4_ER4_FR4_Full	),
 	PHY_SETTING( 200000, FULL, 200000baseDR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseSR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseCR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseKR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseLR2_ER2_FR2_Full	),
+	PHY_SETTING( 200000, FULL, 200000baseDR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseSR2_Full		),
 	/* 100G */
 	PHY_SETTING( 100000, FULL, 100000baseCR4_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseKR4_Full		),
@@ -94,6 +104,11 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING( 100000, FULL, 100000baseLR2_ER2_FR2_Full	),
 	PHY_SETTING( 100000, FULL, 100000baseDR2_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseSR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseCR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseKR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseLR_ER_FR_Full	),
+	PHY_SETTING( 100000, FULL, 100000baseDR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseSR_Full		),
 	/* 56G */
 	PHY_SETTING(  56000, FULL,  56000baseCR4_Full	  	),
 	PHY_SETTING(  56000, FULL,  56000baseKR4_Full	  	),

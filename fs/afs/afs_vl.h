@@ -22,6 +22,7 @@ enum AFSVL_Operations {
 	VLGETENTRYBYNAMEU	= 527,	/* AFS Get VLDB entry by name (UUID-variant) */
 	VLGETADDRSU		= 533,	/* AFS Get addrs for fileserver */
 	YVLGETENDPOINTS		= 64002, /* YFS Get endpoints for file/volume server */
+	YVLGETCELLNAME		= 64014, /* YFS Get actual cell name */
 	VLGETCAPABILITIES	= 65537, /* AFS Get server capabilities */
 };
 

@@ -24,12 +24,10 @@ properties:
 patternProperties:
   '-pins$':
     type: object
-    allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
     description:
       Pinctrl node's client devices use subnodes for desired pin configuration.
       Client device subnodes use below standard properties.
+    $ref: pinmux-node.yaml#
 
     properties:
       function: true

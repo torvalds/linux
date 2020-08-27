@@ -52,6 +52,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
+	struct zpci_bus *zbus = zdev->zbus;
 	int rc;
 
 	if (zdev->state != ZPCI_FN_STATE_STANDBY)
@@ -65,9 +66,9 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	if (rc)
 		goto out_deconfigure;
 
-	pci_scan_slot(zdev->bus, ZPCI_DEVFN);
+	pci_scan_slot(zbus->bus, zdev->devfn);
 	pci_lock_rescan_remove();
-	pci_bus_add_devices(zdev->bus);
+	pci_bus_add_devices(zbus->bus);
 	pci_unlock_rescan_remove();
 
 	return rc;
@@ -82,13 +83,17 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
 	struct pci_dev *pdev;
+	struct zpci_bus *zbus = zdev->zbus;
 	int rc;
 
 	if (!zpci_fn_configured(zdev->state))
 		return -EIO;
 
-	pdev = pci_get_slot(zdev->bus, ZPCI_DEVFN);
+	pdev = pci_get_slot(zbus->bus, zdev->devfn);
 	if (pdev) {
+		if (pci_num_vf(pdev))
+			return -EBUSY;
+
 		pci_stop_and_remove_bus_device_locked(pdev);
 		pci_dev_put(pdev);
 	}
@@ -133,12 +138,13 @@ static const struct hotplug_slot_ops s390_hotplug_slot_ops = {
 int zpci_init_slot(struct zpci_dev *zdev)
 {
 	char name[SLOT_NAME_SIZE];
+	struct zpci_bus *zbus = zdev->zbus;
 
 	zdev->hotplug_slot.ops = &s390_hotplug_slot_ops;
 
 	snprintf(name, SLOT_NAME_SIZE, "%08x", zdev->fid);
-	return pci_hp_register(&zdev->hotplug_slot, zdev->bus,
-			       ZPCI_DEVFN, name);
+	return pci_hp_register(&zdev->hotplug_slot, zbus->bus,
+			       zdev->devfn, name);
 }
 
 void zpci_exit_slot(struct zpci_dev *zdev)

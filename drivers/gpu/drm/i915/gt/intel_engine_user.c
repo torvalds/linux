@@ -201,7 +201,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 				     uabi_node);
 		char old[sizeof(engine->name)];
 
-		if (intel_gt_has_init_error(engine->gt))
+		if (intel_gt_has_unrecoverable_error(engine->gt))
 			continue; /* ignore incomplete engines */
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));

@@ -43,7 +43,7 @@ static int set_user_ckpt_msr(struct task_struct *task, unsigned long msr)
 
 static int set_user_ckpt_trap(struct task_struct *task, unsigned long trap)
 {
-	task->thread.ckpt_regs.trap = trap & 0xfff0;
+	set_trap(&task->thread.ckpt_regs, trap);
 	return 0;
 }
 

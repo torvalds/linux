@@ -76,7 +76,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 				     PAGE_SIZE);
 		kunmap_atomic(page_kaddr);
 
-		/* fallback to copy_from_user outside mmap_sem */
+		/* fallback to copy_from_user outside mmap_lock */
 		if (unlikely(ret)) {
 			ret = -ENOENT;
 			*pagep = page;
@@ -200,7 +200,7 @@ static pmd_t *mm_alloc_pmd(struct mm_struct *mm, unsigned long address)
 #ifdef CONFIG_HUGETLB_PAGE
 /*
  * __mcopy_atomic processing for HUGETLB vmas.  Note that this routine is
- * called with mmap_sem held, it will release mmap_sem before returning.
+ * called with mmap_lock held, it will release mmap_lock before returning.
  */
 static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 					      struct vm_area_struct *dst_vma,
@@ -228,7 +228,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 	 * feature is not supported.
 	 */
 	if (zeropage) {
-		up_read(&dst_mm->mmap_sem);
+		mmap_read_unlock(dst_mm);
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 
 retry:
 	/*
-	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
+	 * On routine entry dst_vma is set.  If we had to drop mmap_lock and
 	 * retry, dst_vma will be set to NULL and we must lookup again.
 	 */
 	if (!dst_vma) {
@@ -315,7 +315,7 @@ retry:
 		cond_resched();
 
 		if (unlikely(err == -ENOENT)) {
-			up_read(&dst_mm->mmap_sem);
+			mmap_read_unlock(dst_mm);
 			BUG_ON(!page);
 
 			err = copy_huge_page_from_user(page,
@@ -326,7 +326,7 @@ retry:
 				err = -EFAULT;
 				goto out;
 			}
-			down_read(&dst_mm->mmap_sem);
+			mmap_read_lock(dst_mm);
 
 			dst_vma = NULL;
 			goto retry;
@@ -346,7 +346,7 @@ retry:
 	}
 
 out_unlock:
-	up_read(&dst_mm->mmap_sem);
+	mmap_read_unlock(dst_mm);
 out:
 	if (page) {
 		/*
@@ -357,7 +357,7 @@ out:
 		 * private and shared mappings.  See the routine
 		 * restore_reserve_on_error for details.  Unfortunately, we
 		 * can not call restore_reserve_on_error now as it would
-		 * require holding mmap_sem.
+		 * require holding mmap_lock.
 		 *
 		 * If a reservation for the page existed in the reservation
 		 * map of a private mapping, the map was modified to indicate
@@ -485,7 +485,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	copied = 0;
 	page = NULL;
 retry:
-	down_read(&dst_mm->mmap_sem);
+	mmap_read_lock(dst_mm);
 
 	/*
 	 * If memory mappings are changing because of non-cooperative
@@ -583,7 +583,7 @@ retry:
 		if (unlikely(err == -ENOENT)) {
 			void *page_kaddr;
 
-			up_read(&dst_mm->mmap_sem);
+			mmap_read_unlock(dst_mm);
 			BUG_ON(!page);
 
 			page_kaddr = kmap(page);
@@ -612,7 +612,7 @@ retry:
 	}
 
 out_unlock:
-	up_read(&dst_mm->mmap_sem);
+	mmap_read_unlock(dst_mm);
 out:
 	if (page)
 		put_page(page);
@@ -652,7 +652,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 	/* Does the address range wrap, or is the span zero-sized? */
 	BUG_ON(start + len <= start);
 
-	down_read(&dst_mm->mmap_sem);
+	mmap_read_lock(dst_mm);
 
 	/*
 	 * If memory mappings are changing because of non-cooperative
@@ -686,6 +686,6 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 
 	err = 0;
 out_unlock:
-	up_read(&dst_mm->mmap_sem);
+	mmap_read_unlock(dst_mm);
 	return err;
 }

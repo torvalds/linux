@@ -252,7 +252,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 
 	/*
 	 * Issue the synchronous I/O from a different thread
-	 * to avoid generic_make_request recursion.
+	 * to avoid submit_bio_noacct recursion.
 	 */
 	INIT_WORK_ONSTACK(&req.work, do_metadata);
 	queue_work(ps->metadata_wq, &req.work);
@@ -613,7 +613,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 						    chunk_t old, chunk_t new),
 				    void *callback_context)
 {
-	int r, uninitialized_var(new_snapshot);
+	int r, new_snapshot;
 	struct pstore *ps = get_info(store);
 
 	/*

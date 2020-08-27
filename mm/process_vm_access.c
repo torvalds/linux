@@ -104,12 +104,12 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		 * access remotely because task/mm might not
 		 * current/current->mm
 		 */
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		pinned_pages = pin_user_pages_remote(task, mm, pa, pinned_pages,
 						     flags, process_pages,
 						     NULL, &locked);
 		if (locked)
-			up_read(&mm->mmap_sem);
+			mmap_read_unlock(mm);
 		if (pinned_pages <= 0)
 			return -EFAULT;
 

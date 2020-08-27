@@ -73,3 +73,4 @@ EXPORT_SYMBOL_GPL(nft_fwd_dup_netdev_offload);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
+MODULE_DESCRIPTION("Netfilter packet duplication support");

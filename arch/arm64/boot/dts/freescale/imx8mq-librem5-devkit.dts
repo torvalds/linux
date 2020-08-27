@@ -318,7 +318,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
-				rohm,dvs-run-voltage = <1000000>;
+				rohm,dvs-run-voltage = <900000>;
 			};
 
 			buck4_reg: BUCK4 {
@@ -410,7 +410,7 @@
 		};
 	};
 
-	typec_ptn5100: usb_typec@52 {
+	typec_ptn5100: usb-typec@52 {
 		compatible = "nxp,ptn5110";
 		reg = <0x52>;
 		pinctrl-names = "default";

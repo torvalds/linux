@@ -33,7 +33,7 @@ memory ranges) provides two primary functionalities:
 The real advantage of userfaults if compared to regular virtual memory
 management of mremap/mprotect is that the userfaults in all their
 operations never involve heavyweight structures like vmas (in fact the
-``userfaultfd`` runtime load never takes the mmap_sem for writing).
+``userfaultfd`` runtime load never takes the mmap_lock for writing).
 
 Vmas are not suitable for page- (or hugepage) granular fault tracking
 when dealing with virtual address spaces that could span

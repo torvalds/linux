@@ -68,9 +68,9 @@
 #include <asm/entry.h>
 #include <asm/current.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/registers.h>
 #include <asm/asm-offsets.h>

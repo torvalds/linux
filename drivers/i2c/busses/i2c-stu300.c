@@ -860,7 +860,6 @@ static int stu300_probe(struct platform_device *pdev)
 {
 	struct stu300_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	int bus_nr;
 	int ret = 0;
 
@@ -876,8 +875,7 @@ static int stu300_probe(struct platform_device *pdev)
 	}
 
 	dev->pdev = pdev;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->virtbase = devm_ioremap_resource(&pdev->dev, res);
+	dev->virtbase = devm_platform_ioremap_resource(pdev, 0);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
 	if (IS_ERR(dev->virtbase))

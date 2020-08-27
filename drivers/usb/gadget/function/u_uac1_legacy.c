@@ -23,7 +23,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-/**
+/*
  * Some ALSA internal helper functions
  */
 static int snd_interval_refine_set(struct snd_interval *i, unsigned int val)
@@ -86,7 +86,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 }
 /*-------------------------------------------------------------------------*/
 
-/**
+/*
  * Set default hardware params
  */
 static int playback_default_hw_params(struct gaudio_snd_dev *snd)
@@ -146,7 +146,7 @@ static int playback_default_hw_params(struct gaudio_snd_dev *snd)
 	return 0;
 }
 
-/**
+/*
  * Playback audio buffer data by ALSA PCM device
  */
 size_t u_audio_playback(struct gaudio *card, void *buf, size_t count)
@@ -189,7 +189,7 @@ int u_audio_get_playback_rate(struct gaudio *card)
 	return card->playback.rate;
 }
 
-/**
+/*
  * Open ALSA PCM and control device files
  * Initial the PCM or control device
  */
@@ -250,7 +250,7 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	return 0;
 }
 
-/**
+/*
  * Close ALSA PCM and control device files
  */
 static int gaudio_close_snd_dev(struct gaudio *gau)
@@ -275,7 +275,7 @@ static int gaudio_close_snd_dev(struct gaudio *gau)
 	return 0;
 }
 
-/**
+/*
  * gaudio_setup - setup ALSA interface and preparing for USB transfer
  *
  * This sets up PCM, mixer or MIDI ALSA devices fore USB gadget using.
@@ -294,7 +294,7 @@ int gaudio_setup(struct gaudio *card)
 
 }
 
-/**
+/*
  * gaudio_cleanup - remove ALSA device interface
  *
  * This is called to free all resources allocated by @gaudio_setup().

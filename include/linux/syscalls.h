@@ -444,6 +444,8 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 asmlinkage long sys_openat2(int dfd, const char __user *filename,
 			    struct open_how *how, size_t size);
 asmlinkage long sys_close(unsigned int fd);
+asmlinkage long sys_close_range(unsigned int fd, unsigned int max_fd,
+				unsigned int flags);
 asmlinkage long sys_vhangup(void);
 
 /* fs/pipe.c */
@@ -1360,7 +1362,7 @@ static inline long ksys_lchown(const char __user *filename, uid_t user,
 
 extern long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 
-static inline long ksys_ftruncate(unsigned int fd, unsigned long length)
+static inline long ksys_ftruncate(unsigned int fd, loff_t length)
 {
 	return do_sys_ftruncate(fd, length, 1);
 }
@@ -1424,4 +1426,8 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
 			    const struct old_timespec32 __user *timeout);
 
+int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+		int __user *optlen);
+int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+		int optlen);
 #endif

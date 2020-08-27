@@ -5,7 +5,7 @@
 config ZORRO_NAMES
 	bool "Zorro device name database"
 	depends on ZORRO
-	---help---
+	help
 	  By default, the kernel contains a database of all known Zorro device
 	  names to make the information in /proc/iomem comprehensible to the
 	  user. This database increases the size of the kernel image by about

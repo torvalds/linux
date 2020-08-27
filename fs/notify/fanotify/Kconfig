@@ -4,7 +4,7 @@ config FANOTIFY
 	select FSNOTIFY
 	select EXPORTFS
 	default n
-	---help---
+	help
 	   Say Y here to enable fanotify support.  fanotify is a file access
 	   notification system which differs from inotify in that it sends
 	   an open file descriptor to the userspace listener along with
@@ -17,7 +17,7 @@ config FANOTIFY_ACCESS_PERMISSIONS
 	depends on FANOTIFY
 	depends on SECURITY
 	default n
-	---help---
+	help
 	   Say Y here is you want fanotify listeners to be able to make permissions
 	   decisions concerning filesystem events.  This is used by some fanotify
 	   listeners which need to scan files before allowing the system access to

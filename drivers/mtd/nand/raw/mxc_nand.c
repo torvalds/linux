@@ -1919,8 +1919,12 @@ escan:
 static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->nand;
+	int ret;
 
-	nand_release(&host->nand);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	if (host->clk_act)
 		clk_disable_unprepare(host->clk);
 

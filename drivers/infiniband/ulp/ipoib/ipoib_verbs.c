@@ -206,6 +206,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_MANAGED_FLOW_STEERING)
 		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
 
+	if (priv->hca_caps & IB_DEVICE_RDMA_NETDEV_OPA)
+		init_attr.create_flags |= IB_QP_CREATE_NETDEV_USE;
+
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
 		pr_warn("%s: failed to create QP\n", ca->name);

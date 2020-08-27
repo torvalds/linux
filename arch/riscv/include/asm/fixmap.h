@@ -8,8 +8,8 @@
 
 #include <linux/kernel.h>
 #include <linux/sizes.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #ifdef CONFIG_MMU
 /*

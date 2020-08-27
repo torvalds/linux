@@ -103,23 +103,33 @@ DEFINE_CMA_FSM_EVENT(sent_drep);
 DEFINE_CMA_FSM_EVENT(sent_dreq);
 DEFINE_CMA_FSM_EVENT(id_destroy);
 
-TRACE_EVENT(cm_id_create,
+TRACE_EVENT(cm_id_attach,
 	TP_PROTO(
-		const struct rdma_id_private *id_priv
+		const struct rdma_id_private *id_priv,
+		const struct ib_device *device
 	),
 
-	TP_ARGS(id_priv),
+	TP_ARGS(id_priv, device),
 
 	TP_STRUCT__entry(
 		__field(u32, cm_id)
+		__array(unsigned char, srcaddr, sizeof(struct sockaddr_in6))
+		__array(unsigned char, dstaddr, sizeof(struct sockaddr_in6))
+		__string(devname, device->name)
 	),
 
 	TP_fast_assign(
 		__entry->cm_id = id_priv->res.id;
+		memcpy(__entry->srcaddr, &id_priv->id.route.addr.src_addr,
+		       sizeof(struct sockaddr_in6));
+		memcpy(__entry->dstaddr, &id_priv->id.route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
+		__assign_str(devname, device->name);
 	),
 
-	TP_printk("cm.id=%u",
-		__entry->cm_id
+	TP_printk("cm.id=%u src=%pISpc dst=%pISpc device=%s",
+		__entry->cm_id, __entry->srcaddr, __entry->dstaddr,
+		__get_str(devname)
 	)
 );
 

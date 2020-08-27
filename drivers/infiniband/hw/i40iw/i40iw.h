@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/crc32c.h>
+#include <linux/net/intel/i40e_client.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -57,7 +58,6 @@
 #include "i40iw_d.h"
 #include "i40iw_hmc.h"
 
-#include <i40e_client.h>
 #include "i40iw_type.h"
 #include "i40iw_p.h"
 #include <rdma/i40iw-abi.h>
@@ -379,15 +379,6 @@ static inline struct i40iw_pd *to_iwpd(struct ib_pd *ibpd)
 static inline struct i40iw_mr *to_iwmr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct i40iw_mr, ibmr);
-}
-
-/**
- * to_iwmr_from_ibfmr - get device memory region
- * @ibfmr: ib fmr
- **/
-static inline struct i40iw_mr *to_iwmr_from_ibfmr(struct ib_fmr *ibfmr)
-{
-	return container_of(ibfmr, struct i40iw_mr, ibfmr);
 }
 
 /**

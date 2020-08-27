@@ -27,6 +27,9 @@ config HAVE_IMA_KEXEC
 config HOTPLUG_SMT
 	bool
 
+config GENERIC_ENTRY
+       bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING
@@ -147,7 +150,7 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	  problems with received packets if doing so would not help
 	  much.
 
-	  See Documentation/unaligned-memory-access.txt for more
+	  See Documentation/core-api/unaligned-memory-access.rst for more
 	  information on the topic of unaligned memory accesses.
 
 config ARCH_USE_BUILTIN_BSWAP
@@ -327,12 +330,6 @@ config HAVE_FUNCTION_ARG_ACCESS_API
 	  This symbol should be selected by an architecure if it supports
 	  the API needed to access function arguments from pt_regs,
 	  declared in asm/ptrace.h
-
-config HAVE_CLK
-	bool
-	help
-	  The <linux/clk.h> calls support software clock gating and
-	  thus are a key power management tool on many systems.
 
 config HAVE_HW_BREAKPOINT
 	bool
@@ -760,13 +757,6 @@ config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	depends on MMU
 	select ARCH_HAS_ELF_RANDOMIZE
 
-config HAVE_COPY_THREAD_TLS
-	bool
-	help
-	  Architecture provides copy_thread_tls to accept tls argument via
-	  normal C parameter passing, rather than extracting the syscall
-	  argument from pt_regs.
-
 config HAVE_STACK_VALIDATION
 	bool
 	help
@@ -882,7 +872,7 @@ config VMAP_STACK
 	bool "Use a virtually-mapped stack"
 	depends on HAVE_ARCH_VMAP_STACK
 	depends on !KASAN || KASAN_VMALLOC
-	---help---
+	help
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
 	  caught immediately rather than causing difficult-to-diagnose
@@ -954,7 +944,7 @@ config ARCH_USE_MEMREMAP_PROT
 config LOCK_EVENT_COUNTS
 	bool "Locking event counts collection"
 	depends on DEBUG_FS
-	---help---
+	help
 	  Enable light-weight counting of various locking related events
 	  in the system with minimal performance impact. This reduces
 	  the chance of application behavior change because of timing

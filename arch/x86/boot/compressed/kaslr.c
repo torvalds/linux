@@ -19,13 +19,6 @@
  */
 #define BOOT_CTYPE_H
 
-/*
- * _ctype[] in lib/ctype.c is needed by isspace() of linux/ctype.h.
- * While both lib/ctype.c and lib/cmdline.c will bring EXPORT_SYMBOL
- * which is meaningless and will cause compiling error in some cases.
- */
-#define __DISABLE_EXPORTS
-
 #include "misc.h"
 #include "error.h"
 #include "../string.h"

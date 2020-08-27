@@ -59,9 +59,11 @@ static void rts5261_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 
 static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	u32 reg;
+
 	/* 0x814~0x817 */
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 
 	if (!rts5261_vendor_setting_valid(reg)) {
@@ -76,7 +78,7 @@ static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->flags |= PCR_REVERSE_SOCKET;
 
 	/* 0x724~0x727 */
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	pcr->aspm_en = rts5261_reg_to_aspm(reg);
@@ -361,6 +363,7 @@ static void rts5261_process_ocp(struct rtsx_pcr *pcr)
 
 static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	int retval;
 	u32 lval, i;
 	u8 valid, efuse_valid, tmp;
@@ -386,8 +389,7 @@ static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
 	pcr_dbg(pcr, "Load efuse valid: 0x%x\n", efuse_valid);
 
 	if (efuse_valid == 0) {
-		retval = rtsx_pci_read_config_dword(pcr,
-			PCR_SETTING_REG2, &lval);
+		retval = pci_read_config_dword(pdev, PCR_SETTING_REG2, &lval);
 		if (retval != 0)
 			pcr_dbg(pcr, "read 0x814 DW fail\n");
 		pcr_dbg(pcr, "DW from 0x814: 0x%x\n", lval);
@@ -399,9 +401,9 @@ static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
 		REG_EFUSE_POR, 0);
 	pcr_dbg(pcr, "Disable efuse por!\n");
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &lval);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &lval);
 	lval = lval & 0x00FFFFFF;
-	retval = rtsx_pci_write_config_dword(pcr, PCR_SETTING_REG2, lval);
+	retval = pci_write_config_dword(pdev, PCR_SETTING_REG2, lval);
 	if (retval != 0)
 		pcr_dbg(pcr, "write config fail\n");
 
@@ -410,27 +412,33 @@ static int rts5261_init_from_hw(struct rtsx_pcr *pcr)
 
 static void rts5261_init_from_cfg(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
+	int l1ss;
 	u32 lval;
 	struct rtsx_cr_option *option = &pcr->option;
 
-	rtsx_pci_read_config_dword(pcr, PCR_ASPM_SETTING_REG1, &lval);
+	l1ss = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS);
+	if (!l1ss)
+		return;
 
-	if (lval & ASPM_L1_1_EN_MASK)
+	pci_read_config_dword(pdev, l1ss + PCI_L1SS_CTL1, &lval);
+
+	if (lval & PCI_L1SS_CTL1_ASPM_L1_1)
 		rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);
 	else
 		rtsx_clear_dev_flag(pcr, ASPM_L1_1_EN);
 
-	if (lval & ASPM_L1_2_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_ASPM_L1_2)
 		rtsx_set_dev_flag(pcr, ASPM_L1_2_EN);
 	else
 		rtsx_clear_dev_flag(pcr, ASPM_L1_2_EN);
 
-	if (lval & PM_L1_1_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_PCIPM_L1_1)
 		rtsx_set_dev_flag(pcr, PM_L1_1_EN);
 	else
 		rtsx_clear_dev_flag(pcr, PM_L1_1_EN);
 
-	if (lval & PM_L1_2_EN_MASK)
+	if (lval & PCI_L1SS_CTL1_PCIPM_L1_2)
 		rtsx_set_dev_flag(pcr, PM_L1_2_EN);
 	else
 		rtsx_clear_dev_flag(pcr, PM_L1_2_EN);
@@ -439,7 +447,7 @@ static void rts5261_init_from_cfg(struct rtsx_pcr *pcr)
 	if (option->ltr_en) {
 		u16 val;
 
-		pcie_capability_read_word(pcr->pci, PCI_EXP_DEVCTL2, &val);
+		pcie_capability_read_word(pdev, PCI_EXP_DEVCTL2, &val);
 		if (val & PCI_EXP_DEVCTL2_LTR_EN) {
 			option->ltr_enabled = true;
 			option->ltr_active = true;
@@ -518,51 +526,22 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 
 static void rts5261_enable_aspm(struct rtsx_pcr *pcr, bool enable)
 {
-	struct rtsx_cr_option *option = &pcr->option;
-	u8 val = 0;
-
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		val = pcr->aspm_en;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0;
-
-		val = FORCE_ASPM_CTL0;
-		val |= (pcr->aspm_en & 0x02);
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-		val = pcr->aspm_en;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-	}
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC, pcr->aspm_en);
 	pcr->aspm_enabled = enable;
 
 }
 
 static void rts5261_disable_aspm(struct rtsx_pcr *pcr, bool enable)
 {
-	struct rtsx_cr_option *option = &pcr->option;
-	u8 val = 0;
-
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		val = 0;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0;
-
-		val = 0;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-		val = FORCE_ASPM_CTL0;
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-	}
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC, 0);
 	rtsx_pci_write_register(pcr, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
 	udelay(10);
 	pcr->aspm_enabled = enable;
@@ -639,8 +618,13 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 
 	if (initial_mode) {
 		/* We use 250k(around) here, in initial stage */
-		clk_divider = SD_CLK_DIVIDE_128;
-		card_clock = 30000000;
+		if (is_version(pcr, PID_5261, IC_VER_D)) {
+			clk_divider = SD_CLK_DIVIDE_256;
+			card_clock = 60000000;
+		} else {
+			clk_divider = SD_CLK_DIVIDE_128;
+			card_clock = 30000000;
+		}
 	} else {
 		clk_divider = SD_CLK_DIVIDE_0;
 	}
@@ -784,7 +768,6 @@ void rts5261_init_params(struct rtsx_pcr *pcr)
 	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = 0x7F;
 	option->ltr_l1off_snooze_sspwrgate = 0x78;
-	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
 
 	option->ocp_en = 1;
 	hw_param->interrupt_en |= SD_OC_INT_EN;

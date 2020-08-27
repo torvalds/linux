@@ -1227,7 +1227,7 @@ struct nfs4_secinfo4 {
 
 struct nfs4_secinfo_flavors {
 	unsigned int		num_flavors;
-	struct nfs4_secinfo4	flavors[0];
+	struct nfs4_secinfo4	flavors[];
 };
 
 struct nfs4_secinfo_arg {

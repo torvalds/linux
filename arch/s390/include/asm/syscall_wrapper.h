@@ -30,7 +30,7 @@
 })
 
 #define __S390_SYS_STUBx(x, name, ...)					\
-	asmlinkage long __s390_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))\
+	asmlinkage long __s390_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));\
 	ALLOW_ERROR_INJECTION(__s390_sys##name, ERRNO);			\
 	asmlinkage long __s390_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))\
 	{								\
@@ -46,7 +46,7 @@
 #define COMPAT_SYSCALL_DEFINE0(sname)					\
 	SYSCALL_METADATA(_##sname, 0);					\
 	asmlinkage long __s390_compat_sys_##sname(void);		\
-	ALLOW_ERROR_INJECTION(__s390_compat__sys_##sname, ERRNO);	\
+	ALLOW_ERROR_INJECTION(__s390_compat_sys_##sname, ERRNO);	\
 	asmlinkage long __s390_compat_sys_##sname(void)
 
 #define SYSCALL_DEFINE0(sname)						\
@@ -72,7 +72,7 @@
 	asmlinkage long __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	asmlinkage long __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_compat_sys##name))));	\
-	ALLOW_ERROR_INJECTION(compat_sys##name, ERRNO);				\
+	ALLOW_ERROR_INJECTION(__s390_compat_sys##name, ERRNO);			\
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
 	asmlinkage long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
 	asmlinkage long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\

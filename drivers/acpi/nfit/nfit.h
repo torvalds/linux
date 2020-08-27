@@ -16,7 +16,7 @@
 /* ACPI 6.1 */
 #define UUID_NFIT_BUS "2f10e7a4-9e91-11e4-89d3-123b93f75cba"
 
-/* http://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
+/* https://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 
 /* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */

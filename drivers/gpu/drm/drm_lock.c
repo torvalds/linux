@@ -330,6 +330,7 @@ static int drm_legacy_i_have_hw_lock(struct drm_device *dev,
 				     struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
+
 	return (file_priv->lock_count && master->lock.hw_lock &&
 		_DRM_LOCK_IS_HELD(master->lock.hw_lock->lock) &&
 		master->lock.file_priv == file_priv);

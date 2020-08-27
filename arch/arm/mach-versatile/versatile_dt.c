@@ -39,8 +39,6 @@
 #define VERSATILE_MMCI0_BASE           0x10005000	/* MMC interface */
 #define VERSATILE_MMCI1_BASE           0x1000B000	/* MMC Interface */
 #define VERSATILE_SCTL_BASE            0x101E0000	/* System controller */
-#define VERSATILE_IB2_BASE             0x24000000	/* IB2 module */
-#define VERSATILE_IB2_CTL_BASE		(VERSATILE_IB2_BASE + 0x03000000)
 
 /*
  * System controller bit assignment
@@ -54,7 +52,6 @@
 #define VERSATILE_TIMER4_EnSel	21
 
 static void __iomem *versatile_sys_base;
-static void __iomem *versatile_ib2_ctrl;
 
 unsigned int mmc_status(struct device *dev)
 {
@@ -168,8 +165,6 @@ static void __init versatile_dt_init(void)
 	if (np)
 		versatile_sys_base = of_iomap(np, 0);
 	WARN_ON(!versatile_sys_base);
-
-	versatile_ib2_ctrl = ioremap(VERSATILE_IB2_CTL_BASE, SZ_4K);
 
 	versatile_dt_pci_init();
 

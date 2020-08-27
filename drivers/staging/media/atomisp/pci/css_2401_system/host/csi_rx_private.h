@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -289,12 +290,12 @@ static inline void csi_rx_be_ctrl_dump_state(
 	 * lut.
 	 */
 	for (i = 0; i < N_SHORT_PACKET_LUT_ENTRIES[ID]; i++) {
-		ia_css_print("CSI RX BE STATE Controller ID %d Short packat entry %d shart packet lut id 0x%x\n",
+		ia_css_print("CSI RX BE STATE Controller ID %d Short packet entry %d short packet lut id 0x%x\n",
 			     ID, i,
 			     state->short_packet_lut_entry[i]);
 	}
 	for (i = 0; i < N_LONG_PACKET_LUT_ENTRIES[ID]; i++) {
-		ia_css_print("CSI RX BE STATE Controller ID %d Long packat entry %d Long packet lut id 0x%x\n",
+		ia_css_print("CSI RX BE STATE Controller ID %d Long packet entry %d long packet lut id 0x%x\n",
 			     ID, i,
 			     state->long_packet_lut_entry[i]);
 	}

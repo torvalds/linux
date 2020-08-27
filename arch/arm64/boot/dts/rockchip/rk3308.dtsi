@@ -524,6 +524,7 @@
 			reg = <0x0 0xff2c0000 0x0 0x4000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
@@ -534,6 +535,7 @@
 			reg = <0x0 0xff2d0000 0x0 0x4000>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-periph-burst;
 			clocks = <&cru ACLK_DMAC1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
@@ -1629,7 +1631,7 @@
 		};
 
 		tsadc {
-			tsadc_otp_gpio: tsadc-otp-gpio {
+			tsadc_otp_pin: tsadc-otp-pin {
 				rockchip,pins =
 					<0 RK_PB2 0 &pcfg_pull_none>;
 			};
@@ -1657,7 +1659,7 @@
 					<2 RK_PA3 1 &pcfg_pull_none>;
 			};
 
-			uart0_rts_gpio: uart0-rts-gpio {
+			uart0_rts_pin: uart0-rts-pin {
 				rockchip,pins =
 					<2 RK_PA3 0 &pcfg_pull_none>;
 			};
@@ -1730,7 +1732,7 @@
 					<4 RK_PA7 1 &pcfg_pull_none>;
 			};
 
-			uart4_rts_gpio: uart4-rts-gpio {
+			uart4_rts_pin: uart4-rts-pin {
 				rockchip,pins =
 					<4 RK_PA7 0 &pcfg_pull_none>;
 			};

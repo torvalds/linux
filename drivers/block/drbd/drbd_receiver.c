@@ -1723,7 +1723,7 @@ next_bio:
 		bios = bios->bi_next;
 		bio->bi_next = NULL;
 
-		drbd_generic_make_request(device, fault_type, bio);
+		drbd_submit_bio_noacct(device, fault_type, bio);
 	} while (bios);
 	return 0;
 

@@ -794,13 +794,17 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 		return -ENODEV;
 
 	sgpio = devm_kzalloc(&pdev->dev, sizeof(*sgpio), GFP_KERNEL);
-	if (!sgpio)
-		return -ENOMEM;
+	if (!sgpio) {
+		err = -ENOMEM;
+		goto out_put_device;
+	}
 	spin_lock_init(&sgpio->lock);
 
 	regs = of_iomap(np, 0);
-	if (!regs)
-		return -ENOMEM;
+	if (!regs) {
+		err = -ENOMEM;
+		goto out_put_device;
+	}
 
 	sgpio->chip.gc.request = sirfsoc_gpio_request;
 	sgpio->chip.gc.free = sirfsoc_gpio_free;
@@ -824,8 +828,10 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	girq->parents = devm_kcalloc(&pdev->dev, SIRFSOC_GPIO_NO_OF_BANKS,
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
-	if (!girq->parents)
-		return -ENOMEM;
+	if (!girq->parents) {
+		err = -ENOMEM;
+		goto out_put_device;
+	}
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
 		bank = &sgpio->sgpio_bank[i];
 		spin_lock_init(&bank->lock);
@@ -868,6 +874,8 @@ out_no_range:
 	gpiochip_remove(&sgpio->chip.gc);
 out:
 	iounmap(regs);
+out_put_device:
+	put_device(&pdev->dev);
 	return err;
 }
 

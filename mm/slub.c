@@ -292,7 +292,7 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 		return get_freepointer(s, object);
 
 	freepointer_addr = (unsigned long)object + s->offset;
-	probe_kernel_read(&p, (void **)freepointer_addr, sizeof(p));
+	copy_from_kernel_nofault(&p, (void **)freepointer_addr, sizeof(p));
 	return freelist_ptr(s, p, freepointer_addr);
 }
 
@@ -1218,7 +1218,7 @@ static noinline int free_debug_processing(
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 	void *object = head;
 	int cnt = 0;
-	unsigned long uninitialized_var(flags);
+	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&n->list_lock, flags);
@@ -2013,7 +2013,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
 
 #ifdef CONFIG_PREEMPTION
 /*
- * Calculate the next globally unique transaction for disambiguiation
+ * Calculate the next globally unique transaction for disambiguation
  * during cmpxchg. The transactions start with the cpu number and are then
  * incremented by CONFIG_NR_CPUS.
  */
@@ -2901,7 +2901,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	struct page new;
 	unsigned long counters;
 	struct kmem_cache_node *n = NULL;
-	unsigned long uninitialized_var(flags);
+	unsigned long flags;
 
 	stat(s, FREE_SLOWPATH);
 
@@ -3766,14 +3766,12 @@ error:
 }
 
 static void list_slab_objects(struct kmem_cache *s, struct page *page,
-			      const char *text, unsigned long *map)
+			      const char *text)
 {
 #ifdef CONFIG_SLUB_DEBUG
 	void *addr = page_address(page);
+	unsigned long *map;
 	void *p;
-
-	if (!map)
-		return;
 
 	slab_err(s, page, text, s->name);
 	slab_lock(page);
@@ -3786,6 +3784,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 			print_tracking(s, p);
 		}
 	}
+	put_map(map);
 	slab_unlock(page);
 #endif
 }
@@ -3799,11 +3798,6 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 {
 	LIST_HEAD(discard);
 	struct page *page, *h;
-	unsigned long *map = NULL;
-
-#ifdef CONFIG_SLUB_DEBUG
-	map = bitmap_alloc(oo_objects(s->max), GFP_KERNEL);
-#endif
 
 	BUG_ON(irqs_disabled());
 	spin_lock_irq(&n->list_lock);
@@ -3813,15 +3807,10 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 			list_add(&page->slab_list, &discard);
 		} else {
 			list_slab_objects(s, page,
-			  "Objects remaining in %s on __kmem_cache_shutdown()",
-			  map);
+			  "Objects remaining in %s on __kmem_cache_shutdown()");
 		}
 	}
 	spin_unlock_irq(&n->list_lock);
-
-#ifdef CONFIG_SLUB_DEBUG
-	bitmap_free(map);
-#endif
 
 	list_for_each_entry_safe(page, h, &discard, slab_list)
 		discard_slab(s, page);

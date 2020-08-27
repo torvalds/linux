@@ -25,6 +25,20 @@ properties:
   power-domains:
     maxItems: 1
 
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-parents:
+    maxItems: 1
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
+
+  ranges: true
+
 required:
   - compatible
   - reg
@@ -39,30 +53,39 @@ patternProperties:
       Documentation/devicetree/bindings/ufs/cdns,ufshc.txt for binding
       documentation of child node
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    ufs_wrapper: ufs-wrapper@4e80000 {
-       compatible = "ti,j721e-ufs";
-       reg = <0x0 0x4e80000 0x0 0x100>;
-       power-domains = <&k3_pds 277>;
-       clocks = <&k3_clks 277 1>;
-       assigned-clocks = <&k3_clks 277 1>;
-       assigned-clock-parents = <&k3_clks 277 4>;
-       #address-cells = <2>;
-       #size-cells = <2>;
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
 
-       ufs@4e84000 {
-          compatible = "cdns,ufshc-m31-16nm", "jedec,ufs-2.0";
-          reg = <0x0 0x4e84000 0x0 0x10000>;
-          interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-          freq-table-hz = <19200000 19200000>;
-          power-domains = <&k3_pds 277>;
-          clocks = <&k3_clks 277 1>;
-          assigned-clocks = <&k3_clks 277 1>;
-          assigned-clock-parents = <&k3_clks 277 4>;
-          clock-names = "core_clk";
-       };
+        ufs-wrapper@4e80000 {
+            compatible = "ti,j721e-ufs";
+            reg = <0x0 0x4e80000 0x0 0x100>;
+            power-domains = <&k3_pds 277>;
+            clocks = <&k3_clks 277 1>;
+            assigned-clocks = <&k3_clks 277 1>;
+            assigned-clock-parents = <&k3_clks 277 4>;
+
+            ranges = <0x0 0x0 0x0 0x4e80000 0x0 0x14000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+
+            ufs@4000 {
+                compatible = "cdns,ufshc-m31-16nm", "jedec,ufs-2.0";
+                reg = <0x0 0x4000 0x0 0x10000>;
+                interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+                freq-table-hz = <19200000 19200000>;
+                power-domains = <&k3_pds 277>;
+                clocks = <&k3_clks 277 1>;
+                assigned-clocks = <&k3_clks 277 1>;
+                assigned-clock-parents = <&k3_clks 277 4>;
+                clock-names = "core_clk";
+            };
+        };
     };

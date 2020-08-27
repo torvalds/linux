@@ -52,6 +52,7 @@ struct nouveau_encoder {
 	 * actually programmed on the hw, not the proposed crtc */
 	struct drm_crtc *crtc;
 	u32 ctrl;
+	bool audio;
 
 	struct drm_display_mode mode;
 	int last_dpms;

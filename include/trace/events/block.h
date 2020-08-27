@@ -212,6 +212,21 @@ DEFINE_EVENT(block_rq, block_rq_issue,
 );
 
 /**
+ * block_rq_merge - merge request with another one in the elevator
+ * @q: queue holding operation
+ * @rq: block IO operation operation request
+ *
+ * Called when block operation request @rq from queue @q is merged to another
+ * request queued in the elevator.
+ */
+DEFINE_EVENT(block_rq, block_rq_merge,
+
+	TP_PROTO(struct request_queue *q, struct request *rq),
+
+	TP_ARGS(q, rq)
+);
+
+/**
  * block_bio_bounce - used bounce buffer when processing block operation
  * @q: queue holding the block operation
  * @bio: block operation
@@ -254,16 +269,15 @@ TRACE_EVENT(block_bio_bounce,
  * block_bio_complete - completed all work on the block operation
  * @q: queue holding the block operation
  * @bio: block operation completed
- * @error: io error value
  *
  * This tracepoint indicates there is no further work to do on this
  * block IO operation @bio.
  */
 TRACE_EVENT(block_bio_complete,
 
-	TP_PROTO(struct request_queue *q, struct bio *bio, int error),
+	TP_PROTO(struct request_queue *q, struct bio *bio),
 
-	TP_ARGS(q, bio, error),
+	TP_ARGS(q, bio),
 
 	TP_STRUCT__entry(
 		__field( dev_t,		dev		)
@@ -277,7 +291,7 @@ TRACE_EVENT(block_bio_complete,
 		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
-		__entry->error		= error;
+		__entry->error		= blk_status_to_errno(bio->bi_status);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
 	),
 

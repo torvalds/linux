@@ -139,10 +139,9 @@ static void max14656_irq_worker(struct work_struct *work)
 
 	u8 buf[REG_TOTAL_NUM];
 	u8 chg_type;
-	int ret = 0;
 
-	ret = max14656_read_block_reg(chip->client, MAX14656_DEVICE_ID,
-				      REG_TOTAL_NUM, buf);
+	max14656_read_block_reg(chip->client, MAX14656_DEVICE_ID,
+				REG_TOTAL_NUM, buf);
 
 	if ((buf[MAX14656_STATUS_1] & STATUS1_VB_VALID_MASK) &&
 		(buf[MAX14656_STATUS_1] & STATUS1_CHG_TYPE_MASK)) {

@@ -418,17 +418,19 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 	__u64 target;
 
 	if (is_kernel_addr(addr)) {
-		if (probe_kernel_read(&instr, (void *)addr, sizeof(instr)))
+		if (copy_from_kernel_nofault(&instr, (void *)addr,
+				sizeof(instr)))
 			return 0;
 
-		return branch_target(&instr);
+		return branch_target((struct ppc_inst *)&instr);
 	}
 
 	/* Userspace: need copy instruction here then translate it */
-	if (probe_user_read(&instr, (unsigned int __user *)addr, sizeof(instr)))
+	if (copy_from_user_nofault(&instr, (unsigned int __user *)addr,
+			sizeof(instr)))
 		return 0;
 
-	target = branch_target(&instr);
+	target = branch_target((struct ppc_inst *)&instr);
 	if ((!target) || (instr & BRANCH_ABSOLUTE))
 		return target;
 
@@ -2177,6 +2179,12 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 
 	perf_read_regs(regs);
 
+	/*
+	 * If perf interrupts hit in a local_irq_disable (soft-masked) region,
+	 * we consider them as NMIs. This is required to prevent hash faults on
+	 * user addresses when reading callchains. See the NMI test in
+	 * do_hash_page.
+	 */
 	nmi = perf_intr_is_nmi(regs);
 	if (nmi)
 		nmi_enter();

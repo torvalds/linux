@@ -4,19 +4,19 @@
  *
  * INA219:
  * Zero Drift Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: http://www.ti.com/product/ina219
+ * Datasheet: https://www.ti.com/product/ina219
  *
  * INA220:
  * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: http://www.ti.com/product/ina220
+ * Datasheet: https://www.ti.com/product/ina220
  *
  * INA226:
  * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: http://www.ti.com/product/ina226
+ * Datasheet: https://www.ti.com/product/ina226
  *
  * INA230:
  * Bi-directional Current/Power Monitor with I2C Interface
- * Datasheet: http://www.ti.com/product/ina230
+ * Datasheet: https://www.ti.com/product/ina230
  *
  * Copyright (C) 2012 Lothar Felten <lothar.felten@gmail.com>
  * Thanks to Jan Volkering
@@ -148,7 +148,7 @@ static const struct ina2xx_config ina2xx_config[] = {
  * Available averaging rates for ina226. The indices correspond with
  * the bit values expected by the chip (according to the ina226 datasheet,
  * table 3 AVG bit settings, found at
- * http://www.ti.com/lit/ds/symlink/ina226.pdf.
+ * https://www.ti.com/lit/ds/symlink/ina226.pdf.
  */
 static const int ina226_avg_tab[] = { 1, 4, 16, 64, 128, 256, 512, 1024 };
 

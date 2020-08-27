@@ -27,7 +27,7 @@
  */
 struct bcom_bd {
 	u32	status;
-	u32	data[0];	/* variable payload size */
+	u32	data[];	/* variable payload size */
 };
 
 /* ======================================================================== */

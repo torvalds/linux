@@ -35,26 +35,26 @@ properties:
       - const: allwinner,sun9i-a80-tcon-tv
 
       - items:
-        - enum:
-          - allwinner,sun7i-a20-tcon0
-          - allwinner,sun7i-a20-tcon1
-        - const: allwinner,sun7i-a20-tcon
+          - enum:
+              - allwinner,sun7i-a20-tcon0
+              - allwinner,sun7i-a20-tcon1
+          - const: allwinner,sun7i-a20-tcon
 
       - items:
-        - enum:
-            - allwinner,sun50i-a64-tcon-lcd
-        - const: allwinner,sun8i-a83t-tcon-lcd
+          - enum:
+              - allwinner,sun50i-a64-tcon-lcd
+          - const: allwinner,sun8i-a83t-tcon-lcd
 
       - items:
-        - enum:
-          - allwinner,sun8i-h3-tcon-tv
-          - allwinner,sun50i-a64-tcon-tv
-        - const: allwinner,sun8i-a83t-tcon-tv
+          - enum:
+              - allwinner,sun8i-h3-tcon-tv
+              - allwinner,sun50i-a64-tcon-tv
+          - const: allwinner,sun8i-a83t-tcon-tv
 
       - items:
-        - enum:
-          - allwinner,sun50i-h6-tcon-tv
-        - const: allwinner,sun8i-r40-tcon-tv
+          - enum:
+              - allwinner,sun50i-h6-tcon-tv
+          - const: allwinner,sun8i-r40-tcon-tv
 
   reg:
     maxItems: 1
@@ -71,11 +71,10 @@ properties:
     maxItems: 4
 
   clock-output-names:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - maxItems: 1
     description:
       Name of the LCD pixel clock created.
+    $ref: /schemas/types.yaml#/definitions/string-array
+    maxItems: 1
 
   dmas:
     maxItems: 1
@@ -83,37 +82,37 @@ properties:
   resets:
     anyOf:
       - items:
-        - description: TCON Reset Line
+          - description: TCON Reset Line
 
       - items:
-        - description: TCON Reset Line
-        - description: TCON LVDS Reset Line
+          - description: TCON Reset Line
+          - description: TCON LVDS Reset Line
 
       - items:
-        - description: TCON Reset Line
-        - description: TCON eDP Reset Line
+          - description: TCON Reset Line
+          - description: TCON eDP Reset Line
 
       - items:
-        - description: TCON Reset Line
-        - description: TCON eDP Reset Line
-        - description: TCON LVDS Reset Line
+          - description: TCON Reset Line
+          - description: TCON eDP Reset Line
+          - description: TCON LVDS Reset Line
 
   reset-names:
     oneOf:
       - const: lcd
 
       - items:
-        - const: lcd
-        - const: lvds
+          - const: lcd
+          - const: lvds
 
       - items:
-        - const: lcd
-        - const: edp
+          - const: lcd
+          - const: edp
 
       - items:
-        - const: lcd
-        - const: edp
-        - const: lvds
+          - const: lcd
+          - const: edp
+          - const: lvds
 
   ports:
     type: object

@@ -83,6 +83,13 @@ config ARCH_R8A7740
 	select ARM_ERRATA_754322
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A7742
+	bool "RZ/G1H (R8A77420)"
+	select ARCH_RCAR_GEN2
+	select ARM_ERRATA_798181 if SMP
+	select ARM_ERRATA_814220
+	select SYSC_R8A7742
+
 config ARCH_R8A7743
 	bool "RZ/G1M (R8A77430)"
 	select ARCH_RCAR_GEN2
@@ -194,6 +201,13 @@ config ARCH_R8A774C0
 	help
 	  This enables support for the Renesas RZ/G2E SoC.
 
+config ARCH_R8A774E1
+	bool "Renesas RZ/G2H SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774E1
+	help
+	  This enables support for the Renesas RZ/G2H SoC.
+
 config ARCH_R8A77950
 	bool "Renesas R-Car H3 ES1.x SoC Platform"
 	select ARCH_RCAR_GEN3
@@ -261,6 +275,10 @@ config ARCH_R8A77995
 endif # ARM64
 
 # SoC
+config SYSC_R8A7742
+	bool "RZ/G1H System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
 config SYSC_R8A7743
 	bool "RZ/G1M System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
@@ -283,6 +301,10 @@ config SYSC_R8A774B1
 
 config SYSC_R8A774C0
 	bool "RZ/G2E System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A774E1
+	bool "RZ/G2H System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 config SYSC_R8A7779

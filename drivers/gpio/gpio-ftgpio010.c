@@ -193,7 +193,7 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	if (val == deb_div) {
 		/*
 		 * The debounce timer happens to already be set to the
-		 * desireable value, what a coincidence! We can just enable
+		 * desirable value, what a coincidence! We can just enable
 		 * debounce on this GPIO line and return. This happens more
 		 * often than you think, for example when all GPIO keys
 		 * on a system are requesting the same debounce interval.

@@ -120,21 +120,25 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
-static void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
+void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost = adapter->scsi_host;
+
+	adapter->hydra_version = 0;
+	adapter->peer_wwpn = 0;
+	adapter->peer_wwnn = 0;
+	adapter->peer_d_id = 0;
+
+	/* if there is no shost yet, we have nothing to zero-out */
+	if (shost == NULL)
+		return;
 
 	fc_host_port_id(shost) = 0;
 	fc_host_fabric_name(shost) = 0;
 	fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 	fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
-	adapter->hydra_version = 0;
 	snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x", 0);
 	memset(fc_host_active_fc4s(shost), 0, FC_FC4_LIST_SIZE);
-
-	adapter->peer_wwpn = 0;
-	adapter->peer_wwnn = 0;
-	adapter->peer_d_id = 0;
 }
 
 static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
@@ -479,7 +483,7 @@ void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 #define ZFCP_FSF_PORTSPEED_128GBIT	(1 <<  8)
 #define ZFCP_FSF_PORTSPEED_NOT_NEGOTIATED (1 << 15)
 
-static u32 zfcp_fsf_convert_portspeed(u32 fsf_speed)
+u32 zfcp_fsf_convert_portspeed(u32 fsf_speed)
 {
 	u32 fdmi_speed = 0;
 	if (fsf_speed & ZFCP_FSF_PORTSPEED_1GBIT)
@@ -509,64 +513,36 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 {
 	struct fsf_qtcb_bottom_config *bottom = &req->qtcb->bottom.config;
 	struct zfcp_adapter *adapter = req->adapter;
-	struct Scsi_Host *shost = adapter->scsi_host;
-	struct fc_els_flogi *nsp, *plogi;
+	struct fc_els_flogi *plogi;
 
 	/* adjust pointers for missing command code */
-	nsp = (struct fc_els_flogi *) ((u8 *)&bottom->nport_serv_param
-					- sizeof(u32));
 	plogi = (struct fc_els_flogi *) ((u8 *)&bottom->plogi_payload
 					- sizeof(u32));
 
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	snprintf(fc_host_manufacturer(shost), FC_SERIAL_NUMBER_SIZE, "%s",
-		 "IBM");
-	fc_host_port_name(shost) = be64_to_cpu(nsp->fl_wwpn);
-	fc_host_node_name(shost) = be64_to_cpu(nsp->fl_wwnn);
-	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
-
 	adapter->timer_ticks = bottom->timer_interval & ZFCP_FSF_TIMER_INT_MASK;
 	adapter->stat_read_buf_num = max(bottom->status_read_buf_num,
 					 (u16)FSF_STATUS_READS_RECOM);
-
-	zfcp_scsi_set_prot(adapter);
 
 	/* no error return above here, otherwise must fix call chains */
 	/* do not evaluate invalid fields */
 	if (req->qtcb->header.fsf_status == FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE)
 		return 0;
 
-	fc_host_port_id(shost) = ntoh24(bottom->s_id);
-	fc_host_speed(shost) =
-		zfcp_fsf_convert_portspeed(bottom->fc_link_speed);
-
 	adapter->hydra_version = bottom->adapter_type;
-	snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x",
-		 bottom->adapter_type);
 
 	switch (bottom->fc_topology) {
 	case FSF_TOPO_P2P:
 		adapter->peer_d_id = ntoh24(bottom->peer_d_id);
 		adapter->peer_wwpn = be64_to_cpu(plogi->fl_wwpn);
 		adapter->peer_wwnn = be64_to_cpu(plogi->fl_wwnn);
-		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
-		fc_host_fabric_name(shost) = 0;
 		break;
 	case FSF_TOPO_FABRIC:
-		fc_host_fabric_name(shost) = be64_to_cpu(plogi->fl_wwnn);
-		if (bottom->connection_features & FSF_FEATURE_NPIV_MODE)
-			fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
-		else
-			fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
 		break;
 	case FSF_TOPO_AL:
-		fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
-		fc_host_fabric_name(shost) = 0;
-		fallthrough;
 	default:
-		fc_host_fabric_name(shost) = 0;
 		dev_err(&adapter->ccw_device->dev,
 			"Unknown or unsupported arbitrated loop "
 			"fibre channel topology detected\n");
@@ -584,13 +560,10 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		&adapter->diagnostics->config_data.header;
 	struct fsf_qtcb *qtcb = req->qtcb;
 	struct fsf_qtcb_bottom_config *bottom = &qtcb->bottom.config;
-	struct Scsi_Host *shost = adapter->scsi_host;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
 
-	snprintf(fc_host_firmware_version(shost), FC_VERSION_STRING_SIZE,
-		 "0x%08x", bottom->lic_version);
 	adapter->fsf_lic_version = bottom->lic_version;
 	adapter->adapter_features = bottom->adapter_features;
 	adapter->connection_features = bottom->connection_features;
@@ -606,6 +579,7 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		 */
 		zfcp_diag_update_xdata(diag_hdr, bottom, false);
 
+		zfcp_scsi_shost_update_config_data(adapter, bottom, false);
 		if (zfcp_fsf_exchange_config_evaluate(req))
 			return;
 
@@ -630,6 +604,8 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 				&adapter->status);
 		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
+
+		zfcp_scsi_shost_update_config_data(adapter, bottom, true);
 		if (zfcp_fsf_exchange_config_evaluate(req))
 			return;
 		break;
@@ -638,16 +614,8 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		return;
 	}
 
-	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
+	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT)
 		adapter->hardware_version = bottom->hardware_version;
-		snprintf(fc_host_hardware_version(shost),
-			 FC_VERSION_STRING_SIZE,
-			 "0x%08x", bottom->hardware_version);
-		memcpy(fc_host_serial_number(shost), bottom->serial_number,
-		       min(FC_SERIAL_NUMBER_SIZE, 17));
-		EBCASC(fc_host_serial_number(shost),
-		       min(FC_SERIAL_NUMBER_SIZE, 17));
-	}
 
 	if (FSF_QTCB_CURRENT_VERSION < bottom->low_qtcb_version) {
 		dev_err(&adapter->ccw_device->dev,
@@ -761,19 +729,10 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct fsf_qtcb_bottom_port *bottom = &req->qtcb->bottom.port;
-	struct Scsi_Host *shost = adapter->scsi_host;
 
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	fc_host_permanent_port_name(shost) = bottom->wwpn;
-	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
-	fc_host_supported_speeds(shost) =
-		zfcp_fsf_convert_portspeed(bottom->supported_speed);
-	memcpy(fc_host_supported_fc4s(shost), bottom->supported_fc4_types,
-	       FC_FC4_LIST_SIZE);
-	memcpy(fc_host_active_fc4s(shost), bottom->active_fc4_types,
-	       FC_FC4_LIST_SIZE);
 	if (adapter->adapter_features & FSF_FEATURE_FC_SECURITY)
 		adapter->fc_security_algorithms =
 			bottom->fc_security_algorithms;
@@ -800,6 +759,7 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 		 */
 		zfcp_diag_update_xdata(diag_hdr, bottom, false);
 
+		zfcp_scsi_shost_update_port_data(req->adapter, bottom);
 		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
@@ -808,6 +768,8 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 
 		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
+
+		zfcp_scsi_shost_update_port_data(req->adapter, bottom);
 		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	}

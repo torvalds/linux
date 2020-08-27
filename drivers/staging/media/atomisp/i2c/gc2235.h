@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for GalaxyCore GC2235 2M camera sensor.
  *

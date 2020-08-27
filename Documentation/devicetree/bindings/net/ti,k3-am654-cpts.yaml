@@ -74,15 +74,13 @@ properties:
       - const: cpts
 
   ti,cpts-ext-ts-inputs:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
       Number of hardware timestamp push inputs (HWx_TS_PUSH)
 
   ti,cpts-periodic-outputs:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
       Number of timestamp Generator function outputs (TS_GENFx)
@@ -123,7 +121,7 @@ examples:
 
     cpts@310d0000 {
          compatible = "ti,am65-cpts";
-         reg = <0x0 0x310d0000 0x0 0x400>;
+         reg = <0x310d0000 0x400>;
          reg-names = "cpts";
          clocks = <&main_cpts_mux>;
          clock-names = "cpts";

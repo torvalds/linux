@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -17,7 +18,7 @@
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
 
-#include "system_types.h"
+#include "system_local.h"
 #include "type_support.h"
 
 STORAGE_CLASS_ISYS2401_DMA_H void isys2401_dma_reg_store(

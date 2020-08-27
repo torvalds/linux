@@ -7,9 +7,9 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Linear Technology / Analog Devices LTC2496 ADC
 
 maintainers:
- - Lars-Peter Clausen <lars@metafoo.de>
- - Michael Hennerich <Michael.Hennerich@analog.com>
- - Stefan Popa <stefan.popa@analog.com>
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Michael Hennerich <Michael.Hennerich@analog.com>
+  - Stefan Popa <stefan.popa@analog.com>
 
 properties:
   compatible:
@@ -18,8 +18,7 @@ properties:
 
   vref-supply:
     description: phandle to an external regulator providing the reference voltage
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   reg:
     description: spi chipselect number according to the usual spi bindings

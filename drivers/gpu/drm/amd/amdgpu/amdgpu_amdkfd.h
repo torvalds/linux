@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <kgd_kfd_interface.h>
 #include <drm/ttm/ttm_execbuf_util.h>
@@ -186,7 +187,7 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
  * disabled. The memory must be pinned and mapped to the hardware when
  * this is called in hqd_load functions, so it should never fault in
  * the first place. This resolves a circular lock dependency involving
- * four locks, including the DQM lock and mmap_sem.
+ * four locks, including the DQM lock and mmap_lock.
  */
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\
@@ -195,10 +196,10 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 			pagefault_disable();				\
 			if ((mmptr) == current->mm) {			\
 				valid = !get_user((dst), (wptr));	\
-			} else if (current->mm == NULL) {		\
-				use_mm(mmptr);				\
+			} else if (current->flags & PF_KTHREAD) {	\
+				kthread_use_mm(mmptr);			\
 				valid = !get_user((dst), (wptr));	\
-				unuse_mm(mmptr);			\
+				kthread_unuse_mm(mmptr);		\
 			}						\
 			pagefault_enable();				\
 		}							\

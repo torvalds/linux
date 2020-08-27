@@ -59,7 +59,7 @@ void show_regs(struct pt_regs * regs)
 	printk("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
-	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
+	show_trace(NULL, (unsigned long *)regs->regs[15], regs, KERN_DEFAULT);
 	show_code(regs);
 }
 
@@ -115,8 +115,8 @@ EXPORT_SYMBOL(dump_fpu);
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
@@ -158,7 +158,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	ti->addr_limit = USER_DS;
 
 	if (clone_flags & CLONE_SETTLS)
-		childregs->gbr = childregs->regs[0];
+		childregs->gbr = tls;
 
 	childregs->regs[0] = 0; /* Set return value for child */
 	p->thread.pc = (unsigned long) ret_from_fork;

@@ -22,7 +22,6 @@ Sleeping and interrupt context
     - post_recv
     - poll_cq
     - req_notify_cq
-    - map_phys_fmr
 
   which may not sleep and must be callable from any context.
 
@@ -36,7 +35,6 @@ Sleeping and interrupt context
     - ib_post_send
     - ib_post_recv
     - ib_req_notify_cq
-    - ib_map_phys_fmr
 
   are therefore safe to call from any context.
 

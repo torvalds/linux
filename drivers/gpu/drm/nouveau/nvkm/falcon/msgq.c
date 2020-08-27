@@ -74,7 +74,7 @@ nvkm_falcon_msgq_pop(struct nvkm_falcon_msgq *msgq, void *data, u32 size)
 }
 
 static int
-nvkm_falcon_msgq_read(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
+nvkm_falcon_msgq_read(struct nvkm_falcon_msgq *msgq, struct nvfw_falcon_msg *hdr)
 {
 	int ret = 0;
 
@@ -112,7 +112,7 @@ close:
 }
 
 static int
-nvkm_falcon_msgq_exec(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
+nvkm_falcon_msgq_exec(struct nvkm_falcon_msgq *msgq, struct nvfw_falcon_msg *hdr)
 {
 	struct nvkm_falcon_qmgr_seq *seq;
 
@@ -144,7 +144,7 @@ nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *msgq)
 	 * stack space to work with.
 	 */
 	u8 msg_buffer[MSG_BUF_SIZE];
-	struct nv_falcon_msg *hdr = (void *)msg_buffer;
+	struct nvfw_falcon_msg *hdr = (void *)msg_buffer;
 
 	while (nvkm_falcon_msgq_read(msgq, hdr) > 0)
 		nvkm_falcon_msgq_exec(msgq, hdr);
@@ -155,7 +155,7 @@ nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *msgq,
 			      void *data, u32 size)
 {
 	struct nvkm_falcon *falcon = msgq->qmgr->falcon;
-	struct nv_falcon_msg *hdr = data;
+	struct nvfw_falcon_msg *hdr = data;
 	int ret;
 
 	msgq->head_reg = falcon->func->msgq.head;

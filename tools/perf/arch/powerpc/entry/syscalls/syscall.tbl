@@ -427,8 +427,8 @@
 336	common	recv				sys_recv			compat_sys_recv
 337	common	recvfrom			sys_recvfrom			compat_sys_recvfrom
 338	common	shutdown			sys_shutdown
-339	common	setsockopt			sys_setsockopt			compat_sys_setsockopt
-340	common	getsockopt			sys_getsockopt			compat_sys_getsockopt
+339	common	setsockopt			sys_setsockopt			sys_setsockopt
+340	common	getsockopt			sys_getsockopt			sys_getsockopt
 341	common	sendmsg				sys_sendmsg			compat_sys_sendmsg
 342	common	recvmsg				sys_recvmsg			compat_sys_recvmsg
 343	32	recvmmsg			sys_recvmmsg_time32		compat_sys_recvmmsg_time32

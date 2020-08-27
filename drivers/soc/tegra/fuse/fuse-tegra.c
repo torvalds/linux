@@ -300,6 +300,59 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 	writel(reg, base + 0x14);
 }
 
+static ssize_t major_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", tegra_get_major_rev());
+}
+
+static DEVICE_ATTR_RO(major);
+
+static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", tegra_get_minor_rev());
+}
+
+static DEVICE_ATTR_RO(minor);
+
+static struct attribute *tegra_soc_attr[] = {
+	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
+	NULL,
+};
+
+const struct attribute_group tegra_soc_attr_group = {
+	.attrs = tegra_soc_attr,
+};
+
+#ifdef CONFIG_ARCH_TEGRA_194_SOC
+static ssize_t platform_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	/*
+	 * Displays the value in the 'pre_si_platform' field of the HIDREV
+	 * register for Tegra194 devices. A value of 0 indicates that the
+	 * platform type is silicon and all other non-zero values indicate
+	 * the type of simulation platform is being used.
+	 */
+	return sprintf(buf, "%d\n", (tegra_read_chipid() >> 20) & 0xf);
+}
+
+static DEVICE_ATTR_RO(platform);
+
+static struct attribute *tegra194_soc_attr[] = {
+	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
+	&dev_attr_platform.attr,
+	NULL,
+};
+
+const struct attribute_group tegra194_soc_attr_group = {
+	.attrs = tegra194_soc_attr,
+};
+#endif
+
 struct device * __init tegra_soc_device_register(void)
 {
 	struct soc_device_attribute *attr;
@@ -310,8 +363,10 @@ struct device * __init tegra_soc_device_register(void)
 		return NULL;
 
 	attr->family = kasprintf(GFP_KERNEL, "Tegra");
-	attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_sku_info.revision);
+	attr->revision = kasprintf(GFP_KERNEL, "%s",
+		tegra_revision_name[tegra_sku_info.revision]);
 	attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
+	attr->custom_attr_group = fuse->soc->soc_attr_group;
 
 	dev = soc_device_register(attr);
 	if (IS_ERR(dev)) {

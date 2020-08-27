@@ -18,6 +18,16 @@ struct vdpa_callback {
 };
 
 /**
+ * vDPA notification area
+ * @addr: base address of the notification area
+ * @size: size of the notification area
+ */
+struct vdpa_notification_area {
+	resource_size_t addr;
+	resource_size_t size;
+};
+
+/**
  * vDPA device - representation of a vDPA device
  * @dev: underlying device
  * @dma_dev: the actual device that is performing DMA
@@ -73,6 +83,10 @@ struct vdpa_device {
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns virtqueue state (last_avail_idx)
+ * @get_vq_notification: 	Get the notification area for a virtqueue
+ *				@vdev: vdpa device
+ *				@idx: virtqueue index
+ *				Returns the notifcation area
  * @get_vq_align:		Get the virtqueue align requirement
  *				for the device
  *				@vdev: vdpa device
@@ -162,6 +176,8 @@ struct vdpa_config_ops {
 	bool (*get_vq_ready)(struct vdpa_device *vdev, u16 idx);
 	int (*set_vq_state)(struct vdpa_device *vdev, u16 idx, u64 state);
 	u64 (*get_vq_state)(struct vdpa_device *vdev, u16 idx);
+	struct vdpa_notification_area
+	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
 
 	/* Device ops */
 	u32 (*get_vq_align)(struct vdpa_device *vdev);

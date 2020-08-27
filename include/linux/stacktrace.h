@@ -64,7 +64,7 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 struct stack_trace {
 	unsigned int nr_entries, max_entries;
 	unsigned long *entries;
-	int skip;	/* input argument: How many entries to skip */
+	unsigned int skip;	/* input argument: How many entries to skip */
 };
 
 extern void save_stack_trace(struct stack_trace *trace);

@@ -170,7 +170,8 @@ int main(int argc, char *argv[])
 		case 1:
 			break;
 		case 2:
-			if (!kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
+			if (!nested_vmx_supported() ||
+			    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
 				print_skip("Enlightened VMCS is unsupported");
 				continue;
 			}

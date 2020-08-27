@@ -650,7 +650,8 @@
 
 /* DSM register offset */
 #define MAX98390_DSM_PAYLOAD_OFFSET 16
-#define MAX98390_DSM_PAYLOAD_OFFSET_2 495
+#define MAX98390_DSM_PARAM_MAX_SIZE 770
+#define MAX98390_DSM_PARAM_MIN_SIZE 670
 
 struct max98390_priv {
 	struct regmap *regmap;

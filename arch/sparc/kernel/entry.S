@@ -10,6 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/errno.h>
+#include <linux/pgtable.h>
 
 #include <asm/head.h>
 #include <asm/asi.h>
@@ -20,7 +21,6 @@
 #include <asm/psr.h>
 #include <asm/vaddrs.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/winmacro.h>
 #include <asm/signal.h>
 #include <asm/obio.h>
@@ -869,14 +869,11 @@ flush_patch_two:
 	ld	[%curptr + TI_TASK], %o4
 	rd	%psr, %g4
 	WRITE_PAUSE
-	mov	SIGCHLD, %o0			! arg0:	clone flags
 	rd	%wim, %g5
 	WRITE_PAUSE
-	mov	%fp, %o1			! arg1:	usp
 	std	%g4, [%o4 + AOFF_task_thread + AOFF_thread_fork_kpsr]
-	add	%sp, STACKFRAME_SZ, %o2		! arg2:	pt_regs ptr
-	mov	0, %o3
-	call	sparc_do_fork
+	add	%sp, STACKFRAME_SZ, %o0
+	call	sparc_fork
 	 mov	%l5, %o7
 
 	/* Whee, kernel threads! */
@@ -888,19 +885,11 @@ flush_patch_three:
 	ld	[%curptr + TI_TASK], %o4
 	rd	%psr, %g4
 	WRITE_PAUSE
-
-	/* arg0,1: flags,usp  -- loaded already */
-	cmp	%o1, 0x0			! Is new_usp NULL?
 	rd	%wim, %g5
 	WRITE_PAUSE
-	be,a	1f
-	 mov	%fp, %o1			! yes, use callers usp
-	andn	%o1, 7, %o1			! no, align to 8 bytes
-1:
 	std	%g4, [%o4 + AOFF_task_thread + AOFF_thread_fork_kpsr]
-	add	%sp, STACKFRAME_SZ, %o2		! arg2:	pt_regs ptr
-	mov	0, %o3
-	call	sparc_do_fork
+	add	%sp, STACKFRAME_SZ, %o0
+	call	sparc_clone
 	 mov	%l5, %o7
 
 	/* Whee, real vfork! */
@@ -914,13 +903,9 @@ flush_patch_four:
 	rd	%wim, %g5
 	WRITE_PAUSE
 	std	%g4, [%o4 + AOFF_task_thread + AOFF_thread_fork_kpsr]
-	sethi	%hi(0x4000 | 0x0100 | SIGCHLD), %o0
-	mov	%fp, %o1
-	or	%o0, %lo(0x4000 | 0x0100 | SIGCHLD), %o0
-	sethi	%hi(sparc_do_fork), %l1
-	mov	0, %o3
-	jmpl	%l1 + %lo(sparc_do_fork), %g0
-	 add	%sp, STACKFRAME_SZ, %o2
+	sethi	%hi(sparc_vfork), %l1
+	jmpl	%l1 + %lo(sparc_vfork), %g0
+	 add	%sp, STACKFRAME_SZ, %o0
 
         .align  4
 linux_sparc_ni_syscall:

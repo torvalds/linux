@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/renesas,usb2-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car generation 3 USB 2.0 PHY
+
+maintainers:
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: renesas,usb2-phy-r8a77470 # RZ/G1C
+
+      - items:
+          - enum:
+              - renesas,usb2-phy-r7s9210  # RZ/A2
+              - renesas,usb2-phy-r8a774a1 # RZ/G2M
+              - renesas,usb2-phy-r8a774b1 # RZ/G2N
+              - renesas,usb2-phy-r8a774c0 # RZ/G2E
+              - renesas,usb2-phy-r8a774e1 # RZ/G2H
+              - renesas,usb2-phy-r8a7795  # R-Car H3
+              - renesas,usb2-phy-r8a7796  # R-Car M3-W
+              - renesas,usb2-phy-r8a77961 # R-Car M3-W+
+              - renesas,usb2-phy-r8a77965 # R-Car M3-N
+              - renesas,usb2-phy-r8a77990 # R-Car E3
+              - renesas,usb2-phy-r8a77995 # R-Car D3
+          - const: renesas,rcar-gen3-usb2-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      - const: fck
+      - const: usb_x1
+
+  '#phy-cells':
+    enum: [0, 1]  # and 0 is deprecated.
+    description: |
+      The phandle's argument in the PHY specifier is the INT_STATUS bit of
+      controller.
+      - 1 = USBH_INTA (OHCI)
+      - 2 = USBH_INTB (EHCI)
+      - 3 = UCOM_INT (OTG and BC)
+
+  interrupts:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: reset of USB 2.0 host side
+      - description: reset of USB 2.0 peripheral side
+
+  vbus-supply:
+    description: |
+      Phandle to a regulator that provides power to the VBUS. This regulator
+      will be managed during the PHY power on/off sequence.
+
+  renesas,no-otg-pins:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      specify when a board does not provide proper otg pins.
+
+  dr_mode: true
+
+if:
+  properties:
+    compatible:
+      items:
+        enum:
+          - renesas,usb2-phy-r7s9210
+then:
+  required:
+    - clock-names
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+
+    usb-phy@ee080200 {
+        compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
+        reg = <0xee080200 0x700>;
+        interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 703>;
+        #phy-cells = <1>;
+    };
+
+    usb-phy@ee0a0200 {
+        compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
+        reg = <0xee0a0200 0x700>;
+        clocks = <&cpg CPG_MOD 702>;
+        #phy-cells = <1>;
+    };

@@ -16,9 +16,9 @@
 #include <linux/highmem.h>
 #include <linux/cpu.h>
 #include <linux/fsl/guts.h>
+#include <linux/pgtable.h>
 
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>

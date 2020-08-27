@@ -136,8 +136,6 @@ ATOMIC_OPS(xor, ^=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #ifdef CONFIG_64BIT
 
 #define ATOMIC64_INIT(i) { (i) }
@@ -211,6 +209,8 @@ atomic64_set(atomic64_t *v, s64 i)
 
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
+
+#define atomic64_set_release(v, i)	atomic64_set((v), (i))
 
 static __inline__ s64
 atomic64_read(const atomic64_t *v)

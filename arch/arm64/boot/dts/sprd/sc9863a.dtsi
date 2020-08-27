@@ -5,6 +5,7 @@
  * Copyright (C) 2019, Unisoc Inc.
  */
 
+#include <dt-bindings/clock/sprd,sc9863a-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "sharkl3.dtsi"
 
@@ -157,6 +158,30 @@
 			reg = <0x0 0x14000000 0 0x20000>,	/* GICD */
 			      <0x0 0x14040000 0 0x100000>;	/* GICR */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		ap_clk: clock-controller@21500000 {
+			compatible = "sprd,sc9863a-ap-clk";
+			reg = <0 0x21500000 0 0x1000>;
+			clocks = <&ext_32k>, <&ext_26m>;
+			clock-names = "ext-32k", "ext-26m";
+			#clock-cells = <1>;
+		};
+
+		aon_clk: clock-controller@402d0000 {
+			compatible = "sprd,sc9863a-aon-clk";
+			reg = <0 0x402d0000 0 0x1000>;
+			clocks = <&ext_26m>, <&rco_100m>,
+				 <&ext_32k>, <&ext_4m>;
+			clock-names = "ext-26m", "rco-100m",
+				      "ext-32k", "ext-4m";
+			#clock-cells = <1>;
+		};
+
+		mm_clk: clock-controller@60900000 {
+			compatible = "sprd,sc9863a-mm-clk";
+			reg = <0 0x60900000 0 0x1000>;
+			#clock-cells = <1>;
 		};
 
 		funnel@10001000 {
@@ -517,6 +542,47 @@
 						<&funnel_big_in_port3>;
 					};
 				};
+			};
+		};
+
+		ap-ahb {
+			compatible = "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			sdio0: sdio@20300000 {
+				compatible  = "sprd,sdhci-r11";
+				reg = <0 0x20300000 0 0x1000>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+
+				clock-names = "sdio", "enable";
+				clocks = <&aon_clk CLK_SDIO0_2X>,
+					 <&apahb_gate CLK_SDIO0_EB>;
+				assigned-clocks = <&aon_clk CLK_SDIO0_2X>;
+				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
+
+				bus-width = <4>;
+				no-sdio;
+				no-mmc;
+			};
+
+			sdio3: sdio@20600000 {
+				compatible  = "sprd,sdhci-r11";
+				reg = <0 0x20600000 0 0x1000>;
+				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+
+				clock-names = "sdio", "enable";
+				clocks = <&aon_clk CLK_EMMC_2X>,
+					 <&apahb_gate CLK_EMMC_EB>;
+				assigned-clocks = <&aon_clk CLK_EMMC_2X>;
+				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
+
+				bus-width = <8>;
+				non-removable;
+				no-sdio;
+				no-sd;
+				cap-mmc-hw-reset;
 			};
 		};
 	};

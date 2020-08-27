@@ -142,7 +142,7 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 			error = PTR_ERR(res);
 			*name = buf;
 			goto out;
-		};
+		}
 	} else if (!our_mnt(path->mnt))
 		connected = 0;
 

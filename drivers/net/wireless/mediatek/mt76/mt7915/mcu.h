@@ -201,6 +201,7 @@ enum {
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
 	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
 	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
+	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
@@ -653,7 +654,7 @@ struct sta_rec_muru {
 		bool ofdma_ul_en;
 		bool mimo_dl_en;
 		bool mimo_ul_en;
-		bool rsv[4];
+		u8 rsv[4];
 	} cfg;
 
 	struct {
@@ -664,7 +665,7 @@ struct sta_rec_muru {
 		bool lt16_sigb;
 		bool rx_su_comp_sigb;
 		bool rx_su_non_comp_sigb;
-		bool rsv;
+		u8 rsv;
 	} ofdma_dl;
 
 	struct {
@@ -951,7 +952,6 @@ enum {
 					 sizeof(struct sta_rec_ba) +	\
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct tlv) +		\
-					 sizeof(struct sta_rec_muru) +	\
 					 MT7915_WTBL_UPDATE_MAX_SIZE)
 
 #define MT7915_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\

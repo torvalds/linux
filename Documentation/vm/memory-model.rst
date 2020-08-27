@@ -159,7 +159,7 @@ frame. Inside a section, the PFN is the index to the array of pages.
 The sparse vmemmap uses a virtually mapped memory map to optimize
 pfn_to_page and page_to_pfn operations. There is a global `struct
 page *vmemmap` pointer that points to a virtually contiguous array of
-`struct page` objects. A PFN is an index to that array and the the
+`struct page` objects. A PFN is an index to that array and the
 offset of the `struct page` from `vmemmap` is the PFN of that
 page.
 

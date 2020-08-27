@@ -140,16 +140,14 @@ patternProperties:
         maxItems: 1
 
       arm,trig-in-sigs:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
           List of CTI trigger in signal numbers in use by a trig-conns node.
 
       arm,trig-in-types:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
@@ -159,16 +157,14 @@ patternProperties:
           completely, then the types will default to GEN_IO.
 
       arm,trig-out-sigs:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
           List of CTI trigger out signal numbers in use by a trig-conns node.
 
       arm,trig-out-types:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
@@ -178,8 +174,7 @@ patternProperties:
           or omitted completely, then the types will default to GEN_IO.
 
       arm,trig-filters:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
@@ -187,8 +182,7 @@ patternProperties:
           active, unless filtering is disabled on the driver.
 
       arm,trig-conn-name:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/string
+        $ref: /schemas/types.yaml#/definitions/string
         description:
           Defines a connection name that will be displayed, if the cpu or
           arm,cs-dev-assoc properties are not being used in this connection.
@@ -301,7 +295,7 @@ examples:
   - |
     cti@20110000 {
       compatible = "arm,coresight-cti", "arm,primecell";
-      reg = <0 0x20110000 0 0x1000>;
+      reg = <0x20110000 0x1000>;
 
       clocks = <&soc_smc50mhz>;
       clock-names = "apb_pclk";

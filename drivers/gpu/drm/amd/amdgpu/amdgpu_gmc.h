@@ -83,6 +83,15 @@ struct amdgpu_vmhub {
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
+
+	/*
+	 * store the register distances between two continuous context domain
+	 * and invalidation engine.
+	 */
+	uint32_t	ctx_distance;
+	uint32_t	ctx_addr_distance; /* include LO32/HI32 */
+	uint32_t	eng_distance;
+	uint32_t	eng_addr_distance; /* include LO32/HI32 */
 };
 
 /*

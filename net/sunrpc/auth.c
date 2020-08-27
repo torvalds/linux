@@ -81,7 +81,7 @@ static int param_get_hashtbl_sz(char *buffer, const struct kernel_param *kp)
 	unsigned int nbits;
 
 	nbits = *(unsigned int *)kp->arg;
-	return sprintf(buffer, "%u", 1U << nbits);
+	return sprintf(buffer, "%u\n", 1U << nbits);
 }
 
 #define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);

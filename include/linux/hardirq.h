@@ -38,9 +38,24 @@ static __always_inline void rcu_irq_enter_check_tick(void)
 	} while (0)
 
 /*
+ * Like __irq_enter() without time accounting for fast
+ * interrupts, e.g. reschedule IPI where time accounting
+ * is more expensive than the actual interrupt.
+ */
+#define __irq_enter_raw()				\
+	do {						\
+		preempt_count_add(HARDIRQ_OFFSET);	\
+		lockdep_hardirq_enter();		\
+	} while (0)
+
+/*
  * Enter irq context (on NO_HZ, update jiffies):
  */
-extern void irq_enter(void);
+void irq_enter(void);
+/*
+ * Like irq_enter(), but RCU is already watching.
+ */
+void irq_enter_rcu(void);
 
 /*
  * Exit irq context without processing softirqs:
@@ -53,9 +68,23 @@ extern void irq_enter(void);
 	} while (0)
 
 /*
+ * Like __irq_exit() without time accounting
+ */
+#define __irq_exit_raw()				\
+	do {						\
+		lockdep_hardirq_exit();			\
+		preempt_count_sub(HARDIRQ_OFFSET);	\
+	} while (0)
+
+/*
  * Exit irq context and process softirqs if needed:
  */
-extern void irq_exit(void);
+void irq_exit(void);
+
+/*
+ * Like irq_exit(), but return with RCU watching.
+ */
+void irq_exit_rcu(void);
 
 #ifndef arch_nmi_enter
 #define arch_nmi_enter()	do { } while (0)
@@ -82,28 +111,42 @@ extern void rcu_nmi_exit(void);
 /*
  * nmi_enter() can nest up to 15 times; see NMI_BITS.
  */
-#define nmi_enter()						\
+#define __nmi_enter()						\
 	do {							\
+		lockdep_off();					\
 		arch_nmi_enter();				\
 		printk_nmi_enter();				\
-		lockdep_off();					\
-		ftrace_nmi_enter();				\
 		BUG_ON(in_nmi() == NMI_MASK);			\
 		__preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
-		rcu_nmi_enter();				\
+	} while (0)
+
+#define nmi_enter()						\
+	do {							\
+		__nmi_enter();					\
 		lockdep_hardirq_enter();			\
+		rcu_nmi_enter();				\
+		instrumentation_begin();			\
+		ftrace_nmi_enter();				\
+		instrumentation_end();				\
+	} while (0)
+
+#define __nmi_exit()						\
+	do {							\
+		BUG_ON(!in_nmi());				\
+		__preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		printk_nmi_exit();				\
+		arch_nmi_exit();				\
+		lockdep_on();					\
 	} while (0)
 
 #define nmi_exit()						\
 	do {							\
-		lockdep_hardirq_exit();				\
-		rcu_nmi_exit();					\
-		BUG_ON(!in_nmi());				\
-		__preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		instrumentation_begin();			\
 		ftrace_nmi_exit();				\
-		lockdep_on();					\
-		printk_nmi_exit();				\
-		arch_nmi_exit();				\
+		instrumentation_end();				\
+		rcu_nmi_exit();					\
+		lockdep_hardirq_exit();				\
+		__nmi_exit();					\
 	} while (0)
 
 #endif /* LINUX_HARDIRQ_H */

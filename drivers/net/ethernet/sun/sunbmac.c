@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/pgtable.h>
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -34,7 +35,6 @@
 #include <asm/io.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
-#include <asm/pgtable.h>
 
 #include "sunbmac.h"
 

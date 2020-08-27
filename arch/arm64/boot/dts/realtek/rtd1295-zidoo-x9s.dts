@@ -11,9 +11,9 @@
 	compatible = "zidoo,x9s", "realtek,rtd1295";
 	model = "Zidoo X9S";
 
-	memory@0 {
+	memory@1f000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		reg = <0x1f000 0x7ffe1000>; /* boot ROM to 2 GiB */
 	};
 
 	aliases {

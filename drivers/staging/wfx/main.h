@@ -13,10 +13,10 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 
-#include "bus.h"
 #include "hif_api_general.h"
 
 struct wfx_dev;
+struct hwbus_ops;
 
 struct wfx_platform_data {
 	/* Keyset and ".sec" extention will appended to this string */
@@ -41,6 +41,6 @@ void wfx_release(struct wfx_dev *wdev);
 struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 			       const char *label);
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor);
-int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len);
+int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len);
 
 #endif

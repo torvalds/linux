@@ -55,6 +55,10 @@ MODULE_FIRMWARE("amdgpu/navi12_ta.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_ta.bin");
+MODULE_FIRMWARE("amdgpu/navy_flounder_sos.bin");
+MODULE_FIRMWARE("amdgpu/navy_flounder_asd.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -95,6 +99,12 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
 		break;
+	case CHIP_SIENNA_CICHLID:
+		chip_name = "sienna_cichlid";
+		break;
+	case CHIP_NAVY_FLOUNDER:
+		chip_name = "navy_flounder";
+		break;
 	default:
 		BUG();
 	}
@@ -103,9 +113,12 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	if (err)
 		return err;
 
-	err = psp_init_asd_microcode(psp, chip_name);
-	if (err)
-		return err;
+	if (adev->asic_type != CHIP_SIENNA_CICHLID &&
+	    adev->asic_type != CHIP_NAVY_FLOUNDER) {
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
+	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
@@ -164,6 +177,13 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 			adev->psp.ta_dtm_start_addr = (uint8_t *)adev->psp.ta_hdcp_start_addr +
 				le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
 		}
+		break;
+	case CHIP_SIENNA_CICHLID:
+		err = psp_init_ta_microcode(&adev->psp, chip_name);
+		if (err)
+			return err;
+		break;
+	case CHIP_NAVY_FLOUNDER:
 		break;
 	default:
 		BUG();
@@ -235,6 +255,39 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
+	       psp_gfxdrv_command_reg);
+
+	ret = psp_v11_0_wait_for_bootloader(psp);
+
+	return ret;
+}
+
+static int psp_v11_0_bootloader_load_spl(struct psp_context *psp)
+{
+	int ret;
+	uint32_t psp_gfxdrv_command_reg = 0;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* Check tOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	if (psp_v11_0_is_sos_alive(psp))
+		return 0;
+
+	ret = psp_v11_0_wait_for_bootloader(psp);
+	if (ret)
+		return ret;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+
+	/* Copy PSP SPL binary to memory */
+	memcpy(psp->fw_pri_buf, psp->spl_start_addr, psp->spl_bin_size);
+
+	/* Provide the PSP SPL to bootloader */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
+	psp_gfxdrv_command_reg = PSP_BL__LOAD_TOS_SPL_TABLE;
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
@@ -354,7 +407,9 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (!amdgpu_sriov_vf(adev))
+	if ((!amdgpu_sriov_vf(adev)) &&
+	    (adev->asic_type != CHIP_SIENNA_CICHLID) &&
+	    (adev->asic_type != CHIP_NAVY_FLOUNDER))
 		psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;
@@ -552,44 +607,6 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 		  (msg == PSP_BL__DRAM_SHORT_TRAIN) ? "short" : "long",
 		  (ret == 0) ? "succeed" : "failed",
 		  i, adev->usec_timeout/1000);
-	return ret;
-}
-
-static void psp_v11_0_memory_training_fini(struct psp_context *psp)
-{
-	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-
-	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
-	kfree(ctx->sys_cache);
-	ctx->sys_cache = NULL;
-}
-
-static int psp_v11_0_memory_training_init(struct psp_context *psp)
-{
-	int ret;
-	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-
-	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
-		DRM_DEBUG("memory training is not supported!\n");
-		return 0;
-	}
-
-	ctx->sys_cache = kzalloc(ctx->train_data_size, GFP_KERNEL);
-	if (ctx->sys_cache == NULL) {
-		DRM_ERROR("alloc mem_train_ctx.sys_cache failed!\n");
-		ret = -ENOMEM;
-		goto Err_out;
-	}
-
-	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
-		  ctx->train_data_size,
-		  ctx->p2c_train_data_offset,
-		  ctx->c2p_train_data_offset);
-	ctx->init = PSP_MEM_TRAIN_INIT_SUCCESS;
-	return 0;
-
-Err_out:
-	psp_v11_0_memory_training_fini(psp);
 	return ret;
 }
 
@@ -813,6 +830,7 @@ static int psp_v11_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_kdb = psp_v11_0_bootloader_load_kdb,
+	.bootloader_load_spl = psp_v11_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
 	.bootloader_load_sos = psp_v11_0_bootloader_load_sos,
 	.ring_init = psp_v11_0_ring_init,
@@ -820,8 +838,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,
 	.mode1_reset = psp_v11_0_mode1_reset,
-	.mem_training_init = psp_v11_0_memory_training_init,
-	.mem_training_fini = psp_v11_0_memory_training_fini,
 	.mem_training = psp_v11_0_memory_training,
 	.ring_get_wptr = psp_v11_0_ring_get_wptr,
 	.ring_set_wptr = psp_v11_0_ring_set_wptr,

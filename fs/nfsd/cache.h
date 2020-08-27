@@ -78,6 +78,8 @@ enum {
 /* Checksum this amount of the request */
 #define RC_CSUMLEN		(256U)
 
+int	nfsd_drc_slab_create(void);
+void	nfsd_drc_slab_free(void);
 int	nfsd_reply_cache_init(struct nfsd_net *);
 void	nfsd_reply_cache_shutdown(struct nfsd_net *);
 int	nfsd_cache_lookup(struct svc_rqst *);

@@ -21,17 +21,18 @@
 
 static void kdb_show_stack(struct task_struct *p, void *addr)
 {
-	int old_lvl = console_loglevel;
-
-	console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
 	kdb_trap_printk++;
 
-	if (!addr && kdb_task_has_cpu(p))
-		kdb_dump_stack_on_cpu(kdb_process_cpu(p));
-	else
-		show_stack(p, addr);
+	if (!addr && kdb_task_has_cpu(p)) {
+		int old_lvl = console_loglevel;
 
-	console_loglevel = old_lvl;
+		console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
+		kdb_dump_stack_on_cpu(kdb_process_cpu(p));
+		console_loglevel = old_lvl;
+	} else {
+		show_stack(p, addr, KERN_EMERG);
+	}
+
 	kdb_trap_printk--;
 }
 

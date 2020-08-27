@@ -12,6 +12,7 @@ config ARM64
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_HAS_DEBUG_VIRTUAL
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
@@ -117,6 +118,7 @@ config ARM64
 	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
+	select GENERIC_VDSO_TIME_NS
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_PCI
@@ -147,7 +149,6 @@ config ARM64
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING
-	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -1034,7 +1035,7 @@ config CC_HAVE_SHADOW_CALL_STACK
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
-	---help---
+	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
 	  execution. By using pipes or other transports made available to
@@ -1067,7 +1068,7 @@ config KEXEC
 	depends on PM_SLEEP_SMP
 	select KEXEC_CORE
 	bool "kexec system call"
-	---help---
+	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
 	  but it is independent of the system firmware.   And like a reboot
@@ -1298,6 +1299,14 @@ config COMPAT_VDSO
 	  You must have a 32-bit build of glibc 2.22 or later for programs
 	  to seamlessly take advantage of this.
 
+config THUMB2_COMPAT_VDSO
+	bool "Compile the 32-bit vDSO for Thumb-2 mode" if EXPERT
+	depends on COMPAT_VDSO
+	default y
+	help
+	  Compile the compat vDSO with '-mthumb -fomit-frame-pointer' if y,
+	  otherwise with '-marm'.
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on SYSCTL
@@ -1318,6 +1327,8 @@ config SWP_EMULATION
 	  ARMv8 obsoletes the use of A32 SWP/SWPB instructions such that
 	  they are always undefined. Say Y here to enable software
 	  emulation of these instructions for userspace using LDXR/STXR.
+	  This feature can be controlled at runtime with the abi.swp
+	  sysctl which is disabled by default.
 
 	  In some older versions of glibc [<=2.8] SWP is used during futex
 	  trylock() operations with the assumption that the code will not
@@ -1344,7 +1355,8 @@ config CP15_BARRIER_EMULATION
 	  Say Y here to enable software emulation of these
 	  instructions for AArch32 userspace code. When this option is
 	  enabled, CP15 barrier usage is traced which can help
-	  identify software that needs updating.
+	  identify software that needs updating. This feature can be
+	  controlled at runtime with the abi.cp15_barrier sysctl.
 
 	  If unsure, say Y
 
@@ -1355,7 +1367,8 @@ config SETEND_EMULATION
 	  AArch32 EL0, and is deprecated in ARMv8.
 
 	  Say Y here to enable software emulation of the instruction
-	  for AArch32 userspace code.
+	  for AArch32 userspace code. This feature can be controlled
+	  at runtime with the abi.setend sysctl.
 
 	  Note: All the cpus on the system must have mixed endian support at EL0
 	  for this feature to be enabled. If a new CPU - which doesn't support mixed
@@ -1509,9 +1522,9 @@ config ARM64_PTR_AUTH
 	default y
 	depends on !KVM || ARM64_VHE
 	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
-	# GCC 9.1 and later inserts a .note.gnu.property section note for PAC
+	# Modern compilers insert a .note.gnu.property section note for PAC
 	# which is only understood by binutils starting with version 2.33.1.
-	depends on !CC_IS_GCC || GCC_VERSION < 90100 || LD_VERSION >= 233010000
+	depends on LD_IS_LLD || LD_VERSION >= 233010000 || (CC_IS_GCC && GCC_VERSION < 90100)
 	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
@@ -1555,7 +1568,7 @@ config CC_HAS_SIGN_RETURN_ADDRESS
 	def_bool $(cc-option,-msign-return-address=all)
 
 config AS_HAS_PAC
-	def_bool $(as-option,-Wa$(comma)-march=armv8.3-a)
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.3-a)
 
 config AS_HAS_CFI_NEGATE_RA_STATE
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
@@ -1586,6 +1599,20 @@ config ARM64_AMU_EXTN
 	  symptoms, the values returned by the register reads might not
 	  correctly reflect reality. Most commonly, the value read will be 0,
 	  indicating that the counter is not enabled.
+
+config AS_HAS_ARMV8_4
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.4-a)
+
+config ARM64_TLB_RANGE
+	bool "Enable support for tlbi range feature"
+	default y
+	depends on AS_HAS_ARMV8_4
+	help
+	  ARMv8.4-TLBI provides TLBI invalidation instruction that apply to a
+	  range of input addresses.
+
+	  The feature introduces new assembly instructions, and they were
+	  support when binutils >= 2.30.
 
 endmenu
 
@@ -1621,6 +1648,8 @@ config ARM64_BTI_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
+	# https://reviews.llvm.org/rGb8ae3fdfa579dbf366b1bb1cbfdbf8c51db7fa55
+	depends on !CC_IS_CLANG || CLANG_VERSION >= 100001
 	depends on !(CC_IS_CLANG && GCOV_KERNEL)
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
@@ -1739,8 +1768,9 @@ config ARM64_DEBUG_PRIORITY_MASKING
 endif
 
 config RELOCATABLE
-	bool
+	bool "Build a relocatable kernel image" if EXPERT
 	select ARCH_HAS_RELR
+	default y
 	help
 	  This builds the kernel as a Position Independent Executable (PIE),
 	  which retains all relocation metadata required to relocate the

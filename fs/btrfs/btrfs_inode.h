@@ -28,6 +28,7 @@ enum {
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
 	BTRFS_INODE_IN_DELALLOC_LIST,
+	BTRFS_INODE_READDIO_NEED_LOCK,
 	BTRFS_INODE_HAS_PROPS,
 	BTRFS_INODE_SNAPSHOT_FLUSH,
 };
@@ -149,6 +150,17 @@ struct btrfs_inode {
 	 * details
 	 */
 	u64 last_unlink_trans;
+
+	/*
+	 * The id/generation of the last transaction where this inode was
+	 * either the source or the destination of a clone/dedupe operation.
+	 * Used when logging an inode to know if there are shared extents that
+	 * need special care when logging checksum items, to avoid duplicate
+	 * checksum items in a log (which can lead to a corruption where we end
+	 * up with missing checksum ranges after log replay).
+	 * Protected by the vfs inode lock.
+	 */
+	u64 last_reflink_trans;
 
 	/*
 	 * Number of bytes outstanding that are going to need csums.  This is
@@ -311,6 +323,23 @@ struct btrfs_dio_private {
 	/* Array of checksums */
 	u8 csums[];
 };
+
+/*
+ * Disable DIO read nolock optimization, so new dio readers will be forced
+ * to grab i_mutex. It is used to avoid the endless truncate due to
+ * nonlocked dio read.
+ */
+static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
+{
+	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
+	smp_mb();
+}
+
+static inline void btrfs_inode_resume_unlocked_dio(struct btrfs_inode *inode)
+{
+	smp_mb__before_atomic();
+	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
+}
 
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"

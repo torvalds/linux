@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -216,7 +217,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 }
 #endif /* #if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
 
-enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
+int ia_css_isys_convert_stream_format_to_mipi_format(
     enum atomisp_input_format input_format,
     mipi_predictor_t compression,
     unsigned int *fmt_type)
@@ -254,9 +255,9 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 			*fmt_type = 16;
 			break;
 		default:
-			return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
 		}
-		return IA_CSS_SUCCESS;
+		return 0;
 	}
 	/*
 	 * This mapping comes from the Arasan CSS function spec
@@ -356,9 +357,9 @@ enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
 	case ATOMISP_INPUT_FORMAT_YUV420_16:
 	case ATOMISP_INPUT_FORMAT_YUV422_16:
 	default:
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
@@ -379,11 +380,11 @@ static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
 	return predictor;
 }
 
-enum ia_css_err ia_css_isys_convert_compressed_format(
+int ia_css_isys_convert_compressed_format(
     struct ia_css_csi2_compression *comp,
     struct input_system_cfg_s *cfg)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	assert(comp);
 	assert(cfg);
@@ -414,7 +415,7 @@ enum ia_css_err ia_css_isys_convert_compressed_format(
 				cfg->csi_port_attr.comp_scheme = MIPI_COMPRESSOR_10_8_10;
 				break;
 			default:
-				err = IA_CSS_ERR_INVALID_ARGUMENTS;
+				err = -EINVAL;
 			}
 		} else if (comp->uncompressed_bits_per_pixel ==
 			   UNCOMPRESSED_BITS_PER_PIXEL_12) {
@@ -429,10 +430,10 @@ enum ia_css_err ia_css_isys_convert_compressed_format(
 				cfg->csi_port_attr.comp_scheme = MIPI_COMPRESSOR_12_8_12;
 				break;
 			default:
-				err = IA_CSS_ERR_INVALID_ARGUMENTS;
+				err = -EINVAL;
 			}
 		} else
-			err = IA_CSS_ERR_INVALID_ARGUMENTS;
+			err = -EINVAL;
 		cfg->csi_port_attr.comp_predictor =
 		    sh_css_csi2_compression_type_2_mipi_predictor(comp->type);
 		cfg->csi_port_attr.comp_enable = true;

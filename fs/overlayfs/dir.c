@@ -62,35 +62,59 @@ struct dentry *ovl_lookup_temp(struct dentry *workdir)
 }
 
 /* caller holds i_mutex on workdir */
-static struct dentry *ovl_whiteout(struct dentry *workdir)
+static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 {
 	int err;
 	struct dentry *whiteout;
+	struct dentry *workdir = ofs->workdir;
 	struct inode *wdir = workdir->d_inode;
 
-	whiteout = ovl_lookup_temp(workdir);
-	if (IS_ERR(whiteout))
-		return whiteout;
+	if (!ofs->whiteout) {
+		whiteout = ovl_lookup_temp(workdir);
+		if (IS_ERR(whiteout))
+			goto out;
 
-	err = ovl_do_whiteout(wdir, whiteout);
-	if (err) {
-		dput(whiteout);
-		whiteout = ERR_PTR(err);
+		err = ovl_do_whiteout(wdir, whiteout);
+		if (err) {
+			dput(whiteout);
+			whiteout = ERR_PTR(err);
+			goto out;
+		}
+		ofs->whiteout = whiteout;
 	}
 
+	if (ofs->share_whiteout) {
+		whiteout = ovl_lookup_temp(workdir);
+		if (IS_ERR(whiteout))
+			goto out;
+
+		err = ovl_do_link(ofs->whiteout, wdir, whiteout);
+		if (!err)
+			goto out;
+
+		if (err != -EMLINK) {
+			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%i)\n",
+				ofs->whiteout->d_inode->i_nlink, err);
+			ofs->share_whiteout = false;
+		}
+		dput(whiteout);
+	}
+	whiteout = ofs->whiteout;
+	ofs->whiteout = NULL;
+out:
 	return whiteout;
 }
 
 /* Caller must hold i_mutex on both workdir and dir */
-int ovl_cleanup_and_whiteout(struct dentry *workdir, struct inode *dir,
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
 			     struct dentry *dentry)
 {
-	struct inode *wdir = workdir->d_inode;
+	struct inode *wdir = ofs->workdir->d_inode;
 	struct dentry *whiteout;
 	int err;
 	int flags = 0;
 
-	whiteout = ovl_whiteout(workdir);
+	whiteout = ovl_whiteout(ofs);
 	err = PTR_ERR(whiteout);
 	if (IS_ERR(whiteout))
 		return err;
@@ -262,6 +286,8 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		inode = ovl_get_inode(dentry->d_sb, &oip);
 		if (IS_ERR(inode))
 			return PTR_ERR(inode);
+		if (inode == oip.newinode)
+			ovl_set_flag(OVL_UPPERDATA, inode);
 	} else {
 		WARN_ON(ovl_inode_real(inode) != d_inode(newdentry));
 		dput(newdentry);
@@ -715,6 +741,7 @@ static bool ovl_matches_upper(struct dentry *dentry, struct dentry *upper)
 static int ovl_remove_and_whiteout(struct dentry *dentry,
 				   struct list_head *list)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *workdir = ovl_workdir(dentry);
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct dentry *upper;
@@ -748,7 +775,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	err = ovl_cleanup_and_whiteout(workdir, d_inode(upperdir), upper);
+	err = ovl_cleanup_and_whiteout(ofs, d_inode(upperdir), upper);
 	if (err)
 		goto out_d_drop;
 

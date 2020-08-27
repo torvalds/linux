@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-015, Intel Corporation.
@@ -855,9 +856,9 @@ input_system_error_t input_system_configuration_reset(void)
 
 	input_system_network_rst(INPUT_SYSTEM0_ID);
 
-	gp_device_rst(INPUT_SYSTEM0_ID);
+	gp_device_rst(GP_DEVICE0_ID);
 
-	input_switch_rst(INPUT_SYSTEM0_ID);
+	input_switch_rst(GP_DEVICE0_ID);
 
 	//target_rst();
 
@@ -873,7 +874,7 @@ input_system_error_t input_system_configuration_reset(void)
 
 	for (i = 0; i < N_CSI_PORTS; i++) {
 		config.csi_buffer_flags[i]	 = INPUT_SYSTEM_CFG_FLAG_RESET;
-		config.multicast[i]		 = INPUT_SYSTEM_CFG_FLAG_RESET;
+		config.multicast[i]		 = INPUT_SYSTEM_DISCARD_ALL;
 	}
 
 	config.source_type_flags				 = INPUT_SYSTEM_CFG_FLAG_RESET;
@@ -1323,10 +1324,10 @@ static input_system_error_t configuration_to_registers(void)
 	} // end of switch (source_type)
 
 	// Set input selector.
-	input_selector_cfg_for_sensor(INPUT_SYSTEM0_ID);
+	input_selector_cfg_for_sensor(GP_DEVICE0_ID);
 
 	// Set input switch.
-	input_switch_cfg(INPUT_SYSTEM0_ID, &config.input_switch_cfg);
+	input_switch_cfg(GP_DEVICE0_ID, &config.input_switch_cfg);
 
 	// Set input formatters.
 	// AM: IF are set dynamically.

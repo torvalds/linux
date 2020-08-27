@@ -3,6 +3,8 @@
 :Original: :doc:`../../../process/management-style`
 :Translator: Alessia Mantegazza <amantegazza@vaga.pv.it>
 
+.. _it_managementstyle:
+
 Il modello di gestione del kernel Linux
 =======================================
 

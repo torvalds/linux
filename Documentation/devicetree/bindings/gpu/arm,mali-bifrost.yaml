@@ -43,8 +43,14 @@ properties:
 
   operating-points-v2: true
 
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 2
+
+  "#cooling-cells":
+    const: 2
 
 required:
   - compatible

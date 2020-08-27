@@ -70,28 +70,6 @@ Currently, the following image format targets exist:
 			kernel with this image type and it depends entirely on
 			the embedded device tree for all information.
 
-			The simpleImage is useful for booting systems with
-			an unknown firmware interface or for booting from
-			a debugger when no firmware is present (such as on
-			the Xilinx Virtex platform).  The only assumption that
-			simpleImage makes is that RAM is correctly initialized
-			and that the MMU is either off or has RAM mapped to
-			base address 0.
-
-			simpleImage also supports inserting special platform
-			specific initialization code to the start of the bootup
-			sequence.  The virtex405 platform uses this feature to
-			ensure that the cache is invalidated before caching
-			is enabled.  Platform specific initialization code is
-			added as part of the wrapper script and is keyed on
-			the image target name.  For example, all
-			simpleImage.virtex405-* targets will add the
-			virtex405-head.S initialization code (This also means
-			that the dts file for virtex405 targets should be
-			named (virtex405-<board>.dts).  Search the wrapper
-			script for 'virtex405' and see the file
-			arch/powerpc/boot/virtex405-head.S for details.
-
    treeImage.%;		Image format for used with OpenBIOS firmware found
 			on some ppc4xx hardware.  This image embeds a device
 			tree blob inside the image.
@@ -116,10 +94,8 @@ Image types which embed a device tree blob (simpleImage, dtbImage, treeImage,
 and cuImage) all generate the device tree blob from a file in the
 arch/powerpc/boot/dts/ directory.  The Makefile selects the correct device
 tree source based on the name of the target.  Therefore, if the kernel is
-built with 'make treeImage.walnut simpleImage.virtex405-ml403', then the
-build system will use arch/powerpc/boot/dts/walnut.dts to build
-treeImage.walnut and arch/powerpc/boot/dts/virtex405-ml403.dts to build
-the simpleImage.virtex405-ml403.
+built with 'make treeImage.walnut', then the build system will use
+arch/powerpc/boot/dts/walnut.dts to build treeImage.walnut.
 
 Two special targets called 'zImage' and 'zImage.initrd' also exist.  These
 targets build all the default images as selected by the kernel configuration.

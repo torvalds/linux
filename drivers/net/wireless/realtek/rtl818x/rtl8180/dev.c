@@ -1966,32 +1966,17 @@ static void rtl8180_remove(struct pci_dev *pdev)
 	ieee80211_free_hw(dev);
 }
 
-#ifdef CONFIG_PM
-static int rtl8180_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return 0;
-}
+#define rtl8180_suspend NULL
+#define rtl8180_resume NULL
 
-static int rtl8180_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	return 0;
-}
-
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(rtl8180_pm_ops, rtl8180_suspend, rtl8180_resume);
 
 static struct pci_driver rtl8180_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8180_table,
 	.probe		= rtl8180_probe,
 	.remove		= rtl8180_remove,
-#ifdef CONFIG_PM
-	.suspend	= rtl8180_suspend,
-	.resume		= rtl8180_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &rtl8180_pm_ops,
 };
 
 module_pci_driver(rtl8180_driver);

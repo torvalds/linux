@@ -13,7 +13,6 @@
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-apollo.h>
 #include <asm/byteorder.h>
-#include <asm/pgtable.h>
 #include <asm/apollohw.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>

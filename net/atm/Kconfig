@@ -5,7 +5,7 @@
 
 config ATM
 	tristate "Asynchronous Transfer Mode (ATM)"
-	---help---
+	help
 	  ATM is a high-speed networking technology for Local Area Networks
 	  and Wide Area Networks.  It uses a fixed packet size and is
 	  connection oriented, allowing for the negotiation of minimum

@@ -36,7 +36,6 @@
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 
 
 asmlinkage void ret_from_fork(void);
@@ -126,9 +125,6 @@ asmlinkage int m68k_clone(struct pt_regs *regs)
 		.tls		= regs->d5,
 	};
 
-	if (!legacy_clone_args_valid(&args))
-		return -EINVAL;
-
 	return _do_fork(&args);
 }
 
@@ -142,9 +138,8 @@ asmlinkage int m68k_clone3(struct pt_regs *regs)
 	return sys_clone3((struct clone_args __user *)regs->d1, regs->d2);
 }
 
-int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
-		    unsigned long arg, struct task_struct *p,
-		    unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct fork_frame {
 		struct switch_stack sw;

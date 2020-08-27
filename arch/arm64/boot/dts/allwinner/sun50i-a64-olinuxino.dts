@@ -32,6 +32,15 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			label = "a64-olinuxino:red:user";
+			gpios = <&pio 4 17 GPIO_ACTIVE_HIGH>; /* PE17 */
+		};
+	};
+
 	reg_usb1_vbus: usb1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1-vbus";

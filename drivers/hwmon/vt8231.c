@@ -992,8 +992,8 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 			return -ENODEV;
 	}
 
-	if (PCIBIOS_SUCCESSFUL != pci_read_config_word(dev, VT8231_BASE_REG,
-							&val))
+	pci_read_config_word(dev, VT8231_BASE_REG, &val);
+	if (val == (u16)~0)
 		return -ENODEV;
 
 	address = val & ~(VT8231_EXTENT - 1);
@@ -1002,8 +1002,8 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	if (PCIBIOS_SUCCESSFUL != pci_read_config_word(dev, VT8231_ENABLE_REG,
-							&val))
+	pci_read_config_word(dev, VT8231_ENABLE_REG, &val);
+	if (val == (u16)~0)
 		return -ENODEV;
 
 	if (!(val & 0x0001)) {

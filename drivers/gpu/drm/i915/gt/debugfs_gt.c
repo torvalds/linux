@@ -9,6 +9,7 @@
 #include "debugfs_engines.h"
 #include "debugfs_gt.h"
 #include "debugfs_gt_pm.h"
+#include "intel_sseu_debugfs.h"
 #include "uc/intel_uc_debugfs.h"
 #include "i915_drv.h"
 
@@ -25,6 +26,7 @@ void debugfs_gt_register(struct intel_gt *gt)
 
 	debugfs_engines_register(gt, root);
 	debugfs_gt_pm_register(gt, root);
+	intel_sseu_debugfs_register(gt, root);
 
 	intel_uc_debugfs_register(&gt->uc, root);
 }

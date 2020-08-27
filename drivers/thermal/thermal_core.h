@@ -12,6 +12,17 @@
 #include <linux/device.h>
 #include <linux/thermal.h>
 
+/* Default Thermal Governor */
+#if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
+#define DEFAULT_THERMAL_GOVERNOR       "step_wise"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_FAIR_SHARE)
+#define DEFAULT_THERMAL_GOVERNOR       "fair_share"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE)
+#define DEFAULT_THERMAL_GOVERNOR       "user_space"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR)
+#define DEFAULT_THERMAL_GOVERNOR       "power_allocator"
+#endif
+
 /* Initial state of a cooling device during binding */
 #define THERMAL_NO_TARGET -1UL
 
@@ -29,6 +40,44 @@ extern struct thermal_governor *__governor_thermal_table_end[];
 	for (__governor = __governor_thermal_table;	\
 	     __governor < __governor_thermal_table_end;	\
 	     __governor++)
+
+struct thermal_attr {
+	struct device_attribute attr;
+	char name[THERMAL_NAME_LENGTH];
+};
+
+static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
+{
+	return cdev->ops->get_requested_power && cdev->ops->state2power &&
+		cdev->ops->power2state;
+}
+
+int power_actor_get_max_power(struct thermal_cooling_device *cdev,
+			      struct thermal_zone_device *tz, u32 *max_power);
+int power_actor_get_min_power(struct thermal_cooling_device *cdev,
+			      struct thermal_zone_device *tz, u32 *min_power);
+int power_actor_set_power(struct thermal_cooling_device *cdev,
+			  struct thermal_instance *ti, u32 power);
+/**
+ * struct thermal_trip - representation of a point in temperature domain
+ * @np: pointer to struct device_node that this trip point was created from
+ * @temperature: temperature value in miliCelsius
+ * @hysteresis: relative hysteresis in miliCelsius
+ * @type: trip point type
+ */
+struct thermal_trip {
+	struct device_node *np;
+	int temperature;
+	int hysteresis;
+	enum thermal_trip_type type;
+};
+
+int get_tz_trend(struct thermal_zone_device *tz, int trip);
+
+struct thermal_instance *
+get_thermal_instance(struct thermal_zone_device *tz,
+		     struct thermal_cooling_device *cdev,
+		     int trip);
 
 /*
  * This structure is used to describe the behavior of
@@ -68,6 +117,9 @@ void thermal_zone_device_unbind_exception(struct thermal_zone_device *,
 					  const char *, size_t);
 int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 int thermal_build_list_of_policies(char *buf);
+
+/* Helpers */
+void thermal_zone_set_trips(struct thermal_zone_device *tz);
 
 /* sysfs I/F */
 int thermal_zone_create_device_groups(struct thermal_zone_device *, int);

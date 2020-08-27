@@ -47,7 +47,7 @@ static int transfer_size;
 static int iterations;
 static int interval = 5; /* interval in seconds for showing transfer rate */
 
-uint8_t default_tx[] = {
+static uint8_t default_tx[] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	0x40, 0x00, 0x00, 0x00, 0x00, 0x95,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -56,8 +56,8 @@ uint8_t default_tx[] = {
 	0xF0, 0x0D,
 };
 
-uint8_t default_rx[ARRAY_SIZE(default_tx)] = {0, };
-char *input_tx;
+static uint8_t default_rx[ARRAY_SIZE(default_tx)] = {0, };
+static char *input_tx;
 
 static void hex_dump(const void *src, size_t length, size_t line_size,
 		     char *prefix)
@@ -461,8 +461,8 @@ int main(int argc, char *argv[])
 		pabort("can't get max speed hz");
 
 	printf("spi mode: 0x%x\n", mode);
-	printf("bits per word: %d\n", bits);
-	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
+	printf("bits per word: %u\n", bits);
+	printf("max speed: %u Hz (%u kHz)\n", speed, speed/1000);
 
 	if (input_tx)
 		transfer_escaped_string(fd, input_tx);

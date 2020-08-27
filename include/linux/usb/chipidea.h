@@ -67,6 +67,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
 #define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		2
 #define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		3
+#define CI_HDRC_CONTROLLER_VBUS_EVENT		4
 	int	(*notify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;
@@ -98,5 +99,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 			struct ci_hdrc_platform_data *platdata);
 /* Remove ci hdrc device */
 void ci_hdrc_remove_device(struct platform_device *pdev);
+/* Get current available role */
+enum usb_dr_mode ci_hdrc_query_available_role(struct platform_device *pdev);
 
 #endif

@@ -387,12 +387,15 @@ static int gpio_nand_remove(struct platform_device *pdev)
 {
 	struct gpio_nand *priv = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = nand_to_mtd(&priv->nand_chip);
+	int ret;
 
 	/* Apply write protection */
 	gpiod_set_value(priv->gpiod_nwp, 1);
 
 	/* Unregister device */
-	nand_release(mtd_to_nand(mtd));
+	ret = mtd_device_unregister(mtd);
+	WARN_ON(ret);
+	nand_cleanup(mtd_to_nand(mtd));
 
 	return 0;
 }

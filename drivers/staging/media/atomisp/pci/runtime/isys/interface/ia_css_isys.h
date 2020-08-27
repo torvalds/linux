@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -48,10 +49,10 @@ enum mipi_port_id ia_css_isys_port_to_mipi_port(
  * @param[in]	port		CSI port
  * @param[in]	isys_stream_id	Stream handle generated with ia_css_isys_generate_stream_id()
  *				Must be lower than SH_CSS_MAX_ISYS_CHANNEL_NODES
- * @return			IA_CSS_SUCCESS if successful, IA_CSS_ERR_INTERNAL_ERROR if
+ * @return			0 if successful, -EINVAL if
  *				there is already a stream registered with the same handle
  */
-enum ia_css_err ia_css_isys_csi_rx_register_stream(
+int ia_css_isys_csi_rx_register_stream(
     enum mipi_port_id port,
     uint32_t isys_stream_id);
 
@@ -63,14 +64,14 @@ enum ia_css_err ia_css_isys_csi_rx_register_stream(
  * @param[in]	port		CSI port
  * @param[in]	isys_stream_id	Stream handle generated with ia_css_isys_generate_stream_id()
  *				Must be lower than SH_CSS_MAX_ISYS_CHANNEL_NODES
- * @return			IA_CSS_SUCCESS if successful, IA_CSS_ERR_INTERNAL_ERROR if
+ * @return			0 if successful, -EINVAL if
  *				there is no stream registered with that handle
  */
-enum ia_css_err ia_css_isys_csi_rx_unregister_stream(
+int ia_css_isys_csi_rx_unregister_stream(
     enum mipi_port_id port,
     uint32_t isys_stream_id);
 
-enum ia_css_err ia_css_isys_convert_compressed_format(
+int ia_css_isys_convert_compressed_format(
     struct ia_css_csi2_compression *comp,
     struct input_system_cfg_s *cfg);
 unsigned int ia_css_csi2_calculate_input_system_alignment(
@@ -107,7 +108,7 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits);
  * This is normally done by the sensor, but when using the input fifo, this
  * format type must be sumitted correctly by the application.
  */
-enum ia_css_err ia_css_isys_convert_stream_format_to_mipi_format(
+int ia_css_isys_convert_stream_format_to_mipi_format(
     enum atomisp_input_format input_format,
     mipi_predictor_t compression,
     unsigned int *fmt_type);

@@ -1339,8 +1339,8 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 
 	if (!bio_list_empty(&bio_list_on_stack)) {
 		blk_start_plug(&plug);
-		while((bio = bio_list_pop(&bio_list_on_stack)))
-			generic_make_request(bio);
+		while ((bio = bio_list_pop(&bio_list_on_stack)))
+			submit_bio_noacct(bio);
 		blk_finish_plug(&plug);
 	}
 }
@@ -2158,17 +2158,18 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 }
 #endif
 
-bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
-		    struct bio *bio)
+bool blk_throtl_bio(struct bio *bio)
 {
+	struct request_queue *q = bio->bi_disk->queue;
+	struct blkcg_gq *blkg = bio->bi_blkg;
 	struct throtl_qnode *qn = NULL;
-	struct throtl_grp *tg = blkg_to_tg(blkg ?: q->root_blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
 	struct throtl_data *td = tg->td;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	rcu_read_lock();
 
 	/* see throtl_charge_bio() */
 	if (bio_flagged(bio, BIO_THROTTLED))
@@ -2273,6 +2274,7 @@ out:
 	if (throttled || !td->track_bio_latency)
 		bio->bi_issue.value |= BIO_ISSUE_THROTL_SKIP_LATENCY;
 #endif
+	rcu_read_unlock();
 	return throttled;
 }
 

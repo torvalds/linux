@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the iWave-RZ/G1H Qseven board development
+ * platform with camera daughter board
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r8a7742-iwg21d-q7.dts"
+
+/ {
+	model = "iWave Systems RZ/G1H Qseven development platform with camera add-on";
+	compatible = "iwave,g21d", "iwave,g21m", "renesas,r8a7742";
+
+	aliases {
+		serial0 = &scif0;
+		serial1 = &scif1;
+		serial3 = &scifb1;
+		serial5 = &hscif0;
+		ethernet1 = &ether;
+	};
+};
+
+&avb {
+	/* Pins shared with VIN0, keep status disabled */
+	status = "disabled";
+};
+
+&ether {
+	pinctrl-0 = <&ether_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&phy1>;
+	renesas,ether-link-active-low;
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		micrel,led-mode = <1>;
+	};
+};
+
+&hscif0 {
+	pinctrl-0 = <&hscif0_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&pfc {
+	ether_pins: ether {
+		groups = "eth_mdio", "eth_rmii";
+		function = "eth";
+	};
+
+	hscif0_pins: hscif0 {
+		groups = "hscif0_data", "hscif0_ctrl";
+		function = "hscif0";
+	};
+
+	scif0_pins: scif0 {
+		groups = "scif0_data";
+		function = "scif0";
+	};
+
+	scif1_pins: scif1 {
+		groups = "scif1_data";
+		function = "scif1";
+	};
+
+	scifb1_pins: scifb1 {
+		groups = "scifb1_data";
+		function = "scifb1";
+	};
+};
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&scifb1 {
+	pinctrl-0 = <&scifb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	rts-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
+	cts-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+};

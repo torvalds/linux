@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -31,7 +32,7 @@ ia_css_isp_param_set_css_mem_init(
     struct ia_css_isp_param_css_segments *mem_init,
     enum ia_css_param_class pclass,
     enum ia_css_isp_memories mem,
-    hrt_vaddress address, size_t size);
+    ia_css_ptr address, size_t size);
 
 void
 ia_css_isp_param_set_isp_mem_init(
@@ -67,7 +68,7 @@ ia_css_init_memory_interface(
     const struct ia_css_isp_param_css_segments *css_params);
 
 /* Allocate memory parameters */
-enum ia_css_err
+int
 ia_css_isp_param_allocate_isp_parameters(
     struct ia_css_isp_param_host_segments *mem_params,
     struct ia_css_isp_param_css_segments *css_params,
@@ -88,7 +89,7 @@ ia_css_isp_param_load_fw_params(
     bool init);
 
 /* Copy host parameter images to ddr */
-enum ia_css_err
+int
 ia_css_isp_param_copy_isp_mem_if_to_ddr(
     struct ia_css_isp_param_css_segments *ddr,
     const struct ia_css_isp_param_host_segments *host,

@@ -170,7 +170,7 @@
 			clocks = <&clks CLK_GPIO>;
 			gpio-ranges = <&pinctrl 0 0 128>;
 			interrupt-names = "gpio0", "gpio1", "gpio_mux";
-			interrupts = <8 9 10>;
+			interrupts = <8>, <9>, <10>;
 			gpio-controller;
 			#gpio-cells = <0x2>;
 			interrupt-controller;

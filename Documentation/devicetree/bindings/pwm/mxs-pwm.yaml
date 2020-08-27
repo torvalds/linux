@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/mxs-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MXS PWM controller
+
+maintainers:
+  - Shawn Guo <shawn.guo@linaro.org>
+  - Anson Huang <anson.huang@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx23-pwm
+
+  reg:
+    maxItems: 1
+
+  "#pwm-cells":
+    const: 3
+
+  fsl,pwm-number:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: u32 value representing the number of PWM devices
+
+required:
+  - compatible
+  - reg
+  - "#pwm-cells"
+  - fsl,pwm-number
+
+additionalProperties: false
+
+examples:
+  - |
+    pwm@80064000 {
+        compatible = "fsl,imx23-pwm";
+        reg = <0x80064000 0x2000>;
+        #pwm-cells = <3>;
+        fsl,pwm-number = <8>;
+    };

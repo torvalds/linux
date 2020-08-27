@@ -195,11 +195,18 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	case VM_MODE_PXXV48_4K:
 #ifdef __x86_64__
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
-		TEST_ASSERT(vm->va_bits == 48, "Linear address width "
-			    "(%d bits) not supported", vm->va_bits);
+		/*
+		 * Ignore KVM support for 5-level paging (vm->va_bits == 57),
+		 * it doesn't take effect unless a CR4.LA57 is set, which it
+		 * isn't for this VM_MODE.
+		 */
+		TEST_ASSERT(vm->va_bits == 48 || vm->va_bits == 57,
+			    "Linear address width (%d bits) not supported",
+			    vm->va_bits);
 		pr_debug("Guest physical address width detected: %d\n",
 			 vm->pa_bits);
 		vm->pgtable_levels = 4;
+		vm->va_bits = 48;
 #else
 		TEST_FAIL("VM_MODE_PXXV48_4K not supported on non-x86 platforms");
 #endif

@@ -33,14 +33,14 @@ static int string_stream_fragment_init(struct kunit_resource *res,
 	if (!frag->fragment)
 		return -ENOMEM;
 
-	res->allocation = frag;
+	res->data = frag;
 
 	return 0;
 }
 
 static void string_stream_fragment_free(struct kunit_resource *res)
 {
-	struct string_stream_fragment *frag = res->allocation;
+	struct string_stream_fragment *frag = res->data;
 
 	list_del(&frag->node);
 	kunit_kfree(frag->test, frag->fragment);
@@ -65,9 +65,8 @@ static struct string_stream_fragment *alloc_string_stream_fragment(
 
 static int string_stream_fragment_destroy(struct string_stream_fragment *frag)
 {
-	return kunit_resource_destroy(frag->test,
+	return kunit_destroy_resource(frag->test,
 				      kunit_resource_instance_match,
-				      string_stream_fragment_free,
 				      frag);
 }
 
@@ -179,7 +178,7 @@ static int string_stream_init(struct kunit_resource *res, void *context)
 	if (!stream)
 		return -ENOMEM;
 
-	res->allocation = stream;
+	res->data = stream;
 	stream->gfp = ctx->gfp;
 	stream->test = ctx->test;
 	INIT_LIST_HEAD(&stream->fragments);
@@ -190,7 +189,7 @@ static int string_stream_init(struct kunit_resource *res, void *context)
 
 static void string_stream_free(struct kunit_resource *res)
 {
-	struct string_stream *stream = res->allocation;
+	struct string_stream *stream = res->data;
 
 	string_stream_clear(stream);
 }
@@ -211,8 +210,7 @@ struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp)
 
 int string_stream_destroy(struct string_stream *stream)
 {
-	return kunit_resource_destroy(stream->test,
+	return kunit_destroy_resource(stream->test,
 				      kunit_resource_instance_match,
-				      string_stream_free,
 				      stream);
 }

@@ -17,6 +17,7 @@
 		crypto = &crypto;
 		serial0 = &duart0;
 		serial1 = &duart1;
+		serial2 = &lpuart1;
 		spi0 = &fspi;
 		spi1 = &dspi2;
 	};
@@ -184,4 +185,8 @@
 		reg = <0x50>;
 		pagesize = <32>;
 	};
+};
+
+&lpuart1 {
+	status = "okay";
 };

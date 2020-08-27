@@ -271,7 +271,7 @@ static int check_acl(struct inode *inode, int mask)
 		/* no ->get_acl() calls in RCU mode... */
 		if (is_uncached_acl(acl))
 			return -ECHILD;
-	        return posix_acl_permission(inode, acl, mask & ~MAY_NOT_BLOCK);
+	        return posix_acl_permission(inode, acl, mask);
 	}
 
 	acl = get_acl(inode, ACL_TYPE_ACCESS);
@@ -288,37 +288,51 @@ static int check_acl(struct inode *inode, int mask)
 }
 
 /*
- * This does the basic permission checking
+ * This does the basic UNIX permission checking.
+ *
+ * Note that the POSIX ACL check cares about the MAY_NOT_BLOCK bit,
+ * for RCU walking.
  */
 static int acl_permission_check(struct inode *inode, int mask)
 {
 	unsigned int mode = inode->i_mode;
 
-	if (likely(uid_eq(current_fsuid(), inode->i_uid)))
+	/* Are we the owner? If so, ACL's don't matter */
+	if (likely(uid_eq(current_fsuid(), inode->i_uid))) {
+		mask &= 7;
 		mode >>= 6;
-	else {
-		if (IS_POSIXACL(inode) && (mode & S_IRWXG)) {
-			int error = check_acl(inode, mask);
-			if (error != -EAGAIN)
-				return error;
-		}
+		return (mask & ~mode) ? -EACCES : 0;
+	}
 
+	/* Do we have ACL's? */
+	if (IS_POSIXACL(inode) && (mode & S_IRWXG)) {
+		int error = check_acl(inode, mask);
+		if (error != -EAGAIN)
+			return error;
+	}
+
+	/* Only RWX matters for group/other mode bits */
+	mask &= 7;
+
+	/*
+	 * Are the group permissions different from
+	 * the other permissions in the bits we care
+	 * about? Need to check group ownership if so.
+	 */
+	if (mask & (mode ^ (mode >> 3))) {
 		if (in_group_p(inode->i_gid))
 			mode >>= 3;
 	}
 
-	/*
-	 * If the DACs are ok we don't need any capability check.
-	 */
-	if ((mask & ~mode & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
-		return 0;
-	return -EACCES;
+	/* Bits in 'mode' clear that we require? */
+	return (mask & ~mode) ? -EACCES : 0;
 }
 
 /**
  * generic_permission -  check for access rights on a Posix-like filesystem
  * @inode:	inode to check access rights for
- * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC, ...)
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC,
+ *		%MAY_NOT_BLOCK ...)
  *
  * Used to check for read/write/execute permissions on a file.
  * We use "fsuid" for this, letting us set arbitrary permissions

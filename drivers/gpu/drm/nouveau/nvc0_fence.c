@@ -21,25 +21,35 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
 #include "nv50_display.h"
 
+#include <nvif/push906f.h>
+
+#include <nvhw/class/cl906f.h>
+
 static int
 nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 6);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 6);
 	if (ret == 0) {
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
-		OUT_RING  (chan, 0x00000000);
-		FIRE_RING (chan);
+		PUSH_MTHD(push, NV906F, SEMAPHOREA,
+			  NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV906F, SEMAPHORED, OPERATION, RELEASE) |
+			  NVDEF(NV906F, SEMAPHORED, RELEASE_WFI, EN) |
+			  NVDEF(NV906F, SEMAPHORED, RELEASE_SIZE, 16BYTE),
+
+					NON_STALL_INTERRUPT, 0);
+		PUSH_KICK(push);
 	}
 	return ret;
 }
@@ -47,15 +57,19 @@ nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 static int
 nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 5);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 5);
 	if (ret == 0) {
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL |
-				 NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD);
-		FIRE_RING (chan);
+		PUSH_MTHD(push, NV906F, SEMAPHOREA,
+			  NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV906F, SEMAPHORED, OPERATION, ACQ_GEQ) |
+			  NVDEF(NV906F, SEMAPHORED, ACQUIRE_SWITCH, ENABLED));
+		PUSH_KICK(push);
 	}
 	return ret;
 }

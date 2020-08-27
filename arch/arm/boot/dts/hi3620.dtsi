@@ -71,7 +71,7 @@
 		interrupt-parent = <&gic>;
 		ranges = <0 0xfc000000 0x2000000>;
 
-		L2: l2-cache {
+		L2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0x100000 0x100000>;
 			interrupts = <0 15 4>;

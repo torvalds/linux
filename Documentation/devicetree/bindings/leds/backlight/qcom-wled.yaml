@@ -57,8 +57,7 @@ properties:
     description: |
       mA; per-string current limit.
       This property is supported only for WLED3.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 20
     minimum: 0
     maximum: 25
@@ -74,38 +73,33 @@ properties:
   qcom,current-boost-limit:
     description: |
       mA; boost current limit.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   qcom,switching-freq:
     description: |
       kHz; switching frequency.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 600, 640, 685, 738, 800, 872, 960, 1066, 1200, 1371, 1600, 1920, 2400, 3200, 4800, 9600 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 600, 640, 685, 738, 800, 872, 960, 1066, 1200, 1371, 1600, 1920, 2400, 3200, 4800, 9600 ]
 
   qcom,ovp:
     description: |
       V; Over-voltage protection limit.
       This property is supported only for WLED3.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 27, 29, 32, 35 ]
-      - default: 29
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 27, 29, 32, 35 ]
+    default: 29
 
   qcom,ovp-millivolt:
     description: |
       Over-voltage protection limit. This property is for WLED4 only.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 18100, 19600, 29600, 31100 ]
-      - default: 29600
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 18100, 19600, 29600, 31100 ]
+    default: 29600
 
   qcom,num-strings:
     description: |
       number of led strings attached.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   qcom,enabled-strings:
     description: |
@@ -113,8 +107,7 @@ properties:
       string of leds are operated individually. Specify the
       list of strings used by the device. Any combination of
       led strings can be used.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 4
 
@@ -150,10 +143,9 @@ properties:
            0 - Modulator A
            1 - Modulator B
       This property is applicable only to WLED5 peripheral.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1 ]
-      - default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    default: 0
 
   qcom,cabc-sel:
     description: |
@@ -164,9 +156,8 @@ properties:
            2 - CABC 2
            3 - External signal (e.g. LPG) is used for dimming
       This property is applicable only to WLED5 peripheral.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 0, 1, 2, 3 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1, 2, 3 ]
 
 allOf:
   - if:

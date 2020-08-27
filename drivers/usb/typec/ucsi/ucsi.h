@@ -5,6 +5,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/power_supply.h>
 #include <linux/types.h>
 #include <linux/usb/typec.h>
 
@@ -21,7 +22,7 @@ struct ucsi_altmode;
 #define UCSI_MESSAGE_OUT		32
 
 /* Command Status and Connector Change Indication (CCI) bits */
-#define UCSI_CCI_CONNECTOR(_c_)		(((_c_) & GENMASK(7, 0)) >> 1)
+#define UCSI_CCI_CONNECTOR(_c_)		(((_c_) & GENMASK(7, 1)) >> 1)
 #define UCSI_CCI_LENGTH(_c_)		(((_c_) & GENMASK(15, 8)) >> 8)
 #define UCSI_CCI_NOT_SUPPORTED		BIT(25)
 #define UCSI_CCI_CANCEL_COMPLETE	BIT(26)
@@ -129,6 +130,11 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_ALTMODE_OFFSET(_r_)		(((_r_) >> 32) & 0xff)
 #define UCSI_GET_ALTMODE_OFFSET(_r_)		((u64)(_r_) << 32)
 #define UCSI_GET_ALTMODE_NUM_ALTMODES(_r_)	((u64)(_r_) << 40)
+
+/* GET_PDOS command bits */
+#define UCSI_GET_PDOS_PARTNER_PDO(_r_)		((u64)(_r_) << 23)
+#define UCSI_GET_PDOS_NUM_PDOS(_r_)		((u64)(_r_) << 32)
+#define UCSI_GET_PDOS_SRC_PDOS			((u64)1 << 34)
 
 /* -------------------------------------------------------------------------- */
 
@@ -294,6 +300,11 @@ struct ucsi {
 
 #define UCSI_MAX_SVID		5
 #define UCSI_MAX_ALTMODES	(UCSI_MAX_SVID * 6)
+#define UCSI_MAX_PDOS		(4)
+
+#define UCSI_TYPEC_VSAFE5V	5000
+#define UCSI_TYPEC_1_5_CURRENT	1500
+#define UCSI_TYPEC_3_0_CURRENT	3000
 
 struct ucsi_connector {
 	int num;
@@ -313,6 +324,11 @@ struct ucsi_connector {
 
 	struct ucsi_connector_status status;
 	struct ucsi_connector_capability cap;
+	struct power_supply *psy;
+	struct power_supply_desc psy_desc;
+	u32 rdo;
+	u32 src_pdos[UCSI_MAX_PDOS];
+	int num_pdos;
 };
 
 int ucsi_send_command(struct ucsi *ucsi, u64 command,
@@ -320,6 +336,14 @@ int ucsi_send_command(struct ucsi *ucsi, u64 command,
 
 void ucsi_altmode_update_active(struct ucsi_connector *con);
 int ucsi_resume(struct ucsi *ucsi);
+
+#if IS_ENABLED(CONFIG_POWER_SUPPLY)
+int ucsi_register_port_psy(struct ucsi_connector *con);
+void ucsi_unregister_port_psy(struct ucsi_connector *con);
+#else
+static inline int ucsi_register_port_psy(struct ucsi_connector *con) { return 0; }
+static inline void ucsi_unregister_port_psy(struct ucsi_connector *con) { }
+#endif /* CONFIG_POWER_SUPPLY */
 
 #if IS_ENABLED(CONFIG_TYPEC_DP_ALTMODE)
 struct typec_altmode *

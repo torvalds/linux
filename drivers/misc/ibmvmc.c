@@ -760,7 +760,7 @@ static int ibmvmc_send_rem_buffer_resp(struct crq_server_adapter *adapter,
  * @adapter:	crq_server_adapter struct
  * @buffer:	ibmvmc_buffer struct
  * @hmc:	ibmvmc_hmc struct
- * @msg_length:	message length field
+ * @msg_len:	message length field
  *
  * This command is sent between the management partition and the hypervisor
  * in order to signal the arrival of an HMC protocol message. The command
@@ -1028,7 +1028,7 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
  * ibmvmc_write - Write
  *
  * @file:	file struct
- * @buf:	Character buffer
+ * @buffer:	Character buffer
  * @count:	Count field
  * @ppos:	Offset
  *
@@ -1347,7 +1347,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 /**
  * ibmvmc_ioctl - IOCTL
  *
- * @session:	ibmvmc_file_session struct
+ * @file:	file information
  * @cmd:	cmd field
  * @arg:	Argument field
  *

@@ -15,6 +15,7 @@
 #include <asm/hypervisor.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
+#include <asm/idtentry.h>
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
@@ -152,15 +153,11 @@ static inline bool hv_reenlightenment_available(void)
 		ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT;
 }
 
-__visible void __irq_entry hyperv_reenlightenment_intr(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_reenlightenment)
 {
-	entering_ack_irq();
-
+	ack_APIC_irq();
 	inc_irq_stat(irq_hv_reenlightenment_count);
-
 	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
-
-	exiting_irq();
 }
 
 void set_hv_tscchange_cb(void (*cb)(void))
@@ -378,7 +375,10 @@ void __init hyperv_init(void)
 	guest_id = generate_guest_id(0, LINUX_VERSION_CODE, 0);
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
-	hv_hypercall_pg = vmalloc_exec(PAGE_SIZE);
+	hv_hypercall_pg = __vmalloc_node_range(PAGE_SIZE, 1, VMALLOC_START,
+			VMALLOC_END, GFP_KERNEL, PAGE_KERNEL_ROX,
+			VM_FLUSH_RESET_PERMS, NUMA_NO_NODE,
+			__builtin_return_address(0));
 	if (hv_hypercall_pg == NULL) {
 		wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
 		goto remove_cpuhp_state;

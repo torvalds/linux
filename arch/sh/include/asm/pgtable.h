@@ -76,18 +76,10 @@ static inline unsigned long phys_addr_mask(void)
 #define PTE_PHYS_MASK		(phys_addr_mask() & PAGE_MASK)
 #define PTE_FLAGS_MASK		(~(PTE_PHYS_MASK) << PAGE_SHIFT)
 
-#ifdef CONFIG_SUPERH32
 #define VMALLOC_START	(P3SEG)
-#else
-#define VMALLOC_START	(0xf0000000)
-#endif
 #define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 
-#if defined(CONFIG_SUPERH32)
 #include <asm/pgtable_32.h>
-#else
-#include <asm/pgtable_64.h>
-#endif
 
 /*
  * SH-X and lower (legacy) SuperH parts (SH-3, SH-4, some SH-4A) can't do page
@@ -159,15 +151,6 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 		prot |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
 	return __pte_access_permitted(pte, prot);
 }
-#elif defined(CONFIG_SUPERH64)
-static inline bool pte_access_permitted(pte_t pte, bool write)
-{
-	u64 prot = _PAGE_PRESENT | _PAGE_USER | _PAGE_READ;
-
-	if (write)
-		prot |= _PAGE_WRITE;
-	return __pte_access_permitted(pte, prot);
-}
 #else
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
@@ -184,7 +167,5 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 /* arch/sh/mm/mmap.c */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
-#include <asm-generic/pgtable.h>
 
 #endif /* __ASM_SH_PGTABLE_H */

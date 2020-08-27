@@ -256,7 +256,7 @@ static int xgene_v1_pcie_ecam_init(struct pci_config_window *cfg)
 	return xgene_pcie_ecam_init(cfg, XGENE_PCIE_IP_VER_1);
 }
 
-struct pci_ecam_ops xgene_v1_pcie_ecam_ops = {
+const struct pci_ecam_ops xgene_v1_pcie_ecam_ops = {
 	.bus_shift	= 16,
 	.init		= xgene_v1_pcie_ecam_init,
 	.pci_ops	= {
@@ -271,7 +271,7 @@ static int xgene_v2_pcie_ecam_init(struct pci_config_window *cfg)
 	return xgene_pcie_ecam_init(cfg, XGENE_PCIE_IP_VER_2);
 }
 
-struct pci_ecam_ops xgene_v2_pcie_ecam_ops = {
+const struct pci_ecam_ops xgene_v2_pcie_ecam_ops = {
 	.bus_shift	= 16,
 	.init		= xgene_v2_pcie_ecam_init,
 	.pci_ops	= {

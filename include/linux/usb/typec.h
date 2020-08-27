@@ -73,6 +73,20 @@ enum typec_orientation {
 };
 
 /*
+ * struct enter_usb_data - Enter_USB Message details
+ * @eudo: Enter_USB Data Object
+ * @active_link_training: Active Cable Plug Link Training
+ *
+ * @active_link_training is a flag that should be set with uni-directional SBRX
+ * communication, and left 0 with passive cables and with bi-directional SBRX
+ * communication.
+ */
+struct enter_usb_data {
+	u32			eudo;
+	unsigned char		active_link_training:1;
+};
+
+/*
  * struct usb_pd_identity - USB Power Delivery identity data
  * @id_header: ID Header VDO
  * @cert_stat: Cert Stat VDO
@@ -254,6 +268,7 @@ int typec_set_mode(struct typec_port *port, int mode);
 
 void *typec_get_drvdata(struct typec_port *port);
 
+int typec_find_orientation(const char *name);
 int typec_find_port_power_role(const char *name);
 int typec_find_power_role(const char *name);
 int typec_find_port_data_role(const char *name);

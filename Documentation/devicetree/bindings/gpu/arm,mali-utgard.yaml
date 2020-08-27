@@ -41,6 +41,7 @@ properties:
               - amlogic,meson-gxbb-mali
               - amlogic,meson-gxl-mali
               - hisilicon,hi6220-mali
+              - mediatek,mt7623-mali
               - rockchip,rk3328-mali
           - const: arm,mali-450
 
@@ -107,6 +108,9 @@ properties:
 
   operating-points-v2: true
 
+  "#cooling-cells":
+    const: 2
+
 required:
   - compatible
   - reg
@@ -130,6 +134,7 @@ allOf:
               - amlogic,meson8-mali
               - amlogic,meson8b-mali
               - hisilicon,hi6220-mali
+              - mediatek,mt7623-mali
               - rockchip,rk3036-mali
               - rockchip,rk3066-mali
               - rockchip,rk3188-mali
@@ -164,6 +169,7 @@ examples:
       clocks = <&ccu 1>, <&ccu 2>;
       clock-names = "bus", "core";
       resets = <&ccu 1>;
+      #cooling-cells = <2>;
     };
 
 ...

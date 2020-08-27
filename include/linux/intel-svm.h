@@ -21,7 +21,6 @@ struct svm_dev_ops {
 #define SVM_REQ_EXEC	(1<<1)
 #define SVM_REQ_PRIV	(1<<0)
 
-
 /*
  * The SVM_FLAG_PRIVATE_PASID flag requests a PASID which is *not* the "main"
  * PASID for the current process. Even if a PASID already exists, a new one
@@ -44,90 +43,17 @@ struct svm_dev_ops {
  * do such IOTLB flushes automatically.
  */
 #define SVM_FLAG_SUPERVISOR_MODE	(1<<1)
-
-#ifdef CONFIG_INTEL_IOMMU_SVM
-
-/**
- * intel_svm_bind_mm() - Bind the current process to a PASID
- * @dev:	Device to be granted access
- * @pasid:	Address for allocated PASID
- * @flags:	Flags. Later for requesting supervisor mode, etc.
- * @ops:	Callbacks to device driver
- *
- * This function attempts to enable PASID support for the given device.
- * If the @pasid argument is non-%NULL, a PASID is allocated for access
- * to the MM of the current process.
- *
- * By using a %NULL value for the @pasid argument, this function can
- * be used to simply validate that PASID support is available for the
- * given device — i.e. that it is behind an IOMMU which has the
- * requisite support, and is enabled.
- *
- * Page faults are handled transparently by the IOMMU code, and there
- * should be no need for the device driver to be involved. If a page
- * fault cannot be handled (i.e. is an invalid address rather than
- * just needs paging in), then the page request will be completed by
- * the core IOMMU code with appropriate status, and the device itself
- * can then report the resulting fault to its driver via whatever
- * mechanism is appropriate.
- *
- * Multiple calls from the same process may result in the same PASID
- * being re-used. A reference count is kept.
+/*
+ * The SVM_FLAG_GUEST_MODE flag is used when a PASID bind is for guest
+ * processes. Compared to the host bind, the primary differences are:
+ * 1. mm life cycle management
+ * 2. fault reporting
  */
-extern int intel_svm_bind_mm(struct device *dev, int *pasid, int flags,
-			     struct svm_dev_ops *ops);
-
-/**
- * intel_svm_unbind_mm() - Unbind a specified PASID
- * @dev:	Device for which PASID was allocated
- * @pasid:	PASID value to be unbound
- *
- * This function allows a PASID to be retired when the device no
- * longer requires access to the address space of a given process.
- *
- * If the use count for the PASID in question reaches zero, the
- * PASID is revoked and may no longer be used by hardware.
- *
- * Device drivers are required to ensure that no access (including
- * page requests) is currently outstanding for the PASID in question,
- * before calling this function.
+#define SVM_FLAG_GUEST_MODE		(1<<2)
+/*
+ * The SVM_FLAG_GUEST_PASID flag is used when a guest has its own PASID space,
+ * which requires guest and host PASID translation at both directions.
  */
-extern int intel_svm_unbind_mm(struct device *dev, int pasid);
-
-/**
- * intel_svm_is_pasid_valid() - check if pasid is valid
- * @dev:	Device for which PASID was allocated
- * @pasid:	PASID value to be checked
- *
- * This function checks if the specified pasid is still valid. A
- * valid pasid means the backing mm is still having a valid user.
- * For kernel callers init_mm is always valid. for other mm, if mm->mm_users
- * is non-zero, it is valid.
- *
- * returns -EINVAL if invalid pasid, 0 if pasid ref count is invalid
- * 1 if pasid is valid.
- */
-extern int intel_svm_is_pasid_valid(struct device *dev, int pasid);
-
-#else /* CONFIG_INTEL_IOMMU_SVM */
-
-static inline int intel_svm_bind_mm(struct device *dev, int *pasid,
-				    int flags, struct svm_dev_ops *ops)
-{
-	return -ENOSYS;
-}
-
-static inline int intel_svm_unbind_mm(struct device *dev, int pasid)
-{
-	BUG();
-}
-
-static inline int intel_svm_is_pasid_valid(struct device *dev, int pasid)
-{
-	return -EINVAL;
-}
-#endif /* CONFIG_INTEL_IOMMU_SVM */
-
-#define intel_svm_available(dev) (!intel_svm_bind_mm((dev), NULL, 0, NULL))
+#define SVM_FLAG_GUEST_PASID		(1<<3)
 
 #endif /* __INTEL_SVM_H__ */

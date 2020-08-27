@@ -103,6 +103,6 @@ struct pcdp {
 	u8			creator_id[4];
 	u32			creator_rev;
 	u32			num_uarts;
-	struct pcdp_uart	uart[0];	/* actual size is num_uarts */
+	struct pcdp_uart	uart[];	/* actual size is num_uarts */
 	/* remainder of table is pcdp_device structures */
 } __attribute__((packed));

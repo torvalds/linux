@@ -21,7 +21,6 @@
 #include <asm/setup.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 

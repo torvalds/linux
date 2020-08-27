@@ -736,8 +736,6 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 #define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
 
-#include <asm-generic/pgtable.h>
-
 /*
  * We provide our own get_unmapped area to cope with the virtual aliasing
  * constraints placed on us by the cache architecture.

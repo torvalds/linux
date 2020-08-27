@@ -369,8 +369,8 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 
 	if (dev->capture.vc_start_timestamp != -1 && pts) {
 		ktime_t timestamp;
-		s64 runtime_us = pts -
-		    dev->capture.vc_start_timestamp;
+		s64 runtime_us = pts - dev->capture.vc_start_timestamp;
+
 		timestamp = ktime_add_us(dev->capture.kernel_start_ts,
 					 runtime_us);
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
@@ -420,9 +420,8 @@ static int enable_camera(struct bm2835_mmal_dev *dev)
 			return -EINVAL;
 		}
 
-		ret = vchiq_mmal_component_enable(
-				dev->instance,
-				dev->component[COMP_CAMERA]);
+		ret = vchiq_mmal_component_enable(dev->instance,
+						  dev->component[COMP_CAMERA]);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
 				 "Failed enabling camera, ret %d\n", ret);
@@ -451,10 +450,8 @@ static int disable_camera(struct bm2835_mmal_dev *dev)
 
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 			 "Disabling camera\n");
-		ret =
-		    vchiq_mmal_component_disable(
-				dev->instance,
-				dev->component[COMP_CAMERA]);
+		ret = vchiq_mmal_component_disable(dev->instance,
+						   dev->component[COMP_CAMERA]);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
 				 "Failed disabling camera, ret %d\n", ret);
@@ -555,8 +552,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* enable the camera port */
 	dev->capture.port->cb_ctx = dev;
-	ret =
-	    vchiq_mmal_port_enable(dev->instance, dev->capture.port, buffer_cb);
+	ret = vchiq_mmal_port_enable(dev->instance, dev->capture.port,
+				     buffer_cb);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to enable capture port - error %d. Disabling camera port again\n",
@@ -668,7 +665,7 @@ static int set_overlay_params(struct bm2835_mmal_dev *dev,
 			MMAL_DISPLAY_SET_ALPHA |
 			MMAL_DISPLAY_SET_DEST_RECT |
 			MMAL_DISPLAY_SET_FULLSCREEN,
-		.layer = PREVIEW_LAYER,
+		.layer = 2,
 		.alpha = dev->overlay.global_alpha,
 		.fullscreen = 0,
 		.dest_rect = {
@@ -767,16 +764,14 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 	    (!on && !dev->component[COMP_PREVIEW]->enabled))
 		return 0;	/* already in requested state */
 
-	src =
-	    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
+	src = &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
 
 	if (!on) {
 		/* disconnect preview ports and disable component */
 		ret = vchiq_mmal_port_disable(dev->instance, src);
 		if (!ret)
-			ret =
-			    vchiq_mmal_port_connect_tunnel(dev->instance, src,
-							   NULL);
+			ret = vchiq_mmal_port_connect_tunnel(dev->instance, src,
+							     NULL);
 		if (ret >= 0)
 			ret = vchiq_mmal_component_disable(
 					dev->instance,
@@ -800,9 +795,8 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 	if (enable_camera(dev) < 0)
 		return -EINVAL;
 
-	ret = vchiq_mmal_component_enable(
-			dev->instance,
-			dev->component[COMP_PREVIEW]);
+	ret = vchiq_mmal_component_enable(dev->instance,
+					  dev->component[COMP_PREVIEW]);
 	if (ret < 0)
 		return ret;
 
@@ -1001,6 +995,141 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+
+static int mmal_setup_video_component(struct bm2835_mmal_dev *dev,
+				      struct v4l2_format *f)
+{
+	bool overlay_enabled = !!dev->component[COMP_PREVIEW]->enabled;
+	struct vchiq_mmal_port *preview_port;
+	int ret;
+
+	preview_port = &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
+
+	/* Preview and encode ports need to match on resolution */
+	if (overlay_enabled) {
+		/* Need to disable the overlay before we can update
+		 * the resolution
+		 */
+		ret = vchiq_mmal_port_disable(dev->instance, preview_port);
+		if (!ret) {
+			ret = vchiq_mmal_port_connect_tunnel(dev->instance,
+							     preview_port,
+							     NULL);
+		}
+	}
+	preview_port->es.video.width = f->fmt.pix.width;
+	preview_port->es.video.height = f->fmt.pix.height;
+	preview_port->es.video.crop.x = 0;
+	preview_port->es.video.crop.y = 0;
+	preview_port->es.video.crop.width = f->fmt.pix.width;
+	preview_port->es.video.crop.height = f->fmt.pix.height;
+	preview_port->es.video.frame_rate.num =
+				  dev->capture.timeperframe.denominator;
+	preview_port->es.video.frame_rate.den =
+				  dev->capture.timeperframe.numerator;
+	ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
+
+	if (overlay_enabled) {
+		ret = vchiq_mmal_port_connect_tunnel(dev->instance,
+				preview_port,
+				&dev->component[COMP_PREVIEW]->input[0]);
+		if (ret)
+			return ret;
+
+		ret = vchiq_mmal_port_enable(dev->instance, preview_port, NULL);
+	}
+
+	return ret;
+}
+
+static int mmal_setup_encode_component(struct bm2835_mmal_dev *dev,
+				       struct v4l2_format *f,
+				       struct vchiq_mmal_port *port,
+				       struct vchiq_mmal_port *camera_port,
+				       struct vchiq_mmal_component *component)
+{
+	struct mmal_fmt *mfmt = get_format(f);
+	int ret;
+
+	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		 "vid_cap - set up encode comp\n");
+
+	/* configure buffering */
+	camera_port->current_buffer.size = camera_port->recommended_buffer.size;
+	camera_port->current_buffer.num = camera_port->recommended_buffer.num;
+
+	ret = vchiq_mmal_port_connect_tunnel(dev->instance, camera_port,
+					     &component->input[0]);
+	if (ret) {
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "%s failed to create connection\n", __func__);
+		/* ensure capture is not going to be tried */
+		dev->capture.port = NULL;
+		return ret;
+	}
+
+	port->es.video.width = f->fmt.pix.width;
+	port->es.video.height = f->fmt.pix.height;
+	port->es.video.crop.x = 0;
+	port->es.video.crop.y = 0;
+	port->es.video.crop.width = f->fmt.pix.width;
+	port->es.video.crop.height = f->fmt.pix.height;
+	port->es.video.frame_rate.num =
+		  dev->capture.timeperframe.denominator;
+	port->es.video.frame_rate.den =
+		  dev->capture.timeperframe.numerator;
+
+	port->format.encoding = mfmt->mmal;
+	port->format.encoding_variant = 0;
+	/* Set any encoding specific parameters */
+	switch (mfmt->mmal_component) {
+	case COMP_VIDEO_ENCODE:
+		port->format.bitrate = dev->capture.encode_bitrate;
+		break;
+	case COMP_IMAGE_ENCODE:
+		/* Could set EXIF parameters here */
+		break;
+	default:
+		break;
+	}
+
+	ret = vchiq_mmal_port_set_format(dev->instance, port);
+	if (ret) {
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "%s failed to set format %dx%d fmt %08X\n",
+			 __func__,
+			 f->fmt.pix.width,
+			 f->fmt.pix.height,
+			 f->fmt.pix.pixelformat);
+		return ret;
+	}
+
+	ret = vchiq_mmal_component_enable(dev->instance, component);
+	if (ret) {
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "%s Failed to enable encode components\n", __func__);
+		return ret;
+	}
+
+	/* configure buffering */
+	port->current_buffer.num = 1;
+	port->current_buffer.size = f->fmt.pix.sizeimage;
+	if (port->format.encoding == MMAL_ENCODING_JPEG) {
+		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+			 "JPG - buf size now %d was %d\n",
+			 f->fmt.pix.sizeimage,
+			 port->current_buffer.size);
+		port->current_buffer.size =
+		    (f->fmt.pix.sizeimage < (100 << 10)) ?
+		    (100 << 10) : f->fmt.pix.sizeimage;
+	}
+	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		 "vid_cap - cur_buf.size set to %d\n", f->fmt.pix.sizeimage);
+	port->current_buffer.alignment = 0;
+
+	return 0;
+}
+
 static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 				 struct v4l2_format *f)
 {
@@ -1075,8 +1204,7 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	}
 
 	remove_padding = mfmt->remove_padding;
-	vchiq_mmal_port_parameter_set(dev->instance,
-				      camera_port,
+	vchiq_mmal_port_parameter_set(dev->instance, camera_port,
 				      MMAL_PARAMETER_NO_IMAGE_PADDING,
 				      &remove_padding, sizeof(remove_padding));
 
@@ -1096,46 +1224,7 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 	if (!ret &&
 	    camera_port ==
 	    &dev->component[COMP_CAMERA]->output[CAM_PORT_VIDEO]) {
-		bool overlay_enabled =
-		    !!dev->component[COMP_PREVIEW]->enabled;
-		struct vchiq_mmal_port *preview_port =
-		    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW];
-		/* Preview and encode ports need to match on resolution */
-		if (overlay_enabled) {
-			/* Need to disable the overlay before we can update
-			 * the resolution
-			 */
-			ret =
-			    vchiq_mmal_port_disable(dev->instance,
-						    preview_port);
-			if (!ret)
-				ret =
-				    vchiq_mmal_port_connect_tunnel(
-						dev->instance,
-						preview_port,
-						NULL);
-		}
-		preview_port->es.video.width = f->fmt.pix.width;
-		preview_port->es.video.height = f->fmt.pix.height;
-		preview_port->es.video.crop.x = 0;
-		preview_port->es.video.crop.y = 0;
-		preview_port->es.video.crop.width = f->fmt.pix.width;
-		preview_port->es.video.crop.height = f->fmt.pix.height;
-		preview_port->es.video.frame_rate.num =
-					  dev->capture.timeperframe.denominator;
-		preview_port->es.video.frame_rate.den =
-					  dev->capture.timeperframe.numerator;
-		ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
-		if (overlay_enabled) {
-			ret = vchiq_mmal_port_connect_tunnel(
-				dev->instance,
-				preview_port,
-				&dev->component[COMP_PREVIEW]->input[0]);
-			if (!ret)
-				ret = vchiq_mmal_port_enable(dev->instance,
-							     preview_port,
-							     NULL);
-		}
+		ret = mmal_setup_video_component(dev, f);
 	}
 
 	if (ret) {
@@ -1145,128 +1234,39 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 			 f->fmt.pix.pixelformat);
 		/* ensure capture is not going to be tried */
 		dev->capture.port = NULL;
-	} else {
-		if (encode_component) {
-			v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-				 "vid_cap - set up encode comp\n");
-
-			/* configure buffering */
-			camera_port->current_buffer.size =
-			    camera_port->recommended_buffer.size;
-			camera_port->current_buffer.num =
-			    camera_port->recommended_buffer.num;
-
-			ret =
-			    vchiq_mmal_port_connect_tunnel(
-					dev->instance,
-					camera_port,
-					&encode_component->input[0]);
-			if (ret) {
-				v4l2_dbg(1, bcm2835_v4l2_debug,
-					 &dev->v4l2_dev,
-					 "%s failed to create connection\n",
-					 __func__);
-				/* ensure capture is not going to be tried */
-				dev->capture.port = NULL;
-			} else {
-				port->es.video.width = f->fmt.pix.width;
-				port->es.video.height = f->fmt.pix.height;
-				port->es.video.crop.x = 0;
-				port->es.video.crop.y = 0;
-				port->es.video.crop.width = f->fmt.pix.width;
-				port->es.video.crop.height = f->fmt.pix.height;
-				port->es.video.frame_rate.num =
-					  dev->capture.timeperframe.denominator;
-				port->es.video.frame_rate.den =
-					  dev->capture.timeperframe.numerator;
-
-				port->format.encoding = mfmt->mmal;
-				port->format.encoding_variant = 0;
-				/* Set any encoding specific parameters */
-				switch (mfmt->mmal_component) {
-				case COMP_VIDEO_ENCODE:
-					port->format.bitrate =
-					    dev->capture.encode_bitrate;
-					break;
-				case COMP_IMAGE_ENCODE:
-					/* Could set EXIF parameters here */
-					break;
-				default:
-					break;
-				}
-				ret = vchiq_mmal_port_set_format(dev->instance,
-								 port);
-				if (ret)
-					v4l2_dbg(1, bcm2835_v4l2_debug,
-						 &dev->v4l2_dev,
-						 "%s failed to set format %dx%d fmt %08X\n",
-						 __func__,
-						 f->fmt.pix.width,
-						 f->fmt.pix.height,
-						 f->fmt.pix.pixelformat
-						 );
-			}
-
-			if (!ret) {
-				ret = vchiq_mmal_component_enable(
-						dev->instance,
-						encode_component);
-				if (ret) {
-					v4l2_dbg(1, bcm2835_v4l2_debug,
-						 &dev->v4l2_dev,
-						 "%s Failed to enable encode components\n",
-						 __func__);
-				}
-			}
-			if (!ret) {
-				/* configure buffering */
-				port->current_buffer.num = 1;
-				port->current_buffer.size =
-				    f->fmt.pix.sizeimage;
-				if (port->format.encoding ==
-				    MMAL_ENCODING_JPEG) {
-					v4l2_dbg(1, bcm2835_v4l2_debug,
-						 &dev->v4l2_dev,
-						 "JPG - buf size now %d was %d\n",
-						 f->fmt.pix.sizeimage,
-						 port->current_buffer.size);
-					port->current_buffer.size =
-					    (f->fmt.pix.sizeimage <
-					     (100 << 10)) ?
-					    (100 << 10) : f->fmt.pix.sizeimage;
-				}
-				v4l2_dbg(1, bcm2835_v4l2_debug,
-					 &dev->v4l2_dev,
-					 "vid_cap - cur_buf.size set to %d\n",
-					 f->fmt.pix.sizeimage);
-				port->current_buffer.alignment = 0;
-			}
-		} else {
-			/* configure buffering */
-			camera_port->current_buffer.num = 1;
-			camera_port->current_buffer.size = f->fmt.pix.sizeimage;
-			camera_port->current_buffer.alignment = 0;
-		}
-
-		if (!ret) {
-			dev->capture.fmt = mfmt;
-			dev->capture.stride = f->fmt.pix.bytesperline;
-			dev->capture.width = camera_port->es.video.crop.width;
-			dev->capture.height = camera_port->es.video.crop.height;
-			dev->capture.buffersize = port->current_buffer.size;
-
-			/* select port for capture */
-			dev->capture.port = port;
-			dev->capture.camera_port = camera_port;
-			dev->capture.encode_component = encode_component;
-			v4l2_dbg(1, bcm2835_v4l2_debug,
-				 &dev->v4l2_dev,
-				"Set dev->capture.fmt %08X, %dx%d, stride %d, size %d",
-				port->format.encoding,
-				dev->capture.width, dev->capture.height,
-				dev->capture.stride, dev->capture.buffersize);
-		}
+		return ret;
 	}
+
+	if (encode_component) {
+		ret = mmal_setup_encode_component(dev, f, port,
+						  camera_port,
+						  encode_component);
+
+		if (ret)
+			return ret;
+	} else {
+		/* configure buffering */
+		camera_port->current_buffer.num = 1;
+		camera_port->current_buffer.size = f->fmt.pix.sizeimage;
+		camera_port->current_buffer.alignment = 0;
+	}
+
+	dev->capture.fmt = mfmt;
+	dev->capture.stride = f->fmt.pix.bytesperline;
+	dev->capture.width = camera_port->es.video.crop.width;
+	dev->capture.height = camera_port->es.video.crop.height;
+	dev->capture.buffersize = port->current_buffer.size;
+
+	/* select port for capture */
+	dev->capture.port = port;
+	dev->capture.camera_port = camera_port;
+	dev->capture.encode_component = encode_component;
+	v4l2_dbg(1, bcm2835_v4l2_debug,
+		 &dev->v4l2_dev,
+		"Set dev->capture.fmt %08X, %dx%d, stride %d, size %d",
+		port->format.encoding,
+		dev->capture.width, dev->capture.height,
+		dev->capture.stride, dev->capture.buffersize);
 
 	/* todo: Need to convert the vchiq/mmal error into a v4l2 error. */
 	return ret;
@@ -1658,9 +1658,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	dev->capture.enc_level = V4L2_MPEG_VIDEO_H264_LEVEL_4_0;
 
 	/* get the preview component ready */
-	ret = vchiq_mmal_component_init(
-			dev->instance, "ril.video_render",
-			&dev->component[COMP_PREVIEW]);
+	ret = vchiq_mmal_component_init(dev->instance, "ril.video_render",
+					&dev->component[COMP_PREVIEW]);
 	if (ret < 0)
 		goto unreg_camera;
 
@@ -1672,9 +1671,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	}
 
 	/* get the image encoder component ready */
-	ret = vchiq_mmal_component_init(
-		dev->instance, "ril.image_encode",
-		&dev->component[COMP_IMAGE_ENCODE]);
+	ret = vchiq_mmal_component_init(dev->instance, "ril.image_encode",
+					&dev->component[COMP_IMAGE_ENCODE]);
 	if (ret < 0)
 		goto unreg_preview;
 
@@ -1734,15 +1732,13 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 
 unreg_vid_encoder:
 	pr_err("Cleanup: Destroy video encoder\n");
-	vchiq_mmal_component_finalise(
-		dev->instance,
-		dev->component[COMP_VIDEO_ENCODE]);
+	vchiq_mmal_component_finalise(dev->instance,
+				      dev->component[COMP_VIDEO_ENCODE]);
 
 unreg_image_encoder:
 	pr_err("Cleanup: Destroy image encoder\n");
-	vchiq_mmal_component_finalise(
-		dev->instance,
-		dev->component[COMP_IMAGE_ENCODE]);
+	vchiq_mmal_component_finalise(dev->instance,
+				      dev->component[COMP_IMAGE_ENCODE]);
 
 unreg_preview:
 	pr_err("Cleanup: Destroy video render\n");
@@ -1775,8 +1771,7 @@ static int bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
 	/* video device needs to be able to access instance data */
 	video_set_drvdata(vfd, dev);
 
-	ret = video_register_device(vfd,
-				    VFL_TYPE_VIDEO,
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO,
 				    video_nr[dev->camera_num]);
 	if (ret < 0)
 		return ret;

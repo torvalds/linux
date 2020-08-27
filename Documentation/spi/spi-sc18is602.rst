@@ -6,7 +6,7 @@ Supported chips:
 
   * NXP SI18IS602/602B/603
 
-    Datasheet: http://www.nxp.com/documents/data_sheet/SC18IS602_602B_603.pdf
+    Datasheet: https://www.nxp.com/documents/data_sheet/SC18IS602_602B_603.pdf
 
 Author:
         Guenter Roeck <linux@roeck-us.net>

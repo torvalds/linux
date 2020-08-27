@@ -15,7 +15,7 @@ config OPENVSWITCH
 	select NET_MPLS_GSO
 	select DST_CACHE
 	select NET_NSH
-	---help---
+	help
 	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized
 	  environments.  In addition to supporting a variety of features
 	  expected in a traditional hardware switch, it enables fine-grained
@@ -43,7 +43,7 @@ config OPENVSWITCH_GRE
 	depends on OPENVSWITCH
 	depends on NET_IPGRE
 	default OPENVSWITCH
-	---help---
+	help
 	  If you say Y here, then the Open vSwitch will be able create GRE
 	  vport.
 
@@ -56,7 +56,7 @@ config OPENVSWITCH_VXLAN
 	depends on OPENVSWITCH
 	depends on VXLAN
 	default OPENVSWITCH
-	---help---
+	help
 	  If you say Y here, then the Open vSwitch will be able create vxlan vport.
 
 	  Say N to exclude this support and reduce the binary size.
@@ -68,7 +68,7 @@ config OPENVSWITCH_GENEVE
 	depends on OPENVSWITCH
 	depends on GENEVE
 	default OPENVSWITCH
-	---help---
+	help
 	  If you say Y here, then the Open vSwitch will be able create geneve vport.
 
 	  Say N to exclude this support and reduce the binary size.

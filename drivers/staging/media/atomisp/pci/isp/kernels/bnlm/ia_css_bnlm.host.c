@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -42,7 +43,7 @@ static const s32 div_lut_intercepts[BNLM_DIV_LUT_SIZE] = {
  */
 static inline void
 bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr,
-		const int32_t *lut_val, const uint32_t lut_size)
+		const s32 *lut_val, const uint32_t lut_size)
 {
 	u32 blk, i;
 	const u32 block_size = 16;

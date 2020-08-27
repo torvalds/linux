@@ -2351,7 +2351,7 @@ fib_free_out:
 	goto out;
 }
 
-int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
+static int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
 {
 	struct tm cur_tm;
 	char wellness_str[] = "<HW>TD\010\0\0\0\0\0\0\0\0\0DW\0\0ZZ";
@@ -2380,7 +2380,7 @@ out:
 	return ret;
 }
 
-int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
+static int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
 {
 	int ret = -ENOMEM;
 	struct fib *fibptr;

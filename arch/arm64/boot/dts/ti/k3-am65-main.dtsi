@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for AM6 SoC Family Main Domain peripherals
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  */
 #include <dt-bindings/phy/phy-am654-serdes.h>
 
@@ -42,7 +42,7 @@
 		 */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		gic_its: gic-its@1820000 {
+		gic_its: msi-controller@1820000 {
 			compatible = "arm,gic-v3-its";
 			reg = <0x00 0x01820000 0x00 0x10000>;
 			socionext,synquacer-pre-its = <0x1000000 0x400000>;
@@ -244,9 +244,43 @@
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		mmc-ddr-1_8v;
 		mmc-hs200-1_8v;
+		ti,otap-del-sel-legacy = <0x0>;
+		ti,otap-del-sel-mmc-hs = <0x0>;
+		ti,otap-del-sel-sd-hs = <0x0>;
+		ti,otap-del-sel-sdr12 = <0x0>;
+		ti,otap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr50 = <0x8>;
+		ti,otap-del-sel-sdr104 = <0x7>;
+		ti,otap-del-sel-ddr50 = <0x5>;
+		ti,otap-del-sel-ddr52 = <0x5>;
+		ti,otap-del-sel-hs200 = <0x5>;
+		ti,otap-del-sel-hs400 = <0x0>;
+		ti,trm-icp = <0x8>;
+		dma-coherent;
+	};
+
+	sdhci1: sdhci@4fa0000 {
+		compatible = "ti,am654-sdhci-5.1";
+		reg = <0x0 0x4fa0000 0x0 0x260>, <0x0 0x4fb0000 0x0 0x134>;
+		power-domains = <&k3_pds 48 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 48 0>, <&k3_clks 48 1>;
+		clock-names = "clk_ahb", "clk_xin";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		ti,otap-del-sel-legacy = <0x0>;
+		ti,otap-del-sel-mmc-hs = <0x0>;
+		ti,otap-del-sel-sd-hs = <0x0>;
+		ti,otap-del-sel-sdr12 = <0x0>;
+		ti,otap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr50 = <0x8>;
+		ti,otap-del-sel-sdr104 = <0x7>;
+		ti,otap-del-sel-ddr50 = <0x4>;
+		ti,otap-del-sel-ddr52 = <0x4>;
+		ti,otap-del-sel-hs200 = <0x7>;
+		ti,clkbuf-sel = <0x7>;
 		ti,otap-del-sel = <0x2>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		no-1-8-v;
 	};
 
 	scm_conf: scm_conf@100000 {
@@ -286,6 +320,17 @@
 			#mux-control-cells = <1>;
 			mux-reg-masks = <0x4080 0x3>, /* SERDES0 lane select */
 					<0x4090 0x3>; /* SERDES1 lane select */
+		};
+
+		dss_oldi_io_ctrl: dss_oldi_io_ctrl@41E0 {
+			compatible = "syscon";
+			reg = <0x0000041E0 0x14>;
+		};
+
+		ehrpwm_tbclk: syscon@4140 {
+			compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+			reg = <0x4140 0x18>;
+			#clock-cells = <1>;
 		};
 	};
 
@@ -767,5 +812,98 @@
 				reg = <0>;
 			};
 		};
+	};
+
+	dss: dss@04a00000 {
+		compatible = "ti,am65x-dss";
+		reg =	<0x0 0x04a00000 0x0 0x1000>, /* common */
+			<0x0 0x04a02000 0x0 0x1000>, /* vidl1 */
+			<0x0 0x04a06000 0x0 0x1000>, /* vid */
+			<0x0 0x04a07000 0x0 0x1000>, /* ovr1 */
+			<0x0 0x04a08000 0x0 0x1000>, /* ovr2 */
+			<0x0 0x04a0a000 0x0 0x1000>, /* vp1 */
+			<0x0 0x04a0b000 0x0 0x1000>; /* vp2 */
+		reg-names = "common", "vidl1", "vid",
+			"ovr1", "ovr2", "vp1", "vp2";
+
+		ti,am65x-oldi-io-ctrl = <&dss_oldi_io_ctrl>;
+
+		power-domains = <&k3_pds 67 TI_SCI_PD_EXCLUSIVE>;
+
+		clocks =	<&k3_clks 67 1>,
+				<&k3_clks 216 1>,
+				<&k3_clks 67 2>;
+		clock-names = "fck", "vp1", "vp2";
+
+		/*
+		 * Set vp2 clk (DPI_1_IN_CLK) mux to PLL4 via
+		 * DIV1. See "Figure 12-3365. DSS Integration"
+		 * in AM65x TRM for details.
+		 */
+		assigned-clocks = <&k3_clks 67 2>;
+		assigned-clock-parents = <&k3_clks 67 5>;
+
+		interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
+
+		status = "disabled";
+
+		dss_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	ehrpwm0: pwm@3000000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3000000 0x0 0x100>;
+		power-domains = <&k3_pds 40 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 0>, <&k3_clks 40 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ehrpwm1: pwm@3010000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3010000 0x0 0x100>;
+		power-domains = <&k3_pds 41 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 1>, <&k3_clks 41 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ehrpwm2: pwm@3020000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3020000 0x0 0x100>;
+		power-domains = <&k3_pds 42 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 2>, <&k3_clks 42 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ehrpwm3: pwm@3030000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3030000 0x0 0x100>;
+		power-domains = <&k3_pds 43 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 3>, <&k3_clks 43 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ehrpwm4: pwm@3040000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3040000 0x0 0x100>;
+		power-domains = <&k3_pds 44 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 4>, <&k3_clks 44 0>;
+		clock-names = "tbclk", "fck";
+	};
+
+	ehrpwm5: pwm@3050000 {
+		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
+		#pwm-cells = <3>;
+		reg = <0x0 0x3050000 0x0 0x100>;
+		power-domains = <&k3_pds 45 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&ehrpwm_tbclk 5>, <&k3_clks 45 0>;
+		clock-names = "tbclk", "fck";
 	};
 };

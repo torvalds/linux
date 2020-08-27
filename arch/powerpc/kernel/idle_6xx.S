@@ -187,6 +187,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_HID1, r9
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 	b	transfer_to_handler_cont
+_ASM_NOKPROBE_SYMBOL(power_save_ppc32_restore)
 
 	.data
 

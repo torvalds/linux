@@ -114,7 +114,11 @@ static inline void skb_mark_napi_id(struct sk_buff *skb,
 				    struct napi_struct *napi)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	skb->napi_id = napi->napi_id;
+	/* If the skb was already marked with a valid NAPI ID, avoid overwriting
+	 * it.
+	 */
+	if (skb->napi_id < MIN_NAPI_ID)
+		skb->napi_id = napi->napi_id;
 #endif
 }
 

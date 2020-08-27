@@ -6,7 +6,6 @@
 #include <linux/sched/task.h>
 #include <linux/mm.h>
 #include <linux/vmacache.h>
-#include <asm/pgtable.h>
 
 /*
  * Hash based on the pmd of addr if configured with MMU, which provides a good
@@ -25,8 +24,8 @@
  * task's vmacache pertains to a different mm (ie, its own).  There is
  * nothing we can do here.
  *
- * Also handle the case where a kernel thread has adopted this mm via use_mm().
- * That kernel thread's vmacache is not applicable to this mm.
+ * Also handle the case where a kernel thread has adopted this mm via
+ * kthread_use_mm(). That kernel thread's vmacache is not applicable to this mm.
  */
 static inline bool vmacache_valid_mm(struct mm_struct *mm)
 {

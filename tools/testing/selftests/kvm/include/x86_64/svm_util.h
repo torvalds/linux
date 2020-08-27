@@ -33,6 +33,7 @@ struct svm_test_data {
 struct svm_test_data *vcpu_alloc_svm(struct kvm_vm *vm, vm_vaddr_t *p_svm_gva);
 void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_rsp);
 void run_guest(struct vmcb *vmcb, uint64_t vmcb_gpa);
+bool nested_svm_supported(void);
 void nested_svm_check_supported(void);
 
 static inline bool cpu_has_svm(void)

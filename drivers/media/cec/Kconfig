@@ -24,7 +24,7 @@ config CEC_PIN_ERROR_INJ
 menuconfig MEDIA_CEC_SUPPORT
 	bool
 	prompt "HDMI CEC drivers"
-	default y if !MEDIA_SUPPORT_FILTER
+	default y if MEDIA_SUPPORT && !MEDIA_SUPPORT_FILTER
 	help
 	  Enable support for HDMI CEC (Consumer Electronics Control),
 	  which is an optional HDMI feature.

@@ -17,6 +17,7 @@ allOf:
           contains:
             enum:
               - st,stm32f7-i2c
+              - st,stm32mp15-i2c
     then:
       properties:
         i2c-scl-rising-time-ns:
@@ -30,11 +31,10 @@ allOf:
                        Fast Mode Plus speed is selected by slave.
                        Format is phandle to syscfg / register offset within
                        syscfg / register bitmask for FMP bit.
-          allOf:
-            - $ref: "/schemas/types.yaml#/definitions/phandle-array"
-            - items:
-                minItems: 3
-                maxItems: 3
+          $ref: "/schemas/types.yaml#/definitions/phandle-array"
+          items:
+            minItems: 3
+            maxItems: 3
 
   - if:
       properties:
@@ -52,6 +52,7 @@ properties:
     enum:
       - st,stm32f4-i2c
       - st,stm32f7-i2c
+      - st,stm32mp15-i2c
 
   reg:
     maxItems: 1
@@ -80,11 +81,11 @@ properties:
   clock-frequency:
     description: Desired I2C bus clock frequency in Hz. If not specified,
                  the default 100 kHz frequency will be used.
-                 For STM32F7, STM32H7 and STM32MP1 SoCs, Standard-mode,
-                 Fast-mode and Fast-mode Plus are supported, possible
-                 values are 100000, 400000 and 1000000.
+                 For STM32F7, STM32H7 and STM32MP1 SoCs, if timing parameters
+                 match, the bus clock frequency can be from 1Hz to 1MHz.
     default: 100000
-    enum: [100000, 400000, 1000000]
+    minimum: 1
+    maximum: 1000000
 
 required:
   - compatible
@@ -121,12 +122,12 @@ examples:
           clocks = <&rcc 1 CLK_I2C1>;
       };
 
-    //Example 3 (with st,stm32f7-i2c compatible on stm32mp)
+    //Example 3 (with st,stm32mp15-i2c compatible on stm32mp)
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>
       i2c@40013000 {
-          compatible = "st,stm32f7-i2c";
+          compatible = "st,stm32mp15-i2c";
           #address-cells = <1>;
           #size-cells = <0>;
           reg = <0x40013000 0x400>;

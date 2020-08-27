@@ -49,6 +49,11 @@ main()
 	# directory
 	./kselftest_install.sh "$install_dir"
 	(cd "$install_work"; tar $copts "$dest"/kselftest${ext} $install_name)
+
+	# Don't put the message at the actual end as people may be parsing the
+	# "archive created" line in their scripts.
+	echo -e "\nConsider using 'make gen_tar' instead of this script\n"
+
 	echo "Kselftest archive kselftest${ext} created!"
 
 	# clean up top-level install work directory

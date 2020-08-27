@@ -72,6 +72,7 @@ static inline int ep_to_bit(struct ci_hdrc *ci, int n)
 
 /**
  * hw_device_state: enables/disables interrupts (execute without interruption)
+ * @ci: the controller
  * @dma: 0 => disable, !0 => enable and set dma engine
  *
  * This function returns an error code
@@ -91,6 +92,7 @@ static int hw_device_state(struct ci_hdrc *ci, u32 dma)
 
 /**
  * hw_ep_flush: flush endpoint fifo (execute without interruption)
+ * @ci: the controller
  * @num: endpoint number
  * @dir: endpoint direction
  *
@@ -112,6 +114,7 @@ static int hw_ep_flush(struct ci_hdrc *ci, int num, int dir)
 
 /**
  * hw_ep_disable: disables endpoint (execute without interruption)
+ * @ci: the controller
  * @num: endpoint number
  * @dir: endpoint direction
  *
@@ -126,6 +129,7 @@ static int hw_ep_disable(struct ci_hdrc *ci, int num, int dir)
 
 /**
  * hw_ep_enable: enables endpoint (execute without interruption)
+ * @ci: the controller
  * @num:  endpoint number
  * @dir:  endpoint direction
  * @type: endpoint type
@@ -161,6 +165,7 @@ static int hw_ep_enable(struct ci_hdrc *ci, int num, int dir, int type)
 
 /**
  * hw_ep_get_halt: return endpoint halt status
+ * @ci: the controller
  * @num: endpoint number
  * @dir: endpoint direction
  *
@@ -175,6 +180,7 @@ static int hw_ep_get_halt(struct ci_hdrc *ci, int num, int dir)
 
 /**
  * hw_ep_prime: primes endpoint (execute without interruption)
+ * @ci: the controller
  * @num:     endpoint number
  * @dir:     endpoint direction
  * @is_ctrl: true if control endpoint
@@ -205,6 +211,7 @@ static int hw_ep_prime(struct ci_hdrc *ci, int num, int dir, int is_ctrl)
 /**
  * hw_ep_set_halt: configures ep halt & resets data toggle after clear (execute
  *                 without interruption)
+ * @ci: the controller
  * @num:   endpoint number
  * @dir:   endpoint direction
  * @value: true => stall, false => unstall
@@ -231,6 +238,7 @@ static int hw_ep_set_halt(struct ci_hdrc *ci, int num, int dir, int value)
 
 /**
  * hw_is_port_high_speed: test if port is high speed
+ * @ci: the controller
  *
  * This function returns true if high speed port
  */
@@ -243,6 +251,7 @@ static int hw_port_is_high_speed(struct ci_hdrc *ci)
 /**
  * hw_test_and_clear_complete: test & clear complete status (execute without
  *                             interruption)
+ * @ci: the controller
  * @n: endpoint number
  *
  * This function returns complete status
@@ -256,6 +265,7 @@ static int hw_test_and_clear_complete(struct ci_hdrc *ci, int n)
 /**
  * hw_test_and_clear_intr_active: test & clear active interrupts (execute
  *                                without interruption)
+ * @ci: the controller
  *
  * This function returns active interrutps
  */
@@ -270,6 +280,7 @@ static u32 hw_test_and_clear_intr_active(struct ci_hdrc *ci)
 /**
  * hw_test_and_clear_setup_guard: test & clear setup guard (execute without
  *                                interruption)
+ * @ci: the controller
  *
  * This function returns guard value
  */
@@ -281,6 +292,7 @@ static int hw_test_and_clear_setup_guard(struct ci_hdrc *ci)
 /**
  * hw_test_and_set_setup_guard: test & set setup guard (execute without
  *                              interruption)
+ * @ci: the controller
  *
  * This function returns guard value
  */
@@ -291,6 +303,7 @@ static int hw_test_and_set_setup_guard(struct ci_hdrc *ci)
 
 /**
  * hw_usb_set_address: configures USB address (execute without interruption)
+ * @ci: the controller
  * @value: new USB address
  *
  * This function explicitly sets the address, without the "USBADRA" (advance)
@@ -305,6 +318,7 @@ static void hw_usb_set_address(struct ci_hdrc *ci, u8 value)
 /**
  * hw_usb_reset: restart device after a bus reset (execute without
  *               interruption)
+ * @ci: the controller
  *
  * This function returns an error code
  */
@@ -338,7 +352,7 @@ static int hw_usb_reset(struct ci_hdrc *ci)
  *****************************************************************************/
 
 static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
-			  unsigned length)
+			unsigned int length, struct scatterlist *s)
 {
 	int i;
 	u32 temp;
@@ -366,7 +380,13 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 		node->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
 	}
 
-	temp = (u32) (hwreq->req.dma + hwreq->req.actual);
+	if (s) {
+		temp = (u32) (sg_dma_address(s) + hwreq->req.actual);
+		node->td_remaining_size = CI_MAX_BUF_SIZE - length;
+	} else {
+		temp = (u32) (hwreq->req.dma + hwreq->req.actual);
+	}
+
 	if (length) {
 		node->ptr->page[0] = cpu_to_le32(temp);
 		for (i = 1; i < TD_PAGE_COUNT; i++) {
@@ -400,6 +420,123 @@ static inline u8 _usb_addr(struct ci_hw_ep *ep)
 	return ((ep->dir == TX) ? USB_ENDPOINT_DIR_MASK : 0) | ep->num;
 }
 
+static int prepare_td_for_non_sg(struct ci_hw_ep *hwep,
+		struct ci_hw_req *hwreq)
+{
+	unsigned int rest = hwreq->req.length;
+	int pages = TD_PAGE_COUNT;
+	int ret = 0;
+
+	if (rest == 0) {
+		ret = add_td_to_list(hwep, hwreq, 0, NULL);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * The first buffer could be not page aligned.
+	 * In that case we have to span into one extra td.
+	 */
+	if (hwreq->req.dma % PAGE_SIZE)
+		pages--;
+
+	while (rest > 0) {
+		unsigned int count = min(hwreq->req.length - hwreq->req.actual,
+			(unsigned int)(pages * CI_HDRC_PAGE_SIZE));
+
+		ret = add_td_to_list(hwep, hwreq, count, NULL);
+		if (ret < 0)
+			return ret;
+
+		rest -= count;
+	}
+
+	if (hwreq->req.zero && hwreq->req.length && hwep->dir == TX
+	    && (hwreq->req.length % hwep->ep.maxpacket == 0)) {
+		ret = add_td_to_list(hwep, hwreq, 0, NULL);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int prepare_td_per_sg(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
+		struct scatterlist *s)
+{
+	unsigned int rest = sg_dma_len(s);
+	int ret = 0;
+
+	hwreq->req.actual = 0;
+	while (rest > 0) {
+		unsigned int count = min_t(unsigned int, rest,
+				CI_MAX_BUF_SIZE);
+
+		ret = add_td_to_list(hwep, hwreq, count, s);
+		if (ret < 0)
+			return ret;
+
+		rest -= count;
+	}
+
+	return ret;
+}
+
+static void ci_add_buffer_entry(struct td_node *node, struct scatterlist *s)
+{
+	int empty_td_slot_index = (CI_MAX_BUF_SIZE - node->td_remaining_size)
+			/ CI_HDRC_PAGE_SIZE;
+	int i;
+	u32 token;
+
+	token = le32_to_cpu(node->ptr->token) + (sg_dma_len(s) << __ffs(TD_TOTAL_BYTES));
+	node->ptr->token = cpu_to_le32(token);
+
+	for (i = empty_td_slot_index; i < TD_PAGE_COUNT; i++) {
+		u32 page = (u32) sg_dma_address(s) +
+			(i - empty_td_slot_index) * CI_HDRC_PAGE_SIZE;
+
+		page &= ~TD_RESERVED_MASK;
+		node->ptr->page[i] = cpu_to_le32(page);
+	}
+}
+
+static int prepare_td_for_sg(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
+{
+	struct usb_request *req = &hwreq->req;
+	struct scatterlist *s = req->sg;
+	int ret = 0, i = 0;
+	struct td_node *node = NULL;
+
+	if (!s || req->zero || req->length == 0) {
+		dev_err(hwep->ci->dev, "not supported operation for sg\n");
+		return -EINVAL;
+	}
+
+	while (i++ < req->num_mapped_sgs) {
+		if (sg_dma_address(s) % PAGE_SIZE) {
+			dev_err(hwep->ci->dev, "not page aligned sg buffer\n");
+			return -EINVAL;
+		}
+
+		if (node && (node->td_remaining_size >= sg_dma_len(s))) {
+			ci_add_buffer_entry(node, s);
+			node->td_remaining_size -= sg_dma_len(s);
+		} else {
+			ret = prepare_td_per_sg(hwep, hwreq, s);
+			if (ret)
+				return ret;
+
+			node = list_entry(hwreq->tds.prev,
+				struct td_node, td);
+		}
+
+		s = sg_next(s);
+	}
+
+	return ret;
+}
+
 /**
  * _hardware_enqueue: configures a request at hardware level
  * @hwep:   endpoint
@@ -411,8 +548,6 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
 	struct ci_hdrc *ci = hwep->ci;
 	int ret = 0;
-	unsigned rest = hwreq->req.length;
-	int pages = TD_PAGE_COUNT;
 	struct td_node *firstnode, *lastnode;
 
 	/* don't queue twice */
@@ -426,35 +561,13 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	if (ret)
 		return ret;
 
-	/*
-	 * The first buffer could be not page aligned.
-	 * In that case we have to span into one extra td.
-	 */
-	if (hwreq->req.dma % PAGE_SIZE)
-		pages--;
+	if (hwreq->req.num_mapped_sgs)
+		ret = prepare_td_for_sg(hwep, hwreq);
+	else
+		ret = prepare_td_for_non_sg(hwep, hwreq);
 
-	if (rest == 0) {
-		ret = add_td_to_list(hwep, hwreq, 0);
-		if (ret < 0)
-			goto done;
-	}
-
-	while (rest > 0) {
-		unsigned count = min(hwreq->req.length - hwreq->req.actual,
-					(unsigned)(pages * CI_HDRC_PAGE_SIZE));
-		ret = add_td_to_list(hwep, hwreq, count);
-		if (ret < 0)
-			goto done;
-
-		rest -= count;
-	}
-
-	if (hwreq->req.zero && hwreq->req.length && hwep->dir == TX
-	    && (hwreq->req.length % hwep->ep.maxpacket == 0)) {
-		ret = add_td_to_list(hwep, hwreq, 0);
-		if (ret < 0)
-			goto done;
-	}
+	if (ret)
+		return ret;
 
 	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
 
@@ -512,7 +625,7 @@ done:
 	return ret;
 }
 
-/*
+/**
  * free_pending_td: remove a pending request for the endpoint
  * @hwep: endpoint
  */
@@ -538,8 +651,8 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 
 /**
  * _hardware_dequeue: handles a request at hardware level
- * @gadget: gadget
- * @hwep:   endpoint
+ * @hwep: endpoint
+ * @hwreq:  request
  *
  * This function returns an error code
  */
@@ -1117,11 +1230,11 @@ __acquires(ci->lock)
 			case USB_DEVICE_TEST_MODE:
 				tmode = le16_to_cpu(req.wIndex) >> 8;
 				switch (tmode) {
-				case TEST_J:
-				case TEST_K:
-				case TEST_SE0_NAK:
-				case TEST_PACKET:
-				case TEST_FORCE_EN:
+				case USB_TEST_J:
+				case USB_TEST_K:
+				case USB_TEST_SE0_NAK:
+				case USB_TEST_PACKET:
+				case USB_TEST_FORCE_ENABLE:
 					ci->test_mode = tmode;
 					err = isr_setup_status_phase(
 							ci);
@@ -1218,7 +1331,7 @@ __acquires(ci->lock)
 /******************************************************************************
  * ENDPT block
  *****************************************************************************/
-/**
+/*
  * ep_enable: configure endpoint, making it usable
  *
  * Check usb_ep_enable() at "usb_gadget.h" for details
@@ -1286,7 +1399,7 @@ static int ep_enable(struct usb_ep *ep,
 	return retval;
 }
 
-/**
+/*
  * ep_disable: endpoint is no longer usable
  *
  * Check usb_ep_disable() at "usb_gadget.h" for details
@@ -1326,7 +1439,7 @@ static int ep_disable(struct usb_ep *ep)
 	return retval;
 }
 
-/**
+/*
  * ep_alloc_request: allocate a request object to use with this endpoint
  *
  * Check usb_ep_alloc_request() at "usb_gadget.h" for details
@@ -1347,7 +1460,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	return (hwreq == NULL) ? NULL : &hwreq->req;
 }
 
-/**
+/*
  * ep_free_request: frees a request object
  *
  * Check usb_ep_free_request() at "usb_gadget.h" for details
@@ -1380,7 +1493,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 	spin_unlock_irqrestore(hwep->lock, flags);
 }
 
-/**
+/*
  * ep_queue: queues (submits) an I/O request to an endpoint
  *
  * Check usb_ep_queue()* at usb_gadget.h" for details
@@ -1405,7 +1518,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	return retval;
 }
 
-/**
+/*
  * ep_dequeue: dequeues (cancels, unlinks) an I/O request from an endpoint
  *
  * Check usb_ep_dequeue() at "usb_gadget.h" for details
@@ -1449,7 +1562,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	return 0;
 }
 
-/**
+/*
  * ep_set_halt: sets the endpoint halt feature
  *
  * Check usb_ep_set_halt() at "usb_gadget.h" for details
@@ -1459,7 +1572,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 	return _ep_set_halt(ep, value, true);
 }
 
-/**
+/*
  * ep_set_wedge: sets the halt feature and ignores clear requests
  *
  * Check usb_ep_set_wedge() at "usb_gadget.h" for details
@@ -1479,7 +1592,7 @@ static int ep_set_wedge(struct usb_ep *ep)
 	return usb_ep_set_halt(ep);
 }
 
-/**
+/*
  * ep_fifo_flush: flushes contents of a fifo
  *
  * Check usb_ep_fifo_flush() at "usb_gadget.h" for details
@@ -1505,7 +1618,7 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	spin_unlock_irqrestore(hwep->lock, flags);
 }
 
-/**
+/*
  * Endpoint-specific part of the API to the USB controller hardware
  * Check "usb_gadget.h" for details
  */
@@ -1524,7 +1637,7 @@ static const struct usb_ep_ops usb_ep_ops = {
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
-/**
+/*
  * ci_hdrc_gadget_connect: caller makes sure gadget driver is binded
  */
 static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
@@ -1561,6 +1674,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&ci->lock, flags);
 	ci->vbus_active = is_active;
@@ -1570,10 +1684,14 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 		usb_phy_set_charger_state(ci->usb_phy, is_active ?
 			USB_CHARGER_PRESENT : USB_CHARGER_ABSENT);
 
+	if (ci->platdata->notify_event)
+		ret = ci->platdata->notify_event(ci,
+				CI_HDRC_CONTROLLER_VBUS_EVENT);
+
 	if (ci->driver)
 		ci_hdrc_gadget_connect(_gadget, is_active);
 
-	return 0;
+	return ret;
 }
 
 static int ci_udc_wakeup(struct usb_gadget *_gadget)
@@ -1669,7 +1787,7 @@ static struct usb_ep *ci_udc_match_ep(struct usb_gadget *gadget,
 	return NULL;
 }
 
-/**
+/*
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
  * Check  "usb_gadget.h" for details
@@ -1821,7 +1939,7 @@ static void ci_udc_stop_for_otg_fsm(struct ci_hdrc *ci)
 	mutex_unlock(&ci->fsm.lock);
 }
 
-/**
+/*
  * ci_udc_stop: unregister a gadget driver
  */
 static int ci_udc_stop(struct usb_gadget *gadget)
@@ -1852,7 +1970,7 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 /******************************************************************************
  * BUS block
  *****************************************************************************/
-/**
+/*
  * udc_irq: ci interrupt handler
  *
  * This function returns IRQ_HANDLED if the IRQ has been handled
@@ -1936,6 +2054,7 @@ static int udc_start(struct ci_hdrc *ci)
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
 	ci->gadget.name         = ci->platdata->name;
 	ci->gadget.otg_caps	= otg_caps;
+	ci->gadget.sg_supported = 1;
 
 	if (ci->platdata->flags & CI_HDRC_REQUIRES_ALIGNED_DMA)
 		ci->gadget.quirk_avoids_skb_reserve = 1;
@@ -1982,7 +2101,7 @@ free_qh_pool:
 	return retval;
 }
 
-/**
+/*
  * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
  *
  * No interrupts active, the IRQ has been released
@@ -2032,7 +2151,7 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 
 /**
  * ci_hdrc_gadget_init - initialize device related bits
- * ci: the controller
+ * @ci: the controller
  *
  * This function initializes the gadget, if the device is "device capable".
  */

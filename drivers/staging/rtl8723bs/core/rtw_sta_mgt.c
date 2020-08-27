@@ -553,7 +553,6 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 {
 
 	struct sta_info *psta;
-	struct tx_servq	*ptxservq;
 	u32 res = _SUCCESS;
 	NDIS_802_11_MAC_ADDRESS	bcast_addr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -571,7 +570,6 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 	/*  default broadcast & multicast use macid 1 */
 	psta->mac_id = 1;
 
-	ptxservq = &(psta->sta_xmitpriv.be_q);
 exit:
 	return _SUCCESS;
 }

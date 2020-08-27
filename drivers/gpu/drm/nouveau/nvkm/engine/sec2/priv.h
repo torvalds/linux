@@ -20,6 +20,7 @@ struct nvkm_sec2_fwif {
 	const struct nvkm_acr_lsf_func *acr;
 };
 
+int gp102_sec2_nofw(struct nvkm_sec2 *, int, const struct nvkm_sec2_fwif *);
 int gp102_sec2_load(struct nvkm_sec2 *, int, const struct nvkm_sec2_fwif *);
 extern const struct nvkm_sec2_func gp102_sec2;
 extern const struct nvkm_acr_lsf_func gp102_sec2_acr_1;

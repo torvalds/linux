@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
@@ -58,10 +59,10 @@ struct ia_css_time_meas {
 /* @brief API to fetch timer count directly
 *
 * @param curr_ts [out] measured count value
-* @return IA_CSS_SUCCESS if success
+* @return 0 if success
 *
 */
-enum ia_css_err
+int
 ia_css_timer_get_current_tick(
     struct ia_css_clock_tick *curr_ts);
 

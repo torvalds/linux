@@ -6,7 +6,7 @@
 config NET_VENDOR_VIA
 	bool "VIA devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,7 +23,7 @@ config VIA_RHINE
 	depends on HAS_DMA
 	select CRC32
 	select MII
-	---help---
+	help
 	  If you have a VIA "Rhine" based network card (Rhine-I (VT86C100A),
 	  Rhine-II (VT6102), or Rhine-III (VT6105)), say Y here. Rhine-type
 	  Ethernet functions can also be found integrated on South Bridges
@@ -35,7 +35,7 @@ config VIA_RHINE
 config VIA_RHINE_MMIO
 	bool "Use MMIO instead of PIO"
 	depends on VIA_RHINE
-	---help---
+	help
 	  This instructs the driver to use PCI shared memory (MMIO) instead of
 	  programmed I/O ports (PIO). Enabling this gives an improvement in
 	  processing time in parts of the driver.
@@ -49,7 +49,7 @@ config VIA_VELOCITY
 	select CRC32
 	select CRC_CCITT
 	select MII
-	---help---
+	help
 	  If you have a VIA "Velocity" based network card say Y here.
 
 	  To compile this driver as a module, choose M here. The module

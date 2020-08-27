@@ -835,7 +835,7 @@ static inline void pmd_set(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 
 #define pud_set(pudp, pmdp)	\
 	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp))))
-static inline unsigned long __pmd_page(pmd_t pmd)
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
 	unsigned long pfn;
@@ -855,7 +855,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 	return ((unsigned long) __va(pfn << PAGE_SHIFT));
 }
 
-#define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
+#define pmd_page(pmd) 			virt_to_page((void *)pmd_page_vaddr(pmd))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_present(pud)		(pud_val(pud) != 0U)
@@ -888,31 +888,6 @@ static inline unsigned long pud_pfn(pud_t pud)
 
 #define p4d_set(p4dp, pudp)	\
 	(p4d_val(*(p4dp)) = (__pa((unsigned long) (pudp))))
-
-/* to find an entry in a page-table-directory. */
-#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
-#define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* Find an entry in the third-level page table.. */
-#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-#define pud_offset(p4dp, address)	\
-	((pud_t *) p4d_page_vaddr(*(p4dp)) + pud_index(address))
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(pudp, address)	\
-	((pmd_t *) pud_page_vaddr(*(pudp)) + \
-	 (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1)))
-
-/* Find an entry in the third-level page table.. */
-#define pte_index(address)			\
-	 ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address)	\
-	((pte_t *) __pmd_page(*(dir)) + pte_index(address))
-#define pte_offset_map(dir, address)	pte_offset_kernel((dir), (address))
-#define pte_unmap(pte)			do { } while (0)
 
 /* We cannot include <linux/mm_types.h> at this point yet: */
 extern struct mm_struct init_mm;
@@ -1078,7 +1053,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
 }
-#define io_remap_pfn_range io_remap_pfn_range 
+#define io_remap_pfn_range io_remap_pfn_range
 
 static inline unsigned long __untagged_addr(unsigned long start)
 {
@@ -1122,7 +1097,6 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 #define pte_access_permitted pte_access_permitted
 
 #include <asm/tlbflush.h>
-#include <asm-generic/pgtable.h>
 
 /* We provide our own get_unmapped_area to cope with VA holes and
  * SHM area cache aliasing for userland.

@@ -29,7 +29,6 @@
 
 #include <asm/sections.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/vaddrs.h>
 #include <asm/setup.h>
 #include <asm/tlb.h>

@@ -8,13 +8,13 @@
 #include "vmlinux-xip.lds.S"
 #else
 
+#include <linux/pgtable.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/mpu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #include "vmlinux.lds.h"
 

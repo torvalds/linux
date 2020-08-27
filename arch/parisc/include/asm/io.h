@@ -3,7 +3,7 @@
 #define _ASM_IO_H
 
 #include <linux/types.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #define virt_to_phys(a) ((unsigned long)__pa(a))
 #define phys_to_virt(a) __va(a)

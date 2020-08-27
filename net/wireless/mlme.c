@@ -440,9 +440,15 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 
 	ASSERT_RTNL();
 
+	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	if (!wdev->mgmt_registrations_need_update) {
+		spin_unlock_bh(&wdev->mgmt_registrations_lock);
+		return;
+	}
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(tmp, &rdev->wiphy.wdev_list, list) {
-		list_for_each_entry_rcu(reg, &tmp->mgmt_registrations, list) {
+		list_for_each_entry(reg, &tmp->mgmt_registrations, list) {
 			u32 mask = BIT(le16_to_cpu(reg->frame_type) >> 4);
 			u32 mcast_mask = 0;
 
@@ -460,16 +466,23 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 	}
 	rcu_read_unlock();
 
+	wdev->mgmt_registrations_need_update = 0;
+	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+
 	rdev_update_mgmt_frame_registrations(rdev, wdev, &upd);
 }
 
 void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 {
-	struct wireless_dev *wdev = container_of(wk, struct wireless_dev,
-						 mgmt_registrations_update_wk);
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+
+	rdev = container_of(wk, struct cfg80211_registered_device,
+			    mgmt_registrations_update_wk);
 
 	rtnl_lock();
-	cfg80211_mgmt_registrations_update(wdev);
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
+		cfg80211_mgmt_registrations_update(wdev);
 	rtnl_unlock();
 }
 
@@ -557,6 +570,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 		nreg->multicast_rx = multicast_rx;
 		list_add(&nreg->list, &wdev->mgmt_registrations);
 	}
+	wdev->mgmt_registrations_need_update = 1;
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);
@@ -585,7 +599,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 		list_del(&reg->list);
 		kfree(reg);
 
-		schedule_work(&wdev->mgmt_registrations_update_wk);
+		wdev->mgmt_registrations_need_update = 1;
+		schedule_work(&rdev->mgmt_registrations_update_wk);
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -608,6 +623,7 @@ void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 		list_del(&reg->list);
 		kfree(reg);
 	}
+	wdev->mgmt_registrations_need_update = 1;
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
 	cfg80211_mgmt_registrations_update(wdev);

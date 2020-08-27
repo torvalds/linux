@@ -58,7 +58,7 @@ NOKPROBE_SYMBOL(trace_hardirqs_on);
  * and lockdep uses a staged approach which splits the lockdep hardirq
  * tracking into a RCU on and a RCU off section.
  */
-void trace_hardirqs_off_prepare(void)
+void trace_hardirqs_off_finish(void)
 {
 	if (!this_cpu_read(tracing_irq_cpu)) {
 		this_cpu_write(tracing_irq_cpu, 1);
@@ -68,19 +68,19 @@ void trace_hardirqs_off_prepare(void)
 	}
 
 }
-EXPORT_SYMBOL(trace_hardirqs_off_prepare);
-NOKPROBE_SYMBOL(trace_hardirqs_off_prepare);
+EXPORT_SYMBOL(trace_hardirqs_off_finish);
+NOKPROBE_SYMBOL(trace_hardirqs_off_finish);
 
 void trace_hardirqs_off(void)
 {
+	lockdep_hardirqs_off(CALLER_ADDR0);
+
 	if (!this_cpu_read(tracing_irq_cpu)) {
 		this_cpu_write(tracing_irq_cpu, 1);
 		tracer_hardirqs_off(CALLER_ADDR0, CALLER_ADDR1);
 		if (!in_nmi())
 			trace_irq_disable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
 	}
-
-	lockdep_hardirqs_off(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
 NOKPROBE_SYMBOL(trace_hardirqs_off);

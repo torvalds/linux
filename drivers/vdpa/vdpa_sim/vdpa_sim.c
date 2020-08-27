@@ -101,7 +101,7 @@ static void vdpasim_queue_ready(struct vdpasim *vdpasim, unsigned int idx)
 
 static void vdpasim_vq_reset(struct vdpasim_virtqueue *vq)
 {
-	vq->ready = 0;
+	vq->ready = false;
 	vq->desc_addr = 0;
 	vq->driver_addr = 0;
 	vq->device_addr = 0;
@@ -131,9 +131,10 @@ static void vdpasim_work(struct work_struct *work)
 						 vdpasim, work);
 	struct vdpasim_virtqueue *txq = &vdpasim->vqs[1];
 	struct vdpasim_virtqueue *rxq = &vdpasim->vqs[0];
-	size_t read, write, total_write;
-	int err;
+	ssize_t read, write;
+	size_t total_write;
 	int pkts = 0;
+	int err;
 
 	spin_lock(&vdpasim->lock);
 

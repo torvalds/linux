@@ -521,10 +521,10 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	drm_WARN_ON(&dev_priv->drm, panel->backlight.max == 0);
 
-	if (i915_modparams.invert_brightness < 0)
+	if (dev_priv->params.invert_brightness < 0)
 		return val;
 
-	if (i915_modparams.invert_brightness > 0 ||
+	if (dev_priv->params.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
 		return panel->backlight.max - val + panel->backlight.min;
 	}

@@ -314,13 +314,18 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 {
 	lockdep_assert_held(&rq->lock);
 
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
+		return true;
+
 	if (test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
 		struct intel_breadcrumbs *b = &rq->engine->breadcrumbs;
 		struct intel_context *ce = rq->context;
 		struct list_head *pos;
 
 		spin_lock(&b->irq_lock);
-		GEM_BUG_ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
+
+		if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags))
+			goto unlock;
 
 		if (!__intel_breadcrumbs_arm_irq(b))
 			goto unlock;

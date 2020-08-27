@@ -503,7 +503,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 		clk_prepare_enable(hws[IMX6UL_CLK_USBPHY2_GATE]->clk);
 	}
 
-	clk_set_parent(hws[IMX6UL_CLK_CAN_SEL]->clk, hws[IMX6UL_CLK_PLL3_60M]->clk);
+	clk_set_parent(hws[IMX6UL_CLK_CAN_SEL]->clk, hws[IMX6UL_CLK_PLL3_80M]->clk);
 	if (clk_on_imx6ul())
 		clk_set_parent(hws[IMX6UL_CLK_SIM_PRE_SEL]->clk, hws[IMX6UL_CLK_PLL3_USB_OTG]->clk);
 	else if (clk_on_imx6ull())

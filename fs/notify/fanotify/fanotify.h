@@ -89,7 +89,7 @@ struct fanotify_name_event {
 	__kernel_fsid_t fsid;
 	struct fanotify_fh dir_fh;
 	u8 name_len;
-	char name[0];
+	char name[];
 };
 
 static inline struct fanotify_name_event *

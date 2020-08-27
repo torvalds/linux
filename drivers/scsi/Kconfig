@@ -11,7 +11,7 @@ config RAID_ATTRS
 	default n
 	depends on BLOCK
 	depends on SCSI_MOD
-	---help---
+	help
 	  Provides RAID
 
 config SCSI
@@ -20,7 +20,7 @@ config SCSI
 	select SCSI_DMA if HAS_DMA
 	select SG_POOL
 	select BLK_SCSI_REQUEST
-	---help---
+	help
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
 	  the name of your SCSI host adapter (the card inside your computer
@@ -55,7 +55,7 @@ config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
 	depends on SCSI && PROC_FS
 	default y
-	---help---
+	help
 	  This option enables support for the various files in
 	  /proc/scsi.  In Linux 2.6 this has been superseded by
 	  files in sysfs but many legacy applications rely on this.
@@ -69,7 +69,7 @@ config BLK_DEV_SD
 	tristate "SCSI disk support"
 	depends on SCSI
 	select BLK_DEV_INTEGRITY_T10 if BLK_DEV_INTEGRITY
-	---help---
+	help
 	  If you want to use SCSI hard disks, Fibre Channel disks,
 	  Serial ATA (SATA) or Parallel ATA (PATA) hard disks,
 	  USB storage or the SCSI or parallel port version of
@@ -90,7 +90,7 @@ config BLK_DEV_SD
 config CHR_DEV_ST
 	tristate "SCSI tape support"
 	depends on SCSI
-	---help---
+	help
 	  If you want to use a SCSI tape drive under Linux, say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and
@@ -104,7 +104,7 @@ config BLK_DEV_SR
 	tristate "SCSI CDROM support"
 	depends on SCSI && BLK_DEV
 	select CDROM
-	---help---
+	help
 	  If you want to use a CD or DVD drive attached to your computer
 	  by SCSI, FireWire, USB or ATAPI, say Y and read the SCSI-HOWTO
 	  and the CDROM-HOWTO at <http://www.tldp.org/docs.html#howto>.
@@ -118,7 +118,7 @@ config BLK_DEV_SR
 config CHR_DEV_SG
 	tristate "SCSI generic support"
 	depends on SCSI
-	---help---
+	help
 	  If you want to use SCSI scanners, synthesizers or CD-writers or just
 	  about anything having "SCSI" in its name other than hard disks,
 	  CD-ROMs or tapes, say Y here. These won't be supported by the kernel
@@ -143,7 +143,7 @@ config CHR_DEV_SG
 config CHR_DEV_SCH
 	tristate "SCSI media changer support"
 	depends on SCSI
-	---help---
+	help
 	  This is a driver for SCSI media changers.  Most common devices are
 	  tape libraries and MOD/CDROM jukeboxes.  *Real* jukeboxes, you
 	  don't need this for those tiny 6-slot cdrom changers.  Media
@@ -178,7 +178,7 @@ config SCSI_CONSTANTS
 config SCSI_LOGGING
 	bool "SCSI logging facility"
 	depends on SCSI
-	---help---
+	help
 	  This turns on a logging facility that can be used to debug a number
 	  of SCSI related problems.
 
@@ -376,7 +376,7 @@ config SCSI_AHA152X
 	depends on ISA && SCSI
 	select SCSI_SPI_ATTRS
 	select CHECK_SIGNATURE
-	---help---
+	help
 	  This is a driver for the AHA-1510, AHA-1520, AHA-1522, and AHA-2825
 	  SCSI host adapters. It also works for the AVA-1505, but the IRQ etc.
 	  must be manually specified in this case.
@@ -391,7 +391,7 @@ config SCSI_AHA152X
 config SCSI_AHA1542
 	tristate "Adaptec AHA1542 support"
 	depends on ISA && SCSI && ISA_DMA_API
-	---help---
+	help
 	  This is support for a SCSI host adapter.  It is explained in section
 	  3.4 of the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.  Note that Trantor was
@@ -405,7 +405,7 @@ config SCSI_AHA1542
 config SCSI_AHA1740
 	tristate "Adaptec AHA1740 support"
 	depends on EISA && SCSI
-	---help---
+	help
 	  This is support for a SCSI host adapter.  It is explained in section
 	  3.5 of the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
@@ -498,7 +498,7 @@ config SCSI_HPTIOP
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"
 	depends on (PCI || ISA) && SCSI && ISA_DMA_API && VIRT_TO_BUS
-	---help---
+	help
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and the files
@@ -580,20 +580,20 @@ config LIBFC
 	tristate "LibFC module"
 	depends on SCSI_FC_ATTRS
 	select CRC32
-	---help---
+	help
 	  Fibre Channel library module
 
 config LIBFCOE
 	tristate "LibFCoE module"
 	depends on LIBFC
-	---help---
+	help
 	  Library for Fibre Channel over Ethernet module
 
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
 	depends on LIBFCOE
-	---help---
+	help
 	  Fibre Channel over Ethernet module
 
 config FCOE_FNIC
@@ -672,7 +672,7 @@ config SCSI_FDOMAIN_ISA
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
 	depends on PCI && SCSI
-	---help---
+	help
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
 	  This is a driver for RAID/SCSI Disk Array Controllers (EISA/ISA/PCI) 
@@ -688,7 +688,7 @@ config SCSI_ISCI
 	depends on PCI && SCSI
 	depends on X86
 	select SCSI_SAS_LIBSAS
-	---help---
+	help
 	  This driver supports the 6Gb/s SAS capabilities of the storage
 	  control unit found in the Intel(R) C600 series chipset.
 
@@ -696,7 +696,7 @@ config SCSI_GENERIC_NCR5380
 	tristate "Generic NCR5380/53c400 SCSI ISA card support"
 	depends on ISA && SCSI && HAS_IOPORT_MAP
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  This is a driver for old ISA card SCSI controllers based on a
 	  NCR 5380, 53C80, 53C400, 53C400A, or DTC 436 device.
 	  Most boards such as the Trantor T130 fit this category, as do
@@ -708,7 +708,7 @@ config SCSI_GENERIC_NCR5380
 config SCSI_IPS
 	tristate "IBM ServeRAID support"
 	depends on PCI && SCSI
-	---help---
+	help
 	  This is support for the IBM ServeRAID hardware RAID controllers.
 	  See <http://www.developer.ibm.com/welcome/netfinity/serveraid.html>
 	  and <http://www-947.ibm.com/support/entry/portal/docdisplay?brand=5000008&lndocid=SERV-RAID>
@@ -790,7 +790,7 @@ config SCSI_INIA100
 config SCSI_PPA
 	tristate "IOMEGA parallel port (ppa - older drives)"
 	depends on SCSI && PARPORT_PC
-	---help---
+	help
 	  This driver supports older versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
 
@@ -817,7 +817,7 @@ config SCSI_PPA
 config SCSI_IMM
 	tristate "IOMEGA parallel port (imm - newer drives)"
 	depends on SCSI && PARPORT_PC
-	---help---
+	help
 	  This driver supports newer versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
 
@@ -844,7 +844,7 @@ config SCSI_IMM
 config SCSI_IZIP_EPP16
 	bool "ppa/imm option - Use slow (but safe) EPP-16"
 	depends on SCSI_PPA || SCSI_IMM
-	---help---
+	help
 	  EPP (Enhanced Parallel Port) is a standard for parallel ports which
 	  allows them to act as expansion buses that can handle up to 64
 	  peripheral devices.
@@ -896,7 +896,7 @@ config 53C700_LE_ON_BE
 config SCSI_STEX
 	tristate "Promise SuperTrak EX Series support"
 	depends on PCI && SCSI
-	---help---
+	help
 	  This driver supports Promise SuperTrak EX series storage controllers.
 
 	  Promise provides Linux RAID configuration utility for these
@@ -914,7 +914,7 @@ config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
 	depends on PCI && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  This driver supports the whole NCR53C8XX/SYM53C8XX family of
 	  PCI-SCSI controllers.  It also supports the subset of LSI53C10XX
 	  Ultra-160 controllers that are based on the SYM53C8XX SCRIPTS
@@ -928,7 +928,7 @@ config SCSI_SYM53C8XX_DMA_ADDRESSING_MODE
 	int "DMA addressing mode"
 	depends on SCSI_SYM53C8XX_2
 	default "1"
-	---help---
+	help
 	  This option only applies to PCI-SCSI chips that are PCI DAC
 	  capable (875A, 895A, 896, 1010-33, 1010-66, 1000).
 
@@ -984,7 +984,7 @@ config SCSI_IPR
 	select FW_LOADER
 	select IRQ_POLL
 	select SGL_ALLOC
-	---help---
+	help
 	  This driver supports the IBM Power Linux family RAID adapters.
 	  This includes IBM pSeries 5712, 5703, 5709, and 570A, as well
 	  as IBM iSeries 5702, 5703, 5709, and 570A.
@@ -1022,7 +1022,7 @@ config SCSI_NCR53C8XX_DEFAULT_TAGS
 	int "default tagged command queue depth"
 	depends on SCSI_ZALON
 	default "8"
-	---help---
+	help
 	  "Tagged command queuing" is a feature of SCSI-2 which improves
 	  performance: the host adapter can send several SCSI commands to a
 	  device's queue even if previous commands haven't finished yet.
@@ -1048,7 +1048,7 @@ config SCSI_NCR53C8XX_MAX_TAGS
 	int "maximum number of queued commands"
 	depends on SCSI_ZALON
 	default "32"
-	---help---
+	help
 	  This option allows you to specify the maximum number of commands
 	  that can be queued to any device, when tagged command queuing is
 	  possible. The default value is 32. Minimum is 2, maximum is 64.
@@ -1065,7 +1065,7 @@ config SCSI_NCR53C8XX_SYNC
 	int "synchronous transfers frequency in MHz"
 	depends on SCSI_ZALON
 	default "20"
-	---help---
+	help
 	  The SCSI Parallel Interface-2 Standard defines 5 classes of transfer
 	  rates: FAST-5, FAST-10, FAST-20, FAST-40 and FAST-80.  The numbers
 	  are respectively the maximum data transfer rates in mega-transfers
@@ -1108,7 +1108,7 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
 	depends on ISA && SCSI
-	---help---
+	help
 	  This is a driver for the ISA, VLB, and PCMCIA versions of the Qlogic
 	  FastSCSI! cards as well as any other card based on the FASXX chip
 	  (including the Control Concepts SCSI/IDE/SIO/PIO/FDC cards).
@@ -1158,14 +1158,14 @@ config SCSI_LPFC
 	depends on NVME_TARGET_FC || NVME_TARGET_FC=n
 	depends on NVME_FC || NVME_FC=n
 	select CRC_T10DIF
-	---help---
+	help
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
 config SCSI_LPFC_DEBUG_FS
 	bool "Emulex LightPulse Fibre Channel debugfs Support"
 	depends on SCSI_LPFC && DEBUG_FS
-	---help---
+	help
 	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
 
@@ -1173,7 +1173,7 @@ config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
 	depends on EISA && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  This driver is for NCR53c710 based SCSI host adapters.
 
 	  It currently supports Compaq EISA cards.
@@ -1181,7 +1181,7 @@ config SCSI_SIM710
 config SCSI_DC395x
 	tristate "Tekram DC395(U/UW/F) and DC315(U) SCSI support"
 	depends on PCI && SCSI
-	---help---
+	help
 	  This driver supports PCI SCSI host adapters based on the ASIC
 	  TRM-S1040 chip, e.g Tekram DC395(U/UW/F) and DC315(U) variants.
 
@@ -1197,7 +1197,7 @@ config SCSI_AM53C974
 	tristate "Tekram DC390(T) and Am53/79C974 SCSI support (new driver)"
 	depends on PCI && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  This driver supports PCI SCSI host adapters based on the Am53C974A
 	  chip, e.g. Tekram DC390(T), DawiControl 2974 and some onboard
 	  PCscsi/PCnet (Am53/79C974) solutions.
@@ -1224,7 +1224,7 @@ config SCSI_WD719X
 	tristate "Western Digital WD7193/7197/7296 support"
 	depends on PCI && SCSI
 	select EEPROM_93CX6
-	---help---
+	help
 	  This is a driver for Western Digital WD7193, WD7197 and WD7296 PCI
 	  SCSI controllers (based on WD33C296A chip).
 
@@ -1318,7 +1318,7 @@ config A2091_SCSI
 config GVP11_SCSI
 	tristate "GVP Series II WD33C93A support"
 	depends on ZORRO && SCSI
-	---help---
+	help
 	  If you have a Great Valley Products Series II SCSI controller,
 	  answer Y. Also say Y if you have a later model of GVP SCSI
 	  controller (such as the GVP A4008 or a Combo board). Otherwise,
@@ -1374,7 +1374,7 @@ config ATARI_SCSI
 	tristate "Atari native SCSI support"
 	depends on ATARI && SCSI
 	select SCSI_SPI_ATTRS
-	---help---
+	help
 	  If you have an Atari with built-in NCR5380 SCSI controller (TT,
 	  Falcon, ...) say Y to get it supported. Of course also, if you have
 	  a compatible SCSI controller (e.g. for Medusa).
@@ -1486,7 +1486,7 @@ config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
 	depends on PCI && SCSI && NET
 	select SGL_ALLOC
-	---help---
+	help
 	  This driver supports the PMC SIERRA MaxRAID adapters.
 
 config SCSI_PM8001

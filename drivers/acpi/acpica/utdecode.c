@@ -78,7 +78,8 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"IPMI",			/* 0x07 */
 	"GeneralPurposeIo",	/* 0x08 */
 	"GenericSerialBus",	/* 0x09 */
-	"PCC"			/* 0x0A */
+	"PCC",			/* 0x0A */
+	"PlatformRtMechanism"	/* 0x0B */
 };
 
 const char *acpi_ut_get_region_name(u8 space_id)

@@ -102,7 +102,7 @@ Where to retrieve userspace tools
 =================================
 
 iasl and acpixtract are part of Intel's ACPICA project:
-http://acpica.org/
+https://acpica.org/
 
 and should be packaged by distributions (for example in the acpica package
 on SUSE).

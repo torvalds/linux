@@ -318,15 +318,16 @@ static int find_out_of_order(void *arg)
 		goto err;
 	}
 
-	if (fence && fence != fc.chains[1]) {
+	/*
+	 * We signaled the middle fence (2) of the 1-2-3 chain. The behavior
+	 * of the dma-fence-chain is to make us wait for all the fences up to
+	 * the point we want. Since fence 1 is still not signaled, this what
+	 * we should get as fence to wait upon (fence 2 being garbage
+	 * collected during the traversal of the chain).
+	 */
+	if (fence != fc.chains[0]) {
 		pr_err("Incorrect chain-fence.seqno:%lld reported for completed seqno:2\n",
-		       fence->seqno);
-
-		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, 2);
-		dma_fence_put(fence);
-		if (err)
-			pr_err("Reported %d for finding self!\n", err);
+		       fence ? fence->seqno : 0);
 
 		err = -EINVAL;
 	}
@@ -415,20 +416,18 @@ static int __find_race(void *arg)
 		if (!fence)
 			goto signal;
 
-		err = dma_fence_chain_find_seqno(&fence, seqno);
-		if (err) {
-			pr_err("Reported an invalid fence for find-self:%d\n",
-			       seqno);
-			dma_fence_put(fence);
-			break;
-		}
-
-		if (fence->seqno < seqno) {
-			pr_err("Reported an earlier fence.seqno:%lld for seqno:%d\n",
-			       fence->seqno, seqno);
-			err = -EINVAL;
-			dma_fence_put(fence);
-			break;
+		/*
+		 * We can only find ourselves if we are on fence we were
+		 * looking for.
+		 */
+		if (fence->seqno == seqno) {
+			err = dma_fence_chain_find_seqno(&fence, seqno);
+			if (err) {
+				pr_err("Reported an invalid fence for find-self:%d\n",
+				       seqno);
+				dma_fence_put(fence);
+				break;
+			}
 		}
 
 		dma_fence_put(fence);

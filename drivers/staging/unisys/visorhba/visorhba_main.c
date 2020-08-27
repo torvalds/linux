@@ -292,7 +292,7 @@ static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
  * @tasktype: Type of taskmgmt command
  * @scsidev:  Scsidev that issued command
  *
- * Create a cmdrsp packet and send it to the Serivce Partition
+ * Create a cmdrsp packet and send it to the Service Partition
  * that will service this request.
  *
  * Return: Int representing whether command was queued successfully or not

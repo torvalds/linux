@@ -30,6 +30,9 @@ core917d = {
 	.ntfy_wait_done = core507d_ntfy_wait_done,
 	.update = core507d_update,
 	.head = &head917d,
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	.crc = &crc907d,
+#endif
 	.dac = &dac907d,
 	.sor = &sor907d,
 };

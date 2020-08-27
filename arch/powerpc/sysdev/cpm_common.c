@@ -68,6 +68,8 @@ static void udbg_putc_cpm(char c)
 void __init udbg_init_cpm(void)
 {
 #ifdef CONFIG_PPC_8xx
+	mmu_mapin_immr();
+
 	cpm_udbg_txdesc = (u32 __iomem __force *)
 			  (CONFIG_PPC_EARLY_DEBUG_CPM_ADDR - PHYS_IMMR_BASE +
 			   VIRT_IMMR_BASE);

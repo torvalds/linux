@@ -248,3 +248,4 @@ module_exit(nft_hash_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Laura Garcia <nevola@gmail.com>");
 MODULE_ALIAS_NFT_EXPR("hash");
+MODULE_DESCRIPTION("Netfilter nftables hash module");

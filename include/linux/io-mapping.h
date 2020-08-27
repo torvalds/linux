@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 #include <linux/io.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 
 /*
@@ -99,7 +100,6 @@ io_mapping_unmap(void __iomem *vaddr)
 #else
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 
 /* Create the io_mapping object*/
 static inline struct io_mapping *
@@ -107,9 +107,12 @@ io_mapping_init_wc(struct io_mapping *iomap,
 		   resource_size_t base,
 		   unsigned long size)
 {
+	iomap->iomem = ioremap_wc(base, size);
+	if (!iomap->iomem)
+		return NULL;
+
 	iomap->base = base;
 	iomap->size = size;
-	iomap->iomem = ioremap_wc(base, size);
 #if defined(pgprot_noncached_wc) /* archs can't agree on a name ... */
 	iomap->prot = pgprot_noncached_wc(PAGE_KERNEL);
 #elif defined(pgprot_writecombine)

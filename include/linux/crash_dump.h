@@ -5,9 +5,10 @@
 #include <linux/kexec.h>
 #include <linux/proc_fs.h>
 #include <linux/elf.h>
+#include <linux/pgtable.h>
 #include <uapi/linux/vmcore.h>
 
-#include <asm/pgtable.h> /* for pgprot_t */
+#include <linux/pgtable.h> /* for pgprot_t */
 
 #ifdef CONFIG_CRASH_DUMP
 #define ELFCORE_ADDR_MAX	(-1ULL)

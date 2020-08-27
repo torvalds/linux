@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -31,7 +32,7 @@ struct ia_css_preview_settings {
 	struct ia_css_binary vf_pp_binary;
 
 	/* 2401 only for these two - do we in fact use them for anything real */
-	struct ia_css_frame *delay_frames[MAX_NUM_DELAY_FRAMES];
+	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
 	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
 
 	struct ia_css_pipe *copy_pipe;
@@ -39,8 +40,7 @@ struct ia_css_preview_settings {
 	struct ia_css_pipe *acc_pipe;
 };
 
-#define IA_CSS_DEFAULT_PREVIEW_SETTINGS \
-(struct ia_css_preview_settings) { \
+#define IA_CSS_DEFAULT_PREVIEW_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.preview_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -64,8 +64,7 @@ struct ia_css_capture_settings {
 	unsigned int num_yuv_scaler;
 };
 
-#define IA_CSS_DEFAULT_CAPTURE_SETTINGS \
-(struct ia_css_capture_settings) { \
+#define IA_CSS_DEFAULT_CAPTURE_SETTINGS { \
 	.copy_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.primary_binary		= {IA_CSS_BINARY_DEFAULT_SETTINGS}, \
 	.pre_isp_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -90,8 +89,7 @@ struct ia_css_video_settings {
 	unsigned int num_yuv_scaler;
 };
 
-#define IA_CSS_DEFAULT_VIDEO_SETTINGS \
-(struct ia_css_video_settings) { \
+#define IA_CSS_DEFAULT_VIDEO_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.video_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -107,8 +105,7 @@ struct ia_css_yuvpp_settings {
 	unsigned int num_output;
 };
 
-#define IA_CSS_DEFAULT_YUVPP_SETTINGS \
-(struct ia_css_yuvpp_settings) { \
+#define IA_CSS_DEFAULT_YUVPP_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
@@ -146,7 +143,7 @@ struct ia_css_pipe {
 		struct ia_css_capture_settings capture;
 		struct ia_css_yuvpp_settings yuvpp;
 	} pipe_settings;
-	hrt_vaddress scaler_pp_lut;
+	ia_css_ptr scaler_pp_lut;
 	struct osys_object *osys_obj;
 
 	/* This number is unique per pipe each instance of css. This number is
@@ -156,8 +153,7 @@ struct ia_css_pipe {
 	unsigned int pipe_num;
 };
 
-#define IA_CSS_DEFAULT_PIPE \
-(struct ia_css_pipe) { \
+#define IA_CSS_DEFAULT_PIPE { \
 	.config			= DEFAULT_PIPE_CONFIG, \
 	.info			= DEFAULT_PIPE_INFO, \
 	.mode			= IA_CSS_PIPE_ID_ACC, /* (pipe_id) */ \
@@ -181,7 +177,7 @@ struct ia_css_pipe {
 
 void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map);
 
-enum ia_css_err
+int
 sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 			       struct ia_css_isp_parameters *params,
 			       bool commit, struct ia_css_pipe *pipe);

@@ -406,6 +406,7 @@ freq
 full_time
 jiffy_delta
 pitch
+inflection
 punct
 rate
 tone
@@ -518,9 +519,9 @@ All the entries in the Speakup sys system are readable, some are
 writable by root only, and some are writable by everyone.  Unless you
 know what you are doing, you should probably leave the ones that are
 writable by root only alone.  Most of the names are self explanatory.
-Vol for controlling volume, pitch for pitch, rate for controlling speaking
-rate, etc.  If you find one you aren't sure about, you can post a query
-on the Speakup list.
+Vol for controlling volume, pitch for pitch, inflection for pitch range, rate
+for controlling speaking rate, etc.  If you find one you aren't sure about, you
+can post a query on the Speakup list.
 
 6.  Changing Synthesizers
 

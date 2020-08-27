@@ -21,6 +21,8 @@ Optional properties:
   the second cell is used to specify the GPIO polarity:
     0 = active high,
     1 = active low.
+- irda-mode-ports: An array that lists the indices of the port that
+		   should operate in IrDA mode.
 
 Example:
         sc16is750: sc16is750@51 {
@@ -55,6 +57,8 @@ Optional properties:
   the second cell is used to specify the GPIO polarity:
     0 = active high,
     1 = active low.
+- irda-mode-ports: An array that lists the indices of the port that
+		   should operate in IrDA mode.
 
 Example:
 	sc16is750: sc16is750@0 {

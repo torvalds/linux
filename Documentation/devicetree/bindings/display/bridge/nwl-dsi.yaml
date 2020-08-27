@@ -165,6 +165,7 @@ examples:
  - |
 
    #include <dt-bindings/clock/imx8mq-clock.h>
+   #include <dt-bindings/gpio/gpio.h>
    #include <dt-bindings/interrupt-controller/arm-gic.h>
    #include <dt-bindings/reset/imx8mq-reset.h>
 
@@ -191,12 +192,12 @@ examples:
               phy-names = "dphy";
 
               panel@0 {
-                      #address-cells = <1>;
-                      #size-cells = <0>;
                       compatible = "rocktech,jh057n00900";
                       reg = <0>;
-                      port@0 {
-                           reg = <0>;
+                      vcc-supply = <&reg_2v8_p>;
+                      iovcc-supply = <&reg_1v8_p>;
+                      reset-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+                      port {
                            panel_in: endpoint {
                                      remote-endpoint = <&mipi_dsi_out>;
                            };

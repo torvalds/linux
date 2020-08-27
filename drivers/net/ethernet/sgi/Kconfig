@@ -7,7 +7,7 @@ config NET_VENDOR_SGI
 	bool "SGI devices"
 	default y
 	depends on (PCI && SGI_MFD_IOC3) ||  SGI_IP32
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,7 +23,7 @@ config SGI_IOC3_ETH
 	select CRC16
 	select CRC32
 	select MII
-	---help---
+	help
 	  If you have a network (Ethernet) card of this type, say Y here.
 
 config SGI_O2MACE_ETH

@@ -183,7 +183,7 @@ static int ci_program_jump_on_start(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-bool ci_is_smc_ram_running(struct pp_hwmgr *hwmgr)
+static bool ci_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 {
 	return ((0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable))
@@ -239,7 +239,7 @@ static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	switch (dev_id) {
 	case 0x67BA:
-	case 0x66B1:
+	case 0x67B1:
 		smu_data->power_tune_defaults = &defaults_hawaii_pro;
 		break;
 	case 0x67B8:

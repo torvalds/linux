@@ -13,7 +13,6 @@
 #include <linux/numa.h>
 #include <linux/scs.h>
 
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 
 static struct signal_struct init_signals = {
@@ -175,6 +174,16 @@ struct task_struct init_task
 #ifdef CONFIG_KASAN
 	.kasan_depth	= 1,
 #endif
+#ifdef CONFIG_KCSAN
+	.kcsan_ctx = {
+		.disable_count		= 0,
+		.atomic_next		= 0,
+		.atomic_nest_count	= 0,
+		.in_flat_atomic		= false,
+		.access_mask		= 0,
+		.scoped_accesses	= {LIST_POISON1, NULL},
+	},
+#endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.softirqs_enabled = 1,
 #endif
@@ -194,6 +203,9 @@ struct task_struct init_task
 #endif
 #ifdef CONFIG_SECURITY
 	.security	= NULL,
+#endif
+#ifdef CONFIG_SECCOMP
+	.seccomp	= { .filter_count = ATOMIC_INIT(0) },
 #endif
 };
 EXPORT_SYMBOL(init_task);

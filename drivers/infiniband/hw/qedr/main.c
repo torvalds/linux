@@ -346,9 +346,14 @@ static void qedr_free_resources(struct qedr_dev *dev)
 
 static int qedr_alloc_resources(struct qedr_dev *dev)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_CONSUME,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.elem_size	= sizeof(struct regpair *),
+	};
 	struct qedr_cnq *cnq;
 	__le16 *cons_pi;
-	u16 n_entries;
 	int i, rc;
 
 	dev->sgid_tbl = kcalloc(QEDR_MAX_SGID, sizeof(union ib_gid),
@@ -382,7 +387,9 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	dev->sb_start = dev->ops->rdma_get_start_sb(dev->cdev);
 
 	/* Allocate CNQ PBLs */
-	n_entries = min_t(u32, QED_RDMA_MAX_CNQ_SIZE, QEDR_ROCE_MAX_CNQ_SIZE);
+	params.num_elems = min_t(u32, QED_RDMA_MAX_CNQ_SIZE,
+				 QEDR_ROCE_MAX_CNQ_SIZE);
+
 	for (i = 0; i < dev->num_cnq; i++) {
 		cnq = &dev->cnq_array[i];
 
@@ -391,13 +398,8 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 		if (rc)
 			goto err3;
 
-		rc = dev->ops->common->chain_alloc(dev->cdev,
-						   QED_CHAIN_USE_TO_CONSUME,
-						   QED_CHAIN_MODE_PBL,
-						   QED_CHAIN_CNT_TYPE_U16,
-						   n_entries,
-						   sizeof(struct regpair *),
-						   &cnq->pbl, NULL);
+		rc = dev->ops->common->chain_alloc(dev->cdev, &cnq->pbl,
+						   &params);
 		if (rc)
 			goto err4;
 
@@ -632,7 +634,6 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	attr->max_mr_size = qed_attr->max_mr_size;
 	attr->max_cqe = min_t(u64, qed_attr->max_cqe, QEDR_MAX_CQES);
 	attr->max_mw = qed_attr->max_mw;
-	attr->max_fmr = qed_attr->max_fmr;
 	attr->max_mr_mw_fmr_pbl = qed_attr->max_mr_mw_fmr_pbl;
 	attr->max_mr_mw_fmr_size = qed_attr->max_mr_mw_fmr_size;
 	attr->max_pd = qed_attr->max_pd;

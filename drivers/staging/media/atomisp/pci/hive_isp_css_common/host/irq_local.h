@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-2015, Intel Corporation.
@@ -42,10 +43,7 @@
 #define	IRQ2_ID_N_CHANNEL	HIVE_ISYS_IRQ_NUM_BITS
 #define	IRQ3_ID_N_CHANNEL	HIVE_ISEL_IRQ_NUM_IRQS
 
-typedef struct virq_info_s					virq_info_t;
-typedef struct irq_controller_state_s		irq_controller_state_t;
-
-typedef enum {
+enum virq_id {
 	virq_gpio_pin_0            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GPIO_PIN_0_BIT_ID,
 	virq_gpio_pin_1            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GPIO_PIN_1_BIT_ID,
 	virq_gpio_pin_2            = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_GPIO_PIN_2_BIT_ID,
@@ -66,13 +64,7 @@ typedef enum {
 	virq_sp_stream_mon         = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_SP_STREAM_MON_BIT_ID,
 	virq_isp_stream_mon        = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_STREAM_MON_BIT_ID,
 	virq_mod_stream_mon        = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_MOD_STREAM_MON_BIT_ID,
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM)
 	virq_isp_pmem_error        = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
-#elif defined(IS_ISP_2401_MAMOIADA_SYSTEM)
-	virq_isys_2401             = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
-#else
-#error "irq_local.h: 2400_SYSTEM must be one of {2400, 2401 }"
-#endif
 	virq_isp_bamem_error       = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_BAMEM_ERROR_BIT_ID,
 	virq_isp_dmem_error        = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_ISP_DMEM_ERROR_BIT_ID,
 	virq_sp_icache_mem_error   = IRQ0_ID_OFFSET + HIVE_GP_DEV_IRQ_SP_ICACHE_MEM_ERROR_BIT_ID,
@@ -117,13 +109,13 @@ typedef enum {
 	virq_isel_eol              = IRQ3_ID_OFFSET + HIVE_ISEL_IRQ_SYNC_GEN_EOL_BIT_ID,
 
 	N_virq_id                  = IRQ_END_OFFSET
-} virq_id_t;
+};
 
-struct virq_info_s {
+struct virq_info {
 	hrt_data		irq_status_reg[N_IRQ_ID];
 };
 
-struct irq_controller_state_s {
+struct irq_controller_state {
 	unsigned int	irq_edge;
 	unsigned int	irq_mask;
 	unsigned int	irq_status;

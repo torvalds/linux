@@ -416,7 +416,11 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8	   table_miss_action_domain[0x1];
 	u8         termination_table[0x1];
 	u8         reformat_and_fwd_to_table[0x1];
-	u8         reserved_at_1a[0x6];
+	u8         reserved_at_1a[0x2];
+	u8         ipsec_encrypt[0x1];
+	u8         ipsec_decrypt[0x1];
+	u8         reserved_at_1e[0x2];
+
 	u8         termination_table_raw_traffic[0x1];
 	u8         reserved_at_21[0x1];
 	u8         log_max_ft_size[0x6];
@@ -1321,7 +1325,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         stat_rate_support[0x10];
 	u8         reserved_at_1f0[0x1];
 	u8         pci_sync_for_fw_update_event[0x1];
-	u8         reserved_at_1f2[0xa];
+	u8         reserved_at_1f2[0x6];
+	u8         init2_lag_tx_port_affinity[0x1];
+	u8         reserved_at_1fa[0x3];
 	u8         cqe_version[0x4];
 
 	u8         compact_address_vector[0x1];
@@ -2963,6 +2969,8 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH = 0x100,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2  = 0x400,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2 = 0x800,
+	MLX5_FLOW_CONTEXT_ACTION_IPSEC_DECRYPT = 0x1000,
+	MLX5_FLOW_CONTEXT_ACTION_IPSEC_ENCRYPT = 0x2000,
 };
 
 enum {
@@ -3004,7 +3012,8 @@ struct mlx5_ifc_flow_context_bits {
 
 	struct mlx5_ifc_vlan_bits push_vlan_2;
 
-	u8         reserved_at_120[0xe0];
+	u8         ipsec_obj_id[0x20];
+	u8         reserved_at_140[0xc0];
 
 	struct mlx5_ifc_fte_match_param_bits match_value;
 
@@ -3688,7 +3697,8 @@ struct mlx5_ifc_dctc_bits {
 	u8         ecn[0x2];
 	u8         dscp[0x6];
 
-	u8         reserved_at_1c0[0x40];
+	u8         reserved_at_1c0[0x20];
+	u8         ece[0x20];
 };
 
 enum {
@@ -4280,7 +4290,8 @@ struct mlx5_ifc_rst2init_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_rst2init_qp_in_bits {
@@ -4297,7 +4308,7 @@ struct mlx5_ifc_rst2init_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
@@ -4377,6 +4388,7 @@ struct mlx5_ifc_query_vport_state_out_bits {
 enum {
 	MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT  = 0x0,
 	MLX5_VPORT_STATE_OP_MOD_ESW_VPORT   = 0x1,
+	MLX5_VPORT_STATE_OP_MOD_UPLINK      = 0x2,
 };
 
 struct mlx5_ifc_arm_monitor_counter_in_bits {
@@ -5748,6 +5760,7 @@ enum {
 	MLX5_ACTION_IN_FIELD_METADATA_REG_C_7  = 0x58,
 	MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM   = 0x59,
 	MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM   = 0x5B,
+	MLX5_ACTION_IN_FIELD_IPSEC_SYNDROME    = 0x5D,
 };
 
 struct mlx5_ifc_alloc_modify_header_context_out_bits {
@@ -6616,7 +6629,8 @@ struct mlx5_ifc_init2init_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_init2init_qp_in_bits {
@@ -6633,7 +6647,7 @@ struct mlx5_ifc_init2init_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
@@ -7938,7 +7952,7 @@ struct mlx5_ifc_create_dct_out_bits {
 	u8         reserved_at_40[0x8];
 	u8         dctn[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_create_dct_in_bits {
@@ -9955,6 +9969,34 @@ struct mlx5_ifc_pptb_reg_bits {
 	u8         untagged_buff[0x4];
 };
 
+struct mlx5_ifc_sbcam_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         feature_group[0x8];
+	u8         reserved_at_10[0x8];
+	u8         access_reg_group[0x8];
+
+	u8         reserved_at_20[0x20];
+
+	u8         sb_access_reg_cap_mask[4][0x20];
+
+	u8         reserved_at_c0[0x80];
+
+	u8         sb_feature_cap_mask[4][0x20];
+
+	u8         reserved_at_1c0[0x40];
+
+	u8         cap_total_buffer_size[0x20];
+
+	u8         cap_cell_size[0x10];
+	u8         cap_max_pg_buffers[0x8];
+	u8         cap_num_pool_supported[0x8];
+
+	u8         reserved_at_240[0x8];
+	u8         cap_sbsr_stat_size[0x8];
+	u8         cap_max_tclass_data[0x8];
+	u8         cap_max_cpu_ingress_tclass_sb[0x8];
+};
+
 struct mlx5_ifc_pbmc_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         local_port[0x8];
@@ -10635,16 +10677,13 @@ struct mlx5_ifc_tls_static_params_bits {
 };
 
 struct mlx5_ifc_tls_progress_params_bits {
-	u8         reserved_at_0[0x8];
-	u8         tisn[0x18];
-
 	u8         next_record_tcp_sn[0x20];
 
 	u8         hw_resync_tcp_sn[0x20];
 
 	u8         record_tracker_state[0x2];
 	u8         auth_state[0x2];
-	u8         reserved_at_64[0x4];
+	u8         reserved_at_44[0x4];
 	u8         hw_offset_record_number[0x18];
 };
 

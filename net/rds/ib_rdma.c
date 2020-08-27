@@ -181,7 +181,7 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
 
 	iinfo->rdma_mr_max = pool_1m->max_items;
-	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+	iinfo->rdma_mr_size = pool_1m->max_pages;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -191,7 +191,7 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
 
 	iinfo6->rdma_mr_max = pool_1m->max_items;
-	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+	iinfo6->rdma_mr_size = pool_1m->max_pages;
 }
 #endif
 
@@ -406,10 +406,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 	if (list_empty(&unmap_list))
 		goto out;
 
-	if (pool->use_fastreg)
-		rds_ib_unreg_frmr(&unmap_list, &nfreed, &unpinned, free_goal);
-	else
-		rds_ib_unreg_fmr(&unmap_list, &nfreed, &unpinned, free_goal);
+	rds_ib_unreg_frmr(&unmap_list, &nfreed, &unpinned, free_goal);
 
 	if (!list_empty(&unmap_list)) {
 		unsigned long flags;
@@ -503,10 +500,7 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	}
 
 	/* Return it to the pool's free list */
-	if (rds_ibdev->use_fastreg)
-		rds_ib_free_frmr_list(ibmr);
-	else
-		rds_ib_free_fmr_list(ibmr);
+	rds_ib_free_frmr_list(ibmr);
 
 	atomic_add(ibmr->sg_len, &pool->free_pinned);
 	atomic_inc(&pool->dirty_count);
@@ -622,10 +616,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		goto out;
 	}
 
-	if (rds_ibdev->use_fastreg)
-		ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
-	else
-		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
+	ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
 	if (IS_ERR(ibmr)) {
 		ret = PTR_ERR(ibmr);
 		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
@@ -669,19 +660,16 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 
 	if (pool_type == RDS_IB_MR_1M_POOL) {
 		/* +1 allows for unaligned MRs */
-		pool->fmr_attr.max_pages = RDS_MR_1M_MSG_SIZE + 1;
+		pool->max_pages = RDS_MR_1M_MSG_SIZE + 1;
 		pool->max_items = rds_ibdev->max_1m_mrs;
 	} else {
 		/* pool_type == RDS_IB_MR_8K_POOL */
-		pool->fmr_attr.max_pages = RDS_MR_8K_MSG_SIZE + 1;
+		pool->max_pages = RDS_MR_8K_MSG_SIZE + 1;
 		pool->max_items = rds_ibdev->max_8k_mrs;
 	}
 
-	pool->max_free_pinned = pool->max_items * pool->fmr_attr.max_pages / 4;
-	pool->fmr_attr.max_maps = rds_ibdev->fmr_max_remaps;
-	pool->fmr_attr.page_shift = PAGE_SHIFT;
+	pool->max_free_pinned = pool->max_items * pool->max_pages / 4;
 	pool->max_items_soft = rds_ibdev->max_mrs * 3 / 4;
-	pool->use_fastreg = rds_ibdev->use_fastreg;
 
 	return pool;
 }

@@ -50,18 +50,19 @@
 #define WREG32_SOC15_OFFSET(ip, inst, reg, offset, value) \
 	WREG32((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, value)
 
-#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask, ret) \
+#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask) \
+({	int ret = 0;						\
 	do {							\
-		uint32_t old_ = 0;	\
+		uint32_t old_ = 0;				\
 		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 		uint32_t loop = adev->usec_timeout;		\
 		ret = 0;					\
 		while ((tmp_ & (mask)) != (expected_value)) {	\
 			if (old_ != tmp_) {			\
 				loop = adev->usec_timeout;	\
-				old_ = tmp_;				\
-			} else						\
-				udelay(1);				\
+				old_ = tmp_;			\
+			} else					\
+				udelay(1);			\
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 			loop--;					\
 			if (!loop) {				\
@@ -71,7 +72,9 @@
 				break;				\
 			}					\
 		}						\
-	} while (0)
+	} while (0);						\
+	ret;							\
+})
 
 #define WREG32_RLC(reg, value) \
 	do {							\

@@ -4,6 +4,7 @@ config FS_ENCRYPTION
 	select CRYPTO
 	select CRYPTO_HASH
 	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_SHA256
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This
@@ -21,6 +22,11 @@ config FS_ENCRYPTION_ALGS
 	select CRYPTO_CTS
 	select CRYPTO_ECB
 	select CRYPTO_HMAC
-	select CRYPTO_SHA256
 	select CRYPTO_SHA512
 	select CRYPTO_XTS
+
+config FS_ENCRYPTION_INLINE_CRYPT
+	bool "Enable fscrypt to use inline crypto"
+	depends on FS_ENCRYPTION && BLK_INLINE_ENCRYPTION
+	help
+	  Enable fscrypt to use inline encryption hardware if available.

@@ -17,14 +17,12 @@
 #include "internal.h"
 
 /* Machine check handler for WinChip C6: */
-static void winchip_machine_check(struct pt_regs *regs, long error_code)
+static noinstr void winchip_machine_check(struct pt_regs *regs)
 {
-	nmi_enter();
-
+	instrumentation_begin();
 	pr_emerg("CPU0: Machine Check Exception.\n");
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
-
-	nmi_exit();
+	instrumentation_end();
 }
 
 /* Set up machine check reporting on the Winchip C6 series */
