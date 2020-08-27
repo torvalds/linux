@@ -1427,9 +1427,6 @@ static int dm_late_init(void *handle)
 	struct dmcu *dmcu = NULL;
 	bool ret = true;
 
-	if (!adev->dm.fw_dmcu && !adev->dm.dmub_fw)
-		return detect_mst_link_for_all_connectors(adev_to_drm(adev));
-
 	dmcu = adev->dm.dc->res_pool->dmcu;
 
 	for (i = 0; i < 16; i++)
