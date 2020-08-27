@@ -840,9 +840,10 @@ static int tegra_nand_get_strength(struct nand_chip *chip, const int *strength,
 				   int strength_len, int bits_per_step,
 				   int oobsize)
 {
+	struct nand_device *base = mtd_to_nanddev(nand_to_mtd(chip));
 	const struct nand_ecc_props *requirements =
-		nanddev_get_ecc_requirements(&chip->base);
-	bool maximize = chip->ecc.options & NAND_ECC_MAXIMIZE;
+		nanddev_get_ecc_requirements(base);
+	bool maximize = base->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH;
 	int i;
 
 	/*
