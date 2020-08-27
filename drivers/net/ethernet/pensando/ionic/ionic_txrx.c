@@ -22,7 +22,7 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
 				  ionic_desc_cb cb_func, void *cb_arg)
 {
-	DEBUG_STATS_TXQ_POST(q_to_qcq(q), q->head->desc, ring_dbell);
+	DEBUG_STATS_TXQ_POST(q, q->head->desc, ring_dbell);
 
 	ionic_q_post(q, ring_dbell, cb_func, cb_arg);
 }
@@ -32,7 +32,7 @@ static inline void ionic_rxq_post(struct ionic_queue *q, bool ring_dbell,
 {
 	ionic_q_post(q, ring_dbell, cb_func, cb_arg);
 
-	DEBUG_STATS_RX_BUFF_CNT(q_to_qcq(q));
+	DEBUG_STATS_RX_BUFF_CNT(q);
 }
 
 static inline struct netdev_queue *q_to_ndq(struct ionic_queue *q)
@@ -49,7 +49,7 @@ static struct sk_buff *ionic_rx_skb_alloc(struct ionic_queue *q,
 	struct sk_buff *skb;
 
 	netdev = lif->netdev;
-	stats = q_to_rx_stats(q);
+	stats = &q->lif->rxqstats[q->index];
 
 	if (frags)
 		skb = napi_get_frags(&q_to_qcq(q)->napi);
@@ -502,7 +502,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 
 	lif = rxcq->bound_q->lif;
 	idev = &lif->ionic->idev;
-	txcq = &lif->txqcqs[qi].qcq->cq;
+	txcq = &lif->txqcqs[qi]->cq;
 
 	tx_work_done = ionic_cq_service(txcq, lif->tx_budget,
 					ionic_tx_service, NULL, NULL);
@@ -1111,9 +1111,9 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (unlikely(!lif_to_txqcq(lif, queue_index)))
+	if (unlikely(queue_index >= lif->nxqs))
 		queue_index = 0;
-	q = lif_to_txq(lif, queue_index);
+	q = &lif->txqcqs[queue_index]->q;
 
 	ndescs = ionic_tx_descs_needed(q, skb);
 	if (ndescs < 0)

@@ -454,7 +454,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 
 		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
 			for (i = 0; i < lif->nxqs; i++) {
-				qcq = lif->rxqcqs[i].qcq;
+				qcq = lif->rxqcqs[i];
 				ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
 						     qcq->intr.index,
 						     lif->rx_coalesce_hw);
@@ -471,7 +471,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 
 		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
 			for (i = 0; i < lif->nxqs; i++) {
-				qcq = lif->txqcqs[i].qcq;
+				qcq = lif->txqcqs[i];
 				ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
 						     qcq->intr.index,
 						     lif->tx_coalesce_hw);
