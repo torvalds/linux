@@ -1234,6 +1234,14 @@ static void init_local(void)
 	}
 }
 
+static void deinit_local(void)
+{
+	int i;
+
+	for (i = 0; i < dlm_local_count; i++)
+		kfree(dlm_local_addr[i]);
+}
+
 /* Initialise SCTP socket and bind to all interfaces */
 static int sctp_listen_for_all(void)
 {
@@ -1663,6 +1671,7 @@ void dlm_lowcomms_stop(void)
 	clean_writequeues();
 	foreach_conn(free_conn);
 	work_stop();
+	deinit_local();
 }
 
 int dlm_lowcomms_start(void)
