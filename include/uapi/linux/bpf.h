@@ -3569,6 +3569,13 @@ union bpf_attr {
  *		On success, the strictly positive length of the string,
  *		including the trailing NUL character. On error, a negative
  *		value.
+ *
+ * long bpf_copy_from_user(void *dst, u32 size, const void *user_ptr)
+ * 	Description
+ * 		Read *size* bytes from user space address *user_ptr* and store
+ * 		the data in *dst*. This is a wrapper of copy_from_user().
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3719,6 +3726,7 @@ union bpf_attr {
 	FN(inode_storage_get),		\
 	FN(inode_storage_delete),	\
 	FN(d_path),			\
+	FN(copy_from_user),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
