@@ -1134,6 +1134,9 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	load_nested_vmcb_control(svm, &ctl);
 	nested_prepare_vmcb_control(svm);
 
+	if (!nested_svm_vmrun_msrpm(svm))
+		return -EINVAL;
+
 out_set_gif:
 	svm_set_gif(svm, !!(kvm_state->flags & KVM_STATE_NESTED_GIF_SET));
 	return 0;
