@@ -163,6 +163,7 @@ struct rkispp_stream {
 	bool stopping;
 	bool linked;
 	bool is_upd;
+	bool is_cfg;
 };
 
 /* rkispp stream device */

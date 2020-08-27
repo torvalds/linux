@@ -996,6 +996,7 @@ static int start_ii(struct rkispp_stream *stream)
 
 static int config_ii(struct rkispp_stream *stream)
 {
+	stream->is_cfg = true;
 	return config_modules(stream->isppdev);
 }
 
@@ -1005,10 +1006,41 @@ static int is_stopped_ii(struct rkispp_stream *stream)
 	return true;
 }
 
+static void secure_config_mb(struct rkispp_stream *stream)
+{
+	struct rkispp_device *dev = stream->isppdev;
+	u32 limit_range;
+
+	/* enable dma immediately, config in idle state */
+	switch (stream->last_module) {
+	case ISPP_MODULE_NR:
+	case ISPP_MODULE_SHP:
+		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
+			0 : SW_SHP_WR_YUV_LIMIT;
+		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
+				SW_SHP_WR_YUV_LIMIT | SW_SHP_WR_FORMAT_MASK,
+				limit_range | stream->out_cap_fmt.wr_fmt);
+		rkispp_clear_bits(dev, RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
+		break;
+	case ISPP_MODULE_FEC:
+		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
+			0 : SW_FEC_WR_YUV_LIMIT;
+		rkispp_set_bits(dev, RKISPP_FEC_CTRL, SW_FEC_WR_YUV_LIMIT | FMT_WR_MASK,
+				limit_range | stream->out_cap_fmt.wr_fmt << 4);
+		rkispp_write(dev, RKISPP_FEC_PIC_SIZE,
+			     stream->out_fmt.height << 16 | stream->out_fmt.width);
+		rkispp_clear_bits(dev, RKISPP_FEC_CORE_CTRL, SW_FEC2DDR_DIS);
+		break;
+	default:
+		break;
+	}
+	stream->is_cfg = true;
+}
+
 static int config_mb(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
-	u32 i, limit_range, mult = 1;
+	u32 i, mult = 1;
 
 	for (i = ISPP_MODULE_FEC; i > 0; i = i >> 1) {
 		if (dev->stream_vdev.module_ens & i)
@@ -1037,12 +1069,6 @@ static int config_mb(struct rkispp_stream *stream)
 		stream->config->reg.cur_vir_stride = RKISPP_SHARP_WR_VIR_STRIDE;
 		stream->config->reg.cur_y_base_shd = RKISPP_SHARP_WR_Y_BASE_SHD;
 		stream->config->reg.cur_uv_base_shd = RKISPP_SHARP_WR_UV_BASE_SHD;
-		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
-			0 : SW_SHP_WR_YUV_LIMIT;
-		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
-				SW_SHP_WR_YUV_LIMIT | SW_SHP_WR_FORMAT_MASK,
-				limit_range | stream->out_cap_fmt.wr_fmt);
-		rkispp_clear_bits(dev, RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
 		break;
 	default:
 		stream->config->frame_end_id = FEC_INT;
@@ -1051,19 +1077,15 @@ static int config_mb(struct rkispp_stream *stream)
 		stream->config->reg.cur_vir_stride = RKISPP_FEC_WR_VIR_STRIDE;
 		stream->config->reg.cur_y_base_shd = RKISPP_FEC_WR_Y_BASE_SHD;
 		stream->config->reg.cur_uv_base_shd = RKISPP_FEC_WR_UV_BASE_SHD;
-		limit_range = (stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
-			0 : SW_FEC_WR_YUV_LIMIT;
-		rkispp_set_bits(dev, RKISPP_FEC_CTRL, SW_FEC_WR_YUV_LIMIT | FMT_WR_MASK,
-				limit_range | stream->out_cap_fmt.wr_fmt << 4);
-		rkispp_write(dev, RKISPP_FEC_PIC_SIZE,
-			     stream->out_fmt.height << 16 | stream->out_fmt.width);
-		rkispp_clear_bits(dev, RKISPP_FEC_CORE_CTRL, SW_FEC2DDR_DIS);
 	}
 	if (stream->out_cap_fmt.wr_fmt & FMT_YUYV)
 		mult = 2;
 	else if (stream->out_cap_fmt.wr_fmt & FMT_FBC)
 		mult = 0;
 	set_vir_stride(stream, ALIGN(stream->out_fmt.width * mult, 16) >> 2);
+
+	if (dev->ispp_sdev.state == ISPP_STOP)
+		secure_config_mb(stream);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s last module:%d\n", __func__, i);
 	return 0;
@@ -1150,6 +1172,7 @@ static int config_scl(struct rkispp_stream *stream)
 		((stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
 		 0 : SW_SCL_WR_YUV_LIMIT);
 	rkispp_set_bits(dev, stream->config->reg.ctrl, mask, val);
+	stream->is_cfg = true;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "scl%d ctrl:0x%x stride:0x%x factor:0x%x\n",
@@ -1520,6 +1543,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 		return -EBUSY;
 
 	stream->is_upd = false;
+	stream->is_cfg = false;
 	atomic_inc(&dev->stream_vdev.refcnt);
 	if (!dev->inp || !stream->linked) {
 		v4l2_err(&dev->v4l2_dev,
@@ -1961,6 +1985,11 @@ static void fec_work_event(struct rkispp_device *dev,
 				vdev->fec.cur_rd->timestamp;
 			atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
 		}
+
+		stream = &vdev->stream[STREAM_MB];
+		if (stream->streaming && !stream->is_cfg)
+			secure_config_mb(stream);
+
 		if (!dev->hw_dev->is_single)
 			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -2123,6 +2152,10 @@ static void nr_work_event(struct rkispp_device *dev,
 				atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
 			}
 		}
+
+		stream = &vdev->stream[STREAM_MB];
+		if (!is_fec_en && stream->streaming && !stream->is_cfg)
+			secure_config_mb(stream);
 
 		if (!dev->hw_dev->is_single)
 			rkispp_update_regs(dev, RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
@@ -2379,7 +2412,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	for (i = 0; i < STREAM_MAX; i++) {
 		stream = &vdev->stream[i];
 
-		if (!stream->streaming ||
+		if (!stream->streaming || !stream->is_cfg ||
 		    !(mis_val & INT_FRAME(stream)))
 			continue;
 		if (stream->stopping &&
