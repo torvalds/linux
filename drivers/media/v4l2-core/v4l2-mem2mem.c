@@ -909,10 +909,8 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 		 * If the last buffer was dequeued from the capture queue,
 		 * return immediately. DQBUF will return -EPIPE.
 		 */
-		if (dst_q->last_buffer_dequeued) {
-			spin_unlock_irqrestore(&dst_q->done_lock, flags);
-			return EPOLLIN | EPOLLRDNORM;
-		}
+		if (dst_q->last_buffer_dequeued)
+			rc |= EPOLLIN | EPOLLRDNORM;
 	}
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
