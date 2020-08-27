@@ -2019,12 +2019,6 @@ struct opp_table *dev_pm_opp_attach_genpd(struct device *dev,
 			goto err;
 		}
 
-		if (opp_table->genpd_virt_devs[index]) {
-			dev_err(dev, "Genpd virtual device already set %s\n",
-				*name);
-			goto err;
-		}
-
 		virt_dev = dev_pm_domain_attach_by_name(dev, *name);
 		if (IS_ERR(virt_dev)) {
 			ret = PTR_ERR(virt_dev);
