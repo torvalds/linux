@@ -1447,7 +1447,12 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_slice_width = param[0];
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_h = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.h_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_h = 0;
 
 done:
 	kfree(wr_buf);
@@ -1596,7 +1601,12 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 	if (!pipe_ctx || !pipe_ctx->stream)
 		goto done;
 
-	aconnector->dsc_settings.dsc_slice_height = param[0];
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_v = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.v_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_v = 0;
 
 done:
 	kfree(wr_buf);

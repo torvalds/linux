@@ -351,8 +351,8 @@ enum dsc_clock_force_state {
 
 struct dsc_preferred_settings {
 	enum dsc_clock_force_state dsc_force_enable;
-	uint32_t dsc_slice_width;
-	uint32_t dsc_slice_height;
+	uint32_t dsc_num_slices_v;
+	uint32_t dsc_num_slices_h;
 	uint32_t dsc_bits_per_pixel;
 };
 

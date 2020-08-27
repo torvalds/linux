@@ -4701,13 +4701,11 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			if (aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE)
 				stream->timing.flags.DSC = 1;
 
-			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_slice_width)
-				stream->timing.dsc_cfg.num_slices_h = DIV_ROUND_UP(stream->timing.h_addressable,
-									aconnector->dsc_settings.dsc_slice_width);
+			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_h)
+				stream->timing.dsc_cfg.num_slices_h = aconnector->dsc_settings.dsc_num_slices_h;
 
-			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_slice_height)
-				stream->timing.dsc_cfg.num_slices_v = DIV_ROUND_UP(stream->timing.v_addressable,
-									aconnector->dsc_settings.dsc_slice_height);
+			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_v)
+				stream->timing.dsc_cfg.num_slices_v = aconnector->dsc_settings.dsc_num_slices_v;
 
 			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
 				stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
