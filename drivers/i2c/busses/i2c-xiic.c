@@ -59,6 +59,7 @@ enum xiic_endian {
  * @endianness: big/little-endian byte order
  * @clk: Pointer to AXI4-lite input clock
  * @state: See STATE_
+ * @singlemaster: Indicates bus is single master
  */
 struct xiic_i2c {
 	struct device *dev;
@@ -74,6 +75,7 @@ struct xiic_i2c {
 	enum xiic_endian endianness;
 	struct clk *clk;
 	enum xilinx_i2c_state state;
+	bool singlemaster;
 };
 
 
@@ -526,6 +528,15 @@ static int xiic_busy(struct xiic_i2c *i2c)
 	if (i2c->tx_msg)
 		return -EBUSY;
 
+	/* In single master mode bus can only be busy, when in use by this
+	 * driver. If the register indicates bus being busy for some reason we
+	 * should ignore it, since bus will never be released and i2c will be
+	 * stuck forever.
+	 */
+	if (i2c->singlemaster) {
+		return 0;
+	}
+
 	/* for instance if previous transfer was terminated due to TX error
 	 * it might be that the bus is on it's way to become available
 	 * give it at most 3 ms to wake
@@ -810,6 +821,9 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
 		goto err_clk_dis;
 	}
+
+	i2c->singlemaster =
+		of_property_read_bool(pdev->dev.of_node, "single-master");
 
 	/*
 	 * Detect endianness
