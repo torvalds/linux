@@ -314,6 +314,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 			switch (adev->asic_type) {
 			case CHIP_SIENNA_CICHLID:
 			case CHIP_NAVY_FLOUNDER:
+			case CHIP_VANGOGH:
 				ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_Sienna_Cichlid);
 				ih_chicken = REG_SET_FIELD(ih_chicken,
 						IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
