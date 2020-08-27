@@ -55,6 +55,16 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/string
         enum: [none, soft, hw, hw_syndrome, hw_oob_first, on-die]
 
+      nand-ecc-placement:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/string
+          - enum: [ oob, interleaved ]
+        description:
+          Location of the ECC bytes. This location is unknown by default
+          but can be explicitly set to "oob", if all ECC bytes are
+          known to be stored in the OOB area, or "interleaved" if ECC
+          bytes will be interleaved with regular data in the main area.
+
       nand-ecc-algo:
         description:
           Desired ECC algorithm.
