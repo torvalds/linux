@@ -12,7 +12,8 @@
 #include "blk.h"
 
 struct bio_map_data {
-	int is_our_pages;
+	bool is_our_pages : 1;
+	bool is_null_mapped : 1;
 	struct iov_iter iter;
 	struct iovec iov[];
 };
@@ -108,7 +109,7 @@ static int bio_uncopy_user(struct bio *bio)
 	struct bio_map_data *bmd = bio->bi_private;
 	int ret = 0;
 
-	if (!bio_flagged(bio, BIO_NULL_MAPPED)) {
+	if (!bmd || !bmd->is_null_mapped) {
 		/*
 		 * if we're in a workqueue, the request is orphaned, so
 		 * don't copy into a random user address space, just free
@@ -158,7 +159,7 @@ static struct bio *bio_copy_user_iov(struct request_queue *q,
 	 * The caller provided iov might point to an on-stack or otherwise
 	 * shortlived one.
 	 */
-	bmd->is_our_pages = map_data ? 0 : 1;
+	bmd->is_our_pages = !map_data;
 
 	nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (nr_pages > BIO_MAX_PAGES)
@@ -234,7 +235,7 @@ static struct bio *bio_copy_user_iov(struct request_queue *q,
 
 	bio->bi_private = bmd;
 	if (map_data && map_data->null_mapped)
-		bio_set_flag(bio, BIO_NULL_MAPPED);
+		bmd->is_null_mapped = true;
 	return bio;
 cleanup:
 	if (!map_data)
