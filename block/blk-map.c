@@ -558,20 +558,6 @@ int blk_rq_append_bio(struct request *rq, struct bio **bio)
 }
 EXPORT_SYMBOL(blk_rq_append_bio);
 
-static int __blk_rq_unmap_user(struct bio *bio)
-{
-	int ret = 0;
-
-	if (bio) {
-		if (bio_flagged(bio, BIO_USER_MAPPED))
-			bio_unmap_user(bio);
-		else
-			ret = bio_uncopy_user(bio);
-	}
-
-	return ret;
-}
-
 static int __blk_rq_map_user_iov(struct request *rq,
 		struct rq_map_data *map_data, struct iov_iter *iter,
 		gfp_t gfp_mask, bool copy)
@@ -599,7 +585,10 @@ static int __blk_rq_map_user_iov(struct request *rq,
 	 */
 	ret = blk_rq_append_bio(rq, &bio);
 	if (ret) {
-		__blk_rq_unmap_user(orig_bio);
+		if (copy)
+			bio_uncopy_user(orig_bio);
+		else
+			bio_unmap_user(orig_bio);
 		return ret;
 	}
 	bio_get(bio);
@@ -701,9 +690,13 @@ int blk_rq_unmap_user(struct bio *bio)
 		if (unlikely(bio_flagged(bio, BIO_BOUNCED)))
 			mapped_bio = bio->bi_private;
 
-		ret2 = __blk_rq_unmap_user(mapped_bio);
-		if (ret2 && !ret)
-			ret = ret2;
+		if (bio_flagged(mapped_bio, BIO_USER_MAPPED)) {
+			bio_unmap_user(mapped_bio);
+		} else {
+			ret2 = bio_uncopy_user(mapped_bio);
+			if (ret2 && !ret)
+				ret = ret2;
+		}
 
 		mapped_bio = bio;
 		bio = bio->bi_next;
