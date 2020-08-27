@@ -1058,12 +1058,17 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
  *
  *	echo 1 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
  *
+ * This function can perform HPD unplug:
+ *
+ *	echo 0 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
+ *
  */
 static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 							size_t size, loff_t *pos)
 {
 	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
+	struct dc_link *link = NULL;
 	struct drm_device *dev = connector->dev;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	char *wr_buf = NULL;
@@ -1114,10 +1119,32 @@ static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
 		drm_modeset_unlock_all(dev);
 
 		drm_kms_helper_hotplug_event(dev);
+	} else if (param[0] == 0) {
+		if (!aconnector->dc_link)
+			goto unlock;
+
+		link = aconnector->dc_link;
+
+		if (link->local_sink) {
+			dc_sink_release(link->local_sink);
+			link->local_sink = NULL;
+		}
+
+		link->dpcd_sink_count = 0;
+		link->type = dc_connection_none;
+		link->dongle_max_pix_clk = 0;
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
+	}
 
 unlock:
-		mutex_unlock(&aconnector->hpd_lock);
-	}
+	mutex_unlock(&aconnector->hpd_lock);
 
 	kfree(wr_buf);
 	return size;
