@@ -10,9 +10,8 @@
  * of their settings.
  */
 #include <linux/i2c.h>
+#include <linux/mdio/mdio-i2c.h>
 #include <linux/phy.h>
-
-#include "mdio-i2c.h"
 
 /*
  * I2C bus addresses 0x50 and 0x51 are normally an EEPROM, which is
