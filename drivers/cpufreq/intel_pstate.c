@@ -644,6 +644,8 @@ static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data, int *raw
 
 static int intel_pstate_set_epp(struct cpudata *cpu, u32 epp)
 {
+	int ret;
+
 	/*
 	 * Use the cached HWP Request MSR value, because in the active mode the
 	 * register itself may be updated by intel_pstate_hwp_boost_up() or
@@ -659,7 +661,11 @@ static int intel_pstate_set_epp(struct cpudata *cpu, u32 epp)
 	 * function, so it cannot run in parallel with the update below.
 	 */
 	WRITE_ONCE(cpu->hwp_req_cached, value);
-	return wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
+	ret = wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
+	if (!ret)
+		cpu->epp_cached = epp;
+
+	return ret;
 }
 
 static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
@@ -762,10 +768,8 @@ static ssize_t store_energy_performance_preference(
 			cpufreq_stop_governor(policy);
 			ret = intel_pstate_set_epp(cpu, epp);
 			err = cpufreq_start_governor(policy);
-			if (!ret) {
-				cpu->epp_cached = epp;
+			if (!ret)
 				ret = err;
-			}
 		}
 	}
 
@@ -2378,6 +2382,12 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	 */
 	policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
+	if (hwp_active) {
+		struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+		cpu->epp_cached = intel_pstate_get_epp(cpu, 0);
+	}
+
 	return 0;
 }
 
@@ -2585,7 +2595,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		policy->transition_delay_us = INTEL_CPUFREQ_TRANSITION_DELAY_HWP;
 		rdmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, &value);
 		WRITE_ONCE(cpu->hwp_req_cached, value);
-		cpu->epp_cached = (value & GENMASK_ULL(31, 24)) >> 24;
+		cpu->epp_cached = intel_pstate_get_epp(cpu, value);
 	} else {
 		turbo_max = cpu->pstate.turbo_pstate;
 		policy->transition_delay_us = INTEL_CPUFREQ_TRANSITION_DELAY;
