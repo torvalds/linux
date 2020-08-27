@@ -1196,11 +1196,11 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!hsave_page)
-		goto free_page1;
+		goto error_free_vmcb_page;
 
 	err = avic_init_vcpu(svm);
 	if (err)
-		goto free_page2;
+		goto error_free_hsave_page;
 
 	/* We initialize this flag to true to make sure that the is_running
 	 * bit would be set the first time the vcpu is loaded.
@@ -1212,11 +1212,11 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm->msrpm = svm_vcpu_init_msrpm();
 	if (!svm->msrpm)
-		goto free_page2;
+		goto error_free_hsave_page;
 
 	svm->nested.msrpm = svm_vcpu_init_msrpm();
 	if (!svm->nested.msrpm)
-		goto free_page3;
+		goto error_free_msrpm;
 
 	svm->vmcb = page_address(vmcb_page);
 	svm->vmcb_pa = __sme_set(page_to_pfn(vmcb_page) << PAGE_SHIFT);
@@ -1228,11 +1228,11 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	return 0;
 
-free_page3:
+error_free_msrpm:
 	svm_vcpu_free_msrpm(svm->msrpm);
-free_page2:
+error_free_hsave_page:
 	__free_page(hsave_page);
-free_page1:
+error_free_vmcb_page:
 	__free_page(vmcb_page);
 out:
 	return err;
