@@ -7,6 +7,7 @@
 // Author: Vijai Kumar K <vijaikumar.kanagarajan@gmail.com>
 // Copyright (c) 2020 Krzysztof Kozlowski <krzk@kernel.org>
 
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -35,29 +36,13 @@ enum ptn5150_reg {
 #define PTN5150_UFP_ATTACHED			0x2
 
 /* Define PTN5150 MASK/SHIFT constant */
-#define PTN5150_REG_DEVICE_ID_VENDOR_SHIFT	0
-#define PTN5150_REG_DEVICE_ID_VENDOR_MASK	\
-	(0x3 << PTN5150_REG_DEVICE_ID_VENDOR_SHIFT)
+#define PTN5150_REG_DEVICE_ID_VERSION		GENMASK(7, 3)
+#define PTN5150_REG_DEVICE_ID_VENDOR		GENMASK(2, 0)
 
-#define PTN5150_REG_DEVICE_ID_VERSION_SHIFT	3
-#define PTN5150_REG_DEVICE_ID_VERSION_MASK	\
-	(0x1f << PTN5150_REG_DEVICE_ID_VERSION_SHIFT)
-
-#define PTN5150_REG_CC_PORT_ATTACHMENT_SHIFT	2
-#define PTN5150_REG_CC_PORT_ATTACHMENT_MASK	\
-	(0x7 << PTN5150_REG_CC_PORT_ATTACHMENT_SHIFT)
-
-#define PTN5150_REG_CC_VBUS_DETECTION_SHIFT	7
-#define PTN5150_REG_CC_VBUS_DETECTION_MASK	\
-	(0x1 << PTN5150_REG_CC_VBUS_DETECTION_SHIFT)
-
-#define PTN5150_REG_INT_CABLE_ATTACH_SHIFT	0
-#define PTN5150_REG_INT_CABLE_ATTACH_MASK	\
-	(0x1 << PTN5150_REG_INT_CABLE_ATTACH_SHIFT)
-
-#define PTN5150_REG_INT_CABLE_DETACH_SHIFT	1
-#define PTN5150_REG_INT_CABLE_DETACH_MASK	\
-	(0x1 << PTN5150_REG_CC_CABLE_DETACH_SHIFT)
+#define PTN5150_REG_CC_PORT_ATTACHMENT		GENMASK(4, 2)
+#define PTN5150_REG_CC_VBUS_DETECTION		BIT(7)
+#define PTN5150_REG_INT_CABLE_ATTACH_MASK	BIT(0)
+#define PTN5150_REG_INT_CABLE_DETACH_MASK	BIT(1)
 
 struct ptn5150_info {
 	struct device *dev;
@@ -95,9 +80,7 @@ static void ptn5150_check_state(struct ptn5150_info *info)
 		return;
 	}
 
-	port_status = ((reg_data &
-			PTN5150_REG_CC_PORT_ATTACHMENT_MASK) >>
-			PTN5150_REG_CC_PORT_ATTACHMENT_SHIFT);
+	port_status = FIELD_GET(PTN5150_REG_CC_PORT_ATTACHMENT, reg_data);
 
 	switch (port_status) {
 	case PTN5150_DFP_ATTACHED:
@@ -107,8 +90,7 @@ static void ptn5150_check_state(struct ptn5150_info *info)
 		break;
 	case PTN5150_UFP_ATTACHED:
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
-		vbus = ((reg_data & PTN5150_REG_CC_VBUS_DETECTION_MASK) >>
-			PTN5150_REG_CC_VBUS_DETECTION_SHIFT);
+		vbus = FIELD_GET(PTN5150_REG_CC_VBUS_DETECTION, reg_data);
 		if (vbus)
 			gpiod_set_value_cansleep(info->vbus_gpiod, 0);
 		else
@@ -191,11 +173,8 @@ static int ptn5150_init_dev_type(struct ptn5150_info *info)
 		return -EINVAL;
 	}
 
-	vendor_id = ((reg_data & PTN5150_REG_DEVICE_ID_VENDOR_MASK) >>
-				PTN5150_REG_DEVICE_ID_VENDOR_SHIFT);
-	version_id = ((reg_data & PTN5150_REG_DEVICE_ID_VERSION_MASK) >>
-				PTN5150_REG_DEVICE_ID_VERSION_SHIFT);
-
+	vendor_id = FIELD_GET(PTN5150_REG_DEVICE_ID_VENDOR, reg_data);
+	version_id = FIELD_GET(PTN5150_REG_DEVICE_ID_VERSION, reg_data);
 	dev_dbg(info->dev, "Device type: version: 0x%x, vendor: 0x%x\n",
 		version_id, vendor_id);
 
