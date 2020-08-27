@@ -2146,6 +2146,7 @@
 		clocks = <&cru ACLK_VENC>, <&cru HCLK_VENC>;
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
+		rockchip,enable-cmd-retry;
 		#iommu-cells = <0>;
 		power-domains = <&power RV1126_PD_VEPU>;
 		status = "disabled";
