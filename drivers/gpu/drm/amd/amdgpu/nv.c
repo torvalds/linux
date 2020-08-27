@@ -443,6 +443,9 @@ legacy_init:
 	case CHIP_NAVY_FLOUNDER:
 		sienna_cichlid_reg_base_init(adev);
 		break;
+	case CHIP_VANGOGH:
+		vangogh_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -823,6 +826,11 @@ static int nv_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x32;
 		break;
 
+	case CHIP_VANGOGH:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x01;
+		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
