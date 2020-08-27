@@ -274,49 +274,6 @@ int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
 	return result;
 }
 
-/*
- * Write file attribute data and metadata record to the backing file.
- */
-int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
-		struct mem_range value, struct incfs_file_attr *attr)
-{
-	struct incfs_file_attr file_attr = {};
-	int result = 0;
-	u32 crc = 0;
-	loff_t value_offset = 0;
-
-	if (!bfc)
-		return -EFAULT;
-
-	if (value.len > INCFS_MAX_FILE_ATTR_SIZE)
-		return -ENOSPC;
-
-	LOCK_REQUIRED(bfc->bc_mutex);
-
-	crc = crc32(0, value.data, value.len);
-	value_offset = incfs_get_end_offset(bfc->bc_file);
-	file_attr.fa_header.h_md_entry_type = INCFS_MD_FILE_ATTR;
-	file_attr.fa_header.h_record_size = cpu_to_le16(sizeof(file_attr));
-	file_attr.fa_header.h_next_md_offset = cpu_to_le64(0);
-	file_attr.fa_size = cpu_to_le16((u16)value.len);
-	file_attr.fa_offset = cpu_to_le64(value_offset);
-	file_attr.fa_crc = cpu_to_le32(crc);
-
-	result = write_to_bf(bfc, value.data, value.len, value_offset);
-	if (result)
-		return result;
-
-	result = append_md_to_backing_file(bfc, &file_attr.fa_header);
-	if (result) {
-		/* Error, rollback file changes */
-		truncate_backing_file(bfc, value_offset);
-	} else if (attr) {
-		*attr = file_attr;
-	}
-
-	return result;
-}
-
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 					  struct mem_range sig, u32 tree_size)
 {
@@ -703,11 +660,6 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 		if (handler->handle_blockmap)
 			res = handler->handle_blockmap(
 				&handler->md_buffer.blockmap, handler);
-		break;
-	case INCFS_MD_FILE_ATTR:
-		if (handler->handle_file_attr)
-			res = handler->handle_file_attr(
-				&handler->md_buffer.file_attr, handler);
 		break;
 	case INCFS_MD_SIGNATURE:
 		if (handler->handle_signature)

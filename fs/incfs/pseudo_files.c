@@ -463,13 +463,6 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 	if (error)
 		goto out;
 
-	if (attr.data && attr.len) {
-		error = incfs_write_file_attr_to_backing_file(bfc,
-							attr, NULL);
-		if (error)
-			goto out;
-	}
-
 	block_count = (u32)get_blocks_count_for_size(size);
 
 	if (user_signature_info) {
