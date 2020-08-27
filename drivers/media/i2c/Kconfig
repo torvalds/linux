@@ -1704,6 +1704,12 @@ config VIDEO_RK_IRCUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called rk_ircut.
 
+config VIDEO_MP6507
+	tristate "MP6507 motor driver for camera iris/focus/zoom"
+	depends on PWM
+	help
+	  This a driver used pwm to drive motor
+
 endmenu
 
 menu "Sensors used on soc_camera driver"

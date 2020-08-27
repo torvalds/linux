@@ -62,6 +62,7 @@ obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
 obj-$(CONFIG_VIDEO_M52790) += m52790.o
 obj-$(CONFIG_VIDEO_HALL_DC_MOTOR) += hall-dc-motor.o
 obj-$(CONFIG_VIDEO_RK_IRCUT) += rk_ircut.o
+obj-$(CONFIG_VIDEO_MP6507) += mp6507.o
 obj-$(CONFIG_VIDEO_TLV320AIC23B) += tlv320aic23b.o
 obj-$(CONFIG_VIDEO_UDA1342) += uda1342.o
 obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
