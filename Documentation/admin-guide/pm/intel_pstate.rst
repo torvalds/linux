@@ -123,7 +123,9 @@ Energy-Performance Bias (EPB) knob (otherwise), which means that the processor's
 internal P-state selection logic is expected to focus entirely on performance.
 
 This will override the EPP/EPB setting coming from the ``sysfs`` interface
-(see `Energy vs Performance Hints`_ below).
+(see `Energy vs Performance Hints`_ below).  Moreover, any attempts to change
+the EPP/EPB to a value different from 0 ("performance") via ``sysfs`` in this
+configuration will be rejected.
 
 Also, in this configuration the range of P-states available to the processor's
 internal P-state selection logic is always restricted to the upper boundary

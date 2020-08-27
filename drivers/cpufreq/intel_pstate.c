@@ -684,6 +684,14 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 		else if (epp == -EINVAL)
 			epp = epp_values[pref_index - 1];
 
+		/*
+		 * To avoid confusion, refuse to set EPP to any values different
+		 * from 0 (performance) if the current policy is "performance",
+		 * because those values would be overridden.
+		 */
+		if (epp > 0 && cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE)
+			return -EBUSY;
+
 		ret = intel_pstate_set_epp(cpu_data, epp);
 	} else {
 		if (epp == -EINVAL)
