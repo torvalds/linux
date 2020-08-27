@@ -1385,6 +1385,15 @@ static int navi10_get_fan_speed_percent(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_get_fan_parameters(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	smu->fan_max_rpm = pptable->FanMaximumRpm;
+
+	return 0;
+}
+
 static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
@@ -2666,6 +2675,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.enable_mgpu_fan_boost = navi10_enable_mgpu_fan_boost,
 	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
+	.get_fan_parameters = navi10_get_fan_parameters,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

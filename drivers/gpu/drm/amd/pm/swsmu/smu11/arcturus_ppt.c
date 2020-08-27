@@ -1148,6 +1148,15 @@ static int arcturus_get_fan_speed_percent(struct smu_context *smu,
 	return ret;
 }
 
+static int arcturus_get_fan_parameters(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	smu->fan_max_rpm = pptable->FanMaximumRpm;
+
+	return 0;
+}
+
 static int arcturus_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
@@ -2397,6 +2406,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_gpu_metrics = arcturus_get_gpu_metrics,
 	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
+	.get_fan_parameters = arcturus_get_fan_parameters,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)
