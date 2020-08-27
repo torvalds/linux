@@ -242,7 +242,6 @@ int SetCoreClockPLL(volatile STG4000REG __iomem *pSTGReg, struct pci_dev *pDev)
 {
 	u32 F, R, P;
 	u16 core_pll = 0, sub;
-	u32 ulCoreClock;
 	u32 tmp;
 	u32 ulChipSpeed;
 
@@ -280,7 +279,7 @@ int SetCoreClockPLL(volatile STG4000REG __iomem *pSTGReg, struct pci_dev *pDev)
 	if (ulChipSpeed == 0)
 		return -EINVAL;
 
-	ulCoreClock = ProgramClock(REF_FREQ, CORE_PLL_FREQ, &F, &R, &P);
+	ProgramClock(REF_FREQ, CORE_PLL_FREQ, &F, &R, &P);
 
 	core_pll |= ((P) | ((F - 2) << 2) | ((R - 2) << 11));
 
