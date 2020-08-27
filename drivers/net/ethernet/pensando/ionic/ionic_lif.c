@@ -632,9 +632,9 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "txq_init.ver %d\n", ctx.cmd.q_init.ver);
 	dev_dbg(dev, "txq_init.intr_index %d\n", ctx.cmd.q_init.intr_index);
 
-	q->tail = q->info;
-	q->head = q->tail;
-	cq->tail = cq->info;
+	q->tail_idx = 0;
+	q->head_idx = 0;
+	cq->tail_idx = 0;
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
@@ -689,9 +689,9 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	dev_dbg(dev, "rxq_init.ver %d\n", ctx.cmd.q_init.ver);
 	dev_dbg(dev, "rxq_init.intr_index %d\n", ctx.cmd.q_init.intr_index);
 
-	q->tail = q->info;
-	q->head = q->tail;
-	cq->tail = cq->info;
+	q->tail_idx = 0;
+	q->head_idx = 0;
+	cq->tail_idx = 0;
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)

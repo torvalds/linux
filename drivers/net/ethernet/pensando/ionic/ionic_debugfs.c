@@ -76,7 +76,7 @@ static int q_tail_show(struct seq_file *seq, void *v)
 {
 	struct ionic_queue *q = seq->private;
 
-	seq_printf(seq, "%d\n", q->tail->index);
+	seq_printf(seq, "%d\n", q->tail_idx);
 
 	return 0;
 }
@@ -86,7 +86,7 @@ static int q_head_show(struct seq_file *seq, void *v)
 {
 	struct ionic_queue *q = seq->private;
 
-	seq_printf(seq, "%d\n", q->head->index);
+	seq_printf(seq, "%d\n", q->head_idx);
 
 	return 0;
 }
@@ -96,7 +96,7 @@ static int cq_tail_show(struct seq_file *seq, void *v)
 {
 	struct ionic_cq *cq = seq->private;
 
-	seq_printf(seq, "%d\n", cq->tail->index);
+	seq_printf(seq, "%d\n", cq->tail_idx);
 
 	return 0;
 }
