@@ -1006,18 +1006,10 @@ int udf_compute_nr_groups(struct super_block *sb, u32 partition)
 static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 {
 	struct udf_bitmap *bitmap;
-	int nr_groups;
-	int size;
+	int nr_groups = udf_compute_nr_groups(sb, index);
 
-	nr_groups = udf_compute_nr_groups(sb, index);
-	size = sizeof(struct udf_bitmap) +
-		(sizeof(struct buffer_head *) * nr_groups);
-
-	if (size <= PAGE_SIZE)
-		bitmap = kzalloc(size, GFP_KERNEL);
-	else
-		bitmap = vzalloc(size); /* TODO: get rid of vzalloc */
-
+	bitmap = kvzalloc(struct_size(bitmap, s_block_bitmap, nr_groups),
+			  GFP_KERNEL);
 	if (!bitmap)
 		return NULL;
 
