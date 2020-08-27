@@ -663,7 +663,7 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 	unsigned int r, t, q;
 	bool success = true;
 
-	q = ar9170_qmap[info & CARL9170_TX_STATUS_QUEUE];
+	q = ar9170_qmap(info & CARL9170_TX_STATUS_QUEUE);
 
 	skb = carl9170_get_queued_skb(ar, cookie, &ar->tx_status[q]);
 	if (!skb) {
@@ -979,7 +979,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 		((CARL9170_TX_SUPER_MISC_VIF_ID >>
 		 CARL9170_TX_SUPER_MISC_VIF_ID_S) + 1));
 
-	hw_queue = ar9170_qmap[carl9170_get_queue(ar, skb)];
+	hw_queue = ar9170_qmap(carl9170_get_queue(ar, skb));
 
 	hdr = (void *)skb->data;
 	info = IEEE80211_SKB_CB(skb);
@@ -1279,7 +1279,7 @@ void carl9170_tx_drop(struct ar9170 *ar, struct sk_buff *skb)
 
 	super = (void *)skb->data;
 	SET_VAL(CARL9170_TX_SUPER_MISC_QUEUE, q,
-		ar9170_qmap[carl9170_get_queue(ar, skb)]);
+		ar9170_qmap(carl9170_get_queue(ar, skb)));
 	__carl9170_tx_process_status(ar, super->s.cookie, q);
 }
 
