@@ -880,6 +880,45 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void amdgpu_check_debugfs_connector_property_change(struct amdgpu_device *adev,
+							   struct drm_atomic_state *state)
+{
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	struct amdgpu_dm_connector *amdgpu_dm_connector;
+	struct drm_connector_state *conn_state;
+	struct dm_crtc_state *acrtc_state;
+	struct drm_crtc_state *crtc_state;
+	struct dc_stream_state *stream;
+	struct drm_device *dev = adev_to_drm(adev);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+		amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+		conn_state = connector->state;
+
+		if (!(conn_state && conn_state->crtc))
+			continue;
+
+		crtc = conn_state->crtc;
+		acrtc_state = to_dm_crtc_state(crtc->state);
+
+		if (!(acrtc_state && acrtc_state->stream))
+			continue;
+
+		stream = acrtc_state->stream;
+
+		if (amdgpu_dm_connector->dsc_settings.dsc_force_enable ||
+		    amdgpu_dm_connector->dsc_settings.dsc_num_slices_v ||
+		    amdgpu_dm_connector->dsc_settings.dsc_num_slices_h ||
+		    amdgpu_dm_connector->dsc_settings.dsc_bits_per_pixel) {
+			conn_state = drm_atomic_get_connector_state(state, connector);
+			crtc_state = drm_atomic_get_crtc_state(state, crtc);
+			crtc_state->mode_changed = true;
+		}
+	}
+}
+
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -8551,6 +8590,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	enum dc_status status;
 	int ret, i;
 	bool lock_and_validation_needed = false;
+
+	amdgpu_check_debugfs_connector_property_change(adev, state);
 
 	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
