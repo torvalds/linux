@@ -456,7 +456,6 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 	bm_entry.me_data_offset_lo = cpu_to_le32((u32)data_offset);
 	bm_entry.me_data_offset_hi = cpu_to_le16((u16)(data_offset >> 32));
 	bm_entry.me_data_size = cpu_to_le16(INCFS_DATA_FILE_BLOCK_SIZE);
-	bm_entry.me_flags = cpu_to_le16(INCFS_BLOCK_HASH);
 
 	return write_to_bf(bfc, &bm_entry, sizeof(bm_entry), bm_entry_off);
 }

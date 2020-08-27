@@ -186,7 +186,6 @@ struct incfs_file_header {
 
 enum incfs_block_map_entry_flags {
 	INCFS_BLOCK_COMPRESSED_LZ4 = (1 << 0),
-	INCFS_BLOCK_HASH = (1 << 1),
 };
 
 /* Block map entry pointing to an actual location of the data block. */
