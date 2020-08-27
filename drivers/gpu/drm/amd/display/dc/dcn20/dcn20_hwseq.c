@@ -1918,9 +1918,9 @@ void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.dsc) {
 		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 
-		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
+		hws->funcs.dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
 		while (odm_pipe) {
-			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, true);
+			hws->funcs.dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, true);
 			odm_pipe = odm_pipe->next_odm_pipe;
 		}
 	}
@@ -1933,9 +1933,9 @@ void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.dsc) {
 		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 
-		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
+		hws->funcs.dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
 		while (odm_pipe) {
-			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, false);
+			hws->funcs.dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, false);
 			odm_pipe = odm_pipe->next_odm_pipe;
 		}
 	}
