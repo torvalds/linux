@@ -496,9 +496,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	struct ionic_cq *txcq;
 	u32 rx_work_done = 0;
 	u32 tx_work_done = 0;
-	u32 work_done = 0;
 	u32 flags = 0;
-	bool unmask;
 
 	lif = rxcq->bound_q->lif;
 	idev = &lif->ionic->idev;
@@ -512,17 +510,12 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	if (rx_work_done)
 		ionic_rx_fill_cb(rxcq->bound_q);
 
-	unmask = (rx_work_done < budget) && (tx_work_done < lif->tx_budget);
-
-	if (unmask && napi_complete_done(napi, rx_work_done)) {
+	if (rx_work_done < budget && napi_complete_done(napi, rx_work_done)) {
 		flags |= IONIC_INTR_CRED_UNMASK;
 		DEBUG_STATS_INTR_REARM(rxcq->bound_intr);
-		work_done = rx_work_done;
-	} else {
-		work_done = budget;
 	}
 
-	if (work_done || flags) {
+	if (rx_work_done || flags) {
 		flags |= IONIC_INTR_CRED_RESET_COALESCE;
 		ionic_intr_credits(idev->intr_ctrl, rxcq->bound_intr->index,
 				   tx_work_done + rx_work_done, flags);
@@ -531,7 +524,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	DEBUG_STATS_NAPI_POLL(qcq, rx_work_done);
 	DEBUG_STATS_NAPI_POLL(qcq, tx_work_done);
 
-	return work_done;
+	return rx_work_done;
 }
 
 static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
