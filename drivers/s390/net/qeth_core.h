@@ -420,12 +420,6 @@ struct qeth_qdio_out_buffer {
 
 struct qeth_card;
 
-enum qeth_out_q_states {
-       QETH_OUT_Q_UNLOCKED,
-       QETH_OUT_Q_LOCKED,
-       QETH_OUT_Q_LOCKED_FLUSH,
-};
-
 #define QETH_CARD_STAT_ADD(_c, _stat, _val)	((_c)->stats._stat += (_val))
 #define QETH_CARD_STAT_INC(_c, _stat)		QETH_CARD_STAT_ADD(_c, _stat, 1)
 
@@ -486,12 +480,12 @@ struct qeth_qdio_out_q {
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct qeth_out_q_stats stats;
+	spinlock_t lock;
 	u8 next_buf_to_fill;
 	u8 max_elements;
 	u8 queue_no;
 	u8 do_pack;
 	struct qeth_card *card;
-	atomic_t state;
 	/*
 	 * number of buffers that are currently filled (PRIMED)
 	 * -> these buffers are hardware-owned
