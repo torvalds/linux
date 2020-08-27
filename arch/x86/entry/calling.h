@@ -6,7 +6,6 @@
 #include <asm/percpu.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
-#include <asm/inst.h>
 
 /*
 
