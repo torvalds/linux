@@ -5,7 +5,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h> /* For legacy platform data */
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -131,7 +130,6 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	struct power_supply_desc *charger_desc;
 	struct gpio_desc *charge_status;
 	int charge_status_irq;
-	unsigned long flags;
 	int ret;
 	int num_props = 0;
 
@@ -149,29 +147,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	 * boardfile descriptor tables. It's good to try this first.
 	 */
 	gpio_charger->gpiod = devm_gpiod_get_optional(dev, NULL, GPIOD_IN);
-
-	/*
-	 * Fallback to legacy platform data method, if no GPIO is specified
-	 * using boardfile descriptor tables.
-	 */
-	if (!gpio_charger->gpiod && pdata) {
-		/* Non-DT: use legacy GPIO numbers */
-		if (!gpio_is_valid(pdata->gpio)) {
-			dev_err(dev, "Invalid gpio pin in pdata\n");
-			return -EINVAL;
-		}
-		flags = GPIOF_IN;
-		if (pdata->gpio_active_low)
-			flags |= GPIOF_ACTIVE_LOW;
-		ret = devm_gpio_request_one(dev, pdata->gpio, flags,
-					    dev_name(dev));
-		if (ret) {
-			dev_err(dev, "Failed to request gpio pin: %d\n", ret);
-			return ret;
-		}
-		/* Then convert this to gpiod for now */
-		gpio_charger->gpiod = gpio_to_desc(pdata->gpio);
-	} else if (IS_ERR(gpio_charger->gpiod)) {
+	if (IS_ERR(gpio_charger->gpiod)) {
 		/* Just try again if this happens */
 		return dev_err_probe(dev, PTR_ERR(gpio_charger->gpiod),
 				     "error getting GPIO descriptor\n");
