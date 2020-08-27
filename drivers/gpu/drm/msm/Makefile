@@ -2,6 +2,7 @@
 ccflags-y := -I $(srctree)/$(src)
 ccflags-y += -I $(srctree)/$(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
+ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -98,6 +99,17 @@ msm-y := \
 msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o
 
 msm-$(CONFIG_DRM_MSM_GPU_STATE)	+= adreno/a6xx_gpu_state.o
+
+msm-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
+	dp/dp_catalog.o \
+	dp/dp_ctrl.o \
+	dp/dp_display.o \
+	dp/dp_drm.o \
+	dp/dp_hpd.o \
+	dp/dp_link.o \
+	dp/dp_panel.o \
+	dp/dp_parser.o \
+	dp/dp_power.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o

@@ -58,6 +58,14 @@ config DRM_MSM_HDMI_HDCP
 	help
 	  Choose this option to enable HDCP state machine
 
+config DRM_MSM_DP
+	bool "Enable DisplayPort support in MSM DRM driver"
+	depends on DRM_MSM
+	help
+	  Compile in support for DP driver in MSM DRM driver. DP external
+	  display support is enabled through this config option. It can
+	  be primary or secondary display on device.
+
 config DRM_MSM_DSI
 	bool "Enable DSI support in MSM DRM driver"
 	depends on DRM_MSM
