@@ -1658,7 +1658,7 @@ static int ionic_start_queues(struct ionic_lif *lif)
 	return 0;
 }
 
-int ionic_open(struct net_device *netdev)
+static int ionic_open(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
@@ -1704,7 +1704,7 @@ static void ionic_stop_queues(struct ionic_lif *lif)
 	ionic_txrx_disable(lif);
 }
 
-int ionic_stop(struct net_device *netdev)
+static int ionic_stop(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
