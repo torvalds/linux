@@ -1,7 +1,7 @@
 * Fix pad format size for statistics and parameters entities.
 * Fix checkpatch errors.
 * Review and comment every lock
-* Handle quantization
+* Add uapi docs. Remember to add documentation of how quantization is handled.
 * streaming paths (mainpath and selfpath) check if the other path is streaming
 in several places of the code, review this, specially that it doesn't seem it
 supports streaming from both paths at the same time.
