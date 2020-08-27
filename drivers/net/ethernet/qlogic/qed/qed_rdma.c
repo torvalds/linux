@@ -504,7 +504,8 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	dev->max_mw = 0;
 	dev->max_mr_mw_fmr_pbl = (PAGE_SIZE / 8) * (PAGE_SIZE / 8);
 	dev->max_mr_mw_fmr_size = dev->max_mr_mw_fmr_pbl * PAGE_SIZE;
-	dev->max_pkey = QED_RDMA_MAX_P_KEY;
+	if (QED_IS_ROCE_PERSONALITY(p_hwfn))
+		dev->max_pkey = QED_RDMA_MAX_P_KEY;
 
 	dev->max_srq = p_hwfn->p_rdma_info->num_srqs;
 	dev->max_srq_wr = QED_RDMA_MAX_SRQ_WQE_ELEM;
