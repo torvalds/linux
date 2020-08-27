@@ -264,10 +264,10 @@ install: install_lib install_pkgconfig install_headers
 ### Cleaning rules
 
 config-clean:
-	$(call QUIET_CLEAN, config)
+	$(call QUIET_CLEAN, feature-detect)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
-clean:
+clean: config-clean
 	$(call QUIET_CLEAN, libbpf) $(RM) -rf $(CMD_TARGETS)		     \
 		*~ .*.d .*.cmd LIBBPF-CFLAGS $(BPF_HELPER_DEFS)		     \
 		$(SHARED_OBJDIR) $(STATIC_OBJDIR)			     \
