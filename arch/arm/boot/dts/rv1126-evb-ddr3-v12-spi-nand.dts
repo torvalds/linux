@@ -11,7 +11,7 @@
 	compatible = "rockchip,rv1126-evb-ddr3-v12-spi-nand", "rockchip,rv1126";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs snd_aloop.index=7";
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 ubi.mtd=2 root=ubi0:rootfs rootfstype=ubifs snd_aloop.index=7";
 	};
 };
 
