@@ -221,7 +221,7 @@ static const struct sof_dev_desc tgl_desc = {
 	.default_tplg_path = "intel/sof-tplg",
 	.default_fw_filename = "sof-tgl.ri",
 	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
+	.ops = &sof_tgl_ops,
 };
 #endif
 
