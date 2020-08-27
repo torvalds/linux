@@ -587,34 +587,76 @@ static inline void write_seqcount_t_invalidate(seqcount_t *s)
 	kcsan_nestable_atomic_end();
 }
 
-/**
- * raw_read_seqcount_latch() - pick even/odd seqcount_t latch data copy
- * @s: Pointer to seqcount_t or any of the seqcount_locktype_t variants
+/*
+ * Latch sequence counters (seqcount_latch_t)
  *
- * Use seqcount_t latching to switch between two storage places protected
- * by a sequence counter. Doing so allows having interruptible, preemptible,
- * seqcount_t write side critical sections.
+ * A sequence counter variant where the counter even/odd value is used to
+ * switch between two copies of protected data. This allows the read path,
+ * typically NMIs, to safely interrupt the write side critical section.
  *
- * Check raw_write_seqcount_latch() for more details and a full reader and
- * writer usage example.
- *
- * Return: sequence counter raw value. Use the lowest bit as an index for
- * picking which data copy to read. The full counter value must then be
- * checked with read_seqcount_retry().
+ * As the write sections are fully preemptible, no special handling for
+ * PREEMPT_RT is needed.
  */
-#define raw_read_seqcount_latch(s)					\
-	raw_read_seqcount_t_latch(__seqcount_ptr(s))
+typedef struct {
+	seqcount_t seqcount;
+} seqcount_latch_t;
 
-static inline int raw_read_seqcount_t_latch(seqcount_t *s)
-{
-	/* Pairs with the first smp_wmb() in raw_write_seqcount_latch() */
-	int seq = READ_ONCE(s->sequence); /* ^^^ */
-	return seq;
+/**
+ * SEQCNT_LATCH_ZERO() - static initializer for seqcount_latch_t
+ * @seq_name: Name of the seqcount_latch_t instance
+ */
+#define SEQCNT_LATCH_ZERO(seq_name) {					\
+	.seqcount		= SEQCNT_ZERO(seq_name.seqcount),	\
 }
 
 /**
- * raw_write_seqcount_latch() - redirect readers to even/odd copy
- * @s: Pointer to seqcount_t or any of the seqcount_locktype_t variants
+ * seqcount_latch_init() - runtime initializer for seqcount_latch_t
+ * @s: Pointer to the seqcount_latch_t instance
+ */
+static inline void seqcount_latch_init(seqcount_latch_t *s)
+{
+	seqcount_init(&s->seqcount);
+}
+
+/**
+ * raw_read_seqcount_latch() - pick even/odd latch data copy
+ * @s: Pointer to seqcount_t, seqcount_raw_spinlock_t, or seqcount_latch_t
+ *
+ * See raw_write_seqcount_latch() for details and a full reader/writer
+ * usage example.
+ *
+ * Return: sequence counter raw value. Use the lowest bit as an index for
+ * picking which data copy to read. The full counter must then be checked
+ * with read_seqcount_latch_retry().
+ */
+#define raw_read_seqcount_latch(s)						\
+({										\
+	/*									\
+	 * Pairs with the first smp_wmb() in raw_write_seqcount_latch().	\
+	 * Due to the dependent load, a full smp_rmb() is not needed.		\
+	 */									\
+	_Generic(*(s),								\
+		 seqcount_t:		  READ_ONCE(((seqcount_t *)s)->sequence),			\
+		 seqcount_raw_spinlock_t: READ_ONCE(((seqcount_raw_spinlock_t *)s)->seqcount.sequence),	\
+		 seqcount_latch_t:	  READ_ONCE(((seqcount_latch_t *)s)->seqcount.sequence));	\
+})
+
+/**
+ * read_seqcount_latch_retry() - end a seqcount_latch_t read section
+ * @s:		Pointer to seqcount_latch_t
+ * @start:	count, from raw_read_seqcount_latch()
+ *
+ * Return: true if a read section retry is required, else false
+ */
+static inline int
+read_seqcount_latch_retry(const seqcount_latch_t *s, unsigned start)
+{
+	return read_seqcount_retry(&s->seqcount, start);
+}
+
+/**
+ * raw_write_seqcount_latch() - redirect latch readers to even/odd copy
+ * @s: Pointer to seqcount_t, seqcount_raw_spinlock_t, or seqcount_latch_t
  *
  * The latch technique is a multiversion concurrency control method that allows
  * queries during non-atomic modifications. If you can guarantee queries never
@@ -633,7 +675,7 @@ static inline int raw_read_seqcount_t_latch(seqcount_t *s)
  * The basic form is a data structure like::
  *
  *	struct latch_struct {
- *		seqcount_t		seq;
+ *		seqcount_latch_t	seq;
  *		struct data_struct	data[2];
  *	};
  *
@@ -643,13 +685,13 @@ static inline int raw_read_seqcount_t_latch(seqcount_t *s)
  *	void latch_modify(struct latch_struct *latch, ...)
  *	{
  *		smp_wmb();	// Ensure that the last data[1] update is visible
- *		latch->seq++;
+ *		latch->seq.sequence++;
  *		smp_wmb();	// Ensure that the seqcount update is visible
  *
  *		modify(latch->data[0], ...);
  *
  *		smp_wmb();	// Ensure that the data[0] update is visible
- *		latch->seq++;
+ *		latch->seq.sequence++;
  *		smp_wmb();	// Ensure that the seqcount update is visible
  *
  *		modify(latch->data[1], ...);
@@ -668,8 +710,8 @@ static inline int raw_read_seqcount_t_latch(seqcount_t *s)
  *			idx = seq & 0x01;
  *			entry = data_query(latch->data[idx], ...);
  *
- *		// read_seqcount_retry() includes needed smp_rmb()
- *		} while (read_seqcount_retry(&latch->seq, seq));
+ *		// This includes needed smp_rmb()
+ *		} while (read_seqcount_latch_retry(&latch->seq, seq));
  *
  *		return entry;
  *	}
@@ -693,14 +735,14 @@ static inline int raw_read_seqcount_t_latch(seqcount_t *s)
  *	When data is a dynamic data structure; one should use regular RCU
  *	patterns to manage the lifetimes of the objects within.
  */
-#define raw_write_seqcount_latch(s)					\
-	raw_write_seqcount_t_latch(__seqcount_ptr(s))
-
-static inline void raw_write_seqcount_t_latch(seqcount_t *s)
-{
-       smp_wmb();      /* prior stores before incrementing "sequence" */
-       s->sequence++;
-       smp_wmb();      /* increment "sequence" before following stores */
+#define raw_write_seqcount_latch(s)						\
+{										\
+       smp_wmb();      /* prior stores before incrementing "sequence" */	\
+       _Generic(*(s),								\
+		seqcount_t:		((seqcount_t *)s)->sequence++,		\
+		seqcount_raw_spinlock_t:((seqcount_raw_spinlock_t *)s)->seqcount.sequence++, \
+		seqcount_latch_t:	((seqcount_latch_t *)s)->seqcount.sequence++); \
+       smp_wmb();      /* increment "sequence" before following stores */	\
 }
 
 /*
