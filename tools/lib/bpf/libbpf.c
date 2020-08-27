@@ -2823,7 +2823,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			obj->efile.bss = data;
 			obj->efile.bss_shndx = idx;
 		} else {
-			pr_info("elf: skipping section(%d) %s (size %zu)\n", idx, name, sh.sh_size);
+			pr_info("elf: skipping section(%d) %s (size %zu)\n", idx, name,
+				(size_t)sh.sh_size);
 		}
 	}
 
@@ -5244,7 +5245,8 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 		if (res->validate && imm != orig_val) {
 			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDIMM64) value: got %llu, exp %u -> %u\n",
 				bpf_program__title(prog, false), relo_idx,
-				insn_idx, imm, orig_val, new_val);
+				insn_idx, (unsigned long long)imm,
+				orig_val, new_val);
 			return -EINVAL;
 		}
 
@@ -5252,7 +5254,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 		insn[1].imm = 0; /* currently only 32-bit values are supported */
 		pr_debug("prog '%s': relo #%d: patched insn #%d (LDIMM64) imm64 %llu -> %u\n",
 			 bpf_program__title(prog, false), relo_idx, insn_idx,
-			 imm, new_val);
+			 (unsigned long long)imm, new_val);
 		break;
 	}
 	default:
