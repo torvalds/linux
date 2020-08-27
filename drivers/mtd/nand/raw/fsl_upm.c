@@ -48,7 +48,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	struct device_node *flash_np;
 
 	fun->chip.ecc.mode = NAND_ECC_SOFT;
-	fun->chip.ecc.algo = NAND_ECC_HAMMING;
+	fun->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
 	fun->chip.controller = &fun->base;
 	mtd->dev.parent = fun->dev;
 

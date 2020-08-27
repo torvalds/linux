@@ -938,11 +938,11 @@ static int s3c2410_nand_attach_chip(struct nand_chip *chip)
 	case NAND_ECC_SOFT:
 		/*
 		 * This driver expects Hamming based ECC when ecc_mode is set
-		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
+		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_ALGO_HAMMING to
 		 * avoid adding an extra ecc_algo field to
 		 * s3c2410_platform_nand.
 		 */
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		dev_info(info->device, "soft ECC\n");
 		break;
 

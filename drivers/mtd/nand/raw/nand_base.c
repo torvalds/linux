@@ -5066,9 +5066,9 @@ static int of_get_nand_ecc_mode(struct device_node *np)
 }
 
 static const char * const nand_ecc_algos[] = {
-	[NAND_ECC_HAMMING]	= "hamming",
-	[NAND_ECC_BCH]		= "bch",
-	[NAND_ECC_RS]		= "rs",
+	[NAND_ECC_ALGO_HAMMING]	= "hamming",
+	[NAND_ECC_ALGO_BCH]	= "bch",
+	[NAND_ECC_ALGO_RS]	= "rs",
 };
 
 static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_node *np)
@@ -5079,7 +5079,7 @@ static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_node *np)
 
 	err = of_property_read_string(np, "nand-ecc-algo", &pm);
 	if (!err) {
-		for (ecc_algo = NAND_ECC_HAMMING;
+		for (ecc_algo = NAND_ECC_ALGO_HAMMING;
 		     ecc_algo < ARRAY_SIZE(nand_ecc_algos);
 		     ecc_algo++) {
 			if (!strcasecmp(pm, nand_ecc_algos[ecc_algo]))
@@ -5094,12 +5094,12 @@ static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_node *np)
 	err = of_property_read_string(np, "nand-ecc-mode", &pm);
 	if (!err) {
 		if (!strcasecmp(pm, "soft"))
-			return NAND_ECC_HAMMING;
+			return NAND_ECC_ALGO_HAMMING;
 		else if (!strcasecmp(pm, "soft_bch"))
-			return NAND_ECC_BCH;
+			return NAND_ECC_ALGO_BCH;
 	}
 
-	return NAND_ECC_UNKNOWN;
+	return NAND_ECC_ALGO_UNKNOWN;
 }
 
 static int of_get_nand_ecc_step_size(struct device_node *np)
@@ -5167,7 +5167,7 @@ static int nand_dt_init(struct nand_chip *chip)
 	if (ecc_mode >= 0)
 		chip->ecc.mode = ecc_mode;
 
-	if (ecc_algo != NAND_ECC_UNKNOWN)
+	if (ecc_algo != NAND_ECC_ALGO_UNKNOWN)
 		chip->ecc.algo = ecc_algo;
 
 	if (ecc_strength >= 0)
@@ -5291,7 +5291,7 @@ static int nand_set_ecc_soft_ops(struct nand_chip *chip)
 		return -EINVAL;
 
 	switch (ecc->algo) {
-	case NAND_ECC_HAMMING:
+	case NAND_ECC_ALGO_HAMMING:
 		ecc->calculate = nand_calculate_ecc;
 		ecc->correct = nand_correct_data;
 		ecc->read_page = nand_read_page_swecc;
@@ -5312,7 +5312,7 @@ static int nand_set_ecc_soft_ops(struct nand_chip *chip)
 			ecc->options |= NAND_ECC_SOFT_HAMMING_SM_ORDER;
 
 		return 0;
-	case NAND_ECC_BCH:
+	case NAND_ECC_ALGO_BCH:
 		if (!mtd_nand_has_bch()) {
 			WARN(1, "CONFIG_MTD_NAND_ECC_SW_BCH not enabled\n");
 			return -EINVAL;
@@ -5752,7 +5752,7 @@ static int nand_scan_tail(struct nand_chip *chip)
 	 * If no default placement scheme is given, select an appropriate one.
 	 */
 	if (!mtd->ooblayout &&
-	    !(ecc->mode == NAND_ECC_SOFT && ecc->algo == NAND_ECC_BCH)) {
+	    !(ecc->mode == NAND_ECC_SOFT && ecc->algo == NAND_ECC_ALGO_BCH)) {
 		switch (mtd->oobsize) {
 		case 8:
 		case 16:
@@ -5843,7 +5843,7 @@ static int nand_scan_tail(struct nand_chip *chip)
 		pr_warn("%d byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
 			ecc->size, mtd->writesize);
 		ecc->mode = NAND_ECC_SOFT;
-		ecc->algo = NAND_ECC_HAMMING;
+		ecc->algo = NAND_ECC_ALGO_HAMMING;
 		fallthrough;
 	case NAND_ECC_SOFT:
 		ret = nand_set_ecc_soft_ops(chip);
@@ -6102,7 +6102,7 @@ EXPORT_SYMBOL(nand_scan_with_ids);
 void nand_cleanup(struct nand_chip *chip)
 {
 	if (chip->ecc.mode == NAND_ECC_SOFT &&
-	    chip->ecc.algo == NAND_ECC_BCH)
+	    chip->ecc.algo == NAND_ECC_ALGO_BCH)
 		nand_bch_free((struct nand_bch_control *)chip->ecc.priv);
 
 	nanddev_cleanup(&chip->base);

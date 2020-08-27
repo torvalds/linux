@@ -1045,7 +1045,7 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 		flctl->flcmncr_base |= _4ECCEN;
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 	}
 
 	return 0;

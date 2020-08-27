@@ -780,7 +780,7 @@ static void marvell_nfc_enable_hw_ecc(struct nand_chip *chip)
 		 * When enabling BCH, set threshold to 0 to always know the
 		 * number of corrected bitflips.
 		 */
-		if (chip->ecc.algo == NAND_ECC_BCH)
+		if (chip->ecc.algo == NAND_ECC_ALGO_BCH)
 			writel_relaxed(NDECCCTRL_BCH_EN, nfc->regs + NDECCCTRL);
 	}
 }
@@ -792,7 +792,7 @@ static void marvell_nfc_disable_hw_ecc(struct nand_chip *chip)
 
 	if (ndcr & NDCR_ECC_EN) {
 		writel_relaxed(ndcr & ~NDCR_ECC_EN, nfc->regs + NDCR);
-		if (chip->ecc.algo == NAND_ECC_BCH)
+		if (chip->ecc.algo == NAND_ECC_ALGO_BCH)
 			writel_relaxed(0, nfc->regs + NDECCCTRL);
 	}
 }
@@ -966,7 +966,7 @@ static int marvell_nfc_hw_ecc_check_bitflips(struct nand_chip *chip,
 	if (ndsr & NDSR_CORERR) {
 		writel_relaxed(ndsr, nfc->regs + NDSR);
 
-		if (chip->ecc.algo == NAND_ECC_BCH)
+		if (chip->ecc.algo == NAND_ECC_ALGO_BCH)
 			bf = NDSR_ERRCNT(ndsr);
 		else
 			bf = 1;
@@ -2218,7 +2218,7 @@ static int marvell_nand_hw_ecc_controller_init(struct mtd_info *mtd,
 	ecc->size = l->data_bytes;
 
 	if (ecc->strength == 1) {
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		ecc->read_page_raw = marvell_nfc_hw_ecc_hmg_read_page_raw;
 		ecc->read_page = marvell_nfc_hw_ecc_hmg_read_page;
 		ecc->read_oob_raw = marvell_nfc_hw_ecc_hmg_read_oob_raw;
@@ -2228,7 +2228,7 @@ static int marvell_nand_hw_ecc_controller_init(struct mtd_info *mtd,
 		ecc->write_oob_raw = marvell_nfc_hw_ecc_hmg_write_oob_raw;
 		ecc->write_oob = ecc->write_oob_raw;
 	} else {
-		chip->ecc.algo = NAND_ECC_BCH;
+		chip->ecc.algo = NAND_ECC_ALGO_BCH;
 		ecc->strength = 16;
 		ecc->read_page_raw = marvell_nfc_hw_ecc_bch_read_page_raw;
 		ecc->read_page = marvell_nfc_hw_ecc_bch_read_page;

@@ -911,7 +911,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 		break;
 
 	case NAND_ECC_SOFT:
-		if (nand->ecc.algo == NAND_ECC_BCH) {
+		if (nand->ecc.algo == NAND_ECC_ALGO_BCH) {
 			dev_info(host->dev,
 				 "Using 4-bit SW BCH ECC scheme\n");
 			break;

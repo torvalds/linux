@@ -983,7 +983,7 @@ static int anfc_init_hw_ecc_controller(struct arasan_nfc *nfc,
 	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
 
 	ecc->steps = mtd->writesize / ecc->size;
-	ecc->algo = NAND_ECC_BCH;
+	ecc->algo = NAND_ECC_ALGO_BCH;
 	anand->ecc_bits = bch_gf_mag * ecc->strength;
 	ecc->bytes = DIV_ROUND_UP(anand->ecc_bits, 8);
 	anand->ecc_total = DIV_ROUND_UP(anand->ecc_bits * ecc->steps, 8);

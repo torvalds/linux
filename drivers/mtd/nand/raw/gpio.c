@@ -343,7 +343,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->ecc.mode		= NAND_ECC_SOFT;
-	chip->ecc.algo		= NAND_ECC_HAMMING;
+	chip->ecc.algo		= NAND_ECC_ALGO_HAMMING;
 	chip->options		= gpiomtd->plat.options;
 	chip->controller	= &gpiomtd->base;
 

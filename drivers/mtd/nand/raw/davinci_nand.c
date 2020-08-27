@@ -593,11 +593,11 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 		pdata->ecc_bits = 0;
 		/*
 		 * This driver expects Hamming based ECC when ecc_mode is set
-		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
+		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_ALGO_HAMMING to
 		 * avoid adding an extra ->ecc_algo field to
 		 * davinci_nand_pdata.
 		 */
-		info->chip.ecc.algo = NAND_ECC_HAMMING;
+		info->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
 		break;
 	case NAND_ECC_HW:
 		if (pdata->ecc_bits == 4) {
@@ -629,7 +629,7 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 			info->chip.ecc.hwctl = nand_davinci_hwctl_4bit;
 			info->chip.ecc.bytes = 10;
 			info->chip.ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
-			info->chip.ecc.algo = NAND_ECC_BCH;
+			info->chip.ecc.algo = NAND_ECC_ALGO_BCH;
 
 			/*
 			 * Update ECC layout if needed ... for 1-bit HW ECC, the
@@ -656,7 +656,7 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 			info->chip.ecc.correct = nand_davinci_correct_1bit;
 			info->chip.ecc.hwctl = nand_davinci_hwctl_1bit;
 			info->chip.ecc.bytes = 3;
-			info->chip.ecc.algo = NAND_ECC_HAMMING;
+			info->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
 		}
 		info->chip.ecc.size = 512;
 		info->chip.ecc.strength = pdata->ecc_bits;

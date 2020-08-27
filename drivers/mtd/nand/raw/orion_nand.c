@@ -140,7 +140,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->legacy.cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->legacy.read_buf = orion_nand_read_buf;
 	nc->ecc.mode = NAND_ECC_SOFT;
-	nc->ecc.algo = NAND_ECC_HAMMING;
+	nc->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	if (board->chip_delay)
 		nc->legacy.chip_delay = board->chip_delay;

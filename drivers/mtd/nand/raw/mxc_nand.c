@@ -1846,7 +1846,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 		this->ecc.mode = NAND_ECC_HW;
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
-		this->ecc.algo = NAND_ECC_HAMMING;
+		this->ecc.algo = NAND_ECC_ALGO_HAMMING;
 	}
 
 	/* NAND bus width determines access functions used by upper layer */

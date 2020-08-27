@@ -748,7 +748,7 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 		} else {
 			/* otherwise fall back to default software ECC */
 			chip->ecc.mode = NAND_ECC_SOFT;
-			chip->ecc.algo = NAND_ECC_HAMMING;
+			chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		}
 		break;
 

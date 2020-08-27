@@ -2011,7 +2011,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	 */
 	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_SW) {
 		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		return 0;
 	}
 

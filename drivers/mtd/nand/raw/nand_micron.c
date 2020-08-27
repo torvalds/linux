@@ -543,7 +543,7 @@ static int micron_nand_init(struct nand_chip *chip)
 		chip->ecc.bytes = chip->base.eccreq.strength * 2;
 		chip->ecc.size = 512;
 		chip->ecc.strength = chip->base.eccreq.strength;
-		chip->ecc.algo = NAND_ECC_BCH;
+		chip->ecc.algo = NAND_ECC_ALGO_BCH;
 		chip->ecc.read_page = micron_nand_read_page_on_die_ecc;
 		chip->ecc.write_page = micron_nand_write_page_on_die_ecc;
 

@@ -1099,7 +1099,7 @@ static int atmel_nand_pmecc_init(struct nand_chip *chip)
 	if (IS_ERR(nand->pmecc))
 		return PTR_ERR(nand->pmecc);
 
-	chip->ecc.algo = NAND_ECC_BCH;
+	chip->ecc.algo = NAND_ECC_ALGO_BCH;
 	chip->ecc.size = req.ecc.sectorsize;
 	chip->ecc.bytes = req.ecc.bytes / req.ecc.nsectors;
 	chip->ecc.strength = req.ecc.strength;

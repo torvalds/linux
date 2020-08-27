@@ -94,16 +94,16 @@ enum nand_ecc_mode {
 
 /**
  * enum nand_ecc_algo - NAND ECC algorithm
- * @NAND_ECC_UNKNOWN: Unknown algorithm
- * @NAND_ECC_HAMMING: Hamming algorithm
- * @NAND_ECC_BCH: Bose-Chaudhuri-Hocquenghem algorithm
- * @NAND_ECC_RS: Reed-Solomon algorithm
+ * @NAND_ECC_ALGO_UNKNOWN: Unknown algorithm
+ * @NAND_ECC_ALGO_HAMMING: Hamming algorithm
+ * @NAND_ECC_ALGO_BCH: Bose-Chaudhuri-Hocquenghem algorithm
+ * @NAND_ECC_ALGO_RS: Reed-Solomon algorithm
  */
 enum nand_ecc_algo {
-	NAND_ECC_UNKNOWN,
-	NAND_ECC_HAMMING,
-	NAND_ECC_BCH,
-	NAND_ECC_RS,
+	NAND_ECC_ALGO_UNKNOWN,
+	NAND_ECC_ALGO_HAMMING,
+	NAND_ECC_ALGO_BCH,
+	NAND_ECC_ALGO_RS,
 };
 
 /*
