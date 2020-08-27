@@ -19,14 +19,13 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 
 #include "../include/media/lm3554.h"
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include "../include/linux/atomisp_gmin_platform.h"
 #include "../include/linux/atomisp.h"
 
@@ -173,7 +172,7 @@ static void lm3554_flash_off_delay(struct timer_list *t)
 	struct lm3554 *flash = from_timer(flash, t, flash_off_delay);
 	struct lm3554_platform_data *pdata = flash->pdata;
 
-	gpio_set_value(pdata->gpio_strobe, 0);
+	gpiod_set_value(pdata->gpio_strobe, 0);
 }
 
 static int lm3554_hw_strobe(struct i2c_client *client, bool strobe)
@@ -209,7 +208,7 @@ static int lm3554_hw_strobe(struct i2c_client *client, bool strobe)
 	 * so must strobe off here
 	 */
 	if (timer_pending)
-		gpio_set_value(pdata->gpio_strobe, 0);
+		gpiod_set_value(pdata->gpio_strobe, 0);
 
 	/* Restore flash current settings */
 	ret = lm3554_set_flash(flash);
@@ -217,7 +216,7 @@ static int lm3554_hw_strobe(struct i2c_client *client, bool strobe)
 		goto err;
 
 	/* Strobe on Flash */
-	gpio_set_value(pdata->gpio_strobe, 1);
+	gpiod_set_value(pdata->gpio_strobe, 1);
 
 	return 0;
 err:
@@ -627,7 +626,7 @@ static int __lm3554_s_power(struct lm3554 *flash, int power)
 	int ret;
 
 	/*initialize flash driver*/
-	gpio_set_value(pdata->gpio_reset, power);
+	gpiod_set_value(pdata->gpio_reset, power);
 	usleep_range(100, 100 + 1);
 
 	if (power) {
@@ -766,33 +765,22 @@ static int lm3554_gpio_init(struct i2c_client *client)
 	struct lm3554_platform_data *pdata = flash->pdata;
 	int ret;
 
-	if (!gpio_is_valid(pdata->gpio_reset))
+	if (!pdata->gpio_reset)
 		return -EINVAL;
 
-	ret = gpio_direction_output(pdata->gpio_reset, 0);
+	ret = gpiod_direction_output(pdata->gpio_reset, 0);
 	if (ret < 0)
-		goto err_gpio_reset;
+		return ret;
 	dev_info(&client->dev, "flash led reset successfully\n");
 
-	if (!gpio_is_valid(pdata->gpio_strobe)) {
-		ret = -EINVAL;
-		goto err_gpio_dir_reset;
-	}
+	if (!pdata->gpio_strobe)
+		return -EINVAL;
 
-	ret = gpio_direction_output(pdata->gpio_strobe, 0);
+	ret = gpiod_direction_output(pdata->gpio_strobe, 0);
 	if (ret < 0)
-		goto err_gpio_strobe;
+		return ret;
 
 	return 0;
-
-err_gpio_strobe:
-	gpio_free(pdata->gpio_strobe);
-err_gpio_dir_reset:
-	gpio_direction_output(pdata->gpio_reset, 0);
-err_gpio_reset:
-	gpio_free(pdata->gpio_reset);
-
-	return ret;
 }
 
 static int lm3554_gpio_uninit(struct i2c_client *client)
@@ -802,16 +790,14 @@ static int lm3554_gpio_uninit(struct i2c_client *client)
 	struct lm3554_platform_data *pdata = flash->pdata;
 	int ret;
 
-	ret = gpio_direction_output(pdata->gpio_strobe, 0);
+	ret = gpiod_direction_output(pdata->gpio_strobe, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = gpio_direction_output(pdata->gpio_reset, 0);
+	ret = gpiod_direction_output(pdata->gpio_reset, 0);
 	if (ret < 0)
 		return ret;
 
-	gpio_free(pdata->gpio_strobe);
-	gpio_free(pdata->gpio_reset);
 	return 0;
 }
 
@@ -819,18 +805,18 @@ static void *lm3554_platform_data_func(struct i2c_client *client)
 {
 	static struct lm3554_platform_data platform_data;
 
-	platform_data.gpio_reset =
-	    desc_to_gpio(gpiod_get_index(&client->dev,
-					 NULL, 2, GPIOD_OUT_LOW));
-	platform_data.gpio_strobe =
-	    desc_to_gpio(gpiod_get_index(&client->dev,
-					 NULL, 0, GPIOD_OUT_LOW));
-	platform_data.gpio_torch =
-	    desc_to_gpio(gpiod_get_index(&client->dev,
-					 NULL, 1, GPIOD_OUT_LOW));
-	dev_info(&client->dev, "camera pdata: lm3554: reset: %d strobe %d torch %d\n",
-		 platform_data.gpio_reset, platform_data.gpio_strobe,
-		 platform_data.gpio_torch);
+	platform_data.gpio_reset = gpiod_get_index(&client->dev,
+						   NULL, 2, GPIOD_OUT_LOW);
+	if (IS_ERR(platform_data.gpio_reset))
+		return ERR_CAST(platform_data.gpio_reset);
+	platform_data.gpio_strobe = gpiod_get_index(&client->dev,
+						    NULL, 0, GPIOD_OUT_LOW);
+	if (IS_ERR(platform_data.gpio_strobe))
+		return ERR_CAST(platform_data.gpio_strobe);
+	platform_data.gpio_torch = gpiod_get_index(&client->dev,
+						   NULL, 1, GPIOD_OUT_LOW);
+	if (IS_ERR(platform_data.gpio_torch))
+		return ERR_CAST(platform_data.gpio_torch);
 
 	/* Set to TX2 mode, then ENVM/TX2 pin is a power amplifier sync input:
 	 * ENVM/TX pin asserted, flash forced into torch;
@@ -857,6 +843,8 @@ static int lm3554_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	flash->pdata = lm3554_platform_data_func(client);
+	if (IS_ERR(flash->pdata))
+		return PTR_ERR(flash->pdata);
 
 	v4l2_i2c_subdev_init(&flash->sd, client, &lm3554_ops);
 	flash->sd.internal_ops = &lm3554_internal_ops;
