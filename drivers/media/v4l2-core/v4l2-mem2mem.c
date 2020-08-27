@@ -882,7 +882,6 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 				       struct poll_table_struct *wait)
 {
 	struct vb2_queue *src_q, *dst_q;
-	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
 	__poll_t rc = 0;
 	unsigned long flags;
 
@@ -903,32 +902,17 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 	     list_empty(&dst_q->queued_list)))
 		return EPOLLERR;
 
-	spin_lock_irqsave(&dst_q->done_lock, flags);
-	if (list_empty(&dst_q->done_list)) {
-		/*
-		 * If the last buffer was dequeued from the capture queue,
-		 * return immediately. DQBUF will return -EPIPE.
-		 */
-		if (dst_q->last_buffer_dequeued)
-			rc |= EPOLLIN | EPOLLRDNORM;
-	}
-	spin_unlock_irqrestore(&dst_q->done_lock, flags);
-
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
-		src_vb = list_first_entry(&src_q->done_list, struct vb2_buffer,
-						done_entry);
-	if (src_vb && (src_vb->state == VB2_BUF_STATE_DONE
-			|| src_vb->state == VB2_BUF_STATE_ERROR))
 		rc |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&src_q->done_lock, flags);
 
 	spin_lock_irqsave(&dst_q->done_lock, flags);
-	if (!list_empty(&dst_q->done_list))
-		dst_vb = list_first_entry(&dst_q->done_list, struct vb2_buffer,
-						done_entry);
-	if (dst_vb && (dst_vb->state == VB2_BUF_STATE_DONE
-			|| dst_vb->state == VB2_BUF_STATE_ERROR))
+	/*
+	 * If the last buffer was dequeued from the capture queue, signal
+	 * userspace. DQBUF(CAPTURE) will return -EPIPE.
+	 */
+	if (!list_empty(&dst_q->done_list) || dst_q->last_buffer_dequeued)
 		rc |= EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
