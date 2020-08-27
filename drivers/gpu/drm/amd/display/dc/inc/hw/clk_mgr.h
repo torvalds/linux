@@ -230,6 +230,8 @@ struct clk_mgr_funcs {
 
 	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 
+	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
+
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
 	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
