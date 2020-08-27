@@ -179,14 +179,12 @@
 		.endm
 
 		.macro	waituartcts, rd, rx
-#ifdef FLOW_CONTROL
 		cmp	\rx, #0
 		beq	1002f
 1001:		ldrb	\rd, [\rx, #UART_MSR << UART_SHIFT]
 		tst	\rd, #UART_MSR_CTS
 		beq	1001b
 1002:
-#endif
 		.endm
 
 		.macro	waituarttxrdy,rd,rx
