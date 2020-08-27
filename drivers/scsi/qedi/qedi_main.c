@@ -789,8 +789,7 @@ static void qedi_ll2_free_skbs(struct qedi_ctx *qedi)
 	spin_lock_bh(&qedi->ll2_lock);
 	list_for_each_entry_safe(work, work_tmp, &qedi->ll2_skb_list, list) {
 		list_del(&work->list);
-		if (work->skb)
-			kfree_skb(work->skb);
+		kfree_skb(work->skb);
 		kfree(work);
 	}
 	spin_unlock_bh(&qedi->ll2_lock);
