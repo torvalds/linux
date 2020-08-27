@@ -433,14 +433,14 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		err = ionic_intr_alloc(lif, &new->intr);
 		if (err) {
 			netdev_warn(lif->netdev, "no intr for %s: %d\n",
-				    name, err);
+				    new->q.name, err);
 			goto err_out;
 		}
 
 		err = ionic_bus_get_irq(lif->ionic, new->intr.index);
 		if (err < 0) {
 			netdev_warn(lif->netdev, "no vector for %s: %d\n",
-				    name, err);
+				    new->q.name, err);
 			goto err_out_free_intr;
 		}
 		new->intr.vector = err;
@@ -449,7 +449,8 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 
 		err = ionic_request_irq(lif, new);
 		if (err) {
-			netdev_warn(lif->netdev, "irq request failed %d\n", err);
+			netdev_warn(lif->netdev, "irq request failed for %s: %d\n",
+				    new->q.name, err);
 			goto err_out_free_intr;
 		}
 
