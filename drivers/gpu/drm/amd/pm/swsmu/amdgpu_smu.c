@@ -466,6 +466,9 @@ static int smu_late_init(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
+
 	if (!smu->pm_enabled)
 		return 0;
 
@@ -1103,6 +1106,9 @@ static int smu_hw_init(void *handle)
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(&adev->smu, true);
 	}
+
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
 
 	if (!smu->pm_enabled)
 		return 0;
