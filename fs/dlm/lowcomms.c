@@ -1704,10 +1704,8 @@ int dlm_lowcomms_start(void)
 fail_unlisten:
 	dlm_allow_conn = 0;
 	con = nodeid2con(0,0);
-	if (con) {
-		close_connection(con, false, true, true);
-		kfree_rcu(con, rcu);
-	}
+	if (con)
+		free_conn(con);
 fail:
 	return error;
 }
