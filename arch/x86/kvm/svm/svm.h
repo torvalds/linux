@@ -85,7 +85,7 @@ struct svm_nested_state {
 	struct vmcb *hsave;
 	u64 hsave_msr;
 	u64 vm_cr_msr;
-	u64 vmcb;
+	u64 vmcb12_gpa;
 	u32 host_intercept_exceptions;
 
 	/* These are the merged vectors */
