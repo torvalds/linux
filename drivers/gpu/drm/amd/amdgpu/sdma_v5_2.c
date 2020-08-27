@@ -47,6 +47,8 @@
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sdma.bin");
 
+MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
+
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
 #define SDMA0_HYP_DEC_REG_START 0x5880
@@ -87,6 +89,7 @@ static void sdma_v5_2_init_golden_registers(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
 		break;
 	default:
 		break;
@@ -159,6 +162,9 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
+		break;
+	case CHIP_VANGOGH:
+		chip_name = "vangogh";
 		break;
 	default:
 		BUG();
@@ -1171,6 +1177,9 @@ static int sdma_v5_2_early_init(void *handle)
 	case CHIP_NAVY_FLOUNDER:
 		adev->sdma.num_instances = 2;
 		break;
+	case CHIP_VANGOGH:
+		adev->sdma.num_instances = 1;
+		break;
 	default:
 		break;
 	}
@@ -1567,6 +1576,7 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,
