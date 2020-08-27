@@ -21,6 +21,7 @@
 #include <linux/ctype.h>
 #include <linux/error-injection.h>
 #include <linux/bpf_lsm.h>
+#include <linux/btf_ids.h>
 
 #include "disasm.h"
 
@@ -9367,6 +9368,23 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	if (prog->aux->sleepable)
+		switch (map->map_type) {
+		case BPF_MAP_TYPE_HASH:
+		case BPF_MAP_TYPE_LRU_HASH:
+		case BPF_MAP_TYPE_ARRAY:
+			if (!is_preallocated_map(map)) {
+				verbose(env,
+					"Sleepable programs can only use preallocated hash maps\n");
+				return -EINVAL;
+			}
+			break;
+		default:
+			verbose(env,
+				"Sleepable programs can only use array and hash maps\n");
+			return -EINVAL;
+		}
+
 	return 0;
 }
 
@@ -10985,6 +11003,36 @@ static int check_attach_modify_return(struct bpf_prog *prog, unsigned long addr)
 	return -EINVAL;
 }
 
+/* non exhaustive list of sleepable bpf_lsm_*() functions */
+BTF_SET_START(btf_sleepable_lsm_hooks)
+#ifdef CONFIG_BPF_LSM
+BTF_ID(func, bpf_lsm_file_mprotect)
+BTF_ID(func, bpf_lsm_bprm_committed_creds)
+#endif
+BTF_SET_END(btf_sleepable_lsm_hooks)
+
+static int check_sleepable_lsm_hook(u32 btf_id)
+{
+	return btf_id_set_contains(&btf_sleepable_lsm_hooks, btf_id);
+}
+
+/* list of non-sleepable functions that are otherwise on
+ * ALLOW_ERROR_INJECTION list
+ */
+BTF_SET_START(btf_non_sleepable_error_inject)
+/* Three functions below can be called from sleepable and non-sleepable context.
+ * Assume non-sleepable from bpf safety point of view.
+ */
+BTF_ID(func, __add_to_page_cache_locked)
+BTF_ID(func, should_fail_alloc_page)
+BTF_ID(func, should_failslab)
+BTF_SET_END(btf_non_sleepable_error_inject)
+
+static int check_non_sleepable_error_inject(u32 btf_id)
+{
+	return btf_id_set_contains(&btf_non_sleepable_error_inject, btf_id);
+}
+
 static int check_attach_btf_id(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
@@ -11001,6 +11049,12 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	struct btf *btf;
 	long addr;
 	u64 key;
+
+	if (prog->aux->sleepable && prog->type != BPF_PROG_TYPE_TRACING &&
+	    prog->type != BPF_PROG_TYPE_LSM) {
+		verbose(env, "Only fentry/fexit/fmod_ret and lsm programs can be sleepable\n");
+		return -EINVAL;
+	}
 
 	if (prog->type == BPF_PROG_TYPE_STRUCT_OPS)
 		return check_struct_ops_btf_id(env);
@@ -11210,13 +11264,36 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 			}
 		}
 
-		if (prog->expected_attach_type == BPF_MODIFY_RETURN) {
+		if (prog->aux->sleepable) {
+			ret = -EINVAL;
+			switch (prog->type) {
+			case BPF_PROG_TYPE_TRACING:
+				/* fentry/fexit/fmod_ret progs can be sleepable only if they are
+				 * attached to ALLOW_ERROR_INJECTION and are not in denylist.
+				 */
+				if (!check_non_sleepable_error_inject(btf_id) &&
+				    within_error_injection_list(addr))
+					ret = 0;
+				break;
+			case BPF_PROG_TYPE_LSM:
+				/* LSM progs check that they are attached to bpf_lsm_*() funcs.
+				 * Only some of them are sleepable.
+				 */
+				if (check_sleepable_lsm_hook(btf_id))
+					ret = 0;
+				break;
+			default:
+				break;
+			}
+			if (ret)
+				verbose(env, "%s is not sleepable\n",
+					prog->aux->attach_func_name);
+		} else if (prog->expected_attach_type == BPF_MODIFY_RETURN) {
 			ret = check_attach_modify_return(prog, addr);
 			if (ret)
 				verbose(env, "%s() is not modifiable\n",
 					prog->aux->attach_func_name);
 		}
-
 		if (ret)
 			goto out;
 		tr->func.addr = (void *)addr;

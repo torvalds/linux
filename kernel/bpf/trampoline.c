@@ -7,6 +7,8 @@
 #include <linux/rbtree_latch.h>
 #include <linux/perf_event.h>
 #include <linux/btf.h>
+#include <linux/rcupdate_trace.h>
+#include <linux/rcupdate_wait.h>
 
 /* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
@@ -210,9 +212,12 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	 * updates to trampoline would change the code from underneath the
 	 * preempted task. Hence wait for tasks to voluntarily schedule or go
 	 * to userspace.
+	 * The same trampoline can hold both sleepable and non-sleepable progs.
+	 * synchronize_rcu_tasks_trace() is needed to make sure all sleepable
+	 * programs finish executing.
+	 * Wait for these two grace periods together.
 	 */
-
-	synchronize_rcu_tasks();
+	synchronize_rcu_mult(call_rcu_tasks, call_rcu_tasks_trace);
 
 	err = arch_prepare_bpf_trampoline(new_image, new_image + PAGE_SIZE / 2,
 					  &tr->func.model, flags, tprogs,
@@ -344,7 +349,14 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 	if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[BPF_TRAMP_FEXIT])))
 		goto out;
 	bpf_image_ksym_del(&tr->ksym);
-	/* wait for tasks to get out of trampoline before freeing it */
+	/* This code will be executed when all bpf progs (both sleepable and
+	 * non-sleepable) went through
+	 * bpf_prog_put()->call_rcu[_tasks_trace]()->bpf_prog_free_deferred().
+	 * Hence no need for another synchronize_rcu_tasks_trace() here,
+	 * but synchronize_rcu_tasks() is still needed, since trampoline
+	 * may not have had any sleepable programs and we need to wait
+	 * for tasks to get out of trampoline code before freeing it.
+	 */
 	synchronize_rcu_tasks();
 	bpf_jit_free_exec(tr->image);
 	hlist_del(&tr->hlist);
@@ -392,6 +404,16 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 	}
 	migrate_enable();
 	rcu_read_unlock();
+}
+
+void notrace __bpf_prog_enter_sleepable(void)
+{
+	rcu_read_lock_trace();
+}
+
+void notrace __bpf_prog_exit_sleepable(void)
+{
+	rcu_read_unlock_trace();
 }
 
 int __weak

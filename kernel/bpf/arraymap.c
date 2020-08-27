@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/btf.h>
+#include <linux/rcupdate_trace.h>
 
 #include "map_in_map.h"
 
