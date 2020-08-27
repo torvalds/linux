@@ -936,11 +936,11 @@ mt7915_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_HE_BASIC, sizeof(*he));
 
 	he = (struct bss_info_he *)tlv;
-	he->he_pe_duration = vif->bss_conf.htc_trig_based_pkt_ext * 4;
+	he->he_pe_duration = vif->bss_conf.htc_trig_based_pkt_ext;
 	if (!he->he_pe_duration)
 		he->he_pe_duration = DEFAULT_HE_PE_DURATION;
 
-	he->he_rts_thres = cpu_to_le16(vif->bss_conf.frame_time_rts_th * 32);
+	he->he_rts_thres = cpu_to_le16(vif->bss_conf.frame_time_rts_th);
 	if (!he->he_rts_thres)
 		he->he_rts_thres = cpu_to_le16(DEFAULT_HE_DURATION_RTS_THRES);
 
