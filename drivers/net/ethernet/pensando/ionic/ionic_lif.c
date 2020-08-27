@@ -1406,9 +1406,14 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 
 	netdev_info(lif->netdev, "Tx Timeout recovery\n");
 
-	rtnl_lock();
-	ionic_reset_queues(lif, NULL, NULL);
-	rtnl_unlock();
+	/* if we were stopped before this scheduled job was launched,
+	 * don't bother the queues as they are already stopped.
+	 */
+	if (!netif_running(lif->netdev))
+		return;
+
+	ionic_stop_queues_reconfig(lif);
+	ionic_start_queues_reconfig(lif);
 }
 
 static void ionic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
@@ -2276,34 +2281,6 @@ err_out:
 		lif->rxqcqs[i]->flags &= ~IONIC_QCQ_F_INTR;
 		ionic_qcq_free(lif, lif->rxqcqs[i]);
 	}
-
-	return err;
-}
-
-int ionic_reset_queues(struct ionic_lif *lif, ionic_reset_cb cb, void *arg)
-{
-	bool running;
-	int err = 0;
-
-	mutex_lock(&lif->queue_lock);
-	running = netif_running(lif->netdev);
-	if (running) {
-		netif_device_detach(lif->netdev);
-		err = ionic_stop(lif->netdev);
-		if (err)
-			goto reset_out;
-	}
-
-	if (cb)
-		cb(lif, arg);
-
-	if (running) {
-		err = ionic_open(lif->netdev);
-		netif_device_attach(lif->netdev);
-	}
-
-reset_out:
-	mutex_unlock(&lif->queue_lock);
 
 	return err;
 }
