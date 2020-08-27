@@ -810,8 +810,6 @@ static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 	if (card->options.sbp.hostnotification) {
 		if (qeth_bridgeport_an_set(card, 1))
 			card->options.sbp.hostnotification = 0;
-	} else {
-		qeth_bridgeport_an_set(card, 0);
 	}
 }
 
