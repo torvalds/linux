@@ -75,6 +75,8 @@
 
 #define DISABLE_FETCH_DTE_TIME_LIMIT BIT(31)
 
+#define CMD_RETRY_COUNT 10
+
  /*
   * Support mapping any size that fits in one page table:
   *   4 KiB to 4 MiB
@@ -134,6 +136,7 @@ struct rk_iommu {
 	bool skip_read;      /* rk3126/rk3128 can't read vop iommu registers */
 	bool dlr_disable; /* avoid access iommu when runtime ops called */
 	bool fetch_dte_time_limit; /* if have fetch dte time limit */
+	bool cmd_retry;
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
@@ -452,6 +455,7 @@ static int rk_iommu_enable_stall(struct rk_iommu *iommu)
 {
 	int ret, i;
 	bool val;
+	int retry_count = 0;
 
 	if (iommu->skip_read)
 		goto read_wa;
@@ -471,10 +475,14 @@ read_wa:
 	ret = readx_poll_timeout(rk_iommu_is_stall_active, iommu, val,
 				 val, RK_MMU_POLL_PERIOD_US,
 				 RK_MMU_POLL_TIMEOUT_US);
-	if (ret)
+	if (ret) {
 		for (i = 0; i < iommu->num_mmu; i++)
-			dev_err(iommu->dev, "Enable stall request timed out, status: %#08x\n",
+			dev_err(iommu->dev, "Enable stall request timed out, retry_count = %d, status: %#08x\n",
+				retry_count,
 				rk_iommu_read(iommu->bases[i], RK_MMU_STATUS));
+		if (iommu->cmd_retry && (retry_count++ < CMD_RETRY_COUNT))
+			goto read_wa;
+	}
 
 	return ret;
 }
@@ -483,6 +491,7 @@ static int rk_iommu_disable_stall(struct rk_iommu *iommu)
 {
 	int ret, i;
 	bool val;
+	int retry_count = 0;
 
 	if (iommu->skip_read)
 		goto read_wa;
@@ -498,10 +507,14 @@ read_wa:
 	ret = readx_poll_timeout(rk_iommu_is_stall_active, iommu, val,
 				 !val, RK_MMU_POLL_PERIOD_US,
 				 RK_MMU_POLL_TIMEOUT_US);
-	if (ret)
+	if (ret) {
 		for (i = 0; i < iommu->num_mmu; i++)
-			dev_err(iommu->dev, "Disable stall request timed out, status: %#08x\n",
+			dev_err(iommu->dev, "Disable stall request timed out, retry_count = %d, status: %#08x\n",
+				retry_count,
 				rk_iommu_read(iommu->bases[i], RK_MMU_STATUS));
+		if (iommu->cmd_retry && (retry_count++ < CMD_RETRY_COUNT))
+			goto read_wa;
+	}
 
 	return ret;
 }
@@ -510,6 +523,7 @@ static int rk_iommu_enable_paging(struct rk_iommu *iommu)
 {
 	int ret, i;
 	bool val;
+	int retry_count = 0;
 
 	if (iommu->skip_read)
 		goto read_wa;
@@ -525,10 +539,14 @@ read_wa:
 	ret = readx_poll_timeout(rk_iommu_is_paging_enabled, iommu, val,
 				 val, RK_MMU_POLL_PERIOD_US,
 				 RK_MMU_POLL_TIMEOUT_US);
-	if (ret)
+	if (ret) {
 		for (i = 0; i < iommu->num_mmu; i++)
-			dev_err(iommu->dev, "Enable paging request timed out, status: %#08x\n",
+			dev_err(iommu->dev, "Enable paging request timed out, retry_count = %d, status: %#08x\n",
+				retry_count,
 				rk_iommu_read(iommu->bases[i], RK_MMU_STATUS));
+		if (iommu->cmd_retry && (retry_count++ < CMD_RETRY_COUNT))
+			goto read_wa;
+	}
 
 	return ret;
 }
@@ -537,6 +555,7 @@ static int rk_iommu_disable_paging(struct rk_iommu *iommu)
 {
 	int ret, i;
 	bool val;
+	int retry_count = 0;
 
 	if (iommu->skip_read)
 		goto read_wa;
@@ -552,10 +571,14 @@ read_wa:
 	ret = readx_poll_timeout(rk_iommu_is_paging_enabled, iommu, val,
 				 !val, RK_MMU_POLL_PERIOD_US,
 				 RK_MMU_POLL_TIMEOUT_US);
-	if (ret)
+	if (ret) {
 		for (i = 0; i < iommu->num_mmu; i++)
-			dev_err(iommu->dev, "Disable paging request timed out, status: %#08x\n",
+			dev_err(iommu->dev, "Disable paging request timed out, retry_count = %d, status: %#08x\n",
+				retry_count,
 				rk_iommu_read(iommu->bases[i], RK_MMU_STATUS));
+		if (iommu->cmd_retry && (retry_count++ < CMD_RETRY_COUNT))
+			goto read_wa;
+	}
 
 	return ret;
 }
@@ -1634,8 +1657,11 @@ static int rk_iommu_probe(struct platform_device *pdev)
 					"rockchip,disable-device-link-resume");
 
 	if (of_machine_is_compatible("rockchip,rv1126") ||
-	    of_machine_is_compatible("rockchip,rv1109"))
+	    of_machine_is_compatible("rockchip,rv1109")) {
 		iommu->fetch_dte_time_limit = true;
+		iommu->cmd_retry = device_property_read_bool(dev,
+					"rockchip,enable-cmd-retry");
+	}
 
 	iommu->num_clocks = ARRAY_SIZE(rk_iommu_clocks);
 
