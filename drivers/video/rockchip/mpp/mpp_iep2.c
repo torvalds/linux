@@ -18,8 +18,8 @@
 #include <linux/dma-buf.h>
 #include <linux/uaccess.h>
 #include <linux/regmap.h>
-#include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/proc_fs.h>
 #include <soc/rockchip/pm_domains.h>
 
 #include "rockchip_iep2_regs.h"
@@ -216,10 +216,9 @@ struct iep2_dev {
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
 	struct mpp_clk_info sclk_info;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *procfs;
 #endif
-
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 	struct reset_control *rst_s;
@@ -749,41 +748,43 @@ static int iep2_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int iep2_debugfs_remove(struct mpp_dev *mpp)
+#ifdef CONFIG_PROC_FS
+static int iep2_procfs_remove(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	debugfs_remove_recursive(iep->debugfs);
+	if (iep->procfs) {
+		proc_remove(iep->procfs);
+		iep->procfs = NULL;
+	}
 
 	return 0;
 }
 
-static int iep2_debugfs_init(struct mpp_dev *mpp)
+static int iep2_procfs_init(struct mpp_dev *mpp)
 {
 	struct iep2_dev *iep = to_iep2_dev(mpp);
 
-	iep->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
-					  mpp->srv->debugfs);
-	if (IS_ERR_OR_NULL(iep->debugfs)) {
-		mpp_err("failed on open debugfs\n");
-		iep->debugfs = NULL;
+	iep->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (IS_ERR_OR_NULL(iep->procfs)) {
+		mpp_err("failed on mkdir\n");
+		iep->procfs = NULL;
 		return -EIO;
 	}
-	debugfs_create_u32("aclk", 0644,
-			   iep->debugfs, &iep->aclk_info.debug_rate_hz);
-	debugfs_create_u32("session_buffers", 0644,
-			   iep->debugfs, &mpp->session_max_buffers);
+	mpp_procfs_create_u32("aclk", 0644,
+			      iep->procfs, &iep->aclk_info.debug_rate_hz);
+	mpp_procfs_create_u32("session_buffers", 0644,
+			      iep->procfs, &mpp->session_max_buffers);
 
 	return 0;
 }
 #else
-static inline int iep2_debugfs_remove(struct mpp_dev *mpp)
+static inline int iep2_procfs_remove(struct mpp_dev *mpp)
 {
 	return 0;
 }
 
-static inline int iep2_debugfs_init(struct mpp_dev *mpp)
+static inline int iep2_procfs_init(struct mpp_dev *mpp)
 {
 	return 0;
 }
@@ -973,7 +974,7 @@ static int iep2_probe(struct platform_device *pdev)
 	}
 
 	mpp->session_max_buffers = IEP2_SESSION_MAX_BUFFERS;
-	iep2_debugfs_init(mpp);
+	iep2_procfs_init(mpp);
 	dev_info(dev, "probing finish\n");
 
 	return 0;
@@ -988,7 +989,7 @@ static int iep2_remove(struct platform_device *pdev)
 
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(&iep->mpp);
-	iep2_debugfs_remove(&iep->mpp);
+	iep2_procfs_remove(&iep->mpp);
 
 	return 0;
 }

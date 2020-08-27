@@ -22,10 +22,10 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/regmap.h>
-#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/thermal.h>
 #include <linux/notifier.h>
+#include <linux/proc_fs.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/regulator/consumer.h>
 
@@ -160,10 +160,9 @@ struct rkvdec_dev {
 	struct mpp_clk_info core_clk_info;
 	struct mpp_clk_info cabac_clk_info;
 	struct mpp_clk_info hevc_cabac_clk_info;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *procfs;
 #endif
-
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 	struct reset_control *rst_niu_a;
@@ -1106,47 +1105,49 @@ static int rkvdec_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int rkvdec_debugfs_remove(struct mpp_dev *mpp)
+#ifdef CONFIG_PROC_FS
+static int rkvdec_procfs_remove(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
-	debugfs_remove_recursive(dec->debugfs);
+	if (dec->procfs) {
+		proc_remove(dec->procfs);
+		dec->procfs = NULL;
+	}
 
 	return 0;
 }
 
-static int rkvdec_debugfs_init(struct mpp_dev *mpp)
+static int rkvdec_procfs_init(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
-	dec->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
-					  mpp->srv->debugfs);
-	if (IS_ERR_OR_NULL(dec->debugfs)) {
-		mpp_err("failed on open debugfs\n");
-		dec->debugfs = NULL;
+	dec->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (IS_ERR_OR_NULL(dec->procfs)) {
+		mpp_err("failed on open procfs\n");
+		dec->procfs = NULL;
 		return -EIO;
 	}
-	debugfs_create_u32("aclk", 0644,
-			   dec->debugfs, &dec->aclk_info.debug_rate_hz);
-	debugfs_create_u32("clk_core", 0644,
-			   dec->debugfs, &dec->core_clk_info.debug_rate_hz);
-	debugfs_create_u32("clk_cabac", 0644,
-			   dec->debugfs, &dec->cabac_clk_info.debug_rate_hz);
-	debugfs_create_u32("clk_hevc_cabac", 0644,
-			   dec->debugfs, &dec->hevc_cabac_clk_info.debug_rate_hz);
-	debugfs_create_u32("session_buffers", 0644,
-			   dec->debugfs, &mpp->session_max_buffers);
+	mpp_procfs_create_u32("aclk", 0644,
+			      dec->procfs, &dec->aclk_info.debug_rate_hz);
+	mpp_procfs_create_u32("clk_core", 0644,
+			      dec->procfs, &dec->core_clk_info.debug_rate_hz);
+	mpp_procfs_create_u32("clk_cabac", 0644,
+			      dec->procfs, &dec->cabac_clk_info.debug_rate_hz);
+	mpp_procfs_create_u32("clk_hevc_cabac", 0644,
+			      dec->procfs, &dec->hevc_cabac_clk_info.debug_rate_hz);
+	mpp_procfs_create_u32("session_buffers", 0644,
+			      dec->procfs, &mpp->session_max_buffers);
 
 	return 0;
 }
 #else
-static inline int rkvdec_debugfs_remove(struct mpp_dev *mpp)
+static inline int rkvdec_procfs_remove(struct mpp_dev *mpp)
 {
 	return 0;
 }
 
-static inline int rkvdec_debugfs_init(struct mpp_dev *mpp)
+static inline int rkvdec_procfs_init(struct mpp_dev *mpp)
 {
 	return 0;
 }
@@ -1766,7 +1767,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 
 	dec->state = RKVDEC_STATE_NORMAL;
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
-	rkvdec_debugfs_init(mpp);
+	rkvdec_procfs_init(mpp);
 	dev_info(dev, "probing finish\n");
 
 	return 0;
@@ -1779,7 +1780,7 @@ static int rkvdec_remove(struct platform_device *pdev)
 
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(&dec->mpp);
-	rkvdec_debugfs_remove(&dec->mpp);
+	rkvdec_procfs_remove(&dec->mpp);
 
 	return 0;
 }

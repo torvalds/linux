@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/regmap.h>
-#include <linux/debugfs.h>
+#include <linux/proc_fs.h>
 #include <soc/rockchip/pm_domains.h>
 
 #include "mpp_debug.h"
@@ -95,10 +95,9 @@ struct vepu_dev {
 
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *procfs;
 #endif
-
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 };
@@ -407,41 +406,43 @@ static int vepu_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int vepu_debugfs_remove(struct mpp_dev *mpp)
+#ifdef CONFIG_PROC_FS
+static int vepu_procfs_remove(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	debugfs_remove_recursive(enc->debugfs);
+	if (enc->procfs) {
+		proc_remove(enc->procfs);
+		enc->procfs = NULL;
+	}
 
 	return 0;
 }
 
-static int vepu_debugfs_init(struct mpp_dev *mpp)
+static int vepu_procfs_init(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
-	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
-					  mpp->srv->debugfs);
-	if (IS_ERR_OR_NULL(enc->debugfs)) {
-		mpp_err("failed on open debugfs\n");
-		enc->debugfs = NULL;
+	enc->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (IS_ERR_OR_NULL(enc->procfs)) {
+		mpp_err("failed on open procfs\n");
+		enc->procfs = NULL;
 		return -EIO;
 	}
-	debugfs_create_u32("aclk", 0644,
-			   enc->debugfs, &enc->aclk_info.debug_rate_hz);
-	debugfs_create_u32("session_buffers", 0644,
-			   enc->debugfs, &mpp->session_max_buffers);
+	mpp_procfs_create_u32("aclk", 0644,
+			      enc->procfs, &enc->aclk_info.debug_rate_hz);
+	mpp_procfs_create_u32("session_buffers", 0644,
+			      enc->procfs, &mpp->session_max_buffers);
 
 	return 0;
 }
 #else
-static inline int vepu_debugfs_remove(struct mpp_dev *mpp)
+static inline int vepu_procfs_remove(struct mpp_dev *mpp)
 {
 	return 0;
 }
 
-static inline int vepu_debugfs_init(struct mpp_dev *mpp)
+static inline int vepu_procfs_init(struct mpp_dev *mpp)
 {
 	return 0;
 }
@@ -636,7 +637,7 @@ static int vepu_probe(struct platform_device *pdev)
 	}
 
 	mpp->session_max_buffers = VEPU2_SESSION_MAX_BUFFERS;
-	vepu_debugfs_init(mpp);
+	vepu_procfs_init(mpp);
 	dev_info(dev, "probing finish\n");
 
 	return 0;
@@ -649,7 +650,7 @@ static int vepu_remove(struct platform_device *pdev)
 
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(&enc->mpp);
-	vepu_debugfs_remove(&enc->mpp);
+	vepu_procfs_remove(&enc->mpp);
 
 	return 0;
 }

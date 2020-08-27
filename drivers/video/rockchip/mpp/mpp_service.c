@@ -12,9 +12,9 @@
 
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
 
@@ -140,31 +140,34 @@ static int mpp_remove_service(struct mpp_service *srv)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int mpp_debugfs_remove(struct mpp_service *srv)
+#ifdef CONFIG_PROC_FS
+static int mpp_procfs_remove(struct mpp_service *srv)
 {
-	debugfs_remove_recursive(srv->debugfs);
+	if (srv->procfs) {
+		proc_remove(srv->procfs);
+		srv->procfs = NULL;
+	}
 
 	return 0;
 }
 
-static int mpp_debugfs_init(struct mpp_service *srv)
+static int mpp_procfs_init(struct mpp_service *srv)
 {
-	srv->debugfs = debugfs_create_dir(MPP_SERVICE_NAME, NULL);
-	if (IS_ERR_OR_NULL(srv->debugfs)) {
-		mpp_err("failed on open debugfs\n");
-		srv->debugfs = NULL;
+	srv->procfs = proc_mkdir(MPP_SERVICE_NAME, NULL);
+	if (IS_ERR_OR_NULL(srv->procfs)) {
+		mpp_err("failed on mkdir /proc/%s\n", MPP_SERVICE_NAME);
+		srv->procfs = NULL;
 	}
 
 	return 0;
 }
 #else
-static inline int mpp_debugfs_remove(struct mpp_service *srv)
+static inline int mpp_procfs_remove(struct mpp_service *srv)
 {
 	return 0;
 }
 
-static inline int mpp_debugfs_init(struct mpp_service *srv)
+static inline int mpp_procfs_init(struct mpp_service *srv)
 {
 	return 0;
 }
@@ -239,7 +242,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 		dev_err(dev, "register %s device\n", MPP_SERVICE_NAME);
 		goto fail_register;
 	}
-	mpp_debugfs_init(srv);
+	mpp_procfs_init(srv);
 
 	/* register sub drivers */
 	MPP_REGISTER_DRIVER(srv, RKVDEC, rkvdec);
@@ -275,7 +278,7 @@ static int mpp_service_remove(struct platform_device *pdev)
 
 	mpp_remove_service(srv);
 	class_destroy(srv->cls);
-	mpp_debugfs_remove(srv);
+	mpp_procfs_remove(srv);
 
 	return 0;
 }
