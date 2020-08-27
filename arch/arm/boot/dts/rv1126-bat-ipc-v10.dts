@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "rv1126.dtsi"
 #include "rv1126-ipc.dtsi"
+#include "rv1126-thunder-boot-emmc.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -13,7 +14,7 @@
 	compatible = "rockchip,rv1126-bat-ipc-v10", "rockchip,rv1126";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7 driver_async_probe=dwmmc_rockchip";
 	};
 
 	adc-keys {
