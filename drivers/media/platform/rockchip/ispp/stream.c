@@ -2201,7 +2201,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 	struct dma_buf *dbuf;
 	unsigned long lock_flags = 0;
 	u32 val, size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
-	bool is_3to1 = vdev->tnr.is_3to1, is_start = false;
+	bool is_3to1 = vdev->tnr.is_3to1, is_start = false, is_skip = false;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
 	    (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK))
@@ -2274,36 +2274,40 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (vdev->tnr.cur_rd && vdev->tnr.nxt_rd && vdev->tnr.is_end) {
 		struct rkispp_isp_buf_pool *buf;
 
-		buf = get_pool_buf(dev, vdev->tnr.cur_rd);
-		val = buf->dma[GROUP_BUF_PIC];
-		rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
-		val += vdev->tnr.uv_offset;
-		rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val);
-
-		val = buf->dma[GROUP_BUF_GAIN];
-		rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
-		if (rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN) {
-			rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0,
-					GLB_NR_SD32_TNR);
+		if (list_empty(list)) {
+			is_skip = true;
 		} else {
-			rkispp_clear_bits(dev, RKISPP_CTRL_QUICK,
-					  GLB_NR_SD32_TNR);
-			rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
-		}
-		if (is_3to1) {
-			buf = get_pool_buf(dev, vdev->tnr.nxt_rd);
+			buf = get_pool_buf(dev, vdev->tnr.cur_rd);
 			val = buf->dma[GROUP_BUF_PIC];
-			rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
+			rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
 			val += vdev->tnr.uv_offset;
-			rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val);
+			rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val);
 
 			val = buf->dma[GROUP_BUF_GAIN];
-			rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
+			rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
+			if (rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN) {
+				rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0,
+						GLB_NR_SD32_TNR);
+			} else {
+				rkispp_clear_bits(dev, RKISPP_CTRL_QUICK,
+						  GLB_NR_SD32_TNR);
+				rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
+			}
+			if (is_3to1) {
+				buf = get_pool_buf(dev, vdev->tnr.nxt_rd);
+				val = buf->dma[GROUP_BUF_PIC];
+				rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
+				val += vdev->tnr.uv_offset;
+				rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val);
 
-			if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
-				vdev->tnr.cur_rd = NULL;
+				val = buf->dma[GROUP_BUF_GAIN];
+				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
+
+				if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
+					vdev->tnr.cur_rd = NULL;
+			}
+			is_start = true;
 		}
-		is_start = true;
 	}
 
 	if (stream->streaming &&
@@ -2355,6 +2359,14 @@ static void tnr_work_event(struct rkispp_device *dev,
 			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;
+	}
+
+	if (is_skip) {
+		v4l2_subdev_call(sd, video, s_rx_buffer,
+				 vdev->tnr.cur_rd, NULL);
+		if (vdev->tnr.cur_rd == vdev->tnr.nxt_rd)
+			vdev->tnr.nxt_rd = NULL;
+		vdev->tnr.cur_rd = NULL;
 	}
 	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
 }
