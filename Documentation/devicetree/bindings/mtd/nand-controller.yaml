@@ -68,6 +68,14 @@ patternProperties:
           3/ The ECC engine is external, in this case the phandle should
           reference the specific ECC engine node.
 
+      nand-use-soft-ecc-engine:
+        type: boolean
+        description: Use a software ECC engine.
+
+      nand-no-ecc-engine:
+        type: boolean
+        description: Do not use any ECC correction.
+
       nand-ecc-placement:
         allOf:
           - $ref: /schemas/types.yaml#/definitions/string
