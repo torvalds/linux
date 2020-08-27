@@ -3899,21 +3899,28 @@ static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *nested_vmcb;
 	struct kvm_host_map map;
-	u64 guest;
-	u64 vmcb;
 	int ret = 0;
 
-	guest = GET_SMSTATE(u64, smstate, 0x7ed8);
-	vmcb = GET_SMSTATE(u64, smstate, 0x7ee0);
+	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
+		u64 saved_efer = GET_SMSTATE(u64, smstate, 0x7ed0);
+		u64 guest = GET_SMSTATE(u64, smstate, 0x7ed8);
+		u64 vmcb = GET_SMSTATE(u64, smstate, 0x7ee0);
 
-	if (guest) {
-		if (kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(vmcb), &map) == -EINVAL)
-			return 1;
-		nested_vmcb = map.hva;
-		ret = enter_svm_guest_mode(svm, vmcb, nested_vmcb);
-		kvm_vcpu_unmap(&svm->vcpu, &map, true);
+		if (guest) {
+			if (!guest_cpuid_has(vcpu, X86_FEATURE_SVM))
+				return 1;
+
+			if (!(saved_efer & EFER_SVME))
+				return 1;
+
+			if (kvm_vcpu_map(&svm->vcpu,
+					 gpa_to_gfn(vmcb), &map) == -EINVAL)
+				return 1;
+
+			ret = enter_svm_guest_mode(svm, vmcb, map.hva);
+			kvm_vcpu_unmap(&svm->vcpu, &map, true);
+		}
 	}
 
 	return ret;
