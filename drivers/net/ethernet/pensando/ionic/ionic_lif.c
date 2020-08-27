@@ -522,7 +522,6 @@ err_out:
 static int ionic_qcqs_alloc(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
-	unsigned int q_list_size;
 	unsigned int flags;
 	int err;
 	int i;
@@ -552,9 +551,9 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 		ionic_link_qcq_interrupts(lif->adminqcq, lif->notifyqcq);
 	}
 
-	q_list_size = sizeof(*lif->txqcqs) * lif->nxqs;
 	err = -ENOMEM;
-	lif->txqcqs = devm_kzalloc(dev, q_list_size, GFP_KERNEL);
+	lif->txqcqs = devm_kcalloc(dev, lif->ionic->ntxqs_per_lif,
+				   sizeof(*lif->txqcqs), GFP_KERNEL);
 	if (!lif->txqcqs)
 		goto err_out_free_notifyqcq;
 	for (i = 0; i < lif->nxqs; i++) {
@@ -565,7 +564,8 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 			goto err_out_free_tx_stats;
 	}
 
-	lif->rxqcqs = devm_kzalloc(dev, q_list_size, GFP_KERNEL);
+	lif->rxqcqs = devm_kcalloc(dev, lif->ionic->nrxqs_per_lif,
+				   sizeof(*lif->rxqcqs), GFP_KERNEL);
 	if (!lif->rxqcqs)
 		goto err_out_free_tx_stats;
 	for (i = 0; i < lif->nxqs; i++) {
