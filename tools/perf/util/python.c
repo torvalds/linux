@@ -17,7 +17,7 @@
 #include "mmap.h"
 #include "util/env.h"
 #include <internal/lib.h>
-#include "../perf-sys.h"
+#include "util.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
