@@ -283,6 +283,7 @@ static const struct sdhci_pltfm_data sdhci_bcm2711_pltfm_data = {
 
 static const struct sdhci_iproc_data bcm2711_data = {
 	.pdata = &sdhci_bcm2711_pltfm_data,
+	.mmc_caps = MMC_CAP_3_3V_DDR,
 };
 
 static const struct of_device_id sdhci_iproc_of_match[] = {
