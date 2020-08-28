@@ -91,7 +91,7 @@ static bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca, int pwm_idx)
 	mutex_lock(&pca->lock);
 	if (pwm_idx >= PCA9685_MAXCHAN) {
 		/*
-		 * "all LEDs" channel:
+		 * "All LEDs" channel:
 		 * pretend already in use if any of the PWMs are requested
 		 */
 		if (!bitmap_empty(pca->pwms_inuse, PCA9685_MAXCHAN)) {
@@ -100,7 +100,7 @@ static bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca, int pwm_idx)
 		}
 	} else {
 		/*
-		 * regular channel:
+		 * Regular channel:
 		 * pretend already in use if the "all LEDs" channel is requested
 		 */
 		if (test_bit(PCA9685_MAXCHAN, pca->pwms_inuse)) {
@@ -257,7 +257,7 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (prescale >= PCA9685_PRESCALE_MIN &&
 			prescale <= PCA9685_PRESCALE_MAX) {
 			/*
-			 * putting the chip briefly into SLEEP mode
+			 * Putting the chip briefly into SLEEP mode
 			 * at this point won't interfere with the
 			 * pm_runtime framework, because the pm_runtime
 			 * state is guaranteed active here.
@@ -475,12 +475,12 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 
 	regmap_write(pca->regmap, PCA9685_MODE2, mode2);
 
-	/* clear all "full off" bits */
+	/* Clear all "full off" bits */
 	regmap_write(pca->regmap, PCA9685_ALL_LED_OFF_L, 0);
 	regmap_write(pca->regmap, PCA9685_ALL_LED_OFF_H, 0);
 
 	pca->chip.ops = &pca9685_pwm_ops;
-	/* add an extra channel for ALL_LED */
+	/* Add an extra channel for ALL_LED */
 	pca->chip.npwm = PCA9685_MAXCHAN + 1;
 
 	pca->chip.dev = &client->dev;
@@ -496,10 +496,10 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* the chip comes out of power-up in the active state */
+	/* The chip comes out of power-up in the active state */
 	pm_runtime_set_active(&client->dev);
 	/*
-	 * enable will put the chip into suspend, which is what we
+	 * Enable will put the chip into suspend, which is what we
 	 * want as all outputs are disabled at this point
 	 */
 	pm_runtime_enable(&client->dev);
