@@ -8108,6 +8108,8 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 		capacity = 1;
 
 	cpu_rq(cpu)->cpu_capacity = capacity;
+	trace_sched_cpu_capacity_tp(cpu_rq(cpu));
+
 	sdg->sgc->capacity = capacity;
 	sdg->sgc->min_capacity = capacity;
 	sdg->sgc->max_capacity = capacity;
@@ -11320,6 +11322,18 @@ int sched_trace_rq_cpu(struct rq *rq)
 	return rq ? cpu_of(rq) : -1;
 }
 EXPORT_SYMBOL_GPL(sched_trace_rq_cpu);
+
+int sched_trace_rq_cpu_capacity(struct rq *rq)
+{
+	return rq ?
+#ifdef CONFIG_SMP
+		rq->cpu_capacity
+#else
+		SCHED_CAPACITY_SCALE
+#endif
+		: -1;
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_cpu_capacity);
 
 const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
 {
