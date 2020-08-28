@@ -115,6 +115,7 @@ struct idxd_wq {
 	struct dma_chan dma_chan;
 	char name[WQ_NAME_SIZE + 1];
 	u64 max_xfer_bytes;
+	u32 max_batch_size;
 };
 
 struct idxd_engine {
