@@ -28,10 +28,23 @@ struct xdp_buff_xsk {
 	struct list_head free_list_node;
 };
 
+struct xsk_dma_map {
+	dma_addr_t *dma_pages;
+	struct device *dev;
+	struct net_device *netdev;
+	refcount_t users;
+	struct list_head list; /* Protected by the RTNL_LOCK */
+	u32 dma_pages_cnt;
+	bool dma_need_sync;
+};
+
 struct xsk_buff_pool {
 	struct xsk_queue *fq;
 	struct xsk_queue *cq;
 	struct list_head free_list;
+	/* For performance reasons, each buff pool has its own array of dma_pages
+	 * even when they are identical.
+	 */
 	dma_addr_t *dma_pages;
 	struct xdp_buff_xsk *heads;
 	u64 chunk_mask;

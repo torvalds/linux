@@ -30,6 +30,7 @@ struct xdp_umem {
 	u8 flags;
 	int id;
 	bool zc;
+	struct list_head xsk_dma_list;
 };
 
 struct xsk_map {
