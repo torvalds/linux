@@ -83,6 +83,8 @@ struct am65_cpts_regs {
 #define AM65_CPTS_CONTROL_HW8_TS_PUSH_EN	BIT(15)
 #define AM65_CPTS_CONTROL_HW1_TS_PUSH_OFFSET	(8)
 
+#define AM65_CPTS_CONTROL_TX_GENF_CLR_EN	BIT(17)
+
 #define AM65_CPTS_CONTROL_TS_SYNC_SEL_MASK	(0xF)
 #define AM65_CPTS_CONTROL_TS_SYNC_SEL_SHIFT	(28)
 
@@ -986,7 +988,9 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 
 	am65_cpts_set_add_val(cpts);
 
-	am65_cpts_write32(cpts, AM65_CPTS_CONTROL_EN | AM65_CPTS_CONTROL_64MODE,
+	am65_cpts_write32(cpts, AM65_CPTS_CONTROL_EN |
+			  AM65_CPTS_CONTROL_64MODE |
+			  AM65_CPTS_CONTROL_TX_GENF_CLR_EN,
 			  control);
 	am65_cpts_write32(cpts, AM65_CPTS_INT_ENABLE_TS_PEND_EN, int_enable);
 
