@@ -99,7 +99,7 @@ static int meson_cipher(struct skcipher_request *areq)
 	unsigned int keyivlen, ivsize, offset, tloffset;
 	dma_addr_t phykeyiv;
 	void *backup_iv = NULL, *bkeyiv;
-	__le32 v;
+	u32 v;
 
 	algt = container_of(alg, struct meson_alg_template, alg.skcipher);
 
