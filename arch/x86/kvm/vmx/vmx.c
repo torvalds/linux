@@ -7016,8 +7016,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	if (nested)
-		nested_vmx_setup_ctls_msrs(&vmx->nested.msrs,
-					   vmx_capability.ept);
+		memcpy(&vmx->nested.msrs, &vmcs_config.nested, sizeof(vmx->nested.msrs));
 	else
 		memset(&vmx->nested.msrs, 0, sizeof(vmx->nested.msrs));
 
