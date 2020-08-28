@@ -212,6 +212,7 @@
 	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_b>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_b>;
 	bus-width = <8>;
+	mmc-ddr-3_3v;
 	no-1-8-v;
 	no-sd;
 	no-sdio;
