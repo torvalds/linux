@@ -161,9 +161,11 @@
 			};
 
 			timer2: dual-timer@2000 {
-				compatible = "arm,sp804";
+				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x2000 0x1000>;
-				clocks = <&sysclk>;
+				clocks = <&sysclk>, <&sysclk>, <&sysclk>;
+				clock-names = "timer0clk", "timer1clk",
+					       "apb_pclk";
 				interrupts = <10>;
 				status = "disabled";
 			};
