@@ -64,6 +64,7 @@ struct mtk_disp_rdma {
 	struct mtk_ddp_comp		ddp_comp;
 	struct drm_crtc			*crtc;
 	struct clk			*clk;
+	void __iomem			*regs;
 	const struct mtk_disp_rdma_data	*data;
 };
 
@@ -78,7 +79,7 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 	struct mtk_ddp_comp *rdma = &priv->ddp_comp;
 
 	/* Clear frame completion interrupt */
-	writel(0x0, rdma->regs + DISP_REG_RDMA_INT_STATUS);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
 	if (!priv->crtc)
 		return IRQ_NONE;
@@ -91,10 +92,11 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 static void rdma_update_bits(struct mtk_ddp_comp *comp, unsigned int reg,
 			     unsigned int mask, unsigned int val)
 {
-	unsigned int tmp = readl(comp->regs + reg);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(comp->dev);
+	unsigned int tmp = readl(rdma->regs + reg);
 
 	tmp = (tmp & ~mask) | (val & mask);
-	writel(tmp, comp->regs + reg);
+	writel(tmp, rdma->regs + reg);
 }
 
 static void mtk_rdma_enable_vblank(struct mtk_ddp_comp *comp,
@@ -148,9 +150,9 @@ static void mtk_rdma_config(struct mtk_ddp_comp *comp, unsigned int width,
 	unsigned int reg;
 	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 
-	mtk_ddp_write_mask(cmdq_pkt, width, comp,
+	mtk_ddp_write_mask(cmdq_pkt, width, comp, rdma->regs,
 			   DISP_REG_RDMA_SIZE_CON_0, 0xfff);
-	mtk_ddp_write_mask(cmdq_pkt, height, comp,
+	mtk_ddp_write_mask(cmdq_pkt, height, comp, rdma->regs,
 			   DISP_REG_RDMA_SIZE_CON_1, 0xfffff);
 
 	/*
@@ -163,7 +165,7 @@ static void mtk_rdma_config(struct mtk_ddp_comp *comp, unsigned int width,
 	reg = RDMA_FIFO_UNDERFLOW_EN |
 	      RDMA_FIFO_PSEUDO_SIZE(RDMA_FIFO_SIZE(rdma)) |
 	      RDMA_OUTPUT_VALID_FIFO_THRESHOLD(threshold);
-	mtk_ddp_write(cmdq_pkt, reg, comp, DISP_REG_RDMA_FIFO_CON);
+	mtk_ddp_write(cmdq_pkt, reg, comp, rdma->regs, DISP_REG_RDMA_FIFO_CON);
 }
 
 static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
@@ -220,25 +222,25 @@ static void mtk_rdma_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	unsigned int con;
 
 	con = rdma_fmt_convert(rdma, fmt);
-	mtk_ddp_write_relaxed(cmdq_pkt, con, comp, DISP_RDMA_MEM_CON);
+	mtk_ddp_write_relaxed(cmdq_pkt, con, comp, rdma->regs, DISP_RDMA_MEM_CON);
 
 	if (fmt == DRM_FORMAT_UYVY || fmt == DRM_FORMAT_YUYV) {
-		mtk_ddp_write_mask(cmdq_pkt, RDMA_MATRIX_ENABLE, comp,
+		mtk_ddp_write_mask(cmdq_pkt, RDMA_MATRIX_ENABLE, comp, rdma->regs,
 				   DISP_REG_RDMA_SIZE_CON_0,
 				   RDMA_MATRIX_ENABLE);
 		mtk_ddp_write_mask(cmdq_pkt, RDMA_MATRIX_INT_MTX_BT601_to_RGB,
-				   comp, DISP_REG_RDMA_SIZE_CON_0,
+				   comp, rdma->regs, DISP_REG_RDMA_SIZE_CON_0,
 				   RDMA_MATRIX_INT_MTX_SEL);
 	} else {
-		mtk_ddp_write_mask(cmdq_pkt, 0, comp,
+		mtk_ddp_write_mask(cmdq_pkt, 0, comp, rdma->regs,
 				   DISP_REG_RDMA_SIZE_CON_0,
 				   RDMA_MATRIX_ENABLE);
 	}
-	mtk_ddp_write_relaxed(cmdq_pkt, addr, comp, DISP_RDMA_MEM_START_ADDR);
-	mtk_ddp_write_relaxed(cmdq_pkt, pitch, comp, DISP_RDMA_MEM_SRC_PITCH);
-	mtk_ddp_write(cmdq_pkt, RDMA_MEM_GMC, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, addr, comp, rdma->regs, DISP_RDMA_MEM_START_ADDR);
+	mtk_ddp_write_relaxed(cmdq_pkt, pitch, comp, rdma->regs, DISP_RDMA_MEM_SRC_PITCH);
+	mtk_ddp_write(cmdq_pkt, RDMA_MEM_GMC, comp, rdma->regs,
 		      DISP_RDMA_MEM_GMC_SETTING_0);
-	mtk_ddp_write_mask(cmdq_pkt, RDMA_MODE_MEMORY, comp,
+	mtk_ddp_write_mask(cmdq_pkt, RDMA_MODE_MEMORY, comp, rdma->regs,
 			   DISP_REG_RDMA_GLOBAL_CON, RDMA_MODE_MEMORY);
 
 }
@@ -291,6 +293,7 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_rdma *priv;
+	struct resource *res;
 	int comp_id;
 	int irq;
 	int ret;
@@ -307,6 +310,13 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "failed to get rdma clk\n");
 		return PTR_ERR(priv->clk);
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->regs)) {
+		dev_err(dev, "failed to ioremap rdma\n");
+		return PTR_ERR(priv->regs);
 	}
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_RDMA);
@@ -326,8 +336,8 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	}
 
 	/* Disable and clear pending interrupts */
-	writel(0x0, priv->ddp_comp.regs + DISP_REG_RDMA_INT_ENABLE);
-	writel(0x0, priv->ddp_comp.regs + DISP_REG_RDMA_INT_STATUS);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_ENABLE);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
 	ret = devm_request_irq(dev, irq, mtk_disp_rdma_irq_handler,
 			       IRQF_TRIGGER_NONE, dev_name(dev), priv);

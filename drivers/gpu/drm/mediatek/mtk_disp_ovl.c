@@ -73,6 +73,7 @@ struct mtk_disp_ovl {
 	struct mtk_ddp_comp		ddp_comp;
 	struct drm_crtc			*crtc;
 	struct clk			*clk;
+	void __iomem			*regs;
 	const struct mtk_disp_ovl_data	*data;
 };
 
@@ -87,7 +88,7 @@ static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 	struct mtk_ddp_comp *ovl = &priv->ddp_comp;
 
 	/* Clear frame completion interrupt */
-	writel(0x0, ovl->regs + DISP_REG_OVL_INTSTA);
+	writel(0x0, priv->regs + DISP_REG_OVL_INTSTA);
 
 	if (!priv->crtc)
 		return IRQ_NONE;
@@ -103,8 +104,8 @@ static void mtk_ovl_enable_vblank(struct mtk_ddp_comp *comp,
 	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
 	ovl->crtc = crtc;
-	writel(0x0, comp->regs + DISP_REG_OVL_INTSTA);
-	writel_relaxed(OVL_FME_CPL_INT, comp->regs + DISP_REG_OVL_INTEN);
+	writel(0x0, ovl->regs + DISP_REG_OVL_INTSTA);
+	writel_relaxed(OVL_FME_CPL_INT, ovl->regs + DISP_REG_OVL_INTEN);
 }
 
 static void mtk_ovl_disable_vblank(struct mtk_ddp_comp *comp)
@@ -112,7 +113,7 @@ static void mtk_ovl_disable_vblank(struct mtk_ddp_comp *comp)
 	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
 	ovl->crtc = NULL;
-	writel_relaxed(0x0, comp->regs + DISP_REG_OVL_INTEN);
+	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_INTEN);
 }
 
 static int mtk_ovl_clk_enable(struct device *dev)
@@ -131,25 +132,31 @@ static void mtk_ovl_clk_disable(struct device *dev)
 
 static void mtk_ovl_start(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x1, comp->regs + DISP_REG_OVL_EN);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x1, ovl->regs + DISP_REG_OVL_EN);
 }
 
 static void mtk_ovl_stop(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x0, comp->regs + DISP_REG_OVL_EN);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_EN);
 }
 
 static void mtk_ovl_config(struct mtk_ddp_comp *comp, unsigned int w,
 			   unsigned int h, unsigned int vrefresh,
 			   unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	if (w != 0 && h != 0)
-		mtk_ddp_write_relaxed(cmdq_pkt, h << 16 | w, comp,
-				      DISP_REG_OVL_ROI_SIZE);
-	mtk_ddp_write_relaxed(cmdq_pkt, 0x0, comp, DISP_REG_OVL_ROI_BGCLR);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, 0x1, comp, DISP_REG_OVL_RST);
-	mtk_ddp_write(cmdq_pkt, 0x0, comp, DISP_REG_OVL_RST);
+	if (w != 0 && h != 0)
+		mtk_ddp_write_relaxed(cmdq_pkt, h << 16 | w, comp, ovl->regs,
+				      DISP_REG_OVL_ROI_SIZE);
+	mtk_ddp_write_relaxed(cmdq_pkt, 0x0, comp, ovl->regs, DISP_REG_OVL_ROI_BGCLR);
+
+	mtk_ddp_write(cmdq_pkt, 0x1, comp, ovl->regs, DISP_REG_OVL_RST);
+	mtk_ddp_write(cmdq_pkt, 0x0, comp, ovl->regs, DISP_REG_OVL_RST);
 }
 
 static unsigned int mtk_ovl_layer_nr(struct mtk_ddp_comp *comp)
@@ -201,7 +208,7 @@ static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx,
 	unsigned int gmc_value;
 	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
-	mtk_ddp_write(cmdq_pkt, 0x1, comp,
+	mtk_ddp_write(cmdq_pkt, 0x1, comp, ovl->regs,
 		      DISP_REG_OVL_RDMA_CTRL(idx));
 	gmc_thrshd_l = GMC_THRESHOLD_LOW >>
 		      (GMC_THRESHOLD_BITS - ovl->data->gmc_bits);
@@ -213,17 +220,19 @@ static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx,
 		gmc_value = gmc_thrshd_l | gmc_thrshd_l << 8 |
 			    gmc_thrshd_h << 16 | gmc_thrshd_h << 24;
 	mtk_ddp_write(cmdq_pkt, gmc_value,
-		      comp, DISP_REG_OVL_RDMA_GMC(idx));
-	mtk_ddp_write_mask(cmdq_pkt, BIT(idx), comp,
+		      comp, ovl->regs, DISP_REG_OVL_RDMA_GMC(idx));
+	mtk_ddp_write_mask(cmdq_pkt, BIT(idx), comp, ovl->regs,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
 }
 
 static void mtk_ovl_layer_off(struct mtk_ddp_comp *comp, unsigned int idx,
 			      struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write_mask(cmdq_pkt, 0, comp,
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write_mask(cmdq_pkt, 0, comp, ovl->regs,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
-	mtk_ddp_write(cmdq_pkt, 0, comp,
+	mtk_ddp_write(cmdq_pkt, 0, comp, ovl->regs,
 		      DISP_REG_OVL_RDMA_CTRL(idx));
 }
 
@@ -295,15 +304,15 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 		addr += pending->pitch - 1;
 	}
 
-	mtk_ddp_write_relaxed(cmdq_pkt, con, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, con, comp, ovl->regs,
 			      DISP_REG_OVL_CON(idx));
-	mtk_ddp_write_relaxed(cmdq_pkt, pitch, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, pitch, comp, ovl->regs,
 			      DISP_REG_OVL_PITCH(idx));
-	mtk_ddp_write_relaxed(cmdq_pkt, src_size, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, src_size, comp, ovl->regs,
 			      DISP_REG_OVL_SRC_SIZE(idx));
-	mtk_ddp_write_relaxed(cmdq_pkt, offset, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, offset, comp, ovl->regs,
 			      DISP_REG_OVL_OFFSET(idx));
-	mtk_ddp_write_relaxed(cmdq_pkt, addr, comp,
+	mtk_ddp_write_relaxed(cmdq_pkt, addr, comp, ovl->regs,
 			      DISP_REG_OVL_ADDR(ovl, idx));
 
 	mtk_ovl_layer_on(comp, idx, cmdq_pkt);
@@ -311,20 +320,22 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 
 static void mtk_ovl_bgclr_in_on(struct mtk_ddp_comp *comp)
 {
+	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 	unsigned int reg;
 
-	reg = readl(comp->regs + DISP_REG_OVL_DATAPATH_CON);
+	reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 	reg = reg | OVL_BGCLR_SEL_IN;
-	writel(reg, comp->regs + DISP_REG_OVL_DATAPATH_CON);
+	writel(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 }
 
 static void mtk_ovl_bgclr_in_off(struct mtk_ddp_comp *comp)
 {
+	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 	unsigned int reg;
 
-	reg = readl(comp->regs + DISP_REG_OVL_DATAPATH_CON);
+	reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 	reg = reg & ~OVL_BGCLR_SEL_IN;
-	writel(reg, comp->regs + DISP_REG_OVL_DATAPATH_CON);
+	writel(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 }
 
 static const struct mtk_ddp_comp_funcs mtk_disp_ovl_funcs = {
@@ -378,6 +389,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_ovl *priv;
+	struct resource *res;
 	int comp_id;
 	int irq;
 	int ret;
@@ -394,6 +406,13 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "failed to get ovl clk\n");
 		return PTR_ERR(priv->clk);
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->regs)) {
+		dev_err(dev, "failed to ioremap ovl\n");
+		return PTR_ERR(priv->regs);
 	}
 
 	priv->data = of_device_get_match_data(dev);

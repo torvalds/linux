@@ -88,10 +88,12 @@
 
 struct mtk_ddp_comp_dev {
 	struct clk *clk;
+	void __iomem *regs;
 };
 
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-		   struct mtk_ddp_comp *comp, unsigned int offset)
+		   struct mtk_ddp_comp *comp, void __iomem *regs,
+		   unsigned int offset)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (cmdq_pkt)
@@ -99,11 +101,11 @@ void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
 			       comp->regs_pa + offset, value);
 	else
 #endif
-		writel(value, comp->regs + offset);
+		writel(value, regs + offset);
 }
 
 void mtk_ddp_write_relaxed(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-			   struct mtk_ddp_comp *comp,
+			   struct mtk_ddp_comp *comp, void __iomem *regs,
 			   unsigned int offset)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
@@ -112,14 +114,12 @@ void mtk_ddp_write_relaxed(struct cmdq_pkt *cmdq_pkt, unsigned int value,
 			       comp->regs_pa + offset, value);
 	else
 #endif
-		writel_relaxed(value, comp->regs + offset);
+		writel_relaxed(value, regs + offset);
 }
 
-void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt,
-			unsigned int value,
-			struct mtk_ddp_comp *comp,
-			unsigned int offset,
-			unsigned int mask)
+void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt, unsigned int value,
+			struct mtk_ddp_comp *comp, void __iomem *regs,
+			unsigned int offset, unsigned int mask)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (cmdq_pkt) {
@@ -127,10 +127,10 @@ void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt,
 				    comp->regs_pa + offset, value, mask);
 	} else {
 #endif
-		u32 tmp = readl(comp->regs + offset);
+		u32 tmp = readl(regs + offset);
 
 		tmp = (tmp & ~mask) | (value & mask);
-		writel(tmp, comp->regs + offset);
+		writel(tmp, regs + offset);
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	}
 #endif
@@ -153,25 +153,27 @@ static void mtk_ddp_clk_disable(struct device *dev)
 void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
 		    unsigned int CFG, struct cmdq_pkt *cmdq_pkt)
 {
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
 	/* If bpc equal to 0, the dithering function didn't be enabled */
 	if (bpc == 0)
 		return;
 
 	if (bpc >= MTK_MIN_BPC) {
-		mtk_ddp_write(cmdq_pkt, 0, comp, DISP_DITHER_5);
-		mtk_ddp_write(cmdq_pkt, 0, comp, DISP_DITHER_7);
+		mtk_ddp_write(cmdq_pkt, 0, comp, priv->regs, DISP_DITHER_5);
+		mtk_ddp_write(cmdq_pkt, 0, comp, priv->regs, DISP_DITHER_7);
 		mtk_ddp_write(cmdq_pkt,
 			      DITHER_LSB_ERR_SHIFT_R(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_R(MTK_MAX_BPC - bpc) |
 			      DITHER_NEW_BIT_MODE,
-			      comp, DISP_DITHER_15);
+			      comp, priv->regs, DISP_DITHER_15);
 		mtk_ddp_write(cmdq_pkt,
 			      DITHER_LSB_ERR_SHIFT_B(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_B(MTK_MAX_BPC - bpc) |
 			      DITHER_LSB_ERR_SHIFT_G(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_G(MTK_MAX_BPC - bpc),
-			      comp, DISP_DITHER_16);
-		mtk_ddp_write(cmdq_pkt, DISP_DITHERING, comp, CFG);
+			      comp, priv->regs, DISP_DITHER_16);
+		mtk_ddp_write(cmdq_pkt, DISP_DITHERING, comp, priv->regs, CFG);
 	}
 }
 
@@ -179,54 +181,72 @@ static void mtk_od_config(struct mtk_ddp_comp *comp, unsigned int w,
 			  unsigned int h, unsigned int vrefresh,
 			  unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write(cmdq_pkt, w << 16 | h, comp, DISP_OD_SIZE);
-	mtk_ddp_write(cmdq_pkt, OD_RELAYMODE, comp, DISP_OD_CFG);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write(cmdq_pkt, w << 16 | h, comp, priv->regs, DISP_OD_SIZE);
+	mtk_ddp_write(cmdq_pkt, OD_RELAYMODE, comp, priv->regs, DISP_OD_CFG);
 	mtk_dither_set(comp, bpc, DISP_OD_CFG, cmdq_pkt);
 }
 
 static void mtk_od_start(struct mtk_ddp_comp *comp)
 {
-	writel(1, comp->regs + DISP_OD_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(1, priv->regs + DISP_OD_EN);
 }
 
 static void mtk_ufoe_start(struct mtk_ddp_comp *comp)
 {
-	writel(UFO_BYPASS, comp->regs + DISP_REG_UFO_START);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(UFO_BYPASS, priv->regs + DISP_REG_UFO_START);
 }
 
 static void mtk_aal_config(struct mtk_ddp_comp *comp, unsigned int w,
 			   unsigned int h, unsigned int vrefresh,
 			   unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, DISP_AAL_SIZE);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_AAL_SIZE);
 }
 
 static void mtk_aal_start(struct mtk_ddp_comp *comp)
 {
-	writel(AAL_EN, comp->regs + DISP_AAL_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(AAL_EN, priv->regs + DISP_AAL_EN);
 }
 
 static void mtk_aal_stop(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x0, comp->regs + DISP_AAL_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x0, priv->regs + DISP_AAL_EN);
 }
 
 static void mtk_ccorr_config(struct mtk_ddp_comp *comp, unsigned int w,
 			     unsigned int h, unsigned int vrefresh,
 			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, DISP_CCORR_SIZE);
-	mtk_ddp_write(cmdq_pkt, CCORR_ENGINE_EN, comp, DISP_CCORR_CFG);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_CCORR_SIZE);
+	mtk_ddp_write(cmdq_pkt, CCORR_ENGINE_EN, comp, priv->regs, DISP_CCORR_CFG);
 }
 
 static void mtk_ccorr_start(struct mtk_ddp_comp *comp)
 {
-	writel(CCORR_EN, comp->regs + DISP_CCORR_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(CCORR_EN, priv->regs + DISP_CCORR_EN);
 }
 
 static void mtk_ccorr_stop(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x0, comp->regs + DISP_CCORR_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x0, priv->regs + DISP_CCORR_EN);
 }
 
 /* Converts a DRM S31.32 value to the HW S1.10 format. */
@@ -252,6 +272,7 @@ static u16 mtk_ctm_s31_32_to_s1_10(u64 in)
 static void mtk_ccorr_ctm_set(struct mtk_ddp_comp *comp,
 			      struct drm_crtc_state *state)
 {
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 	struct drm_property_blob *blob = state->ctm;
 	struct drm_color_ctm *ctm;
 	const u64 *input;
@@ -269,66 +290,79 @@ static void mtk_ccorr_ctm_set(struct mtk_ddp_comp *comp,
 		coeffs[i] = mtk_ctm_s31_32_to_s1_10(input[i]);
 
 	mtk_ddp_write(cmdq_pkt, coeffs[0] << 16 | coeffs[1],
-		      comp, DISP_CCORR_COEF_0);
+		      comp, priv->regs, DISP_CCORR_COEF_0);
 	mtk_ddp_write(cmdq_pkt, coeffs[2] << 16 | coeffs[3],
-		      comp, DISP_CCORR_COEF_1);
+		      comp, priv->regs, DISP_CCORR_COEF_1);
 	mtk_ddp_write(cmdq_pkt, coeffs[4] << 16 | coeffs[5],
-		      comp, DISP_CCORR_COEF_2);
+		      comp, priv->regs, DISP_CCORR_COEF_2);
 	mtk_ddp_write(cmdq_pkt, coeffs[6] << 16 | coeffs[7],
-		      comp, DISP_CCORR_COEF_3);
+		      comp, priv->regs, DISP_CCORR_COEF_3);
 	mtk_ddp_write(cmdq_pkt, coeffs[8] << 16,
-		      comp, DISP_CCORR_COEF_4);
+		      comp, priv->regs, DISP_CCORR_COEF_4);
 }
 
 static void mtk_dither_config(struct mtk_ddp_comp *comp, unsigned int w,
 			      unsigned int h, unsigned int vrefresh,
 			      unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, DISP_DITHER_SIZE);
-	mtk_ddp_write(cmdq_pkt, DITHER_RELAY_MODE, comp, DISP_DITHER_CFG);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_DITHER_SIZE);
+	mtk_ddp_write(cmdq_pkt, DITHER_RELAY_MODE, comp, priv->regs, DISP_DITHER_CFG);
 }
 
 static void mtk_dither_start(struct mtk_ddp_comp *comp)
 {
-	writel(DITHER_EN, comp->regs + DISP_DITHER_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(DITHER_EN, priv->regs + DISP_DITHER_EN);
 }
 
 static void mtk_dither_stop(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x0, comp->regs + DISP_DITHER_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x0, priv->regs + DISP_DITHER_EN);
 }
 
 static void mtk_gamma_config(struct mtk_ddp_comp *comp, unsigned int w,
 			     unsigned int h, unsigned int vrefresh,
 			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, DISP_GAMMA_SIZE);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_GAMMA_SIZE);
 	mtk_dither_set(comp, bpc, DISP_GAMMA_CFG, cmdq_pkt);
 }
 
 static void mtk_gamma_start(struct mtk_ddp_comp *comp)
 {
-	writel(GAMMA_EN, comp->regs  + DISP_GAMMA_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel(GAMMA_EN, priv->regs  + DISP_GAMMA_EN);
 }
 
 static void mtk_gamma_stop(struct mtk_ddp_comp *comp)
 {
-	writel_relaxed(0x0, comp->regs  + DISP_GAMMA_EN);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+
+	writel_relaxed(0x0, priv->regs  + DISP_GAMMA_EN);
 }
 
 static void mtk_gamma_set(struct mtk_ddp_comp *comp,
 			  struct drm_crtc_state *state)
 {
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 	unsigned int i, reg;
 	struct drm_color_lut *lut;
 	void __iomem *lut_base;
 	u32 word;
 
 	if (state->gamma_lut) {
-		reg = readl(comp->regs + DISP_GAMMA_CFG);
+		reg = readl(priv->regs + DISP_GAMMA_CFG);
 		reg = reg | GAMMA_LUT_EN;
-		writel(reg, comp->regs + DISP_GAMMA_CFG);
-		lut_base = comp->regs + DISP_GAMMA_LUT;
+		writel(reg, priv->regs + DISP_GAMMA_CFG);
+		lut_base = priv->regs + DISP_GAMMA_LUT;
 		lut = (struct drm_color_lut *)state->gamma_lut->data;
 		for (i = 0; i < MTK_LUT_SIZE; i++) {
 			word = (((lut[i].red >> 6) & LUT_10BIT_MASK) << 20) +
@@ -547,12 +581,10 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	    comp_id == DDP_COMPONENT_DSI2 ||
 	    comp_id == DDP_COMPONENT_DSI3 ||
 	    comp_id == DDP_COMPONENT_PWM0) {
-		comp->regs = NULL;
 		comp->irq = 0;
 		return 0;
 	}
 
-	comp->regs = of_iomap(node, 0);
 	comp->irq = of_irq_get(node, 0);
 	comp_pdev = of_find_device_by_node(node);
 	if (!comp_pdev) {
@@ -595,6 +627,7 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	if (!priv)
 		return -ENOMEM;
 
+	priv->regs = of_iomap(node, 0);
 	priv->clk = of_clk_get(node, 0);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);

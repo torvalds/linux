@@ -39,6 +39,7 @@ struct mtk_disp_color {
 	struct mtk_ddp_comp			ddp_comp;
 	struct drm_crtc				*crtc;
 	struct clk				*clk;
+	void __iomem				*regs;
 	const struct mtk_disp_color_data	*data;
 };
 
@@ -67,8 +68,8 @@ static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_disp_color *color = comp_to_color(comp);
 
-	mtk_ddp_write(cmdq_pkt, w, comp, DISP_COLOR_WIDTH(color));
-	mtk_ddp_write(cmdq_pkt, h, comp, DISP_COLOR_HEIGHT(color));
+	mtk_ddp_write(cmdq_pkt, w, comp, color->regs, DISP_COLOR_WIDTH(color));
+	mtk_ddp_write(cmdq_pkt, h, comp, color->regs, DISP_COLOR_HEIGHT(color));
 }
 
 static void mtk_color_start(struct mtk_ddp_comp *comp)
@@ -76,8 +77,8 @@ static void mtk_color_start(struct mtk_ddp_comp *comp)
 	struct mtk_disp_color *color = comp_to_color(comp);
 
 	writel(COLOR_BYPASS_ALL | COLOR_SEQ_SEL,
-	       comp->regs + DISP_COLOR_CFG_MAIN);
-	writel(0x1, comp->regs + DISP_COLOR_START(color));
+	       color->regs + DISP_COLOR_CFG_MAIN);
+	writel(0x1, color->regs + DISP_COLOR_START(color));
 }
 
 static const struct mtk_ddp_comp_funcs mtk_disp_color_funcs = {
@@ -122,6 +123,7 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_color *priv;
+	struct resource *res;
 	int comp_id;
 	int ret;
 
@@ -133,6 +135,13 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "failed to get color clk\n");
 		return PTR_ERR(priv->clk);
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->regs)) {
+		dev_err(dev, "failed to ioremap color\n");
+		return PTR_ERR(priv->regs);
 	}
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_COLOR);
