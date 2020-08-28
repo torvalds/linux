@@ -928,7 +928,7 @@ void fpsimd_release_task(struct task_struct *dead_task)
  * the SVE access trap will be disabled the next time this task
  * reaches ret_to_user.
  *
- * TIF_SVE should be clear on entry: otherwise, task_fpsimd_load()
+ * TIF_SVE should be clear on entry: otherwise, fpsimd_restore_current_state()
  * would have disabled the SVE access trap for userspace during
  * ret_to_user, making an SVE access trap impossible in that case.
  */
