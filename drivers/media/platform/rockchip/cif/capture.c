@@ -1396,7 +1396,11 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 				CSI_DMA_END_INTEN(channel->id));
 
-	rkcif_write_register(dev, CIF_REG_MIPI_WATER_LINE, 0x70012);
+	rkcif_write_register(dev, CIF_REG_MIPI_WATER_LINE,
+			     CIF_MIPI_LVDS_SW_WATER_LINE_25_RK1808 |
+			     CIF_MIPI_LVDS_SW_WATER_LINE_ENABLE_RK1808 |
+			     CIF_MIPI_LVDS_SW_HURRY_VALUE_RK1808(0x3) |
+			     CIF_MIPI_LVDS_SW_HURRY_ENABLE_RK1808);
 
 	val = CIF_MIPI_LVDS_SW_PRESS_VALUE(0x3) |
 		CIF_MIPI_LVDS_SW_PRESS_ENABLE |
@@ -1768,10 +1772,16 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 
 	if (dev->can_be_reset) {
 		if (dev->hdr.mode != NO_HDR) {
-			rkcif_stop_luma(&dev->luma_vdev);
-			val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
-			val |= CIF_MIPI_LVDS_SW_DMA_IDLE;
-			rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
+			if (dev->chip_id == CHIP_RK1808_CIF) {
+				val = rkcif_read_register(dev, CIF_REG_MIPI_WATER_LINE);
+				val |= CIF_MIPI_LVDS_SW_DMA_IDLE_RK1808;
+				rkcif_write_register(dev, CIF_REG_MIPI_WATER_LINE, val);
+			} else {
+				rkcif_stop_luma(&dev->luma_vdev);
+				val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
+				val |= CIF_MIPI_LVDS_SW_DMA_IDLE;
+				rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
+			}
 			usleep_range(5, 10);
 			rkcif_soft_reset(dev, false);
 		} else {
@@ -3602,11 +3612,9 @@ RDBK_FRM_UNMATCH:
 
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 {
-	/* TODO: xuhf-debug: add stream type */
 	struct rkcif_stream *stream;
 	struct rkcif_buffer *active_buf = NULL;
 	struct v4l2_mbus_config *mbus;
-	void __iomem *base = cif_dev->hw_dev->base_addr;
 	unsigned int intstat, i = 0xff;
 
 	if (!cif_dev->active_sensor)
@@ -3621,11 +3629,11 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		struct vb2_v4l2_buffer *vb_done = NULL;
 		u32 lastline = 0;
 
-		intstat = read_cif_reg(base, CIF_CSI_INTSTAT);
-		lastline = read_cif_reg(base, CIF_CSI_LINE_CNT_ID0_1);
+		intstat = rkcif_read_register(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT);
+		lastline = rkcif_read_register(cif_dev, CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1);
 
 		/* clear all interrupts that has been triggered */
-		write_cif_reg(base, CIF_CSI_INTSTAT, intstat);
+		rkcif_write_register(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT, intstat);
 
 		if (intstat & CSI_FIFO_OVERFLOW) {
 			v4l2_err(&cif_dev->v4l2_dev,
