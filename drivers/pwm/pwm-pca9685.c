@@ -57,10 +57,10 @@
 #define PCA9685_NUMREGS		0xFF
 #define PCA9685_MAXCHAN		0x10
 
-#define LED_FULL		(1 << 4)
-#define MODE1_SLEEP		(1 << 4)
-#define MODE2_INVRT		(1 << 4)
-#define MODE2_OUTDRV		(1 << 2)
+#define LED_FULL		BIT(4)
+#define MODE1_SLEEP		BIT(4)
+#define MODE2_INVRT		BIT(4)
+#define MODE2_OUTDRV		BIT(2)
 
 #define LED_N_ON_H(N)	(PCA9685_LEDX_ON_H + (4 * (N)))
 #define LED_N_ON_L(N)	(PCA9685_LEDX_ON_L + (4 * (N)))
