@@ -625,6 +625,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 
 static int array_map_btf_id;
 const struct bpf_map_ops array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
@@ -647,6 +648,7 @@ const struct bpf_map_ops array_map_ops = {
 
 static int percpu_array_map_btf_id;
 const struct bpf_map_ops percpu_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
@@ -1003,6 +1005,11 @@ static void prog_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
+/* prog_array->aux->{type,jited} is a runtime binding.
+ * Doing static check alone in the verifier is not enough.
+ * Thus, prog_array_map cannot be used as an inner_map
+ * and map_meta_equal is not implemented.
+ */
 static int prog_array_map_btf_id;
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
@@ -1101,6 +1108,7 @@ static void perf_event_fd_array_release(struct bpf_map *map,
 
 static int perf_event_array_map_btf_id;
 const struct bpf_map_ops perf_event_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = fd_array_map_free,
@@ -1137,6 +1145,7 @@ static void cgroup_fd_array_free(struct bpf_map *map)
 
 static int cgroup_array_map_btf_id;
 const struct bpf_map_ops cgroup_array_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = cgroup_fd_array_free,

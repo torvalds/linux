@@ -112,6 +112,19 @@ struct bpf_map_ops {
 	void (*map_local_storage_uncharge)(struct bpf_local_storage_map *smap,
 					   void *owner, u32 size);
 	struct bpf_local_storage __rcu ** (*map_owner_storage_ptr)(void *owner);
+
+	/* map_meta_equal must be implemented for maps that can be
+	 * used as an inner map.  It is a runtime check to ensure
+	 * an inner map can be inserted to an outer map.
+	 *
+	 * Some properties of the inner map has been used during the
+	 * verification time.  When inserting an inner map at the runtime,
+	 * map_meta_equal has to ensure the inserting map has the same
+	 * properties that the verifier has used earlier.
+	 */
+	bool (*map_meta_equal)(const struct bpf_map *meta0,
+			       const struct bpf_map *meta1);
+
 	/* BTF name and id of struct allocated by map_alloc */
 	const char * const map_btf_name;
 	int *map_btf_id;
@@ -234,6 +247,9 @@ int map_check_no_btf(const struct bpf_map *map,
 		     const struct btf *btf,
 		     const struct btf_type *key_type,
 		     const struct btf_type *value_type);
+
+bool bpf_map_meta_equal(const struct bpf_map *meta0,
+			const struct bpf_map *meta1);
 
 extern const struct bpf_map_ops bpf_map_offload_ops;
 

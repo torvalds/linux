@@ -90,6 +90,7 @@ int bpf_check_uarg_tail_zero(void __user *uaddr,
 }
 
 const struct bpf_map_ops bpf_map_offload_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = bpf_map_offload_map_alloc,
 	.map_free = bpf_map_offload_map_free,
 	.map_check_btf = map_check_no_btf,

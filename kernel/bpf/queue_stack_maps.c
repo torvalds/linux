@@ -257,6 +257,7 @@ static int queue_stack_map_get_next_key(struct bpf_map *map, void *key,
 
 static int queue_map_btf_id;
 const struct bpf_map_ops queue_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = queue_stack_map_alloc_check,
 	.map_alloc = queue_stack_map_alloc,
 	.map_free = queue_stack_map_free,
@@ -273,6 +274,7 @@ const struct bpf_map_ops queue_map_ops = {
 
 static int stack_map_btf_id;
 const struct bpf_map_ops stack_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = queue_stack_map_alloc_check,
 	.map_alloc = queue_stack_map_alloc,
 	.map_free = queue_stack_map_free,

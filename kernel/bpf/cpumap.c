@@ -658,6 +658,7 @@ static int cpu_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 
 static int cpu_map_btf_id;
 const struct bpf_map_ops cpu_map_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= cpu_map_alloc,
 	.map_free		= cpu_map_free,
 	.map_delete_elem	= cpu_map_delete_elem,

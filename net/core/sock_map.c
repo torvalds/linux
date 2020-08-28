@@ -705,6 +705,7 @@ const struct bpf_func_proto bpf_msg_redirect_map_proto = {
 
 static int sock_map_btf_id;
 const struct bpf_map_ops sock_map_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_map_alloc,
 	.map_free		= sock_map_free,
 	.map_get_next_key	= sock_map_get_next_key,
@@ -1200,6 +1201,7 @@ const struct bpf_func_proto bpf_msg_redirect_hash_proto = {
 
 static int sock_hash_map_btf_id;
 const struct bpf_map_ops sock_hash_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_hash_alloc,
 	.map_free		= sock_hash_free,
 	.map_get_next_key	= sock_hash_get_next_key,

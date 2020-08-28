@@ -235,6 +235,7 @@ static void inode_storage_map_free(struct bpf_map *map)
 
 static int inode_storage_map_btf_id;
 const struct bpf_map_ops inode_storage_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
 	.map_alloc = inode_storage_map_alloc,
 	.map_free = inode_storage_map_free,
