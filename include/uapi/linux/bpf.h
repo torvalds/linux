@@ -4251,8 +4251,10 @@ struct bpf_link_info {
 			__aligned_u64 target_name; /* in/out: target_name buffer ptr */
 			__u32 target_name_len;	   /* in/out: target_name buffer len */
 			union {
-				__u32 map_id;
-			} map;
+				struct {
+					__u32 map_id;
+				} map;
+			};
 		} iter;
 		struct  {
 			__u32 netns_ino;
