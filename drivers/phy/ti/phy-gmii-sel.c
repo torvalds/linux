@@ -22,7 +22,7 @@
 #define AM33XX_GMII_SEL_MODE_RGMII	2
 
 enum {
-	PHY_GMII_SEL_PORT_MODE,
+	PHY_GMII_SEL_PORT_MODE = 0,
 	PHY_GMII_SEL_RGMII_ID_MODE,
 	PHY_GMII_SEL_RMII_IO_CLK_EN,
 	PHY_GMII_SEL_LAST,
@@ -242,6 +242,66 @@ static struct phy *phy_gmii_sel_of_xlate(struct device *dev,
 	return priv->if_phys[phy_id].if_phy;
 }
 
+static int phy_gmii_init_phy(struct phy_gmii_sel_priv *priv, int port,
+			     struct phy_gmii_sel_phy_priv *if_phy)
+{
+	const struct phy_gmii_sel_soc_data *soc_data = priv->soc_data;
+	struct device *dev = priv->dev;
+	const struct reg_field *fields;
+	struct regmap_field *regfield;
+	struct reg_field field;
+	int ret;
+
+	if_phy->id = port;
+	if_phy->priv = priv;
+
+	fields = soc_data->regfields[port - 1];
+	field = *fields++;
+	dev_dbg(dev, "%s field %x %d %d\n", __func__,
+		field.reg, field.msb, field.lsb);
+
+	regfield = devm_regmap_field_alloc(dev, priv->regmap, field);
+	if (IS_ERR(regfield))
+		return PTR_ERR(regfield);
+	if_phy->fields[PHY_GMII_SEL_PORT_MODE] = regfield;
+
+	field = *fields++;
+	if (field.reg != (~0)) {
+		regfield = devm_regmap_field_alloc(dev,
+						   priv->regmap,
+						   field);
+		if (IS_ERR(regfield))
+			return PTR_ERR(regfield);
+		if_phy->fields[PHY_GMII_SEL_RGMII_ID_MODE] = regfield;
+		dev_dbg(dev, "%s field %x %d %d\n", __func__,
+			field.reg, field.msb, field.lsb);
+	}
+
+	field = *fields;
+	if (field.reg != (~0)) {
+		regfield = devm_regmap_field_alloc(dev,
+						   priv->regmap,
+						   field);
+		if (IS_ERR(regfield))
+			return PTR_ERR(regfield);
+		if_phy->fields[PHY_GMII_SEL_RMII_IO_CLK_EN] = regfield;
+		dev_dbg(dev, "%s field %x %d %d\n", __func__,
+			field.reg, field.msb, field.lsb);
+	}
+
+	if_phy->if_phy = devm_phy_create(dev,
+					 priv->dev->of_node,
+					 &phy_gmii_sel_ops);
+	if (IS_ERR(if_phy->if_phy)) {
+		ret = PTR_ERR(if_phy->if_phy);
+		dev_err(dev, "Failed to create phy%d %d\n", port, ret);
+		return ret;
+	}
+	phy_set_drvdata(if_phy->if_phy, if_phy);
+
+	return 0;
+}
+
 static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 {
 	const struct phy_gmii_sel_soc_data *soc_data = priv->soc_data;
@@ -249,7 +309,7 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 	struct phy_gmii_sel_phy_priv *if_phys;
 	int i, num_ports, ret;
 
-	num_ports = priv->soc_data->num_ports;
+	num_ports = soc_data->num_ports;
 
 	if_phys = devm_kcalloc(priv->dev, num_ports,
 			       sizeof(*if_phys), GFP_KERNEL);
@@ -258,52 +318,9 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 	dev_dbg(dev, "%s %d\n", __func__, num_ports);
 
 	for (i = 0; i < num_ports; i++) {
-		const struct reg_field *field;
-		struct regmap_field *regfield;
-
-		if_phys[i].id = i + 1;
-		if_phys[i].priv = priv;
-
-		field = &soc_data->regfields[i][PHY_GMII_SEL_PORT_MODE];
-		dev_dbg(dev, "%s field %x %d %d\n", __func__,
-			field->reg, field->msb, field->lsb);
-
-		regfield = devm_regmap_field_alloc(dev, priv->regmap, *field);
-		if (IS_ERR(regfield))
-			return PTR_ERR(regfield);
-		if_phys[i].fields[PHY_GMII_SEL_PORT_MODE] = regfield;
-
-		field = &soc_data->regfields[i][PHY_GMII_SEL_RGMII_ID_MODE];
-		if (field->reg != (~0)) {
-			regfield = devm_regmap_field_alloc(dev,
-							   priv->regmap,
-							   *field);
-			if (IS_ERR(regfield))
-				return PTR_ERR(regfield);
-			if_phys[i].fields[PHY_GMII_SEL_RGMII_ID_MODE] =
-				regfield;
-		}
-
-		field = &soc_data->regfields[i][PHY_GMII_SEL_RMII_IO_CLK_EN];
-		if (field->reg != (~0)) {
-			regfield = devm_regmap_field_alloc(dev,
-							   priv->regmap,
-							   *field);
-			if (IS_ERR(regfield))
-				return PTR_ERR(regfield);
-			if_phys[i].fields[PHY_GMII_SEL_RMII_IO_CLK_EN] =
-				regfield;
-		}
-
-		if_phys[i].if_phy = devm_phy_create(dev,
-						    priv->dev->of_node,
-						    &phy_gmii_sel_ops);
-		if (IS_ERR(if_phys[i].if_phy)) {
-			ret = PTR_ERR(if_phys[i].if_phy);
-			dev_err(dev, "Failed to create phy%d %d\n", i, ret);
+		ret = phy_gmii_init_phy(priv, i + 1, &if_phys[i]);
+		if (ret)
 			return ret;
-		}
-		phy_set_drvdata(if_phys[i].if_phy, &if_phys[i]);
 	}
 
 	priv->if_phys = if_phys;
