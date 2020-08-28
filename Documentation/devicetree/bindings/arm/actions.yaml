@@ -18,6 +18,7 @@ properties:
           - enum:
               - allo,sparky # Allo.com Sparky
               - cubietech,cubieboard6 # Cubietech CubieBoard6
+              - roseapplepi,roseapplepi # RoseapplePi.org RoseapplePi
           - const: actions,s500
       - items:
           - enum:
