@@ -1527,8 +1527,6 @@ static inline int dma_get_slave_caps(struct dma_chan *chan,
 }
 #endif
 
-#define dma_request_slave_channel_reason(dev, name) dma_request_chan(dev, name)
-
 static inline int dmaengine_desc_set_reuse(struct dma_async_tx_descriptor *tx)
 {
 	struct dma_slave_caps caps;
