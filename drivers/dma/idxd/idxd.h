@@ -156,6 +156,7 @@ struct idxd_device {
 	unsigned long flags;
 	int id;
 	int major;
+	u8 cmd_status;
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;

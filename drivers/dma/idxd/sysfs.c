@@ -1402,6 +1402,15 @@ static ssize_t cdev_major_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(cdev_major);
 
+static ssize_t cmd_status_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd = container_of(dev, struct idxd_device, conf_dev);
+
+	return sprintf(buf, "%#x\n", idxd->cmd_status);
+}
+static DEVICE_ATTR_RO(cmd_status);
+
 static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_version.attr,
 	&dev_attr_max_groups.attr,
@@ -1420,6 +1429,7 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_max_tokens.attr,
 	&dev_attr_token_limit.attr,
 	&dev_attr_cdev_major.attr,
+	&dev_attr_cmd_status.attr,
 	NULL,
 };
 
