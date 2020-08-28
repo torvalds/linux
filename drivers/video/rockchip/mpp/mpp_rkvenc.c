@@ -233,7 +233,6 @@ static int rkvenc_extract_task_msg(struct rkvenc_task *task,
 	u32 i;
 	int ret;
 	struct mpp_request *req;
-	struct reg_offset_info *off_inf = &task->off_inf;
 
 	for (i = 0; i < msgs->req_cnt; i++) {
 		req = &msgs->reqs[i];
@@ -290,18 +289,7 @@ static int rkvenc_extract_task_msg(struct rkvenc_task *task,
 			       req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_ADDR_OFFSET: {
-			ret = mpp_check_req(req, req->offset,
-					    sizeof(off_inf->elem),
-					    0, sizeof(off_inf->elem));
-			if (ret)
-				return ret;
-			if (copy_from_user(&off_inf->elem[off_inf->cnt],
-					   req->data,
-					   req->size)) {
-				mpp_err("copy_from_user failed\n");
-				return -EINVAL;
-			}
-			off_inf->cnt += req->size / sizeof(off_inf->elem[0]);
+			mpp_extract_reg_offset_info(&task->off_inf, req);
 		} break;
 		default:
 			break;
