@@ -597,7 +597,8 @@ static void CalculateStutterEfficiency(
 		double meta_row_bw[],
 		double dpte_row_bw[],
 		double *StutterEfficiencyNotIncludingVBlank,
-		double *StutterEfficiency);
+		double *StutterEfficiency,
+		double *StutterPeriodOut);
 
 static void CalculateSwathAndDETConfiguration(
 		bool ForceSingleDPP,
@@ -3134,7 +3135,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			v->meta_row_bw,
 			v->dpte_row_bw,
 			&v->StutterEfficiencyNotIncludingVBlank,
-			&v->StutterEfficiency);
+			&v->StutterEfficiency,
+			&v->StutterPeriod);
 }
 
 static void DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
@@ -6151,7 +6153,8 @@ static void CalculateStutterEfficiency(
 		double meta_row_bw[],
 		double dpte_row_bw[],
 		double *StutterEfficiencyNotIncludingVBlank,
-		double *StutterEfficiency)
+		double *StutterEfficiency,
+		double *StutterPeriodOut)
 {
 	double FullDETBufferingTimeY[DC__NUM_DPP__MAX] = { 0 };
 	double FrameTimeForMinFullDETBufferingTime = 0;
@@ -6262,6 +6265,9 @@ static void CalculateStutterEfficiency(
 	}
 
 	*StutterEfficiency =  (*StutterEfficiencyNotIncludingVBlank / 100.0 * (FrameTimeForMinFullDETBufferingTime - SmallestVBlank) + SmallestVBlank) / FrameTimeForMinFullDETBufferingTime * 100;
+
+	if (StutterPeriodOut)
+		*StutterPeriodOut = StutterPeriod;
 }
 
 static void CalculateSwathAndDETConfiguration(

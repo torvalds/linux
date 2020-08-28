@@ -411,6 +411,10 @@ struct dc_state {
 	struct clk_mgr *clk_mgr;
 
 	struct kref refcount;
+
+	struct {
+		unsigned int stutter_period_us;
+	} perf_params;
 };
 
 #endif /* _CORE_TYPES_H_ */
