@@ -445,7 +445,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(sq->xsk_pool->umem, xsk_frames);
+		xsk_tx_completed(sq->xsk_pool, xsk_frames);
 
 	sq->stats->cqes += i;
 
@@ -475,7 +475,7 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 	}
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(sq->xsk_pool->umem, xsk_frames);
+		xsk_tx_completed(sq->xsk_pool, xsk_frames);
 }
 
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,

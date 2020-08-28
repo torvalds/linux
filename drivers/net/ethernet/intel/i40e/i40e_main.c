@@ -3138,7 +3138,7 @@ static struct xsk_buff_pool *i40e_xsk_pool(struct i40e_ring *ring)
 	if (!xdp_on || !test_bit(qid, ring->vsi->af_xdp_zc_qps))
 		return NULL;
 
-	return xdp_get_xsk_pool_from_qid(ring->vsi->netdev, qid);
+	return xsk_get_pool_from_qid(ring->vsi->netdev, qid);
 }
 
 /**
@@ -3286,7 +3286,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		if (ret)
 			return ret;
 		ring->rx_buf_len =
-		  xsk_umem_get_rx_frame_size(ring->xsk_pool->umem);
+		  xsk_pool_get_rx_frame_size(ring->xsk_pool);
 		/* For AF_XDP ZC, we disallow packets to span on
 		 * multiple buffers, thus letting us skip that
 		 * handling in the fast-path.
@@ -3370,7 +3370,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	writel(0, ring->tail);
 
 	if (ring->xsk_pool) {
-		xsk_buff_set_rxq_info(ring->xsk_pool->umem, &ring->xdp_rxq);
+		xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
 		ok = i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring));
 	} else {
 		ok = !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));

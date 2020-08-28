@@ -22,7 +22,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
 					    struct mlx5e_dma_info *dma_info)
 {
-	dma_info->xsk = xsk_buff_alloc(rq->xsk_pool->umem);
+	dma_info->xsk = xsk_buff_alloc(rq->xsk_pool);
 	if (!dma_info->xsk)
 		return -ENOMEM;
 
@@ -38,13 +38,13 @@ static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
 
 static inline bool mlx5e_xsk_update_rx_wakeup(struct mlx5e_rq *rq, bool alloc_err)
 {
-	if (!xsk_umem_uses_need_wakeup(rq->xsk_pool->umem))
+	if (!xsk_uses_need_wakeup(rq->xsk_pool))
 		return alloc_err;
 
 	if (unlikely(alloc_err))
-		xsk_set_rx_need_wakeup(rq->xsk_pool->umem);
+		xsk_set_rx_need_wakeup(rq->xsk_pool);
 	else
-		xsk_clear_rx_need_wakeup(rq->xsk_pool->umem);
+		xsk_clear_rx_need_wakeup(rq->xsk_pool);
 
 	return false;
 }

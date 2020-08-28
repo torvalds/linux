@@ -17,7 +17,7 @@ struct xsk_buff_pool *ixgbe_xsk_pool(struct ixgbe_adapter *adapter,
 	if (!xdp_on || !test_bit(qid, adapter->af_xdp_zc_qps))
 		return NULL;
 
-	return xdp_get_xsk_pool_from_qid(adapter->netdev, qid);
+	return xsk_get_pool_from_qid(adapter->netdev, qid);
 }
 
 static int ixgbe_xsk_pool_enable(struct ixgbe_adapter *adapter,
@@ -35,7 +35,7 @@ static int ixgbe_xsk_pool_enable(struct ixgbe_adapter *adapter,
 	    qid >= netdev->real_num_tx_queues)
 		return -EINVAL;
 
-	err = xsk_buff_dma_map(pool->umem, &adapter->pdev->dev, IXGBE_RX_DMA_ATTR);
+	err = xsk_pool_dma_map(pool, &adapter->pdev->dev, IXGBE_RX_DMA_ATTR);
 	if (err)
 		return err;
 
@@ -64,7 +64,7 @@ static int ixgbe_xsk_pool_disable(struct ixgbe_adapter *adapter, u16 qid)
 	struct xsk_buff_pool *pool;
 	bool if_running;
 
-	pool = xdp_get_xsk_pool_from_qid(adapter->netdev, qid);
+	pool = xsk_get_pool_from_qid(adapter->netdev, qid);
 	if (!pool)
 		return -EINVAL;
 
@@ -75,7 +75,7 @@ static int ixgbe_xsk_pool_disable(struct ixgbe_adapter *adapter, u16 qid)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
 	clear_bit(qid, adapter->af_xdp_zc_qps);
-	xsk_buff_dma_unmap(pool->umem, IXGBE_RX_DMA_ATTR);
+	xsk_pool_dma_unmap(pool, IXGBE_RX_DMA_ATTR);
 
 	if (if_running)
 		ixgbe_txrx_ring_enable(adapter, qid);
@@ -150,7 +150,7 @@ bool ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 count)
 	i -= rx_ring->count;
 
 	do {
-		bi->xdp = xsk_buff_alloc(rx_ring->xsk_pool->umem);
+		bi->xdp = xsk_buff_alloc(rx_ring->xsk_pool);
 		if (!bi->xdp) {
 			ok = false;
 			break;
@@ -345,11 +345,11 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 	q_vector->rx.total_packets += total_rx_packets;
 	q_vector->rx.total_bytes += total_rx_bytes;
 
-	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_pool->umem)) {
+	if (xsk_uses_need_wakeup(rx_ring->xsk_pool)) {
 		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
-			xsk_set_rx_need_wakeup(rx_ring->xsk_pool->umem);
+			xsk_set_rx_need_wakeup(rx_ring->xsk_pool);
 		else
-			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool->umem);
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool);
 
 		return (int)total_rx_packets;
 	}
@@ -389,11 +389,11 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 			break;
 		}
 
-		if (!xsk_umem_consume_tx(pool->umem, &desc))
+		if (!xsk_tx_peek_desc(pool, &desc))
 			break;
 
-		dma = xsk_buff_raw_get_dma(pool->umem, desc.addr);
-		xsk_buff_raw_dma_sync_for_device(pool->umem, dma, desc.len);
+		dma = xsk_buff_raw_get_dma(pool, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(pool, dma, desc.len);
 
 		tx_bi = &xdp_ring->tx_buffer_info[xdp_ring->next_to_use];
 		tx_bi->bytecount = desc.len;
@@ -419,7 +419,7 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 
 	if (tx_desc) {
 		ixgbe_xdp_ring_update_tail(xdp_ring);
-		xsk_umem_consume_tx_done(pool->umem);
+		xsk_tx_release(pool);
 	}
 
 	return !!budget && work_done;
@@ -485,10 +485,10 @@ bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 	q_vector->tx.total_packets += total_packets;
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(pool->umem, xsk_frames);
+		xsk_tx_completed(pool, xsk_frames);
 
-	if (xsk_umem_uses_need_wakeup(pool->umem))
-		xsk_set_tx_need_wakeup(pool->umem);
+	if (xsk_uses_need_wakeup(pool))
+		xsk_set_tx_need_wakeup(pool);
 
 	return ixgbe_xmit_zc(tx_ring, q_vector->tx.work_limit);
 }
@@ -547,5 +547,5 @@ void ixgbe_xsk_clean_tx_ring(struct ixgbe_ring *tx_ring)
 	}
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(pool->umem, xsk_frames);
+		xsk_tx_completed(pool, xsk_frames);
 }

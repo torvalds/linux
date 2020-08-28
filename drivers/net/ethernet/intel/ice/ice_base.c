@@ -313,7 +313,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 			xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
 			ring->rx_buf_len =
-				xsk_umem_get_rx_frame_size(ring->xsk_pool->umem);
+				xsk_pool_get_rx_frame_size(ring->xsk_pool);
 			/* For AF_XDP ZC, we disallow packets to span on
 			 * multiple buffers, thus letting us skip that
 			 * handling in the fast-path.
@@ -324,7 +324,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 							 NULL);
 			if (err)
 				return err;
-			xsk_buff_set_rxq_info(ring->xsk_pool->umem, &ring->xdp_rxq);
+			xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
 
 			dev_info(dev, "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
@@ -418,7 +418,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	writel(0, ring->tail);
 
 	if (ring->xsk_pool) {
-		if (!xsk_buff_can_alloc(ring->xsk_pool->umem, num_bufs)) {
+		if (!xsk_buff_can_alloc(ring->xsk_pool, num_bufs)) {
 			dev_warn(dev, "XSK buffer pool does not provide enough addresses to fill %d buffers on Rx ring %d\n",
 				 num_bufs, ring->q_index);
 			dev_warn(dev, "Change Rx ring/fill queue size to avoid performance issues\n");

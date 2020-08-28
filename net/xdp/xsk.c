@@ -39,8 +39,10 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 		READ_ONCE(xs->umem->fq);
 }
 
-void xsk_set_rx_need_wakeup(struct xdp_umem *umem)
+void xsk_set_rx_need_wakeup(struct xsk_buff_pool *pool)
 {
+	struct xdp_umem *umem = pool->umem;
+
 	if (umem->need_wakeup & XDP_WAKEUP_RX)
 		return;
 
@@ -49,8 +51,9 @@ void xsk_set_rx_need_wakeup(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_set_rx_need_wakeup);
 
-void xsk_set_tx_need_wakeup(struct xdp_umem *umem)
+void xsk_set_tx_need_wakeup(struct xsk_buff_pool *pool)
 {
+	struct xdp_umem *umem = pool->umem;
 	struct xdp_sock *xs;
 
 	if (umem->need_wakeup & XDP_WAKEUP_TX)
@@ -66,8 +69,10 @@ void xsk_set_tx_need_wakeup(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_set_tx_need_wakeup);
 
-void xsk_clear_rx_need_wakeup(struct xdp_umem *umem)
+void xsk_clear_rx_need_wakeup(struct xsk_buff_pool *pool)
 {
+	struct xdp_umem *umem = pool->umem;
+
 	if (!(umem->need_wakeup & XDP_WAKEUP_RX))
 		return;
 
@@ -76,8 +81,9 @@ void xsk_clear_rx_need_wakeup(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_clear_rx_need_wakeup);
 
-void xsk_clear_tx_need_wakeup(struct xdp_umem *umem)
+void xsk_clear_tx_need_wakeup(struct xsk_buff_pool *pool)
 {
+	struct xdp_umem *umem = pool->umem;
 	struct xdp_sock *xs;
 
 	if (!(umem->need_wakeup & XDP_WAKEUP_TX))
@@ -93,11 +99,11 @@ void xsk_clear_tx_need_wakeup(struct xdp_umem *umem)
 }
 EXPORT_SYMBOL(xsk_clear_tx_need_wakeup);
 
-bool xsk_umem_uses_need_wakeup(struct xdp_umem *umem)
+bool xsk_uses_need_wakeup(struct xsk_buff_pool *pool)
 {
-	return umem->flags & XDP_UMEM_USES_NEED_WAKEUP;
+	return pool->umem->flags & XDP_UMEM_USES_NEED_WAKEUP;
 }
-EXPORT_SYMBOL(xsk_umem_uses_need_wakeup);
+EXPORT_SYMBOL(xsk_uses_need_wakeup);
 
 void xp_release(struct xdp_buff_xsk *xskb)
 {
@@ -155,12 +161,12 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len,
 	struct xdp_buff *xsk_xdp;
 	int err;
 
-	if (len > xsk_umem_get_rx_frame_size(xs->umem)) {
+	if (len > xsk_pool_get_rx_frame_size(xs->pool)) {
 		xs->rx_dropped++;
 		return -ENOSPC;
 	}
 
-	xsk_xdp = xsk_buff_alloc(xs->umem);
+	xsk_xdp = xsk_buff_alloc(xs->pool);
 	if (!xsk_xdp) {
 		xs->rx_dropped++;
 		return -ENOSPC;
@@ -249,27 +255,28 @@ void __xsk_map_flush(void)
 	}
 }
 
-void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries)
+void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries)
 {
-	xskq_prod_submit_n(umem->cq, nb_entries);
+	xskq_prod_submit_n(pool->umem->cq, nb_entries);
 }
-EXPORT_SYMBOL(xsk_umem_complete_tx);
+EXPORT_SYMBOL(xsk_tx_completed);
 
-void xsk_umem_consume_tx_done(struct xdp_umem *umem)
+void xsk_tx_release(struct xsk_buff_pool *pool)
 {
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
+	list_for_each_entry_rcu(xs, &pool->umem->xsk_tx_list, list) {
 		__xskq_cons_release(xs->tx);
 		xs->sk.sk_write_space(&xs->sk);
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(xsk_umem_consume_tx_done);
+EXPORT_SYMBOL(xsk_tx_release);
 
-bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
+bool xsk_tx_peek_desc(struct xsk_buff_pool *pool, struct xdp_desc *desc)
 {
+	struct xdp_umem *umem = pool->umem;
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
@@ -296,7 +303,7 @@ out:
 	rcu_read_unlock();
 	return false;
 }
-EXPORT_SYMBOL(xsk_umem_consume_tx);
+EXPORT_SYMBOL(xsk_tx_peek_desc);
 
 static int xsk_wakeup(struct xdp_sock *xs, u8 flags)
 {
@@ -359,7 +366,7 @@ static int xsk_generic_xmit(struct sock *sk)
 
 		skb_put(skb, len);
 		addr = desc.addr;
-		buffer = xsk_buff_raw_get_data(xs->umem, addr);
+		buffer = xsk_buff_raw_get_data(xs->pool, addr);
 		err = skb_store_bits(skb, 0, buffer, len);
 		/* This is the backpressure mechanism for the Tx path.
 		 * Reserve space in the completion queue and only proceed
@@ -761,6 +768,8 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			mutex_unlock(&xs->mutex);
 			return PTR_ERR(umem);
 		}
+
+		xs->pool = umem->pool;
 
 		/* Make sure umem is ready before it can be seen by others */
 		smp_wmb();

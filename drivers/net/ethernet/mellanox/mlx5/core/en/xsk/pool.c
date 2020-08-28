@@ -11,13 +11,13 @@ static int mlx5e_xsk_map_pool(struct mlx5e_priv *priv,
 {
 	struct device *dev = priv->mdev->device;
 
-	return xsk_buff_dma_map(pool->umem, dev, 0);
+	return xsk_pool_dma_map(pool, dev, 0);
 }
 
 static void mlx5e_xsk_unmap_pool(struct mlx5e_priv *priv,
 				 struct xsk_buff_pool *pool)
 {
-	return xsk_buff_dma_unmap(pool->umem, 0);
+	return xsk_pool_dma_unmap(pool, 0);
 }
 
 static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)
@@ -64,14 +64,14 @@ static void mlx5e_xsk_remove_pool(struct mlx5e_xsk *xsk, u16 ix)
 
 static bool mlx5e_xsk_is_pool_sane(struct xsk_buff_pool *pool)
 {
-	return xsk_umem_get_headroom(pool->umem) <= 0xffff &&
-		xsk_umem_get_chunk_size(pool->umem) <= 0xffff;
+	return xsk_pool_get_headroom(pool) <= 0xffff &&
+		xsk_pool_get_chunk_size(pool) <= 0xffff;
 }
 
 void mlx5e_build_xsk_param(struct xsk_buff_pool *pool, struct mlx5e_xsk_param *xsk)
 {
-	xsk->headroom = xsk_umem_get_headroom(pool->umem);
-	xsk->chunk_size = xsk_umem_get_chunk_size(pool->umem);
+	xsk->headroom = xsk_pool_get_headroom(pool);
+	xsk->chunk_size = xsk_pool_get_chunk_size(pool);
 }
 
 static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,

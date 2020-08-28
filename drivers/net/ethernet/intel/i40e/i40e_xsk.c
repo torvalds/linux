@@ -55,8 +55,7 @@ static int i40e_xsk_pool_enable(struct i40e_vsi *vsi,
 	    qid >= netdev->real_num_tx_queues)
 		return -EINVAL;
 
-	err = xsk_buff_dma_map(pool->umem, &vsi->back->pdev->dev,
-			       I40E_RX_DMA_ATTR);
+	err = xsk_pool_dma_map(pool, &vsi->back->pdev->dev, I40E_RX_DMA_ATTR);
 	if (err)
 		return err;
 
@@ -97,7 +96,7 @@ static int i40e_xsk_pool_disable(struct i40e_vsi *vsi, u16 qid)
 	bool if_running;
 	int err;
 
-	pool = xdp_get_xsk_pool_from_qid(netdev, qid);
+	pool = xsk_get_pool_from_qid(netdev, qid);
 	if (!pool)
 		return -EINVAL;
 
@@ -110,7 +109,7 @@ static int i40e_xsk_pool_disable(struct i40e_vsi *vsi, u16 qid)
 	}
 
 	clear_bit(qid, vsi->af_xdp_zc_qps);
-	xsk_buff_dma_unmap(pool->umem, I40E_RX_DMA_ATTR);
+	xsk_pool_dma_unmap(pool, I40E_RX_DMA_ATTR);
 
 	if (if_running) {
 		err = i40e_queue_pair_enable(vsi, qid);
@@ -196,7 +195,7 @@ bool i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count)
 	rx_desc = I40E_RX_DESC(rx_ring, ntu);
 	bi = i40e_rx_bi(rx_ring, ntu);
 	do {
-		xdp = xsk_buff_alloc(rx_ring->xsk_pool->umem);
+		xdp = xsk_buff_alloc(rx_ring->xsk_pool);
 		if (!xdp) {
 			ok = false;
 			goto no_buffers;
@@ -363,11 +362,11 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);
 	i40e_update_rx_stats(rx_ring, total_rx_bytes, total_rx_packets);
 
-	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_pool->umem)) {
+	if (xsk_uses_need_wakeup(rx_ring->xsk_pool)) {
 		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
-			xsk_set_rx_need_wakeup(rx_ring->xsk_pool->umem);
+			xsk_set_rx_need_wakeup(rx_ring->xsk_pool);
 		else
-			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool->umem);
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool);
 
 		return (int)total_rx_packets;
 	}
@@ -390,12 +389,11 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 	dma_addr_t dma;
 
 	while (budget-- > 0) {
-		if (!xsk_umem_consume_tx(xdp_ring->xsk_pool->umem, &desc))
+		if (!xsk_tx_peek_desc(xdp_ring->xsk_pool, &desc))
 			break;
 
-		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool->umem,
-					   desc.addr);
-		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool->umem, dma,
+		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma,
 						 desc.len);
 
 		tx_bi = &xdp_ring->tx_bi[xdp_ring->next_to_use];
@@ -422,7 +420,7 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 						 I40E_TXD_QW1_CMD_SHIFT);
 		i40e_xdp_ring_update_tail(xdp_ring);
 
-		xsk_umem_consume_tx_done(xdp_ring->xsk_pool->umem);
+		xsk_tx_release(xdp_ring->xsk_pool);
 		i40e_update_tx_stats(xdp_ring, sent_frames, total_bytes);
 	}
 
@@ -494,13 +492,13 @@ skip:
 		tx_ring->next_to_clean -= tx_ring->count;
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(bp->umem, xsk_frames);
+		xsk_tx_completed(bp, xsk_frames);
 
 	i40e_arm_wb(tx_ring, vsi, completed_frames);
 
 out_xmit:
-	if (xsk_umem_uses_need_wakeup(tx_ring->xsk_pool->umem))
-		xsk_set_tx_need_wakeup(tx_ring->xsk_pool->umem);
+	if (xsk_uses_need_wakeup(tx_ring->xsk_pool))
+		xsk_set_tx_need_wakeup(tx_ring->xsk_pool);
 
 	return i40e_xmit_zc(tx_ring, I40E_DESC_UNUSED(tx_ring));
 }
@@ -591,7 +589,7 @@ void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
 	}
 
 	if (xsk_frames)
-		xsk_umem_complete_tx(bp->umem, xsk_frames);
+		xsk_tx_completed(bp, xsk_frames);
 }
 
 /**
@@ -607,7 +605,7 @@ bool i40e_xsk_any_rx_ring_enabled(struct i40e_vsi *vsi)
 	int i;
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		if (xdp_get_xsk_pool_from_qid(netdev, i))
+		if (xsk_get_pool_from_qid(netdev, i))
 			return true;
 	}
 

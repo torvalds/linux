@@ -87,7 +87,7 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 			break;
 		}
 
-		if (!xsk_umem_consume_tx(pool->umem, &desc)) {
+		if (!xsk_tx_peek_desc(pool, &desc)) {
 			/* TX will get stuck until something wakes it up by
 			 * triggering NAPI. Currently it's expected that the
 			 * application calls sendto() if there are consumed, but
@@ -96,11 +96,11 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 			break;
 		}
 
-		xdptxd.dma_addr = xsk_buff_raw_get_dma(pool->umem, desc.addr);
-		xdptxd.data = xsk_buff_raw_get_data(pool->umem, desc.addr);
+		xdptxd.dma_addr = xsk_buff_raw_get_dma(pool, desc.addr);
+		xdptxd.data = xsk_buff_raw_get_data(pool, desc.addr);
 		xdptxd.len = desc.len;
 
-		xsk_buff_raw_dma_sync_for_device(pool->umem, xdptxd.dma_addr, xdptxd.len);
+		xsk_buff_raw_dma_sync_for_device(pool, xdptxd.dma_addr, xdptxd.len);
 
 		ret = INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
 				      mlx5e_xmit_xdp_frame, sq, &xdptxd, &xdpi, check_result);
@@ -119,7 +119,7 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 			mlx5e_xdp_mpwqe_complete(sq);
 		mlx5e_xmit_xdp_doorbell(sq);
 
-		xsk_umem_consume_tx_done(pool->umem);
+		xsk_tx_release(pool);
 	}
 
 	return !(budget && work_done);
