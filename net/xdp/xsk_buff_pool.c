@@ -95,10 +95,9 @@ void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq)
 }
 EXPORT_SYMBOL(xp_set_rxq_info);
 
-int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
+int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *netdev,
 		  u16 queue_id, u16 flags)
 {
-	struct xdp_umem *umem = pool->umem;
 	bool force_zc, force_copy;
 	struct netdev_bpf bpf;
 	int err = 0;
@@ -111,27 +110,30 @@ int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
 	if (force_zc && force_copy)
 		return -EINVAL;
 
-	if (xsk_get_pool_from_qid(dev, queue_id))
+	if (xsk_get_pool_from_qid(netdev, queue_id))
 		return -EBUSY;
 
-	err = xsk_reg_pool_at_qid(dev, pool, queue_id);
+	err = xsk_reg_pool_at_qid(netdev, pool, queue_id);
 	if (err)
 		return err;
 
 	if (flags & XDP_USE_NEED_WAKEUP) {
-		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
+		pool->uses_need_wakeup = true;
 		/* Tx needs to be explicitly woken up the first time.
 		 * Also for supporting drivers that do not implement this
 		 * feature. They will always have to call sendto().
 		 */
-		umem->need_wakeup = XDP_WAKEUP_TX;
+		pool->cached_need_wakeup = XDP_WAKEUP_TX;
 	}
+
+	dev_hold(netdev);
 
 	if (force_copy)
 		/* For copy-mode, we are done. */
 		return 0;
 
-	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_wakeup) {
+	if (!netdev->netdev_ops->ndo_bpf ||
+	    !netdev->netdev_ops->ndo_xsk_wakeup) {
 		err = -EOPNOTSUPP;
 		goto err_unreg_pool;
 	}
@@ -140,44 +142,47 @@ int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
 	bpf.xsk.pool = pool;
 	bpf.xsk.queue_id = queue_id;
 
-	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+	err = netdev->netdev_ops->ndo_bpf(netdev, &bpf);
 	if (err)
 		goto err_unreg_pool;
 
-	umem->zc = true;
+	pool->netdev = netdev;
+	pool->queue_id = queue_id;
+	pool->umem->zc = true;
 	return 0;
 
 err_unreg_pool:
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
 	if (err)
-		xsk_clear_pool_at_qid(dev, queue_id);
+		xsk_clear_pool_at_qid(netdev, queue_id);
 	return err;
 }
 
 void xp_clear_dev(struct xsk_buff_pool *pool)
 {
-	struct xdp_umem *umem = pool->umem;
 	struct netdev_bpf bpf;
 	int err;
 
 	ASSERT_RTNL();
 
-	if (!umem->dev)
+	if (!pool->netdev)
 		return;
 
-	if (umem->zc) {
+	if (pool->umem->zc) {
 		bpf.command = XDP_SETUP_XSK_POOL;
 		bpf.xsk.pool = NULL;
-		bpf.xsk.queue_id = umem->queue_id;
+		bpf.xsk.queue_id = pool->queue_id;
 
-		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
+		err = pool->netdev->netdev_ops->ndo_bpf(pool->netdev, &bpf);
 
 		if (err)
-			WARN(1, "failed to disable umem!\n");
+			WARN(1, "Failed to disable zero-copy!\n");
 	}
 
-	xsk_clear_pool_at_qid(umem->dev, umem->queue_id);
+	xsk_clear_pool_at_qid(pool->netdev, pool->queue_id);
+	dev_put(pool->netdev);
+	pool->netdev = NULL;
 }
 
 static void xp_release_deferred(struct work_struct *work)

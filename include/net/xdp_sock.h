@@ -26,11 +26,8 @@ struct xdp_umem {
 	refcount_t users;
 	struct page **pgs;
 	u32 npgs;
-	u16 queue_id;
-	u8 need_wakeup;
 	u8 flags;
 	int id;
-	struct net_device *dev;
 	bool zc;
 	spinlock_t xsk_tx_list_lock;
 	struct list_head xsk_tx_list;

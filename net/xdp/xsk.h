@@ -11,13 +11,6 @@
 #define XSK_NEXT_PG_CONTIG_SHIFT 0
 #define XSK_NEXT_PG_CONTIG_MASK BIT_ULL(XSK_NEXT_PG_CONTIG_SHIFT)
 
-/* Flags for the umem flags field.
- *
- * The NEED_WAKEUP flag is 1 due to the reuse of the flags field for public
- * flags. See inlude/uapi/include/linux/if_xdp.h.
- */
-#define XDP_UMEM_USES_NEED_WAKEUP BIT(1)
-
 struct xdp_ring_offset_v1 {
 	__u64 producer;
 	__u64 consumer;

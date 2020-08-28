@@ -43,11 +43,15 @@ struct xsk_buff_pool {
 	u32 headroom;
 	u32 chunk_size;
 	u32 frame_len;
+	u16 queue_id;
+	u8 cached_need_wakeup;
+	bool uses_need_wakeup;
 	bool dma_need_sync;
 	bool unaligned;
 	struct xdp_umem *umem;
 	void *addrs;
 	struct device *dev;
+	struct net_device *netdev;
 	refcount_t users;
 	struct work_struct work;
 	struct xdp_buff_xsk *free_heads[];

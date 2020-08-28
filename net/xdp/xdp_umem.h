@@ -8,10 +8,6 @@
 
 #include <net/xdp_sock_drv.h>
 
-void xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
-			 u16 queue_id);
-void xdp_umem_clear_dev(struct xdp_umem *umem);
-bool xdp_umem_validate_queues(struct xdp_umem *umem);
 void xdp_get_umem(struct xdp_umem *umem);
 void xdp_put_umem(struct xdp_umem *umem);
 void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs);

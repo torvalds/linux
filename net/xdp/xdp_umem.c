@@ -63,26 +63,9 @@ static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 	}
 }
 
-void xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
-			 u16 queue_id)
-{
-	umem->dev = dev;
-	umem->queue_id = queue_id;
-
-	dev_hold(dev);
-}
-
-void xdp_umem_clear_dev(struct xdp_umem *umem)
-{
-	dev_put(umem->dev);
-	umem->dev = NULL;
-	umem->zc = false;
-}
-
 static void xdp_umem_release(struct xdp_umem *umem)
 {
-	xdp_umem_clear_dev(umem);
-
+	umem->zc = false;
 	ida_simple_remove(&umem_ida, umem->id);
 
 	xdp_umem_unpin_pages(umem);
@@ -181,8 +164,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		return -EINVAL;
 	}
 
-	if (mr->flags & ~(XDP_UMEM_UNALIGNED_CHUNK_FLAG |
-			XDP_UMEM_USES_NEED_WAKEUP))
+	if (mr->flags & ~XDP_UMEM_UNALIGNED_CHUNK_FLAG)
 		return -EINVAL;
 
 	if (!unaligned_chunks && !is_power_of_2(chunk_size))

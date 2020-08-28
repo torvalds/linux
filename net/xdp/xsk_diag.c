@@ -59,8 +59,8 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	du.num_pages = umem->npgs;
 	du.chunk_size = umem->chunk_size;
 	du.headroom = umem->headroom;
-	du.ifindex = umem->dev ? umem->dev->ifindex : 0;
-	du.queue_id = umem->queue_id;
+	du.ifindex = pool->netdev ? pool->netdev->ifindex : 0;
+	du.queue_id = pool->queue_id;
 	du.flags = 0;
 	if (umem->zc)
 		du.flags |= XDP_DU_F_ZEROCOPY;

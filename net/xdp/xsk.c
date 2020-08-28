@@ -41,13 +41,11 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 
 void xsk_set_rx_need_wakeup(struct xsk_buff_pool *pool)
 {
-	struct xdp_umem *umem = pool->umem;
-
-	if (umem->need_wakeup & XDP_WAKEUP_RX)
+	if (pool->cached_need_wakeup & XDP_WAKEUP_RX)
 		return;
 
 	pool->fq->ring->flags |= XDP_RING_NEED_WAKEUP;
-	umem->need_wakeup |= XDP_WAKEUP_RX;
+	pool->cached_need_wakeup |= XDP_WAKEUP_RX;
 }
 EXPORT_SYMBOL(xsk_set_rx_need_wakeup);
 
@@ -56,7 +54,7 @@ void xsk_set_tx_need_wakeup(struct xsk_buff_pool *pool)
 	struct xdp_umem *umem = pool->umem;
 	struct xdp_sock *xs;
 
-	if (umem->need_wakeup & XDP_WAKEUP_TX)
+	if (pool->cached_need_wakeup & XDP_WAKEUP_TX)
 		return;
 
 	rcu_read_lock();
@@ -65,19 +63,17 @@ void xsk_set_tx_need_wakeup(struct xsk_buff_pool *pool)
 	}
 	rcu_read_unlock();
 
-	umem->need_wakeup |= XDP_WAKEUP_TX;
+	pool->cached_need_wakeup |= XDP_WAKEUP_TX;
 }
 EXPORT_SYMBOL(xsk_set_tx_need_wakeup);
 
 void xsk_clear_rx_need_wakeup(struct xsk_buff_pool *pool)
 {
-	struct xdp_umem *umem = pool->umem;
-
-	if (!(umem->need_wakeup & XDP_WAKEUP_RX))
+	if (!(pool->cached_need_wakeup & XDP_WAKEUP_RX))
 		return;
 
 	pool->fq->ring->flags &= ~XDP_RING_NEED_WAKEUP;
-	umem->need_wakeup &= ~XDP_WAKEUP_RX;
+	pool->cached_need_wakeup &= ~XDP_WAKEUP_RX;
 }
 EXPORT_SYMBOL(xsk_clear_rx_need_wakeup);
 
@@ -86,7 +82,7 @@ void xsk_clear_tx_need_wakeup(struct xsk_buff_pool *pool)
 	struct xdp_umem *umem = pool->umem;
 	struct xdp_sock *xs;
 
-	if (!(umem->need_wakeup & XDP_WAKEUP_TX))
+	if (!(pool->cached_need_wakeup & XDP_WAKEUP_TX))
 		return;
 
 	rcu_read_lock();
@@ -95,13 +91,13 @@ void xsk_clear_tx_need_wakeup(struct xsk_buff_pool *pool)
 	}
 	rcu_read_unlock();
 
-	umem->need_wakeup &= ~XDP_WAKEUP_TX;
+	pool->cached_need_wakeup &= ~XDP_WAKEUP_TX;
 }
 EXPORT_SYMBOL(xsk_clear_tx_need_wakeup);
 
 bool xsk_uses_need_wakeup(struct xsk_buff_pool *pool)
 {
-	return pool->umem->flags & XDP_UMEM_USES_NEED_WAKEUP;
+	return pool->uses_need_wakeup;
 }
 EXPORT_SYMBOL(xsk_uses_need_wakeup);
 
@@ -478,16 +474,16 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 	__poll_t mask = datagram_poll(file, sock, wait);
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
-	struct xdp_umem *umem;
+	struct xsk_buff_pool *pool;
 
 	if (unlikely(!xsk_is_bound(xs)))
 		return mask;
 
-	umem = xs->umem;
+	pool = xs->pool;
 
-	if (umem->need_wakeup) {
+	if (pool->cached_need_wakeup) {
 		if (xs->zc)
-			xsk_wakeup(xs, umem->need_wakeup);
+			xsk_wakeup(xs, pool->cached_need_wakeup);
 		else
 			/* Poll needs to drive Tx also in copy mode */
 			__xsk_sendmsg(sk);
@@ -731,11 +727,9 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		goto out_unlock;
 	} else {
 		/* This xsk has its own umem. */
-		xdp_umem_assign_dev(xs->umem, dev, qid);
 		xs->pool = xp_create_and_assign_umem(xs, xs->umem);
 		if (!xs->pool) {
 			err = -ENOMEM;
-			xdp_umem_clear_dev(xs->umem);
 			goto out_unlock;
 		}
 
@@ -743,7 +737,6 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		if (err) {
 			xp_destroy(xs->pool);
 			xs->pool = NULL;
-			xdp_umem_clear_dev(xs->umem);
 			goto out_unlock;
 		}
 	}
@@ -1089,7 +1082,6 @@ static int xsk_notifier(struct notifier_block *this,
 
 				/* Clear device references. */
 				xp_clear_dev(xs->pool);
-				xdp_umem_clear_dev(xs->umem);
 			}
 			mutex_unlock(&xs->mutex);
 		}
