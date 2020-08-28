@@ -132,7 +132,7 @@
 		reg = <0x100e5000 0x1000>;
 		interrupts = <0 51 4>;
 		clocks = <&oscclk2>, <&oscclk2>;
-		clock-names = "wdogclk", "apb_pclk";
+		clock-names = "wdog_clk", "apb_pclk";
 	};
 
 	scu@1e000000 {

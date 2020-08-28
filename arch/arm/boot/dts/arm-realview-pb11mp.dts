@@ -546,7 +546,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -556,7 +556,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		timer01: timer@10011000 {

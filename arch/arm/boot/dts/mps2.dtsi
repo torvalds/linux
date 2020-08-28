@@ -199,8 +199,8 @@
 				arm,primecell-periphid = <0x00141805>;
 				reg = <0x8000 0x1000>;
 				interrupts = <0>;
-				clocks = <&sysclk>;
-				clock-names = "apb_pclk";
+				clocks = <&sysclk>, <&sysclk>;
+				clock-names = "wdog_clk", "apb_pclk";
 				status = "disabled";
 			};
 		};
