@@ -166,19 +166,23 @@
 
 .macro __for from:req, to:req
 	.if (\from) == (\to)
-		_for__body \from
+		_for__body %\from
 	.else
-		__for \from, (\from) + ((\to) - (\from)) / 2
-		__for (\from) + ((\to) - (\from)) / 2 + 1, \to
+		__for %\from, %((\from) + ((\to) - (\from)) / 2)
+		__for %((\from) + ((\to) - (\from)) / 2 + 1), %\to
 	.endif
 .endm
 
 .macro _for var:req, from:req, to:req, insn:vararg
 	.macro _for__body \var:req
+		.noaltmacro
 		\insn
+		.altmacro
 	.endm
 
+	.altmacro
 	__for \from, \to
+	.noaltmacro
 
 	.purgem _for__body
 .endm
