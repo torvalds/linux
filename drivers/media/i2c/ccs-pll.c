@@ -142,6 +142,18 @@ static int check_all_bounds(struct device *dev,
 			lim->vt_bk.max_pix_clk_freq_hz,
 			"vt_pix_clk_freq_hz");
 
+	if (!(pll->flags & CCS_PLL_FLAG_FIFO_DERATING) &&
+	    pll->pixel_rate_pixel_array > pll->pixel_rate_csi) {
+		dev_dbg(dev, "device does not support derating\n");
+		return -EINVAL;
+	}
+
+	if (!(pll->flags & CCS_PLL_FLAG_FIFO_OVERRATING) &&
+	    pll->pixel_rate_pixel_array < pll->pixel_rate_csi) {
+		dev_dbg(dev, "device does not support overrating\n");
+		return -EINVAL;
+	}
+
 	return rval;
 }
 
@@ -163,37 +175,51 @@ __ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 	uint32_t min_sys_div, max_sys_div;
 
 	/*
-	 * Some sensors perform analogue binning and some do this
-	 * digitally. The ones doing this digitally can be roughly be
-	 * found out using this formula. The ones doing this digitally
-	 * should run at higher clock rate, so smaller divisor is used
-	 * on video timing side.
+	 * Find out whether a sensor supports derating. If it does not, VT and
+	 * OP domains are required to run at the same pixel rate.
 	 */
-	if (lim->min_line_length_pck_bin > lim->min_line_length_pck
-	    / pll->binning_horizontal)
-		vt_op_binning_div = pll->binning_horizontal;
-	else
-		vt_op_binning_div = 1;
-	dev_dbg(dev, "vt_op_binning_div: %u\n", vt_op_binning_div);
+	if (!(pll->flags & CCS_PLL_FLAG_FIFO_DERATING)) {
+		min_vt_div =
+			op_pll_bk->sys_clk_div * op_pll_bk->pix_clk_div
+			* pll->vt_lanes * phy_const
+			/ pll->op_lanes / PHY_CONST_DIV;
+	} else {
+		/*
+		 * Some sensors perform analogue binning and some do this
+		 * digitally. The ones doing this digitally can be roughly be
+		 * found out using this formula. The ones doing this digitally
+		 * should run at higher clock rate, so smaller divisor is used
+		 * on video timing side.
+		 */
+		if (lim->min_line_length_pck_bin > lim->min_line_length_pck
+		    / pll->binning_horizontal)
+			vt_op_binning_div = pll->binning_horizontal;
+		else
+			vt_op_binning_div = 1;
+		dev_dbg(dev, "vt_op_binning_div: %u\n", vt_op_binning_div);
 
-	/*
-	 * Profile 2 supports vt_pix_clk_div E [4, 10]
-	 *
-	 * Horizontal binning can be used as a base for difference in
-	 * divisors. One must make sure that horizontal blanking is
-	 * enough to accommodate the CSI-2 sync codes.
-	 *
-	 * Take scaling factor and number of VT lanes into account as well.
-	 *
-	 * Find absolute limits for the factor of vt divider.
-	 */
-	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
-	min_vt_div = DIV_ROUND_UP(pll->bits_per_pixel * op_pll_bk->sys_clk_div
-				  * pll->scale_n * pll->vt_lanes * phy_const,
-				  (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-				   pll->csi2.lanes : 1)
-				  * vt_op_binning_div * pll->scale_m
-				  * PHY_CONST_DIV);
+		/*
+		 * Profile 2 supports vt_pix_clk_div E [4, 10]
+		 *
+		 * Horizontal binning can be used as a base for difference in
+		 * divisors. One must make sure that horizontal blanking is
+		 * enough to accommodate the CSI-2 sync codes.
+		 *
+		 * Take scaling factor and number of VT lanes into account as well.
+		 *
+		 * Find absolute limits for the factor of vt divider.
+		 */
+		dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
+		min_vt_div =
+			DIV_ROUND_UP(pll->bits_per_pixel
+				     * op_pll_bk->sys_clk_div * pll->scale_n
+				     * pll->vt_lanes * phy_const,
+				     (pll->flags &
+				      CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+				      pll->csi2.lanes : 1)
+				     * vt_op_binning_div * pll->scale_m
+				     * PHY_CONST_DIV);
+	}
 
 	/* Find smallest and biggest allowed vt divisor. */
 	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);

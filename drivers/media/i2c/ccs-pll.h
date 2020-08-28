@@ -27,6 +27,8 @@
 #define CCS_PLL_FLAG_LINK_DECOUPLED				BIT(3)
 #define CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER				BIT(4)
 #define CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV			BIT(5)
+#define CCS_PLL_FLAG_FIFO_DERATING				BIT(6)
+#define CCS_PLL_FLAG_FIFO_OVERRATING				BIT(7)
 
 /**
  * struct ccs_pll_branch_fr - CCS PLL configuration (front)

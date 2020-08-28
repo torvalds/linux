@@ -3224,6 +3224,13 @@ static int ccs_probe(struct i2c_client *client)
 	if (CCS_LIM(sensor, CLOCK_TREE_PLL_CAPABILITY) &
 	    CCS_CLOCK_TREE_PLL_CAPABILITY_FLEXIBLE_OP_PIX_CLK_DIV)
 		sensor->pll.flags |= CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV;
+	if (CCS_LIM(sensor, FIFO_SUPPORT_CAPABILITY) &
+	    CCS_FIFO_SUPPORT_CAPABILITY_DERATING)
+		sensor->pll.flags |= CCS_PLL_FLAG_FIFO_DERATING;
+	if (CCS_LIM(sensor, FIFO_SUPPORT_CAPABILITY) &
+	    CCS_FIFO_SUPPORT_CAPABILITY_DERATING_OVERRATING)
+		sensor->pll.flags |= CCS_PLL_FLAG_FIFO_DERATING |
+				     CCS_PLL_FLAG_FIFO_OVERRATING;
 	sensor->pll.op_bits_per_lane = CCS_LIM(sensor, OP_BITS_PER_LANE);
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
