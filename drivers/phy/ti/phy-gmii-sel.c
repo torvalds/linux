@@ -147,13 +147,9 @@ static const
 struct reg_field phy_gmii_sel_fields_dra7[][PHY_GMII_SEL_LAST] = {
 	{
 		[PHY_GMII_SEL_PORT_MODE] = REG_FIELD(0x554, 0, 1),
-		[PHY_GMII_SEL_RGMII_ID_MODE] = REG_FIELD((~0), 0, 0),
-		[PHY_GMII_SEL_RMII_IO_CLK_EN] = REG_FIELD((~0), 0, 0),
 	},
 	{
 		[PHY_GMII_SEL_PORT_MODE] = REG_FIELD(0x554, 4, 5),
-		[PHY_GMII_SEL_RGMII_ID_MODE] = REG_FIELD((~0), 0, 0),
-		[PHY_GMII_SEL_RMII_IO_CLK_EN] = REG_FIELD((~0), 0, 0),
 	},
 };
 
@@ -174,8 +170,6 @@ static const
 struct reg_field phy_gmii_sel_fields_am654[][PHY_GMII_SEL_LAST] = {
 	{
 		[PHY_GMII_SEL_PORT_MODE] = REG_FIELD(0x4040, 0, 1),
-		[PHY_GMII_SEL_RGMII_ID_MODE] = REG_FIELD((~0), 0, 0),
-		[PHY_GMII_SEL_RMII_IO_CLK_EN] = REG_FIELD((~0), 0, 0),
 	},
 };
 
@@ -266,7 +260,7 @@ static int phy_gmii_init_phy(struct phy_gmii_sel_priv *priv, int port,
 	if_phy->fields[PHY_GMII_SEL_PORT_MODE] = regfield;
 
 	field = *fields++;
-	if (field.reg != (~0)) {
+	if (soc_data->features & BIT(PHY_GMII_SEL_RGMII_ID_MODE)) {
 		regfield = devm_regmap_field_alloc(dev,
 						   priv->regmap,
 						   field);
@@ -278,7 +272,7 @@ static int phy_gmii_init_phy(struct phy_gmii_sel_priv *priv, int port,
 	}
 
 	field = *fields;
-	if (field.reg != (~0)) {
+	if (soc_data->features & BIT(PHY_GMII_SEL_RMII_IO_CLK_EN)) {
 		regfield = devm_regmap_field_alloc(dev,
 						   priv->regmap,
 						   field);
