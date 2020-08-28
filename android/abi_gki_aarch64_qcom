@@ -1911,6 +1911,7 @@
   cpuidle_unregister_driver
   cpu_pm_enter
   cpu_pm_exit
+  get_next_event_cpu
   param_get_bool
   param_get_uint
   pending_ipi
@@ -2692,6 +2693,7 @@
   __usb_create_hcd
   usb_disabled
   usb_hcd_is_primary_hcd
+  usb_hcd_platform_shutdown
   usb_put_hcd
   usb_remove_hcd
   xhci_gen_setup
