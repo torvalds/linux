@@ -449,6 +449,10 @@ static int nv_reg_base_init(struct amdgpu_device *adev)
 {
 	int r;
 
+	/* IP discovery table is not available yet */
+	if (adev->asic_type == CHIP_VANGOGH)
+		goto legacy_init;
+
 	if (amdgpu_discovery) {
 		r = amdgpu_discovery_reg_base_init(adev);
 		if (r) {
