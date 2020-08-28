@@ -896,6 +896,8 @@ patternProperties:
     description: Ronbo Electronics
   "^roofull,.*":
     description: Shenzhen Roofull Technology Co, Ltd
+  "^roseapplepi,.*":
+    description: RoseapplePi.org
   "^samsung,.*":
     description: Samsung Semiconductor
   "^samtec,.*":
