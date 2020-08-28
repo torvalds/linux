@@ -177,6 +177,8 @@ bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 		struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq);
+bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
+			struct bio *bio, unsigned int nr_segs);
 
 void blk_account_io_start(struct request *req);
 void blk_account_io_done(struct request *req, u64 now);
