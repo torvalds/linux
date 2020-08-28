@@ -45,7 +45,7 @@ static void mlx5e_build_xsk_cparam(struct mlx5e_priv *priv,
 }
 
 int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
-		   struct mlx5e_xsk_param *xsk, struct xdp_umem *umem,
+		   struct mlx5e_xsk_param *xsk, struct xsk_buff_pool *pool,
 		   struct mlx5e_channel *c)
 {
 	struct mlx5e_channel_param *cparam;
@@ -64,7 +64,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_free_cparam;
 
-	err = mlx5e_open_rq(c, params, &cparam->rq, xsk, umem, &c->xskrq);
+	err = mlx5e_open_rq(c, params, &cparam->rq, xsk, pool, &c->xskrq);
 	if (unlikely(err))
 		goto err_close_rx_cq;
 
@@ -72,13 +72,13 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_close_rq;
 
-	/* Create a separate SQ, so that when the UMEM is disabled, we could
+	/* Create a separate SQ, so that when the buff pool is disabled, we could
 	 * close this SQ safely and stop receiving CQEs. In other case, e.g., if
-	 * the XDPSQ was used instead, we might run into trouble when the UMEM
+	 * the XDPSQ was used instead, we might run into trouble when the buff pool
 	 * is disabled and then reenabled, but the SQ continues receiving CQEs
-	 * from the old UMEM.
+	 * from the old buff pool.
 	 */
-	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, umem, &c->xsksq, true);
+	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, pool, &c->xsksq, true);
 	if (unlikely(err))
 		goto err_close_tx_cq;
 

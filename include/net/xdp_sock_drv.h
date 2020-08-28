@@ -14,7 +14,8 @@
 void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries);
 bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc);
 void xsk_umem_consume_tx_done(struct xdp_umem *umem);
-struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev, u16 queue_id);
+struct xsk_buff_pool *xdp_get_xsk_pool_from_qid(struct net_device *dev,
+						u16 queue_id);
 void xsk_set_rx_need_wakeup(struct xdp_umem *umem);
 void xsk_set_tx_need_wakeup(struct xdp_umem *umem);
 void xsk_clear_rx_need_wakeup(struct xdp_umem *umem);
@@ -125,8 +126,8 @@ static inline void xsk_umem_consume_tx_done(struct xdp_umem *umem)
 {
 }
 
-static inline struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
-						     u16 queue_id)
+static inline struct xsk_buff_pool *
+xdp_get_xsk_pool_from_qid(struct net_device *dev, u16 queue_id)
 {
 	return NULL;
 }

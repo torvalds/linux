@@ -51,8 +51,9 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
  * not know if the device has more tx queues than rx, or the opposite.
  * This might also change during run time.
  */
-static int xdp_reg_umem_at_qid(struct net_device *dev, struct xdp_umem *umem,
-			       u16 queue_id)
+static int xdp_reg_xsk_pool_at_qid(struct net_device *dev,
+				   struct xsk_buff_pool *pool,
+				   u16 queue_id)
 {
 	if (queue_id >= max_t(unsigned int,
 			      dev->real_num_rx_queues,
@@ -60,31 +61,31 @@ static int xdp_reg_umem_at_qid(struct net_device *dev, struct xdp_umem *umem,
 		return -EINVAL;
 
 	if (queue_id < dev->real_num_rx_queues)
-		dev->_rx[queue_id].umem = umem;
+		dev->_rx[queue_id].pool = pool;
 	if (queue_id < dev->real_num_tx_queues)
-		dev->_tx[queue_id].umem = umem;
+		dev->_tx[queue_id].pool = pool;
 
 	return 0;
 }
 
-struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
-				       u16 queue_id)
+struct xsk_buff_pool *xdp_get_xsk_pool_from_qid(struct net_device *dev,
+						u16 queue_id)
 {
 	if (queue_id < dev->real_num_rx_queues)
-		return dev->_rx[queue_id].umem;
+		return dev->_rx[queue_id].pool;
 	if (queue_id < dev->real_num_tx_queues)
-		return dev->_tx[queue_id].umem;
+		return dev->_tx[queue_id].pool;
 
 	return NULL;
 }
-EXPORT_SYMBOL(xdp_get_umem_from_qid);
+EXPORT_SYMBOL(xdp_get_xsk_pool_from_qid);
 
-static void xdp_clear_umem_at_qid(struct net_device *dev, u16 queue_id)
+static void xdp_clear_xsk_pool_at_qid(struct net_device *dev, u16 queue_id)
 {
 	if (queue_id < dev->real_num_rx_queues)
-		dev->_rx[queue_id].umem = NULL;
+		dev->_rx[queue_id].pool = NULL;
 	if (queue_id < dev->real_num_tx_queues)
-		dev->_tx[queue_id].umem = NULL;
+		dev->_tx[queue_id].pool = NULL;
 }
 
 int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
@@ -102,10 +103,10 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	if (force_zc && force_copy)
 		return -EINVAL;
 
-	if (xdp_get_umem_from_qid(dev, queue_id))
+	if (xdp_get_xsk_pool_from_qid(dev, queue_id))
 		return -EBUSY;
 
-	err = xdp_reg_umem_at_qid(dev, umem, queue_id);
+	err = xdp_reg_xsk_pool_at_qid(dev, umem->pool, queue_id);
 	if (err)
 		return err;
 
@@ -132,8 +133,8 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 		goto err_unreg_umem;
 	}
 
-	bpf.command = XDP_SETUP_XSK_UMEM;
-	bpf.xsk.umem = umem;
+	bpf.command = XDP_SETUP_XSK_POOL;
+	bpf.xsk.pool = umem->pool;
 	bpf.xsk.queue_id = queue_id;
 
 	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
@@ -147,7 +148,7 @@ err_unreg_umem:
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
 	if (err)
-		xdp_clear_umem_at_qid(dev, queue_id);
+		xdp_clear_xsk_pool_at_qid(dev, queue_id);
 	return err;
 }
 
@@ -162,8 +163,8 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
 		return;
 
 	if (umem->zc) {
-		bpf.command = XDP_SETUP_XSK_UMEM;
-		bpf.xsk.umem = NULL;
+		bpf.command = XDP_SETUP_XSK_POOL;
+		bpf.xsk.pool = NULL;
 		bpf.xsk.queue_id = umem->queue_id;
 
 		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
@@ -172,7 +173,7 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
 			WARN(1, "failed to disable umem!\n");
 	}
 
-	xdp_clear_umem_at_qid(umem->dev, umem->queue_id);
+	xdp_clear_xsk_pool_at_qid(umem->dev, umem->queue_id);
 
 	dev_put(umem->dev);
 	umem->dev = NULL;
@@ -373,8 +374,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (err)
 		goto out_account;
 
-	umem->pool = xp_create(umem->pgs, umem->npgs, chunks, chunk_size,
-			       headroom, size, unaligned_chunks);
+	umem->pool = xp_create(umem, chunks, chunk_size, headroom, size,
+			       unaligned_chunks);
 	if (!umem->pool) {
 		err = -ENOMEM;
 		goto out_pin;

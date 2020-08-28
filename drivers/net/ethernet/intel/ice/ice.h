@@ -321,9 +321,9 @@ struct ice_vsi {
 	struct ice_ring **xdp_rings;	 /* XDP ring array */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
-	struct xdp_umem **xsk_umems;
-	u16 num_xsk_umems_used;
-	u16 num_xsk_umems;
+	struct xsk_buff_pool **xsk_pools;
+	u16 num_xsk_pools_used;
+	u16 num_xsk_pools;
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -507,25 +507,25 @@ static inline void ice_set_ring_xdp(struct ice_ring *ring)
 }
 
 /**
- * ice_xsk_umem - get XDP UMEM bound to a ring
+ * ice_xsk_pool - get XSK buffer pool bound to a ring
  * @ring - ring to use
  *
- * Returns a pointer to xdp_umem structure if there is an UMEM present,
+ * Returns a pointer to xdp_umem structure if there is a buffer pool present,
  * NULL otherwise.
  */
-static inline struct xdp_umem *ice_xsk_umem(struct ice_ring *ring)
+static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_ring *ring)
 {
-	struct xdp_umem **umems = ring->vsi->xsk_umems;
+	struct xsk_buff_pool **pools = ring->vsi->xsk_pools;
 	u16 qid = ring->q_index;
 
 	if (ice_ring_is_xdp(ring))
 		qid -= ring->vsi->num_xdp_txq;
 
-	if (qid >= ring->vsi->num_xsk_umems || !umems || !umems[qid] ||
+	if (qid >= ring->vsi->num_xsk_pools || !pools || !pools[qid] ||
 	    !ice_is_xdp_ena_vsi(ring->vsi))
 		return NULL;
 
-	return umems[qid];
+	return pools[qid];
 }
 
 /**
