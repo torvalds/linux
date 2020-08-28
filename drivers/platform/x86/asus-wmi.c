@@ -1690,6 +1690,10 @@ static int fan_boost_mode_write(struct asus_wmi *asus)
 	pr_info("Set fan boost mode: %u\n", value);
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_FAN_BOOST_MODE, value,
 				    &retval);
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL,
+			"fan_boost_mode");
+
 	if (err) {
 		pr_warn("Failed to set fan boost mode: %d\n", err);
 		return err;
@@ -1801,6 +1805,10 @@ static int throttle_thermal_policy_write(struct asus_wmi *asus)
 
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
 				    value, &retval);
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL,
+			"throttle_thermal_policy");
+
 	if (err) {
 		pr_warn("Failed to set throttle thermal policy: %d\n", err);
 		return err;
