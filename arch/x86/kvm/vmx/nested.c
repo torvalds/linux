@@ -4676,7 +4676,7 @@ void nested_vmx_pmu_entry_exit_ctls_update(struct kvm_vcpu *vcpu)
 		vmx->nested.msrs.entry_ctls_high &=
 				~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
 		vmx->nested.msrs.exit_ctls_high &=
-				~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+				~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
 	}
 }
 
