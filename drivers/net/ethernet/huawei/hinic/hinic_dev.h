@@ -60,6 +60,7 @@ struct hinic_intr_coal_info {
 
 enum hinic_dbg_type {
 	HINIC_DBG_SQ_INFO,
+	HINIC_DBG_RQ_INFO,
 };
 
 struct hinic_debug_priv {
@@ -112,6 +113,7 @@ struct hinic_dev {
 
 	struct dentry			*dbgfs_root;
 	struct dentry			*sq_dbgfs;
+	struct dentry			*rq_dbgfs;
 	struct devlink			*devlink;
 	bool				cable_unplugged;
 	bool				module_unrecognized;

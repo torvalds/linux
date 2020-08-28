@@ -234,6 +234,8 @@ static int create_rxqs(struct hinic_dev *nic_dev)
 	if (!nic_dev->rxqs)
 		return -ENOMEM;
 
+	hinic_rq_dbgfs_init(nic_dev);
+
 	for (i = 0; i < num_rxqs; i++) {
 		struct hinic_rq *rq = hinic_hwdev_get_rq(nic_dev->hwdev, i);
 
@@ -243,13 +245,26 @@ static int create_rxqs(struct hinic_dev *nic_dev)
 				  "Failed to init rxq\n");
 			goto err_init_rxq;
 		}
+
+		err = hinic_rq_debug_add(nic_dev, i);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to add RQ%d debug\n", i);
+			goto err_add_rq_dbg;
+		}
 	}
 
 	return 0;
 
+err_add_rq_dbg:
+	hinic_clean_rxq(&nic_dev->rxqs[i]);
 err_init_rxq:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; j++) {
+		hinic_rq_debug_rem(nic_dev->rxqs[j].rq);
 		hinic_clean_rxq(&nic_dev->rxqs[j]);
+	}
+
+	hinic_rq_dbgfs_uninit(nic_dev);
 
 	devm_kfree(&netdev->dev, nic_dev->rxqs);
 	return err;
@@ -267,8 +282,12 @@ static void free_rxqs(struct hinic_dev *nic_dev)
 	if (!nic_dev->rxqs)
 		return;
 
-	for (i = 0; i < num_rxqs; i++)
+	for (i = 0; i < num_rxqs; i++) {
+		hinic_rq_debug_rem(nic_dev->rxqs[i].rq);
 		hinic_clean_rxq(&nic_dev->rxqs[i]);
+	}
+
+	hinic_rq_dbgfs_uninit(nic_dev);
 
 	devm_kfree(&netdev->dev, nic_dev->rxqs);
 	nic_dev->rxqs = NULL;

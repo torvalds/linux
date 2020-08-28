@@ -40,6 +40,36 @@ static u64 hinic_dbg_get_sq_info(struct hinic_dev *nic_dev, struct hinic_sq *sq,
 	return 0;
 }
 
+enum rq_dbg_info {
+	GLB_RQ_ID,
+	RQ_HW_PI,
+	RQ_SW_CI,
+	RQ_SW_PI,
+	RQ_MSIX_ENTRY,
+};
+
+static char *rq_fields[] = {"glb_rq_id", "rq_hw_pi", "rq_sw_ci", "rq_sw_pi", "rq_msix_entry"};
+
+static u64 hinic_dbg_get_rq_info(struct hinic_dev *nic_dev, struct hinic_rq *rq, int idx)
+{
+	struct hinic_wq *wq = rq->wq;
+
+	switch (idx) {
+	case GLB_RQ_ID:
+		return nic_dev->hwdev->func_to_io.global_qpn + rq->qid;
+	case RQ_HW_PI:
+		return be16_to_cpu(*(__be16 *)(rq->pi_virt_addr)) & wq->mask;
+	case RQ_SW_CI:
+		return atomic_read(&wq->cons_idx) & wq->mask;
+	case RQ_SW_PI:
+		return atomic_read(&wq->prod_idx) & wq->mask;
+	case RQ_MSIX_ENTRY:
+		return rq->msix_entry;
+	}
+
+	return 0;
+}
+
 static ssize_t hinic_dbg_cmd_read(struct file *filp, char __user *buffer, size_t count,
 				  loff_t *ppos)
 {
@@ -55,6 +85,10 @@ static ssize_t hinic_dbg_cmd_read(struct file *filp, char __user *buffer, size_t
 	switch (dbg->type) {
 	case HINIC_DBG_SQ_INFO:
 		out = hinic_dbg_get_sq_info(dbg->dev, dbg->object, *desc);
+		break;
+
+	case HINIC_DBG_RQ_INFO:
+		out = hinic_dbg_get_rq_info(dbg->dev, dbg->object, *desc);
 		break;
 
 	default:
@@ -128,6 +162,28 @@ void hinic_sq_debug_rem(struct hinic_sq *sq)
 		rem_dbg_files(sq->dbg);
 }
 
+int hinic_rq_debug_add(struct hinic_dev *dev, u16 rq_id)
+{
+	struct hinic_rq *rq;
+	struct dentry *root;
+	char sub_dir[16];
+
+	rq = dev->rxqs[rq_id].rq;
+
+	sprintf(sub_dir, "0x%x", rq_id);
+
+	root = debugfs_create_dir(sub_dir, dev->rq_dbgfs);
+
+	return create_dbg_files(dev, HINIC_DBG_RQ_INFO, rq, root, &rq->dbg, rq_fields,
+				ARRAY_SIZE(rq_fields));
+}
+
+void hinic_rq_debug_rem(struct hinic_rq *rq)
+{
+	if (rq->dbg)
+		rem_dbg_files(rq->dbg);
+}
+
 void hinic_sq_dbgfs_init(struct hinic_dev *nic_dev)
 {
 	nic_dev->sq_dbgfs = debugfs_create_dir("SQs", nic_dev->dbgfs_root);
@@ -136,6 +192,16 @@ void hinic_sq_dbgfs_init(struct hinic_dev *nic_dev)
 void hinic_sq_dbgfs_uninit(struct hinic_dev *nic_dev)
 {
 	debugfs_remove_recursive(nic_dev->sq_dbgfs);
+}
+
+void hinic_rq_dbgfs_init(struct hinic_dev *nic_dev)
+{
+	nic_dev->rq_dbgfs = debugfs_create_dir("RQs", nic_dev->dbgfs_root);
+}
+
+void hinic_rq_dbgfs_uninit(struct hinic_dev *nic_dev)
+{
+	debugfs_remove_recursive(nic_dev->rq_dbgfs);
 }
 
 void hinic_dbg_init(struct hinic_dev *nic_dev)

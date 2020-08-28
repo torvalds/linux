@@ -12,9 +12,17 @@ int hinic_sq_debug_add(struct hinic_dev *dev, u16 sq_id);
 
 void hinic_sq_debug_rem(struct hinic_sq *sq);
 
+int hinic_rq_debug_add(struct hinic_dev *dev, u16 rq_id);
+
+void hinic_rq_debug_rem(struct hinic_rq *rq);
+
 void hinic_sq_dbgfs_init(struct hinic_dev *nic_dev);
 
 void hinic_sq_dbgfs_uninit(struct hinic_dev *nic_dev);
+
+void hinic_rq_dbgfs_init(struct hinic_dev *nic_dev);
+
+void hinic_rq_dbgfs_uninit(struct hinic_dev *nic_dev);
 
 void hinic_dbg_init(struct hinic_dev *nic_dev);
 

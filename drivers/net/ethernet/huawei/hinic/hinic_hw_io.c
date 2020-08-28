@@ -315,6 +315,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 		goto err_sq_init;
 	}
 
+	qp->rq.qid = q_id;
 	err = hinic_init_rq(&qp->rq, hwif, &func_to_io->rq_wq[q_id],
 			    rq_msix_entry);
 	if (err) {
