@@ -613,7 +613,16 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 {
 	struct xsk_umem_info *umem;
 	struct xsk_umem_config cfg = {
-		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+		/* We recommend that you set the fill ring size >= HW RX ring size +
+		 * AF_XDP RX ring size. Make sure you fill up the fill ring
+		 * with buffers at regular intervals, and you will with this setting
+		 * avoid allocation failures in the driver. These are usually quite
+		 * expensive since drivers have not been written to assume that
+		 * allocation failures are common. For regular sockets, kernel
+		 * allocated memory is used that only runs out in OOM situations
+		 * that should be rare.
+		 */
+		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2,
 		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.frame_size = opt_xsk_frame_size,
 		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
@@ -640,13 +649,13 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
 	u32 idx;
 
 	ret = xsk_ring_prod__reserve(&umem->fq,
-				     XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+				     XSK_RING_PROD__DEFAULT_NUM_DESCS * 2, &idx);
+	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS * 2)
 		exit_with_error(-ret);
-	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
+	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS * 2; i++)
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) =
 			i * opt_xsk_frame_size;
-	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS * 2);
 }
 
 static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
@@ -887,9 +896,6 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 
 	if (!xsk->outstanding_tx)
 		return;
-
-	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
-		kick_tx(xsk);
 
 	ndescs = (xsk->outstanding_tx > opt_batch_size) ? opt_batch_size :
 		xsk->outstanding_tx;
