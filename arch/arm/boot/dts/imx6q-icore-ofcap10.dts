@@ -12,6 +12,17 @@
 / {
 	model = "Engicam i.CoreM6 Quad/Dual OpenFrame Capacitive touch 10.1 Kit";
 	compatible = "engicam,imx6-icore", "fsl,imx6q";
+
+	panel {
+		compatible = "ampire,am-1280800n3tzqw-t00h";
+		backlight = <&backlight_lvds>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
 };
 
 &ldb {
@@ -22,18 +33,11 @@
 		fsl,data-width = <24>;
 		status = "okay";
 
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <60000000>;
-				hactive = <1280>;
-				vactive = <800>;
-				hback-porch = <40>;
-				hfront-porch = <40>;
-				vback-porch = <10>;
-				vfront-porch = <3>;
-				hsync-len = <80>;
-				vsync-len = <10>;
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
