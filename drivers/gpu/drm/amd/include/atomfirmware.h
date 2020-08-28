@@ -1367,6 +1367,11 @@ enum atom_dmi_t17_mem_type_def{
   LpDdr2MemType,                                        ///< Assign 28 to LPDDR2
   LpDdr3MemType,                                        ///< Assign 29 to LPDDR3
   LpDdr4MemType,                                        ///< Assign 30 to LPDDR4
+  GDdr6MemType,                                         ///< Assign 31 to GDDR6
+  HbmMemType,                                           ///< Assign 32 to HBM
+  Hbm2MemType,                                          ///< Assign 33 to HBM2
+  Ddr5MemType,                                          ///< Assign 34 to DDR5
+  LpDdr5MemType,                                        ///< Assign 35 to LPDDR5
 };
 
 
