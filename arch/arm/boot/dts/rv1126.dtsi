@@ -2291,8 +2291,8 @@
 		reg = <0xffbc0000 0x4000>;
 		clocks = <&cru ACLK_NPU>, <&cru HCLK_NPU>, <&cru PCLK_PDNPU>, <&cru CLK_CORE_NPU>;
 		clock-names = "aclk_npu", "hclk_npu", "pclk_pdnpu", "sclk_npu";
-		assigned-clocks = <&cru CLK_CORE_NPU>;
-		assigned-clock-rates = <396000000>;
+		assigned-clocks = <&cru CLK_CORE_NPU>, <&cru ACLK_NPU>;
+		assigned-clock-rates = <396000000>, <600000000>;
 		operating-points-v2 = <&npu_opp_table>;
 		dynamic-power-coefficient = <1343>;
 		#cooling-cells = <2>;
