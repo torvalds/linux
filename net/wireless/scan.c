@@ -55,7 +55,7 @@
  *
  * Also note that the hidden_beacon_bss pointer is only relevant
  * if the driver uses something other than the IEs, e.g. private
- * data stored stored in the BSS struct, since the beacon IEs are
+ * data stored in the BSS struct, since the beacon IEs are
  * also linked into the probe response struct.
  */
 
@@ -1433,7 +1433,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	switch (ftype) {
 	case CFG80211_BSS_FTYPE_BEACON:
 		ies->from_beacon = true;
-		/* fall through */
+		fallthrough;
 	case CFG80211_BSS_FTYPE_UNKNOWN:
 		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 		break;
@@ -1488,7 +1488,7 @@ static const struct element
 					 ielen - (mbssid_end - ie));
 
 	/*
-	 * If is is not the last subelement in current MBSSID IE or there isn't
+	 * If it is not the last subelement in current MBSSID IE or there isn't
 	 * a next MBSSID IE - profile is complete.
 	*/
 	if ((sub_elem->data + sub_elem->datalen < mbssid_end - 1) ||

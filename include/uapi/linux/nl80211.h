@@ -252,9 +252,13 @@
  * DOC: SAE authentication offload
  *
  * By setting @NL80211_EXT_FEATURE_SAE_OFFLOAD flag drivers can indicate they
- * support offloading SAE authentication for WPA3-Personal networks. In
- * %NL80211_CMD_CONNECT the password for SAE should be specified using
- * %NL80211_ATTR_SAE_PASSWORD.
+ * support offloading SAE authentication for WPA3-Personal networks in station
+ * mode. Similarly @NL80211_EXT_FEATURE_SAE_OFFLOAD_AP flag can be set by
+ * drivers indicating the offload support in AP mode.
+ *
+ * The password for SAE should be specified using %NL80211_ATTR_SAE_PASSWORD in
+ * %NL80211_CMD_CONNECT and %NL80211_CMD_START_AP for station and AP mode
+ * respectively.
  */
 
 /**
@@ -647,13 +651,9 @@
  *	authentication/association or not receiving a response from the AP.
  *	Non-zero %NL80211_ATTR_STATUS_CODE value is indicated in that case as
  *	well to remain backwards compatible.
- *	When establishing a security association, drivers that support 4 way
- *	handshake offload should send %NL80211_CMD_PORT_AUTHORIZED event when
- *	the 4 way handshake is completed successfully.
  * @NL80211_CMD_ROAM: Notification indicating the card/driver roamed by itself.
- *	When a security association was established with the new AP (e.g. if
- *	the FT protocol was used for roaming or the driver completed the 4 way
- *	handshake), this event should be followed by an
+ *	When a security association was established on an 802.1X network using
+ *	fast transition, this event should be followed by an
  *	%NL80211_CMD_PORT_AUTHORIZED event.
  * @NL80211_CMD_DISCONNECT: drop a given connection; also used to notify
  *	userspace that a connection was dropped by the AP or due to other
@@ -1067,13 +1067,11 @@
  * @NL80211_CMD_DEL_PMK: For offloaded 4-Way handshake, delete the previously
  *	configured PMK for the authenticator address identified by
  *	%NL80211_ATTR_MAC.
- * @NL80211_CMD_PORT_AUTHORIZED: An event that indicates that the 4 way
- *	handshake was completed successfully by the driver. The BSSID is
- *	specified with %NL80211_ATTR_MAC. Drivers that support 4 way handshake
- *	offload should send this event after indicating 802.11 association with
- *	%NL80211_CMD_CONNECT or %NL80211_CMD_ROAM. If the 4 way handshake failed
- *	%NL80211_CMD_DISCONNECT should be indicated instead.
- *
+ * @NL80211_CMD_PORT_AUTHORIZED: An event that indicates an 802.1X FT roam was
+ *	completed successfully. Drivers that support 4 way handshake offload
+ *	should send this event after indicating 802.1X FT assocation with
+ *	%NL80211_CMD_ROAM. If the 4 way handshake failed %NL80211_CMD_DISCONNECT
+ *	should be indicated instead.
  * @NL80211_CMD_CONTROL_PORT_FRAME: Control Port (e.g. PAE) frame TX request
  *	and RX notification.  This command is used both as a request to transmit
  *	a control port frame and as a notification that a control port frame
@@ -2082,10 +2080,10 @@ enum nl80211_commands {
  *	operation).
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
- * @NL80211_ATTR_CSA_C_OFF_BEACON: An array of offsets (u16) to the channel
- *	switch counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
- * @NL80211_ATTR_CSA_C_OFF_PRESP: An array of offsets (u16) to the channel
- *	switch counters in the probe response (%NL80211_ATTR_PROBE_RESP).
+ * @NL80211_ATTR_CNTDWN_OFFS_BEACON: An array of offsets (u16) to the channel
+ *	switch or color change counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CNTDWN_OFFS_PRESP: An array of offsets (u16) to the channel
+ *	switch or color change counters in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
  *	As specified in the &enum nl80211_rxmgmt_flags.
@@ -2821,8 +2819,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_CH_SWITCH_COUNT,
 	NL80211_ATTR_CH_SWITCH_BLOCK_TX,
 	NL80211_ATTR_CSA_IES,
-	NL80211_ATTR_CSA_C_OFF_BEACON,
-	NL80211_ATTR_CSA_C_OFF_PRESP,
+	NL80211_ATTR_CNTDWN_OFFS_BEACON,
+	NL80211_ATTR_CNTDWN_OFFS_PRESP,
 
 	NL80211_ATTR_RXMGMT_FLAGS,
 
@@ -3009,6 +3007,8 @@ enum nl80211_attrs {
 #define	NL80211_ATTR_MESH_PARAMS NL80211_ATTR_MESH_CONFIG
 #define NL80211_ATTR_IFACE_SOCKET_OWNER NL80211_ATTR_SOCKET_OWNER
 #define NL80211_ATTR_SAE_DATA NL80211_ATTR_AUTH_DATA
+#define NL80211_ATTR_CSA_C_OFF_BEACON NL80211_ATTR_CNTDWN_OFFS_BEACON
+#define NL80211_ATTR_CSA_C_OFF_PRESP NL80211_ATTR_CNTDWN_OFFS_PRESP
 
 /*
  * Allow user space programs to use #ifdef on new attributes by defining them
@@ -3184,6 +3184,18 @@ enum nl80211_he_gi {
 	NL80211_RATE_INFO_HE_GI_0_8,
 	NL80211_RATE_INFO_HE_GI_1_6,
 	NL80211_RATE_INFO_HE_GI_3_2,
+};
+
+/**
+ * enum nl80211_he_ltf - HE long training field
+ * @NL80211_RATE_INFO_HE_1xLTF: 3.2 usec
+ * @NL80211_RATE_INFO_HE_2xLTF: 6.4 usec
+ * @NL80211_RATE_INFO_HE_4xLTF: 12.8 usec
+ */
+enum nl80211_he_ltf {
+	NL80211_RATE_INFO_HE_1XLTF,
+	NL80211_RATE_INFO_HE_2XLTF,
+	NL80211_RATE_INFO_HE_4XLTF,
 };
 
 /**
@@ -4741,6 +4753,10 @@ enum nl80211_key_attributes {
  * @NL80211_TXRATE_VHT: VHT rates allowed for TX rate selection,
  *	see &struct nl80211_txrate_vht
  * @NL80211_TXRATE_GI: configure GI, see &enum nl80211_txrate_gi
+ * @NL80211_TXRATE_HE: HE rates allowed for TX rate selection,
+ *	see &struct nl80211_txrate_he
+ * @NL80211_TXRATE_HE_GI: configure HE GI, 0.8us, 1.6us and 3.2us.
+ * @NL80211_TXRATE_HE_LTF: configure HE LTF, 1XLTF, 2XLTF and 4XLTF.
  * @__NL80211_TXRATE_AFTER_LAST: internal
  * @NL80211_TXRATE_MAX: highest TX rate attribute
  */
@@ -4750,6 +4766,9 @@ enum nl80211_tx_rate_attributes {
 	NL80211_TXRATE_HT,
 	NL80211_TXRATE_VHT,
 	NL80211_TXRATE_GI,
+	NL80211_TXRATE_HE,
+	NL80211_TXRATE_HE_GI,
+	NL80211_TXRATE_HE_LTF,
 
 	/* keep last */
 	__NL80211_TXRATE_AFTER_LAST,
@@ -4765,6 +4784,15 @@ enum nl80211_tx_rate_attributes {
  */
 struct nl80211_txrate_vht {
 	__u16 mcs[NL80211_VHT_NSS_MAX];
+};
+
+#define NL80211_HE_NSS_MAX		8
+/**
+ * struct nl80211_txrate_he - HE MCS/NSS txrate bitmap
+ * @mcs: MCS bitmap table for each NSS (array index 0 for 1 stream, etc.)
+ */
+struct nl80211_txrate_he {
+	__u16 mcs[NL80211_HE_NSS_MAX];
 };
 
 enum nl80211_txrate_gi {
@@ -5821,6 +5849,9 @@ enum nl80211_feature_flags {
  *	handshake with PSK in AP mode (PSK is passed as part of the start AP
  *	command).
  *
+ * @NL80211_EXT_FEATURE_SAE_OFFLOAD_AP: Device wants to do SAE authentication
+ *	in AP mode (SAE password is passed as part of the start AP command).
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5878,6 +5909,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_TX_STATUS,
 	NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION,
 	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_AP_PSK,
+	NL80211_EXT_FEATURE_SAE_OFFLOAD_AP,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

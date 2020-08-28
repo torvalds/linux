@@ -1593,8 +1593,8 @@ int ath11k_wmi_bcn_tmpl(struct ath11k *ar, u32 vdev_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 	cmd->vdev_id = vdev_id;
 	cmd->tim_ie_offset = offs->tim_offset;
-	cmd->csa_switch_count_offset = offs->csa_counter_offs[0];
-	cmd->ext_csa_switch_count_offset = offs->csa_counter_offs[1];
+	cmd->csa_switch_count_offset = offs->cntdwn_counter_offs[0];
+	cmd->ext_csa_switch_count_offset = offs->cntdwn_counter_offs[1];
 	cmd->buf_len = bcn->len;
 
 	ptr = skb->data + sizeof(*cmd);

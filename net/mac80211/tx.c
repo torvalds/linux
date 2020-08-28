@@ -4538,14 +4538,14 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
-			      struct beacon_data *beacon)
+static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
+					struct beacon_data *beacon)
 {
 	struct probe_resp *resp;
 	u8 *beacon_data;
 	size_t beacon_data_len;
 	int i;
-	u8 count = beacon->csa_current_counter;
+	u8 count = beacon->cntdwn_current_counter;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -4565,36 +4565,36 @@ static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
 	}
 
 	rcu_read_lock();
-	for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; ++i) {
+	for (i = 0; i < IEEE80211_MAX_CNTDWN_COUNTERS_NUM; ++i) {
 		resp = rcu_dereference(sdata->u.ap.probe_resp);
 
-		if (beacon->csa_counter_offsets[i]) {
-			if (WARN_ON_ONCE(beacon->csa_counter_offsets[i] >=
+		if (beacon->cntdwn_counter_offsets[i]) {
+			if (WARN_ON_ONCE(beacon->cntdwn_counter_offsets[i] >=
 					 beacon_data_len)) {
 				rcu_read_unlock();
 				return;
 			}
 
-			beacon_data[beacon->csa_counter_offsets[i]] = count;
+			beacon_data[beacon->cntdwn_counter_offsets[i]] = count;
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP && resp)
-			resp->data[resp->csa_counter_offsets[i]] = count;
+			resp->data[resp->cntdwn_counter_offsets[i]] = count;
 	}
 	rcu_read_unlock();
 }
 
-static u8 __ieee80211_csa_update_counter(struct beacon_data *beacon)
+static u8 __ieee80211_beacon_update_cntdwn(struct beacon_data *beacon)
 {
-	beacon->csa_current_counter--;
+	beacon->cntdwn_current_counter--;
 
 	/* the counter should never reach 0 */
-	WARN_ON_ONCE(!beacon->csa_current_counter);
+	WARN_ON_ONCE(!beacon->cntdwn_current_counter);
 
-	return beacon->csa_current_counter;
+	return beacon->cntdwn_current_counter;
 }
 
-u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
+u8 ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct beacon_data *beacon = NULL;
@@ -4612,15 +4612,15 @@ u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 	if (!beacon)
 		goto unlock;
 
-	count = __ieee80211_csa_update_counter(beacon);
+	count = __ieee80211_beacon_update_cntdwn(beacon);
 
 unlock:
 	rcu_read_unlock();
 	return count;
 }
-EXPORT_SYMBOL(ieee80211_csa_update_counter);
+EXPORT_SYMBOL(ieee80211_beacon_update_cntdwn);
 
-void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter)
+void ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct beacon_data *beacon = NULL;
@@ -4637,15 +4637,15 @@ void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter)
 	if (!beacon)
 		goto unlock;
 
-	if (counter < beacon->csa_current_counter)
-		beacon->csa_current_counter = counter;
+	if (counter < beacon->cntdwn_current_counter)
+		beacon->cntdwn_current_counter = counter;
 
 unlock:
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_csa_set_counter);
+EXPORT_SYMBOL(ieee80211_beacon_set_cntdwn);
 
-bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
+bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct beacon_data *beacon = NULL;
@@ -4688,20 +4688,21 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	if (!beacon->csa_counter_offsets[0])
+	if (!beacon->cntdwn_counter_offsets[0])
 		goto out;
 
-	if (WARN_ON_ONCE(beacon->csa_counter_offsets[0] > beacon_data_len))
+	if (WARN_ON_ONCE(beacon->cntdwn_counter_offsets[0] > beacon_data_len))
 		goto out;
 
-	if (beacon_data[beacon->csa_counter_offsets[0]] == 1)
+	if (beacon_data[beacon->cntdwn_counter_offsets[0]] == 1)
 		ret = true;
+
  out:
 	rcu_read_unlock();
 
 	return ret;
 }
-EXPORT_SYMBOL(ieee80211_csa_is_complete);
+EXPORT_SYMBOL(ieee80211_beacon_cntdwn_is_complete);
 
 static int ieee80211_beacon_protect(struct sk_buff *skb,
 				    struct ieee80211_local *local,
@@ -4761,11 +4762,11 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 		beacon = rcu_dereference(ap->beacon);
 		if (beacon) {
-			if (beacon->csa_counter_offsets[0]) {
+			if (beacon->cntdwn_counter_offsets[0]) {
 				if (!is_template)
-					__ieee80211_csa_update_counter(beacon);
+					ieee80211_beacon_update_cntdwn(vif);
 
-				ieee80211_set_csa(sdata, beacon);
+				ieee80211_set_beacon_cntdwn(sdata, beacon);
 			}
 
 			/*
@@ -4809,11 +4810,11 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!beacon)
 			goto out;
 
-		if (beacon->csa_counter_offsets[0]) {
+		if (beacon->cntdwn_counter_offsets[0]) {
 			if (!is_template)
-				__ieee80211_csa_update_counter(beacon);
+				__ieee80211_beacon_update_cntdwn(beacon);
 
-			ieee80211_set_csa(sdata, beacon);
+			ieee80211_set_beacon_cntdwn(sdata, beacon);
 		}
 
 		skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
@@ -4833,16 +4834,16 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!beacon)
 			goto out;
 
-		if (beacon->csa_counter_offsets[0]) {
+		if (beacon->cntdwn_counter_offsets[0]) {
 			if (!is_template)
 				/* TODO: For mesh csa_counter is in TU, so
 				 * decrementing it by one isn't correct, but
 				 * for now we leave it consistent with overall
 				 * mac80211's behavior.
 				 */
-				__ieee80211_csa_update_counter(beacon);
+				__ieee80211_beacon_update_cntdwn(beacon);
 
-			ieee80211_set_csa(sdata, beacon);
+			ieee80211_set_beacon_cntdwn(sdata, beacon);
 		}
 
 		if (ifmsh->sync_ops)
@@ -4874,13 +4875,13 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	if (offs && beacon) {
 		int i;
 
-		for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; i++) {
-			u16 csa_off = beacon->csa_counter_offsets[i];
+		for (i = 0; i < IEEE80211_MAX_CNTDWN_COUNTERS_NUM; i++) {
+			u16 csa_off = beacon->cntdwn_counter_offsets[i];
 
 			if (!csa_off)
 				continue;
 
-			offs->csa_counter_offs[i] = csa_off_base + csa_off;
+			offs->cntdwn_counter_offs[i] = csa_off_base + csa_off;
 		}
 	}
 

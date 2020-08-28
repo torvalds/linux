@@ -826,9 +826,9 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	memcpy(new->data, resp, resp_len);
 
 	if (csa)
-		memcpy(new->csa_counter_offsets, csa->counter_offsets_presp,
+		memcpy(new->cntdwn_counter_offsets, csa->counter_offsets_presp,
 		       csa->n_counter_offsets_presp *
-		       sizeof(new->csa_counter_offsets[0]));
+		       sizeof(new->cntdwn_counter_offsets[0]));
 
 	rcu_assign_pointer(sdata->u.ap.probe_resp, new);
 	if (old)
@@ -926,10 +926,10 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	new->tail_len = new_tail_len;
 
 	if (csa) {
-		new->csa_current_counter = csa->count;
-		memcpy(new->csa_counter_offsets, csa->counter_offsets_beacon,
+		new->cntdwn_current_counter = csa->count;
+		memcpy(new->cntdwn_counter_offsets, csa->counter_offsets_beacon,
 		       csa->n_counter_offsets_beacon *
-		       sizeof(new->csa_counter_offsets[0]));
+		       sizeof(new->cntdwn_counter_offsets[0]));
 	}
 
 	/* copy in head */
@@ -3186,9 +3186,9 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 			break;
 
 		if ((params->n_counter_offsets_beacon >
-		     IEEE80211_MAX_CSA_COUNTERS_NUM) ||
+		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM) ||
 		    (params->n_counter_offsets_presp >
-		     IEEE80211_MAX_CSA_COUNTERS_NUM))
+		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM))
 			return -EINVAL;
 
 		csa.counter_offsets_beacon = params->counter_offsets_beacon;

@@ -2282,7 +2282,7 @@ mt7915_mcu_beacon_csa(struct sk_buff *rskb, struct sk_buff *skb,
 		      struct bss_info_bcn *bcn,
 		      struct ieee80211_mutable_offsets *offs)
 {
-	if (offs->csa_counter_offs[0]) {
+	if (offs->cntdwn_counter_offs[0]) {
 		struct tlv *tlv;
 		struct bss_info_bcn_csa *csa;
 
@@ -2290,7 +2290,7 @@ mt7915_mcu_beacon_csa(struct sk_buff *rskb, struct sk_buff *skb,
 						   sizeof(*csa), &bcn->sub_ntlv,
 						   &bcn->len);
 		csa = (struct bss_info_bcn_csa *)tlv;
-		csa->cnt = skb->data[offs->csa_counter_offs[0]];
+		csa->cnt = skb->data[offs->cntdwn_counter_offs[0]];
 	}
 }
 
@@ -2312,8 +2312,8 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct sk_buff *rskb,
 	cont->pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	cont->tim_ofs = cpu_to_le16(offs->tim_offset);
 
-	if (offs->csa_counter_offs[0])
-		cont->csa_ofs = cpu_to_le16(offs->csa_counter_offs[0] - 4);
+	if (offs->cntdwn_counter_offs[0])
+		cont->csa_ofs = cpu_to_le16(offs->cntdwn_counter_offs[0] - 4);
 
 	buf = (u8 *)tlv + sizeof(*cont);
 	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL,

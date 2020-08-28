@@ -2019,8 +2019,8 @@ static void ath10k_mac_vif_ap_csa_count_down(struct ath10k_vif *arvif)
 	if (!arvif->is_up)
 		return;
 
-	if (!ieee80211_csa_is_complete(vif)) {
-		ieee80211_csa_update_counter(vif);
+	if (!ieee80211_beacon_cntdwn_is_complete(vif)) {
+		ieee80211_beacon_update_cntdwn(vif);
 
 		ret = ath10k_mac_setup_bcn_tmpl(arvif);
 		if (ret)
