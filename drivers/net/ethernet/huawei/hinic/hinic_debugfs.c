@@ -70,6 +70,63 @@ static u64 hinic_dbg_get_rq_info(struct hinic_dev *nic_dev, struct hinic_rq *rq,
 	return 0;
 }
 
+enum func_tbl_info {
+	VALID,
+	RX_MODE,
+	MTU,
+	RQ_DEPTH,
+	QUEUE_NUM,
+};
+
+static char *func_table_fields[] = {"valid", "rx_mode", "mtu", "rq_depth", "cfg_q_num"};
+
+static int hinic_dbg_get_func_table(struct hinic_dev *nic_dev, int idx)
+{
+	struct tag_sml_funcfg_tbl *funcfg_table_elem;
+	struct hinic_cmd_lt_rd *read_data;
+	u16 out_size = sizeof(*read_data);
+	int err;
+
+	read_data = kzalloc(sizeof(*read_data), GFP_KERNEL);
+	if (!read_data)
+		return ~0;
+
+	read_data->node = TBL_ID_FUNC_CFG_SM_NODE;
+	read_data->inst = TBL_ID_FUNC_CFG_SM_INST;
+	read_data->entry_size = HINIC_FUNCTION_CONFIGURE_TABLE_SIZE;
+	read_data->lt_index = HINIC_HWIF_FUNC_IDX(nic_dev->hwdev->hwif);
+	read_data->len = HINIC_FUNCTION_CONFIGURE_TABLE_SIZE;
+
+	err = hinic_port_msg_cmd(nic_dev->hwdev, HINIC_PORT_CMD_RD_LINE_TBL, read_data,
+				 sizeof(*read_data), read_data, &out_size);
+	if (err || out_size != sizeof(*read_data) || read_data->status) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Failed to get func table, err: %d, status: 0x%x, out size: 0x%x\n",
+			  err, read_data->status, out_size);
+		kfree(read_data);
+		return ~0;
+	}
+
+	funcfg_table_elem = (struct tag_sml_funcfg_tbl *)read_data->data;
+
+	switch (idx) {
+	case VALID:
+		return funcfg_table_elem->dw0.bs.valid;
+	case RX_MODE:
+		return funcfg_table_elem->dw0.bs.nic_rx_mode;
+	case MTU:
+		return funcfg_table_elem->dw1.bs.mtu;
+	case RQ_DEPTH:
+		return funcfg_table_elem->dw13.bs.cfg_rq_depth;
+	case QUEUE_NUM:
+		return funcfg_table_elem->dw13.bs.cfg_q_num;
+	}
+
+	kfree(read_data);
+
+	return ~0;
+}
+
 static ssize_t hinic_dbg_cmd_read(struct file *filp, char __user *buffer, size_t count,
 				  loff_t *ppos)
 {
@@ -89,6 +146,10 @@ static ssize_t hinic_dbg_cmd_read(struct file *filp, char __user *buffer, size_t
 
 	case HINIC_DBG_RQ_INFO:
 		out = hinic_dbg_get_rq_info(dbg->dev, dbg->object, *desc);
+		break;
+
+	case HINIC_DBG_FUNC_TABLE:
+		out = hinic_dbg_get_func_table(dbg->dev, *desc);
 		break;
 
 	default:
@@ -136,7 +197,9 @@ static int create_dbg_files(struct hinic_dev *dev, enum hinic_dbg_type type, voi
 
 static void rem_dbg_files(struct hinic_debug_priv *dbg)
 {
-	debugfs_remove_recursive(dbg->root);
+	if (dbg->type != HINIC_DBG_FUNC_TABLE)
+		debugfs_remove_recursive(dbg->root);
+
 	kfree(dbg);
 }
 
@@ -184,6 +247,21 @@ void hinic_rq_debug_rem(struct hinic_rq *rq)
 		rem_dbg_files(rq->dbg);
 }
 
+int hinic_func_table_debug_add(struct hinic_dev *dev)
+{
+	if (HINIC_IS_VF(dev->hwdev->hwif))
+		return 0;
+
+	return create_dbg_files(dev, HINIC_DBG_FUNC_TABLE, dev, dev->func_tbl_dbgfs, &dev->dbg,
+				func_table_fields, ARRAY_SIZE(func_table_fields));
+}
+
+void hinic_func_table_debug_rem(struct hinic_dev *dev)
+{
+	if (!HINIC_IS_VF(dev->hwdev->hwif) && dev->dbg)
+		rem_dbg_files(dev->dbg);
+}
+
 void hinic_sq_dbgfs_init(struct hinic_dev *nic_dev)
 {
 	nic_dev->sq_dbgfs = debugfs_create_dir("SQs", nic_dev->dbgfs_root);
@@ -202,6 +280,18 @@ void hinic_rq_dbgfs_init(struct hinic_dev *nic_dev)
 void hinic_rq_dbgfs_uninit(struct hinic_dev *nic_dev)
 {
 	debugfs_remove_recursive(nic_dev->rq_dbgfs);
+}
+
+void hinic_func_tbl_dbgfs_init(struct hinic_dev *nic_dev)
+{
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		nic_dev->func_tbl_dbgfs = debugfs_create_dir("func_table", nic_dev->dbgfs_root);
+}
+
+void hinic_func_tbl_dbgfs_uninit(struct hinic_dev *nic_dev)
+{
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		debugfs_remove_recursive(nic_dev->func_tbl_dbgfs);
 }
 
 void hinic_dbg_init(struct hinic_dev *nic_dev)
