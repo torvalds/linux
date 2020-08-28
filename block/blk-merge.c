@@ -907,13 +907,14 @@ static void blk_account_io_merge_bio(struct request *req)
 	part_stat_unlock();
 }
 
-bool bio_attempt_back_merge(struct request *req, struct bio *bio,
-		unsigned int nr_segs)
+enum bio_merge_status bio_attempt_back_merge(struct request *req,
+					     struct bio *bio,
+					     unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_back_merge_fn(req, bio, nr_segs))
-		return false;
+		return BIO_MERGE_FAILED;
 
 	trace_block_bio_backmerge(req->q, req, bio);
 	rq_qos_merge(req->q, req, bio);
@@ -928,16 +929,17 @@ bool bio_attempt_back_merge(struct request *req, struct bio *bio,
 	bio_crypt_free_ctx(bio);
 
 	blk_account_io_merge_bio(req);
-	return true;
+	return BIO_MERGE_OK;
 }
 
-bool bio_attempt_front_merge(struct request *req, struct bio *bio,
-		unsigned int nr_segs)
+enum bio_merge_status bio_attempt_front_merge(struct request *req,
+					      struct bio *bio,
+					      unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_front_merge_fn(req, bio, nr_segs))
-		return false;
+		return BIO_MERGE_FAILED;
 
 	trace_block_bio_frontmerge(req->q, req, bio);
 	rq_qos_merge(req->q, req, bio);
@@ -954,11 +956,12 @@ bool bio_attempt_front_merge(struct request *req, struct bio *bio,
 	bio_crypt_do_front_merge(req, bio);
 
 	blk_account_io_merge_bio(req);
-	return true;
+	return BIO_MERGE_OK;
 }
 
-bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
-		struct bio *bio)
+enum bio_merge_status bio_attempt_discard_merge(struct request_queue *q,
+						struct request *req,
+						struct bio *bio)
 {
 	unsigned short segments = blk_rq_nr_discard_segments(req);
 
@@ -976,10 +979,39 @@ bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 	req->nr_phys_segments = segments + 1;
 
 	blk_account_io_merge_bio(req);
-	return true;
+	return BIO_MERGE_OK;
 no_merge:
 	req_set_nomerge(q, req);
-	return false;
+	return BIO_MERGE_FAILED;
+}
+
+static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
+						   struct request *rq,
+						   struct bio *bio,
+						   unsigned int nr_segs,
+						   bool sched_allow_merge)
+{
+	if (!blk_rq_merge_ok(rq, bio))
+		return BIO_MERGE_NONE;
+
+	switch (blk_try_merge(rq, bio)) {
+	case ELEVATOR_BACK_MERGE:
+		if (!sched_allow_merge ||
+		    (sched_allow_merge && blk_mq_sched_allow_merge(q, rq, bio)))
+			return bio_attempt_back_merge(rq, bio, nr_segs);
+		break;
+	case ELEVATOR_FRONT_MERGE:
+		if (!sched_allow_merge ||
+		    (sched_allow_merge && blk_mq_sched_allow_merge(q, rq, bio)))
+			return bio_attempt_front_merge(rq, bio, nr_segs);
+		break;
+	case ELEVATOR_DISCARD_MERGE:
+		return bio_attempt_discard_merge(q, rq, bio);
+	default:
+		return BIO_MERGE_NONE;
+	}
+
+	return BIO_MERGE_FAILED;
 }
 
 /**
@@ -1018,8 +1050,6 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	plug_list = &plug->mq_list;
 
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
-		bool merged = false;
-
 		if (rq->q == q && same_queue_rq) {
 			/*
 			 * Only blk-mq multiple hardware queues case checks the
@@ -1029,24 +1059,11 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			*same_queue_rq = rq;
 		}
 
-		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
+		if (rq->q != q)
 			continue;
 
-		switch (blk_try_merge(rq, bio)) {
-		case ELEVATOR_BACK_MERGE:
-			merged = bio_attempt_back_merge(rq, bio, nr_segs);
-			break;
-		case ELEVATOR_FRONT_MERGE:
-			merged = bio_attempt_front_merge(rq, bio, nr_segs);
-			break;
-		case ELEVATOR_DISCARD_MERGE:
-			merged = bio_attempt_discard_merge(q, rq, bio);
-			break;
-		default:
-			break;
-		}
-
-		if (merged)
+		if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
+		    BIO_MERGE_OK)
 			return true;
 	}
 
@@ -1064,33 +1081,18 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 	int checked = 8;
 
 	list_for_each_entry_reverse(rq, list, queuelist) {
-		bool merged = false;
-
 		if (!checked--)
 			break;
 
-		if (!blk_rq_merge_ok(rq, bio))
+		switch (blk_attempt_bio_merge(q, rq, bio, nr_segs, true)) {
+		case BIO_MERGE_NONE:
 			continue;
-
-		switch (blk_try_merge(rq, bio)) {
-		case ELEVATOR_BACK_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_back_merge(rq, bio,
-						nr_segs);
-			break;
-		case ELEVATOR_FRONT_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_front_merge(rq, bio,
-						nr_segs);
-			break;
-		case ELEVATOR_DISCARD_MERGE:
-			merged = bio_attempt_discard_merge(q, rq, bio);
-			break;
-		default:
-			continue;
+		case BIO_MERGE_OK:
+			return true;
+		case BIO_MERGE_FAILED:
+			return false;
 		}
 
-		return merged;
 	}
 
 	return false;

@@ -29,6 +29,12 @@ struct blk_flush_queue {
 	spinlock_t		mq_flush_lock;
 };
 
+enum bio_merge_status {
+	BIO_MERGE_OK,
+	BIO_MERGE_NONE,
+	BIO_MERGE_FAILED,
+};
+
 extern struct kmem_cache *blk_requestq_cachep;
 extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
@@ -169,12 +175,15 @@ static inline void blk_integrity_del(struct gendisk *disk)
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
 
-bool bio_attempt_front_merge(struct request *req, struct bio *bio,
-		unsigned int nr_segs);
-bool bio_attempt_back_merge(struct request *req, struct bio *bio,
-		unsigned int nr_segs);
-bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
-		struct bio *bio);
+enum bio_merge_status bio_attempt_front_merge(struct request *req,
+					      struct bio *bio,
+					      unsigned int nr_segs);
+enum bio_merge_status bio_attempt_back_merge(struct request *req,
+					     struct bio *bio,
+					     unsigned int nr_segs);
+enum bio_merge_status bio_attempt_discard_merge(struct request_queue *q,
+						struct request *req,
+						struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq);
 bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
