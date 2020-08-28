@@ -244,7 +244,8 @@ static int preserve_sve_context(struct sve_context __user *ctx)
 	if (vq) {
 		/*
 		 * This assumes that the SVE state has already been saved to
-		 * the task struct by calling preserve_fpsimd_context().
+		 * the task struct by calling the function
+		 * fpsimd_signal_preserve_current_state().
 		 */
 		err |= __copy_to_user((char __user *)ctx + SVE_SIG_REGS_OFFSET,
 				      current->thread.sve_state,
