@@ -690,26 +690,23 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
-	unsigned int surface_size;
-
 	if (!dc->ctx->dmub_srv)
 		return false;
 
 	if (enable) {
-		if (dc->current_state
-				&& dc->current_state->stream_count == 1 // single display only
-				&& dc->current_state->stream_status[0].plane_count == 1 // single surface only
-				&& dc->current_state->stream_status[0].plane_states[0]->address.page_table_base.quad_part == 0 // no VM
-				// Only 8 and 16 bit formats
-				&& dc->current_state->stream_status[0].plane_states[0]->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F
-				&& dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888) {
+		if (dc->current_state) {
+			int i;
 
-			surface_size = dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_pitch *
-					dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_size.height *
-					(dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
-
+			/* First, check no-memory-requests case */
+			for (i = 0; i < dc->current_state->stream_count; i++) {
+				if (dc->current_state->stream_status[i]
+					    .plane_count)
+					/* Fail eligibility on a visible stream */
+					break;
+			}
 		}
 
+		/* No applicable optimizations */
 		return false;
 	}
 
