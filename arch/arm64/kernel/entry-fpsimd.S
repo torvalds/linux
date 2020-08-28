@@ -48,6 +48,23 @@ SYM_FUNC_START(sve_get_vl)
 	ret
 SYM_FUNC_END(sve_get_vl)
 
+/*
+ * Load SVE state from FPSIMD state.
+ *
+ * x0 = pointer to struct fpsimd_state
+ * x1 = VQ - 1
+ *
+ * Each SVE vector will be loaded with the first 128-bits taken from FPSIMD
+ * and the rest zeroed. All the other SVE registers will be zeroed.
+ */
+SYM_FUNC_START(sve_load_from_fpsimd_state)
+		sve_load_vq	x1, x2, x3
+		fpsimd_restore	x0, 8
+ _for n, 0, 15, _sve_pfalse	\n
+		_sve_wrffr	0
+		ret
+SYM_FUNC_END(sve_load_from_fpsimd_state)
+
 /* Zero all SVE registers but the first 128-bits of each vector */
 SYM_FUNC_START(sve_flush_live)
 	sve_flush
