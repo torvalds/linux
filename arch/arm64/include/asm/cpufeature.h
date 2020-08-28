@@ -358,7 +358,7 @@ static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
 }
 
 /*
- * Generic helper for handling capabilties with multiple (match,enable) pairs
+ * Generic helper for handling capabilities with multiple (match,enable) pairs
  * of call backs, sharing the same capability bit.
  * Iterate over each entry to see if at least one matches.
  */

@@ -66,7 +66,7 @@
  * TWI:		Trap WFI
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
- * FB:		Force broadcast of all maintainance operations
+ * FB:		Force broadcast of all maintenance operations
  * AMO:		Override CPSR.A and enable signaling with VA
  * IMO:		Override CPSR.I and enable signaling with VI
  * FMO:		Override CPSR.F and enable signaling with VF
