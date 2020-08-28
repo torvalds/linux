@@ -38,12 +38,27 @@ struct mtk_disp_color_data {
 struct mtk_disp_color {
 	struct mtk_ddp_comp			ddp_comp;
 	struct drm_crtc				*crtc;
+	struct clk				*clk;
 	const struct mtk_disp_color_data	*data;
 };
 
 static inline struct mtk_disp_color *comp_to_color(struct mtk_ddp_comp *comp)
 {
 	return container_of(comp, struct mtk_disp_color, ddp_comp);
+}
+
+static int mtk_color_clk_enable(struct device *dev)
+{
+	struct mtk_disp_color *color = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(color->clk);
+}
+
+static void mtk_color_clk_disable(struct device *dev)
+{
+	struct mtk_disp_color *color = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(color->clk);
 }
 
 static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
@@ -66,6 +81,8 @@ static void mtk_color_start(struct mtk_ddp_comp *comp)
 }
 
 static const struct mtk_ddp_comp_funcs mtk_disp_color_funcs = {
+	.clk_enable = mtk_color_clk_enable,
+	.clk_disable = mtk_color_clk_disable,
 	.config = mtk_color_config,
 	.start = mtk_color_start,
 };
@@ -111,6 +128,12 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get color clk\n");
+		return PTR_ERR(priv->clk);
+	}
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_COLOR);
 	if (comp_id < 0) {

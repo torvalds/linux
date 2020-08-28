@@ -72,6 +72,7 @@ struct mtk_disp_ovl_data {
 struct mtk_disp_ovl {
 	struct mtk_ddp_comp		ddp_comp;
 	struct drm_crtc			*crtc;
+	struct clk			*clk;
 	const struct mtk_disp_ovl_data	*data;
 };
 
@@ -112,6 +113,20 @@ static void mtk_ovl_disable_vblank(struct mtk_ddp_comp *comp)
 
 	ovl->crtc = NULL;
 	writel_relaxed(0x0, comp->regs + DISP_REG_OVL_INTEN);
+}
+
+static int mtk_ovl_clk_enable(struct device *dev)
+{
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(ovl->clk);
+}
+
+static void mtk_ovl_clk_disable(struct device *dev)
+{
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(ovl->clk);
 }
 
 static void mtk_ovl_start(struct mtk_ddp_comp *comp)
@@ -313,6 +328,8 @@ static void mtk_ovl_bgclr_in_off(struct mtk_ddp_comp *comp)
 }
 
 static const struct mtk_ddp_comp_funcs mtk_disp_ovl_funcs = {
+	.clk_enable = mtk_ovl_clk_enable,
+	.clk_disable = mtk_ovl_clk_disable,
 	.config = mtk_ovl_config,
 	.start = mtk_ovl_start,
 	.stop = mtk_ovl_stop,
@@ -372,6 +389,12 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get ovl clk\n");
+		return PTR_ERR(priv->clk);
+	}
 
 	priv->data = of_device_get_match_data(dev);
 

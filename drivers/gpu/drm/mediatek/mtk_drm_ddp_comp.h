@@ -39,6 +39,8 @@ enum mtk_ddp_comp_type {
 struct mtk_ddp_comp;
 struct cmdq_pkt;
 struct mtk_ddp_comp_funcs {
+	int (*clk_enable)(struct device *dev);
+	void (*clk_disable)(struct device *dev);
 	void (*config)(struct mtk_ddp_comp *comp, unsigned int w,
 		       unsigned int h, unsigned int vrefresh,
 		       unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
@@ -63,7 +65,7 @@ struct mtk_ddp_comp_funcs {
 };
 
 struct mtk_ddp_comp {
-	struct clk *clk;
+	struct device *dev;
 	void __iomem *regs;
 	int irq;
 	struct device *larb_dev;
@@ -72,6 +74,20 @@ struct mtk_ddp_comp {
 	resource_size_t regs_pa;
 	u8 subsys;
 };
+
+static inline int mtk_ddp_comp_clk_enable(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->clk_enable)
+		return comp->funcs->clk_enable(comp->dev);
+
+	return 0;
+}
+
+static inline void mtk_ddp_comp_clk_disable(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->clk_disable)
+		comp->funcs->clk_disable(comp->dev);
+}
 
 static inline void mtk_ddp_comp_config(struct mtk_ddp_comp *comp,
 				       unsigned int w, unsigned int h,

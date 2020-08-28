@@ -63,6 +63,7 @@ struct mtk_disp_rdma_data {
 struct mtk_disp_rdma {
 	struct mtk_ddp_comp		ddp_comp;
 	struct drm_crtc			*crtc;
+	struct clk			*clk;
 	const struct mtk_disp_rdma_data	*data;
 };
 
@@ -112,6 +113,20 @@ static void mtk_rdma_disable_vblank(struct mtk_ddp_comp *comp)
 
 	rdma->crtc = NULL;
 	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
+}
+
+static int mtk_rdma_clk_enable(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(rdma->clk);
+}
+
+static void mtk_rdma_clk_disable(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(rdma->clk);
 }
 
 static void mtk_rdma_start(struct mtk_ddp_comp *comp)
@@ -229,6 +244,8 @@ static void mtk_rdma_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 }
 
 static const struct mtk_ddp_comp_funcs mtk_disp_rdma_funcs = {
+	.clk_enable = mtk_rdma_clk_enable,
+	.clk_disable = mtk_rdma_clk_disable,
 	.config = mtk_rdma_config,
 	.start = mtk_rdma_start,
 	.stop = mtk_rdma_stop,
@@ -285,6 +302,12 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get rdma clk\n");
+		return PTR_ERR(priv->clk);
+	}
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_RDMA);
 	if (comp_id < 0) {

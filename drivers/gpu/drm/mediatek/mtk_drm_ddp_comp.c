@@ -86,6 +86,10 @@
 #define DITHER_ADD_LSHIFT_G(x)			(((x) & 0x7) << 4)
 #define DITHER_ADD_RSHIFT_G(x)			(((x) & 0x7) << 0)
 
+struct mtk_ddp_comp_dev {
+	struct clk *clk;
+};
+
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
 		   struct mtk_ddp_comp *comp, unsigned int offset)
 {
@@ -130,6 +134,20 @@ void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt,
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	}
 #endif
+}
+
+static int mtk_ddp_clk_enable(struct device *dev)
+{
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(priv->clk);
+}
+
+static void mtk_ddp_clk_disable(struct device *dev)
+{
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(priv->clk);
 }
 
 void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
@@ -322,6 +340,8 @@ static void mtk_gamma_set(struct mtk_ddp_comp *comp,
 }
 
 static const struct mtk_ddp_comp_funcs ddp_aal = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.gamma_set = mtk_gamma_set,
 	.config = mtk_aal_config,
 	.start = mtk_aal_start,
@@ -329,6 +349,8 @@ static const struct mtk_ddp_comp_funcs ddp_aal = {
 };
 
 static const struct mtk_ddp_comp_funcs ddp_ccorr = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.config = mtk_ccorr_config,
 	.start = mtk_ccorr_start,
 	.stop = mtk_ccorr_stop,
@@ -336,12 +358,16 @@ static const struct mtk_ddp_comp_funcs ddp_ccorr = {
 };
 
 static const struct mtk_ddp_comp_funcs ddp_dither = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.config = mtk_dither_config,
 	.start = mtk_dither_start,
 	.stop = mtk_dither_stop,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_gamma = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.gamma_set = mtk_gamma_set,
 	.config = mtk_gamma_config,
 	.start = mtk_gamma_start,
@@ -349,11 +375,15 @@ static const struct mtk_ddp_comp_funcs ddp_gamma = {
 };
 
 static const struct mtk_ddp_comp_funcs ddp_od = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.config = mtk_od_config,
 	.start = mtk_od_start,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_ufoe = {
+	.clk_enable = mtk_ddp_clk_enable,
+	.clk_disable = mtk_ddp_clk_disable,
 	.start = mtk_ufoe_start,
 };
 
@@ -493,8 +523,8 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 		      enum mtk_ddp_comp_id comp_id, const struct mtk_ddp_comp_funcs *funcs)
 {
 	struct platform_device *comp_pdev;
-	struct device *dev;
 	enum mtk_ddp_comp_type type;
+	struct mtk_ddp_comp_dev *priv;
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	struct resource res;
 	struct cmdq_client_reg cmdq_reg;
@@ -518,34 +548,29 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	    comp_id == DDP_COMPONENT_DSI3 ||
 	    comp_id == DDP_COMPONENT_PWM0) {
 		comp->regs = NULL;
-		comp->clk = NULL;
 		comp->irq = 0;
 		return 0;
 	}
 
 	comp->regs = of_iomap(node, 0);
 	comp->irq = of_irq_get(node, 0);
-	comp->clk = of_clk_get(node, 0);
-	if (IS_ERR(comp->clk))
-		return PTR_ERR(comp->clk);
-
 	comp_pdev = of_find_device_by_node(node);
 	if (!comp_pdev) {
 		DRM_INFO("Waiting for device %s\n", node->full_name);
 		return -EPROBE_DEFER;
 	}
-	dev = &comp_pdev->dev;
+	comp->dev = &comp_pdev->dev;
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (of_address_to_resource(node, 0, &res) != 0) {
-		dev_err(dev, "Missing reg in %s node\n", node->full_name);
+		dev_err(comp->dev, "Missing reg in %s node\n", node->full_name);
 		return -EINVAL;
 	}
 	comp->regs_pa = res.start;
 
-	ret = cmdq_dev_get_client_reg(dev, &cmdq_reg, 0);
+	ret = cmdq_dev_get_client_reg(comp->dev, &cmdq_reg, 0);
 	if (ret)
-		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
+		dev_dbg(comp->dev, "get mediatek,gce-client-reg fail!\n");
 	else
 		comp->subsys = cmdq_reg.subsys;
 #endif
@@ -555,10 +580,26 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	    type == MTK_DISP_OVL_2L ||
 	    type == MTK_DISP_RDMA ||
 	    type == MTK_DISP_WDMA) {
-		ret = mtk_ddp_get_larb_dev(node, comp, dev);
+		ret = mtk_ddp_get_larb_dev(node, comp, comp->dev);
 		if (ret)
 			return ret;
 	}
+
+	if (type == MTK_DISP_COLOR ||
+	    type == MTK_DISP_OVL ||
+	    type == MTK_DISP_OVL_2L ||
+	    type == MTK_DISP_RDMA)
+		return 0;
+
+	priv = devm_kzalloc(comp->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->clk = of_clk_get(node, 0);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	platform_set_drvdata(comp_pdev, priv);
 
 	return 0;
 }
