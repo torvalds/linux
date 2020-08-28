@@ -2398,8 +2398,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream;
 	u32 i, err_mask = NR_LOST_ERR | TNR_LOST_ERR |
-		UVNR_MONITOR_ERR | FBCH_EMPTY_NR |
-		FBCH_EMPTY_TNR | FBCD_DEC_ERR_NR |
+		FBCH_EMPTY_NR | FBCH_EMPTY_TNR | FBCD_DEC_ERR_NR |
 		FBCD_DEC_ERR_TNR | BUS_ERR_NR | BUS_ERR_TNR;
 
 	v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
