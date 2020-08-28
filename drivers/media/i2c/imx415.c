@@ -1541,6 +1541,9 @@ static int __imx415_start_stream(struct imx415 *imx415)
 		return ret;
 
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&imx415->ctrl_handler);
+	if (ret)
+		return ret;
 	if (imx415->has_init_exp && imx415->cur_mode->hdr_mode != NO_HDR) {
 		ret = imx415_ioctl(&imx415->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx415->init_hdrae_exp);
@@ -1549,12 +1552,6 @@ static int __imx415_start_stream(struct imx415 *imx415)
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
-	} else {
-		mutex_unlock(&imx415->mutex);
-		ret = v4l2_ctrl_handler_setup(&imx415->ctrl_handler);
-		mutex_lock(&imx415->mutex);
-		if (ret)
-			return ret;
 	}
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, 0);
