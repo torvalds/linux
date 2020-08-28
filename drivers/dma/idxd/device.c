@@ -529,7 +529,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg.priority = wq->priority;
 
 	/* bytes 12-15 */
-	wq->wqcfg.max_xfer_shift = idxd->hw.gen_cap.max_xfer_shift;
+	wq->wqcfg.max_xfer_shift = ilog2(wq->max_xfer_bytes);
 	wq->wqcfg.max_batch_shift = idxd->hw.gen_cap.max_batch_shift;
 
 	dev_dbg(dev, "WQ %d CFGs\n", wq->id);

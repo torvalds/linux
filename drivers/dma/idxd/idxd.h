@@ -114,6 +114,7 @@ struct idxd_wq {
 	struct sbitmap_queue sbq;
 	struct dma_chan dma_chan;
 	char name[WQ_NAME_SIZE + 1];
+	u64 max_xfer_bytes;
 };
 
 struct idxd_engine {
