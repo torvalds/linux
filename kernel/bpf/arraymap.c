@@ -487,6 +487,13 @@ static int array_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 				   vma->vm_pgoff + pgoff);
 }
 
+static bool array_map_meta_equal(const struct bpf_map *meta0,
+				 const struct bpf_map *meta1)
+{
+	return meta0->max_entries == meta1->max_entries &&
+		bpf_map_meta_equal(meta0, meta1);
+}
+
 struct bpf_iter_seq_array_map_info {
 	struct bpf_map *map;
 	void *percpu_value_buf;
@@ -625,7 +632,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 
 static int array_map_btf_id;
 const struct bpf_map_ops array_map_ops = {
-	.map_meta_equal = bpf_map_meta_equal,
+	.map_meta_equal = array_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
