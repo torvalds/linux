@@ -6514,9 +6514,12 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 
 	/*
 	 * The value should not be bigger than PAGE_SIZE. It requires to
-	 * be multiple of DEFAULT_STRIPE_SIZE.
+	 * be multiple of DEFAULT_STRIPE_SIZE and the value should be power
+	 * of two.
 	 */
-	if (new % DEFAULT_STRIPE_SIZE != 0 || new > PAGE_SIZE || new == 0)
+	if (new % DEFAULT_STRIPE_SIZE != 0 ||
+			new > PAGE_SIZE || new == 0 ||
+			new != roundup_pow_of_two(new))
 		return -EINVAL;
 
 	err = mddev_lock(mddev);
