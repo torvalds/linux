@@ -685,9 +685,31 @@ static int marvell_nfc_wait_cmdd(struct nand_chip *chip)
 	return marvell_nfc_end_cmd(chip, cs_flag, "CMDD");
 }
 
+static int marvell_nfc_poll_status(struct marvell_nfc *nfc, u32 mask,
+				   u32 expected_val, unsigned long timeout_ms)
+{
+	unsigned long limit;
+	u32 st;
+
+	limit = jiffies + msecs_to_jiffies(timeout_ms);
+	do {
+		st = readl_relaxed(nfc->regs + NDSR);
+		if (st & NDSR_RDY(1))
+			st |= NDSR_RDY(0);
+
+		if ((st & mask) == expected_val)
+			return 0;
+
+		cpu_relax();
+	} while (time_after(limit, jiffies));
+
+	return -ETIMEDOUT;
+}
+
 static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u32 pending;
 	int ret;
 
@@ -695,12 +717,18 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	if (!timeout_ms)
 		timeout_ms = IRQ_TIMEOUT;
 
-	init_completion(&nfc->complete);
+	if (mtd->oops_panic_write) {
+		ret = marvell_nfc_poll_status(nfc, NDSR_RDY(0),
+					      NDSR_RDY(0),
+					      timeout_ms);
+	} else {
+		init_completion(&nfc->complete);
 
-	marvell_nfc_enable_int(nfc, NDCR_RDYM);
-	ret = wait_for_completion_timeout(&nfc->complete,
-					  msecs_to_jiffies(timeout_ms));
-	marvell_nfc_disable_int(nfc, NDCR_RDYM);
+		marvell_nfc_enable_int(nfc, NDCR_RDYM);
+		ret = wait_for_completion_timeout(&nfc->complete,
+						  msecs_to_jiffies(timeout_ms));
+		marvell_nfc_disable_int(nfc, NDCR_RDYM);
+	}
 	pending = marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
 
 	/*
