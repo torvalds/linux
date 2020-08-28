@@ -9,6 +9,40 @@ typedef unsigned long lkl_thread_t;
 struct lkl_jmp_buf {
 	unsigned long buf[128];
 };
+struct lkl_pci_dev;
+
+/**
+ * lkl_dev_pci_ops - PCI host operations
+ *
+ * These operations would be a wrapper of userspace PCI drvier and
+ * must be provided by a host library or by the application.
+ *
+ * @add - add a new PCI device; returns a handler or NULL if fails
+ * @remove - release resources
+ * @init_irq - allocate resources for interrupts
+ * @read - read the PCI Configuration Space
+ * @write - write the PCI Configuration Space
+ * @resource_alloc - map BARx and return the mapped address. x is resource_index
+ *
+ * @map_page - return the DMA address of pages; vaddr might not be page-aligned
+ * @unmap_page - cleanup DMA region if needed
+ *
+ */
+struct lkl_dev_pci_ops {
+	struct lkl_pci_dev *(*add)(const char *name, void *kernel_ram,
+				   unsigned long ram_size);
+	void (*remove)(struct lkl_pci_dev *dev);
+	int (*irq_init)(struct lkl_pci_dev *dev, int irq);
+	int (*read)(struct lkl_pci_dev *dev, int where, int size, void *val);
+	int (*write)(struct lkl_pci_dev *dev, int where, int size, void *val);
+	void *(*resource_alloc)(struct lkl_pci_dev *dev,
+				unsigned long resource_size,
+				int resource_index);
+	unsigned long long (*map_page)(struct lkl_pci_dev *dev, void *vaddr,
+				       unsigned long size);
+	void (*unmap_page)(struct lkl_pci_dev *dev,
+			   unsigned long long dma_handle, unsigned long size);
+};
 
 /**
  * lkl_host_operations - host operations used by the Linux kernel
@@ -54,6 +88,8 @@ struct lkl_jmp_buf {
  *
  * @mem_alloc - allocate memory
  * @mem_free - free memory
+ * @page_alloc - allocate page aligned memory
+ * @page_free - free memory allocated by page_alloc
  *
  * @timer_create - allocate a host timer that runs fn(arg) when the timer
  * fires.
@@ -83,6 +119,7 @@ struct lkl_jmp_buf {
  * @jmp_buf_longjmp - perform a jump back to the saved jump buffer
  *
  * @memcpy - copy memory
+ * @pci_ops - pointer to PCI host operations
  */
 struct lkl_host_operations {
 	const char *virtio_devices;
@@ -114,6 +151,8 @@ struct lkl_host_operations {
 
 	void* (*mem_alloc)(unsigned long);
 	void (*mem_free)(void *);
+	void* (*page_alloc)(unsigned long size);
+	void (*page_free)(void *addr, unsigned long size);
 
 	unsigned long long (*time)(void);
 
@@ -131,6 +170,7 @@ struct lkl_host_operations {
 	void (*jmp_buf_longjmp)(struct lkl_jmp_buf *jmpb, int val);
 
 	void* (*memcpy)(void *dest, const void *src, unsigned long count);
+	struct lkl_dev_pci_ops *pci_ops;
 };
 
 /**

@@ -200,21 +200,15 @@ int lkl_get_virtio_blkdev(int disk_id, unsigned int part, uint32_t *pdevid)
 	return lkl_encode_dev_from_sysfs(sysfs_path, pdevid);
 }
 
-long lkl_mount_dev(unsigned int disk_id, unsigned int part,
-		   const char *fs_type, int flags,
-		   const char *data, char *mnt_str, unsigned int mnt_str_len)
+long lkl_mount_blkdev(unsigned int dev, const char *fs_type, int flags,
+		      const char *data, char *mnt_str, unsigned int mnt_str_len)
 {
 	char dev_str[] = { "/dev/xxxxxxxx" };
-	unsigned int dev;
 	int err;
 	char _data[4096]; /* FIXME: PAGE_SIZE is not exported by LKL */
 
 	if (mnt_str_len < sizeof(dev_str))
 		return -LKL_ENOMEM;
-
-	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
-	if (err < 0)
-		return err;
 
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 	snprintf(mnt_str, mnt_str_len, "/mnt/%08x", dev);
@@ -263,6 +257,21 @@ long lkl_mount_dev(unsigned int disk_id, unsigned int part,
 	return 0;
 }
 
+long lkl_mount_dev(unsigned int disk_id, unsigned int part,
+		   const char *fs_type, int flags,
+		   const char *data, char *mnt_str, unsigned int mnt_str_len)
+{
+	unsigned int dev;
+	int err;
+
+	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
+	if (err < 0)
+		return err;
+
+	return lkl_mount_blkdev(dev, fs_type, flags, data, mnt_str,
+				mnt_str_len);
+}
+
 long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 {
 	long incr = 10000000; /* 10 ms */
@@ -284,17 +293,11 @@ long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 	return err;
 }
 
-long lkl_umount_dev(unsigned int disk_id, unsigned int part, int flags,
-		    long timeout_ms)
+long lkl_umount_blkdev(unsigned int dev, int flags, long timeout_ms)
 {
 	char dev_str[] = { "/dev/xxxxxxxx" };
 	char mnt_str[] = { "/mnt/xxxxxxxx" };
-	unsigned int dev;
 	int err;
-
-	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
-	if (err < 0)
-		return err;
 
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 	snprintf(mnt_str, sizeof(mnt_str), "/mnt/%08x", dev);
@@ -308,6 +311,19 @@ long lkl_umount_dev(unsigned int disk_id, unsigned int part, int flags,
 		return err;
 
 	return lkl_sys_rmdir(mnt_str);
+}
+
+long lkl_umount_dev(unsigned int disk_id, unsigned int part, int flags,
+		    long timeout_ms)
+{
+	unsigned int dev;
+	int err;
+
+	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
+	if (err < 0)
+		return err;
+
+	return lkl_umount_blkdev(dev, flags, timeout_ms);
 }
 
 struct lkl_dir {

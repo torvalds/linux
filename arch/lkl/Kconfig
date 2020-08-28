@@ -36,6 +36,7 @@ config LKL
        select ARCH_NO_COHERENT_DMA_MMAP
        select HAVE_MEMBLOCK
        select NO_BOOTMEM
+       select BLK_DEV_NVME
 
 config OUTPUT_FORMAT
        string "Output format"
@@ -93,4 +94,8 @@ config CONSOLE_LOGLEVEL_QUIET
 	  will be used as the loglevel. IOW passing "quiet" will be the
 	  equivalent of passing "loglevel=<CONSOLE_LOGLEVEL_QUIET>"
 
-
+config PCI
+	bool "PCI support"
+	select NO_GENERIC_PCI_IOPORT_MAP
+	select GENERIC_PCI_IOMAP
+	default y

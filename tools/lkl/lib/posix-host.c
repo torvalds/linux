@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 #include <poll.h>
 #include <lkl_host.h>
 #include "iomem.h"
@@ -311,6 +312,28 @@ static long _gettid(void)
 #endif
 }
 
+static void *page_alloc(unsigned long size)
+{
+	void *addr;
+
+	addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if (addr == MAP_FAILED)
+		return NULL;
+
+	return addr;
+}
+
+static void page_free(void *addr, unsigned long size)
+{
+	munmap((void *)addr, size);
+}
+
+#ifdef LKL_HOST_CONFIG_VFIO_PCI
+extern struct lkl_dev_pci_ops vfio_pci_ops;
+#endif
+
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
@@ -338,6 +361,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.print = print,
 	.mem_alloc = malloc,
 	.mem_free = free,
+	.page_alloc = page_alloc,
+	.page_free = page_free,
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
@@ -345,6 +370,9 @@ struct lkl_host_operations lkl_host_ops = {
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
 	.memcpy = memcpy,
+#ifdef LKL_HOST_CONFIG_VFIO_PCI
+	.pci_ops = &vfio_pci_ops,
+#endif
 };
 
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
