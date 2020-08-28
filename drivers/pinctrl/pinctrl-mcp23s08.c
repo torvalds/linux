@@ -564,7 +564,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	ret = mcp_read(mcp, MCP_IOCON, &status);
 	if (ret < 0)
-		goto fail;
+		return dev_err_probe(dev, ret, "can't identify chip %d\n", addr);
 
 	mcp->irq_controller =
 		device_property_read_bool(dev, "interrupt-controller");
@@ -598,7 +598,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 		ret = mcp_write(mcp, MCP_IOCON, status);
 		if (ret < 0)
-			goto fail;
+			return dev_err_probe(dev, ret, "can't write IOCON %d\n", addr);
 	}
 
 	if (mcp->irq && mcp->irq_controller) {
@@ -616,7 +616,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
 	if (ret < 0)
-		goto fail;
+		return dev_err_probe(dev, ret, "can't add GPIO chip\n");
 
 	mcp->pinctrl_desc.pctlops = &mcp_pinctrl_ops;
 	mcp->pinctrl_desc.confops = &mcp_pinconf_ops;
@@ -628,18 +628,17 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->pinctrl_desc.owner = THIS_MODULE;
 
 	mcp->pctldev = devm_pinctrl_register(dev, &mcp->pinctrl_desc, mcp);
-	if (IS_ERR(mcp->pctldev)) {
-		ret = PTR_ERR(mcp->pctldev);
-		goto fail;
+	if (IS_ERR(mcp->pctldev))
+		return dev_err_probe(dev, PTR_ERR(mcp->pctldev), "can't register controller\n");
+
+	if (mcp->irq) {
+		ret = mcp23s08_irq_setup(mcp);
+		if (ret)
+			return dev_err_probe(dev, ret, "can't setup IRQ\n");
 	}
 
-	if (mcp->irq)
-		ret = mcp23s08_irq_setup(mcp);
-
-fail:
-	if (ret < 0)
-		dev_dbg(dev, "can't setup chip %d, --> %d\n", addr, ret);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mcp23s08_probe_one);
+
 MODULE_LICENSE("GPL");
