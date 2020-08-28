@@ -161,6 +161,32 @@ static int mpp_show_version(struct seq_file *seq, void *offset)
 	return 0;
 }
 
+static int mpp_show_session_summary(struct seq_file *seq, void *offset)
+{
+	struct mpp_session *session = NULL, *n;
+	struct mpp_service *srv = seq->private;
+
+	mutex_lock(&srv->session_lock);
+	list_for_each_entry_safe(session, n,
+				 &srv->session_list,
+				 session_link) {
+		struct  mpp_dev *mpp;
+
+		if (!session->priv)
+			continue;
+
+		if (!session->mpp)
+			continue;
+		mpp = session->mpp;
+
+		if (mpp->dev_ops->dump_session)
+			mpp->dev_ops->dump_session(session, seq);
+	}
+	mutex_unlock(&srv->session_lock);
+
+	return 0;
+}
+
 static int mpp_procfs_init(struct mpp_service *srv)
 {
 	srv->procfs = proc_mkdir(MPP_SERVICE_NAME, NULL);
@@ -172,6 +198,9 @@ static int mpp_procfs_init(struct mpp_service *srv)
 	if (srv->procfs)
 		proc_create_single_data("version", 0644, srv->procfs,
 					mpp_show_version, NULL);
+	/* for show session info */
+	proc_create_single_data("session_summary", 0644,
+				srv->procfs, mpp_show_session_summary, srv);
 
 	return 0;
 }
@@ -257,6 +286,8 @@ static int mpp_service_probe(struct platform_device *pdev)
 		dev_err(dev, "register %s device\n", MPP_SERVICE_NAME);
 		goto fail_register;
 	}
+	mutex_init(&srv->session_lock);
+	INIT_LIST_HEAD(&srv->session_list);
 	mpp_procfs_init(srv);
 
 	/* register sub drivers */

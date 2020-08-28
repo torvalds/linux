@@ -47,7 +47,7 @@
 #define MPP_CMD_INIT_SUPPORT_MASK_V1		(0x00000007)
 #define MPP_CMD_SEND_SUPPORT_MASK_V1		(0x0000001F)
 #define MPP_CMD_POLL_SUPPORT_MASK_V1		(0x00000001)
-#define MPP_CMD_CONTROL_SUPPORT_MASK_V1		(0x00000007)
+#define MPP_CMD_CONTROL_SUPPORT_MASK_V1		(0x0000000F)
 
 /* input parmater structure for version 1 */
 struct mpp_msg_v1 {
@@ -57,6 +57,38 @@ struct mpp_msg_v1 {
 	__u32 offset;
 	__u64 data_ptr;
 };
+
+#ifdef CONFIG_PROC_FS
+const char *mpp_device_name[MPP_DEVICE_BUTT] = {
+	[MPP_DEVICE_VDPU1]		= "VDPU1",
+	[MPP_DEVICE_VDPU2]		= "VDPU2",
+	[MPP_DEVICE_VDPU1_PP]		= "VDPU1_PP",
+	[MPP_DEVICE_VDPU2_PP]		= "VDPU2_PP",
+	[MPP_DEVICE_HEVC_DEC]		= "HEVC_DEC",
+	[MPP_DEVICE_RKVDEC]		= "RKVDEC",
+	[MPP_DEVICE_AVSPLUS_DEC]	= "AVSPLUS_DEC",
+	[MPP_DEVICE_RKVENC]		= "RKVENC",
+	[MPP_DEVICE_VEPU1]		= "VEPU1",
+	[MPP_DEVICE_VEPU2]		= "VEPU2",
+	[MPP_DEVICE_VEPU22]		= "VEPU22",
+	[MPP_DEVICE_IEP2]		= "IEP2",
+};
+
+const char *enc_info_item_name[ENC_INFO_BUTT] = {
+	[ENC_INFO_BASE]		= "null",
+	[ENC_INFO_WIDTH]	= "width",
+	[ENC_INFO_HEIGHT]	= "height",
+	[ENC_INFO_FORMAT]	= "format",
+	[ENC_INFO_FPS_IN]	= "fps_in",
+	[ENC_INFO_FPS_OUT]	= "fps_out",
+	[ENC_INFO_RC_MODE]	= "rc_mode",
+	[ENC_INFO_BITRATE]	= "bitrate",
+	[ENC_INFO_GOP_SIZE]	= "gop_size",
+	[ENC_INFO_FPS_CALC]	= "fps_calc",
+	[ENC_INFO_PROFILE]	= "profile",
+};
+
+#endif
 
 static void mpp_free_task(struct kref *ref);
 
@@ -1135,11 +1167,15 @@ static int mpp_dev_open(struct inode *inode, struct file *filp)
 	mutex_init(&session->done_lock);
 	INIT_LIST_HEAD(&session->pending_list);
 	INIT_LIST_HEAD(&session->done_list);
+	INIT_LIST_HEAD(&session->session_link);
 
 	init_waitqueue_head(&session->wait);
 	atomic_set(&session->task_count, 0);
 	atomic_set(&session->release_request, 0);
 
+	mutex_lock(&srv->session_lock);
+	list_add_tail(&session->session_link, &srv->session_list);
+	mutex_unlock(&srv->session_lock);
 	filp->private_data = (void *)session;
 
 	mpp_debug_leave();
@@ -1184,6 +1220,9 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 		mpp_dma_session_destroy(session->dma);
 		up_read(&mpp->iommu_info->rw_sem);
 	}
+	mutex_lock(&session->srv->session_lock);
+	list_del_init(&session->session_link);
+	mutex_unlock(&session->srv->session_lock);
 
 	kfree(session);
 	filp->private_data = NULL;

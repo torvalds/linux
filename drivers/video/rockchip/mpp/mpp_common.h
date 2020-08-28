@@ -97,6 +97,7 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_RESET_SESSION		= MPP_CMD_CONTROL_BASE + 0,
 	MPP_CMD_TRANS_FD_TO_IOVA	= MPP_CMD_CONTROL_BASE + 1,
 	MPP_CMD_RELEASE_FD		= MPP_CMD_CONTROL_BASE + 2,
+	MPP_CMD_SEND_CODEC_INFO		= MPP_CMD_CONTROL_BASE + 3,
 
 	MPP_CMD_BUTT,
 };
@@ -121,6 +122,30 @@ enum MPP_RESET_TYPE {
 	RST_TYPE_CABAC,
 	RST_TYPE_HEVC_CABAC,
 	RST_TYPE_BUTT,
+};
+
+enum ENC_INFO_TYPE {
+	ENC_INFO_BASE		= 0,
+	ENC_INFO_WIDTH,
+	ENC_INFO_HEIGHT,
+	ENC_INFO_FORMAT,
+	ENC_INFO_FPS_IN,
+	ENC_INFO_FPS_OUT,
+	ENC_INFO_RC_MODE,
+	ENC_INFO_BITRATE,
+	ENC_INFO_GOP_SIZE,
+	ENC_INFO_FPS_CALC,
+	ENC_INFO_PROFILE,
+
+	ENC_INFO_BUTT,
+};
+
+enum ENC_INFO_FLAGS {
+	ENC_INFO_FLAG_NULL		= 0,
+	ENC_INFO_FLAG_NUMBER,
+	ENC_INFO_FLAG_STRING,
+
+	ENC_INFO_FLAG_BUTT,
 };
 
 /* data common struct for parse out */
@@ -177,6 +202,12 @@ struct reg_offset_elem {
 struct reg_offset_info {
 	u32 cnt;
 	struct reg_offset_elem elem[MPP_MAX_REG_TRANS_NUM];
+};
+
+struct codec_info_elem {
+	__u32 type;
+	__u32 flag;
+	__u64 data;
 };
 
 struct mpp_clk_info {
@@ -274,6 +305,10 @@ struct mpp_session {
 	/* trans info set by user */
 	int trans_count;
 	u16 trans_table[MPP_MAX_REG_TRANS_NUM];
+	/* link to mpp_service session_list */
+	struct list_head session_link;
+	/* private data */
+	void *priv;
 };
 
 /* task state in work thread */
@@ -365,6 +400,9 @@ struct mpp_service {
 	struct mpp_taskqueue *task_queues[MPP_DEVICE_BUTT];
 	u32 reset_group_cnt;
 	struct mpp_reset_group *reset_groups[MPP_DEVICE_BUTT];
+	/* lock for session list */
+	struct mutex session_lock;
+	struct list_head session_list;
 };
 
 /*
@@ -419,9 +457,10 @@ struct mpp_dev_ops {
 		      struct mpp_task_msgs *msgs);
 	int (*free_task)(struct mpp_session *session,
 			 struct mpp_task *task);
-	long (*ioctl)(struct mpp_session *session, struct mpp_request *req);
+	int (*ioctl)(struct mpp_session *session, struct mpp_request *req);
 	int (*init_session)(struct mpp_session *session);
 	int (*free_session)(struct mpp_session *session);
+	int (*dump_session)(struct mpp_session *session, struct seq_file *seq);
 };
 
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
@@ -611,6 +650,11 @@ mpp_procfs_create_u32(const char *name, umode_t mode,
 {
 	return 0;
 }
+#endif
+
+#ifdef CONFIG_PROC_FS
+extern const char *mpp_device_name[MPP_DEVICE_BUTT];
+extern const char *enc_info_item_name[ENC_INFO_BUTT];
 #endif
 
 /* workaround according hardware */
