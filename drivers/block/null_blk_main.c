@@ -212,6 +212,14 @@ static unsigned int g_zone_nr_conv;
 module_param_named(zone_nr_conv, g_zone_nr_conv, uint, 0444);
 MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones when block device is zoned. Default: 0");
 
+static unsigned int g_zone_max_open;
+module_param_named(zone_max_open, g_zone_max_open, uint, 0444);
+MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones when block device is zoned. Default: 0 (no limit)");
+
+static unsigned int g_zone_max_active;
+module_param_named(zone_max_active, g_zone_max_active, uint, 0444);
+MODULE_PARM_DESC(zone_max_active, "Maximum number of active zones when block device is zoned. Default: 0 (no limit)");
+
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
@@ -351,6 +359,8 @@ NULLB_DEVICE_ATTR(zoned, bool, NULL);
 NULLB_DEVICE_ATTR(zone_size, ulong, NULL);
 NULLB_DEVICE_ATTR(zone_capacity, ulong, NULL);
 NULLB_DEVICE_ATTR(zone_nr_conv, uint, NULL);
+NULLB_DEVICE_ATTR(zone_max_open, uint, NULL);
+NULLB_DEVICE_ATTR(zone_max_active, uint, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -468,6 +478,8 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_zone_size,
 	&nullb_device_attr_zone_capacity,
 	&nullb_device_attr_zone_nr_conv,
+	&nullb_device_attr_zone_max_open,
+	&nullb_device_attr_zone_max_active,
 	NULL,
 };
 
@@ -521,7 +533,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
-			"memory_backed,discard,bandwidth,cache,badblocks,zoned,zone_size,zone_capacity,zone_nr_conv\n");
+			"memory_backed,discard,bandwidth,cache,badblocks,zoned,zone_size,zone_capacity,zone_nr_conv,zone_max_open,zone_max_active\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -584,6 +596,8 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->zone_size = g_zone_size;
 	dev->zone_capacity = g_zone_capacity;
 	dev->zone_nr_conv = g_zone_nr_conv;
+	dev->zone_max_open = g_zone_max_open;
+	dev->zone_max_active = g_zone_max_active;
 	return dev;
 }
 

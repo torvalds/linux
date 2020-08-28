@@ -42,6 +42,9 @@ struct nullb_device {
 	struct badblocks badblocks;
 
 	unsigned int nr_zones;
+	unsigned int nr_zones_imp_open;
+	unsigned int nr_zones_exp_open;
+	unsigned int nr_zones_closed;
 	struct blk_zone *zones;
 	sector_t zone_size_sects;
 
@@ -51,6 +54,8 @@ struct nullb_device {
 	unsigned long zone_size; /* zone size in MB if device is zoned */
 	unsigned long zone_capacity; /* zone capacity in MB if device is zoned */
 	unsigned int zone_nr_conv; /* number of conventional zones */
+	unsigned int zone_max_open; /* max number of open zones */
+	unsigned int zone_max_active; /* max number of active zones */
 	unsigned int submit_queues; /* number of submission queues */
 	unsigned int home_node; /* home node for the device */
 	unsigned int queue_mode; /* block interface */
