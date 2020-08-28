@@ -183,6 +183,17 @@
 	.purgem _for__body
 .endm
 
+/* Update ZCR_EL1.LEN with the new VQ */
+.macro sve_load_vq xvqminus1, xtmp, xtmp2
+		mrs_s		\xtmp, SYS_ZCR_EL1
+		bic		\xtmp2, \xtmp, ZCR_ELx_LEN_MASK
+		orr		\xtmp2, \xtmp2, \xvqminus1
+		cmp		\xtmp2, \xtmp
+		b.eq		921f
+		msr_s		SYS_ZCR_EL1, \xtmp2	//self-synchronising
+921:
+.endm
+
 .macro sve_save nxbase, xpfpsr, nxtmp
  _for n, 0, 31,	_sve_str_v	\n, \nxbase, \n - 34
  _for n, 0, 15,	_sve_str_p	\n, \nxbase, \n - 16
@@ -197,13 +208,7 @@
 .endm
 
 .macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
-		mrs_s		x\nxtmp, SYS_ZCR_EL1
-		bic		\xtmp2, x\nxtmp, ZCR_ELx_LEN_MASK
-		orr		\xtmp2, \xtmp2, \xvqminus1
-		cmp		\xtmp2, x\nxtmp
-		b.eq		921f
-		msr_s		SYS_ZCR_EL1, \xtmp2	// self-synchronising
-921:
+		sve_load_vq	\xvqminus1, x\nxtmp, \xtmp2
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0
