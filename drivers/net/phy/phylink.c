@@ -535,8 +535,10 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 
 	if (pl->pcs_ops)
 		pl->pcs_ops->pcs_get_state(pl->pcs, state);
-	else
+	else if (pl->mac_ops->mac_pcs_get_state)
 		pl->mac_ops->mac_pcs_get_state(pl->config, state);
+	else
+		state->link = 0;
 }
 
 /* The fixed state is... fixed except for the link state,
