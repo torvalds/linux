@@ -312,6 +312,8 @@ struct kfd_dev {
 	/* Clients watching SMI events */
 	struct list_head smi_clients;
 	spinlock_t smi_lock;
+
+	uint32_t reset_seq_num;
 };
 
 enum kfd_mempool {

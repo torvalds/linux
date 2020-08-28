@@ -812,6 +812,8 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 	if (!kfd->init_complete)
 		return 0;
 
+	kfd_smi_event_update_gpu_reset(kfd, false);
+
 	kfd->dqm->ops.pre_reset(kfd->dqm);
 
 	kgd2kfd_suspend(kfd, false);
@@ -839,6 +841,8 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	atomic_dec(&kfd_locked);
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
+
+	kfd_smi_event_update_gpu_reset(kfd, true);
 
 	return 0;
 }

@@ -174,6 +174,36 @@ static void add_event_to_kfifo(struct kfd_dev *dev, unsigned int smi_event,
 	rcu_read_unlock();
 }
 
+void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
+{
+	/*
+	 * GpuReset msg = Reset seq number (incremented for
+	 * every reset message sent before GPU reset).
+	 * 1 byte event + 1 byte space + 8 bytes seq num +
+	 * 1 byte \n + 1 byte \0 = 12
+	 */
+	char fifo_in[12];
+	int len;
+	unsigned int event;
+
+	if (list_empty(&dev->smi_clients))
+		return;
+
+	memset(fifo_in, 0x0, sizeof(fifo_in));
+
+	if (post_reset) {
+		event = KFD_SMI_EVENT_GPU_POST_RESET;
+	} else {
+		event = KFD_SMI_EVENT_GPU_PRE_RESET;
+		++(dev->reset_seq_num);
+	}
+
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x\n", event,
+						dev->reset_seq_num);
+
+	add_event_to_kfifo(dev, event, fifo_in, len);
+}
+
 void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
 					     uint32_t throttle_bitmask)
 {
@@ -191,7 +221,7 @@ void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
 	if (list_empty(&dev->smi_clients))
 		return;
 
-	len = snprintf(fifo_in, 29, "%x %x:%llx\n",
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%llx\n",
 		       KFD_SMI_EVENT_THERMAL_THROTTLE, throttle_bitmask,
 		       atomic64_read(&adev->smu.throttle_int_counter));
 
@@ -218,7 +248,7 @@ void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 	if (!task_info.pid)
 		return;
 
-	len = snprintf(fifo_in, 29, "%x %x:%s\n", KFD_SMI_EVENT_VMFAULT,
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%s\n", KFD_SMI_EVENT_VMFAULT,
 		task_info.pid, task_info.task_name);
 
 	add_event_to_kfifo(dev, KFD_SMI_EVENT_VMFAULT, fifo_in, len);
