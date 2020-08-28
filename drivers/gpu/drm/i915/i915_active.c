@@ -758,7 +758,6 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	intel_engine_mask_t tmp, mask = engine->mask;
 	struct llist_node *first = NULL, *last = NULL;
 	struct intel_gt *gt = engine->gt;
-	int err;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
@@ -781,10 +780,8 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		node = reuse_idle_barrier(ref, idx);
 		if (!node) {
 			node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
-			if (!node) {
-				err = ENOMEM;
+			if (!node)
 				goto unwind;
-			}
 
 			RCU_INIT_POINTER(node->base.fence, NULL);
 			node->base.cb.func = node_retire;
@@ -832,7 +829,7 @@ unwind:
 
 		kmem_cache_free(global.slab_cache, node);
 	}
-	return err;
+	return -ENOMEM;
 }
 
 void i915_active_acquire_barrier(struct i915_active *ref)

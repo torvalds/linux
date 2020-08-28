@@ -1783,11 +1783,8 @@ long i915_request_wait(struct i915_request *rq,
 	 * but at a cost of spending more power processing the workload
 	 * (bad for battery).
 	 */
-	if (flags & I915_WAIT_PRIORITY) {
-		if (!i915_request_started(rq) &&
-		    INTEL_GEN(rq->engine->i915) >= 6)
-			intel_rps_boost(rq);
-	}
+	if (flags & I915_WAIT_PRIORITY && !i915_request_started(rq))
+		intel_rps_boost(rq);
 
 	wait.tsk = current;
 	if (dma_fence_add_callback(&rq->fence, &wait.cb, request_wait_wake))

@@ -931,6 +931,7 @@ struct intel_crtc_state {
 
 	bool has_psr;
 	bool has_psr2;
+	bool enable_psr2_sel_fetch;
 	u32 dc3co_exitline;
 
 	/*
@@ -1073,6 +1074,8 @@ struct intel_crtc_state {
 
 	/* For DSB related info */
 	struct intel_dsb *dsb;
+
+	u32 psr2_man_track_ctl;
 };
 
 enum intel_pipe_crc_source {
@@ -1375,6 +1378,9 @@ struct intel_dp {
 
 	/* Display stream compression testing */
 	bool force_dsc_en;
+
+	bool hobl_failed;
+	bool hobl_active;
 };
 
 enum lspcon_vendor {

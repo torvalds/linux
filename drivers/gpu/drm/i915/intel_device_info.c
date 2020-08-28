@@ -346,6 +346,25 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 		mask = BIT(INTEL_SUBPLATFORM_PORTF);
 	}
 
+	if (IS_TIGERLAKE(i915)) {
+		struct pci_dev *root, *pdev = i915->drm.pdev;
+
+		root = list_first_entry(&pdev->bus->devices, typeof(*root), bus_list);
+
+		drm_WARN_ON(&i915->drm, mask);
+		drm_WARN_ON(&i915->drm, (root->device & TGL_ROOT_DEVICE_MASK) !=
+			    TGL_ROOT_DEVICE_ID);
+
+		switch (root->device & TGL_ROOT_DEVICE_SKU_MASK) {
+		case TGL_ROOT_DEVICE_SKU_ULX:
+			mask = BIT(INTEL_SUBPLATFORM_ULX);
+			break;
+		case TGL_ROOT_DEVICE_SKU_ULT:
+			mask = BIT(INTEL_SUBPLATFORM_ULT);
+			break;
+		}
+	}
+
 	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_BITS);
 
 	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
