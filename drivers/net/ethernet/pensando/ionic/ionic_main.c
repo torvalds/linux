@@ -181,15 +181,17 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
-	struct ionic_queue *adminq = &lif->adminqcq->q;
+	struct ionic_queue *q = &lif->adminqcq->q;
+	struct ionic_desc_info *desc_info;
 
 	spin_lock(&lif->adminq_lock);
 
-	while (adminq->tail != adminq->head) {
-		memset(adminq->tail->desc, 0, sizeof(union ionic_adminq_cmd));
-		adminq->tail->cb = NULL;
-		adminq->tail->cb_arg = NULL;
-		adminq->tail = adminq->tail->next;
+	while (q->tail_idx != q->head_idx) {
+		desc_info = &q->info[q->tail_idx];
+		memset(desc_info->desc, 0, sizeof(union ionic_adminq_cmd));
+		desc_info->cb = NULL;
+		desc_info->cb_arg = NULL;
+		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 	}
 	spin_unlock(&lif->adminq_lock);
 }
@@ -245,7 +247,8 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 
 static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
-	struct ionic_queue *adminq;
+	struct ionic_desc_info *desc_info;
+	struct ionic_queue *q;
 	int err = 0;
 
 	WARN_ON(in_interrupt());
@@ -253,10 +256,10 @@ static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	if (!lif->adminqcq)
 		return -EIO;
 
-	adminq = &lif->adminqcq->q;
+	q = &lif->adminqcq->q;
 
 	spin_lock(&lif->adminq_lock);
-	if (!ionic_q_has_space(adminq, 1)) {
+	if (!ionic_q_has_space(q, 1)) {
 		err = -ENOSPC;
 		goto err_out;
 	}
@@ -265,13 +268,14 @@ static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	if (err)
 		goto err_out;
 
-	memcpy(adminq->head->desc, &ctx->cmd, sizeof(ctx->cmd));
+	desc_info = &q->info[q->head_idx];
+	memcpy(desc_info->desc, &ctx->cmd, sizeof(ctx->cmd));
 
 	dev_dbg(&lif->netdev->dev, "post admin queue command:\n");
 	dynamic_hex_dump("cmd ", DUMP_PREFIX_OFFSET, 16, 1,
 			 &ctx->cmd, sizeof(ctx->cmd), true);
 
-	ionic_q_post(adminq, true, ionic_adminq_cb, ctx);
+	ionic_q_post(q, true, ionic_adminq_cb, ctx);
 
 err_out:
 	spin_unlock(&lif->adminq_lock);

@@ -149,7 +149,13 @@ struct ionic_dev {
 };
 
 struct ionic_cq_info {
-	void *cq_desc;
+	union {
+		void *cq_desc;
+		struct ionic_txq_comp *txcq;
+		struct ionic_rxq_comp *rxcq;
+		struct ionic_admin_comp *admincq;
+		struct ionic_notifyq_event *notifyq;
+	};
 	struct ionic_cq_info *next;
 	unsigned int index;
 	bool last;
@@ -169,8 +175,17 @@ struct ionic_page_info {
 };
 
 struct ionic_desc_info {
-	void *desc;
-	void *sg_desc;
+	union {
+		void *desc;
+		struct ionic_txq_desc *txq_desc;
+		struct ionic_rxq_desc *rxq_desc;
+		struct ionic_admin_cmd *adminq_desc;
+	};
+	union {
+		void *sg_desc;
+		struct ionic_txq_sg_desc *txq_sg_desc;
+		struct ionic_rxq_sg_desc *rxq_sgl_desc;
+	};
 	struct ionic_desc_info *next;
 	unsigned int index;
 	unsigned int left;
@@ -183,22 +198,32 @@ struct ionic_desc_info {
 #define IONIC_QUEUE_NAME_MAX_SZ		32
 
 struct ionic_queue {
+	struct device *dev;
 	u64 dbell_count;
 	u64 drop;
 	u64 stop;
 	u64 wake;
 	struct ionic_lif *lif;
 	struct ionic_desc_info *info;
-	struct ionic_desc_info *tail;
-	struct ionic_desc_info *head;
 	struct ionic_dev *idev;
+	u16 head_idx;
+	u16 tail_idx;
 	unsigned int index;
 	unsigned int type;
 	unsigned int hw_index;
 	unsigned int hw_type;
 	u64 dbval;
-	void *base;
-	void *sg_base;
+	union {
+		void *base;
+		struct ionic_txq_desc *txq;
+		struct ionic_rxq_desc *rxq;
+		struct ionic_admin_cmd *adminq;
+	};
+	union {
+		void *sg_base;
+		struct ionic_txq_sg_desc *txq_sgl;
+		struct ionic_rxq_sg_desc *rxq_sgl;
+	};
 	dma_addr_t base_pa;
 	dma_addr_t sg_base_pa;
 	unsigned int num_descs;
@@ -225,9 +250,9 @@ struct ionic_cq {
 	dma_addr_t base_pa;
 	struct ionic_lif *lif;
 	struct ionic_cq_info *info;
-	struct ionic_cq_info *tail;
 	struct ionic_queue *bound_q;
 	struct ionic_intr_info *bound_intr;
+	u16 tail_idx;
 	bool done_color;
 	unsigned int num_descs;
 	u64 compl_count;
@@ -246,12 +271,12 @@ static inline void ionic_intr_init(struct ionic_dev *idev,
 
 static inline unsigned int ionic_q_space_avail(struct ionic_queue *q)
 {
-	unsigned int avail = q->tail->index;
+	unsigned int avail = q->tail_idx;
 
-	if (q->head->index >= avail)
-		avail += q->head->left - 1;
+	if (q->head_idx >= avail)
+		avail += q->num_descs - q->head_idx - 1;
 	else
-		avail -= q->head->index + 1;
+		avail -= q->head_idx + 1;
 
 	return avail;
 }
