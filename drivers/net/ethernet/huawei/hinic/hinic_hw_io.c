@@ -305,6 +305,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	func_to_io->sq_db[q_id] = db_base;
 
+	qp->sq.qid = q_id;
 	err = hinic_init_sq(&qp->sq, hwif, &func_to_io->sq_wq[q_id],
 			    sq_msix_entry,
 			    CI_ADDR(func_to_io->ci_addr_base, q_id),

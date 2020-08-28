@@ -58,6 +58,18 @@ struct hinic_intr_coal_info {
 	u8	resend_timer_cfg;
 };
 
+enum hinic_dbg_type {
+	HINIC_DBG_SQ_INFO,
+};
+
+struct hinic_debug_priv {
+	struct hinic_dev	*dev;
+	void			*object;
+	enum hinic_dbg_type	type;
+	struct dentry		*root;
+	int			field_id[64];
+};
+
 struct hinic_dev {
 	struct net_device               *netdev;
 	struct hinic_hwdev              *hwdev;
@@ -97,6 +109,9 @@ struct hinic_dev {
 	int				lb_test_rx_idx;
 	int				lb_pkt_len;
 	u8				*lb_test_rx_buf;
+
+	struct dentry			*dbgfs_root;
+	struct dentry			*sq_dbgfs;
 	struct devlink			*devlink;
 	bool				cable_unplugged;
 	bool				module_unrecognized;

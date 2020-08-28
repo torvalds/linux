@@ -465,6 +465,7 @@ int hinic_hwdev_ifup(struct hinic_hwdev *hwdev, u16 sq_depth, u16 rq_depth)
 	func_to_io->hwdev = hwdev;
 	func_to_io->sq_depth = sq_depth;
 	func_to_io->rq_depth = rq_depth;
+	func_to_io->global_qpn = base_qpn;
 
 	err = hinic_io_init(func_to_io, hwif, nic_cap->max_qps, num_ceqs,
 			    ceq_msix_entries);
