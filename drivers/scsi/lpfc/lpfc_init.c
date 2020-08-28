@@ -11376,7 +11376,6 @@ lpfc_irq_clear_aff(struct lpfc_hba_eq_hdl *eqhdl)
 {
 	cpumask_clear(&eqhdl->aff_mask);
 	irq_clear_status_flags(eqhdl->irq, IRQ_NO_BALANCING);
-	irq_set_affinity_hint(eqhdl->irq, &eqhdl->aff_mask);
 }
 
 /**
