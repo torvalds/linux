@@ -11,6 +11,13 @@ struct inner_map {
 } inner_map1 SEC(".maps"),
   inner_map2 SEC(".maps");
 
+struct inner_map_sz2 {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, int);
+	__type(value, int);
+} inner_map_sz2 SEC(".maps");
+
 struct outer_arr {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
 	__uint(max_entries, 3);
@@ -48,6 +55,30 @@ struct outer_hash {
 		[0] = &inner_map2,
 		[4] = &inner_map1,
 	},
+};
+
+struct sockarr_sz1 {
+	__uint(type, BPF_MAP_TYPE_REUSEPORT_SOCKARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, int);
+} sockarr_sz1 SEC(".maps");
+
+struct sockarr_sz2 {
+	__uint(type, BPF_MAP_TYPE_REUSEPORT_SOCKARRAY);
+	__uint(max_entries, 2);
+	__type(key, int);
+	__type(value, int);
+} sockarr_sz2 SEC(".maps");
+
+struct outer_sockarr_sz1 {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+	__array(values, struct sockarr_sz1);
+} outer_sockarr SEC(".maps") = {
+	.values = { (void *)&sockarr_sz1 },
 };
 
 int input = 0;

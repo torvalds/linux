@@ -53,7 +53,7 @@ static int kern_sync_rcu(void)
 	return err;
 }
 
-void test_btf_map_in_map(void)
+static void test_lookup_update(void)
 {
 	int err, key = 0, val, i;
 	struct test_btf_map_in_map *skel;
@@ -142,4 +142,37 @@ void test_btf_map_in_map(void)
 
 cleanup:
 	test_btf_map_in_map__destroy(skel);
+}
+
+static void test_diff_size(void)
+{
+	struct test_btf_map_in_map *skel;
+	int err, inner_map_fd, zero = 0;
+
+	skel = test_btf_map_in_map__open_and_load();
+	if (CHECK(!skel, "skel_open", "failed to open&load skeleton\n"))
+		return;
+
+	inner_map_fd = bpf_map__fd(skel->maps.sockarr_sz2);
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.outer_sockarr), &zero,
+				  &inner_map_fd, 0);
+	CHECK(err, "outer_sockarr inner map size check",
+	      "cannot use a different size inner_map\n");
+
+	inner_map_fd = bpf_map__fd(skel->maps.inner_map_sz2);
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.outer_arr), &zero,
+				  &inner_map_fd, 0);
+	CHECK(!err, "outer_arr inner map size check",
+	      "incorrectly updated with a different size inner_map\n");
+
+	test_btf_map_in_map__destroy(skel);
+}
+
+void test_btf_map_in_map(void)
+{
+	if (test__start_subtest("lookup_update"))
+		test_lookup_update();
+
+	if (test__start_subtest("diff_size"))
+		test_diff_size();
 }
