@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/types.h>
+#include <drm/drm_connector.h>
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -1619,6 +1620,13 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
 void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux);
+enum drm_mode_subconnector
+drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			 const u8 port_cap[4]);
+void drm_dp_set_subconnector_property(struct drm_connector *connector,
+				      enum drm_connector_status status,
+				      const u8 *dpcd,
+				      const u8 port_cap[4]);
 
 void drm_dp_remote_aux_init(struct drm_dp_aux *aux);
 void drm_dp_aux_init(struct drm_dp_aux *aux);

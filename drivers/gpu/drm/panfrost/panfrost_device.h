@@ -13,6 +13,8 @@
 #include <drm/drm_mm.h>
 #include <drm/gpu_scheduler.h>
 
+#include "panfrost_devfreq.h"
+
 struct panfrost_device;
 struct panfrost_mmu;
 struct panfrost_job_slot;
@@ -20,7 +22,6 @@ struct panfrost_job;
 struct panfrost_perfcnt;
 
 #define NUM_JOB_SLOTS 3
-#define MAX_REGULATORS 2
 #define MAX_PM_DOMAINS 3
 
 struct panfrost_features {
@@ -79,7 +80,7 @@ struct panfrost_device {
 	void __iomem *iomem;
 	struct clk *clock;
 	struct clk *bus_clock;
-	struct regulator_bulk_data regulators[MAX_REGULATORS];
+	struct regulator_bulk_data *regulators;
 	struct reset_control *rstc;
 	/* pm_domains for devices with more than one. */
 	struct device *pm_domain_devs[MAX_PM_DOMAINS];
@@ -107,14 +108,7 @@ struct panfrost_device {
 	struct list_head shrinker_list;
 	struct shrinker shrinker;
 
-	struct {
-		struct devfreq *devfreq;
-		struct thermal_cooling_device *cooling;
-		ktime_t busy_time;
-		ktime_t idle_time;
-		ktime_t time_last_update;
-		atomic_t busy_count;
-	} devfreq;
+	struct panfrost_devfreq pfdevfreq;
 };
 
 struct panfrost_mmu {

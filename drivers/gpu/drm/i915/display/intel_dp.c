@@ -6243,6 +6243,11 @@ out:
 	 */
 	intel_display_power_flush_work(dev_priv);
 
+	if (!intel_dp_is_edp(intel_dp))
+		drm_dp_set_subconnector_property(connector,
+						 status,
+						 intel_dp->dpcd,
+						 intel_dp->downstream_ports);
 	return status;
 }
 
@@ -7311,6 +7316,9 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	enum port port = dp_to_dig_port(intel_dp)->base.port;
+
+	if (!intel_dp_is_edp(intel_dp))
+		drm_connector_attach_dp_subconnector_property(connector);
 
 	if (!IS_G4X(dev_priv) && port != PORT_A)
 		intel_attach_force_audio_property(connector);

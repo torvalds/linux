@@ -33,7 +33,6 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define ILI9322_CHIP_ID			0x00
 #define ILI9322_CHIP_ID_MAGIC		0x96
@@ -683,7 +682,7 @@ static int ili9322_get_modes(struct drm_panel *panel,
 		break;
 	}
 	if (!mode) {
-		DRM_ERROR("bad mode or failed to add mode\n");
+		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
 	}
 	drm_mode_set_name(mode);
@@ -892,7 +891,9 @@ static int ili9322_probe(struct spi_device *spi)
 	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&ili->panel);
+	drm_panel_add(&ili->panel);
+
+	return 0;
 }
 
 static int ili9322_remove(struct spi_device *spi)

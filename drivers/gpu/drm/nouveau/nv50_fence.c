@@ -37,7 +37,7 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
-	struct ttm_mem_reg *reg = &priv->bo->bo.mem;
+	struct ttm_resource *reg = &priv->bo->bo.mem;
 	u32 start = reg->start * PAGE_SIZE;
 	u32 limit = start + reg->size - 1;
 	int ret;

@@ -44,16 +44,22 @@
  */
 
 struct ttm_range_manager {
+	struct ttm_resource_manager manager;
 	struct drm_mm mm;
 	spinlock_t lock;
 };
 
-static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
+static inline struct ttm_range_manager *to_range_manager(struct ttm_resource_manager *man)
+{
+	return container_of(man, struct ttm_range_manager, manager);
+}
+
+static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 			       struct ttm_buffer_object *bo,
 			       const struct ttm_place *place,
-			       struct ttm_mem_reg *mem)
+			       struct ttm_resource *mem)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
 	struct drm_mm_node *node;
 	enum drm_mm_insert_mode mode;
@@ -89,10 +95,10 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	return ret;
 }
 
-static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
-				struct ttm_mem_reg *mem)
+static void ttm_range_man_free(struct ttm_resource_manager *man,
+			       struct ttm_resource *mem)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 
 	if (mem->mm_node) {
 		spin_lock(&rman->lock);
@@ -104,53 +110,78 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
-			   unsigned long p_size)
+static const struct ttm_resource_manager_func ttm_range_manager_func;
+
+int ttm_range_man_init(struct ttm_bo_device *bdev,
+		       unsigned type,
+		       uint32_t available_caching,
+		       uint32_t default_caching,
+		       bool use_tt,
+		       unsigned long p_size)
 {
+	struct ttm_resource_manager *man;
 	struct ttm_range_manager *rman;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
 
+	man = &rman->manager;
+	man->available_caching = available_caching;
+	man->default_caching = default_caching;
+	man->use_tt = use_tt;
+
+	man->func = &ttm_range_manager_func;
+
+	ttm_resource_manager_init(man, p_size);
+
 	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
-	man->priv = rman;
+
+	ttm_set_driver_manager(bdev, type, &rman->manager);
+	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
+EXPORT_SYMBOL(ttm_range_man_init);
 
-static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
+int ttm_range_man_fini(struct ttm_bo_device *bdev,
+		       unsigned type)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, type);
+	struct ttm_range_manager *rman = to_range_manager(man);
 	struct drm_mm *mm = &rman->mm;
+	int ret;
+
+	ttm_resource_manager_set_used(man, false);
+
+	ret = ttm_resource_manager_force_list_clean(bdev, man);
+	if (ret)
+		return ret;
 
 	spin_lock(&rman->lock);
-	if (drm_mm_clean(mm)) {
-		drm_mm_takedown(mm);
-		spin_unlock(&rman->lock);
-		kfree(rman);
-		man->priv = NULL;
-		return 0;
-	}
+	drm_mm_clean(mm);
+	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
-	return -EBUSY;
-}
 
-static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
-			     struct drm_printer *printer)
+	ttm_resource_manager_cleanup(man);
+	ttm_set_driver_manager(bdev, type, NULL);
+	kfree(rman);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_range_man_fini);
+
+static void ttm_range_man_debug(struct ttm_resource_manager *man,
+				struct drm_printer *printer)
 {
-	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
+	struct ttm_range_manager *rman = to_range_manager(man);
 
 	spin_lock(&rman->lock);
 	drm_mm_print(&rman->mm, printer);
 	spin_unlock(&rman->lock);
 }
 
-const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	.init = ttm_bo_man_init,
-	.takedown = ttm_bo_man_takedown,
-	.get_node = ttm_bo_man_get_node,
-	.put_node = ttm_bo_man_put_node,
-	.debug = ttm_bo_man_debug
+static const struct ttm_resource_manager_func ttm_range_manager_func = {
+	.alloc = ttm_range_man_alloc,
+	.free = ttm_range_man_free,
+	.debug = ttm_range_man_debug
 };
-EXPORT_SYMBOL(ttm_bo_manager_func);

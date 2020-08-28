@@ -562,7 +562,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr)
 
 	mutex_lock(&process_info->lock);
 
-	ret = amdgpu_ttm_tt_set_userptr(bo->tbo.ttm, user_addr, 0);
+	ret = amdgpu_ttm_tt_set_userptr(&bo->tbo, user_addr, 0);
 	if (ret) {
 		pr_err("%s: Failed to set userptr: %d\n", __func__, ret);
 		goto out;

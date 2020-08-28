@@ -199,26 +199,20 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
 	struct drm_plane_state *f1_state, *f0_state, *ipu_state = NULL;
-	long rate;
 
-	if (!drm_atomic_crtc_needs_modeset(state))
-		return 0;
-
-	if (state->mode.hdisplay > priv->soc_info->max_width ||
-	    state->mode.vdisplay > priv->soc_info->max_height)
-		return -EINVAL;
-
-	rate = clk_round_rate(priv->pix_clk,
-			      state->adjusted_mode.clock * 1000);
-	if (rate < 0)
-		return rate;
-
-	if (priv->soc_info->has_osd) {
+	if (drm_atomic_crtc_needs_modeset(state) && priv->soc_info->has_osd) {
 		f1_state = drm_atomic_get_plane_state(state->state, &priv->f1);
+		if (IS_ERR(f1_state))
+			return PTR_ERR(f1_state);
+
 		f0_state = drm_atomic_get_plane_state(state->state, &priv->f0);
+		if (IS_ERR(f0_state))
+			return PTR_ERR(f0_state);
 
 		if (IS_ENABLED(CONFIG_DRM_INGENIC_IPU) && priv->ipu_plane) {
 			ipu_state = drm_atomic_get_plane_state(state->state, priv->ipu_plane);
+			if (IS_ERR(ipu_state))
+				return PTR_ERR(ipu_state);
 
 			/* IPU and F1 planes cannot be enabled at the same time. */
 			if (f1_state->fb && ipu_state->fb) {
@@ -233,6 +227,24 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	return 0;
+}
+
+static enum drm_mode_status
+ingenic_drm_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
+{
+	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
+	long rate;
+
+	if (mode->hdisplay > priv->soc_info->max_width)
+		return MODE_BAD_HVALUE;
+	if (mode->vdisplay > priv->soc_info->max_height)
+		return MODE_BAD_VVALUE;
+
+	rate = clk_round_rate(priv->pix_clk, mode->clock * 1000);
+	if (rate < 0)
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
 }
 
 static void ingenic_drm_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -648,6 +660,7 @@ static const struct drm_crtc_helper_funcs ingenic_drm_crtc_helper_funcs = {
 	.atomic_begin		= ingenic_drm_crtc_atomic_begin,
 	.atomic_flush		= ingenic_drm_crtc_atomic_flush,
 	.atomic_check		= ingenic_drm_crtc_atomic_check,
+	.mode_valid		= ingenic_drm_crtc_mode_valid,
 };
 
 static const struct drm_encoder_helper_funcs ingenic_drm_encoder_helper_funcs = {

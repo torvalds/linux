@@ -1135,14 +1135,14 @@ void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
  * vmw_bo_move_notify - TTM move_notify_callback
  *
  * @bo: The TTM buffer object about to move.
- * @mem: The struct ttm_mem_reg indicating to what memory
+ * @mem: The struct ttm_resource indicating to what memory
  *       region the move is taking place.
  *
  * Detaches cached maps and device bindings that require that the
  * buffer doesn't move.
  */
 void vmw_bo_move_notify(struct ttm_buffer_object *bo,
-			struct ttm_mem_reg *mem)
+			struct ttm_resource *mem)
 {
 	struct vmw_buffer_object *vbo;
 

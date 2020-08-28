@@ -47,15 +47,15 @@ struct ttm_transfer_obj {
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
-	ttm_bo_mem_put(bo, &bo->mem);
+	ttm_resource_free(bo, &bo->mem);
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		   struct ttm_operation_ctx *ctx,
-		    struct ttm_mem_reg *new_mem)
+		    struct ttm_resource *new_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
@@ -91,7 +91,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_ttm);
 
-int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
+int ttm_mem_io_lock(struct ttm_resource_manager *man, bool interruptible)
 {
 	if (likely(!man->use_io_reserve_lru))
 		return 0;
@@ -103,7 +103,7 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 	return 0;
 }
 
-void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
+void ttm_mem_io_unlock(struct ttm_resource_manager *man)
 {
 	if (likely(!man->use_io_reserve_lru))
 		return;
@@ -111,7 +111,7 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 	mutex_unlock(&man->io_reserve_mutex);
 }
 
-static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
+static int ttm_mem_io_evict(struct ttm_resource_manager *man)
 {
 	struct ttm_buffer_object *bo;
 
@@ -127,9 +127,9 @@ static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 }
 
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
-		       struct ttm_mem_reg *mem)
+		       struct ttm_resource *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 
 	if (mem->bus.io_reserved_count++)
@@ -138,6 +138,10 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 	if (!bdev->driver->io_mem_reserve)
 		return 0;
 
+	mem->bus.addr = NULL;
+	mem->bus.offset = 0;
+	mem->bus.base = 0;
+	mem->bus.is_iomem = false;
 retry:
 	ret = bdev->driver->io_mem_reserve(bdev, mem);
 	if (ret == -ENOSPC) {
@@ -149,7 +153,7 @@ retry:
 }
 
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
-		     struct ttm_mem_reg *mem)
+		     struct ttm_resource *mem)
 {
 	if (--mem->bus.io_reserved_count)
 		return;
@@ -162,8 +166,8 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
 
 int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo)
 {
-	struct ttm_mem_type_manager *man = &bo->bdev->man[bo->mem.mem_type];
-	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_resource_manager *man = ttm_manager_type(bo->bdev, bo->mem.mem_type);
+	struct ttm_resource *mem = &bo->mem;
 	int ret;
 
 	if (mem->bus.io_reserved_vm)
@@ -181,7 +185,7 @@ int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo)
 
 void ttm_mem_io_free_vm(struct ttm_buffer_object *bo)
 {
-	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_resource *mem = &bo->mem;
 
 	if (!mem->bus.io_reserved_vm)
 		return;
@@ -191,11 +195,11 @@ void ttm_mem_io_free_vm(struct ttm_buffer_object *bo)
 	ttm_mem_io_free(bo->bdev, mem);
 }
 
-static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev,
-			       struct ttm_mem_reg *mem,
+static int ttm_resource_ioremap(struct ttm_bo_device *bdev,
+			       struct ttm_resource *mem,
 			       void **virtual)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem->mem_type);
 	int ret;
 	void *addr;
 
@@ -209,12 +213,14 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev,
 	if (mem->bus.addr) {
 		addr = mem->bus.addr;
 	} else {
+		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
+
 		if (mem->placement & TTM_PL_FLAG_WC)
 			addr = ioremap_wc(mem->bus.base + mem->bus.offset,
-					  mem->bus.size);
+					  bus_size);
 		else
 			addr = ioremap(mem->bus.base + mem->bus.offset,
-				       mem->bus.size);
+				       bus_size);
 		if (!addr) {
 			(void) ttm_mem_io_lock(man, false);
 			ttm_mem_io_free(bdev, mem);
@@ -226,13 +232,13 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev,
 	return 0;
 }
 
-static void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem,
+static void ttm_resource_iounmap(struct ttm_bo_device *bdev,
+				struct ttm_resource *mem,
 				void *virtual)
 {
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
-	man = &bdev->man[mem->mem_type];
+	man = ttm_manager_type(bdev, mem->mem_type);
 
 	if (virtual && mem->bus.addr == NULL)
 		iounmap(virtual);
@@ -300,13 +306,13 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_operation_ctx *ctx,
-		       struct ttm_mem_reg *new_mem)
+		       struct ttm_resource *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
 	struct ttm_tt *ttm = bo->ttm;
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg old_copy = *old_mem;
+	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource old_copy = *old_mem;
 	void *old_iomap;
 	void *new_iomap;
 	int ret;
@@ -319,10 +325,10 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 
-	ret = ttm_mem_reg_ioremap(bdev, old_mem, &old_iomap);
+	ret = ttm_resource_ioremap(bdev, old_mem, &old_iomap);
 	if (ret)
 		return ret;
-	ret = ttm_mem_reg_ioremap(bdev, new_mem, &new_iomap);
+	ret = ttm_resource_ioremap(bdev, new_mem, &new_iomap);
 	if (ret)
 		goto out;
 
@@ -384,21 +390,21 @@ out2:
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 
-	if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
+	if (!man->use_tt) {
 		ttm_tt_destroy(ttm);
 		bo->ttm = NULL;
 	}
 
 out1:
-	ttm_mem_reg_iounmap(bdev, old_mem, new_iomap);
+	ttm_resource_iounmap(bdev, old_mem, new_iomap);
 out:
-	ttm_mem_reg_iounmap(bdev, &old_copy, old_iomap);
+	ttm_resource_iounmap(bdev, &old_copy, old_iomap);
 
 	/*
 	 * On error, keep the mm node!
 	 */
 	if (!ret)
-		ttm_bo_mem_put(bo, &old_copy);
+		ttm_resource_free(bo, &old_copy);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);
@@ -502,7 +508,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 			  unsigned long size,
 			  struct ttm_bo_kmap_obj *map)
 {
-	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_resource *mem = &bo->mem;
 
 	if (bo->mem.bus.addr) {
 		map->bo_kmap_type = ttm_bo_map_premapped;
@@ -526,7 +532,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			   unsigned long num_pages,
 			   struct ttm_bo_kmap_obj *map)
 {
-	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_resource *mem = &bo->mem;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false
@@ -567,8 +573,8 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		unsigned long start_page, unsigned long num_pages,
 		struct ttm_bo_kmap_obj *map)
 {
-	struct ttm_mem_type_manager *man =
-		&bo->bdev->man[bo->mem.mem_type];
+	struct ttm_resource_manager *man =
+		ttm_manager_type(bo->bdev, bo->mem.mem_type);
 	unsigned long offset, size;
 	int ret;
 
@@ -597,8 +603,8 @@ EXPORT_SYMBOL(ttm_bo_kmap);
 void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 {
 	struct ttm_buffer_object *bo = map->bo;
-	struct ttm_mem_type_manager *man =
-		&bo->bdev->man[bo->mem.mem_type];
+	struct ttm_resource_manager *man =
+		ttm_manager_type(bo->bdev, bo->mem.mem_type);
 
 	if (!map->virtual)
 		return;
@@ -628,11 +634,11 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct dma_fence *fence,
 			      bool evict,
-			      struct ttm_mem_reg *new_mem)
+			      struct ttm_resource *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
+	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 
@@ -642,7 +648,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
+		if (!man->use_tt) {
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}
@@ -671,7 +677,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (!(man->flags & TTM_MEMTYPE_FLAG_FIXED))
+		if (man->use_tt)
 			ghost_obj->ttm = NULL;
 		else
 			bo->ttm = NULL;
@@ -689,13 +695,13 @@ EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
 int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			 struct dma_fence *fence, bool evict,
-			 struct ttm_mem_reg *new_mem)
+			 struct ttm_resource *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = &bo->mem;
 
-	struct ttm_mem_type_manager *from = &bdev->man[old_mem->mem_type];
-	struct ttm_mem_type_manager *to = &bdev->man[new_mem->mem_type];
+	struct ttm_resource_manager *from = ttm_manager_type(bdev, old_mem->mem_type);
+	struct ttm_resource_manager *to = ttm_manager_type(bdev, new_mem->mem_type);
 
 	int ret;
 
@@ -727,7 +733,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 * bo to be unbound and destroyed.
 		 */
 
-		if (!(to->flags & TTM_MEMTYPE_FLAG_FIXED))
+		if (to->use_tt)
 			ghost_obj->ttm = NULL;
 		else
 			bo->ttm = NULL;
@@ -735,7 +741,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
 
-	} else if (from->flags & TTM_MEMTYPE_FLAG_FIXED) {
+	} else if (!from->use_tt) {
 
 		/**
 		 * BO doesn't have a TTM we need to bind/unbind. Just remember
@@ -765,7 +771,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if (to->flags & TTM_MEMTYPE_FLAG_FIXED) {
+		if (!to->use_tt) {
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}

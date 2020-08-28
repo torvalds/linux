@@ -469,6 +469,7 @@ struct amdgpu_encoder {
 struct amdgpu_connector_atom_dig {
 	/* displayport */
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 dp_sink_type;
 	int dp_clock;
 	int dp_lane_count;

@@ -26,6 +26,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_dp_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -1413,6 +1414,10 @@ out:
 		pm_runtime_put_autosuspend(connector->dev->dev);
 	}
 
+	drm_dp_set_subconnector_property(&amdgpu_connector->base,
+					 ret,
+					 amdgpu_dig_connector->dpcd,
+					 amdgpu_dig_connector->downstream_ports);
 	return ret;
 }
 
@@ -1958,6 +1963,11 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 
 	if (has_aux)
 		amdgpu_atombios_dp_aux_init(amdgpu_connector);
+
+	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector_type == DRM_MODE_CONNECTOR_eDP) {
+		drm_connector_attach_dp_subconnector_property(&amdgpu_connector->base);
+	}
 
 	return;
 

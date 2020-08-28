@@ -850,7 +850,7 @@ static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_dvi_i_select_name, drm_dvi_i_select_enum_list)
 
 static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] = {
-	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
+	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I, TV-out and DP */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
 };
@@ -867,7 +867,7 @@ static const struct drm_prop_enum_list drm_tv_select_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
 
 static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
-	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
+	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I, TV-out and DP */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
@@ -875,6 +875,19 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
+
+static const struct drm_prop_enum_list drm_dp_subconnector_enum_list[] = {
+	{ DRM_MODE_SUBCONNECTOR_Unknown,     "Unknown"   }, /* DVI-I, TV-out and DP */
+	{ DRM_MODE_SUBCONNECTOR_VGA,	     "VGA"       }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_DVID,	     "DVI-D"     }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_HDMIA,	     "HDMI"      }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_DisplayPort, "DP"        }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_Wireless,    "Wireless"  }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_Native,	     "Native"    }, /* DP */
+};
+
+DRM_ENUM_NAME_FN(drm_get_dp_subconnector_name,
+		 drm_dp_subconnector_enum_list)
 
 static const struct drm_prop_enum_list hdmi_colorspaces[] = {
 	/* For Default case, driver will set the colorspace */
@@ -1217,6 +1230,14 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *	can also expose this property to external outputs, in which case they
  *	must support "None", which should be the default (since external screens
  *	have a built-in scaler).
+ *
+ * subconnector:
+ *	This property is used by DVI-I, TVout and DisplayPort to indicate different
+ *	connector subtypes. Enum values more or less match with those from main
+ *	connector types.
+ *	For DVI-I and TVout there is also a matching property "select subconnector"
+ *	allowing to switch between signal types.
+ *	DP subconnector corresponds to a downstream port.
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -1304,6 +1325,30 @@ int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
+
+/**
+ * drm_connector_attach_dp_subconnector_property - create subconnector property for DP
+ * @connector: drm_connector to attach property
+ *
+ * Called by a driver when DP connector is created.
+ */
+void drm_connector_attach_dp_subconnector_property(struct drm_connector *connector)
+{
+	struct drm_mode_config *mode_config = &connector->dev->mode_config;
+
+	if (!mode_config->dp_subconnector_property)
+		mode_config->dp_subconnector_property =
+			drm_property_create_enum(connector->dev,
+				DRM_MODE_PROP_IMMUTABLE,
+				"subconnector",
+				drm_dp_subconnector_enum_list,
+				ARRAY_SIZE(drm_dp_subconnector_enum_list));
+
+	drm_object_attach_property(&connector->base,
+				   mode_config->dp_subconnector_property,
+				   DRM_MODE_SUBCONNECTOR_Unknown);
+}
+EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
 
 /**
  * DOC: HDMI connector properties

@@ -455,13 +455,6 @@ static int imx_ldb_register(struct drm_device *drm,
 		drm_connector_attach_encoder(&imx_ldb_ch->connector, encoder);
 	}
 
-	if (imx_ldb_ch->panel) {
-		ret = drm_panel_attach(imx_ldb_ch->panel,
-				       &imx_ldb_ch->connector);
-		if (ret)
-			return ret;
-	}
-
 	return 0;
 }
 
@@ -701,9 +694,6 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
-
-		if (channel->panel)
-			drm_panel_detach(channel->panel);
 
 		kfree(channel->edid);
 		i2c_put_adapter(channel->ddc);

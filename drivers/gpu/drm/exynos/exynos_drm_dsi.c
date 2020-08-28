@@ -1551,12 +1551,10 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		}
 
 		dsi->panel = of_drm_find_panel(device->dev.of_node);
-		if (IS_ERR(dsi->panel)) {
+		if (IS_ERR(dsi->panel))
 			dsi->panel = NULL;
-		} else {
-			drm_panel_attach(dsi->panel, &dsi->connector);
+		else
 			dsi->connector.status = connector_status_connected;
-		}
 	}
 
 	/*
@@ -1596,7 +1594,6 @@ static int exynos_dsi_host_detach(struct mipi_dsi_host *host,
 	if (dsi->panel) {
 		mutex_lock(&drm->mode_config.mutex);
 		exynos_dsi_disable(&dsi->encoder);
-		drm_panel_detach(dsi->panel);
 		dsi->panel = NULL;
 		dsi->connector.status = connector_status_disconnected;
 		mutex_unlock(&drm->mode_config.mutex);

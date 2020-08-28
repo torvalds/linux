@@ -139,28 +139,28 @@ nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
 
 int nv04_bo_move_init(struct nouveau_channel *, u32);
 int nv04_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nv50_bo_move_init(struct nouveau_channel *, u32);
 int nv50_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nv84_bo_move_exec(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nva3_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nvc0_bo_move_init(struct nouveau_channel *, u32);
 int nvc0_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nvc0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nve0_bo_move_init(struct nouveau_channel *, u32);
 int nve0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 #define NVBO_WR32_(b,o,dr,f) nouveau_bo_wr32((b), (o)/4 + (dr), (f))
 #define NVBO_RD32_(b,o,dr)   nouveau_bo_rd32((b), (o)/4 + (dr))

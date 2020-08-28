@@ -328,6 +328,22 @@ static void amdgpu_atombios_dp_probe_oui(struct amdgpu_connector *amdgpu_connect
 			      buf[0], buf[1], buf[2]);
 }
 
+static void amdgpu_atombios_dp_ds_ports(struct amdgpu_connector *amdgpu_connector)
+{
+	struct amdgpu_connector_atom_dig *dig_connector = amdgpu_connector->con_priv;
+	int ret;
+
+	if (dig_connector->dpcd[DP_DPCD_REV] > 0x10) {
+		ret = drm_dp_dpcd_read(&amdgpu_connector->ddc_bus->aux,
+				       DP_DOWNSTREAM_PORT_0,
+				       dig_connector->downstream_ports,
+				       DP_MAX_DOWNSTREAM_PORTS);
+		if (ret)
+			memset(dig_connector->downstream_ports, 0,
+			       DP_MAX_DOWNSTREAM_PORTS);
+	}
+}
+
 int amdgpu_atombios_dp_get_dpcd(struct amdgpu_connector *amdgpu_connector)
 {
 	struct amdgpu_connector_atom_dig *dig_connector = amdgpu_connector->con_priv;
@@ -343,7 +359,7 @@ int amdgpu_atombios_dp_get_dpcd(struct amdgpu_connector *amdgpu_connector)
 			      dig_connector->dpcd);
 
 		amdgpu_atombios_dp_probe_oui(amdgpu_connector);
-
+		amdgpu_atombios_dp_ds_ports(amdgpu_connector);
 		return 0;
 	}
 

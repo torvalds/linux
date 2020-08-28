@@ -9,7 +9,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
@@ -109,10 +108,82 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
+/*
+ * PLL setup
+ */
+
+static int mgag200_g200_set_plls(struct mga_device *mdev, long clock)
+{
+	struct drm_device *dev = &mdev->base;
+	const int post_div_max = 7;
+	const int in_div_min = 1;
+	const int in_div_max = 6;
+	const int feed_div_min = 7;
+	const int feed_div_max = 127;
+	u8 testm, testn;
+	u8 n = 0, m = 0, p, s;
+	long f_vco;
+	long computed;
+	long delta, tmp_delta;
+	long ref_clk = mdev->model.g200.ref_clk;
+	long p_clk_min = mdev->model.g200.pclk_min;
+	long p_clk_max =  mdev->model.g200.pclk_max;
+
+	if (clock > p_clk_max) {
+		drm_err(dev, "Pixel Clock %ld too high\n", clock);
+		return 1;
+	}
+
+	if (clock < p_clk_min >> 3)
+		clock = p_clk_min >> 3;
+
+	f_vco = clock;
+	for (p = 0;
+	     p <= post_div_max && f_vco < p_clk_min;
+	     p = (p << 1) + 1, f_vco <<= 1)
+		;
+
+	delta = clock;
+
+	for (testm = in_div_min; testm <= in_div_max; testm++) {
+		for (testn = feed_div_min; testn <= feed_div_max; testn++) {
+			computed = ref_clk * (testn + 1) / (testm + 1);
+			if (computed < f_vco)
+				tmp_delta = f_vco - computed;
+			else
+				tmp_delta = computed - f_vco;
+			if (tmp_delta < delta) {
+				delta = tmp_delta;
+				m = testm;
+				n = testn;
+			}
+		}
+	}
+	f_vco = ref_clk * (n + 1) / (m + 1);
+	if (f_vco < 100000)
+		s = 0;
+	else if (f_vco < 140000)
+		s = 1;
+	else if (f_vco < 180000)
+		s = 2;
+	else
+		s = 3;
+
+	drm_dbg_kms(dev, "clock: %ld vco: %ld m: %d n: %d p: %d s: %d\n",
+		    clock, f_vco, m, n, p, s);
+
+	WREG_DAC(MGA1064_PIX_PLLC_M, m);
+	WREG_DAC(MGA1064_PIX_PLLC_N, n);
+	WREG_DAC(MGA1064_PIX_PLLC_P, (p | (s << 3)));
+
+	return 0;
+}
+
 #define P_ARRAY_SIZE 9
 
 static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 {
+	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta, permitteddelta;
 	unsigned int testp, testm, testn;
@@ -122,7 +193,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	unsigned int fvv;
 	unsigned int i;
 
-	if (mdev->unique_rev_id <= 0x03) {
+	if (unique_rev_id <= 0x03) {
 
 		m = n = p = 0;
 		vcomax = 320000;
@@ -220,7 +291,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	WREG_DAC(MGA1064_PIX_PLLC_N, n);
 	WREG_DAC(MGA1064_PIX_PLLC_P, p);
 
-	if (mdev->unique_rev_id >= 0x04) {
+	if (unique_rev_id >= 0x04) {
 		WREG_DAC(0x1a, 0x09);
 		msleep(20);
 		WREG_DAC(0x1a, 0x01);
@@ -717,6 +788,9 @@ static int mgag200_crtc_set_plls(struct mga_device *mdev, long clock)
 	u8 misc;
 
 	switch(mdev->type) {
+	case G200_PCI:
+	case G200_AGP:
+		return mgag200_g200_set_plls(mdev, clock);
 	case G200_SE_A:
 	case G200_SE_B:
 		return mga_g200se_set_plls(mdev, clock);
@@ -877,45 +951,6 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
-static void mgag200_set_pci_regs(struct mga_device *mdev)
-{
-	uint32_t option = 0, option2 = 0;
-	struct drm_device *dev = &mdev->base;
-
-	switch (mdev->type) {
-	case G200_SE_A:
-	case G200_SE_B:
-		if (mdev->has_sdram)
-			option = 0x40049120;
-		else
-			option = 0x4004d120;
-		option2 = 0x00008000;
-		break;
-	case G200_WB:
-	case G200_EW3:
-		option = 0x41049120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EV:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EH:
-	case G200_EH3:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_ER:
-		break;
-	}
-
-	if (option)
-		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
-
-	if (option2)
-		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION2, option2);
-}
-
 static void mgag200_set_dac_regs(struct mga_device *mdev)
 {
 	size_t i;
@@ -933,6 +968,12 @@ static void mgag200_set_dac_regs(struct mga_device *mdev)
 	};
 
 	switch (mdev->type) {
+	case G200_PCI:
+	case G200_AGP:
+		dacvalue[MGA1064_SYS_PLL_M] = 0x04;
+		dacvalue[MGA1064_SYS_PLL_N] = 0x2D;
+		dacvalue[MGA1064_SYS_PLL_P] = 0x19;
+		break;
 	case G200_SE_A:
 	case G200_SE_B:
 		dacvalue[MGA1064_VREF_CTL] = 0x03;
@@ -986,9 +1027,8 @@ static void mgag200_set_dac_regs(struct mga_device *mdev)
 
 static void mgag200_init_regs(struct mga_device *mdev)
 {
-	u8 crtc11, crtcext3, crtcext4, misc;
+	u8 crtc11, misc;
 
-	mgag200_set_pci_regs(mdev);
 	mgag200_set_dac_regs(mdev);
 
 	WREG_SEQ(2, 0x0f);
@@ -1001,14 +1041,6 @@ static void mgag200_init_regs(struct mga_device *mdev)
 	WREG_CRT(13, 0);
 	WREG_CRT(14, 0);
 	WREG_CRT(15, 0);
-
-	RREG_ECRT(0x03, crtcext3);
-
-	crtcext3 |= BIT(7); /* enable MGA mode */
-	crtcext4 = 0x00;
-
-	WREG_ECRT(0x03, crtcext3);
-	WREG_ECRT(0x04, crtcext4);
 
 	RREG_CRT(0x11, crtc11);
 	crtc11 &= ~(MGAREG_CRTC11_CRTCPROTECT |
@@ -1023,9 +1055,7 @@ static void mgag200_init_regs(struct mga_device *mdev)
 		WREG_ECRT(0x34, 0x5);
 
 	misc = RREG8(MGA_MISC_IN);
-	misc |= MGAREG_MISC_IOADSEL |
-		MGAREG_MISC_RAMMAPEN |
-		MGAREG_MISC_HIGH_PG_SEL;
+	misc |= MGAREG_MISC_IOADSEL;
 	WREG8(MGA_MISC_OUT, misc);
 }
 
@@ -1234,12 +1264,13 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 					const struct drm_display_mode *mode,
 					const struct drm_framebuffer *fb)
 {
+	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
 	unsigned int hiprilvl;
 	u8 crtcext6;
 
-	if  (mdev->unique_rev_id >= 0x04) {
+	if  (unique_rev_id >= 0x04) {
 		hiprilvl = 0;
-	} else if (mdev->unique_rev_id >= 0x02) {
+	} else if (unique_rev_id >= 0x02) {
 		unsigned int bpp;
 		unsigned long mb;
 
@@ -1264,7 +1295,7 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 		else
 			hiprilvl = 5;
 
-	} else if (mdev->unique_rev_id >= 0x01) {
+	} else if (unique_rev_id >= 0x01) {
 		hiprilvl = 3;
 	} else {
 		hiprilvl = 4;
@@ -1388,7 +1419,9 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 	int bpp = 32;
 
 	if (IS_G200_SE(mdev)) {
-		if (mdev->unique_rev_id == 0x01) {
+		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+
+		if (unique_rev_id == 0x01) {
 			if (mode->hdisplay > 1600)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)
@@ -1396,7 +1429,7 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
 				> (24400 * 1024))
 				return MODE_BANDWIDTH;
-		} else if (mdev->unique_rev_id == 0x02) {
+		} else if (unique_rev_id == 0x02) {
 			if (mode->hdisplay > 1920)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)

@@ -26,6 +26,7 @@
 #include <linux/version.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_dp_helper.h>
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -431,6 +432,8 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 		16,
 		4,
 		aconnector->connector_id);
+
+	drm_connector_attach_dp_subconnector_property(&aconnector->base);
 }
 
 int dm_mst_get_pbn_divider(struct dc_link *link)

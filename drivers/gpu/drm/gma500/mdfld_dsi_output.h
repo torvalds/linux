@@ -372,6 +372,6 @@ extern void mdfld_dsi_controller_init(struct mdfld_dsi_config *dsi_config,
 
 extern int mdfld_dsi_get_power_mode(struct mdfld_dsi_config *dsi_config,
 					u32 *mode, bool hs);
-extern int mdfld_dsi_panel_reset(int pipe);
+extern int mdfld_dsi_panel_reset(struct drm_device *dev, int pipe);
 
 #endif /*__MDFLD_DSI_OUTPUT_H__*/

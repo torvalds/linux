@@ -7,7 +7,6 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
@@ -55,8 +54,7 @@ static int s6d16d0_unprepare(struct drm_panel *panel)
 	/* Enter sleep mode */
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enter sleep mode (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to enter sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -75,7 +73,7 @@ static int s6d16d0_prepare(struct drm_panel *panel)
 
 	ret = regulator_enable(s6->supply);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enable supply (%d)\n", ret);
+		dev_err(s6->dev, "failed to enable supply (%d)\n", ret);
 		return ret;
 	}
 
@@ -90,15 +88,13 @@ static int s6d16d0_prepare(struct drm_panel *panel)
 	ret = mipi_dsi_dcs_set_tear_on(dsi,
 				       MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enable vblank TE (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to enable vblank TE (%d)\n", ret);
 		return ret;
 	}
 	/* Exit sleep mode and power on */
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to exit sleep mode (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to exit sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -113,8 +109,7 @@ static int s6d16d0_enable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to turn display on (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to turn display on (%d)\n", ret);
 		return ret;
 	}
 
@@ -129,8 +124,7 @@ static int s6d16d0_disable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to turn display off (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to turn display off (%d)\n", ret);
 		return ret;
 	}
 
@@ -144,7 +138,7 @@ static int s6d16d0_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &samsung_s6d16d0_mode);
 	if (!mode) {
-		DRM_ERROR("bad mode or failed to add mode\n");
+		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
 	}
 	drm_mode_set_name(mode);
@@ -204,17 +198,14 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(s6->reset_gpio)) {
 		ret = PTR_ERR(s6->reset_gpio);
 		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dev, "failed to request GPIO (%d)\n",
-				      ret);
+			dev_err(dev, "failed to request GPIO (%d)\n", ret);
 		return ret;
 	}
 
 	drm_panel_init(&s6->panel, dev, &s6d16d0_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&s6->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&s6->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)

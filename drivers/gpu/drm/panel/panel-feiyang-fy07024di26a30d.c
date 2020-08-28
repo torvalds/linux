@@ -7,7 +7,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
@@ -118,13 +117,11 @@ static int feiyang_unprepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(ctx->dsi);
 	if (ret < 0)
-		DRM_DEV_ERROR(panel->dev, "failed to set display off: %d\n",
-			      ret);
+		dev_err(panel->dev, "failed to set display off: %d\n", ret);
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
 	if (ret < 0)
-		DRM_DEV_ERROR(panel->dev, "failed to enter sleep mode: %d\n",
-			      ret);
+		dev_err(panel->dev, "failed to enter sleep mode: %d\n", ret);
 
 	/* T13 (backlight fall + video & logic signal fall) T13 >= 200ms */
 	msleep(200);
@@ -165,10 +162,10 @@ static int feiyang_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &feiyang_default_mode);
 	if (!mode) {
-		DRM_DEV_ERROR(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
-			      feiyang_default_mode.hdisplay,
-			      feiyang_default_mode.vdisplay,
-			      drm_mode_vrefresh(&feiyang_default_mode));
+		dev_err(&ctx->dsi->dev, "failed to add mode %ux%u@%u\n",
+			feiyang_default_mode.hdisplay,
+			feiyang_default_mode.vdisplay,
+			drm_mode_vrefresh(&feiyang_default_mode));
 		return -ENOMEM;
 	}
 
@@ -204,19 +201,19 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx->dvdd = devm_regulator_get(&dsi->dev, "dvdd");
 	if (IS_ERR(ctx->dvdd)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get dvdd regulator\n");
+		dev_err(&dsi->dev, "Couldn't get dvdd regulator\n");
 		return PTR_ERR(ctx->dvdd);
 	}
 
 	ctx->avdd = devm_regulator_get(&dsi->dev, "avdd");
 	if (IS_ERR(ctx->avdd)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get avdd regulator\n");
+		dev_err(&dsi->dev, "Couldn't get avdd regulator\n");
 		return PTR_ERR(ctx->avdd);
 	}
 
 	ctx->reset = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get our reset GPIO\n");
+		dev_err(&dsi->dev, "Couldn't get our reset GPIO\n");
 		return PTR_ERR(ctx->reset);
 	}
 
@@ -224,9 +221,7 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&ctx->panel);
 
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST;
 	dsi->format = MIPI_DSI_FMT_RGB888;

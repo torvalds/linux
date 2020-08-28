@@ -281,8 +281,8 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	pgoff_t i;
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	unsigned long address = vmf->address;
-	struct ttm_mem_type_manager *man =
-		&bdev->man[bo->mem.mem_type];
+	struct ttm_resource_manager *man =
+		ttm_manager_type(bdev, bo->mem.mem_type);
 
 	/*
 	 * Refuse to fault imported pages. This should be handled
@@ -308,9 +308,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		}
 
 		if (bo->moving != moving) {
-			spin_lock(&ttm_bo_glob.lru_lock);
-			ttm_bo_move_to_lru_tail(bo, NULL);
-			spin_unlock(&ttm_bo_glob.lru_lock);
+			ttm_bo_move_to_lru_tail_unlocked(bo);
 		}
 		dma_fence_put(moving);
 	}

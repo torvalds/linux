@@ -5474,12 +5474,19 @@ S:	Maintained
 F:	drivers/gpu/drm/panel/panel-lvds.c
 F:	Documentation/devicetree/bindings/display/panel/lvds.yaml
 
+DRM DRIVER FOR MANTIX MLAF057WE51 PANELS
+M:	Guido Günther <agx@sigxcpu.org>
+R:	Purism Kernel Team <kernel@puri.sm>
+S:	Maintained
+F:	Documentation/devicetree/bindings/display/panel/mantix,mlaf057we51-x.yaml
+F:	drivers/gpu/drm/panel/panel-mantix-mlaf057we51.c
+
 DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/mga/
 F:	include/uapi/drm/mga_drm.h
 
-DRM DRIVER FOR MGA G200 SERVER GRAPHICS CHIPS
+DRM DRIVER FOR MGA G200 GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
 F:	drivers/gpu/drm/mgag200/
@@ -5767,7 +5774,7 @@ F:	drivers/gpu/drm/gma500/
 
 DRM DRIVERS FOR HISILICON
 M:	Xinliang Liu <xinliang.liu@linaro.org>
-M:	Rongrong Zou <zourongrong@gmail.com>
+M:	Tian Tao  <tiantao6@hisilicon.com>
 R:	John Stultz <john.stultz@linaro.org>
 R:	Xinwei Kong <kong.kongxinwei@hisilicon.com>
 R:	Chen Feng <puck.chen@hisilicon.com>
