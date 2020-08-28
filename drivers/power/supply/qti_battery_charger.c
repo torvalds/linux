@@ -774,7 +774,7 @@ static enum power_supply_property wls_props[] = {
 
 static const struct power_supply_desc wls_psy_desc = {
 	.name			= "wireless",
-	.type			= POWER_SUPPLY_TYPE_MAINS,
+	.type			= POWER_SUPPLY_TYPE_WIRELESS,
 	.properties		= wls_props,
 	.num_properties		= ARRAY_SIZE(wls_props),
 	.get_property		= wls_psy_get_prop,
