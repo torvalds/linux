@@ -18,8 +18,6 @@ struct xsk_queue;
 struct xdp_buff;
 
 struct xdp_umem {
-	struct xsk_queue *fq;
-	struct xsk_queue *cq;
 	u64 size;
 	u32 headroom;
 	u32 chunk_size;
@@ -77,6 +75,8 @@ struct xdp_sock {
 	struct list_head map_list;
 	/* Protects map_list */
 	spinlock_t map_list_lock;
+	struct xsk_queue *fq_tmp; /* Only as tmp storage before bind */
+	struct xsk_queue *cq_tmp; /* Only as tmp storage before bind */
 };
 
 #ifdef CONFIG_XDP_SOCKETS

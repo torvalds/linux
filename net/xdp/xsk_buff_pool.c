@@ -65,6 +65,11 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	INIT_LIST_HEAD(&pool->free_list);
 	refcount_set(&pool->users, 1);
 
+	pool->fq = xs->fq_tmp;
+	pool->cq = xs->cq_tmp;
+	xs->fq_tmp = NULL;
+	xs->cq_tmp = NULL;
+
 	for (i = 0; i < pool->free_heads_cnt; i++) {
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
@@ -79,11 +84,6 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 out:
 	xp_destroy(pool);
 	return NULL;
-}
-
-void xp_set_fq(struct xsk_buff_pool *pool, struct xsk_queue *fq)
-{
-	pool->fq = fq;
 }
 
 void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq)
@@ -188,6 +188,16 @@ static void xp_release_deferred(struct work_struct *work)
 	rtnl_lock();
 	xp_clear_dev(pool);
 	rtnl_unlock();
+
+	if (pool->fq) {
+		xskq_destroy(pool->fq);
+		pool->fq = NULL;
+	}
+
+	if (pool->cq) {
+		xskq_destroy(pool->cq);
+		pool->cq = NULL;
+	}
 
 	xdp_put_umem(pool->umem);
 	xp_destroy(pool);

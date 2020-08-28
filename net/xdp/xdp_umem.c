@@ -85,16 +85,6 @@ static void xdp_umem_release(struct xdp_umem *umem)
 
 	ida_simple_remove(&umem_ida, umem->id);
 
-	if (umem->fq) {
-		xskq_destroy(umem->fq);
-		umem->fq = NULL;
-	}
-
-	if (umem->cq) {
-		xskq_destroy(umem->cq);
-		umem->cq = NULL;
-	}
-
 	xdp_umem_unpin_pages(umem);
 
 	xdp_umem_unaccount_pages(umem);
@@ -277,9 +267,4 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	}
 
 	return umem;
-}
-
-bool xdp_umem_validate_queues(struct xdp_umem *umem)
-{
-	return umem->fq && umem->cq;
 }

@@ -36,7 +36,7 @@ static DEFINE_PER_CPU(struct list_head, xskmap_flush_list);
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 {
 	return READ_ONCE(xs->rx) &&  READ_ONCE(xs->umem) &&
-		READ_ONCE(xs->umem->fq);
+		(xs->pool->fq || READ_ONCE(xs->fq_tmp));
 }
 
 void xsk_set_rx_need_wakeup(struct xsk_buff_pool *pool)
@@ -46,7 +46,7 @@ void xsk_set_rx_need_wakeup(struct xsk_buff_pool *pool)
 	if (umem->need_wakeup & XDP_WAKEUP_RX)
 		return;
 
-	umem->fq->ring->flags |= XDP_RING_NEED_WAKEUP;
+	pool->fq->ring->flags |= XDP_RING_NEED_WAKEUP;
 	umem->need_wakeup |= XDP_WAKEUP_RX;
 }
 EXPORT_SYMBOL(xsk_set_rx_need_wakeup);
@@ -76,7 +76,7 @@ void xsk_clear_rx_need_wakeup(struct xsk_buff_pool *pool)
 	if (!(umem->need_wakeup & XDP_WAKEUP_RX))
 		return;
 
-	umem->fq->ring->flags &= ~XDP_RING_NEED_WAKEUP;
+	pool->fq->ring->flags &= ~XDP_RING_NEED_WAKEUP;
 	umem->need_wakeup &= ~XDP_WAKEUP_RX;
 }
 EXPORT_SYMBOL(xsk_clear_rx_need_wakeup);
@@ -254,7 +254,7 @@ static int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp,
 static void xsk_flush(struct xdp_sock *xs)
 {
 	xskq_prod_submit(xs->rx);
-	__xskq_cons_release(xs->umem->fq);
+	__xskq_cons_release(xs->pool->fq);
 	sock_def_readable(&xs->sk);
 }
 
@@ -297,7 +297,7 @@ void __xsk_map_flush(void)
 
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries)
 {
-	xskq_prod_submit_n(pool->umem->cq, nb_entries);
+	xskq_prod_submit_n(pool->cq, nb_entries);
 }
 EXPORT_SYMBOL(xsk_tx_completed);
 
@@ -331,7 +331,7 @@ bool xsk_tx_peek_desc(struct xsk_buff_pool *pool, struct xdp_desc *desc)
 		 * if there is space in it. This avoids having to implement
 		 * any buffering in the Tx path.
 		 */
-		if (xskq_prod_reserve_addr(umem->cq, desc->addr))
+		if (xskq_prod_reserve_addr(pool->cq, desc->addr))
 			goto out;
 
 		xskq_cons_release(xs->tx);
@@ -369,7 +369,7 @@ static void xsk_destruct_skb(struct sk_buff *skb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&xs->tx_completion_lock, flags);
-	xskq_prod_submit_addr(xs->umem->cq, addr);
+	xskq_prod_submit_addr(xs->pool->cq, addr);
 	spin_unlock_irqrestore(&xs->tx_completion_lock, flags);
 
 	sock_wfree(skb);
@@ -413,7 +413,7 @@ static int xsk_generic_xmit(struct sock *sk)
 		 * if there is space in it. This avoids having to implement
 		 * any buffering in the Tx path.
 		 */
-		if (unlikely(err) || xskq_prod_reserve(xs->umem->cq)) {
+		if (unlikely(err) || xskq_prod_reserve(xs->pool->cq)) {
 			kfree_skb(skb);
 			goto out;
 		}
@@ -606,6 +606,8 @@ static int xsk_release(struct socket *sock)
 
 	xskq_destroy(xs->rx);
 	xskq_destroy(xs->tx);
+	xskq_destroy(xs->fq_tmp);
+	xskq_destroy(xs->cq_tmp);
 
 	sock_orphan(sk);
 	sock->sk = NULL;
@@ -631,6 +633,11 @@ static struct socket *xsk_lookup_xsk_from_fd(int fd)
 	}
 
 	return sock;
+}
+
+static bool xsk_validate_queues(struct xdp_sock *xs)
+{
+	return xs->fq_tmp && xs->cq_tmp;
 }
 
 static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
@@ -689,6 +696,12 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 			goto out_unlock;
 		}
 
+		if (xs->fq_tmp || xs->cq_tmp) {
+			/* Do not allow setting your own fq or cq. */
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
 		sock = xsk_lookup_xsk_from_fd(sxdp->sxdp_shared_umem_fd);
 		if (IS_ERR(sock)) {
 			err = PTR_ERR(sock);
@@ -713,7 +726,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		xdp_get_umem(umem_xs->umem);
 		WRITE_ONCE(xs->umem, umem_xs->umem);
 		sockfd_put(sock);
-	} else if (!xs->umem || !xdp_umem_validate_queues(xs->umem)) {
+	} else if (!xs->umem || !xsk_validate_queues(xs)) {
 		err = -EINVAL;
 		goto out_unlock;
 	} else {
@@ -849,11 +862,9 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		}
 
-		q = (optname == XDP_UMEM_FILL_RING) ? &xs->umem->fq :
-			&xs->umem->cq;
+		q = (optname == XDP_UMEM_FILL_RING) ? &xs->fq_tmp :
+			&xs->cq_tmp;
 		err = xsk_init_queue(entries, q, true);
-		if (optname == XDP_UMEM_FILL_RING)
-			xp_set_fq(xs->pool, *q);
 		mutex_unlock(&xs->mutex);
 		return err;
 	}
@@ -920,7 +931,7 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 		if (extra_stats) {
 			stats.rx_ring_full = xs->rx_queue_full;
 			stats.rx_fill_ring_empty_descs =
-				xs->umem ? xskq_nb_queue_empty_descs(xs->umem->fq) : 0;
+				xs->pool ? xskq_nb_queue_empty_descs(xs->pool->fq) : 0;
 			stats.tx_ring_empty_descs = xskq_nb_queue_empty_descs(xs->tx);
 		} else {
 			stats.rx_dropped += xs->rx_queue_full;
@@ -1022,7 +1033,6 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	unsigned long size = vma->vm_end - vma->vm_start;
 	struct xdp_sock *xs = xdp_sk(sock->sk);
 	struct xsk_queue *q = NULL;
-	struct xdp_umem *umem;
 	unsigned long pfn;
 	struct page *qpg;
 
@@ -1034,16 +1044,12 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	} else if (offset == XDP_PGOFF_TX_RING) {
 		q = READ_ONCE(xs->tx);
 	} else {
-		umem = READ_ONCE(xs->umem);
-		if (!umem)
-			return -EINVAL;
-
 		/* Matches the smp_wmb() in XDP_UMEM_REG */
 		smp_rmb();
 		if (offset == XDP_UMEM_PGOFF_FILL_RING)
-			q = READ_ONCE(umem->fq);
+			q = READ_ONCE(xs->fq_tmp);
 		else if (offset == XDP_UMEM_PGOFF_COMPLETION_RING)
-			q = READ_ONCE(umem->cq);
+			q = READ_ONCE(xs->cq_tmp);
 	}
 
 	if (!q)

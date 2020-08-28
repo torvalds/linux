@@ -30,6 +30,7 @@ struct xdp_buff_xsk {
 
 struct xsk_buff_pool {
 	struct xsk_queue *fq;
+	struct xsk_queue *cq;
 	struct list_head free_list;
 	dma_addr_t *dma_pages;
 	struct xdp_buff_xsk *heads;
@@ -57,7 +58,6 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 						struct xdp_umem *umem);
 int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
 		  u16 queue_id, u16 flags);
-void xp_set_fq(struct xsk_buff_pool *pool, struct xsk_queue *fq);
 void xp_destroy(struct xsk_buff_pool *pool);
 void xp_release(struct xdp_buff_xsk *xskb);
 void xp_get_pool(struct xsk_buff_pool *pool);
