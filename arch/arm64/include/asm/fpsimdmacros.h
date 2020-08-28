@@ -164,6 +164,13 @@
 		| ((\np) << 5)
 .endm
 
+/* PFALSE P\np.B */
+.macro _sve_pfalse np
+	_sve_check_preg \np
+	.inst	0x2518e400			\
+		| (\np)
+.endm
+
 .macro __for from:req, to:req
 	.if (\from) == (\to)
 		_for__body %\from
@@ -196,6 +203,18 @@
 		b.eq		921f
 		msr_s		SYS_ZCR_EL1, \xtmp2	//self-synchronising
 921:
+.endm
+
+/* Preserve the first 128-bits of Znz and zero the rest. */
+.macro _sve_flush_z nz
+	_sve_check_zreg \nz
+	mov	v\nz\().16b, v\nz\().16b
+.endm
+
+.macro sve_flush
+ _for n, 0, 31, _sve_flush_z	\n
+ _for n, 0, 15, _sve_pfalse	\n
+		_sve_wrffr	0
 .endm
 
 .macro sve_save nxbase, xpfpsr, nxtmp

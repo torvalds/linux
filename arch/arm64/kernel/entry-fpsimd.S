@@ -32,6 +32,7 @@ SYM_FUNC_START(fpsimd_load_state)
 SYM_FUNC_END(fpsimd_load_state)
 
 #ifdef CONFIG_ARM64_SVE
+
 SYM_FUNC_START(sve_save_state)
 	sve_save 0, x1, 2
 	ret
@@ -46,4 +47,11 @@ SYM_FUNC_START(sve_get_vl)
 	_sve_rdvl	0, 1
 	ret
 SYM_FUNC_END(sve_get_vl)
+
+/* Zero all SVE registers but the first 128-bits of each vector */
+SYM_FUNC_START(sve_flush_live)
+	sve_flush
+	ret
+SYM_FUNC_END(sve_flush_live)
+
 #endif /* CONFIG_ARM64_SVE */
