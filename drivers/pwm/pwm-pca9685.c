@@ -58,6 +58,10 @@
 #define PCA9685_MAXCHAN		0x10
 
 #define LED_FULL		BIT(4)
+#define MODE1_ALLCALL		BIT(0)
+#define MODE1_SUB3		BIT(1)
+#define MODE1_SUB2		BIT(2)
+#define MODE1_SUB1		BIT(3)
 #define MODE1_SLEEP		BIT(4)
 #define MODE2_INVRT		BIT(4)
 #define MODE2_OUTDRV		BIT(2)
@@ -443,8 +447,8 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct pca9685 *pca;
+	unsigned int reg;
 	int ret;
-	int mode2;
 
 	pca = devm_kzalloc(&client->dev, sizeof(*pca), GFP_KERNEL);
 	if (!pca)
@@ -461,19 +465,24 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pca);
 
-	regmap_read(pca->regmap, PCA9685_MODE2, &mode2);
+	regmap_read(pca->regmap, PCA9685_MODE2, &reg);
 
 	if (device_property_read_bool(&client->dev, "invert"))
-		mode2 |= MODE2_INVRT;
+		reg |= MODE2_INVRT;
 	else
-		mode2 &= ~MODE2_INVRT;
+		reg &= ~MODE2_INVRT;
 
 	if (device_property_read_bool(&client->dev, "open-drain"))
-		mode2 &= ~MODE2_OUTDRV;
+		reg &= ~MODE2_OUTDRV;
 	else
-		mode2 |= MODE2_OUTDRV;
+		reg |= MODE2_OUTDRV;
 
-	regmap_write(pca->regmap, PCA9685_MODE2, mode2);
+	regmap_write(pca->regmap, PCA9685_MODE2, reg);
+
+	/* Disable all LED ALLCALL and SUBx addresses to avoid bus collisions */
+	regmap_read(pca->regmap, PCA9685_MODE1, &reg);
+	reg &= ~(MODE1_ALLCALL | MODE1_SUB1 | MODE1_SUB2 | MODE1_SUB3);
+	regmap_write(pca->regmap, PCA9685_MODE1, reg);
 
 	/* Clear all "full off" bits */
 	regmap_write(pca->regmap, PCA9685_ALL_LED_OFF_L, 0);
