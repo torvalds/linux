@@ -285,6 +285,7 @@
 		pinctrl-0 = <&pinctrl_pmic>;
 		clocks = <&pmic_osc>;
 		clock-names = "osc";
+		#clock-cells = <0>;
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio1>;
 		interrupts = <3 GPIO_ACTIVE_LOW>;
