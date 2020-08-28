@@ -450,9 +450,9 @@ struct kfd_ioctl_import_dmabuf_args {
  * KFD SMI(System Management Interface) events
  */
 enum kfd_smi_event {
-        KFD_SMI_EVENT_NONE = 0, /* not used */
-        KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
-        KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
+	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
+	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
 	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
 	KFD_SMI_EVENT_GPU_POST_RESET = 4,
 };
