@@ -384,7 +384,7 @@
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "JSD3425-C1";
-		rockchip,camera-module-lens-name = "4IR";
+		rockchip,camera-module-lens-name = "40IRC";
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
