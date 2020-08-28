@@ -314,7 +314,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 
 		bi = i40e_rx_bi(rx_ring, rx_ring->next_to_clean);
 		(*bi)->data_end = (*bi)->data + size;
-		xsk_buff_dma_sync_for_cpu(*bi);
+		xsk_buff_dma_sync_for_cpu(*bi, rx_ring->xsk_pool);
 
 		xdp_res = i40e_run_xdp_zc(rx_ring, *bi);
 		if (xdp_res) {
