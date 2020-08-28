@@ -234,6 +234,15 @@ LIBBPF_API int xsk_socket__create(struct xsk_socket **xsk,
 				  struct xsk_ring_cons *rx,
 				  struct xsk_ring_prod *tx,
 				  const struct xsk_socket_config *config);
+LIBBPF_API int
+xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
+			  const char *ifname,
+			  __u32 queue_id, struct xsk_umem *umem,
+			  struct xsk_ring_cons *rx,
+			  struct xsk_ring_prod *tx,
+			  struct xsk_ring_prod *fill,
+			  struct xsk_ring_cons *comp,
+			  const struct xsk_socket_config *config);
 
 /* Returns 0 for success and -EBUSY if the umem is still in use. */
 LIBBPF_API int xsk_umem__delete(struct xsk_umem *umem);
