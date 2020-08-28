@@ -21,6 +21,17 @@
 #include <linux/netdevice.h>
 #include <linux/smscphy.h>
 
+/* Vendor-specific PHY Definitions */
+/* EDPD NLP / crossover time configuration */
+#define PHY_EDPD_CONFIG			16
+#define PHY_EDPD_CONFIG_EXT_CROSSOVER_	0x0001
+
+/* Control/Status Indication Register */
+#define SPECIAL_CTRL_STS		27
+#define SPECIAL_CTRL_STS_OVRRD_AMDIX_	0x8000
+#define SPECIAL_CTRL_STS_AMDIX_ENABLE_	0x4000
+#define SPECIAL_CTRL_STS_AMDIX_STATE_	0x2000
+
 struct smsc_hw_stat {
 	const char *string;
 	u8 reg;
@@ -94,6 +105,54 @@ static int smsc_phy_reset(struct phy_device *phydev)
 static int lan911x_config_init(struct phy_device *phydev)
 {
 	return smsc_phy_ack_interrupt(phydev);
+}
+
+static int lan87xx_config_aneg(struct phy_device *phydev)
+{
+	int rc;
+	int val;
+
+	switch (phydev->mdix_ctrl) {
+	case ETH_TP_MDI:
+		val = SPECIAL_CTRL_STS_OVRRD_AMDIX_;
+		break;
+	case ETH_TP_MDI_X:
+		val = SPECIAL_CTRL_STS_OVRRD_AMDIX_ |
+			SPECIAL_CTRL_STS_AMDIX_STATE_;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = SPECIAL_CTRL_STS_AMDIX_ENABLE_;
+		break;
+	default:
+		return genphy_config_aneg(phydev);
+	}
+
+	rc = phy_read(phydev, SPECIAL_CTRL_STS);
+	if (rc < 0)
+		return rc;
+
+	rc &= ~(SPECIAL_CTRL_STS_OVRRD_AMDIX_ |
+		SPECIAL_CTRL_STS_AMDIX_ENABLE_ |
+		SPECIAL_CTRL_STS_AMDIX_STATE_);
+	rc |= val;
+	phy_write(phydev, SPECIAL_CTRL_STS, rc);
+
+	phydev->mdix = phydev->mdix_ctrl;
+	return genphy_config_aneg(phydev);
+}
+
+static int lan87xx_config_aneg_ext(struct phy_device *phydev)
+{
+	int rc;
+
+	/* Extend Manual AutoMDIX timer */
+	rc = phy_read(phydev, PHY_EDPD_CONFIG);
+	if (rc < 0)
+		return rc;
+
+	rc |= PHY_EDPD_CONFIG_EXT_CROSSOVER_;
+	phy_write(phydev, PHY_EDPD_CONFIG, rc);
+	return lan87xx_config_aneg(phydev);
 }
 
 /*
@@ -250,6 +309,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
+	/* This covers internal PHY (phy_id: 0x0007C0C3) for
+	 * LAN9500 (PID: 0x9500), LAN9514 (PID: 0xec00), LAN9505 (PID: 0x9505)
+	 */
 	.phy_id		= 0x0007c0c0, /* OUI=0x00800f, Model#=0x0c */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN8700",
@@ -262,6 +324,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.read_status	= lan87xx_read_status,
 	.config_init	= smsc_phy_config_init,
 	.soft_reset	= smsc_phy_reset,
+	.config_aneg	= lan87xx_config_aneg,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
@@ -293,6 +356,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
+	/* This covers internal PHY (phy_id: 0x0007C0F0) for
+	 * LAN9500A (PID: 0x9E00), LAN9505A (PID: 0x9E01)
+	 */
 	.phy_id		= 0x0007c0f0, /* OUI=0x00800f, Model#=0x0f */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN8710/LAN8720",
@@ -306,6 +372,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.read_status	= lan87xx_read_status,
 	.config_init	= smsc_phy_config_init,
 	.soft_reset	= smsc_phy_reset,
+	.config_aneg	= lan87xx_config_aneg_ext,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
