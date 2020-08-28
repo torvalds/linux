@@ -29,8 +29,6 @@ struct xdp_umem {
 	u8 flags;
 	int id;
 	bool zc;
-	spinlock_t xsk_tx_list_lock;
-	struct list_head xsk_tx_list;
 };
 
 struct xsk_map {
@@ -57,7 +55,7 @@ struct xdp_sock {
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
 	struct xsk_queue *tx ____cacheline_aligned_in_smp;
-	struct list_head list;
+	struct list_head tx_list;
 	/* Mutual exclusion of NAPI TX thread and sendmsg error paths
 	 * in the SKB destructor callback.
 	 */
