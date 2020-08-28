@@ -412,6 +412,16 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("CH3_ADC", "CH3 Capture", ADCX140_IN_CH_EN, 5, 0),
 	SND_SOC_DAPM_ADC("CH4_ADC", "CH4 Capture", ADCX140_IN_CH_EN, 4, 0),
 
+	SND_SOC_DAPM_ADC("CH1_DIG", "CH1 Capture", ADCX140_IN_CH_EN, 7, 0),
+	SND_SOC_DAPM_ADC("CH2_DIG", "CH2 Capture", ADCX140_IN_CH_EN, 6, 0),
+	SND_SOC_DAPM_ADC("CH3_DIG", "CH3 Capture", ADCX140_IN_CH_EN, 5, 0),
+	SND_SOC_DAPM_ADC("CH4_DIG", "CH4 Capture", ADCX140_IN_CH_EN, 4, 0),
+	SND_SOC_DAPM_ADC("CH5_DIG", "CH5 Capture", ADCX140_IN_CH_EN, 3, 0),
+	SND_SOC_DAPM_ADC("CH6_DIG", "CH6 Capture", ADCX140_IN_CH_EN, 2, 0),
+	SND_SOC_DAPM_ADC("CH7_DIG", "CH7 Capture", ADCX140_IN_CH_EN, 1, 0),
+	SND_SOC_DAPM_ADC("CH8_DIG", "CH8 Capture", ADCX140_IN_CH_EN, 0, 0),
+
+
 	SND_SOC_DAPM_SWITCH("CH1_ASI_EN", SND_SOC_NOPM, 0, 0,
 			    &adcx140_dapm_ch1_en_switch),
 	SND_SOC_DAPM_SWITCH("CH2_ASI_EN", SND_SOC_NOPM, 0, 0,
@@ -469,6 +479,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"CH2_ASI_EN", "Switch", "CH2_ADC"},
 	{"CH3_ASI_EN", "Switch", "CH3_ADC"},
 	{"CH4_ASI_EN", "Switch", "CH4_ADC"},
+
+	{"CH1_ASI_EN", "Switch", "CH1_DIG"},
+	{"CH2_ASI_EN", "Switch", "CH2_DIG"},
+	{"CH3_ASI_EN", "Switch", "CH3_DIG"},
+	{"CH4_ASI_EN", "Switch", "CH4_DIG"},
+	{"CH5_ASI_EN", "Switch", "CH5_DIG"},
+	{"CH6_ASI_EN", "Switch", "CH6_DIG"},
+	{"CH7_ASI_EN", "Switch", "CH7_DIG"},
+	{"CH8_ASI_EN", "Switch", "CH8_DIG"},
 
 	{"CH5_ASI_EN", "Switch", "CH5_OUT"},
 	{"CH6_ASI_EN", "Switch", "CH6_OUT"},
@@ -541,6 +560,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"PDM Clk Div Select", "705.6 kHz", "MIC1P Input Mux"},
 	{"PDM Clk Div Select", "5.6448 MHz", "MIC1P Input Mux"},
 
+	{"MIC1P Input Mux", NULL, "CH1_DIG"},
+	{"MIC1M Input Mux", NULL, "CH2_DIG"},
+	{"MIC2P Input Mux", NULL, "CH3_DIG"},
+	{"MIC2M Input Mux", NULL, "CH4_DIG"},
+	{"MIC3P Input Mux", NULL, "CH5_DIG"},
+	{"MIC3M Input Mux", NULL, "CH6_DIG"},
+	{"MIC4P Input Mux", NULL, "CH7_DIG"},
+	{"MIC4M Input Mux", NULL, "CH8_DIG"},
+
 	{"MIC1 Analog Mux", "Line In", "MIC1P"},
 	{"MIC2 Analog Mux", "Line In", "MIC2P"},
 	{"MIC3 Analog Mux", "Line In", "MIC3P"},
@@ -554,6 +582,15 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"MIC3M Input Mux", "Analog", "MIC3M"},
 	{"MIC4P Input Mux", "Analog", "MIC4P"},
 	{"MIC4M Input Mux", "Analog", "MIC4M"},
+
+	{"MIC1P Input Mux", "Digital", "MIC1P"},
+	{"MIC1M Input Mux", "Digital", "MIC1M"},
+	{"MIC2P Input Mux", "Digital", "MIC2P"},
+	{"MIC2M Input Mux", "Digital", "MIC2M"},
+	{"MIC3P Input Mux", "Digital", "MIC3P"},
+	{"MIC3M Input Mux", "Digital", "MIC3M"},
+	{"MIC4P Input Mux", "Digital", "MIC4P"},
+	{"MIC4M Input Mux", "Digital", "MIC4M"},
 };
 
 static const struct snd_kcontrol_new adcx140_snd_controls[] = {
